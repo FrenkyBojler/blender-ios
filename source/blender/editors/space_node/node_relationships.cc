@@ -2939,14 +2939,6 @@ bNodeSocket *get_main_socket(bNodeTree &ntree, bNode &node, eNodeSocketInOut in_
   return nullptr;
 }
 
-static bool node_parents_offset_flag_enable_cb(bNode *parent, void * /*userdata*/)
-{
-  /* NODE_TEST is used to flag nodes that shouldn't be offset (again) */
-  parent->flag |= NODE_TEST;
-
-  return true;
-}
-
 static void propagate_for_nodes(const Span<const bNode *> nodes,
                                 const bool left_to_right,
                                 MutableSpan<bool> mask_to_propagate)
@@ -2958,7 +2950,7 @@ static void propagate_for_nodes(const Span<const bNode *> nodes,
     for (const bNodeSocket *socket : sockets) {
       for (const bNodeSocket *other_socket : socket->directly_linked_sockets()) {
         const bNode &other_node = other_socket->owner_node();
-        node_value = node_value || mask_to_propagate[other_node.index()];
+        node_value |= mask_to_propagate[other_node.index()];
         if (node_value) {
           break;
         }
@@ -2994,10 +2986,7 @@ static void shift_nodes(bNodeTree &tree,
   });
 }
 
-static bool node_link_insert_offset_ntree(NodeInsertOfsData *iofsd,
-                                          ARegion *region,
-                                          const int mouse_xy[2],
-                                          const bool right_alignment)
+static bool node_link_insert_offset_ntree(NodeInsertOfsData *iofsd, const bool right_alignment)
 {
   bNodeTree &ntree = *iofsd->ntree;
   bNode &insert = *iofsd->insert;
@@ -3117,7 +3106,7 @@ static wmOperatorStatus node_insert_offset_invoke(bContext *C,
   iofsd->ntree = snode->edittree;
 
   const bool offset_applied = node_link_insert_offset_ntree(
-      iofsd, CTX_wm_region(C), event->mval, (snode->insert_ofs_dir == SNODE_INSERTOFS_DIR_RIGHT));
+      iofsd, (snode->insert_ofs_dir == SNODE_INSERTOFS_DIR_RIGHT));
   if (!offset_applied) {
     MEM_delete(iofsd);
     op->customdata = nullptr;
