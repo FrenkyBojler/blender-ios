@@ -764,12 +764,21 @@ static SlotAllocator add_pipeline_create_info(gpu::shader::ShaderCreateInfo &inf
           break;
         case MAT_PIPE_DEFERRED:
           if (use_shader_to_rgba) {
-            pipeline_info_name = "eevee_surf_deferred_hybrid";
+            pipeline_info_name = "eevee_surf_hybrid_infos_";
+            info.define("closure_to_rgba", "closure_to_rgba_hybrid");
             info.name_ += "_deferred_hybrid";
+            /* Until every vertex shader are ported, we need to bridge the gap here by defining the
+             * pipeline. */
+            info.fragment_source("eevee_surf_hybrid.bsl.hh");
+            info.fragment_function("eevee_surf_hybrid");
           }
           else {
-            pipeline_info_name = "eevee_surf_deferred";
+            pipeline_info_name = "eevee_surf_deferred_infos_";
             info.name_ += "_deferred";
+            /* Until every vertex shader are ported, we need to bridge the gap here by defining the
+             * pipeline. */
+            info.fragment_source("eevee_surf_deferred.bsl.hh");
+            info.fragment_function("eevee_surf_deferred");
           }
           break;
         case MAT_PIPE_FORWARD:
