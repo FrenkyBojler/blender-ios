@@ -214,6 +214,16 @@ class ExtendableMesh {
    * whose attributes will be copied; pass -1 when unknown (deferred). */
   int face_create(Span<int> verts, int example_face = -1);
 
+  /**
+   * Sets per-corner UV face representatives and snap-edge indices for a previously created face.
+   * `face_idx` must be the value returned by #face_create.
+   * `face_reps` and `snap_edges` are parallel to the face's vertices; either may be empty
+   * (treated as all -1 = "use the face-level example" / "no snap").
+   * This must be called immediately after #face_create and before any further #face_create call,
+   * so that the corner index range is known.
+   */
+  void face_set_corner_reps(int face_idx, Span<int> face_reps, Span<int> snap_edges);
+
   /* Returns the index of any existing edge (original or newly created) between v1 and v2,
    * or -1 if no such edge exists yet. */
   int find_edge(const int v1, const int v2) const
@@ -332,6 +342,16 @@ class ExtendableMesh {
   {
     return new_corner_examples_;
   }
+  /** Per-corner UV face representative.  -1 means "fall back to the face-level example". */
+  Span<int> new_corner_face_reps() const
+  {
+    return new_corner_face_reps_;
+  }
+  /** Per-corner snap-edge index.  -1 means no snapping is required. */
+  Span<int> new_corner_snap_edges() const
+  {
+    return new_corner_snap_edges_;
+  }
   const Array<bool> &kill_verts_array() const
   {
     return kill_verts_;
@@ -361,6 +381,11 @@ class ExtendableMesh {
   Vector<int> new_edge_examples_;
   Vector<int> new_face_examples_;
   Vector<int> new_corner_examples_;
+
+  /* Per-corner UV face representative (-1 = use face-level new_face_examples_). */
+  Vector<int> new_corner_face_reps_;
+  /* Per-corner snap-edge index (-1 = no snap).  Set by #face_set_corner_reps. */
+  Vector<int> new_corner_snap_edges_;
 
   /* Per-UV-layer float2 values for new corners, indexed [layer][new_corner]. */
   Vector<Vector<float2>> new_corner_uvs_;
@@ -532,6 +557,9 @@ int ExtendableMesh::face_create(Span<int> verts, const int example_face)
     new_corner_edges_.append(e);
     /* Corner examples are deferred; -1 for now. */
     new_corner_examples_.append(-1);
+    /* Per-corner face rep and snap edge: -1 until overridden by face_set_corner_reps. */
+    new_corner_face_reps_.append(-1);
+    new_corner_snap_edges_.append(-1);
     /* Grow UV storage to match (values initialized to zero). */
     for (Vector<float2> &layer_uvs : new_corner_uvs_) {
       layer_uvs.append(float2(0.0f));
@@ -549,6 +577,27 @@ int ExtendableMesh::face_create(Span<int> verts, const int example_face)
 void ExtendableMesh::init_uv_storage(const int uv_layers_num)
 {
   new_corner_uvs_.resize(uv_layers_num);
+}
+
+void ExtendableMesh::face_set_corner_reps(const int face_idx,
+                                          const Span<int> face_reps,
+                                          const Span<int> snap_edges)
+{
+  const int f_new = face_idx - mesh.faces_num;
+  BLI_assert(f_new >= 0 && f_new < new_faces_num());
+  /* The corner range for this face in the new_corner_* arrays is:
+   * [new_face_offsets_[f_new], new_face_offsets_[f_new+1]). */
+  const int c_start = new_face_offsets_[f_new];
+  const int c_end = new_face_offsets_[f_new + 1];
+  const int n = c_end - c_start;
+  for (int i = 0; i < n; i++) {
+    if (!face_reps.is_empty()) {
+      new_corner_face_reps_[c_start + i] = face_reps[i];
+    }
+    if (!snap_edges.is_empty()) {
+      new_corner_snap_edges_[c_start + i] = snap_edges[i];
+    }
+  }
 }
 
 void ExtendableMesh::vert_kill(const int v)
@@ -2141,17 +2190,45 @@ static void adjust_bound_vert(BoundVert *bndv, const float co[3])
  * The count is put in the seam_len field for seams and the sharp_len field for sharps.
  *
  * TODO: This approach doesn't work for terminal edges or miters. */
-static void check_edge_data_seam_sharp_edges(BevVert *bv, bool check_seam, bool /*check_sharp*/)
+static void check_edge_data_seam_sharp_edges(const BevelState &state,
+                                              BevVert *bv,
+                                              bool check_seam,
+                                              bool check_sharp)
 {
+  /* Read the uv_seam and sharp_edge edge attributes from the original mesh. */
+  const bke::AttributeAccessor attrs = state.emesh.mesh.attributes();
+  VArraySpan<bool> uv_seam_attr;
+  VArraySpan<bool> sharp_edge_attr;
+  {
+    bke::AttributeReader<bool> seam_reader = attrs.lookup<bool>("uv_seam",
+                                                                 bke::AttrDomain::Edge);
+    if (seam_reader) {
+      uv_seam_attr = VArraySpan<bool>(seam_reader.varray);
+    }
+    bke::AttributeReader<bool> sharp_reader = attrs.lookup<bool>("sharp_edge",
+                                                                   bke::AttrDomain::Edge);
+    if (sharp_reader) {
+      sharp_edge_attr = VArraySpan<bool>(sharp_reader.varray);
+    }
+  }
+
   /* Returns true when the edge half lacks the flag being checked.
-   * For seams: the edge is NOT a seam.
-   * For sharps: EdgeHalf has no is_sharp field yet, so no edge is ever treated as sharp. */
+   * For seams: the original mesh edge has no `uv_seam` attribute or the attribute is false.
+   * For sharps: the original mesh edge has no `sharp_edge` attribute or the attribute is false. */
   auto hasnot = [&](const EdgeHalf *e) -> bool {
     if (check_seam) {
-      return !e->is_seam;
+      if (uv_seam_attr.is_empty() || e->e < 0 || e->e >= int(uv_seam_attr.size())) {
+        return true; /* No uv_seam attribute → no seams. */
+      }
+      return !uv_seam_attr[e->e];
     }
-    /* check_sharp: no is_sharp field exists yet; treat all edges as not-sharp. */
-    return false;
+    if (check_sharp) {
+      if (sharp_edge_attr.is_empty() || e->e < 0 || e->e >= int(sharp_edge_attr.size())) {
+        return true; /* No sharp_edge attribute → no sharps. */
+      }
+      return !sharp_edge_attr[e->e];
+    }
+    return true;
   };
 
   EdgeHalf *e = &bv->edges[0];
@@ -2198,7 +2275,7 @@ static void check_edge_data_seam_sharp_edges(BevVert *bv, bool check_seam, bool 
 }
 
 /* Sets the #any_seam property for a #BevVert and all its #BoundVert's. */
-static void set_bound_vert_seams(BevVert *bv, bool mark_seam, bool mark_sharp)
+static void set_bound_vert_seams(const BevelState &state, BevVert *bv, bool mark_seam, bool mark_sharp)
 {
   bv->any_seam = false;
   BoundVert *v = bv->vmesh->boundstart;
@@ -2214,10 +2291,10 @@ static void set_bound_vert_seams(BevVert *bv, bool mark_seam, bool mark_sharp)
   } while ((v = v->next) != bv->vmesh->boundstart);
 
   if (mark_seam) {
-    check_edge_data_seam_sharp_edges(bv, true, false);
+    check_edge_data_seam_sharp_edges(state, bv, true, false);
   }
   if (mark_sharp) {
-    check_edge_data_seam_sharp_edges(bv, false, true);
+    check_edge_data_seam_sharp_edges(state, bv, false, true);
   }
 }
 
@@ -2276,7 +2353,7 @@ static void build_boundary_vertex_only(const ExtendableMesh &emesh,
   } while ((e = e->next) != efirst);
 
   if (construct) {
-    set_bound_vert_seams(bv, state.mark_seam, state.mark_sharp);
+    set_bound_vert_seams(state, bv, state.mark_seam, state.mark_sharp);
     VMesh *vm = bv->vmesh.get();
     if (vm->count == 2) {
       vm->mesh_kind = MeshKind::NONE;
@@ -2329,7 +2406,7 @@ static void build_boundary_terminal_edge(const ExtendableMesh &emesh,
       BoundVert *bndv = add_new_bound_vert(bv, co);
       bndv->efirst = bndv->elast = e->next;
       e->next->leftv = e->next->rightv = bndv;
-      set_bound_vert_seams(bv, state.mark_seam, state.mark_sharp);
+      set_bound_vert_seams(state, bv, state.mark_seam, state.mark_sharp);
     }
     else {
       adjust_bound_vert(e->next->leftv, co);
@@ -2386,7 +2463,7 @@ static void build_boundary_terminal_edge(const ExtendableMesh &emesh,
         profile::set_profile_params(state, bv, bndv);
         profile::move_profile_plane(bndv, state.emesh.vert_position(bv->v));
       }
-      set_bound_vert_seams(bv, state.mark_seam, state.mark_sharp);
+      set_bound_vert_seams(state, bv, state.mark_seam, state.mark_sharp);
 
       /* Set the mesh kind for the terminal face, mirroring BMesh's
        * #build_boundary_terminal_edge (BMesh lines 3452-3471). */
@@ -2630,7 +2707,7 @@ static void build_boundary(const ExtendableMesh &emesh,
   } while ((e = e2) != efirst);
 
   if (construct) {
-    set_bound_vert_seams(bv, state.mark_seam, state.mark_sharp);
+    set_bound_vert_seams(state, bv, state.mark_seam, state.mark_sharp);
 
     if (vm->count == 2) {
       vm->mesh_kind = MeshKind::NONE;
@@ -3822,6 +3899,105 @@ static int boundvert_rep_face(const BoundVert *v, int *r_fother)
 }
 
 /**
+ * Returns the edge (either `e1` or `e2`) whose line segment is closest to `co`.
+ * Mirrors BMesh's #find_closer_edge.
+ */
+static int find_closer_edge(const ExtendableMesh &emesh, const float3 &co, int e1, int e2)
+{
+  BLI_assert(e1 >= 0 && e2 >= 0);
+  const int2 ev1 = emesh.edge_verts(e1);
+  const int2 ev2 = emesh.edge_verts(e2);
+  const float dsq1 = dist_squared_to_line_segment_v3(
+      co, emesh.vert_position(ev1[0]), emesh.vert_position(ev1[1]));
+  const float dsq2 = dist_squared_to_line_segment_v3(
+      co, emesh.vert_position(ev2[0]), emesh.vert_position(ev2[1]));
+  return (dsq1 <= dsq2) ? e1 : e2;
+}
+
+/**
+ * Returns the edge to snap to for the center-polygon vertex at BoundVert index `i`.
+ * Mirrors BMesh's #snap_edge_for_center_vmesh_vert.
+ * `eprev` / `enext` are the bevel edges for BoundVert `i-1` / `i` respectively (-1 = none).
+ */
+static int snap_edge_for_center_vmesh_vert(int i,
+                                           int n_bndv,
+                                           int eprev,
+                                           int enext,
+                                           const Span<int> bndv_rep_faces,
+                                           int center_frep,
+                                           const Span<bool> frep_beats_next)
+{
+  const int previ = (i + n_bndv - 1) % n_bndv;
+  const int nexti = (i + 1) % n_bndv;
+  if (frep_beats_next[previ] && bndv_rep_faces[previ] == center_frep) {
+    return eprev;
+  }
+  if (!frep_beats_next[i] && bndv_rep_faces[nexti] == center_frep) {
+    return enext;
+  }
+  return -1;
+}
+
+/**
+ * Fills `r_snap_edges[4]` with per-corner snap-edge indices for the ring quad at (i, j, k).
+ * Mirrors BMesh's #snap_edges_for_vmesh_vert.
+ * Only meaningful for odd segment counts; for even ns all entries are set to -1.
+ */
+static void snap_edges_for_vmesh_vert(int i,
+                                      int j,
+                                      int k,
+                                      int ns,
+                                      int ns2,
+                                      int n_bndv,
+                                      int eprev,
+                                      int enext,
+                                      int enextnext,
+                                      const Span<int> bndv_rep_faces,
+                                      int center_frep,
+                                      const Span<bool> frep_beats_next,
+                                      int r_snap_edges[4])
+{
+  BLI_assert(0 <= i && i < n_bndv && 0 <= j && j < ns2 && 0 <= k && k <= ns2);
+  for (int corner = 0; corner < 4; corner++) {
+    r_snap_edges[corner] = -1;
+    if (ns % 2 == 0) {
+      continue;
+    }
+    const int previ = (i + n_bndv - 1) % n_bndv;
+    /* jj and kk are the j and k indices for this corner. */
+    const int jj = corner < 2 ? j : j + 1;
+    const int kk = ELEM(corner, 0, 3) ? k : k + 1;
+    if (jj < ns2 && kk < ns2) {
+      /* No snap. */
+    }
+    else if (jj < ns2 && kk == ns2) {
+      if (!frep_beats_next[i]) {
+        r_snap_edges[corner] = enext;
+      }
+    }
+    else if (jj < ns2 && kk == ns2 + 1) {
+      if (frep_beats_next[i]) {
+        r_snap_edges[corner] = enext;
+      }
+    }
+    else if (jj == ns2 && kk < ns2) {
+      if (frep_beats_next[previ]) {
+        r_snap_edges[corner] = eprev;
+      }
+    }
+    else if (jj == ns2 && kk == ns2) {
+      r_snap_edges[corner] = snap_edge_for_center_vmesh_vert(
+          i, n_bndv, eprev, enext, bndv_rep_faces, center_frep, frep_beats_next);
+    }
+    else if (jj == ns2 && kk == ns2 + 1) {
+      const int nexti = (i + 1) % n_bndv;
+      r_snap_edges[corner] = snap_edge_for_center_vmesh_vert(
+          nexti, n_bndv, enext, enextnext, bndv_rep_faces, center_frep, frep_beats_next);
+    }
+  }
+}
+
+/**
  * Pick a good representative face for the center polygon of `bv`.
  * Collects one candidate per beveled edge (choosing from fprev/fnext), eliminates
  * duplicates, then calls #choose_rep_face on the shortlist.
@@ -3890,13 +4066,73 @@ static int bevel_build_poly(BevelState &state, BevVert *bv)
   VMesh *vm = bv->vmesh.get();
   const int ns = vm->seg;
 
+  /* Gather per-boundvert data for UV snap: frep, its two incident edges, and unsnapped verts. */
+  const ExtendableMesh &emesh = state.emesh;
+  const int frep = frep_for_center_poly(state, bv);
+  int frep_e1 = -1, frep_e2 = -1;
+  BoundVert *frep_unsnapped[3] = {nullptr, nullptr, nullptr};
+  if (bv->any_seam && frep >= 0) {
+    get_incident_edges(emesh, frep, bv->v, &frep_e1, &frep_e2);
+    find_face_internal_boundverts(emesh, bv, frep, frep_unsnapped);
+  }
+
   Vector<int, 32> verts;
+  Vector<int, 32> corner_reps;
+  Vector<int, 32> corner_snaps;
+
   BoundVert *bndv = vm->boundstart;
   do {
-    verts.append(geom::mesh_vert(vm, bndv->index, 0, 0)->v);
+    const int bndv_i = bndv->index;
+    /* Lambda to append one corner's data. */
+    auto append_corner = [&](int vert_idx) {
+      verts.append(vert_idx);
+      if (frep >= 0 && bv->any_seam) {
+        /* With a seam-adjacent frep: snap to the closer incident edge, unless this
+         * boundvert is in frep_unsnapped (internal to the face). */
+        corner_reps.append(frep);
+        const bool is_unsnapped = ELEM(bndv,
+                                       frep_unsnapped[0],
+                                       frep_unsnapped[1],
+                                       frep_unsnapped[2]);
+        if (is_unsnapped || frep_e1 < 0 || frep_e2 < 0) {
+          corner_snaps.append(-1);
+        }
+        else {
+          const float3 co = emesh.vert_position(vert_idx);
+          corner_snaps.append(find_closer_edge(emesh, co, frep_e1, frep_e2));
+        }
+      }
+      else {
+        /* No seam: each boundvert uses its own rep face, no snapping. */
+        corner_reps.append(boundvert_rep_face(bndv, nullptr));
+        corner_snaps.append(-1);
+      }
+    };
+    (void)bndv_i;
+
+    append_corner(geom::mesh_vert(vm, bndv_i, 0, 0)->v);
     if (bndv->ebev && ns > 1) {
       for (int k = 1; k < ns; k++) {
-        verts.append(geom::mesh_vert(vm, bndv->index, 0, k)->v);
+        /* Profile-arc intermediate verts: use the same snap rules as the boundvert corner. */
+        const int pv = geom::mesh_vert(vm, bndv_i, 0, k)->v;
+        verts.append(pv);
+        if (frep >= 0 && bv->any_seam) {
+          corner_reps.append(frep);
+          if (frep_e1 >= 0 && frep_e2 >= 0) {
+            const float3 co = emesh.vert_position(pv);
+            /* For profile-arc intermediates, snap according to which half they're in
+             * (mirrors BMesh lines 6353-6362). */
+            const int snap_e = (k < ns / 2) ? -1 : find_closer_edge(emesh, co, frep_e1, frep_e2);
+            corner_snaps.append(snap_e);
+          }
+          else {
+            corner_snaps.append(-1);
+          }
+        }
+        else {
+          corner_reps.append(boundvert_rep_face(bndv, nullptr));
+          corner_snaps.append(-1);
+        }
       }
     }
   } while ((bndv = bndv->next) != vm->boundstart);
@@ -3904,8 +4140,27 @@ static int bevel_build_poly(BevelState &state, BevVert *bv)
   if (verts.size() < 3) {
     return -1;
   }
-  const int face_rep = frep_for_center_poly(state, bv);
-  return state.emesh.face_create(verts.as_span(), face_rep);
+  const int new_face = state.emesh.face_create(verts.as_span(), frep);
+  state.emesh.face_set_corner_reps(
+      new_face, corner_reps.as_span(), corner_snaps.as_span());
+#ifdef BEVEL_DEBUG
+  {
+    fmt::println("bevel_build_poly: bv->v={} any_seam={} frep={} ns={} n_verts={}",
+                 bv->v,
+                 bv->any_seam,
+                 frep,
+                 ns,
+                 int(verts.size()));
+    for (int ci = 0; ci < int(verts.size()); ci++) {
+      fmt::println("  corner[{}] v={} rep={} snap={}",
+                   ci,
+                   verts[ci],
+                   corner_reps[ci],
+                   corner_snaps[ci]);
+    }
+  }
+#endif
+  return new_face;
 }
 
 /**
@@ -3914,19 +4169,56 @@ static int bevel_build_poly(BevelState &state, BevVert *bv)
  */
 static void bevel_build_trifan(BevelState &state, BevVert *bv)
 {
-  /* For M_TRI_FAN the ngon must already have vertices; just split it into tris. */
   VMesh *vm = bv->vmesh.get();
   const int ns = vm->seg;
   BLI_assert(ns == 1 || bv->selcount == 1);
 
-  /* Collect all verts as for poly but build triangles directly. */
+  /* Build the same per-corner data as bevel_build_poly. */
+  const ExtendableMesh &emesh = state.emesh;
+  const int frep = frep_for_center_poly(state, bv);
+  int frep_e1 = -1, frep_e2 = -1;
+  BoundVert *frep_unsnapped[3] = {nullptr, nullptr, nullptr};
+  if (bv->any_seam && frep >= 0) {
+    get_incident_edges(emesh, frep, bv->v, &frep_e1, &frep_e2);
+    find_face_internal_boundverts(emesh, bv, frep, frep_unsnapped);
+  }
+
+  /* Collect all verts/reps/snaps for the fan polygon, then split into tris. */
   Vector<int, 32> ring;
+  Vector<int, 32> ring_reps;
+  Vector<int, 32> ring_snaps;
+
   BoundVert *bndv = vm->boundstart;
   do {
-    ring.append(geom::mesh_vert(vm, bndv->index, 0, 0)->v);
+    const int bndv_i = bndv->index;
+    auto append_ring_corner = [&](int vert_idx) {
+      ring.append(vert_idx);
+      if (frep >= 0 && bv->any_seam) {
+        ring_reps.append(frep);
+        const bool is_unsnapped = ELEM(bndv,
+                                       frep_unsnapped[0],
+                                       frep_unsnapped[1],
+                                       frep_unsnapped[2]);
+        if (is_unsnapped || frep_e1 < 0 || frep_e2 < 0) {
+          ring_snaps.append(-1);
+        }
+        else {
+          const float3 co = emesh.vert_position(vert_idx);
+          ring_snaps.append(find_closer_edge(emesh, co, frep_e1, frep_e2));
+        }
+      }
+      else {
+        ring_reps.append(boundvert_rep_face(bndv, nullptr));
+        ring_snaps.append(-1);
+      }
+    };
+    append_ring_corner(geom::mesh_vert(vm, bndv_i, 0, 0)->v);
     if (bndv->ebev && ns > 1) {
       for (int k = 1; k < ns; k++) {
-        ring.append(geom::mesh_vert(vm, bndv->index, 0, k)->v);
+        ring.append(geom::mesh_vert(vm, bndv_i, 0, k)->v);
+        ring_reps.append(frep >= 0 && bv->any_seam ? frep :
+                                                      boundvert_rep_face(bndv, nullptr));
+        ring_snaps.append(-1);
       }
     }
   } while ((bndv = bndv->next) != vm->boundstart);
@@ -3935,11 +4227,15 @@ static void bevel_build_trifan(BevelState &state, BevVert *bv)
     return;
   }
 
-  const int face_rep = frep_for_center_poly(state, bv);
   const int v_fan = ring[0];
   for (int i = 1; i + 1 < int(ring.size()); i++) {
     const int tri[3] = {v_fan, ring[i], ring[i + 1]};
-    state.emesh.face_create(Span<int>(tri, 3), face_rep);
+    const int tri_reps[3] = {ring_reps[0], ring_reps[i], ring_reps[i + 1]};
+    const int tri_snaps[3] = {ring_snaps[0], ring_snaps[i], ring_snaps[i + 1]};
+    const int new_face = state.emesh.face_create(Span<int>(tri, 3), frep);
+    state.emesh.face_set_corner_reps(new_face,
+                                      Span<int>(tri_reps, 3),
+                                      Span<int>(tri_snaps, 3));
   }
 }
 
@@ -4026,6 +4322,8 @@ static void bevel_build_rings(BevelState &state, BevVert *bv)
    * and the center polygon representative, mirroring BMesh's frep_beats_next logic. */
   Array<bool> frep_beats_next;
   int center_frep = -1;
+  /* Per-bndv center-vertex snap edges accumulated during the ring quad loop. */
+  Array<int> center_snap_edges(n_bndv, -1);
   if (odd && state.params.affect_type != BevelAffect::Vertices) {
     frep_beats_next = Array<bool>(n_bndv, false);
     center_frep = frep_for_center_poly(state, bv);
@@ -4041,6 +4339,26 @@ static void bevel_build_rings(BevelState &state, BevVert *bv)
   do {
     const int i = bndv->index;
     const int inext = bndv->next->index;
+    const int iprev = bndv->prev->index;
+    const int f = bndv_rep_faces[i];
+    const int f2 = bndv_rep_faces[inext];
+    const int fc = (odd && state.params.affect_type != BevelAffect::Vertices) ?
+                       (frep_beats_next[i] ? f : f2) :
+                       -1;
+
+    /* Bevel-edge indices for snap purposes (-1 when not applicable). */
+    const EdgeHalf *ebev = (state.params.affect_type != BevelAffect::Vertices) ?
+                               bndv->ebev :
+                               bndv->efirst;
+    const EdgeHalf *ebev_prev = (state.params.affect_type != BevelAffect::Vertices) ?
+                                    bndv->prev->ebev :
+                                    bndv->prev->efirst;
+    const EdgeHalf *ebev_next = (state.params.affect_type != BevelAffect::Vertices) ?
+                                    bndv->next->ebev :
+                                    bndv->next->efirst;
+    const int bme = ebev ? ebev->e : -1;
+    const int bmeprev = ebev_prev ? ebev_prev->e : -1;
+    const int bmenext = ebev_next ? ebev_next->e : -1;
 
     for (int j = 0; j < ns2; j++) {
       for (int k = 0; k < ns2 + odd; k++) {
@@ -4053,38 +4371,131 @@ static void bevel_build_rings(BevelState &state, BevVert *bv)
           continue;
         }
 
-        /* Choose face rep for this quad, mirroring BMesh's bevel_build_rings:
-         * - All quads in sector i default to bndv_rep_faces[i].
-         * - For odd ns, the center-line (k == ns2) is a special case:
-         *   when the sector's beveled edge is a UV seam use the frep_beats_next
-         *   tie-break; otherwise BMesh keeps fr[0] = f = bndv_rep_faces[i]. */
-        int face_rep = bndv_rep_faces[i];
-        if (odd && state.params.affect_type != BevelAffect::Vertices) {
-          if (k == ns2) {
-            const EdgeHalf *e = bndv->ebev;
-            if (!e || e->is_seam) {
-              face_rep = frep_beats_next[i] ? bndv_rep_faces[i] : bndv_rep_faces[inext];
+        /* Choose face rep and per-corner snap edges, mirroring BMesh's bevel_build_rings
+         * (lines 6063–6127 of bmesh_bevel.cc). */
+        int face_rep = f;
+        int se[4] = {-1, -1, -1, -1};
+        /* Per-corner face reps (-1 = use face_rep fallback). */
+        int cr[4] = {-1, -1, -1, -1};
+
+        if (state.params.affect_type == BevelAffect::Vertices) {
+          /* Vertex bevel: all corners start as f2. */
+          face_rep = f2;
+          if (j < k) {
+            if (k == ns2 && j == ns2 - 1) {
+              se[2] = bmenext;
+              se[3] = bme;
             }
-            /* Non-seam center-line: keep bndv_rep_faces[i] (matches BMesh fr[0]=f). */
+          }
+          else if (j == k) {
+            se[0] = se[2] = bme;
+            if (!ebev || !ebev->is_seam) {
+              /* Non-seam diagonal: corner 3 uses f instead of f2.
+               * Mirrors BMesh bevel_build_rings line 6077: fr[3] = f. */
+              cr[3] = f;
+            }
+          }
+        }
+        else {
+          /* Edge bevel: default all to f. */
+          face_rep = f;
+          if (odd) {
+            /* Compute snap edges for odd-segment ring quads. */
+            const int b1 = (ebev_prev && ebev_prev->is_seam) ? bmeprev : -1;
+            const int b2 = (ebev && ebev->is_seam) ? bme : -1;
+            const int b3 = (ebev_next && ebev_next->is_seam) ? bmenext : -1;
+            snap_edges_for_vmesh_vert(i,
+                                      j,
+                                      k,
+                                      ns,
+                                      ns2,
+                                      n_bndv,
+                                      b1,
+                                      b2,
+                                      b3,
+                                      bndv_rep_faces.as_span(),
+                                      center_frep,
+                                      frep_beats_next.as_span(),
+                                      se);
+            if (k == ns2) {
+              if (!ebev || ebev->is_seam) {
+                face_rep = fc;
+              }
+              else {
+                /* Non-seam center-column: corners 0,3 use f, corners 1,2 use f2.
+                 * Mirrors BMesh bevel_build_rings lines 6105-6106:
+                 *   fr[0] = fr[3] = f; fr[1] = fr[2] = f2. */
+                cr[1] = cr[2] = f2;
+              }
+              if (j == ns2 - 1) {
+                /* Record center-vert snap for the center ngon. */
+                center_snap_edges[i] = se[3];
+              }
+            }
+          }
+          else {
+            /* Even-segment ring quads: snap adjacent to center line. */
+            if (k == ns2 - 1) {
+              se[1] = bme;
+            }
+            if (j == ns2 - 1 && ebev_prev) {
+              se[3] = bmeprev;
+            }
+            se[2] = (se[1] >= 0) ? se[1] : se[3];
           }
         }
 
         const int quad[4] = {va, vb, vc, vd};
-        state.emesh.face_create(Span<int>(quad, 4), face_rep);
+        const int new_face = state.emesh.face_create(Span<int>(quad, 4), face_rep);
+        /* Apply per-corner snap edges and face reps when any are non-default. */
+        const bool any_snaps = se[0] >= 0 || se[1] >= 0 || se[2] >= 0 || se[3] >= 0;
+        const bool any_corner_reps = cr[0] >= 0 || cr[1] >= 0 || cr[2] >= 0 || cr[3] >= 0;
+        if (any_snaps || any_corner_reps) {
+          state.emesh.face_set_corner_reps(new_face,
+                                           any_corner_reps ? Span<int>(cr, 4) : Span<int>{},
+                                           any_snaps ? Span<int>(se, 4) : Span<int>{});
+        }
       }
     }
     (void)inext;
+    (void)iprev;
+    (void)fc;
   } while ((bndv = bndv->next) != vm->boundstart);
 
   /* Center ngon for odd segment count. */
   if (odd) {
-    Vector<int, 16> center_verts;
-    bndv = vm->boundstart;
-    do {
-      center_verts.append(geom::mesh_vert(vm, bndv->index, ns2, ns2)->v);
-    } while ((bndv = bndv->next) != vm->boundstart);
-    if (center_verts.size() >= 3) {
-      state.emesh.face_create(center_verts.as_span(), center_frep);
+    Vector<int, 16> center_verts_vec;
+    Vector<int, 16> center_reps_vec;
+    Vector<int, 16> center_snaps_vec;
+
+    /* For edge bevel, collect the per-bndv center-vertex data recorded during the ring
+     * quad loop above. For vertex bevel, fall back to build_center_ngon style logic. */
+    if (state.params.affect_type != BevelAffect::Vertices) {
+      /* center_vert_snap_edge and center_face_interp were accumulated per bndv. */
+      const bool have_seam = bv->any_seam;
+      const int cfrep = center_frep;
+      bndv = vm->boundstart;
+      do {
+        const int ci = bndv->index;
+        center_verts_vec.append(geom::mesh_vert(vm, ci, ns2, ns2)->v);
+        center_reps_vec.append(have_seam ? cfrep : bndv_rep_faces[ci]);
+        center_snaps_vec.append(center_snap_edges[ci]);
+      } while ((bndv = bndv->next) != vm->boundstart);
+    }
+    else {
+      /* Vertex bevel center poly: same as build_center_ngon. */
+      bndv = vm->boundstart;
+      do {
+        center_verts_vec.append(geom::mesh_vert(vm, bndv->index, ns2, ns2)->v);
+        center_reps_vec.append(-1);
+        center_snaps_vec.append(-1);
+      } while ((bndv = bndv->next) != vm->boundstart);
+    }
+
+    if (center_verts_vec.size() >= 3) {
+      const int cface = state.emesh.face_create(center_verts_vec.as_span(), center_frep);
+      state.emesh.face_set_corner_reps(
+          cface, center_reps_vec.as_span(), center_snaps_vec.as_span());
     }
   }
 }
@@ -4401,14 +4812,54 @@ static void bevel_build_edge_polygons(BevelState &state, int edge_index)
     state.emesh.edge_create(v_prev_1, v_prev_2, edge_index);
     state.emesh.edge_create(v_next_2, v_next_1, edge_index);
 
-    /* Choose face rep for this strip, mirroring BMesh's bevel_build_edge_polygons:
-     * - k <= mid    → f1 (= e1->fprev, the "left" original face)
-     * - k >  mid+1  → f2 (= e1->fnext, the "right" original face)
-     * - k == mid+1  → center strip: f_choice (won via choose_rep_face when seam,
-     *                  else falls through to f1). */
+    /* Choose face rep and per-corner face reps / snap edges, mirroring BMesh's
+     * #bevel_build_edge_polygons (lines 7580–7640 of bmesh_bevel.cc).
+     *
+     * The quad winds:  [0]=v_prev_1, [1]=v_prev_2, [2]=v_next_2, [3]=v_next_1.
+     * verts[0]/[1] are on the bv1/bv2 side of the previous strip boundary;
+     * verts[2]/[3] are on the bv2/bv1 side of the next strip boundary.
+     *
+     * Strip regions (k=1..nseg):
+     *   k <= mid           → entirely in f1 (left face), no snap
+     *   k >  mid+1         → entirely in f2 (right face), no snap
+     *   k == mid+1, odd    → straddles the center:
+     *     is_seam: all verts use f_choice, verts on the non-chosen side snap to bme
+     *     no seam: verts[0],[1] use f1, verts[2],[3] use f2, no snap
+     *   k == mid, even     → left strip touching center: verts[2],[3] snap to bme, use f1
+     *   k == mid+1, even   → right strip touching center: verts[0],[1] snap to bme, use f2
+     */
     int face_rep;
+    int corner_reps[4] = {-1, -1, -1, -1};
+    int corner_snaps[4] = {-1, -1, -1, -1};
+
     if (odd_nseg && k == mid + 1) {
       face_rep = f_choice;
+      if (e1->is_seam) {
+        /* Straddles a seam: snap verts on the non-chosen side to the original beveled edge. */
+        if (f_choice == f1) {
+          corner_snaps[2] = corner_snaps[3] = edge_index;
+        }
+        else {
+          corner_snaps[0] = corner_snaps[1] = edge_index;
+        }
+        corner_reps[0] = corner_reps[1] = corner_reps[2] = corner_reps[3] = f_choice;
+      }
+      else {
+        /* Straddles but not a seam: interpolate left half in f1, right half in f2.
+         * Mirrors BMesh's `faces[4] = {f1, f1, f2, f2}` approach (bmesh_bevel.cc line 7548). */
+        corner_reps[0] = corner_reps[1] = f1;
+        corner_reps[2] = corner_reps[3] = f2;
+      }
+    }
+    else if (!odd_nseg && k == mid && e1->is_seam) {
+      /* Left strip touching even center line on its right edge: snap right verts. */
+      face_rep = f1;
+      corner_snaps[2] = corner_snaps[3] = edge_index;
+    }
+    else if (!odd_nseg && k == mid + 1 && e1->is_seam) {
+      /* Right strip touching even center line on its left edge: snap left verts. */
+      face_rep = f2;
+      corner_snaps[0] = corner_snaps[1] = edge_index;
     }
     else {
       face_rep = (k <= mid) ? f1 : f2;
@@ -4416,7 +4867,44 @@ static void bevel_build_edge_polygons(BevelState &state, int edge_index)
 
     /* The quad winds as: v_prev_1 -> v_prev_2 -> v_next_2 -> v_next_1. */
     const int quad[4] = {v_prev_1, v_prev_2, v_next_2, v_next_1};
-    state.emesh.face_create(Span<int>(quad, 4), face_rep);
+    const int new_face = state.emesh.face_create(Span<int>(quad, 4), face_rep);
+
+    /* Set per-corner face reps and snap edges when any are non-default. */
+    const bool any_corner_reps = corner_reps[0] >= 0 || corner_reps[1] >= 0 ||
+                                  corner_reps[2] >= 0 || corner_reps[3] >= 0;
+    const bool any_corner_snaps = corner_snaps[0] >= 0 || corner_snaps[1] >= 0 ||
+                                   corner_snaps[2] >= 0 || corner_snaps[3] >= 0;
+    if (any_corner_reps || any_corner_snaps) {
+      state.emesh.face_set_corner_reps(new_face,
+                                       any_corner_reps ? Span<int>(corner_reps, 4) : Span<int>{},
+                                       any_corner_snaps ? Span<int>(corner_snaps, 4) : Span<int>{});
+    }
+#ifdef BEVEL_DEBUG
+    {
+      fmt::println(
+          "bevel_build_edge_polygons: edge={} k={}/{} f1={} f2={} is_seam={} face_rep={} "
+          "verts=[{},{},{},{}] creps=[{},{},{},{}] csnaps=[{},{},{},{}]",
+          edge_index,
+          k,
+          nseg,
+          f1,
+          f2,
+          e1->is_seam,
+          face_rep,
+          quad[0],
+          quad[1],
+          quad[2],
+          quad[3],
+          corner_reps[0],
+          corner_reps[1],
+          corner_reps[2],
+          corner_reps[3],
+          corner_snaps[0],
+          corner_snaps[1],
+          corner_snaps[2],
+          corner_snaps[3]);
+    }
+#endif
 
     /* TODO: record F_EDGE face kind and copy edge attributes (seam/sharp),
      * matching bev_create_ngon / record_face_kind / BM_elem_attrs_copy. */
@@ -6131,20 +6619,36 @@ static void fill_new_corner_uvs(BevelState &state)
   /* Build OffsetIndices over the new-face offset array. */
   const OffsetIndices new_faces(emesh.new_face_offsets());
   const Span<int> new_corner_verts = emesh.new_corner_verts();
+  const Span<int> new_corner_face_reps = emesh.new_corner_face_reps();
+  const Span<int> new_corner_snap_edges = emesh.new_corner_snap_edges();
 
   for (int nf = 0; nf < n_new_faces; nf++) {
-    const int f_src = new_face_exs[nf];
-    if (f_src < 0 || f_src >= emesh.mesh.faces_num) {
-      continue;
-    }
+    /* Face-level fallback representative face. */
+    const int face_fallback = new_face_exs[nf];
     const IndexRange new_corners = new_faces[nf];
     for (int layer = 0; layer < num_uv_layers; layer++) {
       const Span<float2> uv_vals = state.uv_layer_info.maps[layer].values.as_span();
       MutableSpan<float2> dst_uvs = emesh.new_corner_uvs(layer);
       for (const int nc : new_corners) {
-        /* Use emesh.vert_position() rather than mesh.vert_positions() so that
-         * new bevel vertices (index >= mesh.verts_num) are correctly resolved. */
-        const float3 co = emesh.vert_position(new_corner_verts[nc]);
+        /* Use the per-corner face rep if set; otherwise fall back to the face-level one. */
+        const int f_src = (new_corner_face_reps[nc] >= 0) ? new_corner_face_reps[nc] :
+                                                             face_fallback;
+        if (f_src < 0 || f_src >= emesh.mesh.faces_num) {
+          continue;
+        }
+        /* Use emesh.vert_position() so new bevel vertices are correctly resolved. */
+        float3 co = emesh.vert_position(new_corner_verts[nc]);
+        /* If a snap edge is set, project the position onto that edge before interpolating.
+         * This mirrors BMesh's snap_edge_arr logic in #bev_create_ngon: UVs are sampled from
+         * the point on the original edge nearest to the new vertex, ensuring correct UV
+         * continuity across the seam at the center strip of an odd-segment bevel. */
+        const int snap_e = new_corner_snap_edges[nc];
+        if (snap_e >= 0) {
+          const int2 ev = emesh.edge_verts(snap_e);
+          const float3 ep0 = emesh.vert_position(ev[0]);
+          const float3 ep1 = emesh.vert_position(ev[1]);
+          closest_to_line_segment_v3(co, co, ep0, ep1);
+        }
         dst_uvs[nc] = interp_uv_from_face(emesh, uv_vals, f_src, co);
       }
     }
@@ -6604,7 +7108,36 @@ std::optional<Mesh *> mesh_bevel(
   /* Interpolate UV values for new corners, then merge at seam vertices. */
   if (state.uv_layer_info.has_math_layers) {
     construct::fill_new_corner_uvs(state);
+#ifdef BEVEL_DEBUG
+    {
+      /* After fill, before merge: dump per-corner UV values for all new faces. */
+      const OffsetIndices new_faces(state.emesh.new_face_offsets());
+      const Span<int> ncv = state.emesh.new_corner_verts();
+      for (int nf = 0; nf < state.emesh.new_faces_num(); nf++) {
+        const IndexRange nc_range = new_faces[nf];
+        fmt::println("new_face[{}] (corners {}-{}):",
+                     nf + state.emesh.mesh.faces_num,
+                     nc_range.start(),
+                     nc_range.last());
+        for (int layer = 0; layer < int(state.uv_layer_info.maps.size()); layer++) {
+          const Span<float2> new_uv = state.emesh.new_corner_uvs(layer);
+          for (const int nc : nc_range) {
+            fmt::println("  layer={} corner={} v={} uv=({:.5f},{:.5f})",
+                         layer,
+                         nc,
+                         ncv[nc],
+                         new_uv[nc].x,
+                         new_uv[nc].y);
+          }
+        }
+      }
+    }
+#endif
+#ifndef BEVEL_DEBUG_SKIP_MERGE_UVS
     construct::merge_uvs(state);
+#else
+    fmt::println("merge_uvs SKIPPED (BEVEL_DEBUG_SKIP_MERGE_UVS)");
+#endif
   }
 
   /* TODO: bevel_extend_edge_data (sharp/seam propagation). */
