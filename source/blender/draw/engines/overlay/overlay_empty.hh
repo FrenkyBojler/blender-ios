@@ -127,7 +127,7 @@ class Empties : Overlay {
     }
     /* Only draw the empty overlay if the evaluated geometry set is empty. Since we draw overlays
      * for e.g. generated geoemtry, it is redundant to draw the empty overlay here. */
-    if (ob_ref.object->runtime && ob_ref.object->runtime->geometry_set_eval &&
+    if (ob_ref.object->runtime->geometry_set_eval &&
         !ob_ref.object->runtime->geometry_set_eval->is_empty())
     {
       return;
