@@ -741,6 +741,28 @@ def title_string(text, heading_char, double=False):
     return "{:s}\n{:s}\n\n".format(text, filler)
 
 
+def convert_to_rubric(text):
+    lines = text.split("\n")
+    result = []
+
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+
+        if i + 1 < len(lines):
+            next_line = lines[i+1]
+            # Convert to rubric format if next line is underline (all '+' characters)
+            if next_line and all(c == "+" for c in next_line.strip()) and len(next_line.strip()) >= len(line.strip()):
+                result.append(f".. rubric:: {line.strip()}")
+                i += 2
+                continue
+
+        result.append(line)
+        i += 1
+
+    return "\n".join(result)
+
+
 def write_example_ref_impl(ident, fw, example_id, ext):
     # Extract the comment.
     filepath = os.path.join("..", "examples", "{:s}.{:s}".format(example_id, ext))
@@ -748,6 +770,8 @@ def write_example_ref_impl(ident, fw, example_id, ext):
 
     text, line_no, line_no_has_content = example_extract_docstring(filepath_full)
     if text:
+        text = convert_to_rubric(text)
+
         # Ensure a blank line, needed since in some cases the indentation doesn't match the previous line.
         # which causes Sphinx not to warn about bad indentation.
         fw("\n")
