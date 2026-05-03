@@ -1175,7 +1175,7 @@ static void seq_build_proxy(bContext *C, Span<Strip *> movie_strips)
   for (Strip *strip : movie_strips) {
     /* Enable and set proxy size. */
     seq::proxy_set(strip, true);
-    strip->data->proxy->build_size_flags = seq_get_proxy_size_flags(C);
+    strip->data->proxy->build_size_flags = eStripProxyBuildSize(seq_get_proxy_size_flags(C));
     strip->data->proxy->build_flags |= SEQ_PROXY_SKIP_EXISTING;
     seq::proxy_build_start(pj->main, pj->scene, strip, nullptr, true, pj->queue);
   }
@@ -2008,6 +2008,11 @@ static wmOperatorStatus sequencer_add_effect_strip_exec(bContext *C, wmOperator 
   if (strip->type == STRIP_TYPE_COLOR) {
     SolidColorVars *colvars = static_cast<SolidColorVars *>(strip->effectdata);
     RNA_float_get_array(op->ptr, "color", colvars->col);
+  }
+  else if (strip->type == STRIP_TYPE_TEXT) {
+    TextVars *textvars = static_cast<TextVars *>(strip->effectdata);
+    textvars->runtime = seq::text_effect_calc_runtime(
+        strip, textvars->text_blf_id, int2(scene->r.xsch, scene->r.ysch));
   }
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);

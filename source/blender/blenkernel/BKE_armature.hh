@@ -37,6 +37,8 @@ struct bPose;
 struct bPoseChannel;
 struct MDeformVert;
 
+enum eRotationModes : short;
+
 struct EditBone {
   EditBone *next = nullptr, *prev = nullptr;
   /** User-Defined Properties on this Bone */
@@ -66,10 +68,10 @@ struct EditBone {
    * their parents. Therefore any rotations specified during the
    * animation are automatically relative to the bones' rest positions.
    */
-  int flag = 0;
+  eBone_Flag flag = {};
   int layer = 0;
   int drawtype = 0; /* eArmature_Drawtype */
-  char inherit_scale_mode = 0;
+  eBone_InheritScaleMode inherit_scale_mode = BONE_INHERIT_SCALE_FULL;
 
   /* Envelope distance & weight */
   float dist = 0, weight = 0;
@@ -91,12 +93,12 @@ struct EditBone {
   /** Mapping of vertices to segments. */
   eBone_BBoneMappingMode bbone_mapping_mode = BBONE_MAPPING_STRAIGHT;
   /** Type of next/prev bone handles */
-  char bbone_prev_type = 0;
-  char bbone_next_type = 0;
+  eBone_BBoneHandleType bbone_prev_type = BBONE_HANDLE_AUTO;
+  eBone_BBoneHandleType bbone_next_type = BBONE_HANDLE_AUTO;
   /** B-Bone flags. */
-  int bbone_flag = 0;
-  short bbone_prev_flag = 0;
-  short bbone_next_flag = 0;
+  eBone_BBoneFlag bbone_flag = {};
+  eBone_BBoneHandleFlag bbone_prev_flag = {};
+  eBone_BBoneHandleFlag bbone_next_flag = {};
   /** Next/prev bones to use as handle references when calculating bbones (optional) */
   EditBone *bbone_prev = nullptr;
   EditBone *bbone_next = nullptr;
@@ -251,7 +253,7 @@ void BKE_pose_remap_bone_pointers(bArmature *armature, bPose *pose);
  * Update the links for the B-Bone handles from Bone data.
  */
 void BKE_pchan_rebuild_bbone_handles(bPose *pose, bPoseChannel *pchan);
-void BKE_pose_channels_clear_with_null_bone(bPose *pose, bool do_id_user);
+void BKE_pose_channels_clear_with_null_bone(Object *armature_ob, bool do_id_user);
 /**
  * Only after leave edit-mode, duplicating, validating older files, library syncing.
  *
@@ -356,12 +358,28 @@ void BKE_armature_mat_pose_to_bone_ex(Depsgraph *depsgraph,
 
 /**
  * Same as #BKE_object_mat3_to_rot().
+ *
+ * \param use_compat only applies when the `pchan` is in euler rotation mode. It then picks the
+ * closest euler values relative to what the `pchan` already has.
  */
 void BKE_pchan_mat3_to_rot(bPoseChannel *pchan, const float mat[3][3], bool use_compat);
 /**
  * Same as #BKE_object_rot_to_mat3().
  */
 void BKE_pchan_rot_to_mat3(const bPoseChannel *pchan, float r_mat[3][3]);
+
+/**
+ * Returns a quaternion representation of the current rotation of the bone.
+ * Euler and Axis Angle will be converted to Quaternion and then returned.
+ */
+float4 BKE_pchan_rot_to_quat(const bPoseChannel &pchan);
+
+/**
+ * Applies the quaternion rotation to the current rotation of the bone.
+ * Depending on the `pchan.rotmode` this modifies either Euler, Axis Angle or Quaternion values.
+ */
+void BKE_pchan_quat_to_rot(bPoseChannel &pchan, const float4 &quat);
+
 /**
  * Apply a 4x4 matrix to the pose bone,
  * similar to #BKE_object_apply_mat4().
@@ -449,8 +467,12 @@ void BKE_bone_parent_transform_calc_from_matrices(int bone_flag,
  * - the result should be that the rotations given in the provided pointers have had conversions
  *   applied (as appropriate), such that the rotation of the element hasn't 'visually' changed.
  */
-void BKE_rotMode_change_values(
-    float quat[4], float eul[3], float axis[3], float *angle, short oldMode, short newMode);
+void BKE_rotMode_change_values(float quat[4],
+                               float eul[3],
+                               float axis[3],
+                               float *angle,
+                               eRotationModes oldMode,
+                               eRotationModes newMode);
 
 /* B-Bone support */
 #define MAX_BBONE_SUBDIV 32
@@ -677,6 +699,17 @@ void BKE_armature_deform_coords_with_editmesh(
 /** \} */
 
 namespace bke {
+
+struct bArmature_Runtime {
+  /**
+   * Index of the active collection, -1 if there is no collection active.
+   *
+   * For UIList support in the user interface. Assigning here does nothing, use
+   * `ANIM_armature_bonecoll_active_set` to set the active bone collection.
+   */
+  int active_collection_index = 0;
+  BoneCollection *active_collection = nullptr;
+};
 
 struct SelectedBonesResult {
   bool all_bones_selected = true;

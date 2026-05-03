@@ -65,6 +65,7 @@
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_library.hh"
+#include "BKE_mesh_wrapper.hh"
 #include "BKE_movieclip.hh"
 #include "BKE_object.hh"
 #include "BKE_object_types.hh"
@@ -941,7 +942,7 @@ static bool default_get_tarmat_full_bbone(Depsgraph * /*depsgraph*/,
       if (no_copy == 0) { \
         datatar = ct->tar; \
         STRNCPY_UTF8(datasubtarget, ct->subtarget); \
-        con->tarspace = char(ct->space); \
+        con->tarspace = ct->space; \
       } \
 \
       BLI_freelinkN(list, ct); \
@@ -962,7 +963,7 @@ static bool default_get_tarmat_full_bbone(Depsgraph * /*depsgraph*/,
       bConstraintTarget *ctn = ct->next; \
       if (no_copy == 0) { \
         datatar = ct->tar; \
-        con->tarspace = char(ct->space); \
+        con->tarspace = ct->space; \
       } \
 \
       BLI_freelinkN(list, ct); \
@@ -1471,7 +1472,7 @@ static void followpath_new_data(void *cdata)
   data->trackflag = TRACK_Y;
   data->upflag = UP_Z;
   data->offset = 0;
-  data->followflag = 0;
+  data->followflag = eFollowPath_Flags{};
 }
 
 static void followpath_id_looper(bConstraint *con, ConstraintIDFunc func, void *userdata)
@@ -3472,7 +3473,7 @@ static void stretchto_new_data(void *cdata)
 {
   bStretchToConstraint *data = static_cast<bStretchToConstraint *>(cdata);
 
-  data->volmode = 0;
+  data->volmode = eStretchTo_VolMode{};
   data->plane = SWING_Y;
   data->orglength = 0.0;
   data->bulge = 1.0;
@@ -3687,7 +3688,7 @@ static void minmax_new_data(void *cdata)
 
   data->minmaxflag = TRACK_Z;
   data->offset = 0.0f;
-  data->flag = 0;
+  data->flag = eFloor_Flags{};
 }
 
 static void minmax_id_looper(bConstraint *con, ConstraintIDFunc func, void *userdata)
@@ -5135,7 +5136,16 @@ static void followtrack_project_to_depth_object_if_needed(FollowTrackContext *co
   sub_v3_v3v3(ray_direction, ray_end, ray_start);
   normalize_v3(ray_direction);
 
+  /* In edit-mode, we _could_ create a BVH tree from the edit mesh, for now, just convert mesh data
+   * since this isn't typically used in edit-mode. */
+  BKE_mesh_wrapper_ensure_mdata(const_cast<Mesh *>(depth_mesh));
+
   bke::BVHTreeFromMesh tree_data = depth_mesh->bvh_corner_tris();
+
+  /* Can happen when the mesh has no faces. */
+  if (tree_data.tree == nullptr) {
+    return;
+  }
 
   BVHTreeRayHit hit;
   hit.dist = BVH_RAYCAST_DIST_MAX;
@@ -5169,7 +5179,9 @@ static void followtrack_evaluate_using_2d_position(FollowTrackContext *context, 
   }
 
   int clip_width, clip_height;
-  BKE_movieclip_get_size(clip, nullptr, &clip_width, &clip_height);
+  MovieClipUser user = {};
+  BKE_movieclip_user_set_frame(&user, clip_frame);
+  BKE_movieclip_get_size(clip, &user, &clip_width, &clip_height);
 
   float marker_position[2];
   BKE_tracking_marker_get_subframe_position(track, clip_frame, marker_position);
@@ -6107,7 +6119,7 @@ void BKE_constraint_panel_expand(bConstraint *con)
 /* ......... */
 
 /* Creates a new constraint, initializes its data, and returns it */
-static bConstraint *add_new_constraint_internal(const char *name, short type)
+static bConstraint *add_new_constraint_internal(const char *name, eBConstraint_Types type)
 {
   bConstraint *con = MEM_new<bConstraint>("Constraint");
   const bConstraintTypeInfo *cti = BKE_constraint_typeinfo_from_type(type);
@@ -6175,7 +6187,7 @@ static void add_new_constraint_to_list(Object *ob, bPoseChannel *pchan, bConstra
 static bConstraint *add_new_constraint(Object *ob,
                                        bPoseChannel *pchan,
                                        const char *name,
-                                       short type)
+                                       eBConstraint_Types type)
 {
   bConstraint *con;
 
@@ -6206,6 +6218,8 @@ static bConstraint *add_new_constraint(Object *ob,
       }
       break;
     }
+    default:
+      break;
   }
 
   return con;
@@ -6225,7 +6239,7 @@ bool BKE_constraint_target_uses_bbone(bConstraint *con, bConstraintTarget *ct)
 bConstraint *BKE_constraint_add_for_pose(Object *ob,
                                          bPoseChannel *pchan,
                                          const char *name,
-                                         short type)
+                                         eBConstraint_Types type)
 {
   if (pchan == nullptr) {
     return nullptr;
@@ -6234,7 +6248,7 @@ bConstraint *BKE_constraint_add_for_pose(Object *ob,
   return add_new_constraint(ob, pchan, name, type);
 }
 
-bConstraint *BKE_constraint_add_for_object(Object *ob, const char *name, short type)
+bConstraint *BKE_constraint_add_for_object(Object *ob, const char *name, eBConstraint_Types type)
 {
   return add_new_constraint(ob, nullptr, name, type);
 }
@@ -6835,16 +6849,18 @@ void BKE_constraint_blend_write(BlendWriter *writer, ListBaseT<bConstraint> *con
           bSplineIKConstraint *data = static_cast<bSplineIKConstraint *>(con.data);
 
           /* write points array */
-          BLO_write_float_array(writer, data->numpoints, data->points);
+          writer->write_float_array(data->numpoints, data->points);
 
           break;
         }
         case CONSTRAINT_TYPE_GEOMETRY_ATTRIBUTE: {
           bGeometryAttributeConstraint *data = static_cast<bGeometryAttributeConstraint *>(
               con.data);
-          BLO_write_string(writer, data->attribute_name);
+          writer->write_string(data->attribute_name);
           break;
         }
+        default:
+          break;
       }
     }
 
@@ -6915,6 +6931,8 @@ void BKE_constraint_blend_read_data(BlendDataReader *reader,
         BLO_read_string(reader, &data->attribute_name);
         break;
       }
+      default:
+        break;
     }
   }
 }

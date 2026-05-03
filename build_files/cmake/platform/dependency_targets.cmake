@@ -90,14 +90,7 @@ endif()
 # -----------------------------------------------------------------------------
 # Configure OpenColorIO
 
-add_library(bf_deps_optional_opencolorio INTERFACE)
-add_library(bf::dependencies::optional::opencolorio ALIAS bf_deps_optional_opencolorio)
-
-if(WITH_OPENCOLORIO)
-  target_compile_definitions(bf_deps_optional_opencolorio INTERFACE WITH_OPENCOLORIO)
-  target_include_directories(bf_deps_optional_opencolorio SYSTEM INTERFACE ${OPENCOLORIO_INCLUDE_DIRS})
-  target_link_libraries(bf_deps_optional_opencolorio INTERFACE ${OPENCOLORIO_LIBRARIES})
-endif()
+add_library(bf::dependencies::opencolorio ALIAS OpenColorIO::OpenColorIO)
 
 # -----------------------------------------------------------------------------
 # Configure Zlib
@@ -189,13 +182,7 @@ endif()
 # -----------------------------------------------------------------------------
 # Configure OpenEXR
 
-add_library(bf_deps_optional_openexr INTERFACE)
-add_library(bf::dependencies::optional::openexr ALIAS bf_deps_optional_openexr)
-
-if(WITH_IMAGE_OPENEXR)
-  target_compile_definitions(bf_deps_optional_openexr INTERFACE WITH_IMAGE_OPENEXR)
-  target_link_libraries(bf_deps_optional_openexr INTERFACE OpenEXR::OpenEXR)
-endif()
+add_library(bf::dependencies::openexr ALIAS OpenEXR::OpenEXR)
 
 # -----------------------------------------------------------------------------
 # Configure WebP
@@ -440,7 +427,7 @@ if(WITH_AUDASPACE)
   endif()
   target_include_directories(bf_deps_optional_audaspace SYSTEM INTERFACE ${AUDASPACE_C_INCLUDE_DIRS} ${AUDASPACE_PY_INCLUDE_DIRS})
   if(WITH_SYSTEM_AUDASPACE)
-    target_link_libraries(bf_deps_optional_audaspace INTERFACE ${AUDASPACE_C_LIBRARIES} ${AUDASPACE_PY_LIBRARIES})
+    target_link_libraries(bf_deps_optional_audaspace INTERFACE ${AUDASPACE_LIBRARIES} ${AUDASPACE_PY_LIBRARIES})
   else()
     target_link_libraries(bf_deps_optional_audaspace INTERFACE audaspace audaspace-py)
   endif()

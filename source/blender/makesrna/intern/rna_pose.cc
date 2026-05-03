@@ -96,8 +96,6 @@ namespace blender {
 
 static void rna_Pose_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)
 {
-  // ob->pose->flag |= (POSE_LOCKED | POSE_DO_UNLOCK); /* XXX when to use this? */
-
   DEG_id_tag_update(ptr->owner_id, ID_RECALC_GEOMETRY);
   WM_main_add_notifier(NC_OBJECT | ND_POSE, ptr->owner_id);
 }
@@ -120,7 +118,6 @@ static void rna_Pose_dependency_update(Main *bmain, Scene * /*scene*/, PointerRN
 
 static void rna_Pose_IK_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)
 {
-  // ob->pose->flag |= (POSE_LOCKED | POSE_DO_UNLOCK); /* XXX: when to use this? */
   Object *ob = id_cast<Object *>(ptr->owner_id);
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
@@ -200,7 +197,7 @@ static void rna_Pose_ik_solver_set(PointerRNA *ptr, int value)
     /* the solver has changed, must clean any temporary structures */
     BIK_clear_data(pose);
     MEM_SAFE_DELETE(pose->ikparam);
-    pose->iksolver = value;
+    pose->iksolver = ePose_IKSolverType(value);
     BKE_pose_ikparam_init(pose);
   }
 }
@@ -247,11 +244,15 @@ static void rna_PoseChannel_rotation_mode_set(PointerRNA *ptr, int value)
   bPoseChannel *pchan = static_cast<bPoseChannel *>(ptr->data);
 
   /* use API Method for conversions... */
-  BKE_rotMode_change_values(
-      pchan->quat, pchan->eul, pchan->rotAxis, &pchan->rotAngle, pchan->rotmode, short(value));
+  BKE_rotMode_change_values(pchan->quat,
+                            pchan->eul,
+                            pchan->rotAxis,
+                            &pchan->rotAngle,
+                            pchan->rotmode,
+                            eRotationModes(value));
 
   /* finally, set the new rotation type */
-  pchan->rotmode = clamp_i(value, ROT_MODE_MIN, ROT_MODE_MAX);
+  pchan->rotmode = eRotationModes(clamp_i(value, ROT_MODE_MIN, ROT_MODE_MAX));
 }
 
 static float rna_PoseChannel_length_get(PointerRNA *ptr)
@@ -385,7 +386,7 @@ static bConstraint *rna_PoseChannel_constraints_new(ID *id,
                                                     int type)
 {
   Object *ob = id_cast<Object *>(id);
-  bConstraint *new_con = BKE_constraint_add_for_pose(ob, pchan, nullptr, type);
+  bConstraint *new_con = BKE_constraint_add_for_pose(ob, pchan, nullptr, eBConstraint_Types(type));
 
   ed::object::constraint_dependency_tag_update(main, ob, new_con);
   WM_main_add_notifier(NC_OBJECT | ND_CONSTRAINT | NA_ADDED, id);

@@ -11,6 +11,7 @@
 #include "BLI_array.hh"
 #include "BLI_map.hh"
 #include "BLI_string_ref.hh"
+#include "BLI_ustring.hh"
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
 
@@ -209,9 +210,9 @@ using SocketUsageInferenceFn =
  */
 class SocketDeclaration : public ItemDeclaration {
  public:
-  std::string name;
+  UString name;
   std::string short_label;
-  std::string identifier;
+  UString identifier;
   std::string description;
   std::optional<std::string> translation_context;
   /** Defined by whether the socket is part of the node's input or
@@ -281,6 +282,7 @@ class SocketDeclaration : public ItemDeclaration {
   std::unique_ptr<SocketUsageInferenceFn> usage_inference_fn;
 
   friend NodeDeclarationBuilder;
+  friend class FlatBundleTypeBuilder;
   friend class BaseSocketDeclarationBuilder;
   template<typename SocketDecl> friend class SocketDeclarationBuilder;
 
@@ -325,6 +327,7 @@ class BaseSocketDeclarationBuilder {
 
   friend class NodeDeclarationBuilder;
   friend class DeclarationListBuilder;
+  friend class FlatBundleTypeBuilder;
 
  public:
   virtual ~BaseSocketDeclarationBuilder() = default;
@@ -455,14 +458,14 @@ class BaseSocketDeclarationBuilder {
    * Utility method for the case when this socket is only used when the menu input of the given
    * identifier has a specific value.
    */
-  BaseSocketDeclarationBuilder &usage_by_menu(const StringRef menu_input_identifier,
+  BaseSocketDeclarationBuilder &usage_by_menu(const UString menu_input_identifier,
                                               const int menu_value);
 
   /**
    * Utility method for the case when this socket is only used when the menu input of the given
    * identifier has one of the specifies values.
    */
-  BaseSocketDeclarationBuilder &usage_by_menu(const StringRef menu_input_identifier,
+  BaseSocketDeclarationBuilder &usage_by_menu(const UString menu_input_identifier,
                                               const Array<int> menu_values);
 
   /**
@@ -495,6 +498,8 @@ class BaseSocketDeclarationBuilder {
 
   bool is_input() const;
   bool is_output() const;
+
+  virtual BaseSocketDeclarationBuilder &try_copy_ui_data(const SocketDeclaration &other_decl);
 };
 
 /**
@@ -511,6 +516,7 @@ class SocketDeclarationBuilder : public BaseSocketDeclarationBuilder {
 
   friend class NodeDeclarationBuilder;
   friend class DeclarationListBuilder;
+  friend class FlatBundleTypeBuilder;
 };
 
 using SocketDeclarationPtr = std::unique_ptr<SocketDeclaration>;
@@ -535,7 +541,7 @@ class LayoutDeclaration : public ItemDeclaration {
 class PanelDeclaration : public ItemDeclaration {
  public:
   int identifier;
-  std::string name;
+  UString name;
   std::string description;
   std::optional<std::string> translation_context;
   bool default_collapsed = false;
@@ -578,29 +584,29 @@ class DeclarationListBuilder {
   }
 
   template<typename DeclType>
-  typename DeclType::Builder &add_socket(StringRef name,
-                                         StringRef identifier,
+  typename DeclType::Builder &add_socket(UString name,
+                                         UString identifier,
                                          eNodeSocketInOut in_out);
 
   template<typename DeclType>
-  typename DeclType::Builder &add_input(StringRef name, StringRef identifier = "");
+  typename DeclType::Builder &add_input(UString name, UString identifier = ""_ustr);
   template<typename DeclType>
-  typename DeclType::Builder &add_output(StringRef name, StringRef identifier = "");
+  typename DeclType::Builder &add_output(UString name, UString identifier = ""_ustr);
 
   BaseSocketDeclarationBuilder &add_input(eNodeSocketDatatype socket_type,
-                                          StringRef name,
-                                          StringRef identifier = "");
+                                          UString name,
+                                          UString identifier = ""_ustr);
   BaseSocketDeclarationBuilder &add_input(eCustomDataType data_type,
-                                          StringRef name,
-                                          StringRef identifier = "");
+                                          UString name,
+                                          UString identifier = ""_ustr);
   BaseSocketDeclarationBuilder &add_output(eNodeSocketDatatype socket_type,
-                                           StringRef name,
-                                           StringRef identifier = "");
+                                           UString name,
+                                           UString identifier = ""_ustr);
   BaseSocketDeclarationBuilder &add_output(eCustomDataType data_type,
-                                           StringRef name,
-                                           StringRef identifier = "");
+                                           UString name,
+                                           UString identifier = ""_ustr);
 
-  PanelDeclarationBuilder &add_panel(StringRef name, int identifier = -1);
+  PanelDeclarationBuilder &add_panel(UString name, int identifier = -1);
 
   void add_separator();
   void add_default_layout();
@@ -755,22 +761,22 @@ std::unique_ptr<SocketDeclaration> make_declaration_for_socket_type(
  * \{ */
 
 template<typename DeclType>
-inline typename DeclType::Builder &DeclarationListBuilder::add_input(StringRef name,
-                                                                     StringRef identifier)
+inline typename DeclType::Builder &DeclarationListBuilder::add_input(UString name,
+                                                                     UString identifier)
 {
   return this->add_socket<DeclType>(name, identifier, SOCK_IN);
 }
 
 template<typename DeclType>
-inline typename DeclType::Builder &DeclarationListBuilder::add_output(StringRef name,
-                                                                      StringRef identifier)
+inline typename DeclType::Builder &DeclarationListBuilder::add_output(UString name,
+                                                                      UString identifier)
 {
   return this->add_socket<DeclType>(name, identifier, SOCK_OUT);
 }
 
 template<typename DeclType>
-inline typename DeclType::Builder &DeclarationListBuilder::add_socket(StringRef name,
-                                                                      StringRef identifier,
+inline typename DeclType::Builder &DeclarationListBuilder::add_socket(UString name,
+                                                                      UString identifier,
                                                                       eNodeSocketInOut in_out)
 {
   static_assert(std::is_base_of_v<SocketDeclaration, DeclType>);

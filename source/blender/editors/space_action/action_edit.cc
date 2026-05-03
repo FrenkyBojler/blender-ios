@@ -87,8 +87,9 @@ static bool act_markers_make_local_poll(bContext *C)
   }
 
   /* 3) */
+  const Main *bmain = CTX_data_main(C);
   bAction *active_action = ANIM_active_action_from_area(
-      CTX_data_scene(C), CTX_data_view_layer(C), CTX_wm_area(C));
+      *bmain, CTX_data_scene(C), CTX_data_view_layer(C), CTX_wm_area(C));
   if (!active_action) {
     return false;
   }
@@ -100,8 +101,9 @@ static bool act_markers_make_local_poll(bContext *C)
 static wmOperatorStatus act_markers_make_local_exec(bContext *C, wmOperator * /*op*/)
 {
   ListBaseT<TimeMarker> *markers = ED_context_get_markers(C);
+  const Main *bmain = CTX_data_main(C);
   bAction *act = ANIM_active_action_from_area(
-      CTX_data_scene(C), CTX_data_view_layer(C), CTX_wm_area(C));
+      *bmain, CTX_data_scene(C), CTX_data_view_layer(C), CTX_wm_area(C));
 
   TimeMarker *marker, *markern = nullptr;
 
@@ -901,7 +903,7 @@ static void insert_fcurve_key(bAnimContext *ac,
     const float curval = evaluate_fcurve(fcu, cfra);
     KeyframeSettings settings = get_keyframe_settings(true);
     settings.keyframe_type = eBezTriple_KeyframeType(ts->keyframe_type);
-    insert_vert_fcurve(fcu, {cfra, curval}, settings, eInsertKeyFlags(0));
+    insert_vert_fcurve(fcu, {cfra, curval}, settings, eInsertKeyFlags{});
   }
 
   ale->update |= ANIM_UPDATE_DEFAULT;
@@ -1442,7 +1444,7 @@ static void setexpo_action_keys(bAnimContext *ac, short mode)
 
     if (mode >= 0) {
       /* just set mode setting */
-      fcu->extend = mode;
+      fcu->extend = eFCurve_Extend(mode);
     }
     else {
       /* shortcuts for managing Cycles F-Modifiers to make it easier to toggle cyclic animation

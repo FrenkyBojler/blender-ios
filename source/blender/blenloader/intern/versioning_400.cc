@@ -278,8 +278,16 @@ static void version_principled_bsdf_update_animdata(ID *owner_id, bNodeTree *ntr
         {21, 4}   /* Alpha */
     };
     for (const auto &entry : remap_table) {
-      BKE_animdata_fix_paths_rename(
-          id, adt, owner_id, prefix.c_str(), nullptr, nullptr, entry.first, entry.second, false);
+      BKE_animdata_fix_paths_rename(id,
+                                    adt,
+                                    owner_id,
+                                    prefix.c_str(),
+                                    nullptr,
+                                    nullptr,
+                                    entry.first,
+                                    entry.second,
+                                    /*verify_paths=*/false,
+                                    /*infix_is_name=*/true);
     }
   }
 }
@@ -530,7 +538,9 @@ static void version_mesh_crease_generic(Main &bmain)
       if (md.type != eModifierType_Nodes) {
         continue;
       }
-      if (IDProperty *settings = reinterpret_cast<NodesModifierData *>(&md)->settings.properties) {
+      if (IDProperty *settings =
+              reinterpret_cast<NodesModifierData *>(&md)->settings_legacy.properties)
+      {
         for (IDProperty &prop : settings->data.group) {
           if (StringRef(prop.name).endswith("_attribute_name")) {
             if (STREQ(IDP_string_get(&prop), "crease")) {
@@ -619,7 +629,7 @@ static void version_replace_velvet_sheen_node(bNodeTree *ntree)
       bNodeSocket *sigmaInput = bke::node_find_socket(node, SOCK_IN, "Sigma");
       if (sigmaInput != nullptr) {
         node.custom1 = SHD_SHEEN_ASHIKHMIN;
-        STRNCPY_UTF8(sigmaInput->identifier, "Roughness");
+        version_node_socket_identifier_set(*sigmaInput, "Roughness");
         STRNCPY_UTF8(sigmaInput->name, "Roughness");
       }
     }
@@ -1202,8 +1212,8 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
 
 #define SCE_SNAP_PROJECT (1 << 3)
       if (ts->snap_flag & SCE_SNAP_PROJECT) {
-        ts->snap_mode &= ~(1 << 2); /* SCE_SNAP_TO_FACE */
-        ts->snap_mode |= (1 << 8);  /* SCE_SNAP_INDIVIDUAL_PROJECT */
+        ts->snap_mode &= ~eSnapMode(1 << 2); /* SCE_SNAP_TO_FACE */
+        ts->snap_mode |= eSnapMode(1 << 8);  /* SCE_SNAP_INDIVIDUAL_PROJECT */
       }
 #undef SCE_SNAP_PROJECT
     }
@@ -1417,8 +1427,8 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
       for (Camera &camera : bmain->cameras) {
         IDProperty *ccam = version_cycles_properties_from_ID(&camera.id);
         if (ccam) {
-          camera.panorama_type = version_cycles_property_int(
-              ccam, "panorama_type", default_cam.panorama_type);
+          camera.panorama_type = eCamera_PanoType(
+              version_cycles_property_int(ccam, "panorama_type", default_cam.panorama_type));
           camera.fisheye_fov = version_cycles_property_float(
               ccam, "fisheye_fov", default_cam.fisheye_fov);
           camera.fisheye_lens = version_cycles_property_float(
@@ -1477,7 +1487,7 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
 
     for (Scene &scene : bmain->scenes) {
       scene.toolsettings->snap_flag_anim |= SCE_SNAP;
-      scene.toolsettings->snap_anim_mode |= (1 << 10); /* SCE_SNAP_TO_FRAME */
+      scene.toolsettings->snap_anim_mode |= eSnapMode(1 << 10); /* SCE_SNAP_TO_FRAME */
     }
   }
 

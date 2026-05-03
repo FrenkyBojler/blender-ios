@@ -73,10 +73,10 @@ static void draw_string(ui::Layout &layout, const StringRef value)
   layout.label(value.substr(0, max_display_length), ICON_NONE);
 }
 static bool draw_from_viewer_log_value(CustomSocketDrawParams &params,
-                                       geo_eval_log::GeoTreeLog &tree_log)
+                                       eval_log::NodeTreeLog &tree_log)
 {
   tree_log.ensure_viewer_node_logs();
-  geo_eval_log::ViewerNodeLog *viewer_log = tree_log.viewer_node_logs.lookup_default(
+  eval_log::ViewerNodeLog *viewer_log = tree_log.viewer_node_logs.lookup_default(
       params.node.identifier, nullptr);
   if (!viewer_log) {
     return false;
@@ -84,7 +84,7 @@ static bool draw_from_viewer_log_value(CustomSocketDrawParams &params,
   const int socket_index = params.socket.index();
   const auto &storage = *static_cast<NodeGeometryViewer *>(params.node.storage);
   const NodeGeometryViewerItem &viewer_item = storage.items[socket_index];
-  const geo_eval_log::ViewerNodeLog::Item *item_log = viewer_log->items.lookup_key_ptr_as(
+  const eval_log::ViewerNodeLog::Item *item_log = viewer_log->items.lookup_key_ptr_as(
       viewer_item.identifier);
   if (!item_log) {
     return false;
@@ -156,19 +156,17 @@ static bool draw_generic_value_log(CustomSocketDrawParams &params, const GPointe
   return false;
 }
 static bool draw_from_socket_log_value(CustomSocketDrawParams &params,
-                                       geo_eval_log::GeoTreeLog &tree_log)
+                                       eval_log::NodeTreeLog &tree_log)
 {
   tree_log.ensure_socket_values();
-  geo_eval_log::ValueLog *value_log = tree_log.find_socket_value_log(params.socket);
+  eval_log::ValueLog *value_log = tree_log.find_socket_value_log(params.socket);
   if (!value_log) {
     return false;
   }
-  if (const auto *generic_value_log = dynamic_cast<const geo_eval_log::GenericValueLog *>(
-          value_log))
-  {
+  if (const auto *generic_value_log = dynamic_cast<const eval_log::GenericValueLog *>(value_log)) {
     return draw_generic_value_log(params, generic_value_log->value);
   }
-  if (const auto *string_value_log = dynamic_cast<const geo_eval_log::StringLog *>(value_log)) {
+  if (const auto *string_value_log = dynamic_cast<const eval_log::StringLog *>(value_log)) {
     draw_string(params.layout, string_value_log->value);
     return true;
   }
@@ -187,9 +185,9 @@ static void draw_input_socket(CustomSocketDrawParams &params)
     params.draw_standard(params.layout);
     return;
   }
-  const geo_eval_log::ContextualGeoTreeLogs geo_tree_logs =
-      geo_eval_log::GeoNodesLog::get_contextual_tree_logs(*snode);
-  geo_eval_log::GeoTreeLog *tree_log = geo_tree_logs.get_main_tree_log(params.node);
+  const eval_log::ContextualNodeTreeLogs tree_logs =
+      eval_log::NodesEvalLog::get_contextual_tree_logs(*snode);
+  eval_log::NodeTreeLog *tree_log = tree_logs.get_main_tree_log(params.node);
   if (!tree_log) {
     params.draw_standard(params.layout);
     return;
@@ -221,9 +219,9 @@ static void node_declare(NodeDeclarationBuilder &b)
   for (const int i : IndexRange(storage.items_num)) {
     const NodeGeometryViewerItem &item = storage.items[i];
     const eNodeSocketDatatype socket_type = eNodeSocketDatatype(item.socket_type);
-    const StringRef name = item.name ? item.name : "";
+    const UString name = item.name ? UString(item.name) : ""_ustr;
     const std::string identifier = GeoViewerItemsAccessor::socket_identifier_for_item(item);
-    auto &input_decl = b.add_input(socket_type, name, identifier)
+    auto &input_decl = b.add_input(socket_type, name, UString(identifier))
                            .socket_name_ptr(
                                &tree->id, *GeoViewerItemsAccessor::item_srna, &item, "name");
     if (socket_type_supports_attributes(socket_type)) {
@@ -233,7 +231,7 @@ static void node_declare(NodeDeclarationBuilder &b)
     input_decl.custom_draw([](CustomSocketDrawParams &params) { draw_input_socket(params); });
   }
 
-  b.add_input<decl::Extend>("", "__extend__").structure_type(StructureType::Dynamic);
+  b.add_input<decl::Extend>(""_ustr, "__extend__"_ustr).structure_type(StructureType::Dynamic);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
@@ -290,10 +288,10 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
   const bNodeSocket &other_socket = params.other_socket();
   if (other_socket.in_out == SOCK_OUT) {
     params.add_item(IFACE_("Value"), [](LinkSearchOpParams &params) {
-      bNode &node = params.add_node("GeometryNodeViewer");
+      bNode &node = params.add_node("GeometryNodeViewer"_ustr);
       const auto *item = socket_items::add_item_with_socket_type_and_name<GeoViewerItemsAccessor>(
           params.node_tree, node, params.socket.typeinfo->type, params.socket.name);
-      params.update_and_connect_available_socket(node, item->name);
+      params.update_and_connect_available_socket(node, UString(item->name));
       SpaceNode *snode = CTX_wm_space_node(&params.C);
       Main *bmain = CTX_data_main(&params.C);
       ed::viewer_path::activate_geometry_node(*bmain, *snode, node);
@@ -306,7 +304,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
  * Evaluates the first field after for each geometry as ".viewer" attribute. This attribute is used
  * by drawing code.
  */
-static void log_viewer_attribute(const bNode &node, geo_eval_log::ViewerNodeLog &r_log)
+static void log_viewer_attribute(const bNode &node, eval_log::ViewerNodeLog &r_log)
 {
   const auto &storage = *static_cast<NodeGeometryViewer *>(node.storage);
   const StringRef viewer_attribute_name = ".viewer";
@@ -379,7 +377,7 @@ static void log_viewer_attribute(const bNode &node, geo_eval_log::ViewerNodeLog 
 
 static void geo_viewer_node_log_impl(const bNode &node,
                                      const Span<bke::SocketValueVariant *> input_values,
-                                     geo_eval_log::ViewerNodeLog &r_log)
+                                     eval_log::ViewerNodeLog &r_log)
 {
   const auto &storage = *static_cast<NodeGeometryViewer *>(node.storage);
   for (const int i : IndexRange(storage.items_num)) {
@@ -479,7 +477,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeViewer", GEO_NODE_VIEWER);
+  geo_node_type_base(&ntype, "GeometryNodeViewer"_ustr, GEO_NODE_VIEWER);
   ntype.ui_name = "Viewer";
   ntype.ui_description = "Display the input data in the Spreadsheet Editor";
   ntype.enum_name_legacy = "VIEWER";
@@ -509,7 +507,7 @@ StructRNA **GeoViewerItemsAccessor::item_srna = &RNA_NodeGeometryViewerItem;
 void GeoViewerItemsAccessor::blend_write_item(BlendWriter *writer,
                                               const NodeGeometryViewerItem &item)
 {
-  BLO_write_string(writer, item.name);
+  writer->write_string(item.name);
 }
 
 void GeoViewerItemsAccessor::blend_read_data_item(BlendDataReader *reader,
@@ -520,7 +518,7 @@ void GeoViewerItemsAccessor::blend_read_data_item(BlendDataReader *reader,
 
 void geo_viewer_node_log(const bNode &node,
                          const Span<bke::SocketValueVariant *> input_values,
-                         geo_eval_log::ViewerNodeLog &r_log)
+                         eval_log::ViewerNodeLog &r_log)
 {
   node_geo_viewer_cc::geo_viewer_node_log_impl(node, input_values, r_log);
 }
