@@ -343,18 +343,28 @@ const EnumPropertyItem rna_enum_object_axis_flip_items[] = {
 #  include "ED_particle.hh"
 
 #  include "DEG_depsgraph_query.hh"
+#  include "BKE_rigidbody.h"
 
 namespace blender {
 
-static void rna_Object_internal_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)
+static void rna_Object_internal_update(Main *bmain, Scene * /*scene*/, PointerRNA *ptr)
 {
   DEG_id_tag_update(ptr->owner_id, ID_RECALC_TRANSFORM);
+  DEG_id_tag_update(ptr->owner_id, ID_RECALC_TRANSFORM);
+  Object *ob = reinterpret_cast<Object *>(ptr->owner_id);
+  if (ob->rigidbody_object != nullptr) {
+    DEG_relations_tag_update(bmain);
+  }
 }
 
-static void rna_Object_internal_update_draw(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)
+static void rna_Object_internal_update_draw(Main *bmain, Scene * /*scene*/, PointerRNA *ptr)
 {
   DEG_id_tag_update(ptr->owner_id, ID_RECALC_SHADING);
   WM_main_add_notifier(NC_OBJECT | ND_DRAW, ptr->owner_id);
+  Object *ob = reinterpret_cast<Object *>(ptr->owner_id);
+  if (ob->rigidbody_object != nullptr) {
+    DEG_relations_tag_update(bmain);
+  }
 }
 
 static void rna_Object_matrix_world_update(Main *bmain, Scene *scene, PointerRNA *ptr)
@@ -451,15 +461,23 @@ void rna_Object_internal_update_data_impl(PointerRNA *ptr)
   WM_main_add_notifier(NC_OBJECT | ND_DRAW, ptr->owner_id);
 }
 
-void rna_Object_internal_update_data(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)
+void rna_Object_internal_update_data(Main *bmain, Scene * /*scene*/, PointerRNA *ptr)
 {
   rna_Object_internal_update_data_impl(ptr);
+  Object *ob = reinterpret_cast<Object *>(ptr->owner_id);
+  if (ob->rigidbody_object != nullptr) {
+    DEG_relations_tag_update(bmain);
+  }
 }
 
 void rna_Object_internal_update_data_dependency(Main *bmain, Scene * /*scene*/, PointerRNA *ptr)
 {
   DEG_relations_tag_update(bmain);
   rna_Object_internal_update_data_impl(ptr);
+  Object *ob = reinterpret_cast<Object *>(ptr->owner_id);
+  if (ob->rigidbody_object != nullptr) {
+    DEG_relations_tag_update(bmain);
+  }
 }
 
 static void rna_Object_active_shape_update(Main *bmain, Scene * /*scene*/, PointerRNA *ptr)
