@@ -860,8 +860,20 @@ BevelState::BevelState(const Mesh &mesh, const BevelParameters &params, const In
     bevel_affected_vertices = selection;
   }
   else {
-    Array<bool> is_affected(mesh.verts_num, false);
+    /* Mirror the BMesh operator's manifold filter (see #bmo_bevel_exec): only edges with
+     * exactly two incident faces can be beveled. Boundary edges (one face) and wire edges
+     * (zero faces) are silently excluded, matching the behavior of the bevel operator. */
+    const GroupedSpan<int> edge_faces = emesh.edge_faces();
+    Array<bool> is_manifold_selected(mesh.edges_num, false);
     selection.foreach_index([&](const int e) {
+      if (edge_faces[e].size() == 2) {
+        is_manifold_selected[e] = true;
+      }
+    });
+    this->selection = IndexMask::from_bools(is_manifold_selected, memory);
+
+    Array<bool> is_affected(mesh.verts_num, false);
+    this->selection.foreach_index([&](const int e) {
       const int2 edge_verts = mesh.edges()[e];
       is_affected[edge_verts[0]] = true;
       is_affected[edge_verts[1]] = true;
@@ -1960,7 +1972,7 @@ static int bev_ccw_test(const ExtendableMesh &emesh, const int a, const int b, c
  *
  * Add edges to bv->edges in order that keeps adjacent edges sharing
  * a unique face, if possible. */
-static bool fast_bevel_edge_order(const ExtendableMesh &emesh, BevVert *bv)
+static bool fast_bevel_edge_order(const ExtendableMesh &emesh, BevVert *bv, bool is_edge_bevel)
 {
   int ntot = bv->edgecount;
 
@@ -1981,7 +1993,9 @@ static bool fast_bevel_edge_order(const ExtendableMesh &emesh, BevVert *bv)
           break;
         }
       }
-      if (used || bv->wire_edges.as_span().contains(e2)) {
+      /* In edge-bevel mode, wire edges are stored separately and excluded from the ring.
+       * In vertex-bevel mode, wire edges participate in the ring ordering like BMesh does. */
+      if (used || (is_edge_bevel && bv->wire_edges.as_span().contains(e2))) {
         continue;
       }
 
@@ -2022,7 +2036,7 @@ static bool fast_bevel_edge_order(const ExtendableMesh &emesh, BevVert *bv)
  * Returns the new index i' where bv->edges[i'] ends the best path found.
  * The path will be recorded in bv->edges and used edges will be marked.
  */
-static int bevel_edge_order_extend(const ExtendableMesh &emesh, BevVert *bv, int i)
+static int bevel_edge_order_extend(const ExtendableMesh &emesh, BevVert *bv, int i, bool is_edge_bevel)
 {
   Vector<int, 4> sucs;
   Vector<int, 16> save_path;
@@ -2037,7 +2051,9 @@ static int bevel_edge_order_extend(const ExtendableMesh &emesh, BevVert *bv, int
         break;
       }
     }
-    if (!used && !bv->wire_edges.as_span().contains(e2)) {
+    /* Exclude wire edges from the face-connected successor search only in edge-bevel mode.
+     * In vertex-bevel mode they remain in the ring and the face search simply finds nothing. */
+    if (!used && !(is_edge_bevel && bv->wire_edges.as_span().contains(e2))) {
       if (edges_face_connected_at_vert(emesh, e, e2)) {
         sucs.append(e2);
       }
@@ -2051,7 +2067,7 @@ static int bevel_edge_order_extend(const ExtendableMesh &emesh, BevVert *bv, int
   for (int sucindex = 0; sucindex < nsucs; sucindex++) {
     int nexte = sucs[sucindex];
     bv->edges[j + 1].e = nexte;
-    int tryj = bevel_edge_order_extend(emesh, bv, j + 1);
+    int tryj = bevel_edge_order_extend(emesh, bv, j + 1, is_edge_bevel);
     if (tryj > bestj ||
         (tryj == bestj && edges_face_connected_at_vert(emesh, bv->edges[tryj].e, bv->edges[0].e)))
     {
@@ -2635,15 +2651,18 @@ static void build_boundary(const ExtendableMesh &emesh,
   }
 }
 
-static void find_bevel_edge_order(const ExtendableMesh &emesh, BevVert *bv, int first_e)
+static void find_bevel_edge_order(const ExtendableMesh &emesh,
+                                  BevVert *bv,
+                                  int first_e,
+                                  bool is_edge_bevel)
 {
   int ntot = bv->edgecount;
   for (int i = 0;;) {
     bv->edges[i].e = first_e;
-    if (i == 0 && fast_bevel_edge_order(emesh, bv)) {
+    if (i == 0 && fast_bevel_edge_order(emesh, bv, is_edge_bevel)) {
       break;
     }
-    i = bevel_edge_order_extend(emesh, bv, i);
+    i = bevel_edge_order_extend(emesh, bv, i, is_edge_bevel);
     i++;
     if (i >= bv->edgecount) {
       break;
@@ -2657,7 +2676,9 @@ static void find_bevel_edge_order(const ExtendableMesh &emesh, BevVert *bv, int 
           break;
         }
       }
-      if (used || bv->wire_edges.as_span().contains(e)) {
+      /* In edge-bevel mode, skip wire edges (they are in wire_edges, not the ring).
+       * In vertex-bevel mode, all edges including wires participate in the ring. */
+      if (used || (is_edge_bevel && bv->wire_edges.as_span().contains(e))) {
         continue;
       }
       if (first_e == -1) {
@@ -5917,10 +5938,16 @@ static void bevel_vert_construct(BevelState &state, int v)
   bv->edgecount = tot_edges;
   bv->selcount = nsel;
   bv->wirecount = tot_wire;
-  /* Use the first offset component of the first edge as an approximation.
-   * This is exact when all edges share a uniform offset, which is the common case.
-   * TODO: handle vertex groups and bevel weights properly. */
-  bv->offset = (first_e != -1) ? state.params.offsets[0][first_e] : 1.0f;
+  /* bv->offset holds the representative slide distance for this vertex.
+   * In vertex bevel mode, offsets[0] is a per-vertex array, so index by v.
+   * In edge bevel mode, offsets[0] is a per-edge array; use the first selected
+   * edge as an approximation (exact when all edges share a uniform offset). */
+  if (state.params.affect_type == BevelAffect::Vertices) {
+    bv->offset = state.params.offsets[0][v];
+  }
+  else {
+    bv->offset = (first_e != -1) ? state.params.offsets[0][first_e] : 1.0f;
+  }
 
   bv->edges = Array<EdgeHalf>(tot_edges);
 
@@ -5937,7 +5964,8 @@ static void bevel_vert_construct(BevelState &state, int v)
   bv->vmesh = std::make_unique<VMesh>();
   bv->vmesh->seg = state.params.segments;
 
-  find_bevel_edge_order(emesh, bv, first_e);
+  const bool is_edge_bevel = (state.params.affect_type != BevelAffect::Vertices);
+  find_bevel_edge_order(emesh, bv, first_e, is_edge_bevel);
 
   for (int i = 0; i < tot_edges; i++) {
     EdgeHalf *eh = &bv->edges[i];
