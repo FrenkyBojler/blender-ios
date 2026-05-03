@@ -782,8 +782,13 @@ static SlotAllocator add_pipeline_create_info(gpu::shader::ShaderCreateInfo &inf
           }
           break;
         case MAT_PIPE_FORWARD:
-          pipeline_info_name = "eevee_surf_forward";
+          pipeline_info_name = "eevee_surf_forward_infos_";
+          info.define("closure_to_rgba", "closure_to_rgba_forward");
           info.name_ += "_forward";
+          /* Until every vertex shader are ported, we need to bridge the gap here by defining the
+           * pipeline. */
+          info.fragment_source("eevee_surf_forward.bsl.hh");
+          info.fragment_function("eevee_surf_forward");
           break;
         default:
           BLI_assert_unreachable();
