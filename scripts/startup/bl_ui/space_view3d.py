@@ -6268,13 +6268,16 @@ class VIEW3D_MT_mesh_paint_automasking_pie(Menu):
         pie = layout.menu_pie()
 
         paint = UnifiedPaintPanel.paint_settings(context)
+        mode = UnifiedPaintPanel.get_brush_mode(context)
 
         settings = paint.mesh_automasking_settings
 
         pie.prop(settings, "use_automasking_topology", text="Topology")
-        pie.prop(settings, "use_automasking_face_sets", text="Face Sets")
+        if mode == 'SCULPT':
+            pie.prop(settings, "use_automasking_face_sets", text="Face Sets")
         pie.prop(settings, "use_automasking_boundary_edges", text="Mesh Boundary")
-        pie.prop(settings, "use_automasking_boundary_face_sets", text="Face Sets Boundary")
+        if mode == 'SCULPT':
+            pie.prop(settings, "use_automasking_boundary_face_sets", text="Face Sets Boundary")
         pie.prop(settings, "use_automasking_cavity", text="Cavity")
         pie.prop(settings, "use_automasking_cavity_inverted", text="Cavity (Inverted)")
         pie.prop(settings, "use_automasking_start_normal", text="Area Normal")
