@@ -2952,6 +2952,9 @@ static void propagate_for_nodes(const Span<const bNode *> nodes,
         if (!(link->tosock->is_visible() && link->fromsock->is_visible())) {
           continue;
         }
+        if ((link->flag & NODE_LINK_VALID) == 0) {
+          continue;
+        }
 
         const bNodeSocket *other_socket = left_to_right ? link->fromsock : link->tosock;
         const bNode &other_node = other_socket->owner_node();
