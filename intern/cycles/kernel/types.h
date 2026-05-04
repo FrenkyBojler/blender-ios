@@ -403,6 +403,8 @@ struct BsdfEval {
 enum DenoisingPassFlag {
   /* Whether to follow reflections for the denoising passes. */
   DENOISING_PASS_FOLLOW_REFLECTIONS = (1 << 0),
+  /* Whether to use roughness-based weighting for the albedo or split by the BSDF type. */
+  DENOISING_PASS_USE_ALBEDO_ROUGHNESS_WEIGHTING = (1 << 1),
 };
 
 /* Closure Filter */

@@ -11,6 +11,31 @@
 CCL_NAMESPACE_BEGIN
 
 #ifdef __DENOISING_FEATURES__
+/* Helper function for film_write_denoising_features_surface and
+ * film_write_denoising_features_surface_volume. */
+ccl_device_forceinline void denoising_depth_compute(KernelGlobals kg,
+                                                    IntegratorState state,
+                                                    const ccl_private ShaderData *sd,
+                                                    const Spectrum denoising_feature_throughput)
+{
+  float depth;
+  const float d = sd->ray_length - INTEGRATOR_STATE(state, ray, tmin);
+  if (follow_reflections) {
+    /* Write the ray length minus tmin. */
+    depth = d;
+  }
+  else {
+    /* Write the camera z depth. */
+    const float3 prev_P = sd->P + sd->wi * d;
+    const float prev_depth = camera_z_depth(kg, prev_P);
+    const float new_depth = camera_z_depth(kg, sd->P);
+    depth = depth_new - prev_depth;
+  }
+
+  const float denoising_depth = ensure_finite(depth * average(denoising_feature_throughput));
+  return denoising_depth;
+}
+
 ccl_device_forceinline void film_write_denoising_features_surface(KernelGlobals kg,
                                                                   IntegratorState state,
                                                                   const ccl_private ShaderData *sd,
@@ -27,6 +52,9 @@ ccl_device_forceinline void film_write_denoising_features_surface(KernelGlobals 
   if (path_flag & PATH_RAY_SHADOW_CATCHER_PASS) {
     return;
   }
+
+  const bool use_albedo_roughness_weighting = (kernel_data.film.denoising_pass_options_flag &
+                                               DENOISING_PASS_USE_ALBEDO_ROUGHNESS_WEIGHTING) != 0;
 
   ccl_global float *buffer = film_pass_pixel_render_buffer(kg, state, render_buffer);
 
@@ -65,8 +93,16 @@ ccl_device_forceinline void film_write_denoising_features_surface(KernelGlobals 
                                      1.0f :
                                      smoothstep(0.0f, 0.15f, roughness);
 
-    diffuse_albedo += closure_albedo * diffuse_weight;
-    specular_albedo += closure_albedo * (1.0f - diffuse_weight);
+    if (use_albedo_roughness_weighting) {
+      diffuse_albedo += closure_albedo * diffuse_weight;
+      specular_albedo += closure_albedo * (1.0f - diffuse_weight);
+    }
+    else if (CLOSURE_IS_BSDF_DIFFUSE(sc->type) || CLOSURE_IS_BSSRDF(sc->type)) {
+      diffuse_albedo += closure_albedo;
+    }
+    else if (CLOSURE_IS_BSDF_GLOSSY(sc->type) || CLOSURE_IS_GLASS(sc->type)) {
+      specular_albedo += closure_albedo;
+    }
     specular_roughness += roughness * closure_weight;
 
     sum_weight += closure_weight;
@@ -88,36 +124,27 @@ ccl_device_forceinline void film_write_denoising_features_surface(KernelGlobals 
     feature_weight = smoothstep(0.0f, 0.5f, sum_nonspecular_weight / sum_weight);
   }
 
-  /* The options below control whether to defer features to the next bounce for individual passes.
-   */
-  const bool use_reflections = (kernel_data.film.denoising_pass_options_flag &
-                                DENOISING_PASS_FOLLOW_REFLECTIONS) != 0;
-  if (!use_reflections) {
+  /* Whether to defer features to the next bounce for individual passes. */
+  const bool follow_reflections = (kernel_data.film.denoising_pass_options_flag &
+                                   DENOISING_PASS_FOLLOW_REFLECTIONS) != 0;
+  if (!follow_reflections) {
     feature_weight = 1.0f;
   }
 
   const Spectrum denoising_feature_throughput = INTEGRATOR_STATE(
       state, path, denoising_feature_throughput);
+  const bool is_first_bounce = INTEGRATOR_STATE(state, path, bounce) == 0;
 
   if (kernel_data.film.pass_denoising_depth != PASS_UNUSED &&
-      (INTEGRATOR_STATE(state, path, bounce) == 0 || use_reflections))
+      (is_first_bounce || follow_reflections))
   {
-    float depth;
-    if (use_reflections) {
-      depth = sd->ray_length - INTEGRATOR_STATE(state, ray, tmin);
-    }
-    else {
-      float depth_new = camera_z_depth(kg, sd->P);
-      depth = average(denoising_feature_throughput) *
-              (depth_new - INTEGRATOR_STATE_WRITE(state, path, denoising_depth_last));
-      INTEGRATOR_STATE_WRITE(state, path, denoising_depth_last) = depth_new;
-    }
-    const float denoising_depth = ensure_finite(depth * average(denoising_feature_throughput));
+    const float denoising_depth = denoising_depth_compute(
+        kg, state, sd, denoising_feature_throughput);
     film_write_pass_float(buffer + kernel_data.film.pass_denoising_depth, denoising_depth);
   }
 
   if (kernel_data.film.pass_denoising_normal != PASS_UNUSED && feature_weight > 0.0f &&
-      (INTEGRATOR_STATE(state, path, bounce) == 0 || use_reflections))
+      (is_first_bounce || follow_reflections))
   {
     /* Transform normal into camera space. */
     const Transform worldtocamera = kernel_data.cam.worldtocamera;
@@ -130,14 +157,14 @@ ccl_device_forceinline void film_write_denoising_features_surface(KernelGlobals 
   }
 
   if (kernel_data.film.pass_denoising_albedo != PASS_UNUSED && feature_weight > 0.0f &&
-      (INTEGRATOR_STATE(state, path, bounce) == 0 || use_reflections))
+      (is_first_bounce || follow_reflections))
   {
     const Spectrum denoising_albedo = ensure_finite(diffuse_albedo * feature_weight *
                                                     denoising_feature_throughput);
     film_write_pass_spectrum(buffer + kernel_data.film.pass_denoising_albedo, denoising_albedo);
   }
 
-  if (INTEGRATOR_STATE(state, path, bounce) == 0) {
+  if (is_first_bounce) {
     if (kernel_data.film.pass_denoising_roughness != PASS_UNUSED) {
       const float denoising_roughness = ensure_finite(sqrtf(specular_roughness) *
                                                       average(denoising_feature_throughput));
@@ -177,8 +204,8 @@ ccl_device_forceinline void film_write_denoising_features_surface_volume(
     const Spectrum denoising_feature_throughput = INTEGRATOR_STATE(
         state, path, denoising_feature_throughput);
 
-    const float depth = sd->ray_length - INTEGRATOR_STATE(state, ray, tmin);
-    const float denoising_depth = ensure_finite(depth * average(denoising_feature_throughput));
+    const float denoising_depth = denoising_depth_compute(
+        kg, state, sd, denoising_feature_throughput);
     film_write_pass_float(buffer + kernel_data.film.pass_denoising_depth, denoising_depth);
   }
 }

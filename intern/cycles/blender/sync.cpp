@@ -622,6 +622,8 @@ void BlenderSync::sync_film(blender::ViewLayer &b_view_layer,
   /* Denoising passes. */
   film->set_denoising_pass_follow_reflections(
       get_boolean(crl, "denoising_pass_follow_reflections"));
+  film->set_denoising_pass_use_albedo_roughness_weighting(
+      get_boolean(crl, "denoising_pass_use_albedo_roughness_weighting"));
 }
 
 /* Render Layer */
