@@ -862,8 +862,6 @@ static void autokeyframe_object(bContext *C,
 
 static void recalcData_objects(TransInfo *t)
 {
-  bool motionpath_update = false;
-
   if (t->state != TRANS_CANCEL) {
     transform_snap_project_individual_apply(t);
   }
@@ -888,18 +886,10 @@ static void recalcData_objects(TransInfo *t)
         autokeyframe_object(t->context, t->scene, ob, t->mode, t->data_len_all > 1);
       }
 
-      motionpath_update |= motionpath_need_update_object(t->scene, ob);
-
       /* Sets recalc flags fully, instead of flushing existing ones
        * otherwise proxies don't function correctly. */
       DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
     }
-  }
-
-  if (motionpath_update) {
-    /* Update motion paths once for all transformed objects. */
-    /* object::motion_paths_recalc_selected(
-        t->context, t->scene, object::OBJECT_PATH_CALC_RANGE_CURRENT_FRAME); */
   }
 
   if (t->options & CTX_OBMODE_XFORM_SKIP_CHILDREN) {
