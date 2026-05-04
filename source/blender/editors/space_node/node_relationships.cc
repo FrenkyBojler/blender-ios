@@ -3007,7 +3007,8 @@ static bool node_link_insert_offset_ntree(NodeInsertOfsData *iofsd, const bool r
   const float min_margin = U.node_margin * UI_SCALE_FAC;
 
   const bool need_offset_insert = back_gap < min_margin;
-  const bool need_offset_side = (back_gap + front_gap) < min_margin * 2;
+  const bool need_offset_side = (front_gap < min_margin) ||
+                                (back_gap + front_gap) < min_margin * 2;
 
   if (!(need_offset_insert || need_offset_side)) {
     return false;
