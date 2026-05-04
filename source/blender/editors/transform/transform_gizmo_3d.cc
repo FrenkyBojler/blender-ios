@@ -1811,8 +1811,9 @@ static void gizmogroup_init_properties_from_twtype(const bContext *C, wmGizmoGro
 {
   struct {
     wmOperatorType *translate, *rotate, *trackball, *resize;
-    wmOperatorType *extra_translate, *extra_rotate, *extra_trackball, *extra_resize;
-    wmOperatorType *extra_translate2, *extra_rotate2, *extra_trackball2, *extra_resize2;
+    wmOperatorType *shift_translate, *shift_rotate, *shift_trackball, *shift_resize;
+    wmOperatorType *shift_alt_translate, *shift_alt_rotate, *shift_alt_trackball,
+        *shift_alt_resize;
   } ot_store = {nullptr};
   GizmoGroup *ggd = static_cast<GizmoGroup *>(gzgroup->customdata);
 
@@ -1822,8 +1823,8 @@ static void gizmogroup_init_properties_from_twtype(const bContext *C, wmGizmoGro
     const short axis_type = gizmo_get_axis_type(axis_idx);
     bool constraint_axis[3] = {true, false, false};
     PointerRNA *ptr = nullptr;
-    PointerRNA *ptr_extra = nullptr;
-    PointerRNA *ptr_extra2 = nullptr;
+    PointerRNA *ptr_shift = nullptr;
+    PointerRNA *ptr_shift_alt = nullptr;
 
     gizmo_get_axis_constraint(axis_idx, constraint_axis);
 
@@ -1837,30 +1838,30 @@ static void gizmogroup_init_properties_from_twtype(const bContext *C, wmGizmoGro
         if (ot_store.translate == nullptr) {
           ot_store.translate = WM_operatortype_find("TRANSFORM_OT_translate", true);
         }
-        if (ot_store.extra_translate == nullptr) {
+        if (ot_store.shift_translate == nullptr) {
           switch (mode) {
             default:
               break;
             case CTX_MODE_OBJECT:
-              ot_store.extra_translate = WM_operatortype_find("OBJECT_OT_duplicate_move", true);
-              ot_store.extra_translate2 = WM_operatortype_find("OBJECT_OT_duplicate_move_linked",
-                                                               true);
+              ot_store.shift_translate = WM_operatortype_find("OBJECT_OT_duplicate_move", true);
+              ot_store.shift_alt_translate = WM_operatortype_find(
+                  "OBJECT_OT_duplicate_move_linked", true);
               break;
             case CTX_MODE_EDIT_MESH:
-              ot_store.extra_translate = WM_operatortype_find("MESH_OT_extrude_context_move",
+              ot_store.shift_translate = WM_operatortype_find("MESH_OT_extrude_context_move",
                                                               true);
-              ot_store.extra_translate2 = WM_operatortype_find("MESH_OT_duplicate_move", true);
+              ot_store.shift_alt_translate = WM_operatortype_find("MESH_OT_duplicate_move", true);
               break;
           }
         }
 
-        if (ot_store.extra_translate) {
-          ptr_extra = WM_gizmo_operator_set(
-              axis, WM_GIZMO_OP_SLOT_SHIFT, ot_store.extra_translate, nullptr);
+        if (ot_store.shift_translate) {
+          ptr_shift = WM_gizmo_operator_set(
+              axis, WM_GIZMO_OP_SLOT_SHIFT, ot_store.shift_translate, nullptr);
         }
-        if (ot_store.extra_translate2) {
-          ptr_extra2 = WM_gizmo_operator_set(
-              axis, WM_GIZMO_OP_SLOT_SHIFT_ALT, ot_store.extra_translate2, nullptr);
+        if (ot_store.shift_alt_translate) {
+          ptr_shift_alt = WM_gizmo_operator_set(
+              axis, WM_GIZMO_OP_SLOT_SHIFT_ALT, ot_store.shift_alt_translate, nullptr);
         }
         ptr = WM_gizmo_operator_set(axis, 0, ot_store.translate, nullptr);
         break;
@@ -1872,60 +1873,60 @@ static void gizmogroup_init_properties_from_twtype(const bContext *C, wmGizmoGro
           if (ot_store.trackball == nullptr) {
             ot_store.trackball = WM_operatortype_find("TRANSFORM_OT_trackball", true);
           }
-          if (ot_store.extra_trackball == nullptr) {
+          if (ot_store.shift_trackball == nullptr) {
             switch (mode) {
               default:
                 break;
               case CTX_MODE_OBJECT:
-                ot_store.extra_trackball = WM_operatortype_find("OBJECT_OT_duplicate_trackball",
+                ot_store.shift_trackball = WM_operatortype_find("OBJECT_OT_duplicate_trackball",
                                                                 true);
-                ot_store.extra_trackball2 = WM_operatortype_find(
+                ot_store.shift_alt_trackball = WM_operatortype_find(
                     "OBJECT_OT_duplicate_trackball_linked", true);
                 break;
               case CTX_MODE_EDIT_MESH:
-                ot_store.extra_trackball = WM_operatortype_find(
+                ot_store.shift_trackball = WM_operatortype_find(
                     "MESH_OT_extrude_context_trackball", true);
-                ot_store.extra_trackball2 = WM_operatortype_find(
+                ot_store.shift_alt_trackball = WM_operatortype_find(
                     "MESH_OT_context_duplicate_trackball", true);
                 break;
             }
           }
           ot_rotate = ot_store.trackball;
-          ot_rotate_extra = ot_store.extra_trackball;
-          ot_rotate_extra2 = ot_store.extra_trackball2;
+          ot_rotate_extra = ot_store.shift_trackball;
+          ot_rotate_extra2 = ot_store.shift_alt_trackball;
         }
         else {
           if (ot_store.rotate == nullptr) {
             ot_store.rotate = WM_operatortype_find("TRANSFORM_OT_rotate", true);
           }
-          if (ot_store.extra_rotate == nullptr) {
+          if (ot_store.shift_rotate == nullptr) {
             switch (mode) {
               default:
                 break;
               case CTX_MODE_OBJECT:
-                ot_store.extra_rotate = WM_operatortype_find("OBJECT_OT_duplicate_rotate", true);
-                ot_store.extra_rotate2 = WM_operatortype_find("OBJECT_OT_duplicate_rotate_linked",
-                                                              true);
+                ot_store.shift_rotate = WM_operatortype_find("OBJECT_OT_duplicate_rotate", true);
+                ot_store.shift_alt_rotate = WM_operatortype_find(
+                    "OBJECT_OT_duplicate_rotate_linked", true);
                 break;
               case CTX_MODE_EDIT_MESH:
-                ot_store.extra_rotate = WM_operatortype_find("MESH_OT_extrude_context_rotate",
+                ot_store.shift_rotate = WM_operatortype_find("MESH_OT_extrude_context_rotate",
                                                              true);
-                ot_store.extra_rotate2 = WM_operatortype_find("MESH_OT_context_duplicate_rotate",
-                                                              true);
+                ot_store.shift_alt_rotate = WM_operatortype_find(
+                    "MESH_OT_context_duplicate_rotate", true);
                 break;
             }
           }
           ot_rotate = ot_store.rotate;
-          ot_rotate_extra = ot_store.extra_rotate;
-          ot_rotate_extra2 = ot_store.extra_rotate2;
+          ot_rotate_extra = ot_store.shift_rotate;
+          ot_rotate_extra2 = ot_store.shift_alt_rotate;
         }
 
         if (ot_rotate_extra) {
-          ptr_extra = WM_gizmo_operator_set(
+          ptr_shift = WM_gizmo_operator_set(
               axis, WM_GIZMO_OP_SLOT_SHIFT, ot_rotate_extra, nullptr);
         }
         if (ot_rotate_extra2) {
-          ptr_extra2 = WM_gizmo_operator_set(
+          ptr_shift_alt = WM_gizmo_operator_set(
               axis, WM_GIZMO_OP_SLOT_SHIFT_ALT, ot_rotate_extra2, nullptr);
         }
         ptr = WM_gizmo_operator_set(axis, 0, ot_rotate, nullptr);
@@ -1935,37 +1936,37 @@ static void gizmogroup_init_properties_from_twtype(const bContext *C, wmGizmoGro
         if (ot_store.resize == nullptr) {
           ot_store.resize = WM_operatortype_find("TRANSFORM_OT_resize", true);
         }
-        if (ot_store.extra_resize == nullptr) {
+        if (ot_store.shift_resize == nullptr) {
           switch (mode) {
             default:
               break;
             case CTX_MODE_OBJECT:
-              ot_store.extra_resize = WM_operatortype_find("OBJECT_OT_duplicate_resize", true);
-              ot_store.extra_resize2 = WM_operatortype_find("OBJECT_OT_duplicate_resize_linked",
-                                                            true);
+              ot_store.shift_resize = WM_operatortype_find("OBJECT_OT_duplicate_resize", true);
+              ot_store.shift_alt_resize = WM_operatortype_find("OBJECT_OT_duplicate_resize_linked",
+                                                               true);
               break;
             case CTX_MODE_EDIT_MESH:
-              ot_store.extra_resize = WM_operatortype_find("MESH_OT_extrude_context_resize", true);
-              ot_store.extra_resize2 = WM_operatortype_find("MESH_OT_context_duplicate_scale",
-                                                            true);
+              ot_store.shift_resize = WM_operatortype_find("MESH_OT_extrude_context_resize", true);
+              ot_store.shift_alt_resize = WM_operatortype_find("MESH_OT_context_duplicate_scale",
+                                                               true);
               break;
           }
         }
-        if (ot_store.extra_resize) {
-          ptr_extra = WM_gizmo_operator_set(
-              axis, WM_GIZMO_OP_SLOT_SHIFT, ot_store.extra_resize, nullptr);
+        if (ot_store.shift_resize) {
+          ptr_shift = WM_gizmo_operator_set(
+              axis, WM_GIZMO_OP_SLOT_SHIFT, ot_store.shift_resize, nullptr);
         }
-        if (ot_store.extra_resize2) {
-          ptr_extra2 = WM_gizmo_operator_set(
-              axis, WM_GIZMO_OP_SLOT_SHIFT_ALT, ot_store.extra_resize2, nullptr);
+        if (ot_store.shift_alt_resize) {
+          ptr_shift_alt = WM_gizmo_operator_set(
+              axis, WM_GIZMO_OP_SLOT_SHIFT_ALT, ot_store.shift_alt_resize, nullptr);
         }
         ptr = WM_gizmo_operator_set(axis, 0, ot_store.resize, nullptr);
         break;
       }
     }
 
-    gizmo_operator_set_properties(ptr_extra, constraint_axis);
-    gizmo_operator_set_properties(ptr_extra2, constraint_axis);
+    gizmo_operator_set_properties(ptr_shift, constraint_axis);
+    gizmo_operator_set_properties(ptr_shift_alt, constraint_axis);
 
     if (ptr) {
       PropertyRNA *prop;
