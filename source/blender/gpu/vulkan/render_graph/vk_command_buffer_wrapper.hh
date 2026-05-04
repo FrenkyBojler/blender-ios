@@ -20,6 +20,7 @@ namespace gpu::render_graph {
 class VKCommandBufferInterface {
  public:
   bool use_dynamic_rendering_local_read = true;
+  bool use_unified_image_layouts = false;
 
   VKCommandBufferInterface() {}
   virtual ~VKCommandBufferInterface() = default;

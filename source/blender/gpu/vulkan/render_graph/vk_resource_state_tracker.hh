@@ -274,6 +274,8 @@ class VKResourceStateTracker {
   ResourceWithStamp get_image(VkImage vk_image) const;
 
   bool use_dynamic_rendering_local_read = true;
+  /** Use VK_IMAGE_LAYOUT_GENERAL for ordinary image layouts when unified layouts are enabled. */
+  bool use_unified_image_layouts = false;
 
   void debug_print() const;
 

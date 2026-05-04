@@ -213,6 +213,10 @@ class GHOST_DeviceVK {
   VkPhysicalDeviceVulkan12Features features_12 = {};
   VkPhysicalDeviceRobustness2FeaturesEXT features_robustness2 = {
       VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ROBUSTNESS_2_FEATURES_EXT};
+#ifdef VK_KHR_unified_image_layouts
+  VkPhysicalDeviceUnifiedImageLayoutsFeaturesKHR features_unified_image_layouts = {
+      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_UNIFIED_IMAGE_LAYOUTS_FEATURES_KHR};
+#endif
 
   int users = 0;
 
@@ -236,6 +240,9 @@ class GHOST_DeviceVK {
     features.pNext = &features_11;
     features_11.pNext = &features_12;
     features_12.pNext = &features_robustness2;
+#ifdef VK_KHR_unified_image_layouts
+    features_robustness2.pNext = &features_unified_image_layouts;
+#endif
 
     vkGetPhysicalDeviceFeatures2(vk_physical_device, &features);
     init_extensions();
@@ -553,6 +560,14 @@ struct GHOST_InstanceVK {
       device.extensions.disable(VK_EXT_VERTEX_INPUT_DYNAMIC_STATE_EXTENSION_NAME);
     }
 
+#ifdef VK_KHR_unified_image_layouts
+    if (device.extensions.is_enabled(VK_KHR_UNIFIED_IMAGE_LAYOUTS_EXTENSION_NAME) &&
+        !device.features_unified_image_layouts.unifiedImageLayouts)
+    {
+      device.extensions.disable(VK_KHR_UNIFIED_IMAGE_LAYOUTS_EXTENSION_NAME);
+    }
+#endif
+
 #ifdef _WIN32
     /* Intel 7th to 10th Gen Processor iGPUs show a black screen at application startup when using
      * VK_EXT_vertex_input_dynamic_state. The used driver version for these iGPUs is 101.2xxx or
@@ -747,6 +762,17 @@ struct GHOST_InstanceVK {
     if (device.extensions.is_enabled(VK_EXT_HOST_IMAGE_COPY_EXTENSION_NAME)) {
       feature_struct_ptr.push_back(&host_image_copy);
     }
+
+#ifdef VK_KHR_unified_image_layouts
+    VkPhysicalDeviceUnifiedImageLayoutsFeaturesKHR unified_image_layouts = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_UNIFIED_IMAGE_LAYOUTS_FEATURES_KHR,
+        nullptr,
+        VK_TRUE,
+        VK_FALSE};
+    if (device.extensions.is_enabled(VK_KHR_UNIFIED_IMAGE_LAYOUTS_EXTENSION_NAME)) {
+      feature_struct_ptr.push_back(&unified_image_layouts);
+    }
+#endif
 
     /* Link all registered feature structs. */
     for (int i = 1; i < feature_struct_ptr.size(); i++) {
@@ -1811,6 +1837,9 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
     optional_device_extensions.append(VK_EXT_VERTEX_INPUT_DYNAMIC_STATE_EXTENSION_NAME);
     optional_device_extensions.append(VK_KHR_COPY_COMMANDS_2_EXTENSION_NAME);
     optional_device_extensions.append(VK_KHR_FORMAT_FEATURE_FLAGS_2_EXTENSION_NAME);
+#ifdef VK_KHR_unified_image_layouts
+    optional_device_extensions.append(VK_KHR_UNIFIED_IMAGE_LAYOUTS_EXTENSION_NAME);
+#endif
 #if 0
     /* VK_EXT_host_image_copy isn't supported by Renderdoc and also isn't working as expected. */
     optional_device_extensions.append(VK_EXT_HOST_IMAGE_COPY_EXTENSION_NAME);

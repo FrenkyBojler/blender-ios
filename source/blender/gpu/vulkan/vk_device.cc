@@ -53,6 +53,7 @@ void VKExtensions::log() const
              " - [%c] memory priority\n"
              " - [%c] pageable device local memory\n"
              " - [%c] shader stencil export\n"
+             " - [%c] unified image layouts\n"
              " - [%c] vertex input dynamic state",
              shader_output_viewport_index ? 'X' : ' ',
              shader_output_layer ? 'X' : ' ',
@@ -69,6 +70,7 @@ void VKExtensions::log() const
              memory_priority ? 'X' : ' ',
              pageable_device_local_memory ? 'X' : ' ',
              GPU_stencil_export_support() ? 'X' : ' ',
+             unified_image_layouts ? 'X' : ' ',
              vertex_input_dynamic_state ? 'X' : ' ');
 }
 
@@ -167,6 +169,7 @@ void VKDevice::init(GHOST_IContext *ghost_context)
   debug::object_label(vk_queue_, "GenericQueue");
 
   resources.use_dynamic_rendering_local_read = extensions_.dynamic_rendering_local_read;
+  resources.use_unified_image_layouts = extensions_.unified_image_layouts;
   orphaned_data.timeline_ = 0;
 
   init_submission_pool();
@@ -276,6 +279,14 @@ void VKDevice::init_physical_device_features()
 
   features.pNext = &vk_physical_device_vulkan_11_features_;
   vk_physical_device_vulkan_11_features_.pNext = &vk_physical_device_vulkan_12_features_;
+  vk_physical_device_vulkan_12_features_.pNext = nullptr;
+
+#ifdef VK_KHR_unified_image_layouts
+  if (supports_extension(VK_KHR_UNIFIED_IMAGE_LAYOUTS_EXTENSION_NAME)) {
+    vk_physical_device_vulkan_12_features_.pNext =
+        &vk_physical_device_unified_image_layouts_features_;
+  }
+#endif
 
   vkGetPhysicalDeviceFeatures2(vk_physical_device_, &features);
   vk_physical_device_features_ = features.features;
