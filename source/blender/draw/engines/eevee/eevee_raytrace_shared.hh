@@ -14,12 +14,6 @@
 namespace blender::eevee {
 #endif
 
-enum [[host_shared]] BackfaceHitMode : uint32_t {
-  HIT_MODE_FALLBACK = 0,
-  HIT_MODE_DOUBLE_SIDED,
-  HIT_MODE_SINGLE_SIDED,
-};
-
 struct [[host_shared]] RayTraceData {
   /** ViewProjection matrix used to render the previous frame. */
   float4x4 history_persmat;
