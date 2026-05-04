@@ -860,6 +860,7 @@ static const EnumPropertyItem grease_pencil_build_time_mode_items[] = {
 #  include "BKE_deform.hh"
 #  include "BKE_fluid.h"
 #  include "BKE_lib_id.hh"
+#  include "BKE_lib_override.hh"
 #  include "BKE_material.hh"
 #  include "BKE_mesh_runtime.hh"
 #  include "BKE_modifier.hh"
@@ -2131,6 +2132,142 @@ static PointerRNA rna_NodesModifierBake_node_get(PointerRNA *ptr)
   BLI_assert(tree != nullptr);
   return RNA_pointer_create_discrete(
       const_cast<ID *>(&tree->id), RNA_Node, const_cast<bNode *>(node));
+}
+
+void rna_NodesModifierBake_override_diff(Main *bmain, RNAPropertyOverrideDiffContext &rnadiff_ctx)
+{
+  /* This diffing code somewhat abuses the liboverride system, by encoding a 'packed data is
+   * changed into that bake' info into a 'LIBOVERRIDE_OP_REPLACE' operation over that whole bake
+   * item in the collection. */
+
+  rna_property_override_diff_default(bmain, rnadiff_ctx);
+
+  const bool do_create = rnadiff_ctx.liboverride != nullptr &&
+                         (rnadiff_ctx.liboverride_flags & RNA_OVERRIDE_COMPARE_CREATE) != 0 &&
+                         rnadiff_ctx.rna_path != nullptr;
+
+  if (rnadiff_ctx.comparison &&
+      (!do_create || (rnadiff_ctx.report_flag & RNA_OVERRIDE_MATCH_RESULT_CREATED)))
+  {
+    /* Default diffing found a difference, no need to go further. */
+    return;
+  }
+
+  const NodesModifierData *nmd_a = rnadiff_ctx.prop_a->ptr->data_as<NodesModifierData>();
+  const NodesModifierData *nmd_b = rnadiff_ctx.prop_b->ptr->data_as<NodesModifierData>();
+
+  /* In standard context (same nodes in both modifiers), the bake ids and their order should
+   * always match. For now, simply ignore cases where they don't. */
+  if (nmd_a->bakes_num != nmd_b->bakes_num) {
+    return;
+  }
+
+  for (int i : IndexRange(nmd_a->bakes_num)) {
+    const NodesModifierBake *nmd_bake_a = &nmd_a->bakes[i];
+    const NodesModifierBake *nmd_bake_b = &nmd_b->bakes[i];
+
+    if (nmd_bake_a->id != nmd_bake_b->id) {
+      /* Bakes for different nodes, cannot do anything else here, ignore. */
+      /* NOTE: Not sure if this can actually happen? Maybe in case user assign a different nodetree
+       * in the overridden version of the modifier? */
+      /* NOTE: Since bake IDs are exposed in RNA, different IDs should already have been detected
+       * by the generic diffing code anyway. */
+      BLI_assert_unreachable();
+      continue;
+    }
+
+    if (!nmd_bake_a->packed && !nmd_bake_b->packed) {
+      /* There are no packed bake data in either, so regular diffing above should be sufficient to
+       * ensure valid diffing and liboverride operations results. */
+      continue;
+    }
+
+    if (nmd_bake_a->packed && nmd_bake_b->packed) {
+      /* Both bakes have packed data, no other solution than doing full byte-wise comparison of the
+       * whole packed data. */
+      /* TODO: #NodesModifierPackedBake could store a hash of its data, in case this full
+       * comparison becomes a performance issue? */
+      bool is_different =
+          ((nmd_bake_a->packed->meta_files_num != nmd_bake_b->packed->meta_files_num) ||
+           (nmd_bake_a->packed->blob_files_num != nmd_bake_b->packed->blob_files_num));
+      if (!is_different) {
+        for (int i : IndexRange(nmd_bake_a->packed->meta_files_num)) {
+          if ((StringRefNull(nmd_bake_a->packed->meta_files[i].name) !=
+               StringRefNull(nmd_bake_b->packed->meta_files[i].name)) ||
+              (nmd_bake_a->packed->meta_files[i].data() !=
+               nmd_bake_b->packed->meta_files[i].data()))
+          {
+            is_different = true;
+            break;
+          }
+        }
+      }
+      if (!is_different) {
+        for (int i : IndexRange(nmd_bake_a->packed->blob_files_num)) {
+          if ((StringRefNull(nmd_bake_a->packed->blob_files[i].name) !=
+               StringRefNull(nmd_bake_b->packed->blob_files[i].name)) ||
+              (nmd_bake_a->packed->blob_files[i].data() !=
+               nmd_bake_b->packed->blob_files[i].data()))
+            is_different = true;
+          break;
+        }
+      }
+      if (!is_different) {
+        continue;
+      }
+    }
+
+    /* Sign doesn't make sense here, as the numerical values are the same. */
+    rnadiff_ctx.comparison = 1;
+
+    /* The remainder of this function was taken from rna_property_override_diff_default(). It's
+     * just formatted a little differently to allow for early returns. */
+
+    if (!do_create) {
+      /* Not enough info to create an override operation, so bail out. */
+      continue;
+    }
+
+    /* Create the override operation. */
+    IDOverrideLibraryProperty *op = BKE_lib_override_library_property_get(
+        rnadiff_ctx.liboverride, rnadiff_ctx.rna_path, nullptr);
+
+    if (op) {
+      BKE_lib_override_library_property_operation_get(
+          op, LIBOVERRIDE_OP_REPLACE, nullptr, nullptr, {}, {}, i, i, true, nullptr, nullptr);
+      rnadiff_ctx.report_flag |= RNA_OVERRIDE_MATCH_RESULT_CREATED;
+    }
+  }
+}
+
+bool rna_NodesModifierBake_override_apply(Main *bmain,
+                                          RNAPropertyOverrideApplyContext &rnaapply_ctx)
+{
+  PointerRNA *ptr_dst = &rnaapply_ctx.ptr_dst;
+  PropertyRNA *prop_dst = rnaapply_ctx.prop_dst;
+  IDOverrideLibraryPropertyOperation *opop = rnaapply_ctx.liboverride_operation;
+
+  BLI_assert_msg(opop->operation == LIBOVERRIDE_OP_REPLACE,
+                 "Unsupported RNA override operation on Nodes modifier bakes collection");
+
+  NodesModifierBake *nmd_bake_src = rnaapply_ctx.ptr_item_src.data_as<NodesModifierBake>();
+
+  /* Ignore index-based default 'destination item' defined by the generic liboverride apply code
+   * and stored in RNAPropertyOverrideApplyContext::ptr_item_dst, as changes in source linked
+   * nodetree may have re-ordered its bakes. Instead, lookup by bake id. */
+  NodesModifierData *nmd_dst = ptr_dst->data_as<NodesModifierData>();
+  NodesModifierBake *nmd_bake_dst = nmd_dst->find_bake(nmd_bake_src->id);
+  if (!nmd_bake_dst) {
+    return false;
+  }
+  BLI_assert(nmd_bake_dst->id == nmd_bake_src->id);
+
+  /* Only swap the packed data, which is not exposed through RNA anyway. The other bake parameters
+   * should be handled already by the regular liboverride handling. */
+  std::swap<NodesModifierPackedBake *>(nmd_bake_dst->packed, nmd_bake_src->packed);
+
+  RNA_property_update_main(bmain, nullptr, ptr_dst, prop_dst);
+  return true;
 }
 
 static StructRNA *rna_NodesModifierBake_data_block_typef(PointerRNA *ptr)
@@ -8209,6 +8346,10 @@ static void rna_def_modifier_nodes(BlenderRNA *brna)
   RNA_def_property_struct_type(prop, "NodesModifierBake");
   RNA_def_property_collection_sdna(prop, nullptr, "bakes", "bakes_num");
   RNA_def_property_srna(prop, "NodesModifierBakes");
+  RNA_def_property_override_funcs(prop,
+                                  "rna_NodesModifierBake_override_diff",
+                                  nullptr,
+                                  "rna_NodesModifierBake_override_apply");
 
   prop = RNA_def_property(srna, "panels", PROP_COLLECTION, PROP_NONE);
   RNA_def_property_struct_type(prop, "NodesModifierPanel");
