@@ -495,6 +495,8 @@ def _template_items_gizmo_tweak_value():
     return [
         ("gizmogroup.gizmo_tweak",
          {"type": 'LEFTMOUSE', "value": 'PRESS', **any_except("alt")}, None),
+        ("gizmogroup.gizmo_tweak",
+         {"type": 'LEFTMOUSE', "value": 'PRESS', "shift": True, "alt": True}, None),
     ]
 
 
@@ -504,12 +506,17 @@ def _template_items_gizmo_tweak_value_click_drag():
          {"type": 'LEFTMOUSE', "value": 'CLICK', **any_except("alt")}, None),
         ("gizmogroup.gizmo_tweak",
          {"type": 'LEFTMOUSE', "value": 'CLICK_DRAG', **any_except("alt")}, None),
+        ("gizmogroup.gizmo_tweak",
+         {"type": 'LEFTMOUSE', "value": 'CLICK', "shift": True, "alt": True}, None),
+        ("gizmogroup.gizmo_tweak",
+         {"type": 'LEFTMOUSE', "value": 'CLICK_DRAG', "shift": True, "alt": True}, None),
     ]
 
 
 def _template_items_gizmo_tweak_value_drag():
     return [
         ("gizmogroup.gizmo_tweak", {"type": 'LEFTMOUSE', "value": 'CLICK_DRAG', **any_except("alt")}, None),
+        ("gizmogroup.gizmo_tweak", {"type": 'LEFTMOUSE', "value": 'CLICK_DRAG', "shift": True, "alt": True}, None),
     ]
 
 
