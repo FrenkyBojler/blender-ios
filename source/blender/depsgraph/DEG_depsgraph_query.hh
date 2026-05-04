@@ -164,7 +164,10 @@ template<typename T> bool DEG_is_evaluated(const T *id)
   static_assert(dna::is_ID_v<T>);
   return DEG_is_evaluated_id(reinterpret_cast<const ID *>(id));
 }
-
+/**
+ *
+ */
+bool DEG_needs_update_relations(const Depsgraph *depsgraph);
 /**
  * Check whether depsgraph is fully evaluated. This includes the following checks:
  * - Relations are up-to-date.

@@ -721,6 +721,9 @@ restart:
       }
     }
     const int frame_index = frame - eval_data->frame_range.min;
+    if (DEG_needs_update_relations(eval_data->depsgraph)) {
+      return;
+    }
     DEG_evaluate_on_framechange(eval_data->depsgraph, frame, DEG_EVALUATE_SYNC_WRITEBACK_NO);
     for (const int target_index : eval_data->targets.index_range()) {
       if (worker_status->stop) {

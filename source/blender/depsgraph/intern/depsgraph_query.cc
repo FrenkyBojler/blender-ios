@@ -317,6 +317,12 @@ bool DEG_is_evaluated_id(const ID *id)
   return !DEG_is_original_id(id);
 }
 
+bool DEG_needs_update_relations(const Depsgraph *depsgraph)
+{
+  const deg::Depsgraph *deg_graph = reinterpret_cast<const deg::Depsgraph *>(depsgraph);
+  return deg_graph->need_update_relations;
+}
+
 bool DEG_is_fully_evaluated(const Depsgraph *depsgraph)
 {
   const deg::Depsgraph *deg_graph = reinterpret_cast<const deg::Depsgraph *>(depsgraph);
