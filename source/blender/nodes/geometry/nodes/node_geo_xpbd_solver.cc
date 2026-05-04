@@ -1162,8 +1162,8 @@ class XpbdSolverStep {
 
             const float3 edge_direction_mesh = math::normalize(vert_positions[edge[1]] -
                                                                vert_positions[edge[0]]);
-            const float3 edge_direction_local = math::transform_direction(mesh_to_local,
-                                                                          edge_direction_mesh);
+            const float3 edge_direction_local = math::normalize(
+                math::transform_direction(mesh_to_local, edge_direction_mesh));
             /* Contact with the closest edge is active if the segment intersects with the
              * half-plane defined by the edge normal. A segment intersecting with any of the
              * adjacent faces would need to be moved along a tangent of the respective face to
