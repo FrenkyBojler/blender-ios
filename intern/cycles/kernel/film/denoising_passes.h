@@ -201,11 +201,15 @@ ccl_device_forceinline void film_write_denoising_features_surface_volume(
 {
   ccl_global float *buffer = film_pass_pixel_render_buffer(kg, state, render_buffer);
 
-  if (kernel_data.film.pass_denoising_depth != PASS_UNUSED) {
+  const bool follow_reflections = (kernel_data.film.denoising_pass_options_flag &
+                                   DENOISING_PASS_FOLLOW_REFLECTIONS) != 0;
+  const bool is_first_bounce = INTEGRATOR_STATE(state, path, bounce) == 0;
+
+  if (kernel_data.film.pass_denoising_depth != PASS_UNUSED &&
+      (is_first_bounce || follow_reflections))
+  {
     const Spectrum denoising_feature_throughput = INTEGRATOR_STATE(
         state, path, denoising_feature_throughput);
-    const bool follow_reflections = (kernel_data.film.denoising_pass_options_flag &
-                                     DENOISING_PASS_FOLLOW_REFLECTIONS) != 0;
 
     const float denoising_depth = denoising_depth_compute(
         kg, state, sd, denoising_feature_throughput, follow_reflections);
