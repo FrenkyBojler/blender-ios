@@ -1867,8 +1867,8 @@ static void gizmogroup_init_properties_from_twtype(const bContext *C, wmGizmoGro
         break;
       case MAN_AXES_ROTATE: {
         wmOperatorType *ot_rotate;
-        wmOperatorType *ot_rotate_extra;
-        wmOperatorType *ot_rotate_extra2;
+        wmOperatorType *ot_rotate_shift;
+        wmOperatorType *ot_rotate_shift_alt;
         if (axis_idx == MAN_AXIS_ROT_T) {
           if (ot_store.trackball == nullptr) {
             ot_store.trackball = WM_operatortype_find("TRANSFORM_OT_trackball", true);
@@ -1892,8 +1892,8 @@ static void gizmogroup_init_properties_from_twtype(const bContext *C, wmGizmoGro
             }
           }
           ot_rotate = ot_store.trackball;
-          ot_rotate_extra = ot_store.shift_trackball;
-          ot_rotate_extra2 = ot_store.shift_alt_trackball;
+          ot_rotate_shift = ot_store.shift_trackball;
+          ot_rotate_shift_alt = ot_store.shift_alt_trackball;
         }
         else {
           if (ot_store.rotate == nullptr) {
@@ -1917,17 +1917,17 @@ static void gizmogroup_init_properties_from_twtype(const bContext *C, wmGizmoGro
             }
           }
           ot_rotate = ot_store.rotate;
-          ot_rotate_extra = ot_store.shift_rotate;
-          ot_rotate_extra2 = ot_store.shift_alt_rotate;
+          ot_rotate_shift = ot_store.shift_rotate;
+          ot_rotate_shift_alt = ot_store.shift_alt_rotate;
         }
 
-        if (ot_rotate_extra) {
+        if (ot_rotate_shift) {
           ptr_shift = WM_gizmo_operator_set(
-              axis, WM_GIZMO_OP_SLOT_SHIFT, ot_rotate_extra, nullptr);
+              axis, WM_GIZMO_OP_SLOT_SHIFT, ot_rotate_shift, nullptr);
         }
-        if (ot_rotate_extra2) {
+        if (ot_rotate_shift_alt) {
           ptr_shift_alt = WM_gizmo_operator_set(
-              axis, WM_GIZMO_OP_SLOT_SHIFT_ALT, ot_rotate_extra2, nullptr);
+              axis, WM_GIZMO_OP_SLOT_SHIFT_ALT, ot_rotate_shift_alt, nullptr);
         }
         ptr = WM_gizmo_operator_set(axis, 0, ot_rotate, nullptr);
         break;
