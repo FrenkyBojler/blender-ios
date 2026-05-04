@@ -727,13 +727,11 @@ restart:
     DEG_evaluate_on_framechange(eval_data->depsgraph, frame, DEG_EVALUATE_SYNC_WRITEBACK_NO);
     for (const int target_index : eval_data->targets.index_range()) {
       if (worker_status->stop) {
-        std::cout << "Stopped thread function" << std::endl;
         return;
       }
       if (eval_data->restart.load(std::memory_order_acquire)) {
         /* I think this is a valid use case for goto. Seems to me the simplest way to break both
          * loops and run some code. */
-        std::cout << "Restart" << std::endl;
         goto restart;
       }
       job_write_evaluated_transform_values(*eval_data, target_index, frame_index);
@@ -794,7 +792,6 @@ static void finish_job(void *job_data)
 
 static void free_job_data(void *job_data)
 {
-  std::cout << "Free Job Data" << std::endl;
   MotionPathEvalData *eval_data = static_cast<MotionPathEvalData *>(job_data);
   for (MPathTarget &target : eval_data->targets) {
     target.mpath->runtime->deregister_async_job();
@@ -851,7 +848,6 @@ void animviz_calc_motionpaths_async(Main *bmain,
     else {
       /* If something about the job data has changed we have to wait for the thread to stop and
        * rebuild it from scratch. */
-      std::cout << "Rebuild job data" << std::endl;
       animviz_stop_motionpath_job_ex(wm, scene);
       wm_job = WM_jobs_get(wm,
                            window,
