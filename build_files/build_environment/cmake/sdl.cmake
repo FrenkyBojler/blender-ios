@@ -38,8 +38,5 @@ else()
   harvest(external_sdl sdl/include sdl/include "*.h")
   # CMake files first because harvest_rpath_lib edits them.
   harvest(external_sdl sdl/lib/cmake/SDL3 sdl/lib/cmake/SDL3 "*.cmake")
-
   harvest_rpath_lib(external_sdl sdl/lib sdl/lib "*${SHAREDLIBEXT}*")
-  # Harvest the extra SDL3_test static libraries to satisfy the CMake Config files targets.
-  harvest(external_sdl sdl/lib sdl/lib "*.a")
 endif()
