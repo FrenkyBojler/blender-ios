@@ -154,7 +154,6 @@ static void node_geo_exec(GeoNodeExecParams params)
       geometry_set.replace_mesh(*mesh);
     };
 
-
     if (affect == geometry::BevelAffect::Vertices) {
       /* Vertex bevel: selection and offset0 are per-vertex.
        * offsets[0][v] is the slide distance at vertex v; offsets[1..3] are unused. */
@@ -164,7 +163,8 @@ static void node_geo_exec(GeoNodeExecParams params)
       const bke::MeshFieldContext vert_context(*src_mesh, AttrDomain::Point);
       FieldEvaluator vert_evaluator{vert_context, nv};
       vert_evaluator.add(selection_field);
-      vert_evaluator.add_with_destination(offset0_field, bevel_params.offsets[0].as_mutable_span());
+      vert_evaluator.add_with_destination(offset0_field,
+                                          bevel_params.offsets[0].as_mutable_span());
       vert_evaluator.evaluate();
 
       /* Pass to run_bevel while vert_evaluator is still alive. */
@@ -178,14 +178,14 @@ static void node_geo_exec(GeoNodeExecParams params)
       const bke::MeshFieldContext edge_context(*src_mesh, AttrDomain::Edge);
       FieldEvaluator edge_evaluator{edge_context, ne};
       edge_evaluator.add(selection_field);
-      edge_evaluator.add_with_destination(
-          offset0_field, bevel_params.offsets[0].as_mutable_span());
-      edge_evaluator.add_with_destination(
-          offset1_field, bevel_params.offsets[1].as_mutable_span());
-      edge_evaluator.add_with_destination(
-          offset2_field, bevel_params.offsets[2].as_mutable_span());
-      edge_evaluator.add_with_destination(
-          offset3_field, bevel_params.offsets[3].as_mutable_span());
+      edge_evaluator.add_with_destination(offset0_field,
+                                          bevel_params.offsets[0].as_mutable_span());
+      edge_evaluator.add_with_destination(offset1_field,
+                                          bevel_params.offsets[1].as_mutable_span());
+      edge_evaluator.add_with_destination(offset2_field,
+                                          bevel_params.offsets[2].as_mutable_span());
+      edge_evaluator.add_with_destination(offset3_field,
+                                          bevel_params.offsets[3].as_mutable_span());
       edge_evaluator.evaluate();
 
       /* Pass to run_bevel while edge_evaluator is still alive. */

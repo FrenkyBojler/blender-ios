@@ -69,11 +69,6 @@ struct UVFace {
   int attached_frep;
 };
 
-struct UVLayerInfo {
-  Array<int> face_component;
-  bool has_uv_layers;
-};
-
 using UVVertBucket = Set<int>;
 using UVVertMap = Map<int, Vector<UVVertBucket>>;
 
@@ -91,22 +86,22 @@ enum class VMeshMethod {
 };
 
 struct NewVert {
-  int v;
-  float3 co;
+  int v = -1;
+  float3 co = float3(0.0f);
 };
 
 struct Profile {
-  float super_r;
-  float height;
-  float3 start;
-  float3 middle;
-  float3 end;
-  float3 plane_no;
-  float3 plane_co;
-  float3 proj_dir;
+  float super_r = 0.0f;
+  float height = 0.0f;
+  float3 start = float3(0.0f);
+  float3 middle = float3(0.0f);
+  float3 end = float3(0.0f);
+  float3 plane_no = float3(0.0f);
+  float3 plane_co = float3(0.0f);
+  float3 proj_dir = float3(0.0f);
   Array<float3> prof_co;
   Array<float3> prof_co_2;
-  bool special_params;
+  bool special_params = false;
 };
 
 struct BoundVert;
@@ -137,48 +132,49 @@ struct EdgeHalf {
 };
 
 struct BoundVert {
-  BoundVert *next, *prev;
+  BoundVert *next = nullptr;
+  BoundVert *prev = nullptr;
 
   NewVert nv;
 
-  EdgeHalf *efirst;
-  EdgeHalf *elast;
-  EdgeHalf *eon;
-  EdgeHalf *ebev;
+  EdgeHalf *efirst = nullptr;
+  EdgeHalf *elast = nullptr;
+  EdgeHalf *eon = nullptr;
+  EdgeHalf *ebev = nullptr;
 
-  int index;
-  float sinratio;
+  int index = 0;
+  float sinratio = 0.0f;
 
-  BoundVert *adjchain;
+  BoundVert *adjchain = nullptr;
   Profile profile;
 
-  bool any_seam;
-  bool visited;
-  bool is_arc_start;
-  bool is_patch_start;
-  bool is_profile_start;
+  bool any_seam = false;
+  bool visited = false;
+  bool is_arc_start = false;
+  bool is_patch_start = false;
+  bool is_profile_start = false;
 
-  int seam_len;
-  int sharp_len;
+  int seam_len = 0;
+  int sharp_len = 0;
 };
 
 struct VMesh {
   Array<NewVert> mesh;
-  BoundVert *boundstart;
-  int count;
-  int seg;
-  MeshKind mesh_kind;
+  BoundVert *boundstart = nullptr;
+  int count = 0;
+  int seg = 0;
+  MeshKind mesh_kind = MeshKind::NONE;
 };
 
 struct BevVert {
-  int v;
-  int edgecount;
-  int selcount;
-  int wirecount;
-  float offset;
+  int v = -1;
+  int edgecount = 0;
+  int selcount = 0;
+  int wirecount = 0;
+  float offset = 0.0f;
 
-  bool any_seam;
-  bool visited;
+  bool any_seam = false;
+  bool visited = false;
 
   Array<EdgeHalf> edges;
 
@@ -660,14 +656,14 @@ namespace uv {
 
 class UVLayerInfo {
  public:
-  bool has_math_layers = false;
+  bool has_uv_layers = false;
   Array<int> face_component;
 
-  struct Map {
+  struct UVLayer {
     std::string name;
     Array<float2> values;
   };
-  Vector<Map> maps;
+  Vector<UVLayer> layers;
 
   void init(const Mesh &mesh);
 
@@ -675,26 +671,33 @@ class UVLayerInfo {
    * Determine connected components of faces, where faces in the same
    * component have contiguous UV coordinates across shared edges for ALL UV maps.
    */
-  void find_components(const ExtendableMesh &emesh, int seg);
+  void find_components(const ExtendableMesh &emesh);
 
   /** Returns true when UV data is contiguous across edge `e` between faces `f1` and `f2`. */
   bool contig_ldata_across_edge(const Mesh &mesh, int e, int f1, int f2) const;
+
+  /**
+   * Returns true when UV data is contiguous at vertex `v`:
+   * all corners at `v` have the same UV value in every layer.
+   * Mirrors #contig_ldata_around_vert from `bmesh_bevel.cc`.
+   */
+  bool contig_ldata_around_vert(const ExtendableMesh &emesh, int v) const;
 };
 
 void UVLayerInfo::init(const Mesh &mesh)
 {
-  has_math_layers = false;
+  has_uv_layers = false;
   const bke::AttributeAccessor attrs = mesh.attributes();
   attrs.foreach_attribute([&](const bke::AttributeIter &iter) {
     if (iter.domain == bke::AttrDomain::Corner && iter.data_type == bke::AttrType::Float2) {
       bke::AttributeReader<float2> uv_reader = iter.get<float2>();
       if (uv_reader) {
-        Map map;
-        map.name = iter.name;
-        map.values = Array<float2>(mesh.corners_num);
-        uv_reader.varray.materialize(map.values.as_mutable_span());
-        this->maps.append(std::move(map));
-        this->has_math_layers = true;
+        UVLayer layer;
+        layer.name = iter.name;
+        layer.values = Array<float2>(mesh.corners_num);
+        uv_reader.varray.materialize(layer.values.as_mutable_span());
+        this->layers.append(std::move(layer));
+        this->has_uv_layers = true;
       }
     }
   });
@@ -702,7 +705,7 @@ void UVLayerInfo::init(const Mesh &mesh)
 
 bool UVLayerInfo::contig_ldata_across_edge(const Mesh &mesh, int e, int f1, int f2) const
 {
-  if (!has_math_layers) {
+  if (!has_uv_layers) {
     return true;
   }
 
@@ -723,11 +726,11 @@ bool UVLayerInfo::contig_ldata_across_edge(const Mesh &mesh, int e, int f1, int 
     return false;
   }
 
-  for (const Map &map : maps) {
-    if (map.values[c1_v1] != map.values[c2_v1]) {
+  for (const UVLayer &layer : layers) {
+    if (layer.values[c1_v1] != layer.values[c2_v1]) {
       return false;
     }
-    if (map.values[c1_v2] != map.values[c2_v2]) {
+    if (layer.values[c1_v2] != layer.values[c2_v2]) {
       return false;
     }
   }
@@ -735,9 +738,9 @@ bool UVLayerInfo::contig_ldata_across_edge(const Mesh &mesh, int e, int f1, int 
   return true;
 }
 
-void UVLayerInfo::find_components(const ExtendableMesh &emesh, int seg)
+void UVLayerInfo::find_components(const ExtendableMesh &emesh)
 {
-  if (!has_math_layers || (seg % 2) == 0) {
+  if (!has_uv_layers) {
     return;
   }
 
@@ -849,6 +852,28 @@ void UVLayerInfo::find_components(const ExtendableMesh &emesh, int seg)
   }
 }
 
+bool UVLayerInfo::contig_ldata_around_vert(const ExtendableMesh &emesh, int v) const
+{
+  if (!has_uv_layers) {
+    return true;
+  }
+  /* Gather all corners at v. */
+  const Span<int> corners = emesh.vert_corners()[v];
+  if (corners.size() < 2) {
+    return true;
+  }
+  const int c_first = corners[0];
+  for (const UVLayer &layer : layers) {
+    const float2 &uv_ref = layer.values[c_first];
+    for (const int c : corners.drop_front(1)) {
+      if (layer.values[c] != uv_ref) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
 }  // namespace uv
 
 struct BevelState {
@@ -882,6 +907,11 @@ struct BevelState {
   /* Additional State mimicking bmesh_bevel that isn't fully contained in BevelParameters. */
   bool affect_vertices_odd;
   float pro_super_r;
+
+  /* Fast-path miter flags: true when all corners have the same miter setting.
+   * These avoid per-corner lookups in the common cases. */
+  bool all_miters_on;
+  bool all_miters_off;
 
   /* Feature flags and parameters that the node version might use or we keep to mimic bmesh_bevel.
    */
@@ -944,6 +974,13 @@ BevelState::BevelState(const Mesh &mesh, const BevelParameters &params, const In
     /* ignoring miters */
     this->params.miter.fill(false);
   }
+
+  /* Precompute fast-path miter flags. */
+  const Span<bool> miter_span = this->params.miter.as_span();
+  all_miters_off = miter_span.is_empty() ||
+                   std::none_of(miter_span.begin(), miter_span.end(), [](bool b) { return b; });
+  all_miters_on = !miter_span.is_empty() &&
+                  std::all_of(miter_span.begin(), miter_span.end(), [](bool b) { return b; });
 }
 
 namespace geom {
@@ -1972,6 +2009,10 @@ static void move_profile_plane(BoundVert *bndv, float3 bmvert_co);
 
 namespace construct {
 
+/* Forward declarations for miter adjustment functions defined after build_boundary. */
+static void adjust_miter_coords(const BevelState &state, BevVert *bv, EdgeHalf *emiter);
+static void adjust_miter_inner_coords(const BevelState &state, BevVert *bv, EdgeHalf *emiter);
+
 /* Assume e1 and e2 both share some vert. Do they share a face?
  * If they share a face then there is some corner around e1 that is in a face
  * where the next or previous edge in the face must be e2. */
@@ -2085,7 +2126,10 @@ static bool fast_bevel_edge_order(const ExtendableMesh &emesh, BevVert *bv, bool
  * Returns the new index i' where bv->edges[i'] ends the best path found.
  * The path will be recorded in bv->edges and used edges will be marked.
  */
-static int bevel_edge_order_extend(const ExtendableMesh &emesh, BevVert *bv, int i, bool is_edge_bevel)
+static int bevel_edge_order_extend(const ExtendableMesh &emesh,
+                                   BevVert *bv,
+                                   int i,
+                                   bool is_edge_bevel)
 {
   Vector<int, 4> sucs;
   Vector<int, 16> save_path;
@@ -2150,9 +2194,6 @@ static BoundVert *add_new_bound_vert(BevVert *bv, const float co[3])
   copy_v3_v3(v->nv.co, co);
   if (!bv->vmesh) {
     bv->vmesh = std::make_unique<VMesh>();
-    bv->vmesh->count = 0;
-    bv->vmesh->boundstart = nullptr;
-    bv->vmesh->mesh_kind = MeshKind::NONE;
   }
   VMesh *vm = bv->vmesh.get();
   if (vm->boundstart == nullptr) {
@@ -2166,9 +2207,9 @@ static BoundVert *add_new_bound_vert(BevVert *bv, const float co[3])
     vm->boundstart->prev = v;
   }
   v->index = vm->count++;
-  /* Set the same defaults that the BMesh path uses in #add_new_bound_vert.
-   * `sinratio` of 1.0 means no angular correction; `profile.super_r` of 1.0
-   * is the PRO_LINE_R value (straight-line profile). */
+  /* These two fields use 1.0 as their meaningful defaults, not 0.0:
+   * `sinratio` of 1.0 means no angular correction;
+   * `profile.super_r` of 1.0 is the PRO_LINE_R (straight-line profile) value. */
   v->sinratio = 1.0f;
   v->profile.super_r = 1.0f;
   return v;
@@ -2191,22 +2232,21 @@ static void adjust_bound_vert(BoundVert *bndv, const float co[3])
  *
  * TODO: This approach doesn't work for terminal edges or miters. */
 static void check_edge_data_seam_sharp_edges(const BevelState &state,
-                                              BevVert *bv,
-                                              bool check_seam,
-                                              bool check_sharp)
+                                             BevVert *bv,
+                                             bool check_seam,
+                                             bool check_sharp)
 {
   /* Read the uv_seam and sharp_edge edge attributes from the original mesh. */
   const bke::AttributeAccessor attrs = state.emesh.mesh.attributes();
   VArraySpan<bool> uv_seam_attr;
   VArraySpan<bool> sharp_edge_attr;
   {
-    bke::AttributeReader<bool> seam_reader = attrs.lookup<bool>("uv_seam",
-                                                                 bke::AttrDomain::Edge);
+    bke::AttributeReader<bool> seam_reader = attrs.lookup<bool>("uv_seam", bke::AttrDomain::Edge);
     if (seam_reader) {
       uv_seam_attr = VArraySpan<bool>(seam_reader.varray);
     }
     bke::AttributeReader<bool> sharp_reader = attrs.lookup<bool>("sharp_edge",
-                                                                   bke::AttrDomain::Edge);
+                                                                 bke::AttrDomain::Edge);
     if (sharp_reader) {
       sharp_edge_attr = VArraySpan<bool>(sharp_reader.varray);
     }
@@ -2275,7 +2315,10 @@ static void check_edge_data_seam_sharp_edges(const BevelState &state,
 }
 
 /* Sets the #any_seam property for a #BevVert and all its #BoundVert's. */
-static void set_bound_vert_seams(const BevelState &state, BevVert *bv, bool mark_seam, bool mark_sharp)
+static void set_bound_vert_seams(const BevelState &state,
+                                 BevVert *bv,
+                                 bool mark_seam,
+                                 bool mark_sharp)
 {
   bv->any_seam = false;
   BoundVert *v = bv->vmesh->boundstart;
@@ -2330,10 +2373,7 @@ static void offset_in_plane(
   copy_v3_v3(r_co, res);
 }
 
-static void build_boundary_vertex_only(const ExtendableMesh &emesh,
-                                       const BevelState &state,
-                                       BevVert *bv,
-                                       bool construct)
+static void build_boundary_vertex_only(const BevelState &state, BevVert *bv, bool construct)
 {
   BLI_assert(state.params.affect_type == BevelAffect::Vertices);
 
@@ -2341,7 +2381,7 @@ static void build_boundary_vertex_only(const ExtendableMesh &emesh,
   EdgeHalf *e = efirst;
   do {
     float co[3];
-    geom::slide_dist(emesh, e->e, bv->v, e->offset_l, co);
+    geom::slide_dist(state.emesh, e->e, bv->v, e->offset_l, co);
     if (construct) {
       BoundVert *v = add_new_bound_vert(bv, co);
       v->efirst = v->elast = e;
@@ -2354,6 +2394,14 @@ static void build_boundary_vertex_only(const ExtendableMesh &emesh,
 
   if (construct) {
     set_bound_vert_seams(state, bv, state.mark_seam, state.mark_sharp);
+    /* Also check for UV seams at the vertex itself, matching BMesh's #build_boundary_vertex_only.
+     * Only needed when the segment count is odd (the "affect_vertices_odd" condition), since
+     * `uv_layer_info.face_component` is only populated for odd segment counts. */
+    if (state.params.segments % 2 == 1) {
+      if (!bv->any_seam && !state.uv_layer_info.contig_ldata_around_vert(state.emesh, bv->v)) {
+        bv->any_seam = true;
+      }
+    }
     VMesh *vm = bv->vmesh.get();
     if (vm->count == 2) {
       vm->mesh_kind = MeshKind::NONE;
@@ -2367,12 +2415,12 @@ static void build_boundary_vertex_only(const ExtendableMesh &emesh,
   }
 }
 
-static void build_boundary_terminal_edge(const ExtendableMesh &emesh,
-                                         const BevelState &state,
+static void build_boundary_terminal_edge(const BevelState &state,
                                          BevVert *bv,
                                          EdgeHalf *efirst,
                                          const bool construct)
 {
+  const ExtendableMesh &emesh = state.emesh;
   EdgeHalf *e = efirst;
   float co[3];
   if (bv->edgecount == 2) {
@@ -2454,15 +2502,17 @@ static void build_boundary_terminal_edge(const ExtendableMesh &emesh,
         adjust_bound_vert(e->leftv, co);
       }
     }
-    if (construct) {
+    if (bv->edgecount >= 3) {
       /* Special case: snap profile to the plane of the adjacent two edges.
-       * Mirrors the BMesh #build_boundary_terminal_edge logic (BMesh lines 3394-3399). */
-      if (bv->edgecount >= 3) {
-        BoundVert *bndv = bv->vmesh->boundstart;
-        BLI_assert(bndv->ebev != nullptr);
-        profile::set_profile_params(state, bv, bndv);
-        profile::move_profile_plane(bndv, state.emesh.vert_position(bv->v));
-      }
+       * Mirrors the BMesh #build_boundary_terminal_edge logic (BMesh lines 3441-3447).
+       * This is intentionally outside the `if (construct)` block so that it also
+       * runs on adjustment passes, matching BMesh behavior. */
+      BoundVert *bndv = bv->vmesh->boundstart;
+      BLI_assert(bndv->ebev != nullptr);
+      profile::set_profile_params(state, bv, bndv);
+      profile::move_profile_plane(bndv, state.emesh.vert_position(bv->v));
+    }
+    if (construct) {
       set_bound_vert_seams(state, bv, state.mark_seam, state.mark_sharp);
 
       /* Set the mesh kind for the terminal face, mirroring BMesh's
@@ -2511,14 +2561,24 @@ static EdgeHalf *next_bev(BevVert *bv, EdgeHalf *from_e)
   return nullptr;
 }
 
+/* Returns true when two normalized direction vectors are nearly parallel or anti-parallel.
+ * Ported from #nearly_parallel_normalized in `bmesh_bevel.cc`. */
+static bool nearly_parallel_normalized(const float3 &d1, const float3 &d2)
+{
+  const float direction_dot = math::dot(d1, d2);
+  return fabsf(fabsf(direction_dot) - 1.0f) <= geom::BEVEL_EPSILON_ANG_DOT;
+}
+
 /* Is e between two faces with a (near) 180 degree angle between their normals? */
 static bool eh_on_plane(const ExtendableMesh &emesh, EdgeHalf *e)
 {
   if (e->fprev == -1 || e->fnext == -1) {
     return false;
   }
-  return angle_v3v3(emesh.mesh.face_normals()[e->fprev], emesh.mesh.face_normals()[e->fnext]) <
-         geom::BEVEL_SMALL_ANG;
+  const float dot = math::dot(emesh.mesh.face_normals()[e->fprev],
+                              emesh.mesh.face_normals()[e->fnext]);
+  return fabsf(dot + 1.0f) <= geom::BEVEL_EPSILON_BIG ||
+         fabsf(dot - 1.0f) <= geom::BEVEL_EPSILON_BIG;
 }
 
 enum AngleKind { ANGLE_SMALLER, ANGLE_STRAIGHT, ANGLE_LARGER };
@@ -2535,7 +2595,7 @@ static AngleKind edges_angle_kind(const ExtendableMesh &emesh, EdgeHalf *e1, Edg
   dir2 = math::normalize(dir2);
 
   /* First check for in-line edges using a simpler test. */
-  if (math::abs(math::dot(dir1, dir2)) > geom::BEVEL_EPSILON_ANG_DOT) {
+  if (nearly_parallel_normalized(dir1, dir2)) {
     return ANGLE_STRAIGHT;
   }
 
@@ -2558,17 +2618,44 @@ static AngleKind edges_angle_kind(const ExtendableMesh &emesh, EdgeHalf *e1, Edg
   return ANGLE_SMALLER;
 }
 
-static void build_boundary(const ExtendableMesh &emesh,
-                           const BevelState &state,
-                           BevVert *bv,
-                           bool construct)
+/* Returns true when a miter is requested at edge `e`'s outgoing corner at vertex `v`.
+ * The relevant corner is the one in `e->fnext` (the face to the right of `e` when
+ * traversing outward from the bevel vertex) that contains `v`.
+ * Mirrors the role of #BevelParams::miter_outer / #BevelParams::miter_inner in
+ * `bmesh_bevel.cc` but using a per-corner bool instead of global mode enums. */
+static bool edge_has_miter(const BevelState &state, const EdgeHalf *e, int v)
 {
+  if (state.all_miters_off) {
+    return false;
+  }
+  if (state.all_miters_on) {
+    return true;
+  }
+  /* Per-corner lookup: find the corner in e->fnext at vertex v. */
+  if (e->fnext == -1) {
+    return false;
+  }
+  const Mesh &mesh = state.emesh.mesh;
+  const IndexRange face = mesh.faces()[e->fnext];
+  const Span<int> corner_verts = mesh.corner_verts().slice(face);
+  for (const int i : corner_verts.index_range()) {
+    if (corner_verts[i] == v) {
+      const int corner = face.start() + i;
+      return (corner < int(state.params.miter.size())) && state.params.miter[corner];
+    }
+  }
+  return false;
+}
+
+static void build_boundary(const BevelState &state, BevVert *bv, bool construct)
+{
+  const ExtendableMesh &emesh = state.emesh;
   if (bv->edgecount <= 1) {
     return;
   }
 
   if (state.params.affect_type == BevelAffect::Vertices) {
-    build_boundary_vertex_only(emesh, state, bv, construct);
+    build_boundary_vertex_only(state, bv, construct);
     return;
   }
 
@@ -2579,12 +2666,9 @@ static void build_boundary(const ExtendableMesh &emesh,
 
   if (bv->selcount == 1) {
     /* Special case: only one beveled edge in. */
-    build_boundary_terminal_edge(emesh, state, bv, efirst, construct);
+    build_boundary_terminal_edge(state, bv, efirst, construct);
     return;
   }
-
-  int miter_outer = (bv->selcount >= 3) ? 0 /*bp->miter_outer*/ : 0 /*BEVEL_MITER_SHARP*/;
-  int miter_inner = 0 /*bp->miter_inner*/;
 
   EdgeHalf *emiter = nullptr;
 
@@ -2665,46 +2749,122 @@ static void build_boundary(const ExtendableMesh &emesh,
       AngleKind ang_kind = edges_angle_kind(emesh, e, e2, bv->v);
 
       /* Are we doing special mitering?
-       * There can only be one outer reflex angle, so only one outer miter,
-       * and emiter will be set to the first edge of such an edge.
-       * A miter kind of 0 (BEVEL_MITER_SHARP) means no special miter. */
-      if ((miter_outer != 0 && !emiter && ang_kind == ANGLE_LARGER) ||
-          (miter_inner != 0 && ang_kind == ANGLE_SMALLER))
-      {
+       * There can only be one outer (reflex) miter; `emiter` is set to its edge.
+       * Outer corners (ANGLE_LARGER) → patch miter; inner (ANGLE_SMALLER) → arc miter.
+       * No miter is added when #edge_has_miter returns false for this edge. */
+      const bool want_miter = edge_has_miter(state, e, bv->v);
+      const bool do_outer_miter = (want_miter && !emiter && ang_kind == ANGLE_LARGER);
+      const bool do_inner_miter = (want_miter && ang_kind == ANGLE_SMALLER);
+
+      if (do_outer_miter || do_inner_miter) {
         if (ang_kind == ANGLE_LARGER) {
           emiter = e;
         }
         BoundVert *v1 = v;
         v1->ebev = nullptr;
         BoundVert *v2 = nullptr;
-        if (ang_kind == ANGLE_LARGER && miter_outer == 1 /*BEVEL_MITER_PATCH*/) {
+        if (do_outer_miter) {
+          /* Patch miter: insert extra BoundVert v2 between the two bevel offsets. */
           v2 = add_new_bound_vert(bv, co);
         }
-        (void)v2;  // TODO: properly use v2 when mitering is fully supported
         BoundVert *v3 = add_new_bound_vert(bv, co);
         v3->ebev = e2;
-        v3->efirst = nullptr;
+        v3->efirst = e2;
         v3->elast = e2;
-        v3->eon = eon;
+        v3->eon = nullptr;
         e2->leftv = v3;
-        if (eon) {
-          v3->sinratio = r;
-          v1->sinratio = r;
-        }
-        if (ang_kind == ANGLE_LARGER) {
-          v1->is_patch_start = (miter_outer == 1 /*BEVEL_MITER_PATCH*/);
-          v1->is_arc_start = (miter_outer == 2 /*BEVEL_MITER_ARC*/);
-          v1->is_profile_start = false;
+        if (do_outer_miter) {
+          /* Wire v2 as the middle patch vertex. Mirrors BMesh lines 3699-3717. */
+          v1->is_patch_start = true;
+          v2->eon = v1->eon;
+          v2->sinratio = v1->sinratio;
+          v2->ebev = nullptr;
+          v1->eon = nullptr;
+          v1->sinratio = 1.0f;
+          v1->elast = e;
+          if (e->next == e2) {
+            v2->efirst = nullptr;
+            v2->elast = nullptr;
+          }
+          else {
+            v2->efirst = e->next;
+            for (EdgeHalf *e3 = e->next; e3 != e2; e3 = e3->next) {
+              e3->leftv = e3->rightv = v2;
+              v2->elast = e3;
+            }
+          }
         }
         else {
-          v1->is_arc_start = (miter_inner == 2 /*BEVEL_MITER_ARC*/);
+          /* Arc miter: v1 is the arc start, v3 carries the left bevel. Mirrors BMesh lines
+           * 3720-3745. */
+          v1->is_arc_start = true;
+          copy_v3_v3(v1->profile.middle, co);
+          if (e->next == e2) {
+            v1->elast = v1->efirst;
+          }
+          else {
+            int between = in_plane + not_in_plane;
+            int bet2 = between / 2;
+            bool betodd = (between % 2) == 1;
+            int i = 0;
+            /* Put first half of in-between edges at profile index 0, second half at index seg.
+             * If between is odd, the middle one goes at seg/2. */
+            for (EdgeHalf *e3 = e->next; e3 != e2; e3 = e3->next) {
+              v1->elast = e3;
+              if (i < bet2) {
+                e3->profile_index = 0;
+              }
+              else if (betodd && i == bet2) {
+                e3->profile_index = state.params.segments / 2;
+              }
+              else {
+                e3->profile_index = state.params.segments;
+              }
+              i++;
+            }
+          }
         }
       }
     }
     else {
-      adjust_bound_vert(e->rightv, co);
+      AngleKind ang_kind = edges_angle_kind(emesh, e, e2, bv->v);
+      const bool want_miter = edge_has_miter(state, e, bv->v);
+      const bool do_outer_miter = (want_miter && !emiter && ang_kind == ANGLE_LARGER);
+      const bool do_inner_miter = (want_miter && ang_kind == ANGLE_SMALLER);
+      if (do_outer_miter || do_inner_miter) {
+        if (ang_kind == ANGLE_LARGER) {
+          emiter = e;
+        }
+        BoundVert *v1 = e->rightv;
+        BoundVert *v2 = nullptr;
+        BoundVert *v3;
+        if (do_outer_miter) {
+          v2 = v1->next;
+          v3 = v2->next;
+        }
+        else {
+          v3 = v1->next;
+        }
+        adjust_bound_vert(v1, co);
+        if (v2) {
+          adjust_bound_vert(v2, co);
+        }
+        adjust_bound_vert(v3, co);
+      }
+      else {
+        adjust_bound_vert(e->rightv, co);
+      }
     }
   } while ((e = e2) != efirst);
+
+  /* Adjust miter BoundVert positions now that the full ring of BoundVerts is known.
+   * Mirrors #adjust_miter_inner_coords and #adjust_miter_coords in `bmesh_bevel.cc`. */
+  if (!state.all_miters_off) {
+    adjust_miter_inner_coords(state, bv, emiter);
+  }
+  if (emiter) {
+    adjust_miter_coords(state, bv, emiter);
+  }
 
   if (construct) {
     set_bound_vert_seams(state, bv, state.mark_seam, state.mark_sharp);
@@ -2726,6 +2886,117 @@ static void build_boundary(const ExtendableMesh &emesh,
       }
     }
   }
+}
+
+/* Adjusts the positions of the outer (patch) miter BoundVerts v1 and v3 so they lie on
+ * the planes through the adjacent BoundVerts.  Ported from #adjust_miter_coords in
+ * `bmesh_bevel.cc`. */
+static void adjust_miter_coords(const BevelState &state, BevVert *bv, EdgeHalf *emiter)
+{
+  BoundVert *v1 = emiter->rightv;
+  BoundVert *v3;
+  if (v1->is_patch_start) {
+    /* Patch miter: v2 is between v1 and v3. */
+    v3 = v1->next->next;
+  }
+  else {
+    /* Arc miter: no v2. */
+    v3 = v1->next;
+  }
+  BoundVert *v1prev = v1->prev;
+  BoundVert *v3next = v3->next;
+
+  float co2[3];
+  copy_v3_v3(co2, v1->nv.co);
+  if (v1->is_arc_start) {
+    copy_v3_v3(v1->profile.middle, co2);
+  }
+
+  /* Fallback slide distance: offset divided by half-segment-count. */
+  const float d = bv->edges[0].offset_l / std::max(float(state.params.segments) / 2.0f, 1.0f);
+
+  /* co1: intersection of the line through co2 in the direction of emiter->e
+   * with the plane whose normal is that direction and which passes through v1prev. */
+  float co1[3], edge_dir[3], line_p[3];
+  int vother = geom::edge_other_vert(state.emesh, emiter->e, bv->v);
+  sub_v3_v3v3(edge_dir,
+              static_cast<const float *>(state.emesh.vert_position(bv->v)),
+              static_cast<const float *>(state.emesh.vert_position(vother)));
+  normalize_v3(edge_dir);
+  madd_v3_v3v3fl(line_p, co2, edge_dir, d);
+  if (!isect_line_plane_v3(co1, co2, line_p, v1prev->nv.co, edge_dir)) {
+    copy_v3_v3(co1, line_p);
+  }
+  adjust_bound_vert(v1, co1);
+
+  /* co3: same idea but using the other side of the miter (edge of v3). */
+  float co3[3];
+  EdgeHalf *emiter_other = v3->elast;
+  vother = geom::edge_other_vert(state.emesh, emiter_other->e, bv->v);
+  sub_v3_v3v3(edge_dir,
+              static_cast<const float *>(state.emesh.vert_position(bv->v)),
+              static_cast<const float *>(state.emesh.vert_position(vother)));
+  normalize_v3(edge_dir);
+  madd_v3_v3v3fl(line_p, co2, edge_dir, d);
+  if (!isect_line_plane_v3(co3, co2, line_p, v3next->nv.co, edge_dir)) {
+    copy_v3_v3(co3, line_p);
+  }
+  adjust_bound_vert(v3, co3);
+}
+
+/* Adjusts the positions of inner (arc) miter BoundVerts by spreading them along the edge
+ * directions according to the per-corner spread value.  Ported from
+ * #adjust_miter_inner_coords in `bmesh_bevel.cc`. */
+static void adjust_miter_inner_coords(const BevelState &state, BevVert *bv, EdgeHalf *emiter)
+{
+  BoundVert *vstart = bv->vmesh->boundstart;
+  BoundVert *v = vstart;
+  do {
+    if (v->is_arc_start) {
+      BoundVert *v3 = v->next;
+      EdgeHalf *e = v->efirst;
+      if (e != emiter) {
+        float edge_dir[3], co[3];
+        copy_v3_v3(co, v->nv.co);
+
+        /* Spread: use per-corner value from params if available; fall back to 0. */
+        int corner = -1;
+        if (e->fnext != -1) {
+          const Mesh &mesh = state.emesh.mesh;
+          const IndexRange face = mesh.faces()[e->fnext];
+          const Span<int> cverts = mesh.corner_verts().slice(face);
+          for (const int i : cverts.index_range()) {
+            if (cverts[i] == bv->v) {
+              corner = face.start() + i;
+              break;
+            }
+          }
+        }
+        const float spread = (corner >= 0 && corner < int(state.params.spread.size())) ?
+                                 state.params.spread[corner] :
+                                 0.0f;
+
+        int vother = geom::edge_other_vert(state.emesh, e->e, bv->v);
+        sub_v3_v3v3(edge_dir,
+                    static_cast<const float *>(state.emesh.vert_position(vother)),
+                    static_cast<const float *>(state.emesh.vert_position(bv->v)));
+        normalize_v3(edge_dir);
+        madd_v3_v3v3fl(v->nv.co, co, edge_dir, spread);
+
+        e = v3->elast;
+        vother = geom::edge_other_vert(state.emesh, e->e, bv->v);
+        sub_v3_v3v3(edge_dir,
+                    static_cast<const float *>(state.emesh.vert_position(vother)),
+                    static_cast<const float *>(state.emesh.vert_position(bv->v)));
+        normalize_v3(edge_dir);
+        madd_v3_v3v3fl(v3->nv.co, co, edge_dir, spread);
+      }
+      v = v3->next;
+    }
+    else {
+      v = v->next;
+    }
+  } while (v != vstart);
 }
 
 static void find_bevel_edge_order(const ExtendableMesh &emesh,
@@ -3549,13 +3820,15 @@ void BevelState::uv_init()
   face_hash.emplace();
 
   uv_layer_info.init(emesh.mesh);
-  uv_layer_info.find_components(emesh, params.segments);
+  if (params.segments % 2 != 0) {
+    uv_layer_info.find_components(emesh);
+  }
 
   uv_vert_maps.clear();
-  uv_vert_maps.resize(uv_layer_info.maps.size());
+  uv_vert_maps.resize(uv_layer_info.layers.size());
 
   /* Allocate per-UV-layer storage for new corner UV values. */
-  emesh.init_uv_storage(int(uv_layer_info.maps.size()));
+  emesh.init_uv_storage(int(uv_layer_info.layers.size()));
 }
 
 namespace construct {
@@ -3601,7 +3874,7 @@ static bool face_point_inside_test(const ExtendableMesh &emesh, const int f, con
 
   (void)corner_verts;
   return isect_point_poly_v2(
-      co_2d, reinterpret_cast<const float(*)[2]>(projverts.data()), uint(n));
+      co_2d, reinterpret_cast<const float (*)[2]>(projverts.data()), uint(n));
 }
 
 /**
@@ -3722,7 +3995,7 @@ static float projected_boundary_area(const BevelState &state, BevVert *bv, const
     ++i;
   } while ((v = v->next) != vm->boundstart);
 
-  return area_poly_v2(reinterpret_cast<const float(*)[2]>(proj_co.data()), count);
+  return area_poly_v2(reinterpret_cast<const float (*)[2]>(proj_co.data()), count);
 }
 
 /**
@@ -4034,7 +4307,7 @@ static int frep_for_center_poly(const BevelState &state, const BevVert *bv)
       }
     }
     if (!already_there) {
-      if (state.uv_layer_info.has_math_layers) {
+      if (state.uv_layer_info.has_uv_layers) {
         /* Skip candidates that would produce a degenerate UV polygon. */
         if (is_bad_uv_poly(state, const_cast<BevVert *>(bv), bmf)) {
           continue;
@@ -4090,10 +4363,8 @@ static int bevel_build_poly(BevelState &state, BevVert *bv)
         /* With a seam-adjacent frep: snap to the closer incident edge, unless this
          * boundvert is in frep_unsnapped (internal to the face). */
         corner_reps.append(frep);
-        const bool is_unsnapped = ELEM(bndv,
-                                       frep_unsnapped[0],
-                                       frep_unsnapped[1],
-                                       frep_unsnapped[2]);
+        const bool is_unsnapped = ELEM(
+            bndv, frep_unsnapped[0], frep_unsnapped[1], frep_unsnapped[2]);
         if (is_unsnapped || frep_e1 < 0 || frep_e2 < 0) {
           corner_snaps.append(-1);
         }
@@ -4141,8 +4412,7 @@ static int bevel_build_poly(BevelState &state, BevVert *bv)
     return -1;
   }
   const int new_face = state.emesh.face_create(verts.as_span(), frep);
-  state.emesh.face_set_corner_reps(
-      new_face, corner_reps.as_span(), corner_snaps.as_span());
+  state.emesh.face_set_corner_reps(new_face, corner_reps.as_span(), corner_snaps.as_span());
 #ifdef BEVEL_DEBUG
   {
     fmt::println("bevel_build_poly: bv->v={} any_seam={} frep={} ns={} n_verts={}",
@@ -4152,11 +4422,8 @@ static int bevel_build_poly(BevelState &state, BevVert *bv)
                  ns,
                  int(verts.size()));
     for (int ci = 0; ci < int(verts.size()); ci++) {
-      fmt::println("  corner[{}] v={} rep={} snap={}",
-                   ci,
-                   verts[ci],
-                   corner_reps[ci],
-                   corner_snaps[ci]);
+      fmt::println(
+          "  corner[{}] v={} rep={} snap={}", ci, verts[ci], corner_reps[ci], corner_snaps[ci]);
     }
   }
 #endif
@@ -4195,10 +4462,8 @@ static void bevel_build_trifan(BevelState &state, BevVert *bv)
       ring.append(vert_idx);
       if (frep >= 0 && bv->any_seam) {
         ring_reps.append(frep);
-        const bool is_unsnapped = ELEM(bndv,
-                                       frep_unsnapped[0],
-                                       frep_unsnapped[1],
-                                       frep_unsnapped[2]);
+        const bool is_unsnapped = ELEM(
+            bndv, frep_unsnapped[0], frep_unsnapped[1], frep_unsnapped[2]);
         if (is_unsnapped || frep_e1 < 0 || frep_e2 < 0) {
           ring_snaps.append(-1);
         }
@@ -4216,8 +4481,7 @@ static void bevel_build_trifan(BevelState &state, BevVert *bv)
     if (bndv->ebev && ns > 1) {
       for (int k = 1; k < ns; k++) {
         ring.append(geom::mesh_vert(vm, bndv_i, 0, k)->v);
-        ring_reps.append(frep >= 0 && bv->any_seam ? frep :
-                                                      boundvert_rep_face(bndv, nullptr));
+        ring_reps.append(frep >= 0 && bv->any_seam ? frep : boundvert_rep_face(bndv, nullptr));
         ring_snaps.append(-1);
       }
     }
@@ -4233,9 +4497,7 @@ static void bevel_build_trifan(BevelState &state, BevVert *bv)
     const int tri_reps[3] = {ring_reps[0], ring_reps[i], ring_reps[i + 1]};
     const int tri_snaps[3] = {ring_snaps[0], ring_snaps[i], ring_snaps[i + 1]};
     const int new_face = state.emesh.face_create(Span<int>(tri, 3), frep);
-    state.emesh.face_set_corner_reps(new_face,
-                                      Span<int>(tri_reps, 3),
-                                      Span<int>(tri_snaps, 3));
+    state.emesh.face_set_corner_reps(new_face, Span<int>(tri_reps, 3), Span<int>(tri_snaps, 3));
   }
 }
 
@@ -4347,9 +4609,8 @@ static void bevel_build_rings(BevelState &state, BevVert *bv)
                        -1;
 
     /* Bevel-edge indices for snap purposes (-1 when not applicable). */
-    const EdgeHalf *ebev = (state.params.affect_type != BevelAffect::Vertices) ?
-                               bndv->ebev :
-                               bndv->efirst;
+    const EdgeHalf *ebev = (state.params.affect_type != BevelAffect::Vertices) ? bndv->ebev :
+                                                                                 bndv->efirst;
     const EdgeHalf *ebev_prev = (state.params.affect_type != BevelAffect::Vertices) ?
                                     bndv->prev->ebev :
                                     bndv->prev->efirst;
@@ -4871,13 +5132,14 @@ static void bevel_build_edge_polygons(BevelState &state, int edge_index)
 
     /* Set per-corner face reps and snap edges when any are non-default. */
     const bool any_corner_reps = corner_reps[0] >= 0 || corner_reps[1] >= 0 ||
-                                  corner_reps[2] >= 0 || corner_reps[3] >= 0;
+                                 corner_reps[2] >= 0 || corner_reps[3] >= 0;
     const bool any_corner_snaps = corner_snaps[0] >= 0 || corner_snaps[1] >= 0 ||
-                                   corner_snaps[2] >= 0 || corner_snaps[3] >= 0;
+                                  corner_snaps[2] >= 0 || corner_snaps[3] >= 0;
     if (any_corner_reps || any_corner_snaps) {
       state.emesh.face_set_corner_reps(new_face,
                                        any_corner_reps ? Span<int>(corner_reps, 4) : Span<int>{},
-                                       any_corner_snaps ? Span<int>(corner_snaps, 4) : Span<int>{});
+                                       any_corner_snaps ? Span<int>(corner_snaps, 4) :
+                                                          Span<int>{});
     }
 #ifdef BEVEL_DEBUG
     {
@@ -5094,15 +5356,15 @@ static void build_vmesh(BevelState &state, BevVert *bv)
  * `state.uv_vert_maps[i][v]`, one entry per UV layer.
  *
  * This is the Mesh equivalent of the BMesh #determine_uv_vert_connectivity function.
- * Corners play the role of BMesh loops; #uv::UVLayerInfo::maps supplies the UV values.
+ * Corners play the role of BMesh loops; #uv::UVLayerInfo::layers supplies the UV values.
  */
 static void determine_uv_vert_connectivity(BevelState &state, int v)
 {
-  const int num_uv_layers = int(state.uv_layer_info.maps.size());
+  const int num_uv_layers = int(state.uv_layer_info.layers.size());
   BLI_assert(int(state.uv_vert_maps.size()) == num_uv_layers);
 
   for (int i = 0; i < num_uv_layers; i++) {
-    const Span<float2> uv_vals = state.uv_layer_info.maps[i].values.as_span();
+    const Span<float2> uv_vals = state.uv_layer_info.layers[i].values.as_span();
     Vector<UVVertBucket> uv_vert_buckets;
 
     for (const int c : state.emesh.vert_corners()[v]) {
@@ -6464,15 +6726,9 @@ static void bevel_vert_construct(BevelState &state, int v)
       eh->is_bev = true;
       eh->seg = state.params.segments;
     }
-    else {
-      eh->is_bev = false;
-      eh->seg = 0;
-    }
 
     const int2 edge_verts = emesh.edge_verts(e);
     eh->is_rev = (edge_verts[1] == v);
-    eh->leftv = eh->rightv = nullptr;
-    eh->profile_index = 0;
   }
 
   if (tot_edges > 1) {
@@ -6592,7 +6848,7 @@ static float2 interp_uv_from_face(const ExtendableMesh &emesh,
 
   /* Compute mean-value interpolation weights. */
   Array<float> w(n);
-  interp_weights_poly_v2(w.data(), reinterpret_cast<float(*)[2]>(cos_2d.data()), n, co_2d);
+  interp_weights_poly_v2(w.data(), reinterpret_cast<float (*)[2]>(cos_2d.data()), n, co_2d);
 
   /* Weighted sum of UV values. */
   float2 result(0.0f);
@@ -6609,7 +6865,7 @@ static float2 interp_uv_from_face(const ExtendableMesh &emesh,
  */
 static void fill_new_corner_uvs(BevelState &state)
 {
-  const int num_uv_layers = int(state.uv_layer_info.maps.size());
+  const int num_uv_layers = int(state.uv_layer_info.layers.size());
   if (num_uv_layers == 0) {
     return;
   }
@@ -6627,12 +6883,12 @@ static void fill_new_corner_uvs(BevelState &state)
     const int face_fallback = new_face_exs[nf];
     const IndexRange new_corners = new_faces[nf];
     for (int layer = 0; layer < num_uv_layers; layer++) {
-      const Span<float2> uv_vals = state.uv_layer_info.maps[layer].values.as_span();
+      const Span<float2> uv_vals = state.uv_layer_info.layers[layer].values.as_span();
       MutableSpan<float2> dst_uvs = emesh.new_corner_uvs(layer);
       for (const int nc : new_corners) {
         /* Use the per-corner face rep if set; otherwise fall back to the face-level one. */
         const int f_src = (new_corner_face_reps[nc] >= 0) ? new_corner_face_reps[nc] :
-                                                             face_fallback;
+                                                            face_fallback;
         if (f_src < 0 || f_src >= emesh.mesh.faces_num) {
           continue;
         }
@@ -6675,7 +6931,7 @@ static void fill_new_corner_uvs(BevelState &state)
  */
 static void merge_uvs(BevelState &state)
 {
-  const int num_uv_layers = int(state.uv_layer_info.maps.size());
+  const int num_uv_layers = int(state.uv_layer_info.layers.size());
   if (num_uv_layers == 0) {
     return;
   }
@@ -6714,7 +6970,7 @@ static void merge_uvs(BevelState &state)
   }
 
   for (int layer = 0; layer < num_uv_layers; layer++) {
-    MutableSpan<float2> src_uv_vals = state.uv_layer_info.maps[layer].values.as_mutable_span();
+    MutableSpan<float2> src_uv_vals = state.uv_layer_info.layers[layer].values.as_mutable_span();
     MutableSpan<float2> new_uv_vals = emesh.new_corner_uvs(layer);
 
     /* --- Pass 1: source corners at original bevel vertices ------------------- */
@@ -7020,7 +7276,7 @@ static std::optional<Mesh *> build_output_mesh(const BevelState &state)
                            dst_attrs);
 
     /* Write precomputed UV values for new corners into the output mesh. */
-    const int num_uv_layers = int(state.uv_layer_info.maps.size());
+    const int num_uv_layers = int(state.uv_layer_info.layers.size());
     if (num_uv_layers > 0) {
       bke::MutableAttributeAccessor out_attrs = dst->attributes_for_write();
       const Span<int> new_corner_verts = emesh.new_corner_verts();
@@ -7028,7 +7284,7 @@ static std::optional<Mesh *> build_output_mesh(const BevelState &state)
       const int new_corner_dst_start = n_surv_corners;
 
       for (int li = 0; li < num_uv_layers; li++) {
-        const StringRef layer_name = state.uv_layer_info.maps[li].name;
+        const StringRef layer_name = state.uv_layer_info.layers[li].name;
         bke::AttributeWriter<float2> uv_writer = out_attrs.lookup_for_write<float2>(layer_name);
         if (!uv_writer) {
           continue;
@@ -7081,7 +7337,7 @@ std::optional<Mesh *> mesh_bevel(
   state.bevel_affected_vertices.foreach_index([&](const int v) {
     construct::bevel_vert_construct(state, v);
     BevVert *bv = state.vert_hash.lookup(v);
-    construct::build_boundary(state.emesh, state, bv, true);
+    construct::build_boundary(state, bv, true);
     construct::determine_uv_vert_connectivity(state, v);
     construct::build_vmesh(state, bv);
   });
@@ -7106,7 +7362,7 @@ std::optional<Mesh *> mesh_bevel(
   state.bevel_affected_vertices.foreach_index([&](const int v) { state.emesh.vert_kill(v); });
 
   /* Interpolate UV values for new corners, then merge at seam vertices. */
-  if (state.uv_layer_info.has_math_layers) {
+  if (state.uv_layer_info.has_uv_layers) {
     construct::fill_new_corner_uvs(state);
 #ifdef BEVEL_DEBUG
     {
@@ -7119,7 +7375,7 @@ std::optional<Mesh *> mesh_bevel(
                      nf + state.emesh.mesh.faces_num,
                      nc_range.start(),
                      nc_range.last());
-        for (int layer = 0; layer < int(state.uv_layer_info.maps.size()); layer++) {
+        for (int layer = 0; layer < int(state.uv_layer_info.layers.size()); layer++) {
           const Span<float2> new_uv = state.emesh.new_corner_uvs(layer);
           for (const int nc : nc_range) {
             fmt::println("  layer={} corner={} v={} uv=({:.5f},{:.5f})",
