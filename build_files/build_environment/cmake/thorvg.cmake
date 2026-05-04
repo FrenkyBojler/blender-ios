@@ -2,7 +2,9 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-set(THORVG_EXTRA_ARGS
+set(THORVG_EXTRA_OPTIONS
+  -Dloaders=svg
+  -Dextra=  # Set to none, disable building with OpenMP
 )
 
 ExternalProject_Add(external_thorvg
@@ -15,11 +17,10 @@ ExternalProject_Add(external_thorvg
   CONFIGURE_COMMAND ${CONFIGURE_ENV} &&
     ${MESON} setup
       --prefix ${LIBDIR}/thorvg
-      ${MESON_BUILD_TYPE}
-      --default-library static
       --libdir lib
-      -Dloaders=svg
-      -Dextra=  # Set to none, disable building with OpenMP
+      --default-library static
+      ${MESON_BUILD_TYPE}
+      ${THORVG_EXTRA_OPTIONS}
       ${BUILD_DIR}/thorvg/src/external_thorvg-build
       ${BUILD_DIR}/thorvg/src/external_thorvg
 

@@ -57,6 +57,28 @@ ExternalProject_Add(external_spirv_headers
   INSTALL_DIR ${LIBDIR}/vulkan_headers
 )
 
+set(SPIRV_TOOLS_EXTRA_ARGS
+  -DSPIRV-Headers_SOURCE_DIR=${LIBDIR}/vulkan_headers
+)
+
+ExternalProject_Add(external_spirv_tools
+  URL file://${PACKAGE_DIR}/${SPIRV_TOOLS_FILE}
+  URL_HASH ${SPIRV_TOOLS_HASH_TYPE}=${SPIRV_TOOLS_HASH}
+  PREFIX ${BUILD_DIR}/spirv_tools
+
+  CMAKE_ARGS
+    -DCMAKE_INSTALL_PREFIX=${LIBDIR}/spirv_tools
+    -Wno-dev ${DEFAULT_CMAKE_FLAGS}
+    ${SPIRV_TOOLS_EXTRA_ARGS}
+
+  INSTALL_DIR ${LIBDIR}/spirv_tools
+)
+
+add_dependencies(
+  external_spirv_tools
+  external_spirv_headers
+)
+
 if(UNIX AND NOT APPLE)
   # These are used in `cmake/FindWayland.cmake` from `external_vulkan_loader`.
   # NOTE: When upgrading to CMAKE 3.22 it would be cleaner to use: `PKG_CONFIG_ARGN`,

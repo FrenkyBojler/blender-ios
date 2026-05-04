@@ -5,6 +5,13 @@
 set(MESHOPTIMIZER_EXTRA_ARGS
 )
 
+if(WIN32)
+  set(MESHOPTIMIZER_EXTRA_ARGS
+    ${MESHOPTIMIZER_EXTRA_ARGS}
+    -DCMAKE_DEBUG_POSTFIX=_d
+  )
+endif()
+
 ExternalProject_Add(external_meshoptimizer
   URL file://${PACKAGE_DIR}/${MESHOPTIMIZER_FILE}
   DOWNLOAD_DIR ${DOWNLOAD_DIR}

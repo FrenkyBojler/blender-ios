@@ -120,18 +120,10 @@ PACKAGES_FOR_LIBS=(
     # For example, this is used for the `python3-mako` package
     # So use the "default" system Python since it means it's most compatible with other packages.
     python3
-    # Required by: `external_mesa`.
-    python3-mako
 
     # Required by: `external_igc`.
+    python3-mako
     python3-pyyaml
-
-    # Required by: `external_mesa`.
-    expat-devel
-
-    # Required by: `external_mesa`.
-    libxshmfence
-    libxshmfence-devel
 
     # Required by: `external_igc` & `external_osl` as a build-time dependency.
     bison
