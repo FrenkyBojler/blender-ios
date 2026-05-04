@@ -413,7 +413,7 @@ Scene::MotionType Scene::need_motion() const
     return MOTION_BLUR;
   }
   if (Pass::contains(passes, PASS_MOTION) ||
-      Pass::contains(passes, PASS_DENOISING_BACKWARD_MOTION_VECTOR))
+      Pass::contains(passes, PASS_DENOISING_BACKWARD_MOTION))
   {
     return MOTION_PASS;
   }

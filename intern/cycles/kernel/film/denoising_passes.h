@@ -131,10 +131,10 @@ ccl_device_forceinline void film_write_denoising_features_surface(KernelGlobals 
                                denoising_specular_albedo);
     }
 
-    if (kernel_data.film.pass_denoising_backward_motion_vector != PASS_UNUSED) {
-      const float3 backward_motion_vector = primitive_motion_vector_backward_depth_delta(kg, sd);
-      film_write_pass_float3(buffer + kernel_data.film.pass_denoising_backward_motion_vector,
-                             backward_motion_vector);
+    if (kernel_data.film.pass_denoising_backward_motion != PASS_UNUSED) {
+      const float3 backward_motion = primitive_motion_vector_backward_depth_delta(kg, sd);
+      film_write_pass_float3(buffer + kernel_data.film.pass_denoising_backward_motion,
+                             backward_motion);
     }
   }
 
