@@ -617,7 +617,7 @@ static void panel_custom_data_active_set(Panel *panel)
 /**
  * Set flag state for a panel and its sub-panels.
  */
-static void panel_set_flag_recursive(Panel *panel, short flag, bool value)
+static void panel_set_flag_recursive(Panel *panel, ePanel_Flag flag, bool value)
 {
   SET_FLAG_FROM_TEST(panel->flag, value, flag);
 
@@ -2672,8 +2672,7 @@ int handler_panel_region(bContext *C,
                          ARegion *region,
                          const Button *active_but)
 {
-  /* Handle release of dragged panel in separate handlers. */
-  if (event->type == LEFTMOUSE && event->val == KM_RELEASE) {
+  if (event->val == KM_RELEASE) {
     return WM_UI_HANDLER_CONTINUE;
   }
 
