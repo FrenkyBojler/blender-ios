@@ -1134,10 +1134,10 @@ void wm_gizmomap_modal_set(
     struct wmGizmoOpElem *gzop = nullptr;
     if (event->modifier & KM_SHIFT) {
       if (event->modifier & KM_ALT) {
-        gzop = WM_gizmo_operator_get(gz, 15);
+        gzop = WM_gizmo_operator_get(gz, WM_GIZMO_OP_SLOT_SHIFT_ALT);
       }
       else {
-        gzop = WM_gizmo_operator_get(gz, 16);
+        gzop = WM_gizmo_operator_get(gz, WM_GIZMO_OP_SLOT_SHIFT);
       }
     }
 

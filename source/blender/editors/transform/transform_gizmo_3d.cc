@@ -1828,10 +1828,12 @@ static void gizmogroup_init_properties_from_twtype(const bContext *C, wmGizmoGro
         }
 
         if (ot_store.extra_translate) {
-          ptr_extra = WM_gizmo_operator_set(axis, 16, ot_store.extra_translate, nullptr);
+          ptr_extra = WM_gizmo_operator_set(
+              axis, WM_GIZMO_OP_SLOT_SHIFT, ot_store.extra_translate, nullptr);
         }
         if (ot_store.extra_translate2) {
-          ptr_extra2 = WM_gizmo_operator_set(axis, 15, ot_store.extra_translate2, nullptr);
+          ptr_extra2 = WM_gizmo_operator_set(
+              axis, WM_GIZMO_OP_SLOT_SHIFT_ALT, ot_store.extra_translate2, nullptr);
         }
         ptr = WM_gizmo_operator_set(axis, 0, ot_store.translate, nullptr);
         break;
@@ -1892,10 +1894,12 @@ static void gizmogroup_init_properties_from_twtype(const bContext *C, wmGizmoGro
         }
 
         if (ot_rotate_extra) {
-          ptr_extra = WM_gizmo_operator_set(axis, 16, ot_rotate_extra, nullptr);
+          ptr_extra = WM_gizmo_operator_set(
+              axis, WM_GIZMO_OP_SLOT_SHIFT, ot_rotate_extra, nullptr);
         }
         if (ot_rotate_extra2) {
-          ptr_extra2 = WM_gizmo_operator_set(axis, 15, ot_rotate_extra2, nullptr);
+          ptr_extra2 = WM_gizmo_operator_set(
+              axis, WM_GIZMO_OP_SLOT_SHIFT_ALT, ot_rotate_extra2, nullptr);
         }
         ptr = WM_gizmo_operator_set(axis, 0, ot_rotate, nullptr);
         break;
@@ -1921,10 +1925,12 @@ static void gizmogroup_init_properties_from_twtype(const bContext *C, wmGizmoGro
           }
         }
         if (ot_store.extra_resize) {
-          ptr_extra = WM_gizmo_operator_set(axis, 16, ot_store.extra_resize, nullptr);
+          ptr_extra = WM_gizmo_operator_set(
+              axis, WM_GIZMO_OP_SLOT_SHIFT, ot_store.extra_resize, nullptr);
         }
         if (ot_store.extra_resize2) {
-          ptr_extra2 = WM_gizmo_operator_set(axis, 15, ot_store.extra_resize2, nullptr);
+          ptr_extra2 = WM_gizmo_operator_set(
+              axis, WM_GIZMO_OP_SLOT_SHIFT_ALT, ot_store.extra_resize2, nullptr);
         }
         ptr = WM_gizmo_operator_set(axis, 0, ot_store.resize, nullptr);
         break;

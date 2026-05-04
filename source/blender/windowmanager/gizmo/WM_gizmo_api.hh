@@ -51,6 +51,9 @@ struct wmWindowManager;
 /* -------------------------------------------------------------------- */
 /* #wmGizmo. */
 
+constexpr int WM_GIZMO_OP_SLOT_SHIFT = 16;
+constexpr int WM_GIZMO_OP_SLOT_SHIFT_ALT = 15;
+
 wmGizmo *WM_gizmo_new_ptr(const wmGizmoType *gzt, wmGizmoGroup *gzgroup, PointerRNA *properties);
 /**
  * \param idname: Must be a valid gizmo type name,
