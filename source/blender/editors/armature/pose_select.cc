@@ -469,7 +469,8 @@ static wmOperatorStatus pose_select_connected_invoke(bContext *C,
   Object *ob = base->object;
   for (curPChan = pchan; curPChan; curPChan = next) {
     /* ignore bone if cannot be selected */
-    if ((curPChan->flag & BONE_UNSELECTABLE) == 0) {
+    Bone *curBone = curPChan->bone_get(*ob);
+    if ((curBone->flag & BONE_UNSELECTABLE) == 0) {
       if (extend) {
         animrig::bone_deselect(curPChan);
       }
@@ -477,7 +478,6 @@ static wmOperatorStatus pose_select_connected_invoke(bContext *C,
         animrig::bone_select(curPChan);
       }
 
-      Bone *curBone = curPChan->bone_get(*ob);
       if (curBone->flag & BONE_CONNECTED) {
         next = curPChan->parent;
       }
