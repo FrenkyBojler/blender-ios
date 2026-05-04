@@ -937,6 +937,15 @@ void push_pull_fcurve_segment(FCurve *fcu, FCurveSegment *segment, const float f
 
 /* ---------------- */
 
+void foo(const float2 start, const float2 end, const float2 b)
+{
+  /* When we assume a `t` of 0.5f, the corresponding point C is exactly between our bezier start
+   * and end points. See https://pomax.github.io/bezierinfo/#abc */
+  const float2 c = (start + end) / 2.0f;
+  const float t_ratio = (2 * pow3f(0.5f) - 1) / (2 * pow3f(0.5f));
+  const float2 a = b - ((c - b) / t_ratio);
+}
+
 void time_offset_fcurve_segment(FCurve *fcu, FCurveSegment *segment, const float frame_offset)
 {
   /* Two bookend keys of the fcurve are needed to be able to cycle the values. */
