@@ -768,8 +768,8 @@ enum eSpaceImage_Flag : int {
   SI_NO_DRAWFACES = (1 << 4),
   SI_DRAWSHADOW = (1 << 5),
   SI_FLAG_UNUSED_6 = (1 << 6), /* cleared */
-  SI_FLAG_UNUSED_7 = (1 << 7), /* cleared */
-  SI_FLAG_UNUSED_8 = (1 << 8), /* cleared */
+  SI_SHOW_CREASE = (1 << 7),
+  SI_SHOW_SEAMS = (1 << 8),
   SI_COORDFLOATS = (1 << 9),
 
   SI_FLAG_UNUSED_10 = (1 << 10),
@@ -795,8 +795,7 @@ enum eSpaceImage_Flag : int {
   SI_SHOW_GPENCIL = (1 << 22),
   SI_SHOW_SHARP = (1 << 23),
 
-  SI_SHOW_CREASE = (1 << 24),
-  SI_SHOW_SEAMS = (1 << 25),
+  SI_FLAG_UNUSED_24 = (1 << 24),
 
 #ifdef DNA_DEPRECATED_ALLOW
   SI_NO_DRAW_TEXPAINT = (1 << 25), /* deprecated - use SI_NO_DRAW_UV_GUIDE instead, see #135102 */
