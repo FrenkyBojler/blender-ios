@@ -15,6 +15,9 @@
 #  include "BLI_serialize.hh"
 #  include "BLI_string_ref.hh"
 
+#  include "BLT_date_string.hh"
+#  include "BLT_lang.hh"
+
 #  include "CLG_log.h"
 
 #  include "DNA_userdef_types.h"
@@ -48,14 +51,8 @@ struct IgnoredBlenderVersions {
 
 std::string VersionUpdate::date() const
 {
-  char time[8];
-  char date[16];
-  bool is_today;
-  bool is_yesterday;
-
-  BLI_filelist_entry_datetime_to_string(
-      nullptr, int64_t(this->time), false, time, date, &is_today, &is_yesterday);
-  return date;
+  const std::tm local_time = *std::localtime(&this->time);
+  return date_string::date(&local_time, BLT_lang_get(), date_string::DateFormat(U.date_format));
 }
 
 static IgnoredBlenderVersions &ignored_blender_updates()
