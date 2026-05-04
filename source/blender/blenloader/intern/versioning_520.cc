@@ -575,7 +575,7 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
         return;
       }
 
-      paint->mesh_automasking_settings = MEM_new<MeshAutomaskingSettings>(__func__);
+      paint->mesh_automasking_settings = MEM_new<MeshAutomaskingSettings>("blo_do_versions_520");
       paint->mesh_automasking_settings->cavity_curve = BKE_sculpt_default_cavity_curve();
       paint->mesh_automasking_settings->cavity_curve_op = BKE_sculpt_default_cavity_curve();
     };
