@@ -247,10 +247,8 @@ static void vk_restrict_loader_layers()
   BLI_setenv("VK_LOADER_LAYERS_ALLOW", allowed_layers.str().c_str());
 }
 
-bool VKBackend::is_supported()
+static bool vk_instance_create_for_platform_checks(VkInstance *r_instance)
 {
-  CLG_logref_init(&LOG);
-
   vk_restrict_loader_layers();
 
   /* Initialize an vulkan 1.2 instance. */
@@ -264,9 +262,18 @@ bool VKBackend::is_supported()
   VkInstanceCreateInfo vk_instance_info = {VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO};
   vk_instance_info.pApplicationInfo = &vk_application_info;
 
+  *r_instance = VK_NULL_HANDLE;
+  vkCreateInstance(&vk_instance_info, nullptr, r_instance);
+
+  return *r_instance != VK_NULL_HANDLE;
+}
+
+bool VKBackend::is_supported()
+{
+  CLG_logref_init(&LOG);
+
   VkInstance vk_instance = VK_NULL_HANDLE;
-  vkCreateInstance(&vk_instance_info, nullptr, &vk_instance);
-  if (vk_instance == VK_NULL_HANDLE) {
+  if (!vk_instance_create_for_platform_checks(&vk_instance)) {
     CLOG_ERROR(&LOG, "Unable to initialize a Vulkan 1.2 instance.");
     return false;
   }
@@ -327,21 +334,8 @@ void VKBackend::supported_devices_print(FILE *fp)
 {
   CLG_logref_init(&LOG);
 
-  vk_restrict_loader_layers();
-
-  VkApplicationInfo vk_application_info = {VK_STRUCTURE_TYPE_APPLICATION_INFO};
-  vk_application_info.pApplicationName = "Blender";
-  vk_application_info.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
-  vk_application_info.pEngineName = "Blender";
-  vk_application_info.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-  vk_application_info.apiVersion = VK_API_VERSION_1_2;
-
-  VkInstanceCreateInfo vk_instance_info = {VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO};
-  vk_instance_info.pApplicationInfo = &vk_application_info;
-
   VkInstance vk_instance = VK_NULL_HANDLE;
-  vkCreateInstance(&vk_instance_info, nullptr, &vk_instance);
-  if (vk_instance == VK_NULL_HANDLE) {
+  if (!vk_instance_create_for_platform_checks(&vk_instance)) {
     fprintf(fp, "Unable to initialize a Vulkan 1.2 instance.\n");
     return;
   }
