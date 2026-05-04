@@ -633,14 +633,12 @@ struct MotionPathEvalData {
                      wmWindowManager *wm,
                      Scene *scene,
                      Bounds<int> frame_range)
-      : frame_range(frame_range), scene(scene)
+      : evaluation_center(scene->r.cfra), frame_range(frame_range), restart(false), scene(scene)
   {
-    evaluation_center.store(scene->r.cfra);
     evaluated_frames.reinitialize(frame_range.size());
     for (const int i : evaluated_frames.index_range()) {
       evaluated_frames[i].store(false);
     }
-    restart.store(false);
 
     results.reinitialize(targets.size());
     this->targets.reinitialize(targets.size());
@@ -757,6 +755,10 @@ restart:
 
 static void flush_to_motion_path(MotionPathEvalData &eval_data)
 {
+  if (eval_data.restart.load(std::memory_order_acquire)) {
+    /* While the thread is restarting, don't read from it. */
+    return;
+  }
   for (const int target_index : eval_data.targets.index_range()) {
     MPathTarget *target = &eval_data.targets[target_index];
     TargetEvalResult &result = eval_data.results[target_index];
@@ -841,10 +843,10 @@ void animviz_calc_motionpaths_async(Main *bmain,
     MotionPathEvalData *job_data = static_cast<MotionPathEvalData *>(
         WM_jobs_customdata_get(wm_job));
     if (targets_match_job_data(targets, *job_data)) {
-      job_data->evaluation_center.store(scene->r.cfra);
+      job_data->evaluation_center.store(scene->r.cfra, std::memory_order_release);
       /* We cannot kill the job during depsgraph evaluation. Setting this bool will tell the thread
        * to restart the work with the same data. */
-      job_data->restart.store(true);
+      job_data->restart.store(true, std::memory_order_release);
       return;
     }
     else {
