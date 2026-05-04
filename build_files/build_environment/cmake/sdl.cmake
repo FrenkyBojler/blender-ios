@@ -6,6 +6,7 @@ set(SDL_EXTRA_ARGS
   -DSDL_STATIC=OFF
   -DSDL_TESTS=OFF
   -DSDL_TEST_LIBRARY=OFF
+  -DSDL_SNDIO=OFF
 )
 
 ExternalProject_Add(external_sdl
