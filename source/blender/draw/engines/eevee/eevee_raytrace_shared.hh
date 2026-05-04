@@ -52,9 +52,10 @@ struct [[host_shared]] RayTraceData {
   bool32_t trace_refraction;
   /** Closure being ray-traced. */
   int closure_index;
-
-  enum BackfaceHitMode hit_mode;
-  int _pad0;
+  /** If true, consider backface hit as valid. Otherwise, use ray miss pipeline. */
+  bool32_t use_backface_hit;
+  /** Amount of frontface lighting to use for backface hits. */
+  float backface_hit_scale;
   int _pad1;
   int _pad2;
 };

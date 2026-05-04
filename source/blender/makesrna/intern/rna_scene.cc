@@ -8109,25 +8109,6 @@ static void rna_def_raytrace_eevee(BlenderRNA *brna)
   StructRNA *srna;
   PropertyRNA *prop;
 
-  static const EnumPropertyItem backface_mode_items[] = {
-      {RAYTRACE_EEVEE_BACKFACE_FALLBACK,
-       "FALLBACK",
-       0,
-       "Fallback",
-       "The ray will fallback to using the closest lightprobe"},
-      {RAYTRACE_EEVEE_BACKFACE_DOUBLE_SIDED,
-       "DOUBLE_SIDED",
-       0,
-       "Double Sided",
-       "The ray will reuse the front face radiance"},
-      {RAYTRACE_EEVEE_BACKFACE_SINGLE_SIDED,
-       "SINGLE_SIDED",
-       0,
-       "Single Sided",
-       "The ray will have no energy"},
-      {0, nullptr, 0, nullptr, nullptr},
-  };
-
   srna = RNA_def_struct(brna, "RaytraceEEVEE", nullptr);
   RNA_def_struct_path_func(srna, "rna_RaytraceEEVEE_path");
   RNA_def_struct_ui_text(
@@ -8142,10 +8123,18 @@ static void rna_def_raytrace_eevee(BlenderRNA *brna)
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
 
-  prop = RNA_def_property(srna, "backface_mode", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_items(prop, backface_mode_items);
-  RNA_def_property_ui_text(
-      prop, "Backface Mode", "Behavior of screen rays hitting geometry from their backside");
+  prop = RNA_def_property(srna, "use_backface_hit", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", RAYTRACE_EEVEE_USE_BACKFACE);
+  RNA_def_property_ui_text(prop, "Hit Backfaces", "Consider rays hitting backfaces as valid");
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
+
+  prop = RNA_def_property(srna, "backface_radiance_scale", PROP_FLOAT, PROP_FACTOR);
+  RNA_def_property_ui_text(prop,
+                           "Backface Radiance Scale",
+                           "Amount of the front face lighting to reuse for backface "
+                           "lighting approximation");
+  RNA_def_property_range(prop, 0.0f, 1.0f);
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
 
