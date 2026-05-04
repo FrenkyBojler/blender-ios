@@ -144,7 +144,7 @@ void RealizeOnDomainOperation::realize_on_domain_gpu(const float3x3 &transformat
 
 const char *RealizeOnDomainOperation::get_realization_shader_name()
 {
-  Interpolation interpolation = get_input().get_realization_options().interpolation;
+  const Interpolation interpolation = get_input().get_realization_options().interpolation;
   if (interpolation == Interpolation::Bicubic) {
     switch (this->get_input().type()) {
       case ResultType::Float:
@@ -197,9 +197,9 @@ const char *RealizeOnDomainOperation::get_realization_shader_name()
         return "compositor_realize_on_domain_float4";
       case ResultType::Float4:
       case ResultType::Color:
-        if (interpolation == Interpolation::Anisotropic)
-          return "compositor_realize_on_domain_anisotropic_float4";
-        return "compositor_realize_on_domain_float4";
+        return (interpolation == Interpolation::Anisotropic) ?
+                   "compositor_realize_on_domain_anisotropic_float4" :
+                   "compositor_realize_on_domain_float4";
       case ResultType::Int:
         return "compositor_realize_on_domain_int";
       case ResultType::Int2:
