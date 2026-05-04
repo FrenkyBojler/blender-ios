@@ -118,7 +118,7 @@ float compute_rounded_square_radius(float2 coord, const float roundness)
 
 float compute_rounded_square_mask(float2 coord,
                                   float2 abs_mask_size,
-                                  const float mask_roundness,
+                                  const float roundness,
                                   const float hardness,
                                   const float ellipse_height,
                                   const float ellipse_width,
@@ -159,13 +159,11 @@ float compute_rounded_square_mask(float2 coord,
   }
   else {
     /* Mask is a 2 dimensional rounded square. */
-    if (is_in_unit_rounded_square(coord / (hardness * abs_mask_size), mask_roundness)) {
+    if (is_in_unit_rounded_square(coord / (hardness * abs_mask_size), roundness)) {
       /* coord is in the constant part of the mask. */
       return 1.0f;
     }
-    else if ((hardness == 1.0f) ||
-             !is_in_unit_rounded_square(coord / abs_mask_size, mask_roundness))
-    {
+    else if ((hardness == 1.0f) || !is_in_unit_rounded_square(coord / abs_mask_size, roundness)) {
       /* coord is outside of the mask. */
       return 0.0f;
     }
@@ -176,7 +174,7 @@ float compute_rounded_square_mask(float2 coord,
               abs_mask_size.x,
               hardness * abs_mask_size.x,
               compute_rounded_square_radius(
-                  float2(coord.x, coord.y * abs_mask_size.x / abs_mask_size.y), mask_roundness)),
+                  float2(coord.x, coord.y * abs_mask_size.x / abs_mask_size.y), roundness)),
           ellipse_height,
           ellipse_width,
           1.0f - inflection_midpoint);
@@ -197,9 +195,9 @@ void main()
   mask_size = clamp(
       mask_size, float2(-ceil(domain_diagonal_length)), float2(ceil(domain_diagonal_length)));
   float2 abs_mask_size = abs(mask_size);
-  float mask_roundness = clamp(texture_load(input_mask_roundness_tx, texel).x, 0.0f, 1.0f);
   float rotation = texture_load(input_rotation_tx, texel).x;
   float2 translation = texture_load(input_translation_tx, texel).xy;
+  float rounding = clamp(texture_load(input_rounding_tx, texel).x, 0.0f, 1.0f);
   float hardness = clamp(texture_load(input_hardness_tx, texel).x, 0.0f, 1.0f);
   float value_boundary = texture_load(input_value_boundary_tx, texel).x;
   float ellipse_height = clamp(texture_load(input_ellipse_height_tx, texel).x, 0.0f, 1.0f);
@@ -341,7 +339,7 @@ void main()
       float mask_value =
           compute_rounded_square_mask(pixel_coordinates_relative_to_mask_center,
                                       abs_mask_size,
-                                      mask_roundness,
+                                      rounding,
                                       hardness,
                                       ellipse_height,
                                       ellipse_width,

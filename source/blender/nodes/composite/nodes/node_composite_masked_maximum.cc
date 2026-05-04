@@ -72,34 +72,38 @@ static void node_declare(NodeDeclarationBuilder &b)
           "Size from the center of the mask to its boundaries. If the Size value is negative in "
           "any dimension, an erosion is performed instead of a dilation")
       .structure_type(StructureType::Dynamic);
-  b.add_input<decl::Float>("Mask Roundness"_ustr)
+
+  PanelDeclarationBuilder &mask_transform_panel =
+      b.add_panel("Mask Transform"_ustr).default_closed(true);
+  mask_transform_panel.add_input<decl::Float>("Rotation"_ustr)
+      .default_value(0.0f)
+      .subtype(PROP_ANGLE)
+      .compositor_domain_priority(3)
+      .description("Angle to rotate the mask by")
+      .structure_type(StructureType::Dynamic);
+  mask_transform_panel.add_input<decl::Vector>("Translation"_ustr)
+      .dimensions(2)
+      .default_value({0.0f, 0.0f})
+      .compositor_domain_priority(4)
+      .description("Translation of the mask")
+      .structure_type(StructureType::Dynamic);
+
+  PanelDeclarationBuilder &mask_modification_panel =
+      b.add_panel("Mask Modification"_ustr).default_closed(true);
+  mask_modification_panel.add_input<decl::Float>("Rounding"_ustr)
       .default_value(0.0f)
       .min(0.0f)
       .max(1.0f)
       .subtype(PROP_FACTOR)
-      .compositor_domain_priority(3)
+      .compositor_domain_priority(5)
       .description(
-          "Roundness of the mask. Increasing this value makes the mask rounder by cutting off the "
+          "Rounding of the mask. Increasing this value makes the mask rounder by cutting off the "
           "corners of the base mask. A value of 0 results in the entire base mask being used "
           "while a value of 1 results in an circular cutout of the base mask being used")
       .structure_type(StructureType::Dynamic);
 
-  PanelDeclarationBuilder &transform_panel =
-      b.add_panel("Mask Transform"_ustr).default_closed(true);
-  transform_panel.add_input<decl::Float>("Rotation"_ustr)
-      .default_value(0.0f)
-      .subtype(PROP_ANGLE)
-      .compositor_domain_priority(4)
-      .description("Angle to rotate the mask by")
-      .structure_type(StructureType::Dynamic);
-  transform_panel.add_input<decl::Vector>("Translation"_ustr)
-      .dimensions(2)
-      .default_value({0.0f, 0.0f})
-      .compositor_domain_priority(5)
-      .description("Translation of the mask")
-      .structure_type(StructureType::Dynamic);
-
-  PanelDeclarationBuilder &falloff_panel = b.add_panel("Mask Falloff"_ustr).default_closed(true);
+  PanelDeclarationBuilder &falloff_panel =
+      mask_modification_panel.add_panel("Falloff"_ustr).default_closed(true);
   falloff_panel.add_input<decl::Float>("Hardness"_ustr)
       .default_value(1.0f)
       .min(0.0f)
@@ -218,14 +222,14 @@ class MaskedMaximumOperation : public NodeOperation {
     const Result &input_mask_size = get_input("Mask Size");
     input_mask_size.bind_as_texture(shader, "input_mask_size_tx");
 
-    const Result &input_mask_roundness = get_input("Mask Roundness");
-    input_mask_roundness.bind_as_texture(shader, "input_mask_roundness_tx");
-
     const Result &input_rotation = get_input("Rotation");
     input_rotation.bind_as_texture(shader, "input_rotation_tx");
 
     const Result &input_translation = get_input("Translation");
     input_translation.bind_as_texture(shader, "input_translation_tx");
+
+    const Result &input_rounding = get_input("Rounding");
+    input_rounding.bind_as_texture(shader, "input_rounding_tx");
 
     const Result &input_hardness = get_input("Hardness");
     input_hardness.bind_as_texture(shader, "input_hardness_tx");
@@ -260,9 +264,9 @@ class MaskedMaximumOperation : public NodeOperation {
     input_image.unbind_as_texture();
     input_base_mask.unbind_as_texture();
     input_mask_size.unbind_as_texture();
-    input_mask_roundness.unbind_as_texture();
     input_rotation.unbind_as_texture();
     input_translation.unbind_as_texture();
+    input_rounding.unbind_as_texture();
     input_hardness.unbind_as_texture();
     input_value_boundary.unbind_as_texture();
     input_ellipse_height.unbind_as_texture();
@@ -288,9 +292,9 @@ class MaskedMaximumOperation : public NodeOperation {
     const Result &input_image = get_input("Image");
     const Result &input_base_mask = get_input("Base Mask");
     const Result &input_mask_size = get_input("Mask Size");
-    const Result &input_mask_roundness = get_input("Mask Roundness");
     const Result &input_rotation = get_input("Rotation");
     const Result &input_translation = get_input("Translation");
+    const Result &input_rounding = get_input("Rounding");
     const Result &input_hardness = get_input("Hardness");
     const Result &input_value_boundary = get_input("Value Boundary");
     const Result &input_ellipse_height = get_input("Ellipse Height");
@@ -309,10 +313,9 @@ class MaskedMaximumOperation : public NodeOperation {
                               float2(-math::ceil(domain_diagonal_length)),
                               float2(math::ceil(domain_diagonal_length)));
       float2 abs_mask_size = math::abs(mask_size);
-      float mask_roundness = math::clamp(
-          input_mask_roundness.load_pixel_zero<float, true>(texel), 0.0f, 1.0f);
       float rotation = input_rotation.load_pixel_zero<float, true>(texel);
       float2 translation = input_translation.load_pixel_zero<float2, true>(texel);
+      float rounding = math::clamp(input_rounding.load_pixel_zero<float, true>(texel), 0.0f, 1.0f);
       float hardness = math::clamp(input_hardness.load_pixel_zero<float, true>(texel), 0.0f, 1.0f);
       float value_boundary = input_value_boundary.load_pixel_zero<float, true>(texel);
       float ellipse_height = math::clamp(
@@ -459,7 +462,7 @@ class MaskedMaximumOperation : public NodeOperation {
               float2(input_base_mask.domain().data_size);
           float mask_value = compute_rounded_square_mask(pixel_coordinates_relative_to_mask_center,
                                                          abs_mask_size,
-                                                         mask_roundness,
+                                                         rounding,
                                                          hardness,
                                                          ellipse_height,
                                                          ellipse_width,
@@ -618,7 +621,7 @@ class MaskedMaximumOperation : public NodeOperation {
 
   float compute_rounded_square_mask(float2 coord,
                                     float2 abs_mask_size,
-                                    const float mask_roundness,
+                                    const float roundness,
                                     const float hardness,
                                     const float ellipse_height,
                                     const float ellipse_width,
@@ -659,12 +662,11 @@ class MaskedMaximumOperation : public NodeOperation {
     }
     else {
       /* Mask is a 2 dimensional rounded square. */
-      if (is_in_unit_rounded_square(coord / (hardness * abs_mask_size), mask_roundness)) {
+      if (is_in_unit_rounded_square(coord / (hardness * abs_mask_size), roundness)) {
         /* coord is in the constant part of the mask. */
         return 1.0f;
       }
-      else if ((hardness == 1.0f) ||
-               !is_in_unit_rounded_square(coord / abs_mask_size, mask_roundness))
+      else if ((hardness == 1.0f) || !is_in_unit_rounded_square(coord / abs_mask_size, roundness))
       {
         /* coord is outside of the mask. */
         return 0.0f;
@@ -676,7 +678,7 @@ class MaskedMaximumOperation : public NodeOperation {
                 abs_mask_size.x,
                 hardness * abs_mask_size.x,
                 compute_rounded_square_radius(
-                    float2(coord.x, coord.y * abs_mask_size.x / abs_mask_size.y), mask_roundness)),
+                    float2(coord.x, coord.y * abs_mask_size.x / abs_mask_size.y), roundness)),
             ellipse_height,
             ellipse_width,
             1.0f - inflection_midpoint);
