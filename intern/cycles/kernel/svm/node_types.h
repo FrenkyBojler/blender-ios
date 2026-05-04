@@ -741,6 +741,29 @@ struct SVMNodeTexMxNoise {
 static_assert(alignof(SVMNodeTexMxNoise) <= alignof(uint));
 static_assert(sizeof(SVMNodeTexMxNoise) % sizeof(uint) == 0);
 
+/* NODE_TEX_MX_HEXTILED_IMAGE / NODE_TEX_MX_HEXTILED_IMAGE_DERIVATIVE */
+struct SVMNodeTexMxHextiledImage {
+  int id;
+  uint8_t flags;
+  uint8_t _pad[3];
+  SVMInputFloat3 tiling;
+  SVMInputFloat rotation;
+  SVMInputFloat3 rotation_range;
+  SVMInputFloat scale;
+  SVMInputFloat3 scale_range;
+  SVMInputFloat offset;
+  SVMInputFloat3 offset_range;
+  SVMInputFloat falloff;
+  SVMInputFloat falloff_contrast;
+  SVMInputFloat3 luma_coeffs;
+  SVMStackOffset vector_offset;
+  SVMStackOffset out_offset;
+  SVMStackOffset alpha_offset;
+  uint8_t _pad2[1];
+};
+static_assert(alignof(SVMNodeTexMxHextiledImage) <= alignof(uint));
+static_assert(sizeof(SVMNodeTexMxHextiledImage) % sizeof(uint) == 0);
+
 /* NODE_TEX_GRADIENT */
 struct SVMNodeTexGradient {
   NodeGradientType gradient_type;

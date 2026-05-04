@@ -907,6 +907,67 @@ static ShaderNode *add_node(Scene *scene,
     }
     node = image;
   }
+  else if (b_node.is_type("ShaderNodeMxHextiledImage"_ustr)) {
+    const auto &storage = *static_cast<blender::NodeTexImage *>(b_node.storage);
+    blender::Image *b_image = blender::id_cast<blender::Image *>(b_node.id);
+    blender::ImageUser &b_image_user = const_cast<blender::ImageUser &>(storage.iuser);
+    MxHextiledImageTextureNode *image = graph->create_node<MxHextiledImageTextureNode>();
+
+    image->set_interpolation(get_image_interpolation(storage));
+    image->set_extension(get_image_extension(storage));
+    const blender::TexMapping &b_texture_mapping = storage.base.tex_mapping;
+    get_tex_mapping(image, &b_texture_mapping);
+
+    if (b_image) {
+      const blender::eImageSource b_image_source = blender::eImageSource(b_image->source);
+      image->set_colorspace(ustring(b_image->colorspace_settings.name));
+      image->set_animated(is_image_animated(b_image_source, b_image_user));
+      image->set_alpha_type(get_image_alpha_type(*b_image));
+
+      if (b_image_source == blender::IMA_SRC_TILED) {
+        array<int> tiles;
+        for (blender::ImageTile &b_tile : b_image->tiles) {
+          tiles.push_back_slow(b_tile.tile_number);
+        }
+        image->set_tiles(tiles);
+      }
+
+      const bool is_builtin = image_is_builtin(*b_image, b_engine);
+      if (is_builtin) {
+        const int scene_frame = b_scene.r.cfra;
+        const int image_frame = image_user_frame_number(b_image_user, *b_image, scene_frame);
+        if (b_image_source != blender::IMA_SRC_TILED) {
+          image->handle = scene->image_manager->add_image(
+              make_unique<BlenderImageLoader>(b_image,
+                                              &b_image_user,
+                                              image_frame,
+                                              0,
+                                              (b_engine.flag & blender::RE_ENGINE_PREVIEW) != 0),
+              image->image_params());
+        }
+        else {
+          vector<unique_ptr<ImageLoader>> loaders;
+          loaders.reserve(image->get_tiles().size());
+          for (const int tile_number : image->get_tiles()) {
+            loaders.push_back(make_unique<BlenderImageLoader>(
+                b_image,
+                &b_image_user,
+                image_frame,
+                tile_number,
+                (b_engine.flag & blender::RE_ENGINE_PREVIEW) != 0));
+          }
+          image->handle = scene->image_manager->add_image(std::move(loaders),
+                                                          image->image_params());
+        }
+      }
+      else {
+        const ustring filename = ustring(
+            image_user_file_path(b_data, b_image_user, *b_image, b_scene.r.cfra));
+        image->set_filename(filename);
+      }
+    }
+    node = image;
+  }
   else if (b_node.is_type("ShaderNodeTexEnvironment"_ustr)) {
     const auto &storage = *static_cast<blender::NodeTexEnvironment *>(b_node.storage);
     blender::Image *b_image = blender::id_cast<blender::Image *>(b_node.id);

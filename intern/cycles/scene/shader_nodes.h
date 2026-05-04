@@ -430,6 +430,41 @@ class MxNoiseTextureNode : public ShaderNode {
   NODE_SOCKET_API(float, clamp_output)
 };
 
+class MxHextiledImageTextureNode : public ImageSlotTextureNode {
+ public:
+  SHADER_NODE_NO_CLONE_CLASS(MxHextiledImageTextureNode)
+  ShaderNode *clone(ShaderGraph *graph) const override;
+
+  ImageParams image_params() const;
+  void update_images(const SVMCompiler &compiler) override;
+  ShaderNodeType shader_node_type() const override
+  {
+    return NODE_TEX_MX_HEXTILED_IMAGE;
+  }
+
+  NODE_SOCKET_API(ustring, filename)
+  NODE_SOCKET_API(ustring, colorspace)
+  NODE_SOCKET_API(ImageAlphaType, alpha_type)
+  NODE_SOCKET_API(InterpolationType, interpolation)
+  NODE_SOCKET_API(ExtensionType, extension)
+  NODE_SOCKET_API(bool, animated)
+  NODE_SOCKET_API(float3, vector)
+  NODE_SOCKET_API(float3, tiling)
+  NODE_SOCKET_API(float, rotation)
+  NODE_SOCKET_API(float3, rotation_range)
+  NODE_SOCKET_API(float, scale)
+  NODE_SOCKET_API(float3, scale_range)
+  NODE_SOCKET_API(float, offset)
+  NODE_SOCKET_API(float3, offset_range)
+  NODE_SOCKET_API(float, falloff)
+  NODE_SOCKET_API(float, falloff_contrast)
+  NODE_SOCKET_API(float3, luma_coeffs)
+  NODE_SOCKET_API_ARRAY(array<int>, tiles)
+
+ protected:
+  void cull_tiles(Scene *scene, ShaderGraph *graph);
+};
+
 class MappingNode : public ShaderNode {
  public:
   SHADER_NODE_CLASS(MappingNode)

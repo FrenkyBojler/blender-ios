@@ -1586,6 +1586,149 @@ void MxNoiseTextureNode::compile(OSLCompiler &compiler)
   compiler.add(this, "node_mx_noise_texture");
 }
 
+/* MaterialX Hextiled Image Texture */
+
+NODE_DEFINE(MxHextiledImageTextureNode)
+{
+  NodeType *type = NodeType::add("mx_hextiled_image_texture", create, NodeType::SHADER);
+
+  TEXTURE_MAPPING_DEFINE(MxHextiledImageTextureNode);
+
+  SOCKET_STRING(filename, "Filename", ustring());
+  SOCKET_STRING(colorspace, "Colorspace", u_colorspace_auto);
+
+  static NodeEnum alpha_type_enum;
+  alpha_type_enum.insert("auto", IMAGE_ALPHA_AUTO);
+  alpha_type_enum.insert("unassociated", IMAGE_ALPHA_UNASSOCIATED);
+  alpha_type_enum.insert("associated", IMAGE_ALPHA_ASSOCIATED);
+  alpha_type_enum.insert("channel_packed", IMAGE_ALPHA_CHANNEL_PACKED);
+  alpha_type_enum.insert("ignore", IMAGE_ALPHA_IGNORE);
+  SOCKET_ENUM(alpha_type, "Alpha Type", alpha_type_enum, IMAGE_ALPHA_AUTO);
+
+  static NodeEnum interpolation_enum;
+  interpolation_enum.insert("closest", INTERPOLATION_CLOSEST);
+  interpolation_enum.insert("linear", INTERPOLATION_LINEAR);
+  interpolation_enum.insert("cubic", INTERPOLATION_CUBIC);
+  interpolation_enum.insert("smart", INTERPOLATION_SMART);
+  SOCKET_ENUM(interpolation, "Interpolation", interpolation_enum, INTERPOLATION_LINEAR);
+
+  static NodeEnum extension_enum;
+  extension_enum.insert("periodic", EXTENSION_REPEAT);
+  extension_enum.insert("clamp", EXTENSION_EXTEND);
+  extension_enum.insert("black", EXTENSION_CLIP);
+  extension_enum.insert("mirror", EXTENSION_MIRROR);
+  SOCKET_ENUM(extension, "Extension", extension_enum, EXTENSION_REPEAT);
+
+  SOCKET_INT_ARRAY(tiles, "Tiles", array<int>());
+  SOCKET_BOOLEAN(animated, "Animated", false);
+
+  SOCKET_IN_POINT(vector, "Vector", zero_float3(), SocketType::LINK_TEXTURE_UV);
+  SOCKET_IN_VECTOR(tiling, "Tiling", make_float3(1.0f, 1.0f, 0.0f));
+  SOCKET_IN_FLOAT(rotation, "Rotation", 1.0f);
+  SOCKET_IN_VECTOR(rotation_range, "Rotation Range", make_float3(0.0f, 360.0f, 0.0f));
+  SOCKET_IN_FLOAT(scale, "Scale", 1.0f);
+  SOCKET_IN_VECTOR(scale_range, "Scale Range", make_float3(0.5f, 2.0f, 0.0f));
+  SOCKET_IN_FLOAT(offset, "Offset", 1.0f);
+  SOCKET_IN_VECTOR(offset_range, "Offset Range", make_float3(0.0f, 1.0f, 0.0f));
+  SOCKET_IN_FLOAT(falloff, "Falloff", 0.5f);
+  SOCKET_IN_FLOAT(falloff_contrast, "Falloff Contrast", 0.5f);
+  SOCKET_IN_COLOR(luma_coeffs, "Luma Coeffs", make_float3(0.2722287f, 0.6740818f, 0.0536895f));
+
+  SOCKET_OUT_COLOR(color, "Color");
+  SOCKET_OUT_FLOAT(alpha, "Alpha");
+
+  return type;
+}
+
+MxHextiledImageTextureNode::MxHextiledImageTextureNode() : ImageSlotTextureNode(get_node_type())
+{
+  colorspace = u_colorspace_scene_linear;
+  animated = false;
+}
+
+ShaderNode *MxHextiledImageTextureNode::clone(ShaderGraph *graph) const
+{
+  MxHextiledImageTextureNode *node = graph->create_node<MxHextiledImageTextureNode>(*this);
+  node->handle = handle;
+  return node;
+}
+
+ImageParams MxHextiledImageTextureNode::image_params() const
+{
+  ImageParams params;
+  params.animated = animated;
+  params.interpolation = interpolation;
+  params.extension = extension;
+  params.alpha_type = alpha_type;
+  params.colorspace = colorspace;
+  return params;
+}
+
+void MxHextiledImageTextureNode::cull_tiles(Scene * /*scene*/, ShaderGraph * /*graph*/) {}
+
+void MxHextiledImageTextureNode::update_images(const SVMCompiler &compiler)
+{
+  if (handle.empty()) {
+    ImageManager *image_manager = compiler.scene->image_manager.get();
+    handle = image_manager->add_image(filename.string(), image_params(), tiles);
+  }
+  set_need_derivatives();
+}
+
+void MxHextiledImageTextureNode::compile(SVMCompiler &compiler)
+{
+  ShaderInput *vector_in = input("Vector");
+  ShaderOutput *alpha_out = output("Alpha");
+
+  update_images(compiler);
+
+  const ImageMetaData metadata = handle.metadata(compiler.progress);
+  const bool compress_as_srgb = metadata.is_compressible_as_srgb;
+
+  const SVMStackOffset vector_offset = tex_mapping.compile_begin(compiler, vector_in);
+  uint flags = 0;
+
+  if (compress_as_srgb) {
+    flags |= NODE_IMAGE_COMPRESS_AS_SRGB;
+  }
+  if (!alpha_out->links.empty()) {
+    const bool unassociate_alpha = !(ColorSpaceManager::colorspace_is_data(colorspace) ||
+                                     alpha_type == IMAGE_ALPHA_CHANNEL_PACKED ||
+                                     alpha_type == IMAGE_ALPHA_IGNORE);
+
+    if (unassociate_alpha) {
+      flags |= NODE_IMAGE_ALPHA_UNASSOCIATE;
+    }
+  }
+
+  compiler.add_node(this,
+                    NODE_TEX_MX_HEXTILED_IMAGE,
+                    SVMNodeTexMxHextiledImage{
+                        .id = handle.kernel_id(),
+                        .flags = uint8_t(flags),
+                        .tiling = compiler.input_float3("Tiling"),
+                        .rotation = compiler.input_float("Rotation"),
+                        .rotation_range = compiler.input_float3("Rotation Range"),
+                        .scale = compiler.input_float("Scale"),
+                        .scale_range = compiler.input_float3("Scale Range"),
+                        .offset = compiler.input_float("Offset"),
+                        .offset_range = compiler.input_float3("Offset Range"),
+                        .falloff = compiler.input_float("Falloff"),
+                        .falloff_contrast = compiler.input_float("Falloff Contrast"),
+                        .luma_coeffs = compiler.input_float3("Luma Coeffs"),
+                        .vector_offset = vector_offset,
+                        .out_offset = compiler.output("Color"),
+                        .alpha_offset = compiler.output("Alpha"),
+                    });
+
+  tex_mapping.compile_end(compiler, vector_in, vector_offset);
+}
+
+void MxHextiledImageTextureNode::compile(OSLCompiler &compiler)
+{
+  compiler.add(this, "node_mx_hextiled_image_texture");
+}
+
 /* Wave Texture */
 
 NODE_DEFINE(WaveTextureNode)

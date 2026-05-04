@@ -5863,6 +5863,11 @@ static void def_sh_tex_mx_noise(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_struct_sdna_from(srna, "bNode", nullptr);
 }
 
+static void def_sh_tex_mx_hextiled_image(BlenderRNA *brna, StructRNA *srna)
+{
+  def_sh_tex_image(brna, srna);
+}
+
 static void def_sh_tex_coord(BlenderRNA * /*brna*/, StructRNA *srna)
 {
   PropertyRNA *prop;
@@ -10191,6 +10196,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("ShaderNode", "ShaderNodeTexIES", def_sh_tex_ies);
   define("ShaderNode", "ShaderNodeTexImage", def_sh_tex_image);
   define("ShaderNode", "ShaderNodeTexMagic", def_sh_tex_magic);
+  define("ShaderNode", "ShaderNodeMxHextiledImage", def_sh_tex_mx_hextiled_image);
   define("ShaderNode", "ShaderNodeMxNoise2D", def_sh_tex_mx_noise);
   define("ShaderNode", "ShaderNodeMxNoise3D", def_sh_tex_mx_noise);
   define("ShaderNode", "ShaderNodeMxFractal2D", def_sh_tex_mx_noise);

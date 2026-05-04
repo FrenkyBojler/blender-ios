@@ -60,6 +60,7 @@
 #include "kernel/svm/mapping.h"
 #include "kernel/svm/math.h"
 #include "kernel/svm/mix.h"
+#include "kernel/svm/mx_hextile.h"
 #include "kernel/svm/mx_noise.h"
 #include "kernel/svm/noisetex.h"
 #include "kernel/svm/normal.h"
@@ -294,6 +295,17 @@ ccl_device void svm_eval_nodes(KernelGlobals kg,
       {
         svm_node_tex_image_box<dual3>(
             kg, sd, stack, svm_node_get<SVMNodeTexImageBox>(kg, &offset));
+      }
+      break;
+      SVM_CASE(NODE_TEX_MX_HEXTILED_IMAGE)
+      svm_node_tex_mx_hextiled_image<float3>(
+          kg, sd, stack, svm_node_get<SVMNodeTexMxHextiledImage>(kg, &offset));
+      break;
+      SVM_CASE(NODE_TEX_MX_HEXTILED_IMAGE_DERIVATIVE)
+      IF_NOT_KERNEL_NODES_FEATURE(VOLUME)
+      {
+        svm_node_tex_mx_hextiled_image<dual3>(
+            kg, sd, stack, svm_node_get<SVMNodeTexMxHextiledImage>(kg, &offset));
       }
       break;
       SVM_CASE(NODE_TEX_NOISE)
