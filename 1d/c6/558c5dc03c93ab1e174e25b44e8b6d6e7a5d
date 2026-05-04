@@ -1,1 +1,2 @@
 Referenced by issue #157688, Undo/Redo chain is invalidated by playback (frame changes recorded as undo steps)
+Referenced by pull request #158119, Fix #157688: Playback removes redo steps
