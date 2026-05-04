@@ -2948,7 +2948,12 @@ static void propagate_for_nodes(const Span<const bNode *> nodes,
                                                               node->output_sockets();
     bool &node_value = mask_to_propagate[node->index()];
     for (const bNodeSocket *socket : sockets) {
-      for (const bNodeSocket *other_socket : socket->directly_linked_sockets()) {
+      for (const bNodeLink *link : socket->directly_linked_links()) {
+        if (!(link->tosock->is_visible() && link->fromsock->is_visible())) {
+          continue;
+        }
+
+        const bNodeSocket *other_socket = left_to_right ? link->fromsock : link->tosock;
         const bNode &other_node = other_socket->owner_node();
         node_value |= mask_to_propagate[other_node.index()];
         if (node_value) {
