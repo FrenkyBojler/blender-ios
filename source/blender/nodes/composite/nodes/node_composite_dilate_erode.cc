@@ -56,7 +56,8 @@ static void node_declare(NodeDeclarationBuilder &b)
       .optional_label()
       .usage_by_menu("Type", CMP_NODE_DILATE_ERODE_DISTANCE_FEATHER)
       .translation_context(BLT_I18NCONTEXT_ID_CURVE_LEGACY);
-  b.add_output<decl::Float>("Mask").structure_type(StructureType::Dynamic);
+ 
+ b.add_output<decl::Float>("Mask").structure_type(StructureType::Dynamic);
 }
 
 static void node_init(bNodeTree * /*ntree*/, bNode *node)
@@ -103,9 +104,7 @@ class DilateErodeOperation : public NodeOperation {
   /* ----------------------------
    * Step Morphological Operator.
    * ---------------------------- */
-  /* Applies dilation or erosion using a step-based morphological operation.
-   * The algorithm performs a horizontal pass followed by a vertical pass to
-   * achieve the final result */
+  
   void execute_step()
   {
     Result horizontal_pass_result = execute_step_horizontal_pass();
