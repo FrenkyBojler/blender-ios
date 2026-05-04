@@ -7,11 +7,6 @@ if(NOT HIP_FOUND)
   return()
 endif()
 
-if(NOT HIP_VERSION MATCHES "${RELEASE_HIP_VERSION}.*")
-  message(STATUS "Wrong HIP compiler version (expected ${RELEASE_HIP_VERSION}), skipping HIPRT build")
-  return()
-endif()
-
 # Note the utility apps may use png/tiff/gif system libraries, but the
 # library itself does not depend on them, so should give no problems.
 
