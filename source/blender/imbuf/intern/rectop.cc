@@ -493,15 +493,15 @@ void IMB_rect_size_set(ImBuf *ibuf, const uint size[2])
     return;
   }
 
+  ibuf->x = size[0];
+  ibuf->y = size[1];
+
   if (ibuf->float_data()) {
     IMB_alloc_float_pixels(ibuf, ibuf->channels, false);
   }
   if (ibuf->byte_data()) {
     IMB_alloc_byte_pixels(ibuf, false);
   }
-
-  ibuf->x = size[0];
-  ibuf->y = size[1];
 }
 
 /** \} */
