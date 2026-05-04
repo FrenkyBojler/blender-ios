@@ -27,15 +27,15 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 constexpr int NO_CLUSTER_VALUE = -1;
 
-static void set_no_cluster_value(MutableSpan<int> r_cluster_ids)
+static void set_no_cluster_value(MutableSpan<int> r_cluster_ids, const IndexMask &mask)
 {
-  threading::parallel_for(r_cluster_ids.index_range(), 4096, [&](const IndexRange range) {
-    for (const int i : range) {
-      if (r_cluster_ids[i] == NO_CLUSTER_VALUE) {
-        r_cluster_ids[i] = i;
-      }
-    }
-  });
+  mask.foreach_index_optimized<int>(
+      [&](const int i) {
+        if (r_cluster_ids[i] == NO_CLUSTER_VALUE) {
+          r_cluster_ids[i] = i;
+        }
+      },
+      exec_mode::grain_size(4096));
 }
 
 class ClusterByDistanceFieldInput final : public bke::GeometryFieldInput {
@@ -112,7 +112,7 @@ class ClusterByDistanceFieldInput final : public bke::GeometryFieldInput {
       kdtree_balance<float3>(tree);
       kdtree_calc_duplicates_fast<float3>(tree, distance_, true, cluster_ids.data());
       kdtree_free<float3>(tree);
-      set_no_cluster_value(cluster_ids);
+      set_no_cluster_value(cluster_ids, selection);
       return VArray<int>::from_container(std::move(cluster_ids));
     }
 
@@ -153,7 +153,7 @@ class ClusterByDistanceFieldInput final : public bke::GeometryFieldInput {
             kdtree_balance<float3>(tree);
             kdtree_calc_duplicates_fast<float3>(tree, distance_, true, group_cluster_ids.data());
             kdtree_free<float3>(tree);
-            set_no_cluster_value(group_cluster_ids);
+            set_no_cluster_value(group_cluster_ids, group_cluster_ids.index_range());
             threading::parallel_for(group.index_range(), 4096, [&](const IndexRange range) {
               for (const int pos : range) {
                 const int i = group[pos];
