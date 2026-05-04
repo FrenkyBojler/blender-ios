@@ -251,8 +251,8 @@ static wmOperatorStatus pose_calculate_paths_exec(bContext *C, wmOperator *op)
   {
     bAnimVizSettings *avs = &ob->pose->avs;
 
-    avs->path_type = RNA_enum_get(op->ptr, "display_type");
-    avs->path_range = RNA_enum_get(op->ptr, "range");
+    avs->path_type = eMotionPaths_Types(RNA_enum_get(op->ptr, "display_type"));
+    avs->path_range = eMotionPath_Ranges(RNA_enum_get(op->ptr, "range"));
     animviz_motionpath_compute_range(ob, scene);
 
     PointerRNA avs_ptr = RNA_pointer_create_discrete(nullptr, RNA_AnimVizMotionPaths, avs);
@@ -567,8 +567,9 @@ static wmOperatorStatus pose_autoside_names_exec(bContext *C, wmOperator *op)
   /* loop through selected bones, auto-naming them */
   CTX_DATA_BEGIN_WITH_ID (C, bPoseChannel *, pchan, selected_pose_bones, Object *, ob) {
     bArmature *arm = id_cast<bArmature *>(ob->data);
+    const Bone *bone = pchan->bone_get(*ob);
     STRNCPY_UTF8(newname, pchan->name);
-    if (bone_autoside_name(newname, 1, axis, pchan->bone->head[axis], pchan->bone->tail[axis])) {
+    if (bone_autoside_name(newname, 1, axis, bone->head[axis], bone->tail[axis])) {
       ED_armature_bone_rename(bmain, arm, pchan->name, newname);
     }
 
@@ -619,14 +620,14 @@ void POSE_OT_autoside_names(wmOperatorType *ot)
 
 static wmOperatorStatus pose_bone_rotmode_exec(bContext *C, wmOperator *op)
 {
-  const int mode = RNA_enum_get(op->ptr, "type");
+  const eRotationModes mode = eRotationModes(RNA_enum_get(op->ptr, "type"));
   Object *prev_ob = nullptr;
 
   /* Set rotation mode of selected bones. */
   CTX_DATA_BEGIN_WITH_ID (C, bPoseChannel *, pchan, selected_pose_bones, Object *, ob) {
     /* use API Method for conversions... */
     BKE_rotMode_change_values(
-        pchan->quat, pchan->eul, pchan->rotAxis, &pchan->rotAngle, pchan->rotmode, short(mode));
+        pchan->quat, pchan->eul, pchan->rotAxis, &pchan->rotAngle, pchan->rotmode, mode);
 
     /* finally, set the new rotation type */
     pchan->rotmode = mode;
@@ -683,7 +684,7 @@ static wmOperatorStatus pose_hide_exec(bContext *C, wmOperator *op)
     bool changed = false;
     bArmature *arm = id_cast<bArmature *>(ob_iter->data);
     for (bPoseChannel &pchan : ob_iter->pose->chanbase) {
-      if (!ANIM_bone_in_visible_collection(arm, pchan.bone)) {
+      if (!ANIM_bone_in_visible_collection(arm, pchan.bone_get(*ob_iter))) {
         continue;
       }
       if (((pchan.flag & POSE_SELECTED) != 0) != hide_select) {
@@ -738,13 +739,14 @@ static wmOperatorStatus pose_reveal_exec(bContext *C, wmOperator *op)
 
     bool changed = false;
     for (bPoseChannel &pchan : ob_iter->pose->chanbase) {
-      if (!ANIM_bone_in_visible_collection(arm, pchan.bone)) {
+      const Bone *bone = pchan.bone_get(*ob_iter);
+      if (!ANIM_bone_in_visible_collection(arm, bone)) {
         continue;
       }
       if ((pchan.drawflag & PCHAN_DRAW_HIDDEN) == 0) {
         continue;
       }
-      if (!(pchan.bone->flag & BONE_UNSELECTABLE)) {
+      if (!(bone->flag & BONE_UNSELECTABLE)) {
         SET_FLAG_FROM_TEST(pchan.flag, select, POSE_SELECTED);
       }
       pchan.drawflag &= ~PCHAN_DRAW_HIDDEN;

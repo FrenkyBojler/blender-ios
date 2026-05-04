@@ -2,9 +2,7 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-set(WAYLAND_PKG_ENV "
-PKG_CONFIG_PATH=${LIBDIR}/expat/lib/pkgconfig:${LIBDIR}/xml2/lib/pkgconfig:${LIBDIR}/ffi/lib/pkgconfig:$PKG_CONFIG_PATH
-")
+set(WAYLAND_PKG_ENV "PKG_CONFIG_PATH=${LIBDIR}/expat/lib/pkgconfig:${LIBDIR}/xml2/lib/pkgconfig:${LIBDIR}/ffi/lib/pkgconfig:$PKG_CONFIG_PATH")
 
 set(WAYLAND_EXTRA_OPTIONS
   -Ddocumentation=false
@@ -18,7 +16,6 @@ ExternalProject_Add(external_wayland
   PREFIX ${BUILD_DIR}/wayland
 
   # Use `-E` so the `PKG_CONFIG_PATH` can be defined to link against our own LIBEXPAT/LIBXML2/FFI.
-  #
   CONFIGURE_COMMAND ${CONFIGURE_ENV} &&
     ${CMAKE_COMMAND} -E env ${WAYLAND_PKG_ENV}
     ${MESON} setup

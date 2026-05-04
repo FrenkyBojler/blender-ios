@@ -495,6 +495,16 @@ if(TARGET meshoptimizer::meshoptimizer)
   target_link_libraries(bf_deps_optional_meshoptimizer INTERFACE meshoptimizer::meshoptimizer)
 endif()
 
+# -----------------------------------------------------------------------------
+# Configure TracyClient
+
+add_library(bf_deps_optional_tracy_client INTERFACE)
+add_library(bf::dependencies::optional::tracy_client ALIAS bf_deps_optional_tracy_client)
+
+if(WITH_TRACY)
+  target_compile_definitions(bf_deps_optional_tracy_client INTERFACE WITH_TRACY_CLIENT)
+  target_link_libraries(bf_deps_optional_tracy_client INTERFACE Tracy::TracyClient)
+endif()
 
 # -----------------------------------------------------------------------------
 # Configure Draco

@@ -1501,3 +1501,14 @@ set(DRACO_FILE meshoptimizer-${DRACO_VERSION}.zip)
 set(DRACO_HOMEPAGE https://google.github.io/draco/)
 set(DRACO_LICENSE SPDX:Apache-2.0)
 set(DRACO_COPYRIGHT "Copyright 2022 The Draco Authors.")
+
+# Using a latest main hash as Tracy WoA support (commit feb07e4) hasn't made it to a stable release yet.
+# NOTE: Keep version in sync with the tracy_profiler GUI frontend in `extern/tracy_profiler/CMakeLists.txt`
+set(TRACY_VERSION a64b9a20294d59421a2f57aeca3c6383d8c48169) # Latest main on 2026-04-11
+set(TRACY_URI https://github.com/wolfpld/tracy/archive/${TRACY_VERSION}.tar.gz)
+set(TRACY_HASH d316eea1b4bdc265725661c9d5ff67da)
+set(TRACY_HASH_TYPE MD5)
+set(TRACY_FILE tracy-${TRACY_VERSION}.tar.gz)
+set(TRACY_HOMEPAGE https://github.com/wolfpld/tracy)
+set(TRACY_LICENSE SPDX:BSD-3-Clause)
+set(TRACY_COPYRIGHT "Copyright (c) 2017-2026, Bartosz Taudul <wolf@nereid.pl>")

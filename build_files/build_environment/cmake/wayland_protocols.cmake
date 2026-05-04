@@ -2,9 +2,7 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-set(WAYLAND_PROTOCOLS_PKG_ENV "
-PKG_CONFIG_PATH=${LIBDIR}/wayland/lib64/pkgconfig:$PKG_CONFIG_PATH
-")
+set(WAYLAND_PROTOCOLS_PKG_ENV "PKG_CONFIG_PATH=${LIBDIR}/wayland/lib64/pkgconfig:$PKG_CONFIG_PATH")
 
 set(WAYLAND_PROTOCOLS_EXTRA_OPTIONS
   -Dtests=false

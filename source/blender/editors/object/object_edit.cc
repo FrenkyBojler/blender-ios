@@ -571,7 +571,7 @@ static void flush_bone_selection_to_pose(Object &ob)
   BLI_assert(ob.pose);
   for (bPoseChannel &pose_bone : ob.pose->chanbase) {
     pose_bone.flag &= ~(POSE_SELECTED | POSE_SELECTED_ROOT | POSE_SELECTED_TIP);
-    const Bone *bone = pose_bone.bone;
+    const Bone *bone = pose_bone.bone_get(ob);
     if (bone->flag & BONE_ROOTSEL) {
       pose_bone.flag |= POSE_SELECTED_ROOT;
     }
@@ -588,8 +588,8 @@ static void flush_pose_selection_to_bone(Object &ob)
 {
   BLI_assert(ob.pose);
   for (bPoseChannel &pose_bone : ob.pose->chanbase) {
-    pose_bone.bone->flag &= ~(BONE_ROOTSEL | BONE_TIPSEL | BONE_SELECTED);
-    Bone *bone = pose_bone.bone;
+    Bone *bone = pose_bone.bone_get(ob);
+    bone->flag &= ~(BONE_ROOTSEL | BONE_TIPSEL | BONE_SELECTED);
     if (pose_bone.flag & POSE_SELECTED_ROOT) {
       bone->flag |= BONE_ROOTSEL;
     }
@@ -1236,7 +1236,7 @@ static wmOperatorStatus forcefield_toggle_exec(bContext *C, wmOperator * /*op*/)
     ob->empty_drawtype = OB_PLAINAXES;
   }
   else {
-    ob->pd->forcefield = 0;
+    ob->pd->forcefield = ePFieldType{};
   }
 
   check_force_modifiers(CTX_data_main(C), CTX_data_scene(C), ob);
@@ -1413,8 +1413,8 @@ static wmOperatorStatus object_calculate_paths_invoke(bContext *C,
 static wmOperatorStatus object_calculate_paths_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
-  short path_type = RNA_enum_get(op->ptr, "display_type");
-  short path_range = RNA_enum_get(op->ptr, "range");
+  eMotionPaths_Types path_type = eMotionPaths_Types(RNA_enum_get(op->ptr, "display_type"));
+  eMotionPath_Ranges path_range = eMotionPath_Ranges(RNA_enum_get(op->ptr, "range"));
 
   /* set up path data for objects being calculated */
   CTX_DATA_BEGIN (C, Object *, ob, selected_editable_objects) {
@@ -2180,7 +2180,10 @@ static wmOperatorStatus object_mode_set_exec(bContext *C, wmOperator *op)
   wmWindowManager *wm = CTX_wm_manager(C);
   if (wm) {
     if (WM_autosave_is_scheduled(wm)) {
-      WM_autosave_write(wm, CTX_data_main(C));
+      /* Note, this uses the global `ReportList` rather than the operator, as we do not want to
+       * interpret this failure as a failure of switching modes. */
+      WM_autosave_write(wm, CTX_data_main(C), &wm->runtime->reports);
+      WM_report_banner_show(wm, CTX_wm_window(C));
     }
   }
 
