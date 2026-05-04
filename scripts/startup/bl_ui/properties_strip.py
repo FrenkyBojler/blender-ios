@@ -154,9 +154,9 @@ def draw_compositor_effect_node_group_errors(layout, node_tree, strip_input_num)
                 output_sockets.append(socket)
 
     if color_input_sockets_num < strip_input_num:
+        input_suffix = "s" if strip_input_num > 1 else ""
         layout.label(
-            text=f"Node group must have at least {strip_input_num} Color input{
-                's' if strip_input_num > 1 else ''}.",
+            text=f"Node group must have at least {strip_input_num} Color input{input_suffix}.",
             icon='ERROR')
     if float_input_sockets_num == 0:
         layout.label(text="Node group does not have an input of type Float. Fade is unused.", icon='ERROR')
