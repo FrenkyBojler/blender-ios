@@ -4,6 +4,8 @@
 
 set(SDL_EXTRA_ARGS
   -DSDL_STATIC=OFF
+  -DSDL_TESTS=OFF
+  -DSDL_TEST_LIBRARY=OFF
 )
 
 ExternalProject_Add(external_sdl
@@ -11,6 +13,7 @@ ExternalProject_Add(external_sdl
   DOWNLOAD_DIR ${DOWNLOAD_DIR}
   URL_HASH ${SDL_HASH_TYPE}=${SDL_HASH}
   PREFIX ${BUILD_DIR}/sdl
+  CMAKE_GENERATOR ${PLATFORM_ALT_GENERATOR}
 
   CMAKE_ARGS
     -DCMAKE_INSTALL_PREFIX=${LIBDIR}/sdl
@@ -24,14 +27,8 @@ if(WIN32)
   if(BUILD_MODE STREQUAL Release)
     ExternalProject_Add_Step(external_sdl after_install
       COMMAND ${CMAKE_COMMAND} -E copy_directory
-        ${LIBDIR}/sdl/include/
-        ${HARVEST_TARGET}/sdl/include
-      COMMAND ${CMAKE_COMMAND} -E copy_directory
-        ${LIBDIR}/sdl/lib
-        ${HARVEST_TARGET}/sdl/lib
-      COMMAND ${CMAKE_COMMAND} -E copy_directory
-        ${LIBDIR}/sdl/bin
-        ${HARVEST_TARGET}/sdl/lib
+        ${LIBDIR}/sdl
+        ${HARVEST_TARGET}/sdl
 
       DEPENDEES install
     )
