@@ -333,7 +333,7 @@ ccl_device_forceinline float4 primitive_motion_vector(KernelGlobals kg,
   return make_float4(motion_pre.x, motion_pre.y, motion_post.x, motion_post.y);
 }
 
-/* Motion vector for denoising backward motion vector pass */
+/* Motion vector for denoising backward motion pass */
 
 ccl_device_forceinline float3
 primitive_motion_vector_backward_depth_delta(KernelGlobals kg, const ccl_private ShaderData *sd)

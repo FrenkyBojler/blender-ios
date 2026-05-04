@@ -92,7 +92,7 @@ const NodeEnum *Pass::get_type_enum()
     pass_type_enum.insert("denoising_normal", PASS_DENOISING_NORMAL);
     pass_type_enum.insert("denoising_roughness", PASS_DENOISING_ROUGHNESS);
     pass_type_enum.insert("denoising_depth", PASS_DENOISING_DEPTH);
-    pass_type_enum.insert("denoising_backward_motion_vector", PASS_DENOISING_BACKWARD_MOTION);
+    pass_type_enum.insert("denoising_backward_motion", PASS_DENOISING_BACKWARD_MOTION);
     pass_type_enum.insert("denoising_previous", PASS_DENOISING_PREVIOUS);
     pass_type_enum.insert("volume_majorant", PASS_VOLUME_MAJORANT);
     pass_type_enum.insert("volume_majorant_sample_count", PASS_VOLUME_MAJORANT_SAMPLE_COUNT);
