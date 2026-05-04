@@ -340,7 +340,7 @@ CachedImage::CachedImage(Context &context,
     Result buffer_result(context, float_type(image_buffer->channels), ResultPrecision::Full);
     buffer_result.share_data(linear_image_buffer->float_buffer.data,
                              size,
-                             linear_image_buffer->float_buffer.sharing_info.get());
+                             linear_image_buffer->float_buffer.sharing_info);
     IMB_freeImBuf(linear_image_buffer);
     this->result.allocate_texture(size, false);
 

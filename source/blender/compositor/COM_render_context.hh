@@ -7,6 +7,7 @@
 #include <memory>
 #include <string>
 
+#include "BLI_implicit_sharing_ptr.hh"
 #include "BLI_map.hh"
 #include "BLI_math_vector_types.hh"
 
@@ -69,7 +70,7 @@ class FileOutput {
   void add_view(const char *view_name,
                 int channels,
                 const float *buffer,
-                const ImplicitSharingInfo *sharing_info);
+                ImplicitSharingPtr<> sharing_ptr);
 
   /* Add a pass of the given name in the given view that stores the given pixel buffer composed of
    * each of the channels given by the channels string. The channels string should contain a
@@ -80,7 +81,7 @@ class FileOutput {
                 const char *view_name,
                 const char *channels,
                 const float *buffer,
-                const ImplicitSharingInfo *sharing_info);
+                ImplicitSharingPtr<> sharing_ptr);
 
   /* Add meta data that will eventually be saved to the file if the format supports it. */
   void add_meta_data(std::string key, std::string value);

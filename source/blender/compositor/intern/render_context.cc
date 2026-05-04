@@ -85,7 +85,7 @@ void FileOutput::add_view(const char *view_name)
 void FileOutput::add_view(const char *view_name,
                           int channels,
                           const float *buffer,
-                          const ImplicitSharingInfo *sharing_info)
+                          ImplicitSharingPtr<> sharing_ptr)
 {
   RenderView *render_view = MEM_new<RenderView>("Render View For File Output.");
   BLI_addtail(&render_result_->views, render_view);
@@ -94,14 +94,14 @@ void FileOutput::add_view(const char *view_name,
   render_view->ibuf = IMB_allocImBuf(
       render_result_->rectx, render_result_->recty, channels * 8, 0);
   render_view->ibuf->channels = channels;
-  render_view->ibuf->assign_float_data(buffer, sharing_info);
+  render_view->ibuf->assign_float_data(buffer, std::move(sharing_ptr));
 }
 
 void FileOutput::add_pass(const char *pass_name,
                           const char *view_name,
                           const char *channels,
                           const float *buffer,
-                          const ImplicitSharingInfo *sharing_info)
+                          ImplicitSharingPtr<> sharing_ptr)
 {
   /* Passes can only be added for EXR images. */
   BLI_assert(ELEM(format_.imtype, R_IMF_IMTYPE_OPENEXR, R_IMF_IMTYPE_MULTILAYER));
@@ -122,7 +122,7 @@ void FileOutput::add_pass(const char *pass_name,
       render_result_->rectx, render_result_->recty, channels_count * 8, 0);
   render_pass->ibuf->channels = channels_count;
   copy_v2_v2_db(render_pass->ibuf->ppm, render_result_->ppm);
-  render_pass->ibuf->assign_float_data(buffer, sharing_info);
+  render_pass->ibuf->assign_float_data(buffer, std::move(sharing_ptr));
 }
 
 void FileOutput::add_meta_data(std::string key, std::string value)

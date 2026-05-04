@@ -588,18 +588,18 @@ class FileOutputOperation : public NodeOperation {
     /* The image buffer in the file output will take ownership of this buffer and freeing it will
      * be its responsibility. */
     const float *buffer = nullptr;
-    const ImplicitSharingInfo *sharing_info = nullptr;
+    ImplicitSharingPtr<> sharing_info;
     if (result.is_single_value()) {
       float *data = this->inflate_result(result, size);
       buffer = data;
-      sharing_info = implicit_sharing::info_for_mem_free(data);
+      sharing_info = ImplicitSharingPtr<>(implicit_sharing::info_for_mem_free(data));
     }
     else {
       if (this->context().use_gpu()) {
         GPU_memory_barrier(GPU_BARRIER_TEXTURE_UPDATE);
         float *data = static_cast<float *>(GPU_texture_read(result, GPU_DATA_FLOAT, 0));
         buffer = data;
-        sharing_info = implicit_sharing::info_for_mem_free(data);
+        sharing_info = ImplicitSharingPtr<>(implicit_sharing::info_for_mem_free(data));
       }
       else {
         if (result.sharing_info()) {
@@ -609,7 +609,7 @@ class FileOutputOperation : public NodeOperation {
         else {
           auto *new_data = new ImplicitSharedValue<GArray<>>(result.cpu_data());
           buffer = static_cast<const float *>(new_data->data.data());
-          sharing_info = new_data;
+          sharing_info = ImplicitSharingPtr<>(new_data);
         }
       }
     }
@@ -620,10 +620,10 @@ class FileOutputOperation : public NodeOperation {
          * specify that all uppercase RGBA channels will be compressed, and Cryptomatte should not
          * be compressed. */
         if (result.meta_data.is_cryptomatte_layer()) {
-          file_output.add_pass(pass_name, view_name, "rgba", buffer, sharing_info);
+          file_output.add_pass(pass_name, view_name, "rgba", buffer, std::move(sharing_info));
         }
         else {
-          file_output.add_pass(pass_name, view_name, "RGBA", buffer, sharing_info);
+          file_output.add_pass(pass_name, view_name, "RGBA", buffer, std::move(sharing_info));
         }
         break;
       case ResultType::Float3:
@@ -634,21 +634,21 @@ class FileOutputOperation : public NodeOperation {
         {
           float *new_data = float4_to_float3_image(size, buffer);
           sharing_info->remove_user_and_delete_if_last();
-          sharing_info = implicit_sharing::info_for_mem_free(new_data);
-          file_output.add_pass(pass_name, view_name, "XYZ", new_data, sharing_info);
+          sharing_info = ImplicitSharingPtr<>(implicit_sharing::info_for_mem_free(new_data));
+          file_output.add_pass(pass_name, view_name, "XYZ", new_data, std::move(sharing_info));
         }
         else {
-          file_output.add_pass(pass_name, view_name, "XYZ", buffer, sharing_info);
+          file_output.add_pass(pass_name, view_name, "XYZ", buffer, std::move(sharing_info));
         }
         break;
       case ResultType::Float4:
-        file_output.add_pass(pass_name, view_name, "XYZW", buffer, sharing_info);
+        file_output.add_pass(pass_name, view_name, "XYZW", buffer, std::move(sharing_info));
         break;
       case ResultType::Float:
-        file_output.add_pass(pass_name, view_name, "V", buffer, sharing_info);
+        file_output.add_pass(pass_name, view_name, "V", buffer, std::move(sharing_info));
         break;
       case ResultType::Float2:
-        file_output.add_pass(pass_name, view_name, "XY", buffer, sharing_info);
+        file_output.add_pass(pass_name, view_name, "XY", buffer, std::move(sharing_info));
         break;
       case ResultType::Int2:
       case ResultType::Int3:
@@ -719,13 +719,13 @@ class FileOutputOperation : public NodeOperation {
   {
     /* The image buffer in the file output will take ownership of this buffer and freeing it will
      * be its responsibility. */
-    const ImplicitSharingInfo *sharing_info = nullptr;
+    ImplicitSharingPtr<> sharing_info;
     const float *buffer = nullptr;
     if (this->context().use_gpu()) {
       GPU_memory_barrier(GPU_BARRIER_TEXTURE_UPDATE);
       float *data = static_cast<float *>(GPU_texture_read(result, GPU_DATA_FLOAT, 0));
       buffer = data;
-      sharing_info = implicit_sharing::info_for_mem_free(data);
+      sharing_info = ImplicitSharingPtr<>(implicit_sharing::info_for_mem_free(data));
     }
     else {
       if (result.sharing_info()) {
@@ -735,17 +735,17 @@ class FileOutputOperation : public NodeOperation {
       else {
         auto *new_data = new ImplicitSharedValue<GArray<>>(result.cpu_data());
         buffer = static_cast<const float *>(new_data->data.data());
-        sharing_info = new_data;
+        sharing_info = ImplicitSharingPtr<>(new_data);
       }
     }
 
     const int2 size = result.domain().data_size;
     switch (result.type()) {
       case ResultType::Color:
-        file_output.add_view(view_name, 4, buffer, sharing_info);
+        file_output.add_view(view_name, 4, buffer, std::move(sharing_info));
         break;
       case ResultType::Float4:
-        file_output.add_view(view_name, 4, buffer, sharing_info);
+        file_output.add_view(view_name, 4, buffer, std::move(sharing_info));
         break;
       case ResultType::Float3:
         /* Float3 results might be stored in 4-component textures due to hardware limitations, so
@@ -755,15 +755,15 @@ class FileOutputOperation : public NodeOperation {
         {
           float *new_data = float4_to_float3_image(size, buffer);
           sharing_info->remove_user_and_delete_if_last();
-          sharing_info = implicit_sharing::info_for_mem_free(new_data);
-          file_output.add_view(view_name, 3, new_data, sharing_info);
+          sharing_info = ImplicitSharingPtr<>(implicit_sharing::info_for_mem_free(new_data));
+          file_output.add_view(view_name, 3, new_data, std::move(sharing_info));
         }
         else {
-          file_output.add_view(view_name, 3, buffer, sharing_info);
+          file_output.add_view(view_name, 3, buffer, std::move(sharing_info));
         }
         break;
       case ResultType::Float:
-        file_output.add_view(view_name, 1, buffer, sharing_info);
+        file_output.add_view(view_name, 1, buffer, std::move(sharing_info));
         break;
       case ResultType::Float2:
       case ResultType::Int2:

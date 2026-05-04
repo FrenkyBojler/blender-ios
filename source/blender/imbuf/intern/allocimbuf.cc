@@ -241,19 +241,17 @@ void ImBuf::assign_float_data(float *data)
   this->flags |= IB_float_data;
 }
 
-void ImBuf::assign_byte_data(const uint8_t *data, const ImplicitSharingInfo *sharing_info)
+void ImBuf::assign_byte_data(const uint8_t *data, ImplicitSharingPtr<> sharing_ptr)
 {
   this->byte_buffer.data = data;
-  sharing_info->add_user();
-  this->byte_buffer.sharing_info = ImplicitSharingPtr<>(sharing_info);
+  this->byte_buffer.sharing_info = std::move(sharing_ptr);
   this->flags |= IB_byte_data;
 }
 
-void ImBuf::assign_float_data(const float *data, const ImplicitSharingInfo *sharing_info)
+void ImBuf::assign_float_data(const float *data, ImplicitSharingPtr<> sharing_ptr)
 {
   this->float_buffer.data = data;
-  sharing_info->add_user();
-  this->float_buffer.sharing_info = ImplicitSharingPtr<>(sharing_info);
+  this->float_buffer.sharing_info = std::move(sharing_ptr);
   this->flags |= IB_float_data;
 }
 

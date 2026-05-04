@@ -285,8 +285,8 @@ struct ImBuf {
 
   void assign_byte_data(uint8_t *data);
   void assign_float_data(float *data);
-  void assign_byte_data(const uint8_t *data, const ImplicitSharingInfo *sharing_info);
-  void assign_float_data(const float *data, const ImplicitSharingInfo *sharing_info);
+  void assign_byte_data(const uint8_t *data, ImplicitSharingPtr<> sharing_ptr);
+  void assign_float_data(const float *data, ImplicitSharingPtr<> sharing_ptr);
 };
 
 /**
