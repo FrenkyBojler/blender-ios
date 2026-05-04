@@ -3274,7 +3274,8 @@ static void rna_FileAssetSelectParams_asset_library_set(PointerRNA *ptr, int val
       if (const asset_system::AssetCatalog *old_catalog =
               old_library->catalog_service().find_catalog(old_catalog_id))
       {
-        const auto catalog_tree = new_library->catalog_service().catalog_tree();
+        const std::shared_ptr<const asset_system::AssetCatalogTree> catalog_tree =
+            new_library->catalog_service().catalog_tree();
 
         if (const asset_system::AssetCatalogTreeItem *item = catalog_tree->find_item(
                 old_catalog->path))
