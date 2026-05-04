@@ -1780,6 +1780,33 @@ static wmOperatorStatus gizmo_modal(bContext *C,
   return OPERATOR_RUNNING_MODAL;
 }
 
+static void gizmo_operator_set_properties(PointerRNA *ptr, const bool constraint_axis[3])
+{
+  if (ptr == nullptr) {
+    return;
+  }
+
+  RNA_STRUCT_BEGIN (ptr, prop) {
+    if (RNA_property_type(prop) != PROP_POINTER) {
+      continue;
+    }
+    PointerRNA propptr = RNA_property_pointer_get(ptr, prop);
+    if (!propptr.data || !RNA_struct_is_a(propptr.type, RNA_OperatorProperties)) {
+      continue;
+    }
+    PropertyRNA *constr = nullptr;
+    if (ELEM(true, UNPACK3(constraint_axis))) {
+      if ((constr = RNA_struct_find_property(&propptr, "constraint_axis"))) {
+        RNA_property_boolean_set_array(&propptr, constr, constraint_axis);
+      }
+    }
+    if (constr) {
+      RNA_boolean_set(&propptr, "release_confirm", 1);
+    }
+  }
+  RNA_STRUCT_END;
+}
+
 static void gizmogroup_init_properties_from_twtype(const bContext *C, wmGizmoGroup *gzgroup)
 {
   struct {
@@ -1937,44 +1964,8 @@ static void gizmogroup_init_properties_from_twtype(const bContext *C, wmGizmoGro
       }
     }
 
-    if (ptr_extra) {
-      RNA_STRUCT_BEGIN (ptr_extra, prop) {
-        if (RNA_property_type(prop) != PROP_POINTER) {
-          continue;
-        }
-        PointerRNA propptr = RNA_property_pointer_get(ptr_extra, prop);
-        if (!propptr.data || !RNA_struct_is_a(propptr.type, RNA_OperatorProperties))
-          continue;
-        PropertyRNA *constr = nullptr;
-        if (ELEM(true, UNPACK3(constraint_axis))) {
-          if ((constr = RNA_struct_find_property(&propptr, "constraint_axis"))) {
-            RNA_property_boolean_set_array(&propptr, constr, constraint_axis);
-          }
-        }
-        if (constr) {
-          RNA_boolean_set(&propptr, "release_confirm", 1);
-        }
-      }
-      RNA_STRUCT_END;
-    }
-    if (ptr_extra2) {
-      RNA_STRUCT_BEGIN (ptr_extra2, prop) {
-        if (RNA_property_type(prop) != PROP_POINTER)
-          continue;
-        PointerRNA propptr2 = RNA_property_pointer_get(ptr_extra2, prop);
-        if (!propptr2.data || !RNA_struct_is_a(propptr2.type, RNA_OperatorProperties))
-          continue;
-        PropertyRNA *constr = nullptr;
-        if (ELEM(true, UNPACK3(constraint_axis))) {
-          if ((constr = RNA_struct_find_property(&propptr2, "constraint_axis"))) {
-            RNA_property_boolean_set_array(&propptr2, constr, constraint_axis);
-          }
-        }
-        if (constr)
-          RNA_boolean_set(&propptr2, "release_confirm", 1);
-      }
-      RNA_STRUCT_END;
-    }
+    gizmo_operator_set_properties(ptr_extra, constraint_axis);
+    gizmo_operator_set_properties(ptr_extra2, constraint_axis);
 
     if (ptr) {
       PropertyRNA *prop;
