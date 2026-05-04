@@ -285,7 +285,14 @@ ResultT eval(sampler2D hiz_tx,
         sample_depth += reversed ? -bias : bias;
 
         float3 vP_sample_front = drw_point_screen_to_view(float3(sample_uv, sample_depth));
-        float3 vP_sample_back = vP_sample_front - vV * thickness_near;
+        float3 vP_sample_back = vP_sample_front;
+
+        if (reversed) {
+          vP_sample_front += vV * thickness_near;
+        }
+        else {
+          vP_sample_back -= vV * thickness_near;
+        }
 
         /* Mimic a sphere intersection check + clipping of the intersecting ray.
          * Assumes the ray is aligned with the view Z axis.
