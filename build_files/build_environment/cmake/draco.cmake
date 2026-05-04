@@ -5,6 +5,13 @@
 set(DRACO_EXTRA_ARGS
 )
 
+if(WIN32)
+  set(DRACO_EXTRA_ARGS
+    ${DRACO_EXTRA_ARGS}
+    -DCMAKE_DEBUG_POSTFIX=_d
+  )
+endif()
+
 ExternalProject_Add(external_draco
   URL file://${PACKAGE_DIR}/${DRACO_FILE}
   DOWNLOAD_DIR ${DOWNLOAD_DIR}
