@@ -34,6 +34,7 @@
 #include "BKE_node.hh"
 #include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
+#include "BKE_paint.hh"
 #include "BKE_report.hh"
 
 #include "SEQ_iterator.hh"
@@ -565,6 +566,7 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     for (Brush &brush : bmain->brushes) {
       if (ELEM(brush.ob_mode, OB_MODE_WEIGHT_PAINT, OB_MODE_VERTEX_PAINT)) {
         brush.mesh_automasking_settings = MEM_new<MeshAutomaskingSettings>(__func__);
+        brush.mesh_automasking_settings->cavity_curve = BKE_sculpt_default_cavity_curve();
       }
     }
 
@@ -574,6 +576,8 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
       }
 
       paint->mesh_automasking_settings = MEM_new<MeshAutomaskingSettings>(__func__);
+      paint->mesh_automasking_settings->cavity_curve = BKE_sculpt_default_cavity_curve();
+      paint->mesh_automasking_settings->cavity_curve_op = BKE_sculpt_default_cavity_curve();
     };
 
     for (Scene &scene : bmain->scenes) {
