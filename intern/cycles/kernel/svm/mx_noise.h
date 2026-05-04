@@ -632,6 +632,9 @@ ccl_device_noinline void svm_node_tex_mx_noise(ccl_private float *ccl_restrict s
   if (stack_valid(node.color_offset)) {
     stack_store_float3(stack, node.color_offset, color);
   }
+  if (stack_valid(node.vector_offset)) {
+    stack_store_float3(stack, node.vector_offset, color);
+  }
 }
 
 CCL_NAMESPACE_END

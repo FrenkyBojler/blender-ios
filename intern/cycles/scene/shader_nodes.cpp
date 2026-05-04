@@ -1545,6 +1545,7 @@ NODE_DEFINE(MxNoiseTextureNode)
 
   SOCKET_OUT_FLOAT(value, "Value");
   SOCKET_OUT_COLOR(color, "Color");
+  SOCKET_OUT_VECTOR(vector_out, "Vector");
 
   return type;
 }
@@ -1574,6 +1575,7 @@ void MxNoiseTextureNode::compile(SVMCompiler &compiler)
                         .clamp_output = compiler.input_float("Clamp Output"),
                         .value_offset = compiler.output("Value"),
                         .color_offset = compiler.output("Color"),
+                        .vector_offset = compiler.output("Vector"),
                     });
 }
 

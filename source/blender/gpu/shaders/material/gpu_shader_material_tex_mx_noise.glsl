@@ -541,7 +541,8 @@ void node_mx_noise(float3 vector,
                    float pivot,
                    float dimensions,
                    float &value,
-                   float4 &color)
+                   float4 &color,
+                   float3 &vector_out)
 {
   float3 color3;
   mx_noise_eval(dimensions,
@@ -563,6 +564,7 @@ void node_mx_noise(float3 vector,
                 value,
                 color3);
   color = float4(color3, 1.0f);
+  vector_out = color3;
 }
 
 [[node]]
@@ -573,7 +575,8 @@ void node_mx_fractal_noise(float3 vector,
                            float diminish,
                            float dimensions,
                            float &value,
-                           float4 &color)
+                           float4 &color,
+                           float3 &vector_out)
 {
   float3 color3;
   mx_noise_eval(dimensions,
@@ -595,10 +598,11 @@ void node_mx_fractal_noise(float3 vector,
                 value,
                 color3);
   color = float4(color3, 1.0f);
+  vector_out = color3;
 }
 
 [[node]]
-void node_mx_cell_noise(float3 vector, float dimensions, float &value, float4 &color)
+void node_mx_cell_noise(float3 vector, float dimensions, float &value)
 {
   float3 color3;
   mx_noise_eval(dimensions,
@@ -619,7 +623,6 @@ void node_mx_cell_noise(float3 vector, float dimensions, float &value, float4 &c
                 1.0f,
                 value,
                 color3);
-  color = float4(color3, 1.0f);
 }
 
 [[node]]
@@ -628,7 +631,7 @@ void node_mx_worley_noise(float3 vector,
                           float style,
                           float dimensions,
                           float &value,
-                          float4 &color)
+                          float3 &vector_out)
 {
   float3 color3;
   mx_noise_eval(dimensions,
@@ -649,7 +652,7 @@ void node_mx_worley_noise(float3 vector,
                 1.0f,
                 value,
                 color3);
-  color = float4(color3, 1.0f);
+  vector_out = color3;
 }
 
 [[node]]
@@ -666,8 +669,7 @@ void node_mx_unified_noise(float3 vector,
                            float out_max,
                            float clamp_output,
                            float dimensions,
-                           float &value,
-                           float4 &color)
+                           float &value)
 {
   float3 color3;
   mx_noise_eval(dimensions,
@@ -688,5 +690,4 @@ void node_mx_unified_noise(float3 vector,
                 clamp_output,
                 value,
                 color3);
-  color = float4(color3, 1.0f);
 }

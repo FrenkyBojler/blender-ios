@@ -184,7 +184,7 @@ float mx_range_float(float value, float out_min, float out_max, int clamp_output
 
 shader node_mx_noise_texture(int dimensions = 3,
                              int noise_type = 0,
-                             point Vector = point(0.0, 0.0, 0.0),
+                             point VectorIn = point(0.0, 0.0, 0.0),
                              float Amplitude = 1.0,
                              float Pivot = 0.0,
                              float Octaves = 3.0,
@@ -199,7 +199,8 @@ shader node_mx_noise_texture(int dimensions = 3,
                              float OutMax = 1.0,
                              float ClampOutput = 1.0,
                              output float Value = 0.0,
-                             output color Color = 0.0)
+                             output color Color = 0.0,
+                             output vector VectorOut = vector(0.0, 0.0, 0.0))
 {
   int octaves = clamp((int)Octaves, 0, 32);
   int style = (int)Style;
@@ -210,7 +211,7 @@ shader node_mx_noise_texture(int dimensions = 3,
   if (noise_type == 4) {
     float cell_jitter = (Jitter - 1.0) * 90000.0;
     if (is_2d) {
-      vector2 apply_offset = vector2(Vector[0] * Frequency[0], Vector[1] * Frequency[1]) +
+      vector2 apply_offset = vector2(VectorIn[0] * Frequency[0], VectorIn[1] * Frequency[1]) +
                              vector2(Offset[0], Offset[1]);
       vector2 apply_cell_jitter = mx_rotate2d(apply_offset, cell_jitter);
       if (unified_type == 1) {
@@ -232,7 +233,7 @@ shader node_mx_noise_texture(int dimensions = 3,
       }
     }
     else {
-      vector apply_offset = vector(Vector[0], Vector[1], Vector[2]) * Frequency + Offset;
+      vector apply_offset = vector(VectorIn[0], VectorIn[1], VectorIn[2]) * Frequency + Offset;
       vector apply_cell_jitter = mx_rotate3d(apply_offset, cell_jitter);
       if (unified_type == 1) {
         Value = cellnoise(apply_cell_jitter);
@@ -264,47 +265,48 @@ shader node_mx_noise_texture(int dimensions = 3,
   }
   else if (noise_type == 2) {
     if (is_2d) {
-      Value = cellnoise(Vector[0], Vector[1]);
-      Color = (color)cellnoise(Vector[0], Vector[1]);
+      Value = cellnoise(VectorIn[0], VectorIn[1]);
+      Color = (color)cellnoise(VectorIn[0], VectorIn[1]);
     }
     else {
-      Value = cellnoise(Vector);
-      Color = (color)cellnoise(Vector);
+      Value = cellnoise(VectorIn);
+      Color = (color)cellnoise(VectorIn);
     }
   }
   else if (noise_type == 3) {
     if (is_2d) {
-      vector2 p = vector2(Vector[0], Vector[1]);
+      vector2 p = vector2(VectorIn[0], VectorIn[1]);
       Value = mx_worley_noise_float(p, Jitter, style);
       Color = mx_worley_noise_color(p, Jitter, style);
     }
     else {
-      Value = mx_worley_noise_float(vector(Vector[0], Vector[1], Vector[2]), Jitter, style);
-      Color = mx_worley_noise_color(vector(Vector[0], Vector[1], Vector[2]), Jitter, style);
+      Value = mx_worley_noise_float(vector(VectorIn[0], VectorIn[1], VectorIn[2]), Jitter, style);
+      Color = mx_worley_noise_color(vector(VectorIn[0], VectorIn[1], VectorIn[2]), Jitter, style);
     }
   }
   else if (noise_type == 1) {
     if (is_2d) {
-      Value = mx_fbm(Vector[0], Vector[1], octaves, Lacunarity, Diminish);
-      Color = mx_fbm_color(Vector[0], Vector[1], octaves, Lacunarity, Diminish);
+      Value = mx_fbm(VectorIn[0], VectorIn[1], octaves, Lacunarity, Diminish);
+      Color = mx_fbm_color(VectorIn[0], VectorIn[1], octaves, Lacunarity, Diminish);
     }
     else {
-      Value = mx_fbm(Vector, octaves, Lacunarity, Diminish);
-      Color = mx_fbm_color(Vector, octaves, Lacunarity, Diminish);
+      Value = mx_fbm(VectorIn, octaves, Lacunarity, Diminish);
+      Color = mx_fbm_color(VectorIn, octaves, Lacunarity, Diminish);
     }
     Value *= Amplitude;
     Color *= Amplitude;
   }
   else {
     if (is_2d) {
-      Value = noise("snoise", Vector[0], Vector[1]);
-      Color = (color)noise("snoise", Vector[0], Vector[1]);
+      Value = noise("snoise", VectorIn[0], VectorIn[1]);
+      Color = (color)noise("snoise", VectorIn[0], VectorIn[1]);
     }
     else {
-      Value = noise("snoise", Vector);
-      Color = (color)noise("snoise", Vector);
+      Value = noise("snoise", VectorIn);
+      Color = (color)noise("snoise", VectorIn);
     }
     Value = Value * Amplitude + Pivot;
     Color = Color * Amplitude + Pivot;
   }
+  VectorOut = (vector)Color;
 }

@@ -735,7 +735,8 @@ struct SVMNodeTexMxNoise {
   SVMInputFloat clamp_output;
   SVMStackOffset value_offset;
   SVMStackOffset color_offset;
-  uint8_t _pad[2];
+  SVMStackOffset vector_offset;
+  uint8_t _pad[1];
 };
 static_assert(alignof(SVMNodeTexMxNoise) <= alignof(uint));
 static_assert(sizeof(SVMNodeTexMxNoise) % sizeof(uint) == 0);

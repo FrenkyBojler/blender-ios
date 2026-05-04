@@ -675,7 +675,16 @@ static void declare_vector_input(NodeDeclarationBuilder &b)
 static void declare_common_output(NodeDeclarationBuilder &b)
 {
   b.add_output<decl::Float>("Value"_ustr).no_muted_links();
+}
+
+static void declare_color_output(NodeDeclarationBuilder &b)
+{
   b.add_output<decl::Color>("Color"_ustr).no_muted_links();
+}
+
+static void declare_vector_output(NodeDeclarationBuilder &b)
+{
+  b.add_output<decl::Vector>("Vector"_ustr).no_muted_links();
 }
 
 static void declare_base_noise(NodeDeclarationBuilder &b)
@@ -685,6 +694,8 @@ static void declare_base_noise(NodeDeclarationBuilder &b)
   b.add_input<decl::Float>("Amplitude"_ustr).default_value(1.0f);
   b.add_input<decl::Float>("Pivot"_ustr).default_value(0.0f);
   declare_common_output(b);
+  declare_color_output(b);
+  declare_vector_output(b);
 }
 
 static void declare_fractal_noise(NodeDeclarationBuilder &b)
@@ -696,6 +707,8 @@ static void declare_fractal_noise(NodeDeclarationBuilder &b)
   b.add_input<decl::Float>("Lacunarity"_ustr).default_value(2.0f);
   b.add_input<decl::Float>("Diminish"_ustr).default_value(0.5f);
   declare_common_output(b);
+  declare_color_output(b);
+  declare_vector_output(b);
 }
 
 static void declare_cell_noise(NodeDeclarationBuilder &b)
@@ -712,6 +725,7 @@ static void declare_worley_noise(NodeDeclarationBuilder &b)
   b.add_input<decl::Float>("Jitter"_ustr).default_value(1.0f);
   b.add_input<decl::Float>("Style"_ustr).default_value(0.0f).min(0.0f).max(1.0f);
   declare_common_output(b);
+  declare_vector_output(b);
 }
 
 static void declare_unified_noise(NodeDeclarationBuilder &b)
@@ -858,7 +872,13 @@ class MxNoiseFunction : public mf::MultiFunction {
         break;
     }
     builder.single_output<float>("Value", mf::ParamFlag::SupportsUnusedOutput);
-    builder.single_output<ColorGeometry4f>("Color", mf::ParamFlag::SupportsUnusedOutput);
+    if (ELEM(noise_type_, MX_NOISE_PERLIN, MX_NOISE_FRACTAL)) {
+      builder.single_output<ColorGeometry4f>("Color", mf::ParamFlag::SupportsUnusedOutput);
+      builder.single_output<float3>("Vector", mf::ParamFlag::SupportsUnusedOutput);
+    }
+    else if (noise_type_ == MX_NOISE_WORLEY) {
+      builder.single_output<float3>("Vector", mf::ParamFlag::SupportsUnusedOutput);
+    }
     this->set_signature(&signature_);
   }
 
@@ -911,11 +931,18 @@ class MxNoiseFunction : public mf::MultiFunction {
 
     MutableSpan<float> r_value = params.uninitialized_single_output_if_required<float>(param++,
                                                                                        "Value");
-    MutableSpan<ColorGeometry4f> r_color =
-        params.uninitialized_single_output_if_required<ColorGeometry4f>(param++, "Color");
+    MutableSpan<ColorGeometry4f> r_color;
+    if (ELEM(noise_type_, MX_NOISE_PERLIN, MX_NOISE_FRACTAL)) {
+      r_color = params.uninitialized_single_output_if_required<ColorGeometry4f>(param++, "Color");
+    }
+    MutableSpan<float3> r_vector;
+    if (ELEM(noise_type_, MX_NOISE_PERLIN, MX_NOISE_FRACTAL, MX_NOISE_WORLEY)) {
+      r_vector = params.uninitialized_single_output_if_required<float3>(param++, "Vector");
+    }
 
     const bool compute_value = !r_value.is_empty();
     const bool compute_color = !r_color.is_empty();
+    const bool compute_vector = !r_vector.is_empty();
 
     mask.foreach_index([&](const int64_t i) {
       const MxNoiseResult result = mx_noise_eval(
@@ -940,6 +967,9 @@ class MxNoiseFunction : public mf::MultiFunction {
       }
       if (compute_color) {
         r_color[i] = ColorGeometry4f(result.color.x, result.color.y, result.color.z, 1.0f);
+      }
+      if (compute_vector) {
+        r_vector[i] = result.color;
       }
     });
   }
@@ -1024,17 +1054,15 @@ NODE_SHADER_MATERIALX_BEGIN
       break;
   }
 
-  if (STREQ(socket_out_->identifier, "Color") && info.noise_type == MX_NOISE_UNIFIED) {
-    NodeItem value = create_node(category, NodeItem::Type::Float, inputs);
-    return create_node("combine3",
-                       NodeItem::Type::Color3,
-                       {{"in1", value}, {"in2", value}, {"in3", value}});
+  NodeItem::Type output_type = NodeItem::Type::Float;
+  if (STREQ(socket_out_->identifier, "Color")) {
+    output_type = NodeItem::Type::Color3;
+  }
+  else if (STREQ(socket_out_->identifier, "Vector")) {
+    output_type = NodeItem::Type::Vector3;
   }
 
-  return create_node(category,
-                     STREQ(socket_out_->identifier, "Value") ? NodeItem::Type::Float :
-                                                               NodeItem::Type::Color3,
-                     inputs);
+  return create_node(category, output_type, inputs);
 }
 #endif
 NODE_SHADER_MATERIALX_END
