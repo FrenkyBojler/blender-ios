@@ -58,11 +58,11 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description(
           "When enabled, the operation keeps the output image seamless for a seamless input "
           "image.");
-  b.add_input<decl::Float>("Base Mask"_ustr)
+  b.add_input<decl::Float>("Mask"_ustr)
       .default_value(1.0f)
       .hide_value()
       .compositor_domain_priority(1)
-      .description("The base mask")
+      .description("The input mask")
       .structure_type(StructureType::Dynamic);
   b.add_input<decl::Vector>("Mask Size"_ustr)
       .dimensions(2)
@@ -98,8 +98,8 @@ static void node_declare(NodeDeclarationBuilder &b)
       .compositor_domain_priority(5)
       .description(
           "Rounding of the mask. Increasing this value makes the mask rounder by cutting off the "
-          "corners of the base mask. A value of 0 results in the entire base mask being used "
-          "while a value of 1 results in an circular cutout of the base mask being used")
+          "corners of the input mask. A value of 0 results in the entire input mask being used "
+          "while a value of 1 results in an circular cutout of the input mask being used")
       .structure_type(StructureType::Dynamic);
 
   PanelDeclarationBuilder &falloff_panel =
@@ -204,9 +204,8 @@ class MaskedMaximumOperation : public NodeOperation {
 
     GPU_shader_uniform_2iv(shader, "domain_data_size", domain.data_size);
 
-    const Result &input_base_mask = get_input("Base Mask");
-    GPU_shader_uniform_2iv(
-        shader, "input_base_mask_domain_data_size", input_base_mask.domain().data_size);
+    const Result &input_mask = get_input("Mask");
+    GPU_shader_uniform_2iv(shader, "input_mask_domain_data_size", input_mask.domain().data_size);
 
     GPU_shader_uniform_1b(
         shader, "keep_seamless", get_input("Keep Seamless").get_single_value_default<bool>());
@@ -214,10 +213,10 @@ class MaskedMaximumOperation : public NodeOperation {
     const Result &input_image = get_input("Image");
     input_image.bind_as_texture(shader, "input_image_tx");
 
-    GPU_texture_filter_mode(input_base_mask, false);
-    GPU_texture_extend_mode_x(input_base_mask, map_extension_mode_to_extend_mode(Extension::Clip));
-    GPU_texture_extend_mode_y(input_base_mask, map_extension_mode_to_extend_mode(Extension::Clip));
-    input_base_mask.bind_as_texture(shader, "input_base_mask_tx");
+    GPU_texture_filter_mode(input_mask, false);
+    GPU_texture_extend_mode_x(input_mask, map_extension_mode_to_extend_mode(Extension::Clip));
+    GPU_texture_extend_mode_y(input_mask, map_extension_mode_to_extend_mode(Extension::Clip));
+    input_mask.bind_as_texture(shader, "input_mask_tx");
 
     const Result &input_mask_size = get_input("Mask Size");
     input_mask_size.bind_as_texture(shader, "input_mask_size_tx");
@@ -262,7 +261,7 @@ class MaskedMaximumOperation : public NodeOperation {
 
     GPU_shader_unbind();
     input_image.unbind_as_texture();
-    input_base_mask.unbind_as_texture();
+    input_mask.unbind_as_texture();
     input_mask_size.unbind_as_texture();
     input_rotation.unbind_as_texture();
     input_translation.unbind_as_texture();
@@ -290,7 +289,7 @@ class MaskedMaximumOperation : public NodeOperation {
   {
     const bool keep_seamless = get_input("Keep Seamless").get_single_value_default<bool>();
     const Result &input_image = get_input("Image");
-    const Result &input_base_mask = get_input("Base Mask");
+    const Result &input_mask = get_input("Mask");
     const Result &input_mask_size = get_input("Mask Size");
     const Result &input_rotation = get_input("Rotation");
     const Result &input_translation = get_input("Translation");
@@ -453,13 +452,13 @@ class MaskedMaximumOperation : public NodeOperation {
                   (0.5f * (pixel_coordinates_relative_to_mask_center.y / abs_mask_size.y) + 0.5f));
           /* Align uv_coordinates_relative_to_mask_bottom_left_corner with pixel centers. For this,
            * uv_coordinates_relative_to_mask_bottom_left_corner is remapped from [0, 1] x [0, 1] to
-           * [0.5/base_mask_data_size.x, (base_mask_data_size.x-0.5)/base_mask_data_size.x] x
-           * [0.5/base_mask_data_size.y, (base_mask_data_size.y-0.5)/base_mask_data_size.y]. */
+           * [0.5/mask_data_size.x, (mask_data_size.x-0.5)/mask_data_size.x] x
+           * [0.5/mask_data_size.y, (mask_data_size.y-0.5)/mask_data_size.y]. */
           uv_coordinates_relative_to_mask_bottom_left_corner =
               (uv_coordinates_relative_to_mask_bottom_left_corner *
-                   float2(input_base_mask.domain().data_size - int2(1, 1)) +
+                   float2(input_mask.domain().data_size - int2(1, 1)) +
                float2(0.5f, 0.5f)) /
-              float2(input_base_mask.domain().data_size);
+              float2(input_mask.domain().data_size);
           float mask_value = compute_rounded_square_mask(pixel_coordinates_relative_to_mask_center,
                                                          abs_mask_size,
                                                          rounding,
@@ -467,7 +466,7 @@ class MaskedMaximumOperation : public NodeOperation {
                                                          ellipse_height,
                                                          ellipse_width,
                                                          inflection_midpoint) *
-                             input_base_mask.sample<float, true>(
+                             input_mask.sample<float, true>(
                                  uv_coordinates_relative_to_mask_bottom_left_corner,
                                  Interpolation::Nearest,
                                  Extension::Clip,
