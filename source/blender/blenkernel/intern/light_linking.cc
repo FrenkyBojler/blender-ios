@@ -274,7 +274,7 @@ void BKE_light_linking_add_receiver_to_collection(Main *bmain,
         return;
       }
     }
-    else if (!OB_TYPE_IS_GEOMETRY(object->type)) {
+    else if (!DEG_object_has_geometry_component(object)) {
       return;
     }
     collection_light_linking = light_linking_collection_add_object(bmain, collection, object);
@@ -518,7 +518,7 @@ void BKE_light_linking_link_receiver_to_emitter(Main *bmain,
       return;
     }
   }
-  else if (!OB_TYPE_IS_GEOMETRY(receiver->type)) {
+  else if (!DEG_object_has_geometry_component(receiver)) {
     return;
   }
 
