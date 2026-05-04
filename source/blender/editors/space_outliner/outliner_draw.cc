@@ -1469,19 +1469,19 @@ static void outliner_draw_restrictbuts(ui::Block *block,
 
         if (space_outliner->show_restrict_flags & SO_RESTRICT_SELECT) {
           Bone *bone = pchan->bone_get(*ob);
-          bt = uiDefIconButBitI(block,
-                                ui::ButtonType::IconToggle,
-                                BONE_UNSELECTABLE,
-                                ICON_RESTRICT_SELECT_OFF,
-                                int(region->v2d.cur.xmax - restrict_offsets.select),
-                                te.ys,
-                                UI_UNIT_X,
-                                UI_UNIT_Y,
-                                &bone->flag,
-                                0,
-                                0,
-                                TIP_("Restrict selection in the 3D View\n"
-                                     " \u2022 Shift to set children"));
+          bt = uiDefIconButBit(block,
+                               ui::ButtonType::IconToggle,
+                               BONE_UNSELECTABLE,
+                               ICON_RESTRICT_SELECT_OFF,
+                               int(region->v2d.cur.xmax - restrict_offsets.select),
+                               te.ys,
+                               UI_UNIT_X,
+                               UI_UNIT_Y,
+                               &bone->flag,
+                               0,
+                               0,
+                               TIP_("Restrict selection in the 3D View\n"
+                                    " \u2022 Shift to set children"));
           button_func_set(bt, restrictbutton_bone_select_fn, ob->data, bone);
           button_flag_enable(bt, ui::BUT_DRAG_LOCK);
           button_drawflag_enable(bt, ui::BUT_ICON_REVERSE);
