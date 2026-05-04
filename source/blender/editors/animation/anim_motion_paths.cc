@@ -409,21 +409,14 @@ void animviz_motionpath_compute_range(Object *ob, Scene *scene)
   ED_keylist_free(keylist);
 }
 
-static bool rna_path_is_for_bone(const StringRefNull path, const bPoseChannel &pose_bone)
-{
-  char bone_name[sizeof(pose_bone.name)];
-  if (!BLI_str_quoted_substr(path.c_str(), "pose.bones[", bone_name, sizeof(bone_name))) {
-    return false;
-  }
-  return STREQ(bone_name, pose_bone.name);
-}
-
 static void build_keylist_for_target(MPathTarget &target, AnimKeylist &keylist)
 {
   /* For object level motion paths this is a nullptr in which case the filtering is ignored. */
   bPoseChannel *pose_bone = target.pchan;
   for (FCurve *fcu : animrig::fcurves_for_assigned_action(target.ob->adt)) {
-    if (pose_bone && !rna_path_is_for_bone(fcu->rna_path, *pose_bone)) {
+    if (pose_bone &&
+        !animrig::fcurve_matches_collection_path(*fcu, "pose.bones[", pose_bone->name))
+    {
       continue;
     }
     /* When only updating a subset of the motion path we could pass a range here to improve
