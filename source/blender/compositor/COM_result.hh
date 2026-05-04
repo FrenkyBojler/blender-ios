@@ -672,8 +672,8 @@ BLI_INLINE_METHOD T Result::sample(const float2 &coordinates,
   const int2 size = domain_.data_size;
   const float2 texel_coordinates = coordinates * float2(size);
 
-  if constexpr (is_same_any_v<T, float, float2, float3, float4, Color>) {
-    T pixel_value = T(0);
+  if constexpr (is_same_any_v<T, float, float2, float3, float4, Color, math::Quaternion>) {
+    T pixel_value;
     const float *buffer = static_cast<const float *>(this->cpu_data().data());
     float *output = nullptr;
     if constexpr (std::is_same_v<T, float>) {
