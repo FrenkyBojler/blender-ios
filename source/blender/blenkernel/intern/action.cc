@@ -936,8 +936,11 @@ bool BKE_pose_is_bonecoll_visible(const bArmature *arm, const bPoseChannel *pcha
 
 bPoseChannel *BKE_pose_channel_active(Object *ob, const bool check_bonecoll)
 {
-  bArmature *arm = id_cast<bArmature *>((ob) ? ob->data : nullptr);
-  if (ELEM(nullptr, ob, ob->pose, arm)) {
+  if (!ob || !ob->data || ob->type != OB_ARMATURE) {
+    return nullptr;
+  }
+  bArmature *arm = id_cast<bArmature *>(ob->data);
+  if (ELEM(nullptr, ob->pose, arm)) {
     return nullptr;
   }
 
@@ -1477,7 +1480,7 @@ void BKE_pose_update_constraint_flags(bPose *pose)
   pose->flag &= ~POSE_CONSTRAINTS_TIMEDEPEND;
 
   for (bPoseChannel &pchan : pose->chanbase) {
-    pchan.constflag = 0;
+    pchan.constflag = ePchan_ConstFlag{};
 
     for (bConstraint &con : pchan.constraints) {
       pchan.constflag |= PCHAN_HAS_CONST;

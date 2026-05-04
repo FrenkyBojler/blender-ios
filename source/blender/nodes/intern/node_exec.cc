@@ -150,6 +150,8 @@ static bNodeStack *setup_stack(bNodeStack *stack, bNodeTree *ntree, bNode *node,
     case SOCK_ROTATION:
       node_socket_get_rotation(ntree, node, sock, ns->vec);
       break;
+    default:
+      break;
   }
 
   return ns;
