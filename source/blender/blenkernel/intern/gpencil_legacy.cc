@@ -249,8 +249,7 @@ void BKE_gpencil_blend_read_data(BlendDataReader *reader, bGPdata *gpd)
         }
 
         /* Relink weight data. */
-        if (gps.dvert) {
-          (void)BLO_read_array(reader, &gps.dvert, gps.totpoints);
+        if (gps.dvert && BLO_read_array(reader, &gps.dvert, gps.totpoints)) {
           BKE_defvert_blend_read(reader, gps.totpoints, gps.dvert);
         }
       }

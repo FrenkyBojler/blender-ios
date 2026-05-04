@@ -899,6 +899,7 @@ static void object_blend_read_data(BlendDataReader *reader, ID *id)
   BLO_read_struct_list(reader, bFaceMap, &ob->fmaps);
 
   BLO_read_pointer_array_and_validate_size(reader, &ob->mat, &ob->totcol);
+  /* Ignore failure to read, matbis will become null which is valid. */
   (void)BLO_read_array(reader, &ob->matbits, ob->totcol);
 
   /* do it here, below old data gets converted */

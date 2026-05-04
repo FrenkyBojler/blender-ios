@@ -353,6 +353,10 @@ void BLO_read_struct_list_with_size(BlendDataReader *reader,
  * This must be handled either by using #BLO_read_array_and_validate_size to
  * automatically set the size to zero, or checking the return value of
  * #BLO_read_array to manually handle invalid data.
+ *
+ * Typically #BLO_read_array_and_validate_size should be used for cases where
+ * a size member is only for the array pointer, while a size member shared
+ * between multiple array needs particular handling.
  */
 [[nodiscard]] bool blo_read_array_impl(
     BlendDataReader *reader, int64_t array_size, int elems, size_t elem_size, void **ptr_p);

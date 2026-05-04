@@ -436,7 +436,10 @@ static void mesh_blend_read_data(BlendDataReader *reader, ID *id)
   }
 
   /* Deprecated pointers to custom data layers are read here for backward compatibility
-   * with files where these were owning pointers rather than a view into custom data. */
+   * with files where these were owning pointers rather than a view into custom data.
+   *
+   * Ignore failure to read, these arrays are not further accessed here and blend file
+   * read will abort before versioning runs. */
   (void)BLO_read_array(reader, &mesh->mvert, mesh->verts_num);
   (void)BLO_read_array(reader, &mesh->medge, mesh->edges_num);
   (void)BLO_read_array(reader, &mesh->mface, mesh->totface_legacy);
