@@ -529,6 +529,7 @@ bool popup_context_menu_for_button(bContext *C, Button *but, const wmEvent *even
   const bContextStore *previous_ctx = CTX_store_get(C);
   PopupMenu *pup = popup_menu_begin(
       C, button_context_menu_title_from_button(*but).c_str(), ICON_NONE);
+  popup_context_menu_source_button_set(pup, but);
   Layout &layout = *popup_menu_layout(pup);
 
   set_layout_context_from_button(C, layout, but);

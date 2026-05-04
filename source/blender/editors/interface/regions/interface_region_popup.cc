@@ -1033,6 +1033,11 @@ void popup_block_free(bContext *C, PopupBlockHandle *handle)
     }
   }
 
+  if (handle->context_menu_source_button) {
+    /* Remove button reference to this context menu. */
+    button_context_menu_handle_set(handle->context_menu_source_button, nullptr);
+  }
+
   /* Clear the status bar text that is set when opening a menu. */
   if (!is_submenu) {
     ED_workspace_status_text(C, nullptr);

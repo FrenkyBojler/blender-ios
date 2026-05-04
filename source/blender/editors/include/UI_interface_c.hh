@@ -910,6 +910,7 @@ PopupMenu *popup_menu_begin_ex(bContext *C, const char *title, const char *block
 void popup_menu_end(bContext *C, PopupMenu *pup);
 bool popup_menu_end_or_cancel(bContext *C, PopupMenu *pup);
 Layout *popup_menu_layout(PopupMenu *pup);
+void popup_context_menu_source_button_set(PopupMenu *pup, Button *but);
 
 void popup_menu_reports(bContext *C, ReportList *reports) ATTR_NONNULL();
 wmOperatorStatus popup_menu_invoke(bContext *C, const char *idname, ReportList *reports)

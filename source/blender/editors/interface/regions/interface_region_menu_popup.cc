@@ -170,6 +170,9 @@ struct PopupMenu {
   bool popup, slideout;
 
   std::function<void(bContext *C, Layout *layout)> menu_func;
+
+  /** See PopupBlockHandle::context_menu_from_button. */
+  Button *context_menu_source_button = nullptr;
 };
 
 /**
@@ -516,11 +519,20 @@ void popup_menu_end(bContext *C, PopupMenu *pup)
   PopupBlockHandle *menu = popup_block_create(
       C, butregion, but, nullptr, block_func_POPUP, pup, nullptr, false);
   menu->popup = true;
+  if (pup->context_menu_source_button) {
+    menu->context_menu_source_button = pup->context_menu_source_button;
+    button_context_menu_handle_set(pup->context_menu_source_button, menu);
+  }
 
   popup_handlers_add(C, &window->runtime->modalhandlers, menu, 0);
   WM_event_add_mousemove(window);
 
   MEM_delete(pup);
+}
+
+void popup_context_menu_source_button_set(PopupMenu *pup, Button *but)
+{
+  pup->context_menu_source_button = but;
 }
 
 bool popup_menu_end_or_cancel(bContext *C, PopupMenu *pup)

@@ -1005,6 +1005,12 @@ struct PopupBlockHandle {
   void (*cancel_func)(bContext *C, void *arg) = nullptr;
   void *popup_arg = nullptr;
 
+  /**
+   * This popup is a context menu generated from a button, if the button gets deactivated this
+   * popup should be freed too.
+   */
+  Button *context_menu_source_button = nullptr;
+
   /** Store data for refreshing popups. */
   PopupBlockCreate popup_create_vars;
   /**
@@ -1641,6 +1647,8 @@ Button *button_last(Block *block) ATTR_WARN_UNUSED_RESULT;
 bool button_opens_link(const Button *button);
 std::string button_get_link(const Button *button, bContext *C);
 bool button_draw_as_link(const Button *button);
+
+void button_context_menu_handle_set(Button *button, PopupBlockHandle *handle);
 
 Button *block_active_but_get(const Block *block);
 bool block_is_menu(const Block *block) ATTR_WARN_UNUSED_RESULT;

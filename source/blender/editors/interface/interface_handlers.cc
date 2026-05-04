@@ -511,6 +511,9 @@ struct HandleButtonData {
   /* post activate */
   ButtonActivateType posttype = {};
   Button *postbut = nullptr;
+
+  /** A context menu handle created from this button. */
+  PopupBlockHandle *context_menu_handle = nullptr;
 };
 
 struct AfterFunc {
@@ -584,6 +587,9 @@ static void numedit_begin_set_values(Button *but, HandleButtonData *data);
 static void multibut_restore(bContext *C, HandleButtonData *data, Block *block);
 static ButtonMultiState *multibut_lookup(HandleButtonData *data, const Button *but);
 #endif
+
+static int popup_handler(bContext *C, const wmEvent *event, void *userdata);
+static void popup_handler_remove(bContext *C, void *userdata);
 
 /* buttons clipboard */
 static ColorBand but_copypaste_coba;
@@ -9539,11 +9545,35 @@ static void button_activate_init(bContext *C,
   }
 }
 
+void button_context_menu_handle_set(Button *button, PopupBlockHandle *handle)
+{
+  button->active->context_menu_handle = handle;
+}
+
 static void button_activate_exit(
     bContext *C, Button *but, HandleButtonData *data, const bool mousemove, const bool onfree)
 {
   wmWindow *win = data->window;
   Block *block = but->block;
+
+  /* Since this button will be likely freed make sure there is no context menu that might be
+   * referencing this button. */
+  if (data->context_menu_handle) {
+    for (wmEventHandler &handler_base : win->runtime->modalhandlers.items_mutable()) {
+      if (handler_base.type == WM_HANDLER_TYPE_UI) {
+        wmEventHandler_UI *handler = reinterpret_cast<wmEventHandler_UI *>(&handler_base);
+        if (handler->handle_fn == popup_handler && handler->remove_fn == popup_handler_remove &&
+            handler->user_data == data->context_menu_handle)
+        {
+          handler->remove_fn(C, handler->user_data);
+          BLI_remlink(&win->runtime->modalhandlers, handler);
+          wm_event_free_handler(&handler->head);
+          break;
+        }
+      }
+    }
+    data->context_menu_handle = nullptr;
+  }
 
   if (ELEM(but->type, ButtonType::Grip, ButtonType::TextBox)) {
     WM_cursor_modal_restore(win);
