@@ -629,10 +629,7 @@ struct MotionPathEvalData {
   Array<AnimKeylist *> keylists;
   Scene *scene;
 
-  MotionPathEvalData(const Span<MPathTarget *> targets,
-                     wmWindowManager *wm,
-                     Scene *scene,
-                     Bounds<int> frame_range)
+  MotionPathEvalData(const Span<MPathTarget *> targets, Scene *scene, Bounds<int> frame_range)
       : evaluation_center(scene->r.cfra), frame_range(frame_range), restart(false), scene(scene)
   {
     evaluated_frames.reinitialize(frame_range.size());
@@ -646,7 +643,6 @@ struct MotionPathEvalData {
     for (const int target_index : targets.index_range()) {
       results[target_index] = {frame_range.size()};
       this->targets[target_index] = *targets[target_index];
-      this->targets[target_index].mpath->runtime->register_async_job(wm, scene);
       this->keylists[target_index] = ED_keylist_create();
       build_keylist_for_target(this->targets[target_index], *this->keylists[target_index]);
       ED_keylist_prepare_for_direct_access(this->keylists[target_index]);
@@ -869,12 +865,15 @@ void animviz_calc_motionpaths_async(Main *bmain,
   }
 
   MotionPathEvalData *job_data = MEM_new<MotionPathEvalData>(
-      __func__, targets, wm, scene, frame_range);
+      __func__, targets, scene, frame_range);
   job_data->depsgraph = animviz_depsgraph_build(bmain, scene, view_layer, targets);
   BLI_assert(!DEG_is_active(job_data->depsgraph));
 
   WM_jobs_customdata_set(wm_job, job_data, free_job_data);
   WM_jobs_callbacks(wm_job, run_job, nullptr, update_job, finish_job);
+  for (MPathTarget &target : job_data->targets) {
+    target.mpath->runtime->register_async_job(wm, scene);
+  }
   WM_jobs_start(wm, wm_job);
 }
 

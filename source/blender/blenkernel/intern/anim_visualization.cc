@@ -71,6 +71,7 @@ static void animviz_free_motionpath_cache(bMotionPath *mpath)
 
 void MotionPathRuntime::register_async_job(wmWindowManager *wm, Scene *job_owner)
 {
+  BLI_assert_msg(this->wm == nullptr, "Motion Path already has a job registered to it.");
   this->wm = wm;
   this->job_owner = job_owner;
 }
