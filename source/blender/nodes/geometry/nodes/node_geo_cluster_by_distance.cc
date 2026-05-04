@@ -108,7 +108,7 @@ class ClusterByDistanceFieldInput final : public bke::GeometryFieldInput {
     const int groups_num = group_indices.size();
     if (groups_num == 1) {
       KDTree<float3> *tree = kdtree_new<float3>(selection.size());
-      selection.foreach_index([&](const int64_t i) { kdtree_3d_insert(tree, i, positions[i]); });
+      selection.foreach_index([&](const int i) { kdtree_insert<float3>(tree, i, positions[i]); });
       kdtree_balance<float3>(tree);
       kdtree_calc_duplicates_fast<float3>(tree, distance_, true, cluster_ids.data());
       kdtree_free<float3>(tree);
