@@ -1084,7 +1084,8 @@ static ed::greasepencil::ExtensionData grease_pencil_fill_get_extension_data(
             tangent_next = math::normalize_and_get_length(pos_next - pos_prev, distance_next);
 
             float curvature_length;
-            const float3 curvature = math::normalize_and_get_length(tangent_next - tangent_prev, curvature_length);
+            const float3 curvature = math::normalize_and_get_length(tangent_next - tangent_prev,
+                                                                    curvature_length);
 
             /*
              * The smaller the radius of curvature, the sharper the corner.
