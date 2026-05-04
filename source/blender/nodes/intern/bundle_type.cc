@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2025 Blender Authors
+/* SPDX-FileCopyrightText: 2026 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -77,9 +77,11 @@ Vector<std::string> BundleTypeRegistry::get_all_flat_type_names()
   const BundleTypeRegistry &registry = get_bundle_type_registry();
   Vector<std::string> names;
   for (const auto &[name, types] : registry.types_.items()) {
-    if (std::any_of(types.begin(), types.end(), [](const BundleType &type) {
-          return std::holds_alternative<FlatBundleTypePtr>(type.type);
-        }))
+    if (std::any_of(types.begin(),
+                    types.end(),
+                    [](const BundleType &type) {
+                      return std::holds_alternative<FlatBundleTypePtr>(type.type);
+                    }))
     {
       names.append(name);
     }
