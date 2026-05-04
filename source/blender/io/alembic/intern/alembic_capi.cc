@@ -465,7 +465,7 @@ struct ImportJobData {
   /** Min time read from file import. */
   chrono_t min_time = std::numeric_limits<chrono_t>::max();
   /** Max time read from file import. */
-  chrono_t max_time = std::numeric_limits<chrono_t>::min();
+  chrono_t max_time = -std::numeric_limits<chrono_t>::max();
 
   bool *stop;
   bool *do_update;
@@ -561,9 +561,6 @@ static void import_file(ImportJobData *data, const char *filepath, float progres
 
     if (reader->valid()) {
       reader->readObjectData(data->bmain, sample_sel);
-
-      data->min_time = std::min(data->min_time, reader->minTime());
-      data->max_time = std::max(data->max_time, reader->maxTime());
     }
     else {
       std::cerr << "Object " << reader->name() << " in Alembic file " << filepath
@@ -576,6 +573,12 @@ static void import_file(ImportJobData *data, const char *filepath, float progres
       data->was_cancelled = true;
       return;
     }
+  }
+
+  const TimeInfo time_info = archive->getTimeInfo();
+  if (time_info.is_valid()) {
+    data->min_time = std::min(data->min_time, time_info.min_time);
+    data->max_time = std::max(data->max_time, time_info.max_time);
   }
 
   /* Setup parenthood. */
@@ -885,12 +888,11 @@ void ABC_read_geometry(CacheReader *reader,
   }
 
   ISampleSelector sample_sel = sample_selector_for_time(params->time);
-  abc_reader->read_geometry(geometry_set,
-                            sample_sel,
-                            params->read_flags,
-                            params->velocity_name,
-                            params->velocity_scale,
-                            r_err_str);
+  AbcReadGeometryParams read_params;
+  read_params.read_flag = params->read_flags;
+  read_params.velocity_name = params->velocity_name ? params->velocity_name : "";
+  read_params.velocity_scale = params->velocity_scale;
+  abc_reader->read_geometry(geometry_set, sample_sel, read_params, r_err_str);
 }
 
 bool ABC_mesh_topology_changed(CacheReader *reader,
