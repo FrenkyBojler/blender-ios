@@ -700,9 +700,9 @@ static void run_job(void *job_data, wmJobWorkerStatus *worker_status)
 
 restart:
   for (const int i : eval_data->evaluated_frames.index_range()) {
-    eval_data->evaluated_frames[i].store(false);
+    eval_data->evaluated_frames[i].store(false, std::memory_order_release);
   }
-  eval_data->restart.store(false);
+  eval_data->restart.store(false, std::memory_order_release);
 
   int left_bound = eval_data->evaluation_center.load();
   int right_bound = left_bound + 1;
