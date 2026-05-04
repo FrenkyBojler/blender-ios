@@ -263,7 +263,6 @@ ccl_device_forceinline void primitive_motion_data_without_camera(KernelGlobals k
 }
 
 ccl_device_forceinline void primitive_motion_data_camera_step(KernelGlobals kg,
-                                                              const ccl_private ShaderData *sd,
                                                               ccl_private float3 *motion_center,
                                                               ccl_private float3 *motion_pre,
                                                               ccl_private float3 *motion_post)
@@ -325,7 +324,7 @@ ccl_device_forceinline float4 primitive_motion_vector(KernelGlobals kg,
 {
   float3 motion_center, motion_pre, motion_post;
   primitive_motion_data_without_camera(kg, sd, &motion_center, &motion_pre, &motion_post);
-  primitive_motion_data_camera_step(kg, sd, &motion_center, &motion_pre, &motion_post);
+  primitive_motion_data_camera_step(kg, &motion_center, &motion_pre, &motion_post);
 
   motion_pre = motion_pre - motion_center;
   motion_post = motion_center - motion_post;
@@ -348,7 +347,7 @@ primitive_motion_vector_backward_depth_delta(KernelGlobals kg, const ccl_private
   tfm = kernel_data.cam.motion_pass_pre;
   float3 motion_pre_cam = transform_point(&tfm, motion_pre);
 
-  primitive_motion_data_camera_step(kg, sd, &motion_center, &motion_pre, &motion_post);
+  primitive_motion_data_camera_step(kg, &motion_center, &motion_pre, &motion_post);
 
   motion_pre = motion_pre - motion_center;
   float linear_depth_delta_pre = motion_pre_cam.z - motion_center_cam.z;
