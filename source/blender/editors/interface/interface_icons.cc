@@ -1370,9 +1370,9 @@ PreviewImage *icon_to_preview(int icon_id)
     if (bbuf) {
       PreviewImage *prv = BKE_previewimg_create();
 
-      const size_t size_in_bytes = size_t(bbuf->x) * size_t(bbuf->y) * sizeof(uint);
-      prv->rect[0] = MEM_new_array_uninitialized<uint>(size_in_bytes, __func__);
-      memcpy(prv->rect[0], reinterpret_cast<const uint *>(bbuf->byte_data()), size_in_bytes);
+      const size_t size = size_t(bbuf->x) * size_t(bbuf->y);
+      prv->rect[0] = MEM_new_array_uninitialized<uint>(size, __func__);
+      memcpy(prv->rect[0], reinterpret_cast<const uint *>(bbuf->byte_data()), size * sizeof(uint));
 
       prv->w[0] = bbuf->x;
       prv->h[0] = bbuf->y;
