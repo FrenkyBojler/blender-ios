@@ -977,7 +977,9 @@ class XpbdSolverStep {
    * general mesh edges.Curve ranges are the only information available for edge pairs at this
    * point. */
   template<typename Fn>
-  void foreach_edge_point_pair(const GeometryData &geo_data, const GeometryDataChunk &chunk, Fn fn)
+  void foreach_edge_point_pair(const GeometryData &geo_data,
+                               const GeometryDataChunk &chunk,
+                               Fn &&fn)
   {
     if (geo_data.curves) {
       const OffsetIndices points_by_curve = geo_data.curves->points_by_curve();
