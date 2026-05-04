@@ -1131,9 +1131,8 @@ void wm_gizmomap_modal_set(
       gzmap->gzmap_context.event_xy[0] = INT_MAX;
     }
 
-    struct wmGizmoOpElem *gzop = NULL;
+    struct wmGizmoOpElem *gzop = nullptr;
     if (event->modifier & KM_SHIFT) {
-
       if (event->modifier & KM_ALT) {
         gzop = WM_gizmo_operator_get(gz, 15);
       }
