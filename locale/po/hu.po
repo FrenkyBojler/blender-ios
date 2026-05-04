@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 Alpha (b'ec8c60553753')\n"
+"Project-Id-Version: Blender 5.2.0 Alpha (b'396b6a98e9f6')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-03-23 09:55+0000\n"
+"POT-Creation-Date: 2026-05-04 07:43+0000\n"
 "PO-Revision-Date: 2026-03-19 19:12+0000\n"
 "Last-Translator: Tamás Máté <royalpython132@gmail.com>\n"
 "Language-Team: Hungarian <https://translate.blender.org/projects/blender-ui/ui/hu/>\n"
@@ -397,10 +397,6 @@ msgstr "Közép"
 
 msgid "Bottom"
 msgstr "Alulnézet"
-
-
-msgid "Show Hotkey List"
-msgstr "Gyorsbillentyűk listája mutatása"
 
 
 msgid "Action"
@@ -1242,6 +1238,15 @@ msgid "Material"
 msgstr "Anyag"
 
 
+msgid "Threshold"
+msgstr "Küszöbszint"
+
+
+msgctxt "Operator"
+msgid "Poly"
+msgstr "Vonallánc"
+
+
 msgid "All"
 msgstr "Mind"
 
@@ -1252,10 +1257,6 @@ msgstr "Pontosság"
 
 msgid "Simplify"
 msgstr "Egyszerűsítés"
-
-
-msgid "Threshold"
-msgstr "Küszöbszint"
 
 
 msgid "Iterations"
@@ -1280,6 +1281,10 @@ msgstr "Az ecsethez rendelt anyag megtartása"
 
 msgid "Outline"
 msgstr "Körvonal"
+
+
+msgid "Both"
+msgstr "Mindkettő"
 
 
 msgid "Stretch"
@@ -6605,6 +6610,22 @@ msgid "Use Material Mask"
 msgstr "Anyagmaszk használata"
 
 
+msgid "Clean Up"
+msgstr "Tisztítás"
+
+
+msgid "Show/Hide"
+msgstr "Mutat/Rejt"
+
+
+msgid "Metaball"
+msgstr "Meta test"
+
+
+msgid "Import"
+msgstr "Importálás"
+
+
 msgid "Mirror"
 msgstr "Tükrözés"
 
@@ -6621,20 +6642,12 @@ msgid "Align View"
 msgstr "Nézet igazítása"
 
 
-msgid "Import"
-msgstr "Importálás"
-
-
-msgid "Metaball"
-msgstr "Meta test"
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Light"
 msgstr "Fényforrás"
-
-
-msgid "UV"
-msgstr "UV"
 
 
 msgid "Relations"
@@ -6653,24 +6666,16 @@ msgid "Track"
 msgstr "Nyom"
 
 
-msgid "Show/Hide"
-msgstr "Mutat/Rejt"
-
-
-msgid "Clean Up"
-msgstr "Tisztítás"
-
-
-msgid "Merge"
-msgstr "Összefésülés"
-
-
 msgid "Keying"
 msgstr "Kulcsozás"
 
 
 msgid "Tracking"
 msgstr "Követés"
+
+
+msgid "Merge"
+msgstr "Összefésülés"
 
 
 msgctxt "MovieClip"
@@ -9445,11 +9450,6 @@ msgid "Load a SVG file"
 msgstr "Egy SVG fájl megnyitása"
 
 
-msgctxt "Operator"
-msgid "Import SVG"
-msgstr "SVG importálása"
-
-
 msgid "Load a FBX file"
 msgstr "FBX fájl betöltése"
 
@@ -9623,6 +9623,11 @@ msgstr "Generált"
 msgctxt "Operator"
 msgid "Select All"
 msgstr "Minden kijelölése"
+
+
+msgctxt "Operator"
+msgid "Select by Type"
+msgstr "Kijelölés típus alapján"
 
 
 msgctxt "Operator"
@@ -10436,10 +10441,6 @@ msgid "Decimate Keyframes"
 msgstr "Kulcs-képkockák tizedelése"
 
 
-msgid "Both"
-msgstr "Mindkettő"
-
-
 msgid "Jump to previous/next keyframe"
 msgstr "Ugrás az előző/következő kulcskockára"
 
@@ -11102,11 +11103,6 @@ msgstr "Objektum eredetpontjának mozgatása a 3D kurzor pozíciójához"
 
 msgid "Change selection of all visible objects in scene"
 msgstr "A jelenet összes látjató objektuma kijelölésének megváltoztatása (váltókapcsoló)"
-
-
-msgctxt "Operator"
-msgid "Select by Type"
-msgstr "Kijelölés típus alapján"
 
 
 msgid "Select all visible objects that are of a type"
@@ -11823,11 +11819,6 @@ msgstr "Kiválasztott területek egyesítése új ablakban"
 msgctxt "Operator"
 msgid "Move Area Edges"
 msgstr "Terület széleinek mozgatása"
-
-
-msgctxt "Operator"
-msgid "Area Options"
-msgstr "Terület beállításai"
 
 
 msgctxt "Operator"
@@ -13504,14 +13495,6 @@ msgid "Limit the texture size to save graphics memory"
 msgstr "Textúra méretének korlátozása, hogy grafikus memóriát spóroljon"
 
 
-msgid "Method used for displaying images on the screen"
-msgstr "A képeknek a képernyőn történő megjelenítésének módja"
-
-
-msgid "2D Texture"
-msgstr "2D Textúra"
-
-
 msgid "Ambient Color"
 msgstr "Környezet színe"
 
@@ -15127,6 +15110,10 @@ msgid "Report a Bug"
 msgstr "Hiba bejelentése"
 
 
+msgid "Object Index"
+msgstr "Objektum index"
+
+
 msgctxt "Operator"
 msgid "Assign"
 msgstr "Hozzárendelés"
@@ -15359,11 +15346,6 @@ msgstr "Alap vastagság"
 
 msgid "Image Border"
 msgstr "Képkeret"
-
-
-msgctxt "Operator"
-msgid "Poly"
-msgstr "Vonallánc"
 
 
 msgid "Parent:"
@@ -16920,10 +16902,6 @@ msgstr "Átlátszóság"
 
 msgid "Tangent Normal"
 msgstr "Érintőre merőleges"
-
-
-msgid "Object Index"
-msgstr "Objektum index"
 
 
 msgid "iScale"

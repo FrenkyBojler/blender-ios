@@ -98,7 +98,6 @@ struct BuildDefs {
   bool with_ffmpeg;
   bool with_freestyle;
   bool with_libmv;
-  bool with_opencolorio;
   bool with_opengl_backend;
   bool with_renderdoc;
   bool with_input_ndof;
@@ -138,9 +137,6 @@ static void build_defs_init(BuildDefs *build_defs, bool force_all)
 #  endif
 #  ifdef WITH_OPENGL_BACKEND
   build_defs->with_opengl_backend = true;
-#  endif
-#  ifdef WITH_OPENCOLORIO
-  build_defs->with_opencolorio = true;
 #  endif
 #  ifdef WITH_RENDERDOC
   build_defs->with_renderdoc = true;
@@ -899,11 +895,9 @@ static void print_help(bArgs *ba, bool all)
   PRINT(
       "  $BLENDER_CUSTOM_SPLASH_BANNER Full path to an image to overlay on the splash screen.\n");
 
-  if (defs.with_opencolorio) {
-    PRINT(
-        "  $BLENDER_OCIO              Path to override the OpenColorIO configuration file.\n"
-        "                             If not set, the 'OCIO' environment variable is used.\n");
-  }
+  PRINT(
+      "  $BLENDER_OCIO              Path to override the OpenColorIO configuration file.\n"
+      "                             If not set, the 'OCIO' environment variable is used.\n");
 
   /* Non `BLENDER_` prefixed, conventions from 3rd party libraries or the operating system. */
 
@@ -1567,7 +1561,7 @@ static int arg_handle_debug_gpu_scope_capture_set(int argc, const char **argv, v
 static const char arg_handle_debug_gpu_shader_source_doc[] =
     "\n"
     "\tSave the compiled GPU shader source code for the given shader name.\n"
-    "\tThe given name can contain leading or trailing wildcard \"*\" to match multiple shaders."
+    "\tThe given name can contain leading or trailing wildcard \"*\" to match multiple shaders.\n"
     "\tFiles are saved in the current working directory inside a directory named \"Shaders\".";
 static int arg_handle_debug_gpu_shader_source(int argc, const char **argv, void * /*data*/)
 {
@@ -3206,7 +3200,7 @@ void main_args_setup(bContext *C, bArgs *ba, bool all)
   BLI_args_add(ba, nullptr, "--verbose", CB(arg_handle_verbosity_set), nullptr);
 
   BLI_args_add(ba, nullptr, "--app-template", CB(arg_handle_app_template), nullptr);
-  BLI_args_add(ba, nullptr, "--factory-startup", CB(arg_handle_factory_startup_set), nullptr);
+  BLI_args_add(ba, "-X", "--factory-startup", CB(arg_handle_factory_startup_set), nullptr);
   BLI_args_add(
       ba, nullptr, "--enable-event-simulate", CB(arg_handle_enable_event_simulate), nullptr);
 

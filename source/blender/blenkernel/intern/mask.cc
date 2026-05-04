@@ -310,6 +310,7 @@ MaskLayer *BKE_mask_layer_new(Mask *mask, const char *name)
   masklay->blend = MASK_BLEND_MERGE_ADD;
   masklay->alpha = 1.0f;
   masklay->flag = MASK_LAYERFLAG_FILL_DISCRETE | MASK_LAYERFLAG_FILL_OVERLAP;
+  masklay->fill_solver = MASK_FILL_SOLVER_CDT;
 
   return masklay;
 }
@@ -380,6 +381,7 @@ MaskLayer *BKE_mask_layer_copy(const MaskLayer *masklay)
   masklay_new->blend_flag = masklay->blend_flag;
   masklay_new->flag = masklay->flag;
   masklay_new->falloff = masklay->falloff;
+  masklay_new->fill_solver = masklay->fill_solver;
   masklay_new->visibility_flag = masklay->visibility_flag;
 
   for (MaskSpline &spline : masklay->splines) {
@@ -948,14 +950,14 @@ void BKE_mask_point_select_set_handle(MaskSplinePoint *point,
 {
   if (do_select) {
     if (ELEM(which_handle, MASK_WHICH_HANDLE_STICK, MASK_WHICH_HANDLE_BOTH)) {
-      point->bezt.f1 |= SELECT;
-      point->bezt.f3 |= SELECT;
+      point->bezt.f1 |= BEZT_FLAG_SELECT;
+      point->bezt.f3 |= BEZT_FLAG_SELECT;
     }
     else if (which_handle == MASK_WHICH_HANDLE_LEFT) {
-      point->bezt.f1 |= SELECT;
+      point->bezt.f1 |= BEZT_FLAG_SELECT;
     }
     else if (which_handle == MASK_WHICH_HANDLE_RIGHT) {
-      point->bezt.f3 |= SELECT;
+      point->bezt.f3 |= BEZT_FLAG_SELECT;
     }
     else {
       BLI_assert_msg(0, "Wrong which_handle passed to BKE_mask_point_select_set_handle");
@@ -963,14 +965,14 @@ void BKE_mask_point_select_set_handle(MaskSplinePoint *point,
   }
   else {
     if (ELEM(which_handle, MASK_WHICH_HANDLE_STICK, MASK_WHICH_HANDLE_BOTH)) {
-      point->bezt.f1 &= ~SELECT;
-      point->bezt.f3 &= ~SELECT;
+      point->bezt.f1 &= ~BEZT_FLAG_SELECT;
+      point->bezt.f3 &= ~BEZT_FLAG_SELECT;
     }
     else if (which_handle == MASK_WHICH_HANDLE_LEFT) {
-      point->bezt.f1 &= ~SELECT;
+      point->bezt.f1 &= ~BEZT_FLAG_SELECT;
     }
     else if (which_handle == MASK_WHICH_HANDLE_RIGHT) {
-      point->bezt.f3 &= ~SELECT;
+      point->bezt.f3 &= ~BEZT_FLAG_SELECT;
     }
     else {
       BLI_assert_msg(0, "Wrong which_handle passed to BKE_mask_point_select_set_handle");
@@ -1461,7 +1463,7 @@ void BKE_mask_calc_handle_point_auto(MaskSpline *spline,
                                      const bool do_recalc_length)
 {
   MaskSplinePoint *point_prev, *point_next;
-  const uint8_t h_back[2] = {point->bezt.h1, point->bezt.h2};
+  const eBezTriple_Handle h_back[2] = {point->bezt.h1, point->bezt.h2};
   const float length_average = (do_recalc_length) ?
                                    0.0f /* dummy value */ :
                                    (len_v3v3(point->bezt.vec[0], point->bezt.vec[1]) +

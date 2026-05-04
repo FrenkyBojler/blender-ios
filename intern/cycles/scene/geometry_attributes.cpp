@@ -21,7 +21,7 @@
 
 CCL_NAMESPACE_BEGIN
 
-bool Geometry::need_attribute(Scene *scene, AttributeStandard std)
+bool Geometry::need_attribute(const Scene *scene, AttributeStandard std)
 {
   if (std == ATTR_STD_NONE) {
     return false;
@@ -41,10 +41,16 @@ bool Geometry::need_attribute(Scene *scene, AttributeStandard std)
   return false;
 }
 
-bool Geometry::need_attribute(Scene * /*scene*/, ustring name)
+bool Geometry::need_attribute(Scene *scene, ustring name)
 {
   if (name.empty()) {
     return false;
+  }
+
+  for (const Shader *shader : scene->shaders) {
+    if (shader->global_attributes.find(name)) {
+      return true;
+    }
   }
 
   for (Node *node : used_shaders) {
@@ -326,7 +332,7 @@ class AttributeTableBuilder {
     type = mattr->type;
 
     /* store attribute data in arrays */
-    const size_t size = mattr->element_size(geom, prim);
+    const size_t size = Attribute::element_size(geom, mattr->element, prim);
 
     const AttributeElement &element = desc.element;
     int &offset = desc.offset;
@@ -394,7 +400,7 @@ class AttributeTableBuilder {
       return;
     }
 
-    const size_t size = mattr->element_size(geom, prim);
+    const size_t size = Attribute::element_size(geom, mattr->element, prim);
 
     if (mattr->element & ATTR_ELEMENT_VOXEL) {
       /* pass */
@@ -510,8 +516,8 @@ void GeometryManager::device_update_attributes(Device *device,
         attributes.add(param.name());
 
         Attribute *attr = values.add(param.name(), param.type(), ATTR_ELEMENT_OBJECT);
-        assert(param.datasize() == attr->buffer.size());
-        memcpy(attr->buffer.data(), param.data(), param.datasize());
+        assert(param.nvalues() == attr->size);
+        memcpy(attr->data_for_write(), param.data(), param.datasize());
       }
     }
   }

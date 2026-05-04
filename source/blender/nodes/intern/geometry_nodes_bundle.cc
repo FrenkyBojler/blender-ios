@@ -317,6 +317,11 @@ std::string Bundle::combine_path(const Span<StringRef> path)
   return fmt::format("{}", fmt::join(path, "/"));
 }
 
+std::string Bundle::combine_path(const Span<UString> path)
+{
+  return fmt::format("{}", fmt::join(path, "/"));
+}
+
 void Bundle::delete_self()
 {
   MEM_delete(this);
@@ -325,6 +330,12 @@ void Bundle::delete_self()
 void Bundle::clear()
 {
   items_.clear();
+}
+
+std::optional<StringRef> Bundle::type() const
+{
+  const std::string *type = this->lookup_ptr<std::string>(Bundle::type_item_name);
+  return type ? std::optional<StringRef>(*type) : std::nullopt;
 }
 
 void Bundle::count_memory(MemoryCounter &memory) const
@@ -360,7 +371,7 @@ void BundleSignature::add(std::string key, const eNodeSocketDatatype socket_type
 BundleSignature BundleSignature::from_combine_bundle_node(const bNode &node,
                                                           const bool allow_auto_structure_type)
 {
-  BLI_assert(node.is_type("NodeCombineBundle"));
+  BLI_assert(node.is_type("NodeCombineBundle"_ustr));
   const auto &storage = *static_cast<const NodeCombineBundle *>(node.storage);
   BundleSignature signature;
   for (const int i : IndexRange(storage.items_num)) {
@@ -381,7 +392,7 @@ BundleSignature BundleSignature::from_combine_bundle_node(const bNode &node,
 BundleSignature BundleSignature::from_separate_bundle_node(const bNode &node,
                                                            const bool allow_auto_structure_type)
 {
-  BLI_assert(node.is_type("NodeSeparateBundle"));
+  BLI_assert(node.is_type("NodeSeparateBundle"_ustr));
   const auto &storage = *static_cast<const NodeSeparateBundle *>(node.storage);
   BundleSignature signature;
   for (const int i : IndexRange(storage.items_num)) {
@@ -427,6 +438,68 @@ std::optional<BundleSignature> LinkedBundleSignatures::get_merged_signature() co
     }
   }
   return signature;
+}
+
+static void foreach_nested_bundle_item_recursive(
+    const Bundle &bundle,
+    const FunctionRef<void(Span<UString>, const BundleItemValue &value)> fn,
+    Vector<UString> &r_path)
+{
+  for (const auto &child_item : bundle.items()) {
+    r_path.append(child_item.key);
+    BLI_SCOPED_DEFER([&]() { r_path.pop_last(); });
+
+    if (const BundlePtr *child_bundle_ptr = child_item.value.as_pointer<BundlePtr>()) {
+      if (*child_bundle_ptr) {
+        const Bundle &child_bundle = **child_bundle_ptr;
+        if (!child_bundle.type().has_value()) {
+          foreach_nested_bundle_item_recursive(child_bundle, fn, r_path);
+          continue;
+        }
+      }
+    }
+    fn(r_path, child_item.value);
+  }
+}
+
+void foreach_nested_bundle_item(
+    const Bundle &bundle, const FunctionRef<void(Span<UString>, const BundleItemValue &value)> fn)
+{
+  Vector<UString> path;
+  foreach_nested_bundle_item_recursive(bundle, fn, path);
+}
+
+Vector<std::string> gather_bundle_paths_by_bundle_type(const Bundle &bundle,
+                                                       const StringRef type_filter)
+{
+  Vector<std::string> paths;
+  if (type_filter.is_empty()) {
+    return paths;
+  }
+  foreach_nested_bundle_item(bundle, [&](const Span<UString> path, const BundleItemValue &value) {
+    if (const BundlePtr *child_bundle_ptr = value.as_pointer<BundlePtr>()) {
+      if (*child_bundle_ptr) {
+        if ((*child_bundle_ptr)->type() == type_filter) {
+          paths.append(Bundle::combine_path(path));
+        }
+      }
+    }
+  });
+  return paths;
+}
+
+Vector<std::string> gather_bundle_paths_by_data_type(const Bundle &bundle,
+                                                     const eNodeSocketDatatype data_type)
+{
+  Vector<std::string> paths;
+  foreach_nested_bundle_item(bundle, [&](const Span<UString> path, const BundleItemValue &value) {
+    if (const auto *socket_value = std::get_if<BundleItemSocketValue>(&value.value)) {
+      if (socket_value->type->type == data_type) {
+        paths.append(Bundle::combine_path(path));
+      }
+    }
+  });
+  return paths;
 }
 
 std::optional<bke::SocketValueVariant> BundleItemValue::as_socket_value(

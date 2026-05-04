@@ -23,7 +23,7 @@ void Instance::init()
   /* TODO(fclem): Remove DRW global usage. */
   const DRWContext *ctx = DRW_context_get();
   /* Was needed by `object_wire_theme_id()` when doing the port. Not sure if needed nowadays. */
-  BKE_view_layer_synced_ensure(ctx->scene, ctx->view_layer);
+  BKE_view_layer_synced_ensure(*DEG_get_bmain(ctx->depsgraph), ctx->scene, ctx->view_layer);
 
   clipping_enabled_ = RV3D_CLIPPING_ENABLED(ctx->v3d, ctx->rv3d);
 
@@ -601,6 +601,8 @@ void Instance::object_sync(ObjectRef &ob_ref, Manager &manager)
       case OB_GREASE_PENCIL:
         layer.grease_pencil.edit_object_sync(manager, ob_ref, resources, state);
         break;
+      default:
+        break;
     }
   }
 
@@ -643,6 +645,8 @@ void Instance::object_sync(ObjectRef &ob_ref, Manager &manager)
         break;
       case OB_SPEAKER:
         layer.speakers.object_sync(manager, ob_ref, resources, state);
+        break;
+      default:
         break;
     }
     layer.attribute_viewer.object_sync(manager, ob_ref, resources, state);
@@ -1087,6 +1091,8 @@ bool Instance::object_is_edit_mode(const Object *object)
       case OB_VOLUME:
         /* No edit mode yet. */
         return false;
+      default:
+        break;
     }
   }
   return false;

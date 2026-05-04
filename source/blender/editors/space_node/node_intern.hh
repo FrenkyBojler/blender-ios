@@ -274,12 +274,6 @@ struct SpaceNode_Runtime {
 
   std::optional<int> frame_identifier_to_highlight;
 
-  /**
-   * Indicates that the compositing int the space tree needs to be re-evaluated using
-   * regular compositing pipeline.
-   */
-  bool recalc_regular_compositing;
-
   /** Temporary data for modal linking operator. */
   std::unique_ptr<bNodeLinkDrag> linkdrag;
 
@@ -478,7 +472,7 @@ void draw_nodespace_back_pix(const bContext &C,
 
 /* `node_add.cc` */
 
-bNode *add_node(const bContext &C, StringRef idname, const float2 &location);
+bNode *add_node(const bContext &C, UString idname, const float2 &location);
 bNode *add_static_node(const bContext &C, int type, const float2 &location);
 
 void NODE_OT_add_reroute(wmOperatorType *ot);
@@ -501,7 +495,7 @@ void NODE_OT_add_group_input_node(wmOperatorType *ot);
 
 /* `node_group.cc` */
 
-StringRef node_group_idname(const bContext *C);
+UString node_group_idname(const bContext *C);
 void NODE_OT_group_make(wmOperatorType *ot);
 void NODE_OT_group_insert(wmOperatorType *ot);
 void NODE_OT_group_ungroup(wmOperatorType *ot);
@@ -627,6 +621,14 @@ void node_geometry_add_volume_grid_search_button(const bContext &C,
                                                  PointerRNA &socket_ptr,
                                                  ui::Layout &layout,
                                                  StringRef placeholder = "");
+
+/* `node_bundle_type_search.cc` */
+
+void node_bundle_type_add_string_search_button(const bContext &C,
+                                               const bNode &node,
+                                               PointerRNA &socket_ptr,
+                                               ui::Layout &layout,
+                                               StringRef placeholder = "");
 
 /* `node_context_path.cc` */
 

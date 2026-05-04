@@ -182,6 +182,12 @@ RESHAPE(float3x3, mat3x3, mat3x4)
 #define thread
 #define threadgroup
 
+/* MSL component compatibility. */
+#define textureGather0(_tex, _co) textureGather(_tex, _co, 0)
+#define textureGather1(_tex, _co) textureGather(_tex, _co, 1)
+#define textureGather2(_tex, _co) textureGather(_tex, _co, 2)
+#define textureGather3(_tex, _co) textureGather(_tex, _co, 3)
+
 /**
  * This string type is much like the OSL string.
  * It is merely a hash of the actual string and it immutable.

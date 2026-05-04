@@ -32,6 +32,9 @@ void AbstractViewItem::update_from_old(const AbstractViewItem &old)
   is_renaming_ = old.is_renaming_;
   is_highlighted_search_ = old.is_highlighted_search_;
   is_selected_ = old.is_selected_;
+  if (old.view_item_but_ && old.view_item_but_->flag & UI_HOVER) {
+    is_hovered_ = true;
+  }
 }
 
 /** \} */
@@ -283,9 +286,9 @@ void AbstractViewItem::build_context_menu(bContext & /*C*/, Layout & /*column*/)
 /** \name Filtering
  * \{ */
 
-bool AbstractViewItem::should_be_filtered_visible(const StringRefNull filter_string) const
+bool AbstractViewItem::should_be_filtered_visible(StringRefNull filter_string) const
 {
-  StringRef name = this->get_rename_string();
+  const StringRef name = this->get_rename_string();
   return fnmatch(filter_string.c_str(), name.data(), FNM_CASEFOLD) == 0;
 }
 
@@ -378,6 +381,13 @@ void AbstractViewItem::disable_interaction()
 bool AbstractViewItem::is_interactive() const
 {
   return is_interactive_;
+}
+
+bool AbstractViewItem::is_hovered() const
+{
+  BLI_assert_msg(this->get_view().is_reconstructed(),
+                 "State cannot be queried until reconstruction is completed");
+  return is_hovered_;
 }
 
 bool AbstractViewItem::is_active() const
