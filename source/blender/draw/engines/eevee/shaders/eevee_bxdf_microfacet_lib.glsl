@@ -399,17 +399,6 @@ Ray bxdf_ggx_ray_amend_transmission(ClosureUndetermined cl, float3 V, Ray ray, T
   return ray;
 }
 
-float3 bxdf_ggx_view_amend_transmission(ClosureUndetermined cl, float3 V, Thickness thickness)
-{
-  if (thickness.value() != 0.0f) {
-    ClosureRefraction bsdf = to_closure_refraction(cl);
-    float perceived_roughness = bxdf_ggx_perceived_roughness_transmission(bsdf.roughness,
-                                                                          bsdf.ior);
-    V = -bxdf_ggx_dominant_direction_transmission(bsdf.N, V, bsdf.ior, perceived_roughness);
-  }
-  return V;
-}
-
 ClosureLight bxdf_ggx_light_reflection(ClosureReflection cl, float3 V)
 {
   auto &util_tx = sampler_get(eevee_utility_texture, utility_tx);
@@ -423,17 +412,19 @@ ClosureLight bxdf_ggx_light_reflection(ClosureReflection cl, float3 V)
   return light;
 }
 
-ClosureLight bxdf_ggx_light_transmission(ClosureRefraction cl, float3 V, Thickness thickness)
+ClosureLight bxdf_ggx_light_transmission(ClosureRefraction cl, float3 &V, Thickness thickness)
 {
   auto &util_tx = sampler_get(eevee_utility_texture, utility_tx);
 
   float perceptual_roughness = bxdf_ggx_perceived_roughness_transmission(cl.roughness, cl.ior);
 
+  /* Amend view vector so it describes exit after refraction. */
   if (thickness.value() != 0.0f) {
     float3 L = bxdf_ggx_dominant_direction_transmission(cl.N, V, cl.ior, perceptual_roughness);
     cl.N = -thickness.shape_intersect(cl.N, L).hit_N;
     V = -L;
   }
+
   /* Ad-hoc solution to reuse the reflection LUT. To be eventually replaced by own precomputed
    * table. */
   float3 R = refract(-V, cl.N, (thickness.value() != 0.0f) ? cl.ior : (1.0f / cl.ior));

@@ -171,16 +171,15 @@ void light_eval_frag([[resource_table]] LightEval &srt,
     }
 #endif
 
-    stack.cl[0] = closure_light_new(cl_transmit, V, thickness);
-
-    /* On transmission, the view vector is modified, refracting through the shape. */
-    float3 V_amended = bxdf_ggx_view_amend_transmission(cl_transmit, V, thickness);
+    /* Transmissive bxdf evaluation can amend the view vector, refracting it through the shape. */
+    float3 V_transmit = V;
 
     /* NOTE: Only evaluates `stack.cl[0]`. */
+    stack.cl[0] = closure_light_new(cl_transmit, V_transmit, thickness);
     light_eval_transmission(stack,
                             P,
                             Ng,
-                            V_amended,
+                            V_transmit,
                             vPz,
                             thickness,
                             receiver_light_set,
