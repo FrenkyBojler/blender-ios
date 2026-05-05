@@ -37,7 +37,7 @@ static void node_declare(NodeDeclarationBuilder &b)
     const eNodeSocketDatatype data_type = eNodeSocketDatatype(storage.data_type);
     const NodeCompareMode mode = NodeCompareMode(storage.mode);
 
-    const bool type_is_floating = !ELEM(data_type, SOCK_INT, SOCK_STRING);
+    const bool type_is_float = ELEM(data_type, SOCK_FLOAT, SOCK_VECTOR, SOCK_RGBA);
     const bool is_vector = data_type == SOCK_VECTOR;
 
     auto &a_input =
@@ -58,7 +58,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       b.add_input<decl::Float>("Angle"_ustr).default_value(0.0872665f).subtype(PROP_ANGLE);
     }
 
-    if (type_is_floating && ELEM(operation, NODE_COMPARE_EQUAL, NODE_COMPARE_NOT_EQUAL)) {
+    if (type_is_float && ELEM(operation, NODE_COMPARE_EQUAL, NODE_COMPARE_NOT_EQUAL)) {
       b.add_input<decl::Float>("Epsilon"_ustr).default_value(0.001);
     }
   }
