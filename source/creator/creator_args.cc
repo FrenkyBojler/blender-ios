@@ -98,7 +98,6 @@ struct BuildDefs {
   bool with_ffmpeg;
   bool with_freestyle;
   bool with_libmv;
-  bool with_opencolorio;
   bool with_opengl_backend;
   bool with_renderdoc;
   bool with_input_ndof;
@@ -138,9 +137,6 @@ static void build_defs_init(BuildDefs *build_defs, bool force_all)
 #  endif
 #  ifdef WITH_OPENGL_BACKEND
   build_defs->with_opengl_backend = true;
-#  endif
-#  ifdef WITH_OPENCOLORIO
-  build_defs->with_opencolorio = true;
 #  endif
 #  ifdef WITH_RENDERDOC
   build_defs->with_renderdoc = true;
@@ -899,11 +895,9 @@ static void print_help(bArgs *ba, bool all)
   PRINT(
       "  $BLENDER_CUSTOM_SPLASH_BANNER Full path to an image to overlay on the splash screen.\n");
 
-  if (defs.with_opencolorio) {
-    PRINT(
-        "  $BLENDER_OCIO              Path to override the OpenColorIO configuration file.\n"
-        "                             If not set, the 'OCIO' environment variable is used.\n");
-  }
+  PRINT(
+      "  $BLENDER_OCIO              Path to override the OpenColorIO configuration file.\n"
+      "                             If not set, the 'OCIO' environment variable is used.\n");
 
   /* Non `BLENDER_` prefixed, conventions from 3rd party libraries or the operating system. */
 
@@ -1431,7 +1425,7 @@ static const char arg_handle_debug_mode_generic_set_doc_depsgraph_pretty[] =
     "Enable colors for dependency graph debug messages.";
 static const char arg_handle_debug_mode_generic_set_doc_depsgraph_uid[] =
     "\n\t"
-    "Verify validness of session-wide identifiers assigned to ID data-blocks.";
+    "Verify validity of session-wide identifiers assigned to ID data-blocks.";
 static const char arg_handle_debug_mode_generic_set_doc_gpu_force_workarounds[] =
     "\n\t"
     "Enable workarounds for typical GPU issues and disable all GPU extensions.";
@@ -1553,7 +1547,7 @@ static int arg_handle_debug_gpu_compile_shaders_set(int /*argc*/,
 
 static const char arg_handle_debug_gpu_scope_capture_set_doc[] =
     "\n"
-    "\tCapture the GPU commands issued inside the give scope name.";
+    "\tCapture the GPU commands issued inside the given scope name.";
 static int arg_handle_debug_gpu_scope_capture_set(int argc, const char **argv, void * /*data*/)
 {
   if (argc > 1) {
@@ -1567,7 +1561,7 @@ static int arg_handle_debug_gpu_scope_capture_set(int argc, const char **argv, v
 static const char arg_handle_debug_gpu_shader_source_doc[] =
     "\n"
     "\tSave the compiled GPU shader source code for the given shader name.\n"
-    "\tThe given name can contain leading or trailing wildcard \"*\" to match multiple shaders."
+    "\tThe given name can contain leading or trailing wildcard \"*\" to match multiple shaders.\n"
     "\tFiles are saved in the current working directory inside a directory named \"Shaders\".";
 static int arg_handle_debug_gpu_shader_source(int argc, const char **argv, void * /*data*/)
 {
@@ -1808,7 +1802,7 @@ static int arg_handle_app_template(int argc, const char **argv, void * /*data*/)
 
 static const char arg_handle_factory_startup_set_doc[] =
     "\n\t"
-    "Skip reading the '" BLENDER_STARTUP_FILE "' in the users home directory.";
+    "Skip reading the '" BLENDER_STARTUP_FILE "' in the user's home directory.";
 static int arg_handle_factory_startup_set(int /*argc*/, const char ** /*argv*/, void * /*data*/)
 {
   G.factory_startup = true;
@@ -2283,7 +2277,7 @@ static int arg_handle_image_type_set(int argc, const char **argv, void *data)
 static const char arg_handle_threads_set_doc[] =
     "<threads>\n"
     "\tUse amount of <threads> for rendering and other operations\n"
-    "\t[1-" STRINGIFY(BLENDER_MAX_THREADS) "], 0 to use the systems processor count.";
+    "\t[1-" STRINGIFY(BLENDER_MAX_THREADS) "], 0 to use the system's processor count.";
 static int arg_handle_threads_set(int argc, const char **argv, void * /*data*/)
 {
   const char *arg_id = "-t / --threads";
@@ -2747,7 +2741,7 @@ static int arg_handle_python_use_system_env_set(int /*argc*/,
 
 static const char arg_handle_python_use_user_env_set_doc[] =
     "\n"
-    "\tAllow Python to use users site-packages directory.\n"
+    "\tAllow Python to use user's site-packages directory.\n"
     "\tThis disables full isolation for the Python environment.";
 static int arg_handle_python_use_user_env_set(int /*argc*/,
                                               const char ** /*argv*/,
@@ -3206,7 +3200,7 @@ void main_args_setup(bContext *C, bArgs *ba, bool all)
   BLI_args_add(ba, nullptr, "--verbose", CB(arg_handle_verbosity_set), nullptr);
 
   BLI_args_add(ba, nullptr, "--app-template", CB(arg_handle_app_template), nullptr);
-  BLI_args_add(ba, nullptr, "--factory-startup", CB(arg_handle_factory_startup_set), nullptr);
+  BLI_args_add(ba, "-X", "--factory-startup", CB(arg_handle_factory_startup_set), nullptr);
   BLI_args_add(
       ba, nullptr, "--enable-event-simulate", CB(arg_handle_enable_event_simulate), nullptr);
 

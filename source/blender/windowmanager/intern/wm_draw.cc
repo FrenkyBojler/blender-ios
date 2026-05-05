@@ -1111,6 +1111,16 @@ static void wm_draw_window_onscreen(bContext *C, wmWindow *win, int view)
   wmWindowManager *wm = CTX_wm_manager(C);
   bScreen *screen = WM_window_get_active_screen(win);
 
+  /* Restore screen context after drawing. Especially important for when this is called for drawing
+   * to an offscreen buffer (see #WM_window_pixels_read_from_offscreen()) from operators or other
+   * handlers. */
+  ScrArea *restore_area = CTX_wm_area(C);
+  ARegion *restore_region = CTX_wm_region(C);
+  BLI_SCOPED_DEFER([&] {
+    CTX_wm_area_set(C, restore_area);
+    CTX_wm_region_set(C, restore_region);
+  });
+
   GPU_debug_group_begin("Window Redraw");
 
   /* Draw into the window frame-buffer, in full window coordinates. */
@@ -1679,8 +1689,20 @@ void wm_draw_update(bContext *C)
 
   CTX_wm_window_set(C, nullptr);
 
-  /* Draw non-windows (surfaces). */
+  /* Draw surfaces (non-windows, currently only used for XR). */
   wm_surfaces_iter(C, wm_draw_surface);
+
+  /* Restore GPU context to the last valid window if surface drawing cleared it, also restore DPI.
+   * This is required for GPU rendering code called before the next window redraw. Such as by
+   * events, handlers and notifiers (see #WM_main). */
+  if (wm->runtime->windrawable == nullptr && GPU_context_active_get() == nullptr) {
+    for (wmWindow &win : wm->windows.items_reversed()) {
+      if (win.runtime->ghostwin) {
+        wm_window_make_drawable(wm, &win);
+        break;
+      }
+    }
+  }
 
   GPU_render_end();
   GPU_context_main_unlock();

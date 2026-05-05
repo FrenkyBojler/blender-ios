@@ -12,8 +12,6 @@
 #include <cstring>
 #include <optional>
 
-#include "MEM_guardedalloc.h"
-
 /* Allow using deprecated functionality for .blend file I/O. */
 #define DNA_DEPRECATED_ALLOW
 
@@ -23,6 +21,7 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
+#include "BLI_assert.h"
 #include "BLI_ghash.h"
 #include "BLI_listbase.h"
 #include "BLI_math_color.h"
@@ -53,6 +52,7 @@
 #include "BKE_main.hh"
 #include "BKE_object.hh"
 #include "BKE_object_types.hh"
+#include "BKE_pose.hh"
 #include "BKE_preview_image.hh"
 
 #include "DEG_depsgraph.hh"
@@ -64,6 +64,8 @@
 #include "RNA_path.hh"
 
 #include "BLO_read_write.hh"
+
+#include "MEM_guardedalloc.h"
 
 #include "ANIM_action.hh"
 #include "ANIM_action_legacy.hh"
@@ -312,13 +314,13 @@ static void write_channelbag(BlendWriter *writer, animrig::Channelbag &channelba
   writer->write_struct_cast<ActionChannelbag>(&channelbag);
 
   Span<bActionGroup *> groups = channelbag.channel_groups();
-  BLO_write_pointer_array(writer, groups.size(), groups.data());
+  writer->write_pointer_array(groups.size(), groups.data());
   for (const bActionGroup *group : groups) {
     writer->write_struct(group);
   }
 
   Span<FCurve *> fcurves = channelbag.fcurves();
-  BLO_write_pointer_array(writer, fcurves.size(), fcurves.data());
+  writer->write_pointer_array(fcurves.size(), fcurves.data());
   for (FCurve *fcurve : fcurves) {
     writer->write_struct(fcurve);
     BKE_fcurve_blend_write_data(writer, fcurve);
@@ -331,7 +333,7 @@ static void write_strip_keyframe_data(BlendWriter *writer,
   writer->write_struct_cast<ActionStripKeyframeData>(&strip_keyframe_data);
 
   auto channelbags = strip_keyframe_data.channelbags();
-  BLO_write_pointer_array(writer, channelbags.size(), channelbags.data());
+  writer->write_pointer_array(channelbags.size(), channelbags.data());
 
   for (animrig::Channelbag *channelbag : channelbags) {
     write_channelbag(writer, *channelbag);
@@ -341,8 +343,7 @@ static void write_strip_keyframe_data(BlendWriter *writer,
 static void write_strip_keyframe_data_array(
     BlendWriter *writer, Span<animrig::StripKeyframeData *> strip_keyframe_data_array)
 {
-  BLO_write_pointer_array(
-      writer, strip_keyframe_data_array.size(), strip_keyframe_data_array.data());
+  writer->write_pointer_array(strip_keyframe_data_array.size(), strip_keyframe_data_array.data());
 
   for (animrig::StripKeyframeData *keyframe_data : strip_keyframe_data_array) {
     write_strip_keyframe_data(writer, *keyframe_data);
@@ -351,7 +352,7 @@ static void write_strip_keyframe_data_array(
 
 static void write_strips(BlendWriter *writer, Span<animrig::Strip *> strips)
 {
-  BLO_write_pointer_array(writer, strips.size(), strips.data());
+  writer->write_pointer_array(strips.size(), strips.data());
 
   for (animrig::Strip *strip : strips) {
     writer->write_struct_cast<ActionStrip>(strip);
@@ -360,7 +361,7 @@ static void write_strips(BlendWriter *writer, Span<animrig::Strip *> strips)
 
 static void write_layers(BlendWriter *writer, Span<animrig::Layer *> layers)
 {
-  BLO_write_pointer_array(writer, layers.size(), layers.data());
+  writer->write_pointer_array(layers.size(), layers.data());
 
   for (animrig::Layer *layer : layers) {
     writer->write_struct_cast<ActionLayer>(layer);
@@ -370,7 +371,7 @@ static void write_layers(BlendWriter *writer, Span<animrig::Layer *> layers)
 
 static void write_slots(BlendWriter *writer, Span<animrig::Slot *> slots)
 {
-  BLO_write_pointer_array(writer, slots.size(), slots.data());
+  writer->write_pointer_array(slots.size(), slots.data());
   for (animrig::Slot *slot : slots) {
     /* Make a shallow copy using the C type, so that no new runtime struct is
      * allocated for the copy. */
@@ -813,15 +814,16 @@ void action_group_colors_sync(bActionGroup *grp)
   }
 }
 
-void action_group_colors_set_from_posebone(bActionGroup *grp, const bPoseChannel *pchan)
+void action_group_colors_set_from_posebone(bActionGroup *grp, const bke::PChanBoneConst pchanbone)
 {
-  BLI_assert_msg(pchan, "cannot 'set action group colors from posebone' without a posebone");
-  if (!pchan->bone) {
+  BLI_assert_msg(pchanbone.pchan,
+                 "cannot 'set action group colors from posebone' without a posebone");
+  if (!pchanbone.bone) {
     /* pchan->bone is only set after leaving editmode. */
     return;
   }
 
-  const BoneColor &color = animrig::ANIM_bonecolor_posebone_get(pchan);
+  const BoneColor &color = animrig::ANIM_bonecolor_posebone_get(pchanbone);
   action_group_colors_set(grp, &color);
 }
 
@@ -842,6 +844,44 @@ void action_group_colors_set(bActionGroup *grp, const BoneColor *color)
 }
 
 /* *************** Pose channels *************** */
+
+/* -------------------------------------------------------------------- */
+/** \name bPoseChannel member functions
+ */
+
+const Bone *bPoseChannel::bone_get(const bArmature &armature) const
+{
+  /* TODO(Sybren): actually implement this function via array lookup: */
+  // BLI_assert_msg(this->runtime.bone_index >= 0, "bone index should be known");
+  // return armature.bone_get_indexed(this->runtime.bone_index);
+  UNUSED_VARS(armature);
+  return this->bone;
+}
+
+const Bone *bPoseChannel::bone_get(const Object &owner) const
+{
+  BLI_assert(owner.type == OB_ARMATURE);
+  BLI_assert(GS(owner.data->name) == ID_AR);
+  bArmature *armature = id_cast<bArmature *>(owner.data);
+
+  /* TODO: check that the Object's pose bone index generation counter is the same as the
+   * Armature's. */
+
+  return this->bone_get(*armature);
+}
+
+Bone *bPoseChannel::bone_get(bArmature &armature)
+{
+  const bPoseChannel *const_this = this;
+  const Bone *const_bone = const_this->bone_get(armature);
+  return const_cast<Bone *>(const_bone);
+}
+Bone *bPoseChannel::bone_get(Object &owner)
+{
+  const bPoseChannel *const_this = this;
+  const Bone *const_bone = const_this->bone_get(owner);
+  return const_cast<Bone *>(const_bone);
+}
 
 void BKE_pose_channel_session_uid_generate(bPoseChannel *pchan)
 {
@@ -932,20 +972,25 @@ bool BKE_pose_channels_is_valid(const bPose *pose)
 
 bool BKE_pose_is_bonecoll_visible(const bArmature *arm, const bPoseChannel *pchan)
 {
-  return pchan->bone && ANIM_bone_in_visible_collection(arm, pchan->bone);
+  const Bone *bone = pchan->bone_get(*arm);
+  return bone && ANIM_bone_in_visible_collection(arm, bone);
 }
 
 bPoseChannel *BKE_pose_channel_active(Object *ob, const bool check_bonecoll)
 {
-  bArmature *arm = id_cast<bArmature *>((ob) ? ob->data : nullptr);
-  if (ELEM(nullptr, ob, ob->pose, arm)) {
+  if (!ob || !ob->data || ob->type != OB_ARMATURE) {
+    return nullptr;
+  }
+  bArmature *arm = id_cast<bArmature *>(ob->data);
+  if (ELEM(nullptr, ob->pose, arm)) {
     return nullptr;
   }
 
   /* find active */
   for (bPoseChannel &pchan : ob->pose->chanbase) {
-    if ((pchan.bone) && (pchan.bone == arm->act_bone)) {
-      if (!check_bonecoll || ANIM_bone_in_visible_collection(arm, pchan.bone)) {
+    const Bone *bone = pchan.bone_get(*ob);
+    if (bone && bone == arm->act_bone) {
+      if (!check_bonecoll || ANIM_bone_in_visible_collection(arm, bone)) {
         return &pchan;
       }
     }
@@ -973,8 +1018,9 @@ bPoseChannel *BKE_pose_channel_active_or_first_selected(Object *ob)
   }
 
   for (bPoseChannel &pchan : ob->pose->chanbase) {
-    if (pchan.bone != nullptr) {
-      if (animrig::bone_is_selected(arm, &pchan)) {
+    Bone *bone = pchan.bone_get(*ob);
+    if (bone != nullptr) {
+      if (animrig::bone_is_selected(arm, {&pchan, bone})) {
         return &pchan;
       }
     }
@@ -1138,7 +1184,7 @@ static bool pose_channel_in_IK_chain(Object *ob, bPoseChannel *pchan, int level)
       }
     }
   }
-  for (Bone &bone : pchan->bone->childbase) {
+  for (Bone &bone : pchan->bone_get(*ob)->childbase) {
     pchan = BKE_pose_channel_find_name(ob->pose, bone.name);
     if (pchan && pose_channel_in_IK_chain(ob, pchan, level + 1)) {
       return true;
@@ -1473,12 +1519,13 @@ void BKE_pose_channel_copy_data(bPoseChannel *pchan, const bPoseChannel *pchan_f
   pchan->drawflag = pchan_from->drawflag;
 }
 
-void BKE_pose_update_constraint_flags(bPose *pose)
+void BKE_pose_update_constraint_flags(Object &pose_ob)
 {
+  bPose *pose = pose_ob.pose;
   pose->flag &= ~POSE_CONSTRAINTS_TIMEDEPEND;
 
-  for (bPoseChannel &pchan : pose->chanbase) {
-    pchan.constflag = 0;
+  for (bPoseChannel &pchan : pose_ob.pose->chanbase) {
+    pchan.constflag = ePchan_ConstFlag{};
 
     for (bConstraint &con : pchan.constraints) {
       pchan.constflag |= PCHAN_HAS_CONST;
@@ -1500,13 +1547,17 @@ void BKE_pose_update_constraint_flags(bPose *pose)
           if (data->rootbone < 0) {
             data->rootbone = 0;
 
-            bPoseChannel *parchan = chain_tip;
-            while (parchan) {
+            /* TODO(Sybren): call the yet-to-be-written 'assert the bone indices are up to date'
+             * function. This walk uses the armature bone hierarchy (via parbone->parent) rather
+             * than the pose channel hierarchy, which is only safe when the pose is consistent
+             * with the armature. The assert function will make that precondition explicit. */
+            Bone *parbone = chain_tip->bone_get(pose_ob);
+            while (parbone) {
               data->rootbone++;
-              if ((parchan->bone->flag & BONE_CONNECTED) == 0) {
+              if ((parbone->flag & BONE_CONNECTED) == 0) {
                 break;
               }
-              parchan = parchan->parent;
+              parbone = parbone->parent;
             }
           }
 
@@ -1623,8 +1674,9 @@ void BKE_pose_remove_group_index(bPose *pose, const int index)
 
 /* ************** Pose Management Tools ****************** */
 
-void BKE_pose_rest(bPose *pose, bool selected_bones_only)
+void BKE_pose_rest(Object &pose_ob, bool selected_bones_only)
 {
+  bPose *pose = pose_ob.pose;
   if (!pose) {
     return;
   }
@@ -1633,7 +1685,9 @@ void BKE_pose_rest(bPose *pose, bool selected_bones_only)
   memset(pose->cyclic_offset, 0, sizeof(pose->cyclic_offset));
 
   for (bPoseChannel &pchan : pose->chanbase) {
-    if (selected_bones_only && pchan.bone != nullptr && (pchan.flag & POSE_SELECTED) == 0) {
+    if (selected_bones_only && pchan.bone_get(pose_ob) != nullptr &&
+        (pchan.flag & POSE_SELECTED) == 0)
+    {
       continue;
     }
     zero_v3(pchan.loc);
@@ -1649,8 +1703,6 @@ void BKE_pose_rest(bPose *pose, bool selected_bones_only)
 
     copy_v3_fl(pchan.scale_in, 1.0f);
     copy_v3_fl(pchan.scale_out, 1.0f);
-
-    pchan.flag &= ~(POSE_LOC | POSE_ROT | POSE_SCALE | POSE_BBONE_SHAPE);
   }
 }
 
@@ -1770,7 +1822,7 @@ void what_does_obaction(Object *ob,
       BKE_pose_channels_hash_ensure(pose);
     }
     if (pose->flag & POSE_CONSTRAINTS_NEED_UPDATE_FLAGS) {
-      BKE_pose_update_constraint_flags(pose);
+      BKE_pose_update_constraint_flags(*workob);
     }
   }
 

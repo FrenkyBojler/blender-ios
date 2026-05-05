@@ -47,6 +47,24 @@
 
 namespace blender::ui {
 
+enum {
+  UI_ID_NOP = 0,
+  UI_ID_RENAME = 1 << 0,
+  UI_ID_BROWSE = 1 << 1,
+  UI_ID_ADD_NEW = 1 << 2,
+  UI_ID_ALONE = 1 << 4,
+  UI_ID_OPEN = 1 << 3,
+  UI_ID_DELETE = 1 << 5,
+  UI_ID_LOCAL = 1 << 6,
+  UI_ID_AUTO_NAME = 1 << 7,
+  UI_ID_FAKE_USER = 1 << 8,
+  UI_ID_PIN = 1 << 9,
+  UI_ID_PREVIEWS = 1 << 10,
+  UI_ID_OVERRIDE = 1 << 11,
+  UI_ID_FULL = UI_ID_RENAME | UI_ID_BROWSE | UI_ID_ADD_NEW | UI_ID_OPEN | UI_ID_ALONE |
+               UI_ID_DELETE | UI_ID_LOCAL,
+};
+
 struct TemplateID {
   PointerRNA ptr = {};
   PropertyRNA *prop = nullptr;
@@ -631,7 +649,7 @@ ID *template_id_liboverride_hierarchy_make(
     ID *hierarchy_root = id_override->override_library->hierarchy_root;
     if (GS(hierarchy_root->name) == ID_OB) {
       Object *object_hierarchy_root = reinterpret_cast<Object *>(hierarchy_root);
-      if (!BKE_scene_has_object(scene, object_hierarchy_root)) {
+      if (!BKE_scene_has_object(*bmain, scene, object_hierarchy_root)) {
         if (!ID_IS_LINKED(collection_active_context)) {
           BKE_collection_object_add(bmain, collection_active_context, object_hierarchy_root);
         }
@@ -1549,24 +1567,24 @@ static void template_ID_tabs(const bContext *C,
   }
 }
 
-static void ui_template_id(Layout &layout,
-                           const bContext *C,
-                           PointerRNA *ptr,
-                           const StringRefNull propname,
-                           const char *newop,
-                           const char *openop,
-                           const char *unlinkop,
-                           /* Only respected by tabs (use_tabs). */
-                           const char *menu,
-                           const std::optional<StringRef> text,
-                           int flag,
-                           int prv_rows,
-                           int prv_cols,
-                           int filter,
-                           bool use_tabs,
-                           float scale,
-                           const bool live_icon,
-                           const bool hide_buttons)
+static void template_id(Layout &layout,
+                        const bContext *C,
+                        PointerRNA *ptr,
+                        const StringRefNull propname,
+                        const char *newop,
+                        const char *openop,
+                        const char *unlinkop,
+                        /* Only respected by tabs (use_tabs). */
+                        const char *menu,
+                        const std::optional<StringRef> text,
+                        int flag,
+                        int prv_rows,
+                        int prv_cols,
+                        int filter,
+                        bool use_tabs,
+                        float scale,
+                        const bool live_icon,
+                        const bool hide_buttons)
 {
   PropertyRNA *prop = RNA_struct_find_property(ptr, propname.c_str());
 
@@ -1685,23 +1703,23 @@ void template_id(Layout *layout,
                  const bool live_icon,
                  const std::optional<StringRef> text)
 {
-  ui_template_id(*layout,
-                 C,
-                 ptr,
-                 propname,
-                 newop,
-                 openop,
-                 unlinkop,
-                 nullptr,
-                 text,
-                 UI_ID_BROWSE | UI_ID_RENAME | UI_ID_DELETE,
-                 0,
-                 0,
-                 filter,
-                 false,
-                 1.0f,
-                 live_icon,
-                 false);
+  template_id(*layout,
+              C,
+              ptr,
+              propname,
+              newop,
+              openop,
+              unlinkop,
+              nullptr,
+              text,
+              UI_ID_BROWSE | UI_ID_RENAME | UI_ID_DELETE,
+              0,
+              0,
+              filter,
+              false,
+              1.0f,
+              live_icon,
+              false);
 }
 
 void template_action(Layout *layout,
@@ -1761,23 +1779,23 @@ void template_id_browse(Layout *layout,
                         int filter,
                         const char *text)
 {
-  ui_template_id(*layout,
-                 C,
-                 ptr,
-                 propname,
-                 newop,
-                 openop,
-                 unlinkop,
-                 nullptr,
-                 text,
-                 UI_ID_BROWSE | UI_ID_RENAME,
-                 0,
-                 0,
-                 filter,
-                 false,
-                 1.0f,
-                 false,
-                 false);
+  template_id(*layout,
+              C,
+              ptr,
+              propname,
+              newop,
+              openop,
+              unlinkop,
+              nullptr,
+              text,
+              UI_ID_BROWSE | UI_ID_RENAME,
+              0,
+              0,
+              filter,
+              false,
+              1.0f,
+              false,
+              false);
 }
 
 void template_id_preview(Layout *layout,
@@ -1792,23 +1810,23 @@ void template_id_preview(Layout *layout,
                          int filter,
                          const bool hide_buttons)
 {
-  ui_template_id(*layout,
-                 C,
-                 ptr,
-                 propname,
-                 newop,
-                 openop,
-                 unlinkop,
-                 nullptr,
-                 nullptr,
-                 UI_ID_BROWSE | UI_ID_RENAME | UI_ID_DELETE | UI_ID_PREVIEWS,
-                 rows,
-                 cols,
-                 filter,
-                 false,
-                 1.0f,
-                 false,
-                 hide_buttons);
+  template_id(*layout,
+              C,
+              ptr,
+              propname,
+              newop,
+              openop,
+              unlinkop,
+              nullptr,
+              nullptr,
+              UI_ID_BROWSE | UI_ID_RENAME | UI_ID_DELETE | UI_ID_PREVIEWS,
+              rows,
+              cols,
+              filter,
+              false,
+              1.0f,
+              false,
+              hide_buttons);
 }
 
 void template_greasepencil_color_preview(Layout *layout,
@@ -1820,23 +1838,23 @@ void template_greasepencil_color_preview(Layout *layout,
                                          float scale,
                                          int filter)
 {
-  ui_template_id(*layout,
-                 C,
-                 ptr,
-                 propname,
-                 nullptr,
-                 nullptr,
-                 nullptr,
-                 nullptr,
-                 nullptr,
-                 UI_ID_BROWSE | UI_ID_PREVIEWS | UI_ID_DELETE,
-                 rows,
-                 cols,
-                 filter,
-                 false,
-                 scale < 0.5f ? 0.5f : scale,
-                 false,
-                 false);
+  template_id(*layout,
+              C,
+              ptr,
+              propname,
+              nullptr,
+              nullptr,
+              nullptr,
+              nullptr,
+              nullptr,
+              UI_ID_BROWSE | UI_ID_PREVIEWS | UI_ID_DELETE,
+              rows,
+              cols,
+              filter,
+              false,
+              scale < 0.5f ? 0.5f : scale,
+              false,
+              false);
 }
 
 void template_id_tabs(Layout *layout,
@@ -1847,23 +1865,23 @@ void template_id_tabs(Layout *layout,
                       const char *menu,
                       int filter)
 {
-  ui_template_id(*layout,
-                 C,
-                 ptr,
-                 propname,
-                 newop,
-                 nullptr,
-                 nullptr,
-                 menu,
-                 nullptr,
-                 UI_ID_BROWSE | UI_ID_RENAME,
-                 0,
-                 0,
-                 filter,
-                 true,
-                 1.0f,
-                 false,
-                 false);
+  template_id(*layout,
+              C,
+              ptr,
+              propname,
+              newop,
+              nullptr,
+              nullptr,
+              menu,
+              nullptr,
+              UI_ID_BROWSE | UI_ID_RENAME,
+              0,
+              0,
+              filter,
+              true,
+              1.0f,
+              false,
+              false);
 }
 
 void template_any_id(Layout *layout,

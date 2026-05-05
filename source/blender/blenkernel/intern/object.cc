@@ -54,6 +54,7 @@
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector_types.hh"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
 #include "BLI_threads.h"
@@ -141,6 +142,8 @@
 
 #include "ANIM_action_legacy.hh"
 #include "ANIM_animdata.hh"
+
+#include "NOD_geometry_nodes_srna.hh"
 
 #include "RNA_prototypes.hh"
 
@@ -522,6 +525,62 @@ static void object_foreach_path_pointcache(ListBaseT<PointCache> *ptcache_list,
   }
 }
 
+static void object_foreach_path_particles(Object *ob, BPathForeachPathData *bpath_data)
+{
+  /* Particle systems are stored on disk in a different way than the generic pointcache files.
+   * Or at least not in the path stored in cache->path. So that's why there's no call to
+   * object_foreach_path_pointcache() here. */
+
+  const Library *lib = ob->id.lib;
+  const char *blendfile_path = lib ? BKE_main_blendfile_path_from_library(*lib) :
+                                     BKE_main_blendfile_path(bpath_data->bmain);
+
+  for (ParticleSystem &psys : ob->particlesystem) {
+    bool all_caches_external = true;
+
+    if (psys.part->type == PART_HAIR && (psys.flag & PSYS_HAIR_DYNAMICS) == 0) {
+      /* Hair system without dynamics, this means it doesn't use its particle cache.
+       * NOTE: the PSYS_HAIR_DYNAMICS flag can be animated, so technically this is only correct for
+       * the current frame. */
+      continue;
+    }
+
+    for (PointCache &cache : psys.ptcaches) {
+      /* When the 'External' checkbox is checked, the regular pointcache path is used. */
+      if (cache.flag & PTCACHE_EXTERNAL) {
+        BKE_bpath_foreach_path_fixed_process(bpath_data, cache.path, sizeof(cache.path));
+      }
+      else {
+        all_caches_external = false;
+      }
+    }
+
+    if (all_caches_external) {
+      /* If all caches use the 'External' flag, the calls above have covered this particle system,
+       * and the code below can be skipped. */
+      continue;
+    }
+
+    PTCacheID pid;
+    BKE_ptcache_id_from_particles(&pid, ob, &psys);
+
+    /* Just report the directory that contains the pointcache files. */
+    char ptcache_path[FILE_MAX];
+    BKE_ptcache_path(&pid, ptcache_path);
+
+    /* The path can be modified by BKE_bpath_foreach_path_fixed_process(), for example when using
+     * "Save As..." to write the blend file to another directory. In that case blendfile-relative
+     * paths are updated, so that they still point to the same physical location on disk. This
+     * rewriting is not supported here, as the particle system cache is always in the same
+     * directory as the blend file itself.
+     *
+     * And because it's always in the same directory, it makes sense to convert the path to a
+     * blendfile-relative path. */
+    BLI_path_rel(ptcache_path, blendfile_path);
+    BKE_bpath_foreach_path_fixed_process(bpath_data, ptcache_path, sizeof(ptcache_path));
+  }
+}
+
 static void object_foreach_path(ID *id, BPathForeachPathData *bpath_data)
 {
   Object *ob = reinterpret_cast<Object *>(id);
@@ -560,6 +619,25 @@ static void object_foreach_path(ID *id, BPathForeachPathData *bpath_data)
         BKE_bpath_foreach_path_fixed_process(bpath_data, mcmd->filepath, sizeof(mcmd->filepath));
         break;
       }
+      case eModifierType_Nodes: {
+        auto &nmd = reinterpret_cast<NodesModifierData &>(md);
+        for (NodesModifierBake &bake : MutableSpan(nmd.bakes, nmd.bakes_num)) {
+          if (bake.packed && (bpath_data->flag & BKE_BPATH_FOREACH_PATH_SKIP_PACKED) != 0) {
+            continue;
+          }
+          if (bake.flag & NODES_MODIFIER_BAKE_CUSTOM_PATH) {
+            if (bake.directory && bake.directory[0]) {
+              BKE_bpath_foreach_path_allocated_process(bpath_data, &bake.directory);
+            }
+          }
+          else {
+            if (nmd.bake_directory && nmd.bake_directory[0]) {
+              BKE_bpath_foreach_path_allocated_process(bpath_data, &nmd.bake_directory);
+            }
+          }
+        }
+        break;
+      }
       default:
         break;
     }
@@ -569,9 +647,7 @@ static void object_foreach_path(ID *id, BPathForeachPathData *bpath_data)
     object_foreach_path_pointcache(&ob->soft->shared->ptcaches, bpath_data);
   }
 
-  for (ParticleSystem &psys : ob->particlesystem) {
-    object_foreach_path_pointcache(&psys.ptcaches, bpath_data);
-  }
+  object_foreach_path_particles(ob, bpath_data);
 }
 
 static void object_foreach_cache(ID *id,
@@ -612,6 +688,97 @@ static void object_foreach_working_space_color(ID *id,
   }
 }
 
+namespace forward_compat {
+
+/**
+ * \note We do this at the object level so that pointers for temporarily allocated IDProperties
+ * aren't reused between modifiers.
+ */
+static void create_legacy_geometry_nodes_properties(Object &ob)
+{
+  for (ModifierData &md : ob.modifiers) {
+    if (md.type != eModifierType_Nodes) {
+      continue;
+    }
+    NodesModifierData &nmd = reinterpret_cast<NodesModifierData &>(md);
+    const IDProperty *system_props = nmd.modifier.system_properties;
+    if (!system_props) {
+      return;
+    }
+
+    IDProperty *legacy_props = bke::idprop::create_group("Nodes Modifier Settings").release();
+
+    const IDProperty *inputs = IDP_GetPropertyFromGroup(system_props, "inputs");
+    if (inputs && inputs->type == IDP_GROUP) {
+      for (const IDProperty &prop : inputs->data.group) {
+        const StringRefNull identifier = prop.name;
+        const IDProperty *type_prop = IDP_GetPropertyFromGroup(&prop, "type");
+        if (!type_prop) {
+          continue;
+        }
+        const int type = IDP_int_get(type_prop);
+        if (type == int(nodes::GeometryNodesInputType::Layer)) {
+          if (const IDProperty *name = IDP_GetPropertyFromGroup(&prop, "layer_name")) {
+            IDProperty *legacy_prop = IDP_CopyProperty(name);
+            STRNCPY(legacy_prop->name, identifier.c_str());
+            IDP_AddToGroup(legacy_props, legacy_prop);
+          }
+        }
+        else {
+          if (const IDProperty *value = IDP_GetPropertyFromGroup(&prop, "value")) {
+            IDProperty *legacy_prop = IDP_CopyProperty(value);
+            STRNCPY(legacy_prop->name, identifier.c_str());
+            IDP_AddToGroup(legacy_props, legacy_prop);
+          }
+
+          const bool use_attribute = type == int(nodes::GeometryNodesInputType::Attribute);
+          IDP_AddToGroup(
+              legacy_props,
+              bke::idprop::create(identifier + "_use_attribute", int(use_attribute)).release());
+
+          if (const IDProperty *name = IDP_GetPropertyFromGroup(&prop, "attribute_name")) {
+            IDProperty *legacy_attr_prop = IDP_CopyProperty(name);
+            SNPRINTF(legacy_attr_prop->name, "%s_attribute_name", identifier.c_str());
+            IDP_AddToGroup(legacy_props, legacy_attr_prop);
+          }
+        }
+      }
+    }
+
+    const IDProperty *outputs = IDP_GetPropertyFromGroup(system_props, "outputs");
+    if (outputs && outputs->type == IDP_GROUP) {
+      for (const IDProperty &prop : outputs->data.group) {
+        const StringRefNull identifier = prop.name;
+        if (const IDProperty *name = IDP_GetPropertyFromGroup(&prop, "attribute_name")) {
+          IDProperty *legacy_prop = IDP_CopyProperty(name);
+          SNPRINTF(legacy_prop->name, "%s_attribute_name", identifier.c_str());
+          IDP_AddToGroup(legacy_props, legacy_prop);
+        }
+      }
+    }
+
+    BLI_assert(!nmd.settings_legacy.properties);
+    nmd.settings_legacy.properties = legacy_props;
+  }
+}
+
+static void free_legacy_geometry_nodes_properties(Object &ob)
+{
+  for (ModifierData &md : ob.modifiers) {
+    if (md.type != eModifierType_Nodes) {
+      continue;
+    }
+    NodesModifierData &nmd = reinterpret_cast<NodesModifierData &>(md);
+    if (!nmd.settings_legacy.properties) {
+      continue;
+    }
+    IDP_FreeProperty_ex(nmd.settings_legacy.properties, false);
+    nmd.settings_legacy.properties = nullptr;
+  }
+}
+
+}  // namespace forward_compat
+
 static void object_blend_write(BlendWriter *writer, ID *id, const void *id_address)
 {
   Object *ob = id_cast<Object *>(id);
@@ -631,9 +798,13 @@ static void object_blend_write(BlendWriter *writer, ID *id, const void *id_addre
   writer->write_id_struct(id_address, ob);
   BKE_id_blend_write(writer, &ob->id);
 
+  if (!is_undo) {
+    forward_compat::create_legacy_geometry_nodes_properties(*ob);
+  }
+
   /* direct data */
-  BLO_write_pointer_array(writer, ob->totcol, ob->mat);
-  BLO_write_char_array(writer, ob->totcol, ob->matbits);
+  writer->write_pointer_array(ob->totcol, ob->mat);
+  writer->write_char_array(ob->totcol, ob->matbits);
 
   if (ob->pose) {
     BLI_assert(ob->type == OB_ARMATURE);
@@ -683,6 +854,10 @@ static void object_blend_write(BlendWriter *writer, ID *id, const void *id_addre
   if (ob->lightprobe_cache) {
     writer->write_struct(ob->lightprobe_cache);
     BKE_lightprobe_cache_blend_write(writer, ob->lightprobe_cache);
+  }
+
+  if (!is_undo) {
+    forward_compat::free_legacy_geometry_nodes_properties(*ob);
   }
 }
 
@@ -744,7 +919,7 @@ static void object_blend_read_data(BlendDataReader *reader, ID *id)
           BKE_modifier_new(eModifierType_Wave));
 
       wmd->damp = wav->damp;
-      wmd->flag = wav->flag;
+      wmd->flag = WaveModifierFlag(wav->flag);
       wmd->height = wav->height;
       wmd->lifetime = wav->lifetime;
       wmd->narrow = wav->narrow;
@@ -1932,7 +2107,7 @@ bool BKE_object_exists_check(Main *bmain, const Object *obtest)
 
 /* *************************************************** */
 
-static const char *get_obdata_defname(int type)
+static const char *get_obdata_defname(ObjectType type)
 {
   switch (type) {
     case OB_MESH:
@@ -1973,7 +2148,7 @@ static const char *get_obdata_defname(int type)
   }
 }
 
-static void object_init(Object *ob, const short ob_type)
+static void object_init(Object *ob, const ObjectType ob_type)
 {
   object_init_data(&ob->id);
 
@@ -1999,7 +2174,7 @@ static void object_init(Object *ob, const short ob_type)
   }
 }
 
-void *BKE_object_obdata_add_from_type(Main *bmain, int type, const char *name)
+void *BKE_object_obdata_add_from_type(Main *bmain, ObjectType type, const char *name)
 {
   if (name == nullptr) {
     name = get_obdata_defname(type);
@@ -2079,7 +2254,7 @@ int BKE_object_obdata_to_type(const ID *id)
   }
 }
 
-Object *BKE_object_add_only_object(Main *bmain, int type, const char *name)
+Object *BKE_object_add_only_object(Main *bmain, ObjectType type, const char *name)
 {
   if (!name) {
     name = get_obdata_defname(type);
@@ -2099,11 +2274,11 @@ Object *BKE_object_add_only_object(Main *bmain, int type, const char *name)
 }
 
 static Object *object_add_common(
-    Main *bmain, const Scene *scene, ViewLayer *view_layer, int type, const char *name)
+    Main *bmain, const Scene *scene, ViewLayer *view_layer, ObjectType type, const char *name)
 {
   Object *ob = BKE_object_add_only_object(bmain, type, name);
   ob->data = static_cast<ID *>(BKE_object_obdata_add_from_type(bmain, type, name));
-  BKE_view_layer_base_deselect_all(scene, view_layer);
+  BKE_view_layer_base_deselect_all(*bmain, scene, view_layer);
 
   DEG_id_tag_update_ex(
       bmain, &ob->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY | ID_RECALC_ANIMATION);
@@ -2111,7 +2286,7 @@ static Object *object_add_common(
 }
 
 Object *BKE_object_add(
-    Main *bmain, Scene *scene, ViewLayer *view_layer, int type, const char *name)
+    Main *bmain, Scene *scene, ViewLayer *view_layer, ObjectType type, const char *name)
 {
   Object *ob = object_add_common(bmain, scene, view_layer, type, name);
 
@@ -2120,7 +2295,7 @@ Object *BKE_object_add(
 
   /* NOTE: There is no way to be sure that #BKE_collection_viewlayer_object_add will actually
    * manage to find a valid collection in given `view_layer` to add the new object to. */
-  BKE_view_layer_synced_ensure(scene, view_layer);
+  BKE_view_layer_synced_ensure(*bmain, scene, view_layer);
   Base *base = BKE_view_layer_base_find(view_layer, ob);
   if (base != nullptr) {
     BKE_view_layer_base_select_and_set_active(view_layer, base);
@@ -2129,13 +2304,17 @@ Object *BKE_object_add(
   return ob;
 }
 
-Object *BKE_object_add_from(
-    Main *bmain, Scene *scene, ViewLayer *view_layer, int type, const char *name, Object *ob_src)
+Object *BKE_object_add_from(Main *bmain,
+                            Scene *scene,
+                            ViewLayer *view_layer,
+                            ObjectType type,
+                            const char *name,
+                            Object *ob_src)
 {
   Object *ob = object_add_common(bmain, scene, view_layer, type, name);
   BKE_collection_object_add_from(bmain, scene, ob_src, ob);
 
-  BKE_view_layer_synced_ensure(scene, view_layer);
+  BKE_view_layer_synced_ensure(*bmain, scene, view_layer);
   Base *base = BKE_view_layer_base_find(view_layer, ob);
   BKE_view_layer_base_select_and_set_active(view_layer, base);
 
@@ -2145,7 +2324,7 @@ Object *BKE_object_add_from(
 Object *BKE_object_add_for_data(Main *bmain,
                                 const Scene *scene,
                                 ViewLayer *view_layer,
-                                int type,
+                                ObjectType type,
                                 const char *name,
                                 ID *data,
                                 bool do_id_user)
@@ -2157,14 +2336,14 @@ Object *BKE_object_add_for_data(Main *bmain,
     id_us_plus(data);
   }
 
-  BKE_view_layer_base_deselect_all(scene, view_layer);
+  BKE_view_layer_base_deselect_all(*bmain, scene, view_layer);
   DEG_id_tag_update_ex(
       bmain, &ob->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY | ID_RECALC_ANIMATION);
 
   LayerCollection *layer_collection = BKE_layer_collection_get_active(view_layer);
   BKE_collection_object_add(bmain, layer_collection->collection, ob);
 
-  BKE_view_layer_synced_ensure(scene, view_layer);
+  BKE_view_layer_synced_ensure(*bmain, scene, view_layer);
   Base *base = BKE_view_layer_base_find(view_layer, ob);
   BKE_view_layer_base_select_and_set_active(view_layer, base);
 
@@ -2288,7 +2467,6 @@ static void copy_object_pose(Object *obn, const Object *ob, const int flag)
   BKE_pose_copy_data_ex(&obn->pose, ob->pose, flag, true); /* true = copy constraints */
 
   for (bPoseChannel &chan : obn->pose->chanbase) {
-    chan.flag &= ~(POSE_LOC | POSE_ROT | POSE_SCALE);
 
     /* XXX Remapping object pointing onto itself should be handled by generic
      *     BKE_library_remap stuff, but...
@@ -2355,19 +2533,19 @@ Object *BKE_object_pose_armature_get_with_wpaint_check(Object *ob)
         }
         break;
       }
+      default:
+        break;
     }
   }
   return BKE_object_pose_armature_get(ob);
 }
 
-Object *BKE_object_pose_armature_get_visible(Object *ob,
-                                             const Scene *scene,
-                                             ViewLayer *view_layer,
-                                             View3D *v3d)
+Object *BKE_object_pose_armature_get_visible(
+    const Main &bmain, Object *ob, const Scene *scene, ViewLayer *view_layer, View3D *v3d)
 {
   Object *ob_armature = BKE_object_pose_armature_get(ob);
   if (ob_armature) {
-    BKE_view_layer_synced_ensure(scene, view_layer);
+    BKE_view_layer_synced_ensure(bmain, scene, view_layer);
     Base *base = BKE_view_layer_base_find(view_layer, ob_armature);
     if (base) {
       if (BASE_VISIBLE(v3d, base)) {
@@ -2378,12 +2556,10 @@ Object *BKE_object_pose_armature_get_visible(Object *ob,
   return nullptr;
 }
 
-Vector<Object *> BKE_object_pose_array_get_ex(const Scene *scene,
-                                              ViewLayer *view_layer,
-                                              View3D *v3d,
-                                              bool unique)
+Vector<Object *> BKE_object_pose_array_get_ex(
+    const Main &bmain, const Scene *scene, ViewLayer *view_layer, View3D *v3d, bool unique)
 {
-  BKE_view_layer_synced_ensure(scene, view_layer);
+  BKE_view_layer_synced_ensure(bmain, scene, view_layer);
   Object *ob_active = BKE_view_layer_active_object_get(view_layer);
   Object *ob_pose = BKE_object_pose_armature_get(ob_active);
   if (ob_pose == ob_active) {
@@ -2391,7 +2567,8 @@ Vector<Object *> BKE_object_pose_array_get_ex(const Scene *scene,
     ob_params.object_mode = OB_MODE_POSE;
     ob_params.no_dup_data = unique;
 
-    return BKE_view_layer_array_from_objects_in_mode_params(scene, view_layer, v3d, &ob_params);
+    return BKE_view_layer_array_from_objects_in_mode_params(
+        bmain, scene, view_layer, v3d, &ob_params);
   }
   if (ob_pose != nullptr) {
     return {ob_pose};
@@ -2399,23 +2576,25 @@ Vector<Object *> BKE_object_pose_array_get_ex(const Scene *scene,
 
   return {};
 }
-Vector<Object *> BKE_object_pose_array_get_unique(const Scene *scene,
+Vector<Object *> BKE_object_pose_array_get_unique(const Main &bmain,
+                                                  const Scene *scene,
                                                   ViewLayer *view_layer,
                                                   View3D *v3d)
 {
-  return BKE_object_pose_array_get_ex(scene, view_layer, v3d, true);
+  return BKE_object_pose_array_get_ex(bmain, scene, view_layer, v3d, true);
 }
-Vector<Object *> BKE_object_pose_array_get(const Scene *scene, ViewLayer *view_layer, View3D *v3d)
+Vector<Object *> BKE_object_pose_array_get(const Main &bmain,
+                                           const Scene *scene,
+                                           ViewLayer *view_layer,
+                                           View3D *v3d)
 {
-  return BKE_object_pose_array_get_ex(scene, view_layer, v3d, false);
+  return BKE_object_pose_array_get_ex(bmain, scene, view_layer, v3d, false);
 }
 
-Vector<Base *> BKE_object_pose_base_array_get_ex(const Scene *scene,
-                                                 ViewLayer *view_layer,
-                                                 View3D *v3d,
-                                                 bool unique)
+Vector<Base *> BKE_object_pose_base_array_get_ex(
+    const Main &bmain, const Scene *scene, ViewLayer *view_layer, View3D *v3d, bool unique)
 {
-  BKE_view_layer_synced_ensure(scene, view_layer);
+  BKE_view_layer_synced_ensure(bmain, scene, view_layer);
   Base *base_active = BKE_view_layer_active_base_get(view_layer);
   Object *ob_pose = base_active ? BKE_object_pose_armature_get(base_active->object) : nullptr;
   Base *base_pose = nullptr;
@@ -2434,7 +2613,8 @@ Vector<Base *> BKE_object_pose_base_array_get_ex(const Scene *scene,
     ob_params.object_mode = OB_MODE_POSE;
     ob_params.no_dup_data = unique;
 
-    return BKE_view_layer_array_from_bases_in_mode_params(scene, view_layer, v3d, &ob_params);
+    return BKE_view_layer_array_from_bases_in_mode_params(
+        bmain, scene, view_layer, v3d, &ob_params);
   }
   if (base_pose != nullptr) {
     return {base_pose};
@@ -2442,17 +2622,19 @@ Vector<Base *> BKE_object_pose_base_array_get_ex(const Scene *scene,
 
   return {};
 }
-Vector<Base *> BKE_object_pose_base_array_get_unique(const Scene *scene,
+Vector<Base *> BKE_object_pose_base_array_get_unique(const Main &bmain,
+                                                     const Scene *scene,
                                                      ViewLayer *view_layer,
                                                      View3D *v3d)
 {
-  return BKE_object_pose_base_array_get_ex(scene, view_layer, v3d, true);
+  return BKE_object_pose_base_array_get_ex(bmain, scene, view_layer, v3d, true);
 }
-Vector<Base *> BKE_object_pose_base_array_get(const Scene *scene,
+Vector<Base *> BKE_object_pose_base_array_get(const Main &bmain,
+                                              const Scene *scene,
                                               ViewLayer *view_layer,
                                               View3D *v3d)
 {
-  return BKE_object_pose_base_array_get_ex(scene, view_layer, v3d, false);
+  return BKE_object_pose_base_array_get_ex(bmain, scene, view_layer, v3d, false);
 }
 
 void BKE_object_transform_copy(Object *ob_tar, const Object *ob_src)
@@ -2592,6 +2774,8 @@ Object *BKE_object_duplicate(Main *bmain,
         id_new = BKE_id_copy_for_duplicate(bmain, id_old, dupflag, copy_flags);
       }
       break;
+    default:
+      break;
   }
 
   /* If obdata has been copied, we may also have to duplicate the materials assigned to it. */
@@ -2695,6 +2879,8 @@ void BKE_object_obdata_size_init(Object *ob, const float size)
       BKE_lattice_transform(lt, static_cast<float (*)[4]>(mat), false);
       break;
     }
+    default:
+      break;
   }
 }
 
@@ -2794,6 +2980,37 @@ void BKE_object_mat3_to_rot(Object *ob, float mat[3][3], bool use_compat)
       }
       break;
     }
+  }
+}
+
+float4 BKE_object_rot_to_quat(const Object &ob)
+{
+  float4 quat;
+  if (ob.rotmode > 0) {
+    eulO_to_quat(quat, ob.rot, ob.rotmode);
+  }
+  else if (ob.rotmode == ROT_MODE_AXISANGLE) {
+    axis_angle_to_quat(quat, ob.rotAxis, ob.rotAngle);
+  }
+  else {
+    /* Normalized quaternion to stay consistent with `BKE_pchan_rot_to_mat3`.  */
+    normalize_qt_qt(quat, ob.quat);
+  }
+  return quat;
+}
+
+void BKE_object_quat_to_rot(Object &ob, const float4 &quat)
+{
+  switch (ob.rotmode) {
+    case ROT_MODE_QUAT:
+      normalize_qt_qt(ob.quat, quat);
+      break;
+    case ROT_MODE_AXISANGLE:
+      quat_to_axis_angle(ob.rotAxis, &ob.rotAngle, quat);
+      break;
+    default: /* euler */
+      quat_to_eulO(ob.rot, ob.rotmode, quat);
+      break;
   }
 }
 
@@ -2996,7 +3213,8 @@ static void ob_parbone(const Object *ob, const Object *par, float r_mat[4][4])
 
   /* Make sure the bone is still valid */
   const bPoseChannel *pchan = BKE_pose_channel_find_name(par->pose, ob->parsubstr);
-  if (!pchan || !pchan->bone) {
+  const Bone *pchan_bone = pchan ? pchan->bone_get(*par) : nullptr;
+  if (!pchan || !pchan_bone) {
     CLOG_WARN(
         &LOG, "Parent Bone: '%s' for Object: '%s' doesn't exist", ob->parsubstr, ob->id.name + 2);
     unit_m4(r_mat);
@@ -3004,7 +3222,7 @@ static void ob_parbone(const Object *ob, const Object *par, float r_mat[4][4])
   }
 
   /* get bone transform */
-  if (pchan->bone->flag & BONE_RELATIVE_PARENTING) {
+  if (pchan_bone->flag & BONE_RELATIVE_PARENTING) {
     /* the new option uses the root - expected behavior, but differs from old... */
     /* XXX check on version patching? */
     copy_m4_m4(r_mat, pchan->chan_mat);
@@ -3014,7 +3232,7 @@ static void ob_parbone(const Object *ob, const Object *par, float r_mat[4][4])
 
     /* but for backwards compatibility, the child has to move to the tail */
     copy_v3_v3(vec, r_mat[1]);
-    mul_v3_fl(vec, pchan->bone->length);
+    mul_v3_fl(vec, pchan_bone->length);
     add_v3_v3(r_mat[3], vec);
   }
 }
@@ -3204,6 +3422,8 @@ void BKE_object_get_parent_matrix(const Object *ob, Object *par, float r_parentm
 
     case PARSKEL:
       copy_m4_m4(r_parentmat, par->object_to_world().ptr());
+      break;
+    default:
       break;
   }
 }
@@ -3490,6 +3710,8 @@ std::optional<Bounds<float3>> BKE_object_boundbox_get(const Object *ob)
       return BKE_volume_min_max(id_cast<const Volume *>(ob->data));
     case OB_GREASE_PENCIL:
       return id_cast<const GreasePencil *>(ob->data)->bounds_min_max_eval();
+    default:
+      break;
   }
   return std::nullopt;
 }
@@ -3598,7 +3820,7 @@ void BKE_object_minmax(Object *ob, float3 &r_min, float3 &r_max)
 
 void BKE_object_empty_draw_type_set(Object *ob, const int value)
 {
-  ob->empty_drawtype = value;
+  ob->empty_drawtype = eObject_EmptyDrawType(value);
 
   if (ob->type == OB_EMPTY && ob->empty_drawtype == OB_EMPTY_IMAGE) {
     if (!ob->iuser) {
@@ -4010,7 +4232,7 @@ void BKE_object_handle_update_ex(Depsgraph *depsgraph,
   if (ob->pose != nullptr) {
     BKE_pose_channels_hash_ensure(ob->pose);
     if (ob->pose->flag & POSE_CONSTRAINTS_NEED_UPDATE_FLAGS) {
-      BKE_pose_update_constraint_flags(ob->pose);
+      BKE_pose_update_constraint_flags(*ob);
     }
   }
   if (recalc_data) {
@@ -4537,6 +4759,8 @@ bool BKE_object_shapekey_remove(Main *bmain, Object *ob, KeyBlock *kb)
         case OB_LATTICE:
           BKE_keyblock_convert_to_lattice(key->refkey, id_cast<Lattice *>(ob->data));
           break;
+        default:
+          break;
       }
     }
   }
@@ -4939,7 +5163,8 @@ static void obrel_list_add(LinkNode **links, Object *ob)
   ob->id.tag |= ID_TAG_DOIT;
 }
 
-LinkNode *BKE_object_relational_superset(const Scene *scene,
+LinkNode *BKE_object_relational_superset(const Main &bmain,
+                                         const Scene *scene,
                                          ViewLayer *view_layer,
                                          eObjectSet objectSet,
                                          eObRelationTypes includeFilter)
@@ -4947,7 +5172,7 @@ LinkNode *BKE_object_relational_superset(const Scene *scene,
   LinkNode *links = nullptr;
 
   /* Remove markers from all objects */
-  BKE_view_layer_synced_ensure(scene, view_layer);
+  BKE_view_layer_synced_ensure(bmain, scene, view_layer);
   for (Base &base : *BKE_view_layer_object_bases_get(view_layer)) {
     base.object->id.tag &= ~ID_TAG_DOIT;
   }
@@ -4955,7 +5180,7 @@ LinkNode *BKE_object_relational_superset(const Scene *scene,
   /* iterate over all selected and visible objects */
   for (Base &base : *BKE_view_layer_object_bases_get(view_layer)) {
     if (objectSet == OB_SET_ALL) {
-      /* as we get all anyways just add it */
+      /* As we get all anyway, just add it. */
       Object *ob = base.object;
       obrel_list_add(&links, ob);
     }
@@ -5159,6 +5384,8 @@ KDTree_3d *BKE_object_as_kdtree(Object *ob, int *r_tot)
       kdtree_3d_balance(tree);
       break;
     }
+    default:
+      break;
   }
 
   *r_tot = tot;
@@ -5417,7 +5644,7 @@ SubsurfModifierData *BKE_object_get_last_subsurf_modifier(const Object *ob)
 
 void BKE_object_replace_data_on_shallow_copy(Object *ob, ID *new_data)
 {
-  ob->type = BKE_object_obdata_to_type(new_data);
+  ob->type = ObjectType(BKE_object_obdata_to_type(new_data));
   ob->data = new_data;
   ob->runtime->geometry_set_eval = nullptr;
   ob->runtime->contained_geometry_types = 0;

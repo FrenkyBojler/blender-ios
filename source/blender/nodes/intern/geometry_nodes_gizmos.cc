@@ -26,6 +26,9 @@
 
 #include "ED_node.hh"
 
+#include "RNA_access.hh"
+#include "RNA_prototypes.hh"
+
 namespace blender::nodes::gizmos {
 
 bool is_builtin_gizmo_node(const bNode &node)
@@ -374,7 +377,7 @@ static void foreach_active_gizmo_exposed_to_modifier(
     bke::ComputeContextCache &compute_context_cache,
     const ForeachGizmoInModifierFn fn)
 {
-  if (!nmd.node_group) {
+  if (!nmd.node_group || ID_MISSING(nmd.node_group)) {
     return;
   }
   const bNodeTree &tree = *nmd.node_group;
@@ -383,10 +386,13 @@ static void foreach_active_gizmo_exposed_to_modifier(
   }
 
   tree.ensure_interface_cache();
+  PointerRNA nmd_ptr = RNA_pointer_create_discrete(
+      const_cast<ID *>(&object.id), RNA_NodesModifier, const_cast<NodesModifierData *>(&nmd));
+  PointerRNA properties_ptr = RNA_pointer_get(&nmd_ptr, "properties");
 
   ResourceScope scope;
   const Vector<InferenceValue> input_values = get_geometry_nodes_input_inference_values(
-      *nmd.node_group, nmd.settings.properties, scope);
+      *nmd.node_group, properties_ptr, scope);
 
   const auto get_input_value = [&](const int group_input_i) {
     return input_values[group_input_i];
@@ -419,7 +425,7 @@ void foreach_active_gizmo_in_modifier(const Object &object,
                                       bke::ComputeContextCache &compute_context_cache,
                                       const ForeachGizmoInModifierFn fn)
 {
-  if (!nmd.node_group) {
+  if (!nmd.node_group || ID_MISSING(nmd.node_group)) {
     return;
   }
 
@@ -522,7 +528,7 @@ void apply_gizmo_change(
     bContext &C,
     Object &object,
     NodesModifierData &nmd,
-    geo_eval_log::GeoNodesLog &eval_log,
+    eval_log::NodesEvalLog &eval_log,
     const ComputeContext &gizmo_context,
     const bNodeSocket &gizmo_socket,
     const FunctionRef<void(bke::SocketValueVariant &value)> apply_on_gizmo_value_fn)
@@ -530,7 +536,7 @@ void apply_gizmo_change(
   Vector<ie::SocketToUpdate> sockets_to_update;
 
   const bNodeTree &gizmo_node_tree = gizmo_socket.owner_tree();
-  geo_eval_log::GeoTreeLog &gizmo_tree_log = eval_log.get_tree_log(gizmo_context.hash());
+  eval_log::NodeTreeLog &gizmo_tree_log = eval_log.get_tree_log(gizmo_context.hash());
 
   /* Gather all sockets to update together with their new values. */
   for (const bNodeLink *link : gizmo_socket.directly_linked_links()) {
