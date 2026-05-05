@@ -142,7 +142,7 @@ struct tPoseSlideOp {
   ePoseSlide_Modes mode;
 
   /* Store overlay settings when invoking the operator. Bones will be temporarily hidden. */
-  int overlay_flag;
+  eView3DOverlay_Flag overlay_flag;
 
   /** Which transforms/channels are affected. */
   ePoseSlide_Channels channels;
