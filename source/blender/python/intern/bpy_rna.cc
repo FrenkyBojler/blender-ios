@@ -3298,7 +3298,7 @@ static int prop_subscript_ass_array_slice(PointerRNA *ptr,
         for (int i = 0; i < slice_length; i++) {
           prop_subscript_ass_array_slice__float_recursive(
               value_items + i,
-              &values[arrayoffset + ((start + i * step) * span)],
+              &values[arrayoffset + ((start + (i * step)) * span)],
               totdim - arraydim,
               &dimsize[arraydim],
               range);
@@ -3342,7 +3342,7 @@ static int prop_subscript_ass_array_slice(PointerRNA *ptr,
         for (int i = 0; i < slice_length; i++) {
           prop_subscript_ass_array_slice__int_recursive(
               value_items + i,
-              &values[arrayoffset + ((start + i * step) * span)],
+              &values[arrayoffset + ((start + (i * step)) * span)],
               totdim - arraydim,
               &dimsize[arraydim],
               range);
@@ -3383,7 +3383,7 @@ static int prop_subscript_ass_array_slice(PointerRNA *ptr,
         for (int i = 0; i < slice_length; i++) {
           prop_subscript_ass_array_slice__bool_recursive(
               value_items + i,
-              &values[arrayoffset + ((start + i * step) * span)],
+              &values[arrayoffset + ((start + (i * step)) * span)],
               totdim - arraydim,
               &dimsize[arraydim]);
           if (PyErr_Occurred()) {
