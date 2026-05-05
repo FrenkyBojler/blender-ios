@@ -2311,12 +2311,16 @@ static bool wm_autosave_write_try(Main *bmain, wmWindowManager *wm)
    * check can be removed once the performance regressions have been solved. */
   if (ED_undosys_stack_memfile_get_if_active(wm->runtime->undo_stack) != nullptr) {
     const bool success = WM_autosave_write(wm, bmain, &wm->runtime->reports);
-    WM_report_banner_show(wm, nullptr);
+    if (!success) {
+      WM_report_banner_show(wm, nullptr);
+    }
     return success;
   }
   if ((U.uiflag & USER_GLOBALUNDO) == 0) {
     const bool success = WM_autosave_write(wm, bmain, &wm->runtime->reports);
-    WM_report_banner_show(wm, nullptr);
+    if (!success) {
+      WM_report_banner_show(wm, nullptr);
+    }
     return success;
   }
   /* Can't auto-save with MemFile right now, try again later. */
@@ -3314,7 +3318,7 @@ static std::string wm_open_mainfile_get_description(bContext * /*C*/,
   const time_t ts_now = time(nullptr);
   const tm now_tm = *localtime(&ts_now);
   const char *lang = BLT_lang_get();
-  std::string modified_s = blender::date_string::datetime(&mod_time,
+  std::string modified_s = blender::date_string::datetime(mod_time,
                                                           lang,
                                                           date_string::DateFormat(U.date_format),
                                                           date_string::TimeFormat(U.time_format),
