@@ -4,7 +4,6 @@
 
 #include "BLI_array_utils.hh"
 #include "BLI_map.hh"
-#include "BLI_multi_value_map.hh"
 #include "BLI_set.hh"
 #include "BLI_stack.hh"
 #include "BLI_vector_set.hh"
@@ -25,12 +24,6 @@ namespace blender::fn {
 
 struct FieldTreeInfo {
   FieldHashDeep deep_hashes;
-  /**
-   * When fields are built, they only have references to the fields that they depend on. This map
-   * allows traversal of fields in the opposite direction. So for every field it stores the other
-   * fields that depend on it directly.
-   */
-  MultiValueMap<GFieldRef, GFieldRef> field_users;
   /**
    * The same field input may exist in the field tree as separate nodes due to the way
    * the tree is constructed. This set contains every different input only once.
@@ -68,7 +61,6 @@ static FieldTreeInfo preprocess_field_tree(Span<GFieldRef> entry_fields)
           }
           else if constexpr (std::is_same_v<T, GFieldRef::MultiFn>) {
             for (const GField &input_field : v.node->inputs()) {
-              field_tree_info.field_users.add(input_field, field);
               if (handled_fields.add(input_field)) {
                 fields_to_check.push(input_field);
               }
@@ -108,42 +100,30 @@ static Vector<GVArray> get_field_context_inputs(ResourceScope &scope,
   return field_context_inputs;
 }
 
-/**
- * \return A set that contains all fields from the field tree that depend on an input that varies
- * for different indices.
- */
-static Set<GFieldRef> find_varying_fields(const FieldTreeInfo &field_tree_info,
-                                          const Span<GVArray> field_context_inputs)
+/** \return True if the field network depends on any input that isn't a single value. */
+static bool field_is_varying(const GFieldRef &field,
+                             const FieldTreeInfo &field_tree_info,
+                             const Span<GVArray> field_context_inputs)
 {
-  Set<GFieldRef> found_fields;
   Stack<GFieldRef> fields_to_check;
-
-  /* The varying fields are the ones that depend on inputs that are not constant. Therefore we
-   * start the tree search at the non-constant input fields and traverse through all fields that
-   * depend on them. */
-  for (const int input_i : field_tree_info.deduplicated_inputs.index_range()) {
-    const GVArray &varray = field_context_inputs[input_i];
-    if (varray.is_single()) {
-      continue;
-    }
-    const GFieldRef &field = field_tree_info.deduplicated_inputs[input_i];
-    const Span<GFieldRef> users = field_tree_info.field_users.lookup(field);
-    for (const GFieldRef &field : users) {
-      if (found_fields.add(field)) {
-        fields_to_check.push(field);
-      }
-    }
-  }
+  fields_to_check.push(field);
   while (!fields_to_check.is_empty()) {
-    GFieldRef field = fields_to_check.pop();
-    const Span<GFieldRef> users = field_tree_info.field_users.lookup(field);
-    for (GFieldRef field : users) {
-      if (found_fields.add(field)) {
-        fields_to_check.push(field);
+    const GFieldRef &field = fields_to_check.pop();
+    if (std::get_if<GFieldRef::Input>(&field.variant())) {
+      const UniqueHash input_hash = field_tree_info.deep_hashes.lookup(field);
+      const int input_i = field_tree_info.deduplicated_input_hashes.index_of(input_hash);
+      const GVArray &varray = field_context_inputs[input_i];
+      if (!varray.is_single()) {
+        return true;
+      }
+    }
+    if (const auto *op = std::get_if<GFieldRef::MultiFn>(&field.variant())) {
+      for (const GField &input : op->node->inputs()) {
+        fields_to_check.push(input);
       }
     }
   }
-  return found_fields;
+  return false;
 }
 
 /**
@@ -222,10 +202,7 @@ static void build_multi_function_procedure_for_fields(mf::Procedure &procedure,
                   }
                   else if (interface_type == mf::ParamType::Output) {
                     const GFieldRef output_field{field_multi_fn, param_output_index};
-                    const bool output_is_ignored =
-                        field_tree_info.field_users.lookup(output_field).is_empty() &&
-                        !output_fields.contains(output_field);
-                    if (output_is_ignored) {
+                    if (!field_tree_info.deep_hashes.contains(output_field)) {
                       /* Ignored outputs don't need a variable. */
                       variables[param_index] = nullptr;
                     }
@@ -332,7 +309,13 @@ Vector<GVArray> evaluate_fields(ResourceScope &scope,
   Vector<GVArray> field_context_inputs = get_field_context_inputs(
       scope, mask, context, field_tree_info.deduplicated_inputs);
 
-  /* Finish fields that don't need any processing directly. */
+  /* Process fields that can output a VArray directly, and separate the rest of the  fields into
+   * two categories: those that are constant and need to be evaluated only once, and those that
+   * need to be evaluated for every index. */
+  Vector<GFieldRef> varying_fields_to_evaluate;
+  Vector<int> varying_field_indices;
+  Vector<GFieldRef> constant_fields_to_evaluate;
+  Vector<int> constant_field_indices;
   for (const int out_index : fields_to_evaluate.index_range()) {
     const GFieldRef &field = fields_to_evaluate[out_index];
     const GFieldRef::Variant &field_variant = field.variant();
@@ -345,7 +328,14 @@ Vector<GVArray> evaluate_fields(ResourceScope &scope,
             varrays[out_index] = varray;
           }
           else if constexpr (std::is_same_v<T, GFieldRef::MultiFn>) {
-            /* This always needs processing. */
+            if (field_is_varying(field, field_tree_info, field_context_inputs)) {
+              varying_fields_to_evaluate.append(field);
+              varying_field_indices.append(out_index);
+            }
+            else {
+              constant_fields_to_evaluate.append(field);
+              constant_field_indices.append(out_index);
+            }
           }
           else if constexpr (std::is_same_v<T, GFieldRef::Value>) {
             varrays[out_index] = GVArray::from_single_ref(*v.type, mask.min_array_size(), v.value);
@@ -356,30 +346,6 @@ Vector<GVArray> evaluate_fields(ResourceScope &scope,
           }
         },
         field_variant);
-  }
-
-  Set<GFieldRef> varying_fields = find_varying_fields(field_tree_info, field_context_inputs);
-
-  /* Separate fields into two categories. Those that are constant and need to be evaluated only
-   * once, and those that need to be evaluated for every index. */
-  Vector<GFieldRef> varying_fields_to_evaluate;
-  Vector<int> varying_field_indices;
-  Vector<GFieldRef> constant_fields_to_evaluate;
-  Vector<int> constant_field_indices;
-  for (const int i : fields_to_evaluate.index_range()) {
-    if (varrays[i]) {
-      /* Already done. */
-      continue;
-    }
-    GFieldRef field = fields_to_evaluate[i];
-    if (varying_fields.contains(field)) {
-      varying_fields_to_evaluate.append(field);
-      varying_field_indices.append(i);
-    }
-    else {
-      constant_fields_to_evaluate.append(field);
-      constant_field_indices.append(i);
-    }
   }
 
   /* Evaluate varying fields if necessary. */
