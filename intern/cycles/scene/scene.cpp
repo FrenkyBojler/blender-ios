@@ -428,7 +428,7 @@ float Scene::motion_shutter_time()
   return camera->get_shuttertime();
 }
 
-bool Scene::need_global_attribute(AttributeStandard std)
+bool Scene::need_global_attribute(AttributeStandard std) const
 {
   if (std == ATTR_STD_UV) {
     return Pass::contains(passes, PASS_UV);
@@ -451,6 +451,10 @@ void Scene::need_global_attributes(AttributeRequestSet &attributes)
     if (need_global_attribute((AttributeStandard)std)) {
       attributes.add((AttributeStandard)std);
     }
+  }
+
+  for (const Shader *shader : shaders) {
+    attributes.add(shader->global_attributes);
   }
 }
 
