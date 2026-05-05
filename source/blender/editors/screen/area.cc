@@ -1191,12 +1191,6 @@ static void region_azone_edge(const ScrArea *area, AZone *az, const ARegion *reg
   /* Only scale the padding inside the region, not outside. */
   float aspect = BLI_rctf_size_y(&region->v2d.cur) / (BLI_rcti_size_y(&region->v2d.mask) + 1);
 
-  if (region->regiontype == RGN_TYPE_PLAYBACK_SCRUBBING) {
-    /* Region is always drawn entirely, keep the aspect 1. Otherwise, it breaks the azone
-     * detection. */
-    aspect = 1.0f;
-  }
-
   /* Different padding inside and outside the region. */
   const int pad_out = (is_narrow ? 2.0f : 3.0f) * UI_SCALE_FAC;
   const int pad_in = (is_narrow ? 1.0f : (transparent ? 8.0f : 4.0f)) * UI_SCALE_FAC / aspect;

@@ -1141,9 +1141,8 @@ static bool sequencer_scrubbing_region_poll(const RegionPollParams *params)
 
 static void sequencer_scrubbing_region_init(wmWindowManager * /* wm */, ARegion *region)
 {
-  view2d_region_reinit(&region->v2d, ui::V2D_COMMONVIEW_STANDARD, region->winx, region->winy);
-  region->v2d.keepzoom = (V2D_LOCKZOOM_X | V2D_LOCKZOOM_Y);
-  region->v2d.keepofs = (V2D_LOCKOFS_X | V2D_LOCKOFS_Y);
+  view2d_region_reinit(&region->v2d, ui::V2D_COMMONVIEW_HEADER, region->winx, region->winy);
+  region->v2d.keepofs |= V2D_LOCKOFS_X;
 }
 
 static void sequencer_scrubbing_region_listener(const wmRegionListenerParams *params)

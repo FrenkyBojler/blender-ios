@@ -710,7 +710,7 @@ enum eRegion_Type : short {
 /** Check for any kind of header region. */
 #define RGN_TYPE_IS_HEADER_ANY(regiontype) \
   (((1 << (regiontype)) & ((1 << RGN_TYPE_HEADER) | 1 << (RGN_TYPE_TOOL_HEADER) | \
-                           (1 << RGN_TYPE_FOOTER) | (1 << RGN_TYPE_ASSET_SHELF_HEADER))) != 0)
+                           (1 << RGN_TYPE_FOOTER) | (1 << RGN_TYPE_ASSET_SHELF_HEADER) | (1 << RGN_TYPE_PLAYBACK_SCRUBBING))) != 0)
 
 /** #ARegion.alignment */
 enum eRegion_Alignment : short {

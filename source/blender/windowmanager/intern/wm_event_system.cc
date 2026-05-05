@@ -1769,6 +1769,11 @@ static wmOperatorStatus wm_operator_invoke(bContext *C,
           if (region && RGN_TYPE_IS_HEADER_ANY(region->regiontype)) {
             wrap = WM_CURSOR_WRAP_X;
           }
+          else if (region && (region->regiontype == RGN_TYPE_PLAYBACK_SCRUBBING)) {
+            /* Disable cursor wrapping/continuous grab when scrubbing playhead in scrubbing region.
+             */
+            wrap = WM_CURSOR_WRAP_NONE;
+          }
 
           if (region && region->regiontype == RGN_TYPE_WINDOW &&
               BLI_rcti_isect_pt_v(&region->winrct, event->xy))
@@ -1777,12 +1782,6 @@ static wmOperatorStatus wm_operator_invoke(bContext *C,
           }
           else if (area && BLI_rcti_isect_pt_v(&area->totrct, event->xy)) {
             wrap_region = &area->totrct;
-          }
-
-          if (region && (region->regiontype == RGN_TYPE_PLAYBACK_SCRUBBING)) {
-            /* Disable cursor wrapping/continuous grab when scrubbing playhead in scrubbing region.
-             */
-            wrap = WM_CURSOR_WRAP_NONE;
           }
         }
 

@@ -6778,6 +6778,7 @@ static void rna_def_space_sequencer(BlenderRNA *brna)
                            "Show Scrubbing Region",
                            "Region with full playback range for scrubbing in the sequencer");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SEQUENCER, nullptr);
+
   /* Annotations */
   prop = RNA_def_property(srna, "annotation", PROP_POINTER, PROP_NONE);
   RNA_def_property_pointer_sdna(prop, nullptr, "gpd");
