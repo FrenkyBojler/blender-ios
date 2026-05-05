@@ -958,12 +958,21 @@ static IDProperty *idp_from_PyMapping(IDProperty * /*prop_exist*/,
   int i, len;
   /* yay! we get into recursive stuff now! */
   keys = PyMapping_Keys(ob);
+  if (keys == nullptr) {
+    return nullptr;
+  }
   vals = PyMapping_Values(ob);
+  if (vals == nullptr) {
+    return nullptr;
+  }
+  len = PyMapping_Length(ob);
+  if (len == -1) {
+    return nullptr;
+  }
 
   /* We allocate the group first; if we hit any invalid data,
    * we can delete it easily enough. */
   prop = bke::idprop::create_group(name).release();
-  len = PyMapping_Length(ob);
   for (i = 0; i < len; i++) {
     key = PySequence_GetItem(keys, i);
     pval = PySequence_GetItem(vals, i);
