@@ -475,10 +475,11 @@ void planar_eval_frag([[resource_table]] PlanarProbeEval & /*srt*/,
   float3 radiance_front = stack.cl[0].light_shadowed;
   float3 radiance_reflect = stack.cl[1].light_shadowed;
 
+  float3 V_refract = V;
   stack.cl[0] = closure_light_new(cl_transmit, V, thickness);
-  stack.cl[1] = closure_light_new(cl_refract, V, thickness);
+  stack.cl[1] = closure_light_new(cl_refract, V_refract, thickness);
   light_eval_transmission(
-      stack, P, Ng, V, vPz, thickness, receiver_light_set, normal_offset, geometry_offset);
+      stack, P, Ng, V_refract, vPz, thickness, receiver_light_set, normal_offset, geometry_offset);
 
   float3 radiance_back = stack.cl[0].light_shadowed;
   float3 radiance_refract = stack.cl[1].light_shadowed;
