@@ -445,6 +445,7 @@ using BKE_scene_collections_Cb = void (*)(Collection *ob, void *data);
          _base; \
          _base = _base->next, _base_id++) \
     { \
+      (void)_base_id; /* Quiet set but unused warning. */ \
       Object *_object = _base->object; \
       if ((_base->flag & _base_flag) && \
           (_object->visibility_flag & _object_visibility_flag) == 0) {
