@@ -518,7 +518,7 @@ ImBuf *IMB_scale_into_new(const ImBuf *ibuf,
   if (ibuf->float_data()) {
     flags |= IB_float_data;
   }
-  ImBuf *dst = IMB_allocImBuf(new_size.x, new_size.y, ibuf->planes, flags);
+  ImBuf *dst = IMB_allocImBuf(new_size.x, new_size.y, ibuf->color_mode, flags);
   dst->channels = ibuf->channels;
   IMB_metadata_copy(dst, ibuf);
   dst->colormanage_flag = ibuf->colormanage_flag;

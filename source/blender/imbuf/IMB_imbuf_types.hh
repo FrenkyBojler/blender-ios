@@ -11,6 +11,7 @@
  * Image buffer types.
  */
 
+#include "DNA_image_enums.h"
 #include "IMB_imbuf_enums.h"
 
 #include <string>
@@ -213,10 +214,15 @@ struct ImBuf {
   int data_offset[2];
   int display_offset[2];
 
-  /** Active amount of bits/bit-planes. */
-  unsigned char planes = 0;
-  /** Number of channels in `rect_float` (0 = 4 channel default) */
+  /** Number of channels in `float_buffer` (0 = 4 channel default).
+   * Note that `byte_buffer` always has 4 channels. */
   int channels = 0;
+
+  /** How to interpret pixel color values in the data that is present.
+   * For example, byte buffer always contains 4 channels, but if code
+   * knows that the alpha channel is fully opaque, it should set color mode
+   * to RGB. */
+  ImColorMode color_mode = ImColorMode::RGBA;
 
   /* flags */
   /** Controls which components should exist. */
@@ -280,6 +286,23 @@ struct ImBuf {
 
   const float *float_data() const;
   float *float_data_for_write();
+
+  bool can_contain_alpha() const
+  {
+    return color_mode == ImColorMode::RGBA;
+  }
+  int color_mode_channels_get() const
+  {
+    switch (this->color_mode) {
+      case ImColorMode::BW:
+        return 1;
+      case ImColorMode::RGB:
+        return 3;
+      case ImColorMode::RGBA:
+        return 4;
+    }
+    return 0;
+  }
 };
 
 /**

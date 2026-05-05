@@ -36,7 +36,7 @@ ImBuf *imb_load_bmp(const uchar *mem, size_t size, int flags, ImFileColorSpace &
 
 static std::tuple<WriteContext, ImageSpec> prepare_save_bmp(ImBuf *ibuf, int flags)
 {
-  const int file_channels = ibuf->planes >> 3;
+  const int file_channels = ibuf->color_mode_channels_get();
   const TypeDesc data_format = TypeDesc::UINT8;
   WriteContext ctx = imb_create_write_context("bmp", ibuf, flags, false);
   ImageSpec file_spec = imb_create_write_spec(ctx, file_channels, data_format);

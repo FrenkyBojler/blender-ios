@@ -704,7 +704,6 @@ PyDoc_STRVAR(
     "Used when reading and writing image files.\n"
     "\n"
     "- 8: Gray-scale.\n"
-    "- 16: Gray-scale with alpha.\n"
     "- 24: RGB.\n"
     "- 32: RGBA.\n"
     "\n"
@@ -717,8 +716,8 @@ PyDoc_STRVAR(
 static PyObject *py_imbuf_planes_get(Py_ImBuf *self, void * /*closure*/)
 {
   PY_IMBUF_CHECK_OBJ(self);
-  ImBuf *imbuf = self->ibuf;
-  return PyLong_FromLong(imbuf->planes);
+  const ImBuf *ibuf = self->ibuf;
+  return PyLong_FromLong(ibuf->color_mode_channels_get() * 8);
 }
 
 PyDoc_STRVAR(
@@ -1313,7 +1312,7 @@ PyDoc_STRVAR(
     "   :param size: The size of the image in pixels.\n"
     "   :type size: tuple[int, int]\n"
     "   :param planes: Number of bits per pixel.\n"
-    "   :type planes: Literal[8, 16, 24, 32]\n"
+    "   :type planes: Literal[8, 24, 32]\n"
     "   :return: The newly created image.\n"
     "   :rtype: :class:`ImBuf`\n");
 static PyObject *M_imbuf_new(PyObject * /*self*/, PyObject *args, PyObject *kw)
@@ -1340,14 +1339,24 @@ static PyObject *M_imbuf_new(PyObject * /*self*/, PyObject *args, PyObject *kw)
     PyErr_Format(PyExc_ValueError, "new: Image size cannot be below 1 (%d, %d)", UNPACK2(size));
     return nullptr;
   }
-  if (!ELEM(planes, 8, 16, 24, 32)) {
-    PyErr_Format(PyExc_ValueError, "new: planes must be 8, 16, 24 or 32, got %d", planes);
+
+  const uint flags = IB_byte_data;
+  ImColorMode color_mode = ImColorMode::RGBA;
+  if (planes == 8) {
+    color_mode = ImColorMode::BW;
+  }
+  else if (planes == 24) {
+    color_mode = ImColorMode::RGB;
+  }
+  else if (planes == 32) {
+    color_mode = ImColorMode::RGBA;
+  }
+  else {
+    PyErr_Format(PyExc_ValueError, "new: planes must be 8, 24 or 32, got %d", planes);
     return nullptr;
   }
 
-  const uint flags = IB_byte_data;
-
-  ImBuf *ibuf = IMB_allocImBuf(UNPACK2(size), uchar(planes), flags);
+  ImBuf *ibuf = IMB_allocImBuf(UNPACK2(size), color_mode, flags);
   if (ibuf == nullptr) {
     PyErr_Format(PyExc_ValueError, "new: Unable to create image (%d, %d)", UNPACK2(size));
     return nullptr;

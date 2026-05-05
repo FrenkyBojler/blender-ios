@@ -88,8 +88,14 @@ void FileOutput::add_view(const char *view_name, int channels, float *buffer)
   BLI_addtail(&render_result_->views, render_view);
   STRNCPY_UTF8(render_view->name, view_name);
 
-  render_view->ibuf = IMB_allocImBuf(
-      render_result_->rectx, render_result_->recty, channels * 8, 0);
+  ImColorMode color_mode = ImColorMode::RGBA;
+  if (channels == 1) {
+    color_mode = ImColorMode::BW;
+  }
+  else if (channels == 3) {
+    color_mode = ImColorMode::RGB;
+  }
+  render_view->ibuf = IMB_allocImBuf(render_result_->rectx, render_result_->recty, color_mode, 0);
   render_view->ibuf->channels = channels;
   IMB_assign_float_buffer(render_view->ibuf, buffer, IB_TAKE_OWNERSHIP);
 }
@@ -114,8 +120,14 @@ void FileOutput::add_pass(const char *pass_name,
   render_pass->recty = render_result_->recty;
   render_pass->channels = channels_count;
 
-  render_pass->ibuf = IMB_allocImBuf(
-      render_result_->rectx, render_result_->recty, channels_count * 8, 0);
+  ImColorMode color_mode = ImColorMode::RGBA;
+  if (channels_count == 1) {
+    color_mode = ImColorMode::BW;
+  }
+  else if (channels_count == 3) {
+    color_mode = ImColorMode::RGB;
+  }
+  render_pass->ibuf = IMB_allocImBuf(render_result_->rectx, render_result_->recty, color_mode, 0);
   render_pass->ibuf->channels = channels_count;
   copy_v2_v2_db(render_pass->ibuf->ppm, render_result_->ppm);
   IMB_assign_float_buffer(render_pass->ibuf, buffer, IB_TAKE_OWNERSHIP);

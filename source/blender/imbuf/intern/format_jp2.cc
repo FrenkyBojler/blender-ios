@@ -356,11 +356,12 @@ static ImBuf *imb_load_jp2_stream(opj_stream_t *stream,
   ImBuf *ibuf = nullptr;
   bool use_float = false; /* for precision higher than 8 use float */
   bool use_alpha = false;
+  ImColorMode color_mode = ImColorMode::RGBA;
 
   long signed_offsets[4] = {0, 0, 0, 0};
   int float_divs[4] = {1, 1, 1, 1};
 
-  uint i, i_next, w, h, planes;
+  uint i, i_next, w, h;
   uint y;
   const int *r, *g, *b, *a; /* matching 'opj_image_comp.data' type */
 
@@ -411,11 +412,11 @@ static ImBuf *imb_load_jp2_stream(opj_stream_t *stream,
   switch (image->numcomps) {
     case 1: /* Gray-scale. */
     case 3: /* Color. */
-      planes = 24;
+      color_mode = ImColorMode::RGB;
       use_alpha = false;
       break;
-    default:       /* 2 or 4 - Gray-scale or Color + alpha. */
-      planes = 32; /* Gray-scale + alpha. */
+    default: /* 2 or 4 - Gray-scale or Color + alpha. */
+      color_mode = ImColorMode::RGBA;
       use_alpha = true;
       break;
   }
@@ -438,7 +439,7 @@ static ImBuf *imb_load_jp2_stream(opj_stream_t *stream,
     float_divs[i] = (1 << image->comps[i].prec) - 1;
   }
 
-  ibuf = IMB_allocImBuf(w, h, planes, use_float ? IB_float_data : IB_byte_data);
+  ibuf = IMB_allocImBuf(w, h, color_mode, use_float ? IB_float_data : IB_byte_data);
 
   if (ibuf == nullptr) {
     goto finally;
@@ -871,9 +872,8 @@ static opj_image_t *ibuftoimage(ImBuf *ibuf, opj_cparameters_t *parameters)
       prec = 8;
     }
 
-    /* 32bit images == alpha channel. */
     /* Gray-scale not supported yet. */
-    numcomps = (ibuf->planes == 32) ? 4 : 3;
+    numcomps = (ibuf->can_contain_alpha()) ? 4 : 3;
   }
 
   w = ibuf->x;
