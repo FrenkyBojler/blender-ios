@@ -481,7 +481,11 @@ static void rna_NodeTreeInterfaceSocket_is_panel_toggle_set(PointerRNA *ptr, boo
   const bke::bNodeSocketType *base_typeinfo = bke::node_socket_type_find(io_socket.socket_type);
   BLI_assert(base_typeinfo);
   bNodeTreeInterfacePanel *parent = ntree.tree_interface.find_item_parent(io_socket.item);
-  BLI_assert(parent);
+
+  /* Skip if called for a root socket. */
+  if (!parent) {
+    return;
+  }
 
   if (value) {
     if (base_typeinfo->type != SOCK_BOOLEAN) {
@@ -548,7 +552,7 @@ static void rna_NodeTreeInterfaceSocket_structure_type_set(PointerRNA *ptr, int 
   }
 
   if (is_supported) {
-    socket->structure_type = value;
+    socket->structure_type = NodeSocketInterfaceStructureType(value);
   }
 }
 
@@ -597,10 +601,8 @@ const EnumPropertyItem *rna_NodeSocket_structure_type_item_filter(
         break;
       }
       case NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_LIST: {
-        if (U.experimental.use_geometry_nodes_lists) {
-          if (supports_lists) {
-            RNA_enum_item_add(&items, &items_count, item);
-          }
+        if (supports_lists) {
+          RNA_enum_item_add(&items, &items_count, item);
         }
         break;
       }
