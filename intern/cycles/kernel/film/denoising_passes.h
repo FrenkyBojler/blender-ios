@@ -59,7 +59,10 @@ ccl_device_forceinline void film_write_denoising_features_surface(KernelGlobals 
     normal += (sc->type == CLOSURE_BSDF_HAIR_HUANG_ID ? safe_normalize(sd->dPdu) : sc->N) *
               closure_weight;
 
+    /* bsdf_get_specular_roughness_squared returns GGX alpha squared (alpha_x*alpha_y). Use sqrtf
+     * to get GGX alpha. */
     const float roughness = sqrtf(bsdf_get_specular_roughness_squared(sc));
+
     /* Transition smoothly from specular to diffuse between 0.0 and 0.15 roughness. */
     const float diffuse_weight = (sc->type == CLOSURE_BSDF_HAIR_HUANG_ID) ?
                                      1.0f :
@@ -67,6 +70,7 @@ ccl_device_forceinline void film_write_denoising_features_surface(KernelGlobals 
 
     diffuse_albedo += closure_albedo * diffuse_weight;
     specular_albedo += closure_albedo * (1.0f - diffuse_weight);
+    /* Apply sqrtf again to convert GGX alpha to perceptual roughness. */
     specular_roughness += sqrtf(roughness) * closure_weight;
 
     sum_weight += closure_weight;
