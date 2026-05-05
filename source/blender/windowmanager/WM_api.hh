@@ -826,11 +826,11 @@ void WM_main_remap_editor_id_reference(const bke::id::IDRemapper &mappings);
 /**
  * Show the report in the info header.
  *
- * \warning This shows the most recently added report. In most cases, calls to this function should
+ * \param win: When NULL, a best-guess is used.
+ *
+ * \note This shows the most recently added report. In most cases, calls to this function should
  * be guarded by a check to whether a report was actually added by a previous line to avoid showing
  * the user outdated reports.
- *
- * \param win: When NULL, a best-guess is used.
  */
 void WM_report_banner_show(wmWindowManager *wm, wmWindow *win) ATTR_NONNULL(1);
 /**
