@@ -432,6 +432,8 @@ void animviz_calc_motionpaths(Depsgraph *depsgraph,
                               eAnimvizCalcRange range)
 {
   using namespace blender::animrig;
+  BLI_assert_msg(!DEG_is_active(depsgraph),
+                 "Motion path calculation should always happen with a minimal depsgraph.");
 
   if (targets.is_empty()) {
     return;
@@ -450,23 +452,6 @@ void animviz_calc_motionpaths(Depsgraph *depsgraph,
         return;
       }
       break;
-  }
-
-  /* Get copies of objects/bones to get the calculated results from
-   * (for copy-on-evaluation), so that we actually get some results.
-   */
-
-  /* TODO: Create a copy of background depsgraph that only contain these entities,
-   * and only evaluates them.
-   *
-   * For until that is done we force dependency graph to not be active, so we don't lose unkeyed
-   * changes during updating the motion path.
-   * This still doesn't include unkeyed changes to the path itself, but allows to have updates in
-   * an environment when auto-keying and pose paste is used. */
-
-  const bool is_active_depsgraph = DEG_is_active(depsgraph);
-  if (is_active_depsgraph) {
-    DEG_make_inactive(depsgraph);
   }
 
   for (MPathTarget *mpt : targets) {
@@ -531,10 +516,6 @@ void animviz_calc_motionpaths(Depsgraph *depsgraph,
   }
 
   scene->r.cfra = cfra;
-
-  if (is_active_depsgraph) {
-    DEG_make_active(depsgraph);
-  }
 
   /* Clear recalc flags from targets. */
   for (MPathTarget *mpt : targets) {
