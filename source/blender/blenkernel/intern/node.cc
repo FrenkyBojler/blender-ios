@@ -5613,11 +5613,15 @@ StringRefNull node_socket_label(const bNodeSocket &sock)
 
 StringRef node_socket_extend_label(const bNode &node, const bNodeSocket &sock)
 {
-  StringRef name = node.is_reroute() && (node.label[0] != '\0') ?
-                       node.label :
-                       (sock.name ? sock.name : node_socket_label(sock));
+  if (node.is_reroute() && (node.label[0] != '\0')) {
+    return node.label;
+  }
 
-  return name;
+  if (sock.name) {
+    return sock.name;
+  }
+
+  return node_socket_label(sock);
 }
 
 const char *node_socket_translation_context(const bNodeSocket &sock)
