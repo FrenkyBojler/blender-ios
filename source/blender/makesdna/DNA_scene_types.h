@@ -2687,9 +2687,8 @@ struct SceneEEVEE {
   float fast_gi_quality = 0.25f;
   float fast_gi_distance = 0.0f;
   float fast_gi_thickness_near = 0.1f;
-  float fast_gi_thickness_far = DEG2RAD(45);
   FastGI_Method fast_gi_method = FAST_GI_FULL;
-  char _pad1[3] = {};
+  char _pad1[7] = {};
 
   float bokeh_overblur = 5.0f;
   float bokeh_max_size = 100.0f;
