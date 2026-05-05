@@ -1310,6 +1310,7 @@ set_and_warn_dependency(WITH_AUDASPACE WITH_OPENAL OFF)
 set_and_warn_dependency(WITH_AUDASPACE WITH_COREAUDIO OFF)
 set_and_warn_dependency(WITH_AUDASPACE WITH_JACK OFF)
 set_and_warn_dependency(WITH_AUDASPACE WITH_PULSEAUDIO OFF)
+set_and_warn_dependency(WITH_AUDASPACE WITH_SDL_AUDIO OFF)
 set_and_warn_dependency(WITH_AUDASPACE WITH_WASAPI OFF)
 
 # python module, needs some different options
