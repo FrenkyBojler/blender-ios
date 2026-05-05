@@ -161,7 +161,9 @@ static std::optional<eNodeSocketDatatype> get_compare_type_for_operation(
 static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 {
   const eNodeSocketDatatype type = eNodeSocketDatatype(params.other_socket().type);
-  if (!ELEM(type, SOCK_INT, SOCK_BOOLEAN, SOCK_FLOAT, SOCK_VECTOR, SOCK_RGBA, SOCK_STRING)) {
+  if (!ELEM(type, SOCK_INT, SOCK_BOOLEAN, SOCK_FLOAT, SOCK_VECTOR, SOCK_RGBA, SOCK_STRING) &&
+      !is_supported_data_block_type(type))
+  {
     return;
   }
   const UString socket_name = params.in_out() == SOCK_IN ? "A"_ustr : "Result"_ustr;
@@ -179,7 +181,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
     }
   }
 
-  if (params.in_out() == SOCK_IN && type != SOCK_STRING) {
+  if (params.in_out() == SOCK_IN && (type != SOCK_STRING || is_supported_data_block_type(type))) {
     params.add_item(
         IFACE_("Angle"),
         SocketSearchOp{
