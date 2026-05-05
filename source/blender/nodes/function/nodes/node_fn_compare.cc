@@ -35,6 +35,11 @@ namespace blender::nodes::node_fn_compare_cc {
 
 NODE_STORAGE_FUNCS(NodeFunctionCompare)
 
+static bool is_supported_data_block_type(const eNodeSocketDatatype data_type)
+{
+  return ELEM(data_type, SOCK_OBJECT, SOCK_IMAGE, SOCK_COLLECTION, SOCK_FONT, SOCK_SOUND);
+}
+
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.is_function_node();
@@ -48,8 +53,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
     const bool type_is_float = ELEM(data_type, SOCK_FLOAT, SOCK_VECTOR, SOCK_RGBA);
     const bool is_vector = data_type == SOCK_VECTOR;
-    const bool is_data_block = ELEM(
-        data_type, SOCK_OBJECT, SOCK_IMAGE, SOCK_COLLECTION, SOCK_FONT, SOCK_SOUND);
+    const bool is_data_block = is_supported_data_block_type(data_type);
 
     auto &a_input =
         b.add_input(data_type, "A"_ustr).translation_context(BLT_I18NCONTEXT_ID_NODETREE);
@@ -143,16 +147,13 @@ static std::optional<eNodeSocketDatatype> get_compare_type_for_operation(
         return std::nullopt;
       }
       return type;
-    case SOCK_OBJECT:
-    case SOCK_IMAGE:
-    case SOCK_COLLECTION:
-    case SOCK_FONT:
-    case SOCK_SOUND:
-      if (!ELEM(operation, NODE_COMPARE_EQUAL, NODE_COMPARE_NOT_EQUAL)) {
-        return std::nullopt;
-      }
-      return type;
     default:
+      if (is_supported_data_block_type(type)) {
+        if (!ELEM(operation, NODE_COMPARE_EQUAL, NODE_COMPARE_NOT_EQUAL)) {
+          return std::nullopt;
+        }
+        return type;
+      }
       return std::nullopt;
   }
 }
@@ -657,31 +658,29 @@ static const mf::MultiFunction *get_multi_function(const bNode &node)
           break;
       }
       break;
-    case SOCK_OBJECT:
-    case SOCK_IMAGE:
-    case SOCK_COLLECTION:
-    case SOCK_FONT:
-    case SOCK_SOUND: {
-      return to_static_data_block(
-          eNodeSocketDatatype(data->data_type), [&]<typename T>() -> const mf::MultiFunction * {
-            switch (data->operation) {
-              case NODE_COMPARE_EQUAL: {
-                static auto fn = mf::build::SI2_SO<T, T, bool>("Equal", [](T a, T b) {
-                  return data_blocks_are_equal(id_cast<const ID *>(a), id_cast<const ID *>(b));
-                });
-                return &fn;
+    default: {
+      if (is_supported_data_block_type(eNodeSocketDatatype(data->operation))) {
+        return to_static_data_block(
+            eNodeSocketDatatype(data->data_type), [&]<typename T>() -> const mf::MultiFunction * {
+              switch (data->operation) {
+                case NODE_COMPARE_EQUAL: {
+                  static auto fn = mf::build::SI2_SO<T, T, bool>("Equal", [](T a, T b) {
+                    return data_blocks_are_equal(id_cast<const ID *>(a), id_cast<const ID *>(b));
+                  });
+                  return &fn;
+                }
+                case NODE_COMPARE_NOT_EQUAL: {
+                  static auto fn = mf::build::SI2_SO<T, T, bool>("Not Equal", [](T a, T b) {
+                    return !data_blocks_are_equal(id_cast<const ID *>(a), id_cast<const ID *>(b));
+                  });
+                  return &fn;
+                }
+                default: {
+                  return nullptr;
+                }
               }
-              case NODE_COMPARE_NOT_EQUAL: {
-                static auto fn = mf::build::SI2_SO<T, T, bool>("Not Equal", [](T a, T b) {
-                  return !data_blocks_are_equal(id_cast<const ID *>(a), id_cast<const ID *>(b));
-                });
-                return &fn;
-              }
-              default: {
-                return nullptr;
-              }
-            }
-          });
+            });
+      }
     }
   }
   return nullptr;
@@ -706,13 +705,8 @@ static void data_type_update(Main *bmain, Scene *scene, PointerRNA *ptr)
   {
     node_storage->operation = NODE_COMPARE_EQUAL;
   }
-  else if (ELEM(node_storage->data_type,
-                SOCK_STRING,
-                SOCK_OBJECT,
-                SOCK_IMAGE,
-                SOCK_COLLECTION,
-                SOCK_FONT,
-                SOCK_SOUND) &&
+  else if (node_storage->data_type == SOCK_STRING &&
+           is_supported_data_block_type(eNodeSocketDatatype(node_storage->data_type)) &&
            !ELEM(node_storage->operation, NODE_COMPARE_EQUAL, NODE_COMPARE_NOT_EQUAL))
   {
     node_storage->operation = NODE_COMPARE_EQUAL;
@@ -790,8 +784,7 @@ static void node_rna(StructRNA *srna)
                                                  NODE_COMPARE_COLOR_DARKER);
                                    });
         }
-        if (ELEM(data->data_type, SOCK_OBJECT, SOCK_IMAGE, SOCK_COLLECTION, SOCK_FONT, SOCK_SOUND))
-        {
+        if (is_supported_data_block_type(eNodeSocketDatatype(data->data_type))) {
           return enum_items_filter(
               rna_enum_node_compare_operation_items, [](const EnumPropertyItem &item) {
                 return ELEM(item.value, NODE_COMPARE_EQUAL, NODE_COMPARE_NOT_EQUAL);
@@ -811,20 +804,11 @@ static void node_rna(StructRNA *srna)
       std::nullopt,
       [](bContext * /*C*/, PointerRNA * /*ptr*/, PropertyRNA * /*prop*/, bool *r_free) {
         *r_free = true;
-        return enum_items_filter(rna_enum_node_socket_data_type_items,
-                                 [](const EnumPropertyItem &item) {
-                                   return ELEM(item.value,
-                                               SOCK_FLOAT,
-                                               SOCK_INT,
-                                               SOCK_VECTOR,
-                                               SOCK_STRING,
-                                               SOCK_RGBA,
-                                               SOCK_OBJECT,
-                                               SOCK_IMAGE,
-                                               SOCK_COLLECTION,
-                                               SOCK_FONT,
-                                               SOCK_SOUND);
-                                 });
+        return enum_items_filter(
+            rna_enum_node_socket_data_type_items, [](const EnumPropertyItem &item) {
+              return ELEM(item.value, SOCK_FLOAT, SOCK_INT, SOCK_VECTOR, SOCK_STRING, SOCK_RGBA) ||
+                     is_supported_data_block_type(eNodeSocketDatatype(item.value));
+            });
       });
   RNA_def_property_update_runtime(prop, data_type_update);
 
