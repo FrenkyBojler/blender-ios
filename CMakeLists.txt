@@ -2590,7 +2590,7 @@ if(FIRST_RUN)
   info_cfg_option(WITH_OPENAL)
   info_cfg_option(WITH_PULSEAUDIO)
   info_cfg_option(WITH_PULSEAUDIO_DYNLOAD)
-  info_cfg_option(WITH_SDL)
+  info_cfg_option(WITH_SDL_AUDIO)
   info_cfg_option(WITH_WASAPI)
 
   if(WITH_PYTHON)
