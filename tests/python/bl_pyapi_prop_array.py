@@ -454,6 +454,7 @@ class TestPropArraySliceStep(unittest.TestCase):
             (original[0], expected_row_1, original[2], original[3]),
         )
 
+
 class TestPropArrayForeach(unittest.TestCase):
     # Test foreach_get/_set access of Int and Float vector properties (bool ones do not support this).
 
