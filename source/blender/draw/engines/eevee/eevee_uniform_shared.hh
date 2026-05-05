@@ -92,7 +92,6 @@ struct [[host_shared]] UniformData {
   struct RayTraceData raytrace;
   struct RenderBuffersInfoData render_pass;
   struct ShadowSceneData shadow;
-  struct SubsurfaceData subsurface;
   struct VolumesInfoData volumes;
 };
 

@@ -188,7 +188,7 @@ class Instance : public DrawEngine {
       : shaders(*ShaderModule::module_get()),
         sync(*this),
         materials(*this),
-        subsurface(*this, uniform_data.data.subsurface),
+        subsurface(*this),
         pipelines(*this, uniform_data.pipeline),
         shadows(*this, uniform_data.data.shadow),
         lights(*this),

@@ -283,6 +283,8 @@
 #define VELOCITY_CAMERA_CURR_BUF 4
 #define VELOCITY_CAMERA_NEXT_BUF 5
 #define CLIP_PLANE_BUF 6
+/* Only during subsurface scattering */
+#define SUBSURFACE_BUF_SLOT 3
 
 /* Storage Buffers. */
 #define LIGHT_CULL_BUF_SLOT 0
