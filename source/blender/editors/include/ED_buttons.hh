@@ -14,25 +14,27 @@
 
 #include "BKE_path_templates.hh"
 
+namespace blender {
+
 struct ScrArea;
 struct SpaceProperties;
 struct bContext;
 struct PointerRNA;
 
-namespace blender::ui {
+namespace ui {
 struct Layout;
-}  // namespace blender::ui
 struct wmOperator;
+}  // namespace ui
 
 /**
  * Fills an array with the tab context values for the properties editor. -1 signals a separator.
  *
  * \return The total number of items in the array returned.
  */
-blender::Vector<eSpaceButtons_Context> ED_buttons_tabs_list(const SpaceProperties *sbuts,
-                                                            bool apply_filter = true);
-void ED_buttons_visible_tabs_menu(bContext *C, blender::ui::Layout *layout, void * /*arg*/);
-void ED_buttons_navbar_menu(bContext *C, blender::ui::Layout *layout, void * /*arg*/);
+Vector<eSpaceButtons_Context> ED_buttons_tabs_list(const SpaceProperties *sbuts,
+                                                   bool apply_filter = true);
+void ED_buttons_visible_tabs_menu(bContext *C, ui::Layout *layout, void * /*arg*/);
+void ED_buttons_navbar_menu(bContext *C, ui::Layout *layout, void * /*arg*/);
 bool ED_buttons_tab_has_search_result(SpaceProperties *sbuts, int index);
 
 void ED_buttons_search_string_set(SpaceProperties *sbuts, const char *value);
@@ -45,12 +47,14 @@ bool ED_buttons_should_sync_with_outliner(const bContext *C,
 void ED_buttons_set_context(const bContext *C,
                             SpaceProperties *sbuts,
                             PointerRNA *ptr,
-                            int context);
+                            eSpaceButtons_Context context);
 
 /**
  * Get template variables from file browse operator's custom data.
  * Returns nullptr if operator is not a buttons browse operator or has no template variables.
  * Supports both BUTTONS_OT_file_browse and BUTTONS_OT_directory_browse.
  */
-const blender::bke::path_templates::VariableMap *ED_buttons_file_browse_get_template_vars(
+const bke::path_templates::VariableMap *ED_buttons_file_browse_get_template_vars(
     const wmOperator *op);
+
+}  // namespace blender

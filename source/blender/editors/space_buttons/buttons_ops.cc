@@ -45,6 +45,8 @@
 
 #include "buttons_intern.hh" /* own include */
 
+namespace blender {
+
 /* -------------------------------------------------------------------- */
 /** \name Start / Clear Search Filter Operators
  *
@@ -57,7 +59,7 @@ static wmOperatorStatus buttons_start_filter_exec(bContext *C, wmOperator * /*op
   ScrArea *area = CTX_wm_area(C);
   ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_HEADER);
 
-  blender::ui::textbutton_activate_rna(C, region, space, "search_filter");
+  ui::textbutton_activate_rna(C, region, space, "search_filter");
 
   return OPERATOR_FINISHED;
 }
@@ -113,7 +115,7 @@ static wmOperatorStatus toggle_pin_exec(bContext *C, wmOperator * /*op*/)
 
   /* Create the properties space pointer. */
   bScreen *screen = CTX_wm_screen(C);
-  PointerRNA sbuts_ptr = RNA_pointer_create_discrete(&screen->id, &RNA_SpaceProperties, sbuts);
+  PointerRNA sbuts_ptr = RNA_pointer_create_discrete(&screen->id, RNA_SpaceProperties, sbuts);
 
   /* Create the new ID pointer and set the pin ID with RNA
    * so we can use the property's RNA update functionality. */
@@ -148,9 +150,8 @@ static wmOperatorStatus context_menu_invoke(bContext *C,
                                             wmOperator * /*op*/,
                                             const wmEvent * /*event*/)
 {
-  blender::ui::PopupMenu *pup = blender::ui::popup_menu_begin(
-      C, IFACE_("Context Menu"), ICON_NONE);
-  blender::ui::Layout &layout = *popup_menu_layout(pup);
+  ui::PopupMenu *pup = ui::popup_menu_begin(C, IFACE_("Context Menu"), ICON_NONE);
+  ui::Layout &layout = *popup_menu_layout(pup);
 
   layout.menu("INFO_MT_area", std::nullopt, ICON_NONE);
   popup_menu_end(C, pup);
@@ -260,7 +261,7 @@ static wmOperatorStatus file_browse_exec(bContext *C, wmOperator *op)
       ID *id = fbo->ptr.owner_id;
 
       STRNCPY(path_buf, path);
-      MEM_freeN(path);
+      MEM_delete(path);
 
       if (is_relative) {
         BLI_path_abs(path_buf, id ? ID_BLEND_PATH(bmain, id) : BKE_main_blendfile_path(bmain));
@@ -279,7 +280,7 @@ static wmOperatorStatus file_browse_exec(bContext *C, wmOperator *op)
 
   RNA_property_string_set(&fbo->ptr, fbo->prop, path);
   RNA_property_update(C, &fbo->ptr, fbo->prop);
-  MEM_freeN(path);
+  MEM_delete(path);
 
   if (fbo->is_undo) {
     const char *undostr = RNA_property_identifier(fbo->prop);
@@ -328,7 +329,7 @@ static wmOperatorStatus file_browse_invoke(bContext *C, wmOperator *op, const wm
     return OPERATOR_CANCELLED;
   }
 
-  blender::ui::context_active_but_prop_get_filebrowser(C, &ptr, &prop, &is_undo, &is_userdef);
+  ui::context_active_but_prop_get_filebrowser(C, &ptr, &prop, &is_undo, &is_userdef);
 
   if (!prop) {
     return OPERATOR_CANCELLED;
@@ -344,8 +345,9 @@ static wmOperatorStatus file_browse_invoke(bContext *C, wmOperator *op, const wm
     /* Validate template syntax by resolving to a temporary path. */
     char temp_path[FILE_MAX];
     BLI_strncpy(temp_path, path, FILE_MAX);
-    const blender::Vector<blender::bke::path_templates::Error> errors = BKE_path_apply_template(
+    const Vector<bke::path_templates::Error> errors = BKE_path_apply_template(
         temp_path, FILE_MAX, *template_variables);
+
     if (!errors.is_empty()) {
       BKE_report_path_template_errors(op->reports, RPT_ERROR, path, errors);
       return OPERATOR_CANCELLED;
@@ -359,7 +361,7 @@ static wmOperatorStatus file_browse_invoke(bContext *C, wmOperator *op, const wm
     wmOperatorType *ot = WM_operatortype_find("WM_OT_path_open", true);
 
     if (event->modifier & KM_ALT) {
-      char *lslash = (char *)BLI_path_slash_rfind(path);
+      char *lslash = const_cast<char *>(BLI_path_slash_rfind(path));
       if (lslash) {
         *lslash = '\0';
       }
@@ -367,10 +369,10 @@ static wmOperatorStatus file_browse_invoke(bContext *C, wmOperator *op, const wm
 
     PointerRNA props_ptr = WM_operator_properties_create_ptr(ot);
     RNA_string_set(&props_ptr, "filepath", path);
-    WM_operator_name_call_ptr(C, ot, blender::wm::OpCallContext::ExecDefault, &props_ptr, nullptr);
+    WM_operator_name_call_ptr(C, ot, wm::OpCallContext::ExecDefault, &props_ptr, nullptr);
     WM_operator_properties_free(&props_ptr);
 
-    MEM_freeN(path);
+    MEM_delete(path);
     return OPERATOR_CANCELLED;
   }
 
@@ -383,7 +385,7 @@ static wmOperatorStatus file_browse_invoke(bContext *C, wmOperator *op, const wm
       else {
         BKE_report(op->reports, RPT_ERROR, "Property is not editable");
       }
-      MEM_freeN(path);
+      MEM_delete(path);
       return OPERATOR_CANCELLED;
     }
   }
@@ -441,7 +443,7 @@ static wmOperatorStatus file_browse_invoke(bContext *C, wmOperator *op, const wm
         STRNCPY(fonts_path, BKE_appdir_folder_default_or_root());
       }
       BLI_path_slash_ensure(fonts_path, ARRAY_SIZE(fonts_path));
-      MEM_freeN(path);
+      MEM_delete(path);
       path = BLI_strdup(fonts_path);
     }
   }
@@ -451,12 +453,12 @@ static wmOperatorStatus file_browse_invoke(bContext *C, wmOperator *op, const wm
     char default_path[FILE_MAX] = {0};
     STRNCPY(default_path, BKE_appdir_folder_default_or_root());
     BLI_path_slash_ensure(default_path, ARRAY_SIZE(default_path));
-    MEM_freeN(path);
+    MEM_delete(path);
     path = BLI_strdup(default_path);
   }
 
   RNA_string_set(op->ptr, path_prop, path);
-  MEM_freeN(path);
+  MEM_delete(path);
 
   PropertyRNA *prop_check_existing = RNA_struct_find_property(op->ptr, "check_existing");
   if (!RNA_property_is_set(op->ptr, prop_check_existing)) {
@@ -545,3 +547,5 @@ void BUTTONS_OT_directory_browse(wmOperatorType *ot)
 }
 
 /** \} */
+
+}  // namespace blender

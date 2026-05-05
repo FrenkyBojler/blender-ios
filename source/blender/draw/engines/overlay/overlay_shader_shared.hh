@@ -11,7 +11,7 @@
 #  include "DNA_view3d_types.h"
 #endif
 
-enum OVERLAY_BackgroundType : uint32_t {
+enum [[host_shared]] OVERLAY_BackgroundType : uint32_t {
   BG_SOLID = 0u,
   BG_GRADIENT = 1u,
   BG_CHECKER = 2u,
@@ -20,15 +20,15 @@ enum OVERLAY_BackgroundType : uint32_t {
   BG_MASK = 5u,
 };
 
-enum OVERLAY_UVLineStyle : uint32_t {
-  OVERLAY_UV_LINE_STYLE_OUTLINE = 0u,
-  OVERLAY_UV_LINE_STYLE_DASH = 1u,
-  OVERLAY_UV_LINE_STYLE_BLACK = 2u,
-  OVERLAY_UV_LINE_STYLE_WHITE = 3u,
-  OVERLAY_UV_LINE_STYLE_SHADOW = 4u,
+enum [[host_shared]] OVERLAY_UVLineStyle : uint32_t {
+  OVERLAY_UV_LINE_STYLE_OUTLINE,
+  OVERLAY_UV_LINE_STYLE_DASH,
+  OVERLAY_UV_LINE_STYLE_BLACK,
+  OVERLAY_UV_LINE_STYLE_WHITE,
+  OVERLAY_UV_LINE_STYLE_SHADOW,
 };
 
-enum OVERLAY_GridBits : uint32_t {
+enum [[host_shared]] OVERLAY_GridBits : uint32_t {
   SHOW_GRID = (1u << 0u),
   SHOW_AXES = (1u << 1u),
 
@@ -42,15 +42,17 @@ enum OVERLAY_GridBits : uint32_t {
   PLANE_XZ = (1u << 6u),
   PLANE_YZ = (1u << 7u),
 
-  GRID_SIMA = (1u << 8u),       /* Grid is in SpaceImage view. */
-  GRID_OVER_IMAGE = (1u << 9u), /* Grid is shown in front of SpaceImage, not behind. */
-  GRID_CAMERA = (1u << 10u)     /* Grid is shown in selected camera. */
+  GRID_ALIGNED = (1u << 8u),         /* Grid is in an axis-aligned view (PLANE_XY, ...). */
+  GRID_SIMA = (1u << 9u),            /* Grid is in SpaceImage view. */
+  GRID_CAMERA = (1u << 10u),         /* Grid is shown in selected camera. */
+  GRID_OVER_IMAGE = (1u << 11u),     /* Grid is shown in front of SpaceImage, not behind. */
+  GRID_BEHIND_GEOMETRY = (1u << 12u) /* Grid is shown behind geometry, on the far plane. */
 };
 #ifndef GPU_SHADER
 ENUM_OPERATORS(OVERLAY_GridBits)
 #endif
 
-enum VertexClass : uint32_t {
+enum [[host_shared]] VertexClass : uint32_t {
   VCLASS_NONE = 0,
 
   VCLASS_LIGHT_AREA_SHAPE = 1 << 0,
@@ -76,7 +78,7 @@ enum VertexClass : uint32_t {
 ENUM_OPERATORS(VertexClass)
 #endif
 
-enum StickBoneFlag : uint32_t {
+enum [[host_shared]] StickBoneFlag : uint32_t {
   COL_WIRE = (1u << 0u),
   COL_HEAD = (1u << 1u),
   COL_TAIL = (1u << 2u),
@@ -173,6 +175,10 @@ struct [[host_shared]] OVERLAY_GridData {
 #  define MOTIONPATH_VERT_KEY (1u << 1)
 
 #else
+#  define CURVE_HANDLE_SELECTED blender::CURVE_HANDLE_SELECTED
+#  define CURVE_HANDLE_ALL blender::CURVE_HANDLE_ALL
+#  define MOTIONPATH_VERT_SEL blender::MOTIONPATH_VERT_SEL
+#  define MOTIONPATH_VERT_KEY blender::MOTIONPATH_VERT_KEY
 /* TODO(fclem): Find a better way to share enums/defines from DNA files with GLSL. */
 BLI_STATIC_ASSERT(CURVE_HANDLE_SELECTED == 0u, "Ensure value is sync");
 BLI_STATIC_ASSERT(CURVE_HANDLE_ALL == 1u, "Ensure value is sync");
@@ -377,7 +383,7 @@ struct [[host_shared]] VertexData {
 /* Limited by expand_prim_len bit count. */
 #define PARTICLE_SHAPE_CIRCLE_RESOLUTION 7
 
-enum OVERLAY_ParticleShape : uint32_t {
+enum [[host_shared]] OVERLAY_ParticleShape : uint32_t {
   PART_SHAPE_AXIS = 1,
   PART_SHAPE_CIRCLE = 2,
   PART_SHAPE_CROSS = 3,

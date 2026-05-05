@@ -19,7 +19,7 @@ COMPUTE_SHADER_CREATE_INFO(eevee_motion_blur_gather)
 
 #include "draw_view_lib.glsl"
 #include "eevee_motion_blur_lib.glsl"
-#include "eevee_reverse_z_lib.glsl"
+#include "eevee_reverse_z_lib.bsl.hh"
 #include "eevee_sampling_lib.glsl"
 #include "eevee_velocity_lib.glsl"
 #include "gpu_shader_utildefines_lib.glsl"
@@ -82,7 +82,7 @@ void gather_sample(float2 screen_uv,
                    float2 offset,
                    float offset_len,
                    const bool next,
-                   inout Accumulator accum)
+                   Accumulator &accum)
 {
   float2 sample_uv = screen_uv - offset * motion_blur_buf.target_size_inv;
   float4 sample_vectors = motion_blur_sample_velocity(velocity_tx, sample_uv);
@@ -110,7 +110,7 @@ void gather_blur(float2 screen_uv,
                  float2 max_motion,
                  float ofs,
                  const bool next,
-                 inout Accumulator accum)
+                 Accumulator &accum)
 {
   float center_motion_len = length(center_motion);
   float max_motion_len = length(max_motion);

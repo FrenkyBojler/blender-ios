@@ -16,20 +16,20 @@ namespace blender::eevee {
 
 #define VELOCITY_INVALID 512.0
 
-enum eVelocityStep : uint32_t {
-  STEP_PREVIOUS = 0,
-  STEP_NEXT = 1,
-  STEP_CURRENT = 2,
+enum [[host_shared]] eVelocityStep : uint32_t {
+  STEP_PREVIOUS,
+  STEP_NEXT,
+  STEP_CURRENT,
 };
 
 struct [[host_shared]] VelocityObjectIndex {
   /** Offset inside #VelocityObjectBuf for each time-step. Indexed using eVelocityStep. */
   packed_int3 ofs;
   /** Temporary index to copy this to the #VelocityIndexBuf. */
-  uint resource_id;
+  uint resource_index;
 
 #ifndef GPU_SHADER
-  VelocityObjectIndex() : ofs(-1, -1, -1), resource_id(-1) {};
+  VelocityObjectIndex() : ofs(-1, -1, -1), resource_index(-1) {};
 #endif
 };
 

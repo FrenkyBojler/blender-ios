@@ -46,7 +46,7 @@ int template_search_textbut_width(PointerRNA *ptr, PropertyRNA *name_prop)
   const int estimated_width = fontstyle_string_width(fstyle, name) + margin;
 
   if (name != str) {
-    MEM_freeN(name);
+    MEM_delete(name);
   }
 
   /* Clamp to some min/max width. */
@@ -310,47 +310,47 @@ void template_node_socket(Layout *layout, bContext * /*C*/, const float color[4]
 /* Custom tooltip builder showing path template information.
  * Displays the template syntax, current value, and resolved/evaluated path. */
 static void file_select_path_tooltip_custom(bContext &C,
-                                            blender::ui::TooltipData &data,
-                                            blender::ui::Button *but,
+                                            ui::TooltipData &data,
+                                            ui::Button *but,
                                             void *argN)
 {
   /* Name/Label. */
-  std::string but_label = blender::ui::button_string_get_label(*but);
+  std::string but_label = ui::button_string_get_label(*but);
   if (!but_label.empty()) {
-    blender::ui::tooltip_text_field_add(
-        data, but_label, {}, blender::ui::TIP_STYLE_HEADER, blender::ui::TIP_LC_NORMAL);
-    blender::ui::tooltip_text_field_add(
-        data, {}, {}, blender::ui::TIP_STYLE_SPACER, blender::ui::TIP_LC_NORMAL);
+    ui::tooltip_text_field_add(
+        data, but_label, {}, ui::TIP_STYLE_HEADER, ui::TIP_LC_NORMAL);
+    ui::tooltip_text_field_add(
+        data, {}, {}, ui::TIP_STYLE_SPACER, ui::TIP_LC_NORMAL);
   }
 
   /* Description (tooltip). */
-  std::string but_tip = blender::ui::button_string_get_tooltip(C, *but);
+  std::string but_tip = ui::button_string_get_tooltip(C, *but);
   if (!but_tip.empty()) {
-    blender::ui::tooltip_text_field_add(
-        data, but_tip, {}, blender::ui::TIP_STYLE_HEADER, blender::ui::TIP_LC_NORMAL);
+    ui::tooltip_text_field_add(
+        data, but_tip, {}, ui::TIP_STYLE_HEADER, ui::TIP_LC_NORMAL);
   }
 
   /* Value (current path string shown in the button). */
   char buf[512];
-  blender::ui::button_string_get(but, buf, sizeof(buf));
+  ui::button_string_get(but, buf, sizeof(buf));
   if (buf[0]) {
-    blender::ui::tooltip_text_field_add(data,
+    ui::tooltip_text_field_add(data,
                                         fmt::format(fmt::runtime(TIP_("Value: {}")), buf),
                                         {},
-                                        blender::ui::TIP_STYLE_NORMAL,
-                                        blender::ui::TIP_LC_VALUE,
+                                        ui::TIP_STYLE_NORMAL,
+                                        ui::TIP_LC_VALUE,
                                         true);
   }
 
   /* Evaluated/resolved path (shown only if different from template). */
   FileSelectParams *params = static_cast<FileSelectParams *>(argN);
   if (params && params->dir[0] != '\0' && !STREQ(params->dir, params->dir_template)) {
-    blender::ui::tooltip_text_field_add(
+    ui::tooltip_text_field_add(
         data,
         fmt::format(fmt::runtime(TIP_("Evaluated: {}")), params->dir),
         {},
-        blender::ui::TIP_STYLE_NORMAL,
-        blender::ui::TIP_LC_PYTHON,
+        ui::TIP_STYLE_NORMAL,
+        ui::TIP_LC_DIMMED,
         true);
   }
 }

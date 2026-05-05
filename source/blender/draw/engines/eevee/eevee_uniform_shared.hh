@@ -23,7 +23,7 @@ namespace blender::eevee {
 /* This should be inside "eevee_light_shared.hh" but it would pull a huge header that is not
  * essential for most shaders. This could be moved back if including "eevee_bxdf_lib.glsl" is used
  * only for shading shaders. */
-enum LightingType : uint32_t {
+enum [[host_shared]] LightingType : uint32_t {
   LIGHT_DIFFUSE = 0u,
   LIGHT_SPECULAR = 1u,
   LIGHT_TRANSMISSION = 2u,
@@ -51,17 +51,17 @@ struct [[host_shared]] ClampData {
   float surface_indirect;
   float volume_direct;
   float volume_indirect;
-  float _pad0;
-  float _pad1;
-  float _pad2;
+  float direct_scale;
+  float indirect_scale;
+  int _pad0;
 };
 
 /* Emulation of the light path node. */
-enum RayPipelineType : uint32_t {
-  RAY_TYPE_CAMERA = 0u,
-  RAY_TYPE_SHADOW = 1u,
-  RAY_TYPE_DIFFUSE = 2u,
-  RAY_TYPE_GLOSSY = 3u,
+enum [[host_shared]] RayPipelineType : uint32_t {
+  RAY_TYPE_CAMERA,
+  RAY_TYPE_SHADOW,
+  RAY_TYPE_DIFFUSE,
+  RAY_TYPE_GLOSSY,
 };
 
 struct [[host_shared]] PipelineInfoData {

@@ -2,9 +2,9 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#ifndef GPU_SHADER
-#  pragma once
+#pragma once
 
+#ifndef GPU_SHADER
 #  include "GPU_shader_shared_utils.hh"
 
 namespace blender::draw::select {
@@ -12,7 +12,7 @@ namespace blender::draw::select {
 #endif
 
 /* Matches eV3DSelectMode */
-enum SelectType : uint32_t {
+enum [[host_shared]] SelectType : uint32_t {
   SELECT_ALL = 0u,
   SELECT_PICK_ALL = 1u,
   SELECT_PICK_NEAREST = 2u,
@@ -21,7 +21,8 @@ enum SelectType : uint32_t {
 struct [[host_shared]] SelectInfoData {
   int2 cursor;
   enum SelectType mode;
-  uint _pad0;
+  /* Circular radius around cursor. 0 for no radius check. */
+  int radius;
 };
 
 #ifndef GPU_SHADER

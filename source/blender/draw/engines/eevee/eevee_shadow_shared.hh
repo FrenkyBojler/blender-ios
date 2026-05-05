@@ -28,7 +28,7 @@ namespace blender::eevee {
  * covering twice as much area as the previous one.
  * \{ */
 
-enum eCubeFace : uint32_t {
+enum [[host_shared]] eCubeFace : uint32_t {
   /* Ordering by culling order. If cone aperture is shallow, we cull the later view. */
   Z_NEG = 0u,
   X_POS = 1u,
@@ -38,10 +38,10 @@ enum eCubeFace : uint32_t {
   Z_POS = 5u,
 };
 
-enum eShadowProjectionType : uint32_t {
-  SHADOW_PROJECTION_CUBEFACE = 0u,
-  SHADOW_PROJECTION_CLIPMAP = 1u,
-  SHADOW_PROJECTION_CASCADE = 2u,
+enum [[host_shared]] eShadowProjectionType : uint32_t {
+  SHADOW_PROJECTION_CUBEFACE,
+  SHADOW_PROJECTION_CLIPMAP,
+  SHADOW_PROJECTION_CASCADE,
 };
 
 static inline int2 shadow_cascade_grid_offset(int2 base_offset, int level_relative)
@@ -76,7 +76,7 @@ struct [[host_shared]] ShadowTileMapData {
   /** Effective minimum resolution after update throttle. */
   int effective_lod_min;
   float _pad2;
-  /** Near and far clip distances for punctual. */
+  /** Near and far clip distances for punctual (positive). */
   float clip_near;
   float clip_far;
   /** Half of the tilemap size in world units. Used to compute window matrix. */
@@ -193,13 +193,16 @@ struct ShadowTileData {
 /** \note Stored packed as a uint. */
 #define ShadowTileDataPacked uint
 
-enum eShadowFlag : uint32_t {
+enum [[host_shared]] eShadowFlag : uint32_t {
   SHADOW_NO_DATA = 0u,
   SHADOW_IS_CACHED = (1u << 27u),
   SHADOW_IS_ALLOCATED = (1u << 28u),
   SHADOW_DO_UPDATE = (1u << 29u),
   SHADOW_IS_RENDERED = (1u << 30u),
-  SHADOW_IS_USED = (1u << 31u)
+  SHADOW_IS_USED = (1u << 31u),
+  /* Reuse the same flag for tagging update before LOD propagation.
+   * Assume usage tagging is done afterwards. */
+  SHADOW_TAG_UPDATE = (1u << 31u)
 };
 
 /* NOTE: Trust the input to be in valid range (max is [3,3,255]).
