@@ -91,7 +91,7 @@ class SocketSearchOp {
   NodeCompareMode mode = NODE_COMPARE_MODE_ELEMENT;
   void operator()(LinkSearchOpParams &params)
   {
-    bNode &node = params.add_node("FunctionNodeCompare");
+    bNode &node = params.add_node("FunctionNodeCompare"_ustr);
     node_storage(node).data_type = data_type;
     node_storage(node).operation = operation;
     node_storage(node).mode = mode;
@@ -221,12 +221,16 @@ static const mf::MultiFunction *get_multi_function(const bNode &node)
               exec_preset_first_two);
           return &fn;
         }
-        case NODE_COMPARE_NOT_EQUAL:
+        case NODE_COMPARE_NOT_EQUAL: {
           static auto fn = mf::build::SI3_SO<float, float, float, bool>(
               "Not Equal",
               [](float a, float b, float epsilon) { return std::abs(a - b) > epsilon; },
               exec_preset_first_two);
           return &fn;
+        }
+        case NODE_COMPARE_COLOR_BRIGHTER:
+        case NODE_COMPARE_COLOR_DARKER:
+          break;
       }
       break;
     case SOCK_INT:
@@ -261,6 +265,9 @@ static const mf::MultiFunction *get_multi_function(const bNode &node)
               "Not Equal", [](int a, int b) { return a != b; }, exec_preset_all);
           return &fn;
         }
+        case NODE_COMPARE_COLOR_BRIGHTER:
+        case NODE_COMPARE_COLOR_DARKER:
+          break;
       }
       break;
     case SOCK_VECTOR:
@@ -521,6 +528,9 @@ static const mf::MultiFunction *get_multi_function(const bNode &node)
             }
           }
           break;
+        case NODE_COMPARE_COLOR_BRIGHTER:
+        case NODE_COMPARE_COLOR_DARKER:
+          break;
       }
       break;
     case SOCK_RGBA:
@@ -563,6 +573,11 @@ static const mf::MultiFunction *get_multi_function(const bNode &node)
               exec_preset_all);
           return &fn;
         }
+        case NODE_COMPARE_LESS_THAN:
+        case NODE_COMPARE_LESS_EQUAL:
+        case NODE_COMPARE_GREATER_THAN:
+        case NODE_COMPARE_GREATER_EQUAL:
+          break;
       }
       break;
     case SOCK_STRING:
@@ -577,6 +592,13 @@ static const mf::MultiFunction *get_multi_function(const bNode &node)
               "Not Equal", [](std::string a, std::string b) { return a != b; });
           return &fn;
         }
+        case NODE_COMPARE_LESS_THAN:
+        case NODE_COMPARE_LESS_EQUAL:
+        case NODE_COMPARE_GREATER_THAN:
+        case NODE_COMPARE_GREATER_EQUAL:
+        case NODE_COMPARE_COLOR_BRIGHTER:
+        case NODE_COMPARE_COLOR_DARKER:
+          break;
       }
       break;
   }
@@ -713,7 +735,7 @@ static void node_rna(StructRNA *srna)
 static void node_register()
 {
   static bke::bNodeType ntype;
-  fn_node_type_base(&ntype, "FunctionNodeCompare", FN_NODE_COMPARE);
+  fn_node_type_base(&ntype, "FunctionNodeCompare"_ustr, FN_NODE_COMPARE);
   ntype.ui_name = "Compare";
   ntype.ui_description = "Perform a comparison operation on the two given inputs";
   ntype.enum_name_legacy = "COMPARE";

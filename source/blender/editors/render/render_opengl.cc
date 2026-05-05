@@ -272,7 +272,8 @@ static void screen_opengl_render_doit(OGLRender *oglrender, RenderResult *rr)
 
   if (oglrender->is_sequencer) {
     SpaceSeq *sseq = oglrender->sseq;
-    bGPdata *gpd = (sseq && (sseq->flag & SEQ_PREVIEW_SHOW_GPENCIL)) ? sseq->gpd : nullptr;
+    bGPdata *gpd = (sseq && (sseq->preview_overlay.flag & SEQ_PREVIEW_SHOW_GPENCIL)) ? sseq->gpd :
+                                                                                       nullptr;
 
     /* use pre-calculated ImBuf (avoids deadlock), see: */
     ImBuf *ibuf = oglrender->seq_data.ibufs_arr[oglrender->view_id];
@@ -533,9 +534,8 @@ static void gather_frames_to_render_for_adt(const OGLRender *oglrender, const An
     return;
   }
 
-  Scene *scene = oglrender->scene;
-  int frame_start = PSFRA;
-  int frame_end = PEFRA;
+  const int frame_start = oglrender->scene->playback_start();
+  const int frame_end = oglrender->scene->playback_end();
 
   for (const FCurve *fcu : animrig::fcurves_for_assigned_action(adt)) {
     if (fcu->driver != nullptr || fcu->fpt != nullptr) {
@@ -571,9 +571,8 @@ static void gather_frames_to_render_for_grease_pencil(const OGLRender *oglrender
     return;
   }
 
-  Scene *scene = oglrender->scene;
-  int frame_start = PSFRA;
-  int frame_end = PEFRA;
+  const int frame_start = oglrender->scene->playback_start();
+  const int frame_end = oglrender->scene->playback_end();
 
   for (const bGPDlayer &gp_layer : gp->layers) {
     for (const bGPDframe &gp_frame : gp_layer.frames) {
@@ -679,13 +678,11 @@ static int gather_frames_to_render_for_id(LibraryIDLinkCallbackData *cb_data)
  */
 static void gather_frames_to_render(bContext *C, OGLRender *oglrender)
 {
-  Scene *scene = oglrender->scene;
-  int frame_start = PSFRA;
-  int frame_end = PEFRA;
+  const ScenePlaybackRange playback_range = BKE_scene_get_playback_range(oglrender->scene);
 
   /* Will be freed in screen_opengl_render_end(). */
-  oglrender->render_frames = BLI_BITMAP_NEW(frame_end - frame_start + 1,
-                                            "OGLRender::render_frames");
+  oglrender->render_frames = BLI_BITMAP_NEW(
+      playback_range.end_frame - playback_range.start_frame + 1, "OGLRender::render_frames");
 
   /* The first frame should always be rendered, otherwise there is nothing to write to file. */
   BLI_BITMAP_ENABLE(oglrender->render_frames, 0);
@@ -1019,8 +1016,9 @@ static bool screen_opengl_render_anim_init(wmOperator *op)
 
   G.is_rendering = true;
   oglrender->cfrao = scene->r.cfra;
-  oglrender->nfra = PSFRA;
-  scene->r.cfra = PSFRA;
+  const int playback_start = scene->playback_start();
+  oglrender->nfra = playback_start;
+  scene->r.cfra = playback_start;
 
   return true;
 }
@@ -1229,7 +1227,7 @@ static bool screen_opengl_render_anim_step(OGLRender *oglrender)
   }
 
   if (oglrender->render_frames == nullptr ||
-      BLI_BITMAP_TEST_BOOL(oglrender->render_frames, scene->r.cfra - PSFRA))
+      BLI_BITMAP_TEST_BOOL(oglrender->render_frames, scene->r.cfra - scene->playback_start()))
   {
     /* render into offscreen buffer */
     screen_opengl_render_apply(oglrender);
@@ -1250,7 +1248,7 @@ finally: /* Step the frame and bail early if needed */
   oglrender->nfra += scene->r.frame_step;
 
   /* stop at the end or on error */
-  if (scene->r.cfra >= PEFRA || !ok) {
+  if (scene->r.cfra >= scene->playback_end() || !ok) {
     return false;
   }
 
@@ -1290,6 +1288,7 @@ static void opengl_render_startjob(void *customdata, wmJobWorkerStatus *worker_s
 
   bool canceled = false;
   bool finished = false;
+  const ScenePlaybackRange playback_range = BKE_scene_get_playback_range(scene);
 
   while (!finished && !canceled) {
     /* Render while blocking main thread, since we use 3D viewport resources. */
@@ -1300,7 +1299,8 @@ static void opengl_render_startjob(void *customdata, wmJobWorkerStatus *worker_s
     }
     else {
       finished = !screen_opengl_render_anim_step(oglrender);
-      worker_status->progress = float(scene->r.cfra - PSFRA + 1) / float(PEFRA - PSFRA + 1);
+      worker_status->progress = float(scene->r.cfra - playback_range.start_frame + 1) /
+                                float(playback_range.end_frame - playback_range.start_frame + 1);
       worker_status->do_update = true;
     }
 

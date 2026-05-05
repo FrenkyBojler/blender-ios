@@ -11,7 +11,7 @@
  */
 
 #include "draw_model_lib.glsl"
-#include "eevee_colorspace_lib.glsl"
+#include "eevee_colorspace_lib.bsl.hh"
 #include "eevee_light_eval_lib.glsl"
 #include "eevee_lightprobe_eval_lib.glsl"
 #include "eevee_nodetree_closures_lib.glsl"
@@ -59,10 +59,9 @@ void forward_lighting_eval(Thickness thickness, float3 &radiance, float3 &transm
     }
 #  endif
 
-    if ((cl_transmit.type == CLOSURE_BSDF_TRANSLUCENT_ID ||
-         cl_transmit.type == CLOSURE_BSDF_MICROFACET_GGX_REFRACTION_ID ||
-         cl_transmit.type == CLOSURE_BSSRDF_BURLEY_ID) &&
-        (thickness.value() != 0.0f))
+    if (cl_transmit.type == CLOSURE_BSDF_TRANSLUCENT_ID ||
+        cl_transmit.type == CLOSURE_BSDF_MICROFACET_GGX_REFRACTION_ID ||
+        cl_transmit.type == CLOSURE_BSSRDF_BURLEY_ID)
     {
       stack.cl[0] = closure_light_new(cl_transmit, V, thickness);
 
@@ -123,8 +122,8 @@ void forward_lighting_eval(Thickness thickness, float3 &radiance, float3 &transm
   float clamp_direct = uniform_buf.clamp.surface_direct;
   float clamp_indirect = uniform_buf.clamp.surface_indirect;
 
-  radiance_direct = colorspace_brightness_clamp_max(radiance_direct, clamp_direct);
-  radiance_indirect = colorspace_brightness_clamp_max(radiance_indirect, clamp_indirect);
+  radiance_direct = colorspace::brightness_clamp_max(radiance_direct, clamp_direct);
+  radiance_indirect = colorspace::brightness_clamp_max(radiance_indirect, clamp_indirect);
 
   radiance_direct *= uniform_buf.clamp.direct_scale;
   radiance_indirect *= uniform_buf.clamp.indirect_scale;

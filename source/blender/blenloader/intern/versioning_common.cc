@@ -81,7 +81,7 @@ ARegion *do_versions_add_region_if_not_found(ListBaseT<ARegion> *regionbase,
   }
 
   ARegion *new_region = BKE_area_region_new();
-  new_region->regiontype = region_type;
+  new_region->regiontype = eRegion_Type(region_type);
   BLI_insertlinkafter(regionbase, link_after_region, new_region);
   return new_region;
 }
@@ -102,7 +102,7 @@ ARegion *do_versions_ensure_region(ListBaseT<ARegion> *regionbase,
   }
 
   ARegion *new_region = BKE_area_region_new();
-  new_region->regiontype = region_type;
+  new_region->regiontype = eRegion_Type(region_type);
   BLI_insertlinkafter(regionbase, link_after_region, new_region);
   return new_region;
 }
@@ -246,7 +246,7 @@ StringRef legacy_socket_idname_to_socket_type(StringRef idname)
 
 bNode &version_node_add_empty(bNodeTree &ntree, const char *idname)
 {
-  bke::bNodeType *ntype = bke::node_type_find(idname);
+  bke::bNodeType *ntype = bke::node_type_find(UString(idname));
 
   bNode *node = MEM_new<bNode>(__func__);
   node->runtime = MEM_new<bke::bNodeRuntime>(__func__);
@@ -493,7 +493,7 @@ void version_socket_update_is_used(bNodeTree *ntree)
 ARegion *do_versions_add_region(int regiontype, const char * /*name*/)
 {
   ARegion *region = BKE_area_region_new();
-  region->regiontype = regiontype;
+  region->regiontype = eRegion_Type(regiontype);
   return region;
 }
 

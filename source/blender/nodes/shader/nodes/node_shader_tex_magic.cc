@@ -171,6 +171,13 @@ class MagicFunction : public mf::MultiFunction {
       });
     }
   }
+
+  void hash_unique(UniqueHashBytes &hash) const override
+  {
+    static constexpr int8_t id = 0;
+    hash.add(&id);
+    hash.add(depth_);
+  }
 };
 
 static void sh_node_magic_tex_build_multi_function(NodeMultiFunctionBuilder &builder)
@@ -188,7 +195,7 @@ void register_node_type_sh_tex_magic()
 
   static bke::bNodeType ntype;
 
-  common_node_type_base(&ntype, "ShaderNodeTexMagic", SH_NODE_TEX_MAGIC);
+  common_node_type_base(&ntype, "ShaderNodeTexMagic"_ustr, SH_NODE_TEX_MAGIC);
   ntype.ui_name = "Magic Texture";
   ntype.ui_description = "Generate a psychedelic color texture";
   ntype.enum_name_legacy = "TEX_MAGIC";

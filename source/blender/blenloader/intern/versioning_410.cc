@@ -699,7 +699,7 @@ static void change_input_socket_to_rotation_type(bNodeTree &ntree,
       /* Make versioning idempotent. */
       continue;
     }
-    bNode *convert = bke::node_add_node(nullptr, ntree, "FunctionNodeEulerToRotation");
+    bNode *convert = bke::node_add_node(nullptr, ntree, "FunctionNodeEulerToRotation"_ustr);
     convert->parent = node.parent;
     convert->locx_legacy = node.locx_legacy - 40;
     convert->locy_legacy = node.locy_legacy;
@@ -728,7 +728,7 @@ static void change_output_socket_to_rotation_type(bNodeTree &ntree,
     { /* Make versioning idempotent. */
       continue;
     }
-    bNode *convert = bke::node_add_node(nullptr, ntree, "FunctionNodeRotationToEuler");
+    bNode *convert = bke::node_add_node(nullptr, ntree, "FunctionNodeRotationToEuler"_ustr);
     convert->parent = node.parent;
     convert->locx_legacy = node.locx_legacy + 40;
     convert->locy_legacy = node.locy_legacy;
@@ -780,7 +780,7 @@ static void fix_geometry_nodes_object_info_scale(bNodeTree &ntree)
     if (links.is_empty()) {
       continue;
     }
-    bNode *absolute_value = bke::node_add_node(nullptr, ntree, "ShaderNodeVectorMath");
+    bNode *absolute_value = bke::node_add_node(nullptr, ntree, "ShaderNodeVectorMath"_ustr);
     absolute_value->custom1 = NODE_VECTOR_MATH_ABSOLUTE;
     absolute_value->parent = node.parent;
     absolute_value->locx_legacy = node.locx_legacy + 100;
@@ -943,10 +943,10 @@ void blo_do_versions_410(FileData *fd, Library * /*lib*/, Main *bmain)
     if (!DNA_struct_member_exists(fd->filesdna, "Material", "char", "displacement_method")) {
       /* Replace Cycles.displacement_method by Material::displacement_method. */
       for (Material &material : bmain->materials) {
-        int displacement_method = MA_DISPLACEMENT_BUMP;
+        eMaterial_DisplacementMethod displacement_method = MA_DISPLACEMENT_BUMP;
         if (IDProperty *cmat = version_cycles_properties_from_ID(&material.id)) {
-          displacement_method = version_cycles_property_int(
-              cmat, "displacement_method", MA_DISPLACEMENT_BUMP);
+          displacement_method = eMaterial_DisplacementMethod(
+              version_cycles_property_int(cmat, "displacement_method", MA_DISPLACEMENT_BUMP));
         }
         material.displacement_method = displacement_method;
       }
@@ -1165,7 +1165,9 @@ void blo_do_versions_410(FileData *fd, Library * /*lib*/, Main *bmain)
     for (Brush &brush : bmain->brushes) {
       /* The `sculpt_flag` was used to store the `BRUSH_DIR_IN`
        * With the fix for #115313 this is now just using the `brush->flag`. */
-      if (brush.gpencil_settings && (brush.gpencil_settings->sculpt_flag & BRUSH_DIR_IN) != 0) {
+      if (brush.gpencil_settings &&
+          (brush.gpencil_settings->sculpt_flag & eGP_Sculpt_Flag(BRUSH_DIR_IN)) != 0)
+      {
         brush.flag |= BRUSH_DIR_IN;
       }
     }

@@ -189,6 +189,13 @@ class GaborNoiseFunction : public mf::MultiFunction {
     }
   }
 
+  void hash_unique(UniqueHashBytes &hash) const override
+  {
+    static constexpr int8_t id = 0;
+    hash.add(&id);
+    hash.add(type_);
+  }
+
   ExecutionHints get_execution_hints() const override
   {
     ExecutionHints hints;
@@ -212,7 +219,7 @@ void register_node_type_sh_tex_gabor()
 
   static bke::bNodeType ntype;
 
-  common_node_type_base(&ntype, "ShaderNodeTexGabor", SH_NODE_TEX_GABOR);
+  common_node_type_base(&ntype, "ShaderNodeTexGabor"_ustr, SH_NODE_TEX_GABOR);
   ntype.ui_name = "Gabor Texture";
   ntype.ui_description = "Generate Gabor noise";
   ntype.enum_name_legacy = "TEX_GABOR";

@@ -67,6 +67,20 @@
 
 namespace blender {
 
+enum class UVDelimitMode : int {
+  Seam = 1 << 0,
+  Sharp = 1 << 1,
+  Material = 1 << 2,
+};
+ENUM_OPERATORS(UVDelimitMode)
+
+static const EnumPropertyItem uv_delimit_mode_items[] = {
+    {int(UVDelimitMode::Seam), "SEAM", 0, "Seam", "Delimit by edge seams"},
+    {int(UVDelimitMode::Sharp), "SHARP", 0, "Sharp", "Delimit by sharp edges"},
+    {int(UVDelimitMode::Material), "MATERIAL", 0, "Material", "Delimit by face material"},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
 static void uv_select_all_perform_multi_ex(const Scene *scene,
                                            Span<Object *> objects,
                                            int action,
@@ -2526,6 +2540,53 @@ static int uv_select_edgering(Scene *scene, Object *obedit, UvNearestHit *hit, c
 /** \name Select Linked
  * \{ */
 
+/**
+ * Check if the face linked through `l_vert_step` should be blocked by the delimit mode.
+ *
+ * \param f_src: The current face (source of the flood-fill step).
+ * \param l_vert_step: A loop of `f_src`; the candidate face is linked through `l_vert_step->v`.
+ * \param f_dst: The candidate face to propagate into.
+ * \param delimit_mode: Active delimiter flags.
+ * \return true if propagation should be limited.
+ */
+static bool uv_select_linked_delimit_check(const BMFace *f_src,
+                                           const BMLoop *l_vert_step,
+                                           const BMFace *f_dst,
+                                           const UVDelimitMode delimit_mode)
+{
+  /* Material is a face property, check independently of edges. */
+  if (bool(delimit_mode & UVDelimitMode::Material) && f_src->mat_nr != f_dst->mat_nr) {
+    return true;
+  }
+
+  /* Check edge-based delimiters on the two edges of `f_src` incident on `l_vert_step->v`.
+   * These are the only edges that can be shared with `f_dst`
+   * since the faces are linked through this vertex. */
+  constexpr UVDelimitMode edge_delimit = UVDelimitMode::Seam | UVDelimitMode::Sharp;
+  if (bool(delimit_mode & edge_delimit)) {
+    const BMEdge *edges[] = {l_vert_step->e, l_vert_step->prev->e};
+    bool has_valid_edge = false;
+    for (const BMEdge *e : edges) {
+      if (!BM_edge_in_face(e, f_dst)) {
+        continue;
+      }
+      if (bool(delimit_mode & UVDelimitMode::Seam) && BM_elem_flag_test(e, BM_ELEM_SEAM)) {
+        continue;
+      }
+      if (bool(delimit_mode & UVDelimitMode::Sharp) && !BM_elem_flag_test(e, BM_ELEM_SMOOTH)) {
+        continue;
+      }
+      has_valid_edge = true;
+      break;
+    }
+    if (!has_valid_edge) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 static void uv_select_linked_multi(const Scene *scene,
                                    const Span<Object *> objects,
                                    UvNearestHit *hit,
@@ -2533,6 +2594,7 @@ static void uv_select_linked_multi(const Scene *scene,
                                    bool deselect,
                                    const bool toggle,
                                    const bool select_faces,
+                                   const UVDelimitMode delimit_mode,
                                    const char hflag)
 {
   if (select_faces) {
@@ -2693,6 +2755,12 @@ static void uv_select_linked_multi(const Scene *scene,
             break;
           }
           if (!flag[iterv->face_index]) {
+            if (delimit_mode != UVDelimitMode(0)) {
+              BMFace *iterv_f = BM_face_at_index(bm, iterv->face_index);
+              if (uv_select_linked_delimit_check(efa, l, iterv_f, delimit_mode)) {
+                continue;
+              }
+            }
             flag[iterv->face_index] = 1;
             stack[stacksize] = iterv->face_index;
             stacksize++;
@@ -3761,7 +3829,7 @@ static bool uv_mouse_select_multi(bContext *C,
       /* Current behavior of 'extend'
        * is actually toggling, so pass extend flag as 'toggle' here */
       uv_select_linked_multi(
-          scene, objects, &hit, extend, deselect, toggle, false, BM_ELEM_SELECT);
+          scene, objects, &hit, extend, deselect, toggle, false, UVDelimitMode(0), BM_ELEM_SELECT);
       /* TODO: check if this actually changed. */
       changed = true;
     }
@@ -4201,6 +4269,7 @@ static wmOperatorStatus uv_select_linked_internal(bContext *C,
     extend = RNA_boolean_get(op->ptr, "extend");
     deselect = RNA_boolean_get(op->ptr, "deselect");
   }
+  const UVDelimitMode delimit_mode = UVDelimitMode(RNA_enum_get(op->ptr, "delimit"));
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
       *bmain, scene, view_layer, nullptr);
@@ -4234,6 +4303,7 @@ static wmOperatorStatus uv_select_linked_internal(bContext *C,
                          deselect,
                          false,
                          select_faces,
+                         delimit_mode,
                          BM_ELEM_SELECT);
 
   if (pick) {
@@ -4268,6 +4338,14 @@ void UV_OT_select_linked(wmOperatorType *ot)
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  /* properties */
+  RNA_def_enum_flag(ot->srna,
+                    "delimit",
+                    uv_delimit_mode_items,
+                    0,
+                    "Delimit",
+                    "Delimit selection when selecting linked UVs");
 }
 
 /** \} */
@@ -4317,6 +4395,12 @@ void UV_OT_select_linked_pick(wmOperatorType *ot)
                          "Deselect",
                          "Deselect linked UV vertices rather than selecting them");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+  RNA_def_enum_flag(ot->srna,
+                    "delimit",
+                    uv_delimit_mode_items,
+                    0,
+                    "Delimit",
+                    "Delimit selection when selecting linked UVs");
   prop = RNA_def_float_vector(
       ot->srna,
       "location",
@@ -6097,6 +6181,98 @@ void UV_OT_select_overlap(wmOperatorType *ot)
                   "Extend selection rather than clearing the existing selection");
 }
 
+enum class UVWinding {
+  Positive = 0,
+  Negative = 1,
+};
+
+static wmOperatorStatus uv_select_by_winding_exec(bContext *C, wmOperator *op)
+{
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  const Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
+  const ToolSettings *ts = scene->toolsettings;
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  const bool extend = RNA_boolean_get(op->ptr, "extend");
+  const int winding = RNA_enum_get(op->ptr, "winding");
+  const float winding_sign = winding == int(UVWinding::Positive) ? -1.0f : 1.0f;
+
+  Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
+      *bmain, scene, view_layer, nullptr);
+
+  if (!extend) {
+    uv_select_all_perform_multi(scene, objects, SEL_DESELECT);
+  }
+
+  for (Object *obedit : objects) {
+    BMesh *bm = BKE_editmesh_from_object(obedit)->bm;
+    const BMUVOffsets offsets = BM_uv_map_offsets_get(bm);
+
+    BM_mesh_elem_hflag_disable_all(bm, BM_FACE, BM_ELEM_TAG, false);
+
+    bool changed = false;
+    BMFace *efa;
+    BMIter iter;
+    BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
+      if (!uvedit_face_visible_test(scene, efa)) {
+        continue;
+      }
+      const float area = BM_face_calc_area_uv_signed(efa, offsets.uv);
+      if (area * winding_sign > 0.0f) {
+        BM_elem_flag_enable(efa, BM_ELEM_TAG);
+        changed = true;
+      }
+    }
+
+    if (changed) {
+      uv_select_flush_from_tag_face(scene, obedit, true);
+
+      if (ts->uv_flag & UV_FLAG_SELECT_SYNC) {
+        ED_uvedit_select_sync_flush(ts, bm, true);
+      }
+      else {
+        ED_uvedit_selectmode_flush(scene, bm);
+      }
+
+      uv_select_tag_update_for_object(depsgraph, ts, obedit);
+    }
+  }
+
+  return OPERATOR_FINISHED;
+}
+
+void UV_OT_select_by_winding(wmOperatorType *ot)
+{
+  static const EnumPropertyItem prop_winding_types[] = {
+      {int(UVWinding::Positive), "POSITIVE", 0, "Positive", ""},
+      {int(UVWinding::Negative), "NEGATIVE", 0, "Negative", ""},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  /* identifiers */
+  ot->name = "Select by Winding";
+  ot->description = "Select UV faces by their winding";
+  ot->idname = "UV_OT_select_by_winding";
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  /* API callbacks. */
+  ot->exec = uv_select_by_winding_exec;
+  ot->poll = ED_operator_uvedit;
+
+  /* properties */
+  RNA_def_enum(ot->srna,
+               "winding",
+               prop_winding_types,
+               int(UVWinding::Negative),
+               "Winding",
+               "Select faces with positive or negative winding");
+  RNA_def_boolean(ot->srna,
+                  "extend",
+                  false,
+                  "Extend",
+                  "Extend selection rather than clearing the existing selection");
+}
+
 /** \} */
 /** \name Select Similar Operator
  * \{ */
@@ -7199,7 +7375,7 @@ static wmOperatorStatus uv_select_mode_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
   ToolSettings *ts = scene->toolsettings;
-  const char new_uv_selectmode = RNA_enum_get(op->ptr, "type");
+  const eTool_UvSelectMode new_uv_selectmode = eTool_UvSelectMode(RNA_enum_get(op->ptr, "type"));
 
   /* Early exit if no change in current selection mode */
   if (new_uv_selectmode == ts->uv_selectmode) {

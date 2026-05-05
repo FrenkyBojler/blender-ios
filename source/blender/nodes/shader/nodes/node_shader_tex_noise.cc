@@ -447,6 +447,15 @@ class NoiseFunction : public mf::MultiFunction {
     hints.min_grain_size = 100;
     return hints;
   }
+
+  void hash_unique(UniqueHashBytes &hash) const override
+  {
+    static constexpr int8_t id = 0;
+    hash.add(&id);
+    hash.add(dimensions_);
+    hash.add(type_);
+    hash.add(normalize_);
+  }
 };
 
 static void sh_node_noise_build_multi_function(NodeMultiFunctionBuilder &builder)
@@ -485,7 +494,7 @@ void register_node_type_sh_tex_noise()
 
   static bke::bNodeType ntype;
 
-  common_node_type_base(&ntype, "ShaderNodeTexNoise", SH_NODE_TEX_NOISE);
+  common_node_type_base(&ntype, "ShaderNodeTexNoise"_ustr, SH_NODE_TEX_NOISE);
   ntype.ui_name = "Noise Texture";
   ntype.ui_description = "Generate fractal Perlin noise";
   ntype.enum_name_legacy = "TEX_NOISE";
