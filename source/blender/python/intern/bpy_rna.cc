@@ -3206,7 +3206,7 @@ static int prop_subscript_ass_array_slice(PointerRNA *ptr,
                                           int start,
                                           int step,
                                           int slice_length,
-                                          int length,
+                                          int array_length,
                                           PyObject *value_orig)
 {
   /* For `step == 1` the targeted chunks are contiguous in memory,
@@ -3246,7 +3246,7 @@ static int prop_subscript_ass_array_slice(PointerRNA *ptr,
   int dimsize[3];
   const int totdim = RNA_property_array_dimension(ptr, prop, dimsize);
   if (totdim > 1) {
-    BLI_assert(dimsize[arraydim] == length);
+    BLI_assert(dimsize[arraydim] == array_length);
   }
 
   int span = 1;
@@ -3264,11 +3264,11 @@ static int prop_subscript_ass_array_slice(PointerRNA *ptr,
    * The pre-read is only safe to skip when every position in the backing
    * array is overwritten by the loop below, which requires:
    * - `slice_length == length`: the slice covers every index of this dimension
-   *   (only possible when step is +1 or -1, since |step| > 1 strictly reduces `slice_length`),
-   * - `arraydim == 0` and `arrayoffset == 0`: this is the top of the backing array, not a
-   *   sub-array view (in which case the surrounding positions belong to other dimensions).
+   *   (only possible when step is +1 or -1).
+   * - `arraydim == 0` and `arrayoffset == 0`: this is the top of the backing array,
+   *   not a sub-array view (in which case the surrounding positions belong to other dimensions).
    */
-  const bool is_subset = (slice_length != length) || (arrayoffset != 0) || (arraydim != 0);
+  const bool is_subset = (slice_length != array_length) || (arrayoffset != 0) || (arraydim != 0);
 
   PyObject **value_items = PySequence_Fast_ITEMS(value);
   switch (RNA_property_type(prop)) {
