@@ -1310,9 +1310,7 @@ static void motion_paths_recalc(bContext *C,
 
   /* Tag objects for copy-on-eval - so paths will draw/redraw
    * For currently frame only we update evaluated object directly. */
-  for (LinkData &link : *ld_objects) {
-    Object *ob = static_cast<Object *>(link.data);
-
+  for (Object *ob : objects) {
     if (has_object_motion_paths(ob) || has_pose_motion_paths(ob)) {
       DEG_id_tag_update(&ob->id, ID_RECALC_SYNC_TO_EVAL);
     }
@@ -1320,28 +1318,6 @@ static void motion_paths_recalc(bContext *C,
 
   /* Free temporary depsgraph. */
   DEG_graph_free(depsgraph);
-}
-
-void motion_paths_recalc_selected(bContext *C, Scene *scene, const eAnimvizCalcRange range)
-{
-  Vector<Object *> selected_objects;
-  CTX_DATA_BEGIN (C, Object *, ob, selected_editable_objects) {
-    selected_objects.append(ob);
-  }
-  CTX_DATA_END;
-
-  motion_paths_recalc(C, scene, range, selected_objects);
-}
-
-void motion_paths_recalc_visible(bContext *C, Scene *scene, const eAnimvizCalcRange range)
-{
-  Vector<Object *> visible_objects;
-  CTX_DATA_BEGIN (C, Object *, ob, visible_objects) {
-    visible_objects.append(ob);
-  }
-  CTX_DATA_END;
-
-  motion_paths_recalc(C, scene, range, visible_objects);
 }
 
 void motion_paths_recalc_selected(bContext *C, Scene *scene, const eAnimvizCalcRange range)
