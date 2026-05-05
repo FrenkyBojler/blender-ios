@@ -236,11 +236,12 @@ static bool data_blocks_are_equal(const ID *a, const ID *b)
 static const mf::MultiFunction *get_multi_function(const bNode &node)
 {
   const NodeFunctionCompare *data = (NodeFunctionCompare *)node.storage;
+  const eNodeSocketDatatype data_type = eNodeSocketDatatype(data->data_type);
 
   static auto exec_preset_all = mf::build::exec_presets::AllSpanOrSingle();
   static auto exec_preset_first_two = mf::build::exec_presets::SomeSpanOrSingle<0, 1>();
 
-  switch (data->data_type) {
+  switch (data_type) {
     case SOCK_FLOAT:
       switch (data->operation) {
         case NODE_COMPARE_LESS_THAN: {
@@ -651,27 +652,32 @@ static const mf::MultiFunction *get_multi_function(const bNode &node)
       }
       break;
     default: {
-      if (is_supported_data_block_type(eNodeSocketDatatype(data->operation))) {
-        return to_static_data_block(
-            eNodeSocketDatatype(data->data_type), [&]<typename T>() -> const mf::MultiFunction * {
-              switch (data->operation) {
-                case NODE_COMPARE_EQUAL: {
-                  static auto fn = mf::build::SI2_SO<T, T, bool>("Equal", [](T a, T b) {
+      if (is_supported_data_block_type(data_type)) {
+        return to_static_data_block(data_type, [&]<typename T>() -> const mf::MultiFunction * {
+          switch (data->operation) {
+            case NODE_COMPARE_EQUAL: {
+              static auto fn = mf::build::SI2_SO<T, T, bool>(
+                  "Equal",
+                  [](T a, T b) {
                     return data_blocks_are_equal(id_cast<const ID *>(a), id_cast<const ID *>(b));
-                  });
-                  return &fn;
-                }
-                case NODE_COMPARE_NOT_EQUAL: {
-                  static auto fn = mf::build::SI2_SO<T, T, bool>("Not Equal", [](T a, T b) {
+                  },
+                  mf::build::exec_presets::Simple{});
+              return &fn;
+            }
+            case NODE_COMPARE_NOT_EQUAL: {
+              static auto fn = mf::build::SI2_SO<T, T, bool>(
+                  "Not Equal",
+                  [](T a, T b) {
                     return !data_blocks_are_equal(id_cast<const ID *>(a), id_cast<const ID *>(b));
-                  });
-                  return &fn;
-                }
-                default: {
-                  return nullptr;
-                }
-              }
-            });
+                  },
+                  mf::build::exec_presets::Simple{});
+              return &fn;
+            }
+            default: {
+              return nullptr;
+            }
+          }
+        });
       }
     }
   }
@@ -697,8 +703,8 @@ static void data_type_update(Main *bmain, Scene *scene, PointerRNA *ptr)
   {
     node_storage->operation = NODE_COMPARE_EQUAL;
   }
-  else if (node_storage->data_type == SOCK_STRING &&
-           is_supported_data_block_type(eNodeSocketDatatype(node_storage->data_type)) &&
+  else if ((node_storage->data_type == SOCK_STRING ||
+            is_supported_data_block_type(eNodeSocketDatatype(node_storage->data_type))) &&
            !ELEM(node_storage->operation, NODE_COMPARE_EQUAL, NODE_COMPARE_NOT_EQUAL))
   {
     node_storage->operation = NODE_COMPARE_EQUAL;
