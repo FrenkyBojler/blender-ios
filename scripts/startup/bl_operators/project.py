@@ -5,8 +5,7 @@
 import os
 from pathlib import Path
 import logging
-
-from attrs import define
+from dataclasses import dataclass
 
 import bpy
 from bpy.types import Operator
@@ -22,7 +21,7 @@ PROJECT_CONFIG = "project.toml"
 # -------------------------------------------------------------
 # Types that define the schema for reading/writing project config TOML files.
 
-@define
+@dataclass
 class ProjectConfig:
     name: str
 
