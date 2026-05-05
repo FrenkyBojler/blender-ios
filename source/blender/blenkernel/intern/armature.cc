@@ -175,8 +175,7 @@ static void armature_copy_data(Main * /*bmain*/,
 
   /* Build the flat bone array. Start with the same generation counter as the Armature we're
    * copying from: since this is an exact duplicate, bone indices should remain valid and thus pose
-   * objects won't need to adjust.
-   */
+   * objects won't need to adjust. */
   rebuild_bone_array(*armature_dst);
   armature_dst->runtime->bones_generation_count = armature_src->runtime->bones_generation_count;
 
@@ -3015,9 +3014,8 @@ void BKE_pose_ensure_bone_indices(const Object &pose_ob)
 
   const uint64_t armature_generation_count = armature->runtime->bones_generation_count;
   const uint64_t object_generation_count = pose_ob.runtime->pose_bones_generation_count;
-  /* TODO(Sybren): make this not look into the Armature runtime data. Instead, have a function that
-   * can be queried, like BKE_armature_runtime_bones_needs_rebuild(object_generation_count). */
-  if (armature_generation_count != object_generation_count || armature->runtime->bones.is_empty())
+  if (armature_generation_count != object_generation_count ||
+      !armature->runtime->is_bones_array_valid())
   {
     rebuild_pose_bone_indices(pose_ob);
   }
@@ -3428,10 +3426,9 @@ bool BoneCollection::is_expanded() const
 static void rebuild_bone_array(bArmature &armature)
 {
   bke::bArmature_Runtime &runtime = *armature.runtime;
-  std::scoped_lock lock{runtime.bones_mutex};
 
   /* Re-check the reason this function was called, now that the lock has been obtained. */
-  if (!runtime.bones.is_empty()) {
+  if (runtime.is_bones_array_valid()) {
     return;
   }
 
@@ -3449,6 +3446,16 @@ static void rebuild_bone_array(bArmature &armature)
   runtime.bones_generation_count++;
 }
 
+void bke::bArmature_Runtime::bones_tag_rebuild()
+{
+  this->bones.clear_without_destruct();
+}
+
+bool bke::bArmature_Runtime::is_bones_array_valid() const
+{
+  return !this->bones.is_empty();
+}
+
 const Bone *bArmature::bone_get_indexed(const int64_t bone_index) const
 {
   /* The logic 'if runtime->bones is empty, the array needs rebuilding' is only valid when calling
@@ -3458,7 +3465,7 @@ const Bone *bArmature::bone_get_indexed(const int64_t bone_index) const
     return nullptr;
   }
 
-  if (this->runtime->bones.is_empty()) {
+  if (!this->runtime->is_bones_array_valid()) {
     /* const_cast: allow the function to write to the runtime data. */
     rebuild_bone_array(const_cast<bArmature &>(*this));
   }

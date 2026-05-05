@@ -488,7 +488,7 @@ TEST_F(ArmatureBoneIndexTest, armature_init_data)
 
   EXPECT_EQ(bone_child1, armature->bone_get_indexed(1));
 
-  armature->runtime->bones.clear_without_destruct();
+  armature->runtime->bones_tag_rebuild();
   EXPECT_EQ(bone_child2, armature->bone_get_indexed(2));
   EXPECT_EQ(3, armature->runtime->bones.size())
       << "After clearing the bone array, calling bone_get_index() should rebuild it.";
@@ -600,7 +600,7 @@ TEST_F(PoseBoneIndexTest, pose_rebuild_test)
   BLI_remlink(&bone_root->childbase, bone_child2);
   MEM_delete(bone_child2);
   bone_child2 = nullptr;
-  armature->runtime->bones.clear_without_destruct();
+  armature->runtime->bones_tag_rebuild();
 
   EXPECT_EQ(bone_root, pchan_root->bone_get(*object));
   EXPECT_EQ(bone_child1, pchan_child1->bone_get(*object));

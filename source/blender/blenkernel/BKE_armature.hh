@@ -283,8 +283,8 @@ void BKE_pose_ensure(Main *bmain, Object *ob, bArmature *arm, bool do_id_user);
  * This is only necessary when calling `pchan->bone_get(armature)`, as that cannot verify the
  * up-to-dateness of the pose bone indices.
  *
- * When calling `pchan->bone_get(armature)` the check is performed automatically. However, calling
- * that in a hot loop will cost some performance, and passing the armature is preferred.
+ * When calling `pchan->bone_get(object)` the check is performed automatically. However, calling
+ * that in a hot loop will cost some performance; passing the armature is preferred in that case.
  *
  * This takes a const Object, because it does not modify anything except its pose channels' runtime
  * field `bone_index`. There is no conceptual change to the object, it's just the bone lookup info
@@ -745,7 +745,25 @@ struct bArmature_Runtime {
    */
   Array<Bone *> bones;
   uint64_t bones_generation_count = 0;
+  /**
+   * Mutex to protect the `bones` and `bones_generation_count` fields.
+   *
+   * This is used when regenerating the bones array, to ensure only a single thread does this. Read
+   * access to the bones array is not protected. So far this has worked well; it's not guaranteed
+   * that there won't be a race condition, though. */
   Mutex bones_mutex;
+
+  /** Clear the `bones` array, ensuring it is rebuilt on its next use. */
+  void bones_tag_rebuild();
+
+  /**
+   * Return whether the `bones` array has bones (true), or whether it needs rebuilding (false).
+   *
+   * Note that this returns 'invalid' when the Armature has no bones. This is because the bones
+   * array is only used to obtain a bone pointer by index, which means it's only valid to be used
+   * when there actually are bones.
+   */
+  bool is_bones_array_valid() const;
 };
 
 struct SelectedBonesResult {

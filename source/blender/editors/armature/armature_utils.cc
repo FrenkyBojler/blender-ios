@@ -666,7 +666,7 @@ void ED_armature_from_edit(Main *bmain, bArmature *arm)
   /* armature bones */
   BKE_armature_bone_hash_free(arm);
   BKE_armature_bonelist_free(&arm->bonebase, true);
-  arm->runtime->bones.clear_without_destruct();
+  arm->runtime->bones_tag_rebuild();
 
   arm->act_bone = nullptr;
 
