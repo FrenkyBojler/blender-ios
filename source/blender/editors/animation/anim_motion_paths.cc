@@ -603,31 +603,6 @@ struct TargetEvalResult {
   }
 };
 
-static bool rna_path_is_for_bone(const StringRefNull path, const bPoseChannel &pose_bone)
-{
-  if (!path.startswith("pose.bones[")) {
-    return false;
-  }
-  char name_esc[sizeof(pose_bone.name) * 2];
-  BLI_str_escape(name_esc, pose_bone.name, sizeof(name_esc));
-  const std::string bone_path = fmt::format("pose.bones[\"{}\"]", name_esc);
-  return path.startswith(bone_path);
-}
-
-static void build_keylist_for_target(MPathTarget &target, AnimKeylist &keylist)
-{
-  /* For object level motion paths this is a nullptr in which case the filtering is ignored. */
-  bPoseChannel *pose_bone = target.pchan;
-  for (FCurve *fcu : animrig::fcurves_for_assigned_action(target.ob->adt)) {
-    if (pose_bone && !rna_path_is_for_bone(fcu->rna_path, *pose_bone)) {
-      continue;
-    }
-    /* When only updating a subset of the motion path we could pass a range here to improve
-     * performance. */
-    fcurve_to_keylist(target.ob->adt, fcu, &keylist, 0, {-FLT_MAX, FLT_MAX}, true);
-  }
-}
-
 struct MotionPathEvalData {
   Depsgraph *depsgraph;
   /* Defines a frame from which to start evaluating the motion path. This is to first evaluate the
