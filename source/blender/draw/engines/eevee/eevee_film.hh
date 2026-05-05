@@ -101,6 +101,7 @@ class Film {
   PassSimple cryptomatte_post_ps_ = {"Film.Cryptomatte.Post"};
 
   FilmData &data_;
+  bool32_t display_only_;
   int2 display_extent = int2(-1);
 
   eViewLayerEEVEEPassType enabled_passes_ = eViewLayerEEVEEPassType(0);
