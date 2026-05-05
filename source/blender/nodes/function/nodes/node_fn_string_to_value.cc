@@ -2,7 +2,10 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BLI_math_color.h"
 #include "BLI_string_utf8.h"
+
+#include "IMB_colormanagement.hh"
 
 #include "fast_float.h"
 
@@ -46,11 +49,27 @@ static const mf::MultiFunction *get_multi_function(const bNode &bnode)
         length = BLI_strnlen_utf8(s.data(), result.ptr - s.data());
       });
 
+  static auto str_to_color_fn = mf::build::SI1_SO2<std::string, ColorGeometry4f, int>(
+      "String to Value", [](const std::string &s, ColorGeometry4f &color, int &length) -> void {
+        float rgba[4] = {0.0f, 0.0f, 0.0f, 1.0f};
+        if (hex_to_rgba(s.c_str(), &rgba[0], &rgba[1], &rgba[2], &rgba[3])) {
+          IMB_colormanagement_srgb_to_scene_linear_v3(rgba, rgba);
+          color = ColorGeometry4f(rgba[0], rgba[1], rgba[2], rgba[3]);
+          length = int(BLI_strnlen_utf8(s.data(), s.size()));
+        }
+        else {
+          color = ColorGeometry4f(0.0f, 0.0f, 0.0f, 0.0f);
+          length = 0;
+        }
+      });
+
   switch (eNodeSocketDatatype(bnode.custom1)) {
     case SOCK_FLOAT:
       return &str_to_float_fn;
     case SOCK_INT:
       return &str_to_int_fn;
+    case SOCK_RGBA:
+      return &str_to_color_fn;
     default:
       BLI_assert_unreachable();
       return nullptr;
@@ -87,6 +106,13 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
         params.update_and_connect_available_socket(node, "Value"_ustr);
       });
     }
+    else if (socket_type == SOCK_RGBA) {
+      params.add_item(IFACE_("Value"), [](LinkSearchOpParams &params) {
+        bNode &node = params.add_node("FunctionNodeStringToValue"_ustr);
+        node.custom1 = SOCK_RGBA;
+        params.update_and_connect_available_socket(node, "Value"_ustr);
+      });
+    }
     else if (params.node_tree().typeinfo->validate_link(SOCK_FLOAT, socket_type)) {
       params.add_item(IFACE_("Value"), [](LinkSearchOpParams &params) {
         bNode &node = params.add_node("FunctionNodeStringToValue"_ustr);
@@ -114,6 +140,7 @@ static void node_rna(StructRNA *srna)
   static const EnumPropertyItem data_types[] = {
       {SOCK_FLOAT, "FLOAT", ICON_NODE_SOCKET_FLOAT, "Float", "Floating-point value"},
       {SOCK_INT, "INT", ICON_NODE_SOCKET_INT, "Integer", "32-bit integer"},
+      {SOCK_RGBA, "RGBA", ICON_NODE_SOCKET_RGBA, "Color", "RGBA color from a hex string"},
       {0, nullptr, 0, nullptr, nullptr}};
 
   RNA_def_node_enum(srna,
