@@ -79,8 +79,6 @@ Depsgraph *animviz_depsgraph_build(Main *bmain,
   /* Build graph from all requested IDs. */
   DEG_graph_build_from_ids(depsgraph, ids);
 
-  /* Update once so we can access pointers of evaluated animation data. */
-  BKE_scene_graph_update_for_newframe(depsgraph);
   return depsgraph;
 }
 
@@ -498,7 +496,7 @@ void animviz_calc_motionpaths(Depsgraph *depsgraph,
 
   for (int frame = frame_range.min; frame < frame_range.max; frame++) {
     /* Update relevant data for new frame. */
-    DEG_evaluate_on_framechange(depsgraph, frame, DEG_EVALUATE_SYNC_WRITEBACK_NO);
+    DEG_evaluate_on_framechange(depsgraph, frame);
 
     /* Perform baking for targets. */
     motionpaths_calc_bake_targets(targets, frame, depsgraph, scene->camera);
