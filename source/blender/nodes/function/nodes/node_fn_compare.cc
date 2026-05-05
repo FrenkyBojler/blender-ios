@@ -17,10 +17,19 @@
 
 #include "RNA_enum_types.hh"
 
+#include "DEG_depsgraph_query.hh"
+
 #include "node_function_util.hh"
 
 #include "NOD_rna_define.hh"
 #include "NOD_socket_search_link.hh"
+
+#include "DNA_collection_types.h"
+#include "DNA_image_types.h"
+#include "DNA_material_types.h"
+#include "DNA_object_types.h"
+#include "DNA_sound_types.h"
+#include "DNA_vfont_types.h"
 
 namespace blender::nodes::node_fn_compare_cc {
 
@@ -39,13 +48,15 @@ static void node_declare(NodeDeclarationBuilder &b)
 
     const bool type_is_float = ELEM(data_type, SOCK_FLOAT, SOCK_VECTOR, SOCK_RGBA);
     const bool is_vector = data_type == SOCK_VECTOR;
+    const bool is_data_block = ELEM(
+        data_type, SOCK_OBJECT, SOCK_IMAGE, SOCK_COLLECTION, SOCK_FONT, SOCK_SOUND);
 
     auto &a_input =
         b.add_input(data_type, "A"_ustr).translation_context(BLT_I18NCONTEXT_ID_NODETREE);
     auto &b_input =
         b.add_input(data_type, "B"_ustr).translation_context(BLT_I18NCONTEXT_ID_NODETREE);
 
-    if (data_type == SOCK_STRING) {
+    if (data_type == SOCK_STRING || is_data_block) {
       a_input.optional_label();
       b_input.optional_label();
     }
@@ -132,8 +143,16 @@ static std::optional<eNodeSocketDatatype> get_compare_type_for_operation(
         return std::nullopt;
       }
       return type;
+    case SOCK_OBJECT:
+    case SOCK_IMAGE:
+    case SOCK_COLLECTION:
+    case SOCK_FONT:
+    case SOCK_SOUND:
+      if (!ELEM(operation, NODE_COMPARE_EQUAL, NODE_COMPARE_NOT_EQUAL)) {
+        return std::nullopt;
+      }
+      return type;
     default:
-      BLI_assert_unreachable();
       return std::nullopt;
   }
 }
@@ -184,6 +203,41 @@ static void node_label(const bNodeTree * /*tree*/,
 static float component_average(float3 a)
 {
   return (a.x + a.y + a.z) / 3.0f;
+}
+
+template<typename T> static auto make_data_block_equal_fn()
+{
+  return mf::build::SI2_SO<T, T, bool>("Equal", [](T a, T b) { return a == b; });
+}
+
+template<typename T> static auto make_data_block_not_equal_fn()
+{
+  return mf::build::SI2_SO<T, T, bool>("Not Equal", [](T a, T b) { return a != b; });
+}
+
+template<typename Fn>
+static auto to_static_data_block(const eNodeSocketDatatype socket_type, Fn &&fn)
+{
+  switch (socket_type) {
+    case SOCK_OBJECT:
+      return fn.template operator()<Object *>();
+    case SOCK_IMAGE:
+      return fn.template operator()<Image *>();
+    case SOCK_COLLECTION:
+      return fn.template operator()<Collection *>();
+    case SOCK_FONT:
+      return fn.template operator()<VFont *>();
+    case SOCK_SOUND:
+      return fn.template operator()<bSound *>();
+    default:
+      BLI_assert_unreachable();
+      return fn.template operator()<Object *>();
+  }
+}
+
+static bool data_blocks_are_equal(const ID *a, const ID *b)
+{
+  return DEG_get_original(a) == DEG_get_original(b);
 }
 
 static const mf::MultiFunction *get_multi_function(const bNode &node)
@@ -603,6 +657,32 @@ static const mf::MultiFunction *get_multi_function(const bNode &node)
           break;
       }
       break;
+    case SOCK_OBJECT:
+    case SOCK_IMAGE:
+    case SOCK_COLLECTION:
+    case SOCK_FONT:
+    case SOCK_SOUND: {
+      return to_static_data_block(
+          eNodeSocketDatatype(data->data_type), [&]<typename T>() -> const mf::MultiFunction * {
+            switch (data->operation) {
+              case NODE_COMPARE_EQUAL: {
+                static auto fn = mf::build::SI2_SO<T, T, bool>("Equal", [](T a, T b) {
+                  return data_blocks_are_equal(id_cast<const ID *>(a), id_cast<const ID *>(b));
+                });
+                return &fn;
+              }
+              case NODE_COMPARE_NOT_EQUAL: {
+                static auto fn = mf::build::SI2_SO<T, T, bool>("Not Equal", [](T a, T b) {
+                  return !data_blocks_are_equal(id_cast<const ID *>(a), id_cast<const ID *>(b));
+                });
+                return &fn;
+              }
+              default: {
+                return nullptr;
+              }
+            }
+          });
+    }
   }
   return nullptr;
 }
@@ -626,7 +706,13 @@ static void data_type_update(Main *bmain, Scene *scene, PointerRNA *ptr)
   {
     node_storage->operation = NODE_COMPARE_EQUAL;
   }
-  else if (node_storage->data_type == SOCK_STRING &&
+  else if (ELEM(node_storage->data_type,
+                SOCK_STRING,
+                SOCK_OBJECT,
+                SOCK_IMAGE,
+                SOCK_COLLECTION,
+                SOCK_FONT,
+                SOCK_SOUND) &&
            !ELEM(node_storage->operation, NODE_COMPARE_EQUAL, NODE_COMPARE_NOT_EQUAL))
   {
     node_storage->operation = NODE_COMPARE_EQUAL;
@@ -704,6 +790,13 @@ static void node_rna(StructRNA *srna)
                                                  NODE_COMPARE_COLOR_DARKER);
                                    });
         }
+        if (ELEM(data->data_type, SOCK_OBJECT, SOCK_IMAGE, SOCK_COLLECTION, SOCK_FONT, SOCK_SOUND))
+        {
+          return enum_items_filter(
+              rna_enum_node_compare_operation_items, [](const EnumPropertyItem &item) {
+                return ELEM(item.value, NODE_COMPARE_EQUAL, NODE_COMPARE_NOT_EQUAL);
+              });
+        }
         return enum_items_filter(rna_enum_node_compare_operation_items,
                                  [](const EnumPropertyItem & /*item*/) { return false; });
       });
@@ -718,10 +811,20 @@ static void node_rna(StructRNA *srna)
       std::nullopt,
       [](bContext * /*C*/, PointerRNA * /*ptr*/, PropertyRNA * /*prop*/, bool *r_free) {
         *r_free = true;
-        return enum_items_filter(
-            rna_enum_node_socket_data_type_items, [](const EnumPropertyItem &item) {
-              return ELEM(item.value, SOCK_FLOAT, SOCK_INT, SOCK_VECTOR, SOCK_STRING, SOCK_RGBA);
-            });
+        return enum_items_filter(rna_enum_node_socket_data_type_items,
+                                 [](const EnumPropertyItem &item) {
+                                   return ELEM(item.value,
+                                               SOCK_FLOAT,
+                                               SOCK_INT,
+                                               SOCK_VECTOR,
+                                               SOCK_STRING,
+                                               SOCK_RGBA,
+                                               SOCK_OBJECT,
+                                               SOCK_IMAGE,
+                                               SOCK_COLLECTION,
+                                               SOCK_FONT,
+                                               SOCK_SOUND);
+                                 });
       });
   RNA_def_property_update_runtime(prop, data_type_update);
 
