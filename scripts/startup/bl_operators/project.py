@@ -5,9 +5,8 @@
 import os
 from pathlib import Path
 import logging
+from dataclasses import dataclass
 from enum import Enum
-
-from attrs import define
 
 import bpy
 from bpy.types import Operator
@@ -30,7 +29,7 @@ class VariableType(Enum):
     FILEPATH = 'FILEPATH'
 
 
-@define
+@dataclass
 class ProjectVariable:
     name: str
     type: VariableType
@@ -38,7 +37,7 @@ class ProjectVariable:
     description: str | None = None
 
 
-@define
+@dataclass
 class ProjectConfig:
     name: str
     variables: list[ProjectVariable] | None = None

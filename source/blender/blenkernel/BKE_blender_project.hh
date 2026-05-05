@@ -9,8 +9,8 @@
 #pragma once
 
 #include <cstdint>
-#include <memory>
 #include <functional>
+#include <memory>
 
 #include "BLI_string_ref.hh"
 #include "BLI_vector.hh"

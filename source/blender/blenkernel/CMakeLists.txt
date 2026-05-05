@@ -310,6 +310,7 @@ set(SRC
   intern/volume_grid.cc
   intern/volume_grid_fields.cc
   intern/volume_grid_file_cache.cc
+  intern/volume_grid_multi_function_eval.cc
   intern/volume_render.cc
   intern/volume_to_mesh.cc
   intern/wm_runtime.cc
@@ -417,6 +418,7 @@ set(SRC
   BKE_grease_pencil_fills.hh
   BKE_grease_pencil_legacy_convert.hh
   BKE_grease_pencil_vertex_groups.hh
+  BKE_gtest_base.hh
   BKE_gtest_setup.hh
   BKE_icons.hh
   BKE_id_hash.hh
@@ -496,6 +498,7 @@ set(SRC
   BKE_path_templates.hh
   BKE_pointcache.h
   BKE_pointcloud.hh
+  BKE_pose.hh
   BKE_pose_backup.h
   BKE_preferences.h
   BKE_preview_image.hh
@@ -537,6 +540,7 @@ set(SRC
   BKE_volume_grid_fields.hh
   BKE_volume_grid_file_cache.hh
   BKE_volume_grid_fwd.hh
+  BKE_volume_grid_multi_function_eval.hh
   BKE_volume_grid_process.hh
   BKE_volume_grid_type_traits.hh
   BKE_volume_openvdb.hh
