@@ -538,7 +538,7 @@ static void object_foreach_path_particles(Object *ob, BPathForeachPathData *bpat
   for (ParticleSystem &psys : ob->particlesystem) {
     bool all_caches_external = true;
 
-    if (psys.part->type == PART_HAIR && (psys.part->flag & PSYS_HAIR_DYNAMICS) == 0) {
+    if (psys.part->type == PART_HAIR && (psys.flag & PSYS_HAIR_DYNAMICS) == 0) {
       /* Hair system without dynamics, this means it doesn't use its particle cache.
        * NOTE: the PSYS_HAIR_DYNAMICS flag can be animated, so technically this is only correct for
        * the current frame. */
@@ -919,7 +919,7 @@ static void object_blend_read_data(BlendDataReader *reader, ID *id)
           BKE_modifier_new(eModifierType_Wave));
 
       wmd->damp = wav->damp;
-      wmd->flag = wav->flag;
+      wmd->flag = WaveModifierFlag(wav->flag);
       wmd->height = wav->height;
       wmd->lifetime = wav->lifetime;
       wmd->narrow = wav->narrow;
@@ -2105,7 +2105,7 @@ bool BKE_object_exists_check(Main *bmain, const Object *obtest)
 
 /* *************************************************** */
 
-static const char *get_obdata_defname(int type)
+static const char *get_obdata_defname(ObjectType type)
 {
   switch (type) {
     case OB_MESH:
@@ -2146,7 +2146,7 @@ static const char *get_obdata_defname(int type)
   }
 }
 
-static void object_init(Object *ob, const short ob_type)
+static void object_init(Object *ob, const ObjectType ob_type)
 {
   object_init_data(&ob->id);
 
@@ -2172,7 +2172,7 @@ static void object_init(Object *ob, const short ob_type)
   }
 }
 
-void *BKE_object_obdata_add_from_type(Main *bmain, int type, const char *name)
+void *BKE_object_obdata_add_from_type(Main *bmain, ObjectType type, const char *name)
 {
   if (name == nullptr) {
     name = get_obdata_defname(type);
@@ -2252,7 +2252,7 @@ int BKE_object_obdata_to_type(const ID *id)
   }
 }
 
-Object *BKE_object_add_only_object(Main *bmain, int type, const char *name)
+Object *BKE_object_add_only_object(Main *bmain, ObjectType type, const char *name)
 {
   if (!name) {
     name = get_obdata_defname(type);
@@ -2272,7 +2272,7 @@ Object *BKE_object_add_only_object(Main *bmain, int type, const char *name)
 }
 
 static Object *object_add_common(
-    Main *bmain, const Scene *scene, ViewLayer *view_layer, int type, const char *name)
+    Main *bmain, const Scene *scene, ViewLayer *view_layer, ObjectType type, const char *name)
 {
   Object *ob = BKE_object_add_only_object(bmain, type, name);
   ob->data = static_cast<ID *>(BKE_object_obdata_add_from_type(bmain, type, name));
@@ -2284,7 +2284,7 @@ static Object *object_add_common(
 }
 
 Object *BKE_object_add(
-    Main *bmain, Scene *scene, ViewLayer *view_layer, int type, const char *name)
+    Main *bmain, Scene *scene, ViewLayer *view_layer, ObjectType type, const char *name)
 {
   Object *ob = object_add_common(bmain, scene, view_layer, type, name);
 
@@ -2302,8 +2302,12 @@ Object *BKE_object_add(
   return ob;
 }
 
-Object *BKE_object_add_from(
-    Main *bmain, Scene *scene, ViewLayer *view_layer, int type, const char *name, Object *ob_src)
+Object *BKE_object_add_from(Main *bmain,
+                            Scene *scene,
+                            ViewLayer *view_layer,
+                            ObjectType type,
+                            const char *name,
+                            Object *ob_src)
 {
   Object *ob = object_add_common(bmain, scene, view_layer, type, name);
   BKE_collection_object_add_from(bmain, scene, ob_src, ob);
@@ -2318,7 +2322,7 @@ Object *BKE_object_add_from(
 Object *BKE_object_add_for_data(Main *bmain,
                                 const Scene *scene,
                                 ViewLayer *view_layer,
-                                int type,
+                                ObjectType type,
                                 const char *name,
                                 ID *data,
                                 bool do_id_user)
@@ -2527,6 +2531,8 @@ Object *BKE_object_pose_armature_get_with_wpaint_check(Object *ob)
         }
         break;
       }
+      default:
+        break;
     }
   }
   return BKE_object_pose_armature_get(ob);
@@ -2766,6 +2772,8 @@ Object *BKE_object_duplicate(Main *bmain,
         id_new = BKE_id_copy_for_duplicate(bmain, id_old, dupflag, copy_flags);
       }
       break;
+    default:
+      break;
   }
 
   /* If obdata has been copied, we may also have to duplicate the materials assigned to it. */
@@ -2869,6 +2877,8 @@ void BKE_object_obdata_size_init(Object *ob, const float size)
       BKE_lattice_transform(lt, static_cast<float (*)[4]>(mat), false);
       break;
     }
+    default:
+      break;
   }
 }
 
@@ -3410,6 +3420,8 @@ void BKE_object_get_parent_matrix(const Object *ob, Object *par, float r_parentm
     case PARSKEL:
       copy_m4_m4(r_parentmat, par->object_to_world().ptr());
       break;
+    default:
+      break;
   }
 }
 
@@ -3695,6 +3707,8 @@ std::optional<Bounds<float3>> BKE_object_boundbox_get(const Object *ob)
       return BKE_volume_min_max(id_cast<const Volume *>(ob->data));
     case OB_GREASE_PENCIL:
       return id_cast<const GreasePencil *>(ob->data)->bounds_min_max_eval();
+    default:
+      break;
   }
   return std::nullopt;
 }
@@ -3803,7 +3817,7 @@ void BKE_object_minmax(Object *ob, float3 &r_min, float3 &r_max)
 
 void BKE_object_empty_draw_type_set(Object *ob, const int value)
 {
-  ob->empty_drawtype = value;
+  ob->empty_drawtype = eObject_EmptyDrawType(value);
 
   if (ob->type == OB_EMPTY && ob->empty_drawtype == OB_EMPTY_IMAGE) {
     if (!ob->iuser) {
@@ -4742,6 +4756,8 @@ bool BKE_object_shapekey_remove(Main *bmain, Object *ob, KeyBlock *kb)
         case OB_LATTICE:
           BKE_keyblock_convert_to_lattice(key->refkey, id_cast<Lattice *>(ob->data));
           break;
+        default:
+          break;
       }
     }
   }
@@ -5365,6 +5381,8 @@ KDTree_3d *BKE_object_as_kdtree(Object *ob, int *r_tot)
       kdtree_3d_balance(tree);
       break;
     }
+    default:
+      break;
   }
 
   *r_tot = tot;
@@ -5623,7 +5641,7 @@ SubsurfModifierData *BKE_object_get_last_subsurf_modifier(const Object *ob)
 
 void BKE_object_replace_data_on_shallow_copy(Object *ob, ID *new_data)
 {
-  ob->type = BKE_object_obdata_to_type(new_data);
+  ob->type = ObjectType(BKE_object_obdata_to_type(new_data));
   ob->data = new_data;
   ob->runtime->geometry_set_eval = nullptr;
   ob->runtime->contained_geometry_types = 0;
