@@ -25,7 +25,7 @@ namespace blender::ed {
  * Returns true if the given property index matches the axis flag.
  * Always returns true if no flag is set.
  */
-static bool should_modify_axis(const int index, const AxisMutable axis_flag)
+static bool is_axis_mutable(const int index, const AxisMutable axis_flag)
 {
   return axis_flag & (1 << index);
 }
@@ -33,7 +33,7 @@ static bool should_modify_axis(const int index, const AxisMutable axis_flag)
 static TransformFloats copy_pointers_to_values(const Span<float *> value)
 {
   TransformFloats copy(value.size());
-  for (int i : value.index_range()) {
+  for (const int i : value.index_range()) {
     copy[i] = *(value[i]);
   }
   return copy;
@@ -41,11 +41,11 @@ static TransformFloats copy_pointers_to_values(const Span<float *> value)
 
 static void copy_span_into_mutable_span(const Span<float> value,
                                         MutableSpan<float> target,
-                                        const AxisMutable axis_flag = AXIS_MUTABLE_ALL)
+                                        const AxisMutable axis_flag)
 {
   BLI_assert(target.size() == value.size());
   for (const int i : value.index_range()) {
-    if (!should_modify_axis(i, axis_flag)) {
+    if (!is_axis_mutable(i, axis_flag)) {
       continue;
     }
     target[i] = value[i];
@@ -60,8 +60,8 @@ static void blend_linear(MutableSpan<float> values,
                          const float factor,
                          const AxisMutable axis_flag)
 {
-  for (int i : values.index_range()) {
-    if (!should_modify_axis(i, axis_flag)) {
+  for (const int i : values.index_range()) {
+    if (!is_axis_mutable(i, axis_flag)) {
       continue;
     }
     values[i] += factor * (target - values[i]);
@@ -78,8 +78,8 @@ static void blend_linear(MutableSpan<float> values,
                          const AxisMutable axis_flag)
 {
   BLI_assert(values.size() == target.size());
-  for (int i : values.index_range()) {
-    if (!should_modify_axis(i, axis_flag)) {
+  for (const int i : values.index_range()) {
+    if (!is_axis_mutable(i, axis_flag)) {
       continue;
     }
     values[i] += factor * (target[i] - values[i]);
@@ -94,7 +94,7 @@ TransformFloats property_interpolated(const Span<float> a, const Span<float> b, 
 {
   BLI_assert(a.size() == b.size());
   TransformFloats interpolated(a.size());
-  for (int i : a.index_range()) {
+  for (const int i : a.index_range()) {
     interpolated[i] = interpf(b[i], a[i], factor);
   }
   return interpolated;
@@ -182,7 +182,7 @@ Rotation rotation_interpolated(const Rotation &a, const Rotation &b, const float
 
     default:
       /* Should axis angle use a different interpolation mode? */
-      for (int i : interpolated.values.index_range()) {
+      for (const int i : interpolated.values.index_range()) {
         interpolated.values[i] = interpf(b_aligned.values[i], a.values[i], factor);
       }
       break;
@@ -203,17 +203,17 @@ static void build_rotations_array(
 {
   rotations.reinitialize(ROT_IDX_MAX_ENUM);
   rotations[ROT_IDX_EULER] = TransformFloatPtrs(3);
-  for (int i : IndexRange(3)) {
+  for (const int i : IndexRange(3)) {
     rotations[ROT_IDX_EULER][i] = &euler[i];
   }
 
   rotations[ROT_IDX_QUATERNION] = TransformFloatPtrs(4);
-  for (int i : IndexRange(4)) {
+  for (const int i : IndexRange(4)) {
     rotations[ROT_IDX_QUATERNION][i] = &quat[i];
   }
 
   rotations[ROT_IDX_AXIS_ANGLE] = TransformFloatPtrs(4);
-  for (int i : IndexRange(3)) {
+  for (const int i : IndexRange(3)) {
     rotations[ROT_IDX_AXIS_ANGLE][i + 1] = &axis[i];
   }
   rotations[ROT_IDX_AXIS_ANGLE][0] = angle;
@@ -252,7 +252,7 @@ std::string Transformable::rna_path_to_property(const PropertyType prop_type) co
       property_name = "location";
       break;
     case PropertyType::ROTATION: {
-      property_name = animrig::get_rotation_mode_path(eRotationModes(*rotation_mode_));
+      property_name = animrig::get_rotation_mode_path(*rotation_mode_);
       break;
     }
     case PropertyType::SCALE:
@@ -272,8 +272,7 @@ TransformFloats Transformable::get_property(const PropertyType prop_type) const
       return location_.as_span();
 
     case PropertyType::ROTATION: {
-      const TransformFloatPtrs *rotation_array = get_rotation_array_from_mode(
-          eRotationModes(*rotation_mode_));
+      const TransformFloatPtrs *rotation_array = get_rotation_array_from_mode(*rotation_mode_);
       return copy_pointers_to_values(*rotation_array);
     }
     case PropertyType::SCALE:
@@ -294,18 +293,16 @@ void Transformable::set_property(const PropertyType prop_type,
       break;
 
     case PropertyType::ROTATION: {
-      const TransformFloatPtrs *rotation_array = get_rotation_array_from_mode(
-          eRotationModes(*rotation_mode_));
+      const TransformFloatPtrs *rotation_array = get_rotation_array_from_mode(*rotation_mode_);
       if (rotation_array->size() > values.size()) {
         /* Trying to set a rotation with different mode. Use `set_rotation` instead. */
         BLI_assert_unreachable();
         return;
       }
       /* Axis flags don't work with quaternion rotations. */
-      BLI_assert(axis_flag == AXIS_MUTABLE_ALL ||
-                 eRotationModes(*rotation_mode_) != ROT_MODE_QUAT);
-      for (int i : rotation_array->index_range()) {
-        if (!should_modify_axis(i, axis_flag)) {
+      BLI_assert((axis_flag == AXIS_MUTABLE_ALL) || (*rotation_mode_ != ROT_MODE_QUAT));
+      for (const int i : rotation_array->index_range()) {
+        if (!is_axis_mutable(i, axis_flag)) {
           continue;
         }
         *(*rotation_array)[i] = values[i];
@@ -329,8 +326,7 @@ void Transformable::blend_property_to(const PropertyType prop_type,
       break;
 
     case PropertyType::ROTATION: {
-      const TransformFloatPtrs *rotation_array = get_rotation_array_from_mode(
-          eRotationModes(*rotation_mode_));
+      const TransformFloatPtrs *rotation_array = get_rotation_array_from_mode(*rotation_mode_);
       if (rotation_array->size() != target.size()) {
         /* This doesn't catch all invalid cases. Differing euler rotation order or quaternion/axis
          * angle will still have the same array size but blending will create bogus data. */
@@ -339,7 +335,7 @@ void Transformable::blend_property_to(const PropertyType prop_type,
       }
       Rotation rotation;
       /* Assuming the rotation mode. See docstring of function. */
-      rotation.mode = eRotationModes(*rotation_mode_);
+      rotation.mode = *rotation_mode_;
       rotation.values = target;
       blend_rotation_to(rotation, factor, axis_flag);
       break;
@@ -362,11 +358,10 @@ void Transformable::blend_property_to(const PropertyType prop_type,
 
     case PropertyType::ROTATION: {
       BLI_assert(*rotation_mode_ != ROT_MODE_QUAT);
-      const TransformFloatPtrs *rotation_array = get_rotation_array_from_mode(
-          eRotationModes(*rotation_mode_));
+      const TransformFloatPtrs *rotation_array = get_rotation_array_from_mode(*rotation_mode_);
       Rotation rotation;
       /* Assuming the rotation mode. See docstring of function. */
-      rotation.mode = eRotationModes(*rotation_mode_);
+      rotation.mode = *rotation_mode_;
       rotation.values.reinitialize(rotation_array->size());
       rotation.values.fill(target);
       blend_rotation_to(rotation, factor, axis_flag);
@@ -400,7 +395,7 @@ const TransformFloatPtrs *Transformable::get_rotation_array_from_mode(
 Rotation Transformable::get_rotation() const
 {
   Rotation rotation;
-  rotation.mode = eRotationModes(*rotation_mode_);
+  rotation.mode = *rotation_mode_;
   const TransformFloatPtrs *rotations_array = get_rotation_array_from_mode(rotation.mode);
   BLI_assert(rotations_array != nullptr);
   rotation.values = copy_pointers_to_values(*rotations_array);
@@ -409,79 +404,73 @@ Rotation Transformable::get_rotation() const
 
 void Transformable::set_rotation(const Rotation &rotation)
 {
-  const eRotationModes current_mode = eRotationModes(*rotation_mode_);
-  const TransformFloatPtrs *rotations_array = get_rotation_array_from_mode(current_mode);
+  const TransformFloatPtrs *rotations_array = get_rotation_array_from_mode(*rotation_mode_);
   BLI_assert(rotations_array != nullptr);
-  if (rotation.mode == current_mode) {
+  if (rotation.mode == *rotation_mode_) {
     /* Easy case, can just copy the values. */
-    for (int i : rotations_array->index_range()) {
+    for (const int i : rotations_array->index_range()) {
       *(*rotations_array)[i] = rotation.values[i];
     }
     return;
   }
 
-  Rotation rot_in_correct_mode = rotation.converted_to_mode(current_mode);
-  for (int i : rotations_array->index_range()) {
+  Rotation rot_in_correct_mode = rotation.converted_to_mode(*rotation_mode_);
+  for (const int i : rotations_array->index_range()) {
     *(*rotations_array)[i] = rot_in_correct_mode.values[i];
   }
 }
 
 eRotationModes Transformable::get_rotation_mode() const
 {
-  return eRotationModes(*rotation_mode_);
+  return *rotation_mode_;
 }
 
 void Transformable::blend_rotation_to(const Rotation &target,
                                       const float factor,
                                       const AxisMutable axis_flag)
 {
-  const eRotationModes current_mode = eRotationModes(*rotation_mode_);
-  Rotation rot;
-  if (target.mode == current_mode) {
-    rot = target;
-  }
-  else {
-    rot = target.converted_to_mode(current_mode);
-  }
-  const TransformFloatPtrs *rotations_array = get_rotation_array_from_mode(current_mode);
+  /* If `target` matches the `current_mode`, the function will return `target` unmodified. */
+  Rotation compatible_rotation = target.converted_to_mode(*rotation_mode_);
+
+  const TransformFloatPtrs *rotations_array = get_rotation_array_from_mode(*rotation_mode_);
   BLI_assert(rotations_array != nullptr);
 
   TransformFloats result;
-  switch (current_mode) {
+  switch (*rotation_mode_) {
     case ROT_MODE_QUAT: {
       float4 current_quat;
-      for (int i : IndexRange(4)) {
+      for (const int i : IndexRange(4)) {
         current_quat[i] = *((*rotations_array)[i]);
       }
       normalize_qt(current_quat);
-      normalize_qt(rot.values.data());
+      normalize_qt(compatible_rotation.values.data());
       result.reinitialize(4);
       /* We are not using the axis flag here. Not sure how that would work with quaternions. */
-      interp_qt_qtqt(result.data(), current_quat, rot.values.data(), factor);
+      interp_qt_qtqt(result.data(), current_quat, compatible_rotation.values.data(), factor);
       break;
     }
     case ROT_MODE_AXISANGLE: {
       result.reinitialize(4);
-      for (int i : IndexRange(4)) {
+      for (const int i : IndexRange(4)) {
         result[i] = *((*rotations_array)[i]);
       }
       /* Should this use spherical blending? */
-      blend_linear(result, rot.values, factor, axis_flag);
+      blend_linear(result, compatible_rotation.values, factor, axis_flag);
       break;
     }
     default: {
-      BLI_assert(current_mode <= ROT_MODE_ZYX);
+      BLI_assert(*rotation_mode_ <= ROT_MODE_ZYX);
       result.reinitialize(3);
-      for (int i : IndexRange(3)) {
+      for (const int i : IndexRange(3)) {
         result[i] = *((*rotations_array)[i]);
       }
-      blend_linear(result, rot.values, factor, axis_flag);
+      blend_linear(result, compatible_rotation.values, factor, axis_flag);
       break;
     }
   }
 
   BLI_assert(result.size() == rotations_array->size());
-  for (int i : result.index_range()) {
+  for (const int i : result.index_range()) {
     *(*rotations_array)[i] = result[i];
   }
 }

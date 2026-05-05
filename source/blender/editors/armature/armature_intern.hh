@@ -173,9 +173,9 @@ struct SlideSubject {
   eAction_TransformFlags transform_flag;
 
   /** Transform values at start of operator (to be restored before each modal step). */
-  Array<float> old_loc;
+  ed::TransformFloats old_loc;
   ed::Rotation old_rot;
-  Array<float> old_scale;
+  ed::TransformFloats old_scale;
 
   /* Additional properties of the transformable to affect which are not custom properties. */
   Vector<PropertySnapshot> additional_properties;

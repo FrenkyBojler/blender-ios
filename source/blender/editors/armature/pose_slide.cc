@@ -443,12 +443,9 @@ static void pose_slide_apply_property_snapshots(tPoseSlideOp &pso,
                                            float(pso.next_frame - pso.prev_frame);
         const Array<float> current_frame_breakdown = ed::property_interpolated(
             prev_frame_values, next_frame_values, current_frame_factor);
-        if (pso.mode == POSESLIDE_PUSH) {
-          values = ed::property_interpolated(base_values, current_frame_breakdown, -factor);
-        }
-        else {
-          values = ed::property_interpolated(base_values, current_frame_breakdown, factor);
-        }
+        const float factor_sign = pso.mode == POSESLIDE_RELAX ? 1 : -1;
+        values = ed::property_interpolated(
+            base_values, current_frame_breakdown, factor * factor_sign);
         break;
       }
 

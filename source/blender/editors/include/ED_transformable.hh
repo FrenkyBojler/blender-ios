@@ -36,6 +36,7 @@ enum AxisMutable : int8_t {
   /* There is currently no support for a W axis. This was already the case when porting this enum
      from the pose slide code. */
 };
+ENUM_OPERATORS(AxisMutable);
 
 /* By using Array<float, 4> we enforce a stack allocation limit of 4. Since we use at most 4
  * elements per property, we ensure that the values are always on the stack

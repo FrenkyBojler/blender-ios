@@ -60,8 +60,6 @@ class TransformableTest : public testing::Test {
     BKE_pose_ensure(bmain, armature_object, armature, false);
     pose_bone = BKE_pose_channel_find_name(armature_object->pose, "Bone");
     ASSERT_NE(pose_bone, nullptr);
-    /* PointerRNA pose_bone_rna_pointer = RNA_pointer_create_discrete(
-        &armature_object->id, RNA_PoseBone, pose_bone); */
   }
 
   void TearDown() override
@@ -76,19 +74,18 @@ TEST_F(TransformableTest, transformable_get_values)
   EXPECT_STREQ(transformable.rna_path().c_str(), "pose.bones[\"Bone\"]");
 
   Array<float> location = transformable.get_property(Transformable::PropertyType::LOCATION);
-  EXPECT_EQ(location.size(), 3);
   Array<float> expected = {0, 0, 0};
-  EXPECT_EQ_ARRAY(expected.data(), location.data(), 3);
+  EXPECT_EQ(expected, location);
 
   pose_bone->loc[0] = 1;
 
   expected = {0, 0, 0};
   /* The returned values are a copy, changing the underlying data does not modify the array. */
-  EXPECT_EQ_ARRAY(expected.data(), location.data(), 3);
+  EXPECT_EQ(expected, location);
 
   location = transformable.get_property(Transformable::PropertyType::LOCATION);
   expected = {1, 0, 0};
-  EXPECT_EQ_ARRAY(expected.data(), location.data(), 3);
+  EXPECT_EQ(expected, location);
 
   Array<float> rotation_values = transformable.get_property(Transformable::PropertyType::ROTATION);
   EXPECT_EQ(pose_bone->rotmode, ROT_MODE_QUAT);
@@ -105,7 +102,7 @@ TEST_F(TransformableTest, transformable_rotation)
   EXPECT_EQ(rotation.mode, transformable.get_rotation_mode());
   EXPECT_EQ(rotation.mode, ROT_MODE_QUAT);
   Array<float> expected = {1, 0, 0, 0};
-  EXPECT_EQ_ARRAY(expected.data(), rotation.values.data(), 4);
+  EXPECT_EQ(expected, rotation.values);
 
   pose_bone->rotmode = ROT_MODE_XYZ;
   pose_bone->eul[0] = 3.14;
