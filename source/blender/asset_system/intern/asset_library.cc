@@ -510,12 +510,6 @@ AssetLibraryReference current_file_library_reference()
   return library_ref;
 }
 
-void all_library_tag_catalogs_dirty()
-{
-  AssetLibraryService *service = AssetLibraryService::get();
-  service->tag_all_library_catalogs_dirty();
-}
-
 void all_library_reload_catalogs_if_dirty()
 {
   AssetLibraryService *service = AssetLibraryService::get();
