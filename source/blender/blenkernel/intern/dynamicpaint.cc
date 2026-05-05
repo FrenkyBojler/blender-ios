@@ -1072,7 +1072,7 @@ DynamicPaintSurface *dynamicPaint_createNewSurface(DynamicPaintCanvasSettings *c
   surface->flags = MOD_DPAINT_ANTIALIAS | MOD_DPAINT_MULALPHA | MOD_DPAINT_DRY_LOG |
                    MOD_DPAINT_DISSOLVE_LOG | MOD_DPAINT_ACTIVE | MOD_DPAINT_OUT1 |
                    MOD_DPAINT_USE_DRYING;
-  surface->effect = 0;
+  surface->effect = eDynamicPaint_EffectFlags{};
   surface->effect_ui = 1;
 
   surface->diss_speed = 250;
@@ -3333,12 +3333,6 @@ void dynamicPaint_outputSurfaceImage(DynamicPaintSurface *surface,
     setError(surface->canvas, N_("Image save failed: invalid surface"));
     return;
   }
-  /* if selected format is openexr, but current build doesn't support one */
-#ifndef WITH_IMAGE_OPENEXR
-  if (format == R_IMF_IMTYPE_OPENEXR) {
-    format = R_IMF_IMTYPE_PNG;
-  }
-#endif
   STRNCPY(output_file, filepath);
   BKE_image_path_ext_from_imtype_ensure(output_file, sizeof(output_file), format);
 
@@ -3432,15 +3426,12 @@ void dynamicPaint_outputSurfaceImage(DynamicPaintSurface *surface,
       break;
   }
 
-    /* Set output format, PNG in case EXR isn't supported. */
-#ifdef WITH_IMAGE_OPENEXR
+  /* Set output format, PNG in case EXR isn't supported. */
   if (format == R_IMF_IMTYPE_OPENEXR) { /* OpenEXR 32-bit float */
     ibuf->ftype = IMB_FTYPE_OPENEXR;
     ibuf->foptions.flag = R_IMF_EXR_CODEC_ZIP;
   }
-  else
-#endif
-  {
+  else {
     ibuf->ftype = IMB_FTYPE_PNG;
   }
 
