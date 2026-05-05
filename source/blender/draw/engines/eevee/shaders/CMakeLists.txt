@@ -36,7 +36,6 @@ set(SRC_GLSL_VERT
   eevee_geom_volume_vert.glsl
   eevee_geom_world_vert.glsl
   eevee_lookdev_display_vert.glsl
-  eevee_shadow_page_tile_vert.glsl
 )
 
 set(SRC_GLSL_FRAG
@@ -45,7 +44,6 @@ set(SRC_GLSL_FRAG
   eevee_debug_surfels_frag.glsl
   eevee_deferred_aov_clear_frag.glsl
   eevee_deferred_combine_frag.glsl
-  eevee_deferred_thickness_amend_frag.glsl
   eevee_deferred_tile_classify_frag.glsl
   eevee_depth_of_field_scatter_frag.glsl
   eevee_display_lightprobe_planar_frag.glsl
@@ -56,14 +54,8 @@ set(SRC_GLSL_FRAG
   eevee_hiz_debug_frag.glsl
   eevee_lookdev_display_frag.glsl
   eevee_occupancy_convert_frag.glsl
-  eevee_renderpass_clear_frag.glsl
   eevee_shadow_debug_frag.glsl
-  eevee_shadow_page_tile_frag.glsl
-  eevee_surf_capture_frag.glsl
-  eevee_surf_deferred_frag.glsl
   eevee_surf_depth_frag.glsl
-  eevee_surf_forward_frag.glsl
-  eevee_surf_hybrid_frag.glsl
   eevee_surf_occupancy_frag.glsl
   eevee_surf_shadow_frag.glsl
   eevee_surf_volume_frag.glsl
@@ -107,14 +99,6 @@ set(SRC_GLSL_COMP
   eevee_ray_trace_fallback_comp.glsl
   eevee_ray_trace_planar_comp.glsl
   eevee_ray_trace_screen_comp.glsl
-  eevee_shadow_clipmap_clear_comp.glsl
-  eevee_shadow_page_clear_comp.glsl
-  eevee_shadow_tilemap_amend_comp.glsl
-  eevee_shadow_tilemap_bounds_comp.glsl
-  eevee_shadow_tilemap_finalize_comp.glsl
-  eevee_shadow_tilemap_init_comp.glsl
-  eevee_shadow_tilemap_rendermap_comp.glsl
-  eevee_shadow_visibility_comp.glsl
   eevee_surfel_cluster_build_comp.glsl
   eevee_surfel_light_comp.glsl
   eevee_surfel_list_build_comp.glsl
