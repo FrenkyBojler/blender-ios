@@ -1270,32 +1270,6 @@ void OBJECT_OT_forcefield_toggle(wmOperatorType *ot)
 /** \name Calculate Motion Paths Operator
  * \{ */
 
-void motion_paths_recalc_selected(bContext *C, Scene *scene, eAnimvizCalcRange range)
-{
-  ListBaseT<LinkData> selected_objects = {nullptr, nullptr};
-  CTX_DATA_BEGIN (C, Object *, ob, selected_editable_objects) {
-    BLI_addtail(&selected_objects, BLI_genericNodeN(ob));
-  }
-  CTX_DATA_END;
-
-  motion_paths_recalc(C, scene, range, &selected_objects);
-
-  BLI_freelistN(&selected_objects);
-}
-
-void motion_paths_recalc_visible(bContext *C, Scene *scene, eAnimvizCalcRange range)
-{
-  ListBaseT<LinkData> visible_objects = {nullptr, nullptr};
-  CTX_DATA_BEGIN (C, Object *, ob, visible_objects) {
-    BLI_addtail(&visible_objects, BLI_genericNodeN(ob));
-  }
-  CTX_DATA_END;
-
-  motion_paths_recalc(C, scene, range, &visible_objects);
-
-  BLI_freelistN(&visible_objects);
-}
-
 static bool has_object_motion_paths(Object *ob)
 {
   return (ob->avs.path_bakeflag & MOTIONPATH_BAKE_HAS_PATHS) != 0;
@@ -1306,23 +1280,17 @@ static bool has_pose_motion_paths(Object *ob)
   return ob->pose && (ob->pose->avs.path_bakeflag & MOTIONPATH_BAKE_HAS_PATHS) != 0;
 }
 
-void motion_paths_recalc(bContext *C,
-                         Scene *scene,
-                         eAnimvizCalcRange range,
-                         ListBaseT<LinkData> *ld_objects)
+static void motion_paths_recalc(bContext *C,
+                                Scene *scene,
+                                const eAnimvizCalcRange range,
+                                const Span<Object *> objects)
 {
-  /* Transform doesn't always have context available to do update. */
-  if (C == nullptr) {
-    return;
-  }
-
+  BLI_assert(C != nullptr);
   Main *bmain = CTX_data_main(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
 
   Vector<MPathTarget *> targets;
-  for (LinkData &link : *ld_objects) {
-    Object *ob = static_cast<Object *>(link.data);
-
+  for (Object *ob : objects) {
     /* set flag to force recalc, then grab path(s) from object */
     if (has_object_motion_paths(ob)) {
       ob->avs.recalc |= ANIMVIZ_RECALC_PATHS;
@@ -1338,6 +1306,28 @@ void motion_paths_recalc(bContext *C,
   animviz_calc_motionpaths_async(
       bmain, CTX_wm_manager(C), CTX_wm_window(C), scene, view_layer, targets);
   animviz_free_motionpath_targets(targets);
+}
+
+void motion_paths_recalc_selected(bContext *C, Scene *scene, const eAnimvizCalcRange range)
+{
+  Vector<Object *> selected_objects;
+  CTX_DATA_BEGIN (C, Object *, ob, selected_editable_objects) {
+    selected_objects.append(ob);
+  }
+  CTX_DATA_END;
+
+  motion_paths_recalc(C, scene, range, selected_objects);
+}
+
+void motion_paths_recalc_visible(bContext *C, Scene *scene, const eAnimvizCalcRange range)
+{
+  Vector<Object *> visible_objects;
+  CTX_DATA_BEGIN (C, Object *, ob, visible_objects) {
+    visible_objects.append(ob);
+  }
+  CTX_DATA_END;
+
+  motion_paths_recalc(C, scene, range, visible_objects);
 }
 
 /* show popup to determine settings */

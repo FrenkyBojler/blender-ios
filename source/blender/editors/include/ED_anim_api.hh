@@ -1290,8 +1290,7 @@ void animviz_calc_motionpaths(Depsgraph *depsgraph,
                               Main *bmain,
                               Scene *scene,
                               MutableSpan<MPathTarget *> targets,
-                              eAnimvizCalcRange range,
-                              bool restore);
+                              eAnimvizCalcRange range);
 
 /**
  * Runs the depsgraph evaluation in a separate thread that syncs back to the main thread in regular
