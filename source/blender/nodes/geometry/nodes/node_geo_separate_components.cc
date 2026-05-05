@@ -9,8 +9,8 @@
 namespace blender::nodes::node_geo_separate_components_cc {
 
 enum class Mode {
-  All,
-  Single,
+  All = 0,
+  Single = 1,
 };
 
 static const EnumPropertyItem mode_items[] = {
