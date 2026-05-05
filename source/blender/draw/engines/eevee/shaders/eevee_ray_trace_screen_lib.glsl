@@ -317,7 +317,6 @@ float raytrace_screen_2(const float3 vs_origin,
   const float3 delta = (end - start) / float(steps);
 
   const float max_t = max(steps - 1, 1);
-  const bool forward = end.z > start.z;
   float previous_step_z = start.z;
 
   ScreenThicknessEstimator thickness_estimator = ScreenThicknessEstimator::init(start.z);
@@ -350,15 +349,20 @@ float raytrace_screen_2(const float3 vs_origin,
     const float hit_min_z = min(hit_depth_point, hit_depth_linear);
     const float hit_max_z = max(hit_depth_point, hit_depth_linear);
 
-    /* Ensure the allowed depth range is not lower than the step delta. */
-    const float min_z = forward ? min(step.z, previous_step_z) : step.z;
-    const float max_z = forward ? step.z : max(step.z, previous_step_z);
-
     float sample_view_Z = drw_depth_screen_to_view(hit_depth_point);
     float sample_ndc_min_thickness = rt_data.ray_thickness.pixel_depth_thickness_at(sample_view_Z);
 
-    bool hit = thickness_estimator.intersect(
-        hit_depth_point, step_t, sample_ndc_min_thickness, step.z, previous_step_z);
+    /* Equivalent to #thickness_estimator.intersect() but applies the Tiny Glade fix. */
+    float sample_thickness = thickness_estimator.thickness(
+        hit_depth_point, step_t, sample_ndc_min_thickness);
+    /* We want to test the intersection between the surface estimated AABB and the ray step AABB.
+     * This is equivalent to adding the step delta to the surface thickness and doing an AABB vs
+     * point test. */
+    sample_thickness += abs(step.z - previous_step_z);
+
+    float sample_min = hit_max_z;
+    float sample_max = hit_min_z + sample_thickness;
+    bool hit = step.z >= sample_min && step.z <= sample_max;
 
     previous_step_z = step.z;
 
