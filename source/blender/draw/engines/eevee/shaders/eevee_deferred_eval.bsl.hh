@@ -173,9 +173,19 @@ void light_eval_frag([[resource_table]] LightEval &srt,
 
     stack.cl[0] = closure_light_new(cl_transmit, V, thickness);
 
+    /* On transmission, the view vector is modified, refracting through the shape. */
+    float3 V_amended = bxdf_ggx_view_amend_transmission(cl_transmit, V, thickness);
+
     /* NOTE: Only evaluates `stack.cl[0]`. */
-    light_eval_transmission(
-        stack, P, Ng, V, vPz, thickness, receiver_light_set, normal_offset, geometry_offset);
+    light_eval_transmission(stack,
+                            P,
+                            Ng,
+                            V_amended,
+                            vPz,
+                            thickness,
+                            receiver_light_set,
+                            normal_offset,
+                            geometry_offset);
 
 #if 1 /* TODO Limit to SSS. */
     if (cl_transmit.type == CLOSURE_BSSRDF_BURLEY_ID) {
