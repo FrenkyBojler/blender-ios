@@ -90,7 +90,7 @@ class Transformable {
    * `MutableSpan`. For the order of elements, see `RotationModeIndices` in `transformable.cc`. */
   Array<TransformFloatPtrs> rotations_;
   /* Points to an enum with the current rotation mode. See `eRotationModes`. */
-  short *rotation_mode_;
+  eRotationModes *rotation_mode_;
   MutableSpan<float> scale_;
 
   /**
