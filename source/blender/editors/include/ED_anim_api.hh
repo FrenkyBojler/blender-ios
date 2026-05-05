@@ -1260,9 +1260,6 @@ void ED_anim_ale_fcurve_delete(bAnimContext &ac, bAnimListElem &ale);
 /* ************************************************ */
 
 enum eAnimvizCalcRange : uint8_t {
-  /** Update motion paths at the current frame only. */
-  ANIMVIZ_CALC_RANGE_CURRENT_FRAME,
-
   /** Try to limit updates to a close neighborhood of the current frame. */
   ANIMVIZ_CALC_RANGE_CHANGED,
 
@@ -1285,11 +1282,9 @@ Depsgraph *animviz_depsgraph_build(Main *bmain,
  * performance implications.
  */
 void animviz_calc_motionpaths(Depsgraph *depsgraph,
-                              Main *bmain,
                               Scene *scene,
                               MutableSpan<MPathTarget *> targets,
-                              eAnimvizCalcRange range,
-                              bool restore);
+                              eAnimvizCalcRange range);
 
 /**
  * Update motion path computation range (in `ob.avs` or `armature.avs`) from user choice in

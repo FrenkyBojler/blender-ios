@@ -426,11 +426,9 @@ static void build_keylist_for_target(MPathTarget &target, AnimKeylist &keylist)
 }
 
 void animviz_calc_motionpaths(Depsgraph *depsgraph,
-                              Main *bmain,
                               Scene *scene,
                               MutableSpan<MPathTarget *> targets,
-                              eAnimvizCalcRange range,
-                              bool restore)
+                              eAnimvizCalcRange range)
 {
   using namespace blender::animrig;
 
@@ -442,16 +440,6 @@ void animviz_calc_motionpaths(Depsgraph *depsgraph,
   /* The frame range to calculate. Inclusive/Exclusive. */
   Bounds<int> frame_range = {INT_MAX, INT_MIN};
   switch (range) {
-    case ANIMVIZ_CALC_RANGE_CURRENT_FRAME:
-      frame_range = motionpath_get_global_framerange(targets);
-      if (frame_range.is_empty()) {
-        return;
-      }
-      if (!frame_range.contains(cfra)) {
-        return;
-      }
-      frame_range = {cfra, cfra + 1};
-      break;
     case ANIMVIZ_CALC_RANGE_CHANGED:
       /* Nothing to do here, will be handled later when iterating through the targets. */
       break;
@@ -534,27 +522,14 @@ void animviz_calc_motionpaths(Depsgraph *depsgraph,
             frame_range.max - frame_range.min + 1);
 
   for (scene->r.cfra = frame_range.min; scene->r.cfra < frame_range.max; scene->r.cfra++) {
-    if (range == ANIMVIZ_CALC_RANGE_CURRENT_FRAME) {
-      /* For current frame, only update tagged. */
-      BKE_scene_graph_update_tagged(depsgraph, bmain);
-    }
-    else {
-      /* Update relevant data for new frame. */
-      motionpaths_calc_update_scene(depsgraph);
-    }
+    /* Update relevant data for new frame. */
+    motionpaths_calc_update_scene(depsgraph);
 
     /* Perform baking for targets. */
     motionpaths_calc_bake_targets(targets, scene->r.cfra, depsgraph, scene->camera);
   }
 
-  /* Reset original environment. */
-  /* NOTE: We don't always need to reevaluate the main scene, as the depsgraph
-   * may be a temporary one that works on a subset of the data.
-   * We always have to restore the current frame though. */
   scene->r.cfra = cfra;
-  if (range != ANIMVIZ_CALC_RANGE_CURRENT_FRAME && restore) {
-    motionpaths_calc_update_scene(depsgraph);
-  }
 
   if (is_active_depsgraph) {
     DEG_make_active(depsgraph);
