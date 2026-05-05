@@ -36,17 +36,16 @@ static const EnumPropertyItem prop_interpolation_items[] = {
 
 static wmOperatorStatus edbm_space_exec(bContext *C, wmOperator *op)
 {
+  const Main *bmain = CTX_data_main(C);
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
-
+  const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
+      *bmain, scene, view_layer, CTX_wm_view3d(C));
   const float influence = RNA_float_get(op->ptr, "influence");
   const int interpolation = RNA_enum_get(op->ptr, "interpolation");
   bool lock[3];
   RNA_boolean_get_array(op->ptr, "lock", lock);
   bool changed = false;
-
-  const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C));
 
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
