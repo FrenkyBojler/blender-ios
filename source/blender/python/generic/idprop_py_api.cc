@@ -957,16 +957,17 @@ static IDProperty *idp_from_PyMapping(IDProperty * /*prop_exist*/,
   PyObject *keys, *vals, *key, *pval;
   int i, len;
   /* yay! we get into recursive stuff now! */
+  len = PyMapping_Length(ob);
+  if (len == -1) {
+    return nullptr;
+  }
   keys = PyMapping_Keys(ob);
   if (keys == nullptr) {
     return nullptr;
   }
   vals = PyMapping_Values(ob);
   if (vals == nullptr) {
-    return nullptr;
-  }
-  len = PyMapping_Length(ob);
-  if (len == -1) {
+    Py_DECREF(keys);
     return nullptr;
   }
 
