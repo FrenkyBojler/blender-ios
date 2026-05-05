@@ -1024,7 +1024,8 @@ static void datastack_drop_copy(bContext *C, StackDropData *drop_data)
           ob_dst,
           CTX_wm_reports(C));
       BKE_object_modifier_set_active(ob_dst, md_dst);
-    } break;
+      break;
+    }
     case TSE_CONSTRAINT:
       if (tselem->type == TSE_POSE_CHANNEL) {
         object::constraint_copy_for_pose(
