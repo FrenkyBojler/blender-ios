@@ -325,12 +325,12 @@ static wmOperatorStatus file_browse_invoke(bContext *C, wmOperator *op, const wm
    * - Alt+Click (or normal click for uneditable paths) opens the containing
    *   folder in the OS's browser.
    */
-  if (event->modifier & (KM_SHIFT | KM_ALT) || !RNA_property_editable_info(&ptr, prop, nullptr)) {
+  if (event->modifier & (KM_SHIFT | KM_ALT) || !RNA_property_editable(&ptr, prop)) {
     wmOperatorType *ot = WM_operatortype_find("WM_OT_path_open", true);
 
     const bool do_open_directory = event->modifier & KM_ALT ||
                                    (!(event->modifier & KM_SHIFT) &&
-                                    !RNA_property_editable_info(&ptr, prop, nullptr));
+                                    !RNA_property_editable(&ptr, prop));
 
     /* We only do this for PROP_FILEPATH because PROP_DIRPATH properties are
      * already a path to a directory. */
