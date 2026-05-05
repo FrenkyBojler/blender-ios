@@ -198,6 +198,20 @@ static bool pose_select_parents(bContext *C,
 }
 
 /**
+ * Returns the child bone that will be the new active bone when selecting children.
+ * This is either the first connected, or the first bone if there are no connected.
+ */
+static Bone *get_new_active_child(Bone &parent_bone)
+{
+  for (Bone &child : parent_bone.childbase) {
+    if (child.flag & BONE_CONNECTED) {
+      return &child;
+    }
+  }
+  return reinterpret_cast<Bone *>(&parent_bone.childbase.first);
+}
+
+/**
  * Selects children of currently selected bones in all objects in pose mode. If `all` is true, a
  * bone will be selected if any bone in its parent hierarchy is selected. If false, only bones
  * whose direct parent is selected are changed.
@@ -237,8 +251,8 @@ static bool pose_select_children(bContext *C,
           pose_do_bone_select({&pchan, bone}, SEL_SELECT);
           Bone *parent_bone = pchan.parent->bone_get(*arm);
           const bool is_first_child = parent_bone->childbase.first == bone;
-          if (modify_active && parent_bone == active_bone && is_first_child) {
-            arm->act_bone = bone;
+          if (modify_active && parent_bone == active_bone) {
+            arm->act_bone = get_new_active_child(*parent_bone);
           }
           changed_any_selection = true;
         }
@@ -248,8 +262,8 @@ static bool pose_select_children(bContext *C,
           pose_do_bone_select({&pchan, bone}, SEL_SELECT);
           Bone *parent_bone = pchan.parent->bone_get(*arm);
           const bool is_first_child = parent_bone->childbase.first == bone;
-          if (modify_active && parent_bone == active_bone && is_first_child) {
-            arm->act_bone = bone;
+          if (modify_active && parent_bone == active_bone) {
+            arm->act_bone = get_new_active_child(*parent_bone);
           }
           changed_any_selection = true;
         }
