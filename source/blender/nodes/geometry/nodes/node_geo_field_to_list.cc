@@ -89,7 +89,7 @@ static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
         bNode &node = params.add_node("GeometryNodeFieldToList"_ustr);
         socket_items::add_item_with_socket_type_and_name<ItemsAccessor>(
             params.node_tree, node, data_type, name.c_str());
-        params.update_and_connect_available_socket(node, UString(params.socket.name));
+        params.update_and_connect_available_socket(node, name);
       });
     }
   }
@@ -100,7 +100,7 @@ static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
         bNode &node = params.add_node("GeometryNodeFieldToList"_ustr);
         socket_items::add_item_with_socket_type_and_name<ItemsAccessor>(
             params.node_tree, node, data_type, name.c_str());
-        params.update_and_connect_available_socket(node, UString(params.socket.name));
+        params.update_and_connect_available_socket(node, name);
       });
     }
   }
