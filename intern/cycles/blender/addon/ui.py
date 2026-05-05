@@ -460,10 +460,6 @@ class CYCLES_RENDER_PT_sampling_advanced(CyclesButtonsPanel, Panel):
         if use_debug:
             row = layout.row(align=True)
             row.prop(cscene, "use_pixel_jitter")
-            row = layout.row(align=True)
-            row.prop(cscene, "use_custom_pixel_jitter_sample")
-            row = layout.row(align=True)
-            row.prop(cscene, "custom_pixel_jitter_sample")
 
             layout.separator()
 

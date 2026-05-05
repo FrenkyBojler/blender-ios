@@ -879,18 +879,6 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
         default=False,
     )
 
-    # For setting custom pixel jitter sample sequences.
-    use_custom_pixel_jitter_sample: BoolProperty(
-        name="Use Custom Pixel Jitter Sample",
-        default=False,
-    )
-    custom_pixel_jitter_sample: FloatVectorProperty(
-        name="Pixel Jitter Sample",
-        size=2,
-        min=-0.5, max=0.5,
-        default=(0.0, 0.0),
-    )
-
     seed: IntProperty(
         name="Seed",
         description="Seed value for integrator to get different noise patterns",

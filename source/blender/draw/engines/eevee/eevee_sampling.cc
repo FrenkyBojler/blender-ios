@@ -139,23 +139,19 @@ void Sampling::step()
 {
   /* Options for overwriting pixel jitter sample position. */
   PointerRNA prop_scene = RNA_id_pointer_create(const_cast<ID *>(&scene_->id));
-  blender::PropertyRNA *use_custom_pixel_jitter_sample_prop = RNA_struct_find_property(
-      &prop_scene, "[\"use_custom_pixel_jitter_sample\"]");
-  blender::PropertyRNA *custom_pixel_jitter_sample_prop = RNA_struct_find_property(
-      &prop_scene, "[\"custom_pixel_jitter_sample\"]");
-  if (use_custom_pixel_jitter_sample_prop) {
-    use_custom_pixel_jitter_sample_ = RNA_property_boolean_get(
-        &prop_scene, use_custom_pixel_jitter_sample_prop);
-    if (use_custom_pixel_jitter_sample_ && custom_pixel_jitter_sample_prop) {
-      const int array_length = RNA_property_array_length(&prop_scene,
-                                                         custom_pixel_jitter_sample_prop);
-      if (array_length == 2) {
-        RNA_property_float_get_array(
-            &prop_scene, custom_pixel_jitter_sample_prop, &custom_pixel_jitter_sample_[0]);
-      }
-      else {
-        printf("%s: scene.custom_pixel_jitter_sample length is not 2.\n", __func__);
-      }
+  blender::PropertyRNA *override_pixel_jitter_sample_prop = RNA_struct_find_property(
+      &prop_scene, "[\"override_pixel_jitter_sample\"]");
+  use_custom_pixel_jitter_sample_ = false;
+  if (override_pixel_jitter_sample_prop) {
+    const int array_length = RNA_property_array_length(&prop_scene,
+                                                       override_pixel_jitter_sample_prop);
+    if (array_length == 2) {
+      RNA_property_float_get_array(
+          &prop_scene, override_pixel_jitter_sample_prop, &custom_pixel_jitter_sample_[0]);
+      use_custom_pixel_jitter_sample_ = true;
+    }
+    else if (array_length != 0) {
+      printf("%s: scene.custom_pixel_jitter_sample length is not 0 or 2.\n", __func__);
     }
   }
 
