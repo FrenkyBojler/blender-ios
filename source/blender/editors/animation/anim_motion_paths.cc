@@ -418,8 +418,7 @@ void animviz_calc_motionpaths(Depsgraph *depsgraph,
                               Main *bmain,
                               Scene *scene,
                               MutableSpan<MPathTarget *> targets,
-                              eAnimvizCalcRange range,
-                              bool restore)
+                              eAnimvizCalcRange range)
 {
   using namespace blender::animrig;
 
