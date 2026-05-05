@@ -470,7 +470,8 @@ void update_cache_invariants(VPaint &vp, SculptSession &ss, wmOperator *op, cons
   }
 }
 
-void update_cache_variants(const Depsgraph &depsgraph, VPaint &vp, Object &ob, PointerRNA *ptr)
+void update_cache_variants(
+    Depsgraph &depsgraph, ViewContext &vc, VPaint &vp, Object &ob, Base &base, PointerRNA *ptr)
 {
   const PaintMode paint_mode = vp.paint.runtime->paint_mode;
   SculptSession &ss = *ob.runtime->sculpt_session;
@@ -483,7 +484,14 @@ void update_cache_variants(const Depsgraph &depsgraph, VPaint &vp, Object &ob, P
     RNA_float_get_array(ptr, "location", cache->location);
   }
 
+  RNA_float_get_array(ptr, "mouse_event", cache->mouse_event);
   RNA_float_get_array(ptr, "mouse", cache->mouse);
+
+  if (cache->first_time) {
+    CursorGeometryInfo cgi;
+    cursor_geometry_info_update(
+        depsgraph, vp.paint, nullptr, vc, &base, &cgi, cache->mouse_event, false);
+  }
 
   /* XXX: Use pressure value from first brush step for brushes which don't
    * support strokes (grab, thumb). They depends on initial state and
@@ -976,6 +984,7 @@ static std::unique_ptr<VPaintData> vpaint_init_vpaint(wmOperator *op,
 struct VertexPaintStroke final : public PaintStroke {
   Main *bmain_;
   VPaint *vertex_paint_;
+  Base *base_;
 
   VertexPaintStroke(bContext *C, wmOperator *op, const int event_type)
       : PaintStroke(C, op, event_type)
@@ -983,6 +992,7 @@ struct VertexPaintStroke final : public PaintStroke {
     bmain_ = CTX_data_main(C);
     ToolSettings *ts = CTX_data_tool_settings(C);
     vertex_paint_ = ts->vpaint;
+    base_ = CTX_data_active_base(C);
   }
 
   bool get_location(float out[3], const float mouse[2], bool force_original) override;
@@ -2051,7 +2061,7 @@ void VertexPaintStroke::update_step(wmOperator * /*op*/, PointerRNA *itemptr)
 
   ss.cache->stroke_distance = this->stroke_distance();
 
-  vwpaint::update_cache_variants(*this->depsgraph, *vertex_paint_, ob, itemptr);
+  vwpaint::update_cache_variants(*this->depsgraph, vc, *vertex_paint_, ob, *base_, itemptr);
 
   float mat[4][4];
 

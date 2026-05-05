@@ -878,6 +878,7 @@ struct WeightPaintStroke final : public PaintStroke {
   Main *bmain_;
   ToolSettings *tool_settings_;
   VPaint *weight_paint_;
+  Base *base_;
 
   WeightPaintStroke(bContext *C, wmOperator *op, const int event_type)
       : PaintStroke(C, op, event_type)
@@ -885,6 +886,7 @@ struct WeightPaintStroke final : public PaintStroke {
     bmain_ = CTX_data_main(C);
     tool_settings_ = CTX_data_tool_settings(C);
     weight_paint_ = tool_settings_->wpaint;
+    base_ = CTX_data_active_base(C);
   }
 
   bool get_location(float out[3], const float mouse[2], bool force_original) override;
@@ -1853,12 +1855,12 @@ void WeightPaintStroke::update_step(wmOperator * /*op*/, PointerRNA *itemptr)
   const ToolSettings &ts = *tool_settings_;
   const Brush &brush = *BKE_paint_brush(&wp.paint);
   WPaintData *wpd = static_cast<WPaintData *>(mode_data_.get());
-  ViewContext *vc;
+  ViewContext *vc = &this->vc;
   Object *ob = this->object;
 
   SculptSession &ss = *ob->runtime->sculpt_session;
 
-  vwpaint::update_cache_variants(*this->depsgraph, wp, *ob, itemptr);
+  vwpaint::update_cache_variants(*this->depsgraph, *vc, wp, *ob, *this->base_, itemptr);
 
   float mat[4][4];
 
@@ -1874,7 +1876,6 @@ void WeightPaintStroke::update_step(wmOperator * /*op*/, PointerRNA *itemptr)
     return;
   }
 
-  vc = &wpd->vc;
   ob = vc->obact;
 
   ED_view3d_init_mats_rv3d(ob, vc->rv3d);
