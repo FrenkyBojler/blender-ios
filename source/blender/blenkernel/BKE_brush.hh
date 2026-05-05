@@ -148,6 +148,13 @@ float BKE_brush_sample_masktex(
     const Paint *paint, Brush *br, const float2 &point, int thread, ImagePool *pool);
 
 /**
+ * Apply aspect ratio correction to texture sampling coordinates for image textures.
+ * When the image is not square, scales `r_x` or `r_y` so the texture appears undistorted.
+ * Does nothing when the MTex does not reference an IMAGE texture.
+ */
+void BKE_brush_apply_aspect_correction(float *r_x, float *r_y, const MTex *mtex, ImagePool *pool);
+
+/**
  * Get the mask texture for this given object mode.
  *
  * This is preferred above using mtex/mask_mtex attributes directly as due to legacy these

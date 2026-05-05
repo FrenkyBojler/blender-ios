@@ -33,6 +33,7 @@
 #include "BKE_grease_pencil.hh"
 #include "BKE_idprop.hh"
 #include "BKE_idtype.hh"
+#include "BKE_image.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_lib_remap.hh"
@@ -937,6 +938,31 @@ const MTex *BKE_brush_color_texture_get(const Brush *brush, const eObjectMode ob
   return &brush->mtex;
 }
 
+/* Apply aspect ratio correction for image textures when BRUSH_PRESERVE_ASPECT is set.
+ * Modifies tex coordinates to prevent rectangular textures from being squashed. */
+void BKE_brush_apply_aspect_correction(float *r_x, float *r_y, const MTex *mtex, ImagePool *pool)
+{
+  if (!mtex->tex || mtex->tex->type != TEX_IMAGE || !mtex->tex->ima) {
+    return;
+  }
+
+  ImBuf *ibuf = BKE_image_pool_acquire_ibuf(mtex->tex->ima, &mtex->tex->iuser, pool);
+  if (!ibuf || ibuf->x <= 0 || ibuf->y <= 0) {
+    BKE_image_pool_release_ibuf(mtex->tex->ima, ibuf, pool);
+    return;
+  }
+
+  const float aspect = float(ibuf->y) / float(ibuf->x);
+  if (aspect < 1.0f) {
+    *r_y /= aspect; /* landscape: stretch Y */
+  }
+  else if (aspect > 1.0f) {
+    *r_x *= aspect; /* portrait: stretch X */
+  }
+
+  BKE_image_pool_release_ibuf(mtex->tex->ima, ibuf, pool);
+}
+
 float BKE_brush_sample_tex_3d(const Paint *paint,
                               const Brush *br,
                               const MTex *mtex,
@@ -1020,6 +1046,10 @@ float BKE_brush_sample_tex_3d(const Paint *paint,
 
     x *= invradius;
     y *= invradius;
+
+    if (br->flag2 & BRUSH_PRESERVE_ASPECT) {
+      BKE_brush_apply_aspect_correction(&x, &y, mtex, pool);
+    }
 
     /* it is probably worth optimizing for those cases where
      * the texture is not rotated by skipping the calls to
@@ -1132,6 +1162,10 @@ float BKE_brush_sample_masktex(
 
     x *= invradius;
     y *= invradius;
+
+    if (br->flag2 & BRUSH_PRESERVE_ASPECT) {
+      BKE_brush_apply_aspect_correction(&x, &y, mtex, pool);
+    }
 
     /* it is probably worth optimizing for those cases where
      * the texture is not rotated by skipping the calls to
@@ -1682,14 +1716,31 @@ static bool brush_gen_texture(const Brush *br,
     return false;
   }
 
-  const float step = 2.0 / side;
+  /* Compute aspect ratio correction for image textures.
+   * Only applied when BRUSH_PRESERVE_ASPECT flag is set to match painting behavior. */
+  float aspect_x = 1.0f, aspect_y = 1.0f;
+  if ((br->flag2 & BRUSH_PRESERVE_ASPECT) && mtex->tex->type == TEX_IMAGE && mtex->tex->ima) {
+    ImBuf *ibuf = BKE_image_pool_acquire_ibuf(mtex->tex->ima, &mtex->tex->iuser, nullptr);
+    if (ibuf && ibuf->x > 0 && ibuf->y > 0) {
+      const float aspect = float(ibuf->y) / float(ibuf->x);
+      if (aspect < 1.0f) {
+        aspect_y = 1.0f / aspect; /* landscape: stretch Y */
+      }
+      else if (aspect > 1.0f) {
+        aspect_x = aspect; /* portrait: stretch X */
+      }
+    }
+    BKE_image_pool_release_ibuf(mtex->tex->ima, ibuf, nullptr);
+  }
+
+  const float step = 2.0f / side;
   int ix, iy;
   float x, y;
 
   /* Do normalized canonical view coords for texture. */
-  for (y = -1.0, iy = 0; iy < side; iy++, y += step) {
-    for (x = -1.0, ix = 0; ix < side; ix++, x += step) {
-      const float co[3] = {x, y, 0.0f};
+  for (y = -1.0f, iy = 0; iy < side; iy++, y += step) {
+    for (x = -1.0f, ix = 0; ix < side; ix++, x += step) {
+      const float co[3] = {x * aspect_x, y * aspect_y, 0.0f};
 
       float intensity;
       float rgba_dummy[4];
