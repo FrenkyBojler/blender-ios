@@ -209,22 +209,22 @@ static float component_average(float3 a)
 }
 
 template<typename Fn>
-static auto to_static_data_block(const eNodeSocketDatatype socket_type, Fn &&fn)
+static auto to_static_data_block_type(const eNodeSocketDatatype socket_type, Fn &&fn)
 {
   switch (socket_type) {
     case SOCK_OBJECT:
-      return fn.template operator()<Object *>();
+      return fn.template operator()<Object>();
     case SOCK_IMAGE:
-      return fn.template operator()<Image *>();
+      return fn.template operator()<Image>();
     case SOCK_COLLECTION:
-      return fn.template operator()<Collection *>();
+      return fn.template operator()<Collection>();
     case SOCK_FONT:
-      return fn.template operator()<VFont *>();
+      return fn.template operator()<VFont>();
     case SOCK_SOUND:
-      return fn.template operator()<bSound *>();
+      return fn.template operator()<bSound>();
     default:
       BLI_assert_unreachable();
-      return fn.template operator()<Object *>();
+      return fn.template operator()<Object>();
   }
 }
 
@@ -653,31 +653,34 @@ static const mf::MultiFunction *get_multi_function(const bNode &node)
       break;
     default: {
       if (is_supported_data_block_type(data_type)) {
-        return to_static_data_block(data_type, [&]<typename T>() -> const mf::MultiFunction * {
-          switch (data->operation) {
-            case NODE_COMPARE_EQUAL: {
-              static auto fn = mf::build::SI2_SO<T, T, bool>(
-                  "Equal",
-                  [](T a, T b) {
-                    return data_blocks_are_equal(id_cast<const ID *>(a), id_cast<const ID *>(b));
-                  },
-                  mf::build::exec_presets::Simple{});
-              return &fn;
-            }
-            case NODE_COMPARE_NOT_EQUAL: {
-              static auto fn = mf::build::SI2_SO<T, T, bool>(
-                  "Not Equal",
-                  [](T a, T b) {
-                    return !data_blocks_are_equal(id_cast<const ID *>(a), id_cast<const ID *>(b));
-                  },
-                  mf::build::exec_presets::Simple{});
-              return &fn;
-            }
-            default: {
-              return nullptr;
-            }
-          }
-        });
+        return to_static_data_block_type(
+            data_type, [&]<typename T>() -> const mf::MultiFunction * {
+              switch (data->operation) {
+                case NODE_COMPARE_EQUAL: {
+                  static auto fn = mf::build::SI2_SO<T *, T *, bool>(
+                      "Equal",
+                      [](const T *a, const T *b) {
+                        return data_blocks_are_equal(id_cast<const ID *>(a),
+                                                     id_cast<const ID *>(b));
+                      },
+                      mf::build::exec_presets::Simple{});
+                  return &fn;
+                }
+                case NODE_COMPARE_NOT_EQUAL: {
+                  static auto fn = mf::build::SI2_SO<T *, T *, bool>(
+                      "Not Equal",
+                      [](const T *a, const T *b) {
+                        return !data_blocks_are_equal(id_cast<const ID *>(a),
+                                                      id_cast<const ID *>(b));
+                      },
+                      mf::build::exec_presets::Simple{});
+                  return &fn;
+                }
+                default: {
+                  return nullptr;
+                }
+              }
+            });
       }
     }
   }
