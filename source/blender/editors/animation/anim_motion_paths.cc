@@ -57,19 +57,9 @@ struct MPathTarget {
   /* Original (Source Objects) */
   Object *ob;          /* Source Object */
   bPoseChannel *pchan; /* Source pose-channel (if applicable). */
-
-  /* "Evaluated" Copies (these come from the background evaluated copy
-   * that provide all the coordinates we want to save off). */
-  Object *ob_eval; /* Evaluated Object. */
 };
 
 /* ........ */
-
-/* Update scene for current frame. */
-static void motionpaths_calc_update_scene(Depsgraph *depsgraph)
-{
-  BKE_scene_graph_update_for_newframe(depsgraph);
-}
 
 Depsgraph *animviz_depsgraph_build(Main *bmain,
                                    Scene *scene,
@@ -90,7 +80,7 @@ Depsgraph *animviz_depsgraph_build(Main *bmain,
   DEG_graph_build_from_ids(depsgraph, ids);
 
   /* Update once so we can access pointers of evaluated animation data. */
-  motionpaths_calc_update_scene(depsgraph);
+  BKE_scene_graph_update_for_newframe(depsgraph);
   return depsgraph;
 }
 
@@ -161,7 +151,7 @@ static void motionpaths_calc_bake_targets(const Span<MPathTarget *> targets,
     /* Get the relevant cache vert to write to. */
     bMotionPathVert *mpv = mpath->points + (cframe - mpath->start_frame);
 
-    Object *ob_eval = mpt->ob_eval;
+    Object *ob_eval = DEG_get_evaluated(depsgraph, mpt->ob);
 
     /* Lookup evaluated pose channel, here because the depsgraph
      * evaluation can change them so they are not cached in mpt. */
@@ -439,7 +429,6 @@ void animviz_calc_motionpaths(Depsgraph *depsgraph,
     return;
   }
 
-  const int cfra = scene->r.cfra;
   /* The frame range to calculate. Inclusive/Exclusive. */
   Bounds<int> frame_range = {INT_MAX, INT_MIN};
   switch (range) {
@@ -455,9 +444,8 @@ void animviz_calc_motionpaths(Depsgraph *depsgraph,
   }
 
   for (MPathTarget *mpt : targets) {
-    mpt->ob_eval = DEG_get_evaluated(depsgraph, mpt->ob);
 
-    AnimData *adt = BKE_animdata_from_id(&mpt->ob_eval->id);
+    AnimData *adt = BKE_animdata_from_id(&mpt->ob->id);
 
     /* Build list of all keyframes in active action for object or pchan. */
     mpt->keylist = ED_keylist_create();
@@ -487,7 +475,8 @@ void animviz_calc_motionpaths(Depsgraph *depsgraph,
     ED_keylist_prepare_for_direct_access(mpt->keylist);
 
     if (range == ANIMVIZ_CALC_RANGE_CHANGED) {
-      const Bounds<int> target_bounds = motionpath_calculate_update_range(mpt, adt, fcurves, cfra);
+      const Bounds<int> target_bounds = motionpath_calculate_update_range(
+          mpt, adt, fcurves, scene->r.cfra);
       if (!target_bounds.is_empty()) {
         frame_range.min = min_ii(frame_range.min, target_bounds.min);
         frame_range.max = max_ii(frame_range.max, target_bounds.max);
@@ -507,15 +496,13 @@ void animviz_calc_motionpaths(Depsgraph *depsgraph,
             frame_range.max,
             frame_range.max - frame_range.min + 1);
 
-  for (scene->r.cfra = frame_range.min; scene->r.cfra < frame_range.max; scene->r.cfra++) {
+  for (int frame = frame_range.min; frame < frame_range.max; frame++) {
     /* Update relevant data for new frame. */
-    motionpaths_calc_update_scene(depsgraph);
+    DEG_evaluate_on_framechange(depsgraph, frame, DEG_EVALUATE_SYNC_WRITEBACK_NO);
 
     /* Perform baking for targets. */
-    motionpaths_calc_bake_targets(targets, scene->r.cfra, depsgraph, scene->camera);
+    motionpaths_calc_bake_targets(targets, frame, depsgraph, scene->camera);
   }
-
-  scene->r.cfra = cfra;
 
   /* Clear recalc flags from targets. */
   for (MPathTarget *mpt : targets) {
