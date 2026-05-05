@@ -7,6 +7,7 @@
 #include "BLI_math_rotation.h"
 
 #include "NOD_socket_search_link.hh"
+
 #include "RNA_enum_types.hh"
 
 #include "UI_interface_layout.hh"

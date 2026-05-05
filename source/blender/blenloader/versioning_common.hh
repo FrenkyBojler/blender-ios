@@ -209,6 +209,11 @@ bNodeSocket *version_node_add_socket_if_not_exist(bNodeTree *ntree,
 
 void version_node_tree_clear_interface(bNodeTree &ntree);
 
+void version_socket_identifier_suffixes_for_dynamic_types(
+    const ListBaseT<bNodeSocket> &sockets,
+    const char *separator,
+    const std::optional<int> total = std::nullopt);
+
 /**
  * The versioning code generally expects `SOCK_IS_LINKED` to be set correctly. This function
  * updates the flag on all sockets after changes to the node tree.
