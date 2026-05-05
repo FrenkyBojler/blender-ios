@@ -3003,6 +3003,12 @@ static void rebuild_pose_bone_indices(const Object &pose_ob)
     pchan->runtime.bone_index = index;
   });
 
+  /* If the Armature's bone array needs rebuilding, this has to happen before we grab the
+   * bones_generation_count value. Otherwise the current indices will be invalidated immediately on
+   * the next use. */
+  if (!armature.runtime->is_bones_array_valid()) {
+    rebuild_bone_array(const_cast<bArmature &>(armature));
+  }
   pose_ob.runtime->pose_bones_generation_count = armature.runtime->bones_generation_count;
 }
 
