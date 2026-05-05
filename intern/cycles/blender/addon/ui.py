@@ -1070,6 +1070,13 @@ class CYCLES_RENDER_PT_passes_data(CyclesButtonsPanel, Panel):
 
         col.prop(cycles_view_layer, "denoising_store_passes", text="Denoising Data")
 
+        prefs = context.preferences
+        use_debug = prefs.experimental.use_cycles_debug and prefs.view.show_developer_ui
+        if use_debug:
+            col = layout.column(heading="Denoising Data Debug", align=True)
+            col.prop(cycles_view_layer, "denoising_pass_follow_reflections")
+            col.prop(cycles_view_layer, "denoising_pass_use_albedo_roughness_weighting")
+
         col = layout.column(heading="Indexes", align=True)
         col.prop(view_layer, "use_pass_object_index")
         col.prop(view_layer, "use_pass_material_index")
