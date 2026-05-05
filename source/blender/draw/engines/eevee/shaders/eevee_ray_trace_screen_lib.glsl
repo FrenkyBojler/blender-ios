@@ -339,18 +339,21 @@ float raytrace_screen_2(const float3 vs_origin,
      * - Fetch depth using both point and linear sampling.
      * - Use the furthest one for intersection check.
      * - Use the closest one for thickness check. */
-    const float hit_depth_point = texelFetch(hiz_tx, int2(texel), 0).r;
     const float2 gather_uv = round(texel) * hiz_texel_to_uv;
-    const float4 depth4 = textureGather(hiz_tx, gather_uv);
     const float2 bilinear_coords = fract(texel - 0.5f);
+    const float4 depth4 = textureGather(hiz_tx, gather_uv);
+    const float hit_depth_point = mix(mix(depth4.w, depth4.z, bilinear_coords.x > 0.5f),
+                                      mix(depth4.x, depth4.y, bilinear_coords.x > 0.5f),
+                                      bilinear_coords.y > 0.5f);
     const float hit_depth_linear = mix(mix(depth4.w, depth4.z, bilinear_coords.x),
                                        mix(depth4.x, depth4.y, bilinear_coords.x),
                                        bilinear_coords.y);
     const float hit_min_z = min(hit_depth_point, hit_depth_linear);
     const float hit_max_z = max(hit_depth_point, hit_depth_linear);
 
-    float sample_view_Z = drw_depth_screen_to_view(hit_depth_point);
-    float sample_ndc_min_thickness = rt_data.ray_thickness.pixel_depth_thickness_at(sample_view_Z);
+    const float sample_view_Z = drw_depth_screen_to_view(hit_depth_point);
+    const float sample_ndc_min_thickness = rt_data.ray_thickness.pixel_depth_thickness_at(
+        sample_view_Z);
 
     /* Equivalent to #thickness_estimator.intersect() but applies the Tiny Glade fix. */
     float sample_thickness = thickness_estimator.thickness(
@@ -360,9 +363,9 @@ float raytrace_screen_2(const float3 vs_origin,
      * point test. */
     sample_thickness += abs(step.z - previous_step_z);
 
-    float sample_min = hit_max_z;
-    float sample_max = hit_min_z + sample_thickness;
-    bool hit = step.z >= sample_min && step.z <= sample_max;
+    const float sample_min = hit_max_z;
+    const float sample_max = hit_min_z + sample_thickness;
+    const bool hit = step.z >= sample_min && step.z <= sample_max;
 
     previous_step_z = step.z;
 
