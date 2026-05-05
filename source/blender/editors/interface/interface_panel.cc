@@ -617,7 +617,7 @@ static void panel_custom_data_active_set(Panel *panel)
 /**
  * Set flag state for a panel and its sub-panels.
  */
-static void panel_set_flag_recursive(Panel *panel, short flag, bool value)
+static void panel_set_flag_recursive(Panel *panel, ePanel_Flag flag, bool value)
 {
   SET_FLAG_FROM_TEST(panel->flag, value, flag);
 
@@ -1653,7 +1653,7 @@ void panel_category_tabs_draw_all(ARegion *region, const char *category_id_activ
               category_id_draw, category_draw_len, 2);
           char *space = BLI_strcasestr(category_id_draw, " ");
           if (char_offset2 == 2 && isupper(category_id_draw[1])) {
-            /* First two characters are latin with second uppercase. */
+            /* First two characters are Latin with second uppercase. */
             title = std::string(category_id_draw, char_offset2);
           }
           else if (space && category_draw_len > (space - category_id_draw)) {
@@ -2672,8 +2672,7 @@ int handler_panel_region(bContext *C,
                          ARegion *region,
                          const Button *active_but)
 {
-  /* Handle release of dragged panel in separate handlers. */
-  if (event->type == LEFTMOUSE && event->val == KM_RELEASE) {
+  if (event->val == KM_RELEASE) {
     return WM_UI_HANDLER_CONTINUE;
   }
 
