@@ -23,8 +23,8 @@ struct PointerRNA;
 
 namespace ui {
 struct Layout;
-struct wmOperator;
 }  // namespace ui
+struct wmOperator;
 
 /**
  * Fills an array with the tab context values for the properties editor. -1 signals a separator.

@@ -130,11 +130,9 @@ static void file_free(SpaceLink *sl)
 
   if (sfile->params) {
     MEM_SAFE_DELETE(sfile->params->runtime);
-    sfile->params->runtime = nullptr;
   }
   MEM_SAFE_DELETE(sfile->params);
   MEM_SAFE_DELETE(sfile->asset_params);
-
   if (sfile->runtime != nullptr) {
     BKE_reports_free(&sfile->runtime->is_blendfile_readable_reports);
   }
@@ -193,6 +191,7 @@ static SpaceLink *file_duplicate(SpaceLink *sl)
   if (sfileo->params) {
     sfilen->params = MEM_dupalloc(sfileo->params);
     if (sfileo->params->runtime) {
+      /* Duplicate runtime data. */
       sfilen->params->runtime = MEM_new<FileSelectParams_Runtime>(__func__,
                                                                   *sfileo->params->runtime);
     }
@@ -250,10 +249,10 @@ static void file_refresh(const bContext *C, ScrArea *area)
 
   /* Sync template path after filelist_setdir, which may truncate params->dir to an existing
    * parent directory if the full path doesn't exist. */
-  const blender::bke::path_templates::VariableMap *template_vars =
-      ED_fileselect_params_get_template_vars(params);
+  const bke::path_templates::VariableMap *template_vars = ED_fileselect_params_get_template_vars(
+      params);
   if (template_vars) {
-    blender::bke::path_templates::nav_sync_template_to_resolved(params, *template_vars);
+    bke::path_templates::nav_sync_template_to_resolved(params, *template_vars);
   }
 
   filelist_setrecursion(sfile->files, params->recursion_level);

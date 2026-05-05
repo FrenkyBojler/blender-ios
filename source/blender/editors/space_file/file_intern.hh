@@ -202,7 +202,7 @@ using onReloadFn = void (*)(SpaceFile *space_data, onReloadFnData custom_data);
 /** Runtime data for FileSelectParams (not saved to .blend files). */
 struct FileSelectParams_Runtime {
   /** Template variables for path resolution. Set when file browser is launched. */
-  std::optional<blender::bke::path_templates::VariableMap> template_vars;
+  std::optional<bke::path_templates::VariableMap> template_vars;
 };
 
 struct SpaceFile_Runtime {
@@ -230,6 +230,8 @@ void file_on_reload_callback_register(SpaceFile *sfile,
 
 /* not listbase itself */
 void folderlist_free(ListBaseT<FolderList> *folderlist);
+/* `dir_template` optionally stores the template path for the directory. So it
+ * can be restored when navigating history. */
 void folderlist_popdir(ListBaseT<FolderList> *folderlist, char *dir, char *dir_template = nullptr);
 void folderlist_pushdir(ListBaseT<FolderList> *folderlist,
                         const char *dir,

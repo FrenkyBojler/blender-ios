@@ -183,12 +183,12 @@ struct FileBrowseOp {
   bool is_undo = false;
   bool is_userdef = false;
   /* Template variables for the property being browsed, if applicable. */
-  std::optional<blender::bke::path_templates::VariableMap> template_vars = std::nullopt;
+  std::optional<bke::path_templates::VariableMap> template_vars = std::nullopt;
 };
 
 /* Get template variables from file browse operator's custom data, if available.
  * Returns nullptr if operator is not a buttons browse operator or has no template variables. */
-const blender::bke::path_templates::VariableMap *ED_buttons_file_browse_get_template_vars(
+const bke::path_templates::VariableMap *ED_buttons_file_browse_get_template_vars(
     const wmOperator *op)
 {
   if (!op) {
@@ -337,7 +337,7 @@ static wmOperatorStatus file_browse_invoke(bContext *C, wmOperator *op, const wm
 
   path = RNA_property_string_get_alloc(&ptr, prop, nullptr, 0, nullptr);
 
-  std::optional<blender::bke::path_templates::VariableMap> template_variables = std::nullopt;
+  std::optional<bke::path_templates::VariableMap> template_variables = std::nullopt;
   if ((RNA_property_flag(prop) & PROP_PATH_SUPPORTS_TEMPLATES) != 0) {
     template_variables = BKE_build_template_variables_for_prop(C, &ptr, prop);
     BLI_assert(template_variables.has_value());

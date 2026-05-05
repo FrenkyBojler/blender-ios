@@ -128,11 +128,11 @@ bool ED_fileselect_is_local_asset_library(const SpaceFile *sfile);
 
 /** Set template variables map for FileSelectParams if `vars` is null no map will be set. */
 void ED_fileselect_params_set_template_vars(FileSelectParams *params,
-                                            const blender::bke::path_templates::VariableMap *vars);
+                                            const bke::path_templates::VariableMap *vars);
 /** Free template variables map from FileSelectParams. */
 void ED_fileselect_params_free_template_vars(FileSelectParams *params);
 /** Get template variables map from FileSelectParams. Returns nullptr if not set. */
-const blender::bke::path_templates::VariableMap *ED_fileselect_params_get_template_vars(
+const bke::path_templates::VariableMap *ED_fileselect_params_get_template_vars(
     const FileSelectParams *params);
 
 void ED_fileselect_set_params_from_userdef(SpaceFile *sfile);

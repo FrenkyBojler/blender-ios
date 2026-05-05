@@ -434,8 +434,7 @@ std::optional<std::string> BKE_path_template_format_float(StringRef format_speci
                                                           double value);
 
 /** Same as #BKE_path_template_format_float but for formatting an integer value. */
-std::optional<std::string> BKE_path_template_format_int(blender::StringRef format_specifier,
-                                                        int64_t value);
+std::optional<std::string> BKE_path_template_format_int(StringRef format_specifier, int64_t value);
 
 /* -------------------------------------------------------------------- */
 /** \name Path Template Navigation
@@ -456,8 +455,7 @@ namespace bke::path_templates {
  * \param params: FileSelectParams structure to initialize.
  * \param variables: Variable map for template resolution (must be valid).
  */
-void nav_initialize(FileSelectParams *params,
-                    const blender::bke::path_templates::VariableMap &variables);
+void nav_initialize(FileSelectParams *params, const bke::path_templates::VariableMap &variables);
 
 /**
  * Handle textual user input of a path.
@@ -471,7 +469,7 @@ void nav_initialize(FileSelectParams *params,
  */
 void nav_handle_text_input(FileSelectParams *params,
                            const char *input_path,
-                           const blender::bke::path_templates::VariableMap &variables);
+                           const bke::path_templates::VariableMap &variables);
 
 /**
  * Handle directory navigation in browser while preserving parent template variables.
@@ -485,7 +483,7 @@ void nav_handle_text_input(FileSelectParams *params,
  */
 void nav_handle_browse(FileSelectParams *params,
                        const char *new_directory,
-                       const blender::bke::path_templates::VariableMap &variables);
+                       const bke::path_templates::VariableMap &variables);
 
 /**
  * Synchronize template path to match the cleaned resolved path.
@@ -504,7 +502,7 @@ void nav_handle_browse(FileSelectParams *params,
  * \return true if synchronization succeeded, false if current path is outside template bounds.
  */
 bool nav_sync_template_to_resolved(FileSelectParams *params,
-                                   const blender::bke::path_templates::VariableMap &variables);
+                                   const bke::path_templates::VariableMap &variables);
 
 }  // namespace bke::path_templates
 /** \} */
