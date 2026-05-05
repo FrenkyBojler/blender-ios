@@ -45,7 +45,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       auto &decl = panel.add_output(socket_type, UString(item.name), identifier);
       decl.socket_name_ptr(
           &tree->id, *EvaluateClosureOutputItemsAccessor::item_srna, &item, "name");
-      if (item.structure_type != NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO) {
+      if (item.structure_type != NodeSocketInterfaceStructureType::Auto) {
         decl.structure_type(StructureType(item.structure_type));
       }
       else {
@@ -64,7 +64,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       if (socket_type_supports_fields(socket_type)) {
         decl.supports_field();
       }
-      if (item.structure_type != NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO) {
+      if (item.structure_type != NodeSocketInterfaceStructureType::Auto) {
         decl.structure_type(StructureType(item.structure_type));
       }
       else {
