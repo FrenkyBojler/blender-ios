@@ -144,7 +144,7 @@ static void blo_update_defaults_screen(bScreen *screen,
       else if (STR_ELEM(workspace_name, "Texture Paint", "Shading")) {
         SpaceImage *sima = static_cast<SpaceImage *>(area.spacedata.first);
         sima->uv_face_opacity = 0.0f;
-        sima->uv_edge_opacity = 0.0f;
+        sima->uv_edge_opacity = 1.0f;
       }
       else if (BLI_str_startswith(workspace_name, "Compositing")) {
         SpaceImage *sima = static_cast<SpaceImage *>(area.spacedata.first);
