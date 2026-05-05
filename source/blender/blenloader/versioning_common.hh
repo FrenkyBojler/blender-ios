@@ -209,6 +209,10 @@ bNodeSocket *version_node_add_socket_if_not_exist(bNodeTree *ntree,
 
 void version_node_tree_clear_interface(bNodeTree &ntree);
 
+/**
+ * Change socket identifiers so that everything after the separator is removed for available
+ * sockets.
+ */
 void version_socket_identifier_suffixes_for_dynamic_types(
     const ListBaseT<bNodeSocket> &sockets,
     const char *separator,
