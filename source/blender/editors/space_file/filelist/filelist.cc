@@ -102,16 +102,14 @@ static void remote_asset_library_refresh_online_assets_status(const FileList *fi
 void filelist_remote_asset_library_refresh_online_assets_status(
     const FileList *filelist, const blender::StringRef remote_url)
 {
-  if (!filelist->asset_library || !filelist->asset_library_ref) {
+  if (!filelist->asset_library) {
     return;
   }
   if (remote_url.is_empty()) {
     return;
   }
 
-  if (ELEM(filelist->asset_library_ref->type, ASSET_LIBRARY_ALL, ASSET_LIBRARY_ESSENTIALS) ||
-      (filelist->asset_library->remote_url() == remote_url))
-  {
+  if (asset_system::contains_assets_from_remote_url(*filelist->asset_library, remote_url)) {
     remote_asset_library_refresh_online_assets_status(filelist);
   }
 }

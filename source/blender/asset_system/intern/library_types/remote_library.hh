@@ -14,6 +14,10 @@
 
 namespace blender::asset_system {
 
+/**
+ * Abstract class for remote libraries. #PreferencesRemoteAssetLibrary and #OnlineEssentialsLibrary
+ * derive from this.
+ */
 class RemoteAssetLibrary : public AssetLibrary {
   std::string remote_url_;
 

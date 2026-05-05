@@ -204,9 +204,14 @@ bUserAssetLibrary *BKE_preferences_remote_asset_library_add(UserDef *userdef,
   return library;
 }
 
-static void ensure_trailing_slash(char *str, const size_t max_len)
+/**
+ * Appends a slash to \a str if there isn't one there already. Will do nothing if \a str is empty.
+ *
+ * \param max_len: The maximum length \a str is allowed to have, including 0-terminator.
+ */
+static void url_ensure_trailing_slash(char *str, const size_t max_len)
 {
-  const size_t len = strlen(str);
+  const size_t len = BLI_strnlen(str, max_len);
   BLI_assert_msg(str[len] == '\0', "String should be null-terminated");
 
   if (len > 0 && str[len - 1] != '/' && len + 1 < max_len) {
@@ -224,7 +229,7 @@ void BKE_preferences_remote_asset_library_url_set(bUserAssetLibrary *library,
       library->remote_url);
 
   if (!ends_in_top_meta_file) {
-    ensure_trailing_slash(library->remote_url, sizeof(library->remote_url));
+    url_ensure_trailing_slash(library->remote_url, sizeof(library->remote_url));
   }
 
   /* Update location cache path. */

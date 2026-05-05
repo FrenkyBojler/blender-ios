@@ -11,6 +11,7 @@
 #include "AS_asset_catalog.hh"
 #include "AS_asset_library.hh"
 #include "AS_asset_representation.hh"
+#include "AS_essentials_library.hh"
 #include "AS_remote_library.hh"
 
 #include "BKE_lib_remap.hh"
@@ -28,7 +29,6 @@
 
 #include "asset_catalog_collection.hh"
 #include "asset_library_service.hh"
-#include "essentials_library.hh"
 #include "runtime_library.hh"
 #include "utils.hh"
 
@@ -473,8 +473,8 @@ Vector<AssetLibraryReference> all_valid_asset_library_refs()
     result.append(library_ref);
   }
 
-  const bool skip_remote_libraries = !USER_EXPERIMENTAL_TEST(&U, use_remote_asset_libraries);
-  if (!skip_remote_libraries) {
+  const bool include_remote_libraries = USER_EXPERIMENTAL_TEST(&U, use_remote_asset_libraries);
+  if (include_remote_libraries) {
     AssetLibraryReference library_ref{};
     library_ref.custom_library_index = -1;
     library_ref.type = ASSET_LIBRARY_ONLINE_ESSENTIALS;
@@ -561,6 +561,35 @@ bool is_or_contains_remote_libraries(const AssetLibraryReference &reference)
       }
       break;
     }
+    case ASSET_LIBRARY_LOCAL:
+      return false;
+  }
+
+  return false;
+}
+
+bool contains_assets_from_remote_url(const AssetLibrary &library, const StringRef remote_url)
+{
+  switch (library.library_type()) {
+    case ASSET_LIBRARY_ALL: {
+      if (is_online_essentials_url(remote_url)) {
+        return true;
+      }
+      bool has_match = false;
+      AssetLibrary::foreach_loaded(
+          [&](const AssetLibrary &nested) {
+            if (nested.remote_url() == remote_url) {
+              has_match = true;
+            }
+          },
+          /*include_all_library=*/false);
+      return has_match;
+    }
+    case ASSET_LIBRARY_ESSENTIALS:
+    case ASSET_LIBRARY_ONLINE_ESSENTIALS:
+      return is_online_essentials_url(remote_url);
+    case ASSET_LIBRARY_CUSTOM:
+      return library.remote_url() == remote_url;
     case ASSET_LIBRARY_LOCAL:
       return false;
   }

@@ -647,7 +647,7 @@ struct bUserAssetLibrary {
    * downloaded assets will be placed. */
   char dirpath[/*FILE_MAX*/ 1024] = "";
   /** Only for remote asset libraries (#ASSET_LIBRARY_USE_REMOTE_URL is set). Update using
-   * #BKE_asset_library_set_remote_url() only. */
+   * #BKE_preferences_remote_asset_library_url_set() only. */
   char remote_url[/*FILE_MAX*/ 1024];
 
   short import_method = ASSET_IMPORT_PACK;  /* eAssetImportMethod */

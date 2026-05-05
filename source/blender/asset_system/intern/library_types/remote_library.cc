@@ -61,11 +61,11 @@ RemoteLibraryDefinitionRef::RemoteLibraryDefinitionRef(const bUserAssetLibrary &
  *  Used by #PreferencesRemoteAssetLibrary and #OnlineEssentialsLibrary.
  * \{ */
 
-RemoteAssetLibrary::RemoteAssetLibrary(eAssetLibraryType library_type,
-                                       bool is_read_only,
-                                       StringRef remote_url,
-                                       StringRef name,
-                                       StringRef root_path)
+RemoteAssetLibrary::RemoteAssetLibrary(const eAssetLibraryType library_type,
+                                       const bool is_read_only,
+                                       const StringRef remote_url,
+                                       const StringRef name,
+                                       const StringRef root_path)
     : AssetLibrary(library_type, is_read_only, name, root_path), remote_url_(remote_url)
 {
   may_override_import_method_ = false;
@@ -367,7 +367,7 @@ void remote_library_request_download(const RemoteLibraryDefinitionRef &library_d
     return;
   }
 
-  BLI_assert_msg(library_definition.remote_url != online_essentials_url() ||
+  BLI_assert_msg(!is_online_essentials_url(library_definition.remote_url) ||
                      library_definition.cache_dirpath == online_essentials_cache_directory_path(),
                  "The online essentials library must be downloaded to "
                  "online_essentials_cache_directory_path()");
@@ -710,14 +710,10 @@ std::string remote_library_asset_preview_path(const AssetRepresentation &asset)
 
 bool remote_library_url_ends_with_top_meta_file_name(const StringRef url)
 {
-  if (url.is_empty()) {
+  if (url.size() < REMOTE_LIBRARY_TOP_META_FILE_NAME_LEADING_SLASH.size()) {
     return false;
   }
-  if (url.size() < REMOTE_LIBRARY_TOP_META_FILE_NAME.size() + 1) {
-    return false;
-  }
-  return url[url.size() - REMOTE_LIBRARY_TOP_META_FILE_NAME.size() - 1] == '/' &&
-         url.endswith(asset_system::REMOTE_LIBRARY_TOP_META_FILE_NAME);
+  return url.endswith(REMOTE_LIBRARY_TOP_META_FILE_NAME_LEADING_SLASH);
 }
 
 void foreach_registered_user_remote_library(FunctionRef<void(bUserAssetLibrary &)> fn)

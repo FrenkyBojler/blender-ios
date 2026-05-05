@@ -28,6 +28,7 @@
 #include "BLI_string.h"
 #include "BLI_utility_mixins.hh"
 
+#include "DNA_asset_types.h"
 #include "DNA_space_enums.h"
 #include "DNA_space_types.h"
 

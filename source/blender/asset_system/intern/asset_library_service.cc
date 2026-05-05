@@ -108,7 +108,7 @@ AssetLibrary *AssetLibraryService::get_asset_library(
       }
 
       if (custom_library->flag & ASSET_LIBRARY_USE_REMOTE_URL) {
-        if (custom_library->remote_url == online_essentials_url()) {
+        if (is_online_essentials_url(custom_library->remote_url)) {
           return this->get_online_essentials_asset_library();
         }
         return this->get_preferences_remote_asset_library(*custom_library);
@@ -690,12 +690,10 @@ void AssetLibraryService::foreach_loaded_asset_library(FunctionRef<void(AssetLib
     break;
   }
 
-  const bool skip_remote_libraries = !USER_EXPERIMENTAL_TEST(&U, use_remote_asset_libraries);
+  const bool include_remote_libraries = USER_EXPERIMENTAL_TEST(&U, use_remote_asset_libraries);
 
-  if (!skip_remote_libraries) {
-    if (online_essentials_library_) {
-      fn(*online_essentials_library_);
-    }
+  if (include_remote_libraries && online_essentials_library_) {
+    fn(*online_essentials_library_);
   }
 
   for (const auto &asset_lib_uptr : on_disk_libraries_.values()) {
@@ -709,7 +707,7 @@ void AssetLibraryService::foreach_loaded_asset_library(FunctionRef<void(AssetLib
     }
   }
 
-  if (!skip_remote_libraries) {
+  if (include_remote_libraries) {
     for (const auto &asset_lib_uptr : remote_libraries_.values()) {
       if (asset_lib_uptr->is_enabled()) {
         fn(*asset_lib_uptr);

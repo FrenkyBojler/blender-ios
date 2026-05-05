@@ -259,10 +259,11 @@ void all_library_reload_catalogs_if_dirty();
 /**
  * Return whether this is a remote asset library, or contains remote assets.
  *
- * The All and Essentials libraries can (now resp. in the future) have a mixture of local & remote
- * assets.
+ * The All and Essentials libraries can have a mixture of local & remote assets.
  */
 bool is_or_contains_remote_libraries(const AssetLibraryReference &reference);
+
+bool contains_assets_from_remote_url(const AssetLibrary &library, StringRef remote_url);
 
 }  // namespace asset_system
 
