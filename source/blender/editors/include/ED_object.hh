@@ -392,7 +392,7 @@ void motion_paths_clear(bContext *C, bool only_selected);
 void motion_paths_recalc(bContext *C,
                          Scene *scene,
                          eAnimvizCalcRange range,
-                         ListBaseT<LinkData> *ld_objects);
+                         Span<Object *> objects);
 
 void motion_paths_recalc_selected(bContext *C, Scene *scene, eAnimvizCalcRange range);
 
