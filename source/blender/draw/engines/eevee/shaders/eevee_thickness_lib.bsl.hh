@@ -45,7 +45,7 @@ class Thickness {
     return data > 0.0 ? ThicknessMode::Sphere : ThicknessMode::Slab;
   }
 
-  ThicknessIsect shape_intersect(float3 N, float3 L)
+  ThicknessIsect shape_intersect(float3 N, float3 L) const
   {
     if (mode() == ThicknessMode::Sphere) {
       return sphere_intersect(value(), N, L);
@@ -60,7 +60,7 @@ class Thickness {
    * Assumes N and L are normalized.
    * Everything is relative to the entrance shading point.
    */
-  ThicknessIsect sphere_intersect(float diameter, float3 N, float3 L)
+  ThicknessIsect sphere_intersect(float diameter, float3 N, float3 L) const
   {
     ThicknessIsect isect;
     float cos_alpha = dot(L, -N);
@@ -75,7 +75,7 @@ class Thickness {
    * Assumes N and L are normalized.
    * Everything is relative to the entrance shading point.
    */
-  ThicknessIsect plane_intersect(float plane_distance, float3 N, float3 L)
+  ThicknessIsect plane_intersect(float plane_distance, float3 N, float3 L) const
   {
     ThicknessIsect isect;
     float distance_from_shading_plane = dot(L, -N);
