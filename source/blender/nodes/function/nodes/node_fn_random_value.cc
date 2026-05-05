@@ -109,11 +109,13 @@ static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
         params.update_and_connect_available_socket(node, "Max"_ustr);
       });
     }
-    params.add_item(IFACE_("Probability"), [type](LinkSearchOpParams &params) {
-      bNode &node = params.add_node("FunctionNodeRandomValue"_ustr);
-      node_storage(node).data_type = *type;
-      params.update_and_connect_available_socket(node, "Probability"_ustr);
-    });
+    if (*type == CD_PROP_FLOAT) {
+      params.add_item(IFACE_("Probability"), [](LinkSearchOpParams &params) {
+        bNode &node = params.add_node("FunctionNodeRandomValue"_ustr);
+        node_storage(node).data_type = CD_PROP_BOOL;
+        params.update_and_connect_available_socket(node, "Probability"_ustr);
+      });
+    }
   }
   else {
     params.add_item(IFACE_("Value"), [type](LinkSearchOpParams &params) {
