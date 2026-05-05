@@ -418,12 +418,12 @@ void AssetCatalogService::reload_catalogs()
   Set<CatalogID> cats_in_file;
 
   auto catalog_parsed_callback = [this, &cats_in_file](std::unique_ptr<AssetCatalog> catalog) {
-    const CatalogID catalog_id = catalog->catalog_id;
-    cats_in_file.add(catalog_id);
-
     if (skip_experimental_asset_catalog(catalog->catalog_id)) {
       return false;
     }
+
+    const CatalogID catalog_id = catalog->catalog_id;
+    cats_in_file.add(catalog_id);
 
     const bool should_skip = this->is_catalog_known_with_unsaved_changes(catalog_id);
     if (should_skip) {

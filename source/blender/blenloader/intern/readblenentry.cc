@@ -13,15 +13,12 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "AS_essentials_library.hh"
-
 #include "BLI_ghash.h"
 #include "BLI_linklist.h"
 #include "BLI_path_utils.hh" /* Only for assertions. */
 #include "BLI_set.hh"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
-#include "BLI_uuid.h"
 
 #include "DNA_genfile.h"
 
@@ -189,23 +186,19 @@ LinkNode *BLO_blendhandle_get_datablock_info(BlendHandle *bh,
         continue;
       }
 
+      const char *name = idname + 2;
+      BLODataBlockInfo *info = MEM_new<BLODataBlockInfo>(__func__);
+
+      if (is_library) {
+        info->library_data = library_data;
+      }
+
       /* Lastly, read asset data from the following blocks. */
       if (asset_meta_data) {
         bhead = blo_read_asset_data_block(fd, bhead, &asset_meta_data);
         /* blo_read_asset_data_block() reads all DATA heads and already advances bhead to the
          * next non-DATA one. Go back, so the loop doesn't skip the non-DATA head. */
         bhead = blo_bhead_prev(fd, bhead);
-      }
-      if (asset_system::skip_experimental_asset_catalog(UUID(asset_meta_data->catalog_id))) {
-        BKE_asset_metadata_free(&asset_meta_data);
-        continue;
-      }
-
-      const char *name = idname + 2;
-      BLODataBlockInfo *info = MEM_new<BLODataBlockInfo>(__func__);
-
-      if (is_library) {
-        info->library_data = library_data;
       }
 
       STRNCPY(info->name, name);
