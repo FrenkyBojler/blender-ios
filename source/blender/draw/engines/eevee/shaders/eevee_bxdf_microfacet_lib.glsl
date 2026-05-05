@@ -399,6 +399,17 @@ Ray bxdf_ggx_ray_amend_transmission(ClosureUndetermined cl, float3 V, Ray ray, T
   return ray;
 }
 
+float3 bxdf_ggx_view_amend_transmission(ClosureUndetermined cl, float3 V, Thickness thickness)
+{
+  if (thickness.value() != 0.0f) {
+    ClosureRefraction bsdf = to_closure_refraction(cl);
+    float perceived_roughness = bxdf_ggx_perceived_roughness_transmission(bsdf.roughness,
+                                                                          bsdf.ior);
+    V = -bxdf_ggx_dominant_direction_transmission(bsdf.N, V, bsdf.ior, perceived_roughness);
+  }
+  return V;
+}
+
 ClosureLight bxdf_ggx_light_reflection(ClosureReflection cl, float3 V)
 {
   auto &util_tx = sampler_get(eevee_utility_texture, utility_tx);
