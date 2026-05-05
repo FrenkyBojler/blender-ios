@@ -1,2 +1,3 @@
 Referenced by issue #158064, instant access violation when using the f3 search menu to launch operators with inadequate poll functions.
 Referenced by pull request #158141, Fix #158064: Crash when using 'Add Primitive' operator in unsupported modes
+Referenced by commit e0128e5c3c93f33aae95bc00195243f825c5c4ec, Fix #158064: Crash when using 'Add Primitive' operator in unsupported modes
