@@ -471,6 +471,7 @@ set(LIB
   PRIVATE bf::dependencies::optional::tbb
   PRIVATE bf::dependencies::optional::audaspace
   PUBLIC bf::dependencies::fmt
+  PRIVATE bf::nodes::shader
 )
 
 blender_add_lib(bf_rna "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
