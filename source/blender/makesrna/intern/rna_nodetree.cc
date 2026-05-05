@@ -38,6 +38,8 @@
 
 #include "IMB_colormanagement.hh"
 
+#include "UI_interface_c.hh"
+
 #include "WM_types.hh"
 
 namespace blender {
@@ -1062,13 +1064,14 @@ static bool rna_NodeTree_valid_socket_type(bke::bNodeTreeType *ntreetype,
   return valid;
 }
 
-static bool rna_NodeTree_unregister(Main *bmain, StructRNA *type)
+static bool rna_NodeTree_unregister(bContext &C, Main *bmain, StructRNA *type)
 {
   bke::bNodeTreeType *nt = static_cast<bke::bNodeTreeType *>(RNA_struct_blender_type_get(type));
 
   if (!nt) {
     return false;
   }
+  ui::popup_handlers_refresh_or_remove_for_srna_unregister(C, type);
 
   RNA_struct_free_extension(type, &nt->rna_ext);
   RNA_struct_free(&RNA_blender_rna_get(), type);
@@ -1081,7 +1084,8 @@ static bool rna_NodeTree_unregister(Main *bmain, StructRNA *type)
   return true;
 }
 
-static StructRNA *rna_NodeTree_register(Main *bmain,
+static StructRNA *rna_NodeTree_register(bContext &C,
+                                        Main *bmain,
                                         ReportList *reports,
                                         void *data,
                                         const char *identifier,
@@ -1123,7 +1127,7 @@ static StructRNA *rna_NodeTree_register(Main *bmain,
                 dummy_nt.idname.c_str());
 
     /* NOTE: unlike most types `nt->rna_ext.srna` doesn't need to be checked for nullptr. */
-    if (!rna_NodeTree_unregister(bmain, nt->rna_ext.srna)) {
+    if (!rna_NodeTree_unregister(C, bmain, nt->rna_ext.srna)) {
       BKE_reportf(reports,
                   RPT_ERROR,
                   "Registering node tree class: '%s', bl_idname '%s' could not be unregistered",
@@ -1987,13 +1991,14 @@ static void rna_Node_is_registered_node_type_runtime(bContext * /*C*/,
   RNA_parameter_set_lookup(parms, "result", &result);
 }
 
-static bool rna_Node_unregister(Main *bmain, StructRNA *type)
+static bool rna_Node_unregister(bContext &C, Main *bmain, StructRNA *type)
 {
   bke::bNodeType *nt = static_cast<bke::bNodeType *>(RNA_struct_blender_type_get(type));
 
   if (!nt || rna_Node_is_builtin(nt)) {
     return false;
   }
+  ui::popup_handlers_refresh_or_remove_for_srna_unregister(C, type);
 
   RNA_struct_free_extension(type, &nt->rna_ext);
   RNA_struct_free(&RNA_blender_rna_get(), type);
@@ -2010,7 +2015,8 @@ static bool rna_Node_unregister(Main *bmain, StructRNA *type)
 /* Generic internal registration function.
  * Can be used to implement callbacks for registerable RNA node sub-types.
  */
-static bke::bNodeType *rna_Node_register_base(Main *bmain,
+static bke::bNodeType *rna_Node_register_base(bContext &C,
+                                              Main *bmain,
                                               ReportList *reports,
                                               StructRNA *basetype,
                                               void *data,
@@ -2068,7 +2074,7 @@ static bke::bNodeType *rna_Node_register_base(Main *bmain,
                 dummy_nt.idname.c_str());
 
     /* NOTE: unlike most types `nt->rna_ext.srna` doesn't need to be checked for nullptr. */
-    if (!rna_Node_unregister(bmain, nt->rna_ext.srna)) {
+    if (!rna_Node_unregister(C, bmain, nt->rna_ext.srna)) {
       BKE_reportf(reports,
                   RPT_ERROR,
                   "Registering node class: '%s', bl_idname '%s' could not be unregistered",
@@ -2125,7 +2131,8 @@ static bke::bNodeType *rna_Node_register_base(Main *bmain,
   return nt;
 }
 
-static StructRNA *rna_Node_register(Main *bmain,
+static StructRNA *rna_Node_register(bContext &C,
+                                    Main *bmain,
                                     ReportList *reports,
                                     void *data,
                                     const char *identifier,
@@ -2134,7 +2141,7 @@ static StructRNA *rna_Node_register(Main *bmain,
                                     StructFreeFunc free)
 {
   bke::bNodeType *nt = rna_Node_register_base(
-      bmain, reports, RNA_Node, data, identifier, validate, call, free);
+      C, bmain, reports, RNA_Node, data, identifier, validate, call, free);
   if (!nt) {
     return nullptr;
   }
@@ -2389,7 +2396,8 @@ static const EnumPropertyItem *rna_GeometryNodeAttributeDomain_attribute_domain_
   return item_array;
 }
 
-static StructRNA *rna_ShaderNode_register(Main *bmain,
+static StructRNA *rna_ShaderNode_register(bContext &C,
+                                          Main *bmain,
                                           ReportList *reports,
                                           void *data,
                                           const char *identifier,
@@ -2398,7 +2406,7 @@ static StructRNA *rna_ShaderNode_register(Main *bmain,
                                           StructFreeFunc free)
 {
   bke::bNodeType *nt = rna_Node_register_base(
-      bmain, reports, RNA_ShaderNode, data, identifier, validate, call, free);
+      C, bmain, reports, RNA_ShaderNode, data, identifier, validate, call, free);
   if (!nt) {
     return nullptr;
   }
@@ -2411,7 +2419,8 @@ static StructRNA *rna_ShaderNode_register(Main *bmain,
   return nt->rna_ext.srna;
 }
 
-static StructRNA *rna_CompositorNode_register(Main *bmain,
+static StructRNA *rna_CompositorNode_register(bContext &C,
+                                              Main *bmain,
                                               ReportList *reports,
                                               void *data,
                                               const char *identifier,
@@ -2420,7 +2429,7 @@ static StructRNA *rna_CompositorNode_register(Main *bmain,
                                               StructFreeFunc free)
 {
   bke::bNodeType *nt = rna_Node_register_base(
-      bmain, reports, RNA_CompositorNode, data, identifier, validate, call, free);
+      C, bmain, reports, RNA_CompositorNode, data, identifier, validate, call, free);
   if (!nt) {
     return nullptr;
   }
@@ -2433,7 +2442,8 @@ static StructRNA *rna_CompositorNode_register(Main *bmain,
   return nt->rna_ext.srna;
 }
 
-static StructRNA *rna_TextureNode_register(Main *bmain,
+static StructRNA *rna_TextureNode_register(bContext &C,
+                                           Main *bmain,
                                            ReportList *reports,
                                            void *data,
                                            const char *identifier,
@@ -2442,7 +2452,7 @@ static StructRNA *rna_TextureNode_register(Main *bmain,
                                            StructFreeFunc free)
 {
   bke::bNodeType *nt = rna_Node_register_base(
-      bmain, reports, RNA_TextureNode, data, identifier, validate, call, free);
+      C, bmain, reports, RNA_TextureNode, data, identifier, validate, call, free);
   if (!nt) {
     return nullptr;
   }
@@ -2455,7 +2465,8 @@ static StructRNA *rna_TextureNode_register(Main *bmain,
   return nt->rna_ext.srna;
 }
 
-static StructRNA *rna_GeometryNode_register(Main *bmain,
+static StructRNA *rna_GeometryNode_register(bContext &C,
+                                            Main *bmain,
                                             ReportList *reports,
                                             void *data,
                                             const char *identifier,
@@ -2464,7 +2475,7 @@ static StructRNA *rna_GeometryNode_register(Main *bmain,
                                             StructFreeFunc free)
 {
   bke::bNodeType *nt = rna_Node_register_base(
-      bmain, reports, RNA_GeometryNode, data, identifier, validate, call, free);
+      C, bmain, reports, RNA_GeometryNode, data, identifier, validate, call, free);
   if (!nt) {
     return nullptr;
   }
@@ -2477,7 +2488,8 @@ static StructRNA *rna_GeometryNode_register(Main *bmain,
   return nt->rna_ext.srna;
 }
 
-static StructRNA *rna_FunctionNode_register(Main *bmain,
+static StructRNA *rna_FunctionNode_register(bContext &C,
+                                            Main *bmain,
                                             ReportList *reports,
                                             void *data,
                                             const char *identifier,
@@ -2486,7 +2498,7 @@ static StructRNA *rna_FunctionNode_register(Main *bmain,
                                             StructFreeFunc free)
 {
   bke::bNodeType *nt = rna_Node_register_base(
-      bmain, reports, RNA_FunctionNode, data, identifier, validate, call, free);
+      C, bmain, reports, RNA_FunctionNode, data, identifier, validate, call, free);
   if (!nt) {
     return nullptr;
   }
@@ -3046,7 +3058,8 @@ static void rna_NodeInternal_draw_buttons_ext(ID *id, bNode *node, bContext *C, 
   }
 }
 
-static StructRNA *rna_NodeCustomGroup_register(Main *bmain,
+static StructRNA *rna_NodeCustomGroup_register(bContext &C,
+                                               Main *bmain,
                                                ReportList *reports,
                                                void *data,
                                                const char *identifier,
@@ -3055,7 +3068,7 @@ static StructRNA *rna_NodeCustomGroup_register(Main *bmain,
                                                StructFreeFunc free)
 {
   bke::bNodeType *nt = rna_Node_register_base(
-      bmain, reports, RNA_NodeCustomGroup, data, identifier, validate, call, free);
+      C, bmain, reports, RNA_NodeCustomGroup, data, identifier, validate, call, free);
   if (!nt) {
     return nullptr;
   }
@@ -3068,7 +3081,8 @@ static StructRNA *rna_NodeCustomGroup_register(Main *bmain,
   return nt->rna_ext.srna;
 }
 
-static StructRNA *rna_GeometryNodeCustomGroup_register(Main *bmain,
+static StructRNA *rna_GeometryNodeCustomGroup_register(bContext &C,
+                                                       Main *bmain,
                                                        ReportList *reports,
                                                        void *data,
                                                        const char *identifier,
@@ -3077,7 +3091,7 @@ static StructRNA *rna_GeometryNodeCustomGroup_register(Main *bmain,
                                                        StructFreeFunc free)
 {
   bke::bNodeType *nt = rna_Node_register_base(
-      bmain, reports, RNA_GeometryNodeCustomGroup, data, identifier, validate, call, free);
+      C, bmain, reports, RNA_GeometryNodeCustomGroup, data, identifier, validate, call, free);
 
   if (!nt) {
     return nullptr;
@@ -3097,7 +3111,8 @@ static StructRNA *rna_GeometryNodeCustomGroup_register(Main *bmain,
 
 void register_node_type_geo_custom_group(bke::bNodeType *ntype);
 
-static StructRNA *rna_ShaderNodeCustomGroup_register(Main *bmain,
+static StructRNA *rna_ShaderNodeCustomGroup_register(bContext &C,
+                                                     Main *bmain,
                                                      ReportList *reports,
                                                      void *data,
                                                      const char *identifier,
@@ -3106,7 +3121,7 @@ static StructRNA *rna_ShaderNodeCustomGroup_register(Main *bmain,
                                                      StructFreeFunc free)
 {
   bke::bNodeType *nt = rna_Node_register_base(
-      bmain, reports, RNA_ShaderNodeCustomGroup, data, identifier, validate, call, free);
+      C, bmain, reports, RNA_ShaderNodeCustomGroup, data, identifier, validate, call, free);
 
   if (!nt) {
     return nullptr;
@@ -3124,7 +3139,8 @@ static StructRNA *rna_ShaderNodeCustomGroup_register(Main *bmain,
   return nt->rna_ext.srna;
 }
 
-static StructRNA *rna_CompositorNodeCustomGroup_register(Main *bmain,
+static StructRNA *rna_CompositorNodeCustomGroup_register(bContext &C,
+                                                         Main *bmain,
                                                          ReportList *reports,
                                                          void *data,
                                                          const char *identifier,
@@ -3133,7 +3149,7 @@ static StructRNA *rna_CompositorNodeCustomGroup_register(Main *bmain,
                                                          StructFreeFunc free)
 {
   bke::bNodeType *nt = rna_Node_register_base(
-      bmain, reports, RNA_CompositorNodeCustomGroup, data, identifier, validate, call, free);
+      C, bmain, reports, RNA_CompositorNodeCustomGroup, data, identifier, validate, call, free);
   if (!nt) {
     return nullptr;
   }

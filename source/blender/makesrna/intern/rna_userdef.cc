@@ -33,6 +33,8 @@
 
 #include "rna_internal.hh"
 
+#include "UI_interface_c.hh"
+
 #include "WM_api.hh"
 #include "WM_keymap.hh"
 #include "WM_types.hh"
@@ -1282,14 +1284,14 @@ static PointerRNA rna_Addon_preferences_get(PointerRNA *ptr)
   }
 }
 
-static bool rna_AddonPref_unregister(Main * /*bmain*/, StructRNA *type)
+static bool rna_AddonPref_unregister(bContext &C, Main * /*bmain*/, StructRNA *type)
 {
   bAddonPrefType *apt = static_cast<bAddonPrefType *>(RNA_struct_blender_type_get(type));
 
   if (!apt) {
     return false;
   }
-
+  ui::popup_handlers_refresh_or_remove_for_srna_unregister(C, type);
   RNA_struct_free_extension(type, &apt->rna_ext);
   RNA_struct_free(&RNA_blender_rna_get(), type);
 
@@ -1300,7 +1302,8 @@ static bool rna_AddonPref_unregister(Main * /*bmain*/, StructRNA *type)
   return true;
 }
 
-static StructRNA *rna_AddonPref_register(Main *bmain,
+static StructRNA *rna_AddonPref_register(bContext &C,
+                                         Main *bmain,
                                          ReportList *reports,
                                          void *data,
                                          const char *identifier,
@@ -1344,7 +1347,7 @@ static StructRNA *rna_AddonPref_register(Main *bmain,
                 dummy_apt.idname);
 
     StructRNA *srna = apt->rna_ext.srna;
-    if (!(srna && rna_AddonPref_unregister(bmain, srna))) {
+    if (!(srna && rna_AddonPref_unregister(C, bmain, srna))) {
       BKE_reportf(reports,
                   RPT_ERROR,
                   "%s '%s', bl_idname '%s' %s",

@@ -30,7 +30,7 @@ static StructRNA *rna_USDHook_refine(PointerRNA *ptr)
   return (hook->rna_ext.srna) ? hook->rna_ext.srna : RNA_USDHook;
 }
 
-static bool rna_USDHook_unregister(Main * /*bmain*/, StructRNA *type)
+static bool rna_USDHook_unregister(bContext & /*C*/, Main * /*bmain*/, StructRNA *type)
 {
   USDHook *hook = static_cast<USDHook *>(RNA_struct_blender_type_get(type));
 
@@ -50,7 +50,8 @@ static bool rna_USDHook_unregister(Main * /*bmain*/, StructRNA *type)
   return true;
 }
 
-static StructRNA *rna_USDHook_register(Main *bmain,
+static StructRNA *rna_USDHook_register(bContext &C,
+                                       Main *bmain,
                                        ReportList *reports,
                                        void *data,
                                        const char *identifier,
@@ -89,7 +90,7 @@ static StructRNA *rna_USDHook_register(Main *bmain,
                 dummy_hook.idname);
 
     StructRNA *srna = hook->rna_ext.srna;
-    if (!rna_USDHook_unregister(bmain, srna)) {
+    if (!rna_USDHook_unregister(C, bmain, srna)) {
       BKE_reportf(reports,
                   RPT_ERROR,
                   "%s '%s', bl_idname '%s' %s",

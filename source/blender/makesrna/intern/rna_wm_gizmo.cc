@@ -409,10 +409,11 @@ static PointerRNA rna_Gizmo_group_get(PointerRNA *ptr)
 
 #  ifdef WITH_PYTHON
 
-static bool rna_Gizmo_unregister(Main *bmain, StructRNA *type);
+static bool rna_Gizmo_unregister(bContext &C, Main *bmain, StructRNA *type);
 extern void BPY_RNA_gizmo_wrapper(wmGizmoType *gzgt, void *userdata);
 
-static StructRNA *rna_Gizmo_register(Main *bmain,
+static StructRNA *rna_Gizmo_register(bContext &C,
+                                     Main *bmain,
                                      ReportList *reports,
                                      void *data,
                                      const char *identifier,
@@ -466,7 +467,7 @@ static StructRNA *rna_Gizmo_register(Main *bmain,
                   dummy_gt.idname);
 
       StructRNA *srna = gzt->rna_ext.srna;
-      if (!(srna && rna_Gizmo_unregister(bmain, srna))) {
+      if (!(srna && rna_Gizmo_unregister(C, bmain, srna))) {
         BKE_reportf(reports,
                     RPT_ERROR,
                     "%s '%s', bl_idname '%s' %s",
@@ -519,7 +520,7 @@ static StructRNA *rna_Gizmo_register(Main *bmain,
   return dummy_gt.rna_ext.srna;
 }
 
-static bool rna_Gizmo_unregister(Main *bmain, StructRNA *type)
+static bool rna_Gizmo_unregister(bContext & /*C*/, Main *bmain, StructRNA *type)
 {
   wmGizmoType *gzt = static_cast<wmGizmoType *>(RNA_struct_blender_type_get(type));
 
@@ -791,9 +792,10 @@ static void rna_gizmogroup_invoke_prepare_cb(const bContext *C,
 }
 
 extern void BPY_RNA_gizmogroup_wrapper(wmGizmoGroupType *gzgt, void *userdata);
-static bool rna_GizmoGroup_unregister(Main *bmain, StructRNA *type);
+static bool rna_GizmoGroup_unregister(bContext & /*C*/, Main *bmain, StructRNA *type);
 
-static StructRNA *rna_GizmoGroup_register(Main *bmain,
+static StructRNA *rna_GizmoGroup_register(bContext &C,
+                                          Main *bmain,
                                           ReportList *reports,
                                           void *data,
                                           const char *identifier,
@@ -854,7 +856,7 @@ static StructRNA *rna_GizmoGroup_register(Main *bmain,
     wmGizmoGroupType *gzgt = WM_gizmogrouptype_find(dummy_wgt.idname, true);
     if (gzgt) {
       StructRNA *srna = gzgt->rna_ext.srna;
-      if (!(srna && rna_GizmoGroup_unregister(bmain, srna))) {
+      if (!(srna && rna_GizmoGroup_unregister(C, bmain, srna))) {
         BKE_reportf(reports,
                     RPT_ERROR,
                     "%s '%s', bl_idname '%s' %s",
@@ -924,7 +926,7 @@ static StructRNA *rna_GizmoGroup_register(Main *bmain,
   return dummy_wgt.rna_ext.srna;
 }
 
-static bool rna_GizmoGroup_unregister(Main *bmain, StructRNA *type)
+static bool rna_GizmoGroup_unregister(bContext & /*C*/, Main *bmain, StructRNA *type)
 {
   wmGizmoGroupType *gzgt = static_cast<wmGizmoGroupType *>(RNA_struct_blender_type_get(type));
 

@@ -320,8 +320,9 @@ IDProperty **rna_ID_system_idprops(PointerRNA *ptr);
 void rna_ID_fake_user_set(PointerRNA *ptr, bool value);
 void **rna_ID_instance(PointerRNA *ptr);
 IDProperty **rna_PropertyGroup_idprops(PointerRNA *ptr);
-bool rna_PropertyGroup_unregister(Main *bmain, StructRNA *type);
-StructRNA *rna_PropertyGroup_register(Main *bmain,
+bool rna_PropertyGroup_unregister(bContext &C, Main *bmain, StructRNA *type);
+StructRNA *rna_PropertyGroup_register(bContext &C,
+                                      Main *bmain,
                                       ReportList *reports,
                                       void *data,
                                       const char *identifier,

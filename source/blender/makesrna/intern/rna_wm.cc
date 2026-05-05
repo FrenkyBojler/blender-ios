@@ -22,6 +22,7 @@
 
 #include "rna_internal.hh"
 
+#include "UI_interface_c.hh"
 #include "UI_interface_layout.hh"
 
 #include "WM_api.hh"
@@ -1362,7 +1363,7 @@ static IDProperty **rna_wmKeyConfigPref_idprops(PointerRNA *ptr)
   return reinterpret_cast<IDProperty **>(&ptr->data);
 }
 
-static bool rna_wmKeyConfigPref_unregister(Main * /*bmain*/, StructRNA *type)
+static bool rna_wmKeyConfigPref_unregister(bContext &C, Main * /*bmain*/, StructRNA *type)
 {
   wmKeyConfigPrefType_Runtime *kpt_rt = static_cast<wmKeyConfigPrefType_Runtime *>(
       RNA_struct_blender_type_get(type));
@@ -1370,7 +1371,7 @@ static bool rna_wmKeyConfigPref_unregister(Main * /*bmain*/, StructRNA *type)
   if (!kpt_rt) {
     return false;
   }
-
+  ui::popup_handlers_refresh_or_remove_for_srna_unregister(C, type);
   RNA_struct_free_extension(type, &kpt_rt->rna_ext);
   RNA_struct_free(&RNA_blender_rna_get(), type);
 
@@ -1382,7 +1383,8 @@ static bool rna_wmKeyConfigPref_unregister(Main * /*bmain*/, StructRNA *type)
   return true;
 }
 
-static StructRNA *rna_wmKeyConfigPref_register(Main *bmain,
+static StructRNA *rna_wmKeyConfigPref_register(bContext &C,
+                                               Main *bmain,
                                                ReportList *reports,
                                                void *data,
                                                const char *identifier,
@@ -1426,7 +1428,7 @@ static StructRNA *rna_wmKeyConfigPref_register(Main *bmain,
                 dummy_kpt.idname);
 
     StructRNA *srna = kpt_rt->rna_ext.srna;
-    if (!(srna && rna_wmKeyConfigPref_unregister(bmain, srna))) {
+    if (!(srna && rna_wmKeyConfigPref_unregister(C, bmain, srna))) {
       BKE_reportf(reports,
                   RPT_ERROR,
                   "%s '%s', bl_idname '%s' %s",
@@ -1784,14 +1786,15 @@ static std::string rna_operator_description_cb(bContext *C,
   return result;
 }
 
-static bool rna_Operator_unregister(Main *bmain, StructRNA *type);
+static bool rna_Operator_unregister(bContext &C, Main *bmain, StructRNA *type);
 
 /* `bpy_operator_wrap.cc` */
 
 extern void BPY_RNA_operator_wrapper(wmOperatorType *ot, void *userdata);
 extern void BPY_RNA_operator_macro_wrapper(wmOperatorType *ot, void *userdata);
 
-static StructRNA *rna_Operator_register(Main *bmain,
+static StructRNA *rna_Operator_register(bContext &C,
+                                        Main *bmain,
                                         ReportList *reports,
                                         void *data,
                                         const char *identifier,
@@ -1845,7 +1848,7 @@ static StructRNA *rna_Operator_register(Main *bmain,
                   dummy_ot.idname);
 
       StructRNA *srna = ot->rna_ext.srna;
-      if (!(srna && rna_Operator_unregister(bmain, srna))) {
+      if (!(srna && rna_Operator_unregister(C, bmain, srna))) {
         BKE_reportf(reports,
                     RPT_ERROR,
                     "%s '%s', bl_idname '%s' %s",
@@ -1928,7 +1931,7 @@ static StructRNA *rna_Operator_register(Main *bmain,
   return dummy_ot.rna_ext.srna;
 }
 
-static bool rna_Operator_unregister(Main *bmain, StructRNA *type)
+static bool rna_Operator_unregister(bContext &C, Main *bmain, StructRNA *type)
 {
   const char *idname;
   wmOperatorType *ot = static_cast<wmOperatorType *>(RNA_struct_blender_type_get(type));
@@ -1937,7 +1940,8 @@ static bool rna_Operator_unregister(Main *bmain, StructRNA *type)
   if (!ot) {
     return false;
   }
-
+  ui::popup_handlers_refresh_or_remove_for_srna_unregister(C, ot->srna);
+  ui::popup_handlers_refresh_or_remove_for_srna_unregister(C, type);
   /* update while blender is running */
   wm = static_cast<wmWindowManager *>(bmain->wm.first);
   if (wm) {
@@ -1966,7 +1970,8 @@ static void **rna_Operator_instance(PointerRNA *ptr)
   return &op->py_instance;
 }
 
-static StructRNA *rna_MacroOperator_register(Main *bmain,
+static StructRNA *rna_MacroOperator_register(bContext &C,
+                                             Main *bmain,
                                              ReportList *reports,
                                              void *data,
                                              const char *identifier,
@@ -2023,7 +2028,7 @@ static StructRNA *rna_MacroOperator_register(Main *bmain,
                   dummy_ot.idname);
 
       StructRNA *srna = ot->rna_ext.srna;
-      if (!(srna && rna_Operator_unregister(bmain, srna))) {
+      if (!(srna && rna_Operator_unregister(C, bmain, srna))) {
         BKE_reportf(reports,
                     RPT_ERROR,
                     "%s '%s', bl_idname '%s' %s",

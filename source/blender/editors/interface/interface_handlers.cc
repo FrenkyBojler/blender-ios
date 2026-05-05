@@ -41,6 +41,7 @@
 #include "BKE_colortools.hh"
 #include "BKE_context.hh"
 #include "BKE_curveprofile.h"
+#include "BKE_main.hh"
 #include "BKE_movieclip.hh"
 #include "BKE_paint.hh"
 #include "BKE_paint_types.hh"
@@ -9539,6 +9540,9 @@ static void button_activate_init(bContext *C,
   }
 }
 
+static int popup_handler(bContext *C, const wmEvent *event, void *userdata);
+static void popup_handler_remove(bContext *C, void *userdata);
+
 static void button_activate_exit(
     bContext *C, Button *but, HandleButtonData *data, const bool mousemove, const bool onfree)
 {
@@ -13008,6 +13012,185 @@ void popup_handlers_remove(ListBaseT<wmEventHandler> *handlers, PopupBlockHandle
 void popup_handlers_remove_all(bContext *C, ListBaseT<wmEventHandler> *handlers)
 {
   WM_event_free_ui_handler_all(C, handlers, popup_handler, popup_handler_remove);
+}
+
+/**
+ * Return true if the #popup_block_handle have any reference the #srna_to_unreg but can't be
+ * refreshed, when this happends its parent must be refreshed or the popup should be closed.
+ */
+static bool popup_needs_update_for_unreg_srna_recursive(bContext &C,
+                                                        PopupBlockHandle *popup_block_handle,
+                                                        StructRNA *srna_to_unreg)
+{
+  bool have_reference = false;
+
+  bool valid_for_refresh = popup_block_handle->can_refresh;
+
+  if (popup_block_handle->srna_owner &&
+      RNA_struct_is_a(popup_block_handle->srna_owner, srna_to_unreg))
+  {
+    have_reference = true;
+    valid_for_refresh = false;
+  }
+  for (Block &block : popup_block_handle->region->runtime->uiblocks) {
+    for (Button &button : block.buttons()) {
+      if (RNA_struct_is_a(button.rnapoin.type, srna_to_unreg)) {
+        have_reference = true;
+        continue;
+      }
+      if (button.opptr && RNA_struct_is_a(button.opptr->type, srna_to_unreg)) {
+        have_reference = true;
+        continue;
+      }
+      if (MenuType *mt = button_menutype_get(&button);
+          mt && RNA_struct_is_a(mt->rna_ext.srna, srna_to_unreg))
+      {
+        have_reference = true;
+        continue;
+      }
+      if (PanelType *pt = button_paneltype_get(&button);
+          pt && RNA_struct_is_a(pt->rna_ext.srna, srna_to_unreg))
+      {
+        have_reference = true;
+        continue;
+      }
+      if (wmOperatorType *ot = button_operatortype_get_from_enum_menu(&button, nullptr);
+          ot && RNA_struct_is_a(ot->rna_ext.srna, srna_to_unreg))
+      {
+        have_reference = true;
+        continue;
+      }
+      if (button.type == ButtonType::SearchMenu) {
+        ButtonSearch &search_button = static_cast<ButtonSearch &>(button);
+        if (search_button.active) {
+          /* Search buttons may reference menus/operators but we can't lookup in its items, close
+           * any popup with a search button active. */
+          have_reference = true;
+          valid_for_refresh = false;
+          break;
+        }
+        if (RNA_struct_is_a(search_button.rnasearchpoin.type, srna_to_unreg)) {
+          have_reference = true;
+          continue;
+        }
+      }
+
+      if (button.type == ButtonType::Decorator) {
+        ButtonDecorator &decorator_button = static_cast<ButtonDecorator &>(button);
+        if (RNA_struct_is_a(decorator_button.decorated_rnapoin.type, srna_to_unreg)) {
+          have_reference = true;
+          continue;
+        }
+      }
+      for (ButtonExtraOpIcon &extra_op_icon : button.extra_op_icons) {
+        if (RNA_struct_is_a(extra_op_icon.optype_params->optype->rna_ext.srna, srna_to_unreg)) {
+          have_reference = true;
+          continue;
+        }
+      }
+      if (button.context) {
+        for (const bContextStoreEntry &entry : button.context->entries) {
+          if (const PointerRNA *ptr = std::get_if<PointerRNA>(&entry.value)) {
+            if (RNA_struct_is_a(ptr->type, srna_to_unreg)) {
+              have_reference = true;
+              break;
+            }
+          }
+        }
+      }
+      if (have_reference && !valid_for_refresh) {
+        break;
+      }
+    }
+  }
+  if (have_reference) {
+    if (valid_for_refresh) {
+      /* This popup needs to be refreshed, close any sub-menu first. */
+      Button *active_button = region_find_active_but(popup_block_handle->region);
+      HandleButtonData *data = active_button ? active_button->active : nullptr;
+      PopupBlockHandle *sub_handle = data ? data->menu : nullptr;
+      if (sub_handle) {
+        button_active_free(&C, active_button);
+      }
+      ED_region_tag_refresh_ui(popup_block_handle->region);
+      ED_region_tag_redraw(popup_block_handle->region);
+      return false;
+    }
+    return true;
+  }
+
+  Button *active_button = region_find_active_but(popup_block_handle->region);
+  HandleButtonData *data = active_button ? active_button->active : nullptr;
+  PopupBlockHandle *sub_handle = data ? data->menu : nullptr;
+  if (!sub_handle) {
+    return false;
+  }
+  if (!popup_needs_update_for_unreg_srna_recursive(C, sub_handle, srna_to_unreg)) {
+    return false;
+  }
+  if (!valid_for_refresh) {
+    /* This popup can't be refreshed, try to refesh parent popup. */
+    return true;
+  }
+  if (active_button) {
+    button_active_free(&C, active_button);
+  }
+  ED_region_tag_refresh_ui(popup_block_handle->region);
+  ED_region_tag_redraw(popup_block_handle->region);
+  return false;
+}
+
+void popup_handlers_refresh_or_remove_for_srna_unregister(bContext &C, StructRNA *srna_to_unreg)
+{
+  if (!srna_to_unreg) {
+    return;
+  }
+  auto refresh_or_remove_handler = [&](wmEventHandler &handler_base,
+                                       ListBaseT<wmEventHandler> &handlers) {
+    if (handler_base.type == WM_HANDLER_TYPE_UI && !bool(handler_base.flag & WM_HANDLER_DO_FREE)) {
+      wmEventHandler_UI *handler = reinterpret_cast<wmEventHandler_UI *>(&handler_base);
+      if (handler->handle_fn != popup_handler) {
+        return;
+      }
+      PopupBlockHandle *popup_block_handle = static_cast<PopupBlockHandle *>(handler->user_data);
+      if (!popup_needs_update_for_unreg_srna_recursive(C, popup_block_handle, srna_to_unreg)) {
+        return;
+      }
+      if (handler->remove_fn) {
+        handler->remove_fn(&C, handler->user_data);
+      }
+      BLI_remlink(&handlers, handler);
+      wm_event_free_handler(&handler->head);
+    }
+  };
+
+  Main *main = CTX_data_main(&C);
+
+  for (wmWindowManager &wm : main->wm) {
+    for (wmWindow &win : wm.windows) {
+      /* Close any active popup referencing the StructRNA. */
+      for (wmEventHandler &handler_base : win.runtime->modalhandlers.items_mutable()) {
+        refresh_or_remove_handler(handler_base, win.runtime->modalhandlers);
+      }
+      for (wmEventHandler &handler_base : win.runtime->handlers.items_mutable()) {
+        refresh_or_remove_handler(handler_base, win.runtime->handlers);
+      }
+      /* Close any active menu referencing the StructRNA. */
+      bScreen *screen = WM_window_get_active_screen(&win);
+      if (screen && screen->active_region) {
+        Button *active_button = region_find_active_but(screen->active_region);
+        HandleButtonData *data = (active_button) ? active_button->active : nullptr;
+        PopupBlockHandle *sub_handle = (data) ? data->menu : nullptr;
+        if (sub_handle &&
+            popup_needs_update_for_unreg_srna_recursive(C, sub_handle, srna_to_unreg))
+        {
+          button_active_free(&C, active_button);
+          ED_region_tag_refresh_ui(screen->active_region);
+          ED_region_tag_redraw(screen->active_region);
+        }
+      }
+    }
+  }
 }
 
 bool textbutton_activate_rna(const bContext *C,

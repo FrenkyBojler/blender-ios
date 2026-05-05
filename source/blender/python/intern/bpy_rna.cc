@@ -10465,7 +10465,8 @@ static PyObject *pyrna_register_class(PyObject * /*self*/, PyObject *py_class)
 
   identifier = (reinterpret_cast<PyTypeObject *>(py_class))->tp_name;
 
-  srna_new = reg(CTX_data_main(C),
+  srna_new = reg(*C,
+                 CTX_data_main(C),
                  &reports,
                  py_class,
                  identifier,
@@ -10711,7 +10712,7 @@ static PyObject *pyrna_unregister_class(PyObject * /*self*/, PyObject *py_class)
   C = BPY_context_get();
 
   /* Call unregister. */
-  unreg(CTX_data_main(C), srna); /* Calls bpy_class_free, this decref's py_class. */
+  unreg(*C, CTX_data_main(C), srna); /* Calls bpy_class_free, this decref's py_class. */
 
   /* Typically `bpy_class_free` will have removed, remove here just in case. */
   if (UNLIKELY(PyDict_Contains(((PyTypeObject *)py_class)->tp_dict, bpy_intern_str_bl_rna))) {

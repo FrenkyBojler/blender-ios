@@ -14,6 +14,8 @@
 
 #include "rna_internal.hh"
 
+#include "UI_interface_c.hh"
+
 #include "WM_types.hh"
 
 namespace blender {
@@ -201,13 +203,16 @@ static int rna_NodeTreeInterfaceItem_index_get(PointerRNA *ptr)
   return ntree->tree_interface.find_item_index(*item);
 }
 
-static bool rna_NodeTreeInterfaceSocket_unregister(Main * /*bmain*/, StructRNA *type)
+static bool rna_NodeTreeInterfaceSocket_unregister(bContext &C, Main * /*bmain*/, StructRNA *type)
 {
   bke::bNodeSocketType *st = static_cast<bke::bNodeSocketType *>(
       RNA_struct_blender_type_get(type));
   if (!st) {
     return false;
   }
+  ui::popup_handlers_refresh_or_remove_for_srna_unregister(C, type);
+  ui::popup_handlers_refresh_or_remove_for_srna_unregister(C, st->ext_interface.srna);
+  ui::popup_handlers_refresh_or_remove_for_srna_unregister(C, st->ext_socket.srna);
 
   RNA_struct_free_extension(type, &st->ext_interface);
 
@@ -325,7 +330,8 @@ static void rna_NodeTreeInterfaceSocket_from_socket_custom(
   RNA_parameter_list_free(&list);
 }
 
-static StructRNA *rna_NodeTreeInterfaceSocket_register(Main * /*bmain*/,
+static StructRNA *rna_NodeTreeInterfaceSocket_register(bContext & /*C*/,
+                                                       Main * /*bmain*/,
                                                        ReportList * /*reports*/,
                                                        void *data,
                                                        const char *identifier,

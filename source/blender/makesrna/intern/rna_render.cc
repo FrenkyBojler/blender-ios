@@ -22,6 +22,8 @@
 
 #include "rna_internal.hh"
 
+#include "UI_interface_c.hh"
+
 #include "RE_engine.h"
 
 namespace blender {
@@ -279,13 +281,14 @@ static void engine_update_custom_camera(RenderEngine *engine, Camera *cam)
 
 /* RenderEngine registration */
 
-static bool rna_RenderEngine_unregister(Main *bmain, StructRNA *type)
+static bool rna_RenderEngine_unregister(bContext &C, Main *bmain, StructRNA *type)
 {
   RenderEngineType *et = static_cast<RenderEngineType *>(RNA_struct_blender_type_get(type));
 
   if (!et) {
     return false;
   }
+  ui::popup_handlers_refresh_or_remove_for_srna_unregister(C, type);
 
   /* Stop all renders in case we were using this one. */
   ED_render_engine_changed(bmain, false);
@@ -297,7 +300,8 @@ static bool rna_RenderEngine_unregister(Main *bmain, StructRNA *type)
   return true;
 }
 
-static StructRNA *rna_RenderEngine_register(Main *bmain,
+static StructRNA *rna_RenderEngine_register(bContext &C,
+                                            Main *bmain,
                                             ReportList *reports,
                                             void *data,
                                             const char *identifier,
@@ -343,7 +347,7 @@ static StructRNA *rna_RenderEngine_register(Main *bmain,
                 dummy_et.idname);
 
     StructRNA *srna = et->rna_ext.srna;
-    if (!(srna && rna_RenderEngine_unregister(bmain, srna))) {
+    if (!(srna && rna_RenderEngine_unregister(C, bmain, srna))) {
       BKE_reportf(reports,
                   RPT_ERROR,
                   "%s '%s', bl_idname '%s' %s",
