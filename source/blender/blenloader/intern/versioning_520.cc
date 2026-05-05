@@ -305,20 +305,6 @@ static void version_strip_modifier_show_preview_flag(Main &bmain)
   }
 }
 
-static void version_function_nodes_dynamic_sockets(bNodeTree &ntree)
-{
-  for (bNode &node : ntree.nodes) {
-    switch (node.type_legacy) {
-      case FN_NODE_COMPARE:
-      case FN_NODE_RANDOM_VALUE: {
-        version_socket_identifier_suffixes_for_dynamic_types(node.inputs, "_");
-        version_socket_identifier_suffixes_for_dynamic_types(node.outputs, "_");
-        break;
-      }
-    }
-  }
-}
-
 void do_versions_after_linking_520(FileData *fd, Main *bmain)
 {
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 2)) {
@@ -580,7 +566,16 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
       if (tree->type != NTREE_GEOMETRY) {
         continue;
       }
-      version_function_nodes_dynamic_sockets(*tree);
+      for (bNode &node : tree->nodes) {
+        switch (node.type_legacy) {
+          case FN_NODE_COMPARE:
+          case FN_NODE_RANDOM_VALUE: {
+            version_socket_identifier_suffixes_for_dynamic_types(node.inputs, "_");
+            version_socket_identifier_suffixes_for_dynamic_types(node.outputs, "_");
+            break;
+          }
+        }
+      }
     }
     FOREACH_NODETREE_END;
   }
