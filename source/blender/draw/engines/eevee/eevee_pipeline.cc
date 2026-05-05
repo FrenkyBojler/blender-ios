@@ -957,29 +957,6 @@ gpu::Texture *DeferredLayer::render(View &render_view,
                                     RayTraceBuffer &rt_buffer,
                                     gpu::Texture *radiance_behind_tx)
 {
-  /* TODO put it elsewhere. */
-  {
-    /* See #RayTraceData::pixel_depth_thickness_at(). */
-    auto corners = render_view.frustum_corners_get();
-
-    const float avg_pixel_radius_far = length(
-        float2(distance(corners[1], corners[5]), distance(corners[1], corners[6])) /
-        float2(extent));
-
-    /* Average pixel radius at unit Z plane from the camera. */
-    const float avg_pixel_radius_unit = render_view.is_persp() ?
-                                            avg_pixel_radius_far / render_view.far_clip() :
-                                            avg_pixel_radius_far;
-
-    inst_.uniform_data.data.raytrace.ray_thickness = ScreenThicknessParameters::build(
-        render_view.is_persp(),
-        render_view.winmat(),
-        avg_pixel_radius_unit,
-        1.0f,
-        inst_.uniform_data.data.raytrace.thickness);
-    inst_.uniform_data.push_update();
-  }
-
   if (closure_count_ == 0) {
     return radiance_behind_tx;
   }

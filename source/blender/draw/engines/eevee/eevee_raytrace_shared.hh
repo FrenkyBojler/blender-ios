@@ -21,17 +21,16 @@ struct [[host_shared]] ScreenThicknessParameters {
   float thickness_vs_bias;
 
   /* Return the depth buffer Z thickness of a pixel at a given view space Z depth. */
-  static ScreenThicknessParameters build(bool is_persp,
-                                         float4x4 winmat,
+  static ScreenThicknessParameters build(float4x4 winmat,
                                          float avg_pixel_radius_unit,
                                          float min_pixel_thickness,
                                          float min_constant_thickness)
   {
     ScreenThicknessParameters params;
     avg_pixel_radius_unit *= min_pixel_thickness;
-    if (is_persp) {
+    if (winmat[3][3] == 0.0f) {
       /* Perspective pixels increase footprint with the distance. */
-      params.thickness_vs_scale = -avg_pixel_radius_unit;
+      params.thickness_vs_scale = avg_pixel_radius_unit;
       params.thickness_vs_bias = -min_constant_thickness;
       params.thickness_ndc_scale = winmat[3][2];
       params.thickness_ndc_bias = 0.0f;
