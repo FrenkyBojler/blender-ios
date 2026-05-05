@@ -181,12 +181,13 @@ static bool pose_select_parents(bContext *C,
       if (!pchan->parent) {
         continue;
       }
-      if (!animrig::bone_is_selectable(arm, pchan->parent->bone)) {
+      Bone *parent_bone = pchan->parent->bone_get(*pose_object);
+      if (!animrig::bone_is_selectable(arm, parent_bone)) {
         continue;
       }
-      pose_do_bone_select(pchan->parent, SEL_SELECT);
-      if (modify_active && pchan->bone == active_bone) {
-        arm->act_bone = pchan->parent->bone;
+      pose_do_bone_select({pchan->parent, parent_bone}, SEL_SELECT);
+      if (modify_active && pchan->bone_get(*pose_object) == active_bone) {
+        arm->act_bone = parent_bone;
       }
       changed_any_selection = true;
     }
@@ -229,9 +230,10 @@ static bool pose_select_children(bContext *C,
       if (!animrig::bone_is_selectable(arm, &pchan)) {
         continue;
       }
+      Bone *bone = pchan.bone_get(*pose_object);
       if (all) {
         if (pose_bone_is_below_one_of(pchan, selected_pose_bones)) {
-          pose_do_bone_select(&pchan, SEL_SELECT);
+          pose_do_bone_select({&pchan, bone}, SEL_SELECT);
           const bool is_first_child = pchan.parent->bone->childbase.first == pchan.bone;
           if (modify_active && pchan.parent->bone == active_bone && is_first_child) {
             arm->act_bone = pchan.bone;
@@ -241,7 +243,7 @@ static bool pose_select_children(bContext *C,
       }
       else {
         if (selected_pose_bones.contains(pchan.parent)) {
-          pose_do_bone_select(&pchan, SEL_SELECT);
+          pose_do_bone_select({&pchan, bone}, SEL_SELECT);
           const bool is_first_child = pchan.parent->bone->childbase.first == pchan.bone;
           if (modify_active && pchan.parent->bone == active_bone && is_first_child) {
             arm->act_bone = pchan.bone;
