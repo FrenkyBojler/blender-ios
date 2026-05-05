@@ -307,14 +307,13 @@ static ImBuf *ibJpegImageFromCinfo(
 
     if (flags & IB_test) {
       jpeg_abort_decompress(cinfo);
-      ibuf = IMB_allocImBuf(x, y, color_mode, 0);
+      ibuf = IMB_allocImBuf(x, y, 0);
     }
-    else if ((ibuf = IMB_allocImBuf(x, y, color_mode, IB_byte_data | IB_uninitialized_pixels)) ==
-             nullptr)
-    {
+    else if ((ibuf = IMB_allocImBuf(x, y, IB_byte_data | IB_uninitialized_pixels)) == nullptr) {
       jpeg_abort_decompress(cinfo);
     }
     else {
+      ibuf->color_mode = color_mode;
       row_stride = cinfo->output_width * depth;
 
       row_pointer = (*cinfo->mem->alloc_sarray)(

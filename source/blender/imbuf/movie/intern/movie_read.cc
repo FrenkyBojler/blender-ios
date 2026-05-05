@@ -1288,7 +1288,8 @@ static ImBuf *ffmpeg_fetchibuf(MovieReader *anim, int position, IMB_Timecode_Typ
     color_mode = ImColorMode::RGB;
   }
 
-  ImBuf *cur_frame_final = IMB_allocImBuf(anim->x, anim->y, color_mode, 0);
+  ImBuf *cur_frame_final = IMB_allocImBuf(anim->x, anim->y, 0);
+  cur_frame_final->color_mode = color_mode;
 
   /* Allocate the storage explicitly to ensure the memory is aligned. */
   const size_t align = ffmpeg_get_buffer_alignment();

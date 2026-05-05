@@ -2130,7 +2130,8 @@ ImBuf *imb_load_openexr(const uchar *mem, size_t size, int flags, ImFileColorSpa
     else {
       const bool is_alpha = exr_has_alpha(*file);
 
-      ibuf = IMB_allocImBuf(width, height, is_alpha ? ImColorMode::RGBA : ImColorMode::RGB, 0);
+      ibuf = IMB_allocImBuf(width, height, 0);
+      ibuf->color_mode = is_alpha ? ImColorMode::RGBA : ImColorMode::RGB;
       ibuf->foptions.flag |= exr_is_half_float(*file) ? OPENEXR_HALF : 0;
       ibuf->foptions.flag |= openexr_header_get_compression(file_header);
 
@@ -2358,7 +2359,7 @@ ImBuf *imb_load_filepath_thumbnail_openexr(const char *filepath,
     int dest_w = std::max(int(source_w * scale_factor), 1);
     int dest_h = std::max(int(source_h * scale_factor), 1);
 
-    ibuf = IMB_allocImBuf(dest_w, dest_h, ImColorMode::RGBA, IB_float_data);
+    ibuf = IMB_allocImBuf(dest_w, dest_h, IB_float_data);
 
     /* A single row of source pixels. */
     Imf::Array<Imf::Rgba> pixels(source_w);

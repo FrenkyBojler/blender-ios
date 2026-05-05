@@ -92,7 +92,7 @@ ImBuf *imb_load_filepath_thumbnail_webp(const char *filepath,
   const int dest_w = std::max(int(config.input.width * scale), 1);
   const int dest_h = std::max(int(config.input.height * scale), 1);
 
-  ImBuf *ibuf = IMB_allocImBuf(dest_w, dest_h, ImColorMode::RGBA, IB_byte_data);
+  ImBuf *ibuf = IMB_allocImBuf(dest_w, dest_h, IB_byte_data);
   if (ibuf == nullptr) {
     CLOG_ERROR(&LOG, "Failed to allocate image memory");
     BLI_mmap_free(mmap_file);

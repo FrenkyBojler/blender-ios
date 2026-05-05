@@ -1159,7 +1159,8 @@ static ImBuf *add_ibuf_for_tile(Image *ima, ImageTile *tile)
   ImColorMode color_mode = ImColorMode(tile->gen_depth);
   const bool floatbuf = (tile->gen_flag & IMA_GEN_FLOAT) != 0;
   if (floatbuf) {
-    ibuf = IMB_allocImBuf(tile->gen_x, tile->gen_y, color_mode, IB_float_data);
+    ibuf = IMB_allocImBuf(tile->gen_x, tile->gen_y, IB_float_data);
+    ibuf->color_mode = color_mode;
 
     if (ima->colorspace_settings.name[0] == '\0') {
       const char *colorspace = IMB_colormanagement_role_colorspace_name_get(
@@ -1183,7 +1184,8 @@ static ImBuf *add_ibuf_for_tile(Image *ima, ImageTile *tile)
     }
   }
   else {
-    ibuf = IMB_allocImBuf(tile->gen_x, tile->gen_y, color_mode, IB_byte_data);
+    ibuf = IMB_allocImBuf(tile->gen_x, tile->gen_y, IB_byte_data);
+    ibuf->color_mode = color_mode;
 
     if (ima->colorspace_settings.name[0] == '\0') {
       const char *colorspace = IMB_colormanagement_role_colorspace_name_get(
@@ -4464,7 +4466,7 @@ static ImBuf *image_get_render_result(Image *ima, ImageUser *iuser, void **r_loc
    * 2. Provides an image buffer which can be used to communicate the render resolution (with
    * possible border render applied to it) prior to the actual pixels storage is allocated. */
   if (ima->runtime->cache == nullptr) {
-    ImBuf *empty_ibuf = IMB_allocImBuf(0, 0, ImColorMode::RGBA, 0);
+    ImBuf *empty_ibuf = IMB_allocImBuf(0, 0, 0);
     image_assign_ibuf(ima, empty_ibuf, IMA_NO_INDEX, 0);
 
     /* The cache references the image buffer, and the freeing only happens if the buffer has 0
@@ -4732,7 +4734,7 @@ static ImBuf *image_acquire_ibuf(Image *ima,
           if (!ibuf) {
             /* Composite Viewer, all handled in compositor */
             /* fake ibuf, will be filled in compositor */
-            ibuf = IMB_allocImBuf(256, 256, ImColorMode::RGBA, IB_byte_data | IB_float_data);
+            ibuf = IMB_allocImBuf(256, 256, IB_byte_data | IB_float_data);
             image_assign_ibuf(ima, ibuf, index, entry);
           }
         }

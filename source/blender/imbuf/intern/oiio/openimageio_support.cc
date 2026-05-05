@@ -115,10 +115,11 @@ static ImBuf *load_pixels(
       color_mode = ImColorMode::RGB;
     }
   }
-  ImBuf *ibuf = IMB_allocImBuf(width, height, color_mode, ibuf_flags);
+  ImBuf *ibuf = IMB_allocImBuf(width, height, ibuf_flags);
   if (!ibuf) {
     return nullptr;
   }
+  ibuf->color_mode = color_mode;
 
   /* No need to load actual pixel data during the test phase. */
   if (flags & IB_test) {

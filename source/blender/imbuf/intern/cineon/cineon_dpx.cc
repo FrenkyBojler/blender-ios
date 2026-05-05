@@ -39,7 +39,7 @@ static ImBuf *imb_load_dpx_cineon(
 
   logImageGetSize(image, &width, &height, &depth);
 
-  ibuf = IMB_allocImBuf(width, height, ImColorMode::RGBA, IB_float_data | flags);
+  ibuf = IMB_allocImBuf(width, height, IB_float_data | flags);
   if (ibuf == nullptr) {
     logImageClose(image);
     return nullptr;

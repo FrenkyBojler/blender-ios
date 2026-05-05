@@ -439,12 +439,13 @@ static ImBuf *imb_load_jp2_stream(opj_stream_t *stream,
     float_divs[i] = (1 << image->comps[i].prec) - 1;
   }
 
-  ibuf = IMB_allocImBuf(w, h, color_mode, use_float ? IB_float_data : IB_byte_data);
+  ibuf = IMB_allocImBuf(w, h, use_float ? IB_float_data : IB_byte_data);
 
   if (ibuf == nullptr) {
     goto finally;
   }
 
+  ibuf->color_mode = color_mode;
   ibuf->ftype = IMB_FTYPE_JP2;
   if (true /*is_jp2*/) {
     ibuf->foptions.flag |= JP2_JP2;

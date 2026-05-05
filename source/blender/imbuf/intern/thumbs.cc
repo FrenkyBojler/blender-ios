@@ -361,7 +361,7 @@ static ImBuf *thumb_create_ex(const char *file_path,
       return nullptr;
     }
     if (size == THB_FAIL) {
-      img = IMB_allocImBuf(1, 1, ImColorMode::RGBA, IB_byte_data | IB_metadata);
+      img = IMB_allocImBuf(1, 1, IB_byte_data | IB_metadata);
       if (!img) {
         return nullptr;
       }

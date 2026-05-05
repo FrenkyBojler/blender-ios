@@ -1356,11 +1356,12 @@ static PyObject *M_imbuf_new(PyObject * /*self*/, PyObject *args, PyObject *kw)
     return nullptr;
   }
 
-  ImBuf *ibuf = IMB_allocImBuf(UNPACK2(size), color_mode, flags);
+  ImBuf *ibuf = IMB_allocImBuf(UNPACK2(size), flags);
   if (ibuf == nullptr) {
     PyErr_Format(PyExc_ValueError, "new: Unable to create image (%d, %d)", UNPACK2(size));
     return nullptr;
   }
+  ibuf->color_mode = color_mode;
   return Py_ImBuf_CreatePyObject(ibuf);
 }
 

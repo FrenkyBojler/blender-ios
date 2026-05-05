@@ -211,7 +211,8 @@ static void render_layer_allocate_pass(RenderResult *rr, RenderPass *rp)
   const size_t rectsize = size_t(rr->rectx) * rr->recty * rp->channels;
   float *buffer_data = MEM_new_array_zeroed<float>(rectsize, rp->name);
 
-  rp->ibuf = IMB_allocImBuf(rr->rectx, rr->recty, get_color_mode_for_pass(*rp), 0);
+  rp->ibuf = IMB_allocImBuf(rr->rectx, rr->recty, 0);
+  rp->ibuf->color_mode = get_color_mode_for_pass(*rp);
   rp->ibuf->channels = rp->channels;
   copy_v2_v2_db(rp->ibuf->ppm, rr->ppm);
   IMB_assign_float_buffer(rp->ibuf, buffer_data, IB_TAKE_OWNERSHIP);
@@ -1088,7 +1089,8 @@ ImBuf *RE_render_result_rect_to_ibuf(RenderResult *rr,
                                      const float dither,
                                      const int view_id)
 {
-  ImBuf *ibuf = IMB_allocImBuf(rr->rectx, rr->recty, imf->planes, 0);
+  ImBuf *ibuf = IMB_allocImBuf(rr->rectx, rr->recty, 0);
+  ibuf->color_mode = imf->planes;
   RenderView *rv = RE_RenderViewGetById(rr, view_id);
 
   /* if not exists, BKE_imbuf_write makes one */
@@ -1348,8 +1350,8 @@ RenderResult *RE_DuplicateRenderResult(RenderResult *rr)
 ImBuf *RE_RenderPassEnsureImBuf(RenderPass *render_pass)
 {
   if (!render_pass->ibuf) {
-    render_pass->ibuf = IMB_allocImBuf(
-        render_pass->rectx, render_pass->recty, get_color_mode_for_pass(*render_pass), 0);
+    render_pass->ibuf = IMB_allocImBuf(render_pass->rectx, render_pass->recty, 0);
+    render_pass->ibuf->color_mode = get_color_mode_for_pass(*render_pass);
     render_pass->ibuf->channels = render_pass->channels;
     assign_render_pass_ibuf_colorspace(*render_pass);
   }
@@ -1360,8 +1362,7 @@ ImBuf *RE_RenderPassEnsureImBuf(RenderPass *render_pass)
 ImBuf *RE_RenderViewEnsureImBuf(const RenderResult *render_result, RenderView *render_view)
 {
   if (!render_view->ibuf) {
-    render_view->ibuf = IMB_allocImBuf(
-        render_result->rectx, render_result->recty, ImColorMode::RGBA, 0);
+    render_view->ibuf = IMB_allocImBuf(render_result->rectx, render_result->recty, 0);
   }
 
   return render_view->ibuf;

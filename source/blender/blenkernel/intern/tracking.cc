@@ -2548,10 +2548,8 @@ ImBuf *BKE_tracking_sample_pattern(const int frame_width,
     return nullptr;
   }
 
-  pattern_ibuf = IMB_allocImBuf(num_samples_x,
-                                num_samples_y,
-                                ImColorMode::RGBA,
-                                search_ibuf->float_data() ? IB_float_data : IB_byte_data);
+  pattern_ibuf = IMB_allocImBuf(
+      num_samples_x, num_samples_y, search_ibuf->float_data() ? IB_float_data : IB_byte_data);
 
   tracking_get_marker_coords_for_tracking(
       frame_width, frame_height, marker, src_pixel_x, src_pixel_y);
@@ -2690,8 +2688,7 @@ ImBuf *BKE_tracking_get_search_imbuf(const ImBuf *ibuf,
     return nullptr;
   }
 
-  searchibuf = IMB_allocImBuf(
-      w, h, ImColorMode::RGBA, ibuf->float_data() ? IB_float_data : IB_byte_data);
+  searchibuf = IMB_allocImBuf(w, h, ibuf->float_data() ? IB_float_data : IB_byte_data);
 
   /* Clamp copy region to image bounds. */
   int dst_x = 0, dst_y = 0;
@@ -2762,10 +2759,8 @@ ImBuf *BKE_tracking_get_plane_imbuf(const ImBuf *frame_ibuf,
   const int num_samples_y = max_ii(left_side_len_px, right_side_len_px);
 
   /* Create new result image with the same type of content as the original. */
-  ImBuf *plane_ibuf = IMB_allocImBuf(num_samples_x,
-                                     num_samples_y,
-                                     ImColorMode::RGBA,
-                                     frame_ibuf->float_data() ? IB_float_data : IB_byte_data);
+  ImBuf *plane_ibuf = IMB_allocImBuf(
+      num_samples_x, num_samples_y, frame_ibuf->float_data() ? IB_float_data : IB_byte_data);
 
   /* Calculate corner coordinates in pixel space, as separate X/Y arrays. */
   const double src_pixel_x[4] = {corners[0][0] * frame_width,

@@ -280,9 +280,10 @@ ImBuf *imb_loadiris(const uchar *mem, size_t size, int flags, ImFileColorSpace &
   }
 
   if (flags & IB_test) {
-    ibuf = IMB_allocImBuf(image.xsize, image.ysize, color_mode, 0);
+    ibuf = IMB_allocImBuf(image.xsize, image.ysize, 0);
     if (ibuf) {
       ibuf->ftype = IMB_FTYPE_IRIS;
+      ibuf->color_mode = color_mode;
     }
     return ibuf;
   }
@@ -325,10 +326,11 @@ ImBuf *imb_loadiris(const uchar *mem, size_t size, int flags, ImFileColorSpace &
 
     if (bpp == 1) {
 
-      ibuf = IMB_allocImBuf(xsize, ysize, color_mode, IB_byte_data);
+      ibuf = IMB_allocImBuf(xsize, ysize, IB_byte_data);
       if (!ibuf) {
         goto fail_rle;
       }
+      ibuf->color_mode = color_mode;
       base = reinterpret_cast<uint *>(ibuf->byte_data_for_write());
 
       if (badorder) {
@@ -379,8 +381,7 @@ ImBuf *imb_loadiris(const uchar *mem, size_t size, int flags, ImFileColorSpace &
     }
     else { /* bpp == 2 */
 
-      ibuf = IMB_allocImBuf(
-          xsize, ysize, ImColorMode::RGBA, (flags & IB_byte_data) | IB_float_data);
+      ibuf = IMB_allocImBuf(xsize, ysize, (flags & IB_byte_data) | IB_float_data);
       if (!ibuf) {
         goto fail_rle;
       }
@@ -440,10 +441,11 @@ ImBuf *imb_loadiris(const uchar *mem, size_t size, int flags, ImFileColorSpace &
 
     if (bpp == 1) {
 
-      ibuf = IMB_allocImBuf(xsize, ysize, color_mode, IB_byte_data);
+      ibuf = IMB_allocImBuf(xsize, ysize, IB_byte_data);
       if (!ibuf) {
         goto fail_uncompressed;
       }
+      ibuf->color_mode = color_mode;
 
       base = reinterpret_cast<uint *>(ibuf->byte_data_for_write());
 
@@ -470,8 +472,7 @@ ImBuf *imb_loadiris(const uchar *mem, size_t size, int flags, ImFileColorSpace &
     }
     else { /* bpp == 2 */
 
-      ibuf = IMB_allocImBuf(
-          xsize, ysize, ImColorMode::RGBA, (flags & IB_byte_data) | IB_float_data);
+      ibuf = IMB_allocImBuf(xsize, ysize, (flags & IB_byte_data) | IB_float_data);
       if (!ibuf) {
         goto fail_uncompressed;
       }

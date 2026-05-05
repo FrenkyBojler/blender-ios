@@ -95,7 +95,8 @@ void FileOutput::add_view(const char *view_name, int channels, float *buffer)
   else if (channels == 3) {
     color_mode = ImColorMode::RGB;
   }
-  render_view->ibuf = IMB_allocImBuf(render_result_->rectx, render_result_->recty, color_mode, 0);
+  render_view->ibuf = IMB_allocImBuf(render_result_->rectx, render_result_->recty, 0);
+  render_view->ibuf->color_mode = color_mode;
   render_view->ibuf->channels = channels;
   IMB_assign_float_buffer(render_view->ibuf, buffer, IB_TAKE_OWNERSHIP);
 }
@@ -127,7 +128,8 @@ void FileOutput::add_pass(const char *pass_name,
   else if (channels_count == 3) {
     color_mode = ImColorMode::RGB;
   }
-  render_pass->ibuf = IMB_allocImBuf(render_result_->rectx, render_result_->recty, color_mode, 0);
+  render_pass->ibuf = IMB_allocImBuf(render_result_->rectx, render_result_->recty, 0);
+  render_pass->ibuf->color_mode = color_mode;
   render_pass->ibuf->channels = channels_count;
   copy_v2_v2_db(render_pass->ibuf->ppm, render_result_->ppm);
   IMB_assign_float_buffer(render_pass->ibuf, buffer, IB_TAKE_OWNERSHIP);
