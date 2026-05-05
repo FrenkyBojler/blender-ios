@@ -193,7 +193,8 @@ static SpaceLink *file_duplicate(SpaceLink *sl)
   if (sfileo->params) {
     sfilen->params = MEM_dupalloc(sfileo->params);
     if (sfileo->params->runtime) {
-      sfilen->params->runtime = MEM_new<FileSelectParams_Runtime>(__func__, *sfileo->params->runtime);
+      sfilen->params->runtime = MEM_new<FileSelectParams_Runtime>(__func__,
+                                                                  *sfileo->params->runtime);
     }
   }
   if (sfileo->asset_params) {

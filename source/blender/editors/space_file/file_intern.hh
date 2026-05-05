@@ -231,7 +231,9 @@ void file_on_reload_callback_register(SpaceFile *sfile,
 /* not listbase itself */
 void folderlist_free(ListBaseT<FolderList> *folderlist);
 void folderlist_popdir(ListBaseT<FolderList> *folderlist, char *dir, char *dir_template = nullptr);
-void folderlist_pushdir(ListBaseT<FolderList> *folderlist, const char *dir, const char *dir_template = nullptr);
+void folderlist_pushdir(ListBaseT<FolderList> *folderlist,
+                        const char *dir,
+                        const char *dir_template = nullptr);
 const char *folderlist_peeklastdir(ListBaseT<FolderList> *folderlist);
 bool folderlist_clear_next(SpaceFile *sfile);
 

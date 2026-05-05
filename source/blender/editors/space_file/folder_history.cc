@@ -65,7 +65,9 @@ void folderlist_popdir(ListBaseT<FolderList> *folderlist, char *dir, char *dir_t
   /* Delete the folder next or use set-directory directly before PREVIOUS OP. */
 }
 
-void folderlist_pushdir(ListBaseT<FolderList> *folderlist, const char *dir, const char *dir_template)
+void folderlist_pushdir(ListBaseT<FolderList> *folderlist,
+                        const char *dir,
+                        const char *dir_template)
 {
   if (!dir[0]) {
     return;

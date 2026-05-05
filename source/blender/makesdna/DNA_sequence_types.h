@@ -925,7 +925,7 @@ struct StripModifierData {
 
   struct IDProperty *system_properties = nullptr;
 
-  seq::StripModifierDataRuntime *runtime = nullptr;
+  blender::seq::StripModifierDataRuntime *runtime = nullptr;
 
 #ifdef __cplusplus
   bool is_type_sound() const;

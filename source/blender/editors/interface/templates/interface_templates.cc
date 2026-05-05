@@ -317,17 +317,14 @@ static void file_select_path_tooltip_custom(bContext &C,
   /* Name/Label. */
   std::string but_label = ui::button_string_get_label(*but);
   if (!but_label.empty()) {
-    ui::tooltip_text_field_add(
-        data, but_label, {}, ui::TIP_STYLE_HEADER, ui::TIP_LC_NORMAL);
-    ui::tooltip_text_field_add(
-        data, {}, {}, ui::TIP_STYLE_SPACER, ui::TIP_LC_NORMAL);
+    ui::tooltip_text_field_add(data, but_label, {}, ui::TIP_STYLE_HEADER, ui::TIP_LC_NORMAL);
+    ui::tooltip_text_field_add(data, {}, {}, ui::TIP_STYLE_SPACER, ui::TIP_LC_NORMAL);
   }
 
   /* Description (tooltip). */
   std::string but_tip = ui::button_string_get_tooltip(C, *but);
   if (!but_tip.empty()) {
-    ui::tooltip_text_field_add(
-        data, but_tip, {}, ui::TIP_STYLE_HEADER, ui::TIP_LC_NORMAL);
+    ui::tooltip_text_field_add(data, but_tip, {}, ui::TIP_STYLE_HEADER, ui::TIP_LC_NORMAL);
   }
 
   /* Value (current path string shown in the button). */
@@ -335,23 +332,22 @@ static void file_select_path_tooltip_custom(bContext &C,
   ui::button_string_get(but, buf, sizeof(buf));
   if (buf[0]) {
     ui::tooltip_text_field_add(data,
-                                        fmt::format(fmt::runtime(TIP_("Value: {}")), buf),
-                                        {},
-                                        ui::TIP_STYLE_NORMAL,
-                                        ui::TIP_LC_VALUE,
-                                        true);
+                               fmt::format(fmt::runtime(TIP_("Value: {}")), buf),
+                               {},
+                               ui::TIP_STYLE_NORMAL,
+                               ui::TIP_LC_VALUE,
+                               true);
   }
 
   /* Evaluated/resolved path (shown only if different from template). */
   FileSelectParams *params = static_cast<FileSelectParams *>(argN);
   if (params && params->dir[0] != '\0' && !STREQ(params->dir, params->dir_template)) {
-    ui::tooltip_text_field_add(
-        data,
-        fmt::format(fmt::runtime(TIP_("Evaluated: {}")), params->dir),
-        {},
-        ui::TIP_STYLE_NORMAL,
-        ui::TIP_LC_DIMMED,
-        true);
+    ui::tooltip_text_field_add(data,
+                               fmt::format(fmt::runtime(TIP_("Evaluated: {}")), params->dir),
+                               {},
+                               ui::TIP_STYLE_NORMAL,
+                               ui::TIP_LC_DIMMED,
+                               true);
   }
 }
 

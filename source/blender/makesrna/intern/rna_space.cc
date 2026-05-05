@@ -17,8 +17,8 @@
 #include "BKE_geometry_set.hh"
 #include "BKE_main.hh"
 #include "BKE_movieclip.hh"
-#include "BKE_path_templates.hh"
 #include "BKE_object_types.hh"
+#include "BKE_path_templates.hh"
 
 #include "ED_asset.hh"
 #include "ED_buttons.hh"
@@ -3259,16 +3259,16 @@ static PointerRNA rna_FileSelectParams_filter_id_get(PointerRNA *ptr)
 static void rna_FileSelectParams_directory_get(PointerRNA *ptr, char *value)
 {
   const FileSelectParams *params = static_cast<const FileSelectParams *>(ptr->data);
-  const bke::path_templates::VariableMap *template_vars =
-      ED_fileselect_params_get_template_vars(params);
+  const bke::path_templates::VariableMap *template_vars = ED_fileselect_params_get_template_vars(
+      params);
   strcpy(value, template_vars ? params->dir_template : params->dir);
 }
 
 static void rna_FileSelectParams_directory_set(PointerRNA *ptr, const char *value)
 {
   FileSelectParams *params = static_cast<FileSelectParams *>(ptr->data);
-  const bke::path_templates::VariableMap *template_vars =
-      ED_fileselect_params_get_template_vars(params);
+  const bke::path_templates::VariableMap *template_vars = ED_fileselect_params_get_template_vars(
+      params);
   if (template_vars) {
     bke::path_templates::nav_handle_text_input(params, value, *template_vars);
   }
@@ -3282,8 +3282,8 @@ static void rna_FileSelectParams_directory_set(PointerRNA *ptr, const char *valu
 static int rna_FileSelectParams_directory_length(PointerRNA *ptr)
 {
   const FileSelectParams *params = static_cast<const FileSelectParams *>(ptr->data);
-  const bke::path_templates::VariableMap *template_vars =
-      ED_fileselect_params_get_template_vars(params);
+  const bke::path_templates::VariableMap *template_vars = ED_fileselect_params_get_template_vars(
+      params);
   return template_vars ? strlen(params->dir_template) : strlen(params->dir);
 }
 
