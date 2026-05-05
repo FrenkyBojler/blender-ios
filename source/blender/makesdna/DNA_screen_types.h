@@ -594,6 +594,7 @@ enum eScrArea_Flag : short {
   AREA_FLAG_ACTIONZONES_UPDATE = (1 << 8),
   /** For off-screen areas. */
   AREA_FLAG_OFFSCREEN = (1 << 9),
+  AREA_FLAG_REDO_PANEL_PADDING = (1 << 10),
 };
 ENUM_OPERATORS(eScrArea_Flag)
 

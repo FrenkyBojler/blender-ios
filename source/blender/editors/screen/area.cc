@@ -743,7 +743,7 @@ void ED_area_tag_region_size_update(ScrArea *area, ARegion *changed_region)
   area->flag |= AREA_FLAG_REGION_SIZE_UPDATE;
 
   /* Floating regions don't affect other regions, so the following can be skipped. */
-  if (changed_region->alignment == RGN_ALIGN_FLOAT) {
+  if ((changed_region->alignment == RGN_ALIGN_FLOAT) && !(area->flag & AREA_FLAG_REDO_PANEL_PADDING)) {
     return;
   }
 
@@ -1676,6 +1676,9 @@ static void region_rect_recursive(
                     max_ii(0, BLI_rcti_size_y(overlap_remainder) - UI_UNIT_Y / 2));
     region->winrct.xmin = overlap_remainder_margin.xmin + region->runtime->offset_x;
     region->winrct.ymin = overlap_remainder_margin.ymin + region->runtime->offset_y;
+    if (area->flag & AREA_FLAG_REDO_PANEL_PADDING) {
+      region->winrct.ymin += UI_UNIT_Y;
+    }
     region->winrct.xmax = region->winrct.xmin + prefsizex - 1;
     region->winrct.ymax = region->winrct.ymin + prefsizey - 1;
 

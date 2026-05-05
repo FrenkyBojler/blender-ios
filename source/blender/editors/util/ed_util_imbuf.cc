@@ -468,7 +468,8 @@ wmOperatorStatus ED_imbuf_sample_invoke(bContext *C, wmOperator *op, const wmEve
       }
     }
   }
-
+  area->flag |= AREA_FLAG_REDO_PANEL_PADDING;
+  ED_area_tag_region_size_update(area, region);
   ImageSampleInfo *info = MEM_new_zeroed<ImageSampleInfo>("ImageSampleInfo");
 
   info->art = region->runtime->type;
@@ -491,6 +492,10 @@ wmOperatorStatus ED_imbuf_sample_modal(bContext *C, wmOperator *op, const wmEven
     case RIGHTMOUSE: /* XXX hardcoded */
       if (event->val == KM_RELEASE) {
         ED_imbuf_sample_exit(C, op);
+        ScrArea *area = CTX_wm_area(C);
+        ARegion *region = CTX_wm_region(C);
+        area->flag &= ~AREA_FLAG_REDO_PANEL_PADDING;
+        ED_area_tag_region_size_update(area, region);
         return OPERATOR_CANCELLED;
       }
       break;
