@@ -109,7 +109,7 @@ static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
       });
     }
     params.add_item(IFACE_("Probability"), [type](LinkSearchOpParams &params) {
-      bNode &node = params.add_node("FunctionNodeRandomValue");
+      bNode &node = params.add_node("FunctionNodeRandomValue"_ustr);
       node_storage(node).data_type = *type;
       params.update_and_connect_available_socket(node, "Probability"_ustr);
     });

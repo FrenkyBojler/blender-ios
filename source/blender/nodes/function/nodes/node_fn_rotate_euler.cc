@@ -6,6 +6,7 @@
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 
+#include "NOD_socket_search_link.hh"
 #include "RNA_enum_types.hh"
 
 #include "UI_interface_layout.hh"
@@ -53,12 +54,12 @@ static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
                                                                                 SOCK_VECTOR);
   if (can_connect_to_vector) {
     params.add_item(IFACE_("Rotation (By Euler)"), [](LinkSearchOpParams &params) {
-      bNode &node = params.add_node("FunctionNodeRotateEuler");
+      bNode &node = params.add_node("FunctionNodeRotateEuler"_ustr);
       node.custom1 = int(FN_NODE_ROTATE_EULER_TYPE_EULER);
       params.update_and_connect_available_socket(node, "Rotation"_ustr);
     });
     params.add_item(IFACE_("Rotation (By Axis Angle)"), [](LinkSearchOpParams &params) {
-      bNode &node = params.add_node("FunctionNodeRotateEuler");
+      bNode &node = params.add_node("FunctionNodeRotateEuler"_ustr);
       node.custom1 = int(FN_NODE_ROTATE_EULER_TYPE_AXIS_ANGLE);
       params.update_and_connect_available_socket(node, "Rotation"_ustr);
     });
@@ -70,12 +71,12 @@ static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
 
   if (can_connect_to_vector) {
     params.add_item(IFACE_("Rotate By"), [](LinkSearchOpParams &params) {
-      bNode &node = params.add_node("FunctionNodeRotateEuler");
+      bNode &node = params.add_node("FunctionNodeRotateEuler"_ustr);
       node.custom1 = int(FN_NODE_ROTATE_EULER_TYPE_EULER);
       params.update_and_connect_available_socket(node, "Rotate By"_ustr);
     });
     params.add_item(IFACE_("Axis"), [](LinkSearchOpParams &params) {
-      bNode &node = params.add_node("FunctionNodeRotateEuler");
+      bNode &node = params.add_node("FunctionNodeRotateEuler"_ustr);
       node.custom1 = int(FN_NODE_ROTATE_EULER_TYPE_AXIS_ANGLE);
       params.update_and_connect_available_socket(node, "Axis"_ustr);
     });
@@ -85,7 +86,7 @@ static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
                                                                                SOCK_FLOAT);
   if (can_connect_to_float) {
     params.add_item(IFACE_("Angle"), [](LinkSearchOpParams &params) {
-      bNode &node = params.add_node("FunctionNodeRotateEuler");
+      bNode &node = params.add_node("FunctionNodeRotateEuler"_ustr);
       node.custom1 = int(FN_NODE_ROTATE_EULER_TYPE_AXIS_ANGLE);
       params.update_and_connect_available_socket(node, "Angle"_ustr);
     });
