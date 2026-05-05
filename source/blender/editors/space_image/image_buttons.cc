@@ -1246,9 +1246,7 @@ void uiTemplateImageInfo(ui::Layout *layout, bContext *C, Image *ima, ImageUser 
     /* Try to see if this texture is a compressed format, if not, get the generic format. */
     if (!IMB_gpu_get_compressed_format(ibuf, &texture_format)) {
       texture_format = IMB_gpu_get_texture_format(
-          ibuf,
-          ima->flag & IMA_HIGH_BITDEPTH,
-          ibuf->color_mode != ImColorMode::BW);  //@TODO: should use_grayscale check be opposite?
+          ibuf, ima->flag & IMA_HIGH_BITDEPTH, ibuf->color_mode == ImColorMode::BW);
     }
 
     const char *texture_format_description = GPU_texture_format_name(texture_format);
