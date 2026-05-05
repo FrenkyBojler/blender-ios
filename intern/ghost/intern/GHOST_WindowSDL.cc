@@ -127,7 +127,7 @@ GHOST_TSuccess GHOST_WindowSDL::setState(GHOST_TWindowState state)
 
 GHOST_TWindowState GHOST_WindowSDL::getState() const
 {
-  Uint32 flags = SDL_GetWindowFlags(sdl_win_);
+  SDL_WindowFlags flags = SDL_GetWindowFlags(sdl_win_);
 
   if (flags & SDL_WINDOW_FULLSCREEN) {
     return GHOST_kWindowStateFullScreen;

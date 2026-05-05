@@ -442,7 +442,7 @@ static char convert_keyboard_event_to_ascii(const SDL_KeyboardEvent &sdl_sub_evt
  * Events don't always have valid windows,
  * but GHOST needs a window _always_. Fall back to the GL window.
  */
-static SDL_Window *SDL_GetWindowFromID_fallback(Uint32 id)
+static SDL_Window *SDL_GetWindowFromID_fallback(SDL_WindowID id)
 {
   SDL_Window *sdl_win = SDL_GetWindowFromID(id);
   if (sdl_win == nullptr) {
