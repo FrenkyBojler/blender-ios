@@ -2519,7 +2519,7 @@ void sculpt_apply_texture(const SculptSession &ss,
       x += mtex->ofs[0];
       y += mtex->ofs[1];
 
-      if (brush.flag2 & BRUSH_PRESERVE_ASPECT) {
+      if (brush.flag2 & BRUSH_PRESERVE_ASPECT_TEXTURE) {
         BKE_brush_apply_aspect_correction(&x, &y, mtex, ss.tex_pool);
       }
 

@@ -938,8 +938,9 @@ const MTex *BKE_brush_color_texture_get(const Brush *brush, const eObjectMode ob
   return &brush->mtex;
 }
 
-/* Apply aspect ratio correction for image textures when BRUSH_PRESERVE_ASPECT is set.
- * Modifies tex coordinates to prevent rectangular textures from being squashed. */
+/* Apply aspect ratio correction for image textures when BRUSH_PRESERVE_ASPECT_TEXTURE
+ * or BRUSH_PRESERVE_ASPECT_MASK is set. Modifies tex coordinates to prevent rectangular
+ * textures from being squashed. */
 void BKE_brush_apply_aspect_correction(float *r_x, float *r_y, const MTex *mtex, ImagePool *pool)
 {
   if (!mtex->tex || mtex->tex->type != TEX_IMAGE || !mtex->tex->ima) {
@@ -1047,7 +1048,7 @@ float BKE_brush_sample_tex_3d(const Paint *paint,
     x *= invradius;
     y *= invradius;
 
-    if (br->flag2 & BRUSH_PRESERVE_ASPECT) {
+    if (br->flag2 & BRUSH_PRESERVE_ASPECT_TEXTURE) {
       BKE_brush_apply_aspect_correction(&x, &y, mtex, pool);
     }
 
@@ -1163,7 +1164,7 @@ float BKE_brush_sample_masktex(
     x *= invradius;
     y *= invradius;
 
-    if (br->flag2 & BRUSH_PRESERVE_ASPECT) {
+    if (br->flag2 & BRUSH_PRESERVE_ASPECT_MASK) {
       BKE_brush_apply_aspect_correction(&x, &y, mtex, pool);
     }
 
@@ -1719,7 +1720,9 @@ static bool brush_gen_texture(const Brush *br,
   /* Compute aspect ratio correction for image textures.
    * Only applied when BRUSH_PRESERVE_ASPECT flag is set to match painting behavior. */
   float aspect_x = 1.0f, aspect_y = 1.0f;
-  if ((br->flag2 & BRUSH_PRESERVE_ASPECT) && mtex->tex->type == TEX_IMAGE && mtex->tex->ima) {
+  eBrushFlags2 preserve_aspect_flag = use_secondary ? BRUSH_PRESERVE_ASPECT_MASK :
+                                                      BRUSH_PRESERVE_ASPECT_TEXTURE;
+  if ((br->flag2 & preserve_aspect_flag) && mtex->tex->type == TEX_IMAGE && mtex->tex->ima) {
     ImBuf *ibuf = BKE_image_pool_acquire_ibuf(mtex->tex->ima, &mtex->tex->iuser, nullptr);
     if (ibuf && ibuf->x > 0 && ibuf->y > 0) {
       const float aspect = float(ibuf->y) / float(ibuf->x);
