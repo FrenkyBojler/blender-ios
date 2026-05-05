@@ -94,7 +94,6 @@ struct [[host_shared]] UniformData {
   struct ShadowSceneData shadow;
   struct SubsurfaceData subsurface;
   struct VolumesInfoData volumes;
-  struct PipelineInfoData pipeline;
 };
 
 /**

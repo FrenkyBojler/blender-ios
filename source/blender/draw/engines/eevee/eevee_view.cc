@@ -72,7 +72,7 @@ void ShadingView::sync()
 
   main_view_.sync(viewmat, winmat);
 
-  inst_.uniform_data.data.pipeline.is_main_view_inverted = main_view_.is_inverted();
+  inst_.uniform_data.pipeline.is_main_view_inverted = main_view_.is_inverted();
 }
 
 void ShadingView::render()
@@ -298,7 +298,7 @@ void CaptureView::render_world()
   if (update_info->do_render) {
     auto render_cubemap = [&](RayPipelineType ray_type) {
       if (assign_if_different(inst_.pipelines.data.ray_type, ray_type)) {
-        inst_.uniform_data.push_update();
+        inst_.uniform_data.pipeline.push_update();
       }
 
       for (int face : IndexRange(6)) {
@@ -339,7 +339,7 @@ void CaptureView::render_world()
   }
 
   if (assign_if_different(inst_.pipelines.data.ray_type, RAY_TYPE_CAMERA)) {
-    inst_.uniform_data.push_update();
+    inst_.uniform_data.pipeline.push_update();
   }
 
   GPU_debug_group_end();
@@ -353,7 +353,7 @@ void CaptureView::render_probes()
     GPU_debug_group_begin("Probe.Capture");
 
     if (assign_if_different(inst_.pipelines.data.ray_type, RAY_TYPE_GLOSSY)) {
-      inst_.uniform_data.push_update();
+      inst_.uniform_data.pipeline.push_update();
     }
 
     int2 extent = int2(update_info->cube_target_extent);
@@ -413,7 +413,7 @@ void CaptureView::render_probes()
   }
 
   if (assign_if_different(inst_.pipelines.data.ray_type, RAY_TYPE_CAMERA)) {
-    inst_.uniform_data.push_update();
+    inst_.uniform_data.pipeline.push_update();
   }
 }
 

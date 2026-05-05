@@ -57,19 +57,23 @@
 namespace blender::eevee {
 
 using UniformDataBuf = draw::UniformBuffer<UniformData>;
+using PipelineInfoBuf = draw::UniformBuffer<PipelineInfoData>;
 
 /* Combines data from several modules to avoid wasting binding slots. */
 struct UniformDataModule {
-  UniformDataBuf data = {"UniformDataBuf"};
+  UniformDataBuf data{"UniformDataBuf"};
+  PipelineInfoBuf pipeline{"PipelineInfoBuf"};
 
   void push_update()
   {
     data.push_update();
+    pipeline.push_update();
   }
 
   template<typename PassType> void bind_resources(PassType &pass)
   {
     pass.bind_ubo(UNIFORM_BUF_SLOT, &data);
+    pass.bind_ubo(PIPELINE_BUF_SLOT, &pipeline);
   }
 };
 
@@ -185,7 +189,7 @@ class Instance : public DrawEngine {
         sync(*this),
         materials(*this),
         subsurface(*this, uniform_data.data.subsurface),
-        pipelines(*this, uniform_data.data.pipeline),
+        pipelines(*this, uniform_data.pipeline),
         shadows(*this, uniform_data.data.shadow),
         lights(*this),
         ambient_occlusion(*this, uniform_data.data.ao),

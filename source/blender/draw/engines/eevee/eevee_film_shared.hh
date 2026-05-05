@@ -122,6 +122,7 @@ struct [[host_shared]] FilmData {
   int samples_len;
   /** Sum of the weights of all samples in the sample table. */
   float samples_weight_total;
+  int _pad0, _pad1;
   struct FilmSample samples[FILM_PRECOMP_SAMPLE_MAX];
 };
 
