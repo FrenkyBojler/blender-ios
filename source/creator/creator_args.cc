@@ -769,7 +769,6 @@ static void print_help(bArgs *ba, bool all)
   BLI_args_print_arg_doc(ba, "--debug-ghost");
   BLI_args_print_arg_doc(ba, "--debug-wintab");
   BLI_args_print_arg_doc(ba, "--debug-gpu");
-  BLI_args_print_arg_doc(ba, "--debug-gpu-device-no-fallback");
   BLI_args_print_arg_doc(ba, "--debug-gpu-force-workarounds");
   BLI_args_print_arg_doc(ba, "--debug-gpu-compile-shaders");
   BLI_args_print_arg_doc(ba, "--debug-gpu-shader-debug-info");
@@ -808,6 +807,7 @@ static void print_help(bArgs *ba, bool all)
   PRINT("GPU Options:\n");
   BLI_args_print_arg_doc(ba, "--gpu-backend");
   BLI_args_print_arg_doc(ba, "--gpu-device");
+  BLI_args_print_arg_doc(ba, "--gpu-device-no-fallback");
   BLI_args_print_arg_doc(ba, "--gpu-vsync");
   if (defs.with_opengl_backend) {
     BLI_args_print_arg_doc(ba, "--gpu-compilation-subprocesses");
@@ -1729,7 +1729,7 @@ static const char arg_handle_gpu_device_set_doc[] =
     "\n"
     "\tOnly used with the Vulkan backend. Other backends print a warning and ignore this option.\n"
     "\tIf the requested Vulkan device is unavailable, Blender falls back to the saved GPU\n"
-    "\tpreference unless '--debug-gpu-device-no-fallback' is also set.";
+    "\tpreference unless '--gpu-device-no-fallback' is also set.";
 static int arg_handle_gpu_device_set(int argc, const char **argv, void * /*data*/)
 {
   const char *arg_id = "--gpu-device";
@@ -3074,6 +3074,11 @@ void main_args_setup(bContext *C, bArgs *ba, bool all)
    * selection for animation player. */
   BLI_args_add(ba, nullptr, "--gpu-backend", CB_ALL(arg_handle_gpu_backend_set), nullptr);
   BLI_args_add(ba, nullptr, "--gpu-device", CB(arg_handle_gpu_device_set), nullptr);
+  BLI_args_add(ba,
+               nullptr,
+               "--gpu-device-no-fallback",
+               CB_EX(arg_handle_debug_mode_generic_set, gpu_device_no_fallback),
+               reinterpret_cast<void *>(G_DEBUG_GPU_DEVICE_NO_FALLBACK));
   BLI_args_add(ba, nullptr, "--gpu-vsync", CB(arg_handle_gpu_vsync_set), nullptr);
   if (defs.with_opengl_backend) {
     BLI_args_add(ba,
@@ -3220,11 +3225,6 @@ void main_args_setup(bContext *C, bArgs *ba, bool all)
                CB_EX(arg_handle_debug_mode_generic_set, jobs),
                reinterpret_cast<void *>(G_DEBUG_JOBS));
   BLI_args_add(ba, nullptr, "--debug-gpu", CB(arg_handle_debug_gpu_set), nullptr);
-  BLI_args_add(ba,
-               nullptr,
-               "--debug-gpu-device-no-fallback",
-               CB_EX(arg_handle_debug_mode_generic_set, gpu_device_no_fallback),
-               reinterpret_cast<void *>(G_DEBUG_GPU_DEVICE_NO_FALLBACK));
   BLI_args_add(ba,
                nullptr,
                "--debug-gpu-compile-shaders",
