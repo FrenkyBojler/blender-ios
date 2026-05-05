@@ -563,6 +563,25 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 26)) {
+    FOREACH_NODETREE_BEGIN (bmain, tree, id) {
+      if (tree->type != NTREE_GEOMETRY) {
+        continue;
+      }
+      for (bNode &node : tree->nodes) {
+        switch (node.type_legacy) {
+          case FN_NODE_COMPARE:
+          case FN_NODE_RANDOM_VALUE: {
+            version_socket_identifier_suffixes_for_dynamic_types(node.inputs, "_");
+            version_socket_identifier_suffixes_for_dynamic_types(node.outputs, "_");
+            break;
+          }
+        }
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 27)) {
     for (Brush &brush : bmain->brushes) {
       if (ELEM(brush.ob_mode, OB_MODE_WEIGHT_PAINT, OB_MODE_VERTEX_PAINT)) {
         brush.mesh_automasking_settings = MEM_new<MeshAutomaskingSettings>(__func__);
