@@ -208,16 +208,6 @@ static float component_average(float3 a)
   return (a.x + a.y + a.z) / 3.0f;
 }
 
-template<typename T> static auto make_data_block_equal_fn()
-{
-  return mf::build::SI2_SO<T, T, bool>("Equal", [](T a, T b) { return a == b; });
-}
-
-template<typename T> static auto make_data_block_not_equal_fn()
-{
-  return mf::build::SI2_SO<T, T, bool>("Not Equal", [](T a, T b) { return a != b; });
-}
-
 template<typename Fn>
 static auto to_static_data_block(const eNodeSocketDatatype socket_type, Fn &&fn)
 {
