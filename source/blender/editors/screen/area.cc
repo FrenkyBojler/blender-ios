@@ -743,7 +743,9 @@ void ED_area_tag_region_size_update(ScrArea *area, ARegion *changed_region)
   area->flag |= AREA_FLAG_REGION_SIZE_UPDATE;
 
   /* Floating regions don't affect other regions, so the following can be skipped. */
-  if ((changed_region->alignment == RGN_ALIGN_FLOAT) && !(area->flag & AREA_FLAG_REDO_PANEL_PADDING)) {
+  if ((changed_region->alignment == RGN_ALIGN_FLOAT) &&
+      !(area->flag & AREA_FLAG_REDO_PANEL_PADDING))
+  {
     return;
   }
 
