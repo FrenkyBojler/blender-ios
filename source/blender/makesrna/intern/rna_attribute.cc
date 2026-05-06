@@ -60,29 +60,6 @@ const EnumPropertyItem rna_enum_color_attribute_type_items[] = {
      "RGBA color with 8-bit positive integer values"},
     {0, nullptr, 0, nullptr, nullptr}};
 
-const EnumPropertyItem rna_enum_attribute_type_with_all_items[] = {
-    {CD_ALL, "ALL", 0, "All", ""},
-    {CD_PROP_FLOAT, "FLOAT", 0, "Float", "Floating-point value"},
-    {CD_PROP_INT32, "INT", 0, "Integer", "32-bit integer"},
-    {CD_PROP_BOOL, "BOOLEAN", 0, "Boolean", "True or false"},
-    {CD_PROP_FLOAT3, "FLOAT_VECTOR", 0, "Vector", "3D vector with floating-point values"},
-    {CD_PROP_COLOR, "FLOAT_COLOR", 0, "Color", "RGBA color with 32-bit floating-point values"},
-    {CD_PROP_QUATERNION, "QUATERNION", 0, "Quaternion", "Floating point quaternion rotation"},
-    {CD_PROP_FLOAT4X4, "FLOAT4X4", 0, "4x4 Matrix", "Floating point matrix"},
-    {CD_PROP_STRING, "STRING", 0, "String", "Text string"},
-    {CD_PROP_INT8, "INT8", 0, "8-Bit Integer", "Smaller integer with a range from -128 to 127"},
-    {CD_PROP_INT16_2D, "INT16_2D", 0, "2D 16-Bit Integer Vector", "16-bit signed integer vector"},
-    {CD_PROP_INT32_2D, "INT32_2D", 0, "2D Integer Vector", "32-bit signed integer vector"},
-    {CD_PROP_FLOAT2, "FLOAT2", 0, "2D Vector", "2D vector with floating-point values"},
-    {CD_PROP_FLOAT4, "FLOAT4", 0, "4D Vector", "4D vector with floating-point values"},
-    {CD_PROP_BYTE_COLOR,
-     "BYTE_COLOR",
-     0,
-     "Byte Color",
-     "RGBA color with 8-bit positive integer values"},
-    {0, nullptr, 0, nullptr, nullptr},
-};
-
 const EnumPropertyItem rna_enum_attribute_type_with_auto_items[] = {
     {CD_AUTO_FROM_NAME, "AUTO", 0, "Auto", ""},
     {CD_PROP_FLOAT, "FLOAT", 0, "Float", "Floating-point value"},
@@ -194,26 +171,6 @@ const EnumPropertyItem rna_enum_attribute_domain_without_corner_items[] = {
     {int(AttrDomain::Point), "POINT", ICON_VERTEXSEL, "Point", "Attribute on point"},
     {int(AttrDomain::Edge), "EDGE", ICON_EDGESEL, "Edge", "Attribute on mesh edge"},
     {int(AttrDomain::Face), "FACE", ICON_FACESEL, "Face", "Attribute on mesh faces"},
-    {int(AttrDomain::Curve), "CURVE", ICON_CURVE_DATA, "Spline", "Attribute on spline"},
-    {int(AttrDomain::Instance), "INSTANCE", ICON_EMPTY_AXIS, "Instance", "Attribute on instance"},
-    {int(AttrDomain::Layer),
-     "LAYER",
-     ICON_OUTLINER_DATA_GP_LAYER,
-     "Layer",
-     "Attribute on Grease Pencil layer"},
-    {0, nullptr, 0, nullptr, nullptr},
-};
-
-const EnumPropertyItem rna_enum_attribute_domain_with_all_items[] = {
-    {int(AttrDomain::All), "ALL", 0, "All", ""},
-    {int(AttrDomain::Point), "POINT", ICON_VERTEXSEL, "Point", "Attribute on point"},
-    {int(AttrDomain::Edge), "EDGE", ICON_EDGESEL, "Edge", "Attribute on mesh edge"},
-    {int(AttrDomain::Face), "FACE", ICON_FACESEL, "Face", "Attribute on mesh faces"},
-    {int(AttrDomain::Corner),
-     "CORNER",
-     ICON_FACE_CORNER,
-     "Face Corner",
-     "Attribute on mesh face corner"},
     {int(AttrDomain::Curve), "CURVE", ICON_CURVE_DATA, "Spline", "Attribute on spline"},
     {int(AttrDomain::Instance), "INSTANCE", ICON_EMPTY_AXIS, "Instance", "Attribute on instance"},
     {int(AttrDomain::Layer),
