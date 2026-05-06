@@ -973,7 +973,8 @@ static void version_geometry_nodes_extrude_smooth_propagation(bNodeTree &ntree)
       {
         return false;
       }
-      bNodeSocket *capture_in_socket = bke::node_find_socket(*capture_node, SOCK_IN, "Value_003"_ustr);
+      bNodeSocket *capture_in_socket = bke::node_find_socket(
+          *capture_node, SOCK_IN, "Value_003"_ustr);
       bNodeLink *capture_in_link = in_links_per_socket.lookup_default(capture_in_socket, nullptr);
       if (!capture_in_link) {
         return false;

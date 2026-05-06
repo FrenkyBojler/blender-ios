@@ -615,8 +615,10 @@ static void write_legacy_properties(bNodeTree &ntree, Map<ID **, ID *> &r_ids_to
               socket->default_value_typed<bNodeSocketValueMenu>()->value);
         }
         else if (node->type_legacy == GEO_NODE_TRIANGULATE) {
-          const bNodeSocket *quad_method_socket = node_find_socket(*node, SOCK_IN, "Quad Method"_ustr);
-          const bNodeSocket *ngon_method_socket = node_find_socket(*node, SOCK_IN, "N-gon Method"_ustr);
+          const bNodeSocket *quad_method_socket = node_find_socket(
+              *node, SOCK_IN, "Quad Method"_ustr);
+          const bNodeSocket *ngon_method_socket = node_find_socket(
+              *node, SOCK_IN, "N-gon Method"_ustr);
           node->custom1 = quad_method_socket->default_value_typed<bNodeSocketValueMenu>()->value;
           node->custom2 = ngon_method_socket->default_value_typed<bNodeSocketValueMenu>()->value;
         }
@@ -777,7 +779,8 @@ static void write_legacy_properties(bNodeTree &ntree, Map<ID **, ID *> &r_ids_to
         }
         else if (node->type_legacy == CMP_NODE_TRANSLATE) {
           auto &storage = *static_cast<NodeTranslateData *>(node->storage);
-          bNodeSocket *interpolation_socket = node_find_socket(*node, SOCK_IN, "Interpolation"_ustr);
+          bNodeSocket *interpolation_socket = node_find_socket(
+              *node, SOCK_IN, "Interpolation"_ustr);
           storage.interpolation =
               interpolation_socket->default_value_typed<bNodeSocketValueMenu>()->value;
           bNodeSocket *extension_x_socket = node_find_socket(*node, SOCK_IN, "Extension X"_ustr);
@@ -789,7 +792,8 @@ static void write_legacy_properties(bNodeTree &ntree, Map<ID **, ID *> &r_ids_to
         }
         else if (node->type_legacy == CMP_NODE_TRANSFORM) {
           auto &storage = *static_cast<NodeTransformData *>(node->storage);
-          bNodeSocket *interpolation_socket = node_find_socket(*node, SOCK_IN, "Interpolation"_ustr);
+          bNodeSocket *interpolation_socket = node_find_socket(
+              *node, SOCK_IN, "Interpolation"_ustr);
           storage.interpolation =
               interpolation_socket->default_value_typed<bNodeSocketValueMenu>()->value;
           bNodeSocket *extension_x_socket = node_find_socket(*node, SOCK_IN, "Extension X"_ustr);
@@ -801,7 +805,8 @@ static void write_legacy_properties(bNodeTree &ntree, Map<ID **, ID *> &r_ids_to
         }
         else if (node->type_legacy == CMP_NODE_CORNERPIN) {
           auto &storage = *static_cast<NodeCornerPinData *>(node->storage);
-          bNodeSocket *interpolation_socket = node_find_socket(*node, SOCK_IN, "Interpolation"_ustr);
+          bNodeSocket *interpolation_socket = node_find_socket(
+              *node, SOCK_IN, "Interpolation"_ustr);
           storage.interpolation =
               interpolation_socket->default_value_typed<bNodeSocketValueMenu>()->value;
           bNodeSocket *extension_x_socket = node_find_socket(*node, SOCK_IN, "Extension X"_ustr);
@@ -813,7 +818,8 @@ static void write_legacy_properties(bNodeTree &ntree, Map<ID **, ID *> &r_ids_to
         }
         else if (node->type_legacy == CMP_NODE_MAP_UV) {
           auto &storage = *static_cast<NodeMapUVData *>(node->storage);
-          bNodeSocket *interpolation_socket = node_find_socket(*node, SOCK_IN, "Interpolation"_ustr);
+          bNodeSocket *interpolation_socket = node_find_socket(
+              *node, SOCK_IN, "Interpolation"_ustr);
           storage.interpolation =
               interpolation_socket->default_value_typed<bNodeSocketValueMenu>()->value;
           bNodeSocket *extension_x_socket = node_find_socket(*node, SOCK_IN, "Extension X"_ustr);
@@ -830,7 +836,8 @@ static void write_legacy_properties(bNodeTree &ntree, Map<ID **, ID *> &r_ids_to
           node->custom2 = frame_type_socket->default_value_typed<bNodeSocketValueMenu>()->value;
 
           auto &storage = *static_cast<NodeScaleData *>(node->storage);
-          bNodeSocket *interpolation_socket = node_find_socket(*node, SOCK_IN, "Interpolation"_ustr);
+          bNodeSocket *interpolation_socket = node_find_socket(
+              *node, SOCK_IN, "Interpolation"_ustr);
           storage.interpolation =
               interpolation_socket->default_value_typed<bNodeSocketValueMenu>()->value;
           bNodeSocket *extension_x_socket = node_find_socket(*node, SOCK_IN, "Extension X"_ustr);
@@ -842,7 +849,8 @@ static void write_legacy_properties(bNodeTree &ntree, Map<ID **, ID *> &r_ids_to
         }
         else if (node->type_legacy == CMP_NODE_ROTATE) {
           auto &storage = *static_cast<NodeRotateData *>(node->storage);
-          bNodeSocket *interpolation_socket = node_find_socket(*node, SOCK_IN, "Interpolation"_ustr);
+          bNodeSocket *interpolation_socket = node_find_socket(
+              *node, SOCK_IN, "Interpolation"_ustr);
           storage.interpolation =
               interpolation_socket->default_value_typed<bNodeSocketValueMenu>()->value;
           bNodeSocket *extension_x_socket = node_find_socket(*node, SOCK_IN, "Extension X"_ustr);
@@ -854,7 +862,8 @@ static void write_legacy_properties(bNodeTree &ntree, Map<ID **, ID *> &r_ids_to
         }
         else if (node->type_legacy == CMP_NODE_DISPLACE) {
           auto &storage = *static_cast<NodeDisplaceData *>(node->storage);
-          bNodeSocket *interpolation_socket = node_find_socket(*node, SOCK_IN, "Interpolation"_ustr);
+          bNodeSocket *interpolation_socket = node_find_socket(
+              *node, SOCK_IN, "Interpolation"_ustr);
           storage.interpolation =
               interpolation_socket->default_value_typed<bNodeSocketValueMenu>()->value;
           bNodeSocket *extension_x_socket = node_find_socket(*node, SOCK_IN, "Extension X"_ustr);
@@ -917,25 +926,29 @@ static void write_legacy_properties(bNodeTree &ntree, Map<ID **, ID *> &r_ids_to
 
           switch (CMPNodeChannelMatteColorSpace(node->custom1 - 1)) {
             case CMP_NODE_CHANNEL_MATTE_CS_RGB: {
-              bNodeSocket *channel_socket = node_find_socket(*node, SOCK_IN, "RGB Key Channel"_ustr);
+              bNodeSocket *channel_socket = node_find_socket(
+                  *node, SOCK_IN, "RGB Key Channel"_ustr);
               node->custom2 = channel_socket->default_value_typed<bNodeSocketValueMenu>()->value +
                               1;
               break;
             }
             case CMP_NODE_CHANNEL_MATTE_CS_HSV: {
-              bNodeSocket *channel_socket = node_find_socket(*node, SOCK_IN, "HSV Key Channel"_ustr);
+              bNodeSocket *channel_socket = node_find_socket(
+                  *node, SOCK_IN, "HSV Key Channel"_ustr);
               node->custom2 = channel_socket->default_value_typed<bNodeSocketValueMenu>()->value +
                               1;
               break;
             }
             case CMP_NODE_CHANNEL_MATTE_CS_YUV: {
-              bNodeSocket *channel_socket = node_find_socket(*node, SOCK_IN, "YUV Key Channel"_ustr);
+              bNodeSocket *channel_socket = node_find_socket(
+                  *node, SOCK_IN, "YUV Key Channel"_ustr);
               node->custom2 = channel_socket->default_value_typed<bNodeSocketValueMenu>()->value +
                               1;
               break;
             }
             case CMP_NODE_CHANNEL_MATTE_CS_YCC: {
-              bNodeSocket *channel_socket = node_find_socket(*node, SOCK_IN, "YCbCr Key Channel"_ustr);
+              bNodeSocket *channel_socket = node_find_socket(
+                  *node, SOCK_IN, "YCbCr Key Channel"_ustr);
               node->custom2 = channel_socket->default_value_typed<bNodeSocketValueMenu>()->value +
                               1;
               break;
@@ -948,19 +961,22 @@ static void write_legacy_properties(bNodeTree &ntree, Map<ID **, ID *> &r_ids_to
 
           switch (CMPNodeChannelMatteColorSpace(node->custom1 - 1)) {
             case CMP_NODE_CHANNEL_MATTE_CS_RGB: {
-              bNodeSocket *channel_socket = node_find_socket(*node, SOCK_IN, "RGB Limit Channel"_ustr);
+              bNodeSocket *channel_socket = node_find_socket(
+                  *node, SOCK_IN, "RGB Limit Channel"_ustr);
               storage.channel =
                   channel_socket->default_value_typed<bNodeSocketValueMenu>()->value + 1;
               break;
             }
             case CMP_NODE_CHANNEL_MATTE_CS_HSV: {
-              bNodeSocket *channel_socket = node_find_socket(*node, SOCK_IN, "HSV Limit Channel"_ustr);
+              bNodeSocket *channel_socket = node_find_socket(
+                  *node, SOCK_IN, "HSV Limit Channel"_ustr);
               storage.channel =
                   channel_socket->default_value_typed<bNodeSocketValueMenu>()->value + 1;
               break;
             }
             case CMP_NODE_CHANNEL_MATTE_CS_YUV: {
-              bNodeSocket *channel_socket = node_find_socket(*node, SOCK_IN, "YUV Limit Channel"_ustr);
+              bNodeSocket *channel_socket = node_find_socket(
+                  *node, SOCK_IN, "YUV Limit Channel"_ustr);
               storage.channel =
                   channel_socket->default_value_typed<bNodeSocketValueMenu>()->value + 1;
               break;
@@ -988,7 +1004,8 @@ static void write_legacy_properties(bNodeTree &ntree, Map<ID **, ID *> &r_ids_to
           storage.channel = socket->default_value_typed<bNodeSocketValueMenu>()->value + 1;
         }
         else if (node->type_legacy == CMP_NODE_COLOR_SPILL) {
-          bNodeSocket *spill_channel_socket = node_find_socket(*node, SOCK_IN, "Spill Channel"_ustr);
+          bNodeSocket *spill_channel_socket = node_find_socket(
+              *node, SOCK_IN, "Spill Channel"_ustr);
           node->custom1 =
               spill_channel_socket->default_value_typed<bNodeSocketValueMenu>()->value + 1;
 
@@ -996,7 +1013,8 @@ static void write_legacy_properties(bNodeTree &ntree, Map<ID **, ID *> &r_ids_to
           node->custom2 = limit_method_socket->default_value_typed<bNodeSocketValueMenu>()->value;
 
           auto &storage = *static_cast<NodeColorspill *>(node->storage);
-          bNodeSocket *limit_channel_socket = node_find_socket(*node, SOCK_IN, "Limit Channel"_ustr);
+          bNodeSocket *limit_channel_socket = node_find_socket(
+              *node, SOCK_IN, "Limit Channel"_ustr);
           storage.limchan =
               limit_channel_socket->default_value_typed<bNodeSocketValueMenu>()->value;
         }

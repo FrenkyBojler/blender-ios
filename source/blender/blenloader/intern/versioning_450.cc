@@ -2732,7 +2732,8 @@ static void do_version_composite_viewer_remove_alpha(bNodeTree *node_tree)
 
       bNodeSocket *set_alpha_input = bke::node_find_socket(*set_alpha_node, SOCK_IN, "Image"_ustr);
       bNodeSocket *set_alpha_type = bke::node_find_socket(*set_alpha_node, SOCK_IN, "Type"_ustr);
-      bNodeSocket *set_alpha_output = bke::node_find_socket(*set_alpha_node, SOCK_OUT, "Image"_ustr);
+      bNodeSocket *set_alpha_output = bke::node_find_socket(
+          *set_alpha_node, SOCK_OUT, "Image"_ustr);
 
       set_alpha_type->default_value_typed<bNodeSocketValueMenu>()->value =
           CMP_NODE_SETALPHA_MODE_REPLACE_ALPHA;
@@ -2818,7 +2819,8 @@ static void do_version_bright_contrast_remove_premultiplied(bNodeTree *node_tree
 
     bNodeSocket *convert_alpha_input = bke::node_find_socket(
         *convert_alpha_node, SOCK_IN, "Image"_ustr);
-    bNodeSocket *convert_alpha_type = bke::node_find_socket(*convert_alpha_node, SOCK_IN, "Type"_ustr);
+    bNodeSocket *convert_alpha_type = bke::node_find_socket(
+        *convert_alpha_node, SOCK_IN, "Type"_ustr);
     bNodeSocket *convert_alpha_output = bke::node_find_socket(
         *convert_alpha_node, SOCK_OUT, "Image"_ustr);
 
@@ -2849,7 +2851,8 @@ static void do_version_bright_contrast_remove_premultiplied(bNodeTree *node_tree
 
     bNodeSocket *convert_alpha_input = bke::node_find_socket(
         *convert_alpha_node, SOCK_IN, "Image"_ustr);
-    bNodeSocket *convert_alpha_type = bke::node_find_socket(*convert_alpha_node, SOCK_IN, "Type"_ustr);
+    bNodeSocket *convert_alpha_type = bke::node_find_socket(
+        *convert_alpha_node, SOCK_IN, "Type"_ustr);
     bNodeSocket *convert_alpha_output = bke::node_find_socket(
         *convert_alpha_node, SOCK_OUT, "Image"_ustr);
 
@@ -2904,9 +2907,11 @@ static void do_version_alpha_over_remove_premultiply(bNodeTree *node_tree)
     to_straight_node->location[0] = mix_node->location[0] - mix_node->width - 20.0f;
     to_straight_node->location[1] = mix_node->location[1];
 
-    bNodeSocket *to_straight_input = bke::node_find_socket(*to_straight_node, SOCK_IN, "Image"_ustr);
+    bNodeSocket *to_straight_input = bke::node_find_socket(
+        *to_straight_node, SOCK_IN, "Image"_ustr);
     bNodeSocket *to_straight_type = bke::node_find_socket(*to_straight_node, SOCK_IN, "Type"_ustr);
-    bNodeSocket *to_straight_output = bke::node_find_socket(*to_straight_node, SOCK_OUT, "Image"_ustr);
+    bNodeSocket *to_straight_output = bke::node_find_socket(
+        *to_straight_node, SOCK_OUT, "Image"_ustr);
 
     to_straight_type->default_value_typed<bNodeSocketValueMenu>()->value =
         CMP_NODE_ALPHA_CONVERT_UNPREMULTIPLY;
@@ -3068,7 +3073,8 @@ static void do_version_scale_node_remove_translate(bNodeTree *node_tree)
         static_cast<NodeScaleData *>(link.fromnode->storage)->interpolation;
     static_cast<NodeTranslateData *>(translate_node->storage)->relative = true;
 
-    bNodeSocket *translate_image_input = bke::node_find_socket(*translate_node, SOCK_IN, "Image"_ustr);
+    bNodeSocket *translate_image_input = bke::node_find_socket(
+        *translate_node, SOCK_IN, "Image"_ustr);
     bNodeSocket *translate_x_input = bke::node_find_socket(*translate_node, SOCK_IN, "X"_ustr);
     bNodeSocket *translate_y_input = bke::node_find_socket(*translate_node, SOCK_IN, "Y"_ustr);
     bNodeSocket *translate_image_output = bke::node_find_socket(
@@ -3418,7 +3424,8 @@ static void do_version_crop_node_options_to_inputs(bNodeTree *node_tree, bNode *
   x_relative_to_pixel_node->custom1 = CMP_NODE_RELATIVE_TO_PIXEL_DATA_TYPE_FLOAT;
   x_relative_to_pixel_node->custom2 = CMP_NODE_RELATIVE_TO_PIXEL_REFERENCE_DIMENSION_X;
 
-  bNodeSocket *x_image_input = bke::node_find_socket(*x_relative_to_pixel_node, SOCK_IN, "Image"_ustr);
+  bNodeSocket *x_image_input = bke::node_find_socket(
+      *x_relative_to_pixel_node, SOCK_IN, "Image"_ustr);
   bNodeSocket *x_value_input = bke::node_find_socket(
       *x_relative_to_pixel_node, SOCK_IN, "Float Value"_ustr);
   bNodeSocket *x_value_output = bke::node_find_socket(
@@ -3443,7 +3450,8 @@ static void do_version_crop_node_options_to_inputs(bNodeTree *node_tree, bNode *
   y_relative_to_pixel_node->custom1 = CMP_NODE_RELATIVE_TO_PIXEL_DATA_TYPE_FLOAT;
   y_relative_to_pixel_node->custom2 = CMP_NODE_RELATIVE_TO_PIXEL_REFERENCE_DIMENSION_Y;
 
-  bNodeSocket *y_image_input = bke::node_find_socket(*y_relative_to_pixel_node, SOCK_IN, "Image"_ustr);
+  bNodeSocket *y_image_input = bke::node_find_socket(
+      *y_relative_to_pixel_node, SOCK_IN, "Image"_ustr);
   bNodeSocket *y_value_input = bke::node_find_socket(
       *y_relative_to_pixel_node, SOCK_IN, "Float Value"_ustr);
   bNodeSocket *y_value_output = bke::node_find_socket(
@@ -3748,7 +3756,8 @@ static void do_version_replace_image_info_node_coordinates(bNodeTree *node_tree)
     image_coordinates_node->location[1] = node.location[1] - node.height - 10.0f;
 
     if (input_link) {
-      bNodeSocket *image_input = bke::node_find_socket(*image_coordinates_node, SOCK_IN, "Image"_ustr);
+      bNodeSocket *image_input = bke::node_find_socket(
+          *image_coordinates_node, SOCK_IN, "Image"_ustr);
       version_node_add_link(*node_tree,
                             *input_link->fromnode,
                             *input_link->fromsock,

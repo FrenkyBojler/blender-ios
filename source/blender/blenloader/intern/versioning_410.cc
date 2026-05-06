@@ -296,7 +296,8 @@ static void versioning_replace_musgrave_texture_node(bNodeTree *ntree)
             BLI_findlink(&greater_node->inputs, 0));
         bNodeSocket *greater_socket_B = static_cast<bNodeSocket *>(
             BLI_findlink(&greater_node->inputs, 1));
-        bNodeSocket *greater_socket_out = bke::node_find_socket(*greater_node, SOCK_OUT, "Value"_ustr);
+        bNodeSocket *greater_socket_out = bke::node_find_socket(
+            *greater_node, SOCK_OUT, "Value"_ustr);
 
         *version_cycles_node_socket_float_value(greater_socket_B) = 1.0f;
 
@@ -313,10 +314,12 @@ static void versioning_replace_musgrave_texture_node(bNodeTree *ntree)
         clamp_node->locx_legacy = node.locx_legacy;
         clamp_node->locy_legacy = node.locy_legacy + 40.0f;
         clamp_node->flag |= NODE_COLLAPSED;
-        bNodeSocket *clamp_socket_value = bke::node_find_socket(*clamp_node, SOCK_IN, "Value"_ustr);
+        bNodeSocket *clamp_socket_value = bke::node_find_socket(
+            *clamp_node, SOCK_IN, "Value"_ustr);
         bNodeSocket *clamp_socket_min = bke::node_find_socket(*clamp_node, SOCK_IN, "Min"_ustr);
         bNodeSocket *clamp_socket_max = bke::node_find_socket(*clamp_node, SOCK_IN, "Max"_ustr);
-        bNodeSocket *clamp_socket_out = bke::node_find_socket(*clamp_node, SOCK_OUT, "Result"_ustr);
+        bNodeSocket *clamp_socket_out = bke::node_find_socket(
+            *clamp_node, SOCK_OUT, "Result"_ustr);
 
         bNode *mul_node = bke::node_add_static_node(nullptr, *ntree, SH_NODE_MATH);
         mul_node->parent = node.parent;
@@ -705,8 +708,11 @@ static void change_input_socket_to_rotation_type(bNodeTree &ntree,
     link.tonode = convert;
     link.tosock = bke::node_find_socket(*convert, SOCK_IN, "Euler"_ustr);
 
-    bke::node_add_link(
-        ntree, *convert, *bke::node_find_socket(*convert, SOCK_OUT, "Rotation"_ustr), node, socket);
+    bke::node_add_link(ntree,
+                       *convert,
+                       *bke::node_find_socket(*convert, SOCK_OUT, "Rotation"_ustr),
+                       node,
+                       socket);
   }
 }
 

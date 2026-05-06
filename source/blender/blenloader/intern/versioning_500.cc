@@ -582,10 +582,12 @@ static void do_version_normal_node_dot_product(bNodeTree *node_tree, bNode *node
   dot_product_node->location[0] = node->location[0];
   dot_product_node->location[1] = node->location[1];
 
-  bNodeSocket *dot_product_a_input = bke::node_find_socket(*dot_product_node, SOCK_IN, "Vector"_ustr);
+  bNodeSocket *dot_product_a_input = bke::node_find_socket(
+      *dot_product_node, SOCK_IN, "Vector"_ustr);
   bNodeSocket *dot_product_b_input = bke::node_find_socket(
       *dot_product_node, SOCK_IN, "Vector_001"_ustr);
-  bNodeSocket *dot_product_output = bke::node_find_socket(*dot_product_node, SOCK_OUT, "Value"_ustr);
+  bNodeSocket *dot_product_output = bke::node_find_socket(
+      *dot_product_node, SOCK_OUT, "Value"_ustr);
 
   copy_v3_v3(static_cast<bNodeSocketValueVector *>(dot_product_a_input->default_value)->value,
              static_cast<bNodeSocketValueVector *>(normal_input->default_value)->value);
@@ -996,7 +998,8 @@ static void do_version_mix_color_use_alpha(bNodeTree *node_tree, bNode *node)
     separate_color_node->flag |= NODE_COLLAPSED;
 
     bNodeSocket *image_input = bke::node_find_socket(*separate_color_node, SOCK_IN, "Image"_ustr);
-    bNodeSocket *alpha_output = bke::node_find_socket(*separate_color_node, SOCK_OUT, "Alpha"_ustr);
+    bNodeSocket *alpha_output = bke::node_find_socket(
+        *separate_color_node, SOCK_OUT, "Alpha"_ustr);
 
     version_node_add_link(
         *node_tree, *b_link->fromnode, *b_link->fromsock, *separate_color_node, *image_input);
@@ -2196,7 +2199,8 @@ static void do_version_material_remove_use_nodes(Main *bmain, Material *material
 
     bNode &shader_eevee = *bke::node_add_static_node(nullptr, *ntree, SH_NODE_BSDF_PRINCIPLED);
     bNodeSocket &shader_bsdf_output = *bke::node_find_socket(shader_eevee, SOCK_OUT, "BSDF"_ustr);
-    bNodeSocket &shader_color_input = *bke::node_find_socket(shader_eevee, SOCK_IN, "Base Color"_ustr);
+    bNodeSocket &shader_color_input = *bke::node_find_socket(
+        shader_eevee, SOCK_IN, "Base Color"_ustr);
     bNodeSocket &specular_input = *bke::node_find_socket(
         shader_eevee, SOCK_IN, "Specular IOR Level"_ustr);
     bNodeSocket &metallic_input = *bke::node_find_socket(shader_eevee, SOCK_IN, "Metallic"_ustr);
@@ -2462,7 +2466,8 @@ static void do_version_displace_node_remove_xy_scale(bNodeTree &node_tree, bNode
   multiply_node->custom1 = NODE_VECTOR_MATH_MULTIPLY;
 
   bNodeSocket *multiply_a_input = bke::node_find_socket(*multiply_node, SOCK_IN, "Vector"_ustr);
-  bNodeSocket *multiply_b_input = bke::node_find_socket(*multiply_node, SOCK_IN, "Vector_001"_ustr);
+  bNodeSocket *multiply_b_input = bke::node_find_socket(
+      *multiply_node, SOCK_IN, "Vector_001"_ustr);
   bNodeSocket *multiply_output = bke::node_find_socket(*multiply_node, SOCK_OUT, "Vector"_ustr);
 
   copy_v2_v2(multiply_a_input->default_value_typed<bNodeSocketValueVector>()->value,
@@ -2673,7 +2678,8 @@ static void do_version_lift_gamma_gain_srgb_to_linear(bNodeTree &node_tree, bNod
   bNodeSocket *inverse_gamma_color_output = bke::node_find_socket(
       *inverse_gamma_node, SOCK_OUT, "Color"_ustr);
 
-  bNodeSocket *inverse_gamma_input = bke::node_find_socket(*inverse_gamma_node, SOCK_IN, "Gamma"_ustr);
+  bNodeSocket *inverse_gamma_input = bke::node_find_socket(
+      *inverse_gamma_node, SOCK_IN, "Gamma"_ustr);
   inverse_gamma_input->default_value_typed<bNodeSocketValueFloat>()->value = 1.0f / 2.2f;
 
   version_node_add_link(

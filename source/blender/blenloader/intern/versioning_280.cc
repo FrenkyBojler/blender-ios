@@ -1520,7 +1520,8 @@ static void update_vector_math_node_normalize_operator(bNodeTree *ntree)
           lengthNode->custom1 = NODE_VECTOR_MATH_LENGTH;
           lengthNode->locx_legacy = node.locx_legacy + node.width + 20.0f;
           lengthNode->locy_legacy = node.locy_legacy;
-          bNodeSocket *sockLengthValue = bke::node_find_socket(*lengthNode, SOCK_OUT, "Value"_ustr);
+          bNodeSocket *sockLengthValue = bke::node_find_socket(
+              *lengthNode, SOCK_OUT, "Value"_ustr);
 
           for (bNodeLink &link : ntree->links.items_reversed_mutable()) {
             if (link.fromsock == sockOutValue) {
@@ -1806,7 +1807,8 @@ static void update_mapping_node_inputs_and_properties(bNodeTree *ntree)
             BLI_findlink(&minimumNode->inputs, 1));
         copy_v3_v3(version_cycles_node_socket_vector_value(sockMinimumB), mapping->max);
 
-        bNodeSocket *sockMinimumResult = bke::node_find_socket(*minimumNode, SOCK_OUT, "Vector"_ustr);
+        bNodeSocket *sockMinimumResult = bke::node_find_socket(
+            *minimumNode, SOCK_OUT, "Vector"_ustr);
         bNodeSocket *sockMappingResult = bke::node_find_socket(node, SOCK_OUT, "Vector"_ustr);
 
         if (maximumNode) {
@@ -1966,7 +1968,8 @@ static void update_voronoi_node_crackle(bNodeTree *ntree)
         bNodeSocket *sockVector = bke::node_find_socket(node, SOCK_IN, "Vector"_ustr);
         bNodeSocket *sockScale = bke::node_find_socket(node, SOCK_IN, "Scale"_ustr);
         bNodeSocket *sockExponent = bke::node_find_socket(node, SOCK_IN, "Exponent"_ustr);
-        bNodeSocket *sockVoronoiVector = bke::node_find_socket(*voronoiNode, SOCK_IN, "Vector"_ustr);
+        bNodeSocket *sockVoronoiVector = bke::node_find_socket(
+            *voronoiNode, SOCK_IN, "Vector"_ustr);
         bNodeSocket *sockVoronoiScale = bke::node_find_socket(*voronoiNode, SOCK_IN, "Scale"_ustr);
         bNodeSocket *sockVoronoiExponent = bke::node_find_socket(
             *voronoiNode, SOCK_IN, "Exponent"_ustr);
@@ -2012,7 +2015,8 @@ static void update_voronoi_node_crackle(bNodeTree *ntree)
         }
 
         bNodeSocket *sockDistanceF1 = bke::node_find_socket(node, SOCK_OUT, "Distance"_ustr);
-        bNodeSocket *sockDistanceF2 = bke::node_find_socket(*voronoiNode, SOCK_OUT, "Distance"_ustr);
+        bNodeSocket *sockDistanceF2 = bke::node_find_socket(
+            *voronoiNode, SOCK_OUT, "Distance"_ustr);
         bNodeSocket *sockSubtractA = static_cast<bNodeSocket *>(
             BLI_findlink(&subtractNode->inputs, 0));
         bNodeSocket *sockSubtractB = static_cast<bNodeSocket *>(

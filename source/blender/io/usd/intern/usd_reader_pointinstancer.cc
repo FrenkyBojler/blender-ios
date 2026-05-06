@@ -201,7 +201,8 @@ void USDPointInstancerReader::read_object_data(Main *bmain, const pxr::UsdTimeCo
   bNode *instance_on_points_node = bke::node_add_static_node(
       nullptr, *ntree, GEO_NODE_INSTANCE_ON_POINTS);
   instance_on_points_node->location[0] = 300.0f;
-  bNodeSocket *socket = bke::node_find_socket(*instance_on_points_node, SOCK_IN, "Pick Instance"_ustr);
+  bNodeSocket *socket = bke::node_find_socket(
+      *instance_on_points_node, SOCK_IN, "Pick Instance"_ustr);
   socket->default_value_typed<bNodeSocketValueBoolean>()->value = true;
 
   bNode *mask_attrib_node = add_input_named_attrib_node(ntree, "mask", CD_PROP_BOOL);
@@ -240,11 +241,12 @@ void USDPointInstancerReader::read_object_data(Main *bmain, const pxr::UsdTimeCo
                      *instance_on_points_node,
                      *bke::node_find_socket(*instance_on_points_node, SOCK_IN, "Selection"_ustr));
 
-  bke::node_add_link(*ntree,
-                     *indices_attrib_node,
-                     *bke::node_find_socket(*indices_attrib_node, SOCK_OUT, "Attribute"_ustr),
-                     *instance_on_points_node,
-                     *bke::node_find_socket(*instance_on_points_node, SOCK_IN, "Instance Index"_ustr));
+  bke::node_add_link(
+      *ntree,
+      *indices_attrib_node,
+      *bke::node_find_socket(*indices_attrib_node, SOCK_OUT, "Attribute"_ustr),
+      *instance_on_points_node,
+      *bke::node_find_socket(*instance_on_points_node, SOCK_IN, "Instance Index"_ustr));
 
   bke::node_add_link(*ntree,
                      *scale_attrib_node,

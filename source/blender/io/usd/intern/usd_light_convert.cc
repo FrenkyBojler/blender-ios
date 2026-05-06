@@ -415,7 +415,8 @@ static bool node_search(bNode *fromnode, bNode * /*tonode*/, void *userdata, boo
 
   if (!res.color_found && fromnode->type_legacy == SH_NODE_BACKGROUND) {
     /* Get light color and intensity */
-    const bNodeSocketValueRGBA *color_data = bke::node_find_socket(*fromnode, SOCK_IN, "Color"_ustr)
+    const bNodeSocketValueRGBA *color_data = bke::node_find_socket(
+                                                 *fromnode, SOCK_IN, "Color"_ustr)
                                                  ->default_value_typed<bNodeSocketValueRGBA>();
     const bNodeSocketValueFloat *strength_data =
         bke::node_find_socket(*fromnode, SOCK_IN, "Strength"_ustr)

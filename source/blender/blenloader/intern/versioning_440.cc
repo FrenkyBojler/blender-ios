@@ -359,7 +359,8 @@ static void do_version_color_to_float_conversion(bNodeTree *node_tree)
     dot_product_node->location[1] = link.fromnode->location[1];
 
     /* Link the source socket to the dot product input. */
-    bNodeSocket *dot_product_a_input = bke::node_find_socket(*dot_product_node, SOCK_IN, "Vector"_ustr);
+    bNodeSocket *dot_product_a_input = bke::node_find_socket(
+        *dot_product_node, SOCK_IN, "Vector"_ustr);
     version_node_add_link(
         *node_tree, *link.fromnode, *link.fromsock, *dot_product_node, *dot_product_a_input);
 
@@ -370,7 +371,8 @@ static void do_version_color_to_float_conversion(bNodeTree *node_tree)
                1.0f / 3.0f);
 
     /* Link the dot product node output to the link target. */
-    bNodeSocket *dot_product_output = bke::node_find_socket(*dot_product_node, SOCK_OUT, "Value"_ustr);
+    bNodeSocket *dot_product_output = bke::node_find_socket(
+        *dot_product_node, SOCK_OUT, "Value"_ustr);
     bNodeLink *output_link = &version_node_add_link(
         *node_tree, *dot_product_node, *dot_product_output, *link.tonode, *link.tosock);
 
@@ -628,7 +630,8 @@ static void remove_triangulate_node_min_size_input(bNodeTree *tree)
       (*min_verts_link)->tosock = bke::node_find_socket(*&greater_or_equal, SOCK_IN, "B_INT"_ustr);
     }
     else {
-      bNodeSocket *new_min_verts = bke::node_find_socket(*&greater_or_equal, SOCK_IN, "B_INT"_ustr);
+      bNodeSocket *new_min_verts = bke::node_find_socket(
+          *&greater_or_equal, SOCK_IN, "B_INT"_ustr);
       static_cast<bNodeSocketValueInt *>(new_min_verts->default_value)->value = old_min_verts;
     }
 

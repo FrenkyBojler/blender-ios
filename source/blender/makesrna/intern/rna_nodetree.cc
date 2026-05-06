@@ -3468,7 +3468,8 @@ static void rna_NodeColorBalance_input_whitepoint_set(PointerRNA *ptr, const flo
 static void rna_NodeColorBalance_output_whitepoint_get(PointerRNA *ptr, float value[3])
 {
   bNode *node = ptr->data_as<bNode>();
-  bNodeSocket *temperature_input = bke::node_find_socket(*node, SOCK_IN, "Output Temperature"_ustr);
+  bNodeSocket *temperature_input = bke::node_find_socket(
+      *node, SOCK_IN, "Output Temperature"_ustr);
   bNodeSocket *tint_input = bke::node_find_socket(*node, SOCK_IN, "Output Tint"_ustr);
   IMB_colormanagement_get_whitepoint(
       temperature_input->default_value_typed<bNodeSocketValueFloat>()->value,
@@ -3479,7 +3480,8 @@ static void rna_NodeColorBalance_output_whitepoint_get(PointerRNA *ptr, float va
 static void rna_NodeColorBalance_output_whitepoint_set(PointerRNA *ptr, const float value[3])
 {
   bNode *node = ptr->data_as<bNode>();
-  bNodeSocket *temperature_input = bke::node_find_socket(*node, SOCK_IN, "Output Temperature"_ustr);
+  bNodeSocket *temperature_input = bke::node_find_socket(
+      *node, SOCK_IN, "Output Temperature"_ustr);
   bNodeSocket *tint_input = bke::node_find_socket(*node, SOCK_IN, "Output Tint"_ustr);
   IMB_colormanagement_set_whitepoint(
       value,
