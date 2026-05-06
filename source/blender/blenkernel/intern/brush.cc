@@ -1048,10 +1048,6 @@ float BKE_brush_sample_tex_3d(const Paint *paint,
     x *= invradius;
     y *= invradius;
 
-    if (br->flag2 & BRUSH_PRESERVE_ASPECT_TEXTURE) {
-      BKE_brush_apply_aspect_correction(&x, &y, mtex, pool);
-    }
-
     /* it is probably worth optimizing for those cases where
      * the texture is not rotated by skipping the calls to
      * atan2, sqrtf, sin, and cos. */
@@ -1061,6 +1057,10 @@ float BKE_brush_sample_tex_3d(const Paint *paint,
 
       x = flen * cosf(angle);
       y = flen * sinf(angle);
+    }
+
+    if (br->flag2 & BRUSH_PRESERVE_ASPECT_TEXTURE) {
+      BKE_brush_apply_aspect_correction(&x, &y, mtex, pool);
     }
 
     float3 co(x, y, 0.0f);
@@ -1164,10 +1164,6 @@ float BKE_brush_sample_masktex(
     x *= invradius;
     y *= invradius;
 
-    if (br->flag2 & BRUSH_PRESERVE_ASPECT_MASK) {
-      BKE_brush_apply_aspect_correction(&x, &y, mtex, pool);
-    }
-
     /* it is probably worth optimizing for those cases where
      * the texture is not rotated by skipping the calls to
      * atan2, sqrtf, sin, and cos. */
@@ -1177,6 +1173,10 @@ float BKE_brush_sample_masktex(
 
       x = flen * cosf(angle);
       y = flen * sinf(angle);
+    }
+
+    if (br->flag2 & BRUSH_PRESERVE_ASPECT_MASK) {
+      BKE_brush_apply_aspect_correction(&x, &y, mtex, pool);
     }
 
     co[0] = x;

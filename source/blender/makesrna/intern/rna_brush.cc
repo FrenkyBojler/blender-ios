@@ -3268,7 +3268,7 @@ static void rna_def_brush(BlenderRNA *brna)
   RNA_def_property_ui_text(prop,
                            "Preserve Aspect",
                            "Preserve image aspect ratio for texture in non-stencil texture modes");
-  RNA_def_property_update(prop, 0, "rna_Brush_update");
+  RNA_def_property_update(prop, 0, "rna_Brush_size_update");
 
   prop = RNA_def_property(srna, "use_preserve_aspect_mask", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag2", BRUSH_PRESERVE_ASPECT_MASK);
@@ -3276,7 +3276,7 @@ static void rna_def_brush(BlenderRNA *brna)
       prop,
       "Preserve Aspect Mask",
       "Preserve image aspect ratio for mask texture in non-stencil texture modes");
-  RNA_def_property_update(prop, 0, "rna_Brush_update");
+  RNA_def_property_update(prop, 0, "rna_Brush_size_update");
 
   prop = RNA_def_property(srna, "use_color_as_displacement", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag2", BRUSH_USE_COLOR_AS_DISPLACEMENT);

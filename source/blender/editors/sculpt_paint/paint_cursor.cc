@@ -138,6 +138,7 @@ struct LoadTexData {
   MTex *mtex;
   uchar *buffer;
   bool col;
+  bool preserve_aspect;
 
   ImagePool *pool;
   int size;
@@ -207,6 +208,10 @@ static void load_tex_task_cb_ex(void *__restrict userdata,
         y = len * sinf(angle);
       }
 
+      if (mtex->brush_map_mode != MTEX_MAP_MODE_STENCIL && data->preserve_aspect) {
+        BKE_brush_apply_aspect_correction(&x, &y, mtex, pool);
+      }
+
       float avg;
       float rgba[4];
       paint_get_tex_pixel(mtex, x, y, pool, thread_id, &avg, rgba);
@@ -262,6 +267,9 @@ static int load_tex(Paint *paint, Brush *br, ViewContext *vc, float zoom, bool c
       ((primary) ? (overlay_flags & PAINT_OVERLAY_INVALID_TEXTURE_PRIMARY) :
                    (overlay_flags & PAINT_OVERLAY_INVALID_TEXTURE_SECONDARY));
   target = (primary) ? &primary_snap : &secondary_snap;
+
+  const bool preserve_aspect = (primary) ? (br->flag2 & BRUSH_PRESERVE_ASPECT_TEXTURE) :
+                                           (br->flag2 & BRUSH_PRESERVE_ASPECT_MASK);
 
   refresh = !target->overlay_texture || (invalid != 0) ||
             !same_tex_snap(target, mtex, vc, col, zoom);
@@ -323,6 +331,7 @@ static int load_tex(Paint *paint, Brush *br, ViewContext *vc, float zoom, bool c
     data.mtex = mtex;
     data.buffer = buffer;
     data.col = col;
+    data.preserve_aspect = preserve_aspect;
     data.pool = pool;
     data.size = size;
     data.rotation = rotation;
