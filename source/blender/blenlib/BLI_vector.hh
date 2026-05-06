@@ -152,19 +152,63 @@ class Vector {
    * The elements will be default constructed.
    * If T is trivially constructible, the elements in the vector are not touched.
    */
-  explicit Vector(int64_t size, Allocator allocator = {})
+  explicit Vector(const int64_t size, Allocator allocator = {})
       : Vector(NoExceptConstructor(), allocator)
   {
-    this->resize(size);
+    BLI_assert(size >= 0);
+    if (size <= InlineBufferCapacity) {
+      default_construct_n(begin_, size);
+      end_ = begin_ + size;
+    }
+    else {
+      T *data = static_cast<T *>(
+          allocator_.allocate(size_t(size) * sizeof(T), alignof(T), __func__));
+      try {
+        default_construct_n(data, size);
+      }
+      catch (...) {
+        allocator_.deallocate(data);
+        throw;
+      }
+      begin_ = data;
+      end_ = begin_ + size;
+      capacity_end_ = end_;
+    }
+    UPDATE_VECTOR_SIZE(this);
   }
 
   /**
    * Create a vector filled with a specific value.
    */
-  Vector(int64_t size, const T &value, Allocator allocator = {})
-      : Vector(NoExceptConstructor(), allocator)
+  Vector(const int64_t size, const T &value, Allocator allocator = {}) : allocator_(allocator)
   {
-    this->resize(size, value);
+    BLI_assert(size >= 0);
+    if (size <= InlineBufferCapacity) {
+      begin_ = inline_buffer_;
+      capacity_end_ = begin_ + size;
+      uninitialized_fill_n(begin_, size, value);
+      end_ = begin_ + size;
+    }
+    else if (std::is_trivially_copyable_v<T> && value_is_zero(value)) {
+      begin_ = static_cast<T *>(
+          allocator_.allocate_zero(size_t(size) * sizeof(T), alignof(T), __func__));
+      end_ = begin_ + size;
+      capacity_end_ = end_;
+    }
+    else {
+      T *data = static_cast<T *>(
+          allocator_.allocate(size_t(size) * sizeof(T), alignof(T), __func__));
+      try {
+        uninitialized_fill_n(data, size, value);
+      }
+      catch (...) {
+        allocator_.deallocate(data);
+        throw;
+      }
+      begin_ = data;
+      end_ = begin_ + size;
+      capacity_end_ = end_;
+    }
   }
 
   /**
