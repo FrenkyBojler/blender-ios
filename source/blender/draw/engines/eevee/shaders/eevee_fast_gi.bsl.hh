@@ -282,9 +282,9 @@ ResultT eval(sampler2D hiz_tx,
 
         /* Bias depth a bit to avoid self shadowing issues. */
         constexpr float bias = 2.0f * 2.4e-7f;
-        sample_depth += reversed ? -bias : bias;
+        const float sample_depth_biased = sample_depth + (reversed ? -bias : bias);
 
-        float3 vP_sample_front = drw_point_screen_to_view(float3(sample_uv, sample_depth));
+        float3 vP_sample_front = drw_point_screen_to_view(float3(sample_uv, sample_depth_biased));
         float3 vP_sample_back = vP_sample_front;
         if (!reversed) {
           vP_sample_back -= vV * thickness_near;
@@ -315,6 +315,10 @@ ResultT eval(sampler2D hiz_tx,
           /* In reverse mode we revert back to horizon scanning.
            * Occlude everything in front of this sample. */
           LV_front = 1.0f;
+          /* If hitting the background consider the sample infinitely far away. */
+          if (sample_depth == 1.0f) {
+            LV_back = -1.0f;
+          }
         }
         /* Ordered pair of angle. Minimum in X, Maximum in Y.
          * Front will always have the smallest angle here since it is the closest to the view. */
