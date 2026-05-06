@@ -28,9 +28,16 @@ ExternalProject_Add(external_meshoptimizer
   INSTALL_DIR ${LIBDIR}/meshoptimizer
 )
 
-ExternalProject_Add_Step(external_meshoptimizer after_install
-  COMMAND ${CMAKE_COMMAND} -E copy_directory
-    ${LIBDIR}/meshoptimizer/
-    ${HARVEST_TARGET}/meshoptimizer
-  DEPENDEES install
-)
+if(WIN32)
+  ExternalProject_Add_Step(external_meshoptimizer after_install
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+      ${LIBDIR}/meshoptimizer/
+      ${HARVEST_TARGET}/meshoptimizer
+    DEPENDEES install
+  )
+else()
+  harvest(external_meshoptimizer meshoptimizer/include meshoptimizer/include "*.h")
+  harvest(external_meshoptimizer meshoptimizer/lib/cmake/meshoptimizer meshoptimizer/lib/cmake/meshoptimizer "*.cmake")
+  # Not using harvest_rpath_lib as this shared library is manually loaded a runtime by the glTF add-on.
+  harvest(external_meshoptimizer meshoptimizer/lib meshoptimizer/lib "*${SHAREDLIBEXT}*")
+endif()
