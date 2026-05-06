@@ -10,7 +10,6 @@ from bpy.props import (
     CollectionProperty,
     EnumProperty,
     FloatProperty,
-    FloatVectorProperty,
     IntProperty,
     PointerProperty,
     StringProperty,

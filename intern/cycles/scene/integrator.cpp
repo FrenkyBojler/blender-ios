@@ -333,7 +333,7 @@ void Integrator::device_update(Device *device, DeviceScene *dscene, Scene *scene
   /* Randomize the seed every frame when applying pixel jitter. */
   if (use_pixel_jitter) {
     if (use_custom_pixel_jitter_sample) {
-      kintegrator->seed = hash_uint2(seed, frame_index);
+      kintegrator->seed = hash_uint2(seed, pixel_jitter_frame);
     }
     else {
       kintegrator->seed = hash_uint3(seed, pixel_jitter_state.a2, pixel_jitter_state.a3);
@@ -391,7 +391,7 @@ void Integrator::device_update(Device *device, DeviceScene *dscene, Scene *scene
     if (use_custom_pixel_jitter_sample) {
       kintegrator->pixel_jitter = make_float2(custom_pixel_jitter_sample[0],
                                               custom_pixel_jitter_sample[1]);
-      ++frame_index;
+      ++pixel_jitter_frame;
     }
     else {
       kintegrator->pixel_jitter = pixel_jitter_state.next();
