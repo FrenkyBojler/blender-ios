@@ -36,13 +36,14 @@ constexpr uint kd_node_unset = (uint(-1));
 constexpr uint kd_node_root_is_init = (uint(-2));
 
 template<typename CoordT>
-inline typename KDCoordTraits<CoordT>::ValueType axis_get(const CoordT &co, uint axis)
+inline typename KDTreeCoordTraits<CoordT>::ValueType axis_get(const CoordT &co, uint axis)
 {
-  return KDCoordTraits<CoordT>::get(co, axis);
+  return KDTreeCoordTraits<CoordT>::get(co, axis);
 }
 
 template<typename CoordT>
-inline typename KDCoordTraits<CoordT>::ValueType distance_squared(const CoordT &a, const CoordT &b)
+inline typename KDTreeCoordTraits<CoordT>::ValueType distance_squared(const CoordT &a,
+                                                                      const CoordT &b)
 {
   return math::distance_squared(a, b);
 }

@@ -15,7 +15,7 @@
 
 namespace blender {
 
-template<typename CoordT> struct KDCoordTraits {
+template<typename CoordT> struct KDTreeCoordTraits {
   static constexpr int DimsNum = CoordT::type_length;
   using ValueType = typename CoordT::base_type;
   static ValueType get(const CoordT &co, const int axis)
@@ -24,7 +24,7 @@ template<typename CoordT> struct KDCoordTraits {
   }
 };
 
-template<> struct KDCoordTraits<float> {
+template<> struct KDTreeCoordTraits<float> {
   static constexpr int DimsNum = 1;
   using ValueType = float;
   static float get(const float &co, const int /*axis*/)
@@ -40,8 +40,8 @@ template<typename CoordT> struct KDTreeNode_head {
 };
 
 template<typename CoordT> struct KDTreeNode {
-  constexpr static int DimsNum = KDCoordTraits<CoordT>::DimsNum;
-  using ValueType = typename KDCoordTraits<CoordT>::ValueType;
+  constexpr static int DimsNum = KDTreeCoordTraits<CoordT>::DimsNum;
+  using ValueType = typename KDTreeCoordTraits<CoordT>::ValueType;
 
   uint32_t left, right;
   CoordT co;
