@@ -8,6 +8,7 @@
 
 #include <fmt/format.h>
 
+#include "AS_asset_representation.hh"
 #include "AS_remote_library.hh"
 
 #include "BKE_context.hh"
@@ -166,6 +167,10 @@ static void prefetch_assets(bContext &C, wmDrag &drag)
   BLI_assert(drag.type == WM_DRAG_ASSET);
   wmDragAsset *asset_drag = static_cast<wmDragAsset *>(drag.poin);
 
+  if (!asset_drag->asset->is_online()) {
+    return;
+  }
+
   blender::asset_system::remote_library_request_asset_download(
       C, *asset_drag->asset, CTX_wm_reports(&C));
 }
@@ -180,7 +185,10 @@ void dropboxes_ui()
 {
   ListBaseT<wmDropBox> *lb = WM_dropboxmap_find("User Interface", SPACE_EMPTY, RGN_TYPE_WINDOW);
 
-  WM_dropbox_add(lb, "UI_OT_view_drop", view_drop_poll, nullptr, nullptr, view_drop_tooltip);
+  wmDropBox *dropbox = WM_dropbox_add(
+      lb, "UI_OT_view_drop", view_drop_poll, nullptr, nullptr, view_drop_tooltip);
+  dropbox->on_event_while_hover = region_view_scroll_at_borders;
+
   WM_dropbox_add(lb,
                  "UI_OT_drop_name",
                  drop_name_poll,

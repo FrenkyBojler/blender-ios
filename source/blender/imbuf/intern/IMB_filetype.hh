@@ -49,8 +49,10 @@ struct ImFileType {
                                     ImFileColorSpace &r_colorspace,
                                     size_t *r_width,
                                     size_t *r_height);
-  /** Save to a file (or memory if #IB_mem is set in `flags` and the format supports it). */
+  /** Save to a file. */
   bool (*save)(ImBuf *ibuf, const char *filepath, int flags);
+  /** Save to a memory buffer. */
+  Vector<uint8_t> (*save_buffer)(ImBuf *ibuf, int flags);
 
   int flag;
 
@@ -59,8 +61,7 @@ struct ImFileType {
   /** Combination of #eImFileTypeCapability flags for writing. */
   eImFileTypeCapability capability_write;
 
-  /** #eImbFileType */
-  int filetype;
+  eImbFileType filetype;
 
   /** Upper case ID, used as a unique identifier for the file format. */
   const char *filetype_id;
@@ -85,7 +86,7 @@ struct ImFileColorSpace {
 extern const ImFileType IMB_FILE_TYPES[];
 extern const ImFileType *IMB_FILE_TYPES_LAST;
 
-const ImFileType *IMB_file_type_from_ftype(int ftype);
+const ImFileType *IMB_file_type_from_ftype(eImbFileType ftype);
 const ImFileType *IMB_file_type_from_ibuf(const ImBuf *ibuf);
 
 void imb_filetypes_init();
@@ -107,6 +108,7 @@ ImBuf *imb_load_png(const unsigned char *mem,
                     int flags,
                     ImFileColorSpace &r_colorspace);
 bool imb_save_png(ImBuf *ibuf, const char *filepath, int flags);
+Vector<uint8_t> imb_save_buffer_png(ImBuf *ibuf, int flags);
 
 /** \} */
 
@@ -122,6 +124,7 @@ ImBuf *imb_load_tga(const unsigned char *mem,
                     int flags,
                     ImFileColorSpace &r_colorspace);
 bool imb_save_tga(ImBuf *ibuf, const char *filepath, int flags);
+Vector<uint8_t> imb_save_buffer_tga(ImBuf *ibuf, int flags);
 
 /** \} */
 
@@ -191,8 +194,8 @@ ImBuf *imb_load_bmp(const unsigned char *mem,
                     size_t size,
                     int flags,
                     ImFileColorSpace &r_colorspace);
-/* Found write info at http://users.ece.gatech.edu/~slabaugh/personal/c/bitmapUnix.c */
 bool imb_save_bmp(ImBuf *ibuf, const char *filepath, int flags);
+Vector<uint8_t> imb_save_buffer_bmp(ImBuf *ibuf, int flags);
 
 /** \} */
 
@@ -219,6 +222,7 @@ extern const char *imb_file_extensions_dpx[];
 
 bool imb_is_a_dpx(const unsigned char *mem, size_t size);
 bool imb_save_dpx(ImBuf *ibuf, const char *filepath, int flags);
+Vector<uint8_t> imb_save_buffer_dpx(ImBuf *ibuf, int flags);
 ImBuf *imb_load_dpx(const unsigned char *mem,
                     size_t size,
                     int flags,
@@ -238,6 +242,7 @@ ImBuf *imb_load_hdr(const unsigned char *mem,
                     int flags,
                     ImFileColorSpace &r_colorspace);
 bool imb_save_hdr(ImBuf *ibuf, const char *filepath, int flags);
+Vector<uint8_t> imb_save_buffer_hdr(ImBuf *ibuf, int flags);
 
 /** \} */
 
@@ -276,6 +281,7 @@ ImBuf *imb_load_tiff(const unsigned char *mem,
  * \return 1 if the function is successful, 0 on failure.
  */
 bool imb_save_tiff(ImBuf *ibuf, const char *filepath, int flags);
+Vector<uint8_t> imb_save_buffer_tiff(ImBuf *ibuf, int flags);
 
 /** \} */
 
@@ -297,6 +303,7 @@ ImBuf *imb_load_filepath_thumbnail_webp(const char *filepath,
                                         size_t *r_width,
                                         size_t *r_height);
 bool imb_savewebp(ImBuf *ibuf, const char *filepath, int flags);
+Vector<uint8_t> imb_save_buffer_webp(ImBuf *ibuf, int flags);
 
 /** \} */
 
@@ -314,6 +321,11 @@ ImBuf *imb_load_dds(const unsigned char *mem,
                     size_t size,
                     int flags,
                     ImFileColorSpace &r_colorspace);
+
+uint8_t *imb_load_dds_compressed_data(const char *filepath,
+                                      int width,
+                                      int height,
+                                      int &r_mipcount);
 
 /** \} */
 
@@ -344,6 +356,7 @@ ImBuf *imb_load_avif(const unsigned char *mem,
                      int flags,
                      ImFileColorSpace &r_colorspace);
 bool imb_save_avif(ImBuf *ibuf, const char *filepath, int flags);
+Vector<uint8_t> imb_save_buffer_avif(ImBuf *ibuf, int flags);
 
 /** \} */
 

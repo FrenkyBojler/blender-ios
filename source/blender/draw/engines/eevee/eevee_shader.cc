@@ -24,6 +24,7 @@
 
 #include "BLI_assert.h"
 #include "BLI_math_bits.h"
+#include <fmt/format.h>
 
 namespace blender::eevee {
 
@@ -171,8 +172,8 @@ ShaderGroups ShaderModule::static_shaders_load(const ShaderGroups request_bits,
   }
   {
     const eShaderType shader_list[] = {
-        HORIZON_DENOISE, HORIZON_RESOLVE, HORIZON_SCAN, HORIZON_SETUP};
-    request(HORIZON_SCAN_SHADERS, AS_SPAN(shader_list));
+        FAST_GI_DENOISE, FAST_GI_RESOLVE, FAST_GI_SCAN, FAST_GI_SETUP};
+    request(FAST_GI_SHADERS, AS_SPAN(shader_list));
   }
   {
     const eShaderType shader_list[] = {LIGHT_CULLING_DEBUG,
@@ -226,8 +227,6 @@ ShaderGroups ShaderModule::static_shaders_load(const ShaderGroups request_bits,
                                        SHADOW_PAGE_DEFRAG,
                                        SHADOW_PAGE_FREE,
                                        SHADOW_PAGE_MASK,
-                                       SHADOW_PAGE_TILE_CLEAR,
-                                       SHADOW_PAGE_TILE_STORE,
                                        SHADOW_TILEMAP_AMEND,
                                        SHADOW_TILEMAP_BOUNDS,
                                        SHADOW_TILEMAP_FINALIZE,
@@ -361,7 +360,7 @@ const char *ShaderModule::static_shader_create_info_name_get(eShaderType shader_
     case DEFERRED_AOV_CLEAR:
       return "eevee_deferred_aov_clear";
     case DEFERRED_CAPTURE_EVAL:
-      return "eevee_deferred_capture_eval";
+      return "eevee_deferred_sphere_eval";
     case DEFERRED_PLANAR_EVAL:
       return "eevee_deferred_planar_eval";
     case DEFERRED_THICKNESS_AMEND:
@@ -374,14 +373,14 @@ const char *ShaderModule::static_shader_create_info_name_get(eShaderType shader_
       return "eevee_hiz_update";
     case HIZ_UPDATE_LAYER:
       return "eevee_hiz_update_layer";
-    case HORIZON_DENOISE:
-      return "eevee_horizon_denoise";
-    case HORIZON_RESOLVE:
-      return "eevee_horizon_resolve";
-    case HORIZON_SCAN:
-      return "eevee_horizon_scan";
-    case HORIZON_SETUP:
-      return "eevee_horizon_setup";
+    case FAST_GI_DENOISE:
+      return "eevee_fast_gi_denoise";
+    case FAST_GI_RESOLVE:
+      return "eevee_fast_gi_resolve";
+    case FAST_GI_SCAN:
+      return "eevee_fast_gi_scan";
+    case FAST_GI_SETUP:
+      return "eevee_fast_gi_setup";
     case LOOKDEV_COPY_WORLD:
       return "eevee_lookdev_copy_world";
     case LOOKDEV_DISPLAY:
@@ -453,11 +452,11 @@ const char *ShaderModule::static_shader_create_info_name_get(eShaderType shader_
     case LIGHT_SHADOW_SETUP:
       return "eevee_light_shadow_setup";
     case RAY_DENOISE_SPATIAL:
-      return "eevee_ray_denoise_spatial";
+      return "eevee_raytracing_denoise_spatial";
     case RAY_DENOISE_TEMPORAL:
-      return "eevee_ray_denoise_temporal";
+      return "eevee_raytracing_denoise_temporal";
     case RAY_DENOISE_BILATERAL:
-      return "eevee_ray_denoise_bilateral";
+      return "eevee_raytracing_denoise_bilateral";
     case RAY_GENERATE:
       return "eevee_ray_generate";
     case RAY_TRACE_FALLBACK:
@@ -493,7 +492,7 @@ const char *ShaderModule::static_shader_create_info_name_get(eShaderType shader_
     case SPHERE_PROBE_SUNLIGHT:
       return "eevee_lightprobe_sphere_sunlight";
     case SHADOW_CLIPMAP_CLEAR:
-      return "eevee_shadow_clipmap_clear";
+      return "eevee_shadow_tilemap_bounds_init";
     case SHADOW_DEBUG:
       return "eevee_shadow_debug";
     case SHADOW_PAGE_ALLOCATE:
@@ -518,16 +517,14 @@ const char *ShaderModule::static_shader_create_info_name_get(eShaderType shader_
       return "eevee_shadow_tilemap_init";
     case SHADOW_TILEMAP_TAG_UPDATE:
       return "eevee_shadow_tag_update";
+    case SHADOW_TILEMAP_TAG_UPDATE_PROPAGATE:
+      return "eevee_shadow_tag_update_propagate";
     case SHADOW_TILEMAP_TAG_USAGE_OPAQUE:
       return "eevee_shadow_tag_usage_opaque";
     case SHADOW_TILEMAP_TAG_USAGE_SURFELS:
       return "eevee_shadow_tag_usage_surfels";
     case SHADOW_TILEMAP_TAG_USAGE_TRANSPARENT:
       return "eevee_shadow_tag_usage_transparent";
-    case SHADOW_PAGE_TILE_CLEAR:
-      return "eevee_shadow_page_tile_clear";
-    case SHADOW_PAGE_TILE_STORE:
-      return "eevee_shadow_page_tile_store";
     case SHADOW_TILEMAP_TAG_USAGE_VOLUME:
       return "eevee_shadow_tag_usage_volume";
     case SHADOW_VIEW_VISIBILITY:
@@ -587,16 +584,20 @@ gpu::Shader *ShaderModule::static_shader_get(eShaderType shader_type)
 
 /* Helper class to get free sampler slots for materials. */
 class SlotAllocator {
-  uint64_t available_samplers_ = ~uint64_t(0u);
-  uint32_t available_vertex_id_ = ~uint32_t(0u);
+  /* Assumes slots reserved from ShaderCreateInfos are always below 32. */
+  uint32_t available_samplers_ = ~uint32_t(0u);
+  /* But some backends may allow more samplers that we can use for material textures.
+   * These slots are just increased linearly. */
+  int total_requested_samplers_ = 0;
   bool sampler_overflow_ = false;
+
+  uint32_t available_vertex_id_ = ~uint32_t(0u);
   bool vertex_id_overflow_ = false;
 
   Set<std::string> visited_infos;
 
- public:
-  /** WATCH: Recursive. */
-  void reserve_slots(const gpu::shader::ShaderCreateInfo &info)
+  void reserve_slots_recursive(const gpu::shader::ShaderCreateInfo &info,
+                               bool is_gpumat_info = true)
   {
     if (!visited_infos.add_overwrite(info.name_)) {
       /* Avoid infinite recursion or visiting an info more than once. */
@@ -608,17 +609,21 @@ class SlotAllocator {
     }
     for (const ShaderCreateInfo::Resource &res : info.pass_resources_) {
       if (res.bind_type == ShaderCreateInfo::Resource::SAMPLER) {
-        available_samplers_ &= ~(uint64_t(1) << res.slot);
-      }
-    }
-    for (const ShaderCreateInfo::Resource &res : info.batch_resources_) {
-      if (res.bind_type == ShaderCreateInfo::Resource::SAMPLER) {
-        available_samplers_ &= ~(uint64_t(1) << res.slot);
+        available_samplers_ &= ~(uint32_t(1) << res.slot);
       }
     }
     for (const ShaderCreateInfo::Resource &res : info.geometry_resources_) {
       if (res.bind_type == ShaderCreateInfo::Resource::SAMPLER) {
-        available_samplers_ &= ~(uint64_t(1) << res.slot);
+        available_samplers_ &= ~(uint32_t(1) << res.slot);
+      }
+    }
+    if (!is_gpumat_info) {
+      /* Don't assign slots for material textures until all the internal engine slots are reserved,
+       * they may overlap with our internal slots. */
+      for (const ShaderCreateInfo::Resource &res : info.batch_resources_) {
+        if (res.bind_type == ShaderCreateInfo::Resource::SAMPLER) {
+          available_samplers_ &= ~(uint32_t(1) << res.slot);
+        }
       }
     }
 
@@ -626,13 +631,32 @@ class SlotAllocator {
       const ShaderCreateInfo *info = reinterpret_cast<const ShaderCreateInfo *>(
           GPU_shader_create_info_get(info_name.c_str()));
       /** WATCH: Recursive. */
-      reserve_slots(*info);
+      reserve_slots_recursive(*info, false);
+    }
+  }
+
+ public:
+  void reserve_slots(gpu::shader::ShaderCreateInfo &info)
+  {
+    reserve_slots_recursive(info);
+    total_requested_samplers_ = count_bits_uint64(uint64_t(~available_samplers_));
+
+    for (auto &resource : info.batch_resources_) {
+      if (resource.bind_type == gpu::shader::ShaderCreateInfo::Resource::BindType::SAMPLER) {
+        /* Assign non overlapping slots for material textures. */
+        resource.slot = get_next_sampler();
+      }
     }
   }
 
   bool sampler_overflow() const
   {
     return sampler_overflow_;
+  }
+
+  int requested_sampler_count() const
+  {
+    return total_requested_samplers_;
   }
 
   bool vertex_id_overflow() const
@@ -642,12 +666,16 @@ class SlotAllocator {
 
   int get_next_sampler()
   {
-    if (available_samplers_ == 0) {
+    int next_sampler = available_samplers_ == 0 ? total_requested_samplers_ :
+                                                  bitscan_forward_clear_uint(&available_samplers_);
+    total_requested_samplers_++;
+    if (next_sampler >= GPU_max_textures()) {
       /* Should result in compilation failure. */
       sampler_overflow_ = true;
       return -1;
     }
-    return bitscan_forward_clear_uint64(&available_samplers_);
+
+    return next_sampler;
   }
 
   void set_vertex_input(int index)
@@ -703,18 +731,7 @@ static SlotAllocator add_pipeline_create_info(gpu::shader::ShaderCreateInfo &inf
           info.name_ += "_depth_clip";
           break;
         case MAT_PIPE_SHADOW:
-          /* Determine surface shadow shader depending on used update technique. */
-          switch (ShadowModule::shadow_technique) {
-            case ShadowTechnique::ATOMIC_RASTER: {
-              pipeline_info_name = "eevee_surf_shadow_atomic";
-            } break;
-            case ShadowTechnique::TILE_COPY: {
-              pipeline_info_name = "eevee_surf_shadow_tbdr";
-            } break;
-            default: {
-              BLI_assert_unreachable();
-            } break;
-          }
+          pipeline_info_name = "eevee_surf_shadow_atomic";
           break;
         case MAT_PIPE_VOLUME_OCCUPANCY:
           pipeline_info_name = "eevee_surf_occupancy";
@@ -725,22 +742,42 @@ static SlotAllocator add_pipeline_create_info(gpu::shader::ShaderCreateInfo &inf
           info.name_ += "_volume";
           break;
         case MAT_PIPE_CAPTURE:
-          pipeline_info_name = "eevee_surf_capture";
+          pipeline_info_name = "eevee_surf_capture_infos_";
           info.name_ += "_capture";
+          info.define("MAT_CAPTURE");
+          info.define("closure_to_rgba", "closure_to_rgba_capture");
+          /* Until every vertex shader are ported, we need to bridge the gap here by defining the
+           * pipeline. */
+          info.fragment_source("eevee_surf_capture.bsl.hh");
+          info.fragment_function("eevee_surf_capture");
           break;
         case MAT_PIPE_DEFERRED:
           if (use_shader_to_rgba) {
-            pipeline_info_name = "eevee_surf_deferred_hybrid";
+            pipeline_info_name = "eevee_surf_hybrid_infos_";
+            info.define("closure_to_rgba", "closure_to_rgba_hybrid");
             info.name_ += "_deferred_hybrid";
+            /* Until every vertex shader are ported, we need to bridge the gap here by defining the
+             * pipeline. */
+            info.fragment_source("eevee_surf_hybrid.bsl.hh");
+            info.fragment_function("eevee_surf_hybrid");
           }
           else {
-            pipeline_info_name = "eevee_surf_deferred";
+            pipeline_info_name = "eevee_surf_deferred_infos_";
             info.name_ += "_deferred";
+            /* Until every vertex shader are ported, we need to bridge the gap here by defining the
+             * pipeline. */
+            info.fragment_source("eevee_surf_deferred.bsl.hh");
+            info.fragment_function("eevee_surf_deferred");
           }
           break;
         case MAT_PIPE_FORWARD:
-          pipeline_info_name = "eevee_surf_forward";
+          pipeline_info_name = "eevee_surf_forward_infos_";
+          info.define("closure_to_rgba", "closure_to_rgba_forward");
           info.name_ += "_forward";
+          /* Until every vertex shader are ported, we need to bridge the gap here by defining the
+           * pipeline. */
+          info.fragment_source("eevee_surf_forward.bsl.hh");
+          info.fragment_function("eevee_surf_forward");
           break;
         default:
           BLI_assert_unreachable();
@@ -854,7 +891,8 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
   }
 
   if (ELEM(pipeline_type, MAT_PIPE_DEFERRED, MAT_PIPE_FORWARD) &&
-      GPU_material_flag_get(gpumat, GPU_MATFLAG_SHADER_TO_RGBA))
+      GPU_material_flag_get(gpumat, GPU_MATFLAG_SHADER_TO_RGBA) &&
+      GPU_material_flag_get(gpumat, GPU_MATFLAG_TRANSPARENT))
   {
     info.additional_info("eevee_hiz_prev_data");
     info.additional_info("eevee_previous_layer_radiance");
@@ -868,12 +906,6 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
 
   SlotAllocator slots = add_pipeline_create_info(
       info, pipeline_type, geometry_type, use_shader_to_rgba);
-
-  for (auto &resource : info.batch_resources_) {
-    if (resource.bind_type == ShaderCreateInfo::Resource::BindType::SAMPLER) {
-      resource.slot = slots.get_next_sampler();
-    }
-  }
 
   if (GPU_material_flag_get(gpumat, GPU_MATFLAG_SHADER_TO_RGBA)) {
     info.define("MAT_SHADER_TO_RGBA");
@@ -1280,9 +1312,11 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
   /* Make shaders that have as too many samplers fail compilation and have correct error
    * report instead of raising an error. */
   if (slots.sampler_overflow()) {
-    /* We ran out of binding slots. Many systems inside the GPU backend assume a max amount of 64
-     * samplers. */
-    std::cerr << "Error: EEVEE: Material " << material_name << " uses too many samplers."
+    /* We ran out of binding slots. */
+    std::cerr << fmt::format("Error: EEVEE: Material {} uses too many samplers. ({}/{})",
+                             material_name,
+                             slots.requested_sampler_count(),
+                             GPU_max_textures())
               << std::endl;
     /* Avoid assert in ShaderCreateInfo::finalize. */
     info.batch_resources_.clear();

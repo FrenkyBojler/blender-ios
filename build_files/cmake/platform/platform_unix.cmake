@@ -10,23 +10,24 @@ if(NOT WITH_LIBS_PRECOMPILED)
   unset(LIBDIR)
 else()
   if(NOT DEFINED LIBDIR)
-    # Path to a locally compiled libraries.
-    set(LIBDIR_NAME ${CMAKE_SYSTEM_NAME}_${CMAKE_SYSTEM_PROCESSOR})
-    string(TOLOWER ${LIBDIR_NAME} LIBDIR_NAME)
-    set(LIBDIR_NATIVE_ABI ${CMAKE_SOURCE_DIR}/../lib/${LIBDIR_NAME})
-
-    # Path to precompiled libraries with known glibc 2.28 ABI.
+    # Path to libraries with known glibc 2.28 ABI.
     if(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "aarch64")
       set(LIBDIR_GLIBC228_ABI ${CMAKE_SOURCE_DIR}/lib/linux_arm64)
-    else()
+    elseif(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "x86_64")
       set(LIBDIR_GLIBC228_ABI ${CMAKE_SOURCE_DIR}/lib/linux_x64)
+    else()
+      set(LIBDIR_GLIBC228_ABI ${CMAKE_SOURCE_DIR}/lib/linux_${CMAKE_SYSTEM_PROCESSOR})
+      message(WARNING
+        "Architecture \"${CMAKE_SYSTEM_PROCESSOR}\" not supported by default."
+        "Using library directory \"${LIBDIR_GLIBC228_ABI}\"."
+      )
     endif()
 
-    # Choose the best suitable libraries.
-    if(EXISTS ${LIBDIR_NATIVE_ABI})
-      set(LIBDIR ${LIBDIR_NATIVE_ABI})
-      set(WITH_LIBC_MALLOC_HOOK_WORKAROUND TRUE)
-    elseif(EXISTS "${LIBDIR_GLIBC228_ABI}/.git")
+    # Check if library directory is empty
+    file(GLOB LIBDIR_RESULT ${LIBDIR_GLIBC228_ABI}/*)
+    list(LENGTH LIBDIR_RESULT LIBDIR_LEN)
+
+    if(NOT LIBDIR_LEN EQUAL 0)
       set(LIBDIR ${LIBDIR_GLIBC228_ABI})
       if(WITH_TBB_MALLOC_PROXY)
         # TBB MALLOC proxy provides malloc hooks.
@@ -34,10 +35,13 @@ else()
       else()
         set(WITH_LIBC_MALLOC_HOOK_WORKAROUND TRUE)
       endif()
+    else()
+      message(STATUS
+        "Library directory \"${LIBDIR_GLIBC228_ABI}\" is empty or does not exist."
+      )
     endif()
 
     # Avoid namespace pollution.
-    unset(LIBDIR_NATIVE_ABI)
     unset(LIBDIR_GLIBC228_ABI)
   endif()
 
@@ -99,6 +103,7 @@ if(DEFINED LIBDIR)
   set(fmt_ROOT ${LIBDIR}/fmt)
   set(OSL_ROOT ${LIBDIR}/osl)
   set(OpenImageIO_ROOT ${LIBDIR}/openimageio)
+  set(OpenColorIO_ROOT ${LIBDIR}/opencolorio)
   set(OpenEXR_ROOT ${LIBDIR}/openexr)
   # OpenEXR deps, used by the OpenEXR module scripts
   set(Imath_ROOT ${LIBDIR}/imath)
@@ -244,7 +249,7 @@ if(WITH_PYTHON)
     # Installing into `site-packages`, warn when installing into `./../lib/`
     # which script authors almost certainly don't want.
     if(DEFINED LIBDIR)
-      path_is_prefix(LIBDIR PYTHON_SITE_PACKAGES _is_prefix)
+      cmake_path(IS_PREFIX LIBDIR "${PYTHON_SITE_PACKAGES}" NORMALIZE _is_prefix)
       if(_is_prefix)
         message(WARNING "
 Building Blender with the following configuration:
@@ -269,10 +274,8 @@ else()
   find_program(PYTHON_EXECUTABLE "python3")
 endif()
 
-if(WITH_IMAGE_OPENEXR)
-  find_package_wrapper(OpenEXR)
-  set_and_warn_library_found("OpenEXR" OpenEXR_FOUND WITH_IMAGE_OPENEXR)
-endif()
+find_package_wrapper(OpenEXR REQUIRED)
+
 if(DEFINED OpenEXR_DIR)
   mark_as_advanced(OpenEXR_DIR)
 endif()
@@ -473,12 +476,7 @@ if(DEFINED OpenImageIO_DIR)
 endif()
 add_bundled_libraries(openimageio/lib)
 
-if(WITH_OPENCOLORIO)
-  find_package_wrapper(OpenColorIO 2.0.0)
-
-  set(OPENCOLORIO_DEFINITIONS "")
-  set_and_warn_library_found("OpenColorIO" OPENCOLORIO_FOUND WITH_OPENCOLORIO)
-endif()
+find_package_wrapper(OpenColorIO 2.0.0 REQUIRED)
 add_bundled_libraries(opencolorio/lib)
 
 if(WITH_CYCLES AND WITH_CYCLES_EMBREE)
@@ -598,6 +596,11 @@ if(WITH_CYCLES AND WITH_CYCLES_PATH_GUIDING)
     set(WITH_CYCLES_PATH_GUIDING OFF)
     message(STATUS "OpenPGL not found, disabling WITH_CYCLES_PATH_GUIDING")
   endif()
+endif()
+
+if(WITH_TRACY)
+  set(Tracy_ROOT_DIR ${LIBDIR}/tracy)
+  find_package_wrapper(Tracy REQUIRED)
 endif()
 
 if(DEFINED LIBDIR)
@@ -1015,16 +1018,6 @@ unset(_IS_LINKER_DEFAULT)
 # use the same libraries as Blender with a different version or build options.
 set(PLATFORM_SYMBOLS_MAP ${CMAKE_SOURCE_DIR}/source/creator/symbols_unix.map)
 set(PLATFORM_LINKFLAGS_SYMBOL_HIDING "-Wl,--version-script='${PLATFORM_SYMBOLS_MAP}'")
-
-# We do not ensure transitive dependencies of dynamic libraries are available at
-# link time. This allows that for classic ld, which is more strict than gold, lld
-# or mold. The ideal solution would be to switch all dependencies to CMake configs
-# that fully specify transitive dependencies.
-if(NOT WITH_PYTHON_MODULE)
-  set(PLATFORM_LINKFLAGS
-    "${PLATFORM_LINKFLAGS} -Wl,--allow-shlib-undefined -Wl,--unresolved-symbols=ignore-in-shared-libs"
-  )
-endif()
 
 # Don't use position independent executable for portable install since file
 # browsers can't properly detect blender as an executable then. Still enabled

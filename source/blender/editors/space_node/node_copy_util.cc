@@ -20,7 +20,6 @@
 #include "BLI_vector.hh"
 
 #include "BKE_action.hh"
-#include "BKE_anim_data.hh"
 #include "BKE_animsys.h"
 #include "BKE_context.hh"
 #include "BKE_lib_id.hh"
@@ -183,7 +182,8 @@ static Vector<MutableNodeAndSocket> get_internal_group_links(
   Vector<MutableNodeAndSocket> result;
   if (io_socket.flag & NODE_INTERFACE_SOCKET_INPUT) {
     for (const bNode *group_input_node : tree.group_input_nodes()) {
-      const bNodeSocket *socket = group_input_node->output_by_identifier(io_socket.identifier);
+      const bNodeSocket *socket = group_input_node->output_by_identifier(
+          UString(io_socket.identifier));
       BLI_assert(socket);
       for (const bNodeLink *link : socket->directly_linked_links()) {
         if (!link->is_available()) {
@@ -208,7 +208,8 @@ static Vector<MutableNodeAndSocket> get_internal_group_links(
   }
   if (io_socket.flag & NODE_INTERFACE_SOCKET_OUTPUT) {
     if (const bNode *group_output_node = tree.group_output_node()) {
-      const bNodeSocket *socket = group_output_node->input_by_identifier(io_socket.identifier);
+      const bNodeSocket *socket = group_output_node->input_by_identifier(
+          UString(io_socket.identifier));
       BLI_assert(socket);
       for (const bNodeLink *link : socket->directly_linked_links()) {
         if (!link->is_available()) {
@@ -604,9 +605,9 @@ static void map_socket(NodeTreeInterfaceMapping &io_mapping,
 {
   const bNodeTree &group_tree = *id_cast<const bNodeTree *>(group_node.id);
   const bool is_input = (io_socket.flag & NODE_INTERFACE_SOCKET_INPUT);
-  const bNodeSocket *group_socket = is_input ?
-                                        group_node.input_by_identifier(io_socket.identifier) :
-                                        group_node.output_by_identifier(io_socket.identifier);
+  const bNodeSocket *group_socket =
+      is_input ? group_node.input_by_identifier(UString(io_socket.identifier)) :
+                 group_node.output_by_identifier(UString(io_socket.identifier));
   BLI_assert(group_socket);
   if (!group_socket->is_available()) {
     return;
@@ -766,7 +767,10 @@ NodeSetCopy NodeSetCopy::from_nodes(Main &bmain,
 
   /* Move nodes in the group to the center */
   if (const std::optional<Bounds<float2>> bounds = node_location_bounds(src_nodes)) {
-    const float2 center = bounds->center();
+    float2 center = bounds->center();
+    /* Round offset to a grid step, so grid-aligned nodes remain grid-aligned. */
+    center[0] = nearest_node_grid_coord(center[0]);
+    center[1] = nearest_node_grid_coord(center[1]);
     for (bNode *node : new_nodes) {
       node->location[0] -= center[0];
       node->location[1] -= center[1];
@@ -852,13 +856,15 @@ GroupInputOutputNodes connect_copied_nodes_to_interface(const bContext &C,
     nodes_vec.append(node);
   }
   if (const std::optional<Bounds<float2>> bounds = node_bounds(nodes_vec)) {
+    /* 3 grid units apart from the bounds, accounting for the width of the Group Input node. */
     io_nodes.input_node->location[0] = bounds->min[0] - 200.0f;
-    io_nodes.output_node->location[0] = bounds->max[0] + 50.0f;
+    io_nodes.output_node->location[0] = bounds->max[0] + 60.0f;
   }
   /* Ignore node dimensions for vertical placement. */
   if (const std::optional<Bounds<float2>> bounds = node_location_bounds(nodes_vec)) {
-    io_nodes.input_node->location[1] = bounds->center()[1];
-    io_nodes.output_node->location[1] = bounds->center()[1];
+    float center_y_snap = nearest_node_grid_coord(bounds->center()[1]);
+    io_nodes.input_node->location[1] = center_y_snap;
+    io_nodes.output_node->location[1] = center_y_snap;
   }
 
   return io_nodes;
@@ -933,7 +939,7 @@ static bNode *create_proxy_input_node(const bNodeTreeInterfaceSocket &io_socket,
   // const nodes::StructureType structure_type = nodes::StructureType(
   //     src_socket.runtime->inferred_structure_type);
   const nodes::StructureType structure_type = io_socket.structure_type ==
-                                                      NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO ?
+                                                      NodeSocketInterfaceStructureType::Auto ?
                                                   nodes::StructureType::Dynamic :
                                                   nodes::StructureType(io_socket.structure_type);
 
@@ -1038,7 +1044,7 @@ static void replace_interface_socket(
 
   if (proxy_node) {
     BLI_assert(proxy_node);
-    BLI_strncpy(proxy_node->label, io_socket.name, sizeof(proxy_node->label));
+    STRNCPY(proxy_node->label, io_socket.name);
 
     const float width = (proxy_node->is_reroute() ? 0.0f : proxy_node->width);
     const float height = (proxy_node->is_reroute() ? 0.0f : proxy_node->height);

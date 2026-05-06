@@ -836,7 +836,10 @@ void screen_area_animate_out(bContext *C, ScrArea *area, eScreenDir dir, float d
     data->start_time = BLI_time_now_seconds();
     data->end_time = data->start_time + duration;
     data->ibuf = IMB_allocFromBufferOwn(buffer, nullptr, win_size[0], win_size[1], 24);
-    IMB_rect_crop(data->ibuf, &data->rect);
+    const int2 rect_pos = {area->totrct.xmin, area->totrct.ymin};
+    const int2 rect_size = {BLI_rcti_size_x(&area->totrct) + 1,
+                            BLI_rcti_size_y(&area->totrct) + 1};
+    IMB_crop(data->ibuf, rect_pos, rect_size);
     data->draw_callback = WM_draw_cb_activate(win, space_out_cb, data);
   }
 }

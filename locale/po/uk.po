@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 Alpha (b'ec8c60553753')\n"
+"Project-Id-Version: Blender 5.2.0 Alpha (b'396b6a98e9f6')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-03-23 09:55+0000\n"
+"POT-Creation-Date: 2026-05-04 07:43+0000\n"
 "PO-Revision-Date: 2025-07-23 15:08+0000\n"
 "Last-Translator: Bartosz <gang65@poczta.onet.pl>\n"
 "Language-Team: Ukrainian <https://translate.blender.org/projects/blender-ui/ui/uk/>\n"
@@ -3810,6 +3810,10 @@ msgid "Use always Vertex Color mode"
 msgstr "Вжити завжди режим Кольору Вершин"
 
 
+msgid "Threshold"
+msgstr "Поріг"
+
+
 msgid "Curve Jitter"
 msgstr "Крива тремтіння"
 
@@ -3840,6 +3844,11 @@ msgstr "Крива сили"
 
 msgid "Curve used for the strength"
 msgstr "Крива, використовувана для сили"
+
+
+msgctxt "Operator"
+msgid "Poly"
+msgstr "Полі"
 
 
 msgid "Eraser Mode"
@@ -3976,10 +3985,6 @@ msgstr "Спрощення"
 
 msgid "Number of simplify steps (large values reduce fill accuracy)"
 msgstr "Кількість кроків спрощення (більші значення зменшують точність заповнення)"
-
-
-msgid "Threshold"
-msgstr "Поріг"
 
 
 msgid "Threshold to consider color transparent for filling"
@@ -4250,20 +4255,12 @@ msgid "Stroke"
 msgstr "Штрих"
 
 
-msgid "Vertex Color affects to Stroke only"
-msgstr "Колір Вершин впливає лише на Штрих"
-
-
 msgid "Fill"
 msgstr "Заповнення"
 
 
-msgid "Vertex Color affects to Fill only"
-msgstr "Колір Вершин впливає лише на Заповнення"
-
-
-msgid "Vertex Color affects to Stroke and Fill"
-msgstr "Колір Вершин впливає на Штрих та Заповнення"
+msgid "Both"
+msgstr "Обидва"
 
 
 msgid "Byte Color Attribute Value"
@@ -14453,14 +14450,6 @@ msgid "Amount of smoothing to automatically apply to each stroke"
 msgstr "Величина згладжування, що автоматично застосовується до кожного штриха"
 
 
-msgid "Propagation Steps"
-msgstr "Кроки Поширення"
-
-
-msgid "Distance where boundary edge automasking is going to protect vertices from the fully masked edge"
-msgstr "Відстань, на якій автомаскування ребер рубежу буде захищати вершини від повністю маскованого ребра"
-
-
 msgid "Brush blending mode"
 msgstr "Режим змішування пензля"
 
@@ -15430,26 +15419,6 @@ msgstr "Задіяти Альфа"
 
 msgid "When this is disabled, lock alpha while painting"
 msgstr "Коли вимкнено, блокувати альфа при малюванні"
-
-
-msgid "Mesh Boundary Auto-Masking"
-msgstr "Авто-Маскування Рубежу Сіті"
-
-
-msgid "Do not affect non manifold boundary edges"
-msgstr "Не впливати на не розгортні ребра рубежу"
-
-
-msgid "Face Sets Boundary Automasking"
-msgstr "Автомаскування Рубежу Наборів Граней"
-
-
-msgid "Cavity Mask"
-msgstr "Маска Порожнинності"
-
-
-msgid "Affect only vertices connected to the active vertex under the brush"
-msgstr "Впливати лише на вершини, з'єднані з активною вершиною під пензлем"
 
 
 msgid "Collide with objects during the simulation"
@@ -17834,10 +17803,6 @@ msgstr "Генерувати дійсночисловий буфер"
 
 msgid "Half Float Precision"
 msgstr "Половинна Дійсночислова Точність"
-
-
-msgid "Use 16 bits per channel to lower the memory usage during rendering"
-msgstr "Вжити 16 бітів на канал для пониження використання пам'яті під час рендерингу"
 
 
 msgid "Use Multi-View"
@@ -25934,10 +25899,6 @@ msgid "Calculate Overlap"
 msgstr "Розрахувати перекриття"
 
 
-msgid "Calculate self intersections and overlap before filling"
-msgstr "Перед заповненням розрахувати самоперетини та перекриття"
-
-
 msgid "Mask Layers"
 msgstr "Шари маски"
 
@@ -26254,6 +26215,14 @@ msgid "Texture Pixel Size factor along the stroke"
 msgstr "Фактор Розміру Пікселя Текстури уздовж штриха"
 
 
+msgid "Placement"
+msgstr "Розміщення"
+
+
+msgid "Scale the noise frequency"
+msgstr "Масштабувати частотність шуму"
+
+
 msgid "Show stroke fills of this material"
 msgstr "Показувати заповнення штриха з цим матеріалом"
 
@@ -26322,12 +26291,84 @@ msgid "Material slot name"
 msgstr "Назва гнізда матеріалу"
 
 
-msgid "Mirror"
-msgstr "Дзеркалення"
+msgid "Clean Up"
+msgstr "Вичищення"
+
+
+msgid "Show/Hide"
+msgstr "Показати/приховати"
+
+
+msgid "Special Characters"
+msgstr "Спеціальні символи"
+
+
+msgid "Kerning"
+msgstr "Кернінг"
+
+
+msgid "Metaball"
+msgstr "Метакуля"
+
+
+msgid "Names"
+msgstr "Назви"
+
+
+msgid "Math"
+msgstr "Математика"
+
+
+msgid "Bone Roll"
+msgstr "Прокручення Кістки"
+
+
+msgid "Utilities"
+msgstr "Утиліти"
+
+
+msgid "Pivot Point"
+msgstr "Точка Опертя"
 
 
 msgid "Snap"
 msgstr "Підхоп"
+
+
+msgid "Sample"
+msgstr "Вибірка"
+
+
+msgid "Proportional Editing Falloff"
+msgstr "Спад Пропорційного Редагування"
+
+
+msgid "Mask Edit"
+msgstr "Редагування Маски"
+
+
+msgid "Automasking"
+msgstr "Автомаскування"
+
+
+msgid "Primitives"
+msgstr "Примітиви"
+
+
+msgid "Face Sets Edit"
+msgstr "Редагування Наборів Граней"
+
+
+msgid "Vertex Group Locks"
+msgstr "Блокування Груп Вершин"
+
+
+msgid "Import"
+msgstr "Імпортувати"
+
+
+msgid "Mirror"
+msgstr "Дзеркалення"
 
 
 msgid "UV Mapping"
@@ -26342,10 +26383,6 @@ msgid "Viewpoint"
 msgstr "Точка зору"
 
 
-msgid "Sample"
-msgstr "Вибірка"
-
-
 msgid "Navigation"
 msgstr "Навігація"
 
@@ -26358,16 +26395,16 @@ msgid "Align View to Active"
 msgstr "Вирівняти Огляд за Активним"
 
 
-msgid "Primitives"
-msgstr "Примітиви"
-
-
 msgid "View Regions"
 msgstr "Регіони Огляду"
 
 
 msgid "Select More/Less"
 msgstr "Вибрати більше/менше"
+
+
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Select Similar"
@@ -26390,32 +26427,12 @@ msgid "Assign Material"
 msgstr "Призначити Матеріал"
 
 
-msgid "Import"
-msgstr "Імпортувати"
-
-
-msgid "Utilities"
-msgstr "Утиліти"
-
-
-msgid "Metaball"
-msgstr "Метакуля"
-
-
 msgid "Light"
 msgstr "Слабко"
 
 
 msgid "Light Probe"
 msgstr "Проба Освітлення"
-
-
-msgid "Math"
-msgstr "Математика"
-
-
-msgid "UV"
-msgstr "UV"
 
 
 msgid "Add Image"
@@ -26442,14 +26459,6 @@ msgid "Quick Effects"
 msgstr "Швидкі ефекти"
 
 
-msgid "Show/Hide"
-msgstr "Показати/приховати"
-
-
-msgid "Clean Up"
-msgstr "Вичищення"
-
-
 msgid "Asset"
 msgstr "Актив"
 
@@ -26470,8 +26479,8 @@ msgid "Hooks"
 msgstr "Гачки"
 
 
-msgid "Vertex Group Locks"
-msgstr "Блокування Груп Вершин"
+msgid "Layout"
+msgstr "Розстановка"
 
 
 msgid "Sculpt Set Pivot"
@@ -26490,12 +26499,16 @@ msgid "In-Betweens"
 msgstr "У проміжках"
 
 
+msgid "Keying"
+msgstr "Ключування"
+
+
 msgid "Propagate"
 msgstr "Поширити"
 
 
-msgid "Names"
-msgstr "Назви"
+msgid "Tracking"
+msgstr "Стеження"
 
 
 msgid "Toggle Bone Options"
@@ -26526,52 +26539,8 @@ msgid "Set Face Strength"
 msgstr "Задати Силу Грані"
 
 
-msgid "Layout"
-msgstr "Розстановка"
-
-
 msgid "Merge"
 msgstr "Об'єднання"
-
-
-msgid "Keying"
-msgstr "Ключування"
-
-
-msgid "Special Characters"
-msgstr "Спеціальні символи"
-
-
-msgid "Kerning"
-msgstr "Кернінг"
-
-
-msgid "Tracking"
-msgstr "Стеження"
-
-
-msgid "Bone Roll"
-msgstr "Прокручення Кістки"
-
-
-msgid "Pivot Point"
-msgstr "Точка Опертя"
-
-
-msgid "Proportional Editing Falloff"
-msgstr "Спад Пропорційного Редагування"
-
-
-msgid "Mask Edit"
-msgstr "Редагування Маски"
-
-
-msgid "Automasking"
-msgstr "Автомаскування"
-
-
-msgid "Face Sets Edit"
-msgstr "Редагування Наборів Граней"
 
 
 msgid "Basic"
@@ -26901,6 +26870,34 @@ msgstr "Про"
 
 msgid "Quick Setup"
 msgstr "Швидкий Уклад"
+
+
+msgid "Propagation Steps"
+msgstr "Кроки Поширення"
+
+
+msgid "Distance where boundary edge automasking is going to protect vertices from the fully masked edge"
+msgstr "Відстань, на якій автомаскування ребер рубежу буде захищати вершини від повністю маскованого ребра"
+
+
+msgid "Mesh Boundary Auto-Masking"
+msgstr "Авто-Маскування Рубежу Сіті"
+
+
+msgid "Do not affect non manifold boundary edges"
+msgstr "Не впливати на не розгортні ребра рубежу"
+
+
+msgid "Face Sets Boundary Automasking"
+msgstr "Автомаскування Рубежу Наборів Граней"
+
+
+msgid "Cavity Mask"
+msgstr "Маска Порожнинності"
+
+
+msgid "Affect only vertices connected to the active vertex under the brush"
+msgstr "Впливати лише на вершини, з'єднані з активною вершиною під пензлем"
 
 
 msgid "Mesh Edge"
@@ -29620,10 +29617,6 @@ msgstr "Зсув Шуму"
 
 msgid "Offset the noise along the strokes"
 msgstr "Зсув шуму вздовж штрихів"
-
-
-msgid "Scale the noise frequency"
-msgstr "Масштабувати частотність шуму"
 
 
 msgid "Noise Seed"
@@ -36510,11 +36503,6 @@ msgid "Load a SVG file"
 msgstr "Завантаження файлів SVG"
 
 
-msgctxt "Operator"
-msgid "Import SVG"
-msgstr "Імпорт SVG"
-
-
 msgid "Load a FBX file"
 msgstr "Завантажити файл FBX"
 
@@ -38084,6 +38072,11 @@ msgstr "Y Макс"
 
 msgid "Y Min"
 msgstr "Y Мін"
+
+
+msgctxt "Operator"
+msgid "Select by Type"
+msgstr "Вибрати За Типом"
 
 
 msgctxt "Operator"
@@ -39744,10 +39737,6 @@ msgstr "Розглядати лише деталі на відстані від�
 
 msgid "Minimal distance accepted between two features"
 msgstr "Мінімальна допустима відстань між двома деталями"
-
-
-msgid "Placement"
-msgstr "Розміщення"
 
 
 msgid "Placement for detected features"
@@ -43352,10 +43341,6 @@ msgid "Side"
 msgstr "Збоку"
 
 
-msgid "Both"
-msgstr "Обидва"
-
-
 msgctxt "Operator"
 msgid "Euler Discontinuity Filter"
 msgstr "Фільтр розривів Ейлера"
@@ -46672,22 +46657,6 @@ msgid "Merge method to use"
 msgstr "Метод злиття для використання"
 
 
-msgid "At Center"
-msgstr "До центра"
-
-
-msgid "At Cursor"
-msgstr "До курсора"
-
-
-msgid "At First"
-msgstr "До першої"
-
-
-msgid "At Last"
-msgstr "До останньої"
-
-
 msgid "Move UVs according to merge"
 msgstr "Пересунути UV відповідно до об'єднання"
 
@@ -47189,11 +47158,6 @@ msgstr "Тріангулювати грані"
 
 msgid "Triangulate selected faces"
 msgstr "Тріангулювати вибрані грані"
-
-
-msgctxt "Operator"
-msgid "Select Boundary Loop"
-msgstr "Вибрати межову петлю"
 
 
 msgid "Select boundary edges around the selected faces"
@@ -48707,10 +48671,6 @@ msgstr "Скопіювати колір для всіх обраних вузл�
 
 msgid "Option"
 msgstr "Опція"
-
-
-msgid "Overlay Mode"
-msgstr "Режим Накладання"
 
 
 msgid "HDR"
@@ -50452,11 +50412,6 @@ msgstr "Зчистити дельта масштабування додатко�
 
 msgid "Change selection of all visible objects in scene"
 msgstr "Змінити вибір всіх видимих ​​об'єктів сцени"
-
-
-msgctxt "Operator"
-msgid "Select by Type"
-msgstr "Вибрати За Типом"
 
 
 msgid "Select all visible objects that are of a type"
@@ -54335,11 +54290,6 @@ msgid "Snapping"
 msgstr "Підхоплення"
 
 
-msgctxt "Operator"
-msgid "Area Options"
-msgstr "Опції області"
-
-
 msgid "Operations for splitting and merging"
 msgstr "Операції розділення та злиття"
 
@@ -57511,14 +57461,6 @@ msgid "Copy Mirrored UV Coords"
 msgstr "Копіювати Дзеркалені Координати UV"
 
 
-msgid "Copy mirror UV coordinates on the X axis based on a mirrored mesh"
-msgstr "Копіювати дзеркалення UV-координат по осі X на основі дзеркаленої сіті"
-
-
-msgid "Axis Direction"
-msgstr "Напрям осі"
-
-
 msgid "Tolerance for finding vertex duplicates"
 msgstr "Допуск при пошуку дублікатів вершин"
 
@@ -57823,22 +57765,8 @@ msgid "Reveal all hidden UV vertices"
 msgstr "Показати всі приховані UV-вершини"
 
 
-msgctxt "Operator"
-msgid "UV Rip"
-msgstr "Розірвання UV"
-
-
 msgid "Rip selected vertices or a selected region"
 msgstr "Відірвати вибрані вершини або вибраний регіон"
-
-
-msgctxt "Operator"
-msgid "UV Rip Move"
-msgstr "Розірвання і Переміщення UV"
-
-
-msgid "UV Rip"
-msgstr "Розірвання UV"
 
 
 msgctxt "Operator"
@@ -60718,6 +60646,14 @@ msgid "Panel containing UI elements"
 msgstr "Панель, що містить елементи Інтерфейсу Користувача"
 
 
+msgid "Active Tool"
+msgstr "Активний Засіб"
+
+
+msgid "View Lock"
+msgstr "Блокувати Огляд"
+
+
 msgid "Shadow Settings"
 msgstr "Устави Тіні"
 
@@ -60792,14 +60728,6 @@ msgstr "Авто-Маскування"
 
 msgid "VR"
 msgstr "ВР"
-
-
-msgid "Active Tool"
-msgstr "Активний Засіб"
-
-
-msgid "View Lock"
-msgstr "Блокувати Огляд"
 
 
 msgid "Chain Scaling"
@@ -64222,22 +64150,6 @@ msgid "Device"
 msgstr "Пристрій"
 
 
-msgid "Image Display Method"
-msgstr "Метод Показу Зображення"
-
-
-msgid "Method used for displaying images on the screen"
-msgstr "Спосіб показу зображень на екрані"
-
-
-msgid "Automatically choose method based on GPU and image"
-msgstr "Автоматично вибирати метод на основі ГП та зображення"
-
-
-msgid "2D Texture"
-msgstr "2D текстура"
-
-
 msgid "Legacy Compute Device Type"
 msgstr "Тип старішого пристрою обчислення"
 
@@ -65482,58 +65394,6 @@ msgid "Seed value for integrator to get different noise patterns"
 msgstr "Початкове значення для інтегратора, щоб отримати різні патерни шуму"
 
 
-msgid "Viewport Texture Limit"
-msgstr "Ліміт Текстур для Передогляду"
-
-
-msgid "Limit texture size used by viewport rendering"
-msgstr "Ліміт розміру текстур при передогляді"
-
-
-msgid "No Limit"
-msgstr "Без Ліміту"
-
-
-msgid "No texture size limit"
-msgstr "Не лімітувати розмір текстур"
-
-
-msgid "Limit texture size to 128 pixels"
-msgstr "Лімітувати розмір текстури 128 пікселями"
-
-
-msgid "Limit texture size to 256 pixels"
-msgstr "Лімітувати розмір текстури 256 пікселями"
-
-
-msgid "Limit texture size to 512 pixels"
-msgstr "Лімітувати розмір текстури 512 пікселями"
-
-
-msgid "Limit texture size to 1024 pixels"
-msgstr "Лімітувати розмір текстури 1024 пікселями"
-
-
-msgid "Limit texture size to 2048 pixels"
-msgstr "Лімітувати розмір текстури 2048 пікселями"
-
-
-msgid "Limit texture size to 4096 pixels"
-msgstr "Лімітувати розмір текстури 4096 пікселями"
-
-
-msgid "Limit texture size to 8192 pixels"
-msgstr "Лімітувати розмір текстури 8192 пікселями"
-
-
-msgid "Render Texture Limit"
-msgstr "Ліміт Текстур для Рендера"
-
-
-msgid "Limit texture size used by final rendering"
-msgstr "Ліміт розміру текстур, використовуваний фінальним рендерингом"
-
-
 msgid "Tile Size"
 msgstr "Розмір плитки"
 
@@ -65744,10 +65604,6 @@ msgstr "Метод Відбору"
 
 msgid "How to sample the background light"
 msgstr "Як відбирати освітлення фону"
-
-
-msgid "Don't sample the background, faster but might cause noise for non-solid backgrounds"
-msgstr "Не відбирати фон, швидше, але може спричиняти шум для не-суцільних фонів"
 
 
 msgid "Automatically try to determine the best setting"
@@ -66684,10 +66540,6 @@ msgstr "Обробити результат рендера (і компонув�
 
 msgid "Override Scene Settings"
 msgstr "Устави Сцени Заміщення"
-
-
-msgid "Use workbench render settings from the sequencer scene, instead of each individual scene used in the strip"
-msgstr "Вжити устави рендера верстака зі сцени секвенсера, замість кожної індивідуальної сцени, використовуваної у смужці"
 
 
 msgid "Use Simplify"
@@ -68923,6 +68775,10 @@ msgid "Display white edges"
 msgstr "Показувати білі краї"
 
 
+msgid "Overlay Mode"
+msgstr "Режим Накладання"
+
+
 msgid "Overlay mode of rasterized mask"
 msgstr "Режим накладання растрованої маски"
 
@@ -71027,14 +70883,6 @@ msgstr "Звук"
 
 msgid "Use Default Fade"
 msgstr "Вжити стандартне зникання"
-
-
-msgid "Use Linear Modifiers"
-msgstr "Вжити лінійні модифікатори"
-
-
-msgid "Calculate modifiers in linear space instead of sequencer's space"
-msgstr "Розраховувати модифікатори у лінійному просторі, а не у просторі відеорядника"
 
 
 msgid "Sequence strip applying an effect on the images created by other strips"
@@ -76161,6 +76009,10 @@ msgid "Report a Bug"
 msgstr "Повідомити про Ваду"
 
 
+msgid "Object Index"
+msgstr "Індекс об'єкта"
+
+
 msgid "Denoising completed"
 msgstr "Знешумлювання завершено"
 
@@ -76267,10 +76119,6 @@ msgstr "Відкидати тінь"
 
 msgid "Max Subdivision"
 msgstr "Макс Підподілення"
-
-
-msgid "Texture Limit"
-msgstr "Ліміт Текстур"
 
 
 msgid "Volume Resolution"
@@ -77254,11 +77102,6 @@ msgstr "Курсор до Початку Світу"
 msgctxt "Operator"
 msgid "Cursor to Grid"
 msgstr "Курсор до Сітки"
-
-
-msgctxt "Operator"
-msgid "Poly"
-msgstr "Полі"
 
 
 msgid "Display Cursor"
@@ -79605,6 +79448,10 @@ msgid "Resolutions"
 msgstr "Роздільності"
 
 
+msgid "Workbench"
+msgstr "Workbench"
+
+
 msgctxt "Operator"
 msgid "Clip"
 msgstr "Кліп"
@@ -81755,24 +81602,8 @@ msgid "Cannot change action, as it is still being edited in NLA"
 msgstr "Неможливо змінити дію, вона ще редагується в редакторі НЛА"
 
 
-msgid "<No ID pointer>"
-msgstr "<Немає вказівника на ID>"
-
-
-msgid "No F-Curve to add keyframes to"
-msgstr "Немає Ф-кривої для додавання ключових кадрів"
-
-
-msgid "No RNA pointer available to retrieve values for keyframing from"
-msgstr "Немає RNA вказівника для отримання значень ключових кадрів"
-
-
 msgid "No ID block and/or AnimData to delete keyframe from"
 msgstr "Немає ID блока та/або даних анімації, з яких слід видалити ключовий кадр"
-
-
-msgid "Could not insert keyframe, as RNA path is invalid for the given ID (ID = %s, path = %s)"
-msgstr "Неможливо вставити ключовий кадр, неправильний RNA-шлях для даного ID (ID = %s, шлях = %s)"
 
 
 msgid "Could not delete keyframe, as RNA path is invalid for the given ID (ID = %s, path = %s)"
@@ -81789,6 +81620,22 @@ msgstr "Неможливо зчистити ключовий кадр з вла�
 
 msgid "Skipping path in keying set, as it has no ID (KS = '%s', path = '%s[%d]')"
 msgstr "Шлях пропущено в наборі ключів, оскільки він не має ID (НК = '%s', шлях = '%s[%d]')"
+
+
+msgid "<No ID pointer>"
+msgstr "<Немає вказівника на ID>"
+
+
+msgid "No F-Curve to add keyframes to"
+msgstr "Немає Ф-кривої для додавання ключових кадрів"
+
+
+msgid "No RNA pointer available to retrieve values for keyframing from"
+msgstr "Немає RNA вказівника для отримання значень ключових кадрів"
+
+
+msgid "Could not insert keyframe, as RNA path is invalid for the given ID (ID = %s, path = %s)"
+msgstr "Неможливо вставити ключовий кадр, неправильний RNA-шлях для даного ID (ID = %s, шлях = %s)"
 
 
 msgid "KeyingSet"
@@ -82345,10 +82192,6 @@ msgid "Edge-rings are not connected"
 msgstr "Кільця ребер не з'єднані"
 
 
-msgid "Workbench"
-msgstr "Workbench"
-
-
 msgid "NLA Strip Controls"
 msgstr "Керування смужками НЛА"
 
@@ -82419,10 +82262,6 @@ msgstr "Мітка %d зсув %s"
 
 msgid "Marker offset %s"
 msgstr "Зсув мітки %s"
-
-
-msgid "Selecting the camera is only supported in object mode"
-msgstr "Вибирання камери підтримується лише в режимі об'єкта"
 
 
 msgid "Scene not found"
@@ -82921,10 +82760,6 @@ msgstr "%s: %s"
 
 msgid "Non-Keyboard Shortcut"
 msgstr "Не-клавіатурна швидка клавіша"
-
-
-msgid "Pin"
-msgstr "Пришпилення"
 
 
 msgid "Shift Left Mouse"
@@ -84151,14 +83986,6 @@ msgid "Active object contains no collections"
 msgstr "Активний об'єкт не містить колекцій"
 
 
-msgid "Could not add the collection because it is overridden"
-msgstr "Неможливо додати колекцію, оскільки вона є заміщеною"
-
-
-msgid "Could not add the collection because it is linked"
-msgstr "Неможливо додати колекцію, оскільки вона є пов'язаною"
-
-
 msgid "Could not add the collection because of dependency cycle detected"
 msgstr "Неможливо додати колекцію, оскільки виявлено зациклення залежностей"
 
@@ -85176,10 +85003,6 @@ msgid "Dynamic Topology found: %s, disabled"
 msgstr "Знайдена Динамічна топологія: %s, вимкнено"
 
 
-msgid "Palette created"
-msgstr "Палітру створено"
-
-
 msgid "Sample color for %s"
 msgstr "Вибірка кольору для %s"
 
@@ -85190,6 +85013,10 @@ msgstr "Пензель. Використовуйте лівий клацок м�
 
 msgid "Palette. Use Left Click to sample more colors"
 msgstr "Палітра. Використовуйте лівий клацок миші, щоб вибрати більше кольорів"
+
+
+msgid "Palette created"
+msgstr "Палітру створено"
 
 
 msgid "Compiled without sound support"
@@ -85979,10 +85806,6 @@ msgstr "Підтип"
 
 msgid "More than one collection is selected"
 msgstr "Більше, ніж одну колекцію вибрано"
-
-
-msgid "No active collection"
-msgstr "Без активної колекції"
 
 
 msgid "Cannot add a collection to a linked/override collection/scene"
@@ -86948,10 +86771,6 @@ msgstr "Обчислення числового уводу"
 
 msgid "UV Vertex"
 msgstr "UV-вершина"
-
-
-msgid "Rip failed"
-msgstr "Збій розривання"
 
 
 msgid "Minimize Stretch. Blend %.2f"
@@ -88233,10 +88052,6 @@ msgid "Dot"
 msgstr "Скаляр"
 
 
-msgid "Object Index"
-msgstr "Індекс об'єкта"
-
-
 msgid "Color Fac"
 msgstr "Коефіцієнт кольору"
 
@@ -88365,10 +88180,6 @@ msgid "%s: no Combined pass found in the render layer '%s'"
 msgstr "%s: жоден прохід Комбіновано не знайдено на шарі рендера '%s'"
 
 
-msgid "%s: failed to allocate clip buffer '%s'"
-msgstr "%s: збій розміщення буфера кліпу '%s'"
-
-
 msgid "%s: incorrect dimensions for partial copy '%s'"
 msgstr "%s: неправильні розміри для часткової копії '%s'"
 
@@ -88400,10 +88211,6 @@ msgstr "Рекурсія виявлена у секвенсері відео. С
 
 msgid "Glow"
 msgstr "Сяяння"
-
-
-msgid "Blur X"
-msgstr "Розмив по X"
 
 
 msgid "Rim"

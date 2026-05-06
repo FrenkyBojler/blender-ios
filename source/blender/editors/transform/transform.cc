@@ -549,7 +549,7 @@ static void viewRedrawForce(const bContext *C, TransInfo *t)
       /* XXX how to deal with lock? */
       SpaceImage *sima = static_cast<SpaceImage *>(t->area->spacedata.first);
       if (sima->lock) {
-        BKE_view_layer_synced_ensure(t->scene, t->view_layer);
+        BKE_view_layer_synced_ensure(*t->bmain, t->scene, t->view_layer);
         WM_event_add_notifier(
             C, NC_GEOM | ND_DATA, BKE_view_layer_edit_object_get(t->view_layer)->data);
       }
@@ -1037,8 +1037,7 @@ static void tool_settings_update_snap_toggle(TransInfo *t)
 {
   bool is_snap_enabled = (t->modifiers & MOD_SNAP) != 0;
 
-  /* Type is #eSnapFlag, but type must match various snap attributes in #ToolSettings. */
-  short *snap_flag_ptr;
+  eSnapFlag *snap_flag_ptr;
 
   wmMsgParams_RNA msg_key_params = {{}};
   msg_key_params.ptr = RNA_pointer_create_discrete(&t->scene->id, RNA_ToolSettings, t->settings);
@@ -1052,8 +1051,8 @@ static void tool_settings_update_snap_toggle(TransInfo *t)
 
 wmOperatorStatus transformEvent(TransInfo *t, wmOperator *op, const wmEvent *event)
 {
-  bool is_navigating = t->vod ? (static_cast<RegionView3D *>(t->region->regiondata))->rflag &
-                                    RV3D_NAVIGATING :
+  bool is_navigating = t->vod ? ((static_cast<RegionView3D *>(t->region->regiondata))->rflag &
+                                 RV3D_NAVIGATING) != 0 :
                                 false;
 
   /* Handle modal numinput events first, if already activated. */
@@ -1714,7 +1713,7 @@ static void drawTransformPixel(const bContext * /*C*/, ARegion *region, void *ar
     if (t->options & (CTX_OBJECT | CTX_POSE_BONE)) {
       Scene *scene = t->scene;
       ViewLayer *view_layer = t->view_layer;
-      BKE_view_layer_synced_ensure(scene, view_layer);
+      BKE_view_layer_synced_ensure(*t->bmain, scene, view_layer);
       Object *ob = BKE_view_layer_active_object_get(view_layer);
 
       if (ob && animrig::autokeyframe_cfra_can_key(scene, &ob->id)) {
@@ -1755,7 +1754,7 @@ void saveTransform(bContext *C, TransInfo *t, wmOperator *op)
       if ((prop = RNA_struct_find_property(op->ptr, "use_proportional_edit")) &&
           !RNA_property_is_set(op->ptr, prop))
       {
-        BKE_view_layer_synced_ensure(t->scene, t->view_layer);
+        BKE_view_layer_synced_ensure(*t->bmain, t->scene, t->view_layer);
         const Object *obact = BKE_view_layer_active_object_get(t->view_layer);
         const eObjectMode object_mode = eObjectMode(obact ? obact->mode : OB_MODE_OBJECT);
 

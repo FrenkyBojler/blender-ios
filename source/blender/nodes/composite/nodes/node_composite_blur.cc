@@ -25,14 +25,23 @@
 namespace blender::nodes::node_composite_blur_cc {
 
 static const EnumPropertyItem type_items[] = {
-    {CMP_NODE_BLUR_TYPE_BOX, "FLAT", 0, N_("Flat"), ""},
-    {CMP_NODE_BLUR_TYPE_TENT, "TENT", 0, N_("Tent"), ""},
-    {CMP_NODE_BLUR_TYPE_QUAD, "QUAD", 0, N_("Quadratic"), ""},
-    {CMP_NODE_BLUR_TYPE_CUBIC, "CUBIC", 0, N_("Cubic"), ""},
-    {CMP_NODE_BLUR_TYPE_GAUSS, "GAUSS", 0, N_("Gaussian"), ""},
-    {CMP_NODE_BLUR_TYPE_FAST_GAUSS, "FAST_GAUSS", 0, N_("Fast Gaussian"), ""},
-    {CMP_NODE_BLUR_TYPE_CATROM, "CATROM", 0, N_("Catrom"), ""},
-    {CMP_NODE_BLUR_TYPE_MITCH, "MITCH", 0, N_("Mitch"), ""},
+    {CMP_NODE_BLUR_TYPE_BOX, "FLAT", 0, N_("Flat"), "Applies a box blur filter"},
+    {CMP_NODE_BLUR_TYPE_TENT, "TENT", 0, N_("Tent"), "Applies a triangle blur filter"},
+    {CMP_NODE_BLUR_TYPE_QUAD, "QUAD", 0, N_("Quadratic"), "Applies a quadratic blur filter"},
+    {CMP_NODE_BLUR_TYPE_CUBIC, "CUBIC", 0, N_("Cubic"), "Applies a cubic blur filter"},
+    {CMP_NODE_BLUR_TYPE_GAUSS, "GAUSS", 0, N_("Gaussian"), "Applies a Gaussian blur"},
+    {CMP_NODE_BLUR_TYPE_FAST_GAUSS,
+     "FAST_GAUSS",
+     0,
+     N_("Fast Gaussian"),
+     "Applies a recursive Gaussian blur that can be faster and more accurate in some cases, but "
+     "less accurate in other cases"},
+    {CMP_NODE_BLUR_TYPE_CATROM, "CATROM", 0, N_("Catrom"), "Applies a cubic Catmull-Rom filter"},
+    {CMP_NODE_BLUR_TYPE_MITCH,
+     "MITCH",
+     0,
+     N_("Mitch"),
+     "Applies a cubic Mitchell-Netravali filter"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -40,23 +49,25 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
   b.allow_any_socket_order();
-  b.add_input<decl::Color>("Image")
+  b.add_input<decl::Color>("Image"_ustr)
       .default_value({1.0f, 1.0f, 1.0f, 1.0f})
       .hide_value()
       .structure_type(StructureType::Dynamic);
-  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic).align_with_previous();
+  b.add_output<decl::Color>("Image"_ustr)
+      .structure_type(StructureType::Dynamic)
+      .align_with_previous();
 
-  b.add_input<decl::Vector>("Size")
+  b.add_input<decl::Vector>("Size"_ustr)
       .dimensions(2)
       .default_value({0.0f, 0.0f})
       .min(0.0f)
       .structure_type(StructureType::Dynamic);
-  b.add_input<decl::Menu>("Type")
+  b.add_input<decl::Menu>("Type"_ustr)
       .default_value(CMP_NODE_BLUR_TYPE_GAUSS)
       .static_items(type_items)
       .optional_label();
-  b.add_input<decl::Bool>("Extend Bounds").default_value(false);
-  b.add_input<decl::Bool>("Separable")
+  b.add_input<decl::Bool>("Extend Bounds"_ustr).default_value(false);
+  b.add_input<decl::Bool>("Separable"_ustr)
       .default_value(true)
       .description(
           "Use faster approximation by blurring along the horizontal and vertical directions "
@@ -450,7 +461,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, "CompositorNodeBlur", CMP_NODE_BLUR);
+  cmp_node_type_base(&ntype, "CompositorNodeBlur"_ustr, CMP_NODE_BLUR);
   ntype.ui_name = "Blur";
   ntype.ui_description = "Blur an image, using several blur modes";
   ntype.enum_name_legacy = "BLUR";
