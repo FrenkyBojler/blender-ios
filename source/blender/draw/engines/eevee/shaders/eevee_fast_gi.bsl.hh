@@ -322,7 +322,11 @@ ResultT eval(sampler2D hiz_tx,
           radiance = float3(0);
         }
         /* Discard back-facing samples. */
-        float facing_weight = saturate(-dot(normal, vL_front));
+        float facing = dot(normal, -vL_front);
+        if (facing < 0.0f) {
+          radiance *= uniform_buf.raytrace.backface_hit_scale;
+        }
+        float facing_weight = abs(facing);
 
         /* Angular bias shrinks the visibility bitmask around the projected normal. */
         float2 biased_theta = (theta - vN_angle) * angle_bias;
@@ -582,7 +586,7 @@ void setup([[global_invocation_id]] const uint3 global_id,
   /* Export normal. */
   /* FIXME: This is zero for opaque layer when we are processing the refraction layer.
    * This is because the GBuffer header was cleared in between the layers. The refraction layer
-   * currently have incorrect fast GI comming from opaque layer. */
+   * currently have incorrect fast GI coming from opaque layer. */
   float3 vN = drw_normal_world_to_view(gbuf.surface_N());
 
   if (!is_processed) {
