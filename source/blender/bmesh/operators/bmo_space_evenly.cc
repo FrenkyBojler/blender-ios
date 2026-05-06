@@ -361,11 +361,12 @@ static float3 evaluate_linear(Span<float> tknots,
   int segment = find_spline_segment(tknots, target_distance);
   float seg_start = tknots[segment];
   float seg_end = tknots[segment + 1];
-  float blend = (target_distance - seg_start) / (seg_end - seg_start);
+  float denom = seg_end - seg_start;
+  float factor = denom > 0 ? (target_distance - seg_start) / denom : 0.0f;
   int next_knot = mod_i(segment + 1, coords_x.size());
   float3 start_pos(coords_x[segment], coords_y[segment], coords_z[segment]);
   float3 end_pos(coords_x[next_knot], coords_y[next_knot], coords_z[next_knot]);
-  return math::interpolate(start_pos, end_pos, blend);
+  return math::interpolate(start_pos, end_pos, factor);
 }
 
 /** Evaluates the cubic spline at target_distance. */
