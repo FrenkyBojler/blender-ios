@@ -67,7 +67,7 @@ bool ED_undo_is_valid(const bContext *C, const char *undoname);
 /**
  * Returns true if there are redo steps available.
  */
-bool ED_undo_is_valid_redo(const bContext *C);
+bool ED_undo_has_redo_step(const bContext *C);
 
 bool ED_undo_is_memfile_compatible(const bContext *C);
 

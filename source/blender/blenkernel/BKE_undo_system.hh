@@ -208,7 +208,7 @@ void BKE_undosys_stack_clear_active(UndoStack *ustack);
 /* name optional */
 bool BKE_undosys_stack_has_undo(const UndoStack *ustack, const char *name);
 /**
- * Returns true if there is a redo step from the stacks active step.
+ * Returns true if there is a redo step from the stack's active step.
  */
 bool BKE_undosys_stack_has_redo(const UndoStack *ustack);
 void BKE_undosys_stack_init_from_main(UndoStack *ustack, Main *bmain);
