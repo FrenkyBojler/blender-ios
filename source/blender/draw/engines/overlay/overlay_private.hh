@@ -810,8 +810,7 @@ struct Resources : public select::SelectMap {
        * Prepass will modify depth_target_tx (which points to depth_tx),
        * so we need a copy of original depth to restore later for Axes. */
       if (state.retopology_face_sets_enabled) {
-        this->depth_backup_tx.acquire(render_size,
-                                      gpu::TextureFormat::SFLOAT_32_DEPTH_UINT_8);
+        this->depth_backup_tx.acquire(render_size, gpu::TextureFormat::SFLOAT_32_DEPTH_UINT_8);
         GPU_texture_copy(this->depth_backup_tx, this->depth_tx);
       }
     }

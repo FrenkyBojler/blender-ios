@@ -500,7 +500,7 @@ void Instance::begin_sync()
 
   /* Set flag for Retopology + Face Sets mode (used for depth restoration). */
   state.retopology_face_sets_enabled = regular.meshes.show_retopology() &&
-                                        regular.meshes.show_face_sets();
+                                       regular.meshes.show_face_sets();
 
   grid.begin_sync(resources, state);
   anti_aliasing.begin_sync(resources, state);
