@@ -11,15 +11,15 @@ namespace blender::nodes::node_geo_scan_folder_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::String>("Path")
+  b.add_input<decl::String>("Path"_ustr)
       .subtype(PROP_FILEPATH)
       .path_filter("*.*")
       .description("Path to Folder")
       .optional_label();
-  b.add_input<decl::Bool>("Deep Search");
+  b.add_input<decl::Bool>("Deep Search"_ustr);
 
-  b.add_output<decl::String>("Files").structure_type(StructureType::List);
-  b.add_output<decl::String>("Folders").structure_type(StructureType::List);
+  b.add_output<decl::String>("Files"_ustr).structure_type(StructureType::List);
+  b.add_output<decl::String>("Folders"_ustr).structure_type(StructureType::List);
 }
 
 void append_path_to_string(std::string &target, const std::string &entry_path)
@@ -66,7 +66,7 @@ void bli_scan_folder(const StringRef path,
 static void node_geo_exec(GeoNodeExecParams params)
 {
   const std::optional<std::string> path = params.ensure_absolute_path(
-      params.extract_input<std::string>("Path"));
+      params.extract_input<std::string>("Path"_ustr));
   if (!path) {
     params.set_default_remaining_outputs();
     return;
@@ -74,17 +74,17 @@ static void node_geo_exec(GeoNodeExecParams params)
   Vector<std::string> files;
   Vector<std::string> folders;
 
-  bli_scan_folder(*path, params.extract_input<bool>("Deep Search"), files, folders);
+  bli_scan_folder(*path, params.extract_input<bool>("Deep Search"_ustr), files, folders);
 
-  params.set_output("Files", List::from_container(std::move(files)));
-  params.set_output("Folders", List::from_container(std::move(folders)));
+  params.set_output("Files"_ustr, GList::from_container(std::move(files)));
+  params.set_output("Folders"_ustr, GList::from_container(std::move(folders)));
 }
 
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeScanFolder", GEO_NODE_SCAN_FOLDER);
+  geo_node_type_base(&ntype, "GeometryNodeScanFolder"_ustr, GEO_NODE_SCAN_FOLDER);
   ntype.ui_name = "Scan Folder";
   ntype.enum_name_legacy = "SEARCH_IN_FOLDER";
   ntype.nclass = NODE_CLASS_INPUT;
