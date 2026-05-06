@@ -3020,9 +3020,9 @@ ARegion *tooltip_create_from_panel_category(bContext *C,
                                             const int y);
 
 ARegion *tooltip_create_from_outliner_element(bContext *C,
-                                            const std::string &tip,
-                                            const int x,
-                                            const int y);
+                                              const std::string &tip,
+                                              const int x,
+                                              const int y);
 
 void tooltip_free(bContext *C, bScreen *screen, ARegion *region);
 

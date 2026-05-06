@@ -1804,9 +1804,9 @@ ARegion *tooltip_create_from_panel_category(bContext *C,
 }
 
 ARegion *tooltip_create_from_outliner_element(bContext *C,
-                                            const std::string &tip,
-                                            const int x,
-                                            const int y)
+                                              const std::string &tip,
+                                              const int x,
+                                              const int y)
 {
   std::unique_ptr<TooltipData> data = std::make_unique<TooltipData>();
   tooltip_text_field_add(*data, tip, {}, TIP_STYLE_HEADER, TIP_LC_VALUE, false);

@@ -20,13 +20,13 @@
 
 #include "BLI_fileops.h"
 #include "BLI_listbase.h"
+#include "BLI_math_color.h"
 #include "BLI_math_vector.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
 #include "BLI_utildefines.h"
-#include "BLI_math_color.h"
 
 #include "BLT_translation.hh"
 
@@ -38,6 +38,7 @@
 #include "BKE_gpencil_legacy.h"
 #include "BKE_grease_pencil.hh"
 #include "BKE_idtype.hh"
+#include "BKE_image.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_override.hh"
@@ -50,7 +51,6 @@
 #include "BKE_particle.h"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
-#include "BKE_image.hh"
 
 #include "ANIM_armature.hh"
 #include "ANIM_bone_collections.hh"
@@ -4002,8 +4002,11 @@ static void outliner_update_viewable_area(ARegion *region,
   ui::view2d_totRect_set(&region->v2d, sizex, sizey);
 }
 
-ARegion *tooltip_init(
-    bContext *C, ARegion * /*region*/, int * /*r_pass*/, double * /*pass_delay*/, bool * /*r_exit_on_event*/)
+ARegion *tooltip_init(bContext *C,
+                      ARegion * /*region*/,
+                      int * /*r_pass*/,
+                      double * /*pass_delay*/,
+                      bool * /*r_exit_on_event*/)
 {
   const wmWindow *wm = CTX_wm_window(C);
   const wmEvent *event = wm->runtime->eventstate;
