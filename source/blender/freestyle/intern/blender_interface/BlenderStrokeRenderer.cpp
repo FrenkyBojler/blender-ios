@@ -890,6 +890,9 @@ blender::Render *BlenderStrokeRenderer::RenderScene(blender::Render *re, bool re
   RE_RenderFreestyleStrokes(
       freestyle_render, freestyle_bmain, freestyle_scene, render && get_stroke_count() > 0);
 
+  freestyle_render->pipeline_depsgraph = nullptr;
+  freestyle_render->pipeline_scene_eval = nullptr;
+
   return freestyle_render;
 }
 
