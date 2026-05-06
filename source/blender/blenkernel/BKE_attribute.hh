@@ -67,8 +67,6 @@ const CPPType &attribute_type_to_cpp_type(AttrType type);
 AttrType cpp_type_to_attribute_type(const CPPType &type);
 
 enum class AttrDomain : int8_t {
-  /* All domains. */
-  All = -2,
   /* Used to choose automatically based on other data. */
   Auto = -1,
   /* Mesh, Curve or Point Cloud Point. */
