@@ -350,14 +350,14 @@ class Film {
     return result;
   }
 
- private:
-  void init_aovs(const Set<std::string> &passes_used_by_viewport_compositor);
-  void sync_mist();
-
   /**
    * Precompute sample weights if they are uniform across the whole film extent.
    */
   void update_sample_table();
+
+ private:
+  void init_aovs(const Set<std::string> &passes_used_by_viewport_compositor);
+  void sync_mist();
 
   void init_pass(PassSimple &pass, gpu::Shader *sh);
 };

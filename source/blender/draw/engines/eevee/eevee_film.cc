@@ -859,8 +859,6 @@ void Film::accumulate(View &view, gpu::Texture *combined_final_tx)
     GPU_framebuffer_viewport_set(dfbl->default_fb, UNPACK2(data_.offset), UNPACK2(data_.extent));
   }
 
-  update_sample_table();
-
   combined_final_tx_ = combined_final_tx;
 
   display_only_ = false;
