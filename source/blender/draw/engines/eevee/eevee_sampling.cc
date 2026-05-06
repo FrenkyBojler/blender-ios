@@ -29,8 +29,6 @@ namespace blender::eevee {
 
 void Sampling::init(const Scene *scene)
 {
-  scene_ = scene;
-
   /* Note: Cycles have different option for view layers sample overrides. The current behavior
    * matches the default `Use`, which simply override if non-zero. */
   uint64_t render_sample_count = (inst_.view_layer->samples > 0) ? inst_.view_layer->samples :
@@ -92,6 +90,24 @@ void Sampling::init(const Scene *scene)
 
   clamp_data_.direct_scale = scene->eevee.direct_light_intensity;
   clamp_data_.indirect_scale = scene->eevee.indirect_light_intensity;
+
+  /* Options for overwriting pixel jitter sample position. */
+  PointerRNA prop_scene = RNA_id_pointer_create(const_cast<ID *>(&scene->id));
+  blender::PropertyRNA *override_pixel_jitter_sample_prop = RNA_struct_find_property(
+      &prop_scene, "[\"override_pixel_jitter_sample\"]");
+  use_custom_pixel_jitter_sample_ = false;
+  if (override_pixel_jitter_sample_prop) {
+    const int array_length = RNA_property_array_length(&prop_scene,
+                                                       override_pixel_jitter_sample_prop);
+    if (array_length == 2) {
+      RNA_property_float_get_array(
+          &prop_scene, override_pixel_jitter_sample_prop, &custom_pixel_jitter_sample_[0]);
+      use_custom_pixel_jitter_sample_ = true;
+    }
+    else if (array_length != 0) {
+      printf("%s: scene.custom_pixel_jitter_sample length is not 0 or 2.\n", __func__);
+    }
+  }
 }
 
 void Sampling::init(const Object &probe_object)
@@ -137,24 +153,6 @@ void Sampling::end_sync()
 
 void Sampling::step()
 {
-  /* Options for overwriting pixel jitter sample position. */
-  PointerRNA prop_scene = RNA_id_pointer_create(const_cast<ID *>(&scene_->id));
-  blender::PropertyRNA *override_pixel_jitter_sample_prop = RNA_struct_find_property(
-      &prop_scene, "[\"override_pixel_jitter_sample\"]");
-  use_custom_pixel_jitter_sample_ = false;
-  if (override_pixel_jitter_sample_prop) {
-    const int array_length = RNA_property_array_length(&prop_scene,
-                                                       override_pixel_jitter_sample_prop);
-    if (array_length == 2) {
-      RNA_property_float_get_array(
-          &prop_scene, override_pixel_jitter_sample_prop, &custom_pixel_jitter_sample_[0]);
-      use_custom_pixel_jitter_sample_ = true;
-    }
-    else if (array_length != 0) {
-      printf("%s: scene.custom_pixel_jitter_sample length is not 0 or 2.\n", __func__);
-    }
-  }
-
   {
     /* Repeat the sequence for all pixels that are being up-scaled. */
     uint64_t sample_filter = sample_ / square_i(inst_.film.scaling_factor_get());

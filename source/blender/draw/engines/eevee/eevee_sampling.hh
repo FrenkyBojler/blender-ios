@@ -25,7 +25,6 @@ using SamplingDataBuf = draw::StorageBuffer<SamplingData>;
 class Sampling {
  private:
   Instance &inst_;
-  const Scene *scene_;
 
   /* Number of samples in the first ring of jittered depth of field. */
   static constexpr uint64_t dof_web_density_ = 6;
