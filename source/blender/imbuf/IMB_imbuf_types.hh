@@ -135,24 +135,6 @@ ENUM_OPERATORS(eImBufFlags);
 /** \name ImBuf buffer storage
  * \{ */
 
-/**
- * Specialization of an ownership whenever a bare pointer is provided to the ImBuf buffers
- * assignment API.
- */
-enum ImBufOwnership {
-  /**
-   * The ImBuf simply shares pointer with data owned by someone else, and will not perform any
-   * memory management when the ImBuf frees the buffer.
-   */
-  IB_DO_NOT_TAKE_OWNERSHIP = 0,
-
-  /**
-   * The ImBuf takes ownership of the buffer data, and will use MEM_delete() to free this memory
-   * when the ImBuf needs to free the data.
-   */
-  IB_TAKE_OWNERSHIP = 1,
-};
-
 /* Different storage specialization.
  *
  * NOTE: Avoid direct access. Use the buffer utilities from the IMB_imbuf.hh  instead
