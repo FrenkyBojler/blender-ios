@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 set(DRACO_EXTRA_ARGS
+  -DBUILD_SHARED_LIBS=ON
 )
 
 if(WIN32)
@@ -27,9 +28,25 @@ ExternalProject_Add(external_draco
   INSTALL_DIR ${LIBDIR}/draco
 )
 
-ExternalProject_Add_Step(external_draco after_install
-  COMMAND ${CMAKE_COMMAND} -E copy_directory
-  ${LIBDIR}/draco/
-  ${HARVEST_TARGET}/draco
-  DEPENDEES install
-)
+if(WIN32)
+  ExternalProject_Add_Step(external_draco after_install
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+      ${LIBDIR}/draco/include
+      ${HARVEST_TARGET}/draco/include
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+      ${LIBDIR}/draco/share
+      ${HARVEST_TARGET}/draco/share
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+      ${LIBDIR}/draco/lib
+      ${HARVEST_TARGET}/draco/lib
+
+    DEPENDEES install
+  )
+else()
+  harvest(external_draco draco/include draco/include "*.h")
+  harvest(external_draco draco/share/cmake/draco draco/share/cmake/draco "*.cmake")
+  # Not using harvest_rpath_lib as this shared library is manually loaded a runtime by the glTF add-on.
+  harvest(external_draco draco/lib draco/lib "*${SHAREDLIBEXT}*")
+  # Draco unconditionally builds as a static library, harvest it to satisfy the CMake config target.
+  harvest(external_draco draco/lib draco/lib "*.a")
+endif()
