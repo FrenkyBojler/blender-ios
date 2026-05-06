@@ -8353,14 +8353,14 @@ static bool point_draw_handles(CurveProfilePoint *point)
          point->flag & PROF_H1_SELECT || point->flag & PROF_H2_SELECT;
 }
 
-static short profile_select_to_active(short selection_type)
+static eCurveProfilePoint_Flag profile_select_to_active(eCurveProfilePoint_Flag selection_type)
 {
   /* Active flags are the select flags multiplied by #PROF_ACTIVE.
    * Static asserts ensure this relationship holds if flag values change. */
   static_assert(PROF_ACTIVE == PROF_SELECT * 8);
   static_assert(PROF_H1_ACTIVE == PROF_H1_SELECT * 8);
   static_assert(PROF_H2_ACTIVE == PROF_H2_SELECT * 8);
-  return selection_type * PROF_ACTIVE;
+  return eCurveProfilePoint_Flag(int(selection_type) * int(PROF_ACTIVE));
 }
 
 /**
@@ -8412,7 +8412,7 @@ static int do_but_CURVEPROFILE(
       /* 14 pixels radius for selecting points. */
       float dist_min_sq = square_f(UI_SCALE_FAC * 14.0f);
       int i_selected = -1;
-      short selection_type = 0; /* For handle selection. */
+      eCurveProfilePoint_Flag selection_type = {}; /* For handle selection. */
       for (int i = 0; i < profile->path_len; i++) {
         float f_xy[2];
         BLI_rctf_transform_pt_v(&but->rect, &profile->view_rect, f_xy, &pts[i].x);
@@ -8477,7 +8477,7 @@ static int do_but_CURVEPROFILE(
 
       /* Change the flag for the point(s) if one was selected or added. */
       /* Offset the selection type to get the active type. */
-      const short active_type = profile_select_to_active(selection_type);
+      const eCurveProfilePoint_Flag active_type = profile_select_to_active(selection_type);
       pts = profile->path;
       if (i_selected != -1) {
         /* Deselect all if this one is deselected, except if we hold shift. */
@@ -12212,16 +12212,14 @@ static int pie_handler(bContext *C, const wmEvent *event, PopupBlockHandle *menu
 
         /* handle animation */
         if (!(block->pie_data->flags & PIE_ANIMATION_FINISHED)) {
-          const double final_time = (U.uiflag & USER_REDUCE_MOTION) ?
-                                        0.0f :
-                                        0.01 * U.pie_animation_timeout;
-          float fac = duration / final_time;
-          const float pie_radius = U.pie_menu_radius * UI_SCALE_FAC;
-
-          if (fac > 1.0f) {
+          const bool animate = !(U.uiflag & USER_REDUCE_MOTION) && U.pie_animation_timeout;
+          float fac = animate ? duration / (0.01f * double(U.pie_animation_timeout)) : 1.0f;
+          if (fac >= 1.0f) {
             fac = 1.0f;
             block->pie_data->flags |= PIE_ANIMATION_FINISHED;
           }
+
+          const float pie_radius = U.pie_menu_radius * UI_SCALE_FAC;
 
           for (Button &but : block->buttons()) {
             if (but.pie_dir != UI_RADIAL_NONE) {
