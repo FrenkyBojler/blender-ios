@@ -2848,13 +2848,11 @@ StringRefNull node_socket_sub_type_label(int subtype)
   return "";
 }
 
-bNodeSocket *node_find_socket(bNode &node,
-                              const eNodeSocketInOut in_out,
-                              const StringRef identifier)
+bNodeSocket *node_find_socket(bNode &node, const eNodeSocketInOut in_out, const UString identifier)
 {
   ListBaseT<bNodeSocket> *sockets = (in_out == SOCK_IN) ? &node.inputs : &node.outputs;
   for (bNodeSocket &sock : *sockets) {
-    if (sock.identifier == identifier) {
+    if (sock.identifier_ustr() == identifier) {
       return &sock;
     }
   }
@@ -2863,7 +2861,7 @@ bNodeSocket *node_find_socket(bNode &node,
 
 const bNodeSocket *node_find_socket(const bNode &node,
                                     const eNodeSocketInOut in_out,
-                                    const StringRef identifier)
+                                    const UString identifier)
 {
   /* Reuse the implementation of the mutable accessor. */
   return node_find_socket(*const_cast<bNode *>(&node), in_out, identifier);
