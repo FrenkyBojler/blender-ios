@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include "BLI_enum_flags.hh"
 #include "BLI_math_constants.h"
 
 #include "DNA_armature_types.h"
@@ -17,10 +18,12 @@
 #include "DNA_modifier_enums.h"
 #include "DNA_vec_defaults.h"
 
+namespace blender {
+
 struct LatticeDeformData;
 struct ShrinkwrapTreeData;
 
-enum GpencilModifierMode {
+enum GpencilModifierMode : int {
   eGpencilModifierMode_Realtime = (1 << 0),
   eGpencilModifierMode_Render = (1 << 1),
   eGpencilModifierMode_Editmode = (1 << 2),
@@ -29,13 +32,15 @@ enum GpencilModifierMode {
 #endif
   eGpencilModifierMode_Virtual = (1 << 4),
 };
+ENUM_OPERATORS(GpencilModifierMode)
 
-enum GpencilModifierFlag {
+enum GpencilModifierFlag : short {
   /* This modifier has been inserted in local override, and hence can be fully edited. */
   eGpencilModifierFlag_OverrideLibrary_Local = (1 << 0),
 };
+ENUM_OPERATORS(GpencilModifierFlag)
 
-enum eGpencilModifierSpace {
+enum eGpencilModifierSpace : int {
   GP_SPACE_LOCAL = 0,
   GP_SPACE_WORLD = 1,
 };
@@ -44,7 +49,7 @@ enum eGpencilModifierSpace {
  * (ONLY ADD NEW ITEMS AT THE END)
  */
 
-enum GpencilModifierType {
+enum GpencilModifierType : int {
   eGpencilModifierType_None = 0,
   eGpencilModifierType_Noise = 1,
   eGpencilModifierType_Subdiv = 2,
@@ -79,9 +84,10 @@ enum GpencilModifierType {
 struct GpencilModifierData {
   struct GpencilModifierData *next = nullptr, *prev = nullptr;
 
-  int type = 0, mode = 0;
+  GpencilModifierType type = eGpencilModifierType_None;
+  GpencilModifierMode mode = {};
   char _pad0[4] = {};
-  short flag = 0;
+  GpencilModifierFlag flag = {};
   /* An "expand" bit for each of the modifier's (sub)panels (uiPanelDataExpansion). */
   short ui_expand_flag = 0;
   char name[/*MAX_NAME*/ 64] = "";
@@ -122,14 +128,15 @@ struct NoiseGpencilModifierData {
   struct CurveMapping *curve_intensity = nullptr;
 };
 
-enum eSubdivGpencil_Flag {
+enum eSubdivGpencil_Flag : int {
   GP_SUBDIV_INVERT_LAYER = (1 << 1),
   GP_SUBDIV_INVERT_PASS = (1 << 2),
   GP_SUBDIV_INVERT_LAYERPASS = (1 << 3),
   GP_SUBDIV_INVERT_MATERIAL = (1 << 4),
 };
+ENUM_OPERATORS(eSubdivGpencil_Flag)
 
-enum eSubdivGpencil_Type {
+enum eSubdivGpencil_Type : short {
   GP_SUBDIV_CATMULL = 0,
   GP_SUBDIV_SIMPLE = 1,
 };
@@ -145,17 +152,17 @@ struct SubdivGpencilModifierData {
   /** Custom index for passes. */
   int pass_index = 0;
   /** Flags. */
-  int flag = 0;
+  eSubdivGpencil_Flag flag = {};
   /** Factor of subdivision. */
   int level = 1;
   /** Custom index for passes. */
   int layer_pass = 0;
   /** Type of subdivision */
-  short type = 0;
+  eSubdivGpencil_Type type = GP_SUBDIV_CATMULL;
   char _pad[6] = {};
 };
 
-enum eThickGpencil_Flag {
+enum eThickGpencil_Flag : int {
   GP_THICK_INVERT_LAYER = (1 << 0),
   GP_THICK_INVERT_PASS = (1 << 1),
   GP_THICK_INVERT_VGROUP = (1 << 2),
@@ -165,6 +172,7 @@ enum eThickGpencil_Flag {
   GP_THICK_INVERT_MATERIAL = (1 << 6),
   GP_THICK_WEIGHT_FACTOR = (1 << 7),
 };
+ENUM_OPERATORS(eThickGpencil_Flag)
 
 struct ThickGpencilModifierData {
   GpencilModifierData modifier;
@@ -179,7 +187,7 @@ struct ThickGpencilModifierData {
   /** Custom index for passes. */
   int pass_index = 0;
   /** Flags. */
-  int flag = 0;
+  eThickGpencil_Flag flag = {};
   /** Relative thickness factor. */
   float thickness_fac = 1.0f;
   /** Absolute thickness override. */
@@ -190,14 +198,15 @@ struct ThickGpencilModifierData {
   struct CurveMapping *curve_thickness = nullptr;
 };
 
-enum eTimeGpencil_Flag {
+enum eTimeGpencil_Flag : int {
   GP_TIME_INVERT_LAYER = (1 << 0),
   GP_TIME_KEEP_LOOP = (1 << 1),
   GP_TIME_INVERT_LAYERPASS = (1 << 2),
   GP_TIME_CUSTOM_RANGE = (1 << 3),
 };
+ENUM_OPERATORS(eTimeGpencil_Flag)
 
-enum eTimeGpencil_Mode {
+enum eTimeGpencil_Mode : int {
   GP_TIME_MODE_NORMAL = 0,
   GP_TIME_MODE_REVERSE = 1,
   GP_TIME_MODE_FIX = 2,
@@ -205,7 +214,7 @@ enum eTimeGpencil_Mode {
   GP_TIME_MODE_CHAIN = 4,
 };
 
-enum eTimeGpencil_Seg_Mode {
+enum eTimeGpencil_Seg_Mode : int {
   GP_TIME_SEG_MODE_NORMAL = 0,
   GP_TIME_SEG_MODE_REVERSE = 1,
   GP_TIME_SEG_MODE_PINGPONG = 2,
@@ -217,7 +226,7 @@ struct TimeGpencilModifierSegment {
   struct TimeGpencilModifierData *gpmd = nullptr;
   int seg_start = 1;
   int seg_end = 2;
-  int seg_mode = 0;
+  eTimeGpencil_Seg_Mode seg_mode = GP_TIME_SEG_MODE_NORMAL;
   int seg_repeat = 1;
 };
 
@@ -229,11 +238,11 @@ struct TimeGpencilModifierData {
   /** Custom index for passes. */
   int layer_pass = 0;
   /** Flags. */
-  int flag = GP_TIME_KEEP_LOOP;
+  eTimeGpencil_Flag flag = GP_TIME_KEEP_LOOP;
   int offset = 1;
   /** Animation scale. */
   float frame_scale = 1.0f;
-  int mode = 0;
+  eTimeGpencil_Mode mode = GP_TIME_MODE_NORMAL;
   /** Start and end frame for custom range. */
   int sfra = 1, efra = 250;
 
@@ -244,27 +253,28 @@ struct TimeGpencilModifierData {
   int segment_active_index = 0;
 };
 
-enum eModifyColorGpencil_Flag {
+enum eModifyColorGpencil_Flag : char {
   GP_MODIFY_COLOR_BOTH = 0,
   GP_MODIFY_COLOR_STROKE = 1,
   GP_MODIFY_COLOR_FILL = 2,
   GP_MODIFY_COLOR_HARDNESS = 3,
 };
 
-enum eOpacityModesGpencil_Flag {
+enum eOpacityModesGpencil_Flag : int {
   GP_OPACITY_MODE_MATERIAL = 0,
   GP_OPACITY_MODE_STRENGTH = 1,
 };
 
-enum eColorGpencil_Flag {
+enum eColorGpencil_Flag : int {
   GP_COLOR_INVERT_LAYER = (1 << 1),
   GP_COLOR_INVERT_PASS = (1 << 2),
   GP_COLOR_INVERT_LAYERPASS = (1 << 3),
   GP_COLOR_INVERT_MATERIAL = (1 << 4),
   GP_COLOR_CUSTOM_CURVE = (1 << 5),
 };
+ENUM_OPERATORS(eColorGpencil_Flag)
 
-enum eOpacityGpencil_Flag {
+enum eOpacityGpencil_Flag : int {
   GP_OPACITY_INVERT_LAYER = (1 << 0),
   GP_OPACITY_INVERT_PASS = (1 << 1),
   GP_OPACITY_INVERT_VGROUP = (1 << 2),
@@ -274,6 +284,7 @@ enum eOpacityGpencil_Flag {
   GP_OPACITY_NORMALIZE = (1 << 7),
   GP_OPACITY_WEIGHT_FACTOR = (1 << 8),
 };
+ENUM_OPERATORS(eOpacityGpencil_Flag)
 
 struct ColorGpencilModifierData {
   GpencilModifierData modifier;
@@ -286,11 +297,11 @@ struct ColorGpencilModifierData {
   /** Custom index for passes. */
   int pass_index = 0;
   /** Flags. */
-  int flag = 0;
+  eColorGpencil_Flag flag = {};
   /** HSV factors. */
   float hsv[3] = {0.5f, 1.0f, 1.0f};
   /** Modify stroke, fill or both. */
-  char modify_color = GP_MODIFY_COLOR_BOTH;
+  eModifyColorGpencil_Flag modify_color = GP_MODIFY_COLOR_BOTH;
   char _pad[3] = {};
   /** Custom index for passes. */
   int layer_pass = 0;
@@ -312,11 +323,11 @@ struct OpacityGpencilModifierData {
   /** Custom index for passes. */
   int pass_index = 0;
   /** Flags. */
-  int flag = 0;
+  eOpacityGpencil_Flag flag = {};
   /** Main Opacity factor. */
   float factor = 1.0f;
   /** Modify stroke, fill or both. */
-  char modify_color = GP_MODIFY_COLOR_BOTH;
+  eModifyColorGpencil_Flag modify_color = GP_MODIFY_COLOR_BOTH;
   char _pad[3] = {};
   /** Custom index for passes. */
   int layer_pass = 0;
@@ -325,13 +336,14 @@ struct OpacityGpencilModifierData {
   struct CurveMapping *curve_intensity = nullptr;
 };
 
-enum eOutlineGpencil_Flag {
+enum eOutlineGpencil_Flag : int {
   GP_OUTLINE_INVERT_LAYER = (1 << 0),
   GP_OUTLINE_INVERT_PASS = (1 << 1),
   GP_OUTLINE_INVERT_LAYERPASS = (1 << 2),
   GP_OUTLINE_INVERT_MATERIAL = (1 << 3),
   GP_OUTLINE_KEEP_SHAPE = (1 << 4),
 };
+ENUM_OPERATORS(eOutlineGpencil_Flag)
 
 struct OutlineGpencilModifierData {
   GpencilModifierData modifier;
@@ -344,7 +356,7 @@ struct OutlineGpencilModifierData {
   /** Custom index for passes. */
   int pass_index = 0;
   /** Flags. */
-  int flag = GP_OUTLINE_KEEP_SHAPE;
+  eOutlineGpencil_Flag flag = GP_OUTLINE_KEEP_SHAPE;
   /** Thickness. */
   int thickness = 1;
   /** Sample Length. */
@@ -393,7 +405,7 @@ struct ArrayGpencilModifierData {
   int layer_pass = 0;
 };
 
-enum eBuildGpencil_Mode {
+enum eBuildGpencil_Mode : short {
   /* Strokes are shown one by one until all have appeared */
   GP_BUILD_MODE_SEQUENTIAL = 0,
   /* All strokes start at the same time */
@@ -402,7 +414,7 @@ enum eBuildGpencil_Mode {
   GP_BUILD_MODE_ADDITIVE = 2,
 };
 
-enum eBuildGpencil_Transition {
+enum eBuildGpencil_Transition : short {
   /* Show in forward order */
   GP_BUILD_TRANSITION_GROW = 0,
   /* Hide in reverse order */
@@ -411,7 +423,7 @@ enum eBuildGpencil_Transition {
   GP_BUILD_TRANSITION_VANISH = 2,
 };
 
-enum eBuildGpencil_TimeAlignment {
+enum eBuildGpencil_TimeAlignment : short {
   /* All strokes start at same time */
   GP_BUILD_TIMEALIGN_START = 0,
   /* All strokes end at same time */
@@ -420,7 +432,7 @@ enum eBuildGpencil_TimeAlignment {
   /* TODO: Random Offsets, Stretch-to-Fill */
 };
 
-enum eBuildGpencil_TimeMode {
+enum eBuildGpencil_TimeMode : short {
   /** Use a number of frames build. */
   GP_BUILD_TIMEMODE_FRAMES = 0,
   /** Use manual percentage to build. */
@@ -429,7 +441,7 @@ enum eBuildGpencil_TimeMode {
   GP_BUILD_TIMEMODE_DRAWSPEED = 2,
 };
 
-enum eBuildGpencil_Flag {
+enum eBuildGpencil_Flag : short {
   /* Restrict modifier to particular layer/passes? */
   GP_BUILD_INVERT_LAYER = (1 << 0),
   GP_BUILD_INVERT_PASS = (1 << 1),
@@ -439,6 +451,7 @@ enum eBuildGpencil_Flag {
   GP_BUILD_INVERT_LAYERPASS = (1 << 3),
   GP_BUILD_USE_FADING = (1 << 4),
 };
+ENUM_OPERATORS(eBuildGpencil_Flag)
 
 struct BuildGpencilModifierData {
   GpencilModifierData modifier;
@@ -467,26 +480,25 @@ struct BuildGpencilModifierData {
   /** For each pair of gp keys, number of frames that build effect must be completed within. */
   float length = 100.0f;
 
-  /** (eGpencilBuild_Flag) Options for controlling modifier behavior. */
-  short flag = 0;
+  /** Options for controlling modifier behavior. */
+  eBuildGpencil_Flag flag = {};
 
-  /** (eGpencilBuild_Mode) How are strokes ordered. */
-  short mode = 0;
-  /** (eGpencilBuild_Transition) In what order do stroke points appear/disappear. */
-  short transition = 0;
+  /** How are strokes ordered. */
+  eBuildGpencil_Mode mode = GP_BUILD_MODE_SEQUENTIAL;
+  /** In what order do stroke points appear/disappear. */
+  eBuildGpencil_Transition transition = GP_BUILD_TRANSITION_GROW;
 
   /**
-   * (eBuildGpencil_TimeAlignment)
    * For the "Concurrent" mode, when should "shorter" strips start/end.
    */
-  short time_alignment = 0;
+  eBuildGpencil_TimeAlignment time_alignment = GP_BUILD_TIMEALIGN_START;
 
   /** Speed factor for #GP_BUILD_TIMEMODE_DRAWSPEED. */
   float speed_fac = 1.2f;
   /** Maximum time gap between strokes for #GP_BUILD_TIMEMODE_DRAWSPEED. */
   float speed_maxgap = 0.5f;
   /** Which time mode should be used. */
-  short time_mode = 0;
+  eBuildGpencil_TimeMode time_mode = GP_BUILD_TIMEMODE_FRAMES;
   char _pad[6] = {};
 
   /** Build origin control object. */
@@ -504,6 +516,15 @@ struct BuildGpencilModifierData {
   float fade_thickness_strength = 0;
 };
 
+enum eLatticeGpencil_Flag : int {
+  GP_LATTICE_INVERT_LAYER = (1 << 0),
+  GP_LATTICE_INVERT_PASS = (1 << 1),
+  GP_LATTICE_INVERT_VGROUP = (1 << 2),
+  GP_LATTICE_INVERT_LAYERPASS = (1 << 3),
+  GP_LATTICE_INVERT_MATERIAL = (1 << 4),
+};
+ENUM_OPERATORS(eLatticeGpencil_Flag)
+
 struct LatticeGpencilModifierData {
   GpencilModifierData modifier;
   struct Object *object = nullptr;
@@ -518,20 +539,12 @@ struct LatticeGpencilModifierData {
   /** Custom index for passes. */
   int pass_index = 0;
   /** Flags. */
-  int flag = 0;
+  eLatticeGpencil_Flag flag = {};
   float strength = 1.0f;
   /** Custom index for passes. */
   int layer_pass = 0;
   /** Runtime only. */
   struct LatticeDeformData *cache_data = nullptr;
-};
-
-enum eLatticeGpencil_Flag {
-  GP_LATTICE_INVERT_LAYER = (1 << 0),
-  GP_LATTICE_INVERT_PASS = (1 << 1),
-  GP_LATTICE_INVERT_VGROUP = (1 << 2),
-  GP_LATTICE_INVERT_LAYERPASS = (1 << 3),
-  GP_LATTICE_INVERT_MATERIAL = (1 << 4),
 };
 
 struct LengthGpencilModifierData {
@@ -565,13 +578,14 @@ struct LengthGpencilModifierData {
   float max_angle = DEG2RAD(170.0f);
 };
 
-enum eDashGpencil_Flag {
+enum eDashGpencil_Flag : int {
   GP_DASH_INVERT_LAYER = (1 << 0),
   GP_DASH_INVERT_PASS = (1 << 1),
   GP_DASH_INVERT_LAYERPASS = (1 << 2),
   GP_DASH_INVERT_MATERIAL = (1 << 3),
   GP_DASH_USE_CYCLIC = (1 << 7),
 };
+ENUM_OPERATORS(eDashGpencil_Flag)
 
 struct DashGpencilModifierSegment {
   char name[64] = "";
@@ -594,7 +608,7 @@ struct DashGpencilModifierData {
   /** Custom index for passes. */
   int pass_index = 0;
   /** Flags. */
-  int flag = 0;
+  eDashGpencil_Flag flag = {};
   /** Custom index for passes. */
   int layer_pass = 0;
 
@@ -605,7 +619,7 @@ struct DashGpencilModifierData {
   int segment_active_index = 0;
 };
 
-enum eMirrorGpencil_Flag {
+enum eMirrorGpencil_Flag : int {
   GP_MIRROR_INVERT_LAYER = (1 << 0),
   GP_MIRROR_INVERT_PASS = (1 << 1),
   GP_MIRROR_CLIPPING = (1 << 2),
@@ -615,6 +629,7 @@ enum eMirrorGpencil_Flag {
   GP_MIRROR_INVERT_LAYERPASS = (1 << 6),
   GP_MIRROR_INVERT_MATERIAL = (1 << 7),
 };
+ENUM_OPERATORS(eMirrorGpencil_Flag)
 
 struct MirrorGpencilModifierData {
   GpencilModifierData modifier;
@@ -628,13 +643,13 @@ struct MirrorGpencilModifierData {
   /** Custom index for passes. */
   int pass_index = 0;
   /** Flags. */
-  int flag = GP_MIRROR_AXIS_X;
+  eMirrorGpencil_Flag flag = GP_MIRROR_AXIS_X;
   /** Custom index for passes. */
   int layer_pass = 0;
   char _pad[4] = {};
 };
 
-enum eHookGpencil_Flag {
+enum eHookGpencil_Flag : int {
   GP_HOOK_INVERT_LAYER = (1 << 0),
   GP_HOOK_INVERT_PASS = (1 << 1),
   GP_HOOK_INVERT_VGROUP = (1 << 2),
@@ -642,8 +657,9 @@ enum eHookGpencil_Flag {
   GP_HOOK_INVERT_LAYERPASS = (1 << 4),
   GP_HOOK_INVERT_MATERIAL = (1 << 5),
 };
+ENUM_OPERATORS(eHookGpencil_Flag)
 
-enum eHookGpencil_Falloff {
+enum eHookGpencil_Falloff : char {
   eGPHook_Falloff_None = 0,
   eGPHook_Falloff_Curve = 1,
   eGPHook_Falloff_Sharp = 2,
@@ -678,9 +694,8 @@ struct HookGpencilModifierData {
   int layer_pass = 0;
   char _pad[4] = {};
 
-  int flag = 0;
-  /** #eHookGpencil_Falloff. */
-  char falloff_type = eGPHook_Falloff_Smooth;
+  eHookGpencil_Flag flag = {};
+  eHookGpencil_Falloff falloff_type = eGPHook_Falloff_Smooth;
   char _pad1[3] = {};
   /** Matrix making current transform unmodified. */
   float parentinv[4][4] = _DNA_DEFAULT_UNIT_M4;
@@ -692,14 +707,15 @@ struct HookGpencilModifierData {
   struct CurveMapping *curfalloff = nullptr;
 };
 
-enum eSimplifyGpencil_Flag {
+enum eSimplifyGpencil_Flag : int {
   GP_SIMPLIFY_INVERT_LAYER = (1 << 0),
   GP_SIMPLIFY_INVERT_PASS = (1 << 1),
   GP_SIMPLIFY_INVERT_LAYERPASS = (1 << 2),
   GP_SIMPLIFY_INVERT_MATERIAL = (1 << 3),
 };
+ENUM_OPERATORS(eSimplifyGpencil_Flag)
 
-enum eSimplifyGpencil_Mode {
+enum eSimplifyGpencil_Mode : short {
   /* Keep only one vertex every n vertices */
   GP_SIMPLIFY_FIXED = 0,
   /* Use RDP algorithm */
@@ -721,11 +737,11 @@ struct SimplifyGpencilModifierData {
   /** Custom index for passes. */
   int pass_index = 0;
   /** Flags. */
-  int flag = 0;
+  eSimplifyGpencil_Flag flag = {};
   /** Factor of simplify. */
   float factor = 0.0f;
   /** Type of simplify. */
-  short mode = 0;
+  eSimplifyGpencil_Mode mode = GP_SIMPLIFY_FIXED;
   /** Every n vertex to keep. */
   short step = 1;
   /** Custom index for passes. */
@@ -738,15 +754,14 @@ struct SimplifyGpencilModifierData {
   float distance = 0.1f;
 };
 
-enum eOffsetGpencil_Mode {
+enum eOffsetGpencil_Mode : int {
   GP_OFFSET_RANDOM = 0,
   GP_OFFSET_LAYER = 1,
   GP_OFFSET_MATERIAL = 2,
-  GP_OFFSET_STROKE = 3
-
+  GP_OFFSET_STROKE = 3,
 };
 
-enum eOffsetGpencil_Flag {
+enum eOffsetGpencil_Flag : int {
   GP_OFFSET_INVERT_LAYER = (1 << 0),
   GP_OFFSET_INVERT_PASS = (1 << 1),
   GP_OFFSET_INVERT_VGROUP = (1 << 2),
@@ -754,6 +769,7 @@ enum eOffsetGpencil_Flag {
   GP_OFFSET_INVERT_MATERIAL = (1 << 4),
   GP_OFFSET_UNIFORM_RANDOM_SCALE = (1 << 5),
 };
+ENUM_OPERATORS(eOffsetGpencil_Flag)
 
 struct OffsetGpencilModifierData {
   GpencilModifierData modifier;
@@ -768,7 +784,7 @@ struct OffsetGpencilModifierData {
   /** Custom index for passes. */
   int pass_index = 0;
   /** Flags. */
-  int flag = 0;
+  eOffsetGpencil_Flag flag = {};
   float loc[3] = {0.0f, 0.0f, 0.0f};
   float rot[3] = {0.0f, 0.0f, 0.0f};
   float scale[3] = {0.0f, 0.0f, 0.0f};
@@ -780,14 +796,14 @@ struct OffsetGpencilModifierData {
   float rnd_scale[3] = {};
   /** (first element is the index) random values. */
   int seed = 0;
-  int mode = GP_OFFSET_RANDOM;
+  eOffsetGpencil_Mode mode = GP_OFFSET_RANDOM;
   int stroke_step = 1;
   int stroke_start_offset = 0;
   int layer_pass = 0;
   char _pad[4] = {};
 };
 
-enum eSmoothGpencil_Flag {
+enum eSmoothGpencil_Flag : int {
   GP_SMOOTH_MOD_LOCATION = (1 << 0),
   GP_SMOOTH_MOD_STRENGTH = (1 << 1),
   GP_SMOOTH_MOD_THICKNESS = (1 << 2),
@@ -800,6 +816,7 @@ enum eSmoothGpencil_Flag {
   GP_SMOOTH_CUSTOM_CURVE = (1 << 8),
   GP_SMOOTH_KEEP_SHAPE = (1 << 9),
 };
+ENUM_OPERATORS(eSmoothGpencil_Flag)
 
 struct SmoothGpencilModifierData {
   GpencilModifierData modifier;
@@ -814,7 +831,7 @@ struct SmoothGpencilModifierData {
   /** Custom index for passes. */
   int pass_index = 0;
   /** Several flags. */
-  int flag = GP_SMOOTH_MOD_LOCATION;
+  eSmoothGpencil_Flag flag = GP_SMOOTH_MOD_LOCATION;
   /** Factor of smooth. */
   float factor = 1.0f;
   /** How many times apply smooth. */
@@ -837,10 +854,11 @@ struct ArmatureGpencilModifierData {
   char vgname[/*MAX_VGROUP_NAME*/ 64] = "";
 };
 
-enum eMultiplyGpencil_Flag {
+enum eMultiplyGpencil_Flag : int {
   /* GP_MULTIPLY_ENABLE_ANGLE_SPLITTING = (1 << 1),  Deprecated. */
   GP_MULTIPLY_ENABLE_FADING = (1 << 2),
 };
+ENUM_OPERATORS(eMultiplyGpencil_Flag)
 
 struct MultiplyGpencilModifierData {
   GpencilModifierData modifier;
@@ -857,7 +875,7 @@ struct MultiplyGpencilModifierData {
   /** Custom index for passes. */
   int layer_pass = 0;
 
-  int flags = 0;
+  eMultiplyGpencil_Flag flags = {};
 
   int duplications = 3;
   float distance = 0.1f;
@@ -869,12 +887,12 @@ struct MultiplyGpencilModifierData {
   float fading_opacity = 0.5f;
 };
 
-enum eTintGpencil_Type {
+enum eTintGpencil_Type : int {
   GP_TINT_UNIFORM = 0,
   GP_TINT_GRADIENT = 1,
 };
 
-enum eTintGpencil_Flag {
+enum eTintGpencil_Flag : int {
   GP_TINT_INVERT_LAYER = (1 << 0),
   GP_TINT_INVERT_PASS = (1 << 1),
   GP_TINT_INVERT_VGROUP = (1 << 2),
@@ -883,6 +901,7 @@ enum eTintGpencil_Flag {
   GP_TINT_CUSTOM_CURVE = (1 << 6),
   GP_TINT_WEIGHT_FACTOR = (1 << 7),
 };
+ENUM_OPERATORS(eTintGpencil_Flag)
 
 struct TintGpencilModifierData {
   GpencilModifierData modifier;
@@ -901,7 +920,7 @@ struct TintGpencilModifierData {
   /** Custom index for passes. */
   int layer_pass = 0;
   /** Flags. */
-  int flag = 0;
+  eTintGpencil_Flag flag = {};
   /** Mode (Stroke/Fill/Both). */
   int mode = GPPAINT_MODE_BOTH;
 
@@ -910,23 +929,24 @@ struct TintGpencilModifierData {
   /** Simple Tint color. */
   float rgb[3] = {1.0f, 1.0f, 1.0f};
   /** Type of Tint. */
-  int type = 0;
+  eTintGpencil_Type type = GP_TINT_UNIFORM;
 
   struct CurveMapping *curve_intensity = nullptr;
 
   struct ColorBand *colorband = nullptr;
 };
 
-enum eTextureGpencil_Flag {
+enum eTextureGpencil_Flag : int {
   GP_TEX_INVERT_LAYER = (1 << 0),
   GP_TEX_INVERT_PASS = (1 << 1),
   GP_TEX_INVERT_VGROUP = (1 << 2),
   GP_TEX_INVERT_LAYERPASS = (1 << 3),
   GP_TEX_INVERT_MATERIAL = (1 << 4),
 };
+ENUM_OPERATORS(eTextureGpencil_Flag)
 
 /* Texture->mode */
-enum eTextureGpencil_Mode {
+enum eTextureGpencil_Mode : short {
   STROKE = 0,
   FILL = 1,
   STROKE_AND_FILL = 2,
@@ -945,7 +965,7 @@ struct TextureGpencilModifierData {
   /** Custom index for passes. */
   int pass_index = 0;
   /** Flags. */
-  int flag = 0;
+  eTextureGpencil_Flag flag = {};
   /** Offset value to add to uv_fac. */
   float uv_offset = 0.0f;
   float uv_scale = 1.0f;
@@ -956,13 +976,13 @@ struct TextureGpencilModifierData {
   int layer_pass = 0;
   /** Texture fit options. */
   short fit_method = GP_TEX_CONSTANT_LENGTH;
-  short mode = 0;
+  eTextureGpencil_Mode mode = STROKE;
   /** Dot texture rotation */
   float alignment_rotation = 0;
   char _pad[4] = {};
 };
 
-enum eWeightGpencil_Flag {
+enum eWeightGpencil_Flag : int {
   GP_WEIGHT_INVERT_LAYER = (1 << 0),
   GP_WEIGHT_INVERT_PASS = (1 << 1),
   GP_WEIGHT_INVERT_VGROUP = (1 << 2),
@@ -971,6 +991,7 @@ enum eWeightGpencil_Flag {
   GP_WEIGHT_MULTIPLY_DATA = (1 << 5),
   GP_WEIGHT_INVERT_OUTPUT = (1 << 6),
 };
+ENUM_OPERATORS(eWeightGpencil_Flag)
 
 struct WeightProxGpencilModifierData {
   GpencilModifierData modifier;
@@ -985,7 +1006,7 @@ struct WeightProxGpencilModifierData {
   /** Custom index for passes. */
   int pass_index = 0;
   /** Flags. */
-  int flag = 0;
+  eWeightGpencil_Flag flag = {};
   /** Minimum valid weight (clamp value). */
   float min_weight = 0;
   /** Custom index for passes. */
@@ -1011,7 +1032,7 @@ struct WeightAngleGpencilModifierData {
   /** Custom index for passes. */
   int pass_index = 0;
   /** Flags. */
-  int flag = 0;
+  eWeightGpencil_Flag flag = {};
   /** Minimum valid weight (clamp value). */
   float min_weight = 0;
   /** Custom index for passes. */
@@ -1023,6 +1044,20 @@ struct WeightAngleGpencilModifierData {
   /** Angle */
   float angle = 0;
 };
+
+/* This enum is for modifier internal state only. */
+enum eLineArtGPencilModifierFlags : int {
+  /* These two moved to #eLineartMainFlags to keep consistent with flag variable purpose. */
+  /* MOD_LINEART_INVERT_SOURCE_VGROUP = (1 << 0), */
+  /* MOD_LINEART_MATCH_OUTPUT_VGROUP = (1 << 1), */
+  MOD_LINEART_BINARY_WEIGHTS = (1 << 2) /* Deprecated, this is removed for lack of use case. */,
+  MOD_LINEART_IS_BAKED = (1 << 3),
+  MOD_LINEART_USE_CACHE = (1 << 4),
+  MOD_LINEART_OFFSET_TOWARDS_CUSTOM_CAMERA = (1 << 5),
+  MOD_LINEART_INVERT_COLLECTION = (1 << 6),
+  MOD_LINEART_INVERT_SILHOUETTE_FILTER = (1 << 7),
+};
+ENUM_OPERATORS(eLineArtGPencilModifierFlags);
 
 struct LineartCache;
 
@@ -1091,14 +1126,15 @@ struct LineartGpencilModifierData {
   /* CPU mode */
   float chaining_image_threshold = 0.001f;
 
-  /* eLineartMainFlags, for one time calculation. */
-  int calculation_flags = MOD_LINEART_ALLOW_DUPLI_OBJECTS | MOD_LINEART_ALLOW_CLIPPING_BOUNDARIES |
-                          MOD_LINEART_USE_CREASE_ON_SHARP_EDGES |
-                          MOD_LINEART_FILTER_FACE_MARK_KEEP_CONTOUR |
-                          MOD_LINEART_MATCH_OUTPUT_VGROUP;
+  /* For one time calculation. */
+  eLineartMainFlags calculation_flags = MOD_LINEART_ALLOW_DUPLI_OBJECTS |
+                                        MOD_LINEART_ALLOW_CLIPPING_BOUNDARIES |
+                                        MOD_LINEART_USE_CREASE_ON_SHARP_EDGES |
+                                        MOD_LINEART_FILTER_FACE_MARK_KEEP_CONTOUR |
+                                        MOD_LINEART_MATCH_OUTPUT_VGROUP;
 
-  /* #eLineArtGPencilModifierFlags, modifier internal state. */
-  int flags = 0;
+  /* Modifier internal state. */
+  eLineArtGPencilModifierFlags flags = {};
 
   /* Move strokes towards camera to avoid clipping while preserve depth for the viewport. */
   float stroke_depth_offset = 0.05;
@@ -1121,7 +1157,7 @@ struct LineartGpencilModifierData {
   struct LineartData *la_data_ptr = nullptr;
 };
 
-enum eShrinkwrapGpencil_Flag {
+enum eShrinkwrapGpencil_Flag : int {
   GP_SHRINKWRAP_INVERT_LAYER = (1 << 0),
   GP_SHRINKWRAP_INVERT_PASS = (1 << 1),
   GP_SHRINKWRAP_INVERT_LAYERPASS = (1 << 3),
@@ -1129,6 +1165,7 @@ enum eShrinkwrapGpencil_Flag {
   /* Keep next bit as is to be equals to mesh modifier flag to reuse functions. */
   GP_SHRINKWRAP_INVERT_VGROUP = (1 << 6),
 };
+ENUM_OPERATORS(eShrinkwrapGpencil_Flag)
 
 struct ShrinkwrapGpencilModifierData {
   GpencilModifierData modifier;
@@ -1145,7 +1182,7 @@ struct ShrinkwrapGpencilModifierData {
   /** Custom index for passes. */
   int pass_index = 0;
   /** Flags. */
-  int flag = 0;
+  eShrinkwrapGpencil_Flag flag = {};
   /** Custom index for passes. */
   int layer_pass = 0;
   /** Distance offset to keep from mesh/projection point. */
@@ -1176,16 +1213,16 @@ struct ShrinkwrapGpencilModifierData {
   struct ShrinkwrapTreeData *cache_data = nullptr;
 };
 
-enum eEnvelopeGpencil_Flag {
+enum eEnvelopeGpencil_Flag : int {
   GP_ENVELOPE_INVERT_LAYER = (1 << 0),
   GP_ENVELOPE_INVERT_PASS = (1 << 1),
   GP_ENVELOPE_INVERT_VGROUP = (1 << 2),
   GP_ENVELOPE_INVERT_LAYERPASS = (1 << 3),
   GP_ENVELOPE_INVERT_MATERIAL = (1 << 4),
 };
+ENUM_OPERATORS(eEnvelopeGpencil_Flag)
 
-/* Texture->mode */
-enum eEnvelopeGpencil_Mode {
+enum eEnvelopeGpencil_Mode : int {
   GP_ENVELOPE_DEFORM = 0,
   GP_ENVELOPE_SEGMENTS = 1,
   GP_ENVELOPE_FILLS = 2,
@@ -1202,8 +1239,8 @@ struct EnvelopeGpencilModifierData {
   /** Custom index for passes. */
   int pass_index = 0;
   /** Several flags. */
-  int flag = 0;
-  int mode = GP_ENVELOPE_SEGMENTS;
+  eEnvelopeGpencil_Flag flag = {};
+  eEnvelopeGpencil_Mode mode = GP_ENVELOPE_SEGMENTS;
   /** Material for the new strokes. */
   int mat_nr = -1;
   /** Thickness multiplier for the new strokes. */
@@ -1219,3 +1256,5 @@ struct EnvelopeGpencilModifierData {
 
   char _pad[4] = {};
 };
+
+}  // namespace blender

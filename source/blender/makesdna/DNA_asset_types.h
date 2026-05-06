@@ -12,19 +12,16 @@
 #include "DNA_listBase.h"
 #include "DNA_uuid_types.h"
 
-#ifdef __cplusplus
-#  include <memory>
+#include <memory>
 
 namespace blender {
+
 class StringRef;
-}
-namespace blender::asset_system {
+namespace asset_system {
 class AssetLibrary;
-}  // namespace blender::asset_system
+}  // namespace asset_system
 
-#endif
-
-enum eAssetLibraryType {
+enum eAssetLibraryType : short {
   /** Display assets from the current session (current "Main"). */
   ASSET_LIBRARY_LOCAL = 1,
   ASSET_LIBRARY_ALL = 2,
@@ -39,7 +36,7 @@ enum eAssetLibraryType {
   ASSET_LIBRARY_CUSTOM = 100,
 };
 
-enum eAssetImportMethod {
+enum eAssetImportMethod : int {
   /** Regular data-block linking. */
   ASSET_IMPORT_LINK = 0,
   /** Regular data-block appending (basically linking + "Make Local"). */
@@ -52,8 +49,10 @@ enum eAssetImportMethod {
   ASSET_IMPORT_PACK = 3,
 };
 
-enum eAssetLibrary_Flag {
+enum eAssetLibrary_Flag : int {
   ASSET_LIBRARY_RELATIVE_PATH = (1 << 0),
+  ASSET_LIBRARY_DISABLED = (1 << 1),
+  ASSET_LIBRARY_USE_REMOTE_URL = (1 << 2),
 };
 
 /**
@@ -141,7 +140,7 @@ struct AssetImportSettings {
  * custom library. Otherwise it is not used.
  */
 struct AssetLibraryReference {
-  short type = ASSET_LIBRARY_LOCAL; /* eAssetLibraryType */
+  eAssetLibraryType type = ASSET_LIBRARY_LOCAL;
   char _pad1[2] = {};
   /**
    * If showing a custom asset library (#ASSET_LIBRARY_CUSTOM), this is the index of the
@@ -170,7 +169,7 @@ struct AssetLibraryReference {
 struct AssetWeakReference {
   char _pad[6] = {};
 
-  short asset_library_type = 0; /* #eAssetLibraryType */
+  eAssetLibraryType asset_library_type = {};
   /** If #asset_library_type is not enough to identify the asset library, this string can provide
    * further location info (allocated string). Null otherwise. */
   const char *asset_library_identifier = nullptr;
@@ -194,8 +193,8 @@ struct AssetWeakReference {
   /**
    * See AssetRepresentation::make_weak_reference().
    */
-  static AssetWeakReference make_reference(const blender::asset_system::AssetLibrary &library,
-                                           blender::StringRef library_relative_identifier);
+  static AssetWeakReference make_reference(const asset_system::AssetLibrary &library,
+                                           StringRef library_relative_identifier);
 #endif
 };
 
@@ -203,3 +202,5 @@ struct AssetCatalogPathLink {
   struct AssetCatalogPathLink *next = nullptr, *prev = nullptr;
   char *path = nullptr;
 };
+
+}  // namespace blender
