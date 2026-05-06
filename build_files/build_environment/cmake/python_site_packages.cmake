@@ -47,6 +47,7 @@ ExternalProject_Add(external_python_site_packages
       certifi==${CERTIFI_VERSION}
       requests==${REQUESTS_VERSION}
       autopep8==${AUTOPEP8_VERSION}
+      docutils==${DOCUTILS_VERSION}
       pycodestyle==${PYCODESTYLE_VERSION}
       meson==${MESON_VERSION}
       attrs==${ATTRS_VERSION}
