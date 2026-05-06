@@ -20,21 +20,31 @@ namespace blender::nodes::node_geo_attribute_list_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Geometry>("Geometry"_ustr);
-
-  b.add_input<decl::Bool>("Filter Data Type"_ustr).default_value(true);
-  b.add_input<decl::Menu>("Data Type"_ustr)
-      .static_items(rna_enum_attribute_type_items)
-      .default_value(CD_PROP_FLOAT)
-      .optional_label();
-
-  b.add_input<decl::Bool>("Filter Domain"_ustr).default_value(true);
-  b.add_input<decl::Menu>("Domain"_ustr)
-      .static_items(rna_enum_attribute_domain_items)
-      .default_value(AttrDomain::Point)
-      .optional_label();
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
 
   b.add_output<decl::String>("Names"_ustr).structure_type(StructureType::List);
+
+  b.add_input<decl::Geometry>("Geometry"_ustr);
+
+  {
+    auto &p = b.add_panel("Filter Data Type"_ustr);
+    p.add_input<decl::Bool>("Filter Data Type"_ustr).panel_toggle();
+    p.add_input<decl::Menu>("Data Type"_ustr)
+        .static_items(rna_enum_attribute_type_items)
+        .default_value(CD_PROP_FLOAT)
+        .optional_label()
+        .usage_by_panel_toggle();
+  }
+  {
+    auto &p = b.add_panel("Filter Domain"_ustr);
+    p.add_input<decl::Bool>("Filter Domain"_ustr).panel_toggle();
+    p.add_input<decl::Menu>("Domain"_ustr)
+        .static_items(rna_enum_attribute_domain_items)
+        .default_value(AttrDomain::Point)
+        .optional_label()
+        .usage_by_panel_toggle();
+  }
 }
 
 static bool component_is_available(const GeometrySet &geometry,
@@ -127,6 +137,7 @@ static void node_register()
   ntype.nclass = NODE_CLASS_ATTRIBUTE;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
+  bke::node_type_size(ntype, 160, 100, NODE_DEFAULT_MAX_WIDTH);
   blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)

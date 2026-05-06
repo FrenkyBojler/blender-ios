@@ -469,6 +469,14 @@ class BaseSocketDeclarationBuilder {
                                               const Array<int> menu_values);
 
   /**
+   * Utility method for the case when this socket is only used when the given boolean input matches
+   * the specified value.
+   */
+  BaseSocketDeclarationBuilder &usage_by_bool(UString bool_input_identifier, bool value);
+
+  BaseSocketDeclarationBuilder &usage_by_panel_toggle();
+
+  /**
    * Puts this socket on the same row as the previous socket. This only works when one of them is
    * an input and the other is an output.
    */
