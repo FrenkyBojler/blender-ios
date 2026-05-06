@@ -122,8 +122,9 @@ static bool change_frame_poll(bContext *C)
       if (!CTX_data_sequencer_scene(C)) {
         return false;
       }
-      /* Check the region type so tools (which are shared between preview/strip view)
-       * don't conflict with actions which can have the same key bound (2D cursor for example). */
+      /* In the combined sequencer/preview view, both window and preview regions share an active
+       * tool, so check the type to avoid conflicts with actions which can have the same key bound
+       * (2D cursor for example). */
       const ARegion *region = CTX_wm_region(C);
       if (region && ELEM(region->regiontype, RGN_TYPE_WINDOW, RGN_TYPE_PLAYBACK_SCRUBBING)) {
         return true;
