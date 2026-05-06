@@ -140,7 +140,7 @@ float compute_rounded_square_radius(float2 coord, const float roundness)
 float compute_rounded_square_mask(float2 coord,
                                   float2 abs_mask_size,
                                   const float roundness,
-                                  const float hardness,
+                                  const float falloff_hardness,
                                   const float ellipse_height,
                                   const float ellipse_width,
                                   const float inflection_midpoint)
@@ -164,14 +164,14 @@ float compute_rounded_square_mask(float2 coord,
         /* coord is outside of the mask. */
         return 0.0f;
       }
-      else if (abs(coord.x) <= (hardness * abs_mask_size.x)) {
+      else if (abs(coord.x) <= (falloff_hardness * abs_mask_size.x)) {
         /* coord is in the constant part of the mask. */
         return 1.0f;
       }
       else {
         /* coord is in the falloff part of the mask. */
         return elliptical_unit_step_without_constant_part(
-            inverse_mix(abs_mask_size.x, hardness * abs_mask_size.x, abs(coord.x)),
+            inverse_mix(abs_mask_size.x, falloff_hardness * abs_mask_size.x, abs(coord.x)),
             ellipse_height,
             ellipse_width,
             1.0f - inflection_midpoint);
@@ -180,11 +180,13 @@ float compute_rounded_square_mask(float2 coord,
   }
   else {
     /* Mask is a 2 dimensional rounded square. */
-    if (is_in_unit_rounded_square(coord / (hardness * abs_mask_size), roundness)) {
+    if (is_in_unit_rounded_square(coord / (falloff_hardness * abs_mask_size), roundness)) {
       /* coord is in the constant part of the mask. */
       return 1.0f;
     }
-    else if ((hardness == 1.0f) || !is_in_unit_rounded_square(coord / abs_mask_size, roundness)) {
+    else if ((falloff_hardness == 1.0f) ||
+             !is_in_unit_rounded_square(coord / abs_mask_size, roundness))
+    {
       /* coord is outside of the mask. */
       return 0.0f;
     }
@@ -193,7 +195,7 @@ float compute_rounded_square_mask(float2 coord,
       return elliptical_unit_step_without_constant_part(
           inverse_mix(
               abs_mask_size.x,
-              hardness * abs_mask_size.x,
+              falloff_hardness * abs_mask_size.x,
               compute_rounded_square_radius(
                   float2(coord.x, coord.y * abs_mask_size.x / abs_mask_size.y), roundness)),
           ellipse_height,
@@ -219,7 +221,7 @@ void main()
   float rotation = texture_load(input_rotation_tx, texel).x;
   float2 translation = texture_load(input_translation_tx, texel).xy;
   float rounding = clamp(texture_load(input_rounding_tx, texel).x, 0.0f, 1.0f);
-  float hardness = clamp(texture_load(input_hardness_tx, texel).x, 0.0f, 1.0f);
+  float falloff_hardness = clamp(texture_load(input_falloff_hardness_tx, texel).x, 0.0f, 1.0f);
   float ellipse_height = clamp(texture_load(input_ellipse_height_tx, texel).x, 0.0f, 1.0f);
   float ellipse_width = clamp(texture_load(input_ellipse_width_tx, texel).x, 0.0f, 1.0f);
   float inflection_midpoint = clamp(
@@ -349,7 +351,7 @@ void main()
       float mask_value = compute_rounded_square_mask(pixel_coordinates_relative_to_mask_center,
                                                      abs_mask_size,
                                                      rounding,
-                                                     hardness,
+                                                     falloff_hardness,
                                                      ellipse_height,
                                                      ellipse_width,
                                                      inflection_midpoint) *

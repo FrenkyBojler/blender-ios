@@ -101,10 +101,7 @@ static void node_declare(NodeDeclarationBuilder &b)
           "corners of the input mask. A value of 0 results in the entire input mask being used "
           "while a value of 1 results in an circular cutout of the input mask being used")
       .structure_type(StructureType::Dynamic);
-
-  PanelDeclarationBuilder &falloff_panel =
-      mask_modification_panel.add_panel("Falloff"_ustr).default_closed(true);
-  falloff_panel.add_input<decl::Float>("Hardness"_ustr)
+  mask_modification_panel.add_input<decl::Float>("Falloff Hardness"_ustr)
       .default_value(1.0f)
       .min(0.0f)
       .max(1.0f)
@@ -114,7 +111,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .structure_type(StructureType::Dynamic);
 
   PanelDeclarationBuilder &falloff_shape_panel =
-      falloff_panel.add_panel("Falloff Shape"_ustr).default_closed(true);
+      mask_modification_panel.add_panel("Falloff Shape"_ustr).default_closed(true);
   falloff_shape_panel.add_input<decl::Float>("Ellipse Height"_ustr)
       .min(0.0f)
       .max(1.0f)
@@ -251,8 +248,8 @@ class MaskedMaximumOperation : public NodeOperation {
     const Result &input_rounding = get_input("Rounding");
     input_rounding.bind_as_texture(shader, "input_rounding_tx");
 
-    const Result &input_hardness = get_input("Hardness");
-    input_hardness.bind_as_texture(shader, "input_hardness_tx");
+    const Result &input_falloff_hardness = get_input("Falloff Hardness");
+    input_falloff_hardness.bind_as_texture(shader, "input_falloff_hardness_tx");
 
     const Result &input_ellipse_height = get_input("Ellipse Height");
     input_ellipse_height.bind_as_texture(shader, "input_ellipse_height_tx");
@@ -287,7 +284,7 @@ class MaskedMaximumOperation : public NodeOperation {
     input_rotation.unbind_as_texture();
     input_translation.unbind_as_texture();
     input_rounding.unbind_as_texture();
-    input_hardness.unbind_as_texture();
+    input_falloff_hardness.unbind_as_texture();
     input_ellipse_height.unbind_as_texture();
     input_ellipse_width.unbind_as_texture();
     input_inflection_midpoint.unbind_as_texture();
@@ -348,7 +345,7 @@ class MaskedMaximumOperation : public NodeOperation {
     const Result &input_rotation = get_input("Rotation");
     const Result &input_translation = get_input("Translation");
     const Result &input_rounding = get_input("Rounding");
-    const Result &input_hardness = get_input("Hardness");
+    const Result &input_falloff_hardness = get_input("Falloff Hardness");
     const Result &input_ellipse_height = get_input("Ellipse Height");
     const Result &input_ellipse_width = get_input("Ellipse Width");
     const Result &input_inflection_midpoint = get_input("Inflection Midpoint");
@@ -369,7 +366,8 @@ class MaskedMaximumOperation : public NodeOperation {
       float rotation = input_rotation.load_pixel_zero<float, true>(texel);
       float2 translation = input_translation.load_pixel_zero<float2, true>(texel);
       float rounding = math::clamp(input_rounding.load_pixel_zero<float, true>(texel), 0.0f, 1.0f);
-      float hardness = math::clamp(input_hardness.load_pixel_zero<float, true>(texel), 0.0f, 1.0f);
+      float falloff_hardness = math::clamp(
+          input_falloff_hardness.load_pixel_zero<float, true>(texel), 0.0f, 1.0f);
       float ellipse_height = math::clamp(
           input_ellipse_height.load_pixel_zero<float, true>(texel), 0.0f, 1.0f);
       float ellipse_width = math::clamp(
@@ -507,7 +505,7 @@ class MaskedMaximumOperation : public NodeOperation {
           float mask_value = compute_rounded_square_mask(pixel_coordinates_relative_to_mask_center,
                                                          abs_mask_size,
                                                          rounding,
-                                                         hardness,
+                                                         falloff_hardness,
                                                          ellipse_height,
                                                          ellipse_width,
                                                          inflection_midpoint) *
@@ -692,7 +690,7 @@ class MaskedMaximumOperation : public NodeOperation {
   float compute_rounded_square_mask(float2 coord,
                                     float2 abs_mask_size,
                                     const float roundness,
-                                    const float hardness,
+                                    const float falloff_hardness,
                                     const float ellipse_height,
                                     const float ellipse_width,
                                     const float inflection_midpoint)
@@ -716,14 +714,15 @@ class MaskedMaximumOperation : public NodeOperation {
           /* coord is outside of the mask. */
           return 0.0f;
         }
-        else if (math::abs(coord.x) <= (hardness * abs_mask_size.x)) {
+        else if (math::abs(coord.x) <= (falloff_hardness * abs_mask_size.x)) {
           /* coord is in the constant part of the mask. */
           return 1.0f;
         }
         else {
           /* coord is in the falloff part of the mask. */
           return elliptical_unit_step_without_constant_part(
-              math::inverse_mix(abs_mask_size.x, hardness * abs_mask_size.x, math::abs(coord.x)),
+              math::inverse_mix(
+                  abs_mask_size.x, falloff_hardness * abs_mask_size.x, math::abs(coord.x)),
               ellipse_height,
               ellipse_width,
               1.0f - inflection_midpoint);
@@ -732,11 +731,12 @@ class MaskedMaximumOperation : public NodeOperation {
     }
     else {
       /* Mask is a 2 dimensional rounded square. */
-      if (is_in_unit_rounded_square(coord / (hardness * abs_mask_size), roundness)) {
+      if (is_in_unit_rounded_square(coord / (falloff_hardness * abs_mask_size), roundness)) {
         /* coord is in the constant part of the mask. */
         return 1.0f;
       }
-      else if ((hardness == 1.0f) || !is_in_unit_rounded_square(coord / abs_mask_size, roundness))
+      else if ((falloff_hardness == 1.0f) ||
+               !is_in_unit_rounded_square(coord / abs_mask_size, roundness))
       {
         /* coord is outside of the mask. */
         return 0.0f;
@@ -746,7 +746,7 @@ class MaskedMaximumOperation : public NodeOperation {
         return elliptical_unit_step_without_constant_part(
             math::inverse_mix(
                 abs_mask_size.x,
-                hardness * abs_mask_size.x,
+                falloff_hardness * abs_mask_size.x,
                 compute_rounded_square_radius(
                     float2(coord.x, coord.y * abs_mask_size.x / abs_mask_size.y), roundness)),
             ellipse_height,
