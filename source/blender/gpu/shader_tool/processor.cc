@@ -138,6 +138,7 @@ SourceProcessor::Result SourceProcessor::convert_bsl(metadata::Source external_s
   lower_attribute_sequences(parser);
   lower_strings_sequences(parser);
   lower_swizzle_methods(parser);
+  lower_binary_literals(parser);
   lower_classes(parser);
   lower_noop_keywords(parser);
   lower_trailing_comma_in_list(parser);
@@ -193,6 +194,7 @@ SourceProcessor::Result SourceProcessor::convert_bsl(metadata::Source external_s
   lower_aggregate_initializers(parser);
   lower_array_initializations(parser);
   lower_scope_resolution_operators(parser);
+  lower_structured_bindings(parser);
   /* Lower references. */
   lower_reference_arguments(parser);
   lower_reference_variables(parser);
@@ -204,6 +206,7 @@ SourceProcessor::Result SourceProcessor::convert_bsl(metadata::Source external_s
   /* GLSL syntax compatibility.
    * TODO(fclem): Remove. */
   lower_argument_qualifiers(parser);
+  lower_gather_component(parser);
 
   /* Cleanup to make output more human readable and smaller for runtime. */
   cleanup_whitespace(parser);
@@ -643,6 +646,20 @@ void SourceProcessor::lower_swizzle_methods(Parser &parser)
       /* `.xyz()` -> `.xyz` */
       /* Keep character count the same. Replace parenthesis by spaces. */
       parser.erase(tokens[2], tokens[3]);
+    }
+  });
+}
+
+/* Support for C++ binary literal syntax for integers. */
+void SourceProcessor::lower_binary_literals(Parser &parser)
+{
+  parser().foreach_token(Number, [&](const Token tok) {
+    string_view str = tok.str();
+    if (str.starts_with("0b") || str.starts_with("0B")) {
+      int64_t value = std::stoll(string(str.substr(2)), nullptr, 2);
+      parser.replace(tok.str_index_start(),
+                     tok.str_index_last_no_whitespace(),
+                     std::to_string(value) + (str.ends_with("u") ? "u" : ""));
     }
   });
 }
@@ -1151,7 +1168,7 @@ void SourceProcessor::lint_reserved_tokens(Parser &parser)
   };
 
   parser().foreach_token(Word, [&](Token tok) {
-    if (reserved_symbols.find(string(tok.str())) != reserved_symbols.end()) {
+    if (reserved_symbols.contains(string(tok.str()))) {
       string err = string(tok.str()) + " is a reserved token";
       report_error(tok, err.c_str());
     }
@@ -1312,7 +1329,7 @@ void SourceProcessor::lower_aggregate_initializers(Parser &parser)
       if (t[0].prev() == Struct) {
         return;
       }
-      if (builtin_types.find(string(t[0].str())) != builtin_types.end()) {
+      if (builtin_types.contains(string(t[0].str()))) {
         report_error(t[0],
                      "Aggregate is error prone for built-in vector and matrix types, use "
                      "constructors instead");
@@ -1729,6 +1746,23 @@ void SourceProcessor::lower_argument_qualifiers(Parser &parser)
       parser.replace(toks[0], "_ref(");
       parser.insert_after(toks[1], ",");
       parser.insert_after(toks[2], ")");
+    }
+  });
+  parser.apply_mutations();
+}
+
+void SourceProcessor::lower_gather_component(Parser &parser)
+{
+  parser().foreach_match("A(..)", [&](const Tokens &toks) {
+    if (toks[0].scope().type() == ScopeType::Preprocessor) {
+      /* Don't mutate the actual implementation. */
+      return;
+    }
+    Token component = toks.back().prev();
+    /* Assume that if there is a number at the end of argument list, it is the component id. */
+    if (toks[0].str() == "textureGather" && component == Number && component.prev() == Comma) {
+      parser.insert_after(toks[0], string(component.str()));
+      parser.erase(component.prev(), component);
     }
   });
   parser.apply_mutations();
