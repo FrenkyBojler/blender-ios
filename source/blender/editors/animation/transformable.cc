@@ -168,10 +168,26 @@ Rotation identity_rotation(const eRotationModes mode)
   }
 }
 
+static void interpolate_axis_angle(const float a_angle,
+                                   const float3 &a_axis,
+                                   const float b_angle,
+                                   const float3 &b_axis,
+                                   const float factor,
+                                   float *r_angle,
+                                   float r_axis[3])
+{
+  float4 a_quat, b_quat;
+  axis_angle_to_quat(a_quat, a_axis, a_angle);
+  axis_angle_to_quat(b_quat, b_axis, b_angle);
+  float4 interpolated_quat;
+  interp_qt_qtqt(interpolated_quat, a_quat, b_quat, factor);
+  quat_to_axis_angle(r_axis, r_angle, interpolated_quat);
+}
+
 Rotation rotation_interpolated(const Rotation &a, const Rotation &b, const float factor)
 {
   /* Only different from `b` if the rotation mode does not match `a`. */
-  Rotation b_aligned = b.converted_to_mode(a.mode);
+  const Rotation b_aligned = b.converted_to_mode(a.mode);
   Rotation interpolated;
   interpolated.mode = a.mode;
   interpolated.values.reinitialize(a.values.size());
@@ -179,6 +195,17 @@ Rotation rotation_interpolated(const Rotation &a, const Rotation &b, const float
     case ROT_MODE_QUAT:
       interp_qt_qtqt(interpolated.values.data(), a.values.data(), b_aligned.values.data(), factor);
       break;
+
+    case ROT_MODE_AXISANGLE: {
+      interpolate_axis_angle(a.values[0],
+                             &a.values[1],
+                             b_aligned.values[0],
+                             &b_aligned.values[1],
+                             factor,
+                             &interpolated.values[0],
+                             &interpolated.values[1]);
+      break;
+    }
 
     default:
       /* Should axis angle use a different interpolation mode? */
