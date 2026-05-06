@@ -751,7 +751,16 @@ class ASSETBROWSER_PT_metadata(asset_utils.AssetBrowserPanel, Panel):
         asset is in the current file). Empty, non-editable fields are not really useful.
         """
         if getattr(asset_metadata, propname) or not asset_metadata.is_property_readonly(propname):
-            layout.prop(asset_metadata, propname)
+            split = layout.split(factor=0.4)
+            split.enabled = not asset_metadata.is_property_readonly(propname)
+            ui_name = asset_metadata.rna_type.properties[propname].name
+            sub = split.row()
+            sub.alignment = 'RIGHT'
+            sub.label(text=ui_name)
+            split.textbox(
+                asset_metadata,
+                propname,
+                placeholder=ui_name)
 
     def draw(self, context):
         layout = self.layout
