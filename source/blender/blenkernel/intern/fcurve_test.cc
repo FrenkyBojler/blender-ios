@@ -766,11 +766,29 @@ TEST_F(BKE_FCurveTest, BKE_fcurve_tangent)
   FCurve *fcu = BKE_fcurve_create();
 
   const KeyframeSettings settings = get_keyframe_settings(false);
-  insert_vert_fcurve(fcu, {1.0f, 7.5f}, settings, INSERTKEY_NOFLAGS);
-  insert_vert_fcurve(fcu, {4.0f, -15.0f}, settings, INSERTKEY_NOFLAGS);
-  insert_vert_fcurve(fcu, {8.0f, 15.0f}, settings, INSERTKEY_NOFLAGS);
-  insert_vert_fcurve(fcu, {14.0f, 8.2f}, settings, INSERTKEY_NOFLAGS);
-  insert_vert_fcurve(fcu, {18.2f, -20.0f}, settings, INSERTKEY_NOFLAGS);
+  insert_vert_fcurve(fcu, {1.0f, 0.0f}, settings, INSERTKEY_NOFLAGS);
+  insert_vert_fcurve(fcu, {5.0f, 0.0f}, settings, INSERTKEY_NOFLAGS);
+  insert_vert_fcurve(fcu, {10.0f, 5.0f}, settings, INSERTKEY_NOFLAGS);
+
+  EXPECT_EQ(BKE_fcurve_tangent(*fcu, 1.0f), float2(1.0f, 0.0f));
+  EXPECT_EQ(BKE_fcurve_tangent(*fcu, 3.0f), float2(1.0f, 0.0f));
+  EXPECT_EQ(BKE_fcurve_tangent(*fcu, 5.0f), float2(1.0f, 0.0f));
+
+  ASSERT_EQ(fcu->bezt[1].ipo, BEZT_IPO_BEZ);
+  /* Changing from Bezier to Linear interpolation should change which tangent is returned. */
+  float2 tangent = BKE_fcurve_tangent(*fcu, 8.0f);
+  EXPECT_NEAR(tangent.x, 0.544f, 0.001f);
+  EXPECT_NEAR(tangent.y, 0.839f, 0.001f);
+  fcu->bezt[1].ipo = BEZT_IPO_LIN;
+  tangent = BKE_fcurve_tangent(*fcu, 8.0f);
+  EXPECT_NEAR(tangent.x, 0.707f, 0.001f);
+  EXPECT_NEAR(tangent.y, 0.707f, 0.001f);
+
+  /* Constant interpolation always returns 1/0. */
+  fcu->bezt[1].ipo = BEZT_IPO_CONST;
+  EXPECT_EQ(BKE_fcurve_tangent(*fcu, 5.0f), float2(1.0f, 0.0f));
+  EXPECT_EQ(BKE_fcurve_tangent(*fcu, 7.0f), float2(1.0f, 0.0f));
+  EXPECT_EQ(BKE_fcurve_tangent(*fcu, 9.0f), float2(1.0f, 0.0f));
   BKE_fcurve_free(fcu);
 }
 

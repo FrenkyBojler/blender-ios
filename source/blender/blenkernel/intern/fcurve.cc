@@ -1564,12 +1564,40 @@ static void fcurve_bezt_free(FCurve &fcu)
   fcu.totvert = 0;
 }
 
+/**
+ * Return the tangent of the bezier segment at the given frame. The frame has to be between the x
+ * coordinates of the key.
+ */
+static float2 get_bezier_tangent(const BezTriple &a, const BezTriple &b, const float frame)
+{
+  BLI_assert(frame > a.vec[1][0] && frame < b.vec[1][0]);
+  float roots[4];
+  if (!findzero(frame, a.vec[1][0], a.vec[2][0], b.vec[0][0], b.vec[1][0], roots)) {
+    return {1, 0};
+  }
+
+  /* `t` refers to the percentage along the curve. */
+  const float t = roots[0];
+  /* We can use De Casteljau to find the tangent. The last line segment of the algorithm is tangent
+   * to the line on point t. */
+  float split1[3][2], split2[2][2];
+  interp_v2_v2v2(split1[0], a.vec[1], a.vec[2], t);
+  interp_v2_v2v2(split1[1], a.vec[2], b.vec[0], t);
+  interp_v2_v2v2(split1[2], b.vec[0], b.vec[1], t);
+  interp_v2_v2v2(split2[0], split1[0], split1[1], t);
+  interp_v2_v2v2(split2[1], split1[1], split1[2], t);
+  float2 tangent = float2(split2[1]) - float2(split2[0]);
+  normalize_v2(tangent);
+  return tangent;
+}
+
 float2 BKE_fcurve_tangent(FCurve &fcurve, const float frame)
 {
   if (!fcurve.bezt || fcurve.totvert < 2) {
     /* Need at least 2 keys to have a curve for a tangent. */
     return {1, 0};
   }
+
   bool replace;
   const int key_index = BKE_fcurve_bezt_binarysearch_index(
       fcurve.bezt, frame, fcurve.totvert, &replace);
@@ -1580,6 +1608,7 @@ float2 BKE_fcurve_tangent(FCurve &fcurve, const float frame)
     normalize_v2(tangent);
     return tangent;
   }
+
   if (key_index == 0 || key_index == fcurve.totvert) {
     /* If the given frame is outside the key range, return the tangent of the extrapolation; */
     if (fcurve.extend == FCURVE_EXTRAPOLATE_CONSTANT) {
@@ -1598,28 +1627,24 @@ float2 BKE_fcurve_tangent(FCurve &fcurve, const float frame)
     normalize_v2(tangent);
     return tangent;
   }
+
   const BezTriple &a = fcurve.bezt[key_index - 1];
   const BezTriple &b = fcurve.bezt[key_index];
-  float roots[4];
-  if (!findzero(frame, a.vec[1][0], a.vec[2][0], b.vec[0][0], b.vec[1][0], roots)) {
-    return {1, 0};
+  switch (a.ipo) {
+    case BEZT_IPO_LIN: {
+      float2 tangent = float2(b.vec[1]) - float2(a.vec[1]);
+      normalize_v2(tangent);
+      return tangent;
+    }
+    case BEZT_IPO_CONST:
+      return {1, 0};
+    case BEZT_IPO_BEZ:
+      return get_bezier_tangent(a, b, frame);
+    default:
+      break;
   }
-
-  /* `t` refers to the percentage along the curve. */
-  const float t = roots[0];
-  /* If we were on a key (so 0 or 1), `replace` would have been set to true. */
-  BLI_assert(t > 0.0f && t < 1.0f);
-  /* We can use De Casteljau to find the tangent. The last line segment of the algorithm is tangent
-   * to the line on point t. */
-  float split1[3][2], split2[2][2];
-  interp_v2_v2v2(split1[0], a.vec[1], a.vec[2], t);
-  interp_v2_v2v2(split1[1], a.vec[2], b.vec[0], t);
-  interp_v2_v2v2(split1[2], b.vec[0], b.vec[1], t);
-  interp_v2_v2v2(split2[0], split1[0], split1[1], t);
-  interp_v2_v2v2(split2[1], split1[1], split1[2], t);
-  float2 tangent = float2(split2[1]) - float2(split2[0]);
-  normalize_v2(tangent);
-  return tangent;
+  /* Unsupported interpolation type. */
+  return {1, 0};
 }
 
 bool BKE_fcurve_bezt_subdivide_handles(BezTriple *bezt,
