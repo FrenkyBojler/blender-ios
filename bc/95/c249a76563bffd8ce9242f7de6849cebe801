@@ -3,3 +3,4 @@ Referenced by issue #87232, Crash when evaluating object with unsupported modifi
 Referenced by issue #82945, Crash when dragging modifiers in Outliner
 Referenced by pull request #121286, UI: Add Modifiers submenu to 3D view header
 Referenced by pull request #157712, Modifiers: keep active state in "Copy Modifiers to Selected Objects"
+Referenced by commit 42643cec76b4abd88f92e0080c9a6818fe11c6de, Modifiers: keep active state in "Copy Modifiers to Selected Objects"
