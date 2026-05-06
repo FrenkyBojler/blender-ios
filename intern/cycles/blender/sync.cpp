@@ -329,7 +329,7 @@ void BlenderSync::sync_data(blender::RenderData &b_render,
   sync_view_layer(b_view_layer);
   sync_integrator(b_view_layer, background, denoise_device_info);
   sync_film(b_view_layer, b_screen, b_v3d);
-  sync_shaders(b_depsgraph, b_screen, b_v3d, auto_refresh_update || frame_update);
+  sync_shaders(b_depsgraph, b_screen, b_v3d, auto_refresh_update, frame_update);
   sync_images();
 
   geometry_synced.clear(); /* use for objects and motion sync */

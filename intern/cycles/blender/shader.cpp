@@ -1637,7 +1637,9 @@ bool BlenderSync::scene_attr_needs_recalc(Shader *shader, blender::Depsgraph &b_
 
 /* Sync Materials */
 
-void BlenderSync::sync_materials(blender::Depsgraph &b_depsgraph, bool update_all)
+void BlenderSync::sync_materials(blender::Depsgraph &b_depsgraph,
+                                 bool update_all,
+                                 bool update_time)
 {
   shader_map.set_default(scene->default_surface);
 
@@ -1682,8 +1684,8 @@ void BlenderSync::sync_materials(blender::Depsgraph &b_depsgraph, bool update_al
     Shader *shader;
 
     /* test if we need to sync */
-    if (shader_map.add_or_update(&shader, &b_mat.id) || update_all ||
-        scene_attr_needs_recalc(shader, b_depsgraph) || aovs_changed_between_view_layers)
+    if (shader_map.add_or_update(&shader, &b_mat.id) || update_all || scene_attr_needs_recalc(shader, b_depsgraph) ||
+        aovs_changed_between_view_layers || (shader->has_time_dependency && update_time))
     {
       unique_ptr<ShaderGraph> graph = make_unique<ShaderGraph>();
 
@@ -1969,13 +1971,14 @@ void BlenderSync::sync_lights(blender::Depsgraph &b_depsgraph, bool update_all)
 void BlenderSync::sync_shaders(blender::Depsgraph &b_depsgraph,
                                blender::bScreen *b_screen,
                                blender::View3D *b_v3d,
-                               bool update_all)
+                               bool update_all,
+                               bool update_time)
 {
   shader_map.pre_sync();
 
   sync_world(b_depsgraph, b_screen, b_v3d, update_all);
   sync_lights(b_depsgraph, update_all);
-  sync_materials(b_depsgraph, update_all);
+  sync_materials(b_depsgraph, update_all, update_time);
 }
 
 CCL_NAMESPACE_END
