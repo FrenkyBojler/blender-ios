@@ -303,12 +303,16 @@ static void apply_debug_color(MutableSpan<float4> paint_pixels, const PackedPixe
 }
 #endif
 
-struct LocalData {
+struct FactorLocalData {
+  Vector<float3> pixel_positions;
+  Vector<float> distances;
+
+  MutableSpan<float4> scene_linear_pixels;
+};
+
+struct PaintLocalData {
   Vector<float4> byte_to_float_pixels;
   Vector<float4> paint_pixels;
-  Vector<float3> pixel_positions;
-  Vector<float> factors;
-  Vector<float> distances;
 
   MutableSpan<float4> scene_linear_pixels;
 };
@@ -376,42 +380,60 @@ static void do_paint_pixels(const Depsgraph &depsgraph,
         });
 
     Array<bool> row_changed(valid_rows.size(), false);
-    threading::EnumerableThreadSpecific<LocalData> all_tls;
-    valid_rows.foreach_index([&](const int i, const int pos) {
+    Array<Vector<float>> all_factors(valid_rows.size());
+    /* Calculate the per-row factor first */
+    printf("BEFORE CALC FACTOR\n");
+    threading::isolate_task([&] {
+      valid_rows.foreach_index([&](const int i, const int pos) {
+        threading::EnumerableThreadSpecific<FactorLocalData> all_tls;
+        printf("%d, %d, %lld\n", i, pos, all_factors.size());
+        const PackedPixelRow pixel_row = tile_data.pixel_rows[i];
+        threading::parallel_for(
+            IndexRange(pixel_row.num_pixels), 512, [&](const IndexRange range) {
+              FactorLocalData &tls = all_tls.local();
+              tls.pixel_positions.resize(range.size());
+              calc_pixel_row_positions(positions,
+                                       pbvh_data.vert_tris,
+                                       pixel_node.uv_primitives.tri_indices,
+                                       pixel_node.uv_primitives.delta_barycentric_coords,
+                                       pixel_row,
+                                       range,
+                                       tls.pixel_positions);
+
+              all_factors[pos].resize(tls.pixel_positions.size());
+              all_factors[pos].fill(1.0f);
+              MutableSpan<float> factors = all_factors[pos];
+
+              tls.distances.resize(tls.pixel_positions.size());
+              calc_brush_distances(
+                  ss, tls.pixel_positions, eBrushFalloffShape(brush.falloff_shape), tls.distances);
+              filter_distances_with_radius(cache.radius, tls.distances, factors);
+              apply_hardness_to_distances(cache, tls.distances);
+              calc_brush_strength_factors(cache, brush, tls.distances, factors);
+              calc_brush_texture_factors(ss, brush, tls.pixel_positions, factors);
+              scale_factors(factors, cache.bstrength);
+            });
+      });
+    });
+    printf("AFTER CALC FACTOR\n");
+
+    printf("BEFORE FILTER\n");
+    IndexMask non_zero_rows = IndexMask::from_predicate(valid_rows, memory, [&](const int i) {
+      printf("%d, %lld\n", i, all_factors.size());
+      return std::ranges::any_of(all_factors[i],
+                                 [](const float factor) { return factor != 0.0f; });
+    });
+    printf("AFTER FILTER\n");
+
+    non_zero_rows.foreach_index([&](const int i, const int pos) {
+      threading::EnumerableThreadSpecific<PaintLocalData> all_tls;
       const PackedPixelRow pixel_row = tile_data.pixel_rows[i];
       threading::parallel_for(IndexRange(pixel_row.num_pixels), 512, [&](const IndexRange range) {
-        LocalData &tls = all_tls.local();
-        tls.pixel_positions.resize(range.size());
-        calc_pixel_row_positions(positions,
-                                 pbvh_data.vert_tris,
-                                 pixel_node.uv_primitives.tri_indices,
-                                 pixel_node.uv_primitives.delta_barycentric_coords,
-                                 pixel_row,
-                                 range,
-                                 tls.pixel_positions);
+        PaintLocalData &tls = all_tls.local();
 
-        tls.factors.resize(tls.pixel_positions.size());
-        tls.factors.fill(1.0f);
-
-        tls.distances.resize(tls.pixel_positions.size());
-        calc_brush_distances(
-            ss, tls.pixel_positions, eBrushFalloffShape(brush.falloff_shape), tls.distances);
-        filter_distances_with_radius(cache.radius, tls.distances, tls.factors);
-        apply_hardness_to_distances(cache, tls.distances);
-        calc_brush_strength_factors(cache, brush, tls.distances, tls.factors);
-        calc_brush_texture_factors(ss, brush, tls.pixel_positions, tls.factors);
-        /* TODO: Experiment with calculating all of the float values first */
-        scale_factors(tls.factors, cache.bstrength);
-
-        const bool nonzero_factor = std::ranges::any_of(
-            tls.factors, [](const float factor) { return factor != 0.0f; });
-
-        if (!nonzero_factor) {
-          return;
-        }
-
-        tls.paint_pixels.resize(tls.pixel_positions.size());
-        calc_brush_colors(tls.paint_pixels, tls.factors, brush_color);
+        tls.paint_pixels.resize(range.size());
+        /* TODO: This isn't correct? */
+        calc_brush_colors(tls.paint_pixels, all_factors[i], brush_color);
 
         if (!float_buffer.is_empty()) {
           tls.scene_linear_pixels = read_image_pixels(
