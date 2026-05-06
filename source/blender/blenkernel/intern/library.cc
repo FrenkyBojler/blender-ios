@@ -820,7 +820,7 @@ Library *bke::library::ensure_external_library(Main &bmain,
                                                bool &is_new)
 {
   BLI_assert(ID_IS_LINKED(&id));
-  BLI_assert((reference_library.flag & LIBRARY_FLAG_IS_EXTERNAL) == 0);
+  BLI_assert(reference_library.flag & LIBRARY_FLAG_IS_EXTERNAL);
 
   Library *archive_library = nullptr;
   for (Library *lib_iter : reference_library.runtime->archived_libraries) {

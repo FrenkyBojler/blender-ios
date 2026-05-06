@@ -13,10 +13,13 @@
 #include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
+#include "BLO_readfile.hh"
+
 #include "DNA_collection_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
+#include "BKE_blendfile_link_append.hh"
 #include "BKE_collection.hh"
 #include "BKE_context.hh"
 #include "BKE_file_handler.hh"
@@ -639,6 +642,7 @@ static wmOperatorStatus collection_importer_import_exec(bContext *C, wmOperator 
     /* Create a real library to encapsulate our external archive library.
      * TODO: Adjust after determining what to do about the missing library check above. */
     Library *reference_lib = BKE_id_new<Library>(bmain, collection_name);
+    reference_lib->flag |= LIBRARY_FLAG_IS_EXTERNAL;
     id_us_ensure_real(&reference_lib->id);
     BKE_library_filepath_set(bmain, reference_lib, filepath);
 
@@ -647,29 +651,38 @@ static wmOperatorStatus collection_importer_import_exec(bContext *C, wmOperator 
      * separate .blend) and external (it originates outside Blender). */
     bool is_new = false;
     Library *external_lib = bke::library::ensure_external_library(
-        *bmain, collection->id, *reference_lib, {}, is_new);
+        *bmain, collection->id, *reference_lib, is_new);
+
+    /* Tag everything so we can make local only the new datablock. */
+    BKE_main_id_tag_all(bmain, ID_TAG_PRE_EXISTING, true);
 
     MainMergeReport r;
-    BKE_main_merge(bmain, &temp_main, external_lib, r);
+    BKE_main_merge_as_library(bmain, &temp_main, external_lib, r);
     CTX_free(temp_C);
 
-    /* Add the incoming Objects to the collection. Temporarily remove the importer to allow edits
-     * to occur. */
+    /* Temporarily remove the importer to allow collection edits. */
     collection->importer = nullptr;
 
-    ID *id_iter;
-    FOREACH_MAIN_ID_BEGIN (bmain, id_iter) {
-      if (GS(id_iter->name) != ID_OB) {
-        continue;
-      }
-      BKE_collection_object_add(bmain, collection, id_cast<Object *>(id_iter));
-    }
-    FOREACH_MAIN_ID_END;
-
-    collection->importer = data;
+    // OLD - naive approach (has double instancing issues)
+    // ID *id_iter;
+    // FOREACH_MAIN_ID_BEGIN (bmain, id_iter) {
+    //  if (GS(id_iter->name) != ID_OB) {
+    //    continue;
+    //  }
+    //  BKE_collection_object_add(bmain, collection, id_cast<Object *>(id_iter));
+    // }
+    // FOREACH_MAIN_ID_END;
 
     ViewLayer *view_layer = CTX_data_view_layer(C);
     Scene *scene = CTX_data_scene(C);
+
+    BKE_blendfile_link_append_instantiate_loose_from_bmain(
+        bmain, scene, view_layer, collection, op->reports);
+
+    BKE_main_id_tag_all(bmain, ID_TAG_PRE_EXISTING, false);
+
+    collection->importer = data;
+
     DEG_id_tag_update(&collection->id, ID_RECALC_SYNC_TO_EVAL);
     DEG_id_tag_update(&scene->id, ID_RECALC_BASE_FLAGS);
     DEG_relations_tag_update(bmain);

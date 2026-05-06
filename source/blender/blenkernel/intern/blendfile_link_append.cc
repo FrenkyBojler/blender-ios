@@ -1704,6 +1704,243 @@ void BKE_blendfile_link_append_instantiate_loose(BlendfileLinkAppendContext *lap
   loose_data_instantiate(&instantiate_context);
 }
 
+void BKE_blendfile_link_append_instantiate_loose_from_bmain(Main *bmain,
+                                                            Scene *scene,
+                                                            ViewLayer *view_layer,
+                                                            Collection *active_collection,
+                                                            ReportList * /*reports*/)
+{
+  if (!scene) {
+    return;
+  }
+
+  /* Check whether a collection is already instantiated by another newly-added object (via an
+   * Empty that instances it) or collection (as a child). Used to avoid adding a collection
+   * directly to active_collection when it is already referenced by another new item. */
+  auto is_collection_instantiated_by_new_id = [&](const Collection *collection) -> bool {
+    for (ID &id_scan : MainAllIDsIterator(*bmain)) {
+      if (id_scan.tag & ID_TAG_PRE_EXISTING) {
+        continue;
+      }
+      if (GS(id_scan.name) == ID_OB) {
+        const Object *ob = id_cast<const Object *>(&id_scan);
+        if (ob->type == OB_EMPTY && ob->instance_collection == collection) {
+          return true;
+        }
+      }
+      else if (GS(id_scan.name) == ID_GR) {
+        const Collection *col = id_cast<const Collection *>(&id_scan);
+        if (col != collection && BKE_collection_has_collection(col, collection)) {
+          return true;
+        }
+      }
+    }
+    return false;
+  };
+
+  /* Recursively check whether any ancestor collection of `collection` is tagged with
+   * ID_TAG_DOIT, meaning it will also be added to the scene. Used to avoid
+   * double-instantiation of nested collections. */
+  std::function<bool(const Collection *)> parents_tagged_for_instantiate =
+      [&](const Collection *collection) -> bool {
+    for (const CollectionParent *parent =
+             static_cast<const CollectionParent *>(collection->runtime->parents.first);
+         parent != nullptr;
+         parent = parent->next)
+    {
+      if ((parent->collection->id.tag & ID_TAG_DOIT) != 0) {
+        return true;
+      }
+      if (parents_tagged_for_instantiate(parent->collection)) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  /* loose_data_instantiate_obdata_preprocess */
+
+  /* Tag all new obdata for potential instantiation by default. The tag will be cleared for any
+   * obdata already used by a new object (which will be instantiated via its owner instead). */
+  for (ID &id_iter : MainAllIDsIterator(*bmain)) {
+    if (id_iter.tag & ID_TAG_PRE_EXISTING) {
+      continue;
+    }
+    const ID_Type idcode = GS(id_iter.name);
+    if (!OB_DATA_SUPPORT_ID(idcode)) {
+      continue;
+    }
+    id_iter.tag |= ID_TAG_DOIT;
+  }
+
+  for (ID &id_iter : MainAllIDsIterator(*bmain)) {
+    if (id_iter.tag & ID_TAG_PRE_EXISTING) {
+      continue;
+    }
+    if (GS(id_iter.name) != ID_OB) {
+      continue;
+    }
+    Object *ob = id_cast<Object *>(&id_iter);
+    if (ob->data != nullptr) {
+      ob->data->tag &= ~ID_TAG_DOIT;
+    }
+  }
+
+  /* loose_data_instantiate_collection_process */
+
+  /* Tag each new collection that is not already owned by another new item. */
+  for (ID &id_iter : MainAllIDsIterator(*bmain)) {
+    if (id_iter.tag & ID_TAG_PRE_EXISTING) {
+      continue;
+    }
+    if (GS(id_iter.name) != ID_GR) {
+      continue;
+    }
+    Collection *collection = id_cast<Collection *>(&id_iter);
+    if (!is_collection_instantiated_by_new_id(collection)) {
+      collection->id.tag |= ID_TAG_DOIT;
+    }
+  }
+
+  /* Add each tagged collection as a child of active_collection, unless an ancestor collection is
+   * also tagged (which would cause double-instantiation of the sub-collection). */
+  for (ID &id_iter : MainAllIDsIterator(*bmain)) {
+    if (id_iter.tag & ID_TAG_PRE_EXISTING) {
+      continue;
+    }
+    if (GS(id_iter.name) != ID_GR) {
+      continue;
+    }
+    if (!(id_iter.tag & ID_TAG_DOIT)) {
+      continue;
+    }
+    Collection *collection = id_cast<Collection *>(&id_iter);
+    if (parents_tagged_for_instantiate(collection)) {
+      continue;
+    }
+    BKE_collection_child_add(bmain, active_collection, collection);
+    BKE_view_layer_synced_ensure(*bmain, scene, view_layer);
+  }
+
+  /* loose_data_instantiate_object_process */
+
+  /* Add new objects to active_collection when they are not already reachable in the scene (either
+   * directly or through any instance collection). */
+
+  /* Build the set of objects already accessible in the view layer, including objects that are
+   * transitively reachable via instance collections. Also covers any newly-imported scenes that
+   * may already own some of the merged objects. */
+  auto gather_instantiated_objects = [&](Set<Object *> &r_instantiated_objects) {
+    auto gather_from_view_layer = [&](const Scene &scene_in, ViewLayer &view_layer_in) {
+      BKE_view_layer_synced_ensure(*bmain, &scene_in, &view_layer_in);
+
+      Stack<Collection *> instance_collections;
+      Set<Collection *> known_instance_collections;
+
+      FOREACH_OBJECT_BEGIN (bmain, &scene_in, &view_layer_in, ob_iter) {
+        r_instantiated_objects.add(ob_iter);
+        Collection *ic = ob_iter->instance_collection;
+        if (ic && !known_instance_collections.contains(ic)) {
+          instance_collections.push_as(ic);
+          known_instance_collections.add_new(ic);
+        }
+      }
+      FOREACH_OBJECT_END;
+
+      while (!instance_collections.is_empty()) {
+        Collection *ic = instance_collections.pop();
+        FOREACH_COLLECTION_OBJECT_RECURSIVE_BEGIN (ic, ob_coll_iter) {
+          r_instantiated_objects.add(ob_coll_iter);
+          if (ob_coll_iter->instance_collection &&
+              !known_instance_collections.contains(ob_coll_iter->instance_collection))
+          {
+            instance_collections.push_as(ob_coll_iter->instance_collection);
+            known_instance_collections.add_new(ob_coll_iter->instance_collection);
+          }
+        }
+        FOREACH_COLLECTION_OBJECT_RECURSIVE_END;
+      }
+    };
+
+    gather_from_view_layer(*scene, *view_layer);
+
+    /* When a newly-imported Scene is in bmain, its objects are already instantiated there.
+     * Gather them to avoid placing those objects redundantly in active_collection. */
+    for (ID &id_scan : MainAllIDsIterator(*bmain)) {
+      if (id_scan.tag & ID_TAG_PRE_EXISTING) {
+        continue;
+      }
+      if (GS(id_scan.name) != ID_SCE) {
+        continue;
+      }
+      Scene &scene_iter = *id_cast<Scene *>(&id_scan);
+      for (ViewLayer &view_layer_iter : scene_iter.view_layers) {
+        gather_from_view_layer(scene_iter, view_layer_iter);
+      }
+    }
+  };
+
+  Set<Object *> instantiated_objects;
+  gather_instantiated_objects(instantiated_objects);
+
+  for (ID &id_iter : MainAllIDsIterator(*bmain)) {
+    if (id_iter.tag & ID_TAG_PRE_EXISTING) {
+      continue;
+    }
+    if (GS(id_iter.name) != ID_OB) {
+      continue;
+    }
+    Object *ob = id_cast<Object *>(&id_iter);
+    if (instantiated_objects.contains(ob)) {
+      continue;
+    }
+    CLAMP_MIN(ob->id.us, 0);
+    ob->mode = OB_MODE_OBJECT;
+    BKE_collection_object_add(bmain, active_collection, ob);
+    BKE_view_layer_synced_ensure(*bmain, scene, view_layer);
+    Base *base = BKE_view_layer_base_find(view_layer, ob);
+    if (base) {
+      BKE_scene_object_base_flag_sync_from_base(base);
+    }
+    /* Re-gather after each addition: adding one object may transitively make others reachable. */
+    gather_instantiated_objects(instantiated_objects);
+  }
+
+  /* loose_data_instantiate_obdata_process */
+
+  /*
+   * For any new obdata still tagged with ID_TAG_DOIT (i.e. not referenced by any new object),
+   * create a minimal wrapper object so the obdata is visible in the scene. */
+  for (ID &id_iter : MainAllIDsIterator(*bmain)) {
+    if (id_iter.tag & ID_TAG_PRE_EXISTING) {
+      continue;
+    }
+    const ID_Type idcode = GS(id_iter.name);
+    if (!OB_DATA_SUPPORT_ID(idcode)) {
+      continue;
+    }
+    if (!(id_iter.tag & ID_TAG_DOIT)) {
+      continue;
+    }
+    const int type = BKE_object_obdata_to_type(&id_iter);
+    BLI_assert(type != -1);
+    Object *ob = BKE_object_add_only_object(bmain, type, id_iter.name + 2);
+    ob->data = &id_iter;
+    id_us_plus(&id_iter);
+    BKE_object_materials_sync_length(bmain, ob, ob->data);
+    BKE_collection_object_add(bmain, active_collection, ob);
+    BKE_view_layer_synced_ensure(*bmain, scene, view_layer);
+    Base *base = BKE_view_layer_base_find(view_layer, ob);
+    if (base) {
+      BKE_scene_object_base_flag_sync_from_base(base);
+    }
+    copy_v3_v3(ob->loc, scene->cursor.location);
+    id_iter.tag &= ~ID_TAG_DOIT;
+  }
+
+  BKE_main_id_tag_all(bmain, ID_TAG_DOIT, false);
+}
+
 void BKE_blendfile_link(BlendfileLinkAppendContext *lapp_context, ReportList *reports)
 {
   BLI_assert(lapp_context->process_stage == BlendfileLinkAppendContext::ProcessStage::Init);

@@ -526,10 +526,10 @@ void BKE_main_merge(Main *bmain_dst, Main **r_bmain_src, MainMergeReport &report
  *
  * The source Main is always freed and `*r_bmain_src` is set to nullptr on return.
  */
-void BKE_main_merge(Main *bmain_dst,
-                    Main **r_bmain_src,
-                    Library *dst_external_library,
-                    MainMergeReport &reports);
+void BKE_main_merge_as_library(Main *bmain_dst,
+                               Main **r_bmain_src,
+                               Library *dst_external_library,
+                               MainMergeReport &reports);
 
 /**
  * Check whether given `bmain` is empty or contains some IDs.

@@ -20,11 +20,15 @@ struct BlendHandle;
 
 namespace blender {
 
+struct Collection;
 struct ID;
 struct Library;
 struct LibraryLink_Params;
+struct Main;
 struct MainLibraryWeakReferenceMap;
 struct ReportList;
+struct Scene;
+struct ViewLayer;
 
 /* TODO: Rename file to `BKE_blendfile_import.hh`. */
 /* TODO: Replace `BlendfileLinkAppend` prefix by `bke::blendfile::import` namespace. */
@@ -359,6 +363,24 @@ void BKE_blendfile_append(BlendfileLinkAppendContext *lapp_context, ReportList *
  */
 void BKE_blendfile_link_append_instantiate_loose(BlendfileLinkAppendContext *lapp_context,
                                                  ReportList *reports);
+
+/**
+ * Instantiate loose data from IDs already present in \a bmain into \a active_collection.
+ *
+ * This is the bmain-based counterpart of #BKE_blendfile_link_append_instantiate_loose.
+ * It operates on IDs that have already been merged into \a bmain, and only processes
+ * IDs that do **not** have the #ID_TAG_PRE_EXISTING flag set (i.e. newly added data).
+ *
+ * The function handles collections, objects, object-data, and rigid body post-processing
+ * in the same order and with the same logic as the lapp_context-based version.
+ *
+ * \note Uses #ID_TAG_DOIT as a scratch tag internally; it is cleared before returning.
+ */
+void BKE_blendfile_link_append_instantiate_loose_from_bmain(Main *bmain,
+                                                            Scene *scene,
+                                                            ViewLayer *view_layer,
+                                                            Collection *active_collection,
+                                                            ReportList *reports);
 
 /**
  * Finalize the link/append process.
