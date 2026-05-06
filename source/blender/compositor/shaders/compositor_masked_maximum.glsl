@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2022-2023 Blender Authors
+/* SPDX-FileCopyrightText: 2026 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -6,11 +6,32 @@
 
 COMPUTE_SHADER_CREATE_INFO(compositor_masked_maximum)
 
+#include "gpu_shader_bicubic_sampler_lib.glsl"
 #include "gpu_shader_compositor_texture_utilities.glsl"
 #include "gpu_shader_math_base_lib.glsl"
 #include "gpu_shader_math_constants_lib.glsl"
 #include "gpu_shader_math_vector_lib.glsl"
 #include "gpu_shader_utildefines_lib.glsl"
+
+float2 compute_normalized_mask_coordinates(float2 pixel_coordinates_relative_to_mask_center,
+                                           float2 abs_mask_size,
+                                           int2 input_mask_data_size)
+{
+  float2 normalized_mask_coordinates = float2(
+      (abs_mask_size.x == 0.0f) ?
+          0.5f :
+          (0.5f * (pixel_coordinates_relative_to_mask_center.x / abs_mask_size.x) + 0.5f),
+      (abs_mask_size.y == 0.0f) ?
+          0.5f :
+          (0.5f * (pixel_coordinates_relative_to_mask_center.y / abs_mask_size.y) + 0.5f));
+  /* Align normalized_mask_coordinates with pixel centers.
+   * For this, normalized_mask_coordinates is remapped from [0, 1] x [0, 1] to
+   * [0.5/input_mask_data_size.x, (input_mask_data_size.x-0.5)/input_mask_data_size.x] x
+   * [0.5/input_mask_data_size.y, (input_mask_data_size.y-0.5)/input_mask_data_size.y]. */
+  return (normalized_mask_coordinates * float2(input_mask_data_size - int2(1, 1)) +
+          float2(0.5f, 0.5f)) /
+         float2(input_mask_data_size);
+}
 
 float2 rotate_vector_2d(float2 vector, float angle)
 {
@@ -199,11 +220,11 @@ void main()
   float2 translation = texture_load(input_translation_tx, texel).xy;
   float rounding = clamp(texture_load(input_rounding_tx, texel).x, 0.0f, 1.0f);
   float hardness = clamp(texture_load(input_hardness_tx, texel).x, 0.0f, 1.0f);
-  float value_boundary = texture_load(input_value_boundary_tx, texel).x;
   float ellipse_height = clamp(texture_load(input_ellipse_height_tx, texel).x, 0.0f, 1.0f);
   float ellipse_width = clamp(texture_load(input_ellipse_width_tx, texel).x, 0.0f, 1.0f);
   float inflection_midpoint = clamp(
       texture_load(input_inflection_midpoint_tx, texel).x, 0.0f, 1.0f);
+  float value_boundary = texture_load(input_value_boundary_tx, texel).x;
 
   /* Calculate the top right and bottom left corners of the bounding box of the rounded square
    * mask. */
@@ -241,8 +262,8 @@ void main()
     bounding_box_bottom_left_corner = max(bounding_box_bottom_left_corner, int2(0, 0));
   }
 
-  /* Initialize the output variables by evaluating the pixel that is outside the bounding box
-   * and closest to the pixel that the operation is evaluated on. Therefore, if the pixel that
+  /* The output variables are initialized with the pixel that is outside the bounding box and
+   * closest to the pixel that the operation is evaluated on. It follows that if the pixel that
    * the operation is evaluated on is outside the bounding box, it is used to initialize the
    * output variables. */
   float masked_maximum = value_boundary;
@@ -307,10 +328,13 @@ void main()
       }
     }
   }
-  float chosen_mask_value = 0.0f;
+  float2 mask_center_coordinates = float2(texel) + float2(translation);
+  float2 chosen_mask_pixel = compute_normalized_mask_coordinates(
+      rotate_vector_2d(chosen_pixel_coordinates - mask_center_coordinates, -rotation),
+      abs_mask_size,
+      input_mask_domain_data_size);
 
   bool is_dilate = (mask_size.x >= 0.0f) && (mask_size.y >= 0.0f);
-  float2 mask_center_coordinates = float2(texel) + float2(translation);
   for (int y = bounding_box_bottom_left_corner.y; y <= bounding_box_top_right_corner.y; y++) {
     for (int x = bounding_box_bottom_left_corner.x; x <= bounding_box_top_right_corner.x; x++) {
       float2 pixel_coordinates = float2(x, y);
@@ -320,31 +344,16 @@ void main()
         pixel_coordinates_relative_to_mask_center = rotate_vector_2d(
             pixel_coordinates_relative_to_mask_center, -rotation);
       }
-      float2 uv_coordinates_relative_to_mask_bottom_left_corner = float2(
-          (abs_mask_size.x == 0.0f) ?
-              0.5f :
-              (0.5f * (pixel_coordinates_relative_to_mask_center.x / abs_mask_size.x) + 0.5f),
-          (abs_mask_size.y == 0.0f) ?
-              0.5f :
-              (0.5f * (pixel_coordinates_relative_to_mask_center.y / abs_mask_size.y) + 0.5f));
-      /* Align uv_coordinates_relative_to_mask_bottom_left_corner with pixel centers. For this,
-       * uv_coordinates_relative_to_mask_bottom_left_corner is remapped from [0, 1] x [0, 1] to
-       * [0.5/mask_data_size.x, (mask_data_size.x-0.5)/mask_data_size.x] x
-       * [0.5/mask_data_size.y, (mask_data_size.y-0.5)/mask_data_size.y]. */
-      uv_coordinates_relative_to_mask_bottom_left_corner =
-          (uv_coordinates_relative_to_mask_bottom_left_corner *
-               float2(input_mask_domain_data_size - int2(1, 1)) +
-           float2(0.5f, 0.5f)) /
-          float2(input_mask_domain_data_size);
-      float mask_value =
-          compute_rounded_square_mask(pixel_coordinates_relative_to_mask_center,
-                                      abs_mask_size,
-                                      rounding,
-                                      hardness,
-                                      ellipse_height,
-                                      ellipse_width,
-                                      inflection_midpoint) *
-          texture(input_mask_tx, uv_coordinates_relative_to_mask_bottom_left_corner).x;
+      float2 normalized_mask_coordinates = compute_normalized_mask_coordinates(
+          pixel_coordinates_relative_to_mask_center, abs_mask_size, input_mask_domain_data_size);
+      float mask_value = compute_rounded_square_mask(pixel_coordinates_relative_to_mask_center,
+                                                     abs_mask_size,
+                                                     rounding,
+                                                     hardness,
+                                                     ellipse_height,
+                                                     ellipse_width,
+                                                     inflection_midpoint) *
+                         SAMPLER_FUNCTION(input_mask_tx, normalized_mask_coordinates).x;
 
       int2 image_sampling_coordinates = int2(
           floored_mod(pixel_coordinates, float2(domain_data_size)));
@@ -361,22 +370,27 @@ void main()
             dot(chosen_pixel_coordinates - float2(texel),
                 chosen_pixel_coordinates - float2(texel)))))
       {
-        chosen_mask_value = mask_value;
+        chosen_mask_pixel = normalized_mask_coordinates;
         chosen_pixel_coordinates = pixel_coordinates;
         masked_maximum = iteration_masked_maximum;
       }
     }
   }
 
-  if (output_chosen_mask_value_should_compute) {
-    imageStore(output_chosen_mask_value_img, texel, float4(chosen_mask_value));
+  if (output_chosen_mask_pixel_should_compute) {
+    imageStore(output_chosen_mask_pixel_img,
+               texel,
+               float4(chosen_mask_pixel.x, chosen_mask_pixel.y, 0.0f, 0.0f));
   }
-  if (output_chosen_pixel_should_compute) {
+  if (output_chosen_image_pixel_should_compute) {
     /* Output the pixel coordinates that are inside the domain. */
     chosen_pixel_coordinates = floored_mod(chosen_pixel_coordinates, float2(domain_data_size));
-    imageStore(output_chosen_pixel_img,
+    /* Add float2(0.5f, 0.5f) to chosen_pixel_coordinates to align with pixel centers. */
+    float2 chosen_image_pixel = (chosen_pixel_coordinates + float2(0.5f, 0.5f)) /
+                                float2(domain_data_size);
+    imageStore(output_chosen_image_pixel_img,
                texel,
-               float4(chosen_pixel_coordinates.x, chosen_pixel_coordinates.y, 0.0f, 0.0f));
+               float4(chosen_image_pixel.x, chosen_image_pixel.y, 0.0f, 0.0f));
   }
   if (output_image_should_compute) {
     imageStore(

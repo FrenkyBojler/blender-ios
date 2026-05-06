@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2006 Blender Authors
+/* SPDX-FileCopyrightText: 2026 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -17,6 +17,8 @@
 #include "UI_resources.hh"
 
 #include "GPU_shader.hh"
+
+#include "RNA_enum_types.hh"
 
 #include "COM_node_operation.hh"
 #include "COM_utilities.hh"
@@ -39,25 +41,22 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description("The input image")
       .structure_type(StructureType::Dynamic);
   b.add_output<decl::Float>("Image"_ustr)
+      .description("The output image")
       .structure_type(StructureType::Dynamic)
       .align_with_previous();
-  b.add_output<decl::Vector>("Chosen Pixel"_ustr)
+  b.add_output<decl::Vector>("Chosen Image Pixel"_ustr)
       .dimensions(2)
       .description(
-          "The integer coordinates of the pixel of the input image that was chosen during the "
+          "The normalized coordinates of the pixel of the input image that was chosen during the "
           "operation")
       .structure_type(StructureType::Dynamic);
-  b.add_output<decl::Float>("Chosen Mask Value"_ustr)
+  b.add_output<decl::Vector>("Chosen Mask Pixel"_ustr)
+      .dimensions(2)
       .description(
-          "The value of the mask at the pixel of the input image that was chosen during the "
-          "operation")
+          "The normalized coordinates of the mask at the pixel of the input image that was chosen "
+          "during the operation")
       .structure_type(StructureType::Dynamic);
 
-  b.add_input<decl::Bool>("Keep Seamless"_ustr)
-      .default_value(false)
-      .description(
-          "When enabled, the operation keeps the output image seamless for a seamless input "
-          "image.");
   b.add_input<decl::Float>("Mask"_ustr)
       .default_value(1.0f)
       .hide_value()
@@ -69,8 +68,9 @@ static void node_declare(NodeDeclarationBuilder &b)
       .default_value({0.0f, 0.0f})
       .compositor_domain_priority(2)
       .description(
-          "Size from the center of the mask to its boundaries. If the Size value is negative in "
-          "any dimension, an erosion is performed instead of a dilation")
+          "Size from the center of the mask to its boundaries. If Mask Size is negative in "
+          "any dimension, the operation is performed on the inverted input image and the result "
+          "of that operation is also inverted")
       .structure_type(StructureType::Dynamic);
 
   PanelDeclarationBuilder &mask_transform_panel =
@@ -112,14 +112,6 @@ static void node_declare(NodeDeclarationBuilder &b)
       .compositor_domain_priority(6)
       .description("How close the mask falloff starts from the edge of the mask")
       .structure_type(StructureType::Dynamic);
-  falloff_panel.add_input<decl::Float>("Value Boundary"_ustr)
-      .default_value(0.0f)
-      .compositor_domain_priority(7)
-      .description(
-          "Value that the falloff gradient may fall off to. When performing a dilation, Value "
-          "Boundary is a lower boundary to the possible output image values. When performing an "
-          "erosion, 1 - Value Boundary is an upper boundary to the possible output image values")
-      .structure_type(StructureType::Dynamic);
 
   PanelDeclarationBuilder &falloff_shape_panel =
       falloff_panel.add_panel("Falloff Shape"_ustr).default_closed(true);
@@ -128,7 +120,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .max(1.0f)
       .default_value(0.5f)
       .subtype(PROP_FACTOR)
-      .compositor_domain_priority(8)
+      .compositor_domain_priority(7)
       .description(
           "Height of the elliptical segments of the elliptical step function, which is used to "
           "control the shape of the falloff. A higher value results in a smoother falloff.")
@@ -138,7 +130,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .max(1.0f)
       .default_value(0.5f)
       .subtype(PROP_FACTOR)
-      .compositor_domain_priority(9)
+      .compositor_domain_priority(8)
       .description(
           "Width of the elliptical segments of the elliptical step function, which is used to "
           "control the shape of the falloff. A higher value results in a rounder falloff")
@@ -148,12 +140,34 @@ static void node_declare(NodeDeclarationBuilder &b)
       .max(1.0f)
       .default_value(0.5f)
       .subtype(PROP_FACTOR)
-      .compositor_domain_priority(10)
+      .compositor_domain_priority(9)
       .description(
           "Position of the inflection midpoint of the elliptical step function, which is used to "
           "control the shape of the falloff. It controls how big the two elliptical segments are "
           "relative to each other")
       .structure_type(StructureType::Dynamic);
+
+  PanelDeclarationBuilder &operation_properties_panel =
+      b.add_panel("Operation Properties"_ustr).default_closed(true);
+  operation_properties_panel.add_input<decl::Float>("Value Boundary"_ustr)
+      .default_value(0.0f)
+      .compositor_domain_priority(10)
+      .description(
+          "Value by which the values of the input image are offset before they are multiplied by "
+          "the values of the mask. If Mask Size is negative in any dimension, 1 - Value Boundary "
+          "is an upper boundary to the possible output image values, otherwise Value Boundary is "
+          "a lower boundary to the possible output image values")
+      .structure_type(StructureType::Dynamic);
+  operation_properties_panel.add_input<decl::Menu>("Mask Interpolation"_ustr)
+      .default_value(CMP_NODE_INTERPOLATION_BILINEAR)
+      .static_items(rna_enum_node_compositor_interpolation_items)
+      .optional_label()
+      .description("Interpolation method of the input mask");
+  operation_properties_panel.add_input<decl::Bool>("Keep Seamless"_ustr)
+      .default_value(false)
+      .description(
+          "When enabled, the operation keeps the output image seamless for a seamless input "
+          "image.");
 }
 
 using namespace blender::compositor;
@@ -165,42 +179,44 @@ class MaskedMaximumOperation : public NodeOperation {
   void execute() override
   {
     Result &output_image = this->get_result("Image");
-    Result &output_chosen_pixel = this->get_result("Chosen Pixel");
-    Result &output_chosen_mask_value = this->get_result("Chosen Mask Value");
+    Result &output_chosen_image_pixel = this->get_result("Chosen Image Pixel");
+    Result &output_chosen_mask_pixel = this->get_result("Chosen Mask Pixel");
 
     const Domain domain = compute_domain();
     if (output_image.should_compute()) {
       output_image.allocate_texture(domain);
     }
-    if (output_chosen_pixel.should_compute()) {
-      output_chosen_pixel.allocate_texture(domain);
+    if (output_chosen_image_pixel.should_compute()) {
+      output_chosen_image_pixel.allocate_texture(domain);
     }
-    if (output_chosen_mask_value.should_compute()) {
-      output_chosen_mask_value.allocate_texture(domain);
+    if (output_chosen_mask_pixel.should_compute()) {
+      output_chosen_mask_pixel.allocate_texture(domain);
     }
 
     if (this->context().use_gpu()) {
-      this->execute_gpu(domain, output_image, output_chosen_pixel, output_chosen_mask_value);
+      this->execute_gpu(domain, output_image, output_chosen_image_pixel, output_chosen_mask_pixel);
     }
     else {
-      this->execute_cpu(domain, output_image, output_chosen_pixel, output_chosen_mask_value);
+      this->execute_cpu(domain, output_image, output_chosen_image_pixel, output_chosen_mask_pixel);
     }
   }
 
   void execute_gpu(const Domain domain,
                    Result &output_image,
-                   Result &output_chosen_pixel,
-                   Result &output_chosen_mask_value)
+                   Result &output_chosen_image_pixel,
+                   Result &output_chosen_mask_pixel)
   {
-    gpu::Shader *shader = context().get_shader("compositor_masked_maximum");
+    const Interpolation mask_interpolation = this->get_mask_interpolation();
+    gpu::Shader *shader = context().get_shader(this->get_shader_name(mask_interpolation));
     GPU_shader_bind(shader);
 
     GPU_shader_uniform_1b(shader, "output_image_should_compute", output_image.should_compute());
-    GPU_shader_uniform_1b(
-        shader, "output_chosen_pixel_should_compute", output_chosen_pixel.should_compute());
     GPU_shader_uniform_1b(shader,
-                          "output_chosen_mask_value_should_compute",
-                          output_chosen_mask_value.should_compute());
+                          "output_chosen_image_pixel_should_compute",
+                          output_chosen_image_pixel.should_compute());
+    GPU_shader_uniform_1b(shader,
+                          "output_chosen_mask_pixel_should_compute",
+                          output_chosen_mask_pixel.should_compute());
 
     GPU_shader_uniform_2iv(shader, "domain_data_size", domain.data_size);
 
@@ -213,9 +229,14 @@ class MaskedMaximumOperation : public NodeOperation {
     const Result &input_image = get_input("Image");
     input_image.bind_as_texture(shader, "input_image_tx");
 
-    GPU_texture_filter_mode(input_mask, false);
-    GPU_texture_extend_mode_x(input_mask, map_extension_mode_to_extend_mode(Extension::Clip));
-    GPU_texture_extend_mode_y(input_mask, map_extension_mode_to_extend_mode(Extension::Clip));
+    GPU_texture_filter_mode(input_mask, mask_interpolation != Interpolation::Nearest);
+    /* Extension mode is set to Extend to ensure that in the case where all pixels of the input
+     * mask have the same value, it behaves the same as a single value input with that value. */
+    /* This also covers the case where the input_mask is actually a single value, as single values
+     * are currently treated the same as 1x1 textures.
+     * TODO: Properly handle single values once methods become available. */
+    GPU_texture_extend_mode_x(input_mask, map_extension_mode_to_extend_mode(Extension::Extend));
+    GPU_texture_extend_mode_y(input_mask, map_extension_mode_to_extend_mode(Extension::Extend));
     input_mask.bind_as_texture(shader, "input_mask_tx");
 
     const Result &input_mask_size = get_input("Mask Size");
@@ -233,9 +254,6 @@ class MaskedMaximumOperation : public NodeOperation {
     const Result &input_hardness = get_input("Hardness");
     input_hardness.bind_as_texture(shader, "input_hardness_tx");
 
-    const Result &input_value_boundary = get_input("Value Boundary");
-    input_value_boundary.bind_as_texture(shader, "input_value_boundary_tx");
-
     const Result &input_ellipse_height = get_input("Ellipse Height");
     input_ellipse_height.bind_as_texture(shader, "input_ellipse_height_tx");
 
@@ -245,16 +263,19 @@ class MaskedMaximumOperation : public NodeOperation {
     const Result &input_inflection_midpoint = get_input("Inflection Midpoint");
     input_inflection_midpoint.bind_as_texture(shader, "input_inflection_midpoint_tx");
 
+    const Result &input_value_boundary = get_input("Value Boundary");
+    input_value_boundary.bind_as_texture(shader, "input_value_boundary_tx");
+
     if (output_image.should_compute()) {
       output_image.bind_as_image(shader, "output_image_img");
     }
 
-    if (output_chosen_pixel.should_compute()) {
-      output_chosen_pixel.bind_as_image(shader, "output_chosen_pixel_img");
+    if (output_chosen_image_pixel.should_compute()) {
+      output_chosen_image_pixel.bind_as_image(shader, "output_chosen_image_pixel_img");
     }
 
-    if (output_chosen_mask_value.should_compute()) {
-      output_chosen_mask_value.bind_as_image(shader, "output_chosen_mask_value_img");
+    if (output_chosen_mask_pixel.should_compute()) {
+      output_chosen_mask_pixel.bind_as_image(shader, "output_chosen_mask_pixel_img");
     }
 
     compute_dispatch_threads_at_least(shader, domain.data_size);
@@ -267,27 +288,60 @@ class MaskedMaximumOperation : public NodeOperation {
     input_translation.unbind_as_texture();
     input_rounding.unbind_as_texture();
     input_hardness.unbind_as_texture();
-    input_value_boundary.unbind_as_texture();
     input_ellipse_height.unbind_as_texture();
     input_ellipse_width.unbind_as_texture();
     input_inflection_midpoint.unbind_as_texture();
+    input_value_boundary.unbind_as_texture();
     if (output_image.should_compute()) {
       output_image.unbind_as_image();
     }
-    if (output_chosen_pixel.should_compute()) {
-      output_chosen_pixel.unbind_as_image();
+    if (output_chosen_image_pixel.should_compute()) {
+      output_chosen_image_pixel.unbind_as_image();
     }
-    if (output_chosen_mask_value.should_compute()) {
-      output_chosen_mask_value.unbind_as_image();
+    if (output_chosen_mask_pixel.should_compute()) {
+      output_chosen_mask_pixel.unbind_as_image();
     }
+  }
+
+  char const *get_shader_name(const Interpolation &mask_interpolation)
+  {
+    switch (mask_interpolation) {
+      case Interpolation::Anisotropic:
+      case Interpolation::Bicubic:
+        return "compositor_masked_maximum_bicubic";
+      case Interpolation::Bilinear:
+      case Interpolation::Nearest:
+        return "compositor_masked_maximum";
+    }
+
+    return "compositor_masked_maximum";
+  }
+
+  Interpolation get_mask_interpolation()
+  {
+    const CMPNodeInterpolation mask_interpolation = CMPNodeInterpolation(
+        this->get_input("Mask Interpolation").get_single_value_default<MenuValue>().value);
+    switch (mask_interpolation) {
+      case CMP_NODE_INTERPOLATION_NEAREST:
+        return Interpolation::Nearest;
+      case CMP_NODE_INTERPOLATION_BILINEAR:
+        return Interpolation::Bilinear;
+      case CMP_NODE_INTERPOLATION_ANISOTROPIC:
+      case CMP_NODE_INTERPOLATION_BICUBIC:
+        return Interpolation::Bicubic;
+    }
+
+    return Interpolation::Nearest;
   }
 
   void execute_cpu(const Domain domain,
                    Result &output_image,
-                   Result &output_chosen_pixel,
-                   Result &output_chosen_mask_value)
+                   Result &output_chosen_image_pixel,
+                   Result &output_chosen_mask_pixel)
   {
+    const Interpolation mask_interpolation = this->get_mask_interpolation();
     const bool keep_seamless = get_input("Keep Seamless").get_single_value_default<bool>();
+
     const Result &input_image = get_input("Image");
     const Result &input_mask = get_input("Mask");
     const Result &input_mask_size = get_input("Mask Size");
@@ -295,10 +349,10 @@ class MaskedMaximumOperation : public NodeOperation {
     const Result &input_translation = get_input("Translation");
     const Result &input_rounding = get_input("Rounding");
     const Result &input_hardness = get_input("Hardness");
-    const Result &input_value_boundary = get_input("Value Boundary");
     const Result &input_ellipse_height = get_input("Ellipse Height");
     const Result &input_ellipse_width = get_input("Ellipse Width");
     const Result &input_inflection_midpoint = get_input("Inflection Midpoint");
+    const Result &input_value_boundary = get_input("Value Boundary");
 
     parallel_for(domain.data_size, [&](const int2 texel) {
       float2 mask_size = input_mask_size.load_pixel_zero<float2, true>(texel);
@@ -316,13 +370,13 @@ class MaskedMaximumOperation : public NodeOperation {
       float2 translation = input_translation.load_pixel_zero<float2, true>(texel);
       float rounding = math::clamp(input_rounding.load_pixel_zero<float, true>(texel), 0.0f, 1.0f);
       float hardness = math::clamp(input_hardness.load_pixel_zero<float, true>(texel), 0.0f, 1.0f);
-      float value_boundary = input_value_boundary.load_pixel_zero<float, true>(texel);
       float ellipse_height = math::clamp(
           input_ellipse_height.load_pixel_zero<float, true>(texel), 0.0f, 1.0f);
       float ellipse_width = math::clamp(
           input_ellipse_width.load_pixel_zero<float, true>(texel), 0.0f, 1.0f);
       float inflection_midpoint = math::clamp(
           input_inflection_midpoint.load_pixel_zero<float, true>(texel), 0.0f, 1.0f);
+      float value_boundary = input_value_boundary.load_pixel_zero<float, true>(texel);
 
       /* Calculate the top right and bottom left corners of the bounding box of the rounded square
        * mask. */
@@ -362,8 +416,8 @@ class MaskedMaximumOperation : public NodeOperation {
         bounding_box_bottom_left_corner = math::max(bounding_box_bottom_left_corner, int2(0, 0));
       }
 
-      /* Initialize the output variables by evaluating the pixel that is outside the bounding box
-       * and closest to the pixel that the operation is evaluated on. Therefore, if the pixel that
+      /* The output variables are initialized with the pixel that is outside the bounding box and
+       * closest to the pixel that the operation is evaluated on. It follows that if the pixel that
        * the operation is evaluated on is outside the bounding box, it is used to initialize the
        * output variables. */
       float masked_maximum = value_boundary;
@@ -429,10 +483,13 @@ class MaskedMaximumOperation : public NodeOperation {
           }
         }
       }
-      float chosen_mask_value = 0.0f;
+      float2 mask_center_coordinates = float2(texel) + float2(translation);
+      float2 chosen_mask_pixel = compute_normalized_mask_coordinates(
+          rotate_vector_2d(chosen_pixel_coordinates - mask_center_coordinates, -rotation),
+          abs_mask_size,
+          input_mask.domain().data_size);
 
       bool is_dilate = (mask_size.x >= 0.0f) && (mask_size.y >= 0.0f);
-      float2 mask_center_coordinates = float2(texel) + float2(translation);
       for (int y = bounding_box_bottom_left_corner.y; y <= bounding_box_top_right_corner.y; y++) {
         for (int x = bounding_box_bottom_left_corner.x; x <= bounding_box_top_right_corner.x; x++)
         {
@@ -443,22 +500,10 @@ class MaskedMaximumOperation : public NodeOperation {
             pixel_coordinates_relative_to_mask_center = rotate_vector_2d(
                 pixel_coordinates_relative_to_mask_center, -rotation);
           }
-          float2 uv_coordinates_relative_to_mask_bottom_left_corner = float2(
-              (abs_mask_size.x == 0.0f) ?
-                  0.5f :
-                  (0.5f * (pixel_coordinates_relative_to_mask_center.x / abs_mask_size.x) + 0.5f),
-              (abs_mask_size.y == 0.0f) ?
-                  0.5f :
-                  (0.5f * (pixel_coordinates_relative_to_mask_center.y / abs_mask_size.y) + 0.5f));
-          /* Align uv_coordinates_relative_to_mask_bottom_left_corner with pixel centers. For this,
-           * uv_coordinates_relative_to_mask_bottom_left_corner is remapped from [0, 1] x [0, 1] to
-           * [0.5/mask_data_size.x, (mask_data_size.x-0.5)/mask_data_size.x] x
-           * [0.5/mask_data_size.y, (mask_data_size.y-0.5)/mask_data_size.y]. */
-          uv_coordinates_relative_to_mask_bottom_left_corner =
-              (uv_coordinates_relative_to_mask_bottom_left_corner *
-                   float2(input_mask.domain().data_size - int2(1, 1)) +
-               float2(0.5f, 0.5f)) /
-              float2(input_mask.domain().data_size);
+          float2 normalized_mask_coordinates = compute_normalized_mask_coordinates(
+              pixel_coordinates_relative_to_mask_center,
+              abs_mask_size,
+              input_mask.domain().data_size);
           float mask_value = compute_rounded_square_mask(pixel_coordinates_relative_to_mask_center,
                                                          abs_mask_size,
                                                          rounding,
@@ -467,10 +512,13 @@ class MaskedMaximumOperation : public NodeOperation {
                                                          ellipse_width,
                                                          inflection_midpoint) *
                              input_mask.sample<float, true>(
-                                 uv_coordinates_relative_to_mask_bottom_left_corner,
-                                 Interpolation::Nearest,
-                                 Extension::Clip,
-                                 Extension::Clip);
+                                 normalized_mask_coordinates,
+                                 mask_interpolation,
+                                 /* Extension mode is set to Extend to ensure that in the case
+                                    where all pixels of the input mask have the same value, it
+                                    behaves the same as a single value input with that value. */
+                                 Extension::Extend,
+                                 Extension::Extend);
 
           int2 image_sampling_coordinates = int2(
               math::floored_mod(pixel_coordinates, float2(domain.data_size)));
@@ -488,26 +536,49 @@ class MaskedMaximumOperation : public NodeOperation {
                 math::dot(chosen_pixel_coordinates - float2(texel),
                           chosen_pixel_coordinates - float2(texel)))))
           {
-            chosen_mask_value = mask_value;
+            chosen_mask_pixel = normalized_mask_coordinates;
             chosen_pixel_coordinates = pixel_coordinates;
             masked_maximum = iteration_masked_maximum;
           }
         }
       }
 
-      if (output_chosen_mask_value.should_compute()) {
-        output_chosen_mask_value.store_pixel(texel, chosen_mask_value);
+      if (output_chosen_mask_pixel.should_compute()) {
+        output_chosen_mask_pixel.store_pixel(texel, chosen_mask_pixel);
       }
-      if (output_chosen_pixel.should_compute()) {
+      if (output_chosen_image_pixel.should_compute()) {
         /* Output the pixel coordinates that are inside the domain. */
         chosen_pixel_coordinates = math::floored_mod(chosen_pixel_coordinates,
                                                      float2(domain.data_size));
-        output_chosen_pixel.store_pixel(texel, chosen_pixel_coordinates);
+        /* Add float2(0.5f, 0.5f) to chosen_pixel_coordinates to align with pixel centers. */
+        float2 chosen_image_pixel = (chosen_pixel_coordinates + float2(0.5f, 0.5f)) /
+                                    float2(domain.data_size);
+        output_chosen_image_pixel.store_pixel(texel, chosen_image_pixel);
       }
       if (output_image.should_compute()) {
         output_image.store_pixel(texel, is_dilate ? masked_maximum : (1.0f - masked_maximum));
       }
     });
+  }
+
+  float2 compute_normalized_mask_coordinates(float2 pixel_coordinates_relative_to_mask_center,
+                                             float2 abs_mask_size,
+                                             int2 input_mask_data_size)
+  {
+    float2 normalized_mask_coordinates = float2(
+        (abs_mask_size.x == 0.0f) ?
+            0.5f :
+            (0.5f * (pixel_coordinates_relative_to_mask_center.x / abs_mask_size.x) + 0.5f),
+        (abs_mask_size.y == 0.0f) ?
+            0.5f :
+            (0.5f * (pixel_coordinates_relative_to_mask_center.y / abs_mask_size.y) + 0.5f));
+    /* Align normalized_mask_coordinates with pixel centers.
+     * For this, normalized_mask_coordinates is remapped from [0, 1] x [0, 1] to
+     * [0.5/input_mask_data_size.x, (input_mask_data_size.x-0.5)/input_mask_data_size.x] x
+     * [0.5/input_mask_data_size.y, (input_mask_data_size.y-0.5)/input_mask_data_size.y]. */
+    return (normalized_mask_coordinates * float2(input_mask_data_size - int2(1, 1)) +
+            float2(0.5f, 0.5f)) /
+           float2(input_mask_data_size);
   }
 
   float2 rotate_vector_2d(float2 vector, float angle)
