@@ -11217,18 +11217,22 @@ float block_calc_pie_segment(Block *block, const float event_xy[2])
   return len;
 }
 
-static void set_initial_search_query_from_menu_event(const wmEvent *event, PointerRNA *props)
+static void set_initial_search_query_from_event(const wmEvent *event,
+                                                PointerRNA *props,
+                                                const StringRefNull prop_name)
 {
-  if (event->type != EVT_SPACEKEY) {
-    /* Forward all keys except space-bar to the search. */
-    const int num_bytes = BLI_str_utf8_size_or_error(event->utf8_buf);
-    if (num_bytes != -1) {
-      char buf[sizeof(event->utf8_buf) + 1];
-      memcpy(buf, event->utf8_buf, num_bytes);
-      buf[num_bytes] = '\0';
-      RNA_string_set(props, "initial_query", buf);
-    }
+  if (event->type == EVT_SPACEKEY) {
+    return;
   }
+  /* Forward all keys except space-bar to the search. */
+  const int num_bytes = BLI_str_utf8_size_or_error(event->utf8_buf);
+  if (num_bytes == -1) {
+    return;
+  }
+  char buf[sizeof(event->utf8_buf) + 1];
+  memcpy(buf, event->utf8_buf, num_bytes);
+  buf[num_bytes] = '\0';
+  RNA_string_set(props, prop_name.c_str(), buf);
 }
 
 static int handle_menu_letter_press_search(PopupBlockHandle *menu, const wmEvent *event)
@@ -11241,8 +11245,7 @@ static int handle_menu_letter_press_search(PopupBlockHandle *menu, const wmEvent
     after->opcontext = wm::OpCallContext::InvokeDefault;
     after->opptr = MEM_new<PointerRNA>(__func__, WM_operator_properties_create_ptr(ot));
     RNA_string_set(after->opptr, "menu_idname", menu->menu_idname);
-    set_initial_search_query_from_menu_event(event, after->opptr);
-
+    set_initial_search_query_from_event(event, after->opptr, "initial_query");
     menu->menuretval = RETURN_OK;
     return WM_UI_HANDLER_BREAK;
   }
@@ -11272,7 +11275,7 @@ static int ui_handle_enum_letter_press_search(PopupBlockHandle *menu, const wmEv
     RNA_int_set(after->opptr, "owner_session_uid", -1);
   }
 
-  set_initial_search_query_from_menu_event(event, after->opptr);
+  set_initial_search_query_from_event(event, after->opptr, "initial_query");
 
   menu->menuretval = RETURN_OUT;
   return WM_UI_HANDLER_BREAK;
