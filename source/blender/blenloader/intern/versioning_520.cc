@@ -8,8 +8,14 @@
 
 #define DNA_DEPRECATED_ALLOW
 
+/* Define macros in `DNA_genfile.h` for DNA_struct_member_exists usage.
+ * Required to check if a struct member exists in old blend files during versioning. */
+#define DNA_GENFILE_VERSIONING_MACROS
+
 #include "DNA_ID.h"
 #include "DNA_brush_types.h"
+#include "DNA_genfile.h"
+#include "DNA_screen_types.h"
 
 #include "BLI_listbase_iterator.hh"
 #include "BLI_sys_types.h"
@@ -21,6 +27,7 @@
 
 #include "SEQ_sequencer.hh"
 
+#include "BLO_readfile.hh"
 #include "readfile.hh"
 
 #include "versioning_common.hh"
@@ -71,7 +78,9 @@ void do_versions_after_linking_520(FileData * /*fd*/, Main *bmain)
    */
 }
 
-void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
+/* FileData parameter (fd) must be active since we use DNA_struct_member_exists
+ * to check old file format compatibility during versioning. */
+void blo_do_versions_520(FileData *fd, Library * /*lib*/, Main *bmain)
 {
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 1)) {
     for (Scene &scene : bmain->scenes) {
@@ -134,6 +143,25 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
         UnifiedPaintSettings &settings =
             scene.toolsettings->gp_paint->paint.unified_paint_settings;
         settings.flag &= ~(UNIFIED_PAINT_SIZE | UNIFIED_PAINT_ALPHA | UNIFIED_PAINT_COLOR);
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 12)) {
+    /* Add default face sets overlay opacity for files missing the field.
+     * DNA_struct_member_exists checks if the field exists in old file format.
+     * If the field doesn't exist (files from before face_sets_opacity was added),
+     * initialize it with default value to prevent crashes. */
+    if (!DNA_struct_member_exists(fd->filesdna, "View3DOverlay", "float", "face_sets_opacity")) {
+      for (bScreen &screen : bmain->screens) {
+        for (ScrArea &area : screen.areabase) {
+          for (SpaceLink &sl : area.spacedata) {
+            if (sl.spacetype == SPACE_VIEW3D) {
+              View3D *v3d = (View3D *)&sl;
+              v3d->overlay.face_sets_opacity = 1.0f;
+            }
+          }
+        }
       }
     }
   }
