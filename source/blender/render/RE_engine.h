@@ -106,6 +106,11 @@ struct RenderEngineType {
                     const struct bContext *context,
                     struct Depsgraph *depsgraph);
 
+  void (*pause_viewport)(struct RenderEngine *engine,
+                        struct Scene *scene);
+  void (*resume_viewport)(struct RenderEngine *engine,
+                          struct Scene *scene);
+
   void (*update_script_node)(struct RenderEngine *engine,
                              struct bNodeTree *ntree,
                              struct bNode *node);
@@ -269,6 +274,8 @@ void RE_engine_gpu_context_disable(struct RenderEngine *engine);
 
 void RE_engine_gpu_context_lock(struct RenderEngine *engine);
 void RE_engine_gpu_context_unlock(struct RenderEngine *engine);
+void RE_engine_pause_viewport(struct RenderEngine *engine, struct Scene *scene);
+void RE_engine_resume_viewport(struct RenderEngine *engine, struct Scene *scene);
 
 /* Engine Types */
 

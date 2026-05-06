@@ -105,6 +105,15 @@ class CyclesRender(bpy.types.RenderEngine):
     def view_draw(self, context, depsgraph):
         engine.view_draw(self, depsgraph, context.region, context.space_data, context.region_data)
 
+    def pause_viewport(self, scene):
+        cscene = scene.cycles
+        self._pre_render_pause_state = cscene.preview_pause
+        cscene.preview_pause = True
+
+    def resume_viewport(self, scene):
+        cscene = scene.cycles
+        cscene.preview_pause = getattr(self, '_pre_render_pause_state', False)
+
     def update_script_node(self, node):
         if engine.with_osl():
             from . import osl

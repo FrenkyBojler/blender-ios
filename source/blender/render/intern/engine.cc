@@ -1442,6 +1442,20 @@ void RE_engine_gpu_context_unlock(RenderEngine *engine)
   }
 }
 
+void RE_engine_pause_viewport(RenderEngine *engine, Scene *scene)
+{
+  if (engine->type->pause_viewport) {
+    engine->type->pause_viewport(engine, scene);
+  }
+}
+
+void RE_engine_resume_viewport(RenderEngine *engine, Scene *scene)
+{
+  if (engine->type->resume_viewport) {
+    engine->type->resume_viewport(engine, scene);
+  }
+}
+
 /** \} */
 
 }  // namespace blender

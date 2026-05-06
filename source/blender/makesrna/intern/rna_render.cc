@@ -210,6 +210,38 @@ static void engine_view_update(RenderEngine *engine, const bContext *context, De
   RNA_parameter_list_free(&list);
 }
 
+static void engine_pause_viewport(RenderEngine *engine, Scene *scene)
+{
+  extern FunctionRNA *rna_RenderEngine_pause_viewport_func;
+  ParameterList list;
+  FunctionRNA *func;
+
+  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, engine->type->rna_ext.srna, engine);
+  func = rna_RenderEngine_pause_viewport_func;
+
+  RNA_parameter_list_create(&list, &ptr, func);
+  RNA_parameter_set_lookup(&list, "scene", &scene);
+  engine->type->rna_ext.call(nullptr, &ptr, func, &list);
+
+  RNA_parameter_list_free(&list);
+}
+
+static void engine_resume_viewport(RenderEngine *engine, Scene *scene)
+{
+  extern FunctionRNA *rna_RenderEngine_resume_viewport_func;
+  ParameterList list;
+  FunctionRNA *func;
+
+  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, engine->type->rna_ext.srna, engine);
+  func = rna_RenderEngine_resume_viewport_func;
+
+  RNA_parameter_list_create(&list, &ptr, func);
+  RNA_parameter_set_lookup(&list, "scene", &scene);
+  engine->type->rna_ext.call(nullptr, &ptr, func, &list);
+
+  RNA_parameter_list_free(&list);
+}
+
 static void engine_view_draw(RenderEngine *engine, const bContext *context, Depsgraph *depsgraph)
 {
   extern FunctionRNA *rna_RenderEngine_view_draw_func;
@@ -308,7 +340,7 @@ static StructRNA *rna_RenderEngine_register(Main *bmain,
   const char *error_prefix = "Registering render engine class:";
   RenderEngineType *et, dummy_et = {nullptr};
   RenderEngine dummy_engine = {nullptr};
-  bool have_function[10];
+  bool have_function[12];
 
   /* setup dummy engine & engine type to store static properties in */
   dummy_engine.type = &dummy_et;
@@ -372,9 +404,11 @@ static StructRNA *rna_RenderEngine_register(Main *bmain,
   et->bake = (have_function[4]) ? engine_bake : nullptr;
   et->view_update = (have_function[5]) ? engine_view_update : nullptr;
   et->view_draw = (have_function[6]) ? engine_view_draw : nullptr;
-  et->update_script_node = (have_function[7]) ? engine_update_script_node : nullptr;
-  et->update_render_passes = (have_function[8]) ? engine_update_render_passes : nullptr;
-  et->update_custom_camera = (have_function[9]) ? engine_update_custom_camera : nullptr;
+  et->pause_viewport = (have_function[7]) ? engine_pause_viewport : nullptr;
+  et->resume_viewport = (have_function[8]) ? engine_resume_viewport : nullptr;
+  et->update_script_node = (have_function[9]) ? engine_update_script_node : nullptr;
+  et->update_render_passes = (have_function[10]) ? engine_update_render_passes : nullptr;
+  et->update_custom_camera = (have_function[11]) ? engine_update_custom_camera : nullptr;
 
   RE_engines_register(et);
 
@@ -608,6 +642,18 @@ static void rna_def_render_engine(BlenderRNA *brna)
   parm = RNA_def_pointer(func, "context", "Context", "", "");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   parm = RNA_def_pointer(func, "depsgraph", "Depsgraph", "", "");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+
+  func = RNA_def_function(srna, "pause_viewport", nullptr);
+  RNA_def_function_ui_description(func, "Pause viewport render when a final render starts");
+  RNA_def_function_flag(func, FUNC_REGISTER_OPTIONAL | FUNC_ALLOW_WRITE);
+  parm = RNA_def_pointer(func, "scene", "Scene", "", "");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+
+  func = RNA_def_function(srna, "resume_viewport", nullptr);
+  RNA_def_function_ui_description(func, "Resume viewport render when a final render finishes");
+  RNA_def_function_flag(func, FUNC_REGISTER_OPTIONAL | FUNC_ALLOW_WRITE);
+  parm = RNA_def_pointer(func, "scene", "Scene", "", "");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 
   /* shader script callbacks */

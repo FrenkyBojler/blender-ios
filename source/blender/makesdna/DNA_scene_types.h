@@ -1000,7 +1000,10 @@ struct RenderData {
   char seq_prev_type = OB_SOLID;
   /** Flag use for sequence render/draw. */
   char seq_flag = 0;
-  char _pad5[4] = {};
+  
+  /** Automatically pause viewport render engines when a final render starts. */
+  char use_auto_pause_viewport = 0;
+  char _pad5[3] = {};
 
   /* Render simplify. */
   short simplify_subsurf = 6;

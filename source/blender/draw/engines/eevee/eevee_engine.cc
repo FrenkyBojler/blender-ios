@@ -89,6 +89,8 @@ RenderEngineType DRW_engine_viewport_eevee_type = {
     /*bake*/ nullptr,
     /*view_update*/ nullptr,
     /*view_draw*/ nullptr,
+    /*pause_viewport*/ nullptr,
+    /*resume_viewport*/ nullptr,
     /*update_script_node*/ nullptr,
     /*update_render_passes*/ &eevee_render_update_passes,
     /*update_custom_camera*/ nullptr,

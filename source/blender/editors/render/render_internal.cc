@@ -26,6 +26,9 @@
 #include "DNA_scene_types.h"
 #include "DNA_userdef_types.h"
 #include "DNA_view3d_types.h"
+#include "DNA_screen_types.h"
+#include "DNA_space_types.h"
+#include "DNA_windowmanager_types.h"
 
 #include "BKE_colortools.hh"
 #include "BKE_compositor.hh"
@@ -748,6 +751,44 @@ static void render_image_restore_scene_and_layer(RenderJob *rj)
   }
 }
 
+static void render_engines_viewport_pause_resume(Main *bmain, Scene *scene, const bool pause)
+{
+  wmWindowManager *wm = static_cast<wmWindowManager *>(bmain->wm.first);
+  if (!wm) {
+    return;
+  }
+  for (wmWindow &win : wm->windows) {
+    const bScreen *screen = WM_window_get_active_screen(&win);
+    if (!screen) {
+      continue;
+    }
+    for (ScrArea &area : screen->areabase) {
+      if (area.spacetype != SPACE_VIEW3D) {
+        continue;
+      }
+      for (ARegion &region : area.regionbase) {
+        if (region.regiontype != RGN_TYPE_WINDOW) {
+          continue;
+        }
+        RegionView3D *rv3d = static_cast<RegionView3D *>(region.regiondata);
+        if (!rv3d) {
+          continue;
+        }
+        RenderEngine *engine = RE_view_engine_get(rv3d->view_render);
+        if (!engine) {
+          continue;
+        }
+        if (pause) {
+          RE_engine_pause_viewport(engine, scene);
+        }
+        else {
+          RE_engine_resume_viewport(engine, scene);
+        }
+      }
+    }
+  }
+}
+
 static void render_endjob(void *rjv)
 {
   RenderJob *rj = static_cast<RenderJob *>(rjv);
@@ -830,6 +871,11 @@ static void render_endjob(void *rjv)
      */
     WM_locked_interface_set(static_cast<wmWindowManager *>(G_MAIN->wm.first), false);
     DEG_tag_on_visible_update(G_MAIN, false);
+  }
+
+  /* Resume viewport render engines now that the final render is complete. */
+  if (rj->scene->r.use_auto_pause_viewport) {
+    render_engines_viewport_pause_resume(G_MAIN, rj->scene, false);
   }
 }
 
@@ -1141,6 +1187,11 @@ static wmOperatorStatus screen_render_invoke(bContext *C, wmOperator *op, const 
    * the reason of this is that active scene could change when rendering
    * several layers from compositor #31800. */
   op->customdata = scene;
+
+  /* Pause viewport render engines for the duration of the final render. */
+  if (scene->r.use_auto_pause_viewport) {
+    render_engines_viewport_pause_resume(bmain, scene, true);
+  }
 
   WM_jobs_start(CTX_wm_manager(C), wm_job);
 
