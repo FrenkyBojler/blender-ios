@@ -312,14 +312,19 @@ ResultT eval(sampler2D hiz_tx,
         float LV_front = dot(vL_front, vV);
         float LV_back = dot(vL_back, vV);
         if (reversed) {
-          /* In reverse mode we revert to horizon scanning.
+          /* In reverse mode we revert back to horizon scanning.
            * Occlude everything in front of this sample. */
           LV_front = 1.0f;
         }
         /* Ordered pair of angle. Minimum in X, Maximum in Y.
          * Front will always have the smallest angle here since it is the closest to the view. */
-        float2 theta = acos_fast(float2(dot(vL_front, vV), dot(vL_back, vV)));
+        float2 theta = acos_fast(float2(LV_front, LV_back));
         theta.y = max(theta.x + thickness_far, theta.y);
+        if (reversed) {
+          /* This is the main part of the reversed AO.
+           * Rotate the angles 180 degrees to align with the front facing normal. */
+          theta -= M_PI;
+        }
         /* If we are tracing backward, the angles are negative. Swizzle to keep correct order. */
         theta = (side == 0) ? theta.xy : -theta.yx;
 
