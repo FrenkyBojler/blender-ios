@@ -348,6 +348,8 @@ class ShadowModule {
 
   void set_lights_data();
 
+  void sync_view(View &view, int2 extent);
+
   /* Update all shadow regions visible inside the view.
    * If called multiple time for the same view, it will only do the depth buffer scanning
    * to check any new opaque surfaces.

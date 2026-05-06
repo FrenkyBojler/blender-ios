@@ -82,10 +82,13 @@ void ShadingView::render()
   }
 
   update_view();
-
+  inst_.shadows.sync_view(render_view_, extent_);
+  inst_.volume.sync_view(main_view_);
+  inst_.uniform_data.data.push_update();
   /* Need to be set early for planar probe renderding (if using raycast node) and raycast nodes in
    * deferred / forward pipelines. */
   inst_.raytracing.thickness_parameters_setup(render_view_.winmat(), extent_);
+  inst_.uniform_data.raytrace.push_update();
 
   GPU_debug_group_begin(name_);
 
@@ -404,6 +407,10 @@ void CaptureView::render_probes()
                                                       update_info->clipping_distances.x,
                                                       update_info->clipping_distances.y);
       view.sync(view_m4, win_m4);
+
+      inst_.shadows.sync_view(view, extent);
+      inst_.volume.sync_view(view);
+      inst_.uniform_data.data.push_update();
 
       combined_fb_.ensure(GPU_ATTACHMENT_TEXTURE(inst_.render_buffers.depth_tx),
                           GPU_ATTACHMENT_TEXTURE_CUBEFACE(inst_.sphere_probes.cubemap_tx_, face));

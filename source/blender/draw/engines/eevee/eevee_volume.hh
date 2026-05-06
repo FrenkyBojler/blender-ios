@@ -167,6 +167,8 @@ class VolumeModule {
 
   void end_sync();
 
+  void sync_view(View &main_view);
+
   /* Render material properties. */
   void draw_prepass(View &main_view);
   /* Compute scattering and integration. */
