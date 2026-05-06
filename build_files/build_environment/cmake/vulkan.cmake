@@ -11,7 +11,8 @@ ExternalProject_Add(external_vulkan_headers
 
   CMAKE_ARGS
     -DCMAKE_INSTALL_PREFIX=${LIBDIR}/vulkan_headers
-    -Wno-dev ${DEFAULT_CMAKE_FLAGS}
+    -Wno-dev
+    ${DEFAULT_CMAKE_FLAGS}
     ${VULKAN_HEADERS_EXTRA_ARGS}
 
   INSTALL_DIR ${LIBDIR}/vulkan_headers
@@ -31,7 +32,8 @@ ExternalProject_Add(external_vulkan_utility_libraries
 
   CMAKE_ARGS
     -DCMAKE_INSTALL_PREFIX=${LIBDIR}/vulkan_headers
-    -Wno-dev ${DEFAULT_CMAKE_FLAGS}
+    -Wno-dev
+    ${DEFAULT_CMAKE_FLAGS}
     ${VULKAN_UTILITY_LIBRARIES_EXTRA_ARGS}
 
   INSTALL_DIR ${LIBDIR}/vulkan_headers
@@ -51,7 +53,8 @@ ExternalProject_Add(external_spirv_headers
 
   CMAKE_ARGS
     -DCMAKE_INSTALL_PREFIX=${LIBDIR}/vulkan_headers
-    -Wno-dev ${DEFAULT_CMAKE_FLAGS}
+    -Wno-dev
+    ${DEFAULT_CMAKE_FLAGS}
     ${SPIRV_HEADERS_EXTRA_ARGS}
 
   INSTALL_DIR ${LIBDIR}/vulkan_headers
