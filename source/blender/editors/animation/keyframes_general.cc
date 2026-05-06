@@ -958,14 +958,12 @@ void time_offset_fcurve_segment(FCurve *fcu, FCurveSegment *segment, const float
   for (int i = 0; i < segment->length; i++) {
     const BezTriple &key = fcu->bezt[segment->start_index + i];
     /* This simulates the fcu curve moving in time. */
-    {
-      const float time = key.vec[1][0] + frame_offset;
-      /* Need to normalize time to first_key to specify that as the wrapping point. */
-      const float wrapped_time = floored_fmod(time - first_key_x, fcu_x_range) + first_key_x;
-      const float y_offset = fcu_y_range * floorf((time - first_key_x) / fcu_x_range);
-      y_values[i] = evaluate_fcurve(fcu, wrapped_time) + y_offset;
-      tangents[i] = BKE_fcurve_tangent(*fcu, wrapped_time);
-    }
+    const float time = key.vec[1][0] + frame_offset;
+    /* Need to normalize time to first_key to specify that as the wrapping point. */
+    const float wrapped_time = floored_fmod(time - first_key_x, fcu_x_range) + first_key_x;
+    const float y_offset = fcu_y_range * floorf((time - first_key_x) / fcu_x_range);
+    y_values[i] = evaluate_fcurve(fcu, wrapped_time) + y_offset;
+    tangents[i] = BKE_fcurve_tangent(*fcu, wrapped_time);
   }
 
   BezTriple *prev_key = segment->start_index - 1 >= 0 ? &fcu->bezt[segment->start_index - 1] :
@@ -975,7 +973,7 @@ void time_offset_fcurve_segment(FCurve *fcu, FCurveSegment *segment, const float
     BezTriple *next_key = key_index + 1 < fcu->totvert ? &fcu->bezt[key_index + 1] : nullptr;
     BezTriple &key = fcu->bezt[key_index];
     key.vec[1][1] = y_values[i];
-    key.h1 = key.h2 = HD_FREE;
+    key.h1 = key.h2 = HD_ALIGN;
     if (prev_key) {
       const float dist = len_v2(float2(key.vec[1]) - float2(prev_key->vec[1])) * 0.3f;
       key.vec[0][0] = key.vec[1][0] - tangents[i].x * dist;

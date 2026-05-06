@@ -450,7 +450,8 @@ enum eFCU_Cycle_Type {
 eFCU_Cycle_Type BKE_fcurve_get_cycle_type(const FCurve &fcu);
 
 /**
- * Returns the tangent of the curve at the given point.
+ * Returns the tangent of the curve at the given point. This returns a normalized vector that
+ * always points towards positive X.
  */
 float2 BKE_fcurve_tangent(FCurve &fcurve, float frame);
 
