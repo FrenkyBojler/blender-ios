@@ -2,51 +2,19 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-set(SDL_PATCH
-  ${PATCH_CMD} -p 0 -N -d
-    ${BUILD_DIR}/sdl/src/external_sdl <
-    ${PATCH_DIR}/sdl.diff
+set(SDL_EXTRA_ARGS
+  -DSDL_STATIC=OFF
+  -DSDL_TESTS=OFF
+  -DSDL_TEST_LIBRARY=OFF
+  -DSDL_SNDIO=OFF
 )
-
-if(WIN32)
-  set(SDL_EXTRA_ARGS
-    -DSDL_STATIC=Off
-  )
-
-  if(BLENDER_PLATFORM_WINDOWS_ARM)
-    set(SDL_PATCH
-      ${SDL_PATCH} &&
-      ${PATCH_CMD} -p 1 -N -d
-        ${BUILD_DIR}/sdl/src/external_sdl <
-        ${PATCH_DIR}/sdl_woa.diff
-    )
-  endif()
-else()
-  set(SDL_EXTRA_ARGS
-    -DSDL_STATIC=ON
-    -DSDL_SHARED=OFF
-    -DSDL_VIDEO=OFF
-    -DSNDIO=OFF
-  )
-
-  # Core Haptics only available once macOS 11.0 becomes minimum.
-  if(APPLE AND NOT BLENDER_PLATFORM_ARM)
-    list(APPEND SDL_EXTRA_ARGS -DSDL_HAPTICS=OFF)
-    set(SDL_PATCH
-      ${SDL_PATCH} &&
-      ${PATCH_CMD} -p 0 -N -d
-        ${BUILD_DIR}/sdl/src/external_sdl <
-        ${PATCH_DIR}/sdl_haptics.diff
-    )
-  endif()
-endif()
 
 ExternalProject_Add(external_sdl
   URL file://${PACKAGE_DIR}/${SDL_FILE}
   DOWNLOAD_DIR ${DOWNLOAD_DIR}
   URL_HASH ${SDL_HASH_TYPE}=${SDL_HASH}
   PREFIX ${BUILD_DIR}/sdl
-  PATCH_COMMAND ${SDL_PATCH}
+  CMAKE_GENERATOR ${PLATFORM_ALT_GENERATOR}
 
   CMAKE_ARGS
     -DCMAKE_INSTALL_PREFIX=${LIBDIR}/sdl
@@ -60,19 +28,15 @@ if(WIN32)
   if(BUILD_MODE STREQUAL Release)
     ExternalProject_Add_Step(external_sdl after_install
       COMMAND ${CMAKE_COMMAND} -E copy_directory
-        ${LIBDIR}/sdl/include/sdl2
-        ${HARVEST_TARGET}/sdl/include
-      COMMAND ${CMAKE_COMMAND} -E copy_directory
-        ${LIBDIR}/sdl/lib
-        ${HARVEST_TARGET}/sdl/lib
-      COMMAND ${CMAKE_COMMAND} -E copy_directory
-        ${LIBDIR}/sdl/bin
-        ${HARVEST_TARGET}/sdl/lib
+        ${LIBDIR}/sdl
+        ${HARVEST_TARGET}/sdl
 
       DEPENDEES install
     )
   endif()
 else()
-  harvest(external_sdl sdl/include/SDL2 sdl/include "*.h")
-  harvest(external_sdl sdl/lib sdl/lib "libSDL2.a")
+  harvest(external_sdl sdl/include sdl/include "*.h")
+  # CMake files first because harvest_rpath_lib edits them.
+  harvest(external_sdl sdl/lib/cmake/SDL3 sdl/lib/cmake/SDL3 "*.cmake")
+  harvest_rpath_lib(external_sdl sdl/lib sdl/lib "*${SHAREDLIBEXT}*")
 endif()

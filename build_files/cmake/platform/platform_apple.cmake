@@ -218,16 +218,9 @@ if(WITH_VULKAN_BACKEND)
 endif()
 
 if(WITH_SDL)
-  find_package(SDL2)
-  set(SDL_INCLUDE_DIR ${SDL2_INCLUDE_DIRS})
-  set(SDL_LIBRARY ${SDL2_LIBRARIES})
-  string(APPEND PLATFORM_LINKFLAGS " -framework ForceFeedback -framework GameController")
-  if("${CMAKE_OSX_ARCHITECTURES}" STREQUAL "arm64")
-    # The minimum macOS version of the libraries makes it so this is included in SDL on arm64
-    # but not x86_64.
-    string(APPEND PLATFORM_LINKFLAGS " -framework CoreHaptics")
-  endif()
+  find_package(SDL3 REQUIRED CONFIG)
 endif()
+add_bundled_libraries(sdl/lib)
 
 set(EPOXY_ROOT_DIR ${LIBDIR}/epoxy)
 find_package(Epoxy REQUIRED)

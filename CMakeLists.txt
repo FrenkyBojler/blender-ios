@@ -470,7 +470,7 @@ option(WITH_IO_FBX "Enable FBX 3D file format support (*.fbx)" ON)
 option(WITH_IO_GREASE_PENCIL "Enable grease-pencil file format IO (*.svg, *.pdf)" ON)
 
 # Sound output
-option(WITH_SDL "Enable SDL for sound" OFF)
+option(WITH_SDL_AUDIO "Enable SDL audio support" OFF)
 option(WITH_OPENAL "Enable OpenAL Support (http://www.openal.org)" ON)
 if(APPLE)
   option(WITH_COREAUDIO "Enable CoreAudio for audio support on macOS" ON)
@@ -1310,11 +1310,8 @@ set_and_warn_dependency(WITH_AUDASPACE WITH_OPENAL OFF)
 set_and_warn_dependency(WITH_AUDASPACE WITH_COREAUDIO OFF)
 set_and_warn_dependency(WITH_AUDASPACE WITH_JACK OFF)
 set_and_warn_dependency(WITH_AUDASPACE WITH_PULSEAUDIO OFF)
+set_and_warn_dependency(WITH_AUDASPACE WITH_SDL_AUDIO OFF)
 set_and_warn_dependency(WITH_AUDASPACE WITH_WASAPI OFF)
-
-if(NOT WITH_SDL AND WITH_GHOST_SDL)
-  message(FATAL_ERROR "WITH_GHOST_SDL requires WITH_SDL")
-endif()
 
 # python module, needs some different options
 if(WITH_PYTHON_MODULE AND WITH_PYTHON_INSTALL)
@@ -1440,6 +1437,12 @@ set(WITH_BINRELOC OFF)
 
 # MACOSX only, set to avoid uninitialized
 set(EXETYPE "")
+
+# WITH_SDL is uncached, depends on either WITH_SDL_AUDIO or WITH_GHOST_SDL being set.
+set(WITH_SDL OFF)
+if(WITH_SDL_AUDIO OR WITH_GHOST_SDL)
+  set(WITH_SDL ON)
+endif()
 
 # C/C++ flags
 set(PLATFORM_CFLAGS "")
@@ -2588,7 +2591,7 @@ if(FIRST_RUN)
   info_cfg_option(WITH_OPENAL)
   info_cfg_option(WITH_PULSEAUDIO)
   info_cfg_option(WITH_PULSEAUDIO_DYNLOAD)
-  info_cfg_option(WITH_SDL)
+  info_cfg_option(WITH_SDL_AUDIO)
   info_cfg_option(WITH_WASAPI)
 
   if(WITH_PYTHON)

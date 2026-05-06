@@ -298,22 +298,10 @@ if(WITH_OPENAL)
 endif()
 
 if(WITH_SDL)
-  find_package_wrapper(SDL2)
-  if(SDL2_FOUND)
-    # Use same names for both versions of SDL until we move to 2.x.
-    set(SDL_INCLUDE_DIR "${SDL2_INCLUDE_DIR}")
-    set(SDL_LIBRARY "${SDL2_LIBRARY}")
-    set(SDL_FOUND "${SDL2_FOUND}")
-  else()
-    find_package_wrapper(SDL)
-  endif()
-  mark_as_advanced(
-    SDL_INCLUDE_DIR
-    SDL_LIBRARY
-  )
-  # unset(SDLMAIN_LIBRARY CACHE)
-  set_and_warn_library_found("SDL" SDL_FOUND WITH_SDL)
+  find_package_wrapper(SDL3)
+  set_and_warn_library_found("SDL" SDL3_FOUND WITH_SDL)
 endif()
+add_bundled_libraries(sdl/lib)
 
 # Codecs
 if(WITH_CODEC_SNDFILE)
