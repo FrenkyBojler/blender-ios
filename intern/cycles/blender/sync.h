@@ -121,7 +121,7 @@ class BlenderSync {
 
  private:
   /* sync */
-  void sync_lights(blender::Depsgraph &b_depsgraph, bool update_all);
+  void sync_lights(blender::Depsgraph &b_depsgraph, bool update_all, bool update_time);
   void sync_materials(blender::Depsgraph &b_depsgraph, bool update_all, bool update_time);
   void sync_objects(blender::Depsgraph &b_depsgraph,
                     blender::bScreen *b_screen,
@@ -145,7 +145,7 @@ class BlenderSync {
   void sync_world(blender::Depsgraph &b_depsgraph,
                   blender::bScreen *b_screen,
                   blender::View3D *b_v3d,
-                  bool update_all);
+                  bool update_all, bool update_time);
   void sync_shaders(blender::Depsgraph &b_depsgraph,
                     blender::bScreen *b_screen,
                     blender::View3D *b_v3d,

@@ -1684,8 +1684,9 @@ void BlenderSync::sync_materials(blender::Depsgraph &b_depsgraph,
     Shader *shader;
 
     /* test if we need to sync */
-    if (shader_map.add_or_update(&shader, &b_mat.id) || update_all || scene_attr_needs_recalc(shader, b_depsgraph) ||
-        aovs_changed_between_view_layers || (shader->has_time_dependency && update_time))
+    if (shader_map.add_or_update(&shader, &b_mat.id) || update_all ||
+        scene_attr_needs_recalc(shader, b_depsgraph) || aovs_changed_between_view_layers ||
+        (shader->has_time_dependency && update_time))
     {
       unique_ptr<ShaderGraph> graph = make_unique<ShaderGraph>();
 
@@ -1760,7 +1761,8 @@ void BlenderSync::sync_materials(blender::Depsgraph &b_depsgraph,
 void BlenderSync::sync_world(blender::Depsgraph &b_depsgraph,
                              blender::bScreen *b_screen,
                              blender::View3D *b_v3d,
-                             bool update_all)
+                             bool update_all,
+                             bool update_time)
 {
   Background *background = scene->background;
   Integrator *integrator = scene->integrator;
@@ -1775,7 +1777,7 @@ void BlenderSync::sync_world(blender::Depsgraph &b_depsgraph,
 
   if (world_recalc || update_all || b_world != world_map ||
       viewport_parameters.shader_modified(new_viewport_parameters) ||
-      scene_attr_needs_recalc(shader, b_depsgraph))
+      scene_attr_needs_recalc(shader, b_depsgraph)|| (shader->has_time_dependency && update_time))
   {
     unique_ptr<ShaderGraph> graph = make_unique<ShaderGraph>();
 
@@ -1918,7 +1920,7 @@ void BlenderSync::sync_world(blender::Depsgraph &b_depsgraph,
 
 /* Sync Lights */
 
-void BlenderSync::sync_lights(blender::Depsgraph &b_depsgraph, bool update_all)
+void BlenderSync::sync_lights(blender::Depsgraph &b_depsgraph, bool update_all, bool update_time)
 {
   shader_map.set_default(scene->default_light);
 
@@ -1940,7 +1942,7 @@ void BlenderSync::sync_lights(blender::Depsgraph &b_depsgraph, bool update_all)
 
     /* test if we need to sync */
     if (shader_map.add_or_update(&shader, &b_light.id) || update_all ||
-        scene_attr_needs_recalc(shader, b_depsgraph))
+        scene_attr_needs_recalc(shader, b_depsgraph) || (shader->has_time_dependency && update_time))
     {
       unique_ptr<ShaderGraph> graph = make_unique<ShaderGraph>();
 
@@ -1976,8 +1978,8 @@ void BlenderSync::sync_shaders(blender::Depsgraph &b_depsgraph,
 {
   shader_map.pre_sync();
 
-  sync_world(b_depsgraph, b_screen, b_v3d, update_all);
-  sync_lights(b_depsgraph, update_all);
+  sync_world(b_depsgraph, b_screen, b_v3d, update_all, update_time);
+  sync_lights(b_depsgraph, update_all, update_time);
   sync_materials(b_depsgraph, update_all, update_time);
 }
 
