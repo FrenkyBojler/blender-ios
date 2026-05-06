@@ -89,7 +89,6 @@ struct [[host_shared]] UniformData {
   struct ClampData clamp;
   struct FilmData film;
   struct HiZData hiz;
-  struct RayTraceData raytrace;
   struct RenderBuffersInfoData render_pass;
   struct ShadowSceneData shadow;
   struct VolumesInfoData volumes;

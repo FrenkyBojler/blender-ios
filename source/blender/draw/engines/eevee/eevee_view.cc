@@ -367,7 +367,7 @@ void CaptureView::render_probes()
     {
       /* Set correct thickness for raycast node in probe pipelines. */
       inst_.raytracing.thickness_parameters_setup(win_m4, int2(update_info->cube_target_extent));
-      inst_.uniform_data.push_update();
+      inst_.uniform_data.raytrace.push_update();
     }
 
     prev_extent = update_info->cube_target_extent;
