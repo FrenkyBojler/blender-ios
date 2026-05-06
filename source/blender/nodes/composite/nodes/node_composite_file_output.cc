@@ -633,7 +633,6 @@ class FileOutputOperation : public NodeOperation {
             GPU_texture_component_len(GPU_texture_format(result)) == 4)
         {
           float *new_data = float4_to_float3_image(size, buffer);
-          sharing_info->remove_user_and_delete_if_last();
           sharing_info = ImplicitSharingPtr<>(implicit_sharing::info_for_mem_free(new_data));
           file_output.add_pass(pass_name, view_name, "XYZ", new_data, std::move(sharing_info));
         }
@@ -756,7 +755,6 @@ class FileOutputOperation : public NodeOperation {
             GPU_texture_component_len(GPU_texture_format(result)) == 4)
         {
           float *new_data = float4_to_float3_image(size, buffer);
-          sharing_info->remove_user_and_delete_if_last();
           sharing_info = ImplicitSharingPtr<>(implicit_sharing::info_for_mem_free(new_data));
           file_output.add_view(view_name, 3, new_data, std::move(sharing_info));
         }
