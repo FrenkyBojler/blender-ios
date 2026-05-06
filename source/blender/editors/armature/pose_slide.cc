@@ -103,12 +103,12 @@ enum ePoseSlide_Channels {
 };
 
 /**
- * Stores the frame range per ID. Since objects can have an NLA, the frame for looking up keys
- * needs to be adjusted per ID.
+ * Stores the frame range per Object. Since objects can have an NLA, the frame for looking up keys
+ * needs to be adjusted per object.
  */
-struct IDFrameRange {
-  /** The ID for which these frame values are valid. */
-  ID *id;
+struct OffsetFrameRange {
+  /** The Object for which these frame values are valid. */
+  Object *object;
   /** `prev_frame`, but in local action time (for F-Curve look-ups to work). */
   float prev_frame;
   /** `next_frame`, but in local action time (for F-Curve look-ups to work). */
@@ -155,7 +155,7 @@ struct tPoseSlideOp {
   /** Numeric input. */
   NumInput num;
 
-  Array<IDFrameRange> id_frame_ranges;
+  Array<OffsetFrameRange> offset_frame_ranges;
 };
 
 /** Property enum for #ePoseSlide_Channels. */
@@ -233,13 +233,13 @@ static int pose_slide_init(bContext *C, wmOperator *op, ePoseSlide_Modes mode)
   for (const SlideSubject &tflink : pso->slide_subjects) {
     unique_ids.add(tflink.ptr.owner_id);
   }
-  pso->id_frame_ranges.reinitialize(unique_ids.size());
+  pso->offset_frame_ranges.reinitialize(unique_ids.size());
   int i = 0;
   for (ID *id : unique_ids) {
-    IDFrameRange *range_data = &pso->id_frame_ranges[i];
+    OffsetFrameRange *range_data = &pso->offset_frame_ranges[i];
     i++;
-
-    range_data->id = id;
+    BLI_assert(GS(id->name) == ID_OB);
+    range_data->object = id_cast<Object *>(id);
     AnimData *adt = BKE_animdata_from_id(id);
     /* Apply NLA mapping corrections so the frame look-ups work. */
     range_data->prev_frame = BKE_nla_tweakedit_remap(adt, pso->prev_frame, NLATIME_CONVERT_UNMAP);
@@ -301,8 +301,8 @@ static void pose_slide_exit(bContext *C, wmOperator *op)
 static void pose_slide_refresh(bContext *C, tPoseSlideOp *pso)
 {
   /* Wrapper around the generic version, allowing us to add some custom stuff later still. */
-  for (IDFrameRange &id_range : pso->id_frame_ranges) {
-    slide_subjects_refresh(C, id_range.id);
+  for (OffsetFrameRange &offset_range : pso->offset_frame_ranges) {
+    slide_subjects_refresh(C, &offset_range.object->id);
   }
 }
 
@@ -314,11 +314,10 @@ static bool pose_frame_range_from_id_get(const tPoseSlideOp *pso,
                                          float *prev_frame,
                                          float *next_frame)
 {
-  for (const IDFrameRange &id_range : pso->id_frame_ranges) {
-
-    if (id_range.id == id) {
-      *prev_frame = id_range.prev_frame;
-      *next_frame = id_range.next_frame;
+  for (const OffsetFrameRange &offset_range : pso->offset_frame_ranges) {
+    if (&offset_range.object->id == id) {
+      *prev_frame = offset_range.prev_frame;
+      *next_frame = offset_range.next_frame;
       return true;
     }
   }
@@ -612,11 +611,13 @@ static void pose_slide_apply(bContext *C, tPoseSlideOp *pso)
     pso->prev_frame--;
     pso->next_frame++;
 
-    for (IDFrameRange &id_range : pso->id_frame_ranges) {
-      AnimData *adt = BKE_animdata_from_id(id_range.id);
+    for (OffsetFrameRange &offset_range : pso->offset_frame_ranges) {
+      AnimData *adt = offset_range.object->adt;
       /* Apply NLA mapping corrections so the frame look-ups work. */
-      id_range.prev_frame = BKE_nla_tweakedit_remap(adt, pso->prev_frame, NLATIME_CONVERT_UNMAP);
-      id_range.next_frame = BKE_nla_tweakedit_remap(adt, pso->next_frame, NLATIME_CONVERT_UNMAP);
+      offset_range.prev_frame = BKE_nla_tweakedit_remap(
+          adt, pso->prev_frame, NLATIME_CONVERT_UNMAP);
+      offset_range.next_frame = BKE_nla_tweakedit_remap(
+          adt, pso->next_frame, NLATIME_CONVERT_UNMAP);
     }
   }
 
@@ -835,10 +836,10 @@ static wmOperatorStatus pose_slide_invoke_common(bContext *C, wmOperator *op, co
   }
 
   /* Apply NLA mapping corrections so the frame look-ups work. */
-  for (IDFrameRange &id_range : pso->id_frame_ranges) {
-    AnimData *adt = BKE_animdata_from_id(id_range.id);
-    id_range.prev_frame = BKE_nla_tweakedit_remap(adt, pso->prev_frame, NLATIME_CONVERT_UNMAP);
-    id_range.next_frame = BKE_nla_tweakedit_remap(adt, pso->next_frame, NLATIME_CONVERT_UNMAP);
+  for (OffsetFrameRange &offset_range : pso->offset_frame_ranges) {
+    AnimData *adt = offset_range.object->adt;
+    offset_range.prev_frame = BKE_nla_tweakedit_remap(adt, pso->prev_frame, NLATIME_CONVERT_UNMAP);
+    offset_range.next_frame = BKE_nla_tweakedit_remap(adt, pso->next_frame, NLATIME_CONVERT_UNMAP);
   }
 
   /* Initial apply for operator. */
