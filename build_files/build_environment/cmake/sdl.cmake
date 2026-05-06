@@ -9,6 +9,14 @@ set(SDL_EXTRA_ARGS
   -DSDL_SNDIO=OFF
 )
 
+if(UNIX AND NOT APPLE)
+  set(SDL_EXTRA_ARGS
+    ${SDL_EXTRA_ARGS}
+    -DSDL_X11_XSCRNSAVER=OFF
+    -DSDL_X11_XTEST=OFF
+  )
+endif()
+
 ExternalProject_Add(external_sdl
   URL file://${PACKAGE_DIR}/${SDL_FILE}
   DOWNLOAD_DIR ${DOWNLOAD_DIR}
