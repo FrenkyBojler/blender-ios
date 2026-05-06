@@ -183,6 +183,7 @@ static void calc_brush_colors(MutableSpan<float4> buffer_colors,
                               Span<float> factors,
                               const float4 &brush_color)
 {
+  printf("%lld, %lld\n", buffer_colors.size(), factors.size());
   BLI_assert(buffer_colors.size() == factors.size());
 
   for (const int i : buffer_colors.index_range()) {
@@ -386,8 +387,9 @@ static void do_paint_pixels(const Depsgraph &depsgraph,
     threading::isolate_task([&] {
       valid_rows.foreach_index([&](const int i, const int pos) {
         threading::EnumerableThreadSpecific<FactorLocalData> all_tls;
-        printf("%d, %d, %lld\n", i, pos, all_factors.size());
         const PackedPixelRow pixel_row = tile_data.pixel_rows[i];
+        all_factors[pos].resize(pixel_row.num_pixels);
+        all_factors[pos].fill(1.0f);
         threading::parallel_for(
             IndexRange(pixel_row.num_pixels), 512, [&](const IndexRange range) {
               FactorLocalData &tls = all_tls.local();
@@ -400,9 +402,7 @@ static void do_paint_pixels(const Depsgraph &depsgraph,
                                        range,
                                        tls.pixel_positions);
 
-              all_factors[pos].resize(tls.pixel_positions.size());
-              all_factors[pos].fill(1.0f);
-              MutableSpan<float> factors = all_factors[pos];
+              MutableSpan<float> factors = all_factors[pos].as_mutable_span().slice(range);
 
               tls.distances.resize(tls.pixel_positions.size());
               calc_brush_distances(
@@ -418,54 +418,63 @@ static void do_paint_pixels(const Depsgraph &depsgraph,
     printf("AFTER CALC FACTOR\n");
 
     printf("BEFORE FILTER\n");
-    IndexMask non_zero_rows = IndexMask::from_predicate(valid_rows, memory, [&](const int i) {
-      printf("%d, %lld\n", i, all_factors.size());
-      return std::ranges::any_of(all_factors[i],
-                                 [](const float factor) { return factor != 0.0f; });
-    });
+    Array<bool> non_zero_rows(tile_data.pixel_rows.size(), false);
+    for (const int i : all_factors.index_range()) {
+      non_zero_rows[valid_rows[i]] = std::ranges::any_of(
+          all_factors[i], [](const float factor) { return factor != 0.0f; });
+    }
+
+    IndexMask paint_rows = IndexMask::from_intersection(valid_rows, IndexMask::from_bools(non_zero_rows, memory), memory);
+
     printf("AFTER FILTER\n");
+    printf("BEFORE PAINT\n");
 
-    non_zero_rows.foreach_index([&](const int i, const int pos) {
-      threading::EnumerableThreadSpecific<PaintLocalData> all_tls;
-      const PackedPixelRow pixel_row = tile_data.pixel_rows[i];
-      threading::parallel_for(IndexRange(pixel_row.num_pixels), 512, [&](const IndexRange range) {
-        PaintLocalData &tls = all_tls.local();
+    threading::isolate_task([&] {
+      paint_rows.foreach_index([&](const int i, const int pos) {
+        printf("%d (%lld) %d\n", pos, all_factors.size(), i);
+        threading::EnumerableThreadSpecific<PaintLocalData> all_tls;
+        const PackedPixelRow pixel_row = tile_data.pixel_rows[i];
+        threading::parallel_for(IndexRange(pixel_row.num_pixels), 512, [&](const IndexRange range) {
+          PaintLocalData &tls = all_tls.local();
 
-        tls.paint_pixels.resize(range.size());
-        /* TODO: This isn't correct? */
-        calc_brush_colors(tls.paint_pixels, all_factors[i], brush_color);
+          tls.paint_pixels.resize(range.size());
+          printf("Start: %lld, End: %lld, Size: %lld\n", range.start(), range.start() + range.size(), all_factors[pos].size());
+          Span<float> factors = all_factors[pos].as_span().slice(range);
+          calc_brush_colors(tls.paint_pixels, factors, brush_color);
 
-        if (!float_buffer.is_empty()) {
-          tls.scene_linear_pixels = read_image_pixels(
-              float_buffer, *processors, pixel_row, range, image_buffer->x);
-        }
-        else {
-          tls.scene_linear_pixels = read_image_pixels(byte_buffer,
-                                                      *processors,
-                                                      pixel_row,
-                                                      range,
-                                                      image_buffer->x,
-                                                      tls.byte_to_float_pixels);
-        }
+          if (!float_buffer.is_empty()) {
+            tls.scene_linear_pixels = read_image_pixels(
+                float_buffer, *processors, pixel_row, range, image_buffer->x);
+          }
+          else {
+            tls.scene_linear_pixels = read_image_pixels(byte_buffer,
+                                                        *processors,
+                                                        pixel_row,
+                                                        range,
+                                                        image_buffer->x,
+                                                        tls.byte_to_float_pixels);
+          }
 
-#ifdef DEBUG_PIXEL_NODES
-        apply_debug_color(scene_linear_pixels, pixel_row);
-#endif
+  #ifdef DEBUG_PIXEL_NODES
+          apply_debug_color(scene_linear_pixels, pixel_row);
+  #endif
 
-        blend_colors(tls.paint_pixels, tls.scene_linear_pixels, brush);
+          blend_colors(tls.paint_pixels, tls.scene_linear_pixels, brush);
 
-        if (!float_buffer.is_empty()) {
-          write_image_pixels(
-              tls.paint_pixels, float_buffer, *processors, pixel_row, range, image_buffer->x);
-        }
-        else {
-          write_image_pixels(
-              tls.paint_pixels, byte_buffer, *processors, pixel_row, range, image_buffer->x);
-        }
+          if (!float_buffer.is_empty()) {
+            write_image_pixels(
+                tls.paint_pixels, float_buffer, *processors, pixel_row, range, image_buffer->x);
+          }
+          else {
+            write_image_pixels(
+                tls.paint_pixels, byte_buffer, *processors, pixel_row, range, image_buffer->x);
+          }
 
-        row_changed[pos] = true;
+          row_changed[pos] = true;
+        });
       });
     });
+    printf("AFTER PAINT\n");
 
     /* TODO: Make this a parallel reduction step */
     valid_rows.foreach_index([&](const int i, const int pos) {
