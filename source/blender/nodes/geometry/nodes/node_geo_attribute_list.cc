@@ -21,23 +21,20 @@ namespace blender::nodes::node_geo_attribute_list_cc {
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Geometry>("Geometry"_ustr);
+
   b.add_input<decl::Bool>("Filter Data Type"_ustr).default_value(true);
+  b.add_input<decl::Menu>("Data Type"_ustr)
+      .static_items(rna_enum_attribute_type_items)
+      .default_value(CD_PROP_FLOAT)
+      .optional_label();
+
   b.add_input<decl::Bool>("Filter Domain"_ustr).default_value(true);
+  b.add_input<decl::Menu>("Domain"_ustr)
+      .static_items(rna_enum_attribute_domain_items)
+      .default_value(AttrDomain::Point)
+      .optional_label();
+
   b.add_output<decl::String>("Names"_ustr).structure_type(StructureType::List);
-}
-
-static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
-{
-  layout.use_property_split_set(true);
-  layout.use_property_decorate_set(false);
-  layout.prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
-  layout.prop(ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
-}
-
-static void node_init(bNodeTree * /*tree*/, bNode *node)
-{
-  node->custom1 = CD_PROP_FLOAT;
-  node->custom2 = int8_t(AttrDomain::Point);
 }
 
 static bool component_is_available(const GeometrySet &geometry,
@@ -48,7 +45,7 @@ static bool component_is_available(const GeometrySet &geometry,
     return false;
   }
   const GeometryComponent &component = *geometry.get_component(type);
-  return ((component.attribute_domain_size(domain) != 0) || (domain == AttrDomain::All));
+  return ((component.attribute_domain_size(domain) != 0));
 }
 
 static const GeometryComponent *find_source_component(const GeometrySet &geometry,
@@ -73,14 +70,12 @@ static const GeometryComponent *find_source_component(const GeometrySet &geometr
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  const bNode &node = params.node();
-
   const GeometrySet geometry_set = params.extract_input<GeometrySet>("Geometry"_ustr);
   const bool filter_data_type = params.extract_input<bool>("Filter Data Type"_ustr);
   const bool filter_domain = params.extract_input<bool>("Filter Domain"_ustr);
 
-  const eCustomDataType data_type = eCustomDataType(node.custom1);
-  const AttrDomain domain = AttrDomain(node.custom2);
+  const eCustomDataType data_type = params.extract_input<eCustomDataType>("Data Type"_ustr);
+  const AttrDomain domain = params.extract_input<AttrDomain>("Domain"_ustr);
 
   const GeometryComponent *component = find_source_component(geometry_set, domain);
   if (!component) {
@@ -122,25 +117,6 @@ static void node_geo_exec(GeoNodeExecParams params)
   params.set_output("Names"_ustr, GList::from_container(names));
 }
 
-static void node_rna(StructRNA *srna)
-{
-  RNA_def_node_enum(srna,
-                    "data_type",
-                    "Data Type",
-                    "Type of attribute data to filter",
-                    rna_enum_attribute_type_items,
-                    NOD_inline_enum_accessors(custom1),
-                    CD_PROP_FLOAT);
-
-  RNA_def_node_enum(srna,
-                    "domain",
-                    "Domain",
-                    "Which attribute to filter",
-                    rna_enum_color_attribute_domain_items,
-                    NOD_inline_enum_accessors(custom2),
-                    int8_t(AttrDomain::Point));
-}
-
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
@@ -150,12 +126,8 @@ static void node_register()
   ntype.ui_description = "Samples attribute names as a list";
   ntype.nclass = NODE_CLASS_ATTRIBUTE;
   ntype.geometry_node_execute = node_geo_exec;
-  ntype.initfunc = node_init;
   ntype.declare = node_declare;
-  ntype.draw_buttons = node_layout;
   blender::bke::node_register_type(ntype);
-
-  node_rna(ntype.rna_ext.srna);
 }
 NOD_REGISTER_NODE(node_register)
 
