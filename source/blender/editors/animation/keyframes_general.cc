@@ -937,15 +937,6 @@ void push_pull_fcurve_segment(FCurve *fcu, FCurveSegment *segment, const float f
 
 /* ---------------- */
 
-void foo(const float2 start, const float2 end, const float2 b)
-{
-  /* When we assume a `t` of 0.5f, the corresponding point C is exactly between our bezier start
-   * and end points. See https://pomax.github.io/bezierinfo/#abc */
-  const float2 c = (start + end) / 2.0f;
-  const float t_ratio = (2 * pow3f(0.5f) - 1) / (2 * pow3f(0.5f));
-  const float2 a = b - ((c - b) / t_ratio);
-}
-
 void time_offset_fcurve_segment(FCurve *fcu, FCurveSegment *segment, const float frame_offset)
 {
   /* Two bookend keys of the fcurve are needed to be able to cycle the values. */
@@ -958,15 +949,12 @@ void time_offset_fcurve_segment(FCurve *fcu, FCurveSegment *segment, const float
   const float first_key_x = first_key->vec[1][0];
 
   /* If we operate directly on the fcurve there will be a feedback loop
-   * so we need to capture the "y" values on an array to then apply them on a second loop. We
-   * oversample by adding an additional point between every key so we can reconstruct the handle
-   * lengths. */
-  Array<float> y_values(segment->length * 2 - 1);
+   * so we need to capture the "y" values on an array to then apply them on a second loop. */
+  Array<float> y_values(segment->length);
   /* We need to know the tangents of the curve at the offset position so we can adjust the handles
    * accordingly. */
-  Array<float2> tangents(segment->length * 2 - 1);
+  Array<float2> tangents(segment->length);
 
-  const BezTriple *prev_key = nullptr;
   for (int i = 0; i < segment->length; i++) {
     const BezTriple &key = fcu->bezt[segment->start_index + i];
     /* This simulates the fcu curve moving in time. */
@@ -975,38 +963,28 @@ void time_offset_fcurve_segment(FCurve *fcu, FCurveSegment *segment, const float
       /* Need to normalize time to first_key to specify that as the wrapping point. */
       const float wrapped_time = floored_fmod(time - first_key_x, fcu_x_range) + first_key_x;
       const float y_offset = fcu_y_range * floorf((time - first_key_x) / fcu_x_range);
-      y_values[i * 2] = evaluate_fcurve(fcu, wrapped_time) + y_offset;
-      tangents[i * 2] = BKE_fcurve_tangent(*fcu, wrapped_time);
+      y_values[i] = evaluate_fcurve(fcu, wrapped_time) + y_offset;
+      tangents[i] = BKE_fcurve_tangent(*fcu, wrapped_time);
     }
-
-    if (prev_key) {
-      const float time = (prev_key->vec[1][0] + key.vec[1][0]) / 2.0f + frame_offset;
-      /* Need to normalize time to first_key to specify that as the wrapping point. */
-      const float wrapped_time = floored_fmod(time - first_key_x, fcu_x_range) + first_key_x;
-      const float y_offset = fcu_y_range * floorf((time - first_key_x) / fcu_x_range);
-      y_values[i * 2 - 1] = evaluate_fcurve(fcu, wrapped_time) + y_offset;
-      tangents[i * 2 - 1] = BKE_fcurve_tangent(*fcu, wrapped_time);
-    }
-
-    prev_key = &key;
   }
 
-  prev_key = segment->start_index - 1 >= 0 ? &fcu->bezt[segment->start_index - 1] : nullptr;
+  BezTriple *prev_key = segment->start_index - 1 >= 0 ? &fcu->bezt[segment->start_index - 1] :
+                                                        nullptr;
   for (int i = 0; i < segment->length; i++) {
     const int key_index = segment->start_index + i;
     BezTriple *next_key = key_index + 1 < fcu->totvert ? &fcu->bezt[key_index + 1] : nullptr;
     BezTriple &key = fcu->bezt[key_index];
-    key.vec[1][1] = y_values[i * 2];
+    key.vec[1][1] = y_values[i];
     key.h1 = key.h2 = HD_FREE;
     if (prev_key) {
       const float dist = len_v2(float2(key.vec[1]) - float2(prev_key->vec[1])) * 0.3f;
-      key.vec[0][0] = key.vec[1][0] - tangents[i * 2].x * dist;
-      key.vec[0][1] = key.vec[1][1] - tangents[i * 2].y * dist;
+      key.vec[0][0] = key.vec[1][0] - tangents[i].x * dist;
+      key.vec[0][1] = key.vec[1][1] - tangents[i].y * dist;
     }
     if (next_key) {
       const float dist = len_v2(float2(key.vec[1]) - float2(next_key->vec[1])) * 0.3f;
-      key.vec[2][0] = key.vec[1][0] + tangents[i * 2].x * dist;
-      key.vec[2][1] = key.vec[1][1] + tangents[i * 2].y * dist;
+      key.vec[2][0] = key.vec[1][0] + tangents[i].x * dist;
+      key.vec[2][1] = key.vec[1][1] + tangents[i].y * dist;
     }
     prev_key = &key;
   }
