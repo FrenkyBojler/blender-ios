@@ -8360,7 +8360,10 @@ NODE_DEFINE(SceneTimeNode)
   return type;
 }
 
-SceneTimeNode::SceneTimeNode() : ShaderNode(get_node_type()) {}
+SceneTimeNode::SceneTimeNode() : ShaderNode(get_node_type())
+{
+  special_type = SHADER_SPECIAL_TYPE_SCENE_TIME;
+}
 
 void SceneTimeNode::compile(SVMCompiler &compiler)
 {
