@@ -2559,9 +2559,7 @@ static void rna_Node_internal_links_begin(CollectionPropertyIterator *iter, Poin
 static bool allow_identifier_lookup(const bNode &node)
 {
   switch (node.type_legacy) {
-    case FN_NODE_RANDOM_VALUE:
     case SH_NODE_MIX:
-    case FN_NODE_COMPARE:
     case SH_NODE_MAP_RANGE:
       return false;
     default:
@@ -10179,6 +10177,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("NodeInternal", "NodeEnableOutput");
   define("NodeInternal", "NodeEvaluateClosure", def_evaluate_closure);
   define("NodeInternal", "NodeGetBundleItem");
+  define("NodeInternal", "NodeGetNestedBundlePaths");
   define("NodeInternal", "NodeJoinBundle");
   define("NodeInternal", "NodeSeparateBundle", def_separate_bundle);
   define("NodeInternal", "NodeStoreBundleItem");

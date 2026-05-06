@@ -578,19 +578,20 @@ static void tree_element_posechannel_activate(bContext *C,
     }
   }
 
+  Bone *bone = pchan->bone_get(*ob);
   if ((set == OL_SETSEL_EXTEND) && (pchan->flag & POSE_SELECTED)) {
     animrig::bone_deselect(pchan);
   }
   else {
-    if (animrig::bone_is_visible(arm, pchan)) {
+    if (animrig::bone_is_visible(arm, {pchan, bone})) {
       animrig::bone_select(pchan);
     }
-    arm->act_bone = pchan->bone;
+    arm->act_bone = bone;
   }
 
   if (recursive) {
     /* Recursive select/deselect */
-    do_outliner_bone_select_recursive(arm, pchan->bone, (pchan->flag & POSE_SELECTED) != 0);
+    do_outliner_bone_select_recursive(arm, bone, (pchan->flag & POSE_SELECTED) != 0);
   }
 
   WM_event_add_notifier(C, NC_OBJECT | ND_BONE_ACTIVE, ob);
@@ -915,6 +916,8 @@ void tree_element_type_active_set(bContext *C,
     case TSE_LAYER_COLLECTION:
       tree_element_layer_collection_activate(C, te);
       break;
+    default:
+      break;
   }
 }
 
@@ -1229,6 +1232,8 @@ eOLDrawState tree_element_type_active_state_get(const TreeViewContext &tvc,
       return tree_element_layer_collection_state_get(tvc.layer_collection, te);
     case TSE_BONE_COLLECTION:
       return tree_element_bone_collection_state_get(te, tselem);
+    default:
+      break;
   }
   return OL_DRAWSEL_NONE;
 }
@@ -1252,7 +1257,7 @@ bPoseChannel *outliner_find_parent_bone(TreeElement *te, TreeElement **r_bone_te
 
 static void outliner_sync_to_properties_editors(const bContext *C,
                                                 PointerRNA *ptr,
-                                                const int context)
+                                                const eSpaceButtons_Context context)
 {
   bScreen *screen = CTX_wm_screen(C);
 
@@ -1271,7 +1276,7 @@ static void outliner_sync_to_properties_editors(const bContext *C,
 static void outliner_set_properties_tab(bContext *C, TreeElement *te, TreeStoreElem *tselem)
 {
   PointerRNA ptr = {};
-  int context = 0;
+  eSpaceButtons_Context context = eSpaceButtons_Context(0);
 
   /* ID Types */
   if (tselem->type == TSE_SOME_ID) {
@@ -1445,6 +1450,8 @@ static void outliner_set_properties_tab(bContext *C, TreeElement *te, TreeStoreE
         ptr = RNA_pointer_create_discrete(tselem->id, RNA_Collection, te->directdata);
         context = BCONTEXT_COLLECTION;
         break;
+      default:
+        break;
     }
   }
 
@@ -1575,7 +1582,8 @@ void outliner_item_select(bContext *C,
   const bool recursive = select_flag & OL_ITEM_RECURSIVE;
 
   /* Clear previous active when activating and clear selection when not extending selection */
-  const short clear_flag = (activate ? TSE_ACTIVE : 0) | (extend ? 0 : TSE_SELECTED);
+  const eTreeStoreElem_Flag clear_flag = (activate ? TSE_ACTIVE : eTreeStoreElem_Flag{}) |
+                                         (extend ? eTreeStoreElem_Flag{} : TSE_SELECTED);
 
   /* Do not clear the active and select flag when selecting hierarchies. */
   if (clear_flag && !recursive) {
