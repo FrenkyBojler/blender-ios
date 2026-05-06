@@ -31,8 +31,8 @@ static void node_declare(NodeDeclarationBuilder &b)
     auto &p = b.add_panel("Filter Data Type"_ustr);
     p.add_input<decl::Bool>("Filter Data Type"_ustr).panel_toggle();
     p.add_input<decl::Menu>("Data Type"_ustr)
-        .static_items(rna_enum_attribute_type_items)
-        .default_value(CD_PROP_FLOAT)
+        .static_items(rna_enum_attrtype_items)
+        .default_value(bke::AttrType::Float)
         .optional_label()
         .usage_by_panel_toggle();
   }
@@ -84,7 +84,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   const bool filter_data_type = params.extract_input<bool>("Filter Data Type"_ustr);
   const bool filter_domain = params.extract_input<bool>("Filter Domain"_ustr);
 
-  const eCustomDataType data_type = params.extract_input<eCustomDataType>("Data Type"_ustr);
+  const bke::AttrType data_type = params.extract_input<bke::AttrType>("Data Type"_ustr);
   const AttrDomain domain = params.extract_input<AttrDomain>("Domain"_ustr);
 
   const GeometryComponent *component = find_source_component(geometry_set, domain);
@@ -96,10 +96,9 @@ static void node_geo_exec(GeoNodeExecParams params)
   const AttributeAccessor attributes = *component->attributes();
   Vector<std::string> names;
 
-  const bke::AttrType type_filter = *bke::custom_data_type_to_attr_type(data_type);
   attributes.foreach_attribute([&](const AttributeIter &iter) {
     if (filter_data_type) {
-      if (iter.data_type != type_filter) {
+      if (iter.data_type != data_type) {
         return;
       }
     }
