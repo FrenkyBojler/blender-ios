@@ -2577,6 +2577,7 @@ struct SceneDisplay {
 
 enum RaytraceEEVEE_Flag : int {
   RAYTRACE_EEVEE_USE_DENOISE = (1 << 0),
+  RAYTRACE_EEVEE_USE_BACKFACE = (1 << 1),
 };
 ENUM_OPERATORS(RaytraceEEVEE_Flag)
 
@@ -2607,10 +2608,14 @@ struct RaytraceEEVEE {
   float trace_max_roughness = 0.5f;
   /** Resolution downscale factor. */
   int resolution_scale = 2;
-  RaytraceEEVEE_Flag flag = RAYTRACE_EEVEE_USE_DENOISE;
+  RaytraceEEVEE_Flag flag = RAYTRACE_EEVEE_USE_DENOISE | RAYTRACE_EEVEE_USE_BACKFACE;
   RaytraceEEVEE_DenoiseStages denoise_stages = RAYTRACE_EEVEE_DENOISE_SPATIAL |
                                                RAYTRACE_EEVEE_DENOISE_TEMPORAL |
                                                RAYTRACE_EEVEE_DENOISE_BILATERAL;
+  /** Allow to scale radiance contribution for backface hits. */
+  float backface_radiance_scale = 0.25f;
+
+  char _pad[4] = {};
 };
 
 /** #SceneEEVEE::flag */
