@@ -8,6 +8,7 @@ set(INC
   cached_resources
   derived_resources
   utilities
+  ../nodes/geometry/include
   ../gpu/intern
   ../makesrna
   ../render/intern
@@ -168,7 +169,7 @@ set(LIB
   PRIVATE bf::dna
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::intern::clog
-  PRIVATE bf::dependencies::optional::opencolorio
+  PRIVATE bf::dependencies::opencolorio
   PRIVATE bf::dependencies::optional::tbb
   PRIVATE bf::dependencies::optional::fftw3
   PRIVATE bf::dependencies::optional::openimagedenoise
