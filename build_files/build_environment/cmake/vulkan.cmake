@@ -59,6 +59,7 @@ ExternalProject_Add(external_spirv_headers
 
 set(SPIRV_TOOLS_EXTRA_ARGS
   -DSPIRV-Headers_SOURCE_DIR=${LIBDIR}/vulkan_headers
+  -DPython3_EXECUTABLE=${PYTHON_BINARY}
 )
 
 ExternalProject_Add(external_spirv_tools
@@ -68,7 +69,8 @@ ExternalProject_Add(external_spirv_tools
 
   CMAKE_ARGS
     -DCMAKE_INSTALL_PREFIX=${LIBDIR}/spirv_tools
-    -Wno-dev ${DEFAULT_CMAKE_FLAGS}
+    -Wno-dev
+    ${DEFAULT_CMAKE_FLAGS}
     ${SPIRV_TOOLS_EXTRA_ARGS}
 
   INSTALL_DIR ${LIBDIR}/spirv_tools
