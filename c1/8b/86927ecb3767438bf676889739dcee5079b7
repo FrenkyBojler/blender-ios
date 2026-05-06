@@ -1,2 +1,3 @@
 Referenced by issue #157631, F3 Search Menu crashes Blender
 Referenced by pull request #158040, Fix #157671: VSE: Camera View is Reset During Undo
+Referenced by commit aa7ef44b153747a7b4f67bb6a9eb8141f010f1fe, Fix #157671: VSE: Camera View is Reset During Undo
