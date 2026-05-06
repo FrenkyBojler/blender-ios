@@ -4,6 +4,7 @@
 
 #include "BLI_array_utils.hh"
 #include "BLI_map.hh"
+#include "BLI_multi_value_map.hh"
 #include "BLI_set.hh"
 #include "BLI_stack.hh"
 #include "BLI_vector_set.hh"
@@ -24,6 +25,12 @@ namespace blender::fn {
 
 struct FieldTreeInfo {
   FieldHashDeep deep_hashes;
+  /**
+   * When fields are built, they only have references to the fields that they depend on. This map
+   * allows traversal of fields in the opposite direction. So for every field it stores the other
+   * fields that depend on it directly.
+   */
+  MultiValueMap<UniqueHash, UniqueHash> field_users;
   /**
    * The same field input may exist in the field tree as separate nodes due to the way
    * the tree is constructed. This set contains every different input only once.
@@ -61,6 +68,8 @@ static FieldTreeInfo preprocess_field_tree(Span<GFieldRef> entry_fields)
           }
           else if constexpr (std::is_same_v<T, GFieldRef::MultiFn>) {
             for (const GField &input_field : v.node->inputs()) {
+              const UniqueHash input_hash = field_tree_info.deep_hashes.lookup(input_field);
+              field_tree_info.field_users.add(input_hash, hash);
               if (handled_fields.add(input_field)) {
                 fields_to_check.push(input_field);
               }
@@ -100,30 +109,40 @@ static Vector<GVArray> get_field_context_inputs(ResourceScope &scope,
   return field_context_inputs;
 }
 
-/** \return True if the field network depends on any input that isn't a single value. */
-static bool field_is_varying(const GFieldRef &field,
-                             const FieldTreeInfo &field_tree_info,
-                             const Span<GVArray> field_context_inputs)
+/**
+ * \return A set that contains all fields from the field tree that depend on an input that varies
+ * for different indices.
+ */
+static Set<UniqueHash> find_varying_fields(const FieldTreeInfo &field_tree_info,
+                                           const Span<GVArray> field_context_inputs)
 {
-  Stack<GFieldRef> fields_to_check;
-  fields_to_check.push(field);
-  while (!fields_to_check.is_empty()) {
-    const GFieldRef &field = fields_to_check.pop();
-    if (std::get_if<GFieldRef::Input>(&field.variant())) {
-      const UniqueHash input_hash = field_tree_info.deep_hashes.lookup(field);
-      const int input_i = field_tree_info.deduplicated_input_hashes.index_of(input_hash);
-      const GVArray &varray = field_context_inputs[input_i];
-      if (!varray.is_single()) {
-        return true;
-      }
+  Set<UniqueHash> found_fields;
+  Stack<UniqueHash> fields_to_check;
+
+  /* The varying fields are the ones that depend on inputs that are not constant. Therefore we
+   * start the tree search at the non-constant input fields and traverse through all fields that
+   * depend on them. */
+  for (const int input_i : field_tree_info.deduplicated_inputs.index_range()) {
+    const GVArray &varray = field_context_inputs[input_i];
+    if (varray.is_single()) {
+      continue;
     }
-    if (const auto *op = std::get_if<GFieldRef::MultiFn>(&field.variant())) {
-      for (const GField &input : op->node->inputs()) {
-        fields_to_check.push(input);
+    const UniqueHash &field = field_tree_info.deduplicated_input_hashes[input_i];
+    for (const UniqueHash &user : field_tree_info.field_users.lookup(field)) {
+      if (found_fields.add(user)) {
+        fields_to_check.push(user);
       }
     }
   }
-  return false;
+  while (!fields_to_check.is_empty()) {
+    const UniqueHash &field = fields_to_check.pop();
+    for (const UniqueHash &user : field_tree_info.field_users.lookup(field)) {
+      if (found_fields.add(user)) {
+        fields_to_check.push(user);
+      }
+    }
+  }
+  return found_fields;
 }
 
 /**
@@ -202,6 +221,9 @@ static void build_multi_function_procedure_for_fields(mf::Procedure &procedure,
                   }
                   else if (interface_type == mf::ParamType::Output) {
                     const GFieldRef output_field{field_multi_fn, param_output_index};
+                    /* NOTE: This abuses the deep hash cache as a set of the fields in the tree. At
+                     * the cost of either hashing this output field or building a separate set of
+                     * visisted GFieldRefs, we wouldn't have to use the cache in this way. */
                     if (!field_tree_info.deep_hashes.contains(output_field)) {
                       /* Ignored outputs don't need a variable. */
                       variables[param_index] = nullptr;
@@ -309,6 +331,8 @@ Vector<GVArray> evaluate_fields(ResourceScope &scope,
   Vector<GVArray> field_context_inputs = get_field_context_inputs(
       scope, mask, context, field_tree_info.deduplicated_inputs);
 
+  Set<UniqueHash> varying_fields = find_varying_fields(field_tree_info, field_context_inputs);
+
   /* Process fields that can output a VArray directly, and separate the rest of the  fields into
    * two categories: those that are constant and need to be evaluated only once, and those that
    * need to be evaluated for every index. */
@@ -322,13 +346,14 @@ Vector<GVArray> evaluate_fields(ResourceScope &scope,
     std::visit(
         [&]<typename T>(const T &v) {
           if constexpr (std::is_same_v<T, GFieldRef::Input>) {
-            const UniqueHash input_hash = field_tree_info.deep_hashes.lookup(field);
-            const int input_i = field_tree_info.deduplicated_input_hashes.index_of(input_hash);
+            const UniqueHash hash = field_tree_info.deep_hashes.lookup(field);
+            const int input_i = field_tree_info.deduplicated_input_hashes.index_of(hash);
             const GVArray &varray = field_context_inputs[input_i];
             varrays[out_index] = varray;
           }
           else if constexpr (std::is_same_v<T, GFieldRef::MultiFn>) {
-            if (field_is_varying(field, field_tree_info, field_context_inputs)) {
+            const UniqueHash hash = field_tree_info.deep_hashes.lookup(field);
+            if (varying_fields.contains(hash)) {
               varying_fields_to_evaluate.append(field);
               varying_field_indices.append(out_index);
             }
