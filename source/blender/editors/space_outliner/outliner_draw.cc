@@ -26,6 +26,7 @@
 #include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
 #include "BLI_utildefines.h"
+#include "BLI_math_color.h"
 
 #include "BLT_translation.hh"
 
@@ -49,6 +50,7 @@
 #include "BKE_particle.h"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
+#include "BKE_image.hh"
 
 #include "ANIM_armature.hh"
 #include "ANIM_bone_collections.hh"
@@ -72,6 +74,7 @@
 #include "GPU_state.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_c.hh"
 #include "UI_interface_icons.hh"
 #include "UI_resources.hh"
 #include "UI_view2d.hh"
@@ -3999,6 +4002,37 @@ static void outliner_update_viewable_area(ARegion *region,
   ui::view2d_totRect_set(&region->v2d, sizex, sizey);
 }
 
+ARegion *tooltip_init(
+    bContext *C, ARegion *region, int * /*r_pass*/, double * /*pass_delay*/, bool *r_exit_on_event)
+{
+  wmWindow *wm = CTX_wm_window(C);
+  const wmEvent *event = wm->runtime->eventstate;
+  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
+  char im_size[32] = "";
+  tree_iterator::all_open(*space_outliner, [&](const TreeElement *te) {
+    const TreeStoreElem *tselem = TREESTORE(te);
+    if ((tselem->flag & TSE_HIGHLIGHTED) && tselem->id && (GS(tselem->id->name) == ID_IM)) {
+      Image *image = id_cast<Image *>(tselem->id);
+      int x, y;
+      BKE_image_get_size(image, nullptr, &x, &y);
+      BLI_snprintf(im_size, sizeof(im_size), "(%d x %d)", x, y);
+    }
+  });
+
+  if (im_size[0] != '\0') {
+    return ui::tooltip_create_from_outliner_element(C, im_size, event->xy[0], event->xy[1]);
+  }
+
+  return nullptr;
+}
+
+static void draw_tooltip(bContext *C, SpaceOutliner *space_outliner)
+{
+  wmWindow *wm = CTX_wm_window(C);
+  ARegion *region = CTX_wm_region(C);
+  WM_tooltip_timer_init_ex(C, wm, CTX_wm_area(C), region, tooltip_init, 0.0f);
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -4067,6 +4101,7 @@ void draw_outliner(const bContext *C, bool do_rebuild)
   const float right_column_width = outliner_right_columns_width(space_outliner);
   outliner_back(region);
   block = block_begin(C, region, __func__, ui::EmbossType::Emboss);
+
   outliner_draw_tree(block,
                      tvc,
                      region,
@@ -4144,6 +4179,7 @@ void draw_outliner(const bContext *C, bool do_rebuild)
 
   block_end(C, block);
   block_draw(C, block);
+  draw_tooltip(const_cast<bContext *>(C), space_outliner);
 
   /* Update total viewable region. */
   outliner_update_viewable_area(
