@@ -1643,8 +1643,10 @@ float2 BKE_fcurve_tangent(FCurve &fcurve, const float frame)
     default:
       break;
   }
-  /* Unsupported interpolation type. */
-  return {1, 0};
+  /* Unsupported interpolation type. Just return the tangent of a linear interpolation. */
+  float2 tangent = float2(b.vec[1]) - float2(a.vec[1]);
+  normalize_v2(tangent);
+  return tangent;
 }
 
 bool BKE_fcurve_bezt_subdivide_handles(BezTriple *bezt,

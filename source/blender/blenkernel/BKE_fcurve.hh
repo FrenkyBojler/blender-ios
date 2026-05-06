@@ -452,6 +452,9 @@ eFCU_Cycle_Type BKE_fcurve_get_cycle_type(const FCurve &fcu);
 /**
  * Returns the tangent of the curve at the given frame. This returns a normalized vector that
  * always points towards positive X.
+ *
+ * \note Not all interpolation types are supported. Currently that is only Linear, Constant and
+ * Bezier.
  */
 float2 BKE_fcurve_tangent(FCurve &fcurve, float frame);
 

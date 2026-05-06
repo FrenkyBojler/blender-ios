@@ -822,7 +822,12 @@ TEST_F(BKE_FCurveTest, BKE_fcurve_tangent_edge_cases)
   EXPECT_NEAR(tangent.y, 0.707f, 0.001f);
 
   tangent = BKE_fcurve_tangent(*fcu, 6.0f);
-  EXPECT_GT(tangent.x, 0);
+  EXPECT_NEAR(tangent.x, 0.707f, 0.001f);
+  EXPECT_NEAR(tangent.y, 0.707f, 0.001f);
+
+  /* Unsupported interpolation types produce tangents of linear interpolation between keys. */
+  fcu->bezt[0].ipo = BEZT_IPO_BOUNCE;
+  tangent = BKE_fcurve_tangent(*fcu, 6.0f);
   EXPECT_NEAR(tangent.x, 0.707f, 0.001f);
   EXPECT_NEAR(tangent.y, 0.707f, 0.001f);
 
