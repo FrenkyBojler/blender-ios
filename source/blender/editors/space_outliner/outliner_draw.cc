@@ -4011,20 +4011,17 @@ ARegion *tooltip_init(bContext *C,
   const wmWindow *wm = CTX_wm_window(C);
   const wmEvent *event = wm->runtime->eventstate;
   SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
-  char tooltip[32] = "";
+  ID *id = nullptr;
 
   tree_iterator::all_open(*space_outliner, [&](const TreeElement *te) {
     const TreeStoreElem *tselem = TREESTORE(te);
     if ((tselem->flag & TSE_HIGHLIGHTED) && tselem->id && (GS(tselem->id->name) == ID_IM)) {
-      Image *image = id_cast<Image *>(tselem->id);
-      int x, y;
-      BKE_image_get_size(image, nullptr, &x, &y);
-      BLI_snprintf(tooltip, sizeof(tooltip), "(%d x %d)", x, y);
+      id = tselem->id;
     }
   });
 
-  if (tooltip[0] != '\0') {
-    return ui::tooltip_create_from_outliner_element(C, tooltip, event->xy[0], event->xy[1]);
+  if (id != nullptr) {
+    return ui::tooltip_create_from_outliner_element(C, id, event->xy[0], event->xy[1]);
   }
 
   return nullptr;

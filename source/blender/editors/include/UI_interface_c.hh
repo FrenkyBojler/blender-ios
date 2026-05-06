@@ -3020,7 +3020,7 @@ ARegion *tooltip_create_from_panel_category(bContext *C,
                                             const int y);
 
 ARegion *tooltip_create_from_outliner_element(bContext *C,
-                                              const std::string &tip,
+                                              ID *id,
                                               const int x,
                                               const int y);
 
