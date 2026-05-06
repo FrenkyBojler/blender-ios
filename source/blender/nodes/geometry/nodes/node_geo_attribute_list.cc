@@ -116,13 +116,8 @@ static void node_geo_exec(GeoNodeExecParams params)
     names.append(iter.name);
   });
 
-  if (names.is_empty()) {
-    params.set_default_remaining_outputs();
-    return;
-  }
-
   parallel_sort(
-      names.begin(), names.end(), [](const StringRef &a, const StringRef &b) { return a < b; });
+      names.begin(), names.end(), [](const StringRef a, const StringRef b) { return a < b; });
 
   params.set_output("Names"_ustr, GList::from_container(names));
 }
