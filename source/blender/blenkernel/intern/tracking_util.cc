@@ -620,9 +620,17 @@ static ImBuf *make_grayscale_ibuf_copy(ImBuf *ibuf)
 
   BLI_assert(ELEM(ibuf->channels, 3, 4));
 
+  /* TODO(sergey): Bummer, currently IMB API only allows to create 4 channels
+   * float buffer, so we do it manually here.
+   *
+   * Will generalize it later.
+   */
+  const size_t num_pixels = size_t(grayscale->x) * size_t(grayscale->y);
   grayscale->channels = 1;
-  IMB_alloc_float_pixels(grayscale, grayscale->channels);
-  if (float *rect_float = grayscale->float_data_for_write()) {
+  float *rect_float = MEM_new_array_zeroed<float>(num_pixels, "tracking grayscale image");
+  if (rect_float != nullptr) {
+    grayscale->assign_float_data(rect_float);
+
     for (int i = 0; i < grayscale->x * grayscale->y; i++) {
       const float *pixel = ibuf->float_data() + ibuf->channels * i;
 
