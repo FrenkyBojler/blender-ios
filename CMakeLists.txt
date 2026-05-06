@@ -924,6 +924,15 @@ Allows testing shader compilation offline and enable C++ IDE support for shader 
 mark_as_advanced(WITH_GPU_SHADER_CPP_COMPILATION)
 
 
+# Profiling
+option(WITH_TRACY "\
+Enable profiling via the Tracy Frame Profiler. \
+This option adds a `tracy_profiler` target for building the profiler GUI frontend. Requires internet access."
+  OFF
+)
+mark_as_advanced(WITH_TRACY)
+
+
 # OpenGL
 if(NOT APPLE)
   option(WITH_OPENGL_BACKEND "Enable OpenGL support as graphic backend" ON)
@@ -2036,6 +2045,7 @@ if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
     C_AND_CXX_WARN_NO_FORMAT -Wno-format
     C_AND_CXX_WARN_NO_SWITCH -Wno-switch
     C_AND_CXX_WARN_NO_UNUSED_VARIABLE -Wno-unused-variable
+    C_AND_CXX_WARN_NO_UNUSED_BUT_SET_VARIABLE -Wno-unused-but-set-variable
     C_AND_CXX_WARN_NO_UNINITIALIZED -Wno-uninitialized
     C_AND_CXX_WARN_NO_IMPLICIT_FALLTHROUGH -Wno-implicit-fallthrough
   )
@@ -2556,6 +2566,9 @@ if(FIRST_RUN)
       info_cfg_option(WITH_GHOST_WAYLAND_DYNLOAD)
     endif()
   endif()
+
+  info_cfg_text("Profiling Options:")
+  info_cfg_option(WITH_TRACY)
 
   info_cfg_text("Image Formats:")
   info_cfg_option(WITH_IMAGE_CINEON)
