@@ -131,7 +131,8 @@ ScreenTraceHitData raytrace_screen(RayTraceData rt_data,
   time = mix(prev_time, time, saturate(prev_delta / (prev_delta - delta)));
 
   ScreenTraceHitData result;
-  result.hit_backface = prev_delta < 0.0f && ssray.direction.z < 0.0f;
+  /* We can only hit a backface if the ray was under the surface. */
+  result.hit_backface = prev_delta < 0.0f;
   result.ss_hit_P = ssray.origin.xyz + ssray.direction.xyz * time;
   result.v_hit_P = drw_point_screen_to_view(result.ss_hit_P);
   /* Convert to world space ray time. */
@@ -383,8 +384,8 @@ float raytrace_screen_2(const float3 vs_origin,
 }
 
 /**
- * Sample the given fullscreen framebuffer at the given hit location.
- * Does a small contact aware blur on incomming radiance.
+ * Sample the given full-screen frame-buffer at the given hit location.
+ * Does a small contact aware blur on incoming radiance.
  */
 float3 raytrace_sample_screen(sampler2D radiance_tx,
                               RayTraceData raytrace,
@@ -423,8 +424,8 @@ float3 raytrace_sample_screen(sampler2D radiance_tx,
 }
 
 /**
- * Sample the given fullscreen framebuffer at the given hit location.
- * Does a small contact aware blur on incomming radiance.
+ * Sample the given full-screen frame-buffer at the given hit location.
+ * Does a small contact aware blur on incoming radiance.
  */
 float3 raytrace_sample_screen(sampler2DArray radiance_tx,
                               RayTraceData raytrace,
