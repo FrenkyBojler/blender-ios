@@ -243,7 +243,8 @@ float ambient_occlusion_eval([[maybe_unused]] float3 normal,
   float4 noise = utility_tx_fetch(utility_tx, float2(texel), UTIL_BLUE_NOISE_LAYER).r;
   noise = fract(noise + sampling_rng_3D_get(SAMPLING_AO_U).xyzx);
 
-  float result = eevee::fast_gi::eval<float>(hiz_tx,
+  float result = eevee::fast_gi::eval<float>(uniform_buf.raytrace.fast_gi_thickness,
+                                             hiz_tx,
                                              hiz_tx /* Dummy. */,
                                              hiz_tx /* Dummy. */,
                                              vP,
@@ -251,8 +252,6 @@ float ambient_occlusion_eval([[maybe_unused]] float3 normal,
                                              noise,
                                              uniform_buf.ao.pixel_size,
                                              max_distance,
-                                             uniform_buf.ao.thickness_near,
-                                             uniform_buf.ao.thickness_far,
                                              uniform_buf.ao.angle_bias,
                                              2,
                                              int(sample_count / 2.0f),

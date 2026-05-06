@@ -289,21 +289,11 @@ ResultT eval(ScreenThicknessParameters thickness_params,
 
         /* Bias depth a bit to avoid self shadowing issues. */
         constexpr float bias = 2.0f * 2.4e-7f;
-<<<<<<< HEAD
-        const float sample_depth_biased = sample_depth + (reversed ? -bias : bias);
-
-        float3 vP_sample_front = drw_point_screen_to_view(float3(sample_uv, sample_depth_biased));
-        float3 vP_sample_back = vP_sample_front;
-        if (!reversed) {
-          vP_sample_back -= vV * thickness_near;
-        }
-=======
-        float sample_depth_front = sample_depth + (reversed ? -bias : bias);
-        float sample_depth_back = sample_depth + sample_thickness;
+        const float sample_depth_front = sample_depth + (reversed ? -bias : bias);
+        const float sample_depth_back = sample_depth + (reversed ? 0.0 : sample_thickness);
 
         float3 vP_sample_front = drw_point_screen_to_view(float3(sample_uv, sample_depth_front));
         float3 vP_sample_back = drw_point_screen_to_view(float3(sample_uv, sample_depth_back));
->>>>>>> main
 
         /* Mimic a sphere intersection check + clipping of the intersecting ray.
          * Assumes the ray is aligned with the view Z axis.
