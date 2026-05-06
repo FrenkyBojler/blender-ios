@@ -4003,30 +4003,31 @@ static void outliner_update_viewable_area(ARegion *region,
 }
 
 ARegion *tooltip_init(
-    bContext *C, ARegion *region, int * /*r_pass*/, double * /*pass_delay*/, bool *r_exit_on_event)
+    bContext *C, ARegion * /*region*/, int * /*r_pass*/, double * /*pass_delay*/, bool * /*r_exit_on_event*/)
 {
-  wmWindow *wm = CTX_wm_window(C);
+  const wmWindow *wm = CTX_wm_window(C);
   const wmEvent *event = wm->runtime->eventstate;
   SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
-  char im_size[32] = "";
+  char tooltip[32] = "";
+
   tree_iterator::all_open(*space_outliner, [&](const TreeElement *te) {
     const TreeStoreElem *tselem = TREESTORE(te);
     if ((tselem->flag & TSE_HIGHLIGHTED) && tselem->id && (GS(tselem->id->name) == ID_IM)) {
       Image *image = id_cast<Image *>(tselem->id);
       int x, y;
       BKE_image_get_size(image, nullptr, &x, &y);
-      BLI_snprintf(im_size, sizeof(im_size), "(%d x %d)", x, y);
+      BLI_snprintf(tooltip, sizeof(tooltip), "(%d x %d)", x, y);
     }
   });
 
-  if (im_size[0] != '\0') {
-    return ui::tooltip_create_from_outliner_element(C, im_size, event->xy[0], event->xy[1]);
+  if (tooltip[0] != '\0') {
+    return ui::tooltip_create_from_outliner_element(C, tooltip, event->xy[0], event->xy[1]);
   }
 
   return nullptr;
 }
 
-static void draw_tooltip(bContext *C, SpaceOutliner *space_outliner)
+static void draw_tooltip(bContext *C, SpaceOutliner * /*space_outliner*/)
 {
   wmWindow *wm = CTX_wm_window(C);
   ARegion *region = CTX_wm_region(C);
