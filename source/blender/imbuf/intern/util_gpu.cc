@@ -220,8 +220,8 @@ static void *imb_gpu_get_data(ImBuf *ibuf,
 
   if (do_rescale) {
     if (is_float_rect) {
-      float *new_rect = MEM_new_array_uninitialized<float>(4 * size_t(ibuf->x) * size_t(ibuf->y),
-                                                           __func__);
+      float *new_rect = MEM_new_array_uninitialized<float>(
+          4 * size_t(rescale_size[0]) * size_t(rescale_size[1]), __func__);
       IMB_scale_box(static_cast<float *>(data_rect),
                     int2(ibuf->x, ibuf->y),
                     4,
@@ -235,8 +235,8 @@ static void *imb_gpu_get_data(ImBuf *ibuf,
       *r_freedata = freedata = true;
     }
     else {
-      uchar *new_rect = MEM_new_array_uninitialized<uchar>(4 * size_t(ibuf->x) * size_t(ibuf->y),
-                                                           __func__);
+      uchar *new_rect = MEM_new_array_uninitialized<uchar>(
+          4 * size_t(rescale_size[0]) * size_t(rescale_size[1]), __func__);
       IMB_scale_box(static_cast<uchar *>(data_rect),
                     int2(ibuf->x, ibuf->y),
                     4,
