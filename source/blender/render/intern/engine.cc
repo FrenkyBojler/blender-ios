@@ -857,12 +857,13 @@ bool RE_bake_engine(Render *re,
 
 /* Render */
 
-static bool possibly_using_gpu_compositor(const Render *re, const Scene *scene)
+static bool possibly_using_gpu_compositor(const Render *re)
 {
   if (re->r.compositor_device != SCE_COMPOSITOR_DEVICE_GPU) {
     return false;
   }
 
+  const Scene *scene = re->pipeline_scene_eval;
   return (scene->compositing_node_group && (scene->r.scemode & R_DOCOMP));
 }
 
@@ -883,7 +884,6 @@ static void engine_render_view_layer(Render *re,
     return;
   }
   engine_depsgraph_init(engine, view_layer);
-  const Scene *scene = DEG_get_evaluated_scene(engine->depsgraph);
 
   /* Sync data to engine, within draw lock so scene data can be accessed safely. */
   if (use_engine) {
@@ -892,7 +892,7 @@ static void engine_render_view_layer(Render *re,
       DRW_render_context_enable(engine->re);
     }
     else if (G.background && ((engine->has_grease_pencil && use_grease_pencil) ||
-                              possibly_using_gpu_compositor(re, scene)))
+                              possibly_using_gpu_compositor(re)))
     {
       /* Workaround for specific NVidia drivers which crash on Linux when OptiX context is
        * initialized prior to OpenGL context. This affects driver versions 545.29.06, 550.54.14,
