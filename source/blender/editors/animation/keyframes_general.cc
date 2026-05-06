@@ -975,6 +975,10 @@ void time_offset_fcurve_segment(FCurve *fcu, FCurveSegment *segment, const float
     key.vec[1][1] = y_values[i];
     key.h1 = key.h2 = HD_ALIGN;
     if (prev_key) {
+      /* Assume that the length of the handle is 1/3 the distance between the previous key and this
+       * key. This is not accurate at all, but good enough for now. Ideally the length of the
+       * handle is modified so the resulting curve follows the existing curve as closely as
+       * possible.  */
       const float dist = len_v2(float2(key.vec[1]) - float2(prev_key->vec[1])) * 0.3f;
       key.vec[0][0] = key.vec[1][0] - tangents[i].x * dist;
       key.vec[0][1] = key.vec[1][1] - tangents[i].y * dist;

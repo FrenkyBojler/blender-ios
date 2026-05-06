@@ -761,4 +761,54 @@ TEST_F(BKE_FCurveTest, BKE_fcurve_deduplicate_keys_prefer_whole_frames)
   BKE_fcurve_free(fcu);
 }
 
+TEST_F(BKE_FCurveTest, BKE_fcurve_tangent)
+{
+  FCurve *fcu = BKE_fcurve_create();
+
+  const KeyframeSettings settings = get_keyframe_settings(false);
+  insert_vert_fcurve(fcu, {1.0f, 7.5f}, settings, INSERTKEY_NOFLAGS);
+  insert_vert_fcurve(fcu, {4.0f, -15.0f}, settings, INSERTKEY_NOFLAGS);
+  insert_vert_fcurve(fcu, {8.0f, 15.0f}, settings, INSERTKEY_NOFLAGS);
+  insert_vert_fcurve(fcu, {14.0f, 8.2f}, settings, INSERTKEY_NOFLAGS);
+  insert_vert_fcurve(fcu, {18.2f, -20.0f}, settings, INSERTKEY_NOFLAGS);
+  BKE_fcurve_free(fcu);
+}
+
+TEST_F(BKE_FCurveTest, BKE_fcurve_tangent_edge_cases)
+{
+  FCurve *fcu = BKE_fcurve_create();
+
+  /* No keyframes mean no tangent. */
+  EXPECT_EQ(BKE_fcurve_tangent(*fcu, 0.0f), float2(1.0f, 0.0f));
+
+  const KeyframeSettings settings = get_keyframe_settings(false);
+  insert_vert_fcurve(fcu, {1.0f, 1.0f}, settings, INSERTKEY_NOFLAGS);
+  insert_vert_fcurve(fcu, {5.0f, 5.0f}, settings, INSERTKEY_NOFLAGS);
+
+  /* Setting the handles to extend at 45 degree from the key. */
+  fcu->bezt[0].vec[0][0] = 0;
+  fcu->bezt[0].vec[0][1] = 0;
+  fcu->bezt[1].vec[2][0] = 6;
+  fcu->bezt[1].vec[2][1] = 6;
+
+  /* Getting the tangent outside of the FCurve's keyframes. */
+  fcu->extend = FCURVE_EXTRAPOLATE_CONSTANT;
+  EXPECT_EQ(BKE_fcurve_tangent(*fcu, 0.0f), float2(1.0f, 0.0f));
+  EXPECT_EQ(BKE_fcurve_tangent(*fcu, 6.0f), float2(1.0f, 0.0f));
+
+  fcu->extend = FCURVE_EXTRAPOLATE_LINEAR;
+  float2 tangent = BKE_fcurve_tangent(*fcu, 0.0f);
+  /* Tangent should always point towards positive X. */
+  EXPECT_GT(tangent.x, 0);
+  EXPECT_NEAR(tangent.x, 0.707f, 0.001f);
+  EXPECT_NEAR(tangent.y, 0.707f, 0.001f);
+
+  tangent = BKE_fcurve_tangent(*fcu, 6.0f);
+  EXPECT_GT(tangent.x, 0);
+  EXPECT_NEAR(tangent.x, 0.707f, 0.001f);
+  EXPECT_NEAR(tangent.y, 0.707f, 0.001f);
+
+  BKE_fcurve_free(fcu);
+}
+
 }  // namespace blender::bke::tests

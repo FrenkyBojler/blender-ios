@@ -1581,11 +1581,25 @@ float2 BKE_fcurve_tangent(FCurve &fcurve, const float frame)
     return tangent;
   }
   if (key_index == 0 || key_index == fcurve.totvert) {
-    /* If the given frame is outside the key range, the tangent is assumed to be 1/0; */
-    return {1, 0};
+    /* If the given frame is outside the key range, return the tangent of the extrapolation; */
+    if (fcurve.extend == FCURVE_EXTRAPOLATE_CONSTANT) {
+      return {1, 0};
+    }
+    BLI_assert(fcurve.extend == FCURVE_EXTRAPOLATE_LINEAR);
+    float2 tangent;
+    if (key_index == 0) {
+      BezTriple &key = fcurve.bezt[0];
+      tangent = float2(key.vec[1]) - float2(key.vec[0]);
+    }
+    else {
+      BezTriple &key = fcurve.bezt[fcurve.totvert - 1];
+      tangent = float2(key.vec[2]) - float2(key.vec[1]);
+    }
+    normalize_v2(tangent);
+    return tangent;
   }
-  BezTriple &a = fcurve.bezt[key_index - 1];
-  BezTriple &b = fcurve.bezt[key_index];
+  const BezTriple &a = fcurve.bezt[key_index - 1];
+  const BezTriple &b = fcurve.bezt[key_index];
   float roots[4];
   if (!findzero(frame, a.vec[1][0], a.vec[2][0], b.vec[0][0], b.vec[1][0], roots)) {
     return {1, 0};
