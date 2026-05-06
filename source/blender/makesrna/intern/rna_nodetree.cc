@@ -10422,6 +10422,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("FunctionNode", "FunctionNodeFloatToInt", def_float_to_int);
   define("FunctionNode", "FunctionNodeFormatString", def_fn_format_string);
   define("FunctionNode", "FunctionNodeHashValue");
+  define("FunctionNode", "FunctionNodeHexToInteger");
   define("FunctionNode", "FunctionNodeInputBool", def_fn_input_bool);
   define("FunctionNode", "FunctionNodeInputColor", def_fn_input_color);
   define("FunctionNode", "FunctionNodeInputInt", def_fn_input_int);
@@ -10432,6 +10433,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("FunctionNode", "FunctionNodeInputString", def_fn_input_string);
   define("FunctionNode", "FunctionNodeInputVector", def_fn_input_vector);
   define("FunctionNode", "FunctionNodeIntegerMath");
+  define("FunctionNode", "FunctionNodeIntegerToHex");
   define("FunctionNode", "FunctionNodeInvertMatrix");
   define("FunctionNode", "FunctionNodeInvertRotation");
   define("FunctionNode", "FunctionNodeMatchString");
