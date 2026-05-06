@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "DNA_userdef_types.h"
 #include "RNA_types.hh"
 
 #include "blender/id_map.h"
@@ -95,7 +96,9 @@ class BlenderSync {
   void free_data_after_sync(blender::Depsgraph &b_depsgraph);
 
   /* get parameters */
-  static SceneParams get_scene_params(blender::Scene &b_scene,
+  static SceneParams get_scene_params(blender::UserDef &b_preferences,
+                                      blender::Main &b_data,
+                                      blender::Scene &b_scene,
                                       const bool background,
                                       const bool use_developer_ui);
   static SessionParams get_session_params(blender::RenderEngine &b_engine,
@@ -249,6 +252,9 @@ class BlenderSync {
   enum ShaderFlags { SHADER_WITH_LAYER_ATTRS };
 
   id_map<const void *, Shader, ShaderFlags> shader_map;
+  /* To keep track of the AOVs in consecutive view layers that are rendered, this is the old data
+   * for comparing. */
+  blender::Vector<std::pair<std::string, int>> shader_view_layer_aovs;
   id_map<ObjectKey, Object> object_map;
   id_map<void *, Procedural> procedural_map;
   id_map<GeometryKey, Geometry> geometry_map;

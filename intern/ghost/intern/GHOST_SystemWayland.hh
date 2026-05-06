@@ -73,6 +73,14 @@ wl_fixed_t gwl_window_scale_wl_fixed_from(const GWL_WindowScaleParams &scale_par
 int gwl_window_scale_int_to(const GWL_WindowScaleParams &scale_params, int value);
 int gwl_window_scale_int_from(const GWL_WindowScaleParams &scale_params, int value);
 
+/**
+ * Scale a logical buffer size to physical pixels, returning an integer buffer scale.
+ * The buffer scale is rounded up so `result / *r_buffer_scale == logical_size`.
+ */
+int gwl_window_scale_buffer_size_to(const GWL_WindowScaleParams &scale_params,
+                                    int logical_size,
+                                    int *r_buffer_scale);
+
 #define FRACTIONAL_DENOMINATOR 120
 
 #ifdef WITH_GHOST_WAYLAND_DYNLOAD
@@ -253,6 +261,11 @@ class GHOST_SystemWayland : public GHOST_System {
   struct zwp_pointer_gestures_v1 *wp_pointer_gestures_get();
   struct wp_fractional_scale_manager_v1 *wp_fractional_scale_manager_get();
   struct wp_viewporter *wp_viewporter_get();
+  struct wp_color_manager_v1 *wp_color_manager_get();
+  struct wl_event_queue *wp_color_manager_queue_get();
+
+  bool supports_color_manager_feature_windows_scrgb() const;
+  bool supports_color_manager_extended_srgb_linear() const;
 
   struct xdg_wm_base *xdg_decor_shell_get();
   struct zxdg_decoration_manager_v1 *xdg_decor_manager_get();

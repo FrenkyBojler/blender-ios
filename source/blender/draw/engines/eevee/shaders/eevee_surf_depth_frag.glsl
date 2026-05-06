@@ -23,7 +23,7 @@ FRAGMENT_SHADER_CREATE_INFO(eevee_surf_depth)
 #include "eevee_transparency_lib.glsl"
 #include "eevee_velocity_lib.glsl"
 
-float4 closure_to_rgba(Closure cl)
+float4 closure_to_rgba(Closure /*cl*/)
 {
   float4 out_color;
   out_color.rgb = g_emission;
@@ -42,14 +42,9 @@ void main()
 
   nodetree_surface(0.0f);
 
-#  ifdef MAT_FORWARD
-  /* Pre-pass only allows fully opaque areas to cut through all transparent layers. */
-  float threshold = 0.0f;
-#  else
   float noise_offset = sampling_rng_1D_get(SAMPLING_TRANSPARENCY);
   float threshold = transparency_hashed_alpha_threshold(
       uniform_buf.pipeline.alpha_hash_scale, noise_offset, g_data.P);
-#  endif
 
   float transparency = average(g_transmittance);
   if (transparency > threshold) {
