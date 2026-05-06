@@ -333,7 +333,7 @@ Vector<GVArray> evaluate_fields(ResourceScope &scope,
 
   Set<UniqueHash> varying_fields = find_varying_fields(field_tree_info, field_context_inputs);
 
-  /* Process fields that can output a VArray directly, and separate the rest of the  fields into
+  /* Process fields that can output a VArray directly, and separate the rest of the fields into
    * two categories: those that are constant and need to be evaluated only once, and those that
    * need to be evaluated for every index. */
   Vector<GFieldRef> varying_fields_to_evaluate;
