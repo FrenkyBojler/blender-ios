@@ -1018,7 +1018,7 @@ static void replace_interface_socket(
   const bNodeTree &src_tree = is_input ? dst_tree : group_tree;
   const bNode *src_node = is_input ? group_node : group_output_node;
   const bNodeSocket *src_socket = src_node ? bke::node_find_socket(
-                                                 *src_node, SOCK_IN, io_socket.identifier) :
+                                                 *src_node, SOCK_IN, UString(io_socket.identifier)) :
                                              nullptr;
 
   /* Create a proxy node if necessary. */
