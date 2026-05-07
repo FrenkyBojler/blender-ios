@@ -3995,8 +3995,7 @@ static int do_but_textedit(
           }
         }
 
-        blender::ui::AbstractViewItem *view_item = find_item_from_rename_button(*but);
-        if (view_item) {
+        if (blender::ui::AbstractViewItem *view_item = find_item_from_rename_button(*but)) {
           view_item_cancel_rename(*view_item);
         }
 
