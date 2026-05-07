@@ -4,3 +4,4 @@ Referenced by issue #156361, Crash on load svg to grease pencil
 Referenced by issue #156740, Regression: Viewport render preview lags when changing Base Color via color wheel in Principled BSDF (5.1 vs 5.0)
 Referenced by issue #156753, GLTF/GLB export ignores light color
 Referenced by issue #157694, "Import SVG as Grease Pencil" not working correctly in 5.1 (file that worked in 5.0)
+Referenced by issue #158255, Blender 5.1.1 - Cast Shadow issue with node-based lights using textures in Emission Color
