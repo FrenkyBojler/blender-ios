@@ -121,11 +121,6 @@ StaticCacheManager &Context::cache_manager()
   return cache_manager_;
 }
 
-bke::ComputeContextCache &Context::compute_context_cache()
-{
-  return compute_context_cache_;
-}
-
 const Strip *Context::get_strip() const
 {
   return nullptr;

@@ -40,8 +40,6 @@ class Context {
   /* A static cache manager that can be used to acquire cached resources for the compositor
    * efficiently. */
   StaticCacheManager &cache_manager_;
-  /* TODO: Move to better place? */
-  bke::ComputeContextCache compute_context_cache_;
 
  public:
   Context(StaticCacheManager &cache_manager);
@@ -135,9 +133,6 @@ class Context {
 
   /* Get a reference to the static cache manager of this context. */
   StaticCacheManager &cache_manager();
-
-  /* TODO. */
-  bke::ComputeContextCache &compute_context_cache();
 };
 
 }  // namespace blender::compositor

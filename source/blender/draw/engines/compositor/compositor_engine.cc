@@ -329,8 +329,7 @@ class Context : public compositor::Context {
   {
     using namespace compositor;
     const bNodeTree &node_group = *DRW_context_get()->scene->compositing_node_group;
-    const ComputeContext &compute_context = this->compute_context_cache().for_data_block(
-        nullptr, this->get_scene().id);
+    const bke::DataBlockComputeContext compute_context(nullptr, this->get_scene().id);
     NodeGroupOperation node_group_operation(*this,
                                             node_group,
                                             this->needed_outputs(),

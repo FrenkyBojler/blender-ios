@@ -312,8 +312,7 @@ class CompositorModifierContext : public CompositorContext {
 
     const bNodeTree &node_group = *DEG_get_evaluated<bNodeTree>(render_data_.depsgraph,
                                                                 modifier_data_->node_group);
-    const ComputeContext &compute_context = this->compute_context_cache().for_data_block(
-        nullptr, this->get_scene().id);
+    const bke::DataBlockComputeContext compute_context(nullptr, this->get_scene().id);
     NodeGroupOperation node_group_operation(*this,
                                             node_group,
                                             this->needed_outputs(),

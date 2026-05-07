@@ -583,8 +583,7 @@ class Context : public compositor::Context {
         flag_is_set(needed_outputs, NodeGroupOutputTypes::NodePreviews) ?
             &node_group.runtime->previews :
             nullptr;
-    const ComputeContext &compute_context = this->compute_context_cache().for_data_block(
-        nullptr, this->get_scene().id);
+    const bke::DataBlockComputeContext compute_context(nullptr, this->get_scene().id);
     NodeGroupOperation node_group_operation(*this,
                                             node_group,
                                             needed_outputs,
