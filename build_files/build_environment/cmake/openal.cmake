@@ -36,7 +36,7 @@ if(BUILD_MODE STREQUAL Release)
     DOWNLOAD_DIR ${DOWNLOAD_DIR}
     URL_HASH ${OPENAL_HASH_TYPE}=${OPENAL_HASH}
     PREFIX ${BUILD_DIR}/openal
-
+    CMAKE_GENERATOR ${PLATFORM_ALT_GENERATOR}
     CMAKE_ARGS
       -DCMAKE_INSTALL_PREFIX=${LIBDIR}/openal
       ${DEFAULT_CMAKE_FLAGS}
@@ -59,6 +59,10 @@ if(BUILD_MODE STREQUAL Release)
 
       DEPENDEES install
     )
+  else()
+    harvest(external_openal openal/include openal/include "*.h")
+    if(UNIX AND NOT APPLE)
+      harvest(external_openal openal/lib openal/lib "*.a")
+    endif()
   endif()
-
 endif()

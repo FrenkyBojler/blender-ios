@@ -2,6 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BKE_layer.hh"
+
 #include "DEG_depsgraph_query.hh"
 
 #include "curves.hh"
@@ -10,13 +12,15 @@
 #include "mesh.hh"
 #include "object.hh"
 #include "volume.hh"
+#include "volume_modifier.hh"
 
 namespace blender::io::hydra {
 
 ObjectData::ObjectData(HydraSceneDelegate *scene_delegate,
                        const Object *object,
                        pxr::SdfPath const &prim_id)
-    : IdData(scene_delegate, &object->id, prim_id), transform(pxr::GfMatrix4d(1.0))
+    : IdData(scene_delegate, (object) ? &object->id : nullptr, prim_id),
+      transform(pxr::GfMatrix4d(1.0))
 {
 }
 
@@ -98,7 +102,7 @@ bool ObjectData::is_visible(HydraSceneDelegate *scene_delegate, const Object *ob
   if (deg_mode == DAG_EVAL_VIEWPORT) {
     ret &= BKE_object_is_visible_in_viewport(scene_delegate->view3d, object);
   }
-  /* Note: visibility for final render we are taking from depsgraph */
+  /* NOTE: visibility for final render we are taking from depsgraph */
   return ret;
 }
 
@@ -109,15 +113,42 @@ pxr::VtValue ObjectData::get_data(pxr::SdfPath const & /*id*/, pxr::TfToken cons
 
 pxr::SdfPath ObjectData::material_id() const
 {
+  return material_id(prim_id);
+}
+
+pxr::SdfPath ObjectData::material_id(pxr::SdfPath const &id) const
+{
+  MaterialData *mat_data = get_material_data(id);
+  if (mat_data) {
+    return mat_data->prim_id;
+  }
   return pxr::SdfPath();
 }
 
-pxr::SdfPath ObjectData::material_id(pxr::SdfPath const & /*id*/) const
+void ObjectData::available_materials(Set<pxr::SdfPath> & /*paths*/) const {}
+
+bool ObjectData::double_sided(pxr::SdfPath const &id) const
 {
-  return material_id();
+  MaterialData *mat_data = get_material_data(id);
+  if (mat_data) {
+    return mat_data->double_sided;
+  }
+  return true;
 }
 
-void ObjectData::available_materials(Set<pxr::SdfPath> & /*paths*/) const {}
+pxr::HdCullStyle ObjectData::cull_style(pxr::SdfPath const &id) const
+{
+  MaterialData *mat_data = get_material_data(id);
+  if (mat_data) {
+    return mat_data->cull_style();
+  }
+  return pxr::HdCullStyle::HdCullStyleNothing;
+}
+
+MaterialData *ObjectData::get_material_data(pxr::SdfPath const & /*id*/) const
+{
+  return nullptr;
+}
 
 void ObjectData::write_transform()
 {

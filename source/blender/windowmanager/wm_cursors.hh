@@ -8,17 +8,22 @@
 
 #pragma once
 
+namespace blender {
+
 struct wmEvent;
 struct wmWindow;
 
-enum WMCursorType {
+enum wmCursorType {
   WM_CURSOR_DEFAULT = 1,
   WM_CURSOR_TEXT_EDIT,
   WM_CURSOR_WAIT,
   WM_CURSOR_STOP,
   WM_CURSOR_EDIT,
   WM_CURSOR_COPY,
+  WM_CURSOR_MOVE,
   WM_CURSOR_HAND,
+  WM_CURSOR_HAND_CLOSED,
+  WM_CURSOR_HAND_POINT,
 
   WM_CURSOR_CROSS,
   WM_CURSOR_PAINT,
@@ -26,6 +31,7 @@ enum WMCursorType {
   WM_CURSOR_CROSSC,
 
   WM_CURSOR_KNIFE,
+  WM_CURSOR_BLADE,
   WM_CURSOR_VERTEX_LOOP,
   WM_CURSOR_PAINT_BRUSH,
   WM_CURSOR_ERASER,
@@ -57,9 +63,16 @@ enum WMCursorType {
 
   WM_CURSOR_PICK_AREA,
 
+  WM_CURSOR_LEFT_HANDLE,
+  WM_CURSOR_RIGHT_HANDLE,
+  WM_CURSOR_BOTH_HANDLES,
+  WM_CURSOR_SLIP,
+
   /* --- ALWAYS LAST ----- */
   WM_CURSOR_NUM,
 };
 
 void wm_init_cursor_data();
 bool wm_cursor_arrow_move(wmWindow *win, const wmEvent *event);
+
+}  // namespace blender

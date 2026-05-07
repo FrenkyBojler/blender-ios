@@ -18,10 +18,10 @@ set(OPENEXR_EXTRA_ARGS
   -DOPENEXR_BUILD_BOTH_STATIC_SHARED=OFF
   -DBUILD_SHARED_LIBS=ON
   -DOPENEXR_INSTALL_TOOLS=OFF
-  -DOPENEXR_INSTALL_EXAMPLES=OFF
   -DImath_DIR=${LIBDIR}/imath/lib/cmake/Imath
   -DOPENEXR_LIB_SUFFIX=${OPENEXR_VERSION_BUILD_POSTFIX}
   -Dlibdeflate_DIR=${LIBDIR}/deflate/lib/cmake/libdeflate
+  -Dopenjph_DIR=${LIBDIR}/openjph/lib/cmake/openjph
 )
 
 ExternalProject_Add(external_openexr
@@ -29,12 +29,12 @@ ExternalProject_Add(external_openexr
   DOWNLOAD_DIR ${DOWNLOAD_DIR}
   URL_HASH ${OPENEXR_HASH_TYPE}=${OPENEXR_HASH}
 
-  PATCH_COMMAND ${PATCH_CMD} -p 2 -d
-    ${BUILD_DIR}/openexr/src/external_openexr <
-    ${PATCH_DIR}/openexr_deflate_1588.diff
-
   CMAKE_GENERATOR ${PLATFORM_ALT_GENERATOR}
   PREFIX ${BUILD_DIR}/openexr
+
+  PATCH_COMMAND ${PATCH_CMD} -p 1 -d
+    ${BUILD_DIR}/openexr/src/external_openexr <
+    ${PATCH_DIR}/openexr_deflate_cmake.diff
 
   CMAKE_ARGS
     -DCMAKE_INSTALL_PREFIX=${LIBDIR}/openexr
@@ -70,10 +70,15 @@ if(WIN32)
 
     DEPENDEES install
   )
+else()
+  harvest(external_openexr openexr/include openexr/include "*.h")
+  harvest(external_openexr openexr/lib/cmake/OpenEXR openexr/lib/cmake/OpenEXR "*.cmake")
+  harvest_rpath_lib(external_openexr openexr/lib openexr/lib "*${SHAREDLIBEXT}*")
 endif()
 
 add_dependencies(
   external_openexr
   external_imath
   external_deflate
+  external_openjph
 )

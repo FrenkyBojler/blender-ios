@@ -2,18 +2,39 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BLI_path_util.h"
+#include "BLI_listbase.h"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
+#include "BLI_string_ref.hh"
+#include "BLI_vector.hh"
 
-#include "BKE_image.h"
+#include "BKE_appdir.hh"
+#include "BKE_global.hh"
+#include "BKE_gtest_base.hh"
+#include "BKE_idtype.hh"
+#include "BKE_image.hh"
+#include "BKE_main.hh"
 
 #include "MEM_guardedalloc.h"
 
 #include "testing/testing.h"
+#include "gmock/gmock.h"
+
+#include "IMB_cache.hh"
+#include "IMB_imbuf.hh"
+
+#include "DNA_image_types.h"
+
+#include "RE_pipeline.h"
 
 namespace blender::bke::tests {
 
-TEST(udim, image_ensure_tile_token)
+using testing::Eq;
+using testing::Pointwise;
+
+class UdimTest : public BlenderGTestBase {};
+
+TEST_F(UdimTest, image_ensure_tile_token)
 {
   auto verify = [](const char *original, const char *expected) {
     char result[FILE_MAX];
@@ -74,7 +95,7 @@ TEST(udim, image_ensure_tile_token)
   }
 }
 
-TEST(udim, image_get_tile_strformat)
+TEST_F(UdimTest, image_get_tile_strformat)
 {
   eUDIM_TILE_FORMAT tile_format;
   char *udim_pattern;
@@ -98,15 +119,15 @@ TEST(udim, image_get_tile_strformat)
   udim_pattern = BKE_image_get_tile_strformat("test.<UDIM>.png", &tile_format);
   EXPECT_EQ(tile_format, UDIM_TILE_FORMAT_UDIM);
   EXPECT_STREQ(udim_pattern, "test.%d.png");
-  MEM_freeN(udim_pattern);
+  MEM_delete(udim_pattern);
 
   udim_pattern = BKE_image_get_tile_strformat("test.<UVTILE>.png", &tile_format);
   EXPECT_EQ(tile_format, UDIM_TILE_FORMAT_UVTILE);
   EXPECT_STREQ(udim_pattern, "test.u%d_v%d.png");
-  MEM_freeN(udim_pattern);
+  MEM_delete(udim_pattern);
 }
 
-TEST(udim, image_get_tile_number_from_filepath)
+TEST_F(UdimTest, image_get_tile_number_from_filepath)
 {
   eUDIM_TILE_FORMAT tile_format;
   char *udim_pattern;
@@ -138,7 +159,7 @@ TEST(udim, image_get_tile_number_from_filepath)
   EXPECT_FALSE(BKE_image_get_tile_number_from_filepath(
       "wrong.1004.png", udim_pattern, tile_format, &tile_number));
 
-  MEM_freeN(udim_pattern);
+  MEM_delete(udim_pattern);
 
   /* UVTILE tile format tests. */
   udim_pattern = BKE_image_get_tile_strformat("test.<UVTILE>.png", &tile_format);
@@ -158,10 +179,10 @@ TEST(udim, image_get_tile_number_from_filepath)
   EXPECT_FALSE(BKE_image_get_tile_number_from_filepath(
       "wrong.u2_v2.png", udim_pattern, tile_format, &tile_number));
 
-  MEM_freeN(udim_pattern);
+  MEM_delete(udim_pattern);
 }
 
-TEST(udim, image_set_filepath_from_tile_number)
+TEST_F(UdimTest, image_set_filepath_from_tile_number)
 {
   eUDIM_TILE_FORMAT tile_format;
   char *udim_pattern;
@@ -184,7 +205,7 @@ TEST(udim, image_set_filepath_from_tile_number)
   /* UDIM tile format tests. */
   BKE_image_set_filepath_from_tile_number(filepath, udim_pattern, tile_format, 1028);
   EXPECT_STREQ(filepath, "test.1028.png");
-  MEM_freeN(udim_pattern);
+  MEM_delete(udim_pattern);
 
   /* UVTILE tile format tests. */
   udim_pattern = BKE_image_get_tile_strformat("test.<UVTILE>.png", &tile_format);
@@ -193,7 +214,157 @@ TEST(udim, image_set_filepath_from_tile_number)
 
   BKE_image_set_filepath_from_tile_number(filepath, udim_pattern, tile_format, 1028);
   EXPECT_STREQ(filepath, "test.u8_v3.png");
-  MEM_freeN(udim_pattern);
+  MEM_delete(udim_pattern);
+}
+
+class ImageTest : public BlenderGTestBase {
+  Main *bmain_ = nullptr;
+
+  RenderResult *get_image_render_result(Image &image)
+  {
+    ImageUser iuser{};
+    BKE_imageuser_default(&iuser);
+
+    ImBuf *temp_ibuf = BKE_image_acquire_ibuf(&image, &iuser, nullptr);
+    BKE_image_release_ibuf(&image, temp_ibuf, nullptr);
+
+    return image.rr;
+  }
+
+ protected:
+  void SetUp() override
+  {
+    bmain_ = BKE_main_new();
+    G_MAIN = bmain_;
+  }
+
+  void TearDown() override
+  {
+    BKE_main_free(bmain_);
+    G_MAIN = nullptr;
+  }
+
+  Image *load_image(const char *path)
+  {
+    const std::string asset_dir = blender::tests::flags_test_asset_dir();
+    return BKE_image_load(bmain_, (asset_dir + SEP_STR + "imbuf_io" + SEP_STR + path).c_str());
+  }
+
+  Vector<std::string> get_image_layer_names(Image &image)
+  {
+    RenderResult *render_result = get_image_render_result(image);
+    if (!render_result) {
+      ADD_FAILURE() << "Missing image RenderResult";
+      return {};
+    }
+
+    Vector<std::string> layer_names;
+    for (const RenderLayer &layer : render_result->layers) {
+      layer_names.append(layer.name);
+    }
+
+    return layer_names;
+  }
+
+  Vector<std::string> get_image_pass_names_for_layer(Image &image, StringRefNull layer_name)
+  {
+    RenderResult *render_result = get_image_render_result(image);
+    if (!render_result) {
+      ADD_FAILURE() << "Missing image RenderResult";
+      return {};
+    }
+
+    for (const RenderLayer &layer : render_result->layers) {
+      if (layer.name == layer_name) {
+        Vector<std::string> pass_names;
+        for (const RenderPass &pass : layer.passes) {
+          pass_names.append(pass.name);
+        }
+        return pass_names;
+      }
+    }
+
+    return {};
+  }
+};
+
+TEST_F(ImageTest, multilayer)
+{
+  /* Multi-layer file from another DCC originally reported as #108980.
+   * The expected passes are obtained from Blender 4.2 Beta f069692caf8, with the
+   * !118867 reverted. File Scene_RenderLayer_000.exr from the report was used. */
+  {
+    Image *image = load_image("multilayer" SEP_STR "108980.exr");
+    ASSERT_NE(image, nullptr);
+
+    EXPECT_THAT(get_image_layer_names(*image), Pointwise(Eq(), {""}));
+    EXPECT_THAT(get_image_pass_names_for_layer(*image, ""),
+                Pointwise(Eq(),
+                          {"Combined",
+                           "Albedo",
+                           "Nsx",
+                           "Nsy",
+                           "Nsz",
+                           "Nx",
+                           "Ny",
+                           "Nz",
+                           "Px",
+                           "Py",
+                           "Pz",
+                           "RelativeVariance",
+                           "Variance",
+                           "dzdx",
+                           "dzdy",
+                           "u"}));
+  }
+
+  /* Multi-layer file from another DCC originally reported as #124217.
+   * The expected passes are obtained from Blender 4.2 Beta f069692caf8, with the
+   * !118867 reverted. File test.exr from the report was used. */
+  {
+    Image *image = load_image("multilayer" SEP_STR "124217.exr");
+    ASSERT_NE(image, nullptr);
+
+    EXPECT_THAT(get_image_layer_names(*image), Pointwise(Eq(), {""}));
+    EXPECT_THAT(get_image_pass_names_for_layer(*image, ""),
+                Pointwise(Eq(),
+                          {"Combined",
+                           "Depth",
+                           "AO",
+                           "ID",
+                           "crypto_material",
+                           "crypto_material00",
+                           "crypto_material01",
+                           "crypto_material02",
+                           "crypto_material03",
+                           "crypto_material04",
+                           "crypto_material05",
+                           "crypto_material06",
+                           "crypto_object",
+                           "crypto_object00",
+                           "crypto_object01",
+                           "crypto_object02",
+                           "crypto_object03",
+                           "crypto_object04",
+                           "crypto_object05",
+                           "crypto_object06",
+                           "diffuse",
+                           "opacity",
+                           "specular",
+                           "v"}));
+  }
+
+  /* Multi-part file from another DCC, originally reported as #101227.
+   * The expected passes are obtained from Blender 4.2 Beta f069692caf8, with the
+   * !118867 landed. */
+  {
+    Image *image = load_image("multilayer" SEP_STR "101227.exr");
+    ASSERT_NE(image, nullptr);
+
+    EXPECT_THAT(get_image_layer_names(*image), Pointwise(Eq(), {""}));
+    EXPECT_THAT(get_image_pass_names_for_layer(*image, ""),
+                Pointwise(Eq(), {"C", "N", "albedo", "depth"}));
+  }
 }
 
 }  // namespace blender::bke::tests

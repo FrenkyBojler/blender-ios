@@ -10,22 +10,27 @@
 
 #include "RNA_types.hh"
 
-struct ID;
-struct bNodeSocketType;
-struct bNodeTreeType;
-struct bNodeType;
+#ifdef __cplusplus
+
+namespace blender {
+
+class AttributeOwner;
+#endif
+
 struct PointerRNA;
 struct PropertyRNA;
 struct bContext;
-namespace blender::bke {
+namespace bke {
+struct bNodeTreeType;
+struct bNodeSocketType;
 struct RuntimeNodeEnumItems;
-}
+}  // namespace bke
 
 /* Types */
 #define DEF_ENUM(id) extern const EnumPropertyItem id[];
 #include "RNA_enum_items.hh"
 
-extern const EnumPropertyItem *rna_enum_attribute_domain_itemf(ID *id,
+extern const EnumPropertyItem *rna_enum_attribute_domain_itemf(const AttributeOwner &owner,
                                                                bool include_instances,
                                                                bool *r_free);
 
@@ -47,16 +52,15 @@ extern const IDFilterEnumPropertyItem rna_enum_id_type_filter_items[];
 
 /* API calls */
 int rna_node_tree_idname_to_enum(const char *idname);
-bNodeTreeType *rna_node_tree_type_from_enum(int value);
+bke::bNodeTreeType *rna_node_tree_type_from_enum(int value);
 const EnumPropertyItem *rna_node_tree_type_itemf(void *data,
-                                                 bool (*poll)(void *data, bNodeTreeType *),
+                                                 bool (*poll)(void *data, bke::bNodeTreeType *),
                                                  bool *r_free);
 
 int rna_node_socket_idname_to_enum(const char *idname);
-bNodeSocketType *rna_node_socket_type_from_enum(int value);
-const EnumPropertyItem *rna_node_socket_type_itemf(void *data,
-                                                   bool (*poll)(void *data, bNodeSocketType *),
-                                                   bool *r_free);
+bke::bNodeSocketType *rna_node_socket_type_from_enum(int value);
+const EnumPropertyItem *rna_node_socket_type_itemf(
+    void *data, bool (*poll)(void *data, bke::bNodeSocketType *), bool *r_free);
 
 const EnumPropertyItem *rna_TransformOrientation_itemf(bContext *C,
                                                        PointerRNA *ptr,
@@ -72,10 +76,10 @@ const EnumPropertyItem *RNA_action_itemf(bContext *C,
                                          PropertyRNA *prop,
                                          bool *r_free);
 #if 0
-EnumPropertyItem *RNA_action_local_itemf(bContext *C,
-                                         PointerRNA *ptr,
-                                         PropertyRNA *prop,
-                                         bool *r_free);
+const EnumPropertyItem *RNA_action_local_itemf(bContext *C,
+                                               PointerRNA *ptr,
+                                               PropertyRNA *prop,
+                                               bool *r_free);
 #endif
 const EnumPropertyItem *RNA_collection_itemf(bContext *C,
                                              PointerRNA *ptr,
@@ -97,10 +101,10 @@ const EnumPropertyItem *RNA_scene_itemf(bContext *C,
                                         PointerRNA *ptr,
                                         PropertyRNA *prop,
                                         bool *r_free);
-const EnumPropertyItem *RNA_scene_without_active_itemf(bContext *C,
-                                                       PointerRNA *ptr,
-                                                       PropertyRNA *prop,
-                                                       bool *r_free);
+const EnumPropertyItem *RNA_scene_without_sequencer_scene_itemf(bContext *C,
+                                                                PointerRNA *ptr,
+                                                                PropertyRNA *prop,
+                                                                bool *r_free);
 const EnumPropertyItem *RNA_scene_local_itemf(bContext *C,
                                               PointerRNA *ptr,
                                               PropertyRNA *prop,
@@ -125,5 +129,7 @@ const EnumPropertyItem *RNA_mask_local_itemf(bContext *C,
 /* Non confirming, utility function. */
 const EnumPropertyItem *RNA_enum_node_tree_types_itemf_impl(bContext *C, bool *r_free);
 
-const EnumPropertyItem *RNA_node_enum_definition_itemf(
-    const blender::bke::RuntimeNodeEnumItems &enum_items, bool *r_free);
+const EnumPropertyItem *RNA_node_enum_definition_itemf(const bke::RuntimeNodeEnumItems &enum_items,
+                                                       bool *r_free);
+
+}  // namespace blender

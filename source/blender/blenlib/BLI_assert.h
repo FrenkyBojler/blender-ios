@@ -15,16 +15,12 @@
 
 #include <stddef.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /* Utility functions. */
 
 void _BLI_assert_print_pos(const char *file, int line, const char *function, const char *id);
 void _BLI_assert_print_extra(const char *str);
-void _BLI_assert_print_backtrace(void);
-void _BLI_assert_abort(void);
+void _BLI_assert_print_backtrace();
+void _BLI_assert_abort();
 void _BLI_assert_unreachable_print(const char *file, int line, const char *function);
 
 #ifdef _MSC_VER
@@ -100,7 +96,3 @@ void _BLI_assert_unreachable_print(const char *file, int line, const char *funct
     BLI_assert_msg(0, "This line of code is marked to be unreachable."); \
   } \
   ((void)0)
-
-#ifdef __cplusplus
-}
-#endif

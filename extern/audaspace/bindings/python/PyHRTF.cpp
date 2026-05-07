@@ -125,7 +125,7 @@ HRTF_loadLeftHrtfSet(PyTypeObject* type, PyObject* args)
 }
 
 PyDoc_STRVAR(M_aud_HRTF_loadRightHrtfSet_doc,
-	".. method:: loadLeftHrtfSet(extension, directory)\n\n"
+	".. method:: loadRightHrtfSet(extension, directory)\n\n"
 	"   Loads all HRTFs from a directory.\n\n"
 	"   :arg extension: The file extension of the hrtfs.\n"
 	"   :type extension: string\n"
@@ -173,7 +173,8 @@ static PyMethodDef HRTF_methods[] = {
 };
 
 PyDoc_STRVAR(M_aud_HRTF_doc,
-	"An HRTF object represents a set of head related transfer functions as impulse responses. It's used for binaural sound");
+	".. class:: HRTF()\n\n"
+	"   An HRTF object represents a set of head related transfer functions as impulse responses. It's used for binaural sound.\n");
 
 PyTypeObject HRTFType = {
 	PyVarObject_HEAD_INIT(nullptr, 0)

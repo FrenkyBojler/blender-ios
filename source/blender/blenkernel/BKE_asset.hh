@@ -9,9 +9,10 @@
 #pragma once
 
 #include "BLI_compiler_attrs.h"
-#include "BLI_utildefines.h"
 
 #include "DNA_asset_types.h"
+
+namespace blender {
 
 struct AssetLibraryReference;
 struct AssetMetaData;
@@ -24,6 +25,7 @@ struct PreviewImage;
 
 using PreSaveFn = void (*)(void *asset_ptr, AssetMetaData *asset_data);
 using OnMarkAssetFn = void (*)(void *asset_ptr, AssetMetaData *asset_data);
+using OnClearAssetDataFn = void (*)(void *asset_ptr, AssetMetaData *asset_data);
 
 struct AssetTypeInfo {
   /**
@@ -32,6 +34,11 @@ struct AssetTypeInfo {
    */
   PreSaveFn pre_save_fn;
   OnMarkAssetFn on_mark_asset_fn;
+  /**
+   * Should be called whenever a local asset gets cleared of its asset data but stays available
+   * otherwise, i.e. when an asset data-block is turned back into a normal data-block.
+   */
+  OnClearAssetDataFn on_clear_asset_fn;
 };
 
 AssetMetaData *BKE_asset_metadata_create();
@@ -78,3 +85,17 @@ void BKE_asset_metadata_read(BlendDataReader *reader, AssetMetaData *asset_data)
 
 void BKE_asset_weak_reference_write(BlendWriter *writer, const AssetWeakReference *weak_ref);
 void BKE_asset_weak_reference_read(BlendDataReader *reader, AssetWeakReference *weak_ref);
+
+void BKE_asset_catalog_path_list_free(ListBaseT<AssetCatalogPathLink> &catalog_path_list);
+ListBaseT<AssetCatalogPathLink> BKE_asset_catalog_path_list_duplicate(
+    const ListBaseT<AssetCatalogPathLink> &catalog_path_list);
+void BKE_asset_catalog_path_list_blend_write(
+    BlendWriter *writer, const ListBaseT<AssetCatalogPathLink> &catalog_path_list);
+void BKE_asset_catalog_path_list_blend_read_data(
+    BlendDataReader *reader, ListBaseT<AssetCatalogPathLink> &catalog_path_list);
+bool BKE_asset_catalog_path_list_has_path(const ListBaseT<AssetCatalogPathLink> &catalog_path_list,
+                                          const char *catalog_path);
+void BKE_asset_catalog_path_list_add_path(ListBaseT<AssetCatalogPathLink> &catalog_path_list,
+                                          const char *catalog_path);
+
+}  // namespace blender

@@ -6,8 +6,13 @@
 
 #include "BLI_math_vector_types.hh"
 
-namespace blender::geometry {
+namespace blender {
+
+struct Mesh;
+
+namespace geometry {
 
 Mesh *create_line_mesh(float3 start, float3 delta, int count);
 
-}  // namespace blender::geometry
+}  // namespace geometry
+}  // namespace blender

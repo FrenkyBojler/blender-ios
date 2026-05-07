@@ -10,53 +10,52 @@
 
 #include <pthread.h>
 
+#include "BLI_listbase.h"
 #include "BLI_sys_types.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+namespace blender {
 
 /** For tables, button in UI, etc. */
 #define BLENDER_MAX_THREADS 1024
 
-struct ListBase;
+struct ThreadSlot;
 
 /* Threading API */
 
 /**
  * This is run once at startup.
  */
-void BLI_threadapi_init(void);
-void BLI_threadapi_exit(void);
+void BLI_threadapi_init();
+void BLI_threadapi_exit();
 
 /**
- * \param tot: When 0 only initializes malloc mutex in a safe way (see sequence.c)
+ * \param tot: When 0 only initializes `malloc` mutex in a safe way (see sequence.c)
  * problem otherwise: scene render will kill of the mutex!
  */
-void BLI_threadpool_init(struct ListBase *threadbase, void *(*do_thread)(void *), int tot);
+void BLI_threadpool_init(ListBaseT<ThreadSlot> *threadbase, void *(*do_thread)(void *), int tot);
 /**
  * Amount of available threads.
  */
-int BLI_available_threads(struct ListBase *threadbase);
+int BLI_available_threads(ListBaseT<ThreadSlot> *threadbase);
 /**
  * Returns thread number, for sample patterns or threadsafe tables.
  */
-int BLI_threadpool_available_thread_index(struct ListBase *threadbase);
-void BLI_threadpool_insert(struct ListBase *threadbase, void *callerdata);
-void BLI_threadpool_remove(struct ListBase *threadbase, void *callerdata);
-void BLI_threadpool_remove_index(struct ListBase *threadbase, int index);
-void BLI_threadpool_clear(struct ListBase *threadbase);
-void BLI_threadpool_end(struct ListBase *threadbase);
-int BLI_thread_is_main(void);
+int BLI_threadpool_available_thread_index(ListBaseT<ThreadSlot> *threadbase);
+void BLI_threadpool_insert(ListBaseT<ThreadSlot> *threadbase, void *callerdata);
+void BLI_threadpool_remove(ListBaseT<ThreadSlot> *threadbase, void *callerdata);
+void BLI_threadpool_remove_index(ListBaseT<ThreadSlot> *threadbase, int index);
+void BLI_threadpool_clear(ListBaseT<ThreadSlot> *threadbase);
+void BLI_threadpool_end(ListBaseT<ThreadSlot> *threadbase);
+int BLI_thread_is_main();
 
 /* System Information */
 
 /**
  * \return the number of threads the system can make use of.
  */
-int BLI_system_thread_count(void);
+int BLI_system_thread_count();
 void BLI_system_num_threads_override_set(int num);
-int BLI_system_num_threads_override_get(void);
+int BLI_system_num_threads_override_get();
 
 /**
  * Global Mutex Locks
@@ -70,7 +69,6 @@ enum {
   LOCK_CUSTOM1,
   LOCK_NODES,
   LOCK_MOVIECLIP,
-  LOCK_COLORMANAGE,
   LOCK_FFTW,
   LOCK_VIEW3D,
 };
@@ -86,7 +84,7 @@ typedef pthread_mutex_t ThreadMutex;
 void BLI_mutex_init(ThreadMutex *mutex);
 void BLI_mutex_end(ThreadMutex *mutex);
 
-ThreadMutex *BLI_mutex_alloc(void);
+ThreadMutex *BLI_mutex_alloc();
 void BLI_mutex_free(ThreadMutex *mutex);
 
 void BLI_mutex_lock(ThreadMutex *mutex);
@@ -128,7 +126,7 @@ typedef pthread_rwlock_t ThreadRWMutex;
 void BLI_rw_mutex_init(ThreadRWMutex *mutex);
 void BLI_rw_mutex_end(ThreadRWMutex *mutex);
 
-ThreadRWMutex *BLI_rw_mutex_alloc(void);
+ThreadRWMutex *BLI_rw_mutex_alloc();
 void BLI_rw_mutex_free(ThreadRWMutex *mutex);
 
 void BLI_rw_mutex_lock(ThreadRWMutex *mutex, int mode);
@@ -139,11 +137,12 @@ void BLI_rw_mutex_unlock(ThreadRWMutex *mutex);
  * This is a 'fair' mutex in that it will grant the lock to the first thread
  * that requests it. */
 
-typedef struct TicketMutex TicketMutex;
+struct TicketMutex;
 
-TicketMutex *BLI_ticket_mutex_alloc(void);
+TicketMutex *BLI_ticket_mutex_alloc();
 void BLI_ticket_mutex_free(TicketMutex *ticket);
 void BLI_ticket_mutex_lock(TicketMutex *ticket);
+bool BLI_ticket_mutex_lock_check_recursive(TicketMutex *ticket);
 void BLI_ticket_mutex_unlock(TicketMutex *ticket);
 
 /* Condition */
@@ -161,18 +160,79 @@ void BLI_condition_end(ThreadCondition *cond);
  *
  * Thread-safe work queue to push work/pointers between threads. */
 
-typedef struct ThreadQueue ThreadQueue;
+struct ThreadQueue;
 
-ThreadQueue *BLI_thread_queue_init(void);
+enum ThreadQueueWorkPriority {
+  BLI_THREAD_QUEUE_WORK_PRIORITY_LOW,
+  BLI_THREAD_QUEUE_WORK_PRIORITY_NORMAL,
+  BLI_THREAD_QUEUE_WORK_PRIORITY_HIGH,
+};
+
+/**
+ * Allocate a new ThreadQueue.
+ */
+ThreadQueue *BLI_thread_queue_init();
+
+/**
+ * Deallocate the ThreadQueue.
+ * Assumes no one is using the queue anymore.
+ */
 void BLI_thread_queue_free(ThreadQueue *queue);
 
-void BLI_thread_queue_push(ThreadQueue *queue, void *work);
+/**
+ * Push one work pointer to the queue.
+ * Higher priority works always take priority over lower priority ones, regardless of their
+ * insertion order. Works within the same priority follow FIFO order.
+ *
+ * \returns a unique work_id that can be used later for canceling the work before it's popped out
+ * from the queue.
+ */
+uint64_t BLI_thread_queue_push(ThreadQueue *queue, void *work, ThreadQueueWorkPriority priority);
+
+/**
+ * Remove the corresponding work from the queue.
+ *
+ * \returns true if the work_id was still in the queue.
+ */
+bool BLI_thread_queue_cancel_work(ThreadQueue *queue, uint64_t work_id);
+
+/**
+ * Pop the oldest, highest priority work from the queue.
+ * Blocks the calling thread unless BLI_thread_queue_nowait has been called for this queue.
+ *
+ * \returns nullptr if nowait has been set and the queue is empty. Otherwise returns a work
+ * pointer.
+ */
 void *BLI_thread_queue_pop(ThreadQueue *queue);
+
+/**
+ * Try to pop the oldest, highest priority work from the queue.
+ * Blocks the calling thread unless BLI_thread_queue_nowait has been called for this queue.
+ *
+ * \returns nullptr if time runs out, or if nowait has been set and the queue is empty. Otherwise
+ * returns a work pointer.
+ */
 void *BLI_thread_queue_pop_timeout(ThreadQueue *queue, int ms);
+
+/**
+ * \returns the total amount of pending works still in the queue.
+ */
 int BLI_thread_queue_len(ThreadQueue *queue);
+
+/**
+ * \returns true if there are no pending works in the queue.
+ */
 bool BLI_thread_queue_is_empty(ThreadQueue *queue);
 
+/**
+ * Blocks the calling thread until the queue is empty.
+ */
 void BLI_thread_queue_wait_finish(ThreadQueue *queue);
+
+/**
+ * After calling this function, BLI_thread_queue_pop and BLI_thread_queue_pop_timeout won't block
+ * the calling thread even when the queue is empty.
+ */
 void BLI_thread_queue_nowait(ThreadQueue *queue);
 
 /* Thread local storage */
@@ -195,6 +255,4 @@ void BLI_thread_queue_nowait(ThreadQueue *queue);
 #  define BLI_thread_local_set(name, value) name = value
 #endif /* defined(__APPLE__) */
 
-#ifdef __cplusplus
-}
-#endif
+}  // namespace blender

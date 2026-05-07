@@ -2,11 +2,13 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#pragma once
+
 #include "BLI_string_ref.hh"
 
 #include "BKE_volume_grid_fwd.hh"
 
-#pragma once
+namespace blender {
 
 struct Volume;
 
@@ -14,7 +16,7 @@ struct Volume;
  * \ingroup geo
  */
 
-namespace blender::geometry {
+namespace geometry {
 
 #ifdef WITH_OPENVDB
 
@@ -33,4 +35,5 @@ bke::VolumeGrid<float> points_to_sdf_grid(Span<float3> positions,
                                           float voxel_size);
 
 #endif
-}  // namespace blender::geometry
+}  // namespace geometry
+}  // namespace blender

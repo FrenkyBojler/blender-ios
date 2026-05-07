@@ -13,13 +13,15 @@
 #include "BLF_api.hh"
 
 #include "BLI_fileops.h"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 
 #include "BKE_appdir.hh"
 
 #ifdef WIN32
 #  include "BLI_winstuff.h"
 #endif
+
+namespace blender {
 
 static int blf_load_font_default(const char *filename, const bool unique)
 {
@@ -71,9 +73,7 @@ static void blf_load_datafiles_dir()
     }
 
     const char *filepath = file_list[i].path;
-    if (!BLI_path_extension_check_n(
-            filepath, ".ttf", ".ttc", ".otf", ".otc", ".woff", ".woff2", nullptr))
-    {
+    if (!BLI_path_extension_check_n(filepath, ".ttf", ".otf", ".woff", ".woff2", nullptr)) {
       continue;
     }
     if (BLF_is_loaded(filepath)) {
@@ -99,3 +99,5 @@ void BLF_load_font_stack()
   BLF_load_mono_default(false);
   blf_load_datafiles_dir();
 }
+
+}  // namespace blender

@@ -8,15 +8,13 @@
  * \ingroup bli
  */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+namespace blender {
 
 /** Opaque structure containing pre-parsed data for evaluation. */
-typedef struct ExprPyLike_Parsed ExprPyLike_Parsed;
+struct ExprPyLike_Parsed;
 
 /** Expression evaluation return code. */
-typedef enum eExprPyLike_EvalStatus {
+enum eExprPyLike_EvalStatus {
   EXPR_PYLIKE_SUCCESS = 0,
   /* Computation errors; result is still set, but may be NaN */
   EXPR_PYLIKE_DIV_BY_ZERO,
@@ -24,7 +22,7 @@ typedef enum eExprPyLike_EvalStatus {
   /* Expression dependent errors or bugs; result is 0 */
   EXPR_PYLIKE_INVALID,
   EXPR_PYLIKE_FATAL_ERROR,
-} eExprPyLike_EvalStatus;
+};
 
 /**
  * Free the parsed data; NULL argument is ok.
@@ -33,15 +31,15 @@ void BLI_expr_pylike_free(struct ExprPyLike_Parsed *expr);
 /**
  * Check if the parsing result is valid for evaluation.
  */
-bool BLI_expr_pylike_is_valid(struct ExprPyLike_Parsed *expr);
+bool BLI_expr_pylike_is_valid(const struct ExprPyLike_Parsed *expr);
 /**
  * Check if the parsed expression always evaluates to the same value.
  */
-bool BLI_expr_pylike_is_constant(struct ExprPyLike_Parsed *expr);
+bool BLI_expr_pylike_is_constant(const struct ExprPyLike_Parsed *expr);
 /**
  * Check if the parsed expression uses the parameter with the given index.
  */
-bool BLI_expr_pylike_is_using_param(struct ExprPyLike_Parsed *expr, int index);
+bool BLI_expr_pylike_is_using_param(const struct ExprPyLike_Parsed *expr, int index);
 /**
  * Compile the expression and return the result.
  *
@@ -60,6 +58,4 @@ eExprPyLike_EvalStatus BLI_expr_pylike_eval(struct ExprPyLike_Parsed *expr,
                                             int param_values_len,
                                             double *r_result);
 
-#ifdef __cplusplus
-}
-#endif
+}  // namespace blender

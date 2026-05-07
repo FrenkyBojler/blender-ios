@@ -37,16 +37,15 @@ if(NOT WIN32)
 
     INSTALL_DIR ${LIBDIR}/openjpeg
   )
+
+  harvest(external_openjpeg openjpeg/include/openjpeg-${OPENJPEG_SHORT_VERSION} openjpeg/include "*.h")
+  harvest(external_openjpeg openjpeg/lib openjpeg/lib "*.a")
 else()
   set(OPENJPEG_EXTRA_ARGS ${DEFAULT_CMAKE_FLAGS})
   ExternalProject_Add(external_openjpeg_msvc
     URL file://${PACKAGE_DIR}/${OPENJPEG_FILE}
     DOWNLOAD_DIR ${DOWNLOAD_DIR}
     URL_HASH ${OPENJPEG_HASH_TYPE}=${OPENJPEG_HASH}
-
-    PATCH_COMMAND ${PATCH_CMD} -p 1 -d
-      ${BUILD_DIR}/openjpeg_msvc/src/external_openjpeg_msvc <
-      ${PATCH_DIR}/openjpeg_msvc.diff
 
     PREFIX ${BUILD_DIR}/openjpeg_msvc
 
@@ -61,10 +60,10 @@ else()
   if(BUILD_MODE STREQUAL Release)
     ExternalProject_Add_Step(external_openjpeg_msvc after_install
       COMMAND
-      ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_COMMAND} -E copy_directory
         ${LIBDIR}/openjpeg_msvc/lib
         ${HARVEST_TARGET}/openjpeg/lib &&
-      ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_COMMAND} -E copy_directory
         ${LIBDIR}/openjpeg_msvc/include
         ${HARVEST_TARGET}/openjpeg/include
 

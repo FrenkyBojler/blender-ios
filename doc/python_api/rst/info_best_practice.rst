@@ -149,13 +149,13 @@ Rather than:
 
 .. code-block:: python
 
-   polygons = mesh.polygons[:]  # make a list copy of the meshes polygons
-   p_idx = len(polygons)     # Loop backwards
-   while p_idx:           # while the value is not 0
+   polygons = mesh.polygons[:]  # Make a list copy of the meshes polygons.
+   p_idx = len(polygons)        # Loop backwards
+   while p_idx:                 # While the value is not 0.
        p_idx -= 1
 
        if len(polygons[p_idx].vertices) == 3:
-           polygons.pop(p_idx)  # remove the triangle
+           polygons.pop(p_idx)  # Remove the triangle.
 
 
 It's faster to build a new list with list comprehension:
@@ -227,10 +227,10 @@ This works by swapping two list items, so the item you remove is always last:
 
    pop_index = 5
 
-   # swap so the pop_index is last.
+   # Swap so the pop_index is last.
    my_list[-1], my_list[pop_index] = my_list[pop_index], my_list[-1]
 
-   # remove last item (pop_index)
+   # Remove last item (pop_index).
    my_list.pop()
 
 
@@ -341,8 +341,8 @@ Value Comparison
 ----------------
 
 Python has two ways to compare values ``a == b`` and ``a is b``,
-the difference is that ``==`` may run the objects comparison function ``__cmp__()`` whereas ``is`` compares identity,
-this is, that both variables reference the same item in memory.
+the difference is that ``==`` may run the object's comparison function ``__eq__()`` whereas ``is`` compares identity,
+that is, that both variables reference the same item in memory.
 
 In cases where you know you are checking for the same value which is referenced from multiple places, ``is`` is faster.
 
@@ -357,6 +357,6 @@ While developing a script it is good to time it to be aware of any changes in pe
    import time
    time_start = time.time()
 
-   # do something...
+   # Do something...
 
    print("My Script Finished: %.4f sec" % (time.time() - time_start))

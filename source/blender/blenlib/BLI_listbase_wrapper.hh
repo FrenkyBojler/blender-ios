@@ -7,13 +7,15 @@
 /** \file
  * \ingroup bli
  *
- * `blender::ListBaseWrapper` is a typed wrapper for the #ListBase struct. That makes it safer and
+ * `ListBaseWrapper` is a typed wrapper for the #ListBase struct. That makes it safer and
  * more convenient to use in C++ in some cases. However, if you find yourself iterating over a
  * linked list a lot, consider to convert it into a vector for further processing. This improves
  * performance and debug-ability.
  */
 
 #include "BLI_listbase.h"
+#include "BLI_vector.hh"
+
 #include "DNA_listBase.h"
 
 namespace blender {
@@ -97,4 +99,30 @@ template<typename LB, typename T> class ListBaseWrapperTemplate {
 template<typename T> using ListBaseWrapper = ListBaseWrapperTemplate<ListBase, T>;
 template<typename T> using ConstListBaseWrapper = ListBaseWrapperTemplate<const ListBase, const T>;
 
-} /* namespace blender */
+/**
+ * Convert a ListBase to a Vector.
+ */
+template<typename T> Vector<T *> listbase_to_vector(ListBase &list)
+{
+  Vector<T *> vector;
+
+  for (T *item : ListBaseWrapper<T>(list)) {
+    vector.append(item);
+  }
+  return vector;
+}
+
+/**
+ * Convert a ListBase to a Vector.
+ */
+template<typename T> Vector<T *> listbase_to_vector(const ListBase &list)
+{
+  Vector<T *> vector;
+
+  for (T *item : ConstListBaseWrapper<T>(list)) {
+    vector.append(item);
+  }
+  return vector;
+}
+
+}  // namespace blender

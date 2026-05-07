@@ -9,13 +9,17 @@
 #include "BLI_utildefines.h"
 #include <Python.h>
 
-#include "bpy_app_alembic.h"
+#include "../generic/python_compat.hh" /* IWYU pragma: keep. */
 
-#include "../generic/py_capi_utils.h"
+#include "bpy_app_alembic.hh"
+
+#include "../generic/py_capi_utils.hh"
 
 #ifdef WITH_ALEMBIC
 #  include "ABC_alembic.h"
 #endif
+
+namespace blender {
 
 static PyTypeObject BlenderAppABCType;
 
@@ -27,10 +31,10 @@ static PyStructSequence_Field app_alembic_info_fields[] = {
 };
 
 static PyStructSequence_Desc app_alembic_info_desc = {
-    "bpy.app.alembic",                                                          /* name */
-    "This module contains information about Alembic blender is linked against", /* doc */
-    app_alembic_info_fields,                                                    /* fields */
-    ARRAY_SIZE(app_alembic_info_fields) - 1,
+    /*name*/ "bpy.app.alembic",
+    /*doc*/ "This module contains information about Alembic blender is linked against",
+    /*fields*/ app_alembic_info_fields,
+    /*n_in_sequence*/ ARRAY_SIZE(app_alembic_info_fields) - 1,
 };
 
 static PyObject *make_alembic_info()
@@ -85,7 +89,9 @@ PyObject *BPY_app_alembic_struct()
   BlenderAppABCType.tp_init = nullptr;
   BlenderAppABCType.tp_new = nullptr;
   /* Without this we can't do `set(sys.modules)` #29635. */
-  BlenderAppABCType.tp_hash = (hashfunc)_Py_HashPointer;
+  BlenderAppABCType.tp_hash = reinterpret_cast<hashfunc>(Py_HashPointer);
 
   return ret;
 }
+
+}  // namespace blender

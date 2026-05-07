@@ -11,7 +11,13 @@
 #include <memory>
 #include <vector>
 
+#include "GHOST_Types.hh"
 #include "GHOST_Xr_openxr_includes.hh"
+
+#include "CLG_log.h"
+
+/** Shared log handle for all GHOST XR translation units. */
+extern CLG_LogRef *LOG_GHOST_XR;
 
 #define CHECK_XR(call, error_msg) \
   { \
@@ -33,6 +39,11 @@
     (void)_res; \
   } \
   (void)0
+
+#define INIT_EXTENSION_FUNCTION(name) \
+  CHECK_XR( \
+      xrGetInstanceProcAddr(instance, #name, reinterpret_cast<PFN_xrVoidFunction *>(&g_##name)), \
+      "Failed to get pointer to extension function: " #name);
 
 inline void copy_ghost_pose_to_openxr_pose(const GHOST_XrPose &ghost_pose, XrPosef &r_oxr_pose)
 {

@@ -8,9 +8,17 @@
 
 #pragma once
 
+#include "BKE_mask.hh"
+
 #include "ED_clip.hh"
 
+namespace blender {
+
 struct Mask;
+struct MaskLayer;
+struct MaskSpline;
+struct MaskSplinePoint;
+struct MaskSplinePointUW;
 struct bContext;
 struct wmOperatorType;
 
@@ -51,6 +59,7 @@ void MASK_OT_normals_make_consistent(wmOperatorType *ot);
 void MASK_OT_handle_type_set(wmOperatorType *ot);
 
 void MASK_OT_layer_move(wmOperatorType *ot);
+void MASK_OT_move_to_layer(wmOperatorType *ot);
 
 void MASK_OT_duplicate(wmOperatorType *ot);
 void MASK_OT_copy_splines(wmOperatorType *ot);
@@ -85,7 +94,7 @@ void ED_mask_layer_select_set(MaskLayer *mask_layer, bool do_select);
 void ED_mask_select_toggle_all(Mask *mask, int action);
 void ED_mask_select_flush_all(Mask *mask);
 
-/* mask_editor.c */
+/* mask_edit.cc */
 
 /* Generalized solution for preserving editor viewport when making changes while lock-to-selection
  * is enabled.
@@ -102,7 +111,7 @@ void ED_mask_view_lock_state_restore_no_jump(const bContext *C, const MaskViewLo
 /* `mask_query.cc` */
 
 bool ED_mask_find_nearest_diff_point(const bContext *C,
-                                     Mask *mask,
+                                     Mask *mask_orig,
                                      const float normal_co[2],
                                      int threshold,
                                      bool feather,
@@ -115,7 +124,7 @@ bool ED_mask_find_nearest_diff_point(const bContext *C,
                                      float *r_u,
                                      float *r_score);
 bool ED_mask_feather_find_nearest(const bContext *C,
-                                  Mask *mask,
+                                  Mask *mask_orig,
                                   const float normal_co[2],
                                   float threshold,
                                   MaskLayer **r_mask_layer,
@@ -124,7 +133,7 @@ bool ED_mask_feather_find_nearest(const bContext *C,
                                   MaskSplinePointUW **r_uw,
                                   float *r_score);
 MaskSplinePoint *ED_mask_point_find_nearest(const bContext *C,
-                                            Mask *mask,
+                                            Mask *mask_orig,
                                             const float normal_co[2],
                                             float threshold,
                                             MaskLayer **r_mask_layer,
@@ -138,3 +147,5 @@ void MASK_OT_shape_key_insert(wmOperatorType *ot);
 void MASK_OT_shape_key_clear(wmOperatorType *ot);
 void MASK_OT_shape_key_feather_reset(wmOperatorType *ot);
 void MASK_OT_shape_key_rekey(wmOperatorType *ot);
+
+}  // namespace blender

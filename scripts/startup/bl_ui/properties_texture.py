@@ -18,6 +18,7 @@ from bpy.app.translations import contexts as i18n_contexts
 
 from rna_prop_ui import PropertyPanel
 from bl_ui.properties_paint_common import brush_texture_settings
+from bl_ui.space_properties import PropertiesAnimationMixin
 
 
 class TEXTURE_MT_context_menu(Menu):
@@ -37,13 +38,9 @@ class TEXTURE_UL_texslots(UIList):
         slot = item
         tex = slot.texture if slot else None
 
-        if self.layout_type in {'DEFAULT', 'COMPACT'}:
-            if tex:
-                layout.prop(tex, "name", text="", emboss=False, icon_value=icon)
-            else:
-                layout.label(text="", icon_value=icon)
-        elif self.layout_type == 'GRID':
-            layout.alignment = 'CENTER'
+        if tex:
+            layout.prop(tex, "name", text="", emboss=False, icon_value=icon)
+        else:
             layout.label(text="", icon_value=icon)
 
 
@@ -73,7 +70,6 @@ class TEXTURE_PT_preview(TextureButtonsPanel, Panel):
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
         'BLENDER_EEVEE',
-        'BLENDER_EEVEE_NEXT',
         'BLENDER_WORKBENCH',
     }
 
@@ -107,7 +103,6 @@ class TEXTURE_PT_context(TextureButtonsPanel, Panel):
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
         'BLENDER_EEVEE',
-        'BLENDER_EEVEE_NEXT',
         'BLENDER_WORKBENCH',
     }
 
@@ -151,7 +146,6 @@ class TEXTURE_PT_node(TextureButtonsPanel, Panel):
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
         'BLENDER_EEVEE',
-        'BLENDER_EEVEE_NEXT',
         'BLENDER_WORKBENCH',
     }
 
@@ -185,7 +179,6 @@ class TEXTURE_PT_clouds(TextureTypePanel, Panel):
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
         'BLENDER_EEVEE',
-        'BLENDER_EEVEE_NEXT',
         'BLENDER_WORKBENCH',
     }
 
@@ -222,7 +215,6 @@ class TEXTURE_PT_wood(TextureTypePanel, Panel):
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
         'BLENDER_EEVEE',
-        'BLENDER_EEVEE_NEXT',
         'BLENDER_WORKBENCH',
     }
 
@@ -264,7 +256,6 @@ class TEXTURE_PT_marble(TextureTypePanel, Panel):
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
         'BLENDER_EEVEE',
-        'BLENDER_EEVEE_NEXT',
         'BLENDER_WORKBENCH',
     }
 
@@ -303,7 +294,6 @@ class TEXTURE_PT_magic(TextureTypePanel, Panel):
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
         'BLENDER_EEVEE',
-        'BLENDER_EEVEE_NEXT',
         'BLENDER_WORKBENCH',
     }
 
@@ -327,7 +317,6 @@ class TEXTURE_PT_blend(TextureTypePanel, Panel):
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
         'BLENDER_EEVEE',
-        'BLENDER_EEVEE_NEXT',
         'BLENDER_WORKBENCH',
     }
 
@@ -354,7 +343,6 @@ class TEXTURE_PT_stucci(TextureTypePanel, Panel):
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
         'BLENDER_EEVEE',
-        'BLENDER_EEVEE_NEXT',
         'BLENDER_WORKBENCH',
     }
 
@@ -390,7 +378,6 @@ class TEXTURE_PT_image(TextureTypePanel, Panel):
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
         'BLENDER_EEVEE',
-        'BLENDER_EEVEE_NEXT',
         'BLENDER_WORKBENCH',
     }
 
@@ -407,7 +394,6 @@ class TEXTURE_PT_image_settings(TextureTypePanel, Panel):
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
         'BLENDER_EEVEE',
-        'BLENDER_EEVEE_NEXT',
         'BLENDER_WORKBENCH',
     }
 
@@ -418,26 +404,16 @@ class TEXTURE_PT_image_settings(TextureTypePanel, Panel):
         layout.template_image(tex, "image", tex.image_user)
 
 
-def texture_filter_common(tex, layout):
-    layout.prop(tex, "filter_type", text="Filter Type")
-
-    if tex.use_mipmap and tex.filter_type in {'AREA', 'EWA', 'FELINE'}:
-        col = layout.column()
-        if tex.filter_type == 'FELINE':
-            col.prop(tex, "filter_lightprobes", text="Light Probes")
-        else:
-            col.prop(tex, "filter_eccentricity", text="Eccentricity")
-
-    layout.prop(tex, "filter_size", text="Size")
-    layout.prop(tex, "use_filter_size_min", text="Minimum Size")
-
-
 class TEXTURE_PT_image_sampling(TextureTypePanel, Panel):
     bl_label = "Sampling"
     bl_options = {'DEFAULT_CLOSED'}
     bl_parent_id = "TEXTURE_PT_image"
     tex_type = 'IMAGE'
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE'}
+    COMPAT_ENGINES = {
+        'BLENDER_RENDER',
+        'BLENDER_EEVEE',
+        'BLENDER_WORKBENCH',
+    }
 
     def draw(self, context):
         layout = self.layout
@@ -448,18 +424,7 @@ class TEXTURE_PT_image_sampling(TextureTypePanel, Panel):
 
         col = flow.column()
         col.prop(tex, "use_interpolation")
-
-        col.separator()
-
-        col = flow.column()
-        col.prop(tex, "use_mipmap")
-        sub = col.column()
-        sub.active = tex.use_mipmap
-        sub.prop(tex, "use_mipmap_gauss", text="Gaussian Filter")
-
-        col.separator()
-
-        texture_filter_common(tex, flow)
+        col.prop(tex, "filter_size", text="Size")
 
 
 class TEXTURE_PT_image_alpha(TextureTypePanel, Panel):
@@ -467,7 +432,11 @@ class TEXTURE_PT_image_alpha(TextureTypePanel, Panel):
     bl_options = {'DEFAULT_CLOSED'}
     bl_parent_id = "TEXTURE_PT_image"
     tex_type = 'IMAGE'
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE'}
+    COMPAT_ENGINES = {
+        'BLENDER_RENDER',
+        'BLENDER_EEVEE',
+        'BLENDER_WORKBENCH',
+    }
 
     def draw_header(self, context):
         tex = context.texture
@@ -490,7 +459,11 @@ class TEXTURE_PT_image_mapping(TextureTypePanel, Panel):
     bl_options = {'DEFAULT_CLOSED'}
     bl_parent_id = "TEXTURE_PT_image"
     tex_type = 'IMAGE'
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE'}
+    COMPAT_ENGINES = {
+        'BLENDER_RENDER',
+        'BLENDER_EEVEE',
+        'BLENDER_WORKBENCH',
+    }
 
     def draw(self, context):
         layout = self.layout
@@ -515,7 +488,7 @@ class TEXTURE_PT_image_mapping(TextureTypePanel, Panel):
             sub.prop(tex, "repeat_x", text="Repeat X")
             sub.prop(tex, "repeat_y", text="Y")
 
-            col = flow.column(heading="Mirror")
+            col = flow.column(heading="Mirror", heading_ctxt=i18n_contexts.id_image)
             sub = col.column()
             sub.active = (tex.repeat_x > 1)
             sub.prop(tex, "use_mirror_x", text="X")
@@ -542,7 +515,11 @@ class TEXTURE_PT_image_mapping_crop(TextureTypePanel, Panel):
     bl_options = {'DEFAULT_CLOSED'}
     bl_parent_id = "TEXTURE_PT_image_mapping"
     tex_type = 'IMAGE'
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE'}
+    COMPAT_ENGINES = {
+        'BLENDER_RENDER',
+        'BLENDER_EEVEE',
+        'BLENDER_WORKBENCH',
+    }
 
     def draw(self, context):
         layout = self.layout
@@ -567,7 +544,6 @@ class TEXTURE_PT_musgrave(TextureTypePanel, Panel):
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
         'BLENDER_EEVEE',
-        'BLENDER_EEVEE_NEXT',
         'BLENDER_WORKBENCH',
     }
 
@@ -617,7 +593,6 @@ class TEXTURE_PT_voronoi(TextureTypePanel, Panel):
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
         'BLENDER_EEVEE',
-        'BLENDER_EEVEE_NEXT',
         'BLENDER_WORKBENCH',
     }
 
@@ -655,7 +630,6 @@ class TEXTURE_PT_voronoi_feature_weights(TextureTypePanel, Panel):
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
         'BLENDER_EEVEE',
-        'BLENDER_EEVEE_NEXT',
         'BLENDER_WORKBENCH',
     }
 
@@ -681,7 +655,6 @@ class TEXTURE_PT_distortednoise(TextureTypePanel, Panel):
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
         'BLENDER_EEVEE',
-        'BLENDER_EEVEE_NEXT',
         'BLENDER_WORKBENCH',
     }
 
@@ -711,7 +684,6 @@ class TextureSlotPanel(TextureButtonsPanel):
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
         'BLENDER_EEVEE',
-        'BLENDER_EEVEE_NEXT',
         'BLENDER_WORKBENCH',
     }
 
@@ -728,7 +700,6 @@ class TEXTURE_PT_mapping(TextureSlotPanel, Panel):
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
         'BLENDER_EEVEE',
-        'BLENDER_EEVEE_NEXT',
         'BLENDER_WORKBENCH',
     }
 
@@ -801,7 +772,6 @@ class TEXTURE_PT_influence(TextureSlotPanel, Panel):
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
         'BLENDER_EEVEE',
-        'BLENDER_EEVEE_NEXT',
         'BLENDER_WORKBENCH',
     }
 
@@ -888,7 +858,6 @@ class TEXTURE_PT_colors(TextureButtonsPanel, TextureColorsPoll, Panel):
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
         'BLENDER_EEVEE',
-        'BLENDER_EEVEE_NEXT',
         'BLENDER_WORKBENCH',
     }
 
@@ -904,8 +873,8 @@ class TEXTURE_PT_colors(TextureButtonsPanel, TextureColorsPoll, Panel):
 
         col = flow.column(align=True)
         col.prop(tex, "factor_red", text="Multiply R")
-        col.prop(tex, "factor_green", text="G")
-        col.prop(tex, "factor_blue", text="B")
+        col.prop(tex, "factor_green", text="G", text_ctxt=i18n_contexts.color)
+        col.prop(tex, "factor_blue", text="B", text_ctxt=i18n_contexts.color)
 
         col.separator()
 
@@ -922,7 +891,6 @@ class TEXTURE_PT_colors_ramp(TextureButtonsPanel, TextureColorsPoll, Panel):
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
         'BLENDER_EEVEE',
-        'BLENDER_EEVEE_NEXT',
         'BLENDER_WORKBENCH',
     }
 
@@ -944,11 +912,48 @@ class TEXTURE_PT_colors_ramp(TextureButtonsPanel, TextureColorsPoll, Panel):
             layout.label(text="Enable the Color Ramp first")
 
 
+class TEXTURE_PT_animation(TextureButtonsPanel, PropertiesAnimationMixin, PropertyPanel, Panel):
+    @classmethod
+    def poll(cls, context):
+        return bool(context.texture)
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+
+        texture = context.texture
+
+        # Texture users can be particle system texture slots (something like
+        # `bpy.data.particles["ParticleSettings"].texture_slots[0]`). Since at the top of the properties panel the user
+        # is shown first, and underneath that the texture itself, this panel uses the same order.
+        #
+        # However, not all users of textures are animatable (brushes for sculpting aren't). So that needs to be checked
+        # for as well.
+        if texture_user := context.texture_user:
+            texture_user_id = texture_user.id_data
+            if hasattr(texture_user_id, 'animation_data'):
+                col = layout.column(align=True)
+                # NOTE(@sybren): I tested with particle settings, and then this just shows
+                # "Particle Settings". If there are other users of Texture data-blocks
+                # still around, and this produces unwanted results, let's adjust.
+                col.label(text=texture_user_id.bl_rna.name)
+                self.draw_action_and_slot_selector(context, col, texture_user_id)
+
+        col = layout.column(align=True)
+        col.label(text="Texture")
+        self.draw_action_and_slot_selector(context, col, texture)
+
+        if node_tree := texture.node_tree:
+            col = layout.column(align=True)
+            col.label(text="Shader Node Tree")
+            self.draw_action_and_slot_selector(context, col, node_tree)
+
+
 class TEXTURE_PT_custom_props(TextureButtonsPanel, PropertyPanel, Panel):
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
         'BLENDER_EEVEE',
-        'BLENDER_EEVEE_NEXT',
         'BLENDER_WORKBENCH',
     }
     _context_path = "texture"
@@ -985,6 +990,7 @@ classes = (
     TEXTURE_PT_mapping,
     TEXTURE_PT_colors,
     TEXTURE_PT_colors_ramp,
+    TEXTURE_PT_animation,
     TEXTURE_PT_custom_props,
 )
 

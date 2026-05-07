@@ -8,20 +8,20 @@
  * \ingroup bli
  */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "BLI_sys_types.h"
 
-typedef enum eStrCursorJumpType {
+namespace blender {
+
+enum eStrCursorJumpType {
   STRCUR_JUMP_NONE,
   STRCUR_JUMP_DELIM,
   STRCUR_JUMP_ALL,
-} eStrCursorJumpType;
+};
 
-typedef enum eStrCursorJumpDirection {
+enum eStrCursorJumpDirection {
   STRCUR_DIR_PREV,
   STRCUR_DIR_NEXT,
-} eStrCursorJumpDirection;
+};
 
 bool BLI_str_cursor_step_next_utf8(const char *str, int str_maxlen, int *pos);
 bool BLI_str_cursor_step_prev_utf8(const char *str, int str_maxlen, int *pos);
@@ -63,6 +63,4 @@ void BLI_str_cursor_step_bounds_utf8(
 void BLI_str_cursor_step_bounds_utf32(
     const char32_t *str, int str_maxlen, int pos, int *r_start, int *r_end);
 
-#ifdef __cplusplus
-}
-#endif
+}  // namespace blender

@@ -8,14 +8,21 @@
 
 #pragma once
 
+#include "BLI_vector.hh"
+
+#include "RNA_types.hh"
+
+namespace blender {
+
 struct bContext;
 struct ModifierData;
 struct Object;
 struct StructRNA;
+struct wmKeyConfig;
 struct wmOperator;
 struct wmOperatorType;
 
-namespace blender::ed::object {
+namespace ed::object {
 
 /* add hook menu */
 enum eObject_Hook_Add_Mode {
@@ -36,6 +43,7 @@ void OBJECT_OT_visual_transform_apply(wmOperatorType *ot);
 void OBJECT_OT_transform_apply(wmOperatorType *ot);
 void OBJECT_OT_parent_inverse_apply(wmOperatorType *ot);
 void OBJECT_OT_transform_axis_target(wmOperatorType *ot);
+void object_transform_axis_target_modal_keymap(wmKeyConfig *keyconf);
 void OBJECT_OT_origin_set(wmOperatorType *ot);
 
 /* `object_relations.cc` */
@@ -81,6 +89,7 @@ void OBJECT_OT_editmode_toggle(wmOperatorType *ot);
 void OBJECT_OT_posemode_toggle(wmOperatorType *ot);
 void OBJECT_OT_shade_smooth(wmOperatorType *ot);
 void OBJECT_OT_shade_smooth_by_angle(wmOperatorType *ot);
+void OBJECT_OT_shade_auto_smooth(wmOperatorType *ot);
 void OBJECT_OT_shade_flat(wmOperatorType *ot);
 void OBJECT_OT_paths_calculate(wmOperatorType *ot);
 void OBJECT_OT_paths_update(wmOperatorType *ot);
@@ -90,6 +99,8 @@ void OBJECT_OT_forcefield_toggle(wmOperatorType *ot);
 
 void OBJECT_OT_move_to_collection(wmOperatorType *ot);
 void OBJECT_OT_link_to_collection(wmOperatorType *ot);
+void move_to_collection_menu_register();
+void link_to_collection_menu_register();
 
 void OBJECT_OT_transfer_mode(wmOperatorType *ot);
 
@@ -108,6 +119,7 @@ void OBJECT_OT_select_same_collection(wmOperatorType *ot);
 /* object_add.cc */
 
 void OBJECT_OT_add(wmOperatorType *ot);
+void OBJECT_OT_lattice_add_to_selected(wmOperatorType *ot);
 void OBJECT_OT_add_named(wmOperatorType *ot);
 void OBJECT_OT_transform_to_mouse(wmOperatorType *ot);
 void OBJECT_OT_metaball_add(wmOperatorType *ot);
@@ -116,7 +128,6 @@ void OBJECT_OT_armature_add(wmOperatorType *ot);
 void OBJECT_OT_empty_add(wmOperatorType *ot);
 void OBJECT_OT_lightprobe_add(wmOperatorType *ot);
 void OBJECT_OT_empty_image_add(wmOperatorType *ot);
-void OBJECT_OT_gpencil_add(wmOperatorType *ot);
 void OBJECT_OT_grease_pencil_add(wmOperatorType *ot);
 void OBJECT_OT_light_add(wmOperatorType *ot);
 void OBJECT_OT_effector_add(wmOperatorType *ot);
@@ -124,7 +135,7 @@ void OBJECT_OT_camera_add(wmOperatorType *ot);
 void OBJECT_OT_speaker_add(wmOperatorType *ot);
 void OBJECT_OT_curves_random_add(wmOperatorType *ot);
 void OBJECT_OT_curves_empty_hair_add(wmOperatorType *ot);
-void OBJECT_OT_pointcloud_add(wmOperatorType *ot);
+void OBJECT_OT_pointcloud_random_add(wmOperatorType *ot);
 /**
  * Only used as menu.
  */
@@ -137,6 +148,7 @@ void OBJECT_OT_duplicate(wmOperatorType *ot);
 void OBJECT_OT_delete(wmOperatorType *ot);
 void OBJECT_OT_join(wmOperatorType *ot);
 void OBJECT_OT_join_shapes(wmOperatorType *ot);
+void OBJECT_OT_update_shapes(wmOperatorType *ot);
 void OBJECT_OT_convert(wmOperatorType *ot);
 
 /* `object_volume.cc` */
@@ -177,6 +189,10 @@ void OBJECT_OT_light_linking_blockers_link(wmOperatorType *ot);
 
 void OBJECT_OT_light_linking_unlink_from_collection(wmOperatorType *ot);
 
+/* object_camera.cc */
+
+void OBJECT_OT_camera_custom_update(wmOperatorType *ot);
+
 /* `object_modifier.cc` */
 
 bool edit_modifier_poll_generic(bContext *C,
@@ -191,6 +207,7 @@ ModifierData *edit_modifier_property_get(wmOperator *op, Object *ob, int type);
 
 void OBJECT_OT_modifier_add(wmOperatorType *ot);
 void OBJECT_OT_modifier_remove(wmOperatorType *ot);
+void OBJECT_OT_modifiers_clear(wmOperatorType *ot);
 void OBJECT_OT_modifier_move_up(wmOperatorType *ot);
 void OBJECT_OT_modifier_move_down(wmOperatorType *ot);
 void OBJECT_OT_modifier_move_to_index(wmOperatorType *ot);
@@ -199,6 +216,7 @@ void OBJECT_OT_modifier_apply_as_shapekey(wmOperatorType *ot);
 void OBJECT_OT_modifier_convert(wmOperatorType *ot);
 void OBJECT_OT_modifier_copy(wmOperatorType *ot);
 void OBJECT_OT_modifier_copy_to_selected(wmOperatorType *ot);
+void OBJECT_OT_modifiers_copy_to_selected(wmOperatorType *ot);
 void OBJECT_OT_modifier_set_active(wmOperatorType *ot);
 void OBJECT_OT_multires_subdivide(wmOperatorType *ot);
 void OBJECT_OT_multires_reshape(wmOperatorType *ot);
@@ -226,25 +244,6 @@ void OBJECT_OT_grease_pencil_dash_modifier_segment_move(wmOperatorType *ot);
 void OBJECT_OT_grease_pencil_time_modifier_segment_add(wmOperatorType *ot);
 void OBJECT_OT_grease_pencil_time_modifier_segment_remove(wmOperatorType *ot);
 void OBJECT_OT_grease_pencil_time_modifier_segment_move(wmOperatorType *ot);
-
-/* object_gpencil_modifiers.c */
-
-void OBJECT_OT_gpencil_modifier_add(wmOperatorType *ot);
-void OBJECT_OT_gpencil_modifier_remove(wmOperatorType *ot);
-void OBJECT_OT_gpencil_modifier_move_up(wmOperatorType *ot);
-void OBJECT_OT_gpencil_modifier_move_down(wmOperatorType *ot);
-void OBJECT_OT_gpencil_modifier_move_to_index(wmOperatorType *ot);
-void OBJECT_OT_gpencil_modifier_apply(wmOperatorType *ot);
-void OBJECT_OT_gpencil_modifier_copy(wmOperatorType *ot);
-void OBJECT_OT_gpencil_modifier_copy_to_selected(wmOperatorType *ot);
-
-void GPENCIL_OT_segment_add(wmOperatorType *ot);
-void GPENCIL_OT_segment_remove(wmOperatorType *ot);
-void GPENCIL_OT_segment_move(wmOperatorType *ot);
-
-void GPENCIL_OT_time_segment_add(wmOperatorType *ot);
-void GPENCIL_OT_time_segment_remove(wmOperatorType *ot);
-void GPENCIL_OT_time_segment_move(wmOperatorType *ot);
 
 /* `object_shader_fx.cc` */
 
@@ -325,12 +324,15 @@ void TRANSFORM_OT_vertex_warp(wmOperatorType *ot);
 /* `object_shapekey.cc` */
 
 void OBJECT_OT_shape_key_add(wmOperatorType *ot);
+void OBJECT_OT_shape_key_copy(wmOperatorType *ot);
 void OBJECT_OT_shape_key_remove(wmOperatorType *ot);
 void OBJECT_OT_shape_key_clear(wmOperatorType *ot);
 void OBJECT_OT_shape_key_retime(wmOperatorType *ot);
 void OBJECT_OT_shape_key_mirror(wmOperatorType *ot);
 void OBJECT_OT_shape_key_move(wmOperatorType *ot);
 void OBJECT_OT_shape_key_lock(wmOperatorType *ot);
+void OBJECT_OT_shape_key_make_basis(wmOperatorType *ot);
+void OBJECT_OT_shape_key_apply_to_basis(wmOperatorType *ot);
 
 /* `object_collection.cc` */
 
@@ -354,6 +356,8 @@ void OBJECT_OT_simulation_nodes_cache_bake(wmOperatorType *ot);
 void OBJECT_OT_simulation_nodes_cache_delete(wmOperatorType *ot);
 void OBJECT_OT_geometry_node_bake_single(wmOperatorType *ot);
 void OBJECT_OT_geometry_node_bake_delete_single(wmOperatorType *ot);
+void OBJECT_OT_geometry_node_bake_pack_single(wmOperatorType *ot);
+void OBJECT_OT_geometry_node_bake_unpack_single(wmOperatorType *ot);
 
 }  // namespace bake_simulation
 
@@ -367,7 +371,7 @@ void OBJECT_OT_voxel_remesh(wmOperatorType *ot);
 void OBJECT_OT_voxel_size_edit(wmOperatorType *ot);
 void OBJECT_OT_quadriflow_remesh(wmOperatorType *ot);
 
-/* object_transfer_data.c */
+/* object_data_transfer.cc */
 
 /**
  * Transfer mesh data from active to selected objects.
@@ -377,4 +381,14 @@ void OBJECT_OT_datalayout_transfer(wmOperatorType *ot);
 
 void object_modifier_add_asset_register();
 
-}  // namespace blender::ed::object
+void collection_importer_register();
+void collection_exporter_register();
+
+Vector<PointerRNA> modifier_get_edit_objects(const bContext &C, const wmOperator &op);
+void modifier_register_use_selected_objects_prop(wmOperatorType *ot);
+
+/* object_visual_geometry_to_objects.cc */
+void OBJECT_OT_visual_geometry_to_objects(wmOperatorType *ot);
+
+}  // namespace ed::object
+}  // namespace blender

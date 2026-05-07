@@ -14,7 +14,9 @@
 
 #pragma once
 
-#include "BLI_utildefines.h"
+#include "BLI_enum_flags.hh"
+
+namespace blender {
 
 struct ID;
 struct Main;
@@ -23,8 +25,13 @@ struct ReportList;
 /** \name Core `foreach_path` API.
  * \{ */
 
+/**
+ * Flags controlling the behavior of the generic BPath API.
+ *
+ * Note: these are referred to by `rna_enum_file_path_foreach_flag_items`, so make sure that any
+ * new enum items are added there too.
+ */
 enum eBPathForeachFlag {
-  /* Flags controlling the behavior of the generic BPath API. */
   /**
    * Ensures the `absolute_base_path` member of #BPathForeachPathData is initialized properly with
    * the path of the current .blend file. This can be used by the callbacks to convert relative
@@ -35,23 +42,32 @@ enum eBPathForeachFlag {
   BKE_BPATH_FOREACH_PATH_SKIP_LINKED = (1 << 1),
   /** Skip paths when their matching data is packed. */
   BKE_BPATH_FOREACH_PATH_SKIP_PACKED = (1 << 2),
-  /** Resolve tokens within a virtual filepath to a single, concrete, filepath. */
+  /**
+   * Resolve tokens within a virtual filepath to a single, concrete, filepath. Currently only used
+   * for UDIM tiles.
+   */
   BKE_BPATH_FOREACH_PATH_RESOLVE_TOKEN = (1 << 3),
-  /* Skip weak reference paths. Those paths are typically 'nice to have' extra information, but are
+  /**
+   * Skip weak reference paths. Those paths are typically 'nice to have' extra information, but are
    * not used as actual source of data by the current .blend file.
    *
    * NOTE: Currently this only concerns the weak reference to a library file stored in
-   * `ID::library_weak_reference`. */
+   * `ID::library_weak_reference`.
+   */
   BKE_BPATH_TRAVERSE_SKIP_WEAK_REFERENCES = (1 << 5),
 
-  /** Flags not affecting the generic BPath API. Those may be used by specific IDTypeInfo
-   * `foreach_path` implementations and/or callbacks to implement specific behaviors. */
+  /**
+   * Flags not affecting the generic BPath API. Those may be used by specific IDTypeInfo
+   * `foreach_path` implementations and/or callbacks to implement specific behaviors.
+   */
 
-  /** Skip paths where a single dir is used with an array of files, eg. sequence strip images or
-   * point-caches. In this case only use the first file path is processed.
+  /**
+   * Skip paths where a single dir is used with an array of files, eg. sequence strip images or
+   * point-caches. In this case only the first file path is processed.
    *
    * This is needed for directory manipulation callbacks which might otherwise modify the same
-   * directory multiple times. */
+   * directory multiple times.
+   */
   BKE_BPATH_FOREACH_PATH_SKIP_MULTIFILE = (1 << 8),
   /**
    * Reload data (when the path is edited).
@@ -59,7 +75,7 @@ enum eBPathForeachFlag {
    */
   BKE_BPATH_FOREACH_PATH_RELOAD_EDITED = (1 << 9),
 };
-ENUM_OPERATORS(eBPathForeachFlag, BKE_BPATH_FOREACH_PATH_RELOAD_EDITED)
+ENUM_OPERATORS(eBPathForeachFlag)
 
 struct BPathForeachPathData;
 
@@ -91,8 +107,10 @@ struct BPathForeachPathData {
 
   /* 'Private' data, caller don't need to set those. */
 
-  /** The root to use as base for relative paths. Only set if `BKE_BPATH_FOREACH_PATH_ABSOLUTE`
-   * flag is set, NULL otherwise. */
+  /**
+   * The root to use as base for relative paths.
+   * Only set if #BKE_BPATH_FOREACH_PATH_ABSOLUTE flag is set, NULL otherwise.
+   */
   const char *absolute_base_path;
 
   /** ID owning the path being processed. */
@@ -163,6 +181,15 @@ bool BKE_bpath_foreach_path_allocated_process(BPathForeachPathData *bpath_data, 
 /** Check for missing files. */
 void BKE_bpath_missing_files_check(Main *bmain, ReportList *reports);
 
+/** A summary of operating on many paths. */
+struct BPathSummary {
+  int count_total = 0;
+  int count_changed = 0;
+  int count_failed = 0;
+};
+
+void BKE_bpath_summary_report(const BPathSummary &summary, ReportList *reports);
+
 /**
  * Recursively search into given search directory, for all file paths of all IDs in given
  * \a bmain, and replace existing paths as needed.
@@ -185,13 +212,20 @@ void BKE_bpath_missing_files_find(Main *bmain,
 void BKE_bpath_relative_rebase(Main *bmain,
                                const char *basedir_src,
                                const char *basedir_dst,
-                               ReportList *reports);
+                               ReportList *reports,
+                               BPathSummary *r_summary = nullptr);
 
 /** Make all absolute file paths in given \a bmain relative to given \a basedir. */
-void BKE_bpath_relative_convert(Main *bmain, const char *basedir, ReportList *reports);
+void BKE_bpath_relative_convert(Main *bmain,
+                                const char *basedir,
+                                ReportList *reports,
+                                BPathSummary *r_summary = nullptr);
 
 /** Make all relative file paths in given \a bmain absolute, using given \a basedir as root. */
-void BKE_bpath_absolute_convert(Main *bmain, const char *basedir, ReportList *reports);
+void BKE_bpath_absolute_convert(Main *bmain,
+                                const char *basedir,
+                                ReportList *reports,
+                                BPathSummary *r_summary = nullptr);
 
 /**
  * Temp backup of paths from all IDs in given \a bmain.
@@ -218,3 +252,5 @@ void BKE_bpath_list_restore(Main *bmain, eBPathForeachFlag flag, void *path_list
 void BKE_bpath_list_free(void *path_list_handle);
 
 /** \} */
+
+}  // namespace blender

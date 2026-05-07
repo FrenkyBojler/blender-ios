@@ -7,10 +7,10 @@
 /** \file
  * \ingroup bli
  *
- * This is a generic counterpart to #blender::Array, used when the type is not known at runtime.
+ * This is a generic counterpart to #Array, used when the type is not known at runtime.
  *
  * `GArray` should generally only be used for passing data around in dynamic contexts.
- * It does not support a few things that #blender::Array supports:
+ * It does not support a few things that #Array supports:
  *  - Small object optimization / inline buffer.
  *  - Exception safety and various more specific constructors.
  */
@@ -51,12 +51,21 @@ class GArray {
    * Create and allocate a new array, with elements default constructed
    * (which does not do anything for trivial types).
    */
-  GArray(const CPPType &type, int64_t size, Allocator allocator = {}) : GArray(type, allocator)
+  GArray(const CPPType &type, int64_t size, Allocator allocator = {})
+      : GArray(type, size, NoInitialization{}, allocator)
+  {
+    type_->default_construct_n(data_, size_);
+  }
+
+  GArray(const CPPType &type,
+         const int64_t size,
+         NoInitialization /*not_init_tag*/,
+         Allocator allocator = {})
+      : GArray(type, allocator)
   {
     BLI_assert(size >= 0);
     size_ = size;
     data_ = this->allocate(size_);
-    type_->default_construct_n(data_, size_);
   }
 
   /**
@@ -158,25 +167,25 @@ class GArray {
   const void *operator[](int64_t index) const
   {
     BLI_assert(index < size_);
-    return POINTER_OFFSET(data_, type_->size() * index);
+    return POINTER_OFFSET(data_, type_->size * index);
   }
 
   void *operator[](int64_t index)
   {
     BLI_assert(index < size_);
-    return POINTER_OFFSET(data_, type_->size() * index);
+    return POINTER_OFFSET(data_, type_->size * index);
   }
 
   operator GSpan() const
   {
-    BLI_assert(type_ != nullptr);
-    return GSpan(*type_, data_, size_);
+    BLI_assert(size_ == 0 || type_ != nullptr);
+    return GSpan(type_, data_, size_);
   }
 
   operator GMutableSpan()
   {
-    BLI_assert(type_ != nullptr);
-    return GMutableSpan(*type_, data_, size_);
+    BLI_assert(size_ == 0 || type_ != nullptr);
+    return GMutableSpan(type_, data_, size_);
   }
 
   GSpan as_span() const
@@ -237,8 +246,8 @@ class GArray {
  private:
   void *allocate(int64_t size)
   {
-    const int64_t item_size = type_->size();
-    const int64_t alignment = type_->alignment();
+    const int64_t item_size = type_->size;
+    const int64_t alignment = type_->alignment;
     return allocator_.allocate(size_t(size) * item_size, alignment, AT);
   }
 

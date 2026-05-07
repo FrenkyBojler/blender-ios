@@ -11,10 +11,17 @@
 #include "vk_shader_interface.hh"
 #include "vk_vertex_buffer.hh"
 
-#include "BLI_array.hh"
+#include "BLI_bit_vector.hh"
 #include "BLI_math_vector_types.hh"
 
 namespace blender::gpu {
+
+void VKVertexInputDescription::clear()
+{
+  bindings.clear();
+  attributes.clear();
+}
+
 VKVertexAttributeObject::VKVertexAttributeObject()
 {
   clear();
@@ -22,10 +29,7 @@ VKVertexAttributeObject::VKVertexAttributeObject()
 
 void VKVertexAttributeObject::clear()
 {
-  is_valid = false;
-  info.pNext = nullptr;
-  bindings.clear();
-  attributes.clear();
+  vertex_input.clear();
   vbos.clear();
   buffers.clear();
 }
@@ -36,12 +40,8 @@ VKVertexAttributeObject &VKVertexAttributeObject::operator=(const VKVertexAttrib
     return *this;
   }
 
-  is_valid = other.is_valid;
-  info = other.info;
-  bindings.clear();
-  bindings.extend(other.bindings);
-  attributes.clear();
-  attributes.extend(other.attributes);
+  vertex_input = other.vertex_input;
+
   vbos.clear();
   vbos.extend(other.vbos);
   buffers.clear();
@@ -53,73 +53,35 @@ VKVertexAttributeObject &VKVertexAttributeObject::operator=(const VKVertexAttrib
 /** \name Bind resources
  * \{ */
 
-void VKVertexAttributeObject::bind(VKContext &context)
+void VKVertexAttributeObject::bind(
+    render_graph::VKVertexBufferBindings &r_vertex_buffer_bindings) const
 {
-  const bool use_vbos = !vbos.is_empty();
-  if (use_vbos) {
-    bind_vbos(context);
-  }
-  else {
-    bind_buffers(context);
-  }
-}
+  BitVector visited_bindings(vertex_input.bindings.size());
 
-void VKVertexAttributeObject::bind_vbos(VKContext &context)
-{
-  /* Bind VBOS from batches. */
-  Array<bool> visited_bindings(bindings.size());
-  visited_bindings.fill(false);
-
-  for (VkVertexInputAttributeDescription attribute : attributes) {
+  const VKBuffer &dummy = VKBackend::get().device.dummy_buffer;
+  for (VkVertexInputAttributeDescription2EXT attribute : vertex_input.attributes) {
     if (visited_bindings[attribute.binding]) {
       continue;
     }
-    visited_bindings[attribute.binding] = true;
+    visited_bindings[attribute.binding].set(true);
 
-    if (attribute.binding < vbos.size()) {
-      BLI_assert(vbos[attribute.binding]);
-      VKVertexBuffer &vbo = *vbos[attribute.binding];
-      vbo.upload();
-      context.command_buffers_get().bind(attribute.binding, vbo, 0);
-    }
-    else {
-      const VKBuffer &buffer = VKBackend::get().device_get().dummy_buffer_get();
-      const VKBufferWithOffset buffer_with_offset = {buffer, 0};
-      context.command_buffers_get().bind(attribute.binding, buffer_with_offset);
-    }
-  }
-}
-
-void VKVertexAttributeObject::bind_buffers(VKContext &context)
-{
-  /* Bind dynamic buffers from immediate mode. */
-  Array<bool> visited_bindings(bindings.size());
-  visited_bindings.fill(false);
-
-  for (VkVertexInputAttributeDescription attribute : attributes) {
-    if (visited_bindings[attribute.binding]) {
-      continue;
-    }
-    visited_bindings[attribute.binding] = true;
+    VkBuffer buffer = VK_NULL_HANDLE;
+    VkDeviceSize offset = 0;
 
     if (attribute.binding < buffers.size()) {
-      VKBufferWithOffset &buffer = buffers[attribute.binding];
-      context.command_buffers_get().bind(attribute.binding, buffer);
+      buffer = buffers[attribute.binding].buffer;
+      offset = buffers[attribute.binding].offset;
     }
-    else {
-      const VKBuffer &buffer = VKBackend::get().device_get().dummy_buffer_get();
-      const VKBufferWithOffset buffer_with_offset = {buffer, 0};
-      context.command_buffers_get().bind(attribute.binding, buffer_with_offset);
-    }
-  }
-}
 
-void VKVertexAttributeObject::ensure_vbos_uploaded() const
-{
-  for (VKVertexBuffer *vbo : vbos) {
-    if (vbo) {
-      vbo->upload();
+    if (buffer == VK_NULL_HANDLE) {
+      buffer = dummy.vk_handle();
+      offset = 0;
     }
+
+    r_vertex_buffer_bindings.buffer[attribute.binding] = buffer;
+    r_vertex_buffer_bindings.offset[attribute.binding] = offset;
+    r_vertex_buffer_bindings.buffer_count = max_ii(r_vertex_buffer_bindings.buffer_count,
+                                                   attribute.binding + 1);
   }
 }
 
@@ -135,87 +97,16 @@ void VKVertexAttributeObject::update_bindings(const VKContext &context, VKBatch 
   const VKShaderInterface &interface = unwrap(context.shader)->interface_get();
   AttributeMask occupied_attributes = 0;
 
-  for (int v = 0; v < GPU_BATCH_INST_VBO_MAX_LEN; v++) {
-    VKVertexBuffer *vbo = batch.instance_buffer_get(v);
-    if (vbo) {
-      vbo->device_format_ensure();
-      update_bindings(vbo->device_format_get(),
-                      vbo,
-                      nullptr,
-                      vbo->vertex_len,
-                      interface,
-                      occupied_attributes,
-                      true);
-    }
-  }
   for (int v = 0; v < GPU_BATCH_VBO_MAX_LEN; v++) {
     VKVertexBuffer *vbo = batch.vertex_buffer_get(v);
     if (vbo) {
-      vbo->device_format_ensure();
-      update_bindings(vbo->device_format_get(),
-                      vbo,
-                      nullptr,
-                      vbo->vertex_len,
-                      interface,
-                      occupied_attributes,
-                      false);
+      update_bindings(vbo->format, vbo, nullptr, vbo->vertex_len, interface, occupied_attributes);
     }
   }
 
   if (occupied_attributes != interface.enabled_attr_mask_) {
     fill_unused_bindings(interface, occupied_attributes);
   }
-  is_valid = true;
-}
-
-/* Determine the number of binding location the given attribute uses. */
-static uint32_t to_binding_location_len(const GPUVertAttr &attribute)
-{
-  return ceil_division(attribute.comp_len, 4u);
-}
-
-/* Determine the number of binding location the given type uses. */
-static uint32_t to_binding_location_len(const shader::Type type)
-{
-  switch (type) {
-    case shader::Type::FLOAT:
-    case shader::Type::VEC2:
-    case shader::Type::VEC3:
-    case shader::Type::VEC4:
-    case shader::Type::UINT:
-    case shader::Type::UVEC2:
-    case shader::Type::UVEC3:
-    case shader::Type::UVEC4:
-    case shader::Type::INT:
-    case shader::Type::IVEC2:
-    case shader::Type::IVEC3:
-    case shader::Type::IVEC4:
-    case shader::Type::BOOL:
-    case shader::Type::VEC3_101010I2:
-    case shader::Type::UCHAR:
-    case shader::Type::UCHAR2:
-    case shader::Type::UCHAR3:
-    case shader::Type::UCHAR4:
-    case shader::Type::CHAR:
-    case shader::Type::CHAR2:
-    case shader::Type::CHAR3:
-    case shader::Type::CHAR4:
-    case shader::Type::SHORT:
-    case shader::Type::SHORT2:
-    case shader::Type::SHORT3:
-    case shader::Type::SHORT4:
-    case shader::Type::USHORT:
-    case shader::Type::USHORT2:
-    case shader::Type::USHORT3:
-    case shader::Type::USHORT4:
-      return 1;
-    case shader::Type::MAT3:
-      return 3;
-    case shader::Type::MAT4:
-      return 4;
-  }
-
-  return 1;
 }
 
 void VKVertexAttributeObject::fill_unused_bindings(const VKShaderInterface &interface,
@@ -234,22 +125,22 @@ void VKVertexAttributeObject::fill_unused_bindings(const VKShaderInterface &inte
 
     /* Use dummy binding. */
     shader::Type attribute_type = interface.get_attribute_type(location);
-    const uint32_t num_locations = to_binding_location_len(attribute_type);
-    for (const uint32_t location_offset : IndexRange(num_locations)) {
-      const uint32_t binding = bindings.size();
-      VkVertexInputAttributeDescription attribute_description = {};
-      attribute_description.binding = binding;
-      attribute_description.location = location + location_offset;
-      attribute_description.offset = 0;
-      attribute_description.format = to_vk_format(attribute_type);
-      attributes.append(attribute_description);
+    const uint32_t binding = vertex_input.bindings.size();
+    VkVertexInputAttributeDescription2EXT attribute_description = {
+        VK_STRUCTURE_TYPE_VERTEX_INPUT_ATTRIBUTE_DESCRIPTION_2_EXT, nullptr};
+    attribute_description.binding = binding;
+    attribute_description.location = location;
+    attribute_description.offset = 0;
+    attribute_description.format = to_vk_format(attribute_type);
+    vertex_input.attributes.append(attribute_description);
 
-      VkVertexInputBindingDescription vk_binding_descriptor = {};
-      vk_binding_descriptor.binding = binding;
-      vk_binding_descriptor.stride = 0;
-      vk_binding_descriptor.inputRate = VK_VERTEX_INPUT_RATE_INSTANCE;
-      bindings.append(vk_binding_descriptor);
-    }
+    VkVertexInputBindingDescription2EXT vk_binding_descriptor = {
+        VK_STRUCTURE_TYPE_VERTEX_INPUT_BINDING_DESCRIPTION_2_EXT, nullptr};
+    vk_binding_descriptor.binding = binding;
+    vk_binding_descriptor.stride = 0;
+    vk_binding_descriptor.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+    vk_binding_descriptor.divisor = 1;
+    vertex_input.bindings.append(vk_binding_descriptor);
   }
 }
 
@@ -259,17 +150,13 @@ void VKVertexAttributeObject::update_bindings(VKImmediate &immediate)
   const VKShaderInterface &interface = unwrap(unwrap(immediate.shader))->interface_get();
   AttributeMask occupied_attributes = 0;
 
-  VKBufferWithOffset immediate_buffer = {*immediate.active_resource(),
-                                         immediate.subbuffer_offset_get()};
-
-  update_bindings(immediate.vertex_format_converter.device_format_get(),
+  VKBufferWithOffset immediate_buffer = immediate.active_buffer();
+  update_bindings(immediate.vertex_format,
                   nullptr,
                   &immediate_buffer,
                   immediate.vertex_len,
                   interface,
-                  occupied_attributes,
-                  false);
-  is_valid = true;
+                  occupied_attributes);
   BLI_assert(interface.enabled_attr_mask_ == occupied_attributes);
 }
 
@@ -278,8 +165,7 @@ void VKVertexAttributeObject::update_bindings(const GPUVertFormat &vertex_format
                                               VKBufferWithOffset *immediate_vertex_buffer,
                                               const int64_t vertex_len,
                                               const VKShaderInterface &interface,
-                                              AttributeMask &r_occupied_attributes,
-                                              const bool use_instancing)
+                                              AttributeMask &r_occupied_attributes)
 {
   BLI_assert(vertex_buffer || immediate_vertex_buffer);
   BLI_assert(!(vertex_buffer && immediate_vertex_buffer));
@@ -288,18 +174,25 @@ void VKVertexAttributeObject::update_bindings(const GPUVertFormat &vertex_format
     return;
   }
 
-  uint32_t offset = 0;
+  /* Interleaved offset is added to the buffer binding. Attribute offsets are hardware
+   * restricted (ref: VUID-VkVertexInputAttributeDescription-offset-00622). */
+  uint32_t buffer_offset = 0;
+  uint32_t attribute_offset = 0;
   uint32_t stride = vertex_format.stride;
+
+  bool add_vbo = false;
 
   for (uint32_t attribute_index = 0; attribute_index < vertex_format.attr_len; attribute_index++) {
     const GPUVertAttr &attribute = vertex_format.attrs[attribute_index];
     if (vertex_format.deinterleaved) {
-      offset += ((attribute_index == 0) ? 0 : vertex_format.attrs[attribute_index - 1].size) *
-                vertex_len;
-      stride = attribute.size;
+      buffer_offset += ((attribute_index == 0) ?
+                            0 :
+                            vertex_format.attrs[attribute_index - 1].type.size()) *
+                       vertex_len;
+      stride = attribute.type.size();
     }
     else {
-      offset = attribute.offset;
+      attribute_offset = attribute.offset;
     }
 
     for (uint32_t name_index = 0; name_index < attribute.name_len; name_index++) {
@@ -314,34 +207,39 @@ void VKVertexAttributeObject::update_bindings(const GPUVertFormat &vertex_format
       if (r_occupied_attributes & attribute_mask) {
         continue;
       }
-      r_occupied_attributes |= attribute_mask;
-      const uint32_t num_locations = to_binding_location_len(attribute);
-      for (const uint32_t location_offset : IndexRange(num_locations)) {
-        const uint32_t binding = bindings.size();
-        VkVertexInputAttributeDescription attribute_description = {};
-        attribute_description.binding = binding;
-        attribute_description.location = shader_input->location + location_offset;
-        attribute_description.offset = offset + location_offset * sizeof(float4);
-        attribute_description.format = to_vk_format(
-            static_cast<GPUVertCompType>(attribute.comp_type),
-            attribute.size,
-            static_cast<GPUVertFetchMode>(attribute.fetch_mode));
-        attributes.append(attribute_description);
 
-        VkVertexInputBindingDescription vk_binding_descriptor = {};
-        vk_binding_descriptor.binding = binding;
-        vk_binding_descriptor.stride = stride;
-        vk_binding_descriptor.inputRate = use_instancing ? VK_VERTEX_INPUT_RATE_INSTANCE :
-                                                           VK_VERTEX_INPUT_RATE_VERTEX;
-        bindings.append(vk_binding_descriptor);
-        if (vertex_buffer) {
-          vbos.append(vertex_buffer);
-        }
-        if (immediate_vertex_buffer) {
-          buffers.append(*immediate_vertex_buffer);
-        }
+      r_occupied_attributes |= attribute_mask;
+      const uint32_t binding = vertex_input.bindings.size();
+      VkVertexInputAttributeDescription2EXT attribute_description = {
+          VK_STRUCTURE_TYPE_VERTEX_INPUT_ATTRIBUTE_DESCRIPTION_2_EXT, nullptr};
+      attribute_description.binding = binding;
+      attribute_description.location = shader_input->location;
+      attribute_description.offset = attribute_offset;
+      attribute_description.format = to_vk_format(
+          attribute.type.comp_type(), attribute.type.size(), attribute.type.fetch_mode());
+      vertex_input.attributes.append(attribute_description);
+
+      VkVertexInputBindingDescription2EXT vk_binding_descriptor = {
+          VK_STRUCTURE_TYPE_VERTEX_INPUT_BINDING_DESCRIPTION_2_EXT, nullptr};
+      vk_binding_descriptor.binding = binding;
+      vk_binding_descriptor.stride = stride;
+      vk_binding_descriptor.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+      vk_binding_descriptor.divisor = 1;
+      vertex_input.bindings.append(vk_binding_descriptor);
+      if (vertex_buffer) {
+        add_vbo = true;
+        vertex_buffer->upload();
+        buffers.append({vertex_buffer->vk_handle(), buffer_offset});
+      }
+      if (immediate_vertex_buffer) {
+        buffers.append(*immediate_vertex_buffer);
       }
     }
+  }
+
+  if (add_vbo) {
+    BLI_assert(vertex_buffer != nullptr);
+    vbos.append(vertex_buffer);
   }
 }
 
@@ -354,10 +252,9 @@ void VKVertexAttributeObject::update_bindings(const GPUVertFormat &vertex_format
 void VKVertexAttributeObject::debug_print() const
 {
   std::cout << __FILE__ << "::" << __func__ << "\n";
-  Array<bool> visited_bindings(bindings.size());
-  visited_bindings.fill(false);
+  BitVector visited_bindings(vertex_input.bindings.size());
 
-  for (VkVertexInputAttributeDescription attribute : attributes) {
+  for (VkVertexInputAttributeDescription2EXT attribute : vertex_input.attributes) {
     std::cout << " - attribute(binding=" << attribute.binding
               << ", location=" << attribute.location << ")";
 
@@ -365,24 +262,13 @@ void VKVertexAttributeObject::debug_print() const
       std::cout << " WARNING: Already bound\n";
       continue;
     }
-    visited_bindings[attribute.binding] = true;
+    visited_bindings[attribute.binding].set(true);
 
-    /* Bind VBOS from batches. */
-    if (!vbos.is_empty()) {
-      if (attribute.binding < vbos.size()) {
-        std::cout << " Attach to VBO [" << vbos[attribute.binding] << "]\n";
-      }
-      else {
-        std::cout << " WARNING: Attach to dummy\n";
-      }
+    if (attribute.binding < vbos.size()) {
+      std::cout << " Attach to Buffer\n";
     }
-    else if (!buffers.is_empty()) {
-      if (attribute.binding < vbos.size()) {
-        std::cout << " Attach to ImmediateModeVBO\n";
-      }
-      else {
-        std::cout << " WARNING: Attach to dummy\n";
-      }
+    else {
+      std::cout << " WARNING: Attach to dummy\n";
     }
   }
 }

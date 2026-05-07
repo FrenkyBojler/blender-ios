@@ -6,16 +6,16 @@
 
 #include <string>
 
+namespace blender {
+
 struct Main;
 struct Scene;
 struct Image;
 struct ImageUser;
 
-namespace blender::io::hydra {
-
-std::string image_cache_file_path();
+namespace io::hydra {
 
 std::string cache_or_get_image_file(Main *bmain, Scene *Scene, Image *image, ImageUser *iuser);
-std::string cache_image_color(float color[4]);
 
-}  // namespace blender::io::hydra
+}  // namespace io::hydra
+}  // namespace blender

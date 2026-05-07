@@ -19,12 +19,10 @@
 #include <limits.h> /* for PATH_MAX */
 
 #include "BLI_compiler_attrs.h"
+#include "BLI_enum_flags.hh"
 #include "BLI_fileops_types.h"
-#include "BLI_utildefines.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+namespace blender {
 
 #ifndef PATH_MAX
 #  define PATH_MAX 4096
@@ -35,10 +33,15 @@ extern "C" {
  * \{ */
 
 /**
+ * Returns true if the path (file or directory) exists.
+ */
+bool BLI_exists(const char *path) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
+
+/**
  * Returns the st_mode from stat-ing the specified path name, or 0 if stat fails
  * (most likely doesn't exist or no access).
  */
-int BLI_exists(const char *path) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
+int BLI_file_stat_mode(const char *path) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
 
 /**
  * \return 0 on success.
@@ -115,7 +118,7 @@ int BLI_delete(const char *path, bool dir, bool recursive) ATTR_NONNULL();
  *
  * \return zero on success (matching 'remove' behavior).
  */
-int BLI_delete_soft(const char *filepath, const char **error_message) ATTR_NONNULL();
+int BLI_delete_soft(const char *filepath, const char **r_error_message) ATTR_NONNULL();
 #if 0 /* Unused */
 int BLI_create_symlink(const char *path, const char *path_dst) ATTR_NONNULL();
 #endif
@@ -141,7 +144,7 @@ int64_t BLI_lseek(int fd, int64_t offset, int whence);
 int BLI_wstat(const wchar_t *path, BLI_stat_t *buffer);
 #endif
 
-typedef enum eFileAttributes {
+enum eFileAttributes {
   FILE_ATTR_READONLY = 1 << 0,        /* Read-only or Immutable. */
   FILE_ATTR_HIDDEN = 1 << 1,          /* Hidden or invisible. */
   FILE_ATTR_SYSTEM = 1 << 2,          /* Used by the Operating System. */
@@ -158,8 +161,8 @@ typedef enum eFileAttributes {
   FILE_ATTR_JUNCTION_POINT = 1 << 13, /* Folder Symbolic-link. */
   FILE_ATTR_MOUNT_POINT = 1 << 14,    /* Volume mounted as a folder. */
   FILE_ATTR_HARDLINK = 1 << 15,       /* Duplicated directory entry. */
-} eFileAttributes;
-ENUM_OPERATORS(eFileAttributes, FILE_ATTR_HARDLINK);
+};
+ENUM_OPERATORS(eFileAttributes);
 
 #define FILE_ATTR_ANY_LINK \
   (FILE_ATTR_ALIAS | FILE_ATTR_REPARSE_POINT | FILE_ATTR_SYMLINK | FILE_ATTR_JUNCTION_POINT | \
@@ -171,7 +174,7 @@ ENUM_OPERATORS(eFileAttributes, FILE_ATTR_HARDLINK);
 /** \name External File Operations
  * \{ */
 
-typedef enum FileExternalOperation {
+enum FileExternalOperation {
   FILE_EXTERNAL_OPERATION_OPEN = 1,
   FILE_EXTERNAL_OPERATION_FOLDER_OPEN,
   /* Following are Windows-only: */
@@ -188,7 +191,7 @@ typedef enum FileExternalOperation {
   FILE_EXTERNAL_OPERATION_PROPERTIES,
   FILE_EXTERNAL_OPERATION_FOLDER_FIND,
   FILE_EXTERNAL_OPERATION_FOLDER_CMD,
-} FileExternalOperation;
+};
 
 bool BLI_file_external_operation_supported(const char *filepath, FileExternalOperation operation);
 bool BLI_file_external_operation_execute(const char *filepath, FileExternalOperation operation);
@@ -213,7 +216,7 @@ bool BLI_is_file(const char *path) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
 /**
  * \return true on success (i.e. given path now exists on FS), false otherwise.
  */
-bool BLI_dir_create_recursive(const char *dir) ATTR_NONNULL();
+bool BLI_dir_create_recursive(const char *dirname) ATTR_NONNULL();
 /**
  * Returns the number of free bytes on the volume containing the specified path.
  *
@@ -227,6 +230,20 @@ double BLI_dir_free_space(const char *dir) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL(
  * \note can return NULL when the size is not big enough
  */
 char *BLI_current_working_dir(char *dir, size_t maxncpy) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
+
+/**
+ * Get the user's home directory, i.e.
+ * - Unix: `$HOME` or #passwd::pw_dir.
+ * - Windows: `%userprofile%`
+ *
+ * \return The home directory or null when it cannot be accessed.
+ *
+ * \note By convention, failure to access home means any derived directories fail as well
+ * instead of attempting to create a fallback such as `/`, `/tmp`, `C:\` ... etc.
+ * Although there may be rare cases where a fallback is appropriate.
+ */
+const char *BLI_dir_home();
+
 eFileAttributes BLI_file_attributes(const char *path);
 /**
  * Changes the current working directory to the provided path.
@@ -248,12 +265,12 @@ bool BLI_change_working_dir(const char *dir);
  * \{ */
 
 /**
- * Scans the contents of the directory named `dir`, and allocates and fills in an
+ * Scans the contents of the directory named `dirname`, and allocates and fills in an
  * array of entries describing them in `r_filelist`.
  *
  * \return The length of `r_filelist` array.
  */
-unsigned int BLI_filelist_dir_contents(const char *dir, struct direntry **r_filelist);
+unsigned int BLI_filelist_dir_contents(const char *dirname, struct direntry **r_filelist);
 /**
  * Deep-duplicate of a single direntry.
  */
@@ -294,19 +311,6 @@ void BLI_filelist_entry_mode_to_string(const struct stat *st,
 void BLI_filelist_entry_owner_to_string(const struct stat *st,
                                         bool compact,
                                         char r_owner[FILELIST_DIRENTRY_OWNER_LEN]);
-/**
- * Convert given entry's time into human-readable strings.
- *
- * \param r_is_today: optional, returns true if the date matches today's.
- * \param r_is_yesterday: optional, returns true if the date matches yesterday's.
- */
-void BLI_filelist_entry_datetime_to_string(const struct stat *st,
-                                           int64_t ts,
-                                           bool compact,
-                                           char r_time[FILELIST_DIRENTRY_TIME_LEN],
-                                           char r_date[FILELIST_DIRENTRY_DATE_LEN],
-                                           bool *r_is_today,
-                                           bool *r_is_yesterday);
 
 /** \} */
 
@@ -346,7 +350,17 @@ bool BLI_file_touch(const char *filepath) ATTR_NONNULL(1);
  */
 bool BLI_file_ensure_parent_dir_exists(const char *filepath) ATTR_NONNULL(1);
 
-bool BLI_file_alias_target(const char *filepath, char *r_targetpath) ATTR_WARN_UNUSED_RESULT;
+/**
+ * Return alias/shortcut file target.
+ * \param filepath: The source of the alias.
+ * \param r_targetpath: Buffer for the target path an alias points to.
+ *
+ * \return true when an alias was found and set.
+ *
+ * \note This is only used on APPLE/WIN32.
+ */
+bool BLI_file_alias_target(const char *filepath,
+                           char r_targetpath[/*FILE_MAXDIR*/ 768]) ATTR_WARN_UNUSED_RESULT;
 
 bool BLI_file_magic_is_gzip(const char header[4]);
 
@@ -380,7 +394,8 @@ bool BLI_file_older(const char *file1, const char *file2) ATTR_WARN_UNUSED_RESUL
  *
  * \return the lines in a linked list (an empty list when file reading fails).
  */
-struct LinkNode *BLI_file_read_as_lines(const char *file) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
+struct LinkNode *BLI_file_read_as_lines(const char *filepath) ATTR_WARN_UNUSED_RESULT
+    ATTR_NONNULL();
 
 /**
  * Read the contents of `fp`, returning the result as a buffer or null when it can't be read.
@@ -392,7 +407,7 @@ void *BLI_file_read_data_as_mem_from_handle(FILE *fp,
                                             size_t pad_bytes,
                                             size_t *r_size);
 
-void *BLI_file_read_text_as_mem(const char *filepath, size_t pad_bytes, size_t *r_size);
+char *BLI_file_read_text_as_mem(const char *filepath, size_t pad_bytes, size_t *r_size);
 /**
  * Return the text file data with:
  *
@@ -421,7 +436,7 @@ void *BLI_file_read_text_as_mem(const char *filepath, size_t pad_bytes, size_t *
  * }
  * \endcode
  */
-void *BLI_file_read_text_as_mem_with_newline_as_nil(const char *filepath,
+char *BLI_file_read_text_as_mem_with_newline_as_nil(const char *filepath,
                                                     bool trim_trailing_space,
                                                     size_t pad_bytes,
                                                     size_t *r_size);
@@ -431,14 +446,6 @@ void *BLI_file_read_binary_as_mem(const char *filepath, size_t pad_bytes, size_t
  */
 void BLI_file_free_lines(struct LinkNode *lines);
 
-#ifdef __APPLE__
-/**
- * Expand the leading `~` in the given path to `/Users/$USER`.
- * This doesn't preserve the trailing path separator.
- * Giving a path without leading `~` is not an error.
- */
-const char *BLI_expand_tilde(const char *path_with_tilde);
-#endif
 /* This weirdo pops up in two places. */
 #if !defined(WIN32)
 #  ifndef O_BINARY
@@ -450,6 +457,4 @@ void BLI_get_short_name(char short_name[256], const char *filepath);
 
 /** \} */
 
-#ifdef __cplusplus
-}
-#endif
+}  // namespace blender

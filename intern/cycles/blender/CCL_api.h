@@ -2,23 +2,26 @@
  *
  * SPDX-License-Identifier: Apache-2.0 */
 
-#ifndef __CCL_API_H__
-#define __CCL_API_H__
+#pragma once
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+namespace blender {
 
-/* create python module _cycles used by addon */
+struct Image;
 
-void *CCL_python_module_init(void);
+/* Create python module _cycles used by addon. */
+void *CCL_python_module_init();
 
-void CCL_init_logging(const char *argv0);
-void CCL_start_debug_logging(void);
-void CCL_logging_verbosity_set(int verbosity);
+void CCL_log_init();
+void CCL_implicit_sharing_init();
 
-#ifdef __cplusplus
-}
-#endif
+/* Texture cache generation. */
 
-#endif /* __CCL_API_H__ */
+bool CCL_has_texture_cache(const Image *image,
+                           const char *filepath,
+                           const char *texture_cache_directory = "");
+
+bool CCL_generate_texture_cache(const Image *image,
+                                const char *filepath,
+                                const char *texture_cache_directory = "");
+
+}  // namespace blender

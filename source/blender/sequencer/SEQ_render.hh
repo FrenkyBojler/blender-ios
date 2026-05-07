@@ -8,47 +8,55 @@
  * \ingroup sequencer
  */
 
-#define SEQ_RENDER_THUMB_SIZE 256
+#include "DNA_listBase.h"
+#include "DNA_space_enums.h"
+#include "GPU_context.hh"
+
+namespace blender {
 
 struct Depsgraph;
 struct GPUOffScreen;
 struct GPUViewport;
 struct ImBuf;
-struct ListBase;
 struct Main;
+struct Render;
 struct Scene;
-struct Sequence;
+struct SeqTimelineChannel;
+struct Strip;
 struct StripElem;
-struct rctf;
 
-enum eSeqTaskId {
-  SEQ_TASK_MAIN_RENDER,
-  SEQ_TASK_PREFETCH_RENDER,
-};
+namespace seq {
 
-struct SeqRenderData {
-  Main *bmain;
-  Depsgraph *depsgraph;
-  Scene *scene;
-  int rectx;
-  int recty;
-  int preview_render_size;
-  bool use_proxies;
-  int for_render;
-  int motion_blur_samples;
-  float motion_blur_shutter;
-  bool skip_cache;
-  bool is_proxy_render;
-  bool is_prefetch_render;
-  int view_id;
-  /* ID of task for assigning temp cache entries to particular task(thread, etc.) */
-  eSeqTaskId task_id;
+struct RenderData {
+  Main *bmain = nullptr;
+  Depsgraph *depsgraph = nullptr;
+  Scene *scene = nullptr;
+  int rectx = 0;
+  int recty = 0;
+  eSpaceSeq_Proxy_RenderSize preview_render_size = SEQ_RENDER_SIZE_SCENE;
+  bool use_proxies = false;
+  bool ignore_missing_media = false;
+  int motion_blur_samples = 0;
+  float motion_blur_shutter = 0.0f;
+  bool skip_cache = false;
+  bool is_prefetch_render = false;
+  bool is_playing = false;
+  bool is_scrubbing = false;
+  int view_id = 0;
+
+  /* Set when executing as part of a frame or animation render. */
+  Render *render = nullptr;
 
   /* special case for OpenGL render */
-  GPUOffScreen *gpu_offscreen;
-  GPUViewport *gpu_viewport;
+  GPUOffScreen *gpu_offscreen = nullptr;
+  GPUViewport *gpu_viewport = nullptr;
   // int gpu_samples;
   // bool gpu_full_samples;
+
+  /* If GPU access is needed and this is set, use it
+   * instead of regular GPU context. Primary case: prefetch job;
+   * it is on another thread and can't use regular GPU context. */
+  gpu::GPUSecondaryContextData gpu_context;
 };
 
 /**
@@ -56,68 +64,39 @@ struct SeqRenderData {
  *
  * \note The returned #ImBuf has its reference increased, free after usage!
  */
-ImBuf *SEQ_render_give_ibuf(const SeqRenderData *context, float timeline_frame, int chanshown);
-ImBuf *SEQ_render_give_ibuf_direct(const SeqRenderData *context,
-                                   float timeline_frame,
-                                   Sequence *seq);
-/**
- * Render the series of thumbnails and store in cache.
- */
-void SEQ_render_thumbnails(const SeqRenderData *context,
-                           Sequence *seq,
-                           Sequence *seq_orig,
-                           float frame_step,
-                           const rctf *view_area,
-                           const bool *stop);
-/**
- * Get cached thumbnails.
- */
-ImBuf *SEQ_get_thumbnail(
-    const SeqRenderData *context, Sequence *seq, float timeline_frame, rcti *crop, bool clipped);
-/**
- * Get frame for first thumbnail.
- */
-float SEQ_render_thumbnail_first_frame_get(const Scene *scene,
-                                           Sequence *seq,
-                                           float frame_step,
-                                           const rctf *view_area);
-/**
- * Get frame for first thumbnail.
- */
-float SEQ_render_thumbnail_next_frame_get(const Scene *scene,
-                                          Sequence *seq,
-                                          float last_frame,
-                                          float frame_step);
-/**
- * Get frame step for equally spaced thumbnails. These thumbnails should always be present in
- * memory, so they can be used when zooming.
- */
-int SEQ_render_thumbnails_guaranteed_set_frame_step_get(const Scene *scene, const Sequence *seq);
-/**
- * Render set of evenly spaced thumbnails that are drawn when zooming..
- */
-void SEQ_render_thumbnails_base_set(const SeqRenderData *context,
-                                    Sequence *seq,
-                                    Sequence *seq_orig,
-                                    const rctf *view_area,
-                                    const bool *stop);
+ImBuf *render_give_ibuf(const RenderData *context, float timeline_frame, int chanshown);
+ImBuf *render_give_ibuf_direct(const RenderData *context, float timeline_frame, Strip *strip);
+void render_new_render_data(Main *bmain,
+                            Depsgraph *depsgraph,
+                            Scene *scene,
+                            int rectx,
+                            int recty,
+                            eSpaceSeq_Proxy_RenderSize preview_render_size,
+                            Render *render,
+                            RenderData *r_context);
+StripElem *render_give_stripelem(const Scene *scene, const Strip *strip, int timeline_frame);
 
-void SEQ_render_init_colorspace(Sequence *seq);
-void SEQ_render_new_render_data(Main *bmain,
-                                Depsgraph *depsgraph,
-                                Scene *scene,
-                                int rectx,
-                                int recty,
-                                int preview_render_size,
-                                int for_render,
-                                SeqRenderData *r_context);
-int SEQ_render_evaluate_frame(ListBase *seqbase, int timeline_frame);
-StripElem *SEQ_render_give_stripelem(const Scene *scene, Sequence *seq, int timeline_frame);
+/* Converts image into scene linear, if needed.
+ * Note: if make_float is false and input image contains byte pixels, it is *NOT* modified. */
+void ensure_ibuf_is_linear_space(ImBuf *ibuf, bool make_float);
 
-void SEQ_render_imbuf_from_sequencer_space(Scene *scene, ImBuf *ibuf);
-void SEQ_render_pixel_from_sequencer_space_v4(Scene *scene, float pixel[4]);
 /**
- * Check if `seq` is muted for rendering.
+ * Check if `strip` is muted for rendering.
  * This function also checks `SeqTimelineChannel` flag.
  */
-bool SEQ_render_is_muted(const ListBase *channels, const Sequence *seq);
+bool render_is_muted(const ListBaseT<SeqTimelineChannel> *channels, const Strip *strip);
+
+/**
+ * Calculate render scale factor relative to full size. This can be due to render
+ * scale setting in output settings, or preview proxy size.
+ */
+float get_render_scale_factor(eSpaceSeq_Proxy_RenderSize render_size, short scene_render_scale);
+float get_render_scale_factor(const RenderData &context);
+
+/* Enables an appropriate GPU context if possible, if GPU rendering is not possible, the functions
+ * returns false. The render_end_gpu function should be called to disable the context. */
+bool render_begin_gpu(const RenderData &rd);
+void render_end_gpu(const RenderData &rd);
+
+}  // namespace seq
+}  // namespace blender

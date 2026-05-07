@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0 */
 
 #include "hydra/curves.h"
+#include "hydra/attribute.h"
 #include "hydra/geometry.inl"
 #include "scene/hair.h"
 
@@ -26,7 +27,7 @@ HdCyclesCurves::HdCyclesCurves(const SdfPath &rprimId
 {
 }
 
-HdCyclesCurves::~HdCyclesCurves() {}
+HdCyclesCurves::~HdCyclesCurves() = default;
 
 HdDirtyBits HdCyclesCurves::GetInitialDirtyBitsMask() const
 {
@@ -108,7 +109,7 @@ void HdCyclesCurves::PopulatePoints(HdSceneDelegate *sceneDelegate)
 
 void HdCyclesCurves::PopulateWidths(HdSceneDelegate *sceneDelegate)
 {
-  VtValue value = GetPrimvar(sceneDelegate, HdTokens->widths);
+  const VtValue value = GetPrimvar(sceneDelegate, HdTokens->widths);
   const HdInterpolation interpolation = GetPrimvarInterpolation(sceneDelegate, HdTokens->widths);
 
   if (!value.IsHolding<VtFloatArray>()) {
@@ -161,7 +162,7 @@ void HdCyclesCurves::PopulatePrimvars(HdSceneDelegate *sceneDelegate)
         continue;
       }
 
-      VtValue value = GetPrimvar(sceneDelegate, desc.name);
+      const VtValue value = GetPrimvar(sceneDelegate, desc.name);
       if (value.IsEmpty()) {
         continue;
       }
@@ -171,6 +172,9 @@ void HdCyclesCurves::PopulatePrimvars(HdSceneDelegate *sceneDelegate)
       AttributeStandard std = ATTR_STD_NONE;
       if (desc.role == HdPrimvarRoleTokens->textureCoordinate) {
         std = ATTR_STD_UV;
+      }
+      else if (desc.name == HdTokens->normals && interpolation.first == HdInterpolationVertex) {
+        std = ATTR_STD_VERTEX_NORMAL;
       }
       else if (desc.name == HdTokens->displayColor &&
                interpolation.first == HdInterpolationConstant)
@@ -185,7 +189,11 @@ void HdCyclesCurves::PopulatePrimvars(HdSceneDelegate *sceneDelegate)
       if ((std != ATTR_STD_NONE && _geom->need_attribute(scene, std)) ||
           _geom->need_attribute(scene, name))
       {
-        ApplyPrimvars(_geom->attributes, name, value, interpolation.second, std);
+        AttributeElement elem = interpolation.second;
+        if (std == ATTR_STD_VERTEX_NORMAL) {
+          elem = ATTR_ELEMENT_CURVE_KEY_NORMAL;
+        }
+        ApplyPrimvars(_geom->attributes, name, value, elem, std);
       }
     }
   }
@@ -196,18 +204,25 @@ void HdCyclesCurves::PopulateTopology(HdSceneDelegate *sceneDelegate)
   // Clear geometry before populating it again with updated topology
   _geom->clear(true);
 
-  HdBasisCurvesTopology topology = GetBasisCurvesTopology(sceneDelegate);
+  const HdBasisCurvesTopology topology = GetBasisCurvesTopology(sceneDelegate);
 
-  _geom->reserve_curves(topology.GetNumCurves(), topology.CalculateNeededNumberOfControlPoints());
+  _geom->resize_curves(topology.GetNumCurves(), topology.CalculateNeededNumberOfControlPoints());
 
   const VtIntArray vertCounts = topology.GetCurveVertexCounts();
 
+  int *curve_first_key = _geom->get_curve_first_key().data();
+
   for (int curve = 0, key = 0; curve < topology.GetNumCurves(); ++curve) {
     // Always reference shader at index zero, which is the primitive material
-    _geom->add_curve(key, 0);
+    curve_first_key[curve] = key;
 
     key += vertCounts[curve];
   }
+
+  std::ranges::fill(_geom->get_curve_shader(), 0);
+
+  _geom->tag_curve_first_key_modified();
+  _geom->tag_curve_shader_modified();
 }
 
 HDCYCLES_NAMESPACE_CLOSE_SCOPE

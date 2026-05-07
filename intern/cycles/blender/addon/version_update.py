@@ -101,7 +101,7 @@ def do_versions(self):
         library_versions.setdefault(library.version, []).append(library)
 
     # Do versioning per library, since they might have different versions.
-    max_need_versioning = (3, 5, 2)
+    max_need_versioning = (5, 2, 8)
     for version, libraries in library_versions.items():
         if version > max_need_versioning:
             continue
@@ -110,6 +110,24 @@ def do_versions(self):
         for scene in bpy.data.scenes:
             if scene.library not in libraries:
                 continue
+
+            # Texture limit enum replaced with texture resolution float.
+            # Convert assuming a 1024 image resolution.
+            if version <= (5, 2, 8):
+                cscene = scene.cycles
+                for prop_old, prop_new in (("texture_limit", "texture_resolution"),
+                                           ("texture_limit_render", "texture_resolution_render")):
+                    texture_limit_enum = cscene.get(prop_old, 0)
+                    if texture_limit_enum > 0:
+                        limit_pixels = 1 << (texture_limit_enum + 6)
+                        cscene[prop_new] = min(limit_pixels / 1024.0, 1.0)
+
+            # Auto tiling is always enabled now
+            if version <= (5, 0, 77):
+                cscene = scene.cycles
+                if not cscene.use_auto_tile:
+                    cscene.use_auto_tile = True
+                    cscene.tile_size = 8192
 
             # Clamp Direct/Indirect separation in 270
             if version <= (2, 70, 0):
@@ -251,6 +269,13 @@ def do_versions(self):
                 # Sampling pattern settings are hidden behind a debug menu. Switch to the
                 # default faster and fully featured (Supports Scrambling Distance)
                 # Tabulated Sobol.
+                cscene.sampling_pattern = 'TABULATED_SOBOL'
+
+            if version <= (4, 2, 52):
+                cscene = scene.cycles
+                # Previous versions defaulted to Tabulated Sobol unless debugging options
+                # were enabled, so keep this behavior instead of suddenly defaulting to
+                # blue noise if the file happens to contain a different option for the enum.
                 cscene.sampling_pattern = 'TABULATED_SOBOL'
 
         # Lamps

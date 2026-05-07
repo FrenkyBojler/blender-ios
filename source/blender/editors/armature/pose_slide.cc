@@ -31,19 +31,18 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_array.hh"
-#include "BLI_blenlib.h"
+#include "BLI_listbase.h"
 #include "BLI_math_rotation.h"
+#include "BLI_string.h"
 
 #include "BLT_translation.hh"
 
 #include "DNA_anim_types.h"
-#include "DNA_armature_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
-#include "DNA_vec_types.h"
 
 #include "BKE_fcurve.hh"
-#include "BKE_nla.h"
+#include "BKE_nla.hh"
 
 #include "BKE_context.hh"
 #include "BKE_layer.hh"
@@ -53,13 +52,12 @@
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
 
 #include "UI_interface.hh"
-#include "UI_resources.hh"
 
 #include "ED_keyframes_edit.hh"
 #include "ED_keyframes_keylist.hh"
@@ -72,11 +70,7 @@
 
 #include "armature_intern.hh"
 
-using blender::Vector;
-
-/* Pixel distance from 0% to 100%. */
-#define SLIDE_PIXEL_DISTANCE (300 * U.pixelsize)
-#define OVERSHOOT_RANGE_DELTA 0.2f
+namespace blender {
 
 /* **************************************************** */
 /* A) Push & Relax, Breakdowner */
@@ -106,14 +100,18 @@ enum ePoseSlide_Channels {
 
   PS_TFM_LOC, /* Loc/Rot/Scale */
   PS_TFM_ROT,
-  PS_TFM_SIZE,
+  PS_TFM_SCALE,
 
   PS_TFM_BBONE_SHAPE, /* Bendy Bones */
 
   PS_TFM_PROPS, /* Custom Properties */
 };
 
-struct tPoseSlideObject {
+/**
+ * Stores the frame range per object. Since objects can have an NLA, the frame for looking up keys
+ * needs to be adjusted per object.
+ */
+struct ObjectFrameRange {
   /** Active object that Pose Info comes from. */
   Object *ob;
   /** `prev_frame`, but in local action time (for F-Curve look-ups to work). */
@@ -133,8 +131,8 @@ struct tPoseSlideOp {
   ARegion *region;
   /** len of the PoseSlideObject array. */
 
-  /** links between posechannels and f-curves for all the pose objects. */
-  ListBase pfLinks;
+  /** The data to be modified by the slider operator. */
+  ListBaseT<SlideSubject> slide_subjects;
   /** binary tree for quicker searching for keyframes (when applicable) */
   AnimKeylist *keylist;
 
@@ -149,10 +147,10 @@ struct tPoseSlideOp {
   /** Sliding Mode. */
   ePoseSlide_Modes mode;
   /** unused for now, but can later get used for storing runtime settings.... */
-  short flag;
+  // short flag;
 
   /* Store overlay settings when invoking the operator. Bones will be temporarily hidden. */
-  int overlay_flag;
+  eView3DOverlay_Flag overlay_flag;
 
   /** Which transforms/channels are affected. */
   ePoseSlide_Channels channels;
@@ -164,7 +162,7 @@ struct tPoseSlideOp {
   /** Numeric input. */
   NumInput num;
 
-  blender::Array<tPoseSlideObject> ob_data_array;
+  Array<ObjectFrameRange> ob_data_array;
 };
 
 /** Property enum for #ePoseSlide_Channels. */
@@ -176,7 +174,8 @@ static const EnumPropertyItem prop_channels_types[] = {
      "All properties, including transforms, bendy bone shape, and custom properties"},
     {PS_TFM_LOC, "LOC", 0, "Location", "Location only"},
     {PS_TFM_ROT, "ROT", 0, "Rotation", "Rotation only"},
-    {PS_TFM_SIZE, "SIZE", 0, "Scale", "Scale only"},
+    /* NOTE: `SIZE` identifier is only used for compatibility, should be `SCALE`. */
+    {PS_TFM_SCALE, "SIZE", 0, "Scale", "Scale only"},
     {PS_TFM_BBONE_SHAPE, "BBONE", 0, "Bendy Bone", "Bendy Bone shape properties"},
     {PS_TFM_PROPS, "CUSTOM", 0, "Custom Properties", "Custom properties"},
     {0, nullptr, 0, nullptr, nullptr},
@@ -192,6 +191,22 @@ static const EnumPropertyItem prop_axis_lock_types[] = {
 };
 
 /* ------------------------------------ */
+
+/**
+ * Returns a subset of the given curves where the rna_path matches the given path.
+ */
+static Vector<FCurve *> fcurves_filtered_by_path(const Span<FCurve *> input_fcurves,
+                                                 const StringRef path)
+{
+  Vector<FCurve *> fcurves;
+  for (FCurve *fcurve : input_fcurves) {
+    if (StringRefNull(fcurve->rna_path) != path) {
+      continue;
+    }
+    fcurves.append(fcurve);
+  }
+  return fcurves;
+}
 
 /** Operator custom-data initialization. */
 static int pose_slide_init(bContext *C, wmOperator *op, ePoseSlide_Modes mode)
@@ -220,14 +235,18 @@ static int pose_slide_init(bContext *C, wmOperator *op, ePoseSlide_Modes mode)
 
   /* For each Pose-Channel which gets affected, get the F-Curves for that channel
    * and set the relevant transform flags. */
-  poseAnim_mapping_get(C, &pso->pfLinks);
-
-  const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_mode_unique_data(
-      CTX_data_scene(C), CTX_data_view_layer(C), CTX_wm_view3d(C), OB_MODE_POSE);
+  slide_subjects_get(C, &pso->slide_subjects);
+  ObjectsInModeParams params = {0};
+  params.object_mode = OB_MODE_POSE;
+  /* Explicitly setting this to false because we *do* want this to work for armature instances. */
+  params.no_dup_data = false;
+  const Main *bmain = CTX_data_main(C);
+  const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_mode_params(
+      *bmain, CTX_data_scene(C), CTX_data_view_layer(C), CTX_wm_view3d(C), &params);
   pso->ob_data_array.reinitialize(objects.size());
 
   for (const int ob_index : objects.index_range()) {
-    tPoseSlideObject *ob_data = &pso->ob_data_array[ob_index];
+    ObjectFrameRange *ob_data = &pso->ob_data_array[ob_index];
     Object *ob_iter = poseAnim_object_get(objects[ob_index]);
 
     /* Ensure validity of the settings from the context. */
@@ -243,11 +262,6 @@ static int pose_slide_init(bContext *C, wmOperator *op, ePoseSlide_Modes mode)
         ob_data->ob->adt, pso->prev_frame, NLATIME_CONVERT_UNMAP);
     ob_data->next_frame = BKE_nla_tweakedit_remap(
         ob_data->ob->adt, pso->next_frame, NLATIME_CONVERT_UNMAP);
-
-    /* Set depsgraph flags. */
-    /* Make sure the lock is set OK, unlock can be accidentally saved? */
-    ob_data->ob->pose->flag |= POSE_LOCKED;
-    ob_data->ob->pose->flag &= ~POSE_DO_UNLOCK;
   }
 
   /* Do basic initialize of RB-BST used for finding keyframes, but leave the filling of it up
@@ -258,6 +272,12 @@ static int pose_slide_init(bContext *C, wmOperator *op, ePoseSlide_Modes mode)
   initNumInput(&pso->num);
   pso->num.idx_max = 0;                /* One axis. */
   pso->num.unit_type[0] = B_UNIT_NONE; /* Percentages don't have any units. */
+
+  if (pso->area && (pso->area->spacetype == SPACE_VIEW3D)) {
+    /* Save current bone visibility. */
+    View3D *v3d = static_cast<View3D *>(pso->area->spacedata.first);
+    pso->overlay_flag = v3d->overlay.flag;
+  }
 
   /* Return status is whether we've got all the data we were requested to get. */
   return 1;
@@ -273,13 +293,13 @@ static void pose_slide_exit(bContext *C, wmOperator *op)
   ED_slider_destroy(C, pso->slider);
 
   /* Hide Bone Overlay. */
-  if (pso->area) {
+  if (pso->area && (pso->area->spacetype == SPACE_VIEW3D)) {
     View3D *v3d = static_cast<View3D *>(pso->area->spacedata.first);
     v3d->overlay.flag = pso->overlay_flag;
   }
 
   /* Free the temp pchan links and their data. */
-  poseAnim_mapping_free(&pso->pfLinks);
+  slide_subjects_free(&pso->slide_subjects);
 
   /* Free RB-BST for keyframes (if it contained data). */
   ED_keylist_free(pso->keylist);
@@ -299,23 +319,23 @@ static void pose_slide_exit(bContext *C, wmOperator *op)
 static void pose_slide_refresh(bContext *C, tPoseSlideOp *pso)
 {
   /* Wrapper around the generic version, allowing us to add some custom stuff later still. */
-  for (tPoseSlideObject &ob_data : pso->ob_data_array) {
+  for (ObjectFrameRange &ob_data : pso->ob_data_array) {
     if (ob_data.valid) {
-      poseAnim_mapping_refresh(C, pso->scene, ob_data.ob);
+      slide_subjects_refresh(C, pso->scene, ob_data.ob);
     }
   }
 }
 
 /**
  * Although this lookup is not ideal, we won't be dealing with a lot of objects at a given time.
- * But if it comes to that we can instead store prev/next frame in the #tPChanFCurveLink.
+ * But if it comes to that we can instead store prev/next frame in the #SlideSubject.
  */
 static bool pose_frame_range_from_object_get(tPoseSlideOp *pso,
                                              Object *ob,
                                              float *prev_frame,
                                              float *next_frame)
 {
-  for (tPoseSlideObject &ob_data : pso->ob_data_array) {
+  for (ObjectFrameRange &ob_data : pso->ob_data_array) {
     Object *ob_iter = ob_data.ob;
 
     if (ob_iter == ob) {
@@ -331,7 +351,7 @@ static bool pose_frame_range_from_object_get(tPoseSlideOp *pso,
 /**
  * Helper for apply() - perform sliding for some value.
  */
-static void pose_slide_apply_val(tPoseSlideOp *pso, FCurve *fcu, Object *ob, float *val)
+static void pose_slide_apply_val(tPoseSlideOp *pso, const FCurve *fcu, Object *ob, float *val)
 {
   float prev_frame, next_frame;
   float prev_weight, next_weight;
@@ -413,56 +433,54 @@ static void pose_slide_apply_val(tPoseSlideOp *pso, FCurve *fcu, Object *ob, flo
  * Helper for apply() - perform sliding for some 3-element vector.
  */
 static void pose_slide_apply_vec3(tPoseSlideOp *pso,
-                                  tPChanFCurveLink *pfl,
+                                  SlideSubject *slide_subject,
                                   float vec[3],
                                   const char propName[])
 {
-  LinkData *ld = nullptr;
   char *path = nullptr;
 
   /* Get the path to use. */
-  path = BLI_sprintfN("%s.%s", pfl->pchan_path, propName);
+  path = BLI_sprintfN("%s.%s", slide_subject->pchan_path, propName);
 
   /* Using this path, find each matching F-Curve for the variables we're interested in. */
-  while ((ld = poseAnim_mapping_getNextFCurve(&pfl->fcurves, ld, path))) {
-    FCurve *fcu = (FCurve *)ld->data;
-    const int idx = fcu->array_index;
+  const Vector<FCurve *> fcurves = fcurves_filtered_by_path(slide_subject->fcurves, path);
+  for (FCurve *fcurve : fcurves) {
+    const int idx = fcurve->array_index;
     const int lock = pso->axislock;
 
     /* Check if this F-Curve is ok given the current axis locks. */
-    BLI_assert(fcu->array_index < 3);
+    BLI_assert(fcurve->array_index < 3);
 
     if ((lock == 0) || ((lock & PS_LOCK_X) && (idx == 0)) || ((lock & PS_LOCK_Y) && (idx == 1)) ||
         ((lock & PS_LOCK_Z) && (idx == 2)))
     {
       /* Just work on these channels one by one... there's no interaction between values. */
-      pose_slide_apply_val(pso, fcu, pfl->ob, &vec[fcu->array_index]);
+      pose_slide_apply_val(pso, fcurve, slide_subject->ob, &vec[fcurve->array_index]);
     }
   }
 
   /* Free the temp path we got. */
-  MEM_freeN(path);
+  MEM_delete(path);
 }
 
 /**
  * Helper for apply() - perform sliding for custom properties or bbone properties.
  */
 static void pose_slide_apply_props(tPoseSlideOp *pso,
-                                   tPChanFCurveLink *pfl,
+                                   SlideSubject *slide_subject,
                                    const char prop_prefix[])
 {
-  int len = strlen(pfl->pchan_path);
+  int len = strlen(slide_subject->pchan_path);
 
   /* Setup pointer RNA for resolving paths. */
-  PointerRNA ptr = RNA_pointer_create(nullptr, &RNA_PoseBone, pfl->pchan);
+  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, RNA_PoseBone, slide_subject->pchan);
 
   /* - custom properties are just denoted using ["..."][etc.] after the end of the base path,
    *   so just check for opening pair after the end of the path
    * - bbone properties are similar, but they always start with a prefix "bbone_*",
    *   so a similar method should work here for those too
    */
-  LISTBASE_FOREACH (LinkData *, ld, &pfl->fcurves) {
-    FCurve *fcu = (FCurve *)ld->data;
+  for (FCurve *fcu : slide_subject->fcurves) {
     const char *bPtr, *pPtr;
 
     if (fcu->rna_path == nullptr) {
@@ -473,7 +491,7 @@ static void pose_slide_apply_props(tPoseSlideOp *pso,
      * - bPtr is the RNA Path with the standard part chopped off.
      * - pPtr is the chunk of the path which is left over.
      */
-    bPtr = strstr(fcu->rna_path, pfl->pchan_path) + len;
+    bPtr = strstr(fcu->rna_path, slide_subject->pchan_path) + len;
     pPtr = strstr(bPtr, prop_prefix);
 
     if (pPtr) {
@@ -497,7 +515,7 @@ static void pose_slide_apply_props(tPoseSlideOp *pso,
               tval = RNA_property_float_get(&ptr, prop);
             }
 
-            pose_slide_apply_val(pso, fcu, pfl->ob, &tval);
+            pose_slide_apply_val(pso, fcu, slide_subject->ob, &tval);
 
             if (is_array) {
               RNA_property_float_set_index(&ptr, prop, fcu->array_index, tval);
@@ -520,7 +538,7 @@ static void pose_slide_apply_props(tPoseSlideOp *pso,
               tval = RNA_property_int_get(&ptr, prop);
             }
 
-            pose_slide_apply_val(pso, fcu, pfl->ob, &tval);
+            pose_slide_apply_val(pso, fcu, slide_subject->ob, &tval);
 
             if (is_array) {
               RNA_property_int_set_index(&ptr, prop, fcu->array_index, tval);
@@ -545,7 +563,7 @@ static void pose_slide_apply_props(tPoseSlideOp *pso,
               tval = float(RNA_property_boolean_get(&ptr, prop));
             }
 
-            pose_slide_apply_val(pso, fcu, pfl->ob, &tval);
+            pose_slide_apply_val(pso, fcu, slide_subject->ob, &tval);
 
             /* XXX: do we need threshold clamping here? */
             if (is_array) {
@@ -575,29 +593,28 @@ static void pose_slide_apply_props(tPoseSlideOp *pso,
 /**
  * Helper for apply() - perform sliding for quaternion rotations (using quat blending).
  */
-static void pose_slide_apply_quat(tPoseSlideOp *pso, tPChanFCurveLink *pfl)
+static void pose_slide_apply_quat(tPoseSlideOp *pso, SlideSubject *slide_subject)
 {
-  FCurve *fcu_w = nullptr, *fcu_x = nullptr, *fcu_y = nullptr, *fcu_z = nullptr;
-  bPoseChannel *pchan = pfl->pchan;
-  LinkData *ld = nullptr;
+  const FCurve *fcu_w = nullptr, *fcu_x = nullptr, *fcu_y = nullptr, *fcu_z = nullptr;
+  bPoseChannel *pchan = slide_subject->pchan;
   char *path = nullptr;
   float prev_frame, next_frame;
 
-  if (!pose_frame_range_from_object_get(pso, pfl->ob, &prev_frame, &next_frame)) {
-    BLI_assert_msg(0, "Invalid pfl data");
+  if (!pose_frame_range_from_object_get(pso, slide_subject->ob, &prev_frame, &next_frame)) {
+    BLI_assert_msg(0, "Invalid slide_subject data");
     return;
   }
 
   /* Get the path to use - this should be quaternion rotations only (needs care). */
-  path = BLI_sprintfN("%s.%s", pfl->pchan_path, "rotation_quaternion");
+  path = BLI_sprintfN("%s.%s", slide_subject->pchan_path, "rotation_quaternion");
 
   /* Get the current frame number. */
   const float current_frame = float(pso->current_frame);
   const float factor = ED_slider_factor_get(pso->slider);
 
   /* Using this path, find each matching F-Curve for the variables we're interested in. */
-  while ((ld = poseAnim_mapping_getNextFCurve(&pfl->fcurves, ld, path))) {
-    FCurve *fcu = (FCurve *)ld->data;
+  const Vector<FCurve *> fcurves = fcurves_filtered_by_path(slide_subject->fcurves, path);
+  for (FCurve *fcu : fcurves) {
 
     /* Assign this F-Curve to one of the relevant pointers. */
     switch (fcu->array_index) {
@@ -694,7 +711,7 @@ static void pose_slide_apply_quat(tPoseSlideOp *pso, tPChanFCurveLink *pfl)
   }
 
   /* Free the path now. */
-  MEM_freeN(path);
+  MEM_delete(path);
 }
 
 static void pose_slide_rest_pose_apply_vec3(tPoseSlideOp *pso, float vec[3], float default_value)
@@ -734,25 +751,31 @@ static void pose_slide_rest_pose_apply_other_rot(tPoseSlideOp *pso, float vec[4]
 static void pose_slide_rest_pose_apply(bContext *C, tPoseSlideOp *pso)
 {
   /* For each link, handle each set of transforms. */
-  LISTBASE_FOREACH (tPChanFCurveLink *, pfl, &pso->pfLinks) {
+  for (SlideSubject &slide_subject : pso->slide_subjects) {
     /* Valid transforms for each #bPoseChannel should have been noted already.
      * - Sliding the pose should be a straightforward exercise for location+rotation,
      *   but rotations get more complicated since we may want to use quaternion blending
      *   for quaternions instead.
      */
-    bPoseChannel *pchan = pfl->pchan;
+    bPoseChannel *pchan = slide_subject.pchan;
 
-    if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_LOC) && (pchan->flag & POSE_LOC)) {
+    if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_LOC) &&
+        (slide_subject.transform_flag & ACT_TRANS_LOC))
+    {
       /* Calculate these for the 'location' vector, and use location curves. */
       pose_slide_rest_pose_apply_vec3(pso, pchan->loc, 0.0f);
     }
 
-    if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_SIZE) && (pchan->flag & POSE_SIZE)) {
+    if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_SCALE) &&
+        (slide_subject.transform_flag & ACT_TRANS_SCALE))
+    {
       /* Calculate these for the 'scale' vector, and use scale curves. */
-      pose_slide_rest_pose_apply_vec3(pso, pchan->size, 1.0f);
+      pose_slide_rest_pose_apply_vec3(pso, pchan->scale, 1.0f);
     }
 
-    if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_ROT) && (pchan->flag & POSE_ROT)) {
+    if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_ROT) &&
+        (slide_subject.transform_flag & ACT_TRANS_ROT))
+    {
       /* Everything depends on the rotation mode. */
       if (pchan->rotmode > 0) {
         /* Eulers - so calculate these for the 'eul' vector, and use euler_rotation curves. */
@@ -767,17 +790,19 @@ static void pose_slide_rest_pose_apply(bContext *C, tPoseSlideOp *pso)
       }
     }
 
-    if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_BBONE_SHAPE) && (pchan->flag & POSE_BBONE_SHAPE)) {
+    if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_BBONE_SHAPE) &&
+        (slide_subject.transform_flag & ACT_TRANS_BBONE))
+    {
       /* Bbone properties - they all start a "bbone_" prefix. */
       /* TODO: Not implemented. */
-      // pose_slide_apply_props(pso, pfl, "bbone_");
+      // pose_slide_apply_props(pso, slide_subject, "bbone_");
     }
 
-    if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_PROPS) && (pfl->oldprops)) {
+    if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_PROPS) && (slide_subject.oldprops)) {
       /* Not strictly a transform, but custom properties contribute
        * to the pose produced in many rigs (e.g. the facial rigs used in Sintel). */
       /* TODO: Not implemented. */
-      // pose_slide_apply_props(pso, pfl, "[\"");
+      // pose_slide_apply_props(pso, slide_subject, "[\"");
     }
   }
 
@@ -796,7 +821,7 @@ static void pose_slide_apply(bContext *C, tPoseSlideOp *pso)
     pso->prev_frame--;
     pso->next_frame++;
 
-    for (tPoseSlideObject &ob_data : pso->ob_data_array) {
+    for (ObjectFrameRange &ob_data : pso->ob_data_array) {
       if (!ob_data.valid) {
         continue;
       }
@@ -810,48 +835,56 @@ static void pose_slide_apply(bContext *C, tPoseSlideOp *pso)
   }
 
   /* For each link, handle each set of transforms. */
-  LISTBASE_FOREACH (tPChanFCurveLink *, pfl, &pso->pfLinks) {
+  for (SlideSubject &slide_subject : pso->slide_subjects) {
     /* Valid transforms for each #bPoseChannel should have been noted already
      * - sliding the pose should be a straightforward exercise for location+rotation,
      *   but rotations get more complicated since we may want to use quaternion blending
      *   for quaternions instead...
      */
-    bPoseChannel *pchan = pfl->pchan;
+    bPoseChannel *pchan = slide_subject.pchan;
 
-    if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_LOC) && (pchan->flag & POSE_LOC)) {
+    if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_LOC) &&
+        (slide_subject.transform_flag & ACT_TRANS_LOC))
+    {
       /* Calculate these for the 'location' vector, and use location curves. */
-      pose_slide_apply_vec3(pso, pfl, pchan->loc, "location");
+      pose_slide_apply_vec3(pso, &slide_subject, pchan->loc, "location");
     }
 
-    if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_SIZE) && (pchan->flag & POSE_SIZE)) {
+    if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_SCALE) &&
+        (slide_subject.transform_flag & ACT_TRANS_SCALE))
+    {
       /* Calculate these for the 'scale' vector, and use scale curves. */
-      pose_slide_apply_vec3(pso, pfl, pchan->size, "scale");
+      pose_slide_apply_vec3(pso, &slide_subject, pchan->scale, "scale");
     }
 
-    if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_ROT) && (pchan->flag & POSE_ROT)) {
+    if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_ROT) &&
+        (slide_subject.transform_flag & ACT_TRANS_ROT))
+    {
       /* Everything depends on the rotation mode. */
       if (pchan->rotmode > 0) {
         /* Eulers - so calculate these for the 'eul' vector, and use euler_rotation curves. */
-        pose_slide_apply_vec3(pso, pfl, pchan->eul, "rotation_euler");
+        pose_slide_apply_vec3(pso, &slide_subject, pchan->eul, "rotation_euler");
       }
       else if (pchan->rotmode == ROT_MODE_AXISANGLE) {
         /* TODO: need to figure out how to do this! */
       }
       else {
         /* Quaternions - use quaternion blending. */
-        pose_slide_apply_quat(pso, pfl);
+        pose_slide_apply_quat(pso, &slide_subject);
       }
     }
 
-    if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_BBONE_SHAPE) && (pchan->flag & POSE_BBONE_SHAPE)) {
+    if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_BBONE_SHAPE) &&
+        (slide_subject.transform_flag & ACT_TRANS_BBONE))
+    {
       /* Bbone properties - they all start a "bbone_" prefix. */
-      pose_slide_apply_props(pso, pfl, "bbone_");
+      pose_slide_apply_props(pso, &slide_subject, "bbone_");
     }
 
-    if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_PROPS) && (pfl->oldprops)) {
+    if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_PROPS) && (slide_subject.oldprops)) {
       /* Not strictly a transform, but custom properties contribute
        * to the pose produced in many rigs (e.g. the facial rigs used in Sintel). */
-      pose_slide_apply_props(pso, pfl, "[\"");
+      pose_slide_apply_props(pso, &slide_subject, "[\"");
     }
   }
 
@@ -865,7 +898,7 @@ static void pose_slide_apply(bContext *C, tPoseSlideOp *pso)
 static void pose_slide_autoKeyframe(bContext *C, tPoseSlideOp *pso)
 {
   /* Wrapper around the generic call. */
-  poseAnim_mapping_autoKeyframe(C, pso->scene, &pso->pfLinks, float(pso->current_frame));
+  slide_subjects_autokey(C, pso->scene, &pso->slide_subjects, float(pso->current_frame));
 }
 
 /**
@@ -874,7 +907,7 @@ static void pose_slide_autoKeyframe(bContext *C, tPoseSlideOp *pso)
 static void pose_slide_reset(tPoseSlideOp *pso)
 {
   /* Wrapper around the generic call, so that custom stuff can be added later. */
-  poseAnim_mapping_reset(&pso->pfLinks);
+  slide_subjects_reset(&pso->slide_subjects);
 }
 
 /* ------------------------------------ */
@@ -886,99 +919,88 @@ static void pose_slide_reset(tPoseSlideOp *pso)
  */
 static void pose_slide_draw_status(bContext *C, tPoseSlideOp *pso)
 {
-  char status_str[UI_MAX_DRAW_STR];
-  char limits_str[UI_MAX_DRAW_STR];
-  char axis_str[50];
-  char mode_str[32];
-  char slider_str[UI_MAX_DRAW_STR];
-  char bone_vis_str[50];
-
+  const char *mode_st;
   switch (pso->mode) {
     case POSESLIDE_PUSH:
-      STRNCPY(mode_str, IFACE_("Push Pose"));
+      mode_st = IFACE_("Push Pose");
       break;
     case POSESLIDE_RELAX:
-      STRNCPY(mode_str, IFACE_("Relax Pose"));
+      mode_st = IFACE_("Relax Pose");
       break;
     case POSESLIDE_BREAKDOWN:
-      STRNCPY(mode_str, IFACE_("Breakdown"));
+      mode_st = IFACE_("Breakdown");
       break;
     case POSESLIDE_BLEND:
-      STRNCPY(mode_str, IFACE_("Blend to Neighbor"));
+      mode_st = IFACE_("Blend to Neighbor");
       break;
-
     default:
       /* Unknown. */
-      STRNCPY(mode_str, IFACE_("Sliding-Tool"));
+      mode_st = IFACE_("Sliding-Tool");
       break;
   }
 
-  switch (pso->axislock) {
-    case PS_LOCK_X:
-      STRNCPY(axis_str, IFACE_("[X]/Y/Z axis only (X to clear)"));
-      break;
-    case PS_LOCK_Y:
-      STRNCPY(axis_str, IFACE_("X/[Y]/Z axis only (Y to clear)"));
-      break;
-    case PS_LOCK_Z:
-      STRNCPY(axis_str, IFACE_("X/Y/[Z] axis only (Z to clear)"));
-      break;
+  ED_slider_property_label_set(pso->slider, mode_st);
 
-    default:
-      if (ELEM(pso->channels, PS_TFM_LOC, PS_TFM_ROT, PS_TFM_SIZE)) {
-        STRNCPY(axis_str, IFACE_("X/Y/Z = Axis Constraint"));
-      }
-      else {
-        axis_str[0] = '\0';
-      }
-      break;
-  }
+  WorkspaceStatus status(C);
+
+  status.item(IFACE_("Confirm"), ICON_MOUSE_LMB);
+  status.item(IFACE_("Cancel"), ICON_EVENT_ESC);
+  status.item(IFACE_("Adjust"), ICON_MOUSE_MOVE);
+
+  status.item_bool("", pso->channels == PS_TFM_LOC, ICON_EVENT_G);
+  status.item_bool("", pso->channels == PS_TFM_ROT, ICON_EVENT_R);
+  status.item_bool("", pso->channels == PS_TFM_SCALE, ICON_EVENT_S);
+  status.item_bool("", pso->channels == PS_TFM_BBONE_SHAPE, ICON_EVENT_B);
+  status.item_bool("", pso->channels == PS_TFM_PROPS, ICON_EVENT_C);
 
   switch (pso->channels) {
     case PS_TFM_LOC:
-      SNPRINTF(limits_str, IFACE_("[G]/R/S/B/C - Location only (G to clear) | %s"), axis_str);
+      status.item("Location Only", ICON_NONE);
       break;
     case PS_TFM_ROT:
-      SNPRINTF(limits_str, IFACE_("G/[R]/S/B/C - Rotation only (R to clear) | %s"), axis_str);
+      status.item("Rotation Only", ICON_NONE);
       break;
-    case PS_TFM_SIZE:
-      SNPRINTF(limits_str, IFACE_("G/R/[S]/B/C - Scale only (S to clear) | %s"), axis_str);
+    case PS_TFM_SCALE:
+      status.item("Scale Only", ICON_NONE);
       break;
     case PS_TFM_BBONE_SHAPE:
-      STRNCPY(limits_str, IFACE_("G/R/S/[B]/C - Bendy Bone properties only (B to clear) | %s"));
+      status.item("Bendy Bones Only", ICON_NONE);
       break;
     case PS_TFM_PROPS:
-      STRNCPY(limits_str, IFACE_("G/R/S/B/[C] - Custom Properties only (C to clear) | %s"));
+      status.item("Custom Properties Only", ICON_NONE);
       break;
     default:
-      STRNCPY(limits_str, IFACE_("G/R/S/B/C - Limit to Transform/Property Set"));
+      status.item("Transform limits", ICON_NONE);
       break;
   }
 
-  STRNCPY(bone_vis_str, IFACE_("[H] - Toggle bone visibility"));
-
-  ED_slider_status_string_get(pso->slider, slider_str, sizeof(slider_str));
+  if (ELEM(pso->channels, PS_TFM_LOC, PS_TFM_ROT, PS_TFM_SCALE)) {
+    status.item_bool("", pso->axislock & PS_LOCK_X, ICON_EVENT_X);
+    status.item_bool("", pso->axislock & PS_LOCK_Y, ICON_EVENT_Y);
+    status.item_bool("", pso->axislock & PS_LOCK_Z, ICON_EVENT_Z);
+    status.item(pso->axislock == 0 ? IFACE_("Axis Constraint") : IFACE_("Axis Only"), ICON_NONE);
+  }
 
   if (hasNumInput(&pso->num)) {
     Scene *scene = pso->scene;
     char str_offs[NUM_STR_REP_LEN];
 
-    outputNumInput(&pso->num, str_offs, &scene->unit);
+    outputNumInput(&pso->num, str_offs, scene->unit);
 
-    SNPRINTF(status_str, "%s: %s | %s", mode_str, str_offs, limits_str);
+    status.item(str_offs, ICON_NONE);
   }
-  else {
-    SNPRINTF(status_str, "%s: %s | %s | %s", mode_str, limits_str, slider_str, bone_vis_str);
+  else if (pso->area && (pso->area->spacetype == SPACE_VIEW3D)) {
+    ED_slider_status_get(pso->slider, status);
+    View3D *v3d = static_cast<View3D *>(pso->area->spacedata.first);
+    status.item_bool(
+        IFACE_("Bone Visibility"), !(v3d->overlay.flag & V3D_OVERLAY_HIDE_BONES), ICON_EVENT_H);
   }
-
-  ED_workspace_status_text(C, status_str);
-  ED_area_status_text(pso->area, "");
 }
 
 /**
  * Common code for invoke() methods.
  */
-static int pose_slide_invoke_common(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus pose_slide_invoke_common(bContext *C, wmOperator *op, const wmEvent *event)
 {
   wmWindow *win = CTX_wm_window(C);
 
@@ -987,11 +1009,11 @@ static int pose_slide_invoke_common(bContext *C, wmOperator *op, const wmEvent *
   ED_slider_init(pso->slider, event);
 
   /* For each link, add all its keyframes to the search tree. */
-  LISTBASE_FOREACH (tPChanFCurveLink *, pfl, &pso->pfLinks) {
+  for (SlideSubject &slide_subject : pso->slide_subjects) {
     /* Do this for each F-Curve. */
-    LISTBASE_FOREACH (LinkData *, ld, &pfl->fcurves) {
-      FCurve *fcu = (FCurve *)ld->data;
-      fcurve_to_keylist(pfl->ob->adt, fcu, pso->keylist, 0, {-FLT_MAX, FLT_MAX});
+    for (FCurve *fcu : slide_subject.fcurves) {
+      AnimData *adt = slide_subject.ob->adt;
+      fcurve_to_keylist(adt, fcu, pso->keylist, 0, {-FLT_MAX, FLT_MAX}, adt != nullptr);
     }
   }
 
@@ -1032,7 +1054,7 @@ static int pose_slide_invoke_common(bContext *C, wmOperator *op, const wmEvent *
   }
 
   /* Apply NLA mapping corrections so the frame look-ups work. */
-  for (tPoseSlideObject &ob_data : pso->ob_data_array) {
+  for (ObjectFrameRange &ob_data : pso->ob_data_array) {
     if (ob_data.valid) {
       ob_data.prev_frame = BKE_nla_tweakedit_remap(
           ob_data.ob->adt, pso->prev_frame, NLATIME_CONVERT_UNMAP);
@@ -1061,10 +1083,6 @@ static int pose_slide_invoke_common(bContext *C, wmOperator *op, const wmEvent *
 
   /* Add a modal handler for this operator. */
   WM_event_add_modal_handler(C, op);
-
-  /* Save current bone visibility. */
-  View3D *v3d = static_cast<View3D *>(pso->area->spacedata.first);
-  pso->overlay_flag = v3d->overlay.flag;
 
   return OPERATOR_RUNNING_MODAL;
 }
@@ -1124,7 +1142,7 @@ static bool pose_slide_toggle_axis_locks(wmOperator *op,
 /**
  * Operator `modal()` callback.
  */
-static int pose_slide_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus pose_slide_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   tPoseSlideOp *pso = static_cast<tPoseSlideOp *>(op->customdata);
   wmWindow *win = CTX_wm_window(C);
@@ -1141,7 +1159,6 @@ static int pose_slide_modal(bContext *C, wmOperator *op, const wmEvent *event)
       if (event->val == KM_PRESS) {
         /* Return to normal cursor and header status. */
         ED_workspace_status_text(C, nullptr);
-        ED_area_status_text(pso->area, nullptr);
         WM_cursor_modal_restore(win);
 
         /* Depsgraph updates + redraws. Redraw needed to remove UI. */
@@ -1162,7 +1179,6 @@ static int pose_slide_modal(bContext *C, wmOperator *op, const wmEvent *event)
       if (event->val == KM_PRESS) {
         /* Return to normal cursor and header status. */
         ED_workspace_status_text(C, nullptr);
-        ED_area_status_text(pso->area, nullptr);
         WM_cursor_modal_restore(win);
 
         /* Reset transforms back to original state. */
@@ -1226,7 +1242,7 @@ static int pose_slide_modal(bContext *C, wmOperator *op, const wmEvent *event)
           }
           case EVT_SKEY: /* Scale */
           {
-            pose_slide_toggle_channels_mode(op, pso, PS_TFM_SIZE);
+            pose_slide_toggle_channels_mode(op, pso, PS_TFM_SCALE);
             do_pose_update = true;
             break;
           }
@@ -1266,9 +1282,12 @@ static int pose_slide_modal(bContext *C, wmOperator *op, const wmEvent *event)
 
           /* Toggle Bone visibility. */
           case EVT_HKEY: {
-            View3D *v3d = static_cast<View3D *>(pso->area->spacedata.first);
-            v3d->overlay.flag ^= V3D_OVERLAY_HIDE_BONES;
-            ED_region_tag_redraw(pso->region);
+            if (pso->area && (pso->area->spacetype == SPACE_VIEW3D)) {
+              View3D *v3d = static_cast<View3D *>(pso->area->spacedata.first);
+              v3d->overlay.flag ^= V3D_OVERLAY_HIDE_BONES;
+              ED_region_tag_redraw(pso->region);
+            }
+            break;
           }
 
           default: /* Some other unhandled key... */
@@ -1319,7 +1338,7 @@ static void pose_slide_cancel(bContext *C, wmOperator *op)
 /**
  * Common code for exec() methods.
  */
-static int pose_slide_exec_common(bContext *C, wmOperator *op, tPoseSlideOp *pso)
+static wmOperatorStatus pose_slide_exec_common(bContext *C, wmOperator *op, tPoseSlideOp *pso)
 {
   /* Settings should have been set up ok for applying, so just apply! */
   if (!ELEM(pso->mode, POSESLIDE_BLEND_REST)) {
@@ -1399,7 +1418,7 @@ static void pose_slide_opdef_properties(wmOperatorType *ot)
 /**
  * Operator `invoke()` callback for 'push from breakdown' mode.
  */
-static int pose_slide_push_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus pose_slide_push_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   /* Initialize data. */
   if (pose_slide_init(C, op, POSESLIDE_PUSH) == 0) {
@@ -1414,7 +1433,7 @@ static int pose_slide_push_invoke(bContext *C, wmOperator *op, const wmEvent *ev
 /**
  * Operator `exec()` callback - for push.
  */
-static int pose_slide_push_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus pose_slide_push_exec(bContext *C, wmOperator *op)
 {
   tPoseSlideOp *pso;
 
@@ -1456,7 +1475,7 @@ void POSE_OT_push(wmOperatorType *ot)
 /**
  * Invoke callback - for 'relax to breakdown' mode.
  */
-static int pose_slide_relax_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus pose_slide_relax_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   /* Initialize data. */
   if (pose_slide_init(C, op, POSESLIDE_RELAX) == 0) {
@@ -1471,7 +1490,7 @@ static int pose_slide_relax_invoke(bContext *C, wmOperator *op, const wmEvent *e
 /**
  * Operator exec() - for relax.
  */
-static int pose_slide_relax_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus pose_slide_relax_exec(bContext *C, wmOperator *op)
 {
   tPoseSlideOp *pso;
 
@@ -1512,7 +1531,9 @@ void POSE_OT_relax(wmOperatorType *ot)
 /**
  * Operator `invoke()` - for 'blend with rest pose' mode.
  */
-static int pose_slide_blend_rest_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus pose_slide_blend_rest_invoke(bContext *C,
+                                                     wmOperator *op,
+                                                     const wmEvent *event)
 {
   /* Initialize data. */
   if (pose_slide_init(C, op, POSESLIDE_BLEND_REST) == 0) {
@@ -1531,7 +1552,7 @@ static int pose_slide_blend_rest_invoke(bContext *C, wmOperator *op, const wmEve
 /**
  * Operator `exec()` - for push.
  */
-static int pose_slide_blend_rest_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus pose_slide_blend_rest_exec(bContext *C, wmOperator *op)
 {
   tPoseSlideOp *pso;
 
@@ -1573,7 +1594,9 @@ void POSE_OT_blend_with_rest(wmOperatorType *ot)
 /**
  * Operator `invoke()` - for 'breakdown' mode.
  */
-static int pose_slide_breakdown_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus pose_slide_breakdown_invoke(bContext *C,
+                                                    wmOperator *op,
+                                                    const wmEvent *event)
 {
   /* Initialize data. */
   if (pose_slide_init(C, op, POSESLIDE_BREAKDOWN) == 0) {
@@ -1588,7 +1611,7 @@ static int pose_slide_breakdown_invoke(bContext *C, wmOperator *op, const wmEven
 /**
  * Operator exec() - for breakdown.
  */
-static int pose_slide_breakdown_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus pose_slide_breakdown_exec(bContext *C, wmOperator *op)
 {
   tPoseSlideOp *pso;
 
@@ -1626,7 +1649,9 @@ void POSE_OT_breakdown(wmOperatorType *ot)
 }
 
 /* ........................ */
-static int pose_slide_blend_to_neighbors_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus pose_slide_blend_to_neighbors_invoke(bContext *C,
+                                                             wmOperator *op,
+                                                             const wmEvent *event)
 {
   /* Initialize data. */
   if (pose_slide_init(C, op, POSESLIDE_BLEND) == 0) {
@@ -1638,7 +1663,7 @@ static int pose_slide_blend_to_neighbors_invoke(bContext *C, wmOperator *op, con
   return pose_slide_invoke_common(C, op, event);
 }
 
-static int pose_slide_blend_to_neighbors_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus pose_slide_blend_to_neighbors_exec(bContext *C, wmOperator *op)
 {
   tPoseSlideOp *pso;
 
@@ -1702,52 +1727,56 @@ struct FrameLink {
   float frame;
 };
 
-static void propagate_curve_values(ListBase /*tPChanFCurveLink*/ *pflinks,
+static void propagate_curve_values(ListBaseT<SlideSubject> *slide_subjects,
                                    const float source_frame,
-                                   ListBase /*FrameLink*/ *target_frames)
+                                   ListBaseT<FrameLink> *target_frames)
 {
   using namespace blender::animrig;
   const KeyframeSettings settings = get_keyframe_settings(true);
-  LISTBASE_FOREACH (tPChanFCurveLink *, pfl, pflinks) {
-    LISTBASE_FOREACH (LinkData *, ld, &pfl->fcurves) {
-      FCurve *fcu = (FCurve *)ld->data;
+  for (SlideSubject &slide_subject : *slide_subjects) {
+    for (FCurve *fcu : slide_subject.fcurves) {
+      if (!fcu->bezt) {
+        continue;
+      }
       const float current_fcu_value = evaluate_fcurve(fcu, source_frame);
-      LISTBASE_FOREACH (FrameLink *, target_frame, target_frames) {
+      for (FrameLink &target_frame : *target_frames) {
         insert_vert_fcurve(
-            fcu, {target_frame->frame, current_fcu_value}, settings, INSERTKEY_NEEDED);
+            fcu, {target_frame.frame, current_fcu_value}, settings, INSERTKEY_NOFLAGS);
       }
     }
   }
 }
 
-static float find_next_key(ListBase *pflinks, const float start_frame)
+static float find_next_key(ListBaseT<SlideSubject> *slide_subjects, const float start_frame)
 {
   float target_frame = FLT_MAX;
-  LISTBASE_FOREACH (tPChanFCurveLink *, pfl, pflinks) {
-    LISTBASE_FOREACH (LinkData *, ld, &pfl->fcurves) {
-      FCurve *fcu = (FCurve *)ld->data;
+  for (SlideSubject &slide_subject : *slide_subjects) {
+    for (const FCurve *fcu : slide_subject.fcurves) {
+      if (!fcu->bezt) {
+        continue;
+      }
       bool replace;
       int current_frame_index = BKE_fcurve_bezt_binarysearch_index(
           fcu->bezt, start_frame, fcu->totvert, &replace);
       if (replace) {
-        const int bezt_index = min_ii(current_frame_index + 1, fcu->totvert - 1);
-        target_frame = min_ff(target_frame, fcu->bezt[bezt_index].vec[1][0]);
+        current_frame_index += 1;
       }
-      else {
-        target_frame = min_ff(target_frame, fcu->bezt[current_frame_index].vec[1][0]);
-      }
+      const int bezt_index = min_ii(current_frame_index, fcu->totvert - 1);
+      target_frame = min_ff(target_frame, fcu->bezt[bezt_index].vec[1][0]);
     }
   }
 
   return target_frame;
 }
 
-static float find_last_key(ListBase *pflinks)
+static float find_last_key(ListBaseT<SlideSubject> *slide_subjects)
 {
   float target_frame = FLT_MIN;
-  LISTBASE_FOREACH (tPChanFCurveLink *, pfl, pflinks) {
-    LISTBASE_FOREACH (LinkData *, ld, &pfl->fcurves) {
-      FCurve *fcu = (FCurve *)ld->data;
+  for (SlideSubject &slide_subject : *slide_subjects) {
+    for (const FCurve *fcu : slide_subject.fcurves) {
+      if (!fcu->bezt) {
+        continue;
+      }
       target_frame = max_ff(target_frame, fcu->bezt[fcu->totvert - 1].vec[1][0]);
     }
   }
@@ -1755,59 +1784,58 @@ static float find_last_key(ListBase *pflinks)
   return target_frame;
 }
 
-static void get_selected_marker_positions(Scene *scene, ListBase /*FrameLink*/ *target_frames)
+static void get_selected_marker_positions(Scene *scene, ListBaseT<FrameLink> *target_frames)
 {
-  ListBase selected_markers = {nullptr, nullptr};
-  ED_markers_make_cfra_list(&scene->markers, &selected_markers, SELECT);
-  LISTBASE_FOREACH (CfraElem *, marker, &selected_markers) {
-    FrameLink *link = static_cast<FrameLink *>(MEM_callocN(sizeof(FrameLink), "Marker Key Link"));
-    link->frame = marker->cfra;
+  ListBaseT<CfraElem> selected_markers = {nullptr, nullptr};
+  ED_markers_make_cfra_list(&scene->markers, &selected_markers, true);
+  for (CfraElem &marker : selected_markers) {
+    FrameLink *link = MEM_new_zeroed<FrameLink>("Marker Key Link");
+    link->frame = marker.cfra;
     BLI_addtail(target_frames, link);
   }
   BLI_freelistN(&selected_markers);
 }
 
-static void get_keyed_frames_in_range(ListBase *pflinks,
+static void get_keyed_frames_in_range(ListBaseT<SlideSubject> *slide_subjects,
                                       const float start_frame,
                                       const float end_frame,
-                                      ListBase /*FrameLink*/ *target_frames)
+                                      ListBaseT<FrameLink> *target_frames)
 {
   AnimKeylist *keylist = ED_keylist_create();
-  LISTBASE_FOREACH (tPChanFCurveLink *, pfl, pflinks) {
-    LISTBASE_FOREACH (LinkData *, ld, &pfl->fcurves) {
-      FCurve *fcu = (FCurve *)ld->data;
-      fcurve_to_keylist(nullptr, fcu, keylist, 0, {start_frame, end_frame});
+  for (SlideSubject &slide_subject : *slide_subjects) {
+    for (FCurve *fcu : slide_subject.fcurves) {
+      fcurve_to_keylist(nullptr, fcu, keylist, 0, {start_frame, end_frame}, false);
     }
   }
-  LISTBASE_FOREACH (ActKeyColumn *, column, ED_keylist_listbase(keylist)) {
-    if (column->cfra <= start_frame) {
+  for (ActKeyColumn &column : *ED_keylist_listbase(keylist)) {
+    if (column.cfra <= start_frame) {
       continue;
     }
-    if (column->cfra > end_frame) {
+    if (column.cfra > end_frame) {
       break;
     }
-    FrameLink *link = static_cast<FrameLink *>(MEM_callocN(sizeof(FrameLink), "Marker Key Link"));
-    link->frame = column->cfra;
+    FrameLink *link = MEM_new_zeroed<FrameLink>("Marker Key Link");
+    link->frame = column.cfra;
     BLI_addtail(target_frames, link);
   }
   ED_keylist_free(keylist);
 }
 
-static void get_selected_frames(ListBase *pflinks, ListBase /*FrameLink*/ *target_frames)
+static void get_selected_frames(ListBaseT<SlideSubject> *slide_subjects,
+                                ListBaseT<FrameLink> *target_frames)
 {
   AnimKeylist *keylist = ED_keylist_create();
-  LISTBASE_FOREACH (tPChanFCurveLink *, pfl, pflinks) {
-    LISTBASE_FOREACH (LinkData *, ld, &pfl->fcurves) {
-      FCurve *fcu = (FCurve *)ld->data;
-      fcurve_to_keylist(nullptr, fcu, keylist, 0, {-FLT_MAX, FLT_MAX});
+  for (SlideSubject &slide_subject : *slide_subjects) {
+    for (FCurve *fcu : slide_subject.fcurves) {
+      fcurve_to_keylist(nullptr, fcu, keylist, 0, {-FLT_MAX, FLT_MAX}, false);
     }
   }
-  LISTBASE_FOREACH (ActKeyColumn *, column, ED_keylist_listbase(keylist)) {
-    if (!column->sel) {
+  for (ActKeyColumn &column : *ED_keylist_listbase(keylist)) {
+    if (!column.sel) {
       continue;
     }
-    FrameLink *link = static_cast<FrameLink *>(MEM_callocN(sizeof(FrameLink), "Marker Key Link"));
-    link->frame = column->cfra;
+    FrameLink *link = MEM_new_zeroed<FrameLink>("Marker Key Link");
+    link->frame = column.cfra;
     BLI_addtail(target_frames, link);
   }
   ED_keylist_free(keylist);
@@ -1815,20 +1843,21 @@ static void get_selected_frames(ListBase *pflinks, ListBase /*FrameLink*/ *targe
 
 /* --------------------------------- */
 
-static int pose_propagate_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus pose_propagate_exec(bContext *C, wmOperator *op)
 {
+  const Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   View3D *v3d = CTX_wm_view3d(C);
 
-  ListBase pflinks = {nullptr, nullptr};
+  ListBaseT<SlideSubject> slide_subjects = {nullptr, nullptr};
 
   const int mode = RNA_enum_get(op->ptr, "mode");
 
   /* Isolate F-Curves related to the selected bones. */
-  poseAnim_mapping_get(C, &pflinks);
+  slide_subjects_get(C, &slide_subjects);
 
-  if (BLI_listbase_is_empty(&pflinks)) {
+  if (BLI_listbase_is_empty(&slide_subjects)) {
     /* There is a change the reason the list is empty is
      * that there is no valid object to propagate poses for.
      * This is very unlikely though, so we focus on the most likely issue. */
@@ -1839,46 +1868,46 @@ static int pose_propagate_exec(bContext *C, wmOperator *op)
   const float end_frame = RNA_float_get(op->ptr, "end_frame");
   const float current_frame = BKE_scene_frame_get(scene);
 
-  ListBase target_frames = {nullptr, nullptr};
+  ListBaseT<FrameLink> target_frames = {nullptr, nullptr};
 
   switch (mode) {
     case POSE_PROPAGATE_NEXT_KEY: {
-      float target_frame = find_next_key(&pflinks, current_frame);
-      FrameLink *link = static_cast<FrameLink *>(MEM_callocN(sizeof(FrameLink), "Next Key Link"));
+      float target_frame = find_next_key(&slide_subjects, current_frame);
+      FrameLink *link = MEM_new_zeroed<FrameLink>("Next Key Link");
       link->frame = target_frame;
       BLI_addtail(&target_frames, link);
-      propagate_curve_values(&pflinks, current_frame, &target_frames);
+      propagate_curve_values(&slide_subjects, current_frame, &target_frames);
       break;
     }
 
     case POSE_PROPAGATE_LAST_KEY: {
-      float target_frame = find_last_key(&pflinks);
-      FrameLink *link = static_cast<FrameLink *>(MEM_callocN(sizeof(FrameLink), "Last Key Link"));
+      float target_frame = find_last_key(&slide_subjects);
+      FrameLink *link = MEM_new_zeroed<FrameLink>("Last Key Link");
       link->frame = target_frame;
       BLI_addtail(&target_frames, link);
-      propagate_curve_values(&pflinks, current_frame, &target_frames);
+      propagate_curve_values(&slide_subjects, current_frame, &target_frames);
       break;
     }
 
     case POSE_PROPAGATE_SELECTED_MARKERS: {
       get_selected_marker_positions(scene, &target_frames);
-      propagate_curve_values(&pflinks, current_frame, &target_frames);
+      propagate_curve_values(&slide_subjects, current_frame, &target_frames);
       break;
     }
 
     case POSE_PROPAGATE_BEFORE_END: {
-      get_keyed_frames_in_range(&pflinks, current_frame, FLT_MAX, &target_frames);
-      propagate_curve_values(&pflinks, current_frame, &target_frames);
+      get_keyed_frames_in_range(&slide_subjects, current_frame, FLT_MAX, &target_frames);
+      propagate_curve_values(&slide_subjects, current_frame, &target_frames);
       break;
     }
     case POSE_PROPAGATE_BEFORE_FRAME: {
-      get_keyed_frames_in_range(&pflinks, current_frame, end_frame, &target_frames);
-      propagate_curve_values(&pflinks, current_frame, &target_frames);
+      get_keyed_frames_in_range(&slide_subjects, current_frame, end_frame, &target_frames);
+      propagate_curve_values(&slide_subjects, current_frame, &target_frames);
       break;
     }
     case POSE_PROPAGATE_SELECTED_KEYS: {
-      get_selected_frames(&pflinks, &target_frames);
-      propagate_curve_values(&pflinks, current_frame, &target_frames);
+      get_selected_frames(&slide_subjects, &target_frames);
+      propagate_curve_values(&slide_subjects, current_frame, &target_frames);
       break;
     }
   }
@@ -1886,11 +1915,11 @@ static int pose_propagate_exec(bContext *C, wmOperator *op)
   BLI_freelistN(&target_frames);
 
   /* Free temp data. */
-  poseAnim_mapping_free(&pflinks);
+  slide_subjects_free(&slide_subjects);
 
   /* Updates + notifiers. */
-  FOREACH_OBJECT_IN_MODE_BEGIN (scene, view_layer, v3d, OB_ARMATURE, OB_MODE_POSE, ob) {
-    poseAnim_mapping_refresh(C, scene, ob);
+  FOREACH_OBJECT_IN_MODE_BEGIN (bmain, scene, view_layer, v3d, OB_ARMATURE, OB_MODE_POSE, ob) {
+    slide_subjects_refresh(C, scene, ob);
   }
   FOREACH_OBJECT_IN_MODE_END;
 
@@ -1969,3 +1998,5 @@ void POSE_OT_propagate(wmOperatorType *ot)
 }
 
 /* **************************************************** */
+
+}  // namespace blender

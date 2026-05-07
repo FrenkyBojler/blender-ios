@@ -33,6 +33,7 @@ def render_gl(context, filepath, shade):
     scene = context.scene
     render = scene.render
     render.filepath = filepath
+    render.image_settings.media_type = 'IMAGE'
     render.image_settings.file_format = 'PNG'
     render.image_settings.color_mode = 'RGB'
     render.use_file_extension = True
@@ -47,7 +48,7 @@ def render_gl(context, filepath, shade):
 
     # stop to inspect!
     # if filepath == "test_cube_shell_solidify_subsurf_wp_wire":
-    #     assert(0)
+    #     assert False
     # else:
     #     return
 

@@ -16,10 +16,6 @@
 
 #include "BLI_sys_types.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -35,14 +31,13 @@ int UnaryFunction1DUnsigned_Init(PyObject *module)
   if (PyType_Ready(&UnaryFunction1DUnsigned_Type) < 0) {
     return -1;
   }
-  Py_INCREF(&UnaryFunction1DUnsigned_Type);
-  PyModule_AddObject(module, "UnaryFunction1DUnsigned", (PyObject *)&UnaryFunction1DUnsigned_Type);
+  PyModule_AddObjectRef(
+      module, "UnaryFunction1DUnsigned", (PyObject *)&UnaryFunction1DUnsigned_Type);
 
   if (PyType_Ready(&QuantitativeInvisibilityF1D_Type) < 0) {
     return -1;
   }
-  Py_INCREF(&QuantitativeInvisibilityF1D_Type);
-  PyModule_AddObject(
+  PyModule_AddObjectRef(
       module, "QuantitativeInvisibilityF1D", (PyObject *)&QuantitativeInvisibilityF1D_Type);
 
   return 0;
@@ -66,7 +61,6 @@ PyDoc_STRVAR(
     "\n"
     "   :arg integration_type: An integration method.\n"
     "   :type integration_type: :class:`IntegrationType`\n");
-
 static int UnaryFunction1DUnsigned___init__(BPy_UnaryFunction1DUnsigned *self,
                                             PyObject *args,
                                             PyObject *kwds)
@@ -136,8 +130,7 @@ PyDoc_STRVAR(
     integration_type_doc,
     "The integration method.\n"
     "\n"
-    ":type: :class:`IntegrationType`");
-
+    ":type: :class:`IntegrationType`\n");
 static PyObject *integration_type_get(BPy_UnaryFunction1DUnsigned *self, void * /*closure*/)
 {
   return BPy_IntegrationType_from_IntegrationType(self->uf1D_unsigned->getIntegrationType());
@@ -208,7 +201,3 @@ PyTypeObject UnaryFunction1DUnsigned_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

@@ -8,9 +8,13 @@
 
 #pragma once
 
+namespace blender {
+
 /* internal exports only */
 
+struct ARegion;
 struct ConsoleLine;
+struct SpaceConsole;
 struct bContext;
 struct wmOperatorType;
 
@@ -65,3 +69,5 @@ enum {
   DEL_NEXT_SEL,
   DEL_PREV_SEL
 };
+
+}  // namespace blender

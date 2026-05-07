@@ -7,30 +7,37 @@
  */
 
 #include <cstdio>
+#include <optional>
 
 #include <Python.h>
 
 #include "MEM_guardedalloc.h"
 
 #include "BLI_fileops.h"
+#include "BLI_function_ref.hh"
 #include "BLI_listbase.h"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
+#include "BLI_string_utils.hh"
 
 #include "BKE_context.hh"
+#include "BKE_idprop.hh"
+#include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_report.hh"
 #include "BKE_text.h"
 
 #include "DNA_text_types.h"
 
-#include "BPY_extern_run.h"
+#include "BPY_extern_run.hh"
 
-#include "bpy_capi_utils.h"
-#include "bpy_intern_string.h"
-#include "bpy_traceback.h"
+#include "bpy_capi_utils.hh"
+#include "bpy_traceback.hh"
 
-#include "../generic/py_capi_utils.h"
+#include "../generic/idprop_py_api.hh"
+#include "../generic/py_capi_utils.hh"
+
+namespace blender {
 
 /* -------------------------------------------------------------------- */
 /** \name Private Utilities
@@ -57,26 +64,9 @@ static void bpy_text_filepath_get(char *filepath,
                                   const Main *bmain,
                                   const Text *text)
 {
-  BLI_snprintf(filepath,
-               filepath_maxncpy,
-               "%s%c%s",
-               ID_BLEND_PATH(bmain, &text->id),
-               SEP,
-               text->id.name + 2);
+  BLI_string_join_by_sep_char(
+      filepath, filepath_maxncpy, SEP, ID_BLEND_PATH(bmain, &text->id), text->id.name + 2);
 }
-
-/* Very annoying! Undo #_PyModule_Clear(), see #23871. */
-#define PYMODULE_CLEAR_WORKAROUND
-
-#ifdef PYMODULE_CLEAR_WORKAROUND
-/* bad!, we should never do this, but currently only safe way I could find to keep namespace.
- * from being cleared. - campbell */
-struct PyModuleObject {
-  PyObject_HEAD
-  PyObject *md_dict;
-  /* omit other values, we only want the dict. */
-};
-#endif
 
 /**
  * Compatibility wrapper for #PyRun_FileExFlags.
@@ -117,7 +107,7 @@ static PyObject *python_compat_wrapper_PyRun_FileExFlags(FILE *fp,
     buf[buf_len] = '\0';
     PyObject *filepath_py = PyC_UnicodeFromBytes(filepath);
     PyObject *compiled = Py_CompileStringObject(buf, filepath_py, Py_file_input, flags, -1);
-    MEM_freeN(buf);
+    MEM_delete(buf);
     Py_DECREF(filepath_py);
 
     if (compiled == nullptr) {
@@ -143,24 +133,22 @@ static PyObject *python_compat_wrapper_PyRun_FileExFlags(FILE *fp,
 static bool python_script_exec(
     bContext *C, const char *filepath, Text *text, ReportList *reports, const bool do_jump)
 {
-  Main *bmain_old = CTX_data_main(C);
-  PyObject *main_mod = nullptr;
-  PyObject *py_dict = nullptr, *py_result = nullptr;
+  BLI_assert(filepath || text);
+  if (filepath == nullptr && text == nullptr) {
+    return false;
+  }
+
   PyGILState_STATE gilstate;
+  bpy_context_set(C, &gilstate);
+
+  Main *bmain_old = CTX_data_main(C);
+  PyObject *py_dict = nullptr, *py_result = nullptr;
 
   char filepath_dummy[FILE_MAX];
   /** The `__file__` added into the name-space. */
   const char *filepath_namespace = nullptr;
 
-  BLI_assert(filepath || text);
-
-  if (filepath == nullptr && text == nullptr) {
-    return false;
-  }
-
-  bpy_context_set(C, &gilstate);
-
-  PyC_MainModule_Backup(&main_mod);
+  PyObject *main_mod = PyC_MainModule_Backup();
 
   if (text) {
     bpy_text_filepath_get(filepath_dummy, sizeof(filepath_dummy), bmain_old, text);
@@ -171,7 +159,7 @@ static bool python_script_exec(
       size_t buf_len_dummy;
       char *buf = txt_to_buf(text, &buf_len_dummy);
       text->compiled = Py_CompileStringObject(buf, filepath_dummy_py, Py_file_input, nullptr, -1);
-      MEM_freeN(buf);
+      MEM_delete(buf);
       Py_DECREF(filepath_dummy_py);
     }
 
@@ -212,6 +200,9 @@ static bool python_script_exec(
     if (reports) {
       BPy_errors_to_report(reports);
     }
+    else {
+      PyC_Err_CaptureSystemExitCode();
+    }
     if (text) {
       if (do_jump) {
         /* ensure text is valid before use, the script may have freed itself */
@@ -221,30 +212,22 @@ static bool python_script_exec(
         }
       }
     }
-    if (!reports) {
+    if (reports) {
+      PyErr_Clear();
+    }
+    else {
       PyErr_Print();
     }
-    PyErr_Clear();
   }
   else {
     Py_DECREF(py_result);
   }
 
-  if (py_dict) {
-#ifdef PYMODULE_CLEAR_WORKAROUND
-    PyModuleObject *mmod = (PyModuleObject *)PyDict_GetItem(PyImport_GetModuleDict(),
-                                                            bpy_intern_str___main__);
-    PyObject *dict_back = mmod->md_dict;
-    /* freeing the module will clear the namespace,
-     * gives problems running classes defined in this namespace being used later. */
-    mmod->md_dict = nullptr;
-    Py_DECREF(dict_back);
-#endif
-
-#undef PYMODULE_CLEAR_WORKAROUND
-  }
-
   PyC_MainModule_Restore(main_mod);
+
+  /* Flush `stdout` & `stderr` to ensure the script output is visible.
+   * Using `fflush(stdout)` does not solve it. */
+  PyC_StdFilesFlush();
 
   bpy_context_clear(C, &gilstate);
 
@@ -278,7 +261,6 @@ static bool bpy_run_string_impl(bContext *C,
 {
   BLI_assert(expr);
   PyGILState_STATE gilstate;
-  PyObject *main_mod = nullptr;
   PyObject *py_dict, *retval;
   bool ok = true;
 
@@ -286,9 +268,10 @@ static bool bpy_run_string_impl(bContext *C,
     return ok;
   }
 
-  bpy_context_set(C, &gilstate);
+  /* Historically `BPY_run_*` C to be null, risky but not trivial to change. See doc-string. */
+  bpy_context_set_allow_null(C, &gilstate);
 
-  PyC_MainModule_Backup(&main_mod);
+  PyObject *main_mod = PyC_MainModule_Backup();
 
   py_dict = PyC_DefaultNameSpace("<blender string>");
 
@@ -305,8 +288,10 @@ static bool bpy_run_string_impl(bContext *C,
     if (ReportList *wm_reports = C ? CTX_wm_reports(C) : nullptr) {
       BPy_errors_to_report(wm_reports);
     }
+    else {
+      PyC_Err_CaptureSystemExitCode();
+    }
     PyErr_Print();
-    PyErr_Clear();
   }
   else {
     Py_DECREF(retval);
@@ -329,6 +314,137 @@ bool BPY_run_string_exec(bContext *C, const char *imports[], const char *expr)
   return bpy_run_string_impl(C, imports, expr, Py_file_input);
 }
 
+/**
+ * Convert a simple Python object to an IDProperty.
+ *
+ * Only supports bool, int, float, string, and None values.
+ *
+ * \param obj The Python object to convert. Should NOT be nullptr.
+ * \return IDProperty The converted property, or nullptr if the Python value was None. The caller
+ * owns the pointer, and is responsible for freeing it.
+ */
+static IDProperty *pyobject_to_idprop(const StringRefNull prop_name, PyObject *py_object)
+{
+  if (py_object == Py_None) {
+    return nullptr;
+  }
+  return BPy_IDProperty_FromPyObject(nullptr, prop_name.c_str(), py_object, false, true);
+}
+
+/**
+ * Run the given script with the given local variables.
+ *
+ * This assumes that the Python environment has been set up (i.e. the GIL has been acquired). In
+ * case of a Python exception, this function returns `false` and the caller is responsible for
+ * dealing with the exception.
+ */
+static bool bpy_run_string_exec_with_locals_assume_gil(
+    const StringRefNull script,
+    IDProperty &locals,
+    FunctionRef<void(PyObject *py_locals)> on_exec_ok)
+{
+  /* Set up locals & globals. */
+  BLI_assert(locals.type == IDP_GROUP);
+  PyObject *py_locals = BPy_IDGroup_MapDataToPy(&locals);
+  if (!py_locals) {
+    /* Leave the printing of the exception to the caller. */
+    return false;
+  }
+
+  PyObject *py_globals = PyC_DefaultNameSpace("<BPY_run_string_exec_with_locals>");
+  BLI_assert(py_globals);
+
+  /* Run the script. The result object itself is not used, but its existence
+   * indicates that the script ran without uncaught exceptions. The printing of
+   * any exception is left to the caller. */
+  PyObject *result = PyRun_String(script.c_str(), Py_file_input, py_globals, py_locals);
+  const bool ok = (result != nullptr);
+  if (ok) {
+    Py_DECREF(result);
+    if (on_exec_ok) {
+      on_exec_ok(py_locals);
+    }
+  }
+
+  /* Clean up references. */
+  Py_DECREF(py_locals);
+
+  return ok;
+}
+
+static bool bpy_run_string_exec_with_locals_acquire_gil(
+    bContext *C,
+    const StringRefNull script,
+    IDProperty &locals,
+    FunctionRef<void(PyObject *py_locals)> on_exec_ok)
+{
+  PyGILState_STATE gilstate;
+  /* Historically `BPY_run_*` C to be null, risky but not trivial to change. See doc-string. */
+
+  bpy_context_set_allow_null(C, &gilstate);
+
+  PyObject *main_mod_backup = PyC_MainModule_Backup();
+
+  const bool ok = bpy_run_string_exec_with_locals_assume_gil(script, locals, on_exec_ok);
+  if (!ok) {
+    if (ReportList *wm_reports = C ? CTX_wm_reports(C) : nullptr) {
+      BPy_errors_to_report(wm_reports);
+    }
+    else {
+      PyC_Err_CaptureSystemExitCode();
+    }
+    PyErr_Print();
+  }
+
+  PyC_MainModule_Restore(main_mod_backup);
+  bpy_context_clear(C, &gilstate);
+
+  return ok;
+}
+
+bool BPY_run_string_exec_with_locals(bContext *C, const StringRefNull script, IDProperty &locals)
+{
+  return bpy_run_string_exec_with_locals_acquire_gil(C, script, locals, nullptr);
+}
+
+std::optional<IDProperty *> BPY_run_string_exec_with_locals_return_idprop(
+    bContext *C,
+    const StringRefNull script,
+    IDProperty &locals,
+    const StringRefNull result_var_name)
+{
+  BLI_assert(!result_var_name.is_empty());
+
+  std::optional<IDProperty *> result_idprop;
+
+  const auto on_exec_ok = [&result_var_name, &result_idprop](PyObject *py_locals) {
+    PyObject *py_ret = PyDict_GetItemString(py_locals, result_var_name.c_str());
+    if (!py_ret) {
+      /* _result was not defined by the script, translates to 'no value'. */
+      return;
+    }
+
+    if (py_ret == Py_None) {
+      /* _result = None, which translates to a nullptr value. */
+      result_idprop = nullptr;
+      return;
+    }
+
+    result_idprop = pyobject_to_idprop(result_var_name, py_ret);
+    if (!result_idprop) {
+      PyErr_Print();
+    }
+  };
+
+  const bool exec_ok = bpy_run_string_exec_with_locals_acquire_gil(C, script, locals, on_exec_ok);
+  if (!exec_ok) {
+    BLI_assert(!result_idprop.has_value());
+    return std::nullopt;
+  }
+
+  return result_idprop;
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -344,7 +460,6 @@ static void run_string_handle_error(BPy_RunErrInfo *err_info)
 
   if (err_info == nullptr) {
     PyErr_Print();
-    PyErr_Clear();
     return;
   }
 
@@ -389,7 +504,6 @@ bool BPY_run_string_as_number(bContext *C,
                               BPy_RunErrInfo *err_info,
                               double *r_value)
 {
-  PyGILState_STATE gilstate;
   bool ok = true;
 
   if (expr[0] == '\0') {
@@ -397,7 +511,9 @@ bool BPY_run_string_as_number(bContext *C,
     return ok;
   }
 
-  bpy_context_set(C, &gilstate);
+  PyGILState_STATE gilstate;
+  /* Historically `BPY_run_*` C to be null, risky but not trivial to change. See doc-string. */
+  bpy_context_set_allow_null(C, &gilstate);
 
   ok = PyC_RunString_AsNumber(imports, expr, "<expr as number>", r_value);
 
@@ -417,7 +533,6 @@ bool BPY_run_string_as_string_and_len(bContext *C,
                                       char **r_value,
                                       size_t *r_value_len)
 {
-  PyGILState_STATE gilstate;
   bool ok = true;
 
   if (expr[0] == '\0') {
@@ -425,7 +540,9 @@ bool BPY_run_string_as_string_and_len(bContext *C,
     return ok;
   }
 
-  bpy_context_set(C, &gilstate);
+  PyGILState_STATE gilstate;
+  /* Historically `BPY_run_*` C to be null, risky but not trivial to change. See doc-string. */
+  bpy_context_set_allow_null(C, &gilstate);
 
   ok = PyC_RunString_AsStringAndSize(imports, expr, "<expr as str>", r_value, r_value_len);
 
@@ -445,13 +562,50 @@ bool BPY_run_string_as_string(
   return BPY_run_string_as_string_and_len(C, imports, expr, err_info, r_value, &value_dummy_len);
 }
 
+bool BPY_run_string_as_string_and_len_or_none(bContext *C,
+                                              const char *imports[],
+                                              const char *expr,
+                                              BPy_RunErrInfo *err_info,
+                                              char **r_value,
+                                              size_t *r_value_len)
+{
+  bool ok = true;
+
+  if (expr[0] == '\0') {
+    *r_value = nullptr;
+    return ok;
+  }
+
+  PyGILState_STATE gilstate;
+  /* Historically `BPY_run_*` C to be null, risky but not trivial to change. See doc-string. */
+  bpy_context_set_allow_null(C, &gilstate);
+
+  ok = PyC_RunString_AsStringAndSizeOrNone(
+      imports, expr, "<expr as str or none>", r_value, r_value_len);
+
+  if (ok == false) {
+    run_string_handle_error(err_info);
+  }
+
+  bpy_context_clear(C, &gilstate);
+
+  return ok;
+}
+
+bool BPY_run_string_as_string_or_none(
+    bContext *C, const char *imports[], const char *expr, BPy_RunErrInfo *err_info, char **r_value)
+{
+  size_t value_dummy_len;
+  return BPY_run_string_as_string_and_len_or_none(
+      C, imports, expr, err_info, r_value, &value_dummy_len);
+}
+
 bool BPY_run_string_as_intptr(bContext *C,
                               const char *imports[],
                               const char *expr,
                               BPy_RunErrInfo *err_info,
                               intptr_t *r_value)
 {
-  PyGILState_STATE gilstate;
   bool ok = true;
 
   if (expr[0] == '\0') {
@@ -459,7 +613,9 @@ bool BPY_run_string_as_intptr(bContext *C,
     return ok;
   }
 
-  bpy_context_set(C, &gilstate);
+  PyGILState_STATE gilstate;
+  /* Historically `BPY_run_*` C to be null, risky but not trivial to change. See doc-string. */
+  bpy_context_set_allow_null(C, &gilstate);
 
   ok = PyC_RunString_AsIntPtr(imports, expr, "<expr as intptr>", r_value);
 
@@ -473,3 +629,5 @@ bool BPY_run_string_as_intptr(bContext *C,
 }
 
 /** \} */
+
+}  // namespace blender

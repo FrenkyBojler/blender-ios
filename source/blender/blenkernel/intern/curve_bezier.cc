@@ -45,16 +45,19 @@ void calculate_evaluated_offsets(const Span<int8_t> handle_types_left,
     return;
   }
 
+  const int points_per_segment = std::max(1, resolution);
+
   int offset = 0;
   for (const int i : IndexRange(size - 1)) {
     evaluated_offsets[i] = offset;
-    offset += segment_is_vector(handle_types_left, handle_types_right, i) ? 1 : resolution;
+    offset += segment_is_vector(handle_types_left, handle_types_right, i) ? 1 : points_per_segment;
   }
 
   evaluated_offsets.last(1) = offset;
   if (cyclic) {
-    offset += last_cyclic_segment_is_vector(handle_types_left, handle_types_right) ? 1 :
-                                                                                     resolution;
+    offset += last_cyclic_segment_is_vector(handle_types_left, handle_types_right) ?
+                  1 :
+                  points_per_segment;
   }
   else {
     offset++;
@@ -94,6 +97,52 @@ static float3 calculate_aligned_handle(const float3 &position,
   return position - dir * length;
 }
 
+/* Align handles to each other, length will be preserved (unless zero). The new handles will be on
+ * the same plane as the old ones.*/
+static std::pair<float3, float3> calculate_align_both_handles(const float3 &position,
+                                                              const float3 &left_handle,
+                                                              const float3 &right_handle)
+{
+  const float3 left_dir = left_handle - position;
+  const float3 right_dir = right_handle - position;
+
+  /* Keep track of the lengths of both handles. */
+  const float left_length = math::length(left_dir);
+  const float right_length = math::length(right_dir);
+
+  if (left_length == 0.0f && right_length == 0.0f) {
+    /* All three points are the same, no clear way to fixed it. */
+    return {left_handle, right_handle};
+  }
+  /* If one handle has zero length, use the other as the length and direction. */
+  if (left_length == 0.0f) {
+    return {position - right_dir, right_handle};
+  }
+  if (right_length == 0.0f) {
+    return {left_handle, position - left_dir};
+  }
+
+  /* Use the direction halfway between the two directions. */
+  float3 align_dir = math::normalize(left_dir) + math::normalize(right_dir);
+
+  const float align_length = math::length(align_dir);
+  if (align_length <= 0.0001f * (left_length + right_length)) {
+    /* The handles are already aligned. */
+    return {left_handle, right_handle};
+  }
+
+  /* Normalize. */
+  align_dir = align_dir / align_length;
+
+  /* Project the directions onto the plane formed by `align_dir`. */
+  const float3 new_left_dir = left_dir - math::dot(left_dir, align_dir) * align_dir;
+  const float3 new_right_dir = right_dir - math::dot(right_dir, align_dir) * align_dir;
+
+  /* Use the new directions with the old lengths. */
+  return {position + left_length * math::normalize(new_left_dir),
+          position + right_length * math::normalize(new_right_dir)};
+}
+
 static void calculate_point_handles(const HandleType type_left,
                                     const HandleType type_right,
                                     const float3 position,
@@ -115,7 +164,21 @@ static void calculate_point_handles(const HandleType type_left,
     }
     const float3 dir = next_diff / next_len + prev_diff / prev_len;
 
-    /* This magic number is unfortunate, but comes from elsewhere in Blender. */
+    /* The magic number 2.5614 is derived from approximating a circular arc at the control point.
+     * Given the constraints:
+     *
+     * - `P0=(0,1),P1=(c,1),P2=(1,c),P3=(1,0)`.
+     * - The first derivative of the curve must agree with the circular arc derivative at the
+     *   endpoints.
+     * - Minimize the maximum radial drift.
+     *   one can compute `c ≈ 0.5519150244935105707435627`.
+     *   The distance from P0 to P3 is `sqrt(2)`.
+     *
+     * The magic factor for `len` is `(sqrt(2) / 0.5519150244935105707435627) ≈ 2.562375546255352`.
+     * In older code of blender a slightly worse approximation of 2.5614 is used. It's kept
+     * for compatibility.
+     *
+     * See https://spencermortensen.com/articles/bezier-circle/. */
     const float len = math::length(dir) * 2.5614f;
     if (len != 0.0f) {
       if (type_left == BEZIER_HANDLE_AUTO) {
@@ -165,6 +228,36 @@ void set_handle_position(const float3 &position,
   if (type_other == BEZIER_HANDLE_ALIGN) {
     handle_other = calculate_aligned_handle(position, handle, handle_other);
   }
+}
+
+void calculate_single_aligned_handles(const IndexMask &selection,
+                                      const Span<float3> positions,
+                                      const Span<float3> align_with,
+                                      MutableSpan<float3> align_handles)
+{
+  selection.foreach_index_optimized<int>(
+      [&](const int point) {
+        align_handles[point] = calculate_aligned_handle(
+            positions[point], align_with[point], align_handles[point]);
+      },
+      exec_mode::grain_size(4096));
+}
+
+void calculate_aligned_handles(const IndexMask &selection,
+                               const Span<float3> positions,
+                               const Span<float3> handles_left,
+                               const Span<float3> handles_right,
+                               MutableSpan<float3> align_handles_left,
+                               MutableSpan<float3> align_handles_right)
+{
+  selection.foreach_index_optimized<int>(
+      [&](const int point) {
+        const auto [new_left, new_right] = calculate_align_both_handles(
+            positions[point], handles_left[point], handles_right[point]);
+        align_handles_left[point] = new_left;
+        align_handles_right[point] = new_right;
+      },
+      exec_mode::grain_size(4096));
 }
 
 void calculate_auto_handles(const bool cyclic,
@@ -344,8 +437,7 @@ void interpolate_to_evaluated(const GSpan src,
                               const OffsetIndices<int> evaluated_offsets,
                               GMutableSpan dst)
 {
-  attribute_math::convert_to_static_type(src.type(), [&](auto dummy) {
-    using T = decltype(dummy);
+  attribute_math::to_static_type(src.type(), [&]<typename T>() {
     if constexpr (!std::is_void_v<attribute_math::DefaultMixer<T>>) {
       interpolate_to_evaluated(src.typed<T>(), evaluated_offsets, dst.typed<T>());
     }

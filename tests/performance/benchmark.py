@@ -2,15 +2,21 @@
 # SPDX-FileCopyrightText: 2020-2023 Blender Authors
 #
 # SPDX-License-Identifier: Apache-2.0
+"""
+The main entry point to running benchmark tests.
+
+See https://developer.blender.org/docs/handbook/testing/performance/
+for a general introduction to the topic.
+"""
 
 import api
 import argparse
 import fnmatch
 import glob
+import logging
 import pathlib
 import shutil
 import sys
-from typing import List
 
 
 def find_blender_git_dir() -> pathlib.Path:
@@ -36,36 +42,30 @@ def use_revision_columns(config: api.TestConfig) -> bool:
     )
 
 
-def print_header(config: api.TestConfig) -> None:
-    # Print header with revision columns headers.
+def init_table(config: api.TestConfig) -> api.MarkdownTable:
+    table = api.MarkdownTable()
+    table.add_column("Revision")
+    table.add_column("Category", is_visible=config.queue.has_multiple_categories)
+    table.add_column("Device", is_visible=config.queue.has_multiple_devices)
+    table.add_column("Test", width=40)
     if use_revision_columns(config):
-        header = ""
-        if config.queue.has_multiple_categories:
-            header += f"{'': <15} "
-        header += f"{'': <40} "
-
         for revision_name in config.revision_names():
-            header += f"{revision_name: <20} "
-        print(header)
+            table.add_column(revision_name, width=20, alignment='RIGHT')
+        table.columns[0].is_visible = False
+    else:
+        table.add_column("Result", width=20, alignment='RIGHT')
+    return table
 
 
-def print_row(config: api.TestConfig, entries: List, end='\n') -> None:
+def print_row(table: api.MarkdownTable, entries: list, end='\n') -> None:
     # Print one or more test entries on a row.
-    row = ""
+    row = []
 
-    # For time series, print revision first.
-    if not use_revision_columns(config):
-        revision = entries[0].revision
-        git_hash = entries[0].git_hash
-
-        row += f"{revision: <15} "
-
-    if config.queue.has_multiple_categories:
-        category_name = entries[0].category
-        if entries[0].device_type != "CPU":
-            category_name += " " + entries[0].device_type
-        row += f"{category_name: <15} "
-    row += f"{entries[0].test: <40} "
+    # For time series, revision is printed first.
+    row.append(entries[0].revision)
+    row.append(entries[0].category)
+    row.append(entries[0].device_type)
+    row.append(entries[0].test)
 
     for entry in entries:
         # Show time or status.
@@ -73,7 +73,10 @@ def print_row(config: api.TestConfig, entries: List, end='\n') -> None:
         output = entry.output
         result = ''
         if status in {'done', 'outdated'} and output:
-            result = '%.4fs' % output['time']
+            if 'time' in output:
+                result = '%7.4f s' % output['time']
+            elif 'fps' in output:
+                result = '%8.3f fps' % output['fps']
 
             if status == 'outdated':
                 result += " (outdated)"
@@ -81,10 +84,22 @@ def print_row(config: api.TestConfig, entries: List, end='\n') -> None:
             result = "failed: " + entry.error_msg
         else:
             result = status
+        row.append(result)
 
-        row += f"{result: <20} "
+    table.print_row(row, end=end)
 
-    print(row, end=end, flush=True)
+
+def print_entry(table: api.MarkdownTable, entry: api.TestEntry) -> None:
+    # Print a single test entry, potentially on multiple lines, with more details than in `print_row`.
+    # NOTE: Currently only used to print detailed error info.
+
+    print_row(table, [entry])
+
+    if entry.status != 'failed':
+        return
+    if not entry.exception_msg:
+        return
+    print(entry.exception_msg, flush=True)
 
 
 def match_entry(entry: api.TestEntry, args: argparse.Namespace):
@@ -99,15 +114,17 @@ def match_entry(entry: api.TestEntry, args: argparse.Namespace):
 
 def run_entry(env: api.TestEnvironment,
               config: api.TestConfig,
-              row: List,
+              table: api.MarkdownTable,
+              row: list,
               entry: api.TestEntry,
-              update_only: bool):
+              update_only: bool,
+              count: int):
     updated = False
     failed = False
 
     # Check if entry needs to be run.
     if update_only and entry.status not in {'queued', 'outdated'}:
-        print_row(config, row, end='\r')
+        print_row(table, row, end='\r')
         return updated, failed
 
     # Run test entry.
@@ -118,6 +135,11 @@ def run_entry(env: api.TestEnvironment,
     testcategory = entry.category
     device_type = entry.device_type
     device_id = entry.device_id
+    gpu_backend = {
+        'VULKAN': 'vulkan',
+        'METAL': 'metal',
+        'OPENGL': 'opengl'
+    }.get(device_type, 'default')
 
     test = config.tests.find(testname, testcategory)
     if not test:
@@ -126,9 +148,7 @@ def run_entry(env: api.TestEnvironment,
     updated = True
 
     # Log all output to dedicated log file.
-    logname = testcategory + '_' + testname + '_' + revision
-    if device_id != 'CPU':
-        logname += '_' + device_id
+    logname = testcategory + '_' + testname + '_' + device_id + '_' + revision
     env.set_log_file(config.logs_dir / (logname + '.log'), clear=True)
 
     # Clear output
@@ -141,7 +161,7 @@ def run_entry(env: api.TestEnvironment,
         env.set_blender_executable(pathlib.Path(entry.executable), environment)
     else:
         entry.status = 'building'
-        print_row(config, row, end='\r')
+        print_row(table, row, end='\r')
 
         if config.benchmark_type == "comparison":
             install_dir = config.builds_dir / revision
@@ -158,22 +178,47 @@ def run_entry(env: api.TestEnvironment,
 
     # Run test and update output and status.
     if executable_ok:
-        entry.status = 'running'
-        print_row(config, row, end='\r')
+        run_outputs = []
+        for run in range(count):
+            entry.status = 'running' if count == 1 else f'run [{run + 1}/{count}]'
+            print_row(table, row, end='\r')
 
-        try:
-            entry.output = test.run(env, device_id)
-            if not entry.output:
-                raise Exception("Test produced no output")
-            entry.status = 'done'
-        except KeyboardInterrupt as e:
-            raise e
-        except Exception as e:
-            failed = True
-            entry.status = 'failed'
-            entry.error_msg = str(e)
+            try:
+                output = test.run(env, device_id, gpu_backend)
+                if not output:
+                    raise Exception("Test produced no output")
+                run_outputs.append(output)
+                entry.status = 'done'
+            except KeyboardInterrupt as e:
+                raise e
+            except Exception as e:
+                failed = True
+                entry.status = 'failed'
+                entry.error_msg = 'Failed to run'
+                entry.exception_msg = str(e)
+                break
 
-    print_row(config, row, end='\r')
+        if entry.status == 'done' and run_outputs:
+            # Combine results from runs
+
+            keys = set()
+            for run_output in run_outputs:
+                keys |= run_output.keys()
+
+            output = {}
+            output_all_runs = {}
+            for key in keys:
+                values = []
+                for run_output in run_outputs:
+                    if key not in run_output:
+                        continue
+                    values.append(run_output[key])
+                output[key] = sum(values) / len(values)
+                output_all_runs[key] = values
+            entry.output = output
+            entry.output_all_runs = output_all_runs
+
+    print_row(table, row, end='\r')
 
     # Update device name in case the device changed since the entry was created.
     entry.device_name = config.device_name(device_id)
@@ -185,7 +230,7 @@ def run_entry(env: api.TestEnvironment,
     return updated, failed
 
 
-def cmd_init(env: api.TestEnvironment, argv: List):
+def cmd_init(env: api.TestEnvironment, argv: list):
     # Initialize benchmarks folder.
     parser = argparse.ArgumentParser()
     parser.add_argument('--build', default=False, action='store_true')
@@ -195,7 +240,7 @@ def cmd_init(env: api.TestEnvironment, argv: List):
     env.unset_log_file()
 
 
-def cmd_list(env: api.TestEnvironment, argv: List) -> None:
+def cmd_list(env: api.TestEnvironment, argv: list) -> None:
     # List devices, tests and configurations.
     print('DEVICES')
     machine = env.get_machine()
@@ -216,7 +261,7 @@ def cmd_list(env: api.TestEnvironment, argv: List) -> None:
         print(config_name)
 
 
-def cmd_status(env: api.TestEnvironment, argv: List):
+def cmd_status(env: api.TestEnvironment, argv: list):
     # Print status of tests in configurations.
     parser = argparse.ArgumentParser()
     parser.add_argument('config', nargs='?', default=None)
@@ -233,13 +278,14 @@ def cmd_status(env: api.TestEnvironment, argv: List):
                 print("")
             print(config.name.upper())
 
-        print_header(config)
+        table = init_table(config)
+        table.print_header()
         for row in config.queue.rows(use_revision_columns(config)):
             if match_entry(row[0], args):
-                print_row(config, row)
+                print_row(table, row)
 
 
-def cmd_reset(env: api.TestEnvironment, argv: List):
+def cmd_reset(env: api.TestEnvironment, argv: list):
     # Reset tests to re-run them.
     parser = argparse.ArgumentParser()
     parser.add_argument('config', nargs='?', default=None)
@@ -248,13 +294,14 @@ def cmd_reset(env: api.TestEnvironment, argv: List):
 
     configs = env.get_configs(args.config)
     for config in configs:
-        print_header(config)
+        table = init_table(config)
+        table.print_header()
         for row in config.queue.rows(use_revision_columns(config)):
             if match_entry(row[0], args):
                 for entry in row:
                     entry.status = 'queued'
                     entry.result = {}
-                print_row(config, row)
+                print_row(table, row)
 
         config.queue.write()
 
@@ -262,11 +309,12 @@ def cmd_reset(env: api.TestEnvironment, argv: List):
             shutil.rmtree(config.logs_dir)
 
 
-def cmd_run(env: api.TestEnvironment, argv: List, update_only: bool):
+def cmd_run(env: api.TestEnvironment, argv: list, update_only: bool):
     # Run tests.
     parser = argparse.ArgumentParser()
     parser.add_argument('config', nargs='?', default=None)
     parser.add_argument('test', nargs='?', default='*')
+    parser.add_argument('--count', default=1, type=int, help="Number of runs to perform (default=1)")
     args = parser.parse_args(argv)
 
     exit_code = 0
@@ -275,12 +323,13 @@ def cmd_run(env: api.TestEnvironment, argv: List, update_only: bool):
     for config in configs:
         updated = False
         cancel = False
-        print_header(config)
+        table = init_table(config)
+        table.print_header()
         for row in config.queue.rows(use_revision_columns(config)):
             if match_entry(row[0], args):
                 for entry in row:
                     try:
-                        test_updated, test_failed = run_entry(env, config, row, entry, update_only)
+                        test_updated, test_failed = run_entry(env, config, table, row, entry, update_only, args.count)
                         if test_updated:
                             updated = True
                             # Write queue every time in case running gets interrupted,
@@ -288,11 +337,12 @@ def cmd_run(env: api.TestEnvironment, argv: List, update_only: bool):
                             config.queue.write()
                         if test_failed:
                             exit_code = 1
+                            print_entry(table, entry)
                     except KeyboardInterrupt as e:
                         cancel = True
                         break
 
-                print_row(config, row)
+                print_row(table, row)
 
             if cancel:
                 break
@@ -309,7 +359,7 @@ def cmd_run(env: api.TestEnvironment, argv: List, update_only: bool):
     sys.exit(exit_code)
 
 
-def cmd_graph(argv: List):
+def cmd_graph(argv: list):
     # Create graph from a given JSON results file.
     parser = argparse.ArgumentParser()
     parser.add_argument('json_file', nargs='+')
@@ -331,6 +381,7 @@ def cmd_graph(argv: List):
 
 
 def main():
+    logging.basicConfig()
     usage = ('benchmark <command> [<args>]\n'
              '\n'
              'Commands:\n'
@@ -370,7 +421,9 @@ def main():
         sys.exit(0)
 
     if not env.base_dir.exists():
-        sys.stderr.write('Error: benchmark directory not initialized\n')
+        sys.stderr.write(
+            'Error: benchmark directory not initialized. '
+            'Run the \"init\" command to create the directory and a default configuration.\n')
         sys.exit(1)
 
     if args.command == 'list':

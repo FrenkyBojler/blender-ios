@@ -9,9 +9,11 @@
 #include <pxr/imaging/hd/renderIndex.h>
 #include <pxr/usdImaging/usdImaging/delegate.h>
 
+namespace blender {
+
 struct Depsgraph;
 
-namespace blender::io::hydra {
+namespace io::hydra {
 
 /* Populate Hydra render index using USD file export, for testing. */
 class USDSceneDelegate {
@@ -24,11 +26,16 @@ class USDSceneDelegate {
   std::string temp_dir_;
   std::string temp_file_;
 
+  bool use_materialx = true;
+
  public:
-  USDSceneDelegate(pxr::HdRenderIndex *render_index, pxr::SdfPath const &delegate_id);
+  USDSceneDelegate(pxr::HdRenderIndex *render_index,
+                   pxr::SdfPath const &delegate_id,
+                   bool use_materialx);
   ~USDSceneDelegate();
 
   void populate(Depsgraph *depsgraph);
 };
 
-}  // namespace blender::io::hydra
+}  // namespace io::hydra
+}  // namespace blender

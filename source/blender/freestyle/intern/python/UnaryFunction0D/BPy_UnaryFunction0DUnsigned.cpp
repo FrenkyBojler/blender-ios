@@ -15,10 +15,6 @@
 
 #include "BLI_sys_types.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -34,14 +30,13 @@ int UnaryFunction0DUnsigned_Init(PyObject *module)
   if (PyType_Ready(&UnaryFunction0DUnsigned_Type) < 0) {
     return -1;
   }
-  Py_INCREF(&UnaryFunction0DUnsigned_Type);
-  PyModule_AddObject(module, "UnaryFunction0DUnsigned", (PyObject *)&UnaryFunction0DUnsigned_Type);
+  PyModule_AddObjectRef(
+      module, "UnaryFunction0DUnsigned", (PyObject *)&UnaryFunction0DUnsigned_Type);
 
   if (PyType_Ready(&QuantitativeInvisibilityF0D_Type) < 0) {
     return -1;
   }
-  Py_INCREF(&QuantitativeInvisibilityF0D_Type);
-  PyModule_AddObject(
+  PyModule_AddObjectRef(
       module, "QuantitativeInvisibilityF0D", (PyObject *)&QuantitativeInvisibilityF0D_Type);
 
   return 0;
@@ -60,7 +55,6 @@ PyDoc_STRVAR(
     ".. method:: __init__()\n"
     "\n"
     "   Default constructor.\n");
-
 static int UnaryFunction0DUnsigned___init__(BPy_UnaryFunction0DUnsigned *self,
                                             PyObject *args,
                                             PyObject *kwds)
@@ -158,7 +152,3 @@ PyTypeObject UnaryFunction0DUnsigned_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

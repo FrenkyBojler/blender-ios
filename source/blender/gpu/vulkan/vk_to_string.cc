@@ -11,6 +11,142 @@
 #include "vk_to_string.hh"
 
 namespace blender::gpu {
+
+/** Portable printing of vulkan handles across platforms. */
+static std::string to_string_handle(uint64_t vk_handle)
+{
+  std::stringstream ss;
+  ss << std::hex << std::showbase << vk_handle;
+  return ss.str();
+}
+
+const char *to_string(VkResult result)
+{
+#define FORMAT_ERROR(X) \
+  case X: { \
+    return "" #X; \
+  }
+
+  switch (result) {
+    FORMAT_ERROR(VK_NOT_READY);
+    FORMAT_ERROR(VK_TIMEOUT);
+    FORMAT_ERROR(VK_EVENT_SET);
+    FORMAT_ERROR(VK_EVENT_RESET);
+    FORMAT_ERROR(VK_INCOMPLETE);
+    FORMAT_ERROR(VK_ERROR_OUT_OF_HOST_MEMORY);
+    FORMAT_ERROR(VK_ERROR_OUT_OF_DEVICE_MEMORY);
+    FORMAT_ERROR(VK_ERROR_INITIALIZATION_FAILED);
+    FORMAT_ERROR(VK_ERROR_DEVICE_LOST);
+    FORMAT_ERROR(VK_ERROR_MEMORY_MAP_FAILED);
+    FORMAT_ERROR(VK_ERROR_LAYER_NOT_PRESENT);
+    FORMAT_ERROR(VK_ERROR_EXTENSION_NOT_PRESENT);
+    FORMAT_ERROR(VK_ERROR_FEATURE_NOT_PRESENT);
+    FORMAT_ERROR(VK_ERROR_INCOMPATIBLE_DRIVER);
+    FORMAT_ERROR(VK_ERROR_TOO_MANY_OBJECTS);
+    FORMAT_ERROR(VK_ERROR_FORMAT_NOT_SUPPORTED);
+    FORMAT_ERROR(VK_ERROR_FRAGMENTED_POOL);
+    FORMAT_ERROR(VK_ERROR_UNKNOWN);
+    FORMAT_ERROR(VK_ERROR_OUT_OF_POOL_MEMORY);
+    FORMAT_ERROR(VK_ERROR_INVALID_EXTERNAL_HANDLE);
+    FORMAT_ERROR(VK_ERROR_FRAGMENTATION);
+    FORMAT_ERROR(VK_ERROR_INVALID_OPAQUE_CAPTURE_ADDRESS);
+    FORMAT_ERROR(VK_ERROR_SURFACE_LOST_KHR);
+    FORMAT_ERROR(VK_ERROR_NATIVE_WINDOW_IN_USE_KHR);
+    FORMAT_ERROR(VK_SUBOPTIMAL_KHR);
+    FORMAT_ERROR(VK_ERROR_OUT_OF_DATE_KHR);
+    FORMAT_ERROR(VK_ERROR_INCOMPATIBLE_DISPLAY_KHR);
+    FORMAT_ERROR(VK_ERROR_VALIDATION_FAILED_EXT);
+    FORMAT_ERROR(VK_ERROR_INVALID_SHADER_NV);
+    FORMAT_ERROR(VK_ERROR_INVALID_DRM_FORMAT_MODIFIER_PLANE_LAYOUT_EXT);
+    FORMAT_ERROR(VK_ERROR_NOT_PERMITTED_EXT);
+    FORMAT_ERROR(VK_ERROR_FULL_SCREEN_EXCLUSIVE_MODE_LOST_EXT);
+    FORMAT_ERROR(VK_THREAD_IDLE_KHR);
+    FORMAT_ERROR(VK_THREAD_DONE_KHR);
+    FORMAT_ERROR(VK_OPERATION_DEFERRED_KHR);
+    FORMAT_ERROR(VK_OPERATION_NOT_DEFERRED_KHR);
+    FORMAT_ERROR(VK_PIPELINE_COMPILE_REQUIRED_EXT);
+    default:
+      return "Unknown Error";
+  }
+}
+
+std::string to_string(VkBuffer vk_handle)
+{
+  return to_string_handle(uint64_t(vk_handle));
+}
+
+std::string to_string(VkImage vk_handle)
+{
+  return to_string_handle(uint64_t(vk_handle));
+}
+
+std::string to_string(VkImageView vk_handle)
+{
+  return to_string_handle(uint64_t(vk_handle));
+}
+
+std::string to_string(VkRenderPass vk_handle)
+{
+  return to_string_handle(uint64_t(vk_handle));
+}
+
+std::string to_string(VkFramebuffer vk_handle)
+{
+  return to_string_handle(uint64_t(vk_handle));
+}
+
+std::string to_string(VkPipelineLayout vk_handle)
+{
+  return to_string_handle(uint64_t(vk_handle));
+}
+
+std::string to_string(VkPipeline vk_handle)
+{
+  return to_string_handle(uint64_t(vk_handle));
+}
+
+std::string to_string(VkDescriptorSet vk_handle)
+{
+  return to_string_handle(uint64_t(vk_handle));
+}
+
+const char *to_string(const VkAttachmentLoadOp vk_attachment_load_op)
+{
+  switch (vk_attachment_load_op) {
+    case VK_ATTACHMENT_LOAD_OP_LOAD:
+      return STRINGIFY(VK_ATTACHMENT_LOAD_OP_LOAD);
+
+    case VK_ATTACHMENT_LOAD_OP_CLEAR:
+      return STRINGIFY(VK_ATTACHMENT_LOAD_OP_CLEAR);
+
+    case VK_ATTACHMENT_LOAD_OP_DONT_CARE:
+      return STRINGIFY(VK_ATTACHMENT_LOAD_OP_DONT_CARE);
+
+    default:
+      break;
+  }
+  return STRINGIFY_ARG(vk_attachment_load_op);
+}
+
+const char *to_string(const VkAttachmentStoreOp vk_attachment_store_op)
+{
+  switch (vk_attachment_store_op) {
+    case VK_ATTACHMENT_STORE_OP_STORE:
+      return STRINGIFY(VK_ATTACHMENT_STORE_OP_STORE);
+
+    case VK_ATTACHMENT_STORE_OP_DONT_CARE:
+      return STRINGIFY(VK_ATTACHMENT_STORE_OP_DONT_CARE);
+
+    /* Extensions for VK_KHR_dynamic_rendering. */
+    case VK_ATTACHMENT_STORE_OP_NONE_KHR:
+      return STRINGIFY(VK_ATTACHMENT_STORE_OP_NONE_KHR);
+
+    default:
+      break;
+  }
+  return STRINGIFY_ARG(vk_attachment_store_op);
+}
+
 const char *to_string(const VkFilter vk_filter)
 {
   switch (vk_filter) {
@@ -37,6 +173,9 @@ const char *to_string(const VkImageLayout vk_image_layout)
 
     case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
       return STRINGIFY(VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+
+    case VK_IMAGE_LAYOUT_RENDERING_LOCAL_READ_KHR:
+      return STRINGIFY(VK_IMAGE_LAYOUT_RENDERING_LOCAL_READ_KHR);
 
     case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
       return STRINGIFY(VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
@@ -212,6 +351,30 @@ const char *to_string(const VkPipelineBindPoint vk_pipeline_bind_point)
       break;
   }
   return STRINGIFY_ARG(vk_pipeline_bind_point);
+}
+
+const char *to_string(const VkResolveModeFlagBits vk_resolve_mode_flag_bits)
+{
+  switch (vk_resolve_mode_flag_bits) {
+    case VK_RESOLVE_MODE_NONE:
+      return STRINGIFY(VK_RESOLVE_MODE_NONE);
+
+    case VK_RESOLVE_MODE_SAMPLE_ZERO_BIT:
+      return STRINGIFY(VK_RESOLVE_MODE_SAMPLE_ZERO_BIT);
+
+    case VK_RESOLVE_MODE_AVERAGE_BIT:
+      return STRINGIFY(VK_RESOLVE_MODE_AVERAGE_BIT);
+
+    case VK_RESOLVE_MODE_MIN_BIT:
+      return STRINGIFY(VK_RESOLVE_MODE_MIN_BIT);
+
+    case VK_RESOLVE_MODE_MAX_BIT:
+      return STRINGIFY(VK_RESOLVE_MODE_MAX_BIT);
+
+    default:
+      break;
+  }
+  return STRINGIFY_ARG(vk_resolve_mode_flag_bits);
 }
 
 const char *to_string(const VkSubpassContents vk_subpass_contents)
@@ -411,6 +574,36 @@ std::string to_string_vk_pipeline_stage_flags(const VkPipelineStageFlags vk_pipe
   return result;
 }
 
+std::string to_string_vk_rendering_flags(const VkRenderingFlags vk_rendering_flags)
+{
+  std::stringstream ss;
+
+  if (vk_rendering_flags & VK_RENDERING_CONTENTS_SECONDARY_COMMAND_BUFFERS_BIT) {
+    ss << STRINGIFY(VK_RENDERING_CONTENTS_SECONDARY_COMMAND_BUFFERS_BIT) << ", ";
+  }
+  if (vk_rendering_flags & VK_RENDERING_CONTENTS_SECONDARY_COMMAND_BUFFERS_BIT_KHR) {
+    ss << STRINGIFY(VK_RENDERING_CONTENTS_SECONDARY_COMMAND_BUFFERS_BIT_KHR) << ", ";
+  }
+  if (vk_rendering_flags & VK_RENDERING_SUSPENDING_BIT) {
+    ss << STRINGIFY(VK_RENDERING_SUSPENDING_BIT) << ", ";
+  }
+  if (vk_rendering_flags & VK_RENDERING_SUSPENDING_BIT_KHR) {
+    ss << STRINGIFY(VK_RENDERING_SUSPENDING_BIT_KHR) << ", ";
+  }
+  if (vk_rendering_flags & VK_RENDERING_RESUMING_BIT) {
+    ss << STRINGIFY(VK_RENDERING_RESUMING_BIT) << ", ";
+  }
+  if (vk_rendering_flags & VK_RENDERING_RESUMING_BIT_KHR) {
+    ss << STRINGIFY(VK_RENDERING_RESUMING_BIT_KHR) << ", ";
+  }
+
+  std::string result = ss.str();
+  if (result.size() >= 2) {
+    result.erase(result.size() - 2, 2);
+  }
+  return result;
+}
+
 std::string to_string_vk_shader_stage_flags(const VkShaderStageFlags vk_shader_stage_flags)
 {
   std::stringstream ss;
@@ -464,18 +657,15 @@ std::string to_string(const VkBufferImageCopy &vk_buffer_image_copy, int indenta
   ss << "buffer_offset=" << vk_buffer_image_copy.bufferOffset;
   ss << ", buffer_row_length=" << vk_buffer_image_copy.bufferRowLength;
   ss << ", buffer_image_height=" << vk_buffer_image_copy.bufferImageHeight;
-  ss << ", image_subresource="
-     << "\n";
+  ss << ", image_subresource=" << std::endl;
   ss << std::string(indentation_level * 2 + 2, ' ')
      << to_string(vk_buffer_image_copy.imageSubresource, indentation_level + 1);
   ss << std::string(indentation_level * 2, ' ');
-  ss << ", image_offset="
-     << "\n";
+  ss << ", image_offset=" << std::endl;
   ss << std::string(indentation_level * 2 + 2, ' ')
      << to_string(vk_buffer_image_copy.imageOffset, indentation_level + 1);
   ss << std::string(indentation_level * 2, ' ');
-  ss << ", image_extent="
-     << "\n";
+  ss << ", image_extent=" << std::endl;
   ss << std::string(indentation_level * 2 + 2, ' ')
      << to_string(vk_buffer_image_copy.imageExtent, indentation_level + 1);
   ss << std::string(indentation_level * 2, ' ');
@@ -489,7 +679,7 @@ std::string to_string(const VkBufferMemoryBarrier &vk_buffer_memory_barrier, int
   std::stringstream ss;
   ss << "src_access_mask=" << to_string_vk_access_flags(vk_buffer_memory_barrier.srcAccessMask);
   ss << ", dst_access_mask=" << to_string_vk_access_flags(vk_buffer_memory_barrier.dstAccessMask);
-  ss << ", buffer=" << vk_buffer_memory_barrier.buffer;
+  ss << ", buffer=" << to_string(vk_buffer_memory_barrier.buffer);
   ss << ", offset=" << vk_buffer_memory_barrier.offset;
   ss << ", size=" << vk_buffer_memory_barrier.size;
 
@@ -520,8 +710,7 @@ std::string to_string(const VkClearDepthStencilValue &vk_clear_depth_stencil_val
 std::string to_string(const VkClearRect &vk_clear_rect, int indentation_level)
 {
   std::stringstream ss;
-  ss << "rect="
-     << "\n";
+  ss << "rect=" << std::endl;
   ss << std::string(indentation_level * 2 + 2, ' ')
      << to_string(vk_clear_rect.rect, indentation_level + 1);
   ss << std::string(indentation_level * 2, ' ');
@@ -555,13 +744,11 @@ std::string to_string(const VkExtent3D &vk_extent3_d, int indentation_level)
 std::string to_string(const VkImageBlit &vk_image_blit, int indentation_level)
 {
   std::stringstream ss;
-  ss << "src_subresource="
-     << "\n";
+  ss << "src_subresource=" << std::endl;
   ss << std::string(indentation_level * 2 + 2, ' ')
      << to_string(vk_image_blit.srcSubresource, indentation_level + 1);
   ss << std::string(indentation_level * 2, ' ');
-  ss << ", dst_subresource="
-     << "\n";
+  ss << ", dst_subresource=" << std::endl;
   ss << std::string(indentation_level * 2 + 2, ' ')
      << to_string(vk_image_blit.dstSubresource, indentation_level + 1);
   ss << std::string(indentation_level * 2, ' ');
@@ -572,28 +759,23 @@ std::string to_string(const VkImageBlit &vk_image_blit, int indentation_level)
 std::string to_string(const VkImageCopy &vk_image_copy, int indentation_level)
 {
   std::stringstream ss;
-  ss << "src_subresource="
-     << "\n";
+  ss << "src_subresource=" << std::endl;
   ss << std::string(indentation_level * 2 + 2, ' ')
      << to_string(vk_image_copy.srcSubresource, indentation_level + 1);
   ss << std::string(indentation_level * 2, ' ');
-  ss << ", src_offset="
-     << "\n";
+  ss << ", src_offset=" << std::endl;
   ss << std::string(indentation_level * 2 + 2, ' ')
      << to_string(vk_image_copy.srcOffset, indentation_level + 1);
   ss << std::string(indentation_level * 2, ' ');
-  ss << ", dst_subresource="
-     << "\n";
+  ss << ", dst_subresource=" << std::endl;
   ss << std::string(indentation_level * 2 + 2, ' ')
      << to_string(vk_image_copy.dstSubresource, indentation_level + 1);
   ss << std::string(indentation_level * 2, ' ');
-  ss << ", dst_offset="
-     << "\n";
+  ss << ", dst_offset=" << std::endl;
   ss << std::string(indentation_level * 2 + 2, ' ')
      << to_string(vk_image_copy.dstOffset, indentation_level + 1);
   ss << std::string(indentation_level * 2, ' ');
-  ss << ", extent="
-     << "\n";
+  ss << ", extent=" << std::endl;
   ss << std::string(indentation_level * 2 + 2, ' ')
      << to_string(vk_image_copy.extent, indentation_level + 1);
   ss << std::string(indentation_level * 2, ' ');
@@ -608,9 +790,8 @@ std::string to_string(const VkImageMemoryBarrier &vk_image_memory_barrier, int i
   ss << ", dst_access_mask=" << to_string_vk_access_flags(vk_image_memory_barrier.dstAccessMask);
   ss << ", old_layout=" << to_string(vk_image_memory_barrier.oldLayout);
   ss << ", new_layout=" << to_string(vk_image_memory_barrier.newLayout);
-  ss << ", image=" << vk_image_memory_barrier.image;
-  ss << ", subresource_range="
-     << "\n";
+  ss << ", image=" << to_string(vk_image_memory_barrier.image);
+  ss << ", subresource_range=" << std::endl;
   ss << std::string(indentation_level * 2 + 2, ' ')
      << to_string(vk_image_memory_barrier.subresourceRange, indentation_level + 1);
   ss << std::string(indentation_level * 2, ' ');
@@ -679,13 +860,11 @@ std::string to_string(const VkOffset3D &vk_offset3_d, int indentation_level)
 std::string to_string(const VkRect2D &vk_rect2_d, int indentation_level)
 {
   std::stringstream ss;
-  ss << "offset="
-     << "\n";
+  ss << "offset=" << std::endl;
   ss << std::string(indentation_level * 2 + 2, ' ')
      << to_string(vk_rect2_d.offset, indentation_level + 1);
   ss << std::string(indentation_level * 2, ' ');
-  ss << ", extent="
-     << "\n";
+  ss << ", extent=" << std::endl;
   ss << std::string(indentation_level * 2 + 2, ' ')
      << to_string(vk_rect2_d.extent, indentation_level + 1);
   ss << std::string(indentation_level * 2, ' ');
@@ -697,15 +876,66 @@ std::string to_string(const VkRenderPassBeginInfo &vk_render_pass_begin_info,
                       int indentation_level)
 {
   std::stringstream ss;
-  ss << "render_pass=" << vk_render_pass_begin_info.renderPass;
-  ss << ", framebuffer=" << vk_render_pass_begin_info.framebuffer;
-  ss << ", render_area="
-     << "\n";
+  ss << "render_pass=" << to_string(vk_render_pass_begin_info.renderPass);
+  ss << ", framebuffer=" << to_string(vk_render_pass_begin_info.framebuffer);
+  ss << ", render_area=" << std::endl;
   ss << std::string(indentation_level * 2 + 2, ' ')
      << to_string(vk_render_pass_begin_info.renderArea, indentation_level + 1);
   ss << std::string(indentation_level * 2, ' ');
   ss << ", clear_value_count=" << vk_render_pass_begin_info.clearValueCount;
-  ss << ", p_clear_values=" << vk_render_pass_begin_info.pClearValues;
+  /*ss << ", p_clear_values=" << vk_render_pass_begin_info.pClearValues;*/
+
+  return ss.str();
+}
+
+std::string to_string(const VkRenderingAttachmentInfo &vk_rendering_attachment_info,
+                      int indentation_level)
+{
+  UNUSED_VARS(indentation_level);
+  std::stringstream ss;
+  ss << "image_view=" << to_string(vk_rendering_attachment_info.imageView);
+  ss << ", image_layout=" << to_string(vk_rendering_attachment_info.imageLayout);
+  ss << ", resolve_mode=" << to_string(vk_rendering_attachment_info.resolveMode);
+  ss << ", resolve_image_view=" << to_string(vk_rendering_attachment_info.resolveImageView);
+  ss << ", resolve_image_layout=" << to_string(vk_rendering_attachment_info.resolveImageLayout);
+  ss << ", load_op=" << to_string(vk_rendering_attachment_info.loadOp);
+  ss << ", store_op=" << to_string(vk_rendering_attachment_info.storeOp);
+
+  return ss.str();
+}
+
+std::string to_string(const VkRenderingInfo &vk_rendering_info, int indentation_level)
+{
+  std::stringstream ss;
+  ss << "flags=" << to_string_vk_rendering_flags(vk_rendering_info.flags);
+  ss << ", render_area=" << std::endl;
+  ss << std::string(indentation_level * 2 + 2, ' ')
+     << to_string(vk_rendering_info.renderArea, indentation_level + 1);
+  ss << std::string(indentation_level * 2, ' ');
+  ss << ", layer_count=" << vk_rendering_info.layerCount;
+  ss << ", view_mask=" << vk_rendering_info.viewMask;
+  ss << ", color_attachment_count=" << vk_rendering_info.colorAttachmentCount;
+  ss << ", p_color_attachments=" << std::endl;
+  for (const VkRenderingAttachmentInfo &vk_rendering_attachment : Span<VkRenderingAttachmentInfo>(
+           vk_rendering_info.pColorAttachments, vk_rendering_info.colorAttachmentCount))
+  {
+    ss << std::string(indentation_level * 2 + 2, ' ')
+       << to_string(vk_rendering_attachment, indentation_level + 1) << std::endl;
+  }
+  if (vk_rendering_info.pDepthAttachment != nullptr) {
+    ss << std::string(indentation_level * 2, ' ');
+    ss << ", p_depth_attachment=" << std::endl;
+    ss << std::string(indentation_level * 2 + 2, ' ')
+       << to_string(*vk_rendering_info.pDepthAttachment, indentation_level + 1);
+    ss << std::endl;
+  }
+  if (vk_rendering_info.pStencilAttachment != nullptr) {
+    ss << std::string(indentation_level * 2, ' ');
+    ss << ", p_stencil_attachment=" << std::endl;
+    ss << std::string(indentation_level * 2 + 2, ' ')
+       << to_string(*vk_rendering_info.pStencilAttachment, indentation_level + 1);
+    ss << std::endl;
+  }
 
   return ss.str();
 }

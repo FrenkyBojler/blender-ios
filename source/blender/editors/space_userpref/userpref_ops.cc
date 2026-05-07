@@ -9,6 +9,8 @@
 #include <cstring>
 #include <fmt/format.h>
 
+#include "AS_remote_library.hh"
+
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
 
@@ -17,14 +19,16 @@
 #  include "BLI_winstuff.h"
 #endif
 #include "BLI_fileops.h"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
 
 #include "BKE_callbacks.hh"
 #include "BKE_context.hh"
+#include "BKE_global.hh"
 #include "BKE_main.hh"
 #include "BKE_preferences.h"
+#include "BKE_screen.hh"
 
 #include "BKE_report.hh"
 
@@ -32,29 +36,37 @@
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 #include "RNA_types.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
 
+#include "ED_asset.hh"
+#include "ED_screen.hh"
 #include "ED_userpref.hh"
 
 #include "MEM_guardedalloc.h"
+
+#include "userpref_intern.hh"
+
+namespace blender {
 
 /* -------------------------------------------------------------------- */
 /** \name Reset Default Theme Operator
  * \{ */
 
-static int preferences_reset_default_theme_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus preferences_reset_default_theme_exec(bContext *C, wmOperator * /*op*/)
 {
   Main *bmain = CTX_data_main(C);
-  UI_theme_init_default();
-  UI_style_init_default();
+  ui::theme::init_default();
+  ui::style_init_default();
   WM_reinit_gizmomap_all(bmain);
   WM_event_add_notifier(C, NC_WINDOW, nullptr);
+  WM_event_add_notifier(C, NC_UI | ND_UI_FONT, nullptr);
   U.runtime.is_dirty = true;
   return OPERATOR_FINISHED;
 }
@@ -79,10 +91,9 @@ static void PREFERENCES_OT_reset_default_theme(wmOperatorType *ot)
 /** \name Add Auto-Execution Path Operator
  * \{ */
 
-static int preferences_autoexec_add_exec(bContext * /*C*/, wmOperator * /*op*/)
+static wmOperatorStatus preferences_autoexec_add_exec(bContext * /*C*/, wmOperator * /*op*/)
 {
-  bPathCompare *path_cmp = static_cast<bPathCompare *>(
-      MEM_callocN(sizeof(bPathCompare), "bPathCompare"));
+  bPathCompare *path_cmp = MEM_new<bPathCompare>("bPathCompare");
   BLI_addtail(&U.autoexec_paths, path_cmp);
   U.runtime.is_dirty = true;
   return OPERATOR_FINISHED;
@@ -105,7 +116,7 @@ static void PREFERENCES_OT_autoexec_path_add(wmOperatorType *ot)
 /** \name Remove Auto-Execution Path Operator
  * \{ */
 
-static int preferences_autoexec_remove_exec(bContext * /*C*/, wmOperator *op)
+static wmOperatorStatus preferences_autoexec_remove_exec(bContext * /*C*/, wmOperator *op)
 {
   const int index = RNA_int_get(op->ptr, "index");
   bPathCompare *path_cmp = static_cast<bPathCompare *>(BLI_findlink(&U.autoexec_paths, index));
@@ -135,37 +146,144 @@ static void PREFERENCES_OT_autoexec_path_remove(wmOperatorType *ot)
 /** \name Add Asset Library Operator
  * \{ */
 
-static int preferences_asset_library_add_exec(bContext * /*C*/, wmOperator *op)
+enum class bUserAssetLibraryAddType {
+  Remote = 0,
+  Local = 1,
+};
+
+static wmOperatorStatus preferences_asset_library_add_exec(bContext *C, wmOperator *op)
 {
-  char *path = RNA_string_get_alloc(op->ptr, "directory", nullptr, 0, nullptr);
-  char dirname[FILE_MAXFILE];
+  const bUserAssetLibraryAddType library_type = bUserAssetLibraryAddType(
+      RNA_enum_get(op->ptr, "type"));
 
-  BLI_path_slash_rstrip(path);
-  BLI_path_split_file_part(path, dirname, sizeof(dirname));
+  char name[sizeof(bUserAssetLibrary::name)] = "";
+  PropertyRNA *prop = RNA_struct_find_property(op->ptr, "name");
+  if (RNA_property_is_set(op->ptr, prop)) {
+    RNA_property_string_get(op->ptr, prop, name);
+  }
 
-  /* nullptr is a valid directory path here. A library without path will be created then. */
-  const bUserAssetLibrary *new_library = BKE_preferences_asset_library_add(&U, dirname, path);
+  bUserAssetLibrary *new_library;
+
+  switch (library_type) {
+    case bUserAssetLibraryAddType::Local: {
+      char *dirpath = RNA_string_get_alloc(op->ptr, "directory", nullptr, 0, nullptr);
+
+      BLI_path_slash_rstrip(dirpath);
+      if (!name[0]) {
+        BLI_path_split_file_part(dirpath, name, sizeof(name));
+      }
+      if (!name[0]) {
+        STRNCPY(name, DATA_("Local Asset Library"));
+      }
+
+      new_library = BKE_preferences_asset_library_add(&U, name, dirpath);
+
+      MEM_delete(dirpath);
+      break;
+    }
+    case bUserAssetLibraryAddType::Remote: {
+      char *remote_url = RNA_string_get_alloc(op->ptr, "remote_url", nullptr, 0, nullptr);
+
+      if (!name[0]) {
+        BKE_preferences_remote_to_name(remote_url, name);
+      }
+      if (!name[0]) {
+        STRNCPY(name, DATA_("Remote Asset Library"));
+      }
+
+      new_library = BKE_preferences_remote_asset_library_add(&U, name, remote_url);
+
+      MEM_delete(remote_url);
+      break;
+    }
+  }
+
   /* Activate new library in the UI for further setup. */
   U.active_asset_library = BLI_findindex(&U.asset_libraries, new_library);
   U.runtime.is_dirty = true;
 
+  if (new_library->flag & ASSET_LIBRARY_USE_REMOTE_URL) {
+    blender::asset_system::remote_library_request_download(*new_library);
+  }
+
   /* There's no dedicated notifier for the Preferences. */
   WM_main_add_notifier(NC_WINDOW, nullptr);
+  ed::asset::list::clear_all_library(C);
 
-  MEM_freeN(path);
   return OPERATOR_FINISHED;
 }
 
-static int preferences_asset_library_add_invoke(bContext *C,
-                                                wmOperator *op,
-                                                const wmEvent * /*event*/)
+static wmOperatorStatus preferences_asset_library_add_invoke(bContext *C,
+                                                             wmOperator *op,
+                                                             const wmEvent *event)
 {
-  if (!RNA_struct_property_is_set(op->ptr, "directory")) {
+  const bUserAssetLibraryAddType library_type = bUserAssetLibraryAddType(
+      RNA_enum_get(op->ptr, "type"));
+
+  if ((library_type == bUserAssetLibraryAddType::Local) &&
+      !RNA_struct_property_is_set(op->ptr, "directory"))
+  {
     WM_event_add_fileselect(C, op);
     return OPERATOR_RUNNING_MODAL;
   }
 
-  return preferences_asset_library_add_exec(C, op);
+  return WM_operator_props_popup_confirm_ex(
+      C, op, event, IFACE_("Add Asset Library"), IFACE_("Create"));
+}
+
+static void preferences_asset_library_add_ui(bContext * /*C*/, wmOperator *op)
+{
+  blender::ui::Layout *layout = op->layout;
+  layout->use_property_split_set(true);
+  layout->use_property_decorate_set(false);
+
+  PointerRNA *ptr = op->ptr;
+  const bUserAssetLibraryAddType library_type = bUserAssetLibraryAddType(
+      RNA_enum_get(ptr, "type"));
+  switch (library_type) {
+    case bUserAssetLibraryAddType::Remote: {
+      layout->prop(op->ptr, "remote_url", ui::ITEM_R_IMMEDIATE, std::nullopt, ICON_NONE);
+      break;
+    }
+    case bUserAssetLibraryAddType::Local: {
+      layout->prop(op->ptr, "name", ui::ITEM_R_IMMEDIATE, std::nullopt, ICON_NONE);
+      break;
+    }
+  }
+}
+
+static constexpr EnumPropertyItem custom_library_type_items[] = {
+    {int(bUserAssetLibraryAddType::Remote),
+     "REMOTE",
+     ICON_INTERNET,
+     "Add Remote Asset Library",
+     "Add an asset library referencing a remote repository "
+     "with support for listing and updating asset libraries"},
+    {int(bUserAssetLibraryAddType::Local),
+     "LOCAL",
+     ICON_DISK_DRIVE,
+     "Add Local Asset Library",
+     "Add an asset library managed via the file system without referencing an external "
+     "repository"},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
+static const EnumPropertyItem *custom_library_type_itemf(bContext * /*C*/,
+                                                         PointerRNA * /*ptr*/,
+                                                         PropertyRNA * /*prop*/,
+                                                         bool *r_free)
+{
+  *r_free = false;
+
+  if (USER_EXPERIMENTAL_TEST(&U, use_remote_asset_libraries)) {
+    /* Experimental flag is enabled, just return all items. */
+    return custom_library_type_items;
+  }
+
+  /* Since the Remote item is the first in the list, we can just return a pointer to
+   * the 2nd item in the list, when remote asset libraries should be hidden. */
+  static_assert(custom_library_type_items[0].value == int(bUserAssetLibraryAddType::Remote));
+  return custom_library_type_items + 1;
 }
 
 static void PREFERENCES_OT_asset_library_add(wmOperatorType *ot)
@@ -176,8 +294,9 @@ static void PREFERENCES_OT_asset_library_add(wmOperatorType *ot)
 
   ot->exec = preferences_asset_library_add_exec;
   ot->invoke = preferences_asset_library_add_invoke;
+  ot->ui = preferences_asset_library_add_ui;
 
-  ot->flag = OPTYPE_INTERNAL;
+  ot->flag = OPTYPE_INTERNAL | OPTYPE_REGISTER;
 
   WM_operator_properties_filesel(ot,
                                  FILE_TYPE_FOLDER,
@@ -186,6 +305,38 @@ static void PREFERENCES_OT_asset_library_add(wmOperatorType *ot)
                                  WM_FILESEL_DIRECTORY,
                                  FILE_DEFAULTDISPLAY,
                                  FILE_SORT_DEFAULT);
+
+  /* Copy the RNA values are copied into the operator to avoid repetition. */
+  StructRNA *type_ref = RNA_UserAssetLibrary;
+
+  { /* Name. */
+    const char *prop_id = "name";
+    const PropertyRNA *prop_ref = RNA_struct_type_find_property(type_ref, prop_id);
+    PropertyRNA *prop = RNA_def_string(ot->srna,
+                                       prop_id,
+                                       nullptr,
+                                       sizeof(bUserExtensionRepo::name),
+                                       RNA_property_ui_name_raw(prop_ref),
+                                       RNA_property_ui_description_raw(prop_ref));
+    RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+  }
+
+  { /* Remote Path. */
+    const char *prop_id = "remote_url";
+    const PropertyRNA *prop_ref = RNA_struct_type_find_property(type_ref, prop_id);
+    PropertyRNA *prop = RNA_def_string(ot->srna,
+                                       prop_id,
+                                       nullptr,
+                                       sizeof(bUserAssetLibrary::remote_url),
+                                       RNA_property_ui_name_raw(prop_ref),
+                                       RNA_property_ui_description_raw(prop_ref));
+    RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+  }
+
+  ot->prop = RNA_def_enum(
+      ot->srna, "type", custom_library_type_items, 0, "Type", "The kind of asset library to add");
+  RNA_def_enum_funcs(ot->prop, custom_library_type_itemf);
+  RNA_def_property_flag(ot->prop, PROP_SKIP_SAVE | PROP_HIDDEN);
 }
 
 /** \} */
@@ -203,7 +354,7 @@ static bool preferences_asset_library_remove_poll(bContext *C)
   return true;
 }
 
-static int preferences_asset_library_remove_exec(bContext * /*C*/, wmOperator *op)
+static wmOperatorStatus preferences_asset_library_remove_exec(bContext *C, wmOperator *op)
 {
   const int index = RNA_int_get(op->ptr, "index");
   bUserAssetLibrary *library = static_cast<bUserAssetLibrary *>(
@@ -212,12 +363,45 @@ static int preferences_asset_library_remove_exec(bContext * /*C*/, wmOperator *o
     return OPERATOR_CANCELLED;
   }
 
-  BKE_preferences_asset_library_remove(&U, library);
-  const int count_remaining = BLI_listbase_count(&U.asset_libraries);
+  const bool use_remote_libraries = USER_EXPERIMENTAL_TEST(&U, use_remote_asset_libraries);
+  const bool is_remote_library = library->flag & ASSET_LIBRARY_USE_REMOTE_URL;
+
+  if (is_remote_library && !use_remote_libraries) {
+    /* This is a corner case, where the active library is a remote one, but remote libraries are
+     * not shown. This only happens right after disabling the experimental flag, which doesn't
+     * update the active library index, or when somebody set the active index via Python. Just
+     * pretend the deletion happened (because actually deleting hidden things is bad), and let the
+     * code below activate a non-remote (and so visible) library. */
+  }
+  else {
+    BKE_preferences_asset_library_remove(&U, library);
+  }
+
+  /* If the experimental flag was disabled, make sure the newly activated asset
+   * library is not a remote one. */
+  if (!use_remote_libraries) {
+    int nonremote_index = 0;
+    for (auto [index, lib] : U.asset_libraries.enumerate()) {
+      if (lib.flag & ASSET_LIBRARY_USE_REMOTE_URL) {
+        /* Ignore remote libraries. */
+        continue;
+      }
+
+      nonremote_index = index;
+      if (index >= U.active_asset_library) {
+        /* We've found the first usable library above the deleted one, the search can stop. */
+        break;
+      }
+    }
+    U.active_asset_library = nonremote_index;
+  }
+
   /* Update active library index to be in range. */
+  const int count_remaining = BLI_listbase_count(&U.asset_libraries);
   CLAMP(U.active_asset_library, 0, count_remaining - 1);
   U.runtime.is_dirty = true;
 
+  ed::asset::list::clear_all_library(C);
   /* Trigger refresh for the Asset Browser. */
   WM_main_add_notifier(NC_SPACE | ND_SPACE_ASSET_PARAMS, nullptr);
 
@@ -265,7 +449,7 @@ static const char *preferences_extension_repo_default_name_from_type(
   return "";
 }
 
-static int preferences_extension_repo_add_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus preferences_extension_repo_add_exec(bContext *C, wmOperator *op)
 {
   const bUserExtensionRepoAddType repo_type = bUserExtensionRepoAddType(
       RNA_enum_get(op->ptr, "type"));
@@ -274,17 +458,26 @@ static int preferences_extension_repo_add_exec(bContext *C, wmOperator *op)
   BKE_callback_exec_null(bmain, BKE_CB_EVT_EXTENSION_REPOS_UPDATE_PRE);
 
   char name[sizeof(bUserExtensionRepo::name)] = "";
-  char remote_path[sizeof(bUserExtensionRepo::remote_path)] = "";
+  char remote_url[sizeof(bUserExtensionRepo::remote_url)] = "";
+  char *access_token = nullptr;
   char custom_directory[sizeof(bUserExtensionRepo::custom_dirpath)] = "";
 
   const bool use_custom_directory = RNA_boolean_get(op->ptr, "use_custom_directory");
+  const bool use_access_token = RNA_boolean_get(op->ptr, "use_access_token");
+  const bool use_sync_on_startup = RNA_boolean_get(op->ptr, "use_sync_on_startup");
   if (use_custom_directory) {
     RNA_string_get(op->ptr, "custom_directory", custom_directory);
     BLI_path_slash_rstrip(custom_directory);
   }
 
   if (repo_type == bUserExtensionRepoAddType::Remote) {
-    RNA_string_get(op->ptr, "remote_path", remote_path);
+    RNA_string_get(op->ptr, "remote_url", remote_url);
+
+    if (use_access_token) {
+      if (RNA_string_length(op->ptr, "access_token")) {
+        access_token = RNA_string_get_alloc(op->ptr, "access_token", nullptr, 0, nullptr);
+      }
+    }
   }
 
   /* Setup the name using the following logic:
@@ -302,7 +495,7 @@ static int preferences_extension_repo_add_exec(bContext *C, wmOperator *op)
     if (name[0] == '\0') {
       switch (repo_type) {
         case bUserExtensionRepoAddType::Remote: {
-          BKE_preferences_extension_remote_to_name(remote_path, name);
+          BKE_preferences_remote_to_name(remote_url, name);
           break;
         }
         case bUserExtensionRepoAddType::Local: {
@@ -325,7 +518,7 @@ static int preferences_extension_repo_add_exec(bContext *C, wmOperator *op)
    * Otherwise URL's have their '.' removed, making for quite unreadable module names. */
   char module_buf[FILE_MAX];
   {
-    STRNCPY(module_buf, module);
+    STRNCPY_UTF8(module_buf, module);
     int i;
     for (i = 0; module_buf[i]; i++) {
       if (ELEM(module_buf[i], '.', '-', '/', '\\')) {
@@ -342,30 +535,55 @@ static int preferences_extension_repo_add_exec(bContext *C, wmOperator *op)
   bUserExtensionRepo *new_repo = BKE_preferences_extension_repo_add(
       &U, name, module, custom_directory);
 
+  if (use_sync_on_startup) {
+    new_repo->flag |= USER_EXTENSION_REPO_FLAG_SYNC_ON_STARTUP;
+  }
   if (use_custom_directory) {
     new_repo->flag |= USER_EXTENSION_REPO_FLAG_USE_CUSTOM_DIRECTORY;
   }
 
   if (repo_type == bUserExtensionRepoAddType::Remote) {
-    STRNCPY(new_repo->remote_path, remote_path);
-    new_repo->flag |= USER_EXTENSION_REPO_FLAG_USE_REMOTE_PATH;
+    STRNCPY_UTF8(new_repo->remote_url, remote_url);
+    new_repo->flag |= USER_EXTENSION_REPO_FLAG_USE_REMOTE_URL;
+
+    if (use_access_token) {
+      new_repo->flag |= USER_EXTENSION_REPO_FLAG_USE_ACCESS_TOKEN;
+    }
+    if (access_token) {
+      new_repo->access_token = access_token;
+    }
   }
 
   /* Activate new repository in the UI for further setup. */
   U.active_extension_repo = BLI_findindex(&U.extension_repos, new_repo);
   U.runtime.is_dirty = true;
 
-  BKE_callback_exec_null(bmain, BKE_CB_EVT_EXTENSION_REPOS_UPDATE_POST);
+  {
+    PointerRNA new_repo_ptr = RNA_pointer_create_discrete(
+        nullptr, RNA_UserExtensionRepo, new_repo);
+    PointerRNA *pointers[] = {&new_repo_ptr};
 
-  BKE_callback_exec_null(bmain, BKE_CB_EVT_EXTENSION_REPOS_SYNC);
+    BKE_callback_exec_null(bmain, BKE_CB_EVT_EXTENSION_REPOS_UPDATE_POST);
+    BKE_callback_exec(bmain, pointers, ARRAY_SIZE(pointers), BKE_CB_EVT_EXTENSION_REPOS_SYNC);
+  }
 
   /* There's no dedicated notifier for the Preferences. */
   WM_event_add_notifier(C, NC_WINDOW, nullptr);
 
+  /* Mainly useful when adding a repository from a popup since it's not as obvious
+   * the repository was added compared to the repository popover. */
+  BKE_reportf(op->reports,
+              RPT_INFO,
+              "Added %s \"%s\"",
+              preferences_extension_repo_default_name_from_type(repo_type),
+              new_repo->name);
+
   return OPERATOR_FINISHED;
 }
 
-static int preferences_extension_repo_add_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus preferences_extension_repo_add_invoke(bContext *C,
+                                                              wmOperator *op,
+                                                              const wmEvent *event)
 {
   const bUserExtensionRepoAddType repo_type = bUserExtensionRepoAddType(
       RNA_enum_get(op->ptr, "type"));
@@ -379,34 +597,53 @@ static int preferences_extension_repo_add_invoke(bContext *C, wmOperator *op, co
     RNA_property_string_set(op->ptr, prop_name, name_default);
   }
 
-  return WM_operator_props_popup_confirm(C, op, event);
+  return WM_operator_props_popup_confirm_ex(
+      C, op, event, IFACE_("Add New Extension Repository"), IFACE_("Create"));
 }
 
 static void preferences_extension_repo_add_ui(bContext * /*C*/, wmOperator *op)
 {
 
-  uiLayout *layout = op->layout;
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
+  ui::Layout &layout = *op->layout;
+  layout.use_property_split_set(true);
+  layout.use_property_decorate_set(false);
 
   PointerRNA *ptr = op->ptr;
   const bUserExtensionRepoAddType repo_type = bUserExtensionRepoAddType(RNA_enum_get(ptr, "type"));
 
   switch (repo_type) {
     case bUserExtensionRepoAddType::Remote: {
-      uiItemR(layout, op->ptr, "remote_path", UI_ITEM_R_IMMEDIATE, nullptr, ICON_NONE);
+      layout.prop(op->ptr, "remote_url", ui::ITEM_R_IMMEDIATE, std::nullopt, ICON_NONE);
+      layout.prop(op->ptr, "use_sync_on_startup", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+
+      layout.separator(0.2f, ui::LayoutSeparatorType::Line);
+
+      const bool use_access_token = RNA_boolean_get(ptr, "use_access_token");
+      const int token_icon = (use_access_token && RNA_string_length(op->ptr, "access_token")) ?
+                                 ICON_LOCKED :
+                                 ICON_UNLOCKED;
+
+      ui::Layout &row = layout.row(true, IFACE_("Authentication"));
+      row.prop(op->ptr, "use_access_token", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      ui::Layout &col = layout.row(false);
+      col.active_set(use_access_token);
+      /* Use "immediate" flag to refresh the icon. */
+      col.prop(op->ptr, "access_token", ui::ITEM_R_IMMEDIATE, std::nullopt, token_icon);
+
+      layout.separator(0.2f, ui::LayoutSeparatorType::Line);
+
       break;
     }
     case bUserExtensionRepoAddType::Local: {
-      uiItemR(layout, op->ptr, "name", UI_ITEM_R_IMMEDIATE, nullptr, ICON_NONE);
+      layout.prop(op->ptr, "name", ui::ITEM_R_IMMEDIATE, std::nullopt, ICON_NONE);
       break;
     }
   }
 
-  uiItemR(layout, op->ptr, "use_custom_directory", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiLayout *col = uiLayoutRow(layout, false);
-  uiLayoutSetActive(col, RNA_boolean_get(ptr, "use_custom_directory"));
-  uiItemR(col, op->ptr, "custom_directory", UI_ITEM_NONE, nullptr, ICON_NONE);
+  layout.prop(op->ptr, "use_custom_directory", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  ui::Layout &col = layout.row(false);
+  col.active_set(RNA_boolean_get(ptr, "use_custom_directory"));
+  col.prop(op->ptr, "custom_directory", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 static void PREFERENCES_OT_extension_repo_add(wmOperatorType *ot)
@@ -426,7 +663,7 @@ static void PREFERENCES_OT_extension_repo_add(wmOperatorType *ot)
        "REMOTE",
        ICON_INTERNET,
        "Add Remote Repository",
-       "Add a repository referencing an remote repository "
+       "Add a repository referencing a remote repository "
        "with support for listing and updating extensions"},
       {int(bUserExtensionRepoAddType::Local),
        "LOCAL",
@@ -447,11 +684,11 @@ static void PREFERENCES_OT_extension_repo_add(wmOperatorType *ot)
    * setting the repositories URL (optionally the custom-directory). */
 
   /* Copy the RNA values are copied into the operator to avoid repetition. */
-  StructRNA *type_ref = &RNA_UserExtensionRepo;
+  StructRNA *type_ref = RNA_UserExtensionRepo;
 
   { /* Name. */
     const char *prop_id = "name";
-    PropertyRNA *prop_ref = RNA_struct_type_find_property(type_ref, prop_id);
+    const PropertyRNA *prop_ref = RNA_struct_type_find_property(type_ref, prop_id);
     PropertyRNA *prop = RNA_def_string(ot->srna,
                                        prop_id,
                                        nullptr,
@@ -462,20 +699,55 @@ static void PREFERENCES_OT_extension_repo_add(wmOperatorType *ot)
   }
 
   { /* Remote Path. */
-    const char *prop_id = "remote_path";
-    PropertyRNA *prop_ref = RNA_struct_type_find_property(type_ref, prop_id);
+    const char *prop_id = "remote_url";
+    const PropertyRNA *prop_ref = RNA_struct_type_find_property(type_ref, prop_id);
     PropertyRNA *prop = RNA_def_string(ot->srna,
                                        prop_id,
                                        nullptr,
-                                       sizeof(bUserExtensionRepo::remote_path),
+                                       sizeof(bUserExtensionRepo::remote_url),
                                        RNA_property_ui_name_raw(prop_ref),
                                        RNA_property_ui_description_raw(prop_ref));
     RNA_def_property_flag(prop, PROP_SKIP_SAVE);
   }
 
+  { /* Use Access Token. */
+    const char *prop_id = "use_access_token";
+    const PropertyRNA *prop_ref = RNA_struct_type_find_property(type_ref, prop_id);
+    PropertyRNA *prop = RNA_def_boolean(ot->srna,
+                                        prop_id,
+                                        false,
+                                        RNA_property_ui_name_raw(prop_ref),
+                                        RNA_property_ui_description_raw(prop_ref));
+    RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+  }
+
+  { /* Access Token (dynamic length). */
+    const char *prop_id = "access_token";
+    const PropertyRNA *prop_ref = RNA_struct_type_find_property(type_ref, prop_id);
+    PropertyRNA *prop = RNA_def_string(ot->srna,
+                                       prop_id,
+                                       nullptr,
+                                       0,
+                                       RNA_property_ui_name_raw(prop_ref),
+                                       RNA_property_ui_description_raw(prop_ref));
+    RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+    RNA_def_property_subtype(prop, PROP_PASSWORD);
+  }
+
+  { /* Check for Updated on Startup. */
+    const char *prop_id = "use_sync_on_startup";
+    const PropertyRNA *prop_ref = RNA_struct_type_find_property(type_ref, prop_id);
+    PropertyRNA *prop = RNA_def_boolean(ot->srna,
+                                        prop_id,
+                                        false,
+                                        RNA_property_ui_name_raw(prop_ref),
+                                        RNA_property_ui_description_raw(prop_ref));
+    RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+  }
+
   { /* Use Custom Directory. */
     const char *prop_id = "use_custom_directory";
-    PropertyRNA *prop_ref = RNA_struct_type_find_property(type_ref, prop_id);
+    const PropertyRNA *prop_ref = RNA_struct_type_find_property(type_ref, prop_id);
     PropertyRNA *prop = RNA_def_boolean(ot->srna,
                                         prop_id,
                                         false,
@@ -486,11 +758,11 @@ static void PREFERENCES_OT_extension_repo_add(wmOperatorType *ot)
 
   { /* Custom Directory. */
     const char *prop_id = "custom_directory";
-    PropertyRNA *prop_ref = RNA_struct_type_find_property(type_ref, prop_id);
+    const PropertyRNA *prop_ref = RNA_struct_type_find_property(type_ref, prop_id);
     PropertyRNA *prop = RNA_def_string_dir_path(ot->srna,
                                                 prop_id,
                                                 nullptr,
-                                                sizeof(bUserExtensionRepo::remote_path),
+                                                sizeof(bUserExtensionRepo::custom_dirpath),
                                                 RNA_property_ui_name_raw(prop_ref),
                                                 RNA_property_ui_description_raw(prop_ref));
     RNA_def_property_flag(prop, PROP_SKIP_SAVE);
@@ -504,32 +776,8 @@ static void PREFERENCES_OT_extension_repo_add(wmOperatorType *ot)
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name Generic Extension Repository Utilities
- * \{ */
-
-static bool preferences_extension_repo_remote_active_enabled_poll(bContext *C)
-{
-  const bUserExtensionRepo *repo = BKE_preferences_extension_repo_find_index(
-      &U, U.active_extension_repo);
-  if (repo == nullptr || (repo->flag & USER_EXTENSION_REPO_FLAG_DISABLED) ||
-      !(repo->flag & USER_EXTENSION_REPO_FLAG_USE_REMOTE_PATH))
-  {
-    CTX_wm_operator_poll_msg_set(C, "An enabled remote repository must be selected");
-    return false;
-  }
-  return true;
-}
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
 /** \name Remove Extension Repository Operator
  * \{ */
-
-enum class bUserExtensionRepoRemoveType {
-  RepoOnly = 0,
-  RepoWithDirectory = 1,
-};
 
 static bool preferences_extension_repo_remove_poll(bContext *C)
 {
@@ -540,49 +788,64 @@ static bool preferences_extension_repo_remove_poll(bContext *C)
   return true;
 }
 
-static int preferences_extension_repo_remove_invoke(bContext *C,
-                                                    wmOperator *op,
-                                                    const wmEvent * /*event*/)
+static wmOperatorStatus preferences_extension_repo_remove_invoke(bContext *C,
+                                                                 wmOperator *op,
+                                                                 const wmEvent * /*event*/)
 {
   const int index = RNA_int_get(op->ptr, "index");
-  bUserExtensionRepoRemoveType repo_type = bUserExtensionRepoRemoveType(
-      RNA_enum_get(op->ptr, "type"));
-  bUserExtensionRepo *repo = static_cast<bUserExtensionRepo *>(
+  bool remove_files = RNA_boolean_get(op->ptr, "remove_files");
+  const bUserExtensionRepo *repo = static_cast<bUserExtensionRepo *>(
       BLI_findlink(&U.extension_repos, index));
 
   if (!repo) {
     return OPERATOR_CANCELLED;
   }
-  std::string message;
-  if (repo_type == bUserExtensionRepoRemoveType::RepoWithDirectory) {
-    char dirpath[FILE_MAX];
-    BKE_preferences_extension_repo_dirpath_get(repo, dirpath, sizeof(dirpath));
 
-    if (dirpath[0]) {
-      message = fmt::format(IFACE_("Remove all files in \"{}\"."), dirpath);
+  if (remove_files) {
+    if ((repo->flag & USER_EXTENSION_REPO_FLAG_USE_REMOTE_URL) == 0) {
+      if (repo->source == USER_EXTENSION_REPO_SOURCE_SYSTEM) {
+        remove_files = false;
+      }
+    }
+  }
+
+  std::string message;
+  if (remove_files) {
+    char dirpath[FILE_MAX];
+    char user_dirpath[FILE_MAX];
+    BKE_preferences_extension_repo_dirpath_get(repo, dirpath, sizeof(dirpath));
+    BKE_preferences_extension_repo_user_dirpath_get(repo, user_dirpath, sizeof(user_dirpath));
+
+    if (dirpath[0] || user_dirpath[0]) {
+      message = IFACE_("Remove all files in:");
+      const char *paths[] = {dirpath, user_dirpath};
+      for (int i = 0; i < ARRAY_SIZE(paths); i++) {
+        if (paths[i][0] == '\0') {
+          continue;
+        }
+        message.append(fmt::format("\n\"{}\"", paths[i]));
+      }
     }
     else {
       message = IFACE_("Remove, local files not found.");
-      repo_type = bUserExtensionRepoRemoveType::RepoOnly;
+      remove_files = false;
     }
   }
   else {
     message = IFACE_("Remove, keeping local files.");
   }
 
-  const char *confirm_text = (repo_type == bUserExtensionRepoRemoveType::RepoWithDirectory) ?
-                                 IFACE_("Remove Repository & Files") :
-                                 IFACE_("Remove Repository");
+  const char *confirm_text = remove_files ? IFACE_("Remove Repository & Files") :
+                                            IFACE_("Remove Repository");
 
   return WM_operator_confirm_ex(
-      C, op, nullptr, message.c_str(), confirm_text, ALERT_ICON_WARNING, true);
+      C, op, nullptr, message.c_str(), confirm_text, ui::AlertIcon::Warning, true);
 }
 
-static int preferences_extension_repo_remove_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus preferences_extension_repo_remove_exec(bContext *C, wmOperator *op)
 {
   const int index = RNA_int_get(op->ptr, "index");
-  const bUserExtensionRepoRemoveType repo_type = bUserExtensionRepoRemoveType(
-      RNA_enum_get(op->ptr, "type"));
+  bool remove_files = RNA_boolean_get(op->ptr, "remove_files");
   bUserExtensionRepo *repo = static_cast<bUserExtensionRepo *>(
       BLI_findlink(&U.extension_repos, index));
   if (!repo) {
@@ -592,7 +855,30 @@ static int preferences_extension_repo_remove_exec(bContext *C, wmOperator *op)
   Main *bmain = CTX_data_main(C);
   BKE_callback_exec_null(bmain, BKE_CB_EVT_EXTENSION_REPOS_UPDATE_PRE);
 
-  if (repo_type == bUserExtensionRepoRemoveType::RepoWithDirectory) {
+  if (remove_files) {
+    if ((repo->flag & USER_EXTENSION_REPO_FLAG_USE_REMOTE_URL) == 0) {
+      if (repo->source == USER_EXTENSION_REPO_SOURCE_SYSTEM) {
+        /* The UI doesn't show this option, if it's accessed disallow it. */
+        BKE_report(op->reports, RPT_WARNING, "Unable to remove files for \"System\" repositories");
+        remove_files = false;
+      }
+    }
+  }
+
+  if (remove_files) {
+    if (!BKE_preferences_extension_repo_module_is_valid(repo)) {
+      BKE_reportf(op->reports,
+                  RPT_WARNING,
+                  /* Account for it not being null terminated. */
+                  "Unable to remove files, the module name \"%.*s\" is invalid and "
+                  "could remove non-repository files",
+                  int(sizeof(repo->module)),
+                  repo->module);
+      remove_files = false;
+    }
+  }
+
+  if (remove_files) {
     char dirpath[FILE_MAX];
     BKE_preferences_extension_repo_dirpath_get(repo, dirpath, sizeof(dirpath));
     if (dirpath[0] && BLI_is_dir(dirpath)) {
@@ -610,9 +896,19 @@ static int preferences_extension_repo_remove_exec(bContext *C, wmOperator *op)
        * If it's not empty there will be a warning that the directory couldn't be removed.
        * The user will have to do this manually which is good since unknown files
        * could be user data. */
-      BKE_callback_exec_string(bmain, BKE_CB_EVT_EXTENSION_REPOS_FILES_CLEAR, dirpath);
+      BKE_callback_exec_string(bmain, dirpath, BKE_CB_EVT_EXTENSION_REPOS_FILES_CLEAR);
 
       if (BLI_delete(dirpath, true, recursive) != 0) {
+        BKE_reportf(op->reports,
+                    RPT_WARNING,
+                    "Unable to remove directory: %s",
+                    errno ? strerror(errno) : "unknown");
+      }
+    }
+
+    BKE_preferences_extension_repo_user_dirpath_get(repo, dirpath, sizeof(dirpath));
+    if (dirpath[0] && BLI_is_dir(dirpath)) {
+      if (BLI_delete(dirpath, true, true) != 0) {
         BKE_reportf(op->reports,
                     RPT_WARNING,
                     "Unable to remove directory: %s",
@@ -647,73 +943,15 @@ static void PREFERENCES_OT_extension_repo_remove(wmOperatorType *ot)
 
   ot->flag = OPTYPE_INTERNAL;
 
-  static const EnumPropertyItem repo_type_items[] = {
-      {int(bUserExtensionRepoRemoveType::RepoOnly), "REPO_ONLY", 0, "Remove Repository"},
-      {int(bUserExtensionRepoRemoveType::RepoWithDirectory),
-       "REPO_AND_DIRECTORY",
-       0,
-       "Remove Repository & Files",
-       "Delete all associated local files when removing"},
-      {0, nullptr, 0, nullptr, nullptr},
-  };
-
-  RNA_def_int(ot->srna, "index", 0, 0, INT_MAX, "Index", "", 0, 1000);
-
-  ot->prop = RNA_def_enum(
-      ot->srna, "type", repo_type_items, 0, "Type", "Method for removing the repository");
-  RNA_def_property_flag(ot->prop, PROP_SKIP_SAVE | PROP_HIDDEN);
-}
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
-/** \name Check for Extension Repository Updates Operator
- * \{ */
-
-static int preferences_extension_repo_sync_exec(bContext *C, wmOperator * /*op*/)
-{
-  Main *bmain = CTX_data_main(C);
-  BKE_callback_exec_null(bmain, BKE_CB_EVT_EXTENSION_REPOS_SYNC);
-  WM_event_add_notifier(C, NC_WINDOW, nullptr);
-  return OPERATOR_FINISHED;
-}
-
-static void PREFERENCES_OT_extension_repo_sync(wmOperatorType *ot)
-{
-  ot->name = "Check for Updates";
-  ot->idname = "PREFERENCES_OT_extension_repo_sync";
-  ot->description = "Synchronize the active extension repository with its remote URL";
-
-  ot->exec = preferences_extension_repo_sync_exec;
-  ot->poll = preferences_extension_repo_remote_active_enabled_poll;
-
-  ot->flag = OPTYPE_INTERNAL;
-}
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
-/** \name Update Extension Repository Operator
- * \{ */
-
-static int preferences_extension_repo_upgrade_exec(bContext *C, wmOperator * /*op*/)
-{
-  Main *bmain = CTX_data_main(C);
-  BKE_callback_exec_null(bmain, BKE_CB_EVT_EXTENSION_REPOS_UPGRADE);
-  WM_event_add_notifier(C, NC_WINDOW, nullptr);
-  return OPERATOR_FINISHED;
-}
-
-static void PREFERENCES_OT_extension_repo_upgrade(wmOperatorType *ot)
-{
-  ot->name = "Update Repository";
-  ot->idname = "PREFERENCES_OT_extension_repo_upgrade";
-  ot->description = "Update any outdated extensions for the active extension repository";
-
-  ot->exec = preferences_extension_repo_upgrade_exec;
-  ot->poll = preferences_extension_repo_remote_active_enabled_poll;
-
-  ot->flag = OPTYPE_INTERNAL;
+  PropertyRNA *prop;
+  prop = RNA_def_int(ot->srna, "index", 0, 0, INT_MAX, "Index", "", 0, 1000);
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+  prop = RNA_def_boolean(ot->srna,
+                         "remove_files",
+                         false,
+                         "Remove Files",
+                         "Remove extension files when removing the repository");
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
 /** \} */
@@ -722,22 +960,35 @@ static void PREFERENCES_OT_extension_repo_upgrade(wmOperatorType *ot)
 /** \name Drop Extension Operator
  * \{ */
 
-static int preferences_extension_url_drop_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus preferences_extension_url_drop_invoke(bContext *C,
+                                                              wmOperator *op,
+                                                              const wmEvent *event)
 {
-  char *url = RNA_string_get_alloc(op->ptr, "url", nullptr, 0, nullptr);
-  const bool url_is_remote = STRPREFIX(url, "http://") || STRPREFIX(url, "https://") ||
-                             STRPREFIX(url, "file://");
+  std::string url = RNA_string_get(op->ptr, "url");
+  const bool url_is_file = STRPREFIX(url.c_str(), "file://");
+  const bool url_is_online = STRPREFIX(url.c_str(), "http://") ||
+                             STRPREFIX(url.c_str(), "https://");
+  const bool url_is_remote = url_is_file | url_is_online;
 
   /* NOTE: searching for hard-coded add-on name isn't great.
    * Needed since #WM_dropbox_add expects the operator to exist on startup. */
-  const char *idname_external = url_is_remote ? "bl_pkg.pkg_install" : "bl_pkg.pkg_install_files";
+  const char *idname_external = url_is_remote ? "extensions.package_install" :
+                                                "extensions.package_install_files";
+  bool use_url = true;
+
+  if (url_is_online && (G.f & G_FLAG_INTERNET_ALLOW) == 0) {
+    idname_external = "extensions.userpref_allow_online_popup";
+    use_url = false;
+  }
+
   wmOperatorType *ot = WM_operatortype_find(idname_external, true);
-  int retval;
+  wmOperatorStatus retval;
   if (ot) {
-    PointerRNA props_ptr;
-    WM_operator_properties_create_ptr(&props_ptr, ot);
-    RNA_string_set(&props_ptr, "url", url);
-    WM_operator_name_call_ptr(C, ot, WM_OP_INVOKE_DEFAULT, &props_ptr, event);
+    PointerRNA props_ptr = WM_operator_properties_create_ptr(ot);
+    if (use_url) {
+      RNA_string_set(&props_ptr, "url", url.c_str());
+    }
+    WM_operator_name_call_ptr(C, ot, wm::OpCallContext::InvokeDefault, &props_ptr, event);
     WM_operator_properties_free(&props_ptr);
     retval = OPERATOR_FINISHED;
   }
@@ -745,7 +996,6 @@ static int preferences_extension_url_drop_invoke(bContext *C, wmOperator *op, co
     BKE_reportf(op->reports, RPT_ERROR, "Extension operator not found \"%s\"", idname_external);
     retval = OPERATOR_CANCELLED;
   }
-  MEM_freeN(url);
   return retval;
 }
 
@@ -756,7 +1006,7 @@ static void PREFERENCES_OT_extension_url_drop(wmOperatorType *ot)
   ot->description = "Handle dropping an extension URL";
   ot->idname = "PREFERENCES_OT_extension_url_drop";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = preferences_extension_url_drop_invoke;
 
   RNA_def_string(ot->srna, "url", nullptr, 0, "URL", "Location of the extension to install");
@@ -776,46 +1026,68 @@ static bool associate_blend_poll(bContext *C)
     return false;
   }
   return true;
-#else
-  CTX_wm_operator_poll_msg_set(C, "Windows-only operator");
+#elif defined(__APPLE__)
+  CTX_wm_operator_poll_msg_set(C, "Windows & Linux only operator");
   return false;
+#else
+  UNUSED_VARS(C);
+  return true;
 #endif
 }
 
-static int associate_blend_exec(bContext * /*C*/, wmOperator *op)
+#if !defined(__APPLE__)
+static bool associate_blend(bool do_register, bool all_users, char **r_error_msg)
 {
-#ifdef WIN32
+  const bool result = WM_platform_associate_set(do_register, all_users, r_error_msg);
+#  ifdef WIN32
+  if ((result == false) &&
+      /* For some reason the message box isn't shown in this case. */
+      (all_users == false))
+  {
+    const char *msg = do_register ? "Unable to register file association" :
+                                    "Unable to unregister file association";
+    MessageBox(0, msg, "Blender", MB_OK | MB_ICONERROR);
+  }
+#  endif /* !WIN32 */
+  return result;
+}
+#endif
+
+static wmOperatorStatus associate_blend_exec(bContext * /*C*/, wmOperator *op)
+{
+#ifdef __APPLE__
+  UNUSED_VARS(op);
+  BLI_assert_unreachable();
+  return OPERATOR_CANCELLED;
+#else
+
+#  ifdef WIN32
   if (BLI_windows_is_store_install()) {
     BKE_report(
         op->reports, RPT_ERROR, "Registration not possible from Microsoft Store installations");
     return OPERATOR_CANCELLED;
   }
+#  endif
 
   const bool all_users = (U.uiflag & USER_REGISTER_ALL_USERS);
+  char *error_msg = nullptr;
 
   WM_cursor_wait(true);
+  const bool success = associate_blend(true, all_users, &error_msg);
+  WM_cursor_wait(false);
 
-  if (all_users && BLI_windows_execute_self("--register-allusers", true, true, true)) {
-    BKE_report(op->reports, RPT_INFO, "File association registered");
-    WM_cursor_wait(false);
-    return OPERATOR_FINISHED;
-  }
-  else if (!all_users && BLI_windows_register_blend_extension(false)) {
-    BKE_report(op->reports, RPT_INFO, "File association registered");
-    WM_cursor_wait(false);
-    return OPERATOR_FINISHED;
-  }
-  else {
-    BKE_report(op->reports, RPT_ERROR, "Unable to register file association");
-    WM_cursor_wait(false);
-    MessageBox(0, "Unable to register file association", "Blender", MB_OK | MB_ICONERROR);
+  if (!success) {
+    BKE_report(
+        op->reports, RPT_ERROR, error_msg ? error_msg : "Unable to register file association");
+    if (error_msg) {
+      MEM_delete(error_msg);
+    }
     return OPERATOR_CANCELLED;
   }
-#else
-  UNUSED_VARS(op);
-  BLI_assert_unreachable();
-  return OPERATOR_CANCELLED;
-#endif
+  BLI_assert(error_msg == nullptr);
+  BKE_report(op->reports, RPT_INFO, "File association registered");
+  return OPERATOR_FINISHED;
+#endif /* !__APPLE__ */
 }
 
 static void PREFERENCES_OT_associate_blend(wmOperatorType *ot)
@@ -825,45 +1097,45 @@ static void PREFERENCES_OT_associate_blend(wmOperatorType *ot)
   ot->description = "Use this installation for .blend files and to display thumbnails";
   ot->idname = "PREFERENCES_OT_associate_blend";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = associate_blend_exec;
   ot->poll = associate_blend_poll;
 }
 
-static int unassociate_blend_exec(bContext * /*C*/, wmOperator *op)
+static wmOperatorStatus unassociate_blend_exec(bContext * /*C*/, wmOperator *op)
 {
-#ifdef WIN32
+#ifdef __APPLE__
+  UNUSED_VARS(op);
+  BLI_assert_unreachable();
+  return OPERATOR_CANCELLED;
+#else
+#  ifdef WIN32
   if (BLI_windows_is_store_install()) {
     BKE_report(
         op->reports, RPT_ERROR, "Unregistration not possible from Microsoft Store installations");
     return OPERATOR_CANCELLED;
   }
+#  endif
 
   const bool all_users = (U.uiflag & USER_REGISTER_ALL_USERS);
+  char *error_msg = nullptr;
 
   WM_cursor_wait(true);
+  bool success = associate_blend(false, all_users, &error_msg);
+  WM_cursor_wait(false);
 
-  if (all_users && BLI_windows_execute_self("--unregister-allusers", true, true, true)) {
-    BKE_report(op->reports, RPT_INFO, "File association unregistered");
-    WM_cursor_wait(false);
-    return OPERATOR_FINISHED;
-  }
-  else if (!all_users && BLI_windows_unregister_blend_extension(false)) {
-    BKE_report(op->reports, RPT_INFO, "File association unregistered");
-    WM_cursor_wait(false);
-    return OPERATOR_FINISHED;
-  }
-  else {
-    BKE_report(op->reports, RPT_ERROR, "Unable to unregister file association");
-    WM_cursor_wait(false);
-    MessageBox(0, "Unable to unregister file association", "Blender", MB_OK | MB_ICONERROR);
+  if (!success) {
+    BKE_report(
+        op->reports, RPT_ERROR, error_msg ? error_msg : "Unable to unregister file association");
+    if (error_msg) {
+      MEM_delete(error_msg);
+    }
     return OPERATOR_CANCELLED;
   }
-#else
-  UNUSED_VARS(op);
-  BLI_assert_unreachable();
-  return OPERATOR_CANCELLED;
-#endif
+  BLI_assert(error_msg == nullptr);
+  BKE_report(op->reports, RPT_INFO, "File association unregistered");
+  return OPERATOR_FINISHED;
+#endif /* !__APPLE__ */
 }
 
 static void PREFERENCES_OT_unassociate_blend(wmOperatorType *ot)
@@ -873,7 +1145,7 @@ static void PREFERENCES_OT_unassociate_blend(wmOperatorType *ot)
   ot->description = "Remove this installation's associations with .blend files";
   ot->idname = "PREFERENCES_OT_unassociate_blend";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = unassociate_blend_exec;
   ot->poll = associate_blend_poll;
 }
@@ -886,9 +1158,6 @@ static void PREFERENCES_OT_unassociate_blend(wmOperatorType *ot)
 
 static bool drop_extension_url_poll(bContext * /*C*/, wmDrag *drag, const wmEvent * /*event*/)
 {
-  if (!U.experimental.use_extension_repos) {
-    return false;
-  }
   if (drag->type != WM_DRAG_STRING) {
     return false;
   }
@@ -902,7 +1171,7 @@ static bool drop_extension_url_poll(bContext * /*C*/, wmDrag *drag, const wmEven
 
   /* Only URL formatted text. */
   const char *cstr = str.c_str();
-  if (BKE_preferences_extension_repo_remote_scheme_end(cstr) == 0) {
+  if (BKE_preferences_remote_scheme_end(cstr) == 0) {
     return false;
   }
 
@@ -911,11 +1180,29 @@ static bool drop_extension_url_poll(bContext * /*C*/, wmDrag *drag, const wmEven
     return false;
   }
 
-  const char *cstr_ext = BLI_path_extension(cstr);
+  bool has_known_extension = false;
+  {
+    /* Strip parameters from the URL (if they exist) before the file extension is checked.
+     * This allows for `https://example.org/api/v1/file.zip?repository=/api/v1/`.
+     * This allows draggable links to specify their repository, see: #120665. */
+    std::string str_strip;
+    const char *cstr_maybe_copy = cstr;
+    size_t param_char = str.find('?');
+    if (param_char != std::string::npos) {
+      str_strip = str.substr(0, param_char);
+      cstr_maybe_copy = str_strip.c_str();
+    }
+
+    const char *cstr_ext = BLI_path_extension(cstr_maybe_copy);
+    if (cstr_ext && STRCASEEQ(cstr_ext, ".zip")) {
+      has_known_extension = true;
+    }
+  }
+
   /* Check the URL has a `.zip` suffix OR has a known repository as a prefix.
    * This is needed to support redirects which don't contain an extension. */
-  if (!(cstr_ext && STRCASEEQ(cstr_ext, ".zip")) &&
-      !(BKE_preferences_extension_repo_find_by_remote_path_prefix(&U, cstr, true)))
+  if (!has_known_extension &&
+      !BKE_preferences_extension_repo_find_by_remote_url_prefix(&U, cstr, true))
   {
     return false;
   }
@@ -938,9 +1225,6 @@ static void drop_extension_url_copy(bContext * /*C*/, wmDrag *drag, wmDropBox *d
 
 static bool drop_extension_path_poll(bContext * /*C*/, wmDrag *drag, const wmEvent * /*event*/)
 {
-  if (!U.experimental.use_extension_repos) {
-    return false;
-  }
   if (drag->type != WM_DRAG_PATH) {
     return false;
   }
@@ -965,7 +1249,7 @@ static void drop_extension_path_copy(bContext * /*C*/, wmDrag *drag, wmDropBox *
 
 static void ED_dropbox_drop_extension()
 {
-  ListBase *lb = WM_dropboxmap_find("Window", SPACE_EMPTY, RGN_TYPE_WINDOW);
+  ListBaseT<wmDropBox> *lb = WM_dropboxmap_find("Window", SPACE_EMPTY, RGN_TYPE_WINDOW);
   WM_dropbox_add(lb,
                  "PREFERENCES_OT_extension_url_drop",
                  drop_extension_url_poll,
@@ -980,6 +1264,52 @@ static void ED_dropbox_drop_extension()
                  nullptr);
 }
 
+/* -------------------------------------------------------------------- */
+/** \name Start / Clear Search Filter Operators
+ *
+ * \note Almost a duplicate of the file browser operator #FILE_OT_start_filter.
+ * \{ */
+
+static wmOperatorStatus preferences_start_filter_exec(bContext *C, wmOperator * /*op*/)
+{
+  SpaceUserPref *space = CTX_wm_space_userpref(C);
+  ScrArea *area = CTX_wm_area(C);
+  ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_UI);
+  ui::textbutton_activate_rna(C, region, space, "search_filter");
+  return OPERATOR_FINISHED;
+}
+
+void PREFERENCES_OT_start_filter(wmOperatorType *ot)
+{
+  ot->name = "Filter";
+  ot->description = "Start entering filter text";
+  ot->idname = "PREFERENCES_OT_start_filter";
+  ot->exec = preferences_start_filter_exec;
+  ot->poll = ED_operator_preferences_active;
+}
+
+static wmOperatorStatus preferences_clear_filter_exec(bContext *C, wmOperator * /*op*/)
+{
+  SpaceUserPref *space = CTX_wm_space_userpref(C);
+  space->runtime->search_string[0] = '\0';
+  ScrArea *area = CTX_wm_area(C);
+  ARegion *main_region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
+  ED_region_search_filter_update(area, main_region);
+  ED_area_tag_redraw(area);
+  return OPERATOR_FINISHED;
+}
+
+void PREFERENCES_OT_clear_filter(wmOperatorType *ot)
+{
+  ot->name = "Clear Filter";
+  ot->description = "Clear the search filter";
+  ot->idname = "PREFERENCES_OT_clear_filter";
+  ot->exec = preferences_clear_filter_exec;
+  ot->poll = ED_operator_preferences_active;
+}
+
+/** \} */
+
 void ED_operatortypes_userpref()
 {
   WM_operatortype_append(PREFERENCES_OT_reset_default_theme);
@@ -992,12 +1322,15 @@ void ED_operatortypes_userpref()
 
   WM_operatortype_append(PREFERENCES_OT_extension_repo_add);
   WM_operatortype_append(PREFERENCES_OT_extension_repo_remove);
-  WM_operatortype_append(PREFERENCES_OT_extension_repo_sync);
-  WM_operatortype_append(PREFERENCES_OT_extension_repo_upgrade);
   WM_operatortype_append(PREFERENCES_OT_extension_url_drop);
 
   WM_operatortype_append(PREFERENCES_OT_associate_blend);
   WM_operatortype_append(PREFERENCES_OT_unassociate_blend);
 
+  WM_operatortype_append(PREFERENCES_OT_start_filter);
+  WM_operatortype_append(PREFERENCES_OT_clear_filter);
+
   ED_dropbox_drop_extension();
 }
+
+}  // namespace blender

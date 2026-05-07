@@ -9,9 +9,12 @@
 #include "FN_lazy_function_graph_executor.hh"
 
 #include "BLI_task.h"
-#include "BLI_timeit.hh"
+
+#include "BKE_gtest_base.hh"
 
 namespace blender::fn::lazy_function::tests {
+
+class LazyFunctionTest : public bke::BlenderGTestBase {};
 
 class AddLazyFunction : public LazyFunction {
  public:
@@ -70,7 +73,7 @@ class SimpleSideEffectProvider : public GraphExecutor::SideEffectProvider {
   }
 };
 
-TEST(lazy_function, SimpleAdd)
+TEST_F(LazyFunctionTest, SimpleAdd)
 {
   const AddLazyFunction add_fn;
   int result = 0;
@@ -79,7 +82,7 @@ TEST(lazy_function, SimpleAdd)
   EXPECT_EQ(result, 35);
 }
 
-TEST(lazy_function, SideEffects)
+TEST_F(LazyFunctionTest, SideEffects)
 {
   BLI_task_scheduler_init();
   int dst1 = 0;
@@ -153,7 +156,7 @@ class PartialEvaluationTestFunction : public LazyFunction {
   }
 };
 
-TEST(lazy_function, GraphWithCycle)
+TEST_F(LazyFunctionTest, GraphWithCycle)
 {
   const PartialEvaluationTestFunction fn;
 
@@ -164,7 +167,7 @@ TEST(lazy_function, GraphWithCycle)
   GraphOutputSocket &output_socket = graph.add_output(CPPType::get<int>());
 
   graph.add_link(input_socket, fn_node.input(0));
-  /* Note: This creates a cycle in the graph. However, it should still be possible to evaluate it,
+  /* NOTE: This creates a cycle in the graph. However, it should still be possible to evaluate it,
    * because there is no actual data dependency in the cycle. */
   graph.add_link(fn_node.output(0), fn_node.input(1));
   graph.add_link(fn_node.output(1), output_socket);

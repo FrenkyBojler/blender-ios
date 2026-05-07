@@ -9,9 +9,15 @@
 #pragma once
 
 #include "BLI_array.hh"
+#include "BLI_enum_flags.hh"
 #include "BLI_math_vector_types.hh"
 
 #include "ED_anim_api.hh" /* for enum eAnimFilter_Flags */
+
+#include "DNA_curve_types.h"
+#include "DNA_listBase.h"
+
+namespace blender {
 
 struct BezTriple;
 struct ButterworthCoefficients;
@@ -33,8 +39,10 @@ enum eEditKeyframes_Validate {
   /* Frame range */
   BEZT_OK_FRAME = 1,
   BEZT_OK_FRAMERANGE,
-  /* Selection status */
+  /* Selection status (any of f1, f2, f3)  */
   BEZT_OK_SELECTED,
+  /* Selection status (f2 is enough) */
+  BEZT_OK_SELECTED_KEY,
   /* Values (y-val) only */
   BEZT_OK_VALUE,
   BEZT_OK_VALUERANGE,
@@ -42,7 +50,7 @@ enum eEditKeyframes_Validate {
   BEZT_OK_REGION,
   BEZT_OK_REGION_LASSO,
   BEZT_OK_REGION_CIRCLE,
-  /* Only for keyframes a certain Dopesheet channel */
+  /* Only for keyframes a certain Dope-sheet channel. */
   BEZT_OK_CHANNEL_LASSO,
   BEZT_OK_CHANNEL_CIRCLE,
 };
@@ -100,7 +108,7 @@ enum eEditKeyframes_Mirror {
 struct KeyframeEdit_LassoData {
   rctf *rectf_scaled;
   const rctf *rectf_view;
-  blender::Array<blender::int2> mcoords;
+  Array<int2> mcoords;
 };
 
 /* use with BEZT_OK_REGION_CIRCLE */
@@ -133,7 +141,11 @@ enum eKeyframeVertOk {
 
 /* Flags for use during iteration */
 enum eKeyframeIterFlags {
-  /* consider handles in addition to key itself */
+  /* Consider handles in addition to key itself. Used in #keyframe_ok_checks, #select_bezier_add,
+   * #select_bezier_subtract. If set, treat key and handles separately (e.g (de)select them
+   * individually, and do additional visibility checks on the handles if necessary), otherwise
+   * always treat key and handles the same (e.g. (de)select all of them).
+   */
   KEYFRAME_ITER_INCL_HANDLES = (1 << 0),
 
   /* Perform NLA time remapping (global -> strip) for the "f1" parameter
@@ -148,9 +160,13 @@ enum eKeyframeIterFlags {
    * get the actual visibility state. E.g. in some cases handles are only drawn if either a handle
    * or their control point is selected. The selection state will have to be checked in the
    * iterator callbacks then. */
+  /* Represents "Only Selected Keyframes" option (SIPO_SELVHANDLESONLY). */
   KEYFRAME_ITER_HANDLES_DEFAULT_INVISIBLE = (1 << 3),
+
+  /* Represents "Show Handles" option (SIPO_NOHANDLES). */
+  KEYFRAME_ITER_HANDLES_INVISIBLE = (1 << 4),
 };
-ENUM_OPERATORS(eKeyframeIterFlags, KEYFRAME_ITER_HANDLES_DEFAULT_INVISIBLE)
+ENUM_OPERATORS(eKeyframeIterFlags)
 
 /** \} */
 
@@ -164,6 +180,7 @@ ENUM_OPERATORS(eKeyframeIterFlags, KEYFRAME_ITER_HANDLES_DEFAULT_INVISIBLE)
  */
 struct CfraElem {
   CfraElem *next, *prev;
+  /* Expected to be in global scene time (e.g. not NLA unmapped). */
   float cfra;
   int sel;
 };
@@ -171,7 +188,8 @@ struct CfraElem {
 struct KeyframeEditData {
   /* generic properties/data access */
   /** temp list for storing custom list of data to check */
-  ListBase list;
+  ListBaseT<CfraElem> cfra_elem_list;
+  ListBaseT<TimeMarker> time_marker_list;
   /** pointer to current scene - many tools need access to cfra/etc. */
   Scene *scene;
   /** pointer to custom data - usually 'Object' but also 'rectf', but could be other types too */
@@ -186,7 +204,7 @@ struct KeyframeEditData {
   FCurve *fcu;
   /** index of current keyframe being iterated over */
   int curIndex;
-  /** y-position of midpoint of the channel (for the dopesheet) */
+  /** Y-position of midpoint of the channel (for the dope-sheet). */
   float channel_y;
 
   /* flags */
@@ -203,7 +221,7 @@ struct KeyframeEditData {
  * \{ */
 
 /** Callback function that refreshes the F-Curve after use. */
-using FcuEditFunc = void (*)(FCurve *fcu);
+using FcuEditFunc = void (*)(FCurve &fcu);
 /** Callback function that operates on the given #BezTriple. */
 using KeyframeEditFunc = short (*)(KeyframeEditData *ked, BezTriple *bezt);
 
@@ -306,17 +324,6 @@ short ANIM_animchannel_keyframes_loop(KeyframeEditData *ked,
                                       KeyframeEditFunc key_ok,
                                       KeyframeEditFunc key_cb,
                                       FcuEditFunc fcu_cb);
-/**
- * Same as above, except bAnimListElem wrapper is not needed.
- * \param keytype: is #eAnim_KeyType.
- */
-short ANIM_animchanneldata_keyframes_loop(KeyframeEditData *ked,
-                                          bDopeSheet *ads,
-                                          void *data,
-                                          int keytype,
-                                          KeyframeEditFunc key_ok,
-                                          KeyframeEditFunc key_cb,
-                                          FcuEditFunc fcu_cb);
 
 /**
  * Calls callback_fn() for each keyframe in each fcurve in the filtered animation context.
@@ -346,7 +353,7 @@ KeyframeEditFunc ANIM_editkeyframes_snap(short mode);
  * \note for markers and 'value', the values to use must be supplied as the first float value.
  */
 KeyframeEditFunc ANIM_editkeyframes_mirror(short mode);
-KeyframeEditFunc ANIM_editkeyframes_select(short mode);
+KeyframeEditFunc ANIM_editkeyframes_select(eEditKeyframes_Select selectmode);
 /**
  * Set all selected Bezier Handles to a single type.
  */
@@ -355,7 +362,7 @@ KeyframeEditFunc ANIM_editkeyframes_handles(short mode);
  * Set the interpolation type of the selected BezTriples in each F-Curve to the specified one.
  */
 KeyframeEditFunc ANIM_editkeyframes_ipo(short mode);
-KeyframeEditFunc ANIM_editkeyframes_keytype(short mode);
+KeyframeEditFunc ANIM_editkeyframes_keytype(eBezTriple_KeyframeType keyframe_type);
 KeyframeEditFunc ANIM_editkeyframes_easing(short mode);
 
 /** \} */
@@ -415,7 +422,7 @@ bool keyframe_region_circle_test(const KeyframeEdit_CircleData *data_circle, con
 /* Destructive Editing API `keyframes_general.cc`. */
 
 bool duplicate_fcurve_keys(FCurve *fcu);
-float get_default_rna_value(FCurve *fcu, PropertyRNA *prop, PointerRNA *ptr);
+float get_default_rna_value(const FCurve *fcu, PropertyRNA *prop, PointerRNA *ptr);
 
 struct FCurveSegment {
   FCurveSegment *next, *prev;
@@ -428,12 +435,8 @@ struct FCurveSegment {
  * Keys that have BEZT_FLAG_IGNORE_TAG set are treated as unselected.
  * The caller is responsible for freeing the memory.
  */
-ListBase find_fcurve_segments(FCurve *fcu);
-void clean_fcurve(bAnimContext *ac,
-                  bAnimListElem *ale,
-                  float thresh,
-                  bool cleardefault,
-                  bool only_selected_keys);
+ListBaseT<FCurveSegment> find_fcurve_segments(FCurve *fcu);
+void clean_fcurve(bAnimListElem *ale, float thresh, bool cleardefault, bool only_selected_keys);
 void blend_to_neighbor_fcurve_segment(FCurve *fcu, FCurveSegment *segment, float factor);
 void breakdown_fcurve_segment(FCurve *fcu, FCurveSegment *segment, float factor);
 void scale_average_fcurve_segment(FCurve *fcu, FCurveSegment *segment, float factor);
@@ -453,7 +456,7 @@ void ED_ANIM_get_1d_gauss_kernel(const float sigma, int kernel_size, double *r_k
 
 ButterworthCoefficients *ED_anim_allocate_butterworth_coefficients(const int filter_order);
 void ED_anim_free_butterworth_coefficients(ButterworthCoefficients *bw_coeff);
-void ED_anim_calculate_butterworth_coefficients(float cutoff,
+void ED_anim_calculate_butterworth_coefficients(float cutoff_frequency,
                                                 float sampling_frequency,
                                                 ButterworthCoefficients *bw_coeff);
 /**
@@ -470,10 +473,12 @@ void butterworth_smooth_fcurve_segment(FCurve *fcu,
                                        ButterworthCoefficients *bw_coeff);
 void smooth_fcurve_segment(FCurve *fcu,
                            FCurveSegment *segment,
+                           const float *original_values,
                            float *samples,
+                           const int sample_count,
                            float factor,
                            int kernel_size,
-                           double *kernel);
+                           const double *kernel);
 /**
  * Snap the keys on the given FCurve segment to an S-Curve. By modifying the `factor` the part of
  * the S-Curve that the keys are snapped to is moved on the x-axis.
@@ -509,36 +514,45 @@ void blend_to_default_fcurve(PointerRNA *id_ptr, FCurve *fcu, float factor);
  * Use a weighted moving-means method to reduce intensity of fluctuations.
  */
 void smooth_fcurve(FCurve *fcu);
-void bake_fcurve_segments(FCurve *fcu);
-/**
- * \param sample_rate: indicates how many samples per frame should be generated.
- */
-void sample_fcurve_segment(
-    FCurve *fcu, float start_frame, float sample_rate, float *r_samples, int sample_count);
-
-enum class BakeCurveRemove {
-  REMOVE_NONE = 0,
-  REMOVE_IN_RANGE = 1,
-  REMOVE_OUT_RANGE = 2,
-  REMOVE_ALL = 3,
-};
-/** Creates keyframes in the given range at the given step interval.
- * \param range: start and end frame to bake. Is inclusive on both ends.
- * \param remove_existing: choice which keys to remove in relation to the given range.
- */
-void bake_fcurve(FCurve *fcu, blender::int2 range, float step, BakeCurveRemove remove_existing);
 
 /* ----------- */
 
+/**
+ * Clear the copy-paste buffer.
+ *
+ * Normally this is not necessary, as `copy_animedit_keys()` will do this for
+ * you.
+ */
+void ANIM_fcurves_copybuf_reset();
+
+/**
+ * Free the copy-paste buffer.
+ */
 void ANIM_fcurves_copybuf_free();
-short copy_animedit_keys(bAnimContext *ac, ListBase *anim_data);
+
+/**
+ * Copy animation keys into the copy buffer.
+ *
+ * \returns Whether anything was copied into the buffer.
+ */
+bool copy_animedit_keys(bAnimContext *ac, ListBaseT<bAnimListElem> *anim_data);
+
+struct KeyframePasteContext {
+  eKeyPasteOffset offset_mode;
+  eKeyPasteValueOffset value_offset_mode;
+  eKeyMergeMode merge_mode;
+  bool flip;
+
+  int num_slots_selected;   /* Number of selected Action Slots to paste into. */
+  int num_fcurves_selected; /* Number of selected F-Curves to paste into. */
+};
+
 eKeyPasteError paste_animedit_keys(bAnimContext *ac,
-                                   ListBase *anim_data,
-                                   eKeyPasteOffset offset_mode,
-                                   eKeyPasteValueOffset value_offset_mode,
-                                   eKeyMergeMode merge_mode,
-                                   bool flip);
+                                   ListBaseT<bAnimListElem> *anim_data,
+                                   const KeyframePasteContext &paste_context);
 
 /* ************************************************ */
 
 /** \} */
+
+}  // namespace blender

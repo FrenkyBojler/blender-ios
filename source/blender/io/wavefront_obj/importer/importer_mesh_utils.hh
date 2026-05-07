@@ -13,10 +13,12 @@
 #include "BLI_vector.hh"
 #include <string>
 
+namespace blender {
+
 struct Object;
 struct OBJImportParams;
 
-namespace blender::io::obj {
+namespace io::obj {
 
 /**
  * Given an invalid face (with holes or duplicated vertex indices),
@@ -29,7 +31,7 @@ namespace blender::io::obj {
  * \return List of faces with each element containing indices of one face. The indices
  * are into face_vert_indices array.
  */
-Vector<Vector<int>> fixup_invalid_face(Span<float3> vert_coords, Span<int> face_vert_indices);
+Vector<Vector<int>> fixup_invalid_face(Span<float3> vert_positions, Span<int> face_verts);
 
 /**
  * Apply axes transform to the Object, and clamp object dimensions to the specified value.
@@ -38,4 +40,5 @@ void transform_object(Object *object, const OBJImportParams &import_params);
 
 std::string get_geometry_name(const std::string &full_name, char separator);
 
-}  // namespace blender::io::obj
+}  // namespace io::obj
+}  // namespace blender

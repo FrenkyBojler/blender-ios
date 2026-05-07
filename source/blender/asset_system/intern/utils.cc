@@ -6,9 +6,12 @@
  * \ingroup asset_system
  */
 
-#include "BLI_fileops.h"
-#include "BLI_path_util.h"
+/* For PATH_MAX (at least on Windows). */
+#include "BLI_fileops.h"  // IWYU pragma: keep
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
+
+#include "MEM_guardedalloc.h"
 
 #include "utils.hh"
 
@@ -25,6 +28,7 @@ std::string normalize_directory_path(StringRef directory)
               directory.data(),
               /* + 1 for null terminator. */
               std::min(directory.size() + 1, int64_t(sizeof(dir_normalized))));
+  BLI_path_slash_native(dir_normalized);
   BLI_path_normalize_dir(dir_normalized, sizeof(dir_normalized));
   return std::string(dir_normalized);
 }
@@ -39,7 +43,7 @@ std::string normalize_path(StringRefNull path, int64_t max_len)
   BLI_path_normalize(buf);
 
   std::string normalized_path = buf;
-  MEM_freeN(buf);
+  MEM_delete(buf);
 
   if (len != path.size()) {
     normalized_path = normalized_path + path.substr(len);

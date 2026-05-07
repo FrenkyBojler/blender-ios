@@ -6,15 +6,17 @@
 
 #include "BLI_index_mask.hh"
 
-struct Mesh;
-namespace blender::bke {
-class AnonymousAttributePropagationInfo;
-}
+#include "BKE_attribute_filter.hh"
 
-namespace blender::geometry {
+namespace blender {
+
+struct Mesh;
+
+namespace geometry {
 
 void split_edges(Mesh &mesh,
-                 const IndexMask &mask,
-                 const bke::AnonymousAttributePropagationInfo &propagation_info);
+                 const IndexMask &selected_edges,
+                 const bke::AttributeFilter &attribute_filter = {});
 
-}  // namespace blender::geometry
+}  // namespace geometry
+}  // namespace blender

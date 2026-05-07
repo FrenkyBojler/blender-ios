@@ -2,26 +2,32 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BKE_anonymous_attribute_id.hh"
+#include "BKE_attribute_legacy_convert.hh"
 #include "BKE_bake_items.hh"
 #include "BKE_bake_items_serialize.hh"
 #include "BKE_curves.hh"
 #include "BKE_customdata.hh"
+#include "BKE_grease_pencil.hh"
 #include "BKE_instances.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_mesh.hh"
 #include "BKE_pointcloud.hh"
 #include "BKE_volume.hh"
 
-#include "BLI_endian_defines.h"
-#include "BLI_endian_switch.h"
+#include "BLI_listbase.h"
 #include "BLI_math_matrix_types.hh"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
+#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
-#include "DNA_material_types.h"
+#include "DNA_object_types.h"
 #include "DNA_volume_types.h"
 
 #include "RNA_access.hh"
 #include "RNA_enum_types.hh"
+
+#include "NOD_geometry_nodes_list.hh"
 
 #include <fmt/format.h>
 #include <sstream>
@@ -38,6 +44,10 @@ namespace blender::bke::bake {
 
 using namespace io::serialize;
 using DictionaryValuePtr = std::shared_ptr<DictionaryValue>;
+
+static std::unique_ptr<BakeItem> deserialize_bake_item(const DictionaryValue &io_item,
+                                                       const BlobReader &blob_reader,
+                                                       const BlobReadSharing &blob_sharing);
 
 std::shared_ptr<DictionaryValue> BlobSlice::serialize() const
 {
@@ -125,7 +135,15 @@ BlobSlice DiskBlobWriter::write(const void *data, const int64_t size)
   const int64_t old_offset = current_offset_;
   blob_stream_.write(static_cast<const char *>(data), size);
   current_offset_ += size;
+  total_written_size_ += size;
   return {blob_name_, {old_offset, size}};
+}
+
+static std::string make_independent_file_name(const StringRef base_name,
+                                              const int file_index,
+                                              const StringRef extension)
+{
+  return fmt::format("{}_file_{}{}", base_name, file_index, extension);
 }
 
 BlobSlice DiskBlobWriter::write_as_stream(const StringRef file_extension,
@@ -133,8 +151,8 @@ BlobSlice DiskBlobWriter::write_as_stream(const StringRef file_extension,
 {
   BLI_assert(file_extension.startswith("."));
   independent_file_count_++;
-  const std::string file_name = fmt::format(
-      "{}_file_{}{}", base_name_, independent_file_count_, file_extension);
+  const std::string file_name = make_independent_file_name(
+      base_name_, independent_file_count_, file_extension);
 
   char path[FILE_MAX];
   BLI_path_join(path, sizeof(path), blob_dir_.c_str(), file_name.c_str());
@@ -142,7 +160,58 @@ BlobSlice DiskBlobWriter::write_as_stream(const StringRef file_extension,
   std::fstream stream{path, std::ios::out | std::ios::binary};
   fn(stream);
   const int64_t written_bytes_num = stream.tellg();
+  total_written_size_ += written_bytes_num;
   return {file_name, {0, written_bytes_num}};
+}
+
+void MemoryBlobReader::add(const StringRef name, const Span<std::byte> blob)
+{
+  blob_by_name_.add(name, blob);
+}
+
+bool MemoryBlobReader::read(const BlobSlice &slice, void *r_data) const
+{
+  if (slice.range.is_empty()) {
+    return true;
+  }
+  const Span<std::byte> blob_data = blob_by_name_.lookup_default(slice.name, {});
+  if (!blob_data.index_range().contains(slice.range)) {
+    return false;
+  }
+  const void *copy_src = blob_data.slice(slice.range).data();
+  memcpy(r_data, copy_src, slice.range.size());
+  return true;
+}
+
+MemoryBlobWriter::MemoryBlobWriter(std::string base_name) : base_name_(std::move(base_name))
+{
+  blob_name_ = base_name_ + ".blob";
+  stream_by_name_.add(blob_name_, {std::make_unique<std::ostringstream>(std::ios::binary)});
+}
+
+BlobSlice MemoryBlobWriter::write(const void *data, int64_t size)
+{
+  OutputStream &stream = stream_by_name_.lookup(blob_name_);
+  const int64_t old_offset = stream.offset;
+  stream.stream->write(static_cast<const char *>(data), size);
+  stream.offset += size;
+  total_written_size_ += size;
+  return {blob_name_, IndexRange::from_begin_size(old_offset, size)};
+}
+
+BlobSlice MemoryBlobWriter::write_as_stream(const StringRef file_extension,
+                                            const FunctionRef<void(std::ostream &)> fn)
+{
+  BLI_assert(file_extension.startswith("."));
+  independent_file_count_++;
+  const std::string name = make_independent_file_name(
+      base_name_, independent_file_count_, file_extension);
+  OutputStream stream{std::make_unique<std::ostringstream>(std::ios::binary)};
+  fn(*stream.stream);
+  const int64_t size = stream.stream->tellp();
+  stream_by_name_.add_new(name, std::move(stream));
+  total_written_size_ += size;
+  return {name, IndexRange(size)};
 }
 
 BlobWriteSharing::~BlobWriteSharing()
@@ -224,15 +293,6 @@ std::optional<ImplicitSharingInfoAndData> BlobReadSharing::read_shared(
   return data;
 }
 
-static StringRefNull get_endian_io_name(const int endian)
-{
-  if (endian == L_ENDIAN) {
-    return "little";
-  }
-  BLI_assert(endian == B_ENDIAN);
-  return "big";
-}
-
 static StringRefNull get_domain_io_name(const AttrDomain domain)
 {
   const char *io_name = "unknown";
@@ -244,6 +304,13 @@ static StringRefNull get_data_type_io_name(const eCustomDataType data_type)
 {
   const char *io_name = "unknown";
   RNA_enum_id_from_value(rna_enum_attribute_type_items, data_type, &io_name);
+  return io_name;
+}
+
+static StringRefNull get_storage_type_io_name(const AttrStorageType storage_type)
+{
+  const char *io_name = "unknown";
+  RNA_enum_id_from_value(rna_enum_attr_storage_type_items, int(storage_type), &io_name);
   return io_name;
 }
 
@@ -265,65 +332,17 @@ static std::optional<eCustomDataType> get_data_type_from_io_name(const StringRef
   return eCustomDataType(domain);
 }
 
-/**
- * Write the data and remember which endianness the data had.
- */
-static std::shared_ptr<DictionaryValue> write_blob_raw_data_with_endian(
-    BlobWriter &blob_writer,
-    BlobWriteSharing &blob_sharing,
-    const void *data,
-    const int64_t size_in_bytes)
+static std::optional<AttrStorageType> get_storage_type_from_io_name(const StringRefNull io_name)
 {
-  auto io_data = blob_sharing.write_deduplicated(blob_writer, data, size_in_bytes);
-  if (ENDIAN_ORDER == B_ENDIAN) {
-    io_data->append_str("endian", get_endian_io_name(ENDIAN_ORDER));
+  int storage_type;
+  if (!RNA_enum_value_from_identifier(
+          rna_enum_attr_storage_type_items, io_name.c_str(), &storage_type))
+  {
+    return std::nullopt;
   }
-  return io_data;
+  return AttrStorageType(storage_type);
 }
 
-/**
- * Read data of an into an array and optionally perform an endian switch if necessary.
- */
-[[nodiscard]] static bool read_blob_raw_data_with_endian(const BlobReader &blob_reader,
-                                                         const DictionaryValue &io_data,
-                                                         const int64_t element_size,
-                                                         const int64_t elements_num,
-                                                         void *r_data)
-{
-  const std::optional<BlobSlice> slice = BlobSlice::deserialize(io_data);
-  if (!slice) {
-    return false;
-  }
-  if (slice->range.size() != element_size * elements_num) {
-    return false;
-  }
-  if (!blob_reader.read(*slice, r_data)) {
-    return false;
-  }
-  const StringRefNull stored_endian = io_data.lookup_str("endian").value_or("little");
-  const StringRefNull current_endian = get_endian_io_name(ENDIAN_ORDER);
-  const bool need_endian_switch = stored_endian != current_endian;
-  if (need_endian_switch) {
-    switch (element_size) {
-      case 1:
-        break;
-      case 2:
-        BLI_endian_switch_uint16_array(static_cast<uint16_t *>(r_data), elements_num);
-        break;
-      case 4:
-        BLI_endian_switch_uint32_array(static_cast<uint32_t *>(r_data), elements_num);
-        break;
-      case 8:
-        BLI_endian_switch_uint64_array(static_cast<uint64_t *>(r_data), elements_num);
-        break;
-      default:
-        return false;
-    }
-  }
-  return true;
-}
-
-/** Write bytes ignoring endianness. */
 static std::shared_ptr<DictionaryValue> write_blob_raw_bytes(BlobWriter &blob_writer,
                                                              BlobWriteSharing &blob_sharing,
                                                              const void *data,
@@ -332,7 +351,6 @@ static std::shared_ptr<DictionaryValue> write_blob_raw_bytes(BlobWriter &blob_wr
   return blob_sharing.write_deduplicated(blob_writer, data, size_in_bytes);
 }
 
-/** Read bytes ignoring endianness. */
 [[nodiscard]] static bool read_blob_raw_bytes(const BlobReader &blob_reader,
                                               const DictionaryValue &io_data,
                                               const int64_t bytes_num,
@@ -352,45 +370,14 @@ static std::shared_ptr<DictionaryValue> write_blob_simple_gspan(BlobWriter &blob
                                                                 BlobWriteSharing &blob_sharing,
                                                                 const GSpan data)
 {
-  const CPPType &type = data.type();
-  BLI_assert(type.is_trivial());
-  if (type.size() == 1 || type.is<ColorGeometry4b>()) {
-    return write_blob_raw_bytes(blob_writer, blob_sharing, data.data(), data.size_in_bytes());
-  }
-  return write_blob_raw_data_with_endian(
-      blob_writer, blob_sharing, data.data(), data.size_in_bytes());
+  return write_blob_raw_bytes(blob_writer, blob_sharing, data.data(), data.size_in_bytes());
 }
 
 [[nodiscard]] static bool read_blob_simple_gspan(const BlobReader &blob_reader,
                                                  const DictionaryValue &io_data,
                                                  GMutableSpan r_data)
 {
-  const CPPType &type = r_data.type();
-  BLI_assert(type.is_trivial());
-  if (type.size() == 1 || type.is<ColorGeometry4b>()) {
-    return read_blob_raw_bytes(blob_reader, io_data, r_data.size_in_bytes(), r_data.data());
-  }
-  if (type.is_any<int16_t, uint16_t, int32_t, uint32_t, int64_t, uint64_t, float>()) {
-    return read_blob_raw_data_with_endian(
-        blob_reader, io_data, type.size(), r_data.size(), r_data.data());
-  }
-  if (type.is_any<float2, int2>()) {
-    return read_blob_raw_data_with_endian(
-        blob_reader, io_data, sizeof(int32_t), r_data.size() * 2, r_data.data());
-  }
-  if (type.is<float3>()) {
-    return read_blob_raw_data_with_endian(
-        blob_reader, io_data, sizeof(float), r_data.size() * 3, r_data.data());
-  }
-  if (type.is<float4x4>()) {
-    return read_blob_raw_data_with_endian(
-        blob_reader, io_data, sizeof(float), r_data.size() * 16, r_data.data());
-  }
-  if (type.is<ColorGeometry4f>()) {
-    return read_blob_raw_data_with_endian(
-        blob_reader, io_data, sizeof(float), r_data.size() * 4, r_data.data());
-  }
-  return false;
+  return read_blob_raw_bytes(blob_reader, io_data, r_data.size_in_bytes(), r_data.data());
 }
 
 static std::shared_ptr<DictionaryValue> write_blob_shared_simple_gspan(
@@ -414,9 +401,10 @@ static std::shared_ptr<DictionaryValue> write_blob_shared_simple_gspan(
   const char *func = __func__;
   const std::optional<ImplicitSharingInfoAndData> sharing_info_and_data = blob_sharing.read_shared(
       io_data, [&]() -> std::optional<ImplicitSharingInfoAndData> {
-        void *data_mem = MEM_mallocN_aligned(size * cpp_type.size(), cpp_type.alignment(), func);
+        void *data_mem = MEM_new_uninitialized_aligned(
+            size * cpp_type.size, cpp_type.alignment, func);
         if (!read_blob_simple_gspan(blob_reader, io_data, {cpp_type, data_mem, size})) {
-          MEM_freeN(data_mem);
+          MEM_delete_void(data_mem);
           return std::nullopt;
         }
         return ImplicitSharingInfoAndData{implicit_sharing::info_for_mem_free(data_mem), data_mem};
@@ -495,36 +483,71 @@ template<typename T>
     if (!cpp_type) {
       return false;
     }
-    const int domain_size = attributes.domain_size(*domain);
-    const ImplicitSharingInfo *attribute_sharing_info;
-    const void *attribute_data = read_blob_shared_simple_gspan(
-        *io_data, blob_reader, blob_sharing, *cpp_type, domain_size, &attribute_sharing_info);
-    if (!attribute_data) {
-      return false;
-    }
-    BLI_SCOPED_DEFER([&]() { attribute_sharing_info->remove_user_and_delete_if_last(); });
 
-    if (attributes.contains(*name)) {
-      /* If the attribute exists already, copy the values over to the existing array. */
-      GSpanAttributeWriter attribute = attributes.lookup_or_add_for_write_only_span(
-          *name, *domain, *data_type);
-      if (!attribute) {
-        return false;
+    const AttrStorageType storage_type = [&]() {
+      if (const std::optional<StringRefNull> str = io_attribute->lookup_str("storage_type")) {
+        return get_storage_type_from_io_name(*str).value_or(AttrStorageType::Array);
       }
-      cpp_type->copy_assign_n(attribute_data, attribute.span.data(), domain_size);
-      attribute.finish();
-    }
-    else {
-      /* Add a new attribute that shares the data. */
-      if (!attributes.add(*name,
-                          *domain,
-                          *data_type,
-                          AttributeInitShared(attribute_data, *attribute_sharing_info)))
-      {
-        return false;
+      return AttrStorageType::Array;
+    }();
+    switch (storage_type) {
+      case AttrStorageType::Array: {
+        const int domain_size = attributes.domain_size(*domain);
+        const ImplicitSharingInfo *attribute_sharing_info;
+        const void *attribute_data = read_blob_shared_simple_gspan(
+            *io_data, blob_reader, blob_sharing, *cpp_type, domain_size, &attribute_sharing_info);
+        if (!attribute_data) {
+          return false;
+        }
+        BLI_SCOPED_DEFER([&]() { attribute_sharing_info->remove_user_and_delete_if_last(); });
+
+        if (attributes.contains(*name)) {
+          /* If the attribute exists already, copy the values over to the existing array. */
+          GSpanAttributeWriter attribute = attributes.lookup_or_add_for_write_only_span(
+              *name, *domain, *custom_data_type_to_attr_type(*data_type));
+          if (!attribute) {
+            return false;
+          }
+          cpp_type->copy_assign_n(attribute_data, attribute.span.data(), domain_size);
+          attribute.finish();
+        }
+        else {
+          /* Add a new attribute that shares the data. */
+          if (!attributes.add(*name,
+                              *domain,
+                              *custom_data_type_to_attr_type(*data_type),
+                              AttributeInitShared(attribute_data, *attribute_sharing_info)))
+          {
+            return false;
+          }
+        }
+        break;
+      }
+      case AttrStorageType::Single: {
+        const ImplicitSharingInfo *sharing_info;
+        const void *value = read_blob_shared_simple_gspan(
+            *io_data, blob_reader, blob_sharing, *cpp_type, 1, &sharing_info);
+        if (!value) {
+          return false;
+        }
+        BLI_SCOPED_DEFER([&]() { sharing_info->remove_user_and_delete_if_last(); });
+
+        const AttributeInitValue init(GPointer(*cpp_type, value));
+        if (attributes.contains(*name)) {
+          if (!attributes.assign_data(*name, init)) {
+            return false;
+          }
+        }
+        else {
+          if (!attributes.add(*name, *domain, *custom_data_type_to_attr_type(*data_type), init)) {
+            return false;
+          }
+        }
+        break;
       }
     }
   }
+
   return true;
 }
 
@@ -540,9 +563,8 @@ static PointCloud *try_load_pointcloud(const DictionaryValue &io_geometry,
   if (!io_attributes) {
     return nullptr;
   }
-  PointCloud *pointcloud = BKE_pointcloud_new_nomain(0);
-  CustomData_free_layer_named(&pointcloud->pdata, "position", 0);
-  pointcloud->totpoint = io_pointcloud->lookup_int("num_points").value_or(0);
+  const int points_num = io_pointcloud->lookup_int("num_points").value_or(0);
+  PointCloud *pointcloud = bke::pointcloud_new_no_attributes(points_num);
 
   auto cancel = [&]() {
     BKE_id_free(nullptr, pointcloud);
@@ -562,6 +584,51 @@ static PointCloud *try_load_pointcloud(const DictionaryValue &io_geometry,
   return pointcloud;
 }
 
+static std::optional<CurvesGeometry> try_load_curves_geometry(const DictionaryValue &io_curves,
+                                                              const BlobReader &blob_reader,
+                                                              const BlobReadSharing &blob_sharing)
+{
+  const io::serialize::ArrayValue *io_attributes = io_curves.lookup_array("attributes");
+  if (!io_attributes) {
+    return std::nullopt;
+  }
+
+  CurvesGeometry curves;
+  curves.attribute_storage.wrap().remove("position");
+  curves.point_num = io_curves.lookup_int("num_points").value_or(0);
+  curves.curve_num = io_curves.lookup_int("num_curves").value_or(0);
+
+  if (curves.curves_num() > 0) {
+    const auto *io_curve_offsets = io_curves.lookup_dict("curve_offsets");
+    if (!io_curve_offsets) {
+      return std::nullopt;
+    }
+    if (!read_blob_shared_simple_span(*io_curve_offsets,
+                                      blob_reader,
+                                      blob_sharing,
+                                      curves.curves_num() + 1,
+                                      &curves.curve_offsets,
+                                      &curves.runtime->curve_offsets_sharing_info))
+    {
+      return std::nullopt;
+    }
+  }
+
+  MutableAttributeAccessor attributes = curves.attributes_for_write();
+  if (!load_attributes(*io_attributes, attributes, blob_reader, blob_sharing)) {
+    return std::nullopt;
+  }
+
+  if (const io::serialize::ArrayValue *io_materials = io_curves.lookup_array("materials")) {
+    if (!load_materials(*io_materials, curves.runtime->bake_materials)) {
+      return std::nullopt;
+    }
+  }
+
+  curves.update_curve_types();
+  return curves;
+}
+
 static Curves *try_load_curves(const DictionaryValue &io_geometry,
                                const BlobReader &blob_reader,
                                const BlobReadSharing &blob_sharing)
@@ -576,37 +643,19 @@ static Curves *try_load_curves(const DictionaryValue &io_geometry,
     return nullptr;
   }
 
-  Curves *curves_id = curves_new_nomain(0, 0);
+  std::optional<CurvesGeometry> curves_opt = try_load_curves_geometry(
+      *io_curves, blob_reader, blob_sharing);
+  if (!curves_opt) {
+    return nullptr;
+  }
+
+  Curves *curves_id = curves_new_nomain(std::move(*curves_opt));
   CurvesGeometry &curves = curves_id->geometry.wrap();
-  CustomData_free_layer_named(&curves.point_data, "position", 0);
-  curves.point_num = io_curves->lookup_int("num_points").value_or(0);
-  curves.curve_num = io_curves->lookup_int("num_curves").value_or(0);
 
   auto cancel = [&]() {
     BKE_id_free(nullptr, curves_id);
     return nullptr;
   };
-
-  if (curves.curves_num() > 0) {
-    const auto *io_curve_offsets = io_curves->lookup_dict("curve_offsets");
-    if (!io_curve_offsets) {
-      return cancel();
-    }
-    if (!read_blob_shared_simple_span(*io_curve_offsets,
-                                      blob_reader,
-                                      blob_sharing,
-                                      curves.curves_num() + 1,
-                                      &curves.curve_offsets,
-                                      &curves.runtime->curve_offsets_sharing_info))
-    {
-      return cancel();
-    }
-  }
-
-  MutableAttributeAccessor attributes = curves.attributes_for_write();
-  if (!load_attributes(*io_attributes, attributes, blob_reader, blob_sharing)) {
-    return cancel();
-  }
 
   if (const io::serialize::ArrayValue *io_materials = io_curves->lookup_array("materials")) {
     if (!load_materials(*io_materials, curves.runtime->bake_materials)) {
@@ -614,9 +663,109 @@ static Curves *try_load_curves(const DictionaryValue &io_geometry,
     }
   }
 
-  curves.update_curve_types();
-
   return curves_id;
+}
+
+static GreasePencil *try_load_grease_pencil(const DictionaryValue &io_geometry,
+                                            const BlobReader &blob_reader,
+                                            const BlobReadSharing &blob_sharing)
+{
+  const DictionaryValue *io_grease_pencil = io_geometry.lookup_dict("grease_pencil");
+  if (!io_grease_pencil) {
+    return nullptr;
+  }
+
+  const io::serialize::ArrayValue *io_layers = io_grease_pencil->lookup_array("layers");
+  if (!io_layers) {
+    return nullptr;
+  }
+
+  const io::serialize::ArrayValue *io_layer_attributes = io_grease_pencil->lookup_array(
+      "layer_attributes");
+  if (!io_layer_attributes) {
+    return nullptr;
+  }
+
+  GreasePencil *grease_pencil = BKE_grease_pencil_new_nomain();
+  auto cancel = [&]() {
+    BKE_id_free(nullptr, grease_pencil);
+    return nullptr;
+  };
+
+  const int layers_num = io_layers->elements().size();
+  grease_pencil->add_layers_with_empty_drawings_for_eval(layers_num);
+
+  for (const int layer_i : io_layers->elements().index_range()) {
+    const auto &io_layer_value = io_layers->elements()[layer_i];
+    const io::serialize::DictionaryValue *io_layer = io_layer_value->as_dictionary_value();
+    if (!io_layer) {
+      return cancel();
+    }
+    const io::serialize::DictionaryValue *io_strokes = io_layer->lookup_dict("strokes");
+    if (!io_strokes) {
+      return cancel();
+    }
+    const std::optional<std::string> layer_name = io_layer->lookup_str("name");
+    if (!layer_name) {
+      return cancel();
+    }
+    greasepencil::Layer &layer = grease_pencil->layer(layer_i);
+    layer.set_name(*layer_name);
+    std::optional<CurvesGeometry> curves_opt = try_load_curves_geometry(
+        *io_strokes, blob_reader, blob_sharing);
+    if (!curves_opt) {
+      return cancel();
+    }
+    greasepencil::Drawing &drawing = *grease_pencil->get_eval_drawing(layer);
+    drawing.strokes_for_write() = std::move(*curves_opt);
+  }
+
+  MutableAttributeAccessor attributes = grease_pencil->attributes_for_write();
+  if (!load_attributes(*io_layer_attributes, attributes, blob_reader, blob_sharing)) {
+    return cancel();
+  }
+
+  const DictionaryValue *io_layer_opacities = io_grease_pencil->lookup_dict("opacities");
+  Array<float> layer_opacities(layers_num);
+  if (!io_layer_opacities ||
+      !read_blob_simple_gspan(blob_reader, *io_layer_opacities, layer_opacities.as_mutable_span()))
+  {
+    return cancel();
+  }
+
+  const DictionaryValue *io_layer_blend_modes = io_grease_pencil->lookup_dict("blend_modes");
+  Array<int8_t> layer_blend_modes(layers_num);
+  if (!io_layer_opacities || !read_blob_simple_gspan(blob_reader,
+                                                     *io_layer_blend_modes,
+                                                     layer_blend_modes.as_mutable_span()))
+  {
+    return cancel();
+  }
+
+  const DictionaryValue *io_layer_transforms = io_grease_pencil->lookup_dict("transforms");
+  Array<float4x4> layer_transforms(layers_num);
+  if (!io_layer_transforms || !read_blob_simple_gspan(blob_reader,
+                                                      *io_layer_transforms,
+                                                      layer_transforms.as_mutable_span()))
+  {
+    return cancel();
+  }
+
+  for (const int layer_i : IndexRange(layers_num)) {
+    greasepencil::Layer &layer = grease_pencil->layer(layer_i);
+    layer.opacity = layer_opacities[layer_i];
+    layer.blend_mode = GreasePencilLayerBlendMode(layer_blend_modes[layer_i]);
+    layer.set_local_transform(layer_transforms[layer_i]);
+  }
+
+  if (const io::serialize::ArrayValue *io_materials = io_grease_pencil->lookup_array("materials"))
+  {
+    if (!load_materials(*io_materials, grease_pencil->runtime->bake_materials)) {
+      return cancel();
+    }
+  }
+
+  return grease_pencil;
 }
 
 static Mesh *try_load_mesh(const DictionaryValue &io_geometry,
@@ -633,11 +782,7 @@ static Mesh *try_load_mesh(const DictionaryValue &io_geometry,
     return nullptr;
   }
 
-  Mesh *mesh = BKE_mesh_new_nomain(0, 0, 0, 0);
-  CustomData_free_layer_named(&mesh->vert_data, "position", 0);
-  CustomData_free_layer_named(&mesh->edge_data, ".edge_verts", 0);
-  CustomData_free_layer_named(&mesh->corner_data, ".corner_vert", 0);
-  CustomData_free_layer_named(&mesh->corner_data, ".corner_edge", 0);
+  Mesh *mesh = bke::mesh_new_no_attributes(0, 0, 0, 0);
   mesh->verts_num = io_mesh->lookup_int("num_vertices").value_or(0);
   mesh->edges_num = io_mesh->lookup_int("num_edges").value_or(0);
   mesh->faces_num = io_mesh->lookup_int("num_polygons").value_or(0);
@@ -664,6 +809,19 @@ static Mesh *try_load_mesh(const DictionaryValue &io_geometry,
     }
   }
 
+  /* Create the vertex group name list, then later on when processing generic attributes, these
+   * names will be stored as vertex groups. */
+  if (const auto *io_attributes = io_mesh->lookup_array("vertex_group_names")) {
+    for (const std::shared_ptr<Value> &value : io_attributes->elements()) {
+      if (value->type() != io::serialize::eValueType::String) {
+        return cancel();
+      }
+      bDeformGroup *defgroup = MEM_new<bDeformGroup>(__func__);
+      STRNCPY_UTF8(defgroup->name, value->as_string_value()->value().c_str());
+      BLI_addtail(&mesh->vertex_group_names, defgroup);
+    }
+  }
+
   MutableAttributeAccessor attributes = mesh->attributes_for_write();
   if (!load_attributes(*io_attributes, attributes, blob_reader, blob_sharing)) {
     return cancel();
@@ -673,6 +831,18 @@ static Mesh *try_load_mesh(const DictionaryValue &io_geometry,
     if (!load_materials(*io_materials, mesh->runtime->bake_materials)) {
       return cancel();
     }
+  }
+
+  if (const std::optional<StringRefNull> default_uv_map_name = io_mesh->lookup_str(
+          "default_uv_map_name"))
+  {
+    mesh->uv_maps_default_set(*default_uv_map_name);
+  }
+  if (const std::optional<StringRefNull> default_color_attribute = io_mesh->lookup_str(
+          "default_color_name"))
+  {
+    mesh->default_color_attribute = BLI_strdupn(default_color_attribute->data(),
+                                                default_color_attribute->size());
   }
 
   return mesh;
@@ -703,8 +873,7 @@ static std::unique_ptr<Instances> try_load_instances(const DictionaryValue &io_g
     return nullptr;
   }
 
-  std::unique_ptr<Instances> instances = std::make_unique<Instances>();
-  instances->resize(num_instances);
+  std::unique_ptr<Instances> instances = std::make_unique<Instances>(num_instances);
 
   for (const auto &io_reference_value : io_references->elements()) {
     const DictionaryValue *io_reference = io_reference_value->as_dictionary_value();
@@ -712,7 +881,7 @@ static std::unique_ptr<Instances> try_load_instances(const DictionaryValue &io_g
     if (io_reference) {
       reference_geometry = load_geometry(*io_reference, blob_reader, blob_sharing);
     }
-    instances->add_reference(std::move(reference_geometry));
+    instances->add_new_reference(std::move(reference_geometry));
   }
 
   MutableAttributeAccessor attributes = instances->attributes_for_write();
@@ -776,7 +945,7 @@ static Volume *try_load_volume(const DictionaryValue &io_geometry, const BlobRea
       return nullptr;
     }
   }
-  Volume *volume = reinterpret_cast<Volume *>(BKE_id_new_nomain(ID_VO, nullptr));
+  Volume *volume = BKE_id_new_nomain<Volume>(nullptr);
   auto cancel = [&]() {
     BKE_id_free(nullptr, volume);
     return nullptr;
@@ -805,6 +974,7 @@ static GeometrySet load_geometry(const DictionaryValue &io_geometry,
   geometry.replace_mesh(try_load_mesh(io_geometry, blob_reader, blob_sharing));
   geometry.replace_pointcloud(try_load_pointcloud(io_geometry, blob_reader, blob_sharing));
   geometry.replace_curves(try_load_curves(io_geometry, blob_reader, blob_sharing));
+  geometry.replace_grease_pencil(try_load_grease_pencil(io_geometry, blob_reader, blob_sharing));
   geometry.replace_instances(try_load_instances(io_geometry, blob_reader, blob_sharing).release());
 #ifdef WITH_OPENVDB
   geometry.replace_volume(try_load_volume(io_geometry, blob_reader));
@@ -841,33 +1011,64 @@ static std::shared_ptr<io::serialize::ArrayValue> serialize_attributes(
     const Set<std::string> &attributes_to_ignore)
 {
   auto io_attributes = std::make_shared<io::serialize::ArrayValue>();
-  attributes.for_all([&](const AttributeIDRef &attribute_id, const AttributeMetaData &meta_data) {
-    BLI_assert(!attribute_id.is_anonymous());
-    if (attributes_to_ignore.contains_as(attribute_id.name())) {
-      return true;
+  attributes.foreach_attribute([&](const AttributeIter &iter) {
+    BLI_assert(!bke::attribute_name_is_anonymous(iter.name));
+    if (attributes_to_ignore.contains_as(iter.name)) {
+      return;
     }
 
     auto io_attribute = io_attributes->append_dict();
 
-    io_attribute->append_str("name", attribute_id.name());
+    io_attribute->append_str("name", iter.name);
 
-    const StringRefNull domain_name = get_domain_io_name(meta_data.domain);
+    const StringRefNull domain_name = get_domain_io_name(iter.domain);
     io_attribute->append_str("domain", domain_name);
 
-    const StringRefNull type_name = get_data_type_io_name(meta_data.data_type);
+    const StringRefNull type_name = get_data_type_io_name(
+        *attr_type_to_custom_data_type(iter.data_type));
     io_attribute->append_str("type", type_name);
 
-    const GAttributeReader attribute = attributes.lookup(attribute_id);
+    const GAttributeReader attribute = iter.get();
+    const CommonVArrayInfo info = attribute.varray.common_info();
+    if (info.type == CommonVArrayInfo::Type::Single) {
+      io_attribute->append_str("storage_type", get_storage_type_io_name(AttrStorageType::Single));
+      const GSpan attribute_span(attribute.varray.type(), info.data, 1);
+      io_attribute->append("data",
+                           write_blob_shared_simple_gspan(
+                               blob_writer, blob_sharing, attribute_span, attribute.sharing_info));
+      return;
+    }
+    /* Save "storage_type" with a default of ARRAY; don't store it in this case. */
     const GVArraySpan attribute_span(attribute.varray);
     io_attribute->append("data",
-                         write_blob_shared_simple_gspan(
-                             blob_writer,
-                             blob_sharing,
-                             attribute_span,
-                             attribute.varray.is_span() ? attribute.sharing_info : nullptr));
-    return true;
+                         write_blob_shared_simple_gspan(blob_writer,
+                                                        blob_sharing,
+                                                        attribute_span,
+                                                        info.type == CommonVArrayInfo::Type::Span ?
+                                                            attribute.sharing_info :
+                                                            nullptr));
   });
   return io_attributes;
+}
+
+static void serialize_curves_geometry(DictionaryValue &io_curves,
+                                      const CurvesGeometry &curves,
+                                      BlobWriter &blob_writer,
+                                      BlobWriteSharing &blob_sharing)
+{
+  io_curves.append_int("num_points", curves.point_num);
+  io_curves.append_int("num_curves", curves.curve_num);
+
+  if (curves.curve_num > 0) {
+    io_curves.append("curve_offsets",
+                     write_blob_shared_simple_gspan(blob_writer,
+                                                    blob_sharing,
+                                                    curves.offsets(),
+                                                    curves.runtime->curve_offsets_sharing_info));
+  }
+
+  auto io_attributes = serialize_attributes(curves.attributes(), blob_writer, blob_sharing, {});
+  io_curves.append("attributes", io_attributes);
 }
 
 static std::shared_ptr<DictionaryValue> serialize_geometry_set(const GeometrySet &geometry,
@@ -895,6 +1096,22 @@ static std::shared_ptr<DictionaryValue> serialize_geometry_set(const GeometrySet
     auto io_materials = serialize_materials(mesh.runtime->bake_materials);
     io_mesh->append("materials", io_materials);
 
+    if (!BLI_listbase_is_empty(&mesh.vertex_group_names)) {
+      auto io_vertex_group_names = io_mesh->append_array("vertex_group_names");
+      for (bDeformGroup &defgroup : mesh.vertex_group_names) {
+        io_vertex_group_names->append_str(defgroup.name);
+      }
+    }
+
+    const StringRef default_uv_map_name = mesh.default_uv_map_name();
+    if (!default_uv_map_name.is_empty()) {
+      io_mesh->append_str("default_uv_map_name", default_uv_map_name);
+    }
+    const StringRef default_color_attribute = mesh.default_color_attribute;
+    if (!default_color_attribute.is_empty()) {
+      io_mesh->append_str("default_color_name", default_color_attribute);
+    }
+
     auto io_attributes = serialize_attributes(mesh.attributes(), blob_writer, blob_sharing, {});
     io_mesh->append("attributes", io_attributes);
   }
@@ -917,23 +1134,52 @@ static std::shared_ptr<DictionaryValue> serialize_geometry_set(const GeometrySet
 
     auto io_curves = io_geometry->append_dict("curves");
 
-    io_curves->append_int("num_points", curves.point_num);
-    io_curves->append_int("num_curves", curves.curve_num);
-
-    if (curves.curve_num > 0) {
-      io_curves->append(
-          "curve_offsets",
-          write_blob_shared_simple_gspan(blob_writer,
-                                         blob_sharing,
-                                         curves.offsets(),
-                                         curves.runtime->curve_offsets_sharing_info));
-    }
+    serialize_curves_geometry(*io_curves, curves, blob_writer, blob_sharing);
 
     auto io_materials = serialize_materials(curves.runtime->bake_materials);
     io_curves->append("materials", io_materials);
+  }
+  if (geometry.has_grease_pencil()) {
+    const GreasePencil &grease_pencil = *geometry.get_grease_pencil();
+    auto io_grease_pencil = io_geometry->append_dict("grease_pencil");
+    auto io_layers = io_grease_pencil->append_array("layers");
 
-    auto io_attributes = serialize_attributes(curves.attributes(), blob_writer, blob_sharing, {});
-    io_curves->append("attributes", io_attributes);
+    Vector<float> layer_opacities;
+    Vector<int8_t> layer_blend_modes;
+    Vector<float4x4> layer_transforms;
+    for (const greasepencil::Layer *layer : grease_pencil.layers()) {
+      auto io_layer = io_layers->append_dict();
+      io_layer->append_str("name", layer->name());
+      auto io_strokes = io_layer->append_dict("strokes");
+      const greasepencil::Drawing *drawing = grease_pencil.get_eval_drawing(*layer);
+      if (drawing) {
+        serialize_curves_geometry(*io_strokes, drawing->strokes(), blob_writer, blob_sharing);
+      }
+      else {
+        serialize_curves_geometry(*io_strokes, CurvesGeometry(), blob_writer, blob_sharing);
+      }
+
+      layer_opacities.append(layer->opacity);
+      layer_blend_modes.append(int8_t(layer->blend_mode));
+      layer_transforms.append(layer->local_transform());
+    }
+
+    io_grease_pencil->append(
+        "opacities",
+        write_blob_simple_gspan(blob_writer, blob_sharing, layer_opacities.as_span()));
+    io_grease_pencil->append(
+        "blend_modes",
+        write_blob_simple_gspan(blob_writer, blob_sharing, layer_blend_modes.as_span()));
+    io_grease_pencil->append(
+        "transforms",
+        write_blob_simple_gspan(blob_writer, blob_sharing, layer_transforms.as_span()));
+
+    auto io_layer_attributes = serialize_attributes(
+        grease_pencil.attributes(), blob_writer, blob_sharing, {});
+    io_grease_pencil->append("layer_attributes", io_layer_attributes);
+
+    auto io_materials = serialize_materials(grease_pencil.runtime->bake_materials);
+    io_grease_pencil->append("materials", io_materials);
   }
 #ifdef WITH_OPENVDB
   if (geometry.has_volume()) {
@@ -1022,6 +1268,10 @@ static std::shared_ptr<io::serialize::Value> serialize_primitive_value(
       const float3 value = *static_cast<const float3 *>(value_ptr);
       return serialize_float_array({&value.x, 3});
     }
+    case CD_PROP_FLOAT4: {
+      const float4 value = *static_cast<const float4 *>(value_ptr);
+      return serialize_float_array({&value.x, 4});
+    }
     case CD_PROP_BOOL: {
       const bool value = *static_cast<const bool *>(value_ptr);
       return std::make_shared<io::serialize::BooleanValue>(value);
@@ -1029,6 +1279,10 @@ static std::shared_ptr<io::serialize::Value> serialize_primitive_value(
     case CD_PROP_INT32: {
       const int value = *static_cast<const int *>(value_ptr);
       return std::make_shared<io::serialize::IntValue>(value);
+    }
+    case CD_PROP_INT16_2D: {
+      const int2 value = int2(*static_cast<const short2 *>(value_ptr));
+      return serialize_int_array({&value.x, 2});
     }
     case CD_PROP_INT32_2D: {
       const int2 value = *static_cast<const int2 *>(value_ptr);
@@ -1045,11 +1299,11 @@ static std::shared_ptr<io::serialize::Value> serialize_primitive_value(
     }
     case CD_PROP_QUATERNION: {
       const math::Quaternion value = *static_cast<const math::Quaternion *>(value_ptr);
-      return serialize_float_array({&value.x, 4});
+      return serialize_float_array({&value.w, 4});
     }
     case CD_PROP_FLOAT4X4: {
       const float4x4 value = *static_cast<const float4x4 *>(value_ptr);
-      return serialize_float_array({value.base_ptr(), value.col_len * value.row_len});
+      return serialize_float_array({value.base_ptr(), float4x4::col_len * float4x4::row_len});
     }
     default:
       break;
@@ -1142,6 +1396,9 @@ template<typename T>
     case CD_PROP_FLOAT3: {
       return deserialize_float_array(io_value, {static_cast<float *>(r_value), 3});
     }
+    case CD_PROP_FLOAT4: {
+      return deserialize_float_array(io_value, {static_cast<float *>(r_value), 4});
+    }
     case CD_PROP_BOOL: {
       if (const io::serialize::BooleanValue *io_value_boolean = io_value.as_boolean_value()) {
         *static_cast<bool *>(r_value) = io_value_boolean->value();
@@ -1156,6 +1413,9 @@ template<typename T>
       }
       *static_cast<int *>(r_value) = *value;
       return true;
+    }
+    case CD_PROP_INT16_2D: {
+      return deserialize_int_array<int16_t>(io_value, {static_cast<int16_t *>(r_value), 2});
     }
     case CD_PROP_INT32_2D: {
       return deserialize_int_array<int>(io_value, {static_cast<int *>(r_value), 2});
@@ -1178,6 +1438,40 @@ template<typename T>
   return false;
 }
 
+[[nodiscard]] static bool deserialize_bundle(const io::serialize::DictionaryValue &io_bundle,
+                                             const BlobReader &blob_reader,
+                                             const BlobReadSharing &blob_sharing,
+                                             BundleBakeItem &r_bake_item)
+{
+  const ArrayValue *io_items = io_bundle.lookup_array("items");
+  if (!io_items) {
+    return false;
+  }
+  for (const auto &io_item_ : io_items->elements()) {
+    const DictionaryValue *io_item = io_item_->as_dictionary_value();
+    if (!io_item) {
+      return false;
+    }
+    const std::optional<std::string> key = io_item->lookup_str("key");
+    if (!key) {
+      return false;
+    }
+    const std::optional<StringRefNull> socket_idname = io_item->lookup_str("socket_idname");
+    if (!socket_idname) {
+      return false;
+    }
+    const DictionaryValue *io_item_value = io_item->lookup_dict("value");
+    std::unique_ptr<BakeItem> value = deserialize_bake_item(
+        *io_item_value, blob_reader, blob_sharing);
+    if (!value) {
+      return false;
+    }
+    r_bake_item.items.append(BundleBakeItem::Item{
+        UString(*key), BundleBakeItem::SocketValue{*socket_idname, std::move(value)}});
+  }
+  return true;
+}
+
 static void serialize_bake_item(const BakeItem &item,
                                 BlobWriter &blob_writer,
                                 BlobWriteSharing &blob_sharing,
@@ -1197,6 +1491,23 @@ static void serialize_bake_item(const BakeItem &item,
     r_io_item.append_str("type", "ATTRIBUTE");
     r_io_item.append_str("name", attribute_state_item->name());
   }
+#ifdef WITH_OPENVDB
+  else if (const auto *grid_state_item = dynamic_cast<const VolumeGridBakeItem *>(&item)) {
+    r_io_item.append_str("type", "GRID");
+    const GVolumeGrid &grid = *grid_state_item->grid;
+    auto io_vdb = blob_writer
+                      .write_as_stream(".vdb",
+                                       [&](std::ostream &stream) {
+                                         openvdb::GridCPtrVec vdb_grids;
+                                         bke::VolumeTreeAccessToken tree_token;
+                                         vdb_grids.push_back(grid->grid_ptr(tree_token));
+                                         openvdb::io::Stream vdb_stream(stream);
+                                         vdb_stream.write(vdb_grids);
+                                       })
+                      .serialize();
+    r_io_item.append("vdb", std::move(io_vdb));
+  }
+#endif
   else if (const auto *string_state_item = dynamic_cast<const StringBakeItem *>(&item)) {
     r_io_item.append_str("type", "STRING");
     const StringRefNull str = string_state_item->value();
@@ -1215,6 +1526,56 @@ static void serialize_bake_item(const BakeItem &item,
     r_io_item.append_str("type", get_data_type_io_name(data_type));
     auto io_data = serialize_primitive_value(data_type, primitive_state_item->value());
     r_io_item.append("data", std::move(io_data));
+  }
+  else if (const auto *bundle_state_item = dynamic_cast<const BundleBakeItem *>(&item)) {
+    r_io_item.append_str("type", "BUNDLE");
+    ArrayValue &io_items = *r_io_item.append_array("items");
+    for (const BundleBakeItem::Item &item : bundle_state_item->items) {
+      if (const auto *socket_value = std::get_if<BundleBakeItem::SocketValue>(&item.value)) {
+        DictionaryValue &io_bundle_item = *io_items.append_dict();
+        io_bundle_item.append_str("key", item.key.string());
+        io_bundle_item.append_str("socket_idname", socket_value->socket_idname);
+        io::serialize::DictionaryValue &io_bundle_item_value = *io_bundle_item.append_dict(
+            "value");
+        serialize_bake_item(*socket_value->value, blob_writer, blob_sharing, io_bundle_item_value);
+      }
+    }
+  }
+  else if (const auto *list_state_item = dynamic_cast<const ListBakeItem *>(&item)) {
+    r_io_item.append_str("type", "LIST");
+    if (const nodes::GListPtr *simple_list = std::get_if<nodes::GListPtr>(&list_state_item->value))
+    {
+      if (*simple_list) {
+        const nodes::GList &list = **simple_list;
+        if (list.cpp_type() == CPPType::get<std::string>()) {
+          /* TODO Not supported yet, can't be constructed by users. */
+          BLI_assert_unreachable();
+        }
+        else {
+          const eCustomDataType data_type = cpp_type_to_custom_data_type(list.cpp_type());
+          r_io_item.append_str("item_type", get_data_type_io_name(data_type));
+          r_io_item.append_int("num_items", list.size());
+          if (const auto *single_data = std::get_if<nodes::GList::SingleData>(&list.data())) {
+            r_io_item.append("value", serialize_primitive_value(data_type, single_data->value));
+          }
+          else if (const auto *array_data = std::get_if<nodes::GList::ArrayData>(&list.data())) {
+            const GSpan array_span = {list.cpp_type(), array_data->data, list.size()};
+            r_io_item.append(
+                "data",
+                write_blob_shared_simple_gspan(
+                    blob_writer, blob_sharing, array_span, array_data->sharing_info.get()));
+          }
+        }
+      }
+    }
+    if (const auto *bundle_list = std::get_if<ListBakeItem::BundleList>(&list_state_item->value)) {
+      r_io_item.append_str("item_type", "BUNDLE");
+      ArrayValue &io_items = *r_io_item.append_array("items");
+      for (const BundleBakeItem &bundle_bake_item : *bundle_list) {
+        DictionaryValue &io_bundle_item = *io_items.append_dict();
+        serialize_bake_item(bundle_bake_item, blob_writer, blob_sharing, io_bundle_item);
+      }
+    }
   }
 }
 
@@ -1246,6 +1607,39 @@ static std::unique_ptr<BakeItem> deserialize_bake_item(const DictionaryValue &io
     }
     return std::make_unique<AttributeBakeItem>(std::move(*name));
   }
+#ifdef WITH_OPENVDB
+  if (*state_item_type == StringRef("GRID")) {
+    const DictionaryValue &io_grid = io_item;
+    const auto *io_vdb = io_grid.lookup_dict("vdb");
+    if (!io_vdb) {
+      return {};
+    }
+    std::optional<BlobSlice> vdb_slice = BlobSlice::deserialize(*io_vdb);
+    if (!vdb_slice) {
+      return {};
+    }
+    openvdb::GridPtrVecPtr vdb_grids;
+    if (!blob_reader.read_as_stream(*vdb_slice, [&](std::istream &stream) {
+          try {
+            openvdb::io::Stream vdb_stream{stream};
+            vdb_grids = vdb_stream.getGrids();
+            return true;
+          }
+          catch (...) {
+            return false;
+          }
+        }))
+    {
+      return {};
+    }
+    if (vdb_grids->size() != 1) {
+      return {};
+    }
+    std::shared_ptr<openvdb::GridBase> vdb_grid = std::move((*vdb_grids)[0]);
+    GVolumeGrid grid{std::move(vdb_grid)};
+    return std::make_unique<VolumeGridBakeItem>(std::make_unique<GVolumeGrid>(grid));
+  }
+#endif
   if (*state_item_type == StringRef("STRING")) {
     const std::shared_ptr<io::serialize::Value> *io_data = io_item.lookup("data");
     if (!io_data) {
@@ -1266,6 +1660,70 @@ static std::unique_ptr<BakeItem> deserialize_bake_item(const DictionaryValue &io
         return {};
       }
       return std::make_unique<StringBakeItem>(std::move(str));
+    }
+  }
+  if (*state_item_type == StringRef("BUNDLE")) {
+    auto bundle = std::make_unique<BundleBakeItem>();
+    if (!deserialize_bundle(io_item, blob_reader, blob_sharing, *bundle)) {
+      return {};
+    }
+    return bundle;
+  }
+  if (*state_item_type == StringRef("LIST")) {
+    const std::optional<StringRefNull> io_list_item_type = io_item.lookup_str("item_type");
+    if (const std::optional<eCustomDataType> data_type = get_data_type_from_io_name(
+            *io_list_item_type))
+    {
+      const std::optional<int> num_items = io_item.lookup_int("num_items");
+      if (!num_items) {
+        return {};
+      }
+      const CPPType *cpp_type = custom_data_type_to_cpp_type(*data_type);
+      BLI_assert(cpp_type);
+      if (const std::shared_ptr<io::serialize::Value> *io_value = io_item.lookup("value")) {
+        BUFFER_FOR_CPP_TYPE_VALUE(*cpp_type, buffer);
+        if (!deserialize_primitive_value(**io_value, *data_type, buffer)) {
+          return {};
+        }
+        auto list = nodes::GList::create(
+            *cpp_type, nodes::GList::SingleData::ForValue(GPointer{cpp_type, buffer}), *num_items);
+        return std::make_unique<ListBakeItem>(std::move(list));
+      }
+      if (const io::serialize::DictionaryValue *io_data = io_item.lookup_dict("data")) {
+        GArray<> buffer(*cpp_type, *num_items);
+        if (!read_blob_simple_gspan(
+                blob_reader, *io_data, GMutableSpan{cpp_type, buffer.data(), *num_items}))
+        {
+          return {};
+        }
+        nodes::GList::ArrayData array_data;
+        const auto *sharing_info = new ImplicitSharedValue<GArray<>>(std::move(buffer));
+        array_data.data = const_cast<void *>(sharing_info->data.data());
+        array_data.sharing_info = ImplicitSharingPtr<>(sharing_info);
+        auto list = nodes::GList::create(*cpp_type, std::move(array_data), *num_items);
+        return std::make_unique<ListBakeItem>(std::move(list));
+      }
+    }
+    if (*io_list_item_type == "BUNDLE") {
+      const ArrayValue *io_items = io_item.lookup_array("items");
+      if (!io_items) {
+        return {};
+      }
+      const Span<std::shared_ptr<Value>> io_elements = io_items->elements();
+      Vector<BundleBakeItem> bundle_list(io_elements.size());
+      for (const int i : io_elements.index_range()) {
+        if (!io_elements[i]) {
+          return {};
+        }
+        const DictionaryValue *io_bundle_dict = io_elements[i]->as_dictionary_value();
+        if (!io_bundle_dict) {
+          return {};
+        }
+        if (!deserialize_bundle(*io_bundle_dict, blob_reader, blob_sharing, bundle_list[i])) {
+          return {};
+        }
+      }
+      return std::make_unique<ListBakeItem>(std::move(bundle_list));
     }
   }
   const std::shared_ptr<io::serialize::Value> *io_data = io_item.lookup("data");

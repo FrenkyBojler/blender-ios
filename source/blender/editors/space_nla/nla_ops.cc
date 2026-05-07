@@ -6,7 +6,6 @@
  * \ingroup spnla
  */
 
-#include <cstdio>
 #include <cstring>
 
 #include "DNA_scene_types.h"
@@ -22,6 +21,8 @@
 #include "WM_types.hh"
 
 #include "nla_intern.hh" /* own include */
+
+namespace blender {
 
 /* ************************** poll callbacks for operators **********************************/
 
@@ -186,3 +187,5 @@ void nla_keymap(wmKeyConfig *keyconf)
   /* data ------------------------------------------------------------- */
   WM_keymap_ensure(keyconf, "NLA Editor", SPACE_NLA, RGN_TYPE_WINDOW);
 }
+
+}  // namespace blender

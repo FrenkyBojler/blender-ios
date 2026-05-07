@@ -12,6 +12,11 @@
 #include "IMB_filetype.hh"
 #include "IMB_imbuf_types.hh"
 
+namespace blender {
+
+const char *imb_file_extensions_dpx[] = {".dpx", nullptr};
+const char *imb_file_extensions_cineon[] = {".cin", nullptr};
+
 OIIO_NAMESPACE_USING
 using namespace blender::imbuf;
 
@@ -20,25 +25,25 @@ bool imb_is_a_dpx(const uchar *mem, size_t size)
   return imb_oiio_check(mem, size, "dpx");
 }
 
-ImBuf *imb_load_dpx(const uchar *mem, size_t size, int flags, char colorspace[IM_MAX_SPACE])
+ImBuf *imb_load_dpx(const uchar *mem, size_t size, int flags, ImFileColorSpace &r_colorspace)
 {
   ImageSpec config, spec;
 
   ReadContext ctx{mem, size, "dpx", IMB_FTYPE_DPX, flags};
 
-  ctx.use_colorspace_role = COLOR_ROLE_DEFAULT_FLOAT;
-
-  ImBuf *ibuf = imb_oiio_read(ctx, config, colorspace, spec);
+  ImBuf *ibuf = imb_oiio_read(ctx, config, r_colorspace, spec);
   if (ibuf) {
     if (flags & IB_alphamode_detect) {
       ibuf->flags |= IB_alphamode_premul;
     }
   }
 
+  r_colorspace.is_hdr_float = true;
+
   return ibuf;
 }
 
-bool imb_save_dpx(ImBuf *ibuf, const char *filepath, int flags)
+static std::tuple<WriteContext, ImageSpec> prepare_save_dpx(ImBuf *ibuf, int flags)
 {
   int bits_per_sample = 8;
   if (ibuf->foptions.flag & CINEON_10BIT) {
@@ -81,6 +86,19 @@ bool imb_save_dpx(ImBuf *ibuf, const char *filepath, int flags)
   else {
     file_spec.attribute("dpx:Packing", "Filled, method A");
   }
+  return {ctx, file_spec};
+}
 
+bool imb_save_dpx(ImBuf *ibuf, const char *filepath, int flags)
+{
+  const auto [ctx, file_spec] = prepare_save_dpx(ibuf, flags);
   return imb_oiio_write(ctx, filepath, file_spec);
 }
+
+Vector<uint8_t> imb_save_buffer_dpx(ImBuf *ibuf, int flags)
+{
+  const auto [ctx, file_spec] = prepare_save_dpx(ibuf, flags);
+  return imb_oiio_write_buffer(ctx, file_spec);
+}
+
+}  // namespace blender

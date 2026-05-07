@@ -12,6 +12,15 @@ if(WIN32)
   set(SDL_EXTRA_ARGS
     -DSDL_STATIC=Off
   )
+
+  if(BLENDER_PLATFORM_WINDOWS_ARM)
+    set(SDL_PATCH
+      ${SDL_PATCH} &&
+      ${PATCH_CMD} -p 1 -N -d
+        ${BUILD_DIR}/sdl/src/external_sdl <
+        ${PATCH_DIR}/sdl_woa.diff
+    )
+  endif()
 else()
   set(SDL_EXTRA_ARGS
     -DSDL_STATIC=ON
@@ -47,18 +56,23 @@ ExternalProject_Add(external_sdl
   INSTALL_DIR ${LIBDIR}/sdl
 )
 
-if(BUILD_MODE STREQUAL Release AND WIN32)
-  ExternalProject_Add_Step(external_sdl after_install
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-      ${LIBDIR}/sdl/include/sdl2
-      ${HARVEST_TARGET}/sdl/include
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-      ${LIBDIR}/sdl/lib
-      ${HARVEST_TARGET}/sdl/lib
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-      ${LIBDIR}/sdl/bin
-      ${HARVEST_TARGET}/sdl/lib
+if(WIN32)
+  if(BUILD_MODE STREQUAL Release)
+    ExternalProject_Add_Step(external_sdl after_install
+      COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${LIBDIR}/sdl/include/sdl2
+        ${HARVEST_TARGET}/sdl/include
+      COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${LIBDIR}/sdl/lib
+        ${HARVEST_TARGET}/sdl/lib
+      COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${LIBDIR}/sdl/bin
+        ${HARVEST_TARGET}/sdl/lib
 
-    DEPENDEES install
-  )
+      DEPENDEES install
+    )
+  endif()
+else()
+  harvest(external_sdl sdl/include/SDL2 sdl/include "*.h")
+  harvest(external_sdl sdl/lib sdl/lib "libSDL2.a")
 endif()

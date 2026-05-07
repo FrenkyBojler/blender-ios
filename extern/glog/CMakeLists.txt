@@ -48,7 +48,7 @@ set(SRC
 set(LIB
 )
 
-# Suppress warnings as GLOG has it's own define.
+# Suppress warnings as GLOG has its own define.
 if(HAVE_EXECINFO_H)
   remove_definitions(-DHAVE_EXECINFO_H)
 endif()
@@ -67,6 +67,7 @@ if(WIN32)
     src/windows/glog/vlog_is_on.h
     src/windows/glog/logging.h
     src/windows/glog/log_severity.h
+    src/windows/glog/stl_logging.h
     src/windows/port.h
     src/windows/config.h
   )
@@ -87,6 +88,7 @@ else()
     include/glog/logging.h
     include/glog/log_severity.h
     include/glog/raw_logging.h
+    include/glog/stl_logging.h
     include/glog/vlog_is_on.h
   )
 endif()
@@ -95,3 +97,8 @@ add_definitions(${GFLAGS_DEFINES})
 add_definitions(${GLOG_DEFINES})
 
 blender_add_lib(extern_glog "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
+
+if(MSVC_CLANG)
+  # clang-cl emits these and given upstream is EOL just suppress them
+  target_compile_options(extern_glog PRIVATE -Wno-microsoft-cast -Wno-invalid-noreturn)
+endif()

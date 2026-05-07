@@ -20,11 +20,12 @@
 
 #include "UI_interface_icons.hh"
 
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "ED_asset_list.hh"
 #include "ED_asset_mark_clear.hh"
 #include "ED_asset_type.hh"
+#include "ED_render.hh"
 
 #include "WM_types.hh"
 
@@ -56,12 +57,18 @@ bool mark_id(ID *id)
 
 void generate_preview(const bContext *C, ID *id)
 {
+  if (!ED_preview_id_is_supported(id)) {
+    return;
+  }
+
+  ED_preview_kill_jobs_for_id(CTX_wm_manager(C), id);
+
   PreviewImage *preview = BKE_previewimg_id_get(id);
   if (preview) {
     BKE_previewimg_clear(preview);
   }
 
-  UI_icon_render_id(C, nullptr, id, ICON_SIZE_PREVIEW, !G.background);
+  ui::icon_render_id(C, nullptr, id, ICON_SIZE_PREVIEW, !G.background);
 }
 
 bool clear_id(ID *id)
@@ -69,6 +76,14 @@ bool clear_id(ID *id)
   if (!id->asset_data) {
     return false;
   }
+
+  const IDTypeInfo *id_type_info = BKE_idtype_get_info_from_id(id);
+  if (AssetTypeInfo *type_info = id_type_info->asset_type_info) {
+    if (type_info->on_clear_asset_fn) {
+      type_info->on_clear_asset_fn(id, id->asset_data);
+    }
+  }
+
   BKE_asset_metadata_free(&id->asset_data);
   id_fake_user_clear(id);
 
@@ -97,7 +112,7 @@ bool can_mark_single_from_context(const bContext *C)
 {
   /* Context needs a "id" pointer to be set for #ASSET_OT_mark()/#ASSET_OT_mark_single() and
    * #ASSET_OT_clear()/#ASSET_OT_clear_single() to use. */
-  const ID *id = static_cast<ID *>(CTX_data_pointer_get_type_silent(C, "id", &RNA_ID).data);
+  const ID *id = static_cast<ID *>(CTX_data_pointer_get_type_silent(C, "id", RNA_ID).data);
   if (!id) {
     return false;
   }

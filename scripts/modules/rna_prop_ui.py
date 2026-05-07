@@ -16,7 +16,7 @@ MAX_DISPLAY_ROWS = 8
 
 
 def rna_idprop_quote_path(prop):
-    return "[\"%s\"]" % bpy.utils.escape_identifier(prop)
+    return "[\"{:s}\"]".format(bpy.utils.escape_identifier(prop))
 
 
 def rna_idprop_ui_prop_update(item, prop):
@@ -69,7 +69,13 @@ def rna_idprop_value_item_type(value):
 
 
 def rna_idprop_ui_prop_default_set(item, prop, value):
-    ui_data = item.id_properties_ui(prop)
+    # NOTE: the internal check to know if a property supports UI is not exposed.
+    # Use an exception here and assert this isn't catching unrelated errors.
+    try:
+        ui_data = item.id_properties_ui(prop)
+    except TypeError as ex:
+        assert ex.args and ("does not support UI data" in ex.args[0])
+        return
     ui_data.update(default=value)
 
 
@@ -262,7 +268,7 @@ class PropertyPanel:
         rna_item, context_member = rna_idprop_context_value(context, self._context_path, self._property_type)
         tot = len(rna_item.keys())
         if tot:
-            self.layout().label(text="%d:" % tot)
+            self.layout().label(text="{:d}:".format(tot))
     """
 
     def draw(self, context):

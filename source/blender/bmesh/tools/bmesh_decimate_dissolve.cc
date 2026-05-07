@@ -10,6 +10,8 @@
 
 #include "MEM_guardedalloc.h"
 
+#include <algorithm>
+
 #include "BLI_heap.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_rotation.h"
@@ -20,12 +22,23 @@
 #include "bmesh.hh"
 #include "bmesh_decimate.hh" /* own include */
 
+namespace blender {
+
 /* check that collapsing a vertex between 2 edges doesn't cause a degenerate face. */
 #define USE_DEGENERATE_CHECK
 
 #define COST_INVALID FLT_MAX
 
-struct DelimitData;
+namespace {
+
+struct DelimitData {
+  int cd_loop_type;
+  int cd_loop_size;
+  int cd_loop_offset;
+  int cd_loop_offset_end;
+};
+
+}  // namespace
 
 static bool bm_edge_is_delimiter(const BMEdge *e,
                                  const BMO_Delimit delimit,
@@ -48,7 +61,7 @@ static float bm_vert_edge_face_angle(BMVert *v,
   /* NOTE: could be either edge, it doesn't matter. */
   if (v->e && BM_edge_is_manifold(v->e)) {
     /* Checking delimited is important here,
-     * otherwise the boundary between two materials for e.g.
+     * otherwise, for example, the boundary between two materials
      * will collapse if the faces on either side of the edge have a small angle.
      *
      * This way, delimiting edges are treated like boundary edges,
@@ -63,13 +76,6 @@ static float bm_vert_edge_face_angle(BMVert *v,
 #undef UNIT_TO_ANGLE
 #undef ANGLE_TO_UNIT
 }
-
-struct DelimitData {
-  int cd_loop_type;
-  int cd_loop_size;
-  int cd_loop_offset;
-  int cd_loop_offset_end;
-};
 
 static bool bm_edge_is_contiguous_loop_cd_all(const BMEdge *e, const DelimitData *delimit_data)
 {
@@ -290,7 +296,7 @@ void BM_mesh_decimate_dissolve_ex(BMesh *bm,
   const float angle_limit_cos_neg = -cosf(angle_limit);
   DelimitData delimit_data = {0};
   const int eheap_table_len = do_dissolve_boundaries ? einput_len : max_ii(einput_len, vinput_len);
-  void *_heap_table = MEM_mallocN(sizeof(HeapNode *) * eheap_table_len, __func__);
+  void *_heap_table = MEM_new_array_uninitialized<HeapNode *>(eheap_table_len, __func__);
 
   int i;
 
@@ -303,7 +309,8 @@ void BM_mesh_decimate_dissolve_ex(BMesh *bm,
       delimit_data.cd_loop_type = CD_PROP_FLOAT2;
       delimit_data.cd_loop_size = CustomData_sizeof(eCustomDataType(delimit_data.cd_loop_type));
       delimit_data.cd_loop_offset = CustomData_get_n_offset(&bm->ldata, CD_PROP_FLOAT2, 0);
-      delimit_data.cd_loop_offset_end = delimit_data.cd_loop_size * layer_len;
+      delimit_data.cd_loop_offset_end = delimit_data.cd_loop_offset +
+                                        delimit_data.cd_loop_size * layer_len;
     }
   }
 
@@ -345,7 +352,10 @@ void BM_mesh_decimate_dissolve_ex(BMesh *bm,
       i = BM_elem_index_get(e);
 
       if (BM_edge_is_manifold(e)) {
-        f_new = BM_faces_join_pair(bm, e->l, e->l->radial_next, false);
+        /* The `f_new` may be an existing face, see #144383.
+         * In this case it's still flagged as output so the selection
+         * isn't "lost" when dissolving, see: !144653. */
+        f_new = BM_faces_join_pair(bm, e->l, e->l->radial_next, false, nullptr);
 
         if (f_new) {
           BMLoop *l_first, *l_iter;
@@ -378,15 +388,15 @@ void BM_mesh_decimate_dissolve_ex(BMesh *bm,
 
     /* prepare for cleanup */
     BM_mesh_elem_index_ensure(bm, BM_VERT);
-    vert_reverse_lookup = static_cast<int *>(MEM_mallocN(sizeof(int) * bm->totvert, __func__));
-    copy_vn_i(vert_reverse_lookup, bm->totvert, -1);
+    vert_reverse_lookup = MEM_new_array_uninitialized<int>(bm->totvert, __func__);
+    std::fill_n(vert_reverse_lookup, bm->totvert, -1);
     for (i = 0; i < vinput_len; i++) {
       BMVert *v = vinput_arr[i];
       vert_reverse_lookup[BM_elem_index_get(v)] = i;
     }
 
     /* --- cleanup --- */
-    earray = static_cast<BMEdge **>(MEM_mallocN(sizeof(BMEdge *) * bm->totedge, __func__));
+    earray = MEM_new_array_uninitialized<BMEdge *>(bm->totedge, __func__);
     BM_ITER_MESH_INDEX (e_iter, &iter, bm, BM_EDGES_OF_MESH, i) {
       earray[i] = e_iter;
     }
@@ -417,8 +427,8 @@ void BM_mesh_decimate_dissolve_ex(BMesh *bm,
         }
       }
     }
-    MEM_freeN(vert_reverse_lookup);
-    MEM_freeN(earray);
+    MEM_delete(vert_reverse_lookup);
+    MEM_delete(earray);
 
     BLI_heap_free(eheap, nullptr);
   }
@@ -535,7 +545,7 @@ void BM_mesh_decimate_dissolve_ex(BMesh *bm,
     BLI_heap_free(vheap, nullptr);
   }
 
-  MEM_freeN(_heap_table);
+  MEM_delete_void(_heap_table);
 }
 
 void BM_mesh_decimate_dissolve(BMesh *bm,
@@ -561,6 +571,8 @@ void BM_mesh_decimate_dissolve(BMesh *bm,
                                einput_len,
                                0);
 
-  MEM_freeN(vinput_arr);
-  MEM_freeN(einput_arr);
+  MEM_delete(vinput_arr);
+  MEM_delete(einput_arr);
 }
+
+}  // namespace blender

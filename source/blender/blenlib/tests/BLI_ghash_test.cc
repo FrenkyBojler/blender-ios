@@ -10,6 +10,8 @@
 #include "BLI_rand.h"
 #include "BLI_utildefines.h"
 
+namespace blender {
+
 #define TESTCASE_SIZE 10000
 
 /* Only keeping this in case here, for now. */
@@ -110,7 +112,7 @@ TEST(ghash, InsertRemove)
   BLI_ghash_free(ghash, nullptr, nullptr);
 }
 
-/* Same as above, but this time we allow ghash to shrink. */
+/* Same as `InsertRemove`, but this time we allow ghash to shrink. */
 TEST(ghash, InsertRemoveShrink)
 {
   GHash *ghash = BLI_ghash_new(BLI_ghashutil_inthash_p, BLI_ghashutil_intcmp, __func__);
@@ -209,3 +211,5 @@ TEST(ghash, Pop)
 
   BLI_ghash_free(ghash, nullptr, nullptr);
 }
+
+}  // namespace blender
