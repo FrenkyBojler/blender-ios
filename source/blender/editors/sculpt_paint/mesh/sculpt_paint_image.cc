@@ -391,6 +391,8 @@ static void do_paint_pixels(const Depsgraph &depsgraph,
         });
 
     Array<int> row_map(tile_data.pixel_rows.size(), -1);
+    /* TODO: Experiment with allocating factor "image" earlier in a contiguous chunk to avoid
+     * needing to resize in a parallel loop? */
     Array<Vector<float>> all_factors(valid_rows.size());
     /* Calculate the per-row factor first */
     threading::EnumerableThreadSpecific<FactorLocalData> all_factor_tls;
