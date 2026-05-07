@@ -37,7 +37,7 @@ if(WIN32)
   )
 else()
   harvest(external_meshoptimizer meshoptimizer/include meshoptimizer/include "*.h")
+  # CMake files first because harvest_rpath_lib edits them.
   harvest(external_meshoptimizer meshoptimizer/lib/cmake/meshoptimizer meshoptimizer/lib/cmake/meshoptimizer "*.cmake")
-  # Not using harvest_rpath_lib as this shared library is manually loaded a runtime by the glTF add-on.
-  harvest(external_meshoptimizer meshoptimizer/lib meshoptimizer/lib "*${SHAREDLIBEXT}*")
+  harvest_rpath_lib(external_meshoptimizer meshoptimizer/lib meshoptimizer/lib "*${SHAREDLIBEXT}*")
 endif()

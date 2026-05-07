@@ -44,9 +44,9 @@ if(WIN32)
   )
 else()
   harvest(external_draco draco/include draco/include "*.h")
-  harvest(external_draco draco/share/cmake/draco draco/share/cmake/draco "*.cmake")
-  # Not using harvest_rpath_lib as this shared library is manually loaded a runtime by the glTF add-on.
-  harvest(external_draco draco/lib draco/lib "*${SHAREDLIBEXT}*")
+  # CMake files first because harvest_rpath_lib edits them. Move from share/cmake to lib/cmake for set_rpath.py to find them.
+  harvest(external_draco draco/share/cmake/draco draco/lib/cmake/draco "*.cmake")
+  harvest_rpath_lib(external_draco draco/lib draco/lib "*${SHAREDLIBEXT}*")
   # Draco unconditionally builds as a static library, harvest it to satisfy the CMake config target.
   harvest(external_draco draco/lib draco/lib "*.a")
 endif()
