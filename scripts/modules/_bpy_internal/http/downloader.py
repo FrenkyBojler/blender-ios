@@ -1481,11 +1481,17 @@ def _cleanup_main_file_attribute() -> Generator[None]:
     # as much as possible.
     old_file: str = getattr(main_module, '__file__', '') or ''
 
+    # Check for paths to a Blender data-block, which is not something Python
+    # knows how to handle. Better to erase the `main` module.
+    is_datablock = ".blend/" in old_file.lower()
+
     # Blender uses various `<...>` values for `__main__.__file__`. Usually
     # concrete file paths aren't delimited by greater/less than symbols, so
     # this seems a safe heuristic.
     is_blender_string = old_file.startswith('<') and old_file.endswith('>')
-    if not is_blender_string:
+
+    if not is_datablock and not is_blender_string:
+        # Seems safe.
         yield
         return
 
