@@ -21,6 +21,12 @@ def split_into_components(fname):
     separators = ["_", ".", "-", "__", "--", "#"]
     for sep in separators:
         fname = fname.replace(sep, " ")
+    # Replace parentheses/brackets and their CJK equivalents with SPACE
+    fname = re.sub(r"[(){}\[\]（）【】「」『』]", " ", fname)
+    # Split at CJK <-> ASCII boundaries
+    cjk_ranges = r"\u4e00-\u9fff\u3400-\u4dbf\u3040-\u30ff\uff00-\uffef"
+    fname = re.sub(rf"([{cjk_ranges}])([A-Za-z])", r"\g<1> \g<2>", fname)
+    fname = re.sub(rf"([A-Za-z])([{cjk_ranges}])", r"\g<1> \g<2>", fname)
 
     components = fname.split(" ")
     components = [c.lower() for c in components]
