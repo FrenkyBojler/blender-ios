@@ -329,12 +329,15 @@ class Context : public compositor::Context {
   {
     using namespace compositor;
     const bNodeTree &node_group = *DRW_context_get()->scene->compositing_node_group;
+    const ComputeContext &compute_context = this->compute_context_cache().for_data_block(
+        nullptr, this->get_scene().id);
     NodeGroupOperation node_group_operation(*this,
                                             node_group,
                                             this->needed_outputs(),
                                             nullptr,
                                             node_group.active_viewer_key,
-                                            bke::NODE_INSTANCE_KEY_BASE);
+                                            bke::NODE_INSTANCE_KEY_BASE,
+                                            compute_context);
 
     /* Set the reference count for the outputs, only the first color output is actually needed,
      * while the rest are ignored. */

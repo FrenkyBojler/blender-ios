@@ -26,6 +26,7 @@
 #include "BKE_node_runtime.hh"
 #include "BKE_node_socket_value.hh"
 #include "BKE_report.hh"
+#include "BKE_scene_runtime.hh"
 #include "BKE_type_conversions.hh"
 #include "BKE_volume.hh"
 #include "BKE_volume_grid.hh"
@@ -105,17 +106,16 @@ GeometryInfoLog::GeometryInfoLog(const bke::GeometrySet &geometry_set)
    * attributes with the same name but different domains or data types on separate components. */
   Set<StringRef> names;
 
-  geometry_set.attribute_foreach(all_component_types,
-                                 true,
-                                 [&](const StringRef name,
-                                     const bke::AttributeMetaData &meta_data,
-                                     const bke::GeometryComponent & /*component*/) {
-                                   if (!bke::attribute_name_is_anonymous(name) && names.add(name))
-                                   {
-                                     this->attributes.append(
-                                         {name, meta_data.domain, meta_data.data_type});
-                                   }
-                                 });
+  geometry_set.attribute_foreach(
+      all_component_types,
+      true,
+      [&](const StringRef name,
+          const bke::AttributeMetaData &meta_data,
+          const bke::GeometryComponent & /*component*/) {
+        if (!bke::attribute_name_is_anonymous(name) && names.add(name)) {
+          this->attributes.append({name, meta_data.domain, meta_data.data_type});
+        }
+      });
 
   for (const bke::GeometryComponent *component : geometry_set.get_components()) {
     this->component_types.append(component->type());
@@ -937,12 +937,8 @@ Map<const bNodeTreeZone *, ComputeContextHash> NodesEvalLog::
   return hash_by_zone;
 }
 
-static NodesEvalLog *get_root_log(const SpaceNode &snode)
+static NodesEvalLog *get_geometry_nodes_root_log(const SpaceNode &snode)
 {
-  if (!ED_node_is_geometry(&snode)) {
-    return nullptr;
-  }
-
   switch (SpaceNodeGeometryNodesType(snode.node_tree_sub_type)) {
     case SNODE_GEOMETRY_MODIFIER: {
       std::optional<ed::space_node::ObjectAndModifier> object_and_modifier =
@@ -961,6 +957,38 @@ static NodesEvalLog *get_root_log(const SpaceNode &snode)
       return log.log.get();
     }
   }
+
+  return nullptr;
+}
+
+static NodesEvalLog *get_compositor_root_log(const SpaceNode &space_node)
+{
+  switch (SpaceNodeCompositorNodesType(space_node.node_tree_sub_type)) {
+    case SNODE_COMPOSITOR_SCENE: {
+      const Scene *scene = reinterpret_cast<Scene *>(space_node.id);
+      if (!scene) {
+        return nullptr;
+      }
+      return scene->runtime->compositor.nodes_evaluation_log.get();
+    }
+    case SNODE_COMPOSITOR_SEQUENCER: {
+      return nullptr;
+    }
+  }
+
+  return nullptr;
+}
+
+static NodesEvalLog *get_root_log(const SpaceNode &snode)
+{
+  if (ED_node_is_geometry(&snode)) {
+    return get_geometry_nodes_root_log(snode);
+  }
+
+  if (ED_node_is_compositor(&snode)) {
+    return get_compositor_root_log(snode);
+  }
+
   return nullptr;
 }
 

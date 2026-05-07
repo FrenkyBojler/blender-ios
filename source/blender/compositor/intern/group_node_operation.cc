@@ -62,12 +62,16 @@ class GroupNodeOperation : public NodeOperation {
       return;
     }
 
+    const ComputeContext *compute_context =
+        &this->context().compute_context_cache().for_group_node(
+            this->get_compute_context(), this->node().identifier, &this->node().owner_tree());
     NodeGroupOperation operation(this->context(),
                                  *node_group,
                                  needed_outputs_,
                                  this->get_node_previews(),
                                  active_node_group_instance_key_,
-                                 this->get_instance_key());
+                                 this->get_instance_key(),
+                                 compute_context);
 
     this->set_reference_counts(operation);
     Vector<std::unique_ptr<Result>> temporary_inputs = this->map_inputs(operation);
