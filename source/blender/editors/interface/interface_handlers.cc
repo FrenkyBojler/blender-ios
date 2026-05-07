@@ -4043,6 +4043,7 @@ static int do_but_textedit(
        * (selects all text, no cursor pos) */
       if (ELEM(event->val, KM_PRESS, KM_DBL_CLICK)) {
         if (is_press_in_button) {
+          /* Extend text selection when holding shift. */
           if (event->modifier & KM_SHIFT) {
             text_edit.sel_pos_init = but->pos == but->selsta ? but->selend : but->selsta;
             textedit_set_cursor_select(but, data, float2(event->xy));
