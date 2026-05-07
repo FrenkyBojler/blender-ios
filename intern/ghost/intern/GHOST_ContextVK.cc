@@ -7,6 +7,7 @@
  */
 
 #include "GHOST_ContextVK.hh"
+#include "GHOST_Types.hh"
 #include <vulkan/vulkan_core.h>
 
 #ifdef _WIN32
@@ -384,7 +385,8 @@ struct GHOST_InstanceVK {
   bool select_physical_device(const GHOST_GPUDevice &preferred_device,
                               const blender::Span<const char *> required_extensions)
   {
-    VkPhysicalDevice best_physical_device = VK_NULL_HANDLE;
+    VkPhysicalDevice requested_physical_device = VK_NULL_HANDLE;
+    VkPhysicalDevice fallback_physical_device = VK_NULL_HANDLE;
 
     uint32_t device_count = 0;
     vkEnumeratePhysicalDevices(vk_instance, &device_count, nullptr);
@@ -393,6 +395,9 @@ struct GHOST_InstanceVK {
     vkEnumeratePhysicalDevices(vk_instance, &device_count, physical_devices.data());
 
     int best_device_score = -1;
+    /* Index of the device in the full physical-device enumeration. Matches the trailing
+     * `/index` component of `GPUDevice::identifier` (see `init_device_list` in `vk_backend.cc`).
+     */
     int device_index = -1;
     for (const VkPhysicalDevice &physical_device : physical_devices) {
       GHOST_DeviceVK device_vk(physical_device, false);
@@ -421,6 +426,20 @@ struct GHOST_InstanceVK {
         continue;
       }
 
+      const VkPhysicalDeviceProperties &vk_props = device_vk.properties.properties;
+      if (preferred_device.is_override) {
+        /* Requested device: vendor/device IDs of `uint(-1)` act as wildcards for by-index form. */
+        const bool match = preferred_device.index == device_index &&
+                           (preferred_device.vendor_id == uint(-1) ||
+                            preferred_device.vendor_id == vk_props.vendorID) &&
+                           (preferred_device.device_id == uint(-1) ||
+                            preferred_device.device_id == vk_props.deviceID);
+        if (match) {
+          requested_physical_device = physical_device;
+          break;
+        }
+      }
+
       int device_score = 0;
       switch (device_vk.properties.properties.deviceType) {
         case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU:
@@ -442,26 +461,65 @@ struct GHOST_InstanceVK {
       /* User has configured a preferred device. Add bonus score when vendor and device match.
        * Driver id isn't considered as drivers update more frequently and can break the device
        * selection. */
-      if (device_vk.properties.properties.deviceID == preferred_device.device_id &&
-          device_vk.properties.properties.vendorID == preferred_device.vendor_id)
+      if (vk_props.deviceID == preferred_device.fallback_device_id &&
+          vk_props.vendorID == preferred_device.fallback_vendor_id)
       {
         device_score += 500;
-        if (preferred_device.index == device_index) {
+        if (preferred_device.fallback_index == device_index) {
           device_score += 10;
         }
       }
       if (device_score > best_device_score) {
-        best_physical_device = physical_device;
+        fallback_physical_device = physical_device;
         best_device_score = device_score;
       }
     }
 
-    if (best_physical_device == VK_NULL_HANDLE) {
+    if (requested_physical_device != VK_NULL_HANDLE) {
+      vk_physical_device = requested_physical_device;
+      return GHOST_kSuccess;
+    }
+
+    if (fallback_physical_device == VK_NULL_HANDLE) {
       CLOG_ERROR(&LOG, "No suitable Vulkan Device found!");
       return GHOST_kFailure;
     }
 
-    vk_physical_device = best_physical_device;
+    if (preferred_device.is_override) {
+      if (preferred_device.fail_on_invalid_override) {
+        if (preferred_device.vendor_id == uint(-1)) {
+          CLOG_ERROR(&LOG,
+                     "Requested Vulkan GPU '%d' is unavailable or unsupported. "
+                     "Run with '--gpu-device help' to list available devices.",
+                     preferred_device.index);
+        }
+        else {
+          CLOG_ERROR(&LOG,
+                     "Requested Vulkan GPU '%x/%x/%x' is unavailable or unsupported. "
+                     "Run with '--gpu-device help' to list available devices.",
+                     preferred_device.vendor_id,
+                     preferred_device.device_id,
+                     uint(preferred_device.index));
+        }
+        return GHOST_kFailure;
+      }
+      if (preferred_device.vendor_id == uint(-1)) {
+        CLOG_WARN(&LOG,
+                  "Requested Vulkan GPU '%d' is unavailable or unsupported. "
+                  "Falling back to the saved GPU preference.",
+                  preferred_device.index);
+      }
+      else {
+        CLOG_WARN(&LOG,
+                  "Requested Vulkan GPU '%x/%x/%x' is unavailable or unsupported. "
+                  "Falling back to the saved GPU preference.",
+                  preferred_device.vendor_id,
+                  preferred_device.device_id,
+                  uint(preferred_device.index));
+      }
+    }
+
+    vk_physical_device = fallback_physical_device;
 
     return GHOST_kSuccess;
   }
@@ -788,6 +846,15 @@ GHOST_ContextVK::~GHOST_ContextVK()
 {
   if (vulkan_instance.has_value()) {
     GHOST_InstanceVK &instance_vk = vulkan_instance.value();
+    if (!instance_vk.device.has_value() || instance_vk.device->vk_device == VK_NULL_HANDLE) {
+      if (surface_ != VK_NULL_HANDLE) {
+        vkDestroySurfaceKHR(instance_vk.vk_instance, surface_, nullptr);
+        surface_ = VK_NULL_HANDLE;
+      }
+      vulkan_instance.reset();
+      return;
+    }
+
     GHOST_DeviceVK &device_vk = instance_vk.device.value();
     device_vk.wait_idle();
     for (VkFence fence : fence_pile_) {
@@ -798,9 +865,12 @@ GHOST_ContextVK::~GHOST_ContextVK()
 
     if (surface_ != VK_NULL_HANDLE) {
       vkDestroySurfaceKHR(instance_vk.vk_instance, surface_, nullptr);
+      surface_ = VK_NULL_HANDLE;
     }
 
-    device_vk.users--;
+    if (device_vk.users > 0) {
+      device_vk.users--;
+    }
     if (device_vk.users == 0) {
       vulkan_instance.reset();
     }
@@ -1751,3 +1821,32 @@ GHOST_TSuccess GHOST_ContextVK::releaseNativeHandles()
 {
   return GHOST_kSuccess;
 }
+
+#ifdef WITH_GHOST_WAYLAND
+GHOST_TSuccess GHOST_ContextVK::supportsWaylandColorManagement()
+{
+  if (!vulkan_instance.has_value()) {
+    return GHOST_kFailure;
+  }
+  if (!vulkan_instance->device.has_value()) {
+    return GHOST_kFailure;
+  }
+
+  GHOST_DeviceVK &device_vk = vulkan_instance->device.value();
+  if (device_vk.properties_12.driverID != VK_DRIVER_ID_NVIDIA_PROPRIETARY) {
+    return GHOST_kSuccess;
+  }
+
+  uint32_t driver_version = device_vk.properties.properties.driverVersion;
+  uint32_t major_version = (driver_version >> 22) & 0x3ff;
+  /* NVIDIA has a well known implementation of wayland color management protocol since driver
+   * version 595. Using the color management protocol leads to very bright output when using on
+   * older driver. The output isn't influenced by surface configuration.
+   */
+  if (major_version < 595) {
+    return GHOST_kFailure;
+  }
+
+  return GHOST_kSuccess;
+}
+#endif

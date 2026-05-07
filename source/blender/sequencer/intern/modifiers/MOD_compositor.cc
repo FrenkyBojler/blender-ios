@@ -286,7 +286,7 @@ class CompositorModifierContext : public CompositorContext {
 
     if (realization_operation) {
       Result realize_input = this->create_result(ResultType::Color, viewer_result.precision());
-      realize_input.wrap_external(viewer_result);
+      realize_input.share_data(viewer_result);
       realization_operation->map_input_to_result(&realize_input);
       realization_operation->evaluate();
 
@@ -354,7 +354,7 @@ class CompositorModifierContext : public CompositorContext {
           if (this->mask_.is_allocated()) {
             input_result->set_type(this->mask_.type());
             input_result->set_precision(this->mask_.precision());
-            input_result->wrap_external(this->mask_);
+            input_result->share_data(this->mask_);
             input_result->set_transformation(this->mask_transform_);
           }
           else {
@@ -450,16 +450,15 @@ static void compositor_modifier_apply(ModifierApplyContext &context,
   CompositorCache &com_cache = context.render_data.scene->ed->runtime->ensure_compositor_cache();
   CompositorModifierContext com_mod_context(context, com_cache.get_cache_manager(), modifier_data);
 
-  const bool use_gpu = com_mod_context.use_gpu();
-  if (use_gpu) {
-    render_begin_gpu(context.render_data);
+  if (com_mod_context.use_gpu()) {
+    com_mod_context.set_gpu_supported(render_begin_gpu(context.render_data));
   }
 
   com_cache.recreate_if_needed(
       com_mod_context.use_gpu(), com_mod_context.get_precision(), context.render_data.gpu_context);
   com_mod_context.evaluate();
   com_mod_context.cache_manager().reset();
-  if (use_gpu) {
+  if (com_mod_context.use_gpu()) {
     render_end_gpu(context.render_data);
   }
 

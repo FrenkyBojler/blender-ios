@@ -14,6 +14,7 @@
 #include "BLI_enum_flags.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_span.hh"
+#include "BLI_vector.hh"
 
 #include "IMB_imbuf_types.hh"
 
@@ -62,6 +63,7 @@ ImBuf *IMB_load_image_from_filepath(const char *filepath,
  * Save image.
  */
 bool IMB_save_image(ImBuf *ibuf, const char *filepath, int flags);
+Vector<uint8_t> IMB_save_image_to_buffer(ImBuf *ibuf, int flags);
 
 /**
  * Test image file.
@@ -187,7 +189,6 @@ void IMB_assign_byte_buffer(ImBuf *ibuf, const ImBufByteBuffer &buffer, ImBufOwn
 void IMB_assign_float_buffer(ImBuf *ibuf,
                              const ImBufFloatBuffer &buffer,
                              ImBufOwnership ownership);
-void IMB_assign_dds_data(ImBuf *ibuf, const DDSData &data, ImBufOwnership ownership);
 
 /**
  * Make corresponding buffers available for modification.
@@ -199,11 +200,9 @@ void IMB_make_writable_float_buffer(ImBuf *ibuf);
 /**
  * Steal the buffer data pointer: the ImBuf is no longer an owner of this data.
  * \note If the ImBuf does not own the data the behavior is undefined.
- * \note Stealing encoded buffer resets the encoded size.
  */
 uint8_t *IMB_steal_byte_buffer(ImBuf *ibuf);
 float *IMB_steal_float_buffer(ImBuf *ibuf);
-uint8_t *IMB_steal_encoded_buffer(ImBuf *ibuf);
 
 /**
  * Increase reference count to imbuf
@@ -401,21 +400,29 @@ enum class IMBScaleFilter {
  * Scale/resize image to new dimensions.
  * Return true if \a ibuf is modified.
  */
-bool IMB_scale(ImBuf *ibuf,
-               unsigned int newx,
-               unsigned int newy,
-               IMBScaleFilter filter,
-               bool threaded = true);
+bool IMB_scale(ImBuf *ibuf, int2 new_size, IMBScaleFilter filter, bool threaded = true);
+inline bool IMB_scale(
+    ImBuf *ibuf, unsigned int newx, unsigned int newy, IMBScaleFilter filter, bool threaded = true)
+{
+  return IMB_scale(ibuf, int2(newx, newy), filter, threaded);
+}
 
 /**
  * Scale/resize image to new dimensions, into a newly created result image.
  * Metadata of input image (if any) is copied into the result image.
  */
 ImBuf *IMB_scale_into_new(const ImBuf *ibuf,
-                          unsigned int newx,
-                          unsigned int newy,
+                          int2 new_size,
                           IMBScaleFilter filter,
                           bool threaded = true);
+inline ImBuf *IMB_scale_into_new(const ImBuf *ibuf,
+                                 unsigned int newx,
+                                 unsigned int newy,
+                                 IMBScaleFilter filter,
+                                 bool threaded = true)
+{
+  return IMB_scale_into_new(ibuf, int2(newx, newy), filter, threaded);
+}
 
 /**
  * Test if color-space conversions of pixels in buffer need to take into account alpha.
@@ -590,7 +597,7 @@ bool IMB_alloc_float_pixels(ImBuf *ibuf, unsigned int channels, bool initialize_
  */
 void IMB_free_float_pixels(ImBuf *ibuf);
 
-/** Deallocate all CPU side data storage (byte, float, encoded). */
+/** Deallocate all CPU side data storage (byte, float). */
 void IMB_free_all_data(ImBuf *ibuf);
 
 /**

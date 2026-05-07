@@ -90,14 +90,7 @@ endif()
 # -----------------------------------------------------------------------------
 # Configure OpenColorIO
 
-add_library(bf_deps_optional_opencolorio INTERFACE)
-add_library(bf::dependencies::optional::opencolorio ALIAS bf_deps_optional_opencolorio)
-
-if(WITH_OPENCOLORIO)
-  target_compile_definitions(bf_deps_optional_opencolorio INTERFACE WITH_OPENCOLORIO)
-  target_include_directories(bf_deps_optional_opencolorio SYSTEM INTERFACE ${OPENCOLORIO_INCLUDE_DIRS})
-  target_link_libraries(bf_deps_optional_opencolorio INTERFACE ${OPENCOLORIO_LIBRARIES})
-endif()
+add_library(bf::dependencies::opencolorio ALIAS OpenColorIO::OpenColorIO)
 
 # -----------------------------------------------------------------------------
 # Configure Zlib
@@ -189,13 +182,7 @@ endif()
 # -----------------------------------------------------------------------------
 # Configure OpenEXR
 
-add_library(bf_deps_optional_openexr INTERFACE)
-add_library(bf::dependencies::optional::openexr ALIAS bf_deps_optional_openexr)
-
-if(WITH_IMAGE_OPENEXR)
-  target_compile_definitions(bf_deps_optional_openexr INTERFACE WITH_IMAGE_OPENEXR)
-  target_link_libraries(bf_deps_optional_openexr INTERFACE OpenEXR::OpenEXR)
-endif()
+add_library(bf::dependencies::openexr ALIAS OpenEXR::OpenEXR)
 
 # -----------------------------------------------------------------------------
 # Configure WebP
@@ -498,6 +485,17 @@ else()
 endif()
 
 # -----------------------------------------------------------------------------
+# Configure TracyClient
+
+add_library(bf_deps_optional_tracy_client INTERFACE)
+add_library(bf::dependencies::optional::tracy_client ALIAS bf_deps_optional_tracy_client)
+
+if(WITH_TRACY)
+  target_compile_definitions(bf_deps_optional_tracy_client INTERFACE WITH_TRACY_CLIENT)
+  target_link_libraries(bf_deps_optional_tracy_client INTERFACE Tracy::TracyClient)
+endif()
+
+# -----------------------------------------------------------------------------
 # Configure ThorVG
 
 add_library(bf_deps_optional_thorvg INTERFACE)
@@ -509,5 +507,4 @@ if(WITH_THORVG)
   target_include_directories(bf_deps_optional_thorvg SYSTEM INTERFACE ${ThorVG_INCLUDE_DIRS})
   target_link_libraries(bf_deps_optional_thorvg INTERFACE ${ThorVG_LIBRARIES})
 endif()
-
 
