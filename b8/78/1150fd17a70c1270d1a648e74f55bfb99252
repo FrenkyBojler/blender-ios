@@ -1,3 +1,4 @@
 Referenced by issue #155831, Linking: Linking Objects with Shape Keys leads to error
 Referenced by pull request #158048, Fix #157387: Undo crash with asset editable brush using a linked image
 Referenced by pull request #158233, Fix #157387: Crash on undo after certain 'no-undo' Brush operations.
+Referenced by commit 179199cc075f44d438f72fac29aad0e907149673, Fix #157387: Crash on undo after certain 'no-undo' Brush operations.
