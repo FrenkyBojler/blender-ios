@@ -1500,10 +1500,11 @@ static void ANIM_OT_replace_action(wmOperatorType *ot)
 
 static wmOperatorStatus replace_action_duplicate_exec(bContext *C, wmOperator *op)
 {
-  Object *active_object = CTX_data_active_object(C);
-  bAction *dna_action = active_object->adt->action;
-  BLI_assert(dna_action);
   Main *bmain = CTX_data_main(C);
+  const uint32_t old_session_uid = RNA_int_get(op->ptr, "old_session_uid");
+  bAction *dna_action = reinterpret_cast<bAction *>(
+      BKE_libblock_find_session_uid(bmain, ID_AC, old_session_uid));
+  BLI_assert(dna_action);
   bAction *dna_copy = id_cast<bAction *>(BKE_id_copy(bmain, &dna_action->id));
 
   Vector<ID *> failures = replace_action(*bmain, dna_action->wrap(), dna_copy->wrap());
