@@ -22,7 +22,7 @@ class TreeElementShapeKeyBase final : public TreeElementID {
 
  public:
   TreeElementShapeKeyBase(TreeElement &legacy_te, Key &key);
-  void expand(SpaceOutliner & /*soops*/) const override;
+  void expand(SpaceOutliner & /*space_outliner*/) const override;
 };
 
 class TreeElementShapeKey final : public AbstractTreeElement {

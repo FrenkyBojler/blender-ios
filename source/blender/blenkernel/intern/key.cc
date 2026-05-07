@@ -1911,12 +1911,12 @@ void BKE_keyblock_rename(const Key *key, KeyBlock *kb, const char *newname)
 {
   char oldname[sizeof(kb->name)];
 
-  /* make a copy of the old name first */
+  /* Make a copy of the old name first. */
   STRNCPY(oldname, kb->name);
-  /* copy the new name into the name slot */
+  /* Copy the new name into the name slot. */
   STRNCPY_UTF8(kb->name, newname);
 
-  /* make sure the name is truly unique */
+  /* Make sure the name is truly unique. */
   BLI_uniquename(&key->block,
                  kb,
                  CTX_DATA_(BLT_I18NCONTEXT_ID_SHAPEKEY, "Key"),
@@ -1924,7 +1924,7 @@ void BKE_keyblock_rename(const Key *key, KeyBlock *kb, const char *newname)
                  offsetof(KeyBlock, name),
                  sizeof(kb->name));
 
-  /* fix all the animation data which may link to this */
+  /* Fix all the animation data which may link to this. */
   BKE_animdata_fix_paths_rename_all(nullptr, "key_blocks", oldname, kb->name);
 }
 }  // namespace blender
