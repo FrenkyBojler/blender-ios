@@ -139,16 +139,15 @@ struct bNodeTreeInterfaceSocket {
 
   /* Unique identifier for generated sockets. */
   char *identifier = nullptr;
+  /** Comma-separated list of old identifiers. */
+  char *old_identifiers = nullptr;
   /* Socket default value and associated data, e.g. bNodeSocketValueFloat. */
   void *socket_data = nullptr;
 
   struct IDProperty *properties = nullptr;
 
-  char **old_identifiers = nullptr;
-  int old_identifiers_num = 0;
-
   NodeSocketInterfaceStructureType structure_type = NodeSocketInterfaceStructureType::Auto;
-  char _pad[3] = {};
+  char _pad[7] = {};
 
 #ifdef __cplusplus
   bke::bNodeSocketType *socket_typeinfo() const;

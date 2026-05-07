@@ -921,10 +921,81 @@ static bool interface_socket_identifier_edit_poll(bContext *C)
 }
 
 static wmOperatorStatus interface_socket_identifier_edit_invoke(bContext *C,
-                                                                wmOperator * /*op*/,
-                                                                const wmEvent * /*event*/)
+                                                                wmOperator *op,
+                                                                const wmEvent *event)
 {
-  return OPERATOR_CANCELLED;
+  SpaceNode &snode = *CTX_wm_space_node(C);
+  bNodeTree &ntree = *snode.edittree;
+  const bNodeTreeInterfaceItem *active_item = ntree.tree_interface.active_item();
+  if (!active_item) {
+    return OPERATOR_CANCELLED;
+  }
+  if (active_item->item_type != NODE_INTERFACE_SOCKET) {
+    return OPERATOR_CANCELLED;
+  }
+  const auto &io_socket = *reinterpret_cast<const bNodeTreeInterfaceSocket *>(active_item);
+
+  const StringRef orig_identifier = StringRef(io_socket.identifier).trim();
+  const StringRef orig_old_identifiers = StringRef(io_socket.old_identifiers).trim();
+
+  std::string old_identifiers = orig_identifier;
+  if (!orig_old_identifiers.is_empty()) {
+    old_identifiers += ", ";
+    old_identifiers += orig_old_identifiers;
+  }
+
+  RNA_string_set(op->ptr, "new_identifier", io_socket.identifier);
+  RNA_string_set(op->ptr, "old_identifiers", old_identifiers.c_str());
+
+  return WM_operator_props_popup_confirm_ex(C, op, event, IFACE_("Edit Identifier"));
+}
+
+static wmOperatorStatus interface_socket_identifier_edit_exec(bContext *C, wmOperator *op)
+{
+  SpaceNode &snode = *CTX_wm_space_node(C);
+  bNodeTree &ntree = *snode.edittree;
+  bNodeTreeInterfaceItem *active_item = ntree.tree_interface.active_item();
+  if (!active_item) {
+    return OPERATOR_CANCELLED;
+  }
+  if (active_item->item_type != NODE_INTERFACE_SOCKET) {
+    return OPERATOR_CANCELLED;
+  }
+  auto &io_socket = *reinterpret_cast<bNodeTreeInterfaceSocket *>(active_item);
+
+  const std::string new_identifier = StringRef(RNA_string_get(op->ptr, "new_identifier")).trim();
+  const std::string old_identifiers = RNA_string_get(op->ptr, "old_identifiers");
+
+  const char *error = nullptr;
+  if (!RNA_validate_identifier(new_identifier.c_str(), true, &error)) {
+    BKE_report(op->reports, RPT_ERROR, error);
+    return OPERATOR_CANCELLED;
+  }
+
+  MEM_SAFE_DELETE(io_socket.identifier);
+  MEM_SAFE_DELETE(io_socket.old_identifiers);
+
+  // TODO: duplicate detection
+
+  io_socket.identifier = BLI_strdup(new_identifier.c_str());
+  io_socket.old_identifiers = BLI_strdup(old_identifiers.c_str());
+
+  ntree.tree_interface.tag_items_changed();
+  BKE_main_ensure_invariants(*CTX_data_main(C), ntree.id);
+
+  return OPERATOR_FINISHED;
+}
+
+static void interface_socket_identifier_edit_ui(bContext * /*C*/, wmOperator *op)
+{
+  ui::Layout &layout = *op->layout;
+  layout.use_property_split_set(false);
+  layout.use_property_decorate_set(false);
+
+  ui::Layout &row = layout.row(false);
+  row.activate_init_set(true);
+  row.prop(op->ptr, "new_identifier", UI_ITEM_NONE, IFACE_("New"), ICON_NONE);
+  layout.prop(op->ptr, "old_identifiers", UI_ITEM_NONE, IFACE_("Old"), ICON_NONE);
 }
 
 void NODE_OT_interface_socket_identifier_edit(wmOperatorType *ot)
@@ -936,8 +1007,18 @@ void NODE_OT_interface_socket_identifier_edit(wmOperatorType *ot)
 
   ot->invoke = interface_socket_identifier_edit_invoke;
   ot->poll = interface_socket_identifier_edit_poll;
+  ot->ui = interface_socket_identifier_edit_ui;
+  ot->exec = interface_socket_identifier_edit_exec;
 
-  ot->flag = OPTYPE_UNDO;
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  RNA_def_string(ot->srna, "new_identifier", nullptr, 0, "New Identifier", "");
+  RNA_def_string(ot->srna,
+                 "old_identifiers",
+                 nullptr,
+                 0,
+                 "Old Identifiers",
+                 "Comma separated old identifiers");
 }
 
 /** \} */

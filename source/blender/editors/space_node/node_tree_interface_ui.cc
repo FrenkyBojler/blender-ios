@@ -82,7 +82,11 @@ void node_tree_interface_draw(bContext &C, ui::Layout &layout, bNodeTree &tree)
       ui::Layout &subrow = row.row(true);
       subrow.enabled_set(false);
       subrow.prop(&active_item_ptr, "identifier", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-      row.op("NODE_OT_interface_socket_identifier_edit", "", ICON_SETTINGS);
+      row.op("NODE_OT_interface_socket_identifier_edit",
+             "",
+             ICON_SETTINGS,
+             wm::OpCallContext::InvokeDefault,
+             UI_ITEM_NONE);
     }
 
     if (tree.type == NTREE_GEOMETRY) {
