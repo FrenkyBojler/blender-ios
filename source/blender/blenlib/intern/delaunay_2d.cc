@@ -2783,6 +2783,7 @@ template<typename T> void detect_holes_with_fillrule_even_odd(CDT_state<T> *cdt_
     int8_t parity;
   };
   Vector<BoundaryRegionInfo> boundary_regions;
+  boundary_regions.reserve(cdt->faces.size());
 
   Vector<CDTFace<T> *> fstack;
   fstack.reserve(cdt->faces.size());
