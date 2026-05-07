@@ -388,7 +388,8 @@ static float3 evaluate_cubic(Span<float> tknots,
 void bmo_space_evenly_exec(BMesh *bm, BMOperator *op)
 {
   const float influence = BMO_slot_float_get(op->slots_in, "factor");
-  const int interpolation = BMO_slot_int_get(op->slots_in, "interpolation");
+  const InterpolationMethod interpolation = static_cast<InterpolationMethod>(
+      BMO_slot_int_get(op->slots_in, "interpolation"));
   const bool lock_x = BMO_slot_bool_get(op->slots_in, "lock_x");
   const bool lock_y = BMO_slot_bool_get(op->slots_in, "lock_y");
   const bool lock_z = BMO_slot_bool_get(op->slots_in, "lock_z");
