@@ -525,7 +525,7 @@ void Instance::render_sample()
 {
   if (sampling.finished_viewport()) {
     DRW_submission_start();
-    uniform_data.push_update();  // TODO: Is this ever needed?
+    uniform_data.push_update();
     film.display();
     lookdev.display();
     DRW_submission_end();
