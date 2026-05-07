@@ -173,11 +173,20 @@ static void armature_copy_data(Main * /*bmain*/,
 
   armature_dst->act_bone = bone_dst_act;
 
-  /* Build the flat bone array. Start with the same generation counter as the Armature we're
-   * copying from: since this is an exact duplicate, bone indices should remain valid and thus pose
-   * objects won't need to adjust. */
-  rebuild_bone_array(*armature_dst);
-  armature_dst->runtime->bones_generation_count = armature_src->runtime->bones_generation_count;
+  /* Build the flat bone array. */
+  if (flag & LIB_ID_COPY_SET_COPIED_ON_WRITE) {
+    /* For copy-on-evaluate copies, start with the same generation counter as the Armature we're
+     * copying from. Since this is an exact duplicate, bone indices should remain valid and thus
+     * pose objects won't need to adjust. */
+    rebuild_bone_array(*armature_dst);
+    armature_dst->runtime->bones_generation_count = armature_src->runtime->bones_generation_count;
+  }
+  else {
+    /* Other copies need their own counter value, to ensure that swapping between the original and
+     * the copy is detected even after they have been edited an equal number of times. */
+    armature_dst->runtime->bones_generation_count = uint64_t(id_dst->session_uid) << 32;
+    rebuild_bone_array(*armature_dst);
+  }
 
   BKE_armature_bone_hash_make(armature_dst);
 
