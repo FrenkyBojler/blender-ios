@@ -62,7 +62,7 @@ bool skip_experimental_asset_catalog(const UUID &catalog_id)
    */
 
   /* Enable catalog for hair dynamics only if the feature is enabled. */
-  const UUID UUID_hair_dynamics("1cc346fb-c338-d030-adf0-5c8e43bd5e4a");
+  const UUID UUID_hair_dynamics("df62a3e8-fc21-457b-9415-89f89af431ac");
   if (!U.experimental.use_geometry_nodes_hair_dynamics && catalog_id == UUID_hair_dynamics) {
     return true;
   }
