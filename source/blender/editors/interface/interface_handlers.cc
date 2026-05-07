@@ -3637,9 +3637,11 @@ static void textedit_begin(bContext *C, Button *but, HandleButtonData *data)
   const int ctrl_icon = ICON_EVENT_CTRL;
 #endif
 
-  status.item(IFACE_("Confirm"), ICON_EVENT_RETURN);
   if (is_textbox) {
-    status.item(IFACE_("New Line"), ICON_EVENT_SHIFT, ICON_EVENT_RETURN);
+    status.item(IFACE_("New Line"), ICON_EVENT_RETURN);
+  }
+  else {
+    status.item(IFACE_("Confirm"), ICON_EVENT_RETURN);
   }
 
   status.item(IFACE_("Cancel"), ICON_EVENT_ESC);
@@ -4202,7 +4204,7 @@ static int do_but_textedit(
         break;
       case EVT_PADENTER:
       case EVT_RETKEY:
-        if (but->type == ButtonType::TextBox && event->modifier & KM_SHIFT) {
+        if (but->type == ButtonType::TextBox) {
           char utf8_buf[2] = "\n";
           textedit_insert_buf(but, text_edit, utf8_buf, 1);
           but->selsta = but->selend = but->pos;
