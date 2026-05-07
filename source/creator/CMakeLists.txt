@@ -1473,6 +1473,7 @@ elseif(WIN32)
         ${LIBDIR}/ffmpeg/lib/avutil-60.dll
         ${LIBDIR}/ffmpeg/lib/swscale-9.dll
         ${LIBDIR}/ffmpeg/lib/swresample-6.dll
+        ${LIBDIR}/ffmpeg/lib/avfilter-11.dll
       ALL
     )
   elseif(EXISTS "${LIBDIR}/ffmpeg/lib/avcodec-61.dll")
