@@ -6506,7 +6506,7 @@ static wmOperatorStatus uv_select_similar_vert_exec(bContext *C, wmOperator *op)
           continue;
         }
         float needle = get_uv_vert_needle(type, l->v, ob_m3, l, offsets);
-        kdtree_1d_insert(tree_1d, tree_index++, &needle);
+        kdtree_1d_insert(tree_1d, tree_index++, needle);
       }
     }
   }
@@ -6633,7 +6633,7 @@ static wmOperatorStatus uv_select_similar_edge_exec(bContext *C, wmOperator *op)
 
         float needle = get_uv_edge_needle(type, l->e, ob_m3, l, l->next, offsets);
         if (tree_1d) {
-          kdtree_1d_insert(tree_1d, tree_index++, &needle);
+          kdtree_1d_insert(tree_1d, tree_index++, needle);
         }
       }
     }
@@ -6773,7 +6773,7 @@ static wmOperatorStatus uv_select_similar_face_exec(bContext *C, wmOperator *op)
 
       float needle = get_uv_face_needle(type, face, ob_index, ob_m3, offsets, material_remap);
       if (tree_1d) {
-        kdtree_1d_insert(tree_1d, tree_index++, &needle);
+        kdtree_1d_insert(tree_1d, tree_index++, needle);
       }
     }
   }
@@ -6901,7 +6901,7 @@ static wmOperatorStatus uv_select_similar_island_exec(bContext *C, wmOperator *o
       }
       float needle = get_uv_island_needle(type, &island, ob_m3, island.offsets);
       if (tree_1d) {
-        kdtree_1d_insert(tree_1d, tree_index++, &needle);
+        kdtree_1d_insert(tree_1d, tree_index++, needle);
       }
     }
   }
@@ -6985,7 +6985,8 @@ static wmOperatorStatus uv_select_similar_exec(bContext *C, wmOperator *op)
     ts->select_thresh = RNA_property_float_get(op->ptr, prop);
   }
 
-  const int selectmode = (ts->uv_flag & UV_FLAG_SELECT_SYNC) ? ts->selectmode : ts->uv_selectmode;
+  const int selectmode = (ts->uv_flag & UV_FLAG_SELECT_SYNC) ? ts->selectmode :
+                                                               int(ts->uv_selectmode);
   if (use_select_linked) {
     return uv_select_similar_island_exec(C, op);
   }
@@ -7033,7 +7034,7 @@ static const EnumPropertyItem *uv_select_similar_type_itemf(bContext *C,
   if (ts) {
     const bool use_select_linked = ED_uvedit_select_island_check(ts);
     const int selectmode = (ts->uv_flag & UV_FLAG_SELECT_SYNC) ? ts->selectmode :
-                                                                 ts->uv_selectmode;
+                                                                 int(ts->uv_selectmode);
     /* TODO: co-exist with selection modes. */
     if (use_select_linked) {
       RNA_enum_items_add_value(&item, &totitem, uv_select_similar_type_items, UV_SSIM_AREA_UV);

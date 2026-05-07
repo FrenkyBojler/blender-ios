@@ -201,6 +201,10 @@ static bool is_compositing_possible(const Scene *scene)
 static compositor::NodeGroupOutputTypes get_compositor_needed_outputs(
     const wmWindowManager *window_manager, Scene *scene)
 {
+  if (G.background) {
+    return compositor::NodeGroupOutputTypes::None;
+  }
+
   compositor::NodeGroupOutputTypes needed_outputs = compositor::NodeGroupOutputTypes::None;
 
   for (wmWindow &window : window_manager->windows) {
@@ -233,12 +237,6 @@ static compositor::NodeGroupOutputTypes get_compositor_needed_outputs(
           needed_outputs |= compositor::NodeGroupOutputTypes::GroupOutputNode;
         }
         else if (image->type == IMA_TYPE_COMPOSITE) {
-          needed_outputs |= compositor::NodeGroupOutputTypes::ViewerNode;
-        }
-      }
-      else if (space_link->spacetype == SPACE_SEQ) {
-        const SpaceSeq *space_sequencer = reinterpret_cast<const SpaceSeq *>(space_link);
-        if (ELEM(space_sequencer->view, SEQ_VIEW_PREVIEW, SEQ_VIEW_SEQUENCE_PREVIEW)) {
           needed_outputs |= compositor::NodeGroupOutputTypes::ViewerNode;
         }
       }
