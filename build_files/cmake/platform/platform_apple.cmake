@@ -369,10 +369,12 @@ find_package(Zstd REQUIRED)
 if(WITH_DRACO)
   find_package(draco REQUIRED CONFIG)
 endif()
+add_bundled_libraries(draco/lib)
 
 if(WITH_MESHOPTIMIZER)
   find_package(meshoptimizer REQUIRED CONFIG)
 endif()
+add_bundled_libraries(meshoptimizer/lib)
 
 if(WITH_TRACY)
   set(Tracy_ROOT_DIR ${LIBDIR}/tracy)

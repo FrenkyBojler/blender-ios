@@ -685,6 +685,7 @@ if(WITH_DRACO)
     mark_as_advanced(draco_DIR)
   endif()
 endif()
+add_bundled_libraries(draco/lib)
 
 if(WITH_MESHOPTIMIZER)
   if(WITH_LIBS_PRECOMPILED OR WITH_STRICT_BUILD_OPTIONS)
@@ -701,6 +702,7 @@ if(WITH_MESHOPTIMIZER)
     mark_as_advanced(meshoptimizer_DIR)
   endif()
 endif()
+add_bundled_libraries(meshoptimizer/lib)
 
 # Jack is intended to use the system library.
 if(WITH_JACK)
