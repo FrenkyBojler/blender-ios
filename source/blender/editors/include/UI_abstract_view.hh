@@ -315,7 +315,7 @@ class AbstractViewItem {
 
   /** Disable the interacting with this item, meaning the buttons drawn will be disabled and there
    * will be no mouse hover feedback for the view row. */
-  virtual void set_interaction(bool value = true);
+  void disable_interaction();
   bool is_interactive() const;
 
   void disable_activatable();

@@ -668,10 +668,6 @@ std::optional<std::string> AbstractTreeViewItem::debug_name() const
 {
   return label_;
 }
-void AbstractTreeViewItem::set_interaction(bool value)
-{
-  is_interactive_ = value;
-}
 
 AbstractTreeView &AbstractTreeViewItem::get_tree_view() const
 {
@@ -1069,7 +1065,7 @@ void TreeViewLayoutBuilder::build_row(AbstractTreeViewItem &item) const
   if (width < int(40 * UI_SCALE_FAC)) {
     return;
   }
-  item.set_interaction();
+
   EmbossType previous_emboss = block_emboss_get(&block_);
 
   Layout &overlap = prev_layout.overlap();
@@ -1145,7 +1141,7 @@ void TreeViewBuilder::ensure_min_rows_items(AbstractTreeView &tree_view)
 
   for (int i = 0; i < (*visible_rows - tot_visible_items); i++) {
     BasicTreeViewItem &new_item = tree_view.add_tree_item<BasicTreeViewItem>("");
-    new_item.set_interaction(false);
+    new_item.disable_interaction();
   }
 }
 

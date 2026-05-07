@@ -98,10 +98,6 @@ class NodeSocketViewItem : public BasicTreeViewItem {
       NodeSocketViewItem &self = static_cast<NodeSocketViewItem &>(new_active);
       interface.active_item_set(&self.socket_.item, false);
     });
-  }
-
-  void set_interaction(bool /*value*/)
-  {
     is_interactive_ = ID_IS_EDITABLE(&nodetree_);
   }
 
@@ -205,10 +201,6 @@ class NodePanelViewItem : public BasicTreeViewItem {
     });
     toggle_ = panel.header_toggle_socket();
     is_always_collapsible_ = true;
-  }
-
-  void set_interaction(bool /*value*/)
-  {
     is_interactive_ = ID_IS_EDITABLE(&nodetree_);
   }
 

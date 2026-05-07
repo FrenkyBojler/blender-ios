@@ -212,10 +212,6 @@ class LayerViewItem : public AbstractTreeViewItem {
       : grease_pencil_(grease_pencil), layer_(layer)
   {
     this->label_ = layer.name();
-  }
-
-  void set_interaction(bool /*value*/)
-  {
     is_interactive_ = ID_IS_EDITABLE(&grease_pencil_);
   }
 
@@ -356,6 +352,7 @@ class LayerGroupViewItem : public AbstractTreeViewItem {
       : grease_pencil_(grease_pencil), group_(group)
   {
     this->label_ = group_.name();
+    is_interactive_ = ID_IS_EDITABLE(&grease_pencil_);
   }
 
   std::optional<bool> should_be_collapsed() const override
@@ -385,11 +382,6 @@ class LayerGroupViewItem : public AbstractTreeViewItem {
 
     RNA_property_boolean_set(&group_ptr, prop, is_expanded);
     RNA_property_update(&C, &group_ptr, prop);
-  }
-
-  void set_interaction(bool /*value*/)
-  {
-    is_interactive_ = ID_IS_EDITABLE(&grease_pencil_);
   }
 
   void build_row(Layout &row) override

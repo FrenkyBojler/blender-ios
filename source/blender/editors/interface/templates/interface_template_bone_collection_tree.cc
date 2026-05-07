@@ -214,10 +214,6 @@ class BoneCollectionItem : public AbstractTreeViewItem {
         has_any_selected_bones_(has_any_selected_bones)
   {
     this->label_ = bone_collection_.name;
-  }
-
-  void set_interaction(bool /*value*/) override
-  {
     is_interactive_ = !ANIM_armature_bonecoll_is_editable(&armature_, &bone_collection_);
   }
 

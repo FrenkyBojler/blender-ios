@@ -63,7 +63,7 @@ class AssetCatalogSelectorTree : public ui::AbstractTreeView {
     if (catalog_tree_.is_empty()) {
       auto &item = add_tree_item<ui::BasicTreeViewItem>(RPT_("No asset catalogs"),
                                                         ICON_INFO);
-      item.set_interaction(false);
+      item.disable_interaction();
       this->is_flat_ = true;
       return;
     }
