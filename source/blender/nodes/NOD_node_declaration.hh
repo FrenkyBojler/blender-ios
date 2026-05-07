@@ -247,6 +247,8 @@ class SocketDeclaration : public ItemDeclaration {
 
   StructureType structure_type = StructureType::Single;
 
+  std::unique_ptr<Vector<UString>> old_identifiers;
+
  private:
   CompositorInputRealizationMode compositor_realization_mode_ =
       CompositorInputRealizationMode::OperationDomain;
@@ -358,6 +360,8 @@ class BaseSocketDeclarationBuilder {
   BaseSocketDeclarationBuilder &is_attribute_name(bool value = true);
 
   BaseSocketDeclarationBuilder &is_default_link_socket(bool value = true);
+
+  BaseSocketDeclarationBuilder &old_identifier(UString value);
 
   BaseSocketDeclarationBuilder &default_input_type(NodeDefaultInputType value);
 

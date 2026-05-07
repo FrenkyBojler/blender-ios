@@ -214,7 +214,11 @@ static void refresh_node_socket(bNodeTree &ntree,
   bNodeSocket *old_socket_with_same_identifier = nullptr;
   for (const int i : old_sockets.index_range()) {
     bNodeSocket &old_socket = *old_sockets[i];
-    if (old_socket.identifier == socket_decl.identifier) {
+    const UString old_socket_identifier = old_socket.identifier_ustr();
+    if (old_socket_identifier == socket_decl.identifier ||
+        (socket_decl.old_identifiers &&
+         socket_decl.old_identifiers->contains(old_socket_identifier)))
+    {
       old_sockets.remove_and_reorder(i);
       old_socket_with_same_identifier = &old_socket;
       break;

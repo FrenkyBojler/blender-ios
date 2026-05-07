@@ -445,6 +445,9 @@ static BaseSocketDeclarationBuilder &build_interface_socket_declaration(
   if (io_socket.default_input != NODE_DEFAULT_INPUT_VALUE) {
     decl->hide_value();
   }
+  for (const int i : IndexRange(io_socket.old_identifiers_num)) {
+    decl->old_identifier(UString(io_socket.old_identifiers[i]));
+  }
   return *decl;
 }
 

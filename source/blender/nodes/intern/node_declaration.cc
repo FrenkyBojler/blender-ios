@@ -671,6 +671,15 @@ BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::is_default_link_sock
   return *this;
 }
 
+BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::old_identifier(const UString value)
+{
+  if (!decl_base_->old_identifiers) {
+    decl_base_->old_identifiers = std::make_unique<Vector<UString>>();
+  }
+  decl_base_->old_identifiers->append(value);
+  return *this;
+}
+
 BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::default_input_type(
     const NodeDefaultInputType value)
 {

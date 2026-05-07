@@ -694,6 +694,11 @@ static void item_copy(bNodeTreeInterfaceItem &dst,
       if (src_socket.properties) {
         dst_socket.properties = IDP_CopyProperty_ex(src_socket.properties, flag);
       }
+      dst_socket.old_identifiers = MEM_new_array_uninitialized<char *>(
+          src_socket.old_identifiers_num, __func__);
+      for (const int i : IndexRange(src_socket.old_identifiers_num)) {
+        dst_socket.old_identifiers[i] = BLI_strdup_null(src_socket.old_identifiers[i]);
+      }
       if (src_socket.socket_data != nullptr) {
         socket_types::socket_data_copy(dst_socket, src_socket, flag);
       }
@@ -729,6 +734,11 @@ static void item_free(bNodeTreeInterfaceItem &item, const bool do_id_user)
       MEM_SAFE_DELETE(socket.socket_type);
       MEM_SAFE_DELETE(socket.default_attribute_name);
       MEM_SAFE_DELETE(socket.identifier);
+      for (const int i : IndexRange(socket.old_identifiers_num)) {
+        MEM_SAFE_DELETE(socket.old_identifiers[i]);
+      }
+      MEM_SAFE_DELETE(socket.old_identifiers);
+
       if (socket.properties) {
         IDP_FreePropertyContent_ex(socket.properties, do_id_user);
         MEM_delete(socket.properties);
@@ -760,6 +770,10 @@ static void item_write_data(BlendWriter *writer, bNodeTreeInterfaceItem &item)
       writer->write_string(socket.description);
       writer->write_string(socket.socket_type);
       writer->write_string(socket.default_attribute_name);
+      writer->write_pointer_array(socket.old_identifiers_num, socket.old_identifiers);
+      for (const int i : IndexRange(socket.old_identifiers_num)) {
+        writer->write_string(socket.old_identifiers[i]);
+      }
       if (socket.properties) {
         IDP_BlendWrite(writer, socket.properties);
       }
@@ -814,6 +828,11 @@ static void item_read_data(BlendDataReader *reader, bNodeTreeInterfaceItem &item
       BLO_read_string(reader, &socket.identifier);
       BLO_read_struct(reader, IDProperty, &socket.properties);
       IDP_BlendDataRead(reader, &socket.properties);
+      BLO_read_pointer_array(
+          reader, socket.old_identifiers_num, reinterpret_cast<void **>(&socket.old_identifiers));
+      for (const int i : IndexRange(socket.old_identifiers_num)) {
+        BLO_read_string(reader, &socket.old_identifiers[i]);
+      }
 
       /* Improve forward compatibility for unknown default input types. */
       const bNodeSocketType *stype = socket.socket_typeinfo();

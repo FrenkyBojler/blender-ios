@@ -935,19 +935,46 @@ static wmOperatorStatus interface_socket_identifier_edit_invoke(bContext *C,
   }
   const auto &io_socket = *reinterpret_cast<const bNodeTreeInterfaceSocket *>(active_item);
 
-  const StringRef orig_identifier = StringRef(io_socket.identifier).trim();
-  const StringRef orig_old_identifiers = StringRef(io_socket.old_identifiers).trim();
-
-  std::string old_identifiers = orig_identifier;
-  if (!orig_old_identifiers.is_empty()) {
+  const StringRef orig_identifier = StringRef(io_socket.identifier);
+  std::string old_identifiers;
+  old_identifiers += orig_identifier;
+  for (const int i : IndexRange(io_socket.old_identifiers_num)) {
     old_identifiers += ", ";
-    old_identifiers += orig_old_identifiers;
+    old_identifiers += StringRef(io_socket.old_identifiers[i]);
   }
 
   RNA_string_set(op->ptr, "new_identifier", io_socket.identifier);
   RNA_string_set(op->ptr, "old_identifiers", old_identifiers.c_str());
 
   return WM_operator_props_popup_confirm_ex(C, op, event, IFACE_("Edit Identifier"));
+}
+
+static std::optional<Vector<std::string>> split_old_identifiers(const std::string &old_identifiers,
+                                                                wmOperator *op)
+{
+  Vector<std::string> old_identifiers_vec;
+  StringRef remaining = StringRef(old_identifiers).trim();
+  while (!remaining.is_empty()) {
+    const int split_i = remaining.find_first_of(',');
+    const StringRef part = split_i == StringRef::not_found ? remaining :
+                                                             remaining.substr(0, split_i);
+    const std::string trimmed_part = StringRef(part).trim();
+    if (trimmed_part.empty()) {
+      continue;
+    }
+    const char *error = nullptr;
+    if (!RNA_validate_identifier(trimmed_part.c_str(), true, &error)) {
+      BKE_report(op->reports, RPT_ERROR, error);
+      return std::nullopt;
+    }
+    old_identifiers_vec.append(trimmed_part);
+
+    if (split_i == StringRef::not_found) {
+      break;
+    }
+    remaining = remaining.substr(split_i + 1);
+  }
+  return old_identifiers_vec;
 }
 
 static wmOperatorStatus interface_socket_identifier_edit_exec(bContext *C, wmOperator *op)
@@ -966,19 +993,35 @@ static wmOperatorStatus interface_socket_identifier_edit_exec(bContext *C, wmOpe
   const std::string new_identifier = StringRef(RNA_string_get(op->ptr, "new_identifier")).trim();
   const std::string old_identifiers = RNA_string_get(op->ptr, "old_identifiers");
 
-  const char *error = nullptr;
-  if (!RNA_validate_identifier(new_identifier.c_str(), true, &error)) {
-    BKE_report(op->reports, RPT_ERROR, error);
+  {
+    const char *error = nullptr;
+    if (!RNA_validate_identifier(new_identifier.c_str(), true, &error)) {
+      BKE_report(op->reports, RPT_ERROR, error);
+      return OPERATOR_CANCELLED;
+    }
+  }
+
+  const std::optional<Vector<std::string>> old_identifiers_vec = split_old_identifiers(
+      old_identifiers, op);
+  if (!old_identifiers_vec.has_value()) {
     return OPERATOR_CANCELLED;
   }
 
-  MEM_SAFE_DELETE(io_socket.identifier);
-  MEM_SAFE_DELETE(io_socket.old_identifiers);
-
   // TODO: duplicate detection
 
+  MEM_SAFE_DELETE(io_socket.identifier);
   io_socket.identifier = BLI_strdup(new_identifier.c_str());
-  io_socket.old_identifiers = BLI_strdup(old_identifiers.c_str());
+
+  for (const int i : IndexRange(io_socket.old_identifiers_num)) {
+    MEM_SAFE_DELETE(io_socket.old_identifiers[i]);
+  }
+  MEM_SAFE_DELETE(io_socket.old_identifiers);
+  io_socket.old_identifiers_num = old_identifiers_vec->size();
+  io_socket.old_identifiers = MEM_new_array_uninitialized<char *>(old_identifiers_vec->size(),
+                                                                  __func__);
+  for (const int i : IndexRange(old_identifiers_vec->size())) {
+    io_socket.old_identifiers[i] = BLI_strdup((*old_identifiers_vec)[i].c_str());
+  }
 
   ntree.tree_interface.tag_items_changed();
   BKE_main_ensure_invariants(*CTX_data_main(C), ntree.id);
