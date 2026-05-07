@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BKE_attribute.hh"
-#include "BKE_attribute_legacy_convert.hh"
 
 #include "BLI_sort.hh"
 
@@ -16,7 +15,7 @@
 
 #include "node_geometry_util.hh"
 
-namespace blender::nodes::node_geo_attribute_list_cc {
+namespace blender::nodes::node_geo_get_attribute_names_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
@@ -125,9 +124,9 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeAttributeList"_ustr);
-  ntype.ui_name = "Attribute List";
-  ntype.ui_description = "Samples attribute names as a list";
+  geo_node_type_base(&ntype, "GeometryNodeGetAttributeNames"_ustr);
+  ntype.ui_name = "Get Attribute Names";
+  ntype.ui_description = "Retrieves attribute names as a list of strings";
   ntype.nclass = NODE_CLASS_ATTRIBUTE;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
@@ -136,4 +135,4 @@ static void node_register()
 }
 NOD_REGISTER_NODE(node_register)
 
-}  // namespace blender::nodes::node_geo_attribute_list_cc
+}  // namespace blender::nodes::node_geo_get_attribute_names_cc

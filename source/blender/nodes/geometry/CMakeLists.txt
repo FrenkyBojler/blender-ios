@@ -31,7 +31,6 @@ set(SRC
   nodes/node_geo_accumulate_field.cc
   nodes/node_geo_attribute_capture.cc
   nodes/node_geo_attribute_domain_size.cc
-  nodes/node_geo_attribute_list.cc
   nodes/node_geo_attribute_statistic.cc
   nodes/node_geo_bake.cc
   nodes/node_geo_blur_attribute.cc
@@ -96,6 +95,7 @@ set(SRC
   nodes/node_geo_flip_faces.cc
   nodes/node_geo_foreach_geometry_element.cc
   nodes/node_geo_geometry_to_instance.cc
+  nodes/node_geo_get_attribute_names.cc
   nodes/node_geo_get_bundle_item.cc
   nodes/node_geo_get_geometry_bundle.cc
   nodes/node_geo_get_named_grid.cc
