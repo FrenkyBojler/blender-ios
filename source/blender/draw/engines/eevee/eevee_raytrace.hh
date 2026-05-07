@@ -256,19 +256,13 @@ class RayTraceModule {
    * current state.
    *
    * \arg rt_buffer is the layer's permanent storage.
-   * \arg screen_radiance_back_tx is the texture used for screen space transmission rays.
-   * \arg screen_radiance_front_tx is the texture used for screen space reflection rays.
-   * \arg screen_radiance_persmat is the view projection matrix used for screen_radiance_front_tx.
    * \arg active_closures is a mask of all active closures in a deferred layer.
-   * \arg main_view is the un-jittered view.
    * \arg render_view is the TAA jittered view.
    * \arg force_no_tracing will run the pipeline without any tracing, relying only on local probes.
    */
   RayTraceResult render(RayTraceBuffer &rt_buffer,
                         gpu::Texture *screen_radiance_back_tx,
                         eClosureBits active_closures,
-                        /* TODO(fclem): Maybe wrap these two in some other class. */
-                        View &main_view,
                         View &render_view);
 
   /**
@@ -294,13 +288,18 @@ class RayTraceModule {
     return use_raytracing() && ray_tracing_options_.trace_max_roughness < 1.0f;
   }
 
+  /**
+   * Update screen space thickness parameters.
+   * Needs to be called early in the frame to allow raycast node usage.
+   * Needs uniform_data.push_update() to be called afterward to take effect.
+   */
+  void thickness_parameters_setup(const float4x4 &winmat, const int2 extent);
+
  private:
   RayTraceResultTexture trace(int closure_index,
                               bool active_layer,
                               RaytraceEEVEE options,
                               RayTraceBuffer &rt_buffer,
-                              /* TODO(fclem): Maybe wrap these two in some other class. */
-                              View &main_view,
                               View &render_view);
 };
 
