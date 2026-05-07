@@ -1765,7 +1765,7 @@ void blo_do_versions_userdef(UserDef *userdef)
     userdef->geometry_nodes_stack_limit = 100;
   }
 
-  if (!USER_VERSION_ATLEAST(502, 26)) {
+  if (!USER_VERSION_ATLEAST(502, 27)) {
     userdef->flag |= USER_BLENDER_UPDATE_LATEST_RELEASE;
     userdef->statusbar_flag |= STATUSBAR_SHOW_BLENDER_UPDATES_DIALOG;
   }
