@@ -1665,10 +1665,10 @@ void file_draw_list(const bContext *C, ARegion *region)
       }
       FileAssetSelectParams *asset_params = ED_fileselect_get_asset_params(sfile);
       if (asset_params && (asset_params->asset_visibility == AssetVisibility::OnlyOnline)) {
-        return IFACE_("No items (filtering is set to only show online assets)");
+        return IFACE_("No items. Note: The \"Only Online\" filter option is enabled.");
       }
       if (asset_params && (asset_params->asset_visibility == AssetVisibility::OnlyOffline)) {
-        return IFACE_("No items (filtering is set to only show offline assets)");
+        return IFACE_("No items. Note: The \"Only Offline\" filter option is enabled.");
       }
       return IFACE_("No items");
     }();
