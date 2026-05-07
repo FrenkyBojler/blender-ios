@@ -12,6 +12,7 @@
 #include <string>
 #include <xxhash.h>
 
+#include "BKE_animsys.h"
 #include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.h"
@@ -436,12 +437,16 @@ static void update_panels_from_node_group(NodesModifierData &nmd)
   nmd.panels_num = interface_panels.size();
 }
 
-static void update_old_to_new_identifiers(IDProperty *group,
-                                          const Span<const bNodeTreeInterfaceSocket *> io_sockets)
+static void update_old_to_new_identifiers(Main &bmain,
+                                          Object &object,
+                                          IDProperty *group,
+                                          const Span<const bNodeTreeInterfaceSocket *> io_sockets,
+                                          const StringRef root_rna_path)
 {
   if (!group) {
     return;
   }
+  Vector<AnimationBasePathChange> animation_changes;
   for (const bNodeTreeInterfaceSocket *io_socket : io_sockets) {
     for (const int i : IndexRange(io_socket->old_identifiers_num)) {
       const StringRef old_identifier = io_socket->old_identifiers[i];
@@ -450,12 +455,21 @@ static void update_old_to_new_identifiers(IDProperty *group,
         IDP_RemoveFromGroup(group, prop);
         STRNCPY_UTF8(prop->name, io_socket->identifier);
         IDP_AddToGroup(group, prop);
+
+        animation_changes.append({
+            .src_basepath = fmt::format("{}.{}", root_rna_path, old_identifier),
+            .dst_basepath = fmt::format("{}.{}", root_rna_path, io_socket->identifier),
+        });
       }
     }
   }
+  BKE_animdata_copy_by_basepath(bmain, object.id, object.id, animation_changes);
+  for (const AnimationBasePathChange &change : animation_changes) {
+    BKE_animdata_fix_paths_remove(&object.id, change.src_basepath.c_str());
+  }
 }
 
-static void update_system_properties(Object &object, NodesModifierData &nmd)
+static void update_system_properties(Main &bmain, Object &object, NodesModifierData &nmd)
 {
   if (!nmd.modifier.system_properties) {
     nmd.modifier.system_properties =
@@ -465,20 +479,27 @@ static void update_system_properties(Object &object, NodesModifierData &nmd)
     return;
   }
   nmd.node_group->ensure_interface_cache();
-  update_old_to_new_identifiers(IDP_GetPropertyFromGroup(nmd.modifier.system_properties, "inputs"),
-                                nmd.node_group->interface_inputs());
   update_old_to_new_identifiers(
+      bmain,
+      object,
+      IDP_GetPropertyFromGroup(nmd.modifier.system_properties, "inputs"),
+      nmd.node_group->interface_inputs(),
+      fmt::format("modifiers[\"{}\"].properties.inputs", nmd.modifier.name));
+  update_old_to_new_identifiers(
+      bmain,
+      object,
       IDP_GetPropertyFromGroup(nmd.modifier.system_properties, "outputs"),
-      nmd.node_group->interface_outputs());
+      nmd.node_group->interface_outputs(),
+      fmt::format("modifiers[\"{}\"].properties.outputs", nmd.modifier.name));
 
   PointerRNA properties_ptr = RNA_pointer_create_discrete(
       &object.id, RNA_NodesModifierProperties, &nmd);
   RNA_sync_system_properties(properties_ptr, *nmd.modifier.system_properties);
 }
 
-void MOD_nodes_update_interface(Object *object, NodesModifierData *nmd)
+void MOD_nodes_update_interface(Main &bmain, Object *object, NodesModifierData *nmd)
 {
-  update_system_properties(*object, *nmd);
+  update_system_properties(bmain, *object, *nmd);
   update_bakes_from_node_group(*nmd);
   update_panels_from_node_group(*nmd);
   nmd->runtime->usage_cache.reset();

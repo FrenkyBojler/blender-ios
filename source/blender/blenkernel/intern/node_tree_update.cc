@@ -442,7 +442,8 @@ class NodeTreeMainUpdater {
             ModifierData *md = pair.second;
 
             if (md->type == eModifierType_Nodes) {
-              MOD_nodes_update_interface(object, reinterpret_cast<NodesModifierData *>(md));
+              MOD_nodes_update_interface(
+                  *bmain_, object, reinterpret_cast<NodesModifierData *>(md));
             }
           }
         }
