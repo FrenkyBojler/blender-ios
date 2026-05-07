@@ -3,3 +3,4 @@ Referenced by commit 2612b27e42c, Refactor: Move 'need link' and 'need expand' I
 Referenced by issue #133715, Refactor: Move 'need link' and 'need expand' ID tags to runtime readfile data.
 Referenced by issue #143888, Repeated deletion & Ctrl+Z on a linked library may cause crash
 Referenced by pull request #158233, Fix #157387: Crash on undo after certain 'no-undo' Brush operations.
+Referenced by commit 179199cc075f44d438f72fac29aad0e907149673, Fix #157387: Crash on undo after certain 'no-undo' Brush operations.
