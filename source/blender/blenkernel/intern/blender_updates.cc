@@ -52,7 +52,7 @@ struct IgnoredBlenderVersions {
 std::string VersionUpdate::date() const
 {
   const std::tm local_time = *std::localtime(&this->time);
-  return date_string::date(&local_time, BLT_lang_get(), date_string::DateFormat(U.date_format));
+  return date_string::date(local_time, BLT_lang_get(), date_string::DateFormat(U.date_format));
 }
 
 static IgnoredBlenderVersions &ignored_blender_updates()

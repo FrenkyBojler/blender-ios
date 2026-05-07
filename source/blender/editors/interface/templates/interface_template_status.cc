@@ -448,10 +448,9 @@ void uiTemplateStatusInfo(Layout *layout, bContext *C)
       has_status_info = true;
     }
 
-    if ((G.f & G_FLAG_INTERNET_ALLOW) == 0) {
-    }
-    else if ((wm->extensions_updates > 0) ||
-             (wm->extensions_updates == WM_EXTENSIONS_UPDATE_CHECKING))
+    if ((G.f & G_FLAG_INTERNET_ALLOW) &&
+        ((wm->extensions_updates > 0) ||
+         (wm->extensions_updates == WM_EXTENSIONS_UPDATE_CHECKING)))
     {
       int icon = ICON_INTERNET;
       if (wm->extensions_updates == WM_EXTENSIONS_UPDATE_CHECKING) {
