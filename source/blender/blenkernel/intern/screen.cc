@@ -1080,7 +1080,7 @@ std::optional<std::string> BKE_screen_path_to_space(const PointerRNA *ptr)
 
   switch (GS(ptr->owner_id->name)) {
     case ID_SCR: {
-      const bScreen *screen = reinterpret_cast<const bScreen *>(ptr->owner_id);
+      const bScreen *screen = id_cast<const bScreen *>(ptr->owner_id);
 
       for (const auto [area_index, area] : screen->areabase.enumerate()) {
         const int space_index = BLI_findindex(&area.spacedata, link);
@@ -1091,7 +1091,7 @@ std::optional<std::string> BKE_screen_path_to_space(const PointerRNA *ptr)
       break;
     }
     case ID_WM: {
-      const wmWindowManager *wm = reinterpret_cast<const wmWindowManager *>(ptr->owner_id);
+      const wmWindowManager *wm = id_cast<const wmWindowManager *>(ptr->owner_id);
 
       for (const auto [win_index, win] : wm->windows.enumerate()) {
         for (const auto [area_index, area] : win.global_areas.areabase.enumerate()) {
@@ -1118,7 +1118,7 @@ std::optional<std::string> BKE_screen_path_to_area(const PointerRNA *ptr)
 
   switch (GS(ptr->owner_id->name)) {
     case ID_SCR: {
-      const bScreen *screen = reinterpret_cast<const bScreen *>(ptr->owner_id);
+      const bScreen *screen = id_cast<const bScreen *>(ptr->owner_id);
       const int area_index = BLI_findindex(&screen->areabase, area);
       if (area_index == -1) {
         return std::nullopt;
@@ -1127,7 +1127,7 @@ std::optional<std::string> BKE_screen_path_to_area(const PointerRNA *ptr)
       return fmt::format("areas[{}]", area_index);
     }
     case ID_WM: {
-      const wmWindowManager *wm = reinterpret_cast<const wmWindowManager *>(ptr->owner_id);
+      const wmWindowManager *wm = id_cast<const wmWindowManager *>(ptr->owner_id);
 
       for (const auto [win_index, win] : wm->windows.enumerate()) {
         const int area_index = BLI_findindex(&win.global_areas.areabase, area);

@@ -784,7 +784,7 @@ static ScrArea *rna_area_from_space(const PointerRNA *ptr)
       break;
     }
     case ID_SCR: {
-      const bScreen *screen = reinterpret_cast<bScreen *>(ptr->owner_id);
+      const bScreen *screen = id_cast<bScreen *>(ptr->owner_id);
       return BKE_screen_find_area_from_space(screen, link);
     }
     default:
