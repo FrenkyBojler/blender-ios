@@ -447,6 +447,7 @@ static void update_system_properties(Main &bmain, Object &object, NodesModifierD
     return;
   }
   nmd.node_group->ensure_interface_cache();
+  const std::string escaped_modifier_name = BLI_str_escape(nmd.modifier.name);
   if (IDProperty *inputs_group = IDP_GetPropertyFromGroup(nmd.modifier.system_properties,
                                                           "inputs"))
   {
@@ -455,7 +456,7 @@ static void update_system_properties(Main &bmain, Object &object, NodesModifierD
         object.id,
         *inputs_group,
         nmd.node_group->interface_inputs(),
-        fmt::format("modifiers[\"{}\"].properties.inputs", nmd.modifier.name));
+        fmt::format("modifiers[\"{}\"].properties.inputs", escaped_modifier_name));
   }
   if (IDProperty *outputs_group = IDP_GetPropertyFromGroup(nmd.modifier.system_properties,
                                                            "outputs"))
@@ -465,7 +466,7 @@ static void update_system_properties(Main &bmain, Object &object, NodesModifierD
         object.id,
         *outputs_group,
         nmd.node_group->interface_outputs(),
-        fmt::format("modifiers[\"{}\"].properties.outputs", nmd.modifier.name));
+        fmt::format("modifiers[\"{}\"].properties.outputs", escaped_modifier_name));
   }
 
   PointerRNA properties_ptr = RNA_pointer_create_discrete(

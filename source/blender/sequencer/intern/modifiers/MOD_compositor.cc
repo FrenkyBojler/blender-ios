@@ -7,6 +7,7 @@
  */
 
 #include "BLI_math_rotation.hh"
+#include "BLI_string.h"
 
 #include "BLT_translation.hh"
 
@@ -50,13 +51,32 @@
 
 namespace blender::seq {
 
-void compositor_nodes_update_interface(Scene &sequencer_scene,
+void compositor_nodes_update_interface(Main &bmain,
+                                       Scene &sequencer_scene,
+                                       Strip &strip,
                                        SequencerCompositorModifierData &cmd)
 {
   if (!cmd.modifier.system_properties) {
     cmd.modifier.system_properties =
         bke::idprop::create_group("SequencerCompositorModifierProperties").release();
   }
+  if (!cmd.node_group || ID_MISSING(cmd.node_group)) {
+    return;
+  }
+  cmd.node_group->ensure_interface_cache();
+  if (IDProperty *inputs_group = IDP_GetPropertyFromGroup(cmd.modifier.system_properties,
+                                                          "inputs"))
+  {
+    nodes::update_properties_from_changed_socket_identifiers(
+        bmain,
+        sequencer_scene.id,
+        *inputs_group,
+        cmd.node_group->interface_inputs(),
+        fmt::format("sequence_editor.strips_all[\"{}\"].modifiers[\"{}\"].properties.inputs",
+                    BLI_str_escape(strip.name + 2),
+                    BLI_str_escape(cmd.modifier.name)));
+  }
+
   PointerRNA properties_ptr = RNA_pointer_create_discrete(
       &sequencer_scene.id, RNA_SequencerCompositorModifierProperties, &cmd);
   RNA_sync_system_properties(properties_ptr, *cmd.modifier.system_properties);

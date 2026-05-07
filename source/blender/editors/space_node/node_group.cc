@@ -946,7 +946,8 @@ static wmOperatorStatus interface_socket_identifier_edit_invoke(bContext *C,
   RNA_string_set(op->ptr, "new_identifier", io_socket.identifier);
   RNA_string_set(op->ptr, "old_identifiers", old_identifiers.c_str());
 
-  return WM_operator_props_popup_confirm_ex(C, op, event, IFACE_("Edit Identifier"));
+  return WM_operator_props_popup_confirm_ex(
+      C, op, event, fmt::format("{} \"{}\"", IFACE_("Edit Identifier for "), io_socket.name));
 }
 
 static std::optional<Vector<std::string>> split_old_identifiers(const std::string &old_identifiers,

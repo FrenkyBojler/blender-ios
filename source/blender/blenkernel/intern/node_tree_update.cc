@@ -216,7 +216,12 @@ static bool is_tree_changed(const bNodeTree &tree)
 using TreeNodePair = std::pair<bNodeTree *, bNode *>;
 using ObjectModifierPair = std::pair<Object *, ModifierData *>;
 using NodeSocketPair = std::pair<bNode *, bNodeSocket *>;
-using StripModifierPair = std::pair<Scene *, StripModifierData *>;
+
+struct StripModifierUser {
+  Scene *scene;
+  Strip *strip;
+  StripModifierData *smd;
+};
 
 /**
  * Cache common data about node trees from the #Main database that is expensive to retrieve on
@@ -228,7 +233,7 @@ struct NodeTreeRelations {
   std::optional<Vector<bNodeTree *>> all_trees_;
   std::optional<MultiValueMap<bNodeTree *, TreeNodePair>> group_node_users_;
   std::optional<MultiValueMap<bNodeTree *, ObjectModifierPair>> modifiers_users_;
-  std::optional<MultiValueMap<bNodeTree *, StripModifierPair>> strip_modifier_users_;
+  std::optional<MultiValueMap<bNodeTree *, StripModifierUser>> strip_modifier_users_;
 
  public:
   NodeTreeRelations(Main *bmain) : bmain_(bmain) {}
@@ -320,7 +325,7 @@ struct NodeTreeRelations {
           const SequencerCompositorModifierData *modifier_data =
               reinterpret_cast<SequencerCompositorModifierData *>(&modifier);
           if (modifier_data->node_group != nullptr && !ID_MISSING(modifier_data->node_group)) {
-            strip_modifier_users_->add(modifier_data->node_group, {&scene, &modifier});
+            strip_modifier_users_->add(modifier_data->node_group, {&scene, strip, &modifier});
           }
         }
       }
@@ -333,7 +338,7 @@ struct NodeTreeRelations {
     return modifiers_users_->lookup(ntree);
   }
 
-  Span<StripModifierPair> get_strip_modifier_users(bNodeTree *ntree)
+  Span<StripModifierUser> get_strip_modifier_users(bNodeTree *ntree)
   {
     BLI_assert(strip_modifier_users_.has_value());
     return strip_modifier_users_->lookup(ntree);
@@ -449,13 +454,13 @@ class NodeTreeMainUpdater {
         }
         if (ntree->type == NTREE_COMPOSIT) {
           relations_.ensure_strip_modifier_users();
-          for (const StripModifierPair &pair : relations_.get_strip_modifier_users(ntree)) {
-            Scene *scene = pair.first;
-            StripModifierData *md = pair.second;
-
-            if (md->type == eSeqModifierType_Compositor) {
+          for (const StripModifierUser &user : relations_.get_strip_modifier_users(ntree)) {
+            if (user.smd->type == eSeqModifierType_Compositor) {
               seq::compositor_nodes_update_interface(
-                  *scene, *reinterpret_cast<SequencerCompositorModifierData *>(md));
+                  *bmain_,
+                  *user.scene,
+                  *user.strip,
+                  *reinterpret_cast<SequencerCompositorModifierData *>(user.smd));
             }
           }
         }

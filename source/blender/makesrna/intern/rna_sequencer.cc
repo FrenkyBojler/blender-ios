@@ -1942,7 +1942,8 @@ static void rna_CompositorModifier_node_group_update(Main *bmain, Scene *scene, 
   seq::strip_lookup_invalidate(ed);
 
   auto *cmd = ptr->data_as<SequencerCompositorModifierData>();
-  seq::compositor_nodes_update_interface(*sequencer_scene, *cmd);
+  Strip *strip = strip_get_by_modifier(ed, &cmd->modifier);
+  seq::compositor_nodes_update_interface(*bmain, *sequencer_scene, *strip, *cmd);
 }
 
 static StructRNA *rna_SequencerCompositorModifierProperties_refine(PointerRNA *ptr)
