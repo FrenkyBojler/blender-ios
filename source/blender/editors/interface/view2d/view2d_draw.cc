@@ -149,21 +149,22 @@ static float calculate_grid_step_fractions(const int base,
  * \returns an unsigned integer indicating how many lines can be drawn.
  */
 static void get_parallel_lines_draw_steps(const float line_distance,
+                                          const float offset,
                                           const float2 view_bounds,
                                           float *r_start_value,
                                           uint *r_steps)
 {
-  if (view_bounds.x >= view_bounds.y) {
+  if (view_bounds[0] >= view_bounds[1]) {
     *r_start_value = 0;
     *r_steps = 0;
     return;
   }
 
   BLI_assert(line_distance > 0);
-  *r_start_value = ceilf(view_bounds.x / line_distance) * line_distance;
+  *r_start_value = ceilf((view_bounds[0] - offset) / line_distance) * line_distance + offset;
 
-  if (view_bounds.x <= *r_start_value && view_bounds.y >= *r_start_value) {
-    *r_steps = std::max(0.0f, floorf((view_bounds.y - *r_start_value) / line_distance)) + 1;
+  if (view_bounds[0] <= *r_start_value && view_bounds[1] >= *r_start_value) {
+    *r_steps = std::max(0.0f, floorf((view_bounds[1] - *r_start_value) / line_distance)) + 1;
   }
   else {
     *r_steps = 0;
@@ -175,6 +176,7 @@ static void get_parallel_lines_draw_steps(const float line_distance,
  * \param line_distance Distance in view space (frame or value) between lines.
  */
 static void draw_parallel_lines(const float line_distance,
+                                const float offset,
                                 const rctf *rect,
                                 const rcti *rect_mask,
                                 const uchar color[3],
@@ -185,13 +187,13 @@ static void draw_parallel_lines(const float line_distance,
 
   if (direction == 'v') {
     const float2 view_bounds = {rect->xmin, rect->xmax};
-    get_parallel_lines_draw_steps(line_distance, view_bounds, &start_value, &steps);
+    get_parallel_lines_draw_steps(line_distance, offset, view_bounds, &start_value, &steps);
     steps_max = BLI_rcti_size_x(rect_mask);
   }
   else {
     BLI_assert(direction == 'h');
     const float2 view_bounds = {rect->ymin, rect->ymax};
-    get_parallel_lines_draw_steps(line_distance, view_bounds, &start_value, &steps);
+    get_parallel_lines_draw_steps(line_distance, offset, view_bounds, &start_value, &steps);
     steps_max = BLI_rcti_size_y(rect_mask);
   }
 
@@ -245,17 +247,19 @@ static void draw_parallel_lines(const float line_distance,
 
 static void view2d_draw_lines_internal(const View2D *v2d,
                                        const float line_distance,
+                                       const float offset,
                                        const uchar color[3],
                                        char direction)
 {
   GPU_matrix_push_projection();
   view2d_view_ortho(v2d);
-  draw_parallel_lines(line_distance, &v2d->cur, &v2d->mask, color, direction);
+  draw_parallel_lines(line_distance, offset, &v2d->cur, &v2d->mask, color, direction);
   GPU_matrix_pop_projection();
 }
 
 static void view2d_draw_lines(const View2D *v2d,
                               const float major_distance,
+                              const float offset,
                               const bool display_minor_lines,
                               const char direction)
 {
@@ -279,14 +283,14 @@ static void view2d_draw_lines(const View2D *v2d,
     const float view_width = BLI_rctf_size_x(&v2d->cur);
 
     if ((pixel_width / view_width) * (major_distance / divisor) > MIN_MAJOR_LINE_DISTANCE / 5) {
-      view2d_draw_lines_internal(v2d, line_distance, minor_color, direction);
+      view2d_draw_lines_internal(v2d, line_distance, offset, minor_color, direction);
     }
   }
 
   {
     uchar major_color[3];
     theme::get_color_3ubv(TH_GRID, major_color);
-    view2d_draw_lines_internal(v2d, major_distance, major_color, direction);
+    view2d_draw_lines_internal(v2d, major_distance, offset, major_color, direction);
   }
 }
 
@@ -316,7 +320,7 @@ static void draw_horizontal_scale_indicators(const ARegion *region,
   {
     const float2 view_bounds = {view2d_region_to_view_x(v2d, rect->xmin),
                                 view2d_region_to_view_x(v2d, rect->xmax)};
-    get_parallel_lines_draw_steps(distance, view_bounds, &start_value, &steps);
+    get_parallel_lines_draw_steps(distance, scene->r.sfra, view_bounds, &start_value, &steps);
     const uint steps_max = BLI_rcti_size_x(&v2d->mask) + 1;
     if (UNLIKELY(steps >= steps_max)) {
       return;
@@ -363,7 +367,7 @@ static void draw_vertical_scale_indicators(const ARegion *region,
   {
     const float2 view_bounds = {view2d_region_to_view_y(v2d, rect->ymin),
                                 view2d_region_to_view_y(v2d, rect->ymax)};
-    get_parallel_lines_draw_steps(distance, view_bounds, &start, &steps);
+    get_parallel_lines_draw_steps(distance, scene->r.cfra, view_bounds, &start, &steps);
     const uint steps_max = BLI_rcti_size_y(&v2d->mask) + 1;
     if (UNLIKELY(steps >= steps_max)) {
       return;
@@ -537,7 +541,7 @@ void view2d_draw_lines_x(const View2D *v2d,
   }
   /* The extra check for minor line drawing here is so minor lines are *not* drawn
    * below a distance of 1. */
-  view2d_draw_lines(v2d, major_line_distance, draw_minor_lines, 'v');
+  view2d_draw_lines(v2d, major_line_distance, scene->r.sfra, draw_minor_lines, 'v');
 }
 
 void view2d_draw_lines_x_frames(const View2D *v2d,
@@ -565,7 +569,7 @@ void view2d_draw_lines_y(const View2D *v2d, const bool show_fractions, const int
                                               BLI_rctf_size_y(&v2d->cur),
                                               MIN_MAJOR_LINE_DISTANCE);
   }
-  view2d_draw_lines(v2d, major_line_distance, true, 'h');
+  view2d_draw_lines(v2d, major_line_distance, 0, true, 'h');
 }
 
 /* Scale indicator text drawing API
@@ -606,7 +610,7 @@ void view2d_draw_scale_x(const ARegion *region,
         region, v2d, step, rect, frame_to_time_string, scene, colorid);
   }
   else {
-    draw_horizontal_scale_indicators(region, v2d, step, rect, frame_to_string, nullptr, colorid);
+    draw_horizontal_scale_indicators(region, v2d, step, rect, frame_to_string, scene, colorid);
   }
 }
 
