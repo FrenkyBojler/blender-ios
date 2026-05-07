@@ -671,9 +671,9 @@ IDProperty **rna_PropertyGroup_idprops(PointerRNA *ptr)
   return reinterpret_cast<IDProperty **>(&ptr->data);
 }
 
-bool rna_PropertyGroup_unregister(bContext &C, Main * /*bmain*/, StructRNA *type)
+bool rna_PropertyGroup_unregister(Main *bmain, StructRNA *type)
 {
-  ui::popup_handlers_refresh_or_remove_for_srna_unregister(C, type);
+  ui::popup_handlers_refresh_or_remove_for_srna_unregister(bmain, type);
 #  ifdef WITH_PYTHON
   /* Ensure that a potential py object representing this RNA type is properly dereferenced. */
   BPY_free_srna_pytype(type);
@@ -683,8 +683,7 @@ bool rna_PropertyGroup_unregister(bContext &C, Main * /*bmain*/, StructRNA *type
   return true;
 }
 
-StructRNA *rna_PropertyGroup_register(bContext & /*C*/,
-                                      Main * /*bmain*/,
+StructRNA *rna_PropertyGroup_register(Main * /*bmain*/,
                                       ReportList *reports,
                                       void *data,
                                       const char *identifier,

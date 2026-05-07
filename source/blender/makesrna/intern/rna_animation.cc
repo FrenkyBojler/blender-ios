@@ -549,7 +549,7 @@ static StructRNA *rna_KeyingSetInfo_refine(PointerRNA *ptr)
   return (ksi->rna_ext.srna) ? ksi->rna_ext.srna : RNA_KeyingSetInfo;
 }
 
-static bool rna_KeyingSetInfo_unregister(bContext & /*C*/, Main *bmain, StructRNA *type)
+static bool rna_KeyingSetInfo_unregister(Main *bmain, StructRNA *type)
 {
   KeyingSetInfo *ksi = static_cast<KeyingSetInfo *>(RNA_struct_blender_type_get(type));
 
@@ -568,8 +568,7 @@ static bool rna_KeyingSetInfo_unregister(bContext & /*C*/, Main *bmain, StructRN
   return true;
 }
 
-static StructRNA *rna_KeyingSetInfo_register(bContext &C,
-                                             Main *bmain,
+static StructRNA *rna_KeyingSetInfo_register(Main *bmain,
                                              ReportList *reports,
                                              void *data,
                                              const char *identifier,
@@ -613,7 +612,7 @@ static StructRNA *rna_KeyingSetInfo_register(bContext &C,
                 dummy_ksi.idname);
 
     StructRNA *srna = ksi->rna_ext.srna;
-    if (!(srna && rna_KeyingSetInfo_unregister(C, bmain, srna))) {
+    if (!(srna && rna_KeyingSetInfo_unregister(bmain, srna))) {
       BKE_reportf(reports,
                   RPT_ERROR,
                   "%s '%s', bl_idname '%s' %s",

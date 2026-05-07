@@ -154,16 +154,16 @@ static void rna_NodeSocket_draw_color_simple(const bke::bNodeSocketType *socket_
   RNA_parameter_list_free(&list);
 }
 
-static bool rna_NodeSocket_unregister(bContext &C, Main *bmain, StructRNA *type)
+static bool rna_NodeSocket_unregister(Main *bmain, StructRNA *type)
 {
   bke::bNodeSocketType *st = static_cast<bke::bNodeSocketType *>(
       RNA_struct_blender_type_get(type));
   if (!st) {
     return false;
   }
-  ui::popup_handlers_refresh_or_remove_for_srna_unregister(C, type);
-  ui::popup_handlers_refresh_or_remove_for_srna_unregister(C, st->ext_interface.srna);
-  ui::popup_handlers_refresh_or_remove_for_srna_unregister(C, st->ext_socket.srna);
+  ui::popup_handlers_refresh_or_remove_for_srna_unregister(bmain, type);
+  ui::popup_handlers_refresh_or_remove_for_srna_unregister(bmain, st->ext_interface.srna);
+  ui::popup_handlers_refresh_or_remove_for_srna_unregister(bmain, st->ext_socket.srna);
 
   RNA_struct_free_extension(type, &st->ext_socket);
   RNA_struct_free(&RNA_blender_rna_get(), type);
@@ -176,8 +176,7 @@ static bool rna_NodeSocket_unregister(bContext &C, Main *bmain, StructRNA *type)
   return true;
 }
 
-static StructRNA *rna_NodeSocket_register(bContext & /*C*/,
-                                          Main *bmain,
+static StructRNA *rna_NodeSocket_register(Main *bmain,
                                           ReportList *reports,
                                           void *data,
                                           const char *identifier,

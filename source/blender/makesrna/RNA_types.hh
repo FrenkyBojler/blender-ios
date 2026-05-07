@@ -1011,8 +1011,7 @@ using StructCallbackFunc = int (*)(bContext *C,
                                    FunctionRNA *func,
                                    ParameterList *list);
 using StructFreeFunc = void (*)(void *data);
-using StructRegisterFunc = StructRNA *(*)(bContext & C,
-                                          Main *bmain,
+using StructRegisterFunc = StructRNA *(*)(Main * bmain,
                                           ReportList *reports,
                                           void *data,
                                           const char *identifier,
@@ -1020,7 +1019,7 @@ using StructRegisterFunc = StructRNA *(*)(bContext & C,
                                           StructCallbackFunc call,
                                           StructFreeFunc free);
 /** Return true when `type` was successfully unregistered & freed. */
-using StructUnregisterFunc = bool (*)(bContext &C, Main *bmain, StructRNA *type);
+using StructUnregisterFunc = bool (*)(Main *bmain, StructRNA *type);
 using StructInstanceFunc = void **(*)(PointerRNA * ptr);
 
 struct StructRNA;

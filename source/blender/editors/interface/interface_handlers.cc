@@ -13018,7 +13018,7 @@ void popup_handlers_remove_all(bContext *C, ListBaseT<wmEventHandler> *handlers)
  * Return true if the #popup_block_handle have any reference the #srna_to_unreg but can't be
  * refreshed, when this happends its parent must be refreshed or the popup should be closed.
  */
-static bool popup_needs_update_for_unreg_srna_recursive(bContext &C,
+static bool popup_needs_update_for_unreg_srna_recursive(bContext *C,
                                                         PopupBlockHandle *popup_block_handle,
                                                         StructRNA *srna_to_unreg)
 {
@@ -13110,7 +13110,9 @@ static bool popup_needs_update_for_unreg_srna_recursive(bContext &C,
       HandleButtonData *data = active_button ? active_button->active : nullptr;
       PopupBlockHandle *sub_handle = data ? data->menu : nullptr;
       if (sub_handle) {
-        button_active_free(&C, active_button);
+        CTX_wm_region_popup_set(C, popup_block_handle->region);
+        button_active_free(C, active_button);
+        CTX_wm_region_popup_set(C, nullptr);
       }
       ED_region_tag_refresh_ui(popup_block_handle->region);
       ED_region_tag_redraw(popup_block_handle->region);
@@ -13133,18 +13135,22 @@ static bool popup_needs_update_for_unreg_srna_recursive(bContext &C,
     return true;
   }
   if (active_button) {
-    button_active_free(&C, active_button);
+    CTX_wm_region_popup_set(C, popup_block_handle->region);
+    button_active_free(C, active_button);
+    CTX_wm_region_popup_set(C, popup_block_handle->region);
   }
   ED_region_tag_refresh_ui(popup_block_handle->region);
   ED_region_tag_redraw(popup_block_handle->region);
   return false;
 }
 
-void popup_handlers_refresh_or_remove_for_srna_unregister(bContext &C, StructRNA *srna_to_unreg)
+void popup_handlers_refresh_or_remove_for_srna_unregister(Main *bmain, StructRNA *srna_to_unreg)
 {
   if (!srna_to_unreg) {
     return;
   }
+  bContext *C = CTX_create();
+  CTX_data_main_set(C, bmain);
   auto refresh_or_remove_handler = [&](wmEventHandler &handler_base,
                                        ListBaseT<wmEventHandler> &handlers) {
     if (handler_base.type == WM_HANDLER_TYPE_UI && !bool(handler_base.flag & WM_HANDLER_DO_FREE)) {
@@ -13157,17 +13163,17 @@ void popup_handlers_refresh_or_remove_for_srna_unregister(bContext &C, StructRNA
         return;
       }
       if (handler->remove_fn) {
-        handler->remove_fn(&C, handler->user_data);
+        handler->remove_fn(C, handler->user_data);
       }
       BLI_remlink(&handlers, handler);
       wm_event_free_handler(&handler->head);
     }
   };
 
-  Main *main = CTX_data_main(&C);
-
-  for (wmWindowManager &wm : main->wm) {
+  for (wmWindowManager &wm : bmain->wm) {
+    CTX_wm_manager_set(C, &wm);
     for (wmWindow &win : wm.windows) {
+      CTX_wm_window_set(C, &win);
       /* Close any active popup referencing the StructRNA. */
       for (wmEventHandler &handler_base : win.runtime->modalhandlers.items_mutable()) {
         refresh_or_remove_handler(handler_base, win.runtime->modalhandlers);
@@ -13178,19 +13184,22 @@ void popup_handlers_refresh_or_remove_for_srna_unregister(bContext &C, StructRNA
       /* Close any active menu referencing the StructRNA. */
       bScreen *screen = WM_window_get_active_screen(&win);
       if (screen && screen->active_region) {
+        CTX_wm_region_set(C, screen->active_region);
         Button *active_button = region_find_active_but(screen->active_region);
         HandleButtonData *data = (active_button) ? active_button->active : nullptr;
         PopupBlockHandle *sub_handle = (data) ? data->menu : nullptr;
         if (sub_handle &&
             popup_needs_update_for_unreg_srna_recursive(C, sub_handle, srna_to_unreg))
         {
-          button_active_free(&C, active_button);
+          button_active_free(C, active_button);
           ED_region_tag_refresh_ui(screen->active_region);
           ED_region_tag_redraw(screen->active_region);
         }
+        CTX_wm_region_set(C, nullptr);
       }
     }
   }
+  CTX_free(C);
 }
 
 bool textbutton_activate_rna(const bContext *C,

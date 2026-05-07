@@ -200,7 +200,7 @@ static void panel_type_clear_recursive(Panel *panel, const PanelType *type)
   }
 }
 
-static bool rna_Panel_unregister(bContext &C, Main *bmain, StructRNA *type)
+static bool rna_Panel_unregister(Main *bmain, StructRNA *type)
 {
   ARegionType *art;
   PanelType *pt = static_cast<PanelType *>(RNA_struct_blender_type_get(type));
@@ -208,7 +208,7 @@ static bool rna_Panel_unregister(bContext &C, Main *bmain, StructRNA *type)
   if (!pt) {
     return false;
   }
-  ui::popup_handlers_refresh_or_remove_for_srna_unregister(C, type);
+  ui::popup_handlers_refresh_or_remove_for_srna_unregister(bmain, type);
   if (!(art = region_type_find(nullptr, pt->space_type, pt->region_type))) {
     return false;
   }
@@ -254,8 +254,7 @@ static bool rna_Panel_unregister(bContext &C, Main *bmain, StructRNA *type)
   return true;
 }
 
-static StructRNA *rna_Panel_register(bContext &C,
-                                     Main *bmain,
+static StructRNA *rna_Panel_register(Main *bmain,
                                      ReportList *reports,
                                      void *data,
                                      const char *identifier,
@@ -335,7 +334,7 @@ static StructRNA *rna_Panel_register(bContext &C,
                     error_prefix,
                     identifier,
                     dummy_pt.idname);
-        if (!rna_Panel_unregister(C, bmain, srna)) {
+        if (!rna_Panel_unregister(bmain, srna)) {
           BKE_reportf(reports,
                       RPT_ERROR,
                       "%s '%s', bl_idname '%s' could not be unregistered",
@@ -693,14 +692,14 @@ static void uilist_filter_items(uiList *ui_list,
   RNA_parameter_list_free(&list);
 }
 
-static bool rna_UIList_unregister(bContext &C, Main *bmain, StructRNA *type)
+static bool rna_UIList_unregister(Main *bmain, StructRNA *type)
 {
   uiListType *ult = static_cast<uiListType *>(RNA_struct_blender_type_get(type));
 
   if (!ult) {
     return false;
   }
-  ui::popup_handlers_refresh_or_remove_for_srna_unregister(C, type);
+  ui::popup_handlers_refresh_or_remove_for_srna_unregister(bmain, type);
 
   RNA_struct_free_extension(type, &ult->rna_ext);
   RNA_struct_free(&RNA_blender_rna_get(), type);
@@ -712,8 +711,7 @@ static bool rna_UIList_unregister(bContext &C, Main *bmain, StructRNA *type)
   return true;
 }
 
-static StructRNA *rna_UIList_register(bContext &C,
-                                      Main *bmain,
+static StructRNA *rna_UIList_register(Main *bmain,
                                       ReportList *reports,
                                       void *data,
                                       const char *identifier,
@@ -756,7 +754,7 @@ static StructRNA *rna_UIList_register(bContext &C,
                 dummy_ult.idname);
 
     StructRNA *srna = ult->rna_ext.srna;
-    if (!(srna && rna_UIList_unregister(C, bmain, srna))) {
+    if (!(srna && rna_UIList_unregister(bmain, srna))) {
       BKE_reportf(reports,
                   RPT_ERROR,
                   "%s '%s', bl_idname '%s' %s",
@@ -822,7 +820,7 @@ static void header_draw(const bContext *C, Header *hdr)
   RNA_parameter_list_free(&list);
 }
 
-static bool rna_Header_unregister(bContext &C, Main * /*bmain*/, StructRNA *type)
+static bool rna_Header_unregister(Main *bmain, StructRNA *type)
 {
   ARegionType *art;
   HeaderType *ht = static_cast<HeaderType *>(RNA_struct_blender_type_get(type));
@@ -830,7 +828,7 @@ static bool rna_Header_unregister(bContext &C, Main * /*bmain*/, StructRNA *type
   if (!ht) {
     return false;
   }
-  ui::popup_handlers_refresh_or_remove_for_srna_unregister(C, type);
+  ui::popup_handlers_refresh_or_remove_for_srna_unregister(bmain, type);
 
   if (!(art = region_type_find(nullptr, ht->space_type, ht->region_type))) {
     return false;
@@ -846,8 +844,7 @@ static bool rna_Header_unregister(bContext &C, Main * /*bmain*/, StructRNA *type
   return true;
 }
 
-static StructRNA *rna_Header_register(bContext &C,
-                                      Main *bmain,
+static StructRNA *rna_Header_register(Main *bmain,
                                       ReportList *reports,
                                       void *data,
                                       const char *identifier,
@@ -897,7 +894,7 @@ static StructRNA *rna_Header_register(bContext &C,
                 dummy_ht.idname);
 
     StructRNA *srna = ht->rna_ext.srna;
-    if (!(srna && rna_Header_unregister(C, bmain, srna))) {
+    if (!(srna && rna_Header_unregister(bmain, srna))) {
       BKE_reportf(reports,
                   RPT_ERROR,
                   "%s '%s', bl_idname '%s' %s",
@@ -986,7 +983,7 @@ static void menu_draw(const bContext *C, Menu *menu)
   RNA_parameter_list_free(&list);
 }
 
-static bool rna_Menu_unregister(bContext &C, Main * /*bmain*/, StructRNA *type)
+static bool rna_Menu_unregister(Main *bmain, StructRNA *type)
 {
   MenuType *mt = static_cast<MenuType *>(RNA_struct_blender_type_get(type));
 
@@ -994,7 +991,7 @@ static bool rna_Menu_unregister(bContext &C, Main * /*bmain*/, StructRNA *type)
     return false;
   }
 
-  ui::popup_handlers_refresh_or_remove_for_srna_unregister(C, type);
+  ui::popup_handlers_refresh_or_remove_for_srna_unregister(bmain, type);
 
   RNA_struct_free_extension(type, &mt->rna_ext);
   RNA_struct_free(&RNA_blender_rna_get(), type);
@@ -1006,8 +1003,7 @@ static bool rna_Menu_unregister(bContext &C, Main * /*bmain*/, StructRNA *type)
   return true;
 }
 
-static StructRNA *rna_Menu_register(bContext &C,
-                                    Main *bmain,
+static StructRNA *rna_Menu_register(Main *bmain,
                                     ReportList *reports,
                                     void *data,
                                     const char *identifier,
@@ -1058,7 +1054,7 @@ static StructRNA *rna_Menu_register(bContext &C,
                 dummy_mt.idname);
 
     StructRNA *srna = mt->rna_ext.srna;
-    if (!(srna && rna_Menu_unregister(C, bmain, srna))) {
+    if (!(srna && rna_Menu_unregister(bmain, srna))) {
       BKE_reportf(reports,
                   RPT_ERROR,
                   "%s '%s', bl_idname '%s' %s",
@@ -1223,14 +1219,14 @@ static void asset_shelf_draw_context_menu(const bContext *C,
   RNA_parameter_list_free(&list);
 }
 
-static bool rna_AssetShelf_unregister(bContext &C, Main *bmain, StructRNA *type)
+static bool rna_AssetShelf_unregister(Main *bmain, StructRNA *type)
 {
   AssetShelfType *shelf_type = static_cast<AssetShelfType *>(RNA_struct_blender_type_get(type));
 
   if (!shelf_type) {
     return false;
   }
-  ui::popup_handlers_refresh_or_remove_for_srna_unregister(C, type);
+  ui::popup_handlers_refresh_or_remove_for_srna_unregister(bmain, type);
 
   ed::asset::shelf::type_unlink(*bmain, *shelf_type);
 
@@ -1245,8 +1241,7 @@ static bool rna_AssetShelf_unregister(bContext &C, Main *bmain, StructRNA *type)
   return true;
 }
 
-static StructRNA *rna_AssetShelf_register(bContext &C,
-                                          Main *bmain,
+static StructRNA *rna_AssetShelf_register(Main *bmain,
                                           ReportList *reports,
                                           void *data,
                                           const char *identifier,
@@ -1288,7 +1283,7 @@ static StructRNA *rna_AssetShelf_register(bContext &C,
                   "unregistering previous",
                   shelf_type->idname);
 
-      rna_AssetShelf_unregister(C, bmain, existing_shelf_type->rna_ext.srna);
+      rna_AssetShelf_unregister(bmain, existing_shelf_type->rna_ext.srna);
     }
   }
 
@@ -1593,7 +1588,7 @@ static bool file_handler_poll_drop(const bContext *C, bke::FileHandlerType *file
   return is_usable;
 }
 
-static bool rna_FileHandler_unregister(bContext & /*C*/, Main * /*bmain*/, StructRNA *type)
+static bool rna_FileHandler_unregister(Main * /*bmain*/, StructRNA *type)
 {
   bke::FileHandlerType *file_handler_type = static_cast<bke::FileHandlerType *>(
       RNA_struct_blender_type_get(type));
@@ -1610,8 +1605,7 @@ static bool rna_FileHandler_unregister(bContext & /*C*/, Main * /*bmain*/, Struc
   return true;
 }
 
-static StructRNA *rna_FileHandler_register(bContext &C,
-                                           Main *bmain,
+static StructRNA *rna_FileHandler_register(Main *bmain,
                                            ReportList *reports,
                                            void *data,
                                            const char *identifier,
@@ -1647,7 +1641,7 @@ static StructRNA *rna_FileHandler_register(bContext &C,
   /* Check if there is a file handler registered with the same `idname`, and remove it. */
   auto registered_file_handler = bke::file_handler_find(dummy_file_handler_type.idname);
   if (registered_file_handler) {
-    rna_FileHandler_unregister(C, bmain, registered_file_handler->rna_ext.srna);
+    rna_FileHandler_unregister(bmain, registered_file_handler->rna_ext.srna);
   }
 
   if (!RNA_struct_available_or_report(reports, dummy_file_handler_type.idname)) {

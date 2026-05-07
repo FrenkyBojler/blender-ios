@@ -2304,11 +2304,11 @@ void popup_handlers_remove(ListBaseT<wmEventHandler> *handlers, PopupBlockHandle
 void popup_handlers_remove_all(bContext *C, ListBaseT<wmEventHandler> *handlers);
 
 /**
- * Tags for refresh popup/menu handlers referencing a #StructRNA that is being unregistered, if
+ * Tags for refresh popup/menu handlers referencing a #StructRNA that is being unregistered,
  * popups/menus that can't be refreshed or are created using the \a srna_to_unreg reference will
  * be removed.
  */
-void popup_handlers_refresh_or_remove_for_srna_unregister(bContext &C, StructRNA *srna_to_unreg);
+void popup_handlers_refresh_or_remove_for_srna_unregister(Main *bmain, StructRNA *srna_to_unreg);
 
 /* Module
  *
