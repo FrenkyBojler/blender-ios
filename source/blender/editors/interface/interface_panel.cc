@@ -2749,7 +2749,10 @@ int handler_panel_region(bContext *C,
       popup_context_menu_for_panel(C, region, nullptr);
     }
   } else {
-    WM_tooltip_clear(C, CTX_wm_window(C));
+    bScreen *screen = CTX_wm_screen(C);
+    if (screen->tool_tip && screen->tool_tip->region_from != region) {
+     WM_tooltip_clear(C, CTX_wm_window(C));
+    }
   }
 
   if (retval == WM_UI_HANDLER_BREAK) {
