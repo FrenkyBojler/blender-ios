@@ -2,3 +2,4 @@ Referenced by issue #156177, Regression, Modeling: When edge loop terminates in 
 Referenced by issue #156290, Adaptive subdivision breaks link between geometry nodes store named attributes and shader editor
 Referenced by issue #156370, Broken render in Offscreen.draw_view3d()
 Referenced by issue #156525, VSE: Strip isolated preview is missing in 5.1
+Referenced by issue #158255, Blender 5.1.1 - Cast Shadow issue with node-based lights using textures in Emission Color
