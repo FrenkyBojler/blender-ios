@@ -510,7 +510,7 @@ static void armature_blend_read_data(BlendDataReader *reader, ID *id)
   arm->runtime = MEM_new<bke::bArmature_Runtime>(__func__);
 
   /* Same approach as in armature_init_data(). */
-  /* TODO(Sybren): check that it's valid to use session_uid at this point in the code. */
+  BLI_assert(id->session_uid != MAIN_ID_SESSION_UID_UNSET);
   arm->runtime->bones_generation_count = uint64_t(id->session_uid) << 32;
 
   ANIM_armature_runtime_refresh(arm);
