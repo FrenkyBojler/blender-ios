@@ -60,8 +60,8 @@ class DiskFileHashBackend(Protocol):
         See `remove_older_than()`.
         """
 
-    def iter_older_than(self, days: int) -> Iterator[Tuple[Path, str, FileHashInfo]]:
-        """Yield (filepath, hash_algorithm, hash_info) tuples for entries older than this many days."""
+    def fetch_older_than(self, days: int) -> Iterable[Tuple[Path, str, FileHashInfo]]:
+        """Fetch (filepath, hash_algorithm, hash_info) tuples for entries older than this many days."""
         ...
 
     def remove_older_than(self, *, days: int) -> None:

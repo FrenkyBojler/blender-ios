@@ -14,6 +14,7 @@ import os
 import datetime
 import unittest
 from pathlib import Path
+from typing import Callable
 
 from _bpy_internal.disk_file_hash_service import backend_sqlite, hash_service, types
 
@@ -411,14 +412,55 @@ class DiskFileHashServiceTest(unittest.TestCase):
             new_backend.close()
 
 
-    def test_cleanup_on_close_refreshes_matching_hashes(self) -> None:
-        """Old hashes whose file on disk still matches should be refreshed, not deleted."""
-        # Monkeypatch the backend so the hashes we store are back-dated.
+    def _backdate_now(self) -> Callable[[], datetime.datetime]:
+        """Replace the backend's `_now` with a back-dated value so that any
+        subsequently-stored hash has an old `last_checked` timestamp. Returns
+        the original `_now` so the caller can restore it.
+        """
         orig_now = self.backend._now
         self.backend._now = lambda: datetime.datetime(
             year=2024, month=1, day=1, hour=0, minute=0, second=0, tzinfo=datetime.timezone.utc)
+        return orig_now
 
-        # Store an old hash for a file that exists on disk with matching size & mtime.
+    def _last_checked(self, filepath: Path, hash_algorithm: str) -> datetime.datetime:
+        """Read the raw `last_checked` column for a (file, algo) pair."""
+        with self.backend._transaction_ro() as db:
+            cursor = db.execute(
+                "SELECT h.last_checked FROM files f INNER JOIN hashes h USING (file_id) " +
+                "WHERE f.path=? AND h.hash_algo=?",
+                (str(filepath), hash_algorithm))
+            row = cursor.fetchone()
+        assert row is not None, "no hash row for {!r}/{!r}".format(filepath, hash_algorithm)
+        return datetime.datetime.fromisoformat(row[0])
+
+    def test_close_refreshes_old_hash_for_matching_file(self) -> None:
+        """An old hash whose file still matches on disk should survive close() instead of being deleted."""
+        orig_now = self._backdate_now()
+
+        stat = self.filepath.stat()
+        matching_info = types.FileHashInfo(
+            hexhash="cached hash for real file",
+            file_size_bytes=stat.st_size,
+            file_stat_mtime=stat.st_mtime,
+        )
+        self.backend.store_hash(self.filepath, "sha256", matching_info)
+        self.backend._now = orig_now
+
+        self.service.close()
+
+        new_backend = backend_sqlite.SQLiteBackend(self.storagepath)
+        new_backend.open()
+        try:
+            self.assertEqual(matching_info, new_backend.fetch_hash(self.filepath, "sha256"))
+        finally:
+            new_backend.close()
+
+    def test_close_actually_bumps_last_checked_for_matching_file(self) -> None:
+        """Surviving an old close() pass should be due to a real `last_checked` update,
+        not just the row being skipped — guards against a no-op `mark_hashes_as_fresh`.
+        """
+        orig_now = self._backdate_now()
+
         stat = self.filepath.stat()
         matching_info = types.FileHashInfo(
             hexhash="cached hash for real file",
@@ -427,17 +469,28 @@ class DiskFileHashServiceTest(unittest.TestCase):
         )
         self.backend.store_hash(self.filepath, "sha256", matching_info)
 
-        # Store an old hash for a file that does not exist on disk; this one should be removed.
-        missing_filepath = scratch_dir / "missing-file.blend"
-        missing_info = types.FileHashInfo(
-            hexhash="dead hash",
-            file_size_bytes=10,
-            file_stat_mtime=42.0,
-        )
-        self.backend.store_hash(missing_filepath, "sha256", missing_info)
+        # Confirm the stored timestamp is in fact back-dated before close() runs.
+        before_close = self._last_checked(self.filepath, "sha256")
+        self.assertLess(before_close, datetime.datetime(2024, 6, 1, tzinfo=datetime.timezone.utc))
 
-        # Store an old hash for a file that exists but whose stats no longer match;
-        # this should also be removed because it cannot be confirmed as still valid.
+        self.backend._now = orig_now
+        self.service.close()
+
+        new_backend = backend_sqlite.SQLiteBackend(self.storagepath)
+        new_backend.open()
+        try:
+            self.backend = new_backend  # so _last_checked uses the open connection
+            after_close = self._last_checked(self.filepath, "sha256")
+            # Should have been bumped to roughly "now" (well within the last hour).
+            now = datetime.datetime.now(tz=datetime.timezone.utc)
+            self.assertGreater(after_close, now - datetime.timedelta(hours=1))
+        finally:
+            new_backend.close()
+
+    def test_close_removes_old_hash_for_mismatched_file(self) -> None:
+        """An old hash for a file whose stats no longer match should be deleted by close()."""
+        orig_now = self._backdate_now()
+
         mismatched_filepath = scratch_dir / "mismatched-file.txt"
         mismatched_filepath.write_text("some content")
         mismatched_info = types.FileHashInfo(
@@ -446,28 +499,47 @@ class DiskFileHashServiceTest(unittest.TestCase):
             file_stat_mtime=1.0,
         )
         self.backend.store_hash(mismatched_filepath, "sha256", mismatched_info)
-
-        # Restore the 'now' function for the backend.
         self.backend._now = orig_now
 
-        # Closing the service should refresh the still-valid hash and drop the others.
         self.service.close()
 
-        # Re-open with a fresh backend, since the service closed ours.
         new_backend = backend_sqlite.SQLiteBackend(self.storagepath)
         new_backend.open()
         try:
-            # Matching hash should be retained (and now refreshed).
-            self.assertEqual(matching_info, new_backend.fetch_hash(self.filepath, "sha256"))
+            self.assertIsNone(new_backend.fetch_hash(mismatched_filepath, "sha256"))
+        finally:
+            new_backend.close()
 
-            # Missing- and mismatched-file hashes should both be gone.
+    def test_close_only_refreshes_matching_among_mixed_old_hashes(self) -> None:
+        """When old hashes are a mix of matching/missing/mismatched, only matching ones survive close()."""
+        orig_now = self._backdate_now()
+
+        stat = self.filepath.stat()
+        matching_info = types.FileHashInfo(
+            hexhash="cached hash for real file",
+            file_size_bytes=stat.st_size,
+            file_stat_mtime=stat.st_mtime,
+        )
+        self.backend.store_hash(self.filepath, "sha256", matching_info)
+
+        missing_filepath = scratch_dir / "missing-file.blend"
+        self.backend.store_hash(missing_filepath, "sha256", types.FileHashInfo(
+            hexhash="dead hash", file_size_bytes=10, file_stat_mtime=42.0))
+
+        mismatched_filepath = scratch_dir / "mismatched-file.txt"
+        mismatched_filepath.write_text("some content")
+        self.backend.store_hash(mismatched_filepath, "sha256", types.FileHashInfo(
+            hexhash="stale hash", file_size_bytes=999, file_stat_mtime=1.0))
+
+        self.backend._now = orig_now
+        self.service.close()
+
+        new_backend = backend_sqlite.SQLiteBackend(self.storagepath)
+        new_backend.open()
+        try:
+            self.assertEqual(matching_info, new_backend.fetch_hash(self.filepath, "sha256"))
             self.assertIsNone(new_backend.fetch_hash(missing_filepath, "sha256"))
             self.assertIsNone(new_backend.fetch_hash(mismatched_filepath, "sha256"))
-
-            # Now perform another removal pass with the original cutoff: the refreshed
-            # hash should still survive, proving its `last_checked` was actually updated.
-            new_backend.remove_older_than(days=hash_service.HASH_RETAIN_AGE_DAYS)
-            self.assertEqual(matching_info, new_backend.fetch_hash(self.filepath, "sha256"))
         finally:
             new_backend.close()
 
