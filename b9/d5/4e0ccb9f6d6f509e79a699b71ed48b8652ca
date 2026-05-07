@@ -1,1 +1,2 @@
 Referenced by issue #154776, USD importer does not scale positions anymore
+Referenced by pull request #158299, Fix #158262: Incorrect scaling transform applied on import
