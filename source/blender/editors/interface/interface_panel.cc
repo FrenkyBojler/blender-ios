@@ -2620,8 +2620,11 @@ static int handle_panel_category_cycling(const wmEvent *event,
   return WM_UI_HANDLER_CONTINUE;
 }
 
-static ARegion *WM_panel_category_tooltip_init(
-    bContext *C, ARegion *region, int * /*r_pass*/, double * /*pass_delay*/, bool *r_exit_on_event)
+static ARegion *WM_panel_category_tooltip_init(bContext *C,
+                                               ARegion *region,
+                                               int * /*r_pass*/,
+                                               double * /*pass_delay*/,
+                                               bool * /*r_exit_on_event*/)
 {
 
   BLI_assert(BKE_regiontype_uses_category_tabs(region->runtime->type));
@@ -2748,10 +2751,11 @@ int handler_panel_region(bContext *C,
       retval = WM_UI_HANDLER_BREAK;
       popup_context_menu_for_panel(C, region, nullptr);
     }
-  } else {
+  }
+  else {
     bScreen *screen = CTX_wm_screen(C);
     if (screen->tool_tip && screen->tool_tip->region_from != region) {
-     WM_tooltip_clear(C, CTX_wm_window(C));
+      WM_tooltip_clear(C, CTX_wm_window(C));
     }
   }
 
