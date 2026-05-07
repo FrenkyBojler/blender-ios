@@ -437,38 +437,6 @@ static void update_panels_from_node_group(NodesModifierData &nmd)
   nmd.panels_num = interface_panels.size();
 }
 
-static void update_old_to_new_identifiers(Main &bmain,
-                                          Object &object,
-                                          IDProperty *group,
-                                          const Span<const bNodeTreeInterfaceSocket *> io_sockets,
-                                          const StringRef root_rna_path)
-{
-  if (!group) {
-    return;
-  }
-  Vector<AnimationBasePathChange> animation_changes;
-  for (const bNodeTreeInterfaceSocket *io_socket : io_sockets) {
-    for (const int i : IndexRange(io_socket->old_identifiers_num)) {
-      const StringRef old_identifier = io_socket->old_identifiers[i];
-      if (IDProperty *prop = IDP_GetPropertyFromGroup(group, old_identifier)) {
-        /* Reinsert in group with new identifier. */
-        IDP_RemoveFromGroup(group, prop);
-        STRNCPY_UTF8(prop->name, io_socket->identifier);
-        IDP_AddToGroup(group, prop);
-
-        animation_changes.append({
-            .src_basepath = fmt::format("{}.{}", root_rna_path, old_identifier),
-            .dst_basepath = fmt::format("{}.{}", root_rna_path, io_socket->identifier),
-        });
-      }
-    }
-  }
-  BKE_animdata_copy_by_basepath(bmain, object.id, object.id, animation_changes);
-  for (const AnimationBasePathChange &change : animation_changes) {
-    BKE_animdata_fix_paths_remove(&object.id, change.src_basepath.c_str());
-  }
-}
-
 static void update_system_properties(Main &bmain, Object &object, NodesModifierData &nmd)
 {
   if (!nmd.modifier.system_properties) {
@@ -479,18 +447,26 @@ static void update_system_properties(Main &bmain, Object &object, NodesModifierD
     return;
   }
   nmd.node_group->ensure_interface_cache();
-  update_old_to_new_identifiers(
-      bmain,
-      object,
-      IDP_GetPropertyFromGroup(nmd.modifier.system_properties, "inputs"),
-      nmd.node_group->interface_inputs(),
-      fmt::format("modifiers[\"{}\"].properties.inputs", nmd.modifier.name));
-  update_old_to_new_identifiers(
-      bmain,
-      object,
-      IDP_GetPropertyFromGroup(nmd.modifier.system_properties, "outputs"),
-      nmd.node_group->interface_outputs(),
-      fmt::format("modifiers[\"{}\"].properties.outputs", nmd.modifier.name));
+  if (IDProperty *inputs_group = IDP_GetPropertyFromGroup(nmd.modifier.system_properties,
+                                                          "inputs"))
+  {
+    nodes::update_properties_from_changed_socket_identifiers(
+        bmain,
+        object.id,
+        *inputs_group,
+        nmd.node_group->interface_inputs(),
+        fmt::format("modifiers[\"{}\"].properties.inputs", nmd.modifier.name));
+  }
+  if (IDProperty *outputs_group = IDP_GetPropertyFromGroup(nmd.modifier.system_properties,
+                                                           "outputs"))
+  {
+    nodes::update_properties_from_changed_socket_identifiers(
+        bmain,
+        object.id,
+        *outputs_group,
+        nmd.node_group->interface_outputs(),
+        fmt::format("modifiers[\"{}\"].properties.outputs", nmd.modifier.name));
+  }
 
   PointerRNA properties_ptr = RNA_pointer_create_discrete(
       &object.id, RNA_NodesModifierProperties, &nmd);

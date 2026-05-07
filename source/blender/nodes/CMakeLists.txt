@@ -103,6 +103,7 @@ set(SRC
   intern/node_socket_declarations.cc
   intern/node_tree_defaults.cc
   intern/node_util.cc
+  intern/nodes_srna.cc
   intern/partial_eval.cc
   intern/shader_nodes_inline.cc
   intern/socket_search_link.cc

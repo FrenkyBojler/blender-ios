@@ -12,6 +12,9 @@ namespace blender {
 
 struct BlenderRNA;
 struct StructRNA;
+struct IDProperty;
+struct bNodeTreeInterfaceSocket;
+
 namespace nodes {
 
 /**
@@ -32,6 +35,13 @@ struct GeneratedTreeSrnaData {
     RNA_free(generated_rna);
   }
 };
+
+void update_properties_from_changed_socket_identifiers(
+    Main &bmain,
+    ID &id,
+    IDProperty &group,
+    Span<const bNodeTreeInterfaceSocket *> io_sockets,
+    StringRef root_rna_path);
 
 }  // namespace nodes
 }  // namespace blender
