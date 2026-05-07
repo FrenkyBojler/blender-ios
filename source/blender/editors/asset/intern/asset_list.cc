@@ -143,6 +143,12 @@ void AssetList::ensure_updated()
   FileList *files = filelist_;
 
   filelist_setlibrary(files, &library_ref_);
+
+  const bool show_online = ELEM(
+      U.asset_visibility, AssetVisibility::OnlineAndOffline, AssetVisibility::OnlyOnline);
+  const bool show_offline = ELEM(
+      U.asset_visibility, AssetVisibility::OnlineAndOffline, AssetVisibility::OnlyOffline);
+
   filelist_setfilter_options(
       files,
       true,
@@ -151,13 +157,11 @@ void AssetList::ensure_updated()
       FILE_TYPE_BLENDERLIB,
       FILTER_ID_ALL,
       true,
-      U.asset_visibility == AssetVisibility::OnlyOffline,
-      U.asset_visibility == AssetVisibility::OnlyOnline,
+      /*filter_assets_hide_online=*/!show_online,
+      /*filter_assets_hide_offline=*/!show_offline,
       "",
       "");
-  filelist_set_asset_include_online(
-      files,
-      ELEM(U.asset_visibility, AssetVisibility::OnlineAndOffline, AssetVisibility::OnlyOnline));
+  filelist_set_asset_include_online(files, show_online);
 }
 
 void AssetList::fetch(const bContext &C)
