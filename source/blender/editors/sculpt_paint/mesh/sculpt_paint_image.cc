@@ -29,6 +29,8 @@
 #include "BKE_paint_bvh.hh"
 #include "BKE_paint_bvh_pixels.hh"
 
+#include "BLI_bounds.hh"
+
 #include "mesh_brush_common.hh"
 #include "sculpt_automask.hh"
 #include "sculpt_intern.hh"
@@ -110,41 +112,12 @@ static void fetch_image_buffers(ImageData &image_data,
   }
 }
 
-static float3 calc_pixel_position(const Span<float3> vert_positions,
-                                  const Span<int3> vert_tris,
-                                  const int tri_index,
-                                  const float2 &barycentric_weight)
-{
-  const int3 &verts = vert_tris[tri_index];
-  const float3 weights(barycentric_weight.x,
-                       barycentric_weight.y,
-                       1.0f - barycentric_weight.x - barycentric_weight.y);
-  float3 result;
-  interp_v3_v3v3v3(result,
-                   vert_positions[verts[0]],
-                   vert_positions[verts[1]],
-                   vert_positions[verts[2]],
-                   weights);
-  return result;
-}
-
-static void calc_pixel_row_positions(const Span<float3> vert_positions,
-                                     const Span<int3> vert_tris,
-                                     const Span<int> tri_indices,
-                                     const Span<float2> delta_barycentric_coords,
-                                     const PackedPixelRow &pixel_row,
+static void calc_pixel_row_positions(const PackedPixelRow &pixel_row,
+                                     const PackedPixelRowPosition &packed_pixel_row_position,
                                      const MutableSpan<float3> positions)
 {
-  const float3 start = calc_pixel_position(vert_positions,
-                                           vert_tris,
-                                           tri_indices[pixel_row.uv_primitive_index],
-                                           pixel_row.start_barycentric_coord);
-  const float3 next = calc_pixel_position(
-      vert_positions,
-      vert_tris,
-      tri_indices[pixel_row.uv_primitive_index],
-      pixel_row.start_barycentric_coord + delta_barycentric_coords[pixel_row.uv_primitive_index]);
-  const float3 delta = next - start;
+  const float3 start = packed_pixel_row_position.start;
+  const float3 delta = packed_pixel_row_position.delta;
   for (const int i : IndexRange(pixel_row.num_pixels)) {
     positions[i] = start + delta * i;
   }
@@ -334,6 +307,11 @@ static void do_paint_pixels(const Depsgraph &depsgraph,
   Vector<float> distances;
 
   bool pixels_updated = false;
+
+  const float3 location = ss.cache ? ss.cache->location_symm : ss.cursor_location;
+  const float radius = ss.cache ? ss.cache->radius : ss.cursor_radius;
+  Bounds<float3> brush_bounds(location - radius, location + radius);
+
   for (UDIMTilePixels &tile_data : pixel_node.tiles) {
     ImBuf *image_buffer = image_data.buffers.lookup_default(tile_data.tile_number, nullptr);
     if (image_buffer == nullptr) {
@@ -356,18 +334,19 @@ static void do_paint_pixels(const Depsgraph &depsgraph,
     const TileColorspaceProcessor *processors = image_data.processors.lookup_ptr(
         tile_data.tile_number);
 
-    for (const PackedPixelRow &pixel_row : tile_data.pixel_rows) {
+    for (const int i : tile_data.pixel_rows.index_range()) {
+      const PackedPixelRow &pixel_row = tile_data.pixel_rows[i];
+      const PackedPixelRowPosition &pixel_row_position = tile_data.pixel_row_positions[i];
       if (!brush_test[pixel_row.uv_primitive_index]) {
         continue;
       }
 
+      if (!brush_bounds.intersects_segment(pixel_row_position.start, pixel_row_position.end)) {
+        continue;
+      }
+
       pixel_positions.resize(pixel_row.num_pixels);
-      calc_pixel_row_positions(positions,
-                               pbvh_data.vert_tris,
-                               pixel_node.uv_primitives.tri_indices,
-                               pixel_node.uv_primitives.delta_barycentric_coords,
-                               pixel_row,
-                               pixel_positions);
+      calc_pixel_row_positions(pixel_row, pixel_row_position, pixel_positions);
 
       factors.resize(pixel_positions.size());
       factors.fill(1.0f);

@@ -38,6 +38,13 @@ struct PackedPixelRow {
   ushort uv_primitive_index;
 };
 
+struct PackedPixelRowPosition {
+  float3 start;
+  float3 end;
+  float3 delta;
+  Bounds<float3> bounds;
+};
+
 /**
  * Node pixel data containing the pixels for a single UDIM tile.
  */
@@ -53,6 +60,7 @@ struct UDIMTilePixels {
   rcti dirty_region;
 
   Vector<PackedPixelRow> pixel_rows;
+  Vector<PackedPixelRowPosition> pixel_row_positions;
 
   UDIMTilePixels()
   {
