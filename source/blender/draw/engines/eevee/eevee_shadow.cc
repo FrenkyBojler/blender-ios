@@ -1273,12 +1273,12 @@ void ShadowModule::ShadowView::compute_visibility(ObjectBoundsBuf &bounds,
   GPU_debug_group_end();
 }
 
-void ShadowModule::sync_view(View &view, int2 extent)
+void ShadowModule::set_view(View &view, int2 extent)
 {
   data_.film_pixel_radius = screen_pixel_radius(view.wininv(), view.is_persp(), extent);
 }
 
-void ShadowModule::set_view(View &view, int2 extent)
+void ShadowModule::render(View &view, int2 extent)
 {
   if (enabled_ == false) {
     /* All lights have been tagged to have no shadow. */

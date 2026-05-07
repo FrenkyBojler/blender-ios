@@ -328,7 +328,7 @@ void VolumeModule::end_sync()
   resolve_ps_.draw_procedural(GPU_PRIM_TRIS, 1, 3);
 }
 
-void VolumeModule::sync_view(View &main_view)
+void VolumeModule::set_view(View &main_view)
 {
   /* Number of frame to consider for blending with exponential (infinite) average. */
   int exponential_frame_count = 16;
@@ -459,7 +459,7 @@ void VolumeModule::draw_compute(View &main_view, int2 extent)
     inst_.hiz_buffer.update();
     inst_.volume_probes.set_view(main_view);
     inst_.sphere_probes.set_view(main_view);
-    inst_.shadows.set_view(main_view, extent);
+    inst_.shadows.render(main_view, extent);
   }
 
   scatter_tx_.swap();
