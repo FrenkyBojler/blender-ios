@@ -8984,6 +8984,7 @@ static int do_button(bContext *C, Block *block, Button *but, const wmEvent *even
 
   /* Only hard-coded stuff here, button interactions with configurable
    * keymaps are handled using operators (see #keymap_ui). */
+
   if (data->state == BUTTON_STATE_HIGHLIGHT) {
 
     /* handle copy and paste */
