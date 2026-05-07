@@ -374,13 +374,12 @@ static void do_paint_pixels(const Depsgraph &depsgraph,
     const TileColorspaceProcessor *processors = image_data.processors.lookup_ptr(
         tile_data.tile_number);
 
-    IndexMask valid_rows = IndexMask::from_predicate(
+    const IndexMask valid_rows = IndexMask::from_predicate(
         tile_data.pixel_rows.index_range(), memory, [&](const int i) {
           return brush_test[tile_data.pixel_rows[i].uv_primitive_index];
         });
 
     Array<int> row_map(tile_data.pixel_rows.size(), -1);
-    Array<bool> row_changed(tile_data.pixel_rows.size(), false);
     Array<Vector<float>> all_factors(valid_rows.size());
     /* Calculate the per-row factor first */
     threading::EnumerableThreadSpecific<FactorLocalData> all_factor_tls;
@@ -421,9 +420,10 @@ static void do_paint_pixels(const Depsgraph &depsgraph,
       }
     });
 
-    IndexMask non_zero_rows = IndexMask::from_bools(non_zero_data, memory);
-    IndexMask paint_rows = IndexMask::from_intersection(valid_rows, non_zero_rows, memory);
+    const IndexMask non_zero_rows = IndexMask::from_bools(non_zero_data, memory);
+    const IndexMask paint_rows = IndexMask::from_intersection(valid_rows, non_zero_rows, memory);
 
+    Array<bool> row_changed(tile_data.pixel_rows.size(), false);
     threading::EnumerableThreadSpecific<PaintLocalData> all_paint_tls;
     paint_rows.foreach_index([&](const int i) {
       const int row_i = row_map[i];
