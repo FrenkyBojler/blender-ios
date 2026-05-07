@@ -3432,6 +3432,7 @@ bool BoneCollection::is_expanded() const
 static void rebuild_bone_array(bArmature &armature)
 {
   bke::bArmature_Runtime &runtime = *armature.runtime;
+  std::scoped_lock lock{runtime.bones_mutex};
 
   /* Re-check the reason this function was called, now that the lock has been obtained. */
   if (runtime.is_bones_array_valid()) {
@@ -3443,8 +3444,8 @@ static void rebuild_bone_array(bArmature &armature)
   Array<Bone *> bones(num_bones);
 
   BKE_armature_foreach_bone(armature, [&](const int bone_index, const Bone &bone) {
-    // const_cast: the bone ref is const because BKE_armature_foreach_bone() is only
-    // implemented for const types.
+    /* const_cast: the bone ref is const because BKE_armature_foreach_bone() is only
+     * implemented for const types. */
     bones[bone_index] = const_cast<Bone *>(&bone);
   });
 
