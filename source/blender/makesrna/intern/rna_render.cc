@@ -356,7 +356,7 @@ static StructRNA *rna_RenderEngine_register(Main *bmain,
   }
 
   /* create a new engine type */
-  et = MEM_mallocN<RenderEngineType>("Python render engine");
+  et = MEM_new_uninitialized<RenderEngineType>("Python render engine");
   memcpy(et, &dummy_et, sizeof(dummy_et));
 
   et->rna_ext.srna = RNA_def_struct_ptr(&RNA_blender_rna_get(), et->idname, RNA_RenderEngine);
@@ -483,7 +483,7 @@ static void rna_RenderPass_rect_get(PointerRNA *ptr, float *values)
 {
   RenderPass *rpass = static_cast<RenderPass *>(ptr->data);
   const size_t size_in_bytes = sizeof(float) * rpass->rectx * rpass->recty * rpass->channels;
-  const float *buffer = rpass->ibuf ? rpass->ibuf->float_buffer.data : nullptr;
+  const float *buffer = rpass->ibuf ? rpass->ibuf->float_data() : nullptr;
 
   if (!buffer) {
     /* No float buffer to read from, initialize to all zeroes. */
@@ -497,7 +497,7 @@ static void rna_RenderPass_rect_get(PointerRNA *ptr, float *values)
 void rna_RenderPass_rect_set(PointerRNA *ptr, const float *values)
 {
   RenderPass *rpass = static_cast<RenderPass *>(ptr->data);
-  float *buffer = rpass->ibuf ? rpass->ibuf->float_buffer.data : nullptr;
+  float *buffer = rpass->ibuf ? rpass->ibuf->float_data_for_write() : nullptr;
 
   if (!buffer) {
     /* Only writing to an already existing buffer is supported. */

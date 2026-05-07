@@ -33,10 +33,15 @@ namespace blender {
  * \{ */
 
 /**
+ * Returns true if the path (file or directory) exists.
+ */
+bool BLI_exists(const char *path) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
+
+/**
  * Returns the st_mode from stat-ing the specified path name, or 0 if stat fails
  * (most likely doesn't exist or no access).
  */
-int BLI_exists(const char *path) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
+int BLI_file_stat_mode(const char *path) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
 
 /**
  * \return 0 on success.
@@ -237,7 +242,7 @@ char *BLI_current_working_dir(char *dir, size_t maxncpy) ATTR_WARN_UNUSED_RESULT
  * instead of attempting to create a fallback such as `/`, `/tmp`, `C:\` ... etc.
  * Although there may be rare cases where a fallback is appropriate.
  */
-const char *BLI_dir_home(void);
+const char *BLI_dir_home();
 
 eFileAttributes BLI_file_attributes(const char *path);
 /**
@@ -306,19 +311,6 @@ void BLI_filelist_entry_mode_to_string(const struct stat *st,
 void BLI_filelist_entry_owner_to_string(const struct stat *st,
                                         bool compact,
                                         char r_owner[FILELIST_DIRENTRY_OWNER_LEN]);
-/**
- * Convert given entry's time into human-readable strings.
- *
- * \param r_is_today: optional, returns true if the date matches today's.
- * \param r_is_yesterday: optional, returns true if the date matches yesterday's.
- */
-void BLI_filelist_entry_datetime_to_string(const struct stat *st,
-                                           int64_t ts,
-                                           bool compact,
-                                           char r_time[FILELIST_DIRENTRY_TIME_LEN],
-                                           char r_date[FILELIST_DIRENTRY_DATE_LEN],
-                                           bool *r_is_today,
-                                           bool *r_is_yesterday);
 
 /** \} */
 
@@ -415,7 +407,7 @@ void *BLI_file_read_data_as_mem_from_handle(FILE *fp,
                                             size_t pad_bytes,
                                             size_t *r_size);
 
-void *BLI_file_read_text_as_mem(const char *filepath, size_t pad_bytes, size_t *r_size);
+char *BLI_file_read_text_as_mem(const char *filepath, size_t pad_bytes, size_t *r_size);
 /**
  * Return the text file data with:
  *
@@ -444,7 +436,7 @@ void *BLI_file_read_text_as_mem(const char *filepath, size_t pad_bytes, size_t *
  * }
  * \endcode
  */
-void *BLI_file_read_text_as_mem_with_newline_as_nil(const char *filepath,
+char *BLI_file_read_text_as_mem_with_newline_as_nil(const char *filepath,
                                                     bool trim_trailing_space,
                                                     size_t pad_bytes,
                                                     size_t *r_size);

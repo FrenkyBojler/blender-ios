@@ -194,7 +194,7 @@ class LayerViewItemDragController : public AbstractViewItemDragController {
 
   void *create_drag_data() const override
   {
-    wmDragGreasePencilLayer *drag_data = MEM_callocN<wmDragGreasePencilLayer>(__func__);
+    wmDragGreasePencilLayer *drag_data = MEM_new_zeroed<wmDragGreasePencilLayer>(__func__);
     drag_data->node = &dragged_node_;
     drag_data->grease_pencil = &grease_pencil_;
     return drag_data;
@@ -493,7 +493,7 @@ class LayerGroupViewItem : public AbstractTreeViewItem {
   {
     short icon = ICON_GREASEPENCIL_LAYER_GROUP;
     if (group_.color_tag != LAYERGROUP_COLOR_NONE) {
-      icon = ICON_LAYERGROUP_COLOR_01 + group_.color_tag;
+      icon = ICON_LAYERGROUP_COLOR_01 + int(group_.color_tag);
     }
 
     Button *but = uiItemL_ex(&row, group_.name(), icon, false, false);

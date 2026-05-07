@@ -87,34 +87,34 @@ using namespace bke::id;
 static CLG_LogRef LOG = {"lib.id"};
 
 IDTypeInfo IDType_ID_LINK_PLACEHOLDER = {
-    /*id_code*/ ID_LINK_PLACEHOLDER,
-    /*id_filter*/ 0,
-    /*dependencies_id_types*/ 0,
-    /*main_listbase_index*/ INDEX_ID_NULL,
-    /*struct_size*/ sizeof(ID),
-    /*name*/ "LinkPlaceholder",
-    /*name_plural*/ N_("link_placeholders"),
-    /*translation_context*/ BLT_I18NCONTEXT_ID_ID,
-    /*flags*/ IDTYPE_FLAGS_NO_COPY | IDTYPE_FLAGS_NO_LIBLINKING,
-    /*asset_type_info*/ nullptr,
+    .id_code = ID_LINK_PLACEHOLDER,
+    .id_filter = 0,
+    .dependencies_id_types = 0,
+    .main_listbase_index = INDEX_ID_NULL,
+    .struct_size = sizeof(ID),
+    .name = "LinkPlaceholder",
+    .name_plural = N_("link_placeholders"),
+    .translation_context = BLT_I18NCONTEXT_ID_ID,
+    .flags = IDTYPE_FLAGS_NO_COPY | IDTYPE_FLAGS_NO_LIBLINKING,
+    .asset_type_info = nullptr,
 
-    /*init_data*/ nullptr,
-    /*copy_data*/ nullptr,
-    /*free_data*/ nullptr,
-    /*make_local*/ nullptr,
-    /*foreach_id*/ nullptr,
-    /*foreach_cache*/ nullptr,
-    /*foreach_path*/ nullptr,
-    /*foreach_working_space_color*/ nullptr,
-    /*owner_pointer_get*/ nullptr,
+    .init_data = nullptr,
+    .copy_data = nullptr,
+    .free_data = nullptr,
+    .make_local = nullptr,
+    .foreach_id = nullptr,
+    .foreach_cache = nullptr,
+    .foreach_path = nullptr,
+    .foreach_working_space_color = nullptr,
+    .owner_pointer_get = nullptr,
 
-    /*blend_write*/ nullptr,
-    /*blend_read_data*/ nullptr,
-    /*blend_read_after_liblink*/ nullptr,
+    .blend_write = nullptr,
+    .blend_read_data = nullptr,
+    .blend_read_after_liblink = nullptr,
 
-    /*blend_read_undo_preserve*/ nullptr,
+    .blend_read_undo_preserve = nullptr,
 
-    /*lib_override_apply_post*/ nullptr,
+    .lib_override_apply_post = nullptr,
 };
 
 /* GS reads the memory pointed at in a specific ordering.
@@ -1078,8 +1078,12 @@ bool id_single_user(bContext *C, ID *id, PointerRNA *ptr, PropertyRNA *prop)
       newid = BKE_id_copy_ex(bmain, id, nullptr, LIB_ID_COPY_DEFAULT | LIB_ID_COPY_ACTIONS);
       if (newid != nullptr) {
         /* us is 1 by convention with new IDs, but RNA_property_pointer_set
-         * will also increment it, decrement it here. */
+         * will also increment it if it's a user-reference-counting usage, decrement it here. */
         id_us_min(newid);
+        /* 'Never unused' IDs types should always have an extra 'virtual' user ensured. */
+        if (BKE_idtype_get_info_from_id(newid)->flags & IDTYPE_FLAGS_NEVER_UNUSED) {
+          id_us_ensure_real(newid);
+        }
 
         /* assign copy */
         PointerRNA idptr = RNA_id_pointer_create(newid);
@@ -1280,7 +1284,7 @@ void BKE_main_id_repair_duplicate_names_listbase(Main *bmain, ListBaseT<ID> *lb)
   }
 
   /* Fill an array because renaming sorts. */
-  ID **id_array = MEM_malloc_arrayN<ID *>(size_t(lb_len), __func__);
+  ID **id_array = MEM_new_array_uninitialized<ID *>(size_t(lb_len), __func__);
   Set<StringRef> name_set;
   int i = 0;
   for (ID &id : *lb) {
@@ -1295,7 +1299,7 @@ void BKE_main_id_repair_duplicate_names_listbase(Main *bmain, ListBaseT<ID> *lb)
           *bmain, *lb, *id_array[i], nullptr, IDNewNameMode::RenameExistingNever, false);
     }
   }
-  MEM_freeN(id_array);
+  MEM_delete(id_array);
 }
 
 void BKE_main_lib_objects_recalc_all(Main *bmain)
@@ -1353,7 +1357,7 @@ ID *BKE_libblock_alloc_notest(short type)
   const char *name;
   size_t size = BKE_libblock_get_alloc_info(type, &name);
   if (size != 0) {
-    ID *id = static_cast<ID *>(MEM_callocN(size, name));
+    ID *id = static_cast<ID *>(MEM_new_zeroed(size, name));
     return id;
   }
   BLI_assert_msg(0, "Request to allocate unknown data type");
@@ -2586,7 +2590,7 @@ Vector<ID *> BKE_id_ordered_list(const ListBaseT<ID> *lb)
     ordered.append(&id);
   }
 
-  std::sort(ordered.begin(), ordered.end(), id_order_compare);
+  std::ranges::sort(ordered, id_order_compare);
 
   for (const int i : ordered.index_range()) {
     if (int *order = id_order_get(ordered[i])) {
@@ -2660,15 +2664,15 @@ void BKE_id_blend_write(BlendWriter *writer, ID *id)
 
     writer->write_struct_list(&id->override_library->properties);
     for (IDOverrideLibraryProperty &op : id->override_library->properties) {
-      BLO_write_string(writer, op.rna_path);
+      writer->write_string(op.rna_path);
 
       writer->write_struct_list(&op.operations);
       for (IDOverrideLibraryPropertyOperation &opop : op.operations) {
         if (opop.subitem_reference_name) {
-          BLO_write_string(writer, opop.subitem_reference_name);
+          writer->write_string(opop.subitem_reference_name);
         }
         if (opop.subitem_local_name) {
-          BLO_write_string(writer, opop.subitem_local_name);
+          writer->write_string(opop.subitem_local_name);
         }
       }
     }

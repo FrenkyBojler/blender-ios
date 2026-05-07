@@ -53,7 +53,7 @@ struct EdRotState {
    */
   int2 f_pair;
 
-  BLI_STRUCT_EQUALITY_OPERATORS_2(EdRotState, v_pair, f_pair)
+  friend bool operator==(const EdRotState &a, const EdRotState &b) = default;
 
   uint64_t hash() const
   {
@@ -319,7 +319,7 @@ void BM_mesh_beautify_fill(BMesh *bm,
 #endif
 
   eheap = BLI_heap_new_ex(uint(edge_array_len));
-  eheap_table = MEM_malloc_arrayN<HeapNode *>(size_t(edge_array_len), __func__);
+  eheap_table = MEM_new_array_uninitialized<HeapNode *>(size_t(edge_array_len), __func__);
 
   /* build heap */
   for (i = 0; i < edge_array_len; i++) {
@@ -387,7 +387,7 @@ void BM_mesh_beautify_fill(BMesh *bm,
   }
 
   BLI_heap_free(eheap, nullptr);
-  MEM_freeN(eheap_table);
+  MEM_delete(eheap_table);
 
   BLI_mempool_destroy(edge_state_pool);
 

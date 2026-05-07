@@ -5,6 +5,7 @@
 #include "DNA_space_types.h"
 
 #include "BLI_listbase.h"
+#include "BLI_string_utf8.h"
 
 #include "BKE_appdir.hh"
 #include "BKE_blendfile.hh"
@@ -48,12 +49,14 @@ static void node_copybuffer_filepath_get(char filepath[FILE_MAX], size_t filepat
   BLI_path_join(filepath, filepath_maxncpy, BKE_tempdir_base(), "copybuffer_nodes.blend");
 }
 
-static bool node_copy_local(bNodeTree &from_tree,
-                            bNodeTree &to_tree,
-                            const bool allow_duplicate_names,
-                            const float2 offset,
-                            const bool snap_to_grid,
-                            ReportList *reports)
+/** Returns the number of nodes copied. */
+static int node_copy_local(bNodeTree &from_tree,
+                           bNodeTree &to_tree,
+                           const bool allow_duplicate_names,
+                           const bool do_user_count,
+                           const float2 offset,
+                           const bool snap_to_grid,
+                           ReportList *reports)
 {
   node_select_paired(from_tree);
 
@@ -65,13 +68,13 @@ static bool node_copy_local(bNodeTree &from_tree,
     if (!node->typeinfo->poll_instance ||
         node->typeinfo->poll_instance(node, &to_tree, &disabled_hint))
     {
-      bNode *new_node = bke::node_copy_with_mapping(&to_tree,
-                                                    *node,
-                                                    LIB_ID_COPY_DEFAULT,
-                                                    std::nullopt,
-                                                    std::nullopt,
-                                                    socket_map,
-                                                    allow_duplicate_names);
+      int flags = LIB_ID_COPY_DEFAULT;
+      if (!do_user_count) {
+        flags |= LIB_ID_CREATE_NO_USER_REFCOUNT;
+      }
+
+      bNode *new_node = bke::node_copy_with_mapping(
+          &to_tree, *node, flags, std::nullopt, std::nullopt, socket_map, allow_duplicate_names);
       node_map.add_new(node, new_node);
       new_node->location[0] += offset.x;
       new_node->location[1] += offset.y;
@@ -146,7 +149,7 @@ static bool node_copy_local(bNodeTree &from_tree,
     update_multi_input_indices_for_removed_links(*new_node);
   }
 
-  return true;
+  return node_map.size();
 }
 
 /** \} */
@@ -171,7 +174,7 @@ static wmOperatorStatus node_clipboard_copy_exec(bContext *C, wmOperator *op)
                             {(PartialWriteContext::IDAddOperations::SET_FAKE_USER |
                               PartialWriteContext::IDAddOperations::SET_CLIPBOARD_MARK)}));
 
-  strcpy(copy_tree->idname, node_tree->typeinfo->idname.c_str());
+  STRNCPY_UTF8(copy_tree->idname, node_tree->typeinfo->idname.c_str());
   bke::node_tree_set_type(*copy_tree);
 
   /* Copy node interface to avoid losing links to Group Input and Group Output nodes.
@@ -181,7 +184,9 @@ static wmOperatorStatus node_clipboard_copy_exec(bContext *C, wmOperator *op)
   copy_tree->tree_interface.free_data();
   copy_tree->tree_interface.copy_data(node_tree->tree_interface, LIB_ID_COPY_DEFAULT);
 
-  if (!node_copy_local(*node_tree, *copy_tree, true, float2(0), false, op->reports)) {
+  const int num_copied = node_copy_local(
+      *node_tree, *copy_tree, true, false, float2(0), false, op->reports);
+  if (num_copied == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -236,6 +241,7 @@ static wmOperatorStatus node_clipboard_copy_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   };
 
+  BKE_reportf(op->reports, RPT_INFO, "Copied %d selected node(s)", num_copied);
   return OPERATOR_FINISHED;
 }
 
@@ -349,8 +355,9 @@ static wmOperatorStatus node_clipboard_paste_exec(bContext *C, wmOperator *op)
   }
 
   const bool snap_to_grid = CTX_data_scene(C)->toolsettings->snap_flag_node & SCE_SNAP;
-  if (!node_copy_local(*from_tree, *snode->edittree, false, offset, snap_to_grid, op->reports)) {
-    BKE_id_delete(bmain_dst, &from_tree->id);
+  const int num_copied = node_copy_local(
+      *from_tree, *snode->edittree, false, true, offset, snap_to_grid, op->reports);
+  if (num_copied == 0) {
     /* Note: we don't return OPERATOR_CANCELLED here although the copy fails to avoid corrupting
      * the undo stack after merging two bmains. */
   };

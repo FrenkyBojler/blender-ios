@@ -12,11 +12,14 @@
 #include "DNA_listBase.h"
 #include "DNA_vec_types.h"
 
+class GHOST_IContext;
+
 namespace blender {
 
 namespace gpu {
 class Texture;
 }
+
 struct ExrHandle;
 struct ImBuf;
 struct Image;
@@ -195,23 +198,23 @@ void RE_FreeViewRender(struct ViewRender *view_render);
 /**
  * Only called on exit.
  */
-void RE_FreeAllRender(void);
+void RE_FreeAllRender();
 
 /**
  * On file load, free all interactive compositor renders.
  */
-void RE_FreeInteractiveCompositorRenders(void);
+void RE_FreeInteractiveCompositorRenders();
 
 /**
  * On file load, free render results.
  */
-void RE_FreeAllRenderResults(void);
+void RE_FreeAllRenderResults();
 
 /**
  * On file load or changes engines, free persistent render data.
  * Assumes no engines are currently rendering.
  */
-void RE_FreeAllPersistentData(void);
+void RE_FreeAllPersistentData();
 /**
  * Free persistent render data, optionally only for the given scene.
  */
@@ -220,13 +223,13 @@ void RE_FreePersistentData(const struct Scene *scene);
 /**
  * Free cached GPU textures to reduce memory usage.
  */
-void RE_FreeGPUTextureCaches(void);
+void RE_FreeGPUTextureCaches();
 
 /**
  * Free cached GPU textures, contexts and compositor to reduce memory usage,
  * when nothing in the UI requires them anymore.
  */
-void RE_FreeUnusedGPUResources(void);
+void RE_FreeUnusedGPUResources();
 
 /**
  * Get results and statistics.
@@ -262,10 +265,9 @@ void RE_ClearResult(struct Render *re);
 struct RenderStats *RE_GetStats(struct Render *re);
 
 /**
- * Caller is responsible for allocating `rect` in correct size!
+ * Caller is responsible for allocating `dst` in correct size!
  */
-void RE_ResultGet32(struct Render *re, unsigned int *rect);
-void RE_ResultGetFloat(struct Render *re, float *rect);
+void RE_ResultGet32(Render *re, uint8_t *dst);
 
 bool RE_ResultIsMultiView(struct RenderResult *rr);
 
@@ -433,7 +435,7 @@ void RE_current_scene_update_cb(struct Render *re,
                                 void *handle,
                                 void (*f)(void *handle, struct Scene *scene));
 
-void *RE_system_gpu_context_get(Render *re);
+GHOST_IContext *RE_system_gpu_context_get(Render *re);
 void *RE_blender_gpu_context_ensure(Render *re);
 
 bool RE_seq_render_active(struct Scene *scene, struct RenderData *rd);
@@ -479,7 +481,8 @@ void RE_GetWindowMatrixWithOverscan(bool is_ortho,
 struct Scene *RE_GetScene(struct Render *re);
 void RE_SetScene(struct Render *re, struct Scene *sce);
 
-bool RE_is_rendering_allowed(struct Scene *scene,
+bool RE_is_rendering_allowed(const Main &bmain,
+                             struct Scene *scene,
                              struct ViewLayer *single_layer,
                              struct Object *camera_override,
                              struct ReportList *reports);

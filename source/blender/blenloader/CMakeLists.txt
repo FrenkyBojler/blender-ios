@@ -35,6 +35,7 @@ set(SRC
   intern/versioning_450.cc
   intern/versioning_500.cc
   intern/versioning_510.cc
+  intern/versioning_520.cc
   intern/versioning_common.cc
   intern/versioning_defaults.cc
   intern/versioning_dna.cc
@@ -69,7 +70,6 @@ set(LIB
   PRIVATE bf::imbuf::movie
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
-  PRIVATE bf::extern::fmtlib
   PRIVATE bf::intern::memutil
   PRIVATE bf::nodes
   PRIVATE bf::render
@@ -92,10 +92,6 @@ if(WITH_ALEMBIC)
     ../io/alembic
   )
   add_definitions(-DWITH_ALEMBIC)
-endif()
-
-if(WIN32)
-  add_definitions(-DNOMINMAX)
 endif()
 
 blender_add_lib(bf_blenloader "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

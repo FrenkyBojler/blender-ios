@@ -192,7 +192,7 @@ static void do_version_glare_node_options_to_inputs(const Scene *scene,
 
     /* The RNA path was changed, free the old path. */
     if (fcurve->rna_path != old_rna_path) {
-      MEM_freeN(old_rna_path);
+      MEM_delete(old_rna_path);
     }
   });
 
@@ -497,7 +497,7 @@ void do_versions_after_linking_440(FileData *fd, Main *bmain)
             }
             const StringRef tail = rna_path.drop_prefix(old_prefix.size());
             char *new_rna_path = BLI_strdupcat(new_prefix.data(), tail.data());
-            MEM_freeN(fcurve.rna_path);
+            MEM_delete(fcurve.rna_path);
             fcurve.rna_path = new_rna_path;
           };
       if (scene.adt->action) {
@@ -531,8 +531,8 @@ static bool versioning_convert_seq_text_anchor(Strip *strip, void * /*user_data*
   }
 
   TextVars *data = static_cast<TextVars *>(strip->effectdata);
-  data->anchor_x = data->align;
-  data->anchor_y = data->align_y_legacy;
+  data->anchor_x = eEffectTextAnchorX(data->align);
+  data->anchor_y = eEffectTextAnchorY(data->align_y_legacy);
   data->align = SEQ_TEXT_ALIGN_X_LEFT;
 
   return true;
@@ -604,7 +604,7 @@ static void remove_triangulate_node_min_size_input(bNodeTree *tree)
     }
 
     bNode &greater_or_equal = version_node_add_empty(*tree, "FunctionNodeCompare");
-    auto *compare_storage = MEM_new_for_free<NodeFunctionCompare>(__func__);
+    auto *compare_storage = MEM_new<NodeFunctionCompare>(__func__);
     compare_storage->operation = NODE_COMPARE_GREATER_EQUAL;
     compare_storage->data_type = SOCK_INT;
     greater_or_equal.storage = compare_storage;
@@ -731,6 +731,8 @@ static void version_group_input_socket_data_block_reference(bNodeTree &ntree)
         case SOCK_MATERIAL:
           socket.default_value_typed<bNodeSocketValueMaterial>()->value = nullptr;
           break;
+        default:
+          break;
       }
     }
   }
@@ -738,7 +740,7 @@ static void version_group_input_socket_data_block_reference(bNodeTree &ntree)
 
 static bool versioning_clear_strip_unused_flag(Strip *strip, void * /*user_data*/)
 {
-  strip->flag &= ~(1 << 6);
+  strip->flag &= ~eStripFlag(1 << 6);
   return true;
 }
 
@@ -850,10 +852,10 @@ void blo_do_versions_440(FileData *fd, Library * /*lib*/, Main *bmain)
           continue;
         }
         NodesModifierData *nmd = reinterpret_cast<NodesModifierData *>(&modifier);
-        if (!nmd->settings.properties) {
+        if (!nmd->settings_legacy.properties) {
           continue;
         }
-        for (IDProperty &idprop : nmd->settings.properties->data.group) {
+        for (IDProperty &idprop : nmd->settings_legacy.properties->data.group) {
           if (idprop.type != IDP_STRING) {
             continue;
           }
@@ -889,7 +891,7 @@ void blo_do_versions_440(FileData *fd, Library * /*lib*/, Main *bmain)
           if (node.type_legacy == SH_NODE_MIX_SHADER) {
             for (bNodeSocket &socket : node.inputs) {
               if (STREQ(socket.identifier, "Shader.001")) {
-                STRNCPY_UTF8(socket.identifier, "Shader_001");
+                version_node_socket_identifier_set(socket, "Shader_001");
               }
             }
           }

@@ -8,6 +8,7 @@ set(INC
   importer
   intern
   ../common
+  ../../editors/include
   ../../makesrna
 )
 
@@ -54,7 +55,6 @@ set(LIB
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
   bf_io_common
-  PRIVATE bf::extern::fmtlib
   PRIVATE bf::extern::fast_float
   PRIVATE bf::windowmanager
 )

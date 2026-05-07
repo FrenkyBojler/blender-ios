@@ -89,7 +89,7 @@ void RE_engines_exit()
         type->rna_ext.free(type->rna_ext.data);
       }
 
-      MEM_freeN(type);
+      MEM_delete(type);
     }
   }
 }
@@ -125,7 +125,7 @@ bool RE_engine_is_external(const Render *re)
 
 RenderEngine *RE_engine_create(RenderEngineType *type)
 {
-  RenderEngine *engine = MEM_callocN<RenderEngine>("RenderEngine");
+  RenderEngine *engine = MEM_new_zeroed<RenderEngine>("RenderEngine");
   engine->type = type;
 
   BLI_mutex_init(&engine->update_render_passes_mutex);
@@ -178,7 +178,7 @@ void RE_engine_free(RenderEngine *engine)
   BLI_mutex_end(&engine->blender_gpu_context_mutex);
   BLI_mutex_end(&engine->update_render_passes_mutex);
 
-  MEM_freeN(engine);
+  MEM_delete(engine);
 }
 
 /* Bake Render Results */
@@ -196,7 +196,7 @@ static RenderResult *render_result_from_bake(
   }
 
   /* Create render result with specified size. */
-  RenderResult *rr = MEM_new_for_free<RenderResult>(__func__);
+  RenderResult *rr = MEM_new<RenderResult>(__func__);
 
   rr->rectx = w;
   rr->recty = h;
@@ -208,7 +208,7 @@ static RenderResult *render_result_from_bake(
   BKE_scene_ppm_get(&engine->re->r, rr->ppm);
 
   /* Add single baking render layer. */
-  RenderLayer *rl = MEM_new_for_free<RenderLayer>("bake render layer");
+  RenderLayer *rl = MEM_new<RenderLayer>("bake render layer");
   STRNCPY(rl->name, layername);
   rl->rectx = w;
   rl->recty = h;
@@ -230,9 +230,10 @@ static RenderResult *render_result_from_bake(
   /* Fill render passes from bake pixel array, to be read by the render engine. */
   for (int ty = 0; ty < h; ty++) {
     size_t offset = ty * w;
-    float *primitive = primitive_pass->ibuf->float_buffer.data + 3 * offset;
-    float *seed = (seed_pass != nullptr) ? (seed_pass->ibuf->float_buffer.data + offset) : nullptr;
-    float *differential = differential_pass->ibuf->float_buffer.data + 4 * offset;
+    float *primitive = primitive_pass->ibuf->float_data_for_write() + 3 * offset;
+    float *seed = (seed_pass != nullptr) ? (seed_pass->ibuf->float_data_for_write() + offset) :
+                                           nullptr;
+    float *differential = differential_pass->ibuf->float_data_for_write() + 4 * offset;
 
     size_t bake_offset = (y + ty) * image->width + x;
     const BakePixel *bake_pixel = pixels + bake_offset;
@@ -304,7 +305,7 @@ static void render_result_to_bake(RenderEngine *engine, RenderResult *rr)
     const size_t offset = ty * w;
     const size_t bake_offset = (y + ty) * image->width + x;
 
-    const float *pass_rect = rpass->ibuf->float_buffer.data + offset * channels_num;
+    const float *pass_rect = rpass->ibuf->float_data() + offset * channels_num;
     const BakePixel *bake_pixel = pixels + bake_offset;
     float *bake_result = result + bake_offset * channels_num;
 
@@ -553,7 +554,7 @@ void RE_engine_set_error_message(RenderEngine *engine, const char *msg)
     RenderResult *rr = RE_AcquireResultRead(re);
     if (rr) {
       if (rr->error != nullptr) {
-        MEM_freeN(rr->error);
+        MEM_delete(rr->error);
       }
       rr->error = BLI_strdup(msg);
     }

@@ -24,6 +24,8 @@
 
 #include <pthread.h>
 
+class GHOST_IWindow;
+
 namespace blender {
 
 struct GPUMatrixState;
@@ -60,7 +62,7 @@ class Context {
    * cache wherein compilation of identical source from two distinct threads can result in an
    * invalid cache collision, result in a broken shader object. Appending the unique context ID
    * onto compiled sources ensures the source hashes are different. */
-  static int context_counter;
+  static inline std::atomic<int> context_counter = 0;
   int context_id = 0;
 
   /* Used as a stack. Each render_begin/end pair will push pop from the stack. */
@@ -85,8 +87,8 @@ class Context {
   /** Thread on which this context is active. */
   pthread_t thread_;
   bool is_active_;
-  /** Avoid including GHOST headers. Can be nullptr for off-screen contexts. */
-  void *ghost_window_;
+  /** Can be nullptr for off-screen contexts. */
+  GHOST_IWindow *ghost_window_;
 
  public:
   Context();

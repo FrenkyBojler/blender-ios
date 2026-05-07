@@ -180,11 +180,11 @@ static bool multiresbake_check(bContext *C, wmOperator *op)
               ok = false;
             }
             else {
-              if (ibuf->byte_buffer.data == nullptr && ibuf->float_buffer.data == nullptr) {
+              if (ibuf->byte_data() == nullptr && ibuf->float_data() == nullptr) {
                 ok = false;
               }
 
-              if (ibuf->float_buffer.data && !ELEM(ibuf->channels, 0, 4)) {
+              if (ibuf->float_data() && !ELEM(ibuf->channels, 0, 4)) {
                 ok = false;
               }
 
@@ -446,7 +446,7 @@ static void multiresbake_freejob(void *bkv)
     data = next;
   }
 
-  MEM_freeN(bkj);
+  MEM_delete(bkj);
 }
 
 static wmOperatorStatus multiresbake_image_exec(bContext *C, wmOperator *op)
@@ -457,12 +457,12 @@ static wmOperatorStatus multiresbake_image_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  MultiresBakeJob *bkr = MEM_callocN<MultiresBakeJob>(__func__);
+  MultiresBakeJob *bkr = MEM_new_zeroed<MultiresBakeJob>(__func__);
   init_multiresbake_job(C, bkr);
 
   if (!bkr->data.first) {
     BKE_report(op->reports, RPT_ERROR, "No objects found to bake from");
-    MEM_freeN(bkr);
+    MEM_delete(bkr);
     return OPERATOR_CANCELLED;
   }
 

@@ -26,7 +26,14 @@ namespace blender {
 static int node_exec_socket_use_stack(bNodeSocket *sock)
 {
   /* NOTE: INT and BOOL supported as FLOAT. Only for EEVEE. */
-  return ELEM(sock->type, SOCK_INT, SOCK_BOOLEAN, SOCK_FLOAT, SOCK_VECTOR, SOCK_RGBA, SOCK_SHADER);
+  return ELEM(sock->type,
+              SOCK_INT,
+              SOCK_BOOLEAN,
+              SOCK_FLOAT,
+              SOCK_VECTOR,
+              SOCK_RGBA,
+              SOCK_SHADER,
+              SOCK_ROTATION);
 }
 
 bNodeStack *node_get_socket_stack(bNodeStack *stack, bNodeSocket *sock)
@@ -140,6 +147,11 @@ static bNodeStack *setup_stack(bNodeStack *stack, bNodeTree *ntree, bNode *node,
     case SOCK_RGBA:
       node_socket_get_color(ntree, node, sock, ns->vec);
       break;
+    case SOCK_ROTATION:
+      node_socket_get_rotation(ntree, node, sock, ns->vec);
+      break;
+    default:
+      break;
   }
 
   return ns;
@@ -203,7 +215,7 @@ bNodeTreeExec *ntree_exec_begin(bNodeExecContext *context,
   Vector<bNode *> nodelist = get_node_code_gen_order(*ntree);
 
   /* XXX could let callbacks do this for specialized data */
-  exec = MEM_callocN<bNodeTreeExec>("node tree execution data");
+  exec = MEM_new_zeroed<bNodeTreeExec>("node tree execution data");
   /* Back-pointer to node tree. */
   exec->nodetree = ntree;
 
@@ -231,10 +243,10 @@ bNodeTreeExec *ntree_exec_begin(bNodeExecContext *context,
 
   /* allocated exec data pointers for nodes */
   exec->totnodes = nodelist.size();
-  exec->nodeexec = MEM_calloc_arrayN<bNodeExec>(exec->totnodes, "node execution data");
+  exec->nodeexec = MEM_new_array_zeroed<bNodeExec>(exec->totnodes, "node execution data");
   /* allocate data pointer for node stack */
   exec->stacksize = index;
-  exec->stack = MEM_new_array_for_free<bNodeStack>(exec->stacksize, "bNodeStack");
+  exec->stack = MEM_new_array<bNodeStack>(exec->stacksize, "bNodeStack");
 
   /* all non-const results are considered inputs */
   int n;
@@ -280,7 +292,7 @@ void ntree_exec_end(bNodeTreeExec *exec)
   int n;
 
   if (exec->stack) {
-    MEM_freeN(exec->stack);
+    MEM_delete(exec->stack);
   }
 
   for (n = 0, nodeexec = exec->nodeexec; n < exec->totnodes; n++, nodeexec++) {
@@ -290,10 +302,10 @@ void ntree_exec_end(bNodeTreeExec *exec)
   }
 
   if (exec->nodeexec) {
-    MEM_freeN(exec->nodeexec);
+    MEM_delete(exec->nodeexec);
   }
 
-  MEM_freeN(exec);
+  MEM_delete(exec);
 }
 
 }  // namespace blender

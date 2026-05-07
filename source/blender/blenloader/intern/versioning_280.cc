@@ -98,6 +98,8 @@
 
 #include "NOD_shader.h"
 
+#include "ANIM_versioning.hh"
+
 #include "IMB_colormanagement.hh"
 #include "IMB_imbuf.hh"
 
@@ -299,10 +301,10 @@ static void do_version_layers_to_collections(Main *bmain, Scene *scene)
       }
 
       if (base.flag & SELECT) {
-        base.object->flag |= SELECT;
+        base.object->flag |= OB_SELECT;
       }
       else {
-        base.object->flag &= ~SELECT;
+        base.object->flag &= ~OB_SELECT;
       }
     }
   }
@@ -312,7 +314,7 @@ static void do_version_layers_to_collections(Main *bmain, Scene *scene)
   const bool need_default_renderlayer = scene->r.layers.first == nullptr;
 
   for (SceneRenderLayer &srl : scene->r.layers) {
-    ViewLayer *view_layer = BKE_view_layer_add(scene, srl.name, nullptr, VIEWLAYER_ADD_NEW);
+    ViewLayer *view_layer = BKE_view_layer_add(bmain, scene, srl.name, nullptr, VIEWLAYER_ADD_NEW);
 
     if (srl.layflag & SCE_LAY_DISABLE) {
       view_layer->flag &= ~VIEW_LAYER_RENDER;
@@ -362,7 +364,7 @@ static void do_version_layers_to_collections(Main *bmain, Scene *scene)
       }
     }
 
-    BKE_view_layer_synced_ensure(scene, view_layer);
+    BKE_view_layer_synced_ensure(*bmain, scene, view_layer);
     /* for convenience set the same active object in all the layers */
     if (scene->basact) {
       view_layer->basact = BKE_view_layer_base_find(view_layer, scene->basact->object);
@@ -380,7 +382,8 @@ static void do_version_layers_to_collections(Main *bmain, Scene *scene)
   /* If render layers included overrides, or there are no render layers,
    * we also create a vanilla viewport layer. */
   if (have_override || need_default_renderlayer) {
-    ViewLayer *view_layer = BKE_view_layer_add(scene, "Viewport", nullptr, VIEWLAYER_ADD_NEW);
+    ViewLayer *view_layer = BKE_view_layer_add(
+        bmain, scene, "Viewport", nullptr, VIEWLAYER_ADD_NEW);
 
     /* If we ported all the original render layers,
      * we don't need to make the viewport layer renderable. */
@@ -388,7 +391,7 @@ static void do_version_layers_to_collections(Main *bmain, Scene *scene)
       view_layer->flag &= ~VIEW_LAYER_RENDER;
     }
 
-    BKE_view_layer_synced_ensure(scene, view_layer);
+    BKE_view_layer_synced_ensure(*bmain, scene, view_layer);
     /* convert active base */
     if (scene->basact) {
       view_layer->basact = BKE_view_layer_base_find(view_layer, scene->basact->object);
@@ -506,7 +509,7 @@ static void do_versions_area_ensure_tool_region(Main *bmain,
             region = do_versions_add_region(RGN_TYPE_TOOLS, "tools region");
             BLI_insertlinkafter(regionbase, header, region);
             region->alignment = RGN_ALIGN_LEFT;
-            region->flag = region_flag;
+            region->flag = eRegion_Flag(region_flag);
           }
         }
       }
@@ -548,7 +551,7 @@ static bool replace_bbone_scale_rnapath(char **p_old_path)
   {
     *p_old_path = BLI_strdupcat(old_path, "x");
 
-    MEM_freeN(old_path);
+    MEM_delete(old_path);
     return true;
   }
 
@@ -621,11 +624,11 @@ static void do_versions_seq_alloc_transform_and_crop(ListBaseT<Strip> *seqbase)
   for (Strip &strip : *seqbase) {
     if (ELEM(strip.type, STRIP_TYPE_SOUND, STRIP_TYPE_SOUND_HD) == 0) {
       if (strip.data->transform == nullptr) {
-        strip.data->transform = MEM_new_for_free<StripTransform>("StripTransform");
+        strip.data->transform = MEM_new<StripTransform>("StripTransform");
       }
 
       if (strip.data->crop == nullptr) {
-        strip.data->crop = MEM_new_for_free<StripCrop>("StripCrop");
+        strip.data->crop = MEM_new<StripCrop>("StripCrop");
       }
 
       if (strip.seqbase.first != nullptr) {
@@ -823,7 +826,9 @@ static void do_version_curvemapping_walker(Main *bmain, void (*callback)(CurveMa
                TEX_NODE_CURVE_RGB,
                TEX_NODE_CURVE_TIME))
       {
-        callback(static_cast<CurveMapping *>(node.storage));
+        if (version_node_ensure_storage_or_invalidate(node)) {
+          callback(static_cast<CurveMapping *>(node.storage));
+        }
       }
     }
   }
@@ -888,49 +893,49 @@ static void do_version_curvemapping_walker(Main *bmain, void (*callback)(CurveMa
     for (ModifierData *md = static_cast<ModifierData *>(ob.greasepencil_modifiers.first); md;
          md = md->next)
     {
-      if (md->type == eGpencilModifierType_Thick) {
+      if (GpencilModifierType(md->type) == eGpencilModifierType_Thick) {
         ThickGpencilModifierData *gpmd = reinterpret_cast<ThickGpencilModifierData *>(md);
 
         if (gpmd->curve_thickness) {
           callback(gpmd->curve_thickness);
         }
       }
-      else if (md->type == eGpencilModifierType_Hook) {
+      else if (GpencilModifierType(md->type) == eGpencilModifierType_Hook) {
         HookGpencilModifierData *gpmd = reinterpret_cast<HookGpencilModifierData *>(md);
 
         if (gpmd->curfalloff) {
           callback(gpmd->curfalloff);
         }
       }
-      else if (md->type == eGpencilModifierType_Noise) {
+      else if (GpencilModifierType(md->type) == eGpencilModifierType_Noise) {
         NoiseGpencilModifierData *gpmd = reinterpret_cast<NoiseGpencilModifierData *>(md);
 
         if (gpmd->curve_intensity) {
           callback(gpmd->curve_intensity);
         }
       }
-      else if (md->type == eGpencilModifierType_Tint) {
+      else if (GpencilModifierType(md->type) == eGpencilModifierType_Tint) {
         TintGpencilModifierData *gpmd = reinterpret_cast<TintGpencilModifierData *>(md);
 
         if (gpmd->curve_intensity) {
           callback(gpmd->curve_intensity);
         }
       }
-      else if (md->type == eGpencilModifierType_Smooth) {
+      else if (GpencilModifierType(md->type) == eGpencilModifierType_Smooth) {
         SmoothGpencilModifierData *gpmd = reinterpret_cast<SmoothGpencilModifierData *>(md);
 
         if (gpmd->curve_intensity) {
           callback(gpmd->curve_intensity);
         }
       }
-      else if (md->type == eGpencilModifierType_Color) {
+      else if (GpencilModifierType(md->type) == eGpencilModifierType_Color) {
         ColorGpencilModifierData *gpmd = reinterpret_cast<ColorGpencilModifierData *>(md);
 
         if (gpmd->curve_intensity) {
           callback(gpmd->curve_intensity);
         }
       }
-      else if (md->type == eGpencilModifierType_Opacity) {
+      else if (GpencilModifierType(md->type) == eGpencilModifierType_Opacity) {
         OpacityGpencilModifierData *gpmd = reinterpret_cast<OpacityGpencilModifierData *>(md);
 
         if (gpmd->curve_intensity) {
@@ -968,6 +973,8 @@ static void do_version_curvemapping_walker(Main *bmain, void (*callback)(CurveMa
         case LS_MODIFIER_CURVATURE_3D:
           callback((reinterpret_cast<LineStyleAlphaModifier_Curvature_3D *>(&m))->curve);
           break;
+        default:
+          break;
       }
     }
 
@@ -993,6 +1000,8 @@ static void do_version_curvemapping_walker(Main *bmain, void (*callback)(CurveMa
           break;
         case LS_MODIFIER_CURVATURE_3D:
           callback((reinterpret_cast<LineStyleThicknessModifier_Curvature_3D *>(&m))->curve);
+          break;
+        default:
           break;
       }
     }
@@ -1405,6 +1414,8 @@ static void update_vector_math_node_dot_product_operator(bNodeTree *ntree)
               case SOCK_RGBA:
                 copy_v4_fl(version_cycles_node_socket_rgba_value(link.tosock), 0.0f);
                 break;
+              default:
+                break;
             }
             bke::node_remove_link(ntree, link);
           }
@@ -1709,7 +1720,7 @@ static void update_mapping_node_fcurve_rna_path_callback(FCurve *fcurve,
   }
 
   if (fcurve->rna_path != old_fcurve_rna_path) {
-    MEM_freeN(old_fcurve_rna_path);
+    MEM_delete(old_fcurve_rna_path);
   }
 }
 
@@ -1820,17 +1831,17 @@ static void update_mapping_node_inputs_and_properties(bNodeTree *ntree)
         need_update = true;
       }
 
-      MEM_freeN(node.storage);
+      MEM_delete(mapping);
       node.storage = nullptr;
 
       char node_name_esc[sizeof(node.name) * 2];
       BLI_str_escape(node_name_esc, node.name, sizeof(node_name_esc));
 
       char *nodePath = BLI_sprintfN("nodes[\"%s\"]", node_name_esc);
-      BKE_fcurves_id_cb(&ntree->id, [&](ID * /*id*/, FCurve *fcu) {
+      animrig::versioning::fcurves_id_cb(&ntree->id, [&](ID * /*id*/, FCurve *fcu) {
         update_mapping_node_fcurve_rna_path_callback(fcu, nodePath, minimumNode, maximumNode);
       });
-      MEM_freeN(nodePath);
+      MEM_delete(nodePath);
     }
   }
 
@@ -1908,7 +1919,7 @@ static void update_voronoi_node_fac_output(bNodeTree *ntree)
   for (bNode &node : ntree->nodes) {
     if (node.type_legacy == SH_NODE_TEX_VORONOI) {
       bNodeSocket *facOutput = static_cast<bNodeSocket *>(BLI_findlink(&node.outputs, 1));
-      STRNCPY_UTF8(facOutput->identifier, "Distance");
+      version_node_socket_identifier_set(*facOutput, "Distance");
       STRNCPY_UTF8(facOutput->name, "Distance");
     }
   }
@@ -2170,13 +2181,15 @@ static void update_wave_node_directions_and_offset(bNodeTree *ntree)
 {
   for (bNode &node : ntree->nodes) {
     if (node.type_legacy == SH_NODE_TEX_WAVE) {
-      NodeTexWave *tex = static_cast<NodeTexWave *>(node.storage);
-      tex->bands_direction = SHD_WAVE_BANDS_DIRECTION_DIAGONAL;
-      tex->rings_direction = SHD_WAVE_RINGS_DIRECTION_SPHERICAL;
+      if (version_node_ensure_storage_or_invalidate(node)) {
+        NodeTexWave *tex = static_cast<NodeTexWave *>(node.storage);
+        tex->bands_direction = SHD_WAVE_BANDS_DIRECTION_DIAGONAL;
+        tex->rings_direction = SHD_WAVE_RINGS_DIRECTION_SPHERICAL;
 
-      if (tex->wave_profile == SHD_WAVE_PROFILE_SIN) {
-        bNodeSocket *sockPhaseOffset = bke::node_find_socket(node, SOCK_IN, "Phase Offset");
-        *version_cycles_node_socket_float_value(sockPhaseOffset) = M_PI_2;
+        if (tex->wave_profile == SHD_WAVE_PROFILE_SIN) {
+          bNodeSocket *sockPhaseOffset = bke::node_find_socket(node, SOCK_IN, "Phase Offset");
+          *version_cycles_node_socket_float_value(sockPhaseOffset) = M_PI_2;
+        }
       }
     }
   }
@@ -2454,7 +2467,7 @@ void do_versions_after_linking_280(FileData *fd, Main *bmain)
         }
 
         block.totelem = new_count;
-        block.data = MEM_calloc_arrayN<float[3]>(new_count, __func__);
+        block.data = MEM_new_array_zeroed<float[3]>(new_count, __func__);
 
         float *oldptr = static_cast<float *>(old_data);
         float (*newptr)[3] = static_cast<float (*)[3]>(block.data);
@@ -2498,7 +2511,7 @@ void do_versions_after_linking_280(FileData *fd, Main *bmain)
           }
         }
 
-        MEM_freeN(old_data);
+        MEM_delete_void(old_data);
       }
     }
   }
@@ -2513,24 +2526,25 @@ void do_versions_after_linking_280(FileData *fd, Main *bmain)
 
         for (bPoseChannel &pchan : ob.pose->chanbase) {
           /* If the 2.7 flag is enabled, processing is needed. */
-          if (pchan.bone && (pchan.bboneflag & PCHAN_BBONE_CUSTOM_HANDLES)) {
+          Bone *pchan_bone = pchan.bone_get(ob);
+          if (pchan_bone && (pchan.bboneflag & PCHAN_BBONE_CUSTOM_HANDLES)) {
             /* If the settings in the Bone are not set, copy. */
-            if (pchan.bone->bbone_prev_type == BBONE_HANDLE_AUTO &&
-                pchan.bone->bbone_next_type == BBONE_HANDLE_AUTO &&
-                pchan.bone->bbone_prev == nullptr && pchan.bone->bbone_next == nullptr)
+            if (pchan_bone->bbone_prev_type == BBONE_HANDLE_AUTO &&
+                pchan_bone->bbone_next_type == BBONE_HANDLE_AUTO &&
+                pchan_bone->bbone_prev == nullptr && pchan_bone->bbone_next == nullptr)
             {
-              pchan.bone->bbone_prev_type = (pchan.bboneflag & PCHAN_BBONE_CUSTOM_START_REL) ?
+              pchan_bone->bbone_prev_type = (pchan.bboneflag & PCHAN_BBONE_CUSTOM_START_REL) ?
                                                 BBONE_HANDLE_RELATIVE :
                                                 BBONE_HANDLE_ABSOLUTE;
-              pchan.bone->bbone_next_type = (pchan.bboneflag & PCHAN_BBONE_CUSTOM_END_REL) ?
+              pchan_bone->bbone_next_type = (pchan.bboneflag & PCHAN_BBONE_CUSTOM_END_REL) ?
                                                 BBONE_HANDLE_RELATIVE :
                                                 BBONE_HANDLE_ABSOLUTE;
 
               if (pchan.bbone_prev) {
-                pchan.bone->bbone_prev = pchan.bbone_prev->bone;
+                pchan_bone->bbone_prev = pchan.bbone_prev->bone_get(ob);
               }
               if (pchan.bbone_next) {
-                pchan.bone->bbone_next = pchan.bbone_next->bone;
+                pchan_bone->bbone_next = pchan.bbone_next->bone_get(ob);
               }
             }
 
@@ -2554,7 +2568,7 @@ void do_versions_after_linking_280(FileData *fd, Main *bmain)
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 280, 30)) {
     for (Brush &brush : bmain->brushes) {
       if (brush.gpencil_settings != nullptr) {
-        brush.gpencil_brush_type = brush.gpencil_settings->brush_type;
+        brush.gpencil_brush_type = eBrushGPaintType(brush.gpencil_settings->brush_type);
       }
     }
   }
@@ -2576,10 +2590,10 @@ void do_versions_after_linking_280(FileData *fd, Main *bmain)
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 280, 69)) {
     /* Unify DOF settings (EEVEE part only) */
-    enum { SCE_EEVEE_DOF_ENABLED = (1 << 7) };
+    constexpr eSceneEEVEE_Flag SCE_EEVEE_DOF_ENABLED_V = eSceneEEVEE_Flag(1 << 7);
     for (Scene &scene : bmain->scenes) {
       if (STREQ(scene.r.engine, RE_engine_id_BLENDER_EEVEE)) {
-        if (scene.eevee.flag & SCE_EEVEE_DOF_ENABLED) {
+        if (scene.eevee.flag & SCE_EEVEE_DOF_ENABLED_V) {
           Object *cam_ob = scene.camera;
           if (cam_ob && cam_ob->type == OB_CAMERA) {
             Camera *cam = id_cast<Camera *>(cam_ob->data);
@@ -2716,10 +2730,8 @@ void do_versions_after_linking_280(FileData *fd, Main *bmain)
      * now that we use dual-source blending. */
     /* We take care of doing only node-trees that are always part of materials
      * with old blending modes. */
-    enum {
-      MA_BM_ADD = 1,
-      MA_BM_MULTIPLY = 2,
-    };
+    constexpr eMaterial_BlendMethod MA_BM_ADD = eMaterial_BlendMethod(1);
+    constexpr eMaterial_BlendMethod MA_BM_MULTIPLY = eMaterial_BlendMethod(2);
     for (Material &ma : bmain->materials) {
       bNodeTree *ntree = ma.nodetree;
       if (ma.blend_method == MA_BM_ADD) {
@@ -2903,12 +2915,12 @@ void do_versions_after_linking_280(FileData *fd, Main *bmain)
     /* During development of Blender 2.80 the "Object.hide" property was
      * removed, and reintroduced in 5e968a996a53 as "Object.hide_viewport". */
     for (Object &ob : bmain->objects) {
-      BKE_fcurves_id_cb(&ob.id, [&](ID * /*id*/, FCurve *fcu) {
+      animrig::versioning::fcurves_id_cb(&ob.id, [&](ID * /*id*/, FCurve *fcu) {
         if (fcu->rna_path == nullptr || !STREQ(fcu->rna_path, "hide")) {
           return;
         }
 
-        MEM_freeN(fcu->rna_path);
+        MEM_delete(fcu->rna_path);
         fcu->rna_path = BLI_strdupn("hide_viewport", 13);
       });
     }
@@ -2991,7 +3003,7 @@ static void do_versions_seq_set_cache_defaults(Editing *ed)
 
 static bool strip_update_flags_cb(Strip *strip, void * /*user_data*/)
 {
-  strip->flag &= ~((1 << 6) | (1 << 18) | (1 << 19) | (1 << 21));
+  strip->flag &= ~eStripFlag((1 << 6) | (1 << 18) | (1 << 19) | (1 << 21));
   if (strip->type == STRIP_TYPE_SPEED) {
     SpeedControlVars *s = static_cast<SpeedControlVars *>(strip->effectdata);
     s->flags &= ~SEQ_SPEED_UNUSED_1;
@@ -3261,7 +3273,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
     for (Tex &tex : bmain->textures) {
       /* Removed environment map, point-density, voxel-data, ocean textures. */
       if (ELEM(tex.type, 10, 14, 15, 16)) {
-        tex.type = 0;
+        tex.type = {};
       }
     }
   }
@@ -3294,7 +3306,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
             BKE_screen_remove_unused_scredges(&screen);
             BKE_screen_remove_unused_scrverts(&screen);
 
-            MEM_freeN(area);
+            MEM_delete(area);
           }
         }
         /* AREA_TEMP_INFO is deprecated from now on, it should only be set for info areas
@@ -3307,7 +3319,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
     for (Light &la : bmain->lights) {
       if (la.mode & (1 << 13)) { /* LA_SHAD_RAY */
         la.mode |= LA_SHADOW;
-        la.mode &= ~(1 << 13);
+        la.mode &= ~eLight_Mode(1 << 13);
       }
     }
   }
@@ -3357,7 +3369,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
             v3d->shading.shadow_intensity = 0.5;
 
             v3d->overlay.normals_length = 0.1f;
-            v3d->overlay.flag = 0;
+            v3d->overlay.flag = eView3DOverlay_Flag{};
           }
         }
       }
@@ -3466,7 +3478,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
     } \
   } \
   ((void)0)
-        enum { SCE_EEVEE_DOF_ENABLED = (1 << 7) };
+        constexpr eSceneEEVEE_Flag SCE_EEVEE_DOF_ENABLED = eSceneEEVEE_Flag(1 << 7);
         IDProperty *props = IDP_GetPropertyFromGroup(scene.layer_properties,
                                                      RE_engine_id_BLENDER_EEVEE);
         // EEVEE_GET_BOOL(props, volumetric_enable, SCE_EEVEE_VOLUMETRIC_ENABLED);
@@ -3563,21 +3575,21 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
       }
 
       for (Scene &scene : bmain->scenes) {
-        switch (scene.toolsettings->snap_mode) {
+        switch (int(scene.toolsettings->snap_mode)) {
           case 0:
-            scene.toolsettings->snap_mode = (1 << 4); /* SCE_SNAP_TO_INCREMENT */
+            scene.toolsettings->snap_mode = eSnapMode(1 << 4); /* SCE_SNAP_TO_INCREMENT */
             break;
           case 1:
-            scene.toolsettings->snap_mode = (1 << 0); /* SCE_SNAP_TO_VERTEX */
+            scene.toolsettings->snap_mode = eSnapMode(1 << 0); /* SCE_SNAP_TO_VERTEX */
             break;
           case 2:
-            scene.toolsettings->snap_mode = (1 << 1); /* SCE_SNAP_TO_EDGE */
+            scene.toolsettings->snap_mode = eSnapMode(1 << 1); /* SCE_SNAP_TO_EDGE */
             break;
           case 3:
-            scene.toolsettings->snap_mode = (1 << 2); /* SCE_SNAP_INDIVIDUAL_PROJECT */
+            scene.toolsettings->snap_mode = eSnapMode(1 << 2); /* SCE_SNAP_INDIVIDUAL_PROJECT */
             break;
           case 4:
-            scene.toolsettings->snap_mode = (1 << 3); /* SCE_SNAP_TO_VOLUME */
+            scene.toolsettings->snap_mode = eSnapMode(1 << 3); /* SCE_SNAP_TO_VOLUME */
             break;
         }
         switch (scene.toolsettings->snap_node_mode) {
@@ -3595,12 +3607,12 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
             scene.toolsettings->snap_node_mode = (1 << 7); /* SCE_SNAP_TO_GRID */
             break;
         }
-        switch (scene.toolsettings->snap_uv_mode) {
+        switch (int(scene.toolsettings->snap_uv_mode)) {
           case 0:
-            scene.toolsettings->snap_uv_mode = (1 << 4); /* SCE_SNAP_TO_INCREMENT */
+            scene.toolsettings->snap_uv_mode = eSnapMode(1 << 4); /* SCE_SNAP_TO_INCREMENT */
             break;
           case 1:
-            scene.toolsettings->snap_uv_mode = (1 << 0); /* SCE_SNAP_TO_VERTEX */
+            scene.toolsettings->snap_uv_mode = eSnapMode(1 << 0); /* SCE_SNAP_TO_VERTEX */
             break;
         }
       }
@@ -3734,7 +3746,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
       for (Image &ima : bmain->images) {
         if (ima.type == IMA_TYPE_R_RESULT) {
           for (int i = 0; i < 8; i++) {
-            RenderSlot *slot = MEM_new_for_free<RenderSlot>("Image Render Slot Init");
+            RenderSlot *slot = MEM_new<RenderSlot>("Image Render Slot Init");
             SNPRINTF_UTF8(slot->name, "Slot %d", i + 1);
             BLI_addtail(&ima.renderslots, slot);
           }
@@ -3788,9 +3800,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
         for (ScrArea &area : screen.areabase) {
           for (SpaceLink &sl : area.spacedata) {
             if (sl.spacetype == SPACE_VIEW3D) {
-              enum {
-                V3D_SHOW_MODE_SHADE_OVERRIDE = (1 << 15),
-              };
+              constexpr eView3D_Flag2 V3D_SHOW_MODE_SHADE_OVERRIDE = eView3D_Flag2(1 << 15);
               View3D *v3d = reinterpret_cast<View3D *>(&sl);
               float alpha = (v3d->flag2 & V3D_SHOW_MODE_SHADE_OVERRIDE) ? 0.0f : 1.0f;
               v3d->overlay.texture_paint_mode_opacity = alpha;
@@ -3826,7 +3836,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
         }
 
         if (rbw->shared == nullptr) {
-          rbw->shared = MEM_new_for_free<RigidBodyWorld_Shared>("RigidBodyWorld_Shared");
+          rbw->shared = MEM_new<RigidBodyWorld_Shared>("RigidBodyWorld_Shared");
           BKE_rigidbody_world_init_runtime(rbw);
         }
 
@@ -3850,7 +3860,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
           continue;
         }
         if (sb->shared == nullptr) {
-          sb->shared = MEM_new_for_free<SoftBody_Shared>("SoftBody_Shared");
+          sb->shared = MEM_new<SoftBody_Shared>("SoftBody_Shared");
         }
 
         /* Move shared pointers from deprecated location to current location */
@@ -3871,7 +3881,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
               if (v3d->drawtype == OB_RENDER) {
                 v3d->drawtype = OB_SOLID;
               }
-              v3d->shading.type = v3d->drawtype;
+              v3d->shading.type = eDrawType(v3d->drawtype);
               v3d->shading.prev_type = OB_SOLID;
             }
           }
@@ -4150,7 +4160,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
       for (ScrArea &area : screen.areabase) {
         for (SpaceLink &sl : area.spacedata) {
           if (sl.spacetype == SPACE_VIEW3D) {
-            enum { V3D_OCCLUDE_WIRE = (1 << 14) };
+            constexpr eView3D_Flag2 V3D_OCCLUDE_WIRE = eView3D_Flag2(1 << 14);
             View3D *v3d = reinterpret_cast<View3D *>(&sl);
             if (v3d->flag2 & V3D_OCCLUDE_WIRE) {
               v3d->overlay.edit_flag |= V3D_OVERLAY_EDIT_RETOPOLOGY;
@@ -4323,7 +4333,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
                 is_blend = true;
                 break;
             }
-            brush.vertex_brush_type = tool;
+            brush.vertex_brush_type = eBrushVertexPaintType(tool);
           }
 
           if (is_blend == false) {
@@ -4388,7 +4398,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
           }
         }
         /* For now these match, in the future new items may not. */
-        brush.weight_brush_type = brush.vertex_brush_type;
+        brush.weight_brush_type = eBrushWeightPaintType(int(brush.vertex_brush_type));
       }
 
 #undef PAINT_BLEND_MIX
@@ -4551,7 +4561,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
               View3D *v3d = reinterpret_cast<View3D *>(&sl);
               v3d->flag &= ~(V3D_LOCAL_COLLECTIONS | V3D_FLAG_UNUSED_1 | V3D_FLAG_UNUSED_10 |
                              V3D_FLAG_UNUSED_12);
-              v3d->flag2 &= ~((1 << 3) | V3D_FLAG2_UNUSED_6 | V3D_FLAG2_UNUSED_12 |
+              v3d->flag2 &= ~(eView3D_Flag2(1 << 3) | V3D_FLAG2_UNUSED_6 | V3D_FLAG2_UNUSED_12 |
                               V3D_FLAG2_UNUSED_13 | V3D_FLAG2_UNUSED_14 | V3D_FLAG2_UNUSED_15);
               break;
             }
@@ -4611,8 +4621,8 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
     }
 
     for (World &world : bmain->worlds) {
-      world.flag &= ~(WO_MODE_UNUSED_1 | WO_MODE_UNUSED_2 | WO_MODE_UNUSED_3 | WO_MODE_UNUSED_4 |
-                      WO_MODE_UNUSED_5 | WO_MODE_UNUSED_7);
+      world.flag &= ~eWorld_Flag(WO_MODE_UNUSED_1 | WO_MODE_UNUSED_2 | WO_MODE_UNUSED_3 |
+                                 WO_MODE_UNUSED_4 | WO_MODE_UNUSED_5 | WO_MODE_UNUSED_7);
     }
 
     for (Image &image : bmain->images) {
@@ -4634,7 +4644,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
     }
 
     for (Material &mat : bmain->materials) {
-      mat.blend_flag &= ~(1 << 2); /* UNUSED */
+      mat.blend_flag &= ~eMaterial_BlendFlag(1 << 2); /* UNUSED */
     }
   }
 
@@ -4652,7 +4662,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
         for (SpaceLink &sl : area.spacedata) {
           switch (sl.spacetype) {
             case SPACE_VIEW3D: {
-              enum { V3D_BACKFACE_CULLING = (1 << 10) };
+              constexpr eView3D_Flag2 V3D_BACKFACE_CULLING = eView3D_Flag2(1 << 10);
               View3D *v3d = reinterpret_cast<View3D *>(&sl);
               if (v3d->flag2 & V3D_BACKFACE_CULLING) {
                 v3d->flag2 &= ~V3D_BACKFACE_CULLING;
@@ -4780,15 +4790,17 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
 
     for (Object &ob : bmain->objects) {
       {
-        enum { PARCURVE = 1, PARKEY = 2, PAR_DEPRECATED = 16 };
-        if (ELEM(ob.partype, PARCURVE, PARKEY, PAR_DEPRECATED)) {
+        constexpr eObject_Partype PARCURVE_V = eObject_Partype(1);
+        constexpr eObject_Partype PARKEY_V = eObject_Partype(2);
+        constexpr eObject_Partype PAR_DEPRECATED_V = eObject_Partype(16);
+        if (ELEM(ob.partype, PARCURVE_V, PARKEY_V, PAR_DEPRECATED_V)) {
           ob.partype = PAROBJECT;
         }
       }
 
       {
         enum { OB_WAVE = 21, OB_LIFE = 23, OB_SECTOR = 24 };
-        if (ELEM(ob.type, OB_WAVE, OB_LIFE, OB_SECTOR)) {
+        if (ELEM(int(ob.type), OB_WAVE, OB_LIFE, OB_SECTOR)) {
           ob.type = OB_EMPTY;
         }
       }
@@ -5172,7 +5184,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
             continue;
           }
           SpaceOutliner *space_outliner = reinterpret_cast<SpaceOutliner *>(&sl);
-          space_outliner->filter &= ~SO_FLAG_UNUSED_1;
+          space_outliner->filter &= ~eSpaceOutliner_Filter(SO_FLAG_UNUSED_1);
           space_outliner->show_restrict_flags = SO_RESTRICT_ENABLE | SO_RESTRICT_HIDE;
         }
       }
@@ -5210,9 +5222,9 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
     /* New image alpha modes. */
     for (Image &image : bmain->images) {
       enum { IMA_IGNORE_ALPHA = (1 << 12) };
-      if (image.flag & IMA_IGNORE_ALPHA) {
+      if (int(image.flag) & IMA_IGNORE_ALPHA) {
         image.alpha_mode = IMA_ALPHA_IGNORE;
-        image.flag &= ~IMA_IGNORE_ALPHA;
+        image.flag &= ~eImage_Flag(IMA_IGNORE_ALPHA);
       }
     }
   }
@@ -5279,6 +5291,9 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
         case FFM_PRESET_SLOWER:
         case FFM_PRESET_VERYSLOW:
           render_data->ffcodecdata.ffmpeg_preset = FFM_PRESET_BEST;
+          break;
+        default:
+          break;
       }
     }
 
@@ -5719,7 +5734,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
     /* Add primary tile to images. */
     if (!DNA_struct_member_exists(fd->filesdna, "Image", "ListBase", "tiles")) {
       for (Image &ima : bmain->images) {
-        ImageTile *tile = MEM_new_for_free<ImageTile>("Image Tile");
+        ImageTile *tile = MEM_new<ImageTile>("Image Tile");
         tile->tile_number = 1001;
         BLI_addtail(&ima.tiles, tile);
       }
@@ -5831,9 +5846,12 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
       {
         for (Brush &brush : bmain->brushes) {
           if (brush.gpencil_settings != nullptr) {
-            brush.gpencil_vertex_brush_type = brush.gpencil_settings->brush_type;
-            brush.gpencil_sculpt_brush_type = brush.gpencil_settings->brush_type;
-            brush.gpencil_weight_brush_type = brush.gpencil_settings->brush_type;
+            brush.gpencil_vertex_brush_type = eBrushGPVertexType(
+                brush.gpencil_settings->brush_type);
+            brush.gpencil_sculpt_brush_type = eBrushGPSculptType(
+                brush.gpencil_settings->brush_type);
+            brush.gpencil_weight_brush_type = eBrushGPWeightType(
+                brush.gpencil_settings->brush_type);
           }
         }
       }
@@ -6017,7 +6035,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
               const short simple = (1 << 0);
               SubdivGpencilModifierData *mmd = reinterpret_cast<SubdivGpencilModifierData *>(&md);
               if (mmd->flag & simple) {
-                mmd->flag &= ~simple;
+                mmd->flag &= ~eSubdivGpencil_Flag(simple);
                 mmd->type = GP_SUBDIV_SIMPLE;
               }
               break;
@@ -6173,7 +6191,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
         for (SpaceLink &sl : area.spacedata) {
           if (sl.spacetype == SPACE_SEQ) {
             SpaceSeq *sseq = reinterpret_cast<SpaceSeq *>(&sl);
-            sseq->flag |= SEQ_TIMELINE_SHOW_FCURVES;
+            sseq->flag |= eSpaceSeq_Flag(SEQ_TIMELINE_SHOW_FCURVES);
           }
         }
       }
@@ -6219,7 +6237,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
           INVALID_RBC_TYPE_6DOF_SPRING = 4,
           INVALID_RBC_TYPE_MOTOR = 7,
         };
-        switch (rbc->type) {
+        switch (int(rbc->type)) {
           case INVALID_RBC_TYPE_SLIDER:
             rbc->type = RBC_TYPE_SLIDER;
             break;

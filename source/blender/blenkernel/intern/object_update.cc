@@ -181,6 +181,8 @@ void BKE_object_handle_data_update(Depsgraph *depsgraph, Scene *scene, Object *o
     case OB_GREASE_PENCIL:
       BKE_object_eval_grease_pencil(depsgraph, scene, ob);
       break;
+    default:
+      break;
   }
 
   /* particles */
@@ -265,7 +267,7 @@ void BKE_object_sync_to_original(Depsgraph *depsgraph, Object *object)
        md = md->next, md_orig = md_orig->next)
   {
     BLI_assert(md->type == md_orig->type && STREQ(md->name, md_orig->name));
-    MEM_SAFE_FREE(md_orig->error);
+    MEM_SAFE_DELETE(md_orig->error);
     if (md->error != nullptr) {
       md_orig->error = BLI_strdup(md->error);
     }

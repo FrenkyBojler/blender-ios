@@ -56,7 +56,7 @@ static FT_Fixed to_16dot16(const double val)
 /**
  * from: http://www.freetype.org/freetype2/docs/glyphs/glyphs-6.html#section-1
  *
- * Vectorial representation of Freetype glyphs
+ * Vectorial representation of FreeType glyphs
  *
  * The source format of outlines is a collection of closed paths called "contours". Each contour is
  * made of a series of line segments and bezier arcs. Depending on the file format, these can be
@@ -149,7 +149,7 @@ static void blf_glyph_to_curves(const FT_Outline &ftoutline,
   int contour_prev;
 
   /* Start converting the FT data */
-  int *onpoints = MEM_calloc_arrayN<int>(size_t(ftoutline.n_contours), "onpoints");
+  int *onpoints = MEM_new_array_zeroed<int>(size_t(ftoutline.n_contours), "onpoints");
 
   /* Get number of on-curve points for bezier-triples (including conic virtual on-points). */
   for (j = 0, contour_prev = -1; j < ftoutline.n_contours; j++) {
@@ -183,8 +183,8 @@ static void blf_glyph_to_curves(const FT_Outline &ftoutline,
     contour_prev = ftoutline.contours[j];
 
     /* add new curve */
-    nu = MEM_new_for_free<Nurb>("objfnt_nurb");
-    bezt = MEM_calloc_arrayN<BezTriple>(size_t(onpoints[j]), "objfnt_bezt");
+    nu = MEM_new<Nurb>("objfnt_nurb");
+    bezt = MEM_new_array_zeroed<BezTriple>(size_t(onpoints[j]), "objfnt_bezt");
     BLI_addtail(nurbsbase, nu);
 
     nu->type = CU_BEZIER;
@@ -310,7 +310,27 @@ static void blf_glyph_to_curves(const FT_Outline &ftoutline,
     }
   }
 
-  MEM_freeN(onpoints);
+  MEM_delete(onpoints);
+}
+
+/**
+ * Scale all fields of a glyph metrics by the ratio `num / den`,
+ * useful when converting between two different EM units.
+ *
+ * \param m: Glyph metrics to rescale in-place.
+ * \param num: Destination face's `units_per_EM` (the face we're converting *to*).
+ * \param den: Source face's `units_per_EM` (the face the glyph was loaded *from*).
+ */
+static void blf_glyph_metrics_scale(FT_Glyph_Metrics &m, const FT_Long num, const FT_Long den)
+{
+  m.width = FT_MulDiv(m.width, num, den);
+  m.height = FT_MulDiv(m.height, num, den);
+  m.horiBearingX = FT_MulDiv(m.horiBearingX, num, den);
+  m.horiBearingY = FT_MulDiv(m.horiBearingY, num, den);
+  m.horiAdvance = FT_MulDiv(m.horiAdvance, num, den);
+  m.vertBearingX = FT_MulDiv(m.vertBearingX, num, den);
+  m.vertBearingY = FT_MulDiv(m.vertBearingY, num, den);
+  m.vertAdvance = FT_MulDiv(m.vertAdvance, num, den);
 }
 
 static FT_GlyphSlot blf_glyphslot_ensure_outline(FontBLF *font, uint charcode, bool use_fallback)
@@ -344,11 +364,13 @@ static FT_GlyphSlot blf_glyphslot_ensure_outline(FontBLF *font, uint charcode, b
     if (!blf_ensure_face(font)) {
       return nullptr;
     }
-    double ratio = float(font->face->units_per_EM) / float(font_with_glyph->face->units_per_EM);
-    FT_Matrix transform = {to_16dot16(ratio), 0, 0, to_16dot16(ratio)};
+    const FT_Long num = FT_Long(font->face->units_per_EM);
+    const FT_Long den = FT_Long(font_with_glyph->face->units_per_EM);
+    const double ratio = double(num) / double(den);
+    const FT_Matrix transform = {to_16dot16(ratio), 0, 0, to_16dot16(ratio)};
     FT_Outline_Transform(&glyph->outline, &transform);
-    glyph->advance.x = int(float(glyph->advance.x) * ratio);
-    glyph->metrics.horiAdvance = int(float(glyph->metrics.horiAdvance) * ratio);
+    glyph->advance.x = FT_Pos(double(glyph->advance.x) * ratio);
+    blf_glyph_metrics_scale(glyph->metrics, num, den);
   }
 
   return glyph;
@@ -359,16 +381,24 @@ bool blf_character_to_curves(FontBLF *font,
                              ListBaseT<Nurb> *nurbsbase,
                              const float scale,
                              bool use_fallback,
-                             float *r_advance)
+                             float *r_advance,
+                             rctf *r_bounds)
 {
   FT_GlyphSlot glyph = blf_glyphslot_ensure_outline(font, unicode, use_fallback);
   if (!glyph) {
     *r_advance = 0.0f;
+    *r_bounds = {0.0f, 0.0f, 0.0f, 0.0f};
     return false;
   }
 
   blf_glyph_to_curves(glyph->outline, nurbsbase, scale);
   *r_advance = float(glyph->advance.x) * scale;
+
+  const FT_Glyph_Metrics &m = glyph->metrics;
+  r_bounds->xmin = float(m.horiBearingX) * scale;
+  r_bounds->xmax = float(m.horiBearingX + m.width) * scale;
+  r_bounds->ymin = float(m.horiBearingY - m.height) * scale;
+  r_bounds->ymax = float(m.horiBearingY) * scale;
   return true;
 }
 

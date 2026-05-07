@@ -78,8 +78,8 @@ static void version_composite_nodetree_null_id(bNodeTree *ntree, Scene *scene)
 /* Move bone-group color to the individual bones. */
 static void version_bonegroup_migrate_color(Main *bmain)
 {
-  using PoseSet = Set<bPose *>;
-  Map<bArmature *, PoseSet> armature_poses;
+  using PoseObSet = Set<Object *>;
+  Map<bArmature *, PoseObSet> armature_poses;
 
   /* Gather a mapping from armature to the poses that use it. */
   for (Object &ob : bmain->objects) {
@@ -96,19 +96,20 @@ static void version_bonegroup_migrate_color(Main *bmain)
      * NOTE: No need to handle user reference-counting in readfile code. */
     BKE_pose_ensure(bmain, &ob, arm, false);
 
-    PoseSet &pose_set = armature_poses.lookup_or_add_default(arm);
-    pose_set.add(ob.pose);
+    PoseObSet &pose_set = armature_poses.lookup_or_add_default(arm);
+    pose_set.add(&ob);
   }
 
   /* Move colors from the pose's bone-group to either the armature bones or the
    * pose bones, depending on how many poses use the Armature. */
-  for (const PoseSet &pose_set : armature_poses.values()) {
+  for (const PoseObSet &pose_set : armature_poses.values()) {
     /* If the Armature is shared, the bone group colors might be different, and thus they have to
      * be stored on the pose bones. If the Armature is NOT shared, the bone colors can be stored
      * directly on the Armature bones. */
     const bool store_on_armature = pose_set.size() == 1;
 
-    for (bPose *pose : pose_set) {
+    for (Object *pose_ob : pose_set) {
+      bPose *pose = pose_ob->pose;
       for (bPoseChannel &pchan : pose->chanbase) {
         const bActionGroup *bgrp = static_cast<const bActionGroup *>(
             BLI_findlink(&pose->agroups, (pchan.agrp_index - 1)));
@@ -116,7 +117,7 @@ static void version_bonegroup_migrate_color(Main *bmain)
           continue;
         }
 
-        BoneColor &bone_color = store_on_armature ? pchan.bone->color : pchan.color;
+        BoneColor &bone_color = store_on_armature ? pchan.bone_get(*pose_ob)->color : pchan.color;
         bone_color.palette_index = bgrp->customCol;
         memcpy(&bone_color.custom, &bgrp->cs, sizeof(bone_color.custom));
       }
@@ -220,7 +221,7 @@ static void version_bonegroups_to_bonecollections(Main *bmain)
 
       /* Assign the bone. */
       BoneCollection *bcoll = collections_by_group.lookup(bgrp);
-      ANIM_armature_bonecoll_assign(bcoll, pchan.bone);
+      ANIM_armature_bonecoll_assign(bcoll, pchan.bone_get(ob));
     }
 
     /* The list of bone groups (pose->agroups) is intentionally left alone here. This will allow
@@ -278,8 +279,16 @@ static void version_principled_bsdf_update_animdata(ID *owner_id, bNodeTree *ntr
         {21, 4}   /* Alpha */
     };
     for (const auto &entry : remap_table) {
-      BKE_animdata_fix_paths_rename(
-          id, adt, owner_id, prefix.c_str(), nullptr, nullptr, entry.first, entry.second, false);
+      BKE_animdata_fix_paths_rename(id,
+                                    adt,
+                                    owner_id,
+                                    prefix.c_str(),
+                                    nullptr,
+                                    nullptr,
+                                    entry.first,
+                                    entry.second,
+                                    /*verify_paths=*/false,
+                                    /*infix_is_name=*/true);
     }
   }
 }
@@ -530,7 +539,9 @@ static void version_mesh_crease_generic(Main &bmain)
       if (md.type != eModifierType_Nodes) {
         continue;
       }
-      if (IDProperty *settings = reinterpret_cast<NodesModifierData *>(&md)->settings.properties) {
+      if (IDProperty *settings =
+              reinterpret_cast<NodesModifierData *>(&md)->settings_legacy.properties)
+      {
         for (IDProperty &prop : settings->data.group) {
           if (StringRef(prop.name).endswith("_attribute_name")) {
             if (STREQ(IDP_string_get(&prop), "crease")) {
@@ -619,7 +630,7 @@ static void version_replace_velvet_sheen_node(bNodeTree *ntree)
       bNodeSocket *sigmaInput = bke::node_find_socket(node, SOCK_IN, "Sigma");
       if (sigmaInput != nullptr) {
         node.custom1 = SHD_SHEEN_ASHIKHMIN;
-        STRNCPY_UTF8(sigmaInput->identifier, "Roughness");
+        version_node_socket_identifier_set(*sigmaInput, "Roughness");
         STRNCPY_UTF8(sigmaInput->name, "Roughness");
       }
     }
@@ -667,7 +678,7 @@ static void version_replace_principled_hair_model(bNodeTree *ntree)
     if (node.type_legacy != SH_NODE_BSDF_HAIR_PRINCIPLED) {
       continue;
     }
-    NodeShaderHairPrincipled *data = MEM_new_for_free<NodeShaderHairPrincipled>(__func__);
+    NodeShaderHairPrincipled *data = MEM_new<NodeShaderHairPrincipled>(__func__);
     data->model = SHD_PRINCIPLED_HAIR_CHIANG;
     data->parametrization = node.custom1;
 
@@ -678,7 +689,7 @@ static void version_replace_principled_hair_model(bNodeTree *ntree)
 static bNodeTreeInterfaceItem *legacy_socket_move_to_interface(bNodeSocket &legacy_socket,
                                                                const eNodeSocketInOut in_out)
 {
-  bNodeTreeInterfaceSocket *new_socket = MEM_new_for_free<bNodeTreeInterfaceSocket>(__func__);
+  bNodeTreeInterfaceSocket *new_socket = MEM_new<bNodeTreeInterfaceSocket>(__func__);
   new_socket->item.item_type = NODE_INTERFACE_SOCKET;
 
   /* Move reusable data. */
@@ -721,7 +732,7 @@ static void versioning_convert_node_tree_socket_lists_to_interface(bNodeTree *nt
   const int num_inputs = BLI_listbase_count(&ntree->inputs_legacy);
   const int num_outputs = BLI_listbase_count(&ntree->outputs_legacy);
   tree_interface.root_panel.items_num = num_inputs + num_outputs;
-  tree_interface.root_panel.items_array = MEM_malloc_arrayN<bNodeTreeInterfaceItem *>(
+  tree_interface.root_panel.items_array = MEM_new_array_uninitialized<bNodeTreeInterfaceItem *>(
       size_t(tree_interface.root_panel.items_num), __func__);
 
   /* Convert outputs first to retain old outputs/inputs ordering. */
@@ -896,7 +907,7 @@ static void version_copy_socket(bNodeTreeInterfaceSocket &dst,
     dst.properties = IDP_CopyProperty_ex(src.properties, 0);
   }
   if (src.socket_data != nullptr) {
-    dst.socket_data = MEM_dupallocN(src.socket_data);
+    dst.socket_data = MEM_dupalloc_void(src.socket_data);
     /* No user count increment needed, gets reset after versioning. */
   }
 }
@@ -955,13 +966,13 @@ static void version_nodes_insert_item(bNodeTreeInterfacePanel &parent,
 
   MutableSpan<bNodeTreeInterfaceItem *> old_items = {parent.items_array, parent.items_num};
   parent.items_num++;
-  parent.items_array = MEM_calloc_arrayN<bNodeTreeInterfaceItem *>(parent.items_num, __func__);
+  parent.items_array = MEM_new_array_zeroed<bNodeTreeInterfaceItem *>(parent.items_num, __func__);
   parent.items().take_front(position).copy_from(old_items.take_front(position));
   parent.items().drop_front(position + 1).copy_from(old_items.drop_front(position));
   parent.items()[position] = &socket.item;
 
   if (old_items.data()) {
-    MEM_freeN(old_items.data());
+    MEM_delete(old_items.data());
   }
 }
 
@@ -976,7 +987,7 @@ static void version_node_group_split_socket(bNodeTreeInterface &tree_interface,
   }
 
   bNodeTreeInterfaceSocket *csocket = static_cast<bNodeTreeInterfaceSocket *>(
-      MEM_dupallocN(&socket));
+      MEM_dupalloc(&socket));
   /* Generate a new unique identifier.
    * This might break existing links, but the identifiers were duplicate anyway. */
   char *dst_identifier = BLI_sprintfN("Socket_%d", tree_interface.next_uid++);
@@ -1170,7 +1181,7 @@ static void enable_geometry_nodes_is_modifier(Main &bmain)
         return true;
       }
       if (!group.geometry_node_asset_traits) {
-        group.geometry_node_asset_traits = MEM_new_for_free<GeometryNodeAssetTraits>(__func__);
+        group.geometry_node_asset_traits = MEM_new<GeometryNodeAssetTraits>(__func__);
       }
       group.geometry_node_asset_traits->flag |= GEO_NODE_ASSET_MODIFIER;
       return false;
@@ -1202,8 +1213,8 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
 
 #define SCE_SNAP_PROJECT (1 << 3)
       if (ts->snap_flag & SCE_SNAP_PROJECT) {
-        ts->snap_mode &= ~(1 << 2); /* SCE_SNAP_TO_FACE */
-        ts->snap_mode |= (1 << 8);  /* SCE_SNAP_INDIVIDUAL_PROJECT */
+        ts->snap_mode &= ~eSnapMode(1 << 2); /* SCE_SNAP_TO_FACE */
+        ts->snap_mode |= eSnapMode(1 << 8);  /* SCE_SNAP_INDIVIDUAL_PROJECT */
       }
 #undef SCE_SNAP_PROJECT
     }
@@ -1386,7 +1397,7 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
         for (bNode &node : ntree->nodes) {
           if (node.type_legacy == SH_NODE_TEX_NOISE) {
             if (!node.storage) {
-              NodeTexNoise *tex = MEM_new_for_free<NodeTexNoise>(__func__);
+              NodeTexNoise *tex = MEM_new<NodeTexNoise>(__func__);
               BKE_texture_mapping_default(&tex->base.tex_mapping, TEXMAP_TYPE_POINT);
               BKE_texture_colormapping_default(&tex->base.color_mapping);
               tex->dimensions = 3;
@@ -1417,8 +1428,8 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
       for (Camera &camera : bmain->cameras) {
         IDProperty *ccam = version_cycles_properties_from_ID(&camera.id);
         if (ccam) {
-          camera.panorama_type = version_cycles_property_int(
-              ccam, "panorama_type", default_cam.panorama_type);
+          camera.panorama_type = eCamera_PanoType(
+              version_cycles_property_int(ccam, "panorama_type", default_cam.panorama_type));
           camera.fisheye_fov = version_cycles_property_float(
               ccam, "fisheye_fov", default_cam.fisheye_fov);
           camera.fisheye_lens = version_cycles_property_float(
@@ -1477,7 +1488,7 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
 
     for (Scene &scene : bmain->scenes) {
       scene.toolsettings->snap_flag_anim |= SCE_SNAP;
-      scene.toolsettings->snap_anim_mode |= (1 << 10); /* SCE_SNAP_TO_FRAME */
+      scene.toolsettings->snap_anim_mode |= eSnapMode(1 << 10); /* SCE_SNAP_TO_FRAME */
     }
   }
 
@@ -1497,22 +1508,22 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
      * but have to be freed after loading and versioning. */
     FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
       for (bNodeSocket &legacy_socket : ntree->inputs_legacy.items_mutable()) {
-        MEM_SAFE_FREE(legacy_socket.default_attribute_name);
-        MEM_SAFE_FREE(legacy_socket.default_value);
+        MEM_SAFE_DELETE(legacy_socket.default_attribute_name);
+        MEM_SAFE_DELETE_VOID(legacy_socket.default_value);
         if (legacy_socket.prop) {
           IDP_FreeProperty(legacy_socket.prop);
         }
         MEM_delete(legacy_socket.runtime);
-        MEM_freeN(&legacy_socket);
+        MEM_delete(&legacy_socket);
       }
       for (bNodeSocket &legacy_socket : ntree->outputs_legacy.items_mutable()) {
-        MEM_SAFE_FREE(legacy_socket.default_attribute_name);
-        MEM_SAFE_FREE(legacy_socket.default_value);
+        MEM_SAFE_DELETE(legacy_socket.default_attribute_name);
+        MEM_SAFE_DELETE_VOID(legacy_socket.default_value);
         if (legacy_socket.prop) {
           IDP_FreeProperty(legacy_socket.prop);
         }
         MEM_delete(legacy_socket.runtime);
-        MEM_freeN(&legacy_socket);
+        MEM_delete(&legacy_socket);
       }
       BLI_listbase_clear(&ntree->inputs_legacy);
       BLI_listbase_clear(&ntree->outputs_legacy);

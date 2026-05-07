@@ -6,6 +6,7 @@
 
 #include "usd.hh"
 #include "usd_asset_utils.hh"
+#include "usd_colorspace_utils.hh"
 #include "usd_private.hh"
 #include "usd_utils.hh"
 #include "usd_writer_material.hh"
@@ -77,7 +78,7 @@ namespace io::usd {
 static Image *load_image(std::string tex_path, Main *bmain, const USDImportParams &params)
 {
   /* Optionally copy the asset if it's inside a USDZ package. */
-  const bool import_textures = params.import_textures_mode != USD_TEX_IMPORT_NONE &&
+  const bool import_textures = params.import_textures_mode != TexImportMode::None &&
                                should_import_asset(tex_path);
 
   std::string imported_file_source_path = tex_path;
@@ -85,14 +86,14 @@ static Image *load_image(std::string tex_path, Main *bmain, const USDImportParam
   if (import_textures) {
     /* If we are packing the imported textures, we first write them
      * to a temporary directory. */
-    const char *textures_dir = params.import_textures_mode == USD_TEX_IMPORT_PACK ?
+    const char *textures_dir = params.import_textures_mode == TexImportMode::Pack ?
                                    temp_textures_dir() :
                                    params.import_textures_dir;
 
-    const eUSDTexNameCollisionMode name_collision_mode = params.import_textures_mode ==
-                                                                 USD_TEX_IMPORT_PACK ?
-                                                             USD_TEX_NAME_COLLISION_OVERWRITE :
-                                                             params.tex_name_collision_mode;
+    const TexNameCollisionMode name_collision_mode = params.import_textures_mode ==
+                                                             TexImportMode::Pack ?
+                                                         TexNameCollisionMode::Overwrite :
+                                                         params.tex_name_collision_mode;
 
     tex_path = import_asset(tex_path, textures_dir, name_collision_mode, nullptr);
   }
@@ -106,7 +107,7 @@ static Image *load_image(std::string tex_path, Main *bmain, const USDImportParam
     ensure_usd_source_path_prop(imported_file_source_path, &image->id);
   }
 
-  if (import_textures && params.import_textures_mode == USD_TEX_IMPORT_PACK &&
+  if (import_textures && params.import_textures_mode == TexImportMode::Pack &&
       !BKE_image_has_packedfile(image))
   {
     BKE_image_packfiles(nullptr, image, ID_BLEND_PATH(bmain, &image->id));
@@ -171,6 +172,7 @@ void world_material_to_dome_light(const USDExportParams &params,
   /* Create USD dome light. */
   pxr::SdfPath env_light_path = get_unique_path(stage, params.root_prim_path + "/env_light");
   pxr::UsdLuxDomeLight dome_light = pxr::UsdLuxDomeLight::Define(stage, env_light_path);
+  colorspace_apply_to_prim(dome_light.GetPrim());
 
   if (res.image) {
     /* Use existing image texture file. */
@@ -472,7 +474,7 @@ void world_material_to_dome_light(const Scene *scene, WorldToDomeLight &res)
   /* Find the world output. */
   scene->world->nodetree->ensure_topology_cache();
   const Span<const bNode *> bsdf_nodes = scene->world->nodetree->nodes_by_type(
-      "ShaderNodeOutputWorld");
+      "ShaderNodeOutputWorld"_ustr);
 
   for (const bNode *node : bsdf_nodes) {
     if (node->flag & NODE_DO_OUTPUT) {

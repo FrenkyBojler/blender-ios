@@ -59,10 +59,10 @@ static void free_data(ModifierData *md)
   implicit_sharing::free_shared_data(&mmd->dyninfluences, &mmd->dyninfluences_sharing_info);
   implicit_sharing::free_shared_data(&mmd->dynverts, &mmd->dynverts_sharing_info);
   if (mmd->bindweights) {
-    MEM_freeN(mmd->bindweights); /* deprecated */
+    MEM_delete(mmd->bindweights); /* deprecated */
   }
   if (mmd->bindcos) {
-    MEM_freeN(mmd->bindcos); /* deprecated */
+    MEM_delete(mmd->bindcos); /* deprecated */
   }
 }
 
@@ -94,10 +94,10 @@ static void copy_data(const ModifierData *md, ModifierData *target, const int fl
   implicit_sharing::copy_shared_pointer(
       mmd->dynverts, mmd->dynverts_sharing_info, &tmmd->dynverts, &tmmd->dynverts_sharing_info);
   if (mmd->bindweights) {
-    tmmd->bindweights = static_cast<float *>(MEM_dupallocN(mmd->bindweights)); /* deprecated */
+    tmmd->bindweights = MEM_dupalloc(mmd->bindweights); /* deprecated */
   }
   if (mmd->bindcos) {
-    tmmd->bindcos = static_cast<float *>(MEM_dupallocN(mmd->bindcos)); /* deprecated */
+    tmmd->bindcos = MEM_dupalloc(mmd->bindcos); /* deprecated */
   }
 }
 
@@ -440,6 +440,12 @@ void BKE_modifier_mdef_compact_influences(ModifierData *md)
   verts_num = mmd->verts_num;
   cage_verts_num = mmd->cage_verts_num;
 
+  if (verts_num == 0) {
+    MEM_delete(mmd->bindweights);
+    mmd->bindweights = nullptr;
+    return;
+  }
+
   /* count number of influences above threshold */
   for (b = 0; b < verts_num; b++) {
     for (a = 0; a < cage_verts_num; a++) {
@@ -452,9 +458,9 @@ void BKE_modifier_mdef_compact_influences(ModifierData *md)
   }
 
   /* allocate bind influences */
-  mmd->bindinfluences = MEM_new_array_for_free<MDefInfluence>(mmd->influences_num, __func__);
+  mmd->bindinfluences = MEM_new_array<MDefInfluence>(mmd->influences_num, __func__);
   mmd->bindinfluences_sharing_info = implicit_sharing::info_for_mem_free(mmd->bindinfluences);
-  mmd->bindoffsets = MEM_calloc_arrayN<int>(size_t(verts_num) + 1, __func__);
+  mmd->bindoffsets = MEM_new_array_zeroed<int>(size_t(verts_num) + 1, __func__);
   mmd->bindoffsets_sharing_info = implicit_sharing::info_for_mem_free(mmd->bindoffsets);
 
   /* write influences */
@@ -488,7 +494,7 @@ void BKE_modifier_mdef_compact_influences(ModifierData *md)
   mmd->bindoffsets[b] = influences_num;
 
   /* free */
-  MEM_freeN(mmd->bindweights);
+  MEM_delete(mmd->bindweights);
   mmd->bindweights = nullptr;
 }
 
@@ -570,7 +576,7 @@ static void blend_write(BlendWriter *writer, const ID *id_owner, const ModifierD
                      mmd.bindoffsets,
                      sizeof(int) * (mmd.verts_num + 1),
                      mmd.bindoffsets_sharing_info,
-                     [&]() { BLO_write_int32_array(writer, mmd.verts_num + 1, mmd.bindoffsets); });
+                     [&]() { writer->write_int32_array(mmd.verts_num + 1, mmd.bindoffsets); });
   }
   else {
     BLI_assert(mmd.bindoffsets == nullptr);
@@ -580,7 +586,7 @@ static void blend_write(BlendWriter *writer, const ID *id_owner, const ModifierD
                    mmd.bindcagecos,
                    sizeof(float[3]) * mmd.cage_verts_num,
                    mmd.bindcagecos_sharing_info,
-                   [&]() { BLO_write_float3_array(writer, mmd.cage_verts_num, mmd.bindcagecos); });
+                   [&]() { writer->write_float3_array(mmd.cage_verts_num, mmd.bindcagecos); });
   BLO_write_shared(
       writer, mmd.dyngrid, sizeof(MDefCell) * size * size * size, mmd.dyngrid_sharing_info, [&]() {
         writer->write_struct_array(size * size * size, mmd.dyngrid);
@@ -594,7 +600,7 @@ static void blend_write(BlendWriter *writer, const ID *id_owner, const ModifierD
                    mmd.dynverts,
                    sizeof(MDefInfluence) * mmd.verts_num,
                    mmd.dynverts_sharing_info,
-                   [&]() { BLO_write_int32_array(writer, mmd.verts_num, mmd.dynverts); });
+                   [&]() { writer->write_int32_array(mmd.verts_num, mmd.dynverts); });
 
   writer->write_struct_at_address(md, &mmd);
 }

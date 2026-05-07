@@ -149,7 +149,7 @@ class AssetCatalogSelectorTree : public ui::AbstractTreeView {
       subrow.label(catalog_item_.get_name(), ICON_NONE);
       ui::block_layout_set_current(block, &row);
 
-      ui::Button *toggle_but = uiDefButC(block,
+      ui::Button *toggle_but = uiDefButV(block,
                                          ui::ButtonType::Checkbox,
                                          "",
                                          0,
@@ -231,7 +231,7 @@ void catalog_selector_panel_register(ARegionType *region_type)
     return;
   }
 
-  PanelType *pt = MEM_callocN<PanelType>(__func__);
+  PanelType *pt = MEM_new_zeroed<PanelType>(__func__);
   STRNCPY_UTF8(pt->idname, "ASSETSHELF_PT_catalog_selector");
   STRNCPY_UTF8(pt->label, N_("Catalog Selector"));
   STRNCPY_UTF8(pt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);

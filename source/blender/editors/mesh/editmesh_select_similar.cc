@@ -152,6 +152,7 @@ static void face_to_plane(const Object *ob, BMFace *face, float r_plane[4])
  */
 static wmOperatorStatus similar_face_select_exec(bContext *C, wmOperator *op)
 {
+  const Main *bmain = CTX_data_main(C);
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
 
@@ -162,7 +163,7 @@ static wmOperatorStatus similar_face_select_exec(bContext *C, wmOperator *op)
 
   int tot_faces_selected_all = 0;
   const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C));
+      *bmain, scene, view_layer, CTX_wm_view3d(C));
 
   for (Object *ob : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(ob);
@@ -249,12 +250,12 @@ static wmOperatorStatus similar_face_select_exec(bContext *C, wmOperator *op)
           }
           case SIMFACE_AREA: {
             float area = BM_face_calc_area_with_mat3(face, ob_m3);
-            kdtree_1d_insert(tree_1d, tree_index++, &area);
+            kdtree_1d_insert(tree_1d, tree_index++, area);
             break;
           }
           case SIMFACE_PERIMETER: {
             float perimeter = BM_face_calc_perimeter_with_mat3(face, ob_m3);
-            kdtree_1d_insert(tree_1d, tree_index++, &perimeter);
+            kdtree_1d_insert(tree_1d, tree_index++, perimeter);
             break;
           }
           case SIMFACE_NORMAL: {
@@ -548,6 +549,7 @@ static bool edge_data_value_set(BMEdge *edge, const int hflag, int *r_value)
  */
 static wmOperatorStatus similar_edge_select_exec(bContext *C, wmOperator *op)
 {
+  const Main *bmain = CTX_data_main(C);
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
 
@@ -558,7 +560,7 @@ static wmOperatorStatus similar_edge_select_exec(bContext *C, wmOperator *op)
 
   int tot_edges_selected_all = 0;
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C));
+      *bmain, scene, view_layer, CTX_wm_view3d(C));
 
   for (Object *ob : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(ob);
@@ -608,16 +610,14 @@ static wmOperatorStatus similar_edge_select_exec(bContext *C, wmOperator *op)
       }
       case SIMEDGE_CREASE: {
         if (!CustomData_has_layer_named(&bm->edata, CD_PROP_FLOAT, "crease_edge")) {
-          float pos = 0.0f;
-          kdtree_1d_insert(tree_1d, tree_index++, &pos);
+          kdtree_1d_insert(tree_1d, tree_index++, 0.0f);
           continue;
         }
         break;
       }
       case SIMEDGE_BEVEL: {
         if (!CustomData_has_layer_named(&bm->edata, CD_PROP_FLOAT, "bevel_weight_edge")) {
-          float pos = 0.0f;
-          kdtree_1d_insert(tree_1d, tree_index++, &pos);
+          kdtree_1d_insert(tree_1d, tree_index++, 0.0f);
           continue;
         }
         break;
@@ -665,13 +665,13 @@ static wmOperatorStatus similar_edge_select_exec(bContext *C, wmOperator *op)
           }
           case SIMEDGE_LENGTH: {
             float length = edge_length_squared_worldspace_get(ob, edge);
-            kdtree_1d_insert(tree_1d, tree_index++, &length);
+            kdtree_1d_insert(tree_1d, tree_index++, length);
             break;
           }
           case SIMEDGE_FACE_ANGLE: {
             if (BM_edge_face_count_at_most(edge, 2) == 2) {
               float angle = BM_edge_calc_face_angle_with_imat3(edge, ob_m3_inv);
-              kdtree_1d_insert(tree_1d, tree_index++, &angle);
+              kdtree_1d_insert(tree_1d, tree_index++, angle);
             }
             break;
           }
@@ -699,7 +699,7 @@ static wmOperatorStatus similar_edge_select_exec(bContext *C, wmOperator *op)
           }
           case SIMEDGE_CREASE:
           case SIMEDGE_BEVEL: {
-            const float *value = BM_ELEM_CD_GET_FLOAT_P(edge, custom_data_offset);
+            const float value = BM_ELEM_CD_GET_FLOAT(edge, custom_data_offset);
             kdtree_1d_insert(tree_1d, tree_index++, value);
             break;
           }
@@ -935,6 +935,7 @@ static wmOperatorStatus similar_edge_select_exec(bContext *C, wmOperator *op)
 
 static wmOperatorStatus similar_vert_select_exec(bContext *C, wmOperator *op)
 {
+  const Main *bmain = CTX_data_main(C);
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
 
@@ -946,7 +947,7 @@ static wmOperatorStatus similar_vert_select_exec(bContext *C, wmOperator *op)
 
   int tot_verts_selected_all = 0;
   const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C));
+      *bmain, scene, view_layer, CTX_wm_view3d(C));
 
   for (Object *ob : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(ob);
@@ -1005,8 +1006,7 @@ static wmOperatorStatus similar_vert_select_exec(bContext *C, wmOperator *op)
     }
     else if (type == SIMVERT_CREASE) {
       if (!CustomData_has_layer_named(&bm->vdata, CD_PROP_FLOAT, "crease_vert")) {
-        float pos = 0.0f;
-        kdtree_1d_insert(tree_1d, tree_1d_index++, &pos);
+        kdtree_1d_insert(tree_1d, tree_1d_index++, 0.0f);
         continue;
       }
       cd_crease_offset = CustomData_get_offset_named(&bm->vdata, CD_PROP_FLOAT, "crease_vert");
@@ -1048,7 +1048,7 @@ static wmOperatorStatus similar_vert_select_exec(bContext *C, wmOperator *op)
             break;
           }
           case SIMVERT_CREASE: {
-            const float *value = BM_ELEM_CD_GET_FLOAT_P(vert, cd_crease_offset);
+            const float value = BM_ELEM_CD_GET_FLOAT(vert, cd_crease_offset);
             kdtree_1d_insert(tree_1d, tree_1d_index++, value);
             break;
           }
@@ -1069,7 +1069,7 @@ static wmOperatorStatus similar_vert_select_exec(bContext *C, wmOperator *op)
         }
         i += 1;
       }
-      MEM_freeN(defbase_selected);
+      MEM_delete(defbase_selected);
     }
   }
 
@@ -1124,7 +1124,7 @@ static wmOperatorStatus similar_vert_select_exec(bContext *C, wmOperator *op)
         }
       }
       if (found_any == false) {
-        MEM_freeN(defbase_selected);
+        MEM_delete(defbase_selected);
         continue;
       }
     }
@@ -1226,7 +1226,7 @@ static wmOperatorStatus similar_vert_select_exec(bContext *C, wmOperator *op)
     }
 
     if (type == SIMVERT_VGROUP) {
-      MEM_freeN(defbase_selected);
+      MEM_delete(defbase_selected);
     }
 
     if (changed) {

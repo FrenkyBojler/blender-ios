@@ -38,23 +38,21 @@
 #include "RNA_enum_types.hh"
 
 namespace blender {
-
-static float len_squared_v3v3_with_normal_bias(const float3 &co_search,
-                                               const float3 &co_test,
-                                               const void *user_data)
+static auto len_squared_v3v3_with_normal_bias_fn(const float3 &normal)
 {
-  const float *normal = static_cast<const float *>(user_data);
-  float d[3], dist;
+  return [=](const float3 &co_search, const float3 &co_test) -> float {
+    float d[3], dist;
 
-  sub_v3_v3v3(d, co_test, co_search);
+    sub_v3_v3v3(d, co_test, co_search);
 
-  dist = len_squared_v3(d);
+    dist = len_squared_v3(d);
 
-  /* Avoid head-on collisions. */
-  if (dot_v3v3(d, normal) < 0.0f) {
-    dist *= 10.0f;
-  }
-  return dist;
+    /* Avoid head-on collisions. */
+    if (dot_v3v3(d, normal) < 0.0f) {
+      dist *= 10.0f;
+    }
+    return dist;
+  };
 }
 
 struct BoidValues {
@@ -289,13 +287,12 @@ static bool rule_avoid_collision(BoidRule *rule,
 
   /* Check boids in their own system. */
   if (acbr->options & BRULE_ACOLL_WITH_BOIDS) {
-    neighbors = kdtree_3d_range_search_with_len_squared_cb(bbd->sim->psys->tree,
-                                                           pa->prev_state.co,
-                                                           &ptn,
-                                                           acbr->look_ahead *
-                                                               len_v3(pa->prev_state.vel),
-                                                           len_squared_v3v3_with_normal_bias,
-                                                           pa->prev_state.ave);
+    neighbors = kdtree_range_search_with_len_squared_cb<float3>(
+        bbd->sim->psys->tree,
+        pa->prev_state.co,
+        &ptn,
+        acbr->look_ahead * len_v3(pa->prev_state.vel),
+        len_squared_v3v3_with_normal_bias_fn(float3(pa->prev_state.ave)));
     if (neighbors > 1) {
       for (n = 1; n < neighbors; n++) {
         copy_v3_v3(co1, pa->prev_state.co);
@@ -336,7 +333,7 @@ static bool rule_avoid_collision(BoidRule *rule,
       }
     }
   }
-  MEM_SAFE_FREE(ptn);
+  MEM_SAFE_DELETE(ptn);
 
   /* check boids in other systems */
   for (ParticleTarget &pt : bbd->sim->psys->targets) {
@@ -344,13 +341,12 @@ static bool rule_avoid_collision(BoidRule *rule,
 
     if (epsys) {
       BLI_assert(epsys->tree != nullptr);
-      neighbors = kdtree_3d_range_search_with_len_squared_cb(epsys->tree,
-                                                             pa->prev_state.co,
-                                                             &ptn,
-                                                             acbr->look_ahead *
-                                                                 len_v3(pa->prev_state.vel),
-                                                             len_squared_v3v3_with_normal_bias,
-                                                             pa->prev_state.ave);
+      neighbors = kdtree_range_search_with_len_squared_cb<float3>(
+          epsys->tree,
+          pa->prev_state.co,
+          &ptn,
+          acbr->look_ahead * len_v3(pa->prev_state.vel),
+          len_squared_v3v3_with_normal_bias_fn(float3(pa->prev_state.ave)));
 
       if (neighbors > 0) {
         for (n = 0; n < neighbors; n++) {
@@ -392,12 +388,12 @@ static bool rule_avoid_collision(BoidRule *rule,
         }
       }
 
-      MEM_SAFE_FREE(ptn);
+      MEM_SAFE_DELETE(ptn);
     }
   }
 
   if (ptn && nearest == 0) {
-    MEM_freeN(ptn);
+    MEM_delete(ptn);
   }
 
   return ret;
@@ -422,7 +418,7 @@ static bool rule_separate(BoidRule * /*rule*/,
     len = ptn[1].dist;
     ret = true;
   }
-  MEM_SAFE_FREE(ptn);
+  MEM_SAFE_DELETE(ptn);
 
   /* check other boid systems */
   for (ParticleTarget &pt : bbd->sim->psys->targets) {
@@ -441,7 +437,7 @@ static bool rule_separate(BoidRule * /*rule*/,
         ret = true;
       }
 
-      MEM_SAFE_FREE(ptn);
+      MEM_SAFE_DELETE(ptn);
     }
   }
   return ret;
@@ -453,12 +449,12 @@ static bool rule_flock(BoidRule * /*rule*/,
 {
   KDTreeNearest_3d ptn[11];
   float vec[3] = {0.0f, 0.0f, 0.0f}, loc[3] = {0.0f, 0.0f, 0.0f};
-  int neighbors = kdtree_3d_find_nearest_n_with_len_squared_cb(bbd->sim->psys->tree,
-                                                               pa->state.co,
-                                                               ptn,
-                                                               ARRAY_SIZE(ptn),
-                                                               len_squared_v3v3_with_normal_bias,
-                                                               pa->prev_state.ave);
+  int neighbors = kdtree_find_nearest_n_with_len_squared_cb<float3>(
+      bbd->sim->psys->tree,
+      pa->state.co,
+      ptn,
+      ARRAY_SIZE(ptn),
+      len_squared_v3v3_with_normal_bias_fn(float3(pa->prev_state.ave)));
   int n;
   bool ret = false;
 
@@ -704,7 +700,7 @@ static bool rule_fight(BoidRule *rule, BoidBrainData *bbd, BoidValues *val, Part
 
   f_strength += bbd->part->boids->strength * health;
 
-  MEM_SAFE_FREE(ptn);
+  MEM_SAFE_DELETE(ptn);
 
   /* add other friendlies and calculate enemy strength and find closest enemy */
   for (ParticleTarget &pt : bbd->sim->psys->targets) {
@@ -733,7 +729,7 @@ static bool rule_fight(BoidRule *rule, BoidBrainData *bbd, BoidValues *val, Part
         f_strength += epsys->part->boids->strength * health;
       }
 
-      MEM_SAFE_FREE(ptn);
+      MEM_SAFE_DELETE(ptn);
     }
   }
   /* decide action if enemy presence found */
@@ -1406,6 +1402,8 @@ void boid_body(BoidBrainData *bbd, ParticleData *pa)
 
   /* change modes, constrain movement & keep track of down vector */
   switch (bpa->data.mode) {
+    case eBoidMode_Liftoff:
+      break;
     case eBoidMode_InAir: {
       float grav[3];
 
@@ -1585,56 +1583,54 @@ void boid_body(BoidBrainData *bbd, ParticleData *pa)
   copy_qt_qt(pa->state.rot, q);
 }
 
-BoidRule *boid_new_rule(int type)
+BoidRule *boid_new_rule(eBoidRuleType type)
 {
   BoidRule *rule = nullptr;
-  if (type <= 0) {
+  if (type <= eBoidRuleType_None) {
     return nullptr;
   }
 
   switch (type) {
     case eBoidRuleType_Goal:
     case eBoidRuleType_Avoid: {
-      BoidRuleGoalAvoid *rule_goal = MEM_new_for_free<BoidRuleGoalAvoid>("BoidRuleGoalAvoid");
+      BoidRuleGoalAvoid *rule_goal = MEM_new<BoidRuleGoalAvoid>("BoidRuleGoalAvoid");
       rule = reinterpret_cast<BoidRule *>(rule_goal);
       break;
     }
     case eBoidRuleType_AvoidCollision: {
-      BoidRuleAvoidCollision *rule_avoid = MEM_new_for_free<BoidRuleAvoidCollision>(
+      BoidRuleAvoidCollision *rule_avoid = MEM_new<BoidRuleAvoidCollision>(
           "BoidRuleAvoidCollision");
       rule_avoid->look_ahead = 2.0f;
       rule = reinterpret_cast<BoidRule *>(rule_avoid);
       break;
     }
     case eBoidRuleType_FollowLeader: {
-      BoidRuleFollowLeader *rule_follow = MEM_new_for_free<BoidRuleFollowLeader>(
-          "BoidRuleFollowLeader");
+      BoidRuleFollowLeader *rule_follow = MEM_new<BoidRuleFollowLeader>("BoidRuleFollowLeader");
       rule_follow->distance = 1.0f;
       rule = reinterpret_cast<BoidRule *>(rule_follow);
       break;
     }
     case eBoidRuleType_AverageSpeed: {
-      BoidRuleAverageSpeed *rule_avgspeed = MEM_new_for_free<BoidRuleAverageSpeed>(
-          "BoidRuleAverageSpeed");
+      BoidRuleAverageSpeed *rule_avgspeed = MEM_new<BoidRuleAverageSpeed>("BoidRuleAverageSpeed");
       rule_avgspeed->speed = 0.5f;
       rule = reinterpret_cast<BoidRule *>(rule_avgspeed);
       break;
     }
     case eBoidRuleType_Fight: {
-      BoidRuleFight *rule_fight = MEM_new_for_free<BoidRuleFight>("BoidRuleFight");
+      BoidRuleFight *rule_fight = MEM_new<BoidRuleFight>("BoidRuleFight");
       rule_fight->distance = 100.0f;
       rule_fight->flee_distance = 100.0f;
       rule = reinterpret_cast<BoidRule *>(rule_fight);
       break;
     }
     default:
-      rule = MEM_new_for_free<BoidRule>("BoidRule");
+      rule = MEM_new<BoidRule>("BoidRule");
       break;
   }
 
   rule->type = type;
   rule->flag |= BOIDRULE_IN_AIR | BOIDRULE_ON_LAND;
-  STRNCPY_UTF8(rule->name, DATA_(rna_enum_boidrule_type_items[type - 1].name));
+  STRNCPY_UTF8(rule->name, DATA_(rna_enum_boidrule_type_items[int(type) - 1].name));
 
   return rule;
 }
@@ -1666,7 +1662,7 @@ void boid_default_settings(BoidSettings *boids)
 
 BoidState *boid_new_state(BoidSettings *boids)
 {
-  BoidState *state = MEM_new_for_free<BoidState>("BoidState");
+  BoidState *state = MEM_new<BoidState>("BoidState");
 
   state->id = boids->last_state_id++;
   if (state->id) {
@@ -1685,7 +1681,7 @@ BoidState *boid_new_state(BoidSettings *boids)
 
 BoidState *boid_duplicate_state(BoidSettings *boids, BoidState *state)
 {
-  BoidState *staten = static_cast<BoidState *>(MEM_dupallocN(state));
+  BoidState *staten = MEM_dupalloc(state);
 
   BLI_duplicatelist(&staten->rules, &state->rules);
   BLI_duplicatelist(&staten->conditions, &state->conditions);
@@ -1708,7 +1704,7 @@ void boid_free_settings(BoidSettings *boids)
 
     BLI_freelistN(&boids->states);
 
-    MEM_freeN(boids);
+    MEM_delete(boids);
   }
 }
 BoidSettings *boid_copy_settings(const BoidSettings *boids)
@@ -1719,7 +1715,7 @@ BoidSettings *boid_copy_settings(const BoidSettings *boids)
     BoidState *state;
     BoidState *nstate;
 
-    nboids = static_cast<BoidSettings *>(MEM_dupallocN(boids));
+    nboids = MEM_dupalloc(boids);
 
     BLI_duplicatelist(&nboids->states, &boids->states);
 

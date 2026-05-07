@@ -30,7 +30,9 @@ FCurve *create_fcurve(animrig::Channelbag &channelbag,
 {
   FCurve *fcurve = channelbag.fcurve_create_unique(nullptr, fcurve_descriptor);
   BLI_assert_msg(fcurve, "The same F-Curve is being created twice, this is unexpected.");
-  BKE_fcurve_bezt_resize(fcurve, sample_count);
+  if (fcurve) {
+    BKE_fcurve_bezt_resize(*fcurve, sample_count);
+  }
   return fcurve;
 }
 
@@ -42,7 +44,7 @@ void set_fcurve_sample(FCurve *fcu, int64_t sample_index, const float frame, con
   bez.vec[1][0] = frame;
   bez.vec[1][1] = value;
   bez.ipo = BEZT_IPO_LIN;
-  bez.f1 = bez.f2 = bez.f3 = SELECT;
+  bez.f1 = bez.f2 = bez.f3 = BEZT_FLAG_SELECT;
   bez.h1 = bez.h2 = HD_AUTO;
 }
 

@@ -315,10 +315,10 @@ static void transDataTrackingFree(TransInfo * /*t*/,
   if (custom_data->data) {
     TransDataTracking *tdt = static_cast<TransDataTracking *>(custom_data->data);
     if (tdt->smarkers) {
-      MEM_freeN(tdt->smarkers);
+      MEM_delete(tdt->smarkers);
     }
 
-    MEM_freeN(tdt);
+    MEM_delete(tdt);
     custom_data->data = nullptr;
   }
 }
@@ -353,10 +353,10 @@ static void createTransTrackingTracksData(bContext *C, TransInfo *t)
     return;
   }
 
-  tc->data = MEM_calloc_arrayN<TransData>(tc->data_len, "TransTracking TransData");
-  tc->data_2d = MEM_calloc_arrayN<TransData2D>(tc->data_len, "TransTracking TransData2D");
-  tc->custom.type.data = MEM_calloc_arrayN<TransDataTracking>(tc->data_len,
-                                                              "TransTracking TransDataTracking");
+  tc->data = MEM_new_array_zeroed<TransData>(tc->data_len, "TransTracking TransData");
+  tc->data_2d = MEM_new_array_zeroed<TransData2D>(tc->data_len, "TransTracking TransData2D");
+  tc->custom.type.data = MEM_new_array_zeroed<TransDataTracking>(
+      tc->data_len, "TransTracking TransDataTracking");
   tc->custom.type.free_cb = transDataTrackingFree;
 
   init_context.current.td = tc->data;
@@ -418,9 +418,9 @@ static void cancelTransTracking(TransInfo *t)
 
       BLI_assert(marker != nullptr);
 
-      marker->flag = tdt->flag;
+      marker->flag = TrackingMarkerFlag(tdt->flag);
 
-      if (track->flag & SELECT) {
+      if (track->flag & TRACK_SELECT) {
         i++;
       }
 
@@ -439,7 +439,7 @@ static void cancelTransTracking(TransInfo *t)
 
       BLI_assert(plane_marker != nullptr);
 
-      plane_marker->flag = tdt->flag;
+      plane_marker->flag = TrackingPlaneMarkerFlag(tdt->flag);
       i += 3;
     }
 
@@ -449,7 +449,6 @@ static void cancelTransTracking(TransInfo *t)
 
 static void flushTransTracking(TransInfo *t)
 {
-  TransData *td;
   TransData2D *td2d;
   TransDataTracking *tdt;
   int td_index;
@@ -462,11 +461,10 @@ static void flushTransTracking(TransInfo *t)
 
   /* Flush to 2d vector from internally used 3d vector. */
   for (td_index = 0,
-      td = tc->data,
       td2d = tc->data_2d,
       tdt = static_cast<TransDataTracking *>(tc->custom.type.data);
        td_index < tc->data_len;
-       td_index++, td2d++, td++, tdt++)
+       td_index++, td2d++, tdt++)
   {
     if (tdt->mode == transDataTracking_ModeTracks) {
       float loc2d[2];
@@ -489,8 +487,8 @@ static void flushTransTracking(TransInfo *t)
             float d[2], d2[2];
 
             if (!tdt->smarkers) {
-              tdt->smarkers = MEM_calloc_arrayN<float[2]>(tdt->markersnr,
-                                                          "flushTransTracking markers");
+              tdt->smarkers = MEM_new_array_zeroed<float[2]>(tdt->markersnr,
+                                                             "flushTransTracking markers");
               for (int a = 0; a < tdt->markersnr; a++) {
                 copy_v2_v2(tdt->smarkers[a], tdt->markers[a].pos);
               }

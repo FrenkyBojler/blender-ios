@@ -161,7 +161,7 @@ static bool sequencer_write_copy_paste_file(Main *bmain_src,
                               PartialWriteContext::IDAddOperations::SET_CLIPBOARD_MARK)}));
 
   /* Create an empty sequence editor data to store all copied strips. */
-  scene_dst->ed = MEM_new_for_free<Editing>(__func__);
+  scene_dst->ed = MEM_new<Editing>(__func__);
   seq::seqbase_duplicate_recursive(bmain_src,
                                    scene_src,
                                    scene_dst,
@@ -231,7 +231,7 @@ static bool sequencer_write_copy_paste_file(Main *bmain_src,
    * All other indirect dependencies will then be handled automatically by the partial write
    * context code.
    */
-#define VSE_COPYBUFFER_IDTYPES ID_SO, ID_MC, ID_IM, ID_TXT, ID_VF, ID_AC
+#define VSE_COPYBUFFER_IDTYPES ID_SO, ID_MC, ID_IM, ID_TXT, ID_VF, ID_AC, ID_NT
   auto add_scene_ids_dependencies_cb = [&copy_buffer,
                                         scene_dst](LibraryIDLinkCallbackData *cb_data) -> int {
     ID *id_src = *cb_data->id_pointer;
@@ -258,7 +258,7 @@ static bool sequencer_write_copy_paste_file(Main *bmain_src,
     ID *id_dst = nullptr;
     const ID_Type id_type = GS((id_src)->name);
     /* Only add (and follow) IDs which usage is marked as 'never null', or are from following
-     * types: #bSound, #MovieClip, #Image, #Text, #VFont, #bAction. */
+     * types: #bSound, #MovieClip, #Image, #Text, #VFont, #bAction, #bNodeTree. */
     if (ELEM(id_type, VSE_COPYBUFFER_IDTYPES) || (cb_data->cb_flag & IDWALK_CB_NEVER_NULL)) {
       /* The partial write context handle dependencies of ID added to it. This callback will tell
        * it whether a given dependency ID should be skipped/cleared, or also added in the context.
@@ -307,8 +307,7 @@ wmOperatorStatus sequencer_clipboard_copy_exec(bContext *C, wmOperator *op)
 
   VectorSet<Strip *> effect_chain;
   effect_chain.add_multiple(selected);
-  seq::iterator_set_expand(
-      scene, ed->current_strips(), effect_chain, seq::query_strip_effect_chain);
+  seq::iterator_set_expand(ed->current_strips(), effect_chain, seq::query_strip_effect_chain);
 
   VectorSet<Strip *> expanded;
   for (Strip *strip : effect_chain) {
@@ -512,7 +511,7 @@ wmOperatorStatus sequencer_clipboard_paste_exec(bContext *C, wmOperator *op)
         seq::must_render_strip(seq::query_all_strips(&nseqbase), &istrip))
     {
       strip_mean_pos += static_cast<int2>(
-          seq::image_transform_origin_offset_pixelspace_get(scene, &istrip));
+          seq::image_transform_origin_preview_offset_get(scene, &istrip));
       image_strip_count++;
     }
   }
@@ -529,7 +528,7 @@ wmOperatorStatus sequencer_clipboard_paste_exec(bContext *C, wmOperator *op)
     {
       StripTransform *transform = istrip.data->transform;
       const float2 mirror = seq::image_transform_mirror_factor_get(&istrip);
-      const float2 origin = seq::image_transform_origin_offset_pixelspace_get(scene, &istrip);
+      const float2 origin = seq::image_transform_origin_preview_offset_get(scene, &istrip);
       transform->xofs = (view_mval[0] - (strip_mean_pos[0] - origin[0])) * mirror[0];
       transform->yofs = (view_mval[1] - (strip_mean_pos[1] - origin[1])) * mirror[1];
       seq::relations_invalidate_cache(scene, &istrip);

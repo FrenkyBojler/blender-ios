@@ -335,6 +335,12 @@ bool BKE_attribute_rename(AttributeOwner &owner,
     if (old_name == BKE_id_attributes_default_color_name(&mesh->id)) {
       BKE_id_attributes_default_color_set(&mesh->id, new_name);
     }
+    if (old_name == mesh->active_uv_map_name()) {
+      mesh->uv_maps_active_set(new_name);
+    }
+    if (old_name == mesh->default_uv_map_name()) {
+      mesh->uv_maps_default_set(new_name);
+    }
   }
 
   attributes.rename(old_name, new_name);
@@ -361,7 +367,11 @@ std::string BKE_attribute_calc_unique_name(const AttributeOwner &owner, const St
       add_names(bm.pdata);
       add_names(bm.ldata);
       return BLI_uniquename_cb(
-          [&](const StringRef new_name) { return names.contains(new_name); }, '.', name_final);
+          [&](const StringRef new_name) {
+            return names.contains(new_name) || BM_attribute_stored_in_bmesh_builtin(new_name);
+          },
+          '.',
+          name_final);
     }
   }
 
@@ -588,20 +598,18 @@ int BKE_attributes_length(const AttributeOwner &owner,
   if (include_anonymous && domain_mask == ATTR_DOMAIN_MASK_ALL && mask == CD_MASK_PROP_ALL) {
     return storage.count();
   }
-  int length = 0;
-  storage.foreach([&](const bke::Attribute &attr) {
+  return std::count_if(storage.begin(), storage.end(), [&](const bke::Attribute &attr) {
     if (!(ATTR_DOMAIN_AS_MASK(attr.domain()) & domain_mask)) {
-      return;
+      return false;
     }
     if (!(CD_TYPE_AS_MASK(*bke::attr_type_to_custom_data_type(attr.data_type())) & mask)) {
-      return;
+      return false;
     }
     if (!include_anonymous && bke::attribute_name_is_anonymous(attr.name())) {
-      return;
+      return false;
     }
-    length++;
+    return true;
   });
-  return length;
 }
 
 AttrDomain BKE_attribute_domain(const Mesh &mesh, const BMesh &bm, const CustomDataLayer *layer)
@@ -782,25 +790,22 @@ std::optional<StringRef> BKE_attribute_from_index(AttributeOwner &owner,
     return storage.at_index(lookup_index).name();
   }
   int index = 0;
-  std::optional<StringRef> result;
-  storage.foreach_with_stop([&](const bke::Attribute &attr) {
+  for (const bke::Attribute &attr : storage) {
     if (!(ATTR_DOMAIN_AS_MASK(attr.domain()) & domain_mask)) {
-      return true;
+      continue;
     }
     if (!(CD_TYPE_AS_MASK(*bke::attr_type_to_custom_data_type(attr.data_type())) & layer_mask)) {
-      return true;
+      continue;
     }
     if (!include_anonymous && bke::attribute_name_is_anonymous(attr.name())) {
-      return true;
+      continue;
     }
     if (index == lookup_index) {
-      result = attr.name();
-      return false;
+      return attr.name();
     }
     index++;
-    return true;
-  });
-  return result;
+  }
+  return std::nullopt;
 }
 
 int BKE_attribute_to_index(const AttributeOwner &owner,
@@ -841,25 +846,22 @@ int BKE_attribute_to_index(const AttributeOwner &owner,
     return storage.index_of(name);
   }
   int index = 0;
-  bool found = false;
-  storage.foreach_with_stop([&](const bke::Attribute &attr) {
+  for (const bke::Attribute &attr : storage) {
     if (!(ATTR_DOMAIN_AS_MASK(attr.domain()) & domain_mask)) {
-      return true;
+      continue;
     }
     if (!(CD_TYPE_AS_MASK(*bke::attr_type_to_custom_data_type(attr.data_type())) & layer_mask)) {
-      return true;
+      continue;
     }
     if (!include_anonymous && bke::attribute_name_is_anonymous(attr.name())) {
-      return true;
+      continue;
     }
     if (attr.name() == name) {
-      found = true;
-      return false;
+      return index;
     }
     index++;
-    return true;
-  });
-  return found ? index : -1;
+  }
+  return -1;
 }
 
 std::optional<StringRef> BKE_id_attributes_active_color_name(const ID *id)
@@ -883,7 +885,7 @@ void BKE_id_attributes_active_color_set(ID *id, const std::optional<StringRef> n
   switch (GS(id->name)) {
     case ID_ME: {
       Mesh *mesh = reinterpret_cast<Mesh *>(id);
-      MEM_SAFE_FREE(mesh->active_color_attribute);
+      MEM_SAFE_DELETE(mesh->active_color_attribute);
       if (name) {
         mesh->active_color_attribute = BLI_strdupn(name->data(), name->size());
       }
@@ -899,7 +901,7 @@ void BKE_id_attributes_active_color_clear(ID *id)
   switch (GS(id->name)) {
     case ID_ME: {
       Mesh *mesh = reinterpret_cast<Mesh *>(id);
-      MEM_SAFE_FREE(mesh->active_color_attribute);
+      MEM_SAFE_DELETE(mesh->active_color_attribute);
       break;
     }
     default:
@@ -912,7 +914,7 @@ void BKE_id_attributes_default_color_set(ID *id, const std::optional<StringRef> 
   switch (GS(id->name)) {
     case ID_ME: {
       Mesh *mesh = reinterpret_cast<Mesh *>(id);
-      MEM_SAFE_FREE(mesh->default_color_attribute);
+      MEM_SAFE_DELETE(mesh->default_color_attribute);
       if (name) {
         mesh->default_color_attribute = BLI_strdupn(name->data(), name->size());
       }

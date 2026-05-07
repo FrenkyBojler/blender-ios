@@ -83,6 +83,10 @@ void ShadingView::render()
 
   update_view();
 
+  /* Need to be set early for planar probe renderding (if using raycast node) and raycast nodes in
+   * deferred / forward pipelines. */
+  inst_.raytracing.thickness_parameters_setup(render_view_.winmat(), extent_);
+
   GPU_debug_group_begin(name_);
 
   /* Needs to be before planar_probes because it needs correct crypto-matte & render-pass buffers
@@ -95,8 +99,13 @@ void ShadingView::render()
 
   combined_fb_.ensure(GPU_ATTACHMENT_TEXTURE(rbufs.depth_tx),
                       GPU_ATTACHMENT_TEXTURE(rbufs.combined_tx));
-  prepass_fb_.ensure(GPU_ATTACHMENT_TEXTURE(rbufs.depth_tx),
-                     GPU_ATTACHMENT_TEXTURE(rbufs.vector_tx));
+
+  const bool with_raycast = inst_.pipelines.has_raycast;
+  prepass_fb_.ensure(
+      GPU_ATTACHMENT_TEXTURE(rbufs.depth_tx),
+      with_raycast ? GPU_ATTACHMENT_TEXTURE(rbufs.prepass_normal_tx) : GPU_ATTACHMENT_NONE,
+      with_raycast ? GPU_ATTACHMENT_TEXTURE(rbufs.object_id_tx) : GPU_ATTACHMENT_NONE,
+      GPU_ATTACHMENT_TEXTURE(rbufs.vector_tx));
 
   GBuffer &gbuf = inst_.gbuffer;
   gbuf.acquire(extent_,
@@ -113,14 +122,18 @@ void ShadingView::render()
 
   /* If camera has any motion, compute motion vector in the film pass. Otherwise, we avoid float
    * precision issue by setting the motion of all static geometry to 0. */
+  /* TODO: Clear using GPU_framebuffer. */
   float4 clear_velocity = float4(inst_.velocity.camera_has_motion() ? VELOCITY_INVALID : 0.0f);
+  GPU_texture_clear(rbufs.vector_tx, GPU_DATA_FLOAT, &clear_velocity);
+  if (with_raycast) {
+    rbufs.object_id_tx.clear(uint4(0));
+    rbufs.prepass_normal_tx.clear(float4(0.0f));
+  }
 
-  GPU_framebuffer_bind(prepass_fb_);
-  GPU_framebuffer_clear_color(prepass_fb_, clear_velocity);
-  /* Alpha stores transmittance. So start at 1. */
-  float4 clear_color = {0.0f, 0.0f, 0.0f, 1.0f};
   GPU_framebuffer_bind(combined_fb_);
-  GPU_framebuffer_clear_color_depth(combined_fb_, clear_color, inst_.film.depth.clear_value);
+  /* Alpha stores transmittance. So start at 1. */
+  GPU_framebuffer_clear_color_depth(
+      combined_fb_, {0.0, 0.0, 0.0, 1.0}, inst_.film.depth.clear_value);
   inst_.pipelines.background.clear(render_view_);
 
   /* TODO(fclem): Move it after the first prepass (and hiz update) once pipeline is stabilized. */
@@ -340,19 +353,41 @@ void CaptureView::render_probes()
 {
   Framebuffer prepass_fb;
   View view = {"Capture.View"};
+
+  /* Any 90 degree FOV view will do it. */
+  float4x4 win_m4 = math::projection::perspective(-0.1f, 0.1f, -0.1f, 0.1f, 0.1f, 10.0f);
+  /* Check if uniform_data needs to be updated. */
+  int prev_extent = 0;
+
   while (const auto update_info = inst_.sphere_probes.probe_update_info_pop()) {
     GPU_debug_group_begin("Probe.Capture");
 
-    if (assign_if_different(inst_.pipelines.data.ray_type, RAY_TYPE_GLOSSY)) {
+    if (assign_if_different(inst_.pipelines.data.ray_type, RAY_TYPE_GLOSSY) ||
+        prev_extent != update_info->cube_target_extent)
+    {
+      /* Set correct thickness for raycast node in probe pipelines. */
+      inst_.raytracing.thickness_parameters_setup(win_m4, int2(update_info->cube_target_extent));
       inst_.uniform_data.push_update();
     }
 
-    int2 extent = int2(update_info->cube_target_extent);
-    inst_.render_buffers.acquire(extent);
+    prev_extent = update_info->cube_target_extent;
 
-    inst_.render_buffers.vector_tx.clear(float4(0.0f));
-    prepass_fb.ensure(GPU_ATTACHMENT_TEXTURE(inst_.render_buffers.depth_tx),
-                      GPU_ATTACHMENT_TEXTURE(inst_.render_buffers.vector_tx));
+    int2 extent = int2(update_info->cube_target_extent);
+    RenderBuffers &rbufs = inst_.render_buffers;
+    rbufs.acquire(extent);
+
+    const bool with_raycast = inst_.pipelines.has_raycast;
+    prepass_fb.ensure(
+        GPU_ATTACHMENT_TEXTURE(rbufs.depth_tx),
+        with_raycast ? GPU_ATTACHMENT_TEXTURE(rbufs.prepass_normal_tx) : GPU_ATTACHMENT_NONE,
+        with_raycast ? GPU_ATTACHMENT_TEXTURE(rbufs.object_id_tx) : GPU_ATTACHMENT_NONE,
+        GPU_ATTACHMENT_TEXTURE(rbufs.vector_tx));
+
+    rbufs.vector_tx.clear(float4(0.0f));
+    if (with_raycast) {
+      rbufs.object_id_tx.clear(uint4(0));
+      rbufs.prepass_normal_tx.clear(float4(0.0f));
+    }
 
     inst_.gbuffer.acquire(extent,
                           inst_.pipelines.probe.header_layer_count(),
@@ -381,8 +416,9 @@ void CaptureView::render_probes()
                          GPU_ATTACHMENT_TEXTURE_LAYER(inst_.gbuffer.closure_tx.layer_view(1), 0));
 
       GPU_framebuffer_bind(combined_fb_);
+      /* Alpha stores transmittance. So start at 1. */
       GPU_framebuffer_clear_color_depth(
-          combined_fb_, float4(0.0f, 0.0f, 0.0f, 1.0f), inst_.film.depth.clear_value);
+          combined_fb_, {0.0, 0.0, 0.0, 1.0}, inst_.film.depth.clear_value);
       inst_.pipelines.probe.render(view, prepass_fb, combined_fb_, gbuffer_fb_, extent);
     }
 

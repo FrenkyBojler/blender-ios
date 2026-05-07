@@ -37,6 +37,8 @@
 
 namespace blender {
 
+const char *imb_file_extensions_jpeg[] = {".jpg", ".jpeg", nullptr};
+
 static CLG_LogRef LOG = {"image.jpeg"};
 
 /* the types are from the jpeg lib */
@@ -310,9 +312,10 @@ static ImBuf *ibJpegImageFromCinfo(
       row_pointer = (*cinfo->mem->alloc_sarray)(
           reinterpret_cast<j_common_ptr>(cinfo), JPOOL_IMAGE, row_stride, 1);
 
+      uchar *byte_data = ibuf->byte_data_for_write();
       for (y = ibuf->y - 1; y >= 0; y--) {
         jpeg_read_scanlines(cinfo, row_pointer, 1);
-        rect = ibuf->byte_buffer.data + 4 * y * size_t(ibuf->x);
+        rect = byte_data + 4 * y * size_t(ibuf->x);
         buffer = row_pointer[0];
 
         switch (depth) {
@@ -391,7 +394,7 @@ static ImBuf *ibJpegImageFromCinfo(
           IMB_metadata_ensure(&ibuf->metadata);
           IMB_metadata_set_field(ibuf->metadata, "None", str);
           ibuf->flags |= IB_metadata;
-          MEM_freeN(str);
+          MEM_delete(str);
           goto next_stamp_marker;
         }
 
@@ -402,14 +405,14 @@ static ImBuf *ibJpegImageFromCinfo(
          * then segfault ;)
          */
         if (!key) {
-          MEM_freeN(str);
+          MEM_delete(str);
           goto next_stamp_marker;
         }
 
         key++;
         value = strchr(key, ':');
         if (!value) {
-          MEM_freeN(str);
+          MEM_delete(str);
           goto next_stamp_marker;
         }
 
@@ -418,7 +421,7 @@ static ImBuf *ibJpegImageFromCinfo(
         IMB_metadata_ensure(&ibuf->metadata);
         IMB_metadata_set_field(ibuf->metadata, key, value);
         ibuf->flags |= IB_metadata;
-        MEM_freeN(str);
+        MEM_delete(str);
       next_stamp_marker:
         marker = marker->next;
       }
@@ -529,14 +532,14 @@ ImBuf *imb_thumbnail_jpeg(const char *filepath,
     if (i > 0 && !feof(infile)) {
       /* We found a JPEG thumbnail inside this image. */
       ImBuf *ibuf = nullptr;
-      uchar *buffer = MEM_calloc_arrayN<uchar>(JPEG_APP1_MAX, "thumbbuffer");
+      uchar *buffer = MEM_new_array_zeroed<uchar>(JPEG_APP1_MAX, "thumbbuffer");
       /* Just put SOI directly in buffer rather than seeking back 2 bytes. */
       buffer[0] = JPEG_MARKER_MSB;
       buffer[1] = JPEG_MARKER_SOI;
       if (fread(buffer + 2, JPEG_APP1_MAX - 2, 1, infile) == 1) {
         ibuf = imb_load_jpeg(buffer, JPEG_APP1_MAX, flags, r_colorspace);
       }
-      MEM_SAFE_FREE(buffer);
+      MEM_SAFE_DELETE(buffer);
       if (ibuf) {
         fclose(infile);
         return ibuf;
@@ -565,7 +568,6 @@ static void write_jpeg(jpeg_compress_struct *cinfo, ImBuf *ibuf)
 {
   JSAMPLE *buffer = nullptr;
   JSAMPROW row_pointer[1];
-  uchar *rect;
   int x, y;
   char neogeo[128];
   NeoGeo_Word *neogeo_word;
@@ -598,7 +600,7 @@ static void write_jpeg(jpeg_compress_struct *cinfo, ImBuf *ibuf)
         const size_t text_length_required = 7 + 2 + strlen(prop.name) +
                                             strlen(IDP_string_get(&prop)) + 1;
         if (text_length_required > static_text_size) {
-          text = MEM_malloc_arrayN<char>(text_length_required, "jpeg metadata field");
+          text = MEM_new_array_uninitialized<char>(text_length_required, "jpeg metadata field");
           text_size = text_length_required;
         }
 
@@ -620,7 +622,7 @@ static void write_jpeg(jpeg_compress_struct *cinfo, ImBuf *ibuf)
          * much as possible. In practice, such long fields don't happen
          * often. */
         if (text != static_text) {
-          MEM_freeN(text);
+          MEM_delete(text);
         }
       }
     }
@@ -639,11 +641,12 @@ static void write_jpeg(jpeg_compress_struct *cinfo, ImBuf *ibuf)
     }
   }
 
-  row_pointer[0] = MEM_malloc_arrayN<std::remove_pointer_t<JSAMPROW>>(
+  row_pointer[0] = MEM_new_array_uninitialized<std::remove_pointer_t<JSAMPROW>>(
       size_t(cinfo->input_components) * size_t(cinfo->image_width), "jpeg row_pointer");
 
+  const uchar *byte_data = ibuf->byte_data();
   for (y = ibuf->y - 1; y >= 0; y--) {
-    rect = ibuf->byte_buffer.data + 4 * y * size_t(ibuf->x);
+    const uchar *rect = byte_data + 4 * y * size_t(ibuf->x);
     buffer = row_pointer[0];
 
     switch (cinfo->in_color_space) {
@@ -674,7 +677,7 @@ static void write_jpeg(jpeg_compress_struct *cinfo, ImBuf *ibuf)
   }
 
   jpeg_finish_compress(cinfo);
-  MEM_freeN(row_pointer[0]);
+  MEM_delete(row_pointer[0]);
 }
 
 static int init_jpeg(FILE *outfile, jpeg_compress_struct *cinfo, ImBuf *ibuf)

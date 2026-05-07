@@ -23,6 +23,8 @@
 
 namespace blender::compositor {
 
+struct Schedule;
+
 /* ------------------------------------------------------------------------------------------------
  * Multi-Function Procedure Operation
  *
@@ -55,13 +57,18 @@ class MultiFunctionProcedureOperation : public PixelOperation {
    * output results for each of the parameters in the procedure. Note that parameters have no
    * identifiers and are identified solely by their order. */
   Vector<std::string> parameter_identifiers_;
+  /* True if the operation operates on single values, that is, all of its inputs and outputs are
+   * single values. */
+  const bool is_single_value_;
 
  public:
   /* Build a multi-function procedure as well as an executor for it from the given pixel compile
-   * unit and execution schedule. */
+   * unit and execution schedule. If the operation is operating on single values, is_single_value
+   * should be true. */
   MultiFunctionProcedureOperation(Context &context,
                                   PixelCompileUnit &compile_unit,
-                                  const VectorSet<const bNode *> &schedule);
+                                  const Schedule &schedule,
+                                  const bool is_single_value);
 
   /* Calls the multi-function procedure executor on the domain of the operator passing in the
    * inputs and outputs as parameters. */
@@ -111,9 +118,8 @@ class MultiFunctionProcedureOperation : public PixelOperation {
    * will b returned. */
   mf::Variable *convert_variable(mf::Variable *variable, const mf::DataType expected_type);
 
-  /* Returns true if the operation operates on single values, that is, all of its inputs are single
-   * values. Assumes the procedure is already build. */
-  bool is_single_value_operation();
+  /* Creates and returns a variable that carries the default value of the given type. */
+  mf::Variable *get_default_value_variable(const mf::DataType type);
 };
 
 }  // namespace blender::compositor
