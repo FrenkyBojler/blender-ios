@@ -38,7 +38,12 @@ API(void)
 encoderSetCompressionLevel(Encoder *encoder, uint32_t compressionLevel);
 
 API(void)
-encoderSetQuantizationBits(Encoder *encoder, uint32_t position, uint32_t normal, uint32_t uv, uint32_t color, uint32_t generic);
+encoderSetQuantizationBits(Encoder *encoder,
+                           uint32_t position,
+                           uint32_t normal,
+                           uint32_t uv,
+                           uint32_t color,
+                           uint32_t generic);
 
 API(bool)
 encoderEncode(Encoder *encoder, uint8_t preserveTriangleOrder);
@@ -53,7 +58,12 @@ API(void)
 encoderSetIndices(Encoder *encoder, size_t indexComponentType, uint32_t indexCount, void *indices);
 
 API(uint32_t)
-encoderSetAttribute(Encoder *encoder, char *attributeName, size_t componentType, char *dataType, void *data, bool normalized);
+encoderSetAttribute(Encoder *encoder,
+                    char *attributeName,
+                    size_t componentType,
+                    char *dataType,
+                    void *data,
+                    bool normalized);
 
 API(uint32_t)
 encoderGetEncodedVertexCount(Encoder *encoder);

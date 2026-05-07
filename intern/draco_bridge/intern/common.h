@@ -24,23 +24,22 @@
 
 #pragma once
 
-#include <cstdint>
 #include <cstddef>
+#include <cstdint>
 
 #if defined(_MSC_VER)
-#define API(returnType) extern "C" __declspec(dllexport) returnType __cdecl
+#  define API(returnType) extern "C" __declspec(dllexport) returnType __cdecl
 #else
-#define API(returnType) extern "C" returnType
+#  define API(returnType) extern "C" returnType
 #endif
 
-enum ComponentType : size_t
-{
-    Byte = 5120,
-    UnsignedByte = 5121,
-    Short = 5122,
-    UnsignedShort = 5123,
-    UnsignedInt = 5125,
-    Float = 5126,
+enum ComponentType : size_t {
+  Byte = 5120,
+  UnsignedByte = 5121,
+  Short = 5122,
+  UnsignedShort = 5123,
+  UnsignedInt = 5125,
+  Float = 5126,
 };
 
 size_t getNumberOfComponents(char *dataType);
