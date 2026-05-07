@@ -499,14 +499,27 @@ TEST_F(ArmatureBoneIndexTest, armature_copy_data)
   create_armature();
   EXPECT_EQ(bone_root, armature->bone_get_indexed(0)); /* Ensure the bone array is created. */
 
+  /* Regular copy, should get its own generation counter. */
   bArmature *copy = id_cast<bArmature *>(BKE_id_copy(this->bmain, &armature->id));
-
   ASSERT_NE(0, armature->id.session_uid);
-  EXPECT_EQ(armature->runtime->bones_generation_count, copy->runtime->bones_generation_count);
+  EXPECT_NE(armature->runtime->bones_generation_count, copy->runtime->bones_generation_count);
   EXPECT_EQ(3, copy->runtime->bones.size());
 
+  /* Getting the indexed bone should return a copied bone, and not the original. */
   Bone *copybone_root = static_cast<Bone *>(copy->bonebase.first);
   EXPECT_EQ(copybone_root, copy->bone_get_indexed(0));
+
+  /* CoW-copy, should reuse the generation counter. */
+  bArmature *cow_copy = id_cast<bArmature *>(
+      BKE_id_copy_in_lib(this->bmain,
+                         std::nullopt,
+                         &armature->id,
+                         std::nullopt,
+                         nullptr,
+                         LIB_ID_COPY_DEFAULT | LIB_ID_COPY_SET_COPIED_ON_WRITE));
+  ASSERT_NE(0, armature->id.session_uid);
+  EXPECT_EQ(armature->runtime->bones_generation_count, cow_copy->runtime->bones_generation_count);
+  EXPECT_EQ(3, cow_copy->runtime->bones.size());
 }
 
 class PoseBoneIndexTest : public BoneIndexTestBase, public BlenderGTestBase {
