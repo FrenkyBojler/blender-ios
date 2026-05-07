@@ -18,6 +18,7 @@
 #include "BLI_multi_value_map.hh"
 #include "BLI_set.hh"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "DNA_array_utils.hh"
@@ -435,6 +436,25 @@ static void update_panels_from_node_group(NodesModifierData &nmd)
   nmd.panels_num = interface_panels.size();
 }
 
+static void update_old_to_new_identifiers(IDProperty *group,
+                                          const Span<const bNodeTreeInterfaceSocket *> io_sockets)
+{
+  if (!group) {
+    return;
+  }
+  for (const bNodeTreeInterfaceSocket *io_socket : io_sockets) {
+    for (const int i : IndexRange(io_socket->old_identifiers_num)) {
+      const StringRef old_identifier = io_socket->old_identifiers[i];
+      if (IDProperty *prop = IDP_GetPropertyFromGroup(group, old_identifier)) {
+        /* Reinsert in group with new identifier. */
+        IDP_RemoveFromGroup(group, prop);
+        STRNCPY_UTF8(prop->name, io_socket->identifier);
+        IDP_AddToGroup(group, prop);
+      }
+    }
+  }
+}
+
 static void update_system_properties(Object &object, NodesModifierData &nmd)
 {
   if (!nmd.modifier.system_properties) {
@@ -444,6 +464,13 @@ static void update_system_properties(Object &object, NodesModifierData &nmd)
   if (!nmd.node_group || ID_MISSING(nmd.node_group)) {
     return;
   }
+  nmd.node_group->ensure_interface_cache();
+  update_old_to_new_identifiers(IDP_GetPropertyFromGroup(nmd.modifier.system_properties, "inputs"),
+                                nmd.node_group->interface_inputs());
+  update_old_to_new_identifiers(
+      IDP_GetPropertyFromGroup(nmd.modifier.system_properties, "outputs"),
+      nmd.node_group->interface_outputs());
+
   PointerRNA properties_ptr = RNA_pointer_create_discrete(
       &object.id, RNA_NodesModifierProperties, &nmd);
   RNA_sync_system_properties(properties_ptr, *nmd.modifier.system_properties);
