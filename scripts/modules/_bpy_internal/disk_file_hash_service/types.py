@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 from pathlib import Path
-from typing import Protocol, Callable
+from typing import Protocol, Callable, Iterable, Tuple
 import dataclasses
 
 
@@ -53,6 +53,16 @@ class DiskFileHashBackend(Protocol):
 
         See `remove_older_than()`.
         """
+
+    def mark_hashes_as_fresh(self, items: Iterable[Tuple[Path,str]]) -> None:
+        """Store that all the provided hash are considered 'fresh'.
+
+        See `remove_older_than()`.
+        """
+
+    def iter_older_than(self, days: int) -> Iterator[Tuple[Path, str, FileHashInfo]]:
+        """Yield (filepath, hash_algorithm, hash_info) tuples for entries older than this many days."""
+        ...
 
     def remove_older_than(self, *, days: int) -> None:
         """Remove all hash entries that are older than this many days.

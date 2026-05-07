@@ -40,12 +40,15 @@ class DiskFileHashService:
 
         # Remove (potentially) outdated hashes. This is done on close, and not
         # on open, to give Blender the time to query files it needs.
-        #
-        # TODO: as a future improvement, we could investigate (instead of
-        # delete) hashes that are older than X days. If they reference files
-        # that still exist on disk, for which the cached entry is still valid
-        # (given size in bytes & mtime), the cache entry could be marked as
-        # 'freshly checked' instead of removed.
+
+        old_hashes = self.backend.fetch_older_than(days=HASH_RETAIN_AGE_DAYS)
+        file_hashes_to_update = [
+            (filepath, hash_algorithm)
+            for filepath, hash_algorithm, cached_info in old_hashes
+            if self._file_stat_matches(filepath, cached_info.file_size_bytes, cached_info.file_stat_mtime)
+        ]
+        self.backend.mark_hashes_as_fresh(file_hashes_to_update)
+
         self.backend.remove_older_than(days=HASH_RETAIN_AGE_DAYS)
         self.backend.close()
 

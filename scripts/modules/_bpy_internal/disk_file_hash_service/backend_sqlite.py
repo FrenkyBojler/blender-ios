@@ -12,7 +12,7 @@ import contextlib
 import datetime
 import sqlite3
 from pathlib import Path
-from typing import Iterator, Callable
+from typing import Iterator, Iterable, Callable, Tuple
 
 from . import types
 
@@ -200,6 +200,38 @@ class SQLiteBackend:
                 "UPDATE hashes SET last_checked=? " +
                 "WHERE file_id = (SELECT file_id FROM files WHERE path=?) AND hash_algo=?",
                 (now, str(filepath), hash_algorithm))
+
+    def mark_hashes_as_fresh(self, items: Iterable[Tuple[Path,str]]) -> None:
+        """Store that all the provided hash are considered 'fresh'.
+
+        See `remove_older_than()`.
+        """
+        now = self._now_string()
+        with self._transaction_rw() as db:
+            db.executemany(
+                "UPDATE hashes SET last_checked=? " +
+                "WHERE file_id = (SELECT file_id FROM files WHERE path=?) AND hash_algo=?",
+                ((now, str(filepath), hash_algorithm) for filepath, hash_algorithm in items),
+            )
+
+
+    def fetch_older_than(self, days: int) -> Iterable[Tuple[Path, str, types.FileHashInfo]]:
+        """Fetch (filepath, hash_algorithm, hash_info) tuples for entries older than this many days."""
+        older_than = self._now() - datetime.timedelta(days=days)
+        with self._transaction_ro() as db:
+            cursor = db.execute(
+                "SELECT f.path, h.hash_algo, h.size_in_bytes, h.hexdigest, h.file_stat_mtime " +
+                "FROM files f INNER JOIN hashes h USING (file_id) " +
+                "WHERE h.last_checked<?",
+                (older_than.isoformat(),))
+            return [
+                (Path(filepath), hash_algorithm, types.FileHashInfo(
+                    hexhash=hex,
+                    file_size_bytes=size,
+                    file_stat_mtime=mtime,
+                ))
+                for filepath, hash_algorithm, size, hex, mtime in cursor
+            ]
 
     def remove_older_than(self, *, days: int) -> None:
         """Remove all hash entries that are older than this many days.
