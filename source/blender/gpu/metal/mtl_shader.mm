@@ -241,7 +241,7 @@ id<MTLLibrary> MTLShader::create_shader_library(const shader::ShaderCreateInfo &
   std::string shader_compat;
   {
     std::stringstream ss;
-    // shader stage needs to be defined before the compat part
+    /* Shader stage needs to be defined before the compat part. */
     ss << shader_stage_define(stage) << "\n";
     ss << "#define MTL_WORKGROUP_SIZE_X " << info.compute_layout_.local_size_x << "\n";
     ss << "#define MTL_WORKGROUP_SIZE_Y " << info.compute_layout_.local_size_y << "\n";
