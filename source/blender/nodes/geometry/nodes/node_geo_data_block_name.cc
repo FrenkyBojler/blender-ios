@@ -26,10 +26,10 @@ static void node_declare(NodeDeclarationBuilder &b)
   const bNode *node = b.node_or_null();
   if (node) {
     const eNodeSocketDatatype data_type = eNodeSocketDatatype(node->custom1);
-    b.add_input(data_type, "Data Block").optional_label();
+    b.add_input(data_type, "Data Block"_ustr).optional_label();
   }
-  b.add_output<decl::String>("Name");
-  b.add_output<decl::String>("Library Name");
+  b.add_output<decl::String>("Name"_ustr);
+  b.add_output<decl::String>("Library Name"_ustr);
 }
 
 static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
@@ -52,27 +52,27 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   switch (data_type) {
     case SOCK_OBJECT: {
-      Object *data_block = params.extract_input<Object *>("Data Block");
+      Object *data_block = params.extract_input<Object *>("Data Block"_ustr);
       id = &data_block->id;
       break;
     }
     case SOCK_IMAGE: {
-      Image *data_block = params.extract_input<Image *>("Data Block");
+      Image *data_block = params.extract_input<Image *>("Data Block"_ustr);
       id = &data_block->id;
       break;
     }
     case SOCK_COLLECTION: {
-      Collection *data_block = params.extract_input<Collection *>("Data Block");
+      Collection *data_block = params.extract_input<Collection *>("Data Block"_ustr);
       id = &data_block->id;
       break;
     }
     case SOCK_MATERIAL: {
-      Material *data_block = params.extract_input<Material *>("Data Block");
+      Material *data_block = params.extract_input<Material *>("Data Block"_ustr);
       id = &data_block->id;
       break;
     }
     case SOCK_FONT: {
-      VFont *data_block = params.extract_input<VFont *>("Data Block");
+      VFont *data_block = params.extract_input<VFont *>("Data Block"_ustr);
       id = &data_block->id;
       break;
     }
@@ -85,9 +85,9 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  params.set_output<std::string>("Name", BKE_id_name(*id));
+  params.set_output<std::string>("Name"_ustr, BKE_id_name(*id));
 
-  if (!params.output_is_required("Library Name")) {
+  if (!params.output_is_required("Library Name"_ustr)) {
     params.set_default_remaining_outputs();
     return;
   }
@@ -98,7 +98,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  params.set_output<std::string>("Library Name", BKE_id_name(lib->id));
+  params.set_output<std::string>("Library Name"_ustr, BKE_id_name(lib->id));
 }
 
 static void node_rna(StructRNA *srna)
@@ -125,7 +125,7 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeDataBlockName");
+  geo_node_type_base(&ntype, "GeometryNodeDataBlockName"_ustr);
   ntype.ui_name = "Data Block Name";
   ntype.ui_description = "Retrieve the name of a data block";
   ntype.nclass = NODE_CLASS_CONVERTER;
