@@ -224,7 +224,7 @@ void BlenderSync::sync_recalc(blender::Depsgraph &b_depsgraph,
       }
       shader_map.set_recalc(b_id);
     }
-    /* World */
+    /* Scene */
     else if (GS(b_id->name) == blender::ID_SCE) {
       shader_map.set_recalc(b_id);
     }
@@ -742,6 +742,7 @@ static bool get_known_pass_type(blender::RenderPass &b_pass, PassType &type, Pas
   MAP_PASS("Denoising Normal", PASS_DENOISING_NORMAL, true);
   MAP_PASS("Denoising Roughness", PASS_DENOISING_ROUGHNESS, true);
   MAP_PASS("Denoising Depth", PASS_DENOISING_DEPTH, true);
+  MAP_PASS("Denoising Backward Motion", PASS_DENOISING_BACKWARD_MOTION, true);
 
   MAP_PASS("Shadow Catcher", PASS_SHADOW_CATCHER, false);
   MAP_PASS("Noisy Shadow Catcher", PASS_SHADOW_CATCHER, true);
