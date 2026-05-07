@@ -381,7 +381,6 @@ static void do_paint_pixels(const Depsgraph &depsgraph,
 
     Array<int> row_map(tile_data.pixel_rows.size(), -1);
     Array<bool> row_changed(tile_data.pixel_rows.size(), false);
-    // i -> tile_data.pixel_rows[valid_rows[i]]
     Array<Vector<float>> all_factors(valid_rows.size());
     /* Calculate the per-row factor first */
     valid_rows.foreach_index([&](const int i, const int pos) {
