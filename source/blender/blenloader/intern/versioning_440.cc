@@ -531,8 +531,8 @@ static bool versioning_convert_seq_text_anchor(Strip *strip, void * /*user_data*
   }
 
   TextVars *data = static_cast<TextVars *>(strip->effectdata);
-  data->anchor_x = data->align;
-  data->anchor_y = data->align_y_legacy;
+  data->anchor_x = eEffectTextAnchorX(data->align);
+  data->anchor_y = eEffectTextAnchorY(data->align_y_legacy);
   data->align = SEQ_TEXT_ALIGN_X_LEFT;
 
   return true;
@@ -731,6 +731,8 @@ static void version_group_input_socket_data_block_reference(bNodeTree &ntree)
         case SOCK_MATERIAL:
           socket.default_value_typed<bNodeSocketValueMaterial>()->value = nullptr;
           break;
+        default:
+          break;
       }
     }
   }
@@ -738,7 +740,7 @@ static void version_group_input_socket_data_block_reference(bNodeTree &ntree)
 
 static bool versioning_clear_strip_unused_flag(Strip *strip, void * /*user_data*/)
 {
-  strip->flag &= ~(1 << 6);
+  strip->flag &= ~eStripFlag(1 << 6);
   return true;
 }
 
