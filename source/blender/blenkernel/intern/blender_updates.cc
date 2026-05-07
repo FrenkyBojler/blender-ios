@@ -195,7 +195,7 @@ static std::optional<VersionUpdate> read_version_update(io::serialize::Value *en
   std::optional<StringRefNull> description = dict.lookup_str("description");
   std::optional<StringRefNull> download_url = dict.lookup_str("download_url");
   std::optional<StringRefNull> cycle = dict.lookup_str("cycle");
-  const std::shared_ptr<Value> *is_lts = dict.lookup("is_lts");
+  std::optional<bool> is_lts = dict.lookup_bool("is_lts");
   std::optional<StringRefNull> platform = dict.lookup_str("platform");
   std::optional<StringRefNull> release_notes_url = dict.lookup_str("release_notes_url");
   std::optional<StringRefNull> timestamp = dict.lookup_str("timestamp");
@@ -207,15 +207,11 @@ static std::optional<VersionUpdate> read_version_update(io::serialize::Value *en
   TEST_JSON_ENTRY(description, description);
   TEST_JSON_ENTRY(download_url, download_url);
   TEST_JSON_ENTRY(cycle, cycle);
+  TEST_JSON_ENTRY(is_lts, is_lts);
   TEST_JSON_ENTRY(platform, platform);
   TEST_JSON_ENTRY(release_notes_url, release_notes_url);
   TEST_JSON_ENTRY(timestamp, timestamp);
   TEST_JSON_ENTRY(version_str, version);
-
-  if (!is_lts || is_lts->get()->type() != eValueType::Boolean) {
-    CLOG_WARN(&LOG, "missing or corrupt version update entry: `is_lts`");
-    return std::nullopt;
-  }
 
   std::optional<BlenderVersion> version = blender_version_from_version_str(*version_str);
   if (!version) {
@@ -236,7 +232,7 @@ static std::optional<VersionUpdate> read_version_update(io::serialize::Value *en
       .description = *description,
       .download_url = *download_url,
       .cycle = *cycle,
-      .is_lts = is_lts->get()->as_boolean_value()->value(),
+      .is_lts = *is_lts,
       .platform = *platform,
       .release_notes_url = *release_notes_url,
       .timestamp = *timestamp,
@@ -514,7 +510,7 @@ void write_blender_updates_cache_file()
     entry->append_str("description", update->description);
     entry->append_str("download_url", update->download_url);
     entry->append_str("cycle", update->cycle);
-    entry->append("is_lts", std::make_unique<BooleanValue>(update->is_lts));
+    entry->append_bool("is_lts", update->is_lts);
     entry->append_str("platform", update->platform);
     entry->append_str("release_notes_url", update->release_notes_url);
     entry->append_str("timestamp", update->timestamp);
