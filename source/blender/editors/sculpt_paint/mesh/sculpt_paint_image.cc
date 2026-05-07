@@ -23,13 +23,14 @@
 #include "IMB_colormanagement.hh"
 #include "IMB_imbuf.hh"
 
+#include "BLI_bounds.hh"
+#include "BLI_enumerable_thread_specific.hh"
+
 #include "BKE_brush.hh"
 #include "BKE_image_wrappers.hh"
 #include "BKE_object_types.hh"
 #include "BKE_paint_bvh.hh"
 #include "BKE_paint_bvh_pixels.hh"
-#include "BLI_bounds.hh"
-#include "BLI_enumerable_thread_specific.hh"
 
 #include "mesh_brush_common.hh"
 #include "sculpt_automask.hh"
@@ -362,7 +363,6 @@ static void do_paint_pixels(const Depsgraph &depsgraph,
 
   bool pixels_updated = false;
   IndexMaskMemory memory;
-  /* TODO: Experiment with collecting all of the index ranges first */
   for (UDIMTilePixels &tile_data : pixel_node.tiles) {
     ImBuf *image_buffer = image_data.buffers.lookup_default(tile_data.tile_number, nullptr);
     if (image_buffer == nullptr) {
@@ -391,10 +391,9 @@ static void do_paint_pixels(const Depsgraph &depsgraph,
         });
 
     Array<int> row_map(tile_data.pixel_rows.size(), -1);
-    /* TODO: Experiment with allocating factor "image" earlier in a contiguous chunk to avoid
+    /* TODO: Experiment with creating a larger Vector that is sliced with OffsetIndicies to avoid
      * needing to resize in a parallel loop? */
     Array<Vector<float>> all_factors(valid_rows.size());
-    /* Calculate the per-row factor first */
     threading::EnumerableThreadSpecific<FactorLocalData> all_factor_tls;
     valid_rows.foreach_index(
         [&](const int i, const int pos) {
