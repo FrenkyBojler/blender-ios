@@ -17,3 +17,4 @@ Referenced by commit 0d8debaa747dbfb7652f63beb90a7c3281d08d4b, Nodes: Add versio
 Referenced by issue #157539, Crash when opening .blend file
 Referenced by issue #157706, Font socket linked to group input no longer leads to Font dropdown in GN modifier panel.
 Referenced by issue #158280, Crash when executing node tool with Menu input
+Referenced by pull request #158301, Fix: Two node tools issues
