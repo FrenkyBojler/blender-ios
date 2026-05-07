@@ -900,4 +900,46 @@ void NODE_OT_default_group_width_set(wmOperatorType *ot)
 
 /** \} */
 
+/* -------------------------------------------------------------------- */
+/** \name Edit interface socket identifier.
+ * \{ */
+
+static bool interface_socket_identifier_edit_poll(bContext *C)
+{
+  SpaceNode *snode = CTX_wm_space_node(C);
+  if (!snode) {
+    return false;
+  }
+  bNodeTree *ntree = snode->edittree;
+  if (!ntree) {
+    return false;
+  }
+  if (!ID_IS_EDITABLE(&ntree->id)) {
+    return false;
+  }
+  return true;
+}
+
+static wmOperatorStatus interface_socket_identifier_edit_invoke(bContext *C,
+                                                                wmOperator * /*op*/,
+                                                                const wmEvent * /*event*/)
+{
+  return OPERATOR_CANCELLED;
+}
+
+void NODE_OT_interface_socket_identifier_edit(wmOperatorType *ot)
+{
+  ot->name = "Edit Interface Socket Identifier";
+  ot->description =
+      "Change the identifier of an interface while avoiding unnecessary compatibility breakages";
+  ot->idname = "NODE_OT_interface_socket_identifier_edit";
+
+  ot->invoke = interface_socket_identifier_edit_invoke;
+  ot->poll = interface_socket_identifier_edit_poll;
+
+  ot->flag = OPTYPE_UNDO;
+}
+
+/** \} */
+
 }  // namespace blender::ed::space_node

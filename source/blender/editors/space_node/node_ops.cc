@@ -70,6 +70,7 @@ void node_operatortypes()
   WM_operatortype_append(NODE_OT_group_enter_exit);
 
   WM_operatortype_append(NODE_OT_default_group_width_set);
+  WM_operatortype_append(NODE_OT_interface_socket_identifier_edit);
 
   WM_operatortype_append(NODE_OT_link_viewer);
 

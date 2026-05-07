@@ -504,6 +504,7 @@ void NODE_OT_group_edit(wmOperatorType *ot);
 void NODE_OT_group_enter_exit(wmOperatorType *ot);
 
 void NODE_OT_default_group_width_set(wmOperatorType *ot);
+void NODE_OT_interface_socket_identifier_edit(wmOperatorType *ot);
 
 /* `node_relationships.cc` */
 

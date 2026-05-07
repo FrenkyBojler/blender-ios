@@ -144,8 +144,11 @@ struct bNodeTreeInterfaceSocket {
 
   struct IDProperty *properties = nullptr;
 
+  char **old_identifiers = nullptr;
+  int old_identifiers_num = 0;
+
   NodeSocketInterfaceStructureType structure_type = NodeSocketInterfaceStructureType::Auto;
-  char _pad[7] = {};
+  char _pad[3] = {};
 
 #ifdef __cplusplus
   bke::bNodeSocketType *socket_typeinfo() const;
