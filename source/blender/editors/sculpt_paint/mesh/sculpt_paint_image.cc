@@ -383,14 +383,14 @@ static void do_paint_pixels(const Depsgraph &depsgraph,
     Array<bool> row_changed(tile_data.pixel_rows.size(), false);
     Array<Vector<float>> all_factors(valid_rows.size());
     /* Calculate the per-row factor first */
+    threading::EnumerableThreadSpecific<FactorLocalData> all_factor_tls;
     valid_rows.foreach_index([&](const int i, const int pos) {
-      threading::EnumerableThreadSpecific<FactorLocalData> all_tls;
       const PackedPixelRow pixel_row = tile_data.pixel_rows[i];
       all_factors[pos].resize(pixel_row.num_pixels);
       all_factors[pos].fill(1.0f);
       row_map[i] = pos;
       threading::parallel_for(IndexRange(pixel_row.num_pixels), 512, [&](const IndexRange range) {
-        FactorLocalData &tls = all_tls.local();
+        FactorLocalData &tls = all_factor_tls.local();
         tls.pixel_positions.resize(range.size());
         calc_pixel_row_positions(positions,
                                  pbvh_data.vert_tris,
@@ -422,15 +422,15 @@ static void do_paint_pixels(const Depsgraph &depsgraph,
     IndexMask non_zero_rows = IndexMask::from_bools(non_zero_data, memory);
     IndexMask paint_rows = IndexMask::from_intersection(valid_rows, non_zero_rows, memory);
 
+    threading::EnumerableThreadSpecific<PaintLocalData> all_paint_tls;
     paint_rows.foreach_index([&](const int i) {
       const int row_i = row_map[i];
       BLI_assert(row_i != -1);
-      threading::EnumerableThreadSpecific<PaintLocalData> all_tls;
       const PackedPixelRow pixel_row = tile_data.pixel_rows[i];
 
       BLI_assert(pixel_row.num_pixels == all_factors[row_i].size());
       threading::parallel_for(IndexRange(pixel_row.num_pixels), 512, [&](const IndexRange range) {
-        PaintLocalData &tls = all_tls.local();
+        PaintLocalData &tls = all_paint_tls.local();
 
         tls.paint_pixels.resize(range.size());
         Span<float> factors = all_factors[row_i].as_span().slice(range);
