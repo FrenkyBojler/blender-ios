@@ -342,13 +342,10 @@ static void calculate_splines_axis(Span<float> unique_distances,
 /** Return the index of the spline segment that contains target_distance. */
 static int find_spline_segment(Span<float> knot_distances, float target_distance)
 {
-  for (const int k : IndexRange(knot_distances.size() - 1)) {
-    if (target_distance >= knot_distances[k] && target_distance <= knot_distances[k + 1]) {
-      return k;
-    }
-  }
-  BLI_assert_unreachable();
-  return knot_distances.size() - 2;
+  auto upper_knot = std::upper_bound(
+      knot_distances.begin(), knot_distances.end(), target_distance);
+  int segment_index = std::distance(knot_distances.begin(), upper_knot) - 1;
+  return std::clamp(segment_index, 0, int(knot_distances.size()) - 2);
 }
 
 /** Evaluate linear interpolation at target_distance. */
