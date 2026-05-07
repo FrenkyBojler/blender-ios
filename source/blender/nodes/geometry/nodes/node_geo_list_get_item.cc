@@ -31,7 +31,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   const NodeGeometryListGetItem &storage = node_storage(*node);
   const auto type = eNodeSocketDatatype(storage.socket_type);
 
-  const auto structure_type = storage.structure_type == NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO ?
+  const auto structure_type = storage.structure_type == NodeSocketInterfaceStructureType::Auto ?
                                   StructureType::Dynamic :
                                   StructureType(storage.structure_type);
 
@@ -74,9 +74,6 @@ class SocketSearchOp {
 
 static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 {
-  if (!U.experimental.use_geometry_nodes_lists) {
-    return;
-  }
   const eNodeSocketDatatype socket_type = eNodeSocketDatatype(params.other_socket().type);
   if (params.in_out() == SOCK_IN) {
     if (params.node_tree().typeinfo->validate_link(socket_type, SOCK_INT)) {
