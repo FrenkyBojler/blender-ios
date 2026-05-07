@@ -78,6 +78,9 @@ class ScopedNodeGroupTimer {
 
   ~ScopedNodeGroupTimer()
   {
+    if (!log_) {
+      return;
+    }
     const nodes::eval_log::TimePoint end = nodes::eval_log::Clock::now();
     nodes::eval_log::NodeTreeLogger &tree_logger = log_->get_local_tree_logger(compute_context_);
     tree_logger.execution_time = end - start_;
