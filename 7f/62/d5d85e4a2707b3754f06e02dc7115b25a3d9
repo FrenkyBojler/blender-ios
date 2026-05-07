@@ -1,2 +1,3 @@
 Referenced by issue #158136, ThemeCommonAnim.channels_selected and ThemeProperties.active_modifier error when using light theme
 Referenced by pull request #158163, Fix #158136: Light theme error when opening animation workspace
+Referenced by commit f6bb77c1f063700d6503b7ce5c6552bd778fb6d3, Fix #158136: Light theme error when opening animation workspace
