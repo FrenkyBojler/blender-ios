@@ -361,6 +361,7 @@ enum ButtonFlag {
   BUT_INACTIVE = 1 << 18,
   BUT_LAST_ACTIVE = 1 << 19,
   BUT_UNDO = 1 << 20,
+  /* UNUSED = 1 << 21, */
   BUT_NO_UTF8 = 1 << 22,
 
   /** For popups, pressing return activates this button, overriding the highlighted button.
@@ -391,8 +392,6 @@ enum ButtonFlag {
 
   /** RNA property of the button is overridden from linked reference data. */
   BUT_OVERRIDDEN = 1u << 31u,
-
-  BUT_UPDATE_AVAILABLE = 1 << 21,
 };
 
 enum {

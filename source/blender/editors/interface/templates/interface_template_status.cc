@@ -539,7 +539,7 @@ void uiTemplateStatusInfo(Layout *layout, bContext *C)
         Button *button = layout->block()->buttons_ptrs.last().get();
         /* Remove extra space for menu arrow. */
         button->rect.xmax -= UI_UNIT_X * 0.55f;
-        ui::button_flag_enable(button, ui::BUT_UPDATE_AVAILABLE);
+        static_cast<ButtonMenu *>(button)->draw_as_updates_available_popover_button = true;
         has_status_info = true;
       }
     }

@@ -4077,7 +4077,6 @@ static void widget_update_menubut(uiWidgetColors *wcol,
 
   const float rad = widget_radius_from_zoom(zoom, wcol);
   round_box_edges(&wtb, roundboxalign, rect, rad);
-  BLI_assert(bool(state->but_flag & BUT_UPDATE_AVAILABLE));
   theme::get_color_4ubv(TH_SUCCESS, wcol->inner);
   wcol->inner[3] *= 0.40f;
   wcol->outline[3] = 0.0f;
@@ -5409,7 +5408,7 @@ static WidgetType *popover_widget_type(Button *but, rcti *rect)
 
   /* With menu arrows. */
   WidgetType *widget = widget_type(WidgetStyle::MenuRadio);
-  if (but->flag & BUT_UPDATE_AVAILABLE) {
+  if (static_cast<ButtonMenu *>(but)->draw_as_updates_available_popover_button) {
     widget->draw = widget_update_menubut;
   }
   return widget;

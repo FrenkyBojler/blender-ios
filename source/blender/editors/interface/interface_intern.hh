@@ -532,6 +532,8 @@ struct ButtonHotkeyEvent : public Button {
  */
 struct ButtonMenu : public Button {
   PopupAttachDirection popup_attach_direction = PopupAttachDirection::Vertical;
+  /** Uses a custom drawing style for the `Updates Available` button. */
+  bool draw_as_updates_available_popover_button = false;
 };
 
 /**
