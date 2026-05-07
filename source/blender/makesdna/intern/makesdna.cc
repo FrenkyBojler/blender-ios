@@ -704,9 +704,9 @@ static void write_sdna_struct_ids(FILE *file, const Span<dna::ParsedStruct> pars
 }
 
 /** Write the `dna_defaults.cc` for RNA to automatically set property defaults. */
-static void write_sdna_defaults(FILE *file,
-                                const StringRefNull base_directory,
-                                const Span<dna::ParsedStruct> parsed_structs)
+static void write_rna_defaults(FILE *file,
+                               const StringRefNull base_directory,
+                               const Span<dna::ParsedStruct> parsed_structs)
 {
   fprintf(file, "/* Default struct member values for RNA. */\n");
   fprintf(file, "#define DNA_DEPRECATED_ALLOW\n");
@@ -879,8 +879,9 @@ static bool make_structDNA(const StringRefNull base_directory,
   }
   DEBUG_PRINTF(0, "\tFinished scanning headers.\n");
 
-  /* Write SDNA defaults before any substitution or renaming. */
-  write_sdna_defaults(file_defaults, base_directory, parsed_structs);
+  /* Write default values for RNA before any substitution or renaming, as RNA binds
+   * to the actual C++ data structures rather than SDNA. */
+  write_rna_defaults(file_defaults, base_directory, parsed_structs);
 
   /* Substitute C++ types with C types known to SDNA. */
   if (!dna::substitute_cpp_types(parsed_structs, parsed_enums, false)) {

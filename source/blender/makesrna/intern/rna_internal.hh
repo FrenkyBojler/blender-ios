@@ -12,6 +12,7 @@
 
 #include "BLI_compiler_attrs.h"
 #include "BLI_string_ref.hh"
+#include "BLI_utildefines.h"
 
 #include "DNA_listBase.h"
 

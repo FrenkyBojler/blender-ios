@@ -66,15 +66,6 @@ namespace blender {
 #  define ASSERT_SOFT_HARD_LIMITS (void)0
 #endif
 
-/**
- * Several types cannot use all their bytes to store a bit-set (bit-shift operations on negative
- * numbers are "arithmetic", i.e. preserve the sign, i.e. are not "pure" binary shifting).
- *
- * Currently, all signed types and `uint64_t` cannot use their left-most bit (i.e. sign bit).
- */
-#define IS_DNATYPE_BOOLEAN_BITSHIFT_FULLRANGE_COMPAT(_str) \
-  ELEM(_str, "char", "uchar", "ushort", "uint", "uint8_t", "uint16_t", "uint32_t")
-
 /* Global used during defining */
 
 BlenderDefRNA DefRNA;
@@ -377,24 +368,26 @@ static bool rna_find_sdna_member(const StringRef structname,
 struct RnaDnaTypeInfo {
   int size = 0;
   bool is_integer = false;
-  int range[2] = {};
+  /* Min and max value of this data type. */
+  int value_min = 0;
+  int value_max = 0;
 };
 
 static RnaDnaTypeInfo rna_dnatype_primitive_info(const StringRef dnatype)
 {
   /* clang-format off */
   static const std::pair<const char *, RnaDnaTypeInfo> table[] = {
-      {"char",    {sizeof(char),    true,  {CHAR_MIN, CHAR_MAX}}},
-      {"uchar",   {sizeof(uchar),   true,  {0,        UCHAR_MAX}}},
-      {"int8_t",  {sizeof(int8_t),  true,  {INT8_MIN, INT8_MAX}}},
-      {"uint8_t", {sizeof(uint8_t), true,  {0,        UINT8_MAX}}},
-      {"short",   {sizeof(short),   true,  {SHRT_MIN, SHRT_MAX}}},
-      {"ushort",  {sizeof(ushort),  true,  {0,        USHRT_MAX}}},
-      {"int",     {sizeof(int),     true,  {INT_MIN,  INT_MAX}}},
-      {"float",   {sizeof(float),   false, {}}},
-      {"int64_t", {sizeof(int64_t), false, {}}},
-      {"uint64_t",{sizeof(uint64_t),false, {}}},
-      {"double",  {sizeof(double),  false, {}}},
+      {"char",    {sizeof(char),    true,  CHAR_MIN, CHAR_MAX}},
+      {"uchar",   {sizeof(uchar),   true,  0,        UCHAR_MAX}},
+      {"int8_t",  {sizeof(int8_t),  true,  INT8_MIN, INT8_MAX}},
+      {"uint8_t", {sizeof(uint8_t), true,  0,        UINT8_MAX}},
+      {"short",   {sizeof(short),   true,  SHRT_MIN, SHRT_MAX}},
+      {"ushort",  {sizeof(ushort),  true,  0,        USHRT_MAX}},
+      {"int",     {sizeof(int),     true,  INT_MIN,  INT_MAX}},
+      {"float",   {sizeof(float),   false, }},
+      {"int64_t", {sizeof(int64_t), false, }},
+      {"uint64_t",{sizeof(uint64_t),false, }},
+      {"double",  {sizeof(double),  false, }},
   };
   /* clang-format on */
   for (const auto &[name, info] : table) {
@@ -1852,7 +1845,7 @@ void RNA_def_property_enum_items(PropertyRNA *prop, const EnumPropertyItem *item
 #ifndef RNA_RUNTIME
       /* Access DNA size & range (for additional sanity checks). */
       int enum_dna_size = -1;
-      int enum_dna_range[2];
+      int enum_dna_value_min = 0, enum_dna_value_max = 0;
       /* If this is larger, this is likely a string which can sometimes store enums. */
       if (PropertyDefRNA *dp = rna_find_struct_property_def(srna, prop)) {
         if (dp->dnatype.is_empty()) {
@@ -1877,8 +1870,8 @@ void RNA_def_property_enum_items(PropertyRNA *prop, const EnumPropertyItem *item
                        dp->dnatype.c_str());
           }
           else {
-            enum_dna_range[0] = type_info.range[0];
-            enum_dna_range[1] = type_info.range[1];
+            enum_dna_value_min = type_info.value_min;
+            enum_dna_value_max = type_info.value_max;
           }
         }
       }
@@ -1927,14 +1920,14 @@ void RNA_def_property_enum_items(PropertyRNA *prop, const EnumPropertyItem *item
             }
             else {
               if (ELEM(enum_dna_size, 1, 2)) {
-                if ((item[i].value < enum_dna_range[0]) || (item[i].value > enum_dna_range[1])) {
+                if ((item[i].value < enum_dna_value_min) || (item[i].value > enum_dna_value_max)) {
                   CLOG_ERROR(&LOG,
                              "\"%s.%s\", enum value for '%s' is outside of range [%d - %d].",
                              srna->identifier,
                              prop->identifier,
                              item[i].identifier,
-                             enum_dna_range[0],
-                             enum_dna_range[1]);
+                             enum_dna_value_min,
+                             enum_dna_value_max);
                   DefRNA.error = true;
                   break;
                 }
@@ -2347,7 +2340,7 @@ static void rna_def_property_boolean_sdna(PropertyRNA *prop,
 
   if (!DefRNA.silent) {
     /* Error check to ensure floats are not wrapped as integers/booleans. */
-    if (!dp->dnatype.is_empty() && !IS_DNATYPE_BOOLEAN_COMPAT(dp->dnatype)) {
+    if (!dp->dnatype.is_empty() && !is_dnatype_boolean_compat(dp->dnatype)) {
       CLOG_ERROR(&LOG,
                  "%s.%s is a '%s' but wrapped as type '%s'.",
                  srna->identifier,
@@ -2365,7 +2358,7 @@ static void rna_def_property_boolean_sdna(PropertyRNA *prop,
       const int dna_size = rna_dnatype_primitive_info(dp->dnatype).size *
                            std::max(dp->dnaarraylength, 1);
       const short max_length = (dna_size * 8) -
-                               (IS_DNATYPE_BOOLEAN_BITSHIFT_FULLRANGE_COMPAT(dp->dnatype) ? 0 : 1);
+                               (is_dnatype_boolean_bitshift_fullrange_compat(dp->dnatype) ? 0 : 1);
       if ((bit_index + length) > max_length) {
         CLOG_ERROR(&LOG,
                    "%s.%s is a '%s' of %d bytes, but wrapped as type '%s' 'bitset array' of %d "
@@ -2473,7 +2466,7 @@ void RNA_def_property_int_sdna(PropertyRNA *prop, const char *structname, const 
 
     /* Error check to ensure floats are not wrapped as integers/booleans. */
     if (!DefRNA.silent) {
-      if (!dp->dnatype.is_empty() && !IS_DNATYPE_INT_COMPAT(dp->dnatype)) {
+      if (!dp->dnatype.is_empty() && !is_dnatype_int_compat(dp->dnatype)) {
         CLOG_ERROR(&LOG,
                    "%s.%s is a '%s' but wrapped as type '%s'.",
                    srna->identifier,
@@ -2489,8 +2482,8 @@ void RNA_def_property_int_sdna(PropertyRNA *prop, const char *structname, const 
     if (dp->dnatype != nullptr && (dp->dnatype[0] != '\0')) {
       const RnaDnaTypeInfo type_info = rna_dnatype_primitive_info(dp->dnatype);
       if (type_info.is_integer) {
-        iprop->hardmin = iprop->softmin = type_info.range[0];
-        iprop->hardmax = iprop->softmax = type_info.range[1];
+        iprop->hardmin = iprop->softmin = type_info.value_min;
+        iprop->hardmax = iprop->softmax = type_info.value_max;
       }
       else {
         CLOG_ERROR(&LOG,
@@ -2614,7 +2607,7 @@ void RNA_def_property_float_sdna(PropertyRNA *prop, const char *structname, cons
   if ((dp = rna_def_property_sdna(prop, structname, propname))) {
     /* silent is for internal use */
     if (!DefRNA.silent) {
-      if (!dp->dnatype.is_empty() && !IS_DNATYPE_FLOAT_COMPAT(dp->dnatype)) {
+      if (!dp->dnatype.is_empty() && !is_dnatype_float_compat(dp->dnatype)) {
         /* Colors are an exception. these get translated. */
         if (prop->subtype != PROP_COLOR_GAMMA) {
           CLOG_ERROR(&LOG,

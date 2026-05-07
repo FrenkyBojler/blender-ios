@@ -810,7 +810,7 @@ static void substitute_vector_or_matrix(ParsedMember &member)
 }
 
 /** Map modern C integer type names to old SDNA names. */
-static void substitute_snda_integer_type(ParsedMember &member)
+static void substitute_sdna_integer_type(ParsedMember &member)
 {
   static const std::pair<const char *, const char *> integer_type_aliases[] = {
       {"uint8_t", "uchar"},
@@ -845,7 +845,7 @@ bool substitute_cpp_types(Vector<ParsedStruct> &structs,
       if (!substitute_enum(parsed_struct, member, enum_map)) {
         return false;
       }
-      substitute_snda_integer_type(member);
+      substitute_sdna_integer_type(member);
     }
   }
   return true;

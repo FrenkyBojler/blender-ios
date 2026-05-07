@@ -530,7 +530,7 @@ static bool rna_parameter_is_const(const PropertyDefRNA *dparm)
 static bool rna_color_quantize(PropertyRNA *prop, PropertyDefRNA *dp)
 {
   return ((prop->type == PROP_FLOAT) && ELEM(prop->subtype, PROP_COLOR, PROP_COLOR_GAMMA) &&
-          (IS_DNATYPE_FLOAT_COMPAT(dp->dnatype) == 0));
+          !is_dnatype_float_compat(dp->dnatype));
 }
 
 /**
@@ -633,7 +633,7 @@ static char *rna_def_property_get_func(
     if (!dp->dnatype.is_empty()) {
 
       if (prop->type == PROP_FLOAT) {
-        if (!IS_DNATYPE_FLOAT_COMPAT(dp->dnatype)) {
+        if (!is_dnatype_float_compat(dp->dnatype)) {
           /* Colors are an exception. these get translated. */
           if (prop->subtype != PROP_COLOR_GAMMA) {
             CLOG_ERROR(&LOG,
@@ -648,7 +648,7 @@ static char *rna_def_property_get_func(
         }
       }
       else if (prop->type == PROP_BOOLEAN) {
-        if (!IS_DNATYPE_BOOLEAN_COMPAT(dp->dnatype)) {
+        if (!is_dnatype_boolean_compat(dp->dnatype)) {
           CLOG_ERROR(&LOG,
                      "%s.%s is a '%s' but wrapped as type '%s'.",
                      srna->identifier,
@@ -660,7 +660,7 @@ static char *rna_def_property_get_func(
         }
       }
       else if (ELEM(prop->type, PROP_INT, PROP_ENUM)) {
-        if (!IS_DNATYPE_INT_COMPAT(dp->dnatype)) {
+        if (!is_dnatype_int_compat(dp->dnatype)) {
           CLOG_ERROR(&LOG,
                      "%s.%s is a '%s' but wrapped as type '%s'.",
                      srna->identifier,
