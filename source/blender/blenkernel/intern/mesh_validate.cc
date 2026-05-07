@@ -121,17 +121,23 @@ static IndexMask find_edges_duplicates(const Mesh &mesh,
                                        const IndexMask &mask,
                                        IndexMaskMemory &memory,
                                        const bool verbose,
-                                       EdgeMap &unique_edges)
+                                       EdgeMap &unique_edges,
+                                       Vector<int> &r_unique_to_orig_edge)
 {
   const Span<int2> edges = mesh.edges();
   BitVector<> duplicate_edges(edges.size());
   ErrorMessages errors(verbose);
+  r_unique_to_orig_edge.reserve(mask.size());
   mask.foreach_index([&](const int edge_i) {
     const int2 edge = edges[edge_i];
     if (!unique_edges.add(edge)) {
-      errors.add(
-          fmt::runtime("Edge {} is a duplicate of {}"), edge_i, unique_edges.index_of(edge));
+      errors.add(fmt::runtime("Edge {} is a duplicate of {}"),
+                 edge_i,
+                 r_unique_to_orig_edge[unique_edges.index_of(edge)]);
       duplicate_edges[edge_i].set();
+    }
+    else {
+      r_unique_to_orig_edge.append(edge_i);
     }
   });
   return IndexMask::from_bits(mask, duplicate_edges, memory);
@@ -156,15 +162,30 @@ static IndexMask find_faces_bad_offsets(const Mesh &mesh,
     errors.add("Faces offsets do not start at 0. Considering all faces invalid");
     return IndexMask(mesh.faces_num);
   }
-  return IndexMask::from_predicate(IndexRange(mesh.faces_num), memory, [&](const int face_i) {
-    const int face_start = face_offsets[face_i];
-    const int face_size = face_offsets[face_i + 1] - face_start;
-    if (face_size < 3) {
-      errors.add("Face {} has invalid size {}", face_i, face_size);
-      return true;
-    }
-    return false;
-  });
+  std::atomic<bool> non_monotonic = false;
+  const IndexMask mask = IndexMask::from_batch_predicate(
+      IndexRange(mesh.faces_num),
+      memory,
+      [&](const IndexMaskSegment universe_segment, IndexRangesBuilder<int16_t> &builder) {
+        for (const int face_i : universe_segment) {
+          const int face_start = face_offsets[face_i];
+          const int face_end = face_offsets[face_i + 1];
+          if (face_end < face_start) {
+            non_monotonic.store(true, std::memory_order_relaxed);
+            continue;
+          }
+          if (face_end - face_start < 3) {
+            errors.add("Face {} has invalid size {}", face_i, face_end - face_start);
+            builder.add(face_i);
+          }
+        }
+        return universe_segment.offset();
+      });
+  if (non_monotonic.load(std::memory_order_relaxed)) {
+    errors.add("Face offsets must be monotonically increasing. Considering all faces invalid");
+    return IndexMask(mesh.faces_num);
+  }
+  return mask;
 }
 
 static IndexMask find_faces_bad_verts(const Mesh &mesh,
@@ -253,6 +274,7 @@ static IndexMask find_faces_missing_edges(const Mesh &mesh,
 static IndexMask find_faces_bad_edges(const Mesh &mesh,
                                       const IndexMask &mask,
                                       const EdgeMap &unique_edges,
+                                      const Span<int> unique_to_orig_edge,
                                       IndexMaskMemory &memory,
                                       const bool verbose,
                                       Vector<Vector<std::pair<int, int>>> &r_corner_edge_fixes)
@@ -277,7 +299,9 @@ static IndexMask find_faces_bad_edges(const Mesh &mesh,
           for (const int corner : face) {
             const int corner_next = mesh::face_corner_next(face, corner);
             const OrderedEdge actual_edge(corner_verts[corner], corner_verts[corner_next]);
-            const int actual_edge_index = unique_edges.index_of(actual_edge);
+            /* Note replacements must use the original edge index, as
+             * #remove_invalid_edges remaps from the original indices. */
+            const int actual_edge_index = unique_to_orig_edge[unique_edges.index_of(actual_edge)];
             const int edge_index = corner_edges[corner];
             if (!edges_range.contains(edge_index)) {
               errors.add("Corner {} has out of range edge index {}. Expected {}",
@@ -293,6 +317,13 @@ static IndexMask find_faces_bad_edges(const Mesh &mesh,
                          corner,
                          edge_index,
                          actual_edge_index);
+              replacements.append({corner, actual_edge_index});
+              has_invalid_edge = true;
+              continue;
+            }
+            if (edge_index != actual_edge_index) {
+              /* Edge content matches but points to a duplicate edge that will be
+               * removed by #remove_invalid_edges. Redirect to the kept edge. */
               replacements.append({corner, actual_edge_index});
               has_invalid_edge = true;
               continue;
@@ -428,7 +459,7 @@ static void remove_invalid_faces(Mesh &mesh, const IndexMask &valid_faces)
 
   for (CustomDataLayer &layer : MutableSpan(mesh.face_data.layers, mesh.face_data.totlayer)) {
     if (layer.type == CD_ORIGINDEX) {
-      const Span src(static_cast<const int *>(layer.data), mesh.edges_num);
+      const Span src(static_cast<const int *>(layer.data), mesh.faces_num);
 
       int *dst_data = MEM_new_array_uninitialized<int>(valid_faces_num, __func__);
       MutableSpan dst(dst_data, valid_faces_num);
@@ -519,12 +550,17 @@ static void remove_invalid_edges(Mesh &mesh, const IndexMask &valid_edges)
     }
   }
 
-  Array<int> all_edges_to_valid_edges(mesh.edges_num);
+  const int orig_edges_num = mesh.edges_num;
+  Array<int> all_edges_to_valid_edges(orig_edges_num);
   index_mask::build_reverse_map(valid_edges, all_edges_to_valid_edges.as_mutable_span());
   MutableSpan<int> corner_edges = mesh.corner_edges_for_write();
   threading::parallel_for(corner_edges.index_range(), 4096, [&](const IndexRange range) {
     for (const int i : range) {
-      corner_edges[i] = all_edges_to_valid_edges[corner_edges[i]];
+      /* Faces with missing edges are kept until #mesh_calc_edges runs, but their
+       * corner edge indices are not validated by #find_faces_bad_edges. Guard
+       * against out-of-range values here; the value is overwritten later. */
+      const int edge = corner_edges[i];
+      corner_edges[i] = (edge >= 0 && edge < orig_edges_num) ? all_edges_to_valid_edges[edge] : 0;
     }
   });
 
@@ -631,7 +667,9 @@ static bool validate_material_indices(const Mesh &mesh,
   }
   if (const std::optional<int> index = material_indices.get_if_single()) {
     if (!materials_range.contains(*index)) {
-      mesh_mut->attributes_for_write().remove("material_index");
+      if (mesh_mut) {
+        mesh_mut->attributes_for_write().remove("material_index");
+      }
       return false;
     }
     return true;
@@ -878,8 +916,9 @@ static bool mesh_validate_impl(const Mesh &mesh, const bool verbose, Mesh *mesh_
   valid_edges = IndexMask::from_difference(valid_edges, edges_bad_verts, memory);
 
   EdgeMap unique_edges;
+  Vector<int> unique_to_orig_edge;
   const IndexMask edges_duplicate = find_edges_duplicates(
-      mesh, valid_edges, memory, verbose, unique_edges);
+      mesh, valid_edges, memory, verbose, unique_edges, unique_to_orig_edge);
   valid_edges = IndexMask::from_difference(valid_edges, edges_duplicate, memory);
 
   IndexMask valid_faces(mesh.faces_num);
@@ -903,7 +942,8 @@ static bool mesh_validate_impl(const Mesh &mesh, const bool verbose, Mesh *mesh_
   valid_faces = IndexMask::from_difference(valid_faces, faces_missing_edges, memory);
 
   Vector<Vector<std::pair<int, int>>> corner_edge_fixes;
-  find_faces_bad_edges(mesh, valid_faces, unique_edges, memory, verbose, corner_edge_fixes);
+  find_faces_bad_edges(
+      mesh, valid_faces, unique_edges, unique_to_orig_edge, memory, verbose, corner_edge_fixes);
 
   bool valid = valid_edges.size() == mesh.edges_num && valid_faces.size() == mesh.faces_num &&
                corner_edge_fixes.is_empty();
