@@ -3,8 +3,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 # Basic add-on for the Cycles Hydra render delegate. This is very incomplete
-# and intended for testing only. The most obvious limitation is that materials
-# and render settings are not supported.
+# and intended for developer testing only. The most obvious limitation is that
+# materials and render settings are not supported.
 
 import bpy
 
@@ -64,6 +64,9 @@ class CyclesHydraRenderEngine(bpy.types.HydraRenderEngine):
 
 
 def _shared_panels():
+    # Use all the same panels as regular Cycles, even if most options are
+    # currently not supported. But for the ones that are supported it's not
+    # worth making custom panels just for developer testing.
     for panel in bpy.types.Panel.__subclasses__():
         engines = getattr(panel, 'COMPAT_ENGINES', None)
         if engines and 'CYCLES' in engines:
