@@ -79,14 +79,20 @@ void node_tree_interface_draw(bContext &C, ui::Layout &layout, bNodeTree &tree)
     layout.prop(&active_item_ptr, "description", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     {
       ui::Layout &row = layout.row(true);
-      ui::Layout &subrow = row.row(true);
-      subrow.enabled_set(false);
-      subrow.prop(&active_item_ptr, "identifier", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-      row.op("NODE_OT_interface_socket_identifier_edit",
-             "",
-             ICON_SETTINGS,
-             wm::OpCallContext::InvokeDefault,
-             UI_ITEM_NONE);
+      row.use_property_split_set(false);
+      ui::Layout &split = row.split(0.4, true);
+      {
+        ui::Layout &label_row = split.row(true);
+        label_row.alignment_set(ui::LayoutAlign::Right);
+        label_row.label(IFACE_("Identifier"), ICON_NONE);
+      }
+      ui::Layout &subrow = split.row(true);
+      subrow.prop(&active_item_ptr, "identifier", UI_ITEM_NONE, "", ICON_NONE);
+      subrow.op("NODE_OT_interface_socket_identifier_edit",
+                "",
+                ICON_SETTINGS,
+                wm::OpCallContext::InvokeDefault,
+                UI_ITEM_NONE);
     }
 
     if (tree.type == NTREE_GEOMETRY) {
