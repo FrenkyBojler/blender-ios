@@ -61,11 +61,10 @@ struct UDIMTilePixels {
     BLI_rcti_init_minmax(&dirty_region);
   }
 
-  void mark_dirty(const PackedPixelRow &pixel_row)
+  void mark_dirty(const Bounds<int2> bounds)
   {
-    int2 start_image_coord(pixel_row.start_image_coordinate.x, pixel_row.start_image_coordinate.y);
-    BLI_rcti_do_minmax_v(&dirty_region, start_image_coord);
-    BLI_rcti_do_minmax_v(&dirty_region, start_image_coord + int2(pixel_row.num_pixels + 1, 0));
+    BLI_rcti_do_minmax_v(&dirty_region, bounds.min);
+    BLI_rcti_do_minmax_v(&dirty_region, bounds.max);
     flags.dirty = true;
   }
 
