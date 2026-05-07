@@ -5612,12 +5612,14 @@ void BKE_particle_system_blend_read_data(BlendDataReader *reader,
       pa = psys.particles;
       BLO_read_array_and_validate_size(reader, &pa->boid, &psys.totpart);
 
-      /* This is purely runtime data, but still can be an issue if left dangling. */
-      pa->boid->ground = nullptr;
-
-      for (a = 1, pa++; a < psys.totpart; a++, pa++) {
-        pa->boid = (pa - 1)->boid + 1;
+      if (pa->boid) {
+        /* This is purely runtime data, but still can be an issue if left dangling. */
         pa->boid->ground = nullptr;
+
+        for (a = 1, pa++; a < psys.totpart; a++, pa++) {
+          pa->boid = (pa - 1)->boid + 1;
+          pa->boid->ground = nullptr;
+        }
       }
     }
     else if (psys.particles) {

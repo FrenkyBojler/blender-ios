@@ -1687,10 +1687,10 @@ static void IDP_DirectLinkArray(IDProperty *prop, BlendDataReader *reader)
 
 static void IDP_DirectLinkString(IDProperty *prop, BlendDataReader *reader)
 {
-  /* Since we didn't save the extra string buffer, set totallen to len. */
-  prop->totallen = prop->len;
   BLO_read_array_and_validate_size(
       reader, reinterpret_cast<char **>(&prop->data.pointer), &prop->len);
+  /* Since we didn't save the extra string buffer, set totallen to len. */
+  prop->totallen = prop->len;
 }
 
 static void IDP_DirectLinkGroup(IDProperty *prop, BlendDataReader *reader)
