@@ -46,6 +46,7 @@ a7b80fd1-5de6-4c15-9049-52f25f4376de:Geometry:Geometry
 5fa1e91c-e798-4051-8e4d-5d47f76f789b:Geometry/Selection:Geometry-Selection
 f14d3c5d-8223-4e8c-b3b3-cbce81e4b3ee:Hair:Hair
 87cbaad7-ae4e-404c-9b6b-4fe60ecc39dc:Hair/Deformation:Hair-Deformation
+1cc346fb-c338-d030-adf0-5c8e43bd5e4a:Hair/Dynamics:Hair-Dynamics
 40aedbf9-be4b-4ddb-8eec-8a9cd37d0921:Hair/Generation:Hair-Generation
 09af8c50-8c07-4039-821c-be801761d7cf:Hair/Guides:Hair-Guides
 c676fe02-8d25-49a1-b672-11aee0918221:Hair/Read:Hair-Read
