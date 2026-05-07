@@ -118,6 +118,93 @@ class SQLiteBackendTest(unittest.TestCase):
         cached_hash_info = self.backend.fetch_hash(filepath, "sha256")
         self.assertEqual(fake_hash_info, cached_hash_info)
 
+    def test_mark_hashes_as_fresh(self) -> None:
+        """Bulk-refreshing a set of hashes should keep them from being removed."""
+        # Monkeypatch the backend so that it thinks it's the past, so that the hashes we store are back-dated.
+        orig_now = self.backend._now
+        self.backend._now = lambda: datetime.datetime(
+            year=2024, month=1, day=1, hour=0, minute=0, second=0, tzinfo=datetime.timezone.utc)
+
+        filepath_a = Path("file-a.blend")
+        filepath_b = Path("file-b.blend")
+        filepath_c = Path("file-c.blend")
+        fake_hash_info = types.FileHashInfo(
+            hexhash="fake hash",
+            file_size_bytes=100,
+            file_stat_mtime=47.327,
+        )
+        self.backend.store_hash(filepath_a, "sha256", fake_hash_info)
+        self.backend.store_hash(filepath_b, "sha1", fake_hash_info)
+        # This one stays old, and is expected to be removed below.
+        self.backend.store_hash(filepath_c, "sha256", fake_hash_info)
+
+        # Restore the 'now' function for the backend.
+        self.backend._now = orig_now
+
+        # Bulk-refresh the first two hashes, including a non-existent entry that should be silently ignored.
+        self.backend.mark_hashes_as_fresh([
+            (filepath_a, "sha256"),
+            (filepath_b, "sha1"),
+            (Path("never-stored.blend"), "sha256"),
+        ])
+
+        # Remove outdated hashes; only filepath_c should be removed.
+        self.backend.remove_older_than(days=5)
+
+        self.assertEqual(fake_hash_info, self.backend.fetch_hash(filepath_a, "sha256"))
+        self.assertEqual(fake_hash_info, self.backend.fetch_hash(filepath_b, "sha1"))
+        self.assertIsNone(self.backend.fetch_hash(filepath_c, "sha256"))
+
+    def test_mark_hashes_as_fresh_empty(self) -> None:
+        """Passing an empty iterable should be a no-op rather than an error."""
+        self.backend.mark_hashes_as_fresh([])
+
+    def test_fetch_older_than(self) -> None:
+        """Only entries older than the cutoff should be returned, with full hash info."""
+        # Monkeypatch the backend so that it thinks it's the past, so that the hashes we store are back-dated.
+        orig_now = self.backend._now
+        self.backend._now = lambda: datetime.datetime(
+            year=2024, month=1, day=1, hour=0, minute=0, second=0, tzinfo=datetime.timezone.utc)
+
+        filepath_old = Path("old-file.blend")
+        old_info_sha256 = types.FileHashInfo(
+            hexhash="old sha256 hash",
+            file_size_bytes=100,
+            file_stat_mtime=47.327,
+        )
+        old_info_sha1 = types.FileHashInfo(
+            hexhash="old sha1 hash",
+            file_size_bytes=100,
+            file_stat_mtime=47.327,
+        )
+        self.backend.store_hash(filepath_old, "sha256", old_info_sha256)
+        self.backend.store_hash(filepath_old, "sha1", old_info_sha1)
+
+        # Restore the 'now' function for the backend.
+        self.backend._now = orig_now
+
+        # A fresh entry should not show up.
+        filepath_new = Path("new-file.blend")
+        new_info = types.FileHashInfo(
+            hexhash="new hash",
+            file_size_bytes=42,
+            file_stat_mtime=100.0,
+        )
+        self.backend.store_hash(filepath_new, "sha256", new_info)
+
+        older_entries = sorted(
+            self.backend.fetch_older_than(days=5),
+            key=lambda entry: (str(entry[0]), entry[1]),
+        )
+        self.assertEqual([
+            (filepath_old, "sha1", old_info_sha1),
+            (filepath_old, "sha256", old_info_sha256),
+        ], older_entries)
+
+    def test_fetch_older_than_empty(self) -> None:
+        """An empty database should return an empty iterable rather than raising."""
+        self.assertEqual([], list(self.backend.fetch_older_than(days=5)))
+
     def test_remove_older_than(self) -> None:
         # Monkeypatch the backend so that it thinks it's the past, so that the hash we store is back-dated.
         orig_now = self.backend._now
@@ -320,6 +407,67 @@ class DiskFileHashServiceTest(unittest.TestCase):
         try:
             cached_hash_info = new_backend.fetch_hash(filepath, "sha256")
             self.assertIsNone(cached_hash_info)
+        finally:
+            new_backend.close()
+
+
+    def test_cleanup_on_close_refreshes_matching_hashes(self) -> None:
+        """Old hashes whose file on disk still matches should be refreshed, not deleted."""
+        # Monkeypatch the backend so the hashes we store are back-dated.
+        orig_now = self.backend._now
+        self.backend._now = lambda: datetime.datetime(
+            year=2024, month=1, day=1, hour=0, minute=0, second=0, tzinfo=datetime.timezone.utc)
+
+        # Store an old hash for a file that exists on disk with matching size & mtime.
+        stat = self.filepath.stat()
+        matching_info = types.FileHashInfo(
+            hexhash="cached hash for real file",
+            file_size_bytes=stat.st_size,
+            file_stat_mtime=stat.st_mtime,
+        )
+        self.backend.store_hash(self.filepath, "sha256", matching_info)
+
+        # Store an old hash for a file that does not exist on disk; this one should be removed.
+        missing_filepath = scratch_dir / "missing-file.blend"
+        missing_info = types.FileHashInfo(
+            hexhash="dead hash",
+            file_size_bytes=10,
+            file_stat_mtime=42.0,
+        )
+        self.backend.store_hash(missing_filepath, "sha256", missing_info)
+
+        # Store an old hash for a file that exists but whose stats no longer match;
+        # this should also be removed because it cannot be confirmed as still valid.
+        mismatched_filepath = scratch_dir / "mismatched-file.txt"
+        mismatched_filepath.write_text("some content")
+        mismatched_info = types.FileHashInfo(
+            hexhash="stale hash",
+            file_size_bytes=999,  # Deliberately wrong size.
+            file_stat_mtime=1.0,
+        )
+        self.backend.store_hash(mismatched_filepath, "sha256", mismatched_info)
+
+        # Restore the 'now' function for the backend.
+        self.backend._now = orig_now
+
+        # Closing the service should refresh the still-valid hash and drop the others.
+        self.service.close()
+
+        # Re-open with a fresh backend, since the service closed ours.
+        new_backend = backend_sqlite.SQLiteBackend(self.storagepath)
+        new_backend.open()
+        try:
+            # Matching hash should be retained (and now refreshed).
+            self.assertEqual(matching_info, new_backend.fetch_hash(self.filepath, "sha256"))
+
+            # Missing- and mismatched-file hashes should both be gone.
+            self.assertIsNone(new_backend.fetch_hash(missing_filepath, "sha256"))
+            self.assertIsNone(new_backend.fetch_hash(mismatched_filepath, "sha256"))
+
+            # Now perform another removal pass with the original cutoff: the refreshed
+            # hash should still survive, proving its `last_checked` was actually updated.
+            new_backend.remove_older_than(days=hash_service.HASH_RETAIN_AGE_DAYS)
+            self.assertEqual(matching_info, new_backend.fetch_hash(self.filepath, "sha256"))
         finally:
             new_backend.close()
 
