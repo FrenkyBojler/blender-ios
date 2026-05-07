@@ -5,6 +5,7 @@
 #include <string>
 
 #include "BLI_assert.h"
+#include "BLI_math_euler.hh"
 #include "BLI_math_vector_types.hh"
 
 #include "DNA_node_types.h"
@@ -107,6 +108,44 @@ void SingleValueNodeInputOperation::execute()
     }
     case SOCK_STRING: {
       const std::string value = input_socket_.default_value_typed<bNodeSocketValueString>()->value;
+      result.set_single_value(value);
+      break;
+    }
+    case SOCK_ROTATION: {
+      const bNodeSocketValueRotation *rotation =
+          input_socket_.default_value_typed<bNodeSocketValueRotation>();
+      const math::EulerXYZ euler(float3(rotation->value_euler));
+      const math::Quaternion value = math::to_quaternion(euler);
+      result.set_single_value(value);
+      break;
+    }
+    case SOCK_OBJECT: {
+      Object *value = input_socket_.default_value_typed<bNodeSocketValueObject>()->value;
+      result.set_single_value(value);
+      break;
+    }
+    case SOCK_IMAGE: {
+      Image *value = input_socket_.default_value_typed<bNodeSocketValueImage>()->value;
+      result.set_single_value(value);
+      break;
+    }
+    case SOCK_FONT: {
+      VFont *value = input_socket_.default_value_typed<bNodeSocketValueFont>()->value;
+      result.set_single_value(value);
+      break;
+    }
+    case SOCK_SCENE: {
+      Scene *value = input_socket_.default_value_typed<bNodeSocketValueScene>()->value;
+      result.set_single_value(value);
+      break;
+    }
+    case SOCK_TEXT_ID: {
+      Text *value = input_socket_.default_value_typed<bNodeSocketValueText>()->value;
+      result.set_single_value(value);
+      break;
+    }
+    case SOCK_MASK: {
+      Mask *value = input_socket_.default_value_typed<bNodeSocketValueMask>()->value;
       result.set_single_value(value);
       break;
     }

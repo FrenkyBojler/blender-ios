@@ -75,7 +75,8 @@ bool GPU_vulkan_is_supported_driver(VkPhysicalDevice vk_physical_device)
     const uint32_t driver_version = vk_physical_device_properties.properties.driverVersion;
     uint32_t driver_version_major = driver_version >> 14u;
     uint32_t driver_version_minor = driver_version & 0x3fffu;
-    if (driver_version_major < 101 || driver_version_major == 101 && driver_version_minor < 2140) {
+    if (driver_version_major < 101 || (driver_version_major == 101 && driver_version_minor < 2140))
+    {
       return false;
     }
   }
@@ -439,10 +440,15 @@ void VKBackend::detect_workarounds(VKDevice &device)
     extensions.line_rasterization = false;
     extensions.extended_dynamic_state = false;
     GCaps.stencil_export_support = false;
+    GCaps.texture_pool_workaround = true;
 
     device.workarounds_ = workarounds;
     device.extensions_ = extensions;
     return;
+  }
+
+  if (G.debug & G_DEBUG_GPU_NO_TEXTURE_POOL) {
+    GCaps.texture_pool_workaround = true;
   }
 
   extensions.shader_output_layer =
@@ -534,6 +540,34 @@ void VKBackend::detect_workarounds(VKDevice &device)
   if (GPU_type_matches(GPU_DEVICE_NVIDIA, GPU_OS_ANY, GPU_DRIVER_OFFICIAL)) {
     extensions.host_image_copy = false;
   }
+
+#ifdef _WIN32
+  /* Intel 7th to 10th Gen Processor iGPUs show a black screen at application startup when using
+   * VK_EXT_vertex_input_dynamic_state. Furthermore, texture pool usage leads to visual artifacts.
+   * The used driver version for these iGPUs is 101.2xxx or older.
+   *
+   * See #147721
+   */
+  if (GPU_type_matches(GPU_DEVICE_INTEL | GPU_DEVICE_INTEL_UHD, GPU_OS_WIN, GPU_DRIVER_OFFICIAL)) {
+    const uint32_t driver_version = device.physical_device_properties_get().driverVersion;
+    uint32_t driver_version_major = driver_version >> 14u;
+    uint32_t driver_version_minor = driver_version & 0x3fffu;
+    if (driver_version_major < 101 || (driver_version_major == 101 && driver_version_minor < 3000))
+    {
+      extensions.vertex_input_dynamic_state = false;
+      GCaps.texture_pool_workaround = true;
+    }
+  }
+
+  /* Using the texture pool causes issues on Intel Meteor/Arrow/Alder Lake and older iGPUs.
+   * - When using the image cache, visual artifacts can be seen (#156496).
+   * - When using the texture pool without the image cache, memory leaks happen (#157777).
+   * Until the issues have been resolved, the texture pool workaround is used.
+   */
+  if (GPU_type_matches(GPU_DEVICE_INTEL | GPU_DEVICE_INTEL_UHD, GPU_OS_WIN, GPU_DRIVER_OFFICIAL)) {
+    GCaps.texture_pool_workaround = true;
+  }
+#endif
 
 #ifdef __APPLE__
   extensions.extended_dynamic_state = false;
@@ -656,7 +690,7 @@ Texture *VKBackend::texture_alloc(const char *name)
 
 TexturePool *VKBackend::texturepool_alloc()
 {
-  if (G.debug & G_DEBUG_GPU_NO_TEXTURE_POOL) {
+  if (GCaps.texture_pool_workaround) {
     CLOG_TRACE(&LOG, "Using texture pool \"TexturePoolImpl\".");
     return new TexturePoolImpl();
   }
@@ -737,10 +771,7 @@ void VKBackend::capabilities_init(VKDevice &device)
   GCaps.max_texture_3d_size = min_uu(limits.maxImageDimension3D, INT_MAX);
   GCaps.max_buffer_texture_size = min_uu(limits.maxTexelBufferElements, UINT_MAX);
   GCaps.max_texture_layers = min_uu(limits.maxImageArrayLayers, INT_MAX);
-  GCaps.max_textures = min_uu(limits.maxDescriptorSetSampledImages, INT_MAX);
-  GCaps.max_textures_vert = GCaps.max_textures_geom = GCaps.max_textures_frag = min_uu(
-      limits.maxPerStageDescriptorSampledImages, INT_MAX);
-  GCaps.max_samplers = min_uu(limits.maxSamplerAllocationCount, INT_MAX);
+  GCaps.max_textures = min_uu(limits.maxPerStageDescriptorSampledImages, INT_MAX);
   GCaps.max_images = min_uu(limits.maxPerStageDescriptorStorageImages, INT_MAX);
   for (int i = 0; i < 3; i++) {
     GCaps.max_work_group_count[i] = min_uu(limits.maxComputeWorkGroupCount[i], INT_MAX);

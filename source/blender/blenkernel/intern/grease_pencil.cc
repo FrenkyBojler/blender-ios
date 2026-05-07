@@ -291,7 +291,7 @@ static void grease_pencil_blend_write(BlendWriter *writer, ID *id, const void *i
   ResourceScope scope;
 
   Vector<CustomDataLayer, 16> layers_data_layers;
-  bke::AttributeStorage::BlendWriteData attribute_data{scope};
+  bke::AttributeStorage::BlendWriteData attribute_data{writer, scope};
   attribute_storage_blend_write_prepare(
       grease_pencil->attribute_storage.wrap(),
       !BLO_write_is_undo(writer),
@@ -299,6 +299,7 @@ static void grease_pencil_blend_write(BlendWriter *writer, ID *id, const void *i
       attribute_data);
   grease_pencil->attribute_storage.dna_attributes = attribute_data.attributes.data();
   grease_pencil->attribute_storage.dna_attributes_num = attribute_data.attributes.size();
+  BLO_write_generated_pointer_tag(writer, grease_pencil->attribute_storage.dna_attributes);
 
   CustomData_reset(&grease_pencil->layers_data_legacy);
 
@@ -385,7 +386,7 @@ constexpr StringRef ATTR_FILL_COLOR = "fill_color";
 Drawing::Drawing()
 {
   this->base.type = GP_DRAWING;
-  this->base.flag = 0;
+  this->base.flag = GreasePencilDrawingBaseFlag{};
 
   new (&this->geometry) bke::CurvesGeometry();
   /* Initialize runtime data. */
@@ -412,7 +413,7 @@ Drawing::Drawing(Drawing &&other)
   this->base.type = GP_DRAWING;
   other.base.type = GP_DRAWING;
   this->base.flag = other.base.flag;
-  other.base.flag = 0;
+  other.base.flag = GreasePencilDrawingBaseFlag{};
 
   new (&this->geometry) bke::CurvesGeometry(std::move(other.geometry.wrap()));
 
@@ -1242,7 +1243,7 @@ void Drawing::tag_topology_changed(const IndexMask &changed_curves)
 DrawingReference::DrawingReference()
 {
   this->base.type = GP_DRAWING_REFERENCE;
-  this->base.flag = 0;
+  this->base.flag = GreasePencilDrawingBaseFlag{};
 
   this->id_reference = nullptr;
 }
@@ -1288,7 +1289,7 @@ TreeNode::TreeNode()
   this->parent = nullptr;
 
   this->GreasePencilLayerTreeNode::name = nullptr;
-  this->flag = 0;
+  this->flag = GreasePencilLayerTreeNodeFlag{};
   this->color[0] = this->color[1] = this->color[2] = 0;
 }
 
@@ -1371,7 +1372,7 @@ int64_t TreeNode::depth() const
 LayerMask::LayerMask()
 {
   this->layer_name = nullptr;
-  this->flag = 0;
+  this->flag = GreasePencilLayerMaskFlag{};
 }
 
 LayerMask::LayerMask(const StringRef name) : LayerMask()
@@ -1407,7 +1408,7 @@ Layer::Layer()
   this->frames_storage.num = 0;
   this->frames_storage.keys = nullptr;
   this->frames_storage.values = nullptr;
-  this->frames_storage.flag = 0;
+  this->frames_storage.flag = GreasePencilLayerFramesMapStorageFlag{};
 
   this->blend_mode = GP_LAYER_BLEND_NONE;
   this->opacity = 1.0f;
@@ -4610,12 +4611,9 @@ static void write_drawing_array(GreasePencil &grease_pencil,
         drawing_copy = *reinterpret_cast<GreasePencilDrawing *>(drawing_base);
         bke::CurvesGeometry &curves = drawing_copy.geometry.wrap();
 
-        bke::CurvesGeometry::BlendWriteData write_data(scope);
+        bke::CurvesGeometry::BlendWriteData write_data(writer, scope);
         curves.blend_write_prepare(write_data, !BLO_write_is_undo(writer));
         drawing_copy.runtime = nullptr;
-
-        BLO_write_shared_tag(writer, curves.curve_offsets);
-        BLO_write_shared_tag(writer, curves.custom_knots);
 
         writer->write_struct_at_address_cast<GreasePencilDrawing>(drawing_base, &drawing_copy);
         curves.blend_write(*writer, grease_pencil.id, write_data);

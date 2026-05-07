@@ -89,12 +89,7 @@ BlenderDefRNA DefRNA = {
 };
 
 #ifndef RNA_RUNTIME
-static struct {
-  GHash *type_map_static_from_alias;
-} g_version_data;
-#endif
 
-#ifndef RNA_RUNTIME
 /**
  * When set, report details about which defaults are used.
  * Noisy but handy when investigating default extraction.
@@ -210,8 +205,8 @@ static int DNA_struct_find_index_wrapper(const SDNA *sdna, const char *type_name
   /* We may support this at some point but for now we don't. */
   BLI_assert_unreachable();
 #else
-  type_name = static_cast<const char *>(BLI_ghash_lookup_default(
-      g_version_data.type_map_static_from_alias, type_name, (void *)type_name));
+  static DnaRenameMaps rename_maps = DNA_rename_maps_alias_to_static();
+  type_name = rename_maps.types.lookup_default_as(type_name, type_name).c_str();
 #endif
   return DNA_struct_find_index_without_alias(sdna, type_name);
 }
@@ -522,7 +517,7 @@ static int rna_find_sdna_member(SDNA *sdna,
   return 0;
 }
 
-static bool rna_validate_identifier(const char *identifier, bool property, const char **r_error)
+bool RNA_validate_identifier(const char *identifier, bool is_property, const char **r_error)
 {
   int a = 0;
 
@@ -544,14 +539,18 @@ static bool rna_validate_identifier(const char *identifier, bool property, const
   };
 
   if (!isalpha(identifier[0])) {
-    *r_error = "first character failed isalpha() check";
+    if (r_error) {
+      *r_error = "first character failed isalpha() check";
+    }
     return false;
   }
 
   for (a = 0; identifier[a]; a++) {
-    if (DefRNA.preprocess && property) {
+    if (DefRNA.preprocess && is_property) {
       if (isalpha(identifier[a]) && isupper(identifier[a])) {
-        *r_error = "property names must contain lower case characters only";
+        if (r_error) {
+          *r_error = "property names must contain lower case characters only";
+        }
         return false;
       }
     }
@@ -561,24 +560,30 @@ static bool rna_validate_identifier(const char *identifier, bool property, const
     }
 
     if (identifier[a] == ' ') {
-      *r_error = "spaces are not okay in identifier names";
+      if (r_error) {
+        *r_error = "spaces are not okay in identifier names";
+      }
       return false;
     }
 
     if (isalnum(identifier[a]) == 0) {
-      *r_error = "one of the characters failed an isalnum() check and is not an underscore";
+      if (r_error) {
+        *r_error = "one of the characters failed an isalnum() check and is not an underscore";
+      }
       return false;
     }
   }
 
   for (a = 0; kwlist[a]; a++) {
     if (STREQ(identifier, kwlist[a])) {
-      *r_error = "this keyword is reserved by Python";
+      if (r_error) {
+        *r_error = "this keyword is reserved by Python";
+      }
       return false;
     }
   }
 
-  if (property) {
+  if (is_property) {
     static const char *kwlist_prop[] = {
         /* not keywords but reserved all the same because py uses */
         "keys",
@@ -590,7 +595,9 @@ static bool rna_validate_identifier(const char *identifier, bool property, const
 
     for (a = 0; kwlist_prop[a]; a++) {
       if (STREQ(identifier, kwlist_prop[a])) {
-        *r_error = "this keyword is reserved by Python";
+        if (r_error) {
+          *r_error = "this keyword is reserved by Python";
+        }
         return false;
       }
     }
@@ -599,7 +606,7 @@ static bool rna_validate_identifier(const char *identifier, bool property, const
   return true;
 }
 
-void RNA_identifier_sanitize(char *identifier, int property)
+void RNA_identifier_sanitize(char *identifier, bool is_property)
 {
   int a = 0;
 
@@ -618,7 +625,7 @@ void RNA_identifier_sanitize(char *identifier, int property)
   }
 
   for (a = 0; identifier[a]; a++) {
-    if (DefRNA.preprocess && property) {
+    if (DefRNA.preprocess && is_property) {
       if (isalpha(identifier[a]) && isupper(identifier[a])) {
         /* property names must contain lower case characters only */
         identifier[a] = tolower(identifier[a]);
@@ -650,7 +657,7 @@ void RNA_identifier_sanitize(char *identifier, int property)
     }
   }
 
-  if (property) {
+  if (is_property) {
     static const char *kwlist_prop[] = {
         /* not keywords but reserved all the same because py uses */
         "keys",
@@ -685,6 +692,11 @@ static bool rna_range_from_int_type(const char *dnatype, int r_range[2])
     r_range[1] = SHRT_MAX;
     return true;
   }
+  if (STREQ(dnatype, "ushort")) {
+    r_range[0] = 0;
+    r_range[1] = USHRT_MAX;
+    return true;
+  }
   if (STREQ(dnatype, "int")) {
     r_range[0] = INT_MIN;
     r_range[1] = INT_MAX;
@@ -695,10 +707,22 @@ static bool rna_range_from_int_type(const char *dnatype, int r_range[2])
     r_range[1] = INT8_MAX;
     return true;
   }
+  if (STREQ(dnatype, "uint8_t")) {
+    r_range[0] = 0;
+    r_range[1] = UINT8_MAX;
+    return true;
+  }
   return false;
 }
 
 /* Blender Data Definition */
+
+BlenderRNA *RNA_create_runtime()
+{
+  BlenderRNA *brna = MEM_new<BlenderRNA>(__func__);
+  brna->runtime = true;
+  return brna;
+}
 
 BlenderRNA *RNA_create()
 {
@@ -719,11 +743,6 @@ BlenderRNA *RNA_create()
     CLOG_ERROR(&LOG, "Failed to decode SDNA: %s.", error_message);
     DefRNA.error = true;
   }
-
-#ifndef RNA_RUNTIME
-  DNA_alias_maps(
-      DNA_RENAME_STATIC_FROM_ALIAS, &g_version_data.type_map_static_from_alias, nullptr);
-#endif
 
   return brna;
 }
@@ -878,14 +897,20 @@ void RNA_free(BlenderRNA *brna)
 
     /* Reverse iteration to make removing from vector faster. */
     for (auto srna = brna->structs.rbegin(); srna != brna->structs.rend(); srna++) {
+      if (brna->runtime) {
+#ifdef RNA_RUNTIME
+#  ifdef WITH_PYTHON
+        BPY_free_srna_pytype(srna->get());
+#  endif
+#endif
+      }
       RNA_struct_free(brna, srna->get());
     }
-  }
 
-#ifndef RNA_RUNTIME
-  BLI_ghash_free(g_version_data.type_map_static_from_alias, nullptr, nullptr);
-  g_version_data.type_map_static_from_alias = nullptr;
-#endif
+    if (brna->runtime) {
+      MEM_delete(brna);
+    }
+  }
 }
 
 static size_t rna_property_type_sizeof(PropertyType type)
@@ -934,7 +959,7 @@ StructRNA *RNA_def_struct_ptr(BlenderRNA *brna, const char *identifier, StructRN
   if (DefRNA.preprocess) {
     const char *error = nullptr;
 
-    if (!rna_validate_identifier(identifier, false, &error)) {
+    if (!RNA_validate_identifier(identifier, false, &error)) {
       CLOG_ERROR(&LOG, "struct identifier \"%s\" error - %s", identifier, error);
       DefRNA.error = true;
     }
@@ -1285,6 +1310,11 @@ void RNA_def_struct_path_func(StructRNA *srna, const char *path)
   }
 }
 
+void RNA_def_struct_path_func_runtime(StructRNA *srna, StructPathFunc path_fn)
+{
+  srna->path = path_fn;
+}
+
 void RNA_def_struct_identifier(BlenderRNA *brna, StructRNA *srna, const char *identifier)
 {
   if (DefRNA.preprocess) {
@@ -1349,7 +1379,7 @@ PropertyRNA *RNA_def_property(StructOrFunctionRNA *cont_,
   if (DefRNA.preprocess) {
     const char *error = nullptr;
 
-    if (!rna_validate_identifier(identifier, true, &error)) {
+    if (!RNA_validate_identifier(identifier, true, &error)) {
       CLOG_ERROR(
           &LOG, "property identifier \"%s.%s\" - %s", CONTAINER_RNA_ID(cont), identifier, error);
       DefRNA.error = true;
@@ -1372,7 +1402,7 @@ PropertyRNA *RNA_def_property(StructOrFunctionRNA *cont_,
   else {
 #ifndef NDEBUG
     const char *error = nullptr;
-    if (!rna_validate_identifier(identifier, true, &error)) {
+    if (!RNA_validate_identifier(identifier, true, &error)) {
       CLOG_ERROR(&LOG,
                  "runtime property identifier \"%s.%s\" - %s",
                  CONTAINER_RNA_ID(cont),
@@ -3837,6 +3867,23 @@ void RNA_def_property_string_search_func_runtime(PropertyRNA *prop,
   }
 }
 
+void RNA_def_property_pointer_funcs_runtime(PropertyRNA *prop,
+                                            PointerPropertyGetFunc getfunc,
+                                            PointerPropertySetFunc setfunc,
+                                            PointerPropertyTypeFunc typefunc)
+{
+  PointerPropertyRNA *pprop = reinterpret_cast<PointerPropertyRNA *>(prop);
+  if (getfunc) {
+    pprop->get = getfunc;
+  }
+  if (setfunc) {
+    pprop->set = setfunc;
+  }
+  if (typefunc) {
+    pprop->type_fn = typefunc;
+  }
+}
+
 void RNA_def_property_pointer_funcs(
     PropertyRNA *prop, const char *get, const char *set, const char *type_fn, const char *poll)
 {
@@ -4081,7 +4128,7 @@ void RNA_def_property_string_default_func(PropertyRNA *prop, const char *get_def
 void RNA_def_property_srna(PropertyRNA *prop, const char *type)
 {
   const char *error = nullptr;
-  if (!rna_validate_identifier(type, false, &error)) {
+  if (!RNA_validate_identifier(type, false, &error)) {
     CLOG_ERROR(&LOG, "struct identifier \"%s\" error - %s", type, error);
     DefRNA.error = true;
     return;
@@ -4850,7 +4897,7 @@ static FunctionRNA *rna_def_function(StructRNA *srna, const char *identifier)
 
   if (DefRNA.preprocess) {
     const char *error = nullptr;
-    if (!rna_validate_identifier(identifier, false, &error)) {
+    if (!RNA_validate_identifier(identifier, false, &error)) {
       CLOG_ERROR(&LOG, "function identifier \"%s\" - %s", identifier, error);
       DefRNA.error = true;
     }

@@ -161,13 +161,23 @@ const char *RealizeOnDomainOperation::get_realization_shader_name()
       case ResultType::Int3:
         /* Int3 is internally stored in a int4 texture due to GPU module limitations. */
         return "compositor_realize_on_domain_int4";
+      case ResultType::Int4:
+        return "compositor_realize_on_domain_int4";
       case ResultType::Bool:
         return "compositor_realize_on_domain_bool";
       case ResultType::Float4x4:
         return "compositor_realize_on_domain_float4x4";
       case ResultType::Menu:
         return "compositor_realize_on_domain_menu";
+      case ResultType::Quaternion:
+        return "compositor_realize_on_domain_bicubic_float4";
       case ResultType::String:
+      case ResultType::Object:
+      case ResultType::Image:
+      case ResultType::Font:
+      case ResultType::Scene:
+      case ResultType::Text:
+      case ResultType::Mask:
         /* Single only types do not support GPU code path. */
         BLI_assert(Result::is_single_value_only_type(this->get_input().type()));
         BLI_assert_unreachable();
@@ -194,13 +204,23 @@ const char *RealizeOnDomainOperation::get_realization_shader_name()
       case ResultType::Int3:
         /* Int3 is internally stored in a int4 texture due to GPU module limitations. */
         return "compositor_realize_on_domain_int4";
+      case ResultType::Int4:
+        return "compositor_realize_on_domain_int4";
       case ResultType::Bool:
         return "compositor_realize_on_domain_bool";
       case ResultType::Float4x4:
         return "compositor_realize_on_domain_float4x4";
       case ResultType::Menu:
         return "compositor_realize_on_domain_menu";
+      case ResultType::Quaternion:
+        return "compositor_realize_on_domain_float4";
       case ResultType::String:
+      case ResultType::Object:
+      case ResultType::Image:
+      case ResultType::Font:
+      case ResultType::Scene:
+      case ResultType::Text:
+      case ResultType::Mask:
         /* Single only types do not support GPU code path. */
         BLI_assert(Result::is_single_value_only_type(this->get_input().type()));
         BLI_assert_unreachable();
@@ -243,9 +263,11 @@ void RealizeOnDomainOperation::realize_on_domain_cpu(const float3x3 &transformat
                       int32_t,
                       int2,
                       int3,
+                      int4,
                       bool,
                       float4x4,
-                      nodes::MenuValue>(
+                      nodes::MenuValue,
+                      math::Quaternion>(
           [&]<typename T>() { realize_on_domain<T>(input, output, transformation); });
 }
 

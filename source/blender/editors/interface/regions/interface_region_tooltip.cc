@@ -179,7 +179,7 @@ static void tooltip_region_draw_cb(const bContext * /*C*/, ARegion *region)
   float *value_color = tip_colors[TIP_LC_VALUE];
   float *active_color = tip_colors[TIP_LC_ACTIVE];
   float *normal_color = tip_colors[TIP_LC_NORMAL];
-  float *python_color = tip_colors[TIP_LC_PYTHON];
+  float *dimmed_color = tip_colors[TIP_LC_DIMMED];
   float *alert_color = tip_colors[TIP_LC_ALERT];
 
   float background_color[3];
@@ -201,8 +201,8 @@ static void tooltip_region_draw_cb(const bContext * /*C*/, ARegion *region)
   color_blend_f3_f3(value_color, background_color, 0.2f);
 
   /* `python_color` mixes with more background to be even dimmer. */
-  copy_v3_v3(python_color, main_color);
-  color_blend_f3_f3(python_color, background_color, 0.5f);
+  copy_v3_v3(dimmed_color, main_color);
+  color_blend_f3_f3(dimmed_color, background_color, 0.5f);
 
   /* `active_color` is a light blue, push a bit toward text color. */
   active_color[0] = 0.4f;
@@ -220,12 +220,10 @@ static void tooltip_region_draw_cb(const bContext * /*C*/, ARegion *region)
   /* Wrap most text typographically with hard width limit. */
   BLF_wordwrap(data->fstyle.uifont_id,
                data->wrap_width,
-               BLFWrapMode(int(BLFWrapMode::Typographical) | int(BLFWrapMode::HardLimit)));
+               BLFWrapMode::Typographical | BLFWrapMode::HardLimit);
 
   /* Wrap paths with path-specific wrapping with hard width limit. */
-  BLF_wordwrap(blf_mono_font,
-               data->wrap_width,
-               BLFWrapMode(int(BLFWrapMode::Path) | int(BLFWrapMode::HardLimit)));
+  BLF_wordwrap(blf_mono_font, data->wrap_width, BLFWrapMode::Path | BLFWrapMode::HardLimit);
 
   bbox.xmin += 0.5f * pad_x; /* add padding to the text */
   bbox.ymax -= 0.5f * pad_y;
@@ -314,7 +312,7 @@ static void tooltip_region_draw_cb(const bContext * /*C*/, ARegion *region)
                                      field->image->ibuf->y,
                                      gpu::TextureFormat::UNORM_8_8_8_8,
                                      true,
-                                     field->image->ibuf->byte_buffer.data,
+                                     field->image->ibuf->byte_data(),
                                      1.0f,
                                      1.0f,
                                      float(field->image->width) / float(field->image->ibuf->x),
@@ -433,7 +431,7 @@ static bool tooltip_data_append_from_keymap(bContext *C, TooltipData &data, wmKe
                              fmt::format(fmt::runtime(TIP_("Python: {}")), str),
                              {},
                              TIP_STYLE_MONO,
-                             TIP_LC_PYTHON);
+                             TIP_LC_DIMMED);
     }
   }
 
@@ -758,7 +756,7 @@ static std::unique_ptr<TooltipData> tooltip_data_from_tool(bContext *C,
                            fmt::format(fmt::runtime(TIP_("Python: {}")), str),
                            {},
                            TIP_STYLE_MONO,
-                           TIP_LC_PYTHON,
+                           TIP_LC_DIMMED,
                            true);
   }
 
@@ -947,7 +945,7 @@ void tooltip_uibut_python_add(TooltipData &data,
                            fmt::format(fmt::runtime(TIP_("Python: {}")), str),
                            {},
                            TIP_STYLE_MONO,
-                           TIP_LC_PYTHON,
+                           TIP_LC_DIMMED,
                            true);
   }
 
@@ -960,7 +958,7 @@ void tooltip_uibut_python_add(TooltipData &data,
               fmt::format(fmt::runtime(TIP_("Python: {}.{}")), rna_struct, rna_prop),
           {},
           TIP_STYLE_MONO,
-          TIP_LC_PYTHON,
+          TIP_LC_DIMMED,
           (data.fields.size() > 0));
     }
 
@@ -968,7 +966,7 @@ void tooltip_uibut_python_add(TooltipData &data,
       std::optional<std::string> str = rnaprop ? RNA_path_full_property_py_ex(
                                                      &but.rnapoin, rnaprop, but.rnaindex, true) :
                                                  RNA_path_full_struct_py(&but.rnapoin);
-      tooltip_text_field_add(data, str.value_or(""), {}, TIP_STYLE_MONO, TIP_LC_PYTHON);
+      tooltip_text_field_add(data, str.value_or(""), {}, TIP_STYLE_MONO, TIP_LC_DIMMED);
     }
   }
 }
@@ -996,7 +994,7 @@ static void tooltip_uibut_icon_add(TooltipData &data, Button &but)
   }
 
   tooltip_text_field_add(
-      data, fmt::format("Icon: {}", icon_name), {}, TIP_STYLE_MONO, TIP_LC_PYTHON);
+      data, fmt::format("Icon: {}", icon_name), {}, TIP_STYLE_MONO, TIP_LC_DIMMED);
 }
 
 static std::unique_ptr<TooltipData> tooltip_data_from_button_or_extra_icon(
@@ -1153,6 +1151,29 @@ static std::unique_ptr<TooltipData> tooltip_data_from_button_or_extra_icon(
                                TIP_STYLE_NORMAL,
                                TIP_LC_VALUE,
                                true);
+      }
+    }
+  }
+
+  /* Show template-evaluated path for filepaths with path templates. */
+  if (but->type == ButtonType::Text && rnaprop &&
+      (RNA_property_flag(rnaprop) & PROP_PATH_SUPPORTS_TEMPLATES) != 0)
+  {
+    char filepath[FILE_MAX];
+
+    RNA_property_string_get(&but->rnapoin, rnaprop, filepath);
+
+    if (BKE_path_contains_template_syntax(filepath)) {
+      const std::optional<blender::bke::path_templates::VariableMap> variables =
+          BKE_build_template_variables_for_prop(C, &but->rnapoin, rnaprop);
+      BLI_assert(variables.has_value());
+
+      const blender::Vector<blender::bke::path_templates::Error> errors = BKE_path_apply_template(
+          filepath, sizeof(filepath), *variables);
+
+      if (errors.is_empty()) {
+        tooltip_text_field_add(
+            *data, std::string(filepath), {}, TIP_STYLE_NORMAL, TIP_LC_DIMMED, true);
       }
     }
   }
@@ -1445,10 +1466,8 @@ static ARegion *tooltip_create_with_data(bContext *C,
   BLF_enable(blf_mono_font, font_flag);
   BLF_wordwrap(data->fstyle.uifont_id,
                data->wrap_width,
-               BLFWrapMode(int(BLFWrapMode::Typographical) | int(BLFWrapMode::HardLimit)));
-  BLF_wordwrap(blf_mono_font,
-               data->wrap_width,
-               BLFWrapMode(int(BLFWrapMode::Path) | int(BLFWrapMode::HardLimit)));
+               BLFWrapMode::Typographical | BLFWrapMode::HardLimit);
+  BLF_wordwrap(blf_mono_font, data->wrap_width, BLFWrapMode::Path | BLFWrapMode::HardLimit);
 
   int i, fonth, fontw;
   for (i = 0, fontw = 0, fonth = 0; i < data->fields.size(); i++) {
@@ -1768,6 +1787,22 @@ ARegion *tooltip_create_from_gizmo(bContext *C, wmGizmo *gz)
   return tooltip_create_with_data(C, std::move(data), init_position, nullptr);
 }
 
+ARegion *tooltip_create_from_panel_category(bContext *C,
+                                            const std::string &category_name,
+                                            const int x,
+                                            const int y)
+{
+  std::unique_ptr<TooltipData> data = std::make_unique<TooltipData>();
+  tooltip_text_field_add(*data, category_name, {}, TIP_STYLE_HEADER, TIP_LC_VALUE, false);
+  const float init_position[2] = {float(x) + 61.0f * UI_SCALE_FAC,
+                                  float(y) + 32.0f * UI_SCALE_FAC};
+  const rcti overlap_rect_fl = {x - int(25.0f * UI_SCALE_FAC),
+                                x + int(28.0f * UI_SCALE_FAC),
+                                y - int(31.0f * UI_SCALE_FAC),
+                                y + int(round(20.7f * UI_SCALE_FAC))};
+  return tooltip_create_with_data(C, std::move(data), init_position, &overlap_rect_fl);
+}
+
 static void tooltip_from_image(Image &ima, TooltipData &data)
 {
   if (ima.filepath[0]) {
@@ -1853,10 +1888,10 @@ static void tooltip_from_clip(MovieClip &clip, TooltipData &data)
 
   std::string image_type;
   switch (clip.source) {
-    case IMA_SRC_SEQUENCE:
+    case MCLIP_SRC_SEQUENCE:
       image_type = TIP_("Image Sequence");
       break;
-    case IMA_SRC_MOVIE:
+    case MCLIP_SRC_MOVIE:
       image_type = TIP_("Movie");
       break;
   }

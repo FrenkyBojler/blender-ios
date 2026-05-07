@@ -9,9 +9,9 @@
  */
 
 #include "eevee_bxdf_sampling_lib.glsl"
-#include "eevee_ray_types_lib.glsl"
+#include "eevee_ray_types_lib.bsl.hh"
 #include "eevee_sampling_lib.glsl"
-#include "eevee_thickness_lib.glsl"
+#include "eevee_thickness_lib.bsl.hh"
 #include "gpu_shader_codegen_lib.glsl"
 
 #include "gpu_shader_math_matrix_construct_lib.glsl"
@@ -27,7 +27,7 @@ BsdfSample ray_generate_direction(float2 noise,
   constexpr float rng_bias = 0.08f;
   /* When modeling object thickness as a sphere, the outgoing rays are distributed uniformly
    * over the sphere. We don't want the RAY_BIAS in this case. */
-  if (cl.type != CLOSURE_BSDF_TRANSLUCENT_ID || (thickness.mode() == THICKNESS_MODE_SPHERE)) {
+  if (cl.type != CLOSURE_BSDF_TRANSLUCENT_ID || thickness.mode() == ThicknessMode::Slab) {
     random_point_on_cylinder.x = 1.0f - random_point_on_cylinder.x * (1.0f - rng_bias);
   }
 

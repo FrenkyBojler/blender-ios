@@ -15,11 +15,11 @@ remove_strict_flags()
 
 # Not a strict flag, but noisy for code we don't maintain
 if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
-  remove_cc_flag(
+  remove_c_and_cxx_flag(
     "-Wmisleading-indentation"
   )
 elseif(CMAKE_C_COMPILER_ID MATCHES "Clang")
-  remove_cc_flag(
+  remove_c_and_cxx_flag(
     "-Weverything"
     "-Wextra"
     "-Wnull-pointer-subtraction"
@@ -105,4 +105,8 @@ endif()
 
 if(WITH_VULKAN_BACKEND)
   add_subdirectory(vulkan_memory_allocator)
+endif()
+
+if(WITH_TRACY)
+  add_subdirectory(tracy_profiler)
 endif()
