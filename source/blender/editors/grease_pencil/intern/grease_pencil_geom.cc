@@ -187,7 +187,7 @@ int curve_merge_by_distance(const IndexRange points,
   KDTree_1d *tree = kdtree_1d_new(selection.size());
   /* The selection is an IndexMask of the points just in this curve. */
   selection.foreach_index([&](const int64_t i, const int64_t pos) {
-    kdtree_1d_insert(tree, pos, &distances[i - points.first()]);
+    kdtree_1d_insert(tree, pos, distances[i - points.first()]);
   });
   kdtree_1d_balance(tree);
 
@@ -394,7 +394,7 @@ bke::CurvesGeometry curves_merge_endpoints_by_distance(
 
         KDTreeNearest_2d nearest_start, nearest_end;
         const bool is_start_ok =
-            (kdtree_find_nearest_cb_cpp<float2>(
+            (kdtree_find_nearest_cb<float2>(
                  tree,
                  start_co,
                  &nearest_start,
@@ -405,7 +405,7 @@ bke::CurvesGeometry curves_merge_endpoints_by_distance(
                    return 1;
                  }) != -1);
         const bool is_end_ok =
-            (kdtree_find_nearest_cb_cpp<float2>(
+            (kdtree_find_nearest_cb<float2>(
                  tree,
                  end_co,
                  &nearest_end,
