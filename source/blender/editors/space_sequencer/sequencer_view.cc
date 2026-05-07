@@ -180,7 +180,7 @@ rctf SEQ_view_frame_fit(const SpaceSeq *sseq, const ARegion *region, rctf v2d_re
   const float region_h = std::max(float(BLI_rcti_size_y(&region->winrct)), 1.0f);
 
   if (sseq->mainb == SEQ_DRAW_IMG_VECTORSCOPE) {
-    /* The vectorscope circle uses min(width, height) as its diameter.
+    /* The vector-scope circle uses min(width, height) as its diameter.
      * Adjust the framing to match the region aspect ratio so the circle
      * fits tightly regardless of whether the region is wide or tall. */
     const float region_aspect = region_w / region_h;
@@ -240,7 +240,7 @@ static bool view_frame_preview_scope(bContext *C,
       /* Optionally limit X range to max nits of the view transform. */
       const Scene *scene = CTX_data_sequencer_scene(C);
       const ocio::ScopeInfo scope_info = IMB_colormanagement_get_scope_info(
-          &scene->display_settings, scene->view_settings.view_transform);
+          &scene->display_settings, &scene->view_settings);
       if (scope_info.view_transform_max_nits > 0) {
         max_nits_scale = scope_info.view_transform_max_nits_value;
       }

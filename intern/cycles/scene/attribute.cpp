@@ -56,7 +56,7 @@ Attribute::Attribute(ustring name,
 {
   assert((element & ATTR_ELEMENT_VOXEL) == 0);
   buffer = data;
-  /* Implicit sharing function pointers should be set if shared attribtues are created. */
+  /* Implicit sharing function pointers should be set if shared attributes are created. */
   assert(g_implicit_sharing_user_add_fn);
   assert(g_implicit_sharing_user_remove_fn);
   g_implicit_sharing_user_add_fn(sharing_info);
@@ -621,6 +621,8 @@ static TypeDesc find_type_from_geometry_std(Geometry *geometry, AttributeStandar
         return TypeColor;
       case ATTR_STD_VOLUME_VELOCITY:
         return TypeVector;
+      case ATTR_STD_GENERATED_TRANSFORM:
+        return TypeMatrix;
       default:
         assert(0);
         break;
@@ -741,6 +743,8 @@ static AttributeElement find_element_from_geometry_std(Geometry *geometry, Attri
         return ATTR_ELEMENT_VOXEL;
       case ATTR_STD_VOLUME_VELOCITY:
         return ATTR_ELEMENT_VOXEL;
+      case ATTR_STD_GENERATED_TRANSFORM:
+        return ATTR_ELEMENT_MESH;
       default:
         assert(0);
         break;
