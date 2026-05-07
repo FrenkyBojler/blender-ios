@@ -43,7 +43,7 @@ class ASSETSHELF_PT_filter(Panel):
 
         # Filter option stored in the Preferences.
         if use_remote_asset_libraries:
-            layout.prop(prefs.view, "show_online_assets", text="Online Assets")
+            layout.prop(prefs.view, "asset_visibility", text="")
 
 
 classes = (

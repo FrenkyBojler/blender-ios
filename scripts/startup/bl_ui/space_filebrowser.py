@@ -646,7 +646,7 @@ class ASSETBROWSER_PT_filter(asset_utils.AssetBrowserPanel, Panel):
                     row.prop(filter_id, identifier, toggle=False)
 
         if use_remote_asset_libraries:
-            layout.prop(params, "show_online_assets", text="Online Assets")
+            layout.prop(params, "asset_visibility", text="")
 
 
 class AssetBrowserMenu:

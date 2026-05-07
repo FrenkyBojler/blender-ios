@@ -1663,6 +1663,13 @@ void file_draw_list(const bContext *C, ARegion *region)
       if (is_filtered) {
         return IFACE_("No results match the search filter");
       }
+      FileAssetSelectParams *asset_params = ED_fileselect_get_asset_params(sfile);
+      if (asset_params && (asset_params->asset_visibility == AssetVisibility::OnlyOnline)) {
+        return IFACE_("No items (filtering is set to only show online assets)");
+      }
+      if (asset_params && (asset_params->asset_visibility == AssetVisibility::OnlyOffline)) {
+        return IFACE_("No items (filtering is set to only show offline assets)");
+      }
       return IFACE_("No items");
     }();
 

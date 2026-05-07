@@ -142,7 +142,6 @@ void AssetList::ensure_updated()
 {
   FileList *files = filelist_;
 
-  const bool show_online_assets = (U.uiflag2 & USER_UIFLAG2_SHOW_ONLINE_ASSETS) != 0;
   filelist_setlibrary(files, &library_ref_);
   filelist_setfilter_options(
       files,
@@ -152,10 +151,13 @@ void AssetList::ensure_updated()
       FILE_TYPE_BLENDERLIB,
       FILTER_ID_ALL,
       true,
-      (U.uiflag2 & USER_UIFLAG2_SHOW_ONLINE_ASSETS) == 0,
+      U.asset_visibility == AssetVisibility::OnlyOffline,
+      U.asset_visibility == AssetVisibility::OnlyOnline,
       "",
       "");
-  filelist_set_asset_include_online(files, show_online_assets);
+  filelist_set_asset_include_online(
+      files,
+      ELEM(U.asset_visibility, AssetVisibility::OnlineAndOffline, AssetVisibility::OnlyOnline));
 }
 
 void AssetList::fetch(const bContext &C)
