@@ -414,10 +414,12 @@ static void do_paint_pixels(const Depsgraph &depsgraph,
     }, exec_mode::grain_size(512));
 
     Array<bool> non_zero_data(tile_data.pixel_rows.size(), false);
-    for (const int i : all_factors.index_range()) {
-      non_zero_data[valid_rows[i]] = std::ranges::any_of(
-          all_factors[i], [](const float factor) { return factor != 0.0f; });
-    }
+    threading::parallel_for(all_factors.index_range(), 512, [&](const IndexRange range) {
+      for (const int i : range) {
+        non_zero_data[valid_rows[i]] = std::ranges::any_of(
+            all_factors[i], [](const float factor) { return factor != 0.0f; });
+      }
+    });
 
     IndexMask non_zero_rows = IndexMask::from_bools(non_zero_data, memory);
     IndexMask paint_rows = IndexMask::from_intersection(valid_rows, non_zero_rows, memory);
