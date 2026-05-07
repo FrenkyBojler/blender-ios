@@ -6,8 +6,6 @@
  * \ingroup bke
  */
 
-#include "DNA_ID.h"
-#include "DNA_action_types.h"
 #include <cmath>
 #include <cstddef>
 #include <cstdlib>
@@ -17,6 +15,8 @@
 /* Allow using deprecated functionality for .blend file I/O. */
 #define DNA_DEPRECATED_ALLOW
 
+#include "DNA_ID.h"
+#include "DNA_action_types.h"
 #include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
 #include "DNA_constraint_types.h"
