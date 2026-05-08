@@ -11900,9 +11900,9 @@ static int handle_menu_event(bContext *C,
               {
                 button_execute(C, region, but_menu_key);
               }
-            }
-            else {
-              handle_button_activate_by_type(C, region, but_menu_key);
+              else {
+                handle_button_activate_by_type(C, region, but_menu_key);
+              }
             }
             return WM_UI_HANDLER_BREAK;
           }
