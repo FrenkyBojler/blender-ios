@@ -59,7 +59,7 @@ enum eUserPref_Flag : int {
   USER_TOOLTIPS_PYTHON = (1 << 26),
   USER_FLAG_UNUSED_27 = (1 << 27), /* dirty */
   USER_HIDE_DOT_DATABLOCK = (1 << 28),
-  USER_TEXTBOX_SHIFT_SWAP = (1 << 28),
+  USER_TEXTBOX_SHIFT_SWAP = (1 << 29),
 };
 ENUM_OPERATORS(eUserPref_Flag)
 
