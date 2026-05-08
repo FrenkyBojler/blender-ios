@@ -412,7 +412,9 @@ Scene::MotionType Scene::need_motion() const
   if (integrator->get_motion_blur()) {
     return MOTION_BLUR;
   }
-  if (Pass::contains(passes, PASS_MOTION)) {
+  if (Pass::contains(passes, PASS_MOTION) ||
+      Pass::contains(passes, PASS_DENOISING_BACKWARD_MOTION))
+  {
     return MOTION_PASS;
   }
   return MOTION_NONE;
@@ -449,6 +451,10 @@ void Scene::need_global_attributes(AttributeRequestSet &attributes)
     if (need_global_attribute((AttributeStandard)std)) {
       attributes.add((AttributeStandard)std);
     }
+  }
+
+  for (const Shader *shader : shaders) {
+    attributes.add(shader->global_attributes);
   }
 }
 
