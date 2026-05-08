@@ -974,29 +974,6 @@ class XpbdSolverStep {
     }
   }
 
-  /* XXX THIS IS A PLACEHOLDER!!
-   * Edge collision is currently only supported for chunked execution, which does not work for
-   * general mesh edges.Curve ranges are the only information available for edge pairs at this
-   * point. */
-  template<typename Fn>
-  void foreach_edge_point_pair(const GeometryData &geo_data,
-                               const GeometryDataChunk &chunk,
-                               Fn &&fn)
-  {
-    if (geo_data.curves) {
-      const OffsetIndices points_by_curve = geo_data.curves->points_by_curve();
-      if (!chunk.curves_range) {
-        return;
-      }
-      for (const int curve : *chunk.curves_range) {
-        for (const int point0 : points_by_curve[curve].drop_back(1)) {
-          const int geo_contact_id = point0;
-          fn(geo_contact_id, point0, point0 + 1);
-        }
-      }
-    }
-  }
-
   void gather_contacts__mesh_collider(const int chunk_i,
                                       const float max_distance,
                                       const int solver_refs_i,
@@ -1118,99 +1095,105 @@ class XpbdSolverStep {
     }
 
     if (collider.use_edge_contacts) {
-      foreach_edge_point_pair(
-          geo_data, chunk, [&](const int geo_contact_id, const int point0, const int point1) {
-            if (geo_data.is_hard_pinned[point0] && geo_data.is_hard_pinned[point1]) {
-              return;
-            }
-            const float3 &pos_local0 = positions[point0];
-            const float3 &pos_local1 = positions[point1];
-            const float3 pos_mesh0 = math::transform_point(local_to_mesh, pos_local0);
-            const float3 pos_mesh1 = math::transform_point(local_to_mesh, pos_local1);
-            const float radius_local0 = math::interpolate(
-                geo_data.prev_radii[point0], geo_data.radii[point0], substep.interpolate_end);
-            const float radius_local1 = math::interpolate(
-                geo_data.prev_radii[point1], geo_data.radii[point1], substep.interpolate_end);
-            /* Use max radius for collision detection. */
-            const float max_radius_mesh = local_to_mesh_radius_factor *
-                                          std::max(radius_local0, radius_local1);
-            const std::optional<ClosestMeshEdgeContact> contact =
-                this->get_closest_mesh_edge_contact(pos_mesh0,
-                                                    pos_mesh1,
-                                                    *edges_bvh,
-                                                    edge_verts,
-                                                    vert_positions,
-                                                    max_distance + max_radius_mesh);
-            if (!contact) {
-              return;
-            }
+      auto handle_edge = [&](const int geo_contact_id, const int point0, const int point1) {
+        if (geo_data.is_hard_pinned[point0] && geo_data.is_hard_pinned[point1]) {
+          return;
+        }
+        const float3 &pos_local0 = positions[point0];
+        const float3 &pos_local1 = positions[point1];
+        const float3 pos_mesh0 = math::transform_point(local_to_mesh, pos_local0);
+        const float3 pos_mesh1 = math::transform_point(local_to_mesh, pos_local1);
+        const float radius_local0 = math::interpolate(
+            geo_data.prev_radii[point0], geo_data.radii[point0], substep.interpolate_end);
+        const float radius_local1 = math::interpolate(
+            geo_data.prev_radii[point1], geo_data.radii[point1], substep.interpolate_end);
+        /* Use max radius for collision detection. */
+        const float max_radius_mesh = local_to_mesh_radius_factor *
+                                      std::max(radius_local0, radius_local1);
+        const std::optional<ClosestMeshEdgeContact> contact = this->get_closest_mesh_edge_contact(
+            pos_mesh0,
+            pos_mesh1,
+            *edges_bvh,
+            edge_verts,
+            vert_positions,
+            max_distance + max_radius_mesh);
+        if (!contact) {
+          return;
+        }
 
-            /* Add a contact for each face adjacent to the closest edge. */
-            const int2 &edge = edge_verts[contact->edge_i];
+        /* Add a contact for each face adjacent to the closest edge. */
+        const int2 &edge = edge_verts[contact->edge_i];
 
-            const float3 contact_pos_local = math::transform_point(mesh_to_local,
-                                                                   contact->nearest_pos);
-            float3 prev_contact_pos_mesh;
-            if (is_deforming) {
-              prev_contact_pos_mesh = bke::attribute_math::mix2(contact->edge_factor,
-                                                                prev_vert_positions[edge[0]],
-                                                                prev_vert_positions[edge[1]]);
-            }
-            else {
-              prev_contact_pos_mesh = contact->nearest_pos;
-            }
-            const float3 prev_contact_pos_local = math::transform_point(prev_mesh_to_local,
-                                                                        prev_contact_pos_mesh);
+        const float3 contact_pos_local = math::transform_point(mesh_to_local,
+                                                               contact->nearest_pos);
+        float3 prev_contact_pos_mesh;
+        if (is_deforming) {
+          prev_contact_pos_mesh = bke::attribute_math::mix2(
+              contact->edge_factor, prev_vert_positions[edge[0]], prev_vert_positions[edge[1]]);
+        }
+        else {
+          prev_contact_pos_mesh = contact->nearest_pos;
+        }
+        const float3 prev_contact_pos_local = math::transform_point(prev_mesh_to_local,
+                                                                    prev_contact_pos_mesh);
 
-            const float3 edge_direction_mesh = math::normalize(vert_positions[edge[1]] -
-                                                               vert_positions[edge[0]]);
-            const float3 edge_direction_local = math::normalize(
-                math::transform_direction(mesh_to_local, edge_direction_mesh));
-            /* Contact with the closest edge is active if the segment intersects with the
-             * half-plane defined by the edge normal. A segment intersecting with any of the
-             * adjacent faces would need to be moved along a tangent of the respective face to
-             * resolve the collision, but since in combination with point-face collisions it is
-             * sufficient to define a single edge normal, as long as the half-plane it defines is
-             * inside both of the half-planes of the adjacent faces, i.e. between the two normal
-             * directions. */
-            const float3 edge_normal_mesh = math::normalize(math::cross(
-                math::cross(edge_direction_mesh,
-                            math::interpolate(vert_normals[edge[0]], vert_normals[edge[1]], 0.5f)),
-                edge_direction_mesh));
-            const float3 edge_normal_local = math::transform_direction(mesh_to_local,
-                                                                       edge_normal_mesh);
+        const float3 edge_direction_mesh = math::normalize(vert_positions[edge[1]] -
+                                                           vert_positions[edge[0]]);
+        const float3 edge_direction_local = math::normalize(
+            math::transform_direction(mesh_to_local, edge_direction_mesh));
+        /* Contact with the closest edge is active if the segment intersects with the
+         * half-plane defined by the edge normal. A segment intersecting with any of the
+         * adjacent faces would need to be moved along a tangent of the respective face to
+         * resolve the collision, but since in combination with point-face collisions it is
+         * sufficient to define a single edge normal, as long as the half-plane it defines is
+         * inside both of the half-planes of the adjacent faces, i.e. between the two normal
+         * directions. */
+        const float3 edge_normal_mesh = math::normalize(math::cross(
+            math::cross(edge_direction_mesh,
+                        math::interpolate(vert_normals[edge[0]], vert_normals[edge[1]], 0.5f)),
+            edge_direction_mesh));
+        const float3 edge_normal_local = math::transform_direction(mesh_to_local,
+                                                                   edge_normal_mesh);
 
-            /* Use geometric average as edge friction coefficient. */
-            const float static_friction = math::sqrt(
-                math::square(this->compute_contact_friction(geo_data.static_frictions[point0],
-                                                            collider.friction)) +
-                math::square(this->compute_contact_friction(geo_data.static_frictions[point1],
-                                                            collider.friction)));
-            const float dynamic_friction = math::sqrt(
-                math::square(this->compute_contact_friction(geo_data.dynamic_frictions[point0],
-                                                            collider.friction)) +
-                math::square(this->compute_contact_friction(geo_data.dynamic_frictions[point1],
-                                                            collider.friction)));
+        /* Use geometric average as edge friction coefficient. */
+        const float static_friction = math::sqrt(
+            math::square(this->compute_contact_friction(geo_data.static_frictions[point0],
+                                                        collider.friction)) +
+            math::square(this->compute_contact_friction(geo_data.static_frictions[point1],
+                                                        collider.friction)));
+        const float dynamic_friction = math::sqrt(
+            math::square(this->compute_contact_friction(geo_data.dynamic_frictions[point0],
+                                                        collider.friction)) +
+            math::square(this->compute_contact_friction(geo_data.dynamic_frictions[point1],
+                                                        collider.friction)));
 
-            const int contact_i = r_edge_contacts.point_pairs.append_and_get_index(
-                {point0, point1});
-            r_edge_contacts.point_radii.append({radius_local0, radius_local1});
-            r_edge_contacts.positions_on_edge.append(contact_pos_local);
-            r_edge_contacts.collider_motion.append(contact_pos_local - prev_contact_pos_local);
-            r_edge_contacts.edge_directions.append(edge_direction_local);
-            r_edge_contacts.edge_normals.append(edge_normal_local);
-            r_edge_contacts.edge_margins.append(margin_local);
-            r_edge_contacts.static_frictions.append(static_friction);
-            r_edge_contacts.dynamic_frictions.append(dynamic_friction);
-            r_edge_contacts.compliance_terms.append(
-                std::max(0.0f, substep_compliance_factor_ * collider.compliance));
+        const int contact_i = r_edge_contacts.point_pairs.append_and_get_index({point0, point1});
+        r_edge_contacts.point_radii.append({radius_local0, radius_local1});
+        r_edge_contacts.positions_on_edge.append(contact_pos_local);
+        r_edge_contacts.collider_motion.append(contact_pos_local - prev_contact_pos_local);
+        r_edge_contacts.edge_directions.append(edge_direction_local);
+        r_edge_contacts.edge_normals.append(edge_normal_local);
+        r_edge_contacts.edge_margins.append(margin_local);
+        r_edge_contacts.static_frictions.append(static_friction);
+        r_edge_contacts.dynamic_frictions.append(dynamic_friction);
+        r_edge_contacts.compliance_terms.append(
+            std::max(0.0f, substep_compliance_factor_ * collider.compliance));
 
-            const MeshContactId contact_id{collider_usage.constraint_i, geo_contact_id};
-            r_edge_contacts.mesh_contact_indices.add(contact_id, contact_i);
-            r_edge_contacts.init_or_preserve_state(
-                prev_edge_contacts,
-                prev_edge_contacts.mesh_contact_indices.lookup_try(contact_id));
-          });
+        const MeshContactId contact_id{collider_usage.constraint_i, geo_contact_id};
+        r_edge_contacts.mesh_contact_indices.add(contact_id, contact_i);
+        r_edge_contacts.init_or_preserve_state(
+            prev_edge_contacts, prev_edge_contacts.mesh_contact_indices.lookup_try(contact_id));
+      };
+
+      if (chunk.curves_range) {
+        const OffsetIndices points_by_curve = geo_data.curves->points_by_curve();
+        for (const int curve : *chunk.curves_range) {
+          for (const int point0 : points_by_curve[curve].drop_back(1)) {
+            const int geo_contact_id = point0;
+            handle_edge(geo_contact_id, point0, point0 + 1);
+          }
+        }
+      }
     }
   }
 
