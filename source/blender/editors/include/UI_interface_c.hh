@@ -3019,10 +3019,7 @@ ARegion *tooltip_create_from_panel_category(bContext *C,
                                             const int x,
                                             const int y);
 
-ARegion *tooltip_create_from_outliner_element(bContext *C,
-                                              ID *id,
-                                              const int x,
-                                              const int y);
+ARegion *tooltip_create_from_outliner_element(bContext *C, ID *id, const int x, const int y);
 
 void tooltip_free(bContext *C, bScreen *screen, ARegion *region);
 
