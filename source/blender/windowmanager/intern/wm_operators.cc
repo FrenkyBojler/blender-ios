@@ -2187,7 +2187,7 @@ static void WM_OT_search_single_menu(wmOperatorType *ot)
 
 static wmOperatorStatus search_enum_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  std::string buffer = RNA_string_get(op->ptr, "initial_query");
+  const std::string buffer = RNA_string_get(op->ptr, "initial_query");
   return WM_enum_search_invoke(C, op, event, buffer);
 }
 
@@ -2197,8 +2197,8 @@ static wmOperatorStatus search_enum_exec(bContext *C, wmOperator *op)
 
   const int value = RNA_enum_get(op->ptr, "enum");
 
-  std::string rna_path = RNA_string_get(op->ptr, "rna_path");
-  int owner_session_uid = RNA_int_get(op->ptr, "owner_session_uid");
+  const std::string rna_path = RNA_string_get(op->ptr, "rna_path");
+  const int owner_session_uid = RNA_int_get(op->ptr, "owner_session_uid");
   ID *owner_id = owner_session_uid >= 0 ? BKE_libblock_find_session_uid(bmain, owner_session_uid) :
                                           nullptr;
 
@@ -2225,8 +2225,8 @@ static const EnumPropertyItem *search_enum_items(bContext *C,
 
   Main *bmain = CTX_data_main(C);
 
-  std::string rna_path = RNA_string_get(ptr, "rna_path");
-  int owner_session_uid = RNA_int_get(ptr, "owner_session_uid");
+  const std::string rna_path = RNA_string_get(ptr, "rna_path");
+  const int owner_session_uid = RNA_int_get(ptr, "owner_session_uid");
   ID *owner_id = owner_session_uid >= 0 ? BKE_libblock_find_session_uid(bmain, owner_session_uid) :
                                           nullptr;
 
