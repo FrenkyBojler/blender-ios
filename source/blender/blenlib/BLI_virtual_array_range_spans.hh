@@ -40,7 +40,7 @@ template<typename T> class VArrayRangeSpans {
       chunk_span_ = scope.allocator().construct_array<T>(max_range_size, *single_value);
     }
     else {
-      MutableSpan<T> full_span = scope.allocator().allocate_array<T>(max_range_size);
+      MutableSpan<T> full_span = scope.allocator().allocate_array<T>(varray.size());
       varray.materialize_to_uninitialized(full_span);
       full_span_ = full_span;
       scope.add_destruct_call([full_span]() { destruct_n(full_span.data(), full_span.size()); });
