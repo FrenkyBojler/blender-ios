@@ -36,9 +36,6 @@
 
 CCL_NAMESPACE_BEGIN
 
-static constexpr float kMemoryPressureThreshold = 0.25f;
-static constexpr float kOverlapRatioThreshold = 2.0f;
-
 static void get_hiprt_transform(float matrix[][4], Transform &tfm)
 {
   int row = 0;
@@ -810,6 +807,9 @@ hiprtBuildFlags HIPRTDevice::select_blas_build_flags(BVHHIPRT *bvh,
                                                      Geometry *geom,
                                                      const hiprtGeometryBuildInput &geom_input)
 {
+  constexpr float memory_pressure_threshold = 0.25f;
+  constexpr float overlap_ratio_threshold = 2.0f;
+
   bool use_high_quality = true;
   const char *reason = "default";
 
@@ -824,24 +824,24 @@ hiprtBuildFlags HIPRTDevice::select_blas_build_flags(BVHHIPRT *bvh,
 
   if (rt_err != hiprtSuccess) {
     set_error("Failed to get scratch buffer size for BLAS");
-    return 0;
+    return hiprtBuildFlagBitPreferFastBuild;
   }
 
   const float memory_ratio = (free_mem > 0) ? (float)hq_scratch_size / (float)free_mem : 1.0f;
-  if (memory_ratio > kMemoryPressureThreshold) {
+  if (memory_ratio > memory_pressure_threshold) {
     use_high_quality = false;
     reason = "memory pressure";
     LOG_INFO << "HIPRT BLAS build: switching to BalancedBuild for \"" << geom->name.c_str()
              << "\" due to low GPU memory"
-             << " (free=" << (free_mem >> 20) << "MB"
-             << ", scratch=" << (hq_scratch_size >> 20) << "MB"
-             << ", ratio=" << memory_ratio << ")";
+             << " (free: " << string_human_readable_size(free_mem)
+             << ", scratch: " << string_human_readable_size(hq_scratch_size)
+             << ", ratio: " << memory_ratio << ")";
   }
 
   const int aabb_count = bvh->custom_prim_aabb.aabbCount;
   const float overlap_ratio = bvh->aabb_overlap_ratio;
   if (use_high_quality && aabb_count > 0) {
-    if (overlap_ratio < kOverlapRatioThreshold) {
+    if (overlap_ratio < overlap_ratio_threshold) {
       use_high_quality = false;
       reason = "low AABB overlap";
     }
@@ -849,10 +849,10 @@ hiprtBuildFlags HIPRTDevice::select_blas_build_flags(BVHHIPRT *bvh,
 
   LOG_DEBUG << "HIPRT BLAS build flag for \"" << geom->name.c_str()
             << "\": " << (use_high_quality ? "HighQualityBuild" : "BalancedBuild")
-            << " (reason=" << reason << ", free=" << (free_mem >> 20) << "MB"
-            << ", scratch=" << (hq_scratch_size >> 20) << "MB"
-            << ", mem_ratio=" << memory_ratio << ", aabb_count=" << aabb_count
-            << ", overlap_ratio=" << overlap_ratio << ")";
+            << " (reason: " << reason << ", free: " << string_human_readable_size(free_mem)
+            << ", scratch: " << string_human_readable_size(hq_scratch_size)
+            << ", mem_ratio: " << memory_ratio << ", aabb_count: " << aabb_count
+            << ", overlap_ratio: " << overlap_ratio << ")";
 
   return use_high_quality ? hiprtBuildFlagBitPreferHighQualityBuild :
                             hiprtBuildFlagBitPreferBalancedBuild;
