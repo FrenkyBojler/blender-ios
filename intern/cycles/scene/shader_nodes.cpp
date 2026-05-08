@@ -1632,7 +1632,7 @@ NODE_DEFINE(MxHextiledImageTextureNode)
   SOCKET_IN_VECTOR(offset_range, "Offset Range", make_float3(0.0f, 1.0f, 0.0f));
   SOCKET_IN_FLOAT(falloff, "Falloff", 0.5f);
   SOCKET_IN_FLOAT(falloff_contrast, "Falloff Contrast", 0.5f);
-  SOCKET_IN_COLOR(luma_coeffs, "Luma Coeffs", make_float3(0.2722287f, 0.6740818f, 0.0536895f));
+  SOCKET_IN_VECTOR(luma_coeffs, "Luma Coeffs", make_float3(0.2722287f, 0.6740818f, 0.0536895f));
 
   SOCKET_OUT_COLOR(color, "Color");
   SOCKET_OUT_FLOAT(alpha, "Alpha");

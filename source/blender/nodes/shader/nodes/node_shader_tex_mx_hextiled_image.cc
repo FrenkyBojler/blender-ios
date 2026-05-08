@@ -30,7 +30,7 @@ static void sh_node_tex_mx_hextiled_image_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Vector>("Offset Range"_ustr).default_value(float3(0.0f, 1.0f, 0.0f));
   b.add_input<decl::Float>("Falloff"_ustr).default_value(0.5f);
   b.add_input<decl::Float>("Falloff Contrast"_ustr).default_value(0.5f);
-  b.add_input<decl::Color>("Luma Coeffs"_ustr).default_value({0.2722287f, 0.6740818f, 0.0536895f, 1.0f});
+  b.add_input<decl::Vector>("Luma Coeffs"_ustr).default_value(float3(0.2722287f, 0.6740818f, 0.0536895f));
   b.add_output<decl::Color>("Color"_ustr).no_muted_links();
   b.add_output<decl::Float>("Alpha"_ustr).no_muted_links();
 }

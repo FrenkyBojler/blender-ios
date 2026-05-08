@@ -21,12 +21,12 @@ float mx_hextile_schlick_gain(float x, float r)
 
 float3 mx_hextile_normalize_weights(float3 w)
 {
-  return w / max(dot(w, float3(1.0f)), 1e-6f);
+  return w / dot(w, float3(1.0f));
 }
 
 float3 mx_hextile_compute_blend_weights(float3 luminance_weights, float3 tile_weights, float falloff)
 {
-  float3 w = luminance_weights * pow(max(tile_weights, float3(1e-6f)), float3(7.0f));
+  float3 w = luminance_weights * pow(tile_weights, float3(7.0f));
   w = mx_hextile_normalize_weights(w);
   if (falloff != 0.5f) {
     w = float3(mx_hextile_schlick_gain(w.x, falloff),
@@ -140,7 +140,7 @@ void node_tex_mx_hextiled_image(float3 co,
                                 float3 offset_range,
                                 float falloff,
                                 float falloff_contrast,
-                                float4 lumacoeffs,
+                                float3 lumacoeffs,
                                 sampler2D ima,
                                 float4 &color,
                                 float &alpha)
@@ -179,9 +179,9 @@ void node_tex_mx_hextiled_image(float3 co,
                            mx_hextile_deriv_from_texture_space(ddx3),
                            mx_hextile_deriv_from_texture_space(ddy3));
 
-  float3 luma = lumacoeffs.rgb;
-  float3 cw = float3(dot(c1.rgb, luma), dot(c2.rgb, luma), dot(c3.rgb, luma));
-  cw = mix(float3(1.0f), cw, float3(falloff_contrast));
+  float3 cw = float3(dot(c1.rgb, lumacoeffs), dot(c2.rgb, lumacoeffs), dot(c3.rgb, lumacoeffs));
+  const float falloff_contrast_weight = falloff_contrast * 0.5f;
+  cw = mix(float3(1.0f), cw, float3(falloff_contrast_weight));
   float3 w = mx_hextile_compute_blend_weights(cw, tile_weights, falloff);
   float3 aw = mx_hextile_compute_blend_weights(float3(1.0f), tile_weights, falloff);
 

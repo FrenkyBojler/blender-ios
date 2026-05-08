@@ -30,14 +30,14 @@ ccl_device_inline float mx_hextile_schlick_gain(const float x, const float r)
 
 ccl_device_inline float3 mx_hextile_normalize_weights(const float3 weights)
 {
-  return weights / fmaxf(dot(weights, one_float3()), 1e-6f);
+  return weights / dot(weights, one_float3());
 }
 
 ccl_device_inline float3 mx_hextile_compute_blend_weights(const float3 luminance_weights,
                                                           const float3 tile_weights,
                                                           const float falloff)
 {
-  float3 w = luminance_weights * power(max(tile_weights, make_float3(1e-6f)), 7.0f);
+  float3 w = luminance_weights * power(tile_weights, 7.0f);
   w = mx_hextile_normalize_weights(w);
   if (falloff != 0.5f) {
     w = make_float3(mx_hextile_schlick_gain(w.x, falloff),
@@ -197,11 +197,12 @@ ccl_device_noinline void svm_node_tex_mx_hextiled_image(
   const float4 c3 = svm_image_texture(
       kg, sd, node.id, dual2(mx_hextile_from_texture_space(coords[2])), node.flags);
 
+  const float falloff_contrast_weight = falloff_contrast * 0.5f;
   const float3 cw = interp(one_float3(),
                            make_float3(dot(make_float3(c1), luma_coeffs),
                                        dot(make_float3(c2), luma_coeffs),
                                        dot(make_float3(c3), luma_coeffs)),
-                           falloff_contrast);
+                           falloff_contrast_weight);
   const float3 w = mx_hextile_compute_blend_weights(cw, tile_weights, falloff);
   const float3 aw = mx_hextile_compute_blend_weights(one_float3(), tile_weights, falloff);
   const float4 result = make_float4(w.x * make_float3(c1) + w.y * make_float3(c2) + w.z * make_float3(c3),
