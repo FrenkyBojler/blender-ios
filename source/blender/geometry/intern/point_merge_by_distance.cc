@@ -103,13 +103,13 @@ PointCloud *point_merge_by_distance(const PointCloud &src_points,
                                     const bke::AttributeFilter &attribute_filter)
 {
   const Span<float3> positions = src_points.positions();
-  KDTree_3d *tree = kdtree_3d_new(selection.size());
+  KDTree<float3> *tree = kdtree_new<float3>(selection.size());
   selection.foreach_index_optimized<int64_t>(
-      [&](const int64_t i) { kdtree_3d_insert(tree, i, positions[i]); });
-  kdtree_3d_balance(tree);
+      [&](const int64_t i) { kdtree_insert<float3>(tree, i, positions[i]); });
+  kdtree_balance<float3>(tree);
   Array<int> root_indices(src_points.totpoint, -1);
-  kdtree_3d_calc_duplicates_fast(tree, merge_distance, false, root_indices.data());
-  kdtree_3d_free(tree);
+  kdtree_calc_duplicates_fast<float3>(tree, merge_distance, false, root_indices.data());
+  kdtree_free<float3>(tree);
   threading::parallel_for(root_indices.index_range(), 1024, [&](const IndexRange range) {
     for (const int i : range) {
       if (root_indices[i] == -1) {
