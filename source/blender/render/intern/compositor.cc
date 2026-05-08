@@ -191,10 +191,10 @@ class Context : public compositor::Context {
         image_buffer->assign_float_data(output_buffer);
       }
       else {
-        IMB_alloc_float_pixels(image_buffer, 4, false);
-        std::memcpy(image_buffer->float_data_for_write(),
-                    result.cpu_data().data(),
-                    render_result->rectx * render_result->recty * 4 * sizeof(float));
+        image_buffer->float_buffer = ImBufFloatBuffer{
+            .data = static_cast<const float *>(result.cpu_data().data()),
+            .sharing_info = image_buffer->float_buffer.sharing_info,
+            .colorspace = nullptr};
       }
     }
     RE_ReleaseResult(render);
@@ -263,11 +263,6 @@ class Context : public compositor::Context {
     else {
       /* If not using GPU, free any potential previous GPU data. */
       IMB_free_gpu_textures(image_buffer);
-
-      /* Allocate float buffer if not using GPU and no float buffer exists. */
-      if (!image_buffer->float_data()) {
-        IMB_alloc_float_pixels(image_buffer, 4, false);
-      }
     }
 
     if (this->use_gpu()) {
@@ -283,12 +278,14 @@ class Context : public compositor::Context {
     }
     else {
       if (viewer_result.is_single_value()) {
+        IMB_alloc_float_pixels(image_buffer, 4, false);
         IMB_rectfill(image_buffer, viewer_result.get_single_value<compositor::Color>());
       }
       else {
-        std::memcpy(image_buffer->float_data_for_write(),
-                    viewer_result.cpu_data().data(),
-                    size.x * size.y * 4 * sizeof(float));
+        image_buffer->float_buffer = ImBufFloatBuffer{
+            .data = static_cast<const float *>(viewer_result.cpu_data().data()),
+            .sharing_info = image_buffer->float_buffer.sharing_info,
+            .colorspace = nullptr};
       }
       image_buffer->userflags |= IB_DISPLAY_BUFFER_INVALID;
     }
