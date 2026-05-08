@@ -1189,7 +1189,7 @@ static ui::Block *wm_enum_search_menu(bContext *C, ARegion *region, void *arg)
   block_bounds_set_popup(block, UI_SEARCHBOX_BOUNDS, int2{0, -UI_UNIT_Y});
 
   if (search_menu->initial_query.has_value()) {
-    blender::ui::button_flag2_enable(but, blender::ui::BUT2_ACTIVATE_ON_INIT_NO_SELECT);
+    ui::button_flag2_enable(but, ui::BUT2_ACTIVATE_ON_INIT_NO_SELECT);
   }
 
   button_focus_on_enter_event(win, but);
@@ -1205,7 +1205,7 @@ wmOperatorStatus WM_enum_search_invoke(bContext *C, wmOperator *op, const wmEven
 wmOperatorStatus WM_enum_search_invoke(bContext *C,
                                        wmOperator *op,
                                        const wmEvent * /*event*/,
-                                       std::optional<blender::StringRef> initial_query)
+                                       std::optional<StringRef> initial_query)
 {
   static EnumSearchMenu search_menu;
   search_menu.op = op;
