@@ -940,34 +940,36 @@ class XpbdSolverStep {
       const float4x4 local_to_mesh = math::invert(mesh_to_local);
 
       if (std::holds_alternative<StaticMeshInfo>(collider.mesh)) {
-        this->gather_contacts__mesh_collider<false>(chunk_i,
-                                                    max_distance,
-                                                    solver_refs_i,
-                                                    substep,
-                                                    collider,
-                                                    collider_usage,
-                                                    mesh_to_local,
-                                                    prev_mesh_to_local,
-                                                    local_to_mesh,
-                                                    prev_face_contacts,
-                                                    prev_edge_contacts,
-                                                    r_face_contacts,
-                                                    r_edge_contacts);
+        this->gather_contacts__mesh_collider(chunk_i,
+                                             max_distance,
+                                             solver_refs_i,
+                                             false,
+                                             substep,
+                                             collider,
+                                             collider_usage,
+                                             mesh_to_local,
+                                             prev_mesh_to_local,
+                                             local_to_mesh,
+                                             prev_face_contacts,
+                                             prev_edge_contacts,
+                                             r_face_contacts,
+                                             r_edge_contacts);
       }
       else if (std::holds_alternative<DeformingMeshInfo>(collider.mesh)) {
-        this->gather_contacts__mesh_collider<true>(chunk_i,
-                                                   max_distance,
-                                                   solver_refs_i,
-                                                   substep,
-                                                   collider,
-                                                   collider_usage,
-                                                   mesh_to_local,
-                                                   prev_mesh_to_local,
-                                                   local_to_mesh,
-                                                   prev_face_contacts,
-                                                   prev_edge_contacts,
-                                                   r_face_contacts,
-                                                   r_edge_contacts);
+        this->gather_contacts__mesh_collider(chunk_i,
+                                             max_distance,
+                                             solver_refs_i,
+                                             true,
+                                             substep,
+                                             collider,
+                                             collider_usage,
+                                             mesh_to_local,
+                                             prev_mesh_to_local,
+                                             local_to_mesh,
+                                             prev_face_contacts,
+                                             prev_edge_contacts,
+                                             r_face_contacts,
+                                             r_edge_contacts);
       }
     }
   }
@@ -995,10 +997,10 @@ class XpbdSolverStep {
     }
   }
 
-  template<bool is_deforming>
   void gather_contacts__mesh_collider(const int chunk_i,
                                       const float max_distance,
                                       const int solver_refs_i,
+                                      const bool is_deforming,
                                       const SubstepInterval &substep,
                                       const MeshCollider &collider,
                                       const MeshColliderUsage &collider_usage,
@@ -1014,7 +1016,7 @@ class XpbdSolverStep {
     const bke::BVHTreeFromMesh *corner_tris_bvh;
     const bke::BVHTreeFromMesh *edges_bvh;
     Span<float3> prev_vert_positions;
-    if constexpr (is_deforming) {
+    if (is_deforming) {
       BLI_assert(std::holds_alternative<DeformingMeshInfo>(collider.mesh));
       const auto &deforming_mesh = std::get<DeformingMeshInfo>(collider.mesh);
       mesh = deforming_mesh.substep_meshes[substep.current_i + 1];
@@ -1071,7 +1073,7 @@ class XpbdSolverStep {
 
       const float3 contact_pos_local = math::transform_point(mesh_to_local, contact->nearest_pos);
       float3 prev_contact_pos_mesh;
-      if constexpr (is_deforming) {
+      if (is_deforming) {
         const int3 &tri = corner_tris[contact->tri_i];
         prev_contact_pos_mesh = bke::attribute_math::mix3(
             contact->bary_coords,
@@ -1149,7 +1151,7 @@ class XpbdSolverStep {
             const float3 contact_pos_local = math::transform_point(mesh_to_local,
                                                                    contact->nearest_pos);
             float3 prev_contact_pos_mesh;
-            if constexpr (is_deforming) {
+            if (is_deforming) {
               prev_contact_pos_mesh = bke::attribute_math::mix2(contact->edge_factor,
                                                                 prev_vert_positions[edge[0]],
                                                                 prev_vert_positions[edge[1]]);
