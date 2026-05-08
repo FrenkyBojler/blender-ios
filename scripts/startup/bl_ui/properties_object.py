@@ -238,7 +238,6 @@ class OBJECT_PT_display(ObjectButtonsPanel, Panel):
                 'CURVES',
                 'POINTCLOUD'})
         has_bounds = (is_geometry or obj_type in {'LATTICE', 'ARMATURE'})
-        is_wire = (obj_type in {'CAMERA', 'EMPTY'})
         is_empty_image = (obj_type == 'EMPTY' and obj.empty_display_type == 'IMAGE')
         is_dupli = (obj.instance_type != 'NONE')
         is_gpencil = (obj_type == 'GREASEPENCIL')
@@ -260,9 +259,9 @@ class OBJECT_PT_display(ObjectButtonsPanel, Panel):
         # if obj_type == 'MESH' or is_empty_image:
         #    col.prop(obj, "show_transparent", text="Transparency")
         sub = layout.column()
-        if is_wire:
-            # wire objects only use the max. display type for duplis
-            sub.active = is_dupli
+        # wire objects only use the max. display type for duplis
+        # and empties with geometry nodes modifier
+        sub.active = obj_type != 'CAMERA'
         sub.prop(obj, "display_type", text="Display As")
 
         if is_geometry or is_dupli or is_empty_image or is_gpencil:
