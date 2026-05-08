@@ -474,6 +474,9 @@ class BaseSocketDeclarationBuilder {
    */
   BaseSocketDeclarationBuilder &usage_by_bool(UString bool_input_identifier, bool value);
 
+  /**
+   * The socket is only used if the parent panel toggle is checked.
+   */
   BaseSocketDeclarationBuilder &usage_by_panel_toggle();
 
   /**
