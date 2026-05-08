@@ -1262,6 +1262,17 @@ void transform_mode_default_modal_orientation_set(TransInfo *t, int type)
                                                             V3D_AROUND_CENTER_BOUNDS,
                                                             t->orient[O_DEFAULT].matrix);
 
+  if (rv3d && (t->options & CTX_PAINT_CURVE)) {
+    /* Screen space in the 3d region. */
+    if (t->orient[O_DEFAULT].type == V3D_ORIENT_VIEW) {
+      unit_m3(t->orient[O_DEFAULT].matrix);
+    }
+    else {
+      mul_m3_m4m3(t->orient[O_DEFAULT].matrix, rv3d->viewmat, t->orient[O_DEFAULT].matrix);
+      normalize_m3(t->orient[O_DEFAULT].matrix);
+    }
+  }
+
   if (t->orient_curr == O_DEFAULT) {
     /* Update Orientation. */
     transform_orientations_current_set(t, O_DEFAULT);
