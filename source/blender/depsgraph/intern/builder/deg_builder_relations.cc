@@ -987,6 +987,10 @@ void DepsgraphRelationBuilder::build_object_modifiers(Object *object)
 
 void DepsgraphRelationBuilder::build_object_data(Object *object)
 {
+  if (object->type == OB_EMPTY) {
+    build_object_data_empty(object);
+    return;
+  }
   if (object->data == nullptr) {
     return;
   }
@@ -2881,6 +2885,36 @@ void DepsgraphRelationBuilder::build_object_data_geometry_datablock(ID *obdata)
       BLI_assert_msg(0, "Should not happen");
       break;
   }
+}
+
+/* Empties can have geometry nodes modifiers which require specific relations to work correctly. */
+void DepsgraphRelationBuilder::build_object_data_empty(Object *object)
+{
+  /* Init operation of object-level geometry evaluation. */
+  OperationKey geom_init_key(&object->id, NodeType::GEOMETRY, OperationCode::GEOMETRY_EVAL_INIT);
+  OperationKey obdata_ubereval_key(&object->id, NodeType::GEOMETRY, OperationCode::GEOMETRY_EVAL);
+  /* Special case: modifiers evaluation queries scene for various things like
+   * data mask to be used. We add relation here to ensure object is never
+   * evaluated prior to Scene's evaluated copy is ready. */
+  ComponentKey scene_key(&scene_->id, NodeType::SCENE);
+  add_relation(scene_key, obdata_ubereval_key, "Copy-on-Eval Relation", RELATION_FLAG_NO_FLUSH);
+  /* Relation to the instance, so that instancer can use geometry of this object. */
+  add_relation(ComponentKey(&object->id, NodeType::GEOMETRY),
+               OperationKey(&object->id, NodeType::INSTANCING, OperationCode::INSTANCE_GEOMETRY),
+               "Transform -> Instance Geometry");
+  /* Make sure uber update is the last in the dependencies.
+   * Only do it here unless there are modifiers. This avoids transitive relations. */
+  if (BLI_listbase_is_empty(&object->modifiers)) {
+    OperationKey obdata_ubereval_key(
+        &object->id, NodeType::GEOMETRY, OperationCode::GEOMETRY_EVAL);
+    add_relation(geom_init_key, obdata_ubereval_key, "Object Geometry UberEval");
+  }
+  /* Synchronization back to original object. This is needed for the modifier errors to be copied
+   * back for example. */
+  ComponentKey final_geometry_key(&object->id, NodeType::GEOMETRY);
+  OperationKey synchronize_key(
+      &object->id, NodeType::SYNCHRONIZATION, OperationCode::SYNCHRONIZE_TO_ORIGINAL);
+  add_relation(final_geometry_key, synchronize_key, "Synchronize to Original");
 }
 
 void DepsgraphRelationBuilder::build_armature(bArmature *armature)
