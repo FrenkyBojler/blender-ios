@@ -927,15 +927,15 @@ ccl_device float light_tree_pdf(KernelGlobals kg,
 
 /* If the function is called in volume, retrieve the previous point in volume segment, and compute
  * pdf from there. Otherwise compute from the current shading point. */
-ccl_device float light_tree_pdf(KernelGlobals kg,
-                                float3 P,
-                                const float3 N,
-                                const float dt,
-                                const PathRayVisibility path_visibility,
-                                const uint32_t path_flag,
-                                const int emitter_object,
-                                const uint emitter_id,
-                                const int object_receiver)
+ccl_device_inline float light_tree_pdf(KernelGlobals kg,
+                                       float3 P,
+                                       const float3 N,
+                                       const float dt,
+                                       const PathRayVisibility path_visibility,
+                                       const uint32_t path_flag,
+                                       const int emitter_object,
+                                       const uint emitter_id,
+                                       const int object_receiver)
 {
   if (path_visibility & PATH_RAY_VISIBILITY_VOLUME_SCATTER) {
     const float3 D_times_t = N;

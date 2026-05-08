@@ -149,8 +149,7 @@ ccl_device_forceinline void integrate_surface_emission(KernelGlobals kg,
   /* Evaluate emissive closure. */
   const Spectrum L = surface_shader_emission(sd);
 
-  const float mis_weight = light_sample_mis_weight_forward_surface(
-      kg, state, path_visibility, path_flag, sd);
+  const float mis_weight = light_sample_mis_weight_forward_surface(kg, state, path_flag, sd);
 
   guiding_record_surface_emission(kg, state, L, mis_weight);
   film_write_surface_emission(

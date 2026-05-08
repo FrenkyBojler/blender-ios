@@ -228,7 +228,7 @@ ccl_device_inline ShaderEvalResult integrate_sun_lights(
 
     /* MIS weighting. */
     const float mis_weight = light_sample_mis_weight_forward_distant(
-        kg, state, path_visibility, path_flag, klight->object_id, light_eval.pdf);
+        kg, state, path_flag, klight->object_id, light_eval.pdf);
 
     /* Write to render buffer. */
     guiding_record_background(kg, state, eval, mis_weight);

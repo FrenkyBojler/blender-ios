@@ -65,7 +65,7 @@ ccl_device_inline ShaderEvalResult integrate_light_forward(
 
   /* MIS weighting. */
   const float mis_weight = light_sample_mis_weight_forward_lamp(
-      kg, state, path_visibility, path_flag, isect.object, light_eval.pdf, ray_P);
+      kg, state, path_flag, isect.object, light_eval.pdf, ray_P);
 
   /* Write to render buffer. */
   guiding_record_surface_emission(kg, state, eval, mis_weight);

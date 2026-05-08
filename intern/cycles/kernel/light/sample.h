@@ -466,12 +466,10 @@ ccl_device_forceinline void light_sample_update(KernelGlobals kg,
  * The BSDF or phase pdf from the previous bounce was stored in mis_ray_pdf and
  * is used for balancing with the light sampling pdf. */
 
-ccl_device_inline float light_sample_mis_weight_forward_surface(
-    KernelGlobals kg,
-    IntegratorState state,
-    const PathRayVisibility path_visibility,
-    const uint32_t path_flag,
-    const ccl_private ShaderData *sd)
+ccl_device_inline float light_sample_mis_weight_forward_surface(KernelGlobals kg,
+                                                                IntegratorState state,
+                                                                const uint32_t path_flag,
+                                                                const ccl_private ShaderData *sd)
 {
   bool has_mis = !(path_flag & PATH_RAY_MIS_SKIP) &&
                  (sd->flag & ((sd->flag & SD_BACKFACING) ? SD_MIS_BACK : SD_MIS_FRONT));
@@ -491,6 +489,7 @@ ccl_device_inline float light_sample_mis_weight_forward_surface(
   /* Light selection pdf. */
 #ifdef __LIGHT_TREE__
   if (kernel_data.integrator.use_light_tree) {
+    const PathRayVisibility path_visibility = INTEGRATOR_STATE(state, path, visibility);
     const float3 ray_P = INTEGRATOR_STATE(state, ray, P);
     const float dt = INTEGRATOR_STATE(state, ray, previous_dt);
     const float3 N = INTEGRATOR_STATE(state, path, mis_origin_n);
@@ -519,14 +518,12 @@ ccl_device_inline float light_sample_mis_weight_forward_surface(
   return light_sample_mis_weight_forward(kg, bsdf_pdf, pdf);
 }
 
-ccl_device_inline float light_sample_mis_weight_forward_lamp(
-    KernelGlobals kg,
-    IntegratorState state,
-    const PathRayVisibility path_visibility,
-    const uint32_t path_flag,
-    const int object_id,
-    const float light_sample_pdf,
-    const float3 P)
+ccl_device_inline float light_sample_mis_weight_forward_lamp(KernelGlobals kg,
+                                                             IntegratorState state,
+                                                             const uint32_t path_flag,
+                                                             const int object_id,
+                                                             const float light_sample_pdf,
+                                                             const float3 P)
 {
   if (path_flag & PATH_RAY_MIS_SKIP) {
     return 1.0f;
@@ -538,6 +535,7 @@ ccl_device_inline float light_sample_mis_weight_forward_lamp(
   /* Light selection pdf. */
 #ifdef __LIGHT_TREE__
   if (kernel_data.integrator.use_light_tree) {
+    const PathRayVisibility path_visibility = INTEGRATOR_STATE(state, path, visibility);
     const float3 N = INTEGRATOR_STATE(state, path, mis_origin_n);
     const float dt = INTEGRATOR_STATE(state, ray, previous_dt);
     pdf *= light_tree_pdf(kg,
@@ -559,17 +557,15 @@ ccl_device_inline float light_sample_mis_weight_forward_lamp(
   return light_sample_mis_weight_forward(kg, mis_ray_pdf, pdf);
 }
 
-ccl_device_inline float light_sample_mis_weight_forward_distant(
-    KernelGlobals kg,
-    IntegratorState state,
-    const PathRayVisibility path_visibility,
-    const uint32_t path_flag,
-    const int object_id,
-    const float light_sample_pdf)
+ccl_device_inline float light_sample_mis_weight_forward_distant(KernelGlobals kg,
+                                                                IntegratorState state,
+                                                                const uint32_t path_flag,
+                                                                const int object_id,
+                                                                const float light_sample_pdf)
 {
   const float3 ray_P = INTEGRATOR_STATE(state, ray, P);
   return light_sample_mis_weight_forward_lamp(
-      kg, state, path_visibility, path_flag, object_id, light_sample_pdf, ray_P);
+      kg, state, path_flag, object_id, light_sample_pdf, ray_P);
 }
 
 ccl_device_inline float light_sample_mis_weight_forward_background(

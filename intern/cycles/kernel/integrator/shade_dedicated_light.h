@@ -30,23 +30,21 @@ shadow_linking_light_eval_from_intersection(KernelGlobals kg,
              light_eval_from_intersection(kg, &isect, ray.P, ray.D, N, path_flag);
 }
 
-ccl_device_inline float shadow_linking_light_sample_mis_weight(
-    KernelGlobals kg,
-    IntegratorState state,
-    const PathRayVisibility path_visibility,
-    const uint32_t path_flag,
-    const int light_id,
-    const int object_id,
-    const float light_sample_pdf,
-    const float3 P)
+ccl_device_inline float shadow_linking_light_sample_mis_weight(KernelGlobals kg,
+                                                               IntegratorState state,
+                                                               const uint32_t path_flag,
+                                                               const int light_id,
+                                                               const int object_id,
+                                                               const float light_sample_pdf,
+                                                               const float3 P)
 {
   if (kernel_data_fetch(lights, light_id).type == LIGHT_SUN) {
     return light_sample_mis_weight_forward_distant(
-        kg, state, path_visibility, path_flag, object_id, light_sample_pdf);
+        kg, state, path_flag, object_id, light_sample_pdf);
   }
 
   return light_sample_mis_weight_forward_lamp(
-      kg, state, path_visibility, path_flag, object_id, light_sample_pdf, P);
+      kg, state, path_flag, object_id, light_sample_pdf, P);
 }
 
 /* Setup ray for the shadow path.
@@ -100,7 +98,7 @@ ccl_device bool shadow_linking_shade_light(KernelGlobals kg,
 
   /* MIS weighting. */
   mis_weight = shadow_linking_light_sample_mis_weight(
-      kg, state, path_visibility, path_flag, isect.prim, isect.object, light_eval.pdf, ray.P);
+      kg, state, path_flag, isect.prim, isect.object, light_eval.pdf, ray.P);
 
   light_weight = light_eval.eval_fac * mis_weight *
                  INTEGRATOR_STATE(state, shadow_link, dedicated_light_weight);
@@ -120,7 +118,6 @@ ccl_device bool shadow_linking_shade_surface_emission(KernelGlobals kg,
   ShaderDataTinyStorage emission_sd_storage;
   ccl_private ShaderData *emission_sd = AS_SHADER_DATA(&emission_sd_storage);
 
-  const PathRayVisibility path_visibility = INTEGRATOR_STATE(state, path, visibility);
   const uint32_t path_flag = INTEGRATOR_STATE(state, path, flag);
 
   integrate_surface_shader_setup(kg, state, emission_sd);
@@ -131,8 +128,7 @@ ccl_device bool shadow_linking_shade_surface_emission(KernelGlobals kg,
   }
 #  endif
 
-  mis_weight = light_sample_mis_weight_forward_surface(
-      kg, state, path_visibility, path_flag, emission_sd);
+  mis_weight = light_sample_mis_weight_forward_surface(kg, state, path_flag, emission_sd);
 
   light_weight = mis_weight * INTEGRATOR_STATE(state, shadow_link, dedicated_light_weight);
   light_group = object_lightgroup(kg, emission_sd->object);
