@@ -936,11 +936,15 @@ wmOperatorStatus WM_menu_invoke(bContext *C, wmOperator *op, const wmEvent *even
  */
 void WM_menu_name_call(bContext *C, const char *menu_name, wm::OpCallContext context);
 
-wmOperatorStatus WM_enum_search_invoke(bContext *C, wmOperator *op, const wmEvent *event);
 wmOperatorStatus WM_enum_search_invoke(bContext *C,
                                        wmOperator *op,
                                        const wmEvent *event,
                                        std::optional<blender::StringRef> initial_query);
+/**
+ * Same as above with defaulted initial_query but is necessary to be able to pass it directly to
+ * OperatorType::invoke.
+ */
+wmOperatorStatus WM_enum_search_invoke(bContext *C, wmOperator *op, const wmEvent *event);
 
 /**
  * Invoke callback, confirm menu + exec.
