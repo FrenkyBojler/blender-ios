@@ -1256,8 +1256,7 @@ class XpbdSolverStep {
     bool is_inside;
     if (this->is_bary_coord_close_to_edge(bary_coords)) {
       /* The nearest point is on an edge, so its normal is unreliable, use a more robust test. */
-      is_inside = this->test_is_inside_ray_using_rays(
-          sample_pos, corner_tris_bvh, direction_to_mesh);
+      is_inside = this->is_inside_ray_using_rays(sample_pos, corner_tris_bvh, direction_to_mesh);
     }
     else {
       is_inside = math::dot(direction_to_mesh, contact_nor) > 0.0f;
@@ -1330,9 +1329,9 @@ class XpbdSolverStep {
            math::abs(bary_coords[2]) < epsilon;
   }
 
-  bool test_is_inside_ray_using_rays(const float3 &pos,
-                                     const bke::BVHTreeFromMesh &bvh,
-                                     const float3 &approx_ray_direction) const
+  bool is_inside_ray_using_rays(const float3 &pos,
+                                const bke::BVHTreeFromMesh &bvh,
+                                const float3 &approx_ray_direction) const
   {
     /* Shoot rays in the approximate direction of where the nearest point is. This is a heuristic
      * for better performance to make the rays shorter. */
