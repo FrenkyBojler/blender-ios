@@ -2819,7 +2819,7 @@ class XpbdSolverStep {
 
   float get_max_search_distance(const float delta_time)
   {
-    /* Slightly more than 200 km/h. */
+    /* This is 60 m/s or 216 km/h. */
     constexpr float max_velocity = 60.0f;
     const float max_search_distance = 2.0f * max_velocity * delta_time;
     return max_search_distance;
