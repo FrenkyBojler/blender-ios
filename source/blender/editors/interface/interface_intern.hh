@@ -361,9 +361,14 @@ struct TextWrapCache {
   Vector<StringRef> wrapped_lines;
 };
 
+/** Derived struct for #ButtonType::Text */
 struct ButtonText : public Button {
   std::function<void(bContext &, StringRefNull)> rename_func = nullptr;
   char *rename_orig = nullptr;
+  /**
+   * When defined, and the button edits a string RNA property,
+   * the new name is _not_ set at all, instead this function is called with the new name.
+   */
   std::function<void(StringRefNull new_name)> rename_full_func = nullptr;
   std::string rename_full_new;
 };
