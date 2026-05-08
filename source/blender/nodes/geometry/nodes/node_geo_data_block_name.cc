@@ -128,7 +128,7 @@ static void node_register()
   geo_node_type_base(&ntype, "GeometryNodeDataBlockName"_ustr);
   ntype.ui_name = "Data Block Name";
   ntype.ui_description = "Retrieve the name of a data block";
-  ntype.nclass = NODE_CLASS_CONVERTER;
+  ntype.nclass = NODE_CLASS_INPUT;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.initfunc = node_init;
   ntype.declare = node_declare;
