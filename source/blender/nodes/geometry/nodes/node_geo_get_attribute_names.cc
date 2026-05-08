@@ -108,7 +108,7 @@ static void node_geo_exec(GeoNodeExecParams params)
       }
     }
 
-    if (iter.name[0] == '.') {
+    if (iter.name.startswith(".")) {
       return;
     }
     names.append(iter.name);
