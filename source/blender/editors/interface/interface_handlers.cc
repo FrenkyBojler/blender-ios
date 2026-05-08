@@ -11252,7 +11252,7 @@ static int handle_menu_letter_press_search(PopupBlockHandle *menu, const wmEvent
   return WM_UI_HANDLER_CONTINUE;
 }
 
-static int ui_handle_enum_letter_press_search(PopupBlockHandle *menu, const wmEvent *event)
+static int handle_enum_letter_press_search(PopupBlockHandle *menu, const wmEvent *event)
 {
   PointerRNA ptr = menu->popup_create_vars.but->rnapoin;
   PropertyRNA *prop = menu->popup_create_vars.but->rnaprop;
@@ -11881,7 +11881,7 @@ static int handle_menu_event(bContext *C,
               if (Button *pop_create_but = menu->popup_create_vars.but) {
                 if (pop_create_but->rnapoin.data && pop_create_but->rnaprop) {
                   if (RNA_property_type(pop_create_but->rnaprop) == PROP_ENUM) {
-                    retval = ui_handle_enum_letter_press_search(menu, event);
+                    retval = handle_enum_letter_press_search(menu, event);
                     break;
                   }
                 }
