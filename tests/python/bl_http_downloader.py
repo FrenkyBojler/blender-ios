@@ -270,6 +270,7 @@ class ConditionalDownloaderTest(unittest.TestCase):
             list(reporter._queue)  # pyright: ignore[reportPrivateUsage]
         )
 
+
 class HumanizeSizeTest(unittest.TestCase):
     def test_humanize_size(self):
         from _bpy_internal.http.downloader import humanize_size
@@ -295,7 +296,7 @@ class HumanizeSizeTest(unittest.TestCase):
 
         # Negative values should be handled like positive values.
         self.assertEqual(humanize_size(-1), "-1 B")
-        self.assertEqual(humanize_size(-2*1024**2), "-2 MiB")
+        self.assertEqual(humanize_size(-2 * 1024**2), "-2 MiB")
 
 
 def main() -> None:
