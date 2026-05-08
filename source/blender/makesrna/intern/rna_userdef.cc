@@ -1291,7 +1291,7 @@ static bool rna_AddonPref_unregister(Main *bmain, StructRNA *type)
   if (!apt) {
     return false;
   }
-  ui::popup_handlers_refresh_or_remove_for_srna_unregister(bmain, type);
+  ui::refresh_for_srna_unregister(bmain, type);
   RNA_struct_free_extension(type, &apt->rna_ext);
   RNA_struct_free(&RNA_blender_rna_get(), type);
 

@@ -208,7 +208,7 @@ static bool rna_Panel_unregister(Main *bmain, StructRNA *type)
   if (!pt) {
     return false;
   }
-  ui::popup_handlers_refresh_or_remove_for_srna_unregister(bmain, type);
+  ui::refresh_for_srna_unregister(bmain, type);
   if (!(art = region_type_find(nullptr, pt->space_type, pt->region_type))) {
     return false;
   }
@@ -699,7 +699,7 @@ static bool rna_UIList_unregister(Main *bmain, StructRNA *type)
   if (!ult) {
     return false;
   }
-  ui::popup_handlers_refresh_or_remove_for_srna_unregister(bmain, type);
+  ui::refresh_for_srna_unregister(bmain, type);
 
   RNA_struct_free_extension(type, &ult->rna_ext);
   RNA_struct_free(&RNA_blender_rna_get(), type);
@@ -828,7 +828,7 @@ static bool rna_Header_unregister(Main *bmain, StructRNA *type)
   if (!ht) {
     return false;
   }
-  ui::popup_handlers_refresh_or_remove_for_srna_unregister(bmain, type);
+  ui::refresh_for_srna_unregister(bmain, type);
 
   if (!(art = region_type_find(nullptr, ht->space_type, ht->region_type))) {
     return false;
@@ -991,7 +991,7 @@ static bool rna_Menu_unregister(Main *bmain, StructRNA *type)
     return false;
   }
 
-  ui::popup_handlers_refresh_or_remove_for_srna_unregister(bmain, type);
+  ui::refresh_for_srna_unregister(bmain, type);
 
   RNA_struct_free_extension(type, &mt->rna_ext);
   RNA_struct_free(&RNA_blender_rna_get(), type);
@@ -1226,7 +1226,7 @@ static bool rna_AssetShelf_unregister(Main *bmain, StructRNA *type)
   if (!shelf_type) {
     return false;
   }
-  ui::popup_handlers_refresh_or_remove_for_srna_unregister(bmain, type);
+  ui::refresh_for_srna_unregister(bmain, type);
 
   ed::asset::shelf::type_unlink(*bmain, *shelf_type);
 

@@ -1371,7 +1371,7 @@ static bool rna_wmKeyConfigPref_unregister(Main *bmain, StructRNA *type)
   if (!kpt_rt) {
     return false;
   }
-  ui::popup_handlers_refresh_or_remove_for_srna_unregister(bmain, type);
+  ui::refresh_for_srna_unregister(bmain, type);
   RNA_struct_free_extension(type, &kpt_rt->rna_ext);
   RNA_struct_free(&RNA_blender_rna_get(), type);
 
@@ -1938,8 +1938,8 @@ static bool rna_Operator_unregister(Main *bmain, StructRNA *type)
   if (!ot) {
     return false;
   }
-  ui::popup_handlers_refresh_or_remove_for_srna_unregister(bmain, ot->srna);
-  ui::popup_handlers_refresh_or_remove_for_srna_unregister(bmain, type);
+  ui::refresh_for_srna_unregister(bmain, ot->srna);
+  ui::refresh_for_srna_unregister(bmain, type);
   /* update while blender is running */
   wm = static_cast<wmWindowManager *>(bmain->wm.first);
   if (wm) {

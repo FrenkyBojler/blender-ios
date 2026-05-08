@@ -288,7 +288,7 @@ static bool rna_RenderEngine_unregister(Main *bmain, StructRNA *type)
   if (!et) {
     return false;
   }
-  ui::popup_handlers_refresh_or_remove_for_srna_unregister(bmain, type);
+  ui::refresh_for_srna_unregister(bmain, type);
 
   /* Stop all renders in case we were using this one. */
   ED_render_engine_changed(bmain, false);

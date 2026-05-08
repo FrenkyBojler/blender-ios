@@ -210,9 +210,9 @@ static bool rna_NodeTreeInterfaceSocket_unregister(Main *bmain, StructRNA *type)
   if (!st) {
     return false;
   }
-  ui::popup_handlers_refresh_or_remove_for_srna_unregister(bmain, type);
-  ui::popup_handlers_refresh_or_remove_for_srna_unregister(bmain, st->ext_interface.srna);
-  ui::popup_handlers_refresh_or_remove_for_srna_unregister(bmain, st->ext_socket.srna);
+  ui::refresh_for_srna_unregister(bmain, type);
+  ui::refresh_for_srna_unregister(bmain, st->ext_interface.srna);
+  ui::refresh_for_srna_unregister(bmain, st->ext_socket.srna);
 
   RNA_struct_free_extension(type, &st->ext_interface);
 

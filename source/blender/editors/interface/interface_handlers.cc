@@ -13152,7 +13152,7 @@ static bool popup_needs_update_for_unreg_srna_recursive(bContext *C,
   return false;
 }
 
-void popup_handlers_refresh_or_remove_for_srna_unregister(Main *bmain, StructRNA *srna_to_unreg)
+void refresh_for_srna_unregister(Main *bmain, StructRNA *srna_to_unreg)
 {
   if (!srna_to_unreg) {
     return;
