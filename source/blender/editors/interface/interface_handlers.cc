@@ -1326,7 +1326,8 @@ static void apply_but_TEX(bContext *C, Button *but, HandleButtonData *data)
   button_string_set(C, but, data->text_edit.edit_string);
   button_update_edited(but);
 
-  auto text_button = static_cast<ButtonText *>(but);
+  ButtonText *text_button = but->type == ButtonType::Text ? static_cast<ButtonText *>(but) :
+                                                            nullptr;
   /* only if there are afterfuncs, otherwise 'renam_orig' isn't freed */
   if (text_button && afterfunc_check(but->block, but)) {
     /* give butfunc a copy of the original text too.
