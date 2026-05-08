@@ -2230,8 +2230,9 @@ static void outliner_buttons(const bContext *C,
    * code (see #apply_but_undo) would not work here, as the new name is not yet applied to the
    * ID. */
   button_flag_disable(bt, ui::BUT_UNDO);
-  button_func_rename_set(
-      bt, [tselem](bContext &C, StringRefNull oldname) { namebutton_fn(&C, tselem, oldname); });
+  button_func_rename_set(bt, [tselem](bContext &C, StringRefNull oldname) {
+    namebutton_fn(&C, tselem, oldname.c_str());
+  });
 
   /* Returns false if button got removed. */
   if (false == button_active_only(C, region, block, bt)) {
