@@ -913,6 +913,10 @@ void HIPRTDevice::build_blas(BVHHIPRT *bvh, Geometry *geom, hiprtBuildOptions op
 
   options.buildFlags = select_blas_build_flags(bvh, geom, geom_input);
 
+  if (have_error()) {
+    return;
+  }
+
   size_t blas_scratch_buffer_size = 0;
   hiprtError rt_err = hiprtGetGeometryBuildTemporaryBufferSize(
       hiprt_context, geom_input, options, blas_scratch_buffer_size);
