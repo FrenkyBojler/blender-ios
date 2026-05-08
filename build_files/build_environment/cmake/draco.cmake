@@ -31,14 +31,8 @@ ExternalProject_Add(external_draco
 if(WIN32)
   ExternalProject_Add_Step(external_draco after_install
     COMMAND ${CMAKE_COMMAND} -E copy_directory
-      ${LIBDIR}/draco/include
-      ${HARVEST_TARGET}/draco/include
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-      ${LIBDIR}/draco/share
-      ${HARVEST_TARGET}/draco/share
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-      ${LIBDIR}/draco/lib
-      ${HARVEST_TARGET}/draco/lib
+      ${LIBDIR}/draco/
+      ${HARVEST_TARGET}/draco
 
     DEPENDEES install
   )
