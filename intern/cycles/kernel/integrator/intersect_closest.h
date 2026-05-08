@@ -411,14 +411,13 @@ ccl_device void integrator_intersect_closest(KernelGlobals kg,
       from_caustic_caster = (object_flags & SD_OBJECT_CAUSTICS_CASTER);
     }
 
-    const bool has_receiver_ancestor = INTEGRATOR_STATE(state, path, mnee) &
-                                       PATH_MNEE_RECEIVER_ANCESTOR;
-    INTEGRATOR_STATE_WRITE(state, path, mnee) &= ~PATH_MNEE_CULL_LIGHT_CONNECTION;
+    const bool has_receiver_ancestor = path_flag & PATH_RAY_MNEE_RECEIVER_ANCESTOR;
+    INTEGRATOR_STATE_WRITE(state, path, flag) &= ~PATH_RAY_MNEE_CULL_LIGHT_CONNECTION;
     if (from_caustic_caster && has_receiver_ancestor) {
-      INTEGRATOR_STATE_WRITE(state, path, mnee) |= PATH_MNEE_CULL_LIGHT_CONNECTION;
+      INTEGRATOR_STATE_WRITE(state, path, flag) |= PATH_RAY_MNEE_CULL_LIGHT_CONNECTION;
     }
     if (from_caustic_receiver) {
-      INTEGRATOR_STATE_WRITE(state, path, mnee) |= PATH_MNEE_RECEIVER_ANCESTOR;
+      INTEGRATOR_STATE_WRITE(state, path, flag) |= PATH_RAY_MNEE_RECEIVER_ANCESTOR;
     }
   }
 #endif /* __MNEE__ */

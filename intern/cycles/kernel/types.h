@@ -271,15 +271,10 @@ enum PathRayFlag : uint32_t {
   /* Volume scattering probability guiding. This flag is added to path where the primary ray passed
    * through the volume without scattering. */
   PATH_RAY_VOLUME_PRIMARY_TRANSMIT = (1U << 24U),
-};
 
-// 8bit enum, just in case we need to move more variables in it
-enum PathRayMNEE {
-  PATH_MNEE_NONE = 0,
-
-  PATH_MNEE_VALID = (1U << 0U),
-  PATH_MNEE_RECEIVER_ANCESTOR = (1U << 1U),
-  PATH_MNEE_CULL_LIGHT_CONNECTION = (1U << 2U),
+  PATH_RAY_MNEE_VALID = (1U << 25U),
+  PATH_RAY_MNEE_RECEIVER_ANCESTOR = (1U << 26U),
+  PATH_RAY_MNEE_CULL_LIGHT_CONNECTION = (1U << 27U),
 };
 
 /* Configure ray visibility bits for rays and objects respectively,

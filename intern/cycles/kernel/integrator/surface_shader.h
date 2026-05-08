@@ -188,7 +188,7 @@ ccl_device_inline void surface_shader_prepare_closures(KernelGlobals kg,
    * of following this particular path (diffuse, rough glossy) */
   if (kernel_data.integrator.filter_glossy != FLT_MAX
 #ifdef __MNEE__
-      && !(INTEGRATOR_STATE(state, path, mnee) & PATH_MNEE_VALID)
+      && !(INTEGRATOR_STATE(state, path, flag) & PATH_RAY_MNEE_VALID)
 #endif
   )
   {

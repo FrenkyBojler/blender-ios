@@ -76,9 +76,6 @@ ccl_device_inline void path_state_init_integrator(KernelGlobals kg,
     INTEGRATOR_STATE_WRITE(state, guiding, volume_guiding_sampling_prob) = 0.0f;
   }
 #endif
-#ifdef __MNEE__
-  INTEGRATOR_STATE_WRITE(state, path, mnee) = 0;
-#endif
 
   INTEGRATOR_STATE_WRITE(state, isect, object) = OBJECT_NONE;
   INTEGRATOR_STATE_WRITE(state, isect, prim) = PRIM_NONE;

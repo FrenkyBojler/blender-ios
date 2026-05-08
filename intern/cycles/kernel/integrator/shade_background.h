@@ -107,7 +107,7 @@ ccl_device_inline ShaderEvalResult integrate_background(
   }
 
 #ifdef __MNEE__
-  if (INTEGRATOR_STATE(state, path, mnee) & PATH_MNEE_CULL_LIGHT_CONNECTION) {
+  if (path_flag & PATH_RAY_MNEE_CULL_LIGHT_CONNECTION) {
     if (kernel_data.background.use_mis) {
       for (int lamp = 0; lamp < kernel_data.integrator.num_lights; lamp++) {
         /* This path should have been resolved with mnee, it will
@@ -202,7 +202,7 @@ ccl_device_inline ShaderEvalResult integrate_sun_lights(
 #endif
 
 #ifdef __MNEE__
-    if (INTEGRATOR_STATE(state, path, mnee) & PATH_MNEE_CULL_LIGHT_CONNECTION) {
+    if (path_flag & PATH_RAY_MNEE_CULL_LIGHT_CONNECTION) {
       /* This path should have been resolved with mnee, it will
        * generate a firefly for small lights since it is improbable. */
       if (klight->use_caustics) {
