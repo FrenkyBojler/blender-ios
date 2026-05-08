@@ -4102,7 +4102,6 @@ void draw_outliner(const bContext *C, bool do_rebuild)
   const float right_column_width = outliner_right_columns_width(space_outliner);
   outliner_back(region);
   block = block_begin(C, region, __func__, ui::EmbossType::Emboss);
-
   outliner_draw_tree(block,
                      tvc,
                      region,

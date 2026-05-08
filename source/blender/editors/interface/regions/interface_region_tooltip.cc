@@ -1803,7 +1803,6 @@ ARegion *tooltip_create_from_panel_category(bContext *C,
   return tooltip_create_with_data(C, std::move(data), init_position, &overlap_rect_fl);
 }
 
-
 static void tooltip_from_image(Image &ima, TooltipData &data)
 {
   if (ima.filepath[0]) {
