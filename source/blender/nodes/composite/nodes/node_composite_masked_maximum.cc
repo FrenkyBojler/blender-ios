@@ -112,25 +112,25 @@ static void node_declare(NodeDeclarationBuilder &b)
 
   PanelDeclarationBuilder &falloff_shape_panel =
       mask_modification_panel.add_panel("Falloff Shape"_ustr).default_closed(true);
-  falloff_shape_panel.add_input<decl::Float>("Ellipse Height"_ustr)
+  falloff_shape_panel.add_input<decl::Float>("Ellipse Width"_ustr)
       .min(0.0f)
       .max(1.0f)
       .default_value(0.5f)
       .subtype(PROP_FACTOR)
       .compositor_domain_priority(7)
       .description(
-          "Height of the elliptical segments of the elliptical step function, which is used to "
-          "control the shape of the falloff. A higher value results in a smoother falloff.")
+          "Width of the elliptical segments of the elliptical step function, which is used to "
+          "control the shape of the falloff. A higher value results in a rounder falloff")
       .structure_type(StructureType::Dynamic);
-  falloff_shape_panel.add_input<decl::Float>("Ellipse Width"_ustr)
+  falloff_shape_panel.add_input<decl::Float>("Ellipse Height"_ustr)
       .min(0.0f)
       .max(1.0f)
       .default_value(0.5f)
       .subtype(PROP_FACTOR)
       .compositor_domain_priority(8)
       .description(
-          "Width of the elliptical segments of the elliptical step function, which is used to "
-          "control the shape of the falloff. A higher value results in a rounder falloff")
+          "Height of the elliptical segments of the elliptical step function, which is used to "
+          "control the shape of the falloff. A higher value results in a smoother falloff.")
       .structure_type(StructureType::Dynamic);
   falloff_shape_panel.add_input<decl::Float>("Inflection Midpoint"_ustr)
       .min(0.0f)
@@ -251,11 +251,11 @@ class MaskedMaximumOperation : public NodeOperation {
     const Result &input_falloff_hardness = get_input("Falloff Hardness");
     input_falloff_hardness.bind_as_texture(shader, "input_falloff_hardness_tx");
 
-    const Result &input_ellipse_height = get_input("Ellipse Height");
-    input_ellipse_height.bind_as_texture(shader, "input_ellipse_height_tx");
-
     const Result &input_ellipse_width = get_input("Ellipse Width");
     input_ellipse_width.bind_as_texture(shader, "input_ellipse_width_tx");
+
+    const Result &input_ellipse_height = get_input("Ellipse Height");
+    input_ellipse_height.bind_as_texture(shader, "input_ellipse_height_tx");
 
     const Result &input_inflection_midpoint = get_input("Inflection Midpoint");
     input_inflection_midpoint.bind_as_texture(shader, "input_inflection_midpoint_tx");
@@ -285,8 +285,8 @@ class MaskedMaximumOperation : public NodeOperation {
     input_translation.unbind_as_texture();
     input_rounding.unbind_as_texture();
     input_falloff_hardness.unbind_as_texture();
-    input_ellipse_height.unbind_as_texture();
     input_ellipse_width.unbind_as_texture();
+    input_ellipse_height.unbind_as_texture();
     input_inflection_midpoint.unbind_as_texture();
     input_value_boundary.unbind_as_texture();
     if (output_image.should_compute()) {
@@ -346,8 +346,8 @@ class MaskedMaximumOperation : public NodeOperation {
     const Result &input_translation = get_input("Translation");
     const Result &input_rounding = get_input("Rounding");
     const Result &input_falloff_hardness = get_input("Falloff Hardness");
-    const Result &input_ellipse_height = get_input("Ellipse Height");
     const Result &input_ellipse_width = get_input("Ellipse Width");
+    const Result &input_ellipse_height = get_input("Ellipse Height");
     const Result &input_inflection_midpoint = get_input("Inflection Midpoint");
     const Result &input_value_boundary = get_input("Value Boundary");
 
@@ -368,10 +368,10 @@ class MaskedMaximumOperation : public NodeOperation {
       float rounding = math::clamp(input_rounding.load_pixel_zero<float, true>(texel), 0.0f, 1.0f);
       float falloff_hardness = math::clamp(
           input_falloff_hardness.load_pixel_zero<float, true>(texel), 0.0f, 1.0f);
-      float ellipse_height = math::clamp(
-          input_ellipse_height.load_pixel_zero<float, true>(texel), 0.0f, 1.0f);
       float ellipse_width = math::clamp(
           input_ellipse_width.load_pixel_zero<float, true>(texel), 0.0f, 1.0f);
+      float ellipse_height = math::clamp(
+          input_ellipse_height.load_pixel_zero<float, true>(texel), 0.0f, 1.0f);
       float inflection_midpoint = math::clamp(
           input_inflection_midpoint.load_pixel_zero<float, true>(texel), 0.0f, 1.0f);
       float value_boundary = input_value_boundary.load_pixel_zero<float, true>(texel);
@@ -506,8 +506,8 @@ class MaskedMaximumOperation : public NodeOperation {
                                                          abs_mask_size,
                                                          rounding,
                                                          falloff_hardness,
-                                                         ellipse_height,
                                                          ellipse_width,
+                                                         ellipse_height,
                                                          inflection_midpoint) *
                              input_mask.sample<float, true>(
                                  normalized_mask_coordinates,
@@ -559,9 +559,10 @@ class MaskedMaximumOperation : public NodeOperation {
     });
   }
 
-  float2 compute_normalized_mask_coordinates(float2 pixel_coordinates_relative_to_mask_center,
-                                             float2 abs_mask_size,
-                                             int2 input_mask_data_size)
+  float2 compute_normalized_mask_coordinates(
+      const float2 pixel_coordinates_relative_to_mask_center,
+      const float2 abs_mask_size,
+      const int2 input_mask_data_size)
   {
     float2 normalized_mask_coordinates = float2(
         (abs_mask_size.x == 0.0f) ?
@@ -579,15 +580,15 @@ class MaskedMaximumOperation : public NodeOperation {
            float2(input_mask_data_size);
   }
 
-  float2 rotate_vector_2d(float2 vector, float angle)
+  float2 rotate_vector_2d(const float2 vector, const float angle)
   {
     return float2(vector.x * cos(angle) - vector.y * sin(angle),
                   vector.x * sin(angle) + vector.y * cos(angle));
   }
 
-  float elliptical_ramp_without_constant_part(float value,
-                                              float ellipse_height,
-                                              float ellipse_width)
+  float elliptical_ramp_without_constant_part(const float value,
+                                              const float ellipse_width,
+                                              const float ellipse_height)
   {
     if (value < ellipse_width + ellipse_height * (1.0f - ellipse_width)) {
       return (ellipse_height *
@@ -603,31 +604,31 @@ class MaskedMaximumOperation : public NodeOperation {
     }
   }
 
-  float elliptical_unit_step_without_constant_part(float value,
-                                                   float ellipse_height,
-                                                   float ellipse_width,
-                                                   float inflection_midpoint)
+  float elliptical_unit_step_without_constant_part(const float value,
+                                                   const float ellipse_width,
+                                                   const float ellipse_height,
+                                                   const float inflection_midpoint)
   {
     if (ellipse_width == 0.0f) {
       return value;
     }
     else if (inflection_midpoint == 0.0f) {
       return 1.0f -
-             elliptical_ramp_without_constant_part(1.0f - value, ellipse_height, ellipse_width);
+             elliptical_ramp_without_constant_part(1.0f - value, ellipse_width, ellipse_height);
     }
     else if (inflection_midpoint == 1.0f) {
-      return elliptical_ramp_without_constant_part(value, ellipse_height, ellipse_width);
+      return elliptical_ramp_without_constant_part(value, ellipse_width, ellipse_height);
     }
     else {
       return (value < inflection_midpoint) ?
                  inflection_midpoint *
                      elliptical_ramp_without_constant_part(
-                         value / inflection_midpoint, ellipse_height, ellipse_width) :
+                         value / inflection_midpoint, ellipse_width, ellipse_height) :
                  1.0f - (1.0f - inflection_midpoint) *
                             elliptical_ramp_without_constant_part((1.0f - value) /
                                                                       (1.0f - inflection_midpoint),
-                                                                  ellipse_height,
-                                                                  ellipse_width);
+                                                                  ellipse_width,
+                                                                  ellipse_height);
     }
   }
 
@@ -691,8 +692,8 @@ class MaskedMaximumOperation : public NodeOperation {
                                     float2 abs_mask_size,
                                     const float roundness,
                                     const float falloff_hardness,
-                                    const float ellipse_height,
                                     const float ellipse_width,
+                                    const float ellipse_height,
                                     const float inflection_midpoint)
   {
     /* Swap x and y names if abs_mask_size.y > abs_mask_size.x. This is done
@@ -723,8 +724,8 @@ class MaskedMaximumOperation : public NodeOperation {
           return elliptical_unit_step_without_constant_part(
               math::inverse_mix(
                   abs_mask_size.x, falloff_hardness * abs_mask_size.x, math::abs(coord.x)),
-              ellipse_height,
               ellipse_width,
+              ellipse_height,
               1.0f - inflection_midpoint);
         }
       }
@@ -749,8 +750,8 @@ class MaskedMaximumOperation : public NodeOperation {
                 falloff_hardness * abs_mask_size.x,
                 compute_rounded_square_radius(
                     float2(coord.x, coord.y * abs_mask_size.x / abs_mask_size.y), roundness)),
-            ellipse_height,
             ellipse_width,
+            ellipse_height,
             1.0f - inflection_midpoint);
       }
     }

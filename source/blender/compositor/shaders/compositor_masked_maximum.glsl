@@ -13,9 +13,9 @@ COMPUTE_SHADER_CREATE_INFO(compositor_masked_maximum)
 #include "gpu_shader_math_vector_lib.glsl"
 #include "gpu_shader_utildefines_lib.glsl"
 
-float2 compute_normalized_mask_coordinates(float2 pixel_coordinates_relative_to_mask_center,
-                                           float2 abs_mask_size,
-                                           int2 input_mask_data_size)
+float2 compute_normalized_mask_coordinates(const float2 pixel_coordinates_relative_to_mask_center,
+                                           const float2 abs_mask_size,
+                                           const int2 input_mask_data_size)
 {
   float2 normalized_mask_coordinates = float2(
       (abs_mask_size.x == 0.0f) ?
@@ -33,13 +33,15 @@ float2 compute_normalized_mask_coordinates(float2 pixel_coordinates_relative_to_
          float2(input_mask_data_size);
 }
 
-float2 rotate_vector_2d(float2 vector, float angle)
+float2 rotate_vector_2d(const float2 vector, const float angle)
 {
   return float2(vector.x * cos(angle) - vector.y * sin(angle),
                 vector.x * sin(angle) + vector.y * cos(angle));
 }
 
-float elliptical_ramp_without_constant_part(float value, float ellipse_height, float ellipse_width)
+float elliptical_ramp_without_constant_part(const float value,
+                                            const float ellipse_width,
+                                            const float ellipse_height)
 {
   if (value < ellipse_width + ellipse_height * (1.0f - ellipse_width)) {
     return (ellipse_height *
@@ -54,31 +56,31 @@ float elliptical_ramp_without_constant_part(float value, float ellipse_height, f
   }
 }
 
-float elliptical_unit_step_without_constant_part(float value,
-                                                 float ellipse_height,
-                                                 float ellipse_width,
-                                                 float inflection_midpoint)
+float elliptical_unit_step_without_constant_part(const float value,
+                                                 const float ellipse_width,
+                                                 const float ellipse_height,
+                                                 const float inflection_midpoint)
 {
   if (ellipse_width == 0.0f) {
     return value;
   }
   else if (inflection_midpoint == 0.0f) {
     return 1.0f -
-           elliptical_ramp_without_constant_part(1.0f - value, ellipse_height, ellipse_width);
+           elliptical_ramp_without_constant_part(1.0f - value, ellipse_width, ellipse_height);
   }
   else if (inflection_midpoint == 1.0f) {
-    return elliptical_ramp_without_constant_part(value, ellipse_height, ellipse_width);
+    return elliptical_ramp_without_constant_part(value, ellipse_width, ellipse_height);
   }
   else {
     return (value < inflection_midpoint) ?
                inflection_midpoint *
                    elliptical_ramp_without_constant_part(
-                       value / inflection_midpoint, ellipse_height, ellipse_width) :
+                       value / inflection_midpoint, ellipse_width, ellipse_height) :
                1.0f - (1.0f - inflection_midpoint) *
                           elliptical_ramp_without_constant_part((1.0f - value) /
                                                                     (1.0f - inflection_midpoint),
-                                                                ellipse_height,
-                                                                ellipse_width);
+                                                                ellipse_width,
+                                                                ellipse_height);
   }
 }
 
@@ -141,8 +143,8 @@ float compute_rounded_square_mask(float2 coord,
                                   float2 abs_mask_size,
                                   const float roundness,
                                   const float falloff_hardness,
-                                  const float ellipse_height,
                                   const float ellipse_width,
+                                  const float ellipse_height,
                                   const float inflection_midpoint)
 {
   /* Swap x and y names if abs_mask_size.y > abs_mask_size.x. This is done
@@ -172,8 +174,8 @@ float compute_rounded_square_mask(float2 coord,
         /* coord is in the falloff part of the mask. */
         return elliptical_unit_step_without_constant_part(
             inverse_mix(abs_mask_size.x, falloff_hardness * abs_mask_size.x, abs(coord.x)),
-            ellipse_height,
             ellipse_width,
+            ellipse_height,
             1.0f - inflection_midpoint);
       }
     }
@@ -198,8 +200,8 @@ float compute_rounded_square_mask(float2 coord,
               falloff_hardness * abs_mask_size.x,
               compute_rounded_square_radius(
                   float2(coord.x, coord.y * abs_mask_size.x / abs_mask_size.y), roundness)),
-          ellipse_height,
           ellipse_width,
+          ellipse_height,
           1.0f - inflection_midpoint);
     }
   }
@@ -222,8 +224,8 @@ void main()
   float2 translation = texture_load(input_translation_tx, texel).xy;
   float rounding = clamp(texture_load(input_rounding_tx, texel).x, 0.0f, 1.0f);
   float falloff_hardness = clamp(texture_load(input_falloff_hardness_tx, texel).x, 0.0f, 1.0f);
-  float ellipse_height = clamp(texture_load(input_ellipse_height_tx, texel).x, 0.0f, 1.0f);
   float ellipse_width = clamp(texture_load(input_ellipse_width_tx, texel).x, 0.0f, 1.0f);
+  float ellipse_height = clamp(texture_load(input_ellipse_height_tx, texel).x, 0.0f, 1.0f);
   float inflection_midpoint = clamp(
       texture_load(input_inflection_midpoint_tx, texel).x, 0.0f, 1.0f);
   float value_boundary = texture_load(input_value_boundary_tx, texel).x;
@@ -352,8 +354,8 @@ void main()
                                                      abs_mask_size,
                                                      rounding,
                                                      falloff_hardness,
-                                                     ellipse_height,
                                                      ellipse_width,
+                                                     ellipse_height,
                                                      inflection_midpoint) *
                          SAMPLER_FUNCTION(input_mask_tx, normalized_mask_coordinates).x;
 
