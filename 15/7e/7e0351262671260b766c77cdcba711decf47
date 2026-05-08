@@ -10,3 +10,4 @@ Referenced by issue #152377, FBX (new C++ importer): FBX LODs create duplicate f
 Referenced by pull request #153375, Fix: Attribute type for edge select attribute
 Referenced by commit 131dc37fed78b342727e4747a95155f141747f58, Fix: Attribute type for edge select attribute
 Referenced by issue #153899, Edge Vertices node returning wrong values after Fill Curve node (Geometry Nodes)
+Referenced by pull request #158307, I/O: Harden geometry import for invalid data
