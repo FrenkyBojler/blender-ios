@@ -830,8 +830,7 @@ static void item_read_data(BlendDataReader *reader, bNodeTreeInterfaceItem &item
       bNodeTreeInterfacePanel &panel = reinterpret_cast<bNodeTreeInterfacePanel &>(item);
       BLO_read_string(reader, &panel.name);
       BLO_read_string(reader, &panel.description);
-      BLO_read_pointer_array(
-          reader, panel.items_num, reinterpret_cast<void **>(&panel.items_array));
+      BLO_read_pointer_array_and_validate_size(reader, &panel.items_array, &panel.items_num);
 
       /* Read the direct-data for each interface item if possible. The pointer becomes null if the
        * struct type is not known. */
@@ -1700,7 +1699,7 @@ bNode *create_proxy_implicit_input_node(const eNodeSocketDatatype socket_type,
     case SOCK_VECTOR:
       if (default_input == NODE_DEFAULT_INPUT_NORMAL_FIELD) {
         bNode *node = bke::node_add_node(&C, tree, "GeometryNodeInputNormal"_ustr);
-        bke::node_find_socket(*node, SOCK_OUT, "True Normal")->flag |= SOCK_HIDDEN;
+        bke::node_find_socket(*node, SOCK_OUT, "True Normal"_ustr)->flag |= SOCK_HIDDEN;
         return node;
       }
       if (default_input == NODE_DEFAULT_INPUT_POSITION_FIELD) {
@@ -1708,14 +1707,14 @@ bNode *create_proxy_implicit_input_node(const eNodeSocketDatatype socket_type,
       }
       if (default_input == NODE_DEFAULT_INPUT_HANDLE_LEFT_FIELD) {
         bNode *node = bke::node_add_node(&C, tree, "GeometryNodeInputCurveHandlePositions"_ustr);
-        bke::node_find_socket(*node, SOCK_IN, "Relative")->flag |= SOCK_HIDDEN;
-        bke::node_find_socket(*node, SOCK_OUT, "Right")->flag |= SOCK_HIDDEN;
+        bke::node_find_socket(*node, SOCK_IN, "Relative"_ustr)->flag |= SOCK_HIDDEN;
+        bke::node_find_socket(*node, SOCK_OUT, "Right"_ustr)->flag |= SOCK_HIDDEN;
         return node;
       }
       if (default_input == NODE_DEFAULT_INPUT_HANDLE_RIGHT_FIELD) {
         bNode *node = bke::node_add_node(&C, tree, "GeometryNodeInputCurveHandlePositions"_ustr);
-        bke::node_find_socket(*node, SOCK_IN, "Relative")->flag |= SOCK_HIDDEN;
-        bke::node_find_socket(*node, SOCK_OUT, "Left")->flag |= SOCK_HIDDEN;
+        bke::node_find_socket(*node, SOCK_IN, "Relative"_ustr)->flag |= SOCK_HIDDEN;
+        bke::node_find_socket(*node, SOCK_OUT, "Left"_ustr)->flag |= SOCK_HIDDEN;
         return node;
       }
       return nullptr;

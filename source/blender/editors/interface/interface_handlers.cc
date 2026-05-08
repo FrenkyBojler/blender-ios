@@ -5352,7 +5352,7 @@ static int do_but_TEXTBOX(bContext *C,
         int mx = event->xy[0];
         int my = event->xy[1];
         window_to_block(data->region, block, &mx, &my);
-        const float ymin = textbox->rect.ymin + textbox_padding_bottom() / block->aspect;
+        const float ymin = textbox->rect.ymin + textbox_padding_bottom();
         const float range = textbox->rect.ymax - ymin;
         const int scroll = round_fl_to_int(
             (range - (my - ymin)) / range *
@@ -11220,6 +11220,24 @@ float block_calc_pie_segment(Block *block, const float event_xy[2])
   return len;
 }
 
+static void set_initial_search_query_from_event(const wmEvent *event,
+                                                PointerRNA *props,
+                                                const StringRefNull prop_name)
+{
+  if (event->type == EVT_SPACEKEY) {
+    return;
+  }
+  /* Forward all keys except space-bar to the search. */
+  const int num_bytes = BLI_str_utf8_size_or_error(event->utf8_buf);
+  if (num_bytes == -1) {
+    return;
+  }
+  char buf[sizeof(event->utf8_buf) + 1];
+  memcpy(buf, event->utf8_buf, num_bytes);
+  buf[num_bytes] = '\0';
+  RNA_string_set(props, prop_name.c_str(), buf);
+}
+
 static int handle_menu_letter_press_search(PopupBlockHandle *menu, const wmEvent *event)
 {
   /* Start menu search if the menu has a name. */
@@ -11230,16 +11248,7 @@ static int handle_menu_letter_press_search(PopupBlockHandle *menu, const wmEvent
     after->opcontext = wm::OpCallContext::InvokeDefault;
     after->opptr = MEM_new<PointerRNA>(__func__, WM_operator_properties_create_ptr(ot));
     RNA_string_set(after->opptr, "menu_idname", menu->menu_idname);
-    if (event->type != EVT_SPACEKEY) {
-      /* Forward all keys except space-bar to the search. */
-      const int num_bytes = BLI_str_utf8_size_or_error(event->utf8_buf);
-      if (num_bytes != -1) {
-        char buf[sizeof(event->utf8_buf) + 1];
-        memcpy(buf, event->utf8_buf, num_bytes);
-        buf[num_bytes] = '\0';
-        RNA_string_set(after->opptr, "initial_query", buf);
-      }
-    }
+    set_initial_search_query_from_event(event, after->opptr, "initial_query");
     menu->menuretval = RETURN_OK;
     return WM_UI_HANDLER_BREAK;
   }
@@ -11817,7 +11826,6 @@ static int handle_menu_event(bContext *C,
                * activating an item when the key is held. */
               (event->flag & WM_EVENT_IS_REPEAT) == 0)
           {
-
             /* Menu search if space-bar or #MenuTypeFlag::SearchOnKeyPress. */
             MenuType *mt = WM_menutype_find(menu->menu_idname, true);
             if ((mt && flag_is_set(mt->flag, MenuTypeFlag::SearchOnKeyPress)) ||
