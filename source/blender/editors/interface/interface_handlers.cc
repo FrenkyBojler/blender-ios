@@ -11877,6 +11877,9 @@ static int handle_menu_event(bContext *C,
               break;
             }
             Button *but_menu_key = find_block_with_menu_key(*block, event->type);
+
+            /* Search is only triggered for the enum property if the pressed key does not match any
+             * accelerator key. */
             if (!but_menu_key) {
               if (Button *pop_create_but = menu->popup_create_vars.but) {
                 if (pop_create_but->rnapoin.data && pop_create_but->rnaprop) {
@@ -11892,6 +11895,7 @@ static int handle_menu_event(bContext *C,
               break;
             }
 
+            /* Accelerator keys that allow "pressing" a menu entry by pressing a single key. */
             if (but_menu_key) {
               if (ELEM(but_menu_key->type,
                        ButtonType::But,
@@ -11903,8 +11907,9 @@ static int handle_menu_event(bContext *C,
               else {
                 handle_button_activate_by_type(C, region, but_menu_key);
               }
+              retval = WM_UI_HANDLER_BREAK;
+              break;
             }
-            return WM_UI_HANDLER_BREAK;
           }
           default: {
             break;
