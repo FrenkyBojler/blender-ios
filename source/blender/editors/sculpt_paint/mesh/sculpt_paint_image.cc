@@ -362,12 +362,12 @@ static void do_paint_pixels(const Depsgraph &depsgraph,
 #endif
 
   bool pixels_updated = false;
-  IndexMaskMemory memory;
   for (UDIMTilePixels &tile_data : pixel_node.tiles) {
     ImBuf *image_buffer = image_data.buffers.lookup_default(tile_data.tile_number, nullptr);
     if (image_buffer == nullptr) {
       continue;
     }
+    IndexMaskMemory memory;
 
     MutableSpan<float4> float_buffer;
     MutableSpan<uchar4> byte_buffer;
