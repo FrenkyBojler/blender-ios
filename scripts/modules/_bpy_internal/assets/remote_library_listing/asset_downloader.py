@@ -553,10 +553,11 @@ class AssetDownloader:
         if progress.network_bytes_total is None:
             downloaded = http_dl.humanize_size(progress.disk_bytes_written)
             self.report({'INFO'}, "File download progress: {!s}".format(downloaded))
+            # logger.info("File download progress: {!s}".format(downloaded))
         else:
             percentage = 100 * progress.network_bytes_streamed / progress.network_bytes_total
             self.report({'INFO'}, "File download progress: {:.0f}%".format(percentage))
-            # logger.info("File download progress: %.0f%%", percentage)
+            # logger.info("File download progress: {:.0f}%".format(percentage))
 
     def download_finished(
         self,
