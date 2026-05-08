@@ -924,7 +924,7 @@ BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::usage_by_bool(
     const UString bool_input_identifier, const bool value)
 {
   this->make_available([bool_input_identifier, value](bNode &node) {
-    bNodeSocket &bool_socket = *bke::node_find_socket(node, SOCK_IN, bool_input_identifier.ref());
+    bNodeSocket &bool_socket = *bke::node_find_socket(node, SOCK_IN, bool_input_identifier);
     const SocketDeclaration &socket_declaration = *bool_socket.runtime->declaration;
     socket_declaration.make_available(node);
     bool_socket.default_value_typed<bNodeSocketValueBoolean>()->value = value;
@@ -947,7 +947,7 @@ BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::usage_by_bool(
         }
         const bool might_be_value = params.bool_input_may_be(bool_input_identifier, value);
         const bNodeSocket &bool_socket = *bke::node_find_socket(
-            params.node, SOCK_IN, bool_input_identifier.ref());
+            params.node, SOCK_IN, bool_input_identifier);
         const SocketDeclaration &bool_socket_declaration = *bool_socket.runtime->declaration;
         if (!bool_socket_declaration.usage_inference_fn) {
           return might_be_value;
