@@ -2273,7 +2273,7 @@ void Layout::prop(PointerRNA *ptr,
       ID *id = ptr->owner_id;
       BLI_assert(type == PROP_STRING);
       BLI_assert(!RNA_property_string_search_flag(prop));
-      button_func_rename_full_set(
+      text_button_func_rename_full_set(
           but, [bmain, id](StringRefNull new_name) { ED_id_rename(*bmain, *id, new_name); });
     }
 

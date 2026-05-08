@@ -217,7 +217,7 @@ void AbstractViewItem::add_rename_button(Block &block)
 
   /* Gotta be careful with what's passed to the `arg1` here. Any view data will be freed once the
    * callback is executed. */
-  button_func_rename_set(
+  text_button_func_rename_set(
       rename_but,
       [item = this](bContext &C, StringRefNull /*oldname*/) -> void { item->rename_apply(C); });
   button_flag_disable(rename_but, BUT_UNDO);

@@ -1603,7 +1603,7 @@ void file_draw_list(const bContext *C, ARegion *region)
                                  float(sizeof(params->renamefile)),
                                  "");
       button_retval_set(but, 1);
-      button_func_rename_set(but, renamebutton_cb);
+      text_button_func_rename_set(but, renamebutton_cb);
       button_flag_enable(but, ui::BUT_NO_UTF8); /* Allow non UTF8 names. */
       button_flag_disable(but, ui::BUT_UNDO);
       if (false == button_active_only(C, region, block, but)) {
