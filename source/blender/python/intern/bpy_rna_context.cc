@@ -858,12 +858,13 @@ PyMethodDef BPY_rna_context_temp_override_method_def = {
 #  endif
 #endif
 
-void bpy_rna_context_types_init()
+void bpy_rna_context_types_init(PyObject *bpy_types)
 {
   if (PyType_Ready(&BPyContextTempOverride_Type) < 0) {
     BLI_assert_unreachable();
     return;
   }
+  PyModule_AddType(bpy_types, &BPyContextTempOverride_Type);
 }
 
 /** \} */
