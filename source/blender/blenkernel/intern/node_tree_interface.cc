@@ -787,7 +787,7 @@ void item_write_struct(BlendWriter *writer, bNodeTreeInterfaceItem &item)
       /* Forward compatible writing of older single value only flag. To be removed in 5.0. */
       bNodeTreeInterfaceSocket &socket = get_item_as<bNodeTreeInterfaceSocket>(item);
       SET_FLAG_FROM_TEST(socket.flag,
-                         socket.structure_type == NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_SINGLE,
+                         socket.structure_type == NodeSocketInterfaceStructureType::Single,
                          NODE_INTERFACE_SOCKET_SINGLE_VALUE_ONLY_LEGACY);
 
       writer->write_struct_cast<bNodeTreeInterfaceSocket>(&item);
@@ -934,6 +934,37 @@ bool bNodeTreeInterfaceSocket::set_socket_type(const StringRef new_socket_type)
                                                       NodeDefaultInputType(this->default_input)))
   {
     this->default_input = NODE_DEFAULT_INPUT_VALUE;
+  }
+
+  /* Reset unsupported structure_type to auto. */
+  const bool supports_fields = nodes::socket_type_supports_fields(stype->type);
+  const bool supports_grids = nodes::socket_type_supports_grids(stype->type);
+  const bool supports_dynamic = supports_fields || supports_grids;
+  const bool supports_lists = true;
+  switch (this->structure_type) {
+    case NodeSocketInterfaceStructureType::Auto:
+    case NodeSocketInterfaceStructureType::Single:
+      break;
+    case NodeSocketInterfaceStructureType::Field:
+      if (!supports_fields) {
+        this->structure_type = NodeSocketInterfaceStructureType::Auto;
+      }
+      break;
+    case NodeSocketInterfaceStructureType::Grid:
+      if (!supports_grids) {
+        this->structure_type = NodeSocketInterfaceStructureType::Auto;
+      }
+      break;
+    case NodeSocketInterfaceStructureType::Dynamic:
+      if (!supports_dynamic) {
+        this->structure_type = NodeSocketInterfaceStructureType::Auto;
+      }
+      break;
+    case NodeSocketInterfaceStructureType::List:
+      if (!supports_lists) {
+        this->structure_type = NodeSocketInterfaceStructureType::Auto;
+      }
+      break;
   }
 
   return true;
@@ -1211,13 +1242,13 @@ bool bNodeTreeInterfacePanel::move_item(bNodeTreeInterfaceItem &item, int new_po
   if (!this->items().index_range().contains(old_position)) {
     return false;
   }
+
+  new_position = find_valid_insert_position_for_item(item, new_position);
+  new_position = std::min(std::max(new_position, 0), items_num);
   if (old_position == new_position) {
     /* Nothing changes. */
     return true;
   }
-
-  new_position = find_valid_insert_position_for_item(item, new_position);
-  new_position = std::min(std::max(new_position, 0), items_num);
 
   if (old_position < new_position) {
     /* Actual target position and all existing items shifted by 1. */
@@ -1540,6 +1571,10 @@ bNode *create_proxy_const_input_node(const eNodeSocketDatatype socket_type,
               {src_property_path, get_node_property_path(dst_tree, *node, "value")});
           return node;
         }
+        case NTREE_TEXTURE:
+        case NTREE_UNDEFINED:
+        case NTREE_CUSTOM:
+          break;
       }
       return nullptr;
     }
@@ -1665,7 +1700,7 @@ bNode *create_proxy_implicit_input_node(const eNodeSocketDatatype socket_type,
     case SOCK_VECTOR:
       if (default_input == NODE_DEFAULT_INPUT_NORMAL_FIELD) {
         bNode *node = bke::node_add_node(&C, tree, "GeometryNodeInputNormal"_ustr);
-        bke::node_find_socket(*node, SOCK_OUT, "True Normal")->flag |= SOCK_HIDDEN;
+        bke::node_find_socket(*node, SOCK_OUT, "True Normal"_ustr)->flag |= SOCK_HIDDEN;
         return node;
       }
       if (default_input == NODE_DEFAULT_INPUT_POSITION_FIELD) {
@@ -1673,14 +1708,14 @@ bNode *create_proxy_implicit_input_node(const eNodeSocketDatatype socket_type,
       }
       if (default_input == NODE_DEFAULT_INPUT_HANDLE_LEFT_FIELD) {
         bNode *node = bke::node_add_node(&C, tree, "GeometryNodeInputCurveHandlePositions"_ustr);
-        bke::node_find_socket(*node, SOCK_IN, "Relative")->flag |= SOCK_HIDDEN;
-        bke::node_find_socket(*node, SOCK_OUT, "Right")->flag |= SOCK_HIDDEN;
+        bke::node_find_socket(*node, SOCK_IN, "Relative"_ustr)->flag |= SOCK_HIDDEN;
+        bke::node_find_socket(*node, SOCK_OUT, "Right"_ustr)->flag |= SOCK_HIDDEN;
         return node;
       }
       if (default_input == NODE_DEFAULT_INPUT_HANDLE_RIGHT_FIELD) {
         bNode *node = bke::node_add_node(&C, tree, "GeometryNodeInputCurveHandlePositions"_ustr);
-        bke::node_find_socket(*node, SOCK_IN, "Relative")->flag |= SOCK_HIDDEN;
-        bke::node_find_socket(*node, SOCK_OUT, "Left")->flag |= SOCK_HIDDEN;
+        bke::node_find_socket(*node, SOCK_IN, "Relative"_ustr)->flag |= SOCK_HIDDEN;
+        bke::node_find_socket(*node, SOCK_OUT, "Left"_ustr)->flag |= SOCK_HIDDEN;
         return node;
       }
       return nullptr;
@@ -1728,7 +1763,7 @@ bNode *create_proxy_converter_node(const eNodeSocketDatatype socket_type,
 
   bNode *proxy_node = bke::node_add_node(&C, dst_tree, "NodeImplicitConversion"_ustr);
   auto &data = *static_cast<NodeImplicitConversion *>(proxy_node->storage);
-  BLI_strncpy(data.type_idname, socket_idname.c_str(), sizeof(data.type_idname));
+  STRNCPY(data.type_idname, socket_idname.c_str());
   BKE_ntree_update_tag_node_property(&dst_tree, proxy_node);
   BKE_ntree_update_after_single_tree_change(*CTX_data_main(&C), dst_tree);
 
@@ -1763,6 +1798,16 @@ static bNodeTreeInterfacePanel *make_panel(const int uid,
   new_panel->identifier = uid;
   new_panel->flag = flag;
   return new_panel;
+}
+
+void item_reference_free(bNodeTreeInterfaceItemReference *item_reference)
+{
+  if (item_reference == nullptr) {
+    return;
+  }
+
+  MEM_delete(item_reference->items);
+  MEM_delete(item_reference);
 }
 
 }  // namespace bke::node_interface

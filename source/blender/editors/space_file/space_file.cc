@@ -372,6 +372,11 @@ static void file_listener(const wmSpaceTypeListenerParams *listener_params)
 
   /* context changes */
   switch (wmn->category) {
+    case NC_UI:
+      if (sfile) {
+        filelist_tag_force_reset(sfile->files);
+      }
+      break;
     case NC_SPACE:
       switch (wmn->data) {
         case ND_SPACE_FILE_LIST:
@@ -559,6 +564,12 @@ static void file_main_region_message_subscribe(const wmRegionMessageSubscribePar
                               &U,
                               PreferencesSystem,
                               use_online_access,
+                              &msg_sub_value_region_clear_remote_libraries);
+    WM_msg_subscribe_rna_prop(mbus,
+                              nullptr,
+                              &U,
+                              PreferencesExperimental,
+                              use_remote_asset_libraries,
                               &msg_sub_value_region_clear_remote_libraries);
   }
 }
@@ -877,7 +888,7 @@ static void file_space_subtype_set(ScrArea *area, int value)
   for (ARegion &region : area->regionbase) {
     region.v2d.flag &= ~V2D_IS_INIT;
   }
-  sfile->browse_mode = value;
+  sfile->browse_mode = eFileBrowse_Mode(value);
 }
 
 static void file_space_subtype_item_extend(bContext * /*C*/, EnumPropertyItem **item, int *totitem)
@@ -939,7 +950,7 @@ static void file_space_blend_read_data(BlendDataReader *reader, SpaceLink *sl)
   sfile->layout = nullptr;
   sfile->op = nullptr;
   sfile->previews_timer = nullptr;
-  sfile->tags = 0;
+  sfile->tags = eFileTags{};
   sfile->runtime = nullptr;
   BLO_read_struct(reader, FileSelectParams, &sfile->params);
   BLO_read_struct(reader, FileAssetSelectParams, &sfile->asset_params);

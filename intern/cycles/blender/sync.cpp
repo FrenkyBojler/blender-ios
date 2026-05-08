@@ -224,7 +224,7 @@ void BlenderSync::sync_recalc(blender::Depsgraph &b_depsgraph,
       }
       shader_map.set_recalc(b_id);
     }
-    /* World */
+    /* Scene */
     else if (GS(b_id->name) == blender::ID_SCE) {
       shader_map.set_recalc(b_id);
     }
@@ -377,6 +377,8 @@ void BlenderSync::sync_integrator(blender::ViewLayer &b_view_layer,
   integrator->set_caustics_reflective(get_boolean(cscene, "caustics_reflective"));
   integrator->set_caustics_refractive(get_boolean(cscene, "caustics_refractive"));
   integrator->set_filter_glossy(get_float(cscene, "blur_glossy"));
+
+  integrator->set_use_pixel_jitter(get_boolean(cscene, "use_pixel_jitter"));
 
   int seed = get_int(cscene, "seed");
   if (get_boolean(cscene, "use_animated_seed")) {
@@ -740,6 +742,7 @@ static bool get_known_pass_type(blender::RenderPass &b_pass, PassType &type, Pas
   MAP_PASS("Denoising Normal", PASS_DENOISING_NORMAL, true);
   MAP_PASS("Denoising Roughness", PASS_DENOISING_ROUGHNESS, true);
   MAP_PASS("Denoising Depth", PASS_DENOISING_DEPTH, true);
+  MAP_PASS("Denoising Backward Motion", PASS_DENOISING_BACKWARD_MOTION, true);
 
   MAP_PASS("Shadow Catcher", PASS_SHADOW_CATCHER, false);
   MAP_PASS("Noisy Shadow Catcher", PASS_SHADOW_CATCHER, true);
@@ -834,7 +837,7 @@ void BlenderSync::sync_render_passes(blender::RenderLayer &b_rlay,
     PassMode pass_mode = PassMode::DENOISED;
 
     if (!get_known_pass_type(b_pass, pass_type, pass_mode)) {
-      if (!expected_passes.count(b_pass.name)) {
+      if (!expected_passes.contains(b_pass.name)) {
         LOG_ERROR << "Unknown pass " << b_pass.name;
       }
       continue;

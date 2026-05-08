@@ -1101,6 +1101,14 @@ void IndexMask::from_groups(const IndexMask &universe,
                             Fn &&get_group_index,
                             MutableSpan<IndexMask> r_masks)
 {
+  if (r_masks.size() == 1) {
+#ifndef NDEBUG
+    universe.foreach_index([&](const int i) { BLI_assert(get_group_index(i) == 0); });
+#endif
+    r_masks[0] = universe;
+    return;
+  }
+
   Vector<Vector<T>> indices_by_group(r_masks.size());
   universe.foreach_index([&](const int64_t i) {
     const int group_index = get_group_index(i);
@@ -1192,7 +1200,7 @@ inline void fill_segment(T *__restrict data, const T &value, const SegmentT segm
 {
   if constexpr (std::is_same_v<SegmentT, IndexRange>) {
     if constexpr (std::is_trivially_copy_assignable_v<T>) {
-      if (memory_is_zero(&value, sizeof(T))) {
+      if (value_is_zero(value)) {
         const IndexRange range = segment;
 /* GCC warns about memset on types without trivial copy-assignment even when guarded by
  * `if constexpr (std::is_trivially_copy_assignable_v<T>)`. Quiet the compiler bug. */

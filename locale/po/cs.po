@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 Alpha (b'a0888131c6dd')\n"
+"Project-Id-Version: Blender 5.2.0 Alpha (b'396b6a98e9f6')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-04-06 09:15+0000\n"
+"POT-Creation-Date: 2026-05-04 07:43+0000\n"
 "PO-Revision-Date: 2025-12-01 09:17+0000\n"
 "Last-Translator: Matt Mitacek <mattmitacek@gmail.com>\n"
 "Language-Team: Czech <https://translate.blender.org/projects/blender-ui/ui/cs/>\n"
@@ -13823,6 +13823,10 @@ msgid "UV Factor"
 msgstr "UV Faktor"
 
 
+msgid "Placement"
+msgstr "Umístění"
+
+
 msgid "Material slot in an object"
 msgstr "Přivlastnit"
 
@@ -13835,20 +13839,60 @@ msgid "Material slot name"
 msgstr "Název okénka materiálu"
 
 
+msgid "Clean Up"
+msgstr "Vyčistit"
+
+
+msgid "Show/Hide"
+msgstr "Zobrazit/skrýt"
+
+
+msgid "Special Characters"
+msgstr "Speciální Znaky"
+
+
+msgid "Metaball"
+msgstr "Meta objekt"
+
+
+msgid "Names"
+msgstr "Názvy"
+
+
 msgid "Math"
 msgstr "Matematika"
+
+
+msgid "Bone Roll"
+msgstr "Kost"
 
 
 msgid "Utilities"
 msgstr "Nástroje"
 
 
-msgid "Mirror"
-msgstr "Zrcadlit"
+msgid "Pivot Point"
+msgstr "Bod pro pivot"
 
 
 msgid "Snap"
 msgstr "Přichytit"
+
+
+msgid "Proportional Editing Falloff"
+msgstr "Způsob útlumu"
+
+
+msgid "Instances"
+msgstr "Instance"
+
+
+msgid "Import"
+msgstr "Importovat"
+
+
+msgid "Mirror"
+msgstr "Zrcadlit"
 
 
 msgid "UV Mapping"
@@ -13875,18 +13919,6 @@ msgid "Assign Material"
 msgstr "Přiřadit Materiál"
 
 
-msgid "Instances"
-msgstr "Instance"
-
-
-msgid "Metaball"
-msgstr "Meta objekt"
-
-
-msgid "Import"
-msgstr "Importovat"
-
-
 msgid "Light"
 msgstr "Světlo"
 
@@ -13911,14 +13943,6 @@ msgid "Quick Effects"
 msgstr "Rychlé Efekty"
 
 
-msgid "Show/Hide"
-msgstr "Zobrazit/skrýt"
-
-
-msgid "Clean Up"
-msgstr "Vyčistit"
-
-
 msgid "Make Single User"
 msgstr "Přivlastnit"
 
@@ -13927,16 +13951,24 @@ msgid "Hooks"
 msgstr "Háky"
 
 
+msgid "Layout"
+msgstr "Rozložení"
+
+
 msgid "Clear Transform"
 msgstr "Vyčistit transformaci"
+
+
+msgid "Keying"
+msgstr "Klíčovací sestava"
 
 
 msgid "Propagate"
 msgstr "Vložit"
 
 
-msgid "Names"
-msgstr "Názvy"
+msgid "Tracking"
+msgstr "Sledování"
 
 
 msgid "Mesh Select Mode"
@@ -13949,34 +13981,6 @@ msgstr "Data Ploch"
 
 msgid "Merge"
 msgstr "Sloučit"
-
-
-msgid "Layout"
-msgstr "Rozložení"
-
-
-msgid "Special Characters"
-msgstr "Speciální Znaky"
-
-
-msgid "Keying"
-msgstr "Klíčovací sestava"
-
-
-msgid "Bone Roll"
-msgstr "Kost"
-
-
-msgid "Tracking"
-msgstr "Sledování"
-
-
-msgid "Pivot Point"
-msgstr "Bod pro pivot"
-
-
-msgid "Proportional Editing Falloff"
-msgstr "Způsob útlumu"
 
 
 msgid "Basic"
@@ -17945,11 +17949,6 @@ msgstr "Skrýt skryté soubory"
 
 
 msgctxt "Operator"
-msgid "Import SVG"
-msgstr "Importovat"
-
-
-msgctxt "Operator"
 msgid "Import FBX"
 msgstr "Importovat FBX"
 
@@ -18790,6 +18789,11 @@ msgstr "Y Max"
 
 msgid "Y Min"
 msgstr "Y Min"
+
+
+msgctxt "Operator"
+msgid "Select by Type"
+msgstr "Vybrat podle Typu"
 
 
 msgctxt "Operator"
@@ -19815,10 +19819,6 @@ msgstr "Vybrat podle vzoru"
 
 msgid "Automatically detect features and place markers to track"
 msgstr "Automatické sloučení vrcholů posuntých na to samé umístění"
-
-
-msgid "Placement"
-msgstr "Umístění"
 
 
 msgid "Placement for detected features"
@@ -25392,11 +25392,6 @@ msgid "Change selection of all visible objects in scene"
 msgstr "Změní výběr všech viditelných objektů ve scéně"
 
 
-msgctxt "Operator"
-msgid "Select by Type"
-msgstr "Vybrat podle Typu"
-
-
 msgid "Select all visible objects that are of a type"
 msgstr "Vybere všechny viditelné objekty, které jsou typu"
 
@@ -27276,11 +27271,6 @@ msgstr "Přichytávání"
 
 
 msgctxt "Operator"
-msgid "Area Options"
-msgstr "Nastavení oblasti"
-
-
-msgctxt "Operator"
 msgid "Split Area"
 msgstr "Rozdělit oblast"
 
@@ -28787,10 +28777,6 @@ msgstr "Průměrná hodnota"
 msgctxt "Operator"
 msgid "Copy Mirrored UV Coords"
 msgstr "Kopírovat Zrcadlené UV Souřadnice"
-
-
-msgid "Axis Direction"
-msgstr "Odznačit spojené"
 
 
 msgctxt "Operator"
@@ -30361,6 +30347,14 @@ msgid "Restrict"
 msgstr "Omezit"
 
 
+msgid "Active Tool"
+msgstr "Aktivní nástroj"
+
+
+msgid "View Lock"
+msgstr "Zámek zobrazení"
+
+
 msgid "Shadow Settings"
 msgstr "Nastavení Stínů"
 
@@ -30407,14 +30401,6 @@ msgstr "Stereoskopie"
 
 msgid "Auto-Masking"
 msgstr "Auto-Maska"
-
-
-msgid "Active Tool"
-msgstr "Aktivní nástroj"
-
-
-msgid "View Lock"
-msgstr "Zámek zobrazení"
 
 
 msgid "Chain Scaling"
@@ -32395,14 +32381,6 @@ msgstr "GL Omezení Textury"
 
 msgid "Device"
 msgstr "Zařízení"
-
-
-msgid "Image Display Method"
-msgstr "Metoda zobrazení obrázku"
-
-
-msgid "2D Texture"
-msgstr "2D Textura"
 
 
 msgid "Ambient Color"
@@ -40547,10 +40525,6 @@ msgstr "Nelze najít vrstvu, která by se přidala"
 
 msgid "Failed to set value"
 msgstr "Nastavení hodnoty se nezdařilo"
-
-
-msgid "Pin"
-msgstr "Připnout"
 
 
 msgctxt "Operator"

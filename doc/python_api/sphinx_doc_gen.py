@@ -272,6 +272,7 @@ else:
     EXCLUDE_MODULES = [
         "aud",
         "blf",
+        "blf.types",
         "bl_math",
         "imbuf",
         "imbuf.types",
@@ -646,6 +647,19 @@ _BPY_PROP_PYCAPI = "bpy_prop"
 _BPY_PROP_ARRAY_PYCAPI = "bpy_prop_array"
 _BPY_PROP_COLLECTION_PYCAPI = "bpy_prop_collection"
 _BPY_PROP_COLLECTION_IDPROP_PYCAPI = "bpy_prop_collection_idprop"
+_BPY_FUNC_CAPI = "bpy_func"
+_BPY_STRUCT_META_IDPROP_CAPI = "bpy_struct_meta_idprop"
+
+# All core C-API defined types in `bpy.types` that back the RNA wrapping itself.
+_BPY_TYPES_CORE_CAPI = frozenset((
+    _BPY_STRUCT_PYCAPI,
+    _BPY_PROP_PYCAPI,
+    _BPY_PROP_ARRAY_PYCAPI,
+    _BPY_PROP_COLLECTION_PYCAPI,
+    _BPY_PROP_COLLECTION_IDPROP_PYCAPI,
+    _BPY_FUNC_CAPI,
+    _BPY_STRUCT_META_IDPROP_CAPI,
+))
 
 _BPY_PROP_COLLECTION_ID = ":class:`{:s}`".format(_BPY_PROP_COLLECTION_PYCAPI) if USE_PYCAPI_TYPES else "collection"
 
@@ -809,37 +823,61 @@ def write_indented_lines(ident, fn, text, strip=True):
             fn(ident + l + "\n")
 
 
-def pyfunc_is_inherited_method(py_func, identifier):
-    assert type(py_func) == MethodType
-    # Exclude Mix-in classes (after the first), because these don't get their own documentation.
-    cls = py_func.__self__
-    if (py_func_base := getattr(cls.__base__, identifier, None)) is not None:
-        if type(py_func_base) == MethodType:
-            if py_func.__func__ == py_func_base.__func__:
-                return True
-        elif type(py_func_base) == bpy.types.bpy_func:
-            return True
+def pyfunc_owner_class(py_func, is_class, struct):
+    """
+    Return the class ``py_func`` is accessed through, or None when undetermined.
+
+    This is the binding class (``__self__`` for bound methods,
+    the RNA struct's Python class for plain functions reached via an RNA struct),
+    not necessarily the class that defines ``py_func`` - inherited methods return the subclass.
+    """
+    if type(py_func) == MethodType and isinstance(py_func.__self__, type):
+        return py_func.__self__
+    if is_class and struct is not None and type(py_func) == FunctionType:
+        return struct.py_class
+    return None
+
+
+def pyfunc_is_inherited_method(py_class, py_func, identifier):
+    """
+    Test if ``py_func`` on py_class is shadowed on ``py_class.__base__``.
+
+    Only the immediate base is checked. Mix-in methods
+    (e.g. ``_GenericUI.append`` surfaced as ``Menu.append``)
+    survive because RNA bases come first by convention, so the mix-in is never ``__base__``.
+    """
+    assert isinstance(py_class, type)
+    assert type(py_func) in (MethodType, FunctionType)
+    base = py_class.__base__
+    if base is None or base is object:
+        return False
+    base_attr = getattr(base, identifier, None)
+    if base_attr is None:
+        return False
+    own_underlying = getattr(py_func, "__func__", py_func)
+    base_underlying = getattr(base_attr, "__func__", base_attr)
+    if base_underlying is own_underlying:
+        return True
+    if isinstance(base_attr, bpy.types.bpy_func):
+        return True
     return False
 
 
-def pyfunc2sphinx(ident, fw, module_name, type_name, identifier, py_func, is_class=True):
+def pyfunc2sphinx(ident, fw, module_name, type_name, identifier, py_func, *, struct, is_class=True):
     """
     function or class method to sphinx
     """
 
-    if type(py_func) == MethodType:
-        # Including methods means every operators "poll" function example
-        # would be listed in documentation which isn't useful.
-        #
-        # However, excluding all of them is also incorrect as it means class methods defined
-        # in `_bpy_types.py` for example are excluded, making some utility functions entirely hidden.
-        if (bl_rna := getattr(py_func.__self__, "bl_rna", None)) is not None:
-            if bl_rna.functions.get(identifier) is not None:
-                return
-        del bl_rna
-
-        # Only inline the method if it's not inherited from another class.
-        if pyfunc_is_inherited_method(py_func, identifier):
+    if (py_class := pyfunc_owner_class(py_func, is_class, struct)) is not None:
+        # Skip RNA-backed methods - docs come from the RNA definition.
+        # Including them would list every operator's `poll` example (and similar)
+        # in the docs which isn't useful. Excluding all methods would over-reach
+        # however, hiding utility methods defined in `_bpy_types.py`.
+        bl_rna = getattr(py_class, "bl_rna", None)
+        if bl_rna is not None and bl_rna.functions.get(identifier) is not None:
+            return
+        # Skip inherited methods - docs appear on the defining base.
+        if pyfunc_is_inherited_method(py_class, py_func, identifier):
             return
 
     arg_str = str(inspect.signature(py_func))
@@ -1117,7 +1155,7 @@ def pymodule2sphinx(basepath, module_name, module, title, module_all_extra):
             continue
 
         if value_type == FunctionType:
-            pyfunc2sphinx("", fw, module_name, None, attribute, value, is_class=False)
+            pyfunc2sphinx("", fw, module_name, None, attribute, value, struct=None, is_class=False)
         # Both the same at the moment but to be future proof.
         elif value_type in {types.BuiltinMethodType, types.BuiltinFunctionType}:
             # NOTE: can't get args from these, so dump the string as is
@@ -1196,7 +1234,7 @@ def pyclass2sphinx(fw, module_name, type_name, value, write_class_examples):
     # Needed for pure Python classes.
     for key, descr in descr_items:
         if type(descr) == FunctionType:
-            pyfunc2sphinx("   ", fw, module_name, type_name, key, descr, is_class=True)
+            pyfunc2sphinx("   ", fw, module_name, type_name, key, descr, struct=None, is_class=True)
 
     for key, descr in descr_items:
         if type(descr) == MethodDescriptorType:
@@ -1210,7 +1248,7 @@ def pyclass2sphinx(fw, module_name, type_name, value, write_class_examples):
     for key, descr in descr_items:
         if type(descr) == classmethod:
             descr = getattr(value, key)
-            pyfunc2sphinx("   ", fw, module_name, type_name, key, descr, is_class=True)
+            pyfunc2sphinx("   ", fw, module_name, type_name, key, descr, struct=None, is_class=True)
 
     for key, descr in descr_items:
         if type(descr) == StaticMethodType:
@@ -1222,7 +1260,7 @@ def pyclass2sphinx(fw, module_name, type_name, value, write_class_examples):
                 fw("\n")
             else:
                 # Python-defined static methods need signature extraction.
-                pyfunc2sphinx("   ", fw, module_name, type_name, key, descr, is_class=True)
+                pyfunc2sphinx("   ", fw, module_name, type_name, key, descr, struct=None, is_class=True)
 
     fw("\n\n")
 
@@ -1657,7 +1695,6 @@ def pyrna2sphinx(basepath):
             if not base_ids:
                 if struct_id in _collection_wrapper_ids:
                     base_ids.append(_BPY_PROP_COLLECTION_PYCAPI)
-                    base_ids.append(_BPY_PROP_PYCAPI)
                 else:
                     base_ids.append(_BPY_STRUCT_PYCAPI)
             else:
@@ -1842,7 +1879,7 @@ def pyrna2sphinx(basepath):
         py_func = None
 
         for identifier, py_func in py_funcs:
-            pyfunc2sphinx("   ", fw, "bpy.types", struct_id, identifier, py_func, is_class=True)
+            pyfunc2sphinx("   ", fw, "bpy.types", struct_id, identifier, py_func, struct=struct, is_class=True)
         del py_funcs, py_func
 
         py_funcs = struct.get_py_c_functions()
@@ -2272,40 +2309,49 @@ def write_rst_ops_index(basepath):
         fw("   bpy.ops.*\n\n")
 
 
-def write_rst_geometry_set(basepath):
+def bpy_types_capi_iter():
     """
-    Write the RST file for ``bpy.types.GeometrySet``.
+    Yield names of C-API defined ``bpy.types.*`` classes (e.g. ``GeometrySet``).
+
+    These are classes added to ``bpy.types`` from C/C++ that are not RNA-derived
+    (i.e. not sub-classes of ``bpy_struct``, so they aren't picked up by :func:`pyrna2sphinx`.
     """
-    if 'bpy.types.GeometrySet' in EXCLUDE_MODULES:
-        return
+    for name in dir(bpy.types):
+        if name.startswith("_"):
+            continue
 
-    # Write the index.
-    filepath = os.path.join(basepath, "bpy.types.GeometrySet.rst")
-    with open(filepath, "w", encoding="utf-8") as fh:
-        fw = fh.write
-        fw(title_string("GeometrySet", "="))
-        write_example_ref("", fw, "bpy.types.GeometrySet")
-        pyclass2sphinx(fw, "bpy.types", "GeometrySet", bpy.types.GeometrySet, False)
+        # Core C-API types in `bpy.types` that back the RNA wrapping itself
+        # (not user-facing C-API types).
+        if name in _BPY_TYPES_CORE_CAPI:
+            continue
+        attr = getattr(bpy.types, name)
+        if not isinstance(attr, type):
+            continue
+        # Skip RNA-derived types (sub-classes of `bpy_struct`).
+        if bpy_struct is not None and issubclass(attr, bpy_struct):
+            continue
+        yield name
 
-    EXAMPLE_SET_USED.add("bpy.types.GeometrySet")
 
-
-def write_rst_inline_shader_nodes(basepath):
+def write_rst_bpy_types_capi(basepath):
     """
-    Write the RST files for ``bpy.types.InlineShaderNodes``.
+    Write the RST files for C-API defined ``bpy.types.*`` classes.
     """
-    if 'bpy.types.InlineShaderNodes' in EXCLUDE_MODULES:
-        return
+    for type_name in bpy_types_capi_iter():
+        identifier = "bpy.types." + type_name
+        if identifier in EXCLUDE_MODULES:
+            continue
 
-    # Write the index.
-    filepath = os.path.join(basepath, "bpy.types.InlineShaderNodes.rst")
-    with open(filepath, "w", encoding="utf-8") as fh:
-        fw = fh.write
-        fw(title_string("InlineShaderNodes", "="))
-        write_example_ref("", fw, "bpy.types.InlineShaderNodes")
-        pyclass2sphinx(fw, "bpy.types", "InlineShaderNodes", bpy.types.InlineShaderNodes, False)
+        filepath = os.path.join(basepath, identifier + ".rst")
+        with open(filepath, "w", encoding="utf-8") as fh:
+            fw = fh.write
+            fw(title_string(type_name, "="))
+            # Needed for Sphinx cross-referencing.
+            fw(".. currentmodule:: bpy.types\n\n")
+            write_example_ref("", fw, identifier)
+            pyclass2sphinx(fw, "bpy.types", type_name, getattr(bpy.types, type_name), False)
 
-    EXAMPLE_SET_USED.add("bpy.types.InlineShaderNodes")
+        EXAMPLE_SET_USED.add(identifier)
 
 
 def write_rst_msgbus(basepath):
@@ -2491,6 +2537,7 @@ def write_rst_importable_modules(basepath):
         # C_modules.
         "aud": "Audio System",
         "blf": "Font Drawing",
+        "blf.types": "Font Drawing Types",
         "imbuf": "Image Buffer",
         "imbuf.types": "Image Buffer Types",
         "gpu": "GPU Module",
@@ -2660,8 +2707,7 @@ def rna2sphinx(basepath):
     write_rst_types_index(basepath)         # `bpy.types`.
     write_rst_ops_index(basepath)           # `bpy.ops`.
     write_rst_msgbus(basepath)              # `bpy.msgbus`.
-    write_rst_geometry_set(basepath)        # `bpy.types.GeometrySet`.
-    write_rst_inline_shader_nodes(basepath)  # `bpy.types.InlineShaderNodes`.
+    write_rst_bpy_types_capi(basepath)      # `bpy.types.*` (C-API defined).
     pyrna2sphinx(basepath)                  # `bpy.types.*` & `bpy.ops.*`.
     write_rst_data(basepath)                # `bpy.data`.
     write_rst_importable_modules(basepath)
