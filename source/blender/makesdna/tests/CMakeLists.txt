@@ -51,8 +51,10 @@ if(WITH_GTESTS)
     PRIVATE ../intern
   )
   set(TEST_LIB
+    # bf::blenlib twice to avoid ld link error with circular dependency.
     PRIVATE bf::blenlib
     PRIVATE bf::dna
+    PRIVATE bf::blenlib
   )
 
   blender_add_test_executable(makesdna "${TEST_SRC}" "${TEST_INC}" "${INC_SYS}" "${TEST_LIB}")
