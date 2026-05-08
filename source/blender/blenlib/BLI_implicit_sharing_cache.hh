@@ -166,14 +166,14 @@ template<typename T> class Cache {
     });
   }
 
-  T &lookup_or_compute(const CacheKey &key, const FunctionRef<std::optional<T>()> fn)
+  T &lookup_or_compute(const CacheKey &key, const FunctionRef<std::optional<T>()> create_fn)
   {
     std::lock_guard lock{mutex_};
     if (T *value = map_.lookup_ptr(key)) {
       return *value;
     }
     std::optional<T> new_value;
-    threading::isolate_task([&]() { new_value = fn(); });
+    threading::isolate_task([&]() { new_value = create_fn(); });
     map_.add_new(key, *new_value);
     for (const Snapshot &snapshot : key.inputs) {
       snapshot.sharing_info->add_weak_user();
