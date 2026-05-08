@@ -1,2 +1,3 @@
 Referenced by issue #141871, Blender LTS: Maintenance Task 4.5
 Referenced by pull request #145352, Refactor: Deduplicate position transform utilities
+Referenced by pull request #158263, Fix #147995: Snap "Align Rotation to Target" broken with non-uniform scale
