@@ -936,7 +936,7 @@ BevelState::BevelState(const Mesh &mesh, const BevelParameters &params, const In
     : params(params), selection(selection), emesh(mesh)
 {
   if (params.affect_type == BevelAffect::Vertices) {
-    bevel_affected_vertices = selection;
+    this->bevel_affected_vertices = selection;
   }
   else {
     /* Mirror the BMesh operator's manifold filter (see #bmo_bevel_exec): only edges with
@@ -957,30 +957,32 @@ BevelState::BevelState(const Mesh &mesh, const BevelParameters &params, const In
       is_affected[edge_verts[0]] = true;
       is_affected[edge_verts[1]] = true;
     });
-    bevel_affected_vertices = IndexMask::from_bools(is_affected, memory);
+    this->bevel_affected_vertices = IndexMask::from_bools(is_affected, memory);
   }
 
-  affect_vertices_odd = false;
-  loop_slide = false;
-  limit_offset = false;
-  offset_adjust = false;
-  mark_seam = false;
-  mark_sharp = false;
-  harden_normals = false;
-  mat_nr = -1;
-  face_strength_mode = 0;
-  vmesh_method = VMeshMethod::BEVEL_VMESH_ADJ;
-  if (vmesh_method == VMeshMethod::BEVEL_VMESH_CUTOFF) {
+  this->affect_vertices_odd = false;
+  this->loop_slide = false;
+  this->limit_offset = false;
+  this->offset_adjust = false;
+  this->mark_seam = false;
+  this->mark_sharp = false;
+  this->harden_normals = false;
+  this->mat_nr = -1;
+  this->face_strength_mode = 0;
+  this->vmesh_method = VMeshMethod::BEVEL_VMESH_ADJ;
+  if (this->vmesh_method == VMeshMethod::BEVEL_VMESH_CUTOFF) {
     /* ignoring miters */
     this->params.miter.fill(false);
   }
 
   /* Precompute fast-path miter flags. */
   const Span<bool> miter_span = this->params.miter.as_span();
-  all_miters_off = miter_span.is_empty() ||
-                   std::none_of(miter_span.begin(), miter_span.end(), [](bool b) { return b; });
-  all_miters_on = !miter_span.is_empty() &&
-                  std::all_of(miter_span.begin(), miter_span.end(), [](bool b) { return b; });
+  this->all_miters_off = miter_span.is_empty() || std::none_of(miter_span.begin(),
+                                                               miter_span.end(),
+                                                               [](bool b) { return b; });
+  this->all_miters_on = !miter_span.is_empty() && std::all_of(miter_span.begin(),
+                                                              miter_span.end(),
+                                                              [](bool b) { return b; });
 }
 
 namespace geom {
