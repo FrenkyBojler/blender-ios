@@ -391,15 +391,19 @@ static void do_paint_pixels(const Depsgraph &depsgraph,
         });
 
     Array<int> row_map(tile_data.pixel_rows.size(), -1);
-    /* TODO: Experiment with creating a larger Vector that is sliced with OffsetIndicies to avoid
-     * needing to resize in a parallel loop? */
-    Array<Vector<float>> all_factors(valid_rows.size());
+    Array<int> row_data(valid_rows.size() + 1);
+    valid_rows.foreach_index(
+        [&](const int i, const int pos) { row_data[pos] = tile_data.pixel_rows[i].num_pixels; },
+        exec_mode::grain_size(4096));
+    const OffsetIndices row_offsets = offset_indices::accumulate_counts_to_offsets(row_data);
+
+    Array<float> all_factors(row_offsets.total_size(), 1.0f);
     threading::EnumerableThreadSpecific<FactorLocalData> all_factor_tls;
     valid_rows.foreach_index(
         [&](const int i, const int pos) {
           const PackedPixelRow pixel_row = tile_data.pixel_rows[i];
-          all_factors[pos].resize(pixel_row.num_pixels);
-          all_factors[pos].fill(1.0f);
+          MutableSpan<float> row_factors = all_factors.as_mutable_span().slice(row_offsets[pos]);
+          BLI_assert(row_factors.size() == pixel_row.num_pixels);
           row_map[i] = pos;
           threading::parallel_for(
               IndexRange(pixel_row.num_pixels), 512, [&](const IndexRange range) {
@@ -413,7 +417,7 @@ static void do_paint_pixels(const Depsgraph &depsgraph,
                                          range,
                                          tls.pixel_positions);
 
-                MutableSpan<float> factors = all_factors[pos].as_mutable_span().slice(range);
+                MutableSpan<float> factors = row_factors.slice(range);
 
                 tls.distances.resize(tls.pixel_positions.size());
                 calc_brush_distances(ss,
@@ -430,10 +434,11 @@ static void do_paint_pixels(const Depsgraph &depsgraph,
         exec_mode::grain_size(512));
 
     Array<bool> non_zero_data(tile_data.pixel_rows.size(), false);
-    threading::parallel_for(all_factors.index_range(), 512, [&](const IndexRange range) {
+    threading::parallel_for(valid_rows.index_range(), 512, [&](const IndexRange range) {
       for (const int i : range) {
+        Span<float> row_factors = all_factors.as_span().slice(row_offsets[i]);
         non_zero_data[valid_rows[i]] = std::ranges::any_of(
-            all_factors[i], [](const float factor) { return factor != 0.0f; });
+            row_factors, [](const float factor) { return factor != 0.0f; });
       }
     });
 
@@ -447,14 +452,15 @@ static void do_paint_pixels(const Depsgraph &depsgraph,
           const int row_i = row_map[i];
           BLI_assert(row_i != -1);
           const PackedPixelRow pixel_row = tile_data.pixel_rows[i];
+          Span<float> row_factors = all_factors.as_span().slice(row_offsets[row_i]);
 
-          BLI_assert(pixel_row.num_pixels == all_factors[row_i].size());
+          BLI_assert(pixel_row.num_pixels == row_factors.size());
           threading::parallel_for(
               IndexRange(pixel_row.num_pixels), 512, [&](const IndexRange range) {
                 PaintLocalData &tls = all_paint_tls.local();
 
                 tls.paint_pixels.resize(range.size());
-                Span<float> factors = all_factors[row_i].as_span().slice(range);
+                Span<float> factors = row_factors.slice(range);
                 calc_brush_colors(tls.paint_pixels, factors, brush_color);
 
                 if (!float_buffer.is_empty()) {
