@@ -431,6 +431,12 @@ add_blender_test(
   --output-dir ${TEST_OUT_DIR}/blendfile_io/
 )
 
+add_blender_test(
+  blendfile_autosave
+  --python ${CMAKE_CURRENT_LIST_DIR}/bl_blendfile_autosave.py --
+  --output-dir ${TEST_OUT_DIR}/blendfile_autosave/
+)
+
 # This test can be extremely long, especially in debug builds.
 # Generate BLENDFILE_VERSIONING_SPLIT_RANGE instances of the test,
 # each processing their own subset of the whole set of blendfiles.
@@ -761,6 +767,13 @@ if(TEST_SRC_DIR_EXISTS)
   )
 
   add_blender_test(
+    bl_animation_motion_path
+    --python ${CMAKE_CURRENT_LIST_DIR}/bl_animation_motion_path.py
+    --
+    --testdir "${TEST_SRC_DIR}/animation"
+  )
+
+  add_blender_test(
     bl_pose_assets
     --python ${CMAKE_CURRENT_LIST_DIR}/bl_pose_assets.py
     --
@@ -1086,6 +1099,7 @@ if(TEST_SRC_DIR_EXISTS)
     texture
     utilities
     vector
+    rotation
     group
 
     pixel_nodes
@@ -1124,6 +1138,7 @@ if(WITH_GPU_COMPOSITOR_TESTS AND TEST_SRC_DIR_EXISTS)
     texture
     utilities
     vector
+    rotation
     group
 
     pixel_nodes
@@ -1421,9 +1436,6 @@ if(TEST_SRC_DIR_EXISTS AND TEST_OPENIMAGEIO_TOOL_EXISTS)
   if(WITH_IMAGE_CINEON)
     set(OPTIONAL_FORMATS "${OPTIONAL_FORMATS} CINEON")
   endif()
-  if(WITH_IMAGE_OPENEXR)
-    set(OPTIONAL_FORMATS "${OPTIONAL_FORMATS} OPENEXR")
-  endif()
   if(WITH_IMAGE_OPENJPEG)
     set(OPTIONAL_FORMATS "${OPTIONAL_FORMATS} OPENJPEG")
   endif()
@@ -1611,6 +1623,13 @@ if(TEST_SRC_DIR_EXISTS)
   add_blender_test(
     bl_weight_paint_brushes
     --python ${CMAKE_CURRENT_LIST_DIR}/sculpt_paint/weight_paint_brushes_test.py
+    --
+    --testdir "${TEST_SRC_DIR}/mesh_paint"
+  )
+
+  add_blender_test(
+    bl_texture_paint_brushes
+    --python ${CMAKE_CURRENT_LIST_DIR}/sculpt_paint/texture_paint_brushes_test.py
     --
     --testdir "${TEST_SRC_DIR}/mesh_paint"
   )

@@ -822,29 +822,28 @@ static char *rna_def_property_get_func(
         }
         else {
           rna_print_data_get(f, dp);
+          fprintf(f, "    uint64_t i;\n");
 
           if (prop->flag & PROP_DYNAMIC) {
             char *lenfunc = rna_alloc_function_name(
                 srna->identifier, rna_safe_id(prop->identifier), "get_length");
             fprintf(f, "    unsigned int arraylen[RNA_MAX_ARRAY_DIMENSION];\n");
-            fprintf(f, "    unsigned int i;\n");
             fprintf(f, "    unsigned int len = %s(ptr, arraylen);\n\n", lenfunc);
             fprintf(f, "    for (i = 0; i < len; i++) {\n");
             MEM_delete(lenfunc);
           }
           else {
-            fprintf(f, "    unsigned int i;\n\n");
             fprintf(f, "    for (i = 0; i < %u; i++) {\n", prop->totarraylength);
           }
 
           if (dp->dnaarraylength == 1) {
             if (prop->type == PROP_BOOLEAN && dp->booleanbit) {
               fprintf(f,
-                      "        values[i] = %s((data->%s & (",
+                      "        values[i] = %s((data->%s & (uint64_t(",
                       (dp->booleannegative) ? "!" : "",
                       dp->dnaname);
               rna_int_print(f, dp->booleanbit);
-              fprintf(f, " << i)) != 0);\n");
+              fprintf(f, ") << i)) != 0);\n");
             }
             else {
               fprintf(f,
@@ -1256,33 +1255,44 @@ static char *rna_def_property_set_func(
         }
         else {
           rna_print_data_get(f, dp);
+          fprintf(f, "    uint64_t i;\n");
 
           if (prop->flag & PROP_DYNAMIC) {
             char *lenfunc = rna_alloc_function_name(
                 srna->identifier, rna_safe_id(prop->identifier), "set_length");
-            fprintf(f, "    unsigned int i, arraylen[RNA_MAX_ARRAY_DIMENSION];\n");
+            fprintf(f, "    unsigned int arraylen[RNA_MAX_ARRAY_DIMENSION];\n");
             fprintf(f, "    unsigned int len = %s(ptr, arraylen);\n\n", lenfunc);
             rna_clamp_value_range(f, prop);
             fprintf(f, "    for (i = 0; i < len; i++) {\n");
             MEM_delete(lenfunc);
           }
           else {
-            fprintf(f, "    unsigned int i;\n\n");
             rna_clamp_value_range(f, prop);
             fprintf(f, "    for (i = 0; i < %u; i++) {\n", prop->totarraylength);
           }
 
           if (dp->dnaarraylength == 1) {
             if (prop->type == PROP_BOOLEAN && dp->booleanbit) {
+              /* Cast to avoid issues when the field is an enum type. */
               fprintf(f,
-                      "        if (%svalues[i]) { data->%s |= (",
+                      "        if (%svalues[i]) { data->%s = "
+                      "std::remove_reference_t<decltype(data->%s)>"
+                      "(uint64_t(data->%s) | (uint64_t(",
                       (dp->booleannegative) ? "!" : "",
+                      dp->dnaname,
+                      dp->dnaname,
                       dp->dnaname);
               rna_int_print(f, dp->booleanbit);
-              fprintf(f, " << i); }\n");
-              fprintf(f, "        else { data->%s &= ~(", dp->dnaname);
+              fprintf(f, ") << i)); }\n");
+              fprintf(f,
+                      "        else { data->%s = "
+                      "std::remove_reference_t<decltype(data->%s)>"
+                      "(uint64_t(data->%s) & ~(uint64_t(",
+                      dp->dnaname,
+                      dp->dnaname,
+                      dp->dnaname);
               rna_int_print(f, dp->booleanbit);
-              fprintf(f, " << i); }\n");
+              fprintf(f, ") << i)); }\n");
             }
             else {
               fprintf(
@@ -1292,15 +1302,26 @@ static char *rna_def_property_set_func(
           }
           else {
             if (prop->type == PROP_BOOLEAN && dp->booleanbit) {
+              /* Cast to avoid issues when the field is an enum type. */
               fprintf(f,
-                      "        if (%svalues[i]) { data->%s[i] |= ",
+                      "        if (%svalues[i]) { data->%s[i] = "
+                      "std::remove_reference_t<decltype(data->%s[i])>"
+                      "(uint64_t(data->%s[i]) | ",
                       (dp->booleannegative) ? "!" : "",
+                      dp->dnaname,
+                      dp->dnaname,
                       dp->dnaname);
               rna_int_print(f, dp->booleanbit);
-              fprintf(f, "; }\n");
-              fprintf(f, "        else { data->%s[i] &= ~", dp->dnaname);
+              fprintf(f, "); }\n");
+              fprintf(f,
+                      "        else { data->%s[i] = "
+                      "std::remove_reference_t<decltype(data->%s[i])>"
+                      "(uint64_t(data->%s[i]) & ~uint64_t(",
+                      dp->dnaname,
+                      dp->dnaname,
+                      dp->dnaname);
               rna_int_print(f, dp->booleanbit);
-              fprintf(f, "; }\n");
+              fprintf(f, ")); }\n");
             }
             else if (rna_color_quantize(prop, dp)) {
               fprintf(
@@ -1369,39 +1390,56 @@ static char *rna_def_property_set_func(
         else {
           rna_print_data_get(f, dp);
           if (prop->type == PROP_BOOLEAN && dp->booleanbit) {
+            /* Cast to avoid issues when the field is an enum type. */
             fprintf(f,
-                    "    if (%svalue) { data->%s |= ",
+                    "    if (%svalue) { data->%s = "
+                    "std::remove_reference_t<decltype(data->%s)>"
+                    "(uint64_t(data->%s) | ",
                     (dp->booleannegative) ? "!" : "",
+                    dp->dnaname,
+                    dp->dnaname,
                     dp->dnaname);
             rna_int_print(f, dp->booleanbit);
-            fprintf(f, "; }\n");
-            fprintf(f, "    else { data->%s &= ~", dp->dnaname);
+            fprintf(f, "); }\n");
+            fprintf(f,
+                    "    else { data->%s = "
+                    "std::remove_reference_t<decltype(data->%s)>"
+                    "(uint64_t(data->%s) & ~uint64_t(",
+                    dp->dnaname,
+                    dp->dnaname,
+                    dp->dnaname);
             rna_int_print(f, dp->booleanbit);
-            fprintf(f, "; }\n");
+            fprintf(f, ")); }\n");
           }
           else if (prop->type == PROP_ENUM && dp->enumbitflags) {
-            fprintf(f, "    data->%s &= ~", dp->dnaname);
+            /* Cast to avoid issues when the field is an enum type. */
+            fprintf(f,
+                    "    data->%s = std::remove_reference_t<decltype(data->%s)>"
+                    "(uint64_t(data->%s) & ~uint64_t(",
+                    dp->dnaname,
+                    dp->dnaname,
+                    dp->dnaname);
             rna_int_print(f, rna_enum_bitmask(prop));
-            fprintf(f, ";\n");
-            fprintf(f, "    data->%s |= value;\n", dp->dnaname);
+            fprintf(f, "));\n");
+            fprintf(f,
+                    "    data->%s = std::remove_reference_t<decltype(data->%s)>"
+                    "(uint64_t(data->%s) | uint64_t(value));\n",
+                    dp->dnaname,
+                    dp->dnaname,
+                    dp->dnaname);
           }
           else {
+            /* Cast to avoid issues when the field is an enum type.
+             * If #rna_clamp_value() adds an expression like `std::clamp(...)`
+             * (instead of an `lvalue`), #decltype() yields a reference,
+             * so that has to be removed. */
             rna_clamp_value_range(f, prop);
-            /* C++ may require casting to an enum type. */
-            fprintf(f, "#ifdef __cplusplus\n");
             fprintf(f,
-                    /* If #rna_clamp_value() adds an expression like `std::clamp(...)`
-                     * (instead of an `lvalue`), #decltype() yields a reference,
-                     * so that has to be removed. */
                     "    data->%s = %s(std::remove_reference_t<decltype(data->%s)>)",
                     dp->dnaname,
                     (dp->booleannegative) ? "!" : "",
                     dp->dnaname);
             rna_clamp_value(f, prop, 0);
-            fprintf(f, "#else\n");
-            fprintf(f, "    data->%s = %s", dp->dnaname, (dp->booleannegative) ? "!" : "");
-            rna_clamp_value(f, prop, 0);
-            fprintf(f, "#endif\n");
           }
         }
 
