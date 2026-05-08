@@ -1232,6 +1232,8 @@ void BKE_ocean_free_cache(OceanCache *och)
 
 void BKE_ocean_cache_eval_uv(OceanCache *och, OceanResult *ocr, int f, float u, float v)
 {
+  int res_x = och->resolution_x;
+  int res_y = och->resolution_y;
   float result[4];
 
   u = fmod(u, 1.0);
@@ -1244,28 +1246,30 @@ void BKE_ocean_cache_eval_uv(OceanCache *och, OceanResult *ocr, int f, float u, 
     v += 1.0f;
   }
 
+  const float texel_x = u * res_x - 0.5f;
+  const float texel_y = v * res_y - 0.5f;
   if (och->ibufs_disp[f]) {
-    imbuf::interpolate_bilinear_fl(och->ibufs_disp[f], result, u, v);
+    imbuf::interpolate_bilinear_fl(och->ibufs_disp[f], result, texel_x, texel_y);
     copy_v3_v3(ocr->disp, result);
   }
 
   if (och->ibufs_foam[f]) {
-    imbuf::interpolate_bilinear_fl(och->ibufs_foam[f], result, u, v);
+    imbuf::interpolate_bilinear_fl(och->ibufs_foam[f], result, texel_x, texel_y);
     ocr->foam = result[0];
   }
 
   if (och->ibufs_spray[f]) {
-    imbuf::interpolate_bilinear_fl(och->ibufs_spray[f], result, u, v);
+    imbuf::interpolate_bilinear_fl(och->ibufs_spray[f], result, texel_x, texel_y);
     copy_v3_v3(ocr->Eplus, result);
   }
 
   if (och->ibufs_spray_inverse[f]) {
-    imbuf::interpolate_bilinear_fl(och->ibufs_spray_inverse[f], result, u, v);
+    imbuf::interpolate_bilinear_fl(och->ibufs_spray_inverse[f], result, texel_x, texel_y);
     copy_v3_v3(ocr->Eminus, result);
   }
 
   if (och->ibufs_norm[f]) {
-    imbuf::interpolate_bilinear_fl(och->ibufs_norm[f], result, u, v);
+    imbuf::interpolate_bilinear_fl(och->ibufs_norm[f], result, texel_x, texel_y);
     copy_v3_v3(ocr->normal, result);
   }
 }
