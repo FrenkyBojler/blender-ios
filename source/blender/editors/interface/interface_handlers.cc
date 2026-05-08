@@ -11283,9 +11283,9 @@ static int handle_enum_letter_press_search(PopupBlockHandle *menu, const wmEvent
 
 static Button *find_block_with_menu_key(const Block &block, const wmEventType event_type)
 {
-  for (Button &but_iter : block.buttons()) {
-    if (!(but_iter.flag & BUT_DISABLED) && but_iter.menu_key == event_type) {
-      return &but_iter;
+  for (Button &button : block.buttons()) {
+    if (!(button.flag & BUT_DISABLED) && button.menu_key == event_type) {
+      return &button;
     }
   }
   return nullptr;
