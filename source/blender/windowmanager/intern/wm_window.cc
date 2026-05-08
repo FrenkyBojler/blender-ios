@@ -2157,6 +2157,9 @@ static bool wm_window_timers_process(const bContext *C, int *sleep_us_p)
     else if (wt.event_type == TIMERNOTIFIER) {
       WM_main_add_notifier(POINTER_AS_UINT(wt.customdata), nullptr);
     }
+    else if (wt.event_type == TIMERCACHES) {
+      // wm_cache_timer();
+    }
     else if (wmWindow *win = wt.win) {
       wmEvent event;
       wm_event_init_from_window(win, &event);

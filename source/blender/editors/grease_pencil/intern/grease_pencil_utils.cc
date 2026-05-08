@@ -21,6 +21,7 @@
 
 #include "BLI_array_utils.hh"
 #include "BLI_bounds.hh"
+#include "BLI_implicit_sharing_cache.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_vector.hh"
@@ -1833,13 +1834,18 @@ void add_single_curve(bke::greasepencil::Drawing &drawing, const bool at_end)
       texture_matrices.append(float4x2::identity());
     });
     /* Update the fill cache if it exists. */
-    drawing.runtime->fill_cache.update(
-        [&](std::optional<bke::greasepencil::FillData> &fill_cache) {
-          if (fill_cache) {
-            fill_cache->fill_map.append(num_old_curves);
-            fill_cache->fill_offsets.append(fill_cache->fill_offsets.last() + 1);
-          }
-        });
+    if (curves.attributes().contains("fill_id")) {
+      const implicit_sharing::CacheKeyRef key({
+          curves.attributes().lookup<int>("fill_id").sharing_info,
+      });
+      auto &cache = bke::greasepencil::get_fill_cache();
+      cache.update(key, [&](std::optional<bke::greasepencil::FillData> &fill_cache) {
+        if (fill_cache) {
+          fill_cache->fill_map.append(num_old_curves);
+          fill_cache->fill_offsets.append(fill_cache->fill_offsets.last() + 1);
+        }
+      });
+    }
     return;
   }
 

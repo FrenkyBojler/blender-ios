@@ -39,7 +39,6 @@
 #include "BLI_color_types.hh"
 #include "BLI_delaunay_2d.hh"
 #include "BLI_enumerable_thread_specific.hh"
-#include "BLI_implicit_sharing_cache.hh"
 #include "BLI_listbase.h"
 #include "BLI_map.hh"
 #include "BLI_math_euler_types.hh"
@@ -404,7 +403,6 @@ Drawing::Drawing(const Drawing &other)
   this->runtime = MEM_new<bke::greasepencil::DrawingRuntime>(__func__);
 
   this->runtime->triangle_cache = other.runtime->triangle_cache;
-  this->runtime->fill_cache = other.runtime->fill_cache;
   this->runtime->curve_plane_normals_cache = other.runtime->curve_plane_normals_cache;
   this->runtime->curve_texture_matrices = other.runtime->curve_texture_matrices;
 }
@@ -449,22 +447,11 @@ Drawing::~Drawing()
   this->runtime = nullptr;
 }
 
-static auto &get_fill_cache()
+FillCache &get_fill_cache()
 {
-  static implicit_sharing::Cache<std::optional<FillData>> cache;
+  static FillCache cache;
   return cache;
 }
-
-// static void ensure_fill_cache(const Drawing &drawing)
-// {
-//   drawing.runtime->fill_cache.ensure([&](std::optional<FillData> &r_fill_cache) {
-//     const CurvesGeometry &curves = drawing.strokes();
-//     const bke::AttributeAccessor attributes = curves.attributes();
-
-//     const VArray<int> fill_ids = *attributes.lookup<int>("fill_id", bke::AttrDomain::Curve);
-//     r_fill_cache = fill_cache_from_fill_ids(fill_ids);
-//   });
-// }
 
 std::optional<GroupedSpan<int>> Drawing::fills() const
 {
@@ -479,8 +466,8 @@ std::optional<GroupedSpan<int>> Drawing::fills() const
       attributes.lookup<int>("fill_id").sharing_info,
   });
 
-  auto &cache = get_fill_cache();
-  std::optional<FillData> fills = cache.lookup_or_compute(key, [&]() {
+  FillCache &cache = get_fill_cache();
+  const std::optional<FillData> &fills = cache.lookup_or_compute(key, [&]() {
     const CurvesGeometry &curves = this->strokes();
     const bke::AttributeAccessor attributes = curves.attributes();
 
@@ -1035,7 +1022,7 @@ void Drawing::tag_triangles_changed()
 
 void Drawing::tag_fills_changed()
 {
-  this->runtime->fill_cache.tag_dirty();
+  // this->runtime->fill_cache.tag_dirty();
   this->tag_triangles_changed();
 }
 
@@ -1161,7 +1148,7 @@ void Drawing::tag_positions_changed(const IndexMask &changed_curves)
   this->tag_texture_matrices_changed();
 
   /* Fills cache needs to be up-to-date. */
-  this->runtime->fill_cache.tag_dirty();
+  // this->runtime->fill_cache.tag_dirty();
 
   if (const std::optional<GroupedSpan<int3>> triangles = this->triangles()) {
     /* Copy the triangle data. */
@@ -1230,7 +1217,7 @@ void Drawing::tag_topology_changed(const IndexMask &changed_curves)
   });
 
   /* Fills cache needs to be up-to-date. */
-  this->runtime->fill_cache.tag_dirty();
+  // this->runtime->fill_cache.tag_dirty();
 
   if (const std::optional<GroupedSpan<int3>> triangles = this->triangles()) {
     /* Copy the triangle data. */

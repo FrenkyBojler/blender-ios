@@ -180,6 +180,14 @@ template<typename T> class Cache {
     }
     return map_.lookup(key);
   }
+
+  void update(const CacheKey &key, const FunctionRef<void(T &)> update_fn)
+  {
+    std::lock_guard lock{mutex_};
+    if (T *value = map_.lookup_ptr(key)) {
+      update_fn(*value);
+    }
+  }
 };
 
 }  // namespace blender::implicit_sharing
