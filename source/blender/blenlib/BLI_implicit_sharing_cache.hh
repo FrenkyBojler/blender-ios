@@ -178,7 +178,7 @@ template<typename T> class Cache {
     for (const Snapshot &snapshot : key.inputs) {
       snapshot.sharing_info->add_weak_user();
     }
-    return std::move(*new_value);
+    return map_.lookup(key);
   }
 };
 
