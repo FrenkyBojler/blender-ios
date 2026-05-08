@@ -13023,6 +13023,61 @@ void popup_handlers_remove_all(bContext *C, ListBaseT<wmEventHandler> *handlers)
 }
 
 /**
+ * Returns true if the button is referencing \a srna.
+ * \note This would fail to properly determinate if the Button is referencing \a srna if the
+ * reference is stored through an opaque type (like #Button::apply_func).
+ */
+static bool button_references_srna(Button &button, const StructRNA *srna)
+{
+  if (RNA_struct_is_a(button.rnapoin.type, srna)) {
+    return true;
+  }
+  if (button.opptr && RNA_struct_is_a(button.opptr->type, srna)) {
+    return true;
+  }
+  if (MenuType *mt = button_menutype_get(&button); mt && RNA_struct_is_a(mt->rna_ext.srna, srna)) {
+    return true;
+  }
+  if (PanelType *pt = button_paneltype_get(&button); pt && RNA_struct_is_a(pt->rna_ext.srna, srna))
+  {
+    return true;
+  }
+  if (wmOperatorType *ot = button_operatortype_get_from_enum_menu(&button, nullptr);
+      ot && RNA_struct_is_a(ot->rna_ext.srna, srna))
+  {
+    return true;
+  }
+  if (button.type == ButtonType::SearchMenu) {
+    const ButtonSearch &search_button = static_cast<const ButtonSearch &>(button);
+    if (RNA_struct_is_a(search_button.rnasearchpoin.type, srna)) {
+      return true;
+    }
+  }
+
+  if (button.type == ButtonType::Decorator) {
+    const ButtonDecorator &decorator_button = static_cast<const ButtonDecorator &>(button);
+    if (RNA_struct_is_a(decorator_button.decorated_rnapoin.type, srna)) {
+      return true;
+    }
+  }
+  for (ButtonExtraOpIcon &extra_op_icon : button.extra_op_icons) {
+    if (RNA_struct_is_a(extra_op_icon.optype_params->optype->rna_ext.srna, srna)) {
+      return true;
+    }
+  }
+  if (button.context) {
+    for (const bContextStoreEntry &entry : button.context->entries) {
+      if (const PointerRNA *ptr = std::get_if<PointerRNA>(&entry.value)) {
+        if (RNA_struct_is_a(ptr->type, srna)) {
+          return true;
+        }
+      }
+    }
+  }
+  return false;
+}
+
+/**
  * Return true if the #popup_block_handle have any reference the #srna_to_unreg but can't be
  * refreshed, when this happends its parent must be refreshed or the popup should be closed.
  */
@@ -13042,71 +13097,17 @@ static bool popup_needs_update_for_unreg_srna_recursive(bContext *C,
   }
   for (Block &block : popup_block_handle->region->runtime->uiblocks) {
     for (Button &button : block.buttons()) {
-      if (RNA_struct_is_a(button.rnapoin.type, srna_to_unreg)) {
-        have_reference = true;
-        continue;
-      }
-      if (button.opptr && RNA_struct_is_a(button.opptr->type, srna_to_unreg)) {
-        have_reference = true;
-        continue;
-      }
-      if (MenuType *mt = button_menutype_get(&button);
-          mt && RNA_struct_is_a(mt->rna_ext.srna, srna_to_unreg))
-      {
-        have_reference = true;
-        continue;
-      }
-      if (PanelType *pt = button_paneltype_get(&button);
-          pt && RNA_struct_is_a(pt->rna_ext.srna, srna_to_unreg))
-      {
-        have_reference = true;
-        continue;
-      }
-      if (wmOperatorType *ot = button_operatortype_get_from_enum_menu(&button, nullptr);
-          ot && RNA_struct_is_a(ot->rna_ext.srna, srna_to_unreg))
-      {
-        have_reference = true;
-        continue;
-      }
+      have_reference = have_reference || button_references_srna(button, srna_to_unreg);
       if (button.type == ButtonType::SearchMenu) {
-        ButtonSearch &search_button = static_cast<ButtonSearch &>(button);
+        const ButtonSearch &search_button = static_cast<const ButtonSearch &>(button);
         if (search_button.active) {
           /* Search buttons may reference menus/operators but we can't lookup in its items, close
            * any popup with a search button active. */
           have_reference = true;
           valid_for_refresh = false;
-          break;
-        }
-        if (RNA_struct_is_a(search_button.rnasearchpoin.type, srna_to_unreg)) {
-          have_reference = true;
-          continue;
         }
       }
-
-      if (button.type == ButtonType::Decorator) {
-        ButtonDecorator &decorator_button = static_cast<ButtonDecorator &>(button);
-        if (RNA_struct_is_a(decorator_button.decorated_rnapoin.type, srna_to_unreg)) {
-          have_reference = true;
-          continue;
-        }
-      }
-      for (ButtonExtraOpIcon &extra_op_icon : button.extra_op_icons) {
-        if (RNA_struct_is_a(extra_op_icon.optype_params->optype->rna_ext.srna, srna_to_unreg)) {
-          have_reference = true;
-          continue;
-        }
-      }
-      if (button.context) {
-        for (const bContextStoreEntry &entry : button.context->entries) {
-          if (const PointerRNA *ptr = std::get_if<PointerRNA>(&entry.value)) {
-            if (RNA_struct_is_a(ptr->type, srna_to_unreg)) {
-              have_reference = true;
-              break;
-            }
-          }
-        }
-      }
-      if (have_reference && !valid_for_refresh) {
+      if (have_reference && valid_for_refresh) {
         break;
       }
     }
