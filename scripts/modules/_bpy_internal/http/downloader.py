@@ -1479,12 +1479,14 @@ def _cleanup_main_file_attribute() -> Generator[None]:
     # that will cause problems. Python dunder variables like this can
     # trigger all kinds of unknown magics, so they should be left alone
     # as much as possible.
-    old_file: str = getattr(main_module, '__file__', '') or ''
+    main_module_file: str = getattr(main_module, '__file__', '') or ''
 
-    # Blender text datablocks don't exist on disk, and also in some Python invocations from the C++ code there is a
-    # non-path string in the `__file__` attribute. Python's multiprocessing module will choke if `__file__` is not
-    # actually a file, and so better to erase it if it's not.
-    if Path(old_file).is_file():
+    # Blender text datablocks don't exist on disk, and also in some Python
+    # invocations from the C++ code there is a non-path string in the `__file__`
+    # attribute. Python's multiprocessing module will choke if `__file__` is
+    # not actually a file.
+    if Path(main_module_file).is_file():
+        # Actually a file, so just let it be.
         yield
         return
 
@@ -1492,7 +1494,7 @@ def _cleanup_main_file_attribute() -> Generator[None]:
         del main_module.__file__
         yield
     finally:
-        main_module.__file__ = old_file
+        main_module.__file__ = main_module_file
 
 
 def _create_temp_file(dirpath: Path, prefix: str, suffix: str) -> Path:
