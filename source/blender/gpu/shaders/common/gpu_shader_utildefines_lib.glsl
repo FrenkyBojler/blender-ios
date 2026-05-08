@@ -133,9 +133,6 @@ float orderedIntBitsToFloat(int int_value)
   return intBitsToFloat((int_value < 0) ? (int_value ^ 0x7FFFFFFF) : int_value);
 }
 
-/**
- * Templates currently don't work properly in GLSL. TODO: Enable once properly supported.
- *
 template<typename T> void swap(T &a, T &b)
 {
   T tmp = a;
@@ -144,11 +141,3 @@ template<typename T> void swap(T &a, T &b)
 }
 
 template void swap<float>(float &, float &);
-*/
-
-void swap(float &a, float &b)
-{
-  float tmp = a;
-  a = b;
-  b = tmp;
-}
