@@ -5,11 +5,14 @@
 #include <fmt/format.h>
 
 #include "BKE_context.hh"
+#include "BKE_lib_id.hh"
 #include "BKE_type_conversions.hh"
 
 #include "BLO_read_write.hh"
 
+#include "DNA_collection_types.h"
 #include "DNA_modifier_types.h"
+#include "DNA_object_types.h"
 
 #include "NOD_geo_viewer.hh"
 #include "NOD_node_extra_info.hh"
@@ -22,6 +25,7 @@
 #include "UI_resources.hh"
 
 #include "ED_node.hh"
+#include "ED_outliner.hh"
 #include "ED_viewer_path.hh"
 
 #include "RNA_enum_types.hh"
@@ -72,6 +76,15 @@ static void draw_string(ui::Layout &layout, const StringRef value)
   const int max_display_length = 200;
   layout.label(value.substr(0, max_display_length), ICON_NONE);
 }
+static void draw_data_block(ui::Layout &layout, const ID *id)
+{
+  if (!id) {
+    layout.label(IFACE_("(None)"), ICON_NONE);
+    return;
+  }
+  const int icon = ED_outliner_icon_from_id(*id);
+  layout.label(BKE_id_name(*id), icon);
+}
 static bool draw_from_viewer_log_value(CustomSocketDrawParams &params,
                                        eval_log::NodeTreeLog &tree_log)
 {
@@ -118,6 +131,14 @@ static bool draw_from_viewer_log_value(CustomSocketDrawParams &params,
     draw_color(params.layout, *single_value.get<ColorGeometry4f>());
     return true;
   }
+  if (single_value.is_type<Object *>()) {
+    draw_data_block(params.layout, id_cast<const ID *>(*single_value.get<Object *>()));
+    return true;
+  }
+  if (single_value.is_type<Collection *>()) {
+    draw_data_block(params.layout, id_cast<const ID *>(*single_value.get<Collection *>()));
+    return true;
+  }
   return false;
 }
 static bool draw_generic_value_log(CustomSocketDrawParams &params, const GPointer &value)
@@ -149,6 +170,12 @@ static bool draw_generic_value_log(CustomSocketDrawParams &params, const GPointe
       return true;
     case SOCK_BOOLEAN:
       draw_bool(params.layout, *static_cast<bool *>(socket_value));
+      return true;
+    case SOCK_OBJECT:
+      draw_data_block(params.layout, *static_cast<const ID **>(socket_value));
+      return true;
+    case SOCK_COLLECTION:
+      draw_data_block(params.layout, *static_cast<const ID **>(socket_value));
       return true;
     default:
       return false;
@@ -388,9 +415,7 @@ static void geo_viewer_node_log_impl(const bNode &node,
     const NodeGeometryViewerItem &item = storage.items[i];
 
     bke::SocketValueVariant &value = *input_values[i];
-    if (value.is_single() && value.get_single_ptr().is_type<bke::GeometrySet>()) {
-      value.get_single_ptr().get<bke::GeometrySet>()->ensure_owns_direct_data();
-    }
+    value.ensure_owns_direct_data();
     r_log.items.add_new({item.identifier, item.name, std::move(value)});
   }
   log_viewer_attribute(node, r_log);
