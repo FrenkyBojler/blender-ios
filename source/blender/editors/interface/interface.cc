@@ -5849,8 +5849,8 @@ void button_poin_menu_argN_set(Button *but,
   but->func_argN_copy_fn = func_argN_copy_fn;
 }
 
-void button_func_rename_set(
-    Button *but, std::function<void(bContext &, StringRefNull /*old_name*/)> rename_func)
+void button_func_rename_set(Button *but,
+                            std::function<void(bContext &C, StringRefNull oldname)> rename_func)
 {
   BLI_assert(but->type == ButtonType::Text);
   auto text_button = static_cast<ButtonText *>(but);
