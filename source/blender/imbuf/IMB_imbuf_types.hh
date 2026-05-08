@@ -289,13 +289,15 @@ struct ImBuf {
 
   bool can_contain_alpha() const
   {
-    return color_mode == ImColorMode::RGBA;
+    return color_mode == ImColorMode::RGBA || color_mode == ImColorMode::BW_A;
   }
   int color_mode_channels_get() const
   {
     switch (this->color_mode) {
       case ImColorMode::BW:
         return 1;
+      case ImColorMode::BW_A:
+        return 2;
       case ImColorMode::RGB:
         return 3;
       case ImColorMode::RGBA:

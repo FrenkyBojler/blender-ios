@@ -275,6 +275,9 @@ ImBuf *imb_loadiris(const uchar *mem, size_t size, int flags, ImFileColorSpace &
   if (image.zsize == 1) {
     color_mode = ImColorMode::BW;
   }
+  else if (image.zsize == 2) {
+    color_mode = ImColorMode::BW_A;
+  }
   else if (image.zsize == 3) {
     color_mode = ImColorMode::RGB;
   }
@@ -951,6 +954,9 @@ bool imb_saveiris(ImBuf *ibuf, const char *filepath, int /*flags*/)
   switch (ibuf->color_mode) {
     case ImColorMode::BW:
       zsize = 1;
+      break;
+    case ImColorMode::BW_A:
+      zsize = 2;
       break;
     case ImColorMode::RGB:
       zsize = 3;

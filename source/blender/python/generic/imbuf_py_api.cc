@@ -704,6 +704,7 @@ PyDoc_STRVAR(
     "Used when reading and writing image files.\n"
     "\n"
     "- 8: Gray-scale.\n"
+    "- 16: Gray-scale with alpha.\n"
     "- 24: RGB.\n"
     "- 32: RGBA.\n"
     "\n"
@@ -1312,7 +1313,7 @@ PyDoc_STRVAR(
     "   :param size: The size of the image in pixels.\n"
     "   :type size: tuple[int, int]\n"
     "   :param planes: Number of bits per pixel.\n"
-    "   :type planes: Literal[8, 24, 32]\n"
+    "   :type planes: Literal[8, 16, 24, 32]\n"
     "   :return: The newly created image.\n"
     "   :rtype: :class:`ImBuf`\n");
 static PyObject *M_imbuf_new(PyObject * /*self*/, PyObject *args, PyObject *kw)
@@ -1345,6 +1346,9 @@ static PyObject *M_imbuf_new(PyObject * /*self*/, PyObject *args, PyObject *kw)
   if (planes == 8) {
     color_mode = ImColorMode::BW;
   }
+  else if (planes == 16) {
+    color_mode = ImColorMode::BW_A;
+  }
   else if (planes == 24) {
     color_mode = ImColorMode::RGB;
   }
@@ -1352,7 +1356,7 @@ static PyObject *M_imbuf_new(PyObject * /*self*/, PyObject *args, PyObject *kw)
     color_mode = ImColorMode::RGBA;
   }
   else {
-    PyErr_Format(PyExc_ValueError, "new: planes must be 8, 24 or 32, got %d", planes);
+    PyErr_Format(PyExc_ValueError, "new: planes must be 8, 16, 24 or 32, got %d", planes);
     return nullptr;
   }
 

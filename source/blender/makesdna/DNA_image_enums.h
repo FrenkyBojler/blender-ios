@@ -12,6 +12,7 @@ namespace blender {
 
 enum class ImColorMode : char {
   BW = 8,
+  BW_A = 16,
   RGB = 24,
   RGBA = 32,
 };

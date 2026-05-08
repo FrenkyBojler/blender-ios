@@ -129,7 +129,11 @@ ImBuf *imb_load_filepath_thumbnail_webp(const char *filepath,
 
 static std::tuple<WriteContext, ImageSpec> prepare_save_webp(ImBuf *ibuf, int flags)
 {
-  const int file_channels = ibuf->color_mode_channels_get();
+  int file_channels = ibuf->color_mode_channels_get();
+  /* WebP does not support 2-channel (gray + alpha) writes; promote to RGBA. */
+  if (file_channels == 2) {
+    file_channels = 4;
+  }
   const TypeDesc data_format = TypeDesc::UINT8;
 
   WriteContext ctx = imb_create_write_context("webp", ibuf, flags, false);
