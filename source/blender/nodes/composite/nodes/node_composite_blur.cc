@@ -147,7 +147,7 @@ class BlurOperation : public NodeOperation {
   void execute_constant_size(const Result &input, Result &output)
   {
     if (this->get_extend_bounds()) {
-      Result padded_input = this->context().create_result(ResultType::Color);
+      Result padded_input = this->context().create_result(input.type());
 
       const int2 padding_size = int2(math::ceil(this->get_blur_size()));
 
@@ -262,7 +262,7 @@ class BlurOperation : public NodeOperation {
   void execute_variable_size(const Result &input, const Result &size, Result &output)
   {
     if (this->get_extend_bounds()) {
-      Result padded_input = this->context().create_result(ResultType::Color);
+      Result padded_input = this->context().create_result(input.type());
       Result padded_size = this->context().create_result(ResultType::Float2);
 
       const int2 padding_size = int2(math::ceil(this->compute_maximum_blur_size()));

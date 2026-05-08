@@ -299,7 +299,7 @@ void deriche_gaussian_blur(Context &context,
     padded_horizontal_pass_result.release();
   }
   else {
-    Result horizontal_pass_result = context.create_result(ResultType::Color);
+    Result horizontal_pass_result = context.create_result(input.type());
     blur_pass(context, input, horizontal_pass_result, sigma.x);
     blur_pass(context, horizontal_pass_result, output, sigma.y);
     horizontal_pass_result.release();
