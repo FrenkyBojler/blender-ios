@@ -1155,7 +1155,7 @@ static void template_ID(const bContext *C,
     button_flag_disable(but, BUT_UNDO);
     Main *bmain = CTX_data_main(C);
     button_func_rename_full_set(
-        but, [bmain, id](std::string &new_name) { ED_id_rename(*bmain, *id, new_name); });
+        but, [bmain, id](StringRefNull new_name) { ED_id_rename(*bmain, *id, new_name); });
     button_funcN_set(but,
                      template_id_cb,
                      MEM_new<TemplateID>(__func__, template_ui),
