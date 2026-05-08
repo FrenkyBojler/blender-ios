@@ -11,18 +11,23 @@
  */
 
 #include <cstring>
+#include <cfloat>
 
 #include "DNA_userdef_types.h"
 #include "DNA_screen_types.h"
 
 #include "BLI_listbase.h"
+#include "BLI_listbase_wrapper.hh"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
 #include "BLI_rect.h"
+#include "BLI_string.h"
 #include "BLI_time.h"
 
+#include "BKE_global.hh"
+#include "BKE_context.hh"
 #include "BKE_screen.hh"
 
 #include "ED_view3d_offscreen.hh"
@@ -42,6 +47,9 @@
 #include "UI_resources.hh"
 
 #include "WM_api.hh"
+#include "WM_types.hh"
+
+#include "MEM_guardedalloc.h"
 
 #include "wm_xr_intern.hh"
 
@@ -49,24 +57,510 @@ namespace blender {
   
 extern CLG_LogRef LOG;
 
+struct wmXrPanelSourceContextOverride {
+  bContext *C;
+  wmWindow *prev_win;
+  ScrArea *prev_area;
+  ARegion *prev_region;
+
+  wmXrPanelSourceContextOverride(bContext *context, const wmXrPanel *panel) : C(context)
+  {
+    prev_win = CTX_wm_window(C);
+    prev_area = CTX_wm_area(C);
+    prev_region = CTX_wm_region(C);
+
+    CTX_wm_window_set(C, panel->panel_source_win);
+    CTX_wm_area_set(C, panel->panel_source_area);
+    CTX_wm_region_set(C, panel->panel_source_region);
+  }
+
+  ~wmXrPanelSourceContextOverride()
+  {
+    CTX_wm_window_set(C, prev_win);
+    CTX_wm_area_set(C, prev_area);
+    CTX_wm_region_set(C, prev_region);
+  }
+};
+
+static wmXrPanel *wm_xr_panel_find(wmXrSurfaceData *surface_data,
+                                   const wmWindow *win,
+                                   const ScrArea *area)
+{
+  if (surface_data == nullptr) {
+    return nullptr;
+  }
+
+  for (wmXrPanel *panel : ListBaseWrapper<wmXrPanel>(surface_data->panels)) {
+    if (panel->panel_source_win == win && panel->panel_source_area == area) {
+      return panel;
+    }
+  }
+  return nullptr;
+}
+
+static void wm_xr_panel_default_transform_init(wmXrPanel *panel)
+{
+  const float half_pi = 3.1415f * 0.5f;
+  const float screen_to_world_scale = 1.0f / 256.0f;
+  float pos[3] = {0.0f, 0.0f, 2.0f};
+  float rot[3] = {half_pi, 0.0f, 0.0f};
+  float size[3] = {screen_to_world_scale, screen_to_world_scale, screen_to_world_scale};
+  loc_eul_size_to_mat4(panel->panel_obmat, pos, rot, size);
+}
+
+static wmXrPanel *wm_xr_panel_ensure(wmXrSurfaceData *surface_data,
+                                     wmWindow *win,
+                                     ScrArea *area,
+                                     ARegion *region)
+{
+  wmXrPanel *panel = wm_xr_panel_find(surface_data, win, area);
+  if (panel != nullptr) {
+    panel->panel_source_region = region;
+    return panel;
+  }
+
+  panel = MEM_new_zeroed<wmXrPanel>(__func__);
+  wm_xr_panel_default_transform_init(panel);
+  panel->panel_frame_tag = surface_data->panels_frame_tag;
+  panel->panel_source_win = win;
+  panel->panel_source_area = area;
+  panel->panel_source_region = region;
+  BLI_addtail(&surface_data->panels, panel);
+  return panel;
+}
+
+static void wm_xr_panel_pointer_clear(wmXrPanel *panel)
+{
+  panel->panel_hovered = false;
+  panel->panel_cursor_visible = false;
+  panel->panel_pointer.pressed = false;
+  panel->panel_pointer.subaction_path[0] = '\0';
+  panel->panel_pointer.action_idname[0] = '\0';
+}
+
+static void wm_xr_panel_cursor_draw(const wmXrSurfaceData *surface_data)
+{
+  if (surface_data == nullptr) {
+    return;
+  }
+
+  const float cursor_color[4] = {1.0f, 1.0f, 1.0f, 0.9f};
+  gpu::Batch *sphere = GPU_batch_preset_sphere(3);
+  GPU_batch_program_set_builtin(sphere, GPU_SHADER_3D_UNIFORM_COLOR);
+  GPU_batch_uniform_4fv(sphere, "color", cursor_color);
+  GPU_depth_test(GPU_DEPTH_LESS_EQUAL);
+  GPU_blend(GPU_BLEND_ALPHA);
+
+  for (const wmXrPanel *panel : ConstListBaseWrapper<wmXrPanel>(surface_data->panels)) {
+    if (!panel->panel_cursor_visible) {
+      continue;
+    }
+    GPU_matrix_push();
+    GPU_matrix_translate_3fv(panel->panel_cursor_world);
+    GPU_matrix_scale_1f(0.0075f);
+    GPU_batch_draw(sphere);
+    GPU_matrix_pop();
+  }
+}
+
 static void wm_xr_draw_cached_panel_overlay(const float viewmat[4][4],
                                             const float winmat[4][4],
                                             const wmXrSurfaceData *surface_data)
 {
-  if (!surface_data || !surface_data->panel_valid || !surface_data->panel_offscreen) {
-    CLOG_ERROR(&LOG, "panel_overlay: skipped (valid=%d, offscreen=%p)",
-              surface_data ? int(surface_data->panel_valid) : 0,
-              surface_data ? surface_data->panel_offscreen : nullptr);
+  if (surface_data == nullptr) {
     return;
   }
 
-  RegionView3D rv_tmp = {};
-  copy_m4_m4(rv_tmp.winmat, winmat);
-  copy_m4_m4(rv_tmp.viewmat, viewmat);
-  ED_region_panels_draw_to_world_quad(&rv_tmp,
-                                      surface_data->panel_obmat,
-                                      &surface_data->panel_rect,
-                                      surface_data->panel_offscreen);
+  for (const wmXrPanel *panel : ConstListBaseWrapper<wmXrPanel>(surface_data->panels)) {
+    if (!panel->panel_valid || panel->panel_offscreen == nullptr) {
+      continue;
+    }
+
+    RegionView3D rv_tmp = {};
+    copy_m4_m4(rv_tmp.winmat, winmat);
+    copy_m4_m4(rv_tmp.viewmat, viewmat);
+    ED_region_panels_draw_to_world_quad(
+        &rv_tmp, panel->panel_obmat, &panel->panel_rect, panel->panel_offscreen);
+  }
+}
+
+static const wmXrController *wm_xr_surface_interaction_controller_find(const wmXrSessionState *state,
+                                                                       char *r_subaction_path)
+{
+  const wmXrController *fallback = nullptr;
+  for (const wmXrController &controller : state->controllers) {
+    if (!controller.aim_active) {
+      continue;
+    }
+    if (strstr(controller.subaction_path, "right") != nullptr) {
+      BLI_strncpy(r_subaction_path, controller.subaction_path, XR_MAX_USER_PATH_LENGTH);
+      return &controller;
+    }
+    if (fallback == nullptr) {
+      fallback = &controller;
+    }
+  }
+  if (fallback != nullptr) {
+    BLI_strncpy(r_subaction_path, fallback->subaction_path, XR_MAX_USER_PATH_LENGTH);
+  }
+  return fallback;
+}
+
+static bool wm_xr_surface_action_is_teleport(const wmXrAction *action)
+{
+  return action != nullptr && action->ot != nullptr && action->ot->idname != nullptr &&
+         BLI_strcasestr(action->ot->idname, "xr_navigation_teleport") != nullptr;
+}
+
+static bool wm_xr_surface_controller_teleport_active(const wmXrData *xr, const char *subaction_path)
+{
+  if (xr == nullptr || xr->runtime == nullptr || subaction_path == nullptr) {
+    return false;
+  }
+
+  const wmXrActionSet *active_action_set = xr->runtime->session_state.active_action_set;
+  if (active_action_set == nullptr) {
+    return false;
+  }
+
+  for (LinkData &ld : active_action_set->active_modal_actions) {
+    const wmXrAction *action = static_cast<const wmXrAction *>(ld.data);
+    if (wm_xr_surface_action_is_teleport(action) && action->active_modal_path != nullptr &&
+        STREQ(action->active_modal_path, subaction_path))
+    {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+static void wm_xr_surface_interaction_ray_from_pose(const GHOST_XrPose *aim_pose,
+                                                    float r_origin[3],
+                                                    float r_direction[3])
+{
+  float aim_mat[4][4];
+  wm_xr_pose_to_mat(aim_pose, aim_mat);
+  copy_v3_v3(r_origin, aim_pose->position);
+  normalize_v3_v3(r_direction, aim_mat[2]);
+  negate_v3(r_direction);
+}
+
+static bool wm_xr_surface_interaction_raycast(const wmXrPanel *panel,
+                                              const float ray_origin[3],
+                                              const float ray_direction[3],
+                                              int r_region_xy[2],
+                                              float r_hit_world[3],
+                                              float *r_lambda)
+{
+  if (panel == nullptr || !panel->panel_valid || panel->panel_offscreen == nullptr) {
+    return false;
+  }
+
+  float obimat[4][4];
+  if (!invert_m4_m4(obimat, panel->panel_obmat)) {
+    return false;
+  }
+
+  float ray_end[3];
+  madd_v3_v3v3fl(ray_end, ray_origin, ray_direction, 100.0f);
+
+  float origin_local[3], end_local[3], dir_local[3];
+  copy_v3_v3(origin_local, ray_origin);
+  copy_v3_v3(end_local, ray_end);
+  mul_m4_v3(obimat, origin_local);
+  mul_m4_v3(obimat, end_local);
+  sub_v3_v3v3(dir_local, end_local, origin_local);
+
+  if (fabsf(dir_local[2]) < 1e-6f) {
+    return false;
+  }
+
+  const float lambda = -origin_local[2] / dir_local[2];
+  if (lambda < 0.0f) {
+    return false;
+  }
+
+  float hit_local[3];
+  madd_v3_v3v3fl(hit_local, origin_local, dir_local, lambda);
+
+  const int width = BLI_rcti_size_x(&panel->panel_rect) + 1;
+  const int height = BLI_rcti_size_y(&panel->panel_rect) + 1;
+  if (hit_local[0] < 0.0f || hit_local[1] < 0.0f || hit_local[0] > width || hit_local[1] > height) {
+    return false;
+  }
+
+  r_region_xy[0] = panel->panel_rect.xmin + round_fl_to_int(hit_local[0]);
+  r_region_xy[1] = panel->panel_rect.ymin + round_fl_to_int(hit_local[1]);
+  madd_v3_v3v3fl(r_hit_world, ray_origin, ray_direction, 100.0f * lambda);
+  if (r_lambda != nullptr) {
+    *r_lambda = lambda;
+  }
+  return true;
+}
+
+static void wm_xr_surface_interaction_event_add(wmWindow *win, short type, short val, const int xy[2])
+{
+  wmEvent event{};
+  wm_event_init_from_window(win, &event);
+  copy_v2_v2_int(event.xy, xy);
+  copy_v2_v2_int(event.prev_xy, win->runtime->eventstate->xy);
+  event.type = static_cast<wmEventType>(type);
+  event.val = val;
+
+  const int g_flag_prev = G.f;
+  G.f |= G_FLAG_EVENT_SIMULATE;
+  WM_event_add_simulate(win, &event);
+  G.f = g_flag_prev;
+}
+
+static bool wm_xr_panel_cache_update(const bContext *C, wmXrPanel *panel)
+{
+  if (panel != nullptr && panel->panel_valid && panel->panel_offscreen != nullptr && !panel->panel_dirty &&
+      panel->panel_last_rebuild_tag == panel->panel_frame_tag)
+  {
+    return true;
+  }
+
+  ScrArea *area = CTX_wm_area(C);
+  ARegion *ui_region = area ? BKE_area_find_region_type(area, RGN_TYPE_UI) : nullptr;
+  if (panel == nullptr || area == nullptr || ui_region == nullptr || ui_region->runtime == nullptr ||
+      ui_region->runtime->type == nullptr)
+  {
+    return false;
+  }
+
+  short prev_alignment;
+  ARegion *prev_region = nullptr;
+  rcti panel_rect;
+  bContext *mutable_C = const_cast<bContext *>(C);
+  ED_region_panels_world_layout_begin(mutable_C, ui_region, &panel_rect, &prev_alignment, &prev_region);
+
+  const int w = BLI_rcti_size_x(&panel_rect) + 1;
+  const int h = BLI_rcti_size_y(&panel_rect) + 1;
+  bool create_new = true;
+  if (panel->panel_offscreen) {
+    if (GPU_offscreen_width(panel->panel_offscreen) == w &&
+        GPU_offscreen_height(panel->panel_offscreen) == h)
+    {
+      create_new = false;
+    }
+    else {
+      GPU_offscreen_free(panel->panel_offscreen);
+      panel->panel_offscreen = nullptr;
+    }
+  }
+  if (create_new) {
+    panel->panel_offscreen = GPU_offscreen_create(
+        w, h, false, gpu::TextureFormat::UNORM_8_8_8_8, GPU_TEXTURE_USAGE_SHADER_READ, false, nullptr);
+  }
+  if (!panel->panel_offscreen) {
+    CLOG_ERROR(&LOG, "panels_ws: offscreen create failed");
+    ED_region_panels_world_layout_end(mutable_C, ui_region, prev_alignment, prev_region);
+    return false;
+  }
+
+  ED_region_panels_draw_offscreen(C, ui_region, &panel_rect, panel->panel_offscreen);
+  panel->panel_rect = panel_rect;
+  panel->panel_valid = true;
+  panel->panel_dirty = false;
+  panel->panel_last_rebuild_tag = panel->panel_frame_tag;
+  panel->panel_source_win = CTX_wm_window(C);
+  panel->panel_source_area = area;
+  panel->panel_source_region = ui_region;
+
+  ED_region_panels_world_layout_end(mutable_C, ui_region, prev_alignment, prev_region);
+  return true;
+}
+
+static void wm_xr_panel_cache_refresh_source(const bContext *C, wmXrPanel *panel)
+{
+  if (C == nullptr || panel == nullptr || panel->panel_source_win == nullptr ||
+      panel->panel_source_area == nullptr || panel->panel_source_region == nullptr)
+  {
+    return;
+  }
+
+  bContext *mutable_C = const_cast<bContext *>(C);
+  wmXrPanelSourceContextOverride context_override(mutable_C, panel);
+  wm_xr_panel_cache_update(mutable_C, panel);
+  ED_region_tag_redraw(panel->panel_source_region);
+}
+
+void wm_xr_surface_interaction_update(const bContext *C, wmXrData *xr)
+{
+  wmXrSurfaceData *surface_data = WM_xr_surface_data_get();
+  if (C == nullptr || xr == nullptr || surface_data == nullptr)
+  {
+    return;
+  }
+
+  char subaction_path[64] = "";
+  const wmXrController *controller = wm_xr_surface_interaction_controller_find(
+      &xr->runtime->session_state, subaction_path);
+  if (controller == nullptr) {
+    if (surface_data->active_panel != nullptr && !surface_data->active_panel->panel_pointer.pressed) {
+      wm_xr_panel_pointer_clear(surface_data->active_panel);
+      surface_data->active_panel = nullptr;
+    }
+    return;
+  }
+
+  const bool is_captured_panel_drag = surface_data->active_panel != nullptr &&
+                                      surface_data->active_panel->panel_pointer.pressed &&
+                                      STREQ(surface_data->active_panel->panel_pointer.subaction_path,
+                                            subaction_path);
+  if (!is_captured_panel_drag && wm_xr_surface_controller_teleport_active(xr, subaction_path)) {
+    if (surface_data->active_panel != nullptr && !surface_data->active_panel->panel_pointer.pressed) {
+      wm_xr_panel_pointer_clear(surface_data->active_panel);
+      surface_data->active_panel = nullptr;
+    }
+    return;
+  }
+
+  float ray_origin[3], ray_direction[3];
+  wm_xr_surface_interaction_ray_from_pose(&controller->aim_pose, ray_origin, ray_direction);
+  wmXrPanel *hit_panel = nullptr;
+  int hit_region_xy[2] = {0, 0};
+  float hit_world[3] = {0.0f, 0.0f, 0.0f};
+  float hit_lambda = FLT_MAX;
+
+  if (is_captured_panel_drag) {
+    hit_panel = surface_data->active_panel;
+    if (!wm_xr_surface_interaction_raycast(
+            hit_panel, ray_origin, ray_direction, hit_region_xy, hit_world, &hit_lambda))
+    {
+      return;
+    }
+  }
+  else {
+    for (wmXrPanel *panel : ListBaseWrapper<wmXrPanel>(surface_data->panels)) {
+      int region_xy[2];
+      float panel_hit_world[3];
+      float lambda;
+      if (!wm_xr_surface_interaction_raycast(
+              panel, ray_origin, ray_direction, region_xy, panel_hit_world, &lambda))
+      {
+        continue;
+      }
+      if (lambda < hit_lambda) {
+        hit_panel = panel;
+        hit_lambda = lambda;
+        copy_v2_v2_int(hit_region_xy, region_xy);
+        copy_v3_v3(hit_world, panel_hit_world);
+      }
+    }
+  }
+
+  if (hit_panel == nullptr) {
+    if (surface_data->active_panel != nullptr && !surface_data->active_panel->panel_pointer.pressed) {
+      wm_xr_panel_pointer_clear(surface_data->active_panel);
+      surface_data->active_panel = nullptr;
+    }
+    return;
+  }
+
+  hit_panel->panel_cursor_visible = true;
+  copy_v3_v3(hit_panel->panel_cursor_world, hit_world);
+
+  if (surface_data->active_panel != nullptr && surface_data->active_panel != hit_panel &&
+      !surface_data->active_panel->panel_pointer.pressed)
+  {
+    wm_xr_panel_pointer_clear(surface_data->active_panel);
+  }
+  surface_data->active_panel = hit_panel;
+
+  if (!hit_panel->panel_hovered || hit_panel->panel_region_xy[0] != hit_region_xy[0] ||
+      hit_panel->panel_region_xy[1] != hit_region_xy[1] ||
+      !STREQ(hit_panel->panel_pointer.subaction_path, subaction_path))
+  {
+    int win_xy[2] = {
+        hit_panel->panel_source_region->winrct.xmin + hit_region_xy[0],
+        hit_panel->panel_source_region->winrct.ymin + hit_region_xy[1],
+    };
+    wm_xr_surface_interaction_event_add(
+        hit_panel->panel_source_win, MOUSEMOVE, KM_NOTHING, win_xy);
+    ED_region_tag_redraw(hit_panel->panel_source_region);
+    hit_panel->panel_dirty = true;
+    wm_xr_panel_cache_refresh_source(C, hit_panel);
+  }
+
+  copy_v2_v2_int(hit_panel->panel_region_xy, hit_region_xy);
+  hit_panel->panel_hovered = true;
+  BLI_strncpy(hit_panel->panel_pointer.subaction_path, subaction_path, XR_MAX_USER_PATH_LENGTH);
+}
+
+bool wm_xr_surface_interaction_apply_action(const bContext *C,
+                                            wmXrData *xr,
+                                            const wmXrAction *action,
+                                            const char *subaction_path,
+                                            short event_val)
+{
+  wmXrSurfaceData *surface_data = WM_xr_surface_data_get();
+  wmXrPanel *panel = surface_data ? surface_data->active_panel : nullptr;
+  if (C == nullptr || xr == nullptr || action == nullptr || subaction_path == nullptr ||
+      surface_data == nullptr || panel == nullptr || panel->panel_source_win == nullptr ||
+      panel->panel_source_region == nullptr)
+  {
+    return false;
+  }
+
+  if (!ELEM(event_val, KM_PRESS, KM_RELEASE)) {
+    return false;
+  }
+
+  /* Only a teleport press that begins over the panel may start capture. After that, only the
+   * matching release for that captured action/subaction is rerouted to the panel. */
+  if (event_val == KM_PRESS) {
+    if (panel->panel_pointer.pressed && action->ot != nullptr &&
+        STREQ(panel->panel_pointer.subaction_path, subaction_path) &&
+        STREQ(panel->panel_pointer.action_idname, action->ot->idname))
+    {
+      /* Keep consuming held teleport press events for an active panel drag so the teleport modal
+       * path cannot start while the panel interaction owns this controller. */
+      return true;
+    }
+    if (!wm_xr_surface_action_is_teleport(action)) {
+      return false;
+    }
+    if (!panel->panel_hovered || !STREQ(panel->panel_pointer.subaction_path, subaction_path))
+    {
+      return false;
+    }
+    int win_xy[2] = {
+        panel->panel_source_region->winrct.xmin + panel->panel_region_xy[0],
+        panel->panel_source_region->winrct.ymin + panel->panel_region_xy[1],
+    };
+    wm_xr_surface_interaction_event_add(panel->panel_source_win, LEFTMOUSE, KM_PRESS, win_xy);
+    panel->panel_pointer.pressed = true;
+    BLI_strncpy(
+        panel->panel_pointer.action_idname,
+        action->ot->idname,
+        sizeof(panel->panel_pointer.action_idname));
+    ED_region_tag_redraw(panel->panel_source_region);
+    panel->panel_dirty = true;
+    wm_xr_panel_cache_refresh_source(C, panel);
+    return true;
+  }
+
+  if (event_val == KM_RELEASE && panel->panel_pointer.pressed &&
+      STREQ(panel->panel_pointer.subaction_path, subaction_path) && action->ot != nullptr &&
+      STREQ(panel->panel_pointer.action_idname, action->ot->idname))
+  {
+    int win_xy[2] = {
+        panel->panel_source_region->winrct.xmin + panel->panel_region_xy[0],
+        panel->panel_source_region->winrct.ymin + panel->panel_region_xy[1],
+    };
+    wm_xr_surface_interaction_event_add(panel->panel_source_win, LEFTMOUSE, KM_RELEASE, win_xy);
+    wm_xr_panel_pointer_clear(panel);
+    surface_data->active_panel = nullptr;
+    ED_region_tag_redraw(panel->panel_source_region);
+    panel->panel_dirty = true;
+    wm_xr_panel_cache_refresh_source(C, panel);
+    return true;
+  }
+
+  return false;
 }
 
 void wm_xr_pose_to_mat(const GHOST_XrPose *pose, float r_mat[4][4])
@@ -485,6 +979,7 @@ void wm_xr_draw_controllers(const bContext *C, ARegion * /*region*/, void *custo
   wm_xr_controller_model_draw(settings, xr_context, state);
   wm_xr_controller_aim_draw(settings, state);
   wm_xr_viewfinder_draw(C, settings, state);
+  wm_xr_panel_cursor_draw(WM_xr_surface_data_get());
 }
 
 static CLG_LogRef LOG = {"xr"};
@@ -499,12 +994,7 @@ void wm_xr_draw_panels_world_space(const bContext * C, ARegion * region, void *c
     CLOG_ERROR(&LOG, "panels_ws: skipped, null context");
     return;
   }
-  BLI_assert(region != nullptr);
   BLI_assert(customdata != nullptr);
-  BLI_assert(CTX_wm_manager(C) != nullptr);
-  BLI_assert(CTX_wm_window(C) != nullptr);
-  WorkSpace *workspace = CTX_wm_workspace(C);
-  BLI_assert(workspace != nullptr);
 
   wmXrData *xr = static_cast<wmXrData *>(customdata);
   const XrSessionSettings *settings = &xr->session_settings;
@@ -517,62 +1007,19 @@ void wm_xr_draw_panels_world_space(const bContext * C, ARegion * region, void *c
     return;
   }
 
-  ScrArea *area = CTX_wm_area(C);
-  ARegion *ui_region = BKE_area_find_region_type(area, RGN_TYPE_UI);
-  BLI_assert(area != nullptr);
-  BLI_assert(ui_region != nullptr);
-  BLI_assert(ui_region->runtime != nullptr);
-  BLI_assert(ui_region->runtime->type != nullptr);
-
-  const float HALF_PI = 3.1415f * 0.5f;
-  const float SCREEN_TO_WORLD_SCALE = 1.0f / 256.0f;
-  float obmat[4][4];
-  float pos[3] = {0.0f, 0.0f, 2.0f};
-  float rot[3] = {HALF_PI, 0.0f, 0.0f};
-  float size[3] = {SCREEN_TO_WORLD_SCALE, SCREEN_TO_WORLD_SCALE, SCREEN_TO_WORLD_SCALE};
-  loc_eul_size_to_mat4(obmat, pos, rot, size);
-
-  short prev_alignment;
-  ARegion *prev_region = nullptr;
-  rcti panel_rect;
-  bContext *mutable_C = const_cast<bContext *>(C);
-  ED_region_panels_world_layout_begin(mutable_C, ui_region, &panel_rect, &prev_alignment, &prev_region);
-
   wmXrSurfaceData *surface_data = WM_xr_surface_data_get();
   if (!surface_data) {
-    CLOG_ERROR(&LOG, "panels_ws: no surface_data");
-    ED_region_panels_world_layout_end(mutable_C, ui_region, prev_alignment, prev_region);
     return;
   }
-  const int w = BLI_rcti_size_x(&panel_rect) + 1;
-  const int h = BLI_rcti_size_y(&panel_rect) + 1;
-  bool create_new = true;
-  if (surface_data->panel_offscreen) {
-    if (GPU_offscreen_width(surface_data->panel_offscreen) == w &&
-        GPU_offscreen_height(surface_data->panel_offscreen) == h)
-    {
-      create_new = false;
-    }
-    else {
-      GPU_offscreen_free(surface_data->panel_offscreen);
-      surface_data->panel_offscreen = nullptr;
-    }
-  }
-  if (create_new) {
-    surface_data->panel_offscreen = GPU_offscreen_create(
-        w, h, false, gpu::TextureFormat::UNORM_8_8_8_8, GPU_TEXTURE_USAGE_SHADER_READ, false, nullptr);
-  }
-  if (!surface_data->panel_offscreen) {
-    CLOG_ERROR(&LOG, "panels_ws: offscreen create failed");
-    ED_region_panels_world_layout_end(mutable_C, ui_region, prev_alignment, prev_region);
-    return;
-  }
-  ED_region_panels_draw_offscreen(C, ui_region, &panel_rect, surface_data->panel_offscreen);
-  surface_data->panel_rect = panel_rect;
-  copy_m4_m4(surface_data->panel_obmat, obmat);
-  surface_data->panel_valid = true;
 
-  ED_region_panels_world_layout_end(mutable_C, ui_region, prev_alignment, prev_region);
+  ScrArea *area = CTX_wm_area(C);
+  ARegion *ui_region = area ? BKE_area_find_region_type(area, RGN_TYPE_UI) : nullptr;
+  if (area == nullptr || ui_region == nullptr) {
+    return;
+  }
+
+  wmXrPanel *panel = wm_xr_panel_ensure(surface_data, CTX_wm_window(C), area, ui_region);
+  wm_xr_panel_cache_update(C, panel);
 }
 
 }  // namespace blender

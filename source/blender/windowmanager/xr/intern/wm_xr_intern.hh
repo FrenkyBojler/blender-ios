@@ -164,6 +164,31 @@ struct wmXrViewportPair {
   struct GPUViewport *viewport;
 };
 
+struct wmXrPanelPointerState {
+  bool pressed;
+  char subaction_path[64];
+  char action_idname[128];
+};
+
+struct wmXrPanel {
+  wmXrPanel *next, *prev;
+  struct GPUOffScreen *panel_offscreen;
+  rcti panel_rect;
+  float panel_obmat[4][4];
+  bool panel_valid;
+  bool panel_dirty;
+  uint64_t panel_frame_tag;
+  uint64_t panel_last_rebuild_tag;
+  struct wmWindow *panel_source_win;
+  struct ScrArea *panel_source_area;
+  struct ARegion *panel_source_region;
+  bool panel_hovered;
+  bool panel_cursor_visible;
+  int panel_region_xy[2];
+  float panel_cursor_world[3];
+  wmXrPanelPointerState panel_pointer;
+};
+
 struct wmXrSurfaceData {
   /** Off-screen buffers/viewports for each view. */
   ListBaseT<wmXrViewportPair> viewports;
@@ -176,11 +201,12 @@ struct wmXrSurfaceData {
   /** Panel draw callback handle. */
   void *panel_draw_handle;
 
-  /** Cached world-space UI panel offscreen and placement for XR composition. */
-  struct GPUOffScreen *panel_offscreen;
-  rcti panel_rect;
-  float panel_obmat[4][4];
-  bool panel_valid;
+  /** World space UI panels. */
+  ListBaseT<wmXrPanel> panels;
+  wmXrPanel *active_panel;
+
+  /** Current frame number. */
+  uint64_t panels_frame_tag;
 };
 
 struct wmXrDrawData {
@@ -321,6 +347,12 @@ void wm_xr_pose_scale_to_imat(const GHOST_XrPose *pose, float scale, float r_ima
 void wm_xr_draw_view(const GHOST_XrDrawViewInfo *draw_view, void *customdata);
 void wm_xr_draw_controllers(const bContext *C, ARegion *region, void *customdata);
 void wm_xr_draw_panels_world_space(const bContext *C, ARegion *region, void *customdata);
+void wm_xr_surface_interaction_update(const bContext *C, wmXrData *xr);
+bool wm_xr_surface_interaction_apply_action(const bContext *C,
+                                            wmXrData *xr,
+                                            const wmXrAction *action,
+                                            const char *subaction_path,
+                                            short event_val);
 
 /**
  * \brief Check if XR passthrough is enabled.

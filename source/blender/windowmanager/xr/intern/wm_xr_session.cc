@@ -16,12 +16,13 @@
 #include "BKE_scene.hh"
 #include "BKE_screen.hh"
 
-#include "BLI_listbase.hh"
-#include "BLI_math_matrix_c.hh"
-#include "BLI_math_rotation_c.hh"
-#include "BLI_math_vector_c.hh"
-#include "BLI_string.hh"
-#include "BLI_time.hh"
+#include "BLI_listbase.h"
+#include "BLI_listbase_wrapper.hh"
+#include "BLI_math_matrix.h"
+#include "BLI_math_rotation.h"
+#include "BLI_math_vector.h"
+#include "BLI_string.h"
+#include "BLI_time.h"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
@@ -1493,6 +1494,7 @@ static wmXrActionData *wm_xr_session_event_create(const char *action_set_name,
 
 /* Dispatch events to window queues. */
 static void wm_xr_session_events_dispatch(wmXrData *xr,
+                                          const bContext *C,
                                           GHOST_IXrContext *xr_context,
                                           wmXrActionSet *action_set,
                                           wmXrSessionState *session_state,
@@ -1550,6 +1552,12 @@ static void wm_xr_session_events_dispatch(wmXrData *xr,
         if ((val != KM_NOTHING) &&
             (!modal || (is_active_modal_action && is_active_modal_subaction)))
         {
+          const bool consumed_by_panel = wm_xr_surface_interaction_apply_action(
+              C, xr, action, action->subaction_paths[subaction_idx], val);
+          if (consumed_by_panel) {
+            continue;
+          }
+
           const GHOST_XrPose *aim_pose = wm_xr_session_controller_aim_pose_find(
               session_state, action->subaction_paths[subaction_idx]);
           const GHOST_XrPose *aim_pose_other = nullptr;
@@ -1631,9 +1639,10 @@ void wm_xr_session_actions_update(wmWindowManager *wm)
     View3D *v3d = static_cast<View3D *>(xr_offscreen_area->spacedata.first);
     v3d->object_type_exclude_viewport = settings->object_type_exclude_viewport;
     v3d->object_type_exclude_select = settings->object_type_exclude_select;
+    wm_xr_surface_interaction_update(xr_context, xr);
 
     wmWindow *xr_win = wm_xr_session_root_window_or_fallback_get(wm, xr->runtime);
-    wm_xr_session_events_dispatch(xr, ghost_xr_context, active_action_set, state, xr_win);
+    wm_xr_session_events_dispatch(xr, xr_context, ghost_xr_context, active_action_set, state, xr_win);
   }
 }
 
@@ -1724,6 +1733,7 @@ static void wm_xr_session_surface_draw(bContext *C)
 {
   wmWindowManager *wm = CTX_wm_manager(C);
   wmXrDrawData draw_data;
+  static uint64_t xr_panel_frame_tag = 0;
 
   if (!WM_xr_session_is_ready(&wm->xr)) {
     return;
@@ -1731,6 +1741,13 @@ static void wm_xr_session_surface_draw(bContext *C)
 
   WM_xr_session_context_ensure(&wm->xr, wm);
   wm_xr_session_draw_data_populate(&wm->xr, &draw_data);
+  if (draw_data.surface_data != nullptr) {
+    const uint64_t frame_tag = ++xr_panel_frame_tag;
+    draw_data.surface_data->panels_frame_tag = frame_tag;
+    for (wmXrPanel *panel : ListBaseWrapper<wmXrPanel>(draw_data.surface_data->panels)) {
+      panel->panel_frame_tag = frame_tag;
+    }
+  }
 
   GHOST_XrSessionDrawViews(wm->xr.runtime->ghost_context, &draw_data);
 
@@ -1845,9 +1862,11 @@ static void wm_xr_session_surface_free_data(wmSurface *surface)
     BLI_freelinkN(lb, vp);
   }
 
-  if (data->panel_offscreen) {
-    GPU_offscreen_free(data->panel_offscreen);
-    data->panel_offscreen = nullptr;
+  while (wmXrPanel *panel = static_cast<wmXrPanel *>(BLI_pophead(&data->panels))) {
+    if (panel->panel_offscreen) {
+      GPU_offscreen_free(panel->panel_offscreen);
+    }
+    MEM_delete(panel);
   }
 
   if (data->controller_art) {
