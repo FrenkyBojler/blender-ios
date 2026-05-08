@@ -6683,6 +6683,10 @@ static void rna_def_userdef_input(BlenderRNA *brna)
                            "When entering numbers while transforming, "
                            "default to advanced mode for full math expression evaluation");
 
+  prop = RNA_def_property(srna, "textbox_shift_swap", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", USER_TEXTBOX_SHIFT_SWAP);
+  RNA_def_property_ui_text(prop, "Swap Confirm/New Line Text-Box Bindings", "");
+
   /* View Navigation */
   prop = RNA_def_property(srna, "navigation_mode", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "navigation_mode");

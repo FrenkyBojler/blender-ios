@@ -1879,6 +1879,7 @@ class USERPREF_PT_input_keyboard(InputPanel, CenterAlignMixIn, Panel):
 
         layout.prop(inputs, "use_emulate_numpad")
         layout.prop(inputs, "use_numeric_input_advanced")
+        layout.prop(inputs, "textbox_shift_swap")
 
 
 class USERPREF_PT_input_mouse(InputPanel, CenterAlignMixIn, Panel):
