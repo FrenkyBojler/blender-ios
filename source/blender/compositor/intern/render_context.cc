@@ -30,6 +30,7 @@
 #include "RE_pipeline.h"
 
 #include "COM_render_context.hh"
+#include "COM_result.hh"
 
 namespace blender::compositor {
 
@@ -82,26 +83,24 @@ void FileOutput::add_view(const char *view_name)
   STRNCPY_UTF8(render_view->name, view_name);
 }
 
-void FileOutput::add_view(const char *view_name,
-                          int channels,
-                          const float *buffer,
-                          ImplicitSharingPtr<> sharing_ptr)
+void FileOutput::add_view(const char *view_name, const Result &data)
 {
   RenderView *render_view = MEM_new<RenderView>("Render View For File Output.");
   BLI_addtail(&render_result_->views, render_view);
   STRNCPY_UTF8(render_view->name, view_name);
 
   render_view->ibuf = IMB_allocImBuf(
-      render_result_->rectx, render_result_->recty, channels * 8, 0);
-  render_view->ibuf->channels = channels;
-  render_view->ibuf->assign_float_data(buffer, std::move(sharing_ptr));
+      UNPACK2(data.domain().data_size), data.channels_count() * 8, 0);
+  render_view->ibuf->float_buffer = ImBufFloatBuffer{
+      .data = static_cast<const float *>(data.cpu_data().data()),
+      .sharing_info = render_view->ibuf->float_buffer.sharing_info,
+      .colorspace = nullptr};
 }
 
 void FileOutput::add_pass(const char *pass_name,
                           const char *view_name,
                           const char *channels,
-                          const float *buffer,
-                          ImplicitSharingPtr<> sharing_ptr)
+                          const Result &data)
 {
   /* Passes can only be added for EXR images. */
   BLI_assert(ELEM(format_.imtype, R_IMF_IMTYPE_OPENEXR, R_IMF_IMTYPE_MULTILAYER));
@@ -113,16 +112,17 @@ void FileOutput::add_pass(const char *pass_name,
   STRNCPY(render_pass->view, view_name);
   STRNCPY(render_pass->chan_id, channels);
 
-  const int channels_count = BLI_strnlen(channels, 4);
-  render_pass->rectx = render_result_->rectx;
-  render_pass->recty = render_result_->recty;
-  render_pass->channels = channels_count;
+  render_pass->rectx = data.domain().data_size.x;
+  render_pass->recty = data.domain().data_size.y;
+  render_pass->channels = data.channels_count();
 
   render_pass->ibuf = IMB_allocImBuf(
-      render_result_->rectx, render_result_->recty, channels_count * 8, 0);
-  render_pass->ibuf->channels = channels_count;
+      UNPACK2(data.domain().data_size), data.channels_count() * 8, 0);
+  render_pass->ibuf->float_buffer = ImBufFloatBuffer{
+      .data = static_cast<const float *>(data.cpu_data().data()),
+      .sharing_info = render_pass->ibuf->float_buffer.sharing_info,
+      .colorspace = nullptr};
   copy_v2_v2_db(render_pass->ibuf->ppm, render_result_->ppm);
-  render_pass->ibuf->assign_float_data(buffer, std::move(sharing_ptr));
 }
 
 void FileOutput::add_meta_data(std::string key, std::string value)
