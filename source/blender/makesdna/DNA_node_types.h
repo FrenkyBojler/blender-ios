@@ -3952,15 +3952,4 @@ struct NodeGeometryAttributeToListItem {
   char *name = nullptr;
 };
 
-struct NodeGeometryAttributeToList {
-  DNA_DEFINE_CXX_METHODS(NodeGeometryAttributeToList)
-
-  int8_t domain = 0;
-  char _pad[3] = {};
-  int next_identifier = 0;
-  NodeGeometryAttributeToListItem *items = nullptr;
-  int items_num = 0;
-  int active_index = 0;
-};
-
 }  // namespace blender
