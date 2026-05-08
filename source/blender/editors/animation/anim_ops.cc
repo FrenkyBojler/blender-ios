@@ -77,10 +77,12 @@ class FrameChangeModalData {
    */
  public:
   AnimKeylist *keylist;
+  wmTimer *anim_timer;
 
   FrameChangeModalData()
   {
     keylist = nullptr;
+    anim_timer = nullptr;
   }
 
   ~FrameChangeModalData()
@@ -710,6 +712,11 @@ static wmOperatorStatus change_frame_invoke(bContext *C, wmOperator *op, const w
   }
 
   screen->scrubbing = true;
+  if (screen->animtimer) {
+    op_data->anim_timer = screen->animtimer;
+    screen->animtimer = nullptr;
+    WM_event_timer_sleep(CTX_wm_manager(C), CTX_wm_window(C), op_data->anim_timer, true);
+  }
 
   if (RNA_boolean_get(op->ptr, "seq_solo_preview")) {
     SpaceSeq *sseq = CTX_wm_space_seq(C);
@@ -740,10 +747,22 @@ static bool need_extra_redraw_after_scrubbing_ends(bContext *C)
   return false;
 }
 
+static void change_frame_restore_playback(bContext *C, wmOperator *op)
+{
+  FrameChangeModalData *op_data = static_cast<FrameChangeModalData *>(op->customdata);
+  if (op_data && op_data->anim_timer) {
+    bScreen *screen = CTX_wm_screen(C);
+    screen->animtimer = op_data->anim_timer;
+    WM_event_timer_sleep(CTX_wm_manager(C), CTX_wm_window(C), op_data->anim_timer, false);
+    op_data->anim_timer = nullptr;
+  }
+}
+
 static void change_frame_cancel(bContext *C, wmOperator *op)
 {
   bScreen *screen = CTX_wm_screen(C);
   screen->scrubbing = false;
+  change_frame_restore_playback(C, op);
 
   if (RNA_boolean_get(op->ptr, "seq_solo_preview")) {
     SpaceSeq *sseq = CTX_wm_space_seq(C);
@@ -814,6 +833,7 @@ static wmOperatorStatus change_frame_modal(bContext *C, wmOperator *op, const wm
     ED_workspace_status_text(C, nullptr);
     bScreen *screen = CTX_wm_screen(C);
     screen->scrubbing = false;
+    change_frame_restore_playback(C, op);
 
     FrameChangeModalData *op_data = static_cast<FrameChangeModalData *>(op->customdata);
     MEM_delete(op_data);
