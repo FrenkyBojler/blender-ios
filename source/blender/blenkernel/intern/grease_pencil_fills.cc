@@ -16,7 +16,7 @@
 
 namespace blender::bke::greasepencil {
 
-std::optional<FillCache> fill_cache_from_fill_ids(const VArray<int> &fill_ids)
+std::optional<FillData> fill_cache_from_fill_ids(const VArray<int> &fill_ids)
 {
   if (!fill_ids || fill_ids.is_empty()) {
     return std::nullopt;
@@ -68,7 +68,7 @@ std::optional<FillCache> fill_cache_from_fill_ids(const VArray<int> &fill_ids)
     }
   });
 
-  FillCache fill_cache;
+  FillData fill_cache;
   fill_cache.fill_map = std::move(fill_map);
   fill_cache.fill_offsets = std::move(fill_sizes);
 

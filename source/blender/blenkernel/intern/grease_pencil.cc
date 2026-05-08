@@ -39,6 +39,7 @@
 #include "BLI_color_types.hh"
 #include "BLI_delaunay_2d.hh"
 #include "BLI_enumerable_thread_specific.hh"
+#include "BLI_implicit_sharing_cache.hh"
 #include "BLI_listbase.h"
 #include "BLI_map.hh"
 #include "BLI_math_euler_types.hh"
@@ -448,23 +449,46 @@ Drawing::~Drawing()
   this->runtime = nullptr;
 }
 
-static void ensure_fill_cache(const Drawing &drawing)
+static auto &get_fill_cache()
 {
-  drawing.runtime->fill_cache.ensure([&](std::optional<FillCache> &r_fill_cache) {
-    const CurvesGeometry &curves = drawing.strokes();
-    const bke::AttributeAccessor attributes = curves.attributes();
-
-    const VArray<int> fill_ids = *attributes.lookup<int>("fill_id", bke::AttrDomain::Curve);
-    r_fill_cache = fill_cache_from_fill_ids(fill_ids);
-  });
+  static implicit_sharing::Cache<std::optional<FillData>> cache;
+  return cache;
 }
+
+// static void ensure_fill_cache(const Drawing &drawing)
+// {
+//   drawing.runtime->fill_cache.ensure([&](std::optional<FillData> &r_fill_cache) {
+//     const CurvesGeometry &curves = drawing.strokes();
+//     const bke::AttributeAccessor attributes = curves.attributes();
+
+//     const VArray<int> fill_ids = *attributes.lookup<int>("fill_id", bke::AttrDomain::Curve);
+//     r_fill_cache = fill_cache_from_fill_ids(fill_ids);
+//   });
+// }
 
 std::optional<GroupedSpan<int>> Drawing::fills() const
 {
-  ensure_fill_cache(*this);
-  if (this->runtime->fill_cache.data().has_value()) {
-    const FillCache &fill_cache = *this->runtime->fill_cache.data();
-    return GroupedSpan<int>(fill_cache.fill_offsets.as_span(), fill_cache.fill_map.as_span());
+  const CurvesGeometry &curves = this->strokes();
+  const bke::AttributeAccessor attributes = curves.attributes();
+
+  if (!attributes.contains("fill_id")) {
+    return std::nullopt;
+  }
+
+  const implicit_sharing::CacheKeyRef key({
+      attributes.lookup<int>("fill_id").sharing_info,
+  });
+
+  auto &cache = get_fill_cache();
+  std::optional<FillData> fills = cache.lookup_or_compute(key, [&]() {
+    const CurvesGeometry &curves = this->strokes();
+    const bke::AttributeAccessor attributes = curves.attributes();
+
+    const VArray<int> fill_ids = *attributes.lookup<int>("fill_id", bke::AttrDomain::Curve);
+    return fill_cache_from_fill_ids(fill_ids);
+  });
+  if (fills.has_value()) {
+    return GroupedSpan<int>(fills->fill_offsets.as_span(), fills->fill_map.as_span());
   }
   return std::nullopt;
 }

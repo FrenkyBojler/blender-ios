@@ -54,7 +54,7 @@ namespace greasepencil {
  * For compatibility, legacy thickness values have to be multiplied by this factor. */
 constexpr float LEGACY_RADIUS_CONVERSION_FACTOR = 1.0f / 2000.0f;
 
-struct FillCache {
+struct FillData {
   /**
    * A cache of all the fills in the drawing.
    *
@@ -85,7 +85,7 @@ struct TriangleCache {
    * A cache of all the triangles (used to render fills) in this drawing.
    *
    * All triangles are stored sequentially in #triangles as triplet of point indices. For each fill
-   * (in #FillCache) there's a group of triangles. The ranges are stored using #triangle_offsets.
+   * (in #FillData) there's a group of triangles. The ranges are stored using #triangle_offsets.
    */
   Vector<int3> triangles;
   Vector<int> triangle_offsets;
@@ -96,7 +96,7 @@ class DrawingRuntime {
   /**
    * Fill cache for the drawing. Will be `nullopt` when there are no fills.
    */
-  mutable SharedCache<std::optional<FillCache>> fill_cache;
+  mutable SharedCache<std::optional<FillData>> fill_cache;
 
   /**
    * Triangle cache for all the fills in the drawing (see #fill_cache). Will be `nullopt` when
