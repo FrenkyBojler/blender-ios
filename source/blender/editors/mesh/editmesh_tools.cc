@@ -6102,7 +6102,7 @@ static wmOperatorStatus edbm_dissolve_edges_exec(bContext *C, wmOperator *op)
   ViewLayer *view_layer = CTX_data_view_layer(C);
   const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
       *bmain, scene, view_layer, CTX_wm_view3d(C));
-  bool changed = false;
+  bool changed_multi = false;
 
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
@@ -6135,7 +6135,7 @@ static wmOperatorStatus edbm_dissolve_edges_exec(bContext *C, wmOperator *op)
       continue;
     }
 
-    changed = true;
+    changed_multi = true;
 
     BM_custom_loop_normals_from_vector_layer(em->bm, false);
 
@@ -6146,7 +6146,7 @@ static wmOperatorStatus edbm_dissolve_edges_exec(bContext *C, wmOperator *op)
     EDBM_update(id_cast<Mesh *>(obedit->data), &params);
   }
 
-  if (!changed) {
+  if (!changed_multi) {
     BKE_report(op->reports, RPT_WARNING, "No edges dissolved");
   }
 
