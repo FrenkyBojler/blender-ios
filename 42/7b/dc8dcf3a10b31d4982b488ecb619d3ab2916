@@ -1,3 +1,4 @@
 Referenced by commit 3e71cec988f, Fix slightly increased layout height for tree-view item rows
 Referenced by issue #111032, WIP: UI: TreeView Item Drag Padding
 Referenced by issue #107742, UI Views: Support dragging before or after items
+Referenced by pull request #158388, UI: Increase tree view item visual selection/highlight height
