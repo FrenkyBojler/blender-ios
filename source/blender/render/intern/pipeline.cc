@@ -184,7 +184,6 @@ static bool do_write_image_or_movie(Render *re,
 /* default callbacks, set in each new render */
 static void result_rcti_nothing(void * /*arg*/, RenderResult * /*rr*/, rcti * /*rect*/) {}
 static void current_scene_nothing(void * /*arg*/, Scene * /*scene*/) {}
-static void stats_nothing(void * /*arg*/, RenderStats * /*rs*/) {}
 static void float_nothing(void * /*arg*/, float /*val*/) {}
 static bool default_break(void * /*arg*/)
 {
@@ -216,6 +215,21 @@ static void stats_background(void * /*arg*/, RenderStats *rs)
   if (show_info) {
     fflush(stdout);
   }
+}
+
+static void stats_callback_only(void * /*arg*/, RenderStats *rs)
+{
+  if (rs->infostr == nullptr) {
+    return;
+  }
+
+  /* Compositor calls this from multiple threads, mutex lock to ensure we don't
+   * get garbled output. */
+  static Mutex mutex;
+  std::scoped_lock lock(mutex);
+
+  /* Same as `stats_background` but we don't print any logs to stdout. */
+  BKE_callback_exec_string(G_MAIN, rs->infostr, BKE_CB_EVT_RENDER_STATS);
 }
 
 void RE_ReferenceRenderResult(RenderResult *rr)
@@ -946,7 +960,7 @@ void RE_display_init(Render *re)
     re->display->stats_draw_cb = stats_background;
   }
   else {
-    re->display->stats_draw_cb = stats_nothing;
+    re->display->stats_draw_cb = stats_callback_only;
   }
 }
 
