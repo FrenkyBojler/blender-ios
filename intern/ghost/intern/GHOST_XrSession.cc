@@ -475,7 +475,14 @@ void GHOST_XrSession::draw(void *draw_customdata)
     if (oxr_->passthrough_supported) {
       layers.push_back((XrCompositionLayerBaseHeader *)&oxr_->passthrough_layer);
     }
-    else {
+    else if (!context_->isExtensionEnabled(XR_FB_PASSTHROUGH_EXTENSION_NAME)) {
+      /* Only auto-disable the user's toggle when passthrough is genuinely
+       * unsupported (extension not enabled at instance creation, e.g. on
+       * the SteamVR runtime). Transient creation failures during the first
+       * few frames after entering VR (notably
+       * `XR_ERROR_UNEXPECTED_STATE_PASSTHROUGH_FB` on Meta Quest Link before
+       * the session reaches FOCUSED) are silently retried next frame
+       * instead of bouncing the user's checkbox off. */
       context_->getCustomFuncs().disable_passthrough_fn(draw_customdata);
     }
   }
@@ -1065,26 +1072,47 @@ void GHOST_XrSession::enablePassthrough()
 
   init_passthrough_extension_functions(context_->getInstance());
 
-  XrResult result;
-
   XrPassthroughCreateInfoFB passthrough_create_info = {};
   passthrough_create_info.type = XR_TYPE_PASSTHROUGH_CREATE_INFO_FB;
   passthrough_create_info.next = nullptr;
   passthrough_create_info.flags |= XR_PASSTHROUGH_IS_RUNNING_AT_CREATION_BIT_FB;
 
-  XrPassthroughFB passthrough_handle;
-  result = g_xrCreatePassthroughFB(oxr_->session, &passthrough_create_info, &passthrough_handle);
+  /* Bug fix (was: result of `xrCreatePassthroughFB` was ignored, so a transient
+   * `XR_ERROR_UNEXPECTED_STATE_PASSTHROUGH_FB` during early session frames
+   * would leave `passthrough_handle` uninitialized; the cascading
+   * `xrCreatePassthroughLayerFB` then returned `XR_ERROR_HANDLE_INVALID` and
+   * the code path still wrote `passthrough_layer_handle` into
+   * `oxr_->passthrough_layer.layerHandle`, poisoning the early-return guard
+   * above and preventing any retry for the rest of the session.) */
+  XrPassthroughFB passthrough_handle = XR_NULL_HANDLE;
+  XrResult result = g_xrCreatePassthroughFB(
+      oxr_->session, &passthrough_create_info, &passthrough_handle);
+  if (XR_FAILED(result)) {
+    /* Common case: session not yet at a state where passthrough can be created
+     * (e.g. `XR_ERROR_UNEXPECTED_STATE_PASSTHROUGH_FB` while session is still
+     * transitioning IDLE -> READY -> SYNCHRONIZED -> VISIBLE -> FOCUSED).
+     * Leave `passthrough_supported = false` so we retry next frame. */
+    oxr_->passthrough_supported = false;
+    return;
+  }
 
-  XrPassthroughLayerCreateInfoFB passthrough_layer_create_info;
+  XrPassthroughLayerCreateInfoFB passthrough_layer_create_info = {};
   passthrough_layer_create_info.type = XR_TYPE_PASSTHROUGH_LAYER_CREATE_INFO_FB;
   passthrough_layer_create_info.next = nullptr;
   passthrough_layer_create_info.passthrough = passthrough_handle;
   passthrough_layer_create_info.flags |= XR_PASSTHROUGH_IS_RUNNING_AT_CREATION_BIT_FB;
   passthrough_layer_create_info.purpose = XR_PASSTHROUGH_LAYER_PURPOSE_RECONSTRUCTION_FB;
 
-  XrPassthroughLayerFB passthrough_layer_handle;
+  XrPassthroughLayerFB passthrough_layer_handle = XR_NULL_HANDLE;
   result = g_xrCreatePassthroughLayerFB(
       oxr_->session, &passthrough_layer_create_info, &passthrough_layer_handle);
+  if (XR_FAILED(result)) {
+    /* Don't poison state — leave layerHandle null so the early-return guard
+     * lets us retry. The passthrough handle is leaked until session end, but
+     * this branch is rare. */
+    oxr_->passthrough_supported = false;
+    return;
+  }
 
   g_xrPassthroughStartFB(passthrough_handle);
   g_xrPassthroughLayerResumeFB(passthrough_layer_handle);
@@ -1094,8 +1122,7 @@ void GHOST_XrSession::enablePassthrough()
   oxr_->passthrough_layer.flags = XR_COMPOSITION_LAYER_BLEND_TEXTURE_SOURCE_ALPHA_BIT;
   oxr_->passthrough_layer.space = XR_NULL_HANDLE;
   oxr_->passthrough_layer.layerHandle = passthrough_layer_handle;
-
-  oxr_->passthrough_supported = (result == XR_SUCCESS);
+  oxr_->passthrough_supported = true;
 }
 
 /** \} */ /* Meta Quest Passthrough */
