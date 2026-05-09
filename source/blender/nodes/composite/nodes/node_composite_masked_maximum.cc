@@ -772,8 +772,9 @@ static void register_node_type_cmp_masked_maximum()
 
   cmp_node_type_base(&ntype, "CompositorNodeMaskedMaximum"_ustr);
   ntype.ui_name = "Masked Maximum";
-  ntype.ui_description = "Masked Maximum";
-  ntype.nclass = NODE_CLASS_MATTE;
+  ntype.ui_description =
+      "For every pixel of an image, find the pixel with the maximum value within a mask";
+  ntype.nclass = NODE_CLASS_OP_FILTER;
   ntype.declare = node_declare;
   ntype.flag |= NODE_PREVIEW;
   ntype.get_compositor_operation = get_compositor_operation;

@@ -160,6 +160,7 @@ class NODE_MT_compositor_node_filter_base(node_add_menu.NodeMenu):
         layout.separator()
         self.node_operator(layout, "CompositorNodeDilateErode")
         self.node_operator(layout, "CompositorNodeMaskToSDF")
+        self.node_operator(layout, "CompositorNodeMaskedMaximum")
         self.node_operator(layout, "CompositorNodeInpaint")
         layout.separator()
         self.node_operator_with_searchable_enum_socket(
@@ -223,8 +224,6 @@ class NODE_MT_compositor_node_mask_base(node_add_menu.NodeMenu):
         layout.separator()
         self.node_operator(layout, "CompositorNodeDoubleEdgeMask")
         self.node_operator(layout, "CompositorNodeIDMask")
-        layout.separator()
-        self.node_operator(layout, "CompositorNodeMaskedMaximum")
 
         self.draw_assets_for_catalog(layout, self.bl_label)
 
