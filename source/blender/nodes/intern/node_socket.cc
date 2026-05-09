@@ -445,7 +445,7 @@ static void refresh_node_sockets_animation_inout(Main &bmain,
   if (!ntree.adt || !ntree.adt->action) {
     return;
   }
-  struct IndexChange {
+  struct IndexMove {
     int old_i;
     int new_i;
   };
@@ -456,7 +456,7 @@ static void refresh_node_sockets_animation_inout(Main &bmain,
     new_index_by_identifier.add_new(new_socket.identifier_ustr(), new_i);
   }
 
-  Vector<IndexChange> index_changes;
+  Vector<IndexMove> moved_indices;
   Vector<int> removed_indices;
   for (const int old_i : old_sockets.index_range()) {
     bNodeSocket &old_socket = *old_sockets[old_i];
@@ -469,9 +469,9 @@ static void refresh_node_sockets_animation_inout(Main &bmain,
     if (new_i == old_i) {
       continue;
     }
-    index_changes.append({old_i, *new_i});
+    moved_indices.append({old_i, *new_i});
   }
-  if (index_changes.is_empty() && removed_indices.is_empty()) {
+  if (moved_indices.is_empty() && removed_indices.is_empty()) {
     return;
   }
 
@@ -489,22 +489,22 @@ static void refresh_node_sockets_animation_inout(Main &bmain,
       }
     }
   }
-  if (!index_changes.is_empty()) {
+  if (!moved_indices.is_empty()) {
     auto handle_rna_path = [&](char **path_ptr) {
       const StringRef old_path = *path_ptr;
       if (!old_path.startswith(node_path)) {
         return;
       }
-      for (const IndexChange &change : index_changes) {
+      for (const IndexMove &index_move : moved_indices) {
         const std::string old_path_prefix = fmt::format(
-            "{}.{}[{}]", node_path, inout_str, change.old_i);
+            "{}.{}[{}]", node_path, inout_str, index_move.old_i);
         if (!old_path.startswith(old_path_prefix)) {
           continue;
         }
         const std::string new_path = fmt::format("{}.{}[{}]{}",
                                                  node_path,
                                                  inout_str,
-                                                 change.new_i,
+                                                 index_move.new_i,
                                                  old_path.substr(old_path_prefix.size()));
         MEM_SAFE_DELETE(*path_ptr);
         *path_ptr = BLI_strdup(new_path.c_str());
