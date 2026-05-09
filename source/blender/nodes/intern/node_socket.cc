@@ -440,7 +440,7 @@ static void refresh_node_sockets_animation_inout(Main &bmain,
                                                  bNode &node,
                                                  const eNodeSocketInOut in_out,
                                                  const Span<bNodeSocket *> old_sockets,
-                                                 const VectorSet<bNodeSocket *> &new_sockets)
+                                                 const Span<bNodeSocket *> new_sockets)
 {
   if (!ntree.adt || !ntree.adt->action) {
     return;
@@ -449,19 +449,27 @@ static void refresh_node_sockets_animation_inout(Main &bmain,
     int old_i;
     int new_i;
   };
+
+  Map<UString, int> new_index_by_identifier;
+  for (const int new_i : new_sockets.index_range()) {
+    const bNodeSocket &new_socket = *new_sockets[new_i];
+    new_index_by_identifier.add_new(new_socket.identifier_ustr(), new_i);
+  }
+
   Vector<IndexChange> index_changes;
   Vector<int> removed_indices;
   for (const int old_i : old_sockets.index_range()) {
     bNodeSocket &old_socket = *old_sockets[old_i];
-    const int new_i = new_sockets.index_of_try(&old_socket);
-    if (new_i == -1) {
+    const std::optional<int> new_i = new_index_by_identifier.lookup_try(
+        old_socket.identifier_ustr());
+    if (!new_i) {
       removed_indices.append(old_i);
       continue;
     }
     if (new_i == old_i) {
       continue;
     }
-    index_changes.append({old_i, new_i});
+    index_changes.append({old_i, *new_i});
   }
   if (index_changes.is_empty() && removed_indices.is_empty()) {
     return;
