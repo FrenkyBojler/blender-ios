@@ -434,6 +434,68 @@ static bool hide_new_group_input_sockets(const bNode &node)
   return false;
 }
 
+static void refresh_node_sockets_animation_inout(bNodeTree &ntree,
+                                                 bNode &node,
+                                                 const eNodeSocketInOut in_out,
+                                                 const Span<bNodeSocket *> old_sockets,
+                                                 const VectorSet<bNodeSocket *> &new_sockets)
+{
+  if (!ntree.adt || !ntree.adt->action) {
+    return;
+  }
+  struct IndexChange {
+    int old_i;
+    int new_i;
+  };
+  Vector<IndexChange> index_changes;
+  for (const int old_i : old_sockets.index_range()) {
+    bNodeSocket &old_socket = *old_sockets[old_i];
+    const int new_i = new_sockets.index_of_try(&old_socket);
+    if (new_i == -1) {
+      continue;
+    }
+    if (new_i == old_i) {
+      continue;
+    }
+    index_changes.append({old_i, new_i});
+  }
+  if (index_changes.is_empty()) {
+    return;
+  }
+
+  const std::string node_path = fmt::format("nodes[\"{}\"]", BLI_str_escape(node.name));
+  animrig::Action &action = ntree.adt->action->wrap();
+  const animrig::slot_handle_t slot_handle = ntree.adt->slot_handle;
+  const StringRef inout_str = in_out == SOCK_IN ? "inputs" : "outputs";
+
+  /* All index changes have to be applied in a single pass over the fcurves. Otherwise, when
+   * sockets swap their position, the same fcurve may be modified twice and ends up with its
+   * original rna path. */
+  animrig::foreach_fcurve_in_action_slot(action, slot_handle, [&](FCurve &fcurve) {
+    const StringRef old_path = fcurve.rna_path;
+    if (!old_path.startswith(node_path)) {
+      return;
+    }
+    for (const IndexChange &change : index_changes) {
+      const std::string old_path_prefix = fmt::format(
+          "{}.{}[{}]", node_path, inout_str, change.old_i);
+      if (!old_path.startswith(old_path_prefix)) {
+        continue;
+      }
+      const std::string new_path = fmt::format("{}.{}[{}]{}",
+                                               node_path,
+                                               inout_str,
+                                               change.new_i,
+                                               old_path.substr(old_path_prefix.size()));
+      MEM_SAFE_DELETE(fcurve.rna_path);
+      fcurve.rna_path = BLI_strdup(new_path.c_str());
+      DEG_id_tag_update(&ntree.id, ID_RECALC_ANIMATION);
+      DEG_id_tag_update(&ntree.adt->action->id, ID_RECALC_SYNC_TO_EVAL);
+      return;
+    }
+  });
+}
+
 static void refresh_node_sockets_and_panels(bNodeTree &ntree,
                                             bNode &node,
                                             const NodeDeclaration &node_decl,
@@ -499,57 +561,8 @@ static void refresh_node_sockets_and_panels(bNodeTree &ntree,
     }
   }
 
-  if (AnimData *adt = ntree.adt) {
-    struct IndexChange {
-      int old_i;
-      int new_i;
-    };
-
-    Vector<IndexChange> input_index_changes;
-    for (const int old_input_i : old_inputs.index_range()) {
-      bNodeSocket &old_input = *old_inputs[old_input_i];
-      const int new_input_i = new_inputs.index_of_try(&old_input);
-      if (new_input_i == -1) {
-        continue;
-      }
-      if (new_input_i == old_input_i) {
-        continue;
-      }
-      input_index_changes.append({old_input_i, new_input_i});
-    }
-
-    bool found_animation_change = false;
-    if (adt->action) {
-      const std::string node_path = fmt::format("nodes[\"{}\"]", BLI_str_escape(node.name));
-      animrig::Action &action = adt->action->wrap();
-      const animrig::slot_handle_t slot_handle = adt->slot_handle;
-
-      animrig::foreach_fcurve_in_action_slot(action, slot_handle, [&](FCurve &fcurve) {
-        const StringRef old_path = fcurve.rna_path;
-        if (!old_path.startswith(node_path)) {
-          return;
-        }
-        for (const IndexChange &change : input_index_changes) {
-          const std::string old_path_prefix = fmt::format(
-              "{}.inputs[{}]", node_path, change.old_i);
-          if (!old_path.startswith(old_path_prefix)) {
-            continue;
-          }
-          const std::string new_path = fmt::format(
-              "{}.inputs[{}]{}", node_path, change.new_i, old_path.substr(old_path_prefix.size()));
-          MEM_SAFE_DELETE(fcurve.rna_path);
-          fcurve.rna_path = BLI_strdup(new_path.c_str());
-          found_animation_change = true;
-          return;
-        }
-      });
-    }
-
-    if (found_animation_change) {
-      DEG_id_tag_update(&ntree.id, ID_RECALC_ANIMATION);
-      DEG_id_tag_update(&adt->action->id, ID_RECALC_SYNC_TO_EVAL);
-    }
-  }
+  refresh_node_sockets_animation_inout(ntree, node, SOCK_IN, old_inputs, new_inputs);
+  refresh_node_sockets_animation_inout(ntree, node, SOCK_OUT, old_outputs, new_outputs);
 
   /* Destroy any remaining sockets that are no longer in the declaration. */
   for (bNodeSocket &old_socket : node.inputs.items_mutable()) {
