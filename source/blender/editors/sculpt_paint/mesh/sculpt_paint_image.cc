@@ -13,6 +13,8 @@
 #include "ED_paint.hh"
 
 #include "BLI_bit_vector.hh"
+#include "BLI_bounds.hh"
+#include "BLI_enumerable_thread_specific.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_color_blend.h"
 #include "BLI_math_geom.h"
@@ -22,9 +24,6 @@
 
 #include "IMB_colormanagement.hh"
 #include "IMB_imbuf.hh"
-
-#include "BLI_bounds.hh"
-#include "BLI_enumerable_thread_specific.hh"
 
 #include "BKE_brush.hh"
 #include "BKE_image_wrappers.hh"
