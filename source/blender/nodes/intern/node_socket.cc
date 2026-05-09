@@ -22,6 +22,8 @@
 #include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
+#include "BKE_action.hh"
+#include "BKE_animsys.h"
 #include "BKE_geometry_set.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_node.hh"
@@ -31,6 +33,7 @@
 #include "BKE_node_socket_value.hh"
 #include "BKE_node_tree_update.hh"
 
+#include "DNA_anim_types.h"
 #include "DNA_collection_types.h"
 #include "DNA_mask_types.h"
 #include "DNA_material_types.h"
@@ -60,6 +63,10 @@
 #include "SEQ_sequencer.hh"
 
 #include "WM_types.hh"
+
+#include "DEG_depsgraph.hh"
+
+#include "ANIM_action_iterators.hh"
 
 namespace blender {
 
@@ -455,6 +462,9 @@ static void refresh_node_sockets_and_panels(bNodeTree &ntree,
     old_outputs.append(&socket);
   }
 
+  Vector<bNodeSocket *> remaining_old_inputs = old_inputs;
+  Vector<bNodeSocket *> remaining_old_outputs = old_outputs;
+
   const bool hide_new_sockets = node.is_group_input() ? hide_new_group_input_sockets(node) : false;
 
   Vector<bNodePanelState> old_panels = Vector<bNodePanelState>(node.panel_states());
@@ -473,10 +483,12 @@ static void refresh_node_sockets_and_panels(bNodeTree &ntree,
             item_decl.get()))
     {
       if (socket_decl->in_out == SOCK_IN) {
-        refresh_node_socket(ntree, node, *socket_decl, old_inputs, new_inputs, hide_new_sockets);
+        refresh_node_socket(
+            ntree, node, *socket_decl, remaining_old_inputs, new_inputs, hide_new_sockets);
       }
       else {
-        refresh_node_socket(ntree, node, *socket_decl, old_outputs, new_outputs, hide_new_sockets);
+        refresh_node_socket(
+            ntree, node, *socket_decl, remaining_old_outputs, new_outputs, hide_new_sockets);
       }
     }
     else if (const PanelDeclaration *panel_decl = dynamic_cast<const PanelDeclaration *>(
@@ -484,6 +496,58 @@ static void refresh_node_sockets_and_panels(bNodeTree &ntree,
     {
       refresh_node_panel(*panel_decl, old_panels, *new_panel);
       ++new_panel;
+    }
+  }
+
+  if (AnimData *adt = ntree.adt) {
+    struct IndexChange {
+      int old_i;
+      int new_i;
+    };
+
+    Vector<IndexChange> input_index_changes;
+    for (const int old_input_i : old_inputs.index_range()) {
+      bNodeSocket &old_input = *old_inputs[old_input_i];
+      const int new_input_i = new_inputs.index_of_try(&old_input);
+      if (new_input_i == -1) {
+        continue;
+      }
+      if (new_input_i == old_input_i) {
+        continue;
+      }
+      input_index_changes.append({old_input_i, new_input_i});
+    }
+
+    bool found_animation_change = false;
+    if (adt->action) {
+      const std::string node_path = fmt::format("nodes[\"{}\"]", BLI_str_escape(node.name));
+      animrig::Action &action = adt->action->wrap();
+      const animrig::slot_handle_t slot_handle = adt->slot_handle;
+
+      animrig::foreach_fcurve_in_action_slot(action, slot_handle, [&](FCurve &fcurve) {
+        const StringRef old_path = fcurve.rna_path;
+        if (!old_path.startswith(node_path)) {
+          return;
+        }
+        for (const IndexChange &change : input_index_changes) {
+          const std::string old_path_prefix = fmt::format(
+              "{}.inputs[{}]", node_path, change.old_i);
+          if (!old_path.startswith(old_path_prefix)) {
+            continue;
+          }
+          const std::string new_path = fmt::format(
+              "{}.inputs[{}]{}", node_path, change.new_i, old_path.substr(old_path_prefix.size()));
+          MEM_SAFE_DELETE(fcurve.rna_path);
+          fcurve.rna_path = BLI_strdup(new_path.c_str());
+          found_animation_change = true;
+          return;
+        }
+      });
+    }
+
+    if (found_animation_change) {
+      DEG_id_tag_update(&ntree.id, ID_RECALC_ANIMATION);
+      DEG_id_tag_update(&adt->action->id, ID_RECALC_SYNC_TO_EVAL);
     }
   }
 
