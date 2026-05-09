@@ -243,6 +243,37 @@ ShadowDebugOutput debug_atlas_values([[resource_table]] const ShadowDebug &srt,
       .depth = default_depth};
 }
 
+float debug_atomic_cost([[resource_table]] const ShadowDebug &srt, uint l_idx, float3 P)
+{
+  LightData light = light_buf[l_idx];
+  ShadowCoordinates coord = srt.debug_coord_get(P, light);
+  uint cost = floatBitsToUint(shadow_read_depth(shadow_atlas_tx, shadow_tilemaps_tx, coord));
+  return float(cost - floatBitsToUint(FLT_MAX));
+}
+
+ShadowDebugOutput debug_atomic_cost([[resource_table]] const ShadowDebug &srt,
+                                    float3 P,
+                                    LightData /*light*/)
+{
+  float cost = 0.0f;
+  LIGHT_FOREACH_BEGIN_LOCAL_NO_CULL(light_cull_buf, l_idx)
+  {
+    cost += debug_atomic_cost(srt, l_idx, P);
+  }
+  LIGHT_FOREACH_END
+
+  LIGHT_FOREACH_BEGIN_DIRECTIONAL (light_cull_buf, l_idx) {
+    cost += debug_atomic_cost(srt, l_idx, P);
+  }
+  LIGHT_FOREACH_END
+
+  cost /= 60.0f;
+  return {.valid = true,
+          .color_add = float4(heatmap_gradient(cost), 0.0f),
+          .color_mul = float4(0.0f),
+          .depth = default_depth};
+}
+
 ShadowDebugOutput debug_random_tile_color([[resource_table]] const ShadowDebug &srt,
                                           float3 P,
                                           LightData light)
@@ -284,7 +315,11 @@ void debug_shadow_frag([[resource_table]] const ShadowDebug &srt,
   const eDebugMode mode = eDebugMode(srt.debug_mode);
   bool do_debug_sample_tile = mode != DEBUG_SHADOW_TILEMAPS;
 
-  ShadowDebugOutput result = debug_tilemaps(srt, P, light, int2(frag_co.xy), do_debug_sample_tile);
+  ShadowDebugOutput result;
+  result.valid = false;
+  if (mode != DEBUG_SHADOW_ATOMIC_COST) {
+    result = debug_tilemaps(srt, P, light, int2(frag_co.xy), do_debug_sample_tile);
+  }
 
   if (!result.valid && depth != 1.0f) {
     switch (mode) {
@@ -299,6 +334,9 @@ void debug_shadow_frag([[resource_table]] const ShadowDebug &srt,
         break;
       case DEBUG_SHADOW_TILEMAP_RANDOM_COLOR:
         result = debug_random_tilemap_color(srt, P, light);
+        break;
+      case DEBUG_SHADOW_ATOMIC_COST:
+        result = debug_atomic_cost(srt, P, light);
         break;
       default:
         break;
