@@ -62,6 +62,9 @@ static void node_declare(NodeDeclarationBuilder &b)
       .hide_value()
       .compositor_domain_priority(1)
       .description("The input mask")
+      /* The input mask must not be realized on the operation domain as doing so would limit the
+         image dimensions of the input mask to those of the operation domain. */
+      .compositor_realization_mode(CompositorInputRealizationMode::Transforms)
       .structure_type(StructureType::Dynamic);
   b.add_input<decl::Vector>("Mask Size"_ustr)
       .dimensions(2)
