@@ -5,6 +5,7 @@
 # Originally written by Matt Ebb
 
 import bpy
+from os import environ
 from bpy.types import Operator
 from bpy.app.translations import pgettext_rpt as rpt_
 
@@ -12,8 +13,10 @@ from bpy.app.translations import pgettext_rpt as rpt_
 def guess_player_path(preset):
     import sys
 
+    found_version = (0, 0, 0)
+
     if preset == 'INTERNAL':
-        return bpy.app.binary_path
+        return bpy.app.binary_path, found_version
 
     elif preset == 'DJV':
         player_path = "djv"
@@ -23,8 +26,10 @@ def guess_player_path(preset):
             djv2_path = "/Applications/DJV2.app/Contents/Resources/bin/djv"
             if os.path.exists(djv3_path):
                 player_path = djv3_path
+                found_version = (3, 1000, 1000) # Just assume it is > 3.4.0
             elif os.path.exists(djv2_path):
                 player_path = djv2_path
+                found_version = (2, 0, 0)
         elif sys.platform == "win32":
             import winreg
 
@@ -41,7 +46,7 @@ def guess_player_path(preset):
                             pass
                     return version
 
-                # Enumerate versioned subkeys (e.g. "DJV 3.3.3", "DJV 3.3.4", etc.) and
+                # Enumerate versioned subkeys (e.g. "DJV 3.3.4", "DJV 3.4.0", etc.) and
                 # pick the key with the greatest version.
                 reg_base = r"SOFTWARE\WOW6432Node\Grizzly Peak 3D"
                 with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, reg_base, 0, winreg.KEY_READ) as base_key:
@@ -57,8 +62,9 @@ def guess_player_path(preset):
 
                         if (version := extract_version(subkey_name)) is not None:
                             if best_version is None or version > best_version:
-                                best_version = version
                                 best_subkey = subkey_name
+                                best_version = version
+                                found_version = version
 
                     if best_subkey is not None:
                         reg_path = reg_base + "\\" + best_subkey
@@ -67,8 +73,24 @@ def guess_player_path(preset):
             except OSError:
                 pass
 
+            # Fallback to djv2 if we didn't find anything
+            if not reg_value:
+                try:
+                    reg_path = r"SOFTWARE\Classes\djv\shell\open\command"
+                    with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, reg_path, 0, winreg.KEY_READ) as regkey:
+                        reg_value = winreg.QueryValue(regkey, None)
+                        found_version = (2, 0, 0)
+                except OSError:
+                    pass
+
             if reg_value:
-                player_path = reg_value.strip() + "\\bin\\djv.exe"
+                if found_version > (2, 0, 0):
+                    player_path = reg_value.strip() + "\\bin\\djv.exe"
+                else:
+                    binary = "djv.exe"
+                    index = reg_value.find(binary)
+                    if index > 0:
+                        player_path = reg_value[:index + len(binary)]
 
     elif preset == 'FRAMECYCLER':
         player_path = "framecycler"
@@ -82,7 +104,7 @@ def guess_player_path(preset):
     else:
         player_path = ""
 
-    return player_path
+    return player_path, found_version
 
 
 class PlayRenderedAnim(Operator):
@@ -131,11 +153,13 @@ class PlayRenderedAnim(Operator):
         else:
             view_suffix = ""
 
+        found_version = (0, 0, 0)
+
         # try and guess a command line if it doesn't exist
         if preset == 'CUSTOM':
             player_path = prefs.filepaths.animation_player
         else:
-            player_path = guess_player_path(preset)
+            player_path, found_version = guess_player_path(preset)
 
         if is_movie is False and preset in {'FRAMECYCLER', 'RV', 'MPLAYER'}:
             file = PlayRenderedAnim._frame_path_with_number_char(rd, "#", view=view_suffix)
@@ -158,6 +182,7 @@ class PlayRenderedAnim(Operator):
                 if not os.path.exists(file):
                     self.report({'WARNING'}, err_msg)
 
+        remove_OCIO_env = False
         cmd = [player_path]
         # extra options, fps controls etc.
         if scene.use_preview_range:
@@ -187,14 +212,29 @@ class PlayRenderedAnim(Operator):
             ]
             cmd.extend(opts)
         elif preset == 'DJV':
-            opts = [
-                file,
-                "-speed", str(fps_final),
-                "-in", str(frame_start),
-                "-out", str(frame_end),
-                "-seek", str(scene.frame_current),
-                "-timeUnits", "Frames",
-            ]
+            if found_version >= (3, 4, 0):
+                opts = [
+                    file,
+                    "-speed", str(fps_final),
+                    "-in", str(frame_start),
+                    "-out", str(frame_end),
+                    "-seek", str(scene.frame_current),
+                    "-timeUnits", "Frames",
+                ]
+            elif found_version > (3, 0, 0):
+                opts = [
+                    file,
+                    "-speed", str(fps_final),
+                ]
+            else:
+                remove_OCIO_env = True
+                opts = [
+                    file,
+                    "-speed", str(fps_final),
+                    "-in_out", str(frame_start), str(frame_end),
+                    "-frame", str(scene.frame_current),
+                    "-time_units", "Frames",
+                ]
             cmd.extend(opts)
         elif preset == 'FRAMECYCLER':
             opts = [file, "{:d}-{:d}".format(scene.frame_start, scene.frame_end)]
@@ -230,7 +270,10 @@ class PlayRenderedAnim(Operator):
         print("Executing command:\n ", " ".join(quote(c) for c in cmd))
 
         try:
-            subprocess.Popen(cmd)
+            env_copy = os.environ.copy()
+            if remove_OCIO_env:
+                env_copy.pop("OCIO", None)
+            subprocess.Popen(cmd, env=env_copy)
         except Exception as ex:
             err_msg = rpt_("Couldn't run external animation player with command {!r}\n{:s}").format(cmd, str(ex))
             self.report(
