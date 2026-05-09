@@ -128,11 +128,9 @@ static IndexMask find_edges_duplicates(const Mesh &mesh,
   mask.foreach_index([&](const int edge_i) {
     const int2 edge = edges[edge_i];
     if (!unique_edges.add(edge)) {
-      if (verbose) {
-        errors.add(fmt::runtime("Edge {} is a duplicate of {}"),
-                   edge_i,
-                   int(mask[unique_edges.index_of(edge)]));
-      }
+      errors.add(fmt::runtime("Edge {} is a duplicate of {}"),
+                 edge_i,
+                 int(mask[unique_edges.index_of(edge)]));
       duplicate_edges[edge_i].set();
     }
   });
@@ -163,7 +161,8 @@ static IndexMask find_faces_bad_offsets(const Mesh &mesh,
       IndexRange(mesh.faces_num),
       memory,
       [&](const IndexMaskSegment universe_segment, IndexRangesBuilder<int16_t> &builder) {
-        for (const int face_i : universe_segment) {
+        for (const int16_t i : universe_segment.base_span()) {
+          const int face_i = int(universe_segment.offset() + i);
           const int face_start = face_offsets[face_i];
           const int face_end = face_offsets[face_i + 1];
           if (face_end < face_start) {
@@ -172,7 +171,7 @@ static IndexMask find_faces_bad_offsets(const Mesh &mesh,
           }
           if (face_end - face_start < 3) {
             errors.add("Face {} has invalid size {}", face_i, face_end - face_start);
-            builder.add(face_i);
+            builder.add(i);
           }
         }
         return universe_segment.offset();
@@ -895,14 +894,13 @@ static bool mesh_validate_impl(const Mesh &mesh, const bool verbose, Mesh *mesh_
       remove_invalid_faces(mesh, valid_and_missing_edge_faces);
     }
 
-    if (valid_edges.size() < mesh.edges_num) {
+    const bool any_edges_removed = valid_edges.size() < mesh.edges_num;
+    if (any_edges_removed) {
       remove_invalid_edges(mesh, valid_edges);
     }
 
     /* Regenerate edges if edges are missing or corner edges are bad. */
-    if (any_corner_edges_bad || !faces_missing_edges.is_empty() ||
-        valid_edges.size() < mesh.edges_num)
-    {
+    if (any_corner_edges_bad || any_edges_removed || !faces_missing_edges.is_empty()) {
       mesh_calc_edges(mesh, true, false);
     }
   }
