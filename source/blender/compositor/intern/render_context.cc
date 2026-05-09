@@ -93,7 +93,7 @@ void FileOutput::add_view(const char *view_name, const Result &data)
       UNPACK2(data.domain().data_size), data.channels_count() * 8, 0);
   render_view->ibuf->float_buffer = ImBufFloatBuffer{
       .data = static_cast<const float *>(data.cpu_data().data()),
-      .sharing_info = render_view->ibuf->float_buffer.sharing_info,
+      .sharing_info = data.sharing_info(),
       .colorspace = nullptr};
 }
 
@@ -120,7 +120,7 @@ void FileOutput::add_pass(const char *pass_name,
       UNPACK2(data.domain().data_size), data.channels_count() * 8, 0);
   render_pass->ibuf->float_buffer = ImBufFloatBuffer{
       .data = static_cast<const float *>(data.cpu_data().data()),
-      .sharing_info = render_pass->ibuf->float_buffer.sharing_info,
+      .sharing_info = data.sharing_info(),
       .colorspace = nullptr};
   copy_v2_v2_db(render_pass->ibuf->ppm, render_result_->ppm);
 }
