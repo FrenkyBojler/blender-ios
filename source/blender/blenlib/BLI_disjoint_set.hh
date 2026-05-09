@@ -91,8 +91,10 @@ template<typename T = int64_t> class DisjointSet {
     return root;
   }
 
-  /* Same as above but intended to be threadsafe. Better to use even if this is expected to be not
-   * an issue. */
+  /**
+   * Same as above but intended to be threadsafe. Better to use even if this is expected to be not
+   * an issue.
+   */
   T find_root(const T x) const
   {
     /* Find root by following parents. */
