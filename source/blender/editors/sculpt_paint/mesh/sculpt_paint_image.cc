@@ -307,8 +307,6 @@ static void apply_debug_color(MutableSpan<float4> paint_pixels, const PackedPixe
 struct FactorLocalData {
   Vector<float3> pixel_positions;
   Vector<float> distances;
-
-  MutableSpan<float4> scene_linear_pixels;
 };
 
 struct PaintLocalData {
