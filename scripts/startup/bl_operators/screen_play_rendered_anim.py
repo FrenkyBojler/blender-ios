@@ -19,9 +19,12 @@ def guess_player_path(preset):
         player_path = "djv"
         if sys.platform == "darwin":
             import os
-            test_path = "/Applications/DJV2.app/Contents/Resources/bin/djv"
-            if os.path.exists(test_path):
-                player_path = test_path
+            djv3_path = "/Applications/DJV.app/Contents/MacOS/DJV"
+            djv2_path = "/Applications/DJV2.app/Contents/Resources/bin/djv"
+            if os.path.exists(djv3_path):
+                player_path = djv3_path
+            elif os.path.exists(djv2_path):
+                player_path = djv2_path
         elif sys.platform == "win32":
             import winreg
 
@@ -187,9 +190,10 @@ class PlayRenderedAnim(Operator):
             opts = [
                 file,
                 "-speed", str(fps_final),
-                # "-in_out", str(frame_start), str(frame_end),
-                # "-frame", str(scene.frame_current),
-                # "-time_units", "Frames",
+                "-in", str(frame_start),
+                "-out", str(frame_end),
+                "-seek", str(scene.frame_current),
+                "-timeUnits", "Frames",
             ]
             cmd.extend(opts)
         elif preset == 'FRAMECYCLER':
