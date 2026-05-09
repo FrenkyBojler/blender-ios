@@ -292,8 +292,13 @@ const ImFileType IMB_FILE_TYPES[] = {
         /*load_filepath*/ nullptr,
         /*load_filepath_thumbnail*/ nullptr,
         /*save*/ imb_save_ktx,
+        /*save_buffer*/ nullptr,
         /*flag*/ 0,
+        /*capability_read*/ (eImFileTypeCapability::File | eImFileTypeCapability::Memory),
+        /*capability_write*/ eImFileTypeCapability::File,
         /*filetype*/ IMB_FTYPE_KTX,
+        /*filetype_id*/ "KTX",
+        /*file_extensions*/ imb_file_extensions_ktx,
         /*default_save_role*/ COLOR_ROLE_DEFAULT_BYTE,
     },
 #endif
