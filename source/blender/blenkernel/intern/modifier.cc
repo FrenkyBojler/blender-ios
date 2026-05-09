@@ -53,6 +53,7 @@
 #include "BKE_fluid.h"
 #include "BKE_geometry_set.hh"
 #include "BKE_global.hh"
+#include "BKE_idprop.hh"
 #include "BKE_idtype.hh"
 #include "BKE_key.hh"
 #include "BKE_lib_id.hh"
@@ -91,7 +92,7 @@ void BKE_modifier_init()
   ModifierData *md;
 
   /* Initialize modifier types */
-  modifier_type_init(modifier_types); /* MOD_utils.c */
+  modifier_type_init(modifier_types); /* MOD_util.cc */
 
   /* Initialize global common storage used for virtual modifier list. */
   md = BKE_modifier_new(eModifierType_Armature);
@@ -198,6 +199,9 @@ void BKE_modifier_free_ex(ModifierData *md, const int flag)
   if (md->error) {
     MEM_delete(md->error);
   }
+  if (md->system_properties != nullptr) {
+    IDP_FreeProperty_ex(md->system_properties, false);
+  }
 
   MEM_delete(md);
 }
@@ -212,7 +216,7 @@ void BKE_modifier_remove_from_list(Object *ob, ModifierData *md)
   BLI_assert(BLI_findindex(&ob->modifiers, md) != -1);
 
   if (md->flag & eModifierFlag_Active) {
-    /* Prefer the previous modifier but use the next if this modifier is the first in the list. */
+    /* Prefer the next modifier but use the previous if this modifier is the last in the list. */
     if (md->next != nullptr) {
       BKE_object_modifier_set_active(ob, md->next);
     }
@@ -289,7 +293,9 @@ void BKE_modifiers_foreach_ID_link(Object *ob, IDWalkFunc walk, void *user_data)
 {
   for (ModifierData &md : ob->modifiers) {
     const ModifierTypeInfo *mti = BKE_modifier_get_info(ModifierType(md.type));
-
+    IDP_foreach_property(md.system_properties, IDP_TYPE_FILTER_ID, [&](IDProperty *id_prop) {
+      walk(user_data, ob, (ID **)&id_prop->data.pointer, IDWALK_CB_USER);
+    });
     if (mti->foreach_ID_link) {
       mti->foreach_ID_link(&md, ob, walk, user_data);
     }
@@ -367,6 +373,10 @@ void BKE_modifier_copydata_ex(const ModifierData *md, ModifierData *target, cons
     if (mti->foreach_ID_link) {
       mti->foreach_ID_link(target, nullptr, modifier_copy_data_id_us_cb, nullptr);
     }
+  }
+
+  if (md->system_properties) {
+    target->system_properties = IDP_CopyProperty_ex(md->system_properties, flag);
   }
 }
 
@@ -624,7 +634,7 @@ ModifierData *BKE_modifiers_get_virtual_modifierlist(const Object *ob,
     }
     else if (ob->parent->type == OB_CURVES_LEGACY && ob->partype == PARSKEL) {
       virtual_modifier_data->cmd.object = ob->parent;
-      virtual_modifier_data->cmd.defaxis = ob->trackflag + 1;
+      virtual_modifier_data->cmd.defaxis = CurveModifierDefaultAxis(ob->trackflag + 1);
       virtual_modifier_data->cmd.modifier.next = md;
       md = &virtual_modifier_data->cmd.modifier;
     }
@@ -641,7 +651,7 @@ ModifierData *BKE_modifiers_get_virtual_modifierlist(const Object *ob,
       virtual_modifier_data->smd.modifier.mode |= eModifierMode_Editmode | eModifierMode_OnCage;
     }
     else {
-      virtual_modifier_data->smd.modifier.mode &= ~eModifierMode_Editmode | eModifierMode_OnCage;
+      virtual_modifier_data->smd.modifier.mode &= ~eModifierMode_Editmode;
     }
 
     virtual_modifier_data->smd.modifier.next = md;
@@ -1040,7 +1050,7 @@ Mesh *BKE_modifier_get_evaluated_mesh_from_evaluated_object(Object *ob_eval)
 
   if ((ob_eval->type == OB_MESH) && (ob_eval->mode & OB_MODE_EDIT)) {
     /* In EditMode, evaluated mesh is stored in BMEditMesh, not the object... */
-    const BMEditMesh *em = BKE_editmesh_from_object(ob_eval);
+    const BMEditMesh *em = BKE_editmesh_from_object(DEG_get_original(ob_eval));
     /* 'em' might not exist yet in some cases, just after loading a .blend file, see #57878. */
     if (em != nullptr) {
       mesh = const_cast<Mesh *>(BKE_object_get_editmesh_eval_final(ob_eval));
@@ -1125,6 +1135,10 @@ void BKE_modifier_blend_write(BlendWriter *writer,
     const ModifierTypeInfo *mti = BKE_modifier_get_info(ModifierType(md.type));
     if (mti == nullptr) {
       continue;
+    }
+
+    if (md.system_properties) {
+      IDP_BlendWrite(writer, md.system_properties);
     }
 
     /* If the blend_write callback is defined, it should handle the whole writing process. */
@@ -1227,7 +1241,7 @@ void BKE_modifier_blend_write(BlendWriter *writer,
  */
 
 /* Domain, inflow, ... */
-static void modifier_ensure_type(FluidModifierData *fluid_modifier_data, int type)
+static void modifier_ensure_type(FluidModifierData *fluid_modifier_data, FluidModifierType type)
 {
   fluid_modifier_data->type = type;
   BKE_fluid_modifier_free(fluid_modifier_data);
@@ -1258,7 +1272,7 @@ static ModifierData *modifier_replace_with_fluid(BlendDataReader *reader,
             reader, old_fluidsim_modifier_data->fss, sizeof(FluidsimSettings)));
     switch (old_fluidsim_settings->type) {
       case OB_FLUIDSIM_ENABLE:
-        modifier_ensure_type(fluid_modifier_data, 0);
+        modifier_ensure_type(fluid_modifier_data, FluidModifierType{});
         break;
       case OB_FLUIDSIM_DOMAIN:
         modifier_ensure_type(fluid_modifier_data, MOD_FLUID_TYPE_DOMAIN);
@@ -1304,7 +1318,7 @@ static ModifierData *modifier_replace_with_fluid(BlendDataReader *reader,
   else if (old_modifier_data->type == eModifierType_Smoke) {
     SmokeModifierData *old_smoke_modifier_data = reinterpret_cast<SmokeModifierData *>(
         old_modifier_data);
-    modifier_ensure_type(fluid_modifier_data, old_smoke_modifier_data->type);
+    modifier_ensure_type(fluid_modifier_data, FluidModifierType(old_smoke_modifier_data->type));
     if (fluid_modifier_data->type == MOD_FLUID_TYPE_DOMAIN) {
       BKE_fluid_domain_type_set(object, fluid_modifier_data->domain, FLUID_DOMAIN_TYPE_GAS);
     }
@@ -1347,6 +1361,9 @@ void BKE_modifier_blend_read_data(BlendDataReader *reader, ListBaseT<ModifierDat
     ModifierData *md = &md_iter;
     md->error = nullptr;
     md->runtime = nullptr;
+
+    BLO_read_struct(reader, IDProperty, &md->system_properties);
+    IDP_BlendDataRead(reader, &md->system_properties);
 
     /* If linking from a library, clear 'local' library override flag. */
     if (ID_IS_LINKED(ob)) {
@@ -1494,7 +1511,7 @@ void BKE_modifier_blend_read_data(BlendDataReader *reader, ListBaseT<ModifierDat
           fmd->effector->flags &= ~FLUID_EFFECTOR_NEEDS_UPDATE;
         }
         else {
-          fmd->type = 0;
+          fmd->type = FluidModifierType{};
           fmd->flow = nullptr;
           fmd->domain = nullptr;
           fmd->effector = nullptr;

@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Beta (b'21cc928ee21e')\n"
+"Project-Id-Version: Blender 5.2.0 Alpha (b'396b6a98e9f6')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-03-09 08:57+0000\n"
+"POT-Creation-Date: 2026-05-04 07:43+0000\n"
 "PO-Revision-Date: 2025-12-04 22:18+0000\n"
 "Last-Translator: Jackson Zheng <business.jackson.zheng@gmail.com>\n"
 "Language-Team: Hindi <https://translate.blender.org/projects/blender-ui/ui/hi/>\n"
@@ -298,6 +298,10 @@ msgstr "सूचना"
 
 msgid "Default"
 msgstr "मूलभूत"
+
+
+msgid "Display Mode"
+msgstr "प्रदर्शित रूप"
 
 
 msgid "Coordinates"
@@ -694,6 +698,11 @@ msgid "Vertex Color"
 msgstr "शिरोबिन्दु रंग"
 
 
+msgctxt "Operator"
+msgid "Poly"
+msgstr "बहु"
+
+
 msgid "All"
 msgstr "सभी"
 
@@ -708,6 +717,10 @@ msgstr "छटा"
 
 msgid "Fill"
 msgstr "भरण"
+
+
+msgid "Both"
+msgstr "दोनों"
 
 
 msgid "Background Image"
@@ -1410,10 +1423,6 @@ msgstr "निर्देशिका"
 
 msgid "Directory displayed in the file browser"
 msgstr "निर्देशिका संचिका विचरक में प्रदर्शित"
-
-
-msgid "Display Mode"
-msgstr "प्रदर्शित रूप"
 
 
 msgid "File Name"
@@ -2573,8 +2582,8 @@ msgid "Dots"
 msgstr "बिन्दु्"
 
 
-msgid "UV"
-msgstr "यूवी"
+msgid "Placement"
+msgstr "नियोजन"
 
 
 msgid "Show/Hide"
@@ -2585,6 +2594,10 @@ msgid "Names"
 msgstr "नाम"
 
 
+msgid "Math"
+msgstr "गणित"
+
+
 msgid "Bone Roll"
 msgstr "हड्डी पंजी"
 
@@ -2593,16 +2606,16 @@ msgid "Snap"
 msgstr "स्नैप"
 
 
+msgid "Import"
+msgstr "आयात करें"
+
+
 msgid "Mirror"
 msgstr "दर्पण"
 
 
-msgid "Keying"
-msgstr "कुंजीयन"
-
-
-msgid "Math"
-msgstr "गणित"
+msgid "UV"
+msgstr "यूवी"
 
 
 msgid "Light"
@@ -2633,16 +2646,16 @@ msgid "Hooks"
 msgstr "खूँटी"
 
 
+msgid "Keying"
+msgstr "कुंजीयन"
+
+
 msgid "Toggle Bone Options"
 msgstr "हड्डी विकल्प बंद/बुझ"
 
 
 msgid "Enable Bone Options"
 msgstr "हड्डी विकल्प को सक्षम करें"
-
-
-msgid "Import"
-msgstr "आयात करें"
 
 
 msgid "Merge"
@@ -3022,10 +3035,6 @@ msgid "NLA Track is locked"
 msgstr "अरैखिक अनुप्राणन ट्रैक अवरोधित है"
 
 
-msgid "Height of the node"
-msgstr "ग्रन्थि की ऊंचाई"
-
-
 msgid "To"
 msgstr "करने के लिए"
 
@@ -3379,10 +3388,6 @@ msgid "Delete Marker"
 msgstr "चिन्हक मिटाएँ"
 
 
-msgid "Placement"
-msgstr "नियोजन"
-
-
 msgid "Whole Frame"
 msgstr "संप गठन"
 
@@ -3600,10 +3605,6 @@ msgstr "समतल"
 
 msgid "Side"
 msgstr "किनारा"
-
-
-msgid "Both"
-msgstr "दोनों"
 
 
 msgid "Next Keyframe"
@@ -3941,10 +3942,6 @@ msgid "Bake All Physics"
 msgstr "सभी भौतिकी भर्जन"
 
 
-msgid "Bake all physics"
-msgstr "सभी भौतिकी भर्जन"
-
-
 msgctxt "Operator"
 msgid "Render"
 msgstr " प्रतिपादन"
@@ -4204,10 +4201,6 @@ msgstr "मान मूलभूत पर पूर्ववत करें"
 msgctxt "Operator"
 msgid "Align"
 msgstr "संरेखित करें"
-
-
-msgid "Axis Direction"
-msgstr "अक्ष दिशा"
 
 
 msgctxt "Operator"
@@ -5196,11 +5189,6 @@ msgstr "प्राथमिकता"
 
 msgid "Draw:"
 msgstr "चित्रण:"
-
-
-msgctxt "Operator"
-msgid "Poly"
-msgstr "बहु"
 
 
 msgctxt "Operator"

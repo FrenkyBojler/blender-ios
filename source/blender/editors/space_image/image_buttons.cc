@@ -141,10 +141,10 @@ static const char *ui_imageuser_layer_fake_name(RenderResult *rr)
   if (!ibuf) {
     return nullptr;
   }
-  if (ibuf->float_buffer.data) {
+  if (ibuf->float_data()) {
     return IFACE_("Composite");
   }
-  if (ibuf->byte_buffer.data) {
+  if (ibuf->byte_data()) {
     return IFACE_("Sequence");
   }
   return nullptr;
@@ -183,7 +183,7 @@ static void ui_imageuser_layer_menu(bContext * /*C*/, ui::Layout *layout, void *
 
   const char *fake_name = ui_imageuser_layer_fake_name(rr);
   if (fake_name) {
-    ui::Button *but = uiDefButS(block,
+    ui::Button *but = uiDefButV(block,
                                 ui::ButtonType::ButMenu,
                                 fake_name,
                                 0,
@@ -199,7 +199,7 @@ static void ui_imageuser_layer_menu(bContext * /*C*/, ui::Layout *layout, void *
 
   int nr = fake_name ? 1 : 0;
   for (RenderLayer *rl = static_cast<RenderLayer *>(rr->layers.first); rl; rl = rl->next, nr++) {
-    ui::Button *but = uiDefButS(block,
+    ui::Button *but = uiDefButV(block,
                                 ui::ButtonType::ButMenu,
                                 rl->name,
                                 0,
@@ -270,7 +270,7 @@ static void ui_imageuser_pass_menu(bContext * /*C*/, ui::Layout *layout, void *r
     }
     BLI_addtail(&added_passes, BLI_genericNodeN(rpass->name));
 
-    ui::Button *but = uiDefButS(block,
+    ui::Button *but = uiDefButV(block,
                                 ui::ButtonType::ButMenu,
                                 IFACE_(rpass->name),
                                 0,
@@ -341,7 +341,7 @@ static void ui_imageuser_view_menu_rr(bContext * /*C*/, ui::Layout *layout, void
   for (rview = static_cast<RenderView *>(rr ? rr->views.last : nullptr); rview;
        rview = rview->prev, nr--)
   {
-    ui::Button *but = uiDefButS(block,
+    ui::Button *but = uiDefButV(block,
                                 ui::ButtonType::ButMenu,
                                 IFACE_(rview->name),
                                 0,
@@ -385,7 +385,7 @@ static void ui_imageuser_view_menu_multiview(bContext * /*C*/, ui::Layout *layou
 
   nr = BLI_listbase_count(&image->views) - 1;
   for (iv = static_cast<ImageView *>(image->views.last); iv; iv = iv->prev, nr--) {
-    ui::Button *but = uiDefButS(block,
+    ui::Button *but = uiDefButV(block,
                                 ui::ButtonType::ButMenu,
                                 IFACE_(iv->name),
                                 0,
@@ -943,7 +943,7 @@ void uiTemplateImage(ui::Layout *layout,
           void *lock;
           ImBuf *ibuf = BKE_image_acquire_ibuf(ima, iuser, &lock);
 
-          if (ibuf && ibuf->float_buffer.data && (ibuf->foptions.flag & OPENEXR_HALF) == 0) {
+          if (ibuf && ibuf->float_data() && (ibuf->foptions.flag & OPENEXR_HALF) == 0) {
             col.prop(&imaptr, "use_half_precision", UI_ITEM_NONE, std::nullopt, ICON_NONE);
           }
           BKE_image_release_ibuf(ima, ibuf, lock);
@@ -1122,6 +1122,8 @@ void uiTemplateImageStereo3d(ui::Layout *layout, PointerRNA *stereo3d_format_ptr
       col.prop(stereo3d_format_ptr, "use_squeezed_frame", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       break;
     }
+    case S3D_DISPLAY_PAGEFLIP:
+      break;
   }
 }
 
@@ -1226,7 +1228,7 @@ void uiTemplateImageInfo(ui::Layout *layout, bContext *C, Image *ima, ImageUser 
 
     ofs += BLI_snprintf_utf8_rlen(str + ofs, len - ofs, RPT_("%d \u00D7 %d, "), ibuf->x, ibuf->y);
 
-    if (ibuf->float_buffer.data || ibuf->gpu.texture) {
+    if (ibuf->float_data() || ibuf->gpu.texture) {
       if (ibuf->channels != 4) {
         ofs += BLI_snprintf_utf8_rlen(
             str + ofs, len - ofs, RPT_("%d float channel(s)"), ibuf->channels);
@@ -1282,7 +1284,7 @@ void uiTemplateImageInfo(ui::Layout *layout, bContext *C, Image *ima, ImageUser 
     }
     else if (ima->source == IMA_SRC_SEQUENCE && ibuf) {
       /* Image sequence frame number + filename */
-      const char *filename = BLI_path_basename(ibuf->filepath);
+      const char *filename = BLI_path_basename(ibuf->filepath.c_str());
       SNPRINTF_UTF8(str, RPT_("Frame %d: %s"), framenr, filename);
     }
     else {

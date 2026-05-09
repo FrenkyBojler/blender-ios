@@ -182,7 +182,7 @@ static void insert_graph_keys(bAnimContext *ac, eGraphKeys_InsertKey_Types mode)
       }
 
       /* Insert keyframe directly into the F-Curve. */
-      insert_vert_fcurve(fcu, {x, y}, settings, eInsertKeyFlags(0));
+      insert_vert_fcurve(fcu, {x, y}, settings, eInsertKeyFlags{});
 
       ale.update |= ANIM_UPDATE_DEFAULT;
     }
@@ -232,7 +232,7 @@ static void insert_graph_keys(bAnimContext *ac, eGraphKeys_InsertKey_Types mode)
         }
 
         const float curval = evaluate_fcurve_only_curve(fcu, cfra);
-        insert_vert_fcurve(fcu, {cfra, curval}, settings, eInsertKeyFlags(0));
+        insert_vert_fcurve(fcu, {cfra, curval}, settings, eInsertKeyFlags{});
       }
 
       ale.update |= ANIM_UPDATE_DEFAULT;
@@ -353,7 +353,7 @@ static wmOperatorStatus graphkeys_click_insert_exec(bContext *C, wmOperator *op)
     settings.keyframe_type = eBezTriple_KeyframeType(ts->keyframe_type);
 
     /* Insert keyframe on the specified frame + value. */
-    insert_vert_fcurve(fcu, {frame, val}, settings, eInsertKeyFlags(0));
+    insert_vert_fcurve(fcu, {frame, val}, settings, eInsertKeyFlags{});
 
     ale->update |= ANIM_UPDATE_DEPS;
 
@@ -985,8 +985,6 @@ static void convert_keys_to_samples(bAnimContext *ac, int start, int end)
 static wmOperatorStatus graphkeys_keys_to_samples_exec(bContext *C, wmOperator * /*op*/)
 {
   bAnimContext ac;
-  Scene *scene = nullptr;
-  int start, end;
 
   /* Get editor data. */
   if (ANIM_animdata_get_context(C, &ac) == 0) {
@@ -995,12 +993,10 @@ static wmOperatorStatus graphkeys_keys_to_samples_exec(bContext *C, wmOperator *
 
   /* For now, init start/end from preview-range extents. */
   /* TODO: add properties for this. (Joshua Leung 2009) */
-  scene = ac.scene;
-  start = PSFRA;
-  end = PEFRA;
+  const ScenePlaybackRange playback_range = BKE_scene_get_playback_range(ac.scene);
 
   /* Sample keyframes. */
-  convert_keys_to_samples(&ac, start, end);
+  convert_keys_to_samples(&ac, playback_range.start_frame, playback_range.end_frame);
 
   /* Set notifier that keyframes have changed. */
   /* NOTE: some distinction between order/number of keyframes and type should be made? */
@@ -1064,19 +1060,14 @@ static void convert_samples_to_keys(bAnimContext *ac, int start, int end)
 static wmOperatorStatus graphkeys_samples_to_keys_exec(bContext *C, wmOperator * /*op*/)
 {
   bAnimContext ac;
-  Scene *scene = nullptr;
-  int start, end;
 
   /* Get editor data. */
   if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
-  scene = ac.scene;
-  start = PSFRA;
-  end = PEFRA;
-
-  convert_samples_to_keys(&ac, start, end);
+  const ScenePlaybackRange playback_range = BKE_scene_get_playback_range(ac.scene);
+  convert_samples_to_keys(&ac, playback_range.start_frame, playback_range.end_frame);
 
   /* Set notifier that keyframes have changed. */
   /* NOTE: some distinction between order/number of keyframes and type should be made? */
@@ -1467,7 +1458,7 @@ static void setexpo_graph_keys(bAnimContext *ac, short mode)
 
     if (mode >= 0) {
       /* Just set mode setting. */
-      fcu->extend = mode;
+      fcu->extend = eFCurve_Extend(mode);
 
       ale.update |= ANIM_UPDATE_HANDLES;
     }
@@ -2626,27 +2617,28 @@ static const EnumPropertyItem prop_graphkeys_mirror_types[] = {
      0,
      "By Times Over Current Frame",
      "Flip times of selected keyframes using the current frame as the mirror line"},
+    {GRAPHKEYS_MIRROR_MARKER,
+     "MARKER",
+     0,
+     "By Times Over First Selected Marker",
+     "Flip times of selected keyframes using the first selected marker as the reference point"},
+    {GRAPHKEYS_MIRROR_YAXIS,
+     "YAXIS",
+     0,
+     "By Times Over Zero Time",
+     "Flip times of selected keyframes, effectively reversing the order they appear in"},
+    RNA_ENUM_ITEM_SEPR,
     {GRAPHKEYS_MIRROR_VALUE,
      "VALUE",
      0,
      "By Values Over Cursor Value",
      "Flip values of selected keyframes using the cursor value (Y/Horizontal component) as the "
      "mirror line"},
-    {GRAPHKEYS_MIRROR_YAXIS,
-     "YAXIS",
-     0,
-     "By Times Over Zero Time",
-     "Flip times of selected keyframes, effectively reversing the order they appear in"},
     {GRAPHKEYS_MIRROR_XAXIS,
      "XAXIS",
      0,
      "By Values Over Zero Value",
      "Flip values of selected keyframes (i.e. negative values become positive, and vice versa)"},
-    {GRAPHKEYS_MIRROR_MARKER,
-     "MARKER",
-     0,
-     "By Times Over First Selected Marker",
-     "Flip times of selected keyframes using the first selected marker as the reference point"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 

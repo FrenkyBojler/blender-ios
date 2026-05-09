@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Beta (b'21cc928ee21e')\n"
+"Project-Id-Version: Blender 5.2.0 Alpha (b'396b6a98e9f6')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-03-09 08:57+0000\n"
+"POT-Creation-Date: 2026-05-04 07:43+0000\n"
 "PO-Revision-Date: 2025-07-23 15:18+0000\n"
 "Last-Translator: Aras Pranckevičius <aras@nesnausk.org>\n"
 "Language-Team: Lithuanian <https://translate.blender.org/projects/blender-ui/ui/lt/>\n"
@@ -1199,6 +1199,10 @@ msgid "Flat"
 msgstr "Plokščia"
 
 
+msgid "Threshold"
+msgstr "Slenkstis"
+
+
 msgctxt "GPencil"
 msgid "Mode"
 msgstr "Veiksena"
@@ -1263,10 +1267,6 @@ msgstr "Visi sluoksniai po aktyviu"
 
 msgid "Simplify"
 msgstr "Supaprastinti"
-
-
-msgid "Threshold"
-msgstr "Slenkstis"
 
 
 msgid "Hardness"
@@ -3093,8 +3093,8 @@ msgid "Show/Hide"
 msgstr "Rodyti/Slėpti"
 
 
-msgid "Layout"
-msgstr "Išdėstymas/Maketas"
+msgid "Import"
+msgstr "Importuoti"
 
 
 msgid "Apply"
@@ -3105,8 +3105,8 @@ msgid "Track"
 msgstr "Sekti"
 
 
-msgid "Import"
-msgstr "Importuoti"
+msgid "Layout"
+msgstr "Išdėstymas/Maketas"
 
 
 msgid "Animals"
@@ -3378,11 +3378,6 @@ msgstr "Importuoti „BVH“"
 
 
 msgctxt "Operator"
-msgid "Import SVG"
-msgstr "Importuoti „SVG“"
-
-
-msgctxt "Operator"
 msgid "Import FBX"
 msgstr "Importuoti „FBX“"
 
@@ -3481,10 +3476,6 @@ msgstr "Kampas"
 msgctxt "Action"
 msgid "Object"
 msgstr "Objektas"
-
-
-msgid "Add Mode"
-msgstr "Pridėti veikseną"
 
 
 msgid "BMP"
@@ -3811,10 +3802,6 @@ msgstr "Rodyti šaltinį"
 
 msgid "Show Color Tags"
 msgstr "Rodyti spalvos žymes"
-
-
-msgid "Show Thumbnails"
-msgstr "Rodyti miniatiūras"
 
 
 msgid "Toolbar"
@@ -4422,6 +4409,11 @@ msgstr "Nauja/-s/-i"
 
 
 msgctxt "Operator"
+msgid "Save Copy..."
+msgstr "Išsaugoti kopiją..."
+
+
+msgctxt "Operator"
 msgid "Quit"
 msgstr "Išeiti"
 
@@ -4434,11 +4426,6 @@ msgstr "Automatiškai išsaugoti..."
 msgctxt "Operator"
 msgid "Preferences..."
 msgstr "Nuostatos..."
-
-
-msgctxt "Operator"
-msgid "Save Copy..."
-msgstr "Išsaugoti kopiją..."
 
 
 msgid "Auto-Save Preferences"

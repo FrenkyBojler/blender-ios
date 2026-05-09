@@ -470,10 +470,13 @@ set(ZSTANDARD_COPYRIGHT "Copyright (c) 2016, Gregory Szorc. All rights reserved.
 set(AUTOPEP8_VERSION 2.3.1)
 # Needed by: `autopep8` (so the version doesn't change on rebuild).
 set(PYCODESTYLE_VERSION 2.13)
+# DocUtils Python source (to validate generated docs, not used by Blender at run-time).
+set(DOCUTILS_VERSION 0.22.4)
 # Build system for other packages (not used by Blender at run-time).
 set(MESON_VERSION 1.9.0)
 # Build time requirements for numpy and cython
 set(SETUPTOOLS_VERSION 80.9.0)
+set(SETUPTOOLS_SCM_VERSION 9.2.2)
 set(MESON_PYTHON_VERSION 0.18.0)
 set(PACKAGING_VERSION 25.0) # meson-python dep
 set(PYPROJECT_METADATA_VERSION  0.9.1) # meson-python dep
@@ -1504,3 +1507,15 @@ set(CERES_FILE ceres-${CERES_VERSION}.tar.gz)
 set(CERES_HOMEPAGE http://ceres-solver.org/)
 set(CERES_LICENSE SPDX:BSD-3-Clause)
 set(CERES_COPYRIGHT "Copyright 2023 Google Inc. All rights reserved.")
+
+
+# Using a latest main hash as Tracy WoA support (commit feb07e4) hasn't made it to a stable release yet.
+# NOTE: Keep version in sync with the tracy_profiler GUI frontend in `extern/tracy_profiler/CMakeLists.txt`
+set(TRACY_VERSION a64b9a20294d59421a2f57aeca3c6383d8c48169) # Latest main on 2026-04-11
+set(TRACY_URI https://github.com/wolfpld/tracy/archive/${TRACY_VERSION}.tar.gz)
+set(TRACY_HASH d316eea1b4bdc265725661c9d5ff67da)
+set(TRACY_HASH_TYPE MD5)
+set(TRACY_FILE tracy-${TRACY_VERSION}.tar.gz)
+set(TRACY_HOMEPAGE https://github.com/wolfpld/tracy)
+set(TRACY_LICENSE SPDX:BSD-3-Clause)
+set(TRACY_COPYRIGHT "Copyright (c) 2017-2026, Bartosz Taudul <wolf@nereid.pl>")

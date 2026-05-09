@@ -167,6 +167,8 @@ class MetalDevice : public Device {
   void mem_copy_from(
       device_memory &mem, const size_t y, size_t w, const size_t h, size_t elem) override;
 
+  void mem_or_from_device(device_memory &mem) override;
+
   void mem_zero(device_memory &mem) override;
 
   void mem_free(device_memory &mem) override;
@@ -182,6 +184,8 @@ class MetalDevice : public Device {
   void image_alloc_as_buffer(device_image &mem);
   void image_copy_to(device_image &mem);
   void image_free(device_image &mem);
+
+  bool has_unified_memory() const override;
 
   void flush_delayed_free_list();
 
