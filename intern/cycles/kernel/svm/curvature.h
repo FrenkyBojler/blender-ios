@@ -20,9 +20,9 @@ CCL_NAMESPACE_BEGIN
 #ifdef __SHADER_RAYTRACE__
 
 #  ifdef __KERNEL_OPTIX__
-extern "C" __device__ float __direct_callable__svm_node_ao(
+extern "C" __device__ float __direct_callable__svm_node_curvature(
 #  else
-ccl_device float svm_ao(
+ccl_device float svm_curvature(
 #  endif
     KernelGlobals kg,
     ConstIntegratorState state,
@@ -32,7 +32,7 @@ ccl_device float svm_ao(
     const int num_samples,
     const int flags)
 {
-  if (flags & NODE_AO_GLOBAL_RADIUS) {
+  if (flags & NODE_CURVATURE_GLOBAL_RADIUS) {
     max_dist = kernel_data.integrator.ao_bounces_distance;
   }
 
@@ -46,7 +46,7 @@ ccl_device float svm_ao(
     return 1.0f;
   }
 
-  if (flags & NODE_AO_INSIDE) {
+  if (flags & NODE_CURVATURE_INSIDE) {
     N = -N;
   }
 
@@ -61,7 +61,7 @@ ccl_device float svm_ao(
   int unoccluded = 0;
   for (int sample = 0; sample < num_samples; sample++) {
     const float2 rand_disk = path_branched_rng_2D(
-        kg, &rng_state, sample, num_samples, PRNG_SURFACE_AO);
+        kg, &rng_state, sample, num_samples, PRNG_SURFACE_CONVEXITY);
 
     const float2 d = sample_uniform_disk(rand_disk);
     const float3 D = make_float3(d.x, d.y, safe_sqrtf(1.0f - dot(d, d)));
@@ -80,7 +80,7 @@ ccl_device float svm_ao(
     ray.dP = differential_zero_compact();
     ray.dD = differential_zero_compact();
 
-    if (flags & NODE_AO_ONLY_LOCAL) {
+    if (flags & NODE_CURVATURE_ONLY_LOCAL) {
       if (!scene_intersect_local(kg, &ray, nullptr, sd->object, nullptr, 0)) {
         unoccluded++;
       }
@@ -102,13 +102,13 @@ ccl_device_inline
 ccl_device_noinline
 #  endif
     void
-    svm_node_ao(KernelGlobals kg,
-                ConstIntegratorGenericState state,
-                ccl_private ShaderData *sd,
-                ccl_private float *ccl_restrict stack,
-                const ccl_global SVMNodeAmbientOcclusion &ccl_restrict node)
+    svm_node_curvature(KernelGlobals kg,
+                       ConstIntegratorGenericState state,
+                       ccl_private ShaderData *sd,
+                       ccl_private float *ccl_restrict stack,
+                       const ccl_global SVMNodeCurvature &ccl_restrict node)
 {
-  float ao = 1.0f;
+  float curvature = 1.0f;
 
   IF_KERNEL_NODES_FEATURE(RAYTRACE)
   {
@@ -117,19 +117,19 @@ ccl_device_noinline
     normal = safe_normalize(normal);
 
 #  ifdef __KERNEL_OPTIX__
-    ao = optixDirectCall<float>(0, kg, state, sd, normal, dist, node.samples, node.flags);
+    curvature = optixDirectCall<float>(0, kg, state, sd, normal, dist, node.samples, node.flags);
 #  else
-    ao = svm_ao(kg, state, sd, normal, dist, node.samples, node.flags);
+    curvature = svm_curvature(kg, state, sd, normal, dist, node.samples, node.flags);
 #  endif
   }
 
-  if (stack_valid(node.out_ao_offset)) {
-    stack_store_float(stack, node.out_ao_offset, ao);
+  if (stack_valid(node.out_curvature_offset)) {
+    stack_store_float(stack, node.out_curvature_offset, curvature);
   }
 
   if (stack_valid(node.out_color_offset)) {
     const float3 color = stack_load(stack, node.color);
-    stack_store_float3(stack, node.out_color_offset, ao * color);
+    stack_store_float3(stack, node.out_color_offset, curvature * color);
   }
 }
 
