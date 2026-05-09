@@ -6447,29 +6447,31 @@ static wmOperatorStatus edbm_dissolve_degenerate_exec(bContext *C, wmOperator *o
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
     BMesh *bm = em->bm;
-    const int totvertold = bm->totvert;
-    const int totedgeold = bm->totedge;
-    const int totfaceold = bm->totface;
+    const int totvert_orig = bm->totvert;
+    const int totedge_orig = bm->totedge;
+    const int totface_orig = bm->totface;
 
     if (!EDBM_op_callf(em, op, "dissolve_degenerate edges=%he dist=%f", BM_ELEM_SELECT, thresh)) {
       continue;
     }
-    if (totvertold == bm->totvert && totedgeold == bm->totedge && totfaceold == bm->totface) {
+    if (totvert_orig == bm->totvert && totedge_orig == bm->totedge && totface_orig == bm->totface)
+    {
       continue;
     }
 
     /* tricky to maintain correct selection here, so just flush up from verts */
     EDBM_select_flush_from_verts(em, true);
 
+    changed = true;
     EDBMUpdate_Params params{};
     params.calc_looptris = true;
     params.calc_normals = false;
     params.is_destructive = true;
     EDBM_update(id_cast<Mesh *>(obedit->data), &params);
-    changed = true;
-    totelem_old[0] += totvertold;
-    totelem_old[1] += totedgeold;
-    totelem_old[2] += totfaceold;
+    
+    totelem_old[0] += totvert_orig;
+    totelem_old[1] += totedge_orig;
+    totelem_old[2] += totface_orig;
 
     totelem_new[0] += bm->totvert;
     totelem_new[1] += bm->totedge;
