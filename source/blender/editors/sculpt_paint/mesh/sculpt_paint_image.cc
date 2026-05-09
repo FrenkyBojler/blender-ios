@@ -441,7 +441,6 @@ static void do_paint_pixels(const Depsgraph &depsgraph,
 
     const IndexMask paint_rows = IndexMask::from_bools(valid_rows, non_zero_data, memory);
 
-    Array<bool> row_changed(tile_data.pixel_rows.size(), false);
     threading::EnumerableThreadSpecific<PaintLocalData> all_paint_tls;
     paint_rows.foreach_index(
         [&](const int i) {
@@ -494,22 +493,18 @@ static void do_paint_pixels(const Depsgraph &depsgraph,
                                      range,
                                      image_buffer->x);
                 }
-
-                row_changed[i] = true;
               });
         },
         exec_mode::grain_size(512));
 
-    const IndexMask changed_rows = IndexMask::from_bools(row_changed, memory);
-
     const Bounds<int2> dirty_bounds = threading::parallel_reduce(
-        changed_rows.index_range(),
+        paint_rows.index_range(),
         512,
         negative_bounds(),
         [&](const IndexRange range, const Bounds<int2> &init) {
           Bounds<int2> current = init;
           for (const int i : range) {
-            const PackedPixelRow pixel_row = tile_data.pixel_rows[changed_rows[i]];
+            const PackedPixelRow pixel_row = tile_data.pixel_rows[paint_rows[i]];
 
             const int2 start(pixel_row.start_image_coordinate.x,
                              pixel_row.start_image_coordinate.y);
