@@ -8012,7 +8012,6 @@ NODE_DEFINE(CurvatureNode)
   SOCKET_IN_FLOAT(distance, "Distance", 1.0f);
   SOCKET_IN_NORMAL(normal, "Normal", zero_float3(), SocketType::LINK_NORMAL);
 
-  SOCKET_BOOLEAN(inside, "Inside", false);
   SOCKET_BOOLEAN(only_local, "Only Local", false);
 
   SOCKET_OUT_COLOR(color, "Color");
@@ -8025,13 +8024,7 @@ CurvatureNode::CurvatureNode() : ShaderNode(get_node_type()) {}
 
 void CurvatureNode::compile(SVMCompiler &compiler)
 {
-  ShaderInput *distance_in = input("Distance");
-
-  int flags = (inside ? NODE_CURVATURE_INSIDE : 0) | (only_local ? NODE_CURVATURE_ONLY_LOCAL : 0);
-
-  if (!distance_in->link && distance == 0.0f) {
-    flags |= NODE_CURVATURE_GLOBAL_RADIUS;
-  }
+  int flags = (only_local ? NODE_CURVATURE_ONLY_LOCAL : 0);
 
   compiler.add_node(this,
                     NODE_CURVATURE,
@@ -8049,7 +8042,6 @@ void CurvatureNode::compile(SVMCompiler &compiler)
 void CurvatureNode::compile(OSLCompiler &compiler)
 {
   compiler.parameter(this, "samples");
-  compiler.parameter(this, "inside");
   compiler.parameter(this, "only_local");
   compiler.add(this, "node_curvature");
 }

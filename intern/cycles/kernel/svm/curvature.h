@@ -32,10 +32,6 @@ ccl_device float svm_curvature(
     const int num_samples,
     const int flags)
 {
-  if (flags & NODE_CURVATURE_GLOBAL_RADIUS) {
-    max_dist = kernel_data.integrator.ao_bounces_distance;
-  }
-
   /* Early out if no sampling needed. */
   if (max_dist <= 0.0f || num_samples < 1 || sd->object == OBJECT_NONE) {
     return 1.0f;
@@ -44,10 +40,6 @@ ccl_device float svm_curvature(
   /* Can't ray-trace from shaders like displacement, before BVH exists. */
   if (kernel_data.bvh.bvh_layout == BVH_LAYOUT_NONE) {
     return 1.0f;
-  }
-
-  if (flags & NODE_CURVATURE_INSIDE) {
-    N = -N;
   }
 
   float3 T;

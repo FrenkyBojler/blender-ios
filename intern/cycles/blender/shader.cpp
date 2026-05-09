@@ -1169,7 +1169,6 @@ static ShaderNode *add_node(Scene *scene,
   else if (b_node.is_type("ShaderNodeCurvature"_ustr)) {
     CurvatureNode *curvature = graph->create_node<CurvatureNode>();
     curvature->set_samples(b_node.custom1);
-    curvature->set_inside(b_node.custom2 & blender::SHD_CURVATURE_INSIDE);
     curvature->set_only_local(b_node.custom2 & blender::SHD_CURVATURE_ONLY_LOCAL);
     node = curvature;
   }

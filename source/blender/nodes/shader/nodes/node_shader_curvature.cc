@@ -25,7 +25,6 @@ static void node_declare(NodeDeclarationBuilder &b)
 static void node_shader_buts_curvature(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
   layout.prop(ptr, "samples", ui::ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
-  layout.prop(ptr, "inside", ui::ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
   layout.prop(ptr, "only_local", ui::ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
 }
 
@@ -41,11 +40,9 @@ static int node_shader_gpu_curvature(GPUMaterial *mat,
 
   GPU_material_flag_set(mat, GPU_MATFLAG_CURVATURE);
 
-  float inverted = (node->custom2 & SHD_CURVATURE_INSIDE) ? 1.0f : 0.0f;
   float f_samples = divide_ceil_u(node->custom1, 4);
 
-  return GPU_stack_link(
-      mat, node, "node_curvature", in, out, GPU_constant(&inverted), GPU_constant(&f_samples));
+  return GPU_stack_link(mat, node, "node_curvature", in, out, GPU_constant(&f_samples));
 }
 
 static void node_shader_init_curvature(bNodeTree * /*ntree*/, bNode *node)

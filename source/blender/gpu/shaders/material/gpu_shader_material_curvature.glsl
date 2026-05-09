@@ -8,11 +8,10 @@
 void node_curvature(float4 color,
                     float dist,
                     float3 normal,
-                    const float inverted,
                     const float sample_count,
                     float4 &result_color,
                     float &result_curvature)
 {
-  result_curvature = ambient_occlusion_eval(safe_normalize(normal), dist, inverted, sample_count);
+  result_curvature = ambient_occlusion_eval(safe_normalize(normal), dist, 0.0, sample_count);
   result_color = result_curvature * color;
 }
