@@ -6437,25 +6437,24 @@ static wmOperatorStatus edbm_dissolve_degenerate_exec(bContext *C, wmOperator *o
   ViewLayer *view_layer = CTX_data_view_layer(C);
   int totelem_old[3] = {0, 0, 0};
   int totelem_new[3] = {0, 0, 0};
+  bool changed = false;
 
   const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
       *bmain, scene, view_layer, CTX_wm_view3d(C));
-
-  for (Object *obedit : objects) {
-    BMEditMesh *em = BKE_editmesh_from_object(obedit);
-    BMesh *bm = em->bm;
-    totelem_old[0] += bm->totvert;
-    totelem_old[1] += bm->totedge;
-    totelem_old[2] += bm->totface;
-  } /* objects */
 
   const float thresh = RNA_float_get(op->ptr, "threshold");
 
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
     BMesh *bm = em->bm;
+    const int totvertold = bm->totvert;
+    const int totedgeold = bm->totedge;
+    const int totfaceold = bm->totface;
 
     if (!EDBM_op_callf(em, op, "dissolve_degenerate edges=%he dist=%f", BM_ELEM_SELECT, thresh)) {
+      continue;
+    }
+    if (totvertold == bm->totvert && totedgeold == bm->totedge && totfaceold == bm->totface) {
       continue;
     }
 
@@ -6467,13 +6466,21 @@ static wmOperatorStatus edbm_dissolve_degenerate_exec(bContext *C, wmOperator *o
     params.calc_normals = false;
     params.is_destructive = true;
     EDBM_update(id_cast<Mesh *>(obedit->data), &params);
+    changed = true;
+    totelem_old[0] += totvertold;
+    totelem_old[1] += totedgeold;
+    totelem_old[2] += totfaceold;
 
     totelem_new[0] += bm->totvert;
     totelem_new[1] += bm->totedge;
     totelem_new[2] += bm->totface;
   }
-
-  edbm_report_delete_info(op->reports, totelem_old, totelem_new);
+  if (!changed) {
+    BKE_report(op->reports, RPT_INFO, "No degenerate geometry found");
+  }
+  else {
+    edbm_report_delete_info(op->reports, totelem_old, totelem_new);
+  }
 
   return OPERATOR_FINISHED;
 }
