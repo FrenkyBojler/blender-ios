@@ -439,8 +439,7 @@ static void do_paint_pixels(const Depsgraph &depsgraph,
       }
     });
 
-    const IndexMask non_zero_rows = IndexMask::from_bools(non_zero_data, memory);
-    const IndexMask paint_rows = IndexMask::from_intersection(valid_rows, non_zero_rows, memory);
+    const IndexMask paint_rows = IndexMask::from_bools(valid_rows, non_zero_data, memory);
 
     Array<bool> row_changed(tile_data.pixel_rows.size(), false);
     threading::EnumerableThreadSpecific<PaintLocalData> all_paint_tls;
