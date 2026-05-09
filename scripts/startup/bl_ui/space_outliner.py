@@ -445,6 +445,11 @@ class OUTLINER_PT_filter(Panel):
 
             row = layout.row(align=True)
             row.prop(space, "show_mode_column", text="Show Mode Column")
+
+            if display_mode in {'VIEW_LAYER', 'SCENES'}:
+                row = layout.row(align=True)
+                row.prop(space, "show_users_column", text="Show Users Column")
+
             layout.separator()
 
         filter_text_supported = True
