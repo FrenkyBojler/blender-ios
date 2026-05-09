@@ -799,6 +799,9 @@ ccl_device bool osl_shared_texture(KernelGlobals kg,
         if (int(dsdy)) {
           flags |= NODE_CURVATURE_INDEPENDENT;
         }
+        if (int(dtdy)) {
+          flags |= NODE_CURVATURE_NORMALIZE;
+        }
         const float3 C = svm_curvature(kg, state, sd, radius, bias, num_samples, flags);
         result[0] = C.x;
         result[1] = C.y;

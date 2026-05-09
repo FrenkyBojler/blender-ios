@@ -1824,6 +1824,7 @@ class CurvatureNode : public ShaderNode {
 
   NODE_SOCKET_API(bool, only_local)
   NODE_SOCKET_API(bool, independent)
+  NODE_SOCKET_API(bool, use_normalize)
 };
 
 class DisplacementNode : public ShaderNode {

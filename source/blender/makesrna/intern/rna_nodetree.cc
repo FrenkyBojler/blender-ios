@@ -6545,6 +6545,11 @@ static void def_sh_curvature(BlenderRNA * /*brna*/, StructRNA *srna)
       "Independent",
       "Keep the weighted average of convexity and concavity mutually exclusive");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+  prop = RNA_def_property(srna, "normalize", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "custom2", SHD_CURVATURE_NORMALIZE);
+  RNA_def_property_ui_text(prop, "Normalize", "Normalize all outputs to 0.0 to 1.0 range");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 }
 
 static void def_sh_subsurface(BlenderRNA * /*brna*/, StructRNA *srna)

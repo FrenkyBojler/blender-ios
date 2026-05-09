@@ -187,7 +187,11 @@ ccl_device float3 svm_curvature(
     concavity = max(0.0f, -curvature);
   }
 
-  curvature = (curvature + M_PI_F) * M_1_2PI_F;
+  if (flags & NODE_CURVATURE_NORMALIZE) {
+    curvature = (curvature + M_PI_F) * M_1_2PI_F;
+    convexity *= M_1_PI_F;
+    concavity *= M_1_PI_F;
+  }
 
   return make_float3(curvature, convexity, concavity);
 }

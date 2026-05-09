@@ -55,6 +55,7 @@ static void node_shader_buts_curvature(ui::Layout &layout, bContext * /*C*/, Poi
 {
   layout.prop(ptr, "samples", ui::ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
   layout.prop(ptr, "independent", ui::ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "normalize", ui::ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
   layout.prop(ptr, "only_local", ui::ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
 }
 
@@ -74,8 +75,8 @@ static int node_shader_gpu_curvature(GPUMaterial *mat,
 
 static void node_shader_init_curvature(bNodeTree * /*ntree*/, bNode *node)
 {
-  node->custom1 = 16; /* samples */
-  node->custom2 = 0;
+  node->custom1 = 16;                      /* samples */
+  node->custom2 = SHD_CURVATURE_NORMALIZE; /* flags; normalize true, others false */
 }
 
 NODE_SHADER_MATERIALX_BEGIN
