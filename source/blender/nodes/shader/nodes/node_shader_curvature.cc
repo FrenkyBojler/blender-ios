@@ -20,6 +20,14 @@ static void node_declare(NodeDeclarationBuilder &b)
           "Average curvature of the surface within the sampled radius. "
           "Monochrome value range with concavity at the minimum, "
           "and convexity at the maximum");
+  b.add_output<decl::Float>("Convexity"_ustr)
+      .description(
+          "Average convexity of the surface within the sampled radius. "
+          "0.0 represents flat, value increases linearly with angle");
+  b.add_output<decl::Float>("Concavity"_ustr)
+      .description(
+          "Average concavity of the surface within the sampled radius. "
+          "0.0 represents flat, value increases linearly with angle");
 
   b.add_input<decl::Float>("Radius"_ustr)
       .default_value(0.01f)

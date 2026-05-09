@@ -94,9 +94,9 @@ ccl_device_inline bool svm_curvature_raycast_angle(KernelGlobals kg,
  * Influence falls off with distance projected onto a 2D disk of the given radius. */
 
 #  ifdef __KERNEL_OPTIX__
-extern "C" __device__ float __direct_callable__svm_node_curvature(
+extern "C" __device__ float3 __direct_callable__svm_node_curvature(
 #  else
-ccl_device float svm_curvature(
+ccl_device float3 svm_curvature(
 #  endif
     KernelGlobals kg,
     ConstIntegratorState state,
@@ -107,12 +107,12 @@ ccl_device float svm_curvature(
 {
   /* Early out if no sampling needed. */
   if (radius <= 0.0f || num_samples < 1 || sd->object == OBJECT_NONE) {
-    return 0.5f;
+    return make_float3(0.5f, 0.0f, 0.0f);
   }
 
   /* Can't ray-trace from shaders like displacement, before BVH exists. */
   if (kernel_data.bvh.bvh_layout == BVH_LAYOUT_NONE) {
-    return 0.5f;
+    return make_float3(0.5f, 0.0f, 0.0f);
   }
 
   float3 T;
@@ -166,13 +166,18 @@ ccl_device float svm_curvature(
     }
   }
 
-  float sum_angles = sum_convexity - sum_concavity;
+  float curvature;
+  float convexity;
+  float concavity;
+
   float sum_weights = sum_weights_convexity + sum_weights_concavity;
-  float curvature = safe_divide(sum_angles, sum_weights);
+  curvature = safe_divide(sum_convexity - sum_concavity, sum_weights);
+  convexity = max(0.0f, curvature);
+  concavity = max(0.0f, -curvature);
 
   curvature = (curvature + M_PI_F) * M_1_2PI_F;
 
-  return curvature;
+  return make_float3(curvature, convexity, concavity);
 }
 
 template<uint node_feature_mask, typename ConstIntegratorGenericState>
@@ -188,21 +193,31 @@ ccl_device_noinline
                        ccl_private float *ccl_restrict stack,
                        const ccl_global SVMNodeCurvature &ccl_restrict node)
 {
-  float curvature = 0.5f;
+  float3 result = make_float3(0.5f, 0.0f, 0.0f);
 
   IF_KERNEL_NODES_FEATURE(RAYTRACE)
   {
     float radius = stack_load(stack, node.radius);
 
 #  ifdef __KERNEL_OPTIX__
-    curvature = optixDirectCall<float>(2, kg, state, sd, radius, node.samples, node.flags);
+    result = optixDirectCall<float3>(2, kg, state, sd, radius, node.samples, node.flags);
 #  else
-    curvature = svm_curvature(kg, state, sd, radius, node.samples, node.flags);
+    result = svm_curvature(kg, state, sd, radius, node.samples, node.flags);
 #  endif
   }
 
+  float curvature = result.x;
+  float convexity = result.y;
+  float concavity = result.z;
+
   if (stack_valid(node.out_curvature_offset)) {
     stack_store_float(stack, node.out_curvature_offset, curvature);
+  }
+  if (stack_valid(node.out_convexity_offset)) {
+    stack_store_float(stack, node.out_convexity_offset, convexity);
+  }
+  if (stack_valid(node.out_concavity_offset)) {
+    stack_store_float(stack, node.out_concavity_offset, concavity);
   }
 }
 
