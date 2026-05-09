@@ -515,7 +515,9 @@ static void do_paint_pixels(const Depsgraph &depsgraph,
           return current;
         },
         merge_bounds);
-    tile_data.mark_dirty(dirty_bounds);
+    if (!dirty_bounds.is_empty()) {
+      tile_data.mark_dirty(dirty_bounds);
+    }
 
     if (tile_data.flags.dirty) {
       BKE_image_mark_dirty(image_data.image, image_buffer);
