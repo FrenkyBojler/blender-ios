@@ -17,11 +17,15 @@
 
 #include "BLT_translation.hh"
 
+#include "CLG_log.h"
+
 #include <fmt/format.h>
 
 namespace blender {
 
 namespace bke {
+
+static CLG_LogRef LOG = {"anim.action"};
 
 MeshFieldContext::MeshFieldContext(const Mesh &mesh, const AttrDomain domain)
     : mesh_(mesh), domain_(domain)
@@ -393,18 +397,32 @@ GVArray InstancesFieldInput::get_varray_for_context(const fn::FieldContext &cont
 GVArray AttributeFieldInput::get_varray_for_context(const GeometryFieldContext &context,
                                                     const IndexMask & /*mask*/) const
 {
+  const auto return_varray = [&](const GAttributeReader reader) -> GVArray {
+    if (reader) {
+      return *reader;
+    }
+    if (!attribute_name_is_anonymous(name_)) {
+      return {};
+    }
+
+    CLOG_WARN(&LOG,
+              "Attribute value for %s is not found",
+              socket_inspection_name_ ? socket_inspection_name_->c_str() : "");
+    return {};
+  };
+
   const bke::AttrType data_type = cpp_type_to_attribute_type(*type_);
   const AttrDomain domain = context.domain();
   if (const GreasePencil *grease_pencil = context.grease_pencil()) {
     const AttributeAccessor layer_attributes = grease_pencil->attributes();
     if (domain == AttrDomain::Layer) {
-      return *layer_attributes.lookup(name_, data_type);
+      return return_varray(layer_attributes.lookup(name_, data_type));
     }
     if (ELEM(domain, AttrDomain::Point, AttrDomain::Curve)) {
       const int layer_index = context.grease_pencil_layer_index();
       const AttributeAccessor curves_attributes = *context.attributes();
       if (const GAttributeReader reader = curves_attributes.lookup(name_, domain, data_type)) {
-        return *reader;
+        return return_varray(reader);
       }
       /* Lookup attribute on the layer domain if it does not exist on points or curves. */
       if (const GAttributeReader reader = layer_attributes.lookup(name_)) {
@@ -415,6 +433,7 @@ GVArray AttributeFieldInput::get_varray_for_context(const GeometryFieldContext &
         const int domain_size = curves_attributes.domain_size(domain);
         return GVArray::from_single(cpp_type, domain_size, value);
       }
+      return return_varray({});
     }
   }
   else if (context.domain() == bke::AttrDomain::Instance && name_ == "position") {
@@ -422,7 +441,7 @@ GVArray AttributeFieldInput::get_varray_for_context(const GeometryFieldContext &
     return bke::instance_position_varray(*context.instances());
   }
   else if (auto attributes = context.attributes()) {
-    return *attributes->lookup(name_, domain, data_type);
+    return return_varray(attributes->lookup(name_, domain, data_type));
   }
 
   return {};
