@@ -29,6 +29,8 @@ void register_cpp_types()
   BLI_CPP_TYPE_REGISTER(float3, CPPTypeFlags::BasicType);
   BLI_CPP_TYPE_REGISTER(float4, CPPTypeFlags::BasicType);
 
+  BLI_CPP_TYPE_REGISTER(double, CPPTypeFlags::BasicType);
+
   BLI_CPP_TYPE_REGISTER(float4x4, CPPTypeFlags::BasicType);
 
   BLI_CPP_TYPE_REGISTER(int8_t, CPPTypeFlags::BasicType);

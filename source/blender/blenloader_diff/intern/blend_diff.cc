@@ -1727,6 +1727,8 @@ static std::string get_default_config_path(const StringRefNull binary_path)
 
 static int main_do(const int argc, char *argv[])
 {
+  register_cpp_types();
+
   if (argc < 3) {
     fmt::println(stderr, "Usage: blend_diff <file_old> <file_new>");
     return 1;
