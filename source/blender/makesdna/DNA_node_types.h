@@ -3944,12 +3944,4 @@ struct NodeStoreBundleItem {
   char _pad = {};
 };
 
-struct NodeGeometryAttributeToListItem {
-  /** #eNodeSocketDatatype. */
-  int8_t socket_type = 0;
-  char _pad[3] = {};
-  int identifier = 0;
-  char *name = nullptr;
-};
-
 }  // namespace blender
