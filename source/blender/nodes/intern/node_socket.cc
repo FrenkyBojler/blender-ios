@@ -488,6 +488,7 @@ static void refresh_node_sockets_animation_inout(bNodeTree &ntree,
       *path_ptr = BLI_strdup(new_path.c_str());
       DEG_id_tag_update(&ntree.id, ID_RECALC_ANIMATION);
       DEG_id_tag_update(&ntree.adt->action->id, ID_RECALC_SYNC_TO_EVAL);
+      return;
     }
   };
 
