@@ -565,6 +565,8 @@ static void refresh_node_sockets_and_panels(bNodeTree &ntree,
     }
   }
 
+  /* Animation rna paths use the socket index, so they need to be updated when the socket order
+   * changes. */
   refresh_node_sockets_animation_inout(ntree, node, SOCK_IN, old_inputs, new_inputs);
   refresh_node_sockets_animation_inout(ntree, node, SOCK_OUT, old_outputs, new_outputs);
 
