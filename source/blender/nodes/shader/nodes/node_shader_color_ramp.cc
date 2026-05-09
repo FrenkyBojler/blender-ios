@@ -10,7 +10,7 @@
 
 #include "BKE_colorband.hh"
 
-#include "BLI_color.hh"
+#include "BLI_color_types.hh"
 
 #include "NOD_multi_function.hh"
 
@@ -140,6 +140,13 @@ class ColorBandFunction : public mf::MultiFunction {
       alphas[i] = color.a;
     });
   }
+
+  void hash_unique(UniqueHashBytes &hash) const override
+  {
+    static constexpr int8_t id = 0;
+    hash.add(&id);
+    hash.add(&color_band_);
+  }
 };
 
 static void sh_node_valtorgb_build_multi_function(nodes::NodeMultiFunctionBuilder &builder)
@@ -167,7 +174,7 @@ void register_node_type_sh_valtorgb()
 
   static bke::bNodeType ntype;
 
-  common_node_type_base(&ntype, "ShaderNodeValToRGB", SH_NODE_VALTORGB);
+  common_node_type_base(&ntype, "ShaderNodeValToRGB"_ustr, SH_NODE_VALTORGB);
   ntype.ui_name = "Color Ramp";
   ntype.ui_description = "Map values to colors with the use of a gradient";
   ntype.enum_name_legacy = "VALTORGB";

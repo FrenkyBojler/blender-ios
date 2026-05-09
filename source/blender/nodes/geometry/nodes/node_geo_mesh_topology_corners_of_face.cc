@@ -44,7 +44,6 @@ class CornersOfFaceInput final : public bke::MeshFieldInput {
         sort_index_(std::move(sort_index)),
         sort_weight_(std::move(sort_weight))
   {
-    category_ = Category::Generated;
   }
 
   GVArray get_varray_for_context(const Mesh &mesh,
@@ -113,25 +112,20 @@ class CornersOfFaceInput final : public bke::MeshFieldInput {
     return VArray<int>::from_container(std::move(corner_of_face));
   }
 
-  void for_each_field_input_recursive(FunctionRef<void(const FieldInput &)> fn) const override
+  void foreach_recursive_field(FunctionRef<void(const GField &)> fn) const override
   {
-    face_index_.node().for_each_field_input_recursive(fn);
-    sort_index_.node().for_each_field_input_recursive(fn);
-    sort_weight_.node().for_each_field_input_recursive(fn);
+    fn(face_index_);
+    fn(sort_index_);
+    fn(sort_weight_);
   }
 
-  uint64_t hash() const final
+  void hash_unique(UniqueHashBytes &hash, fn::FieldHashDeep &deep_hash_cache) const final
   {
-    return 6927982716657;
-  }
-
-  bool is_equal_to(const fn::FieldNode &other) const final
-  {
-    if (const auto *typed = dynamic_cast<const CornersOfFaceInput *>(&other)) {
-      return typed->face_index_ == face_index_ && typed->sort_index_ == sort_index_ &&
-             typed->sort_weight_ == sort_weight_;
-    }
-    return false;
+    static constexpr int8_t id = 0;
+    hash.add(&id);
+    hash.add(deep_hash_cache.ensure(face_index_));
+    hash.add(deep_hash_cache.ensure(sort_index_));
+    hash.add(deep_hash_cache.ensure(sort_weight_));
   }
 
   std::optional<AttrDomain> preferred_domain(const Mesh & /*mesh*/) const final
@@ -142,10 +136,7 @@ class CornersOfFaceInput final : public bke::MeshFieldInput {
 
 class CornersOfFaceCountInput final : public bke::MeshFieldInput {
  public:
-  CornersOfFaceCountInput() : bke::MeshFieldInput(CPPType::get<int>(), "Face Corner Count")
-  {
-    category_ = Category::Generated;
-  }
+  CornersOfFaceCountInput() : bke::MeshFieldInput(CPPType::get<int>(), "Face Corner Count") {}
 
   GVArray get_varray_for_context(const Mesh &mesh,
                                  const AttrDomain domain,
@@ -159,14 +150,10 @@ class CornersOfFaceCountInput final : public bke::MeshFieldInput {
                                   [faces](const int64_t i) { return faces[i].size(); });
   }
 
-  uint64_t hash() const final
+  void hash_unique(UniqueHashBytes &hash, fn::FieldHashDeep & /*deep_hash_cache*/) const override
   {
-    return 8345908765432698;
-  }
-
-  bool is_equal_to(const fn::FieldNode &other) const final
-  {
-    return dynamic_cast<const CornersOfFaceCountInput *>(&other) != nullptr;
+    static constexpr int8_t id = 0;
+    hash.add(&id);
   }
 
   std::optional<AttrDomain> preferred_domain(const Mesh & /*mesh*/) const final
@@ -179,25 +166,25 @@ static void node_geo_exec(GeoNodeExecParams params)
 {
   const Field<int> face_index = params.extract_input<Field<int>>("Face Index"_ustr);
   if (params.output_is_required("Total"_ustr)) {
-    params.set_output("Total"_ustr,
-                      Field<int>(std::make_shared<bke::EvaluateAtIndexInput>(
-                          face_index,
-                          Field<int>(std::make_shared<CornersOfFaceCountInput>()),
-                          AttrDomain::Face)));
+    params.set_output(
+        "Total"_ustr,
+        Field<int>::from_input<bke::EvaluateAtIndexInput>(
+            face_index, Field<int>::from_input<CornersOfFaceCountInput>(), AttrDomain::Face));
   }
   if (params.output_is_required("Corner Index"_ustr)) {
     params.set_output("Corner Index"_ustr,
-                      Field<int>(std::make_shared<CornersOfFaceInput>(
+                      Field<int>::from_input<CornersOfFaceInput>(
                           face_index,
                           params.extract_input<Field<int>>("Sort Index"_ustr),
-                          params.extract_input<Field<float>>("Weights"_ustr))));
+                          params.extract_input<Field<float>>("Weights"_ustr)));
   }
 }
 
 static void node_register()
 {
   static bke::bNodeType ntype;
-  geo_node_type_base(&ntype, "GeometryNodeCornersOfFace", GEO_NODE_MESH_TOPOLOGY_CORNERS_OF_FACE);
+  geo_node_type_base(
+      &ntype, "GeometryNodeCornersOfFace"_ustr, GEO_NODE_MESH_TOPOLOGY_CORNERS_OF_FACE);
   ntype.ui_name = "Corners of Face";
   ntype.ui_description = "Retrieve corners that make up a face";
   ntype.enum_name_legacy = "CORNERS_OF_FACE";

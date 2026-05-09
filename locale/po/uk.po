@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 Alpha (b'227100a72567')\n"
+"Project-Id-Version: Blender 5.2.0 Alpha (b'396b6a98e9f6')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-03-30 09:56+0000\n"
+"POT-Creation-Date: 2026-05-04 07:43+0000\n"
 "PO-Revision-Date: 2025-07-23 15:08+0000\n"
 "Last-Translator: Bartosz <gang65@poczta.onet.pl>\n"
 "Language-Team: Ukrainian <https://translate.blender.org/projects/blender-ui/ui/uk/>\n"
@@ -3810,6 +3810,10 @@ msgid "Use always Vertex Color mode"
 msgstr "Вжити завжди режим Кольору Вершин"
 
 
+msgid "Threshold"
+msgstr "Поріг"
+
+
 msgid "Curve Jitter"
 msgstr "Крива тремтіння"
 
@@ -3840,6 +3844,11 @@ msgstr "Крива сили"
 
 msgid "Curve used for the strength"
 msgstr "Крива, використовувана для сили"
+
+
+msgctxt "Operator"
+msgid "Poly"
+msgstr "Полі"
 
 
 msgid "Eraser Mode"
@@ -3976,10 +3985,6 @@ msgstr "Спрощення"
 
 msgid "Number of simplify steps (large values reduce fill accuracy)"
 msgstr "Кількість кроків спрощення (більші значення зменшують точність заповнення)"
-
-
-msgid "Threshold"
-msgstr "Поріг"
 
 
 msgid "Threshold to consider color transparent for filling"
@@ -14445,14 +14450,6 @@ msgid "Amount of smoothing to automatically apply to each stroke"
 msgstr "Величина згладжування, що автоматично застосовується до кожного штриха"
 
 
-msgid "Propagation Steps"
-msgstr "Кроки Поширення"
-
-
-msgid "Distance where boundary edge automasking is going to protect vertices from the fully masked edge"
-msgstr "Відстань, на якій автомаскування ребер рубежу буде захищати вершини від повністю маскованого ребра"
-
-
 msgid "Brush blending mode"
 msgstr "Режим змішування пензля"
 
@@ -15422,26 +15419,6 @@ msgstr "Задіяти Альфа"
 
 msgid "When this is disabled, lock alpha while painting"
 msgstr "Коли вимкнено, блокувати альфа при малюванні"
-
-
-msgid "Mesh Boundary Auto-Masking"
-msgstr "Авто-Маскування Рубежу Сіті"
-
-
-msgid "Do not affect non manifold boundary edges"
-msgstr "Не впливати на не розгортні ребра рубежу"
-
-
-msgid "Face Sets Boundary Automasking"
-msgstr "Автомаскування Рубежу Наборів Граней"
-
-
-msgid "Cavity Mask"
-msgstr "Маска Порожнинності"
-
-
-msgid "Affect only vertices connected to the active vertex under the brush"
-msgstr "Впливати лише на вершини, з'єднані з активною вершиною під пензлем"
 
 
 msgid "Collide with objects during the simulation"
@@ -25922,10 +25899,6 @@ msgid "Calculate Overlap"
 msgstr "Розрахувати перекриття"
 
 
-msgid "Calculate self intersections and overlap before filling"
-msgstr "Перед заповненням розрахувати самоперетини та перекриття"
-
-
 msgid "Mask Layers"
 msgstr "Шари маски"
 
@@ -26242,6 +26215,14 @@ msgid "Texture Pixel Size factor along the stroke"
 msgstr "Фактор Розміру Пікселя Текстури уздовж штриха"
 
 
+msgid "Placement"
+msgstr "Розміщення"
+
+
+msgid "Scale the noise frequency"
+msgstr "Масштабувати частотність шуму"
+
+
 msgid "Show stroke fills of this material"
 msgstr "Показувати заповнення штриха з цим матеріалом"
 
@@ -26310,28 +26291,40 @@ msgid "Material slot name"
 msgstr "Назва гнізда матеріалу"
 
 
-msgid "Math"
-msgstr "Математика"
-
-
-msgid "Names"
-msgstr "Назви"
-
-
-msgid "Utilities"
-msgstr "Утиліти"
-
-
-msgid "Bone Roll"
-msgstr "Прокручення Кістки"
+msgid "Clean Up"
+msgstr "Вичищення"
 
 
 msgid "Show/Hide"
 msgstr "Показати/приховати"
 
 
-msgid "Clean Up"
-msgstr "Вичищення"
+msgid "Special Characters"
+msgstr "Спеціальні символи"
+
+
+msgid "Kerning"
+msgstr "Кернінг"
+
+
+msgid "Metaball"
+msgstr "Метакуля"
+
+
+msgid "Names"
+msgstr "Назви"
+
+
+msgid "Math"
+msgstr "Математика"
+
+
+msgid "Bone Roll"
+msgstr "Прокручення Кістки"
+
+
+msgid "Utilities"
+msgstr "Утиліти"
 
 
 msgid "Pivot Point"
@@ -26342,6 +26335,10 @@ msgid "Snap"
 msgstr "Підхоп"
 
 
+msgid "Sample"
+msgstr "Вибірка"
+
+
 msgid "Proportional Editing Falloff"
 msgstr "Спад Пропорційного Редагування"
 
@@ -26350,20 +26347,16 @@ msgid "Mask Edit"
 msgstr "Редагування Маски"
 
 
-msgid "Sample"
-msgstr "Вибірка"
-
-
 msgid "Automasking"
 msgstr "Автомаскування"
 
 
-msgid "Face Sets Edit"
-msgstr "Редагування Наборів Граней"
-
-
 msgid "Primitives"
 msgstr "Примітиви"
+
+
+msgid "Face Sets Edit"
+msgstr "Редагування Наборів Граней"
 
 
 msgid "Vertex Group Locks"
@@ -26432,10 +26425,6 @@ msgstr "Виділити петлі"
 
 msgid "Assign Material"
 msgstr "Призначити Матеріал"
-
-
-msgid "Metaball"
-msgstr "Метакуля"
 
 
 msgid "Light"
@@ -26510,12 +26499,12 @@ msgid "In-Betweens"
 msgstr "У проміжках"
 
 
-msgid "Propagate"
-msgstr "Поширити"
-
-
 msgid "Keying"
 msgstr "Ключування"
+
+
+msgid "Propagate"
+msgstr "Поширити"
 
 
 msgid "Tracking"
@@ -26552,14 +26541,6 @@ msgstr "Задати Силу Грані"
 
 msgid "Merge"
 msgstr "Об'єднання"
-
-
-msgid "Special Characters"
-msgstr "Спеціальні символи"
-
-
-msgid "Kerning"
-msgstr "Кернінг"
 
 
 msgid "Basic"
@@ -26889,6 +26870,34 @@ msgstr "Про"
 
 msgid "Quick Setup"
 msgstr "Швидкий Уклад"
+
+
+msgid "Propagation Steps"
+msgstr "Кроки Поширення"
+
+
+msgid "Distance where boundary edge automasking is going to protect vertices from the fully masked edge"
+msgstr "Відстань, на якій автомаскування ребер рубежу буде захищати вершини від повністю маскованого ребра"
+
+
+msgid "Mesh Boundary Auto-Masking"
+msgstr "Авто-Маскування Рубежу Сіті"
+
+
+msgid "Do not affect non manifold boundary edges"
+msgstr "Не впливати на не розгортні ребра рубежу"
+
+
+msgid "Face Sets Boundary Automasking"
+msgstr "Автомаскування Рубежу Наборів Граней"
+
+
+msgid "Cavity Mask"
+msgstr "Маска Порожнинності"
+
+
+msgid "Affect only vertices connected to the active vertex under the brush"
+msgstr "Впливати лише на вершини, з'єднані з активною вершиною під пензлем"
 
 
 msgid "Mesh Edge"
@@ -29608,10 +29617,6 @@ msgstr "Зсув Шуму"
 
 msgid "Offset the noise along the strokes"
 msgstr "Зсув шуму вздовж штрихів"
-
-
-msgid "Scale the noise frequency"
-msgstr "Масштабувати частотність шуму"
 
 
 msgid "Noise Seed"
@@ -36498,11 +36503,6 @@ msgid "Load a SVG file"
 msgstr "Завантаження файлів SVG"
 
 
-msgctxt "Operator"
-msgid "Import SVG"
-msgstr "Імпорт SVG"
-
-
 msgid "Load a FBX file"
 msgstr "Завантажити файл FBX"
 
@@ -38072,6 +38072,11 @@ msgstr "Y Макс"
 
 msgid "Y Min"
 msgstr "Y Мін"
+
+
+msgctxt "Operator"
+msgid "Select by Type"
+msgstr "Вибрати За Типом"
 
 
 msgctxt "Operator"
@@ -39732,10 +39737,6 @@ msgstr "Розглядати лише деталі на відстані від�
 
 msgid "Minimal distance accepted between two features"
 msgstr "Мінімальна допустима відстань між двома деталями"
-
-
-msgid "Placement"
-msgstr "Розміщення"
 
 
 msgid "Placement for detected features"
@@ -47159,11 +47160,6 @@ msgid "Triangulate selected faces"
 msgstr "Тріангулювати вибрані грані"
 
 
-msgctxt "Operator"
-msgid "Select Boundary Loop"
-msgstr "Вибрати межову петлю"
-
-
 msgid "Select boundary edges around the selected faces"
 msgstr "Вибрати межові ребра навколо вибраних граней"
 
@@ -48675,10 +48671,6 @@ msgstr "Скопіювати колір для всіх обраних вузл�
 
 msgid "Option"
 msgstr "Опція"
-
-
-msgid "Overlay Mode"
-msgstr "Режим Накладання"
 
 
 msgid "HDR"
@@ -50420,11 +50412,6 @@ msgstr "Зчистити дельта масштабування додатко�
 
 msgid "Change selection of all visible objects in scene"
 msgstr "Змінити вибір всіх видимих ​​об'єктів сцени"
-
-
-msgctxt "Operator"
-msgid "Select by Type"
-msgstr "Вибрати За Типом"
 
 
 msgid "Select all visible objects that are of a type"
@@ -54303,11 +54290,6 @@ msgid "Snapping"
 msgstr "Підхоплення"
 
 
-msgctxt "Operator"
-msgid "Area Options"
-msgstr "Опції області"
-
-
 msgid "Operations for splitting and merging"
 msgstr "Операції розділення та злиття"
 
@@ -57479,14 +57461,6 @@ msgid "Copy Mirrored UV Coords"
 msgstr "Копіювати Дзеркалені Координати UV"
 
 
-msgid "Copy mirror UV coordinates on the X axis based on a mirrored mesh"
-msgstr "Копіювати дзеркалення UV-координат по осі X на основі дзеркаленої сіті"
-
-
-msgid "Axis Direction"
-msgstr "Напрям осі"
-
-
 msgid "Tolerance for finding vertex duplicates"
 msgstr "Допуск при пошуку дублікатів вершин"
 
@@ -57791,22 +57765,8 @@ msgid "Reveal all hidden UV vertices"
 msgstr "Показати всі приховані UV-вершини"
 
 
-msgctxt "Operator"
-msgid "UV Rip"
-msgstr "Розірвання UV"
-
-
 msgid "Rip selected vertices or a selected region"
 msgstr "Відірвати вибрані вершини або вибраний регіон"
-
-
-msgctxt "Operator"
-msgid "UV Rip Move"
-msgstr "Розірвання і Переміщення UV"
-
-
-msgid "UV Rip"
-msgstr "Розірвання UV"
 
 
 msgctxt "Operator"
@@ -64190,22 +64150,6 @@ msgid "Device"
 msgstr "Пристрій"
 
 
-msgid "Image Display Method"
-msgstr "Метод Показу Зображення"
-
-
-msgid "Method used for displaying images on the screen"
-msgstr "Спосіб показу зображень на екрані"
-
-
-msgid "Automatically choose method based on GPU and image"
-msgstr "Автоматично вибирати метод на основі ГП та зображення"
-
-
-msgid "2D Texture"
-msgstr "2D текстура"
-
-
 msgid "Legacy Compute Device Type"
 msgstr "Тип старішого пристрою обчислення"
 
@@ -68829,6 +68773,10 @@ msgstr "Показувати чорні краї"
 
 msgid "Display white edges"
 msgstr "Показувати білі краї"
+
+
+msgid "Overlay Mode"
+msgstr "Режим Накладання"
 
 
 msgid "Overlay mode of rasterized mask"
@@ -77156,11 +77104,6 @@ msgid "Cursor to Grid"
 msgstr "Курсор до Сітки"
 
 
-msgctxt "Operator"
-msgid "Poly"
-msgstr "Полі"
-
-
 msgid "Display Cursor"
 msgstr "Показ Курсора"
 
@@ -82321,10 +82264,6 @@ msgid "Marker offset %s"
 msgstr "Зсув мітки %s"
 
 
-msgid "Selecting the camera is only supported in object mode"
-msgstr "Вибирання камери підтримується лише в режимі об'єкта"
-
-
 msgid "Scene not found"
 msgstr "Сцену не знайдено"
 
@@ -82821,10 +82760,6 @@ msgstr "%s: %s"
 
 msgid "Non-Keyboard Shortcut"
 msgstr "Не-клавіатурна швидка клавіша"
-
-
-msgid "Pin"
-msgstr "Пришпилення"
 
 
 msgid "Shift Left Mouse"
@@ -85068,10 +85003,6 @@ msgid "Dynamic Topology found: %s, disabled"
 msgstr "Знайдена Динамічна топологія: %s, вимкнено"
 
 
-msgid "Palette created"
-msgstr "Палітру створено"
-
-
 msgid "Sample color for %s"
 msgstr "Вибірка кольору для %s"
 
@@ -85082,6 +85013,10 @@ msgstr "Пензель. Використовуйте лівий клацок м�
 
 msgid "Palette. Use Left Click to sample more colors"
 msgstr "Палітра. Використовуйте лівий клацок миші, щоб вибрати більше кольорів"
+
+
+msgid "Palette created"
+msgstr "Палітру створено"
 
 
 msgid "Compiled without sound support"
@@ -86838,10 +86773,6 @@ msgid "UV Vertex"
 msgstr "UV-вершина"
 
 
-msgid "Rip failed"
-msgstr "Збій розривання"
-
-
 msgid "Minimize Stretch. Blend %.2f"
 msgstr "Мінімізація Розтягу. Blend %.2f"
 
@@ -88249,10 +88180,6 @@ msgid "%s: no Combined pass found in the render layer '%s'"
 msgstr "%s: жоден прохід Комбіновано не знайдено на шарі рендера '%s'"
 
 
-msgid "%s: failed to allocate clip buffer '%s'"
-msgstr "%s: збій розміщення буфера кліпу '%s'"
-
-
 msgid "%s: incorrect dimensions for partial copy '%s'"
 msgstr "%s: неправильні розміри для часткової копії '%s'"
 
@@ -88284,10 +88211,6 @@ msgstr "Рекурсія виявлена у секвенсері відео. С
 
 msgid "Glow"
 msgstr "Сяяння"
-
-
-msgid "Blur X"
-msgstr "Розмив по X"
 
 
 msgid "Rim"

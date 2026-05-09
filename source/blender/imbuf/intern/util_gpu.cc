@@ -16,6 +16,7 @@
 #include "GPU_texture.hh"
 
 #include "IMB_colormanagement.hh"
+#include "IMB_filetype.hh"
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
 
@@ -31,7 +32,7 @@ static bool imb_is_grayscale_texture_format_compatible(const ImBuf *ibuf)
     return false;
   }
 
-  if (ibuf->byte_buffer.data && !ibuf->float_buffer.data) {
+  if (ibuf->byte_data() && !ibuf->float_data()) {
 
     if (IMB_colormanagement_space_is_srgb(ibuf->byte_buffer.colorspace) ||
         IMB_colormanagement_space_is_scene_linear(ibuf->byte_buffer.colorspace))
@@ -61,7 +62,7 @@ static void imb_gpu_get_format(const ImBuf *ibuf,
                                bool use_grayscale,
                                gpu::TextureFormat *r_texture_format)
 {
-  const bool float_rect = (ibuf->float_buffer.data != nullptr);
+  const bool float_rect = (ibuf->float_data() != nullptr);
   const bool is_grayscale = use_grayscale && imb_is_grayscale_texture_format_compatible(ibuf);
 
   if (float_rect) {
@@ -102,34 +103,33 @@ static const char *imb_gpu_get_swizzle(const ImBuf *ibuf)
 /* Return false if no suitable format was found. */
 bool IMB_gpu_get_compressed_format(const ImBuf *ibuf, gpu::TextureFormat *r_texture_format)
 {
-  /* For DDS we only support data, scene linear and sRGB. Converting to
-   * different colorspace would break the compression. */
-  const bool use_srgb = (!IMB_colormanagement_space_is_data(ibuf->byte_buffer.colorspace) &&
-                         !IMB_colormanagement_space_is_scene_linear(ibuf->byte_buffer.colorspace));
-
-  if (ibuf->dds_data.fourcc == FOURCC_DXT1) {
-    *r_texture_format = (use_srgb) ? gpu::TextureFormat::SRGB_DXT1 :
-                                     gpu::TextureFormat::SNORM_DXT1;
-  }
-  else if (ibuf->dds_data.fourcc == FOURCC_DXT3) {
-    *r_texture_format = (use_srgb) ? gpu::TextureFormat::SRGB_DXT3 :
-                                     gpu::TextureFormat::SNORM_DXT3;
-  }
-  else if (ibuf->dds_data.fourcc == FOURCC_DXT5) {
-    *r_texture_format = (use_srgb) ? gpu::TextureFormat::SRGB_DXT5 :
-                                     gpu::TextureFormat::SNORM_DXT5;
-  }
-  else {
+  if (ibuf->ftype != IMB_FTYPE_DDS) {
     return false;
   }
-  return true;
+
+  /* Compressed DDS files can really only express sRGB or data/linear. */
+  const bool use_srgb = (!IMB_colormanagement_space_is_data(ibuf->byte_buffer.colorspace) &&
+                         !IMB_colormanagement_space_is_scene_linear(ibuf->byte_buffer.colorspace));
+  if (ibuf->foptions.flag & DDS_COMPRESSED_DXT1) {
+    *r_texture_format = use_srgb ? gpu::TextureFormat::SRGB_DXT1 : gpu::TextureFormat::SNORM_DXT1;
+    return true;
+  }
+  if (ibuf->foptions.flag & DDS_COMPRESSED_DXT3) {
+    *r_texture_format = use_srgb ? gpu::TextureFormat::SRGB_DXT3 : gpu::TextureFormat::SNORM_DXT3;
+    return true;
+  }
+  if (ibuf->foptions.flag & DDS_COMPRESSED_DXT5) {
+    *r_texture_format = use_srgb ? gpu::TextureFormat::SRGB_DXT5 : gpu::TextureFormat::SNORM_DXT5;
+    return true;
+  }
+  return false;
 }
 
 /**
  * Apply colormanagement and scale buffer if needed.
  * `*r_freedata` is set to true if the returned buffer need to be manually freed.
  */
-static void *imb_gpu_get_data(const ImBuf *ibuf,
+static void *imb_gpu_get_data(ImBuf *ibuf,
                               const bool do_rescale,
                               const int rescale_size[2],
                               const bool store_premultiplied,
@@ -137,10 +137,10 @@ static void *imb_gpu_get_data(const ImBuf *ibuf,
                               bool *r_freedata,
                               eGPUDataFormat *r_data_format)
 {
-  bool is_float_rect = (ibuf->float_buffer.data != nullptr);
+  bool is_float_rect = (ibuf->float_data() != nullptr);
   const bool is_grayscale = allow_grayscale && imb_is_grayscale_texture_format_compatible(ibuf);
-  void *data_rect = (is_float_rect) ? static_cast<void *>(ibuf->float_buffer.data) :
-                                      static_cast<void *>(ibuf->byte_buffer.data);
+  void *data_rect = (is_float_rect) ? static_cast<void *>(ibuf->float_data_for_write()) :
+                                      static_cast<void *>(ibuf->byte_data_for_write());
   bool freedata = false;
 
   if (is_float_rect) {
@@ -229,8 +229,8 @@ static void *imb_gpu_get_data(const ImBuf *ibuf,
       MEM_delete_void(data_rect);
     }
 
-    data_rect = (is_float_rect) ? static_cast<void *>(scale_ibuf->float_buffer.data) :
-                                  static_cast<void *>(scale_ibuf->byte_buffer.data);
+    data_rect = (is_float_rect) ? static_cast<void *>(scale_ibuf->float_data_for_write()) :
+                                  static_cast<void *>(scale_ibuf->byte_data_for_write());
     *r_freedata = freedata = true;
     /* Steal the rescaled buffer to avoid double free. */
     (void)IMB_steal_byte_buffer(scale_ibuf);
@@ -363,35 +363,50 @@ gpu::Texture *IMB_create_gpu_texture(
   if (ibuf->ftype == IMB_FTYPE_DDS) {
     gpu::TextureFormat compressed_format;
     if (!IMB_gpu_get_compressed_format(ibuf, &compressed_format)) {
-      CLOG_WARN(&LOG, "Unable to find a suitable DXT compression");
+      CLOG_WARN(&LOG,
+                "DDS image '%s' is not in a supported GPU compression format",
+                ibuf->filepath.c_str());
     }
     else if (do_rescale) {
-      CLOG_WARN(&LOG, "Unable to load DXT image resolution");
+      CLOG_WARN(
+          &LOG, "DDS image '%s' can't use compressed due to size limit", ibuf->filepath.c_str());
     }
     else if (!is_power_of_2_i(ibuf->x) || !is_power_of_2_i(ibuf->y)) {
       /* We require POT DXT/S3TC texture sizes not because something in there
        * intrinsically needs it, but because we flip them upside down at
        * load time, and that (when mipmaps are involved) is only possible
        * with POT height. */
-      CLOG_WARN(&LOG, "Unable to load non-power-of-two DXT image resolution");
+      CLOG_WARN(&LOG,
+                "DDS image '%s' can't use compressed due to non power of two size",
+                ibuf->filepath.c_str());
     }
     else {
-      tex = GPU_texture_create_compressed_2d(name,
-                                             ibuf->x,
-                                             ibuf->y,
-                                             ibuf->dds_data.nummipmaps,
-                                             compressed_format,
-                                             GPU_TEXTURE_USAGE_GENERAL,
-                                             ibuf->dds_data.data);
 
-      if (tex != nullptr) {
-        return tex;
+      int mip_count = 0;
+      uint8_t *compressed_data = imb_load_dds_compressed_data(
+          ibuf->filepath.c_str(), ibuf->x, ibuf->y, mip_count);
+      if (compressed_data != nullptr) {
+        tex = GPU_texture_create_compressed_2d(name,
+                                               ibuf->x,
+                                               ibuf->y,
+                                               mip_count,
+                                               compressed_format,
+                                               GPU_TEXTURE_USAGE_GENERAL,
+                                               compressed_data);
+        MEM_delete(compressed_data);
+        if (tex != nullptr) {
+          return tex;
+        }
+        CLOG_WARN(&LOG,
+                  "DDS image '%s' failed to create compressed GPU texture",
+                  ibuf->filepath.c_str());
       }
-
-      CLOG_WARN(&LOG, "ST3C support not found");
+      else {
+        CLOG_WARN(&LOG, "DDS image '%s' failed to load data from file", ibuf->filepath.c_str());
+      }
     }
-    /* Fall back to uncompressed texture. */
-    CLOG_WARN(&LOG, "Falling back to uncompressed (%s, %ix%i).", name, ibuf->x, ibuf->y);
+    /* Fallback to uncompressed texture. */
+    CLOG_WARN(&LOG, "DDS image '%s' falling back to uncompressed", ibuf->filepath.c_str());
   }
 
   gpu::TextureFormat tex_format;
@@ -438,11 +453,11 @@ void IMB_gpu_clamp_half_float(ImBuf *image_buffer)
 {
   const float half_min = -65504;
   const float half_max = 65504;
-  if (!image_buffer->float_buffer.data) {
+  if (!image_buffer->float_data()) {
     return;
   }
 
-  float *rect_float = image_buffer->float_buffer.data;
+  float *rect_float = image_buffer->float_data_for_write();
 
   int rect_float_len = image_buffer->x * image_buffer->y *
                        (image_buffer->channels == 0 ? 4 : image_buffer->channels);

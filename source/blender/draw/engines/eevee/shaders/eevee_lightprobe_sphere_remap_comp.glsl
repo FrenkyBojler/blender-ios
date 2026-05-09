@@ -8,7 +8,7 @@
 
 COMPUTE_SHADER_CREATE_INFO(eevee_lightprobe_sphere_remap)
 
-#include "eevee_colorspace_lib.glsl"
+#include "eevee_colorspace_lib.bsl.hh"
 #include "eevee_lightprobe_sphere_mapping_lib.glsl"
 #include "eevee_spherical_harmonics.bsl.hh"
 
@@ -91,7 +91,6 @@ void main()
   constexpr uint group_size = gl_WorkGroupSize.x * gl_WorkGroupSize.y;
 
   SphereProbeUvArea world_coord = reinterpret_as_atlas_coord(world_coord_packed);
-  SphereProbeUvArea sample_coord = reinterpret_as_atlas_coord(probe_coord_packed);
   SphereProbePixelArea write_coord = reinterpret_as_write_coord(write_coord_packed);
 
   /* Texel in probe. */
@@ -114,13 +113,13 @@ void main()
   }
 
   float sun_threshold = uniform_buf.clamp.sun_threshold;
-  float3 radiance_clamped = colorspace_brightness_clamp_max(radiance, sun_threshold);
+  float3 radiance_clamped = colorspace::brightness_clamp_max(radiance, sun_threshold);
   float3 radiance_sun = radiance - radiance_clamped;
   radiance = radiance_clamped;
 
   if (do_remap_mip0 && !any(greaterThanEqual(local_texel, int2(write_coord.extent)))) {
     float clamp_indirect = uniform_buf.clamp.surface_indirect;
-    float3 out_radiance = colorspace_brightness_clamp_max(radiance, clamp_indirect);
+    float3 out_radiance = colorspace::brightness_clamp_max(radiance, clamp_indirect);
 
     int3 texel = int3(local_texel + write_coord.offset, write_coord.layer);
     imageStore(atlas_img, texel, float4(out_radiance, 1.0f));

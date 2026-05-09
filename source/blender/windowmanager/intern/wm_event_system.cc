@@ -345,6 +345,11 @@ bool wmNotifierEqForQueue::operator()(const wmNotifier *a, const wmNotifier *b) 
 }
 }  // namespace bke
 
+void WM_event_handling_break(const bContext &C)
+{
+  CTX_wm_manager(&C)->runtime->break_events_handling = true;
+}
+
 static void wm_event_add_notifier_intern(wmWindowManager *wm,
                                          const wmWindow *win,
                                          uint type,
@@ -639,6 +644,7 @@ void wm_event_do_notifiers(bContext *C)
       }
 
       if (notifier_refreshes_node_group_operators(*note)) {
+        ed::geometry::clear_operator_asset_trees();
         ed::geometry::register_node_group_operators(*C);
       }
 
@@ -1455,7 +1461,7 @@ wmOperatorStatus WM_operator_call_notest(bContext *C, wmOperator *op)
 
 wmOperatorStatus WM_operator_repeat(bContext *C, wmOperator *op)
 {
-  const int op_flag = OP_IS_REPEAT;
+  const eOperator_Flag op_flag = OP_IS_REPEAT;
   op->flag |= op_flag;
   const wmOperatorStatus ret = wm_operator_exec(C, op, true, true);
   op->flag &= ~op_flag;
@@ -1463,7 +1469,7 @@ wmOperatorStatus WM_operator_repeat(bContext *C, wmOperator *op)
 }
 wmOperatorStatus WM_operator_repeat_last(bContext *C, wmOperator *op)
 {
-  const int op_flag = OP_IS_REPEAT_LAST;
+  const eOperator_Flag op_flag = OP_IS_REPEAT_LAST;
   op->flag |= op_flag;
   const wmOperatorStatus ret = wm_operator_exec(C, op, true, true);
   op->flag &= ~op_flag;
@@ -4069,8 +4075,8 @@ static void wm_event_handle_xrevent(wmWindowManager *wm,
 
   /* Check if the XR context scene matches the main Blender context scene to counter-act possible
    * re-allocation on undo operator execution. */
-  const unsigned int xr_ctx_scene_uid = CTX_data_scene(xr_context)->id.session_uid;
-  const unsigned int main_ctx_scene_uid = CTX_data_scene(main_context)->id.session_uid;
+  const uint xr_ctx_scene_uid = CTX_data_scene(xr_context)->id.session_uid;
+  const uint main_ctx_scene_uid = CTX_data_scene(main_context)->id.session_uid;
   const bool ctx_xr_main_scene_match = (xr_ctx_scene_uid == main_ctx_scene_uid);
 
   /* Only process XR operator handlers to prevent interferences with main window handlers.
@@ -4160,9 +4166,7 @@ static eHandlerActionFlag wm_event_do_region_handlers(bContext *C, wmEvent *even
   if (!BLI_listbase_is_empty(&wm->runtime->drags)) {
     /* Does polls for drop regions and checks #uiButs. */
     /* Need to be here to make sure region context is true. */
-    if (ELEM(event->type, MOUSEMOVE, EVT_DROP) || ISKEYMODIFIER(event->type)) {
-      wm_drags_check_ops(C, event);
-    }
+    wm_drags_handle_events(C, event);
   }
 
   return wm_handlers_do(
@@ -4206,6 +4210,8 @@ void wm_event_do_handlers(bContext *C)
   wmWindowManager *wm = CTX_wm_manager(C);
   BLI_assert(ED_undo_is_state_valid(C));
 
+  wm->runtime->break_events_handling = false;
+
   /* Begin GPU render boundary - Certain event handlers require GPU usage. */
   GPU_render_begin();
 
@@ -4214,6 +4220,12 @@ void wm_event_do_handlers(bContext *C)
   WM_gizmoconfig_update(CTX_data_main(C));
 
   for (wmWindow &win : wm->windows) {
+    /* Do the check at the start of the next iteration, to avoid by-passing it in case the
+     * previous iteration has been early-terminated (using `continue;` e.g.). */
+    if (wm->runtime->break_events_handling) {
+      break;
+    }
+
     bScreen *screen = WM_window_get_active_screen(&win);
 
     /* Some safety checks - these should always be set! */
@@ -4227,6 +4239,12 @@ void wm_event_do_handlers(bContext *C)
 
     wmEvent *event;
     while ((event = static_cast<wmEvent *>(win.runtime->event_queue.first))) {
+      /* Do the check at the start of the next iteration, to avoid by-passing it in case the
+       * previous iteration has been early-terminated (using `continue;` e.g.). */
+      if (wm->runtime->break_events_handling) {
+        break;
+      }
+
       eHandlerActionFlag action = WM_HANDLER_CONTINUE;
 
       /* Force handling drag if a key is pressed even if the drag threshold has not been met.
@@ -5050,6 +5068,9 @@ bool WM_event_handler_region_v2d_mask_poll(const wmWindow * /*win*/,
                                            const ARegion *region,
                                            const wmEvent *event)
 {
+  if (wm_event_always_pass(event)) {
+    return true;
+  }
   rcti rect = region->v2d.mask;
   BLI_rcti_translate(&rect, region->winrct.xmin, region->winrct.ymin);
   return event_or_prev_in_rect(event, &rect);

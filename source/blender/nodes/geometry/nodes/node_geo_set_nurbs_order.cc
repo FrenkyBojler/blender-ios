@@ -61,7 +61,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   const Field<int> order = params.extract_input<Field<int>>("Order"_ustr);
 
   const bke::DataTypeConversions &conversions = bke::get_implicit_type_conversions();
-  const Field<int8_t> order_int8 = conversions.try_convert(order, CPPType::get<int8_t>());
+  const Field<int8_t> order_int8 = *conversions.try_convert<int8_t>(order);
 
   std::atomic<bool> has_nurbs = false;
 
@@ -95,7 +95,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeSetNURBSOrder");
+  geo_node_type_base(&ntype, "GeometryNodeSetNURBSOrder"_ustr);
   ntype.ui_name = "Set NURBS Order";
   ntype.ui_description =
       "Control how many curve control points influence each evaluated point by changing the "

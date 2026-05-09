@@ -17,11 +17,14 @@ namespace nodes::node_shader_volume_coefficients_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
+  const bNodeTree *ntree = b.tree_or_null();
+  const bool is_gpu_internal = ntree && (ntree->flag & NTREE_IS_GPU_SHADER_INTERNAL);
+
   b.use_custom_socket_order();
 
   b.add_output<decl::Shader>("Volume"_ustr).translation_context(BLT_I18NCONTEXT_ID_ID);
 
-  b.add_input<decl::Float>("Weight"_ustr).available(false);
+  b.add_input<decl::Float>("Weight"_ustr).available(is_gpu_internal);
 #define SOCK_WEIGHT_ID 0
 
   PanelDeclarationBuilder &abs = b.add_panel("Absorption"_ustr).default_closed(false);
@@ -125,10 +128,10 @@ static int node_shader_gpu_volume_coefficients(GPUMaterial *mat,
                                                GPUNodeStack *in,
                                                GPUNodeStack *out)
 {
-  if (node_socket_not_black(in[SOCK_SCATTER_COEFFICIENTS_ID])) {
+  if (in[SOCK_SCATTER_COEFFICIENTS_ID].socket_not_black()) {
     GPU_material_flag_set(mat, GPU_MATFLAG_VOLUME_SCATTER | GPU_MATFLAG_VOLUME_ABSORPTION);
   }
-  if (node_socket_not_black(in[SOCK_ABSORPTION_COEFFICIENTS_ID])) {
+  if (in[SOCK_ABSORPTION_COEFFICIENTS_ID].socket_not_black()) {
     GPU_material_flag_set(mat, GPU_MATFLAG_VOLUME_ABSORPTION);
   }
   return GPU_stack_link(mat, node, "node_volume_coefficients", in, out);
@@ -153,7 +156,7 @@ void register_node_type_sh_volume_coefficients()
 
   static bke::bNodeType ntype;
 
-  sh_node_type_base(&ntype, "ShaderNodeVolumeCoefficients", SH_NODE_VOLUME_COEFFICIENTS);
+  sh_node_type_base(&ntype, "ShaderNodeVolumeCoefficients"_ustr, SH_NODE_VOLUME_COEFFICIENTS);
   ntype.ui_name = "Volume Coefficients";
   ntype.ui_description =
       "Model all three physical processes in a volume, represented by their coefficients";

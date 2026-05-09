@@ -92,7 +92,7 @@ static void remove_attributes_recursive(GeometrySet &geometry_set, RemoveAttribu
       }
     }
     if (attributes_to_remove.is_empty()) {
-      break;
+      continue;
     }
 
     GeometryComponent &component = geometry_set.get_component_for_write(type);
@@ -180,7 +180,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeRemoveAttribute", GEO_NODE_REMOVE_ATTRIBUTE);
+  geo_node_type_base(&ntype, "GeometryNodeRemoveAttribute"_ustr, GEO_NODE_REMOVE_ATTRIBUTE);
   ntype.ui_name = "Remove Named Attribute";
   ntype.ui_description =
       "Delete an attribute with a specified name from a geometry. Typically used to optimize "

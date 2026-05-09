@@ -670,7 +670,7 @@ static Strip *strip_duplicate(StripDuplicateContext &ctx,
   if (strip_new->modifiers.first) {
     BLI_listbase_clear(&strip_new->modifiers);
 
-    modifier_list_copy(strip_new, strip);
+    modifier_list_copy(strip_new, strip, ctx.copy_flag);
   }
   BLI_assert(modifier_persistent_uids_are_valid(*strip));
 
@@ -905,6 +905,8 @@ static bool strip_write_data_cb(Strip *strip, void *userdata)
         case STRIP_TYPE_COMPOSITOR:
           writer->write_struct_cast<CompositorEffectVars>(strip->effectdata);
           break;
+        default:
+          break;
       }
     }
 
@@ -1068,8 +1070,9 @@ static bool strip_read_data_cb(Strip *strip, void *user_data)
   BLO_read_struct_list(reader, SeqTimelineChannel, &strip->channels);
 
   if (strip->retiming_keys != nullptr) {
-    const int size = retiming_keys_count(strip);
-    BLO_read_struct_array(reader, SeqRetimingKey, size, &strip->retiming_keys);
+    if (!BLO_read_array(reader, &strip->retiming_keys, retiming_keys_count(strip))) {
+      strip->retiming_keys_num = 0;
+    }
   }
 
   return true;
@@ -1326,7 +1329,7 @@ ListBaseT<SeqTimelineChannel> *Editing::current_channels() const
 
 bool Strip::is_effect() const
 {
-  return blender::seq::strip_type_is_effect(StripType(this->type));
+  return blender::seq::strip_type_is_effect(this->type);
 }
 
 int Strip::effect_num_inputs_get() const
@@ -1335,7 +1338,13 @@ int Strip::effect_num_inputs_get() const
   if (this->type == STRIP_TYPE_COMPOSITOR) {
     return this->input1 && this->input2 ? 2 : this->input1 ? 1 : 0;
   }
-  return blender::seq::effect_type_get_min_num_inputs(StripType(this->type));
+  return blender::seq::effect_type_get_min_num_inputs(this->type);
+}
+
+bool StripModifierData::is_type_sound() const
+{
+  return ELEM(
+      this->type, eSeqModifierType_SoundEqualizer, eSeqModifierType_Echo, eSeqModifierType_Pitch);
 }
 
 }  // namespace blender

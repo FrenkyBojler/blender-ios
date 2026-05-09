@@ -21,6 +21,8 @@ BLOCKLIST_ALL = [
     "principled_hair_directcoloring.blend",
     "visibility_particles.blend",
     # Tests for EEVEE-only setting (duplicates from the Cycles perspective)
+    "raytrace_backface_on.blend",
+    "raytrace_backface_off.blend",
     "camera_depth_of_field_jittered.blend",
     "shadow_resolution.blend",
     "shadow_min_pool_size.blend",
@@ -51,6 +53,8 @@ BLOCKLIST_OSL_ALL = BLOCKLIST_OSL_LIMITED + [
     'render_passes_.*.blend',
     # OSL can not specify parameters when reading attribute, which we need for stochastic sampling
     'volume_tricubic_interpolation.blend',
+    # Test specifically for how SVM deals with missing derivatives, which OSL has.
+    "image_mipmap_incomplete_derivs.blend"
 ]
 
 BLOCKLIST_OPTIX = [

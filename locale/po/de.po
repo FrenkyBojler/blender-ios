@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 Alpha (b'227100a72567')\n"
+"Project-Id-Version: Blender 5.2.0 Alpha (b'396b6a98e9f6')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-03-30 09:56+0000\n"
+"POT-Creation-Date: 2026-05-04 07:43+0000\n"
 "PO-Revision-Date: 2025-12-02 20:06+0000\n"
 "Last-Translator: Bastitron <bastitronhd@gmail.com>\n"
 "Language-Team: German <https://translate.blender.org/projects/blender-ui/ui/de/>\n"
@@ -3875,6 +3875,10 @@ msgid "Use always Vertex Color mode"
 msgstr "Punktfarbmodus immer verwenden"
 
 
+msgid "Threshold"
+msgstr "Schwellwert"
+
+
 msgid "Curve Jitter"
 msgstr "Kurvenflackern"
 
@@ -3905,6 +3909,11 @@ msgstr "Kurvenstärke"
 
 msgid "Curve used for the strength"
 msgstr "Kurve verwendet für die Stärke"
+
+
+msgctxt "Operator"
+msgid "Poly"
+msgstr "Poly"
 
 
 msgid "Eraser Mode"
@@ -4043,10 +4052,6 @@ msgid "Number of simplify steps (large values reduce fill accuracy)"
 msgstr "Anzahl von Vereinfachungsschritten (große Werte reduzieren die Füllgenauigkeit)"
 
 
-msgid "Threshold"
-msgstr "Schwellwert"
-
-
 msgid "Threshold to consider color transparent for filling"
 msgstr "Schwellenwert für die Farbtransparenz zum füllen"
 
@@ -4157,10 +4162,6 @@ msgstr "Anzeigen von Hilfelinien für die Strichverlängerung"
 
 msgid "Show Lasso"
 msgstr "Lasso anzeigen"
-
-
-msgid "Do not display fill color while drawing the stroke"
-msgstr "Füllfarbe beim Zeichnen des Strichs nicht anzeigen"
 
 
 msgid "Factor of Simplify using adaptive algorithm"
@@ -11474,10 +11475,6 @@ msgid "Auto-Smooth"
 msgstr "Automatisches Weichzeichnen"
 
 
-msgid "Propagation Steps"
-msgstr "Propagationsschritte"
-
-
 msgid "Brush blending mode"
 msgstr "Pinsel-Überblendungsmodus"
 
@@ -16148,6 +16145,10 @@ msgid "Preset Name"
 msgstr "Voreinstellung Name"
 
 
+msgid "Reports"
+msgstr "Meldungen"
+
+
 msgid "Windows"
 msgstr "Fenster"
 
@@ -18686,48 +18687,60 @@ msgid "Material slot name"
 msgstr "Materialsteckplatzname"
 
 
-msgid "Math"
-msgstr "Mathematisch"
-
-
-msgid "Names"
-msgstr "Namen"
+msgid "Clean Up"
+msgstr "Aufräumen"
 
 
 msgid "Show/Hide"
 msgstr "Zeigen/Verbergen"
 
 
-msgid "Clean Up"
-msgstr "Aufräumen"
+msgid "Special Characters"
+msgstr "Sonderzeichen"
+
+
+msgid "Kerning"
+msgstr "Kerning"
+
+
+msgid "Metaball"
+msgstr "Metaball"
+
+
+msgid "Names"
+msgstr "Namen"
+
+
+msgid "Math"
+msgstr "Mathematisch"
 
 
 msgid "Pivot Point"
 msgstr "Drehpunkt"
 
 
-msgid "Snap"
-msgstr "Einrasten"
-
-
-msgid "Proportional Editing Falloff"
-msgstr "Proportionaler Bearbeitungsabfall"
-
-
 msgid "Read"
 msgstr "Lesen"
 
 
-msgid "Mask Edit"
-msgstr "Maskenbearbeitung"
+msgid "Snap"
+msgstr "Einrasten"
 
 
 msgid "Sample"
 msgstr "Beispiel"
 
 
+msgid "Proportional Editing Falloff"
+msgstr "Proportionaler Bearbeitungsabfall"
+
+
 msgid "Write"
 msgstr "Schreiben"
+
+
+msgid "Mask Edit"
+msgstr "Maskenbearbeitung"
 
 
 msgid "Primitives"
@@ -18800,10 +18813,6 @@ msgstr "Schleifen auswählen"
 
 msgid "Assign Material"
 msgstr "Material zuweisen"
-
-
-msgid "Metaball"
-msgstr "Metaball"
 
 
 msgid "Light"
@@ -18900,14 +18909,6 @@ msgstr "Flächendaten"
 
 msgid "Merge"
 msgstr "Zusammenführen"
-
-
-msgid "Special Characters"
-msgstr "Sonderzeichen"
-
-
-msgid "Kerning"
-msgstr "Kerning"
 
 
 msgid "Assets"
@@ -19193,6 +19194,10 @@ msgstr "Über"
 
 msgid "Quick Setup"
 msgstr "Schnelleinrichtung"
+
+
+msgid "Propagation Steps"
+msgstr "Propagationsschritte"
 
 
 msgid "Mesh Edge"
@@ -24827,11 +24832,6 @@ msgid "Load a SVG file"
 msgstr "Laden einer SVG-Datei"
 
 
-msgctxt "Operator"
-msgid "Import SVG"
-msgstr "SVG importieren"
-
-
 msgid "Load a FBX file"
 msgstr "Lade eine FBX Datei"
 
@@ -24895,11 +24895,6 @@ msgstr "Zusammenklappen und unbenutzte Buchsen ausblenden"
 msgctxt "Operator"
 msgid "Add Node Color Preset"
 msgstr "Spieleigenschaft hinzufügen"
-
-
-msgctxt "Operator"
-msgid "Add Attribute"
-msgstr "Attribut hinzufügen"
 
 
 msgid "Go to parent node tree"
@@ -28940,6 +28935,11 @@ msgstr "Aufheben der Verknüpfung des aktiven Schriftdatenblocks"
 
 
 msgctxt "Operator"
+msgid "Add Attribute"
+msgstr "Attribut hinzufügen"
+
+
+msgctxt "Operator"
 msgid "Convert Attribute"
 msgstr "Attribute konvertieren"
 
@@ -31290,11 +31290,6 @@ msgid "Triangulate selected faces"
 msgstr "Dreieckige ausgewählte Flächen"
 
 
-msgctxt "Operator"
-msgid "Select Boundary Loop"
-msgstr "Nach Typ auswählen"
-
-
 msgid "Sharp Edges"
 msgstr "Scharfe Kanten"
 
@@ -32145,10 +32140,6 @@ msgstr "Beschränkungen"
 
 msgid "Option"
 msgstr "Option"
-
-
-msgid "Overlay Mode"
-msgstr "Überlagerungsmodus"
 
 
 msgid "BMP"
@@ -35261,11 +35252,6 @@ msgstr "Einrasten"
 
 
 msgctxt "Operator"
-msgid "Area Options"
-msgstr "Bereichoptionen"
-
-
-msgctxt "Operator"
 msgid "Split Area"
 msgstr "Bereich aufteilen"
 
@@ -37025,10 +37011,6 @@ msgstr "Reihenfolge"
 msgctxt "Operator"
 msgid "Copy Mirrored UV Coords"
 msgstr "Kopieren gespiegelter UV-Coords"
-
-
-msgid "Axis Direction"
-msgstr "Achsenrichtung"
 
 
 msgctxt "Operator"
@@ -41363,22 +41345,6 @@ msgid "Device"
 msgstr "Gerät"
 
 
-msgid "Image Display Method"
-msgstr "Bild Anzeigemethode"
-
-
-msgid "Method used for displaying images on the screen"
-msgstr "Methode, die für die Anzeige auf dem Bildschirm verwendet wird"
-
-
-msgid "Automatically choose method based on GPU and image"
-msgstr "Automatische Auswahl der Methode basierend auf GPU und Bild"
-
-
-msgid "2D Texture"
-msgstr "2D-Textur"
-
-
 msgid "Legacy Compute Device Type"
 msgstr "Legacy-Computegerätetyp"
 
@@ -44261,6 +44227,10 @@ msgstr "Schwarze Kanten anzeigen"
 
 msgid "Display white edges"
 msgstr "Weiße Kanten anzeigen"
+
+
+msgid "Overlay Mode"
+msgstr "Überlagerungsmodus"
 
 
 msgid "Alpha Channel"
@@ -48417,10 +48387,6 @@ msgid "Start Sample"
 msgstr "Startbeispiel"
 
 
-msgid "Multiplier"
-msgstr "Multiplizierer"
-
-
 msgid "Direct Light"
 msgstr "Direkte Beleuchtung"
 
@@ -48495,6 +48461,10 @@ msgstr "Kamera herausnehmen"
 
 msgid "Min Samples"
 msgstr "Minimale Beispiele"
+
+
+msgid "Multiplier"
+msgstr "Multiplizierer"
 
 
 msgid "Curve Subdivisions"
@@ -49409,11 +49379,6 @@ msgstr "Cursor an Auswahl"
 msgctxt "Operator"
 msgid "Cursor to Grid"
 msgstr "Cursor an Raster"
-
-
-msgctxt "Operator"
-msgid "Poly"
-msgstr "Poly"
 
 
 msgid "Display Cursor"
@@ -51774,10 +51739,6 @@ msgid "Hinting"
 msgstr "Hinting"
 
 
-msgid "Reports"
-msgstr "Meldungen"
-
-
 msgid "New Data"
 msgstr "Neue Daten"
 
@@ -53699,10 +53660,6 @@ msgid "Rename Selected Time Marker"
 msgstr "Ausgewählte Zeitmarker umbenennen"
 
 
-msgid "Selecting the camera is only supported in object mode"
-msgstr "Das Auswählen der Kamera wird nur im Objektmodus unterstützt"
-
-
 msgid "Scene not found"
 msgstr "Szene nicht gefunden"
 
@@ -54035,10 +53992,6 @@ msgstr "%s: %s"
 
 msgid "Non-Keyboard Shortcut"
 msgstr "Kein Tastaturkürzel"
-
-
-msgid "Pin"
-msgstr "Anheften"
 
 
 msgid "Shift Left Mouse"
@@ -57799,10 +57752,6 @@ msgstr "Streifen waren nicht kompatibel"
 
 msgid "Glow"
 msgstr "Glühen"
-
-
-msgid "Blur X"
-msgstr "Weichzeichnen"
 
 
 msgid "Rim"

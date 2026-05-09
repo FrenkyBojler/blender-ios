@@ -22,7 +22,6 @@ class EdgeNeighborCountFieldInput final : public bke::MeshFieldInput {
   EdgeNeighborCountFieldInput()
       : bke::MeshFieldInput(CPPType::get<int>(), "Edge Neighbor Count Field")
   {
-    category_ = Category::Generated;
   }
 
   GVArray get_varray_for_context(const Mesh &mesh,
@@ -35,15 +34,10 @@ class EdgeNeighborCountFieldInput final : public bke::MeshFieldInput {
         VArray<int>::from_container(std::move(counts)), AttrDomain::Edge, domain);
   }
 
-  uint64_t hash() const override
+  void hash_unique(UniqueHashBytes &hash, fn::FieldHashDeep & /*deep_hash_cache*/) const override
   {
-    /* Some random constant hash. */
-    return 985671075;
-  }
-
-  bool is_equal_to(const fn::FieldNode &other) const override
-  {
-    return dynamic_cast<const EdgeNeighborCountFieldInput *>(&other) != nullptr;
+    static constexpr int8_t id = 0;
+    hash.add(&id);
   }
 
   std::optional<AttrDomain> preferred_domain(const Mesh & /*mesh*/) const override
@@ -54,15 +48,14 @@ class EdgeNeighborCountFieldInput final : public bke::MeshFieldInput {
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  Field<int> neighbor_count_field{std::make_shared<EdgeNeighborCountFieldInput>()};
-  params.set_output("Face Count"_ustr, std::move(neighbor_count_field));
+  params.set_output("Face Count"_ustr, Field<int>::from_input<EdgeNeighborCountFieldInput>());
 }
 
 static void node_register()
 {
   static bke::bNodeType ntype;
   geo_node_type_base(
-      &ntype, "GeometryNodeInputMeshEdgeNeighbors", GEO_NODE_INPUT_MESH_EDGE_NEIGHBORS);
+      &ntype, "GeometryNodeInputMeshEdgeNeighbors"_ustr, GEO_NODE_INPUT_MESH_EDGE_NEIGHBORS);
   ntype.ui_name = "Edge Neighbors";
   ntype.ui_description = "Retrieve the number of faces that use each edge as one of their sides";
   ntype.enum_name_legacy = "MESH_EDGE_NEIGHBORS";

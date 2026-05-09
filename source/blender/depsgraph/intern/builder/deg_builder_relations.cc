@@ -315,6 +315,19 @@ bool DepsgraphRelationBuilder::has_node(const ComponentKey &key) const
   return find_node(key) != nullptr;
 }
 
+Relation *DepsgraphRelationBuilder::add_node_handle_relation(const TimeSourceKey &key_from,
+                                                             const DepsNodeHandle *handle,
+                                                             const char *description,
+                                                             int flags)
+{
+  TimeSourceNode *time_from = get_node(key_from);
+  OperationNode *op_to = handle->node->get_entry_operation();
+  if (time_from != nullptr && op_to != nullptr) {
+    return add_time_relation(time_from, op_to, description, flags);
+  }
+  return nullptr;
+}
+
 void DepsgraphRelationBuilder::add_depends_on_transform_relation(const DepsNodeHandle *handle,
                                                                  const char *description)
 {
@@ -1022,6 +1035,10 @@ void DepsgraphRelationBuilder::build_object_data(Object *object)
       break;
     case OB_SPEAKER:
       build_object_data_speaker(object);
+      break;
+    case OB_EMPTY:
+    case OB_GPENCIL_LEGACY:
+    case OB_TYPE_MAX:
       break;
   }
   Key *key = BKE_key_from_object(object);
@@ -2471,6 +2488,8 @@ void DepsgraphRelationBuilder::build_particle_systems(Object *object)
           }
         }
         break;
+      default:
+        break;
     }
   }
   /* Particle depends on the object transform, so that channel is to be ready
@@ -3054,7 +3073,7 @@ void DepsgraphRelationBuilder::build_nodetree(bNodeTree *ntree)
       build_nodetree_socket(&socket);
     }
 
-    if (ntree->type == NTREE_SHADER && bnode->is_type("ShaderNodeAttribute")) {
+    if (ntree->type == NTREE_SHADER && bnode->is_type("ShaderNodeAttribute"_ustr)) {
       NodeShaderAttribute *attr = static_cast<NodeShaderAttribute *>(bnode->storage);
       if (attr->type == SHD_ATTRIBUTE_VIEW_LAYER && STREQ(attr->name, "frame_current")) {
         TimeSourceKey time_src_key;

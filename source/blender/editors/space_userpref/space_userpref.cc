@@ -194,14 +194,14 @@ static void userpref_search_move_to_next_tab_with_results(SpaceUserPref *sbuts,
   /* Try the tabs after the current tab. */
   for (int i = current_tab_index + 1; i < context_tabs_array.size(); i++) {
     if (sbuts->runtime->tab_search_results[i]) {
-      U.space_data.section_active = context_tabs_array[i];
+      U.space_data.section_active = eUserPref_Section(context_tabs_array[i]);
       return;
     }
   }
   /* Try the tabs before the current tab. */
   for (int i = 0; i < current_tab_index; i++) {
     if (sbuts->runtime->tab_search_results[i]) {
-      U.space_data.section_active = context_tabs_array[i];
+      U.space_data.section_active = eUserPref_Section(context_tabs_array[i]);
       return;
     }
   }
@@ -433,6 +433,7 @@ void ED_spacetype_userpref()
   /* regions: navigation window */
   art = MEM_new_zeroed<ARegionType>("spacetype userpref region");
   art->regionid = RGN_TYPE_UI;
+  art->flag = ARegionTypeFlag::HideSinglePanelCategories;
   art->prefsizex = UI_NAVIGATION_REGION_WIDTH;
   art->init = userpref_navigation_region_init;
   art->draw = userpref_navigation_region_draw;

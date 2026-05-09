@@ -373,13 +373,13 @@ World *ED_preview_prepare_world_simple(Main *pr_main)
   World *world = BKE_world_add(pr_main, "SimpleWorld");
   bNodeTree *ntree = world->nodetree;
 
-  bNode *background = node_add_node(nullptr, *ntree, "ShaderNodeBackground");
-  bNode *output = node_add_node(nullptr, *ntree, "ShaderNodeOutputWorld");
+  bNode *background = node_add_node(nullptr, *ntree, "ShaderNodeBackground"_ustr);
+  bNode *output = node_add_node(nullptr, *ntree, "ShaderNodeOutputWorld"_ustr);
   node_add_link(*world->nodetree,
                 *background,
-                *node_find_socket(*background, SOCK_OUT, "Background"),
+                *node_find_socket(*background, SOCK_OUT, "Background"_ustr),
                 *output,
-                *node_find_socket(*output, SOCK_IN, "Surface"));
+                *node_find_socket(*output, SOCK_IN, "Surface"_ustr));
   node_set_active(*ntree, *output);
 
   world->nodetree = ntree;
@@ -393,8 +393,8 @@ void ED_preview_world_simple_set_rgb(World *world, const float color[4])
   bNode *background = bke::node_find_node_by_name(*world->nodetree, "Background");
   BLI_assert(background != nullptr);
 
-  auto color_socket = static_cast<bNodeSocketValueRGBA *>(
-      bke::node_find_socket(*background, SOCK_IN, "Color")->default_value);
+  auto *color_socket = static_cast<bNodeSocketValueRGBA *>(
+      bke::node_find_socket(*background, SOCK_IN, "Color"_ustr)->default_value);
   copy_v4_v4(color_socket->value, color);
 }
 
@@ -514,7 +514,7 @@ static Scene *preview_prepare_scene(
 
     /* Only enable the combined render-pass. */
     view_layer->passflag = SCE_PASS_COMBINED;
-    view_layer->eevee.render_passes = 0;
+    view_layer->eevee.render_passes = eViewLayerEEVEEPassType{};
 
     /* This flag tells render to not execute depsgraph or F-Curves etc. */
     sce->r.scemode |= R_BUTS_PREVIEW;
@@ -1172,7 +1172,7 @@ static void shader_preview_texture(ShaderPreview *sp, Tex *tex, Scene *sce, Rend
   BKE_texture_fetch_images_for_pool(tex, img_pool);
 
   /* Fill in image buffer. */
-  float *rect_float = rv_ibuf->float_buffer.data;
+  float *rect_float = rv_ibuf->float_data_for_write();
   float tex_coord[3] = {0.0f, 0.0f, 0.0f};
 
   for (int y = 0; y < height; y++) {
@@ -1287,10 +1287,8 @@ static void shader_preview_render(ShaderPreview *sp, ID *id, int split, int firs
 
   /* handle results */
   if (sp->pr_method == PR_ICON_RENDER) {
-    // char *rct = (char *)(sp->pr_rect + 32 * 16 + 16);
-
     if (sp->pr_rect) {
-      RE_ResultGet32(re, sp->pr_rect);
+      RE_ResultGet32(re, reinterpret_cast<uint8_t *>(sp->pr_rect));
     }
   }
 
@@ -1388,8 +1386,8 @@ static void shader_preview_free(void *customdata)
 
 static void icon_copy_rect(const ImBuf *ibuf, uint w, uint h, uint *rect)
 {
-  if (ibuf == nullptr ||
-      (ibuf->byte_buffer.data == nullptr && ibuf->float_buffer.data == nullptr) || rect == nullptr)
+  if (ibuf == nullptr || (ibuf->byte_data() == nullptr && ibuf->float_data() == nullptr) ||
+      rect == nullptr)
   {
     return;
   }
@@ -1417,11 +1415,11 @@ static void icon_copy_rect(const ImBuf *ibuf, uint w, uint h, uint *rect)
   }
 
   /* if needed, convert to 32 bits */
-  if (ima->byte_buffer.data == nullptr) {
+  if (ima->byte_data() == nullptr) {
     IMB_byte_from_float(ima);
   }
 
-  const uint *srect = reinterpret_cast<const uint *>(ima->byte_buffer.data);
+  const uint *srect = reinterpret_cast<const uint *>(ima->byte_data());
   uint *drect = rect;
 
   drect += dy * w + dx;
@@ -1475,9 +1473,7 @@ static void icon_preview_startjob(void *customdata, bool *stop, bool *do_update)
      * already there. Very expensive for large images. Need to find a way to
      * only get existing `ibuf`. */
     ibuf = BKE_image_acquire_ibuf(ima, &iuser, nullptr);
-    if (ibuf == nullptr ||
-        (ibuf->byte_buffer.data == nullptr && ibuf->float_buffer.data == nullptr))
-    {
+    if (ibuf == nullptr || (ibuf->byte_data() == nullptr && ibuf->float_data() == nullptr)) {
       BKE_image_release_ibuf(ima, ibuf, nullptr);
       return;
     }
@@ -1794,7 +1790,7 @@ Set<std::string> &PreviewLoadJob::known_downloaded_previews()
 PreviewLoadJob &PreviewLoadJob::ensure_job(wmWindowManager *wm, wmWindow *win)
 {
   wmJob *wm_job = WM_jobs_get(
-      wm, win, nullptr, "Loading previews...", eWM_JobFlag(0), WM_JOB_TYPE_LOAD_PREVIEW);
+      wm, win, nullptr, "Loading previews...", eWM_JobFlag{}, WM_JOB_TYPE_LOAD_PREVIEW);
 
   if (!WM_jobs_is_running(wm_job)) {
     PreviewLoadJob *job_data = MEM_new<PreviewLoadJob>("PreviewLoadJobData");
@@ -1848,28 +1844,37 @@ void PreviewLoadJob::push_load_request(PreviewImage *preview, const eIconSizes i
     std::lock_guard lock(requested_previews_mutex_);
 
     /* Typically shouldn't happen, since previews are flagged with #PRV_RENDERING when loading,
-     * which should prevent double requests. However, a #PreviewImage might be deleted and
-     * recreated while a request is still pending. In that case, update the preview pointer.
+     * which should prevent double requests. However, a #PreviewImage might be tagged for deletion
+     * and recreated while a request is still pending. In that case, update the preview pointer.
      *
-     * This happens when reloading online asset libraries with running preview downloads. */
-    if (std::unique_ptr<RequestedPreview> *existing_request = requested_previews_.lookup_ptr(key))
+     * This happens when reloading online asset libraries with running preview downloads. The
+     * assets are destructed then, the preview removed from the global cache (so it won't be
+     * reused by the subsequent re-request) and tagged for freeing. */
+    if (std::unique_ptr<RequestedPreview> *existing_request_uptr = requested_previews_.lookup_ptr(
+            key))
     {
-      request = existing_request->get();
-      request->preview = preview;
+      RequestedPreview *existing_request = existing_request_uptr->get();
+      if (existing_request->preview != preview) {
+        /* This will free the preview if it's tagged with #PRV_TAG_DEFERRED_DELETE. That's
+         * important since the global cache doesn't hold it anymore and therefore won't free it.
+         * It's up to us here to end loading properly. */
+        BKE_previewimg_render_end(existing_request->preview, icon_size, PRV_RENDER_STATUS_FAILED);
+        existing_request->preview = preview;
+      }
+      return;
+    }
+
+    std::unique_ptr<RequestedPreview> new_request = std::make_unique<RequestedPreview>(preview,
+                                                                                       icon_size);
+    request = new_request.get();
+
+    if (is_downloading) {
+      request->state = PreviewState::Downloading;
     }
     else {
-      std::unique_ptr<RequestedPreview> new_request = std::make_unique<RequestedPreview>(
-          preview, icon_size);
-      request = new_request.get();
-
-      if (is_downloading) {
-        request->state = PreviewState::Downloading;
-      }
-      else {
-        request->state = PreviewState::LoadingFromDisk;
-      }
-      requested_previews_.add(key, std::move(new_request));
+      request->state = PreviewState::LoadingFromDisk;
     }
+    requested_previews_.add(key, std::move(new_request));
   }
 
   /* NOTE: The request gets pushed to the queue, even when state == PreviewState::Downloading, even
@@ -2055,7 +2060,7 @@ void PreviewLoadJob::run_fn(void *customdata, wmJobWorkerStatus *worker_status)
         preview->h[request->icon_size] = thumb->y;
         BLI_assert(preview->rect[request->icon_size] == nullptr);
         preview->rect[request->icon_size] = reinterpret_cast<uint *>(
-            MEM_dupalloc(thumb->byte_buffer.data));
+            MEM_dupalloc(thumb->byte_data()));
       }
       else {
         icon_copy_rect(thumb,

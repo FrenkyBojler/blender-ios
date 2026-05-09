@@ -42,7 +42,7 @@ static void mesh_render_data_loose_geom_build(const MeshRenderData &mr, MeshBuff
   }
   else {
     BMesh &bm = *mr.bm;
-    /* Use LinearAllocator instead of IndexMaskMemory to avoid overallocation. */
+    /* Use LinearAllocator instead of IndexMaskMemory to avoid over-allocation. */
     cache.loose_geom.allocator = std::make_unique<LinearAllocator<>>();
     cache.loose_geom.verts = IndexMask::from_predicate(
         IndexRange(bm.totvert), *cache.loose_geom.allocator, [&](const int i) {
@@ -389,7 +389,8 @@ static void retrieve_active_attribute_names(MeshRenderData &mr,
                                             const Mesh &mesh)
 {
   const Mesh &mesh_final = editmesh_final_or_this(object, mesh);
-  mr.active_color_name = mesh_final.active_color_attribute;
+  mr.active_color_name = mesh_final.active_color_attribute ? mesh_final.active_color_attribute :
+                                                             mesh_final.default_color_attribute;
   mr.default_color_name = mesh_final.default_color_attribute;
 }
 

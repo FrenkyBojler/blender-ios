@@ -12,6 +12,8 @@
 #include "NOD_rna_define.hh"
 #include "NOD_socket_search_link.hh"
 
+#include "FN_multi_function_registry.hh"
+
 #include "node_function_util.hh"
 
 namespace blender {
@@ -95,7 +97,7 @@ class SocketSearchOp {
   BitMathOperation operation;
   void operator()(LinkSearchOpParams &params)
   {
-    bNode &node = params.add_node("FunctionNodeBitMath");
+    bNode &node = params.add_node("FunctionNodeBitMath"_ustr);
     node.custom1 = int16_t(operation);
     params.update_and_connect_available_socket(node, socket_name);
   }
@@ -140,48 +142,19 @@ static void node_label(const bNodeTree * /*ntree*/,
 static const mf::MultiFunction *get_multi_function(const bNode &bnode)
 {
   const BitMathOperation operation = BitMathOperation(bnode.custom1);
-  static auto exec_preset = mf::build::exec_presets::AllSpanOrSingle();
-  static auto and_fn = mf::build::SI2_SO<int, int, int>(
-      "And", [](int a, int b) { return a & b; }, exec_preset);
-  static auto or_fn = mf::build::SI2_SO<int, int, int>(
-      "Or", [](int a, int b) { return a | b; }, exec_preset);
-  static auto xor_fn = mf::build::SI2_SO<int, int, int>(
-      "Xor", [](int a, int b) { return a ^ b; }, exec_preset);
-  static auto not_fn = mf::build::SI1_SO<int, int>("Not", [](int a) { return ~a; }, exec_preset);
-  static auto shift_fn = mf::build::SI2_SO<int, int, int>(
-      "Shift",
-      [](int a, int b) {
-        const uint32_t value = a;
-        const int shift = math::clamp(b, -32, 32);
-        const uint64_t wide_value = uint64_t(value) << 16;
-        const uint64_t wide_result = shift > 0 ? wide_value << shift : wide_value >> -shift;
-        return uint32_t(wide_result >> 16);
-      },
-      exec_preset);
-  static auto rotate_fn = mf::build::SI2_SO<int, int, int>(
-      "Rotate",
-      [](int a, int b) {
-        const uint32_t value = a;
-        const int shift = math::mod_periodic(b, 32);
-        const uint64_t wide_value = uint64_t(value) | (uint64_t(value) << 32);
-        const uint64_t double_result = (wide_value << shift);
-        return uint32_t((double_result | (double_result >> 32)) & ((uint64_t(1) << 33) - 1));
-      },
-      exec_preset);
-
   switch (operation) {
     case BitMathOperation::And:
-      return &and_fn;
+      return &fn::multi_function::registry::lookup("int & int"_ustr);
     case BitMathOperation::Or:
-      return &or_fn;
+      return &fn::multi_function::registry::lookup("int | int"_ustr);
     case BitMathOperation::Xor:
-      return &xor_fn;
+      return &fn::multi_function::registry::lookup("int ^ int"_ustr);
     case BitMathOperation::Not:
-      return &not_fn;
+      return &fn::multi_function::registry::lookup("~int"_ustr);
     case BitMathOperation::Shift:
-      return &shift_fn;
+      return &fn::multi_function::registry::lookup("shift(int, int)"_ustr);
     case BitMathOperation::Rotate:
-      return &rotate_fn;
+      return &fn::multi_function::registry::lookup("rotate(int, int)"_ustr);
   }
   BLI_assert_unreachable();
   return nullptr;
@@ -209,7 +182,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  fn_node_type_base(&ntype, "FunctionNodeBitMath");
+  fn_node_type_base(&ntype, "FunctionNodeBitMath"_ustr);
   ntype.ui_name = "Bit Math";
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = node_declare;

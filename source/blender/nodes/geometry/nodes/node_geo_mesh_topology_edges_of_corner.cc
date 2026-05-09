@@ -26,10 +26,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 class CornerNextEdgeFieldInput final : public bke::MeshFieldInput {
  public:
-  CornerNextEdgeFieldInput() : bke::MeshFieldInput(CPPType::get<int>(), "Corner Next Edge")
-  {
-    category_ = Category::Generated;
-  }
+  CornerNextEdgeFieldInput() : bke::MeshFieldInput(CPPType::get<int>(), "Corner Next Edge") {}
 
   GVArray get_varray_for_context(const Mesh &mesh,
                                  const AttrDomain domain,
@@ -41,14 +38,10 @@ class CornerNextEdgeFieldInput final : public bke::MeshFieldInput {
     return VArray<int>::from_span(mesh.corner_edges());
   }
 
-  uint64_t hash() const final
+  void hash_unique(UniqueHashBytes &hash, fn::FieldHashDeep & /*deep_hash_cache*/) const override
   {
-    return 1892753404495;
-  }
-
-  bool is_equal_to(const fn::FieldNode &other) const final
-  {
-    return dynamic_cast<const CornerNextEdgeFieldInput *>(&other) != nullptr;
+    static constexpr int8_t id = 0;
+    hash.add(&id);
   }
 
   std::optional<AttrDomain> preferred_domain(const Mesh & /*mesh*/) const final
@@ -61,7 +54,6 @@ class CornerPreviousEdgeFieldInput final : public bke::MeshFieldInput {
  public:
   CornerPreviousEdgeFieldInput() : bke::MeshFieldInput(CPPType::get<int>(), "Corner Previous Edge")
   {
-    category_ = Category::Generated;
   }
 
   GVArray get_varray_for_context(const Mesh &mesh,
@@ -80,14 +72,10 @@ class CornerPreviousEdgeFieldInput final : public bke::MeshFieldInput {
         });
   }
 
-  uint64_t hash() const final
+  void hash_unique(UniqueHashBytes &hash, fn::FieldHashDeep & /*deep_hash_cache*/) const override
   {
-    return 987298345762465;
-  }
-
-  bool is_equal_to(const fn::FieldNode &other) const final
-  {
-    return dynamic_cast<const CornerPreviousEdgeFieldInput *>(&other) != nullptr;
+    static constexpr int8_t id = 0;
+    hash.add(&id);
   }
 
   std::optional<AttrDomain> preferred_domain(const Mesh & /*mesh*/) const final
@@ -100,25 +88,25 @@ static void node_geo_exec(GeoNodeExecParams params)
 {
   const Field<int> corner_index = params.extract_input<Field<int>>("Corner Index"_ustr);
   if (params.output_is_required("Next Edge Index"_ustr)) {
-    params.set_output("Next Edge Index"_ustr,
-                      Field<int>(std::make_shared<bke::EvaluateAtIndexInput>(
-                          corner_index,
-                          Field<int>(std::make_shared<CornerNextEdgeFieldInput>()),
-                          AttrDomain::Corner)));
+    params.set_output(
+        "Next Edge Index"_ustr,
+        Field<int>::from_input<bke::EvaluateAtIndexInput>(
+            corner_index, Field<int>::from_input<CornerNextEdgeFieldInput>(), AttrDomain::Corner));
   }
   if (params.output_is_required("Previous Edge Index"_ustr)) {
     params.set_output("Previous Edge Index"_ustr,
-                      Field<int>(std::make_shared<bke::EvaluateAtIndexInput>(
+                      Field<int>::from_input<bke::EvaluateAtIndexInput>(
                           corner_index,
-                          Field<int>(std::make_shared<CornerPreviousEdgeFieldInput>()),
-                          AttrDomain::Corner)));
+                          Field<int>::from_input<CornerPreviousEdgeFieldInput>(),
+                          AttrDomain::Corner));
   }
 }
 
 static void node_register()
 {
   static bke::bNodeType ntype;
-  geo_node_type_base(&ntype, "GeometryNodeEdgesOfCorner", GEO_NODE_MESH_TOPOLOGY_EDGES_OF_CORNER);
+  geo_node_type_base(
+      &ntype, "GeometryNodeEdgesOfCorner"_ustr, GEO_NODE_MESH_TOPOLOGY_EDGES_OF_CORNER);
   ntype.ui_name = "Edges of Corner";
   ntype.ui_description = "Retrieve the edges on both sides of a face corner";
   ntype.enum_name_legacy = "EDGES_OF_CORNER";
