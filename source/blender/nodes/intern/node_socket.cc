@@ -468,11 +468,8 @@ static void refresh_node_sockets_animation_inout(bNodeTree &ntree,
   const animrig::slot_handle_t slot_handle = ntree.adt->slot_handle;
   const StringRef inout_str = in_out == SOCK_IN ? "inputs" : "outputs";
 
-  /* All index changes have to be applied in a single pass over the fcurves. Otherwise, when
-   * sockets swap their position, the same fcurve may be modified twice and ends up with its
-   * original rna path. */
-  animrig::foreach_fcurve_in_action_slot(action, slot_handle, [&](FCurve &fcurve) {
-    const StringRef old_path = fcurve.rna_path;
+  auto handle_rna_path = [&](char **path_ptr) {
+    const StringRef old_path = *path_ptr;
     if (!old_path.startswith(node_path)) {
       return;
     }
@@ -487,13 +484,21 @@ static void refresh_node_sockets_animation_inout(bNodeTree &ntree,
                                                inout_str,
                                                change.new_i,
                                                old_path.substr(old_path_prefix.size()));
-      MEM_SAFE_DELETE(fcurve.rna_path);
-      fcurve.rna_path = BLI_strdup(new_path.c_str());
+      MEM_SAFE_DELETE(*path_ptr);
+      *path_ptr = BLI_strdup(new_path.c_str());
       DEG_id_tag_update(&ntree.id, ID_RECALC_ANIMATION);
       DEG_id_tag_update(&ntree.adt->action->id, ID_RECALC_SYNC_TO_EVAL);
-      return;
     }
-  });
+  };
+
+  /* All index changes have to be applied in a single pass over the fcurves. Otherwise, when
+   * sockets swap their position, the same fcurve may be modified twice and ends up with its
+   * original rna path. */
+  animrig::foreach_fcurve_in_action_slot(
+      action, slot_handle, [&](FCurve &fcurve) { handle_rna_path(&fcurve.rna_path); });
+  for (FCurve &driver_fcurve : ntree.adt->drivers) {
+    handle_rna_path(&driver_fcurve.rna_path);
+  }
 }
 
 static void refresh_node_sockets_and_panels(bNodeTree &ntree,
