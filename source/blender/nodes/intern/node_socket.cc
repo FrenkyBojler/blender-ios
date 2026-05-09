@@ -445,10 +445,6 @@ static void refresh_node_sockets_animation_inout(Main &bmain,
   if (!ntree.adt || !ntree.adt->action) {
     return;
   }
-  struct IndexMove {
-    int old_i;
-    int new_i;
-  };
 
   Map<UString, int> new_index_by_identifier;
   for (const int new_i : new_sockets.index_range()) {
@@ -456,6 +452,10 @@ static void refresh_node_sockets_animation_inout(Main &bmain,
     new_index_by_identifier.add_new(new_socket.identifier_ustr(), new_i);
   }
 
+  struct IndexMove {
+    int old_i;
+    int new_i;
+  };
   Vector<IndexMove> moved_indices;
   Vector<int> removed_indices;
   for (const int old_i : old_sockets.index_range()) {
