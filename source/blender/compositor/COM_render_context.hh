@@ -7,7 +7,6 @@
 #include <memory>
 #include <string>
 
-#include "BLI_implicit_sharing_ptr.hh"
 #include "BLI_map.hh"
 #include "BLI_math_vector_types.hh"
 
