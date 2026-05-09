@@ -120,6 +120,7 @@ class ClusterByConnectedFieldInput final : public bke::MeshFieldInput {
     hash.add(&id);
     hash.add(deep_hash_cache.ensure(selection_field_));
     hash.add(deep_hash_cache.ensure(position_field_));
+    hash.add(min_distance_);
   }
 
   std::optional<AttrDomain> preferred_domain(const Mesh & /*mesh*/) const override

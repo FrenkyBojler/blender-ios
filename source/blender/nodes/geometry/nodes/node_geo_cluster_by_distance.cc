@@ -186,6 +186,7 @@ class ClusterByDistanceFieldInput final : public bke::GeometryFieldInput {
     hash.add(deep_hash_cache.ensure(positions_field_));
     hash.add(deep_hash_cache.ensure(group_field_));
     hash.add(deep_hash_cache.ensure(selection_field_));
+    hash.add(distance_);
   }
 
   std::optional<AttrDomain> preferred_domain(const GeometryComponent &component) const final
