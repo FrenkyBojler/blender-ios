@@ -529,9 +529,6 @@ static void refresh_node_sockets_and_panels(bNodeTree &ntree,
     old_outputs.append(&socket);
   }
 
-  Vector<bNodeSocket *> remaining_old_inputs = old_inputs;
-  Vector<bNodeSocket *> remaining_old_outputs = old_outputs;
-
   const bool hide_new_sockets = node.is_group_input() ? hide_new_group_input_sockets(node) : false;
 
   Vector<bNodePanelState> old_panels = Vector<bNodePanelState>(node.panel_states());
@@ -545,6 +542,8 @@ static void refresh_node_sockets_and_panels(bNodeTree &ntree,
   VectorSet<bNodeSocket *> new_inputs;
   VectorSet<bNodeSocket *> new_outputs;
   bNodePanelState *new_panel = node.panel_states_array;
+  Vector<bNodeSocket *> remaining_old_inputs = old_inputs;
+  Vector<bNodeSocket *> remaining_old_outputs = old_outputs;
   for (const ItemDeclarationPtr &item_decl : node_decl.all_items) {
     if (const SocketDeclaration *socket_decl = dynamic_cast<const SocketDeclaration *>(
             item_decl.get()))
