@@ -24,7 +24,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Int>("Cluster ID"_ustr).field_source_reference_all();
 }
 
-class ClusterByConnectedFieldInput final : public bke::MeshFieldInput {
+class ClusterByConnectedFieldInput final : public bke::GeometryFieldInput {
  private:
   Field<bool> selection_field_;
   Field<float3> position_field_;
@@ -34,17 +34,20 @@ class ClusterByConnectedFieldInput final : public bke::MeshFieldInput {
   ClusterByConnectedFieldInput(Field<bool> selection_field,
                                Field<float3> position_field,
                                float min_distance)
-      : bke::MeshFieldInput(CPPType::get<int>(), "Cluster by Connected"),
+      : bke::GeometryFieldInput(CPPType::get<int>(), "Cluster by Connected"),
         selection_field_(std::move(selection_field)),
         position_field_(std::move(position_field)),
         min_distance_(min_distance)
   {
   }
 
-  GVArray get_varray_for_context(const Mesh &mesh,
-                                 const AttrDomain domain,
-                                 const IndexMask &mask) const final
+  GVArray get_varray_for_context(const bke::GeometryFieldContext &context,
+                                 const IndexMask &mask) const override
   {
+    if (context.type() != bke::GeometryComponent::Type::Mesh) {
+      return fn::IndexFieldInput::get_index_varray(mask);
+    }
+    const Mesh &mesh = *context.mesh();
     const Span<int2> edges = mesh.edges();
 
     const bke::MeshFieldContext edge_context(mesh, AttrDomain::Edge);
@@ -105,7 +108,9 @@ class ClusterByConnectedFieldInput final : public bke::MeshFieldInput {
     });
 
     return mesh.attributes().adapt_domain<int>(
-        VArray<int>::from_container(std::move(cluster_indices)), AttrDomain::Point, domain);
+        VArray<int>::from_container(std::move(cluster_indices)),
+        AttrDomain::Point,
+        context.domain());
   }
 
   void foreach_recursive_field(FunctionRef<void(const GField &)> fn) const override
@@ -123,7 +128,8 @@ class ClusterByConnectedFieldInput final : public bke::MeshFieldInput {
     hash.add(min_distance_);
   }
 
-  std::optional<AttrDomain> preferred_domain(const Mesh & /*mesh*/) const override
+  std::optional<AttrDomain> preferred_domain(
+      const GeometryComponent & /*component*/) const override
   {
     return AttrDomain::Point;
   }
