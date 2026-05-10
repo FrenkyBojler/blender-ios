@@ -4275,19 +4275,16 @@ static void rna_def_tool_settings(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "anim_fix_to_cam_use_loc", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "fix_to_cam_flag", FIX_TO_CAM_FLAG_USE_LOC);
-  RNA_def_property_boolean_default(prop, true);
   RNA_def_property_ui_text(
       prop, "Use Location for Camera Fix", "Create location keys when fixing to the scene camera");
 
   prop = RNA_def_property(srna, "anim_fix_to_cam_use_rot", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "fix_to_cam_flag", FIX_TO_CAM_FLAG_USE_ROT);
-  RNA_def_property_boolean_default(prop, true);
   RNA_def_property_ui_text(
       prop, "Use Rotation for Camera Fix", "Create rotation keys when fixing to the scene camera");
 
   prop = RNA_def_property(srna, "anim_fix_to_cam_use_scale", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "fix_to_cam_flag", FIX_TO_CAM_FLAG_USE_SCALE);
-  RNA_def_property_boolean_default(prop, true);
   RNA_def_property_ui_text(
       prop, "Use Scale for Camera Fix", "Create scale keys when fixing to the scene camera");
 
@@ -8123,6 +8120,21 @@ static void rna_def_raytrace_eevee(BlenderRNA *brna)
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
 
+  prop = RNA_def_property(srna, "use_backface_hit", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", RAYTRACE_EEVEE_USE_BACKFACE);
+  RNA_def_property_ui_text(prop, "Hit Backfaces", "Consider rays hitting backfaces as valid");
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
+
+  prop = RNA_def_property(srna, "backface_radiance_scale", PROP_FLOAT, PROP_FACTOR);
+  RNA_def_property_ui_text(prop,
+                           "Backface Radiance Scale",
+                           "Amount of the front face lighting to reuse for backface "
+                           "lighting approximation");
+  RNA_def_property_range(prop, 0.0f, 1.0f);
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
+
   prop = RNA_def_property(srna, "use_denoise", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", RAYTRACE_EEVEE_USE_DENOISE);
   RNA_def_property_ui_text(
@@ -8475,25 +8487,16 @@ static void rna_def_scene_eevee(BlenderRNA *brna)
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
 
+  /* Could be renamed to `fast_gi_thickness`, but would break API. */
   prop = RNA_def_property(srna, "fast_gi_thickness_near", PROP_FLOAT, PROP_DISTANCE);
+  RNA_def_property_float_sdna(prop, nullptr, "fast_gi_thickness_near");
   RNA_def_property_ui_text(
       prop,
-      "Near Thickness",
+      "Thickness",
       "Geometric thickness of the surfaces when computing fast GI and ambient occlusion. "
       "Reduces light leaking and missing contact occlusion.");
   RNA_def_property_range(prop, 0.0f, 100000.0f);
   RNA_def_property_ui_range(prop, 0.0f, 100.0f, 1.0f, 3);
-  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
-  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
-
-  prop = RNA_def_property(srna, "fast_gi_thickness_far", PROP_FLOAT, PROP_ANGLE);
-  RNA_def_property_ui_text(
-      prop,
-      "Far Thickness",
-      "Angular thickness of the surfaces when computing fast GI and ambient occlusion. "
-      "Reduces energy loss and missing occlusion of far geometry.");
-  RNA_def_property_range(prop, DEG2RADF(1.0f), DEG2RADF(180.0f));
-  RNA_def_property_ui_range(prop, DEG2RADF(1.0f), DEG2RADF(180.0f), 10.0f, 3);
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
 
