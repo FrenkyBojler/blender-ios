@@ -84,6 +84,40 @@ class BlendFileOpenerMixin:
         """Override in subclass to add cleanup logic after process finishes."""
         raise NotImplementedError()
 
+    def _refresh_asset_browsers(self, context):
+        """Refresh all open asset browser windows."""
+        for window in context.window_manager.windows:
+            for area in window.screen.areas:
+                if area.type != 'FILE_BROWSER':
+                    continue
+                if area.spaces.active.browse_mode != 'ASSETS':
+                    continue
+                try:
+                    with context.temp_override(window=window, area=area):
+                        if bpy.ops.asset.library_refresh.poll():
+                            bpy.ops.asset.library_refresh()
+                except (TypeError, AttributeError):
+                    if bpy.ops.asset.library_refresh.poll():
+                        bpy.ops.asset.library_refresh()
+
+    def _reload_linked_libraries(self, abs_filepath):
+        """Reload all linked libraries that correspond to the given filepath."""
+        import os
+
+        directory, filename = os.path.split(abs_filepath)
+
+        libs_to_reload = [
+            lib for lib in bpy.data.libraries
+            if bpy.path.abspath(lib.filepath) == abs_filepath
+        ]
+        for lib in libs_to_reload:
+            bpy.ops.wm.lib_reload(
+                library=lib.name,
+                filepath=abs_filepath,
+                directory=directory,
+                filename=filename,
+            )
+
 
 class AssetBrowserMetadataOperator:
     @classmethod
@@ -177,13 +211,35 @@ class ASSET_OT_open_containing_blend_file(BlendFileOpenerMixin, Operator):
             return {'CANCELLED'}
 
         asset_lib_path = asset.full_library_path
+        self._asset_lib_path = asset_lib_path  # Store for use in on_process_finished.
         self.open_in_new_blender(context, asset_lib_path)
         return {'RUNNING_MODAL'}
 
     def on_process_finished(self, context):
-        """Refresh asset library after opening the file."""
-        if bpy.ops.asset.library_refresh.poll():
-            bpy.ops.asset.library_refresh()
+        """Reload linked library and refresh all asset browsers after opening the file."""
+        asset_lib_path = self._get_asset_lib_path(context)
+        if not asset_lib_path:
+            # Fallback: just refresh asset library if we can't get the path.
+            if bpy.ops.asset.library_refresh.poll():
+                bpy.ops.asset.library_refresh()
+            return
+
+        abs_filepath = bpy.path.abspath(asset_lib_path)
+
+        # Refresh all asset browsers, then reload linked libraries.
+        self._refresh_asset_browsers(context)
+        self._reload_linked_libraries(abs_filepath)
+
+    def _get_asset_lib_path(self, context):
+        """Get the asset library path from the asset being opened.
+
+        This is needed to find the Library data-blocks that correspond to the
+        opened file so we can reload them after editing.
+        """
+        # The asset library path was stored when execute() was called.
+        if hasattr(self, '_asset_lib_path'):
+            return self._asset_lib_path
+        return None
 
 
 class OUTLINER_OT_open_library_blend(BlendFileOpenerMixin, Operator):
@@ -216,9 +272,11 @@ class OUTLINER_OT_open_library_blend(BlendFileOpenerMixin, Operator):
         return {'RUNNING_MODAL'}
 
     def on_process_finished(self, context):
-        """Refresh asset libraries after opening the file."""
-        if bpy.ops.asset.library_refresh.poll():
-            bpy.ops.asset.library_refresh()
+        """Reload linked library and refresh all open asset browsers after editing."""
+        abs_filepath = bpy.path.abspath(self.filepath)
+
+        self._refresh_asset_browsers(context)
+        self._reload_linked_libraries(abs_filepath)
 
 
 classes = (
