@@ -68,6 +68,10 @@ void init_transform(bContext *C, Object &ob, const float mval_fl[2], const char 
   ss.prev_pivot_rot = ss.pivot_rot;
   ss.prev_pivot_scale = ss.pivot_scale;
 
+  if (sd.transform_mode == SCULPT_TRANSFORM_MODE_PIVOT) {
+    return;
+  }
+
   BKE_sculpt_update_object_for_edit(depsgraph, &ob, false);
   undo::push_begin_ex(scene, ob, undo_name);
 
@@ -81,6 +85,22 @@ void init_transform(bContext *C, Object &ob, const float mval_fl[2], const char 
   else {
     ss.filter_cache->transform_displacement_mode = TransformDisplacementMode::Original;
   }
+}
+
+static void sync_pivot_state(bContext *C, Object &ob)
+{
+  SculptSession &ss = *ob.runtime->sculpt_session;
+  ARegion *region = CTX_wm_region(C);
+
+  /* Update the viewport navigation rotation origin. */
+  Paint *paint = BKE_paint_get_active_from_context(C);
+  bke::PaintRuntime *paint_runtime = paint->runtime;
+  paint_runtime->average_stroke_accum = ss.pivot_pos;
+  paint_runtime->average_stroke_counter = 1;
+  paint_runtime->last_stroke_valid = true;
+
+  ED_region_tag_redraw(region);
+  WM_event_add_notifier(C, NC_GEOM | ND_SELECT, ob.data);
 }
 
 static std::array<float4x4, 8> transform_matrices_init(const SculptSession &ss,
@@ -553,6 +573,14 @@ void update_modal_transform(bContext *C, Object &ob)
   SculptSession &ss = *ob.runtime->sculpt_session;
   Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
 
+  if (sd.transform_mode == SCULPT_TRANSFORM_MODE_PIVOT) {
+    copy_v3_v3(ss.prev_pivot_pos, ss.pivot_pos);
+    copy_v4_v4(ss.prev_pivot_rot, ss.pivot_rot);
+    copy_v3_v3(ss.prev_pivot_scale, ss.pivot_scale);
+    sync_pivot_state(C, ob);
+    return;
+  }
+
   vert_random_access_ensure(ob);
   BKE_sculpt_update_object_for_edit(depsgraph, &ob, false);
 
@@ -576,6 +604,10 @@ void update_modal_transform(bContext *C, Object &ob)
       }
 
       transform_radius_elastic(*depsgraph, sd, ob, transform_radius);
+      break;
+    }
+    case SCULPT_TRANSFORM_MODE_PIVOT: {
+      BLI_assert_unreachable();
       break;
     }
   }
@@ -602,6 +634,11 @@ void cancel_modal_transform(bContext *C, Object &ob)
 
 void end_transform(bContext *C, Object &ob)
 {
+  const Sculpt &sd = *CTX_data_tool_settings(C)->sculpt;
+  if (sd.transform_mode == SCULPT_TRANSFORM_MODE_PIVOT) {
+    sync_pivot_state(C, ob);
+    return;
+  }
   SculptSession &ss = *ob.runtime->sculpt_session;
   MEM_delete(ss.filter_cache);
   ss.filter_cache = nullptr;
@@ -925,7 +962,6 @@ static wmOperatorStatus set_pivot_position_exec(bContext *C, wmOperator *op)
 {
   Object &ob = *CTX_data_active_object(C);
   SculptSession &ss = *ob.runtime->sculpt_session;
-  ARegion *region = CTX_wm_region(C);
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   const ePaintSymmetryFlags symm = mesh_symmetry_xyz_get(ob);
 
@@ -967,15 +1003,7 @@ static wmOperatorStatus set_pivot_position_exec(bContext *C, wmOperator *op)
     }
   }
 
-  /* Update the viewport navigation rotation origin. */
-  Paint *paint = BKE_paint_get_active_from_context(C);
-  bke::PaintRuntime *paint_runtime = paint->runtime;
-  paint_runtime->average_stroke_accum = ss.pivot_pos;
-  paint_runtime->average_stroke_counter = 1;
-  paint_runtime->last_stroke_valid = true;
-
-  ED_region_tag_redraw(region);
-  WM_event_add_notifier(C, NC_GEOM | ND_SELECT, ob.data);
+  sync_pivot_state(C, ob);
 
   return OPERATOR_FINISHED;
 }

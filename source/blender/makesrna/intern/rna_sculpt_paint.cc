@@ -1190,6 +1190,11 @@ static void rna_def_sculpt(BlenderRNA *brna)
        0,
        "Elastic",
        "Applies the transformation simulating elasticity using the radius of the cursor"},
+      {SCULPT_TRANSFORM_MODE_PIVOT,
+       "PIVOT",
+       0,
+       "Pivot",
+       "Moves the sculpt pivot without transforming the geometry"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
