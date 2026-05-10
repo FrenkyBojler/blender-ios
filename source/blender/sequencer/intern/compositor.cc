@@ -148,11 +148,17 @@ void CompositorContext::write_output(const compositor::Result &result, ImBuf &im
     IMB_alloc_float_pixels(&image, 4, false);
     GPU_texture_read(result.gpu_texture(), GPU_DATA_FLOAT, 0, image.float_data_for_write());
   }
-  else {
+  else if (result.sharing_info()) {
     image.float_buffer = ImBufFloatBuffer{
         .data = static_cast<const float *>(result.cpu_data().data()),
-        .sharing_info = image.float_buffer.sharing_info,
+        .sharing_info = result.sharing_info(),
         .colorspace = nullptr};
+  }
+  else {
+    IMB_alloc_float_pixels(&image, 4, false);
+    std::memcpy(image.float_data_for_write(),
+                result.cpu_data().data(),
+                IMB_get_pixel_count(&image) * sizeof(float) * 4);
   }
   const char *to_colorspace = IMB_colormanagement_role_colorspace_name_get(
       COLOR_ROLE_SCENE_LINEAR);

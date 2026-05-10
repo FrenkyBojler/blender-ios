@@ -182,7 +182,9 @@ class Context : public compositor::Context {
       render_result->have_combined = true;
 
       if (result.is_single_value()) {
-        IMB_alloc_float_pixels(image_buffer, 4, false);
+        float *data = MEM_new_array_uninitialized<float>(
+            4 * size_t(render_result->rectx) * size_t(render_result->recty), __func__);
+        image_buffer->assign_float_data(data);
         IMB_rectfill(image_buffer, result.get_single_value<compositor::Color>());
       }
       else if (this->use_gpu()) {
@@ -191,10 +193,20 @@ class Context : public compositor::Context {
         image_buffer->assign_float_data(output_buffer);
       }
       else {
-        image_buffer->float_buffer = ImBufFloatBuffer{
-            .data = static_cast<const float *>(result.cpu_data().data()),
-            .sharing_info = image_buffer->float_buffer.sharing_info,
-            .colorspace = nullptr};
+        if (result.sharing_info()) {
+          image_buffer->float_buffer = ImBufFloatBuffer{
+              .data = static_cast<const float *>(result.cpu_data().data()),
+              .sharing_info = result.sharing_info(),
+              .colorspace = nullptr};
+        }
+        else {
+          float *data = MEM_new_array_uninitialized<float>(
+              4 * size_t(render_result->rectx) * size_t(render_result->recty), __func__);
+          image_buffer->assign_float_data(data);
+          std::memcpy(image_buffer->float_data_for_write(),
+                      result.cpu_data().data(),
+                      render_result->rectx * render_result->recty * 4 * sizeof(float));
+        }
       }
     }
     RE_ReleaseResult(render);
@@ -281,11 +293,17 @@ class Context : public compositor::Context {
         IMB_alloc_float_pixels(image_buffer, 4, false);
         IMB_rectfill(image_buffer, viewer_result.get_single_value<compositor::Color>());
       }
-      else {
+      else if (viewer_result.sharing_info()) {
         image_buffer->float_buffer = ImBufFloatBuffer{
             .data = static_cast<const float *>(viewer_result.cpu_data().data()),
-            .sharing_info = image_buffer->float_buffer.sharing_info,
+            .sharing_info = viewer_result.sharing_info(),
             .colorspace = nullptr};
+      }
+      else {
+        IMB_alloc_float_pixels(image_buffer, 4, false);
+        std::memcpy(image_buffer->float_data_for_write(),
+                    viewer_result.cpu_data().data(),
+                    size.x * size.y * 4 * sizeof(float));
       }
       image_buffer->userflags |= IB_DISPLAY_BUFFER_INVALID;
     }
