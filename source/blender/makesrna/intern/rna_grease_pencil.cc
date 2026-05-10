@@ -1532,6 +1532,13 @@ static void rna_def_grease_pencil_data(BlenderRNA *brna)
   /* Animation Data */
   rna_def_animdata_common(srna);
 
+  /* Shape Keys */
+  prop = RNA_def_property(srna, "shape_keys", PROP_POINTER, PROP_NONE);
+  RNA_def_property_pointer_sdna(prop, nullptr, "key");
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  RNA_def_property_clear_flag(prop, PROP_PTR_NO_OWNERSHIP);
+  RNA_def_property_ui_text(prop, "Shape Keys", "");
+
   /* Materials */
   prop = RNA_def_property(srna, "materials", PROP_COLLECTION, PROP_NONE);
   RNA_def_property_collection_sdna(prop, nullptr, "material_array", "material_array_num");
