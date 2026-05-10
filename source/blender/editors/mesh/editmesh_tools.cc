@@ -6437,7 +6437,7 @@ static wmOperatorStatus edbm_dissolve_degenerate_exec(bContext *C, wmOperator *o
   ViewLayer *view_layer = CTX_data_view_layer(C);
   int totelem_old[3] = {0, 0, 0};
   int totelem_new[3] = {0, 0, 0};
-  bool changed = false;
+  bool changed_multi = false;
 
   const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
       *bmain, scene, view_layer, CTX_wm_view3d(C));
@@ -6462,7 +6462,7 @@ static wmOperatorStatus edbm_dissolve_degenerate_exec(bContext *C, wmOperator *o
     /* tricky to maintain correct selection here, so just flush up from verts */
     EDBM_select_flush_from_verts(em, true);
 
-    changed = true;
+    changed_multi = true;
     EDBMUpdate_Params params{};
     params.calc_looptris = true;
     params.calc_normals = false;
@@ -6477,7 +6477,7 @@ static wmOperatorStatus edbm_dissolve_degenerate_exec(bContext *C, wmOperator *o
     totelem_new[1] += bm->totedge;
     totelem_new[2] += bm->totface;
   }
-  if (!changed) {
+  if (!changed_multi) {
     BKE_report(op->reports, RPT_INFO, "No degenerate geometry found");
   }
   else {
