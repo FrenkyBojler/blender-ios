@@ -42,6 +42,7 @@ class LayerGroupRuntime;
 }  // namespace greasepencil
 }  // namespace bke
 
+struct Key;
 struct Main;
 struct GreasePencil;
 struct Object;
@@ -496,6 +497,7 @@ struct GreasePencil {
   ListBaseT<bDeformGroup> vertex_group_names = {nullptr, nullptr};
   int vertex_group_active_index = 0;
   char _pad4[4] = {};
+  struct Key *key = nullptr;
 
   /**
    * Onion skinning settings.

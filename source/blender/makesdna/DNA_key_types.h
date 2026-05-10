@@ -91,6 +91,9 @@ struct KeyBlock {
   int totelem = 0;
   /** For meshes only, match the unique number with the customdata layer. */
   int uid = 0;
+  /** Index into GreasePencil->drawing_array; zero for mesh/curve/lattice keys. */
+  int drawing_index = 0;
+  char _pad2[4] = {};
 
   /** Array of shape key values, size is `(Key::elemsize * KeyBlock->totelem)`.
    * E.g. meshes use float3. */
