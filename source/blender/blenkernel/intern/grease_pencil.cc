@@ -24,6 +24,7 @@
 #include "BKE_geometry_set.hh"
 #include "BKE_grease_pencil.h"
 #include "BKE_grease_pencil.hh"
+#include "BKE_key.hh"
 #include "BKE_grease_pencil_fills.hh"
 #include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
@@ -69,6 +70,7 @@
 #include "DNA_ID_enums.h"
 #include "DNA_brush_types.h"
 #include "DNA_grease_pencil_types.h"
+#include "DNA_key_types.h"
 #include "DNA_material_types.h"
 #include "DNA_modifier_types.h"
 
@@ -217,6 +219,18 @@ static void grease_pencil_copy_data(Main * /*bmain*/,
   BKE_defgroup_copy_list(&grease_pencil_dst->vertex_group_names,
                          &grease_pencil_src->vertex_group_names);
 
+  if (grease_pencil_src->key) {
+    /* Strip LIB_ID_CREATE_NO_ALLOCATE: the Key must always be freshly allocated.
+     * During depsgraph inplace copy this flag is set and would cause the copy to reuse
+     * gp_dst->key (which still aliases gp_src->key after the struct memcpy), corrupting
+     * the original Key's id.name and triggering the id_cast assert in shapekey_copy_data. */
+    BKE_id_copy_ex(bmain,
+                   reinterpret_cast<const ID *>(grease_pencil_src->key),
+                   reinterpret_cast<ID **>(&grease_pencil_dst->key),
+                   flag & ~LIB_ID_CREATE_NO_ALLOCATE);
+    grease_pencil_dst->key->from = &grease_pencil_dst->id;
+  }
+
   /* Make sure the runtime pointer exists. */
   grease_pencil_dst->runtime = MEM_new<bke::GreasePencilRuntime>(__func__);
 
@@ -232,6 +246,12 @@ static void grease_pencil_free_data(ID *id)
 {
   GreasePencil *grease_pencil = reinterpret_cast<GreasePencil *>(id);
   BKE_animdata_free(&grease_pencil->id, false);
+
+  if (grease_pencil->key && (grease_pencil->key->id.tag & ID_TAG_NO_MAIN)) {
+    /* Eval copy keys are not in main; free them here.
+     * Keys that live in main are freed by BKE_main_clear iterating bmain->shapekeys. */
+    BKE_id_free_ex(nullptr, grease_pencil->key, LIB_ID_FREE_NO_MAIN, false);
+  }
 
   MEM_SAFE_DELETE(grease_pencil->material_array);
 
@@ -251,6 +271,7 @@ static void grease_pencil_free_data(ID *id)
 static void grease_pencil_foreach_id(ID *id, LibraryForeachIDData *data)
 {
   GreasePencil *grease_pencil = reinterpret_cast<GreasePencil *>(id);
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, grease_pencil->key, IDWALK_CB_USER);
   for (int i = 0; i < grease_pencil->material_array_num; i++) {
     BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, grease_pencil->material_array[i], IDWALK_CB_USER);
   }
@@ -2409,6 +2430,28 @@ void BKE_grease_pencil_vgroup_name_update(Object *ob, const char *old_name, cons
   }
 }
 
+void BKE_keyblock_convert_from_grease_pencil_drawing(
+    const bke::greasepencil::Drawing &drawing, const int drawing_index, KeyBlock *kb)
+{
+  const int points_num = drawing.strokes().points_num();
+  kb->data = MEM_malloc_arrayN<float3>(size_t(points_num), __func__);
+  drawing.strokes().positions().copy_to(
+      {static_cast<float3 *>(kb->data), size_t(points_num)});
+  kb->totelem = points_num;
+  kb->drawing_index = drawing_index;
+}
+
+void BKE_keyblock_convert_to_grease_pencil_drawing(const KeyBlock *kb,
+                                                   bke::greasepencil::Drawing &drawing)
+{
+  if (kb->totelem != drawing.strokes().points_num()) {
+    return;
+  }
+  drawing.strokes_for_write().positions_for_write().copy_from(
+      {static_cast<const float3 *>(kb->data), size_t(kb->totelem)});
+  drawing.tag_positions_changed();
+}
+
 static void grease_pencil_evaluate_modifiers(Depsgraph *depsgraph,
                                              Scene *scene,
                                              Object *object,
@@ -2424,6 +2467,10 @@ static void grease_pencil_evaluate_modifiers(Depsgraph *depsgraph,
   const ModifierEvalContext mectx = {depsgraph, object, apply_flag};
 
   BKE_modifiers_clear_errors(object);
+
+  /* Evaluate shape keys before modifiers, mirroring the mesh ShapeKey virtual modifier. */
+  BKE_grease_pencil_key_evaluate(
+      reinterpret_cast<GreasePencil *>(geometry_set.get_grease_pencil_for_write()));
 
   /* Get effective list of modifiers to execute. Some effects like shape keys
    * are added as virtual modifiers before the user created modifiers. */
@@ -3510,6 +3557,33 @@ void GreasePencil::remove_drawings_with_no_users()
         value.drawing_index = new_drawing_index;
         layer->tag_frames_map_changed();
       }
+    }
+  }
+
+  /* Remap keyblock drawing indices to match the compacted array.
+   * - drawing_index_map[i] != unchanged_index → drawing moved from i to that new index.
+   * - drawing_index_map[i] == unchanged_index AND i >= first_unused_drawing → drawing deleted.
+   * - drawing_index_map[i] == unchanged_index AND i < first_unused_drawing → no change needed. */
+  if (this->key) {
+    KeyBlock *kb = static_cast<KeyBlock *>(this->key->block.first);
+    while (kb) {
+      KeyBlock *kb_next = kb->next;
+      const int old_idx = kb->drawing_index;
+      if (old_idx < int(drawing_index_map.size()) &&
+          drawing_index_map[old_idx] != unchanged_index)
+      {
+        kb->drawing_index = drawing_index_map[old_idx];
+      }
+      else if (old_idx >= first_unused_drawing) {
+        BLI_remlink(&this->key->block, kb);
+        MEM_delete_void(kb->data);
+        MEM_delete(kb);
+        this->key->totkey--;
+      }
+      kb = kb_next;
+    }
+    if (this->key->refkey == nullptr) {
+      this->key->refkey = static_cast<KeyBlock *>(this->key->block.first);
     }
   }
 

@@ -1235,4 +1235,17 @@ bool BKE_grease_pencil_material_index_used(GreasePencil *grease_pencil, int inde
 bool BKE_grease_pencil_references_cyclic_check(const GreasePencil *id_reference,
                                                const GreasePencil *grease_pencil);
 
+/* -------------------------------------------------------------------- */
+/** \name Shape Key Snapshot / Writeback
+ * \{ */
+
+struct KeyBlock;
+
+void BKE_keyblock_convert_from_grease_pencil_drawing(
+    const bke::greasepencil::Drawing &drawing, int drawing_index, KeyBlock *kb);
+void BKE_keyblock_convert_to_grease_pencil_drawing(const KeyBlock *kb,
+                                                   bke::greasepencil::Drawing &drawing);
+
+/** \} */
+
 }  // namespace blender
