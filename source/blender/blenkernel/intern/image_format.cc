@@ -1133,6 +1133,21 @@ void BKE_image_format_from_imbuf(ImageFormatData *im_format, const ImBuf *imbuf)
       is_depth_set = true;
     }
   }
+#ifdef WITH_IMAGE_KTX
+  else if (ftype == IMB_FTYPE_KTX) {
+    im_format->imtype = R_IMF_IMTYPE_KTX2;
+    im_format->quality = quality;
+    im_format->compress = compress;
+    im_format->ktx2_codec = (custom_flags & KTX2_UASTC) ? R_IMF_KTX2_CODEC_UASTC :
+                                                           R_IMF_KTX2_CODEC_ETC1S;
+    if (custom_flags & KTX2_ORIENTATION_RD) {
+      im_format->ktx2_flag |= R_IMF_KTX2_ORIENTATION_RD;
+    }
+    if (custom_flags & KTX2_STRICT_DIM) {
+      im_format->ktx2_flag |= R_IMF_KTX2_STRICT_DIM;
+    }
+  }
+#endif
   else {
     im_format->imtype = R_IMF_IMTYPE_JPEG90;
     im_format->quality = quality;
