@@ -28,6 +28,8 @@
 #include "DNA_asset_types.h"
 #include "DNA_collection_types.h"
 #include "DNA_curve_types.h"
+#include "DNA_grease_pencil_types.h"
+#include "DNA_key_types.h"
 #include "DNA_lattice_types.h"
 #include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
@@ -38,6 +40,8 @@
 
 #include "BKE_anim_visualization.h"
 #include "BKE_armature.hh"
+#include "BKE_grease_pencil.hh"
+#include "BKE_key.hh"
 #include "BKE_collection.hh"
 #include "BKE_constraint.h"
 #include "BKE_context.hh"
@@ -760,6 +764,22 @@ static bool editmode_load_free_ex(Main *bmain,
   }
   else if (ELEM(obedit->type, OB_CURVES, OB_GREASE_PENCIL, OB_POINTCLOUD)) {
     /* Object doesn't have specific edit mode data, so pass. */
+    if (obedit->type == OB_GREASE_PENCIL && load_data) {
+      GreasePencil *gp = id_cast<GreasePencil *>(obedit->data);
+      if (gp->key) {
+        KeyBlock *kb = BKE_keyblock_from_object(obedit);
+        if (kb && kb != gp->key->refkey && kb->drawing_index >= 0 &&
+            kb->drawing_index < gp->drawing_array_num)
+        {
+          GreasePencilDrawingBase *base = gp->drawing_array[kb->drawing_index];
+          if (base->type == GP_DRAWING) {
+            bke::greasepencil::Drawing &drawing =
+                reinterpret_cast<GreasePencilDrawing *>(base)->wrap();
+            BKE_keyblock_convert_from_grease_pencil_drawing(drawing, kb->drawing_index, kb);
+          }
+        }
+      }
+    }
   }
   else {
     return false;
@@ -972,6 +992,22 @@ bool editmode_enter_ex(Main *bmain, Scene *scene, Object *ob, int flag)
   else if (ob->type == OB_GREASE_PENCIL) {
     ok = true;
     ed::greasepencil::ensure_selection_domain(scene->toolsettings, ob);
+    /* Load active (non-basis) shape key positions into the drawing so the user edits
+     * the keyblock shape directly rather than the raw basis positions. */
+    GreasePencil *gp = id_cast<GreasePencil *>(ob->data);
+    if (gp->key) {
+      KeyBlock *kb = BKE_keyblock_from_object(ob);
+      if (kb && kb != gp->key->refkey && kb->drawing_index >= 0 &&
+          kb->drawing_index < gp->drawing_array_num)
+      {
+        GreasePencilDrawingBase *base = gp->drawing_array[kb->drawing_index];
+        if (base->type == GP_DRAWING) {
+          bke::greasepencil::Drawing &drawing =
+              reinterpret_cast<GreasePencilDrawing *>(base)->wrap();
+          BKE_keyblock_convert_to_grease_pencil_drawing(kb, drawing);
+        }
+      }
+    }
     WM_main_add_notifier(NC_SCENE | ND_MODE | NS_EDITMODE_GREASE_PENCIL, scene);
   }
   else if (ob->type == OB_POINTCLOUD) {

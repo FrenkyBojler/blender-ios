@@ -150,7 +150,7 @@ static void object_shape_key_add(bContext *C, Object *ob, const bool from_mix)
   if (ob->type == OB_GREASE_PENCIL) {
     using namespace blender;
     const Scene *scene = CTX_data_scene(C);
-    GreasePencil *gp = static_cast<GreasePencil *>(ob->data);
+    GreasePencil *gp = id_cast<GreasePencil *>(ob->data);
     const bke::greasepencil::Layer *active_layer = gp->get_active_layer();
     if (!active_layer) {
       return;
@@ -171,7 +171,27 @@ static void object_shape_key_add(bContext *C, Object *ob, const bool from_mix)
       gp->key->type = KEY_RELATIVE;
     }
     KeyBlock *kb = BKE_keyblock_add_ctime(gp->key, nullptr, false);
-    BKE_keyblock_convert_from_grease_pencil_drawing(drawing, drawing_index, kb);
+    /* Find the basis keyblock for this drawing (the first one with a matching drawing_index).
+     * When in edit mode the drawing holds the active key's positions, so seed new keys from
+     * the stored basis data rather than the drawing. */
+    KeyBlock *basis_kb = nullptr;
+    for (KeyBlock *existing = static_cast<KeyBlock *>(gp->key->block.first);
+         existing && existing != kb;
+         existing = existing->next)
+    {
+      if (existing->drawing_index == drawing_index) {
+        basis_kb = existing;
+        break;
+      }
+    }
+    if (basis_kb) {
+      kb->drawing_index = drawing_index;
+      kb->totelem = basis_kb->totelem;
+      kb->data = MEM_dupalloc_void(basis_kb->data);
+    }
+    else {
+      BKE_keyblock_convert_from_grease_pencil_drawing(drawing, drawing_index, kb);
+    }
     kb->curval = 1.0f;
     ob->shapenr = BLI_findindex(&gp->key->block, kb) + 1;
     WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);

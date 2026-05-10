@@ -2434,9 +2434,8 @@ void BKE_keyblock_convert_from_grease_pencil_drawing(
     const bke::greasepencil::Drawing &drawing, const int drawing_index, KeyBlock *kb)
 {
   const int points_num = drawing.strokes().points_num();
-  kb->data = MEM_malloc_arrayN<float3>(size_t(points_num), __func__);
-  drawing.strokes().positions().copy_to(
-      {static_cast<float3 *>(kb->data), size_t(points_num)});
+  kb->data = MEM_new_array_uninitialized<float3>(size_t(points_num), __func__);
+  memcpy(kb->data, drawing.strokes().positions().data(), size_t(points_num) * sizeof(float3));
   kb->totelem = points_num;
   kb->drawing_index = drawing_index;
 }
@@ -2448,7 +2447,7 @@ void BKE_keyblock_convert_to_grease_pencil_drawing(const KeyBlock *kb,
     return;
   }
   drawing.strokes_for_write().positions_for_write().copy_from(
-      {static_cast<const float3 *>(kb->data), size_t(kb->totelem)});
+      {static_cast<const float3 *>(kb->data), int64_t(kb->totelem)});
   drawing.tag_positions_changed();
 }
 
@@ -2468,9 +2467,13 @@ static void grease_pencil_evaluate_modifiers(Depsgraph *depsgraph,
 
   BKE_modifiers_clear_errors(object);
 
-  /* Evaluate shape keys before modifiers, mirroring the mesh ShapeKey virtual modifier. */
-  BKE_grease_pencil_key_evaluate(
-      reinterpret_cast<GreasePencil *>(geometry_set.get_grease_pencil_for_write()));
+  /* Evaluate shape keys before modifiers, mirroring the mesh ShapeKey virtual modifier.
+   * Skip in edit mode: the edit batch reads from the evaluated drawing, so running key
+   * evaluation here would overwrite the user's live edits with keyblock data every frame. */
+  if (!BKE_object_is_in_editmode(object)) {
+    BKE_grease_pencil_key_evaluate(
+        reinterpret_cast<GreasePencil *>(geometry_set.get_grease_pencil_for_write()));
+  }
 
   /* Get effective list of modifiers to execute. Some effects like shape keys
    * are added as virtual modifiers before the user created modifiers. */

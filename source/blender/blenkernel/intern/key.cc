@@ -43,6 +43,7 @@
 #include "BKE_customdata.hh"
 #include "BKE_deform.hh"
 #include "BKE_editmesh.hh"
+#include "BKE_curves.hh"
 #include "BKE_grease_pencil.hh"
 #include "BKE_idtype.hh"
 #include "BKE_key.hh"
@@ -1012,7 +1013,7 @@ static float *gp_drawing_get_weights_for_keyblock(
   if (kb->vgroup[0] == '\0') {
     return nullptr;
   }
-  const CurvesGeometry &curves = drawing.strokes();
+  const bke::CurvesGeometry &curves = drawing.strokes();
   const int defgrp_index = BKE_defgroup_name_index(&curves.vertex_group_names, kb->vgroup);
   if (defgrp_index < 0) {
     return nullptr;
@@ -1040,7 +1041,7 @@ static void do_gp_drawing_key(Key *key,
 
   /* The basis keyblock is the first one in the list for this drawing. */
   KeyBlock *basis_kb = nullptr;
-  LISTBASE_FOREACH (KeyBlock *, kb, &key->block) {
+  for (KeyBlock *kb = static_cast<KeyBlock *>(key->block.first); kb; kb = kb->next) {
     if (kb->drawing_index == drawing_index) {
       basis_kb = kb;
       break;
@@ -1054,7 +1055,7 @@ static void do_gp_drawing_key(Key *key,
   float *out = MEM_new_array_uninitialized<float>(size_t(points_num) * 3, __func__);
   memcpy(out, basis_kb->data, size_t(points_num) * sizeof(float3));
 
-  LISTBASE_FOREACH (KeyBlock *, kb, &key->block) {
+  for (KeyBlock *kb = static_cast<KeyBlock *>(key->block.first); kb; kb = kb->next) {
     if (kb == basis_kb || kb->drawing_index != drawing_index) {
       continue;
     }
@@ -1077,7 +1078,7 @@ static void do_gp_drawing_key(Key *key,
       out[i * 3 + 2] += w * (from[i * 3 + 2] - reffrom[i * 3 + 2]);
     }
 
-    MEM_SAFE_FREE(weights);
+    MEM_delete(weights);
   }
 
   drawing.strokes_for_write().positions_for_write().copy_from(

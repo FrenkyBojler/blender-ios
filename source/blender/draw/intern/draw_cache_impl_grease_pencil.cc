@@ -932,7 +932,6 @@ static void grease_pencil_edit_batch_ensure(Object &object,
           curves.positions(), layer_space_to_object_space, edit_points.slice(points));
       edit_rad.slice(points).copy_from(radii);
     }
-
     math::transform_points(curves.evaluated_positions(),
                            layer_space_to_object_space,
                            edit_line_points.slice(points_eval));
