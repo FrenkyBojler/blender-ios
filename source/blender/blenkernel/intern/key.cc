@@ -30,6 +30,7 @@
 
 #include "DNA_ID.h"
 #include "DNA_curve_types.h"
+#include "DNA_grease_pencil_types.h"
 #include "DNA_key_types.h"
 #include "DNA_lattice_types.h"
 #include "DNA_mesh_types.h"
@@ -42,6 +43,7 @@
 #include "BKE_customdata.hh"
 #include "BKE_deform.hh"
 #include "BKE_editmesh.hh"
+#include "BKE_grease_pencil.hh"
 #include "BKE_idtype.hh"
 #include "BKE_key.hh"
 #include "BKE_lattice.hh"
@@ -171,7 +173,7 @@ IDTypeInfo IDType_ID_KE = {
     .id_code = Key::id_type,
     .id_filter = FILTER_ID_KE,
     /* Warning! key->from, could be more types in future? */
-    .dependencies_id_types = FILTER_ID_ME | FILTER_ID_CU_LEGACY | FILTER_ID_LT,
+    .dependencies_id_types = FILTER_ID_ME | FILTER_ID_CU_LEGACY | FILTER_ID_LT | FILTER_ID_GP,
     .main_listbase_index = INDEX_ID_KE,
     .struct_size = sizeof(Key),
     .name = "Key",
@@ -262,6 +264,17 @@ Key *BKE_key_add(Main *bmain, ID *id) /* Common function. */
       el[2] = 0;
 
       key->elemsize = sizeof(float[KEYELEM_ELEM_SIZE_CURVE]);
+
+      break;
+
+    case ID_GP:
+      el = key->elemstr;
+
+      el[0] = KEYELEM_FLOAT_LEN_COORD;
+      el[1] = IPO_FLOAT;
+      el[2] = 0;
+
+      key->elemsize = sizeof(float[KEYELEM_FLOAT_LEN_COORD]);
 
       break;
 
@@ -993,6 +1006,103 @@ static void do_latt_key(Object *ob,
   }
 }
 
+static float *gp_drawing_get_weights_for_keyblock(
+    const bke::greasepencil::Drawing &drawing, const KeyBlock *kb)
+{
+  if (kb->vgroup[0] == '\0') {
+    return nullptr;
+  }
+  const CurvesGeometry &curves = drawing.strokes();
+  const int defgrp_index = BKE_defgroup_name_index(&curves.vertex_group_names, kb->vgroup);
+  if (defgrp_index < 0) {
+    return nullptr;
+  }
+  const Span<MDeformVert> dverts = curves.deform_verts();
+  if (dverts.is_empty()) {
+    return nullptr;
+  }
+  const int points_num = curves.points_num();
+  float *weights = MEM_new_array_uninitialized<float>(size_t(points_num), __func__);
+  for (int i = 0; i < points_num; i++) {
+    weights[i] = BKE_defvert_find_weight(&dverts[i], defgrp_index);
+  }
+  return weights;
+}
+
+static void do_gp_drawing_key(Key *key,
+                               bke::greasepencil::Drawing &drawing,
+                               const int drawing_index)
+{
+  const int points_num = drawing.strokes().points_num();
+  if (points_num == 0) {
+    return;
+  }
+
+  /* The basis keyblock is the first one in the list for this drawing. */
+  KeyBlock *basis_kb = nullptr;
+  LISTBASE_FOREACH (KeyBlock *, kb, &key->block) {
+    if (kb->drawing_index == drawing_index) {
+      basis_kb = kb;
+      break;
+    }
+  }
+  if (!basis_kb || basis_kb->totelem != points_num) {
+    return;
+  }
+
+  /* Output buffer initialized from basis positions. */
+  float *out = MEM_new_array_uninitialized<float>(size_t(points_num) * 3, __func__);
+  memcpy(out, basis_kb->data, size_t(points_num) * sizeof(float3));
+
+  LISTBASE_FOREACH (KeyBlock *, kb, &key->block) {
+    if (kb == basis_kb || kb->drawing_index != drawing_index) {
+      continue;
+    }
+    if ((kb->flag & KEYBLOCK_MUTE) || kb->totelem != points_num || kb->curval == 0.0f) {
+      continue;
+    }
+    KeyBlock *ref_kb = static_cast<KeyBlock *>(BLI_findlink(&key->block, kb->relative));
+    if (!ref_kb || ref_kb->totelem != points_num || ref_kb->drawing_index != drawing_index) {
+      ref_kb = basis_kb;
+    }
+
+    float *weights = gp_drawing_get_weights_for_keyblock(drawing, kb);
+    const float *from = static_cast<const float *>(kb->data);
+    const float *reffrom = static_cast<const float *>(ref_kb->data);
+
+    for (int i = 0; i < points_num; i++) {
+      const float w = weights ? weights[i] * kb->curval : kb->curval;
+      out[i * 3 + 0] += w * (from[i * 3 + 0] - reffrom[i * 3 + 0]);
+      out[i * 3 + 1] += w * (from[i * 3 + 1] - reffrom[i * 3 + 1]);
+      out[i * 3 + 2] += w * (from[i * 3 + 2] - reffrom[i * 3 + 2]);
+    }
+
+    MEM_SAFE_FREE(weights);
+  }
+
+  drawing.strokes_for_write().positions_for_write().copy_from(
+      {reinterpret_cast<float3 *>(out), points_num});
+  drawing.tag_positions_changed();
+
+  MEM_delete(out);
+}
+
+void BKE_grease_pencil_key_evaluate(GreasePencil *gp)
+{
+  if (!gp->key || BLI_listbase_is_empty(&gp->key->block)) {
+    return;
+  }
+  for (int i = 0; i < gp->drawing_array_num; i++) {
+    GreasePencilDrawingBase *base = gp->drawing_array[i];
+    if (base->type != GP_DRAWING) {
+      continue;
+    }
+    bke::greasepencil::Drawing &drawing =
+        reinterpret_cast<GreasePencilDrawing *>(base)->wrap();
+    do_gp_drawing_key(gp->key, drawing, i);
+  }
+}
+
 static void keyblock_data_convert_to_lattice(const float (*fp)[3],
                                              BPoint *bpoint,
                                              const int totpoint);
@@ -1251,6 +1361,7 @@ bool BKE_key_idtype_support(const short id_type)
     case ID_ME:
     case ID_CU_LEGACY:
     case ID_LT:
+    case ID_GP:
       return true;
     default:
       return false;
@@ -1274,6 +1385,10 @@ Key **BKE_key_from_id_p(ID *id)
     case ID_LT: {
       Lattice *lt = id_cast<Lattice *>(id);
       return &lt->key;
+    }
+    case ID_GP: {
+      GreasePencil *gp = reinterpret_cast<GreasePencil *>(id);
+      return &gp->key;
     }
     default:
       break;

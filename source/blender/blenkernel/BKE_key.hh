@@ -20,6 +20,7 @@ namespace blender {
  * \ingroup bke
  */
 struct Curve;
+struct GreasePencil;
 struct ID;
 struct Key;
 struct KeyBlock;
@@ -210,6 +211,14 @@ void BKE_keyblock_curve_data_set_with_mat4(Key *key,
  * Set the data for all key-blocks (or shape_index if != -1).
  */
 void BKE_keyblock_data_set(Key *key, int shape_index, const void *data);
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Grease Pencil Shape Key Evaluation
+ * \{ */
+
+void BKE_grease_pencil_key_evaluate(GreasePencil *gp);
 
 /** \} */
 
