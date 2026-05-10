@@ -186,11 +186,11 @@ static void grease_pencil_initialize_drawing_user_counts_after_read(GreasePencil
   }
 }
 
-static void grease_pencil_copy_data(Main * /*bmain*/,
+static void grease_pencil_copy_data(Main *bmain,
                                     std::optional<Library *> /*owner_library*/,
                                     ID *id_dst,
                                     const ID *id_src,
-                                    const int /*flag*/)
+                                    const int flag)
 {
   GreasePencil *grease_pencil_dst = reinterpret_cast<GreasePencil *>(id_dst);
   const GreasePencil *grease_pencil_src = reinterpret_cast<const GreasePencil *>(id_src);

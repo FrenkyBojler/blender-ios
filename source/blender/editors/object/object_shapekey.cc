@@ -23,13 +23,16 @@
 #include "BLT_translation.hh"
 
 #include "DNA_curve_types.h"
+#include "DNA_grease_pencil_types.h"
 #include "DNA_key_types.h"
 #include "DNA_lattice_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
+#include "DNA_scene_types.h"
 
 #include "BKE_context.hh"
 #include "BKE_curve.hh"
+#include "BKE_grease_pencil.hh"
 #include "BKE_key.hh"
 #include "BKE_lattice.hh"
 #include "BKE_library.hh"
@@ -143,6 +146,38 @@ bool shape_key_is_selected(const Object &object, const KeyBlock &kb, const int k
 static void object_shape_key_add(bContext *C, Object *ob, const bool from_mix)
 {
   Main *bmain = CTX_data_main(C);
+
+  if (ob->type == OB_GREASE_PENCIL) {
+    using namespace blender;
+    const Scene *scene = CTX_data_scene(C);
+    GreasePencil *gp = static_cast<GreasePencil *>(ob->data);
+    const bke::greasepencil::Layer *active_layer = gp->get_active_layer();
+    if (!active_layer) {
+      return;
+    }
+    const int drawing_index = active_layer->drawing_index_at(scene->r.cfra);
+    if (drawing_index < 0 || drawing_index >= gp->drawing_array_num) {
+      return;
+    }
+    GreasePencilDrawingBase *base = gp->drawing_array[drawing_index];
+    if (base->type != GP_DRAWING) {
+      return;
+    }
+    bke::greasepencil::Drawing &drawing =
+        reinterpret_cast<GreasePencilDrawing *>(base)->wrap();
+
+    if (!gp->key) {
+      gp->key = BKE_key_add(bmain, &gp->id);
+      gp->key->type = KEY_RELATIVE;
+    }
+    KeyBlock *kb = BKE_keyblock_add_ctime(gp->key, nullptr, false);
+    BKE_keyblock_convert_from_grease_pencil_drawing(drawing, drawing_index, kb);
+    kb->curval = 1.0f;
+    ob->shapenr = BLI_findindex(&gp->key->block, kb) + 1;
+    WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
+    return;
+  }
+
   KeyBlock *kb = BKE_object_shapekey_insert(bmain, ob, nullptr, from_mix);
   if (kb) {
     /* Shapekeys created via this operator should get default value 1.0. */

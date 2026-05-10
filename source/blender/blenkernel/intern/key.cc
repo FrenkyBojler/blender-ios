@@ -1082,7 +1082,6 @@ static void do_gp_drawing_key(Key *key,
 
   drawing.strokes_for_write().positions_for_write().copy_from(
       {reinterpret_cast<float3 *>(out), points_num});
-  drawing.tag_positions_changed();
 
   MEM_delete(out);
 }
