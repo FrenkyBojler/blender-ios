@@ -6468,7 +6468,7 @@ static wmOperatorStatus edbm_dissolve_degenerate_exec(bContext *C, wmOperator *o
     params.calc_normals = false;
     params.is_destructive = true;
     EDBM_update(id_cast<Mesh *>(obedit->data), &params);
-    
+
     totelem_old[0] += totvert_orig;
     totelem_old[1] += totedge_orig;
     totelem_old[2] += totface_orig;
