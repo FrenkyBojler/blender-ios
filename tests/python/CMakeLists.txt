@@ -402,6 +402,15 @@ add_blender_test(
   --use-vfont-render
 )
 
+
+# Build RST documentation (without building the full HTML docs).
+add_blender_test(
+  script_pyapi_doc_gen
+  --python ${CMAKE_CURRENT_LIST_DIR}/bl_pyapi_doc_gen.py --
+  # Needed until we bundle `docutils` (pending).
+  # --skip-stubs
+)
+
 # ------------------------------------------------------------------------------
 # DATA MANAGEMENT TESTS
 # ------------------------------------------------------------------------------
