@@ -4,9 +4,9 @@
 
 # Libraries configuration for Apple.
 
-macro(find_package_wrapper)
-  # do nothing, just satisfy the macro
-endmacro()
+function(find_package_wrapper)
+  # do nothing, just satisfy the function
+endfunction()
 
 function(print_found_status
   lib_name
@@ -260,9 +260,7 @@ endif()
 find_package(OpenImageIO REQUIRED)
 add_bundled_libraries(openimageio/lib)
 
-if(WITH_OPENCOLORIO)
-  find_package(OpenColorIO 2.0.0 REQUIRED)
-endif()
+find_package(OpenColorIO 2.0.0 REQUIRED CONFIG)
 add_bundled_libraries(opencolorio/lib)
 
 if(WITH_OPENVDB)
@@ -367,13 +365,18 @@ endif()
 
 find_package(Eigen3 REQUIRED CONFIG)
 
-if (WITH_LIBMV)
+if(WITH_LIBMV)
   find_package(Ceres REQUIRED CONFIG)
 endif()
 add_bundled_libraries(ceres/lib)
 
 set(ZSTD_ROOT_DIR ${LIBDIR}/zstd)
 find_package(Zstd REQUIRED)
+
+if(WITH_TRACY)
+  set(Tracy_ROOT_DIR ${LIBDIR}/tracy)
+  find_package(Tracy REQUIRED CONFIG)
+endif()
 
 if(EXISTS ${LIBDIR})
   without_system_libs_end()
@@ -434,12 +437,10 @@ elseif(${XCODE_VERSION} VERSION_GREATER_EQUAL 15.0)
 
     # Silence: ld: warning: reducing alignment of section __DATA,__common from 0x8000
     #          to 0x4000 because it exceeds segment maximum alignment
-    #
-    # The issue is caused by large tentative symbols from libraries such as ffmpeg
-    # causing the linker to internally bump the alignment of __DATA,__common to 0x8000,
-    # which exceeds the macOS page size of 0x4000. Explicitly request 0x4000 alignment
-    # for common symbols to suppress the warning.
-    string(APPEND PLATFORM_LINKFLAGS " -Xlinker -max_default_common_align -Xlinker 0x4000")
+    # The flag to silence this warning is only available on Xcode 26.4 and above.
+    if(${XCODE_VERSION} VERSION_GREATER_EQUAL 26.4)
+      string(APPEND PLATFORM_LINKFLAGS " -Xlinker -no_warn_reduced_section_align")
+    endif()
   endif()
 endif()
 

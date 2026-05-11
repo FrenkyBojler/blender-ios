@@ -1778,6 +1778,14 @@ static Mesh *create_merged_mesh(const Mesh &mesh,
                  bke::AttrDomain::Corner,
                  {".corner_vert"_ustr, ".corner_edge"_ustr},
                  dst_attributes);
+  if (const auto *src = static_cast<const float2 *>(
+          CustomData_get_layer(&mesh.corner_data, CD_ORIGSPACE_MLOOP)))
+  {
+    float2 *dst = static_cast<float2 *>(CustomData_add_layer(
+        &result->corner_data, CD_ORIGSPACE_MLOOP, CD_CONSTRUCT, result->corners_num));
+    bke::attribute_math::mix_groups(
+        Span(src, mesh.corners_num), dst_to_src_corners, MutableSpan(dst, result->corners_num));
+  }
 
   debug_randomize_mesh_order(result);
 
@@ -1796,15 +1804,15 @@ std::optional<Mesh *> mesh_merge_by_distance_all(const Mesh &mesh,
 {
   Array<int> vert_dest_map(mesh.verts_num, OUT_OF_CONTEXT);
 
-  KDTree_3d *tree = kdtree_3d_new(selection.size());
+  KDTree<float3> *tree = kdtree_new<float3>(selection.size());
 
   const Span<float3> positions = mesh.vert_positions();
-  selection.foreach_index([&](const int64_t i) { kdtree_3d_insert(tree, i, positions[i]); });
+  selection.foreach_index([&](const int64_t i) { kdtree_insert<float3>(tree, i, positions[i]); });
 
-  kdtree_3d_balance(tree);
-  const int vert_kill_len = kdtree_3d_calc_duplicates_fast(
+  kdtree_balance<float3>(tree);
+  const int vert_kill_len = kdtree_calc_duplicates_fast<float3>(
       tree, merge_distance, true, vert_dest_map.data());
-  kdtree_3d_free(tree);
+  kdtree_free<float3>(tree);
 
   if (vert_kill_len == 0) {
     return std::nullopt;
@@ -1844,21 +1852,13 @@ std::optional<Mesh *> mesh_merge_by_distance_connected(const Mesh &mesh,
   range_vn_i(vert_dest_map.data(), mesh.verts_num, 0);
 
   /* Collapse Edges that are shorter than the threshold. */
-  const bke::LooseEdgeCache *loose_edges = nullptr;
-  if (only_loose_edges) {
-    loose_edges = &mesh.loose_edges();
-    if (loose_edges->count == 0) {
-      return {};
-    }
-  }
 
-  for (const int i : edges.index_range()) {
+  const IndexMask mask = only_loose_edges ? mesh.loose_edges() : IndexMask(mesh.edges().size());
+
+  mask.foreach_index([&](const int i) {
     int v1 = edges[i][0];
     int v2 = edges[i][1];
 
-    if (loose_edges && !loose_edges->is_loose_bits[i]) {
-      continue;
-    }
     while (v1 != vert_dest_map[v1]) {
       v1 = vert_dest_map[v1];
     }
@@ -1866,10 +1866,10 @@ std::optional<Mesh *> mesh_merge_by_distance_connected(const Mesh &mesh,
       v2 = vert_dest_map[v2];
     }
     if (v1 == v2) {
-      continue;
+      return;
     }
     if (!selection.is_empty() && (!selection[v1] || !selection[v2])) {
-      continue;
+      return;
     }
     if (v1 > v2) {
       std::swap(v1, v2);
@@ -1889,7 +1889,7 @@ std::optional<Mesh *> mesh_merge_by_distance_connected(const Mesh &mesh,
       vert_dest_map[v2] = v1;
       vert_kill_len++;
     }
-  }
+  });
 
   if (vert_kill_len == 0) {
     return std::nullopt;
@@ -1921,5 +1921,33 @@ Mesh *mesh_merge_verts(const Mesh &mesh,
 }
 
 /** \} */
+
+Mesh *mesh_merge_verts(const Mesh &mesh,
+                       const IndexMask &selection,
+                       const Span<int> merge_ids,
+                       const bke::AttributeFilter & /*attribute_filter*/)
+{
+  Array<int> vert_dest_map(mesh.verts_num, OUT_OF_CONTEXT);
+
+  VectorSet<int> group_indices;
+  selection.foreach_index_optimized<int>([&](const int i) { group_indices.add(merge_ids[i]); });
+
+  Array<int> dst_vert_by_group(mesh.verts_num, -1);
+  selection.foreach_index_optimized<int>([&](const int i) {
+    const int group_i = group_indices.index_of(merge_ids[i]);
+    if (dst_vert_by_group[group_i] == -1) {
+      dst_vert_by_group[group_i] = i;
+    }
+  });
+
+  selection.foreach_index_optimized<int>(
+      [&](const int i) {
+        const int group_i = group_indices.index_of(merge_ids[i]);
+        vert_dest_map[i] = dst_vert_by_group[group_i];
+      },
+      exec_mode::grain_size(8192));
+
+  return create_merged_mesh(mesh, vert_dest_map, selection.size() - group_indices.size(), true);
+}
 
 }  // namespace blender::geometry

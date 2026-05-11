@@ -6,6 +6,7 @@
  * \ingroup RNA
  */
 
+#include <algorithm>
 #include <cstdlib>
 
 #include "DNA_action_types.h"
@@ -272,6 +273,16 @@ const EnumPropertyItem rna_enum_object_axis_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
+const EnumPropertyItem rna_enum_object_axis_flip_items[] = {
+    {OB_POSX, "POS_X", 0, "-X to +X", ""},
+    {OB_POSY, "POS_Y", 0, "-Y to +Y", ""},
+    {OB_POSZ, "POS_Z", 0, "-Z to +Z", ""},
+    {OB_NEGX, "NEG_X", 0, "+X to -X", ""},
+    {OB_NEGY, "NEG_Y", 0, "+Y to -Y", ""},
+    {OB_NEGZ, "NEG_Z", 0, "+Z to -Z", ""},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
 }  // namespace blender
 
 #ifdef RNA_RUNTIME
@@ -480,6 +491,8 @@ static void rna_Object_active_shape_update(Main *bmain, Scene * /*scene*/, Point
         BKE_editlattice_load(ob);
         BKE_editlattice_make(ob);
         break;
+      default:
+        break;
     }
   }
 
@@ -667,11 +680,11 @@ static void rna_Object_parent_type_set(PointerRNA *ptr, int value)
 
   /* Skip if type did not change (otherwise we loose parent inverse in
    * ed::object::parent_set). */
-  if (ob->partype == value) {
+  if (ob->partype == eObject_Partype(value)) {
     return;
   }
 
-  ed::object::parent_set(ob, ob->parent, value, ob->parsubstr);
+  ed::object::parent_set(ob, ob->parent, eObject_Partype(value), ob->parsubstr);
 }
 
 static bool rna_Object_parent_type_override_apply(Main *bmain,
@@ -702,7 +715,7 @@ static bool rna_Object_parent_type_override_apply(Main *bmain,
     return false;
   }
 
-  ob->partype = parent_type_src;
+  ob->partype = eObject_Partype(parent_type_src);
   RNA_property_update_main(bmain, nullptr, ptr_dst, prop_dst);
   return true;
 }
@@ -1191,8 +1204,12 @@ static void rna_Object_rotation_mode_set(PointerRNA *ptr, int value)
   Object *ob = static_cast<Object *>(ptr->data);
 
   /* use API Method for conversions... */
-  BKE_rotMode_change_values(
-      ob->quat, ob->rot, ob->rotAxis, &ob->rotAngle, ob->rotmode, short(value));
+  BKE_rotMode_change_values(ob->quat,
+                            ob->rot,
+                            ob->rotAxis,
+                            &ob->rotAngle,
+                            eRotationModes(ob->rotmode),
+                            eRotationModes(value));
 
   /* finally, set the new rotation type */
   ob->rotmode = clamp_i(value, ROT_MODE_MIN, ROT_MODE_MAX);
@@ -1573,7 +1590,7 @@ static void rna_Object_active_constraint_set(PointerRNA *ptr,
 
 static bConstraint *rna_Object_constraints_new(Object *object, Main *bmain, int type)
 {
-  bConstraint *new_con = BKE_constraint_add_for_object(object, nullptr, type);
+  bConstraint *new_con = BKE_constraint_add_for_object(object, nullptr, eBConstraint_Types(type));
 
   ed::object::constraint_tag_update(bmain, object, new_con);
   WM_main_add_notifier(NC_OBJECT | ND_CONSTRAINT | NA_ADDED, object);
@@ -1888,7 +1905,7 @@ static void rna_Object_boundbox_get(PointerRNA *ptr, float *values)
     *reinterpret_cast<std::array<float3, 8> *>(values) = bounds::corners(*bounds);
   }
   else {
-    copy_vn_fl(values, 8 * 3, 0.0f);
+    std::fill_n(values, 8 * 3, 0.0f);
   }
 }
 

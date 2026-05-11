@@ -74,6 +74,25 @@ namespace blender::ed::sculpt_paint::face_set {
 /** \name Public API
  * \{ */
 
+int find_next_available_id(const Mesh &mesh)
+{
+  const bke::AttributeAccessor attributes = mesh.attributes();
+  const VArraySpan<int> face_sets = *attributes.lookup<int>(".sculpt_face_set",
+                                                            bke::AttrDomain::Face);
+  const int max = threading::parallel_reduce(
+      face_sets.index_range(),
+      4096,
+      1,
+      [&](const IndexRange range, int max) {
+        for (const int id : face_sets.slice(range)) {
+          max = std::max(max, id);
+        }
+        return max;
+      },
+      [](const int a, const int b) { return std::max(a, b); });
+  return max + 1;
+}
+
 int find_next_available_id(Object &object)
 {
   SculptSession &ss = *object.runtime->sculpt_session;
@@ -81,21 +100,7 @@ int find_next_available_id(Object &object)
     case bke::pbvh::Type::Mesh:
     case bke::pbvh::Type::Grids: {
       Mesh &mesh = *id_cast<Mesh *>(object.data);
-      const bke::AttributeAccessor attributes = mesh.attributes();
-      const VArraySpan<int> face_sets = *attributes.lookup<int>(".sculpt_face_set"_ustr,
-                                                                bke::AttrDomain::Face);
-      const int max = threading::parallel_reduce(
-          face_sets.index_range(),
-          4096,
-          1,
-          [&](const IndexRange range, int max) {
-            for (const int id : face_sets.slice(range)) {
-              max = std::max(max, id);
-            }
-            return max;
-          },
-          [](const int a, const int b) { return std::max(a, b); });
-      return max + 1;
+      return find_next_available_id(mesh);
     }
     case bke::pbvh::Type::BMesh: {
       BMesh &bm = *ss.bm;
@@ -565,7 +570,7 @@ static wmOperatorStatus create_op_exec(bContext *C, wmOperator *op)
 
   undo::push_end(object);
 
-  SCULPT_tag_update_overlays(C);
+  tag_update_overlays(C);
 
   return OPERATOR_FINISHED;
 }
@@ -577,7 +582,7 @@ void SCULPT_OT_face_sets_create(wmOperatorType *ot)
   ot->description = "Create a new face set";
 
   ot->exec = create_op_exec;
-  ot->poll = SCULPT_mode_poll;
+  ot->poll = sculpt_mode_poll;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
@@ -831,7 +836,7 @@ static wmOperatorStatus init_op_exec(bContext *C, wmOperator *op)
 
   pbvh.tag_face_sets_changed(node_mask);
 
-  SCULPT_tag_update_overlays(C);
+  tag_update_overlays(C);
 
   return OPERATOR_FINISHED;
 }
@@ -843,7 +848,7 @@ void SCULPT_OT_face_sets_init(wmOperatorType *ot)
   ot->description = "Initializes all face sets in the mesh";
 
   ot->exec = init_op_exec;
-  ot->poll = SCULPT_mode_poll;
+  ot->poll = sculpt_mode_poll;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
@@ -1139,7 +1144,7 @@ void SCULPT_OT_face_set_change_visibility(wmOperatorType *ot)
 
   ot->exec = change_visibility_exec;
   ot->invoke = change_visibility_invoke;
-  ot->poll = SCULPT_mode_poll;
+  ot->poll = sculpt_mode_poll;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_DEPENDS_ON_CURSOR;
 
@@ -1205,7 +1210,7 @@ static wmOperatorStatus randomize_colors_exec(bContext *C, wmOperator * /*op*/)
   const IndexMask node_mask = bke::pbvh::all_leaf_nodes(pbvh, memory);
   pbvh.tag_face_sets_changed(node_mask);
 
-  SCULPT_tag_update_overlays(C);
+  tag_update_overlays(C);
 
   return OPERATOR_FINISHED;
 }
@@ -1217,7 +1222,7 @@ void SCULPT_OT_face_sets_randomize_colors(wmOperatorType *ot)
   ot->description = "Generates a new set of random colors to render the face sets in the viewport";
 
   ot->exec = randomize_colors_exec;
-  ot->poll = SCULPT_mode_poll;
+  ot->poll = sculpt_mode_poll;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
@@ -1583,7 +1588,7 @@ static wmOperatorStatus edit_op_exec(bContext *C, wmOperator *op)
       break;
   }
 
-  SCULPT_tag_update_overlays(C);
+  tag_update_overlays(C);
 
   return OPERATOR_FINISHED;
 }
@@ -1622,7 +1627,7 @@ void SCULPT_OT_face_sets_edit(wmOperatorType *ot)
 
   ot->invoke = edit_op_invoke;
   ot->exec = edit_op_exec;
-  ot->poll = SCULPT_mode_poll;
+  ot->poll = sculpt_mode_poll;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_DEPENDS_ON_CURSOR;
 
@@ -2122,7 +2127,7 @@ void SCULPT_OT_face_set_polyline_gesture(wmOperatorType *ot)
   ot->modal = WM_gesture_polyline_modal;
   ot->exec = gesture_polyline_exec;
 
-  ot->poll = SCULPT_mode_poll_view3d;
+  ot->poll = sculpt_mode_poll_view3d;
 
   ot->flag = OPTYPE_DEPENDS_ON_CURSOR;
 
@@ -2140,7 +2145,7 @@ void SCULPT_OT_face_set_box_gesture(wmOperatorType *ot)
   ot->modal = WM_gesture_box_modal;
   ot->exec = gesture_box_exec;
 
-  ot->poll = SCULPT_mode_poll_view3d;
+  ot->poll = sculpt_mode_poll_view3d;
 
   ot->flag = OPTYPE_REGISTER;
 
@@ -2158,7 +2163,7 @@ void SCULPT_OT_face_set_lasso_gesture(wmOperatorType *ot)
   ot->modal = WM_gesture_lasso_modal;
   ot->exec = gesture_lasso_exec;
 
-  ot->poll = SCULPT_mode_poll_view3d;
+  ot->poll = sculpt_mode_poll_view3d;
 
   ot->flag = OPTYPE_DEPENDS_ON_CURSOR;
 
@@ -2176,7 +2181,7 @@ void SCULPT_OT_face_set_line_gesture(wmOperatorType *ot)
   ot->modal = WM_gesture_straightline_oneshot_modal;
   ot->exec = gesture_line_exec;
 
-  ot->poll = SCULPT_mode_poll_view3d;
+  ot->poll = sculpt_mode_poll_view3d;
 
   ot->flag = OPTYPE_REGISTER;
 

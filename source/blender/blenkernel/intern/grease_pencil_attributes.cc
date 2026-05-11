@@ -162,6 +162,19 @@ static AttributeAccessorFunctions get_grease_pencil_accessor_functions()
     }
     return true;
   };
+  fn.rename =
+      [](void *owner, const Map<UString, UString> &name_map, bool overwrite) -> Set<UString> {
+    GreasePencil &grease_pencil = *static_cast<GreasePencil *>(owner);
+    return rename_attributes(
+        grease_pencil.attribute_storage.wrap(),
+        name_map,
+        overwrite,
+        builtin_attributes(),
+        array_storage_required(),
+        [&](const bke::AttrDomain domain) { return get_domain_size(owner, domain); },
+        std::nullopt,
+        {});
+  };
   fn.assign_data = [](void *owner, UString name, const AttributeInit &initializer) {
     GreasePencil &grease_pencil = *static_cast<GreasePencil *>(owner);
     AttributeStorage &storage = grease_pencil.attribute_storage.wrap();

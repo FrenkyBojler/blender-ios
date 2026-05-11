@@ -80,7 +80,7 @@ class AttributeOwner {
   GreasePencilDrawing *get_grease_pencil_drawing() const;
 };
 
-#define ATTR_DOMAIN_AS_MASK(domain) ((AttrDomainMask)((1 << (int)(domain))))
+#define ATTR_DOMAIN_AS_MASK(domain) ((AttrDomainMask)((1 << int(domain))))
 
 /* All domains that support color attributes. */
 #define ATTR_DOMAIN_MASK_COLOR \

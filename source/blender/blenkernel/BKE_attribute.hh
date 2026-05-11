@@ -541,6 +541,7 @@ struct AttributeAccessorFunctions {
               AttrDomain domain,
               AttrType data_type,
               const AttributeInit &initializer);
+  Set<UString> (*rename)(void *owner, const Map<UString, UString> &map, bool overwrite);
   bool (*assign_data)(void *owner, UString name, const AttributeInit &initializer);
 };
 
@@ -808,9 +809,15 @@ class MutableAttributeAccessor : public AttributeAccessor {
   }
 
   /**
-   * Replace the existing attribute with a new one with a different name.
+   * Replace the name of an attribute, optionally replacing existing use of the new name.
+   * \return True if the rename was successful.
    */
-  bool rename(UString old_name, UString new_name);
+  bool rename(UString old_name, UString new_name, bool overwrite = false);
+  /**
+   * Replace the names of attributes, optionally replacing existing use of the new names.
+   * \return A set of failed renames.
+   */
+  Set<UString> rename(const Map<UString, UString> &map, bool overwrite = false);
 
   /**
    * Create a new attribute.

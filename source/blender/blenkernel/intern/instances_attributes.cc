@@ -176,6 +176,19 @@ static constexpr AttributeAccessorFunctions get_instances_accessor_functions()
     }
     return true;
   };
+  fn.rename =
+      [](void *owner, const Map<UString, UString> &name_map, bool overwrite) -> Set<UString> {
+    Instances &instances = *static_cast<Instances *>(owner);
+    return rename_attributes(
+        instances.attribute_storage(),
+        name_map,
+        overwrite,
+        builtin_attributes(),
+        array_storage_required(),
+        [&](const bke::AttrDomain /*domain*/) { return instances.instances_num(); },
+        std::nullopt,
+        {});
+  };
   fn.assign_data = [](void *owner, UString name, const AttributeInit &initializer) {
     Instances &instances = *static_cast<Instances *>(owner);
     AttributeStorage &storage = instances.attribute_storage();

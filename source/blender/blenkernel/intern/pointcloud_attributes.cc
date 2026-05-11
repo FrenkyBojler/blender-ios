@@ -180,6 +180,18 @@ static constexpr AttributeAccessorFunctions get_pointcloud_accessor_functions()
     }
     return true;
   };
+  fn.rename =
+      [](void *owner, const Map<UString, UString> &name_map, bool overwrite) -> Set<UString> {
+    PointCloud &pointcloud = *static_cast<PointCloud *>(owner);
+    return rename_attributes(pointcloud.attribute_storage.wrap(),
+                             name_map,
+                             overwrite,
+                             builtin_attributes(),
+                             array_storage_required(),
+                             [&](const bke::AttrDomain /*domain*/) { return pointcloud.totpoint; },
+                             std::nullopt,
+                             {});
+  };
   fn.assign_data = [](void *owner, UString name, const AttributeInit &initializer) {
     PointCloud &pointcloud = *static_cast<PointCloud *>(owner);
     AttributeStorage &storage = pointcloud.attribute_storage.wrap();

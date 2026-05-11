@@ -8,8 +8,10 @@
 
 #include "BLI_function_ref.hh"
 #include "BLI_implicit_sharing_ptr.hh"
+#include "BLI_map.hh"
 #include "BLI_memory_counter_fwd.hh"
 #include "BLI_random_access_iterator_mixin.hh"
+#include "BLI_set.hh"
 #include "BLI_ustring.hh"
 #include "BLI_vector_set.hh"
 
@@ -161,6 +163,7 @@ class AttributeStorage : public blender::AttributeStorage {
    * not be called while iterating over attributes.
    */
   bool remove(UString name);
+  bool remove(const Set<UString> &names);
 
   /**
    * Add an attribute with the given name, which must not already be used by an existing attribute
@@ -175,7 +178,9 @@ class AttributeStorage : public blender::AttributeStorage {
   std::string unique_name_calc(UString name) const;
 
   /** Change the name of a single existing attribute. */
-  void rename(UString old_name, UString new_name);
+  void rename(UString old_name, std::string new_name);
+  void rename(Attribute &attr, std::string new_name);
+  void rename(const Map<Attribute *, UString> &renames);
 
   /**
    * Resize the data for a given domain. New values will be default initialized (meaning no zero
@@ -193,9 +198,10 @@ class AttributeStorage : public blender::AttributeStorage {
    * #attribute_storage_blend_write_prepare for more information.
    */
   struct BlendWriteData {
+    BlendWriter *writer;
     ResourceScope &scope;
     Vector<blender::Attribute, 16> &attributes;
-    explicit BlendWriteData(ResourceScope &scope);
+    explicit BlendWriteData(BlendWriter *writer, ResourceScope &scope);
   };
   /**
    * Write the prepared data and the data stored in the DNA fields in
