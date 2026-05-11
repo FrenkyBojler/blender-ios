@@ -305,10 +305,10 @@ std::optional<AttrDomain> GeometryFieldInput::preferred_domain(
   return std::nullopt;
 }
 
-FieldDomainInfo GeometryFieldInput::native_domain_info(
+NativeFieldDomain GeometryFieldInput::native_domain_info(
     const GeometryComponent & /*component*/) const
 {
-  return FieldDomainInfo::IndexDependent();
+  return NativeFieldDomain::IndexDependent();
 }
 
 GVArray MeshFieldInput::get_varray_for_context(const fn::FieldContext &context,
@@ -333,9 +333,9 @@ std::optional<AttrDomain> MeshFieldInput::preferred_domain(const Mesh & /*mesh*/
   return std::nullopt;
 }
 
-FieldDomainInfo MeshFieldInput::native_domain_info(const Mesh & /*mesh*/) const
+NativeFieldDomain MeshFieldInput::native_domain_info(const Mesh & /*mesh*/) const
 {
-  return FieldDomainInfo::IndexDependent();
+  return NativeFieldDomain::IndexDependent();
 }
 
 GVArray CurvesFieldInput::get_varray_for_context(const fn::FieldContext &context,
@@ -469,10 +469,10 @@ void AttributeExistsFieldInput::hash_unique(UniqueHashBytes &hash,
   hash.data.extend(Span(name_.data(), name_.size()).cast<std::byte>());
 }
 
-FieldDomainInfo AttributeExistsFieldInput::native_domain_info(
+NativeFieldDomain AttributeExistsFieldInput::native_domain_info(
     const GeometryComponent & /*component*/) const
 {
-  return FieldDomainInfo::AnyDomain();
+  return NativeFieldDomain::None();
 }
 
 std::string AttributeFieldInput::socket_inspection_name() const
@@ -493,21 +493,20 @@ void AttributeFieldInput::hash_unique(UniqueHashBytes &hash,
 std::optional<AttrDomain> AttributeFieldInput::preferred_domain(
     const GeometryComponent &component) const
 {
-  return std::get<FieldDomainInfo::DataOnDomain>(this->native_domain_info(component).variant)
-      .domain;
+  return std::get<NativeFieldDomain::Domain>(this->native_domain_info(component).variant).domain;
 }
 
-FieldDomainInfo AttributeFieldInput::native_domain_info(const GeometryComponent &component) const
+NativeFieldDomain AttributeFieldInput::native_domain_info(const GeometryComponent &component) const
 {
   const std::optional<AttributeAccessor> attributes = component.attributes();
   if (!attributes.has_value()) {
-    return FieldDomainInfo::AnyDomain();
+    return NativeFieldDomain::None();
   }
   const std::optional<AttributeMetaData> meta_data = attributes->lookup_meta_data(name_);
   if (!meta_data.has_value()) {
-    return FieldDomainInfo::AnyDomain();
+    return NativeFieldDomain::None();
   }
-  return FieldDomainInfo(FieldDomainInfo::DataOnDomain{meta_data->domain});
+  return NativeFieldDomain(NativeFieldDomain::Domain{meta_data->domain});
 }
 
 static StringRef get_random_id_attribute_name(const AttrDomain domain)
@@ -809,10 +808,10 @@ std::optional<AttrDomain> EvaluateOnDomainInput::preferred_domain(
   return src_domain_;
 }
 
-FieldDomainInfo EvaluateOnDomainInput::native_domain_info(
+NativeFieldDomain EvaluateOnDomainInput::native_domain_info(
     const GeometryComponent & /*component*/) const
 {
-  return bke::FieldDomainInfo::DataOnDomain{src_domain_};
+  return bke::NativeFieldDomain::Domain{src_domain_};
 }
 
 }  // namespace bke
@@ -850,28 +849,28 @@ void NormalFieldInput::hash_unique(UniqueHashBytes &hash,
   hash.add(true_normals_);
 }
 
-FieldDomainInfo NormalFieldInput::native_domain_info(const GeometryComponent &component) const
+NativeFieldDomain NormalFieldInput::native_domain_info(const GeometryComponent &component) const
 {
   switch (component.type()) {
     case GeometryComponent::Type::Mesh: {
       if (const Mesh *mesh = static_cast<const MeshComponent &>(component).get()) {
         switch (mesh->normals_domain()) {
           case MeshNormalDomain::Face:
-            return bke::FieldDomainInfo::DataOnDomain{AttrDomain::Face};
+            return bke::NativeFieldDomain::Domain{AttrDomain::Face};
           case MeshNormalDomain::Point:
-            return bke::FieldDomainInfo::DataOnDomain{AttrDomain::Point};
+            return bke::NativeFieldDomain::Domain{AttrDomain::Point};
           case MeshNormalDomain::Corner:
-            return bke::FieldDomainInfo::DataOnDomain{AttrDomain::Corner};
+            return bke::NativeFieldDomain::Domain{AttrDomain::Corner};
         }
       }
       break;
     }
     case GeometryComponent::Type::Curve:
-      return bke::FieldDomainInfo::DataOnDomain{AttrDomain::Point};
+      return bke::NativeFieldDomain::Domain{AttrDomain::Point};
     default:
-      return bke::FieldDomainInfo::AnyDomain();
+      return bke::NativeFieldDomain::None();
   }
-  return bke::FieldDomainInfo::AnyDomain();
+  return bke::NativeFieldDomain::None();
 }
 
 const fn::Field<float3> &NormalFieldInput::get_field()
@@ -1187,23 +1186,22 @@ std::optional<AttrDomain> try_detect_native_field_domain(const GeometryComponent
   Vector<AttrDomain, 8> domains;
   for (const fn::FieldInput &field_input : field_inputs->inputs) {
     if (const auto *input = dynamic_cast<const GeometryFieldInput *>(&field_input)) {
-      const FieldDomainInfo domain_info = input->native_domain_info(component);
-      if (std::holds_alternative<FieldDomainInfo::IndexDependent>(domain_info.variant)) {
+      const NativeFieldDomain domain_info = input->native_domain_info(component);
+      if (std::holds_alternative<NativeFieldDomain::IndexDependent>(domain_info.variant)) {
         return std::nullopt;
       }
-      if (const auto *value = std::get_if<FieldDomainInfo::DataOnDomain>(&domain_info.variant)) {
+      if (const auto *value = std::get_if<NativeFieldDomain::Domain>(&domain_info.variant)) {
         domains.append(value->domain);
       }
     }
     if (component.type() == GeometryComponent::Type::Mesh) {
       if (const Mesh *mesh = static_cast<const MeshComponent &>(component).get()) {
         if (const auto *input = dynamic_cast<const MeshFieldInput *>(&field_input)) {
-          const FieldDomainInfo domain_info = input->native_domain_info(*mesh);
-          if (std::holds_alternative<FieldDomainInfo::IndexDependent>(domain_info.variant)) {
+          const NativeFieldDomain domain_info = input->native_domain_info(*mesh);
+          if (std::holds_alternative<NativeFieldDomain::IndexDependent>(domain_info.variant)) {
             return std::nullopt;
           }
-          if (const auto *value = std::get_if<FieldDomainInfo::DataOnDomain>(&domain_info.variant))
-          {
+          if (const auto *value = std::get_if<NativeFieldDomain::Domain>(&domain_info.variant)) {
             domains.append(value->domain);
           }
         }

@@ -141,9 +141,9 @@ class MaterialSelectionFieldInput final : public bke::GeometryFieldInput {
   {
     return AttrDomain::Face;
   }
-  bke::FieldDomainInfo native_domain_info(const GeometryComponent & /*component*/) const override
+  bke::NativeFieldDomain native_domain_info(const GeometryComponent & /*component*/) const override
   {
-    return bke::FieldDomainInfo::DataOnDomain{AttrDomain::Face};
+    return bke::NativeFieldDomain::Domain{AttrDomain::Face};
   }
 };
 
