@@ -63,7 +63,7 @@ def escape_string_toml(text):
         "\x7F",
     ]
     for esc in required_escapes:
-        text = text.replace(esc, f"\\{esc}")
+        text = text.replace(esc, f"\\u{ord(esc):04X}")
 
     return text
 
