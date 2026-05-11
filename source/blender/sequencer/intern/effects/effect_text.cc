@@ -987,7 +987,7 @@ static float2 anchor_offset_get(const TextVars *data, int width_max, int text_he
       anchor_offset.y = text_height / 2.0f;
       break;
     case SEQ_TEXT_ANCHOR_Y_BOTTOM:
-      anchor_offset.y =  text_height;
+      anchor_offset.y = text_height;
       break;
   }
 
@@ -999,8 +999,7 @@ static void calc_boundbox(const TextVars *data, TextVarsRuntime *runtime, const 
   /* `BLF_bounds_max()` is used, because some fonts have glyphs overlapping with lines above. */
   rctf glyph_bounds_max;
   BLF_bounds_max(runtime->font, &glyph_bounds_max);
-  const int text_height = (runtime->lines.size() - 1) *
-                              (runtime->line_height * data->space_line) +
+  const int text_height = (runtime->lines.size() - 1) * (runtime->line_height * data->space_line) +
                           math::ceil(BLI_rctf_size_y(&glyph_bounds_max));
 
   int width_max = text_box_width_get(runtime->lines);
@@ -1024,11 +1023,12 @@ static void apply_text_alignment(const TextVars *data,
                                  const int2 image_size)
 {
   const int box_width = text_box_width_get(runtime->lines);
-  const int box_height = runtime->line_height + (runtime->lines.size() - 1) * (runtime->line_height * data->space_line);
+  const int box_height = runtime->line_height +
+                         (runtime->lines.size() - 1) * (runtime->line_height * data->space_line);
 
   const float2 image_center{data->loc[0] * image_size.x, data->loc[1] * image_size.y};
-  const float2 line_height_offset{
-    0.0f, float(-runtime->line_height - BLF_descender(runtime->font))};
+  const float2 line_height_offset{0.0f,
+                                  float(-runtime->line_height - BLF_descender(runtime->font))};
   const float2 anchor_offset = anchor_offset_get(data, box_width, box_height);
 
   for (LineInfo &line : runtime->lines) {
