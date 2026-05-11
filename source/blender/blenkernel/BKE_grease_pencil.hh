@@ -99,11 +99,6 @@ FillCache &get_fill_cache();
 class DrawingRuntime {
  public:
   /**
-   * Fill cache for the drawing. Will be `nullopt` when there are no fills.
-   */
-  mutable SharedCache<std::optional<FillData>> fill_cache;
-
-  /**
    * Triangle cache for all the fills in the drawing (see #fill_cache). Will be `nullopt` when
    * there are no fills.
    */
