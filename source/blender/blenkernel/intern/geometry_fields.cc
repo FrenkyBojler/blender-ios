@@ -1183,7 +1183,7 @@ std::optional<AttrDomain> try_detect_native_field_domain(const GeometryComponent
   if (!field_inputs) {
     return std::nullopt;
   }
-  Vector<AttrDomain, 8> domains;
+  VectorSet<AttrDomain, 8> domains;
   for (const fn::FieldInput &field_input : field_inputs->inputs) {
     if (const auto *input = dynamic_cast<const GeometryFieldInput *>(&field_input)) {
       const NativeFieldDomain domain_info = input->native_domain_info(component);
@@ -1191,7 +1191,7 @@ std::optional<AttrDomain> try_detect_native_field_domain(const GeometryComponent
         return std::nullopt;
       }
       if (const auto *value = std::get_if<NativeFieldDomain::Domain>(&domain_info.variant)) {
-        domains.append(value->domain);
+        domains.add(value->domain);
       }
     }
     if (component.type() == GeometryComponent::Type::Mesh) {
@@ -1202,14 +1202,18 @@ std::optional<AttrDomain> try_detect_native_field_domain(const GeometryComponent
             return std::nullopt;
           }
           if (const auto *value = std::get_if<NativeFieldDomain::Domain>(&domain_info.variant)) {
-            domains.append(value->domain);
+            domains.add(value->domain);
           }
         }
       }
     }
     return std::nullopt;
   }
-  return attribute_domain_highest_priority(domains);
+  if (domains.size() != 1) {
+    /* Any combination of domains means there is no particular native domain. */
+    return std::nullopt;
+  }
+  return domains[0];
 }
 
 std::optional<AttrDomain> try_detect_field_domain(const GeometryComponent &component,
