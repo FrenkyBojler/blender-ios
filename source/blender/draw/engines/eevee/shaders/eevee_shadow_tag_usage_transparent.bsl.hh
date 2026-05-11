@@ -9,7 +9,6 @@
  */
 
 #pragma once
-#pragma create_info
 
 #include "infos/eevee_shadow_infos.hh"
 
