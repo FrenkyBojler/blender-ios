@@ -176,7 +176,7 @@ class Prepass {
     return raycast_vis_on_ps_.is_empty() && raycast_vis_off_ps_.is_empty();
   }
 
-  void render(View &view, bool can_raycast, bool do_raycast_depth_copy);
+  void render(View &view, gpu::Texture *fb_depth_tx, bool can_raycast);
 };
 
 /** \} */
@@ -702,7 +702,9 @@ class PlanarProbePipeline : DeferredLayerBase {
   void begin_sync();
   void end_sync();
 
-  PassMain::Sub *prepass_add(blender::Material *blender_mat, GPUMaterial *gpumat);
+  PassMain::Sub *prepass_add(blender::Material *blender_mat,
+                             GPUMaterial *gpumat,
+                             bool hide_from_raycast);
   PassMain::Sub *material_add(blender::Material *blender_mat, GPUMaterial *gpumat);
 
   void render(View &view,
@@ -900,7 +902,7 @@ class PipelineModule {
     if (probe_capture == MAT_PROBE_PLANAR) {
       switch (pipeline_type) {
         case MAT_PIPE_PREPASS_PLANAR:
-          return planar.prepass_add(blender_mat, gpumat);
+          return planar.prepass_add(blender_mat, gpumat, hide_from_raycast);
         case MAT_PIPE_DEFERRED:
           return planar.material_add(blender_mat, gpumat);
         default:
