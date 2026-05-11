@@ -2040,6 +2040,7 @@ def km_graph_editor(params):
             ("graph.snap", {"type": 'S', "value": 'PRESS', "shift": True}, None)
         ),
         ("graph.mirror", {"type": 'M', "value": 'PRESS', "ctrl": True}, None),
+        ("action.keyframe_type", {"type": 'R', "value": 'PRESS'}, None),
         ("graph.handle_type", {"type": 'V', "value": 'PRESS'}, None),
         ("graph.interpolation_type", {"type": 'T', "value": 'PRESS'}, None),
         ("graph.easing_type", {"type": 'E', "value": 'PRESS', "ctrl": True}, None),

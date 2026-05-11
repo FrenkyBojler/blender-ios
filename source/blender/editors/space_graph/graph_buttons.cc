@@ -399,6 +399,12 @@ static void graph_panel_key_properties(const bContext *C, Panel *panel)
       unit = RNA_SUBTYPE_UNIT(RNA_property_subtype(fcu_prop));
     }
 
+    /* Keyframe Type. */
+    {
+      ui::Layout &col = layout.column(true);
+      col.prop(&bezt_ptr, "type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    }
+
     /* interpolation */
     ui::Layout &interpolation_col = layout.column(false);
     if (fcu->flag & FCURVE_DISCRETE_VALUES) {

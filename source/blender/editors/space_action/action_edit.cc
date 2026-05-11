@@ -1778,6 +1778,11 @@ static void setkeytype_action_keys(bAnimContext *ac, eBezTriple_KeyframeType mod
 
 /* ------------------- */
 
+static bool actkeys_keytype_poll(bContext *C)
+{
+  return ED_operator_action_active(C) || ED_operator_graphedit_active(C);
+}
+
 static wmOperatorStatus actkeys_keytype_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
@@ -1811,7 +1816,7 @@ void ACTION_OT_keyframe_type(wmOperatorType *ot)
   /* API callbacks. */
   ot->invoke = WM_menu_invoke;
   ot->exec = actkeys_keytype_exec;
-  ot->poll = ED_operator_action_active;
+  ot->poll = actkeys_keytype_poll;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
