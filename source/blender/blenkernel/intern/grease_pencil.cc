@@ -448,7 +448,7 @@ Drawing::~Drawing()
 
 FillCache &get_fill_cache()
 {
-  static FillCache cache("Grease Pencil fill cache");
+  static FillCache cache("Grease Pencil Fills");
   return cache;
 }
 
