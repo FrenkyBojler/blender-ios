@@ -132,7 +132,7 @@ template<typename T> class Cache : public CacheBase {
   Cache(const StringRef name);
   ~Cache();
 
-  void clear_unused()
+  void clear_unused() override
   {
     std::lock_guard lock{mutex_};
     map_.remove_if([&](const auto &item) {
