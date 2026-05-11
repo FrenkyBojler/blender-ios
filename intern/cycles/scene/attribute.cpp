@@ -64,7 +64,11 @@ Attribute::Attribute(ustring name,
 }
 
 Attribute::Attribute(Attribute &&other)
-    : name(other.name), std(other.std), type(other.type), element(other.element), modified(false)
+    : name(other.name),
+      std(other.std),
+      type(other.type),
+      element(other.element),
+      modified(other.modified)
 {
   set_data_from(std::move(other));
 }
