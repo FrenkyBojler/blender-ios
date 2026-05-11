@@ -228,6 +228,21 @@ ModifierData *modifier_add(
     }
   }
 
+  if (type == eModifierType_Remesh) {
+    /* Special case for remesh modifier to not use a initial voxel size that's too small compared
+     * to the size of the mesh, which could lead to excessive memory usage and crash before the
+     * user is able to change any settings. */
+    std::optional<Bounds<float3>> bounds = BKE_object_boundbox_get(ob);
+    if (bounds.has_value()) {
+      float3 bound_size = bounds.value().size();
+      float max_dim = blender::max_fff(bound_size.x, bound_size.y, bound_size.z);
+      /* Set to a reasonably low resolution of 64 voxels on the largest dimension. */
+      float voxel_size = max_dim / 64.0f;
+      RemeshModifierData *rmd = reinterpret_cast<RemeshModifierData *>(new_md);
+      rmd->voxel_size = math::max(rmd->voxel_size, voxel_size);
+    }
+  }
+
   BKE_object_modifier_set_active(ob, new_md);
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
