@@ -1062,52 +1062,52 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
         max=8192,
     )
 
-    ignore_shaders: BoolProperty   (
+    ignore_shaders: BoolProperty(
         name="Ignore Shaders",
         default=False,
         description="Replace all shaders with a simple gray shader"
     )
-    ignore_images: BoolProperty   (
+    ignore_images: BoolProperty(
         name="Ignore Images",
         default=False,
         description="Do not load images, use a neutral grey instead"
     )
-    ignore_volumes: BoolProperty   (
+    ignore_volumes: BoolProperty(
         name="Ignore Volumes",
         default=False,
         description="Disable volume shaders"
     )
-    ignore_subsurface_scattering: BoolProperty   (
+    ignore_subsurface_scattering: BoolProperty(
         name="Ignore Subsurface Scattering",
         default=False,
         description="Disable subsurface scattering"
     )
-    ignore_lights: BoolProperty   (
+    ignore_lights: BoolProperty(
         name="Ignore Lights",
         default=False,
         description="Disable all light objects"
     )
-    ignore_shadows: BoolProperty   (
+    ignore_shadows: BoolProperty(
         name="Ignore Shadows",
         default=False,
         description="Disable cast shadows from all lights"
     )
-    ignore_displacement: BoolProperty   (
+    ignore_displacement: BoolProperty(
         name="Ignore Displacement",
         default=False,
         description="Disable displacement from all shaders"
     )
-    ignore_bump: BoolProperty   (
+    ignore_bump: BoolProperty(
         name="Ignore Bump",
         default=False,
         description="Disable bump mapping from all shaders"
     )
-    ignore_polygon_smoothing: BoolProperty   (
+    ignore_polygon_smoothing: BoolProperty(
         name="Ignore Polygon Smoothing",
         default=False,
         description="Disable smoothed normals, render with geometry normals instead"
     )
-    ignore_depth_of_field: BoolProperty   (
+    ignore_depth_of_field: BoolProperty(
         name="Ignore Depth of Field",
         default=False,
         description="Disable all Depth of Field"

@@ -126,7 +126,7 @@ class Integrator : public Node {
   NODE_SOCKET_API(DenoiserQuality, denoiser_quality);
   NODE_SOCKET_API(float, denoiser_upscale_factor);
 
-  /* diagnostics */
+  /* Diagnostics */
   NODE_SOCKET_API(bool, ignore_shaders);
   NODE_SOCKET_API(bool, ignore_volumes);
   NODE_SOCKET_API(bool, ignore_lights);
