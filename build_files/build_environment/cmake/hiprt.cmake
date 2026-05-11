@@ -53,13 +53,15 @@ add_dependencies(
 )
 
 if(WIN32)
-  ExternalProject_Add_Step(external_hiprt after_install
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-      ${LIBDIR}/hiprt
-      ${HARVEST_TARGET}/hiprt
+  if(BUILD_MODE STREQUAL Release)
+    ExternalProject_Add_Step(external_hiprt after_install
+      COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${LIBDIR}/hiprt
+        ${HARVEST_TARGET}/hiprt
 
-    DEPENDEES install
-  )
+      DEPENDEES install
+    )
+  endif()
 else()
   harvest(external_hiprt hiprt/include hiprt/include "*.h")
   harvest(external_hiprt hiprt/bin hiprt/lib "*${SHAREDLIBEXT}*")
