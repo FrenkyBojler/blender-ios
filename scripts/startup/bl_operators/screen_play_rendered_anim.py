@@ -20,13 +20,15 @@ def guess_player_path(preset):
 
     elif preset == 'DJV':
         player_path = "djv"
-        if sys.platform == "darwin":
+        if sys.platform == "linux":
+            found_version = (3, 4, 0)  # Assume it is at least 3.4.0
+        elif sys.platform == "darwin":
             import os
             djv3_path = "/Applications/DJV.app/Contents/MacOS/DJV"
             djv2_path = "/Applications/DJV2.app/Contents/Resources/bin/djv"
             if os.path.exists(djv3_path):
                 player_path = djv3_path
-                found_version = (3, 1000, 1000) # Just assume it is > 3.4.0
+                found_version = (3, 4, 0)  # Assume it is at least 3.4.0
             elif os.path.exists(djv2_path):
                 player_path = djv2_path
                 found_version = (2, 0, 0)
