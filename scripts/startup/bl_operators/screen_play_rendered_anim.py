@@ -5,7 +5,6 @@
 # Originally written by Matt Ebb
 
 import bpy
-from os import environ
 from bpy.types import Operator
 from bpy.app.translations import pgettext_rpt as rpt_
 
@@ -223,7 +222,7 @@ class PlayRenderedAnim(Operator):
                     "-seek", str(scene.frame_current),
                     "-timeUnits", "Frames",
                 ]
-            elif found_version > (3, 0, 0):
+            elif found_version >= (3, 0, 0):
                 opts = [
                     file,
                     "-speed", str(fps_final),
