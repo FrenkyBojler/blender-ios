@@ -33,4 +33,9 @@ IndexMask selected_mask_to_fills(const IndexMask &selected_mask,
                                  IndexMaskMemory &memory);
 void separate_fill_ids(CurvesGeometry &curves, const IndexMask &strokes_to_keep);
 
+enum class StrokeType : int8_t { Stroke = 0, Fill = 1, Both = 2 };
+
+void set_stroke_type(bke::MutableAttributeAccessor attributes,
+                     const IndexMask &selection,
+                     StrokeType type);
 }  // namespace blender::bke::greasepencil

@@ -215,4 +215,64 @@ void separate_fill_ids(CurvesGeometry &curves, const IndexMask &strokes_to_keep)
   fill_ids.finish();
 }
 
+void set_stroke_type(bke::MutableAttributeAccessor attributes,
+                     const IndexMask &selection,
+                     const StrokeType type)
+{
+  bke::SpanAttributeWriter<bool> hide_stroke = attributes.lookup_or_add_for_write_span<bool>(
+      "hide_stroke", bke::AttrDomain::Curve);
+  bke::SpanAttributeWriter<int> fill_ids = attributes.lookup_or_add_for_write_span<int>(
+      "fill_id", bke::AttrDomain::Curve);
+
+  switch (type) {
+    case StrokeType::Stroke: {
+      index_mask::masked_fill(hide_stroke.span, false, selection);
+      index_mask::masked_fill(fill_ids.span, 0, selection);
+      break;
+    }
+    case StrokeType::Fill: {
+      index_mask::masked_fill(hide_stroke.span, true, selection);
+      break;
+    }
+    case StrokeType::Both: {
+      index_mask::masked_fill(hide_stroke.span, false, selection);
+      break;
+    }
+  }
+
+  if (ELEM(type, StrokeType::Fill, StrokeType::Both)) {
+    IndexMaskMemory memory;
+    const IndexMask non_fill_selection = IndexMask::from_predicate(
+        selection, memory, [&](const int64_t index) { return fill_ids.span[index] == 0; });
+    gather_next_available_fill_ids(fill_ids.span.varray(), non_fill_selection, fill_ids.span);
+  }
+
+  hide_stroke.finish();
+  fill_ids.finish();
+
+  if (type == StrokeType::Stroke) {
+    if (std::all_of(fill_ids.span.begin(), fill_ids.span.end(), [&](const int64_t fill_id) {
+          return fill_id == 0;
+        }))
+    {
+      /* Remove #fill_id attribute if there are no fills left. */
+      attributes.remove("fill_id");
+    }
+  }
+
+  if (ELEM(type, StrokeType::Stroke, StrokeType::Both)) {
+    const array_utils::BooleanMix hide_strokes_mix = array_utils::booleans_mix_calc(
+        hide_stroke.span.varray());
+    if (hide_strokes_mix == array_utils::BooleanMix::AllFalse) {
+      /* Remove #hide_stroke attribute if all selected are visible. */
+      attributes.remove("hide_stroke");
+    }
+    else {
+      /* If some strokes got unhidden, make sure that we create the radius attribute if it
+       * doesn't exist already. */
+      attributes.add<float>("radius", bke::AttrDomain::Point, bke::AttributeInitValue(0.005f));
+    }
+  }
+}
+
 }  // namespace blender::bke::greasepencil
