@@ -60,7 +60,7 @@ class IslandFieldInput final : public bke::MeshFieldInput {
 
   bke::NativeFieldDomain native_domain_info(const Mesh & /*mesh*/) const override
   {
-    return bke::NativeFieldDomain::Domain{AttrDomain::Point};
+    return bke::NativeFieldDomain::Constant();
   }
 };
 
@@ -98,7 +98,7 @@ class IslandCountFieldInput final : public bke::MeshFieldInput {
 
   bke::NativeFieldDomain native_domain_info(const Mesh & /*mesh*/) const override
   {
-    return bke::NativeFieldDomain::Domain{AttrDomain::Point};
+    return bke::NativeFieldDomain::Constant();
   }
 };
 
