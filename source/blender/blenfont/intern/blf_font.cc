@@ -661,7 +661,7 @@ void blf_draw_svg_icon(FontBLF *font,
                        const float color[4],
                        const float outline_alpha,
                        const bool multicolor,
-                       FunctionRef<void(void *)> edit_source_cb)
+                       FunctionRef<void(void *tvg_picture)> edit_svg_cb)
 {
   BLI_assert(outline_alpha <= 1.0f); /* Higher values overflow, caller must ensure. */
   blf_font_size(font, size);
@@ -684,7 +684,7 @@ void blf_draw_svg_icon(FontBLF *font,
   GlyphCacheBLF *gc = blf_glyph_cache_acquire(font);
   blf_batch_draw_begin(font);
 
-  GlyphBLF *g = blf_glyph_ensure_icon(gc, icon_id, multicolor, edit_source_cb);
+  GlyphBLF *g = blf_glyph_ensure_icon(gc, icon_id, multicolor, edit_svg_cb);
   if (g) {
     blf_glyph_draw(font, gc, g, 0, 0);
   }
@@ -703,11 +703,11 @@ Array<uchar> blf_svg_icon_bitmap(FontBLF *font,
                                  int *r_width,
                                  int *r_height,
                                  const bool multicolor,
-                                 FunctionRef<void(void *)> edit_source_cb)
+                                 FunctionRef<void(void *tvg_picture)> edit_svg_cb)
 {
   blf_font_size(font, size);
   GlyphCacheBLF *gc = blf_glyph_cache_acquire(font);
-  GlyphBLF *g = blf_glyph_ensure_icon(gc, icon_id, multicolor, edit_source_cb);
+  GlyphBLF *g = blf_glyph_ensure_icon(gc, icon_id, multicolor, edit_svg_cb);
 
   if (!g) {
     blf_glyph_cache_release(font);

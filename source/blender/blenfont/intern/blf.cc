@@ -631,7 +631,7 @@ void BLF_draw_svg_icon(uint icon_id,
                        const float color[4],
                        float outline_alpha,
                        bool multicolor,
-                       FunctionRef<void(void *)> edit_source_cb)
+                       FunctionRef<void(void *tvg_picture)> edit_svg_cb)
 {
 #ifndef WITH_HEADLESS
   FontBLF *font = global_font[0];
@@ -655,11 +655,11 @@ void BLF_draw_svg_icon(uint icon_id,
       }
     }
 
-    blf_draw_svg_icon(font, icon_id, size, color, outline_alpha, multicolor, edit_source_cb);
+    blf_draw_svg_icon(font, icon_id, size, color, outline_alpha, multicolor, edit_svg_cb);
     blf_draw_gpu__end(font);
   }
 #else
-  UNUSED_VARS(icon_id, x, y, size, color, outline_alpha, multicolor, edit_source_cb);
+  UNUSED_VARS(icon_id, x, y, size, color, outline_alpha, multicolor, edit_svg_cb);
 #endif /* WITH_HEADLESS */
 }
 
@@ -668,15 +668,15 @@ Array<uchar> BLF_svg_icon_bitmap(uint icon_id,
                                  int *r_width,
                                  int *r_height,
                                  bool multicolor,
-                                 FunctionRef<void(void *)> edit_source_cb)
+                                 FunctionRef<void(void *tvg_picture)> edit_svg_cb)
 {
 #ifndef WITH_HEADLESS
   FontBLF *font = global_font[0];
   if (font) {
-    return blf_svg_icon_bitmap(font, icon_id, size, r_width, r_height, multicolor, edit_source_cb);
+    return blf_svg_icon_bitmap(font, icon_id, size, r_width, r_height, multicolor, edit_svg_cb);
   }
 #else
-  UNUSED_VARS(icon_id, size, r_width, r_height, multicolor, edit_source_cb);
+  UNUSED_VARS(icon_id, size, r_width, r_height, multicolor, edit_svg_cb);
 #endif /* WITH_HEADLESS */
   return {};
 }

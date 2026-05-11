@@ -1522,6 +1522,7 @@ static void icon_source_edit_cb(void *data)
   uchar black[] = {0, 0, 0, 255};
   uchar logo_orange[] = {232, 125, 13, 255};
   uchar logo_blue[] = {38, 87, 135, 255};
+
   /* Tool colors hardcoded for now. */
   uchar tool_add[] = {117, 255, 175, 255};
   uchar tool_remove[] = {245, 107, 91, 255};

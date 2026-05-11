@@ -114,7 +114,7 @@ void blf_draw_svg_icon(FontBLF *font,
                        const float color[4] = nullptr,
                        float outline_alpha = 1.0f,
                        bool multicolor = false,
-                       FunctionRef<void(void *)> edit_source_cb = nullptr);
+                       FunctionRef<void(void *tvg_picture)> edit_svg_cb = nullptr);
 
 Array<uchar> blf_svg_icon_bitmap(FontBLF *font,
                                  uint icon_id,
@@ -122,7 +122,7 @@ Array<uchar> blf_svg_icon_bitmap(FontBLF *font,
                                  int *r_width,
                                  int *r_height,
                                  bool multicolor = false,
-                                 FunctionRef<void(void *)> edit_source_cb = nullptr);
+                                 FunctionRef<void(void *tvg_picture)> edit_svg_cb = nullptr);
 
 Vector<StringRef> blf_font_string_wrap(FontBLF *font,
                                        StringRef str,
@@ -203,7 +203,7 @@ GlyphBLF *blf_glyph_ensure_subpixel(FontBLF *font, GlyphCacheBLF *gc, GlyphBLF *
 GlyphBLF *blf_glyph_ensure_icon(GlyphCacheBLF *gc,
                                 uint icon_id,
                                 bool color = false,
-                                FunctionRef<void(void *)> edit_source_cb = nullptr);
+                                FunctionRef<void(void *tvg_picture)> edit_svg_cb = nullptr);
 
 /* blf_glyph.cc */
 void blf_glyph_draw(FontBLF *font, GlyphCacheBLF *gc, GlyphBLF *g, int x, int y);
