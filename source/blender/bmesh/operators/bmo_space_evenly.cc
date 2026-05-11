@@ -19,6 +19,11 @@
 
 namespace blender {
 
+/** Used as a threshold to decide if all vertices are at the same position. */
+constexpr float STACKED_THRESHOLD = 1e-6f;
+/** Epsilon to prevent zero division. */
+constexpr float SPACE_EPSILON = 1e-8f;
+
 /**
  * A chain of vertices collected from a walk along connected edges.
  */
@@ -121,7 +126,9 @@ static std::optional<SpaceChainData> walk_edges(BMEdge *start_edge, Set<BMEdge *
   /* Skip chains where all vertices are at the same location. */
   bool all_stacked = true;
   for (const int i : IndexRange(chain_data.verts.size()).drop_front(1)) {
-    if (math::distance(float3(chain_data.verts[0]->co), float3(chain_data.verts[i]->co)) > 1e-6f) {
+    if (math::distance(float3(chain_data.verts[0]->co), float3(chain_data.verts[i]->co)) >
+        STACKED_THRESHOLD)
+    {
       all_stacked = false;
       break;
     }
@@ -231,7 +238,7 @@ static void solve_thomas_algorithm(Span<float> t, Span<float> y, Vector<SplineCo
     /* In the case where there are two overlapping verticies, we give an arbitrary length
      * to prevent a zero division. */
     if (h[i] == 0.0f) {
-      h[i] = 1e-8f;
+      h[i] = SPACE_EPSILON;
     }
   }
 
@@ -245,7 +252,7 @@ static void solve_thomas_algorithm(Span<float> t, Span<float> y, Vector<SplineCo
     float q = (3.0f / h[i]) * (y[i + 1] - y[i]) - (3.0f / h[i - 1]) * (y[i] - y[i - 1]);
     l[i] = 2.0f * (t[i + 1] - t[i - 1]) - h[i - 1] * u[i - 1];
     if (l[i] == 0.0f) {
-      l[i] = 1e-8f;
+      l[i] = SPACE_EPSILON;
     }
     u[i] = h[i] / l[i];
     z[i] = (q - h[i - 1] * z[i - 1]) / l[i];
