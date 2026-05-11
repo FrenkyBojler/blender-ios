@@ -2741,15 +2741,18 @@ def write_rst_types_index(basepath):
         # Only show top-level entries (avoids unreasonably large pages).
         # fw("   :maxdepth: 2\n")
         fw("   :titlesonly:\n\n")
+        fw("   bpy.types.bpy_struct.rst\n\n")
+        fw("   bpy.types.bpy_prop.rst\n")
         fw("   bpy.types.bpy_prop_array.rst\n")
         fw("   bpy.types.bpy_prop_collection_idprop.rst\n")
         fw("   bpy.types.bpy_prop_collection.rst\n")
-        fw("   bpy.types.bpy_prop.rst\n")
-        fw("   bpy.types.bpy_struct.rst\n\n")
-        if "bpy.types.GeometrySet" not in EXCLUDE_MODULES:
-            fw("   bpy.types.GeometrySet.rst\n")
-        if "bpy.types.InlineShaderNodes" not in EXCLUDE_MODULES:
-            fw("   bpy.types.InlineShaderNodes.rst\n")
+
+        for type_name in bpy_types_capi_iter():
+            identifier = "bpy.types." + type_name
+            if identifier in EXCLUDE_MODULES:
+                continue
+            fw("   {:s}.rst\n".format(identifier))
+        fw("\n")
 
         # This needs to be included somewhere, while it's hidden, list to avoid warnings.
         if USE_SHARED_RNA_ENUM_ITEMS_STATIC:
