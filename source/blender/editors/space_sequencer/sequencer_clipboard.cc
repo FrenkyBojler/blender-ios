@@ -30,6 +30,7 @@
 
 #include "BKE_anim_data.hh"
 #include "BKE_appdir.hh"
+#include "BKE_blender_copybuffer.hh"
 #include "BKE_blendfile.hh"
 #include "BKE_context.hh"
 #include "BKE_fcurve.hh"
@@ -288,7 +289,7 @@ static bool sequencer_write_copy_paste_file(Main *bmain_src,
 
   BLI_assert(copy_buffer.is_valid());
 
-  const bool retval = copy_buffer.write(filepath, reports);
+  const bool retval = copy_buffer.write_as_copypaste_buffer(filepath, reports);
 
   return retval;
 }
@@ -389,9 +390,13 @@ wmOperatorStatus sequencer_clipboard_paste_exec(bContext *C, wmOperator *op)
 {
   char filepath[FILE_MAX];
   sequencer_copybuffer_filepath_get(filepath, sizeof(filepath));
-  const BlendFileReadParams params{};
-  BlendFileReadReport bf_reports{};
-  BlendFileData *bfd = BKE_blendfile_read(filepath, &params, &bf_reports);
+  Main *bmain_src = BKE_main_new();
+  if (!BKE_copybuffer_read(bmain_src, filepath, op->reports, FILTER_ID_SCE)) {
+    BKE_report(op->reports, RPT_ERROR, "No data to paste");
+    BKE_main_free(bmain_src);
+    return OPERATOR_CANCELLED;
+  }
+
   const int mval[2] = {RNA_int_get(op->ptr, "x"), RNA_int_get(op->ptr, "y")};
   float2 view_mval;
   View2D *v2d = ui::view2d_fromcontext(C);
@@ -400,15 +405,6 @@ wmOperatorStatus sequencer_clipboard_paste_exec(bContext *C, wmOperator *op)
 
   /* For checking if region type is Preview. */
   ARegion *region = CTX_wm_region(C);
-
-  if (bfd == nullptr) {
-    BKE_report(op->reports, RPT_INFO, "No data to paste");
-    return OPERATOR_CANCELLED;
-  }
-
-  Main *bmain_src = bfd->main;
-  bfd->main = nullptr;
-  BLO_blendfiledata_free(bfd);
 
   Scene *scene_src = nullptr;
   /* Find the scene we pasted that contains the strips. It should be tagged. */
