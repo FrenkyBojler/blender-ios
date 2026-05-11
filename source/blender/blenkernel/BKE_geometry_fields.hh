@@ -239,7 +239,7 @@ struct NativeFieldDomain {
   struct Domain {
     AttrDomain domain;
   };
-  /** The input will have the same value on any domain.  */
+  /** Interpolating the field between domains does not change the value. */
   struct Constant {};
 
   std::variant<None, Domain, Constant> variant;
