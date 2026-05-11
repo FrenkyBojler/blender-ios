@@ -155,7 +155,7 @@ class Prepass {
   PassMain::Sub *raycast_vis_off_subs_[2 /*double sided*/][2 /*moving*/] = {{nullptr}};
 
   /* These are never read in practice,
-   * only needed for GAPI correctness without extra shader variants. */
+   * only needed for GPU API correctness without extra shader variants. */
   Texture dummy_raycast_depth_tx_;
   Texture dummy_raycast_id_tx_;
   Texture dummy_raycast_normal_tx_;
