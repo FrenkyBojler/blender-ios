@@ -1081,7 +1081,13 @@ inline IndexMask IndexMask::from_predicate(const IndexMask &universe,
              in_current++) {
           const int16_t local_index = *in_current;
           const int64_t global_index = int64_t(local_index) + offset;
-          const bool condition = predicate(global_index);
+          bool condition;
+          if constexpr (std::is_invocable_r_v<void, Fn, int64_t, int64_t>) {
+            condition = predicate(global_index, local_index);
+          }
+          else {
+            condition = predicate(global_index);
+          }
           *r_current = local_index;
           /* This expects the boolean to be either 0 or 1 which is generally the case but may not
            * be if the values are uninitialized. */
@@ -1200,7 +1206,7 @@ inline void fill_segment(T *__restrict data, const T &value, const SegmentT segm
 {
   if constexpr (std::is_same_v<SegmentT, IndexRange>) {
     if constexpr (std::is_trivially_copy_assignable_v<T>) {
-      if (memory_is_zero(&value, sizeof(T))) {
+      if (value_is_zero(value)) {
         const IndexRange range = segment;
 /* GCC warns about memset on types without trivial copy-assignment even when guarded by
  * `if constexpr (std::is_trivially_copy_assignable_v<T>)`. Quiet the compiler bug. */

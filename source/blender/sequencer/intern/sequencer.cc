@@ -1070,8 +1070,9 @@ static bool strip_read_data_cb(Strip *strip, void *user_data)
   BLO_read_struct_list(reader, SeqTimelineChannel, &strip->channels);
 
   if (strip->retiming_keys != nullptr) {
-    const int size = retiming_keys_count(strip);
-    BLO_read_struct_array(reader, SeqRetimingKey, size, &strip->retiming_keys);
+    if (!BLO_read_array(reader, &strip->retiming_keys, retiming_keys_count(strip))) {
+      strip->retiming_keys_num = 0;
+    }
   }
 
   return true;
@@ -1338,6 +1339,12 @@ int Strip::effect_num_inputs_get() const
     return this->input1 && this->input2 ? 2 : this->input1 ? 1 : 0;
   }
   return blender::seq::effect_type_get_min_num_inputs(this->type);
+}
+
+bool StripModifierData::is_type_sound() const
+{
+  return ELEM(
+      this->type, eSeqModifierType_SoundEqualizer, eSeqModifierType_Echo, eSeqModifierType_Pitch);
 }
 
 }  // namespace blender
