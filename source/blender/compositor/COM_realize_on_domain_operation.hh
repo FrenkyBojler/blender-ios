@@ -22,6 +22,8 @@ class RealizeOnDomainOperation : public SimpleOperation {
  private:
   /* The target domain to realize the input on. */
   Domain target_domain_;
+  /* Arguments passed from execute to the gpu/cpu implementations */
+  struct Options;
 
  public:
   RealizeOnDomainOperation(Context &context, Domain target_domain, ResultType type);
@@ -46,15 +48,8 @@ class RealizeOnDomainOperation : public SimpleOperation {
   Domain compute_domain() override;
 
  private:
-  /* Get the name of the realization shader of the appropriate type. */
-  const char *get_realization_shader_name();
-
-  /* Computes the translation that the input should be translated by to fix the artifacts related
-   * to interpolation. See the implementation for more information. */
-  float2 compute_corrective_translation();
-
-  void realize_on_domain_gpu(const float3x3 &transformation);
-  void realize_on_domain_cpu(const float3x3 &transformation);
+  void realize_on_domain_gpu(const Options &options);
+  void realize_on_domain_cpu(const Options &options);
 };
 
 }  // namespace blender::compositor
