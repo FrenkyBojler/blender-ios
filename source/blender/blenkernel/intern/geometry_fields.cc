@@ -493,7 +493,15 @@ void AttributeFieldInput::hash_unique(UniqueHashBytes &hash,
 std::optional<AttrDomain> AttributeFieldInput::preferred_domain(
     const GeometryComponent &component) const
 {
-  return std::get<NativeFieldDomain::Domain>(this->native_domain_info(component).variant).domain;
+  const std::optional<AttributeAccessor> attributes = component.attributes();
+  if (!attributes.has_value()) {
+    return std::nullopt;
+  }
+  const std::optional<AttributeMetaData> meta_data = attributes->lookup_meta_data(name_);
+  if (!meta_data.has_value()) {
+    return std::nullopt;
+  }
+  return meta_data->domain;
 }
 
 NativeFieldDomain AttributeFieldInput::native_domain_info(const GeometryComponent &component) const
