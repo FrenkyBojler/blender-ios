@@ -125,10 +125,6 @@ void BKE_blender_project_clear()
   std::unique_lock<std::shared_mutex> lock(get_project_mutex());
   std::optional<bke::BlenderProject> &project = get_project();
 
-  if (project.has_value()) {
-    return;
-  }
-
   project = std::nullopt;
 }
 
