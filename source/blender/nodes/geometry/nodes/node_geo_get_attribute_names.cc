@@ -6,12 +6,7 @@
 
 #include "BLI_sort.hh"
 
-#include "NOD_rna_define.hh"
-
 #include "RNA_enum_types.hh"
-
-#include "UI_interface_layout.hh"
-#include "UI_resources.hh"
 
 #include "node_geometry_util.hh"
 
@@ -46,37 +41,6 @@ static void node_declare(NodeDeclarationBuilder &b)
   }
 }
 
-static bool component_is_available(const GeometrySet &geometry,
-                                   const GeometryComponent::Type type,
-                                   const AttrDomain domain)
-{
-  if (!geometry.has(type)) {
-    return false;
-  }
-  const GeometryComponent &component = *geometry.get_component(type);
-  return ((component.attribute_domain_size(domain) != 0));
-}
-
-static const GeometryComponent *find_source_component(const GeometrySet &geometry,
-                                                      const AttrDomain domain)
-{
-  /* Choose the other component based on a consistent order, rather than some more complicated
-   * heuristic. This is the same order visible in the spreadsheet and used in the ray-cast node. */
-  static const Array<GeometryComponent::Type> supported_types = {
-      GeometryComponent::Type::Mesh,
-      GeometryComponent::Type::PointCloud,
-      GeometryComponent::Type::Curve,
-      GeometryComponent::Type::Instance,
-      GeometryComponent::Type::GreasePencil};
-  for (const GeometryComponent::Type src_type : supported_types) {
-    if (component_is_available(geometry, src_type, domain)) {
-      return geometry.get_component(src_type);
-    }
-  }
-
-  return nullptr;
-}
-
 static void node_geo_exec(GeoNodeExecParams params)
 {
   const GeometrySet geometry_set = params.extract_input<GeometrySet>("Geometry"_ustr);
@@ -86,37 +50,34 @@ static void node_geo_exec(GeoNodeExecParams params)
   const bke::AttrType data_type = params.extract_input<bke::AttrType>("Data Type"_ustr);
   const AttrDomain domain = params.extract_input<AttrDomain>("Domain"_ustr);
 
-  const GeometryComponent *component = find_source_component(geometry_set, domain);
-  if (!component) {
-    params.set_default_remaining_outputs();
-    return;
+  VectorSet<std::string> names_set;
+
+  for (const GeometryComponent *component : geometry_set.get_components()) {
+    const std::optional<AttributeAccessor> attributes = component->attributes();
+    if (!attributes) {
+      continue;
+    }
+    attributes->foreach_attribute([&](const AttributeIter &iter) {
+      if (filter_data_type) {
+        if (iter.data_type != data_type) {
+          return;
+        }
+      }
+      if (filter_domain) {
+        if (iter.domain != domain) {
+          return;
+        }
+      }
+      if (iter.name.startswith(".")) {
+        return;
+      }
+      names_set.add(iter.name);
+    });
   }
 
-  const AttributeAccessor attributes = *component->attributes();
-  Vector<std::string> names;
-
-  attributes.foreach_attribute([&](const AttributeIter &iter) {
-    if (filter_data_type) {
-      if (iter.data_type != data_type) {
-        return;
-      }
-    }
-
-    if (filter_domain) {
-      if (iter.domain != domain) {
-        return;
-      }
-    }
-
-    if (iter.name.startswith(".")) {
-      return;
-    }
-    names.append(iter.name);
-  });
-
+  Vector<std::string> names = names_set.extract_vector();
   parallel_sort(
       names.begin(), names.end(), [](const StringRef a, const StringRef b) { return a < b; });
-
   params.set_output("Names"_ustr, GList::from_container(names));
 }
 
