@@ -206,6 +206,7 @@ set(LIB
   PRIVATE bf::intern::clog
   PRIVATE bf::dependencies::optional::gmp
   PRIVATE bf::dependencies::optional::bullet
+  PRIVATE bf::dependencies::optional::meshoptimizer
 )
 
 if(WITH_FREESTYLE)
