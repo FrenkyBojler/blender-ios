@@ -125,7 +125,8 @@ void node_bsdf_principled(float4 base_color,
 #endif
 
     /* TODO: Maybe sheen_weight should be specular. */
-    float3 sheen_color = sheen_weight * sheen_tint.rgb * principled_sheen(sheen_NV, sheen_roughness);
+    float3 sheen_color = sheen_weight * sheen_tint.rgb *
+                         principled_sheen(sheen_NV, sheen_roughness);
     sheen_data_color = weight * sheen_color;
     /* Attenuate lower layers */
     weight *= max((1.0f - math_reduce_max(sheen_color)), 0.0f);
