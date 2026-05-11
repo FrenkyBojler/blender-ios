@@ -933,7 +933,7 @@ static void apply_word_wrapping(const TextVars *data,
     if (character.do_wrap) {
       runtime->lines.append(LineInfo());
       cur_pixel_pos.x = 0;
-      cur_pixel_pos.y -= runtime->line_height + data->space_line;
+      cur_pixel_pos.y -= runtime->line_height * data->space_line;
     }
   }
 }
@@ -984,10 +984,10 @@ static float2 anchor_offset_get(const TextVars *data, int width_max, int text_he
       anchor_offset.y = 0;
       break;
     case SEQ_TEXT_ANCHOR_Y_CENTER:
-      anchor_offset.y = (text_height + data->space_line) / 2.0f;
+      anchor_offset.y = text_height / 2.0f;
       break;
     case SEQ_TEXT_ANCHOR_Y_BOTTOM:
-      anchor_offset.y = text_height + data->space_line;
+      anchor_offset.y =  text_height;
       break;
   }
 
@@ -1000,7 +1000,7 @@ static void calc_boundbox(const TextVars *data, TextVarsRuntime *runtime, const 
   rctf glyph_bounds_max;
   BLF_bounds_max(runtime->font, &glyph_bounds_max);
   const int text_height = (runtime->lines.size() - 1) *
-                              (runtime->line_height + data->space_line) +
+                              (runtime->line_height * data->space_line) +
                           math::ceil(BLI_rctf_size_y(&glyph_bounds_max));
 
   int width_max = text_box_width_get(runtime->lines);
@@ -1015,8 +1015,8 @@ static void calc_boundbox(const TextVars *data, TextVarsRuntime *runtime, const 
 
   runtime->text_boundbox.xmin = anchor.x + image_center.x;
   runtime->text_boundbox.xmax = anchor.x + image_center.x + width_max;
-  runtime->text_boundbox.ymin = anchor.y + image_center.y - (text_height + data->space_line);
-  runtime->text_boundbox.ymax = runtime->text_boundbox.ymin + (text_height + data->space_line);
+  runtime->text_boundbox.ymin = anchor.y + image_center.y - text_height;
+  runtime->text_boundbox.ymax = runtime->text_boundbox.ymin + text_height;
 }
 
 static void apply_text_alignment(const TextVars *data,
@@ -1024,11 +1024,11 @@ static void apply_text_alignment(const TextVars *data,
                                  const int2 image_size)
 {
   const int box_width = text_box_width_get(runtime->lines);
-  const int box_height = runtime->lines.size() * (runtime->line_height + data->space_line);
+  const int box_height = runtime->line_height + (runtime->lines.size() - 1) * (runtime->line_height * data->space_line);
 
   const float2 image_center{data->loc[0] * image_size.x, data->loc[1] * image_size.y};
   const float2 line_height_offset{
-      0.0f, float(-(runtime->line_height + data->space_line) - BLF_descender(runtime->font))};
+    0.0f, float(-runtime->line_height - BLF_descender(runtime->font))};
   const float2 anchor_offset = anchor_offset_get(data, box_width, box_height);
 
   for (LineInfo &line : runtime->lines) {
