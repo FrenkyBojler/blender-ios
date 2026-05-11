@@ -63,11 +63,6 @@ struct Snapshot {
   }
 };
 
-bool operator==(const SnapshotRef &a, const Snapshot &b)
-{
-  return a.sharing_info == b.sharing_info && a.sharing_info->version() == b.version;
-};
-
 struct CacheKey;
 
 struct CacheKeyRef {
@@ -117,19 +112,6 @@ struct CacheKey {
     return a.inputs.as_span() == b.inputs.as_span();
   }
 };
-
-bool operator==(const CacheKey &a, const CacheKeyRef &b)
-{
-  if (a.inputs.size() != b.inputs.size()) {
-    return false;
-  }
-  for (const int i : a.inputs.index_range()) {
-    if (!(a.inputs[i] == b.inputs[i])) {
-      return false;
-    }
-  }
-  return true;
-}
 
 template<typename T> class Cache {
   Mutex mutex_;

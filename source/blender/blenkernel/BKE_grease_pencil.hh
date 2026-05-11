@@ -92,8 +92,9 @@ struct TriangleCache {
   Vector<int> triangle_offsets;
 };
 
-// using FillCache = implicit_sharing::Cache<std::optional<FillData>>;
-implicit_sharing::Cache<std::optional<FillData>> &get_fill_cache();
+using FillCache = implicit_sharing::Cache<std::optional<FillData>>;
+
+FillCache &get_fill_cache();
 
 class DrawingRuntime {
  public:
