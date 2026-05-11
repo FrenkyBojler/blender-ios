@@ -807,7 +807,7 @@ struct TextVars {
   struct VFont *text_font = nullptr;
   int text_blf_id = 0;
   float text_size = 0;
-  float line_spacing = 0;
+  float space_line = 0;
   float color[4] = {}, shadow_color[4] = {}, box_color[4] = {}, outline_color[4] = {};
   float loc[2] = {};
   float wrap_width = 0;
@@ -831,7 +831,7 @@ struct TextVars {
 
   eEffectTextAnchorX anchor_x = SEQ_TEXT_ANCHOR_X_LEFT;
   eEffectTextAnchorY anchor_y = SEQ_TEXT_ANCHOR_Y_TOP;
-  char _pad1 = {};
+  char _pad1[5] = {};
   seq::TextVarsRuntime *runtime = nullptr;
 
   /* Fixed size text buffer, only exists for forward/backward compatibility.
