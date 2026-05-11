@@ -40,6 +40,8 @@ class ProjectLoadException(Exception):
 
 # -------------------------------------------------------------
 
+# NOTE: this is temporary code, waiting on the libs team to
+# add #155758 so we can do proper TOML serialization.
 def escape_string_toml(text):
     """Escape a string according TOML 1.1 spec.
 
