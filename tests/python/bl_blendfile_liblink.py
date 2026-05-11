@@ -494,6 +494,11 @@ class TestBlendLibAppendCollectionInstances(TestBlendLibLinkHelper):
 
         self.testdir = Path(self.args.src_test_dir) / "libraries_and_linking"
 
+    def assert_contains_all(self, actual_list, expected_list):
+        self.assertEqual(len(actual_list), len(expected_list))
+        for item in expected_list:
+            self.assertTrue(item in actual_list, f"Could not find {item}")
+
     def test_dependency_instatiation(self):
         # Append collection instances (see issue #154707)
         self.reset_blender()
@@ -512,6 +517,11 @@ class TestBlendLibAppendCollectionInstances(TestBlendLibLinkHelper):
         self.assertEqual(bpy.data.objects["Coll_154707_Data_Instance"].users, 2)
         self.assertEqual(bpy.data.objects["Plane_A"].users, 1)
         self.assertEqual(bpy.data.objects["Plane_B"].users, 1)
+
+        self.assert_contains_all(
+            bpy.context.scene.collection.all_objects, ["Coll_154707_Data_Instance"])
+        self.assert_contains_all(
+            bpy.data.collections["Coll_154707_Data"].all_objects, ["Plane_A", "Plane_B"])
 
     def test_recusive_instantiation(self):
         # Append collection instances (see issue #155006)
@@ -535,6 +545,13 @@ class TestBlendLibAppendCollectionInstances(TestBlendLibLinkHelper):
         self.assertEqual(bpy.data.objects["Cone"].users, 1)
         self.assertEqual(bpy.data.objects["Cube"].users, 1)
         self.assertEqual(bpy.data.objects["Cylinder"].users, 1)
+
+        self.assert_contains_all(
+            bpy.context.scene.collection.all_objects, ["Coll_155006_A_Instance"])
+        self.assert_contains_all(
+            bpy.data.collections["Coll_155006_A"].all_objects, ["Cube", "Cylinder", "Coll_155006_B"])
+        self.assert_contains_all(
+            bpy.data.collections["Coll_155006_B"].all_objects, ["Cone"])
 
 
 class TestBlendLibPackedLinkedID(TestBlendLibLinkHelper):
