@@ -1777,7 +1777,7 @@ void BlenderSync::sync_world(blender::Depsgraph &b_depsgraph,
 
   if (world_recalc || update_all || b_world != world_map ||
       viewport_parameters.shader_modified(new_viewport_parameters) ||
-      scene_attr_needs_recalc(shader, b_depsgraph)|| (shader->has_time_dependency && update_time))
+      scene_attr_needs_recalc(shader, b_depsgraph) || (shader->has_time_dependency && update_time))
   {
     unique_ptr<ShaderGraph> graph = make_unique<ShaderGraph>();
 
@@ -1942,7 +1942,8 @@ void BlenderSync::sync_lights(blender::Depsgraph &b_depsgraph, bool update_all, 
 
     /* test if we need to sync */
     if (shader_map.add_or_update(&shader, &b_light.id) || update_all ||
-        scene_attr_needs_recalc(shader, b_depsgraph) || (shader->has_time_dependency && update_time))
+        scene_attr_needs_recalc(shader, b_depsgraph) ||
+        (shader->has_time_dependency && update_time))
     {
       unique_ptr<ShaderGraph> graph = make_unique<ShaderGraph>();
 

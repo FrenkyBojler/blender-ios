@@ -749,7 +749,9 @@ void ShadowModule::sync_object(const ObjectHandle &ob_handle,
     const bool is_initialized = shadow_ob.resource_handle.is_valid();
     const bool has_jittered_transparency = has_transparent_shadows && data_.use_jitter;
     ResourceHandle instance_handle = ob_handle.res_handle.sub_handle(i);
-    if (is_shadow_caster && (ob_handle.recalc || !is_initialized || has_jittered_transparency || time_changed)) {
+    if (is_shadow_caster &&
+        (ob_handle.recalc || !is_initialized || has_jittered_transparency || time_changed))
+    {
       if (ob_handle.recalc && is_initialized) {
         past_casters_updated_.append(shadow_ob.resource_handle.raw());
       }

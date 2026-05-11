@@ -9,8 +9,8 @@
 #include "scene/devicescene.h"
 #include "scene/film.h"
 #include "scene/image.h"
-#include "scene/shader.h"
 #include "scene/scene_attributes.h"
+#include "scene/shader.h"
 
 #include "util/param.h"
 #include "util/string.h"

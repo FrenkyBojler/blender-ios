@@ -4,8 +4,7 @@
 
 #include "stdcycles.h"
 
-shader node_scene_time(output float Seconds = 0.0, 
-                        output float Frame = 0.0)
+shader node_scene_time(output float Seconds = 0.0, output float Frame = 0.0)
 {
   getattribute("scene:time", Seconds);
   getattribute("scene:frame", Frame);
