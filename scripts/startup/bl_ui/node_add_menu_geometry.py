@@ -281,6 +281,7 @@ class NODE_MT_gn_geometry_operations_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "GeometryNodeDeleteGeometry")
         self.node_operator(layout, "GeometryNodeDuplicateElements")
         self.node_operator(layout, "GeometryNodeMergeByDistance")
+        self.node_operator(layout, "GeometryNodeMergePoints")
         self.node_operator(layout, "GeometryNodeSortElements")
         self.node_operator(layout, "GeometryNodeTransform", search_weight=1.0)
         layout.separator()
@@ -480,6 +481,7 @@ class NODE_MT_gn_mesh_read_base(node_add_menu.NodeMenu):
 
     def draw(self, context):
         layout = self.layout
+        self.node_operator(layout, "GeometryNodeClusterByConnected")
         self.node_operator(layout, "GeometryNodeInputMeshEdgeAngle")
         self.node_operator(layout, "GeometryNodeInputMeshEdgeNeighbors")
         self.node_operator(layout, "GeometryNodeInputMeshEdgeVertices")
@@ -751,6 +753,7 @@ class NODE_MT_gn_utilities_field_base(node_add_menu.NodeMenu):
     def draw(self, _context):
         layout = self.layout
         self.node_operator(layout, "GeometryNodeAccumulateField")
+        self.node_operator(layout, "GeometryNodeClusterByDistance")
         self.node_operator(layout, "GeometryNodeFieldAtIndex")
         self.node_operator(layout, "GeometryNodeFieldOnDomain")
         self.node_operator(layout, "GeometryNodeFieldAverage")
@@ -812,13 +815,16 @@ class NODE_MT_category_utilities_bundle_base(node_add_menu.NodeMenu):
     menu_path = "Utilities/Bundle"
 
     def draw(self, context):
-        del context
         layout = self.layout
         self.node_operator(layout, "NodeCombineBundle")
         self.node_operator(layout, "NodeSeparateBundle")
         self.node_operator(layout, "NodeGetBundleItem")
+        if context.preferences.experimental.use_geometry_nodes_hair_dynamics:
+            self.node_operator(layout, "NodeGetNestedBundlePaths")
         self.node_operator(layout, "NodeStoreBundleItem")
         self.node_operator(layout, "NodeJoinBundle")
+        if context.preferences.experimental.use_geometry_nodes_hair_dynamics:
+            self.typed_bundle(layout, label="Typed Bundle")
 
         self.draw_assets_for_catalog(layout, self.menu_path)
 

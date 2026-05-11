@@ -813,7 +813,7 @@ static void merged_element_search_fn_recursive(const ListBaseT<TreeElement> *tre
         if (outliner_is_collection_tree_element(&te)) {
           const Collection &collection = *outliner_collection_from_tree_element(&te);
           if (collection.color_tag != COLLECTION_COLOR_NONE) {
-            iconid = ICON_COLLECTION_COLOR_01 + collection.color_tag;
+            iconid = int(ICON_COLLECTION_COLOR_01) + int(collection.color_tag);
           }
         }
 
@@ -2184,7 +2184,7 @@ static void ebone_fn(int event, TreeElement *te, TreeStoreElem * /*tselem*/, voi
   }
   else if (event == OL_DOP_HIDE) {
     ebone->flag |= BONE_HIDDEN_A;
-    ebone->flag &= ~BONE_SELECTED | BONE_TIPSEL | BONE_ROOTSEL;
+    ebone->flag &= ~(BONE_SELECTED | BONE_TIPSEL | BONE_ROOTSEL);
   }
   else if (event == OL_DOP_UNHIDE) {
     ebone->flag &= ~BONE_HIDDEN_A;

@@ -329,6 +329,8 @@ template<typename T> void hash_unique_cb(const void *value, UniqueHashBytes &has
   return hash_unique_default(value_, hash);
 }
 
+inline std::atomic<int> type_index_counter{0};
+
 }  // namespace cpp_type_util
 
 template<typename T, CPPTypeFlags Flags>
@@ -475,6 +477,7 @@ CPPType::CPPType(TypeTag<T> /*type*/,
   if constexpr (requires { typename T::generic_type; }) {
     this->generic_type = CPPType::get_pre_register<typename T::generic_type>();
   }
+  this->type_index = type_index_counter++;
 }
 
 namespace detail {
