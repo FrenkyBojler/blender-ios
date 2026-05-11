@@ -64,7 +64,7 @@ Attribute::Attribute(ustring name,
 }
 
 Attribute::Attribute(Attribute &&other)
-    : name(other.name), std(other.std), type(other.type), element(other.element)
+    : name(other.name), std(other.std), type(other.type), element(other.element), modified(false)
 {
   set_data_from(std::move(other));
 }
@@ -525,6 +525,7 @@ Attribute *AttributeSet::add_from(Attribute &&other)
   Attribute *attr = find(other.name);
   if (attr) {
     if (attr->type == other.type && attr->element == other.element) {
+      attr->std = other.std;
       attr->set_data_from(std::move(other));
       return attr;
     }
