@@ -457,26 +457,25 @@ std::optional<GroupedSpan<int>> Drawing::fills() const
   const CurvesGeometry &curves = this->strokes();
   const bke::AttributeAccessor attributes = curves.attributes();
 
-  if (!attributes.contains("fill_id")) {
+  const AttributeReader fill_attr = attributes.lookup<int>("fill_id", AttrDomain::Curve);
+  if (!fill_attr) {
     return std::nullopt;
   }
 
   const implicit_sharing::CacheKeyRef key({
-      attributes.lookup<int>("fill_id").sharing_info,
+      fill_attr.sharing_info,
   });
 
   FillCache &cache = get_fill_cache();
   const std::optional<FillData> &fills = cache.lookup_or_compute(key, [&]() {
     const CurvesGeometry &curves = this->strokes();
     const bke::AttributeAccessor attributes = curves.attributes();
-
-    const VArray<int> fill_ids = *attributes.lookup<int>("fill_id", bke::AttrDomain::Curve);
-    return fill_cache_from_fill_ids(fill_ids);
+    return fill_cache_from_fill_ids(*attributes.lookup<int>("fill_id", bke::AttrDomain::Curve));
   });
-  if (fills.has_value()) {
-    return GroupedSpan<int>(fills->fill_offsets.as_span(), fills->fill_map.as_span());
+  if (!fills) {
+    return std::nullopt;
   }
-  return std::nullopt;
+  return GroupedSpan<int>(fills->fill_offsets.as_span(), fills->fill_map.as_span());
 }
 
 static void update_triangle_and_offsets_cache(const Span<float3> positions,
