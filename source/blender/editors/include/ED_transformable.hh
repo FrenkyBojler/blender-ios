@@ -23,7 +23,7 @@ struct bPoseChannel;
 struct ID;
 
 namespace ed {
-    
+
 /**
  * Used to limit the modification of properties to certain axes.
  */
