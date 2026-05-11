@@ -817,12 +817,12 @@ void ShaderGraph::apply_feature_overrides(Scene *scene)
     }
   }
   if (scene->integrator->get_ignore_subsurface_scattering() ||
-      scene->integrator->get_ignore_textures())
+      scene->integrator->get_ignore_images())
   {
     for (ShaderNode *node : nodes) {
       bool ignored = false;
       if (node->special_type == SHADER_SPECIAL_TYPE_IMAGE_SLOT &&
-          scene->integrator->get_ignore_textures())
+          scene->integrator->get_ignore_images())
       {
         ignored = true;
       }

@@ -201,7 +201,7 @@ NODE_DEFINE(Integrator)
   SOCKET_BOOLEAN(ignore_polygon_smoothing, "Ignore Polygon Smoothing", false);
   SOCKET_BOOLEAN(ignore_depth_of_field, "Ignore Depth of Field", false);
   SOCKET_BOOLEAN(ignore_subsurface_scattering, "Ignore Subsurface Scattering", false);
-  SOCKET_BOOLEAN(ignore_textures, "Ignore Textures", false);
+  SOCKET_BOOLEAN(ignore_images, "Ignore Images", false);
 
   return type;
 }
@@ -479,7 +479,7 @@ void Integrator::tag_update(Scene *scene, const uint32_t flag)
     scene->geometry_manager->tag_update(scene, GeometryManager::GEOMETRY_MODIFIED);
   }
 
-  if (ignore_volumes_is_modified() || ignore_bump_is_modified() || ignore_textures_is_modified() ||
+  if (ignore_volumes_is_modified() || ignore_bump_is_modified() || ignore_images_is_modified() ||
       ignore_subsurface_scattering_is_modified() || ignore_polygon_smoothing_is_modified() ||
       ignore_displacement_is_modified())
   {

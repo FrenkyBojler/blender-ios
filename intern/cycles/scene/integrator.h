@@ -136,7 +136,7 @@ class Integrator : public Node {
   NODE_SOCKET_API(bool, ignore_polygon_smoothing);
   NODE_SOCKET_API(bool, ignore_depth_of_field);
   NODE_SOCKET_API(bool, ignore_subsurface_scattering);
-  NODE_SOCKET_API(bool, ignore_textures);
+  NODE_SOCKET_API(bool, ignore_images);
 
   enum : uint32_t {
     AO_PASS_MODIFIED = (1 << 0),

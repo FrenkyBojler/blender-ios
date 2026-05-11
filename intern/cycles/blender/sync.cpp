@@ -565,7 +565,7 @@ void BlenderSync::sync_integrator(blender::ViewLayer &b_view_layer,
   integrator->set_ignore_lights(get_boolean(cscene, "ignore_lights"));
   integrator->set_ignore_shadows(get_boolean(cscene, "ignore_shadows"));
   integrator->set_ignore_bump(get_boolean(cscene, "ignore_bump"));
-  integrator->set_ignore_textures(get_boolean(cscene, "ignore_textures"));
+  integrator->set_ignore_images(get_boolean(cscene, "ignore_images"));
   integrator->set_ignore_displacement(get_boolean(cscene, "ignore_displacement"));
   integrator->set_ignore_polygon_smoothing(get_boolean(cscene, "ignore_polygon_smoothing"));
   integrator->set_ignore_depth_of_field(get_boolean(cscene, "ignore_depth_of_field"));
