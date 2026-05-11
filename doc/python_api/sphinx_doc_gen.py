@@ -2136,7 +2136,13 @@ def pyrna2sphinx(basepath):
                 else:
                     base_id = _BPY_STRUCT_PYCAPI
 
-        fw(title_string(struct_id, "="))
+        if base_id:
+            title = "{:s}({:s})".format(struct_id, base_id)
+        else:
+            title = struct_id
+
+        fw(title_string(title, "="))
+
 
         fw(".. currentmodule:: {:s}\n\n".format(struct_module_name))
 
