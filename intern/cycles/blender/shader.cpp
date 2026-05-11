@@ -1662,6 +1662,15 @@ void BlenderSync::sync_materials(blender::Depsgraph &b_depsgraph, bool update_al
   const bool aovs_changed_between_view_layers = new_shader_view_layer_aovs !=
                                                 shader_view_layer_aovs;
 
+  /* Ensure shaders are recreated in case simplification settings were modified as simplification
+   * may remove connections or alter some properties. */
+  Integrator *integrator = scene->integrator;
+  const bool ignore_settings_modified = integrator->ignore_bump_is_modified() ||
+                                        integrator->ignore_displacement_is_modified() ||
+                                        integrator->ignore_images_is_modified() ||
+                                        integrator->ignore_subsurface_scattering_is_modified() ||
+                                        integrator->ignore_volumes_is_modified();
+
   blender::DEGIDIterData data{};
   data.graph = &b_depsgraph;
   ITER_BEGIN (blender::DEG_iterator_ids_begin,
@@ -1680,7 +1689,8 @@ void BlenderSync::sync_materials(blender::Depsgraph &b_depsgraph, bool update_al
 
     /* test if we need to sync */
     if (shader_map.add_or_update(&shader, &b_mat.id) || update_all ||
-        scene_attr_needs_recalc(shader, b_depsgraph) || aovs_changed_between_view_layers)
+        scene_attr_needs_recalc(shader, b_depsgraph) || aovs_changed_between_view_layers ||
+        ignore_settings_modified)
     {
       unique_ptr<ShaderGraph> graph = make_unique<ShaderGraph>();
 
