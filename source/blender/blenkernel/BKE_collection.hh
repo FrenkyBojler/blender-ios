@@ -333,7 +333,8 @@ void BKE_collection_object_cache_free(const Main *bmain,
  */
 void BKE_main_collections_object_cache_free(const Main *bmain);
 
-Base *BKE_collection_or_layer_objects(const Scene *scene,
+Base *BKE_collection_or_layer_objects(const Main &bmain,
+                                      const Scene *scene,
                                       ViewLayer *view_layer,
                                       Collection *collection);
 
@@ -439,7 +440,7 @@ using BKE_scene_collections_Cb = void (*)(Collection *ob, void *data);
     int _base_flag = (_mode == DAG_EVAL_VIEWPORT) ? BASE_ENABLED_VIEWPORT : BASE_ENABLED_RENDER; \
     int _object_visibility_flag = (_mode == DAG_EVAL_VIEWPORT) ? OB_HIDE_VIEWPORT : \
                                                                  OB_HIDE_RENDER; \
-    int _base_id = 0; \
+    [[maybe_unused]] int _base_id = 0; \
     for (Base *_base = static_cast<Base *>(BKE_collection_object_cache_get(_collection).first); \
          _base; \
          _base = _base->next, _base_id++) \
@@ -486,6 +487,7 @@ void BKE_scene_objects_iterator_end(BLI_Iterator *iter);
  * \note The object->flag is tested against flag.
  */
 struct SceneObjectsIteratorExData {
+  Main *bmain;
   Scene *scene;
   int flag;
   void *iter_data;

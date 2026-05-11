@@ -198,7 +198,7 @@ static void get_element_operation_type(
 
 static TreeElement *get_target_element(const SpaceOutliner *space_outliner)
 {
-  TreeElement *te = outliner_find_element_with_flag(&space_outliner->tree, TSE_ACTIVE);
+  TreeElement *te = outliner_find_element_with_flag(&space_outliner->runtime->tree, TSE_ACTIVE);
 
   return te;
 }
@@ -657,7 +657,7 @@ static void outliner_do_libdata_operation_selection_set(bContext *C,
                                                         const bool do_active_element_first)
 {
   if (do_active_element_first) {
-    TreeElement *active_element = outliner_find_element_with_flag(&space_outliner->tree,
+    TreeElement *active_element = outliner_find_element_with_flag(&space_outliner->runtime->tree,
                                                                   TSE_ACTIVE);
     if (active_element != nullptr) {
       TreeStoreElem *tselem = TREESTORE(active_element);
@@ -673,8 +673,14 @@ static void outliner_do_libdata_operation_selection_set(bContext *C,
     }
   }
 
-  outliner_do_libdata_operation_selection_set(
-      C, reports, scene, space_outliner, space_outliner->tree, false, operation_fn, selection_set);
+  outliner_do_libdata_operation_selection_set(C,
+                                              reports,
+                                              scene,
+                                              space_outliner,
+                                              space_outliner->runtime->tree,
+                                              false,
+                                              operation_fn,
+                                              selection_set);
 }
 
 /** \} */
@@ -804,6 +810,12 @@ static void merged_element_search_fn_recursive(const ListBaseT<TreeElement> *tre
         STRNCPY(name, te.name);
 
         iconid = tree_element_get_icon(tselem, &te).icon;
+        if (outliner_is_collection_tree_element(&te)) {
+          const Collection &collection = *outliner_collection_from_tree_element(&te);
+          if (collection.color_tag != COLLECTION_COLOR_NONE) {
+            iconid = int(ICON_COLLECTION_COLOR_01) + int(collection.color_tag);
+          }
+        }
 
         /* Don't allow duplicate named items */
         if (search_items_find_index(items, name) == -1) {
@@ -914,10 +926,11 @@ static void object_select_fn(bContext *C,
                              TreeStoreElem * /*tsep*/,
                              TreeStoreElem *tselem)
 {
+  const Main *bmain = CTX_data_main(C);
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   Object *ob = id_cast<Object *>(tselem->id);
-  BKE_view_layer_synced_ensure(scene, view_layer);
+  BKE_view_layer_synced_ensure(*bmain, scene, view_layer);
   Base *base = BKE_view_layer_base_find(view_layer, ob);
 
   if (base) {
@@ -952,10 +965,11 @@ static void object_deselect_fn(bContext *C,
                                TreeStoreElem * /*tsep*/,
                                TreeStoreElem *tselem)
 {
+  const Main *bmain = CTX_data_main(C);
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   Object *ob = id_cast<Object *>(tselem->id);
-  BKE_view_layer_synced_ensure(scene, view_layer);
+  BKE_view_layer_synced_ensure(*bmain, scene, view_layer);
   Base *base = BKE_view_layer_base_find(view_layer, ob);
 
   if (base) {
@@ -1474,7 +1488,7 @@ static void id_override_library_clear_single_process(bContext *C,
            * delete it and remap its usages to its linked reference. Otherwise, keep it as a reset
            * system override. */
           bool do_remap_active = false;
-          BKE_view_layer_synced_ensure(scene, view_layer);
+          BKE_view_layer_synced_ensure(*bmain, scene, view_layer);
           if (BKE_view_layer_active_object_get(view_layer) == reinterpret_cast<Object *>(id)) {
             BLI_assert(GS(id->name) == ID_OB);
             do_remap_active = true;
@@ -1482,7 +1496,7 @@ static void id_override_library_clear_single_process(bContext *C,
           BKE_libblock_remap(
               bmain, id, id->override_library->reference, ID_REMAP_SKIP_INDIRECT_USAGE);
           if (do_remap_active) {
-            BKE_view_layer_synced_ensure(scene, view_layer);
+            BKE_view_layer_synced_ensure(*bmain, scene, view_layer);
             Object *ref_object = reinterpret_cast<Object *>(id->override_library->reference);
             Base *basact = BKE_view_layer_base_find(view_layer, ref_object);
             if (basact != nullptr) {
@@ -2170,7 +2184,7 @@ static void ebone_fn(int event, TreeElement *te, TreeStoreElem * /*tselem*/, voi
   }
   else if (event == OL_DOP_HIDE) {
     ebone->flag |= BONE_HIDDEN_A;
-    ebone->flag &= ~BONE_SELECTED | BONE_TIPSEL | BONE_ROOTSEL;
+    ebone->flag &= ~(BONE_SELECTED | BONE_TIPSEL | BONE_ROOTSEL);
   }
   else if (event == OL_DOP_UNHIDE) {
     ebone->flag &= ~BONE_HIDDEN_A;
@@ -2441,8 +2455,9 @@ static void object_batch_delete_hierarchy_tag_fn(bContext *C,
     /* Object has already been processed and tagged for removal as part of another parenting
      * hierarchy. */
 #ifndef NDEBUG
+    const Main *bmain = CTX_data_main(C);
     ViewLayer *view_layer = CTX_data_view_layer(C);
-    BKE_view_layer_synced_ensure(scene, view_layer);
+    BKE_view_layer_synced_ensure(*bmain, scene, view_layer);
     BLI_assert(BKE_view_layer_base_find(view_layer, ob) == nullptr);
 #endif
     return;
@@ -2538,7 +2553,7 @@ static wmOperatorStatus outliner_object_operation_exec(bContext *C, wmOperator *
     case OL_OP_SELECT: {
       Scene *sce = scene; /* To be able to delete, scenes are set... */
       outliner_do_object_operation(
-          C, op->reports, scene, space_outliner, &space_outliner->tree, object_select_fn);
+          C, op->reports, scene, space_outliner, &space_outliner->runtime->tree, object_select_fn);
       /* FIXME: This is most certainly broken, maybe check should rather be
        * `if (CTX_data_scene(C) != scene)` ? */
       if (scene != sce) {
@@ -2555,7 +2570,7 @@ static wmOperatorStatus outliner_object_operation_exec(bContext *C, wmOperator *
                                       op->reports,
                                       scene,
                                       space_outliner,
-                                      &space_outliner->tree,
+                                      &space_outliner->runtime->tree,
                                       object_select_hierarchy_fn,
                                       false);
       /* FIXME: This is most certainly broken, maybe check should rather be
@@ -2568,8 +2583,12 @@ static wmOperatorStatus outliner_object_operation_exec(bContext *C, wmOperator *
       break;
     }
     case OL_OP_DESELECT:
-      outliner_do_object_operation(
-          C, op->reports, scene, space_outliner, &space_outliner->tree, object_deselect_fn);
+      outliner_do_object_operation(C,
+                                   op->reports,
+                                   scene,
+                                   space_outliner,
+                                   &space_outliner->runtime->tree,
+                                   object_deselect_fn);
       str = CTX_N_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Deselect Objects");
       selection_changed = true;
       break;
@@ -2584,7 +2603,7 @@ static wmOperatorStatus outliner_object_operation_exec(bContext *C, wmOperator *
     }
     case OL_OP_RENAME:
       outliner_do_object_operation(
-          C, op->reports, scene, space_outliner, &space_outliner->tree, item_rename_fn);
+          C, op->reports, scene, space_outliner, &space_outliner->runtime->tree, item_rename_fn);
       str = CTX_N_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Rename Object");
       break;
     default:
@@ -2701,7 +2720,7 @@ static wmOperatorStatus outliner_delete_exec(bContext *C, wmOperator *op)
   SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
   wmMsgBus *mbus = CTX_wm_message_bus(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
-  BKE_view_layer_synced_ensure(scene, view_layer);
+  BKE_view_layer_synced_ensure(*bmain, scene, view_layer);
   const Base *basact_prev = BKE_view_layer_active_base_get(view_layer);
 
   const bool delete_hierarchy = RNA_boolean_get(op->ptr, "hierarchy");
@@ -2712,7 +2731,7 @@ static wmOperatorStatus outliner_delete_exec(bContext *C, wmOperator *op)
   object_delete_data.is_liboverride_allowed = false;
   object_delete_data.is_liboverride_hierarchy_root_allowed = delete_hierarchy;
   outliner_tree_traverse(space_outliner,
-                         &space_outliner->tree,
+                         &space_outliner->runtime->tree,
                          0,
                          TSE_SELECTED,
                          outliner_collect_objects_to_delete,
@@ -2721,7 +2740,7 @@ static wmOperatorStatus outliner_delete_exec(bContext *C, wmOperator *op)
   if (delete_hierarchy) {
     BKE_main_id_tag_all(bmain, ID_TAG_DOIT, false);
 
-    BKE_view_layer_synced_ensure(scene, view_layer);
+    BKE_view_layer_synced_ensure(*bmain, scene, view_layer);
 
     /* #object_batch_delete_hierarchy_fn callback will only remove objects from collections and tag
      * them for deletion. */
@@ -2750,7 +2769,7 @@ static wmOperatorStatus outliner_delete_exec(bContext *C, wmOperator *op)
   DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL | ID_RECALC_HIERARCHY);
   DEG_relations_tag_update(bmain);
 
-  BKE_view_layer_synced_ensure(scene, view_layer);
+  BKE_view_layer_synced_ensure(*bmain, scene, view_layer);
   if (basact_prev != BKE_view_layer_active_base_get(view_layer)) {
     WM_event_add_notifier(C, NC_SCENE | ND_OB_ACTIVE, scene);
     WM_msg_publish_rna_prop(mbus, &scene->id, view_layer, LayerObjects, active);
@@ -3391,7 +3410,7 @@ void OUTLINER_OT_animdata_operation(wmOperatorType *ot)
   /* callbacks */
   ot->invoke = WM_menu_invoke;
   ot->exec = outliner_animdata_operation_exec;
-  ot->poll = ED_operator_outliner_active;
+  ot->poll = outliner_operation_tree_element_poll;
 
   ot->flag = 0;
 
@@ -3764,7 +3783,7 @@ static wmOperatorStatus outliner_operation_invoke(bContext *C,
       &region->v2d, event->mval[0], event->mval[1], &view_mval[0], &view_mval[1]);
 
   TreeElement *hovered_te = outliner_find_item_at_y(
-      space_outliner, &space_outliner->tree, view_mval[1]);
+      space_outliner, &space_outliner->runtime->tree, view_mval[1]);
   if (!hovered_te) {
     /* Let this fall through to 'OUTLINER_MT_context_menu'. */
     return OPERATOR_PASS_THROUGH;

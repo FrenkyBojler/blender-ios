@@ -169,7 +169,7 @@ void draw_strip_thumbnails(const TimelineDrawContext &ctx,
                            StripsDrawBatch &strips_batch,
                            const Vector<StripDrawContext> &strips);
 
-/* sequencer_draw_channels.c */
+/* sequencer_channels_draw.cc */
 
 void draw_channels(const bContext *C, ARegion *region);
 void channel_draw_context_init(const bContext *C,
@@ -327,7 +327,7 @@ void sequencer_keymap(wmKeyConfig *keyconf);
 
 void sequencer_buttons_register(ARegionType *art);
 
-/* sequencer_modifiers.c */
+/* sequencer_modifier.cc */
 
 void SEQUENCER_OT_strip_modifier_add(wmOperatorType *ot);
 void SEQUENCER_OT_strip_modifier_remove(wmOperatorType *ot);
@@ -342,6 +342,8 @@ void SEQUENCER_OT_strip_modifier_equalizer_redefine(wmOperatorType *ot);
 
 void SEQ_get_timeline_region_padding(const bContext *C, float *r_pad_top, float *r_pad_bottom);
 void SEQ_add_timeline_region_padding(const bContext *C, rctf *view_box);
+
+rctf SEQ_view_frame_fit(const SpaceSeq *sseq, const ARegion *region, rctf v2d_rect);
 
 void SEQUENCER_OT_sample(wmOperatorType *ot);
 void SEQUENCER_OT_view_all(wmOperatorType *ot);
