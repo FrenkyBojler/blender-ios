@@ -159,7 +159,7 @@ OffsetIndices<int> build_reverse_offsets(const Span<int> indices, MutableSpan<in
   return offset_indices::accumulate_counts_to_offsets(offsets);
 }
 
-void sort_small_groups(const OffsetIndices<int> groups, MutableSpan<int> indices)
+void sort_groups(const OffsetIndices<int> groups, MutableSpan<int> indices)
 {
   threading::parallel_for(groups.index_range(), 1024, [&](const IndexRange range) {
     for (const int64_t index : range) {
@@ -195,7 +195,7 @@ void reverse_indices_in_groups(const Span<int> group_indices,
     }
   });
   if (sort) {
-    sort_small_groups(offsets, results);
+    sort_groups(offsets, results);
   }
 }
 
