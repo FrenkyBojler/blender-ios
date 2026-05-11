@@ -283,7 +283,7 @@ void raycast_eval([[maybe_unused]] float3 position,
   direction = normalize(direction);
 
 #if defined(MAT_RAYCAST)
-  if (!can_raycast) {
+  if (!pipeline_buf.can_raycast) {
     /* On prepass for raycast visibile objects and on planar probes rendering in general.
      * We use a push constant to avoid compiling more shader variants. */
     return;

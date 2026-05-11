@@ -176,7 +176,7 @@ class Prepass {
     return raycast_vis_on_ps_.is_empty() && raycast_vis_off_ps_.is_empty();
   }
 
-  void render(View &view, bool do_raycast_depth_copy);
+  void render(View &view, bool can_raycast, bool do_raycast_depth_copy);
 };
 
 /** \} */
@@ -855,6 +855,7 @@ class PipelineModule {
   void begin_sync()
   {
     data.ray_type = RAY_TYPE_CAMERA;
+    data.can_raycast = true;
     probe.begin_sync();
     planar.begin_sync();
     deferred.begin_sync();
