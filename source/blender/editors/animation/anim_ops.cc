@@ -1531,7 +1531,7 @@ static wmOperatorStatus replace_action_duplicate_invoke(bContext *C,
 
 static void ANIM_OT_replace_action_duplicate(wmOperatorType *ot)
 {
-  ot->name = "Replace with duplicate Action";
+  ot->name = "Replace with Duplicate Action";
   ot->idname = "ANIM_OT_replace_action_duplicate";
   ot->description =
       "Duplicates the action of the active object and swaps all users of that action to that "
