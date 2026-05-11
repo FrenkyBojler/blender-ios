@@ -919,8 +919,8 @@ static void popup_check(bContext *C, wmOperator *op)
  */
 static bool afterfunc_check(const Block *block, const Button *but)
 {
-  auto text_button = but->type == ButtonType::Text ? static_cast<const ButtonText *>(but) :
-                                                     nullptr;
+  auto *text_button = but->type == ButtonType::Text ? static_cast<const ButtonText *>(but) :
+                                                      nullptr;
   return (but->func || but->apply_func || but->funcN ||
           (text_button && (text_button->rename_func || text_button->rename_full_func)) ||
           but->optype || but->rnaprop || block->handle_func ||
@@ -960,7 +960,7 @@ static void apply_but_func(bContext *C, Button *but)
   /* but->func_argN_copy_fn is not needed for #uiAfterFunc. */
 
   if (but->type == ButtonType::Text) {
-    auto text_button = static_cast<ButtonText *>(but);
+    auto *text_button = static_cast<ButtonText *>(but);
 
     after->rename_func = std::move(text_button->rename_func);
     after->rename_orig = text_button->rename_orig; /* needs free! */
