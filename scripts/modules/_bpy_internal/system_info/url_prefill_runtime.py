@@ -16,8 +16,10 @@ def url_from_blender():
     import platform
     import urllib.parse
 
-    query_params = {"type": "bug_report",
-                    "project": "blender"}
+    query_params = {
+        "type": "bug_report",
+        "project": "blender",
+    }
 
     query_params["os"] = "{:s} {:d} Bits".format(
         platform.platform(),
