@@ -2685,7 +2685,8 @@ int handler_panel_region(bContext *C,
 
   /* Handle category tabs. */
   if (panel_category_tabs_is_visible(region)) {
-    const bool is_dragging = ((event->prev_type == LEFTMOUSE && event->prev_val == KM_PRESS) && event->type == MOUSEMOVE);
+    const bool is_dragging = (event->type == MOUSEMOVE &&
+                              (event->prev_type == LEFTMOUSE && event->prev_val == KM_PRESS));
     if ((event->type == LEFTMOUSE && event->val == KM_PRESS) || is_dragging) {
       PanelCategoryDyn *pc_dyn = panel_categories_find_mouse_over(region, event);
       if (pc_dyn) {
