@@ -1,2 +1,3 @@
 Referenced by issue #126566, Crashes, when using Smoke and cycles (AMD HIP)
 Referenced by issue #124452, Blender LTS: Maintenance Task 4.2
+Referenced by pull request #158418, Remove attempts to try and use HIP Runtime 6
