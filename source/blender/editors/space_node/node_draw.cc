@@ -1415,7 +1415,7 @@ static void node_update_basis_from_socket_lists(TreeDrawContext &tree_draw_ctx,
                                                 int &locy)
 {
   /* Space at the top. */
-  node_apply_padding_debug(tree_draw_ctx, node, locy, NODE_DYS / 2);
+  node_apply_padding_debug(tree_draw_ctx, node, locy, NODE_ITEM_SPACING_Y * 2);
 
   /* Output sockets. */
   bool add_output_space = false;
@@ -1424,43 +1424,39 @@ static void node_update_basis_from_socket_lists(TreeDrawContext &tree_draw_ctx,
     /* Clear flag, conventional drawing does not support panels. */
     socket->flag &= ~SOCK_PANEL_COLLAPSED;
 
+    if (socket->is_visible() && add_output_space) {
+      node_apply_padding_debug(tree_draw_ctx, node, locy, NODE_ITEM_SPACING_Y);
+    }
     if (node_update_basis_socket(
             tree_draw_ctx, C, ntree, node, nullptr, nullptr, socket, block, locx, locy))
     {
-      if (socket->next && socket->next->is_available()) {
-        node_apply_padding_debug(tree_draw_ctx, node, locy, NODE_ITEM_SPACING_Y);
-      }
       add_output_space = true;
     }
-  }
-
-  if (add_output_space) {
-    node_apply_padding_debug(tree_draw_ctx, node, locy, NODE_DY / 4);
   }
 
   const bool add_button_space = node_update_basis_buttons(
       C, tree_draw_ctx, ntree, node, node.typeinfo->draw_buttons, block, locy);
 
+  const bool add_before_first_input = add_output_space && !add_button_space;
   bool add_input_space = false;
-
   /* Input sockets. */
   for (bNodeSocket *socket : node.input_sockets()) {
     /* Clear flag, conventional drawing does not support panels. */
     socket->flag &= ~SOCK_PANEL_COLLAPSED;
 
+    if (socket->is_visible() && (add_input_space || add_before_first_input)) {
+      node_apply_padding_debug(tree_draw_ctx, node, locy, NODE_ITEM_SPACING_Y);
+    }
     if (node_update_basis_socket(
             tree_draw_ctx, C, ntree, node, nullptr, socket, nullptr, block, locx, locy))
     {
-      if (socket->next) {
-        node_apply_padding_debug(tree_draw_ctx, node, locy, NODE_ITEM_SPACING_Y);
-      }
       add_input_space = true;
     }
   }
 
   /* Little bit of padding at the bottom. */
-  if (add_input_space || add_button_space) {
-    node_apply_padding_debug(tree_draw_ctx, node, locy, NODE_DYS / 2);
+  if (add_output_space || add_input_space || add_button_space) {
+    node_apply_padding_debug(tree_draw_ctx, node, locy, NODE_ITEM_SPACING_Y * 2);
   }
 }
 
