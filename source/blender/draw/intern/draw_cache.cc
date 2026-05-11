@@ -548,6 +548,10 @@ void drw_batch_cache_generate_requested_evaluated_mesh_or_curve(Object *ob, Task
     }
   }
   else if (Mesh *mesh = BKE_object_get_evaluated_mesh_no_subsurf_unchecked(ob)) {
+    /* Legacy curve objects can have evaluated mesh data while the original object is still a curve
+     * in edit mode (see #156971). #DRW_mesh_batch_cache_create_requested expects the object to
+     * match the mesh data and to be in object mode for non-edit mesh extraction, so use a shallow
+     * temporary mesh object for drawing. */
     bke::ObjectRuntime tmp_runtime = *ob->runtime;
     Object tmp_object = dna::shallow_copy(*ob);
     tmp_object.runtime = &tmp_runtime;
