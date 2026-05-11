@@ -99,6 +99,9 @@ bke::BlenderProject *BKE_blender_project_get(const Main *bmain);
  * This follows the same semantics as `BKE_blender_project_get()`, but ensures
  * thread safety by holding a shared mutex lock while the lambda is run.
  *
+ * NOTE: the lambda is run even if there is no project, in which case the lambda
+ * receives a nullptr.
+ *
  * \see BKE_blender_project_get()
  *
  * \see BKE_with_blender_project_write()

@@ -65,7 +65,7 @@ static std::shared_mutex &get_project_mutex()
 
 bke::BlenderProject *BKE_blender_project_get(const Main *bmain)
 {
-  if (bmain == nullptr) {
+  if (bmain == nullptr || !bmain->is_part_of_project) {
     return nullptr;
   }
 
