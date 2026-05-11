@@ -36,6 +36,15 @@ class ASSETSHELF_PT_filter(Panel):
     bl_region_type = 'HEADER'
     bl_parent_id = "ASSETSHELF_PT_display"
 
+    @classmethod
+    def poll(cls, context):
+        if context.preferences.experimental.use_remote_asset_libraries:
+            return True
+        if context.space_data.type == 'NODE_EDITOR':
+            snode = context.space_data
+            return snode.tree_type != 'CompositorNodeTree'
+        return True
+
     def draw(self, context):
         layout = self.layout
         prefs = context.preferences
