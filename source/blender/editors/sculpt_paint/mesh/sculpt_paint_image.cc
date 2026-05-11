@@ -316,7 +316,6 @@ struct PaintLocalData {
   MutableSpan<float4> scene_linear_pixels;
 };
 
-
 static Bounds<int2> merge_bounds(const Bounds<int2> &a, const Bounds<int2> &b)
 {
   return bounds::merge(a, b);
@@ -383,7 +382,7 @@ static void do_paint_pixels(const Depsgraph &depsgraph,
     const TileColorspaceProcessor *processors = image_data.processors.lookup_ptr(
         tile_data.tile_number);
 
-        const IndexMask valid_rows = IndexMask::from_predicate(
+    const IndexMask valid_rows = IndexMask::from_predicate(
         tile_data.pixel_rows.index_range(), memory, [&](const int i) {
           return brush_test[tile_data.pixel_rows[i].uv_primitive_index];
         });
