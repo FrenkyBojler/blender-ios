@@ -64,6 +64,8 @@ class ProjectLoadException(Exception):
 
 # -------------------------------------------------------------
 
+# NOTE: this is temporary code, waiting on the libs team to
+# add #155758 so we can do proper TOML serialization.
 def escape_string_toml(text):
     """Escape a string according TOML 1.1 spec.
 
@@ -87,7 +89,7 @@ def escape_string_toml(text):
         "\x7F",
     ]
     for esc in required_escapes:
-        text = text.replace(esc, f"\\{esc}")
+        text = text.replace(esc, f"\\u{ord(esc):04X}")
 
     return text
 
@@ -328,7 +330,7 @@ def blend_file_is_in_valid_project(blend_file_path):
 
 # -------------------------------------------------------------
 
-class PROJECT_OP_NewProject(Operator):
+class PROJECT_OT_NewProject(Operator):
     """Create a new project"""
     bl_idname = "project.new_project"
     bl_label = "New Project"
@@ -400,7 +402,7 @@ class PROJECT_OP_NewProject(Operator):
         return {'RUNNING_MODAL'}
 
 
-class PROJECT_OP_SaveProject(Operator):
+class PROJECT_OT_SaveProject(Operator):
     """Save the current project to disk"""
     bl_idname = "project.save_project"
     bl_label = "Save Project"
@@ -423,7 +425,7 @@ class PROJECT_OP_SaveProject(Operator):
         return {'FINISHED'}
 
 
-class PROJECT_OP_OpenBlendInProject(Operator):
+class PROJECT_OT_OpenBlendInProject(Operator):
     """Opens a blend file, but only if it's inside of a project."""
     bl_idname = "project.open_blend_in_project"
     bl_label = "Open File..."
@@ -470,7 +472,7 @@ class PROJECT_OP_OpenBlendInProject(Operator):
         return {'RUNNING_MODAL'}
 
 
-class PROJECT_OP_AddVariable(Operator):
+class PROJECT_OT_AddVariable(Operator):
     """Add a new variable to the current project"""
     bl_idname = "project.add_variable"
     bl_label = "Add Variable"
@@ -505,7 +507,7 @@ class PROJECT_OP_AddVariable(Operator):
         return {'FINISHED'}
 
 
-class PROJECT_OP_RemoveVariable(Operator):
+class PROJECT_OT_RemoveVariable(Operator):
     """Remove the active variable from the current project"""
     bl_idname = "project.remove_variable"
     bl_label = "Remove Variable"
@@ -525,7 +527,7 @@ class PROJECT_OP_RemoveVariable(Operator):
         return {'FINISHED'}
 
 
-class PROJECT_OP_MoveVariable(Operator):
+class PROJECT_OT_MoveVariable(Operator):
     """Move the active variable up or down in the list of variables"""
     bl_idname = "project.move_variable"
     bl_label = "Move Variable"
@@ -626,12 +628,12 @@ def on_exit(is_user_exit):
 # Register
 
 classes = (
-    PROJECT_OP_NewProject,
-    PROJECT_OP_SaveProject,
-    PROJECT_OP_OpenBlendInProject,
-    PROJECT_OP_AddVariable,
-    PROJECT_OP_RemoveVariable,
-    PROJECT_OP_MoveVariable,
+    PROJECT_OT_NewProject,
+    PROJECT_OT_SaveProject,
+    PROJECT_OT_OpenBlendInProject,
+    PROJECT_OT_AddVariable,
+    PROJECT_OT_RemoveVariable,
+    PROJECT_OT_MoveVariable,
 )
 
 
