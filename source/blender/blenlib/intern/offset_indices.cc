@@ -8,6 +8,7 @@
 
 #include "BLI_array_utils.hh"
 #include "BLI_offset_indices.hh"
+#include "BLI_sort.hh"
 #include "BLI_task.hh"
 
 #include "atomic_ops.h"
@@ -163,7 +164,7 @@ void sort_small_groups(const OffsetIndices<int> groups, MutableSpan<int> indices
   threading::parallel_for(groups.index_range(), 1024, [&](const IndexRange range) {
     for (const int64_t index : range) {
       MutableSpan<int> group = indices.slice(groups[index]);
-      std::ranges::sort(group);
+      parallel_sort(group);
     }
   });
 }
