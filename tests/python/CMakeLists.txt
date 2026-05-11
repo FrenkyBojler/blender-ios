@@ -879,6 +879,7 @@ if((WITH_CYCLES OR WITH_GPU_RENDER_TESTS) AND TEST_SRC_DIR_EXISTS)
     camera
     colorspace
     bsdf
+    feature_overrides
     hair
     image_colorspace
     image_data_types
