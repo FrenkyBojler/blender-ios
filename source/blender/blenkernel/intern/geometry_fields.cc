@@ -1174,8 +1174,8 @@ bool try_capture_fields_on_geometry(GeometryComponent &component,
   return try_capture_fields_on_geometry(component, names, domain, selection, fields);
 }
 
-std::optional<AttrDomain> try_detect_required_field_domain(const GeometryComponent &component,
-                                                           const fn::GField &field)
+std::optional<AttrDomain> try_detect_native_field_domain(const GeometryComponent &component,
+                                                         const fn::GField &field)
 {
   const fn::FieldInputsPtr &field_inputs = field.field_inputs();
   if (!field_inputs) {

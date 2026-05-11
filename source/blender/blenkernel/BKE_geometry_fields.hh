@@ -566,8 +566,8 @@ std::optional<AttrDomain> try_detect_field_domain(const GeometryComponent &compo
  * order of the domain, none is returned, and if the fields will give the same value regardless of
  * the domain, none is also returned.
  */
-std::optional<AttrDomain> try_detect_required_field_domain(const GeometryComponent &component,
-                                                           const fn::GField &field);
+std::optional<AttrDomain> try_detect_native_field_domain(const GeometryComponent &component,
+                                                         const fn::GField &field);
 
 }  // namespace bke
 }  // namespace blender
