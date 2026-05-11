@@ -447,6 +447,7 @@ set(GLSL_SRC
   engines/eevee/shaders/eevee_hiz_update_comp.glsl
   engines/eevee/shaders/eevee_fast_gi.bsl.hh
   engines/eevee/shaders/eevee_light_culling.bsl.hh
+  engines/eevee/shaders/eevee_light_shape_display.bsl.hh
   engines/eevee/shaders/eevee_light_shadow_setup.bsl.hh
   engines/eevee/shaders/eevee_light_eval_lib.glsl
   engines/eevee/shaders/eevee_light_iter_lib.glsl
