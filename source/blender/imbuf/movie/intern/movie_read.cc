@@ -45,6 +45,7 @@ extern "C" {
 #  include <libavformat/avformat.h>
 #  include <libavutil/imgutils.h>
 #  include <libavutil/rational.h>
+#  include <libavutil/stereo3d.h>
 #  include <libswscale/swscale.h>
 
 #  include "ffmpeg_compat.h"
@@ -56,6 +57,55 @@ namespace blender {
 
 #ifdef WITH_FFMPEG
 static CLG_LogRef LOG = {"video.read"};
+
+static void read_stereo3d_metadata(MovieReader *anim)
+{
+  AVCodecParameters codecpar = {};
+  avcodec_parameters_from_context(&codecpar, anim->pCodecCtx);
+
+  for (uint8_t i = 0; i < codecpar.nb_coded_side_data; i++) {
+    const AVPacketSideData &sd = codecpar.coded_side_data[i];
+    if (sd.type == AV_PKT_DATA_STEREO3D) {
+      const AVStereo3D &s3d = *reinterpret_cast<AVStereo3D *>(sd.data);
+
+      switch (s3d.type) {
+        case AV_STEREO3D_SIDEBYSIDE:
+          anim->stereo3d_format.display_mode = S3D_DISPLAY_SIDEBYSIDE;
+          if (s3d.flags & AV_STEREO3D_FLAG_INVERT) {
+            anim->stereo3d_format.flag = S3D_SIDEBYSIDE_CROSSEYED;
+          }
+          break;
+        case AV_STEREO3D_TOPBOTTOM:
+          anim->stereo3d_format.display_mode = S3D_DISPLAY_TOPBOTTOM;
+          break;
+        case AV_STEREO3D_LINES:
+          anim->stereo3d_format.display_mode = S3D_DISPLAY_INTERLACE;
+          anim->stereo3d_format.interlace_type = S3D_INTERLACE_ROW;
+          if (s3d.flags & AV_STEREO3D_FLAG_INVERT) {
+            anim->stereo3d_format.flag = S3D_INTERLACE_SWAP;
+          }
+          break;
+        case AV_STEREO3D_COLUMNS:
+          anim->stereo3d_format.display_mode = S3D_DISPLAY_INTERLACE;
+          anim->stereo3d_format.interlace_type = S3D_INTERLACE_COLUMN;
+          if (s3d.flags & AV_STEREO3D_FLAG_INVERT) {
+            anim->stereo3d_format.flag = S3D_INTERLACE_SWAP;
+          }
+          break;
+        case AV_STEREO3D_CHECKERBOARD:
+          anim->stereo3d_format.display_mode = S3D_DISPLAY_INTERLACE;
+          anim->stereo3d_format.interlace_type = S3D_INTERLACE_CHECKERBOARD;
+          if (s3d.flags & AV_STEREO3D_FLAG_INVERT) {
+            anim->stereo3d_format.flag = S3D_INTERLACE_SWAP;
+          }
+          break;
+        default:
+          break;
+      }
+      return;
+    }
+  }
+}
 #endif
 
 #ifdef WITH_FFMPEG
@@ -457,6 +507,8 @@ static int startffmpeg(MovieReader *anim)
   anim->pCodecCtx = pCodecCtx;
   anim->pCodec = pCodec;
   anim->videoStream = video_stream_index;
+
+  read_stereo3d_metadata(anim);
 
   anim->cur_position = 0;
   anim->cur_pts = -1;

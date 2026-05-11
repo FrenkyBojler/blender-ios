@@ -13,6 +13,8 @@
 
 #include "IMB_imbuf_enums.h"
 
+#include "DNA_scene_types.h"
+
 struct AVFormatContext;
 struct AVCodecContext;
 struct AVCodec;
@@ -92,6 +94,8 @@ struct MovieReader {
   char colorspace[/*MAX_COLORSPACE_NAME*/ 64] = {};
   /** The maximum name from multi-view. */
   char suffix[/*MAX_NAME*/ 64] = {};
+
+  Stereo3dFormat stereo3d_format;
 
   IDProperty *metadata = nullptr;
 };
