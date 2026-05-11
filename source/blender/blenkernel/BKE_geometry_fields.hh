@@ -249,7 +249,7 @@ class GeometryFieldInput : public fn::FieldInput {
   virtual GVArray get_varray_for_context(const GeometryFieldContext &context,
                                          const IndexMask &mask) const = 0;
   virtual std::optional<AttrDomain> preferred_domain(const GeometryComponent &component) const;
-  virtual FieldDomainInfo domain_info(const GeometryComponent &component) const;
+  virtual FieldDomainInfo native_domain_info(const GeometryComponent &component) const;
 };
 
 class MeshFieldInput : public fn::FieldInput {
@@ -262,7 +262,7 @@ class MeshFieldInput : public fn::FieldInput {
                                          AttrDomain domain,
                                          const IndexMask &mask) const = 0;
   virtual std::optional<AttrDomain> preferred_domain(const Mesh &mesh) const;
-  virtual FieldDomainInfo domain_info(const Mesh &mesh) const;
+  virtual FieldDomainInfo native_domain_info(const Mesh &mesh) const;
 };
 
 class CurvesFieldInput : public fn::FieldInput {
@@ -339,7 +339,7 @@ class AttributeFieldInput : public GeometryFieldInput {
 
   void hash_unique(UniqueHashBytes &hash, fn::FieldHashDeep &deep_hash_cache) const override;
   std::optional<AttrDomain> preferred_domain(const GeometryComponent &component) const override;
-  FieldDomainInfo domain_info(const GeometryComponent &component) const override;
+  FieldDomainInfo native_domain_info(const GeometryComponent &component) const override;
 
   template<typename T, FixedString FStr> static const fn::Field<T> &get_field()
   {
@@ -370,7 +370,7 @@ class AttributeExistsFieldInput final : public bke::GeometryFieldInput {
   GVArray get_varray_for_context(const bke::GeometryFieldContext &context,
                                  const IndexMask &mask) const final;
   void hash_unique(UniqueHashBytes &hash, fn::FieldHashDeep &deep_hash_cache) const override;
-  FieldDomainInfo domain_info(const GeometryComponent &component) const override;
+  FieldDomainInfo native_domain_info(const GeometryComponent &component) const override;
 };
 
 class NamedLayerSelectionFieldInput final : public bke::GeometryFieldInput {
@@ -432,7 +432,7 @@ class NormalFieldInput : public GeometryFieldInput {
 
   void hash_unique(UniqueHashBytes &hash, fn::FieldHashDeep &deep_hash_cache) const override;
 
-  FieldDomainInfo domain_info(const GeometryComponent &component) const override;
+  FieldDomainInfo native_domain_info(const GeometryComponent &component) const override;
 
   /** Cached normal field to avoid allocating a new one every time. */
   static const fn::Field<float3> &get_field();
@@ -505,7 +505,7 @@ class EvaluateOnDomainInput final : public bke::GeometryFieldInput {
 
   std::optional<AttrDomain> preferred_domain(
       const GeometryComponent & /*component*/) const override;
-  FieldDomainInfo domain_info(const GeometryComponent & /*component*/) const override;
+  FieldDomainInfo native_domain_info(const GeometryComponent & /*component*/) const override;
 };
 
 bool try_capture_fields_on_geometry(MutableAttributeAccessor attributes,

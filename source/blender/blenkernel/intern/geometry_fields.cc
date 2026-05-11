@@ -305,7 +305,8 @@ std::optional<AttrDomain> GeometryFieldInput::preferred_domain(
   return std::nullopt;
 }
 
-FieldDomainInfo GeometryFieldInput::domain_info(const GeometryComponent & /*component*/) const
+FieldDomainInfo GeometryFieldInput::native_domain_info(
+    const GeometryComponent & /*component*/) const
 {
   return FieldDomainInfo::IndexDependent();
 }
@@ -332,7 +333,7 @@ std::optional<AttrDomain> MeshFieldInput::preferred_domain(const Mesh & /*mesh*/
   return std::nullopt;
 }
 
-FieldDomainInfo MeshFieldInput::domain_info(const Mesh & /*mesh*/) const
+FieldDomainInfo MeshFieldInput::native_domain_info(const Mesh & /*mesh*/) const
 {
   return FieldDomainInfo::IndexDependent();
 }
@@ -468,7 +469,7 @@ void AttributeExistsFieldInput::hash_unique(UniqueHashBytes &hash,
   hash.data.extend(Span(name_.data(), name_.size()).cast<std::byte>());
 }
 
-FieldDomainInfo AttributeExistsFieldInput::domain_info(
+FieldDomainInfo AttributeExistsFieldInput::native_domain_info(
     const GeometryComponent & /*component*/) const
 {
   return FieldDomainInfo::AnyDomain();
@@ -492,10 +493,11 @@ void AttributeFieldInput::hash_unique(UniqueHashBytes &hash,
 std::optional<AttrDomain> AttributeFieldInput::preferred_domain(
     const GeometryComponent &component) const
 {
-  return std::get<FieldDomainInfo::DataOnDomain>(this->domain_info(component).variant).domain;
+  return std::get<FieldDomainInfo::DataOnDomain>(this->native_domain_info(component).variant)
+      .domain;
 }
 
-FieldDomainInfo AttributeFieldInput::domain_info(const GeometryComponent &component) const
+FieldDomainInfo AttributeFieldInput::native_domain_info(const GeometryComponent &component) const
 {
   const std::optional<AttributeAccessor> attributes = component.attributes();
   if (!attributes.has_value()) {
@@ -807,7 +809,8 @@ std::optional<AttrDomain> EvaluateOnDomainInput::preferred_domain(
   return src_domain_;
 }
 
-FieldDomainInfo EvaluateOnDomainInput::domain_info(const GeometryComponent & /*component*/) const
+FieldDomainInfo EvaluateOnDomainInput::native_domain_info(
+    const GeometryComponent & /*component*/) const
 {
   return bke::FieldDomainInfo::DataOnDomain{src_domain_};
 }
@@ -847,7 +850,7 @@ void NormalFieldInput::hash_unique(UniqueHashBytes &hash,
   hash.add(true_normals_);
 }
 
-FieldDomainInfo NormalFieldInput::domain_info(const GeometryComponent &component) const
+FieldDomainInfo NormalFieldInput::native_domain_info(const GeometryComponent &component) const
 {
   switch (component.type()) {
     case GeometryComponent::Type::Mesh: {
@@ -1184,7 +1187,7 @@ std::optional<AttrDomain> try_detect_native_field_domain(const GeometryComponent
   Vector<AttrDomain, 8> domains;
   for (const fn::FieldInput &field_input : field_inputs->inputs) {
     if (const auto *input = dynamic_cast<const GeometryFieldInput *>(&field_input)) {
-      const FieldDomainInfo domain_info = input->domain_info(component);
+      const FieldDomainInfo domain_info = input->native_domain_info(component);
       if (std::holds_alternative<FieldDomainInfo::IndexDependent>(domain_info.variant)) {
         return std::nullopt;
       }
@@ -1195,7 +1198,7 @@ std::optional<AttrDomain> try_detect_native_field_domain(const GeometryComponent
     if (component.type() == GeometryComponent::Type::Mesh) {
       if (const Mesh *mesh = static_cast<const MeshComponent &>(component).get()) {
         if (const auto *input = dynamic_cast<const MeshFieldInput *>(&field_input)) {
-          const FieldDomainInfo domain_info = input->domain_info(*mesh);
+          const FieldDomainInfo domain_info = input->native_domain_info(*mesh);
           if (std::holds_alternative<FieldDomainInfo::IndexDependent>(domain_info.variant)) {
             return std::nullopt;
           }

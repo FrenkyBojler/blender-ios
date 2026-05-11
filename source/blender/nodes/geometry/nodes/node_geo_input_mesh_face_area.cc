@@ -52,7 +52,7 @@ class FaceAreaFieldInput final : public bke::MeshFieldInput {
     return AttrDomain::Face;
   }
 
-  bke::FieldDomainInfo domain_info(const Mesh & /*mesh*/) const override
+  bke::FieldDomainInfo native_domain_info(const Mesh & /*mesh*/) const override
   {
     return bke::FieldDomainInfo::DataOnDomain{AttrDomain::Face};
   }
