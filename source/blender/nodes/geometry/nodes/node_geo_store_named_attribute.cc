@@ -169,6 +169,19 @@ static void node_geo_exec(GeoNodeExecParams params)
               bke::mesh_ensure_default_color_attribute_on_add(mesh, name, domain, data_type);
               bke::mesh_ensure_default_uv_attribute_on_add(mesh, name, domain, data_type);
             }
+            if (component.type() == GeometryComponent::Type::GreasePencil) {
+              GreasePencil &grease_pencil = *geometry_set.get_grease_pencil_for_write();
+              if (name == "fill_id") {
+                for (GreasePencilDrawingBase *base : grease_pencil.drawings()) {
+                  if (base->type != GP_DRAWING) {
+                    continue;
+                  }
+                  bke::greasepencil::Drawing &drawing =
+                      reinterpret_cast<GreasePencilDrawing *>(base)->wrap();
+                  drawing.tag_fills_changed();
+                }
+              }
+            }
           }
           else if (component.attribute_domain_size(domain) != 0) {
             failure.store(true);
