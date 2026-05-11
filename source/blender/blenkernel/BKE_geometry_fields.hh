@@ -218,26 +218,35 @@ class GeometryFieldContext : public fn::FieldContext {
   const Curves *curves_id() const;
 };
 
-/** Information about a field input's relationship with the domain of the data it represents. */
+/**
+ * Information about a field input's relationship with the domain of the data it represents.
+ *
+ * If the native field domain is `Point/Face`, evaluating the field on the corner domain is
+ * identical to evaluating it on the native domain and copying the values to corners afterwards. If
+ * the native field domain is `Curve`, evaluating it on the point domain is identical to evaluating
+ * it on the curve domain and copying the values to the points afterwards. Of course, copying the
+ * values to the more complex domain can be skipped if the algorithm can be optimized to use the
+ * data directly from the smaller domain.
+ */
 struct NativeFieldDomain {
   /**
    * The input may depend on the order of the domain. For example, the index field, can't be
    * transparently evaluated on a different domain unlike attribute fields which are more flexible
    * because of domain interpolation.
    */
-  struct IndexDependent {};
+  struct None {};
   /** The input represents data on a specific domain. */
   struct Domain {
     AttrDomain domain;
   };
   /** The input will have the same value on any domain.  */
-  struct None {};
+  struct Constant {};
 
-  std::variant<IndexDependent, Domain, None> variant;
+  std::variant<None, Domain, Constant> variant;
 
-  NativeFieldDomain(const IndexDependent & /*tag*/) : variant(IndexDependent{}) {}
-  NativeFieldDomain(const Domain &domain) : variant(domain) {}
   NativeFieldDomain(const None & /*tag*/) : variant(None{}) {}
+  NativeFieldDomain(const Domain &domain) : variant(domain) {}
+  NativeFieldDomain(const Constant & /*tag*/) : variant(Constant{}) {}
 };
 
 class GeometryFieldInput : public fn::FieldInput {

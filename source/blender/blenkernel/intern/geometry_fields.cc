@@ -308,7 +308,7 @@ std::optional<AttrDomain> GeometryFieldInput::preferred_domain(
 NativeFieldDomain GeometryFieldInput::native_domain_info(
     const GeometryComponent & /*component*/) const
 {
-  return NativeFieldDomain::IndexDependent();
+  return NativeFieldDomain::None();
 }
 
 GVArray MeshFieldInput::get_varray_for_context(const fn::FieldContext &context,
@@ -335,7 +335,7 @@ std::optional<AttrDomain> MeshFieldInput::preferred_domain(const Mesh & /*mesh*/
 
 NativeFieldDomain MeshFieldInput::native_domain_info(const Mesh & /*mesh*/) const
 {
-  return NativeFieldDomain::IndexDependent();
+  return NativeFieldDomain::None();
 }
 
 GVArray CurvesFieldInput::get_varray_for_context(const fn::FieldContext &context,
@@ -472,7 +472,7 @@ void AttributeExistsFieldInput::hash_unique(UniqueHashBytes &hash,
 NativeFieldDomain AttributeExistsFieldInput::native_domain_info(
     const GeometryComponent & /*component*/) const
 {
-  return NativeFieldDomain::None();
+  return NativeFieldDomain::Constant();
 }
 
 std::string AttributeFieldInput::socket_inspection_name() const
@@ -500,11 +500,11 @@ NativeFieldDomain AttributeFieldInput::native_domain_info(const GeometryComponen
 {
   const std::optional<AttributeAccessor> attributes = component.attributes();
   if (!attributes.has_value()) {
-    return NativeFieldDomain::None();
+    return NativeFieldDomain::Constant();
   }
   const std::optional<AttributeMetaData> meta_data = attributes->lookup_meta_data(name_);
   if (!meta_data.has_value()) {
-    return NativeFieldDomain::None();
+    return NativeFieldDomain::Constant();
   }
   return NativeFieldDomain(NativeFieldDomain::Domain{meta_data->domain});
 }
@@ -868,9 +868,9 @@ NativeFieldDomain NormalFieldInput::native_domain_info(const GeometryComponent &
     case GeometryComponent::Type::Curve:
       return bke::NativeFieldDomain::Domain{AttrDomain::Point};
     default:
-      return bke::NativeFieldDomain::None();
+      return bke::NativeFieldDomain::Constant();
   }
-  return bke::NativeFieldDomain::None();
+  return bke::NativeFieldDomain::Constant();
 }
 
 const fn::Field<float3> &NormalFieldInput::get_field()
@@ -1187,7 +1187,7 @@ std::optional<AttrDomain> try_detect_native_field_domain(const GeometryComponent
   for (const fn::FieldInput &field_input : field_inputs->inputs) {
     if (const auto *input = dynamic_cast<const GeometryFieldInput *>(&field_input)) {
       const NativeFieldDomain domain_info = input->native_domain_info(component);
-      if (std::holds_alternative<NativeFieldDomain::IndexDependent>(domain_info.variant)) {
+      if (std::holds_alternative<NativeFieldDomain::None>(domain_info.variant)) {
         return std::nullopt;
       }
       if (const auto *value = std::get_if<NativeFieldDomain::Domain>(&domain_info.variant)) {
@@ -1198,7 +1198,7 @@ std::optional<AttrDomain> try_detect_native_field_domain(const GeometryComponent
       if (const Mesh *mesh = static_cast<const MeshComponent &>(component).get()) {
         if (const auto *input = dynamic_cast<const MeshFieldInput *>(&field_input)) {
           const NativeFieldDomain domain_info = input->native_domain_info(*mesh);
-          if (std::holds_alternative<NativeFieldDomain::IndexDependent>(domain_info.variant)) {
+          if (std::holds_alternative<NativeFieldDomain::None>(domain_info.variant)) {
             return std::nullopt;
           }
           if (const auto *value = std::get_if<NativeFieldDomain::Domain>(&domain_info.variant)) {
