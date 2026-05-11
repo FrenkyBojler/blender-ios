@@ -51,6 +51,8 @@ void textbox_jump_line(ButtonTextBox *textbox,
  */
 Vector<StringRef> textbox_wrap_lines(ButtonTextBox *textbox);
 
+Vector<StringRef> textbox_wrap_placeholder(ButtonTextBox *textbox);
+
 float textbox_grip_height();
 
 /* Top/Bottom padding for text in a text-box. */
