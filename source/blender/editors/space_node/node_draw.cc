@@ -120,6 +120,13 @@ namespace ed::space_node {
 #define ZONE_ZONE_PADDING 0.3f * UI_UNIT_X
 #define EXTRA_INFO_ROW_HEIGHT (20.0f * UI_SCALE_FAC)
 
+static constexpr bool NODE_DRAW_DEBUG_PADDING_SEPARATORS = true;
+
+struct NodePaddingDebugLine {
+  float y;
+  bool is_after_padding;
+};
+
 /**
  * This is passed to many functions which draw the node editor.
  */
@@ -165,6 +172,7 @@ struct TreeDrawContext {
    * during drawing. The array is indexed by `bNode::index()`.
    */
   Array<Vector<NodeExtraInfoRow>> extra_info_rows_per_node;
+  Array<Vector<NodePaddingDebugLine>> padding_debug_lines_per_node;
 
   Map<int32_t, VectorSet<std::string>> shader_node_errors;
 
@@ -180,6 +188,179 @@ struct TreeDrawContext {
     }
   }
 };
+
+static void node_add_padding_debug_line(TreeDrawContext &tree_draw_ctx,
+                                        const bNode &node,
+                                        const float y,
+                                        const bool is_after_padding)
+{
+  if (!NODE_DRAW_DEBUG_PADDING_SEPARATORS) {
+    return;
+  }
+  tree_draw_ctx.padding_debug_lines_per_node[node.index()].append({y, is_after_padding});
+}
+
+static void node_apply_padding_debug(TreeDrawContext &tree_draw_ctx,
+                                     const bNode &node,
+                                     int &y,
+                                     const float padding)
+{
+  if (padding <= 0.0f) {
+    return;
+  }
+  node_add_padding_debug_line(tree_draw_ctx, node, y, false);
+  y -= padding;
+  node_add_padding_debug_line(tree_draw_ctx, node, y, true);
+}
+
+static void node_draw_padding_debug_separators(const TreeDrawContext &tree_draw_ctx,
+                                               const bNode &node)
+{
+  if (!NODE_DRAW_DEBUG_PADDING_SEPARATORS) {
+    return;
+  }
+
+  const Span<NodePaddingDebugLine> lines =
+      tree_draw_ctx.padding_debug_lines_per_node[node.index()];
+  if (lines.is_empty()) {
+    return;
+  }
+
+  const rctf &rct = node.runtime->draw_bounds;
+  const float xmin = rct.xmin + 0.25f * NODE_DY;
+  const float xmax = xmin + 20;
+  const float label_x = xmin + 0.5f * UI_SCALE_FAC;
+
+  const uint pos = GPU_vertformat_attr_add(
+      immVertexFormat(), "pos", gpu::VertAttrType::SFLOAT_32_32_32);
+
+  GPU_line_width(1.0f);
+  immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
+  for (const NodePaddingDebugLine &line : lines) {
+    if (line.is_after_padding) {
+      immUniformColor4f(0.0f, 0.9f, 1.0f, 1.0f);
+    }
+    else {
+      immUniformColor4f(1.0f, 0.15f, 0.05f, 1.0f);
+    }
+    immBegin(GPU_PRIM_LINES, 2);
+    immVertex3f(pos, xmin, line.y, 0.0f);
+    immVertex3f(pos, xmax, line.y, 0.0f);
+    immEnd();
+  }
+  immUnbindProgram();
+
+  const auto draw_segment =
+      [&](const uint pos, const float x1, const float y1, const float x2, const float y2) {
+        immBegin(GPU_PRIM_LINES, 2);
+        immVertex3f(pos, x1, y1, 0.0f);
+        immVertex3f(pos, x2, y2, 0.0f);
+        immEnd();
+      };
+
+  const auto draw_digit =
+      [&](const uint pos, const char c, const float x, const float y, const float height) {
+        const float width = height * 0.55f;
+        const float mid_y = y + height * 0.5f;
+        const float top_y = y + height;
+        const float right_x = x + width;
+
+        if (c == '.') {
+          draw_segment(pos, x + width * 0.45f, y, x + width * 0.45f, y + height * 0.12f);
+          return;
+        }
+
+        int segments = 0;
+        switch (c) {
+          case '0':
+            segments = 0b1111110;
+            break;
+          case '1':
+            segments = 0b0110000;
+            break;
+          case '2':
+            segments = 0b1101101;
+            break;
+          case '3':
+            segments = 0b1111001;
+            break;
+          case '4':
+            segments = 0b0110011;
+            break;
+          case '5':
+            segments = 0b1011011;
+            break;
+          case '6':
+            segments = 0b1011111;
+            break;
+          case '7':
+            segments = 0b1110000;
+            break;
+          case '8':
+            segments = 0b1111111;
+            break;
+          case '9':
+            segments = 0b1111011;
+            break;
+          default:
+            return;
+        }
+
+        if (segments & 0b1000000) {
+          draw_segment(pos, x, top_y, right_x, top_y);
+        }
+        if (segments & 0b0100000) {
+          draw_segment(pos, right_x, mid_y, right_x, top_y);
+        }
+        if (segments & 0b0010000) {
+          draw_segment(pos, right_x, y, right_x, mid_y);
+        }
+        if (segments & 0b0001000) {
+          draw_segment(pos, x, y, right_x, y);
+        }
+        if (segments & 0b0000100) {
+          draw_segment(pos, x, y, x, mid_y);
+        }
+        if (segments & 0b0000010) {
+          draw_segment(pos, x, mid_y, x, top_y);
+        }
+        if (segments & 0b0000001) {
+          draw_segment(pos, x, mid_y, right_x, mid_y);
+        }
+      };
+
+  const auto draw_label = [&](const uint pos,
+                              const std::string &label,
+                              const float x,
+                              const float y,
+                              const float height) {
+    float char_x = x;
+    for (const char c : label) {
+      draw_digit(pos, c, char_x, y, height);
+      char_x += height * (c == '.' ? 0.35f : 0.75f);
+    }
+  };
+
+  immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
+  float text_color[4];
+  ui::theme::get_color_4fv(TH_TEXT, text_color);
+  immUniformColor4f(text_color[0], text_color[1], text_color[2], text_color[3]);
+  GPU_line_width(1.4f);
+  for (const int line_i : lines.index_range().drop_front(1)) {
+    const NodePaddingDebugLine &line = lines[line_i];
+    if (!line.is_after_padding) {
+      continue;
+    }
+    const NodePaddingDebugLine &previous_line = lines[line_i - 1];
+    const float padding_height = previous_line.y - line.y;
+    const bool use_min = padding_height < 4.0f;
+    const float text_height = use_min ? 4.0f : padding_height - 1.0f;
+    const float label_y = line.y + padding_height * 0.5f - text_height * 0.5f;
+    const std::string label = fmt::format("{:.0f}", padding_height);
+    draw_label(pos, label, label_x + (use_min ? 3.0f : 0.0f), label_y, text_height);
+  }
+  immUnbindProgram();
+}
 
 float grid_size_get()
 {
@@ -349,6 +530,7 @@ static bool is_node_panels_supported(const bNode &node)
 
 /* Draw UI for options, buttons, and previews. */
 static bool node_update_basis_buttons(const bContext &C,
+                                      TreeDrawContext &tree_draw_ctx,
                                       bNodeTree &ntree,
                                       bNode &node,
                                       FunctionRef<nodes::DrawNodeLayoutFn> draw_buttons,
@@ -366,7 +548,7 @@ static bool node_update_basis_buttons(const bContext &C,
   /* Round the node origin because text contents are always pixel-aligned. */
   const float2 loc = math::round(node_to_view(node.location));
 
-  dy -= NODE_DYS / 4;
+  node_apply_padding_debug(tree_draw_ctx, node, dy, NODE_DYS / 4);
 
   ui::Layout &layout = ui::block_layout(&block,
                                         ui::LayoutDirection::Vertical,
@@ -392,7 +574,8 @@ static bool node_update_basis_buttons(const bContext &C,
   block_align_end(&block);
   const int buty = ui::block_layout_resolve(&block).y;
 
-  dy = buty - NODE_DYS / 4;
+  dy = buty;
+  node_apply_padding_debug(tree_draw_ctx, node, dy, NODE_DYS / 4);
   return true;
 }
 
@@ -1113,7 +1296,7 @@ static void node_update_basis_from_declaration(TreeDrawContext &tree_draw_ctx,
   const Vector<FlatNodeItem> flat_items = make_flat_node_items(node);
   if (flat_items.is_empty()) {
     const float margin = get_margin_empty();
-    locy -= margin;
+    node_apply_padding_debug(tree_draw_ctx, node, locy, margin);
     return;
   }
 
@@ -1122,11 +1305,11 @@ static void node_update_basis_from_declaration(TreeDrawContext &tree_draw_ctx,
      * it is easy change later on. */
     if (item_i == 0) {
       const float margin = get_margin_from_top(flat_items);
-      locy -= margin;
+      node_apply_padding_debug(tree_draw_ctx, node, locy, margin);
     }
     else {
       const float margin = get_margin_between_elements(flat_items, item_i);
-      locy -= margin;
+      node_apply_padding_debug(tree_draw_ctx, node, locy, margin);
     }
 
     const FlatNodeItem &item_variant = flat_items[item_i];
@@ -1216,7 +1399,7 @@ static void node_update_basis_from_declaration(TreeDrawContext &tree_draw_ctx,
   }
 
   const float bottom_margin = get_margin_to_bottom(flat_items);
-  locy -= bottom_margin;
+  node_apply_padding_debug(tree_draw_ctx, node, locy, bottom_margin);
 
   update_collapsed_sockets(node, locx);
   tag_final_panel(node, flat_items);
@@ -1232,7 +1415,7 @@ static void node_update_basis_from_socket_lists(TreeDrawContext &tree_draw_ctx,
                                                 int &locy)
 {
   /* Space at the top. */
-  locy -= NODE_DYS / 2;
+  node_apply_padding_debug(tree_draw_ctx, node, locy, NODE_DYS / 2);
 
   /* Output sockets. */
   bool add_output_space = false;
@@ -1245,18 +1428,18 @@ static void node_update_basis_from_socket_lists(TreeDrawContext &tree_draw_ctx,
             tree_draw_ctx, C, ntree, node, nullptr, nullptr, socket, block, locx, locy))
     {
       if (socket->next && socket->next->is_available()) {
-        locy -= NODE_ITEM_SPACING_Y;
+        node_apply_padding_debug(tree_draw_ctx, node, locy, NODE_ITEM_SPACING_Y);
       }
       add_output_space = true;
     }
   }
 
   if (add_output_space) {
-    locy -= NODE_DY / 4;
+    node_apply_padding_debug(tree_draw_ctx, node, locy, NODE_DY / 4);
   }
 
   const bool add_button_space = node_update_basis_buttons(
-      C, ntree, node, node.typeinfo->draw_buttons, block, locy);
+      C, tree_draw_ctx, ntree, node, node.typeinfo->draw_buttons, block, locy);
 
   bool add_input_space = false;
 
@@ -1269,7 +1452,7 @@ static void node_update_basis_from_socket_lists(TreeDrawContext &tree_draw_ctx,
             tree_draw_ctx, C, ntree, node, nullptr, socket, nullptr, block, locx, locy))
     {
       if (socket->next) {
-        locy -= NODE_ITEM_SPACING_Y;
+        node_apply_padding_debug(tree_draw_ctx, node, locy, NODE_ITEM_SPACING_Y);
       }
       add_input_space = true;
     }
@@ -1277,7 +1460,7 @@ static void node_update_basis_from_socket_lists(TreeDrawContext &tree_draw_ctx,
 
   /* Little bit of padding at the bottom. */
   if (add_input_space || add_button_space) {
-    locy -= NODE_DYS / 2;
+    node_apply_padding_debug(tree_draw_ctx, node, locy, NODE_DYS / 2);
   }
 }
 
@@ -3243,6 +3426,8 @@ static void node_draw_basis(const bContext &C,
     }
   }
 
+  node_draw_padding_debug_separators(tree_draw_ctx, node);
+
   /* Outline around the entire node to highlight selection, alert, or for simulation zones. */
   {
     const rctf rect_node = {
@@ -4723,6 +4908,7 @@ static void draw_nodetree(const bContext &C,
   tree_draw_ctx.region = CTX_wm_region(&C);
   tree_draw_ctx.depsgraph = CTX_data_depsgraph_pointer(&C);
   tree_draw_ctx.extra_info_rows_per_node.reinitialize(nodes.size());
+  tree_draw_ctx.padding_debug_lines_per_node.reinitialize(nodes.size());
   tree_draw_ctx.menu_switch_source_by_index_switch =
       find_menu_switch_sources_for_index_switch_nodes(*snode, ntree, compute_context_cache);
 
