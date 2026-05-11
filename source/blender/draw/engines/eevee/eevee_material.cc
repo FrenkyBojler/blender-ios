@@ -275,8 +275,8 @@ MaterialPass MaterialModule::material_pass_get(Object *ob,
     matpass.sub_pass = nullptr;
   }
   else {
-    const bool hide_on_raycast = ob->visibility_flag & OB_HIDE_RAYCAST;
-    ShaderKey shader_key(matpass.gpumat, blender_mat, probe_capture, hide_on_raycast);
+    const bool hide_from_raycast = ob->visibility_flag & OB_HIDE_RAYCAST;
+    ShaderKey shader_key(matpass.gpumat, blender_mat, probe_capture, hide_from_raycast);
 
     PassMain::Sub *shader_sub = shader_map_.lookup_or_add_cb(shader_key, [&]() {
       /* First time encountering this shader. Create a sub that will contain materials using it. */
@@ -302,7 +302,7 @@ MaterialPass MaterialModule::material_pass_get(Object *ob,
                 MAT_PIPE_PREPASS_FORWARD_VELOCITY,
                 MAT_PIPE_PREPASS_OVERLAP) ||
            (ELEM(pipeline_type, MAT_PIPE_PREPASS_DEFERRED, MAT_PIPE_PREPASS_DEFERRED_VELOCITY) &&
-            hide_on_raycast));
+            hide_from_raycast));
       matpass.sub_pass->push_constant("can_raycast", can_raycast);
     }
     else {

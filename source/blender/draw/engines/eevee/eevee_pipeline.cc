@@ -304,13 +304,13 @@ void Prepass::init(DRWState extra_state, FunctionRef<void(PassMain &pass)> pass_
 PassMain::Sub *Prepass::add(blender::Material *blender_mat,
                             GPUMaterial *gpumat,
                             bool has_motion,
-                            bool hide_on_raycast)
+                            bool hide_from_raycast)
 {
   const bool double_sided = !(blender_mat->blend_flag & MA_BL_CULL_BACKFACE);
   const bool has_raycast = GPU_material_flag_get(gpumat, GPU_MATFLAG_RAYCAST);
-  const bool write_id = has_raycast && !hide_on_raycast;
+  const bool write_id = has_raycast && !hide_from_raycast;
 
-  if (hide_on_raycast) {
+  if (hide_from_raycast) {
     PassMain::Sub &sub = raycast_vis_off_subs_[double_sided][has_motion]->sub(
         GPU_material_get_name(gpumat));
     if (has_raycast) {
@@ -966,9 +966,9 @@ void DeferredLayer::end_sync(bool is_first_pass,
 PassMain::Sub *DeferredLayer::prepass_add(blender::Material *blender_mat,
                                           GPUMaterial *gpumat,
                                           bool has_motion,
-                                          bool hide_on_raycast)
+                                          bool hide_from_raycast)
 {
-  return prepass_.add(blender_mat, gpumat, has_motion, hide_on_raycast);
+  return prepass_.add(blender_mat, gpumat, has_motion, hide_from_raycast);
 }
 
 PassMain::Sub *DeferredLayer::material_add(blender::Material *blender_mat, GPUMaterial *gpumat)
@@ -1166,12 +1166,12 @@ void DeferredPipeline::debug_draw(draw::View &view, gpu::FrameBuffer *combined_f
 PassMain::Sub *DeferredPipeline::prepass_add(blender::Material *blender_mat,
                                              GPUMaterial *gpumat,
                                              bool has_motion,
-                                             bool hide_on_raycast)
+                                             bool hide_from_raycast)
 {
   if (blender_mat->blend_flag & MA_BL_SS_REFRACTION) {
-    return refraction_layer_.prepass_add(blender_mat, gpumat, has_motion, hide_on_raycast);
+    return refraction_layer_.prepass_add(blender_mat, gpumat, has_motion, hide_from_raycast);
   }
-  return opaque_layer_.prepass_add(blender_mat, gpumat, has_motion, hide_on_raycast);
+  return opaque_layer_.prepass_add(blender_mat, gpumat, has_motion, hide_from_raycast);
 }
 
 PassMain::Sub *DeferredPipeline::material_add(blender::Material *blender_mat, GPUMaterial *gpumat)
@@ -1471,9 +1471,9 @@ void DeferredProbePipeline::end_sync()
 
 PassMain::Sub *DeferredProbePipeline::prepass_add(blender::Material *blender_mat,
                                                   GPUMaterial *gpumat,
-                                                  bool hide_on_raycast)
+                                                  bool hide_from_raycast)
 {
-  return opaque_layer_.prepass_.add(blender_mat, gpumat, false, hide_on_raycast);
+  return opaque_layer_.prepass_.add(blender_mat, gpumat, false, hide_from_raycast);
 }
 
 PassMain::Sub *DeferredProbePipeline::material_add(blender::Material *blender_mat,

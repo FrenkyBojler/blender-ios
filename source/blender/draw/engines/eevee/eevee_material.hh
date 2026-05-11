@@ -284,13 +284,13 @@ struct ShaderKey {
   ShaderKey(GPUMaterial *gpumat,
             blender::Material *blender_mat,
             eMaterialProbe probe_capture,
-            bool hide_on_raycast)
+            bool hide_from_raycast)
   {
     shader = GPU_material_get_shader(gpumat);
     options = uint64_t(shader_closure_bits_from_flag(gpumat));
     options = (options << 8) | blender_mat->blend_flag;
     options = (options << 2) | uint64_t(probe_capture);
-    options = (options << 1) | (hide_on_raycast ? 1 : 0);
+    options = (options << 1) | (hide_from_raycast ? 1 : 0);
   }
 
   uint64_t hash() const

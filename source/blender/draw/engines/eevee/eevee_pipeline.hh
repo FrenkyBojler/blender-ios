@@ -169,7 +169,7 @@ class Prepass {
   PassMain::Sub *add(blender::Material *blender_mat,
                      GPUMaterial *gpumat,
                      bool has_motion,
-                     bool hide_on_raycast);
+                     bool hide_from_raycast);
 
   bool is_empty()
   {
@@ -415,7 +415,7 @@ class DeferredLayer : DeferredLayerBase {
   PassMain::Sub *prepass_add(blender::Material *blender_mat,
                              GPUMaterial *gpumat,
                              bool has_motion,
-                             bool hide_on_raycast);
+                             bool hide_from_raycast);
   PassMain::Sub *material_add(blender::Material *blender_mat, GPUMaterial *gpumat);
 
   bool is_empty() const
@@ -466,7 +466,7 @@ class DeferredPipeline {
   PassMain::Sub *prepass_add(blender::Material *blender_mat,
                              GPUMaterial *gpumat,
                              bool has_motion,
-                             bool hide_on_raycast);
+                             bool hide_from_raycast);
   PassMain::Sub *material_add(blender::Material *blender_mat, GPUMaterial *gpumat);
 
   void render(View &main_view,
@@ -648,7 +648,7 @@ class DeferredProbePipeline {
 
   PassMain::Sub *prepass_add(blender::Material *blender_mat,
                              GPUMaterial *gpumat,
-                             bool hide_on_raycast);
+                             bool hide_from_raycast);
   PassMain::Sub *material_add(blender::Material *blender_mat, GPUMaterial *gpumat);
 
   void render(View &view,
@@ -883,12 +883,12 @@ class PipelineModule {
     if (GPU_material_flag_get(gpumat, GPU_MATFLAG_RAYCAST)) {
       has_raycast = true;
     }
-    const bool hide_on_raycast = ob->visibility_flag & OB_HIDE_RAYCAST;
+    const bool hide_from_raycast = ob->visibility_flag & OB_HIDE_RAYCAST;
 
     if (probe_capture == MAT_PROBE_REFLECTION) {
       switch (pipeline_type) {
         case MAT_PIPE_PREPASS_DEFERRED:
-          return probe.prepass_add(blender_mat, gpumat, hide_on_raycast);
+          return probe.prepass_add(blender_mat, gpumat, hide_from_raycast);
         case MAT_PIPE_DEFERRED:
           return probe.material_add(blender_mat, gpumat);
         default:
@@ -910,7 +910,7 @@ class PipelineModule {
 
     switch (pipeline_type) {
       case MAT_PIPE_PREPASS_DEFERRED:
-        return deferred.prepass_add(blender_mat, gpumat, false, hide_on_raycast);
+        return deferred.prepass_add(blender_mat, gpumat, false, hide_from_raycast);
       case MAT_PIPE_PREPASS_FORWARD:
         return forward.prepass_opaque_add(blender_mat, gpumat, false);
       case MAT_PIPE_PREPASS_OVERLAP:
@@ -918,7 +918,7 @@ class PipelineModule {
         return nullptr;
 
       case MAT_PIPE_PREPASS_DEFERRED_VELOCITY:
-        return deferred.prepass_add(blender_mat, gpumat, true, hide_on_raycast);
+        return deferred.prepass_add(blender_mat, gpumat, true, hide_from_raycast);
       case MAT_PIPE_PREPASS_FORWARD_VELOCITY:
         return forward.prepass_opaque_add(blender_mat, gpumat, true);
 
