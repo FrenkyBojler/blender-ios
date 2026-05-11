@@ -278,28 +278,28 @@ static bool find_faces_bad_edges(const Mesh &mesh,
   const Span<int> corner_edges = mesh.corner_edges();
 
   ErrorMessages errors(verbose);
-  return !IndexMask::from_predicate(
-              mask,
-              memory,
-              [&](const int face_i) {
-                const IndexRange face = faces[face_i];
-                for (const int corner : face) {
-                  const int edge_index = corner_edges[corner];
-                  if (!edges_range.contains(edge_index)) {
-                    errors.add("Corner {} has out of range edge index {}", corner, edge_index);
-                    return true;
-                  }
-                  const int corner_next = mesh::face_corner_next(face, corner);
-                  const OrderedEdge actual_edge(corner_verts[corner], corner_verts[corner_next]);
-                  if (OrderedEdge(edges[edge_index]) != actual_edge) {
-                    errors.add("Corner {} has incorrect edge index {}", corner, edge_index);
-                    return true;
-                  }
-                }
-                return false;
-              },
-              exec_mode::grain_size(1024))
-              .is_empty();
+  const IndexMask bad_faces = IndexMask::from_predicate(
+      mask,
+      memory,
+      [&](const int face_i) {
+        const IndexRange face = faces[face_i];
+        for (const int corner : face) {
+          const int edge_index = corner_edges[corner];
+          if (!edges_range.contains(edge_index)) {
+            errors.add("Corner {} has out of range edge index {}", corner, edge_index);
+            return true;
+          }
+          const int corner_next = mesh::face_corner_next(face, corner);
+          const OrderedEdge actual_edge(corner_verts[corner], corner_verts[corner_next]);
+          if (OrderedEdge(edges[edge_index]) != actual_edge) {
+            errors.add("Corner {} has incorrect edge index {}", corner, edge_index);
+            return true;
+          }
+        }
+        return false;
+      },
+      exec_mode::grain_size(1024));
+  return !bad_faces.is_empty();
 }
 
 static IndexMask find_duplicate_faces(const Mesh &mesh,
