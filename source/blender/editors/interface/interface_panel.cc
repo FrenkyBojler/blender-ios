@@ -2685,7 +2685,8 @@ int handler_panel_region(bContext *C,
 
   /* Handle category tabs. */
   if (panel_category_tabs_is_visible(region)) {
-    if (event->type == LEFTMOUSE && event->val == KM_PRESS) {
+    const bool is_dragging = ((event->prev_type == LEFTMOUSE && event->prev_val == KM_PRESS) && event->type == MOUSEMOVE);
+    if ((event->type == LEFTMOUSE && event->val == KM_PRESS) || is_dragging) {
       PanelCategoryDyn *pc_dyn = panel_categories_find_mouse_over(region, event);
       if (pc_dyn) {
         const bool already_active = STREQ(pc_dyn->idname,
@@ -2705,7 +2706,7 @@ int handler_panel_region(bContext *C,
           panel_region_width_set(region, aspect, new_width);
           WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, nullptr);
         }
-        else if (already_active) {
+        else if (already_active && !is_dragging) {
           /* Minimize region. */
           region->runtime->type->prefsizex = int(float(BLI_rcti_size_x(&region->winrct) + 1) /
                                                  UI_SCALE_FAC * aspect);
