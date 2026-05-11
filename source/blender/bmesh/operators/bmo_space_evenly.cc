@@ -15,6 +15,7 @@
 
 #include "bmesh.hh"
 #include "intern/bmesh_operators_private.hh" /* own include */
+#include <optional>
 
 namespace blender {
 
@@ -66,8 +67,9 @@ enum InterpolationMethod {
 
 /**
  * Walk from start_edge in both directions and return the resulting vertex chain.
+ * Returns std::nullopt when all vertices are at the same position.
  */
-static SpaceChainData walk_edges(BMEdge *start_edge, Set<BMEdge *> &r_visited)
+static std::optional<SpaceChainData> walk_edges(BMEdge *start_edge, Set<BMEdge *> &r_visited)
 {
   SpaceChainData chain_data;
   Set<BMVert *> visited_verts;
@@ -116,6 +118,18 @@ static SpaceChainData walk_edges(BMEdge *start_edge, Set<BMEdge *> &r_visited)
     chain_data.verts = std::move(pre_chain);
   }
 
+  /* Skip chains where all vertices are at the same location. */
+  bool all_stacked = true;
+  for (const int i : IndexRange(chain_data.verts.size()).drop_front(1)) {
+    if (math::distance(float3(chain_data.verts[0]->co), float3(chain_data.verts[i]->co)) > 1e-6f) {
+      all_stacked = false;
+      break;
+    }
+  }
+  if (all_stacked) {
+    return std::nullopt;
+  }
+
   BMEdge *closing_edge = BM_edge_exists(chain_data.verts.first(), chain_data.verts.last());
   if (closing_edge && BM_elem_flag_test(closing_edge, BM_ELEM_TAG)) {
     if (!r_visited.contains(closing_edge)) {
@@ -142,20 +156,9 @@ static void get_space_input_chains(BMesh *bm, Vector<SpaceChainData> &r_chains)
     if (!BM_elem_flag_test(edge, BM_ELEM_TAG) || visited.contains(edge)) {
       continue;
     }
-    SpaceChainData chain = walk_edges(edge, visited);
-
-    /* Skip chains where all vertices are at the same location. */
-    if (chain.verts.size() >= 3) {
-      bool all_stacked = true;
-      for (const int i : IndexRange(chain.verts.size()).drop_front(1)) {
-        if (math::distance(float3(chain.verts[0]->co), float3(chain.verts[i]->co)) > 1e-6f) {
-          all_stacked = false;
-          break;
-        }
-      }
-      if (!all_stacked) {
-        r_chains.append(std::move(chain));
-      }
+    std::optional<SpaceChainData> chain = walk_edges(edge, visited);
+    if (chain) {
+      r_chains.append(std::move(*chain));
     }
   }
 }
