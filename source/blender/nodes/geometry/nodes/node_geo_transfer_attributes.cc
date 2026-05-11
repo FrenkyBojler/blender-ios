@@ -242,29 +242,23 @@ static void node_geo_exec(GeoNodeExecParams params)
   const GListPtr attribute_patterns_list = params.extract_input<GListPtr>("Names"_ustr);
   const bool ignore_names = params.extract_input<bool>("Ignore Names"_ustr);
 
-  Map<bke::AttrDomain, Field<int>> dst_id_fields;
-  dst_id_fields.add_new(AttrDomain::Point,
-                        params.extract_input<Field<int>>("Target Point ID"_ustr));
-  dst_id_fields.add_new(AttrDomain::Edge, params.extract_input<Field<int>>("Target Edge ID"_ustr));
-  dst_id_fields.add_new(AttrDomain::Face, params.extract_input<Field<int>>("Target Face ID"_ustr));
-  dst_id_fields.add_new(AttrDomain::Corner,
-                        params.extract_input<Field<int>>("Target Corner ID"_ustr));
-  dst_id_fields.add_new(AttrDomain::Curve,
-                        params.extract_input<Field<int>>("Target Curve ID"_ustr));
-  dst_id_fields.add_new(AttrDomain::Instance,
-                        params.extract_input<Field<int>>("Target Instance ID"_ustr));
+  Map<bke::AttrDomain, Field<int>> dst_id_fields = {
+      {AttrDomain::Point, params.extract_input<Field<int>>("Target Point ID"_ustr)},
+      {AttrDomain::Edge, params.extract_input<Field<int>>("Target Edge ID"_ustr)},
+      {AttrDomain::Face, params.extract_input<Field<int>>("Target Face ID"_ustr)},
+      {AttrDomain::Corner, params.extract_input<Field<int>>("Target Corner ID"_ustr)},
+      {AttrDomain::Curve, params.extract_input<Field<int>>("Target Curve ID"_ustr)},
+      {AttrDomain::Instance, params.extract_input<Field<int>>("Target Instance ID"_ustr)},
+  };
 
-  Map<bke::AttrDomain, Field<int>> src_id_fields;
-  src_id_fields.add_new(AttrDomain::Point,
-                        params.extract_input<Field<int>>("Source Point ID"_ustr));
-  src_id_fields.add_new(AttrDomain::Edge, params.extract_input<Field<int>>("Source Edge ID"_ustr));
-  src_id_fields.add_new(AttrDomain::Face, params.extract_input<Field<int>>("Source Face ID"_ustr));
-  src_id_fields.add_new(AttrDomain::Corner,
-                        params.extract_input<Field<int>>("Source Corner ID"_ustr));
-  src_id_fields.add_new(AttrDomain::Curve,
-                        params.extract_input<Field<int>>("Source Curve ID"_ustr));
-  src_id_fields.add_new(AttrDomain::Instance,
-                        params.extract_input<Field<int>>("Source Instance ID"_ustr));
+  Map<bke::AttrDomain, Field<int>> src_id_fields{
+      {AttrDomain::Point, params.extract_input<Field<int>>("Source Point ID"_ustr)},
+      {AttrDomain::Edge, params.extract_input<Field<int>>("Source Edge ID"_ustr)},
+      {AttrDomain::Face, params.extract_input<Field<int>>("Source Face ID"_ustr)},
+      {AttrDomain::Corner, params.extract_input<Field<int>>("Source Corner ID"_ustr)},
+      {AttrDomain::Curve, params.extract_input<Field<int>>("Source Curve ID"_ustr)},
+      {AttrDomain::Instance, params.extract_input<Field<int>>("Source Instance ID"_ustr)},
+  };
 
   VectorSet<std::string> patterns;
   if (attribute_patterns_list) {
