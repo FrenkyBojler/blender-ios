@@ -60,6 +60,7 @@ class IslandFieldInput final : public bke::MeshFieldInput {
 
   bke::NativeFieldDomain native_domain_info(const Mesh & /*mesh*/) const override
   {
+    /* Domain interpolation will not mix values for separate islands. */
     return bke::NativeFieldDomain::Constant();
   }
 };
