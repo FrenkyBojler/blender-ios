@@ -550,9 +550,6 @@ void BaryWeightSampleFn::prepare_for_execution() const
     const Mesh &mesh = *component.get();
     corner_verts_ = mesh.corner_verts();
     corner_tris_ = mesh.corner_tris();
-    /* Use the most complex domain for now, ensuring no information is lost. In the future, it
-     * should be possible to use the most complex domain required by the field inputs, to simplify
-     * sampling and avoid domain conversions. */
     src_domain_ =
         bke::try_detect_native_field_domain(component, src_field_).value_or(AttrDomain::Corner);
     if (src_domain_ == AttrDomain::Edge) {
