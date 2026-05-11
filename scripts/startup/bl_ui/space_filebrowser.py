@@ -803,6 +803,33 @@ class ASSETBROWSER_PT_metadata(asset_utils.AssetBrowserPanel, Panel):
         self.metadata_prop(layout, metadata, "author")
 
 
+class ASSETBROWSER_PT_import(asset_utils.AssetMetaDataPanel, Panel):
+    bl_region_type = 'TOOL_PROPS'
+    bl_label = "Import"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    @classmethod
+    def poll(cls, context):
+        if not asset_utils.AssetMetaDataPanel.poll(context):
+            return False
+
+        asset = context.asset
+        return getattr(asset.metadata, "default_import_method")
+
+    def draw(self, context):
+        layout = self.layout
+        asset = context.asset
+
+        layout.use_property_split = True
+        layout.use_property_decorate = False  # No animation.
+
+        row = layout.row(align=True, heading="Preferred Method")
+        row.prop(asset.metadata, "use_own_default_import_method", text="")
+        sub = row.row(align=True)
+        sub.active = asset.metadata.use_own_default_import_method
+        sub.prop(asset.metadata, "default_import_method", text="")
+
+
 class ASSETBROWSER_PT_metadata_preview(asset_utils.AssetMetaDataPanel, Panel):
     bl_label = "Preview"
 
@@ -925,6 +952,7 @@ classes = (
     ASSETBROWSER_PT_metadata_preview,
     ASSETBROWSER_PT_metadata_tags,
     ASSETBROWSER_UL_metadata_tags,
+    ASSETBROWSER_PT_import,
     ASSETBROWSER_MT_context_menu,
 )
 
