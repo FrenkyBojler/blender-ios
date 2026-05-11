@@ -301,7 +301,7 @@ def main():
         blocklist += BLOCKLIST_METAL
         blocklist += BLOCKLIST_METAL_RT
 
-    if device == 'HIP':
+    if device in ('HIP', 'HIP-RT'):
         blocklist += BLOCKLIST_HIP
 
     test_dir_name = Path(args.testdir).name
