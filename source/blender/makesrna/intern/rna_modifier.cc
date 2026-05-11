@@ -2144,17 +2144,17 @@ static std::optional<std::string> rna_NodesModifierBake_path(const PointerRNA *p
     return std::nullopt;
   }
 
-  const ModifierData *mod = static_cast<ModifierData *>(ancestor->data);
-  BLI_assert(mod->type == eModifierType_Nodes);
-  const NodesModifierData *nmd = reinterpret_cast<const NodesModifierData *>(mod);
+  const ModifierData *md = static_cast<ModifierData *>(ancestor->data);
+  BLI_assert(md->type == eModifierType_Nodes);
+  const NodesModifierData *nmd = reinterpret_cast<const NodesModifierData *>(md);
   const NodesModifierBake *nmd_bake = ptr->data_as<NodesModifierBake>();
-  Span<const NodesModifierBake *> bakes = {&nmd->bakes, nmd->bakes_num};
-  const int64_t idx = bakes.first_index_try(nmd_bake);
-  if (idx < 0) {
+  Span<NodesModifierBake> bakes = {nmd->bakes, nmd->bakes_num};
+  if (!bakes.contains_ptr(nmd_bake)) {
     return std::nullopt;
   }
+  const int64_t idx = nmd_bake - bakes.begin();
 
-  return fmt::format("modifiers[\"{}\"].bakes[{}]", mod->name, idx);
+  return fmt::format("modifiers[\"{}\"].bakes[{}]", md->name, idx);
 }
 
 bool rna_GreasePencilModifier_material_poll(PointerRNA *ptr, PointerRNA value)
