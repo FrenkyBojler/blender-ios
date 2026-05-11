@@ -14,6 +14,8 @@
 #include "BLI_map.hh"
 #include "BLI_mutex.hh"
 #include "BLI_task.hh"
+#include "BLI_vector.hh"
+
 #include <iostream>
 #include <ostream>
 
@@ -70,9 +72,9 @@ struct CacheKeyRef {
 
   CacheKeyRef(Span<const ImplicitSharingInfo *> inputs) : inputs(inputs)
   {
-    for (const int i : inputs.index_range()) {
-      std::cout << inputs[i] << std::endl;
-    }
+    // for (const int i : inputs.index_range()) {
+    //   std::cout << inputs[i] << std::endl;
+    // }
   }
 
   uint64_t hash() const
@@ -113,19 +115,22 @@ struct CacheKey {
   }
 };
 
-template<typename T> class Cache {
+struct CacheBase {
+  std::string debug_name_;
+
+  CacheBase(const StringRef name) : debug_name_(name) {};
+
+  virtual void clear_unused() = 0;
+  virtual ~CacheBase() = default;
+};
+
+template<typename T> class Cache : public CacheBase {
   Mutex mutex_;
   Map<CacheKey, T> map_;
 
  public:
-  ~Cache()
-  {
-    for (const CacheKey &key : map_.keys()) {
-      for (const Snapshot &snapshot : key.inputs) {
-        snapshot.sharing_info->remove_weak_user_and_delete_if_last();
-      }
-    }
-  }
+  Cache(const StringRef name);
+  ~Cache();
 
   void clear_unused()
   {
@@ -140,9 +145,7 @@ template<typename T> class Cache {
         }
       }
       if (found_expired_input) {
-        for (const Snapshot &snapshot : item.key.inputs) {
-          snapshot.sharing_info->remove_weak_user_and_delete_if_last();
-        }
+        this->clear_key(item.key);
       }
       return found_expired_input;
     });
@@ -170,6 +173,67 @@ template<typename T> class Cache {
       update_fn(*value);
     }
   }
+
+ private:
+  void clear_key(const CacheKey &key)
+  {
+    for (const Snapshot &snapshot : key.inputs) {
+      snapshot.sharing_info->remove_weak_user_and_delete_if_last();
+    }
+  }
+  void clear_all_keys()
+  {
+    for (const CacheKey &key : map_.keys()) {
+      this->clear_key(key);
+    }
+  }
 };
+
+class CacheManager {
+  Vector<CacheBase *> caches_;
+
+ public:
+  static CacheManager &instance()
+  {
+    static CacheManager manager;
+    return manager;
+  };
+
+  CacheManager() = default;
+
+  void register_cache(CacheBase *cache)
+  {
+    std::cout << "register cache " << cache->debug_name_ << std::endl;
+    caches_.append(cache);
+  }
+
+  void unregister_cache(CacheBase *cache)
+  {
+    const int64_t index = caches_.first_index_of_try(cache);
+    if (index == -1) {
+      return;
+    }
+    std::cout << "unregister cache " << caches_[index]->debug_name_ << std::endl;
+    caches_.remove_and_reorder(index);
+  }
+
+  void clear_unused_all()
+  {
+    for (CacheBase *cache : caches_) {
+      cache->clear_unused();
+    }
+  }
+};
+
+template<typename T> Cache<T>::Cache(const StringRef name) : CacheBase{name}
+{
+  CacheManager::instance().register_cache(this);
+}
+
+template<typename T> Cache<T>::~Cache()
+{
+  this->clear_all_keys();
+  CacheManager::instance().unregister_cache(this);
+}
 
 }  // namespace blender::implicit_sharing
