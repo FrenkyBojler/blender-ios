@@ -626,6 +626,7 @@ static bPoseChannel *pose_bone_do_paste(Object *ob,
                                         const bPoseChannel *chan,
                                         const bool selOnly,
                                         const bool flip,
+                                        const float factor,
                                         bool *r_is_found = nullptr)
 {
   char name[MAXBONENAME];
@@ -657,8 +658,8 @@ static bPoseChannel *pose_bone_do_paste(Object *ob,
   /* only loc rot size
    * - only copies transform info for the pose
    */
-  copy_v3_v3(pchan->loc, chan->loc);
-  copy_v3_v3(pchan->scale, chan->scale);
+  interp_v3_v3v3(pchan->loc, pchan->loc, chan->loc, factor);
+  interp_v3_v3v3(pchan->scale, pchan->scale, chan->scale, factor);
 
   /* check if rotation modes are compatible (i.e. do they need any conversions) */
   if (pchan->rotmode == chan->rotmode) {
@@ -703,18 +704,18 @@ static bPoseChannel *pose_bone_do_paste(Object *ob,
   }
 
   /* B-Bone posing options should also be included... */
-  pchan->curve_in_x = chan->curve_in_x;
-  pchan->curve_in_z = chan->curve_in_z;
-  pchan->curve_out_x = chan->curve_out_x;
-  pchan->curve_out_z = chan->curve_out_z;
+  pchan->curve_in_x = interpf(chan->curve_in_x, pchan->curve_in_x, factor);
+  pchan->curve_in_z = interpf(chan->curve_in_z, pchan->curve_in_z, factor);
+  pchan->curve_out_x = interpf(chan->curve_out_x, pchan->curve_out_x, factor);
+  pchan->curve_out_z = interpf(chan->curve_out_z, pchan->curve_out_z, factor);
 
-  pchan->roll1 = chan->roll1;
-  pchan->roll2 = chan->roll2;
-  pchan->ease1 = chan->ease1;
-  pchan->ease2 = chan->ease2;
+  pchan->roll1 = interpf(chan->roll1, pchan->roll1, factor);
+  pchan->roll2 = interpf(chan->roll2, pchan->roll2, factor);
+  pchan->ease1 = interpf(chan->ease1, pchan->ease1, factor);
+  pchan->ease2 = interpf(chan->ease2, pchan->ease2, factor);
 
-  copy_v3_v3(pchan->scale_in, chan->scale_in);
-  copy_v3_v3(pchan->scale_out, chan->scale_out);
+  interp_v3_v3v3(pchan->scale_in, pchan->scale_in, chan->scale_in, factor);
+  interp_v3_v3v3(pchan->scale_out, pchan->scale_out, chan->scale_out, factor);
 
   /* paste flipped pose? */
   if (flip) {
@@ -927,6 +928,7 @@ static wmOperatorStatus pose_paste_exec(bContext *C, wmOperator *op)
   int num_pasted_bones = 0;
   int num_skipped_bones = 0;
   int num_copied_bones = 0;
+  const float factor = RNA_float_get(op->ptr, "factor");
   for (const bPoseChannel &pchan_from : pose_from->chanbase) {
     if ((pchan_from.flag & POSE_SELECTED) == 0) {
       /* This code pretends that bones that were not selected at copy time do not exist. */
@@ -937,7 +939,7 @@ static wmOperatorStatus pose_paste_exec(bContext *C, wmOperator *op)
 
     /* Try to perform paste on this bone. */
     bool is_found;
-    bPoseChannel *pchan_to = pose_bone_do_paste(ob, &pchan_from, selOnly, flip, &is_found);
+    bPoseChannel *pchan_to = pose_bone_do_paste(ob, &pchan_from, selOnly, flip, factor, &is_found);
     if (!pchan_to) {
       if (is_found) {
         /* The bone was found, but not selected (and selOnly), so nothing was pasted to it. */
@@ -1041,6 +1043,17 @@ void POSE_OT_paste(wmOperatorType *ot)
                   false,
                   "On Selected Only",
                   "Only paste the stored pose on to selected bones in the current pose");
+
+  RNA_def_float(ot->srna,
+                "factor",
+                1.0f,
+                -FLT_MAX,
+                FLT_MAX,
+                "Factor",
+                "Blends the current pose to the pose to paste. At 1, the pasted pose completely "
+                "overwrites the current pose",
+                0.0f,
+                1.0f);
 }
 
 /** \} */
@@ -1483,7 +1496,7 @@ static wmOperatorStatus pose_clear_user_transforms_exec(bContext *C, wmOperator 
 
       /* Copy back values, but on selected bones only. */
       for (bPoseChannel &pchan : dummyPose->chanbase) {
-        pose_bone_do_paste(ob, &pchan, only_select, false);
+        pose_bone_do_paste(ob, &pchan, only_select, 1.0f, false);
       }
 
       /* free temp data - free manually as was copied without constraints */
