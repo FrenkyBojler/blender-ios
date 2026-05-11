@@ -9,6 +9,7 @@
 SHADER_LIBRARY_CREATE_INFO(eevee_global_ubo)
 
 #include "draw_view_lib.glsl"
+#include "eevee_colorspace_lib.bsl.hh"
 #include "eevee_sampling_lib.glsl"
 #include "eevee_spherical_harmonics.bsl.hh"
 #include "gpu_shader_math_matrix_transform_lib.glsl"
@@ -218,5 +219,7 @@ VolumeResolveSample volume_resolve(float3 ndc_P,
   VolumeResolveSample volume;
   volume.scattering = texture(scattering_tx, coord).rgb;
   volume.transmittance = texture(transmittance_tx, coord).rgb;
+  /* Scattering is stored in log space to make interpolation smoother. */
+  volume.scattering = colorspace::scene_linear_from_log(volume.scattering);
   return volume;
 }

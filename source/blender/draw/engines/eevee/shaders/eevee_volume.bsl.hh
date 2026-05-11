@@ -239,6 +239,8 @@ void scatter_main([[resource_table]] Scatter &srt,
   indirect_radiance *= uniform_buf.clamp.indirect_scale;
 
   scattering += direct_radiance + indirect_radiance;
+  /* Scattering is stored in log space to make interpolation smoother. */
+  scattering = colorspace::log_from_scene_linear(scattering);
 
   if (uniform_buf.volumes.history_opacity > 0.0f) {
     /* Temporal reprojection. */
@@ -260,6 +262,7 @@ void scatter_main([[resource_table]] Scatter &srt,
   imageStoreFast(srt.out_scattering_img, froxel, float4(scattering, 1.0f));
   imageStoreFast(srt.out_extinction_img, froxel, float4(extinction, 1.0f));
 }
+
 struct Integrate {
   [[legacy_info]] ShaderCreateInfo draw_view;
   [[legacy_info]] ShaderCreateInfo eevee_global_ubo;
@@ -309,6 +312,8 @@ void integration_main([[resource_table]] Integrate &srt,
     int3 froxel = int3(texel, i);
 
     float3 froxel_scattering = texelFetch(srt.in_scattering_tx, froxel, 0).rgb;
+    froxel_scattering = colorspace::scene_linear_from_log(froxel_scattering);
+
     float3 extinction = texelFetch(srt.in_extinction_tx, froxel, 0).rgb;
 
     float cell_depth = volume_z_to_view_z((float(i) + 1.0f) * uniform_buf.volumes.inv_tex_size.z);
@@ -340,7 +345,10 @@ void integration_main([[resource_table]] Integrate &srt,
     scattering += transmittance * froxel_scattering;
     transmittance *= froxel_transmittance;
 
-    imageStoreFast(srt.out_scattering_img, froxel, float4(scattering, 1.0f));
+    /* Scattering is stored in log space to make interpolation smoother. */
+    float3 log_scattering = colorspace::log_from_scene_linear(scattering);
+
+    imageStoreFast(srt.out_scattering_img, froxel, float4(log_scattering, 1.0f));
     imageStoreFast(srt.out_transmittance_img, froxel, float4(transmittance, 1.0f));
   }
 }
