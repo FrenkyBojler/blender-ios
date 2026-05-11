@@ -3,7 +3,9 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BKE_attribute.hh"
+#include "BKE_attribute_filter.hh"
 #include "BKE_mesh.hh"
+#include "BLI_offset_indices.hh"
 #include "DNA_mesh_types.h"
 
 #include "GEO_foreach_geometry.hh"
@@ -28,9 +30,10 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Bool>("Selection"_ustr).default_value(true).field_on_all().hide_value();
 }
 
-static Mesh *simplify_mesh(const Mesh &src_mesh, const float ratio)
+static Mesh *simplify_mesh(const Mesh &src_mesh,
+                           const bke::AttributeFilter &attribute_filter,
+                           const float ratio)
 {
-
   const Span<int3> corner_tris = src_mesh.corner_tris();
   Array<int3> vert_tris(corner_tris.size());
   bke::mesh::vert_tris_from_corner_tris(src_mesh.corner_verts(), corner_tris, vert_tris);
@@ -49,12 +52,19 @@ static Mesh *simplify_mesh(const Mesh &src_mesh, const float ratio)
                                                nullptr);
   std::cout << dst_indices_num << std::endl;
 
-  Mesh *dst_mesh = bke::mesh_new_no_attributes(0, 0, 0, 0);
+  Mesh *dst_mesh = bke::mesh_new_no_attributes(0, 0, dst_indices_num / 3, 0);
+  offset_indices::fill_constant_group_size(3, 0, dst_mesh->face_offsets_for_write());
   bke::MutableAttributeAccessor dst_attributes = dst_mesh->attributes_for_write();
   dst_attributes.add<int>(".corner_vert",
                           bke::AttrDomain::Corner,
                           bke::AttributeInitVArray(VArray<int>::from_span(
                               dst_vertices.as_span().take_front(dst_indices_num))));
+  dst_mesh->verts_num = src_mesh.verts_num;
+  bke::copy_attributes(src_mesh.attributes(),
+                       bke::AttrDomain::Point,
+                       bke::AttrDomain::Point,
+                       attribute_filter,
+                       dst_attributes);
   bke::mesh_calc_edges(*dst_mesh, false, false);
 
   return dst_mesh;
@@ -81,7 +91,7 @@ static void node_geo_exec(GeoNodeExecParams params)
       return;
     }
 
-    Mesh *mesh = simplify_mesh(*src_mesh, 0.5f);
+    Mesh *mesh = simplify_mesh(*src_mesh, attribute_filter, 0.5f);
     if (!mesh) {
       return;
     }
