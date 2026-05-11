@@ -138,6 +138,7 @@ static void calc_pixel_row_positions(const Span<float3> vert_positions,
                                      const IndexRange range,
                                      const MutableSpan<float3> positions)
 {
+  BLI_assert(positions.size() == range.size());
   const float3 first = calc_pixel_position(vert_positions,
                                            vert_tris,
                                            tri_indices[pixel_row.uv_primitive_index],
@@ -151,7 +152,7 @@ static void calc_pixel_row_positions(const Span<float3> vert_positions,
 
   const float3 start = first + delta * range.start();
 
-  for (const int i : IndexRange(range.size())) {
+  for (const int i : positions.index_range()) {
     positions[i] = start + delta * i;
   }
 }
@@ -304,17 +305,17 @@ static void apply_debug_color(MutableSpan<float4> paint_pixels, const PackedPixe
 }
 #endif
 
-struct FactorLocalData {
+struct PaintLocalData {
   Vector<float3> pixel_positions;
   Vector<float> distances;
-};
+  Vector<float> factors;
 
-struct PaintLocalData {
   Vector<float4> byte_to_float_pixels;
   Vector<float4> paint_pixels;
 
   MutableSpan<float4> scene_linear_pixels;
 };
+
 
 static Bounds<int2> merge_bounds(const Bounds<int2> &a, const Bounds<int2> &b)
 {
@@ -382,136 +383,97 @@ static void do_paint_pixels(const Depsgraph &depsgraph,
     const TileColorspaceProcessor *processors = image_data.processors.lookup_ptr(
         tile_data.tile_number);
 
-    const IndexMask valid_rows = IndexMask::from_predicate(
+        const IndexMask valid_rows = IndexMask::from_predicate(
         tile_data.pixel_rows.index_range(), memory, [&](const int i) {
           return brush_test[tile_data.pixel_rows[i].uv_primitive_index];
         });
 
-    Array<int> row_map(tile_data.pixel_rows.size(), -1);
-    Array<int> row_data(valid_rows.size() + 1);
+    Array<bool> row_changed(valid_rows.min_array_size(), false);
+    threading::EnumerableThreadSpecific<PaintLocalData> all_factor_tls;
     valid_rows.foreach_index(
-        [&](const int i, const int pos) { row_data[pos] = tile_data.pixel_rows[i].num_pixels; },
-        exec_mode::grain_size(4096));
-    const OffsetIndices row_offsets = offset_indices::accumulate_counts_to_offsets(row_data);
+        [&](const int row_i) {
+          const PackedPixelRow pixel_row = tile_data.pixel_rows[row_i];
+          const int row_size = pixel_row.num_pixels;
+          threading::parallel_for(IndexRange(row_size), 512, [&](const IndexRange range) {
+            PaintLocalData &tls = all_factor_tls.local();
+            tls.factors.resize(range.size());
+            tls.factors.fill(1.0f);
+            tls.pixel_positions.resize(range.size());
+            calc_pixel_row_positions(positions,
+                                     pbvh_data.vert_tris,
+                                     pixel_node.uv_primitives.tri_indices,
+                                     pixel_node.uv_primitives.delta_barycentric_coords,
+                                     pixel_row,
+                                     range,
+                                     tls.pixel_positions);
 
-    Array<float> all_factors(row_offsets.total_size(), 1.0f);
-    threading::EnumerableThreadSpecific<FactorLocalData> all_factor_tls;
-    valid_rows.foreach_index(
-        [&](const int i, const int pos) {
-          const PackedPixelRow pixel_row = tile_data.pixel_rows[i];
-          MutableSpan<float> row_factors = all_factors.as_mutable_span().slice(row_offsets[pos]);
-          BLI_assert(row_factors.size() == pixel_row.num_pixels);
-          row_map[i] = pos;
-          threading::parallel_for(
-              IndexRange(pixel_row.num_pixels), 512, [&](const IndexRange range) {
-                FactorLocalData &tls = all_factor_tls.local();
-                tls.pixel_positions.resize(range.size());
-                calc_pixel_row_positions(positions,
-                                         pbvh_data.vert_tris,
-                                         pixel_node.uv_primitives.tri_indices,
-                                         pixel_node.uv_primitives.delta_barycentric_coords,
-                                         pixel_row,
-                                         range,
-                                         tls.pixel_positions);
+            MutableSpan<float> factors = tls.factors;
 
-                MutableSpan<float> factors = row_factors.slice(range);
+            tls.distances.resize(range.size());
+            calc_brush_distances(
+                ss, tls.pixel_positions, eBrushFalloffShape(brush.falloff_shape), tls.distances);
+            filter_distances_with_radius(cache.radius, tls.distances, factors);
+            apply_hardness_to_distances(cache, tls.distances);
+            calc_brush_strength_factors(cache, brush, tls.distances, factors);
+            calc_brush_texture_factors(ss, brush, tls.pixel_positions, factors);
+            scale_factors(factors, cache.bstrength);
 
-                tls.distances.resize(tls.pixel_positions.size());
-                calc_brush_distances(ss,
-                                     tls.pixel_positions,
-                                     eBrushFalloffShape(brush.falloff_shape),
-                                     tls.distances);
-                filter_distances_with_radius(cache.radius, tls.distances, factors);
-                apply_hardness_to_distances(cache, tls.distances);
-                calc_brush_strength_factors(cache, brush, tls.distances, factors);
-                calc_brush_texture_factors(ss, brush, tls.pixel_positions, factors);
-                scale_factors(factors, cache.bstrength);
-              });
-        },
-        exec_mode::grain_size(512));
+            if (std::ranges::all_of(factors, [](const float factor) { return factor == 0.0f; })) {
+              return;
+            }
+            row_changed[row_i] = true;
 
-    Array<bool> non_zero_data(tile_data.pixel_rows.size(), false);
-    threading::parallel_for(valid_rows.index_range(), 512, [&](const IndexRange range) {
-      for (const int i : range) {
-        Span<float> row_factors = all_factors.as_span().slice(row_offsets[i]);
-        non_zero_data[valid_rows[i]] = std::ranges::any_of(
-            row_factors, [](const float factor) { return factor != 0.0f; });
-      }
-    });
+            tls.paint_pixels.resize(range.size());
+            calc_brush_colors(tls.paint_pixels, factors, brush_color);
 
-    const IndexMask paint_rows = IndexMask::from_bools(valid_rows, non_zero_data, memory);
-
-    threading::EnumerableThreadSpecific<PaintLocalData> all_paint_tls;
-    paint_rows.foreach_index(
-        [&](const int i) {
-          const int row_i = row_map[i];
-          BLI_assert(row_i != -1);
-          const PackedPixelRow pixel_row = tile_data.pixel_rows[i];
-          Span<float> row_factors = all_factors.as_span().slice(row_offsets[row_i]);
-
-          BLI_assert(pixel_row.num_pixels == row_factors.size());
-          threading::parallel_for(
-              IndexRange(pixel_row.num_pixels), 512, [&](const IndexRange range) {
-                PaintLocalData &tls = all_paint_tls.local();
-
-                tls.paint_pixels.resize(range.size());
-                Span<float> factors = row_factors.slice(range);
-                calc_brush_colors(tls.paint_pixels, factors, brush_color);
-
-                if (!float_buffer.is_empty()) {
-                  tls.scene_linear_pixels = read_image_pixels(
-                      float_buffer, *processors, pixel_row, range, image_buffer->x);
-                }
-                else {
-                  tls.scene_linear_pixels = read_image_pixels(byte_buffer,
-                                                              *processors,
-                                                              pixel_row,
-                                                              range,
-                                                              image_buffer->x,
-                                                              tls.byte_to_float_pixels);
-                }
+            if (!float_buffer.is_empty()) {
+              tls.scene_linear_pixels = read_image_pixels(
+                  float_buffer, *processors, pixel_row, range, image_buffer->x);
+            }
+            else {
+              tls.scene_linear_pixels = read_image_pixels(byte_buffer,
+                                                          *processors,
+                                                          pixel_row,
+                                                          range,
+                                                          image_buffer->x,
+                                                          tls.byte_to_float_pixels);
+            }
 
 #ifdef DEBUG_PIXEL_NODES
-                apply_debug_color(scene_linear_pixels, pixel_row);
+            apply_debug_color(scene_linear_pixels, pixel_row);
 #endif
 
-                blend_colors(tls.paint_pixels, tls.scene_linear_pixels, brush);
+            blend_colors(tls.paint_pixels, tls.scene_linear_pixels, brush);
 
-                if (!float_buffer.is_empty()) {
-                  write_image_pixels(tls.paint_pixels,
-                                     float_buffer,
-                                     *processors,
-                                     pixel_row,
-                                     range,
-                                     image_buffer->x);
-                }
-                else {
-                  write_image_pixels(tls.paint_pixels,
-                                     byte_buffer,
-                                     *processors,
-                                     pixel_row,
-                                     range,
-                                     image_buffer->x);
-                }
-              });
+            if (!float_buffer.is_empty()) {
+              write_image_pixels(
+                  tls.paint_pixels, float_buffer, *processors, pixel_row, range, image_buffer->x);
+            }
+            else {
+              write_image_pixels(
+                  tls.paint_pixels, byte_buffer, *processors, pixel_row, range, image_buffer->x);
+            }
+          });
         },
-        exec_mode::grain_size(512));
+        exec_mode::grain_size(2));
+
+    const IndexMask changed_rows = IndexMask::from_bools(valid_rows, row_changed, memory);
 
     const Bounds<int2> dirty_bounds = threading::parallel_reduce(
-        paint_rows.index_range(),
+        changed_rows.index_range(),
         512,
         negative_bounds(),
         [&](const IndexRange range, const Bounds<int2> &init) {
           Bounds<int2> current = init;
-          for (const int i : range) {
-            const PackedPixelRow pixel_row = tile_data.pixel_rows[paint_rows[i]];
+          changed_rows.slice(range).foreach_index([&](const int row_i) {
+            const PackedPixelRow pixel_row = tile_data.pixel_rows[row_i];
 
             const int2 start(pixel_row.start_image_coordinate.x,
                              pixel_row.start_image_coordinate.y);
             const int2 end = start + int2(pixel_row.num_pixels + 1, 0);
 
             current = bounds::merge(current, Bounds<int2>(start, end));
-          }
+          });
           return current;
         },
         merge_bounds);
