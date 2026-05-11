@@ -20,6 +20,7 @@ struct UndoStack;
 struct wmMsgBus;
 struct wmKeyConfig;
 struct wmEvent;
+struct wmTimer;
 struct wmWindow;
 struct wmIMEData;
 struct wmGesture;
@@ -121,6 +122,9 @@ struct WindowManagerRuntime {
   UndoStack *undo_stack = nullptr;
 
   wmMsgBus *message_bus = nullptr;
+
+  /** Timer for clearing ununsed caches. */
+  wmTimer *clear_caches_timer = nullptr;
 
   WindowManagerRuntime();
   ~WindowManagerRuntime();

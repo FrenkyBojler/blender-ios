@@ -177,6 +177,7 @@ template<typename T> class Cache : public CacheBase {
  private:
   void clear_key(const CacheKey &key)
   {
+    std::cout << this->debug_name_ << " clearing key " << &key << std::endl;
     for (const Snapshot &snapshot : key.inputs) {
       snapshot.sharing_info->remove_weak_user_and_delete_if_last();
     }
@@ -220,6 +221,7 @@ class CacheManager {
   void clear_unused_all()
   {
     for (CacheBase *cache : caches_) {
+
       cache->clear_unused();
     }
   }

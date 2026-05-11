@@ -36,6 +36,7 @@
 
 #include "BLI_enum_flags.hh"
 #include "BLI_fileops.h"
+#include "BLI_implicit_sharing_cache.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
 #include "BLI_path_utils.hh"
@@ -2158,7 +2159,8 @@ static bool wm_window_timers_process(const bContext *C, int *sleep_us_p)
       WM_main_add_notifier(POINTER_AS_UINT(wt.customdata), nullptr);
     }
     else if (wt.event_type == TIMERCACHES) {
-      // wm_cache_timer();
+      /* Clear unused caches. */
+      implicit_sharing::CacheManager::instance().clear_unused_all();
     }
     else if (wmWindow *win = wt.win) {
       wmEvent event;

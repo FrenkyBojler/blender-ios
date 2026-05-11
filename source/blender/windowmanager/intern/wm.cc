@@ -502,6 +502,11 @@ void WM_check(bContext *C)
     ED_screens_init(C, bmain, wm);
     wm->init_flag |= WM_INIT_FLAG_WINDOW;
   }
+
+  if (wm->runtime->clear_caches_timer == nullptr) {
+    /* Try clearing caches every second. */
+    wm->runtime->clear_caches_timer = WM_event_timer_add(wm, nullptr, TIMERCACHES, 1.0);
+  }
 }
 
 void wm_clear_default_size(bContext *C)
@@ -588,6 +593,10 @@ void wm_close_and_free(bContext *C, wmWindowManager *wm)
 
   if (C && CTX_wm_manager(C) == wm) {
     CTX_wm_manager_set(C, nullptr);
+  }
+
+  if (wm->runtime->clear_caches_timer) {
+    WM_event_timer_remove(wm, nullptr, wm->runtime->clear_caches_timer);
   }
 
   MEM_delete(wm->runtime);
