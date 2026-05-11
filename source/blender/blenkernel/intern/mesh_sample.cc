@@ -553,7 +553,8 @@ void BaryWeightSampleFn::prepare_for_execution() const
     /* Use the most complex domain for now, ensuring no information is lost. In the future, it
      * should be possible to use the most complex domain required by the field inputs, to simplify
      * sampling and avoid domain conversions. */
-    src_domain_ = bke::try_detect_field_domain(component, src_field_).value_or(AttrDomain::Corner);
+    src_domain_ =
+        bke::try_detect_native_field_domain(component, src_field_).value_or(AttrDomain::Corner);
     if (src_domain_ == AttrDomain::Edge) {
       /* To maintain legacy behavior and avoid making decisions here about barycentric mixing of
        * edge attributes, just use the domain interpolation to read the attribute on the face
