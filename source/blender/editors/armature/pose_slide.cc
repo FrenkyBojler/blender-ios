@@ -187,10 +187,14 @@ static const EnumPropertyItem prop_channels_types[] = {
 
 /* Property enum for AxisMutable. */
 static const EnumPropertyItem prop_axis_lock_types[] = {
-    {AXIS_MUTABLE_ALL, "FREE", 0, "Free", "All axes are affected"},
-    {AXIS_MUTABLE_X, "X", 0, "X", "Only X-axis transforms are affected"},
-    {AXIS_MUTABLE_Y, "Y", 0, "Y", "Only Y-axis transforms are affected"},
-    {AXIS_MUTABLE_Z, "Z", 0, "Z", "Only Z-axis transforms are affected"}, /* TODO: Combinations? */
+    {ed::AXIS_MUTABLE_ALL, "FREE", 0, "Free", "All axes are affected"},
+    {ed::AXIS_MUTABLE_X, "X", 0, "X", "Only X-axis transforms are affected"},
+    {ed::AXIS_MUTABLE_Y, "Y", 0, "Y", "Only Y-axis transforms are affected"},
+    {ed::AXIS_MUTABLE_Z,
+     "Z",
+     0,
+     "Z",
+     "Only Z-axis transforms are affected"}, /* TODO: Combinations? */
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -975,11 +979,11 @@ static void pose_slide_draw_status(bContext *C, tPoseSlideOp *pso)
   }
 
   if (ELEM(pso->channels, PS_TFM_LOC, PS_TFM_ROT, PS_TFM_SCALE)) {
-    status.item_bool("", pso->axis_mutability & AXIS_MUTABLE_X, ICON_EVENT_X);
-    status.item_bool("", pso->axis_mutability & AXIS_MUTABLE_Y, ICON_EVENT_Y);
-    status.item_bool("", pso->axis_mutability & AXIS_MUTABLE_Z, ICON_EVENT_Z);
-    status.item(pso->axis_mutability == AXIS_MUTABLE_ALL ? IFACE_("All Axes") :
-                                                           IFACE_("Single Axis"),
+    status.item_bool("", pso->axis_mutability & ed::AXIS_MUTABLE_X, ICON_EVENT_X);
+    status.item_bool("", pso->axis_mutability & ed::AXIS_MUTABLE_Y, ICON_EVENT_Y);
+    status.item_bool("", pso->axis_mutability & ed::AXIS_MUTABLE_Z, ICON_EVENT_Z);
+    status.item(pso->axis_mutability == ed::AXIS_MUTABLE_ALL ? IFACE_("All Axes") :
+                                                               IFACE_("Single Axis"),
                 ICON_NONE);
   }
 
@@ -1108,7 +1112,7 @@ static void pose_slide_toggle_channels_mode(wmOperator *op,
   RNA_enum_set(op->ptr, "channels", pso->channels);
 
   /* Reset axis limits too for good measure */
-  pso->axis_mutability = AXIS_MUTABLE_ALL;
+  pso->axis_mutability = ed::AXIS_MUTABLE_ALL;
   RNA_enum_set(op->ptr, "axis_lock", pso->axis_mutability);
 }
 
@@ -1121,7 +1125,7 @@ static bool pose_slide_toggle_axis_mutability(wmOperator *op,
 {
   /* Axis can only be set when a transform is set - it doesn't make sense otherwise */
   if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_BBONE_SHAPE, PS_TFM_PROPS)) {
-    pso->axis_mutability = AXIS_MUTABLE_ALL;
+    pso->axis_mutability = ed::AXIS_MUTABLE_ALL;
     RNA_enum_set(op->ptr, "axis_lock", pso->axis_mutability);
     return false;
   }
@@ -1129,7 +1133,7 @@ static bool pose_slide_toggle_axis_mutability(wmOperator *op,
   /* Turn on or off? */
   if (pso->axis_mutability == axis) {
     /* Already limiting on this axis, so turn off */
-    pso->axis_mutability = AXIS_MUTABLE_ALL;
+    pso->axis_mutability = ed::AXIS_MUTABLE_ALL;
   }
   else {
     /* Only this axis */
@@ -1264,19 +1268,19 @@ static wmOperatorStatus pose_slide_modal(bContext *C, wmOperator *op, const wmEv
           /* Axis Locks */
           /* XXX: Hardcoded... */
           case EVT_XKEY: {
-            if (pose_slide_toggle_axis_mutability(op, pso, AXIS_MUTABLE_X)) {
+            if (pose_slide_toggle_axis_mutability(op, pso, ed::AXIS_MUTABLE_X)) {
               do_pose_update = true;
             }
             break;
           }
           case EVT_YKEY: {
-            if (pose_slide_toggle_axis_mutability(op, pso, AXIS_MUTABLE_Y)) {
+            if (pose_slide_toggle_axis_mutability(op, pso, ed::AXIS_MUTABLE_Y)) {
               do_pose_update = true;
             }
             break;
           }
           case EVT_ZKEY: {
-            if (pose_slide_toggle_axis_mutability(op, pso, AXIS_MUTABLE_Z)) {
+            if (pose_slide_toggle_axis_mutability(op, pso, ed::AXIS_MUTABLE_Z)) {
               do_pose_update = true;
             }
             break;
@@ -1409,7 +1413,7 @@ static void pose_slide_opdef_properties(wmOperatorType *ot)
   prop = RNA_def_enum(ot->srna,
                       "axis_lock",
                       prop_axis_lock_types,
-                      AXIS_MUTABLE_ALL,
+                      ed::AXIS_MUTABLE_ALL,
                       "Axis Lock",
                       "Transform axis to restrict effects to");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
