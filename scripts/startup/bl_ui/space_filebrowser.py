@@ -822,16 +822,22 @@ class ASSETBROWSER_PT_import(asset_utils.AssetMetaDataPanel, Panel):
 
     def draw(self, context):
         layout = self.layout
-        asset = context.asset
+        metadata = context.asset.metadata
 
         layout.use_property_split = True
         layout.use_property_decorate = False  # No animation.
 
-        row = layout.row(align=True, heading="Preferred Method")
-        row.prop(asset.metadata, "use_preferred_import_method", text="")
-        sub = row.row(align=True)
-        sub.active = asset.metadata.use_preferred_import_method
-        sub.prop(asset.metadata, "preferred_import_method", text="")
+        heading = "Preferred Method"
+        if metadata.is_property_readonly("use_preferred_import_method"):
+            # Don't show the checkbox when the metadata cannot be edited. We only show the preferred
+            # import method as indicator to the user in that case.
+            layout.prop(metadata, "preferred_import_method", text=heading)
+        else:
+            row = layout.row(align=True, heading=heading)
+            row.prop(metadata, "use_preferred_import_method", text="")
+            sub = row.row(align=True)
+            sub.active = metadata.use_preferred_import_method
+            sub.prop(metadata, "preferred_import_method", text="")
 
 
 class ASSETBROWSER_PT_metadata_preview(asset_utils.AssetMetaDataPanel, Panel):
