@@ -404,6 +404,16 @@ template<typename T> inline void fill_index_range(MutableSpan<T> span, const T s
 }
 
 template<typename T>
+inline void fill_index_range(const IndexMask &mask, MutableSpan<T> span, const T start = 0)
+{
+  if (start == 0) {
+    mask.foreach_index_optimized<T>([&](const T index) { span[index] = index; });
+  } else {
+    mask.foreach_index_optimized<T>([&](const T index) { span[index] = start + index; });    
+  }
+}
+
+template<typename T>
 bool indexed_data_equal(const Span<T> all_values, const Span<int> indices, const Span<T> values)
 {
   BLI_assert(indices.size() == values.size());

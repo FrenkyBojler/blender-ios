@@ -87,8 +87,7 @@ class ClusterByDistanceFieldInput final : public bke::GeometryFieldInput {
     Array<int> cluster_ids(mask.min_array_size());
 
     const IndexMask mask_to_fallback = IndexMask::from_difference(mask, selection, memory);
-    mask_to_fallback.foreach_index_optimized<int>([&](const int i) { cluster_ids[i] = i; },
-                                                  exec_mode::parallel);
+    array_utils::fill_index_range(mask_to_fallback, cluster_ids);
 
     std::optional<VArraySpan<int>> group_id_span;
     const auto group_indices = [&]() -> VectorSet<int> {
