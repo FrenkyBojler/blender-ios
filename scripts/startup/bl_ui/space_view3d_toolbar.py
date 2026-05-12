@@ -79,9 +79,13 @@ def draw_vpaint_symmetry(layout, obj):
     row.prop(obj, "use_mesh_mirror_y", text="Y", toggle=True)
     row.prop(obj, "use_mesh_mirror_z", text="Z", toggle=True)
 
-    col = layout.column()
-    col.active = not mesh.use_mirror_vertex_groups
-    col.prop(mesh, "radial_symmetry", text="Radial")
+
+def draw_radial_symmetry(layout, paint, mesh):
+    layout.prop(paint, "use_radial_symmetry", text="Radial Symmetry")
+    col = layout.column(align=True)
+    col.active = paint.use_radial_symmetry
+    for _axis, index, label in (("X", 0, "Radial X"), ("Y", 1, "Y"), ("Z", 2, "Z")):
+        col.prop(mesh, "radial_symmetry", index=index, text=label)
 
 
 # ********** default tools for object mode ****************
@@ -1113,7 +1117,7 @@ class VIEW3D_PT_sculpt_symmetry(Panel, View3DPaintPanel):
         row.prop(sculpt, "tile_z", text="Z", toggle=True)
 
         layout.prop(sculpt, "use_symmetry_feather", text="Feather")
-        layout.prop(mesh, "radial_symmetry", text="Radial")
+        draw_radial_symmetry(layout, sculpt, mesh)
         layout.prop(sculpt, "tile_offset", text="Tile Offset")
 
         layout.separator()
@@ -1130,7 +1134,8 @@ class VIEW3D_PT_sculpt_symmetry_for_topbar(Panel):
     bl_label = "Symmetry"
     bl_ui_units_x = 13
 
-    draw = VIEW3D_PT_sculpt_symmetry.draw
+    def draw(self, context):
+        VIEW3D_PT_sculpt_symmetry.draw(self, context)
 
 
 class VIEW3D_PT_curves_sculpt_symmetry(Panel, View3DPaintPanel):
@@ -1190,6 +1195,9 @@ class VIEW3D_PT_tools_weightpaint_symmetry(Panel, View3DPaintPanel):
 
         draw_vpaint_symmetry(layout, ob)
 
+        wpaint = context.tool_settings.weight_paint
+        draw_radial_symmetry(layout, wpaint, mesh)
+
         row = layout.row()
         row.active = mesh.use_mirror_vertex_groups
         row.prop(mesh, "use_mirror_topology")
@@ -1200,7 +1208,8 @@ class VIEW3D_PT_tools_weightpaint_symmetry_for_topbar(Panel):
     bl_region_type = 'HEADER'
     bl_label = "Symmetry"
 
-    draw = VIEW3D_PT_tools_weightpaint_symmetry.draw
+    def draw(self, context):
+        VIEW3D_PT_tools_weightpaint_symmetry.draw(self, context)
 
 
 class VIEW3D_PT_tools_weightpaint_options(Panel, View3DPaintPanel):
@@ -1264,13 +1273,18 @@ class VIEW3D_PT_tools_vertexpaint_symmetry(Panel, View3DPaintPanel):
 
         draw_vpaint_symmetry(layout, ob)
 
+        vpaint = context.tool_settings.vertex_paint
+        mesh = ob.data
+        draw_radial_symmetry(layout, vpaint, mesh)
+
 
 class VIEW3D_PT_tools_vertexpaint_symmetry_for_topbar(Panel):
     bl_space_type = 'TOPBAR'
     bl_region_type = 'HEADER'
     bl_label = "Symmetry"
 
-    draw = VIEW3D_PT_tools_vertexpaint_symmetry.draw
+    def draw(self, context):
+        VIEW3D_PT_tools_vertexpaint_symmetry.draw(self, context)
 
 
 # ********** default tools for texture-paint ****************

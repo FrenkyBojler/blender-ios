@@ -1400,9 +1400,11 @@ static float calc_symmetry_feather(const Sculpt &sd,
 
     overlap += calc_overlap(cache, ePaintSymmetryFlags(i), 0, 0);
 
-    overlap += calc_radial_symmetry_feather(mesh, cache, ePaintSymmetryFlags(i), 'X');
-    overlap += calc_radial_symmetry_feather(mesh, cache, ePaintSymmetryFlags(i), 'Y');
-    overlap += calc_radial_symmetry_feather(mesh, cache, ePaintSymmetryFlags(i), 'Z');
+    if (sd.paint.symmetry_flags & PAINT_SYMMETRY_RADIAL) {
+      overlap += calc_radial_symmetry_feather(mesh, cache, ePaintSymmetryFlags(i), 'X');
+      overlap += calc_radial_symmetry_feather(mesh, cache, ePaintSymmetryFlags(i), 'Y');
+      overlap += calc_radial_symmetry_feather(mesh, cache, ePaintSymmetryFlags(i), 'Z');
+    }
   }
   return 1.0f / overlap;
 }
@@ -3735,6 +3737,10 @@ static void do_radial_symmetry(const Depsgraph &depsgraph,
 {
   SculptSession &ss = *ob.runtime->sculpt_session;
   const Mesh &mesh = *id_cast<Mesh *>(ob.data);
+
+  if (!(sd.paint.symmetry_flags & PAINT_SYMMETRY_RADIAL)) {
+    return;
+  }
 
   for (int i = 1; i < mesh.radial_symmetry[axis - 'X']; i++) {
     const float angle = 2.0f * M_PI * i / mesh.radial_symmetry[axis - 'X'];

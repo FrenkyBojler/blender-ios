@@ -1971,6 +1971,10 @@ static void vpaint_do_radial_symmetry(const Depsgraph &depsgraph,
                                       const ePaintSymmetryFlags symm,
                                       const int axis)
 {
+  if (!(vp.paint.symmetry_flags & PAINT_SYMMETRY_RADIAL)) {
+    return;
+  }
+
   for (int i = 1; i < mesh.radial_symmetry[axis - 'X']; i++) {
     const float angle = (2.0 * M_PI) * i / mesh.radial_symmetry[axis - 'X'];
     vpaint_do_paint(depsgraph, vp, vpd, ob, mesh, brush, symm, axis, i, angle);

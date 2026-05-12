@@ -805,6 +805,21 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     }
   }
 
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 40)) {
+    for (Scene &scene : bmain->scenes) {
+      ToolSettings *ts = scene.toolsettings;
+      if (ts->sculpt) {
+        ts->sculpt->paint.symmetry_flags |= PAINT_SYMMETRY_RADIAL;
+      }
+      if (ts->vpaint) {
+        ts->vpaint->paint.symmetry_flags |= PAINT_SYMMETRY_RADIAL;
+      }
+      if (ts->wpaint) {
+        ts->wpaint->paint.symmetry_flags |= PAINT_SYMMETRY_RADIAL;
+      }
+    }
+  }
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a MAIN_VERSION_FILE_ATLEAST check.

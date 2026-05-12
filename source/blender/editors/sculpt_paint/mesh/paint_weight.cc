@@ -1769,6 +1769,10 @@ static void wpaint_do_radial_symmetry(Depsgraph &depsgraph,
                                       const ePaintSymmetryFlags symm,
                                       const int axis)
 {
+  if (!(wp.paint.symmetry_flags & PAINT_SYMMETRY_RADIAL)) {
+    return;
+  }
+
   for (int i = 1; i < mesh.radial_symmetry[axis - 'X']; i++) {
     const float angle = (2.0 * M_PI) * i / mesh.radial_symmetry[axis - 'X'];
     wpaint_do_paint(depsgraph, ob, wp, wpd, wpi, mesh, brush, symm, axis, i, angle);

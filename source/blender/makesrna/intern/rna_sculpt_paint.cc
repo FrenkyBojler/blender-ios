@@ -773,6 +773,12 @@ static void rna_def_paint(BlenderRNA *brna)
                            "Reduce the strength of the brush where it overlaps symmetrical daubs");
   RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr);
 
+  prop = RNA_def_property(srna, "use_radial_symmetry", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "symmetry_flags", PAINT_SYMMETRY_RADIAL);
+  RNA_def_property_ui_text(
+      prop, "Radial Symmetry", "Enable radial symmetry for painting and sculpting");
+  RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr);
+
   prop = RNA_def_property(srna, "cavity_curve", PROP_POINTER, PROP_NONE);
   RNA_def_property_flag(prop, PROP_NEVER_NULL);
   RNA_def_property_ui_text(prop, "Curve", "Editable cavity curve");

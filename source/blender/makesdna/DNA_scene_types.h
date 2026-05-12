@@ -1237,7 +1237,7 @@ struct Paint {
   int num_input_samples_deprecated = 0;
 
   /** Flags used for symmetry. */
-  ePaintSymmetryFlags symmetry_flags = PAINT_SYMMETRY_FEATHER;
+  ePaintSymmetryFlags symmetry_flags = PAINT_SYMMETRY_FEATHER | PAINT_SYMMETRY_RADIAL;
   /**
    * Collapsed state of a given pressure curve
    */

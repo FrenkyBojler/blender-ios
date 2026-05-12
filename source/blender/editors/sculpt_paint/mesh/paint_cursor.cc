@@ -396,6 +396,7 @@ static void point_with_symmetry_draw(const PaintMode paint_mode,
                                      const ARegion *region,
                                      const float true_location[3],
                                      const Sculpt *sd,
+                                     const Paint &paint,
                                      const Object &ob,
                                      const float radius)
 {
@@ -418,19 +419,21 @@ static void point_with_symmetry_draw(const PaintMode paint_mode,
       }
 
       /* Radial Symmetry. */
-      for (char raxis = 0; raxis < 3; raxis++) {
-        for (int r = 1; r < mesh->radial_symmetry[raxis]; r++) {
-          float angle = 2 * M_PI * r / mesh->radial_symmetry[int(raxis)];
-          location = symmetry_flip(true_location, ePaintSymmetryFlags(i));
-          unit_m4(symm_rot_mat);
-          rotate_m4(symm_rot_mat, raxis + 'X', angle);
-          mul_m4_v3(symm_rot_mat, location);
+      if (paint.symmetry_flags & PAINT_SYMMETRY_RADIAL) {
+        for (char raxis = 0; raxis < 3; raxis++) {
+          for (int r = 1; r < mesh->radial_symmetry[raxis]; r++) {
+            float angle = 2 * M_PI * r / mesh->radial_symmetry[int(raxis)];
+            location = symmetry_flip(true_location, ePaintSymmetryFlags(i));
+            unit_m4(symm_rot_mat);
+            rotate_m4(symm_rot_mat, raxis + 'X', angle);
+            mul_m4_v3(symm_rot_mat, location);
 
-          if (bke::paint::supports_symmetry_tiling(paint_mode)) {
-            BLI_assert(sd && paint_mode == PaintMode::Sculpt);
-            tiling_preview_draw(gpuattr, region, location, *sd, ob, radius);
+            if (bke::paint::supports_symmetry_tiling(paint_mode)) {
+              BLI_assert(sd && paint_mode == PaintMode::Sculpt);
+              tiling_preview_draw(gpuattr, region, location, *sd, ob, radius);
+            }
+            screen_space_point_draw(gpuattr, region, location, ob.object_to_world().ptr(), 3);
           }
-          screen_space_point_draw(gpuattr, region, location, ob.object_to_world().ptr(), 3);
         }
       }
     }
@@ -555,6 +558,7 @@ static void screen_space_overlays_draw(const PaintCursorContext &pcontext)
                              pcontext.region,
                              active_vertex_co,
                              pcontext.sd,
+                             *pcontext.paint,
                              active_object,
                              pcontext.radius);
   }
