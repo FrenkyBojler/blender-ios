@@ -1117,7 +1117,8 @@ static ImBuf *take_screenshot_crop(bContext *C, const rcti &crop_rect)
     return nullptr;
   }
 
-  ImBuf *image_buffer = IMB_allocImBuf(dumprect_size[0], dumprect_size[1], 24, 0);
+  ImBuf *image_buffer = IMB_allocImBuf(dumprect_size[0], dumprect_size[1], 0);
+  image_buffer->color_mode = ImColorMode::RGB;
   image_buffer->assign_byte_data(dumprect);
 
   IMB_crop(image_buffer,

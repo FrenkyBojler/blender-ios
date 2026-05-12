@@ -89,8 +89,15 @@ void FileOutput::add_view(const char *view_name, const Result &data)
   BLI_addtail(&render_result_->views, render_view);
   STRNCPY_UTF8(render_view->name, view_name);
 
-  render_view->ibuf = IMB_allocImBuf(
-      UNPACK2(data.domain().data_size), data.channels_count() * 8, 0);
+  ImColorMode color_mode = ImColorMode::RGBA;
+  if (data.channels_count() == 1) {
+    color_mode = ImColorMode::BW;
+  }
+  else if (data.channels_count() == 3) {
+    color_mode = ImColorMode::RGB;
+  }
+  render_view->ibuf = IMB_allocImBuf(UNPACK2(data.domain().data_size), 0);
+  render_view->ibuf->color_mode = color_mode;
   if (data.sharing_info()) {
     render_view->ibuf->float_buffer = ImBufFloatBuffer{
         .data = static_cast<const float *>(data.cpu_data().data()),
@@ -123,8 +130,15 @@ void FileOutput::add_pass(const char *pass_name,
   render_pass->recty = data.domain().data_size.y;
   render_pass->channels = data.channels_count();
 
-  render_pass->ibuf = IMB_allocImBuf(
-      UNPACK2(data.domain().data_size), data.channels_count() * 8, 0);
+  ImColorMode color_mode = ImColorMode::RGBA;
+  if (render_pass->channels == 1) {
+    color_mode = ImColorMode::BW;
+  }
+  else if (render_pass->channels == 3) {
+    color_mode = ImColorMode::RGB;
+  }
+  render_pass->ibuf = IMB_allocImBuf(UNPACK2(data.domain().data_size), 0);
+  render_pass->ibuf->color_mode = color_mode;
   if (data.sharing_info()) {
     render_pass->ibuf->float_buffer = ImBufFloatBuffer{
         .data = static_cast<const float *>(data.cpu_data().data()),
