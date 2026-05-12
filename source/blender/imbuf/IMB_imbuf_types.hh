@@ -214,14 +214,18 @@ struct ImBuf {
   int data_offset[2];
   int display_offset[2];
 
-  /** Number of channels in `float_buffer` (0 = 4 channel default).
-   * Note that `byte_buffer` always has 4 channels. */
+  /**
+   * Number of channels in `float_buffer` (0 = 4 channel default).
+   * Note that `byte_buffer` always has 4 channels.
+   */
   int channels = 0;
 
-  /** How to interpret pixel color values in the data that is present.
+  /**
+   * How to interpret pixel color values in the data that is present.
    * For example, byte buffer always contains 4 channels, but if code
    * knows that the alpha channel is fully opaque, it should set color mode
-   * to RGB. */
+   * to RGB.
+   */
   ImColorMode color_mode = ImColorMode::RGBA;
 
   /* flags */

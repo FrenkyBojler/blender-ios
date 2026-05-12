@@ -5258,7 +5258,7 @@ bool BKE_image_has_alpha(Image *image)
 {
   void *lock;
   ImBuf *ibuf = BKE_image_acquire_ibuf(image, nullptr, &lock);
-  bool result = ibuf->can_contain_alpha();
+  bool result = ibuf ? ibuf->can_contain_alpha() : false;
   BKE_image_release_ibuf(image, ibuf, lock);
   return result;
 }
