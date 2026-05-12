@@ -4433,8 +4433,9 @@ static int bevel_build_poly(BevelState &state, BevVert *bv)
 }
 
 /**
- * Builds a triangle-fan for `bv` (M_TRI_FAN) by first creating a center ngon with
- * #bevel_build_poly, then splitting it into triangles radiating from the first vertex.
+ * Builds a triangle-fan for `bv` (M_TRI_FAN) by collecting the boundary ring vertices
+ * (same as #bevel_build_poly) and then fanning triangles from the last ring vertex,
+ * mirroring BMesh's approach of splitting from `BM_FACE_FIRST_LOOP(f)->prev->v`.
  */
 static void bevel_build_trifan(BevelState &state, BevVert *bv)
 {
@@ -4444,7 +4445,7 @@ static void bevel_build_trifan(BevelState &state, BevVert *bv)
 
   /* Build the same per-corner data as bevel_build_poly. */
   const ExtendableMesh &emesh = state.emesh;
-  const int frep = frep_for_center_poly(state, bv);
+  const int frep = (bv->any_seam) ? frep_for_center_poly(state, bv) : -1;
   int frep_e1 = -1, frep_e2 = -1;
   BoundVert *frep_unsnapped[3] = {nullptr, nullptr, nullptr};
   if (bv->any_seam && frep >= 0) {
@@ -4493,13 +4494,22 @@ static void bevel_build_trifan(BevelState &state, BevVert *bv)
     return;
   }
 
-  const int v_fan = ring[0];
-  for (int i = 1; i + 1 < int(ring.size()); i++) {
+  /* Mirror BMesh: the fan apex is the last loop vertex of the polygon built by bevel_build_poly,
+   * which is BM_FACE_FIRST_LOOP(f)->prev->v — i.e. the last element in the ring. */
+  const int n = int(ring.size());
+  const int v_fan_idx = n - 1;
+  const int v_fan = ring[v_fan_idx];
+  for (int i = 0; i + 1 < v_fan_idx; i++) {
     const int tri[3] = {v_fan, ring[i], ring[i + 1]};
-    const int tri_reps[3] = {ring_reps[0], ring_reps[i], ring_reps[i + 1]};
-    const int tri_snaps[3] = {ring_snaps[0], ring_snaps[i], ring_snaps[i + 1]};
-    const int new_face = state.emesh.face_create(Span<int>(tri, 3), frep);
-    state.emesh.face_set_corner_reps(new_face, Span<int>(tri_reps, 3), Span<int>(tri_snaps, 3));
+    const int tri_reps[3] = {ring_reps[v_fan_idx], ring_reps[i], ring_reps[i + 1]};
+    const int tri_snaps[3] = {ring_snaps[v_fan_idx], ring_snaps[i], ring_snaps[i + 1]};
+    /* Use frep as the face example only when there is a seam-adjacent rep face, mirroring
+     * BMesh's bev_create_ngon call in bevel_build_poly which passes repface only when
+     * bv->any_seam is true. Otherwise use the representative face of the leading edge. */
+    const int face_example = (frep >= 0) ? frep : tri_reps[1];
+    const int new_face = state.emesh.face_create(Span<int>(tri, 3), face_example);
+    state.emesh.face_set_corner_reps(
+        new_face, Span<int>(tri_reps, 3), Span<int>(tri_snaps, 3));
   }
 }
 
