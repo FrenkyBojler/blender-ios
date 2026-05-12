@@ -210,11 +210,11 @@ struct Camera {
 
   /** CAM_PERSP, CAM_ORTHO, CAM_PANO or CAM_CUSTOM. */
   eCamera_Type type = {};
-  char _pad0[1] = {};
+  DNA_DEPRECATED char dtx = 0;
   /** Composition Guide Flags. */
   eCompositionGuideFlags composition_guide_flags = COMPOSITION_GUIDES_ENABLED;
   eCamera_Flag flag = CAM_SHOWPASSEPARTOUT;
-  char _pad1[4] = {};
+  char _pad1[2] = {};
   float passepartalpha = 0.5f;
   float clip_start = 0.1f, clip_end = 1000.0f;
   float lens = 50.0f, ortho_scale = 6.0, drawsize = 1.0f;
@@ -224,7 +224,7 @@ struct Camera {
 
   eCamera_SensorFit sensor_fit = {};
   eCamera_PanoType panorama_type = CAM_PANORAMA_FISHEYE_EQUISOLID;
-  char _pad2[2] = {};
+  char _pad2[6] = {};
 
   /* Fish-eye properties. */
   float fisheye_fov = M_PI;

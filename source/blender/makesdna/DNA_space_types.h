@@ -302,17 +302,12 @@ struct SpaceNla {
  * \{ */
 
 struct SequencerPreviewOverlay {
-<<<<<<< HEAD
-  int flag = 0;
-  short composition_guide_flags = COMPOSITION_GUIDES_ENABLED; /* eCompositionGuideFlags */
-  char _pad0[2] = {};
+  eSpaceSeq_SequencerPreviewOverlay_Flag flag = {};
+  eCompositionGuideFlags composition_guide_flags = COMPOSITION_GUIDES_ENABLED;
+  char _pad[2] = {};
 
   /* Compositional guide overlay color */
   float composition_guide_color[4] = {0.5f, 0.5f, 0.5f, 1.0f};
-=======
-  eSpaceSeq_SequencerPreviewOverlay_Flag flag = {};
-  char _pad0[4] = {};
->>>>>>> origin/main
 };
 
 struct SequencerTimelineOverlay {
