@@ -630,6 +630,8 @@ void BlenderSync::sync_objects_and_motion(blender::RenderData &b_render,
   /* In the viewport, only motion between previous frame and current frame is of interest, which is
    * kept updated separately. */
   if (b_v3d) {
+    assert(scene->need_motion() == Scene::MOTION_NONE ||
+           scene->need_motion() == Scene::MOTION_PASS_INTERACTIVE);
     return;
   }
 
