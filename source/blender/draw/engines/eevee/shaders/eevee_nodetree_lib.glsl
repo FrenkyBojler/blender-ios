@@ -243,7 +243,7 @@ float ambient_occlusion_eval([[maybe_unused]] float3 normal,
   float4 noise = utility_tx_fetch(utility_tx, float2(texel), UTIL_BLUE_NOISE_LAYER);
   noise = fract(noise + sampling_rng_3D_get(SAMPLING_AO_U).xyzx);
 
-  float result = eevee::fast_gi::eval<float>(uniform_buf.raytrace.fast_gi_thickness,
+  float result = eevee::fast_gi::eval<float>(raytrace_buf.fast_gi_thickness,
                                              hiz_tx,
                                              hiz_tx /* Dummy. */,
                                              hiz_tx /* Dummy. */,
@@ -305,7 +305,7 @@ void raycast_eval([[maybe_unused]] float3 position,
   float thickness_noise_offset = sampling_rng_1D_get(SAMPLING_RAYTRACE_X);
   float thickness_jitter =
       interleaved_gradient_noise(gl_FragCoord.xy, 1.0f, thickness_noise_offset) * 0.5f + 0.5f;
-  float thickness = uniform_buf.raytrace.thickness * thickness_jitter;
+  float thickness = raytrace_buf.thickness * thickness_jitter;
 
   float2 hit_uv = float2(0.0f);
   uint self_id = drw_resource_id() & 0xFFFF;
@@ -314,7 +314,7 @@ void raycast_eval([[maybe_unused]] float3 position,
                                    drw_point_world_to_view(ws_end),
                                    drw_normal_world_to_view(direction),
                                    hiz_tx,
-                                   uniform_buf.raytrace,
+                                   raytrace_buf,
                                    64,
                                    jitter,
                                    object_id_tx,
