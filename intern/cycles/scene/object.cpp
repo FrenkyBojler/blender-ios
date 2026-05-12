@@ -635,7 +635,9 @@ void ObjectManager::device_update_object_transform(UpdateObjectTransformState *s
     }
   }
 
-  if (state->need_motion == Scene::MOTION_PASS) {
+  if (state->need_motion == Scene::MOTION_PASS ||
+      state->need_motion == Scene::MOTION_PASS_INTERACTIVE)
+  {
     /* Clear motion array if there is no actual motion. */
     ob->update_motion();
 
@@ -791,7 +793,9 @@ void ObjectManager::device_update_transforms(DeviceScene *dscene, Scene *scene, 
   state.object_motion = nullptr;
   state.object_motion_pass = nullptr;
 
-  if (state.need_motion == Scene::MOTION_PASS) {
+  if (state.need_motion == Scene::MOTION_PASS ||
+      state.need_motion == Scene::MOTION_PASS_INTERACTIVE)
+  {
     state.object_motion_pass = dscene->object_motion_pass.alloc(OBJECT_MOTION_PASS_SIZE *
                                                                 scene->objects.size());
   }
@@ -840,7 +844,9 @@ void ObjectManager::device_update_transforms(DeviceScene *dscene, Scene *scene, 
   }
 
   dscene->objects.copy_to_device_if_modified();
-  if (state.need_motion == Scene::MOTION_PASS) {
+  if (state.need_motion == Scene::MOTION_PASS ||
+      state.need_motion == Scene::MOTION_PASS_INTERACTIVE)
+  {
     dscene->object_motion_pass.copy_to_device();
   }
   else if (state.need_motion == Scene::MOTION_BLUR) {
@@ -1131,7 +1137,8 @@ void ObjectManager::apply_static_transforms(DeviceScene *dscene, Scene *scene, P
   map<Geometry *, int> geometry_users;
   const Scene::MotionType need_motion = scene->need_motion();
   const bool motion_blur = need_motion == Scene::MOTION_BLUR;
-  const bool apply_to_motion = need_motion != Scene::MOTION_PASS;
+  const bool apply_to_motion = need_motion != Scene::MOTION_PASS &&
+                               need_motion != Scene::MOTION_PASS_INTERACTIVE;
   int i = 0;
 
   for (Object *object : scene->objects) {

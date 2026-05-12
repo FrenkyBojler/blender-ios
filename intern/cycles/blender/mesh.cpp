@@ -927,7 +927,7 @@ void BlenderSync::sync_mesh(BObjectInfo &b_ob_info, Mesh *mesh)
 {
   array<float3> verts_pre;
   verts_pre.steal_data(mesh->get_verts_pre());
-  if (verts_pre.empty()) {
+  if (scene->need_motion() == Scene::MOTION_PASS_INTERACTIVE && verts_pre.empty()) {
     verts_pre.steal_data(mesh->get_verts());
   }
 

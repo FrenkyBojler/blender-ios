@@ -210,7 +210,7 @@ void BlenderSync::sync_pointcloud(PointCloud *pointcloud, BObjectInfo &b_ob_info
 {
   array<float3> points_pre;
   points_pre.steal_data(pointcloud->get_points_pre());
-  if (points_pre.empty()) {
+  if (scene->need_motion() == Scene::MOTION_PASS_INTERACTIVE && points_pre.empty()) {
     points_pre.steal_data(pointcloud->get_points());
   }
 

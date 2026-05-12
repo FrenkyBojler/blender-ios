@@ -361,7 +361,7 @@ void Camera::update(Scene *scene)
     have_motion = have_motion || motion[i] != matrix;
   }
 
-  if (need_motion == Scene::MOTION_PASS) {
+  if (need_motion == Scene::MOTION_PASS || need_motion == Scene::MOTION_PASS_INTERACTIVE) {
     if (camera_type == CAMERA_PANORAMA || camera_type == CAMERA_CUSTOM) {
       if (have_motion) {
         kcam->motion_pass_pre = transform_inverse(motion[0]);

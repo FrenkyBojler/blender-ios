@@ -1075,7 +1075,7 @@ void BlenderSync::sync_hair(BObjectInfo &b_ob_info, Hair *hair)
 {
   array<float3> curve_keys_pre;
   curve_keys_pre.steal_data(hair->get_curve_keys_pre());
-  if (curve_keys_pre.empty()) {
+  if (scene->need_motion() == Scene::MOTION_PASS_INTERACTIVE && curve_keys_pre.empty()) {
     curve_keys_pre.steal_data(hair->get_curve_keys());
   }
 

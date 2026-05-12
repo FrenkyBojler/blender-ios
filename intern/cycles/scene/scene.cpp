@@ -395,7 +395,7 @@ void Scene::device_update(Device *device_, Progress &progress)
 
   device->optimize_for_scene(this);
 
-  if (!params.background && need_motion() != MOTION_NONE) {
+  if (need_motion() == MOTION_PASS_INTERACTIVE) {
     /* Swap current camera/object/vertex positions to previous positions for next frame. */
     camera->update_interactive_motion();
     object_manager->update_interactive_motion(this);
@@ -423,14 +423,14 @@ Scene::MotionType Scene::need_motion() const
       (integrator->get_use_denoise() &&
        (integrator->get_denoiser_passes() & DENOISER_PASS_MOTION) != 0))
   {
-    return MOTION_PASS;
+    return params.background ? MOTION_PASS : MOTION_PASS_INTERACTIVE;
   }
   return MOTION_NONE;
 }
 
 float Scene::motion_shutter_time()
 {
-  if (need_motion() == Scene::MOTION_PASS) {
+  if (need_motion() == Scene::MOTION_PASS || need_motion() == Scene::MOTION_PASS_INTERACTIVE) {
     return 2.0f;
   }
   return camera->get_shuttertime();
