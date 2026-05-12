@@ -130,3 +130,13 @@ int lightprobe_planar_select(float3 P)
   }
   return best_index;
 }
+
+float3 lightprobe_planar_parallax(PlanarProbeData planar, float3 P, float3 N, float3 V)
+{
+  /* Compute distorted reflection vector based on the distance to the reflected object.
+   * In other words find intersection between reflection vector and the sphere center
+   * around point_on_plane. */
+  float3 proj_ref = reflect(-V, N) * planar.parallax_distance;
+  /* Then reflect around the planar probe normal plane to get the final position on screen. */
+  return P + reflect(proj_ref, planar.normal);
+}
