@@ -182,14 +182,22 @@ def cancel_download_all_assets() -> None:
 
 def _asset_download_progress(
     _downloader: AssetDownloader,
-    _http_req_descr: http_dl.RequestDescription,
+    http_req_descr: http_dl.RequestDescription,
     progress: http_dl.DownloadProgress,
 ) -> None:
-    # TODO: determine what should happen here.
+    # TODO: ping the window manager, instead of printing to the terminal.
+    downloaded = http_dl.humanize_size(progress.disk_bytes_written)
     if progress.network_bytes_total is None:
-        _downloaded = http_dl.humanize_size(progress.disk_bytes_written)
+        print(f"Asset Downloader: downloaded {progress.disk_bytes_written} = {downloaded} of {http_req_descr.url}")
     else:
-        _percentage = 100 * progress.network_bytes_streamed / progress.network_bytes_total
+        percentage = 100 * progress.network_bytes_streamed / progress.network_bytes_total
+        if progress.network_bytes_streamed < progress.network_bytes_total:
+            percentage = min(99, percentage)
+        print(
+            f"Asset Downloader: downloaded {
+                progress.disk_bytes_written} = {downloaded} ({
+                percentage:.0f}%) of {
+                http_req_descr.url}")
 
 
 def _asset_download_done(
