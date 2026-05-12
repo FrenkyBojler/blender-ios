@@ -2774,7 +2774,7 @@ void OpenPBRBsdfNode::compile(OSLCompiler &compiler)
 
 bool OpenPBRBsdfNode::has_surface_transparent()
 {
-  return has_nonzero_weight("Transmittance Weight");
+  return has_nonzero_weight("Geometry Opacity");
 }
 
 bool OpenPBRBsdfNode::has_surface_emission()
@@ -2790,9 +2790,7 @@ bool OpenPBRBsdfNode::has_surface_bssrdf()
 bool OpenPBRBsdfNode::has_nonzero_weight(const char *name)
 {
   ShaderInput *weight_in = input(name);
-  if (weight_in == nullptr) {
-    return true;
-  }
+  assert(weight_in != nullptr);
   if (weight_in->link != nullptr) {
     return true;
   }
