@@ -522,14 +522,6 @@ AssetLibraryReference current_file_library_reference()
   return library_ref;
 }
 
-AssetLibraryReference essentials_library_reference()
-{
-  AssetLibraryReference library_ref{};
-  library_ref.custom_library_index = -1;
-  library_ref.type = ASSET_LIBRARY_ESSENTIALS;
-  return library_ref;
-}
-
 AssetLibraryReference online_essentials_library_reference()
 {
   AssetLibraryReference library_ref{};
