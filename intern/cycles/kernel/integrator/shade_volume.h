@@ -680,6 +680,16 @@ ccl_device void volume_shadow_null_scattering(KernelGlobals kg,
   sd->lcg_state = lcg_state_init(
       rng_state.rng_pixel, rng_state.rng_offset, rng_state.sample, 0xd9111870);
 
+  if (volume_is_homogeneous<true>(kg, state)) {
+    volume_shader_eval_extinction<true>(
+        kg, state, sd, PATH_RAY_VISIBILITY_SHADOW, PATH_RAY_FLAG_NONE);
+    if (sd->flag & SD_EXTINCTION) {
+      *throughput *= volume_color_transmittance(sd->closure_transparent_extinction,
+                                                ray->tmax - ray->tmin);
+    }
+    return;
+  }
+
   path_state_rng_scramble(&rng_state, 0x8647ace4);
 
   OctreeTracing octree(ray->tmin);
