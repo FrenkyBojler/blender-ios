@@ -10,6 +10,10 @@
 
 #include "BLI_string_ref.hh"
 
+namespace blender {
+class UUID;
+}
+
 namespace blender::asset_system {
 
 StringRefNull essentials_directory_path();
@@ -22,5 +26,8 @@ StringRefNull online_essentials_url();
  * slash is necessary for the URLs to match.
  */
 bool is_online_essentials_url(StringRef url);
+
+/** Returns false for catalogs that are based on disabled experimental features. */
+bool skip_experimental_asset_catalog(const UUID &catalog_id);
 
 }  // namespace blender::asset_system
