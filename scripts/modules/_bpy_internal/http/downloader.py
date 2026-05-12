@@ -26,6 +26,7 @@ __all__ = (
 
 import collections
 import contextlib
+import copy
 import dataclasses
 import enum
 import hashlib
@@ -1195,7 +1196,8 @@ class QueueingReporter(DownloadReporter):
         http_req_descr: RequestDescription,
         progress: DownloadProgress,
     ) -> None:
-        self._queue_call('download_progress', http_req_descr, progress)
+        # Create a copy of the progress object, to ensure that the caller cannot later modify what we queue now.
+        self._queue_call('download_progress', http_req_descr, copy.copy(progress))
 
     @override
     def download_finished(
