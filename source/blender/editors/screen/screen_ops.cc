@@ -3343,10 +3343,10 @@ static wmOperatorStatus region_scale_modal(bContext *C, wmOperator *op, const wm
 
       if (ELEM(rmd->edge, AE_LEFT_TO_TOPRIGHT, AE_RIGHT_TO_TOPLEFT)) {
         const float aspect_x = (rmd->region->v2d.flag & V2D_IS_INIT) ?
-                               (BLI_rctf_size_x(&rmd->region->v2d.cur) /
-                                (BLI_rcti_size_x(&rmd->region->v2d.mask) + 1)) :
-                               1.0f;
-        const int snap_size_threshold_x = (U.widget_unit * 2) / aspect_x; 
+                                   (BLI_rctf_size_x(&rmd->region->v2d.cur) /
+                                    (BLI_rcti_size_x(&rmd->region->v2d.mask) + 1)) :
+                                   1.0f;
+        const int snap_size_threshold_x = (U.widget_unit * 2) / aspect_x;
         delta = event->xy[0] - rmd->orig_xy[0];
         if (rmd->edge == AE_LEFT_TO_TOPRIGHT) {
           delta = -delta;
@@ -3391,14 +3391,14 @@ static wmOperatorStatus region_scale_modal(bContext *C, wmOperator *op, const wm
         if (rmd->region->sizex != rmd->origval) {
           size_changed = true;
         }
-         region_scale_apply_stack(rmd, event, size_no_snap);
+        region_scale_apply_stack(rmd, event, size_no_snap);
       }
       else {
         const float aspect_y = ((rmd->region->v2d.flag & V2D_IS_INIT) &&
-                            (rmd->region->regiontype != RGN_TYPE_PLAYBACK_SCRUBBING)) ?
-                               (BLI_rctf_size_y(&rmd->region->v2d.cur) /
-                                (BLI_rcti_size_y(&rmd->region->v2d.mask) + 1)) :
-                               1.0f;
+                                (rmd->region->regiontype != RGN_TYPE_PLAYBACK_SCRUBBING)) ?
+                                   (BLI_rctf_size_y(&rmd->region->v2d.cur) /
+                                    (BLI_rcti_size_y(&rmd->region->v2d.mask) + 1)) :
+                                   1.0f;
         const int snap_size_threshold_y = (U.widget_unit * 2) / aspect_y;
         delta = event->xy[1] - rmd->orig_xy[1];
         if (rmd->edge == AE_BOTTOM_TO_TOPLEFT) {
@@ -3448,7 +3448,7 @@ static wmOperatorStatus region_scale_modal(bContext *C, wmOperator *op, const wm
           size_changed = true;
         }
 
-         region_scale_apply_stack(rmd, event, size_no_snap);
+        region_scale_apply_stack(rmd, event, size_no_snap);
       }
       if (size_changed && rmd->region->runtime->type->on_user_resize) {
         rmd->region->runtime->type->on_user_resize(rmd->region);

@@ -737,9 +737,9 @@ enum eRegion_Alignment : short {
    * should only be set for the previous region, not this. The evaluated visibility respecting this
    * flag can be queried via #ARegion.visible */
   RGN_ALIGN_HIDE_WITH_PREV = 1 << 7,
-  /** Region scaling is handed off when reaching limits. When the previous region is at maximum size,
-   * drag-outs are forwarded to this region, and when this region is at minimum size, drag-ins are
-   * forwarded to the previous region. */
+  /** Region scaling is handed off when reaching limits. When the previous region is at maximum
+   * size, drag-outs are forwarded to this region, and when this region is at minimum size,
+   * drag-ins are forwarded to the previous region. */
   RGN_STACK_ON_PREV = 1 << 8,
 };
 ENUM_OPERATORS(eRegion_Alignment)
