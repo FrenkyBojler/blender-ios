@@ -524,7 +524,7 @@ void colormanage_imbuf_make_linear(ImBuf *ibuf,
   const ColorSpace *colorspace = g_config()->get_color_space(from_colorspace);
 
   if (colorspace && colorspace->is_data()) {
-    ibuf->colormanage_flag |= IMB_COLORMANAGE_IS_DATA;
+    ibuf->flags |= ImBufFlags::ColorspaceIsData;
     return;
   }
 
@@ -894,10 +894,10 @@ void IMB_colormanagement_check_is_data(ImBuf *ibuf, const char *name)
   const ColorSpace *colorspace = g_config()->get_color_space(name);
 
   if (colorspace && colorspace->is_data()) {
-    ibuf->colormanage_flag |= IMB_COLORMANAGE_IS_DATA;
+    ibuf->flags |= ImBufFlags::ColorspaceIsData;
   }
   else {
-    ibuf->colormanage_flag &= ~IMB_COLORMANAGE_IS_DATA;
+    ibuf->flags &= ~ImBufFlags::ColorspaceIsData;
   }
 }
 
@@ -925,10 +925,10 @@ void IMB_colormanagement_assign_float_colorspace(ImBuf *ibuf, const char *name)
   ibuf->float_buffer.colorspace = colorspace;
 
   if (colorspace && colorspace->is_data()) {
-    ibuf->colormanage_flag |= IMB_COLORMANAGE_IS_DATA;
+    ibuf->flags |= ImBufFlags::ColorspaceIsData;
   }
   else {
-    ibuf->colormanage_flag &= ~IMB_COLORMANAGE_IS_DATA;
+    ibuf->flags &= ~ImBufFlags::ColorspaceIsData;
   }
 }
 
@@ -939,10 +939,10 @@ void IMB_colormanagement_assign_byte_colorspace(ImBuf *ibuf, const char *name)
   ibuf->byte_buffer.colorspace = colorspace;
 
   if (colorspace && colorspace->is_data()) {
-    ibuf->colormanage_flag |= IMB_COLORMANAGE_IS_DATA;
+    ibuf->flags |= ImBufFlags::ColorspaceIsData;
   }
   else {
-    ibuf->colormanage_flag &= ~IMB_COLORMANAGE_IS_DATA;
+    ibuf->flags &= ~ImBufFlags::ColorspaceIsData;
   }
 }
 
@@ -1336,7 +1336,7 @@ static void display_buffer_init_handle(DisplayBufferThread *handle,
 
   int channels = ibuf->channels;
   float dither = ibuf->dither;
-  bool is_data = (ibuf->colormanage_flag & IMB_COLORMANAGE_IS_DATA) != 0;
+  bool is_data = flag_is_set(ibuf->flags, ImBufFlags::ColorspaceIsData);
 
   size_t offset = size_t(channels) * start_line * ibuf->x;
   size_t display_buffer_byte_offset = size_t(DISPLAY_BUFFER_CHANNELS) * start_line * ibuf->x;

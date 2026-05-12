@@ -240,9 +240,6 @@ struct ImBuf {
   /** reference counter for multiple users */
   int32_t refcounter = 0;
 
-  /* color management */
-  int colormanage_flag = 0;
-
   const uint8_t *byte_data() const;
   uint8_t *byte_data_for_write();
 
@@ -316,18 +313,6 @@ enum {
 extern const char *imb_ext_image[];
 extern const char *imb_ext_movie[];
 extern const char *imb_ext_audio[];
-
-/* -------------------------------------------------------------------- */
-/** \name ImBuf Color Management Flag
- *
- * \brief Used with #ImBuf.colormanage_flag
- * \{ */
-
-enum {
-  IMB_COLORMANAGE_IS_DATA = (1 << 0),
-};
-
-/** \} */
 
 inline const uint8_t *ImBuf::byte_data() const
 {

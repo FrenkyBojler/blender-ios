@@ -49,8 +49,6 @@ static void skip_input_data(j_decompress_ptr cinfo, long num_bytes);
 static void term_source(j_decompress_ptr cinfo);
 static void memory_source(j_decompress_ptr cinfo, const uchar *buffer, size_t size);
 static boolean handle_app1(j_decompress_ptr cinfo);
-static ImBuf *ibJpegImageFromCinfo(
-    jpeg_decompress_struct *cinfo, int flags, int max_size, size_t *r_width, size_t *r_height);
 
 static const uchar jpeg_default_quality = 75;
 static uchar ibuf_quality;

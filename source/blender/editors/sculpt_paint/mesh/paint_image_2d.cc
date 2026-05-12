@@ -1578,7 +1578,7 @@ void paint_2d_stroke(void *ps,
 
     ImBuf *ibuf = tile->canvas;
 
-    const bool is_data = ibuf->colormanage_flag & IMB_COLORMANAGE_IS_DATA;
+    const bool is_data = flag_is_set(ibuf->flags, ImBufFlags::ColorspaceIsData);
     const bool is_float = (ibuf->float_data() != nullptr);
     const ColorSpace *byte_colorspace = (is_float || is_data) ? nullptr :
                                                                 ibuf->byte_buffer.colorspace;

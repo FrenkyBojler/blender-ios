@@ -3697,7 +3697,7 @@ bool ED_space_image_color_sample(
   }
 
   if (r_is_data) {
-    *r_is_data = (ibuf->colormanage_flag & IMB_COLORMANAGE_IS_DATA) != 0;
+    *r_is_data = flag_is_set(ibuf->flags, ImBufFlags::ColorspaceIsData);
   }
 
   ED_space_image_release_buffer(sima, ibuf, lock);

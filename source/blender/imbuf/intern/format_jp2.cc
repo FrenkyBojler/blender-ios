@@ -836,7 +836,7 @@ static opj_image_t *ibuftoimage(ImBuf *ibuf, opj_cparameters_t *parameters)
   img_fol_t img_fol; /* only needed for cinema presets */
   memset(&img_fol, 0, sizeof(img_fol_t));
 
-  if (ibuf->float_buffer.colorspace || (ibuf->colormanage_flag & IMB_COLORMANAGE_IS_DATA)) {
+  if (ibuf->float_buffer.colorspace || flag_is_set(ibuf->flags, ImBufFlags::ColorspaceIsData)) {
     /* float buffer was managed already, no need in color space conversion */
     chanel_colormanage_cb = channel_colormanage_noop;
   }
