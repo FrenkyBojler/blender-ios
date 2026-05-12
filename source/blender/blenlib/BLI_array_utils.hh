@@ -404,13 +404,16 @@ template<typename T> inline void fill_index_range(MutableSpan<T> span, const T s
 }
 
 template<typename T, exec_mode::Tag Mode = exec_mode::Parallel>
-inline void fill_index_range(const IndexMask &mask, MutableSpan<T> span, const T start = 0)
+inline void fill_index_range(const IndexMask &mask,
+                             MutableSpan<T> span,
+                             const Mode mode = {},
+                             const T start = 0)
 {
   if (start == 0) {
-    mask.foreach_index_optimized<T>([&](const T index) { span[index] = index; }, Mode);
+    mask.foreach_index_optimized<T>([&](const T index) { span[index] = index; }, mode);
   }
   else {
-    mask.foreach_index_optimized<T>([&](const T index) { span[index] = start + index; }, Mode);
+    mask.foreach_index_optimized<T>([&](const T index) { span[index] = start + index; }, mode);
   }
 }
 
