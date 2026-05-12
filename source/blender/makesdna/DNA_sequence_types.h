@@ -807,7 +807,7 @@ struct TextVars {
   struct VFont *text_font = nullptr;
   int text_blf_id = 0;
   float text_size = 0;
-  float space_line = 0;
+  float space_line = 1.0f;
   float color[4] = {}, shadow_color[4] = {}, box_color[4] = {}, outline_color[4] = {};
   float loc[2] = {};
   float wrap_width = 0;

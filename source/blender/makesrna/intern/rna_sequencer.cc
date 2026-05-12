@@ -3860,8 +3860,8 @@ static void rna_def_text(StructRNA *srna)
   prop = RNA_def_property(srna, "space_line", PROP_FLOAT, PROP_UNSIGNED);
   RNA_def_property_float_sdna(prop, nullptr, "space_line");
   RNA_def_property_ui_text(prop, "Line Spacing", "Distance between lines of text");
-  RNA_def_property_range(prop, 0.0, 2000);
-  RNA_def_property_ui_range(prop, 0.0f, 2000, 10.0f, 1);
+  RNA_def_property_range(prop, 0.0, 10.0f);
+  RNA_def_property_ui_range(prop, 0.0f, 10.0f, 1.0f, 1);
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
 
   prop = RNA_def_property(srna, "color", PROP_FLOAT, PROP_COLOR_GAMMA);
@@ -4184,7 +4184,7 @@ static void rna_def_modifier(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", STRIP_MODIFIER_FLAG_SHOW_PREVIEW);
   RNA_def_property_ui_text(prop, "Preview", "Display modifier in preview");
   RNA_def_property_ui_icon(prop, ICON_RESTRICT_VIEW_ON, 1);
-git p  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_StripModifier_update");
+  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_StripModifier_update");
 
   prop = RNA_def_property(srna, "show_expanded", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_flag(prop, PROP_NO_DEG_UPDATE);
