@@ -70,7 +70,10 @@ static void get_current_time_str(
 {
   if (display_seconds) {
     const float frame_len = scene->r.framelen > 0 ? scene->r.framelen : 1.0;
-    const float seconds = (frame / float(scene->frames_per_second())) / frame_len;
+    const float frame_offset = (U.uiflag2 & USER_UIFLAG2_SCENE_RELATIVE_TIMECODE) ?
+                                   frame - scene->r.sfra + 1 :
+                                   frame;
+    const float seconds = (frame_offset / float(scene->frames_per_second())) / frame_len;
     BLI_timecode_string_from_time(
         r_str, str_maxncpy, -1, seconds, scene->frames_per_second(), U.timecode_style);
   }

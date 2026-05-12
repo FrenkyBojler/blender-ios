@@ -182,6 +182,7 @@ enum eUserpref_UI_Flag2 : char {
   USER_UIFLAG2_UNUSED_3 = (1 << 3), /* dirty */
   USER_UIFLAG2_SHOW_ONLINE_ASSETS = (1 << 4),
   USER_UIFLAG2_PANEL_TABS_COMPACT = (1 << 5),
+  USER_UIFLAG2_SCENE_RELATIVE_TIMECODE = (1 << 6),
 };
 ENUM_OPERATORS(eUserpref_UI_Flag2)
 
