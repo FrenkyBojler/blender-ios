@@ -91,6 +91,8 @@ void VKCommandBuilder::groups_extract_barriers(VKRenderGraph &render_graph,
     Barriers group_pre_barriers(group_start_barrier_index, 0);
     const GroupNodes &node_group = group_nodes_[group_index];
 
+    /* When adding pre barriers it is easy to merge with previous barrier when the stage masks are
+     * identical. */
     auto merge_pre_barrier = [&](const Barrier &barrier) {
       if (barrier.is_empty()) {
         return;
