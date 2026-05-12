@@ -1160,7 +1160,6 @@ static ImBuf *add_ibuf_for_tile(Image *ima, ImageTile *tile)
   const bool floatbuf = (tile->gen_flag & IMA_GEN_FLOAT) != 0;
   if (floatbuf) {
     ibuf = IMB_allocImBuf(tile->gen_x, tile->gen_y, IB_float_data);
-    ibuf->color_mode = color_mode;
 
     if (ima->colorspace_settings.name[0] == '\0') {
       const char *colorspace = IMB_colormanagement_role_colorspace_name_get(
@@ -1170,6 +1169,7 @@ static ImBuf *add_ibuf_for_tile(Image *ima, ImageTile *tile)
     }
 
     if (ibuf != nullptr) {
+      ibuf->color_mode = color_mode;
       rect_float = ibuf->float_data_for_write();
       IMB_colormanagement_assign_float_colorspace(ibuf, ima->colorspace_settings.name);
     }
@@ -1185,7 +1185,6 @@ static ImBuf *add_ibuf_for_tile(Image *ima, ImageTile *tile)
   }
   else {
     ibuf = IMB_allocImBuf(tile->gen_x, tile->gen_y, IB_byte_data);
-    ibuf->color_mode = color_mode;
 
     if (ima->colorspace_settings.name[0] == '\0') {
       const char *colorspace = IMB_colormanagement_role_colorspace_name_get(
@@ -1195,6 +1194,7 @@ static ImBuf *add_ibuf_for_tile(Image *ima, ImageTile *tile)
     }
 
     if (ibuf != nullptr) {
+      ibuf->color_mode = color_mode;
       rect = ibuf->byte_data_for_write();
       IMB_colormanagement_assign_byte_colorspace(ibuf, ima->colorspace_settings.name);
     }

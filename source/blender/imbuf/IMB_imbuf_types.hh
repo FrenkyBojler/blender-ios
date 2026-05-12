@@ -11,6 +11,7 @@
  * Image buffer types.
  */
 
+#include "BLI_assert.h"
 #include "DNA_image_enums.h"
 #include "IMB_imbuf_enums.h"
 
@@ -291,11 +292,12 @@ struct ImBuf {
   const float *float_data() const;
   float *float_data_for_write();
 
-  bool can_contain_alpha() const
+  [[nodiscard]] bool can_contain_alpha() const
   {
     return color_mode == ImColorMode::RGBA || color_mode == ImColorMode::BW_A;
   }
-  int color_mode_channels_get() const
+
+  [[nodiscard]] int color_mode_channels_get() const
   {
     switch (this->color_mode) {
       case ImColorMode::BW:
@@ -307,6 +309,7 @@ struct ImBuf {
       case ImColorMode::RGBA:
         return 4;
     }
+    BLI_assert_unreachable();
     return 0;
   }
 };
