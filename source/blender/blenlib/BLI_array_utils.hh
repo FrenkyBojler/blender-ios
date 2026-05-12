@@ -403,13 +403,14 @@ template<typename T> inline void fill_index_range(MutableSpan<T> span, const T s
   std::iota(span.begin(), span.end(), start);
 }
 
-template<typename T>
+template<typename T, exec_mode::Tag Mode = exec_mode::Parallel>
 inline void fill_index_range(const IndexMask &mask, MutableSpan<T> span, const T start = 0)
 {
   if (start == 0) {
-    mask.foreach_index_optimized<T>([&](const T index) { span[index] = index; });
-  } else {
-    mask.foreach_index_optimized<T>([&](const T index) { span[index] = start + index; });    
+    mask.foreach_index_optimized<T>([&](const T index) { span[index] = index; }, Mode);
+  }
+  else {
+    mask.foreach_index_optimized<T>([&](const T index) { span[index] = start + index; }, Mode);
   }
 }
 
