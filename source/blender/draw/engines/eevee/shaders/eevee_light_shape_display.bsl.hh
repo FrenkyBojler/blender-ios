@@ -122,18 +122,18 @@ void shape_display_vert([[resource_table]] const ShapeDisplayResources & /*srt*/
 }
 
 [[fragment]]
-void shape_display_frag([[in]] const ShapeDisplayVertOut &v_in,
+void shape_display_frag([[in]] const ShapeDisplayVertOut &v_out,
                         [[out]] ShapeDisplayFragOut &frag_out)
 {
-  eLightType light_type = eLightType(v_in.light_type);
+  eLightType light_type = eLightType(v_out.light_type);
   bool is_circle = is_sun_light(light_type) || light_type == LIGHT_ELLIPSE ||
                    is_point_light(light_type);
-  if (is_circle && dot(v_in.lP, v_in.lP) > 1.0f) {
+  if (is_circle && dot(v_out.lP, v_out.lP) > 1.0f) {
     gpu_discard_fragment();
     return;
   }
 
-  frag_out.out_color = float4(v_in.radiance, 1.0f);
+  frag_out.out_color = float4(v_out.radiance, 1.0f);
 }
 
 PipelineGraphic shape_display(shape_display_vert, shape_display_frag);
