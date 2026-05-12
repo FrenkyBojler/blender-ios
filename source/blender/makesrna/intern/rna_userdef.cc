@@ -6683,7 +6683,10 @@ static void rna_def_userdef_input(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "textbox_shift_swap", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", USER_TEXTBOX_SHIFT_SWAP);
-  RNA_def_property_ui_text(prop, "Swap Confirm/New Line Text-Box Bindings", "");
+  RNA_def_property_ui_text(prop,
+                           "Swap Confirm/New Line Text-Box Bindings",
+                           "Using Enter on Text-Box buttons adds new lines instead of saving "
+                           "changes, and Shift+Enter saves changes instead of adding new lines.");
 
   /* View Navigation */
   prop = RNA_def_property(srna, "navigation_mode", PROP_ENUM, PROP_NONE);
