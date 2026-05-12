@@ -333,7 +333,7 @@ PassMain::Sub *Prepass::add(blender::Material *blender_mat,
   return &sub;
 }
 
-void Prepass::render(View &view, gpu::Texture *fb_depth_tx, bool can_raycast)
+void Prepass::render(View &view, bool can_raycast, Framebuffer *fb)
 {
   auto set_can_raycast = [&](bool32_t value) {
     if (can_raycast && assign_if_different(inst_.uniform_data.pipeline.can_raycast, value)) {
@@ -344,8 +344,11 @@ void Prepass::render(View &view, gpu::Texture *fb_depth_tx, bool can_raycast)
   set_can_raycast(false);
   inst_.manager->submit(raycast_vis_on_ps_, view);
 
-  if (fb_depth_tx && inst_.pipelines.has_raycast) {
-    GPU_texture_copy(inst_.render_buffers.raycast_depth_tx, fb_depth_tx);
+  if (fb && inst_.pipelines.has_raycast) {
+    Framebuffer copy_fb;
+    copy_fb.ensure(GPU_ATTACHMENT_TEXTURE(inst_.render_buffers.raycast_depth_tx));
+    GPU_framebuffer_blit(*fb, -1, copy_fb, -1, GPUFrameBufferBits::GPU_DEPTH_BIT);
+    fb->bind();
   }
 
   set_can_raycast(true);
@@ -601,7 +604,7 @@ void ForwardPipeline::render(View &view,
   GPU_debug_group_begin("Forward.Opaque");
 
   prepass_fb.bind();
-  prepass_.render(view, nullptr, true);
+  prepass_.render(view, true, nullptr);
 
   inst_.hiz_buffer.set_dirty();
   inst_.hiz_buffer.update();
@@ -1032,7 +1035,7 @@ gpu::Texture *DeferredLayer::render(View &render_view,
   /* Clear stencil buffer so that prepass can tag it. Then draw a full-screen triangle that will
    * clear AOVs for all the pixels touched by this layer. */
   GPU_framebuffer_clear_stencil(prepass_fb, 0xFFu);
-  prepass_.render(render_view, rb.depth_tx, true);
+  prepass_.render(render_view, true, std::addressof(prepass_fb));
   if (!clear_aovs_ps_.is_empty()) {
     inst_.manager->submit(clear_aovs_ps_);
   }
@@ -1512,7 +1515,7 @@ void DeferredProbePipeline::render(View &view,
   prepass_fb.bind();
   prepass_fb.clear_depth(inst_.film.depth.clear_value);
   prepass_fb.clear_color(float4(0.0f));
-  opaque_layer_.prepass_.render(view, inst_.render_buffers.depth_tx, true);
+  opaque_layer_.prepass_.render(view, true, std::addressof(prepass_fb));
 
   inst_.hiz_buffer.set_source(&inst_.render_buffers.depth_tx);
   inst_.hiz_buffer.update();
@@ -1614,7 +1617,7 @@ void PlanarProbePipeline::render(View &view,
 
   GPU_framebuffer_bind(prepass_fb);
   GPU_framebuffer_clear_depth(prepass_fb, inst_.film.depth.clear_value);
-  prepass_.render(view, depth_layer_tx, true);
+  prepass_.render(view, true, std::addressof(prepass_fb));
 
   /* TODO(fclem): This is the only place where we use the layer source to HiZ.
    * This is because the texture layer view is still a layer texture. */

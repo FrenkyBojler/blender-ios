@@ -176,7 +176,9 @@ class Prepass {
     return raycast_vis_on_ps_.is_empty() && raycast_vis_off_ps_.is_empty();
   }
 
-  void render(View &view, gpu::Texture *fb_depth_tx, bool can_raycast);
+  /* If fb is not null, the depth attachment will be blit to RenderBuffers::raycast_depth_tx after
+   * rendering raycast visible objects. */
+  void render(View &view, bool can_raycast, Framebuffer *fb = nullptr);
 };
 
 /** \} */
