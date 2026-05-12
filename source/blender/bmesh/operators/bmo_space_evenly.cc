@@ -237,7 +237,10 @@ static void calculate_splines_axis(Span<float> distances,
     }
   }
 
+  /* Stores second derivative coefficients. For a natural cubic spline, the boundary
+   * condition defines the first and last points as zero. */
   Array<float> c_vals(num_verts, 0.0f);
+
   /* The Thomas algorithm used in `BLI_tridiagonal_solve` can't properly solve
    * a cyclic tridiagonal system so in this case, we use the Sherman-Morrison formula
    * via `BLI_tridiagonal_solve_cyclic`. */
