@@ -1113,7 +1113,7 @@ ImBuf *RE_render_result_rect_to_ibuf(RenderResult *rr,
    */
   if (ibuf->byte_data()) {
     if (BKE_imtype_valid_depths(imf->imtype) &
-        (R_IMF_CHAN_DEPTH_12 | R_IMF_CHAN_DEPTH_16 | R_IMF_CHAN_DEPTH_24 | R_IMF_CHAN_DEPTH_32))
+        (R_IMF_CHAN_DEPTH_12 | R_IMF_CHAN_DEPTH_16 | R_IMF_CHAN_DEPTH_32))
     {
       if (imf->depth == R_IMF_CHAN_DEPTH_8) {
         /* Higher depth bits are supported but not needed for current file output. */

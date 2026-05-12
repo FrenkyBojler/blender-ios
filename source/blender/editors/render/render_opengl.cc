@@ -723,8 +723,9 @@ static bool screen_opengl_render_init(bContext *C, wmOperator *op)
   const bool is_animation = RNA_boolean_get(op->ptr, "animation");
   const bool is_render_keyed_only = RNA_boolean_get(op->ptr, "render_keyed_only");
   const bool is_write_still = RNA_boolean_get(op->ptr, "write_still");
-  const eImageFormatDepth color_depth = static_cast<eImageFormatDepth>(
-      (is_animation) ? eImageFormatDepth(scene->r.im_format.depth) : R_IMF_CHAN_DEPTH_32);
+  const eImageFormatDepth color_depth = is_animation ?
+                                            eImageFormatDepth(scene->r.im_format.depth) :
+                                            R_IMF_CHAN_DEPTH_32;
   char err_out[256] = "unknown";
 
   if (G.background) {
