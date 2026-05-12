@@ -1168,11 +1168,10 @@ static wmOperatorStatus armature_duplicate_selected(bContext *C,
             new_bone_name = new_bone_name_buff;
           }
         }
+        std::string buffer(new_bone_name);
         if (!search.is_empty()) {
-          std::string buffer(new_bone_name);
           BLI_string_replace(buffer, search, replace);
-          STRNCPY(new_bone_name_buff, buffer.data());
-          new_bone_name = new_bone_name_buff;
+          new_bone_name = buffer.data();
         }
 
         ebone = duplicateEditBone(ebone_iter, new_bone_name, arm->edbo, ob);
