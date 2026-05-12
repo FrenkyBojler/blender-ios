@@ -25,8 +25,21 @@ PROJECT_CONFIG = "project.toml"
 class ProjectConfig:
     name: str
 
+    def new_from_project(project):
+        """Create a ProjectConfig object from an existing real project."""
+        return ProjectConfig(name=project.name)
 
-# -------------------------------------/------------------------
+    def populate_project(self, project):
+        """Fills in an existing real project's data from this ProjectConfig object."""
+
+        # Currently we don't do anything, because the project name is handled
+        # separately. But when projects have more than just a name, all of that
+        # other data should be handled here, and be symmetric with
+        # `new_from_project()` above.
+        pass
+
+
+# -------------------------------------------------------------
 # Custom exception types, for anticipated errors that should be reported to the
 # user.
 
@@ -39,36 +52,6 @@ class ProjectLoadException(Exception):
 
 
 # -------------------------------------------------------------
-
-# NOTE: this is temporary code, waiting on the libs team to
-# add #155758 so we can do proper TOML serialization.
-def escape_string_toml(text):
-    """Escape a string according TOML 1.1 spec.
-
-    See https://toml.io/en/v1.1.0#string
-    """
-
-    # First replace literal backslashes.
-    text = text.replace("\\", "\\\\")
-
-    # Then the rest.
-    required_escapes = [
-        # Quotes.
-        "\"",
-        # U+0000 to U+0008.
-        "\x00", "\x01", "\x02", "\x03", "\x04", "\x05", "\x06", "\x07", "\x08",
-        # U+000A to U+001F.
-        "\x0A", "\x0B", "\x0C", "\x0D", "\x0E", "\x0F", "\x10", "\x11", "\x12",
-        "\x13", "\x14", "\x15", "\x16", "\x17", "\x18", "\x19", "\x1A", "\x1B",
-        "\x1C", "\x1D", "\x1E", "\x1F",
-        # U+007F.
-        "\x7F",
-    ]
-    for esc in required_escapes:
-        text = text.replace(esc, f"\\u{ord(esc):04X}")
-
-    return text
-
 
 def save_project(project, report=None):
     """Save the passed project to disk.
@@ -83,6 +66,9 @@ def save_project(project, report=None):
     Optionally takes an `Operator.report` for reporting errors to the user.
     """
 
+    import cattrs
+    import tomli_w
+
     if project is None:
         if report:
             report({'ERROR'}, "Cannot save project because there is no project to save.")
@@ -90,8 +76,8 @@ def save_project(project, report=None):
 
     logger.info("Saving project '{:s}' at '{:s}'...".format(project.name, project.root_path))
 
+    # Get and validate the root path.
     root_path = Path(project.root_path)
-
     try:
         if not root_path.is_absolute():
             if report:
@@ -113,6 +99,7 @@ def save_project(project, report=None):
 
     config_dir_path = root_path.joinpath(PROJECT_DIR)
 
+    # Ensure the project config directory exists.
     try:
         config_dir_path.mkdir(parents=True, exist_ok=True)
     except FileExistsError:
@@ -128,11 +115,16 @@ def save_project(project, report=None):
             report({'ERROR'}, str(e))
         raise ProjectSaveException
 
+    # Create a project config dict from the current project.
+    converter = cattrs.Converter()
+    config = ProjectConfig.new_from_project(project)
+    config_dict = converter.unstructure(config, ProjectConfig)
+
+    # Write the config TOML file.
     config_path = root_path.joinpath(PROJECT_DIR, PROJECT_CONFIG)
     try:
-        with config_path.open(mode='w', encoding='utf-8') as f:
-            # The actual project file writing.
-            f.write("name = \"{:s}\"\n".format(escape_string_toml(project.name)))
+        with config_path.open(mode='wb') as f:
+            tomli_w.dump(config_dict, f)
     except PermissionError:
         if report:
             report({'ERROR'}, rpt_("Cannot write to '{:s}' due to filesystem permissions.").format(PROJECT_CONFIG))
@@ -177,6 +169,7 @@ def find_and_load_project_for_blend_path(context, blend_path, report=None):
     # Load project.
     config = read_project_toml_config(root_path, report)
     bpy.data.project_init(config.name, str(root_path))
+    config.populate_project(bpy.data.project)
     bpy.data.project.is_dirty = False
 
 
