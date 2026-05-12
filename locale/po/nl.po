@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 Alpha (b'ec8c60553753')\n"
+"Project-Id-Version: Blender 5.2.0 Alpha (b'8c7c45ad114e')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-03-23 09:55+0000\n"
+"POT-Creation-Date: 2026-05-11 07:23+0000\n"
 "PO-Revision-Date: 2026-02-14 01:12+0000\n"
 "Last-Translator: Timo Hoetmer <timo@timohoetmer.nl>\n"
 "Language-Team: Dutch <https://translate.blender.org/projects/blender-ui/ui/nl/>\n"
@@ -733,14 +733,6 @@ msgstr "Onderkant"
 
 msgid "Place the Mix node at the same height as the lowest node"
 msgstr "Plaats de Mix node op dezelfde hoogte als de laagste node"
-
-
-msgid "Show Hotkey List"
-msgstr "Toon Hotkey Lijst"
-
-
-msgid "Expand this box into a list of all the hotkeys for functions in this addon"
-msgstr "Bereid deze box uit tot een lijst van alle sneltoetsen voor functies in deze addon"
 
 
 msgid "Fribidi Library"
@@ -3810,16 +3802,8 @@ msgid "ACES 1.3 sRGB"
 msgstr "ACES 1.3 sRGB"
 
 
-msgid "ACES 1.0 Output Transform for SDR D65 video, limited to Rec.709 gamut"
-msgstr "ACES 1.0 Output Transformatie voor SDR D65 video, beperkt tot Rec.709 gamut"
-
-
 msgid "ACES 2.0 sRGB"
 msgstr "ACES 2.0 sRGB"
-
-
-msgid "ACES 2 Output Transform for 100 nit SDR Rec709"
-msgstr "ACES 2 Output Transformatie voor 100 nit SDR Rec709"
 
 
 msgid "ACES2065-1"
@@ -3842,20 +3826,12 @@ msgid "AgX Base sRGB"
 msgstr "AgX Base sRGB"
 
 
-msgid "AgX Base Image Encoding for sRGB Display"
-msgstr "AgX Base Image Encoding voor sRGB Scherm"
-
-
 msgid "AgX Log"
 msgstr "AgX Log"
 
 
 msgid "Khronos PBR Neutral sRGB"
 msgstr "Khronos PBR Neutral sRGB"
-
-
-msgid "Khronos PBR Neutral Image Encoding for sRGB Display"
-msgstr "Khronos PBR Neutral Image Encoding voor sRGB Scherm"
 
 
 msgid "Linear CIE-XYZ D65"
@@ -5775,10 +5751,6 @@ msgid "Dots"
 msgstr "Stippen"
 
 
-msgid "Mirror"
-msgstr "Spiegel"
-
-
 msgid "Local View"
 msgstr "Lokale Scherm"
 
@@ -5793,10 +5765,6 @@ msgstr "Selecteer Vergelijkbaar"
 
 msgid "Select Linked"
 msgstr "Selecteer Aaneengesloten"
-
-
-msgid "Import"
-msgstr "Importeren"
 
 
 msgid "Light"
@@ -5823,6 +5791,10 @@ msgid "Show/Hide"
 msgstr "Toon/Verberg"
 
 
+msgid "Import"
+msgstr "Importeren"
+
+
 msgid "Convert"
 msgstr "Converteer"
 
@@ -5841,6 +5813,10 @@ msgstr "Namen"
 
 msgid "Layout"
 msgstr "Indeling"
+
+
+msgid "Mirror"
+msgstr "Spiegel"
 
 
 msgctxt "MovieClip"
@@ -6365,11 +6341,6 @@ msgstr "Pas Project Toe"
 msgctxt "Operator"
 msgid "Import BVH"
 msgstr "Importeer BVH"
-
-
-msgctxt "Operator"
-msgid "Import SVG"
-msgstr "Importeer SVG"
 
 
 msgctxt "Operator"
@@ -11904,10 +11875,6 @@ msgstr "Niets om te gummen"
 
 msgid "Nothing selected"
 msgstr "Niets geselecteerd"
-
-
-msgid "Pin"
-msgstr "Prik"
 
 
 msgctxt "Operator"

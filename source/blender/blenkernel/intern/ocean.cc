@@ -33,6 +33,7 @@
 
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
+#include "IMB_interp.hh"
 
 #include "RE_texture.h"
 
@@ -1245,29 +1246,30 @@ void BKE_ocean_cache_eval_uv(OceanCache *och, OceanResult *ocr, int f, float u, 
     v += 1.0f;
   }
 
+  const float texel_x = u * res_x - 0.5f;
+  const float texel_y = v * res_y - 0.5f;
   if (och->ibufs_disp[f]) {
-    ibuf_sample(och->ibufs_disp[f], u, v, (1.0f / float(res_x)), (1.0f / float(res_y)), result);
+    imbuf::interpolate_bilinear_fl(och->ibufs_disp[f], result, texel_x, texel_y);
     copy_v3_v3(ocr->disp, result);
   }
 
   if (och->ibufs_foam[f]) {
-    ibuf_sample(och->ibufs_foam[f], u, v, (1.0f / float(res_x)), (1.0f / float(res_y)), result);
+    imbuf::interpolate_bilinear_fl(och->ibufs_foam[f], result, texel_x, texel_y);
     ocr->foam = result[0];
   }
 
   if (och->ibufs_spray[f]) {
-    ibuf_sample(och->ibufs_spray[f], u, v, (1.0f / float(res_x)), (1.0f / float(res_y)), result);
+    imbuf::interpolate_bilinear_fl(och->ibufs_spray[f], result, texel_x, texel_y);
     copy_v3_v3(ocr->Eplus, result);
   }
 
   if (och->ibufs_spray_inverse[f]) {
-    ibuf_sample(
-        och->ibufs_spray_inverse[f], u, v, (1.0f / float(res_x)), (1.0f / float(res_y)), result);
+    imbuf::interpolate_bilinear_fl(och->ibufs_spray_inverse[f], result, texel_x, texel_y);
     copy_v3_v3(ocr->Eminus, result);
   }
 
   if (och->ibufs_norm[f]) {
-    ibuf_sample(och->ibufs_norm[f], u, v, (1.0f / float(res_x)), (1.0f / float(res_y)), result);
+    imbuf::interpolate_bilinear_fl(och->ibufs_norm[f], result, texel_x, texel_y);
     copy_v3_v3(ocr->normal, result);
   }
 }
@@ -1288,23 +1290,23 @@ void BKE_ocean_cache_eval_ij(OceanCache *och, OceanResult *ocr, int f, int i, in
   j = j % res_y;
 
   if (och->ibufs_disp[f]) {
-    copy_v3_v3(ocr->disp, &och->ibufs_disp[f]->float_buffer.data[4 * (res_x * j + i)]);
+    copy_v3_v3(ocr->disp, &och->ibufs_disp[f]->float_data()[4 * (res_x * j + i)]);
   }
 
   if (och->ibufs_foam[f]) {
-    ocr->foam = och->ibufs_foam[f]->float_buffer.data[4 * (res_x * j + i)];
+    ocr->foam = och->ibufs_foam[f]->float_data()[4 * (res_x * j + i)];
   }
 
   if (och->ibufs_spray[f]) {
-    copy_v3_v3(ocr->Eplus, &och->ibufs_spray[f]->float_buffer.data[4 * (res_x * j + i)]);
+    copy_v3_v3(ocr->Eplus, &och->ibufs_spray[f]->float_data()[4 * (res_x * j + i)]);
   }
 
   if (och->ibufs_spray_inverse[f]) {
-    copy_v3_v3(ocr->Eminus, &och->ibufs_spray_inverse[f]->float_buffer.data[4 * (res_x * j + i)]);
+    copy_v3_v3(ocr->Eminus, &och->ibufs_spray_inverse[f]->float_data()[4 * (res_x * j + i)]);
   }
 
   if (och->ibufs_norm[f]) {
-    copy_v3_v3(ocr->normal, &och->ibufs_norm[f]->float_buffer.data[4 * (res_x * j + i)]);
+    copy_v3_v3(ocr->normal, &och->ibufs_norm[f]->float_data()[4 * (res_x * j + i)]);
   }
 }
 
@@ -1388,7 +1390,7 @@ void BKE_ocean_bake(Ocean *o,
    * are enabled, take care that #BKE_ocean_eval_ij() initializes a member before use. */
   OceanResult ocr;
 
-  ImageFormatData imf = {0};
+  ImageFormatData imf = {};
 
   int f, i = 0, x, y, cancel = 0;
   float progress;
@@ -1431,13 +1433,18 @@ void BKE_ocean_bake(Ocean *o,
     BKE_ocean_simulate(o, och->time[i], och->wave_scale, och->chop_amount);
 
     /* add new foam */
+    float *ibuf_disp_data = ibuf_disp->float_data_for_write();
+    float *ibuf_foam_data = ibuf_foam->float_data_for_write();
+    float *ibuf_spray_data = ibuf_spray->float_data_for_write();
+    float *ibuf_spray_inverse_data = ibuf_spray_inverse->float_data_for_write();
+    float *ibuf_normal_data = ibuf_normal->float_data_for_write();
     for (y = 0; y < res_y; y++) {
       for (x = 0; x < res_x; x++) {
 
         BKE_ocean_eval_ij(o, &ocr, x, y);
 
         /* add to the image */
-        rgb_to_rgba_unit_alpha(&ibuf_disp->float_buffer.data[4 * (res_x * y + x)], ocr.disp);
+        rgb_to_rgba_unit_alpha(&ibuf_disp_data[4 * (res_x * y + x)], ocr.disp);
 
         if (o->_do_jacobian) {
           /* TODO(@ideasman42): cleanup unused code. */
@@ -1480,19 +1487,17 @@ void BKE_ocean_bake(Ocean *o,
 
           // foam_result = min_ff(foam_result, 1.0f);
 
-          value_to_rgba_unit_alpha(&ibuf_foam->float_buffer.data[4 * (res_x * y + x)],
-                                   foam_result);
+          value_to_rgba_unit_alpha(&ibuf_foam_data[4 * (res_x * y + x)], foam_result);
 
           /* spray map baking */
           if (o->_do_spray) {
-            rgb_to_rgba_unit_alpha(&ibuf_spray->float_buffer.data[4 * (res_x * y + x)], ocr.Eplus);
-            rgb_to_rgba_unit_alpha(&ibuf_spray_inverse->float_buffer.data[4 * (res_x * y + x)],
-                                   ocr.Eminus);
+            rgb_to_rgba_unit_alpha(&ibuf_spray_data[4 * (res_x * y + x)], ocr.Eplus);
+            rgb_to_rgba_unit_alpha(&ibuf_spray_inverse_data[4 * (res_x * y + x)], ocr.Eminus);
           }
         }
 
         if (o->_do_normals) {
-          rgb_to_rgba_unit_alpha(&ibuf_normal->float_buffer.data[4 * (res_x * y + x)], ocr.normal);
+          rgb_to_rgba_unit_alpha(&ibuf_normal_data[4 * (res_x * y + x)], ocr.normal);
         }
       }
     }

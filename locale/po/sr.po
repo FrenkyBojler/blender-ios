@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 Alpha (b'ec8c60553753')\n"
+"Project-Id-Version: Blender 5.2.0 Alpha (b'8c7c45ad114e')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-03-23 09:55+0000\n"
+"POT-Creation-Date: 2026-05-11 07:23+0000\n"
 "PO-Revision-Date: 2025-07-23 15:10+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Serbian <https://translate.blender.org/projects/blender-ui/ui/sr/>\n"
@@ -1497,6 +1497,15 @@ msgid "Vertex Color"
 msgstr "Боја темена"
 
 
+msgid "Threshold"
+msgstr "Праг"
+
+
+msgctxt "Operator"
+msgid "Poly"
+msgstr "Полигон"
+
+
 msgid "All"
 msgstr "Све"
 
@@ -1507,10 +1516,6 @@ msgstr "Прецизност"
 
 msgid "Simplify"
 msgstr "Поједностављивање"
-
-
-msgid "Threshold"
-msgstr "Праг"
 
 
 msgid "Input Samples"
@@ -1535,6 +1540,10 @@ msgstr "Потез"
 
 msgid "Fill"
 msgstr "Испуна"
+
+
+msgid "Both"
+msgstr "Обе"
 
 
 msgid "Background Image"
@@ -8477,16 +8486,16 @@ msgid "Dots"
 msgstr "Туфне"
 
 
+msgid "Placement"
+msgstr "Локација"
+
+
 msgid "Material slot in an object"
 msgstr "Слот материјала у објекту"
 
 
 msgid "Material slot name"
 msgstr "Назив слота материјала"
-
-
-msgid "Mirror"
-msgstr "Огледало"
 
 
 msgid "Snap"
@@ -8513,8 +8522,8 @@ msgid "Select Linked"
 msgstr "Изабери повезано"
 
 
-msgid "Import"
-msgstr "Увоз"
+msgid "Math"
+msgstr "Математика"
 
 
 msgid "Metaball"
@@ -8523,14 +8532,6 @@ msgstr "Мета лопта"
 
 msgid "Light"
 msgstr "Светлост"
-
-
-msgid "Math"
-msgstr "Математика"
-
-
-msgid "UV"
-msgstr "UV"
 
 
 msgid "Relations"
@@ -8557,8 +8558,16 @@ msgid "Show/Hide"
 msgstr "Прикажи/сакриј"
 
 
+msgid "Import"
+msgstr "Увоз"
+
+
 msgid "Hooks"
 msgstr "Удице"
+
+
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Clear Transform"
@@ -8597,20 +8606,24 @@ msgid "Merge"
 msgstr "Сједини"
 
 
-msgid "Keying"
-msgstr "Збирка тастера"
-
-
 msgid "Special Characters"
 msgstr "Специјални знаци"
+
+
+msgid "Bone Roll"
+msgstr "Ролна костију"
+
+
+msgid "Keying"
+msgstr "Збирка тастера"
 
 
 msgid "Tracking"
 msgstr "Праћење"
 
 
-msgid "Bone Roll"
-msgstr "Ролна костију"
+msgid "Mirror"
+msgstr "Огледало"
 
 
 msgid "Basic"
@@ -11234,11 +11247,6 @@ msgstr "Увоз BVH"
 
 
 msgctxt "Operator"
-msgid "Import SVG"
-msgstr "Увоз SVG"
-
-
-msgctxt "Operator"
 msgid "Import FBX"
 msgstr "Извоз FBX"
 
@@ -12343,10 +12351,6 @@ msgstr "Детектуј могућности"
 
 msgid "Automatically detect features and place markers to track"
 msgstr "Самостално детектуј могућност и постави маркер на стазу"
-
-
-msgid "Placement"
-msgstr "Локација"
 
 
 msgid "Placement for detected features"
@@ -13814,10 +13818,6 @@ msgid "Side"
 msgstr "Са стране"
 
 
-msgid "Both"
-msgstr "Обе"
-
-
 msgctxt "Operator"
 msgid "Add F-Curve Modifier"
 msgstr "Додај модификатор Ф-криве"
@@ -14795,22 +14795,6 @@ msgstr "Споји изабрана темена"
 
 msgid "Merge method to use"
 msgstr "Избор метода спајања."
-
-
-msgid "At Center"
-msgstr "У центар"
-
-
-msgid "At Cursor"
-msgstr "За курсор"
-
-
-msgid "At First"
-msgstr "За прво"
-
-
-msgid "At Last"
-msgstr "За последње"
 
 
 msgid "Median"
@@ -18200,10 +18184,6 @@ msgid "Average Islands Scale"
 msgstr "Просечна величина острва"
 
 
-msgid "Axis Direction"
-msgstr "Смер оса"
-
-
 msgctxt "Operator"
 msgid "Cube Projection"
 msgstr "Кубична пројекција"
@@ -19082,12 +19062,12 @@ msgid "Restrict"
 msgstr "Ограничи"
 
 
-msgid "Motion Tracking"
-msgstr "Праћење покрета"
-
-
 msgid "Transform Orientations"
 msgstr "Трансформација оријентација"
+
+
+msgid "Motion Tracking"
+msgstr "Праћење покрета"
 
 
 msgid "Bone Constraints"
@@ -20175,10 +20155,6 @@ msgstr "Ограничи величину текстуре ради уштеде
 
 msgid "Device"
 msgstr "Уређај"
-
-
-msgid "2D Texture"
-msgstr "2D текстура"
 
 
 msgid "Ambient Color"
@@ -21409,10 +21385,6 @@ msgid "Sound"
 msgstr "Звук"
 
 
-msgid "Use Linear Modifiers"
-msgstr "Користи линеарни модификатор"
-
-
 msgid "Multiply Colors"
 msgstr "Умножене боје"
 
@@ -22588,6 +22560,10 @@ msgid "Report a Bug"
 msgstr "Пријава грешке"
 
 
+msgid "Object Index"
+msgstr "Индекс објекта"
+
+
 msgid "No output node"
 msgstr "Без излазног чвора"
 
@@ -22796,11 +22772,6 @@ msgstr "Курсор на избор"
 msgctxt "Operator"
 msgid "Cursor to Grid"
 msgstr "Курсор на вођице"
-
-
-msgctxt "Operator"
-msgid "Poly"
-msgstr "Полигон"
 
 
 msgid "Data Source:"
@@ -24012,10 +23983,6 @@ msgstr "Модификатор вредности F-криве"
 
 msgid "Nothing selected"
 msgstr "Ништа није изабрано"
-
-
-msgid "Pin"
-msgstr "Закачи"
 
 
 msgctxt "Operator"
@@ -25258,10 +25225,6 @@ msgstr "Боја1"
 
 msgid "Color2"
 msgstr "Боја2"
-
-
-msgid "Object Index"
-msgstr "Индекс објекта"
 
 
 msgid "Color Fac"

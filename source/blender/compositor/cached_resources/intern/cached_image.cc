@@ -206,7 +206,7 @@ static ImBuf *compute_linear_buffer(ImBuf *image_buffer)
 
   /* If no float buffer exists, assign it then compute a float buffer from it. This is the main
    * call of this function. */
-  if (!linear_image_buffer->float_buffer.data) {
+  if (!linear_image_buffer->float_data()) {
     IMB_assign_byte_buffer(
         linear_image_buffer, image_buffer->byte_buffer, IB_DO_NOT_TAKE_OWNERSHIP);
     IMB_float_from_byte(linear_image_buffer);
@@ -221,7 +221,7 @@ static ImBuf *compute_linear_buffer(ImBuf *image_buffer)
       IMB_colormanagement_space_is_scene_linear(image_buffer->byte_buffer.colorspace);
   if (image_buffer->ftype == IMB_FTYPE_DDS && is_suitable_compressed_color_space) {
     linear_image_buffer->ftype = IMB_FTYPE_DDS;
-    IMB_assign_dds_data(linear_image_buffer, image_buffer->dds_data, IB_DO_NOT_TAKE_OWNERSHIP);
+    linear_image_buffer->filepath = image_buffer->filepath;
   }
 
   return linear_image_buffer;
@@ -333,14 +333,14 @@ CachedImage::CachedImage(Context &context,
   /* For GPU, we wrap the texture returned by IMB module and free it ourselves in destructor. For
    * CPU, we allocate the result and copy to it from the image buffer. */
   if (context.use_gpu()) {
-    texture_ = IMB_create_gpu_texture("Image Texture", linear_image_buffer, true, true);
+    texture_ = IMB_create_gpu_texture("Image Texture", linear_image_buffer, true, true, false);
     GPU_texture_update_mipmap_chain(texture_);
-    this->result.wrap_external(texture_);
+    this->result.share_data(texture_);
   }
   else {
     const int2 size = int2(image_buffer->x, image_buffer->y);
     Result buffer_result(context, float_type(image_buffer->channels), ResultPrecision::Full);
-    buffer_result.wrap_external(linear_image_buffer->float_buffer.data, size);
+    buffer_result.share_data(linear_image_buffer->float_data(), size);
     this->result.allocate_texture(size, false);
 
     if (buffer_result.type() == ResultType::Color && result.type() == ResultType::Float4) {
@@ -363,6 +363,7 @@ CachedImage::CachedImage(Context &context,
             });
           });
     }
+    buffer_result.release();
   }
 
   if (image_buffer->flags & IB_has_display_window) {

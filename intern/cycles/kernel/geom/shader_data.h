@@ -101,11 +101,11 @@ ccl_device_inline
 
     if (!(sd->object_flag & SD_OBJECT_TRANSFORM_APPLIED)) {
       /* instance transform */
-      object_normal_transform_auto(kg, sd, &sd->N);
-      object_normal_transform_auto(kg, sd, &sd->Ng);
+      object_normal_transform(kg, sd, &sd->N);
+      object_normal_transform(kg, sd, &sd->Ng);
 #ifdef __DPDU__
-      object_dir_transform_auto(kg, sd, &sd->dPdu);
-      object_dir_transform_auto(kg, sd, &sd->dPdv);
+      object_dir_transform(kg, sd, &sd->dPdu);
+      object_dir_transform(kg, sd, &sd->dPdv);
 #endif
     }
   }
@@ -186,10 +186,10 @@ ccl_device_inline void shader_setup_from_sample(KernelGlobals kg,
 
     /* transform into world space */
     if (object_space) {
-      object_position_transform_auto(kg, sd, &sd->P);
-      object_normal_transform_auto(kg, sd, &sd->Ng);
+      object_position_transform(kg, sd, &sd->P);
+      object_normal_transform(kg, sd, &sd->Ng);
       sd->N = sd->Ng;
-      object_dir_transform_auto(kg, sd, &sd->wi);
+      object_dir_transform(kg, sd, &sd->wi);
     }
 
     if (sd->type == PRIMITIVE_TRIANGLE) {
@@ -199,7 +199,7 @@ ccl_device_inline void shader_setup_from_sample(KernelGlobals kg,
             kg, Ng, sd->object, sd->object_flag, sd->prim, sd->u, sd->v);
 
         if (!(sd->object_flag & SD_OBJECT_TRANSFORM_APPLIED)) {
-          object_normal_transform_auto(kg, sd, &sd->N);
+          object_normal_transform(kg, sd, &sd->N);
         }
       }
 
@@ -208,8 +208,8 @@ ccl_device_inline void shader_setup_from_sample(KernelGlobals kg,
       triangle_dPdudv(kg, sd->prim, &sd->dPdu, &sd->dPdv);
 
       if (!(sd->object_flag & SD_OBJECT_TRANSFORM_APPLIED)) {
-        object_dir_transform_auto(kg, sd, &sd->dPdu);
-        object_dir_transform_auto(kg, sd, &sd->dPdv);
+        object_dir_transform(kg, sd, &sd->dPdu);
+        object_dir_transform(kg, sd, &sd->dPdv);
       }
 #endif
     }
@@ -287,6 +287,18 @@ ccl_device void shader_setup_from_displace(KernelGlobals kg,
 
   /* Assign some incoming direction to avoid division by zero. */
   sd->wi = sd->N;
+
+#ifdef __RAY_DIFFERENTIALS__
+  /* Set ray differentials based on triangle size for texture filtering.
+   * The parametric step across the triangle is 1.0, giving dPdx = dPdu
+   * and dPdy = dPdv.
+   * TODO: consider computing this based on all triangles adjacent to the vertex. */
+  sd->du.dx = 1.0f;
+  sd->du.dy = 0.0f;
+  sd->dv.dx = 0.0f;
+  sd->dv.dy = 1.0f;
+  sd->dP = 0.5f * (len(sd->dPdu) + len(sd->dPdv));
+#endif
 }
 
 /* ShaderData setup for point on curve. */
@@ -345,9 +357,9 @@ ccl_device void shader_setup_from_curve(KernelGlobals kg,
 
   /* Transform into world space */
   if (!(sd->object_flag & SD_OBJECT_TRANSFORM_APPLIED)) {
-    object_position_transform_auto(kg, sd, &sd->P);
+    object_position_transform(kg, sd, &sd->P);
 #  ifdef __DPDU__
-    object_dir_transform_auto(kg, sd, &sd->dPdu);
+    object_dir_transform(kg, sd, &sd->dPdu);
 #  endif
   }
 

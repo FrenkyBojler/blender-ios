@@ -62,7 +62,7 @@ Scene ::Scene(const SceneParams &params_, Device *device)
   light_manager = make_unique<LightManager>();
   geometry_manager = make_unique<GeometryManager>();
   object_manager = make_unique<ObjectManager>();
-  image_manager = make_unique<ImageManager>(device->info);
+  image_manager = make_unique<ImageManager>(device->info, params);
   particle_system_manager = make_unique<ParticleSystemManager>();
   bake_manager = make_unique<BakeManager>();
   procedural_manager = make_unique<ProceduralManager>();
@@ -412,7 +412,9 @@ Scene::MotionType Scene::need_motion() const
   if (integrator->get_motion_blur()) {
     return MOTION_BLUR;
   }
-  if (Pass::contains(passes, PASS_MOTION)) {
+  if (Pass::contains(passes, PASS_MOTION) ||
+      Pass::contains(passes, PASS_DENOISING_BACKWARD_MOTION))
+  {
     return MOTION_PASS;
   }
   return MOTION_NONE;
@@ -426,7 +428,7 @@ float Scene::motion_shutter_time()
   return camera->get_shuttertime();
 }
 
-bool Scene::need_global_attribute(AttributeStandard std)
+bool Scene::need_global_attribute(AttributeStandard std) const
 {
   if (std == ATTR_STD_UV) {
     return Pass::contains(passes, PASS_UV);
@@ -449,6 +451,10 @@ void Scene::need_global_attributes(AttributeRequestSet &attributes)
     if (need_global_attribute((AttributeStandard)std)) {
       attributes.add((AttributeStandard)std);
     }
+  }
+
+  for (const Shader *shader : shaders) {
+    attributes.add(shader->global_attributes);
   }
 }
 
@@ -632,15 +638,25 @@ bool Scene::update(Progress &progress)
 
 bool Scene::update_camera_resolution(Progress &progress, int width, int height)
 {
-  if (!camera->set_screen_size(width, height)) {
-    return false;
+  bool update_data = false;
+
+  if (camera->set_screen_size(width, height)) {
+    camera->device_update(device, &dscene, this);
+    update_data = true;
   }
 
-  camera->device_update(device, &dscene, this);
+  if (integrator->get_use_pixel_jitter()) {
+    integrator->tag_use_pixel_jitter_modified();
 
-  progress.set_status("Updating Device", "Writing constant memory");
-  device->const_copy_to("data", &dscene.data, sizeof(dscene.data));
-  return true;
+    integrator->device_update(device, &dscene, this);
+    update_data = true;
+  }
+
+  if (update_data) {
+    progress.set_status("Updating Device", "Writing constant memory");
+    device->const_copy_to("data", &dscene.data, sizeof(dscene.data));
+  }
+  return update_data;
 }
 
 static void log_kernel_features(const uint features)
