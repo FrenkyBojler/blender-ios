@@ -502,7 +502,7 @@ ReshapeConstGridElement multires_reshape_orig_grid_element_for_grid_coord(
   const MDisps *mdisps = reshape_context->orig.mdisps;
   if (mdisps != nullptr) {
     const MDisps *displacement_grid = &mdisps[grid_coord->grid_index];
-    if (displacement_grid->disps != nullptr) {
+    if (displacement_grid->disps != nullptr && displacement_grid->level > 0) {
       const int grid_size = bke::subdiv::grid_size_from_level(displacement_grid->level);
       const int grid_x = lround(grid_coord->u * (grid_size - 1));
       const int grid_y = lround(grid_coord->v * (grid_size - 1));
@@ -514,7 +514,7 @@ ReshapeConstGridElement multires_reshape_orig_grid_element_for_grid_coord(
   const GridPaintMask *grid_paint_masks = reshape_context->orig.grid_paint_masks;
   if (grid_paint_masks != nullptr) {
     const GridPaintMask *paint_mask_grid = &grid_paint_masks[grid_coord->grid_index];
-    if (paint_mask_grid->data != nullptr) {
+    if (paint_mask_grid->data != nullptr && paint_mask_grid->level > 0) {
       const int grid_size = bke::subdiv::grid_size_from_level(paint_mask_grid->level);
       const int grid_x = lround(grid_coord->u * (grid_size - 1));
       const int grid_y = lround(grid_coord->v * (grid_size - 1));
