@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 Alpha (b'8bc0d293b105')\n"
+"Project-Id-Version: Blender 5.2.0 Alpha (b'8c7c45ad114e')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-04-28 08:59+0000\n"
+"POT-Creation-Date: 2026-05-11 07:23+0000\n"
 "PO-Revision-Date: 2025-07-23 15:08+0000\n"
 "Last-Translator: Bartosz <gang65@poczta.onet.pl>\n"
 "Language-Team: Ukrainian <https://translate.blender.org/projects/blender-ui/ui/uk/>\n"
@@ -26291,136 +26291,8 @@ msgid "Material slot name"
 msgstr "Назва гнізда матеріалу"
 
 
-msgid "Clear Transform"
-msgstr "Зчистити трансформації"
-
-
-msgid "In-Betweens"
-msgstr "У проміжках"
-
-
-msgid "Propagate"
-msgstr "Поширити"
-
-
-msgid "Names"
-msgstr "Назви"
-
-
-msgid "Show/Hide"
-msgstr "Показати/приховати"
-
-
-msgid "Apply"
-msgstr "Застосувати"
-
-
-msgid "Toggle Bone Options"
-msgstr "Перемкнути параметри кісток"
-
-
-msgid "Math"
-msgstr "Математика"
-
-
-msgid "Enable Bone Options"
-msgstr "Увімкнути параметри кісток"
-
-
-msgid "Disable Bone Options"
-msgstr "Відключити параметри кісток"
-
-
-msgid "Utilities"
-msgstr "Утиліти"
-
-
-msgid "Mesh Select Mode"
-msgstr "Режим Вибору Сіті"
-
-
-msgid "Face Data"
-msgstr "Дані граней"
-
-
-msgid "Select by Face Strength"
-msgstr "Вибрати за Силою Грані"
-
-
-msgid "Set Face Strength"
-msgstr "Задати Силу Грані"
-
-
-msgid "Clean Up"
-msgstr "Вичищення"
-
-
-msgid "Merge"
-msgstr "Об'єднання"
-
-
-msgid "Sample"
-msgstr "Вибірка"
-
-
-msgid "Primitives"
-msgstr "Примітиви"
-
-
-msgid "Special Characters"
-msgstr "Спеціальні символи"
-
-
-msgid "Kerning"
-msgstr "Кернінг"
-
-
-msgid "Metaball"
-msgstr "Метакуля"
-
-
-msgid "Bone Roll"
-msgstr "Прокручення Кістки"
-
-
-msgid "Import"
-msgstr "Імпортувати"
-
-
-msgid "Pivot Point"
-msgstr "Точка Опертя"
-
-
 msgid "Snap"
 msgstr "Підхоп"
-
-
-msgid "Proportional Editing Falloff"
-msgstr "Спад Пропорційного Редагування"
-
-
-msgid "Mask Edit"
-msgstr "Редагування Маски"
-
-
-msgid "Automasking"
-msgstr "Автомаскування"
-
-
-msgid "UV"
-msgstr "UV"
-
-
-msgid "Face Sets Edit"
-msgstr "Редагування Наборів Граней"
-
-
-msgid "Vertex Group Locks"
-msgstr "Блокування Груп Вершин"
-
-
-msgid "Mirror"
-msgstr "Дзеркалення"
 
 
 msgid "UV Mapping"
@@ -26471,12 +26343,24 @@ msgid "Select Loops"
 msgstr "Виділити петлі"
 
 
+msgid "Math"
+msgstr "Математика"
+
+
+msgid "Utilities"
+msgstr "Утиліти"
+
+
 msgid "Assign Material"
 msgstr "Призначити Матеріал"
 
 
-msgid "Layout"
-msgstr "Розстановка"
+msgid "Metaball"
+msgstr "Метакуля"
+
+
+msgid "Sample"
+msgstr "Вибірка"
 
 
 msgid "Light"
@@ -26487,6 +26371,10 @@ msgid "Light Probe"
 msgstr "Проба Освітлення"
 
 
+msgid "Primitives"
+msgstr "Примітиви"
+
+
 msgid "Add Image"
 msgstr "Додати Зображення"
 
@@ -26495,16 +26383,12 @@ msgid "Relations"
 msgstr "Зв'язки"
 
 
-msgid "Keying"
-msgstr "Ключування"
-
-
-msgid "Tracking"
-msgstr "Стеження"
-
-
 msgid "Rigid Body"
 msgstr "Тверде тіло"
+
+
+msgid "Apply"
+msgstr "Застосувати"
 
 
 msgid "Track"
@@ -26513,6 +26397,18 @@ msgstr "Стеження"
 
 msgid "Quick Effects"
 msgstr "Швидкі ефекти"
+
+
+msgid "Show/Hide"
+msgstr "Показати/приховати"
+
+
+msgid "Clean Up"
+msgstr "Вичищення"
+
+
+msgid "Import"
+msgstr "Імпортувати"
 
 
 msgid "Asset"
@@ -26535,12 +26431,116 @@ msgid "Hooks"
 msgstr "Гачки"
 
 
+msgid "Vertex Group Locks"
+msgstr "Блокування Груп Вершин"
+
+
+msgid "UV"
+msgstr "UV"
+
+
 msgid "Sculpt Set Pivot"
 msgstr "Ліплення Задати Опертя"
 
 
 msgid "Face Sets Init"
 msgstr "Ініціація Наборів Граней"
+
+
+msgid "Clear Transform"
+msgstr "Зчистити трансформації"
+
+
+msgid "In-Betweens"
+msgstr "У проміжках"
+
+
+msgid "Propagate"
+msgstr "Поширити"
+
+
+msgid "Names"
+msgstr "Назви"
+
+
+msgid "Toggle Bone Options"
+msgstr "Перемкнути параметри кісток"
+
+
+msgid "Enable Bone Options"
+msgstr "Увімкнути параметри кісток"
+
+
+msgid "Disable Bone Options"
+msgstr "Відключити параметри кісток"
+
+
+msgid "Mesh Select Mode"
+msgstr "Режим Вибору Сіті"
+
+
+msgid "Face Data"
+msgstr "Дані граней"
+
+
+msgid "Select by Face Strength"
+msgstr "Вибрати за Силою Грані"
+
+
+msgid "Set Face Strength"
+msgstr "Задати Силу Грані"
+
+
+msgid "Merge"
+msgstr "Об'єднання"
+
+
+msgid "Special Characters"
+msgstr "Спеціальні символи"
+
+
+msgid "Kerning"
+msgstr "Кернінг"
+
+
+msgid "Layout"
+msgstr "Розстановка"
+
+
+msgid "Bone Roll"
+msgstr "Прокручення Кістки"
+
+
+msgid "Keying"
+msgstr "Ключування"
+
+
+msgid "Tracking"
+msgstr "Стеження"
+
+
+msgid "Pivot Point"
+msgstr "Точка Опертя"
+
+
+msgid "Proportional Editing Falloff"
+msgstr "Спад Пропорційного Редагування"
+
+
+msgid "Mask Edit"
+msgstr "Редагування Маски"
+
+
+msgid "Automasking"
+msgstr "Автомаскування"
+
+
+msgid "Face Sets Edit"
+msgstr "Редагування Наборів Граней"
+
+
+msgid "Mirror"
+msgstr "Дзеркалення"
 
 
 msgid "Basic"
@@ -37873,20 +37873,20 @@ msgid "Flip times of selected keyframes using the current frame as the mirror li
 msgstr "Відобразити час вибраних ключових кадрів відносно поточного кадру"
 
 
-msgid "By Values Over Zero Value"
-msgstr "За Значеннями Вище Значення Нуля"
-
-
-msgid "Flip values of selected keyframes (i.e. negative values become positive, and vice versa)"
-msgstr "Змінити знак вибраних ключових кадрів (тобто, від'ємні значення зробити додатними, і навпаки)"
-
-
 msgid "By Times Over First Selected Marker"
 msgstr "За часом відносно першої вибраної мітки"
 
 
 msgid "Flip times of selected keyframes using the first selected marker as the reference point"
 msgstr "Відобразити час вибраних ключових кадрів відносно першої вибраної мітки"
+
+
+msgid "By Values Over Zero Value"
+msgstr "За Значеннями Вище Значення Нуля"
+
+
+msgid "Flip values of selected keyframes (i.e. negative values become positive, and vice versa)"
+msgstr "Змінити знак вибраних ключових кадрів (тобто, від'ємні значення зробити додатними, і навпаки)"
 
 
 msgctxt "Operator"
@@ -43465,20 +43465,20 @@ msgid "Next Keyframe"
 msgstr "Наступний ключкадр"
 
 
-msgid "By Values Over Cursor Value"
-msgstr "За Значеннями через Значення Курсора"
-
-
-msgid "Flip values of selected keyframes using the cursor value (Y/Horizontal component) as the mirror line"
-msgstr "Відобразити значення вибраних ключових кадрів відносно значення курсора (Y/горизонтальна складова)"
-
-
 msgid "By Times Over Zero Time"
 msgstr "За Часом Вище Часу Нуль"
 
 
 msgid "Flip times of selected keyframes, effectively reversing the order they appear in"
 msgstr "Відобразити час вибраних ключових кадрів, змінивши порядок їх появи"
+
+
+msgid "By Values Over Cursor Value"
+msgstr "За Значеннями через Значення Курсора"
+
+
+msgid "Flip values of selected keyframes using the cursor value (Y/Horizontal component) as the mirror line"
+msgstr "Відобразити значення вибраних ключових кадрів відносно значення курсора (Y/горизонтальна складова)"
 
 
 msgctxt "Operator"
@@ -60646,6 +60646,58 @@ msgid "Panel containing UI elements"
 msgstr "Панель, що містить елементи Інтерфейсу Користувача"
 
 
+msgid "Mesh Edit Mode"
+msgstr "Режим Редагування Сіті"
+
+
+msgid "Measurement"
+msgstr "Вимірювання"
+
+
+msgid "Curve Edit Mode"
+msgstr "Режим Редагування Кривої"
+
+
+msgid "Transform Orientations"
+msgstr "Орієнтації Трансформ"
+
+
+msgid "Stroke Placement"
+msgstr "Розміщення Штриха"
+
+
+msgid "Drawing Plane"
+msgstr "Площина Рисування"
+
+
+msgid "Guides"
+msgstr "Напрямні"
+
+
+msgid "Quad View"
+msgstr "Чотирибічний Огляд"
+
+
+msgid "Onion Skin"
+msgstr "Покрив Калькою"
+
+
+msgid "Stereoscopy"
+msgstr "Стереоскопія"
+
+
+msgid "Multi Frame"
+msgstr "Багато Кадр"
+
+
+msgid "Auto-Masking"
+msgstr "Авто-Маскування"
+
+
+msgid "VR"
+msgstr "ВР"
+
+
 msgid "Active Tool"
 msgstr "Активний Засіб"
 
@@ -60674,60 +60726,8 @@ msgid "Overlays"
 msgstr "Накладки"
 
 
-msgid "Guides"
-msgstr "Напрямні"
-
-
 msgid "Motion Tracking"
 msgstr "Відстеження руху"
-
-
-msgid "Mesh Edit Mode"
-msgstr "Режим Редагування Сіті"
-
-
-msgid "Measurement"
-msgstr "Вимірювання"
-
-
-msgid "Curve Edit Mode"
-msgstr "Режим Редагування Кривої"
-
-
-msgid "Transform Orientations"
-msgstr "Орієнтації Трансформ"
-
-
-msgid "Stroke Placement"
-msgstr "Розміщення Штриха"
-
-
-msgid "Drawing Plane"
-msgstr "Площина Рисування"
-
-
-msgid "Quad View"
-msgstr "Чотирибічний Огляд"
-
-
-msgid "Onion Skin"
-msgstr "Покрив Калькою"
-
-
-msgid "Stereoscopy"
-msgstr "Стереоскопія"
-
-
-msgid "Multi Frame"
-msgstr "Багато Кадр"
-
-
-msgid "Auto-Masking"
-msgstr "Авто-Маскування"
-
-
-msgid "VR"
-msgstr "ВР"
 
 
 msgid "Chain Scaling"
@@ -64148,22 +64148,6 @@ msgstr "Лімітувати розмір текстури, щоб заощад�
 
 msgid "Device"
 msgstr "Пристрій"
-
-
-msgid "Image Display Method"
-msgstr "Метод Показу Зображення"
-
-
-msgid "Method used for displaying images on the screen"
-msgstr "Спосіб показу зображень на екрані"
-
-
-msgid "Automatically choose method based on GPU and image"
-msgstr "Автоматично вибирати метод на основі ГП та зображення"
-
-
-msgid "2D Texture"
-msgstr "2D текстура"
 
 
 msgid "Legacy Compute Device Type"
@@ -83245,10 +83229,6 @@ msgid "Browse Workspace to be linked"
 msgstr "Переглянути Робпростори для пов'язання"
 
 
-msgid "Browse LightProbe to be linked"
-msgstr "Переглянути Проби Освітлення для пов'язання"
-
-
 msgid "Browse Point Cloud Data to be linked"
 msgstr "Переглянути Дані Хмари Точок для пов'язання"
 
@@ -86787,10 +86767,6 @@ msgstr "Обчислення числового уводу"
 
 msgid "UV Vertex"
 msgstr "UV-вершина"
-
-
-msgid "Rip failed"
-msgstr "Збій розривання"
 
 
 msgid "Minimize Stretch. Blend %.2f"

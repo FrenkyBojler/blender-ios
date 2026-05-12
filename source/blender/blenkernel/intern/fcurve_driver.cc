@@ -640,7 +640,7 @@ static float dvar_eval_transChan(const AnimationEvalContext * /*anim_eval_contex
         /* Specially calculate local matrix, since chan_mat is not valid
          * since it stores delta transform of pose_mat so that deforms work
          * so it cannot be used here for "transform" space. */
-        BKE_pchan_to_mat4(pchan, mat);
+        BKE_pchan_to_mat4({pchan, pchan->bone_get(*ob)}, mat);
       }
     }
     else {
@@ -842,7 +842,7 @@ static DriverVarTypeInfo dvar_types[MAX_DVAR_TYPES] = {
 static const DriverVarTypeInfo *get_dvar_typeinfo(eDriverVar_Types type)
 {
   /* Check if valid type. */
-  if ((int(type) >= 0) && (type < MAX_DVAR_TYPES)) {
+  if (uint32_t(type) < MAX_DVAR_TYPES) {
     return &dvar_types[type];
   }
 
