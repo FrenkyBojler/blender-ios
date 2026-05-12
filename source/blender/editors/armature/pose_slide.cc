@@ -557,133 +557,6 @@ static void pose_slide_apply_property_snapshots(tPoseSlideOp &pso,
 }
 
 /**
- * Helper for apply() - perform sliding for custom properties or bbone properties.
- */
-static void pose_slide_apply_props(tPoseSlideOp *pso,
-                                   SlideSubject *slide_subject,
-                                   const char prop_prefix[])
-{
-  int len = strlen(slide_subject->pchan_path);
-
-  /* Setup pointer RNA for resolving paths. */
-  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, RNA_PoseBone, slide_subject->pchan);
-
-  /* - custom properties are just denoted using ["..."][etc.] after the end of the base path,
-   *   so just check for opening pair after the end of the path
-   * - bbone properties are similar, but they always start with a prefix "bbone_*",
-   *   so a similar method should work here for those too
-   */
-  for (FCurve *fcu : slide_subject->fcurves) {
-    const char *bPtr, *pPtr;
-
-    if (fcu->rna_path == nullptr) {
-      continue;
-    }
-
-    /* Do we have a match?
-     * - bPtr is the RNA Path with the standard part chopped off.
-     * - pPtr is the chunk of the path which is left over.
-     */
-    bPtr = strstr(fcu->rna_path, slide_subject->pchan_path) + len;
-    pPtr = strstr(bPtr, prop_prefix);
-
-    if (pPtr) {
-      /* Use RNA to try and get a handle on this property, then, assuming that it is just
-       * numerical, try and grab the value as a float for temp editing before setting back. */
-      PropertyRNA *prop = RNA_struct_find_property(&ptr, pPtr);
-
-      if (prop) {
-        switch (RNA_property_type(prop)) {
-          /* Continuous values that can be smoothly interpolated. */
-          case PROP_FLOAT: {
-            const bool is_array = RNA_property_array_check(prop);
-            float tval;
-            if (is_array) {
-              if (UNLIKELY(uint(fcu->array_index) >= RNA_property_array_length(&ptr, prop))) {
-                break; /* Out of range, skip. */
-              }
-              tval = RNA_property_float_get_index(&ptr, prop, fcu->array_index);
-            }
-            else {
-              tval = RNA_property_float_get(&ptr, prop);
-            }
-
-            pose_slide_apply_val(pso, fcu, slide_subject->ob, &tval);
-
-            if (is_array) {
-              RNA_property_float_set_index(&ptr, prop, fcu->array_index, tval);
-            }
-            else {
-              RNA_property_float_set(&ptr, prop, tval);
-            }
-            break;
-          }
-          case PROP_INT: {
-            const bool is_array = RNA_property_array_check(prop);
-            float tval;
-            if (is_array) {
-              if (UNLIKELY(uint(fcu->array_index) >= RNA_property_array_length(&ptr, prop))) {
-                break; /* Out of range, skip. */
-              }
-              tval = RNA_property_int_get_index(&ptr, prop, fcu->array_index);
-            }
-            else {
-              tval = RNA_property_int_get(&ptr, prop);
-            }
-
-            pose_slide_apply_val(pso, fcu, slide_subject->ob, &tval);
-
-            if (is_array) {
-              RNA_property_int_set_index(&ptr, prop, fcu->array_index, tval);
-            }
-            else {
-              RNA_property_int_set(&ptr, prop, tval);
-            }
-            break;
-          }
-
-          /* Values which can only take discrete values. */
-          case PROP_BOOLEAN: {
-            const bool is_array = RNA_property_array_check(prop);
-            float tval;
-            if (is_array) {
-              if (UNLIKELY(uint(fcu->array_index) >= RNA_property_array_length(&ptr, prop))) {
-                break; /* Out of range, skip. */
-              }
-              tval = float(RNA_property_boolean_get_index(&ptr, prop, fcu->array_index));
-            }
-            else {
-              tval = float(RNA_property_boolean_get(&ptr, prop));
-            }
-
-            pose_slide_apply_val(pso, fcu, slide_subject->ob, &tval);
-
-            /* XXX: do we need threshold clamping here? */
-            if (is_array) {
-              RNA_property_boolean_set_index(&ptr, prop, fcu->array_index, tval);
-            }
-            else {
-              RNA_property_boolean_set(&ptr, prop, tval);
-            }
-            break;
-          }
-          case PROP_ENUM: {
-            /* Don't handle this case - these don't usually represent interchangeable
-             * set of values which should be interpolated between. */
-            break;
-          }
-
-          default:
-            /* Cannot handle. */
-            // printf("Cannot Pose Slide non-numerical property\n");
-            break;
-        }
-      }
-    }
-  }
-}
-
-/**
  * Helper for apply() - perform sliding for quaternion rotations (using quat blending).
  */
 static void pose_slide_apply_quat(tPoseSlideOp *pso, SlideSubject *slide_subject)
@@ -886,7 +759,6 @@ static void pose_slide_rest_pose_apply(bContext *C, tPoseSlideOp *pso)
     {
       /* Bbone properties - they all start a "bbone_" prefix. */
       /* TODO: Not implemented. */
-      // pose_slide_apply_props(pso, slide_subject, "bbone_");
     }
 
     if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_PROPS)) {
@@ -967,8 +839,8 @@ static void pose_slide_apply(bContext *C, tPoseSlideOp *pso)
     if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_BBONE_SHAPE) &&
         (slide_subject.transform_flag & ACT_TRANS_BBONE))
     {
-      /* Bbone properties - they all start a "bbone_" prefix. */
-      pose_slide_apply_props(pso, &slide_subject, "bbone_");
+      pose_slide_apply_property_snapshots(
+          *pso, slide_subject, slide_subject.additional_properties);
     }
 
     if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_PROPS)) {
