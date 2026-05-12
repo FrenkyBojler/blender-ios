@@ -11,8 +11,6 @@
 CCL_NAMESPACE_BEGIN
 
 #ifdef __DENOISING_FEATURES__
-/* Helper function for film_write_denoising_features_surface and
- * film_write_denoising_features_surface_volume. */
 ccl_device_forceinline float denoising_depth_compute(KernelGlobals kg,
                                                      IntegratorState state,
                                                      const ccl_private ShaderData *sd,
@@ -33,8 +31,7 @@ ccl_device_forceinline float denoising_depth_compute(KernelGlobals kg,
     depth = new_depth - prev_depth;
   }
 
-  const float denoising_depth = ensure_finite(depth * average(denoising_feature_throughput));
-  return denoising_depth;
+  return ensure_finite(depth * average(denoising_feature_throughput));
 }
 
 ccl_device_forceinline void film_write_denoising_features_surface(KernelGlobals kg,
