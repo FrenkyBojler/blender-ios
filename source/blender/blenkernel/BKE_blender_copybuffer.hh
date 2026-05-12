@@ -24,7 +24,7 @@ struct bContext;
  * Unlike #BKE_copybuffer_paste, it does not perform any instantiation of collections/objects/etc.,
  * and does not clear the potential #ID_FLAG_CLIPBOARD_MARK flag from read IDs.
  *
- * Typically used for complex copy/psting, using a temporary Main instead of the global one.
+ * Typically used for complex copy/pasting, using a temporary Main instead of the global one.
  *
  * \param libname: Full path to the .blend file used as copy/paste buffer.
  * \param id_types_mask: Only directly link IDs of those types from the given .blend file buffer.
