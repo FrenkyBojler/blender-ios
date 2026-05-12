@@ -1518,6 +1518,30 @@ def get_submodules(module_name: str, all_modules: dict[str, ModuleInfo]) -> list
 
 
 # ----------------------------------------------------------------------------
+# Module Exclusions
+
+# Module name patterns to skip during stub generation.
+# An exact name matches that module only; a pattern ending in ``.*`` matches
+# all submodules under that prefix (the prefix itself must be listed separately
+# to also exclude the parent).
+EXCLUDED_MODULES: tuple[str, ...] = (
+    "aud",
+    "aud.*",
+)
+
+
+def is_module_excluded(name: str) -> bool:
+    """Return True if *name* matches any pattern in ``EXCLUDED_MODULES``."""
+    for pattern in EXCLUDED_MODULES:
+        if pattern.endswith(".*"):
+            if name.startswith(pattern[:-2] + "."):
+                return True
+        elif name == pattern:
+            return True
+    return False
+
+
+# ----------------------------------------------------------------------------
 # Main
 
 def build_class_locations(modules: dict[str, ModuleInfo]) -> dict[str, str]:
@@ -1687,6 +1711,12 @@ def main() -> int:
 
     for rst_path in rst_files:
         if rst_path.name == "index.rst":
+            continue
+        # Skip excluded modules before parsing so no warnings are emitted.
+        # Filename stems match `.. module::` names in this build tree.
+        if is_module_excluded(rst_path.stem):
+            if GLOBAL.verbose:
+                print("Skipped (excluded): {:s}".format(rst_path.stem))
             continue
         module = parse_rst_file(rst_path)
         if not module.name:
