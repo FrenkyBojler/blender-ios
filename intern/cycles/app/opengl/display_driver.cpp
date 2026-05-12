@@ -7,7 +7,6 @@
 
 #include "util/log.h"
 
-#include <SDL3/SDL.h>
 #include <epoxy/gl.h>
 
 CCL_NAMESPACE_BEGIN
