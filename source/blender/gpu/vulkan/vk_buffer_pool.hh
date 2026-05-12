@@ -68,7 +68,7 @@ class VKBufferPool {
   void ensure_uploaded();
 
   /**
-   * \brief Discard the current pools to the discard pool.
+   * \brief Discard the current buffers to the discard pool.
    */
   void discard();
 

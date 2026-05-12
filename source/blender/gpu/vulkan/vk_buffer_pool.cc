@@ -74,6 +74,7 @@ void VKBufferPool::discard()
 
 void VKBufferPool::finalize_active_buffer()
 {
+  BLI_assert(!buffers_.is_empty());
   std::unique_ptr<VKBuffer> &active_buffer = buffers_.last();
   if (active_buffer->is_mapped()) {
     active_buffer->update_sub_immediately(0, buffer_offset_, data_.data());
