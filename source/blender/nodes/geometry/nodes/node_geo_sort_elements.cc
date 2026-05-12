@@ -179,7 +179,7 @@ static std::optional<Array<int>> sorted_indices(const fn::FieldContext &field_co
   Array<int> indices(domain_size);
 
   array_utils::scatter<int>(gathered_indices, mask, indices);
-  array_utils::fill_index_range(unselected, indices);
+  array_utils::fill_index_range<int>(unselected, indices);
 
   if (array_utils::indices_are_range(indices, indices.index_range())) {
     return std::nullopt;
