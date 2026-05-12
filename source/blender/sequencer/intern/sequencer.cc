@@ -256,9 +256,7 @@ static void seq_strip_free_ex(Scene *scene,
     strip->retiming_keys_num = 0;
   }
 
-  if (strip->scene_view_layer_name != nullptr) {
-    MEM_delete(strip->scene_view_layer_name);
-  }
+  MEM_SAFE_DELETE(strip->scene_view_layer_name);
 
   MEM_SAFE_DELETE(strip->runtime);
   MEM_delete(strip);
