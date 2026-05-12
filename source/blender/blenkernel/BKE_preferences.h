@@ -18,7 +18,7 @@ struct UserDef;
 struct bUserExtensionRepo;
 struct bUserAssetLibrary;
 struct bUserAssetShelfSettings;
-struct StringRef;
+class StringRef;
 
 /* -------------------------------------------------------------------- */
 /** \name Preferences File
