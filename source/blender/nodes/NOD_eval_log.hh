@@ -328,6 +328,7 @@ class NodeTreeLogger {
   };
   struct NodeImagePreview {
     int32_t node_id;
+    /** An image preview of the node. Owned by the logger and should be freed when destructed. */
     ImBuf *image_preview = nullptr;
   };
 
@@ -369,7 +370,7 @@ class NodeLog {
   Map<StringRefNull, NamedAttributeUsage> used_named_attributes;
   /** Messages that are used for debugging purposes during development. */
   Vector<StringRefNull> debug_messages;
-  /** An image preview of the node. */
+  /** An image preview of the node. Owned by the log and should be freed when destructed. */
   ImBuf *image_preview = nullptr;
 
   NodeLog();
