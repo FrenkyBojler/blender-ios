@@ -1767,12 +1767,9 @@ static wmOperatorStatus wm_operator_invoke(bContext *C,
 
           /* Wrap only in X for header. */
           if (region && RGN_TYPE_IS_HEADER_ANY(region->regiontype)) {
-            wrap = WM_CURSOR_WRAP_X;
-          }
-          else if (region && (region->regiontype == RGN_TYPE_PLAYBACK_SCRUBBING)) {
             /* Disable cursor wrapping/continuous grab when scrubbing playhead in scrubbing region.
              */
-            wrap = WM_CURSOR_WRAP_NONE;
+            wrap = (region->regiontype != RGN_TYPE_PLAYBACK_SCRUBBING) ? WM_CURSOR_WRAP_X : WM_CURSOR_WRAP_NONE;
           }
 
           if (region && region->regiontype == RGN_TYPE_WINDOW &&

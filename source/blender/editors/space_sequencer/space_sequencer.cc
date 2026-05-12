@@ -114,7 +114,7 @@ static SpaceLink *sequencer_create(const ScrArea * /*area*/, const Scene *scene)
   region = BKE_area_region_new();
   BLI_addtail(&sseq->regionbase, static_cast<void *>(region));
   region->regiontype = RGN_TYPE_PLAYBACK_SCRUBBING;
-  region->alignment = RGN_ALIGN_BOTTOM | RGN_CHILD_OF_PREV | RGN_ALIGN_HIDE_WITH_PREV;
+  region->alignment = RGN_ALIGN_BOTTOM | RGN_STACK_ON_PREV | RGN_ALIGN_HIDE_WITH_PREV;
 
   /* Buttons/list view. */
   region = BKE_area_region_new();
