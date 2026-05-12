@@ -52,14 +52,14 @@ static Mesh *simplify_mesh(const Mesh &src_mesh,
                                                nullptr);
   std::cout << dst_indices_num << std::endl;
 
-  Mesh *dst_mesh = bke::mesh_new_no_attributes(0, 0, dst_indices_num / 3, 0);
+  Mesh *dst_mesh = bke::mesh_new_no_attributes(
+      src_mesh.verts_num, 0, dst_indices_num / 3, dst_indices_num);
   offset_indices::fill_constant_group_size(3, 0, dst_mesh->face_offsets_for_write());
   bke::MutableAttributeAccessor dst_attributes = dst_mesh->attributes_for_write();
   dst_attributes.add<int>(".corner_vert",
                           bke::AttrDomain::Corner,
                           bke::AttributeInitVArray(VArray<int>::from_span(
                               dst_vertices.as_span().take_front(dst_indices_num))));
-  dst_mesh->verts_num = src_mesh.verts_num;
   bke::copy_attributes(src_mesh.attributes(),
                        bke::AttrDomain::Point,
                        bke::AttrDomain::Point,
