@@ -66,7 +66,7 @@ Here are some ways to run scripts directly in Blender:
 
 - Loaded in the text editor and press *Run Script*.
 - Typed or pasted into the interactive console.
-- Execute a Python file from the command line with Blender, e.g.,
+- Execute a Python file from the command line with Blender, e.g:
 
   .. code-block:: sh
 
@@ -167,7 +167,7 @@ Class mix-in example:
 
 So once the class is registered with Blender, instancing the class and calling the functions is left up to Blender.
 In fact you cannot instantiate these classes from the script as you would expect with most Python APIs.
-To run operators you can call them through the operator API, e.g.,
+To run operators you can call them through the operator API, e.g:
 
 .. code-block:: python
 

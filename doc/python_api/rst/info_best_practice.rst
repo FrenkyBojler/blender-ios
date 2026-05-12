@@ -30,7 +30,7 @@ As well as pep8 we have additional conventions used for Blender Python scripts:
 
 - Use single quotes for enums, and double quotes for strings.
 
-  Both are of course strings, but in our internal API enums are unique items from a limited set, e.g.,
+  Both are of course strings, but in our internal API enums are unique items from a limited set, e.g:
 
   .. code-block:: python
 
