@@ -443,6 +443,7 @@ void RE_create_render_pass(RenderResult *rr,
 void RE_pass_set_buffer_data(RenderPass *pass, float *data)
 {
   ImBuf *ibuf = RE_RenderPassEnsureImBuf(pass);
+
   ibuf->assign_float_data(data);
 }
 

@@ -276,10 +276,14 @@ struct ImBuf {
   const float *float_data() const;
   float *float_data_for_write();
 
+  /** Take sole ownership of a buffer allocated with the guarded allocator. */
   void assign_byte_data(uint8_t *data);
   void assign_float_data(float *data);
+
+  /** Share ownership with the implicit sharing referenced by the pointer. */
   void assign_byte_data(const uint8_t *data, ImplicitSharingPtr<> sharing_ptr);
   void assign_float_data(const float *data, ImplicitSharingPtr<> sharing_ptr);
+
   [[nodiscard]] bool can_contain_alpha() const
   {
     return color_mode == ImColorMode::RGBA || color_mode == ImColorMode::BW_A;

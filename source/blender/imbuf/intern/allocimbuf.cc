@@ -228,21 +228,34 @@ bool IMB_alloc_byte_pixels(ImBuf *ibuf, bool initialize_pixels)
 
 void ImBuf::assign_byte_data(uint8_t *data)
 {
-  this->byte_buffer.data = data;
-  this->byte_buffer.sharing_info = ImplicitSharingPtr<>(implicit_sharing::info_for_mem_free(data));
-  this->flags |= IB_byte_data;
+  this->byte_buffer = {};
+  this->flags &= ~IB_byte_data;
+  if (data) {
+    this->byte_buffer.data = data;
+    this->byte_buffer.sharing_info = ImplicitSharingPtr<>(
+        implicit_sharing::info_for_mem_free(data));
+
+    this->flags |= IB_byte_data;
+  }
 }
 
 void ImBuf::assign_float_data(float *data)
 {
-  this->float_buffer.data = data;
-  this->float_buffer.sharing_info = ImplicitSharingPtr<>(
-      implicit_sharing::info_for_mem_free(data));
-  this->flags |= IB_float_data;
+  this->float_buffer = {};
+  this->flags &= ~IB_float_data;
+  if (data) {
+    this->float_buffer.data = data;
+    this->float_buffer.sharing_info = ImplicitSharingPtr<>(
+        implicit_sharing::info_for_mem_free(data));
+
+    this->flags |= IB_float_data;
+  }
 }
 
 void ImBuf::assign_byte_data(const uint8_t *data, ImplicitSharingPtr<> sharing_ptr)
 {
+  BLI_assert(data != nullptr);
+  BLI_assert(sharing_ptr.get() != nullptr);
   this->byte_buffer.data = data;
   this->byte_buffer.sharing_info = std::move(sharing_ptr);
   this->flags |= IB_byte_data;
@@ -250,6 +263,8 @@ void ImBuf::assign_byte_data(const uint8_t *data, ImplicitSharingPtr<> sharing_p
 
 void ImBuf::assign_float_data(const float *data, ImplicitSharingPtr<> sharing_ptr)
 {
+  BLI_assert(data != nullptr);
+  BLI_assert(sharing_ptr.get() != nullptr);
   this->float_buffer.data = data;
   this->float_buffer.sharing_info = std::move(sharing_ptr);
   this->flags |= IB_float_data;
