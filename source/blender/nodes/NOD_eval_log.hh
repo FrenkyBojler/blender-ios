@@ -46,10 +46,8 @@
 #include "BKE_volume_grid_fwd.hh"
 
 #include "NOD_geometry_nodes_closure_location.hh"
-#include "NOD_geometry_nodes_list.hh"
+#include "NOD_geometry_nodes_list_fwd.hh"
 #include "NOD_geometry_nodes_warning.hh"
-
-#include "FN_field.hh"
 
 #include "DNA_node_types.h"
 
@@ -58,6 +56,10 @@ namespace blender {
 struct SpaceNode;
 struct NodesModifierData;
 struct Report;
+
+namespace fn {
+class GField;
+}
 
 namespace nodes::eval_log {
 
@@ -242,7 +244,7 @@ class ListInfoLog : public ValueLog {
  public:
   int64_t size;
 
-  ListInfoLog(const List *list);
+  ListInfoLog(const GListPtr &list);
 };
 
 /**

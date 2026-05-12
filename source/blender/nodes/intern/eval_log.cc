@@ -6,6 +6,7 @@
 #include "NOD_geometry_nodes_bundle.hh"
 #include "NOD_geometry_nodes_closure.hh"
 #include "NOD_geometry_nodes_lazy_function.hh"
+#include "NOD_geometry_nodes_list.hh"
 
 #include "BLI_listbase.h"
 #include "BLI_stack.hh"
@@ -25,6 +26,7 @@
 #include "BKE_node_runtime.hh"
 #include "BKE_node_socket_value.hh"
 #include "BKE_report.hh"
+#include "BKE_scene_runtime.hh"
 #include "BKE_type_conversions.hh"
 #include "BKE_volume.hh"
 #include "BKE_volume_grid.hh"
@@ -249,7 +251,7 @@ ClosureValueLog::ClosureValueLog(Vector<Item> inputs,
   }
 }
 
-ListInfoLog::ListInfoLog(const List *list)
+ListInfoLog::ListInfoLog(const GListPtr &list)
 {
   if (!list) {
     this->size = 0;
@@ -327,8 +329,8 @@ void NodeTreeLogger::log_value(const bNode &node, const bNodeSocket &socket, con
     }
 #endif
     else if (value_variant.is_list()) {
-      const ListPtr list = value_variant.extract<ListPtr>();
-      store_logged_value(this->allocator->construct<ListInfoLog>(list.get()));
+      const auto list = value_variant.extract<GListPtr>();
+      store_logged_value(this->allocator->construct<ListInfoLog>(list));
     }
     else if (value_variant.valid_for_socket(SOCK_BUNDLE)) {
       Vector<BundleValueLog::Item> items;
@@ -936,12 +938,8 @@ Map<const bNodeTreeZone *, ComputeContextHash> NodesEvalLog::
   return hash_by_zone;
 }
 
-static NodesEvalLog *get_root_log(const SpaceNode &snode)
+static NodesEvalLog *get_geometry_nodes_root_log(const SpaceNode &snode)
 {
-  if (!ED_node_is_geometry(&snode)) {
-    return nullptr;
-  }
-
   switch (SpaceNodeGeometryNodesType(snode.node_tree_sub_type)) {
     case SNODE_GEOMETRY_MODIFIER: {
       std::optional<ed::space_node::ObjectAndModifier> object_and_modifier =
@@ -960,6 +958,38 @@ static NodesEvalLog *get_root_log(const SpaceNode &snode)
       return log.log.get();
     }
   }
+
+  return nullptr;
+}
+
+static NodesEvalLog *get_compositor_root_log(const SpaceNode &space_node)
+{
+  switch (SpaceNodeCompositorNodesType(space_node.node_tree_sub_type)) {
+    case SNODE_COMPOSITOR_SCENE: {
+      const Scene *scene = reinterpret_cast<Scene *>(space_node.id);
+      if (!scene) {
+        return nullptr;
+      }
+      return scene->runtime->compositor.nodes_evaluation_log.get();
+    }
+    case SNODE_COMPOSITOR_SEQUENCER: {
+      return nullptr;
+    }
+  }
+
+  return nullptr;
+}
+
+static NodesEvalLog *get_root_log(const SpaceNode &snode)
+{
+  if (ED_node_is_geometry(&snode)) {
+    return get_geometry_nodes_root_log(snode);
+  }
+
+  if (ED_node_is_compositor(&snode)) {
+    return get_compositor_root_log(snode);
+  }
+
   return nullptr;
 }
 
