@@ -118,6 +118,11 @@ struct PanelSort {
   int new_offset_y;
 };
 
+static struct {
+  char idname[64];
+  bool is_set;
+} g_hovered_category = {{0}, false};
+
 static void panel_set_expansion_from_list_data(const bContext *C, Panel *panel);
 static int get_panel_real_size_y(const Panel *panel);
 static void panel_activate_state(const bContext *C, Panel *panel, const HandlePanelState state);
@@ -1597,14 +1602,28 @@ void panel_category_tabs_draw_all(ARegion *region, const char *category_id_activ
       box_rect.ymin = rct->ymin;
       box_rect.ymax = rct->ymax;
 
-      draw_roundbox_4fv(&box_rect,
-                        true,
-                        tab_curve_radius,
-                        is_active ? theme_col_tab_active : theme_col_tab_inactive);
-      draw_roundbox_4fv(&box_rect,
-                        false,
-                        tab_curve_radius,
-                        is_active ? theme_col_tab_outline_sel : theme_col_tab_outline);
+      /* Add hover effect for tab. */
+      bool is_hovered = !too_narrow && !is_active &&
+                            g_hovered_category.is_set &&
+                            STREQ(category_id, g_hovered_category.idname);
+
+      const float *fill_col;
+      const float *outline_col;
+      if (is_active) {
+        fill_col = theme_col_tab_active;
+        outline_col = theme_col_tab_outline_sel;
+      }
+      else if (is_hovered) {
+        fill_col = theme_col_tab_inactive;
+        outline_col = theme_col_tab_outline_sel;
+      }
+      else {
+        fill_col = theme_col_tab_inactive;
+        outline_col = theme_col_tab_outline;
+      }
+      draw_roundbox_4fv(&box_rect, true, tab_curve_radius, fill_col);
+      draw_roundbox_4fv(&box_rect, false, tab_curve_radius, outline_col);
+
 
       /* Disguise the outline on one side to join the tab to the panel. */
       if (!region->overlap) {
@@ -2747,17 +2766,19 @@ int handler_panel_region(bContext *C,
     else if (event->type == MOUSEMOVE && event->val == KM_NOTHING) {
       PanelCategoryDyn *pc_dyn = panel_categories_find_mouse_over(region, event);
       if (pc_dyn) {
-        WM_tooltip_timer_init_ex(
-            C, CTX_wm_window(C), CTX_wm_area(C), region, WM_panel_category_tooltip_init, UI_TOOLTIP_DELAY);
-      }
-      else {
-        WM_tooltip_clear(C, CTX_wm_window(C));
+        strcpy(g_hovered_category.idname, pc_dyn->idname);
+        g_hovered_category.is_set = true;
+        ED_region_tag_redraw(region);
       }
     }
     else if ((event->type == RIGHTMOUSE) && panel_categories_find_mouse_over(region, event)) {
       BLI_assert(retval == WM_UI_HANDLER_CONTINUE);
       retval = WM_UI_HANDLER_BREAK;
       popup_context_menu_for_panel(C, region, nullptr);
+    }
+    else {
+      g_hovered_category.is_set = false;
+      ED_region_tag_redraw(region);
     }
   }
 
