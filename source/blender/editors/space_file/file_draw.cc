@@ -1664,10 +1664,10 @@ void file_draw_list(const bContext *C, ARegion *region)
         return IFACE_("No results match the search filter");
       }
       FileAssetSelectParams *asset_params = ED_fileselect_get_asset_params(sfile);
-      if (asset_params && (asset_params->asset_visibility == AssetVisibility::OnlyOnline)) {
+      if (asset_params && (asset_params->asset_access == AssetAccess::OnlyOnline)) {
         return IFACE_("No items. Note: The \"Only Online\" filter option is enabled.");
       }
-      if (asset_params && (asset_params->asset_visibility == AssetVisibility::OnlyOffline)) {
+      if (asset_params && (asset_params->asset_access == AssetAccess::OnlyOffline)) {
         return IFACE_("No items. Note: The \"Only Offline\" filter option is enabled.");
       }
       return IFACE_("No items");

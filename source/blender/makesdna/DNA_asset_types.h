@@ -55,7 +55,7 @@ enum eAssetLibrary_Flag : int {
   ASSET_LIBRARY_USE_REMOTE_URL = (1 << 2),
 };
 
-enum class AssetVisibility : int8_t {
+enum class AssetAccess : int8_t {
   OnlineAndOffline = 0,
   OnlyOnline = 1,
   OnlyOffline = 2,

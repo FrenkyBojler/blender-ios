@@ -242,12 +242,12 @@ static void file_refresh(const bContext *C, ScrArea *area)
   filelist_setsorting(sfile->files, params->sort, params->flag & FILE_SORT_INVERT);
   filelist_setlibrary(sfile->files, asset_params ? &asset_params->asset_library_ref : nullptr);
 
-  const bool show_assets_online = asset_params && ELEM(asset_params->asset_visibility,
-                                                       AssetVisibility::OnlineAndOffline,
-                                                       AssetVisibility::OnlyOnline);
-  const bool show_assets_offline = asset_params && ELEM(asset_params->asset_visibility,
-                                                        AssetVisibility::OnlineAndOffline,
-                                                        AssetVisibility::OnlyOffline);
+  const bool show_assets_online = asset_params && ELEM(asset_params->asset_access,
+                                                       AssetAccess::OnlineAndOffline,
+                                                       AssetAccess::OnlyOnline);
+  const bool show_assets_offline = asset_params && ELEM(asset_params->asset_access,
+                                                        AssetAccess::OnlineAndOffline,
+                                                        AssetAccess::OnlyOffline);
   filelist_setfilter_options(
       sfile->files,
       (params->flag & FILE_FILTER) != 0,

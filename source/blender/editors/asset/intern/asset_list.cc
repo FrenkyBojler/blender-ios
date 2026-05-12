@@ -145,9 +145,9 @@ void AssetList::ensure_updated()
   filelist_setlibrary(files, &library_ref_);
 
   const bool show_online = ELEM(
-      U.asset_visibility, AssetVisibility::OnlineAndOffline, AssetVisibility::OnlyOnline);
+      U.asset_access, AssetAccess::OnlineAndOffline, AssetAccess::OnlyOnline);
   const bool show_offline = ELEM(
-      U.asset_visibility, AssetVisibility::OnlineAndOffline, AssetVisibility::OnlyOffline);
+      U.asset_access, AssetAccess::OnlineAndOffline, AssetAccess::OnlyOffline);
 
   filelist_setfilter_options(
       files,

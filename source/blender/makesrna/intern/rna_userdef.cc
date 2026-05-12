@@ -5337,10 +5337,10 @@ static void rna_def_userdef_view(BlenderRNA *brna)
                            "manually if Auto-Save Preferences is disabled");
   RNA_def_property_update(prop, 0, "rna_userdef_update");
 
-  prop = RNA_def_property(srna, "asset_visibility", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_items(prop, rna_enum_asset_visibility_items);
+  prop = RNA_def_property(srna, "asset_access", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, rna_enum_asset_access_items);
   RNA_def_property_ui_text(
-      prop, "Show Assets From", "Choose the visibility of online and offline assets");
+      prop, "Asset Access", "Choose the visibility of online and offline assets");
   RNA_def_property_update(prop, 0, "rna_userdef_update");
 
   static const EnumPropertyItem header_align_items[] = {

@@ -408,18 +408,18 @@ static const EnumPropertyItem rna_enum_asset_import_method_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-const EnumPropertyItem rna_enum_asset_visibility_items[] = {
-    {int(AssetVisibility::OnlineAndOffline),
+const EnumPropertyItem rna_enum_asset_access_items[] = {
+    {int(AssetAccess::OnlineAndOffline),
      "ALL",
      0,
      "Online and Offline",
-     "Show assets that are hosted online (need downloading) and available on disk already"},
-    {int(AssetVisibility::OnlyOnline),
+     "Show assets that are both hosted online (need downloading) and available on disk already"},
+    {int(AssetAccess::OnlyOnline),
      "ONLY_ONLINE",
      0,
      "Online Only",
      "Show only assets that need downloading (requires internet access)"},
-    {int(AssetVisibility::OnlyOffline),
+    {int(AssetAccess::OnlyOffline),
      "ONLY_OFFLINE",
      0,
      "Offline Only",
@@ -7882,10 +7882,10 @@ static void rna_def_fileselect_asset_params(BlenderRNA *brna)
                            "them directly to the scene");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_FILE_PARAMS, nullptr);
 
-  prop = RNA_def_property(srna, "asset_visibility", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_items(prop, rna_enum_asset_visibility_items);
+  prop = RNA_def_property(srna, "asset_access", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, rna_enum_asset_access_items);
   RNA_def_property_ui_text(
-      prop, "Show Assets From", "Choose the visibility of online and offline assets");
+      prop, "Asset Access", "Choose the visibility of online and offline assets");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_FILE_PARAMS, nullptr);
 
   prop = RNA_def_property(srna, "instance_collections_on_append", PROP_BOOLEAN, PROP_NONE);

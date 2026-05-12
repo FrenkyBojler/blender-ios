@@ -935,7 +935,7 @@ struct UserDef {
   short versions = 1;
   short dbl_click_time = 350;
 
-  AssetVisibility asset_visibility = AssetVisibility::OnlineAndOffline;
+  AssetAccess asset_access = AssetAccess::OnlineAndOffline;
 
   char _pad0 = {};
 
