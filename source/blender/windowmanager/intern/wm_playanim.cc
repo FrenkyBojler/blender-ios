@@ -73,6 +73,8 @@
 #include "GHOST_IWindow.hh"
 #include "GHOST_Types.hh"
 
+#include "intern/movie_read.hh"
+
 #include "wm_window_private.hh"
 
 #include "WM_api.hh" /* Only for #WM_main_playanim. */
@@ -551,6 +553,19 @@ static ImBuf *ibuf_from_picture(PlayAnimPict *pic)
   }
   else if (pic->anim) {
     ibuf = MOV_decode_frame(pic->anim, pic->frame, IMB_PROXY_NONE);
+    if (ibuf) {
+      ImBuf *ibuf_left = nullptr, *ibuf_right = nullptr;
+      IMB_ImBufFromStereo3d(&pic->anim->stereo3d_format, ibuf, &ibuf_left, &ibuf_right);
+      if (ibuf_left) {
+        if (ibuf_left != ibuf) {
+          IMB_freeImBuf(ibuf);
+        }
+        ibuf = ibuf_left;
+      }
+      if (ibuf_right) {
+        IMB_freeImBuf(ibuf_right);
+      }
+    }
   }
   else if (pic->mem) {
     /* Use correct color-space here. */
