@@ -10,6 +10,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdlib>
 #include <cstring>
@@ -1425,7 +1426,7 @@ constexpr int MIN_BLENDFILE_VERSION_FOR_MODERN_NODE_SOCKET_DEFAULT_VALUE_READING
  * compatibility, for the following reasons:
  *   - The DNA struct info _is_ properly written in blend-files since 2.83.
  *   - When there is DNA info for a #BHead in the blend-file, even if that #BHead is ultimately
- *     'read'/used as raw bytes buffer through a call to `BLO_read_data_address`, the actual
+ *     'read'/used as raw bytes buffer through a call to `BLO_read_raw_address`, the actual
  *     reading of that #BHead from the blend-file will have already gone through the lower-level
  *     'DNA versioning' process, which means that DNA struct changes (like adding new properties,
  *     increasing an array size, etc.) will be handled properly.
@@ -1615,7 +1616,7 @@ static void direct_link_node_socket_default_value(BlendDataReader *reader, bNode
   else {
     /* Legacy-compatible, raw-buffer-based reading of sockets default values. */
     void *temp_data = sock->default_value;
-    BLO_read_data_address(reader, &temp_data);
+    BLO_read_raw_address(reader, &temp_data);
     if (!temp_data) {
       sock->default_value = nullptr;
       return;
@@ -1897,7 +1898,7 @@ static void node_blend_read_data_storage(BlendDataReader *reader, bNodeTree *ntr
   }
   else {
     /* Untyped read because we don't know the type yet. */
-    BLO_read_data_address(reader, &node->storage);
+    BLO_read_raw_address(reader, &node->storage);
   }
 
   if (ntype && ntype->blend_data_read_storage_content) {
@@ -2036,8 +2037,7 @@ void node_tree_blend_read_data(BlendDataReader *reader, ID *owner_id, bNodeTree 
 
     BLO_read_struct_list(reader, bNodeSocket, &node.inputs);
     BLO_read_struct_list(reader, bNodeSocket, &node.outputs);
-    BLO_read_struct_array(
-        reader, bNodePanelState, node.num_panel_states, &node.panel_states_array);
+    BLO_read_array_and_validate_size(reader, &node.panel_states_array, &node.num_panel_states);
 
     BLO_read_struct(reader, IDProperty, &node.prop);
     IDP_BlendDataRead(reader, &node.prop);
@@ -2092,8 +2092,7 @@ void node_tree_blend_read_data(BlendDataReader *reader, ID *owner_id, bNodeTree 
     BLO_read_string(reader, &ntree->geometry_node_asset_traits->node_tool_idname);
   }
 
-  BLO_read_struct_array(
-      reader, bNestedNodeRef, ntree->nested_node_refs_num, &ntree->nested_node_refs);
+  BLO_read_array_and_validate_size(reader, &ntree->nested_node_refs, &ntree->nested_node_refs_num);
 
   BLO_read_struct(reader, PreviewImage, &ntree->preview);
   BKE_previewimg_blend_read(reader, ntree->preview);
@@ -2231,14 +2230,21 @@ IDProperty *node_create_asset_meta_data_properties(const bNodeTree &node_tree)
       }
       case SOCK_MENU: {
         const auto &value = node_interface::get_socket_data_as<bNodeSocketValueMenu>(*socket);
-        IDP_AddToGroup(input.get(), idprop::create("default_value", value.value).release());
         if (value.enum_items) {
+          if (std::ranges::any_of(value.enum_items->items, [&](const RuntimeNodeEnumItem &item) {
+                return item.identifier == value.value;
+              }))
+          {
+            /* Only add the default value property if it's contained in the enum items. */
+            IDP_AddToGroup(input.get(), idprop::create("default_value", value.value).release());
+          }
           auto items = idprop::create_group("items");
           for (const RuntimeNodeEnumItem &enum_item : value.enum_items->items) {
-            auto item = idprop::create_group(std::to_string(enum_item.identifier));
-            IDP_AddToGroup(item.get(), idprop::create("name", enum_item.name).release());
+            auto item = idprop::create_group(enum_item.name);
+            IDP_AddToGroup(item.get(), idprop::create("value", enum_item.identifier).release());
             IDP_AddToGroup(item.get(),
                            idprop::create("description", enum_item.description).release());
+            IDP_AddToGroup(items.get(), item.release());
           }
           IDP_AddToGroup(input.get(), items.release());
         }
