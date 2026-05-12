@@ -27,12 +27,13 @@ static void node_declare(NodeDeclarationBuilder &b)
       .is_default_link_socket()
       .description("Mesh to simplify");
   b.add_output<decl::Geometry>("Mesh"_ustr).propagate_all().align_with_previous();
+  b.add_input<decl::Float>("Error"_ustr).default_value(0.001f).subtype(PROP_FACTOR);
   b.add_input<decl::Bool>("Selection"_ustr).default_value(true).field_on_all().hide_value();
 }
 
 static Mesh *simplify_mesh(const Mesh &src_mesh,
                            const bke::AttributeFilter &attribute_filter,
-                           const float ratio)
+                           const float error)
 {
   const Span<int3> corner_tris = src_mesh.corner_tris();
   Array<int3> vert_tris(corner_tris.size());
@@ -46,8 +47,8 @@ static Mesh *simplify_mesh(const Mesh &src_mesh,
                                                src_mesh.vert_positions().cast<float>().data(),
                                                src_mesh.verts_num,
                                                sizeof(float3),
-                                               src_indices.size() * ratio,
-                                               0.5f,
+                                               3,
+                                               error,
                                                0,
                                                nullptr);
   std::cout << dst_indices_num << std::endl;
@@ -75,6 +76,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Mesh"_ustr);
   Field<bool> selection_field = params.extract_input<Field<bool>>("Selection"_ustr);
   const AttributeFilter &attribute_filter = params.get_attribute_filter("Mesh"_ustr);
+  const float error = params.extract_input<float>("Error"_ustr);
 
   geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry_set) {
     const Mesh *src_mesh = geometry_set.get_mesh();
@@ -91,7 +93,7 @@ static void node_geo_exec(GeoNodeExecParams params)
       return;
     }
 
-    Mesh *mesh = simplify_mesh(*src_mesh, attribute_filter, 0.5f);
+    Mesh *mesh = simplify_mesh(*src_mesh, attribute_filter, error);
     if (!mesh) {
       return;
     }
