@@ -45,25 +45,25 @@ void IMB_deactivate_gpu_context();
  */
 ImBuf *IMB_load_image_from_memory(const unsigned char *mem,
                                   size_t size,
-                                  int flags,
+                                  eImBufFlags flags,
                                   const char *descr,
                                   const char *filepath = nullptr,
                                   char r_colorspace[IM_MAX_SPACE] = nullptr);
 
 ImBuf *IMB_load_image_from_file_descriptor(int file,
-                                           int flags,
+                                           eImBufFlags flags,
                                            const char *filepath = nullptr,
                                            char r_colorspace[IM_MAX_SPACE] = nullptr);
 
 ImBuf *IMB_load_image_from_filepath(const char *filepath,
-                                    int flags,
+                                    eImBufFlags flags,
                                     char r_colorspace[IM_MAX_SPACE] = nullptr);
 
 /**
  * Save image.
  */
-bool IMB_save_image(ImBuf *ibuf, const char *filepath, int flags);
-Vector<uint8_t> IMB_save_image_to_buffer(ImBuf *ibuf, int flags);
+bool IMB_save_image(ImBuf *ibuf, const char *filepath, eImBufFlags flags);
+Vector<uint8_t> IMB_save_image_to_buffer(ImBuf *ibuf, eImBufFlags flags);
 
 /**
  * Test image file.
@@ -122,7 +122,7 @@ ImBuf *IMB_thumb_load_image(const char *filepath,
 /**
  * Allocate and free image buffer.
  */
-ImBuf *IMB_allocImBuf(unsigned int x, unsigned int y, unsigned int flags);
+ImBuf *IMB_allocImBuf(unsigned int x, unsigned int y, eImBufFlags flags);
 void IMB_freeImBuf(ImBuf *ibuf);
 
 /**
@@ -130,7 +130,7 @@ void IMB_freeImBuf(ImBuf *ibuf);
  *
  * Use in cases when temporary image buffer is allocated on stack.
  */
-bool IMB_initImBuf(ImBuf *ibuf, unsigned int x, unsigned int y, unsigned int flags);
+bool IMB_initImBuf(ImBuf *ibuf, unsigned int x, unsigned int y, eImBufFlags flags);
 
 /**
  * Create a copy of a pixel buffer and wrap it to a new ImBuf

@@ -436,7 +436,7 @@ struct PlayAnimPict {
   ImBuf *ibuf;
   MovieReader *anim;
   int frame;
-  int IB_flags;
+  eImBufFlags IB_flags;
 
 #ifdef USE_FRAME_CACHE_LIMIT
   /** Back pointer to the #LinkData node for this struct in the #g_frame_cache.pics list. */

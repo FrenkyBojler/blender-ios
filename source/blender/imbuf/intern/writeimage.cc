@@ -37,7 +37,7 @@ static void ensure_byte_buffer(ImBuf *ibuf, const ImFileType *type)
   }
 }
 
-bool IMB_save_image(ImBuf *ibuf, const char *filepath, const int flags)
+bool IMB_save_image(ImBuf *ibuf, const char *filepath, eImBufFlags flags)
 {
   errno = 0;
 
@@ -61,7 +61,7 @@ bool IMB_save_image(ImBuf *ibuf, const char *filepath, const int flags)
   return type->save(ibuf, filepath, flags);
 }
 
-Vector<uint8_t> IMB_save_image_to_buffer(ImBuf *ibuf, int flags)
+Vector<uint8_t> IMB_save_image_to_buffer(ImBuf *ibuf, eImBufFlags flags)
 {
   if (ibuf == nullptr) {
     return {};

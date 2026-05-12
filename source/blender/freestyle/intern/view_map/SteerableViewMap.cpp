@@ -267,7 +267,7 @@ void SteerableViewMap::saveSteerableViewMap() const
       filepath << base;
       filepath << i << "-" << j << ".png";
       ibuf->ftype = blender::IMB_FTYPE_PNG;
-      IMB_save_image(ibuf, const_cast<char *>(filepath.str().c_str()), 0);
+      IMB_save_image(ibuf, const_cast<char *>(filepath.str().c_str()), blender::IB_flag_none);
     }
 #if 0
     QString base("SteerableViewMap");

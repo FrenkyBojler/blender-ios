@@ -1385,7 +1385,7 @@ static PyObject *M_imbuf_new(PyObject * /*self*/, PyObject *args, PyObject *kw)
     return nullptr;
   }
 
-  const uint flags = IB_byte_data;
+  const eImBufFlags flags = IB_byte_data;
   ImColorMode color_mode = ImColorMode::RGBA;
   if (planes == 8) {
     color_mode = ImColorMode::BW;
@@ -1471,7 +1471,7 @@ static PyObject *M_imbuf_load(PyObject * /*self*/, PyObject *args, PyObject *kw)
 
 static PyObject *imbuf_load_from_memory_impl(const char *buffer,
                                              const size_t buffer_size,
-                                             int flags)
+                                             eImBufFlags flags)
 {
   ImBuf *ibuf = IMB_load_image_from_memory(
       reinterpret_cast<const uchar *>(buffer), buffer_size, flags, "<imbuf.load_from_buffer>");
@@ -1512,7 +1512,7 @@ static PyObject *M_imbuf_load_from_buffer(PyObject * /*self*/, PyObject *args, P
 
   PyObject *result = nullptr;
   /* TODO: should be arguments. */
-  int flags = IB_byte_data;
+  eImBufFlags flags = IB_byte_data;
 
   /* This supports `PyBytes`, no need for a separate check. */
   if (PyObject_CheckBuffer(buffer_py_ob)) {

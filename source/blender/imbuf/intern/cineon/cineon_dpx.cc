@@ -22,7 +22,7 @@
 namespace blender {
 
 static ImBuf *imb_load_dpx_cineon(
-    const uchar *mem, size_t size, int use_cineon, int flags, ImFileColorSpace &r_colorspace)
+    const uchar *mem, size_t size, int use_cineon, eImBufFlags flags, ImFileColorSpace &r_colorspace)
 {
   ImBuf *ibuf;
   LogImageFile *image;
@@ -169,7 +169,7 @@ static int imb_save_dpx_cineon(ImBuf *ibuf, const char *filepath, int use_cineon
   return rvalue;
 }
 
-bool imb_save_cineon(ImBuf *buf, const char *filepath, int /*flags*/)
+bool imb_save_cineon(ImBuf *buf, const char *filepath, eImBufFlags /*flags*/)
 {
   return imb_save_dpx_cineon(buf, filepath, 1);
 }
@@ -179,7 +179,7 @@ bool imb_is_a_cineon(const uchar *mem, size_t size)
   return logImageIsCineon(mem, size);
 }
 
-ImBuf *imb_load_cineon(const uchar *mem, size_t size, int flags, ImFileColorSpace &r_colorspace)
+ImBuf *imb_load_cineon(const uchar *mem, size_t size, eImBufFlags flags, ImFileColorSpace &r_colorspace)
 {
   if (!imb_is_a_cineon(mem, size)) {
     return nullptr;

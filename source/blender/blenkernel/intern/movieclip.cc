@@ -541,7 +541,6 @@ static ImBuf *movieclip_load_sequence_file(MovieClip *clip,
 {
   ImBuf *ibuf;
   char filepath[FILE_MAX];
-  int loadflag;
   bool use_proxy = false;
   char *colorspace;
 
@@ -567,7 +566,7 @@ static ImBuf *movieclip_load_sequence_file(MovieClip *clip,
     colorspace = clip->colorspace_settings.name;
   }
 
-  loadflag = IB_byte_data | IB_multilayer | IB_alphamode_detect | IB_metadata;
+  eImBufFlags loadflag = IB_byte_data | IB_multilayer | IB_alphamode_detect | IB_metadata;
 
   /* read ibuf */
   ibuf = IMB_load_image_from_filepath(filepath, loadflag, colorspace);

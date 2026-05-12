@@ -303,10 +303,10 @@ static opj_stream_t *opj_stream_create_from_file(const char *filepath,
 
 static ImBuf *imb_load_jp2_stream(opj_stream_t *stream,
                                   OPJ_CODEC_FORMAT p_format,
-                                  int flags,
+                                  eImBufFlags flags,
                                   ImFileColorSpace &r_colorspace);
 
-ImBuf *imb_load_jp2(const uchar *mem, size_t size, int flags, ImFileColorSpace &r_colorspace)
+ImBuf *imb_load_jp2(const uchar *mem, size_t size, eImBufFlags flags, ImFileColorSpace &r_colorspace)
 {
   const OPJ_CODEC_FORMAT format = (size > JP2_FILEHEADER_SIZE) ? format_from_header(mem, size) :
                                                                  OPJ_CODEC_UNKNOWN;
@@ -321,7 +321,7 @@ ImBuf *imb_load_jp2(const uchar *mem, size_t size, int flags, ImFileColorSpace &
   return ibuf;
 }
 
-ImBuf *imb_load_jp2_filepath(const char *filepath, int flags, ImFileColorSpace &r_colorspace)
+ImBuf *imb_load_jp2_filepath(const char *filepath, eImBufFlags flags, ImFileColorSpace &r_colorspace)
 {
   FILE *p_file = nullptr;
   uchar mem[JP2_FILEHEADER_SIZE];
@@ -346,7 +346,7 @@ ImBuf *imb_load_jp2_filepath(const char *filepath, int flags, ImFileColorSpace &
 
 static ImBuf *imb_load_jp2_stream(opj_stream_t *stream,
                                   const OPJ_CODEC_FORMAT format,
-                                  int flags,
+                                  eImBufFlags flags,
                                   ImFileColorSpace & /*r_colorspace*/)
 {
   if (format == OPJ_CODEC_UNKNOWN) {
@@ -1166,9 +1166,9 @@ static opj_image_t *ibuftoimage(ImBuf *ibuf, opj_cparameters_t *parameters)
   return image;
 }
 
-bool imb_save_jp2_stream(ImBuf *ibuf, opj_stream_t *stream, int flags);
+bool imb_save_jp2_stream(ImBuf *ibuf, opj_stream_t *stream, eImBufFlags flags);
 
-bool imb_save_jp2(ImBuf *ibuf, const char *filepath, int flags)
+bool imb_save_jp2(ImBuf *ibuf, const char *filepath, eImBufFlags flags)
 {
   opj_stream_t *stream = opj_stream_create_from_file(
       filepath, OPJ_J2K_STREAM_CHUNK_SIZE, false, nullptr);
@@ -1181,7 +1181,7 @@ bool imb_save_jp2(ImBuf *ibuf, const char *filepath, int flags)
 }
 
 /* Found write info at http://users.ece.gatech.edu/~slabaugh/personal/c/bitmapUnix.c */
-bool imb_save_jp2_stream(ImBuf *ibuf, opj_stream_t *stream, int /*flags*/)
+bool imb_save_jp2_stream(ImBuf *ibuf, opj_stream_t *stream, eImBufFlags /*flags*/)
 {
   int quality = ibuf->foptions.quality;
 

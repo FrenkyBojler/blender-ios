@@ -615,10 +615,10 @@ static void brush_painter_imbuf_partial_update(BrushPainter *painter,
 {
   BrushPainterCache *cache = &tile->cache;
   ImBuf *oldtexibuf, *ibuf;
-  int imbflag, destx, desty, srcx, srcy, w, h, x1, y1, x2, y2;
+  int destx, desty, srcx, srcy, w, h, x1, y1, x2, y2;
 
   /* create brush image buffer if it didn't exist yet */
-  imbflag = (cache->is_float) ? IB_float_data : IB_byte_data;
+  eImBufFlags imbflag = (cache->is_float) ? IB_float_data : IB_byte_data;
   if (!cache->ibuf) {
     cache->ibuf = IMB_allocImBuf(diameter, diameter, imbflag);
   }
@@ -1239,7 +1239,7 @@ static void paint_2d_do_making_brush(ImagePaintState *s,
                                      int tileh)
 {
   ImBuf tmpbuf;
-  IMB_initImBuf(&tmpbuf, ED_IMAGE_UNDO_TILE_SIZE, ED_IMAGE_UNDO_TILE_SIZE, 0);
+  IMB_initImBuf(&tmpbuf, ED_IMAGE_UNDO_TILE_SIZE, ED_IMAGE_UNDO_TILE_SIZE, IB_flag_none);
 
   PaintTileMap *undo_tiles = ED_image_paint_tile_map_get();
 

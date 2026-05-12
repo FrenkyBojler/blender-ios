@@ -103,8 +103,8 @@ static ImBuf *load_pixels(
 {
   /* Allocate the ImBuf for the image. */
   constexpr bool is_float = sizeof(T) > 1;
-  const uint format_flag = (is_float ? IB_float_data : IB_byte_data) | IB_uninitialized_pixels;
-  const uint ibuf_flags = (flags & IB_test) ? 0 : format_flag;
+  const eImBufFlags format_flag = (is_float ? IB_float_data : IB_byte_data) | IB_uninitialized_pixels;
+  const eImBufFlags ibuf_flags = (flags & IB_test) ? IB_flag_none : format_flag;
 
   ImColorMode color_mode = ImColorMode::RGBA;
   if (channels == 2) {
@@ -243,7 +243,7 @@ static ImBuf *get_oiio_ibuf(ImageInput *in, const ReadContext &ctx, ImFileColorS
     /* Transfer metadata to the ibuf if necessary. */
     if (ctx.flags & IB_metadata) {
       IMB_metadata_ensure(&ibuf->metadata);
-      ibuf->flags |= spec.extra_attribs.empty() ? 0 : IB_metadata;
+      ibuf->flags |= spec.extra_attribs.empty() ? IB_flag_none : IB_metadata;
 
       for (const auto &attrib : spec.extra_attribs) {
         if (attrib.name().find("ICCProfile") != string::npos) {
@@ -431,7 +431,7 @@ Vector<uint8_t> imb_oiio_write_buffer(const WriteContext &ctx, const ImageSpec &
 
 WriteContext imb_create_write_context(const char *file_format,
                                       ImBuf *ibuf,
-                                      int flags,
+                                      eImBufFlags flags,
                                       bool prefer_float)
 {
   WriteContext ctx{};

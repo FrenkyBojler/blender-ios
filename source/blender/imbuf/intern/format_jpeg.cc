@@ -307,7 +307,7 @@ static ImBuf *ibJpegImageFromCinfo(
 
     if (flags & IB_test) {
       jpeg_abort_decompress(cinfo);
-      ibuf = IMB_allocImBuf(x, y, 0);
+      ibuf = IMB_allocImBuf(x, y, IB_flag_none);
       if (ibuf) {
         ibuf->color_mode = color_mode;
       }
@@ -462,7 +462,7 @@ static ImBuf *ibJpegImageFromCinfo(
 
 ImBuf *imb_load_jpeg(const uchar *buffer,
                      size_t size,
-                     int flags,
+                     eImBufFlags flags,
                      ImFileColorSpace & /*r_colorspace*/)
 {
   jpeg_decompress_struct _cinfo, *cinfo = &_cinfo;
@@ -500,7 +500,7 @@ ImBuf *imb_load_jpeg(const uchar *buffer,
 #define JPEG_APP1_MAX (1 << 16)
 
 ImBuf *imb_thumbnail_jpeg(const char *filepath,
-                          const int flags,
+                          const eImBufFlags flags,
                           const size_t max_thumb_size,
                           ImFileColorSpace &r_colorspace,
                           size_t *r_width,
@@ -769,7 +769,7 @@ static bool save_stdjpeg(const char *filepath, ImBuf *ibuf)
   return true;
 }
 
-bool imb_savejpeg(ImBuf *ibuf, const char *filepath, int flags)
+bool imb_savejpeg(ImBuf *ibuf, const char *filepath, eImBufFlags flags)
 {
 
   ibuf->flags = flags;

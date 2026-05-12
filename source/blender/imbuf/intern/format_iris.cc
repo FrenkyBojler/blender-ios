@@ -225,7 +225,7 @@ bool imb_is_a_iris(const uchar *mem, size_t size)
   return GS(mem) == IRIS_MAGIC;
 }
 
-ImBuf *imb_loadiris(const uchar *mem, size_t size, int flags, ImFileColorSpace & /*r_colorspace*/)
+ImBuf *imb_loadiris(const uchar *mem, size_t size, eImBufFlags flags, ImFileColorSpace & /*r_colorspace*/)
 {
   uint *base, *lptr = nullptr;
   float *fbase, *fptr = nullptr;
@@ -283,7 +283,7 @@ ImBuf *imb_loadiris(const uchar *mem, size_t size, int flags, ImFileColorSpace &
   }
 
   if (flags & IB_test) {
-    ibuf = IMB_allocImBuf(image.xsize, image.ysize, 0);
+    ibuf = IMB_allocImBuf(image.xsize, image.ysize, IB_flag_none);
     if (ibuf) {
       ibuf->ftype = IMB_FTYPE_IRIS;
       ibuf->color_mode = color_mode;
@@ -942,7 +942,7 @@ static int compressrow(const uchar *lbuf, uchar *rlebuf, const int z, const int 
   return optr - rlebuf;
 }
 
-bool imb_saveiris(ImBuf *ibuf, const char *filepath, int /*flags*/)
+bool imb_saveiris(ImBuf *ibuf, const char *filepath, eImBufFlags /*flags*/)
 {
   const uint limit = std::numeric_limits<ushort>::max();
   if (ibuf->x > limit || ibuf->y > limit) {

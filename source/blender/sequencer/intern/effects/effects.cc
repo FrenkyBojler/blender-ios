@@ -37,7 +37,7 @@ ImBuf *prepare_effect_imbufs(const RenderData *context,
   Scene *scene = context->scene;
   int x = context->rectx;
   int y = context->recty;
-  int base_flags = uninitialized_pixels ? IB_uninitialized_pixels : 0;
+  eImBufFlags base_flags = uninitialized_pixels ? IB_uninitialized_pixels : IB_flag_none;
 
   if (!ibuf1 && !ibuf2) {
     /* Hmm, global float option? */

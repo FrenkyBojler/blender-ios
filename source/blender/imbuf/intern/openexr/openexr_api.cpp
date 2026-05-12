@@ -701,7 +701,7 @@ static void save_setup_framebuffer(const ImBuf *ibuf,
   }
 }
 
-bool imb_save_openexr(ImBuf *ibuf, const char *filepath, int /*flags*/)
+bool imb_save_openexr(ImBuf *ibuf, const char *filepath, eImBufFlags /*flags*/)
 {
   /* Use half precision when asked for it, or if source is a
    * byte image (half precision is always enough for that case). */
@@ -732,7 +732,7 @@ bool imb_save_openexr(ImBuf *ibuf, const char *filepath, int /*flags*/)
   return true;
 }
 
-Vector<uint8_t> imb_save_buffer_openexr(ImBuf *ibuf, int /*flags*/)
+Vector<uint8_t> imb_save_buffer_openexr(ImBuf *ibuf, eImBufFlags /*flags*/)
 {
   /* Use half precision when asked for it, or if source is a
    * byte image (half precision is always enough for that case). */
@@ -2107,7 +2107,7 @@ void IMB_exr_get_display_window(ExrHandle *handle,
   get_exr_display_window(*handle->ifile, display_size, display_offset, data_offset);
 }
 
-ImBuf *imb_load_openexr(const uchar *mem, size_t size, int flags, ImFileColorSpace &r_colorspace)
+ImBuf *imb_load_openexr(const uchar *mem, size_t size, eImBufFlags flags, ImFileColorSpace &r_colorspace)
 {
   ImBuf *ibuf = nullptr;
   IMemStream *membuf = nullptr;
@@ -2143,7 +2143,7 @@ ImBuf *imb_load_openexr(const uchar *mem, size_t size, int flags, ImFileColorSpa
     else {
       const bool is_alpha = exr_has_alpha(*file);
 
-      ibuf = IMB_allocImBuf(width, height, 0);
+      ibuf = IMB_allocImBuf(width, height, IB_flag_none);
       ibuf->color_mode = is_alpha ? ImColorMode::RGBA : ImColorMode::RGB;
       ibuf->foptions.flag |= exr_is_half_float(*file) ? OPENEXR_HALF : 0;
       ibuf->foptions.flag |= openexr_header_get_compression(file_header);
@@ -2315,7 +2315,7 @@ ImBuf *imb_load_openexr(const uchar *mem, size_t size, int flags, ImFileColorSpa
 }
 
 ImBuf *imb_load_filepath_thumbnail_openexr(const char *filepath,
-                                           const int /*flags*/,
+                                           const eImBufFlags /*flags*/,
                                            const size_t max_thumb_size,
                                            ImFileColorSpace &r_colorspace,
                                            size_t *r_width,

@@ -90,12 +90,9 @@ struct ImbFormatOptions {
   char compress = 15;
 };
 
-/* -------------------------------------------------------------------- */
-/** \name ImBuf Component flags
- * \brief These flags determine the components of an ImBuf struct.
- * \{ */
-
 enum eImBufFlags {
+  IB_flag_none = 0,
+
   /** Image has byte data (unsigned 0..1 range in a byte, always 4 channels). */
   IB_byte_data = 1 << 0,
   IB_test = 1 << 1,
@@ -128,8 +125,6 @@ enum eImBufFlags {
   IB_no_colorspace_convert = 1 << 18,
 };
 ENUM_OPERATORS(eImBufFlags);
-
-/** \} */
 
 /* -------------------------------------------------------------------- */
 /** \name ImBuf buffer storage
@@ -229,9 +224,7 @@ struct ImBuf {
    */
   ImColorMode color_mode = ImColorMode::RGBA;
 
-  /* flags */
-  /** Controls which components should exist. */
-  int flags = 0;
+  eImBufFlags flags = IB_flag_none;
 
   /* pixels */
 

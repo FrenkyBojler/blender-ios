@@ -24,7 +24,7 @@ bool imb_is_a_tiff(const uchar *mem, size_t size)
   return imb_oiio_check(mem, size, "tif");
 }
 
-ImBuf *imb_load_tiff(const uchar *mem, size_t size, int flags, ImFileColorSpace &r_colorspace)
+ImBuf *imb_load_tiff(const uchar *mem, size_t size, eImBufFlags flags, ImFileColorSpace &r_colorspace)
 {
   ImageSpec config, spec;
   config.attribute("oiio:UnassociatedAlpha", 1);
@@ -46,7 +46,7 @@ ImBuf *imb_load_tiff(const uchar *mem, size_t size, int flags, ImFileColorSpace 
   return ibuf;
 }
 
-static std::tuple<WriteContext, ImageSpec> prepare_save_tiff(ImBuf *ibuf, int flags)
+static std::tuple<WriteContext, ImageSpec> prepare_save_tiff(ImBuf *ibuf, eImBufFlags flags)
 {
   const bool is_16bit = ((ibuf->foptions.flag & TIF_16BIT) && ibuf->float_data());
   const int file_channels = ibuf->color_mode_channels_get();
@@ -78,13 +78,13 @@ static std::tuple<WriteContext, ImageSpec> prepare_save_tiff(ImBuf *ibuf, int fl
   return {ctx, file_spec};
 }
 
-bool imb_save_tiff(ImBuf *ibuf, const char *filepath, int flags)
+bool imb_save_tiff(ImBuf *ibuf, const char *filepath, eImBufFlags flags)
 {
   const auto [ctx, file_spec] = prepare_save_tiff(ibuf, flags);
   return imb_oiio_write(ctx, filepath, file_spec);
 }
 
-Vector<uint8_t> imb_save_buffer_tiff(ImBuf *ibuf, int flags)
+Vector<uint8_t> imb_save_buffer_tiff(ImBuf *ibuf, eImBufFlags flags)
 {
   const auto [ctx, file_spec] = prepare_save_tiff(ibuf, flags);
   return imb_oiio_write_buffer(ctx, file_spec);

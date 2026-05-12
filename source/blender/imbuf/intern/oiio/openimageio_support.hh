@@ -96,7 +96,7 @@ Vector<uint8_t> imb_oiio_write_buffer(const WriteContext &ctx, const OIIO::Image
  */
 WriteContext imb_create_write_context(const char *file_format,
                                       ImBuf *ibuf,
-                                      int flags,
+                                      eImBufFlags flags,
                                       bool prefer_float = true);
 
 /**

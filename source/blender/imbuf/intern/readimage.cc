@@ -128,7 +128,7 @@ static void imb_handle_colorspace_and_alpha(ImBuf *ibuf,
 
 ImBuf *IMB_load_image_from_memory(const uchar *mem,
                                   const size_t size,
-                                  const int flags,
+                                  const eImBufFlags flags,
                                   const char *descr,
                                   const char *filepath,
                                   char r_colorspace[IM_MAX_SPACE])
@@ -161,7 +161,7 @@ ImBuf *IMB_load_image_from_memory(const uchar *mem,
 }
 
 ImBuf *IMB_load_image_from_file_descriptor(const int file,
-                                           const int flags,
+                                           const eImBufFlags flags,
                                            const char *filepath,
                                            char r_colorspace[IM_MAX_SPACE])
 {
@@ -195,7 +195,7 @@ ImBuf *IMB_load_image_from_file_descriptor(const int file,
 }
 
 ImBuf *IMB_load_image_from_filepath(const char *filepath,
-                                    const int flags,
+                                    const eImBufFlags flags,
                                     char r_colorspace[IM_MAX_SPACE])
 {
   ImBuf *ibuf;
@@ -230,7 +230,7 @@ ImBuf *IMB_thumb_load_image(const char *filepath,
   }
 
   ImBuf *ibuf = nullptr;
-  int flags = IB_byte_data | IB_metadata;
+  eImBufFlags flags = IB_byte_data | IB_metadata;
   /* Size of the original image. */
   size_t width = 0;
   size_t height = 0;

@@ -23,7 +23,7 @@ bool imb_is_a_hdr(const uchar *mem, size_t size)
   return imb_oiio_check(mem, size, "hdr");
 }
 
-ImBuf *imb_load_hdr(const uchar *mem, size_t size, int flags, ImFileColorSpace &r_colorspace)
+ImBuf *imb_load_hdr(const uchar *mem, size_t size, eImBufFlags flags, ImFileColorSpace &r_colorspace)
 {
   ImageSpec config, spec;
 
@@ -45,7 +45,7 @@ ImBuf *imb_load_hdr(const uchar *mem, size_t size, int flags, ImFileColorSpace &
   return ibuf;
 }
 
-static std::tuple<WriteContext, ImageSpec> prepare_save_hdr(ImBuf *ibuf, int flags)
+static std::tuple<WriteContext, ImageSpec> prepare_save_hdr(ImBuf *ibuf, eImBufFlags flags)
 {
   const int file_channels = 3;
   const TypeDesc data_format = TypeDesc::FLOAT;
@@ -54,13 +54,13 @@ static std::tuple<WriteContext, ImageSpec> prepare_save_hdr(ImBuf *ibuf, int fla
   return {ctx, file_spec};
 }
 
-bool imb_save_hdr(ImBuf *ibuf, const char *filepath, int flags)
+bool imb_save_hdr(ImBuf *ibuf, const char *filepath, eImBufFlags flags)
 {
   const auto [ctx, file_spec] = prepare_save_hdr(ibuf, flags);
   return imb_oiio_write(ctx, filepath, file_spec);
 }
 
-Vector<uint8_t> imb_save_buffer_hdr(ImBuf *ibuf, int flags)
+Vector<uint8_t> imb_save_buffer_hdr(ImBuf *ibuf, eImBufFlags flags)
 {
   const auto [ctx, file_spec] = prepare_save_hdr(ibuf, flags);
   return imb_oiio_write_buffer(ctx, file_spec);

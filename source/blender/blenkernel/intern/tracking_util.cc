@@ -616,7 +616,7 @@ static ImBuf *accessor_get_preprocessed_ibuf(TrackingImageAccessor *accessor,
 
 static ImBuf *make_grayscale_ibuf_copy(ImBuf *ibuf)
 {
-  ImBuf *grayscale = IMB_allocImBuf(ibuf->x, ibuf->y, 0);
+  ImBuf *grayscale = IMB_allocImBuf(ibuf->x, ibuf->y, IB_flag_none);
 
   BLI_assert(ELEM(ibuf->channels, 3, 4));
 
@@ -652,7 +652,7 @@ static void ibuf_to_float_image(ImBuf *ibuf, libmv_FloatImage *float_image)
 
 static ImBuf *float_image_to_ibuf(libmv_FloatImage *float_image)
 {
-  ImBuf *ibuf = IMB_allocImBuf(float_image->width, float_image->height, 0);
+  ImBuf *ibuf = IMB_allocImBuf(float_image->width, float_image->height, IB_flag_none);
   size_t num_total_channels = size_t(ibuf->x) * size_t(ibuf->y) * float_image->channels;
   ibuf->channels = float_image->channels;
   float *rect_float = MEM_new_array_zeroed<float>(num_total_channels, "tracking grayscale image");

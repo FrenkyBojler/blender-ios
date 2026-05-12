@@ -19,7 +19,7 @@
 namespace blender {
 
 ImBuf *imb_load_filepath_thumbnail_svg(const char *filepath,
-                                       const int /*flags*/,
+                                       const eImBufFlags /*flags*/,
                                        const size_t max_thumb_size,
                                        ImFileColorSpace & /*r_colorspace*/,
                                        size_t *r_width,

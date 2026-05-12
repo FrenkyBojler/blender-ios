@@ -845,7 +845,7 @@ static ImBuf *seq_render_image_strip_view(const RenderData *context,
 {
   ImBuf *ibuf = nullptr;
 
-  int flag = IB_byte_data | IB_metadata | IB_multilayer;
+  eImBufFlags flag = IB_byte_data | IB_metadata | IB_multilayer;
   if (strip->alpha_mode == SEQ_ALPHA_PREMUL) {
     flag |= IB_alphamode_premul;
   }

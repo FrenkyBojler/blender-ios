@@ -3989,11 +3989,11 @@ static void image_init_after_load(Image *ima, ImageUser *iuser, ImBuf * /*ibuf*/
   UNUSED_VARS_NDEBUG(tile);
 }
 
-static int imbuf_alpha_flags_for_image(Image *ima)
+static eImBufFlags imbuf_alpha_flags_for_image(Image *ima)
 {
   switch (ima->alpha_mode) {
     case IMA_ALPHA_STRAIGHT:
-      return 0;
+      return IB_flag_none;
     case IMA_ALPHA_PREMUL:
       return IB_alphamode_premul;
     case IMA_ALPHA_CHANNEL_PACKED:
@@ -4002,7 +4002,7 @@ static int imbuf_alpha_flags_for_image(Image *ima)
       return IB_alphamode_ignore;
   }
 
-  return 0;
+  return IB_flag_none;
 }
 
 /**
@@ -4176,7 +4176,7 @@ static ImBuf *load_image_single(Image *ima,
 {
   char filepath[FILE_MAX];
   ImBuf *ibuf = nullptr;
-  int flag = IB_byte_data | IB_multilayer | IB_metadata | imbuf_alpha_flags_for_image(ima);
+  eImBufFlags flag = IB_byte_data | IB_multilayer | IB_metadata | imbuf_alpha_flags_for_image(ima);
 
   *r_cache_ibuf = true;
   const int tile_number = image_get_tile_number_from_iuser(ima, iuser);
@@ -4466,7 +4466,7 @@ static ImBuf *image_get_render_result(Image *ima, ImageUser *iuser, void **r_loc
    * 2. Provides an image buffer which can be used to communicate the render resolution (with
    * possible border render applied to it) prior to the actual pixels storage is allocated. */
   if (ima->runtime->cache == nullptr) {
-    ImBuf *empty_ibuf = IMB_allocImBuf(0, 0, 0);
+    ImBuf *empty_ibuf = IMB_allocImBuf(0, 0, IB_flag_none);
     image_assign_ibuf(ima, empty_ibuf, IMA_NO_INDEX, 0);
 
     /* The cache references the image buffer, and the freeing only happens if the buffer has 0

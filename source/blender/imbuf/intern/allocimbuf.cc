@@ -385,7 +385,7 @@ ImBuf *IMB_allocFromBufferOwn(
     return nullptr;
   }
 
-  ImBuf *ibuf = IMB_allocImBuf(w, h, 0);
+  ImBuf *ibuf = IMB_allocImBuf(w, h, IB_flag_none);
 
   ibuf->channels = channels;
 
@@ -413,7 +413,7 @@ ImBuf *IMB_allocFromBuffer(
     return nullptr;
   }
 
-  ibuf = IMB_allocImBuf(w, h, 0);
+  ibuf = IMB_allocImBuf(w, h, IB_flag_none);
 
   ibuf->channels = channels;
 
@@ -436,7 +436,7 @@ ImBuf *IMB_allocFromBuffer(
   return ibuf;
 }
 
-ImBuf *IMB_allocImBuf(uint x, uint y, uint flags)
+ImBuf *IMB_allocImBuf(uint x, uint y, eImBufFlags flags)
 {
   ImBuf *ibuf = MEM_new<ImBuf>("ImBuf_struct");
 
@@ -450,7 +450,7 @@ ImBuf *IMB_allocImBuf(uint x, uint y, uint flags)
   return ibuf;
 }
 
-bool IMB_initImBuf(ImBuf *ibuf, uint x, uint y, uint flags)
+bool IMB_initImBuf(ImBuf *ibuf, uint x, uint y, eImBufFlags flags)
 {
   *ibuf = ImBuf{};
 
@@ -489,7 +489,7 @@ ImBuf *IMB_dupImBuf(const ImBuf *ibuf1)
     return nullptr;
   }
 
-  ImBuf *ibuf2 = IMB_allocImBuf(ibuf1->x, ibuf1->y, 0);
+  ImBuf *ibuf2 = IMB_allocImBuf(ibuf1->x, ibuf1->y, IB_flag_none);
   if (ibuf2 == nullptr) {
     return nullptr;
   }
