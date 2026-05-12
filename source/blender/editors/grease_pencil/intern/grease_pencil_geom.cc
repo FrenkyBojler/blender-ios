@@ -183,18 +183,18 @@ int curve_merge_by_distance(const IndexRange points,
                             const float merge_distance,
                             MutableSpan<int> r_merge_indices)
 {
-  /* We use a KDTree_1d here, because we can only merge neighboring points in the curves. */
-  KDTree_1d *tree = kdtree_1d_new(selection.size());
+  /* We use a KDTree<float> here, because we can only merge neighboring points in the curves. */
+  KDTree<float> *tree = kdtree_new<float>(selection.size());
   /* The selection is an IndexMask of the points just in this curve. */
   selection.foreach_index([&](const int64_t i, const int64_t pos) {
-    kdtree_1d_insert(tree, pos, &distances[i - points.first()]);
+    kdtree_insert<float>(tree, pos, distances[i - points.first()]);
   });
-  kdtree_1d_balance(tree);
+  kdtree_balance<float>(tree);
 
   Array<int> selection_merge_indices(selection.size(), -1);
-  const int duplicate_count = kdtree_1d_calc_duplicates_fast(
+  const int duplicate_count = kdtree_calc_duplicates_fast<float>(
       tree, merge_distance, false, selection_merge_indices.data());
-  kdtree_1d_free(tree);
+  kdtree_free<float>(tree);
 
   array_utils::fill_index_range<int>(r_merge_indices);
 
@@ -320,32 +320,16 @@ bke::CurvesGeometry curves_merge_by_distance(const bke::CurvesGeometry &src_curv
       }
     }
 
-    bke::attribute_math::to_static_type(src_attribute.varray.type(), [&]<typename T>() {
-      if constexpr (!std::is_void_v<bke::attribute_math::DefaultMixer<T>>) {
-        bke::SpanAttributeWriter<T> dst_attribute =
-            dst_attributes.lookup_or_add_for_write_only_span<T>(iter.name, bke::AttrDomain::Point);
-        BLI_assert(dst_attribute);
-        VArraySpan<T> src = src_attribute.varray.typed<T>();
-
-        threading::parallel_for(dst_curves.points_range(), 1024, [&](IndexRange range) {
-          for (const int dst_point_i : range) {
-            /* Create a separate mixer for every point to avoid allocating temporary buffers
-             * in the mixer the size of the result curves and to improve memory locality. */
-            bke::attribute_math::DefaultMixer<T> mixer{dst_attribute.span.slice(dst_point_i, 1)};
-
-            Span<int> src_merge_indices = merge_map_indices.as_span().slice(
-                map_offsets[dst_point_i]);
-            for (const int src_point_i : src_merge_indices) {
-              mixer.mix_in(0, src[src_point_i]);
-            }
-
-            mixer.finalize();
-          }
-        });
-
-        dst_attribute.finish();
-      }
+    bke::GSpanAttributeWriter dst_attribute = dst_attributes.lookup_or_add_for_write_only_span(
+        iter.name, bke::AttrDomain::Point, iter.data_type);
+    threading::parallel_for(dst_curves.points_range(), 1024, [&](IndexRange range) {
+      bke::attribute_math::mix_groups(GVArraySpan(src_attribute.varray),
+                                      map_offsets.slice(range),
+                                      merge_map_indices,
+                                      std::nullopt,
+                                      dst_attribute.span.slice(range));
     });
+    dst_attribute.finish();
   });
 
   if (dst_curves.nurbs_has_custom_knots()) {
@@ -372,7 +356,7 @@ bke::CurvesGeometry curves_merge_endpoints_by_distance(
   const VArray<bool> cyclic = *src_curves.attributes().lookup_or_default<bool>(
       "cyclic", bke::AttrDomain::Curve, false);
   /* For comparing screen space positions use a 2D KDTree. Each curve adds 2 points. */
-  KDTree_2d *tree = kdtree_2d_new(2 * src_curves.curves_num());
+  KDTree<float2> *tree = kdtree_new<float2>(2 * src_curves.curves_num());
 
   threading::parallel_for(src_curves.curves_range(), 1024, [&](const IndexRange range) {
     for (const int src_i : range) {
@@ -393,10 +377,10 @@ bke::CurvesGeometry curves_merge_endpoints_by_distance(
     if (cyclic[src_i] == true) {
       continue;
     }
-    kdtree_2d_insert(tree, src_i * 2, screen_start_points[src_i]);
-    kdtree_2d_insert(tree, src_i * 2 + 1, screen_end_points[src_i]);
+    kdtree_insert<float2>(tree, src_i * 2, screen_start_points[src_i]);
+    kdtree_insert<float2>(tree, src_i * 2 + 1, screen_end_points[src_i]);
   }
-  kdtree_2d_balance(tree);
+  kdtree_balance<float2>(tree);
 
   Array<int> connect_to_curve(src_curves.curves_num(), -1);
   Array<bool> flip_direction(src_curves.curves_num(), false);
@@ -408,9 +392,9 @@ bke::CurvesGeometry curves_merge_endpoints_by_distance(
         const int start_index = src_i * 2;
         const int end_index = src_i * 2 + 1;
 
-        KDTreeNearest_2d nearest_start, nearest_end;
+        KDTreeNearest<float2> nearest_start, nearest_end;
         const bool is_start_ok =
-            (kdtree_find_nearest_cb_cpp<float2>(
+            (kdtree_find_nearest_cb<float2>(
                  tree,
                  start_co,
                  &nearest_start,
@@ -421,7 +405,7 @@ bke::CurvesGeometry curves_merge_endpoints_by_distance(
                    return 1;
                  }) != -1);
         const bool is_end_ok =
-            (kdtree_find_nearest_cb_cpp<float2>(
+            (kdtree_find_nearest_cb<float2>(
                  tree,
                  end_co,
                  &nearest_end,
@@ -450,7 +434,7 @@ bke::CurvesGeometry curves_merge_endpoints_by_distance(
         }
       },
       exec_mode::grain_size(512));
-  kdtree_2d_free(tree);
+  kdtree_free<float2>(tree);
 
   return geometry::curves_merge_endpoints(
       src_curves, connect_to_curve, flip_direction, attribute_filter);
@@ -789,6 +773,8 @@ bke::CurvesGeometry create_curves_outline(const bke::greasepencil::Drawing &draw
       "material_index", bke::AttrDomain::Curve, 0);
   const VArray<float> miter_angles = *src_attributes.lookup_or_default<float>(
       "miter_angle", bke::AttrDomain::Point, GP_STROKE_MITER_ANGLE_ROUND);
+  const VArray<int> src_fill_ids = *src_attributes.lookup_or_default(
+      "fill_id", bke::AttrDomain::Curve, 0);
 
   /* Transform positions and radii. */
   Array<float3> transformed_positions(src_positions.size());
@@ -809,10 +795,7 @@ bke::CurvesGeometry create_curves_outline(const bke::greasepencil::Drawing &draw
         PerimeterData &data = thread_data.local();
 
         const bool is_cyclic_curve = src_cyclic[curve_i];
-        /* NOTE: Cyclic curves would better be represented by a cyclic perimeter without end caps,
-         * but we always generate caps for compatibility with GPv2. Fill materials cannot create
-         * holes, so a cyclic outline does not work well. */
-        const bool use_caps = true /*!is_cyclic_curve*/;
+        const bool use_caps = !is_cyclic_curve;
 
         const int prev_point_num = data.positions.size();
         const int prev_curve_num = data.point_counts.size();
@@ -861,11 +844,17 @@ bke::CurvesGeometry create_curves_outline(const bke::greasepencil::Drawing &draw
       "material_index", bke::AttrDomain::Curve);
   bke::SpanAttributeWriter<float> dst_radius = dst_attributes.lookup_or_add_for_write_span<float>(
       "radius", bke::AttrDomain::Point);
+  bke::SpanAttributeWriter<int> dst_fill_ids = dst_attributes.lookup_or_add_for_write_span<int>(
+      "fill_id", bke::AttrDomain::Curve);
   const MutableSpan<int> dst_offsets = dst_curves.offsets_for_write();
   const MutableSpan<float3> dst_positions = dst_curves.positions_for_write();
   /* Source indices for attribute mapping. */
   Array<int> dst_curve_map(dst_curve_num);
   Array<int> dst_point_map(dst_point_num);
+
+  /* Start at `1` for the new geometry. */
+  int fill_id_to_set = 1;
+  Map<int, int> fill_src_id_to_dst_id;
 
   IndexRange curves;
   IndexRange points;
@@ -887,6 +876,27 @@ bke::CurvesGeometry create_curves_outline(const bke::greasepencil::Drawing &draw
       }
     }
 
+    for (const int i : curves.index_range()) {
+      const int dst_curve_i = curves[i];
+      const int src_curve_i = data.curve_indices[i];
+      const int src_fill_id = src_fill_ids[src_curve_i];
+
+      if (src_fill_id == 0) {
+        dst_fill_ids.span[dst_curve_i] = fill_id_to_set;
+        fill_id_to_set++;
+      }
+      else {
+        if (const std::optional<int> dst_fill_id = fill_src_id_to_dst_id.lookup_try(src_fill_id)) {
+          dst_fill_ids.span[dst_curve_i] = *dst_fill_id;
+        }
+        else {
+          dst_fill_ids.span[dst_curve_i] = fill_id_to_set;
+          fill_src_id_to_dst_id.add(src_fill_id, fill_id_to_set);
+          fill_id_to_set++;
+        }
+      }
+    }
+
     /* Append point data. */
     dst_positions.slice(points).copy_from(data.positions);
     dst_point_map.as_mutable_span().slice(points).copy_from(data.point_indices);
@@ -900,16 +910,18 @@ bke::CurvesGeometry create_curves_outline(const bke::greasepencil::Drawing &draw
                          bke::attribute_filter_from_skip_ref({"position", "radius"}),
                          dst_point_map,
                          dst_attributes);
-  bke::gather_attributes(src_attributes,
-                         bke::AttrDomain::Curve,
-                         bke::AttrDomain::Curve,
-                         bke::attribute_filter_from_skip_ref({"cyclic", "material_index"}),
-                         dst_curve_map,
-                         dst_attributes);
+  bke::gather_attributes(
+      src_attributes,
+      bke::AttrDomain::Curve,
+      bke::AttrDomain::Curve,
+      bke::attribute_filter_from_skip_ref({"cyclic", "material_index", "fill_id"}),
+      dst_curve_map,
+      dst_attributes);
 
   dst_cyclic.finish();
   dst_material.finish();
   dst_radius.finish();
+  dst_fill_ids.finish();
   dst_curves.update_curve_types();
 
   return dst_curves;

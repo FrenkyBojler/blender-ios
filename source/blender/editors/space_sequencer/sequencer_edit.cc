@@ -436,7 +436,9 @@ void sync_active_scene_and_time_with_scene_strip(bContext &C)
         if (view3d->camera == camera) {
           continue;
         }
+        /* HACK: This should not hijack the local camera of 3d viewports. */
         PointerRNA view3d_ptr = RNA_pointer_create_discrete(&screen->id, RNA_SpaceView3D, view3d);
+        RNA_boolean_set(&view3d_ptr, "use_local_camera", true);
         RNA_pointer_set(&view3d_ptr, "camera", camera_ptr);
       }
     }
@@ -445,7 +447,7 @@ void sync_active_scene_and_time_with_scene_strip(bContext &C)
   /* Compute the scene time based on the scene strip. */
   const float frame_index = seq::give_frame_index(
                                 sequencer_scene, scene_strip, sequencer_scene->r.cfra) +
-                            active_scene->r.sfra;
+                            active_scene->r.sfra + scene_strip->anim_startofs;
   if (active_scene->r.flag & SCER_SHOW_SUBFRAME) {
     active_scene->r.cfra = int(frame_index);
     active_scene->r.subframe = frame_index - int(frame_index);
@@ -2049,7 +2051,7 @@ static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
   Editing *ed = seq::editing_get(scene);
   ListBaseT<SeqTimelineChannel> *channels = seq::channels_displayed_get(ed);
 
-  scene->ed->runtime.flag &= ~SEQ_SHOW_TRANSFORM_PREVIEW;
+  scene->ed->runtime->show_transform_preview = false;
 
   View2D *v2d = ui::view2d_fromcontext(C);
   rctf box_rect;
@@ -2181,10 +2183,10 @@ static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
           (strip->left_handle() > rect_frames[0]))
       {
         if (ignore_connections) {
-          seq::query_strip_effect_chain(scene, strip, &ed->seqbase, to_offset);
+          seq::query_strip_effect_chain(strip, &ed->seqbase, to_offset);
         }
         else {
-          seq::query_strip_connected_and_effect_chain(scene, strip, &ed->seqbase, to_offset);
+          seq::query_strip_connected_and_effect_chain(strip, &ed->seqbase, to_offset);
         }
       }
     }
@@ -2224,13 +2226,13 @@ static wmOperatorStatus sequencer_box_blade_modal(bContext *C,
 
   View2D *v2d = ui::view2d_fromcontext(C);
   int mouse_frame = ui::view2d_region_to_view_x(v2d, event->mval[0]);
-  scene->ed->runtime.flag |= SEQ_SHOW_TRANSFORM_PREVIEW;
-  scene->ed->runtime.transform_preview_frame = mouse_frame;
+  scene->ed->runtime->show_transform_preview = true;
+  scene->ed->runtime->transform_preview_frame = mouse_frame;
 
   WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
   wmOperatorStatus gesture_return = WM_gesture_box_modal(C, op, event);
   if (OPERATOR_CANCELLED == gesture_return) {
-    scene->ed->runtime.flag &= ~SEQ_SHOW_TRANSFORM_PREVIEW;
+    scene->ed->runtime->show_transform_preview = false;
   }
 
   wmGesture *gesture = static_cast<wmGesture *>(op->customdata);
@@ -2240,9 +2242,9 @@ static wmOperatorStatus sequencer_box_blade_modal(bContext *C,
     rctf box_rect;
     WM_operator_properties_border_to_rctf(op, &box_rect);
     ui::view2d_region_to_view_rctf(v2d, &box_rect, &box_rect);
-    scene->ed->runtime.transform_preview_frame = (mouse_frame == int(box_rect.xmin)) ?
-                                                     int(box_rect.xmax) :
-                                                     int(box_rect.xmin);
+    scene->ed->runtime->transform_preview_frame = (mouse_frame == int(box_rect.xmin)) ?
+                                                      int(box_rect.xmax) :
+                                                      int(box_rect.xmin);
   }
 
   return gesture_return;
@@ -2428,7 +2430,7 @@ static wmOperatorStatus sequencer_add_duplicate_exec(bContext *C, wmOperator *op
     if (active_strip != nullptr && STREQ(strip->name, active_strip->name)) {
       seq::select_active_set(scene, strip);
     }
-    strip->flag &= ~(SEQ_LEFTSEL + SEQ_RIGHTSEL + SEQ_LOCK);
+    strip->flag &= ~(SEQ_LEFTSEL | SEQ_RIGHTSEL | SEQ_LOCK);
     strip->runtime->flag |= seq::StripRuntimeFlag::IgnoreChannelLock;
 
     seq::animation_duplicate_backup_to_scene(scene, strip, &animation_backup);
@@ -2839,7 +2841,7 @@ static wmOperatorStatus sequencer_meta_make_exec(bContext *C, wmOperator * /*op*
   VectorSet<Strip *> strips_to_move;
   strips_to_move.add_multiple(selected);
   seq::iterator_set_expand(
-      scene, active_seqbase, strips_to_move, seq::query_strip_connected_and_effect_chain);
+      active_seqbase, strips_to_move, seq::query_strip_connected_and_effect_chain);
 
   for (Strip *strip : strips_to_move) {
     seq::relations_invalidate_cache(scene, strip);
@@ -3398,7 +3400,7 @@ static wmOperatorStatus sequencer_change_effect_type_exec(bContext *C, wmOperato
 {
   Scene *scene = CTX_data_sequencer_scene(C);
   Strip *strip = seq::select_active_get(scene);
-  const StripType old_type = StripType(strip->type);
+  const StripType old_type = strip->type;
   const int have_inputs = strip->effect_num_inputs_get();
   const StripType new_type = StripType(RNA_enum_get(op->ptr, "type"));
 
@@ -4135,7 +4137,7 @@ static wmOperatorStatus sequencer_strip_color_tag_set_exec(bContext *C, wmOperat
 {
   Scene *scene = CTX_data_sequencer_scene(C);
   const Editing *ed = seq::editing_get(scene);
-  const short color_tag = RNA_enum_get(op->ptr, "color");
+  const StripColorTag color_tag = StripColorTag(RNA_enum_get(op->ptr, "color"));
 
   for (Strip &strip : *ed->current_strips()) {
     if (strip.flag & SEQ_SELECT) {
