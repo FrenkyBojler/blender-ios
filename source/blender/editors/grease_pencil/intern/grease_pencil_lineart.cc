@@ -386,7 +386,7 @@ static wmOperatorStatus lineart_bake_common(bContext *C,
   bj->C = C;
   Scene *scene = CTX_data_scene(C);
   bj->scene = scene;
-  bj->dg = DEG_graph_new(CTX_data_main(C),scene,CTX_data_view_layer(C),DAG_EVAL_RENDER),
+  bj->dg = DEG_graph_new(CTX_data_main(C), scene, CTX_data_view_layer(C), DAG_EVAL_RENDER),
   bj->frame_begin = scene->r.sfra;
   bj->frame_end = scene->r.efra;
   bj->frame_orig = scene->r.cfra;
