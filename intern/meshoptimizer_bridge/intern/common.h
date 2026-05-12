@@ -9,4 +9,3 @@
 #else
 #  define API(returnType) extern "C" returnType
 #endif
-
