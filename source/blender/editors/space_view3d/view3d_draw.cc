@@ -1751,7 +1751,7 @@ void ED_view3d_draw_offscreen(Depsgraph *depsgraph,
      * Without this the #wmPaintCursor can't use the pixel size & view matrices for drawing.
      */
     RV3DMatrixStore *rv3d_mats;
-    char rv3d_persp;
+    eRegionView3D_Persp rv3d_persp;
   } orig{};
   orig.v3d_shading_type = eDrawType(v3d->shading.type);
   orig.region_winx = region->winx;
@@ -2017,7 +2017,7 @@ ImBuf *ED_view3d_draw_offscreen_imbuf(Depsgraph *depsgraph,
   GPU_offscreen_bind(ofs, true);
 
   /* read in pixels & stamp */
-  ImBuf *ibuf = IMB_allocImBuf(sizex, sizey, 32, imbuf_flag);
+  ImBuf *ibuf = IMB_allocImBuf(sizex, sizey, imbuf_flag);
 
   /* render 3d view */
   if (use_camera_view_bounds && rv3d->persp == RV3D_CAMOB && v3d->camera) {
@@ -2484,8 +2484,8 @@ void ED_view3d_depth_override(Depsgraph *depsgraph,
   Scene *scene = DEG_get_evaluated_scene(depsgraph);
   RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
 
-  short flag = v3d->flag;
-  int flag2 = v3d->flag2;
+  eView3D_Flag flag = v3d->flag;
+  eView3D_Flag2 flag2 = v3d->flag2;
   /* Setting these temporarily is not nice */
   v3d->flag &= ~V3D_SELECT_OUTLINE;
 
@@ -2641,9 +2641,13 @@ void ED_view3d_datamask(const Main &bmain,
             }
             break;
           }
+          default:
+            break;
         }
         break;
       }
+      default:
+        break;
     }
   }
 }

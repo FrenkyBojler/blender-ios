@@ -224,8 +224,7 @@ static void movieclip_blend_write(BlendWriter *writer, ID *id, const void *id_ad
 static void direct_link_movieReconstruction(BlendDataReader *reader,
                                             MovieTrackingReconstruction *reconstruction)
 {
-  BLO_read_struct_array(
-      reader, MovieReconstructedCamera, reconstruction->camnr, &reconstruction->cameras);
+  BLO_read_array_and_validate_size(reader, &reconstruction->cameras, &reconstruction->camnr);
 }
 
 static void direct_link_movieTracks(BlendDataReader *reader,
@@ -234,7 +233,7 @@ static void direct_link_movieTracks(BlendDataReader *reader,
   BLO_read_struct_list(reader, MovieTrackingTrack, tracksbase);
 
   for (MovieTrackingTrack &track : *tracksbase) {
-    BLO_read_struct_array(reader, MovieTrackingMarker, track.markersnr, &track.markers);
+    BLO_read_array_and_validate_size(reader, &track.markers, &track.markersnr);
   }
 }
 
@@ -244,14 +243,13 @@ static void direct_link_moviePlaneTracks(BlendDataReader *reader,
   BLO_read_struct_list(reader, MovieTrackingPlaneTrack, plane_tracks_base);
 
   for (MovieTrackingPlaneTrack &plane_track : *plane_tracks_base) {
-    BLO_read_pointer_array(
-        reader, plane_track.point_tracksnr, reinterpret_cast<void **>(&plane_track.point_tracks));
+    BLO_read_pointer_array_and_validate_size(
+        reader, &plane_track.point_tracks, &plane_track.point_tracksnr);
     for (int i = 0; i < plane_track.point_tracksnr; i++) {
       BLO_read_struct(reader, MovieTrackingTrack, &plane_track.point_tracks[i]);
     }
 
-    BLO_read_struct_array(
-        reader, MovieTrackingPlaneMarker, plane_track.markersnr, &plane_track.markers);
+    BLO_read_array_and_validate_size(reader, &plane_track.markers, &plane_track.markersnr);
   }
 }
 
@@ -1039,6 +1037,10 @@ static void real_ibuf_size(
         *width = float(*width) * 4.0f / 3.0f;
         *height = float(*height) * 4.0f / 3.0f;
         break;
+
+      case MCLIP_PROXY_RENDER_SIZE_100:
+      case MCLIP_PROXY_RENDER_SIZE_FULL:
+        break;
     }
   }
 }
@@ -1797,9 +1799,8 @@ static void movieclip_build_proxy_ibuf(const MovieClip *clip,
   quality = clip->proxy.quality;
   scaleibuf->ftype = IMB_FTYPE_JPG;
   scaleibuf->foptions.quality = quality;
-  /* unsupported feature only confuses other s/w */
-  if (scaleibuf->planes == 32) {
-    scaleibuf->planes = 24;
+  if (scaleibuf->can_contain_alpha()) {
+    scaleibuf->color_mode = ImColorMode::RGB;
   }
 
   /* TODO: currently the most weak part of multi-threaded proxies,
@@ -1834,7 +1835,7 @@ void BKE_movieclip_build_proxy_frame(MovieClip *clip,
   }
 
   user.framenr = cfra;
-  user.render_flag = 0;
+  user.render_flag = {};
   user.render_size = MCLIP_PROXY_RENDER_SIZE_FULL;
 
   ibuf = BKE_movieclip_get_ibuf_flag(clip, &user, clip_flag, MovieClipCacheFlag::SkipCache);
