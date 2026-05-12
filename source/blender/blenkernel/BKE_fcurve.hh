@@ -452,11 +452,14 @@ eFCU_Cycle_Type BKE_fcurve_get_cycle_type(const FCurve &fcu);
 /**
  * Returns the tangent of the curve at the given frame. This returns a normalized vector that
  * always points towards positive X.
+ * If the `frame` is outside the keyed range of the FCurve, the extrapolation rules of the FCurve
+ * are used to find a tangent.
+ * When the given frame is exactly on a key, the right handle is returned as a tangent.
  *
  * \note Not all interpolation types are supported. Currently that is only Linear, Constant and
- * Bezier.
+ * Bezier. For all unsupported types, Linear interpolation is assumed.
  */
-float2 BKE_fcurve_tangent(FCurve &fcurve, float frame);
+float2 BKE_fcurve_tangent(const FCurve &fcurve, float frame);
 
 /**
  * Recompute bezier handles of all three given BezTriples, so that `bezt` can be inserted between

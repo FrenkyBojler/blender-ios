@@ -1591,26 +1591,29 @@ static float2 get_bezier_tangent(const BezTriple &a, const BezTriple &b, const f
   return tangent;
 }
 
-float2 BKE_fcurve_tangent(FCurve &fcurve, const float frame)
+float2 BKE_fcurve_tangent(const FCurve &fcurve, const float frame)
 {
   if (!fcurve.bezt || fcurve.totvert < 2) {
     /* Need at least 2 keys to have a curve for a tangent. */
     return {1, 0};
   }
 
-  bool replace;
+  bool is_exactly_on_key;
   const int key_index = BKE_fcurve_bezt_binarysearch_index(
-      fcurve.bezt, frame, fcurve.totvert, &replace);
+      fcurve.bezt, frame, fcurve.totvert, &is_exactly_on_key);
 
-  if (replace) {
+  if (is_exactly_on_key) {
     const BezTriple &key = fcurve.bezt[key_index];
+    /* Favors the right tangent, since a key defines the interpolation to its right. */
     float2 tangent = float2(key.vec[2]) - float2(key.vec[1]);
     normalize_v2(tangent);
     return tangent;
   }
 
   if (key_index == 0 || key_index == fcurve.totvert) {
-    /* If the given frame is outside the key range, return the tangent of the extrapolation; */
+    /* If the given frame is outside the key range, return the tangent of the extrapolation. We
+     * know that this means we are outside the range because the `is_exactly_on_key` case is
+     * already handled. */
     if (fcurve.extend == FCURVE_EXTRAPOLATE_CONSTANT) {
       return {1, 0};
     }
@@ -1640,13 +1643,14 @@ float2 BKE_fcurve_tangent(FCurve &fcurve, const float frame)
       return {1, 0};
     case BEZT_IPO_BEZ:
       return get_bezier_tangent(a, b, frame);
-    default:
-      break;
+    default: {
+      /* Unsupported interpolation type. Just return the tangent of a linear
+       * interpolation. */
+      float2 tangent = float2(b.vec[1]) - float2(a.vec[1]);
+      normalize_v2(tangent);
+      return tangent;
+    }
   }
-  /* Unsupported interpolation type. Just return the tangent of a linear interpolation. */
-  float2 tangent = float2(b.vec[1]) - float2(a.vec[1]);
-  normalize_v2(tangent);
-  return tangent;
 }
 
 bool BKE_fcurve_bezt_subdivide_handles(BezTriple *bezt,
