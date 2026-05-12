@@ -13,6 +13,7 @@ FRAGMENT_SHADER_CREATE_INFO(eevee_light_data)
 FRAGMENT_SHADER_CREATE_INFO(eevee_volume_lib)
 
 #include "draw_view_lib.glsl"
+#include "eevee_light_lib.glsl"
 #include "eevee_reverse_z_lib.bsl.hh"
 #include "eevee_volume_lib.bsl.hh"
 #include "gpu_shader_math_constants_lib.glsl"
@@ -28,7 +29,9 @@ struct ShapeDisplayResources {
 
 struct ShapeDisplayVertOut {
   [[smooth]] float2 lP;
+  [[smooth]] float3 P;
   [[flat]] float3 radiance;
+  [[flat]] int light_index;
   [[flat]] uint light_type;
 };
 
@@ -59,9 +62,9 @@ float shape_display_light_radiance_get(LightData light)
 float3 shape_display_light_position_get(LightData light, float2 quad_pos)
 {
   if (is_sun_light(light.type)) {
-    float distance = drw_view_far() * 0.99f;
+    float distance = drw_view_far() * 0.5f;
     float radius = distance * light.sun().shape_radius;
-    float3 center = drw_view_position() + light.sun().direction * distance;
+    float3 center = drw_view_position() - light.sun().direction * distance;
     float3 view_right = drw_view().viewinv[0].xyz;
     float3 view_up = drw_view().viewinv[1].xyz;
     return center + (view_right * quad_pos.x + view_up * quad_pos.y) * radius;
@@ -73,8 +76,27 @@ float3 shape_display_light_position_get(LightData light, float2 quad_pos)
 
   float radius = light.local().local.shape_radius;
   float3 center = light_position_get(light);
+
+  if (is_oriented_disk_light(light.type)) {
+    return center + (light_x_axis(light) * quad_pos.x + light_y_axis(light) * quad_pos.y) * radius;
+  }
+
   float3 view_right = drw_view().viewinv[0].xyz;
   float3 view_up = drw_view().viewinv[1].xyz;
+
+  if (is_sphere_light(light.type)) {
+    float3 L = center - drw_view_position();
+    float dist = length(L);
+    if (dist > radius) {
+      L /= dist;
+      make_orthonormal_basis(L, view_right, view_up);
+      radius = light_sphere_disk_radius(radius, dist);
+    }
+    else {
+      radius = drw_view_far();
+    }
+  }
+
   return center + (view_right * quad_pos.x + view_up * quad_pos.y) * radius;
 }
 
@@ -93,7 +115,9 @@ void shape_display_vert([[resource_table]] const ShapeDisplayResources & /*srt*/
                         [[position]] float4 &out_position)
 {
   v_out.lP = shape_display_quad_position_get(vertex_id);
+  v_out.P = float3(0.0f);
   v_out.radiance = float3(0.0f);
+  v_out.light_index = 0;
   v_out.light_type = uint(LIGHT_RECT);
   out_position = float4(0.0f, 0.0f, 0.0f, 1.0f);
 
@@ -119,10 +143,11 @@ void shape_display_vert([[resource_table]] const ShapeDisplayResources & /*srt*/
   }
 
   v_out.light_type = uint(light.type);
+  v_out.light_index = light_index;
   v_out.radiance = light.color * shape_display_light_radiance_get(light);
 
-  float3 P = shape_display_light_position_get(light, v_out.lP);
-  out_position = reverse_z::transform(drw_point_world_to_homogenous(P));
+  v_out.P = shape_display_light_position_get(light, v_out.lP);
+  out_position = reverse_z::transform(drw_point_world_to_homogenous(v_out.P));
 }
 
 [[fragment]]
@@ -139,10 +164,19 @@ void shape_display_frag([[resource_table]] const ShapeDisplayResources & /*srt*/
     return;
   }
 
+  LightData light = light_buf[v_out.light_index];
+  float3 P = v_out.P;
+  float depth = reverse_z::read(frag_co.z);
+
   float2 uvs = frag_co.xy * uniform_buf.volumes.main_view_extent_inv;
+  float3 radiance = v_out.radiance;
+  if (is_spot_light(light_type)) {
+    radiance *= light_spot_attenuation(light, -drw_world_incident_vector(P));
+  }
+
   VolumeResolveSample vol = volume_resolve(
-      float3(uvs, reverse_z::read(frag_co.z)), volume_transmittance_tx, volume_scattering_tx);
-  frag_out.out_color = float4(v_out.radiance * vol.transmittance, 1.0f);
+      float3(uvs, depth), volume_transmittance_tx, volume_scattering_tx);
+  frag_out.out_color = float4(radiance * vol.transmittance, 1.0f);
 }
 
 PipelineGraphic shape_display(shape_display_vert, shape_display_frag);
