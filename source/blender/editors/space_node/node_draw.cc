@@ -2250,7 +2250,9 @@ static std::optional<std::chrono::nanoseconds> node_get_execution_time(
   if (tree_log == nullptr) {
     return std::nullopt;
   }
-  if (node.is_group_output() || node.is_type("CompositorNodeViewer"_ustr)) {
+  if (node.is_group_output() ||
+      (node.is_type("CompositorNodeViewer"_ustr) && (node.flag & NODE_DO_OUTPUT)))
+  {
     return tree_log->execution_time;
   }
   if (node.is_frame()) {
