@@ -1073,12 +1073,6 @@ void BlenderSync::sync_hair(Hair *hair, BObjectInfo &b_ob_info, bool motion, con
 
 void BlenderSync::sync_hair(BObjectInfo &b_ob_info, Hair *hair)
 {
-  array<float3> curve_keys_pre;
-  curve_keys_pre.steal_data(hair->get_curve_keys_pre());
-  if (scene->need_motion() == Scene::MOTION_PASS_INTERACTIVE && curve_keys_pre.empty()) {
-    curve_keys_pre.steal_data(hair->get_curve_keys());
-  }
-
   /* make a copy of the shaders as the caller in the main thread still need them for syncing the
    * attributes */
   array<Node *> used_shaders = hair->get_used_shaders();
@@ -1100,6 +1094,21 @@ void BlenderSync::sync_hair(BObjectInfo &b_ob_info, Hair *hair)
         free_object_to_mesh(b_ob_info, *b_mesh);
       }
     }
+
+    if (scene->need_motion() == Scene::MOTION_PASS_INTERACTIVE &&
+        hair->num_keys() == new_hair.num_keys())
+    {
+      new_hair.set_motion_steps(2);
+
+      Attribute *attr_mP = hair->attributes.find(ATTR_STD_MOTION_VERTEX_POSITION);
+      Attribute *new_attr_mP = new_hair.attributes.add(ATTR_STD_MOTION_VERTEX_POSITION);
+      if (attr_mP) {
+        new_attr_mP->set_data_from(std::move(*attr_mP));
+      }
+      else {
+        new_hair.copy_center_to_motion_step(0);
+      }
+    }
   }
 
   /* update original sockets */
@@ -1115,10 +1124,6 @@ void BlenderSync::sync_hair(BObjectInfo &b_ob_info, Hair *hair)
   hair->attributes.update(std::move(new_hair.attributes));
 
   hair->curve_shape = new_hair.curve_shape;
-
-  if (hair->get_curve_keys().size() == curve_keys_pre.size()) {
-    hair->set_curve_keys_pre(curve_keys_pre);
-  }
 
   /* tag update */
 

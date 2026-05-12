@@ -612,14 +612,16 @@ void ObjectManager::device_update_object_transform(UpdateObjectTransformState *s
 
   /* TODO: why not check hair? */
   if (geom->is_pointcloud()) {
-    PointCloud *pointcloud = static_cast<PointCloud *>(geom);
-    if (pointcloud->has_motion()) {
+    if (geom->attributes.find(ATTR_STD_MOTION_VERTEX_POSITION)) {
       flag |= SD_OBJECT_HAS_VERTEX_MOTION;
     }
   }
   else if (geom->is_mesh()) {
     Mesh *mesh = static_cast<Mesh *>(geom);
-    if (mesh->has_motion()) {
+    if (mesh->attributes.find(ATTR_STD_MOTION_VERTEX_POSITION) ||
+        (mesh->get_subdivision_type() != Mesh::SUBDIVISION_NONE &&
+         mesh->subd_attributes.find(ATTR_STD_MOTION_VERTEX_POSITION)))
+    {
       flag |= SD_OBJECT_HAS_VERTEX_MOTION;
     }
     else if (mesh->attributes.find(ATTR_STD_CORNER_NORMAL)) {

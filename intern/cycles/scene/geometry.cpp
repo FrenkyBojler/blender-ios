@@ -177,43 +177,46 @@ void GeometryManager::update_interactive_motion(Scene *scene)
 {
   bool update = false;
 
-  parallel_for(
-      blocked_range<size_t>(0, scene->geometry.size(), 32), [&](const blocked_range<size_t> &r) {
-        for (size_t i = r.begin(); i != r.end(); i++) {
-          Geometry *geom = scene->geometry[i];
+  parallel_for(blocked_range<size_t>(0, scene->geometry.size(), 32),
+               [&](const blocked_range<size_t> &r) {
+                 for (size_t i = r.begin(); i != r.end(); i++) {
+                   Geometry *geom = scene->geometry[i];
 
-          if (geom->is_mesh() && !geom->has_true_displacement()) {
-            Mesh *mesh = static_cast<Mesh *>(geom);
-
-            if (!mesh->verts_pre.empty() && mesh->verts != mesh->verts_pre) {
-              mesh->verts_pre = mesh->verts;
-              mesh->tag_verts_pre_modified();
-
-              update = true;
-            }
-          }
-          else if (geom->is_hair()) {
-            Hair *hair = static_cast<Hair *>(geom);
-
-            if (!hair->curve_keys_pre.empty() && hair->curve_keys != hair->curve_keys_pre) {
-              hair->curve_keys_pre = hair->curve_keys;
-              hair->tag_curve_keys_pre_modified();
-
-              update = true;
-            }
-          }
-          else if (geom->is_pointcloud()) {
-            PointCloud *pointcloud = static_cast<PointCloud *>(geom);
-
-            if (!pointcloud->points_pre.empty() && pointcloud->points != pointcloud->points_pre) {
-              pointcloud->points_pre = pointcloud->points;
-              pointcloud->tag_points_pre_modified();
-
-              update = true;
-            }
-          }
-        }
-      });
+                   Attribute *attr_mP = geom->attributes.find(ATTR_STD_MOTION_VERTEX_POSITION);
+                   if (attr_mP) {
+                     if (geom->is_mesh()) {
+                       Mesh *mesh = static_cast<Mesh *>(geom);
+                       if (std::memcmp(mesh->get_verts().data(),
+                                       attr_mP->data_float3(),
+                                       sizeof(float3) * mesh->num_verts()) != 0)
+                       {
+                         mesh->copy_center_to_motion_step(0);
+                         attr_mP->modified = update = true;
+                       }
+                     }
+                     else if (geom->is_hair()) {
+                       Hair *hair = static_cast<Hair *>(geom);
+                       if (std::memcmp(hair->get_curve_keys().data(),
+                                       attr_mP->data_float3(),
+                                       sizeof(float3) * hair->num_keys()) != 0)
+                       {
+                         hair->copy_center_to_motion_step(0);
+                         attr_mP->modified = update = true;
+                       }
+                     }
+                     else if (geom->is_pointcloud()) {
+                       PointCloud *pointcloud = static_cast<PointCloud *>(geom);
+                       if (std::memcmp(pointcloud->get_points().data(),
+                                       attr_mP->data_float3(),
+                                       sizeof(float3) * pointcloud->num_points()) != 0)
+                       {
+                         pointcloud->copy_center_to_motion_step(0);
+                         attr_mP->modified = update = true;
+                       }
+                     }
+                   }
+                 }
+               });
 
   if (update) {
     tag_update(scene, TRANSFORM_MODIFIED);
@@ -847,22 +850,7 @@ void GeometryManager::device_update(Device *device,
       return;
     }
 
-    if (!geom->is_modified()) {
-      return;
-    }
-
-    if (geom->is_hair()) {
-      Hair *hair = static_cast<Hair *>(geom);
-      hair->update_motion(scene);
-      return;
-    }
-    if (geom->is_pointcloud()) {
-      PointCloud *pointcloud = static_cast<PointCloud *>(geom);
-      pointcloud->update_motion(scene);
-      return;
-    }
-
-    if (!geom->is_mesh()) {
+    if (!(geom->is_modified() && geom->is_mesh())) {
       return;
     }
 
@@ -897,7 +885,6 @@ void GeometryManager::device_update(Device *device,
       mesh->tessellate(subd_params);
     }
 
-    mesh->update_motion(scene);
     /* Apply tangents for generated and UVs (if any need them) or remove if not needed */
     mesh->update_tangents(scene, true);
     if (!mesh->has_true_displacement()) {

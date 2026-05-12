@@ -925,12 +925,6 @@ static void create_subd_mesh(Scene *scene,
 
 void BlenderSync::sync_mesh(BObjectInfo &b_ob_info, Mesh *mesh)
 {
-  array<float3> verts_pre;
-  verts_pre.steal_data(mesh->get_verts_pre());
-  if (scene->need_motion() == Scene::MOTION_PASS_INTERACTIVE && verts_pre.empty()) {
-    verts_pre.steal_data(mesh->get_verts());
-  }
-
   /* make a copy of the shaders as the caller in the main thread still need them for syncing the
    * attributes */
   array<Node *> used_shaders = mesh->get_used_shaders();
@@ -975,6 +969,21 @@ void BlenderSync::sync_mesh(BObjectInfo &b_ob_info, Mesh *mesh)
 
       free_object_to_mesh(b_ob_info, const_cast<blender::Mesh &>(*b_mesh));
     }
+
+    if (scene->need_motion() == Scene::MOTION_PASS_INTERACTIVE &&
+        mesh->num_verts() == new_mesh.num_verts())
+    {
+      new_mesh.set_motion_steps(2);
+
+      Attribute *attr_mP = mesh->attributes.find(ATTR_STD_MOTION_VERTEX_POSITION);
+      Attribute *new_attr_mP = new_mesh.attributes.add(ATTR_STD_MOTION_VERTEX_POSITION);
+      if (attr_mP) {
+        new_attr_mP->set_data_from(std::move(*attr_mP));
+      }
+      else {
+        new_mesh.copy_center_to_motion_step(0);
+      }
+    }
   }
 
   /* update original sockets */
@@ -993,10 +1002,6 @@ void BlenderSync::sync_mesh(BObjectInfo &b_ob_info, Mesh *mesh)
   mesh->subd_attributes.update(std::move(new_mesh.subd_attributes));
 
   mesh->set_num_subd_faces(new_mesh.get_num_subd_faces());
-
-  if (mesh->get_verts().size() == verts_pre.size()) {
-    mesh->set_verts_pre(verts_pre);
-  }
 
   /* tag update */
   const bool rebuild = (mesh->triangles_is_modified()) || (mesh->subd_num_corners_is_modified()) ||

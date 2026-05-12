@@ -208,12 +208,6 @@ static void export_pointcloud_motion(PointCloud *pointcloud,
 
 void BlenderSync::sync_pointcloud(PointCloud *pointcloud, BObjectInfo &b_ob_info)
 {
-  array<float3> points_pre;
-  points_pre.steal_data(pointcloud->get_points_pre());
-  if (scene->need_motion() == Scene::MOTION_PASS_INTERACTIVE && points_pre.empty()) {
-    points_pre.steal_data(pointcloud->get_points());
-  }
-
   const size_t old_numpoints = pointcloud->num_points();
 
   array<Node *> used_shaders = pointcloud->get_used_shaders();
@@ -231,9 +225,25 @@ void BlenderSync::sync_pointcloud(PointCloud *pointcloud, BObjectInfo &b_ob_info
                                              0.0f;
   export_pointcloud(scene, &new_pointcloud, *b_pointcloud, need_motion, motion_scale);
 
-  pointcloud->clear_non_sockets();
+  if (scene->need_motion() == Scene::MOTION_PASS_INTERACTIVE &&
+      pointcloud->num_points() == new_pointcloud.num_points())
+  {
+    new_pointcloud.set_motion_steps(2);
+
+    Attribute *attr_mP = pointcloud->attributes.find(ATTR_STD_MOTION_VERTEX_POSITION);
+    Attribute *new_attr_mP = new_pointcloud.attributes.add(ATTR_STD_MOTION_VERTEX_POSITION);
+    if (attr_mP) {
+      new_attr_mP->set_data_from(std::move(*attr_mP));
+    }
+    else {
+      new_pointcloud.copy_center_to_motion_step(0);
+    }
+  }
 
   /* Update original sockets. */
+
+  pointcloud->clear_non_sockets();
+
   for (const SocketType &socket : new_pointcloud.type->inputs) {
     /* Those sockets are updated in sync_object, so do not modify them. */
     if (socket.name == "use_motion_blur" || socket.name == "used_shaders") {
@@ -243,10 +253,6 @@ void BlenderSync::sync_pointcloud(PointCloud *pointcloud, BObjectInfo &b_ob_info
   }
 
   pointcloud->attributes.update(std::move(new_pointcloud.attributes));
-
-  if (pointcloud->get_points().size() == points_pre.size()) {
-    pointcloud->set_points_pre(points_pre);
-  }
 
   /* Tag update. */
   const bool rebuild = (pointcloud && old_numpoints != pointcloud->num_points());
