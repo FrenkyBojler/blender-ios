@@ -220,6 +220,6 @@ VolumeResolveSample volume_resolve(float3 ndc_P,
   volume.scattering = texture(scattering_tx, coord).rgb;
   volume.transmittance = texture(transmittance_tx, coord).rgb;
   /* Scattering is stored in log space to make interpolation smoother. */
-  volume.scattering = colorspace::scene_linear_from_log(volume.scattering);
+  volume.scattering = colorspace::scene_linear_from_log_ratio(volume.scattering);
   return volume;
 }

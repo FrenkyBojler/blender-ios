@@ -240,7 +240,7 @@ void scatter_main([[resource_table]] Scatter &srt,
 
   scattering += direct_radiance + indirect_radiance;
   /* Scattering is stored in log space to make interpolation smoother. */
-  scattering = colorspace::log_from_scene_linear(scattering);
+  scattering = colorspace::log_from_scene_linear_ratio(scattering);
 
   if (uniform_buf.volumes.history_opacity > 0.0f) {
     /* Temporal reprojection. */
@@ -312,7 +312,7 @@ void integration_main([[resource_table]] Integrate &srt,
     int3 froxel = int3(texel, i);
 
     float3 froxel_scattering = texelFetch(srt.in_scattering_tx, froxel, 0).rgb;
-    froxel_scattering = colorspace::scene_linear_from_log(froxel_scattering);
+    froxel_scattering = colorspace::scene_linear_from_log_ratio(froxel_scattering);
 
     float3 extinction = texelFetch(srt.in_extinction_tx, froxel, 0).rgb;
 
@@ -346,7 +346,7 @@ void integration_main([[resource_table]] Integrate &srt,
     transmittance *= froxel_transmittance;
 
     /* Scattering is stored in log space to make interpolation smoother. */
-    float3 log_scattering = colorspace::log_from_scene_linear(scattering);
+    float3 log_scattering = colorspace::log_from_scene_linear_ratio(scattering);
 
     imageStoreFast(srt.out_scattering_img, froxel, float4(log_scattering, 1.0f));
     imageStoreFast(srt.out_transmittance_img, froxel, float4(transmittance, 1.0f));

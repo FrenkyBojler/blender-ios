@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "gpu_shader_math_safe_lib.glsl"
 #include "gpu_shader_math_vector_reduce_lib.glsl"
 #include "gpu_shader_utildefines_lib.glsl"
 
@@ -52,6 +53,10 @@ float4 scene_linear_from_YCoCg(float4 ycocg_color)
  * Used to crunch highlights and noise during denoising accumulations.
  * \{ */
 
+float log_from_scene_linear(float value)
+{
+  return log2(1.0f + value);
+}
 float3 log_from_scene_linear(float3 color)
 {
   return log2(1.0f + color);
@@ -61,6 +66,10 @@ float4 log_from_scene_linear(float4 color)
   return float4(log_from_scene_linear(color.rgb), color.a);
 }
 
+float scene_linear_from_log(float value)
+{
+  return exp2(value) - 1.0f;
+}
 float3 scene_linear_from_log(float3 color)
 {
   return exp2(color) - 1.0f;
@@ -68,6 +77,18 @@ float3 scene_linear_from_log(float3 color)
 float4 scene_linear_from_log(float4 color)
 {
   return float4(scene_linear_from_log(color.rgb), color.a);
+}
+
+/* Same as the normal transform but keep chromaticity (as in, the ratio between components). */
+float3 log_from_scene_linear_ratio(float3 color)
+{
+  float max_comp = reduce_max(color);
+  return color * (log_from_scene_linear(max_comp) * safe_rcp(max_comp));
+}
+float3 scene_linear_from_log_ratio(float3 color)
+{
+  float max_comp = reduce_max(color);
+  return color * (scene_linear_from_log(max_comp) * safe_rcp(max_comp));
 }
 
 /** \} */
