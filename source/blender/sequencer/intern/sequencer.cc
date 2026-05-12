@@ -25,6 +25,7 @@
 #include "BLI_listbase.h"
 #include "BLI_map.hh"
 #include "BLI_path_utils.hh"
+#include "BLI_string.h"
 #include "BLI_string_utf8.h"
 
 #include "BKE_duplilist.hh"
@@ -253,6 +254,10 @@ static void seq_strip_free_ex(Scene *scene,
     MEM_delete(strip->retiming_keys);
     strip->retiming_keys = nullptr;
     strip->retiming_keys_num = 0;
+  }
+
+  if (strip->scene_view_layer_name != nullptr) {
+    MEM_delete(strip->scene_view_layer_name);
   }
 
   MEM_SAFE_DELETE(strip->runtime);
@@ -602,15 +607,6 @@ static void seq_duplicate_postprocess(StripDuplicateContext &ctx)
       BKE_main_id_newptr_and_tag_clear(ctx.bmain);
 
       BKE_main_collection_sync(ctx.bmain);
-
-      /* #BKE_main_collection_sync only *tags* all view layers as out-of-sync and relies on lazy
-       * resync via #BKE_view_layer_synced_ensure on access. However, the depsgraph's copy-on-eval
-       * path (#scene_copy_inplace_no_main) calls #BKE_id_copy_ex with `bmain=nullptr`, which
-       * skips that lazy sync inside #scene_copy_data and then asserts in
-       * #BKE_view_layer_copy_data. Force an eager resync here so that any subsequent depsgraph
-       * evaluation that copy-on-evals the newly duplicated scene(s) finds their view layers
-       * already in-sync. This is especially important for scenes with multiple view layers. */
-      BKE_main_view_layers_synced_ensure(ctx.bmain);
     }
   }
   else {
@@ -638,6 +634,7 @@ static Strip *strip_duplicate(StripDuplicateContext &ctx,
                               Strip *strip)
 {
   Strip *strip_new = MEM_new<Strip>(__func__, *strip);
+  strip_new->scene_view_layer_name = BLI_strdup_null(strip->scene_view_layer_name);
   strip_new->runtime = MEM_new<StripRuntime>(__func__);
   strip_new->runtime->flag = strip->runtime->flag;
 
@@ -880,6 +877,7 @@ static bool strip_write_data_cb(Strip *strip, void *userdata)
 {
   BlendWriter *writer = static_cast<BlendWriter *>(userdata);
   writer->write_struct(strip);
+  writer->write_string(strip->scene_view_layer_name);
   if (strip->data) {
     /* TODO this doesn't depend on the `Strip` data to be present? */
     if (strip->effectdata) {
@@ -981,6 +979,7 @@ static bool strip_read_data_cb(Strip *strip, void *user_data)
 
   BLO_read_struct(reader, Strip, &strip->input1);
   BLO_read_struct(reader, Strip, &strip->input2);
+  BLO_read_string(reader, &strip->scene_view_layer_name);
 
   if (strip->effectdata) {
     switch (strip->type) {

@@ -853,7 +853,7 @@ static size_t draw_seq_text_get_overlay_string(const TimelineDrawContext &ctx,
         (strip->flag & SEQ_SCENE_STRIPS) == 0)
     {
       const char *view_layer_name;
-      if (strip->scene_view_layer_name[0] != '\0') {
+      if (strip->scene_view_layer_name != nullptr) {
         view_layer_name = strip->scene_view_layer_name;
       }
       else {

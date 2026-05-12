@@ -1303,7 +1303,7 @@ static ImBuf *seq_render_mask_strip(const RenderData *context, Strip *strip, flo
 
 static ViewLayer *get_view_layer_for_scene_strip(Scene *scene, const Strip *strip)
 {
-  if (strip->scene_view_layer_name[0] != '\0') {
+  if (strip->scene_view_layer_name != nullptr) {
     if (ViewLayer *view_layer = BKE_view_layer_find(scene, strip->scene_view_layer_name)) {
       return view_layer;
     }

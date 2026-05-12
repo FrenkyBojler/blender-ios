@@ -2354,7 +2354,7 @@ static bool strip_node_build_cb(Strip *strip, void *user_data)
       nb->build_scene_sequencer(strip->scene);
     }
     ViewLayer *strip_view_layer = nullptr;
-    if (strip->scene_view_layer_name[0] != '\0') {
+    if (strip->scene_view_layer_name != nullptr) {
       strip_view_layer = BKE_view_layer_find(strip->scene, strip->scene_view_layer_name);
     }
     if (strip_view_layer == nullptr) {

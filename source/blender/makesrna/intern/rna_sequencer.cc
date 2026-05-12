@@ -12,6 +12,7 @@
 #include "DNA_sequence_types.h"
 
 #include "BLI_math_rotation.h"
+#include "BLI_string.h"
 #include "BLI_string_utf8_symbols.h"
 
 #include "BLT_translation.hh"
@@ -31,6 +32,8 @@
 #include "SEQ_sound.hh"
 
 #include "WM_types.hh"
+
+#include "MEM_guardedalloc.h"
 
 namespace blender {
 
@@ -278,7 +281,7 @@ static PointerRNA rna_SceneStrip_view_layer_get(PointerRNA *ptr)
     return PointerRNA_NULL;
   }
   ViewLayer *view_layer = nullptr;
-  if (strip->scene_view_layer_name[0] != '\0') {
+  if (strip->scene_view_layer_name != nullptr) {
     view_layer = BKE_view_layer_find(scene, strip->scene_view_layer_name);
   }
   if (view_layer == nullptr) {
@@ -322,13 +325,19 @@ static void rna_SceneStrip_view_layer_set(PointerRNA *ptr,
   Strip *strip = static_cast<Strip *>(ptr->data);
   const ViewLayer *view_layer = static_cast<const ViewLayer *>(value.data);
   if (view_layer == nullptr) {
-    strip->scene_view_layer_name[0] = '\0';
+    if (strip->scene_view_layer_name != nullptr) {
+      MEM_delete(strip->scene_view_layer_name);
+    }
+    strip->scene_view_layer_name = nullptr;
     return;
   }
   if (!rna_SceneStrip_view_layer_is_compatible(strip->scene, value)) {
     return;
   }
-  STRNCPY_UTF8(strip->scene_view_layer_name, view_layer->name);
+  if (strip->scene_view_layer_name != nullptr) {
+    MEM_delete(strip->scene_view_layer_name);
+  }
+  strip->scene_view_layer_name = BLI_strdup(view_layer->name);
 }
 
 static bool rna_SceneStrip_view_layer_poll(PointerRNA *ptr, PointerRNA value)

@@ -612,9 +612,10 @@ void BKE_view_layer_rename(Main *bmain, Scene *scene, ViewLayer *view_layer, con
     }
     seq::foreach_strip(&ed->seqbase, [scene, oldname, view_layer](Strip *strip) {
       if (strip->type == STRIP_TYPE_SCENE && strip->scene == scene &&
-          STREQ(strip->scene_view_layer_name, oldname))
+          strip->scene_view_layer_name != nullptr && STREQ(strip->scene_view_layer_name, oldname))
       {
-        STRNCPY_UTF8(strip->scene_view_layer_name, view_layer->name);
+        MEM_delete(strip->scene_view_layer_name);
+        strip->scene_view_layer_name = BLI_strdup(view_layer->name);
       }
       return true;
     });

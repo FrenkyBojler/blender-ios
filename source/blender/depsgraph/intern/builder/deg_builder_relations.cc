@@ -3484,7 +3484,7 @@ static bool strip_build_prop_cb(Strip *strip, void *user_data)
           sequence_scene_key, cd->sequencer_key, "Sequence Scene -> Sequencer");
     }
     ViewLayer *strip_view_layer = nullptr;
-    if (strip->scene_view_layer_name[0] != '\0') {
+    if (strip->scene_view_layer_name != nullptr) {
       strip_view_layer = BKE_view_layer_find(strip->scene, strip->scene_view_layer_name);
     }
     if (strip_view_layer == nullptr) {
