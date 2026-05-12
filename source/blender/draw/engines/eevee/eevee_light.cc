@@ -552,6 +552,8 @@ void LightModule::shape_display_pass_sync()
   shape_display_ps_.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_ADD |
                               DRW_STATE_CLIP_CONTROL_UNIT_RANGE | inst_.film.depth.test_state);
   shape_display_ps_.shader_set(inst_.shaders.static_shader_get(LIGHT_SHAPE_DISPLAY));
+  shape_display_ps_.bind_resources(inst_.uniform_data);
+  shape_display_ps_.bind_resources(inst_.volume.result);
   shape_display_ps_.bind_resources(inst_.lights);
   shape_display_ps_.draw_procedural(GPU_PRIM_TRIS, 1, lights_len_ * 6);
 }

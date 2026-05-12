@@ -6,12 +6,15 @@
 
 #include "draw_view_infos.hh"
 #include "infos/eevee_light_infos.hh"
+#include "infos/eevee_volume_resolved_infos.hh"
 
 FRAGMENT_SHADER_CREATE_INFO(draw_view)
 FRAGMENT_SHADER_CREATE_INFO(eevee_light_data)
+FRAGMENT_SHADER_CREATE_INFO(eevee_volume_lib)
 
 #include "draw_view_lib.glsl"
 #include "eevee_reverse_z_lib.bsl.hh"
+#include "eevee_volume_lib.bsl.hh"
 #include "gpu_shader_math_constants_lib.glsl"
 #include "gpu_shader_math_matrix_transform_lib.glsl"
 
@@ -20,6 +23,7 @@ namespace eevee::light {
 struct ShapeDisplayResources {
   [[legacy_info]] ShaderCreateInfo draw_view;
   [[legacy_info]] ShaderCreateInfo eevee_light_data;
+  [[legacy_info]] ShaderCreateInfo eevee_volume_lib;
 };
 
 struct ShapeDisplayVertOut {
@@ -122,7 +126,9 @@ void shape_display_vert([[resource_table]] const ShapeDisplayResources & /*srt*/
 }
 
 [[fragment]]
-void shape_display_frag([[in]] const ShapeDisplayVertOut &v_out,
+void shape_display_frag([[resource_table]] const ShapeDisplayResources & /*srt*/,
+                        [[frag_coord]] const float4 frag_co,
+                        [[in]] const ShapeDisplayVertOut &v_out,
                         [[out]] ShapeDisplayFragOut &frag_out)
 {
   eLightType light_type = eLightType(v_out.light_type);
@@ -133,7 +139,10 @@ void shape_display_frag([[in]] const ShapeDisplayVertOut &v_out,
     return;
   }
 
-  frag_out.out_color = float4(v_out.radiance, 1.0f);
+  float2 uvs = frag_co.xy * uniform_buf.volumes.main_view_extent_inv;
+  VolumeResolveSample vol = volume_resolve(
+      float3(uvs, reverse_z::read(frag_co.z)), volume_transmittance_tx, volume_scattering_tx);
+  frag_out.out_color = float4(v_out.radiance * vol.transmittance, 1.0f);
 }
 
 PipelineGraphic shape_display(shape_display_vert, shape_display_frag);
