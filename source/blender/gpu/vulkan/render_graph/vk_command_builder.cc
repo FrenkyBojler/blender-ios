@@ -87,24 +87,38 @@ void VKCommandBuilder::groups_extract_barriers(VKRenderGraph &render_graph,
 
   for (const int64_t group_index : group_nodes_.index_range()) {
     /* Extract the pre-barriers of this group. */
-    Barriers group_pre_barriers(barrier_list_.size(), 0);
+    int64_t group_start_barrier_index = barrier_list_.size();
+    Barriers group_pre_barriers(group_start_barrier_index, 0);
     const GroupNodes &node_group = group_nodes_[group_index];
+
+    auto merge_pre_barrier = [&](const Barrier &barrier) {
+      if (barrier.is_empty()) {
+        return;
+      }
+      if (!barrier_list_.is_empty() &&
+          barrier_list_.last().src_stage_mask == barrier.src_stage_mask &&
+          barrier_list_.last().dst_stage_mask == barrier.dst_stage_mask &&
+          barrier_list_.size() > group_start_barrier_index)
+      {
+        Barrier &last = barrier_list_.last();
+        last.buffer_memory_barriers = IndexRange(last.buffer_memory_barriers.start(),
+                                                 last.buffer_memory_barriers.size() +
+                                                     barrier.buffer_memory_barriers.size());
+        last.image_memory_barriers = IndexRange(last.image_memory_barriers.start(),
+                                                last.image_memory_barriers.size() +
+                                                    barrier.image_memory_barriers.size());
+        return;
+      }
+      barrier_list_.append(barrier);
+    };
+
     for (const int64_t group_node_index : node_group) {
       NodeHandle node_handle = node_handles[group_node_index];
       VKRenderGraphNode &node = render_graph.nodes_[node_handle];
       Barrier barrier = {};
       build_pipeline_barriers(
           render_graph, node_handle, node.pipeline_stage_get(), image_tracker, barrier);
-      if (!barrier.is_empty()) {
-#if 0
-        std::cout << __func__ << ": node_group=" << group_index
-                  << ", node_group_range=" << node_group.first() << "-" << node_group.last()
-                  << ", node_handle=" << node_handle << ", node_type=" << node.type
-                  << ", debug_group=" << render_graph.full_debug_group(node_handle) << "\n";
-        std::cout << __func__ << ": " << to_string_barrier(barrier);
-#endif
-        barrier_list_.append(barrier);
-      }
+      merge_pre_barrier(barrier);
       /* Check for additional barriers when resuming rendering.
        *
        * Between suspending rendering and resuming the state/layout of resources can change and
@@ -157,9 +171,7 @@ void VKCommandBuilder::groups_extract_barriers(VKRenderGraph &render_graph,
                                 rendering_node.pipeline_stage_get(),
                                 image_tracker,
                                 barrier);
-        if (!barrier.is_empty()) {
-          barrier_list_.append(barrier);
-        }
+        merge_pre_barrier(barrier);
 
         /* Resume layered tracking. Each layer that has an override will be transition back to
          * the layer specific image layout. */
