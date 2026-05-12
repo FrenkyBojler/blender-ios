@@ -73,14 +73,14 @@ static void version_geometry_nodes_properties(FileData &fd,
     return;
   }
   if (ID_MISSING(&nmd.node_group->id)) {
-    /* Keeping the old idproperties is not an option, and not really usefull, since if the
-     * blendfile is saved in this current state, it won't be re-versionned here later anyway.
+    /* Keeping the old idproperties is not an option, and not really useful, since if the
+     * blend-file is saved in this current state, it won't be re-versioned here later anyway.
      *
      * Furthermore, the whole remaining part of the code expects this to be nullptr, and keeping it
      * at runtime actually causes weird issues in depsgraph nodes building phase.
      *
      * So all in all, it's simpler and safer to also just lose these values here - if file is not
-     * saved in this state, next loading will do the versionning if the nodegroup is available
+     * saved in this state, next loading will do the versioning if the node-group is available
      * again, otherwise that data is lost.
      */
     IDP_FreeProperty(nmd.settings_legacy.properties);
@@ -262,7 +262,7 @@ static void version_clear_strip_linear_modifier_flag(Main &bmain)
     Editing *ed = seq::editing_get(&scene);
     if (ed != nullptr) {
       seq::foreach_strip(&ed->seqbase, [&](Strip *strip) {
-        constexpr int flag_linear_modifiers = 1 << 23;
+        constexpr eStripFlag flag_linear_modifiers = eStripFlag(1 << 23);
         strip->flag &= ~flag_linear_modifiers;
         return true;
       });
@@ -463,6 +463,43 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 20)) {
+    for (Brush &brush : bmain->brushes) {
+      if (brush.ob_mode != OB_MODE_SCULPT) {
+        continue;
+      }
+
+      brush.mesh_automasking_settings = MEM_new<MeshAutomaskingSettings>(__func__);
+      brush.mesh_automasking_settings->flags = brush.automasking_flags;
+      brush.mesh_automasking_settings->boundary_edges_propagation_steps =
+          brush.automasking_boundary_edges_propagation_steps;
+      brush.mesh_automasking_settings->cavity_blur_steps = brush.automasking_cavity_blur_steps;
+      brush.mesh_automasking_settings->cavity_factor = brush.automasking_cavity_factor;
+      brush.mesh_automasking_settings->start_normal_falloff =
+          brush.automasking_start_normal_falloff;
+      brush.mesh_automasking_settings->start_normal_limit = brush.automasking_start_normal_limit;
+      brush.mesh_automasking_settings->view_normal_falloff = brush.automasking_view_normal_falloff;
+      brush.mesh_automasking_settings->view_normal_limit = brush.automasking_view_normal_limit;
+      brush.mesh_automasking_settings->cavity_curve = BKE_curvemapping_copy(
+          brush.automasking_cavity_curve);
+      brush.mesh_automasking_settings->cavity_curve_op = nullptr;
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 21)) {
+    for (Material &materials : bmain->materials) {
+      if (materials.gp_style != nullptr) {
+        materials.gp_style->random_size_factor = 0.0f;
+        materials.gp_style->random_strength_factor = 0.0f;
+        materials.gp_style->random_rotation_factor = 0.0f;
+        materials.gp_style->random_hue_factor = 0.0f;
+        materials.gp_style->random_saturation_factor = 0.0f;
+        materials.gp_style->random_value_factor = 0.0f;
+        materials.gp_style->random_noise_scale = 1.0f;
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 22)) {
     for (bScreen &screen : bmain->screens) {
       for (ScrArea &area : screen.areabase) {
         for (SpaceLink &sl : area.spacedata) {
