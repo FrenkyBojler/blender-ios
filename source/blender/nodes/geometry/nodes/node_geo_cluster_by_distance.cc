@@ -84,9 +84,9 @@ class ClusterByDistanceFieldInput final : public bke::GeometryFieldInput {
       return fn::IndexFieldInput::get_index_varray(mask);
     }
 
-    const IndexMask mask_to_fallback = mask_to_cluster.complement(mask, memory);
-
     Array<int> cluster_ids(mask.min_array_size());
+
+    const IndexMask mask_to_fallback = IndexMask::from_difference(mask, mask_to_cluster, memory);
     mask_to_fallback.foreach_index_optimized<int>([&](const int i) { cluster_ids[i] = i; },
                                                   exec_mode::parallel);
 
