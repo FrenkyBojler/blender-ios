@@ -421,7 +421,7 @@ static void frame_to_time_string(
   if (U.timecode_style == USER_TIMECODE_MINIMAL && step >= scene->frames_per_second()) {
     brevity_level = 1;
   }
-  const float frame_offset = (U.uiflag2 & USER_UIFLAG2_OFFSET_TIMECODE_SECONDS) ?
+  const float frame_offset = (U.uiflag2 & USER_UIFLAG2_SCENE_RELATIVE_TIMECODE) ?
                                  frame - scene->r.sfra + 1 :
                                  frame;
 
