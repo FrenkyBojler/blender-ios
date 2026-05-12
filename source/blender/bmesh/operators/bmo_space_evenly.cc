@@ -8,6 +8,7 @@
  * Distributes vertices evenly along an edge.
  */
 #include "BLI_math_geom.h"
+#include "BLI_math_solvers.h"
 #include "BLI_math_vector.hh"
 #include "BLI_set.hh"
 #include "BLI_span.hh"
@@ -212,140 +213,80 @@ static SpaceMeasurements measure_chain(const SpaceChainData &chain)
 }
 
 /**
- * Solves a tridiagonal linear system using the Thomas Algorithm to find
- * coefficients for a natural cubic spline.
- */
-static void solve_thomas_algorithm(Span<float> t, Span<float> y, Vector<SplineCoeffs> &r_coeffs)
-{
-  int n = t.size();
-  if (n < 2) {
-    return;
-  }
-  /* Parameter interval between consecutive knots. */
-  Array<float> h(n - 1);
-  /* Forward elimination variables. */
-  Array<float> l(n);
-  Array<float> u(n);
-  Array<float> z(n);
-  /* The final polynomial coefficients. */
-  Array<float> c(n);
-  Array<float> b(n);
-  Array<float> d(n);
-
-  /* Calculate the length of each segment between consecutive knots. */
-  for (const int i : IndexRange(n - 1)) {
-    h[i] = t[i + 1] - t[i];
-    /* In the case where there are two overlapping verticies, we give an arbitrary length
-     * to prevent a zero division. */
-    if (h[i] == 0.0f) {
-      h[i] = SPACE_EPSILON;
-    }
-  }
-
-  /* Boundary conditions. */
-  l[0] = 1.0f;
-  u[0] = 0.0f;
-  z[0] = 0.0f;
-
-  /* Forward Elimination. */
-  for (const int i : IndexRange(1, n - 2)) {
-    float q = (3.0f / h[i]) * (y[i + 1] - y[i]) - (3.0f / h[i - 1]) * (y[i] - y[i - 1]);
-    l[i] = 2.0f * (t[i + 1] - t[i - 1]) - h[i - 1] * u[i - 1];
-    if (l[i] == 0.0f) {
-      l[i] = SPACE_EPSILON;
-    }
-    u[i] = h[i] / l[i];
-    z[i] = (q - h[i - 1] * z[i - 1]) / l[i];
-  }
-  /* End boundary condition. */
-  l[n - 1] = 1.0f;
-  z[n - 1] = 0.0f;
-  c[n - 1] = 0.0f;
-
-  /* Backsubstitution. */
-  for (int i = n - 2; i >= 0; i--) {
-    c[i] = z[i] - u[i] * c[i + 1];
-    b[i] = (y[i + 1] - y[i]) / h[i] - h[i] * (c[i + 1] + 2.0f * c[i]) / 3.0f;
-    d[i] = (c[i + 1] - c[i]) / (3.0f * h[i]);
-  }
-
-  /* Build spline coefficients for each segment. */
-  for (const int i : IndexRange(n - 1)) {
-    r_coeffs.append({y[i], b[i], c[i], d[i], t[i]});
-  }
-}
-
-/**
  * Compute cubic spline coefficients for one coordinate axis.
- *
- * For open chains this solves the tridiagonal system directly.
- * For closed chains, 4 vertices from the end are copied before the start and 4 from
- * the start after the end, making the closed loop appear open to the Thomas algorithm.
  */
-static void calculate_splines_axis(Span<float> unique_distances,
-                                   Span<float> unique_coords,
+static void calculate_splines_axis(Span<float> distances,
+                                   Span<float> coords,
                                    bool is_closed,
                                    float total_length,
                                    Vector<SplineCoeffs> &r_coeffs)
 {
-  int num_points = unique_coords.size();
-  if (is_closed) {
-    Vector<float> padded_coords;
-    Vector<float> padded_distances;
-    float dist_start = unique_distances[0];
-    float running_dt = 0.0f;
+  const int num_verts = coords.size();
+  if (num_verts < 2) {
+    return;
+  }
+  const int num_segments = is_closed ? num_verts : num_verts - 1;
+  Array<float> segment_lenght(num_segments);
 
-    for (const int k : IndexRange(1, 4)) {
-      int coord_index = mod_i(num_points - k, num_points);
-      padded_coords.insert(0, unique_coords[coord_index]);
-
-      int knot_index_curr = mod_i(num_points - k + 1, num_points);
-      int knot_index_prev = mod_i(num_points - k, num_points);
-      float segment_length;
-      if (knot_index_curr == 0) {
-        segment_length = total_length - unique_distances[num_points - 1];
-      }
-      else {
-        segment_length = unique_distances[knot_index_curr] - unique_distances[knot_index_prev];
-      }
-      running_dt += segment_length;
-      padded_distances.insert(0, dist_start - running_dt);
-    }
-    padded_coords.extend(unique_coords);
-    padded_distances.extend(unique_distances);
-    padded_coords.append(unique_coords[0]);
-    padded_distances.append(total_length);
-
-    running_dt = 0.0f;
-    for (const int k : IndexRange(4)) {
-      int coord_index = mod_i(k + 1, num_points);
-      padded_coords.append(unique_coords[coord_index]);
-
-      int knot_index_curr = mod_i(k + 1, num_points);
-      int knot_index_prev = mod_i(k, num_points);
-      float segment_length;
-      if (knot_index_curr == 0) {
-        segment_length = total_length - unique_distances[num_points - 1];
-      }
-      else {
-        segment_length = unique_distances[knot_index_curr] - unique_distances[knot_index_prev];
-      }
-
-      running_dt += segment_length;
-      padded_distances.append(total_length + running_dt);
-    }
-
-    Vector<SplineCoeffs> all_coeffs;
-    solve_thomas_algorithm(padded_distances, padded_coords, all_coeffs);
-
-    if (all_coeffs.size() > 8) {
-      for (const int i : IndexRange(4, all_coeffs.size() - 8)) {
-        r_coeffs.append(all_coeffs[i]);
-      }
+  for (const int i : IndexRange(num_segments)) {
+    segment_lenght[i] = (is_closed && i == num_verts - 1) ?
+                            total_length - distances[num_verts - 1] :
+                            distances[i + 1] - distances[i];
+    if (segment_lenght[i] == 0.0f) {
+      segment_lenght[i] = SPACE_EPSILON;
     }
   }
+
+  Array<float> c_vals(num_verts, 0.0f);
+  /* The Thomas algorithm used in `BLI_tridiagonal_solve` can't properly solve
+   * a cyclic tridiagonal system so in this case, we use the Sherman-Morrison formula
+   * via `BLI_tridiagonal_solve_cyclic`. */
+  if (is_closed) {
+    Array<float> lower_diag(num_verts), diag(num_verts), upper_diag(num_verts), rhs(num_verts);
+    for (const int i : IndexRange(num_verts)) {
+      const int v_prev = mod_i(i - 1, num_verts);
+      const int v_next = mod_i(i + 1, num_verts);
+      lower_diag[i] = segment_lenght[v_prev];
+      diag[i] = 2.0f * (segment_lenght[v_prev] + segment_lenght[i]);
+      upper_diag[i] = segment_lenght[i];
+      rhs[i] = 3.0f * (((coords[v_next] - coords[i]) / segment_lenght[i]) -
+                       ((coords[i] - coords[v_prev]) / segment_lenght[v_prev]));
+    }
+    BLI_tridiagonal_solve_cyclic(
+        lower_diag.data(), diag.data(), upper_diag.data(), rhs.data(), c_vals.data(), num_verts);
+  }
   else {
-    solve_thomas_algorithm(unique_distances, unique_coords, r_coeffs);
+    /* For a natural cubic spline the curvature at the first and last point
+     * is 0, so for n given points, we only have n-2 unknown interior points. */
+    const int interior = num_verts - 2;
+    Array<float> lower_diag(interior), diag(interior), upper_diag(interior), rhs(interior);
+
+    for (const int i : IndexRange(interior)) {
+      const int v_index = i + 1;
+      lower_diag[i] = segment_lenght[v_index - 1];
+      diag[i] = 2.0f * (segment_lenght[v_index - 1] + segment_lenght[v_index]);
+      upper_diag[i] = segment_lenght[v_index];
+      rhs[i] = 3.0f * (((coords[v_index + 1] - coords[v_index]) / segment_lenght[v_index]) -
+                       ((coords[v_index] - coords[v_index - 1]) / segment_lenght[v_index - 1]));
+    }
+    BLI_tridiagonal_solve(lower_diag.data(),
+                          diag.data(),
+                          upper_diag.data(),
+                          rhs.data(),
+                          c_vals.data() + 1,
+                          interior);
+  }
+
+  /* Build polynomial coefficients for each segment. */
+  for (const int i : IndexRange(num_segments)) {
+    const int v_next = is_closed ? mod_i(i + 1, num_verts) : i + 1;
+
+    const float coeff_a = coords[i];
+    const float coeff_b = ((coords[v_next] - coords[i]) / segment_lenght[i]) -
+                          (segment_lenght[i] * (c_vals[v_next] + 2.0f * c_vals[i])) / 3.0f;
+    const float coeff_c = c_vals[i];
+    const float coeff_d = (c_vals[v_next] - c_vals[i]) / (3.0f * segment_lenght[i]);
+    r_coeffs.append({coeff_a, coeff_b, coeff_c, coeff_d, distances[i]});
   }
 }
 
