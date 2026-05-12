@@ -205,7 +205,7 @@ enum [[host_shared]] eShadowFlag : uint32_t {
   SHADOW_TAG_UPDATE = (1u << 31u)
 };
 
-/* NOTE: Trust the input to be in valid range (max is [7,7,255]).
+/* NOTE: Trust the input to be in valid range (max is [7,7,127]).
  * If it is in valid range, it should pack to 14bits so that `shadow_tile_pack()` can use it.
  * But sometime this is used to encode invalid pages uint3(-1) and it needs to output uint(-1).
  */
