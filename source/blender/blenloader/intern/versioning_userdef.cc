@@ -419,8 +419,20 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
     FROM_DEFAULT_V4_UCHAR(space_action.anim_interpolation_linear);
   }
 
-  if (!USER_VERSION_ATLEAST(501, 100)) {
+  if (!USER_VERSION_ATLEAST(501, 19)) {
     FROM_DEFAULT_V4_UCHAR(space_preferences.match);
+  }
+
+  if (!USER_VERSION_ATLEAST(501, 26)) {
+    FROM_DEFAULT_V4_UCHAR(space_view3d.grid_major);
+  }
+
+  if (!USER_VERSION_ATLEAST(501, 28)) {
+    FROM_DEFAULT_V4_UCHAR(space_view3d.gp_wire_edit);
+  }
+
+  if (!USER_VERSION_ATLEAST(502, 8)) {
+    FROM_DEFAULT_V4_UCHAR(tui.link);
   }
 
   /**
@@ -811,7 +823,7 @@ void blo_do_versions_userdef(UserDef *userdef)
   }
   if (userdef->autokey_mode == 0) {
     /* 'add/replace' but not on */
-    userdef->autokey_mode = 2;
+    userdef->autokey_mode = eAutokey_Mode(2);
   }
   if (userdef->savetime <= 0) {
     userdef->savetime = 1;
@@ -828,12 +840,14 @@ void blo_do_versions_userdef(UserDef *userdef)
   /* If the userdef was created on a different platform, it may have an
    * unsupported GPU backend selected.  If so, pick a supported default. */
 #ifdef __APPLE__
-  if (userdef->gpu_backend == GPU_BACKEND_OPENGL || userdef->gpu_backend == GPU_BACKEND_VULKAN) {
-    userdef->gpu_backend = GPU_BACKEND_METAL;
+  if (userdef->gpu_backend == USER_GPU_BACKEND_OPENGL ||
+      userdef->gpu_backend == USER_GPU_BACKEND_VULKAN)
+  {
+    userdef->gpu_backend = USER_GPU_BACKEND_METAL;
   }
 #else
-  if (userdef->gpu_backend == GPU_BACKEND_METAL) {
-    userdef->gpu_backend = GPU_BACKEND_OPENGL;
+  if (userdef->gpu_backend == USER_GPU_BACKEND_METAL) {
+    userdef->gpu_backend = USER_GPU_BACKEND_OPENGL;
   }
 #endif
 
@@ -1053,9 +1067,9 @@ void blo_do_versions_userdef(UserDef *userdef)
 
   if (!USER_VERSION_ATLEAST(278, 6)) {
     /* Clear preference flags for re-use. */
-    userdef->flag &= ~(USER_FLAG_NUMINPUT_ADVANCED | (1 << 2) | USER_MENU_CLOSE_LEAVE |
-                       USER_FLAG_UNUSED_6 | USER_FLAG_UNUSED_7 | USER_INTERNET_ALLOW |
-                       USER_DEVELOPER_UI);
+    userdef->flag &= ~eUserPref_Flag(USER_FLAG_NUMINPUT_ADVANCED | (1 << 2) |
+                                     USER_MENU_CLOSE_LEAVE | USER_FLAG_UNUSED_6 |
+                                     USER_FLAG_UNUSED_7 | USER_INTERNET_ALLOW | USER_DEVELOPER_UI);
     userdef->uiflag &= ~USER_HEADER_BOTTOM;
     userdef->transopts &= ~(USER_TR_UNUSED_3 | USER_TR_UNUSED_4 | USER_TR_UNUSED_6 |
                             USER_TR_UNUSED_7);
@@ -1114,7 +1128,7 @@ void blo_do_versions_userdef(UserDef *userdef)
       BKE_keyconfig_pref_set_select_mouse(userdef, 1, false);
     }
 
-    userdef->flag &= ~USER_LMOUSESELECT;
+    userdef->flag &= ~eUserPref_Flag(USER_LMOUSESELECT);
   }
 
   if (!USER_VERSION_ATLEAST(280, 38)) {
@@ -1168,12 +1182,6 @@ void blo_do_versions_userdef(UserDef *userdef)
 
   if (!USER_VERSION_ATLEAST(280, 51)) {
     userdef->move_threshold = 2;
-  }
-
-  if (!USER_VERSION_ATLEAST(280, 58)) {
-    if (userdef->image_draw_method != IMAGE_DRAW_METHOD_GLSL) {
-      userdef->image_draw_method = IMAGE_DRAW_METHOD_AUTO;
-    }
   }
 
   /* Patch to set dupli light-probes and grease-pencil. */
@@ -1383,9 +1391,9 @@ void blo_do_versions_userdef(UserDef *userdef)
   /* Set GPU backend to OpenGL. */
   if (!USER_VERSION_ATLEAST(305, 5)) {
 #ifdef __APPLE__
-    userdef->gpu_backend = GPU_BACKEND_METAL;
+    userdef->gpu_backend = USER_GPU_BACKEND_METAL;
 #else
-    userdef->gpu_backend = GPU_BACKEND_OPENGL;
+    userdef->gpu_backend = USER_GPU_BACKEND_OPENGL;
 #endif
   }
 
@@ -1408,7 +1416,7 @@ void blo_do_versions_userdef(UserDef *userdef)
 
   if (!USER_VERSION_ATLEAST(306, 5)) {
     if (userdef->pythondir_legacy[0]) {
-      bUserScriptDirectory *script_dir = MEM_new_for_free<bUserScriptDirectory>(
+      bUserScriptDirectory *script_dir = MEM_new<bUserScriptDirectory>(
           "Versioning user script path");
 
       STRNCPY(script_dir->dir_path, userdef->pythondir_legacy);
@@ -1443,7 +1451,7 @@ void blo_do_versions_userdef(UserDef *userdef)
 
   if (!USER_VERSION_ATLEAST(400, 24)) {
     /* Clear deprecated USER_MENUFIXEDORDER user flag for reuse. */
-    userdef->uiflag &= ~(1 << 23);
+    userdef->uiflag &= ~eUserpref_UI_Flag(1 << 23);
   }
 
   if (!USER_VERSION_ATLEAST(400, 26)) {
@@ -1738,6 +1746,23 @@ void blo_do_versions_userdef(UserDef *userdef)
 
   if (!USER_VERSION_ATLEAST(501, 17)) {
     userdef->flag |= USER_HIDE_DOT_DATABLOCK;
+  }
+
+  if (!USER_VERSION_ATLEAST(501, 24)) {
+    /* Increase the base XR vignette value to match the previous default after logic refactor. */
+    /* Can be either 50 or 60 due to an oversight in the original feature (dde9d21b91) where
+     * the DNA default was set 60, but the versioning_userdef set it to 50. */
+    if (ELEM(userdef->xr_navigation.vignette_intensity, 50, 60)) {
+      userdef->xr_navigation.vignette_intensity = 70;
+    }
+  }
+
+  if (!USER_VERSION_ATLEAST(502, 3)) {
+    userdef->uiflag2 |= USER_UIFLAG2_SHOW_ONLINE_ASSETS;
+  }
+
+  if (!USER_VERSION_ATLEAST(502, 13)) {
+    userdef->geometry_nodes_stack_limit = 100;
   }
 
   /**

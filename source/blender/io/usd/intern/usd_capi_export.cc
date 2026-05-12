@@ -6,6 +6,7 @@
 
 #include "IO_subdiv_disabler.hh"
 #include "usd.hh"
+#include "usd_colorspace_utils.hh"
 #include "usd_hierarchy_iterator.hh"
 #include "usd_hook.hh"
 #include "usd_instancing_utils.hh"
@@ -53,6 +54,8 @@
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_timeit.hh"
+
+#include "ED_util.hh"
 
 #include <IMB_imbuf.hh>
 #include <IMB_imbuf_types.hh>
@@ -175,7 +178,7 @@ static void ensure_root_prim(pxr::UsdStageRefPtr stage, const USDExportParams &p
     return;
   }
 
-  if (params.convert_scene_units) {
+  if (params.convert_scene_units != SceneUnits::Meters) {
     xf_api.SetScale(pxr::GfVec3f(float(1.0 / get_meters_per_unit(params))));
   }
 
@@ -187,6 +190,10 @@ static void ensure_root_prim(pxr::UsdStageRefPtr stage, const USDExportParams &p
     const math::EulerXYZ eul = math::to_euler(math::transpose(mrot));
     xf_api.SetRotate(pxr::GfVec3f(eul.x().degree(), eul.y().degree(), eul.z().degree()));
   }
+
+  /* Color-space on the root prim. It's also applied on all individual prims that need
+   * it, but perhaps this is useful to signal the overall color-space of the file. */
+  colorspace_apply_to_prim(root_xf.GetPrim());
 
   for (const auto &path : pxr::SdfPath(params.root_prim_path).GetPrefixes()) {
     auto xform = pxr::UsdGeomXform::Define(stage, path);
@@ -235,14 +242,14 @@ static void report_job_duration(const ExportJobData *data)
 
 static void process_usdz_textures(const ExportJobData *data, const char *path)
 {
-  const eUSDZTextureDownscaleSize enum_value = data->params.usdz_downscale_size;
-  if (enum_value == USD_TEXTURE_SIZE_KEEP) {
+  const TextureDownscaleSize enum_value = data->params.usdz_downscale_size;
+  if (enum_value == TextureDownscaleSize::Keep) {
     return;
   }
 
-  const int image_size = (enum_value == USD_TEXTURE_SIZE_CUSTOM) ?
+  const int image_size = (enum_value == TextureDownscaleSize::Custom) ?
                              data->params.usdz_downscale_custom_size :
-                             enum_value;
+                             int(enum_value);
 
   char texture_path[FILE_MAX];
   STRNCPY(texture_path, path);
@@ -515,7 +522,7 @@ pxr::UsdStageRefPtr export_to_stage(const USDExportParams &params,
 
   /* If we want to set the subdiv scheme, then we need to the export the mesh
    * without the subdiv modifier applied. */
-  if (ELEM(params.export_subdiv, USD_SUBDIV_BEST_MATCH, USD_SUBDIV_IGNORE)) {
+  if (ELEM(params.export_subdiv, SubdivExportMode::Match, SubdivExportMode::Ignore)) {
     mod_disabler.disable_modifiers();
     BKE_scene_graph_update_tagged(depsgraph, bmain);
   }
@@ -567,6 +574,7 @@ pxr::UsdStageRefPtr export_to_stage(const USDExportParams &params,
   if (params.export_animation) {
     /* Writing the animated frames is not 100% of the work, here it's assumed to be 75% of it. */
     float progress_per_frame = 0.75f / std::max(1, (scene->r.efra - scene->r.sfra + 1));
+    int exported_frame_count = 0;
 
     for (float frame = scene->r.sfra; frame <= scene->r.efra; frame++) {
       if (G.is_break || worker_status->stop) {
@@ -580,6 +588,13 @@ pxr::UsdStageRefPtr export_to_stage(const USDExportParams &params,
 
       iter.set_export_frame(frame);
       iter.iterate_and_write();
+
+      /* Check if we need to perform an incremental save. A value of 0 will never trigger. */
+      exported_frame_count++;
+      if (exported_frame_count == params.incremental_frames) {
+        usd_stage->GetRootLayer()->Save();
+        exported_frame_count = 0;
+      }
 
       worker_status->progress += progress_per_frame;
       worker_status->do_update = true;
@@ -814,6 +829,8 @@ bool USD_export(const bContext *C,
   job->export_ok = false;
   set_job_filepath(job, filepath);
 
+  ED_editors_flush_edits(job->bmain);
+
   job->depsgraph = DEG_graph_new(job->bmain, scene, view_layer, params->evaluation_mode);
   job->params = *params;
 
@@ -888,25 +905,25 @@ double get_meters_per_unit(const USDExportParams &params)
 {
   double result;
   switch (params.convert_scene_units) {
-    case USD_SCENE_UNITS_CENTIMETERS:
+    case SceneUnits::Centimeters:
       result = 0.01;
       break;
-    case USD_SCENE_UNITS_MILLIMETERS:
+    case SceneUnits::Millimeters:
       result = 0.001;
       break;
-    case USD_SCENE_UNITS_KILOMETERS:
+    case SceneUnits::Kilometers:
       result = 1000.0;
       break;
-    case USD_SCENE_UNITS_INCHES:
+    case SceneUnits::Inches:
       result = 0.0254;
       break;
-    case USD_SCENE_UNITS_FEET:
+    case SceneUnits::Feet:
       result = 0.3048;
       break;
-    case USD_SCENE_UNITS_YARDS:
+    case SceneUnits::Yards:
       result = 0.9144;
       break;
-    case USD_SCENE_UNITS_CUSTOM:
+    case SceneUnits::Custom:
       result = double(params.custom_meters_per_unit);
       break;
     default:

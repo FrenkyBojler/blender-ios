@@ -68,7 +68,7 @@
 #  include "BPY_extern_run.hh"
 #endif
 
-#include "GHOST_C-api.h"
+#include "GHOST_ISystem.hh"
 
 #include "RNA_define.hh"
 
@@ -292,6 +292,18 @@ void WM_init(bContext *C, int argc, const char **argv)
   ED_file_init();
 
   if (!G.background) {
+    wmWindowManager *wm = CTX_wm_manager(C);
+    if (wm != nullptr) {
+      wm_window_ghostwindows_remove_invalid(C, wm);
+    }
+    if (wm == nullptr || BLI_listbase_is_empty(&wm->windows)) {
+      if (params_file_read_post != nullptr) {
+        MEM_delete_void(static_cast<void *>(params_file_read_post));
+        params_file_read_post = nullptr;
+      }
+      WM_exit(C, EXIT_FAILURE);
+    }
+
     GPU_render_begin();
 
 #ifdef WITH_INPUT_NDOF
@@ -322,11 +334,12 @@ void WM_init(bContext *C, int argc, const char **argv)
 #endif
 
   if (!G.background) {
+    GHOST_ISystem *ghost_system = GHOST_ISystem::getSystem();
     if (wm_start_with_console) {
-      GHOST_setConsoleWindowState(GHOST_kConsoleWindowStateShow);
+      ghost_system->setConsoleWindowState(GHOST_kConsoleWindowStateShow);
     }
     else {
-      GHOST_setConsoleWindowState(GHOST_kConsoleWindowStateHideForNonConsoleLaunch);
+      ghost_system->setConsoleWindowState(GHOST_kConsoleWindowStateHideForNonConsoleLaunch);
     }
   }
 
@@ -418,7 +431,7 @@ static void wm_init_scripts_extensions_once(bContext *C)
 static void free_openrecent()
 {
   for (RecentFile &recent : G.recent_files) {
-    MEM_freeN(recent.filepath);
+    MEM_delete(recent.filepath);
   }
 
   BLI_freelistN(&(G.recent_files));
@@ -573,7 +586,6 @@ void WM_exit_ex(bContext *C, const bool do_python_exit, const bool do_user_exit_
   RE_engines_exit();
 
   ED_preview_free_dbase(); /* Frees a Main dbase, before #BKE_blender_free! */
-  ED_preview_restart_queue_free();
   ed::asset::list::storage_exit();
 
   BKE_tracking_clipboard_free();
@@ -647,14 +659,14 @@ void WM_exit_ex(bContext *C, const bool do_python_exit, const bool do_user_exit_
    * is also deleted with the context active. */
   if (gpu_is_init) {
     DRW_gpu_context_enable_ex(false);
-    ui::ui_exit();
+    ui::exit();
     GPU_shader_cache_dir_clear_old();
     GPU_exit();
     DRW_gpu_context_disable_ex(false);
     DRW_gpu_context_destroy();
   }
   else {
-    ui::ui_exit();
+    ui::exit();
   }
 
   BKE_blender_userdef_data_free(&U, false);

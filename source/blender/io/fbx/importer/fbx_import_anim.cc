@@ -50,7 +50,7 @@ static void set_curve_sample(FCurve *curve, int64_t key_index, float time, float
   bez.vec[1][0] = time;
   bez.vec[1][1] = value;
   bez.ipo = BEZT_IPO_LIN;
-  bez.f1 = bez.f2 = bez.f3 = SELECT;
+  bez.f1 = bez.f2 = bez.f3 = BEZT_FLAG_SELECT;
   bez.h1 = bez.h2 = HD_AUTO_ANIM;
 }
 
@@ -185,10 +185,9 @@ static Vector<ElementAnimations> gather_animated_properties(const FbxElementMapp
 
   /* Sort returned result in the original fbx file order. */
   Vector<ElementAnimations> animations(elem_map.values().begin(), elem_map.values().end());
-  std::sort(
-      animations.begin(),
-      animations.end(),
-      [](const ElementAnimations &a, const ElementAnimations &b) { return a.order < b.order; });
+  std::ranges::sort(animations, [](const ElementAnimations &a, const ElementAnimations &b) {
+    return a.order < b.order;
+  });
   return animations;
 }
 
@@ -333,7 +332,7 @@ static void create_transform_curve_data(const FbxElementMapping &mapping,
     }
   }
   Vector<double> sorted_key_times(unique_key_times.begin(), unique_key_times.end());
-  std::sort(sorted_key_times.begin(), sorted_key_times.end());
+  std::ranges::sort(sorted_key_times);
 
   int64_t pos_index = 0;
   int64_t rot_index = pos_index + 3;

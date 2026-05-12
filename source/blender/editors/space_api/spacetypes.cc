@@ -214,11 +214,6 @@ void ED_spacetypes_keymap(wmKeyConfig *keyconf)
     if (type->keymap) {
       type->keymap(keyconf);
     }
-    for (ARegionType &region_type : type->regiontypes) {
-      if (region_type.keymap) {
-        region_type.keymap(keyconf);
-      }
-    }
   }
 }
 
@@ -238,7 +233,7 @@ void *ED_region_draw_cb_activate(ARegionType *art,
                                  void *customdata,
                                  int type)
 {
-  RegionDrawCB *rdc = MEM_callocN<RegionDrawCB>(__func__);
+  RegionDrawCB *rdc = MEM_new_zeroed<RegionDrawCB>(__func__);
 
   BLI_addtail(&art->drawcalls, rdc);
   rdc->draw = draw;
@@ -253,7 +248,7 @@ bool ED_region_draw_cb_exit(ARegionType *art, void *handle)
   for (RegionDrawCB &rdc : art->drawcalls) {
     if (&rdc == static_cast<RegionDrawCB *>(handle)) {
       BLI_remlink(&art->drawcalls, &rdc);
-      MEM_freeN(&rdc);
+      MEM_delete(&rdc);
       return true;
     }
   }
@@ -274,9 +269,9 @@ void ED_region_draw_cb_draw(const bContext *C, ARegion *region, int type)
   ed_region_draw_cb_draw(C, region, region->runtime->type, type);
 }
 
-void ED_region_surface_draw_cb_draw(ARegionType *art, int type)
+void ED_region_surface_draw_cb_draw(const bContext *C, ARegionType *art, int type)
 {
-  ed_region_draw_cb_draw(nullptr, nullptr, art, type);
+  ed_region_draw_cb_draw(C, nullptr, art, type);
 }
 
 void ED_region_draw_cb_remove_by_type(ARegionType *art, void *draw_fn, void (*free)(void *))
@@ -287,7 +282,7 @@ void ED_region_draw_cb_remove_by_type(ARegionType *art, void *draw_fn, void (*fr
         free(rdc.customdata);
       }
       BLI_remlink(&art->drawcalls, &rdc);
-      MEM_freeN(&rdc);
+      MEM_delete(&rdc);
     }
   }
 }

@@ -127,6 +127,8 @@ const char *get_default_stripname_by_type(int type)
       return CTX_DATA_(BLT_I18NCONTEXT_ID_SEQUENCE, "Crossfade");
     case STRIP_TYPE_GAMCROSS:
       return CTX_DATA_(BLT_I18NCONTEXT_ID_SEQUENCE, "Gamma Crossfade");
+    case STRIP_TYPE_COMPOSITOR:
+      return CTX_DATA_(BLT_I18NCONTEXT_ID_SEQUENCE, "Compositor");
     case STRIP_TYPE_ADD:
       return CTX_DATA_(BLT_I18NCONTEXT_ID_SEQUENCE, "Add");
     case STRIP_TYPE_SUB:
@@ -198,6 +200,8 @@ ListBaseT<Strip> *get_seqbase_from_strip(Strip *strip,
       }
       break;
     }
+    default:
+      break;
   }
 
   return seqbase;
@@ -424,7 +428,7 @@ void alpha_mode_from_file_extension(Strip *strip)
 {
   if (strip->data && strip->data->stripdata) {
     const char *filename = strip->data->stripdata->filename;
-    strip->alpha_mode = BKE_image_alpha_mode_from_extension_ex(filename);
+    strip->alpha_mode = eStripAlphaMode(BKE_image_alpha_mode_from_extension_ex(filename));
   }
 }
 
@@ -439,9 +443,9 @@ bool strip_has_valid_data(const Strip *strip)
       return (strip->scene != nullptr);
     case STRIP_TYPE_SOUND:
       return (strip->sound != nullptr);
+    default:
+      return true;
   }
-
-  return true;
 }
 
 bool sequencer_strip_generates_image(Strip *strip)
@@ -455,8 +459,9 @@ bool sequencer_strip_generates_image(Strip *strip)
     case STRIP_TYPE_COLOR:
     case STRIP_TYPE_TEXT:
       return true;
+    default:
+      return false;
   }
-  return false;
 }
 
 void set_scale_to_fit(const Strip *strip,
@@ -504,7 +509,8 @@ void ensure_unique_name(Strip *strip, Scene *scene)
                                 strip->name + 2,
                                 0,
                                 0,
-                                false);
+                                /*verify_paths=*/false,
+                                /*infix_is_name=*/true);
 
   if (strip->type == STRIP_TYPE_META) {
     for (Strip &strip_child : strip->seqbase) {

@@ -4,6 +4,7 @@
 
 #include <fmt/format.h>
 
+#include "BKE_gtest_base.hh"
 #include "BKE_path_templates.hh"
 
 #include "testing/testing.h"
@@ -60,7 +61,9 @@ static std::string errors_to_string(Span<Error> errors)
   return s;
 }
 
-TEST(path_templates, VariableMap)
+class PathTemplatesTest : public BlenderGTestBase {};
+
+TEST_F(PathTemplatesTest, VariableMap)
 {
   VariableMap map;
 
@@ -146,7 +149,7 @@ TEST(path_templates, VariableMap)
   EXPECT_FALSE(map.remove("what"));
 }
 
-TEST(path_templates, VariableMap_add_filename_only)
+TEST_F(PathTemplatesTest, VariableMap_add_filename_only)
 {
   VariableMap map;
 
@@ -183,7 +186,7 @@ TEST(path_templates, VariableMap_add_filename_only)
   EXPECT_FALSE(map.add_filename_only("i", "", "fallback"));
 }
 
-TEST(path_templates, VariableMap_add_path_up_to_file)
+TEST_F(PathTemplatesTest, VariableMap_add_path_up_to_file)
 {
   VariableMap map;
 
@@ -221,7 +224,7 @@ struct PathTemplateTestCase {
   Vector<Error> expected_errors;
 };
 
-TEST(path_templates, validate_and_apply_template)
+TEST_F(PathTemplatesTest, validate_and_apply_template)
 {
   VariableMap variables;
   {
@@ -447,7 +450,7 @@ TEST(path_templates, validate_and_apply_template)
   }
 }
 
-TEST(path_templates, apply_template_alloc)
+TEST_F(PathTemplatesTest, apply_template_alloc)
 {
   VariableMap variables;
   {
@@ -539,7 +542,7 @@ TEST(path_templates, apply_template_alloc)
 
   for (const PathTemplateTestCase &test_case : test_cases) {
     const int in_size = strlen(test_case.path_in) + 1;
-    char *buffer = MEM_malloc_arrayN<char>(in_size, __func__);
+    char *buffer = MEM_new_array_uninitialized<char>(in_size, __func__);
     BLI_strncpy(buffer, test_case.path_in, in_size);
 
     const Vector<Error> application_errors = BKE_path_apply_template_alloc(
@@ -552,7 +555,7 @@ TEST(path_templates, apply_template_alloc)
         << "  Note: test_case.path_in = " << test_case.path_in << std::endl
         << "  Note: test_case.path_result = " << test_case.path_result << std::endl;
 
-    MEM_freeN(buffer);
+    MEM_delete(buffer);
   }
 }
 

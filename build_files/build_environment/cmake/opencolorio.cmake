@@ -122,12 +122,14 @@ if(WIN32)
         ${LIBDIR}/opencolorio/bin/OpenColorIO_d_2_5.dll
         ${HARVEST_TARGET}/opencolorio/bin/OpenColorIO_d_2_5.dll
       COMMAND ${CMAKE_COMMAND} -E copy
-        ${LIBDIR}/opencolorio/lib/Opencolorio_d.lib
+        ${LIBDIR}/opencolorio/lib/OpenColorIO_d.lib
         ${HARVEST_TARGET}/opencolorio/lib/OpenColorIO_d.lib
       COMMAND ${CMAKE_COMMAND} -E copy_directory
         ${LIBDIR}/opencolorio/lib/site-packages
         ${HARVEST_TARGET}/opencolorio/lib/site-packages-debug
-
+      COMMAND ${CMAKE_COMMAND} -E copy
+        ${LIBDIR}/opencolorio/lib/cmake/OpenColorIO/OpenColorIOTargets-debug.cmake
+        ${HARVEST_TARGET}/opencolorio/lib/cmake/OpenColorIO/OpenColorIOTargets-debug.cmake
       DEPENDEES install
     )
   endif()
@@ -147,6 +149,8 @@ else()
   )
 
   harvest(external_opencolorio opencolorio/include opencolorio/include "*.h")
+  # Cmake files first because harvest_rpath_lib edits them.
+  harvest(external_opencolorio opencolorio/lib/cmake/OpenColorIO opencolorio/lib/cmake/OpenColorIO "*.cmake")
   harvest_rpath_lib(external_opencolorio opencolorio/lib opencolorio/lib "*${SHAREDLIBEXT}*")
   harvest_rpath_python(
     external_opencolorio

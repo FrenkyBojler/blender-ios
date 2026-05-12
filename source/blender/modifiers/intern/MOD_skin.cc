@@ -38,6 +38,8 @@
  *   cases.
  */
 
+#include <algorithm>
+
 #include "MEM_guardedalloc.h"
 
 #include "BLI_array_utils.hh"
@@ -459,7 +461,7 @@ static Frame **collect_hull_frames(
   int hull_frames_num, i;
 
   (*tothullframe) = emap[v].size();
-  hull_frames = MEM_calloc_arrayN<Frame *>(*tothullframe, __func__);
+  hull_frames = MEM_new_array_zeroed<Frame *>(*tothullframe, __func__);
   hull_frames_num = 0;
   for (i = 0; i < emap[v].size(); i++) {
     const int2 &edge = edges[emap[v][i]];
@@ -661,7 +663,7 @@ static SkinNode *build_frames(const Span<float3> vert_positions,
 {
   int v;
 
-  SkinNode *skin_nodes = MEM_calloc_arrayN<SkinNode>(verts_num, __func__);
+  SkinNode *skin_nodes = MEM_new_array_zeroed<SkinNode>(verts_num, __func__);
 
   for (v = 0; v < verts_num; v++) {
     if (emap[v].size() <= 1) {
@@ -787,7 +789,7 @@ static EMat *build_edge_mats(const MVertSkin *vs,
   stack = BLI_stack_new(sizeof(stack_elem), "build_edge_mats.stack");
 
   visited_e = BLI_BITMAP_NEW(edges.size(), "build_edge_mats.visited_e");
-  emat = MEM_calloc_arrayN<EMat>(edges.size(), __func__);
+  emat = MEM_new_array_zeroed<EMat>(edges.size(), __func__);
 
   /* Edge matrices are built from the root nodes, add all roots with
    * children to the stack */
@@ -820,7 +822,7 @@ static EMat *build_edge_mats(const MVertSkin *vs,
     build_emats_stack(stack, visited_e, emat, emap, edges, vs, vert_positions);
   }
 
-  MEM_freeN(visited_e);
+  MEM_delete(visited_e);
   BLI_stack_free(stack);
 
   return emat;
@@ -949,7 +951,7 @@ static Mesh *subdivide_base(const Mesh *orig)
     if (origdvert) {
       const MDeformVert *dv1 = &origdvert[edge[0]];
       const MDeformVert *dv2 = &origdvert[edge[1]];
-      vgroups = MEM_calloc_arrayN<VGroupData>(dv1->totweight, __func__);
+      vgroups = MEM_new_array_zeroed<VGroupData>(dv1->totweight, __func__);
 
       /* Only want vertex groups used by both vertices */
       for (j = 0; j < dv1->totweight; j++) {
@@ -1011,7 +1013,7 @@ static Mesh *subdivide_base(const Mesh *orig)
     }
 
     if (vgroups) {
-      MEM_freeN(vgroups);
+      MEM_delete(vgroups);
     }
 
     /* Link up to final vertex */
@@ -1451,6 +1453,19 @@ static void skin_hole_detach_partially_attached_frame(BMesh *bm, Frame *frame)
 }
 
 /**
+ * Check if any frame vertex was detected as interior.
+ */
+static bool skin_frame_has_interior_hull_vertex(const Frame *frame)
+{
+  for (const int k : IndexRange(4)) {
+    if (frame->inside_hull[k]) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
  * Check if any frame vertex is shared with the target face.
  *
  * When frame vertices are at the same position as (or very close to) branch node vertices,
@@ -1612,7 +1627,7 @@ static void skin_merge_close_frame_verts(SkinNode *skin_nodes,
     if (!skin_nodes[v].totframe) {
       hull_frames = collect_hull_frames(v, skin_nodes, emap, edges, &tothullframe);
       merge_frame_corners(hull_frames, tothullframe);
-      MEM_freeN(hull_frames);
+      MEM_delete(hull_frames);
     }
   }
 }
@@ -1658,12 +1673,16 @@ static void skin_fix_hull_topology(BMesh *bm, SkinNode *skin_nodes, int verts_nu
          * so the call order doesn't matter for it - but the coincidence check requires the
          * original vertex pointers. */
         BMFace *target_face = skin_hole_target_face(bm, f);
-        const bool has_coincident = target_face &&
-                                    skin_frame_has_coincident_hull_vertex(f, target_face);
+        const bool has_degenerate_coincidence =
+            (target_face &&
+             /* The frame would only create a degenerate edge (using two of the same vertex)
+              * when all its vertices are on the hull. */
+             !skin_frame_has_interior_hull_vertex(f) &&
+             skin_frame_has_coincident_hull_vertex(f, target_face));
 
         skin_hole_detach_partially_attached_frame(bm, f);
 
-        if (target_face && LIKELY(!has_coincident)) {
+        if (target_face && LIKELY(!has_degenerate_coincidence)) {
           if (skin_fix_hole_no_good_verts(bm, f, target_face)) {
             continue;
           }
@@ -1854,7 +1873,7 @@ static bool skin_output_branch_hulls(SkinOutput *so,
         result = false;
       }
 
-      MEM_freeN(hull_frames);
+      MEM_delete(hull_frames);
     }
   }
 
@@ -1943,7 +1962,7 @@ static void skin_set_orig_indices(Mesh *mesh)
 {
   int *orig = static_cast<int *>(
       CustomData_add_layer(&mesh->face_data, CD_ORIGINDEX, CD_CONSTRUCT, mesh->faces_num));
-  copy_vn_i(orig, mesh->faces_num, ORIGINDEX_NONE);
+  std::fill_n(orig, mesh->faces_num, ORIGINDEX_NONE);
 }
 
 /*
@@ -1975,12 +1994,12 @@ static Mesh *base_skin(Mesh *origmesh, SkinModifierData *smd, eSkinErrorFlag *r_
 
   emat = build_edge_mats(nodes, vert_positions, verts_num, edges, vert_to_edge, &has_valid_root);
   skin_nodes = build_frames(vert_positions, verts_num, nodes, vert_to_edge, emat);
-  MEM_freeN(emat);
+  MEM_delete(emat);
   emat = nullptr;
 
   bm = build_skin(skin_nodes, verts_num, vert_to_edge, edges, dvert, smd, r_error);
 
-  MEM_freeN(skin_nodes);
+  MEM_delete(skin_nodes);
 
   if (!has_valid_root) {
     *r_error |= SKIN_ERROR_NO_VALID_ROOT;

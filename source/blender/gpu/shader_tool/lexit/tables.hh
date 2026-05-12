@@ -1,6 +1,6 @@
-/* SPDX-FileCopyrightText: 2026 Blender Authors
+/* SPDX-FileCopyrightText: 2026 Clement Foucault
  *
- * SPDX-License-Identifier: GPL-2.0-or-later */
+ * SPDX-License-Identifier: MIT */
 
 #pragma once
 
@@ -9,7 +9,7 @@
 namespace lexit {
 
 /* Associates a token type to each ASCII character. */
-const CharClass char_class_table[128] = {
+alignas(128) const CharClass char_class_table[128] = {
     /* 0x00, '\0' */ CharClass::None,
     /* 0x01, SOH  */ CharClass::None,
     /* 0x02, STX  */ CharClass::None,

@@ -64,7 +64,7 @@ static PointerRNA rna_workspace_screens_item_get(CollectionPropertyIterator *ite
 
 static wmOwnerID *rna_WorkSpace_owner_ids_new(WorkSpace *workspace, const char *name)
 {
-  wmOwnerID *owner_id = MEM_new_for_free<wmOwnerID>(__func__);
+  wmOwnerID *owner_id = MEM_new<wmOwnerID>(__func__);
   BLI_addtail(&workspace->owner_ids, owner_id);
   STRNCPY(owner_id->name, name);
   WM_main_add_notifier(NC_WINDOW, nullptr);
@@ -85,7 +85,7 @@ static void rna_WorkSpace_owner_ids_remove(WorkSpace *workspace,
     return;
   }
 
-  MEM_freeN(owner_id);
+  MEM_delete(owner_id);
   wstag_ptr->invalidate();
 
   WM_main_add_notifier(NC_WINDOW, nullptr);
@@ -397,7 +397,7 @@ static void rna_def_workspace_tools(BlenderRNA *brna, PropertyRNA *cprop)
   func = RNA_def_function(
       srna, "from_space_view3d_mode", "rna_WorkSpace_tools_from_space_view3d_mode");
   RNA_def_function_ui_description(func, "");
-  parm = RNA_def_enum(func, "mode", rna_enum_context_mode_items, 0, "", "");
+  parm = RNA_def_enum(func, "mode", rna_enum_context_mode_items, 0, "", "Object mode");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   RNA_def_boolean(func, "create", false, "Create", "");
   /* return type */
@@ -407,7 +407,8 @@ static void rna_def_workspace_tools(BlenderRNA *brna, PropertyRNA *cprop)
   func = RNA_def_function(
       srna, "from_space_image_mode", "rna_WorkSpace_tools_from_space_image_mode");
   RNA_def_function_ui_description(func, "");
-  parm = RNA_def_enum(func, "mode", rna_enum_space_image_mode_all_items, 0, "", "");
+  parm = RNA_def_enum(
+      func, "mode", rna_enum_space_image_mode_all_items, 0, "", "Image space mode");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   RNA_def_boolean(func, "create", false, "Create", "");
   /* return type */
@@ -424,7 +425,8 @@ static void rna_def_workspace_tools(BlenderRNA *brna, PropertyRNA *cprop)
   func = RNA_def_function(
       srna, "from_space_sequencer", "rna_WorkSpace_tools_from_space_sequencer");
   RNA_def_function_ui_description(func, "");
-  parm = RNA_def_enum(func, "mode", rna_enum_space_sequencer_view_type_items, 0, "", "");
+  parm = RNA_def_enum(
+      func, "mode", rna_enum_space_sequencer_view_type_items, 0, "", "Sequencer view type");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   RNA_def_boolean(func, "create", false, "Create", "");
   /* return type */

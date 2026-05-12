@@ -625,7 +625,7 @@ static StructRNA *rna_KeyingSetInfo_register(Main *bmain,
   }
 
   /* create a new KeyingSetInfo type */
-  ksi = MEM_mallocN<KeyingSetInfo>("python keying set info");
+  ksi = MEM_new_uninitialized<KeyingSetInfo>("python keying set info");
   memcpy(ksi, &dummy_ksi, sizeof(KeyingSetInfo));
 
   /* set RNA-extensions info */
@@ -704,7 +704,7 @@ static void rna_ksPath_RnaPath_set(PointerRNA *ptr, const char *value)
   KS_Path *ksp = static_cast<KS_Path *>(ptr->data);
 
   if (ksp->rna_path) {
-    MEM_freeN(ksp->rna_path);
+    MEM_delete(ksp->rna_path);
   }
 
   if (value[0]) {
@@ -815,7 +815,7 @@ static KS_Path *rna_KeyingSet_paths_add(KeyingSet *keyingset,
                                         const char group_name[])
 {
   KS_Path *ksp = nullptr;
-  short flag = 0;
+  eKSP_Settings flag{};
 
   /* Special case when index = -1, we key the whole array
    * (as with other places where index is used). */
@@ -826,7 +826,8 @@ static KS_Path *rna_KeyingSet_paths_add(KeyingSet *keyingset,
 
   /* if data is valid, call the API function for this */
   if (keyingset) {
-    ksp = BKE_keyingset_add_path(keyingset, id, group_name, rna_path, index, flag, group_method);
+    ksp = BKE_keyingset_add_path(
+        keyingset, id, group_name, rna_path, index, flag, eKSP_Grouping(group_method));
     keyingset->active_path = BLI_listbase_count(&keyingset->paths);
   }
   else {
@@ -1247,7 +1248,7 @@ static void rna_def_keyingset_info(BlenderRNA *brna)
   RNA_def_function_ui_description(func, "Test if Keying Set can be used or not");
   RNA_def_function_flag(func, FUNC_REGISTER);
   RNA_def_function_return(func, RNA_def_boolean(func, "ok", true, "", ""));
-  parm = RNA_def_pointer(func, "context", "Context", "", "");
+  parm = RNA_def_pointer(func, "context", "Context", "", "The context");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 
   /* iterator */
@@ -1255,9 +1256,9 @@ static void rna_def_keyingset_info(BlenderRNA *brna)
   RNA_def_function_ui_description(
       func, "Call generate() on the structs which have properties to be keyframed");
   RNA_def_function_flag(func, FUNC_REGISTER);
-  parm = RNA_def_pointer(func, "context", "Context", "", "");
+  parm = RNA_def_pointer(func, "context", "Context", "", "The context");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
-  parm = RNA_def_pointer(func, "ks", "KeyingSet", "", "");
+  parm = RNA_def_pointer(func, "ks", "KeyingSet", "", "Keying set this iterator runs on");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 
   /* generate */
@@ -1265,11 +1266,11 @@ static void rna_def_keyingset_info(BlenderRNA *brna)
   RNA_def_function_ui_description(
       func, "Add Paths to the Keying Set to keyframe the properties of the given data");
   RNA_def_function_flag(func, FUNC_REGISTER);
-  parm = RNA_def_pointer(func, "context", "Context", "", "");
+  parm = RNA_def_pointer(func, "context", "Context", "", "The context");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
-  parm = RNA_def_pointer(func, "ks", "KeyingSet", "", "");
+  parm = RNA_def_pointer(func, "ks", "KeyingSet", "", "Keying set to add paths to");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
-  parm = RNA_def_pointer(func, "data", "AnyType", "", "");
+  parm = RNA_def_pointer(func, "data", "AnyType", "", "Data to add paths from");
   RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED | PARM_RNAPTR);
 }
 

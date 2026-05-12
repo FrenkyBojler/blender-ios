@@ -816,7 +816,7 @@ short bezt_to_cfraelem(KeyframeEditData *ked, BezTriple *bezt)
     return 0;
   }
 
-  CfraElem *ce = MEM_callocN<CfraElem>("cfraElem");
+  CfraElem *ce = MEM_new_zeroed<CfraElem>("cfraElem");
   BLI_addtail(&ked->cfra_elem_list, ce);
 
   /* bAnimListElem so we can do NLA mapping, we want the cfra to be in "global" time */
@@ -1526,13 +1526,13 @@ static short select_bezier_add(KeyframeEditData *ked, BezTriple *bezt)
   /* if we've got info on what to select, use it, otherwise select all */
   if ((ked) && (ked->iterflags & KEYFRAME_ITER_INCL_HANDLES) && handles_visible(ked, bezt)) {
     if (ked->curflags & KEYFRAME_OK_KEY) {
-      bezt->f2 |= SELECT;
+      bezt->f2 |= BEZT_FLAG_SELECT;
     }
     if (ked->curflags & KEYFRAME_OK_H1) {
-      bezt->f1 |= SELECT;
+      bezt->f1 |= BEZT_FLAG_SELECT;
     }
     if (ked->curflags & KEYFRAME_OK_H2) {
-      bezt->f3 |= SELECT;
+      bezt->f3 |= BEZT_FLAG_SELECT;
     }
   }
   else {
@@ -1548,13 +1548,13 @@ static short select_bezier_subtract(KeyframeEditData *ked, BezTriple *bezt)
   /* if we've got info on what to deselect, use it, otherwise deselect all */
   if ((ked) && (ked->iterflags & KEYFRAME_ITER_INCL_HANDLES) && handles_visible(ked, bezt)) {
     if (ked->curflags & KEYFRAME_OK_KEY) {
-      bezt->f2 &= ~SELECT;
+      bezt->f2 &= ~BEZT_FLAG_SELECT;
     }
     if (ked->curflags & KEYFRAME_OK_H1) {
-      bezt->f1 &= ~SELECT;
+      bezt->f1 &= ~BEZT_FLAG_SELECT;
     }
     if (ked->curflags & KEYFRAME_OK_H2) {
-      bezt->f3 &= ~SELECT;
+      bezt->f3 &= ~BEZT_FLAG_SELECT;
     }
   }
   else {
@@ -1567,14 +1567,14 @@ static short select_bezier_subtract(KeyframeEditData *ked, BezTriple *bezt)
 static short select_bezier_invert(KeyframeEditData * /*ked*/, BezTriple *bezt)
 {
   /* Invert the selection for the whole bezier triple */
-  bezt->f2 ^= SELECT;
+  bezt->f2 ^= BEZT_FLAG_SELECT;
   if (bezt->f2 & SELECT) {
-    bezt->f1 |= SELECT;
-    bezt->f3 |= SELECT;
+    bezt->f1 |= BEZT_FLAG_SELECT;
+    bezt->f3 |= BEZT_FLAG_SELECT;
   }
   else {
-    bezt->f1 &= ~SELECT;
-    bezt->f3 &= ~SELECT;
+    bezt->f1 &= ~BEZT_FLAG_SELECT;
+    bezt->f3 &= ~BEZT_FLAG_SELECT;
   }
   return 0;
 }

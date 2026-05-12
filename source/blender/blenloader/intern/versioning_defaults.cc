@@ -143,8 +143,13 @@ static void blo_update_defaults_screen(bScreen *screen,
       }
       else if (STR_ELEM(workspace_name, "Texture Paint", "Shading")) {
         SpaceImage *sima = static_cast<SpaceImage *>(area.spacedata.first);
+        /* Face opacity is set to 0 to not interfere with visualization while painting */
         sima->uv_face_opacity = 0.0f;
-        sima->uv_edge_opacity = 0.0f;
+        sima->uv_edge_opacity = 1.0f;
+      }
+      else if (BLI_str_startswith(workspace_name, "Compositing")) {
+        SpaceImage *sima = static_cast<SpaceImage *>(area.spacedata.first);
+        sima->overlay.flag &= ~SI_OVERLAY_DRAW_TEXT_INFO;
       }
     }
     else if (area.spacetype == SPACE_ACTION) {
@@ -185,7 +190,8 @@ static void blo_update_defaults_screen(bScreen *screen,
                                     SEQ_TIMELINE_SHOW_STRIP_DURATION | SEQ_TIMELINE_SHOW_GRID |
                                     SEQ_TIMELINE_SHOW_STRIP_COLOR_TAG |
                                     SEQ_TIMELINE_SHOW_STRIP_RETIMING |
-                                    SEQ_TIMELINE_WAVEFORMS_HALF | SEQ_TIMELINE_SHOW_THUMBNAILS;
+                                    SEQ_TIMELINE_WAVEFORMS_HALF |
+                                    SEQ_TIMELINE_STRIP_END_THUMBNAILS;
       seq->preview_overlay.flag |= SEQ_PREVIEW_SHOW_OUTLINE_SELECTED;
       seq->cache_overlay.flag = SEQ_CACHE_SHOW | SEQ_CACHE_SHOW_FINAL_OUT;
       seq->draw_flag |= SEQ_DRAW_TRANSFORM_PREVIEW;
@@ -426,10 +432,12 @@ static void blo_update_defaults_scene(Main *bmain, Scene *scene)
   scene->r.im_format.exr_flag |= R_IMF_EXR_FLAG_MULTIPART;
   scene->r.bake.im_format.exr_flag |= R_IMF_EXR_FLAG_MULTIPART;
 
+  scene->r.compositor_device = SCE_COMPOSITOR_DEVICE_GPU;
+
   /* Don't enable compositing nodes. */
   if (scene->nodetree) {
     bke::node_tree_free_embedded_tree(scene->nodetree);
-    MEM_freeN(scene->nodetree);
+    MEM_delete(scene->nodetree);
     scene->nodetree = nullptr;
     scene->use_nodes = false;
   }
@@ -454,6 +462,9 @@ static void blo_update_defaults_scene(Main *bmain, Scene *scene)
   /* New EEVEE defaults. */
   scene->eevee.motion_blur_shutter_deprecated = 0.5f;
   scene->eevee.flag &= ~SCE_EEVEE_VOLUME_CUSTOM_RANGE;
+  scene->eevee.clamp_volume_indirect = 0.0f; /* Default from versioning is not 0. */
+  scene->eevee.ray_tracing_options = {};
+  scene->eevee.fast_gi_thickness_near = 0.1f; /* Default from versioning is not 0.1f. */
 
   copy_v3_v3(scene->display.light_direction, float3(M_SQRT1_3));
   copy_v2_fl2(scene->safe_areas.title, 0.1f, 0.05f);
@@ -555,6 +566,13 @@ static void blo_update_defaults_scene(Main *bmain, Scene *scene)
 
   /* Weight Paint settings */
   ts->weightuser = OB_DRAW_GROUPUSER_ACTIVE;
+
+  /* Cycles settings. */
+  IDProperty *cscene = version_cycles_properties_from_ID(&scene->id);
+  if (cscene) {
+    /* Set the default sampling pattern to AUTOMATIC. */
+    version_cycles_property_int_set(cscene, "sampling_pattern", 5);
+  }
 }
 
 void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
@@ -644,6 +662,22 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
       /* Ensure Palette by default. */
       if (ts->gp_paint) {
         BKE_gpencil_palette_ensure(bmain, &scene);
+      }
+    }
+
+    if (app_template && (STR_ELEM(app_template, "2D_Animation", "Storyboarding"))) {
+      /* Since !153036, the base colors for stroke & fill were getting versioned to have 0% opacity
+       * if the stroke/fill was disabled. This meant that in a new file using the following App
+       * Templates, the "Solid Stroke" material wouldn't show anything when trying to draw a fill.
+       * This sets the fill to a mid grey to make sure users don't run into this issue. */
+
+      /* Change Solid Stroke settings. */
+      Material *ma = static_cast<Material *>(
+          BLI_findstring(&bmain->materials, "Solid Stroke", offsetof(ID, name) + 2));
+      if (ma != nullptr) {
+        /* Black Stroke and Grey Fill. */
+        copy_v4_fl4(ma->gp_style->stroke_rgba, 0.0f, 0.0f, 0.0f, 1.0f);
+        copy_v4_fl4(ma->gp_style->fill_rgba, 0.5f, 0.5f, 0.5f, 1.0f);
       }
     }
   }
@@ -777,14 +811,14 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
     if (ma.nodetree) {
       for (bNode *node : ma.nodetree->all_nodes()) {
         if (node->type_legacy == SH_NODE_BSDF_PRINCIPLED) {
-          bNodeSocket *roughness_socket = bke::node_find_socket(*node, SOCK_IN, "Roughness");
+          bNodeSocket *roughness_socket = bke::node_find_socket(*node, SOCK_IN, "Roughness"_ustr);
           *version_cycles_node_socket_float_value(roughness_socket) = 0.5f;
-          bNodeSocket *emission = bke::node_find_socket(*node, SOCK_IN, "Emission Color");
+          bNodeSocket *emission = bke::node_find_socket(*node, SOCK_IN, "Emission Color"_ustr);
           copy_v4_fl(version_cycles_node_socket_rgba_value(emission), 1.0f);
           bNodeSocket *emission_strength = bke::node_find_socket(
-              *node, SOCK_IN, "Emission Strength");
+              *node, SOCK_IN, "Emission Strength"_ustr);
           *version_cycles_node_socket_float_value(emission_strength) = 0.0f;
-          bNodeSocket *ior = bke::node_find_socket(*node, SOCK_IN, "IOR");
+          bNodeSocket *ior = bke::node_find_socket(*node, SOCK_IN, "IOR"_ustr);
           *version_cycles_node_socket_float_value(ior) = 1.5f;
 
           node->custom1 = SHD_GLOSSY_MULTI_GGX;

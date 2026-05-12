@@ -16,6 +16,7 @@ __all__ = (
     "RequestDescription",
     "HTTPRequestDownloadError",
     "ContentLengthUnknownError",
+    "ContentLengthTooBigError",
     "ContentLengthError",
     "HTTPRequestUnknownContentEncoding",
     "DownloadCancelled",
@@ -36,9 +37,9 @@ import os
 import sys
 import time
 import zlib  # For streaming gzip decompression.
-from collections.abc import Callable
+from collections.abc import Callable, Generator
 from pathlib import Path
-from typing import Protocol, TypeAlias, Any, Generator
+from typing import Protocol, TypeAlias, Any, override
 
 # To work around this error:
 # mypy   : Variable "multiprocessing.Event" is not valid as a type
@@ -78,10 +79,17 @@ class ConditionalDownloader:
     http_session: requests.Session
     """Requests session, for control over retry behavior, TCP connection pooling, etc."""
 
+    max_disk_size_bytes: int = 0
+    """Maximum allowed size of the download in bytes. 0 means no limit.
+
+    This is measured in bytes on disk, so when stream compression is used,
+    after decompressing.
+    """
+
     chunk_size: int = 8192
     """Download this many bytes before saving to disk and reporting progress."""
 
-    periodic_check: Callable[[], bool]
+    periodic_check: Callable[[RequestDescription], bool]
     """Called repeatedly to see if a running download should continue or be canceled.
 
     During downloading, the ConditionalDownloader will repeatedly call this
@@ -109,13 +117,13 @@ class ConditionalDownloader:
         self.metadata_provider = metadata_provider
         self.http_session = http_session()
         self.chunk_size = 8192  # Sensible default, can be adjusted after creation if necessary.
-        self.periodic_check = lambda: True
+        self.periodic_check = lambda _: True
         self.timeout = None
         self._reporter = _DummyReporter()
 
     def download_to_file(
         self, url: str, local_path: Path, *, http_method: str = "GET"
-    ) -> None:
+    ) -> RequestDescription:
         """Download the URL to a file on disk.
 
         The download is streamed to 'local_path + "~"' first. When successful, it
@@ -134,6 +142,7 @@ class ConditionalDownloader:
         except Exception as ex:
             self._reporter.download_error(http_req_descr, local_path, ex)
             raise
+        return http_req_descr
 
     def _download_to_file(self, http_req_descr: RequestDescription, local_path: Path) -> None:
         """Same as download_to_file(), but without the exception handling."""
@@ -191,7 +200,7 @@ class ConditionalDownloader:
         """
 
         # Don't bother doing anything when the download was cancelled already.
-        if not self.periodic_check():
+        if not self.periodic_check(http_req_descr):
             raise DownloadCancelled(http_req_descr)
 
         req = requests.Request(http_req_descr.http_method, http_req_descr.url)
@@ -248,6 +257,13 @@ class ConditionalDownloader:
             # TODO: add support for this case.
             raise ContentLengthUnknownError(http_req_descr) from None
 
+        # Before actually downloading, check that the size is below the limit.
+        # This check is just an upper limit, as when stream compression is used, the on-disk size will be larger than
+        # the Content-Length header indicates. But if the compressed stream is already too large, the uncompressed data
+        # will also be too large.
+        if self.max_disk_size_bytes > 0 and content_length > self.max_disk_size_bytes:
+            raise ContentLengthTooBigError(http_req_descr, self.max_disk_size_bytes, content_length)
+
         # The Content-Length header, obtained above, indicates the number of
         # bytes that we will be downloading. The Requests library automatically
         # decompresses this, and so if the normal (not `stream.raw`) streaming
@@ -268,17 +284,19 @@ class ConditionalDownloader:
                 raise HTTPRequestUnknownContentEncoding(http_req_descr, content_encoding)
 
         # Avoid reporting any progress when the download was cancelled.
-        if not self.periodic_check():
+        if not self.periodic_check(http_req_descr):
             raise DownloadCancelled(http_req_descr)
 
         self._reporter.download_progress(http_req_descr, content_length, 0)
 
         # Stream the response to a file.
         num_downloaded_bytes = 0
+        disk_bytes_written = 0
         with local_path.open("wb") as file:
             def write_and_report(chunk: bytes) -> None:
                 """Write a chunk to file, and report on the download progress."""
-                file.write(chunk)
+                nonlocal disk_bytes_written
+                disk_bytes_written += file.write(chunk)
 
                 self._reporter.download_progress(
                     http_req_descr, content_length, num_downloaded_bytes
@@ -289,7 +307,7 @@ class ConditionalDownloader:
 
             # Download and process chunks until there are no more left.
             while chunk := stream.raw.read(self.chunk_size):
-                if not self.periodic_check():
+                if not self.periodic_check(http_req_descr):
                     raise DownloadCancelled(http_req_descr)
 
                 num_downloaded_bytes += len(chunk)
@@ -298,6 +316,7 @@ class ConditionalDownloader:
                 write_and_report(chunk)
 
             if decoder:
+                # The network bytes for this last remaining decoded bit have already been counted.
                 write_and_report(decoder.flush())
                 assert decoder.eof
 
@@ -308,7 +327,7 @@ class ConditionalDownloader:
             request=http_req_descr,
             etag=stream.headers.get("ETag") or "",
             last_modified=stream.headers.get("Last-Modified") or "",
-            content_length=num_downloaded_bytes,
+            size_on_disk=disk_bytes_written,
         )
 
         return meta
@@ -389,6 +408,42 @@ class DownloaderOptions:
     When only one number is given, it is used for both timeouts.
     """
     http_headers: dict[str, str] = dataclasses.field(default_factory=dict)
+    max_disk_size_bytes: int = 0
+    """Maximum download size, in bytes on disk."""
+
+    def __post_init__(self) -> None:
+        self._ensure_user_agent()
+
+    def _ensure_user_agent(self) -> None:
+        """Make sure a custom User-Agent HTTP header is set.
+
+        This is done here, instead of globally in the `requests` module, because
+        `requests` will be used in a Python sub-process, which doesn't run inside
+        of Blender. So in order to include the Blender version, the header has
+        to be defined in the main process.
+
+        Note that this information is NOT passed in the query string for GET
+        requests. This is to help HTTP caching infrastructure (like CloudFlare)
+        to cache HTTP responses as much as possible.
+        """
+        if any(header.lower() == 'user-agent' for header in self.http_headers):
+            return
+
+        user_agent = ""
+        try:
+            from bl_pkg import bl_extension_ops
+            user_agent = bl_extension_ops.online_user_agent_from_blender()
+        except ImportError:
+            logger.exception(
+                "http downloader could not import bl_extension_ops from Blender; "
+                "HTTP user-agent header will not identify the Blender version")
+            import platform
+            user_agent = "Blender/unknown ({:s} {:s}; cycle=unknown)".format(
+                platform.system(),
+                platform.machine(),
+            )
+
+        self.http_headers['user-agent'] = user_agent
 
 
 class BackgroundDownloader:
@@ -466,8 +521,14 @@ class BackgroundDownloader:
                        on_download_done: DownloadDoneCallback | None = None,
                        *,
                        http_method: str = 'GET',
-                       ) -> None:
-        """Queue up a download of some URL to a location on disk."""
+                       ) -> RequestDescription:
+        """Queue up a download of some URL to a location on disk.
+
+        Returns the RequestDescription of the queued download.
+
+        The background process must be running, and its shutdown should not
+        have been triggered yet.
+        """
 
         if self._shutdown_event.is_set():
             raise RuntimeError("BackgroundDownloader is shutting down, cannot queue new downloads")
@@ -484,6 +545,29 @@ class BackgroundDownloader:
         self._connection.send(PipeMessage(
             msgtype=PipeMsgType.QUEUE_DOWNLOAD,
             payload=(http_req_descr, local_path),
+        ))
+
+        return http_req_descr
+
+    def cancel_download(self, http_req_descr: RequestDescription) -> None:
+        """Cancel downloading a previously-queued request.
+
+        The request is un-queued, and if it was already downloading, the
+        download is cancelled. If the download was not queued, this is a
+        no-op.
+
+        If the background process is not running, or shutting down, this
+        is a no-op.
+        """
+
+        if self._shutdown_event.is_set():
+            return
+        if self._downloader_process is None:
+            return
+
+        self._connection.send(PipeMessage(
+            msgtype=PipeMsgType.CANCEL_DOWNLOAD,
+            payload=http_req_descr,
         ))
 
     @property
@@ -555,9 +639,9 @@ class BackgroundDownloader:
         self._logger.debug("shutting down")
         self._shutdown_event.set()
 
-        # Send the CANCEL message to shut down the background process.
+        # Send the SHUTDOWN message to shut down the background process.
         try:
-            self._connection.send(PipeMessage(PipeMsgType.CANCEL, None))
+            self._connection.send(PipeMessage(PipeMsgType.SHUTDOWN, None))
         except BrokenPipeError:
             # The other side is already shut down, which is fine.
             pass
@@ -720,13 +804,32 @@ class BackgroundDownloader:
 
 class PipeMsgType(enum.Enum):
     QUEUE_DOWNLOAD = 'queue'
-    """Payload: BackgroundDownloader.QueuedDownload"""
+    """Payload: BackgroundDownloader.QueuedDownload
 
-    CANCEL = 'cancel'
-    """Payload: None"""
+    Main -> Background process.
+    Queue a HTTP request for downloading.
+    """
+
+    CANCEL_DOWNLOAD = 'cancel'
+    """Payload: RequestDescription
+
+    Main -> Background process.
+    Un-queue a HTTP request. If it is already downloading, abort the download.
+    """
+
+    SHUTDOWN = 'shutdown'
+    """Payload: None
+
+    Main -> Background process.
+    Cancel any running/queued requests, and shut down the background process.
+    """
 
     REPORT = 'report'
-    """Payload: QueueingReporter.FunctionCall"""
+    """Payload: QueueingReporter.FunctionCall
+
+    Background -> Main process.
+    Requests that the main process calls a DownloadReporter protocol function.
+    """
 
 
 @dataclasses.dataclass
@@ -756,7 +859,7 @@ def _download_queued_items(
     # Local queue for incoming messages.
     rx_queue: queue.Queue[PipeMessage] = queue.Queue()
 
-    # Local queue of stuff to download.
+    # Local queue of stuff to download & cancel.
     download_queue: collections.deque[BackgroundDownloader.QueuedDownload] = collections.deque()
 
     # Local queue of reports to send back to the main process.
@@ -773,7 +876,13 @@ def _download_queued_items(
             while connection.poll():
                 try:
                     received_msg: PipeMessage = connection.recv()
-                except EOFError:
+                except (EOFError, OSError):
+                    # The Python documentation mentions EOFError, but in
+                    # practice I (Sybren) have also seen a ConnectionResetError
+                    # being raised when Blender shuts down uncleanly. The
+                    # implementation of .send() shows that it can also raise an
+                    # OSError, which is the super-class of ConnectionResetError
+                    # as well, so that's why that's caught here.
                     log.warning("Blender is no longer running, shutting down the downloader process")
                     do_shutdown.set()
                     return
@@ -798,7 +907,12 @@ def _download_queued_items(
             log.info("sending message %s", queued_msg)
             try:
                 connection.send(queued_msg)
-            except BrokenPipeError:
+            except OSError:
+                # The Python documentation doesn't mention any exceptions for
+                # the .send() function. In practice, I (Sybren) have seen a
+                # BrokenPipeError being raised. The implementation of .send()
+                # shows that it can also raise an OSError, which is the
+                # superclass of BrokenPipeError as well.
                 log.warning("Blender is no longer running, shutting down the downloader process")
                 do_shutdown.set()
                 return
@@ -809,29 +923,59 @@ def _download_queued_items(
     rx_thread.start()
     tx_thread.start()
 
-    def periodic_check() -> bool:
+    def unqueue_request(http_req_descr: RequestDescription) -> None:
+        """Remove the given HTTP request from the download queue."""
+
+        # Reconstruct the download queue, skipping the given HTTP request.
+        # We can't use deque.remove() here, because the RequestDescription
+        # is only part of the objects in the queue.
+        new_queue = [
+            (queued_req, queued_path)
+            for (queued_req, queued_path) in download_queue
+            if queued_req != http_req_descr
+        ]
+
+        # Do a replacement without changing the deque instance. This ensures that
+        # lingering references to download_queue remain valid.
+        download_queue.clear()
+        download_queue.extend(new_queue)
+
+    def periodic_check(http_req_descr: RequestDescription | None) -> bool:
         """Handle received messages, and return whether we can keep running.
 
-        Called periodically by this function, as well as by the downloader.
+        Called periodically by the outer function (with http_req_descr=None),
+        as well as by the downloader (with an actual http_req_descr).
         """
+
+        is_cancelled = False
 
         while not do_shutdown.is_set():
             try:
                 received_msg: PipeMessage = rx_queue.get(block=False)
             except queue.Empty:
                 # Not receiving anything is fine.
-                return not do_shutdown.is_set()
+                break
 
             match received_msg.msgtype:
-                case PipeMsgType.CANCEL:
+                case PipeMsgType.SHUTDOWN:
                     do_shutdown.set()
                 case PipeMsgType.QUEUE_DOWNLOAD:
                     download_queue.append(received_msg.payload)
+                case PipeMsgType.CANCEL_DOWNLOAD:
+                    assert isinstance(received_msg.payload, RequestDescription)
+                    request_to_cancel: RequestDescription = received_msg.payload
+                    if request_to_cancel == http_req_descr:
+                        is_cancelled = True
+                    # If this request was queued multiple times, it's not enough to
+                    # just cancel the currently-downloading one.
+                    unqueue_request(request_to_cancel)
                 case PipeMsgType.REPORT:
                     # Reports are sent by us, not by the other side.
                     pass
 
-        return not do_shutdown.is_set()
+        # Handle cancel conditions (shutdown + individual cancellations).
+        should_cancel = do_shutdown.is_set() or is_cancelled
+        return not should_cancel
 
     # Construct a ConditionalDownloader. Unfortunately this is necessary, as
     # not all its properties can be pickled, and as a result, it cannot be
@@ -843,9 +987,10 @@ def _download_queued_items(
     downloader.add_reporter(reporter)
     downloader.periodic_check = periodic_check
     downloader.timeout = options.timeout
+    downloader.max_disk_size_bytes = options.max_disk_size_bytes
 
     try:
-        while periodic_check():
+        while periodic_check(None):
             # Pop an item off the front of the queue.
             try:
                 queued_download = download_queue.popleft()
@@ -898,19 +1043,6 @@ def _download_queued_items(
     log.debug("download process shutting down")
 
 
-class CancelEvent(Protocol):
-    """Protocol for event objects that indicate a download should be cancelled.
-
-    multiprocessing.Event and processing.Event are compatible with this protocol.
-    """
-
-    def is_set(self) -> bool:
-        return False
-
-    def clear(self) -> None:
-        return
-
-
 class DownloadReporter(Protocol):
     """This protocol can be used to receive reporting from ConditionalDownloader."""
 
@@ -939,9 +1071,12 @@ class DownloadReporter(Protocol):
     ) -> None:
         """There was an error downloading the URL.
 
-        This can be due to the actual download (network issues), but also local
-        processing of the downloaded data (such as renaming the file from its
-        temporary name to its final name).
+        This can be due to the actual download (HTTP status code 4xx or 5xx,
+        network issues), but also local processing of the downloaded data (such
+        as renaming the file from its temporary name to its final name).
+
+        For HTTP errors, the 'error' parameter will be a requests.HTTPError
+        instance.
         """
 
     def download_progress(
@@ -1143,7 +1278,7 @@ class MetadataProviderFilesystem(MetadataProvider):
             meta_path, 'rb', max_tries=20, wait_time_sec=0.1)
 
         try:
-            meta_json = meta_path.read_bytes()
+            meta_json = meta_file.read()
         finally:
             unlocker(meta_file)
 
@@ -1175,7 +1310,7 @@ class MetadataProviderFilesystem(MetadataProvider):
             # than including the headers necessary for a conditional download.
             return False
 
-        if local_file_size != meta.content_length:
+        if local_file_size != meta.size_on_disk:
             return False
 
         return True
@@ -1198,10 +1333,10 @@ class MetadataProviderFilesystem(MetadataProvider):
         meta_json = converter.dumps(meta).encode()
         meta_path = self._metadata_path(http_req_descr)
 
-        dir = meta_path.parent
-        dir.mkdir(mode=0o700, parents=True, exist_ok=True)
+        dirpath = meta_path.parent
+        dirpath.mkdir(mode=0o700, parents=True, exist_ok=True)
 
-        # See load() for an explanation of the numer of tries & wait time.
+        # See load() for an explanation of the number of tries & wait time.
         meta_file, unlocker = locking.mutex_lock_and_open_with_retry(
             meta_path, 'wb', max_tries=20, wait_time_sec=0.1)
 
@@ -1230,7 +1365,7 @@ class HTTPMetadata:
 
     etag: str = ""
     last_modified: str = ""
-    content_length: int = 0
+    size_on_disk: int = 0
 
 
 # Freeze instances of this class, so they can be used as map key.
@@ -1258,17 +1393,21 @@ class RequestDescription:
     of this class hashable (and thus usable as map key).
     """
 
+    @override
     def __hash__(self) -> int:
         return hash((self.http_method, self.url))
 
+    @override
     def __eq__(self, value: object) -> bool:
         if not isinstance(value, RequestDescription):
             return False
         return (self.http_method, self.url) == (value.http_method, value.url)
 
+    @override
     def __str__(self) -> str:
         return "RequestDescription({!s} {!s})".format(self.http_method, self.url)
 
+    @override
     def __repr__(self) -> str:
         return str(self)
 
@@ -1321,6 +1460,20 @@ class ContentLengthError(HTTPRequestDownloadError):
             self.__class__.__name__, self.expected_size, self.actual_size, self.http_req_desc)
 
 
+class ContentLengthTooBigError(HTTPRequestDownloadError):
+    """Raised when a HTTP response body is larger than the allowed size."""
+
+    def __init__(self, http_req_desc: RequestDescription, max_size: int, actual_size: int) -> None:
+        # This __init__ method is necessary to be able to (un)pickle instances.
+        super().__init__(http_req_desc, max_size, actual_size)
+        self.max_size = max_size
+        self.actual_size = actual_size
+
+    def __repr__(self) -> str:
+        return "{!s}(max_size={:d}, actual_size={:d}, {!s})".format(
+            self.__class__.__name__, self.max_size, self.actual_size, self.http_req_desc)
+
+
 class HTTPRequestUnknownContentEncoding(HTTPRequestDownloadError):
     """Raised when a HTTP response has an unsupported Content-Encoding header.."""
 
@@ -1335,7 +1488,7 @@ class HTTPRequestUnknownContentEncoding(HTTPRequestDownloadError):
 
 
 class DownloadCancelled(HTTPRequestDownloadError):
-    """Raised when ConditionalDownloader.cancel_download() was called.
+    """Raised when the ConditionalDownloader's periodic check returned False.
 
     This exception is raised in the thread/process that called
     ConditionalDownloader.download_to_file(), and NOT from the thread/process
@@ -1404,13 +1557,14 @@ def _cleanup_main_file_attribute() -> Generator[None]:
     # that will cause problems. Python dunder variables like this can
     # trigger all kinds of unknown magics, so they should be left alone
     # as much as possible.
-    old_file: str = getattr(main_module, '__file__', '') or ''
+    main_module_file: str = getattr(main_module, '__file__', '') or ''
 
-    # Blender uses various `<...>` values for `__main__.__file__`. Usually
-    # concrete file paths aren't delimited by greater/less than symbols, so
-    # this seems a safe heuristic.
-    is_blender_string = old_file.startswith('<') and old_file.endswith('>')
-    if not is_blender_string:
+    # Blender text datablocks don't exist on disk, and also in some Python
+    # invocations from the C++ code there is a non-path string in the `__file__`
+    # attribute. Python's multiprocessing module will choke if `__file__` is
+    # not actually a file.
+    if Path(main_module_file).is_file():
+        # Actually a file, so just let it be.
         yield
         return
 
@@ -1418,7 +1572,7 @@ def _cleanup_main_file_attribute() -> Generator[None]:
         del main_module.__file__
         yield
     finally:
-        main_module.__file__ = old_file
+        main_module.__file__ = main_module_file
 
 
 def _create_temp_file(dirpath: Path, prefix: str, suffix: str) -> Path:
@@ -1430,7 +1584,6 @@ def _create_temp_file(dirpath: Path, prefix: str, suffix: str) -> Path:
 
     The caller is responsible for deleting the file after use.
     """
-    import os
     import tempfile
 
     fd, path_as_str = tempfile.mkstemp(prefix=prefix, suffix=suffix, dir=dirpath)

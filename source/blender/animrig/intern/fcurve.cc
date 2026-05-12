@@ -94,7 +94,7 @@ eFCurve_Flags fcurve_flags_for_property_type(const PropertyType prop_type)
 {
   switch (prop_type) {
     case PROP_FLOAT:
-      return eFCurve_Flags(0);
+      return eFCurve_Flags{};
     case PROP_INT:
       /* Do integer (only 'whole' numbers) interpolation between all points. */
       return FCURVE_INT_VALUES;
@@ -196,7 +196,7 @@ int insert_bezt_fcurve(FCurve *fcu, const BezTriple *bezt, eInsertKeyFlags flag)
     /* Keyframing modes allow not replacing the keyframe. */
     else if ((flag & INSERTKEY_REPLACE) == 0) {
       /* Insert new - if we're not restricted to replacing keyframes only. */
-      BezTriple *newb = MEM_calloc_arrayN<BezTriple>(fcu->totvert + 1, "beztriple");
+      BezTriple *newb = MEM_new_array_zeroed<BezTriple>(fcu->totvert + 1, "beztriple");
 
       /* Add the beztriples that should occur before the beztriple to be pasted
        * (originally in fcu). */
@@ -213,7 +213,7 @@ int insert_bezt_fcurve(FCurve *fcu, const BezTriple *bezt, eInsertKeyFlags flag)
       }
 
       /* Replace (+ free) old with new, only if necessary to do so. */
-      MEM_freeN(fcu->bezt);
+      MEM_delete(fcu->bezt);
       fcu->bezt = newb;
 
       fcu->totvert++;
@@ -230,7 +230,7 @@ int insert_bezt_fcurve(FCurve *fcu, const BezTriple *bezt, eInsertKeyFlags flag)
    */
   else if ((flag & INSERTKEY_REPLACE) == 0 && (fcu->fpt == nullptr)) {
     /* Create new keyframes array. */
-    fcu->bezt = MEM_callocN<BezTriple>("beztriple");
+    fcu->bezt = MEM_new_zeroed<BezTriple>("beztriple");
     *(fcu->bezt) = *bezt;
     fcu->totvert = 1;
   }
@@ -312,7 +312,7 @@ void initialize_bezt(BezTriple *beztr,
   beztr->vec[1][1] = position.y;
   beztr->vec[2][0] = position.x + 1.0f;
   beztr->vec[2][1] = position.y;
-  beztr->f1 = beztr->f2 = beztr->f3 = SELECT;
+  beztr->f1 = beztr->f2 = beztr->f3 = BEZT_FLAG_SELECT;
 
   beztr->h1 = beztr->h2 = settings.handle;
   beztr->ipo = settings.interpolation;
@@ -576,7 +576,7 @@ void bake_fcurve(FCurve *fcu,
 {
   BLI_assert(step > 0);
   const int sample_count = (range[1] - range[0]) / step + 1;
-  float *samples = MEM_calloc_arrayN<float>(sample_count, "Channel Bake Samples");
+  float *samples = MEM_new_array_zeroed<float>(sample_count, "Channel Bake Samples");
   const float sample_rate = 1.0f / step;
   sample_fcurve_segment(fcu, range[0], sample_rate, samples, sample_count);
 
@@ -584,7 +584,7 @@ void bake_fcurve(FCurve *fcu,
     remove_fcurve_key_range(fcu, range, remove_existing);
   }
 
-  BezTriple *baked_keys = MEM_calloc_arrayN<BezTriple>(sample_count, "beztriple");
+  BezTriple *baked_keys = MEM_new_array_zeroed<BezTriple>(sample_count, "beztriple");
 
   const KeyframeSettings settings = get_keyframe_settings(true);
 
@@ -600,13 +600,13 @@ void bake_fcurve(FCurve *fcu,
 
   if (fcu->bezt != nullptr) {
     /* Can happen if we removed all keys beforehand. */
-    MEM_freeN(fcu->bezt);
+    MEM_delete(fcu->bezt);
   }
-  MEM_freeN(baked_keys);
+  MEM_delete(baked_keys);
   fcu->bezt = merged_bezt;
   fcu->totvert = merged_size;
 
-  MEM_freeN(samples);
+  MEM_delete(samples);
   BKE_fcurve_handles_recalc(*fcu);
 }
 
@@ -655,7 +655,7 @@ void bake_fcurve_segments(FCurve *fcu)
         sfra = int(floor(start->vec[1][0]));
 
         if (range) {
-          value_cache = MEM_calloc_arrayN<TempFrameValCache>(range, "IcuFrameValCache");
+          value_cache = MEM_new_array_zeroed<TempFrameValCache>(range, "IcuFrameValCache");
 
           /* Sample values. */
           for (n = 1, fp = value_cache; n < range && fp; n++, fp++) {
@@ -668,7 +668,7 @@ void bake_fcurve_segments(FCurve *fcu)
             animrig::insert_vert_fcurve(fcu, {fp->frame, fp->val}, settings, INSERTKEY_NOFLAGS);
           }
 
-          MEM_freeN(value_cache);
+          MEM_delete(value_cache);
 
           /* As we added keyframes, we need to compensate so that bezt is at the right place. */
           bezt = fcu->bezt + i + range - 1;

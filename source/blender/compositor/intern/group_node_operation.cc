@@ -58,16 +58,19 @@ class GroupNodeOperation : public NodeOperation {
   {
     const bNodeTree *node_group = this->get_node_group();
     if (!node_group) {
-      this->execute_invalid();
+      this->allocate_default_remaining_outputs();
       return;
     }
 
+    const bke::GroupNodeComputeContext compute_context(
+        &this->get_compute_context(), this->node().identifier, &this->node().owner_tree());
     NodeGroupOperation operation(this->context(),
                                  *node_group,
                                  needed_outputs_,
                                  this->get_node_previews(),
                                  active_node_group_instance_key_,
-                                 this->get_instance_key());
+                                 this->get_instance_key(),
+                                 compute_context);
 
     this->set_reference_counts(operation);
     Vector<std::unique_ptr<Result>> temporary_inputs = this->map_inputs(operation);
@@ -118,18 +121,6 @@ class GroupNodeOperation : public NodeOperation {
       if (group_node_result.should_compute()) {
         group_node_result.share_data(node_group_result);
         node_group_result.release();
-      }
-    }
-  }
-
-  void execute_invalid()
-  {
-    const bNodeTree *node_group = this->get_node_group();
-    node_group->ensure_interface_cache();
-    for (const bNodeTreeInterfaceSocket *output : node_group->interface_outputs()) {
-      Result &group_node_result = this->get_result(output->identifier);
-      if (group_node_result.should_compute()) {
-        group_node_result.allocate_invalid();
       }
     }
   }

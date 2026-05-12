@@ -872,11 +872,11 @@ static Vector<Error> eval_template(std::string *r_out_path,
 
       /* Curly brace escapes. */
       case TokenType::LEFT_CURLY_BRACE: {
-        strcpy(replacement_string, "{");
+        ARRAY_SET_ITEMS(replacement_string, '{', '\0');
         break;
       }
       case TokenType::RIGHT_CURLY_BRACE: {
-        strcpy(replacement_string, "}");
+        ARRAY_SET_ITEMS(replacement_string, '}', '\0');
         break;
       }
 
@@ -983,10 +983,10 @@ Vector<Error> BKE_path_apply_template_alloc(char **path,
   }
 
   const int buffer_size = math::min(int(evaluated_path.size()) + 1, path_maxncpy);
-  char *buffer = MEM_malloc_arrayN<char>(buffer_size, __func__);
+  char *buffer = MEM_new_array_uninitialized<char>(buffer_size, __func__);
   BLI_strncpy(buffer, evaluated_path.c_str(), buffer_size);
 
-  MEM_freeN(*path);
+  MEM_delete(*path);
   *path = buffer;
 
   return {};

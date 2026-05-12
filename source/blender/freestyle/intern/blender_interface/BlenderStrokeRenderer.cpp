@@ -221,7 +221,7 @@ Material *BlenderStrokeRenderer::GetStrokeShader(blender::Main *bmain,
     // make a copy of linestyle->nodetree
     if (ma->nodetree) {
       bke::node_tree_free_embedded_tree(ma->nodetree);
-      MEM_freeN(ma->nodetree);
+      MEM_delete(ma->nodetree);
       ma->nodetree = nullptr;
     }
     ntree = blender::bke::node_tree_copy_tree_ex(*iNodeTree, bmain, do_id_user);
@@ -234,6 +234,7 @@ Material *BlenderStrokeRenderer::GetStrokeShader(blender::Main *bmain,
       }
     }
     ma->nodetree = ntree;
+    ntree->owner_id = &ma->id;
   }
   else {
     ntree = ma->nodetree;
@@ -646,7 +647,7 @@ void BlenderStrokeRenderer::GenerateStrokeMesh(StrokeGroup *group, bool hasTex)
   ColorGeometry4b *transp = transp_attr.span.data();
   BKE_id_attributes_active_color_set(&mesh->id, "Color");
 
-  mesh->mat = MEM_malloc_arrayN<Material *>(size_t(mesh->totcol), "MaterialList");
+  mesh->mat = MEM_new_array_uninitialized<Material *>(size_t(mesh->totcol), "MaterialList");
   for (const auto item : group->materials.items()) {
     Material *material = item.key;
     const int matnr = item.value;
@@ -867,7 +868,7 @@ blender::Object *BlenderStrokeRenderer::NewMesh() const
   return ob;
 }
 
-blender::Render *BlenderStrokeRenderer::RenderScene(blender::Render * /*re*/, bool render)
+blender::Render *BlenderStrokeRenderer::RenderScene(blender::Render *re, bool render)
 {
   using namespace blender;
   Camera *camera = (Camera *)freestyle_scene->camera->data;
@@ -883,8 +884,14 @@ blender::Render *BlenderStrokeRenderer::RenderScene(blender::Render * /*re*/, bo
   Render *freestyle_render = RE_NewSceneRender(freestyle_scene);
   DEG_graph_relations_update(freestyle_depsgraph);
 
+  freestyle_render->pipeline_depsgraph = re->pipeline_depsgraph;
+  freestyle_render->pipeline_scene_eval = re->pipeline_scene_eval;
+
   RE_RenderFreestyleStrokes(
       freestyle_render, freestyle_bmain, freestyle_scene, render && get_stroke_count() > 0);
+
+  freestyle_render->pipeline_depsgraph = nullptr;
+  freestyle_render->pipeline_scene_eval = nullptr;
 
   return freestyle_render;
 }

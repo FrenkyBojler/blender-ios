@@ -18,6 +18,7 @@
 #include "DNA_curve_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_view3d_types.h"
 #include "DNA_world_types.h"
 
 #include "RNA_path.hh"
@@ -517,7 +518,7 @@ void ED_view3d_lock_clear(View3D *v3d)
 void ED_view3d_persp_switch_from_camera(const Depsgraph *depsgraph,
                                         View3D *v3d,
                                         RegionView3D *rv3d,
-                                        const char persp)
+                                        const eRegionView3D_Persp persp)
 {
   BLI_assert(rv3d->persp == RV3D_CAMOB);
   BLI_assert(persp != RV3D_CAMOB);
@@ -549,7 +550,8 @@ bool ED_view3d_persp_ensure(const Depsgraph *depsgraph, View3D *v3d, ARegion *re
     if (rv3d->persp == RV3D_CAMOB) {
       /* If autopersp and previous view was an axis one,
        * switch back to PERSP mode, else reuse previous mode. */
-      char persp = (autopersp && RV3D_VIEW_IS_AXIS(rv3d->lview)) ? char(RV3D_PERSP) : rv3d->lpersp;
+      eRegionView3D_Persp persp = (autopersp && RV3D_VIEW_IS_AXIS(rv3d->lview)) ? RV3D_PERSP :
+                                                                                  rv3d->lpersp;
       ED_view3d_persp_switch_from_camera(depsgraph, v3d, rv3d, persp);
     }
     else if (autopersp && RV3D_VIEW_IS_AXIS(rv3d->view)) {
@@ -713,11 +715,8 @@ bool ED_view3d_camera_autokey(
         rna_paths.append({"rotation_axis_angle"});
         break;
 
-      case ROT_MODE_EUL:
-        rna_paths.append({"rotation_euler"});
-        break;
-
       default:
+        rna_paths.append({"rotation_euler"});
         break;
     }
   }
@@ -817,7 +816,7 @@ bool ED_view3d_camera_lock_undo_grouped_push(const char *str,
 
 static void view3d_boxview_clip(ScrArea *area)
 {
-  BoundBox *bb = MEM_new_for_free<BoundBox>("clipbb");
+  BoundBox *bb = MEM_new<BoundBox>("clipbb");
   float clip[6][4];
   float x1 = 0.0f, y1 = 0.0f, z1 = 0.0f, ofs[3] = {0.0f, 0.0f, 0.0f};
 
@@ -902,13 +901,13 @@ static void view3d_boxview_clip(ScrArea *area)
         rv3d->rflag |= RV3D_CLIPPING;
         memcpy(rv3d->clip, clip, sizeof(clip));
         if (rv3d->clipbb) {
-          MEM_freeN(rv3d->clipbb);
+          MEM_delete(rv3d->clipbb);
         }
-        rv3d->clipbb = static_cast<BoundBox *>(MEM_dupallocN(bb));
+        rv3d->clipbb = MEM_dupalloc(bb);
       }
     }
   }
-  MEM_freeN(bb);
+  MEM_delete(bb);
 }
 
 /**
@@ -1016,11 +1015,11 @@ void ED_view3d_quadview_update(ScrArea *area, ARegion *region, bool do_clip)
   /* this function copies flags from the first of the 3 other quadview
    * regions to the 2 other, so it assumes this is the region whose
    * properties are always being edited, weak */
-  short viewlock = rv3d->viewlock;
+  eRegionView3D_ViewLock viewlock = rv3d->viewlock;
 
   if ((viewlock & RV3D_LOCK_ROTATION) == 0) {
     do_clip = (viewlock & RV3D_BOXCLIP) != 0;
-    viewlock = 0;
+    viewlock = eRegionView3D_ViewLock{};
   }
   else if ((viewlock & RV3D_BOXVIEW) == 0 && (viewlock & RV3D_BOXCLIP) != 0) {
     do_clip = true;
@@ -1033,7 +1032,7 @@ void ED_view3d_quadview_update(ScrArea *area, ARegion *region, bool do_clip)
       rv3d->viewlock = viewlock;
 
       if (do_clip && (viewlock & RV3D_BOXCLIP) == 0) {
-        rv3d->rflag &= ~RV3D_BOXCLIP;
+        rv3d->rflag &= ~RV3D_CLIPPING;
       }
 
       /* use region_sync so we sync with one of the aligned views below
@@ -1114,7 +1113,7 @@ void ED_view3d_autodist_last_set(wmWindow *win,
   ED_view3d_autodist_last_clear(win);
 
   if (WM_event_consecutive_gesture_test(event)) {
-    View3D_AutoDistLast *autodepth_last = MEM_callocN<View3D_AutoDistLast>(__func__);
+    View3D_AutoDistLast *autodepth_last = MEM_new_zeroed<View3D_AutoDistLast>(__func__);
 
     autodepth_last->has_depth = has_depth;
     copy_v3_v3(autodepth_last->ofs, ofs);
@@ -1164,7 +1163,7 @@ static float view_autodist_depth_margin(ARegion *region, const int mval[2], int 
   ViewDepths depth_temp = {0};
   view3d_depths_rect_create(region, &rect, &depth_temp);
   float depth_close = view3d_depth_near(&depth_temp);
-  MEM_SAFE_FREE(depth_temp.depths);
+  MEM_SAFE_DELETE(depth_temp.depths);
   return depth_close;
 }
 
@@ -1291,7 +1290,7 @@ float ED_view3d_radius_to_dist_ortho(const float lens, const float radius)
 float ED_view3d_radius_to_dist(const View3D *v3d,
                                const ARegion *region,
                                const Depsgraph *depsgraph,
-                               const char persp,
+                               const eRegionView3D_Persp persp,
                                const bool use_aspect,
                                const float radius)
 {
@@ -1484,7 +1483,9 @@ static float view3d_quat_axis[6][4][4] = {
 
 };
 
-bool ED_view3d_quat_from_axis_view(const char view, const char view_axis_roll, float r_quat[4])
+bool ED_view3d_quat_from_axis_view(const eRegionView3D_View view,
+                                   const eRegionView3D_ViewAxisRoll view_axis_roll,
+                                   float r_quat[4])
 {
   BLI_assert(view_axis_roll <= RV3D_VIEW_AXIS_ROLL_270);
   if (RV3D_VIEW_IS_AXIS(view)) {
@@ -1496,8 +1497,8 @@ bool ED_view3d_quat_from_axis_view(const char view, const char view_axis_roll, f
 
 bool ED_view3d_quat_to_axis_view(const float quat[4],
                                  const float epsilon,
-                                 char *r_view,
-                                 char *r_view_axis_roll)
+                                 eRegionView3D_View *r_view,
+                                 eRegionView3D_ViewAxisRoll *r_view_axis_roll)
 {
   *r_view = RV3D_VIEW_USER;
   *r_view_axis_roll = RV3D_VIEW_AXIS_ROLL_0;
@@ -1513,8 +1514,8 @@ bool ED_view3d_quat_to_axis_view(const float quat[4],
         if (fabsf(angle_signed_qtqt(
                 quat, view3d_quat_axis[view - RV3D_VIEW_FRONT][view_axis_roll])) < epsilon)
         {
-          *r_view = view;
-          *r_view_axis_roll = view_axis_roll;
+          *r_view = eRegionView3D_View(view);
+          *r_view_axis_roll = eRegionView3D_ViewAxisRoll(view_axis_roll);
           return true;
         }
       }
@@ -1531,8 +1532,8 @@ bool ED_view3d_quat_to_axis_view(const float quat[4],
             angle_signed_qtqt(quat, view3d_quat_axis[view - RV3D_VIEW_FRONT][view_axis_roll]));
         if (delta_best > delta_test) {
           delta_best = delta_test;
-          *r_view = view;
-          *r_view_axis_roll = view_axis_roll;
+          *r_view = eRegionView3D_View(view);
+          *r_view_axis_roll = eRegionView3D_ViewAxisRoll(view_axis_roll);
         }
       }
     }
@@ -1546,8 +1547,8 @@ bool ED_view3d_quat_to_axis_view(const float quat[4],
 
 bool ED_view3d_quat_to_axis_view_and_reset_quat(float quat[4],
                                                 const float epsilon,
-                                                char *r_view,
-                                                char *r_view_axis_roll)
+                                                eRegionView3D_View *r_view,
+                                                eRegionView3D_ViewAxisRoll *r_view_axis_roll)
 {
   const bool is_axis_view = ED_view3d_quat_to_axis_view(quat, epsilon, r_view, r_view_axis_roll);
   if (is_axis_view) {
@@ -1558,7 +1559,7 @@ bool ED_view3d_quat_to_axis_view_and_reset_quat(float quat[4],
   return is_axis_view;
 }
 
-char ED_view3d_lock_view_from_index(int index)
+eRegionView3D_View ED_view3d_lock_view_from_index(int index)
 {
   switch (index) {
     case 0:
@@ -1572,7 +1573,7 @@ char ED_view3d_lock_view_from_index(int index)
   }
 }
 
-char ED_view3d_axis_view_opposite(char view)
+eRegionView3D_View ED_view3d_axis_view_opposite(const eRegionView3D_View view)
 {
   switch (view) {
     case RV3D_VIEW_FRONT:
@@ -1587,6 +1588,9 @@ char ED_view3d_axis_view_opposite(char view)
       return RV3D_VIEW_BOTTOM;
     case RV3D_VIEW_BOTTOM:
       return RV3D_VIEW_TOP;
+    case RV3D_VIEW_USER:
+    case RV3D_VIEW_CAMERA:
+      break;
   }
 
   return RV3D_VIEW_USER;

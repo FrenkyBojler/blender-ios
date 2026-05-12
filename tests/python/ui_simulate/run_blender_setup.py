@@ -89,12 +89,16 @@ def main():
             bpy.app.use_event_simulate = False
 
     gpu_device = gpu.platform.device_type_get()
+    gpu_backend = gpu.platform.backend_type_get()
 
     BLOCKLIST = []
-    if os.getenv("BLENDER_TEST_IGNORE_BLOCKLIST") is None:
-        if sys.platform == "win32" and gpu_device == "INTEL":
+    if os.getenv("BLENDER_TEST_IGNORE_BLOCKLIST") is None and os.getenv("BLENDER_TEST_IGNORE_VENDOR_BLOCKLIST") is None:
+        if sys.platform == "win32" and gpu_device == "INTEL" and gpu_backend == "OPENGL":
             # See #149084 for the tracking issue
             BLOCKLIST = ["test_workspace"]
+        if sys.platform == "win32" and gpu_device == "AMD" and gpu_backend == "VULKAN":
+            # See #155536 for the tracking issue
+            BLOCKLIST = ["test_render"]
 
     is_first = True
     for test_id in args.tests:

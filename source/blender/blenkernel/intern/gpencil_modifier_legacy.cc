@@ -63,7 +63,7 @@ static void gpencil_modifier_free_data(GpencilModifierData *md)
     case eGpencilModifierType_Tint: {
       TintGpencilModifierData *mmd = reinterpret_cast<TintGpencilModifierData *>(md);
 
-      MEM_SAFE_FREE(mmd->colorband);
+      MEM_SAFE_DELETE(mmd->colorband);
       if (mmd->curve_intensity) {
         BKE_curvemapping_free(mmd->curve_intensity);
       }
@@ -114,13 +114,13 @@ static void gpencil_modifier_free_data(GpencilModifierData *md)
     case eGpencilModifierType_Time: {
       TimeGpencilModifierData *gpmd = reinterpret_cast<TimeGpencilModifierData *>(md);
 
-      MEM_SAFE_FREE(gpmd->segments);
+      MEM_SAFE_DELETE(gpmd->segments);
       break;
     }
     case eGpencilModifierType_Dash: {
       DashGpencilModifierData *dmd = reinterpret_cast<DashGpencilModifierData *>(md);
 
-      MEM_SAFE_FREE(dmd->segments);
+      MEM_SAFE_DELETE(dmd->segments);
       break;
     }
     case eGpencilModifierType_Shrinkwrap: {
@@ -370,10 +370,10 @@ void BKE_gpencil_modifier_free_ex(GpencilModifierData *md, const int flag)
 
   gpencil_modifier_free_data(md);
   if (md->error) {
-    MEM_freeN(md->error);
+    MEM_delete(md->error);
   }
 
-  MEM_freeN(md);
+  MEM_delete(md);
 }
 
 void BKE_gpencil_modifier_free(GpencilModifierData *md)
@@ -403,7 +403,7 @@ void BKE_gpencil_modifier_blend_read_data(BlendDataReader *reader,
 
     /* if modifiers disappear, or for upward compatibility */
     if (!gpencil_modifier_type_valid(md.type)) {
-      md.type = eModifierType_None;
+      md.type = eGpencilModifierType_None;
     }
 
     /* If linking from a library, clear 'local' library override flag. */
@@ -478,16 +478,14 @@ void BKE_gpencil_modifier_blend_read_data(BlendDataReader *reader,
     }
     else if (md.type == eGpencilModifierType_Dash) {
       DashGpencilModifierData *gpmd = reinterpret_cast<DashGpencilModifierData *>(&md);
-      BLO_read_struct_array(
-          reader, DashGpencilModifierSegment, gpmd->segments_len, &gpmd->segments);
+      BLO_read_array_and_validate_size(reader, &gpmd->segments, &gpmd->segments_len);
       for (int i = 0; i < gpmd->segments_len; i++) {
         gpmd->segments[i].dmd = gpmd;
       }
     }
     else if (md.type == eGpencilModifierType_Time) {
       TimeGpencilModifierData *gpmd = reinterpret_cast<TimeGpencilModifierData *>(&md);
-      BLO_read_struct_array(
-          reader, TimeGpencilModifierSegment, gpmd->segments_len, &gpmd->segments);
+      BLO_read_array_and_validate_size(reader, &gpmd->segments, &gpmd->segments_len);
       for (int i = 0; i < gpmd->segments_len; i++) {
         gpmd->segments[i].gpmd = gpmd;
       }

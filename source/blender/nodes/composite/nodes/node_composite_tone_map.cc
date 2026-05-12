@@ -39,52 +39,54 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.use_custom_socket_order();
   b.allow_any_socket_order();
 
-  b.add_input<decl::Color>("Image")
+  b.add_input<decl::Color>("Image"_ustr)
       .default_value({1.0f, 1.0f, 1.0f, 1.0f})
       .hide_value()
       .structure_type(StructureType::Dynamic);
 
-  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic).align_with_previous();
+  b.add_output<decl::Color>("Image"_ustr)
+      .structure_type(StructureType::Dynamic)
+      .align_with_previous();
 
-  b.add_input<decl::Menu>("Type")
+  b.add_input<decl::Menu>("Type"_ustr)
       .default_value(CMP_NODE_TONE_MAP_PHOTORECEPTOR)
       .static_items(type_items)
       .optional_label();
 
-  b.add_input<decl::Float>("Key")
+  b.add_input<decl::Float>("Key"_ustr)
       .default_value(0.18f)
       .min(0.0f)
       .usage_by_single_menu(CMP_NODE_TONE_MAP_SIMPLE)
       .description(
           "The luminance that will be mapped to the log average luminance, typically set to the "
           "middle gray value");
-  b.add_input<decl::Float>("Balance")
+  b.add_input<decl::Float>("Balance"_ustr)
       .default_value(1.0f)
       .min(0.0f)
       .usage_by_single_menu(CMP_NODE_TONE_MAP_SIMPLE)
       .description(
           "Balances low and high luminance areas. Lower values emphasize details in shadows, "
           "while higher values compress highlights more smoothly");
-  b.add_input<decl::Float>("Gamma")
+  b.add_input<decl::Float>("Gamma"_ustr)
       .default_value(1.0f)
       .min(0.0f)
       .usage_by_single_menu(CMP_NODE_TONE_MAP_SIMPLE)
       .description("Gamma correction factor applied after tone mapping");
 
-  b.add_input<decl::Float>("Intensity")
+  b.add_input<decl::Float>("Intensity"_ustr)
       .default_value(0.0f)
       .usage_by_single_menu(CMP_NODE_TONE_MAP_PHOTORECEPTOR)
       .description(
           "Controls the intensity of the image, lower values makes it darker while higher values "
           "makes it lighter");
-  b.add_input<decl::Float>("Contrast")
+  b.add_input<decl::Float>("Contrast"_ustr)
       .default_value(0.0f)
       .min(0.0f)
       .usage_by_single_menu(CMP_NODE_TONE_MAP_PHOTORECEPTOR)
       .description(
           "Controls the contrast of the image. Zero automatically sets the contrast based on its "
           "global range for better luminance distribution");
-  b.add_input<decl::Float>("Light Adaptation")
+  b.add_input<decl::Float>("Light Adaptation"_ustr)
       .default_value(0.0f)
       .subtype(PROP_FACTOR)
       .min(0.0f)
@@ -93,7 +95,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description(
           "Specifies if tone mapping operates on the entire image or per pixel, 0 means the "
           "entire image, 1 means it is per pixel, and values in between blends between both");
-  b.add_input<decl::Float>("Chromatic Adaptation")
+  b.add_input<decl::Float>("Chromatic Adaptation"_ustr)
       .default_value(0.0f)
       .subtype(PROP_FACTOR)
       .min(0.0f)
@@ -108,7 +110,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 static void node_init(bNodeTree * /*ntree*/, bNode *node)
 {
   /* Unused, but still allocated for forward compatibility. */
-  NodeTonemap *ntm = MEM_new_for_free<NodeTonemap>(__func__);
+  NodeTonemap *ntm = MEM_new<NodeTonemap>(__func__);
   node->storage = ntm;
 }
 
@@ -339,39 +341,16 @@ class ToneMapOperation : public NodeOperation {
    * from equations (6) and (7) in Reinhard's 2005 paper. */
   float4 compute_global_adaptation_level()
   {
-    const float4 average_color = compute_average_color();
-    const float average_luminance = compute_average_luminance();
-    const float chromatic_adaptation = get_chromatic_adaptation();
-    return math::interpolate(float4(average_luminance), average_color, chromatic_adaptation);
-  }
-
-  float4 compute_average_color()
-  {
-    /* The average color will reduce to zero if chromatic adaptation is zero, so just return zero
-     * in this case to avoid needlessly computing the average. See the trilinear interpolation
-     * equations constructed from equations (6) and (7) in Reinhard's 2005 paper. */
-    if (get_chromatic_adaptation() == 0.0f) {
-      return float4(0.0f);
-    }
-
-    const Result &input = get_input("Image");
-    return sum_color(context(), input) / (input.domain().data_size.x * input.domain().data_size.y);
-  }
-
-  float compute_average_luminance()
-  {
-    /* The average luminance will reduce to zero if chromatic adaptation is one, so just return
-     * zero in this case to avoid needlessly computing the average. See the trilinear interpolation
-     * equations constructed from equations (6) and (7) in Reinhard's 2005 paper. */
-    if (get_chromatic_adaptation() == 1.0f) {
-      return 0.0f;
-    }
+    const Result &input = this->get_input("Image");
+    const float4 mean_color = sum_color(context(), input) /
+                              math::reduce_mul(input.domain().data_size);
 
     float luminance_coefficients[3];
     IMB_colormanagement_get_luminance_coefficients(luminance_coefficients);
-    const Result &input = get_input("Image");
-    float sum = sum_luminance(context(), input, luminance_coefficients);
-    return sum / (input.domain().data_size.x * input.domain().data_size.y);
+    const float mean_luminance = math::dot(mean_color.xyz(), float3(luminance_coefficients));
+
+    const float chromatic_adaptation = this->get_chromatic_adaptation();
+    return math::interpolate(float4(mean_luminance), mean_color, chromatic_adaptation);
   }
 
   /* Computes equation (5) from Reinhard's 2005 paper. */
@@ -469,7 +448,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, "CompositorNodeTonemap", CMP_NODE_TONEMAP);
+  cmp_node_type_base(&ntype, "CompositorNodeTonemap"_ustr, CMP_NODE_TONEMAP);
   ntype.ui_name = "Tonemap";
   ntype.ui_description =
       "Map one set of colors to another in order to approximate the appearance of high dynamic "

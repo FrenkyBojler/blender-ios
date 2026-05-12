@@ -78,7 +78,7 @@ void ED_clip_buttons_register(ARegionType *art)
 {
   PanelType *pt;
 
-  pt = MEM_callocN<PanelType>("spacetype clip panel metadata");
+  pt = MEM_new_zeroed<PanelType>("spacetype clip panel metadata");
   STRNCPY_UTF8(pt->idname, "CLIP_PT_metadata");
   STRNCPY_UTF8(pt->label, N_("Metadata"));
   STRNCPY_UTF8(pt->category, "Footage");
@@ -194,7 +194,7 @@ void uiTemplateTrack(ui::Layout *layout, PointerRNA *ptr, const StringRefNull pr
            "");
 
   /* Resize grip. */
-  uiDefIconButI(block,
+  uiDefIconButV(block,
                 ui::ButtonType::Grip,
                 ICON_GRIP,
                 0,
@@ -237,7 +237,7 @@ struct MarkerUpdateCb {
   /** position and dimensions of marker search in pixel coords */
   float marker_search_pos[2], marker_search[2];
   /** marker's flags */
-  int marker_flag;
+  TrackingMarkerFlag marker_flag;
 };
 
 static void to_pixel_space(float r[2], const float a[2], int width, int height)
@@ -408,7 +408,7 @@ void uiTemplateMarker(ui::Layout *layout,
   int clip_framenr = BKE_movieclip_remap_scene_to_clip_frame(clip, user->framenr);
   MovieTrackingMarker *marker = BKE_tracking_marker_get(track, clip_framenr);
 
-  MarkerUpdateCb *cb = MEM_callocN<MarkerUpdateCb>("uiTemplateMarker update_cb");
+  MarkerUpdateCb *cb = MEM_new_zeroed<MarkerUpdateCb>("uiTemplateMarker update_cb");
   cb->compact = compact;
   cb->clip = clip;
   cb->user = user;
@@ -428,18 +428,18 @@ void uiTemplateMarker(ui::Layout *layout,
       tip = TIP_("Marker is enabled at current frame");
     }
 
-    ui::Button *bt = uiDefIconButBitI(block,
-                                      ui::ButtonType::ToggleN,
-                                      MARKER_DISABLED,
-                                      ICON_HIDE_OFF,
-                                      0,
-                                      0,
-                                      UI_UNIT_X,
-                                      UI_UNIT_Y,
-                                      &cb->marker_flag,
-                                      0,
-                                      0,
-                                      tip);
+    ui::Button *bt = uiDefIconButBit(block,
+                                     ui::ButtonType::ToggleN,
+                                     MARKER_DISABLED,
+                                     ICON_HIDE_OFF,
+                                     0,
+                                     0,
+                                     UI_UNIT_X,
+                                     UI_UNIT_Y,
+                                     &cb->marker_flag,
+                                     0,
+                                     0,
+                                     tip);
     button_funcN_set(bt, marker_update_cb, cb, nullptr);
     button_drawflag_enable(bt, ui::BUT_ICON_REVERSE);
   }
@@ -462,7 +462,7 @@ void uiTemplateMarker(ui::Layout *layout,
                0,
                0,
                "");
-      MEM_freeN(cb);
+      MEM_delete(cb);
       return;
     }
 
@@ -500,18 +500,18 @@ void uiTemplateMarker(ui::Layout *layout,
       tip = TIP_("Marker is enabled at current frame");
     }
 
-    ui::Button *but = uiDefButBitI(block,
-                                   ui::ButtonType::CheckboxN,
-                                   MARKER_DISABLED,
-                                   IFACE_("Enabled"),
-                                   0.5 * UI_UNIT_X,
-                                   9.5 * UI_UNIT_Y,
-                                   7.25 * UI_UNIT_X,
-                                   UI_UNIT_Y,
-                                   &cb->marker_flag,
-                                   0,
-                                   0,
-                                   tip);
+    ui::Button *but = uiDefButBit(block,
+                                  ui::ButtonType::CheckboxN,
+                                  MARKER_DISABLED,
+                                  IFACE_("Enabled"),
+                                  0.5 * UI_UNIT_X,
+                                  9.5 * UI_UNIT_Y,
+                                  7.25 * UI_UNIT_X,
+                                  UI_UNIT_Y,
+                                  &cb->marker_flag,
+                                  0,
+                                  0,
+                                  tip);
     button_retval_set(but, B_MARKER_FLAG);
 
     ui::Layout &col = layout->column(true);
@@ -531,7 +531,7 @@ void uiTemplateMarker(ui::Layout *layout,
              0,
              0,
              "");
-    ui::Button *bt = uiDefButF(block,
+    ui::Button *bt = uiDefButV(block,
                                ui::ButtonType::Num,
                                IFACE_("X:"),
                                0.5 * UI_UNIT_X,
@@ -545,7 +545,7 @@ void uiTemplateMarker(ui::Layout *layout,
     button_retval_set(bt, B_MARKER_POS);
     button_number_step_size_set(bt, step);
     button_number_precision_set(bt, digits);
-    bt = uiDefButF(block,
+    bt = uiDefButV(block,
                    ui::ButtonType::Num,
                    IFACE_("Y:"),
                    8.25 * UI_UNIT_X,
@@ -571,7 +571,7 @@ void uiTemplateMarker(ui::Layout *layout,
              0,
              0,
              "");
-    bt = uiDefButF(block,
+    bt = uiDefButV(block,
                    ui::ButtonType::Num,
                    IFACE_("X:"),
                    0.5 * UI_UNIT_X,
@@ -585,7 +585,7 @@ void uiTemplateMarker(ui::Layout *layout,
     button_retval_set(bt, B_MARKER_OFFSET);
     button_number_step_size_set(bt, step);
     button_number_precision_set(bt, digits);
-    bt = uiDefButF(block,
+    bt = uiDefButV(block,
                    ui::ButtonType::Num,
                    IFACE_("Y:"),
                    8.25 * UI_UNIT_X,
@@ -611,7 +611,7 @@ void uiTemplateMarker(ui::Layout *layout,
              0,
              0,
              "");
-    bt = uiDefButF(block,
+    bt = uiDefButV(block,
                    ui::ButtonType::Num,
                    IFACE_("Width:"),
                    0.5 * UI_UNIT_X,
@@ -625,7 +625,7 @@ void uiTemplateMarker(ui::Layout *layout,
     button_retval_set(bt, B_MARKER_PAT_DIM);
     button_number_step_size_set(bt, step);
     button_number_precision_set(bt, digits);
-    bt = uiDefButF(block,
+    bt = uiDefButV(block,
                    ui::ButtonType::Num,
                    IFACE_("Height:"),
                    0.5 * UI_UNIT_X,
@@ -651,7 +651,7 @@ void uiTemplateMarker(ui::Layout *layout,
              0,
              0,
              "");
-    bt = uiDefButF(block,
+    bt = uiDefButV(block,
                    ui::ButtonType::Num,
                    IFACE_("X:"),
                    0.5 * UI_UNIT_X,
@@ -665,7 +665,7 @@ void uiTemplateMarker(ui::Layout *layout,
     button_retval_set(bt, B_MARKER_SEARCH_POS);
     button_number_step_size_set(bt, step);
     button_number_precision_set(bt, digits);
-    bt = uiDefButF(block,
+    bt = uiDefButV(block,
                    ui::ButtonType::Num,
                    IFACE_("Y:"),
                    8.25 * UI_UNIT_X,
@@ -679,7 +679,7 @@ void uiTemplateMarker(ui::Layout *layout,
     button_retval_set(bt, B_MARKER_SEARCH_POS);
     button_number_step_size_set(bt, step);
     button_number_precision_set(bt, digits);
-    bt = uiDefButF(block,
+    bt = uiDefButV(block,
                    ui::ButtonType::Num,
                    IFACE_("Width:"),
                    0.5 * UI_UNIT_X,
@@ -693,7 +693,7 @@ void uiTemplateMarker(ui::Layout *layout,
     button_retval_set(bt, B_MARKER_SEARCH_DIM);
     button_number_step_size_set(bt, step);
     button_number_precision_set(bt, digits);
-    bt = uiDefButF(block,
+    bt = uiDefButV(block,
                    ui::ButtonType::Num,
                    IFACE_("Height:"),
                    0.5 * UI_UNIT_X,
@@ -763,7 +763,7 @@ void uiTemplateMovieclipInformation(ui::Layout *layout,
   ofs += BLI_snprintf_utf8_rlen(str + ofs, sizeof(str) - ofs, RPT_("%d x %d"), width, height);
 
   if (ibuf) {
-    if (ibuf->float_buffer.data) {
+    if (ibuf->float_data()) {
       if (ibuf->channels != 4) {
         ofs += BLI_snprintf_utf8_rlen(
             str + ofs, sizeof(str) - ofs, RPT_(", %d float channel(s)"), ibuf->channels);

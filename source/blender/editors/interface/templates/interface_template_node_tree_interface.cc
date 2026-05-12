@@ -47,13 +47,10 @@ class NodeTreeInterfaceView;
 
 class NodeTreeInterfaceDragController : public AbstractViewItemDragController {
  private:
-  bNodeTreeInterfaceItem &item_;
   bNodeTree &tree_;
 
  public:
-  explicit NodeTreeInterfaceDragController(NodeTreeInterfaceView &view,
-                                           bNodeTreeInterfaceItem &item,
-                                           bNodeTree &tree);
+  explicit NodeTreeInterfaceDragController(NodeTreeInterfaceView &view, bNodeTree &tree);
   ~NodeTreeInterfaceDragController() override = default;
 
   std::optional<eWM_DragDataType> get_drag_type() const override;
@@ -162,7 +159,7 @@ class NodeSocketViewItem : public BasicTreeViewItem {
   }
   bool rename(const bContext &C, StringRefNull new_name) override
   {
-    MEM_SAFE_FREE(socket_.name);
+    MEM_SAFE_DELETE(socket_.name);
 
     socket_.name = BLI_strdup(new_name.c_str());
     nodetree_.tree_interface.tag_item_property_changed();
@@ -366,7 +363,7 @@ std::unique_ptr<AbstractViewItemDragController> NodeSocketViewItem::create_drag_
     return nullptr;
   }
   return std::make_unique<NodeTreeInterfaceDragController>(
-      static_cast<NodeTreeInterfaceView &>(this->get_tree_view()), socket_.item, nodetree_);
+      static_cast<NodeTreeInterfaceView &>(this->get_tree_view()), nodetree_);
 }
 
 std::unique_ptr<TreeViewItemDropTarget> NodeSocketViewItem::create_drop_target()
@@ -380,7 +377,7 @@ std::unique_ptr<AbstractViewItemDragController> NodePanelViewItem::create_drag_c
     return nullptr;
   }
   return std::make_unique<NodeTreeInterfaceDragController>(
-      static_cast<NodeTreeInterfaceView &>(this->get_tree_view()), panel_.item, nodetree_);
+      static_cast<NodeTreeInterfaceView &>(this->get_tree_view()), nodetree_);
 }
 
 std::unique_ptr<TreeViewItemDropTarget> NodePanelViewItem::create_drop_target()
@@ -389,9 +386,8 @@ std::unique_ptr<TreeViewItemDropTarget> NodePanelViewItem::create_drop_target()
 }
 
 NodeTreeInterfaceDragController::NodeTreeInterfaceDragController(NodeTreeInterfaceView &view,
-                                                                 bNodeTreeInterfaceItem &item,
                                                                  bNodeTree &tree)
-    : AbstractViewItemDragController(view), item_(item), tree_(tree)
+    : AbstractViewItemDragController(view), tree_(tree)
 {
 }
 
@@ -438,13 +434,12 @@ void *NodeTreeInterfaceDragController::create_drag_data() const
   Vector<bNodeTreeInterfaceItem *> drag_items;
   gather_drag_items_recursive(tree_.tree_interface.root_panel, drag_items, false);
 
-  bNodeTreeInterfaceItemReference *drag_data = MEM_callocN<bNodeTreeInterfaceItemReference>(
+  bNodeTreeInterfaceItemReference *drag_data = MEM_new_zeroed<bNodeTreeInterfaceItemReference>(
       __func__);
-  drag_data->item = &item_;
   drag_data->tree = &tree_;
   drag_data->items_count = drag_items.size();
-  drag_data->items = MEM_calloc_arrayN<bNodeTreeInterfaceItem *>(drag_data->items_count,
-                                                                 "drag items");
+  drag_data->items = MEM_new_array_zeroed<bNodeTreeInterfaceItem *>(drag_data->items_count,
+                                                                    "drag items");
   std::copy(drag_items.begin(), drag_items.end(), drag_data->items);
   return drag_data;
 }

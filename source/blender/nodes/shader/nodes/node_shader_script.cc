@@ -52,7 +52,7 @@ static void node_shader_buts_script_ex(ui::Layout &layout, bContext *C, PointerR
 
 static void init(bNodeTree * /*ntree*/, bNode *node)
 {
-  NodeShaderScript *nss = MEM_new_for_free<NodeShaderScript>("shader script node");
+  NodeShaderScript *nss = MEM_new<NodeShaderScript>("shader script node");
   node->storage = nss;
 }
 
@@ -62,20 +62,20 @@ static void node_free_script(bNode *node)
 
   if (nss) {
     if (nss->bytecode) {
-      MEM_freeN(nss->bytecode);
+      MEM_delete(nss->bytecode);
     }
 
-    MEM_freeN(nss);
+    MEM_delete(nss);
   }
 }
 
 static void node_copy_script(bNodeTree * /*dst_ntree*/, bNode *dest_node, const bNode *src_node)
 {
   NodeShaderScript *src_nss = static_cast<NodeShaderScript *>(src_node->storage);
-  NodeShaderScript *dest_nss = static_cast<NodeShaderScript *>(MEM_dupallocN(src_nss));
+  NodeShaderScript *dest_nss = MEM_dupalloc(src_nss);
 
   if (src_nss->bytecode) {
-    dest_nss->bytecode = static_cast<char *>(MEM_dupallocN(src_nss->bytecode));
+    dest_nss->bytecode = MEM_dupalloc(src_nss->bytecode);
   }
 
   dest_node->storage = dest_nss;
@@ -89,7 +89,7 @@ void register_node_type_sh_script()
 
   static bke::bNodeType ntype;
 
-  sh_node_type_base(&ntype, "ShaderNodeScript", SH_NODE_SCRIPT);
+  sh_node_type_base(&ntype, "ShaderNodeScript"_ustr, SH_NODE_SCRIPT);
   ntype.ui_name = "Script";
   ntype.ui_description =
       "Generate an OSL shader from a file or text data-block.\nNote: OSL shaders are not "

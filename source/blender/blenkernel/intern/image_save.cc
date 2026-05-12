@@ -253,7 +253,7 @@ static void image_save_post(ReportList *reports,
   }
 
   if (opts->do_newpath) {
-    STRNCPY(ibuf->filepath, filepath);
+    ibuf->filepath = filepath;
   }
 
   /* The tiled image code-path must call this on its own. */
@@ -345,8 +345,7 @@ static bool image_save_single(ReportList *reports,
   RenderResult *rr = nullptr;
   bool ok = false;
 
-  if (ibuf == nullptr || (ibuf->byte_buffer.data == nullptr && ibuf->float_buffer.data == nullptr))
-  {
+  if (ibuf == nullptr || (!ibuf->byte_data() && !ibuf->float_data())) {
     BKE_image_release_ibuf(ima, ibuf, lock);
     return ok;
   }
@@ -694,7 +693,7 @@ bool BKE_image_save(
       }
       image_save_update_filepath(ima, opts->filepath, opts);
     }
-    MEM_freeN(udim_pattern);
+    MEM_delete(udim_pattern);
   }
 
   if (colorspace_changed) {
@@ -724,7 +723,7 @@ static float *image_exr_from_scene_linear_to_output(float *rect,
     return rect;
   }
 
-  float *output_rect = static_cast<float *>(MEM_dupallocN(rect));
+  float *output_rect = MEM_dupalloc(rect);
   tmp_output_rects.append(output_rect);
 
   const char *from_colorspace = IMB_colormanagement_role_colorspace_name_get(
@@ -740,8 +739,8 @@ static float *image_exr_from_scene_linear_to_output(float *rect,
 static float *image_exr_from_rgb_to_bw(
     float *input_buffer, int width, int height, int channels, Vector<float *> &temporary_buffers)
 {
-  float *gray_scale_output = MEM_malloc_arrayN<float>(size_t(width) * size_t(height),
-                                                      "Gray Scale Buffer For EXR");
+  float *gray_scale_output = MEM_new_array_uninitialized<float>(size_t(width) * size_t(height),
+                                                                "Gray Scale Buffer For EXR");
   temporary_buffers.append(gray_scale_output);
 
   threading::parallel_for(IndexRange(height), 1, [&](const IndexRange sub_y_range) {
@@ -761,8 +760,8 @@ static float *image_exr_opaque_alpha_buffer(int width,
                                             int height,
                                             Vector<float *> &temporary_buffers)
 {
-  float *alpha_output = MEM_malloc_arrayN<float>(size_t(width) * size_t(height),
-                                                 "Opaque Alpha Buffer For EXR");
+  float *alpha_output = MEM_new_array_uninitialized<float>(size_t(width) * size_t(height),
+                                                           "Opaque Alpha Buffer For EXR");
   temporary_buffers.append(alpha_output);
 
   threading::parallel_for(IndexRange(height), 1, [&](const IndexRange sub_y_range) {
@@ -799,7 +798,7 @@ static void add_exr_compositing_result(ExrHandle *exr_handle,
   /* Write the compositing result for the view with the given view name, or for all views if no
    * view name is given. */
   for (RenderView &render_view : render_result->views) {
-    if (!render_view.ibuf || !render_view.ibuf->float_buffer.data) {
+    if (!render_view.ibuf || !render_view.ibuf->float_data()) {
       continue;
     }
 
@@ -815,7 +814,7 @@ static void add_exr_compositing_result(ExrHandle *exr_handle,
 
     /* Compositing results is always a 4-channel RGBA. */
     const int channels_count_in_buffer = 4;
-    float *output_buffer = render_view.ibuf->float_buffer.data;
+    float *output_buffer = render_view.ibuf->float_data_for_write();
     StringRefNull colorspace = IMB_colormanagement_role_colorspace_name_get(
         COLOR_ROLE_SCENE_LINEAR);
 
@@ -946,7 +945,7 @@ bool BKE_image_render_write_exr(ReportList *reports,
       const bool pass_half_float = half_float && pass_RGBA;
 
       /* Color-space conversion only happens on RGBA passes. */
-      float *output_rect = render_pass.ibuf->float_buffer.data;
+      float *output_rect = render_pass.ibuf->float_data_for_write();
       StringRefNull colorspace = IMB_colormanagement_role_colorspace_name_get(
           (pass_RGBA) ? COLOR_ROLE_SCENE_LINEAR : COLOR_ROLE_DATA);
 
@@ -1065,7 +1064,7 @@ bool BKE_image_render_write_exr(ReportList *reports,
   }
 
   for (float *rect : tmp_output_rects) {
-    MEM_freeN(rect);
+    MEM_delete(rect);
   }
 
   IMB_exr_close(exrhandle);

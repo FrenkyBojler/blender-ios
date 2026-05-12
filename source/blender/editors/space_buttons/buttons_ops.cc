@@ -230,7 +230,7 @@ static wmOperatorStatus file_browse_exec(bContext *C, wmOperator *op)
       ID *id = fbo->ptr.owner_id;
 
       STRNCPY(path_buf, path);
-      MEM_freeN(path);
+      MEM_delete(path);
 
       if (is_relative) {
         BLI_path_abs(path_buf, id ? ID_BLEND_PATH(bmain, id) : BKE_main_blendfile_path(bmain));
@@ -249,7 +249,7 @@ static wmOperatorStatus file_browse_exec(bContext *C, wmOperator *op)
 
   RNA_property_string_set(&fbo->ptr, fbo->prop, path);
   RNA_property_update(C, &fbo->ptr, fbo->prop);
-  MEM_freeN(path);
+  MEM_delete(path);
 
   if (fbo->is_undo) {
     const char *undostr = RNA_property_identifier(fbo->prop);
@@ -320,12 +320,21 @@ static wmOperatorStatus file_browse_invoke(bContext *C, wmOperator *op, const wm
     }
   }
 
-  /* Useful yet irritating feature, Shift+Click to open the file
-   * Alt+Click to browse a folder in the OS's browser. */
-  if (event->modifier & (KM_SHIFT | KM_ALT)) {
+  /* Alternative behaviors:
+   * - Shift+Click opens the file.
+   * - Alt+Click (or normal click for uneditable paths) opens the containing
+   *   folder in the OS's browser.
+   */
+  if (event->modifier & (KM_SHIFT | KM_ALT) || !RNA_property_editable(&ptr, prop)) {
     wmOperatorType *ot = WM_operatortype_find("WM_OT_path_open", true);
 
-    if (event->modifier & KM_ALT) {
+    const bool do_open_directory = event->modifier & KM_ALT ||
+                                   (!(event->modifier & KM_SHIFT) &&
+                                    !RNA_property_editable(&ptr, prop));
+
+    /* We only do this for PROP_FILEPATH because PROP_DIRPATH properties are
+     * already a path to a directory. */
+    if (do_open_directory && RNA_property_subtype(prop) == PROP_FILEPATH) {
       char *lslash = const_cast<char *>(BLI_path_slash_rfind(path));
       if (lslash) {
         *lslash = '\0';
@@ -337,22 +346,8 @@ static wmOperatorStatus file_browse_invoke(bContext *C, wmOperator *op, const wm
     WM_operator_name_call_ptr(C, ot, wm::OpCallContext::ExecDefault, &props_ptr, nullptr);
     WM_operator_properties_free(&props_ptr);
 
-    MEM_freeN(path);
+    MEM_delete(path);
     return OPERATOR_CANCELLED;
-  }
-
-  {
-    const char *info;
-    if (!RNA_property_editable_info(&ptr, prop, &info)) {
-      if (info[0]) {
-        BKE_reportf(op->reports, RPT_ERROR, "Property is not editable: %s", info);
-      }
-      else {
-        BKE_report(op->reports, RPT_ERROR, "Property is not editable");
-      }
-      MEM_freeN(path);
-      return OPERATOR_CANCELLED;
-    }
   }
 
   PropertyRNA *prop_relpath;
@@ -407,7 +402,7 @@ static wmOperatorStatus file_browse_invoke(bContext *C, wmOperator *op, const wm
         STRNCPY(fonts_path, BKE_appdir_folder_default_or_root());
       }
       BLI_path_slash_ensure(fonts_path, ARRAY_SIZE(fonts_path));
-      MEM_freeN(path);
+      MEM_delete(path);
       path = BLI_strdup(fonts_path);
     }
   }
@@ -417,12 +412,12 @@ static wmOperatorStatus file_browse_invoke(bContext *C, wmOperator *op, const wm
     char default_path[FILE_MAX] = {0};
     STRNCPY(default_path, BKE_appdir_folder_default_or_root());
     BLI_path_slash_ensure(default_path, ARRAY_SIZE(default_path));
-    MEM_freeN(path);
+    MEM_delete(path);
     path = BLI_strdup(default_path);
   }
 
   RNA_string_set(op->ptr, path_prop, path);
-  MEM_freeN(path);
+  MEM_delete(path);
 
   PropertyRNA *prop_check_existing = RNA_struct_find_property(op->ptr, "check_existing");
   if (!RNA_property_is_set(op->ptr, prop_check_existing)) {

@@ -109,7 +109,7 @@ FCurve *alloc_driver_fcurve(const char rna_path[],
 
   if (!ELEM(creation_mode, DRIVER_FCURVE_LOOKUP_ONLY, DRIVER_FCURVE_EMPTY)) {
     /* add some new driver data */
-    fcu->driver = MEM_new_for_free<ChannelDriver>("ChannelDriver");
+    fcu->driver = MEM_new<ChannelDriver>("ChannelDriver");
 
     /* Add 2 keyframes so that user has something to work with
      * - These are configured to 0,0 and 1,1 to give a 1-1 mapping
@@ -140,7 +140,7 @@ static int add_driver_with_target(ReportList * /*reports*/,
                                   PropertyRNA *dst_prop,
                                   PointerRNA *src_ptr,
                                   PropertyRNA *src_prop,
-                                  int driver_type)
+                                  eDriver_Types driver_type)
 {
   FCurve *fcu;
   const char *prop_name = RNA_property_identifier(src_prop);
@@ -279,7 +279,7 @@ int ANIM_add_driver_with_target(ReportList *reports,
                                 const char src_path[],
                                 int src_index,
                                 short flag,
-                                int driver_type,
+                                eDriver_Types driver_type,
                                 short mapping_type)
 {
   PointerRNA ptr;
@@ -382,8 +382,12 @@ int ANIM_add_driver_with_target(ReportList *reports,
 
 /* --------------------------------- */
 
-int ANIM_add_driver(
-    ReportList *reports, ID *id, const char rna_path[], int array_index, short flag, int type)
+int ANIM_add_driver(ReportList *reports,
+                    ID *id,
+                    const char rna_path[],
+                    int array_index,
+                    short flag,
+                    eDriver_Types type)
 {
   PointerRNA ptr;
   PropertyRNA *prop;
@@ -642,8 +646,8 @@ bool ANIM_paste_driver(
      * NOTE: this step needs care to not miss new settings
      */
     /* keyframes/samples */
-    fcu->bezt = static_cast<BezTriple *>(MEM_dupallocN(channeldriver_copypaste_buf->bezt));
-    fcu->fpt = static_cast<FPoint *>(MEM_dupallocN(channeldriver_copypaste_buf->fpt));
+    fcu->bezt = MEM_dupalloc(channeldriver_copypaste_buf->bezt);
+    fcu->fpt = MEM_dupalloc(channeldriver_copypaste_buf->fpt);
     fcu->totvert = channeldriver_copypaste_buf->totvert;
 
     /* modifiers */

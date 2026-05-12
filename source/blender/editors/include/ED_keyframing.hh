@@ -193,7 +193,7 @@ int ANIM_add_driver_with_target(ReportList *reports,
                                 const char src_path[],
                                 int src_index,
                                 short flag,
-                                int driver_type,
+                                eDriver_Types driver_type,
                                 short mapping_type);
 
 /* -------- */
@@ -206,8 +206,12 @@ int ANIM_add_driver_with_target(ReportList *reports,
  * \param flag: is of type #eCreateDriverFlags. Passing the flag as 0 is also an option which will
  * create a driver without a variable.
  */
-int ANIM_add_driver(
-    ReportList *reports, ID *id, const char rna_path[], int array_index, short flag, int type);
+int ANIM_add_driver(ReportList *reports,
+                    ID *id,
+                    const char rna_path[],
+                    int array_index,
+                    short flag,
+                    eDriver_Types type);
 
 /**
  * \brief Main Driver Management API calls.
@@ -222,13 +226,13 @@ bool ANIM_remove_driver(ID *id, const char rna_path[], int array_index);
 
 /**
  * Clear copy-paste buffer for drivers.
- * \note This function frees any MEM_calloc'ed copy/paste buffer data.
+ * \note This function frees any allocated copy/paste buffer data.
  */
 void ANIM_drivers_copybuf_free();
 
 /**
  * Clear copy-paste buffer for driver variable sets.
- * \note This function frees any MEM_calloc'ed copy/paste buffer data.
+ * \note This function frees any allocated copy/paste buffer data.
  */
 void ANIM_driver_vars_copybuf_free();
 

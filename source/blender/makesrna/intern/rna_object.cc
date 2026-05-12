@@ -6,6 +6,7 @@
  * \ingroup RNA
  */
 
+#include <algorithm>
 #include <cstdlib>
 
 #include "DNA_action_types.h"
@@ -272,6 +273,16 @@ const EnumPropertyItem rna_enum_object_axis_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
+const EnumPropertyItem rna_enum_object_axis_flip_items[] = {
+    {OB_POSX, "POS_X", 0, "-X to +X", ""},
+    {OB_POSY, "POS_Y", 0, "-Y to +Y", ""},
+    {OB_POSZ, "POS_Z", 0, "-Z to +Z", ""},
+    {OB_NEGX, "NEG_X", 0, "+X to -X", ""},
+    {OB_NEGY, "NEG_Y", 0, "+Y to -Y", ""},
+    {OB_NEGZ, "NEG_Z", 0, "+Z to -Z", ""},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
 }  // namespace blender
 
 #ifdef RNA_RUNTIME
@@ -480,6 +491,8 @@ static void rna_Object_active_shape_update(Main *bmain, Scene * /*scene*/, Point
         BKE_editlattice_load(ob);
         BKE_editlattice_make(ob);
         break;
+      default:
+        break;
     }
   }
 
@@ -667,11 +680,11 @@ static void rna_Object_parent_type_set(PointerRNA *ptr, int value)
 
   /* Skip if type did not change (otherwise we loose parent inverse in
    * ed::object::parent_set). */
-  if (ob->partype == value) {
+  if (ob->partype == eObject_Partype(value)) {
     return;
   }
 
-  ed::object::parent_set(ob, ob->parent, value, ob->parsubstr);
+  ed::object::parent_set(ob, ob->parent, eObject_Partype(value), ob->parsubstr);
 }
 
 static bool rna_Object_parent_type_override_apply(Main *bmain,
@@ -702,7 +715,7 @@ static bool rna_Object_parent_type_override_apply(Main *bmain,
     return false;
   }
 
-  ob->partype = parent_type_src;
+  ob->partype = eObject_Partype(parent_type_src);
   RNA_property_update_main(bmain, nullptr, ptr_dst, prop_dst);
   return true;
 }
@@ -1025,19 +1038,13 @@ void rna_object_uvlayer_name_set(PointerRNA *ptr,
 {
   Object *ob = reinterpret_cast<Object *>(ptr->owner_id);
   Mesh *mesh;
-  CustomDataLayer *layer;
-  int a;
 
   if (ob->type == OB_MESH && ob->data) {
     mesh = id_cast<Mesh *>(ob->data);
 
-    for (a = 0; a < mesh->corner_data.totlayer; a++) {
-      layer = &mesh->corner_data.layers[a];
-
-      if (layer->type == CD_PROP_FLOAT2 && STREQ(layer->name, value)) {
-        BLI_strncpy(result, value, result_maxncpy);
-        return;
-      }
+    if (mesh->uv_map_names().contains(value)) {
+      BLI_strncpy(result, value, result_maxncpy);
+      return;
     }
   }
 
@@ -1197,11 +1204,15 @@ static void rna_Object_rotation_mode_set(PointerRNA *ptr, int value)
   Object *ob = static_cast<Object *>(ptr->data);
 
   /* use API Method for conversions... */
-  BKE_rotMode_change_values(
-      ob->quat, ob->rot, ob->rotAxis, &ob->rotAngle, ob->rotmode, short(value));
+  BKE_rotMode_change_values(ob->quat,
+                            ob->rot,
+                            ob->rotAxis,
+                            &ob->rotAngle,
+                            eRotationModes(ob->rotmode),
+                            eRotationModes(value));
 
   /* finally, set the new rotation type */
-  ob->rotmode = value;
+  ob->rotmode = clamp_i(value, ROT_MODE_MIN, ROT_MODE_MAX);
 }
 
 static void rna_Object_dimensions_get(PointerRNA *ptr, float *value)
@@ -1579,7 +1590,7 @@ static void rna_Object_active_constraint_set(PointerRNA *ptr,
 
 static bConstraint *rna_Object_constraints_new(Object *object, Main *bmain, int type)
 {
-  bConstraint *new_con = BKE_constraint_add_for_object(object, nullptr, type);
+  bConstraint *new_con = BKE_constraint_add_for_object(object, nullptr, eBConstraint_Types(type));
 
   ed::object::constraint_tag_update(bmain, object, new_con);
   WM_main_add_notifier(NC_OBJECT | ND_CONSTRAINT | NA_ADDED, object);
@@ -1894,7 +1905,7 @@ static void rna_Object_boundbox_get(PointerRNA *ptr, float *values)
     *reinterpret_cast<std::array<float3, 8> *>(values) = bounds::corners(*bounds);
   }
   else {
-    copy_vn_fl(values, 8 * 3, 0.0f);
+    std::fill_n(values, 8 * 3, 0.0f);
   }
 }
 
@@ -1952,7 +1963,9 @@ static void rna_Object_vgroup_remove(Object *ob,
   BKE_object_defgroup_remove(ob, defgroup);
   defgroup_ptr->invalidate();
 
+  DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
   DEG_relations_tag_update(bmain);
+  WM_main_add_notifier(NC_GEOM | ND_VERTEX_GROUP, ob->data);
   WM_main_add_notifier(NC_OBJECT | ND_DRAW, ob);
 }
 
@@ -1964,7 +1977,9 @@ static void rna_Object_vgroup_clear(Object *ob, Main *bmain, ReportList *reports
 
   BKE_object_defgroup_remove_all(ob);
 
+  DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
   DEG_relations_tag_update(bmain);
+  WM_main_add_notifier(NC_GEOM | ND_VERTEX_GROUP, ob->data);
   WM_main_add_notifier(NC_OBJECT | ND_DRAW, ob);
 }
 
@@ -3547,7 +3562,7 @@ static void rna_def_object(BlenderRNA *brna)
   prop = RNA_def_property(srna, "instance_collection", PROP_POINTER, PROP_NONE);
   RNA_def_property_struct_type(prop, "Collection");
   RNA_def_property_pointer_sdna(prop, nullptr, "instance_collection");
-  RNA_def_property_flag(prop, PROP_EDITABLE);
+  RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_REFCOUNT);
   RNA_def_property_pointer_funcs(prop, nullptr, "rna_Object_dup_collection_set", nullptr, nullptr);
   RNA_def_property_ui_text(prop, "Instance Collection", "Instance an existing collection");
   RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Object_dependency_update");
@@ -3724,6 +3739,7 @@ static void rna_def_object(BlenderRNA *brna)
                                 "rna_Object_lightgroup_set");
   RNA_def_property_flag(prop, PROP_EDITABLE);
   RNA_def_property_ui_text(prop, "Lightgroup", "Lightgroup that the object belongs to");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Object_internal_update_draw");
 
   /* Light Linking. */
   prop = RNA_def_property(srna, "light_linking", PROP_POINTER, PROP_NONE);

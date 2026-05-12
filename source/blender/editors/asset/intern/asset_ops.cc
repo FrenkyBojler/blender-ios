@@ -6,8 +6,14 @@
  * \ingroup edasset
  */
 
+#include <algorithm>
+#include <iostream>
+
+#include <fmt/format.h>
+
 #include "AS_asset_library.hh"
 #include "AS_asset_representation.hh"
+#include "AS_remote_library.hh"
 
 #include "BKE_asset_edit.hh"
 #include "BKE_blendfile.hh"
@@ -1032,7 +1038,7 @@ static inline void square_points_clamp_to_window(const int2 &p1, int2 &p2, const
   const int max_size_y = (dir_y > 0) ? win_size.y - p1.y - 1 : p1.y;
 
   /* Clamp the square size so it does not exceed window bounds. */
-  square_size = std::min(square_size, std::min(max_size_x, max_size_y));
+  square_size = std::min({square_size, max_size_x, max_size_y});
 
   /* Update p2 to form a clamped square in the same direction as the drag. */
   p2.x = p1.x + dir_x * square_size;
@@ -1079,8 +1085,8 @@ static void generate_previewimg_from_buffer(ID *id, const ImBuf *image_buffer)
 
     ImBuf *scaled_imbuf = IMB_scale_into_new(
         image_buffer, width, height, IMBScaleFilter::Nearest, false);
-    preview_image->rect[size_type] = static_cast<uint *>(
-        MEM_dupallocN(scaled_imbuf->byte_buffer.data));
+    preview_image->rect[size_type] = reinterpret_cast<uint *>(
+        MEM_dupalloc(scaled_imbuf->byte_data()));
     preview_image->w[size_type] = width;
     preview_image->h[size_type] = height;
     preview_image->flag[size_type] |= PRV_USER_EDITED;
@@ -1107,7 +1113,7 @@ static ImBuf *take_screenshot_crop(bContext *C, const rcti &crop_rect)
 
   /* Validate rectangle. */
   if (!BLI_rcti_is_valid(&safe_rect)) {
-    MEM_freeN(dumprect);
+    MEM_delete(dumprect);
     return nullptr;
   }
 
@@ -1116,7 +1122,9 @@ static ImBuf *take_screenshot_crop(bContext *C, const rcti &crop_rect)
    * least freeing the memory after would cause a crash if ownership isn't taken. */
   IMB_assign_byte_buffer(image_buffer, dumprect, IB_TAKE_OWNERSHIP);
 
-  IMB_rect_crop(image_buffer, &safe_rect);
+  IMB_crop(image_buffer,
+           int2(safe_rect.xmin, safe_rect.ymin),
+           int2(BLI_rcti_size_x(&safe_rect) + 1, BLI_rcti_size_y(&safe_rect) + 1));
   return image_buffer;
 }
 
@@ -1201,10 +1209,12 @@ static wmOperatorStatus screenshot_preview_exec(bContext *C, wmOperator *op)
                             p2.x - area_p1->totrct.xmin,
                             p1.y - area_p1->totrct.ymin,
                             p2.y - area_p1->totrct.ymin};
-    IMB_rect_crop(image_buffer, &crop_rect);
+    IMB_crop(image_buffer,
+             int2(crop_rect.xmin, crop_rect.ymin),
+             int2(BLI_rcti_size_x(&crop_rect) + 1, BLI_rcti_size_y(&crop_rect) + 1));
   }
   else {
-    const rcti crop_rect = {p1.x, p2.x, p1.y, p2.y};
+    const rcti crop_rect = {p1.x, p2.x + 1, p1.y, p2.y + 1};
     image_buffer = take_screenshot_crop(C, crop_rect);
     if (!image_buffer) {
       BKE_report(op->reports, RPT_ERROR, "Invalid screenshot area selection");
@@ -1288,7 +1298,7 @@ static void screenshot_preview_exit(bContext *C, wmOperator *op)
   WM_cursor_modal_restore(win);
   ScreenshotOperatorData *data = static_cast<ScreenshotOperatorData *>(op->customdata);
   WM_draw_cb_exit(win, data->draw_handle);
-  MEM_freeN(data);
+  MEM_delete(data);
   ED_workspace_status_text(C, nullptr);
 }
 
@@ -1439,7 +1449,7 @@ static wmOperatorStatus screenshot_preview_invoke(bContext *C,
   wmWindow *win = CTX_wm_window(C);
   WM_cursor_modal_set(win, WM_CURSOR_CROSS);
 
-  op->customdata = MEM_callocN<ScreenshotOperatorData>(__func__);
+  op->customdata = MEM_new_zeroed<ScreenshotOperatorData>(__func__);
   ScreenshotOperatorData *data = static_cast<ScreenshotOperatorData *>(op->customdata);
   data->draw_handle = WM_draw_cb_activate(win, screenshot_preview_draw, data);
   data->is_mouse_down = false;
@@ -1520,6 +1530,93 @@ static void ASSET_OT_screenshot_preview(wmOperatorType *ot)
 
 /* -------------------------------------------------------------------- */
 
+static Vector<const asset_system::AssetRepresentation *> selected_or_active_assets(
+    const bContext *C)
+{
+  /* Convert RNA pointers to their data. */
+  Vector<PointerRNA> asset_pointers = CTX_data_collection_get(C, "selected_assets");
+  Vector<const asset_system::AssetRepresentation *> assets(asset_pointers.size());
+  for (int i : asset_pointers.index_range()) {
+    assets[i] = static_cast<asset_system::AssetRepresentation *>(asset_pointers[i].data);
+  }
+
+  if (!assets.is_empty()) {
+    /* There were selected assets, so return those. */
+    return assets;
+  }
+
+  /* No selected assets, so return the active asset.  */
+  if (const asset_system::AssetRepresentation *active_asset = CTX_wm_asset(C)) {
+    assets.append(active_asset);
+  }
+
+  return assets;
+}
+
+static bool assets_download_poll(bContext *C)
+{
+  if ((G.f & G_FLAG_INTERNET_ALLOW) == 0) {
+    CTX_wm_operator_poll_msg_set(
+        C, "Internet access is disabled (can be enabled in the Preferences, System tab)");
+    return false;
+  }
+
+#ifndef WITH_PYTHON
+  UNUSED_VARS(C);
+  CTX_wm_operator_poll_msg_set(C, "Asset downloading requires Python");
+  return false;
+#endif
+
+  const Vector<const asset_system::AssetRepresentation *> assets = selected_or_active_assets(C);
+  if (assets.is_empty()) {
+    CTX_wm_operator_poll_msg_set(C, "No asset selected or active");
+    return false;
+  }
+
+  const bool has_online_asset = [&]() {
+    for (const asset_system::AssetRepresentation *asset : assets) {
+      if (asset->is_online()) {
+        return true;
+      }
+    }
+    return false;
+  }();
+
+  if (!has_online_asset) {
+    CTX_wm_operator_poll_msg_set(C, "None of the selected assets requires downloading");
+    return false;
+  }
+
+  return true;
+}
+
+static wmOperatorStatus assets_download_exec(bContext *C, wmOperator *op)
+{
+  const Vector<const asset_system::AssetRepresentation *> assets = selected_or_active_assets(C);
+
+  for (const asset_system::AssetRepresentation *asset : assets) {
+    if (asset->is_online()) {
+      asset_system::remote_library_request_asset_download(*C, *asset, op->reports);
+    }
+  }
+
+  return OPERATOR_FINISHED;
+}
+
+static void ASSET_OT_assets_download(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Download Assets";
+  ot->description = "Download the selected asset(s)";
+  ot->idname = "ASSET_OT_assets_download";
+
+  /* API callbacks. */
+  ot->exec = assets_download_exec;
+  ot->poll = assets_download_poll;
+}
+
+/* -------------------------------------------------------------------- */
+
 void operatortypes_asset()
 {
   WM_operatortype_append(ASSET_OT_mark);
@@ -1538,6 +1635,8 @@ void operatortypes_asset()
   WM_operatortype_append(ASSET_OT_library_refresh);
 
   WM_operatortype_append(ASSET_OT_screenshot_preview);
+
+  WM_operatortype_append(ASSET_OT_assets_download);
 }
 
 }  // namespace blender::ed::asset

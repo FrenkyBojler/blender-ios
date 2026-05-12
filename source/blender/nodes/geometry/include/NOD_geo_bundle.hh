@@ -52,7 +52,7 @@ struct CombineBundleItemsAccessor : public socket_items::SocketItemsAccessorDefa
 
   static void destruct_item(ItemT *item)
   {
-    MEM_SAFE_FREE(item->name);
+    MEM_SAFE_DELETE(item->name);
   }
 
   static void blend_write_item(BlendWriter *writer, const ItemT &item);
@@ -128,7 +128,7 @@ struct SeparateBundleItemsAccessor : public socket_items::SocketItemsAccessorDef
 
   static void destruct_item(ItemT *item)
   {
-    MEM_SAFE_FREE(item->name);
+    MEM_SAFE_DELETE(item->name);
   }
 
   static void blend_write_item(BlendWriter *writer, const ItemT &item);
@@ -170,5 +170,7 @@ struct SeparateBundleItemsAccessor : public socket_items::SocketItemsAccessorDef
     return CombineBundleItemsAccessor::validate_name(name);
   }
 };
+
+std::optional<StringRefNull> combine_bundle_node_type(const bNodeTree &tree, const bNode &node);
 
 }  // namespace blender::nodes
