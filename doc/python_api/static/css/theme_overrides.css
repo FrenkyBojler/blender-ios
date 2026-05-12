@@ -15,7 +15,8 @@ body {
 	--color-api-name: #e87d0d;
 }
 
-/* Increase the width of main navigation region. */
+/* Increase the width of main navigation region to
+   allow more text to fit on one line and reduce scrolling. */
 .sidebar-container {
 	width: 18em;
 }

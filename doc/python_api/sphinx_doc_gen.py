@@ -2179,6 +2179,7 @@ def pyrna2sphinx(basepath):
         subclass_ids.sort()
         if subclass_ids:
             fw(".. toctree::\n")
+            # Add a title and limit to direct sub classes.
             fw("   :caption: Subclasses\n")
             fw("   :maxdepth: 1\n\n")
 
@@ -2478,6 +2479,7 @@ def pyrna2sphinx(basepath):
                 ]
                 if subclass_ids:
                     fw(".. toctree::\n")
+                    # Add a title and limit to direct sub classes.
                     fw("   :caption: Subclasses\n")
                     fw("   :maxdepth: 1\n\n")
 
@@ -2744,8 +2746,7 @@ def write_rst_types_index(basepath):
         fw(title_string("Types (bpy.types)", "="))
         fw(".. module:: bpy.types\n\n")
         fw(".. toctree::\n")
-        # Only show top-level entries (avoids unreasonably large pages).
-        # fw("   :maxdepth: 2\n")
+        # Hide page headings such as example sections from main TOC.
         fw("   :titlesonly:\n\n")
         fw("   bpy.types.bpy_struct.rst\n\n")
         fw("   bpy.types.bpy_prop.rst\n")
