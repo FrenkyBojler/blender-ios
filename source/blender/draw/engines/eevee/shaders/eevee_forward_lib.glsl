@@ -15,6 +15,7 @@
 #include "eevee_light_eval_lib.glsl"
 #include "eevee_lightprobe_eval_lib.glsl"
 #include "eevee_nodetree_closures_lib.glsl"
+#include "eevee_reverse_z_lib.bsl.hh"
 #include "eevee_subsurface_lib.glsl"
 #include "gpu_shader_codegen_lib.glsl"
 
@@ -27,7 +28,10 @@
 #  error Closure data count and eval count must match
 #endif
 
-void forward_lighting_eval(Thickness thickness, float3 &radiance, float3 &transmittance)
+void forward_lighting_eval(Thickness thickness,
+                           float2 frag_co,
+                           float3 &radiance,
+                           float3 &transmittance)
 {
   float vPz = dot(drw_view_forward(), g_data.P) - dot(drw_view_forward(), drw_view_position());
   float3 V = drw_world_incident_vector(g_data.P);
@@ -38,9 +42,10 @@ void forward_lighting_eval(Thickness thickness, float3 &radiance, float3 &transm
     closure_light_set(stack, uchar(i), closure_light_new(cl, V));
   }
 
+  const auto &infos_buf = buffer_get(draw_object_infos, drw_infos);
   /* TODO(fclem): If transmission (no SSS) is present, we could reduce LIGHT_CLOSURE_EVAL_COUNT
    * by 1 for this evaluation and skip evaluating the transmission closure twice. */
-  ObjectInfos object_infos = drw_infos[drw_resource_id()];
+  ObjectInfos object_infos = infos_buf[drw_resource_id()];
   uchar receiver_light_set = receiver_light_set_get(object_infos);
   float normal_offset = object_infos.shadow_terminator_normal_offset;
   float geometry_offset = object_infos.shadow_terminator_geometry_offset;
@@ -91,11 +96,26 @@ void forward_lighting_eval(Thickness thickness, float3 &radiance, float3 &transm
   }
 #endif
 
-  LightProbeSample samp = lightprobe_load(gl_FragCoord.xy, g_data.P, g_data.Ng, V);
+  LightProbeSample samp = lightprobe_load(frag_co, g_data.P, g_data.Ng, V);
 
   float clamp_indirect_sh = uniform_buf.clamp.surface_indirect;
   samp.volume_irradiance = spherical_harmonics::clamp_energy(samp.volume_irradiance,
                                                              clamp_indirect_sh);
+
+  int planar_id = lightprobe_planar_select(g_data.P);
+  float3 planar_probe_normal = float3(0.0);
+  float3 planar_probe_radiance = float3(0.0);
+  if (planar_id != -1) {
+    const auto &planar_buf = buffer_get(eevee_lightprobe_planar_data, probe_planar_buf);
+    const int2 planar_texel = int2(
+        frag_co.x, float(textureSize(planar_radiance_tx, 0).y) - 1.0f - (frag_co.y));
+
+    planar_probe_radiance = texelFetch(planar_radiance_tx, int3(planar_texel, planar_id), 0).rgb;
+    /* Discard background hits. */
+    if (texelFetch(planar_depth_tx, int3(planar_texel, planar_id), 0).r != reverse_z::read(1.0f)) {
+      planar_probe_normal = planar_buf[planar_id].normal;
+    }
+  }
 
   /* Combine all radiance. */
   float3 radiance_direct = float3(0.0f);
@@ -105,6 +125,12 @@ void forward_lighting_eval(Thickness thickness, float3 &radiance, float3 &transm
     if (cl.weight > CLOSURE_WEIGHT_CUTOFF) {
       float3 direct_light = closure_light_get(stack, i).light_shadowed;
       float3 indirect_light = lightprobe_eval(samp, cl, g_data.P, V, thickness);
+
+      if (cl.type == CLOSURE_BSDF_MICROFACET_GGX_REFLECTION_ID) {
+        const float blend = saturate(to_closure_reflection(cl).roughness * -10.0f + 1.0f) *
+                            saturate(dot(planar_probe_normal, cl.N) * 100.0f - 99.0f);
+        indirect_light = mix(indirect_light, planar_probe_radiance, blend);
+      }
 
       if ((cl.type == CLOSURE_BSDF_TRANSLUCENT_ID ||
            cl.type == CLOSURE_BSDF_MICROFACET_GGX_REFRACTION_ID) &&
