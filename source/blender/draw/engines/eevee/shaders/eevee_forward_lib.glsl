@@ -104,24 +104,24 @@ void forward_lighting_eval(Thickness thickness,
 
   /* Planar reflection. */
   float3 planar_probe_radiance = float3(0.0);
-  float3 surface_average_N = g_data.Ng * 0.001f;
+  float3 average_N = g_data.Ng * 0.001f;
   {
     /* Get average normal.  */
     for (uchar i = 0; i < LIGHT_CLOSURE_EVAL_COUNT; i++) {
       ClosureUndetermined cl = g_closure_get(i);
-      surface_average_N += cl.N * cl.weight;
+      average_N += cl.N * cl.weight;
     }
-    surface_average_N = safe_normalize(surface_average_N);
+    average_N = safe_normalize(average_N);
 
     const int planar_id = lightprobe_planar_select(g_data.P);
 
     if (planar_id == -1) {
-      surface_average_N = float3(0.0f);
+      average_N = float3(0.0f);
     }
     else {
       const auto &planar_buf = buffer_get(eevee_lightprobe_planar_data, probe_planar_buf);
       float3 P_reflected = lightprobe_planar_parallax(
-          planar_buf[planar_id], g_data.P, surface_average_N, V);
+          planar_buf[planar_id], g_data.P, average_N, V);
 
       float2 ndc_P_reflected = drw_point_world_to_ndc(P_reflected).xy;
       /* Planar probes are rendered upside down. */
@@ -131,7 +131,7 @@ void forward_lighting_eval(Thickness thickness,
       planar_probe_radiance = textureLod(planar_radiance_tx, float3(texel, planar_id), 0.0).rgb;
       /* Discard background hits. */
       if (textureLod(planar_depth_tx, float3(texel, planar_id), 0.0).r == reverse_z::read(1.0f)) {
-        surface_average_N = float3(0.0f);
+        average_N = float3(0.0f);
       }
     }
   }
@@ -147,7 +147,7 @@ void forward_lighting_eval(Thickness thickness,
 
       if (cl.type == CLOSURE_BSDF_MICROFACET_GGX_REFLECTION_ID) {
         const float blend = saturate(to_closure_reflection(cl).roughness * -10.0f + 1.0f) *
-                            saturate(dot(surface_average_N, cl.N) * 100.0f - 99.0f);
+                            saturate(dot(average_N, cl.N) * 100.0f - 99.0f);
         indirect_light = mix(indirect_light, planar_probe_radiance, blend);
       }
 
