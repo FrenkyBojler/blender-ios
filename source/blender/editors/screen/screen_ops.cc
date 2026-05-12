@@ -3305,6 +3305,32 @@ static void region_scale_toggle_hidden(bContext *C, RegionMoveData *rmd, bool do
   }
 }
 
+static void region_scale_apply_stack(RegionMoveData *rmd,
+                                     const wmEvent *event,
+                                     const int size_no_snap)
+{
+  const bool axis_x = ELEM(rmd->edge, AE_LEFT_TO_TOPRIGHT, AE_RIGHT_TO_TOPLEFT);
+  const ARegionType *art = rmd->region->runtime->type;
+  const int prefsize = axis_x ? art->prefsizex : art->prefsizey;
+  const int threshold = prefsize + (axis_x ? UI_UNIT_X : UI_UNIT_Y) / 4;
+  ARegion *target = nullptr;
+
+  if (size_no_snap > threshold && !(rmd->region->flag & RGN_FLAG_HIDDEN) && rmd->region->next &&
+      (rmd->region->next->alignment & RGN_STACK_ON_PREV))
+  {
+    target = rmd->region->next;
+  }
+  else if ((rmd->region->flag & RGN_FLAG_HIDDEN) && (rmd->region->alignment & RGN_STACK_ON_PREV)) {
+    target = rmd->region->prev;
+  }
+
+  if (target) {
+    rmd->region = target;
+    copy_v2_v2_int(rmd->orig_xy, event->xy);
+    rmd->origval = axis_x ? target->sizex : target->sizey;
+  }
+}
+
 static wmOperatorStatus region_scale_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   RegionMoveData *rmd = static_cast<RegionMoveData *>(op->customdata);
@@ -3365,6 +3391,7 @@ static wmOperatorStatus region_scale_modal(bContext *C, wmOperator *op, const wm
         if (rmd->region->sizex != rmd->origval) {
           size_changed = true;
         }
+         region_scale_apply_stack(rmd, event, size_no_snap);
       }
       else {
         const float aspect_y = ((rmd->region->v2d.flag & V2D_IS_INIT) &&
@@ -3421,24 +3448,7 @@ static wmOperatorStatus region_scale_modal(bContext *C, wmOperator *op, const wm
           size_changed = true;
         }
 
-        if (delta > rmd->origval) {
-          if ((rmd->region->flag & RGN_FLAG_HIDDEN) == 0) {
-            if (ARegion *region_scrubbing = rmd->region->next) {
-              if (region_scrubbing->alignment & RGN_STACK_ON_PREV) {
-                rmd->region = region_scrubbing;
-                copy_v2_v2_int(rmd->orig_xy, event->xy);
-                rmd->origval = rmd->region->sizey;
-              }
-            }
-          }
-        }
-        else if ((rmd->region->flag & RGN_FLAG_HIDDEN) &&
-                 (rmd->region->alignment & RGN_STACK_ON_PREV))
-        {
-          rmd->region = rmd->region->prev;
-          copy_v2_v2_int(rmd->orig_xy, event->xy);
-          rmd->origval = rmd->region->sizey;
-        }
+         region_scale_apply_stack(rmd, event, size_no_snap);
       }
       if (size_changed && rmd->region->runtime->type->on_user_resize) {
         rmd->region->runtime->type->on_user_resize(rmd->region);
