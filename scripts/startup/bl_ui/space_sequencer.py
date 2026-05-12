@@ -1975,9 +1975,6 @@ class SEQUENCER_PT_view_composition_guides(SequencerButtonsPanel_Output, Panel):
         col.prop(item, "show_composition_golden_tria_a", text="Triangle A")
         col.prop(item, "show_composition_golden_tria_b", text="Triangle B")
 
-        col = col.column()
-        col.prop(item, "composition_guide_color", text="Color")
-
         # Right Side
         col = split.column(align=True)
 
