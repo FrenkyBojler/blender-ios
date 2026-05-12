@@ -121,8 +121,8 @@ EditBone *ED_armature_ebone_add_primitive(Object *obedit_arm,
 
   bone->tail[view_aligned ? 1 : 2] = length;
 
-  if (arm->runtime.active_collection) {
-    ANIM_armature_bonecoll_assign_editbone(arm->runtime.active_collection, bone);
+  if (arm->runtime->active_collection) {
+    ANIM_armature_bonecoll_assign_editbone(arm->runtime->active_collection, bone);
   }
 
   return bone;
@@ -235,6 +235,9 @@ static wmOperatorStatus armature_click_extrude_exec(bContext *C, wmOperator * /*
     float align_axis[3];
     copy_v3_v3(align_axis, parent_mat[2]);
     newbone->roll = ED_armature_ebone_roll_to_vector(newbone, align_axis, false);
+
+    /* Copy bone collection membership. */
+    BLI_duplicatelist(&newbone->bone_collections, &ebone->bone_collections);
   }
 
   ED_armature_edit_sync_selection(arm->edbo);
@@ -532,45 +535,42 @@ static void update_duplicate_action_constraint_settings(
     animrig::Action &action = act->wrap();
     animrig::Channelbag *cbag = animrig::channelbag_for_action_slot(action,
                                                                     act_con->action_slot_handle);
-
-    /* Create a copy and mirror the animation */
-    auto bone_name_filter = [&](const FCurve &fcurve) -> bool {
-      return animrig::fcurve_matches_collection_path(fcurve, "pose.bones[", orig_bone->name);
-    };
-    Vector<FCurve *> fcurves = animrig::fcurves_in_action_slot_filtered(
-        act, act_con->action_slot_handle, bone_name_filter);
-    for (const FCurve *old_curve : fcurves) {
-      FCurve *new_curve = BKE_fcurve_copy(old_curve);
-      char *old_path = new_curve->rna_path;
-
-      new_curve->rna_path = BLI_string_replaceN(old_path, orig_bone->name, dup_bone->name);
-      MEM_delete(old_path);
-
-      /* FIXME: deal with the case where this F-Curve already exists. */
-
+    Span<FCurve *> fcurves = {};
+    if (cbag) {
+      fcurves = cbag->fcurves();
+    }
+    for (const FCurve *old_fcurve : fcurves) {
+      if (!animrig::fcurve_matches_collection_path(*old_fcurve, "pose.bones[", orig_bone->name)) {
+        continue;
+      }
+      const char *new_path = BLI_string_replaceN(
+          old_fcurve->rna_path, orig_bone->name, dup_bone->name);
+      FCurve &new_curve = cbag->fcurve_clone(
+          *old_fcurve, new_path, old_fcurve->array_index, dup_bone->name);
+      MEM_delete(new_path);
       /* Flip the animation */
       int i;
       BezTriple *bezt;
-      for (i = 0, bezt = new_curve->bezt; i < new_curve->totvert; i++, bezt++) {
-        const size_t slength = strlen(new_curve->rna_path);
+      for (i = 0, bezt = new_curve.bezt; i < new_curve.totvert; i++, bezt++) {
+        const size_t slength = strlen(new_curve.rna_path);
         bool flip = false;
-        if (BLI_strn_endswith(new_curve->rna_path, "location", slength) &&
-            new_curve->array_index == 0)
+        if (BLI_strn_endswith(new_curve.rna_path, "location", slength) &&
+            new_curve.array_index == 0)
         {
           flip = true;
         }
-        else if (BLI_strn_endswith(new_curve->rna_path, "rotation_quaternion", slength) &&
-                 ELEM(new_curve->array_index, 2, 3))
+        else if (BLI_strn_endswith(new_curve.rna_path, "rotation_quaternion", slength) &&
+                 ELEM(new_curve.array_index, 2, 3))
         {
           flip = true;
         }
-        else if (BLI_strn_endswith(new_curve->rna_path, "rotation_euler", slength) &&
-                 ELEM(new_curve->array_index, 1, 2))
+        else if (BLI_strn_endswith(new_curve.rna_path, "rotation_euler", slength) &&
+                 ELEM(new_curve.array_index, 1, 2))
         {
           flip = true;
         }
-        else if (BLI_strn_endswith(new_curve->rna_path, "rotation_axis_angle", slength) &&
-                 ELEM(new_curve->array_index, 2, 3))
+        else if (BLI_strn_endswith(new_curve.rna_path, "rotation_axis_angle", slength) &&
+                 ELEM(new_curve.array_index, 2, 3))
         {
           flip = true;
         }
@@ -581,10 +581,6 @@ static void update_duplicate_action_constraint_settings(
           bezt->vec[2][1] *= -1;
         }
       }
-      BLI_assert_msg(cbag, "If there are F-Curves for this slot, there should be a channelbag");
-      bActionGroup &agrp = cbag->channel_group_ensure(dup_bone->name);
-      cbag->fcurve_append(*new_curve);
-      cbag->fcurve_assign_to_channel_group(*new_curve, agrp);
     }
   }
 
@@ -607,7 +603,7 @@ static void update_duplicate_loc_rot_constraint_settings(Object *ob,
 {
   /* This code assumes that bRotLimitConstraint and bLocLimitConstraint have the same fields in
    * the same memory locations. */
-  bRotLimitConstraint *limit = static_cast<bRotLimitConstraint *>(curcon->data);
+  bLocLimitConstraint *limit = static_cast<bLocLimitConstraint *>(curcon->data);
   float local_mat[4][4], imat[4][4];
 
   float min_vec[3], max_vec[3];
@@ -660,12 +656,9 @@ static void update_duplicate_loc_rot_constraint_settings(Object *ob,
     max_vec[0] = min_x_copy * -1;
 
     /* Also flip the enabled axis check-boxes accordingly. */
-    const bool use_max_x = (limit->flag & LIMIT_XMAX);
-    const bool use_min_x = (limit->flag & LIMIT_XMIN);
-    limit->flag |= use_max_x ? LIMIT_XMIN : 0;
-    limit->flag &= (use_max_x && !use_min_x) ? ~LIMIT_XMAX : limit->flag;
-    limit->flag |= use_min_x ? LIMIT_XMAX : 0;
-    limit->flag &= (use_min_x && !use_max_x) ? ~LIMIT_XMIN : limit->flag;
+    if (bool(limit->flag & LIMIT_XMIN) != bool(limit->flag & LIMIT_XMAX)) {
+      limit->flag ^= (LIMIT_XMIN | LIMIT_XMAX);
+    }
   }
 
   /* convert back to the settings space */
@@ -860,7 +853,7 @@ static void update_duplicate_transform_constraint_settings(Object *ob,
   mul_m4_v3(imat, trans->to_max_scale);
 }
 
-static void track_axis_x_swap(int &value)
+static void track_axis_x_swap(eTrackToAxis_Modes &value)
 {
   /* Swap track axis X <> -X. */
   if (value == TRACK_X) {
@@ -948,6 +941,8 @@ static void update_duplicate_constraint_settings(EditBone *dup_bone,
         break;
       case CONSTRAINT_TYPE_SHRINKWRAP:
         update_duplicate_constraint_shrinkwrap_settings(&curcon);
+        break;
+      default:
         break;
     }
   }
@@ -1117,6 +1112,7 @@ static wmOperatorStatus armature_duplicate_selected(bContext *C,
                                                     StringRefNull search,
                                                     StringRefNull replace)
 {
+  const Main *bmain = CTX_data_main(C);
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
 
@@ -1126,7 +1122,7 @@ static wmOperatorStatus armature_duplicate_selected(bContext *C,
   }
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C));
+      *bmain, scene, view_layer, CTX_wm_view3d(C));
   for (Object *ob : objects) {
     EditBone *ebone_iter;
     /* The beginning of the duplicated bones in the edbo list */
@@ -1360,6 +1356,7 @@ static EditBone *get_symmetrized_bone(bArmature *arm, EditBone *bone)
  */
 static wmOperatorStatus armature_symmetrize_exec(bContext *C, wmOperator *op)
 {
+  const Main *bmain = CTX_data_main(C);
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   const int direction = RNA_enum_get(op->ptr, "direction");
@@ -1372,7 +1369,7 @@ static wmOperatorStatus armature_symmetrize_exec(bContext *C, wmOperator *op)
   }
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C));
+      *bmain, scene, view_layer, CTX_wm_view3d(C));
   for (Object *obedit : objects) {
     EditBone *ebone_iter;
     /* The beginning of the duplicated mirrored bones in the edbo list */
@@ -1490,7 +1487,8 @@ static wmOperatorStatus armature_symmetrize_exec(bContext *C, wmOperator *op)
     {
       if (ebone_iter->temp.ebone) {
         /* copy all flags except for ... */
-        const int flag_copy = (~0) & ~(BONE_SELECTED | BONE_ROOTSEL | BONE_TIPSEL);
+        const eBone_Flag flag_copy = eBone_Flag(~0) &
+                                     ~(BONE_SELECTED | BONE_ROOTSEL | BONE_TIPSEL);
 
         EditBone *ebone = ebone_iter->temp.ebone;
 
@@ -1640,12 +1638,13 @@ void ARMATURE_OT_symmetrize(wmOperatorType *ot)
 /* if forked && mirror-edit: makes two bones with flipped names */
 static wmOperatorStatus armature_extrude_exec(bContext *C, wmOperator *op)
 {
+  const Main *bmain = CTX_data_main(C);
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   const bool forked = RNA_boolean_get(op->ptr, "forked");
   bool changed_multi = false;
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C));
+      *bmain, scene, view_layer, CTX_wm_view3d(C));
 
   enum ExtrudePoint {
     SKIP_EXTRUDE,

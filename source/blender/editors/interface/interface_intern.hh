@@ -35,20 +35,11 @@ struct bContext;
 struct bContextStore;
 struct CurveMapping;
 struct CurveProfile;
-namespace gpu {
-class Batch;
-}
 struct ID;
 struct ImBuf;
 struct LayoutPanelHeader;
 struct Main;
 struct Scene;
-namespace ui {
-struct SafetyRect;
-struct HandleButtonData;
-struct Layout;
-struct UndoStack_Text;
-}  // namespace ui
 struct uiListType;
 struct uiStyle;
 struct uiWidgetColors;
@@ -58,14 +49,21 @@ struct wmKeyConfig;
 struct wmOperatorType;
 struct wmTimer;
 
+namespace gpu {
+class Batch;
+}
+
 namespace ui {
 
+struct SafetyRect;
+struct HandleButtonData;
+struct Layout;
+struct UndoStack_Text;
 /* ****************** general defines ************** */
 
-#define RNA_NO_INDEX -1
 #define RNA_ENUM_VALUE -2
 
-#define UI_MENU_PADDING (int)(0.2f * UI_UNIT_Y)
+#define UI_MENU_PADDING int(0.2f * UI_UNIT_Y)
 
 #define UI_MENU_WIDTH_MIN (UI_UNIT_Y * 9)
 /** Some extra padding added to menus containing sub-menu icons. */
@@ -101,7 +99,7 @@ enum ButtonFlagInternal {
   UI_SEARCH_FILTER_NO_MATCH = (1 << 6),
 
   /** Temporarily override the active button for lookups in context, regions, etc. (everything
-   * using #ui_context_button_active()). For example, so that operators normally acting on the
+   * using #context_button_active()). For example, so that operators normally acting on the
    * active button can be polled on non-active buttons to (e.g. for disabling). */
   BUT_ACTIVE_OVERRIDE = (1 << 7),
 
@@ -145,9 +143,9 @@ enum RadialDirection : int8_t {
   ((1 << int(UI_RADIAL_N)) | (1 << int(UI_RADIAL_S)) | (1 << int(UI_RADIAL_E)) | \
    (1 << int(UI_RADIAL_W)))
 
-extern const char ui_radial_dir_order[8];
-extern const char ui_radial_dir_to_numpad[8];
-extern const short ui_radial_dir_to_angle[8];
+extern const char radial_dir_order[8];
+extern const char radial_dir_to_numpad[8];
+extern const short radial_dir_to_angle[8];
 
 /* internal panel drawing defines */
 #define PNL_HEADER (UI_UNIT_Y * 1.25) /* 24 default */
@@ -197,7 +195,7 @@ struct Button : NonMovable {
 
   ButtonType type = ButtonType(0);
   ButPointerType pointype = ButPointerType::None;
-  bool bit = 0;
+  bool bit = false;
   /* 0-31 bit index. */
   char bitnr = 0;
 
@@ -205,7 +203,7 @@ struct Button : NonMovable {
   uchar menu_key = 0;
 
   short retval = 0, strwidth = 0, alignnr = 0;
-  short ofs = 0, pos = 0, selsta = 0, selend = 0;
+  int ofs = 0, pos = 0, selsta = 0, selend = 0;
 
   /**
    * Optional color for monochrome icon. Also used as text
@@ -367,6 +365,37 @@ struct Button : NonMovable {
   virtual ~Button() = default;
 };
 
+struct TextWrapCache {
+  int wrap_width = 0;
+  float aspect = 0.0f;
+  std::string text;
+  Vector<StringRef> wrapped_lines;
+};
+
+/** Derived struct for #ButtonType::TextBox */
+struct ButtonTextBox : public Button {
+
+  /** Total number of wrapped lines in the last text-box redraw/event handling. */
+  int last_total_lines = 0;
+
+  TextboxState *state;
+
+  /** Wrap cache from last redraw/event handling. */
+  std::unique_ptr<TextWrapCache> wrap_cache;
+
+  /** Placeholder wrap cache from last draw. */
+  std::unique_ptr<TextWrapCache> placeholder_wrap_cache;
+
+  void line_scroll_set(int line_scroll);
+  int line_scroll() const;
+  int visible_lines() const;
+};
+
+/** Derived struct for #ButtonType::But */
+struct ButtonPush : public Button {
+  bool draw_as_link = false;
+};
+
 /** Derived struct for #ButtonType::Num */
 struct ButtonNumber : public Button {
   float step_size = 0.0f;
@@ -450,6 +479,8 @@ struct ButtonSeparatorLine : public Button {
 /** Derived struct for #ButtonType::Label. */
 struct ButtonLabel : public Button {
   float alpha_factor = 1.0f;
+  /** When the button draws an icon, also draw a mono-colored border for it. */
+  bool draw_icon_border = false;
 };
 
 /** Derived struct for #ButtonType::Scroll. */
@@ -493,6 +524,14 @@ struct ButtonCurveMapping : public Button {
 /** Derived struct for #ButtonType::HotkeyEvent. */
 struct ButtonHotkeyEvent : public Button {
   wmEventModifierFlag modifier_key = wmEventModifierFlag(0);
+};
+
+/**
+ * Derived struct for #ButtonType::Menu, #ButtonType::Block, #ButtonType::Popover or
+ * ButtonType::Pulldown.
+ */
+struct ButtonMenu : public Button {
+  PopupAttachDirection popup_attach_direction = PopupAttachDirection::Vertical;
 };
 
 /**
@@ -730,7 +769,7 @@ struct Block {
    */
   char display_device[64] = "";
 
-  PieMenuData pie_data;
+  std::unique_ptr<PieMenuData> pie_data;
 
   void remove_but(const Button *but);
   [[nodiscard]] Button *first_but() const;
@@ -764,7 +803,7 @@ void fontscale(float *points, float aspect);
 
 /** Project button or block (but==nullptr) to pixels in region-space. */
 void button_to_pixelrect(rcti *rect, const ARegion *region, const Block *block, const Button *but);
-rcti ui_to_pixelrect(const ARegion *region, const Block *block, const rctf *src_rect);
+rcti rect_to_pixelrect(const ARegion *region, const Block *block, const rctf *src_rect);
 
 void block_to_region_fl(const ARegion *region, const Block *block, float *x, float *y);
 void block_to_window_fl(const ARegion *region, const Block *block, float *x, float *y);
@@ -979,6 +1018,8 @@ struct PopupBlockHandle {
 
   wmTimer *scrolltimer = nullptr;
   float scrolloffset = 0.0f;
+  float scrollmin = 0.0f;
+  float scrollmax = 0.0f;
 
   KeyNavLock keynav_state;
 
@@ -1013,6 +1054,12 @@ struct PopupBlockHandle {
   /* #endif */
 
   char menu_idname[64] = "";
+
+  bool mmb_panning = false;
+  int mmb_panning_last_y = 0;
+  /** Short period of time that prevents closing the current menu with ongoing actions like middle
+   * mouse panning.  */
+  wmTimer *keep_open_timer = nullptr;
 };
 
 /* -------------------------------------------------------------------- */
@@ -1165,7 +1212,7 @@ void draw_layout_panels_backdrop(const ARegion *region,
 void panel_drag_collapse_handler_add(const bContext *C, const bool was_open);
 void panel_tag_search_filter_match(Panel *panel);
 /** Toggles layout panel open state and returns the new state. */
-bool ui_layout_panel_toggle_open(const bContext *C, LayoutPanelHeader *header);
+bool layout_panel_toggle_open(const bContext *C, LayoutPanelHeader *header);
 LayoutPanelHeader *layout_panel_header_under_mouse(const Panel &panel, const int my);
 /** Apply scroll to layout panels when the main panel is used in popups. */
 void layout_panel_popup_scroll_apply(Panel *panel, const float dy);
@@ -1195,11 +1242,13 @@ void draw_but_HISTOGRAM(ARegion *region,
                         Button *but,
                         const uiWidgetColors *wcol,
                         const rcti *recti);
-void draw_but_WAVEFORM(ARegion *region,
+void draw_but_WAVEFORM(const bContext *C,
+                       ARegion *region,
                        Button *but,
                        const uiWidgetColors *wcol,
                        const rcti *recti);
-void draw_but_VECTORSCOPE(ARegion *region,
+void draw_but_VECTORSCOPE(const bContext *C,
+                          ARegion *region,
                           Button *but,
                           const uiWidgetColors *wcol,
                           const rcti *recti);
@@ -1207,7 +1256,7 @@ void draw_but_COLORBAND(Button *but, const uiWidgetColors *wcol, const rcti *rec
 void draw_but_UNITVEC(Button *but, const uiWidgetColors *wcol, const rcti *rect, float radius);
 void draw_but_CURVE(ARegion *region, Button *but, const uiWidgetColors *wcol, const rcti *rect);
 /**
- * Draws the curve profile widget. Somewhat similar to ui_draw_but_CURVE.
+ * Draws the curve profile widget. Somewhat similar to draw_but_CURVE.
  */
 void draw_but_CURVEPROFILE(ARegion *region,
                            Button *but,
@@ -1290,6 +1339,8 @@ bool button_rna_equals_ex(const Button *but,
                           int index);
 Button *button_find_old(Block *block_old, const Button *but_new);
 Button *button_find_new(Block *block_new, const Button *but_old);
+/** Scaled text padding within the but widget box. */
+int button_text_padding(const Button *but);
 
 #ifdef WITH_INPUT_IME
 void button_ime_reposition(Button *but, int x, int y, bool complete);
@@ -1391,7 +1442,7 @@ void draw_preview_item(const uiFontStyle *fstyle,
                        int but_flag,
                        FontStyleAlign text_align);
 /**
- * Version of #ui_draw_preview_item() that does not draw the menu background and item text based on
+ * Version of #draw_preview_item() that does not draw the menu background and item text based on
  * state. It just draws the preview and text directly.
  *
  * \param draw_as_icon: Instead of stretching the preview/icon to the available width/height, draw
@@ -1412,7 +1463,7 @@ void draw_preview_item_stateless(const uiFontStyle *fstyle,
  * Margin at top of screen for popups.
  * Note this value must be sufficient to draw a popover arrow to avoid cropping it.
  */
-#define UI_POPUP_MENU_TOP (int)(10 * UI_SCALE_FAC)
+#define UI_POPUP_MENU_TOP int(10 * UI_SCALE_FAC)
 
 #define UI_PIXEL_AA_JITTER 8
 extern const float ui_pixel_jitter[UI_PIXEL_AA_JITTER][2];
@@ -1427,7 +1478,6 @@ void style_init();
 
 /* `interface_icons.cc` */
 
-void icon_ensure_deferred(const bContext *C, int icon_id, bool big);
 /** Is \a icon_id a preview icon that is being loaded/rendered? */
 bool icon_is_preview_deferred_loading(int icon_id, bool big);
 int id_icon_get(const bContext *C, ID *id, bool big);
@@ -1479,7 +1529,7 @@ void item_paneltype_func(bContext *C, Layout *layout, void *arg_pt);
 
 /**
  * Every function that adds a set of buttons must create another group,
- * then #ui_def_but adds buttons to the current group (the last).
+ * then #def_but adds buttons to the current group (the last).
  */
 void block_new_button_group(Block *block, ButtonGroupFlag flag);
 void button_group_add_but(Block *block, Button *but);
@@ -1545,21 +1595,21 @@ bool button_is_cursor_warp(const Button *but) ATTR_WARN_UNUSED_RESULT;
 
 bool button_contains_pt(const Button *but, float mx, float my) ATTR_WARN_UNUSED_RESULT;
 bool button_contains_rect(const Button *but, const rctf *rect);
-bool ui_but_contains_point_px_icon(const Button *but,
-                                   ARegion *region,
-                                   const wmEvent *event) ATTR_WARN_UNUSED_RESULT;
+bool but_contains_point_px_icon(const Button *but,
+                                ARegion *region,
+                                const wmEvent *event) ATTR_WARN_UNUSED_RESULT;
 bool button_contains_point_px(const Button *but, const ARegion *region, const int xy[2])
     ATTR_NONNULL(1, 2, 3) ATTR_WARN_UNUSED_RESULT;
 
-Button *ui_list_find_mouse_over(const ARegion *region,
+Button *listbox_find_mouse_over(const ARegion *region,
                                 const wmEvent *event) ATTR_WARN_UNUSED_RESULT;
-Button *list_row_find_mouse_over(const ARegion *region, const int xy[2])
+Button *listrow_find_mouse_over(const ARegion *region, const int xy[2])
     ATTR_NONNULL(1, 2) ATTR_WARN_UNUSED_RESULT;
-Button *list_row_find_index(const ARegion *region,
-                            int index,
-                            Button *listbox) ATTR_WARN_UNUSED_RESULT;
+Button *listrow_find_index(const ARegion *region,
+                           int index,
+                           Button *listbox) ATTR_WARN_UNUSED_RESULT;
 Button *view_item_find_mouse_over(const ARegion *region, const int xy[2]) ATTR_NONNULL(1, 2);
-Button *view_item_find_active(const ARegion *region);
+Button *view_item_find_active(const ARegion *region, const AbstractView *view = nullptr);
 Button *view_item_find_search_highlight(const ARegion *region);
 
 using ButtonFindPollFn = bool (*)(const Button *but, const void *customdata);
@@ -1575,7 +1625,7 @@ Button *button_find_mouse_over_ex(const ARegion *region,
     ATTR_NONNULL(1, 2) ATTR_WARN_UNUSED_RESULT;
 Button *button_find_rect_over(const ARegion *region, const rcti *rect_px) ATTR_WARN_UNUSED_RESULT;
 
-Button *list_find_mouse_over_ex(const ARegion *region, const int xy[2])
+Button *listbox_find_mouse_over_ex(const ARegion *region, const int xy[2])
     ATTR_NONNULL(1, 2) ATTR_WARN_UNUSED_RESULT;
 
 bool but_contains_password(const Button *but) ATTR_WARN_UNUSED_RESULT;
@@ -1588,6 +1638,9 @@ Button *button_prev(Button *but) ATTR_WARN_UNUSED_RESULT;
 Button *button_next(Button *but) ATTR_WARN_UNUSED_RESULT;
 Button *button_first(Block *block) ATTR_WARN_UNUSED_RESULT;
 Button *button_last(Block *block) ATTR_WARN_UNUSED_RESULT;
+bool button_opens_link(const Button *button);
+std::string button_get_link(const Button *button, bContext *C);
+bool button_draw_as_link(const Button *button);
 
 Button *block_active_but_get(const Block *block);
 bool block_is_menu(const Block *block) ATTR_WARN_UNUSED_RESULT;
@@ -1651,11 +1704,15 @@ void UI_OT_eyedropper_driver(wmOperatorType *ot);
 
 void UI_OT_eyedropper_grease_pencil_color(wmOperatorType *ot);
 
+/* interface_ops_color.cc */
+
+MenuType *UI_MT_color_space_select();
+
 /* `templates/interface_template_asset_shelf_popover.cc` */
 std::optional<StringRefNull> asset_shelf_idname_from_button_context(const Button *but);
 
 /**
- * For use with #ui_rna_collection_search_update_fn.
+ * For use with #rna_collection_search_update_fn.
  */
 struct RNACollectionSearch {
   PointerRNA target_ptr;

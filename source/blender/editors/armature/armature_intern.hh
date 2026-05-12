@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include "DNA_armature_types.h"
 #include "DNA_listBase.h"
 
 #include "BLI_span.hh"
@@ -132,15 +133,34 @@ void POSE_OT_quaternions_flip(wmOperatorType *ot);
 
 /* `pose_utils.cc` */
 
-/* Temporary data linking PoseChannels with the F-Curves they affect */
-struct tPChanFCurveLink {
-  tPChanFCurveLink *next, *prev;
+/**
+ * Types of transforms to apply to a tPchanFCurveLink.
+ */
+enum eAction_TransformFlags {
+  ACT_TRANS_LOC = (1 << 0),
+  ACT_TRANS_ROT = (1 << 1),
+  ACT_TRANS_SCALE = (1 << 2),
+
+  /* BBone shape - for all the parameters, provided one is set. */
+  ACT_TRANS_BBONE = (1 << 3),
+  ACT_TRANS_PROP = (1 << 4),
+
+  ACT_TRANS_ONLY = (ACT_TRANS_LOC | ACT_TRANS_ROT | ACT_TRANS_SCALE),
+  ACT_TRANS_ALL = (ACT_TRANS_ONLY | ACT_TRANS_PROP),
+};
+
+/* Temporary struct wrapping data used for pose sliding. */
+struct SlideSubject {
+  SlideSubject *next, *prev;
 
   /** Object this Pose Channel belongs to. */
   Object *ob;
 
   /** F-Curves for this PoseChannel (wrapped with LinkData) */
-  ListBaseT<LinkData> fcurves;
+  Vector<FCurve *> fcurves;
+  /* This is used as an optimization to only do blending on transform types that actually have
+   * animation. */
+  eAction_TransformFlags transform_flag;
   /** Pose Channel which data is attached to */
   bPoseChannel *pchan;
 
@@ -174,35 +194,26 @@ struct tPChanFCurveLink {
 /** Returns a valid pose armature for this object, else returns NULL. */
 Object *poseAnim_object_get(Object *ob_);
 /**
- * Build up a list of tPChanFCurveLink. First only selected, and if that yields no result, all
+ * Build up a list of SlideSubject. First only selected, and if that yields no result, all
  * visible.
  */
-void poseAnim_mapping_get(bContext *C, ListBaseT<tPChanFCurveLink> *pfLinks);
-/** Free F-Curve <-> PoseChannel links. */
-void poseAnim_mapping_free(ListBaseT<tPChanFCurveLink> *pfLinks);
+void slide_subjects_get(bContext *C, ListBaseT<SlideSubject> *slide_subjects);
+/** Free all slide targets. */
+void slide_subjects_free(ListBaseT<SlideSubject> *slide_subjects);
 
 /**
  * Helper for apply() / reset() - refresh the data.
  */
-void poseAnim_mapping_refresh(bContext *C, Scene *scene, Object *ob);
+void slide_subjects_refresh(bContext *C, Scene *scene, Object *ob);
 /**
- * Reset changes made to current pose.
+ * Reset changes made to current slide targets back to their stored values.
  */
-void poseAnim_mapping_reset(ListBaseT<tPChanFCurveLink> *pfLinks);
+void slide_subjects_reset(ListBaseT<SlideSubject> *slide_subjects);
 /** Perform auto-key-framing after changes were made + confirmed. */
-void poseAnim_mapping_autoKeyframe(bContext *C,
-                                   Scene *scene,
-                                   ListBaseT<tPChanFCurveLink> *pfLinks,
-                                   float cframe);
-
-/**
- * Find the next F-Curve for a PoseChannel with matching path.
- * - `path` is not just the #tPChanFCurveLink (`pfl`) rna_path,
- *   since that path doesn't have property info yet.
- */
-LinkData *poseAnim_mapping_getNextFCurve(ListBaseT<LinkData> *fcuLinks,
-                                         LinkData *prev,
-                                         const char *path);
+void slide_subjects_autokey(bContext *C,
+                            Scene *scene,
+                            ListBaseT<SlideSubject> *slide_subjects,
+                            float cframe);
 
 /** \} */
 
@@ -271,7 +282,7 @@ void armature_tag_select_mirrored(bArmature *arm);
  * Helper function for tools to work on mirrored parts.
  * it leaves mirrored bones selected then too, which is a good indication of what happened.
  */
-void armature_select_mirrored_ex(bArmature *arm, int flag);
+void armature_select_mirrored_ex(bArmature *arm, eBone_Flag flag);
 void armature_select_mirrored(bArmature *arm);
 /** Only works when tagged. */
 void armature_tag_unselect(bArmature *arm);

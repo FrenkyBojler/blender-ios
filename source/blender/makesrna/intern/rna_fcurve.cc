@@ -475,7 +475,7 @@ static void rna_DriverVariable_type_set(PointerRNA *ptr, int value)
   DriverVar *dvar = static_cast<DriverVar *>(ptr->data);
 
   /* call the API function for this */
-  driver_change_variable_type(dvar, value);
+  driver_change_variable_type(dvar, eDriverVar_Types(value));
 }
 
 void rna_DriverVariable_name_set(PointerRNA *ptr, const char *value)
@@ -588,7 +588,7 @@ static std::optional<std::string> rna_FCurve_path(const PointerRNA *ptr)
 
   /* If the F-Curve is not owned by an Action, bail out early. It could be a driver, NLA control
    * curve, or stored in some place that's yet unknown at the time of writing of this code. */
-  if (GS(ptr->owner_id) != ID_AC) {
+  if (GS(ptr->owner_id->name) != ID_AC) {
     return {};
   }
 

@@ -202,7 +202,7 @@ static int filelist_add_userfonts_regpath(HKEY hKeyParent,
       /* Find last slash to determine basename/relpath portion. */
       const char *val_str = (const char *)KeyValue;
       const char *lslash_str = BLI_path_slash_rfind(val_str);
-      const size_t lslash = lslash_str ? (size_t)(lslash_str - val_str) + 1 : 0;
+      const size_t lslash = lslash_str ? size_t(lslash_str - val_str) + 1 : 0;
 
       BLI_stat(val_str, &entry->st);
       entry->relpath = BLI_strdup(val_str + lslash);
@@ -844,14 +844,6 @@ void filelist_readjob_directories_and_libraries(const bool do_lib,
   filelist->filelist.entries_num = 0;
 
   filelist_readjob_recursive_dir_add_items(do_lib, job_params, stop, do_update, progress);
-}
-
-void filelist_readjob_dir(FileListReadJob *job_params,
-                          bool *stop,
-                          bool *do_update,
-                          float *progress)
-{
-  filelist_readjob_directories_and_libraries(false, job_params, stop, do_update, progress);
 }
 
 /** \} */

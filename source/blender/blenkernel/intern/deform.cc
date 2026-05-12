@@ -6,6 +6,7 @@
  * \ingroup bke
  */
 
+#include <algorithm>
 #include <cctype>
 #include <cstddef>
 #include <cstdlib>
@@ -512,6 +513,8 @@ static const int *object_defgroup_active_index_get_p(const Object *ob)
       const GreasePencil *grease_pencil = id_cast<const GreasePencil *>(ob->data);
       return &grease_pencil->vertex_group_active_index;
     }
+    default:
+      break;
   }
   return nullptr;
 }
@@ -1101,7 +1104,7 @@ void BKE_defvert_extract_vgroup_to_vertweights(const MDeformVert *dvert,
     }
   }
   else {
-    copy_vn_fl(r_weights, verts_num, invert_vgroup ? 1.0f : 0.0f);
+    std::fill_n(r_weights, verts_num, invert_vgroup ? 1.0f : 0.0f);
   }
 }
 
@@ -1113,7 +1116,7 @@ void BKE_defvert_extract_vgroup_to_edgeweights(const MDeformVert *dvert,
                                                float *r_weights)
 {
   if (UNLIKELY(!dvert || defgroup == -1)) {
-    copy_vn_fl(r_weights, edges.size(), 0.0f);
+    std::fill_n(r_weights, edges.size(), 0.0f);
     return;
   }
 
@@ -1140,7 +1143,7 @@ void BKE_defvert_extract_vgroup_to_loopweights(const MDeformVert *dvert,
                                                float *r_weights)
 {
   if (UNLIKELY(!dvert || defgroup == -1)) {
-    copy_vn_fl(r_weights, corner_verts.size(), 0.0f);
+    std::fill_n(r_weights, corner_verts.size(), 0.0f);
     return;
   }
 
@@ -1166,7 +1169,7 @@ void BKE_defvert_extract_vgroup_to_faceweights(const MDeformVert *dvert,
                                                float *r_weights)
 {
   if (UNLIKELY(!dvert || defgroup == -1)) {
-    copy_vn_fl(r_weights, faces.size(), 0.0f);
+    std::fill_n(r_weights, faces.size(), 0.0f);
     return;
   }
 
@@ -1623,7 +1626,7 @@ void BKE_defvert_blend_read(BlendDataReader *reader, int count, MDeformVert *mdv
   for (int i = count; i > 0; i--, mdverts++) {
     /* Convert to vertex group allocation system. */
     MDeformWeight *dw = mdverts->dw;
-    BLO_read_struct_array(reader, MDeformWeight, mdverts->totweight, &dw);
+    BLO_read_array_and_validate_size(reader, &dw, &mdverts->totweight);
     if (dw) {
       void *dw_tmp = MEM_new_array_uninitialized<MDeformWeight>(size_t(mdverts->totweight),
                                                                 __func__);
@@ -1781,11 +1784,13 @@ void gather_deform_verts(const Span<MDeformVert> src,
                          const IndexMask &indices,
                          MutableSpan<MDeformVert> dst)
 {
-  indices.foreach_index(GrainSize(512), [&](const int64_t src_i, const int64_t dst_i) {
-    dst[dst_i].dw = MEM_dupalloc(src[src_i].dw);
-    dst[dst_i].totweight = src[src_i].totweight;
-    dst[dst_i].flag = src[src_i].flag;
-  });
+  indices.foreach_index(
+      [&](const int64_t src_i, const int64_t dst_i) {
+        dst[dst_i].dw = MEM_dupalloc(src[src_i].dw);
+        dst[dst_i].totweight = src[src_i].totweight;
+        dst[dst_i].flag = src[src_i].flag;
+      },
+      exec_mode::grain_size(512));
 }
 
 MDeformVert mix_deform_verts(const Span<MDeformVert> src,

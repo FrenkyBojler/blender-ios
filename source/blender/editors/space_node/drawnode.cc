@@ -7,7 +7,7 @@
  * \brief lower level node drawing for nodes (boarders, headers etc), also node layout.
  */
 
-#include "BLI_color.hh"
+#include "BLI_color_types.hh"
 #include "BLI_listbase.h"
 #include "BLI_string_utf8.h"
 #include "BLI_threads.h"
@@ -62,6 +62,7 @@
 #include "IMB_imbuf_types.hh"
 
 #include "NOD_geometry.hh"
+#include "NOD_geometry_nodes_bundle.hh"
 #include "NOD_geometry_nodes_gizmos.hh"
 #include "NOD_node_declaration.hh"
 #include "NOD_socket.hh"
@@ -331,7 +332,12 @@ static void node_buts_image_user(ui::Layout &layout,
     ui::Layout &split = layout.split(0.33f, true);
     PointerRNA colorspace_settings_ptr = RNA_pointer_get(imaptr, "colorspace_settings");
     split.label(IFACE_("Color Space"), ICON_NONE);
-    split.prop(&colorspace_settings_ptr, "name", DEFAULT_FLAGS, "", ICON_NONE);
+    split.prop_with_menu(&colorspace_settings_ptr,
+                         "name",
+                         DEFAULT_FLAGS,
+                         "",
+                         ICON_NONE,
+                         "UI_MT_color_space_select");
 
     if (image->source != IMA_SRC_GENERATED) {
       ui::Layout &split_2 = layout.split(0.33f, true);
@@ -770,6 +776,9 @@ static void node_texture_buts_proc(ui::Layout &layout, bContext * /*C*/, Pointer
       col.prop(&tex_ptr, "color_mode", DEFAULT_FLAGS, "", ICON_NONE);
       break;
     }
+    case TEX_NOISE:
+    case TEX_IMAGE:
+      break;
   }
 }
 
@@ -999,7 +1008,8 @@ static const float std_node_socket_colors[][4] = {
     {0, 0, 0, 1},            /* SOCK_SCENE */
     {0, 0, 0, 1},            /* SOCK_TEXT_ID */
     {0, 0, 0, 1},            /* SOCK_MASK */
-    {0, 0, 0, 1},            /* SOCK_SOUND */
+    {0.39, 0.34, 0.26, 1},   /* SOCK_SOUND */
+    {0.36, 0.47, 0.61, 1.0}, /* SOCK_INT_VECTOR */
 };
 
 void std_node_socket_colors_get(int socket_type, float *r_color)
@@ -1027,18 +1037,19 @@ static void std_node_socket_color_simple_fn(const bke::bNodeSocketType *type, fl
 using SocketColorFn = void (*)(bContext *C, PointerRNA *ptr, PointerRNA *node_ptr, float *r_color);
 /* Callbacks for all built-in socket types. */
 static const SocketColorFn std_node_socket_color_funcs[] = {
-    std_node_socket_color_fn<SOCK_FLOAT>,    std_node_socket_color_fn<SOCK_VECTOR>,
-    std_node_socket_color_fn<SOCK_RGBA>,     std_node_socket_color_fn<SOCK_SHADER>,
-    std_node_socket_color_fn<SOCK_BOOLEAN>,  nullptr /* UNUSED. */,
-    std_node_socket_color_fn<SOCK_INT>,      std_node_socket_color_fn<SOCK_STRING>,
-    std_node_socket_color_fn<SOCK_OBJECT>,   std_node_socket_color_fn<SOCK_IMAGE>,
-    std_node_socket_color_fn<SOCK_GEOMETRY>, std_node_socket_color_fn<SOCK_COLLECTION>,
-    std_node_socket_color_fn<SOCK_TEXTURE>,  std_node_socket_color_fn<SOCK_MATERIAL>,
-    std_node_socket_color_fn<SOCK_ROTATION>, std_node_socket_color_fn<SOCK_MENU>,
-    std_node_socket_color_fn<SOCK_MATRIX>,   std_node_socket_color_fn<SOCK_BUNDLE>,
-    std_node_socket_color_fn<SOCK_CLOSURE>,  std_node_socket_color_fn<SOCK_FONT>,
-    std_node_socket_color_fn<SOCK_SCENE>,    std_node_socket_color_fn<SOCK_TEXT_ID>,
-    std_node_socket_color_fn<SOCK_MASK>,     std_node_socket_color_fn<SOCK_SOUND>,
+    std_node_socket_color_fn<SOCK_FLOAT>,      std_node_socket_color_fn<SOCK_VECTOR>,
+    std_node_socket_color_fn<SOCK_RGBA>,       std_node_socket_color_fn<SOCK_SHADER>,
+    std_node_socket_color_fn<SOCK_BOOLEAN>,    nullptr /* UNUSED. */,
+    std_node_socket_color_fn<SOCK_INT>,        std_node_socket_color_fn<SOCK_STRING>,
+    std_node_socket_color_fn<SOCK_OBJECT>,     std_node_socket_color_fn<SOCK_IMAGE>,
+    std_node_socket_color_fn<SOCK_GEOMETRY>,   std_node_socket_color_fn<SOCK_COLLECTION>,
+    std_node_socket_color_fn<SOCK_TEXTURE>,    std_node_socket_color_fn<SOCK_MATERIAL>,
+    std_node_socket_color_fn<SOCK_ROTATION>,   std_node_socket_color_fn<SOCK_MENU>,
+    std_node_socket_color_fn<SOCK_MATRIX>,     std_node_socket_color_fn<SOCK_BUNDLE>,
+    std_node_socket_color_fn<SOCK_CLOSURE>,    std_node_socket_color_fn<SOCK_FONT>,
+    std_node_socket_color_fn<SOCK_SCENE>,      std_node_socket_color_fn<SOCK_TEXT_ID>,
+    std_node_socket_color_fn<SOCK_MASK>,       std_node_socket_color_fn<SOCK_SOUND>,
+    std_node_socket_color_fn<SOCK_INT_VECTOR>,
 };
 
 static bool socket_needs_attribute_search(bNode &node, bNodeSocket &socket)
@@ -1084,6 +1095,17 @@ static bool socket_needs_volume_grid_search(const bNode &node, const bNodeSocket
     return false;
   }
   return socket.runtime->declaration->is_volume_grid_name;
+}
+
+static bool socket_needs_bundle_type_search(const bNode &node, const bNodeSocket &socket)
+{
+  if (node.type_legacy == NODE_COMBINE_BUNDLE) {
+    return socket.name == nodes::Bundle::type_item_name;
+  }
+  if (node.is_type("NodeGetNestedBundlePaths"_ustr)) {
+    return socket.name == StringRef("Bundle Type");
+  }
+  return false;
 }
 
 static void draw_gizmo_pin_icon(ui::Layout *layout, PointerRNA *socket_ptr)
@@ -1192,7 +1214,9 @@ static void std_node_socket_draw(
           ui::Layout *column = &layout->column(false);
           {
             ui::Layout *row = &column->row(true);
-            draw_node_socket_name_editable(row, sock, label_or_empty);
+            if (!optional_label) {
+              draw_node_socket_name_editable(row, sock, label_or_empty);
+            }
             if (has_gizmo) {
               draw_gizmo_pin_icon(row, ptr);
               gizmo_handled = true;
@@ -1202,11 +1226,28 @@ static void std_node_socket_draw(
         }
       }
       break;
+    case SOCK_INT_VECTOR:
+      if (socket_decl && socket_decl->compact) {
+        template_component_menu(layout, ptr, "default_value", label_or_empty);
+      }
+      else {
+        ui::Layout *column = &layout->column(false);
+        {
+          ui::Layout *row = &column->row(true);
+          if (!optional_label) {
+            draw_node_socket_name_editable(row, sock, label_or_empty);
+          }
+        }
+        column->prop(ptr, "default_value", DEFAULT_FLAGS, "", ICON_NONE);
+      }
+      break;
     case SOCK_ROTATION: {
       ui::Layout *column = &layout->column(false);
       {
         ui::Layout *row = &column->row(true);
-        draw_node_socket_name_editable(row, sock, label_or_empty);
+        if (!optional_label) {
+          draw_node_socket_name_editable(row, sock, label_or_empty);
+        }
         if (has_gizmo) {
           draw_gizmo_pin_icon(row, ptr);
           gizmo_handled = true;
@@ -1269,6 +1310,16 @@ static void std_node_socket_draw(
           node_geometry_add_volume_grid_search_button(*C, *node, *ptr, *row);
         }
       }
+      else if (socket_needs_bundle_type_search(*node, *sock)) {
+        if (optional_label) {
+          node_bundle_type_add_string_search_button(*C, *node, *ptr, *layout, label);
+        }
+        else {
+          ui::Layout *row = &layout->split(0.4f, false);
+          row->label(label, ICON_NONE);
+          node_bundle_type_add_string_search_button(*C, *node, *ptr, *row);
+        }
+      }
       else {
         if (optional_label) {
           layout->prop(ptr,
@@ -1305,7 +1356,7 @@ static void std_node_socket_draw(
           if (optional_label) {
             if (expanded) {
               /* Use a single space for the name to work around a bug. Also see
-               * #ui_item_enum_expand_exec. */
+               * #item_enum_expand_exec. */
               layout->prop(ptr, "default_value", ui::ITEM_R_EXPAND, " ", ICON_NONE);
             }
             else {
@@ -1317,7 +1368,7 @@ static void std_node_socket_draw(
             row.label(label, ICON_NONE);
             if (expanded) {
               /* Use a single space for the name to work around a bug. Also see
-               * #ui_item_enum_expand_exec. */
+               * #item_enum_expand_exec. */
               row.row(true).prop(ptr, "default_value", ui::ITEM_R_EXPAND, " ", ICON_NONE);
             }
             else {
@@ -1339,8 +1390,7 @@ static void std_node_socket_draw(
     case SOCK_MATERIAL:
     case SOCK_SCENE:
     case SOCK_TEXT_ID:
-    case SOCK_MASK:
-    case SOCK_SOUND: {
+    case SOCK_MASK: {
       if (optional_label) {
         layout->prop(ptr,
                      RNA_struct_find_property(ptr, "default_value"),
@@ -1360,7 +1410,18 @@ static void std_node_socket_draw(
                      label,
                      ICON_NONE);
       }
-
+      break;
+    }
+    case SOCK_SOUND: {
+      if (optional_label) {
+        template_id(layout, C, ptr, "default_value", nullptr, "SOUND_OT_open", nullptr);
+      }
+      else {
+        /* 0.3 is consistent with image sockets. */
+        ui::Layout *row = &layout->split(0.3f, false);
+        row->label(label, ICON_NONE);
+        template_id(row, C, ptr, "default_value", nullptr, "SOUND_OT_open", nullptr);
+      }
       break;
     }
     case SOCK_FONT: {
@@ -1459,6 +1520,19 @@ static void std_node_socket_interface_draw(ID *id,
       sub->prop(&ptr, "max_value", DEFAULT_FLAGS, IFACE_("Max"), ICON_NONE);
       break;
     }
+    case SOCK_INT_VECTOR: {
+      col->prop(&ptr, "subtype", DEFAULT_FLAGS, IFACE_("Subtype"), ICON_NONE);
+      col->prop(&ptr,
+                "dimensions",
+                DEFAULT_FLAGS,
+                CTX_IFACE_(BLT_I18NCONTEXT_ID_TEXTURE, "Dimensions"),
+                ICON_NONE);
+      col->prop(&ptr, "default_value", ui::ITEM_R_EXPAND, IFACE_("Default"), ICON_NONE);
+      ui::Layout *sub = &col->column(true);
+      sub->prop(&ptr, "min_value", DEFAULT_FLAGS, IFACE_("Min"), ICON_NONE);
+      sub->prop(&ptr, "max_value", DEFAULT_FLAGS, IFACE_("Max"), ICON_NONE);
+      break;
+    }
     case SOCK_STRING: {
       col->prop(&ptr, "subtype", DEFAULT_FLAGS, IFACE_("Subtype"), ICON_NONE);
       col->prop(&ptr, "default_value", DEFAULT_FLAGS, IFACE_("Default"), ICON_NONE);
@@ -1522,9 +1596,7 @@ static void std_node_socket_interface_draw(ID *id,
     ui::Layout *sub = &col->column(false);
     sub->active_set(!is_layer_selection_field(*interface_socket));
     sub->prop(&ptr, "hide_in_modifier", DEFAULT_FLAGS, std::nullopt, ICON_NONE);
-    if (nodes::socket_type_supports_fields(type) || nodes::socket_type_supports_grids(type)) {
-      sub->prop(&ptr, "structure_type", DEFAULT_FLAGS, IFACE_("Shape"), ICON_NONE);
-    }
+    sub->prop(&ptr, "structure_type", DEFAULT_FLAGS, IFACE_("Shape"), ICON_NONE);
   }
 }
 
@@ -1624,7 +1696,7 @@ void draw_nodespace_back_pix(const bContext &C,
 
   void *lock;
   Image *ima = BKE_image_ensure_viewer(bmain, IMA_TYPE_COMPOSITE, "Viewer Node");
-  ImBuf *ibuf = BKE_image_acquire_ibuf(ima, nullptr, &lock);
+  ImBuf *ibuf = BKE_image_acquire_ibuf_gpu(ima, nullptr, &lock);
   if (ibuf) {
     /* somehow the offset has to be calculated inverse */
     wmOrtho2_region_pixelspace(&region);

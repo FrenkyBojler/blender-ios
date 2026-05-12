@@ -179,7 +179,7 @@ static void text_blend_write(BlendWriter *writer, ID *id, const void *id_address
   BKE_id_blend_write(writer, &text->id);
 
   if (text->filepath) {
-    BLO_write_string(writer, text->filepath);
+    writer->write_string(text->filepath);
   }
 
   if (!(text->flags & TXT_ISEXT)) {
@@ -189,7 +189,7 @@ static void text_blend_write(BlendWriter *writer, ID *id, const void *id_address
     }
 
     for (TextLine &tmp : text->lines) {
-      BLO_write_string(writer, tmp.line);
+      writer->write_string(tmp.line);
     }
   }
 }
@@ -217,9 +217,10 @@ static void text_blend_read_data(BlendDataReader *reader, ID *id)
     BLO_read_string(reader, &ln.line);
     ln.format = nullptr;
 
-    if (ln.len != int(strlen(ln.line))) {
+    const int actual_len = ln.line ? int(strlen(ln.line)) : 0;
+    if (ln.len != actual_len) {
       printf("Error loading text, line lengths differ\n");
-      ln.len = strlen(ln.line);
+      ln.len = actual_len;
     }
   }
 

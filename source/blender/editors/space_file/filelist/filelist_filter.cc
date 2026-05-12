@@ -7,6 +7,7 @@
  */
 
 #include "AS_asset_representation.hh"
+#include "AS_essentials_library.hh"
 
 #include "BLI_fnmatch.h"
 #include "BLI_listbase.h"
@@ -14,6 +15,7 @@
 #include "BLI_string.h"
 #include "BLI_string_search.hh"
 #include "BLI_string_utf8.h"
+#include "BLI_uuid.h"
 #include "BLI_vector.hh"
 
 #include "BKE_idtype.hh"
@@ -190,6 +192,9 @@ bool is_filtered_asset(FileListInternEntry *file, FileListFilter *filter)
   if (((filter->flags & FLF_ASSETS_HIDE_ONLINE) != 0) && asset->is_online()) {
     return false;
   }
+  if (asset_system::skip_experimental_asset_catalog(asset_data.catalog_id)) {
+    return false;
+  }
 
   /* The actual string search is handled for the whole list at once, to allow sorting of the
    * results. */
@@ -209,11 +214,6 @@ static bool is_filtered_lib_type(FileListInternEntry *file,
 bool is_filtered_lib(FileListInternEntry *file, const char *root, FileListFilter *filter)
 {
   return is_filtered_lib_type(file, root, filter) && is_filtered_file_relpath(file, filter);
-}
-
-bool is_filtered_main(FileListInternEntry *file, const char * /*dir*/, FileListFilter *filter)
-{
-  return !is_filtered_hidden(file->relpath, filter, file);
 }
 
 bool is_filtered_main_assets(FileListInternEntry *file,
