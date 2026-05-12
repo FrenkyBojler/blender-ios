@@ -738,6 +738,21 @@ class NODE_OT_add_typed_bundle(NodeAddOperator, bpy.types.Operator):
         return {"FINISHED"}
 
 
+class NODE_OT_swap_typed_bundle(NodeAddOperator, bpy.types.Operator):
+    bl_idname = "node.swap_typed_bundle"
+    bl_label = "Swap Typed Bundle"
+    bl_description = "Swap existing node with a Combine Bundle node with a type input"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        bpy.ops.node.swap_node('INVOKE_DEFAULT', type="NodeCombineBundle")
+
+        for node in context.selected_nodes:
+            node.bundle_items.new("STRING", "Type")
+
+        return {"FINISHED"}
+
+
 class ZoneOperator:
     offset: FloatVectorProperty(
         name="Offset",
@@ -1520,6 +1535,7 @@ classes = (
     NODE_OT_add_foreach_geometry_element_zone,
     NODE_OT_add_closure_zone,
     NODE_OT_add_typed_bundle,
+    NODE_OT_swap_typed_bundle,
     NODE_OT_collapse_hide_unused_toggle,
     NODE_OT_interface_item_new,
     NODE_OT_interface_item_new_panel_toggle,
