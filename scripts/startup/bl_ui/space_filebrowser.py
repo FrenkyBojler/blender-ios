@@ -813,8 +813,12 @@ class ASSETBROWSER_PT_import(asset_utils.AssetMetaDataPanel, Panel):
         if not asset_utils.AssetMetaDataPanel.poll(context):
             return False
 
-        asset = context.asset
-        return getattr(asset.metadata, "default_import_method")
+        metadata = context.asset.metadata
+        # Hide the import options when the import method cannot be edited and isn't used.
+        if metadata.is_property_readonly("use_preferred_import_method") and not metadata.use_preferred_import_method:
+            return False
+
+        return True
 
     def draw(self, context):
         layout = self.layout
@@ -824,10 +828,10 @@ class ASSETBROWSER_PT_import(asset_utils.AssetMetaDataPanel, Panel):
         layout.use_property_decorate = False  # No animation.
 
         row = layout.row(align=True, heading="Preferred Method")
-        row.prop(asset.metadata, "use_own_default_import_method", text="")
+        row.prop(asset.metadata, "use_preferred_import_method", text="")
         sub = row.row(align=True)
-        sub.active = asset.metadata.use_own_default_import_method
-        sub.prop(asset.metadata, "default_import_method", text="")
+        sub.active = asset.metadata.use_preferred_import_method
+        sub.prop(asset.metadata, "preferred_import_method", text="")
 
 
 class ASSETBROWSER_PT_metadata_preview(asset_utils.AssetMetaDataPanel, Panel):

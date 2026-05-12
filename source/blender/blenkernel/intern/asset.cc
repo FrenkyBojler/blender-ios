@@ -51,7 +51,7 @@ AssetMetaData::AssetMetaData(const AssetMetaData &other)
       active_tag(other.active_tag),
       tot_tags(other.tot_tags),
       flag(other.flag),
-      default_import_method(other.default_import_method)
+      preferred_import_method(other.preferred_import_method)
 {
   if (other.properties) {
     properties = IDP_CopyProperty(other.properties);
@@ -78,7 +78,7 @@ AssetMetaData::AssetMetaData(AssetMetaData &&other)
       active_tag(other.active_tag),
       tot_tags(other.tot_tags),
       flag(other.flag),
-      default_import_method(other.default_import_method)
+      preferred_import_method(other.preferred_import_method)
 
 {
   STRNCPY(catalog_simple_name, other.catalog_simple_name);

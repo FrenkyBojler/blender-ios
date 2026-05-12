@@ -407,7 +407,7 @@ void rna_AssetMetaData_catalog_id_update(bContext *C, PointerRNA *ptr)
   asset_library->refresh_catalog_simplename(asset_data);
 }
 
-static const EnumPropertyItem *rna_AssetMetaData_default_import_method_itemf(
+static const EnumPropertyItem *rna_AssetMetaData_preferred_import_method_itemf(
     bContext * /*C*/, PointerRNA * /*ptr*/, PropertyRNA * /*prop*/, bool *r_free)
 {
   EnumPropertyItem *items = nullptr;
@@ -438,7 +438,7 @@ static const EnumPropertyItem *rna_AssetMetaData_default_import_method_itemf(
   return items;
 }
 
-int rna_AssetMetaData_default_import_method_default(PointerRNA * /*ptr*/, PropertyRNA * /*prop*/)
+int rna_AssetMetaData_preferred_import_method_default(PointerRNA * /*ptr*/, PropertyRNA * /*prop*/)
 {
   return U.experimental.no_data_block_packing ? ASSET_IMPORT_APPEND_REUSE : ASSET_IMPORT_PACK;
 }
@@ -690,19 +690,19 @@ static void rna_def_asset_data(BlenderRNA *brna)
                            "Simple name of the asset's catalog, for debugging and "
                            "data recovery purposes");
 
-  prop = RNA_def_property(srna, "use_own_default_import_method", PROP_BOOLEAN, PROP_BOOLEAN);
+  prop = RNA_def_property(srna, "use_preferred_import_method", PROP_BOOLEAN, PROP_BOOLEAN);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", ASSETDATA_USE_OWN_IMPORT_METHOD);
   RNA_def_property_editable_func(prop, "rna_AssetMetaData_editable");
   RNA_def_property_ui_text(prop,
-                           "Own Default Import Method",
+                           "Use Preferred Import Method",
                            "When \"Follow Asset or Preferences\" is selected for the import "
-                           "method, use the import method defined for this asset");
+                           "method, use the preferred import method of this asset");
 
-  prop = RNA_def_property(srna, "default_import_method", PROP_ENUM, PROP_NONE);
+  prop = RNA_def_property(srna, "preferred_import_method", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, rna_enum_asset_import_method_items);
   RNA_def_property_enum_funcs(
-      prop, nullptr, nullptr, "rna_AssetMetaData_default_import_method_itemf");
-  RNA_def_property_enum_default_func(prop, "rna_AssetMetaData_default_import_method_default");
+      prop, nullptr, nullptr, "rna_AssetMetaData_preferred_import_method_itemf");
+  RNA_def_property_enum_default_func(prop, "rna_AssetMetaData_preferred_import_method_default");
   RNA_def_property_editable_func(prop, "rna_AssetMetaData_editable");
   RNA_def_property_ui_text(prop,
                            "Default Import Method",

@@ -240,7 +240,7 @@ std::optional<eAssetImportMethod> AssetRepresentation::get_import_method() const
 {
   const AssetMetaData &metadata = this->get_metadata();
   if (metadata.flag & ASSETDATA_USE_OWN_IMPORT_METHOD) {
-    return metadata.default_import_method;
+    return metadata.preferred_import_method;
   }
   return owner_asset_library_.import_method();
 }

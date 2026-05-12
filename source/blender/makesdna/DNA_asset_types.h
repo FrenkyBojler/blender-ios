@@ -134,7 +134,7 @@ struct AssetMetaData {
 
   /** The import method to use when "Follow Asset or Preferences" is used and
    * #AssetMetaDataFlag::ASSETDATA_USE_OWN_IMPORT_METHOD is set in the flags above. */
-  eAssetImportMethod default_import_method = ASSET_IMPORT_PACK;
+  eAssetImportMethod preferred_import_method = ASSET_IMPORT_PACK;
 
   char _pad[4] = {};
 
