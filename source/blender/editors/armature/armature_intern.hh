@@ -11,6 +11,8 @@
 #include "DNA_armature_types.h"
 #include "DNA_listBase.h"
 
+#include "RNA_types.hh"
+
 #include "BLI_span.hh"
 
 namespace blender {
@@ -27,7 +29,6 @@ struct bArmature;
 struct bContext;
 struct bPoseChannel;
 struct wmOperatorType;
-struct PointerRNA;
 
 /* -------------------------------------------------------------------- */
 /** \name Armature EditMode Operators
@@ -165,7 +166,7 @@ struct SlideSubject {
   Object *ob;
 
   /* A pointer to the data represented by this link. */
-  struct PointerRNA ptr;
+  PointerRNA ptr;
 
   /** F-Curves for this PoseChannel (wrapped with LinkData) */
   Vector<FCurve *> fcurves;

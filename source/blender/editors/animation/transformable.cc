@@ -1,0 +1,25 @@
+/* SPDX-FileCopyrightText: 2026 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
+
+/** \file
+ * \ingroup edanimation
+ */
+
+#include "BLI_math_base.h"
+
+#include "ED_transformable.hh"
+
+namespace blender::ed {
+
+TransformFloats property_interpolated(const Span<float> a, const Span<float> b, float factor)
+{
+  BLI_assert(a.size() == b.size());
+  TransformFloats interpolated(a.size());
+  for (const int i : a.index_range()) {
+    interpolated[i] = interpf(b[i], a[i], factor);
+  }
+  return interpolated;
+}
+
+}  // namespace blender::ed

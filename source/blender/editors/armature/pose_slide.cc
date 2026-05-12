@@ -68,6 +68,7 @@
 #include "ED_util.hh"
 
 #include "ANIM_fcurve.hh"
+#include "ANIM_rna.hh"
 
 #include "armature_intern.hh"
 
@@ -321,6 +322,22 @@ static void pose_slide_exit(bContext *C, wmOperator *op)
 
 /* ------------------------------------ */
 
+static bool pose_frame_range_from_id_get(const tPoseSlideOp *pso,
+                                         const ID *id,
+                                         float *prev_frame,
+                                         float *next_frame)
+{
+  for (const ObjectFrameRange &offset_range : pso->ob_data_array) {
+    if (&offset_range.ob->id == id) {
+      *prev_frame = offset_range.prev_frame;
+      *next_frame = offset_range.next_frame;
+      return true;
+    }
+  }
+  *prev_frame = *next_frame = 0.0f;
+  return false;
+}
+
 /**
  * Helper for apply() / reset() - refresh the data.
  */
@@ -467,6 +484,76 @@ static void pose_slide_apply_vec3(tPoseSlideOp *pso,
 
   /* Free the temp path we got. */
   MEM_delete(path);
+}
+
+static void pose_slide_apply_property_snapshots(tPoseSlideOp &pso,
+                                                SlideSubject &slide_subject,
+                                                const Span<PropertySnapshot> snapshots)
+{
+  for (const PropertySnapshot &snapshot : snapshots) {
+    std::optional<std::string> path = RNA_path_from_ID_to_property(&slide_subject.ptr,
+                                                                   snapshot.property);
+    if (!path) {
+      BLI_assert_unreachable();
+      continue;
+    }
+    const float factor = ED_slider_factor_get(pso.slider);
+    Array<float> base_values = snapshot.values;
+    Array<float> next_frame_values = base_values;
+    Array<float> prev_frame_values = base_values;
+    {
+      float prev_frame, next_frame;
+      pose_frame_range_from_id_get(&pso, slide_subject.ptr.owner_id, &prev_frame, &next_frame);
+      const Vector<FCurve *> fcurves = fcurves_filtered_by_path(slide_subject.fcurves,
+                                                                path.value());
+      if (fcurves.size() == 0) {
+        /* Property is not animated. */
+        continue;
+      }
+      for (const FCurve *fcurve : fcurves) {
+        prev_frame_values[fcurve->array_index] = evaluate_fcurve(fcurve, prev_frame);
+        next_frame_values[fcurve->array_index] = evaluate_fcurve(fcurve, next_frame);
+      }
+    }
+
+    Array<float> values;
+    switch (pso.mode) {
+      case POSESLIDE_PUSH:
+      case POSESLIDE_RELAX: {
+        /* See comment in `pose_slide_apply_linear` for the meaning of those values
+         * and push/relax. */
+        const float current_frame_factor = (pso.current_frame - pso.prev_frame) /
+                                           float(pso.next_frame - pso.prev_frame);
+        const Array<float> current_frame_breakdown = ed::property_interpolated(
+            prev_frame_values, next_frame_values, current_frame_factor);
+        const float factor_sign = pso.mode == POSESLIDE_RELAX ? 1 : -1;
+        values = ed::property_interpolated(
+            base_values, current_frame_breakdown, factor * factor_sign);
+        break;
+      }
+
+      case POSESLIDE_BREAKDOWN:
+        values = ed::property_interpolated(prev_frame_values, next_frame_values, factor);
+        break;
+
+      case POSESLIDE_BLEND: {
+        const float blend_factor = fabs((factor - 0.5f) * 2);
+        if (factor < 0.5) {
+          values = ed::property_interpolated(base_values, prev_frame_values, blend_factor);
+        }
+        else {
+          values = ed::property_interpolated(base_values, next_frame_values, blend_factor);
+        }
+        break;
+      }
+      case POSESLIDE_BLEND_REST:
+        /* Those are handled in pose_slide_rest_pose_apply. */
+        BLI_assert_unreachable();
+        values = base_values;
+        break;
+    }
+    animrig::rna_property_set_as_float(slide_subject.ptr, *snapshot.property, values);
+  }
 }
 
 /**
@@ -802,11 +889,10 @@ static void pose_slide_rest_pose_apply(bContext *C, tPoseSlideOp *pso)
       // pose_slide_apply_props(pso, slide_subject, "bbone_");
     }
 
-    if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_PROPS) && (slide_subject.oldprops)) {
+    if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_PROPS)) {
       /* Not strictly a transform, but custom properties contribute
        * to the pose produced in many rigs (e.g. the facial rigs used in Sintel). */
       /* TODO: Not implemented. */
-      // pose_slide_apply_props(pso, slide_subject, "[\"");
     }
   }
 
@@ -885,10 +971,8 @@ static void pose_slide_apply(bContext *C, tPoseSlideOp *pso)
       pose_slide_apply_props(pso, &slide_subject, "bbone_");
     }
 
-    if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_PROPS) && (slide_subject.oldprops)) {
-      /* Not strictly a transform, but custom properties contribute
-       * to the pose produced in many rigs (e.g. the facial rigs used in Sintel). */
-      pose_slide_apply_props(pso, &slide_subject, "[\"");
+    if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_PROPS)) {
+      pose_slide_apply_property_snapshots(*pso, slide_subject, slide_subject.custom_properties);
     }
   }
 
