@@ -436,7 +436,7 @@ struct PlayAnimPict {
   ImBuf *ibuf;
   MovieReader *anim;
   int frame;
-  eImBufFlags IB_flags;
+  ImBufFlags IB_flags;
 
 #ifdef USE_FRAME_CACHE_LIMIT
   /** Back pointer to the #LinkData node for this struct in the #g_frame_cache.pics list. */
@@ -938,7 +938,7 @@ static void build_pict_list_from_anim(ListBaseT<PlayAnimPict> &picsbase,
                                       const int frame_offset)
 {
   /* OCIO_TODO: support different input color space. */
-  MovieReader *anim = MOV_open_file(filepath_first, IB_byte_data, 0, false, nullptr);
+  MovieReader *anim = MOV_open_file(filepath_first, ImBufFlags::ByteData, 0, false, nullptr);
   if (anim == nullptr) {
     CLOG_WARN(&LOG, "couldn't open anim '%s'", filepath_first);
     return;
@@ -954,7 +954,7 @@ static void build_pict_list_from_anim(ListBaseT<PlayAnimPict> &picsbase,
     PlayAnimPict *picture = MEM_new_zeroed<PlayAnimPict>("Pict");
     picture->anim = anim;
     picture->frame = pic + frame_offset;
-    picture->IB_flags = IB_byte_data;
+    picture->IB_flags = ImBufFlags::ByteData;
     picture->filepath = BLI_sprintfN("%s : %4.d", filepath_first, pic + 1);
     BLI_addtail(&picsbase, picture);
   }
@@ -1021,7 +1021,7 @@ static void build_pict_list_from_image_sequence(ListBaseT<PlayAnimPict> &picsbas
 
     PlayAnimPict *picture = MEM_new_zeroed<PlayAnimPict>("picture");
     picture->size = size;
-    picture->IB_flags = IB_byte_data;
+    picture->IB_flags = ImBufFlags::ByteData;
     picture->mem = static_cast<uchar *>(mem);
     picture->filepath = BLI_strdup(filepath);
     picture->error_message = error_message;
@@ -1941,7 +1941,7 @@ static std::optional<int> wm_main_playanim_intern(int argc, const char **argv, P
         /* OCIO_TODO: support different input color spaces. */
         /* Image buffer is used for display, which does support displaying any buffer from any
          * colorspace. Skip colorspace conversions in the movie module to improve performance. */
-        MovieReader *anim = MOV_open_file(filepath, IB_byte_data, 0, true, nullptr);
+        MovieReader *anim = MOV_open_file(filepath, ImBufFlags::ByteData, 0, true, nullptr);
         if (anim) {
           ibuf = MOV_decode_frame(anim, 0, IMB_TC_NONE, IMB_PROXY_NONE);
           MOV_close(anim);
@@ -1958,7 +1958,7 @@ static std::optional<int> wm_main_playanim_intern(int argc, const char **argv, P
 
       if (ibuf == nullptr) {
         /* OCIO_TODO: support different input color space. */
-        ibuf = IMB_load_image_from_filepath(filepath, IB_byte_data);
+        ibuf = IMB_load_image_from_filepath(filepath, ImBufFlags::ByteData);
       }
 
       if (ibuf == nullptr) {

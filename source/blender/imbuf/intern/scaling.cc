@@ -531,12 +531,12 @@ ImBuf *IMB_scale_into_new(const ImBuf *ibuf,
   }
 
   /* Allocate destination buffers. */
-  eImBufFlags flags = IB_uninitialized_pixels;
+  ImBufFlags flags = ImBufFlags::UninitializedPixels;
   if (ibuf->byte_data()) {
-    flags |= IB_byte_data;
+    flags |= ImBufFlags::ByteData;
   }
   if (ibuf->float_data()) {
-    flags |= IB_float_data;
+    flags |= ImBufFlags::FloatData;
   }
   ImBuf *dst = IMB_allocImBuf(new_size.x, new_size.y, flags);
   dst->color_mode = ibuf->color_mode;

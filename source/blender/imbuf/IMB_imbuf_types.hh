@@ -90,42 +90,6 @@ struct ImbFormatOptions {
   char compress = 15;
 };
 
-enum eImBufFlags {
-  IB_flag_none = 0,
-
-  /** Image has byte data (unsigned 0..1 range in a byte, always 4 channels). */
-  IB_byte_data = 1 << 0,
-  IB_test = 1 << 1,
-  /** Image has float data (usually 1..4 channels, 32 bit float per channel). */
-  IB_float_data = 1 << 5,
-  IB_multilayer = 1 << 7,
-  IB_metadata = 1 << 8,
-  IB_animdeinterlace = 1 << 9,
-  /** Do not clear image pixel buffer to zero. Without this flag, allocating
-   * a new ImBuf does clear the pixel data to zero (transparent black). If
-   * whole pixel data is overwritten after allocation, then this flag can be
-   * faster since it avoids a memory clear. */
-  IB_uninitialized_pixels = 1 << 10,
-
-  /** Indicates whether image on disk have pre-multiplied alpha. */
-  IB_alphamode_premul = 1 << 12,
-  /** If this flag is set, alpha mode would be guessed from file. */
-  IB_alphamode_detect = 1 << 13,
-  /** Alpha channel is unrelated to RGB and should not affect it. */
-  IB_alphamode_channel_packed = 1 << 14,
-  /** Ignore alpha on load and substitute it with 1.0f. */
-  IB_alphamode_ignore = 1 << 15,
-  IB_thumbnail = 1 << 16,
-  /**
-   * The image contains display window information. See ImbBuf.display_size and other members for
-   * more information. */
-  IB_has_display_window = 1 << 17,
-
-  /** Perform no color space conversions when reading, leave the image in the file colorspace. */
-  IB_no_colorspace_convert = 1 << 18,
-};
-ENUM_OPERATORS(eImBufFlags);
-
 /* -------------------------------------------------------------------- */
 /** \name ImBuf buffer storage
  * \{ */
@@ -197,8 +161,8 @@ struct ImBuf {
 
   /**
    * Stores the Data and Display Window information. Those are only initialized if the image buffer
-   * has the IB_has_display_window flag active, otherwise, they should be ignored as the image has
-   * no display window.
+   * has the ImBufFlags::HasDisplayWindow flag active, otherwise, they should be ignored as the
+   * image has no display window.
    *
    * The data size is already stored in the x and y members. The data_offset member stores the
    * offset from the display window to the data window, if positive, then only part of the display
@@ -224,7 +188,7 @@ struct ImBuf {
    */
   ImColorMode color_mode = ImColorMode::RGBA;
 
-  eImBufFlags flags = IB_flag_none;
+  ImBufFlags flags = ImBufFlags::Zero;
 
   /* pixels */
 

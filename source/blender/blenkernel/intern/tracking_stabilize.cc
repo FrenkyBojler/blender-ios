@@ -1402,12 +1402,12 @@ ImBuf *BKE_tracking_stabilize_frame(
   }
 
   /* Allocate frame for stabilization result, copy alpha mode and color-space. */
-  eImBufFlags ibuf_flags = IB_flag_none;
+  ImBufFlags ibuf_flags = ImBufFlags::Zero;
   if (ibuf->byte_data()) {
-    ibuf_flags |= IB_byte_data;
+    ibuf_flags |= ImBufFlags::ByteData;
   }
   if (ibuf->float_data()) {
-    ibuf_flags |= IB_float_data;
+    ibuf_flags |= ImBufFlags::FloatData;
   }
 
   tmpibuf = IMB_allocImBuf(ibuf->x, ibuf->y, ibuf_flags);

@@ -24,7 +24,10 @@ bool imb_is_a_png(const uchar *mem, size_t size)
   return imb_oiio_check(mem, size, "png");
 }
 
-ImBuf *imb_load_png(const uchar *mem, size_t size, eImBufFlags flags, ImFileColorSpace &r_colorspace)
+ImBuf *imb_load_png(const uchar *mem,
+                    size_t size,
+                    ImBufFlags flags,
+                    ImFileColorSpace &r_colorspace)
 {
   ImageSpec config, spec;
   config.attribute("oiio:UnassociatedAlpha", 1);
@@ -44,7 +47,7 @@ ImBuf *imb_load_png(const uchar *mem, size_t size, eImBufFlags flags, ImFileColo
   return ibuf;
 }
 
-static std::tuple<WriteContext, ImageSpec> prepare_save_png(ImBuf *ibuf, eImBufFlags flags)
+static std::tuple<WriteContext, ImageSpec> prepare_save_png(ImBuf *ibuf, ImBufFlags flags)
 {
   const bool is_16bit = (ibuf->foptions.flag & PNG_16BIT);
   const int file_channels = ibuf->color_mode_channels_get();
@@ -69,13 +72,13 @@ static std::tuple<WriteContext, ImageSpec> prepare_save_png(ImBuf *ibuf, eImBufF
   return {ctx, file_spec};
 }
 
-bool imb_save_png(ImBuf *ibuf, const char *filepath, eImBufFlags flags)
+bool imb_save_png(ImBuf *ibuf, const char *filepath, ImBufFlags flags)
 {
   const auto [ctx, file_spec] = prepare_save_png(ibuf, flags);
   return imb_oiio_write(ctx, filepath, file_spec);
 }
 
-Vector<uint8_t> imb_save_buffer_png(ImBuf *ibuf, eImBufFlags flags)
+Vector<uint8_t> imb_save_buffer_png(ImBuf *ibuf, ImBufFlags flags)
 {
   const auto [ctx, file_spec] = prepare_save_png(ibuf, flags);
   return imb_oiio_write_buffer(ctx, file_spec);
