@@ -646,7 +646,7 @@ void AbstractTreeViewItem::update_from_old(const AbstractViewItem &old)
 bool AbstractTreeViewItem::should_be_filtered_visible(StringRefNull filter_string) const
 {
   return AbstractViewItem::should_be_filtered_visible(filter_string) !=
-         *this->get_tree_view().invert_search_filter_;
+         bool(*this->get_tree_view().invert_search_filter_);
 }
 
 bool AbstractTreeViewItem::matches_single(const AbstractTreeViewItem &other) const
@@ -924,7 +924,7 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
     Button *but = nullptr;
     if (visible_row_count && (tot_items > *visible_row_count)) {
       row.column(false);
-      but = uiDefButI(block,
+      but = uiDefButV(block,
                       ButtonType::Scroll,
                       "",
                       0,
@@ -944,23 +944,23 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
     /* Bottom */
     Layout &bottom = col.row(false);
     block_emboss_set(block, EmbossType::None);
-    but = uiDefIconButBitC(block,
-                           ButtonType::IconToggleN,
-                           1,
-                           ICON_DISCLOSURE_TRI_DOWN,
-                           0,
-                           0,
-                           UI_UNIT_X,
-                           UI_UNIT_Y * 0.5,
-                           tree_view.show_display_options_.get(),
-                           0,
-                           0,
-                           TIP_(""));
+    but = uiDefIconButBit(block,
+                          ButtonType::IconToggleN,
+                          1,
+                          ICON_DISCLOSURE_TRI_DOWN,
+                          0,
+                          0,
+                          UI_UNIT_X,
+                          UI_UNIT_Y * 0.5,
+                          tree_view.show_display_options_.get(),
+                          0,
+                          0,
+                          TIP_(""));
     button_flag_disable(but, BUT_UNDO);
     block_emboss_set(block, EmbossType::Emboss);
     bottom.column(false);
 
-    uiDefIconButI(block,
+    uiDefIconButV(block,
                   ButtonType::Grip,
                   ICON_GRIP,
                   0,
@@ -991,7 +991,7 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
       def_but_icon(but, ICON_VIEWZOOM, UI_HAS_ICON);
       button_placeholder_set(but, IFACE_("Search"));
 
-      but = uiDefIconButBitC(
+      but = uiDefIconButBit(
           block,
           ButtonType::Toggle,
           1,
@@ -1007,18 +1007,18 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
       button_flag_disable(but, BUT_UNDO);
 
       filter_layout.separator();
-      but = uiDefIconButBitC(block,
-                             ButtonType::Toggle,
-                             1,
-                             ICON_SORTALPHA,
-                             0,
-                             0,
-                             UI_UNIT_X,
-                             UI_UNIT_Y,
-                             tree_view.sort_alpha_.get(),
-                             0,
-                             0,
-                             TIP_("Sort items alphabetically"));
+      but = uiDefIconButBit(block,
+                            ButtonType::Toggle,
+                            1,
+                            ICON_SORTALPHA,
+                            0,
+                            0,
+                            UI_UNIT_X,
+                            UI_UNIT_Y,
+                            tree_view.sort_alpha_.get(),
+                            0,
+                            0,
+                            TIP_("Sort items alphabetically"));
       button_flag_disable(but, BUT_UNDO);
 
       int icon = ICON_SORT_DESC;
@@ -1034,7 +1034,7 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
       }
 
       but = uiDefIconBut(block,
-                         ButtonType::IconToggle,
+                         ButtonType::Toggle,
                          icon,
                          0,
                          0,
@@ -1045,6 +1045,9 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
                          0,
                          TIP_("Reverse the order of items"));
       button_func_set(but, set_sort_order_fn, nullptr, tree_view.invert_sort_type_.get());
+      button_func_pushed_state_set(but, [&](const ui::Button & /*button*/) {
+        return *tree_view.invert_sort_type_ != TreeViewSortOrder::None;
+      });
       button_flag_disable(but, BUT_UNDO);
     }
   }
