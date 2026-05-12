@@ -20,18 +20,17 @@ static void node_declare(NodeDeclarationBuilder &b)
 static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
 {
   static auto reverse_fn = mf::build::SI1_SO<std::string, std::string>(
-      "Reverse",
-      [](const std::string &s) {
+      "Reverse", [](const std::string &s) {
         if (s.empty()) {
           return std::string();
         }
         std::string result;
         result.reserve(s.size());
 
-        const char* start = s.data();
-        const char* curr = start + s.size();
+        const char *start = s.data();
+        const char *curr = start + s.size();
         while (curr > start) {
-          const char* prev = BLI_str_find_prev_char_utf8(curr, start);
+          const char *prev = BLI_str_find_prev_char_utf8(curr, start);
           size_t char_len = curr - prev;
           result.append(prev, char_len);
           curr = prev;
