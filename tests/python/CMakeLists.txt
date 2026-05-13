@@ -611,6 +611,12 @@ if(TEST_SRC_DIR_EXISTS)
   )
 
   add_blender_test(
+    lineart
+    ${TEST_SRC_DIR}/modeling/modifiers/lineart.blend
+    --python ${TEST_PYTHON_DIR}/modeling/modifiers/lineart.py
+  )
+
+  add_blender_test(
     modifiers
     ${TEST_SRC_DIR}/modeling/modifiers/modifiers.blend
     --python ${TEST_PYTHON_DIR}/modeling/modifiers/modifiers.py
