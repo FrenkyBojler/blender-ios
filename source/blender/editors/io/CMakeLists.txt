@@ -27,6 +27,7 @@ set(SRC
   io_grease_pencil.cc
   io_obj.cc
   io_ops.cc
+  io_otio.cc
   io_ply_ops.cc
   io_stl_ops.cc
   io_usd.cc
@@ -39,6 +40,7 @@ set(SRC
   io_grease_pencil.hh
   io_obj.hh
   io_ops.hh
+  io_otio.hh
   io_ply_ops.hh
   io_stl_ops.hh
   io_usd.hh
@@ -105,6 +107,10 @@ if(WITH_USD)
     PRIVATE bf::dependencies::optional::usd
   )
   add_definitions(-DWITH_USD)
+endif()
+
+if(WITH_OTIO)
+  add_definitions(-DWITH_OTIO)
 endif()
 
 if(WITH_PUGIXML)
