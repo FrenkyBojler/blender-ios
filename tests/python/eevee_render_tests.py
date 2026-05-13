@@ -299,6 +299,9 @@ def main():
     elif test_dir_name.startswith('pointcloud'):
         # points transparent
         report.set_fail_threshold(0.06)
+    elif test_dir_name.startswith("lightprobe"):
+        # Avoid higher threshold of the light case
+        report.set_fail_threshold(0.01)
     elif test_dir_name.startswith('light_linking'):
         # Noise difference in transparent material
         report.set_fail_threshold(0.05)
