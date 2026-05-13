@@ -329,13 +329,16 @@ void template_running_jobs(Layout *layout, bContext *C)
 
   /* Not using the jobs system, but should be shown everywhere where jobs are shown too. */
   if (asset_system::remote_library_has_unfinished_asset_downloads()) {
+    const char *string = IFACE_("Downloading Asset(s)");
+    const float string_width = fontstyle_string_width(UI_FSTYLE_WIDGET, string);
+
     Button *but = uiDefIconTextBut(block,
                                    ButtonType::But,
                                    ICON_CANCEL,
-                                   IFACE_("Downloading Asset(s)"),
+                                   string,
                                    0,
                                    0,
-                                   UI_UNIT_X * 8.0f,
+                                   string_width + UI_UNIT_X * 1.5,
                                    UI_UNIT_Y,
                                    nullptr,
                                    TIP_("Cancel asset download(s)"));
