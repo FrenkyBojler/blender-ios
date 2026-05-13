@@ -6715,7 +6715,7 @@ struct CursorKeymapInfo {
    * 1: Event type (click/press, drag).
    * 2: Text.
    */
-  char text[3][2][128] = {};
+  char text[5][2][128] = {};
   wmEvent state_event;
   CursorKeymapInfo_State state;
 };
@@ -6882,9 +6882,15 @@ void WM_window_cursor_keymap_status_refresh(bContext *C, wmWindow *win)
       {2, 0, RIGHTMOUSE, KM_PRESS},
       {2, 0, RIGHTMOUSE, KM_CLICK},
       {2, 0, RIGHTMOUSE, KM_PRESS_DRAG},
+
+      {3, 0, BUTTON4MOUSE, KM_PRESS},
+      {3, 0, BUTTON4MOUSE, KM_CLICK},
+
+      {4, 0, BUTTON5MOUSE, KM_PRESS},
+      {4, 0, BUTTON5MOUSE, KM_CLICK},
   };
 
-  for (int button_index = 0; button_index < 3; button_index++) {
+  for (int button_index = 0; button_index < 5; button_index++) {
     cd->text[button_index][0][0] = '\0';
     cd->text[button_index][1][0] = '\0';
   }

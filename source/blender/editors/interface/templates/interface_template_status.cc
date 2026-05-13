@@ -372,6 +372,30 @@ void uiTemplateInputStatus(Layout *layout, bContext *C)
       row.separator(0.6f);
     }
   }
+
+  {
+    const char *msg = CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT,
+                                 WM_window_cursor_keymap_status_get(win, 3, 0));
+    if (msg) {
+      row.alignment_set(LayoutAlign::Left);
+      row.label("", ICON_MOUSE_MB4);
+      row.separator(-0.9f);
+      row.label(msg, ICON_NONE);
+      row.separator(0.6f);
+    }
+  }
+
+  {
+    const char *msg = CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT,
+                                 WM_window_cursor_keymap_status_get(win, 4, 0));
+    if (msg) {
+      row.alignment_set(LayoutAlign::Left);
+      row.label("", ICON_MOUSE_MB5);
+      row.separator(-0.9f);
+      row.label(msg, ICON_NONE);
+      row.separator(0.6f);
+    }
+  }
 }
 
 static std::string template_status_tooltip(bContext *C, void * /*argN*/, const StringRef /*tip*/)
