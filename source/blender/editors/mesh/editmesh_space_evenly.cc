@@ -78,14 +78,13 @@ static void edbm_space_ui(bContext * /*C*/, wmOperator *op)
   layout.use_property_split_set(true);
 
   layout.prop(op->ptr, "influence", UI_ITEM_NONE, IFACE_("Factor"), ICON_NONE);
+  layout.prop(op->ptr, "interpolation", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   ui::Layout &lock_row = layout.row(true, IFACE_("Lock"));
   PropertyRNA *lock_prop = RNA_struct_find_property(op->ptr, "lock");
   lock_row.prop(op->ptr, lock_prop, 0, 0, ui::ITEM_R_TOGGLE, "X", ICON_NONE);
   lock_row.prop(op->ptr, lock_prop, 1, 0, ui::ITEM_R_TOGGLE, "Y", ICON_NONE);
   lock_row.prop(op->ptr, lock_prop, 2, 0, ui::ITEM_R_TOGGLE, "Z", ICON_NONE);
-
-  layout.prop(op->ptr, "interpolation", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 void MESH_OT_space_evenly(wmOperatorType *ot)
@@ -105,14 +104,13 @@ void MESH_OT_space_evenly(wmOperatorType *ot)
 
   RNA_def_float_factor(
       ot->srna, "influence", 1.0f, 0.0f, 1.0f, "Influence", "Force of the tool", 0.0f, 1.0f);
-
-  RNA_def_boolean_array(ot->srna, "lock", 3, nullptr, "Lock", "Lock editing of the axis");
   RNA_def_enum(ot->srna,
                "interpolation",
                prop_interpolation_items,
                0,
                "Interpolation",
                "Algorithm used for interpolation");
+  RNA_def_boolean_array(ot->srna, "lock", 3, nullptr, "Lock", "Lock editing of the axis");
 }
 
 }  // namespace blender
