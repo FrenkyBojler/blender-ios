@@ -586,7 +586,7 @@ static void movieclip_open_anim_file(MovieClip *clip)
 
     /* FIXME: make several stream accessible in image editor, too */
     clip->anim = openanim(
-        filepath_abs, ImBufFlags::ByteData, 0, false, clip->colorspace_settings.name);
+        filepath_abs, ImBufFlags::Zero, 0, false, clip->colorspace_settings.name);
 
     if (clip->anim) {
       if (clip->flag & MCLIP_USE_PROXY_CUSTOM_DIR) {

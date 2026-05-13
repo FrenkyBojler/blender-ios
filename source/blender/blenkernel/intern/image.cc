@@ -4076,12 +4076,8 @@ static ImBuf *load_movie_single(Image *ima, ImageUser *iuser, int frame, const i
 
   if (ia->anim == nullptr) {
     char filepath[FILE_MAX];
-    ImBufFlags flags = ImBufFlags::ByteData;
+    ImBufFlags flags = (ima->flag & IMA_DEINTERLACE) ? ImBufFlags::Deinterlace : ImBufFlags::Zero;
     ImageUser iuser_t{};
-
-    if (ima->flag & IMA_DEINTERLACE) {
-      flags |= ImBufFlags::Deinterlace;
-    }
 
     if (iuser) {
       iuser_t = *iuser;

@@ -57,7 +57,7 @@ struct Py_ImBufBuffer {
   /** Reference to the #ImBuf this came from (prevents freeing while in use). */
   Py_ImBuf *py_ibuf;
   /** Whether this wraps byte/float pixel data (#ImBufFlags::ByteData, #ImBufFlags::FloatData). */
-  int mode;
+  ImBufFlags mode;
   /** Set by `__enter__`, cleared by `__exit__` (managed #Py_ImBuf.buffer_users). */
   bool is_entered;
   /** When false the `memoryview` is read-only. */
@@ -381,9 +381,9 @@ static PyObject *py_imbuf_with_buffer(Py_ImBuf *self, PyObject *args, PyObject *
   }
 
   ImBuf *ibuf = self->ibuf;
-  const int mode = type.value_found;
+  const ImBufFlags mode = ImBufFlags(type.value_found);
 
-  if (mode == int(ImBufFlags::ByteData)) {
+  if (mode == ImBufFlags::ByteData) {
     if (ibuf->byte_data() == nullptr) {
       PyErr_SetString(PyExc_RuntimeError, "ImBuf has no byte pixel data");
       return nullptr;
@@ -997,7 +997,7 @@ static PyObject *py_imbuf_buffer_enter(Py_ImBufBuffer *self)
     return nullptr;
   }
 
-  const bool is_byte = (self->mode == int(ImBufFlags::ByteData));
+  const bool is_byte = (self->mode == ImBufFlags::ByteData);
 
   if (is_byte) {
     if (UNLIKELY(ibuf->byte_data() == nullptr)) {
@@ -1071,7 +1071,7 @@ static PyObject *py_imbuf_buffer_exit(Py_ImBufBuffer *self, PyObject * /*args*/)
     if (self->writable) {
       ImBuf *ibuf = self->py_ibuf->ibuf;
       if (ibuf != nullptr) {
-        if (self->mode == int(ImBufFlags::ByteData)) {
+        if (self->mode == ImBufFlags::ByteData) {
           if (ibuf->float_data() != nullptr) {
             IMB_float_from_byte(ibuf);
           }

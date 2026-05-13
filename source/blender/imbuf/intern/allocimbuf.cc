@@ -126,7 +126,6 @@ void IMB_free_float_pixels(ImBuf *ibuf)
     return;
   }
   imb_free_buffer(ibuf->float_buffer);
-  ibuf->flags &= ~ImBufFlags::FloatData;
 }
 
 void IMB_free_byte_pixels(ImBuf *ibuf)
@@ -135,7 +134,6 @@ void IMB_free_byte_pixels(ImBuf *ibuf)
     return;
   }
   imb_free_buffer(ibuf->byte_buffer);
-  ibuf->flags &= ~ImBufFlags::ByteData;
 }
 
 void IMB_free_all_data(ImBuf *ibuf)
@@ -229,7 +227,6 @@ bool IMB_alloc_float_pixels(ImBuf *ibuf, const uint channels, bool initialize_pi
   }
 
   ibuf->channels = channels;
-  ibuf->flags |= ImBufFlags::FloatData;
 
   return true;
 }
@@ -250,47 +247,35 @@ bool IMB_alloc_byte_pixels(ImBuf *ibuf, bool initialize_pixels)
     return false;
   }
 
-  ibuf->flags |= ImBufFlags::ByteData;
-
   return true;
 }
 
 void ImBuf::assign_byte_data(uint8_t *data)
 {
   imb_free_buffer(this->byte_buffer);
-  this->flags &= ~ImBufFlags::ByteData;
   if (data) {
     this->byte_buffer.data = data;
     this->byte_buffer.ownership = IB_TAKE_OWNERSHIP;
-
-    this->flags |= ImBufFlags::ByteData;
   }
 }
 
 void ImBuf::assign_float_data(float *data)
 {
   imb_free_buffer(this->float_buffer);
-  this->flags &= ~ImBufFlags::FloatData;
   if (data) {
     this->float_buffer.data = data;
     this->float_buffer.ownership = IB_TAKE_OWNERSHIP;
-
-    this->flags |= ImBufFlags::FloatData;
   }
 }
 
 uint8_t *IMB_steal_byte_buffer(ImBuf *ibuf)
 {
-  uint8_t *data = imb_steal_buffer_data(ibuf->byte_buffer);
-  ibuf->flags &= ~ImBufFlags::ByteData;
-  return data;
+  return imb_steal_buffer_data(ibuf->byte_buffer);
 }
 
 float *IMB_steal_float_buffer(ImBuf *ibuf)
 {
-  float *data = imb_steal_buffer_data(ibuf->float_buffer);
-  ibuf->flags &= ~ImBufFlags::FloatData;
-  return data;
+  return imb_steal_buffer_data(ibuf->float_buffer);
 }
 
 void IMB_make_writable_byte_buffer(ImBuf *ibuf)
@@ -306,26 +291,18 @@ void IMB_make_writable_float_buffer(ImBuf *ibuf)
 void IMB_assign_byte_buffer(ImBuf *ibuf, uint8_t *buffer_data, const ImBufOwnership ownership)
 {
   imb_free_buffer(ibuf->byte_buffer);
-  ibuf->flags &= ~ImBufFlags::ByteData;
-
   if (buffer_data) {
     ibuf->byte_buffer.data = buffer_data;
     ibuf->byte_buffer.ownership = ownership;
-
-    ibuf->flags |= ImBufFlags::ByteData;
   }
 }
 
 void IMB_assign_float_buffer(ImBuf *ibuf, float *buffer_data, const ImBufOwnership ownership)
 {
   imb_free_buffer(ibuf->float_buffer);
-  ibuf->flags &= ~ImBufFlags::FloatData;
-
   if (buffer_data) {
     ibuf->float_buffer.data = buffer_data;
     ibuf->float_buffer.ownership = ownership;
-
-    ibuf->flags |= ImBufFlags::FloatData;
   }
 }
 
@@ -466,13 +443,13 @@ bool IMB_initImBuf(ImBuf *ibuf, uint x, uint y, ImBufFlags flags)
   const bool init_pixels = !flag_is_set(flags, ImBufFlags::UninitializedPixels);
 
   if (flag_is_set(flags, ImBufFlags::ByteData)) {
-    if (IMB_alloc_byte_pixels(ibuf, init_pixels) == false) {
+    if (!IMB_alloc_byte_pixels(ibuf, init_pixels)) {
       return false;
     }
   }
 
   if (flag_is_set(flags, ImBufFlags::FloatData)) {
-    if (IMB_alloc_float_pixels(ibuf, ibuf->channels, init_pixels) == false) {
+    if (!IMB_alloc_float_pixels(ibuf, ibuf->channels, init_pixels)) {
       return false;
     }
   }

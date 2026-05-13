@@ -376,12 +376,10 @@ static bool write_external_bake_pixels(const char *filepath,
 {
   ImBuf *ibuf = nullptr;
   bool ok = false;
-  bool is_float;
-
-  is_float = im_format->depth > 8;
+  bool is_float = im_format->depth > 8;
 
   /* create a new ImBuf */
-  ibuf = IMB_allocImBuf(width, height, (is_float ? ImBufFlags::FloatData : ImBufFlags::ByteData));
+  ibuf = IMB_allocImBuf(width, height, is_float ? ImBufFlags::FloatData : ImBufFlags::ByteData);
   ibuf->color_mode = im_format->color_mode;
 
   if (!ibuf) {

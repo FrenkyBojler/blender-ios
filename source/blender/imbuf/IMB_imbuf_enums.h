@@ -17,10 +17,16 @@ namespace blender {
 enum class ImBufFlags {
   Zero = 0,
 
-  /** Image has byte data (unsigned 0..1 range in a byte, always 4 channels). */
+  /**
+   * Flag for image creation & IO functions: create or prefer byte data
+   * (0..1 range in a byte, always 4 channels).
+   */
   ByteData = 1 << 0,
   Test = 1 << 1,
-  /** Image has float data (usually 1..4 channels, 32 bit float per channel). */
+  /**
+   * Flag for image creation & IO functions: create or prefer float data
+   * (usually 1..4 channels, 32-bit float per channel).
+   */
   FloatData = 1 << 5,
   MultiLayer = 1 << 7,
   Metadata = 1 << 8,

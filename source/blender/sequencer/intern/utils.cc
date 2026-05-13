@@ -212,21 +212,18 @@ static MovieReader *open_anim_filepath(Strip *strip, const char *filepath, bool 
   /* Sequencer takes care of colorspace conversion of the result. The input is the best to be
    * kept unchanged for the performance reasons. */
   if (openfile) {
-    return openanim(
-        filepath,
-        ImBufFlags::ByteData |
-            ((strip->flag & SEQ_DEINTERLACE) ? ImBufFlags::Deinterlace : ImBufFlags::Zero),
-        strip->streamindex,
-        true,
-        strip->data->colorspace_settings.name);
+    return openanim(filepath,
+                    (strip->flag & SEQ_DEINTERLACE) ? ImBufFlags::Deinterlace : ImBufFlags::Zero,
+                    strip->streamindex,
+                    true,
+                    strip->data->colorspace_settings.name);
   }
-  return openanim_noload(
-      filepath,
-      ImBufFlags::ByteData |
-          ((strip->flag & SEQ_DEINTERLACE) ? ImBufFlags::Deinterlace : ImBufFlags::Zero),
-      strip->streamindex,
-      true,
-      strip->data->colorspace_settings.name);
+  return openanim_noload(filepath,
+                         (strip->flag & SEQ_DEINTERLACE) ? ImBufFlags::Deinterlace :
+                                                           ImBufFlags::Zero,
+                         strip->streamindex,
+                         true,
+                         strip->data->colorspace_settings.name);
 }
 
 static bool use_proxy(Editing *ed, Strip *strip)

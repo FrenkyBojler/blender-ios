@@ -403,8 +403,7 @@ static ImBuf *thumb_create_ex(const char *file_path,
         /* Image buffer is converted from float to byte and only the latter one is used, and the
          * conversion process is aware of the float color-space. So it is possible to save some
          * compute time by keeping the original color-space for movies. */
-        anim = MOV_open_file(
-            file_path, ImBufFlags::ByteData | ImBufFlags::Metadata, 0, true, nullptr);
+        anim = MOV_open_file(file_path, ImBufFlags::Zero, 0, true, nullptr);
         if (anim != nullptr) {
           img = MOV_decode_frame(anim, 0, IMB_TC_NONE, IMB_PROXY_NONE);
           if (img == nullptr) {

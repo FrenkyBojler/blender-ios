@@ -346,7 +346,7 @@ static void screen_opengl_render_doit(OGLRender *oglrender, RenderResult *rr)
       ARegion *region = oglrender->region;
       ibuf_view = ED_view3d_draw_offscreen_imbuf(depsgraph,
                                                  scene,
-                                                 static_cast<eDrawType>(v3d->shading.type),
+                                                 v3d->shading.type,
                                                  v3d,
                                                  region,
                                                  sizex,
