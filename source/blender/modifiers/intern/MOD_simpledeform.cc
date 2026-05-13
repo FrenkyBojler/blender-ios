@@ -149,7 +149,8 @@ static void simpleDeform_bend(const float factor,
 
   switch (axis) {
     case 0:
-      ATTR_FALLTHROUGH;
+      theta = y * factor;
+      break;
     case 1:
       theta = z * factor;
       break;
@@ -164,12 +165,12 @@ static void simpleDeform_bend(const float factor,
   switch (axis) {
     case 0:
       r_co[0] = x;
-      r_co[1] = y * cost + (1.0f - cost) / factor;
-      r_co[2] = -(y - 1.0f / factor) * sint;
+      r_co[1] = z * cost + (1.0f - cost) / factor;
+      r_co[2] = -(z - 1.0f / factor) * sint;
       {
         r_co[0] += dcut[0];
-        r_co[1] += sint * dcut[2];
-        r_co[2] += cost * dcut[2];
+        r_co[1] += sint * dcut[1];
+        r_co[2] += cost * dcut[1];
       }
       break;
     case 1:
@@ -324,7 +325,8 @@ static void SimpleDeformModifier_do(SimpleDeformModifierData *smd,
     /* Bend is a special case. */
     switch (deform_axis) {
       case 0:
-        ATTR_FALLTHROUGH;
+        limit_axis = 1;
+        break;
       case 1:
         limit_axis = 2;
         break;
