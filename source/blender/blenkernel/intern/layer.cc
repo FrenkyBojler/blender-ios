@@ -584,7 +584,7 @@ void BKE_view_layer_update_seq_strips(Main *bmain,
       }
       MEM_delete(strip->scene_view_layer_name);
       strip->scene_view_layer_name = new_name ? BLI_strdup(new_name) : nullptr;
-      seq::relations_invalidate_cache(&scene_iter, strip);
+      seq::relations_invalidate_cache_raw(&scene_iter, strip);
     }
   }
 }
