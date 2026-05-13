@@ -364,15 +364,12 @@ void bmo_space_evenly_exec(BMesh *bm, BMOperator *op)
     }
     Vector<SplineCoeffs> coeffs_x, coeffs_y, coeffs_z;
     if (interpolation == Cubic) {
-      Span<float> unique_dists = chain.is_closed ?
-                                     Span<float>(measure.knot_distances).drop_back(1) :
-                                     Span<float>(measure.knot_distances);
       calculate_splines_axis(
-          unique_dists, coords_x, chain.is_closed, measure.total_length, coeffs_x);
+          measure.knot_distances, coords_x, chain.is_closed, measure.total_length, coeffs_x);
       calculate_splines_axis(
-          unique_dists, coords_y, chain.is_closed, measure.total_length, coeffs_y);
+          measure.knot_distances, coords_y, chain.is_closed, measure.total_length, coeffs_y);
       calculate_splines_axis(
-          unique_dists, coords_z, chain.is_closed, measure.total_length, coeffs_z);
+          measure.knot_distances, coords_z, chain.is_closed, measure.total_length, coeffs_z);
     }
 
     for (const int i : IndexRange(chain.verts.size())) {
