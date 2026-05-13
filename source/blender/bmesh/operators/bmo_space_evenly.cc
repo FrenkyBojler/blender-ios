@@ -404,9 +404,7 @@ void bmo_space_evenly_exec(BMesh *bm, BMOperator *op)
       }
 
       float3 final_pos = math::interpolate(float3(chain.verts[i]->co), new_pos, influence);
-      chain.verts[i]->co[0] = final_pos.x;
-      chain.verts[i]->co[1] = final_pos.y;
-      chain.verts[i]->co[2] = final_pos.z;
+      copy_v3_v3(chain.verts[i]->co, final_pos);
     }
   }
 }
