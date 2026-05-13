@@ -122,7 +122,7 @@ ImBuf *IMB_thumb_load_image(const char *filepath,
 /**
  * Allocate and free image buffer.
  */
-ImBuf *IMB_allocImBuf(unsigned int x, unsigned int y, unsigned char planes, unsigned int flags);
+ImBuf *IMB_allocImBuf(unsigned int x, unsigned int y, unsigned int flags);
 void IMB_freeImBuf(ImBuf *ibuf);
 
 /**
@@ -130,8 +130,7 @@ void IMB_freeImBuf(ImBuf *ibuf);
  *
  * Use in cases when temporary image buffer is allocated on stack.
  */
-bool IMB_initImBuf(
-    ImBuf *ibuf, unsigned int x, unsigned int y, unsigned char planes, unsigned int flags);
+bool IMB_initImBuf(ImBuf *ibuf, unsigned int x, unsigned int y, unsigned int flags);
 
 /**
  * Create a copy of a pixel buffer and wrap it to a new ImBuf
@@ -395,6 +394,19 @@ enum class IMBScaleFilter {
    */
   Box,
 };
+
+void IMB_scale_box(const float *src_buffer,
+                   int2 src_size,
+                   int channels,
+                   float *dst_buffer,
+                   int2 dst_size,
+                   bool threaded);
+void IMB_scale_box(const uchar *src_buffer,
+                   int2 src_size,
+                   int channels,
+                   uchar *dst_buffer,
+                   int2 dst_size,
+                   bool threaded);
 
 /**
  * Scale/resize image to new dimensions.

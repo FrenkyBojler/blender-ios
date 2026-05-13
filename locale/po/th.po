@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 Alpha (b'8bc0d293b105')\n"
+"Project-Id-Version: Blender 5.2.0 Alpha (b'8c7c45ad114e')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-04-28 08:59+0000\n"
+"POT-Creation-Date: 2026-05-11 07:23+0000\n"
 "PO-Revision-Date: 2026-03-19 12:41+0000\n"
 "Last-Translator: Banditer1483 <pleum.wongvarit@gmail.com>\n"
 "Language-Team: Thai <https://translate.blender.org/projects/blender-ui/ui/th/>\n"
@@ -4941,56 +4941,8 @@ msgid "Mix Color"
 msgstr "ผสมสี"
 
 
-msgid "Names"
-msgstr "ชื่อ"
-
-
-msgid "Apply"
-msgstr "นำไปใช้"
-
-
-msgid "Math"
-msgstr "คณิตศาสตร์"
-
-
-msgid "Face Data"
-msgstr "ข้อมูลด้าน"
-
-
-msgid "Merge"
-msgstr "ผสาน"
-
-
-msgid "Metaball"
-msgstr "เมตาบอล"
-
-
-msgid "Import"
-msgstr "นำเข้า"
-
-
-msgid "Pivot Point"
-msgstr "จุดหมุน"
-
-
 msgid "Snap"
 msgstr "ยึดติด"
-
-
-msgid "Proportional Editing Falloff"
-msgstr "แก้ไข"
-
-
-msgid "Mask Edit"
-msgstr "การแก้ไขหน้ากาก"
-
-
-msgid "UV"
-msgstr "UV"
-
-
-msgid "Mirror"
-msgstr "กระจกสะท้อน"
 
 
 msgid "Local View"
@@ -5017,8 +4969,12 @@ msgid "View Regions"
 msgstr "ขอบเขตมุมมอง"
 
 
-msgid "Layout"
-msgstr "เค้าโครง"
+msgid "Math"
+msgstr "คณิตศาสตร์"
+
+
+msgid "Metaball"
+msgstr "เมตาบอล"
 
 
 msgid "Light"
@@ -5029,16 +4985,60 @@ msgid "Add Image"
 msgstr "เพิ่มภาพ"
 
 
-msgid "Keying"
-msgstr "คีย์"
+msgid "Apply"
+msgstr "นำไปใช้"
 
 
 msgid "Track"
 msgstr "แทร็ค"
 
 
+msgid "Import"
+msgstr "นำเข้า"
+
+
 msgid "Hooks"
 msgstr "ตะขอ"
+
+
+msgid "UV"
+msgstr "UV"
+
+
+msgid "Names"
+msgstr "ชื่อ"
+
+
+msgid "Face Data"
+msgstr "ข้อมูลด้าน"
+
+
+msgid "Merge"
+msgstr "ผสาน"
+
+
+msgid "Layout"
+msgstr "เค้าโครง"
+
+
+msgid "Keying"
+msgstr "คีย์"
+
+
+msgid "Pivot Point"
+msgstr "จุดหมุน"
+
+
+msgid "Proportional Editing Falloff"
+msgstr "แก้ไข"
+
+
+msgid "Mask Edit"
+msgstr "การแก้ไขหน้ากาก"
+
+
+msgid "Mirror"
+msgstr "กระจกสะท้อน"
 
 
 msgid "Zoom"
