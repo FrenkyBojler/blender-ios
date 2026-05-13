@@ -654,6 +654,13 @@ int icon_from_event_type(short event_type, short event_value)
     event_type = EVT_LEFTALTKEY;
   }
 
+  if (event_type == BUTTON4MOUSE) {
+    return ICON_MOUSE_MB4;
+  }
+  if (event_type == BUTTON5MOUSE) {
+    return ICON_MOUSE_MB5;
+  }
+
   DrawInfo *di = g_di_event_list;
   do {
     if (di->data.input.event_type == event_type) {

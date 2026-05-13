@@ -644,6 +644,8 @@ if(WITH_BLENDER)
       mouse_lmb
       mouse_lmb_2x
       mouse_lmb_drag
+      mouse_mb4
+      mouse_mb5
       mouse_mmb
       mouse_mmb_drag
       mouse_mmb_scroll
