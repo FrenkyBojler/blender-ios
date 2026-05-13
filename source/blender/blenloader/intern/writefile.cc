@@ -900,7 +900,10 @@ static void writestruct_at_address_nr(WriteData *wd,
   DynamicStackBuffer<16 * 1024> buffer_owner(len_in_bytes, 64);
   const dna::pointers::StructInfo &struct_info =
       wd->stable_address_ids.sdna_pointers->get_for_struct(struct_nr);
-  const bool can_write_raw_runtime_data = struct_info.pointers.is_empty() && !fn;
+
+  const bool needs_general_pointer_remap = !wd->use_memfile && !struct_info.pointers.is_empty();
+  const bool has_custom_fn = bool(fn);
+  const bool can_write_raw_runtime_data = !needs_general_pointer_remap && !has_custom_fn;
 
   if (can_write_raw_runtime_data) {
     /* The passed in data contains no pointers, so it can be written without an additional copy. */
@@ -912,7 +915,7 @@ static void writestruct_at_address_nr(WriteData *wd,
     memcpy(buffer, data, len_in_bytes);
 
     /* Optionally allow custom modifications to the struct data before it is written. */
-    if (fn) {
+    if (has_custom_fn) {
       for (const int i : IndexRange(nr)) {
         const int offset = i * struct_info.size_in_bytes;
         BlendStructWriter struct_writer(
@@ -924,7 +927,7 @@ static void writestruct_at_address_nr(WriteData *wd,
     }
 
     /* When writing to file, use stable pointers for everything. */
-    if (!wd->use_memfile) {
+    if (needs_general_pointer_remap) {
       /* Overwrite pointers with their corresponding address identifiers. */
       for (const int i : IndexRange(nr)) {
         for (const dna::pointers::PointerInfo &pointer_info : struct_info.pointers) {
