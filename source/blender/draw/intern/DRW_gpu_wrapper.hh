@@ -1086,7 +1086,9 @@ class TextureFromPool : public Texture, NonMovable {
   {
     if (tx_ != nullptr) {
       /* Ensure retained texture has the correct requested size. */
-      if (GPU_texture_width(tx_) != extent.x || GPU_texture_height(tx_) != extent.y) {
+      if (GPU_texture_width(tx_) != extent.x || GPU_texture_height(tx_) != extent.y ||
+          GPU_texture_format(tx_) != format || GPU_texture_usage(tx_) != usage)
+      {
         release();
       }
     }

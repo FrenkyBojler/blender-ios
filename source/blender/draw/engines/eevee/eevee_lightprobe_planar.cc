@@ -75,15 +75,20 @@ void PlanarProbeModule::set_view(const draw::View &main_view, int2 main_view_ext
   int2 extent = main_view_extent;
   int layer_count = num_probes;
 
+  const gpu::TextureFormat depth_format = gpu::TextureFormat::SFLOAT_32_DEPTH;
+
   if (num_probes == 0) {
     /* Create valid dummy texture. */
     extent = int2(1);
     layer_count = 1;
   }
+  else {
+    inst_.render_buffers.acquire(extent, depth_format);
+  }
 
   eGPUTextureUsage usage = GPU_TEXTURE_USAGE_ATTACHMENT | GPU_TEXTURE_USAGE_SHADER_READ;
   radiance_tx_.ensure_2d_array(gpu::TextureFormat::UFLOAT_11_11_10, extent, layer_count, usage);
-  depth_tx_.ensure_2d_array(gpu::TextureFormat::SFLOAT_32_DEPTH, extent, layer_count, usage);
+  depth_tx_.ensure_2d_array(depth_format, extent, layer_count, usage);
   depth_tx_.ensure_layer_views();
 
   do_display_draw_ = inst_.draw_overlays && num_probes > 0;

@@ -92,13 +92,11 @@ void ShadingView::render()
 
   GPU_debug_group_begin(name_);
 
-  /* Needs to be before planar_probes because it needs correct crypto-matte & render-pass buffers
-   * to reuse the same deferred shaders. */
-  RenderBuffers &rbufs = inst_.render_buffers;
-  rbufs.acquire(extent_);
-
   /* Needs to be before anything else because it query its own gbuffer. */
   inst_.planar_probes.set_view(render_view_, extent_);
+
+  RenderBuffers &rbufs = inst_.render_buffers;
+  rbufs.acquire(extent_);
 
   combined_fb_.ensure(GPU_ATTACHMENT_TEXTURE(rbufs.depth_tx),
                       GPU_ATTACHMENT_TEXTURE(rbufs.combined_tx));

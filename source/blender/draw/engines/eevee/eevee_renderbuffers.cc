@@ -52,7 +52,7 @@ void RenderBuffers::init()
   data.aovs = inst_.film.aovs_info;
 }
 
-void RenderBuffers::acquire(int2 extent)
+void RenderBuffers::acquire(int2 extent, gpu::TextureFormat raycast_depth_format)
 {
   const eViewLayerEEVEEPassType enabled_passes = inst_.film.enabled_passes_get();
 
@@ -80,13 +80,13 @@ void RenderBuffers::acquire(int2 extent)
   /* TODO(fclem): Make vector pass allocation optional if no TAA or motion blur is needed. */
   vector_tx.acquire(extent, vector_tx_format(), usage_attachment_read_write);
   if (inst_.pipelines.has_raycast) {
-    raycast_depth_tx.acquire(extent, depth_format, GPU_TEXTURE_USAGE_SHADER_READ);
+    raycast_depth_tx.acquire(extent, raycast_depth_format, GPU_TEXTURE_USAGE_SHADER_READ);
     object_id_tx.acquire(extent, object_id_format, usage_attachment_read);
     prepass_normal_tx.acquire(extent, prepass_normal_format, usage_attachment_read);
   }
   else {
     /* Still acquire them, since the passes can't conditionally bind textures. */
-    raycast_depth_tx.acquire(int2(1), depth_format, GPU_TEXTURE_USAGE_SHADER_READ);
+    raycast_depth_tx.acquire(int2(1), raycast_depth_format, GPU_TEXTURE_USAGE_SHADER_READ);
     object_id_tx.acquire(int2(1), object_id_format, GPU_TEXTURE_USAGE_SHADER_READ);
     prepass_normal_tx.acquire(int2(1), prepass_normal_format, GPU_TEXTURE_USAGE_SHADER_READ);
   }
