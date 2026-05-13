@@ -138,6 +138,35 @@ static Set<int> get_selected_object_keyframes(Span<Object *> bake_targets)
   return keyframes;
 }
 
+static float4x4 grease_pencil_layer_to_world(const Depsgraph &depsgraph,
+                                             const Object &source_object_eval,
+                                             const bke::greasepencil::Layer &layer)
+{
+  const float4x4 layer_local = layer.local_transform();
+
+  if (layer.parent == nullptr) {
+    return source_object_eval.object_to_world() * layer_local;
+  }
+
+  Object *parent_eval = reinterpret_cast<Object *>(
+      DEG_get_evaluated_id(&depsgraph, &layer.parent->id));
+  if (parent_eval == nullptr) {
+    return source_object_eval.object_to_world() * layer_local;
+  }
+
+  float4x4 parent_world = parent_eval->object_to_world();
+
+  if (parent_eval->type == OB_ARMATURE && !layer.parent_bone_name().is_empty()) {
+    bPoseChannel *pchan = BKE_pose_channel_find_name(parent_eval->pose,
+                                                     layer.parent_bone_name().c_str());
+    if (pchan != nullptr) {
+      parent_world *= float4x4(pchan->pose_mat);
+    }
+  }
+
+  return parent_world * layer.parent_inverse() * layer_local;
+}
+
 static wmOperatorStatus bake_grease_pencil_animation_exec(bContext *C, wmOperator *op)
 {
   using namespace bke::greasepencil;
@@ -201,6 +230,9 @@ static wmOperatorStatus bake_grease_pencil_animation_exec(bContext *C, wmOperato
       const float4x4 to_target = source_object_eval->object_to_world() * target_imat;
 
       for (const Layer *source_layer : source_eval_grease_pencil.layers()) {
+        const float4x4 to_target = target_imat * grease_pencil_layer_to_world(depsgraph,
+                                                                              *source_object_eval,
+                                                                              *source_layer);
         std::string layer_name = fmt::format(
             "{}_{}", source_object->id.name + 2, source_layer->name());
         TreeNode *node = target.find_node_by_name(layer_name);
