@@ -303,8 +303,8 @@ void window_main_loop(const char *title,
     bool quit = false;
     SDL_Event event;
     while (!quit && SDL_PollEvent(&event)) {
-      if (event.type == SDL_EVENT_TEXT_INPUT) {
-        quit = window_keyboard(event.text.text[0]);
+      if (event.type == SDL_EVENT_KEY_DOWN && event.key.key < 128) {
+        quit = window_keyboard(char(event.key.key));
       }
       else if (event.type == SDL_EVENT_MOUSE_MOTION) {
         window_motion(int(event.motion.x), int(event.motion.y));
