@@ -19,6 +19,10 @@
 #include "eevee_subsurface_lib.glsl"
 #include "gpu_shader_codegen_lib.glsl"
 
+#ifdef GLSL_CPP_STUBS
+#  define MAT_REFLECTION
+#endif
+
 /* Allow static compilation of forward materials. */
 #ifndef CLOSURE_BIN_COUNT
 #  define CLOSURE_BIN_COUNT LIGHT_CLOSURE_EVAL_COUNT
@@ -102,8 +106,9 @@ void forward_lighting_eval(Thickness thickness,
   samp.volume_irradiance = spherical_harmonics::clamp_energy(samp.volume_irradiance,
                                                              clamp_indirect_sh);
 
+#ifdef MAT_REFLECTION
   /* Planar reflection. */
-  float3 planar_probe_radiance = float3(0.0);
+  float3 planar_probe_radiance = float3(0.0f);
   float3 average_N = g_data.Ng * 0.001f;
   {
     /* Get average normal.  */
@@ -113,7 +118,7 @@ void forward_lighting_eval(Thickness thickness,
     }
     average_N = safe_normalize(average_N);
 
-    const int planar_id = lightprobe_planar_select(g_data.P);
+    const int planar_id = lightprobe_planar_select(g_data.P, average_N);
 
     if (planar_id == -1) {
       average_N = float3(0.0f);
@@ -135,6 +140,7 @@ void forward_lighting_eval(Thickness thickness,
       }
     }
   }
+#endif
 
   /* Combine all radiance. */
   float3 radiance_direct = float3(0.0f);
@@ -145,11 +151,13 @@ void forward_lighting_eval(Thickness thickness,
       float3 direct_light = closure_light_get(stack, i).light_shadowed;
       float3 indirect_light = lightprobe_eval(samp, cl, g_data.P, V, thickness);
 
+#ifdef MAT_REFLECTION
       if (cl.type == CLOSURE_BSDF_MICROFACET_GGX_REFLECTION_ID) {
         const float blend = saturate(to_closure_reflection(cl).roughness * -10.0f + 1.0f) *
                             saturate(dot(average_N, cl.N) * 100.0f - 99.0f);
         indirect_light = mix(indirect_light, planar_probe_radiance, blend);
       }
+#endif
 
       if ((cl.type == CLOSURE_BSDF_TRANSLUCENT_ID ||
            cl.type == CLOSURE_BSDF_MICROFACET_GGX_REFRACTION_ID) &&

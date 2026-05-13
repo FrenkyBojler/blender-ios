@@ -76,44 +76,18 @@ float lightprobe_planar_distance_score(PlanarProbeData planar, float3 P)
   return float(all(lessThan(abs(lP), float3(1.0f))));
 }
 
-float lightprobe_planar_score(PlanarProbeData planar, float3 P, float3 V, float3 L)
+float lightprobe_planar_score(PlanarProbeData planar, float3 P, float3 N)
 {
-  /* Return how much the ray is lined up with the captured ray. */
-  float3 R = -reflect(V, planar.normal);
-  return saturate(dot(L, R)) * lightprobe_planar_distance_score(planar, P);
+  return saturate(dot(N, planar.normal)) * lightprobe_planar_distance_score(planar, P);
 }
 
 /**
  * Return the best planar probe index for a given light direction vector and position.
  */
-int lightprobe_planar_select(float3 P, float3 V, float3 L)
+int lightprobe_planar_select(float3 P, float3 N)
 {
   const auto &planar_buf = buffer_get(eevee_lightprobe_planar_data, probe_planar_buf);
-  /* Initialize to the score of a camera ray. */
-  float best_score = saturate(dot(L, -V));
-  int best_index = -1;
 
-  for (int index = 0; index < PLANAR_PROBE_MAX; index++) {
-    if (planar_buf[index].layer_id == -1) {
-      /* PlanarProbeData doesn't contain any gap, exit at first item that is invalid. */
-      break;
-    }
-    float score = lightprobe_planar_score(planar_buf[index], P, V, L);
-    if (score > best_score) {
-      best_score = score;
-      best_index = index;
-    }
-  }
-  return best_index;
-}
-
-/**
- * Return the best planar probe index for a given light direction vector and position.
- */
-int lightprobe_planar_select(float3 P)
-{
-  const auto &planar_buf = buffer_get(eevee_lightprobe_planar_data, probe_planar_buf);
-  /* Initialize to the score of a camera ray. */
   float best_score = 0.0;
   int best_index = -1;
 
@@ -122,7 +96,7 @@ int lightprobe_planar_select(float3 P)
       /* PlanarProbeData doesn't contain any gap, exit at first item that is invalid. */
       break;
     }
-    float score = lightprobe_planar_distance_score(planar_buf[index], P);
+    float score = lightprobe_planar_score(planar_buf[index], P, N);
     if (score > best_score) {
       best_score = score;
       best_index = index;
