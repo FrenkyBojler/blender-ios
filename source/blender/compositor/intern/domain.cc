@@ -107,6 +107,38 @@ bool operator!=(const Domain &a, const Domain &b)
   return !(a == b);
 }
 
+StringRef to_string(const Interpolation &interpolation)
+{
+  switch (interpolation) {
+    case Interpolation::Nearest:
+      return "Nearest";
+    case Interpolation::Bilinear:
+      return "Bilinear";
+    case Interpolation::Bicubic:
+      return "Bicubic";
+    case Interpolation::Anisotropic:
+      return "Anisotropic";
+  }
+
+  BLI_assert_unreachable();
+  return "None";
+}
+
+StringRef to_string(const Extension &extension)
+{
+  switch (extension) {
+    case Extension::Extend:
+      return "Extend";
+    case Extension::Repeat:
+      return "Repeat";
+    case Extension::Clip:
+      return "Clip";
+  }
+
+  BLI_assert_unreachable();
+  return "None";
+}
+
 GPUSamplerExtendMode map_extension_mode_to_extend_mode(const Extension &mode)
 {
   switch (mode) {

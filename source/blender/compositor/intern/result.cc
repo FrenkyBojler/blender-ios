@@ -1169,4 +1169,17 @@ void Result::allocate_data(const int2 size,
   }
 }
 
+StringRef to_string(const ResultPrecision &precision)
+{
+  switch (precision) {
+    case ResultPrecision::Full:
+      return "Full";
+    case ResultPrecision::Half:
+      return "Half";
+  }
+
+  BLI_assert_unreachable();
+  return "None";
+}
+
 }  // namespace blender::compositor
