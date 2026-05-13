@@ -46,7 +46,9 @@ std::optional<GeoMismatch> compare_meshes(const Mesh &mesh1, const Mesh &mesh2, 
  */
 std::optional<GeoMismatch> compare_curves(const CurvesGeometry &curves1,
                                           const CurvesGeometry &curves2,
-                                          float threshold);
+                                          const float threshold,
+                                          const float curves_num_deviations,
+                                          const float points_num_deviations);
 
 /**
  * \brief Checks if the two lattices are different, returning the type of mismatch if any.
@@ -56,5 +58,15 @@ std::optional<GeoMismatch> compare_curves(const CurvesGeometry &curves1,
 std::optional<GeoMismatch> compare_lattices(const Lattice &lattice1,
                                             const Lattice &lattice2,
                                             float threshold);
+
+/**
+ * \brief Checks if the two grease pencil objects are different, including checks for drawing/layer
+ * count and structure, and the curves in individual drawings.
+ *
+ * \returns The type of mismatch that was detected, if there is any.
+ */
+std::optional<GeoMismatch> compare_grease_pencil(const GreasePencil &grease_pencil_1,
+                                                 const GreasePencil &grease_pencil_2,
+                                                 float threshold);
 
 }  // namespace blender::bke::compare_geometry

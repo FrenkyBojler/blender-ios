@@ -260,7 +260,7 @@ static const char *rna_Curves_unit_test_compare(Curves *curves1, Curves *curves2
   using namespace bke::compare_geometry;
 
   const std::optional<GeoMismatch> mismatch = compare_curves(
-      curves1->geometry.wrap(), curves2->geometry.wrap(), threshold);
+      curves1->geometry.wrap(), curves2->geometry.wrap(), threshold, 0, 0);
 
   if (!mismatch) {
     return "Same";

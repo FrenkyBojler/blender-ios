@@ -13,6 +13,7 @@
 #include "BKE_anonymous_attribute_id.hh"
 #include "BKE_attribute.hh"
 #include "BKE_attribute_math.hh"
+#include "BKE_grease_pencil.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_mapping.hh"
 
@@ -44,6 +45,10 @@ enum class GeoMismatch : int8_t {
   Attributes,       /* The sets of attribute ids are different. */
   AttributeTypes,   /* Some attributes with the same name have different types. */
   Indices,          /* The geometries are the same up to a change of indices. */
+  NumLayers,        /* The number of grease pencil layers is different. */
+  NumDrawing,       /* The number of grease pencil drawings is different. */
+  LayerStructure,   /* The layer structures of two grease pencil drawings are different. */
+  FrameStructure,   /* The frame structures of two grease pencil drawings are different. */
 };
 
 const char *mismatch_to_string(const GeoMismatch &mismatch)
@@ -81,6 +86,14 @@ const char *mismatch_to_string(const GeoMismatch &mismatch)
       return "Some attributes with the same name have different types";
     case GeoMismatch::Indices:
       return "The geometries are the same up to a change of indices";
+    case GeoMismatch::NumDrawing:
+      return "The number of drawings is different";
+    case GeoMismatch::NumLayers:
+      return "The number of layers is different";
+    case GeoMismatch::LayerStructure:
+      return "Layer structure is different";
+    case GeoMismatch::FrameStructure:
+      return "Frame structure is different";
   }
   BLI_assert_unreachable();
   return "";
@@ -1016,13 +1029,22 @@ static bool sort_curves(const OffsetIndices<int> offset_indices1,
 
 std::optional<GeoMismatch> compare_curves(const CurvesGeometry &curves1,
                                           const CurvesGeometry &curves2,
-                                          const float threshold)
+                                          const float threshold,
+                                          const float curves_num_deviations,
+                                          const float points_num_deviations)
 {
   /* These will be assumed implicitly later on. */
-  if (curves1.points_num() != curves2.points_num()) {
+  const int points_num1 = curves1.points_num(), points_num2 = curves2.points_num();
+  const int curves_num1 = curves1.curves_num(), curves_num2 = curves2.curves_num();
+  if ((points_num1 == 0 && points_num2 != 0) ||
+      float(points_num1 - points_num2) / points_num1 > points_num_deviations)
+  {
+    printf("%d %d\n", points_num1, points_num2);
     return GeoMismatch::NumPoints;
   }
-  if (curves1.curves_num() != curves2.curves_num()) {
+  if ((curves_num1 == 0 && curves_num2 != 0) ||
+      float(curves_num1 - curves_num2) / curves_num1 > curves_num_deviations)
+  {
     return GeoMismatch::NumCurves;
   }
 
@@ -1097,6 +1119,83 @@ std::optional<GeoMismatch> compare_lattices(const Lattice &lattice1,
   }
 
   /* No mismatches found. */
+  return std::nullopt;
+}
+
+std::optional<GeoMismatch> compare_grease_pencil(const GreasePencil &grease_pencil_1,
+                                                 const GreasePencil &grease_pencil_2,
+                                                 float threshold)
+{
+  const Span<const greasepencil::TreeNode *> nodes1 = grease_pencil_1.nodes();
+  const Span<const greasepencil::TreeNode *> nodes2 = grease_pencil_2.nodes();
+  if (nodes1.size() != nodes2.size()) {
+    return GeoMismatch::NumLayers;
+  }
+
+  if (grease_pencil_1.drawings().size() != grease_pencil_2.drawings().size()) {
+    return GeoMismatch::NumDrawing;
+  }
+
+  for (const int i : nodes1.index_range()) {
+    /* Whether node types are matching. */
+    const bool node1_layer = nodes1[i]->is_layer(), node2_layer = nodes2[i]->is_layer();
+    if (node1_layer != node2_layer) {
+      return GeoMismatch::LayerStructure;
+    }
+    if (!node1_layer) {
+      continue;
+    }
+
+    /* Whether frame count & locations & types in each layers are matching. */
+    const greasepencil::Layer &layer1 = nodes1[i]->as_layer(), &layer2 = nodes2[i]->as_layer();
+    const Map<int, GreasePencilFrame> &map1 = layer1.frames(), &map2 = layer2.frames();
+    const Span<const GreasePencilDrawingBase *> &drawing_base1 = grease_pencil_1.drawings(),
+                                                &drawing_base2 = grease_pencil_2.drawings();
+    if (map1.size() != map2.size()) {
+      return GeoMismatch::FrameStructure;
+    }
+    bool frame_keys_different = false;
+    map1.foreach_item([&](const int &key, const GreasePencilFrame &frame1) {
+      if (frame_keys_different) {
+        return;
+      }
+      const GreasePencilFrame *frame2 = map2.lookup_ptr(key);
+      if (!frame2) {
+        frame_keys_different = true;
+        return;
+      }
+      if (drawing_base1[frame1.drawing_index]->type != drawing_base2[frame2->drawing_index]->type)
+      {
+        frame_keys_different = true;
+        return;
+      }
+    });
+    if (frame_keys_different) {
+      return GeoMismatch::FrameStructure;
+    }
+
+    std::optional<GeoMismatch> problem = std::nullopt;
+    /* Compare drawings by curve data. */
+    map1.foreach_item([&](const int &key, const GreasePencilFrame &frame1) {
+      if (problem.has_value()) {
+        return;
+      }
+      const GreasePencilFrame &frame2 = map2.lookup(key);
+      if (drawing_base1[frame1.drawing_index]->type != GreasePencilDrawingType::GP_DRAWING) {
+        return;
+      }
+      const greasepencil::Drawing &drawing1 = *reinterpret_cast<const greasepencil::Drawing *>(
+          drawing_base1[frame1.drawing_index]);
+      const greasepencil::Drawing &drawing2 = *reinterpret_cast<const greasepencil::Drawing *>(
+          drawing_base2[frame2.drawing_index]);
+      problem = compare_curves(drawing1.strokes(), drawing2.strokes(), threshold, 0.001, 0.001);
+    });
+
+    if (problem.has_value()) {
+      return problem;
+    }
+  }
+
   return std::nullopt;
 }
 

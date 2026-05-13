@@ -439,6 +439,10 @@ class MeshTest(ABC):
             unit_test_compare_args = {"lattice": evaluated_test_data}
             report_name = "Lattice"
             validate_func = None
+        elif evaluated_object.type == 'GREASEPENCIL':
+            unit_test_compare_args = {"grease_pencil": evaluated_test_data}
+            report_name = "Grease Pencil"
+            validate_func = None
         else:
             raise Exception("This object type is not yet supported!")
 
@@ -634,7 +638,7 @@ class SpecMeshTest(MeshTest):
         if test_object.type == 'CURVE':
             # Cannot apply constructive modifiers on curves, convert to mesh entirely.
             bpy.ops.object.convert(target='MESH')
-        elif test_object.type in ['MESH', 'LATTICE']:
+        elif test_object.type in ['MESH', 'LATTICE', 'GREASEPENCIL']:
             bpy.ops.object.modifier_apply(modifier=modifier_name)
         else:
             raise Exception("This object type is not yet supported!")
