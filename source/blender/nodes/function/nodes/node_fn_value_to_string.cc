@@ -4,17 +4,14 @@
 
 #include "node_function_util.hh"
 
-#include "BLI_math_color.h"
-
-#include "IMB_colormanagement.hh"
-
 #include "NOD_rna_define.hh"
 #include "NOD_socket_search_link.hh"
 
 #include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
-#include <cstdio>
+#include <algorithm>
+#include <charconv>
 #include <iomanip>
 #include <sstream>
 #include <string>
@@ -32,6 +29,20 @@ static void node_declare(NodeDeclarationBuilder &b)
 
     auto &decimals = b.add_input<decl::Int>("Decimals"_ustr).min(0);
     decimals.available(data_type == SOCK_FLOAT);
+
+    auto &base = b.add_input<decl::Int>("Base"_ustr)
+                     .min(2)
+                     .max(36)
+                     .default_value(10)
+                     .description("Numeric base for the output string (e.g. 2 for bindary, 16 for hexadecimal)");
+    base.available(data_type == SOCK_INT);
+
+    auto &padding = b.add_input<decl::Int>("Padding"_ustr)
+                        .min(0)
+                        .default_value(0)
+                        .description(
+                            "Minimum number of characters in the output, zero-padded if shorter");
+    padding.available(data_type == SOCK_INT);
   }
 
   b.add_output<decl::String>("String"_ustr);
@@ -46,24 +57,19 @@ static const mf::MultiFunction *get_multi_function(const bNode &bnode)
         return stream.str();
       });
 
-  static auto int_to_str_fn = mf::build::SI1_SO<int, std::string>(
-      "Value To String", [](int a) { return std::to_string(a); });
-
-  static auto color_to_str_fn = mf::build::SI1_SO<ColorGeometry4f, std::string>(
-      "Value To String", [](ColorGeometry4f color) -> std::string {
-        float rgba[4] = {color.r, color.g, color.b, color.a};
-        IMB_colormanagement_scene_linear_to_srgb_v3(rgba, rgba);
-        uchar rgba_uchar[4];
-        rgba_float_to_uchar(rgba_uchar, rgba);
-        char buf[10];
-        std::snprintf(buf,
-                      sizeof(buf),
-                      "#%02X%02X%02X%02X",
-                      uint(rgba_uchar[0]),
-                      uint(rgba_uchar[1]),
-                      uint(rgba_uchar[2]),
-                      uint(rgba_uchar[3]));
-        return std::string(buf);
+  static auto int_to_str_fn = mf::build::SI3_SO<int, int, int, std::string>(
+      "Value To String", [](int value, int base, int padding) -> std::string {
+        base = std::clamp(base, 2, 36);
+        padding = std::max(0, padding);
+        char buf[35];
+        auto [ptr, ec] = std::to_chars(buf, buf + sizeof(buf), value, base);
+        std::string result(buf, ptr);
+        if (padding > int(result.size())) {
+          const size_t needed = size_t(padding) - result.size();
+          const size_t insert_pos = (!result.empty() && result[0] == '-') ? 1 : 0;
+          result.insert(insert_pos, needed, '0');
+        }
+        return result;
       });
 
   switch (bnode.custom1) {
@@ -71,8 +77,6 @@ static const mf::MultiFunction *get_multi_function(const bNode &bnode)
       return &float_to_str_fn;
     case SOCK_INT:
       return &int_to_str_fn;
-    case SOCK_RGBA:
-      return &color_to_str_fn;
   }
 
   BLI_assert_unreachable();
@@ -105,13 +109,6 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
         params.update_and_connect_available_socket(node, "Decimals"_ustr);
       });
     }
-    else if (socket_type == SOCK_RGBA) {
-      params.add_item(IFACE_("Value"), [](LinkSearchOpParams &params) {
-        bNode &node = params.add_node("FunctionNodeValueToString"_ustr);
-        node.custom1 = SOCK_RGBA;
-        params.update_and_connect_available_socket(node, "Value"_ustr);
-      });
-    }
     else {
       if (params.node_tree().typeinfo->validate_link(socket_type, SOCK_FLOAT)) {
         params.add_item(IFACE_("Value"), [](LinkSearchOpParams &params) {
@@ -142,7 +139,6 @@ static void node_rna(StructRNA *srna)
   static const EnumPropertyItem data_types[] = {
       {SOCK_FLOAT, "FLOAT", ICON_NODE_SOCKET_FLOAT, "Float", "Floating-point value"},
       {SOCK_INT, "INT", ICON_NODE_SOCKET_INT, "Integer", "32-bit integer"},
-      {SOCK_RGBA, "RGBA", ICON_NODE_SOCKET_RGBA, "Color", "RGBA color as a hex string"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 

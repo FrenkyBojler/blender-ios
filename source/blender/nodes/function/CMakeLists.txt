@@ -33,7 +33,6 @@ set(SRC
   nodes/node_fn_float_to_int.cc
   nodes/node_fn_format_string.cc
   nodes/node_fn_hash_value.cc
-  nodes/node_fn_hex_to_integer.cc
   nodes/node_fn_input_bool.cc
   nodes/node_fn_input_color.cc
   nodes/node_fn_input_int.cc
@@ -44,7 +43,6 @@ set(SRC
   nodes/node_fn_input_string.cc
   nodes/node_fn_input_vector.cc
   nodes/node_fn_integer_math.cc
-  nodes/node_fn_integer_to_hex.cc
   nodes/node_fn_invert_matrix.cc
   nodes/node_fn_invert_rotation.cc
   nodes/node_fn_match_string.cc
