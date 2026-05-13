@@ -296,14 +296,13 @@ bool USDMeshReader::read_faces(Mesh *mesh, const USDMeshReadData &usd_data) cons
     /* Polygons are always assumed to be smooth-shaded. If the mesh should be flat-shaded,
      * this is encoded in custom loop normals. */
 
-    bool face_ok = true;
     if (is_left_handed_) {
       int64_t loop_end_index = loop_index + (face_size - 1);
       for (int64_t f = 0; f < face_size; ++f, ++loop_index) {
         int vidx = face_indices[loop_end_index - f];
         if (!validate::index_in_range(vidx, mesh->verts_num)) {
           vidx = 0;
-          face_ok = false;
+          all_faces_ok = false;
         }
         corner_verts[loop_index] = vidx;
       }
@@ -313,14 +312,10 @@ bool USDMeshReader::read_faces(Mesh *mesh, const USDMeshReadData &usd_data) cons
         int vidx = face_indices[loop_index];
         if (!validate::index_in_range(vidx, mesh->verts_num)) {
           vidx = 0;
-          face_ok = false;
+          all_faces_ok = false;
         }
         corner_verts[loop_index] = vidx;
       }
-    }
-
-    if (!face_ok) {
-      all_faces_ok = false;
     }
   }
 
