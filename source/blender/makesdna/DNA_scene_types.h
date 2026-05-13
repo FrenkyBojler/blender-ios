@@ -26,6 +26,7 @@
 #include "DNA_curve_enums.h"
 #include "DNA_customdata_types.h" /* Scene's runtime custom-data masks. */
 #include "DNA_freestyle_types.h"
+#include "DNA_image_enums.h"
 #include "DNA_image_types.h"
 #include "DNA_layer_types.h"
 #include "DNA_listBase.h"
@@ -399,13 +400,6 @@ enum eImageFormatDepth : char {
 };
 ENUM_OPERATORS(eImageFormatDepth)
 
-/** #ImageFormatData::planes */
-enum eMediaType_Planes : char {
-  R_IMF_PLANES_RGB = 24,
-  R_IMF_PLANES_RGBA = 32,
-  R_IMF_PLANES_BW = 8,
-};
-
 /** #ImageFormatData::exr_codec */
 enum eMediaType_ExrCodec : char {
   R_IMF_EXR_CODEC_NONE = 0,
@@ -483,8 +477,7 @@ struct ImageFormatData {
    * not a flag, only set 1 at a time. */
   eImageFormatDepth depth = R_IMF_CHAN_DEPTH_8;
 
-  /** R_IMF_PLANES_BW, R_IMF_PLANES_RGB, R_IMF_PLANES_RGBA. */
-  char planes = R_IMF_PLANES_RGBA;
+  ImColorMode color_mode = ImColorMode::RGBA;
   /** Generic options for all image types, alpha Z-buffer. */
   char flag = 0;
 
@@ -615,7 +608,7 @@ enum eBakeSpace : char {
 #define R_BAKE_PASS_FILTER_ALL eBakePassFilter(~0)
 
 struct BakeData {
-  struct ImageFormatData im_format;
+  ImageFormatData im_format;
 
   char filepath[/*FILE_MAX*/ 1024] = "//";
 
@@ -850,7 +843,7 @@ enum eRender_LineThicknessMode : int {
 struct RenderData {
   DNA_DEFINE_CXX_METHODS(RenderData)
 
-  struct ImageFormatData im_format;
+  ImageFormatData im_format;
 
   struct FFMpegCodecData ffcodecdata;
 
@@ -891,7 +884,7 @@ struct RenderData {
   DNA_DEPRECATED int tilex = 256;
   DNA_DEPRECATED int tiley = 256;
 
-  DNA_DEPRECATED short planes = 0;
+  DNA_DEPRECATED short color_mode = 0;
   DNA_DEPRECATED short imtype = 0;
   DNA_DEPRECATED short subimtype = 0;
   DNA_DEPRECATED short quality = 0;
@@ -2990,8 +2983,8 @@ extern const char *RE_engine_id_BLENDER_EEVEE_NEXT;
 /* deprecate this! */
 #define OBEDIT_FROM_OBACT(ob) ((ob) ? (((ob)->mode & OB_MODE_EDIT) ? ob : NULL) : NULL)
 #define OBPOSE_FROM_OBACT(ob) ((ob) ? (((ob)->mode & OB_MODE_POSE) ? ob : NULL) : NULL)
-#define OBWEIGHTPAINT_FROM_OBACT(ob) \
-  ((ob) ? (((ob)->mode & OB_MODE_WEIGHT_PAINT) ? ob : NULL) : NULL)
+#define OBWEIGHTPAINT_ALL_FROM_OBACT(ob) \
+  ((ob) ? (((ob)->mode & OB_MODE_ALL_WEIGHT_PAINT) ? ob : NULL) : NULL)
 
 #define V3D_CAMERA_LOCAL(v3d) ((!(v3d)->scenelock && (v3d)->camera) ? (v3d)->camera : NULL)
 #define V3D_CAMERA_SCENE(scene, v3d) \
