@@ -59,7 +59,7 @@ struct SearchDebugLightCtx {
 };
 
 template void light::foreach<SearchDebugLightCtx, LightRenderData>(const LightRenderData &,
-                                                                   SearchDebugLightCtx,
+                                                                   SearchDebugLightCtx &,
                                                                    LightRenderData &);
 
 struct ShadowDebug {
@@ -282,7 +282,7 @@ struct AtomicCostCtx {
 };
 
 template void light::foreach<AtomicCostCtx, ShadowDebug>(const LightRenderData &,
-                                                         AtomicCostCtx,
+                                                         AtomicCostCtx &,
                                                          ShadowDebug &);
 
 ShadowDebugOutput debug_atomic_cost([[resource_table]] ShadowDebug &srt,

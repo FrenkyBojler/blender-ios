@@ -125,7 +125,7 @@ struct AmendCtx {
 };
 
 template void light::foreach<AmendCtx, TilemapAmend>(const LightRenderData &,
-                                                     AmendCtx,
+                                                     AmendCtx &,
                                                      TilemapAmend &);
 
 [[compute, local_size(SHADOW_TILEMAP_RES, SHADOW_TILEMAP_RES)]] void tilemap_amend(

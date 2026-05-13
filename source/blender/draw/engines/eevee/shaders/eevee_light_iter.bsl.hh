@@ -36,7 +36,7 @@ int culling_z_to_zbin(float scale, float bias, float z)
  * If ResourceT is not needed, just pass LightRenderData again. */
 template<typename CallbackT, typename ResourceT>
 void foreach([[resource_table]] const LightRenderData &srt,
-             CallbackT cb,
+             CallbackT &cb,
              [[resource_table]] ResourceT &res)
 {
   const LightCullingData &culling = srt.light_cull_buf;
@@ -56,7 +56,7 @@ template<typename CallbackT, typename ResourceT>
 void foreach_visible([[resource_table]] const LightRenderData &srt,
                      float2 pixel,
                      float linear_view_z,
-                     CallbackT cb,
+                     CallbackT &cb,
                      [[resource_table]] ResourceT &res)
 {
   const LightCullingData &culling = srt.light_cull_buf;

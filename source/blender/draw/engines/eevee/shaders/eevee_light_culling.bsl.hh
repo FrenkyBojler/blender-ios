@@ -519,11 +519,11 @@ struct WithCullCtx {
 namespace eevee::light {
 
 template void light::foreach<culling::NoCullCtx, LightRenderData>(const LightRenderData &,
-                                                                  culling::NoCullCtx,
+                                                                  culling::NoCullCtx &,
                                                                   LightRenderData &);
 
 template void light::foreach_visible<culling::WithCullCtx, LightRenderData>(
-    const LightRenderData &, float2, float, culling::WithCullCtx, LightRenderData &);
+    const LightRenderData &, float2, float, culling::WithCullCtx &, LightRenderData &);
 
 }  // namespace eevee::light
 

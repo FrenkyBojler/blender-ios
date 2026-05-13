@@ -171,21 +171,25 @@ void light_eval_frag([[resource_table]] LightEval &srt,
     /* NOTE: Only evaluates `stack.cl[0]`. */
     lrd.eval_transmission(ctx_tr, frag_co.xy, vPz);
 
-#if 1 /* TODO Limit to SSS. */
     if (cl_transmit.type == CLOSURE_BSSRDF_BURLEY_ID) {
+#if 1 /* TODO Limit to SSS. */
       /* Apply transmission profile onto transmitted light and sum with reflected light. */
       float3 sss_profile = subsurface_transmission(to_closure_subsurface(cl_transmit).sss_radius,
                                                    thickness.value());
       ctx.stack.cl[0].light_shadowed += ctx_tr.stack.cl[0].light_shadowed * sss_profile;
       ctx.stack.cl[0].light_unshadowed += ctx_tr.stack.cl[0].light_unshadowed * sss_profile;
-    }
 #endif
+    }
+    else {
+      ctx.stack.cl[0].light_shadowed = ctx_tr.stack.cl[0].light_shadowed;
+      ctx.stack.cl[0].light_unshadowed = ctx_tr.stack.cl[0].light_unshadowed;
+    }
   }
 
   if (srt.render_pass_shadow_id != -1) {
     float3 radiance_shadowed = float3(0);
     float3 radiance_unshadowed = float3(0);
-    for (uchar i = 0; i < LIGHT_CLOSURE_EVAL_COUNT && i < closure_count; i++) {
+    for (uchar i = 0; i < srt.light_closure_eval_count && i < closure_count; i++) {
       radiance_shadowed += light::closure_get(ctx.stack, i).light_shadowed;
       radiance_unshadowed += light::closure_get(ctx.stack, i).light_unshadowed;
     }
@@ -201,7 +205,7 @@ void light_eval_frag([[resource_table]] LightEval &srt,
                                                                clamp_indirect);
 
     uint3 bin_indices = gbuf.header.bin_index_per_layer();
-    for (uchar i = 0; i < LIGHT_CLOSURE_EVAL_COUNT && i < closure_count; i++) {
+    for (uchar i = 0; i < srt.light_closure_eval_count && i < closure_count; i++) {
       float3 indirect_light = lightprobe_eval(samp, gbuf.layer[i], P, V, thickness);
       float3 direct_light = light::closure_get(ctx.stack, i).light_shadowed;
       if (srt.use_split_indirect) {
@@ -215,7 +219,7 @@ void light_eval_frag([[resource_table]] LightEval &srt,
   }
   else {
     uint3 bin_indices = gbuf.header.bin_index_per_layer();
-    for (uchar i = 0; i < LIGHT_CLOSURE_EVAL_COUNT && i < closure_count; i++) {
+    for (uchar i = 0; i < srt.light_closure_eval_count && i < closure_count; i++) {
       float3 direct_light = light::closure_get(ctx.stack, i).light_shadowed;
       srt.write_radiance_direct(bin_indices[i], texel, direct_light);
     }

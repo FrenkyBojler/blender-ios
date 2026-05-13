@@ -14,17 +14,8 @@
 #include "gpu_shader_codegen_lib.glsl"
 #include "gpu_shader_utildefines_lib.glsl"
 
-#ifdef GLSL_CPP_STUBS
-#  define LIGHT_CLOSURE_EVAL_COUNT 3
-#endif
-
-/* For forward compatibility until everything is ported to BSL. */
-#ifdef SRT_CONSTANT_light_closure_eval_count
-#  define LIGHT_CLOSURE_EVAL_COUNT SRT_CONSTANT_light_closure_eval_count
-#endif
-
-#if !defined(LIGHT_CLOSURE_EVAL_COUNT)
-#  define LIGHT_CLOSURE_EVAL_COUNT 1
+#if !defined(SRT_CONSTANT_light_closure_eval_count)
+#  define SRT_CONSTANT_light_closure_eval_count 1
 #  define SKIP_LIGHT_EVAL
 #endif
 
@@ -32,7 +23,7 @@ namespace eevee::light {
 
 struct ClosureStack {
   /* NOTE: This is wrapped into a struct to avoid array shenanigans on MSL. */
-  ClosureLight cl[LIGHT_CLOSURE_EVAL_COUNT];
+  ClosureLight cl[SRT_CONSTANT_light_closure_eval_count];
 };
 
 ClosureLight closure_get(ClosureStack stack, uchar index)
@@ -40,15 +31,15 @@ ClosureLight closure_get(ClosureStack stack, uchar index)
   switch (index) {
     case 0:
       return stack.cl[0];
-#if LIGHT_CLOSURE_EVAL_COUNT > 1
+#if SRT_CONSTANT_light_closure_eval_count > 1
     case 1:
       return stack.cl[1];
 #endif
-#if LIGHT_CLOSURE_EVAL_COUNT > 2
+#if SRT_CONSTANT_light_closure_eval_count > 2
     case 2:
       return stack.cl[2];
 #endif
-#if LIGHT_CLOSURE_EVAL_COUNT > 3
+#if SRT_CONSTANT_light_closure_eval_count > 3
 #  error
 #endif
   }
@@ -62,17 +53,17 @@ void closure_set(ClosureStack &stack, uchar index, ClosureLight cl_light)
     case 0:
       stack.cl[0] = cl_light;
       break;
-#if LIGHT_CLOSURE_EVAL_COUNT > 1
+#if SRT_CONSTANT_light_closure_eval_count > 1
     case 1:
       stack.cl[1] = cl_light;
       break;
 #endif
-#if LIGHT_CLOSURE_EVAL_COUNT > 2
+#if SRT_CONSTANT_light_closure_eval_count > 2
     case 2:
       stack.cl[2] = cl_light;
       break;
 #endif
-#if LIGHT_CLOSURE_EVAL_COUNT > 3
+#if SRT_CONSTANT_light_closure_eval_count > 3
 #  error
 #endif
   }
@@ -177,13 +168,13 @@ template<bool is_transmission> struct LightEvalCtx {
 
     light_eval_single_closure(light, lv, stack.cl[0], V, attenuation, shadow);
     if (!is_transmission) {
-#if LIGHT_CLOSURE_EVAL_COUNT > 1
+#if SRT_CONSTANT_light_closure_eval_count > 1
       light_eval_single_closure(light, lv, stack.cl[1], V, attenuation, shadow);
 #endif
-#if LIGHT_CLOSURE_EVAL_COUNT > 2
+#if SRT_CONSTANT_light_closure_eval_count > 2
       light_eval_single_closure(light, lv, stack.cl[2], V, attenuation, shadow);
 #endif
-#if LIGHT_CLOSURE_EVAL_COUNT > 3
+#if SRT_CONSTANT_light_closure_eval_count > 3
 #  error
 #endif
     }
@@ -204,9 +195,9 @@ template struct LightEvalCtx<true>;
 template struct LightEvalCtx<false>;
 
 template void foreach_visible<LightEvalCtx<true>, ShadowRenderData>(
-    const LightRenderData &, float2, float, LightEvalCtx<true>, ShadowRenderData &);
+    const LightRenderData &, float2, float, LightEvalCtx<true> &, ShadowRenderData &);
 template void foreach_visible<LightEvalCtx<false>, ShadowRenderData>(
-    const LightRenderData &, float2, float, LightEvalCtx<false>, ShadowRenderData &);
+    const LightRenderData &, float2, float, LightEvalCtx<false> &, ShadowRenderData &);
 
 /* NOTE: Doesn't init the closure stack. */
 LightEvalCtx<true> init_from_reflect_ctx(LightEvalCtx<false> ctx)
@@ -226,7 +217,7 @@ struct LightEvalData {
   [[resource_table]] srt_t<ShadowRenderData> shadow_data;
   [[resource_table]] srt_t<LightRenderData> light_data;
 
-  void eval_reflection(LightEvalCtx<false> ctx, float2 pixel, float vPz)
+  void eval_reflection(LightEvalCtx<false> &ctx, float2 pixel, float vPz)
   {
 #ifdef SKIP_LIGHT_EVAL
     return;
@@ -236,7 +227,7 @@ struct LightEvalData {
     foreach_visible(lrd, pixel, vPz, ctx, srd);
   }
 
-  void eval_transmission(LightEvalCtx<true> ctx, float2 pixel, float vPz)
+  void eval_transmission(LightEvalCtx<true> &ctx, float2 pixel, float vPz)
   {
 #ifdef SKIP_LIGHT_EVAL
     return;

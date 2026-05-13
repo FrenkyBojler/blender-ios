@@ -182,7 +182,7 @@ struct LightEvalCtx {
 
 namespace eevee::light {
 template void foreach_visible<volume::LightEvalCtx, volume::Scatter>(
-    const LightRenderData &, float2, float, volume::LightEvalCtx, volume::Scatter &);
+    const LightRenderData &, float2, float, volume::LightEvalCtx &, volume::Scatter &);
 }
 
 namespace eevee::volume {

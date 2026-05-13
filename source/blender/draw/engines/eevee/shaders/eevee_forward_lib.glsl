@@ -20,11 +20,13 @@
 
 /* Allow static compilation of forward materials. */
 #ifndef CLOSURE_BIN_COUNT
-#  define CLOSURE_BIN_COUNT LIGHT_CLOSURE_EVAL_COUNT
+#  define CLOSURE_BIN_COUNT SRT_CONSTANT_light_closure_eval_count
 #endif
 
-#if CLOSURE_BIN_COUNT != LIGHT_CLOSURE_EVAL_COUNT
-#  error Closure data count and eval count must match
+#ifndef GLSL_CPP_STUBS
+#  if CLOSURE_BIN_COUNT != SRT_CONSTANT_light_closure_eval_count
+#    error Closure data count and eval count must match
+#  endif
 #endif
 
 void forward_lighting_eval(Thickness thickness, float3 &radiance, float3 &transmittance)
@@ -33,7 +35,7 @@ void forward_lighting_eval(Thickness thickness, float3 &radiance, float3 &transm
   float3 V = drw_world_incident_vector(g_data.P);
 
   eevee::light::LightEvalCtx<false> ctx;
-  for (int i = 0; i < LIGHT_CLOSURE_EVAL_COUNT; i++) {
+  for (int i = 0; i < SRT_CONSTANT_light_closure_eval_count; i++) {
     ClosureUndetermined cl = g_closure_get(uchar(i));
     eevee::light::closure_set(ctx.stack, uchar(i), closure_light_new(cl, V));
   }
@@ -43,7 +45,7 @@ void forward_lighting_eval(Thickness thickness, float3 &radiance, float3 &transm
   ctx.V = V;
   ctx.thickness = thickness;
 
-  /* TODO(fclem): If transmission (no SSS) is present, we could reduce LIGHT_CLOSURE_EVAL_COUNT
+  /* TODO(fclem): If transmission (no SSS) is present, we could reduce light_closure_eval_count
    * by 1 for this evaluation and skip evaluating the transmission closure twice. */
   ObjectInfos object_infos = drw_infos[drw_resource_id()];
   ctx.receiver_light_set = receiver_light_set_get(object_infos);
@@ -91,7 +93,7 @@ void forward_lighting_eval(Thickness thickness, float3 &radiance, float3 &transm
   /* Combine all radiance. */
   float3 radiance_direct = float3(0.0f);
   float3 radiance_indirect = float3(0.0f);
-  for (uchar i = 0; i < LIGHT_CLOSURE_EVAL_COUNT; i++) {
+  for (uchar i = 0; i < SRT_CONSTANT_light_closure_eval_count; i++) {
     ClosureUndetermined cl = g_closure_get_resolved(i, 1.0f);
     if (cl.weight > CLOSURE_WEIGHT_CUTOFF) {
       float3 direct_light = eevee::light::closure_get(ctx.stack, i).light_shadowed;

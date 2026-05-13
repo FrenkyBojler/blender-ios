@@ -118,7 +118,7 @@ struct TilemapBoundsCtx {
 
 template void eevee::light::foreach<eevee::shadow::TilemapBoundsCtx, eevee::shadow::TilemapBounds>(
     const eevee::LightRenderData &,
-    eevee::shadow::TilemapBoundsCtx,
+    eevee::shadow::TilemapBoundsCtx &,
     eevee::shadow::TilemapBounds &);
 
 namespace eevee::shadow {

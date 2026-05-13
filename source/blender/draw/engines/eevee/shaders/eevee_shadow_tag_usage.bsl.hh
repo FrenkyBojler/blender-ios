@@ -234,10 +234,14 @@ struct TagSurfelCtx {
 namespace eevee::light {
 
 template void light::foreach_visible<shadow::usage::TagPixelCtx, shadow::usage::TagUsage>(
-    const LightRenderData &, float2, float, shadow::usage::TagPixelCtx, shadow::usage::TagUsage &);
+    const LightRenderData &,
+    float2,
+    float,
+    shadow::usage::TagPixelCtx &,
+    shadow::usage::TagUsage &);
 
 template void light::foreach<shadow::usage::TagSurfelCtx, shadow::usage::TagUsage>(
-    const LightRenderData &, shadow::usage::TagSurfelCtx, shadow::usage::TagUsage &);
+    const LightRenderData &, shadow::usage::TagSurfelCtx &, shadow::usage::TagUsage &);
 
 }  // namespace eevee::light
 

@@ -89,7 +89,7 @@ struct FromShadowEvalCtx {
 
 namespace eevee {
 template void light::foreach_visible<thickness::FromShadowEvalCtx, ShadowRenderData>(
-    const LightRenderData &, float2, float, thickness::FromShadowEvalCtx, ShadowRenderData &);
+    const LightRenderData &, float2, float, thickness::FromShadowEvalCtx &, ShadowRenderData &);
 }  // namespace eevee
 
 namespace eevee {

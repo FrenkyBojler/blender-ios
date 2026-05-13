@@ -1015,13 +1015,13 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
         break;
       /* These need to be separated since the strings need to be static. */
       case 1:
-        info.define("LIGHT_CLOSURE_EVAL_COUNT", "1");
+        info.define("SRT_CONSTANT_light_closure_eval_count", "1");
         break;
       case 2:
-        info.define("LIGHT_CLOSURE_EVAL_COUNT", "2");
+        info.define("SRT_CONSTANT_light_closure_eval_count", "2");
         break;
       case 3:
-        info.define("LIGHT_CLOSURE_EVAL_COUNT", "3");
+        info.define("SRT_CONSTANT_light_closure_eval_count", "3");
         break;
       default:
         BLI_assert_unreachable();
