@@ -117,10 +117,7 @@ bool GLTexture::init_internal(VertBuf *vbo)
   return true;
 }
 
-bool GLTexture::init_internal(gpu::Texture *src,
-                              int mip_offset,
-                              int layer_offset,
-                              bool use_stencil)
+bool GLTexture::init_internal(gpu::Texture *src, bool use_stencil)
 {
   const GLTexture *gl_src = static_cast<const GLTexture *>(src);
   GLenum internal_format = to_gl_internal_format(format_);
@@ -130,10 +127,10 @@ bool GLTexture::init_internal(gpu::Texture *src,
                 target_,
                 gl_src->tex_id_,
                 internal_format,
-                mip_offset,
+                mip_min_,
                 mipmaps_,
-                layer_offset,
-                this->layer_count());
+                view_layer_start_,
+                layer_count());
 
   debug::object_label(GL_TEXTURE, tex_id_, name_.c_str());
 
@@ -408,16 +405,6 @@ void GLTexture::generate_mipmap()
     return;
   }
 
-  if (GLContext::generate_mipmap_workaround) {
-    /* Broken glGenerateMipmap, don't call it and render without mipmaps.
-     * If no top level pixels have been filled in, the levels will get filled by
-     * other means and there is no need to disable mipmapping. */
-    if (has_pixels_) {
-      this->mip_range_set(0, 0);
-    }
-    return;
-  }
-
   /* Down-sample from mip 0 using implementation. */
   if (GLContext::direct_state_access_support) {
     glGenerateTextureMipmap(tex_id_);
@@ -451,20 +438,32 @@ void GLTexture::copy_to(Texture *dst_, IndexRange mip_levels)
   GLTexture *dst = static_cast<GLTexture *>(dst_);
   GLTexture *src = this;
 
-  BLI_assert((dst->w_ == src->w_) && (dst->h_ == src->h_) && (dst->d_ == src->d_));
+  BLI_assert(src->w_ == dst->w_ && std::max(src->h_, 1) == std::max(dst->h_, 1) &&
+             std::max(src->d_, 1) == std::max(dst->d_, 1));
   BLI_assert((src->format_ == dst->format_) ||
              (src->format_ == TextureFormat::SRGBA_8_8_8_8 &&
               dst->format_ == TextureFormat::UNORM_8_8_8_8) ||
              (src->format_ == TextureFormat::UNORM_8_8_8_8 &&
               dst->format_ == TextureFormat::SRGBA_8_8_8_8));
-  BLI_assert(dst->type_ == src->type_);
+  BLI_assert((dst->type_ & ~GPU_TEXTURE_ARRAY) & (src->type_ & ~GPU_TEXTURE_ARRAY));
 
   for (int mip : mip_levels) {
     /* NOTE: mip_size_get() won't override any dimension that is equal to 0. */
     int extent[3] = {1, 1, 1};
     this->mip_size_get(mip, extent);
-    glCopyImageSubData(
-        src->tex_id_, target_, mip, 0, 0, 0, dst->tex_id_, target_, mip, 0, 0, 0, UNPACK3(extent));
+    glCopyImageSubData(src->tex_id_,
+                       src->target_,
+                       mip,
+                       0,
+                       0,
+                       0,
+                       dst->tex_id_,
+                       dst->target_,
+                       mip,
+                       0,
+                       0,
+                       0,
+                       UNPACK3(extent));
   }
 
   has_pixels_ = true;

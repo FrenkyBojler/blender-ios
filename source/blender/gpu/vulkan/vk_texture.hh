@@ -30,6 +30,8 @@ enum class VKImageViewFlags {
 };
 ENUM_OPERATORS(VKImageViewFlags)
 
+class VKTexture *unwrap(Texture *texture);
+
 class VKTexture : public Texture {
   friend class VKDescriptorSetTracker;
   friend class VKDescriptorSetUpdator;
@@ -43,9 +45,6 @@ class VKTexture : public Texture {
    * supported by the device.
    */
   TextureFormat device_format_ = TextureFormat::Invalid;
-
-  /** When set the instance is considered to be a texture view from `source_texture_` */
-  VKTexture *source_texture_ = nullptr;
 
   /**
    * Store of source vertex buffer. Related to `GPU_texture_create_from_vertbuf`.
@@ -65,7 +64,6 @@ class VKTexture : public Texture {
    */
   Vector<VKImageView> image_views_;
 
-  int layer_offset_ = 0;
   bool use_stencil_ = false;
 
   char swizzle_[4] = {'r', 'g', 'b', 'a'};
@@ -100,7 +98,6 @@ class VKTexture : public Texture {
                            uint clear_stencil,
                            std::optional<int> layer);
   void swizzle_set(const char swizzle_mask[4]) override;
-  void mip_range_set(int min, int max) override;
   void read(int mip, eGPUDataFormat format, void *data) override;
   void read_sub(
       int mip, eGPUDataFormat format, const int region[6], IndexRange layers, void *r_data);
@@ -134,7 +131,7 @@ class VKTexture : public Texture {
   VkImage vk_image_handle() const
   {
     if (is_texture_view()) {
-      return source_texture_->vk_image_handle();
+      return unwrap(source_texture_)->vk_image_handle();
     }
     BLI_assert(vk_image_ != VK_NULL_HANDLE);
     return vk_image_;
@@ -162,17 +159,11 @@ class VKTexture : public Texture {
  protected:
   bool init_internal() override;
   bool init_internal(VertBuf *vbo) override;
-  bool init_internal(gpu::Texture *src,
-                     int mip_offset,
-                     int layer_offset,
-                     bool use_stencil) override;
+  bool init_internal(gpu::Texture *src, bool use_stencil) override;
   /* Initialize VKTexture with a swapchain image. */
   void init_swapchain(VkImage vk_image, TextureFormat gpu_format);
 
  private:
-  /** Is this texture a view of another texture. */
-  bool is_texture_view() const;
-
   /**
    * Allocate the texture of the device. Result is `true` when texture is successfully allocated
    * on the device.
@@ -180,10 +171,9 @@ class VKTexture : public Texture {
   bool allocate();
 
   /**
-   * Determine the layerCount for vulkan based on the texture type. Will pass the
-   * #non_layered_value for non layered textures.
+   * Determine the layerCount for vulkan based on the texture type.
    */
-  int vk_layer_count(int non_layered_value) const;
+  int vk_layer_count() const;
 
   /**
    * Determine the VkExtent3D for the given mip_level.
@@ -196,7 +186,7 @@ class VKTexture : public Texture {
 
  private:
   IndexRange mip_map_range() const;
-  IndexRange layer_range() const;
+  IndexRange vk_layer_range() const;
 
   /** \} */
 };

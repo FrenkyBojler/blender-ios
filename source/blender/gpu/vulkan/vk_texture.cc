@@ -78,7 +78,7 @@ void VKTexture::generate_mipmap()
   }
   update_mipmaps.vk_image_aspect = to_vk_image_aspect_flag_bits(device_format_);
   update_mipmaps.mipmaps = mipmaps_;
-  update_mipmaps.layer_count = vk_layer_count(1);
+  update_mipmaps.layer_count = vk_layer_count();
   context.render_graph().add_node(update_mipmaps);
 }
 
@@ -90,21 +90,27 @@ void VKTexture::copy_to(VKTexture &dst_texture,
     return;
   }
 
-  render_graph::VKCopyImageNode::CreateInfo copy_image = {};
-  copy_image.node_data.mip_levels = uint32_t(mip_levels.size());
-  copy_image.node_data.src_image = vk_image_handle();
-  copy_image.node_data.dst_image = dst_texture.vk_image_handle();
-  copy_image.node_data.region.srcSubresource.aspectMask = vk_image_aspect;
-  copy_image.node_data.region.srcSubresource.mipLevel = mip_levels.first();
-  copy_image.node_data.region.srcSubresource.layerCount = vk_layer_count(1);
-  copy_image.node_data.region.dstSubresource.aspectMask = vk_image_aspect;
-  copy_image.node_data.region.dstSubresource.mipLevel = mip_levels.first();
-  copy_image.node_data.region.dstSubresource.layerCount = vk_layer_count(1);
-  copy_image.node_data.region.extent = vk_extent_3d(mip_levels.first());
-  copy_image.vk_image_aspect = to_vk_image_aspect_flag_bits(device_format_get());
+  for (int mip : mip_levels) {
+    render_graph::VKCopyImageNode::CreateInfo copy_image = {};
+    copy_image.node_data.mip_levels = uint32_t(mip_levels.size());
+    copy_image.node_data.src_image = vk_image_handle();
+    copy_image.node_data.dst_image = dst_texture.vk_image_handle();
+    copy_image.node_data.region.srcSubresource.aspectMask = vk_image_aspect;
+    copy_image.node_data.region.srcSubresource.mipLevel = mip + mip_map_range().first();
+    copy_image.node_data.region.srcSubresource.layerCount = vk_layer_count();
+    copy_image.node_data.region.srcSubresource.baseArrayLayer = vk_layer_range().first();
+    copy_image.node_data.region.dstSubresource.aspectMask = vk_image_aspect;
+    copy_image.node_data.region.dstSubresource.mipLevel = mip +
+                                                          dst_texture.mip_map_range().first();
+    copy_image.node_data.region.dstSubresource.layerCount = vk_layer_count();
+    copy_image.node_data.region.dstSubresource.baseArrayLayer =
+        dst_texture.vk_layer_range().first();
+    copy_image.node_data.region.extent = vk_extent_3d(mip_levels.first());
+    copy_image.vk_image_aspect = vk_image_aspect;
 
-  VKContext &context = *VKContext::get();
-  context.render_graph().add_node(copy_image);
+    VKContext &context = *VKContext::get();
+    context.render_graph().add_node(copy_image);
+  }
 
   dst_texture.has_data_ = true;
 }
@@ -113,17 +119,17 @@ void VKTexture::copy_to(Texture *texture, IndexRange mip_levels)
 {
   VKTexture *dst = unwrap(texture);
   VKTexture *src = this;
-  BLI_assert(dst);
-  BLI_assert(src->w_ == dst->w_ && src->h_ == dst->h_ && src->d_ == dst->d_);
+
+  BLI_assert(src->w_ == dst->w_ && std::max(src->h_, 1) == std::max(dst->h_, 1) &&
+             std::max(src->d_, 1) == std::max(dst->d_, 1));
   BLI_assert((src->format_ == dst->format_) ||
              (src->format_ == TextureFormat::SRGBA_8_8_8_8 &&
               dst->format_ == TextureFormat::UNORM_8_8_8_8) ||
              (src->format_ == TextureFormat::UNORM_8_8_8_8 &&
               dst->format_ == TextureFormat::SRGBA_8_8_8_8));
-  BLI_assert(!is_texture_view());
-  UNUSED_VARS_NDEBUG(src);
+  BLI_assert((dst->type_ & ~GPU_TEXTURE_ARRAY) & (src->type_ & ~GPU_TEXTURE_ARRAY));
 
-  copy_to(*dst, mip_levels, to_vk_image_aspect_flag_bits(device_format_));
+  src->copy_to(*dst, mip_levels, to_vk_image_aspect_flag_bits(device_format_));
 }
 
 void VKTexture::clear(const double4 data)
@@ -142,7 +148,7 @@ void VKTexture::clear(const double4 data)
   clear_color_image.vk_image_subresource_range.aspectMask = to_vk_image_aspect_flag_bits(
       device_format_);
 
-  IndexRange layers = layer_range();
+  IndexRange layers = vk_layer_range();
   clear_color_image.vk_image_subresource_range.baseArrayLayer = layers.start();
   clear_color_image.vk_image_subresource_range.layerCount = layers.size();
   IndexRange levels = mip_map_range();
@@ -195,12 +201,6 @@ void VKTexture::clear_depth_stencil(const GPUFrameBufferBits buffers,
 void VKTexture::swizzle_set(const char swizzle_mask[4])
 {
   memcpy(swizzle_, swizzle_mask, 4);
-}
-
-void VKTexture::mip_range_set(int min, int max)
-{
-  mip_min_ = min;
-  mip_max_ = max;
 }
 
 void VKTexture::read_sub(
@@ -349,7 +349,7 @@ void VKTexture::read(int mip, eGPUDataFormat format, void *data)
   if (mip_size[2] == 0) {
     mip_size[2] = 1;
   }
-  IndexRange layers = IndexRange(layer_offset_, vk_layer_count(1));
+  IndexRange layers = IndexRange(view_layer_start_, vk_layer_count());
 
   int region[6] = {0, 0, 0, mip_size[0], mip_size[1], mip_size[2]};
   read_sub(mip, format, region, layers, data);
@@ -625,7 +625,9 @@ bool VKTexture::init_internal()
   if (!allocate()) {
     return false;
   }
-  this->mip_range_set(0, mipmaps_ - 1);
+
+  mip_min_ = 0;
+  mip_max_ = mipmaps_ - 1;
 
   return true;
 }
@@ -640,20 +642,10 @@ bool VKTexture::init_internal(VertBuf *vbo)
   return true;
 }
 
-bool VKTexture::init_internal(gpu::Texture *src,
-                              int mip_offset,
-                              int layer_offset,
-                              bool use_stencil)
+bool VKTexture::init_internal(gpu::Texture *src, bool use_stencil)
 {
-  BLI_assert(source_texture_ == nullptr);
-  BLI_assert(src);
-
   VKTexture *texture = unwrap(unwrap(src));
-  source_texture_ = texture;
   device_format_ = texture->device_format_;
-  mip_min_ = mip_offset;
-  mip_max_ = mip_offset;
-  layer_offset_ = layer_offset;
   use_stencil_ = use_stencil;
   has_data_ = true;
   allow_host_image_copy_ = false;
@@ -668,11 +660,6 @@ void VKTexture::init_swapchain(VkImage vk_image, TextureFormat format)
   vk_image_ = vk_image;
   type_ = GPU_TEXTURE_2D;
   usage_set(GPU_TEXTURE_USAGE_ATTACHMENT | GPU_TEXTURE_USAGE_SHADER_WRITE);
-}
-
-bool VKTexture::is_texture_view() const
-{
-  return source_texture_ != nullptr;
 }
 
 static float memory_priority(const eGPUTextureUsage texture_usage)
@@ -707,7 +694,7 @@ bool VKTexture::allocate()
   image_info.imageType = to_vk_image_type(type_);
   image_info.extent = vk_extent;
   image_info.mipLevels = max_ii(mipmaps_, 1);
-  image_info.arrayLayers = vk_layer_count(1);
+  image_info.arrayLayers = vk_layer_count();
   image_info.format = to_vk_format(device_format_);
   /* Some platforms (NVIDIA) requires that attached textures are always tiled optimal.
    *
@@ -774,27 +761,24 @@ IndexRange VKTexture::mip_map_range() const
   return IndexRange(mip_min_, mip_max_ - mip_min_ + 1);
 }
 
-IndexRange VKTexture::layer_range() const
+IndexRange VKTexture::vk_layer_range() const
 {
-  if (is_texture_view()) {
-    return IndexRange(layer_offset_, layer_count());
-  }
-  return IndexRange(
-      0, ELEM(type_, GPU_TEXTURE_CUBE, GPU_TEXTURE_CUBE_ARRAY) ? d_ : VK_REMAINING_ARRAY_LAYERS);
+  const int layer_scale = ELEM(type_, GPU_TEXTURE_CUBE, GPU_TEXTURE_CUBE_ARRAY) ? 6 : 1;
+  return IndexRange(is_texture_view() ? view_layer_start_ * layer_scale : 0, vk_layer_count());
 }
 
-int VKTexture::vk_layer_count(int non_layered_value) const
+int VKTexture::vk_layer_count() const
 {
-  if (is_texture_view()) {
-    return layer_count();
-  }
-  return type_ == GPU_TEXTURE_CUBE   ? d_ :
-         (type_ & GPU_TEXTURE_ARRAY) ? layer_count() :
-                                       non_layered_value;
+  const int layer_scale = ELEM(type_, GPU_TEXTURE_CUBE, GPU_TEXTURE_CUBE_ARRAY) ? 6 : 1;
+  return layer_count() * layer_scale;
 }
 
 VkExtent3D VKTexture::vk_extent_3d(int mip_level) const
 {
+  if (source_texture_) {
+    return unwrap(source_texture_)->vk_extent_3d(mip_level);
+  }
+
   int extent[3] = {1, 1, 1};
   mip_size_get(mip_level, extent);
   if (ELEM(type_, GPU_TEXTURE_CUBE, GPU_TEXTURE_CUBE_ARRAY, GPU_TEXTURE_2D_ARRAY)) {
@@ -832,10 +816,10 @@ const VKImageView &VKTexture::image_view_get(VKImageViewArrayed arrayed, VKImage
   image_view_info_.use_srgb = true;
   image_view_info_.use_stencil = use_stencil_;
   image_view_info_.arrayed = arrayed;
-  image_view_info_.layer_range = layer_range();
+  image_view_info_.vk_layer_range = vk_layer_range();
 
   if (arrayed == VKImageViewArrayed::NOT_ARRAYED) {
-    image_view_info_.layer_range = image_view_info_.layer_range.slice(
+    image_view_info_.vk_layer_range = image_view_info_.vk_layer_range.slice(
         0, ELEM(type_, GPU_TEXTURE_CUBE, GPU_TEXTURE_CUBE_ARRAY) ? 6 : 1);
   }
 
@@ -853,7 +837,7 @@ const VKImageView &VKTexture::image_view_get(VKImageViewArrayed arrayed, VKImage
   }
 
   if (is_texture_view()) {
-    return source_texture_->image_view_get(image_view_info_);
+    return unwrap(source_texture_)->image_view_get(image_view_info_);
   }
   return image_view_get(image_view_info_);
 }

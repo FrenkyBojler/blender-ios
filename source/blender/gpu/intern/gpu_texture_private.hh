@@ -109,7 +109,7 @@ class Texture {
 
  protected:
   /* ---- Texture format (immutable after init). ---- */
-  /** Width & Height & Depth. For cube-map arrays, d is number of face-layers. */
+  /** Width & Height & Depth. For cube-maps, d_ is number of layers * 6. */
   int w_, h_, d_;
   /** Internal data format. */
   TextureFormat format_;
@@ -123,8 +123,11 @@ class Texture {
   /** Number of mipmaps this texture has (Max miplvl). */
   /* TODO(fclem): Should become immutable and the need for mipmaps should be specified upfront. */
   int mipmaps_ = -1;
-  /** For error checking */
   int mip_min_ = 0, mip_max_ = 0;
+
+  /** When set the instance is considered to be a texture view from `source_texture_` */
+  Texture *source_texture_ = nullptr;
+  int view_layer_start_ = 0;
 
   /** For debugging. */
   std::string name_;
@@ -157,7 +160,6 @@ class Texture {
   virtual void copy_to(Texture *tex, IndexRange mip_levels) = 0;
   virtual void clear(const double4 data) = 0;
   virtual void swizzle_set(const char swizzle_mask[4]) = 0;
-  virtual void mip_range_set(int min, int max) = 0;
   virtual void read(int mip, eGPUDataFormat format, void *dst) = 0;
 
   void attach_to(FrameBuffer *fb, GPUAttachmentType type);
@@ -192,6 +194,10 @@ class Texture {
   eGPUTextureUsage usage_get() const
   {
     return gpu_image_usage_flags_;
+  }
+  bool is_texture_view() const
+  {
+    return source_texture_ != nullptr;
   }
 
   size_t read_size_get(int mip, eGPUDataFormat format) const;
@@ -326,10 +332,7 @@ class Texture {
  protected:
   virtual bool init_internal() = 0;
   virtual bool init_internal(VertBuf *vbo) = 0;
-  virtual bool init_internal(gpu::Texture *src,
-                             int mip_offset,
-                             int layer_offset,
-                             bool use_stencil) = 0;
+  virtual bool init_internal(gpu::Texture *src, bool use_stencil) = 0;
 };
 
 /* GPU pixel Buffer. */

@@ -594,7 +594,6 @@ bool GLContext::texture_filter_anisotropic_support = false;
 
 bool GLContext::debug_layer_workaround = false;
 bool GLContext::unused_fb_slot_workaround = false;
-bool GLContext::generate_mipmap_workaround = false;
 
 void GLBackend::capabilities_init()
 {
@@ -789,7 +788,6 @@ void GLBackend::log_workarounds()
              " - [%c] High-quality normals\n"
              " - [%c] Use main context\n",
              GLContext::debug_layer_workaround ? 'X' : ' ',
-             GLContext::generate_mipmap_workaround ? 'X' : ' ',
              GLContext::unused_fb_slot_workaround ? 'X' : ' ',
              GCaps.depth_blitting_workaround ? 'X' : ' ',
              GCaps.stencil_clasify_buffer_workaround ? 'X' : ' ',

@@ -18,7 +18,7 @@ class VKTexture;
 
 struct VKImageViewInfo {
   eImageViewUsage usage;
-  IndexRange layer_range;
+  IndexRange vk_layer_range;
   IndexRange mip_range;
   union {
     char swizzle[4];
@@ -36,7 +36,7 @@ struct VKImageViewInfo {
 
   bool operator==(const VKImageViewInfo &other) const
   {
-    return usage == other.usage && layer_range == other.layer_range &&
+    return usage == other.usage && vk_layer_range == other.vk_layer_range &&
            mip_range == other.mip_range && swizzle_data == other.swizzle_data &&
            use_stencil == other.use_stencil && use_srgb == other.use_srgb &&
            arrayed == other.arrayed;

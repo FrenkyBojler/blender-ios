@@ -54,8 +54,8 @@ VKImageView::VKImageView(VKTexture &texture, const VKImageViewInfo &info, String
   image_view_info.subresourceRange.aspectMask = image_aspect;
   image_view_info.subresourceRange.baseMipLevel = info.mip_range.first();
   image_view_info.subresourceRange.levelCount = info.mip_range.size();
-  image_view_info.subresourceRange.baseArrayLayer = info.layer_range.first();
-  image_view_info.subresourceRange.layerCount = info.layer_range.size();
+  image_view_info.subresourceRange.baseArrayLayer = info.vk_layer_range.first();
+  image_view_info.subresourceRange.layerCount = info.vk_layer_range.size();
 
   const VKDevice &device = VKBackend::get().device;
   vkCreateImageView(device.vk_handle(), &image_view_info, nullptr, &vk_image_view_);
