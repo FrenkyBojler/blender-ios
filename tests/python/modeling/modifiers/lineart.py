@@ -1,14 +1,7 @@
-# SPDX-FileCopyrightText: 2020-2022 Blender Authors
+# SPDX-FileCopyrightText: 2026 Blender Authors
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-# A collection of tests that cover a wide range of modeling related modifiers
-#
-# Note: Please avoid adding new tests to this file and to the associated .blend file, ideally, a single
-# file per modifier is preferred to avoid the headache of merge conflicts that comes with a single large file
-# See `multires_modifier.py` for an example of splitting these out.
-
-import math
 import os
 import sys
 from random import seed
@@ -17,7 +10,7 @@ import bpy
 
 BASE_DIR = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(os.path.join(BASE_DIR, "..", ".."))
-from modules.mesh_test import RunTest, ModifierSpec, MultiModifierSpec, SpecMeshTest, OperatorSpec
+from modules.mesh_test import RunTest, ModifierSpec, SpecMeshTest
 
 
 seed(0)
