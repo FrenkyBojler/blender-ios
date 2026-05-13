@@ -3,3 +3,4 @@ Referenced by issue #156651, GeoNodes: Failed assertion in `build_reference_sets
 Referenced by issue #156753, GLTF/GLB export ignores light color
 Referenced by issue #157592, Regression: Mesh generated from Geometry nodes do not display texture in Solid Mode
 Referenced by issue #158255, Blender 5.1.1 - Cast Shadow issue with node-based lights using textures in Emission Color
+Referenced by issue #158566, Crash w/ Vertex Slide + Proportional Editing if multiple objects are in Edit Mode
