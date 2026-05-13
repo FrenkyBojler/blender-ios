@@ -402,7 +402,7 @@ static void calculate_cone_faces(const ConeConfig &config,
     /* Center n-gon in the fill. */
     face_sizes.first() = config.circle_segments;
     array_utils::fill_index_range(corner_verts);
-    array_utils::fill_index_range(corner_verts);
+    array_utils::fill_index_range(corner_edges);
   }
 
   /* Quads connect one edge ring to the next one. */
