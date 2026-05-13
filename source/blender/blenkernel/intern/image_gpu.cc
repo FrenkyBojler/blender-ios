@@ -146,6 +146,8 @@ static int compare_packtile(const void *a, const void *b)
 
 static gpu::Texture *gpu_texture_create_tile_array(Image *ima, ImBuf *main_ibuf)
 {
+  BLI_assert(ima);
+
   int arraywidth = 0, arrayheight = 0;
   ListBaseT<FixedSizeBoxPack> boxes = {nullptr};
 
@@ -255,9 +257,7 @@ static gpu::Texture *gpu_texture_create_tile_array(Image *ima, ImBuf *main_ibuf)
 
   GPU_texture_update_mipmap_chain(tex);
   GPU_texture_mipmap_mode(tex, true, true);
-  if (ima) {
-    ima->runtime->gpuflag |= IMA_GPU_MIPMAP_COMPLETE;
-  }
+  ima->runtime->gpuflag |= IMA_GPU_MIPMAP_COMPLETE;
 
   return tex;
 }
