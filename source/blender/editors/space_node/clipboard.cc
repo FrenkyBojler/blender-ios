@@ -326,8 +326,12 @@ static wmOperatorStatus node_clipboard_paste_exec(bContext *C, wmOperator *op)
   }
 
   MainMergeReport merge_reports = {};
+  /* We need to ensure that the source 'clipbaord marked' main NodeTree is always merged into
+   * destination Main, even in case there would be a name collision with an existing ID (see also
+   * #158049). */
+  Set<ID *> force_merge_ids = {id_cast<ID *>(from_tree)};
   /* Frees bmain_src. */
-  BKE_main_merge(bmain_dst, &bmain_src, merge_reports);
+  BKE_main_merge(bmain_dst, &force_merge_ids, &bmain_src, merge_reports);
 
   bNodeTree *to_tree = snode->edittree;
   node_deselect_all(*to_tree);

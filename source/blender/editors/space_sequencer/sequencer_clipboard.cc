@@ -456,8 +456,12 @@ wmOperatorStatus sequencer_clipboard_paste_exec(bContext *C, wmOperator *op)
    * correct otherwise. */
   Main *bmain_dst = CTX_data_main(C);
   MainMergeReport merge_reports = {};
+  /* We need to ensure that the source 'clipbaord marked' main Scene is always merged into
+   * destination Main, even in case there would be a name collision with an existing ID (see also
+   * #158049). */
+  Set<ID *> force_merge_ids = {id_cast<ID *>(scene_src)};
   /* NOTE: BKE_main_merge will free bmain_src! */
-  BKE_main_merge(bmain_dst, &bmain_src, merge_reports);
+  BKE_main_merge(bmain_dst, &force_merge_ids, &bmain_src, merge_reports);
 
   /* Paste animation.
    * NOTE: Only fcurves and drivers are copied. NLA action strips are not copied.
