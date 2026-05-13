@@ -159,7 +159,7 @@ void NodeOperation::log_data()
     }
 
     const Result &input = this->get_input(input_socket->identifier);
-    if (!input.is_allocated()) {
+    if (!input_socket->is_logically_linked()) {
       continue;
     }
 
