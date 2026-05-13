@@ -2225,9 +2225,9 @@ IDProperty *node_create_asset_meta_data_properties(const bNodeTree &node_tree)
       case SOCK_MENU: {
         const auto &value = node_interface::get_socket_data_as<bNodeSocketValueMenu>(*socket);
         if (value.enum_items) {
-          if (std::ranges::any_of(
-                  value.enum_items->items,
-                  [&](const RuntimeNodeEnumItem &item) { return item.identifier == value.value; }))
+          if (std::ranges::any_of(value.enum_items->items, [&](const RuntimeNodeEnumItem &item) {
+                return item.identifier == value.value;
+              }))
           {
             /* Only add the default value property if it's contained in the enum items. */
             IDP_AddToGroup(input.get(), idprop::create("default_value", value.value).release());
