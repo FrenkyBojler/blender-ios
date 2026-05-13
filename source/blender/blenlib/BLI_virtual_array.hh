@@ -368,17 +368,25 @@ template<typename T> class VArrayImpl_For_Single final : public VArrayImpl<T> {
 template<typename T>
 inline constexpr bool is_trivial_extended_v<VArrayImpl_For_Single<T>> = is_trivial_extended_v<T>;
 
+template<typename T> struct VArray_For_Func : public VArrayImpl<T> {
+  using VArrayImpl<T>::VArrayImpl;
+  virtual int64_t index_mask_predicate_for_bools(IndexMaskSegment indices,
+                                                 int16_t *r_true_indices) const = 0;
+};
+
 /**
  * This class makes it easy to create a virtual array for an existing function or lambda. The
  * `GetFunc` should take a single `index` argument and return the value at that index.
  */
-template<typename T, typename GetFunc> class VArrayImpl_For_Func final : public VArrayImpl<T> {
+
+template<typename T, typename GetFunc>
+class VArrayImpl_For_Func final : public VArray_For_Func<T> {
  private:
   GetFunc get_func_;
 
  public:
   VArrayImpl_For_Func(const int64_t size, GetFunc get_func)
-      : VArrayImpl<T>(size), get_func_(std::move(get_func))
+      : VArray_For_Func<T>(size), get_func_(std::move(get_func))
   {
   }
 
@@ -418,6 +426,19 @@ template<typename T, typename GetFunc> class VArrayImpl_For_Func final : public 
       else {
         mask.foreach_index([&](const int64_t i, const int64_t pos) { dst[pos] = get_func_(i); });
       }
+    }
+  }
+
+  int64_t index_mask_predicate_for_bools(IndexMaskSegment indices,
+                                         int16_t *r_true_indices) const final
+  {
+    if constexpr (std::is_same_v<T, bool>) {
+      return index_mask::detail::filter_indices_by_predicate(
+          [&](const int64_t index) { return this->get(index); }, indices, r_true_indices);
+    }
+    else {
+      BLI_assert_unreachable();
+      return -1;
     }
   }
 };

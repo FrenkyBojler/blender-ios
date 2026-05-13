@@ -1062,7 +1062,31 @@ IndexMask from_predicate_impl(
     LinearAllocator<> &memory,
     FunctionRef<int64_t(IndexMaskSegment indices, int16_t *r_true_indices)> filter_indices,
     exec_mode::Mode mode);
+
+template<typename Fn>
+inline int64_t filter_indices_by_predicate(Fn &&predicate,
+                                           const IndexMaskSegment indices,
+                                           int16_t *__restrict r_true_indices)
+{
+  int16_t *r_current = r_true_indices;
+  const int16_t *in_end = indices.base_span().end();
+  const int64_t offset = indices.offset();
+  for (const int16_t *in_current = indices.base_span().data(); in_current < in_end; in_current++) {
+    const int16_t local_index = *in_current;
+    const int64_t global_index = int64_t(local_index) + offset;
+    const bool condition = predicate(global_index);
+    *r_current = local_index;
+    /* This expects the boolean to be either 0 or 1 which is generally the case but may not
+     * be if the values are uninitialized. */
+    BLI_assert(ELEM(int8_t(condition), 0, 1));
+    /* Branchless conditional increment. */
+    r_current += condition;
+  }
+  const int16_t true_indices_num = int16_t(r_current - r_true_indices);
+  return true_indices_num;
 }
+
+}  // namespace detail
 
 template<typename Fn>
 inline IndexMask IndexMask::from_predicate(const IndexMask &universe,
@@ -1074,23 +1098,7 @@ inline IndexMask IndexMask::from_predicate(const IndexMask &universe,
       universe,
       memory,
       [&](const IndexMaskSegment indices, int16_t *__restrict r_true_indices) {
-        int16_t *r_current = r_true_indices;
-        const int16_t *in_end = indices.base_span().end();
-        const int64_t offset = indices.offset();
-        for (const int16_t *in_current = indices.base_span().data(); in_current < in_end;
-             in_current++) {
-          const int16_t local_index = *in_current;
-          const int64_t global_index = int64_t(local_index) + offset;
-          const bool condition = predicate(global_index);
-          *r_current = local_index;
-          /* This expects the boolean to be either 0 or 1 which is generally the case but may not
-           * be if the values are uninitialized. */
-          BLI_assert(ELEM(int8_t(condition), 0, 1));
-          /* Branchless conditional increment. */
-          r_current += condition;
-        }
-        const int16_t true_indices_num = int16_t(r_current - r_true_indices);
-        return true_indices_num;
+        return detail::filter_indices_by_predicate(predicate, indices, r_true_indices);
       },
       mode);
 }

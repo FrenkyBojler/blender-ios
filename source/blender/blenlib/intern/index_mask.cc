@@ -659,6 +659,19 @@ IndexMask IndexMask::from_bools(const IndexMask &universe,
     const Span<bool> span(static_cast<const bool *>(info.data), bools.size());
     return IndexMask::from_bools(universe, span, memory);
   }
+
+  if (const auto *as_func = dynamic_cast<const VArray_For_Func<bool> *>(
+          bools.get_implementation()))
+  {
+    return detail::from_predicate_impl(
+        universe,
+        memory,
+        [as_func](IndexMaskSegment indices, int16_t *r_true_indices) -> int64_t {
+          return as_func->index_mask_predicate_for_bools(indices, r_true_indices);
+        },
+        exec_mode::grain_size(4096));
+  }
+
   return IndexMask::from_predicate(
       universe,
       memory,
