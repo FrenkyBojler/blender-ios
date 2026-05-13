@@ -696,7 +696,6 @@ bool BKE_image_save(
     MEM_delete(udim_pattern);
   }
 
-  /* TODO: Maybe this needs to be done before saving? */
   if (ok) {
     if (ima->flag & IMA_AUTOSAVE_TEMPPACK) {
       BKE_image_free_packedfiles(ima);
