@@ -1297,10 +1297,10 @@ static ImBuf *ffmpeg_fetchibuf(MovieReader *anim, int position, IMB_Timecode_Typ
   uint8_t *buffer_data = static_cast<uint8_t *>(
       MEM_new_uninitialized_aligned(pixel_size * anim->x * anim->y, align, "ffmpeg ibuf"));
   if (anim->is_float) {
-    IMB_assign_float_buffer(cur_frame_final, (float *)buffer_data, IB_TAKE_OWNERSHIP);
+    cur_frame_final->assign_float_data((float *)buffer_data);
   }
   else {
-    IMB_assign_byte_buffer(cur_frame_final, buffer_data, IB_TAKE_OWNERSHIP);
+    cur_frame_final->assign_byte_data(buffer_data);
   }
 
   AVFrame *final_frame = ffmpeg_frame_by_pts_get(anim, pts_to_search);
@@ -1481,6 +1481,31 @@ ImBuf *MOV_decode_frame(MovieReader *anim,
     ibuf->fileframe = anim->cur_position + 1;
   }
   return ibuf;
+}
+
+int MOV_get_video_stream_count(MovieReader *anim)
+{
+#ifdef WITH_FFMPEG
+  if (anim == nullptr) {
+    return 0;
+  }
+  if (anim->state == MovieReader::State::Uninitialized && !anim_getnew(anim)) {
+    return 0;
+  }
+  if (anim->pFormatCtx == nullptr) {
+    return 0;
+  }
+  int count = 0;
+  for (int i = 0; i < anim->pFormatCtx->nb_streams; i++) {
+    if (anim->pFormatCtx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
+      count++;
+    }
+  }
+  return count;
+#else
+  UNUSED_VARS(anim);
+  return 0;
+#endif
 }
 
 int MOV_get_duration_frames(MovieReader *anim, IMB_Timecode_Type tc)
