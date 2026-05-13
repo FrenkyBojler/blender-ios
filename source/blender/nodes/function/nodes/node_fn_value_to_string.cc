@@ -34,7 +34,7 @@ static void node_declare(NodeDeclarationBuilder &b)
                      .min(2)
                      .max(36)
                      .default_value(10)
-                     .description("Numeric base for the output string (e.g. 2 for bindary, 16 for hexadecimal)");
+                     .description("Numeric base for the output string (e.g. 2 for binary, 16 for hexadecimal)");
     base.available(data_type == SOCK_INT);
 
     auto &padding = b.add_input<decl::Int>("Padding"_ustr)
