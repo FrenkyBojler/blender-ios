@@ -110,6 +110,7 @@ if(DEFINED LIBDIR)
   set(Eigen3_ROOT ${LIBDIR}/eigen)
   set(meshoptimizer_ROOT ${LIBDIR}/meshoptimizer)
   set(draco_ROOT ${LIBDIR}/draco)
+  set(Tiff_ROOT ${LIBDIR}/tiff)
 endif()
 
 # Wrapper to prefer static libraries
@@ -146,12 +147,7 @@ if(DEFINED fmt_DIR)
   mark_as_advanced(fmt_DIR)
 endif()
 
-# XXX Linking errors with debian static tiff :/
-# find_package_wrapper(TIFF REQUIRED)
-find_package(TIFF)
-# CMake 3.28.1 defines this, it doesn't seem to be used, hide by default in the UI.
-# NOTE(@ideasman42): this doesn't seem to be important,
-# on my system it's not-found even when the TIFF library is.
+find_package_wrapper(Tiff REQUIRED CONFIG)
 if(DEFINED Tiff_DIR)
   mark_as_advanced(Tiff_DIR)
 endif()
