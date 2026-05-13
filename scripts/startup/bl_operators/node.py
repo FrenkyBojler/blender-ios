@@ -53,7 +53,10 @@ def cast_value(source, target):
     source_type = source.type
     target_type = target.type
 
-    value = source.default_value
+    if hasattr(source, "default_value"):
+        value = source.default_value
+    else:
+        return None
 
     def to_bool(value):
         return value > 0
