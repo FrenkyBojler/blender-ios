@@ -170,12 +170,12 @@ struct LightEvalCtx {
 
   void eval_directional([[resource_table]] Scatter &srd, uint /*l_idx*/, LightData light)
   {
-    light_eval_single(srd, light, true);
+    radiance += light_eval_single(srd, light, true);
   }
 
   void eval_local([[resource_table]] Scatter &srd, uint /*l_idx*/, LightData light)
   {
-    light_eval_single(srd, light, false);
+    radiance += light_eval_single(srd, light, false);
   }
 };
 }  // namespace eevee::volume
