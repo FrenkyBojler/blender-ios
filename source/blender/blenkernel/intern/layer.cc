@@ -41,19 +41,16 @@
 #include "DNA_node_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
-#include "DNA_sequence_types.h"
 #include "DNA_space_types.h"
 #include "DNA_view3d_types.h"
 #include "DNA_windowmanager_types.h"
 #include "DNA_world_types.h"
 
-#include "SEQ_iterator.hh"
-#include "SEQ_relations.hh"
-#include "SEQ_sequencer.hh"
-
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_debug.hh"
 #include "DEG_depsgraph_query.hh"
+
+#include "SEQ_relations.hh"
 
 #include "DRW_engine.hh"
 
@@ -566,29 +563,6 @@ void BKE_view_layer_copy_data(Scene *scene_dst,
   }
 }
 
-void BKE_view_layer_update_seq_strips(Main *bmain,
-                                       Scene *scene,
-                                       const char *old_name,
-                                       const char *new_name)
-{
-  for (Scene &scene_iter : bmain->scenes) {
-    Editing *ed = seq::editing_get(&scene_iter);
-    if (ed == nullptr) {
-      continue;
-    }
-    for (Strip *strip : seq::lookup_strips_by_scene(ed, scene)) {
-      if (strip->scene_view_layer_name == nullptr ||
-          !STREQ(strip->scene_view_layer_name, old_name))
-      {
-        continue;
-      }
-      MEM_delete(strip->scene_view_layer_name);
-      strip->scene_view_layer_name = new_name ? BLI_strdup(new_name) : nullptr;
-      seq::relations_invalidate_cache_raw(&scene_iter, strip);
-    }
-  }
-}
-
 void BKE_view_layer_rename(Main *bmain, Scene *scene, ViewLayer *view_layer, const char *newname)
 {
   char oldname[sizeof(view_layer->name)];
@@ -629,7 +603,7 @@ void BKE_view_layer_rename(Main *bmain, Scene *scene, ViewLayer *view_layer, con
   }
 
   /* Update any sequencer scene strips referencing this view layer by name. */
-  BKE_view_layer_update_seq_strips(bmain, scene, oldname, view_layer->name);
+  seq::relations_update_view_layer_scene_strips(bmain, scene, oldname, view_layer->name);
 
   /* Dependency graph uses view layer name based lookups. */
   DEG_id_tag_update(&scene->id, ID_RECALC_BASE_FLAGS);

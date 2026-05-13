@@ -123,18 +123,6 @@ void BKE_view_layer_copy_data(Scene *scene_dst,
 void BKE_view_layer_rename(Main *bmain, Scene *scene, ViewLayer *view_layer, const char *newname);
 
 /**
- * Update sequencer scene strips that reference a view layer by name.
- * Clears the stale cached frames and updates (or clears, if \a new_name is `nullptr`)
- * `strip->scene_view_layer_name` on every strip in every scene that uses \a scene as input
- * and whose stored view-layer name matches \a old_name.
- * Pass `new_name = nullptr` when the view layer is deleted.
- */
-void BKE_view_layer_update_seq_strips(Main *bmain,
-                                       Scene *scene,
-                                       const char *old_name,
-                                       const char *new_name);
-
-/**
  * Get the active collection
  */
 LayerCollection *BKE_layer_collection_get_active(ViewLayer *view_layer);
