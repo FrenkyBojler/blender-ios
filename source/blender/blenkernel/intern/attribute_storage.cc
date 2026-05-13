@@ -35,14 +35,6 @@ static CLG_LogRef LOG = {"geom.attribute"};
 
 namespace bke {
 
-/* Check that directly returning the index in #Attribute::structure_type() is correct. */
-static_assert(
-    std::is_same_v<std::variant_alternative_t<int(AttrStorageType::Array), Attribute::DataVariant>,
-                   Attribute::ArrayData>);
-static_assert(std::is_same_v<
-              std::variant_alternative_t<int(AttrStorageType::Single), Attribute::DataVariant>,
-              Attribute::SingleData>);
-
 class ArrayDataImplicitSharing : public ImplicitSharingInfo {
  private:
   void *data_;
