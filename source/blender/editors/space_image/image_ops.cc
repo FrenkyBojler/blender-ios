@@ -1521,7 +1521,10 @@ static wmOperatorStatus image_open_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static bool image_open_path_for_os_open(bContext *C, wmOperator *op, char r_filepath[FILE_MAX])
+static bool image_open_path_for_os_open(bContext *C,
+                                        wmOperator *op,
+                                        Image *ima_hint,
+                                        char r_filepath[FILE_MAX])
 {
   Main *bmain = CTX_data_main(C);
 
@@ -1537,6 +1540,9 @@ static bool image_open_path_for_os_open(bContext *C, wmOperator *op, char r_file
   }
 
   Image *ima = image_from_context(C);
+  if (ima == nullptr) {
+    ima = ima_hint;
+  }
   if (ima == nullptr || ima->filepath[0] == '\0') {
     return false;
   }
@@ -1593,7 +1599,7 @@ static wmOperatorStatus image_open_invoke(bContext *C, wmOperator *op, const wmE
   if (event->modifier & (KM_SHIFT | KM_ALT)) {
     char filepath[FILE_MAX];
 
-    if (image_open_path_for_os_open(C, op, filepath)) {
+    if (image_open_path_for_os_open(C, op, ima, filepath)) {
       wmOperatorType *ot = WM_operatortype_find("WM_OT_path_open", true);
       if (!ot) {
         return OPERATOR_CANCELLED;
@@ -1609,6 +1615,9 @@ static wmOperatorStatus image_open_invoke(bContext *C, wmOperator *op, const wmE
         /* Tiled (UDIM) images store a pattern in filepath; resolve it to the active tile's
          * actual file path so the OS can open it. */
         Image *ima_ctx = image_from_context(C);
+        if (ima_ctx == nullptr) {
+          ima_ctx = ima;
+        }
         if (ima_ctx && ima_ctx->source == IMA_SRC_TILED) {
           ImageUser iuser = image_user_from_context_and_active_tile(C, ima_ctx);
           BKE_image_user_file_path(&iuser, ima_ctx, filepath);
