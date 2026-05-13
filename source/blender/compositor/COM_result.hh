@@ -483,7 +483,7 @@ class Result {
   int64_t get_pixel_index(const int2 &texel) const;
 };
 
-StringRef to_string(const ResultPrecision &precision);
+StringRefNull to_string(const ResultPrecision &precision);
 
 /* -------------------------------------------------------------------- */
 /* Inline Methods.

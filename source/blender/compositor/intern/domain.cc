@@ -107,7 +107,7 @@ bool operator!=(const Domain &a, const Domain &b)
   return !(a == b);
 }
 
-StringRef to_string(const Interpolation &interpolation)
+StringRefNull to_string(const Interpolation &interpolation)
 {
   switch (interpolation) {
     case Interpolation::Nearest:
@@ -124,7 +124,7 @@ StringRef to_string(const Interpolation &interpolation)
   return "None";
 }
 
-StringRef to_string(const Extension &extension)
+StringRefNull to_string(const Extension &extension)
 {
   switch (extension) {
     case Extension::Extend:

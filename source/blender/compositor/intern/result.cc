@@ -1169,7 +1169,7 @@ void Result::allocate_data(const int2 size,
   }
 }
 
-StringRef to_string(const ResultPrecision &precision)
+StringRefNull to_string(const ResultPrecision &precision)
 {
   switch (precision) {
     case ResultPrecision::Full:

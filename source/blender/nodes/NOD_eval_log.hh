@@ -284,21 +284,21 @@ class ImageInfoLog : public ValueLog {
   const float3x3 transformation;
 
   /* Stores compositor::RealizationOptions information in a textual representation. */
-  const StringRef interpolation;
-  const StringRef extension_x;
-  const StringRef extension_y;
+  const StringRefNull interpolation;
+  const StringRefNull extension_x;
+  const StringRefNull extension_y;
 
   /* Stores compositor::Result.precision in a textual representation. */
-  const StringRef precision;
+  const StringRefNull precision;
 
-  ImageInfoLog(const int2 data_size,
-               const int2 display_size,
-               const int2 data_offset,
-               const float3x3 transformation,
-               const StringRef interpolation,
-               const StringRef extension_x,
-               const StringRef extension_y,
-               const StringRef precision);
+  ImageInfoLog(int2 data_size,
+               int2 display_size,
+               int2 data_offset,
+               float3x3 transformation,
+               StringRefNull interpolation,
+               StringRefNull extension_x,
+               StringRefNull extension_y,
+               StringRefNull precision);
 };
 
 using Clock = std::chrono::steady_clock;

@@ -13,6 +13,7 @@
 #include "BKE_type_conversions.hh"
 
 #include "BLI_math_angle_types.hh"
+#include "BLI_math_base.hh"
 #include "BLI_math_euler.hh"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_vector_types.hh"
@@ -803,20 +804,28 @@ class SocketTooltipBuilder {
 
     this->add_space();
 
-    const bool is_transformed = !math::is_equal(
-        image_log.transformation, float3x3::identity(), 10e-6f);
-    if (is_transformed) {
-      float2 location;
-      math::AngleRadian rotation;
-      float2 scale;
-      to_loc_rot_scale(image_log.transformation, location, rotation, scale);
+    float2 location;
+    math::AngleRadian rotation;
+    float2 scale;
+    to_loc_rot_scale(image_log.transformation, location, rotation, scale);
+
+    const bool is_translated = !math::is_equal(location, float2(0.0f), 10e-6f);
+    const bool is_rotated = math::abs(rotation.degree()) > 10e-6f;
+    const bool is_scaled = !math::is_equal(scale, float2(1.0f), 10e-6f);
+    if (is_translated || is_rotated || is_scaled) {
       this->add_text_field_mono(TIP_("Transformation:"));
-      this->add_text_field_mono(
-          fmt::format("\u2022 {}: ({}, {})", TIP_("Translation"), location.x, location.y));
-      this->add_text_field_mono(fmt::format(
-          "\u2022 {}: {}" BLI_STR_UTF8_DEGREE_SIGN, TIP_("Rotation"), rotation.degree()));
-      this->add_text_field_mono(
-          fmt::format("\u2022 {}: ({}, {})", TIP_("Scale"), scale.x, scale.y));
+      if (is_translated) {
+        this->add_text_field_mono(
+            fmt::format("\u2022 {}: ({}, {})", TIP_("Translation"), location.x, location.y));
+      }
+      if (is_rotated) {
+        this->add_text_field_mono(fmt::format(
+            "\u2022 {}: {}" BLI_STR_UTF8_DEGREE_SIGN, TIP_("Rotation"), rotation.degree()));
+      }
+      if (is_scaled) {
+        this->add_text_field_mono(
+            fmt::format("\u2022 {}: ({}, {})", TIP_("Scale"), scale.x, scale.y));
+      }
     }
     else {
       this->add_text_field_mono(TIP_("Transformation: Identity"));

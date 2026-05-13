@@ -131,16 +131,18 @@ void NodeOperation::set_needs_node_previews(const bool needed)
   needs_node_previews_ = needed;
 }
 
-static nodes::eval_log::ImageInfoLog get_image_info_log(const Result &result)
+static destruct_ptr<nodes::eval_log::ImageInfoLog> get_image_info_log(LinearAllocator<> *allocator,
+                                                                      const Result &result)
 {
-  return nodes::eval_log::ImageInfoLog(
-      result.domain().data_size,
-      result.domain().display_size,
-      result.domain().data_offset,
-      result.domain().transformation,
-      to_string(result.domain().realization_options.interpolation),
-      to_string(result.domain().realization_options.extension_x),
-      to_string(result.domain().realization_options.extension_y),
+  const Domain &domain = result.domain();
+  return allocator->construct<nodes::eval_log::ImageInfoLog>(
+      domain.data_size,
+      domain.display_size,
+      domain.data_offset,
+      domain.transformation,
+      to_string(domain.realization_options.interpolation),
+      to_string(domain.realization_options.extension_x),
+      to_string(domain.realization_options.extension_y),
       to_string(result.precision()));
 }
 
@@ -168,12 +170,10 @@ void NodeOperation::log_data()
       continue;
     }
 
-    tree_logger.input_socket_values.append(
-        *tree_logger.allocator,
-        {node_.identifier,
-         input_socket->index(),
-         tree_logger.allocator->construct<nodes::eval_log::ImageInfoLog>(
-             get_image_info_log(input))});
+    tree_logger.input_socket_values.append(*tree_logger.allocator,
+                                           {node_.identifier,
+                                            input_socket->index(),
+                                            get_image_info_log(tree_logger.allocator, input)});
   }
 
   /* Log output values. */
@@ -192,12 +192,10 @@ void NodeOperation::log_data()
       continue;
     }
 
-    tree_logger.output_socket_values.append(
-        *tree_logger.allocator,
-        {node_.identifier,
-         output_socket->index(),
-         tree_logger.allocator->construct<nodes::eval_log::ImageInfoLog>(
-             get_image_info_log(result))});
+    tree_logger.output_socket_values.append(*tree_logger.allocator,
+                                            {node_.identifier,
+                                             output_socket->index(),
+                                             get_image_info_log(tree_logger.allocator, result)});
   }
 
   /* Log node preview. */

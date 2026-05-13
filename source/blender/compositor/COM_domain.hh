@@ -205,8 +205,8 @@ class Domain {
 bool operator==(const Domain &a, const Domain &b);
 bool operator!=(const Domain &a, const Domain &b);
 
-StringRef to_string(const Interpolation &interpolation);
-StringRef to_string(const Extension &extension);
+StringRefNull to_string(const Interpolation &interpolation);
+StringRefNull to_string(const Extension &extension);
 GPUSamplerExtendMode map_extension_mode_to_extend_mode(const Extension &mode);
 
 }  // namespace blender::compositor
