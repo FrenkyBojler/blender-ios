@@ -929,7 +929,7 @@ static void calc_text_rcts(SpaceText *st, ARegion *region, rcti *r_scroll, rcti 
   r_scroll->xmax = region->winx - (0.2 * U.widget_unit);
   r_scroll->xmin = r_scroll->xmax - (0.4 * U.widget_unit);
   r_scroll->ymin = pix_top_margin;
-  r_scroll->ymax = pix_available;
+  r_scroll->ymax = pix_available - 1.3 * U.widget_unit;
 
   /* When re-sizing a 2D Viewport with the bar at the bottom to a greater height
    * more blank lines will be added. */
