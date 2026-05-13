@@ -278,8 +278,8 @@ void tag_usage_opaque([[resource_table]] TagUsageOpaque &srt,
   TagPixelCtx ctx = {
       .P = drw_point_view_to_world(vP),
       .V = float3(0.0f),
-      .lod_bias = 0,
       .radius = 0.0f,
+      .lod_bias = 0,
   };
 
   light::foreach_visible(lrd, float2(global_id.xy), vP.z, ctx, tag);
