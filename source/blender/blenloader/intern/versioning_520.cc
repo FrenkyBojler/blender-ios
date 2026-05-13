@@ -269,6 +269,24 @@ static void version_clear_strip_linear_modifier_flag(Main &bmain)
   }
 }
 
+static void version_text_strip_space_line(Main &bmain)
+{
+  for (Scene &scene : bmain.scenes) {
+    Editing *ed = seq::editing_get(&scene);
+    if (ed == nullptr) {
+      continue;
+    }
+
+    seq::foreach_strip(&ed->seqbase, [&](Strip *strip) {
+      if (strip->type == STRIP_TYPE_TEXT && strip->effectdata != nullptr) {
+        TextVars *data = static_cast<TextVars *>(strip->effectdata);
+        data->space_line = 1.0f;
+      }
+      return true;
+    });
+  }
+}
+
 static void fix_single_point_curves_custom_knots(Main *bmain)
 {
   /* Fix corrupted flagu/flagv values created by older versions of the Curve Pen tool.
@@ -579,7 +597,9 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     }
     FOREACH_NODETREE_END;
   }
-
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 27)) {
+    version_text_strip_space_line(*bmain);
+  }
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a MAIN_VERSION_FILE_ATLEAST check.
