@@ -110,7 +110,6 @@ if(DEFINED LIBDIR)
   set(Eigen3_ROOT ${LIBDIR}/eigen)
   set(meshoptimizer_ROOT ${LIBDIR}/meshoptimizer)
   set(draco_ROOT ${LIBDIR}/draco)
-  set(Tiff_ROOT ${LIBDIR}/tiff)
 endif()
 
 # Wrapper to prefer static libraries
@@ -145,11 +144,6 @@ if(DEFINED fmt_DIR)
   # Hide the fmt_DIR from the standard user settings to be consistent with our
   # other "here is the library" settings.
   mark_as_advanced(fmt_DIR)
-endif()
-
-find_package_wrapper(Tiff REQUIRED CONFIG)
-if(DEFINED Tiff_DIR)
-  mark_as_advanced(Tiff_DIR)
 endif()
 
 if(WITH_VULKAN_BACKEND)
