@@ -425,26 +425,6 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     fix_single_point_curves_custom_knots(bmain);
   }
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 99)) {
-    for (bScreen &screen : bmain->screens) {
-      for (ScrArea &area : screen.areabase) {
-        for (SpaceLink &sl : area.spacedata) {
-          if (sl.spacetype != SPACE_SEQ) {
-            continue;
-          }
-          ListBaseT<ARegion> *regionbase = (&sl == area.spacedata.first) ? &area.regionbase :
-                                                                           &sl.regionbase;
-          ARegion *scrubbing_region = do_versions_add_region_if_not_found(
-              regionbase, RGN_TYPE_PLAYBACK_SCRUBBING, "Scrubbing Region", RGN_TYPE_FOOTER);
-          if (scrubbing_region) {
-            scrubbing_region->alignment = RGN_ALIGN_BOTTOM | RGN_STACK_ON_PREV |
-                                          RGN_ALIGN_HIDE_WITH_PREV;
-          }
-        }
-      }
-    }
-  }
-
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 15)) {
     for (Scene &scene : bmain->scenes) {
       scene.r.scemode |= R_USE_TEXTURE_CACHE;
@@ -598,6 +578,26 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
       }
     }
     FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 27)) {
+    for (bScreen &screen : bmain->screens) {
+      for (ScrArea &area : screen.areabase) {
+        for (SpaceLink &sl : area.spacedata) {
+          if (sl.spacetype != SPACE_SEQ) {
+            continue;
+          }
+          ListBaseT<ARegion> *regionbase = (&sl == area.spacedata.first) ? &area.regionbase :
+                                                                           &sl.regionbase;
+          ARegion *scrubbing_region = do_versions_add_region_if_not_found(
+              regionbase, RGN_TYPE_PLAYBACK_SCRUBBING, "Scrubbing Region", RGN_TYPE_FOOTER);
+          if (scrubbing_region) {
+            scrubbing_region->alignment = RGN_ALIGN_BOTTOM | RGN_STACK_ON_PREV |
+                                          RGN_ALIGN_HIDE_WITH_PREV;
+          }
+        }
+      }
+    }
   }
 
   /**

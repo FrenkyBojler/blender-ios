@@ -3307,12 +3307,18 @@ static void region_scale_toggle_hidden(bContext *C, RegionMoveData *rmd, bool do
 
 static void region_scale_apply_stack(RegionMoveData *rmd,
                                      const wmEvent *event,
-                                     const int size_no_snap)
+                                     const int size_no_snap,
+                                     const float aspect)
 {
+  if (!(rmd->region->alignment & RGN_STACK_ON_PREV) && rmd->region->next &&
+      !(rmd->region->next->alignment & RGN_STACK_ON_PREV))
+  {
+    return;
+  }
   const bool axis_x = ELEM(rmd->edge, AE_LEFT_TO_TOPRIGHT, AE_RIGHT_TO_TOPLEFT);
   const ARegionType *art = rmd->region->runtime->type;
   const int prefsize = axis_x ? art->prefsizex : art->prefsizey;
-  const int threshold = prefsize + (axis_x ? UI_UNIT_X : UI_UNIT_Y) / 4;
+  const int threshold = prefsize + (axis_x ? UI_UNIT_X : UI_UNIT_Y / 4) / aspect;
   ARegion *target = nullptr;
 
   if (size_no_snap > threshold && !(rmd->region->flag & RGN_FLAG_HIDDEN) && rmd->region->next &&
@@ -3391,11 +3397,10 @@ static wmOperatorStatus region_scale_modal(bContext *C, wmOperator *op, const wm
         if (rmd->region->sizex != rmd->origval) {
           size_changed = true;
         }
-        region_scale_apply_stack(rmd, event, size_no_snap);
+        region_scale_apply_stack(rmd, event, size_no_snap, aspect_x);
       }
       else {
-        const float aspect_y = ((rmd->region->v2d.flag & V2D_IS_INIT) &&
-                                (rmd->region->regiontype != RGN_TYPE_PLAYBACK_SCRUBBING)) ?
+        const float aspect_y = (rmd->region->v2d.flag & V2D_IS_INIT) ?
                                    (BLI_rctf_size_y(&rmd->region->v2d.cur) /
                                     (BLI_rcti_size_y(&rmd->region->v2d.mask) + 1)) :
                                    1.0f;
@@ -3448,7 +3453,7 @@ static wmOperatorStatus region_scale_modal(bContext *C, wmOperator *op, const wm
           size_changed = true;
         }
 
-        region_scale_apply_stack(rmd, event, size_no_snap);
+        region_scale_apply_stack(rmd, event, size_no_snap, aspect_y);
       }
       if (size_changed && rmd->region->runtime->type->on_user_resize) {
         rmd->region->runtime->type->on_user_resize(rmd->region);
