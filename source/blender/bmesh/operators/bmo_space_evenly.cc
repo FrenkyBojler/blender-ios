@@ -327,14 +327,14 @@ static float3 evaluate_cubic(Span<float> tknots,
 {
   int segment = find_spline_segment(tknots, target_distance);
   float dt = target_distance - coeffs_x[segment].x;
-  float dt2 = dt * dt;
-  float dt3 = dt2 * dt;
+
   const SplineCoeffs &cx = coeffs_x[segment];
   const SplineCoeffs &cy = coeffs_y[segment];
   const SplineCoeffs &cz = coeffs_z[segment];
-  return float3(cx.a + cx.b * dt + cx.c * dt2 + cx.d * dt3,
-                cy.a + cy.b * dt + cy.c * dt2 + cy.d * dt3,
-                cz.a + cz.b * dt + cz.c * dt2 + cz.d * dt3);
+
+  return float3(cx.a + dt * (cx.b + dt * (cx.c + dt * cx.d)),
+                cy.a + dt * (cy.b + dt * (cy.c + dt * cy.d)),
+                cz.a + dt * (cz.b + dt * (cz.c + dt * cz.d)));
 }
 
 void bmo_space_evenly_exec(BMesh *bm, BMOperator *op)
