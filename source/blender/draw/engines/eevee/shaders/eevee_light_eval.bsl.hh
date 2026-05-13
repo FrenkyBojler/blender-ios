@@ -22,8 +22,12 @@
 namespace eevee::light {
 
 struct ClosureStack {
+#ifdef GLSL_CPP_STUBS
+  ClosureLight cl[3];
+#else
   /* NOTE: This is wrapped into a struct to avoid array shenanigans on MSL. */
   ClosureLight cl[SRT_CONSTANT_light_closure_eval_count];
+#endif
 };
 
 ClosureLight closure_get(ClosureStack stack, uchar index)
