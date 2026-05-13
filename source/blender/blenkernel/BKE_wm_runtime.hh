@@ -12,6 +12,8 @@
 
 #include "DNA_windowmanager_types.h"
 
+#include "BLI_bounds_types.hh"
+#include "BLI_function_ref.hh"
 #include "BLI_set.hh"
 
 namespace blender {
@@ -126,6 +128,13 @@ struct WindowManagerRuntime {
   ~WindowManagerRuntime();
 };
 
+struct AsyncEvalId {
+  ID *id;
+  /* The range to evaluate for this ID. */
+  Bounds<int> range;
+  FunctionRef<bool(ID &orig_id, ID &evaluated_id, int frame)> callback;
+};
+
 struct WindowRuntime {
   /** All events #wmEvent (ghost level events were handled). */
   ListBaseT<wmEvent> event_queue = {nullptr, nullptr};
@@ -190,9 +199,28 @@ struct WindowRuntime {
   /** Private runtime info to show text in the status bar. */
   void *cursor_keymap_status = nullptr;
 
+  /**
+   * A dependency graph used for evaluating the motion path objects of the current scene.
+   * This depsgraph is a minimal version that only includes the motion path objects.
+   * It is evaluated at most once per main loop until all required data has been generated.
+   */
+  struct Depsgraph *async_depsgraph = nullptr;
+  Vector<AsyncEvalId> async_eval_ids = {};
+  bool rebuild_async_depsgraph = false;
+  Bounds<int> evaluated_range = {};
+
   WindowRuntime() = default;
   ~WindowRuntime();
 };
+
+/**
+ *
+ */
+void wm_runtime_register_for_range_eval(
+    WindowRuntime &runtime,
+    ID &id,
+    Bounds<int> range,
+    FunctionRef<bool(ID &orig_id, ID &evaluated_id, int frame)> callback);
 
 }  // namespace bke
 }  // namespace blender

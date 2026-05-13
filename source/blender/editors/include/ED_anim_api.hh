@@ -40,6 +40,7 @@ struct ViewLayer;
 struct rctf;
 struct bContext;
 struct wmKeyConfig;
+struct wmWindow;
 
 struct Object;
 struct Scene;
@@ -1278,6 +1279,7 @@ Depsgraph *animviz_depsgraph_build(Main *bmain,
                                    ViewLayer *view_layer,
                                    Span<MPathTarget *> targets);
 
+void animviz_tag_for_motion_path_eval(wmWindow &window, Object &object);
 /**
  * Evaluated the given `depsgraph` for all targets.
  *

@@ -26,6 +26,7 @@
 #include "BKE_anim_data.hh"
 #include "BKE_main.hh"
 #include "BKE_scene.hh"
+#include "BKE_wm_runtime.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"
@@ -36,6 +37,8 @@
 
 #include "ED_anim_api.hh"
 #include "ED_keyframes_keylist.hh"
+
+#include "WM_api.hh"
 
 #include "ANIM_action.hh"
 #include "ANIM_action_legacy.hh"
@@ -412,6 +415,64 @@ static void build_keylist_for_target(MPathTarget &target, AnimKeylist &keylist)
      * performance. */
     fcurve_to_keylist(target.ob->adt, fcu, &keylist, 0, {-FLT_MAX, FLT_MAX}, true);
   }
+}
+
+static bool are_all_verts_evaluated(bMotionPath &mpath)
+{
+  for (int i = 0; i < mpath.length; i++) {
+    if (!(mpath.points[i].flag & MOTIONPATH_VERT_EVALUATED)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+static bool update_callback(ID &orig_id, ID &eval_id, const int frame)
+{
+  Object *ob = id_cast<Object *>(&orig_id);
+  Object *ob_eval = id_cast<Object *>(&eval_id);
+  bMotionPath *mpath = ob->mpath;
+
+  if (!mpath) {
+    return false;
+  }
+
+  if ((frame < mpath->start_frame) || (frame >= mpath->end_frame)) {
+    return are_all_verts_evaluated(*mpath);
+  }
+  const int index = frame - mpath->start_frame;
+  BLI_assert(index >= 0 && index < mpath->length);
+  bMotionPathVert &mpv = mpath->points[index];
+
+  /* World-space object location. */
+  copy_v3_v3(mpv.co, ob_eval->object_to_world().location());
+  mpv.flag |= MOTIONPATH_VERT_EVALUATED;
+  bMotionPath *mpath_eval = ob_eval->mpath;
+  mpath_eval->points[index] = mpv;
+  GPU_VERTBUF_DISCARD_SAFE(mpath_eval->points_vbo);
+  GPU_BATCH_DISCARD_SAFE(mpath_eval->batch_line);
+  GPU_BATCH_DISCARD_SAFE(mpath_eval->batch_points);
+
+  DEG_id_tag_update(&ob->id, ID_RECALC_ANIMATION_NO_FLUSH);
+  WM_main_add_notifier(NC_OBJECT | ND_DRAW_ANIMVIZ, ob);
+
+  return are_all_verts_evaluated(*mpath);
+}
+
+void animviz_tag_for_motion_path_eval(wmWindow &window, Object &object)
+{
+  BLI_assert(window.runtime != nullptr);
+  bMotionPath *mpath = object.mpath;
+  if (!mpath) {
+    BLI_assert_unreachable();
+    return;
+  }
+  for (int i = 0; i < mpath->length; i++) {
+    mpath->points[i].flag &= ~MOTIONPATH_VERT_EVALUATED;
+  }
+  bke::wm_runtime_register_for_range_eval(
+      *window.runtime, object.id, {mpath->start_frame, mpath->end_frame}, update_callback);
 }
 
 void animviz_calc_motionpaths(Depsgraph *depsgraph,

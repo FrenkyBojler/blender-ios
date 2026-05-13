@@ -10,6 +10,7 @@
 #include "BKE_undo_system.hh"
 #include "BKE_wm_runtime.hh"
 
+#include "BLI_bounds.hh"
 #include "BLI_ghash.h"
 #include "BLI_listbase.h"
 
@@ -66,6 +67,25 @@ WindowRuntime::~WindowRuntime()
 #endif
   /** The event_queue should be freed when the window is freed. */
   BLI_assert(BLI_listbase_is_empty(&this->event_queue));
+}
+
+void wm_runtime_register_for_range_eval(
+    WindowRuntime &runtime,
+    ID &id,
+    const Bounds<int> range,
+    FunctionRef<bool(ID &orig_id, ID &evaluated_id, int frame)> callback)
+{
+  for (AsyncEvalId &eval_id : runtime.async_eval_ids) {
+    if (eval_id.id == &id) {
+      /* ID already in objects to evaluate. */
+      eval_id.range = bounds::merge(eval_id.range, range);
+      runtime.evaluated_range = {};
+      return;
+    }
+  }
+  runtime.async_eval_ids.append({&id, range, callback});
+  runtime.rebuild_async_depsgraph = true;
+  runtime.evaluated_range = {};
 }
 
 }  // namespace blender::bke

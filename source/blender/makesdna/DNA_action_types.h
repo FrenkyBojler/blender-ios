@@ -70,6 +70,8 @@ enum eMotionPathVert_Flag : int {
   /* vert is selected */
   MOTIONPATH_VERT_SEL = (1 << 0),
   MOTIONPATH_VERT_KEY = (1 << 1),
+  /* Set when the vert has been evaluated. Used for spreading evaluation over time. */
+  MOTIONPATH_VERT_EVALUATED = (1 << 2),
 };
 ENUM_OPERATORS(eMotionPathVert_Flag);
 
@@ -85,6 +87,7 @@ enum eMotionPath_Flag : int {
   MOTIONPATH_FLAG_LINES = (1 << 3),
   /* Bake to scene camera. */
   MOTIONPATH_FLAG_BAKE_CAMERA = (1 << 4),
+
 };
 ENUM_OPERATORS(eMotionPath_Flag);
 
