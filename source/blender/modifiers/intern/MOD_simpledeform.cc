@@ -165,12 +165,12 @@ static void simpleDeform_bend(const float factor,
   switch (axis) {
     case 0:
       r_co[0] = x;
-      r_co[1] = z * cost + (1.0f - cost) / factor;
-      r_co[2] = -(z - 1.0f / factor) * sint;
+      r_co[1] = -(z - 1.0f / factor) * sint;
+      r_co[2] = z * cost + (1.0f - cost) / factor;
       {
         r_co[0] += dcut[0];
-        r_co[1] += sint * dcut[1];
-        r_co[2] += cost * dcut[1];
+        r_co[1] += cost * dcut[1];
+        r_co[2] += sint * dcut[1];
       }
       break;
     case 1:
