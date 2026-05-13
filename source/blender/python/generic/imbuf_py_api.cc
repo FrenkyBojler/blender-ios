@@ -717,8 +717,8 @@ PyDoc_STRVAR(
 static PyObject *py_imbuf_planes_get(Py_ImBuf *self, void * /*closure*/)
 {
   PY_IMBUF_CHECK_OBJ(self);
-  ImBuf *imbuf = self->ibuf;
-  return PyLong_FromLong(imbuf->planes);
+  const ImBuf *ibuf = self->ibuf;
+  return PyLong_FromLong(ibuf->color_mode_channels_get() * 8);
 }
 
 PyDoc_STRVAR(
@@ -1167,12 +1167,24 @@ PyTypeObject Py_ImBufBuffer_Type = {
 /** \name File Type, Type & Implementation
  * \{ */
 
+PyDoc_STRVAR(
+    /* Wrap. */
+    py_imbuf_file_type_id_doc,
+    "The identifier for this image file type (e.g. ``\"PNG\"``, ``\"JPEG\"``).\n"
+    "\n"
+    ":type: str\n");
 static PyObject *py_imbuf_file_type_id_get(Py_ImBufFileType *self, void * /*closure*/)
 {
   const char *id = py_imbuf_ftype_to_id_with_fallback(self->ftype);
   return PyUnicode_FromString(id);
 }
 
+PyDoc_STRVAR(
+    /* Wrap. */
+    py_imbuf_file_type_file_extensions_doc,
+    "The file extensions associated with this image file type (e.g. ``(\".jpg\", \".jpeg\")``).\n"
+    "\n"
+    ":type: tuple[str, ...]\n");
 static PyObject *py_imbuf_file_type_file_extensions_get(Py_ImBufFileType *self, void * /*closure*/)
 {
   const char **ext = IMB_ftype_file_extensions(self->ftype);
@@ -1204,32 +1216,64 @@ static PyObject *py_imbuf_file_type_capability_write_get(Py_ImBufFileType *self,
                          eImFileTypeCapability::Zero);
 }
 
+PyDoc_STRVAR(
+    /* Wrap. */
+    py_imbuf_file_type_has_read_file_doc,
+    "True when images of this file type can be read from a file.\n"
+    "\n"
+    ":type: bool\n");
+
+PyDoc_STRVAR(
+    /* Wrap. */
+    py_imbuf_file_type_has_write_file_doc,
+    "True when images of this file type can be written to a file.\n"
+    "\n"
+    ":type: bool\n");
+
+PyDoc_STRVAR(
+    /* Wrap. */
+    py_imbuf_file_type_has_read_memory_doc,
+    "True when images of this file type can be read from memory.\n"
+    "\n"
+    ":type: bool\n");
+
+PyDoc_STRVAR(
+    /* Wrap. */
+    py_imbuf_file_type_has_write_memory_doc,
+    "True when images of this file type can be written to memory.\n"
+    "\n"
+    ":type: bool\n");
+
 static PyGetSetDef Py_ImBufFileType_getseters[] = {
-    {"id", reinterpret_cast<getter>(py_imbuf_file_type_id_get), nullptr, nullptr, nullptr},
+    {"id",
+     reinterpret_cast<getter>(py_imbuf_file_type_id_get),
+     nullptr,
+     py_imbuf_file_type_id_doc,
+     nullptr},
     {"file_extensions",
      reinterpret_cast<getter>(py_imbuf_file_type_file_extensions_get),
      nullptr,
-     nullptr,
+     py_imbuf_file_type_file_extensions_doc,
      nullptr},
     {"has_read_file",
      reinterpret_cast<getter>(py_imbuf_file_type_capability_read_get),
      nullptr,
-     nullptr,
+     py_imbuf_file_type_has_read_file_doc,
      POINTER_FROM_INT(eImFileTypeCapability::File)},
     {"has_write_file",
      reinterpret_cast<getter>(py_imbuf_file_type_capability_write_get),
      nullptr,
-     nullptr,
+     py_imbuf_file_type_has_write_file_doc,
      POINTER_FROM_INT(eImFileTypeCapability::File)},
     {"has_read_memory",
      reinterpret_cast<getter>(py_imbuf_file_type_capability_read_get),
      nullptr,
-     nullptr,
+     py_imbuf_file_type_has_read_memory_doc,
      POINTER_FROM_INT(eImFileTypeCapability::Memory)},
     {"has_write_memory",
      reinterpret_cast<getter>(py_imbuf_file_type_capability_write_get),
      nullptr,
-     nullptr,
+     py_imbuf_file_type_has_write_memory_doc,
      POINTER_FROM_INT(eImFileTypeCapability::Memory)},
     {nullptr},
 };
@@ -1340,18 +1384,32 @@ static PyObject *M_imbuf_new(PyObject * /*self*/, PyObject *args, PyObject *kw)
     PyErr_Format(PyExc_ValueError, "new: Image size cannot be below 1 (%d, %d)", UNPACK2(size));
     return nullptr;
   }
-  if (!ELEM(planes, 8, 16, 24, 32)) {
+
+  const uint flags = IB_byte_data;
+  ImColorMode color_mode = ImColorMode::RGBA;
+  if (planes == 8) {
+    color_mode = ImColorMode::BW;
+  }
+  else if (planes == 16) {
+    color_mode = ImColorMode::BW_A;
+  }
+  else if (planes == 24) {
+    color_mode = ImColorMode::RGB;
+  }
+  else if (planes == 32) {
+    color_mode = ImColorMode::RGBA;
+  }
+  else {
     PyErr_Format(PyExc_ValueError, "new: planes must be 8, 16, 24 or 32, got %d", planes);
     return nullptr;
   }
 
-  const uint flags = IB_byte_data;
-
-  ImBuf *ibuf = IMB_allocImBuf(UNPACK2(size), uchar(planes), flags);
+  ImBuf *ibuf = IMB_allocImBuf(UNPACK2(size), flags);
   if (ibuf == nullptr) {
     PyErr_Format(PyExc_ValueError, "new: Unable to create image (%d, %d)", UNPACK2(size));
     return nullptr;
   }
+  ibuf->color_mode = color_mode;
   return Py_ImBuf_CreatePyObject(ibuf);
 }
 

@@ -26,12 +26,13 @@
 
 #include "RE_compositor.hh"
 
+#include "NOD_eval_log.hh"
+
 #include "ED_image.hh"
 #include "ED_node.hh"
 #include "ED_screen.hh"
 
 #include "COM_node_group_operation.hh"
-#include "COM_profiler.hh"
 
 namespace blender {
 
@@ -41,7 +42,6 @@ struct CompositorJob {
   ViewLayer *view_layer;
   bNodeTree *evaluated_node_tree;
   Render *render;
-  compositor::Profiler profiler;
   compositor::NodeGroupOutputTypes needed_outputs;
   bool is_animation_playing;
 };
@@ -115,7 +115,6 @@ static void compositor_job_start(void *compositor_job_data, wmJobWorkerStatus *w
                           *compositor_job->evaluated_node_tree,
                           "",
                           nullptr,
-                          &compositor_job->profiler,
                           compositor_job->needed_outputs);
   }
   else {
@@ -129,7 +128,6 @@ static void compositor_job_start(void *compositor_job_data, wmJobWorkerStatus *w
                             *compositor_job->evaluated_node_tree,
                             scene_render_view.name,
                             nullptr,
-                            &compositor_job->profiler,
                             compositor_job->needed_outputs);
     }
   }
@@ -144,8 +142,11 @@ static void compositor_job_complete(void *compositor_job_data)
 
   bke::node_preview_merge_tree(
       scene->compositing_node_group, compositor_job->evaluated_node_tree, true);
-  scene->runtime->compositor.per_node_execution_time =
-      compositor_job->profiler.get_nodes_evaluation_times();
+
+  Scene *evaluated_scene = DEG_get_evaluated_scene(scene->runtime->compositor.preview_depsgraph);
+  scene->runtime->compositor.nodes_evaluation_log = std::move(
+      evaluated_scene->runtime->compositor.nodes_evaluation_log);
+
   WM_main_add_notifier(NC_SCENE | ND_COMPO_RESULT, nullptr);
 }
 
@@ -201,6 +202,10 @@ static bool is_compositing_possible(const Scene *scene)
 static compositor::NodeGroupOutputTypes get_compositor_needed_outputs(
     const wmWindowManager *window_manager, Scene *scene)
 {
+  if (G.background) {
+    return compositor::NodeGroupOutputTypes::None;
+  }
+
   compositor::NodeGroupOutputTypes needed_outputs = compositor::NodeGroupOutputTypes::None;
 
   for (wmWindow &window : window_manager->windows) {
@@ -233,12 +238,6 @@ static compositor::NodeGroupOutputTypes get_compositor_needed_outputs(
           needed_outputs |= compositor::NodeGroupOutputTypes::GroupOutputNode;
         }
         else if (image->type == IMA_TYPE_COMPOSITE) {
-          needed_outputs |= compositor::NodeGroupOutputTypes::ViewerNode;
-        }
-      }
-      else if (space_link->spacetype == SPACE_SEQ) {
-        const SpaceSeq *space_sequencer = reinterpret_cast<const SpaceSeq *>(space_link);
-        if (ELEM(space_sequencer->view, SEQ_VIEW_PREVIEW, SEQ_VIEW_SEQUENCE_PREVIEW)) {
           needed_outputs |= compositor::NodeGroupOutputTypes::ViewerNode;
         }
       }
