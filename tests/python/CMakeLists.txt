@@ -402,6 +402,14 @@ add_blender_test(
   --use-vfont-render
 )
 
+
+# Build RST documentation & PYI stubs (without building the full HTML docs).
+# See the `bl_pyapi_doc_gen.py` doc-string for details.
+add_blender_test(
+  script_pyapi_doc_gen
+  --python ${CMAKE_CURRENT_LIST_DIR}/bl_pyapi_doc_gen.py --
+)
+
 # ------------------------------------------------------------------------------
 # DATA MANAGEMENT TESTS
 # ------------------------------------------------------------------------------
@@ -429,6 +437,12 @@ add_blender_test(
   blendfile_io
   --python ${CMAKE_CURRENT_LIST_DIR}/bl_blendfile_io.py --
   --output-dir ${TEST_OUT_DIR}/blendfile_io/
+)
+
+add_blender_test(
+  blendfile_autosave
+  --python ${CMAKE_CURRENT_LIST_DIR}/bl_blendfile_autosave.py --
+  --output-dir ${TEST_OUT_DIR}/blendfile_autosave/
 )
 
 # This test can be extremely long, especially in debug builds.
@@ -756,6 +770,13 @@ if(TEST_SRC_DIR_EXISTS)
   add_blender_test(
     bl_animation_keyframing
     --python ${CMAKE_CURRENT_LIST_DIR}/bl_animation_keyframing.py
+    --
+    --testdir "${TEST_SRC_DIR}/animation"
+  )
+
+  add_blender_test(
+    bl_animation_motion_path
+    --python ${CMAKE_CURRENT_LIST_DIR}/bl_animation_motion_path.py
     --
     --testdir "${TEST_SRC_DIR}/animation"
   )
