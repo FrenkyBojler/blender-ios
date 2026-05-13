@@ -728,40 +728,6 @@ void multiresModifier_prepare_join(Depsgraph *depsgraph, Scene *scene, Object *o
   multires_apply_smat(depsgraph, scene, ob, mat);
 }
 
-void multires_topology_changed(Mesh *mesh)
-{
-
-  CustomData_external_read(&mesh->corner_data, &mesh->id, CD_MASK_MDISPS, mesh->corners_num);
-  MDisps *mdisp = static_cast<MDisps *>(
-      CustomData_get_layer_for_write(&mesh->corner_data, CD_MDISPS, mesh->corners_num));
-
-  if (!mdisp) {
-    return;
-  }
-
-  MDisps *cur = mdisp;
-  int grid = 0;
-  for (int i = 0; i < mesh->corners_num; i++, cur++) {
-    if (cur->totdisp) {
-      grid = mdisp->totdisp;
-
-      break;
-    }
-  }
-
-  for (int i = 0; i < mesh->corners_num; i++, mdisp++) {
-    /* allocate memory for mdisp, the whole disp layer would be erased otherwise */
-    if (!mdisp->totdisp || !mdisp->disps) {
-      if (grid) {
-        mdisp->totdisp = grid;
-        mdisp->disps = MEM_new_array_zeroed<float[3]>(mdisp->totdisp, "mdisp topology");
-      }
-
-      continue;
-    }
-  }
-}
-
 void multires_ensure_external_read(Mesh *mesh, const int top_level)
 {
   if (!CustomData_external_test(&mesh->corner_data, CD_MDISPS)) {

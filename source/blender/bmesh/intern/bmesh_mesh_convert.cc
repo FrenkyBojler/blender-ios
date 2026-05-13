@@ -1851,8 +1851,6 @@ void BM_mesh_bm_to_me(Main *bmain, BMesh *bm, Mesh *mesh, const BMeshToMeshParam
                          corner_single_checker,
                          uv_select_vert.span,
                          uv_select_edge.span);
-        /* Topology could be changed, ensure #CD_MDISPS are ok. */
-        multires_topology_changed(mesh);
         for (const int i : loop_layers_not_to_copy) {
           bm->ldata.layers[i].flag &= ~CD_FLAG_NOCOPY;
         }

@@ -140,11 +140,6 @@ void multiresModifier_prepare_join(Depsgraph *depsgraph, Scene *scene, Object *o
 int multires_mdisp_corners(const MDisps *s);
 
 /**
- * Update multi-res data after topology changing.
- */
-void multires_topology_changed(Mesh *mesh);
-
-/**
  * Makes sure data from an external file is fully read.
  *
  * Since the multi-res data files only contain displacement vectors without knowledge about
