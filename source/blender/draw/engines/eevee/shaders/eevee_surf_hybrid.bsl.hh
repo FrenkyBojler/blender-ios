@@ -72,9 +72,7 @@ struct SurfaceHybrid {
   [[legacy_info]] ShaderCreateInfo draw_view_culling;
 
   /* For closure_to_rgba. */
-  [[legacy_info]] ShaderCreateInfo eevee_light_data;
   [[legacy_info]] ShaderCreateInfo eevee_lightprobe_data;
-  [[legacy_info]] ShaderCreateInfo eevee_shadow_data;
 
   /* Everything is stored inside a two layered target, one for each format. This is to fit the
    * limitation of the number of images we can bind on a single shader. */

@@ -61,11 +61,9 @@ namespace eevee {
 
 struct SurfaceForward {
   [[legacy_info]] ShaderCreateInfo eevee_global_ubo;
-  [[legacy_info]] ShaderCreateInfo eevee_light_data;
   [[legacy_info]] ShaderCreateInfo eevee_lightprobe_data;
   [[legacy_info]] ShaderCreateInfo eevee_utility_texture;
   [[legacy_info]] ShaderCreateInfo eevee_sampling_data;
-  [[legacy_info]] ShaderCreateInfo eevee_shadow_data;
   [[legacy_info]] ShaderCreateInfo eevee_hiz_data;
   [[legacy_info]] ShaderCreateInfo eevee_volume_lib;
 

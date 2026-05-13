@@ -15,15 +15,13 @@ FRAGMENT_SHADER_CREATE_INFO(draw_object_infos)
 FRAGMENT_SHADER_CREATE_INFO(eevee_gbuffer_data)
 FRAGMENT_SHADER_CREATE_INFO(eevee_utility_texture)
 FRAGMENT_SHADER_CREATE_INFO(eevee_sampling_data)
-FRAGMENT_SHADER_CREATE_INFO(eevee_light_data)
-FRAGMENT_SHADER_CREATE_INFO(eevee_shadow_data)
 FRAGMENT_SHADER_CREATE_INFO(eevee_hiz_data)
 FRAGMENT_SHADER_CREATE_INFO(eevee_volume_probe_data)
 
 #include "draw_view_lib.glsl"
 #include "eevee_closure_lib.glsl"
 #include "eevee_gbuffer_read_lib.glsl"
-#include "eevee_light_eval_lib.glsl"
+#include "eevee_light_eval.bsl.hh"
 #include "eevee_lightprobe_eval_lib.glsl"
 #include "eevee_lightprobe_volume_eval_lib.glsl"
 #include "eevee_renderpass_lib.glsl"
@@ -57,8 +55,6 @@ struct LightEval {
   [[legacy_info]] ShaderCreateInfo eevee_gbuffer_data;
   [[legacy_info]] ShaderCreateInfo eevee_utility_texture;
   [[legacy_info]] ShaderCreateInfo eevee_sampling_data;
-  [[legacy_info]] ShaderCreateInfo eevee_light_data;
-  [[legacy_info]] ShaderCreateInfo eevee_shadow_data;
   [[legacy_info]] ShaderCreateInfo eevee_hiz_data;
   [[legacy_info]] ShaderCreateInfo eevee_lightprobe_data;
   [[legacy_info]] ShaderCreateInfo eevee_render_pass_out;
@@ -117,6 +113,7 @@ struct LightEval {
  * Load all BSDFs closures and evaluate LTC for each selected lights. */
 [[fragment, early_fragment_tests]]
 void light_eval_frag([[resource_table]] LightEval &srt,
+                     [[resource_table]] light::LightEvalData &lrd,
                      [[frag_coord]] const float4 frag_co,
                      [[in]] const VertOut v_out)
 {
@@ -136,56 +133,51 @@ void light_eval_frag([[resource_table]] LightEval &srt,
   const float3 V = drw_world_incident_vector(P);
   const float vPz = dot(drw_view_forward(), P) - dot(drw_view_forward(), drw_view_position());
 
-  ClosureLightStack stack;
+  light::LightEvalCtx<false> ctx;
   /* Unroll light stack array assignments to avoid non-constant indexing. */
-  closure_light_set(stack, 0, closure_light_new(gbuf.layer[0], V));
+  light::closure_set(ctx.stack, 0, closure_light_new(gbuf.layer[0], V));
   if (srt.light_closure_eval_count > 1) [[static_branch]] {
-    closure_light_set(stack, 1, closure_light_new(gbuf.layer[1], V));
+    light::closure_set(ctx.stack, 1, closure_light_new(gbuf.layer[1], V));
   }
   if (srt.light_closure_eval_count > 2) [[static_branch]] {
-    closure_light_set(stack, 2, closure_light_new(gbuf.layer[2], V));
+    light::closure_set(ctx.stack, 2, closure_light_new(gbuf.layer[2], V));
   }
 
-  uchar receiver_light_set = 0;
-  float normal_offset = 0.0f;
-  float geometry_offset = 0.0f;
+  ctx.P = P;
+  ctx.Ng = Ng;
+  ctx.V = V;
+  ctx.thickness = thickness;
+  ctx.receiver_light_set = 0;
+  ctx.terminator_normal_offset = 0.0f;
+  ctx.terminator_geometry_offset = 0.0f;
   if (gbuf.header.use_object_id()) {
     uint object_id = gbuffer::read_object_id(texel);
     ObjectInfos object_infos = drw_infos[object_id];
-    receiver_light_set = receiver_light_set_get(object_infos);
-    normal_offset = object_infos.shadow_terminator_normal_offset;
-    geometry_offset = object_infos.shadow_terminator_geometry_offset;
+    ctx.receiver_light_set = receiver_light_set_get(object_infos);
+    ctx.terminator_normal_offset = object_infos.shadow_terminator_normal_offset;
+    ctx.terminator_geometry_offset = object_infos.shadow_terminator_geometry_offset;
   }
 
   /* TODO(fclem): If transmission (no SSS) is present, we could reduce LIGHT_CLOSURE_EVAL_COUNT
    * by 1 for this evaluation and skip evaluating the transmission closure twice. */
-  light_eval_reflection(stack, P, Ng, V, vPz, receiver_light_set, normal_offset, geometry_offset);
+  lrd.eval_reflection(ctx, frag_co.xy, vPz);
 
   if (srt.use_transmission) {
-    ClosureUndetermined cl_transmit = gbuf.layer[0];
-#if 1 /* TODO Limit to SSS. */
-    float3 sss_reflect_shadowed, sss_reflect_unshadowed;
-    if (cl_transmit.type == CLOSURE_BSSRDF_BURLEY_ID) {
-      sss_reflect_shadowed = stack.cl[0].light_shadowed;
-      sss_reflect_unshadowed = stack.cl[0].light_unshadowed;
-    }
-#endif
+    light::LightEvalCtx<true> ctx_tr = light::init_from_reflect_ctx(ctx);
 
-    stack.cl[0] = closure_light_new(cl_transmit, V, thickness);
+    ClosureUndetermined cl_transmit = gbuf.layer[0];
+    ctx_tr.stack.cl[0] = closure_light_new(cl_transmit, V, thickness);
 
     /* NOTE: Only evaluates `stack.cl[0]`. */
-    light_eval_transmission(
-        stack, P, Ng, V, vPz, thickness, receiver_light_set, normal_offset, geometry_offset);
+    lrd.eval_transmission(ctx_tr, frag_co.xy, vPz);
 
 #if 1 /* TODO Limit to SSS. */
     if (cl_transmit.type == CLOSURE_BSSRDF_BURLEY_ID) {
       /* Apply transmission profile onto transmitted light and sum with reflected light. */
       float3 sss_profile = subsurface_transmission(to_closure_subsurface(cl_transmit).sss_radius,
                                                    thickness.value());
-      stack.cl[0].light_shadowed *= sss_profile;
-      stack.cl[0].light_unshadowed *= sss_profile;
-      stack.cl[0].light_shadowed += sss_reflect_shadowed;
-      stack.cl[0].light_unshadowed += sss_reflect_unshadowed;
+      ctx.stack.cl[0].light_shadowed += ctx_tr.stack.cl[0].light_shadowed * sss_profile;
+      ctx.stack.cl[0].light_unshadowed += ctx_tr.stack.cl[0].light_unshadowed * sss_profile;
     }
 #endif
   }
@@ -194,8 +186,8 @@ void light_eval_frag([[resource_table]] LightEval &srt,
     float3 radiance_shadowed = float3(0);
     float3 radiance_unshadowed = float3(0);
     for (uchar i = 0; i < LIGHT_CLOSURE_EVAL_COUNT && i < closure_count; i++) {
-      radiance_shadowed += closure_light_get(stack, i).light_shadowed;
-      radiance_unshadowed += closure_light_get(stack, i).light_unshadowed;
+      radiance_shadowed += light::closure_get(ctx.stack, i).light_shadowed;
+      radiance_unshadowed += light::closure_get(ctx.stack, i).light_unshadowed;
     }
     float3 shadows = radiance_shadowed * safe_rcp(radiance_unshadowed);
     output_renderpass_value(srt.render_pass_shadow_id, average(shadows));
@@ -211,7 +203,7 @@ void light_eval_frag([[resource_table]] LightEval &srt,
     uint3 bin_indices = gbuf.header.bin_index_per_layer();
     for (uchar i = 0; i < LIGHT_CLOSURE_EVAL_COUNT && i < closure_count; i++) {
       float3 indirect_light = lightprobe_eval(samp, gbuf.layer[i], P, V, thickness);
-      float3 direct_light = closure_light_get(stack, i).light_shadowed;
+      float3 direct_light = light::closure_get(ctx.stack, i).light_shadowed;
       if (srt.use_split_indirect) {
         srt.write_radiance_indirect(bin_indices[i], texel, indirect_light);
         srt.write_radiance_direct(bin_indices[i], texel, direct_light);
@@ -224,7 +216,7 @@ void light_eval_frag([[resource_table]] LightEval &srt,
   else {
     uint3 bin_indices = gbuf.header.bin_index_per_layer();
     for (uchar i = 0; i < LIGHT_CLOSURE_EVAL_COUNT && i < closure_count; i++) {
-      float3 direct_light = closure_light_get(stack, i).light_shadowed;
+      float3 direct_light = light::closure_get(ctx.stack, i).light_shadowed;
       srt.write_radiance_direct(bin_indices[i], texel, direct_light);
     }
   }
@@ -244,8 +236,6 @@ struct SphereProbeEval {
   [[legacy_info]] ShaderCreateInfo eevee_gbuffer_data;
   [[legacy_info]] ShaderCreateInfo eevee_utility_texture;
   [[legacy_info]] ShaderCreateInfo eevee_sampling_data;
-  [[legacy_info]] ShaderCreateInfo eevee_light_data;
-  [[legacy_info]] ShaderCreateInfo eevee_shadow_data;
   [[legacy_info]] ShaderCreateInfo eevee_hiz_data;
   [[legacy_info]] ShaderCreateInfo eevee_volume_probe_data;
 };
@@ -254,6 +244,7 @@ struct SphereProbeEval {
  * being available. */
 [[fragment, early_fragment_tests]]
 void sphere_eval_frag([[resource_table]] SphereProbeEval & /*srt*/,
+                      [[resource_table]] light::LightEvalData &lrd,
                       [[frag_coord]] const float4 frag_co,
                       [[in]] const VertOut v_out,
                       [[out]] FragOut &frag_out)
@@ -306,29 +297,34 @@ void sphere_eval_frag([[resource_table]] SphereProbeEval & /*srt*/,
   cl_transmit.N = gbuf.surface_N();
   cl_transmit.type = CLOSURE_BSDF_TRANSLUCENT_ID;
 
-  uchar receiver_light_set = 0;
-  float normal_offset = 0.0f;
-  float geometry_offset = 0.0f;
+  light::LightEvalCtx<false> ctx;
+  ctx.P = P;
+  ctx.Ng = Ng;
+  ctx.V = V;
+  ctx.thickness = thickness;
+  ctx.receiver_light_set = 0;
+  ctx.terminator_normal_offset = 0.0f;
+  ctx.terminator_geometry_offset = 0.0f;
   if (gbuf.header.use_object_id()) {
     uint object_id = gbuffer::read_object_id(texel);
     ObjectInfos object_infos = drw_infos[object_id];
-    receiver_light_set = receiver_light_set_get(object_infos);
-    normal_offset = object_infos.shadow_terminator_normal_offset;
-    geometry_offset = object_infos.shadow_terminator_geometry_offset;
+    ctx.receiver_light_set = receiver_light_set_get(object_infos);
+    ctx.terminator_normal_offset = object_infos.shadow_terminator_normal_offset;
+    ctx.terminator_geometry_offset = object_infos.shadow_terminator_geometry_offset;
   }
 
   /* Direct light. */
-  ClosureLightStack stack;
-  stack.cl[0] = closure_light_new(cl, V);
-  light_eval_reflection(stack, P, Ng, V, vPz, receiver_light_set, normal_offset, geometry_offset);
+  ctx.stack.cl[0] = closure_light_new(cl, V);
+  lrd.eval_reflection(ctx, frag_co.xy, vPz);
 
-  float3 radiance_front = stack.cl[0].light_shadowed;
+  float3 radiance_front = ctx.stack.cl[0].light_shadowed;
 
-  stack.cl[0] = closure_light_new(cl_transmit, V, thickness);
-  light_eval_transmission(
-      stack, P, Ng, V, vPz, thickness, receiver_light_set, normal_offset, geometry_offset);
+  light::LightEvalCtx<true> ctx_tr = light::init_from_reflect_ctx(ctx);
 
-  float3 radiance_back = stack.cl[0].light_shadowed;
+  ctx_tr.stack.cl[0] = closure_light_new(cl_transmit, V, thickness);
+  lrd.eval_transmission(ctx_tr, frag_co.xy, vPz);
+
+  float3 radiance_back = ctx_tr.stack.cl[0].light_shadowed;
 
   /* Indirect light. */
   /* Can only load irradiance to avoid dependency loop with the reflection probe. */
@@ -351,14 +347,13 @@ struct PlanarProbeEval {
   [[legacy_info]] ShaderCreateInfo eevee_gbuffer_data;
   [[legacy_info]] ShaderCreateInfo eevee_utility_texture;
   [[legacy_info]] ShaderCreateInfo eevee_sampling_data;
-  [[legacy_info]] ShaderCreateInfo eevee_light_data;
   [[legacy_info]] ShaderCreateInfo eevee_lightprobe_data;
-  [[legacy_info]] ShaderCreateInfo eevee_shadow_data;
   [[legacy_info]] ShaderCreateInfo eevee_hiz_data;
 };
 
 [[fragment, early_fragment_tests]]
 void planar_eval_frag([[resource_table]] PlanarProbeEval & /*srt*/,
+                      [[resource_table]] light::LightEvalData &lrd,
                       [[frag_coord]] const float4 frag_co,
                       [[in]] const VertOut v_out,
                       [[out]] FragOut &frag_out)
@@ -446,33 +441,37 @@ void planar_eval_frag([[resource_table]] PlanarProbeEval & /*srt*/,
   cl_transmit.N = gbuf.surface_N();
   cl_transmit.type = CLOSURE_BSDF_TRANSLUCENT_ID;
 
-  uchar receiver_light_set = 0;
-  float normal_offset = 0.0f;
-  float geometry_offset = 0.0f;
+  light::LightEvalCtx<false> ctx;
+  ctx.P = P;
+  ctx.Ng = Ng;
+  ctx.V = V;
+  ctx.thickness = thickness;
+  ctx.receiver_light_set = 0;
+  ctx.terminator_normal_offset = 0.0f;
+  ctx.terminator_geometry_offset = 0.0f;
   if (gbuf.header.use_object_id()) {
     uint object_id = gbuffer::read_object_id(texel);
     ObjectInfos object_infos = drw_infos[object_id];
-    receiver_light_set = receiver_light_set_get(object_infos);
-    normal_offset = object_infos.shadow_terminator_normal_offset;
-    geometry_offset = object_infos.shadow_terminator_geometry_offset;
+    ctx.receiver_light_set = receiver_light_set_get(object_infos);
+    ctx.terminator_normal_offset = object_infos.shadow_terminator_normal_offset;
+    ctx.terminator_geometry_offset = object_infos.shadow_terminator_geometry_offset;
   }
 
   /* Direct light. */
-  ClosureLightStack stack;
-  stack.cl[0] = closure_light_new(cl, V);
-  stack.cl[1] = closure_light_new(cl_reflect, V);
-  light_eval_reflection(stack, P, Ng, V, vPz, receiver_light_set, normal_offset, geometry_offset);
+  ctx.stack.cl[0] = closure_light_new(cl, V);
+  ctx.stack.cl[1] = closure_light_new(cl_reflect, V);
+  lrd.eval_reflection(ctx, frag_co.xy, vPz);
 
-  float3 radiance_front = stack.cl[0].light_shadowed;
-  float3 radiance_reflect = stack.cl[1].light_shadowed;
+  float3 radiance_front = ctx.stack.cl[0].light_shadowed;
+  float3 radiance_reflect = ctx.stack.cl[1].light_shadowed;
 
-  stack.cl[0] = closure_light_new(cl_transmit, V, thickness);
-  stack.cl[1] = closure_light_new(cl_refract, V, thickness);
-  light_eval_transmission(
-      stack, P, Ng, V, vPz, thickness, receiver_light_set, normal_offset, geometry_offset);
+  light::LightEvalCtx<true> ctx_tr = light::init_from_reflect_ctx(ctx);
+  ctx_tr.stack.cl[0] = closure_light_new(cl_transmit, V, thickness);
+  ctx_tr.stack.cl[1] = closure_light_new(cl_refract, V, thickness);
+  lrd.eval_transmission(ctx_tr, frag_co.xy, vPz);
 
-  float3 radiance_back = stack.cl[0].light_shadowed;
-  float3 radiance_refract = stack.cl[1].light_shadowed;
+  float3 radiance_back = ctx_tr.stack.cl[0].light_shadowed;
+  float3 radiance_refract = ctx_tr.stack.cl[1].light_shadowed;
 
   /* Indirect light. */
   SphericalHarmonicL1<float4> sh = lightprobe_volume_sample(P, V, Ng);
