@@ -140,9 +140,7 @@ static std::optional<SpaceChainData> walk_edges(BMEdge *start_edge, Set<BMEdge *
 
   BMEdge *closing_edge = BM_edge_exists(chain_data.verts.first(), chain_data.verts.last());
   if (closing_edge && BM_elem_flag_test(closing_edge, BM_ELEM_TAG)) {
-    if (!r_visited.contains(closing_edge)) {
-      r_visited.add(closing_edge);
-    }
+    r_visited.add(closing_edge);
     chain_data.is_closed = true;
   }
   else {
