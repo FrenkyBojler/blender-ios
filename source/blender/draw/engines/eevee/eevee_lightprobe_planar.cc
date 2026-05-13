@@ -2,8 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "eevee_instance.hh"
 #include "eevee_lightprobe_planar.hh"
+#include "eevee_instance.hh"
 
 namespace blender::eevee {
 
