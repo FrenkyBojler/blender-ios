@@ -4,7 +4,6 @@
 
 #include "BLI_assert.h"
 #include "BLI_string_ref.hh"
-#include "BLI_timeit.hh"
 #include "BLI_vector_set.hh"
 
 #include "DNA_node_types.h"
@@ -14,12 +13,15 @@
 
 #include "GPU_debug.hh"
 
+#include "NOD_eval_log.hh"
+
 #include "COM_algorithm_compute_preview.hh"
 #include "COM_context.hh"
 #include "COM_input_descriptor.hh"
 #include "COM_node_operation.hh"
 #include "COM_operation.hh"
 #include "COM_result.hh"
+#include "COM_scheduler.hh"
 #include "COM_utilities.hh"
 
 namespace blender::compositor {
@@ -45,23 +47,49 @@ NodeOperation::NodeOperation(Context &context, const bNode &node) : Operation(co
   }
 }
 
+class ScopedNodeTimer {
+ private:
+  const bNode &node_;
+  const ComputeContext &compute_context_;
+  nodes::eval_log::NodesEvalLog *log_;
+
+  nodes::eval_log::TimePoint start_;
+
+ public:
+  ScopedNodeTimer(const bNode &node,
+                  const ComputeContext &compute_context,
+                  nodes::eval_log::NodesEvalLog *log)
+      : node_(node), compute_context_(compute_context), log_(log)
+  {
+    start_ = nodes::eval_log::Clock::now();
+  }
+
+  ~ScopedNodeTimer()
+  {
+    if (!log_) {
+      return;
+    }
+    const nodes::eval_log::TimePoint end = nodes::eval_log::Clock::now();
+    nodes::eval_log::NodeTreeLogger &tree_logger = log_->get_local_tree_logger(compute_context_);
+    tree_logger.node_execution_times.append(*tree_logger.allocator,
+                                            {node_.identifier, start_, end});
+  }
+};
+
 void NodeOperation::evaluate()
 {
+  const ScopedNodeTimer node_timer{
+      this->node(), this->get_compute_context(), this->context().nodes_evaluation_log()};
   if (this->context().use_gpu()) {
     GPU_debug_group_begin(this->node().typeinfo->idname.c_str());
   }
-  const timeit::TimePoint before_time = timeit::Clock::now();
   Operation::evaluate();
-  const timeit::TimePoint after_time = timeit::Clock::now();
-  if (this->context().profiler()) {
-    this->context().profiler()->set_node_evaluation_time(instance_key_, after_time - before_time);
-  }
   if (this->context().use_gpu()) {
     GPU_debug_group_end();
   }
 }
 
-void NodeOperation::compute_results_reference_counts(const VectorSet<const bNode *> &schedule)
+void NodeOperation::compute_results_reference_counts(const Schedule &schedule)
 {
   for (const bNodeSocket *output : this->node().output_sockets()) {
     if (!is_socket_available(output)) {
@@ -69,7 +97,10 @@ void NodeOperation::compute_results_reference_counts(const VectorSet<const bNode
     }
 
     const int reference_count = number_of_inputs_linked_to_output_conditioned(
-        *output, [&](const bNodeSocket &input) { return schedule.contains(&input.owner_node()); });
+        *output, [&](const bNodeSocket &input) {
+          return schedule.nodes.contains(&input.owner_node()) &&
+                 !schedule.unneeded_inputs.contains(&input);
+        });
 
     this->get_result(output->identifier).set_reference_count(reference_count);
   }
@@ -85,24 +116,36 @@ const bNodeInstanceKey &NodeOperation::get_instance_key() const
   return instance_key_;
 }
 
-void NodeOperation::set_node_previews(Map<bNodeInstanceKey, bke::bNodePreview> *node_previews)
+void NodeOperation::set_compute_context(const ComputeContext &compute_context)
 {
-  node_previews_ = node_previews;
+  compute_context_ = &compute_context;
 }
 
-Map<bNodeInstanceKey, bke::bNodePreview> *NodeOperation::get_node_previews()
+const ComputeContext &NodeOperation::get_compute_context() const
 {
-  return node_previews_;
+  return *compute_context_;
+}
+
+void NodeOperation::set_needs_node_previews(const bool needed)
+{
+  needs_node_previews_ = needed;
 }
 
 void NodeOperation::compute_preview()
 {
-  if (node_previews_ && is_node_preview_needed(this->node())) {
-    const Result *result = get_preview_result();
-    if (result) {
-      compositor::compute_preview(context(), node_previews_, this->get_instance_key(), *result);
-    }
+  if (!needs_node_previews_ || !is_node_preview_needed(this->node())) {
+    return;
   }
+
+  const Result *result = this->get_preview_result();
+  if (!result || result->is_single_value()) {
+    return;
+  }
+
+  ImBuf *preview = compositor::compute_preview(this->context(), *result);
+  nodes::eval_log::NodeTreeLogger &tree_logger =
+      this->context().nodes_evaluation_log()->get_local_tree_logger(this->get_compute_context());
+  tree_logger.node_image_previews.append(*tree_logger.allocator, {node_.identifier, preview});
 }
 
 const bNode &NodeOperation::node() const

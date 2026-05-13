@@ -1007,9 +1007,7 @@ static void wm_window_ghostwindow_add(wmWindowManager *wm,
 
   GPUBackendType gpu_backend = GPU_backend_type_selection_get();
   gpu_settings.context_type = wm_ghost_drawing_context_type(gpu_backend);
-  gpu_settings.preferred_device.index = U.gpu_preferred_index;
-  gpu_settings.preferred_device.vendor_id = U.gpu_preferred_vendor_id;
-  gpu_settings.preferred_device.device_id = U.gpu_preferred_device_id;
+  gpu_settings.preferred_device = GPU_backend_preferred_device_get();
   if (GPU_backend_vsync_is_overridden()) {
     gpu_settings.flags |= GHOST_gpuVSyncIsOverridden;
     gpu_settings.vsync = GHOST_TVSyncModes(GPU_backend_vsync_get());
@@ -1091,7 +1089,9 @@ static void wm_window_ghostwindow_add(wmWindowManager *wm,
     GPU_render_end();
   }
   else {
-    wm_window_set_drawable(wm, prev_windrawable, false);
+    if (prev_windrawable != nullptr) {
+      wm_window_set_drawable(wm, prev_windrawable, false);
+    }
   }
 }
 
@@ -2825,12 +2825,12 @@ bool WM_clipboard_image_set_byte_buffer(ImBuf *ibuf)
   if (G.background) {
     return false;
   }
-  if (ibuf->byte_buffer.data == nullptr) {
+  if (ibuf->byte_data() == nullptr) {
     return false;
   }
 
   bool success = bool(g_system->putClipboardImage(
-      reinterpret_cast<uint *>(ibuf->byte_buffer.data), ibuf->x, ibuf->y));
+      reinterpret_cast<uint *>(ibuf->byte_data_for_write()), ibuf->x, ibuf->y));
 
   return success;
 }
@@ -3476,9 +3476,7 @@ GHOST_IContext *WM_system_gpu_context_create()
   if (G.debug & G_DEBUG_GPU) {
     gpu_settings.flags |= GHOST_gpuDebugContext;
   }
-  gpu_settings.preferred_device.index = U.gpu_preferred_index;
-  gpu_settings.preferred_device.vendor_id = U.gpu_preferred_vendor_id;
-  gpu_settings.preferred_device.device_id = U.gpu_preferred_device_id;
+  gpu_settings.preferred_device = GPU_backend_preferred_device_get();
   if (GPU_backend_vsync_is_overridden()) {
     gpu_settings.flags |= GHOST_gpuVSyncIsOverridden;
     gpu_settings.vsync = GHOST_TVSyncModes(GPU_backend_vsync_get());

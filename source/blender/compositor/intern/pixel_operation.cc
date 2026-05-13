@@ -14,29 +14,39 @@
 #include "BKE_node.hh"
 #include "BKE_node_runtime.hh"
 
+#include "NOD_eval_log.hh"
+
 #include "COM_algorithm_compute_preview.hh"
 #include "COM_context.hh"
 #include "COM_operation.hh"
 #include "COM_pixel_operation.hh"
 #include "COM_result.hh"
+#include "COM_scheduler.hh"
 #include "COM_utilities.hh"
 
 namespace blender::compositor {
 
 PixelOperation::PixelOperation(Context &context,
                                PixelCompileUnit &compile_unit,
-                               const VectorSet<const bNode *> &schedule)
-    : Operation(context), compile_unit_(compile_unit), schedule_(schedule)
+                               const Schedule &schedule,
+                               const ComputeContext &compute_context)
+    : Operation(context),
+      compile_unit_(compile_unit),
+      schedule_(schedule),
+      compute_context_(compute_context)
 {
 }
 
 void PixelOperation::compute_preview()
 {
   for (const bNodeSocket *output : preview_outputs_) {
-    Result &result = get_result(get_output_identifier_from_output_socket(*output));
-    const bNodeInstanceKey instance_key = bke::node_instance_key(
-        instance_key_, &output->owner_node().owner_tree(), &output->owner_node());
-    compositor::compute_preview(context(), node_previews_, instance_key, result);
+    Result &result = this->get_result(get_output_identifier_from_output_socket(*output));
+    ImBuf *preview = compositor::compute_preview(context(), result);
+    nodes::eval_log::NodeTreeLogger &tree_logger =
+        this->context().nodes_evaluation_log()->get_local_tree_logger(compute_context_);
+    tree_logger.node_image_previews.append(*tree_logger.allocator,
+                                           {output->owner_node().identifier, preview});
+
     /* Preview results gets as an extra reference in pixel operations as can be seen in the
      * compute_results_reference_counts method, so release it after computing preview. */
     result.release();
@@ -64,7 +74,7 @@ int PixelOperation::get_internal_input_reference_count(const StringRef &identifi
   return inputs_to_reference_counts_map_.lookup(identifier);
 }
 
-void PixelOperation::compute_results_reference_counts(const VectorSet<const bNode *> &schedule)
+void PixelOperation::compute_results_reference_counts(const Schedule &schedule)
 {
   for (const auto item : output_sockets_to_output_identifiers_map_.items()) {
     int reference_count = number_of_inputs_linked_to_output_conditioned(
@@ -72,7 +82,8 @@ void PixelOperation::compute_results_reference_counts(const VectorSet<const bNod
           /* We only consider inputs that are not part of the pixel operations, because inputs
            * that are part of the pixel operations are internal and do not deal with the result
            * directly. */
-          return schedule.contains(&input.owner_node()) &&
+          return schedule.nodes.contains(&input.owner_node()) &&
+                 !schedule.unneeded_inputs.contains(&input) &&
                  !compile_unit_.contains(&input.owner_node());
         });
 
@@ -84,24 +95,9 @@ void PixelOperation::compute_results_reference_counts(const VectorSet<const bNod
   }
 }
 
-void PixelOperation::set_instance_key(const bNodeInstanceKey &instance_key)
+void PixelOperation::set_needs_node_previews(const bool needed)
 {
-  instance_key_ = instance_key;
-}
-
-bNodeInstanceKey PixelOperation::get_instance_key()
-{
-  return instance_key_;
-}
-
-void PixelOperation::set_node_previews(Map<bNodeInstanceKey, bke::bNodePreview> *node_previews)
-{
-  node_previews_ = node_previews;
-}
-
-Map<bNodeInstanceKey, bke::bNodePreview> *PixelOperation::get_node_previews()
-{
-  return node_previews_;
+  needs_node_previews_ = needed;
 }
 
 }  // namespace blender::compositor

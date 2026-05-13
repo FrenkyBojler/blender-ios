@@ -14,6 +14,7 @@
 #include "BLI_enum_flags.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_span.hh"
+#include "BLI_vector.hh"
 
 #include "IMB_imbuf_types.hh"
 
@@ -62,6 +63,7 @@ ImBuf *IMB_load_image_from_filepath(const char *filepath,
  * Save image.
  */
 bool IMB_save_image(ImBuf *ibuf, const char *filepath, int flags);
+Vector<uint8_t> IMB_save_image_to_buffer(ImBuf *ibuf, int flags);
 
 /**
  * Test image file.
@@ -120,7 +122,7 @@ ImBuf *IMB_thumb_load_image(const char *filepath,
 /**
  * Allocate and free image buffer.
  */
-ImBuf *IMB_allocImBuf(unsigned int x, unsigned int y, unsigned char planes, unsigned int flags);
+ImBuf *IMB_allocImBuf(unsigned int x, unsigned int y, unsigned int flags);
 void IMB_freeImBuf(ImBuf *ibuf);
 
 /**
@@ -128,8 +130,7 @@ void IMB_freeImBuf(ImBuf *ibuf);
  *
  * Use in cases when temporary image buffer is allocated on stack.
  */
-bool IMB_initImBuf(
-    ImBuf *ibuf, unsigned int x, unsigned int y, unsigned char planes, unsigned int flags);
+bool IMB_initImBuf(ImBuf *ibuf, unsigned int x, unsigned int y, unsigned int flags);
 
 /**
  * Create a copy of a pixel buffer and wrap it to a new ImBuf
@@ -187,7 +188,6 @@ void IMB_assign_byte_buffer(ImBuf *ibuf, const ImBufByteBuffer &buffer, ImBufOwn
 void IMB_assign_float_buffer(ImBuf *ibuf,
                              const ImBufFloatBuffer &buffer,
                              ImBufOwnership ownership);
-void IMB_assign_dds_data(ImBuf *ibuf, const DDSData &data, ImBufOwnership ownership);
 
 /**
  * Make corresponding buffers available for modification.
@@ -199,11 +199,9 @@ void IMB_make_writable_float_buffer(ImBuf *ibuf);
 /**
  * Steal the buffer data pointer: the ImBuf is no longer an owner of this data.
  * \note If the ImBuf does not own the data the behavior is undefined.
- * \note Stealing encoded buffer resets the encoded size.
  */
 uint8_t *IMB_steal_byte_buffer(ImBuf *ibuf);
 float *IMB_steal_float_buffer(ImBuf *ibuf);
-uint8_t *IMB_steal_encoded_buffer(ImBuf *ibuf);
 
 /**
  * Increase reference count to imbuf
@@ -257,7 +255,6 @@ enum IMB_BlendMode {
   IMB_BLEND_COLOR = 23,
   IMB_BLEND_INTERPOLATE = 24,
 
-  IMB_BLEND_COPY = 1000,
   IMB_BLEND_COPY_RGB = 1001,
   IMB_BLEND_COPY_ALPHA = 1002,
 };
@@ -276,9 +273,40 @@ void IMB_blend_color_float(MutableSpan<float4> dst,
                            IMB_BlendMode mode);
 
 /**
- * In-place image crop.
+ * Copy a rectangle of pixel data from one image buffer to another. The source and destination
+ * buffers are described by the pointers and corresponding 2D sizes. They must not reference the
+ * same memory.
  */
-void IMB_rect_crop(ImBuf *ibuf, const rcti *crop);
+void IMB_copy_rect(float *dst,
+                   const int2 &dst_size,
+                   const float *src,
+                   const int2 &src_size,
+                   int channels,
+                   const int2 &src_rect_pos,
+                   const int2 &dst_rect_pos,
+                   const int2 &rect_size);
+void IMB_copy_rect(uchar *dst,
+                   const int2 &dst_size,
+                   const uchar *src,
+                   const int2 &src_size,
+                   const int2 &src_rect_pos,
+                   const int2 &dst_rect_pos,
+                   const int2 &rect_size);
+
+/**
+ * In-place image crop. `rect` is *inclusive*.
+ */
+void IMB_crop(ImBuf *ibuf, const int2 &rect_pos, const int2 &rect_size);
+
+/**
+ * Copy a rectangle of pixel data from one image buffer to another. Data outside of the destination
+ * rectangle is not written to.
+ */
+void IMB_copy_rect(ImBuf *dst,
+                   const ImBuf *src,
+                   const int2 &src_rect_pos,
+                   const int2 &dst_rect_pos,
+                   const int2 &rect_size);
 
 /**
  * In-place size setting (caller must fill in buffer contents).
@@ -293,14 +321,6 @@ void IMB_rectclip(ImBuf *dbuf,
                   int *srcy,
                   int *width,
                   int *height);
-void IMB_rectcpy(ImBuf *dbuf,
-                 const ImBuf *sbuf,
-                 int destx,
-                 int desty,
-                 int srcx,
-                 int srcy,
-                 int width,
-                 int height);
 void IMB_rectblend(ImBuf *dbuf,
                    const ImBuf *obuf,
                    const ImBuf *sbuf,
@@ -375,25 +395,46 @@ enum class IMBScaleFilter {
   Box,
 };
 
+void IMB_scale_box(const float *src_buffer,
+                   int2 src_size,
+                   int channels,
+                   float *dst_buffer,
+                   int2 dst_size,
+                   bool threaded);
+void IMB_scale_box(const uchar *src_buffer,
+                   int2 src_size,
+                   int channels,
+                   uchar *dst_buffer,
+                   int2 dst_size,
+                   bool threaded);
+
 /**
  * Scale/resize image to new dimensions.
  * Return true if \a ibuf is modified.
  */
-bool IMB_scale(ImBuf *ibuf,
-               unsigned int newx,
-               unsigned int newy,
-               IMBScaleFilter filter,
-               bool threaded = true);
+bool IMB_scale(ImBuf *ibuf, int2 new_size, IMBScaleFilter filter, bool threaded = true);
+inline bool IMB_scale(
+    ImBuf *ibuf, unsigned int newx, unsigned int newy, IMBScaleFilter filter, bool threaded = true)
+{
+  return IMB_scale(ibuf, int2(newx, newy), filter, threaded);
+}
 
 /**
  * Scale/resize image to new dimensions, into a newly created result image.
  * Metadata of input image (if any) is copied into the result image.
  */
 ImBuf *IMB_scale_into_new(const ImBuf *ibuf,
-                          unsigned int newx,
-                          unsigned int newy,
+                          int2 new_size,
                           IMBScaleFilter filter,
                           bool threaded = true);
+inline ImBuf *IMB_scale_into_new(const ImBuf *ibuf,
+                                 unsigned int newx,
+                                 unsigned int newy,
+                                 IMBScaleFilter filter,
+                                 bool threaded = true)
+{
+  return IMB_scale_into_new(ibuf, int2(newx, newy), filter, threaded);
+}
 
 /**
  * Test if color-space conversions of pixels in buffer need to take into account alpha.
@@ -568,7 +609,7 @@ bool IMB_alloc_float_pixels(ImBuf *ibuf, unsigned int channels, bool initialize_
  */
 void IMB_free_float_pixels(ImBuf *ibuf);
 
-/** Deallocate all CPU side data storage (byte, float, encoded). */
+/** Deallocate all CPU side data storage (byte, float). */
 void IMB_free_all_data(ImBuf *ibuf);
 
 /**

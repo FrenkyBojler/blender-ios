@@ -191,6 +191,8 @@ static std::string get_path_from_strip(Scene *scene, const Strip *strip, float t
           filepath, sizeof(filepath), strip->data->dirpath, strip->data->stripdata->filename);
       BLI_path_abs(filepath, ID_BLEND_PATH_FROM_GLOBAL(&scene->id));
       break;
+    default:
+      break;
   }
   return filepath;
 }
@@ -216,7 +218,7 @@ static ImBuf *make_thumb_for_image(const Scene *scene, const ThumbnailCache::Req
     return nullptr;
   }
   /* Keep only float buffer if we have both byte & float. */
-  if (ibuf->float_buffer.data != nullptr && ibuf->byte_buffer.data != nullptr) {
+  if (ibuf->float_data() != nullptr && ibuf->byte_data() != nullptr) {
     IMB_free_byte_pixels(ibuf);
   }
 
@@ -229,6 +231,15 @@ static void scale_to_thumbnail_size(ImBuf *ibuf)
   if (ibuf == nullptr) {
     return;
   }
+
+  /* We only need byte thumbnails. */
+  if (ibuf->float_data()) {
+    if (ibuf->byte_data() == nullptr) {
+      IMB_byte_from_float(ibuf);
+    }
+    IMB_free_float_pixels(ibuf);
+  }
+
   int width = ibuf->x;
   int height = ibuf->y;
   image_size_to_thumb_size(width, height);
@@ -477,7 +488,7 @@ static ImBuf *query_thumbnail(ThumbnailCache &cache,
     ThumbnailCache::Request request(key,
                                     frame_index,
                                     strip->streamindex,
-                                    StripType(strip->type),
+                                    strip->type,
                                     cur_time,
                                     timeline_frame,
                                     strip->channel,

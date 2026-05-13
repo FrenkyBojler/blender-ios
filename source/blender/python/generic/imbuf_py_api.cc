@@ -285,7 +285,10 @@ static PyObject *py_imbuf_crop(Py_ImBuf *self, PyObject *args, PyObject *kw)
     PyErr_SetString(PyExc_ValueError, "ImBuf crop min/max not in range");
     return nullptr;
   }
-  IMB_rect_crop(self->ibuf, &crop);
+
+  IMB_crop(self->ibuf,
+           int2(crop.xmin, crop.ymin),
+           int2(BLI_rcti_size_x(&crop) + 1, BLI_rcti_size_y(&crop) + 1));
   Py_RETURN_NONE;
 }
 
@@ -326,18 +329,18 @@ PyDoc_STRVAR(
     ".. method:: with_buffer(type, *, write=False, region=None)\n"
     "\n"
     "   Return a context manager that yields a :class:`memoryview` "
-    "of the image's pixel data.\n"
+    "of the image's pixel data, shaped ``(height, width, channels)``.\n"
     "\n"
     "   Usage::\n"
     "\n"
     "      with image.with_buffer('BYTE', write=True) as buf:\n"
-    "          buf[0] = 255  # set red channel of first pixel\n"
+    "          buf[0, 0, 0] = 255  # set red channel of pixel (0, 0)\n"
     "\n" PY_IMBUF_BUFFER_TYPE_DOC
     "   :param write: When true the buffer is writable.\n"
     "   :type write: bool\n"
-    "   :param region: Optional sub-region ``((x_min, y_min), (x_max, y_max))``.\n"
-    "      When set the memoryview is 2D (rows x columns), "
-    "clamped to image bounds.\n"
+    "   :param region: Optional sub-region ``((x_min, y_min), (x_max, y_max))``, "
+    "clamped to image bounds. When set the shape becomes "
+    "``(region_height, region_width, channels)``.\n"
     "   :type region: tuple[tuple[int, int], tuple[int, int]] | None\n"
     "   :return: A context manager yielding a :class:`memoryview` of pixel data.\n"
     "   :rtype: :class:`ImBufBuffer`\n");
@@ -381,13 +384,13 @@ static PyObject *py_imbuf_with_buffer(Py_ImBuf *self, PyObject *args, PyObject *
   const int mode = type.value_found;
 
   if (mode == IB_byte_data) {
-    if (ibuf->byte_buffer.data == nullptr) {
+    if (ibuf->byte_data() == nullptr) {
       PyErr_SetString(PyExc_RuntimeError, "ImBuf has no byte pixel data");
       return nullptr;
     }
   }
   else {
-    if (ibuf->float_buffer.data == nullptr) {
+    if (ibuf->float_data() == nullptr) {
       PyErr_SetString(PyExc_RuntimeError, "ImBuf has no float pixel data");
       return nullptr;
     }
@@ -440,28 +443,28 @@ static PyObject *py_imbuf_ensure_buffer(Py_ImBuf *self, PyObject *args, PyObject
   ImBuf *ibuf = self->ibuf;
 
   if (type.value_found == IB_byte_data) {
-    if (ibuf->byte_buffer.data == nullptr) {
-      if (ibuf->float_buffer.data != nullptr) {
+    if (ibuf->byte_data() == nullptr) {
+      if (ibuf->float_data() != nullptr) {
         IMB_byte_from_float(ibuf);
       }
       else {
         IMB_alloc_byte_pixels(ibuf);
       }
-      if (UNLIKELY(ibuf->byte_buffer.data == nullptr)) {
+      if (UNLIKELY(ibuf->byte_data() == nullptr)) {
         PyErr_SetString(PyExc_MemoryError, "failed to allocate byte buffer");
         return nullptr;
       }
     }
   }
   else {
-    if (ibuf->float_buffer.data == nullptr) {
-      if (ibuf->byte_buffer.data != nullptr) {
+    if (ibuf->float_data() == nullptr) {
+      if (ibuf->byte_data() != nullptr) {
         IMB_float_from_byte(ibuf);
       }
       else {
         IMB_alloc_float_pixels(ibuf, 4);
       }
-      if (UNLIKELY(ibuf->float_buffer.data == nullptr)) {
+      if (UNLIKELY(ibuf->float_data() == nullptr)) {
         PyErr_SetString(PyExc_MemoryError, "failed to allocate float buffer");
         return nullptr;
       }
@@ -498,9 +501,9 @@ static PyObject *py_imbuf_has_buffer(Py_ImBuf *self, PyObject *args, PyObject *k
 
   ImBuf *ibuf = self->ibuf;
   if (type.value_found == IB_byte_data) {
-    return PyBool_FromLong(ibuf->byte_buffer.data != nullptr);
+    return PyBool_FromLong(ibuf->byte_data() != nullptr);
   }
-  return PyBool_FromLong(ibuf->float_buffer.data != nullptr);
+  return PyBool_FromLong(ibuf->float_data() != nullptr);
 }
 
 PyDoc_STRVAR(
@@ -669,7 +672,7 @@ static PyObject *py_imbuf_filepath_get(Py_ImBuf *self, void * /*closure*/)
 {
   PY_IMBUF_CHECK_OBJ(self);
   ImBuf *ibuf = self->ibuf;
-  return PyC_UnicodeFromBytes(ibuf->filepath.c_str());
+  return PyC_UnicodeFromStdStr(ibuf->filepath);
 }
 
 static int py_imbuf_filepath_set(Py_ImBuf *self, PyObject *value, void * /*closure*/)
@@ -714,8 +717,8 @@ PyDoc_STRVAR(
 static PyObject *py_imbuf_planes_get(Py_ImBuf *self, void * /*closure*/)
 {
   PY_IMBUF_CHECK_OBJ(self);
-  ImBuf *imbuf = self->ibuf;
-  return PyLong_FromLong(imbuf->planes);
+  const ImBuf *ibuf = self->ibuf;
+  return PyLong_FromLong(ibuf->color_mode_channels_get() * 8);
 }
 
 PyDoc_STRVAR(
@@ -997,13 +1000,13 @@ static PyObject *py_imbuf_buffer_enter(Py_ImBufBuffer *self)
   const bool is_byte = (self->mode == IB_byte_data);
 
   if (is_byte) {
-    if (UNLIKELY(ibuf->byte_buffer.data == nullptr)) {
+    if (UNLIKELY(ibuf->byte_data() == nullptr)) {
       PyErr_SetString(PyExc_RuntimeError, "ImBuf has no byte pixel data");
       return nullptr;
     }
   }
   else {
-    if (UNLIKELY(ibuf->float_buffer.data == nullptr)) {
+    if (UNLIKELY(ibuf->float_data() == nullptr)) {
       PyErr_SetString(PyExc_RuntimeError, "ImBuf has no float pixel data");
       return nullptr;
     }
@@ -1013,51 +1016,41 @@ static PyObject *py_imbuf_buffer_enter(Py_ImBufBuffer *self)
   const Py_ssize_t itemsize = is_byte ? 1 : Py_ssize_t(sizeof(float));
   const char *format = is_byte ? "B" : "f";
 
-  PyObject *memview;
+  /* `(height, width, channels)` view - the memoryview's natural image shape.
+   * The full image is C-contiguous; a region uses the full image's row stride
+   * to point at a sub-rectangle without copying. */
+  Py_ssize_t shape[3];
+  Py_ssize_t strides[3];
+  Py_ssize_t offset = 0;
 
   if (self->region == std::nullopt) {
-    Py_ssize_t num_items = Py_ssize_t(ibuf->x) * ibuf->y * channels;
-
-    Py_buffer pybuf;
-    memset(&pybuf, 0, sizeof(pybuf));
-    pybuf.buf = is_byte ? static_cast<void *>(ibuf->byte_buffer.data) :
-                          static_cast<void *>(ibuf->float_buffer.data);
-    pybuf.len = num_items * itemsize;
-    pybuf.itemsize = itemsize;
-    pybuf.readonly = !self->writable;
-    pybuf.format = const_cast<char *>(format);
-    pybuf.ndim = 1;
-    pybuf.shape = &num_items;
-    pybuf.strides = &pybuf.itemsize;
-    memview = PyMemoryView_FromBuffer(&pybuf);
+    shape[0] = ibuf->y;
+    shape[1] = ibuf->x;
   }
   else {
     const rcti &region = *self->region;
-    const int xmin = region.xmin;
-    const int ymin = region.ymin;
-    const int xmax = region.xmax;
-    const int ymax = region.ymax;
-
-    const Py_ssize_t row_stride = Py_ssize_t(ibuf->x) * channels * itemsize;
-    const Py_ssize_t offset = (Py_ssize_t(ymin) * ibuf->x + xmin) * channels * itemsize;
-
-    Py_ssize_t shape[2] = {ymax - ymin, (xmax - xmin) * channels};
-    Py_ssize_t strides[2] = {row_stride, itemsize};
-
-    Py_buffer pybuf;
-    memset(&pybuf, 0, sizeof(pybuf));
-    pybuf.buf = is_byte ? static_cast<void *>(ibuf->byte_buffer.data + offset) :
-                          static_cast<void *>(reinterpret_cast<char *>(ibuf->float_buffer.data) +
-                                              offset);
-    pybuf.len = shape[0] * shape[1] * itemsize;
-    pybuf.itemsize = itemsize;
-    pybuf.readonly = !self->writable;
-    pybuf.format = const_cast<char *>(format);
-    pybuf.ndim = 2;
-    pybuf.shape = shape;
-    pybuf.strides = strides;
-    memview = PyMemoryView_FromBuffer(&pybuf);
+    shape[0] = region.ymax - region.ymin;
+    shape[1] = region.xmax - region.xmin;
+    offset = (Py_ssize_t(region.ymin) * ibuf->x + region.xmin) * channels * itemsize;
   }
+  shape[2] = channels;
+  strides[0] = Py_ssize_t(ibuf->x) * channels * itemsize;
+  strides[1] = Py_ssize_t(channels) * itemsize;
+  strides[2] = itemsize;
+
+  Py_buffer pybuf;
+  memset(&pybuf, 0, sizeof(pybuf));
+  pybuf.buf = is_byte ? static_cast<void *>(ibuf->byte_data_for_write() + offset) :
+                        static_cast<void *>(
+                            reinterpret_cast<char *>(ibuf->float_data_for_write()) + offset);
+  pybuf.len = shape[0] * shape[1] * shape[2] * itemsize;
+  pybuf.itemsize = itemsize;
+  pybuf.readonly = !self->writable;
+  pybuf.format = const_cast<char *>(format);
+  pybuf.ndim = 3;
+  pybuf.shape = shape;
+  pybuf.strides = strides;
+  PyObject *memview = PyMemoryView_FromBuffer(&pybuf);
 
   if (UNLIKELY(memview == nullptr)) {
     return nullptr;
@@ -1079,12 +1072,12 @@ static PyObject *py_imbuf_buffer_exit(Py_ImBufBuffer *self, PyObject * /*args*/)
       ImBuf *ibuf = self->py_ibuf->ibuf;
       if (ibuf != nullptr) {
         if (self->mode == IB_byte_data) {
-          if (ibuf->float_buffer.data != nullptr) {
+          if (ibuf->float_data() != nullptr) {
             IMB_float_from_byte(ibuf);
           }
         }
         else {
-          if (ibuf->byte_buffer.data != nullptr) {
+          if (ibuf->byte_data() != nullptr) {
             IMB_byte_from_float(ibuf);
           }
         }
@@ -1174,12 +1167,24 @@ PyTypeObject Py_ImBufBuffer_Type = {
 /** \name File Type, Type & Implementation
  * \{ */
 
+PyDoc_STRVAR(
+    /* Wrap. */
+    py_imbuf_file_type_id_doc,
+    "The identifier for this image file type (e.g. ``\"PNG\"``, ``\"JPEG\"``).\n"
+    "\n"
+    ":type: str\n");
 static PyObject *py_imbuf_file_type_id_get(Py_ImBufFileType *self, void * /*closure*/)
 {
   const char *id = py_imbuf_ftype_to_id_with_fallback(self->ftype);
   return PyUnicode_FromString(id);
 }
 
+PyDoc_STRVAR(
+    /* Wrap. */
+    py_imbuf_file_type_file_extensions_doc,
+    "The file extensions associated with this image file type (e.g. ``(\".jpg\", \".jpeg\")``).\n"
+    "\n"
+    ":type: tuple[str, ...]\n");
 static PyObject *py_imbuf_file_type_file_extensions_get(Py_ImBufFileType *self, void * /*closure*/)
 {
   const char **ext = IMB_ftype_file_extensions(self->ftype);
@@ -1211,32 +1216,64 @@ static PyObject *py_imbuf_file_type_capability_write_get(Py_ImBufFileType *self,
                          eImFileTypeCapability::Zero);
 }
 
+PyDoc_STRVAR(
+    /* Wrap. */
+    py_imbuf_file_type_has_read_file_doc,
+    "True when images of this file type can be read from a file.\n"
+    "\n"
+    ":type: bool\n");
+
+PyDoc_STRVAR(
+    /* Wrap. */
+    py_imbuf_file_type_has_write_file_doc,
+    "True when images of this file type can be written to a file.\n"
+    "\n"
+    ":type: bool\n");
+
+PyDoc_STRVAR(
+    /* Wrap. */
+    py_imbuf_file_type_has_read_memory_doc,
+    "True when images of this file type can be read from memory.\n"
+    "\n"
+    ":type: bool\n");
+
+PyDoc_STRVAR(
+    /* Wrap. */
+    py_imbuf_file_type_has_write_memory_doc,
+    "True when images of this file type can be written to memory.\n"
+    "\n"
+    ":type: bool\n");
+
 static PyGetSetDef Py_ImBufFileType_getseters[] = {
-    {"id", reinterpret_cast<getter>(py_imbuf_file_type_id_get), nullptr, nullptr, nullptr},
+    {"id",
+     reinterpret_cast<getter>(py_imbuf_file_type_id_get),
+     nullptr,
+     py_imbuf_file_type_id_doc,
+     nullptr},
     {"file_extensions",
      reinterpret_cast<getter>(py_imbuf_file_type_file_extensions_get),
      nullptr,
-     nullptr,
+     py_imbuf_file_type_file_extensions_doc,
      nullptr},
     {"has_read_file",
      reinterpret_cast<getter>(py_imbuf_file_type_capability_read_get),
      nullptr,
-     nullptr,
+     py_imbuf_file_type_has_read_file_doc,
      POINTER_FROM_INT(eImFileTypeCapability::File)},
     {"has_write_file",
      reinterpret_cast<getter>(py_imbuf_file_type_capability_write_get),
      nullptr,
-     nullptr,
+     py_imbuf_file_type_has_write_file_doc,
      POINTER_FROM_INT(eImFileTypeCapability::File)},
     {"has_read_memory",
      reinterpret_cast<getter>(py_imbuf_file_type_capability_read_get),
      nullptr,
-     nullptr,
+     py_imbuf_file_type_has_read_memory_doc,
      POINTER_FROM_INT(eImFileTypeCapability::Memory)},
     {"has_write_memory",
      reinterpret_cast<getter>(py_imbuf_file_type_capability_write_get),
      nullptr,
-     nullptr,
+     py_imbuf_file_type_has_write_memory_doc,
      POINTER_FROM_INT(eImFileTypeCapability::Memory)},
     {nullptr},
 };
@@ -1347,18 +1384,32 @@ static PyObject *M_imbuf_new(PyObject * /*self*/, PyObject *args, PyObject *kw)
     PyErr_Format(PyExc_ValueError, "new: Image size cannot be below 1 (%d, %d)", UNPACK2(size));
     return nullptr;
   }
-  if (!ELEM(planes, 8, 16, 24, 32)) {
+
+  const uint flags = IB_byte_data;
+  ImColorMode color_mode = ImColorMode::RGBA;
+  if (planes == 8) {
+    color_mode = ImColorMode::BW;
+  }
+  else if (planes == 16) {
+    color_mode = ImColorMode::BW_A;
+  }
+  else if (planes == 24) {
+    color_mode = ImColorMode::RGB;
+  }
+  else if (planes == 32) {
+    color_mode = ImColorMode::RGBA;
+  }
+  else {
     PyErr_Format(PyExc_ValueError, "new: planes must be 8, 16, 24 or 32, got %d", planes);
     return nullptr;
   }
 
-  const uint flags = IB_byte_data;
-
-  ImBuf *ibuf = IMB_allocImBuf(UNPACK2(size), uchar(planes), flags);
+  ImBuf *ibuf = IMB_allocImBuf(UNPACK2(size), flags);
   if (ibuf == nullptr) {
     PyErr_Format(PyExc_ValueError, "new: Unable to create image (%d, %d)", UNPACK2(size));
     return nullptr;
   }
+  ibuf->color_mode = color_mode;
   return Py_ImBuf_CreatePyObject(ibuf);
 }
 
@@ -1556,21 +1607,20 @@ static PyObject *M_imbuf_write(PyObject * /*self*/, PyObject *args, PyObject *kw
  */
 static PyObject *imbuf_write_to_buffer_impl(ImBuf *ibuf, PyObject *file)
 {
-  const bool is_float = ibuf->float_buffer.data != nullptr;
+  const bool is_float = ibuf->float_data() != nullptr;
   if (ibuf->ftype == IMB_FTYPE_NONE) {
     ibuf->ftype = IMB_FTYPE_DEFAULT;
   }
 
-  const bool ok = IMB_save_image(
-      ibuf, "<memory>", eImBufFlags(IB_mem | (is_float ? IB_float_data : IB_byte_data)));
-  if (!ok) {
+  Vector<uint8_t> encoded = IMB_save_image_to_buffer(ibuf,
+                                                     is_float ? IB_float_data : IB_byte_data);
+  if (encoded.is_empty()) {
     PyErr_SetString(PyExc_RuntimeError, "write_to_buffer: failed to write image to memory");
     return nullptr;
   }
 
-  PyObject *memview = PyMemoryView_FromMemory(reinterpret_cast<char *>(ibuf->encoded_buffer.data),
-                                              Py_ssize_t(ibuf->encoded_size),
-                                              PyBUF_READ);
+  PyObject *memview = PyMemoryView_FromMemory(
+      reinterpret_cast<char *>(encoded.data()), Py_ssize_t(encoded.size()), PyBUF_READ);
   if (!memview) {
     return nullptr;
   }
@@ -1618,7 +1668,7 @@ static PyObject *M_imbuf_write_to_buffer(PyObject * /*self*/, PyObject *args)
     return nullptr;
   }
 
-  /* Work on a copy to avoid mutating the original (encoded_buffer, ftype).
+  /* Work on a copy to avoid mutating the original (ftype).
    * This could be avoided by making the encoded buffer free function public. */
   ImBuf *ibuf = IMB_dupImBuf(py_imb->ibuf);
   if (!ibuf) {
@@ -1668,7 +1718,7 @@ static PyObject *M_imbuf_file_type_from_buffer(PyObject * /*self*/, PyObject *ar
     return nullptr;
   }
   const eImbFileType ftype = IMB_test_image_type_from_memory(
-      reinterpret_cast<const unsigned char *>(pybuffer.buf), pybuffer.len);
+      reinterpret_cast<const uchar *>(pybuffer.buf), pybuffer.len);
   PyBuffer_Release(&pybuffer);
 
   if (ftype == IMB_FTYPE_NONE) {

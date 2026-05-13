@@ -126,25 +126,20 @@ class EdgesOfVertInput final : public bke::MeshFieldInput {
     return VArray<int>::from_container(std::move(edge_of_vertex));
   }
 
-  void for_each_field_input_recursive(FunctionRef<void(const FieldInput &)> fn) const override
+  void foreach_recursive_field(FunctionRef<void(const GField &)> fn) const override
   {
-    vert_index_.node().for_each_field_input_recursive(fn);
-    sort_index_.node().for_each_field_input_recursive(fn);
-    sort_weight_.node().for_each_field_input_recursive(fn);
+    fn(vert_index_);
+    fn(sort_index_);
+    fn(sort_weight_);
   }
 
-  uint64_t hash() const final
+  void hash_unique(UniqueHashBytes &hash, fn::FieldHashDeep &deep_hash_cache) const final
   {
-    return 98762349875636;
-  }
-
-  bool is_equal_to(const fn::FieldNode &other) const final
-  {
-    if (const auto *typed = dynamic_cast<const EdgesOfVertInput *>(&other)) {
-      return typed->vert_index_ == vert_index_ && typed->sort_index_ == sort_index_ &&
-             typed->sort_weight_ == sort_weight_;
-    }
-    return false;
+    static constexpr int8_t id = 0;
+    hash.add(&id);
+    hash.add(deep_hash_cache.ensure(vert_index_));
+    hash.add(deep_hash_cache.ensure(sort_index_));
+    hash.add(deep_hash_cache.ensure(sort_weight_));
   }
 
   std::optional<AttrDomain> preferred_domain(const Mesh & /*mesh*/) const final
@@ -169,14 +164,10 @@ class EdgesOfVertCountInput final : public bke::MeshFieldInput {
     return VArray<int>::from_container(std::move(counts));
   }
 
-  uint64_t hash() const final
+  void hash_unique(UniqueHashBytes &hash, fn::FieldHashDeep & /*deep_hash_cache*/) const override
   {
-    return 436758278618374;
-  }
-
-  bool is_equal_to(const fn::FieldNode &other) const final
-  {
-    return dynamic_cast<const EdgesOfVertCountInput *>(&other) != nullptr;
+    static constexpr int8_t id = 0;
+    hash.add(&id);
   }
 
   std::optional<AttrDomain> preferred_domain(const Mesh & /*mesh*/) const final
@@ -189,25 +180,25 @@ static void node_geo_exec(GeoNodeExecParams params)
 {
   const Field<int> vert_index = params.extract_input<Field<int>>("Vertex Index"_ustr);
   if (params.output_is_required("Total"_ustr)) {
-    params.set_output("Total"_ustr,
-                      Field<int>(std::make_shared<bke::EvaluateAtIndexInput>(
-                          vert_index,
-                          Field<int>(std::make_shared<EdgesOfVertCountInput>()),
-                          AttrDomain::Point)));
+    params.set_output(
+        "Total"_ustr,
+        Field<int>::from_input<bke::EvaluateAtIndexInput>(
+            vert_index, Field<int>::from_input<EdgesOfVertCountInput>(), AttrDomain::Point));
   }
   if (params.output_is_required("Edge Index"_ustr)) {
     params.set_output("Edge Index"_ustr,
-                      Field<int>(std::make_shared<EdgesOfVertInput>(
+                      Field<int>::from_input<EdgesOfVertInput>(
                           vert_index,
                           params.extract_input<Field<int>>("Sort Index"_ustr),
-                          params.extract_input<Field<float>>("Weights"_ustr))));
+                          params.extract_input<Field<float>>("Weights"_ustr)));
   }
 }
 
 static void node_register()
 {
   static bke::bNodeType ntype;
-  geo_node_type_base(&ntype, "GeometryNodeEdgesOfVertex", GEO_NODE_MESH_TOPOLOGY_EDGES_OF_VERTEX);
+  geo_node_type_base(
+      &ntype, "GeometryNodeEdgesOfVertex"_ustr, GEO_NODE_MESH_TOPOLOGY_EDGES_OF_VERTEX);
   ntype.ui_name = "Edges of Vertex";
   ntype.ui_description = "Retrieve the edges connected to each vertex";
   ntype.enum_name_legacy = "EDGES_OF_VERTEX";

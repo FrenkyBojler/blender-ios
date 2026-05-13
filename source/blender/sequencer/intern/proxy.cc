@@ -363,6 +363,8 @@ static int seq_proxy_context_count(Strip *strip, Scene *scene)
       }
       break;
     }
+    default:
+      break;
   }
 
   return num_views;
@@ -486,7 +488,7 @@ static void seq_proxy_build_frame(const Scene *scene,
   }
 
   const int quality = strip.data->proxy->quality;
-  const bool save_float = ibuf->float_buffer.data != nullptr;
+  const bool save_float = ibuf->float_data() != nullptr;
   ibuf->foptions.quality = quality;
   if (save_float) {
     /* Float image: save as EXR with FP16 data and DWAA compression. */
@@ -496,8 +498,8 @@ static void seq_proxy_build_frame(const Scene *scene,
   else {
     /* Byte image: save as JPG. */
     ibuf->ftype = IMB_FTYPE_JPG;
-    if (ibuf->planes == 32) {
-      ibuf->planes = 24; /* JPGs do not support alpha. */
+    if (ibuf->can_contain_alpha()) {
+      ibuf->color_mode = ImColorMode::RGB; /* JPGs do not support alpha. */
     }
   }
   BLI_file_ensure_parent_dir_exists(filepath);
@@ -540,7 +542,7 @@ static ImBuf *render_image_strip_frame(const ProxyBuildContext &context,
   }
 
   convert_multilayer_ibuf(ibuf);
-  if (ibuf->float_buffer.data != nullptr && ibuf->byte_buffer.data != nullptr) {
+  if (ibuf->float_data() != nullptr && ibuf->byte_data() != nullptr) {
     IMB_free_byte_pixels(ibuf); /* If both float & byte exist, free byte buffer. */
   }
   ensure_ibuf_is_sequencer_space(context.scene, ibuf, false);

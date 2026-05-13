@@ -6,8 +6,8 @@
 #include "DNA_pointcloud_types.h"
 
 #include "GEO_foreach_geometry.hh"
-#include "GEO_mesh_merge_by_distance.hh"
-#include "GEO_point_merge_by_distance.hh"
+#include "GEO_mesh_merge_verts.hh"
+#include "GEO_point_merge.hh"
 
 #include "node_geometry_util.hh"
 
@@ -137,7 +137,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeMergeByDistance", GEO_NODE_MERGE_BY_DISTANCE);
+  geo_node_type_base(&ntype, "GeometryNodeMergeByDistance"_ustr, GEO_NODE_MERGE_BY_DISTANCE);
   ntype.ui_name = "Merge by Distance";
   ntype.ui_description = "Merge vertices or points within a given distance";
   ntype.enum_name_legacy = "MERGE_BY_DISTANCE";

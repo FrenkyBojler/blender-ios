@@ -21,20 +21,25 @@
 
 #include "BLI_listbase_iterator.hh"
 #include "BLI_string.h"
+#include "BLI_string_utils.hh"
 #include "BLI_sys_types.h"
 
 #include "BKE_animsys.h"
+#include "BKE_colortools.hh"
 #include "BKE_curves.hh"
 #include "BKE_idprop.hh"
+#include "BKE_lib_id.hh"
 #include "BKE_main.hh"
 #include "BKE_mesh_legacy_convert.hh"
 #include "BKE_node.hh"
 #include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
+#include "BKE_report.hh"
 
 #include "SEQ_iterator.hh"
 #include "SEQ_sequencer.hh"
 
+#include "BLO_read_write.hh"
 #include "readfile.hh"
 
 #include "versioning_common.hh"
@@ -45,19 +50,47 @@ namespace blender {
 
 // static CLG_LogRef LOG = {"blend.doversion"};
 
-static void version_geometry_nodes_properties(Main &bmain, Object &object, NodesModifierData &nmd)
+static void version_geometry_nodes_properties(FileData &fd,
+                                              Main &bmain,
+                                              Object &object,
+                                              NodesModifierData &nmd)
 {
-  const IDProperty *old_props = nmd.settings.properties;
+  const IDProperty *old_props = nmd.settings_legacy.properties;
   if (!old_props) {
     /* Versioning has already been done, this check makes the function idempotent. */
     return;
   }
   if (!nmd.node_group) {
-    IDP_FreeProperty(nmd.settings.properties);
-    nmd.settings.properties = nullptr;
+    IDP_FreeProperty(nmd.settings_legacy.properties);
+    nmd.settings_legacy.properties = nullptr;
+    BLO_reportf_wrap(fd.reports,
+                     RPT_WARNING,
+                     "Modifier '%s' from Object '%s' is missing its Geometry Node Group, its "
+                     "settings will be lost (reset to default).",
+                     nmd.modifier.name,
+                     BKE_id_name(object.id));
     return;
   }
   if (ID_MISSING(&nmd.node_group->id)) {
+    /* Keeping the old idproperties is not an option, and not really useful, since if the
+     * blend-file is saved in this current state, it won't be re-versioned here later anyway.
+     *
+     * Furthermore, the whole remaining part of the code expects this to be nullptr, and keeping it
+     * at runtime actually causes weird issues in depsgraph nodes building phase.
+     *
+     * So all in all, it's simpler and safer to also just lose these values here - if file is not
+     * saved in this state, next loading will do the versioning if the node-group is available
+     * again, otherwise that data is lost.
+     */
+    IDP_FreeProperty(nmd.settings_legacy.properties);
+    nmd.settings_legacy.properties = nullptr;
+    BLO_reportf_wrap(
+        fd.reports,
+        RPT_WARNING,
+        "Modifier '%s' from Object '%s' is using a missing linked Geometry Node Group, its "
+        "settings will be lost (reset to default) if the file is saved in this state.",
+        nmd.modifier.name,
+        BKE_id_name(object.id));
     return;
   }
   const bNodeTree &ntree = *nmd.node_group;
@@ -172,8 +205,33 @@ static void version_geometry_nodes_properties(Main &bmain, Object &object, Nodes
     IDP_FreeProperty(nmd.modifier.system_properties);
   }
   nmd.modifier.system_properties = system_props;
-  IDP_FreeProperty(nmd.settings.properties);
-  nmd.settings.properties = nullptr;
+  IDP_FreeProperty(nmd.settings_legacy.properties);
+  nmd.settings_legacy.properties = nullptr;
+}
+
+static void sanitize_node_tree_interface_socket_identifiers(bNodeTree &node_tree)
+{
+  node_tree.ensure_interface_cache();
+  Set<StringRef> all_identifiers;
+  for (bNodeTreeInterfaceItem *item : node_tree.interface_items()) {
+    if (item->item_type == NODE_INTERFACE_PANEL) {
+      continue;
+    }
+    auto &socket = *bke::node_interface::get_item_as<bNodeTreeInterfaceSocket>(item);
+    /* Socket identifiers are required to be valid RNA identifiers and unique. */
+    if (!RNA_validate_identifier(socket.identifier, true)) {
+      RNA_identifier_sanitize(socket.identifier, true);
+      if (all_identifiers.contains(socket.identifier)) {
+        std::string new_identifier = BLI_uniquename_cb(
+            [&](StringRef name) { return all_identifiers.contains(name); },
+            '_',
+            socket.identifier);
+        MEM_SAFE_DELETE(socket.identifier);
+        socket.identifier = BLI_strdup(new_identifier.c_str());
+      }
+    }
+    all_identifiers.add(socket.identifier);
+  }
 }
 
 /* Saving file extension is now a property of the File Output node. So inherit this
@@ -203,7 +261,7 @@ static void version_clear_strip_linear_modifier_flag(Main &bmain)
     Editing *ed = seq::editing_get(&scene);
     if (ed != nullptr) {
       seq::foreach_strip(&ed->seqbase, [&](Strip *strip) {
-        constexpr int flag_linear_modifiers = 1 << 23;
+        constexpr eStripFlag flag_linear_modifiers = eStripFlag(1 << 23);
         strip->flag &= ~flag_linear_modifiers;
         return true;
       });
@@ -229,7 +287,25 @@ static void fix_single_point_curves_custom_knots(Main *bmain)
   }
 }
 
-void do_versions_after_linking_520(FileData * /*fd*/, Main *bmain)
+static void version_strip_modifier_show_preview_flag(Main &bmain)
+{
+  for (Scene &scene : bmain.scenes) {
+    Editing *ed = seq::editing_get(&scene);
+    if (ed == nullptr) {
+      continue;
+    }
+    seq::foreach_strip(&ed->seqbase, [&](Strip *strip) {
+      for (StripModifierData &smd : strip->modifiers) {
+        if ((smd.flag & STRIP_MODIFIER_FLAG_MUTE) == 0) {
+          smd.flag |= STRIP_MODIFIER_FLAG_SHOW_PREVIEW;
+        }
+      }
+      return true;
+    });
+  }
+}
+
+void do_versions_after_linking_520(FileData *fd, Main *bmain)
 {
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 2)) {
     for (Scene &scene : bmain->scenes) {
@@ -246,7 +322,7 @@ void do_versions_after_linking_520(FileData * /*fd*/, Main *bmain)
       for (ModifierData &md : object.modifiers) {
         if (md.type == eModifierType_Nodes) {
           version_geometry_nodes_properties(
-              *bmain, object, reinterpret_cast<NodesModifierData &>(md));
+              *fd, *bmain, object, reinterpret_cast<NodesModifierData &>(md));
         }
       }
     }
@@ -363,6 +439,147 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
       }
     }
   }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 17)) {
+    for (Material &materials : bmain->materials) {
+      if (materials.gp_style != nullptr) {
+        materials.gp_style->placement_mode = GP_MATERIAL_PLACEMENT_COUNT;
+        materials.gp_style->placement_count = 1;
+        materials.gp_style->placement_density = 10.0f;
+        materials.gp_style->placement_radius_spacing = 100.0f;
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 18)) {
+    for (Scene &scene : bmain->scenes) {
+      if (scene.toolsettings->sculpt) {
+        Sculpt &sculpt = *scene.toolsettings->sculpt;
+        MeshAutomaskingSettings *settings = MEM_new<MeshAutomaskingSettings>(__func__);
+        settings->flags = sculpt.automasking_flags;
+        settings->boundary_edges_propagation_steps =
+            sculpt.automasking_boundary_edges_propagation_steps;
+        settings->cavity_blur_steps = sculpt.automasking_cavity_blur_steps;
+        settings->cavity_factor = sculpt.automasking_cavity_factor;
+        settings->start_normal_limit = sculpt.automasking_start_normal_limit;
+        settings->start_normal_falloff = sculpt.automasking_start_normal_falloff;
+        settings->view_normal_limit = sculpt.automasking_view_normal_limit;
+        settings->view_normal_falloff = sculpt.automasking_view_normal_falloff;
+        settings->cavity_curve = BKE_curvemapping_copy(sculpt.automasking_cavity_curve);
+        settings->cavity_curve_op = BKE_curvemapping_copy(sculpt.automasking_cavity_curve_op);
+
+        scene.toolsettings->sculpt->paint.mesh_automasking_settings = settings;
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 19)) {
+    for (bNodeTree &tree : bmain->nodetrees) {
+      sanitize_node_tree_interface_socket_identifiers(tree);
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 20)) {
+    for (Brush &brush : bmain->brushes) {
+      if (brush.ob_mode != OB_MODE_SCULPT) {
+        continue;
+      }
+
+      brush.mesh_automasking_settings = MEM_new<MeshAutomaskingSettings>(__func__);
+      brush.mesh_automasking_settings->flags = brush.automasking_flags;
+      brush.mesh_automasking_settings->boundary_edges_propagation_steps =
+          brush.automasking_boundary_edges_propagation_steps;
+      brush.mesh_automasking_settings->cavity_blur_steps = brush.automasking_cavity_blur_steps;
+      brush.mesh_automasking_settings->cavity_factor = brush.automasking_cavity_factor;
+      brush.mesh_automasking_settings->start_normal_falloff =
+          brush.automasking_start_normal_falloff;
+      brush.mesh_automasking_settings->start_normal_limit = brush.automasking_start_normal_limit;
+      brush.mesh_automasking_settings->view_normal_falloff = brush.automasking_view_normal_falloff;
+      brush.mesh_automasking_settings->view_normal_limit = brush.automasking_view_normal_limit;
+      brush.mesh_automasking_settings->cavity_curve = BKE_curvemapping_copy(
+          brush.automasking_cavity_curve);
+      brush.mesh_automasking_settings->cavity_curve_op = nullptr;
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 21)) {
+    for (Material &materials : bmain->materials) {
+      if (materials.gp_style != nullptr) {
+        materials.gp_style->random_size_factor = 0.0f;
+        materials.gp_style->random_strength_factor = 0.0f;
+        materials.gp_style->random_rotation_factor = 0.0f;
+        materials.gp_style->random_hue_factor = 0.0f;
+        materials.gp_style->random_saturation_factor = 0.0f;
+        materials.gp_style->random_value_factor = 0.0f;
+        materials.gp_style->random_noise_scale = 1.0f;
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 22)) {
+    version_strip_modifier_show_preview_flag(*bmain);
+  }
+
+  /* The ID member of the Viewer node is no longer initialized to the Viewer Image, so clear that
+   * member. */
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 23)) {
+    FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
+      if (node_tree->type == NTREE_COMPOSIT) {
+        for (bNode &node : node_tree->nodes) {
+          if (node.type_legacy == CMP_NODE_VIEWER) {
+            node.id = nullptr;
+          }
+        }
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 24)) {
+    FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
+      if (node_tree->type == NTREE_SHADER) {
+        for (bNode &node : node_tree->nodes) {
+          if (node.type_legacy == SH_NODE_RAYCAST && node.storage == nullptr) {
+            node.storage = MEM_new<NodeShaderRaycast>(__func__);
+          }
+        }
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 25)) {
+    for (bScreen &screen : bmain->screens) {
+      for (ScrArea &area : screen.areabase) {
+        for (SpaceLink &space : area.spacedata) {
+          if (space.spacetype == SPACE_OUTLINER) {
+            SpaceOutliner *space_outliner = reinterpret_cast<SpaceOutliner *>(&space);
+            space_outliner->flag |= SO_SCROLL_TO_ACTIVE;
+          }
+        }
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 26)) {
+    FOREACH_NODETREE_BEGIN (bmain, tree, id) {
+      if (tree->type != NTREE_GEOMETRY) {
+        continue;
+      }
+      for (bNode &node : tree->nodes) {
+        switch (node.type_legacy) {
+          case FN_NODE_COMPARE:
+          case FN_NODE_RANDOM_VALUE: {
+            version_socket_identifier_suffixes_for_dynamic_types(node.inputs, "_");
+            version_socket_identifier_suffixes_for_dynamic_types(node.outputs, "_");
+            break;
+          }
+        }
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a MAIN_VERSION_FILE_ATLEAST check.

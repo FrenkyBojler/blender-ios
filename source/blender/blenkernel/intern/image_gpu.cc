@@ -55,11 +55,11 @@ bool BKE_image_has_gpu_texture_premultiplied_alpha(Image *image, ImBuf *ibuf)
     }
     /* Generated images use pre multiplied float buffer, but straight alpha for byte buffers. */
     if (image->type == IMA_TYPE_UV_TEST && ibuf) {
-      return ibuf->float_buffer.data != nullptr;
+      return ibuf->float_data() != nullptr;
     }
   }
   if (ibuf) {
-    if (ibuf->float_buffer.data) {
+    if (ibuf->float_data()) {
       return image ? (image->alpha_mode != IMA_ALPHA_STRAIGHT) : false;
     }
 
@@ -149,7 +149,7 @@ static gpu::Texture *gpu_texture_create_tile_array(Image *ima, ImBuf *main_ibuf)
   int arraywidth = 0, arrayheight = 0;
   ListBaseT<FixedSizeBoxPack> boxes = {nullptr};
 
-  int planes = 0;
+  bool all_grayscale = true;
 
   for (ImageTile &tile : ima->tiles) {
     ImageUser iuser;
@@ -177,7 +177,9 @@ static gpu::Texture *gpu_texture_create_tile_array(Image *ima, ImBuf *main_ibuf)
 
       BKE_image_release_ibuf(ima, ibuf, nullptr);
       BLI_addtail(&boxes, packtile);
-      planes = max_ii(planes, ibuf->planes);
+      if (ibuf->color_mode != ImColorMode::BW) {
+        all_grayscale = false;
+      }
     }
   }
 
@@ -210,7 +212,7 @@ static gpu::Texture *gpu_texture_create_tile_array(Image *ima, ImBuf *main_ibuf)
   }
 
   const bool use_high_bitdepth = (ima->flag & IMA_HIGH_BITDEPTH);
-  const bool use_grayscale = planes <= 8;
+  const bool use_grayscale = all_grayscale;
   /* Create Texture without content. */
   gpu::Texture *tex = IMB_touch_gpu_texture(ima->id.name + 2,
                                             main_ibuf,
@@ -730,9 +732,9 @@ static void gpu_texture_update_scaled(gpu::Texture *tex,
     ibuf = update_do_scale(rect, rect_float, &x, &y, &w, &h, limit_w, limit_h, full_w, full_h);
   }
 
-  void *data = (ibuf->float_buffer.data) ? static_cast<void *>(ibuf->float_buffer.data) :
-                                           static_cast<void *>(ibuf->byte_buffer.data);
-  eGPUDataFormat data_format = (ibuf->float_buffer.data) ? GPU_DATA_FLOAT : GPU_DATA_UBYTE;
+  const void *data = ibuf->float_data() ? static_cast<const void *>(ibuf->float_data()) :
+                                          static_cast<const void *>(ibuf->byte_data());
+  eGPUDataFormat data_format = ibuf->float_data() ? GPU_DATA_FLOAT : GPU_DATA_UBYTE;
 
   GPU_texture_update_sub(tex, data_format, data, x, y, math::max(layer, 0), w, h, 1);
 
@@ -792,8 +794,8 @@ static void gpu_texture_update_from_ibuf(
   }
 
   /* Get texture data pointers. */
-  float *rect_float = ibuf->float_buffer.data;
-  uchar *rect = ibuf->byte_buffer.data;
+  float *rect_float = ibuf->float_data_for_write();
+  uchar *rect = ibuf->byte_data_for_write();
   int tex_stride = ibuf->x;
   int tex_offset = ibuf->channels * (y * ibuf->x + x);
 
@@ -884,10 +886,10 @@ static void gpu_texture_update_from_ibuf(
   }
 
   /* Free buffers if needed. */
-  if (rect && rect != ibuf->byte_buffer.data) {
+  if (rect && rect != ibuf->byte_data()) {
     MEM_delete(rect);
   }
-  if (rect_float && rect_float != ibuf->float_buffer.data) {
+  if (rect_float && rect_float != ibuf->float_data()) {
     MEM_delete(rect_float);
   }
 
