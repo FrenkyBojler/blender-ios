@@ -25,6 +25,7 @@
 #include "AS_asset_representation.hh"
 
 #include "DNA_screen_types.h"
+#include "DNA_space_enums.h"
 #include "DNA_space_types.h"
 #include "DNA_userdef_types.h"
 
@@ -443,7 +444,11 @@ static void fileselect_refresh_asset_params(FileAssetSelectParams *asset_params)
   switch (eAssetLibraryType(library->type)) {
     case ASSET_LIBRARY_ESSENTIALS:
       STRNCPY(base_params->dir, asset_system::essentials_directory_path().c_str());
-      base_params->type = FILE_ASSET_LIBRARY;
+      base_params->type = FILE_ASSET_LIBRARY_ESSENTIALS;
+      break;
+    case ASSET_LIBRARY_ONLINE_ESSENTIALS:
+      STRNCPY(base_params->dir, asset_system::online_essentials_cache_directory_path().c_str());
+      base_params->type = FILE_ASSET_LIBRARY_ESSENTIALS;
       break;
     case ASSET_LIBRARY_ALL:
       base_params->dir[0] = '\0';
@@ -1001,8 +1006,8 @@ static void file_attribute_columns_widths(const FileSelectParams *params, FileLa
     const char *lang = BLT_lang_get();
     constexpr tm test = {59, 59, 3, 30, 8, 199, 6, 365, 0}; /* September 30, 2099 03:59:59 */
     std::string modified_s = compact ?
-                                 date_string::date(&test, lang) :
-                                 date_string::datetime(&test,
+                                 date_string::date(test, lang) :
+                                 date_string::datetime(test,
                                                        lang,
                                                        date_string::DateFormat(U.date_format),
                                                        date_string::TimeFormat(U.time_format));

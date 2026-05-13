@@ -3580,7 +3580,7 @@ static wmOperatorStatus quadview_size_modal(bContext *C, wmOperator *op, const w
         quad_y = round(quad_y * 12.0f) / 12.0f;
       }
 
-      /* Clamp.*/
+      /* Clamp. */
       qsd->area->quadview_ratio[0] = std::clamp(quad_x, 0.1f, 0.9f);
       qsd->area->quadview_ratio[1] = std::clamp(quad_y, 0.2f, 0.8f);
 
@@ -6681,10 +6681,11 @@ static wmOperatorStatus screen_animation_play_exec(bContext *C, wmOperator *op)
 
   const wmOperatorStatus status = ED_screen_animation_play(C, sync, mode);
 
-  if (!ED_screen_animation_playing(CTX_wm_manager(C))) {
+  if (!ED_screen_animation_playing(CTX_wm_manager(C)) && !ED_undo_has_redo_step(C)) {
     /* Only pushing undo step when stopping playback so that there are no undo steps that seemingly
-     * do nothing. Creating an undo step is important though so that when undoing an action right
-     * after playback stop doesn't also change the current frame. See #144058. */
+     * do nothing. Creating an undo step is important though, so that undoing an action right
+     * after playback stop doesn't also change the current frame. See #144058. However adding an
+     * undo step would remove any redo steps so we only do it when there are none. See #157688.*/
     ED_undo_grouped_push_op(C, op);
   }
   return status;
