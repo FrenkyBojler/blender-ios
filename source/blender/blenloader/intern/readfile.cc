@@ -255,15 +255,56 @@ static const char *library_parent_filepath(Library *lib)
 /** \name OldNewMap API
  * \{ */
 
-struct NewAddress {
-  void *newp;
+struct OldNewMapItem {
+  /** Old address written to the file. Only this is used as key. */
+  const void *oldp;
+
+  /** New pointer used at run-time. */
+  mutable void *newp;
 
   /** `nr` is "user count" for data, and ID code for libdata. */
-  int nr;
+  mutable int nr;
+
+  uint64_t hash() const
+  {
+    return get_default_hash(this->oldp);
+  }
+
+  static uint64_t hash_as(const void *oldp)
+  {
+    return get_default_hash(oldp);
+  }
+
+  friend bool operator==(const OldNewMapItem &a, const OldNewMapItem &b)
+  {
+    return a.oldp == b.oldp;
+  }
+
+  friend bool operator==(const OldNewMapItem &a, const void *oldp)
+  {
+    return a.oldp == oldp;
+  }
 };
 
 struct OldNewMap {
-  Map<const void *, NewAddress> map;
+  /**
+   * Use smaller index type to slightly reduce the number of cache misses. This limits the number
+   * of bheads per data-block to ~2 billion.
+   */
+  using IndexT = int32_t;
+  VectorSet<OldNewMapItem,
+            4,
+            DefaultProbingStrategy,
+            DefaultHash<OldNewMapItem>,
+            DefaultEquality<OldNewMapItem>,
+            SimpleVectorSetSlot<OldNewMapItem, IndexT>>
+      map;
+
+  /**
+   * Keep track of the last looked up index. This helps because often consecutive values are
+   * looked up in which case one can avoid the hash table lookup.
+   */
+  int last_i = 0;
 };
 
 static OldNewMap *oldnewmap_new()
@@ -281,7 +322,7 @@ static bool oldnewmap_insert(OldNewMap *onm, const void *oldaddr, void *newaddr,
     return false;
   }
 
-  return onm->map.add_overwrite(oldaddr, NewAddress{newaddr, nr});
+  return onm->map.add_overwrite(OldNewMapItem{oldaddr, newaddr, nr});
 }
 
 static void oldnewmap_lib_insert(FileData *fd, const void *oldaddr, ID *newaddr, const int id_code)
@@ -299,17 +340,31 @@ void blo_do_versions_oldnewmap_insert(OldNewMap *onm,
 
 static void *oldnewmap_lookup_and_inc(OldNewMap *onm, const void *addr, const bool increase_users)
 {
-  NewAddress *entry = onm->map.lookup_ptr(addr);
+  const OldNewMapItem *entry = nullptr;
+
+  /* Try to lookup the next item in the map. */
+  const int lookahead_i = onm->last_i + 1;
+  if (lookahead_i < onm->map.size()) {
+    entry = &onm->map[lookahead_i];
+    if (entry->oldp != addr) {
+      /* Linear lookup failed, fallback to using hash table lookup. */
+      entry = nullptr;
+    }
+  }
+  if (!entry) {
+    entry = onm->map.lookup_key_ptr_as(addr);
+  }
   if (entry == nullptr) {
     return nullptr;
   }
   if (increase_users) {
     entry->nr++;
   }
+  onm->last_i = entry - onm->map.data();
   return entry->newp;
 }
 
-/* for libdata, NewAddress.nr has ID code, no increment */
+/* for libdata, OldNewMapItem.nr has ID code, no increment */
 static void *oldnewmap_liblookup(OldNewMap *onm, const void *addr, const bool is_linked_only)
 {
   if (addr == nullptr) {
@@ -329,9 +384,9 @@ static void *oldnewmap_liblookup(OldNewMap *onm, const void *addr, const bool is
 static void oldnewmap_clear(OldNewMap *onm)
 {
   /* Free unused data. */
-  for (NewAddress &new_addr : onm->map.values()) {
-    if (new_addr.nr == 0) {
-      MEM_delete_void(new_addr.newp);
+  for (const OldNewMapItem &item : onm->map) {
+    if (item.nr == 0) {
+      MEM_delete_void(item.newp);
     }
   }
   onm->map.clear();
@@ -1490,7 +1545,7 @@ static void change_link_placeholder_to_real_ID_pointer_fd(FileData *fd,
                                                           const void *old,
                                                           void *newp)
 {
-  for (NewAddress &entry : fd->libmap->map.values()) {
+  for (const OldNewMapItem &entry : fd->libmap->map) {
     if (old == entry.newp && entry.nr == ID_LINK_PLACEHOLDER) {
       entry.newp = newp;
       if (newp) {
@@ -1506,7 +1561,7 @@ static void change_link_placeholder_to_real_ID_pointer_fd(FileData *fd,
  */
 static void change_ID_pointer_to_real_ID_pointer_fd(FileData *fd, const void *old, void *newp)
 {
-  for (NewAddress &entry : fd->libmap->map.values()) {
+  for (const OldNewMapItem &entry : fd->libmap->map) {
     if (old == entry.newp) {
       BLI_assert(BKE_idtype_idcode_is_valid(short(entry.nr)));
       entry.newp = newp;
