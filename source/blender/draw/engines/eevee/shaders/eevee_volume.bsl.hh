@@ -237,6 +237,7 @@ void scatter_main([[resource_table]] Scatter &srt,
                      uniform_buf.volumes.main_view_extent;
 
       light::foreach_visible(led.light_data, pixel, vP.z, ctx, srt);
+      direct_radiance = ctx.radiance;
     }
   }
 
