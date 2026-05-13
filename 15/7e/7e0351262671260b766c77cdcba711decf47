@@ -11,3 +11,4 @@ Referenced by pull request #153375, Fix: Attribute type for edge select attribut
 Referenced by commit 131dc37fed78b342727e4747a95155f141747f58, Fix: Attribute type for edge select attribute
 Referenced by issue #153899, Edge Vertices node returning wrong values after Fill Curve node (Geometry Nodes)
 Referenced by pull request #158307, I/O: Harden geometry import for invalid data
+Referenced by commit 30e9b542d14a01b367d0a99a548373186b6f82ff, Refactor: I/O: Compute edges as part of validation in FBX and PLY
