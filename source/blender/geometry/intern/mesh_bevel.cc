@@ -229,6 +229,17 @@ class ExtendableMesh {
     return edge_lookup_.lookup_default(int2(min_v, max_v), -1);
   }
 
+  /* Sets the example edge of a previously created new edge.
+   * `edge_index` must be a new edge (>= mesh.edges_num) returned by #edge_create or #find_edge.
+   * Has no effect on original mesh edges (edge_index < mesh.edges_num). */
+  void edge_set_example(const int edge_index, const int example_edge)
+  {
+    const int new_idx = edge_index - mesh.edges_num;
+    if (new_idx >= 0 && new_idx < int(new_edge_examples_.size())) {
+      new_edge_examples_[new_idx] = example_edge;
+    }
+  }
+
   /* Allocates per-UV-layer float2 storage for new corners.  Must be called after
    * UVLayerInfo is initialized and before any face_create call. */
   void init_uv_storage(int uv_layers_num);
@@ -4508,8 +4519,7 @@ static void bevel_build_trifan(BevelState &state, BevVert *bv)
      * bv->any_seam is true. Otherwise use the representative face of the leading edge. */
     const int face_example = (frep >= 0) ? frep : tri_reps[1];
     const int new_face = state.emesh.face_create(Span<int>(tri, 3), face_example);
-    state.emesh.face_set_corner_reps(
-        new_face, Span<int>(tri_reps, 3), Span<int>(tri_snaps, 3));
+    state.emesh.face_set_corner_reps(new_face, Span<int>(tri_reps, 3), Span<int>(tri_snaps, 3));
   }
 }
 
@@ -5068,22 +5078,18 @@ static void bevel_build_edge_polygons(BevelState &state, int edge_index)
 
   /* Starting vertices at k=0 on bv1's end and k=nseg on bv2's end.
    * bv2's ring is traversed in reverse (nseg→0), matching BMesh's use of e2->rightv as the
-   * starting corner (e2->rightv corresponds to mesh_vert(vm2, i2, 0, nseg)). */
-  int v_prev_1 = geom::mesh_vert(vm1, i1, 0, 0)->v;    /* v1 in BMesh diagram. */
-  int v_prev_2 = geom::mesh_vert(vm2, i2, 0, nseg)->v; /* v2 in BMesh diagram. */
+   * starting corner (e2->rightv corresponds to mesh_vert(vm2, i2, 0, nseg)).
+   * Save the first-strip boundary verts (v1/v2 in the BMesh diagram) so that after the loop we
+   * can look up the first outer long edge and set its example. */
+  const int v_bme1 = geom::mesh_vert(vm1, i1, 0, 0)->v;    /* v1 in BMesh diagram. */
+  const int v_bme2 = geom::mesh_vert(vm2, i2, 0, nseg)->v; /* v2 in BMesh diagram. */
+  int v_prev_1 = v_bme1;
+  int v_prev_2 = v_bme2;
 
   for (int k = 1; k <= nseg; k++) {
     /* Next boundary verts along the ring: vm1 goes forward (k), vm2 goes backward (nseg-k). */
     const int v_next_1 = geom::mesh_vert(vm1, i1, 0, k)->v;        /* v4 in BMesh diagram. */
     const int v_next_2 = geom::mesh_vert(vm2, i2, 0, nseg - k)->v; /* v3 in BMesh diagram. */
-
-    /* Pre-create the two "long" edges of the quad — those that run between the two VMeshes
-     * parallel to the original beveled edge — so that face_create's internal edge_create
-     * finds them already registered and inherits the correct example index.
-     * The two "short" edges (within each VMesh's boundary arc) are handled by face_create
-     * with -1 examples, which is acceptable since they are within a single VMesh. */
-    state.emesh.edge_create(v_prev_1, v_prev_2, edge_index);
-    state.emesh.edge_create(v_next_2, v_next_1, edge_index);
 
     /* Choose face rep and per-corner face reps / snap edges, mirroring BMesh's
      * #bevel_build_edge_polygons (lines 7580–7640 of bmesh_bevel.cc).
@@ -5185,6 +5191,21 @@ static void bevel_build_edge_polygons(BevelState &state, int edge_index)
 
     v_prev_1 = v_next_1;
     v_prev_2 = v_next_2;
+  }
+
+  /* Copy edge attributes to the first and last "long" edges of the strip (those that run
+   * parallel to the original beveled edge), mirroring BMesh's #bevel_build_edge_polygons
+   * post-loop BM_elem_attrs_copy calls on bme1/bme2.
+   * After the loop: v_prev_1 = v4, v_prev_2 = v3 (BMesh diagram).
+   * The first outer edge is between v1 (v_bme1) and v2 (v_bme2).
+   * The last outer edge is between v3 (v_prev_2) and v4 (v_prev_1). */
+  const int outer_edge1 = state.emesh.find_edge(v_bme1, v_bme2);
+  const int outer_edge2 = state.emesh.find_edge(v_prev_2, v_prev_1);
+  if (outer_edge1 >= 0) {
+    state.emesh.edge_set_example(outer_edge1, edge_index);
+  }
+  if (outer_edge2 >= 0) {
+    state.emesh.edge_set_example(outer_edge2, edge_index);
   }
 
   /* TODO: implement weld-cross edge attribute continuity (weld_cross_attrs_copy). */
