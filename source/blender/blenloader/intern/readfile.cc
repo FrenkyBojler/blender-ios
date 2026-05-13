@@ -17,6 +17,7 @@
 #include <deque>
 #include <fcntl.h> /* for open flags (O_BINARY, O_RDONLY). */
 #include <queue>
+#include <type_traits>
 
 #ifndef WIN32
 #  include <unistd.h> /* for read close */
@@ -581,6 +582,10 @@ void blo_readfile_invalidate(FileData *fd, Main *bmain, const char *message)
 
 static BHeadN *get_bhead(FileData *fd)
 {
+  /* Expecting trivial destructibility so that the bheads can be allocated with a LinearAllocator
+   * and be freed all at once in the end. */
+  static_assert(std::is_trivially_destructible_v<BHeadN>);
+
   BHeadN *new_bhead = nullptr;
 
   if (fd) {
@@ -608,7 +613,7 @@ static BHeadN *get_bhead(FileData *fd)
 #ifdef USE_BHEAD_READ_ON_DEMAND
       else if (fd->file->seek != nullptr && BHEAD_USE_READ_ON_DEMAND(bhead)) {
         /* Delay reading bhead content. */
-        new_bhead = MEM_new_uninitialized<BHeadN>("new_bhead");
+        new_bhead = fd->allocator.allocate<BHeadN>();
         if (new_bhead) {
           new_bhead->next = new_bhead->prev = nullptr;
           new_bhead->file_offset = fd->file->offset;
@@ -618,7 +623,6 @@ static BHeadN *get_bhead(FileData *fd)
           const off64_t seek_new = fd->file->seek(fd->file, bhead->len, SEEK_CUR);
           if (UNLIKELY(seek_new == -1)) {
             fd->is_eof = true;
-            MEM_delete(new_bhead);
             new_bhead = nullptr;
           }
           else {
@@ -632,7 +636,7 @@ static BHeadN *get_bhead(FileData *fd)
 #endif
       else {
         new_bhead = static_cast<BHeadN *>(
-            MEM_new_uninitialized(sizeof(BHeadN) + size_t(bhead->len), "new_bhead"));
+            fd->allocator.allocate(sizeof(BHeadN) + size_t(bhead->len), alignof(BHeadN)));
         if (new_bhead) {
           new_bhead->next = new_bhead->prev = nullptr;
 #ifdef USE_BHEAD_READ_ON_DEMAND
@@ -646,7 +650,6 @@ static BHeadN *get_bhead(FileData *fd)
 
           if (UNLIKELY(readsize != bhead->len)) {
             fd->is_eof = true;
-            MEM_delete(new_bhead);
             new_bhead = nullptr;
           }
           else {
@@ -1355,10 +1358,8 @@ FileData *blo_filedata_from_memfile(MemFile *memfile,
 
 void blo_filedata_free(FileData *fd)
 {
-  /* Free all BHeadN data blocks */
-#ifdef NDEBUG
-  BLI_freelistN(&fd->bhead_list);
-#else
+  /* Not necessary to free elements of bhead_list because they are in a LinearAllocator. */
+#ifndef NDEBUG
   /* Sanity check we're not keeping memory we don't need. */
   for (BHeadN &new_bhead : fd->bhead_list.items_mutable()) {
 #  ifdef USE_BHEAD_READ_ON_DEMAND
@@ -1366,7 +1367,6 @@ void blo_filedata_free(FileData *fd)
       BLI_assert(new_bhead.has_data == 0);
     }
 #  endif
-    MEM_delete(&new_bhead);
   }
 #endif
   fd->file->close(fd->file);

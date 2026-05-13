@@ -19,7 +19,9 @@
 #include "BLI_enum_flags.hh"
 #include "BLI_fileops.h"
 #include "BLI_filereader.h"
+#include "BLI_linear_allocator.hh"
 #include "BLI_map.hh"
+
 
 #include "DNA_sdna_types.h"
 #include "DNA_space_types.h"
@@ -80,6 +82,7 @@ ENUM_OPERATORS(eFileDataFlag)
  * be accessed concurrently.
  */
 struct FileData {
+  LinearAllocator<> allocator;
   /** Linked list of BHeadN's. */
   ListBaseT<BHeadN> bhead_list = {};
   enum eFileDataFlag flags = eFileDataFlag(0);
