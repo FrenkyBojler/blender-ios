@@ -31,7 +31,7 @@ Thickness g_thickness_forward;
 float4 closure_to_rgba_forward(Closure /*cl_unused*/)
 {
   float3 radiance, transmittance;
-  forward_lighting_eval(g_thickness_forward, radiance, transmittance);
+  eevee::forward_lighting_eval(g_thickness_forward, radiance, transmittance);
 
   /* Reset for the next closure tree. */
   float noise = utility_tx_fetch(utility_tx, gl_FragCoord.xy, UTIL_BLUE_NOISE_LAYER).r;
@@ -89,6 +89,7 @@ struct SurfaceForwardFragOut {
 /* NOTE: This removes the possibility of using gl_FragDepth. */
 [[fragment]] [[early_fragment_tests]]
 void surf_forward([[resource_table]] SurfaceForward & /*srt*/,
+                  [[resource_table]] light::LightEvalData & /*srt*/,
                   [[frag_coord]] const float4 frag_co,
                   [[out]] SurfaceForwardFragOut &frag_out)
 {
@@ -104,7 +105,7 @@ void surf_forward([[resource_table]] SurfaceForward & /*srt*/,
   nodetree_surface(closure_rand);
 
   float3 radiance, transmittance;
-  forward_lighting_eval(g_thickness_forward, radiance, transmittance);
+  eevee::forward_lighting_eval(g_thickness_forward, radiance, transmittance);
 
   /* Volumetric resolve and compositing. */
   float2 uvs = gl_FragCoord.xy * uniform_buf.volumes.main_view_extent_inv;

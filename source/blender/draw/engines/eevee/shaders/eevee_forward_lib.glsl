@@ -29,15 +29,19 @@
 #  endif
 #endif
 
+namespace eevee {
+
 void forward_lighting_eval(Thickness thickness, float3 &radiance, float3 &transmittance)
 {
+  [[resource_table]] auto &lights = resource_table_get(eevee::light::LightEvalData);
+
   float vPz = dot(drw_view_forward(), g_data.P) - dot(drw_view_forward(), drw_view_position());
   float3 V = drw_world_incident_vector(g_data.P);
 
-  eevee::light::LightEvalCtx<false> ctx;
+  light::LightEvalCtx<false> ctx;
   for (int i = 0; i < SRT_CONSTANT_light_closure_eval_count; i++) {
     ClosureUndetermined cl = g_closure_get(uchar(i));
-    eevee::light::closure_set(ctx.stack, uchar(i), closure_light_new(cl, V));
+    light::closure_set(ctx.stack, uchar(i), closure_light_new(cl, V));
   }
 
   ctx.P = g_data.P;
@@ -52,24 +56,23 @@ void forward_lighting_eval(Thickness thickness, float3 &radiance, float3 &transm
   ctx.terminator_normal_offset = object_infos.shadow_terminator_normal_offset;
   ctx.terminator_geometry_offset = object_infos.shadow_terminator_geometry_offset;
 
-  [[resource_table]] eevee::light::LightEvalData &lrd = resource_table_get(
-      eevee::light::LightEvalData);
-  lrd.eval_reflection(ctx, gl_FragCoord.xy, vPz);
+  lights.eval_reflection(ctx, gl_FragCoord.xy, vPz);
 
-#if defined(MAT_SUBSURFACE) || defined(MAT_REFRACTION) || defined(MAT_TRANSLUCENT)
+#if defined(GLSL_CPP_STUBS) || defined(MAT_SUBSURFACE) || defined(MAT_REFRACTION) || \
+    defined(MAT_TRANSLUCENT)
   ClosureUndetermined cl_transmit = g_closure_get(0);
   if (cl_transmit.type == CLOSURE_BSDF_TRANSLUCENT_ID ||
       cl_transmit.type == CLOSURE_BSDF_MICROFACET_GGX_REFRACTION_ID ||
       cl_transmit.type == CLOSURE_BSSRDF_BURLEY_ID)
   {
-    eevee::light::LightEvalCtx<true> ctx_tr = eevee::light::init_from_reflect_ctx(ctx);
+    light::LightEvalCtx<true> ctx_tr = light::init_from_reflect_ctx(ctx);
     ctx_tr.stack.cl[0] = closure_light_new(cl_transmit, V, thickness);
 
     /* NOTE: Only evaluates `stack.cl[0]`. */
-    lrd.eval_transmission(ctx_tr, gl_FragCoord.xy, vPz);
+    lights.eval_transmission(ctx_tr, gl_FragCoord.xy, vPz);
 
     if (cl_transmit.type == CLOSURE_BSSRDF_BURLEY_ID) {
-#  if defined(MAT_SUBSURFACE)
+#  if defined(GLSL_CPP_STUBS) || defined(MAT_SUBSURFACE)
       /* Apply transmission profile onto transmitted light and sum with reflected light. */
       float3 sss_profile = subsurface_transmission(to_closure_subsurface(cl_transmit).sss_radius,
                                                    thickness.value());
@@ -96,7 +99,7 @@ void forward_lighting_eval(Thickness thickness, float3 &radiance, float3 &transm
   for (uchar i = 0; i < SRT_CONSTANT_light_closure_eval_count; i++) {
     ClosureUndetermined cl = g_closure_get_resolved(i, 1.0f);
     if (cl.weight > CLOSURE_WEIGHT_CUTOFF) {
-      float3 direct_light = eevee::light::closure_get(ctx.stack, i).light_shadowed;
+      float3 direct_light = light::closure_get(ctx.stack, i).light_shadowed;
       float3 indirect_light = lightprobe_eval(samp, cl, g_data.P, V, thickness);
 
       if ((cl.type == CLOSURE_BSDF_TRANSLUCENT_ID ||
@@ -125,3 +128,5 @@ void forward_lighting_eval(Thickness thickness, float3 &radiance, float3 &transm
 
   transmittance = g_transmittance;
 }
+
+}  // namespace eevee

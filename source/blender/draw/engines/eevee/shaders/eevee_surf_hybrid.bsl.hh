@@ -33,7 +33,7 @@ Thickness g_thickness;
 float4 closure_to_rgba_hybrid(Closure /*cl*/)
 {
   float3 radiance, transmittance;
-  forward_lighting_eval(g_thickness, radiance, transmittance);
+  eevee::forward_lighting_eval(g_thickness, radiance, transmittance);
 
   /* Reset for the next closure tree. */
   float noise = utility_tx_fetch(utility_tx, gl_FragCoord.xy, UTIL_BLUE_NOISE_LAYER).r;
@@ -116,6 +116,7 @@ struct HybridFragOut {
 /* NOTE: This removes the possibility of using gl_FragDepth. */
 [[fragment]] [[early_fragment_tests]]
 void surf_hybrid([[resource_table]] SurfaceHybrid &srt,
+                 [[resource_table]] light::LightEvalData & /*srt*/,
                  [[frag_coord]] const float4 frag_co,
                  [[out]] HybridFragOut &frag_out)
 {
