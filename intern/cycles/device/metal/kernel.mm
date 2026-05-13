@@ -473,6 +473,9 @@ void MetalDispatchPipeline::free_intersection_function_tables()
 {
   for (int table = 0; table < METALRT_TABLE_NUM; table++) {
     if (intersection_func_table[table]) {
+      if (metal_device) {
+        metal_device->metal_mem_free(intersection_func_table[table]);
+      }
       [intersection_func_table[table] release];
       intersection_func_table[table] = nil;
     }
@@ -486,6 +489,7 @@ MetalDispatchPipeline::~MetalDispatchPipeline()
 
 bool MetalDispatchPipeline::update(MetalDevice *metal_device, DeviceKernel kernel)
 {
+  this->metal_device = metal_device;
   const MetalKernelPipeline *best_pipeline = MetalDeviceKernels::get_best_pipeline(metal_device,
                                                                                    kernel);
   if (!best_pipeline) {
@@ -520,6 +524,14 @@ bool MetalDispatchPipeline::update(MetalDevice *metal_device, DeviceKernel kerne
               functionHandleWithFunction:best_pipeline->table_functions[table][i]];
           [intersection_func_table[table] setFunction:handle atIndex:i];
         }
+
+        /* Bind launch_params here (once per pipeline update) rather than per-dispatch
+         * in the command encoder, since the buffer address is stable. */
+        [intersection_func_table[table] setBuffer:metal_device->launch_params_buffer
+                                           offset:0
+                                          atIndex:1];
+
+        metal_device->metal_mem_alloc(intersection_func_table[table]);
       }
     }
   }

@@ -164,11 +164,11 @@ MetalDevice::MetalDevice(const DeviceInfo &info, Stats &stats, Profiler &profile
                      (MetalPipelineType)min((int)kernel_specialization_level, (int)PSO_NUM - 1)));
 
     image_bindings = [mtlDevice newBufferWithLength:8192 options:MTLResourceStorageModeShared];
-    stats.mem_alloc(image_bindings.allocatedSize);
+    metal_mem_alloc(image_bindings);
 
     launch_params_buffer = [mtlDevice newBufferWithLength:sizeof(KernelParamsMetal)
                                                   options:MTLResourceStorageModeShared];
-    stats.mem_alloc(sizeof(KernelParamsMetal));
+    metal_mem_alloc(launch_params_buffer);
 
     /* Cache unified pointer so we can write kernel params directly in place. */
     launch_params = (KernelParamsMetal *)launch_params_buffer.contents;
@@ -181,6 +181,25 @@ MetalDevice::MetalDevice(const DeviceInfo &info, Stats &stats, Profiler &profile
 
     /* Command queue for non-tracing work on the GPU. */
     mtlGeneralCommandQueue = [mtlDevice newCommandQueue];
+
+#  if defined(MAC_OS_VERSION_15_0)
+    if (@available(macos 15.0, *)) {
+      if (DebugFlags().metal.use_residency_sets_if_available) {
+        /* Use a residency set to declare all rendering resources up front, avoiding
+         * the overhead of per-encoder useResource calls on every dispatch. */
+        mtlResidencySet_enabled = true;
+
+        MTLResidencySetDescriptor *residency_set_desc = [[MTLResidencySetDescriptor alloc] init];
+        residency_set_desc.label = @"CyclesResidencySet";
+        residency_set_desc.initialCapacity = 512;
+        NSError *error;
+        mtlResidencySet = [mtlDevice newResidencySetWithDescriptor:residency_set_desc
+                                                             error:&error];
+
+        [mtlComputeCommandQueue addResidencySet:mtlResidencySet];
+      }
+    }
+#  endif
   }
 }
 
@@ -202,11 +221,22 @@ MetalDevice::~MetalDevice()
   free_bvh();
   flush_delayed_free_list();
 
-  stats.mem_free(sizeof(KernelParamsMetal));
+  metal_mem_free(launch_params_buffer);
   [launch_params_buffer release];
 
-  stats.mem_free(image_bindings.allocatedSize);
+  metal_mem_free(image_bindings);
   [image_bindings release];
+
+  image_info.free();
+
+#  if defined(MAC_OS_VERSION_15_0)
+  if (@available(macos 15.0, *)) {
+    if (mtlResidencySet) {
+      [mtlResidencySet endResidency];
+      [mtlResidencySet release];
+    }
+  }
+#  endif
 
   [mtlComputeCommandQueue release];
   [mtlGeneralCommandQueue release];
@@ -214,8 +244,48 @@ MetalDevice::~MetalDevice()
     [mtlCounterSampleBuffer release];
   }
   [mtlDevice release];
+}
 
-  image_info.free();
+void MetalDevice::metal_mem_alloc(id<MTLResource> allocation)
+{
+  if (allocation) {
+    stats.mem_alloc(allocation.allocatedSize);
+#  if defined(MAC_OS_VERSION_15_0)
+    if (@available(macos 15.0, *)) {
+      if (mtlResidencySet) {
+        [mtlResidencySet addAllocation:allocation];
+        mtlResidencySet_dirty = true;
+      }
+    }
+#  endif
+  }
+}
+
+void MetalDevice::metal_mem_free(id<MTLResource> allocation)
+{
+  if (allocation) {
+    stats.mem_free(allocation.allocatedSize);
+#  if defined(MAC_OS_VERSION_15_0)
+    if (@available(macos 15.0, *)) {
+      if (mtlResidencySet) {
+        [mtlResidencySet removeAllocation:allocation];
+        mtlResidencySet_dirty = true;
+      }
+    }
+#  endif
+  }
+}
+
+void MetalDevice::prepare_residency()
+{
+#  if defined(MAC_OS_VERSION_15_0)
+  if (@available(macos 15.0, *)) {
+    if (mtlResidencySet_dirty) {
+      mtlResidencySet_dirty = false;
+      [mtlResidencySet commit];
+    }
+  }
+#  endif
 }
 
 bool MetalDevice::support_device(const uint /*kernel_features*/)
@@ -555,7 +625,6 @@ bool MetalDevice::is_texture(const KernelImageInfo &info)
 
 void MetalDevice::erase_allocation(device_memory &mem)
 {
-  stats.mem_free(mem.device_size);
   mem.device_pointer = 0;
   mem.device_size = 0;
 
@@ -608,7 +677,7 @@ MetalDevice::MetalMem *MetalDevice::generic_alloc(device_memory &mem)
               << string_human_readable_size(mem.memory_size()) << ")";
 
     mem.device_size = metal_buffer.allocatedSize;
-    stats.mem_alloc(mem.device_size);
+    metal_mem_alloc(metal_buffer);
 
     metal_buffer.label = [NSString stringWithFormat:@"%s", mem.log_name().c_str()];
 
@@ -698,6 +767,7 @@ void MetalDevice::generic_free(device_memory &mem)
     mem.shared_pointer = nullptr;
 
     /* Free device memory. */
+    metal_mem_free(mmem.mtlBuffer);
     delayed_free_list.push_back(mmem.mtlBuffer);
     mmem.mtlBuffer = nil;
   }
@@ -1120,7 +1190,7 @@ void MetalDevice::image_alloc(device_image &mem)
 
     mem.device_pointer = (device_ptr)mtlTexture;
     mem.device_size = size;
-    stats.mem_alloc(size);
+    metal_mem_alloc(mtlTexture);
 
     std::lock_guard<std::recursive_mutex> lock(metal_mem_map_mutex);
     unique_ptr<MetalMem> mmem = make_unique<MetalMem>();
@@ -1140,12 +1210,12 @@ void MetalDevice::image_alloc(device_image &mem)
       if (!image_bindings || (image_bindings.length < min_buffer_length)) {
         if (image_bindings) {
           delayed_free_list.push_back(image_bindings);
-          stats.mem_free(image_bindings.allocatedSize);
+          metal_mem_free(image_bindings);
         }
         image_bindings = [mtlDevice newBufferWithLength:min_buffer_length
                                                 options:MTLResourceStorageModeShared];
 
-        stats.mem_alloc(image_bindings.allocatedSize);
+        metal_mem_alloc(image_bindings);
       }
     }
 
@@ -1193,6 +1263,7 @@ void MetalDevice::image_free(device_image &mem)
     MetalMem &mmem = *metal_mem_map.at(&mem);
 
     /* Free bindless texture. */
+    metal_mem_free(mmem.mtlTexture);
     delayed_free_list.push_back(mmem.mtlTexture);
     mmem.mtlTexture = nil;
     erase_allocation(mem);
@@ -1262,17 +1333,20 @@ void MetalDevice::build_bvh(BVH *bvh, Progress &progress, bool refit)
 void MetalDevice::free_bvh()
 {
   for (id<MTLAccelerationStructure> &blas : unique_blas_array) {
+    metal_mem_free(blas);
     [blas release];
   }
   unique_blas_array.clear();
   blas_array.clear();
 
   if (blas_buffer) {
+    metal_mem_free(blas_buffer);
     [blas_buffer release];
     blas_buffer = nil;
   }
 
   if (accel_struct) {
+    metal_mem_free(accel_struct);
     [accel_struct release];
     accel_struct = nil;
   }
@@ -1290,15 +1364,20 @@ void MetalDevice::update_bvh(BVHMetal *bvh_metal)
   unique_blas_array = bvh_metal->unique_blas_array;
   blas_array = bvh_metal->blas_array;
 
+  /* Memory tracking and residency are managed here (not in BVHMetal::set_accel_struct)
+   * to pair with free_bvh and reflect actual device ownership. */
+  metal_mem_alloc(accel_struct);
+
   [accel_struct retain];
   for (id<MTLAccelerationStructure> &blas : unique_blas_array) {
     [blas retain];
+    metal_mem_alloc(blas);
   }
 
   // Allocate required buffers for BLAS array.
   uint64_t buffer_size = blas_array.size() * sizeof(uint64_t);
   blas_buffer = [mtlDevice newBufferWithLength:buffer_size options:MTLResourceStorageModeShared];
-  stats.mem_alloc(blas_buffer.allocatedSize);
+  metal_mem_alloc(blas_buffer);
 }
 
 CCL_NAMESPACE_END
