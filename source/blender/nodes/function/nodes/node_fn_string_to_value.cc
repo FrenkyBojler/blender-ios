@@ -14,7 +14,6 @@
 #include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
-#include <algorithm>
 #include <charconv>
 
 namespace blender::nodes::node_fn_string_to_value_cc {
@@ -50,7 +49,11 @@ static const mf::MultiFunction *get_multi_function(const bNode &bnode)
 
   static auto str_to_int_fn = mf::build::SI2_SO2<std::string, int, int, int>(
       "String to Value", [](const std::string &s, int base, int &value, int &length) -> void {
-        base = std::clamp(base, 2, 36);
+        if (base < 2 || base > 36) {
+          value = 0;
+          length = 0;
+          return;
+        }
         const auto result = std::from_chars(s.data(), s.data() + s.size(), value, base);
         length = BLI_strnlen_utf8(s.data(), result.ptr - s.data());
       });

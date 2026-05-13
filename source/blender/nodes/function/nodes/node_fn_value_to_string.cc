@@ -59,7 +59,9 @@ static const mf::MultiFunction *get_multi_function(const bNode &bnode)
 
   static auto int_to_str_fn = mf::build::SI3_SO<int, int, int, std::string>(
       "Value To String", [](int value, int base, int padding) -> std::string {
-        base = std::clamp(base, 2, 36);
+        if (base < 2 || base > 36) {
+          return {};
+        }
         padding = std::max(0, padding);
         char buf[35];
         auto [ptr, ec] = std::to_chars(buf, buf + sizeof(buf), value, base);
