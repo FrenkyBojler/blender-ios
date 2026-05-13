@@ -187,7 +187,7 @@ def _asset_download_done(
     _http_req_descr: http_dl.RequestDescription,
     _preview_local_path: Path,
 ) -> None:
-    bpy.types.WindowManager.asset_library_status_ping_loaded_new_assets(downloader.remote_url)
+    bpy.types.WindowManager.asset_library_status_ping_loaded_new_asset_file(downloader.remote_url)
 
 
 def _preview_download_done(
