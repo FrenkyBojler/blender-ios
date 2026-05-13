@@ -110,6 +110,7 @@ if(DEFINED LIBDIR)
   set(Eigen3_ROOT ${LIBDIR}/eigen)
   set(meshoptimizer_ROOT ${LIBDIR}/meshoptimizer)
   set(draco_ROOT ${LIBDIR}/draco)
+  set(TIFF_ROOT ${LIBDIR}/tiff)
 endif()
 
 # Wrapper to prefer static libraries

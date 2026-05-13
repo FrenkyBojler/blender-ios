@@ -1459,6 +1459,17 @@ endfunction()
 
 # Modifies in parent scope:
 # - `CMAKE_IGNORE_PATH`: set to system implicit paths.
+#
+# NOTE(@ideasman42): Unfortunately the ignore path is not enough.
+#
+# Both are required - `<system-prefix>` reaches the prefix list via
+# `CMAKE_SYSTEM_PREFIX_PATH` *and* via `<entry>/../` walks over `PATH` entries such as `/usr/bin`.
+#
+# Without these, `find_package(... CONFIG)` finds `<system-prefix>/lib/cmake/<name>/`
+# (e.g. `/usr/lib/cmake/tiff/`) and uses the system library, ignoring `<pkg>_ROOT`.
+#
+# - `CMAKE_FIND_USE_CMAKE_SYSTEM_PATH`.
+# - `CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH`.
 function(without_system_libs_begin)
   set(CMAKE_IGNORE_PATH
     "${CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES}"
@@ -1467,12 +1478,15 @@ function(without_system_libs_begin)
     "${CMAKE_CXX_IMPLICIT_INCLUDE_DIRECTORIES}"
     PARENT_SCOPE
   )
+  set(CMAKE_FIND_USE_CMAKE_SYSTEM_PATH FALSE PARENT_SCOPE)
+  set(CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH FALSE PARENT_SCOPE)
 endfunction()
 
-# Modifies in parent scope:
-# - `CMAKE_IGNORE_PATH`: unset.
+# Modifies in parent scope.
 function(without_system_libs_end)
   unset(CMAKE_IGNORE_PATH PARENT_SCOPE)
+  unset(CMAKE_FIND_USE_CMAKE_SYSTEM_PATH PARENT_SCOPE)
+  unset(CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH PARENT_SCOPE)
 endfunction()
 
 # Utility to gather and install precompiled shared libraries.
