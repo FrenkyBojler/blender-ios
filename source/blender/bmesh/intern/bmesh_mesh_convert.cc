@@ -98,7 +98,6 @@
 #include "BKE_customdata.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_runtime.hh"
-#include "BKE_multires.hh"
 
 #include "BKE_key.hh"
 #include "BKE_main.hh"
