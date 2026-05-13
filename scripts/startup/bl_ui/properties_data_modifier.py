@@ -179,7 +179,7 @@ class OBJECT_MT_modifier_add_generate(ModifierAddMenu, Menu):
         if ob_type == 'MESH':
             self.operator_modifier_add(layout, 'VOLUME_TO_MESH')
         if ob_type in {'MESH', 'CURVE', 'FONT', 'SURFACE'}:
-            self.operator_modifier_add(layout, 'WELD')
+            self.operator_modifier_add_asset(layout, n_('Merge by Distance'), icon='AUTOMERGE_OFF')
         if ob_type == 'MESH':
             self.operator_modifier_add(layout, 'WIREFRAME')
         if ob_type == 'GREASEPENCIL':

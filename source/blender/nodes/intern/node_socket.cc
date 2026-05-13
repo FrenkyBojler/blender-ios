@@ -1203,10 +1203,13 @@ static bke::bNodeSocketType *make_socket_type_bool()
         &srna, "value", data->value, socket.name, socket.description);
     RNA_def_property_flag(prop, PROP_FORCE_GEOMETRY_EVAL);
     RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+    const nodes::GeometryNodesInputType default_type =
+        STREQ(socket.name, "Selection") ? nodes::GeometryNodesInputType::Attribute :
+                                          nodes::GeometryNodesInputType::Value;
     make_common_type_prop(srna,
                           socket,
                           nodes::geometry_nodes_input_type_items_value_or_attribute_or_layer,
-                          nodes::GeometryNodesInputType::Value,
+                          default_type,
                           r_generated);
     make_common_attribute_name_prop(srna, socket, r_generated);
     prop = RNA_def_string(
