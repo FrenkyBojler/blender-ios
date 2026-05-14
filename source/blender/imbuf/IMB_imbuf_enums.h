@@ -53,8 +53,6 @@ enum class ImBufFlags {
 
   /** Perform no color space conversions when reading, leave the image in the file colorspace. */
   NoColorspaceConvert = 1 << 18,
-
-  ColorspaceIsData = 1 << 19,
 };
 ENUM_OPERATORS(ImBufFlags);
 

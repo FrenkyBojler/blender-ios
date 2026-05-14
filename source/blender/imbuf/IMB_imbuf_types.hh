@@ -250,6 +250,8 @@ struct ImBuf {
   void assign_byte_data(uint8_t *data);
   void assign_float_data(float *data);
 
+  [[nodiscard]] bool colorspace_is_data() const;
+
   [[nodiscard]] bool can_contain_alpha() const
   {
     return color_mode == ImColorMode::RGBA || color_mode == ImColorMode::BW_A;

@@ -542,7 +542,6 @@ ImBuf *IMB_scale_into_new(const ImBuf *ibuf,
   dst->color_mode = ibuf->color_mode;
   dst->channels = ibuf->channels;
   IMB_metadata_copy(dst, ibuf);
-  dst->flags |= ibuf->flags & ImBufFlags::ColorspaceIsData;
   uchar *dst_byte = dst->byte_data_for_write();
   float *dst_float = dst->float_data_for_write();
   if (dst_byte == nullptr && dst_float == nullptr) {

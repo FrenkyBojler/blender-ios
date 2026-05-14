@@ -524,7 +524,6 @@ void colormanage_imbuf_make_linear(ImBuf *ibuf,
   const ColorSpace *colorspace = g_config()->get_color_space(from_colorspace);
 
   if (colorspace && colorspace->is_data()) {
-    ibuf->flags |= ImBufFlags::ColorspaceIsData;
     return;
   }
 
@@ -889,18 +888,6 @@ const char *IMB_colormanagement_role_colorspace_name_get(int role)
   return nullptr;
 }
 
-void IMB_colormanagement_check_is_data(ImBuf *ibuf, const char *name)
-{
-  const ColorSpace *colorspace = g_config()->get_color_space(name);
-
-  if (colorspace && colorspace->is_data()) {
-    ibuf->flags |= ImBufFlags::ColorspaceIsData;
-  }
-  else {
-    ibuf->flags &= ~ImBufFlags::ColorspaceIsData;
-  }
-}
-
 void IMB_colormanagement_copy_settings(ImBuf *ibuf_src, ImBuf *ibuf_dst)
 {
   IMB_colormanagement_assign_byte_colorspace(ibuf_dst,
@@ -921,29 +908,13 @@ void IMB_colormanagement_copy_settings(ImBuf *ibuf_src, ImBuf *ibuf_dst)
 void IMB_colormanagement_assign_float_colorspace(ImBuf *ibuf, const char *name)
 {
   const ColorSpace *colorspace = g_config()->get_color_space(name);
-
   ibuf->float_buffer.colorspace = colorspace;
-
-  if (colorspace && colorspace->is_data()) {
-    ibuf->flags |= ImBufFlags::ColorspaceIsData;
-  }
-  else {
-    ibuf->flags &= ~ImBufFlags::ColorspaceIsData;
-  }
 }
 
 void IMB_colormanagement_assign_byte_colorspace(ImBuf *ibuf, const char *name)
 {
   const ColorSpace *colorspace = g_config()->get_color_space(name);
-
   ibuf->byte_buffer.colorspace = colorspace;
-
-  if (colorspace && colorspace->is_data()) {
-    ibuf->flags |= ImBufFlags::ColorspaceIsData;
-  }
-  else {
-    ibuf->flags &= ~ImBufFlags::ColorspaceIsData;
-  }
 }
 
 const char *IMB_colormanagement_get_float_colorspace(const ImBuf *ibuf)
@@ -1336,7 +1307,7 @@ static void display_buffer_init_handle(DisplayBufferThread *handle,
 
   int channels = ibuf->channels;
   float dither = ibuf->dither;
-  bool is_data = flag_is_set(ibuf->flags, ImBufFlags::ColorspaceIsData);
+  bool is_data = ibuf->colorspace_is_data();
 
   size_t offset = size_t(channels) * start_line * ibuf->x;
   size_t display_buffer_byte_offset = size_t(DISPLAY_BUFFER_CHANNELS) * start_line * ibuf->x;

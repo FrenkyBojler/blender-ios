@@ -5903,7 +5903,7 @@ static void paint_proj_stroke_ps(const bContext * /*C*/,
       img->is_data = false;
       img->is_srgb = false;
 
-      if (flag_is_set(ibuf->flags, ImBufFlags::ColorspaceIsData)) {
+      if (ibuf->colorspace_is_data()) {
         img->is_data = true;
       }
       else if (ibuf->byte_data() && ibuf->byte_buffer.colorspace) {

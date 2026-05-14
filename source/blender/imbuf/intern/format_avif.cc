@@ -120,9 +120,7 @@ static std::tuple<WriteContext, ImageSpec, bool> prepare_save_avif(ImBuf *ibuf, 
   ImageSpec file_spec = imb_create_write_spec(ctx, file_channels, data_format);
 
   /* Skip if the float buffer was managed already. */
-  if (use_float &&
-      (ibuf->float_buffer.colorspace || flag_is_set(ibuf->flags, ImBufFlags::ColorspaceIsData)))
-  {
+  if (use_float && (ibuf->float_buffer.colorspace || ibuf->colorspace_is_data())) {
     file_spec.attribute("oiio:UnassociatedAlpha", 0);
   }
   else {

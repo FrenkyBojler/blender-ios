@@ -55,7 +55,7 @@ bool BlenderImageLoader::load_metadata(ImageMetaData &metadata,
     blender::ImBuf *ibuf = BKE_image_acquire_ibuf(b_image, &b_iuser, &lock);
     if (ibuf) {
       is_float = ibuf->float_data() != nullptr;
-      is_data = blender::flag_is_set(ibuf->flags, blender::ImBufFlags::ColorspaceIsData);
+      is_data = ibuf->colorspace_is_data();
       metadata.width = ibuf->x;
       metadata.height = ibuf->y;
       metadata.channels = (is_float) ? ibuf->channels : 4;

@@ -26,6 +26,8 @@
 #include "GPU_state.hh"
 #include "GPU_texture.hh"
 
+#include "OCIO_colorspace.hh"
+
 #include "CLG_log.h"
 
 #include "atomic_ops.h"
@@ -265,6 +267,16 @@ void ImBuf::assign_float_data(float *data)
   if (data) {
     this->float_buffer.data = data;
     this->float_buffer.ownership = IB_TAKE_OWNERSHIP;
+  }
+}
+
+bool ImBuf::colorspace_is_data() const
+{
+  if (this->float_buffer.data) {
+    return this->float_buffer.colorspace && this->float_buffer.colorspace->is_data();
+  }
+  else {
+    return this->byte_buffer.colorspace && this->byte_buffer.colorspace->is_data();
   }
 }
 

@@ -57,9 +57,7 @@ static std::tuple<WriteContext, ImageSpec> prepare_save_png(ImBuf *ibuf, ImBufFl
   ImageSpec file_spec = imb_create_write_spec(ctx, file_channels, data_format);
 
   /* Skip if the float buffer was managed already. */
-  if (is_16bit &&
-      (ibuf->float_buffer.colorspace || flag_is_set(ibuf->flags, ImBufFlags::ColorspaceIsData)))
-  {
+  if (is_16bit && (ibuf->float_buffer.colorspace || ibuf->colorspace_is_data())) {
     file_spec.attribute("oiio:UnassociatedAlpha", 0);
   }
   else {
