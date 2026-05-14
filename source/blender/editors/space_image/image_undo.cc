@@ -245,7 +245,7 @@ const ImBuf *ED_image_paint_tile_push(PaintTileMap *paint_tile_map,
 
   if (ibuf->float_data()) {
     ptile->ptile_ibuf = IMB_allocImBuf(
-        ED_IMAGE_UNDO_TILE_SIZE, ED_IMAGE_UNDO_TILE_SIZE, IB_float_data);
+        ED_IMAGE_UNDO_TILE_SIZE, ED_IMAGE_UNDO_TILE_SIZE, ImBufFlags::FloatData);
     IMB_copy_rect(ptile->ptile_ibuf->float_data_for_write(),
                   int2(ED_IMAGE_UNDO_TILE_SIZE),
                   ibuf->float_data(),
@@ -257,7 +257,7 @@ const ImBuf *ED_image_paint_tile_push(PaintTileMap *paint_tile_map,
   }
   else {
     ptile->ptile_ibuf = IMB_allocImBuf(
-        ED_IMAGE_UNDO_TILE_SIZE, ED_IMAGE_UNDO_TILE_SIZE, IB_byte_data);
+        ED_IMAGE_UNDO_TILE_SIZE, ED_IMAGE_UNDO_TILE_SIZE, ImBufFlags::ByteData);
     IMB_copy_rect(ptile->ptile_ibuf->byte_data_for_write(),
                   int2(ED_IMAGE_UNDO_TILE_SIZE),
                   ibuf->byte_data(),
@@ -358,8 +358,9 @@ struct UndoImageTile {
 static UndoImageTile *utile_alloc(bool has_float)
 {
   UndoImageTile *utile = MEM_new_zeroed<UndoImageTile>("ImageUndoTile");
-  utile->ibuf = IMB_allocImBuf(
-      ED_IMAGE_UNDO_TILE_SIZE, ED_IMAGE_UNDO_TILE_SIZE, has_float ? IB_float_data : IB_byte_data);
+  utile->ibuf = IMB_allocImBuf(ED_IMAGE_UNDO_TILE_SIZE,
+                               ED_IMAGE_UNDO_TILE_SIZE,
+                               has_float ? ImBufFlags::FloatData : ImBufFlags::ByteData);
   return utile;
 }
 
