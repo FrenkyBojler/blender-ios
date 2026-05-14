@@ -39,12 +39,7 @@ namespace draw::pbvh {
 
 using GenericRequest = std::string;
 
-enum class CustomRequest : int8_t {
-  Position,
-  Normal,
-  Mask,
-  FaceSet,
-};
+enum class CustomRequest : int8_t { Position, Normal, Mask, FaceSet, UV };
 
 using AttributeRequest = std::variant<CustomRequest, GenericRequest>;
 

@@ -946,6 +946,61 @@ BLI_NOINLINE static void fill_face_sets_grids(const Object &object,
   }
 }
 
+BLI_NOINLINE static void fill_uvs_grids(const Object &object,
+                                        const OrigMeshData &orig_mesh_data,
+                                        const BitSpan use_flat_layout,
+                                        const IndexMask &node_mask,
+                                        const MutableSpan<gpu::VertBufPtr> vbos)
+{
+  const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
+  const Span<bke::pbvh::GridsNode> nodes = pbvh.nodes<bke::pbvh::GridsNode>();
+  const SubdivCCG &subdiv_ccg = *object.runtime->sculpt_session->subdiv_ccg;
+  const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
+  const Span<float2> uvs = subdiv_ccg.uvs;
+  ensure_vbos_allocated_grids(
+      object,
+      attribute_format(orig_mesh_data, orig_mesh_data.active_uv_map, bke::AttrType::Float2),
+      use_flat_layout,
+      node_mask,
+      vbos);
+  if (!uvs.is_empty()) {
+    node_mask.foreach_index(
+        [&](const int i) {
+          float2 *data = vbos[i]->data<float2>().data();
+          if (use_flat_layout[i]) {
+            const int grid_size_1 = key.grid_size - 1;
+            for (const int grid : nodes[i].grids()) {
+              const Span<float2> grid_uvs = uvs.slice(bke::ccg::grid_range(key, grid));
+              for (int y = 0; y < grid_size_1; y++) {
+                for (int x = 0; x < grid_size_1; x++) {
+                  *data = grid_uvs[CCG_grid_xy_to_index(key.grid_size, x, y)];
+                  data++;
+                  *data = grid_uvs[CCG_grid_xy_to_index(key.grid_size, x + 1, y)];
+                  data++;
+                  *data = grid_uvs[CCG_grid_xy_to_index(key.grid_size, x + 1, y + 1)];
+                  data++;
+                  *data = grid_uvs[CCG_grid_xy_to_index(key.grid_size, x, y + 1)];
+                  data++;
+                }
+              }
+            }
+          }
+          else {
+            for (const int grid : nodes[i].grids()) {
+              const Span<float2> grid_uvs = uvs.slice(bke::ccg::grid_range(key, grid));
+              std::copy_n(grid_uvs.data(), grid_uvs.size(), data);
+              data += grid_uvs.size();
+            }
+          }
+        },
+        exec_mode::grain_size(1));
+  }
+  else {
+    node_mask.foreach_index([&](const int i) { vbos[i]->data<float>().fill(0.0f); },
+                            exec_mode::grain_size(64));
+  }
+}
+
 BLI_NOINLINE static void update_positions_bmesh(const Object &object,
                                                 const IndexMask &node_mask,
                                                 const MutableSpan<gpu::VertBufPtr> vbos)
@@ -1740,6 +1795,9 @@ Span<gpu::VertBufPtr> DrawCacheImpl::ensure_attribute_data(const Object &object,
           case CustomRequest::FaceSet:
             update_face_sets_mesh(object, orig_mesh_data, mask, vbos);
             break;
+          case CustomRequest::UV:
+            BLI_assert_unreachable();
+            break;
         }
       }
       else {
@@ -1762,6 +1820,9 @@ Span<gpu::VertBufPtr> DrawCacheImpl::ensure_attribute_data(const Object &object,
             break;
           case CustomRequest::FaceSet:
             fill_face_sets_grids(object, orig_mesh_data, use_flat_layout_, mask, vbos);
+            break;
+          case CustomRequest::UV:
+            fill_uvs_grids(object, orig_mesh_data, use_flat_layout_, node_mask, vbos);
             break;
         }
       }
@@ -1791,6 +1852,9 @@ Span<gpu::VertBufPtr> DrawCacheImpl::ensure_attribute_data(const Object &object,
             break;
           case CustomRequest::FaceSet:
             update_face_sets_bmesh(object, orig_mesh_data, mask, vbos);
+            break;
+          case CustomRequest::UV:
+            BLI_assert_unreachable();
             break;
         }
       }

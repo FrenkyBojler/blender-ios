@@ -84,6 +84,9 @@ static void subdiv_ccg_alloc_elements(SubdivCCG &subdiv_ccg,
   if (settings.need_mask) {
     subdiv_ccg.masks.reinitialize(num_grids * grid_area);
   }
+  if (settings.need_uv) {
+    subdiv_ccg.uvs.reinitialize(num_grids * grid_area);
+  }
   /* TODO(sergey): Allocate memory for loose elements. */
 }
 
@@ -134,9 +137,25 @@ static void subdiv_ccg_eval_grid_element_mask(SubdivCCG &subdiv_ccg,
   }
 }
 
+static void subdiv_ccg_eval_grid_element_uv(Subdiv &subdiv,
+                                            SubdivCCG &subdiv_ccg,
+                                            std::optional<int> active_uv_map_index,
+                                            const int ptex_face_index,
+                                            const float u,
+                                            const float v,
+                                            const int element)
+{
+  if (!active_uv_map_index.has_value() || subdiv_ccg.uvs.is_empty()) {
+    return;
+  }
+  eval_face_varying(
+      &subdiv, active_uv_map_index.value(), ptex_face_index, u, v, subdiv_ccg.uvs[element]);
+}
+
 static void subdiv_ccg_eval_grid_element(Subdiv &subdiv,
                                          SubdivCCG &subdiv_ccg,
                                          SubdivCCGMaskEvaluator *mask_evaluator,
+                                         const std::optional<int> active_uv_map_index,
                                          const int ptex_face_index,
                                          const float u,
                                          const float v,
@@ -144,13 +163,16 @@ static void subdiv_ccg_eval_grid_element(Subdiv &subdiv,
 {
   subdiv_ccg_eval_grid_element_limit(subdiv, subdiv_ccg, ptex_face_index, u, v, element);
   subdiv_ccg_eval_grid_element_mask(subdiv_ccg, mask_evaluator, ptex_face_index, u, v, element);
+  subdiv_ccg_eval_grid_element_uv(
+      subdiv, subdiv_ccg, active_uv_map_index, ptex_face_index, u, v, element);
 }
 
 static void subdiv_ccg_eval_regular_grid(Subdiv &subdiv,
                                          SubdivCCG &subdiv_ccg,
                                          const Span<int> face_ptex_offset,
                                          SubdivCCGMaskEvaluator *mask_evaluator,
-                                         const int face_index)
+                                         const int face_index,
+                                         std::optional<int> active_uv_map_index)
 {
   const int ptex_face_index = face_ptex_offset[face_index];
   const int grid_size = subdiv_ccg.grid_size;
@@ -167,8 +189,14 @@ static void subdiv_ccg_eval_regular_grid(Subdiv &subdiv,
         float u, v;
         rotate_grid_to_quad(corner, grid_u, grid_v, &u, &v);
         const int element = range[CCG_grid_xy_to_index(grid_size, x, y)];
-        subdiv_ccg_eval_grid_element(
-            subdiv, subdiv_ccg, mask_evaluator, ptex_face_index, u, v, element);
+        subdiv_ccg_eval_grid_element(subdiv,
+                                     subdiv_ccg,
+                                     mask_evaluator,
+                                     active_uv_map_index,
+                                     ptex_face_index,
+                                     u,
+                                     v,
+                                     element);
       }
     }
   }
@@ -178,7 +206,8 @@ static void subdiv_ccg_eval_special_grid(Subdiv &subdiv,
                                          SubdivCCG &subdiv_ccg,
                                          const Span<int> face_ptex_offset,
                                          SubdivCCGMaskEvaluator *mask_evaluator,
-                                         const int face_index)
+                                         const int face_index,
+                                         std::optional<int> active_uv_map_index)
 {
   const int grid_size = subdiv_ccg.grid_size;
   const int grid_area = subdiv_ccg.grid_area;
@@ -193,8 +222,14 @@ static void subdiv_ccg_eval_special_grid(Subdiv &subdiv,
       for (int x = 0; x < grid_size; x++) {
         const float v = 1.0f - (x * grid_size_1_inv);
         const int element = range[CCG_grid_xy_to_index(grid_size, x, y)];
-        subdiv_ccg_eval_grid_element(
-            subdiv, subdiv_ccg, mask_evaluator, ptex_face_index, u, v, element);
+        subdiv_ccg_eval_grid_element(subdiv,
+                                     subdiv_ccg,
+                                     mask_evaluator,
+                                     active_uv_map_index,
+                                     ptex_face_index,
+                                     u,
+                                     v,
+                                     element);
       }
     }
   }
@@ -202,7 +237,8 @@ static void subdiv_ccg_eval_special_grid(Subdiv &subdiv,
 
 static bool subdiv_ccg_evaluate_grids(SubdivCCG &subdiv_ccg,
                                       Subdiv &subdiv,
-                                      SubdivCCGMaskEvaluator *mask_evaluator)
+                                      SubdivCCGMaskEvaluator *mask_evaluator,
+                                      std::optional<int> active_uv_map_index)
 {
   const opensubdiv::TopologyRefinerImpl *topology_refiner = subdiv.topology_refiner;
   const int num_faces = topology_refiner->base_level().GetNumFaces();
@@ -212,11 +248,11 @@ static bool subdiv_ccg_evaluate_grids(SubdivCCG &subdiv_ccg,
     for (const int face_index : range) {
       if (subdiv_ccg.faces[face_index].size() == 4) {
         subdiv_ccg_eval_regular_grid(
-            subdiv, subdiv_ccg, face_ptex_offset, mask_evaluator, face_index);
+            subdiv, subdiv_ccg, face_ptex_offset, mask_evaluator, face_index, active_uv_map_index);
       }
       else {
         subdiv_ccg_eval_special_grid(
-            subdiv, subdiv_ccg, face_ptex_offset, mask_evaluator, face_index);
+            subdiv, subdiv_ccg, face_ptex_offset, mask_evaluator, face_index, active_uv_map_index);
       }
     }
   });
@@ -392,7 +428,17 @@ std::unique_ptr<SubdivCCG> BKE_subdiv_to_ccg(Subdiv &subdiv,
     BLI_assert(subdiv.topology_refiner);
     subdiv_ccg_alloc_elements(*subdiv_ccg, subdiv, settings);
     subdiv_ccg_init_faces_neighborhood(*subdiv_ccg);
-    if (!subdiv_ccg_evaluate_grids(*subdiv_ccg, subdiv, mask_evaluator)) {
+
+    const StringRefNull active_uv_map_name = coarse_mesh.active_uv_map_name();
+    VectorSet<StringRefNull> uv_map_names = coarse_mesh.uv_map_names();
+    std::optional<int> active_uv_map_index = std::nullopt;
+    for (const int i : uv_map_names.index_range()) {
+      if (uv_map_names[i] == active_uv_map_name) {
+        active_uv_map_index = i;
+      }
+    }
+
+    if (!subdiv_ccg_evaluate_grids(*subdiv_ccg, subdiv, mask_evaluator, active_uv_map_index)) {
       stats_end(&subdiv.stats, SUBDIV_STATS_SUBDIV_TO_CCG);
       return nullptr;
     }
