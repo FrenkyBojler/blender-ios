@@ -96,6 +96,7 @@ struct FloatBufferCache {
     new_imbuf->color_mode = image_buffer->color_mode;
 
     new_imbuf->float_buffer = image_buffer->float_buffer;
+    image_buffer->float_buffer = {};
 
     cache_.append(FloatImageBuffer(image_buffer, new_imbuf));
     return new_imbuf;
