@@ -64,14 +64,16 @@ void foreach_visible([[resource_table]] const LightRenderData &srt,
   const auto &words = srt.light_tile_buf;
 
   for (uint index = culling.local_lights_len; index < culling.items_count; index++) {
-    cb.eval_directional(res, index, srt.light_buf[index]);
+    LightData light = srt.light_buf[index];
+    cb.eval_directional(res, index, light);
   }
 
 /* WORKAROUND: For Surfels to use the same lighting path. Could be improved. */
 #ifdef SRT_CONSTANT_light_iter_force_no_culling
   /* Same as light::foreach. */
   for (uint index = 0; index < culling.visible_count; index++) {
-    cb.eval_local(res, index, srt.light_buf[index]);
+    LightData light = srt.light_buf[index];
+    cb.eval_local(res, index, light);
   }
   return;
 #endif
