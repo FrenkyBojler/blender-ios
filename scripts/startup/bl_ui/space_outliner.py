@@ -60,9 +60,8 @@ class OUTLINER_HT_header(Header):
         row = layout.row(align=True)
         if display_mode in {'SCENES', 'VIEW_LAYER', 'LIBRARY_OVERRIDES'}:
             row.popover(
-                panel="OUTLINER_PT_filter",
+                panel="OUTLINER_PT_options",
                 text="",
-                icon='FILTER',
             )
 
         if display_mode in {'LIBRARIES', 'ORPHAN_DATA'}:
@@ -400,10 +399,10 @@ class OUTLINER_MT_liboverride(Menu):
         ).selection_set = 'SELECTED'
 
 
-class OUTLINER_PT_filter(Panel):
+class OUTLINER_PT_options(Panel):
     bl_space_type = 'OUTLINER'
     bl_region_type = 'HEADER'
-    bl_label = "Filter"
+    bl_label = "Options"
 
     def draw(self, context):
         layout = self.layout
@@ -447,29 +446,56 @@ class OUTLINER_PT_filter(Panel):
             row.prop(space, "show_mode_column", text="Show Mode Column")
             layout.separator()
 
-        filter_text_supported = True
-        # Same exception for library overrides as in OUTLINER_HT_header.
-        if display_mode == 'LIBRARY_OVERRIDES' and space.lib_override_view_mode == 'HIERARCHIES':
-            filter_text_supported = False
-
-        if filter_text_supported:
-            col = layout.column(align=True)
-            col.label(text="Search")
-            col.prop(space, "use_filter_complete", text="Exact Match")
-            col.prop(space, "use_filter_case_sensitive", text="Case Sensitive")
-
         if display_mode == 'LIBRARY_OVERRIDES' and space.lib_override_view_mode == 'PROPERTIES' and bpy.data.libraries:
             row = layout.row()
             row.label(icon='LIBRARY_DATA_OVERRIDE')
             row.prop(space, "use_filter_lib_override_system", text="System Overrides")
 
-        if display_mode != 'VIEW_LAYER':
-            return
 
-        layout.separator()
+class OUTLINER_PT_options_search(Panel):
+    bl_space_type = 'OUTLINER'
+    bl_region_type = 'HEADER'
+    bl_label = "Search"
+    bl_parent_id = "OUTLINER_PT_options"
 
-        layout.label(text="Filter")
+    @classmethod
+    def poll(cls, context):
+        st = context.space_data
+        space = context.space_data
+        display_mode = space.display_mode
 
+        filter_text_supported = True
+        # Same exception for library overrides as in OUTLINER_HT_header.
+        if display_mode == 'LIBRARY_OVERRIDES' and space.lib_override_view_mode == 'HIERARCHIES':
+            filter_text_supported = False
+
+        return filter_text_supported
+
+    def draw(self, context):
+        layout = self.layout
+        space = context.space_data
+        display_mode = space.display_mode
+
+        col = layout.column(align=True)
+        col.prop(space, "use_filter_complete", text="Exact Match")
+        col.prop(space, "use_filter_case_sensitive", text="Case Sensitive")
+
+class OUTLINER_PT_options_filter(Panel):
+    bl_space_type = 'OUTLINER'
+    bl_region_type = 'HEADER'
+    bl_label = "Filter"
+    bl_parent_id = "OUTLINER_PT_options"
+
+    @classmethod
+    def poll(cls, context):
+        space = context.space_data
+        display_mode = space.display_mode
+        return display_mode == 'VIEW_LAYER'
+
+    def draw(self, context):
+        layout = self.layout
+        space = context.space_data
+        display_mode = space.display_mode
         col = layout.column(align=True)
 
         row = col.row()
@@ -539,7 +565,6 @@ class OUTLINER_PT_filter(Panel):
             row.label(icon='BLANK1')
             row.prop(space, "use_filter_object_others", text="Others")
 
-
 classes = (
     OUTLINER_HT_header,
     OUTLINER_MT_editor_menus,
@@ -555,7 +580,9 @@ classes = (
     OUTLINER_MT_context_menu,
     OUTLINER_MT_context_menu_view,
     OUTLINER_MT_view_pie,
-    OUTLINER_PT_filter,
+    OUTLINER_PT_options,
+    OUTLINER_PT_options_search,
+    OUTLINER_PT_options_filter,
 )
 
 if __name__ == "__main__":  # only for live edit.
