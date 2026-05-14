@@ -139,7 +139,7 @@ template<bool is_transmission> struct LightEvalCtx {
     }
 
     light_eval_single_closure(light, lv, stack.cl[0], V, attenuation, shadow);
-    if (!is_transmission) {
+    if (!is_transmission) [[static_branch]] {
 #if SRT_CONSTANT_light_closure_eval_count > 1
       light_eval_single_closure(light, lv, stack.cl[1], V, attenuation, shadow);
 #endif
