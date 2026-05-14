@@ -34,49 +34,6 @@ struct ClosureStack {
   ClosureLight cl[LIGHT_STACK_SIZE];
 };
 
-ClosureLight closure_get(ClosureStack stack, uchar index)
-{
-  switch (index) {
-    case 0:
-      return stack.cl[0];
-#if SRT_CONSTANT_light_closure_eval_count > 1
-    case 1:
-      return stack.cl[1];
-#endif
-#if SRT_CONSTANT_light_closure_eval_count > 2
-    case 2:
-      return stack.cl[2];
-#endif
-#if SRT_CONSTANT_light_closure_eval_count > 3
-#  error
-#endif
-  }
-  ClosureLight closure_null;
-  return closure_null;
-}
-
-void closure_set(ClosureStack &stack, uchar index, ClosureLight cl_light)
-{
-  switch (index) {
-    case 0:
-      stack.cl[0] = cl_light;
-      break;
-#if SRT_CONSTANT_light_closure_eval_count > 1
-    case 1:
-      stack.cl[1] = cl_light;
-      break;
-#endif
-#if SRT_CONSTANT_light_closure_eval_count > 2
-    case 2:
-      stack.cl[2] = cl_light;
-      break;
-#endif
-#if SRT_CONSTANT_light_closure_eval_count > 3
-#  error
-#endif
-  }
-}
-
 float light_power_get(LightData light, LightingType type)
 {
   /* Mask anything above 3. See LIGHT_TRANSLUCENT_WITH_THICKNESS. */

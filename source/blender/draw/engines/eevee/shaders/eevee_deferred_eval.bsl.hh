@@ -135,7 +135,7 @@ void light_eval_frag([[resource_table]] LightEval &srt,
   /* Unroll light stack array assignments to avoid non-constant indexing. */
   for (uint i = 0u; i < 3; i++) [[unroll]] {
     if (lrd.light_closure_eval_count > i) [[static_branch]] {
-      light::closure_set(ctx.stack, uchar(i), closure_light_new(gbuf.layer[i], V));
+      ctx.stack.cl[i] = closure_light_new(gbuf.layer[i], V);
     }
   }
 
@@ -188,8 +188,8 @@ void light_eval_frag([[resource_table]] LightEval &srt,
     for (uint i = 0u; i < 3; i++) [[unroll]] {
       if (lrd.light_closure_eval_count > i) [[static_branch]] {
         if (i < closure_count) {
-          radiance_shadowed += light::closure_get(ctx.stack, i).light_shadowed;
-          radiance_unshadowed += light::closure_get(ctx.stack, i).light_unshadowed;
+          radiance_shadowed += ctx.stack.cl[i].light_shadowed;
+          radiance_unshadowed += ctx.stack.cl[i].light_unshadowed;
         }
       }
     }
@@ -210,7 +210,7 @@ void light_eval_frag([[resource_table]] LightEval &srt,
       if (lrd.light_closure_eval_count > i) [[static_branch]] {
         if (i < closure_count) {
           float3 indirect_light = lightprobe_eval(samp, gbuf.layer[i], P, V, thickness);
-          float3 direct_light = light::closure_get(ctx.stack, i).light_shadowed;
+          float3 direct_light = ctx.stack.cl[i].light_shadowed;
           if (srt.use_split_indirect) {
             srt.write_radiance_indirect(bin_indices[i], texel, indirect_light);
             srt.write_radiance_direct(bin_indices[i], texel, direct_light);
@@ -228,7 +228,7 @@ void light_eval_frag([[resource_table]] LightEval &srt,
     for (uint i = 0u; i < 3; i++) [[unroll]] {
       if (lrd.light_closure_eval_count > i) [[static_branch]] {
         if (i < closure_count) {
-          float3 direct_light = light::closure_get(ctx.stack, i).light_shadowed;
+          float3 direct_light = ctx.stack.cl[i].light_shadowed;
           srt.write_radiance_direct(bin_indices[i], texel, direct_light);
         }
       }

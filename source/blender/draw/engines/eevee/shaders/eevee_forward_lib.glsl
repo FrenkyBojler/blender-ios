@@ -51,7 +51,7 @@ void forward_lighting_eval(Thickness thickness,
   for (uint i = 0u; i < 3; i++) [[unroll]] {
     if (lights.light_closure_eval_count > i) [[static_branch]] {
       ClosureUndetermined cl = g_closure_get(uchar(i));
-      light::closure_set(ctx.stack, uchar(i), closure_light_new(cl, V));
+      ctx.stack.cl[i] = closure_light_new(cl, V);
     }
   }
 
@@ -153,7 +153,7 @@ void forward_lighting_eval(Thickness thickness,
     if (lights.light_closure_eval_count > i) [[static_branch]] {
       ClosureUndetermined cl = g_closure_get_resolved(uchar(i), 1.0f);
       if (cl.weight > CLOSURE_WEIGHT_CUTOFF) {
-        float3 direct_light = light::closure_get(ctx.stack, i).light_shadowed;
+        float3 direct_light = ctx.stack.cl[i].light_shadowed;
         float3 indirect_light = lightprobe_eval(samp, cl, g_data.P, V, thickness);
 
 #ifdef MAT_REFLECTION
