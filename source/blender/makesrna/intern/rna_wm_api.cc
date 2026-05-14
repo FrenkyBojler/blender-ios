@@ -1698,7 +1698,7 @@ void RNA_api_asset_library_loading_status(StructRNA *srna)
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 
   func = RNA_def_function(srna,
-                          "asset_library_status_ping_loaded_new_asset_file",
+                          "asset_library_status_ping_asset_file_done",
                           "rna_asset_library_status_ping_asset_file_done");
   RNA_def_function_ui_description(func,
                                   "Inform the asset system that a single asset file download has "
