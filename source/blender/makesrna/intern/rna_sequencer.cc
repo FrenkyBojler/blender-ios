@@ -273,6 +273,23 @@ static void rna_Strip_scene_sync_update(bContext *C, PointerRNA *ptr)
   DEG_relations_tag_update(bmain);
 }
 
+static void rna_SceneStrip_scene_set(PointerRNA *ptr, PointerRNA value, ReportList * /*reports*/)
+{
+  Strip *strip = static_cast<Strip *>(ptr->data);
+  Scene *new_scene = static_cast<Scene *>(value.data);
+
+  if (strip->scene == new_scene) {
+    return;
+  }
+
+  strip->scene = new_scene;
+
+  MEM_SAFE_DELETE(strip->scene_view_layer_name);
+  if (new_scene != nullptr) {
+    strip->scene_view_layer_name = BLI_strdup(BKE_view_layer_default_render(new_scene)->name);
+  }
+}
+
 static PointerRNA rna_SceneStrip_view_layer_get(PointerRNA *ptr)
 {
   const Strip *strip = static_cast<const Strip *>(ptr->data);
@@ -280,13 +297,7 @@ static PointerRNA rna_SceneStrip_view_layer_get(PointerRNA *ptr)
   if (scene == nullptr) {
     return PointerRNA_NULL;
   }
-  ViewLayer *view_layer = nullptr;
-  if (strip->scene_view_layer_name != nullptr) {
-    view_layer = BKE_view_layer_find(scene, strip->scene_view_layer_name);
-  }
-  if (view_layer == nullptr) {
-    view_layer = BKE_view_layer_default_render(scene);
-  }
+  ViewLayer *view_layer = BKE_view_layer_find(scene, strip->scene_view_layer_name);
   return RNA_pointer_create_id_subdata(scene->id, RNA_ViewLayer, view_layer);
 }
 
@@ -324,19 +335,19 @@ static void rna_SceneStrip_view_layer_set(PointerRNA *ptr,
 {
   Strip *strip = static_cast<Strip *>(ptr->data);
   const ViewLayer *view_layer = static_cast<const ViewLayer *>(value.data);
+  if (strip->scene == nullptr) {
+    return;
+  }
   if (view_layer == nullptr) {
-    if (strip->scene_view_layer_name != nullptr) {
-      MEM_delete(strip->scene_view_layer_name);
-    }
-    strip->scene_view_layer_name = nullptr;
+    MEM_delete(strip->scene_view_layer_name);
+    strip->scene_view_layer_name = BLI_strdup(BKE_view_layer_default_render(strip->scene)->name);
     return;
   }
   if (!rna_SceneStrip_view_layer_is_compatible(strip->scene, value)) {
     return;
   }
-  if (strip->scene_view_layer_name != nullptr) {
-    MEM_delete(strip->scene_view_layer_name);
-  }
+
+  MEM_delete(strip->scene_view_layer_name);
   strip->scene_view_layer_name = BLI_strdup(view_layer->name);
 }
 
@@ -3456,6 +3467,7 @@ static void rna_def_scene(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "scene", PROP_POINTER, PROP_NONE);
   RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_SELF_CHECK | PROP_CONTEXT_UPDATE);
+  RNA_def_property_pointer_funcs(prop, nullptr, "rna_SceneStrip_scene_set", nullptr, nullptr);
   RNA_def_property_ui_text(prop, "Scene", "Scene that this strip uses");
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_scene_sync_update");
 

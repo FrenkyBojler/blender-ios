@@ -2350,16 +2350,11 @@ static bool strip_node_build_cb(Strip *strip, void *user_data)
     nb->build_scene_parameters(strip->scene);
   }
   if (strip->type == STRIP_TYPE_SCENE && strip->scene != nullptr) {
+    BLI_assert(strip->scene_view_layer_name != nullptr);
     if (strip->flag & SEQ_SCENE_STRIPS) {
       nb->build_scene_sequencer(strip->scene);
     }
-    ViewLayer *strip_view_layer = nullptr;
-    if (strip->scene_view_layer_name != nullptr) {
-      strip_view_layer = BKE_view_layer_find(strip->scene, strip->scene_view_layer_name);
-    }
-    if (strip_view_layer == nullptr) {
-      strip_view_layer = BKE_view_layer_default_render(strip->scene);
-    }
+    ViewLayer *strip_view_layer = BKE_view_layer_find(strip->scene, strip->scene_view_layer_name);
     nb->build_scene_speakers(strip->scene, strip_view_layer);
   }
 
