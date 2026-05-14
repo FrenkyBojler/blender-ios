@@ -3,6 +3,15 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+/** \file
+ * \ingroup imbuf
+ *
+ * The SGI Image File Format.
+ * https://en.wikipedia.org/wiki/Silicon_Graphics_Image
+ *
+ * \note this format uses big-endian values.
+ */
+
 #include "oiio/openimageio_support.hh"
 
 #include "IMB_filetype.hh"
