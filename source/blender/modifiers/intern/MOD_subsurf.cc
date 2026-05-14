@@ -134,6 +134,7 @@ static void subdiv_ccg_settings_init(SubdivToCCGSettings *settings,
   settings->resolution = (1 << level) + 1;
   settings->need_normal = true;
   settings->need_mask = false;
+  settings->need_uv = false;
 }
 
 static Mesh *subdiv_as_ccg(SubsurfModifierData *smd,

@@ -141,6 +141,7 @@ static void multires_ccg_settings_init(SubdivToCCGSettings *settings,
                                        const Mesh *mesh)
 {
   const bool has_mask = CustomData_has_layer(&mesh->corner_data, CD_GRID_PAINT_MASK);
+  const bool has_uv = !mesh->active_uv_map_name().is_empty();
   const bool use_render_params = (ctx->flag & MOD_APPLY_RENDER);
   const bool ignore_simplify = (ctx->flag & MOD_APPLY_IGNORE_SIMPLIFY);
   const Scene *scene = DEG_get_evaluated_scene(ctx->depsgraph);
@@ -149,6 +150,7 @@ static void multires_ccg_settings_init(SubdivToCCGSettings *settings,
   settings->resolution = (1 << level) + 1;
   settings->need_normal = true;
   settings->need_mask = has_mask;
+  settings->need_uv = has_uv;
 }
 
 static Mesh *multires_as_ccg(MultiresModifierData *mmd,
