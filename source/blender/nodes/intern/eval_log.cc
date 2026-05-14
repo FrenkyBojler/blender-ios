@@ -14,6 +14,8 @@
 #include "BLI_string_ref.hh"
 #include "BLI_string_utf8.h"
 
+#include "IMB_imbuf.hh"
+
 #include "BKE_anonymous_attribute_id.hh"
 #include "BKE_compute_context_cache.hh"
 #include "BKE_compute_contexts.hh"
@@ -273,15 +275,44 @@ NodeWarning::NodeWarning(const Report &report)
   this->message = report.message;
 }
 
+ImageInfoLog::ImageInfoLog(const int2 data_size,
+                           const int2 display_size,
+                           const int2 data_offset,
+                           const float3x3 transformation,
+                           const StringRefNull interpolation,
+                           const StringRefNull extension_x,
+                           const StringRefNull extension_y,
+                           const StringRefNull precision)
+    : data_size(data_size),
+      display_size(display_size),
+      data_offset(data_offset),
+      transformation(transformation),
+      interpolation(interpolation),
+      extension_x(extension_x),
+      extension_y(extension_y),
+      precision(precision)
+{
+}
+
 /* Avoid generating these in every translation unit. */
 NodesEvalLog::NodesEvalLog() = default;
 NodesEvalLog::~NodesEvalLog() = default;
 
 NodeTreeLogger::NodeTreeLogger() = default;
-NodeTreeLogger::~NodeTreeLogger() = default;
+
+NodeTreeLogger::~NodeTreeLogger()
+{
+  for (const NodeTreeLogger::NodeImagePreview &preview : this->node_image_previews) {
+    IMB_freeImBuf(preview.image_preview);
+  }
+}
 
 NodeLog::NodeLog() = default;
-NodeLog::~NodeLog() = default;
+
+NodeLog::~NodeLog()
+{
+  IMB_freeImBuf(image_preview);
+}
 
 NodeTreeLog::NodeTreeLog(NodesEvalLog *root_log, Vector<NodeTreeLogger *> tree_loggers)
     : root_log_(root_log), tree_loggers_(std::move(tree_loggers))
@@ -689,6 +720,22 @@ void NodeTreeLog::ensure_layer_names()
   }
 
   reduced_layer_names_ = true;
+}
+
+void NodeTreeLog::ensure_node_image_previews()
+{
+  if (reduced_node_image_previews_) {
+    return;
+  }
+
+  for (NodeTreeLogger *tree_logger : tree_loggers_) {
+    for (const NodeTreeLogger::NodeImagePreview &preview : tree_logger->node_image_previews) {
+      IMB_refImBuf(preview.image_preview);
+      this->nodes.lookup_or_add_default_as(preview.node_id).image_preview = preview.image_preview;
+    }
+  }
+
+  reduced_node_image_previews_ = true;
 }
 
 ValueLog *NodeTreeLog::find_socket_value_log(const bNodeSocket &query_socket)

@@ -334,6 +334,26 @@ static void imb_scale_box(const BufferT *src_buffer,
   MEM_delete(tmp_buffer);
 }
 
+void IMB_scale_box(const float *src_buffer,
+                   const int2 src_size,
+                   const int channels,
+                   float *dst_buffer,
+                   const int2 dst_size,
+                   const bool threaded)
+{
+  imb_scale_box(src_buffer, src_size, channels, dst_buffer, dst_size, threaded);
+}
+
+void IMB_scale_box(const uchar *src_buffer,
+                   const int2 src_size,
+                   const int channels,
+                   uchar *dst_buffer,
+                   const int2 dst_size,
+                   const bool threaded)
+{
+  imb_scale_box(src_buffer, src_size, channels, dst_buffer, dst_size, threaded);
+}
+
 template<typename T>
 static void scale_nearest(
     const T *src, T *dst, const int2 src_size, const int2 dst_size, IndexRange y_range)
@@ -511,18 +531,17 @@ ImBuf *IMB_scale_into_new(const ImBuf *ibuf,
   }
 
   /* Allocate destination buffers. */
-  eImBufFlags flags = IB_uninitialized_pixels;
+  ImBufFlags flags = ImBufFlags::UninitializedPixels;
   if (ibuf->byte_data()) {
-    flags |= IB_byte_data;
+    flags |= ImBufFlags::ByteData;
   }
   if (ibuf->float_data()) {
-    flags |= IB_float_data;
+    flags |= ImBufFlags::FloatData;
   }
   ImBuf *dst = IMB_allocImBuf(new_size.x, new_size.y, flags);
   dst->color_mode = ibuf->color_mode;
   dst->channels = ibuf->channels;
   IMB_metadata_copy(dst, ibuf);
-  dst->colormanage_flag = ibuf->colormanage_flag;
   uchar *dst_byte = dst->byte_data_for_write();
   float *dst_float = dst->float_data_for_write();
   if (dst_byte == nullptr && dst_float == nullptr) {
