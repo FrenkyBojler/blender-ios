@@ -42,11 +42,13 @@ void foreach([[resource_table]] const LightRenderData &srt,
   const LightCullingData &culling = srt.light_cull_buf;
 
   for (uint index = culling.local_lights_len; index < culling.items_count; index++) {
-    cb.eval_directional(res, index, srt.light_buf[index]);
+    LightData light = srt.light_buf[index];
+    cb.eval_directional(res, index, light);
   }
 
   for (uint index = 0; index < culling.visible_count; index++) {
-    cb.eval_local(res, index, srt.light_buf[index]);
+    LightData light = srt.light_buf[index];
+    cb.eval_local(res, index, light);
   }
 }
 
@@ -117,7 +119,8 @@ void foreach_visible([[resource_table]] const LightRenderData &srt,
       while ((bit_index = findLSB(word)) != -1) {
         word &= ~1u << uint(bit_index);
         uint index = word_idx * 32u + uint(bit_index);
-        cb.eval_local(res, index, srt.light_buf[index]);
+        LightData light = srt.light_buf[index];
+        cb.eval_local(res, index, light);
       }
     }
   }
