@@ -29,6 +29,14 @@ float ior_from_F0(float F0)
   return (-f - 1.0f) / (f - 1.0f);
 }
 
+/* Given the transmittance through a slab at normal incidence, compute the transmittance at a
+ * certain incident angle, based on Beer-Lambert law. */
+float3 slab_transmittance_at_angle(float3 color, float cos_theta_i, float ior)
+{
+  const float inv_cos_theta_t = ior * inversesqrt(square(ior) - (1.0f - square(cos_theta_i)));
+  return pow(color, float3(inv_cos_theta_t));
+}
+
 [[node]]
 void node_bsdf_principled(float4 base_color,
                           float metallic,
@@ -108,8 +116,17 @@ void node_bsdf_principled(float4 base_color,
   /* First layer: Sheen */
   float3 sheen_data_color = float3(0.0f);
   if (sheen_weight > 0.0f) {
+    float sheen_NV = NV;
+#ifdef MAT_CLEARCOAT
+    if (coat_weight > 0.0f) {
+      float3 sheen_N = safe_normalize(mix(N, CN, saturate(coat_weight)));
+      sheen_NV = dot(sheen_N, V);
+    }
+#endif
+
     /* TODO: Maybe sheen_weight should be specular. */
-    float3 sheen_color = sheen_weight * sheen_tint.rgb * principled_sheen(NV, sheen_roughness);
+    float3 sheen_color = sheen_weight * sheen_tint.rgb *
+                         principled_sheen(sheen_NV, sheen_roughness);
     sheen_data_color = weight * sheen_color;
     /* Attenuate lower layers */
     weight *= max((1.0f - math_reduce_max(sheen_color)), 0.0f);
@@ -132,11 +149,9 @@ void node_bsdf_principled(float4 base_color,
     weight *= max((1.0f - reflectance * coat_weight), 0.0f);
 
     if (!all(equal(coat_tint.rgb, float3(1.0f)))) {
-      float coat_neta = 1.0f / coat_ior;
-      float NT = sqrt_fast(1.0f - coat_neta * coat_neta * (1 - NV * NV));
       /* Tint lower layers. */
-      coat_tint.rgb = mix(
-          float3(1.0f), pow(coat_tint.rgb, float3(1.0f / NT)), saturate(coat_weight));
+      const float3 tint = slab_transmittance_at_angle(coat_tint.rgb, NV, coat_ior);
+      coat_tint.rgb = mix(float3(1.0f), tint, saturate(coat_weight));
     }
   }
   else {

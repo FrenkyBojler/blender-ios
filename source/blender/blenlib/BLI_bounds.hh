@@ -480,7 +480,7 @@ inline void Bounds<T>::pad(const PaddingT &padding)
   this->max = this->max + padding;
 }
 
-template<typename T> inline bool Bounds<T>::contains(const T &point)
+template<typename T> inline bool Bounds<T>::contains(const T &point) const
 {
   if (bounds::detail::any_less_than(point, this->min)) {
     return false;
@@ -491,7 +491,7 @@ template<typename T> inline bool Bounds<T>::contains(const T &point)
   return true;
 }
 
-template<typename T> inline bool Bounds<T>::intersects(const Bounds<T> &other)
+template<typename T> inline bool Bounds<T>::intersects(const Bounds<T> &other) const
 {
   if (bounds::intersect(*this, other)) {
     return true;
@@ -499,7 +499,7 @@ template<typename T> inline bool Bounds<T>::intersects(const Bounds<T> &other)
   return false;
 }
 
-template<typename T> inline bool Bounds<T>::intersects_segment(const T &start, const T &end)
+template<typename T> inline bool Bounds<T>::intersects_segment(const T &start, const T &end) const
 {
   /* Check end points first to properly handle degenerate case where the segment is a point. */
   if (this->contains(start) || this->contains(end)) {

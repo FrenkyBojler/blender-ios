@@ -405,7 +405,8 @@ static ImBuf *brush_painter_imbuf_new(
   float brush_rgb[3];
 
   /* allocate image buffer */
-  ImBuf *ibuf = IMB_allocImBuf(size, size, 32, (is_float) ? IB_float_data : IB_byte_data);
+  ImBuf *ibuf = IMB_allocImBuf(
+      size, size, (is_float) ? ImBufFlags::FloatData : ImBufFlags::ByteData);
 
   /* get brush color */
   if (brush->image_brush_type == IMAGE_PAINT_BRUSH_TYPE_DRAW) {
@@ -615,18 +616,18 @@ static void brush_painter_imbuf_partial_update(BrushPainter *painter,
 {
   BrushPainterCache *cache = &tile->cache;
   ImBuf *oldtexibuf, *ibuf;
-  int imbflag, destx, desty, srcx, srcy, w, h, x1, y1, x2, y2;
+  int destx, desty, srcx, srcy, w, h, x1, y1, x2, y2;
 
   /* create brush image buffer if it didn't exist yet */
-  imbflag = (cache->is_float) ? IB_float_data : IB_byte_data;
+  ImBufFlags imbflag = (cache->is_float) ? ImBufFlags::FloatData : ImBufFlags::ByteData;
   if (!cache->ibuf) {
-    cache->ibuf = IMB_allocImBuf(diameter, diameter, 32, imbflag);
+    cache->ibuf = IMB_allocImBuf(diameter, diameter, imbflag);
   }
   ibuf = cache->ibuf;
 
   /* create new texture image buffer with coordinates relative to old */
   oldtexibuf = cache->texibuf;
-  cache->texibuf = IMB_allocImBuf(diameter, diameter, 32, imbflag);
+  cache->texibuf = IMB_allocImBuf(diameter, diameter, imbflag);
 
   if (oldtexibuf) {
     srcx = srcy = 0;
@@ -1094,7 +1095,7 @@ static void paint_2d_set_region(
 
 static int paint_2d_torus_split_region(ImagePaintRegion region[4],
                                        ImBuf *dbuf,
-                                       ImBuf *sbuf,
+                                       const ImBuf *sbuf,
                                        short paint_tile)
 {
   int destx = region->destx;
@@ -1157,7 +1158,7 @@ static int paint_2d_torus_split_region(ImagePaintRegion region[4],
   return tot;
 }
 
-static void paint_2d_lift_smear(ImBuf *ibuf, ImBuf *ibufb, int *pos, short paint_tile)
+static void paint_2d_lift_smear(const ImBuf *ibuf, ImBuf *ibufb, int *pos, short paint_tile)
 {
   ImagePaintRegion region[4];
   int a, tot;
@@ -1166,23 +1167,11 @@ static void paint_2d_lift_smear(ImBuf *ibuf, ImBuf *ibufb, int *pos, short paint
   tot = paint_2d_torus_split_region(region, ibufb, ibuf, paint_tile);
 
   for (a = 0; a < tot; a++) {
-    IMB_rectblend(ibufb,
-                  ibufb,
+    IMB_copy_rect(ibufb,
                   ibuf,
-                  nullptr,
-                  nullptr,
-                  nullptr,
-                  0,
-                  region[a].destx,
-                  region[a].desty,
-                  region[a].destx,
-                  region[a].desty,
-                  region[a].srcx,
-                  region[a].srcy,
-                  region[a].width,
-                  region[a].height,
-                  IMB_BLEND_COPY,
-                  false);
+                  int2(region[a].srcx, region[a].srcy),
+                  int2(region[a].destx, region[a].desty),
+                  int2(region[a].width, region[a].height));
   }
 }
 
@@ -1191,7 +1180,8 @@ static ImBuf *paint_2d_lift_clone(ImBuf *ibuf, ImBuf *ibufb, const int *pos)
   /* NOTE: #allocImbuf returns zeroed memory, so regions outside image will
    * have zero alpha, and hence not be blended onto the image */
   int w = ibufb->x, h = ibufb->y, destx = 0, desty = 0, srcx = pos[0], srcy = pos[1];
-  ImBuf *clonebuf = IMB_allocImBuf(w, h, ibufb->planes, ibufb->flags);
+  ImBuf *clonebuf = IMB_allocImBuf(w, h, ibufb->flags);
+  clonebuf->color_mode = ibufb->color_mode;
 
   IMB_rectclip(clonebuf, ibuf, &destx, &desty, &srcx, &srcy, &w, &h);
   IMB_rectblend(clonebuf,
@@ -1250,7 +1240,7 @@ static void paint_2d_do_making_brush(ImagePaintState *s,
                                      int tileh)
 {
   ImBuf tmpbuf;
-  IMB_initImBuf(&tmpbuf, ED_IMAGE_UNDO_TILE_SIZE, ED_IMAGE_UNDO_TILE_SIZE, 32, 0);
+  IMB_initImBuf(&tmpbuf, ED_IMAGE_UNDO_TILE_SIZE, ED_IMAGE_UNDO_TILE_SIZE, ImBufFlags::Zero);
 
   PaintTileMap *undo_tiles = ED_image_paint_tile_map_get();
 
@@ -1588,7 +1578,7 @@ void paint_2d_stroke(void *ps,
 
     ImBuf *ibuf = tile->canvas;
 
-    const bool is_data = ibuf->colormanage_flag & IMB_COLORMANAGE_IS_DATA;
+    const bool is_data = ibuf->colorspace_is_data();
     const bool is_float = (ibuf->float_data() != nullptr);
     const ColorSpace *byte_colorspace = (is_float || is_data) ? nullptr :
                                                                 ibuf->byte_buffer.colorspace;

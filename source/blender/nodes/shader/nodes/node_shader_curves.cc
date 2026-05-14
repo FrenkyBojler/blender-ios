@@ -114,6 +114,13 @@ class CurveVecFunction : public mf::MultiFunction {
       }
     });
   }
+
+  void hash_unique(UniqueHashBytes &hash) const override
+  {
+    static constexpr int8_t id = 0;
+    hash.add(&id);
+    hash.add(&cumap_);
+  }
 };
 
 static void sh_node_curve_vec_build_multi_function(NodeMultiFunctionBuilder &builder)
@@ -141,7 +148,7 @@ void register_node_type_sh_curve_vec()
 
   static bke::bNodeType ntype;
 
-  common_node_type_base(&ntype, "ShaderNodeVectorCurve", SH_NODE_CURVE_VEC);
+  common_node_type_base(&ntype, "ShaderNodeVectorCurve"_ustr, SH_NODE_CURVE_VEC);
   ntype.ui_name = "Vector Curves";
   ntype.ui_description = "Map input vector components with curves";
   ntype.enum_name_legacy = "CURVE_VEC";
@@ -283,6 +290,13 @@ class CurveRGBFunction : public mf::MultiFunction {
       col_out[i].a = 1.0f;
     });
   }
+
+  void hash_unique(UniqueHashBytes &hash) const override
+  {
+    static constexpr int8_t id = 0;
+    hash.add(&id);
+    hash.add(&cumap_);
+  }
 };
 
 static void sh_node_curve_rgb_build_multi_function(NodeMultiFunctionBuilder &builder)
@@ -310,7 +324,7 @@ void register_node_type_sh_curve_rgb()
 
   static bke::bNodeType ntype;
 
-  common_node_type_base(&ntype, "ShaderNodeRGBCurve", SH_NODE_CURVE_RGB);
+  common_node_type_base(&ntype, "ShaderNodeRGBCurve"_ustr, SH_NODE_CURVE_RGB);
   ntype.ui_name = "RGB Curves";
   ntype.ui_description = "Apply color corrections for each color channel";
   ntype.enum_name_legacy = "CURVE_RGB";
@@ -422,6 +436,13 @@ class CurveFloatFunction : public mf::MultiFunction {
       }
     });
   }
+
+  void hash_unique(UniqueHashBytes &hash) const override
+  {
+    static constexpr int8_t id = 0;
+    hash.add(&id);
+    hash.add(&cumap_);
+  }
 };
 
 static void sh_node_curve_float_build_multi_function(NodeMultiFunctionBuilder &builder)
@@ -449,7 +470,7 @@ void register_node_type_sh_curve_float()
 
   static bke::bNodeType ntype;
 
-  common_node_type_base(&ntype, "ShaderNodeFloatCurve", SH_NODE_CURVE_FLOAT);
+  common_node_type_base(&ntype, "ShaderNodeFloatCurve"_ustr, SH_NODE_CURVE_FLOAT);
   ntype.ui_name = "Float Curve";
   ntype.ui_description = "Map an input float to a curve and outputs a float value";
   ntype.enum_name_legacy = "CURVE_FLOAT";

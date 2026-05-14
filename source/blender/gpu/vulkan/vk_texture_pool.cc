@@ -297,18 +297,15 @@ void VKTexturePool::AllocationHandle::alloc(VkMemoryRequirements requirements)
 
 void VKTexturePool::AllocationHandle::free()
 {
-  VKDevice &device = VKBackend::get().device;
-  /* TODO(not_mark): allocation needs to go to discard pool, but for that it needs to be tracked.
-   * This is only OK right now because `max_unused_cycles_` is sufficiently large. */
-  vmaFreeMemory(device.mem_allocator_get(), allocation);
+  VKDiscardPool &discard_pool = VKDiscardPool::discard_pool_get();
+  discard_pool.discard_allocation(allocation);
   segments = {};
 }
 
 VKTexturePool::VKTexturePool()
 {
-  /* For unknown reasons, VKImageCache causes sporadic crashes on some AMD cards on Mesa,
-   * which is not always reproducible (#154768, #155202). As Mesa has fast VkImage handle
-   * creation, it is simply not instantiated there. */
+  /* VKImageCache causes sporadic crashes on many RDNA2 Mesa configs (dGPU, iGPU; #154768,
+   * #155202). As Mesa has fast VkImage handle creation, it is simply not instantiated there. */
   if (!GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_UNIX, GPU_DRIVER_OPENSOURCE)) {
     image_cache_ = VKImageCache();
   }
@@ -363,9 +360,7 @@ Texture *VKTexturePool::acquire_texture(int2 extent,
                VK_IMAGE_CREATE_ALIAS_BIT,
       .imageType = VK_IMAGE_TYPE_2D,
       .format = to_vk_format(format),
-      .extent = {.width = static_cast<uint32_t>(extent.x),
-                 .height = static_cast<uint32_t>(extent.y),
-                 .depth = 1},
+      .extent = {.width = uint32_t(extent.x), .height = uint32_t(extent.y), .depth = 1},
       .mipLevels = 1,
       .arrayLayers = 1,
       .samples = VK_SAMPLE_COUNT_1_BIT,
@@ -392,10 +387,11 @@ Texture *VKTexturePool::acquire_texture(int2 extent,
 
   /* If no compatible region was found, allocate new memory. */
   if (image_info.allocation == VK_NULL_HANDLE) {
-    requirements.size = std::max(allocation_size, requirements.size);
+    VkMemoryRequirements allocation_requirements = requirements;
+    allocation_requirements.size = std::max(allocation_size, requirements.size);
 
     AllocationHandle handle;
-    handle.alloc(requirements);
+    handle.alloc(allocation_requirements);
 
     std::optional<VKMemorySegment> segment_opt = handle.acquire(requirements);
     if (segment_opt) {
@@ -542,8 +538,8 @@ void VKTexturePool::log_usage_data()
   for (const AllocationHandle &handle : allocations_) {
     total_allocation_size += handle.allocation_info.size;
   }
-  float ratio = static_cast<float>(current_usage_data_.acquired_segment_size_max) /
-                static_cast<float>(total_allocation_size);
+  float ratio = float(current_usage_data_.acquired_segment_size_max) /
+                float(total_allocation_size);
 
   std::string log_message = fmt::format("VKTexturePool uses {}/{} mb ({:.1f}%% of {} allocations)",
                                         current_usage_data_.acquired_segment_size_max >> 20,

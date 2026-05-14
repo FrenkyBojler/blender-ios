@@ -25,7 +25,7 @@ FRAGMENT_SHADER_CREATE_INFO(eevee_surf_shadow_atomic)
 
 #include "eevee_nodetree_frag_lib.glsl"
 #include "eevee_sampling_lib.glsl"
-#include "eevee_shadow_tilemap_lib.glsl"
+#include "eevee_shadow_tilemap_lib.bsl.hh"
 #include "eevee_surf_lib.glsl"
 
 float4 closure_to_rgba(Closure /*cl*/)
@@ -102,7 +102,12 @@ void main()
    * This is equivalent of calling `next_after`, but without the safety. */
   u_depth += 2;
 
-  imageAtomicMin(shadow_atlas_img, out_texel, u_depth);
+  if (uniform_buf.shadow.use_debug_cost) {
+    imageAtomicAdd(shadow_atlas_img, out_texel, 1u);
+  }
+  else {
+    imageAtomicMin(shadow_atlas_img, out_texel, u_depth);
+  }
 #endif
 
 #ifdef SHADOW_UPDATE_TBDR

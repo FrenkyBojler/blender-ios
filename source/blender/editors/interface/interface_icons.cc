@@ -58,11 +58,9 @@
 
 #include <fmt/format.h>
 
-namespace blender {
+namespace blender::ui {
 
 static CLG_LogRef LOG = {"ui.icon"};
-
-namespace ui {
 
 struct IconImage {
   int w;
@@ -907,7 +905,7 @@ static void icon_verify_datatoc(IconImage *iimg)
 
   if (iimg->datatoc_rect) {
     ImBuf *bbuf = IMB_load_image_from_memory(
-        iimg->datatoc_rect, iimg->datatoc_size, IB_byte_data, "<matcap icon>");
+        iimg->datatoc_rect, iimg->datatoc_size, ImBufFlags::ByteData, "<matcap icon>");
     /* w and h were set on initialize */
     if (bbuf->x != iimg->h && bbuf->y != iimg->w) {
       IMB_scale(bbuf, iimg->w, iimg->h, IMBScaleFilter::Box, false);
@@ -1365,7 +1363,7 @@ PreviewImage *icon_to_preview(int icon_id)
 
     bbuf = IMB_load_image_from_memory(di->data.buffer.image->datatoc_rect,
                                       di->data.buffer.image->datatoc_size,
-                                      IB_byte_data,
+                                      ImBufFlags::ByteData,
                                       __func__);
     if (bbuf) {
       PreviewImage *prv = BKE_previewimg_create();
@@ -2212,6 +2210,9 @@ int icon_from_object_type(const Object *object)
       }
     case OB_GREASE_PENCIL:
       return ICON_OUTLINER_OB_GREASEPENCIL;
+    case OB_GPENCIL_LEGACY:
+    case OB_TYPE_MAX:
+      break;
   }
   return ICON_NONE;
 }
@@ -2221,7 +2222,7 @@ int icon_color_from_collection(const Collection *collection)
   int icon = ICON_OUTLINER_COLLECTION;
 
   if (collection->color_tag != COLLECTION_COLOR_NONE) {
-    icon = ICON_COLLECTION_COLOR_01 + collection->color_tag;
+    icon = ICON_COLLECTION_COLOR_01 + int(collection->color_tag);
   }
 
   return icon;
@@ -2358,5 +2359,4 @@ ImBuf *icon_alert_imbuf_get(AlertIcon icon, float size)
 #endif
 }
 
-}  // namespace ui
-}  // namespace blender
+}  // namespace blender::ui

@@ -54,7 +54,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  params.set_output("Has Alpha"_ustr, ELEM(ibuf->planes, 32, 16));
+  params.set_output("Has Alpha"_ustr, ibuf->can_contain_alpha());
   params.set_output("Width"_ustr, ibuf->x);
   params.set_output("Height"_ustr, ibuf->y);
 
@@ -77,7 +77,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeImageInfo", GEO_NODE_IMAGE_INFO);
+  geo_node_type_base(&ntype, "GeometryNodeImageInfo"_ustr, GEO_NODE_IMAGE_INFO);
   ntype.ui_name = "Image Info";
   ntype.ui_description = "Retrieve information about an image";
   ntype.enum_name_legacy = "IMAGE_INFO";
