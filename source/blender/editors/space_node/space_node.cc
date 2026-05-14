@@ -508,6 +508,21 @@ static const ComputeContext *get_node_editor_root_compute_context(
     }
     return nullptr;
   }
+  if (snode.nodetree->type == NTREE_COMPOSIT) {
+    switch (SpaceNodeCompositorNodesType(snode.node_tree_sub_type)) {
+      case SNODE_COMPOSITOR_SCENE: {
+        const Scene *scene = reinterpret_cast<Scene *>(snode.id);
+        if (!scene) {
+          return nullptr;
+        }
+        return &compute_context_cache.for_data_block(nullptr, scene->id);
+      }
+      case SNODE_COMPOSITOR_SEQUENCER: {
+        return nullptr;
+      }
+    }
+    return nullptr;
+  }
   if (snode.nodetree->type == NTREE_SHADER) {
     return &compute_context_cache.for_shader(nullptr, snode.nodetree);
   }
@@ -520,7 +535,7 @@ static const ComputeContext *get_node_editor_root_compute_context(
   if (!snode.edittree) {
     return nullptr;
   }
-  if (!ELEM(snode.edittree->type, NTREE_GEOMETRY, NTREE_SHADER)) {
+  if (!ELEM(snode.edittree->type, NTREE_GEOMETRY, NTREE_SHADER, NTREE_COMPOSIT)) {
     return nullptr;
   }
   const ComputeContext *root_context = get_node_editor_root_compute_context(snode,
@@ -1360,15 +1375,6 @@ static int /*eContextResult*/ node_context(const bContext *C,
       bNode *node = bke::node_get_active(*snode->edittree);
       PointerRNA ptr = RNA_pointer_create_id_subdata(snode->edittree->id, RNA_Node, node);
       CTX_data_pointer_set_ptr(result, &ptr);
-    }
-
-    CTX_data_type_set(result, ContextDataType::Pointer);
-    return CTX_RESULT_OK;
-  }
-  if (CTX_data_equals(member, "node_previews")) {
-    if (snode->nodetree) {
-      CTX_data_pointer_set(
-          result, &snode->nodetree->id, RNA_NodeInstanceHash, &snode->nodetree->runtime->previews);
     }
 
     CTX_data_type_set(result, ContextDataType::Pointer);
