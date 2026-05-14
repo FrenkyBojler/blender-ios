@@ -4297,12 +4297,12 @@ void IMAGE_OT_clear_render_border(wmOperatorType *ot)
 static bool do_fill_tile(PointerRNA *ptr, Image *ima, ImageTile *tile)
 {
   RNA_float_get_array(ptr, "color", tile->gen_color);
-  tile->gen_type = RNA_enum_get(ptr, "generated_type");
+  tile->gen_type = eImageGenType(RNA_enum_get(ptr, "generated_type"));
   tile->gen_x = RNA_int_get(ptr, "width");
   tile->gen_y = RNA_int_get(ptr, "height");
   bool is_float = RNA_boolean_get(ptr, "float");
 
-  tile->gen_flag = is_float ? IMA_GEN_FLOAT : 0;
+  tile->gen_flag = is_float ? IMA_GEN_FLOAT : eImage_GenFlag{};
   tile->gen_depth = RNA_boolean_get(ptr, "alpha") ? 32 : 24;
 
   return BKE_image_fill_tile(ima, tile);
@@ -4343,7 +4343,7 @@ static void tile_fill_init(PointerRNA *ptr, Image *ima, ImageTile *tile)
     RNA_int_set(ptr, "width", ibuf->x);
     RNA_int_set(ptr, "height", ibuf->y);
     RNA_boolean_set(ptr, "float", ibuf->float_data() != nullptr);
-    RNA_boolean_set(ptr, "alpha", ibuf->planes > 24);
+    RNA_boolean_set(ptr, "alpha", ibuf->can_contain_alpha());
 
     BKE_image_release_ibuf(ima, ibuf, nullptr);
   }
