@@ -105,7 +105,7 @@ void FileOutput::add_view(const char *view_name, const Result &data)
         .sharing_info = data.sharing_info(),
         .colorspace = nullptr};
   }
-  else {
+  else if (data.cpu_data().data() != render_view->ibuf->float_data()) {
     IMB_alloc_float_pixels(render_view->ibuf, data.channels_count(), false);
     std::memcpy(
         render_view->ibuf->float_data_for_write(), data.cpu_data().data(), data.size_in_bytes());
@@ -147,7 +147,7 @@ void FileOutput::add_pass(const char *pass_name,
         .sharing_info = data.sharing_info(),
         .colorspace = nullptr};
   }
-  else {
+  else if (data.cpu_data().data() != render_pass->ibuf->float_data()) {
     IMB_alloc_float_pixels(render_pass->ibuf, data.channels_count(), false);
     std::memcpy(
         render_pass->ibuf->float_data_for_write(), data.cpu_data().data(), data.size_in_bytes());

@@ -202,10 +202,10 @@ class Context : public compositor::Context {
         else {
           float *data = MEM_new_array_uninitialized<float>(
               4 * size_t(render_result->rectx) * size_t(render_result->recty), __func__);
-          image_buffer->assign_float_data(data);
           std::memcpy(image_buffer->float_data_for_write(),
                       result.cpu_data().data(),
                       render_result->rectx * render_result->recty * 4 * sizeof(float));
+          image_buffer->assign_float_data(data);
         }
       }
     }
@@ -300,7 +300,7 @@ class Context : public compositor::Context {
             .sharing_info = viewer_result.sharing_info(),
             .colorspace = nullptr};
       }
-      else {
+      else if (viewer_result.cpu_data().data() != image_buffer->float_data()) {
         IMB_alloc_float_pixels(image_buffer, 4, false);
         std::memcpy(image_buffer->float_data_for_write(),
                     viewer_result.cpu_data().data(),

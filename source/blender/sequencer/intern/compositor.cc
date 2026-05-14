@@ -155,7 +155,7 @@ void CompositorContext::write_output(const compositor::Result &result, ImBuf &im
         .sharing_info = result.sharing_info(),
         .colorspace = nullptr};
   }
-  else {
+  else if (result.cpu_data().data() != image.float_data()) {
     IMB_alloc_float_pixels(&image, 4, false);
     std::memcpy(image.float_data_for_write(),
                 result.cpu_data().data(),
