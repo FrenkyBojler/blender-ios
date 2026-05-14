@@ -9,7 +9,7 @@ from random import seed
 import bpy
 
 BASE_DIR = os.path.dirname(os.path.realpath(__file__))
-sys.path.append(os.path.join(BASE_DIR, "..", ".."))
+sys.path.append(BASE_DIR)
 from modules.mesh_test import RunTest, ModifierSpec, SpecMeshTest
 
 
