@@ -15,8 +15,7 @@
 #include "gpu_shader_utildefines_lib.glsl"
 
 #if !defined(SRT_CONSTANT_light_closure_eval_count)
-#  define SRT_CONSTANT_light_closure_eval_count 1
-#  define SKIP_LIGHT_EVAL
+#  define SRT_CONSTANT_light_closure_eval_count 0
 #endif
 
 #ifdef GLSL_CPP_STUBS
@@ -193,22 +192,20 @@ struct LightEvalData {
 
   void eval_reflection(LightEvalCtx<false> &ctx, float2 pixel, float vPz)
   {
-#ifdef SKIP_LIGHT_EVAL
-    return;
-#endif
-    [[resource_table]] ShadowRenderData &srd = shadow_data;
-    [[resource_table]] LightRenderData &lrd = light_data;
-    foreach_visible(lrd, pixel, vPz, ctx, srd);
+    if (light_closure_eval_count > 0) [[static_branch]] {
+      [[resource_table]] ShadowRenderData &srd = shadow_data;
+      [[resource_table]] LightRenderData &lrd = light_data;
+      foreach_visible(lrd, pixel, vPz, ctx, srd);
+    }
   }
 
   void eval_transmission(LightEvalCtx<true> &ctx, float2 pixel, float vPz)
   {
-#ifdef SKIP_LIGHT_EVAL
-    return;
-#endif
-    [[resource_table]] ShadowRenderData &srd = shadow_data;
-    [[resource_table]] LightRenderData &lrd = light_data;
-    foreach_visible(lrd, pixel, vPz, ctx, srd);
+    if (light_closure_eval_count > 0) [[static_branch]] {
+      [[resource_table]] ShadowRenderData &srd = shadow_data;
+      [[resource_table]] LightRenderData &lrd = light_data;
+      foreach_visible(lrd, pixel, vPz, ctx, srd);
+    }
   }
 };
 
