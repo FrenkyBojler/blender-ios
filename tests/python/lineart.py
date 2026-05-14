@@ -10,7 +10,7 @@ import bpy
 
 BASE_DIR = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(BASE_DIR)
-from modules.mesh_test import RunTest, ModifierSpec, SpecMeshTest
+from modules.mesh_test import RunTest, ModifierSpec, SpecMeshTest, OperatorSpec
 
 
 seed(0)
@@ -33,6 +33,10 @@ def main():
                                        'target_material': bpy.data.objects['testObjLineartBasic'].material_slots[0].material,
                                    },
                                    frame_end=1)]),
+        SpecMeshTest("Line Art Baking", "testObjLineartBaking", "expObjLineartBaking",
+                     [
+                         OperatorSpec('OBJECT', 'object.lineart_bake_strokes', {})
+                    ]),
     ]
 
     modifiers_test = RunTest(tests)
