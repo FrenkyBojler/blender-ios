@@ -225,4 +225,10 @@ TEST(bounds, IntersectSegment2D)
   EXPECT_TRUE(bounds2.intersects_segment(float2(1.0f, -2.0f), float2(-3.0f, 1.0f)));
 }
 
+TEST(bounds, IntersectSegment3D)
+{
+  Bounds<float3> bounds(float3(0.5f, 0.0f, 0.0f), float3(1.5f, 1.0f, 0.75f));
+  EXPECT_TRUE(bounds.intersects_segment(float3(1.0f, 1.0f, -1.0f), float3(1.0f, 1.0f, 1.0f)));
+}
+
 }  // namespace blender::tests
