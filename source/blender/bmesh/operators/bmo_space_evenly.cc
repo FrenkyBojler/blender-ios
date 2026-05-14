@@ -7,6 +7,7 @@
  *
  * Distributes vertices evenly along an edge.
  */
+#include "BLI_binary_search.hh"
 #include "BLI_math_geom.h"
 #include "BLI_math_solvers.h"
 #include "BLI_math_vector.hh"
@@ -289,9 +290,8 @@ static void calculate_splines_axis(Span<float> distances,
 /** Return the index of the spline segment that contains target_distance. */
 static int find_spline_segment(Span<float> knot_distances, float target_distance)
 {
-  auto upper_knot = std::upper_bound(
-      knot_distances.begin(), knot_distances.end(), target_distance);
-  int segment_index = std::distance(knot_distances.begin(), upper_knot) - 1;
+  const int segment_index = binary_search::last_if(
+      knot_distances, [&](const float value) { return value <= target_distance; });
   return std::clamp(segment_index, 0, int(knot_distances.size()) - 2);
 }
 
