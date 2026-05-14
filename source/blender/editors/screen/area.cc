@@ -1643,7 +1643,7 @@ static void region_rect_recursive(
   else if (region->regiontype == RGN_TYPE_FOOTER) {
     prefsizey = ED_area_footersize();
   }
-  else if (region->regiontype == RGN_TYPE_PLAYBACK_SCRUBBING) {
+  else if (region->regiontype == RGN_TYPE_SCRUBBING) {
     prefsizey = 0.9f * ED_area_footersize();
   }
   else if (region->regiontype == RGN_TYPE_ASSET_SHELF) {

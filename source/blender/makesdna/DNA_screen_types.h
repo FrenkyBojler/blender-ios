@@ -699,9 +699,9 @@ enum eRegion_Type : short {
   RGN_TYPE_XR = 13,
   RGN_TYPE_ASSET_SHELF = 14,
   RGN_TYPE_ASSET_SHELF_HEADER = 15,
-  RGN_TYPE_PLAYBACK_SCRUBBING = 16,
+  RGN_TYPE_SCRUBBING = 16,
 
-#define RGN_TYPE_NUM (RGN_TYPE_PLAYBACK_SCRUBBING + 1)
+#define RGN_TYPE_NUM (RGN_TYPE_SCRUBBING + 1)
 };
 
 /** Use for function args. */
@@ -711,7 +711,7 @@ enum eRegion_Type : short {
 #define RGN_TYPE_IS_HEADER_ANY(regiontype) \
   (((1 << (regiontype)) & \
     ((1 << RGN_TYPE_HEADER) | 1 << (RGN_TYPE_TOOL_HEADER) | (1 << RGN_TYPE_FOOTER) | \
-     (1 << RGN_TYPE_ASSET_SHELF_HEADER) | (1 << RGN_TYPE_PLAYBACK_SCRUBBING))) != 0)
+     (1 << RGN_TYPE_ASSET_SHELF_HEADER) | (1 << RGN_TYPE_SCRUBBING))) != 0)
 
 /** #ARegion.alignment */
 enum eRegion_Alignment : short {
