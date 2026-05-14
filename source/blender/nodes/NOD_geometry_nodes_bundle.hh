@@ -251,8 +251,8 @@ template<typename T> inline std::optional<T> BundleItemValue::as() const
     if (!socket_value) {
       return std::nullopt;
     }
-    if (socket_value->value.is_list()) {
-      return socket_value->value.get<GListPtr>();
+    if (socket_value->value.get().is_type<GListPtr>()) {
+      return *socket_value->value.get().get<GListPtr>();
     }
     return std::nullopt;
   }
@@ -347,7 +347,7 @@ template<typename T, typename Fn> inline void to_stored_type(T &&value, Fn &&fn)
     fn(BundleItemValue{BundleItemInternalValue{ImplicitSharingPtr{sharing_info}}});
   }
   else if (const bke::bNodeSocketType *socket_type = socket_type_info_by_static_type<DecayT>()) {
-    auto value_variant = bke::SocketValueVariant::From(std::forward<T>(value));
+    auto value_variant = bke::SocketValueVariant(std::forward<T>(value));
     fn(BundleItemValue{BundleItemSocketValue{socket_type, value_variant}});
   }
   else {

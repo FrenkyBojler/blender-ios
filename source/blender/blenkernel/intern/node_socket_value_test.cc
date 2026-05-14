@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BKE_gtest_base.hh"
-#include "BKE_node_socket_value2.hh"
+#include "BKE_node_socket_value.hh"
 #include "BKE_volume_grid.hh"
 
 #include "FN_field.hh"
@@ -31,7 +31,7 @@ class SocketValueVariantTest : public BlenderGTestBase {};
 
 TEST_F(SocketValueVariantTest, SimpleInt)
 {
-  SocketValueVariant2 s;
+  SocketValueVariant s;
   {
     int &x = s.ensure_type<int>();
     x = 5;
@@ -45,7 +45,7 @@ TEST_F(SocketValueVariantTest, SimpleInt)
 
 TEST_F(SocketValueVariantTest, IntToFloat)
 {
-  SocketValueVariant2 s;
+  SocketValueVariant s;
   {
     float &x = s.ensure_type<float>();
     x = 5.3f;
@@ -62,7 +62,7 @@ TEST_F(SocketValueVariantTest, IntToFloat)
 
 TEST_F(SocketValueVariantTest, IntToIntField)
 {
-  SocketValueVariant2 s;
+  SocketValueVariant s;
   s.ensure_type<int>() = 23;
   const fn::Field<int> &f = s.ensure_type<fn::Field<int>>();
   EXPECT_FALSE(f.depends_on_input());
@@ -71,7 +71,7 @@ TEST_F(SocketValueVariantTest, IntToIntField)
 
 TEST_F(SocketValueVariantTest, IntToFloatField)
 {
-  SocketValueVariant2 s;
+  SocketValueVariant s;
   s.ensure_type<int>() = 23;
   const fn::Field<float> &f = s.ensure_type<fn::Field<float>>();
   EXPECT_FALSE(f.depends_on_input());
@@ -80,7 +80,7 @@ TEST_F(SocketValueVariantTest, IntToFloatField)
 
 TEST_F(SocketValueVariantTest, IntToGField)
 {
-  SocketValueVariant2 s;
+  SocketValueVariant s;
   s.ensure_type<int>() = 23;
   const fn::GField &f = s.ensure_type<fn::GField>();
   EXPECT_FALSE(f.depends_on_input());
@@ -90,7 +90,7 @@ TEST_F(SocketValueVariantTest, IntToGField)
 
 TEST_F(SocketValueVariantTest, ConstantIntFieldToInt)
 {
-  SocketValueVariant2 s;
+  SocketValueVariant s;
   s.ensure_type<fn::Field<int>>() = fn::Field<int>(42);
   const int &v = s.ensure_type<int>();
   EXPECT_EQ(v, 42);
@@ -98,7 +98,7 @@ TEST_F(SocketValueVariantTest, ConstantIntFieldToInt)
 
 TEST_F(SocketValueVariantTest, ConstantIntFieldToFloat)
 {
-  SocketValueVariant2 s;
+  SocketValueVariant s;
   s.ensure_type<fn::Field<int>>() = fn::Field<int>(42);
   const float &v = s.ensure_type<float>();
   EXPECT_EQ(v, 42.0f);
@@ -106,7 +106,7 @@ TEST_F(SocketValueVariantTest, ConstantIntFieldToFloat)
 
 TEST_F(SocketValueVariantTest, ConstIntFieldToFloatField)
 {
-  SocketValueVariant2 s;
+  SocketValueVariant s;
   s.ensure_type<fn::Field<int>>() = fn::Field<int>(42);
   const fn::Field<float> &f = s.ensure_type<fn::Field<float>>();
   EXPECT_FALSE(f.depends_on_input());
@@ -115,7 +115,7 @@ TEST_F(SocketValueVariantTest, ConstIntFieldToFloatField)
 
 TEST_F(SocketValueVariantTest, IndexFieldToFloatField)
 {
-  SocketValueVariant2 s;
+  SocketValueVariant s;
   s.ensure_type<fn::Field<int>>() = fn::IndexFieldInput::get_field();
   const fn::Field<float> &f = s.ensure_type<fn::Field<float>>();
   EXPECT_TRUE(f.depends_on_input());
@@ -135,7 +135,7 @@ TEST_F(SocketValueVariantTest, IndexFieldToFloatField)
 
 TEST_F(SocketValueVariantTest, SimpleList)
 {
-  SocketValueVariant2 s;
+  SocketValueVariant s;
   s.ensure_type<ListPtr<int>>() = List<int>::from_container(Vector<int>{1, 2, 3, 4, 5});
   VArray<int> values = s.ensure_type<ListPtr<int>>()->varray();
   EXPECT_EQ(values.size(), 5);
@@ -148,7 +148,7 @@ TEST_F(SocketValueVariantTest, SimpleList)
 
 TEST_F(SocketValueVariantTest, IntListToFloatList)
 {
-  SocketValueVariant2 s;
+  SocketValueVariant s;
   s.ensure_type<ListPtr<int>>() = List<int>::from_container(Vector<int>{1, 2, 3, 4, 5});
   VArray<float> values = s.ensure_type<ListPtr<float>>()->varray();
   EXPECT_EQ(values.size(), 5);
@@ -161,7 +161,7 @@ TEST_F(SocketValueVariantTest, IntListToFloatList)
 
 TEST_F(SocketValueVariantTest, IntToIntList)
 {
-  SocketValueVariant2 s;
+  SocketValueVariant s;
   s.ensure_type<int>() = 42;
   const ListPtr<int> &list = s.ensure_type<ListPtr<int>>();
   /* Implicit conversion from single value to list is not allowed. */
@@ -170,14 +170,14 @@ TEST_F(SocketValueVariantTest, IntToIntList)
 
 TEST_F(SocketValueVariantTest, SimpleString)
 {
-  SocketValueVariant2 s;
+  SocketValueVariant s;
   s.ensure_type<std::string>() = "Hello World!";
   EXPECT_EQ(s.ensure_type<std::string>(), "Hello World!");
 }
 
 TEST_F(SocketValueVariantTest, SimpleBundle)
 {
-  SocketValueVariant2 s;
+  SocketValueVariant s;
   s.ensure_type<BundlePtr>() = BundlePtr(Bundle::create());
   {
     Bundle &b = s.ensure_type<BundlePtr>().ensure_mutable_inplace();
@@ -195,7 +195,7 @@ TEST_F(SocketValueVariantTest, SimpleBundle)
 
 TEST_F(SocketValueVariantTest, SimpleVolumeGrid)
 {
-  SocketValueVariant2 s;
+  SocketValueVariant s;
   s.ensure_type<GVolumeGrid>() = GVolumeGrid(openvdb::FloatGrid::create());
   const GVolumeGrid &grid = s.ensure_type<GVolumeGrid>();
   EXPECT_EQ(grid->active_tiles(), 0);
@@ -203,7 +203,7 @@ TEST_F(SocketValueVariantTest, SimpleVolumeGrid)
 
 TEST_F(SocketValueVariantTest, SimpleFloatVolumeGrid)
 {
-  SocketValueVariant2 s;
+  SocketValueVariant s;
   s.ensure_type<VolumeGrid<float>>() = VolumeGrid<float>(openvdb::FloatGrid::create());
   const VolumeGrid<float> &grid = s.ensure_type<VolumeGrid<float>>();
   EXPECT_EQ(grid->active_tiles(), 0);
@@ -211,7 +211,7 @@ TEST_F(SocketValueVariantTest, SimpleFloatVolumeGrid)
 
 TEST_F(SocketValueVariantTest, VolumeGridToSingle)
 {
-  SocketValueVariant2 s;
+  SocketValueVariant s;
   s.ensure_type<GVolumeGrid>() = GVolumeGrid(openvdb::FloatGrid::create());
   const int &v = s.ensure_type<int>();
   /* There is no valid conversion, so this is 0 independent of the grid. */
@@ -220,7 +220,7 @@ TEST_F(SocketValueVariantTest, VolumeGridToSingle)
 
 TEST_F(SocketValueVariantTest, SingleToVolumeGrid)
 {
-  SocketValueVariant2 s;
+  SocketValueVariant s;
   s.ensure_type<int>() = 42;
   const GVolumeGrid &grid = s.ensure_type<GVolumeGrid>();
   /* These is no valid conversion from single to volume grid. */
@@ -229,7 +229,7 @@ TEST_F(SocketValueVariantTest, SingleToVolumeGrid)
 
 TEST_F(SocketValueVariantTest, IntVolumeGridToFloatVolumeGrid)
 {
-  SocketValueVariant2 s;
+  SocketValueVariant s;
   {
     std::shared_ptr<openvdb::Int32Grid> int_grid = std::make_shared<openvdb::Int32Grid>();
     int_grid->tree().root().setBackground(42, true);

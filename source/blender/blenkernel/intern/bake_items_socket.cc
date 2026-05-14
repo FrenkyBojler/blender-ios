@@ -86,16 +86,16 @@ static std::unique_ptr<BakeItem> move_common_socket_value_to_bake_item(
 {
   switch (stype.type) {
     case SOCK_GEOMETRY: {
-      GeometrySet geometry = socket_value.extract<GeometrySet>();
+      GeometrySet &geometry = socket_value.ensure_type<GeometrySet>();
       auto item = std::make_unique<GeometryBakeItem>(std::move(geometry));
       r_geometry_bake_items.append(item.get());
       return item;
     }
     case SOCK_STRING: {
-      if (socket_value.is_list()) {
-        return std::make_unique<ListBakeItem>(socket_value.extract<nodes::GListPtr>());
+      if (socket_value.get().is_type<nodes::GListPtr>()) {
+        return std::make_unique<ListBakeItem>(socket_value.ensure_type<nodes::GListPtr>());
       }
-      return std::make_unique<StringBakeItem>(socket_value.extract<std::string>());
+      return std::make_unique<StringBakeItem>(socket_value.ensure_type<std::string>());
     }
     case SOCK_FLOAT:
     case SOCK_VECTOR:
@@ -108,12 +108,12 @@ static std::unique_ptr<BakeItem> move_common_socket_value_to_bake_item(
         /* Not supported here because it's not known which geometry this field belongs to. */
         return {};
       }
-      if (socket_value.is_list()) {
-        return std::make_unique<ListBakeItem>(socket_value.extract<nodes::GListPtr>());
+      if (socket_value.get().is_type<nodes::GListPtr>()) {
+        return std::make_unique<ListBakeItem>(socket_value.ensure_type<nodes::GListPtr>());
       }
 #ifdef WITH_OPENVDB
-      if (socket_value.is_volume_grid()) {
-        bke::GVolumeGrid grid = socket_value.get<bke::GVolumeGrid>();
+      if (socket_value.get().is_type<bke::GVolumeGrid>()) {
+        bke::GVolumeGrid &grid = socket_value.ensure_type<bke::GVolumeGrid>();
         if (name) {
           grid.get_for_write().set_name(*name);
         }
@@ -125,12 +125,12 @@ static std::unique_ptr<BakeItem> move_common_socket_value_to_bake_item(
 #endif
 
       socket_value.convert_to_single();
-      GPointer value = socket_value.get_single_ptr();
+      GPointer value = socket_value.get();
       return std::make_unique<PrimitiveBakeItem>(*value.type(), value.get());
     }
     case SOCK_BUNDLE: {
-      if (socket_value.is_list()) {
-        const nodes::GListPtr list = socket_value.extract<nodes::GListPtr>();
+      if (socket_value.get().is_type<nodes::GListPtr>()) {
+        const nodes::GListPtr list = socket_value.ensure_type<nodes::GListPtr>());
         Vector<BundleBakeItem> bake_item_list(list->size());
         const VArray<nodes::BundlePtr> bundle_varray = list->typed<nodes::BundlePtr>().varray();
         for (const int i : bake_item_list.index_range()) {
@@ -143,7 +143,7 @@ static std::unique_ptr<BakeItem> move_common_socket_value_to_bake_item(
         return std::make_unique<ListBakeItem>(std::move(bake_item_list));
       }
 
-      nodes::BundlePtr bundle_ptr = socket_value.extract<nodes::BundlePtr>();
+      nodes::BundlePtr &bundle_ptr = socket_value.ensure_type<nodes::BundlePtr>();
       auto bundle_bake_item = std::make_unique<BundleBakeItem>();
       if (bundle_ptr) {
         move_bundle_socket_value_to_bake_item(
@@ -174,7 +174,7 @@ Array<std::unique_ptr<BakeItem>> move_socket_values_to_bake_items(
     if (socket_type != SOCK_GEOMETRY) {
       continue;
     }
-    GeometrySet geometry = socket_values[i].extract<GeometrySet>();
+    GeometrySet &geometry = socket_values[i].ensure_type<GeometrySet>();
     auto geometry_item = std::make_unique<GeometryBakeItem>(std::move(geometry));
     geometry_bake_items.append(geometry_item.get());
     bake_items[i] = std::move(geometry_item);
@@ -304,7 +304,7 @@ static bool copy_bundle_bake_item_to_socket_value(const BundleBakeItem &bundle_b
       if (const auto *item = dynamic_cast<const GeometryBakeItem *>(&bake_item)) {
         bke::GeometrySet geometry = item->geometry;
         GeometryBakeItem::try_restore_data_blocks(geometry, data_block_map);
-        return SocketValueVariant::From(std::move(geometry));
+        return bke::SocketValueVariant(std::move(geometry));
       }
       return std::nullopt;
     }
