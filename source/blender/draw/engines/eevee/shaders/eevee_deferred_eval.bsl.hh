@@ -68,8 +68,6 @@ struct LightEval {
   [[specialization_constant(1)]] int shadow_ray_count;
   [[specialization_constant(6)]] int shadow_ray_step_count;
 
-  [[compilation_constant]] int light_closure_eval_count;
-
   /* Chaining to next pass. */
   [[image(2, write, DEFERRED_RADIANCE_FORMAT)]] uimage2D direct_radiance_1_img;
   [[image(3, write, DEFERRED_RADIANCE_FORMAT)]] uimage2D direct_radiance_2_img;
@@ -135,12 +133,10 @@ void light_eval_frag([[resource_table]] LightEval &srt,
 
   light::LightEvalCtx<false> ctx;
   /* Unroll light stack array assignments to avoid non-constant indexing. */
-  light::closure_set(ctx.stack, 0, closure_light_new(gbuf.layer[0], V));
-  if (srt.light_closure_eval_count > 1) [[static_branch]] {
-    light::closure_set(ctx.stack, 1, closure_light_new(gbuf.layer[1], V));
-  }
-  if (srt.light_closure_eval_count > 2) [[static_branch]] {
-    light::closure_set(ctx.stack, 2, closure_light_new(gbuf.layer[2], V));
+  for (uint i = 0u; i < 3; i++) [[unroll]] {
+    if (lrd.light_closure_eval_count > i) [[static_branch]] {
+      light::closure_set(ctx.stack, uchar(i), closure_light_new(gbuf.layer[i], V));
+    }
   }
 
   ctx.P = P;
@@ -189,9 +185,13 @@ void light_eval_frag([[resource_table]] LightEval &srt,
   if (srt.render_pass_shadow_id != -1) {
     float3 radiance_shadowed = float3(0);
     float3 radiance_unshadowed = float3(0);
-    for (uchar i = 0; i < srt.light_closure_eval_count && i < closure_count; i++) {
-      radiance_shadowed += light::closure_get(ctx.stack, i).light_shadowed;
-      radiance_unshadowed += light::closure_get(ctx.stack, i).light_unshadowed;
+    for (uint i = 0u; i < 3; i++) [[unroll]] {
+      if (lrd.light_closure_eval_count > i) [[static_branch]] {
+        if (i < closure_count) {
+          radiance_shadowed += light::closure_get(ctx.stack, i).light_shadowed;
+          radiance_unshadowed += light::closure_get(ctx.stack, i).light_unshadowed;
+        }
+      }
     }
     float3 shadows = radiance_shadowed * safe_rcp(radiance_unshadowed);
     output_renderpass_value(srt.render_pass_shadow_id, average(shadows));
@@ -205,23 +205,33 @@ void light_eval_frag([[resource_table]] LightEval &srt,
                                                                clamp_indirect);
 
     uint3 bin_indices = gbuf.header.bin_index_per_layer();
-    for (uchar i = 0; i < srt.light_closure_eval_count && i < closure_count; i++) {
-      float3 indirect_light = lightprobe_eval(samp, gbuf.layer[i], P, V, thickness);
-      float3 direct_light = light::closure_get(ctx.stack, i).light_shadowed;
-      if (srt.use_split_indirect) {
-        srt.write_radiance_indirect(bin_indices[i], texel, indirect_light);
-        srt.write_radiance_direct(bin_indices[i], texel, direct_light);
-      }
-      else {
-        srt.write_radiance_direct(bin_indices[i], texel, direct_light + indirect_light);
+
+    for (uint i = 0u; i < 3; i++) [[unroll]] {
+      if (lrd.light_closure_eval_count > i) [[static_branch]] {
+        if (i < closure_count) {
+          float3 indirect_light = lightprobe_eval(samp, gbuf.layer[i], P, V, thickness);
+          float3 direct_light = light::closure_get(ctx.stack, i).light_shadowed;
+          if (srt.use_split_indirect) {
+            srt.write_radiance_indirect(bin_indices[i], texel, indirect_light);
+            srt.write_radiance_direct(bin_indices[i], texel, direct_light);
+          }
+          else {
+            srt.write_radiance_direct(bin_indices[i], texel, direct_light + indirect_light);
+          }
+        }
       }
     }
   }
   else {
     uint3 bin_indices = gbuf.header.bin_index_per_layer();
-    for (uchar i = 0; i < srt.light_closure_eval_count && i < closure_count; i++) {
-      float3 direct_light = light::closure_get(ctx.stack, i).light_shadowed;
-      srt.write_radiance_direct(bin_indices[i], texel, direct_light);
+
+    for (uint i = 0u; i < 3; i++) [[unroll]] {
+      if (lrd.light_closure_eval_count > i) [[static_branch]] {
+        if (i < closure_count) {
+          float3 direct_light = light::closure_get(ctx.stack, i).light_shadowed;
+          srt.write_radiance_direct(bin_indices[i], texel, direct_light);
+        }
+      }
     }
   }
 }
@@ -233,8 +243,6 @@ void light_eval_frag([[resource_table]] LightEval &srt,
  * \{ */
 
 struct SphereProbeEval {
-  [[compilation_constant]] int light_closure_eval_count;
-
   [[legacy_info]] ShaderCreateInfo draw_view;
   [[legacy_info]] ShaderCreateInfo draw_object_infos;
   [[legacy_info]] ShaderCreateInfo eevee_gbuffer_data;
@@ -344,7 +352,6 @@ void sphere_eval_frag([[resource_table]] SphereProbeEval & /*srt*/,
 struct PlanarProbeEval {
   /* TODO(fclem): Workaround waiting for this lib to be ported to BSL.  */
   [[compilation_constant]] bool legacy_sphere_probe_enable;
-  [[compilation_constant]] int light_closure_eval_count;
 
   [[legacy_info]] ShaderCreateInfo draw_view;
   [[legacy_info]] ShaderCreateInfo draw_object_infos;
@@ -498,28 +505,30 @@ void planar_eval_frag([[resource_table]] PlanarProbeEval & /*srt*/,
 
 PipelineGraphic light_single(fullscreen_vert,
                              light_eval_frag,
-                             LightEval{
+                             light::LightEvalData{
                                  .light_closure_eval_count = 1,
                              });
 PipelineGraphic light_double(fullscreen_vert,
                              light_eval_frag,
-                             LightEval{
+                             light::LightEvalData{
                                  .light_closure_eval_count = 2,
                              });
 PipelineGraphic light_triple(fullscreen_vert,
                              light_eval_frag,
-                             LightEval{
+                             light::LightEvalData{
                                  .light_closure_eval_count = 3,
                              });
 PipelineGraphic sphere_eval(fullscreen_vert,
                             sphere_eval_frag,
-                            SphereProbeEval{
+                            light::LightEvalData{
                                 .light_closure_eval_count = 1,
                             });
 PipelineGraphic planar_eval(fullscreen_vert,
                             planar_eval_frag,
                             PlanarProbeEval{
                                 .legacy_sphere_probe_enable = true,
+                            },
+                            light::LightEvalData{
                                 .light_closure_eval_count = 2,
                             });
 

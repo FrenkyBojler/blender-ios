@@ -29,7 +29,8 @@
 #endif
 
 #ifndef GLSL_CPP_STUBS
-#  if CLOSURE_BIN_COUNT != SRT_CONSTANT_light_closure_eval_count
+#  if CLOSURE_BIN_COUNT != SRT_CONSTANT_light_closure_eval_count && \
+      SRT_CONSTANT_light_closure_eval_count != 0
 #    error Closure data count and eval count must match
 #  endif
 #endif
@@ -47,9 +48,11 @@ void forward_lighting_eval(Thickness thickness,
   float3 V = drw_world_incident_vector(g_data.P);
 
   light::LightEvalCtx<false> ctx;
-  for (int i = 0; i < SRT_CONSTANT_light_closure_eval_count; i++) {
-    ClosureUndetermined cl = g_closure_get(uchar(i));
-    light::closure_set(ctx.stack, uchar(i), closure_light_new(cl, V));
+  for (uint i = 0u; i < 3; i++) [[unroll]] {
+    if (lights.light_closure_eval_count > i) [[static_branch]] {
+      ClosureUndetermined cl = g_closure_get(uchar(i));
+      light::closure_set(ctx.stack, uchar(i), closure_light_new(cl, V));
+    }
   }
 
   ctx.P = g_data.P;
@@ -110,9 +113,11 @@ void forward_lighting_eval(Thickness thickness,
   float3 average_N = g_data.Ng * 0.001f;
   {
     /* Get average normal.  */
-    for (uchar i = 0; i < SRT_CONSTANT_light_closure_eval_count; i++) {
-      ClosureUndetermined cl = g_closure_get(i);
-      average_N += cl.N * cl.weight;
+    for (uint i = 0u; i < 3; i++) [[unroll]] {
+      if (lights.light_closure_eval_count > i) [[static_branch]] {
+        ClosureUndetermined cl = g_closure_get(uchar(i));
+        average_N += cl.N * cl.weight;
+      }
     }
     average_N = safe_normalize(average_N);
 
@@ -143,30 +148,33 @@ void forward_lighting_eval(Thickness thickness,
   /* Combine all radiance. */
   float3 radiance_direct = float3(0.0f);
   float3 radiance_indirect = float3(0.0f);
-  for (uchar i = 0; i < SRT_CONSTANT_light_closure_eval_count; i++) {
-    ClosureUndetermined cl = g_closure_get_resolved(i, 1.0f);
-    if (cl.weight > CLOSURE_WEIGHT_CUTOFF) {
-      float3 direct_light = light::closure_get(ctx.stack, i).light_shadowed;
-      float3 indirect_light = lightprobe_eval(samp, cl, g_data.P, V, thickness);
+
+  for (uint i = 0u; i < 3; i++) [[unroll]] {
+    if (lights.light_closure_eval_count > i) [[static_branch]] {
+      ClosureUndetermined cl = g_closure_get_resolved(uchar(i), 1.0f);
+      if (cl.weight > CLOSURE_WEIGHT_CUTOFF) {
+        float3 direct_light = light::closure_get(ctx.stack, i).light_shadowed;
+        float3 indirect_light = lightprobe_eval(samp, cl, g_data.P, V, thickness);
 
 #ifdef MAT_REFLECTION
-      if (cl.type == CLOSURE_BSDF_MICROFACET_GGX_REFLECTION_ID) {
-        const float blend = saturate(to_closure_reflection(cl).roughness * -10.0f + 1.0f) *
-                            saturate(dot(average_N, cl.N) * 100.0f - 99.0f);
-        indirect_light = mix(indirect_light, planar_probe_radiance, blend);
-      }
+        if (cl.type == CLOSURE_BSDF_MICROFACET_GGX_REFLECTION_ID) {
+          const float blend = saturate(to_closure_reflection(cl).roughness * -10.0f + 1.0f) *
+                              saturate(dot(average_N, cl.N) * 100.0f - 99.0f);
+          indirect_light = mix(indirect_light, planar_probe_radiance, blend);
+        }
 #endif
 
-      if ((cl.type == CLOSURE_BSDF_TRANSLUCENT_ID ||
-           cl.type == CLOSURE_BSDF_MICROFACET_GGX_REFRACTION_ID) &&
-          (thickness.value() != 0.0f))
-      {
-        /* We model two transmission event, so the surface color need to be applied twice. */
-        cl.color *= cl.color;
-      }
+        if ((cl.type == CLOSURE_BSDF_TRANSLUCENT_ID ||
+             cl.type == CLOSURE_BSDF_MICROFACET_GGX_REFRACTION_ID) &&
+            (thickness.value() != 0.0f))
+        {
+          /* We model two transmission event, so the surface color need to be applied twice. */
+          cl.color *= cl.color;
+        }
 
-      radiance_direct += direct_light * cl.color;
-      radiance_indirect += indirect_light * cl.color;
+        radiance_direct += direct_light * cl.color;
+        radiance_indirect += indirect_light * cl.color;
+      }
     }
   }
   /* Light clamping. */

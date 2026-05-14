@@ -30,7 +30,6 @@ struct EvalLight {
   [[legacy_info]] ShaderCreateInfo eevee_utility_texture;
   [[legacy_info]] ShaderCreateInfo eevee_surfel_common;
 
-  [[compilation_constant]] int light_closure_eval_count;
   /* WORKAROUND: Disables culling in lighting evaluation function. */
   [[compilation_constant]] bool light_iter_force_no_culling;
 };
@@ -90,5 +89,7 @@ void eval_light([[resource_table]] EvalLight & /*srt*/,
 }  // namespace eevee::surfel
 
 PipelineCompute eevee_surfel_light(eevee::surfel::eval_light,
-                                   eevee::surfel::EvalLight{.light_closure_eval_count = 1,
-                                                            .light_iter_force_no_culling = true});
+                                   eevee::surfel::EvalLight{.light_iter_force_no_culling = true},
+                                   eevee::light::LightEvalData{
+                                       .light_closure_eval_count = 1,
+                                   });

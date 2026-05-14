@@ -19,15 +19,19 @@
 #  define SKIP_LIGHT_EVAL
 #endif
 
+#ifdef GLSL_CPP_STUBS
+#  define LIGHT_STACK_SIZE 3
+#elif SRT_CONSTANT_light_closure_eval_count == 0
+#  define LIGHT_STACK_SIZE 1 /* Avoid compilation error. */
+#else
+#  define LIGHT_STACK_SIZE SRT_CONSTANT_light_closure_eval_count
+#endif
+
 namespace eevee::light {
 
 struct ClosureStack {
-#ifdef GLSL_CPP_STUBS
-  ClosureLight cl[3];
-#else
   /* NOTE: This is wrapped into a struct to avoid array shenanigans on MSL. */
-  ClosureLight cl[SRT_CONSTANT_light_closure_eval_count];
-#endif
+  ClosureLight cl[LIGHT_STACK_SIZE];
 };
 
 ClosureLight closure_get(ClosureStack stack, uchar index)
@@ -220,6 +224,8 @@ LightEvalCtx<true> init_from_reflect_ctx(LightEvalCtx<false> ctx)
 struct LightEvalData {
   [[resource_table]] srt_t<ShadowRenderData> shadow_data;
   [[resource_table]] srt_t<LightRenderData> light_data;
+
+  [[compilation_constant]] int light_closure_eval_count;
 
   void eval_reflection(LightEvalCtx<false> &ctx, float2 pixel, float vPz)
   {
