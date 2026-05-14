@@ -40,7 +40,7 @@ void IMB_exr_add_channels(ExrHandle *handle,
                           StringRefNull colorspace,
                           size_t xstride,
                           size_t ystride,
-                          float *rect,
+                          const float *rect,
                           bool use_half_float);
 
 /**
