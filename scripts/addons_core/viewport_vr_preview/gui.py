@@ -330,6 +330,9 @@ class VIEW3D_PT_vr_viewport_feedback(VRButtonsPanel, Panel):
 
 # Info.
 class VIEW3D_PT_vr_info(VRButtonsPanel, Panel):
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category = "VR"
     bl_label = "VR Info"
 
     @classmethod
@@ -342,6 +345,154 @@ class VIEW3D_PT_vr_info(VRButtonsPanel, Panel):
         missing_support_string = n_("Built without VR/OpenXR features")
         layout.label(icon='STATUS_ERROR', text=missing_support_string)
 
+
+class VIEW3D_PT_vr_session_world_space(Panel):
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'XR'
+    bl_label = "VR Session"
+
+    def draw(self, context):
+        layout = self.layout
+        session_settings = context.window_manager.xr_session_settings
+        scene = context.scene
+
+        layout.use_property_split = True
+        layout.use_property_decorate = False  # No animation.
+
+        is_session_running = bpy.types.XrSessionState.is_running(context)
+
+        # Using SNAP_FACE because it looks like a stop icon -- I shouldn't
+        # have commit rights...
+        toggle_info = ((iface_("Start VR Session"), 'PLAY') if not is_session_running
+                       else (iface_("Stop VR Session"), 'SNAP_FACE'))
+        layout.operator("wm.xr_session_toggle", text=toggle_info[0],
+                        translate=False, icon=toggle_info[1])
+
+        layout.separator()
+
+        col = layout.column(align=True, heading="Tracking")
+        col.prop(session_settings, "use_positional_tracking", text="Positional")
+        col.prop(session_settings, "use_absolute_tracking", text="Absolute")
+
+        col = layout.column(align=True, heading="Actions")
+        col.prop(scene, "vr_actions_enable")
+
+
+class VIEW3D_PT_vr_session_view_world_space(Panel):
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'XR'
+    bl_label = "View"
+
+    def draw(self, context):
+        layout = self.layout
+        session_settings = context.window_manager.xr_session_settings
+
+        layout.use_property_split = True
+        layout.use_property_decorate = False  # No animation.
+
+        col = layout.column(align=True, heading="Show")
+        col.prop(session_settings, "show_floor", text="Floor")
+        col.prop(session_settings, "show_passthrough", text="Passthrough")
+        col.prop(session_settings, "show_annotation", text="Annotations")
+
+        col.prop(session_settings, "show_selection", text="Selection")
+        col.prop(session_settings, "show_controllers", text="Controllers")
+        col.prop(session_settings, "show_custom_overlays", text="Custom Overlays")
+        col.prop(session_settings, "show_object_extras", text="Object Extras")
+
+        col = col.row(align=True, heading=" ")
+        col.scale_x = 2.0
+        col.popover(
+            panel="VIEW3D_PT_vr_session_view_object_type_visibility",
+            icon_value=session_settings.icon_from_show_object_viewport,
+            text="",
+        )
+
+        col = layout.column(align=True)
+        col.prop(session_settings, "controller_draw_style", text="Controller Style")
+
+        col = layout.column(align=True)
+        col.prop(session_settings, "clip_start", text="Clip Start")
+        col.prop(session_settings, "clip_end", text="End", text_ctxt=i18n_contexts.id_camera)
+
+        col = layout.column(align=True)
+        col.prop(session_settings, "view_scale", text="View Scale")
+
+        col = layout.column(align=True)
+        col.prop(session_settings, "fly_speed", text="Fly Speed")
+
+class VIEW3D_PT_vr_landmarks_world_space(Panel):
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'XR'
+    bl_options = {'DEFAULT_CLOSED'}
+
+    def draw(self, context):
+        layout = self.layout
+        scene = context.scene
+        landmark_selected = properties.VRLandmark.get_selected_landmark(context)
+
+        layout.use_property_split = True
+        layout.use_property_decorate = False  # No animation.
+
+        row = layout.row()
+
+        row.template_list("VIEW3D_UL_vr_landmarks", "", scene, "vr_landmarks",
+                          scene, "vr_landmarks_selected", rows=3)
+
+        col = row.column(align=True)
+        col.operator("view3d.vr_landmark_add", icon='ADD', text="")
+        col.operator("view3d.vr_landmark_remove", icon='REMOVE', text="")
+        col.operator("view3d.vr_landmark_from_session", icon='PLUS', text="")
+
+        col.menu("VIEW3D_MT_vr_landmark_menu", icon='DOWNARROW_HLT', text="")
+
+        if landmark_selected:
+            layout.prop(landmark_selected, "type")
+
+            if landmark_selected.type == 'OBJECT':
+                layout.prop(landmark_selected, "base_pose_object")
+                layout.prop(landmark_selected, "base_scale", text="Scale")
+            elif landmark_selected.type == 'CUSTOM':
+                layout.prop(landmark_selected,
+                            "base_pose_location", text="Location")
+                layout.prop(landmark_selected,
+                            "base_pose_angle", text="Angle")
+                layout.prop(landmark_selected,
+                            "base_scale", text="Scale")
+
+
+# Actions.
+class VIEW3D_PT_vr_actionmaps_world_space(Panel):
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'XR'
+    bl_options = {'DEFAULT_CLOSED'}
+
+    def draw(self, context):
+        layout = self.layout
+        scene = context.scene
+
+        layout.use_property_split = True
+        layout.use_property_decorate = False  # No animation.
+
+        col = layout.column(align=True)
+        col.prop(scene, "vr_actions_use_gamepad", text="Gamepad")
+
+        col = layout.column(align=True, heading="Extensions")
+        col.prop(scene, "vr_actions_enable_reverb_g2", text="HP Reverb G2")
+        col.prop(scene, "vr_actions_enable_vive_cosmos", text="HTC Vive Cosmos")
+        col.prop(scene, "vr_actions_enable_vive_focus", text="HTC Vive Focus")
+        col.prop(scene, "vr_actions_enable_huawei", text="Huawei")
+
+
+"""
+class VIEW3D_PT_vr_viewport_feedback_world_space(VIEW3D_PT_vr_viewport_feedback):
+    bl_region_type = 'XR'
+    bl_category = ""
+
+class VIEW3D_PT_vr_info_world_space(VIEW3D_PT_vr_info):
+    bl_region_type = 'XR'
+    bl_category = ""
+"""
 
 classes = (
     VIEW3D_PT_vr_session,
@@ -358,6 +509,10 @@ classes = (
     VIEW3D_UL_vr_landmarks,
     VIEW3D_UL_vr_captures,
     VIEW3D_MT_vr_landmark_menu,
+    VIEW3D_PT_vr_session_world_space,
+    VIEW3D_PT_vr_session_view_world_space,
+    VIEW3D_PT_vr_landmarks_world_space,
+    VIEW3D_PT_vr_actionmaps_world_space,
 )
 
 

@@ -10,8 +10,11 @@
  * Implements Blender specific drawing functionality for use with the Ghost-XR API.
  */
 
-#include <cstring>
 #include <cfloat>
+#include <algorithm>
+#include <cmath>
+#include <cstdio>
+#include <cstring>
 
 #include "DNA_userdef_types.h"
 #include "DNA_screen_types.h"
@@ -32,6 +35,7 @@
 
 #include "ED_view3d_offscreen.hh"
 #include "ED_screen.hh"
+#include "UI_interface_c.hh"
 #include "UI_view2d.hh"
 #include "DNA_view3d_types.h"
 
@@ -41,6 +45,7 @@
 #include "GPU_immediate.hh"
 #include "GPU_matrix.hh"
 #include "GPU_state.hh"
+#include "GPU_texture.hh"
 #include "GPU_viewport.hh"
 #include "GPU_framebuffer.hh"
 
@@ -57,24 +62,31 @@ namespace blender {
   
 extern CLG_LogRef LOG;
 
-struct wmXrPanelSourceContextOverride {
+#define XR_PANELS_TRACE(...) \
+  do { \
+    std::fprintf(stderr, __VA_ARGS__); \
+    std::fputc('\n', stderr); \
+    std::fflush(stderr); \
+  } while (0)
+
+struct wmXrPanelHostContextOverride {
   bContext *C;
   wmWindow *prev_win;
   ScrArea *prev_area;
   ARegion *prev_region;
 
-  wmXrPanelSourceContextOverride(bContext *context, const wmXrPanel *panel) : C(context)
+  wmXrPanelHostContextOverride(bContext *context, const wmXrPanel *panel) : C(context)
   {
     prev_win = CTX_wm_window(C);
     prev_area = CTX_wm_area(C);
     prev_region = CTX_wm_region(C);
 
-    CTX_wm_window_set(C, panel->panel_source_win);
-    CTX_wm_area_set(C, panel->panel_source_area);
-    CTX_wm_region_set(C, panel->panel_source_region);
+    CTX_wm_window_set(C, panel->panel_host_win);
+    CTX_wm_area_set(C, panel->panel_host_area);
+    CTX_wm_region_set(C, panel->panel_host_region);
   }
 
-  ~wmXrPanelSourceContextOverride()
+  ~wmXrPanelHostContextOverride()
   {
     CTX_wm_window_set(C, prev_win);
     CTX_wm_area_set(C, prev_area);
@@ -91,11 +103,97 @@ static wmXrPanel *wm_xr_panel_find(wmXrSurfaceData *surface_data,
   }
 
   for (wmXrPanel *panel : ListBaseWrapper<wmXrPanel>(surface_data->panels)) {
-    if (panel->panel_source_win == win && panel->panel_source_area == area) {
+    if (panel->panel_host_win == win && panel->panel_host_area == area) {
       return panel;
     }
   }
   return nullptr;
+}
+
+static int wm_xr_region_panel_type_count(const ARegion *region)
+{
+  if (region == nullptr || region->runtime == nullptr || region->runtime->type == nullptr) {
+    return -1;
+  }
+  return BLI_listbase_count(&region->runtime->type->paneltypes);
+}
+
+static int wm_xr_region_panel_instance_count(const ARegion *region)
+{
+  if (region == nullptr) {
+    return -1;
+  }
+  return BLI_listbase_count(&region->panels);
+}
+
+static void wm_xr_trace_panel_texture_sample(GPUOffScreen *offscreen, const rcti *panel_rect)
+{
+  gpu::FrameBuffer *framebuffer;
+  gpu::Texture *color_texture;
+  gpu::Texture *depth_texture;
+  GPU_offscreen_viewport_data_get(offscreen, &framebuffer, &color_texture, &depth_texture);
+  if (color_texture == nullptr) {
+    XR_PANELS_TRACE("panels_ws: texture sample skipped offscreen=%p color_texture=null", offscreen);
+    return;
+  }
+
+  const int px_width = BLI_rcti_size_x(panel_rect) + 1;
+  const int px_height = BLI_rcti_size_y(panel_rect) + 1;
+  float *rgba = static_cast<float *>(GPU_texture_read(color_texture, GPU_DATA_FLOAT, 0));
+  if (rgba == nullptr) {
+    XR_PANELS_TRACE("panels_ws: texture sample read failed offscreen=%p tex=%p", offscreen, color_texture);
+    return;
+  }
+
+  const int center_x = std::max(0, px_width / 2);
+  const int center_y = std::max(0, px_height / 2);
+  const int corner_idx = 0;
+  const int center_idx = ((center_y * px_width) + center_x) * 4;
+  XR_PANELS_TRACE(
+      "panels_ws: texture sample tex=%p size=%dx%d corner_rgba=(%.3f, %.3f, %.3f, %.3f) center_rgba=(%.3f, %.3f, %.3f, %.3f)",
+      color_texture,
+      px_width,
+      px_height,
+      rgba[corner_idx + 0],
+      rgba[corner_idx + 1],
+      rgba[corner_idx + 2],
+      rgba[corner_idx + 3],
+      rgba[center_idx + 0],
+      rgba[center_idx + 1],
+      rgba[center_idx + 2],
+      rgba[center_idx + 3]);
+  MEM_delete(rgba);
+}
+
+static void wm_xr_trace_panel_blocks(const ARegion *region)
+{
+  if (region == nullptr || region->runtime == nullptr) {
+    XR_PANELS_TRACE("panels_ws: block trace skipped region=%p", region);
+    return;
+  }
+
+  const int block_count = BLI_listbase_count(&region->runtime->uiblocks);
+  XR_PANELS_TRACE(
+      "panels_ws: uiblocks=%d first_block=%p", block_count, region->runtime->uiblocks.first);
+}
+
+static void wm_xr_region_ensure_layout_rect(ARegion *region)
+{
+  if (region == nullptr || region->runtime == nullptr || region->runtime->type == nullptr) {
+    return;
+  }
+  if (BLI_rcti_size_x(&region->winrct) > 0 && BLI_rcti_size_y(&region->winrct) > 0) {
+    return;
+  }
+
+  const int width = (region->runtime->type->prefsizex > 0) ? region->runtime->type->prefsizex :
+                                                          UI_SIDEBAR_PANEL_WIDTH;
+  const int height = (region->sizey > 1) ? region->sizey : 2048;
+
+  BLI_rcti_init(&region->winrct, 0, width - 1, 0, height - 1);
+  region->sizex = width;
+  region->sizey = height;
+  ED_region_update_rect(region);
 }
 
 static void wm_xr_panel_default_transform_init(wmXrPanel *panel)
@@ -108,24 +206,87 @@ static void wm_xr_panel_default_transform_init(wmXrPanel *panel)
   loc_eul_size_to_mat4(panel->panel_obmat, pos, rot, size);
 }
 
-static wmXrPanel *wm_xr_panel_ensure(wmXrSurfaceData *surface_data,
-                                     wmWindow *win,
-                                     ScrArea *area,
-                                     ARegion *region)
+static void wm_xr_panel_default_transform_init_from_viewer(wmXrPanel *panel, const wmXrData *xr)
+{
+  if (panel == nullptr || xr == nullptr || xr->runtime == nullptr ||
+      !xr->runtime->session_state.is_view_data_set)
+  {
+    wm_xr_panel_default_transform_init(panel);
+    return;
+  }
+
+  const float half_pi = 3.1415f * 0.5f;
+  const float screen_to_world_scale = 1.0f / 256.0f;
+  const GHOST_XrPose *viewer_pose = &xr->runtime->session_state.viewer_pose;
+  float viewer_mat[4][4];
+  wm_xr_pose_to_mat(viewer_pose, viewer_mat);
+
+  float forward[3];
+  normalize_v3_v3(forward, viewer_mat[2]);
+  negate_v3(forward);
+
+  float forward_xy[2] = {forward[0], forward[1]};
+  if (normalize_v2(forward_xy) == 0.0f) {
+    forward_xy[0] = 0.0f;
+    forward_xy[1] = -1.0f;
+  }
+
+  float pos[3];
+  copy_v3_v3(pos, viewer_pose->position);
+  pos[0] += forward_xy[0] * 1.5f;
+  pos[1] += forward_xy[1] * 1.5f;
+
+  float rot[3] = {half_pi, 0.0f, 0.0f};
+  const float normal_xy[2] = {-forward_xy[0], -forward_xy[1]};
+  rot[2] = std::atan2(normal_xy[0], normal_xy[1]);
+
+  float size[3] = {screen_to_world_scale, screen_to_world_scale, screen_to_world_scale};
+  loc_eul_size_to_mat4(panel->panel_obmat, pos, rot, size);
+}
+
+static wmXrPanel *wm_xr_panel_register(wmXrSurfaceData *surface_data,
+                                       wmWindow *win,
+                                       ScrArea *area,
+                                       ARegion *region,
+                                       const wmXrData *xr)
 {
   wmXrPanel *panel = wm_xr_panel_find(surface_data, win, area);
   if (panel != nullptr) {
-    panel->panel_source_region = region;
+    panel->panel_host_region = region;
+    if (xr != nullptr && xr->runtime != nullptr && xr->runtime->session_state.is_view_data_set) {
+      wm_xr_panel_default_transform_init_from_viewer(panel, xr);
+      XR_PANELS_TRACE("panels_ws: updated panel transform from viewer panel=%p loc=(%.3f, %.3f, %.3f)",
+                      panel,
+                      panel->panel_obmat[3][0],
+                      panel->panel_obmat[3][1],
+                      panel->panel_obmat[3][2]);
+    }
+    XR_PANELS_TRACE("panels_ws: reuse host panel area=%p region=%p panel_types=%d panel_instances=%d",
+                    area,
+                    region,
+                    wm_xr_region_panel_type_count(region),
+                    wm_xr_region_panel_instance_count(region));
     return panel;
   }
 
   panel = MEM_new_zeroed<wmXrPanel>(__func__);
-  wm_xr_panel_default_transform_init(panel);
+  wm_xr_panel_default_transform_init_from_viewer(panel, xr);
   panel->panel_frame_tag = surface_data->panels_frame_tag;
-  panel->panel_source_win = win;
-  panel->panel_source_area = area;
-  panel->panel_source_region = region;
+  panel->panel_host_win = win;
+  panel->panel_host_area = area;
+  panel->panel_host_region = region;
   BLI_addtail(&surface_data->panels, panel);
+  XR_PANELS_TRACE("panels_ws: created panel transform panel=%p loc=(%.3f, %.3f, %.3f)",
+                  panel,
+                  panel->panel_obmat[3][0],
+                  panel->panel_obmat[3][1],
+                  panel->panel_obmat[3][2]);
+  XR_PANELS_TRACE("panels_ws: register host panel area=%p region=%p panel=%p panel_types=%d total_hosts=%d",
+                  area,
+                  region,
+                  panel,
+                  wm_xr_region_panel_type_count(region),
+                  BLI_listbase_count(&surface_data->panels));
   return panel;
 }
 
@@ -299,7 +460,8 @@ static bool wm_xr_surface_interaction_raycast(const wmXrPanel *panel,
   return true;
 }
 
-static void wm_xr_surface_interaction_event_add(wmWindow *win, short type, short val, const int xy[2])
+static void wm_xr_surface_interaction_event_add(
+    const bContext *C, wmWindow *win, ScrArea *area, ARegion *region, short type, short val, const int xy[2])
 {
   wmEvent event{};
   wm_event_init_from_window(win, &event);
@@ -308,10 +470,15 @@ static void wm_xr_surface_interaction_event_add(wmWindow *win, short type, short
   event.type = static_cast<wmEventType>(type);
   event.val = val;
 
-  const int g_flag_prev = G.f;
-  G.f |= G_FLAG_EVENT_SIMULATE;
-  WM_event_add_simulate(win, &event);
-  G.f = g_flag_prev;
+  XR_PANELS_TRACE("panels_ws_input: enqueue type=%d val=%d xy=(%d,%d) prev_xy=(%d,%d) win=%p",
+                  int(type),
+                  int(val),
+                  event.xy[0],
+                  event.xy[1],
+                  event.prev_xy[0],
+                  event.prev_xy[1],
+                  win);
+  WM_event_do_simulate_region(const_cast<bContext *>(C), win, area, region, &event);
 }
 
 static bool wm_xr_panel_cache_update(const bContext *C, wmXrPanel *panel)
@@ -323,21 +490,110 @@ static bool wm_xr_panel_cache_update(const bContext *C, wmXrPanel *panel)
   }
 
   ScrArea *area = CTX_wm_area(C);
-  ARegion *ui_region = area ? BKE_area_find_region_type(area, RGN_TYPE_UI) : nullptr;
-  if (panel == nullptr || area == nullptr || ui_region == nullptr || ui_region->runtime == nullptr ||
-      ui_region->runtime->type == nullptr)
+  ARegion *xr_region = area ? BKE_area_find_region_type(area, RGN_TYPE_XR) : nullptr;
+  if (panel == nullptr || area == nullptr || xr_region == nullptr || xr_region->runtime == nullptr ||
+      xr_region->runtime->type == nullptr)
   {
+    XR_PANELS_TRACE(
+        "panels_ws: cache update skipped panel=%p area=%p xr_region=%p", panel, area, xr_region);
     return false;
   }
 
-  short prev_alignment;
-  ARegion *prev_region = nullptr;
-  rcti panel_rect;
+  XR_PANELS_TRACE("panels_ws: cache update begin panel=%p area=%p xr_region=%p panel_types=%d panel_instances_before=%d",
+                  panel,
+                  area,
+                  xr_region,
+                  wm_xr_region_panel_type_count(xr_region),
+                  wm_xr_region_panel_instance_count(xr_region));
+
   bContext *mutable_C = const_cast<bContext *>(C);
-  ED_region_panels_world_layout_begin(mutable_C, ui_region, &panel_rect, &prev_alignment, &prev_region);
+  short prev_alignment = xr_region->alignment;
+  ARegion *prev_region = CTX_wm_region(mutable_C);
+  const bool prev_visible = xr_region->runtime->visible;
+  rcti panel_rect = panel->panel_rect;
+  const bool needs_layout = !panel->panel_valid ||
+                            (panel->panel_last_rebuild_tag != panel->panel_frame_tag) ||
+                            BLI_listbase_is_empty(&xr_region->runtime->uiblocks);
+  if (needs_layout) {
+    wm_xr_region_ensure_layout_rect(xr_region);
+  }
+  xr_region->runtime->visible = true;
+  if (!CTX_wm_manager(C)->xr.runtime->offscreen_area_initialized) {
+    if (xr_region->runtime->type->init != nullptr) {
+      xr_region->runtime->type->init(CTX_wm_manager(C), xr_region);
+    }
+    xr_region->flag |= RGN_FLAG_INDICATE_OVERFLOW;
+    CTX_wm_manager(C)->xr.runtime->offscreen_area_initialized = true;
+    XR_PANELS_TRACE("panels_ws: initialized xr panel region region=%p", xr_region);
+  }
+  XR_PANELS_TRACE("panels_ws: ensure layout rect xr_region=%p winrct=(%d,%d)-(%d,%d) size=%dx%d",
+                  xr_region,
+                  xr_region->winrct.xmin,
+                  xr_region->winrct.ymin,
+                  xr_region->winrct.xmax,
+                  xr_region->winrct.ymax,
+                  xr_region->winx,
+                  xr_region->winy);
+  XR_PANELS_TRACE("panels_ws: xr region visible=%d alignment=%d",
+                  int(xr_region->runtime->visible),
+                  int(xr_region->alignment));
+  CTX_wm_region_set(mutable_C, xr_region);
+  xr_region->alignment = RGN_ALIGN_FLOAT;
+  if (needs_layout) {
+    ui::blocklist_free(mutable_C, xr_region);
+    BKE_area_region_panels_free(&xr_region->panels);
+    ED_region_panels_layout(mutable_C, xr_region);
+
+    const int content_width = std::max(1, int(std::ceil(BLI_rctf_size_x(&xr_region->v2d.tot))));
+    const int content_height = std::max(1, int(std::ceil(BLI_rctf_size_y(&xr_region->v2d.tot))));
+    XR_PANELS_TRACE("panels_ws: panel content size=%dx%d v2d_tot=(%.3f, %.3f)-(%.3f, %.3f)",
+                    content_width,
+                    content_height,
+                    xr_region->v2d.tot.xmin,
+                    xr_region->v2d.tot.ymin,
+                    xr_region->v2d.tot.xmax,
+                    xr_region->v2d.tot.ymax);
+
+    if (content_width != xr_region->winx || content_height != xr_region->winy) {
+      BLI_rcti_init(&xr_region->winrct, 0, content_width - 1, 0, content_height - 1);
+      xr_region->sizex = content_width;
+      xr_region->sizey = content_height;
+      ED_region_update_rect(xr_region);
+      view2d_region_reinit(
+          &xr_region->v2d, ui::V2D_COMMONVIEW_PANELS_UI, xr_region->winx, xr_region->winy);
+      XR_PANELS_TRACE("panels_ws: resized xr panel region winrct=(%d,%d)-(%d,%d) size=%dx%d",
+                      xr_region->winrct.xmin,
+                      xr_region->winrct.ymin,
+                      xr_region->winrct.xmax,
+                      xr_region->winrct.ymax,
+                      xr_region->winx,
+                      xr_region->winy);
+      ui::blocklist_free(mutable_C, xr_region);
+      BKE_area_region_panels_free(&xr_region->panels);
+      ED_region_panels_layout(mutable_C, xr_region);
+    }
+    BLI_rcti_init(&panel_rect, 0, content_width - 1, 0, content_height - 1);
+    XR_PANELS_TRACE("panels_ws: layout done xr_region=%p rect=(%d,%d)-(%d,%d) panel_instances_after_layout=%d",
+                    xr_region,
+                    panel_rect.xmin,
+                    panel_rect.ymin,
+                    panel_rect.xmax,
+                    panel_rect.ymax,
+                    wm_xr_region_panel_instance_count(xr_region));
+    wm_xr_trace_panel_blocks(xr_region);
+  }
+  else {
+    XR_PANELS_TRACE("panels_ws: redraw existing panel rect=(%d,%d)-(%d,%d) panel_instances=%d",
+                    panel_rect.xmin,
+                    panel_rect.ymin,
+                    panel_rect.xmax,
+                    panel_rect.ymax,
+                    wm_xr_region_panel_instance_count(xr_region));
+  }
 
   const int w = BLI_rcti_size_x(&panel_rect) + 1;
   const int h = BLI_rcti_size_y(&panel_rect) + 1;
+  XR_PANELS_TRACE("panels_ws: offscreen target size=%dx%d existing=%p", w, h, panel->panel_offscreen);
   bool create_new = true;
   if (panel->panel_offscreen) {
     if (GPU_offscreen_width(panel->panel_offscreen) == w &&
@@ -355,36 +611,81 @@ static bool wm_xr_panel_cache_update(const bContext *C, wmXrPanel *panel)
         w, h, false, gpu::TextureFormat::UNORM_8_8_8_8, GPU_TEXTURE_USAGE_SHADER_READ, false, nullptr);
   }
   if (!panel->panel_offscreen) {
+    XR_PANELS_TRACE("panels_ws: offscreen create failed size=%dx%d", w, h);
     CLOG_ERROR(&LOG, "panels_ws: offscreen create failed");
-    ED_region_panels_world_layout_end(mutable_C, ui_region, prev_alignment, prev_region);
+    xr_region->runtime->visible = prev_visible;
+    ED_region_panels_world_layout_end(mutable_C, xr_region, prev_alignment, prev_region);
     return false;
   }
 
-  ED_region_panels_draw_offscreen(C, ui_region, &panel_rect, panel->panel_offscreen);
+  XR_PANELS_TRACE("panels_ws: draw offscreen begin offscreen=%p", panel->panel_offscreen);
+  ED_region_panels_draw_offscreen(C, xr_region, &panel_rect, panel->panel_offscreen);
+  XR_PANELS_TRACE("panels_ws: draw offscreen end offscreen=%p", panel->panel_offscreen);
+  wm_xr_trace_panel_texture_sample(panel->panel_offscreen, &panel_rect);
   panel->panel_rect = panel_rect;
   panel->panel_valid = true;
   panel->panel_dirty = false;
   panel->panel_last_rebuild_tag = panel->panel_frame_tag;
-  panel->panel_source_win = CTX_wm_window(C);
-  panel->panel_source_area = area;
-  panel->panel_source_region = ui_region;
+  panel->panel_host_win = CTX_wm_window(C);
+  panel->panel_host_area = area;
+  panel->panel_host_region = xr_region;
 
-  ED_region_panels_world_layout_end(mutable_C, ui_region, prev_alignment, prev_region);
+  xr_region->runtime->visible = prev_visible;
+  XR_PANELS_TRACE("panels_ws: cache update end panel=%p rect=(%d,%d)-(%d,%d) size=%dx%d panel_instances_after=%d",
+                  panel,
+                  panel_rect.xmin,
+                  panel_rect.ymin,
+                  panel_rect.xmax,
+                  panel_rect.ymax,
+                  w,
+                  h,
+                  wm_xr_region_panel_instance_count(xr_region));
+
+  ED_region_panels_world_layout_end(mutable_C, xr_region, prev_alignment, prev_region);
   return true;
 }
 
-static void wm_xr_panel_cache_refresh_source(const bContext *C, wmXrPanel *panel)
+static void wm_xr_panel_cache_refresh_host(const bContext *C, wmXrPanel *panel)
 {
-  if (C == nullptr || panel == nullptr || panel->panel_source_win == nullptr ||
-      panel->panel_source_area == nullptr || panel->panel_source_region == nullptr)
+  if (C == nullptr || panel == nullptr || panel->panel_host_win == nullptr ||
+      panel->panel_host_area == nullptr || panel->panel_host_region == nullptr)
   {
     return;
   }
 
   bContext *mutable_C = const_cast<bContext *>(C);
-  wmXrPanelSourceContextOverride context_override(mutable_C, panel);
+  wmXrPanelHostContextOverride context_override(mutable_C, panel);
   wm_xr_panel_cache_update(mutable_C, panel);
-  ED_region_tag_redraw(panel->panel_source_region);
+  ED_region_tag_redraw(panel->panel_host_region);
+}
+
+void WM_xr_surface_panels_register(const bContext *C)
+{
+  if (C == nullptr) {
+    return;
+  }
+
+  wmXrSurfaceData *surface_data = WM_xr_surface_data_get();
+  wmWindow *win = CTX_wm_window(C);
+  ScrArea *area = CTX_wm_area(C);
+  ARegion *xr_region = area ? BKE_area_find_region_type(area, RGN_TYPE_XR) : nullptr;
+  const wmWindowManager *wm = CTX_wm_manager(C);
+  const wmXrData *xr = wm ? &wm->xr : nullptr;
+  if (surface_data == nullptr || win == nullptr || area == nullptr || xr_region == nullptr) {
+    XR_PANELS_TRACE("panels_ws: register skipped surface=%p win=%p area=%p xr_region=%p",
+                    surface_data,
+                    win,
+                    area,
+                    xr_region);
+    return;
+  }
+
+  XR_PANELS_TRACE("panels_ws: register host request area=%p xr_region=%p panel_types=%d panel_instances=%d",
+                  area,
+                  xr_region,
+                  wm_xr_region_panel_type_count(xr_region),
+                  wm_xr_region_panel_instance_count(xr_region));
+  wm_xr_panel_register(surface_data, win, area, xr_region, xr);
 }
 
 void wm_xr_surface_interaction_update(const bContext *C, wmXrData *xr)
@@ -475,14 +776,19 @@ void wm_xr_surface_interaction_update(const bContext *C, wmXrData *xr)
       !STREQ(hit_panel->panel_pointer.subaction_path, subaction_path))
   {
     int win_xy[2] = {
-        hit_panel->panel_source_region->winrct.xmin + hit_region_xy[0],
-        hit_panel->panel_source_region->winrct.ymin + hit_region_xy[1],
+        hit_panel->panel_host_region->winrct.xmin + hit_region_xy[0],
+        hit_panel->panel_host_region->winrct.ymin + hit_region_xy[1],
     };
-    wm_xr_surface_interaction_event_add(
-        hit_panel->panel_source_win, MOUSEMOVE, KM_NOTHING, win_xy);
-    ED_region_tag_redraw(hit_panel->panel_source_region);
+    wm_xr_surface_interaction_event_add(C,
+                                        hit_panel->panel_host_win,
+                                        hit_panel->panel_host_area,
+                                        hit_panel->panel_host_region,
+                                        MOUSEMOVE,
+                                        KM_NOTHING,
+                                        win_xy);
+    ED_region_tag_redraw(hit_panel->panel_host_region);
     hit_panel->panel_dirty = true;
-    wm_xr_panel_cache_refresh_source(C, hit_panel);
+    wm_xr_panel_cache_refresh_host(C, hit_panel);
   }
 
   copy_v2_v2_int(hit_panel->panel_region_xy, hit_region_xy);
@@ -499,8 +805,8 @@ bool wm_xr_surface_interaction_apply_action(const bContext *C,
   wmXrSurfaceData *surface_data = WM_xr_surface_data_get();
   wmXrPanel *panel = surface_data ? surface_data->active_panel : nullptr;
   if (C == nullptr || xr == nullptr || action == nullptr || subaction_path == nullptr ||
-      surface_data == nullptr || panel == nullptr || panel->panel_source_win == nullptr ||
-      panel->panel_source_region == nullptr)
+      surface_data == nullptr || panel == nullptr || panel->panel_host_win == nullptr ||
+      panel->panel_host_region == nullptr)
   {
     return false;
   }
@@ -512,6 +818,15 @@ bool wm_xr_surface_interaction_apply_action(const bContext *C,
   /* Only a teleport press that begins over the panel may start capture. After that, only the
    * matching release for that captured action/subaction is rerouted to the panel. */
   if (event_val == KM_PRESS) {
+    XR_PANELS_TRACE(
+        "panels_ws_input: action press hovered=%d pressed=%d subaction_match=%d host_area=%p host_region=%p host_region_type=%d offscreen_area=%p",
+        int(panel->panel_hovered),
+        int(panel->panel_pointer.pressed),
+        int(STREQ(panel->panel_pointer.subaction_path, subaction_path)),
+        panel->panel_host_area,
+        panel->panel_host_region,
+        panel->panel_host_region ? int(panel->panel_host_region->regiontype) : -1,
+        xr->runtime ? xr->runtime->offscreen_area : nullptr);
     if (panel->panel_pointer.pressed && action->ot != nullptr &&
         STREQ(panel->panel_pointer.subaction_path, subaction_path) &&
         STREQ(panel->panel_pointer.action_idname, action->ot->idname))
@@ -528,18 +843,24 @@ bool wm_xr_surface_interaction_apply_action(const bContext *C,
       return false;
     }
     int win_xy[2] = {
-        panel->panel_source_region->winrct.xmin + panel->panel_region_xy[0],
-        panel->panel_source_region->winrct.ymin + panel->panel_region_xy[1],
+        panel->panel_host_region->winrct.xmin + panel->panel_region_xy[0],
+        panel->panel_host_region->winrct.ymin + panel->panel_region_xy[1],
     };
-    wm_xr_surface_interaction_event_add(panel->panel_source_win, LEFTMOUSE, KM_PRESS, win_xy);
+    wm_xr_surface_interaction_event_add(C,
+                                        panel->panel_host_win,
+                                        panel->panel_host_area,
+                                        panel->panel_host_region,
+                                        LEFTMOUSE,
+                                        KM_PRESS,
+                                        win_xy);
     panel->panel_pointer.pressed = true;
     BLI_strncpy(
         panel->panel_pointer.action_idname,
         action->ot->idname,
         sizeof(panel->panel_pointer.action_idname));
-    ED_region_tag_redraw(panel->panel_source_region);
+    ED_region_tag_redraw(panel->panel_host_region);
     panel->panel_dirty = true;
-    wm_xr_panel_cache_refresh_source(C, panel);
+    wm_xr_panel_cache_refresh_host(C, panel);
     return true;
   }
 
@@ -547,16 +868,28 @@ bool wm_xr_surface_interaction_apply_action(const bContext *C,
       STREQ(panel->panel_pointer.subaction_path, subaction_path) && action->ot != nullptr &&
       STREQ(panel->panel_pointer.action_idname, action->ot->idname))
   {
+    XR_PANELS_TRACE(
+        "panels_ws_input: action release host_area=%p host_region=%p host_region_type=%d offscreen_area=%p",
+        panel->panel_host_area,
+        panel->panel_host_region,
+        panel->panel_host_region ? int(panel->panel_host_region->regiontype) : -1,
+        xr->runtime ? xr->runtime->offscreen_area : nullptr);
     int win_xy[2] = {
-        panel->panel_source_region->winrct.xmin + panel->panel_region_xy[0],
-        panel->panel_source_region->winrct.ymin + panel->panel_region_xy[1],
+        panel->panel_host_region->winrct.xmin + panel->panel_region_xy[0],
+        panel->panel_host_region->winrct.ymin + panel->panel_region_xy[1],
     };
-    wm_xr_surface_interaction_event_add(panel->panel_source_win, LEFTMOUSE, KM_RELEASE, win_xy);
+    wm_xr_surface_interaction_event_add(C,
+                                        panel->panel_host_win,
+                                        panel->panel_host_area,
+                                        panel->panel_host_region,
+                                        LEFTMOUSE,
+                                        KM_RELEASE,
+                                        win_xy);
     wm_xr_panel_pointer_clear(panel);
     surface_data->active_panel = nullptr;
-    ED_region_tag_redraw(panel->panel_source_region);
+    ED_region_tag_redraw(panel->panel_host_region);
     panel->panel_dirty = true;
-    wm_xr_panel_cache_refresh_source(C, panel);
+    wm_xr_panel_cache_refresh_host(C, panel);
     return true;
   }
 
@@ -971,6 +1304,8 @@ static void wm_xr_controller_aim_draw(const XrSessionSettings *settings, wmXrSes
 
 void wm_xr_draw_controllers(const bContext *C, ARegion * /*region*/, void *customdata)
 {
+  CLOG_ERROR(&LOG, "begin wm_xr_draw_controllers");
+
   wmXrData *xr = static_cast<wmXrData *>(customdata);
   const XrSessionSettings *settings = &xr->session_settings;
   GHOST_IXrContext *xr_context = xr->runtime->ghost_context;
@@ -980,16 +1315,14 @@ void wm_xr_draw_controllers(const bContext *C, ARegion * /*region*/, void *custo
   wm_xr_controller_aim_draw(settings, state);
   wm_xr_viewfinder_draw(C, settings, state);
   wm_xr_panel_cursor_draw(WM_xr_surface_data_get());
+
+  CLOG_ERROR(&LOG, "end wm_xr_draw_controllers");
 }
 
 static CLG_LogRef LOG = {"xr"};
 
 void wm_xr_draw_panels_world_space(const bContext * C, ARegion * region, void *customdata)
 {
-  if (region == nullptr) {
-    CLOG_ERROR(&LOG, "panels_ws: skipped, null region");
-    return;
-  }
   if (C == nullptr) {
     CLOG_ERROR(&LOG, "panels_ws: skipped, null context");
     return;
@@ -1002,10 +1335,6 @@ void wm_xr_draw_panels_world_space(const bContext * C, ARegion * region, void *c
     CLOG_ERROR(&LOG, "panels_ws: custom overlays disabled");
     return;
   }
-  if (region->regiontype != RGN_TYPE_WINDOW) {
-    CLOG_ERROR(&LOG, "panels_ws: wrong region type (%d)", region->regiontype);
-    return;
-  }
 
   wmXrSurfaceData *surface_data = WM_xr_surface_data_get();
   if (!surface_data) {
@@ -1013,12 +1342,24 @@ void wm_xr_draw_panels_world_space(const bContext * C, ARegion * region, void *c
   }
 
   ScrArea *area = CTX_wm_area(C);
-  ARegion *ui_region = area ? BKE_area_find_region_type(area, RGN_TYPE_UI) : nullptr;
-  if (area == nullptr || ui_region == nullptr) {
+  ARegion *xr_region = area ? BKE_area_find_region_type(area, RGN_TYPE_XR) : nullptr;
+  if (area == nullptr || xr_region == nullptr) {
+    XR_PANELS_TRACE("panels_ws: draw skipped area=%p xr_region=%p", area, xr_region);
     return;
   }
 
-  wmXrPanel *panel = wm_xr_panel_ensure(surface_data, CTX_wm_window(C), area, ui_region);
+  XR_PANELS_TRACE("panels_ws: draw host area=%p xr_region=%p panel_types=%d panel_instances=%d registered_hosts=%d",
+                  area,
+                  xr_region,
+                  wm_xr_region_panel_type_count(xr_region),
+                  wm_xr_region_panel_instance_count(xr_region),
+                  BLI_listbase_count(&surface_data->panels));
+  wmXrPanel *panel = wm_xr_panel_find(surface_data, CTX_wm_window(C), area);
+  if (panel == nullptr) {
+    CLOG_ERROR(&LOG, "panels_ws: XR panel host not registered");
+    return;
+  }
+  panel->panel_host_region = xr_region;
   wm_xr_panel_cache_update(C, panel);
 }
 

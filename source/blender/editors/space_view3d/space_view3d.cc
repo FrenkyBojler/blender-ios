@@ -1718,6 +1718,14 @@ void ED_spacetype_view3d()
   /* regions: xr */
   art = MEM_new_zeroed<ARegionType>("spacetype view3d xr region");
   art->regionid = RGN_TYPE_XR;
+  art->prefsizex = UI_SIDEBAR_PANEL_WIDTH;
+  art->prefsizey = 50; /* XXX */
+  art->keymapflag = ED_KEYMAP_UI;
+  art->listener = view3d_buttons_region_listener;
+  art->message_subscribe = ED_region_generic_tools_region_message_subscribe;
+  art->init = view3d_buttons_region_init;
+  art->layout = view3d_buttons_region_layout;
+  art->draw = ED_region_panels_draw;
   BLI_addhead(&st->regiontypes, art);
 
   WM_menutype_add(MEM_new<MenuType>(__func__, ed::geometry::node_group_operator_assets_menu()));

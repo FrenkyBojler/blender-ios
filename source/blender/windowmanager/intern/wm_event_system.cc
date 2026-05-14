@@ -10,6 +10,7 @@
  * Also some operator reports utility functions.
  */
 
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <fmt/format.h>
@@ -5322,6 +5323,179 @@ static void WM_event_remove_handler(ListBaseT<wmEventHandler> *handlers, wmEvent
 void WM_event_add_mousemove(wmWindow *win)
 {
   win->addmousemove = 1;
+}
+
+void WM_event_do_simulate_region(
+    bContext *C, wmWindow *win, ScrArea *area, ARegion *region, const wmEvent *event)
+{
+  if (C == nullptr || win == nullptr || area == nullptr || region == nullptr || event == nullptr) {
+    return;
+  }
+
+  wmEvent event_copy = *event;
+  const int g_flag_prev = G.f;
+  G.f |= G_FLAG_EVENT_SIMULATE;
+
+  auto handler_type_counts = [](ListBaseT<wmEventHandler> *handlers,
+                                int &r_ui,
+                                int &r_op,
+                                int &r_keymap) {
+    r_ui = 0;
+    r_op = 0;
+    r_keymap = 0;
+    for (wmEventHandler &handler_base : *handlers) {
+      switch (handler_base.type) {
+        case WM_HANDLER_TYPE_UI:
+          r_ui++;
+          break;
+        case WM_HANDLER_TYPE_OP:
+          r_op++;
+          break;
+        case WM_HANDLER_TYPE_KEYMAP:
+          r_keymap++;
+          break;
+        default:
+          break;
+      }
+    }
+  };
+
+  CTX_wm_window_set(C, win);
+  CTX_wm_area_set(C, area);
+  CTX_wm_region_set(C, region);
+  wm_region_mouse_co(C, &event_copy);
+  const int pre_mval[2] = {event_copy.mval[0], event_copy.mval[1]};
+
+  int region_ui = 0, region_op = 0, region_keymap = 0;
+  int modal_ui = 0, modal_op = 0, modal_keymap = 0;
+  int win_ui = 0, win_op = 0, win_keymap = 0;
+  int modal_op_area_match = 0, modal_op_area_other = 0;
+  const char *first_modal_op_idname = nullptr;
+  ScrArea *first_modal_op_area = nullptr;
+  ARegion *first_modal_op_region = nullptr;
+  short first_modal_op_region_type = -1;
+  handler_type_counts(&region->runtime->handlers, region_ui, region_op, region_keymap);
+  handler_type_counts(&win->runtime->modalhandlers, modal_ui, modal_op, modal_keymap);
+  handler_type_counts(&win->runtime->handlers, win_ui, win_op, win_keymap);
+  for (wmEventHandler &handler_base : win->runtime->modalhandlers) {
+    if (handler_base.type != WM_HANDLER_TYPE_OP) {
+      continue;
+    }
+    wmEventHandler_Op *handler = reinterpret_cast<wmEventHandler_Op *>(&handler_base);
+    if (handler->op != nullptr && first_modal_op_idname == nullptr) {
+      first_modal_op_idname = handler->op->type ? handler->op->type->idname : "<null>";
+      first_modal_op_area = handler->context.area;
+      first_modal_op_region = handler->context.region;
+      first_modal_op_region_type = handler->context.region_type;
+    }
+    if (handler->context.area == area) {
+      modal_op_area_match++;
+    }
+    else {
+      modal_op_area_other++;
+    }
+  }
+
+  const bool always_pass = wm_event_always_pass(&event_copy);
+  const wmWindowManager *wm = CTX_wm_manager(C);
+  eHandlerActionFlag modal_action = WM_HANDLER_CONTINUE;
+  for (wmEventHandler *handler_base = static_cast<wmEventHandler *>(win->runtime->modalhandlers.first),
+                      *handler_base_next;
+       handler_base && win->runtime->modalhandlers.first;
+       handler_base = handler_base_next)
+  {
+    handler_base_next = handler_base->next;
+    if (handler_base->flag & WM_HANDLER_DO_FREE) {
+      continue;
+    }
+    if (handler_base->poll != nullptr && !handler_base->poll(win, area, region, &event_copy)) {
+      continue;
+    }
+
+    bool is_compatible = false;
+    if (handler_base->type == WM_HANDLER_TYPE_UI) {
+      wmEventHandler_UI *handler = reinterpret_cast<wmEventHandler_UI *>(handler_base);
+      is_compatible = (handler->context.area == nullptr || handler->context.area == area) &&
+                      (handler->context.region == nullptr || handler->context.region == region);
+      if (is_compatible && !wm->runtime->is_interface_locked) {
+        modal_action |= wm_handler_ui_call(C, handler, &event_copy, always_pass);
+      }
+    }
+    else if (handler_base->type == WM_HANDLER_TYPE_OP) {
+      wmEventHandler_Op *handler = reinterpret_cast<wmEventHandler_Op *>(handler_base);
+      is_compatible = (handler->context.area == nullptr || handler->context.area == area) &&
+                      (handler->context.region == region ||
+                       handler->context.region_type == region->regiontype);
+      if (is_compatible && !handler->is_fileselect) {
+        modal_action |= wm_handler_operator_call(
+            C, &win->runtime->modalhandlers, handler_base, &event_copy, nullptr, nullptr);
+      }
+    }
+
+    if (is_compatible && (handler_base->flag & WM_HANDLER_BLOCKING)) {
+      modal_action |= WM_HANDLER_BREAK;
+    }
+    if ((modal_action & WM_HANDLER_BREAK) && !always_pass) {
+      break;
+    }
+  }
+  eHandlerActionFlag region_action = WM_HANDLER_CONTINUE;
+  eHandlerActionFlag area_action = WM_HANDLER_CONTINUE;
+  eHandlerActionFlag window_action = WM_HANDLER_CONTINUE;
+  if ((modal_action & WM_HANDLER_BREAK) == 0) {
+    region_action = wm_event_do_region_handlers(C, &event_copy, region);
+  }
+  if (((modal_action | region_action) & WM_HANDLER_BREAK) == 0) {
+    CTX_wm_region_set(C, nullptr);
+    wm_region_mouse_co(C, &event_copy);
+    area_action = wm_handlers_do(C, &event_copy, &area->handlers);
+  }
+  if (((modal_action | region_action | area_action) & WM_HANDLER_BREAK) == 0) {
+    CTX_wm_area_set(C, area);
+    CTX_wm_region_set(C, region);
+    wm_region_mouse_co(C, &event_copy);
+    window_action = wm_handlers_do(C, &event_copy, &win->runtime->handlers);
+  }
+  const eHandlerActionFlag action = eHandlerActionFlag(
+      modal_action | region_action | area_action | window_action);
+  std::fprintf(stderr,
+               "panels_ws_input: simulate region area=%p region=%p region_type=%d event_type=%d val=%d mval_pre=(%d,%d) mval_post=(%d,%d) region_handlers=%d(ui=%d op=%d km=%d) area_handlers=%d modal_handlers=%d(ui=%d op=%d km=%d op_area_match=%d op_area_other=%d first_modal_op=%s first_modal_area=%p first_modal_region=%p first_modal_region_type=%d) win_handlers=%d(ui=%d op=%d km=%d) action_modal=%d action_region=%d action_area=%d action_window=%d action=%d\n",
+               area,
+               region,
+               int(region->regiontype),
+               int(event_copy.type),
+               int(event_copy.val),
+               pre_mval[0],
+               pre_mval[1],
+               event_copy.mval[0],
+               event_copy.mval[1],
+               BLI_listbase_count(&region->runtime->handlers),
+               region_ui,
+               region_op,
+               region_keymap,
+               BLI_listbase_count(&area->handlers),
+               BLI_listbase_count(&win->runtime->modalhandlers),
+               modal_ui,
+               modal_op,
+               modal_keymap,
+               modal_op_area_match,
+               modal_op_area_other,
+               first_modal_op_idname ? first_modal_op_idname : "<none>",
+               first_modal_op_area,
+               first_modal_op_region,
+               int(first_modal_op_region_type),
+               BLI_listbase_count(&win->runtime->handlers),
+               win_ui,
+               win_op,
+               win_keymap,
+               int(modal_action),
+               int(region_action),
+               int(area_action),
+               int(window_action),
+               int(action));
+  std::fflush(stderr);
+
+  G.f = g_flag_prev;
 }
 
 /** \} */

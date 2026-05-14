@@ -148,6 +148,7 @@ struct wmXrRuntimeData {
 
   /* Owning pointer to the XR offscreen area. Must be freed on XR session exit. */
   ScrArea *offscreen_area;
+  bool offscreen_area_initialized;
 
   /** Although this struct is internal, RNA gets a handle to this for state information queries. */
   wmXrSessionState session_state;
@@ -179,9 +180,9 @@ struct wmXrPanel {
   bool panel_dirty;
   uint64_t panel_frame_tag;
   uint64_t panel_last_rebuild_tag;
-  struct wmWindow *panel_source_win;
-  struct ScrArea *panel_source_area;
-  struct ARegion *panel_source_region;
+  struct wmWindow *panel_host_win;
+  struct ScrArea *panel_host_area;
+  struct ARegion *panel_host_region;
   bool panel_hovered;
   bool panel_cursor_visible;
   int panel_region_xy[2];
@@ -353,6 +354,7 @@ bool wm_xr_surface_interaction_apply_action(const bContext *C,
                                             const wmXrAction *action,
                                             const char *subaction_path,
                                             short event_val);
+void WM_xr_surface_panels_register(const bContext *C);
 
 /**
  * \brief Check if XR passthrough is enabled.

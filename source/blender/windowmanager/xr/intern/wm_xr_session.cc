@@ -468,6 +468,9 @@ bContext *WM_xr_session_context_ensure(wmXrData *xr, const wmWindowManager *wm)
   ARegion *xr_region = BKE_area_find_region_type(xr->runtime->offscreen_area, RGN_TYPE_WINDOW);
   CTX_wm_region_set(xr->runtime->b_context, xr_region);
 
+  /* Register XR world-space panel hosts once the XR context has both a host area and surface. */
+  WM_xr_surface_panels_register(xr->runtime->b_context);
+
   /* Return for convenience. */
   return xr->runtime->b_context;
 }
@@ -1678,7 +1681,7 @@ void wm_xr_session_controller_data_populate(const wmXrAction *grip_action,
             surface_data->controller_art, wm_xr_draw_controllers, xr, REGION_DRAW_POST_VIEW);
 
         SpaceType *st = BKE_spacetype_from_id(SPACE_VIEW3D);
-        ARegionType *panel_art = st ? BKE_regiontype_from_id(st, RGN_TYPE_WINDOW) : nullptr;
+        ARegionType *panel_art = st ? BKE_regiontype_from_id(st, RGN_TYPE_XR) : nullptr;
         if (panel_art) {
           surface_data->panel_art = panel_art;
           surface_data->panel_draw_handle = ED_region_draw_cb_activate(
@@ -1731,16 +1734,25 @@ void wm_xr_session_controller_data_clear(wmXrSessionState *state)
  */
 static void wm_xr_session_surface_draw(bContext *C)
 {
+  CLOG_ERROR(&LOG, "begin wm_xr_session_surface_draw"); 
+
   wmWindowManager *wm = CTX_wm_manager(C);
   wmXrDrawData draw_data;
   static uint64_t xr_panel_frame_tag = 0;
 
   if (!WM_xr_session_is_ready(&wm->xr)) {
+    CLOG_ERROR(&LOG, "end wm_xr_session_surface_draw: XR session not ready"); 
     return;
   }
 
+  CLOG_ERROR(&LOG, "begin wm_xr_session_surface_draw_views");
   WM_xr_session_context_ensure(&wm->xr, wm);
+  CLOG_ERROR(&LOG, "end wm_xr_session_surface_draw_views");
+  
+  CLOG_ERROR(&LOG, "begin wm_xr_session_draw_data_populate");
   wm_xr_session_draw_data_populate(&wm->xr, &draw_data);
+  CLOG_ERROR(&LOG, "end wm_xr_session_draw_data_populate");
+
   if (draw_data.surface_data != nullptr) {
     const uint64_t frame_tag = ++xr_panel_frame_tag;
     draw_data.surface_data->panels_frame_tag = frame_tag;
@@ -1749,12 +1761,16 @@ static void wm_xr_session_surface_draw(bContext *C)
     }
   }
 
+  CLOG_ERROR(&LOG, "begin wm_xr_session_surface_draw_views");
   GHOST_XrSessionDrawViews(wm->xr.runtime->ghost_context, &draw_data);
+  CLOG_ERROR(&LOG, "end wm_xr_session_surface_draw_views");
 
   /* There's no active frame-buffer if the session was canceled (exception while drawing views). */
   if (GPU_framebuffer_active_get()) {
     GPU_framebuffer_restore();
   }
+
+  CLOG_ERROR(&LOG, "end wm_xr_session_surface_draw");
 }
 
 static void wm_xr_session_do_depsgraph(bContext *C)

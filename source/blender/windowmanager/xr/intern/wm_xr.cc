@@ -15,11 +15,13 @@
 #include "BKE_idprop.hh"
 #include "BKE_main.hh"
 #include "BKE_report.hh"
+#include "BKE_screen.hh"
 
 #include "DNA_scene_types.h"
 #include "DNA_windowmanager_types.h"
 
 #include "ED_screen.hh"
+#include "UI_interface_c.hh"
 
 #include "GHOST_IXrContext.hh"
 #include "GHOST_Types.hh"
@@ -143,6 +145,15 @@ bool wm_xr_init(bContext *C)
 
       /* Create the XR offscreen area (independent of any bScreen). */
       wm->xr.runtime->offscreen_area = ED_area_offscreen_create(CTX_wm_window(C), SPACE_VIEW3D);
+      if (wm->xr.runtime->offscreen_area != nullptr) {
+        ARegion *xr_region = BKE_area_find_region_type(wm->xr.runtime->offscreen_area, RGN_TYPE_UI);
+        if (xr_region != nullptr) {
+          xr_region->regiontype = RGN_TYPE_XR;
+          xr_region->runtime->type = BKE_regiontype_from_id(wm->xr.runtime->offscreen_area->type,
+                                                            RGN_TYPE_XR);
+          ui::region_handlers_add(&xr_region->runtime->handlers);
+        }
+      }
       WM_xr_session_context_ensure(&wm->xr, wm);
     }
   }
