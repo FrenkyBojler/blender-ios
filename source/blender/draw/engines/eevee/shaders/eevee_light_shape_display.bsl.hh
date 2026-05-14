@@ -16,6 +16,7 @@ FRAGMENT_SHADER_CREATE_INFO(eevee_volume_lib)
 #include "eevee_light_lib.glsl"
 #include "eevee_reverse_z_lib.bsl.hh"
 #include "eevee_volume_lib.bsl.hh"
+#include "gpu_shader_math_base_lib.glsl"
 #include "gpu_shader_math_constants_lib.glsl"
 #include "gpu_shader_math_matrix_transform_lib.glsl"
 
@@ -161,14 +162,21 @@ void shape_display_frag([[resource_table]] const ShapeDisplayResources & /*srt*/
 
   if (is_sun_light(light_type)) {
     float3 V = -drw_world_incident_vector(P);
-    float3 sun_direction = -light.sun().direction;
-    float sun_cos = inversesqrt(1.0f + light.sun().shape_radius * light.sun().shape_radius);
+    float3 sun_direction = light.sun().direction;
+    float sun_cos = cos_from_tan(light.sun().shape_radius);
     if (dot(V, sun_direction) < sun_cos) {
       gpu_discard_fragment();
       return;
     }
   }
   else {
+    if (is_area_light(light_type) &&
+        dot(drw_world_incident_vector(P), light_z_axis(light)) > 0.0f)
+    {
+      gpu_discard_fragment();
+      return;
+    }
+
     bool is_circle = light_type == LIGHT_ELLIPSE || is_point_light(light_type);
     if (is_circle && dot(v_out.lP, v_out.lP) > 1.0f) {
       gpu_discard_fragment();
