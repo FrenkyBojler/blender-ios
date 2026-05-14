@@ -72,36 +72,6 @@ void PixelOperation::log_data()
    * should be logged for all. The exception is inputs that are single values, in which case, their
    * value is simply logged. */
   for (const bNode *node : compile_unit_) {
-    /* Log input values. */
-    for (const bNodeSocket *input_socket : node->input_sockets()) {
-      if (!is_socket_available(input_socket)) {
-        continue;
-      }
-
-      if (!input_socket->is_logically_linked()) {
-        continue;
-      }
-
-      /* Check if the input is linked to a single value from outside of the pixel operation and log
-       * that value if it is the case. */
-      const bNodeSocket &linked_output = *input_socket->logically_linked_sockets()[0];
-      if (outputs_to_declared_inputs_map_.contains(&linked_output)) {
-        const std::string &input_identifier = outputs_to_declared_inputs_map_.lookup(
-            &linked_output);
-        const Result &input = this->get_input(input_identifier);
-        if (input.is_single_value()) {
-          tree_logger.log_value(*node, *input_socket, input.single_value());
-          continue;
-        }
-      }
-
-      tree_logger.input_socket_values.append(
-          *tree_logger.allocator,
-          {node->identifier,
-           input_socket->index(),
-           get_image_info_log(tree_logger.allocator, domain, this->context().get_precision())});
-    }
-
     /* Log output values. */
     for (const bNodeSocket *output_socket : node->output_sockets()) {
       if (!is_socket_available(output_socket)) {
@@ -116,6 +86,39 @@ void PixelOperation::log_data()
           *tree_logger.allocator,
           {node->identifier,
            output_socket->index(),
+           get_image_info_log(tree_logger.allocator, domain, this->context().get_precision())});
+    }
+
+    /* Log input values. */
+    for (const bNodeSocket *input_socket : node->input_sockets()) {
+      if (!is_socket_available(input_socket)) {
+        continue;
+      }
+
+      if (!input_socket->is_logically_linked()) {
+        continue;
+      }
+
+      /* The input is linked to a node that is inside the pixel operation, so skip it since it will
+       * inherit its value from an output that was logged above. */
+      const bNodeSocket &linked_output = *input_socket->logically_linked_sockets()[0];
+      if (compile_unit_.contains(&linked_output.owner_node())) {
+        continue;
+      }
+
+      /* Otherwise, it is linked to a node that is outside of the compile unit. If it is a single
+       * value, log that single value, if not, we log the operation domain. */
+      const std::string &input_identifier = outputs_to_declared_inputs_map_.lookup(&linked_output);
+      const Result &input = this->get_input(input_identifier);
+      if (input.is_single_value()) {
+        tree_logger.log_value(*node, *input_socket, input.single_value());
+        continue;
+      }
+
+      tree_logger.input_socket_values.append(
+          *tree_logger.allocator,
+          {node->identifier,
+           input_socket->index(),
            get_image_info_log(tree_logger.allocator, domain, this->context().get_precision())});
     }
   }
