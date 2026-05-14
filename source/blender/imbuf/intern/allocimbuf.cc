@@ -214,6 +214,8 @@ bool IMB_alloc_byte_pixels(ImBuf *ibuf, bool initialize_pixels)
     return false;
   }
 
+  ibuf->byte_buffer = {};
+
   if (!imb_alloc_buffer(
           ibuf->byte_buffer, ibuf->x, ibuf->y, 4, sizeof(uint8_t), initialize_pixels))
   {
