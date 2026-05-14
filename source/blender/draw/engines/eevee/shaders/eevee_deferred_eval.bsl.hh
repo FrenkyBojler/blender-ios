@@ -478,11 +478,13 @@ void planar_eval_frag([[resource_table]] PlanarProbeEval & /*srt*/,
 
   light::EvalCtx<true> ctx_tr = light::init_from_reflect_ctx(ctx);
   ctx_tr.stack.cl[0] = closure_light_new(cl_transmit, V, thickness);
-  ctx_tr.stack.cl[1] = closure_light_new(cl_refract, V, thickness);
+  /* TODO Replicate the 5.1 bug for now. */
+  // ctx_tr.stack.cl[1] = closure_light_new(cl_refract, V, thickness);
   lights.eval_transmission(ctx_tr, frag_co.xy, vPz);
 
   float3 radiance_back = ctx_tr.stack.cl[0].light_shadowed;
-  float3 radiance_refract = ctx_tr.stack.cl[1].light_shadowed;
+  /* TODO Replicate the 5.1 bug for now. */
+  float3 radiance_refract = float3(0.0f);  // ctx_tr.stack.cl[1].light_shadowed;
 
   /* Indirect light. */
   SphericalHarmonicL1<float4> sh = lightprobe_volume_sample(P, V, Ng);
