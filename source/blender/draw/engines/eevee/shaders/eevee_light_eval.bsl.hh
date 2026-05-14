@@ -155,16 +155,14 @@ template<bool is_transmission> struct LightEvalCtx {
       attenuation *= M_1_PI;
     }
 
-    if (!is_transmission) [[static_branch]] {
-      for (uint i = 0u; i < 3; i++) [[unroll]] {
-        if (srt.light_closure_eval_count_reflect > i) [[static_branch]] {
+    for (uint i = 0u; i < 3; i++) [[unroll]] {
+      if (is_transmission) [[static_branch]] {
+        if (srt.light_closure_eval_count_transmit > i) [[static_branch]] {
           light_eval_single_closure(light, lv, stack.cl[0], V, attenuation, shadow);
         }
       }
-    }
-    else {
-      for (uint i = 0u; i < 3; i++) [[unroll]] {
-        if (srt.light_closure_eval_count_transmit > i) [[static_branch]] {
+      else {
+        if (srt.light_closure_eval_count_reflect > i) [[static_branch]] {
           light_eval_single_closure(light, lv, stack.cl[0], V, attenuation, shadow);
         }
       }
