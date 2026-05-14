@@ -111,7 +111,8 @@ struct Scatter {
   [[legacy_info]] ShaderCreateInfo eevee_lightprobe_data;
   [[legacy_info]] ShaderCreateInfo eevee_sampling_data;
 
-  [[resource_table]] srt_t<light::LightEvalData> light_data;
+  [[resource_table]] srt_t<LightRenderData> light_data;
+  [[resource_table]] srt_t<ShadowRenderData> shadow_data;
 
   [[sampler(0)]] sampler3D scattering_history_tx;
   [[sampler(1)]] sampler3D extinction_history_tx;
@@ -132,8 +133,7 @@ struct LightEvalCtx {
                            LightData light,
                            const bool is_directional)
   {
-    [[resource_table]] light::LightEvalData &light_eval_data = srt.light_data;
-    [[resource_table]] ShadowRenderData &srd = light_eval_data.shadow_data;
+    [[resource_table]] ShadowRenderData &srd = srt.shadow_data;
 
     /* TODO(fclem): Own light list for volume without lights that have 0 volume influence. */
     if (light.power[LIGHT_VOLUME] == 0.0f) {
@@ -224,8 +224,6 @@ void scatter_main([[resource_table]] Scatter &srt,
 
   if (srt.use_volume_light) [[static_branch]] {
     if (reduce_max(s_scattering) > 0.0f) {
-      [[resource_table]] light::LightEvalData &led = srt.light_data;
-
       volume::LightEvalCtx ctx = {
           .radiance = float3(0.0f),
           .P = P,
@@ -236,7 +234,7 @@ void scatter_main([[resource_table]] Scatter &srt,
       float2 pixel = ((float2(froxel.xy) + 0.5f) * uniform_buf.volumes.inv_tex_size.xy) *
                      uniform_buf.volumes.main_view_extent;
 
-      light::foreach_visible(led.light_data, pixel, vP.z, ctx, srt);
+      light::foreach_visible(srt.light_data, pixel, vP.z, ctx, srt);
       direct_radiance = ctx.radiance;
     }
   }

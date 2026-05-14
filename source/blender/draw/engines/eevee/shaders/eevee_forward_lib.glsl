@@ -43,13 +43,14 @@ void forward_lighting_eval(Thickness thickness,
                            float3 &transmittance)
 {
   [[resource_table]] auto &lights = resource_table_get(eevee::light::LightEvalData);
+  [[resource_table]] light::LightEvalInnerData &srt = lights.inner;
 
   float vPz = dot(drw_view_forward(), g_data.P) - dot(drw_view_forward(), drw_view_position());
   float3 V = drw_world_incident_vector(g_data.P);
 
   light::LightEvalCtx<false> ctx;
   for (uint i = 0u; i < 3; i++) [[unroll]] {
-    if (lights.light_closure_eval_count > i) [[static_branch]] {
+    if (srt.light_closure_eval_count_reflect > i) [[static_branch]] {
       ClosureUndetermined cl = g_closure_get(uchar(i));
       ctx.stack.cl[i] = closure_light_new(cl, V);
     }
@@ -72,34 +73,33 @@ void forward_lighting_eval(Thickness thickness,
 
   lights.eval_reflection(ctx, frag_co, vPz);
 
-#if defined(GLSL_CPP_STUBS) || defined(MAT_SUBSURFACE) || defined(MAT_REFRACTION) || \
-    defined(MAT_TRANSLUCENT)
-  ClosureUndetermined cl_transmit = g_closure_get(0);
-  if (cl_transmit.type == CLOSURE_BSDF_TRANSLUCENT_ID ||
-      cl_transmit.type == CLOSURE_BSDF_MICROFACET_GGX_REFRACTION_ID ||
-      cl_transmit.type == CLOSURE_BSSRDF_BURLEY_ID)
-  {
-    light::LightEvalCtx<true> ctx_tr = light::init_from_reflect_ctx(ctx);
-    ctx_tr.stack.cl[0] = closure_light_new(cl_transmit, V, thickness);
+  if (srt.light_closure_eval_count_transmit > 0) [[static_branch]] {
+    ClosureUndetermined cl_transmit = g_closure_get(0);
+    if (cl_transmit.type == CLOSURE_BSDF_TRANSLUCENT_ID ||
+        cl_transmit.type == CLOSURE_BSDF_MICROFACET_GGX_REFRACTION_ID ||
+        cl_transmit.type == CLOSURE_BSSRDF_BURLEY_ID)
+    {
+      light::LightEvalCtx<true> ctx_tr = light::init_from_reflect_ctx(ctx);
+      ctx_tr.stack.cl[0] = closure_light_new(cl_transmit, V, thickness);
 
-    /* NOTE: Only evaluates `stack.cl[0]`. */
-    lights.eval_transmission(ctx_tr, frag_co, vPz);
+      /* NOTE: Only evaluates `stack.cl[0]`. */
+      lights.eval_transmission(ctx_tr, frag_co, vPz);
 
-    if (cl_transmit.type == CLOSURE_BSSRDF_BURLEY_ID) {
-#  if defined(GLSL_CPP_STUBS) || defined(MAT_SUBSURFACE)
-      /* Apply transmission profile onto transmitted light and sum with reflected light. */
-      float3 sss_profile = subsurface_transmission(to_closure_subsurface(cl_transmit).sss_radius,
-                                                   thickness.value());
-      ctx.stack.cl[0].light_shadowed += ctx_tr.stack.cl[0].light_shadowed * sss_profile;
-      ctx.stack.cl[0].light_unshadowed += ctx_tr.stack.cl[0].light_unshadowed * sss_profile;
-#  endif
-    }
-    else {
-      ctx.stack.cl[0].light_shadowed = ctx_tr.stack.cl[0].light_shadowed;
-      ctx.stack.cl[0].light_unshadowed = ctx_tr.stack.cl[0].light_unshadowed;
+      if (cl_transmit.type == CLOSURE_BSSRDF_BURLEY_ID) {
+#if defined(GLSL_CPP_STUBS) || defined(MAT_SUBSURFACE)
+        /* Apply transmission profile onto transmitted light and sum with reflected light. */
+        float3 sss_profile = subsurface_transmission(to_closure_subsurface(cl_transmit).sss_radius,
+                                                     thickness.value());
+        ctx.stack.cl[0].light_shadowed += ctx_tr.stack.cl[0].light_shadowed * sss_profile;
+        ctx.stack.cl[0].light_unshadowed += ctx_tr.stack.cl[0].light_unshadowed * sss_profile;
+#endif
+      }
+      else {
+        ctx.stack.cl[0].light_shadowed = ctx_tr.stack.cl[0].light_shadowed;
+        ctx.stack.cl[0].light_unshadowed = ctx_tr.stack.cl[0].light_unshadowed;
+      }
     }
   }
-#endif
 
   LightProbeSample samp = lightprobe_load(frag_co, g_data.P, g_data.Ng, V);
 
@@ -107,14 +107,14 @@ void forward_lighting_eval(Thickness thickness,
   samp.volume_irradiance = spherical_harmonics::clamp_energy(samp.volume_irradiance,
                                                              clamp_indirect_sh);
 
-#ifdef MAT_REFLECTION
+#ifdef MAT_REFLECTION /* Disable if only rough surfaces. */
   /* Planar reflection. */
   float3 planar_probe_radiance = float3(0.0f);
   float3 average_N = g_data.Ng * 0.001f;
   {
     /* Get average normal.  */
     for (uint i = 0u; i < 3; i++) [[unroll]] {
-      if (lights.light_closure_eval_count > i) [[static_branch]] {
+      if (srt.light_closure_eval_count_reflect > i) [[static_branch]] {
         ClosureUndetermined cl = g_closure_get(uchar(i));
         average_N += cl.N * cl.weight;
       }
@@ -150,7 +150,7 @@ void forward_lighting_eval(Thickness thickness,
   float3 radiance_indirect = float3(0.0f);
 
   for (uint i = 0u; i < 3; i++) [[unroll]] {
-    if (lights.light_closure_eval_count > i) [[static_branch]] {
+    if (srt.light_closure_eval_count_reflect > i) [[static_branch]] {
       ClosureUndetermined cl = g_closure_get_resolved(uchar(i), 1.0f);
       if (cl.weight > CLOSURE_WEIGHT_CUTOFF) {
         float3 direct_light = ctx.stack.cl[i].light_shadowed;
