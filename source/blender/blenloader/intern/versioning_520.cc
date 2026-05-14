@@ -288,6 +288,24 @@ static void version_text_strip_space_line(Main &bmain)
   }
 }
 
+static void version_text_strip_abs_space_line(Main &bmain)
+{
+  for (Scene &scene : bmain.scenes) {
+    Editing *ed = seq::editing_get(&scene);
+    if (ed == nullptr) {
+      continue;
+    }
+
+    seq::foreach_strip(&ed->seqbase, [&](Strip *strip) {
+      if (strip->type == STRIP_TYPE_TEXT && strip->effectdata != nullptr) {
+        TextVars *data = static_cast<TextVars *>(strip->effectdata);
+        data->abs_space_line = 0.0f;
+      }
+      return true;
+    });
+  }
+}
+
 static void fix_single_point_curves_custom_knots(Main *bmain)
 {
   /* Fix corrupted flagu/flagv values created by older versions of the Curve Pen tool.
@@ -623,6 +641,9 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 28)) {
     version_text_strip_space_line(*bmain);
+  }
+    if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 29)) {
+    version_text_strip_abs_space_line(*bmain);
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 29)) {
