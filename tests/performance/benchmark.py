@@ -366,6 +366,256 @@ def cmd_run(env: api.TestEnvironment, argv: list, update_only: bool):
     sys.exit(exit_code)
 
 
+def _resolve_device(env: api.TestEnvironment, device_str: str):
+    """Resolve a device string to a device_id and gpu_backend pair."""
+    machine = env.get_machine(need_gpus=True)
+    device_id = device_str
+    gpu_backend = 'default'
+
+    for device in machine.devices:
+        if device.id == device_str or device.type == device_str:
+            device_id = device.id
+            gpu_backend = {
+                'VULKAN': 'vulkan',
+                'METAL': 'metal',
+                'OPENGL': 'opengl'
+            }.get(device.type, 'default')
+            break
+
+    return device_id, gpu_backend
+
+
+def cmd_bisect(env: api.TestEnvironment, argv: list):
+    import datetime
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--device', required=True)
+    parser.add_argument('--category', required=True)
+    parser.add_argument('--test', required=True)
+    parser.add_argument('--attribute', required=True)
+    parser.add_argument('--threshold', required=True, type=float)
+    parser.add_argument('--success', required=True, choices=['greater_than', 'less_than'])
+    parser.add_argument('--range', required=True)
+    parser.add_argument('--count', default=3, type=int)
+    args = parser.parse_args(argv)
+
+    if not env.build_dir.exists() or not env.blender_dir.exists():
+        sys.stderr.write('Error: benchmark build not initialized. Run "benchmark.py init --build" first.\n')
+        sys.exit(1)
+
+    try:
+        parts = args.range.replace('..', '-').split('-')
+        start_str, end_str = parts[0].strip(), parts[1].strip()
+        start_dt = datetime.datetime.strptime(start_str, '%Y%m%d').replace(tzinfo=datetime.timezone.utc)
+        end_dt = datetime.datetime.strptime(end_str, '%Y%m%d').replace(tzinfo=datetime.timezone.utc)
+    except:
+        sys.stderr.write('Error: invalid date range format. Use YYYYMMDD-YYYYMMDD\n')
+        sys.exit(1)
+
+    collection = api.TestCollection(env, [args.test], [args.category])
+    test = collection.find(args.test, args.category)
+    if not test:
+        sys.stderr.write(f'Error: test not found: {args.category}/{args.test}\n')
+        sys.exit(1)
+
+    device_id, gpu_backend = _resolve_device(env, args.device)
+    threshold = args.threshold
+    count = args.count
+
+    def commits_in_window(after_ts, before_ts):
+        try:
+            lines = env.call(
+                [env.git_executable, 'log', '--first-parent', '--reverse',
+                 '--after=' + str(after_ts - 1), '--before=' + str(before_ts),
+                 '--format=%H %at', 'HEAD'],
+                env.blender_git_dir, silent=True)
+        except:
+            return []
+        result = []
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+            parts = line.split()
+            if len(parts) >= 2:
+                try:
+                    result.append((parts[0], int(parts[1])))
+                except:
+                    pass
+        return result
+
+    def date_str(ts):
+        return datetime.datetime.fromtimestamp(ts, tz=datetime.timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
+
+    def is_good(value):
+        if args.success == 'greater_than':
+            return value > threshold
+        return value < threshold
+
+    table = api.MarkdownTable()
+    table.add_column("Date (UTC)", width=22)
+    table.add_column("Commit", width=12)
+    table.add_column(args.attribute, width=14, alignment='RIGHT')
+    table.add_column("Status", width=8)
+    table.add_column("Title", width=70)
+    table.print_header()
+
+    tested = set()
+    _title_cache = {}
+
+    def commit_title(git_hash):
+        if git_hash in _title_cache:
+            return _title_cache[git_hash]
+        try:
+            lines = env.call(
+                [env.git_executable, 'log', '-n1', '--format=%s', git_hash],
+                env.blender_git_dir, silent=True)
+            title = lines[0].strip()[:70] if lines else ''
+        except:
+            title = ''
+        _title_cache[git_hash] = title
+        return title
+
+    def test_commit(git_hash, ts):
+        if git_hash in tested:
+            return None, 'skip'
+        tested.add(git_hash)
+
+        title = commit_title(git_hash)
+        table.print_row([date_str(ts), git_hash[:12], '', 'building', title], end='\r')
+
+        install_dir = env.install_dir
+        ok = env.build(git_hash, install_dir)
+        if not ok:
+            table.print_row([date_str(ts), git_hash[:12], 'error', 'FAIL (build)', title])
+            return None, 'build'
+
+        env.set_blender_executable(install_dir, {})
+
+        values = []
+        try:
+            for run_idx in range(count):
+                table.print_row([date_str(ts), git_hash[:12], '',
+                                 f'running [{run_idx + 1}/{count}]', title], end='\r')
+                output = test.run(env, device_id, gpu_backend)
+                if not output or args.attribute not in output:
+                    env.set_default_blender_executable()
+                    table.print_row([date_str(ts), git_hash[:12], 'error', 'run', title])
+                    return None, 'run'
+                values.append(output[args.attribute])
+        except Exception as e:
+            env.set_default_blender_executable()
+            table.print_row([date_str(ts), git_hash[:12], 'error', str(e)[:30], title])
+            return None, 'run'
+
+        env.set_default_blender_executable()
+        avg = sum(values) / len(values)
+
+        good = is_good(avg)
+        status = 'PASS' if good else 'FAIL'
+        table.print_row([date_str(ts), git_hash[:12], f'{avg:.4f}', status, title])
+        return avg, 'pass' if good else 'fail'
+
+    # Phase 1: Daily scan
+    start_ts = int(start_dt.timestamp())
+    end_ts = int(end_dt.timestamp())
+
+    good_commit = None
+    good_ts = None
+    bad_commit = None
+    bad_ts = None
+    day_ts = start_ts
+    last_tested = None
+
+    while day_ts <= end_ts:
+        next_day_ts = day_ts + 86400
+        day_commits = commits_in_window(day_ts, next_day_ts)
+
+        attempts = 0
+        for chash, cts in day_commits:
+            if chash == last_tested:
+                continue
+            if attempts >= 3:
+                break
+            attempts += 1
+            _, status = test_commit(chash, cts)
+            if status == 'build':
+                continue
+            if status == 'pass':
+                good_commit = chash
+                good_ts = cts
+            else:
+                bad_commit = chash
+                bad_ts = cts
+            last_tested = chash
+            break
+
+        if bad_commit:
+            break
+        day_ts = next_day_ts
+
+    if bad_commit is None:
+        print('\nNo regression found in the given date range.')
+        return
+
+    # Phase 2: Hourly scan between good and bad timestamps
+    good_ts = good_ts or start_ts
+
+    all_commits = commits_in_window(good_ts, bad_ts)
+    hour_groups = {}
+    for chash, cts in all_commits:
+        hour_key = (cts // 3600) * 3600
+        if hour_key not in hour_groups:
+            hour_groups[hour_key] = []
+        hour_groups[hour_key].append((chash, cts))
+
+    bad_hour_commit = bad_commit
+    bad_hour_ts = bad_ts
+    good_hour_commit = good_commit
+    good_hour_ts = good_ts
+    hourly_found_bad = False
+
+    for hour_key in sorted(hour_groups.keys()):
+        hour_commits = hour_groups[hour_key]
+        untested = [(h, t) for h, t in hour_commits if h not in tested]
+        if not untested:
+            continue
+
+        attempts = 0
+        for chash, cts in untested:
+            if attempts >= 3:
+                break
+            attempts += 1
+            _, status = test_commit(chash, cts)
+            if status == 'build':
+                continue
+            if status == 'pass':
+                good_hour_commit = chash
+                good_hour_ts = cts
+            else:
+                bad_hour_commit = chash
+                bad_hour_ts = cts
+                hourly_found_bad = True
+            break
+
+        if hourly_found_bad:
+            break
+
+    # Phase 3: Per-commit scan between good and bad hour commits
+    per_commits = commits_in_window(good_hour_ts, bad_hour_ts)
+    for chash, cts in per_commits:
+        if chash in tested:
+            continue
+        _, status = test_commit(chash, cts)
+        if status == 'fail':
+            print(f'\nRegression introduced by commit {chash} ({date_str(cts)})')
+            return
+        elif status == 'pass':
+            continue
+
+    print('\nCould not pinpoint the exact commit.')
+
+
 def cmd_graph(argv: list):
     # Create graph from a given JSON results file.
     parser = argparse.ArgumentParser()
@@ -402,7 +652,10 @@ def main():
              '  reset [<config>] [<test>]            Clear tests results in configuration\n'
              '  status [<config>] [<test>]           List configurations and their tests\n'
              '  \n'
-             '  graph a.json b.json... -o out.html   Create graph from results in JSON files\n')
+             '  graph a.json b.json... -o out.html   Create graph from results in JSON files\n'
+             '  \n'
+             '  bisect                                Find commit that introduced a regression'
+             ' between dates\n')
 
     parser = argparse.ArgumentParser(
         description='Blender performance testing',
@@ -441,6 +694,8 @@ def main():
         cmd_run(env, argv, update_only=True)
     elif args.command == 'reset':
         cmd_reset(env, argv)
+    elif args.command == 'bisect':
+        cmd_bisect(env, argv)
     elif args.command == 'status':
         cmd_status(env, argv)
     elif args.command == 'help':
