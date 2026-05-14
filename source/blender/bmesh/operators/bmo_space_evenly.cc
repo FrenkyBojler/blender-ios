@@ -119,7 +119,7 @@ static std::optional<SpaceChainData> walk_edges(BMEdge *start_edge, Set<BMEdge *
   walk_fn(start_edge->v1, pre_chain);
 
   if (!pre_chain.is_empty()) {
-    std::reverse(pre_chain.begin(), pre_chain.end());
+    std::ranges::reverse(pre_chain);
     pre_chain.extend(chain_data.verts);
     chain_data.verts = std::move(pre_chain);
   }
