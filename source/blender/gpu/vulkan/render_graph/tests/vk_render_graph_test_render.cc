@@ -347,4 +347,316 @@ TEST_P(VKRenderGraphTestRender, begin_draw_end__layered)
 
 INSTANTIATE_TEST_SUITE_P(, VKRenderGraphTestRender, ::testing::Values(true, false));
 
+class VKRenderGraphTestBarrierMerge : public VKRenderGraphTest {};
+
+/**
+ * Test that pre-barriers are merged when they have the same src/dst stage masks
+ * within the same rendering group.
+ */
+TEST_P(VKRenderGraphTestRender, merge_within_rendering_group)
+{
+  VkHandle<VkBuffer> buffer_a(1u);
+  VkHandle<VkBuffer> buffer_b(2u);
+  VkHandle<VkImage> image(3u);
+  VkHandle<VkImageView> image_view(4u);
+
+  resources.add_buffer(buffer_a);
+  resources.add_buffer(buffer_b);
+  resources.add_image(image, false);
+
+  render_graph->add_node(VKFillBufferNode::CreateInfo{buffer_a, 1024, 42});
+  render_graph->add_node(VKFillBufferNode::CreateInfo{buffer_b, 1024, 43});
+
+  {
+    VKResourceAccessInfo access_info = {};
+    access_info.images.append(
+        {image, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_IMAGE_ASPECT_COLOR_BIT, {}});
+    VKBeginRenderingNode::CreateInfo begin_rendering(access_info);
+    begin_rendering.node_data.color_attachments[0].sType =
+        VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
+    begin_rendering.node_data.color_attachments[0].imageLayout = color_attachment_layout();
+    begin_rendering.node_data.color_attachments[0].imageView = image_view;
+    begin_rendering.node_data.color_attachments[0].loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    begin_rendering.node_data.color_attachments[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    begin_rendering.node_data.vk_rendering_info.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
+    begin_rendering.node_data.vk_rendering_info.colorAttachmentCount = 1;
+    begin_rendering.node_data.vk_rendering_info.layerCount = 1;
+    begin_rendering.node_data.vk_rendering_info.pColorAttachments =
+        begin_rendering.node_data.color_attachments;
+    render_graph->add_node(begin_rendering);
+  }
+
+  {
+    VKResourceAccessInfo access_info = {};
+    access_info.buffers.append({buffer_a, VK_ACCESS_SHADER_READ_BIT});
+    VKDrawNode::CreateInfo draw(access_info);
+    draw.node_data.vertex_count = 3;
+    draw.node_data.instance_count = 1;
+    render_graph->add_node(draw);
+  }
+
+  {
+    VKResourceAccessInfo access_info = {};
+    access_info.buffers.append({buffer_b, VK_ACCESS_SHADER_READ_BIT});
+    VKDrawNode::CreateInfo draw(access_info);
+    draw.node_data.vertex_count = 3;
+    draw.node_data.instance_count = 1;
+    render_graph->add_node(draw);
+  }
+
+  render_graph->add_node(VKEndRenderingNode::CreateInfo{});
+  submit(render_graph, command_buffer);
+
+  ASSERT_EQ(8, log.size());
+
+  EXPECT_EQ("fill_buffer(dst_buffer=0x1, dst_offset=0, size=1024, data=42)", log[0]);
+  EXPECT_EQ("fill_buffer(dst_buffer=0x2, dst_offset=0, size=1024, data=43)", log[1]);
+
+  /* pipeline_barrier(src=TOP_OF_PIPE, dst=ALL_GRAPHICS, image_barrier for attachment image=0x3) */
+  EXPECT_TRUE(log[2].find("pipeline_barrier") != std::string::npos);
+  EXPECT_TRUE(log[2].find("image=0x3") != std::string::npos);
+
+  /* MERGED pipeline_barrier(src=TRANSFER, dst=ALL_GRAPHICS,
+   *   buffer_barrier(buffer=0x1), buffer_barrier(buffer=0x2)) */
+  EXPECT_TRUE(log[3].find("pipeline_barrier") != std::string::npos);
+  EXPECT_TRUE(log[3].find("buffer=0x1") != std::string::npos);
+  EXPECT_TRUE(log[3].find("buffer=0x2") != std::string::npos);
+  int buffer_barrier_count = 0;
+  size_t search_pos = log[3].find("buffer_barrier(");
+  while (search_pos != std::string::npos) {
+    buffer_barrier_count++;
+    search_pos = log[3].find("buffer_barrier(", search_pos + 1);
+  }
+  EXPECT_EQ(2, buffer_barrier_count);
+
+  /* begin_rendering(...) */
+  EXPECT_TRUE(log[4].find("begin_rendering") != std::string::npos);
+  /* draw(...) */
+  EXPECT_TRUE(log[5].find("draw(") != std::string::npos);
+  /* draw(...) */
+  EXPECT_TRUE(log[6].find("draw(") != std::string::npos);
+  EXPECT_EQ("end_rendering()", log[7]);
+}
+
+/**
+ * Test that pre-barriers in different groups are NOT merged even when they have
+ * identical stage masks.
+ */
+TEST_F(VKRenderGraphTestBarrierMerge, no_merge_across_groups)
+{
+  VkHandle<VkBuffer> buffer_a(1u);
+  VkHandle<VkBuffer> buffer_b(2u);
+  VkHandle<VkBuffer> staging_a(3u);
+  VkHandle<VkBuffer> staging_b(4u);
+
+  resources.add_buffer(buffer_a);
+  resources.add_buffer(buffer_b);
+  resources.add_buffer(staging_a);
+  resources.add_buffer(staging_b);
+
+  render_graph->add_node(VKFillBufferNode::CreateInfo{buffer_a, 1024, 42});
+  render_graph->add_node(VKFillBufferNode::CreateInfo{buffer_b, 1024, 43});
+
+  {
+    VKCopyBufferNode::CreateInfo copy_buffer = {};
+    copy_buffer.src_buffer = buffer_a;
+    copy_buffer.dst_buffer = staging_a;
+    copy_buffer.region.srcOffset = 0;
+    copy_buffer.region.dstOffset = 0;
+    copy_buffer.region.size = 1024;
+    render_graph->add_node(copy_buffer);
+  }
+
+  {
+    VKCopyBufferNode::CreateInfo copy_buffer = {};
+    copy_buffer.src_buffer = buffer_b;
+    copy_buffer.dst_buffer = staging_b;
+    copy_buffer.region.srcOffset = 0;
+    copy_buffer.region.dstOffset = 0;
+    copy_buffer.region.size = 1024;
+    render_graph->add_node(copy_buffer);
+  }
+
+  submit(render_graph, command_buffer);
+
+  ASSERT_EQ(6, log.size());
+  EXPECT_EQ("fill_buffer(dst_buffer=0x1, dst_offset=0, size=1024, data=42)", log[0]);
+  EXPECT_EQ("fill_buffer(dst_buffer=0x2, dst_offset=0, size=1024, data=43)", log[1]);
+
+  /* pipeline_barrier(src=TRANSFER, dst=TRANSFER, buffer_barrier(buffer=0x1)) — NOT merged across groups */
+  EXPECT_TRUE(log[2].find("pipeline_barrier") != std::string::npos);
+  EXPECT_TRUE(log[2].find("buffer=0x1") != std::string::npos);
+  EXPECT_TRUE(log[2].find("buffer_barrier(") != std::string::npos);
+  EXPECT_EQ(std::string::npos, log[2].find("buffer_barrier(", log[2].find("buffer_barrier(") + 1));
+
+  /* copy_buffer(src=0x1, dst=0x3) */
+  EXPECT_TRUE(log[3].find("copy_buffer") != std::string::npos);
+  EXPECT_TRUE(log[3].find("src_buffer=0x1") != std::string::npos);
+  EXPECT_TRUE(log[3].find("dst_buffer=0x3") != std::string::npos);
+
+  /* pipeline_barrier(src=TRANSFER, dst=TRANSFER, buffer_barrier(buffer=0x2)) — separate group, NOT merged */
+  EXPECT_TRUE(log[4].find("pipeline_barrier") != std::string::npos);
+  EXPECT_TRUE(log[4].find("buffer=0x2") != std::string::npos);
+  EXPECT_TRUE(log[4].find("buffer_barrier(") != std::string::npos);
+  EXPECT_EQ(std::string::npos, log[4].find("buffer_barrier(", log[4].find("buffer_barrier(") + 1));
+
+  /* copy_buffer(src=0x2, dst=0x4) */
+  EXPECT_TRUE(log[5].find("copy_buffer") != std::string::npos);
+  EXPECT_TRUE(log[5].find("src_buffer=0x2") != std::string::npos);
+  EXPECT_TRUE(log[5].find("dst_buffer=0x4") != std::string::npos);
+}
+
+/**
+ * Test that the merge_pre_barrier does not merge when stage masks differ.
+ */
+TEST_P(VKRenderGraphTestRender, no_merge_different_stage_masks)
+{
+  VkHandle<VkBuffer> buffer(1u);
+  VkHandle<VkImage> image(2u);
+  VkHandle<VkImageView> image_view(3u);
+
+  resources.add_buffer(buffer);
+  resources.add_image(image, false);
+
+  render_graph->add_node(VKFillBufferNode::CreateInfo{buffer, 1024, 42});
+
+  {
+    VKResourceAccessInfo access_info = {};
+    access_info.images.append(
+        {image, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_IMAGE_ASPECT_COLOR_BIT, {}});
+    VKBeginRenderingNode::CreateInfo begin_rendering(access_info);
+    begin_rendering.node_data.color_attachments[0].sType =
+        VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
+    begin_rendering.node_data.color_attachments[0].imageLayout = color_attachment_layout();
+    begin_rendering.node_data.color_attachments[0].imageView = image_view;
+    begin_rendering.node_data.color_attachments[0].loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    begin_rendering.node_data.color_attachments[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    begin_rendering.node_data.vk_rendering_info.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
+    begin_rendering.node_data.vk_rendering_info.colorAttachmentCount = 1;
+    begin_rendering.node_data.vk_rendering_info.layerCount = 1;
+    begin_rendering.node_data.vk_rendering_info.pColorAttachments =
+        begin_rendering.node_data.color_attachments;
+    render_graph->add_node(begin_rendering);
+  }
+
+  {
+    VKResourceAccessInfo access_info = {};
+    access_info.buffers.append({buffer, VK_ACCESS_SHADER_READ_BIT});
+    VKDrawNode::CreateInfo draw(access_info);
+    draw.node_data.vertex_count = 3;
+    draw.node_data.instance_count = 1;
+    render_graph->add_node(draw);
+  }
+
+  render_graph->add_node(VKEndRenderingNode::CreateInfo{});
+  submit(render_graph, command_buffer);
+
+  ASSERT_EQ(6, log.size());
+  EXPECT_EQ("fill_buffer(dst_buffer=0x1, dst_offset=0, size=1024, data=42)", log[0]);
+
+  /* pipeline_barrier(src=TOP_OF_PIPE, dst=ALL_GRAPHICS, image_barrier for image=0x2) */
+  EXPECT_TRUE(log[1].find("pipeline_barrier") != std::string::npos);
+  EXPECT_TRUE(log[1].find("image=0x2") != std::string::npos);
+
+  /* pipeline_barrier(src=TRANSFER, dst=ALL_GRAPHICS, buffer_barrier for buffer=0x1) — different src_stage_mask, NOT merged */
+  EXPECT_TRUE(log[2].find("pipeline_barrier") != std::string::npos);
+  EXPECT_TRUE(log[2].find("buffer=0x1") != std::string::npos);
+
+  /* begin_rendering(...) */
+  EXPECT_TRUE(log[3].find("begin_rendering") != std::string::npos);
+  /* draw(...) */
+  EXPECT_TRUE(log[4].find("draw(") != std::string::npos);
+  EXPECT_EQ("end_rendering()", log[5]);
+}
+
+/**
+ * Multiple DRAW nodes reading distinct buffers all merge into one pre-barrier.
+ */
+TEST_P(VKRenderGraphTestRender, merge_multiple_buffers)
+{
+  VkHandle<VkBuffer> buffers[5] = {
+      VkHandle<VkBuffer>(1u),
+      VkHandle<VkBuffer>(2u),
+      VkHandle<VkBuffer>(3u),
+      VkHandle<VkBuffer>(4u),
+      VkHandle<VkBuffer>(5u),
+  };
+  VkHandle<VkImage> image(6u);
+  VkHandle<VkImageView> image_view(7u);
+
+  for (int i = 0; i < 5; i++) {
+    resources.add_buffer(buffers[i]);
+  }
+  resources.add_image(image, false);
+
+  for (int i = 0; i < 5; i++) {
+    render_graph->add_node(VKFillBufferNode::CreateInfo{buffers[i], 256, uint32_t(i)});
+  }
+
+  {
+    VKResourceAccessInfo access_info = {};
+    access_info.images.append(
+        {image, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_IMAGE_ASPECT_COLOR_BIT, {}});
+    VKBeginRenderingNode::CreateInfo begin_rendering(access_info);
+    begin_rendering.node_data.color_attachments[0].sType =
+        VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
+    begin_rendering.node_data.color_attachments[0].imageLayout = color_attachment_layout();
+    begin_rendering.node_data.color_attachments[0].imageView = image_view;
+    begin_rendering.node_data.color_attachments[0].loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    begin_rendering.node_data.color_attachments[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    begin_rendering.node_data.vk_rendering_info.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
+    begin_rendering.node_data.vk_rendering_info.colorAttachmentCount = 1;
+    begin_rendering.node_data.vk_rendering_info.layerCount = 1;
+    begin_rendering.node_data.vk_rendering_info.pColorAttachments =
+        begin_rendering.node_data.color_attachments;
+    render_graph->add_node(begin_rendering);
+  }
+
+  for (int i = 0; i < 5; i++) {
+    VKResourceAccessInfo access_info = {};
+    access_info.buffers.append({buffers[i], VK_ACCESS_SHADER_READ_BIT});
+    VKDrawNode::CreateInfo draw(access_info);
+    draw.node_data.vertex_count = 3;
+    draw.node_data.instance_count = 1;
+    render_graph->add_node(draw);
+  }
+
+  render_graph->add_node(VKEndRenderingNode::CreateInfo{});
+  submit(render_graph, command_buffer);
+
+  ASSERT_EQ(14, log.size());
+
+  for (int i = 0; i < 5; i++) {
+    /* fill_buffer(...) */
+    EXPECT_TRUE(log[i].find("fill_buffer") != std::string::npos);
+  }
+
+  /* pipeline_barrier(src=TOP_OF_PIPE, dst=ALL_GRAPHICS, image_barrier for image=0x6) */
+  EXPECT_TRUE(log[5].find("pipeline_barrier") != std::string::npos);
+  EXPECT_TRUE(log[5].find("image=0x6") != std::string::npos);
+
+  /* MERGED pipeline_barrier(src=TRANSFER, dst=ALL_GRAPHICS,
+   *   buffer_barrier(buffer=0x1..0x5)) */
+  int buffer_barrier_count = 0;
+  size_t search_pos = log[6].find("buffer_barrier(");
+  while (search_pos != std::string::npos) {
+    buffer_barrier_count++;
+    search_pos = log[6].find("buffer_barrier(", search_pos + 1);
+  }
+  EXPECT_EQ(5, buffer_barrier_count);
+
+  for (int i = 0; i < 5; i++) {
+    std::string expected = "buffer=0x" + std::to_string(i + 1);
+    EXPECT_TRUE(log[6].find(expected) != std::string::npos);
+  }
+
+  /* begin_rendering(...) */
+  EXPECT_TRUE(log[7].find("begin_rendering") != std::string::npos);
+  for (int i = 0; i < 5; i++) {
+    /* draw(...) */
+    EXPECT_TRUE(log[8 + i].find("draw(") != std::string::npos);
+  }
+  EXPECT_EQ("end_rendering()", log[13]);
+}
+
 }  // namespace blender::gpu::render_graph
