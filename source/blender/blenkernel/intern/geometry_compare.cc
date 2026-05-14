@@ -1076,13 +1076,21 @@ std::optional<GeoMismatch> compare_curves(const CurvesGeometry &curves1,
   }
 
   for (const int sorted_i : points.from_sorted1.index_range()) {
-    if (points.from_sorted1[sorted_i] != points.from_sorted2[sorted_i]) {
+    const int points_num1 = points.from_sorted1[sorted_i],
+              points_num2 = points.from_sorted2[sorted_i];
+    if ((points_num1 == 0 && points_num2 != 0) ||
+        float(points_num1 - points_num2) / points_num1 > points_num_deviations)
+    {
       return GeoMismatch::Indices;
     }
   }
 
   for (const int sorted_i : curves.from_sorted1.index_range()) {
-    if (curves.from_sorted1[sorted_i] != curves.from_sorted2[sorted_i]) {
+    const int curves_num1 = curves.from_sorted1[sorted_i],
+              curves_num2 = curves.from_sorted2[sorted_i];
+    if ((curves_num1 == 0 && curves_num2 != 0) ||
+        float(curves_num1 - curves_num2) / curves_num1 > curves_num_deviations)
+    {
       return GeoMismatch::Indices;
     }
   }
