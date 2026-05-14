@@ -243,7 +243,10 @@ static void calculate_splines_axis(Span<float> distances,
    * a cyclic tridiagonal system so in this case, we use the Sherman-Morrison formula
    * via `BLI_tridiagonal_solve_cyclic`. */
   if (is_closed) {
-    Array<float> lower_diag(num_verts), diag(num_verts), upper_diag(num_verts), rhs(num_verts);
+    Array<float> lower_diag(num_verts);
+    Array<float> diag(num_verts);
+    Array<float> upper_diag(num_verts);
+    Array<float> rhs(num_verts);
     for (const int i : IndexRange(num_verts)) {
       const int v_prev = mod_i(i - 1, num_verts);
       const int v_next = mod_i(i + 1, num_verts);
@@ -356,11 +359,13 @@ void bmo_space_evenly_exec(BMesh *bm, BMOperator *op)
   for (SpaceChainData &chain : chains) {
     SpaceMeasurements measure = measure_chain(chain);
 
-    Vector<float> coords_x, coords_y, coords_z;
-    for (BMVert *v : chain.verts) {
-      coords_x.append(v->co[0]);
-      coords_y.append(v->co[1]);
-      coords_z.append(v->co[2]);
+    Array<float> coords_x(chain.verts.size());
+    Array<float> coords_y(chain.verts.size());
+    Array<float> coords_z(chain.verts.size());
+    for (const int i : chain.verts.index_range()) {
+      coords_x[i] = chain.verts[i]->co[0];
+      coords_y[i] = chain.verts[i]->co[1];
+      coords_z[i] = chain.verts[i]->co[2];
     }
     Vector<SplineCoeffs> coeffs_x, coeffs_y, coeffs_z;
     if (interpolation == Cubic) {
