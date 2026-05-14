@@ -508,8 +508,8 @@ def cmd_bisect(env: api.TestEnvironment, argv: list):
         try:
             for run_idx in range(count):
                 run_status = 'running' if count == 1 else f'run [{run_idx + 1}/{count}]'
-                table.print_row([date_str(ts), git_hash, title, '', run_status, end= '\r')
-                output=test.run(env, device_id, gpu_backend)
+                table.print_row([date_str(ts), git_hash, title, '', run_status], end='\r')
+                output = test.run(env, device_id, gpu_backend)
                 if not output or args.attribute not in output:
                     env.set_default_blender_executable()
                     table.print_row([date_str(ts), git_hash, title, 'error', 'run'])
@@ -521,106 +521,106 @@ def cmd_bisect(env: api.TestEnvironment, argv: list):
             return None, 'run'
 
         env.set_default_blender_executable()
-        avg=sum(values) / len(values)
+        avg = sum(values) / len(values)
 
-        good=is_good(avg)
-        status='PASS' if good else 'FAIL'
+        good = is_good(avg)
+        status = 'PASS' if good else 'FAIL'
         table.print_row([date_str(ts), git_hash, title, f'{avg:.4f}', status])
         return avg, 'pass' if good else 'fail'
 
     # Phase 1: Daily scan
-    start_ts=int(start_dt.timestamp())
-    end_ts=int(end_dt.timestamp())
+    start_ts = int(start_dt.timestamp())
+    end_ts = int(end_dt.timestamp())
 
-    good_commit=None
-    good_ts=None
-    bad_commit=None
-    bad_ts=None
-    day_ts=start_ts
-    last_tested=None
+    good_commit = None
+    good_ts = None
+    bad_commit = None
+    bad_ts = None
+    day_ts = start_ts
+    last_tested = None
 
     while day_ts <= end_ts:
-        next_day_ts=day_ts + 86400
-        day_commits=commits_in_window(day_ts, next_day_ts)
+        next_day_ts = day_ts + 86400
+        day_commits = commits_in_window(day_ts, next_day_ts)
 
-        attempts=0
+        attempts = 0
         for chash, cts in day_commits:
             if chash == last_tested:
                 continue
             if attempts >= 3:
                 break
             attempts += 1
-            _, status=test_commit(chash, cts)
+            _, status = test_commit(chash, cts)
             if status == 'build':
                 continue
             if status == 'pass':
-                good_commit=chash
-                good_ts=cts
+                good_commit = chash
+                good_ts = cts
             else:
-                bad_commit=chash
-                bad_ts=cts
-            last_tested=chash
+                bad_commit = chash
+                bad_ts = cts
+            last_tested = chash
             break
 
         if bad_commit:
             break
-        day_ts=next_day_ts
+        day_ts = next_day_ts
 
     if bad_commit is None:
         print('\nNo regression found in the given date range.')
         return
 
     # Phase 2: Hourly scan between good and bad timestamps
-    good_ts=good_ts or start_ts
+    good_ts = good_ts or start_ts
 
-    all_commits=commits_in_window(good_ts, bad_ts)
-    hour_groups={}
+    all_commits = commits_in_window(good_ts, bad_ts)
+    hour_groups = {}
     for chash, cts in all_commits:
-        hour_key=(cts // 3600) * 3600
+        hour_key = (cts // 3600) * 3600
         if hour_key not in hour_groups:
-            hour_groups[hour_key]=[]
+            hour_groups[hour_key] = []
         hour_groups[hour_key].append((chash, cts))
 
-    bad_hour_commit=bad_commit
-    bad_hour_ts=bad_ts
-    good_hour_commit=good_commit
-    good_hour_ts=good_ts
-    hourly_found_bad=False
+    bad_hour_commit = bad_commit
+    bad_hour_ts = bad_ts
+    good_hour_commit = good_commit
+    good_hour_ts = good_ts
+    hourly_found_bad = False
 
     for hour_key in sorted(hour_groups.keys()):
-        hour_commits=hour_groups[hour_key]
-        untested=[(h, t) for h, t in hour_commits if h not in tested]
+        hour_commits = hour_groups[hour_key]
+        untested = [(h, t) for h, t in hour_commits if h not in tested]
         if not untested:
             continue
 
-        attempts=0
+        attempts = 0
         for chash, cts in untested:
             if attempts >= 3:
                 break
             attempts += 1
-            _, status=test_commit(chash, cts)
+            _, status = test_commit(chash, cts)
             if status == 'build':
                 continue
             if status == 'pass':
-                good_hour_commit=chash
-                good_hour_ts=cts
+                good_hour_commit = chash
+                good_hour_ts = cts
             else:
-                bad_hour_commit=chash
-                bad_hour_ts=cts
-                hourly_found_bad=True
+                bad_hour_commit = chash
+                bad_hour_ts = cts
+                hourly_found_bad = True
             break
 
         if hourly_found_bad:
             break
 
     # Phase 3: Per-commit scan between good and bad hour commits
-    per_commits=commits_in_window(good_hour_ts, bad_hour_ts)
+    per_commits = commits_in_window(good_hour_ts, bad_hour_ts)
     for chash, cts in per_commits:
         if chash in tested:
             continue
-        _, status=test_commit(chash, cts)
+        _, status = test_commit(chash, cts)
         if status == 'fail':
-            title=commit_title(chash)
+            title = commit_title(chash)
             print(f'\nRegression introduced by commit {chash}: {title} ({date_str(cts)})')
             return
         elif status == 'pass':
@@ -631,28 +631,28 @@ def cmd_bisect(env: api.TestEnvironment, argv: list):
 
 def cmd_graph(argv: list):
     # Create graph from a given JSON results file.
-    parser=argparse.ArgumentParser()
+    parser = argparse.ArgumentParser()
     parser.add_argument('json_file', nargs='+')
     parser.add_argument('-o', '--output', type=str, required=True)
-    args=parser.parse_args(argv)
+    args = parser.parse_args(argv)
 
     # For directories, use all json files in the directory.
-    json_files=[]
+    json_files = []
     for path in args.json_file:
-        path=pathlib.Path(path)
+        path = pathlib.Path(path)
         if path.is_dir():
             for filepath in glob.iglob(str(path / '*.json')):
                 json_files.append(pathlib.Path(filepath))
         else:
             json_files.append(path)
 
-    graph=api.TestGraph(json_files)
+    graph = api.TestGraph(json_files)
     graph.write(pathlib.Path(args.output))
 
 
 def main():
     logging.basicConfig()
-    usage=('benchmark <command> [<args>]\n'
+    usage = ('benchmark <command> [<args>]\n'
              '\n'
              'Commands:\n'
              '  init [--build]                       Init benchmarks directory and default config\n'
@@ -670,15 +670,15 @@ def main():
              '  bisect                                Find commit that introduced a regression'
              ' between dates\n')
 
-    parser=argparse.ArgumentParser(
+    parser = argparse.ArgumentParser(
         description='Blender performance testing',
         usage=usage)
 
     parser.add_argument('command', nargs='?', default='help')
-    args=parser.parse_args(sys.argv[1:2])
+    args = parser.parse_args(sys.argv[1:2])
 
-    argv=sys.argv[2:]
-    blender_git_dir=find_blender_git_dir()
+    argv = sys.argv[2:]
+    blender_git_dir = find_blender_git_dir()
     if blender_git_dir is None:
         sys.stderr.write('Error: no blender git repository found from current working directory\n')
         sys.exit(1)
@@ -687,8 +687,8 @@ def main():
         cmd_graph(argv)
         sys.exit(0)
 
-    base_dir=get_tests_base_dir(blender_git_dir)
-    env=api.TestEnvironment(blender_git_dir, base_dir)
+    base_dir = get_tests_base_dir(blender_git_dir)
+    env = api.TestEnvironment(blender_git_dir, base_dir)
     if args.command == 'init':
         cmd_init(env, argv)
         sys.exit(0)
