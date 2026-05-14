@@ -246,10 +246,14 @@ class MTLFrameBuffer : public FrameBuffer {
     return srgb_;
   }
 
-  inline void default_size_set(int w, int h)
+  inline void default_size_set(int w, int h) override
   {
     default_width_ = w;
     default_height_ = h;
+    /* Don't trigger update_attachments on next bind (it calls remove_all_attachments
+     * -> ensure_render_target_size -> default_size_set(0,0), zeroing width_/height_). */
+    FrameBuffer::default_size_set(w, h);
+    dirty_attachments_ = false;
   }
 
  private:

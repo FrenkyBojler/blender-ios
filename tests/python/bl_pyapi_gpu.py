@@ -21,6 +21,23 @@ class TestGpuInit(unittest.TestCase):
         gpu.types.GPUTexture(size=(1024, 1024), format="RGBA8")
 
 
+
+class TestGpuFrameBuffer(unittest.TestCase):
+    def test_read_color_bounds_check(self):
+        gpu.init()
+
+        w, h = 16, 16
+        fb = gpu.state.active_framebuffer_get()
+        self.assertIsNotNone(fb)
+
+        # Reading within bounds should succeed.
+        buf = fb.read_color(0, 0, 1, 1, 4, 0, "UBYTE")
+
+        # Reading outside bounds should raise ValueError.
+        with self.assertRaises(ValueError):
+            fb.read_color(-1, 0, 1, 1, 4, 0, "UBYTE")
+
+
 if __name__ == "__main__":
     import sys
 
