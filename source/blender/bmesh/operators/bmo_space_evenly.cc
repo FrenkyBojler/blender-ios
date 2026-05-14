@@ -180,19 +180,19 @@ static SpaceMeasurements measure_chain(const SpaceChainData &chain)
 
   /* Measure cumulative distances. */
   float current_dist = 0.0f;
-  measure.knot_distances.reserve(num_verts + (chain.is_closed ? 1 : 0));
+  measure.knot_distances.resize(num_verts + (chain.is_closed ? 1 : 0));
   /* The very first vertex is at distance 0. */
-  measure.knot_distances.append(0.0f);
+  measure.knot_distances[0] = 0.0f;
 
   for (const int i : IndexRange(num_verts).drop_front(1)) {
     current_dist += math::distance(float3(chain.verts[i]->co), float3(chain.verts[i - 1]->co));
-    measure.knot_distances.append(current_dist);
+    measure.knot_distances[i] = current_dist;
   }
   /* The for loop missed the final gap if its a closed chain. */
   if (chain.is_closed) {
     current_dist += math::distance(float3(chain.verts.last()->co),
                                    float3(chain.verts.first()->co));
-    measure.knot_distances.append(current_dist);
+    measure.knot_distances.last() = current_dist;
   }
   measure.total_length = current_dist;
 
