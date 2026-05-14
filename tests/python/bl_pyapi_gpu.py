@@ -21,7 +21,6 @@ class TestGpuInit(unittest.TestCase):
         gpu.types.GPUTexture(size=(1024, 1024), format="RGBA8")
 
 
-
 class TestGpuFrameBuffer(unittest.TestCase):
     def test_read_color_bounds_check(self):
         gpu.init()
