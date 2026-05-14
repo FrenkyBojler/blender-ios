@@ -1838,7 +1838,7 @@ void add_single_curve(bke::greasepencil::Drawing &drawing, const bool at_end)
       const implicit_sharing::CacheKeyRef key({
           curves.attributes().lookup<int>("fill_id").sharing_info,
       });
-      auto &cache = bke::greasepencil::get_fill_cache();
+      auto &cache = bke::greasepencil::DrawingRuntime::get_fill_cache();
       cache.update(key, [&](std::optional<bke::greasepencil::FillData> &fill_cache) {
         if (fill_cache) {
           fill_cache->fill_map.append(num_old_curves);

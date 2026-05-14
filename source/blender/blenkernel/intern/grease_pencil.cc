@@ -446,12 +446,6 @@ Drawing::~Drawing()
   this->runtime = nullptr;
 }
 
-FillCache &get_fill_cache()
-{
-  static FillCache cache("Grease Pencil Fills");
-  return cache;
-}
-
 std::optional<GroupedSpan<int>> Drawing::fills() const
 {
   const CurvesGeometry &curves = this->strokes();
@@ -466,7 +460,7 @@ std::optional<GroupedSpan<int>> Drawing::fills() const
       fill_attr.sharing_info,
   });
 
-  FillCache &cache = get_fill_cache();
+  FillCache &cache = DrawingRuntime::get_fill_cache();
   const std::optional<FillData> &fills = cache.lookup_or_compute(key, [&]() {
     const CurvesGeometry &curves = this->strokes();
     const bke::AttributeAccessor attributes = curves.attributes();
