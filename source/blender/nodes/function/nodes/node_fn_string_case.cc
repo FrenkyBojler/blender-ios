@@ -36,9 +36,11 @@ static const EnumPropertyItem case_items[] = {
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.is_function_node();
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
   b.add_input<decl::String>("String"_ustr).optional_label();
+  b.add_output<decl::String>("String"_ustr).align_with_previous();
   b.add_input<decl::Menu>("Case"_ustr).static_items(case_items).optional_label();
-  b.add_output<decl::String>("String"_ustr);
 }
 
 static std::string apply_string_case(const std::string &s, const Case mode)
