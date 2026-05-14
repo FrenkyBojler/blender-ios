@@ -16,6 +16,8 @@
 #include "BLI_math_quaternion_types.hh"
 #include "BLI_math_vector_types.hh"
 
+#include "BLT_translation.hh"
+
 #include "GPU_shader.hh"
 #include "GPU_state.hh"
 #include "GPU_texture.hh"
@@ -1173,9 +1175,9 @@ StringRefNull to_string(const ResultPrecision &precision)
 {
   switch (precision) {
     case ResultPrecision::Full:
-      return "Full";
+      return N_("Full");
     case ResultPrecision::Half:
-      return "Half";
+      return N_("Half");
   }
 
   BLI_assert_unreachable();

@@ -835,15 +835,15 @@ class SocketTooltipBuilder {
 
     this->add_text_field_mono(TIP_("Sampling:"));
     this->add_text_field_mono(
-        fmt::format("\u2022 {}: {}", TIP_("Interpolation"), image_log.interpolation));
+        fmt::format("\u2022 {}: {}", TIP_("Interpolation"), TIP_(image_log.interpolation)));
     this->add_text_field_mono(
-        fmt::format("\u2022 {}: {}", TIP_("Extension X"), image_log.extension_x));
+        fmt::format("\u2022 {}: {}", TIP_("Extension X"), TIP_(image_log.extension_x)));
     this->add_text_field_mono(
-        fmt::format("\u2022 {}: {}", TIP_("Extension Y"), image_log.extension_y));
+        fmt::format("\u2022 {}: {}", TIP_("Extension Y"), TIP_(image_log.extension_y)));
 
     this->add_space();
 
-    this->add_text_field_mono(fmt::format("{}: {}", TIP_("Precision"), image_log.precision));
+    this->add_text_field_mono(fmt::format("{}: {}", TIP_("Precision"), TIP_(image_log.precision)));
 
     this->add_space();
 

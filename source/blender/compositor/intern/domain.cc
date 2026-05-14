@@ -9,6 +9,8 @@
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector_types.hh"
 
+#include "BLT_translation.hh"
+
 #include "GPU_texture.hh"
 
 #include "COM_domain.hh"
@@ -111,13 +113,13 @@ StringRefNull to_string(const Interpolation &interpolation)
 {
   switch (interpolation) {
     case Interpolation::Nearest:
-      return "Nearest";
+      return N_("Nearest");
     case Interpolation::Bilinear:
-      return "Bilinear";
+      return N_("Bilinear");
     case Interpolation::Bicubic:
-      return "Bicubic";
+      return N_("Bicubic");
     case Interpolation::Anisotropic:
-      return "Anisotropic";
+      return N_("Anisotropic");
   }
 
   BLI_assert_unreachable();
@@ -128,11 +130,11 @@ StringRefNull to_string(const Extension &extension)
 {
   switch (extension) {
     case Extension::Extend:
-      return "Extend";
+      return N_("Extend");
     case Extension::Repeat:
-      return "Repeat";
+      return N_("Repeat");
     case Extension::Clip:
-      return "Clip";
+      return N_("Clip");
   }
 
   BLI_assert_unreachable();
