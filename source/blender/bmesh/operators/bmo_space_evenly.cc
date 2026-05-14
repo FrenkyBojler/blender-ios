@@ -63,14 +63,6 @@ struct SplineCoeffs {
   float x;
 };
 
-/** Interpolation method used for spacing vertices. */
-enum InterpolationMethod {
-  /** Fit a smooth curve using natural cubic splines. */
-  Cubic = 0,
-  /** Interpolates linearly between consecutive vertices. */
-  Linear = 1,
-};
-
 /**
  * Walk from start_edge in both directions and return the resulting vertex chain.
  * Returns std::nullopt when all vertices are at the same position.
@@ -343,7 +335,7 @@ static float3 evaluate_cubic(Span<float> tknots,
 void bmo_space_evenly_exec(BMesh *bm, BMOperator *op)
 {
   const float influence = BMO_slot_float_get(op->slots_in, "factor");
-  const InterpolationMethod interpolation = static_cast<InterpolationMethod>(
+  const SpaceInterpolationMethod interpolation = static_cast<SpaceInterpolationMethod>(
       BMO_slot_int_get(op->slots_in, "interpolation"));
   const bool lock_x = BMO_slot_bool_get(op->slots_in, "lock_x");
   const bool lock_y = BMO_slot_bool_get(op->slots_in, "lock_y");
@@ -368,7 +360,7 @@ void bmo_space_evenly_exec(BMesh *bm, BMOperator *op)
       coords_z[i] = chain.verts[i]->co[2];
     }
     Vector<SplineCoeffs> coeffs_x, coeffs_y, coeffs_z;
-    if (interpolation == Cubic) {
+    if (interpolation == SPACE_INTERP_CUBIC) {
       calculate_splines_axis(
           measure.knot_distances, coords_x, chain.is_closed, measure.total_length, coeffs_x);
       calculate_splines_axis(
@@ -386,7 +378,7 @@ void bmo_space_evenly_exec(BMesh *bm, BMOperator *op)
       float target_distance = measure.spaced_distances[i];
       float3 new_pos;
 
-      if (interpolation == Linear) {
+      if (interpolation == SPACE_INTERP_LINEAR) {
         new_pos = evaluate_linear(
             measure.knot_distances, coords_x, coords_y, coords_z, target_distance);
       }

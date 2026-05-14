@@ -144,6 +144,12 @@ enum {
   FACE_STRENGTH_STRONG = 16384,
 };
 
+/** Interpolation method used for spacing vertices. */
+enum SpaceInterpolationMethod {
+  SPACE_INTERP_CUBIC = 0,
+  SPACE_INTERP_LINEAR = 1,
+};
+
 /**
  * Methods for determining the orientation of flattening the plane.
  */
