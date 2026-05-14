@@ -466,6 +466,7 @@ static eContextResult screen_ctx_selected_pose_bones(const bContext *C, bContext
       FOREACH_OBJECT_IN_MODE_BEGIN (
           bmain, scene, view_layer, v3d, OB_ARMATURE, OB_MODE_POSE, ob_iter)
       {
+        BKE_pose_ensure_bone_indices(*ob_iter);
         FOREACH_PCHAN_SELECTED_IN_OBJECT_BEGIN (ob_iter, pchan) {
           CTX_data_list_add(result, &ob_iter->id, RNA_PoseBone, pchan);
         }
