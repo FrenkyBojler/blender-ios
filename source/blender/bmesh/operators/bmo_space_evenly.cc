@@ -201,10 +201,10 @@ static SpaceMeasurements measure_chain(const SpaceChainData &chain)
    * cubic spline equations in that case. */
   const int num_segments = chain.is_closed ? num_verts : num_verts - 1;
   float step = measure.total_length / float(num_segments);
-  measure.spaced_distances.reserve(num_verts);
+  measure.spaced_distances.resize(num_verts);
 
   for (const int i : IndexRange(num_verts)) {
-    measure.spaced_distances.append(i * step);
+    measure.spaced_distances[i] = i * step;
   }
 
   return measure;
