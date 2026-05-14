@@ -63,7 +63,8 @@ static const mf::MultiFunction *get_multi_function(const bNode &bnode)
           return {};
         }
         padding = std::max(0, padding);
-        char buf[32]; // maximum possible string length, 32-bit integer -> base 2 binary string length
+        /* maximum possible string length, 32-bit integer -> base 2 binary string length */
+        char buf[32];
         auto [ptr, ec] = std::to_chars(buf, buf + sizeof(buf), value, base);
         std::string result(buf, ptr);
         if (padding > int(result.size())) {
