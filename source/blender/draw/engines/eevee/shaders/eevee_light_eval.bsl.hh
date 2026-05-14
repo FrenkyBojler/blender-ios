@@ -29,9 +29,16 @@
 
 namespace eevee::light {
 
-struct ClosureStack {
+template<bool is_transmission> struct ClosureStack {
   /* NOTE: This is wrapped into a struct to avoid array shenanigans on MSL. */
   ClosureLight cl[LIGHT_STACK_SIZE];
+};
+
+template struct ClosureStack<false>;
+
+template<> struct ClosureStack<true> {
+  /* We only evaluate 1 closure for transmission. */
+  ClosureLight cl[1];
 };
 
 float light_power_get(LightData light, LightingType type)
@@ -61,7 +68,7 @@ void light_eval_single_closure(
 }
 
 template<bool is_transmission> struct LightEvalCtx {
-  ClosureStack stack;
+  ClosureStack<is_transmission> stack;
 
   float3 P;
   float3 Ng;

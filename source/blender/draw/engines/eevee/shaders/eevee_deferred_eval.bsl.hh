@@ -168,13 +168,11 @@ void light_eval_frag([[resource_table]] LightEval &srt,
     lrd.eval_transmission(ctx_tr, frag_co.xy, vPz);
 
     if (cl_transmit.type == CLOSURE_BSSRDF_BURLEY_ID) {
-#if 1 /* TODO Limit to SSS. */
       /* Apply transmission profile onto transmitted light and sum with reflected light. */
       float3 sss_profile = subsurface_transmission(to_closure_subsurface(cl_transmit).sss_radius,
                                                    thickness.value());
       ctx.stack.cl[0].light_shadowed += ctx_tr.stack.cl[0].light_shadowed * sss_profile;
       ctx.stack.cl[0].light_unshadowed += ctx_tr.stack.cl[0].light_unshadowed * sss_profile;
-#endif
     }
     else {
       ctx.stack.cl[0].light_shadowed = ctx_tr.stack.cl[0].light_shadowed;
