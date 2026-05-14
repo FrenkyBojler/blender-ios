@@ -987,6 +987,8 @@ static void slip_strips_delta(
 
   bool slip_keyframes = RNA_boolean_get(op->ptr, "slip_keyframes");
   for (Strip *strip : data->strips) {
+    /* Prefetch must be stopped before strip is changed. */
+    seq::prefetch_stop(scene);
     seq::time_slip_strip(scene, strip, frame_delta, subframe_delta, slip_keyframes);
     seq::relations_invalidate_cache(scene, strip);
 
