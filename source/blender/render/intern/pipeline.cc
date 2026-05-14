@@ -1290,7 +1290,6 @@ static void do_render_compositor(Render *re)
                                 *ntree,
                                 rv.name,
                                 &compositor_render_context,
-                                nullptr,
                                 needed_outputs);
         }
         compositor_render_context.save_file_outputs(re->pipeline_scene_eval);
@@ -2673,7 +2672,7 @@ void RE_layer_load_from_file(
   }
 
   /* OCIO_TODO: assume layer was saved in default color space */
-  ImBuf *ibuf = IMB_load_image_from_filepath(filepath, IB_byte_data);
+  ImBuf *ibuf = IMB_load_image_from_filepath(filepath, ImBufFlags::ByteData);
   RenderPass *rpass = nullptr;
 
   /* multi-view: since the API takes no 'view', we use the first combined pass found */
