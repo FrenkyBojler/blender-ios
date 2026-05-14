@@ -1294,17 +1294,17 @@ void gpu::MTLTexture::generate_mipmap()
 
 void gpu::MTLTexture::copy_to(Texture *dst, IndexRange mip_levels)
 {
-  /* Safety Checks. */
-  BLI_assert(src->w_ == dst->w_ && std::max(src->h_, 1) == std::max(dst->h_, 1) &&
-             std::max(src->d_, 1) == std::max(dst->d_, 1));
-  BLI_assert((src->format_ == dst->format_) ||
-             (src->format_ == TextureFormat::SRGBA_8_8_8_8 &&
-              dst->format_ == TextureFormat::UNORM_8_8_8_8) ||
-             (src->format_ == TextureFormat::UNORM_8_8_8_8 &&
-              dst->format_ == TextureFormat::SRGBA_8_8_8_8));
-  BLI_assert((dst->type_ & ~GPU_TEXTURE_ARRAY) & (src->type_ & ~GPU_TEXTURE_ARRAY));
-
   gpu::MTLTexture *mt_dst = static_cast<gpu::MTLTexture *>(dst);
+
+  /* Safety Checks. */
+  BLI_assert(w_ == mt_dst->w_ && std::max(h_, 1) == std::max(mt_dst->h_, 1) &&
+             std::max(d_, 1) == std::max(mt_dst->d_, 1));
+  BLI_assert((format_ == mt_dst->format_) ||
+             (format_ == TextureFormat::SRGBA_8_8_8_8 &&
+              mt_dst->format_ == TextureFormat::UNORM_8_8_8_8) ||
+             (format_ == TextureFormat::UNORM_8_8_8_8 &&
+              mt_dst->format_ == TextureFormat::SRGBA_8_8_8_8));
+  BLI_assert((mt_dst->type_ & ~GPU_TEXTURE_ARRAY) & (type_ & ~GPU_TEXTURE_ARRAY));
 
   /* Fetch active context. */
   MTLContext *ctx = MTLContext::get();
@@ -1333,7 +1333,7 @@ void gpu::MTLTexture::copy_to(Texture *dst, IndexRange mip_levels)
           /* NOTE: mip_size_get() won't override any dimension that is equal to 0. */
           int extent[3] = {1, 1, 1};
           if (source_texture_) {
-            source_texture->mip_size_get(mip, extent);
+            source_texture_->mip_size_get(mip, extent);
           }
           else {
             this->mip_size_get(mip, extent);
