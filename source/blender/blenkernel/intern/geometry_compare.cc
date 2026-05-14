@@ -94,7 +94,7 @@ const char *mismatch_to_string(const GeoMismatch &mismatch)
     case GeoMismatch::NumFrames:
       return "The number of Grease Pencil frames on some layer is different";
     case GeoMismatch::LayerOrder:
-      return "The Grease Pencil layer order is different"; 
+      return "The Grease Pencil layer order is different";
     case GeoMismatch::Frames:
       return "The Grease Pencil keyframes on some layer are different";
   }

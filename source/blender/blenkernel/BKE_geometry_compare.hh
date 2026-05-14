@@ -58,7 +58,8 @@ std::optional<GeoMismatch> compare_lattices(const Lattice &lattice1,
                                             float threshold);
 
 /**
- * \brief Checks if two Grease Pencil geometries are different, returning the type of mismatch if any.
+ * \brief Checks if two Grease Pencil geometries are different, returning the type of mismatch if
+ * any.
  *
  * \returns The type of mismatch that was detected, if there is any.
  */
