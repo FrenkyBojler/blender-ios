@@ -224,14 +224,14 @@ static void calculate_splines_axis(Span<float> distances,
     return;
   }
   const int num_segments = is_closed ? num_verts : num_verts - 1;
-  Array<float> segment_lenght(num_segments);
+  Array<float> segment_length(num_segments);
 
   for (const int i : IndexRange(num_segments)) {
-    segment_lenght[i] = (is_closed && i == num_verts - 1) ?
+    segment_length[i] = (is_closed && i == num_verts - 1) ?
                             total_length - distances[num_verts - 1] :
                             distances[i + 1] - distances[i];
-    if (segment_lenght[i] == 0.0f) {
-      segment_lenght[i] = SPACE_EPSILON;
+    if (segment_length[i] == 0.0f) {
+      segment_length[i] = SPACE_EPSILON;
     }
   }
 
@@ -247,11 +247,11 @@ static void calculate_splines_axis(Span<float> distances,
     for (const int i : IndexRange(num_verts)) {
       const int v_prev = mod_i(i - 1, num_verts);
       const int v_next = mod_i(i + 1, num_verts);
-      lower_diag[i] = segment_lenght[v_prev];
-      diag[i] = 2.0f * (segment_lenght[v_prev] + segment_lenght[i]);
-      upper_diag[i] = segment_lenght[i];
-      rhs[i] = 3.0f * (((coords[v_next] - coords[i]) / segment_lenght[i]) -
-                       ((coords[i] - coords[v_prev]) / segment_lenght[v_prev]));
+      lower_diag[i] = segment_length[v_prev];
+      diag[i] = 2.0f * (segment_length[v_prev] + segment_length[i]);
+      upper_diag[i] = segment_length[i];
+      rhs[i] = 3.0f * (((coords[v_next] - coords[i]) / segment_length[i]) -
+                       ((coords[i] - coords[v_prev]) / segment_length[v_prev]));
     }
     BLI_tridiagonal_solve_cyclic(
         lower_diag.data(), diag.data(), upper_diag.data(), rhs.data(), c_vals.data(), num_verts);
@@ -264,11 +264,11 @@ static void calculate_splines_axis(Span<float> distances,
 
     for (const int i : IndexRange(interior)) {
       const int v_index = i + 1;
-      lower_diag[i] = segment_lenght[v_index - 1];
-      diag[i] = 2.0f * (segment_lenght[v_index - 1] + segment_lenght[v_index]);
-      upper_diag[i] = segment_lenght[v_index];
-      rhs[i] = 3.0f * (((coords[v_index + 1] - coords[v_index]) / segment_lenght[v_index]) -
-                       ((coords[v_index] - coords[v_index - 1]) / segment_lenght[v_index - 1]));
+      lower_diag[i] = segment_length[v_index - 1];
+      diag[i] = 2.0f * (segment_length[v_index - 1] + segment_length[v_index]);
+      upper_diag[i] = segment_length[v_index];
+      rhs[i] = 3.0f * (((coords[v_index + 1] - coords[v_index]) / segment_length[v_index]) -
+                       ((coords[v_index] - coords[v_index - 1]) / segment_length[v_index - 1]));
     }
     BLI_tridiagonal_solve(lower_diag.data(),
                           diag.data(),
@@ -283,10 +283,10 @@ static void calculate_splines_axis(Span<float> distances,
     const int v_next = is_closed ? mod_i(i + 1, num_verts) : i + 1;
 
     const float coeff_a = coords[i];
-    const float coeff_b = ((coords[v_next] - coords[i]) / segment_lenght[i]) -
-                          (segment_lenght[i] * (c_vals[v_next] + 2.0f * c_vals[i])) / 3.0f;
+    const float coeff_b = ((coords[v_next] - coords[i]) / segment_length[i]) -
+                          (segment_length[i] * (c_vals[v_next] + 2.0f * c_vals[i])) / 3.0f;
     const float coeff_c = c_vals[i];
-    const float coeff_d = (c_vals[v_next] - c_vals[i]) / (3.0f * segment_lenght[i]);
+    const float coeff_d = (c_vals[v_next] - c_vals[i]) / (3.0f * segment_length[i]);
     r_coeffs.append({coeff_a, coeff_b, coeff_c, coeff_d, distances[i]});
   }
 }
