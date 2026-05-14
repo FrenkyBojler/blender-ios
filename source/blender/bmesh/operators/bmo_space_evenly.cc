@@ -377,7 +377,7 @@ void bmo_space_evenly_exec(BMesh *bm, BMOperator *op)
           measure.knot_distances, coords_z, chain.is_closed, measure.total_length, coeffs_z);
     }
 
-    for (const int i : IndexRange(chain.verts.size())) {
+    for (const int i : chain.verts.index_range()) {
       /* The first and last vertices of an open chain are anchor points so they are skipped. */
       if (!chain.is_closed && (i == 0 || i == chain.verts.size() - 1)) {
         continue;
