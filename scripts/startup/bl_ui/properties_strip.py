@@ -362,6 +362,7 @@ class STRIP_PT_effect_text_style(StripButtonsPanel, Panel):
 
         col.prop(strip, "font_size")
         col.prop(strip, "space_line")
+        col.prop(strip, "abs_space_line")
         col.prop(strip, "color")
 
 
