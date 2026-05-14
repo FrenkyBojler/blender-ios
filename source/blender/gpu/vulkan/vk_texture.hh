@@ -30,8 +30,6 @@ enum class VKImageViewFlags {
 };
 ENUM_OPERATORS(VKImageViewFlags)
 
-class VKTexture *unwrap(Texture *texture);
-
 class VKTexture : public Texture {
   friend class VKDescriptorSetTracker;
   friend class VKDescriptorSetUpdator;
@@ -131,7 +129,7 @@ class VKTexture : public Texture {
   VkImage vk_image_handle() const
   {
     if (is_texture_view()) {
-      return unwrap(source_texture_)->vk_image_handle();
+      return static_cast<VKTexture *>(source_texture_)->vk_image_handle();
     }
     BLI_assert(vk_image_ != VK_NULL_HANDLE);
     return vk_image_;
