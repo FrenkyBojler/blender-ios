@@ -294,6 +294,7 @@ class Context : public compositor::Context {
         IMB_rectfill(image_buffer, viewer_result.get_single_value<compositor::Color>());
       }
       else if (viewer_result.sharing_info()) {
+        image_buffer->channels = 4;
         image_buffer->float_buffer = ImBufFloatBuffer{
             .data = static_cast<const float *>(viewer_result.cpu_data().data()),
             .sharing_info = viewer_result.sharing_info(),

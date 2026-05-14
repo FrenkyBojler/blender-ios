@@ -149,6 +149,7 @@ void CompositorContext::write_output(const compositor::Result &result, ImBuf &im
     GPU_texture_read(result.gpu_texture(), GPU_DATA_FLOAT, 0, image.float_data_for_write());
   }
   else if (result.sharing_info()) {
+    image.channels = 4;
     image.float_buffer = ImBufFloatBuffer{
         .data = static_cast<const float *>(result.cpu_data().data()),
         .sharing_info = result.sharing_info(),

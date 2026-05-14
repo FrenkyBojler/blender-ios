@@ -99,6 +99,7 @@ void FileOutput::add_view(const char *view_name, const Result &data)
   render_view->ibuf = IMB_allocImBuf(UNPACK2(data.domain().data_size), ImBufFlags::Zero);
   render_view->ibuf->color_mode = color_mode;
   if (data.sharing_info()) {
+    render_view->ibuf->channels = data.channels_count();
     render_view->ibuf->float_buffer = ImBufFloatBuffer{
         .data = static_cast<const float *>(data.cpu_data().data()),
         .sharing_info = data.sharing_info(),
@@ -140,6 +141,7 @@ void FileOutput::add_pass(const char *pass_name,
   render_pass->ibuf = IMB_allocImBuf(UNPACK2(data.domain().data_size), ImBufFlags::Zero);
   render_pass->ibuf->color_mode = color_mode;
   if (data.sharing_info()) {
+    render_pass->ibuf->channels = data.channels_count();
     render_pass->ibuf->float_buffer = ImBufFloatBuffer{
         .data = static_cast<const float *>(data.cpu_data().data()),
         .sharing_info = data.sharing_info(),
