@@ -170,8 +170,7 @@ void shape_display_frag([[resource_table]] const ShapeDisplayResources & /*srt*/
     }
   }
   else {
-    if (is_area_light(light_type) &&
-        dot(drw_world_incident_vector(P), light_z_axis(light)) > 0.0f)
+    if (is_area_light(light_type) && dot(drw_world_incident_vector(P), light_z_axis(light)) > 0.0f)
     {
       gpu_discard_fragment();
       return;
