@@ -42,13 +42,13 @@ void forward_lighting_eval(Thickness thickness,
                            float3 &radiance,
                            float3 &transmittance)
 {
-  [[resource_table]] auto &lights = resource_table_get(eevee::light::LightEvalData);
-  [[resource_table]] light::LightEvalInnerData &srt = lights.inner;
+  [[resource_table]] auto &lights = resource_table_get(eevee::LightEvalIterator);
+  [[resource_table]] LightEvalData &srt = lights.inner;
 
   float vPz = dot(drw_view_forward(), g_data.P) - dot(drw_view_forward(), drw_view_position());
   float3 V = drw_world_incident_vector(g_data.P);
 
-  light::LightEvalCtx<false> ctx;
+  light::EvalCtx<false> ctx;
   for (uint i = 0u; i < 3; i++) [[unroll]] {
     if (srt.light_closure_eval_count_reflect > i) [[static_branch]] {
       ClosureUndetermined cl = g_closure_get(uchar(i));
@@ -79,7 +79,7 @@ void forward_lighting_eval(Thickness thickness,
         cl_transmit.type == CLOSURE_BSDF_MICROFACET_GGX_REFRACTION_ID ||
         cl_transmit.type == CLOSURE_BSSRDF_BURLEY_ID)
     {
-      light::LightEvalCtx<true> ctx_tr = light::init_from_reflect_ctx(ctx);
+      light::EvalCtx<true> ctx_tr = light::init_from_reflect_ctx(ctx);
       ctx_tr.stack.cl[0] = closure_light_new(cl_transmit, V, thickness);
 
       /* NOTE: Only evaluates `stack.cl[0]`. */

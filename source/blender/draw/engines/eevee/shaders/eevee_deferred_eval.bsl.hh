@@ -111,11 +111,11 @@ struct LightEval {
  * Load all BSDFs closures and evaluate LTC for each selected lights. */
 [[fragment, early_fragment_tests]]
 void light_eval_frag([[resource_table]] LightEval &srt,
-                     [[resource_table]] light::LightEvalData &lrd,
+                     [[resource_table]] LightEvalIterator &lights,
                      [[frag_coord]] const float4 frag_co,
                      [[in]] const VertOut v_out)
 {
-  [[resource_table]] light::LightEvalInnerData &lrt = lrd.inner;
+  [[resource_table]] LightEvalData &lrt = lights.inner;
 
   const int2 texel = int2(frag_co.xy);
 
@@ -133,7 +133,7 @@ void light_eval_frag([[resource_table]] LightEval &srt,
   const float3 V = drw_world_incident_vector(P);
   const float vPz = dot(drw_view_forward(), P) - dot(drw_view_forward(), drw_view_position());
 
-  light::LightEvalCtx<false> ctx;
+  light::EvalCtx<false> ctx;
   /* Unroll light stack array assignments to avoid non-constant indexing. */
   for (uint i = 0u; i < 3; i++) [[unroll]] {
     if (lrt.light_closure_eval_count_reflect > i) [[static_branch]] {
@@ -158,16 +158,16 @@ void light_eval_frag([[resource_table]] LightEval &srt,
 
   /* TODO(fclem): If transmission (no SSS) is present, we could reduce LIGHT_CLOSURE_EVAL_COUNT
    * by 1 for this evaluation and skip evaluating the transmission closure twice. */
-  lrd.eval_reflection(ctx, frag_co.xy, vPz);
+  lights.eval_reflection(ctx, frag_co.xy, vPz);
 
   if (srt.use_transmission) {
-    light::LightEvalCtx<true> ctx_tr = light::init_from_reflect_ctx(ctx);
+    light::EvalCtx<true> ctx_tr = light::init_from_reflect_ctx(ctx);
 
     ClosureUndetermined cl_transmit = gbuf.layer[0];
     ctx_tr.stack.cl[0] = closure_light_new(cl_transmit, V, thickness);
 
     /* NOTE: Only evaluates `stack.cl[0]`. */
-    lrd.eval_transmission(ctx_tr, frag_co.xy, vPz);
+    lights.eval_transmission(ctx_tr, frag_co.xy, vPz);
 
     if (cl_transmit.type == CLOSURE_BSSRDF_BURLEY_ID) {
       /* Apply transmission profile onto transmitted light and sum with reflected light. */
@@ -256,7 +256,7 @@ struct SphereProbeEval {
  * being available. */
 [[fragment, early_fragment_tests]]
 void sphere_eval_frag([[resource_table]] SphereProbeEval & /*srt*/,
-                      [[resource_table]] light::LightEvalData &lrd,
+                      [[resource_table]] LightEvalIterator &lights,
                       [[frag_coord]] const float4 frag_co,
                       [[in]] const VertOut v_out,
                       [[out]] FragOut &frag_out)
@@ -309,7 +309,7 @@ void sphere_eval_frag([[resource_table]] SphereProbeEval & /*srt*/,
   cl_transmit.N = gbuf.surface_N();
   cl_transmit.type = CLOSURE_BSDF_TRANSLUCENT_ID;
 
-  light::LightEvalCtx<false> ctx;
+  light::EvalCtx<false> ctx;
   ctx.P = P;
   ctx.Ng = Ng;
   ctx.V = V;
@@ -327,14 +327,14 @@ void sphere_eval_frag([[resource_table]] SphereProbeEval & /*srt*/,
 
   /* Direct light. */
   ctx.stack.cl[0] = closure_light_new(cl, V);
-  lrd.eval_reflection(ctx, frag_co.xy, vPz);
+  lights.eval_reflection(ctx, frag_co.xy, vPz);
 
   float3 radiance_front = ctx.stack.cl[0].light_shadowed;
 
-  light::LightEvalCtx<true> ctx_tr = light::init_from_reflect_ctx(ctx);
+  light::EvalCtx<true> ctx_tr = light::init_from_reflect_ctx(ctx);
 
   ctx_tr.stack.cl[0] = closure_light_new(cl_transmit, V, thickness);
-  lrd.eval_transmission(ctx_tr, frag_co.xy, vPz);
+  lights.eval_transmission(ctx_tr, frag_co.xy, vPz);
 
   float3 radiance_back = ctx_tr.stack.cl[0].light_shadowed;
 
@@ -364,7 +364,7 @@ struct PlanarProbeEval {
 
 [[fragment, early_fragment_tests]]
 void planar_eval_frag([[resource_table]] PlanarProbeEval & /*srt*/,
-                      [[resource_table]] light::LightEvalData &lrd,
+                      [[resource_table]] LightEvalIterator &lights,
                       [[frag_coord]] const float4 frag_co,
                       [[in]] const VertOut v_out,
                       [[out]] FragOut &frag_out)
@@ -452,7 +452,7 @@ void planar_eval_frag([[resource_table]] PlanarProbeEval & /*srt*/,
   cl_transmit.N = gbuf.surface_N();
   cl_transmit.type = CLOSURE_BSDF_TRANSLUCENT_ID;
 
-  light::LightEvalCtx<false> ctx;
+  light::EvalCtx<false> ctx;
   ctx.P = P;
   ctx.Ng = Ng;
   ctx.V = V;
@@ -471,15 +471,15 @@ void planar_eval_frag([[resource_table]] PlanarProbeEval & /*srt*/,
   /* Direct light. */
   ctx.stack.cl[0] = closure_light_new(cl, V);
   ctx.stack.cl[1] = closure_light_new(cl_reflect, V);
-  lrd.eval_reflection(ctx, frag_co.xy, vPz);
+  lights.eval_reflection(ctx, frag_co.xy, vPz);
 
   float3 radiance_front = ctx.stack.cl[0].light_shadowed;
   float3 radiance_reflect = ctx.stack.cl[1].light_shadowed;
 
-  light::LightEvalCtx<true> ctx_tr = light::init_from_reflect_ctx(ctx);
+  light::EvalCtx<true> ctx_tr = light::init_from_reflect_ctx(ctx);
   ctx_tr.stack.cl[0] = closure_light_new(cl_transmit, V, thickness);
   ctx_tr.stack.cl[1] = closure_light_new(cl_refract, V, thickness);
-  lrd.eval_transmission(ctx_tr, frag_co.xy, vPz);
+  lights.eval_transmission(ctx_tr, frag_co.xy, vPz);
 
   float3 radiance_back = ctx_tr.stack.cl[0].light_shadowed;
   float3 radiance_refract = ctx_tr.stack.cl[1].light_shadowed;
@@ -505,25 +505,25 @@ void planar_eval_frag([[resource_table]] PlanarProbeEval & /*srt*/,
 
 PipelineGraphic light_single(fullscreen_vert,
                              light_eval_frag,
-                             light::LightEvalInnerData{
+                             LightEvalData{
                                  .light_closure_eval_count_reflect = 1,
                                  .light_closure_eval_count_transmit = 1,
                              });
 PipelineGraphic light_double(fullscreen_vert,
                              light_eval_frag,
-                             light::LightEvalInnerData{
+                             LightEvalData{
                                  .light_closure_eval_count_reflect = 2,
                                  .light_closure_eval_count_transmit = 1,
                              });
 PipelineGraphic light_triple(fullscreen_vert,
                              light_eval_frag,
-                             light::LightEvalInnerData{
+                             LightEvalData{
                                  .light_closure_eval_count_reflect = 3,
                                  .light_closure_eval_count_transmit = 1,
                              });
 PipelineGraphic sphere_eval(fullscreen_vert,
                             sphere_eval_frag,
-                            light::LightEvalInnerData{
+                            LightEvalData{
                                 .light_closure_eval_count_reflect = 1,
                                 .light_closure_eval_count_transmit = 1,
                             });
@@ -532,7 +532,7 @@ PipelineGraphic planar_eval(fullscreen_vert,
                             PlanarProbeEval{
                                 .legacy_sphere_probe_enable = true,
                             },
-                            light::LightEvalInnerData{
+                            LightEvalData{
                                 .light_closure_eval_count_reflect = 2,
                                 .light_closure_eval_count_transmit = 1, /* TODO should be 2. */
                             });

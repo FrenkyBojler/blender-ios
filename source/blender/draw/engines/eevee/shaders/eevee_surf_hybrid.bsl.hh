@@ -116,7 +116,7 @@ struct HybridFragOut {
 /* NOTE: This removes the possibility of using gl_FragDepth. */
 [[fragment]] [[early_fragment_tests]]
 void surf_hybrid([[resource_table]] SurfaceHybrid &srt,
-                 [[resource_table]] light::LightEvalData & /*srt*/,
+                 [[resource_table]] LightEvalIterator & /*lights*/,
                  [[frag_coord]] const float4 frag_co,
                  [[out]] HybridFragOut &frag_out)
 {

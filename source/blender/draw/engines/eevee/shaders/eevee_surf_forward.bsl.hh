@@ -90,7 +90,7 @@ struct SurfaceForwardFragOut {
 /* NOTE: This removes the possibility of using gl_FragDepth. */
 [[fragment]] [[early_fragment_tests]]
 void surf_forward([[resource_table]] SurfaceForward & /*srt*/,
-                  [[resource_table]] light::LightEvalData & /*srt*/,
+                  [[resource_table]] LightEvalIterator & /*lights*/,
                   [[frag_coord]] const float4 frag_co,
                   [[out]] SurfaceForwardFragOut &frag_out)
 {
