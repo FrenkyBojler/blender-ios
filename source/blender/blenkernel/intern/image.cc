@@ -245,12 +245,7 @@ static void image_foreach_cache(ID *id,
   constexpr size_t runtime_base_id = size_t(1) << 32u;
 
   key.identifier = runtime_base_id + offsetof(bke::ImageRuntime, cache);
-  /* TODO: is this the right mechanism? */
-  function_callback(id,
-                    &key,
-                    reinterpret_cast<void **>(&image->runtime->cache),
-                    IDTYPE_CACHE_CB_FLAGS_PERSISTENT,
-                    user_data);
+  function_callback(id, &key, reinterpret_cast<void **>(&image->runtime->cache), 0, user_data);
 
   auto gputexture_offset = [image](int target, int eye) {
     constexpr size_t base_offset = offsetof(bke::ImageRuntime, gputexture);
@@ -441,15 +436,15 @@ static void image_blend_read_data(BlendDataReader *reader, ID *id)
   BLO_read_struct(reader, Stereo3dFormat, &ima->stereo3d_format);
 
   ima->runtime = MEM_new<bke::ImageRuntime>(__func__);
-
-  BKE_image_populate_cache_from_autosave(ima);
-  BLI_assert_msg(!(ima->flag & IMA_AUTOSAVE_TEMPPACK),
-                 "An image should never be marked as temporary packed after loading");
 }
 
 static void image_blend_read_after_liblink(BlendLibReader * /*reader*/, ID *id)
 {
   Image *ima = reinterpret_cast<Image *>(id);
+
+  BKE_image_populate_cache_from_autosave(ima);
+  BLI_assert_msg(!(ima->flag & IMA_AUTOSAVE_TEMPPACK),
+                 "An image should never be marked as temporary packed after loading");
 
   /* Images have some kind of 'main' cache, when null we should also clear all others. */
   /* Needs to be done *after* cache pointers are restored (call to
