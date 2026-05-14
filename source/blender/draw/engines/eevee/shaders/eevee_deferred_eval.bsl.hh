@@ -534,7 +534,7 @@ PipelineGraphic planar_eval(fullscreen_vert,
                             },
                             light::LightEvalInnerData{
                                 .light_closure_eval_count_reflect = 2,
-                                .light_closure_eval_count_transmit = 2,
+                                .light_closure_eval_count_transmit = 1, /* TODO should be 2. */
                             });
 
 }  // namespace eevee::deferred
