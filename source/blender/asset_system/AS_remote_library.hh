@@ -207,9 +207,9 @@ class RemoteLibraryLoadingStatus {
   static void ping_still_loading(StringRef url);
   static void ping_new_pages(StringRef url);
   static void ping_new_preview(const bContext &C, StringRef preview_full_filepath);
-  /** Should be called when an asset file (the main .blend file or one of its dependencies) is done
-   * downloading. */
-  static void ping_asset_file_downloaded(const bContext &C, StringRef library_url);
+  /** Should be called when an asset file (the main .blend file or one of its dependencies)
+   * download has ended, successfully or not. */
+  static void ping_asset_file_download_done(const bContext &C, StringRef library_url);
   static void ping_metafiles_in_place(StringRef url);
   static void set_finished(StringRef url);
   static void set_failure(StringRef url, std::optional<StringRefNull> failure_message);

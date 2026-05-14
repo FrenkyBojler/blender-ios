@@ -243,6 +243,14 @@ def downloader_status(asset_library_url: str) -> DownloadStatus:
     return _asset_downloaders[asset_library_url].status
 
 
+def any_asset_downloading() -> bool:
+    """Returns true if there is any downloader currently downloading assets."""
+    return any(
+        downloader.status == DownloadStatus.DOWNLOADING
+        for downloader in _asset_downloaders.values()
+    )
+
+
 class DownloadStatus(enum.Enum):
     IDLE = 'idle'
     DOWNLOADING = 'downloading'
