@@ -6010,7 +6010,7 @@ void SculptPaintStroke::done(bool is_cancel, bool stroke_started)
   }
 
   if (brush->sculpt_brush_type == SCULPT_BRUSH_TYPE_PAINT &&
-      SCULPT_use_image_paint_brush(*this->paint_mode_settings_, ob))
+      SCULPT_use_image_paint_brush(*this->paint_mode_settings_, ob) && ss.cache->image_data)
   {
     ss.cache->image_data->image->runtime->gpuflag &= ~IMA_GPU_DISABLE_MIPMAP_UPDATE;
   }
