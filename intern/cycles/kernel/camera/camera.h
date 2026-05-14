@@ -223,7 +223,7 @@ ccl_device Spectrum camera_sample_orthographic(KernelGlobals kg,
   /* ray differential */
   differential3 dP;
   dP.dx = make_float3(kernel_data.cam.dx);
-  dP.dy = make_float3(kernel_data.cam.dx);
+  dP.dy = make_float3(kernel_data.cam.dy);
 
   ray->dP = differential_make_compact(dP) * kernel_data.cam.differential_scale;
   ray->dD = differential_zero_compact();
@@ -463,7 +463,7 @@ ccl_device_inline Spectrum camera_sample(KernelGlobals kg,
     raster.y += lookup_table_read(kg, filter_uv.y, filter_table_offset, FILTER_TABLE_SIZE);
   }
   else {
-    raster += kernel_data.integrator.pixel_jitter;
+    raster += -kernel_data.integrator.pixel_jitter;
   }
 
   /* motion blur */

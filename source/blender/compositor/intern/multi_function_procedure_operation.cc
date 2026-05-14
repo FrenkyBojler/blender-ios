@@ -11,6 +11,7 @@
 #include "BLI_index_mask.hh"
 #include "BLI_map.hh"
 #include "BLI_math_base.hh"
+#include "BLI_math_euler.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_vector.hh"
@@ -44,11 +45,13 @@
 
 namespace blender::compositor {
 
-MultiFunctionProcedureOperation::MultiFunctionProcedureOperation(Context &context,
-                                                                 PixelCompileUnit &compile_unit,
-                                                                 const Schedule &schedule,
-                                                                 const bool is_single_value)
-    : PixelOperation(context, compile_unit, schedule),
+MultiFunctionProcedureOperation::MultiFunctionProcedureOperation(
+    Context &context,
+    PixelCompileUnit &compile_unit,
+    const Schedule &schedule,
+    const bool is_single_value,
+    const ComputeContext &compute_context)
+    : PixelOperation(context, compile_unit, schedule, compute_context),
       procedure_builder_(procedure_),
       is_single_value_(is_single_value)
 {
@@ -92,7 +95,7 @@ void MultiFunctionProcedureOperation::execute()
       }
       else {
         output.allocate_texture(domain);
-        parameter_builder.add_uninitialized_single_output(output.cpu_data());
+        parameter_builder.add_uninitialized_single_output(output.cpu_data_for_write());
       }
     }
   }
@@ -152,6 +155,7 @@ void MultiFunctionProcedureOperation::build_procedure()
   }
 
   mf::ReturnInstruction &return_instruction = procedure_builder_.add_return();
+  procedure_.prepare_for_execution();
   mf::procedure_optimization::move_destructs_up(procedure_, return_instruction);
   BLI_assert(procedure_.validate());
 }
@@ -289,6 +293,15 @@ mf::Variable *MultiFunctionProcedureOperation::get_constant_input_variable(
           value);
       break;
     }
+    case SOCK_ROTATION: {
+      const bNodeSocketValueRotation *rotation =
+          input.default_value_typed<bNodeSocketValueRotation>();
+      const math::EulerXYZ euler(float3(rotation->value_euler));
+      const math::Quaternion value = math::to_quaternion(euler);
+      constant_function = &procedure_.construct_function<mf::CustomMF_Constant<math::Quaternion>>(
+          value);
+      break;
+    }
     case SOCK_OBJECT: {
       Object *value = input.default_value_typed<bNodeSocketValueObject>()->value;
       constant_function = &procedure_.construct_function<mf::CustomMF_Constant<Object *>>(value);
@@ -422,9 +435,8 @@ mf::Variable *MultiFunctionProcedureOperation::get_multi_function_input_variable
 void MultiFunctionProcedureOperation::assign_output_variables(const bNode &node,
                                                               Vector<mf::Variable *> &variables)
 {
-  const bool is_node_preview_needed = this->get_node_previews() != nullptr;
-  const bNodeSocket *preview_output = is_node_preview_needed ? find_preview_output_socket(node) :
-                                                               nullptr;
+  const bNodeSocket *preview_output = needs_node_previews_ ? find_preview_output_socket(node) :
+                                                             nullptr;
 
   int available_outputs_index = 0;
   for (const bNodeSocket *output : node.output_sockets()) {

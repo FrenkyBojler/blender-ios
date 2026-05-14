@@ -466,14 +466,14 @@ void RE_ReleaseResultImage(Render *re)
   }
 }
 
-void RE_ResultGet32(Render *re, uint *rect)
+void RE_ResultGet32(Render *re, uint8_t *dst)
 {
   RenderResult rres;
   const int view_id = BKE_scene_multiview_view_id_get(&re->r, re->viewname);
 
   RE_AcquireResultImageViews(re, &rres);
   render_result_rect_get_pixels(&rres,
-                                rect,
+                                dst,
                                 re->rectx,
                                 re->recty,
                                 &re->scene->view_settings,
@@ -1290,7 +1290,6 @@ static void do_render_compositor(Render *re)
                                 *ntree,
                                 rv.name,
                                 &compositor_render_context,
-                                nullptr,
                                 needed_outputs);
         }
         compositor_render_context.save_file_outputs(re->pipeline_scene_eval);
@@ -1490,7 +1489,6 @@ static void do_render_full_pipeline(Render *re)
 
   /* ensure no rendered results are cached from previous animated sequences */
   BKE_image_all_free_anim_ibufs(re->main, re->r.cfra);
-  seq::cache_cleanup(re->scene, seq::CacheCleanup::FinalAndIntra);
 
   if (RE_engine_render(re, true)) {
     /* in this case external render overrides all */
@@ -2674,7 +2672,7 @@ void RE_layer_load_from_file(
   }
 
   /* OCIO_TODO: assume layer was saved in default color space */
-  ImBuf *ibuf = IMB_load_image_from_filepath(filepath, IB_byte_data);
+  ImBuf *ibuf = IMB_load_image_from_filepath(filepath, ImBufFlags::ByteData);
   RenderPass *rpass = nullptr;
 
   /* multi-view: since the API takes no 'view', we use the first combined pass found */
