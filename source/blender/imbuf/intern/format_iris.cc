@@ -19,7 +19,10 @@ bool imb_is_a_iris(const uchar *mem, size_t size)
   return imb_oiio_check(mem, size, "rgb");
 }
 
-ImBuf *imb_loadiris(const uchar *mem, size_t size, int flags, ImFileColorSpace &r_colorspace)
+ImBuf *imb_loadiris(const uchar *mem,
+                    size_t size,
+                    ImBufFlags flags,
+                    ImFileColorSpace &r_colorspace)
 {
   ImageSpec config, spec;
   config.attribute("oiio:UnassociatedAlpha", 1);
@@ -34,7 +37,7 @@ ImBuf *imb_loadiris(const uchar *mem, size_t size, int flags, ImFileColorSpace &
   return ibuf;
 }
 
-static std::tuple<WriteContext, ImageSpec> prepare_save_iris(ImBuf *ibuf, int flags)
+static std::tuple<WriteContext, ImageSpec> prepare_save_iris(ImBuf *ibuf, ImBufFlags flags)
 {
   const int file_channels = ibuf->color_mode_channels_get();
   const TypeDesc data_format = TypeDesc::UINT8;
@@ -48,13 +51,13 @@ static std::tuple<WriteContext, ImageSpec> prepare_save_iris(ImBuf *ibuf, int fl
   return {ctx, file_spec};
 }
 
-bool imb_saveiris(ImBuf *ibuf, const char *filepath, int flags)
+bool imb_saveiris(ImBuf *ibuf, const char *filepath, ImBufFlags flags)
 {
   const auto [ctx, file_spec] = prepare_save_iris(ibuf, flags);
   return imb_oiio_write(ctx, filepath, file_spec);
 }
 
-Vector<uint8_t> imb_save_buffer_iris(ImBuf *ibuf, int flags)
+Vector<uint8_t> imb_save_buffer_iris(ImBuf *ibuf, ImBufFlags flags)
 {
   const auto [ctx, file_spec] = prepare_save_iris(ibuf, flags);
   return imb_oiio_write_buffer(ctx, file_spec);
