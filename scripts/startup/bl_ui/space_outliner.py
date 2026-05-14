@@ -480,6 +480,7 @@ class OUTLINER_PT_options_search(Panel):
         col.prop(space, "use_filter_complete", text="Exact Match")
         col.prop(space, "use_filter_case_sensitive", text="Case Sensitive")
 
+
 class OUTLINER_PT_options_filter(Panel):
     bl_space_type = 'OUTLINER'
     bl_region_type = 'HEADER'
@@ -564,6 +565,7 @@ class OUTLINER_PT_options_filter(Panel):
             row = sub.row()
             row.label(icon='BLANK1')
             row.prop(space, "use_filter_object_others", text="Others")
+
 
 classes = (
     OUTLINER_HT_header,
