@@ -1814,9 +1814,9 @@ static bool is_opaque_alpha_over(const Strip *strip, const RenderData *context)
     const bool modifier_enabled = (context->render && !(smd.flag & STRIP_MODIFIER_FLAG_MUTE)) ||
                                   (!context->render &&
                                    (smd.flag & STRIP_MODIFIER_FLAG_SHOW_PREVIEW));
-    /* Assume result is not opaque if there is an enabled Mask or Compositor modifiers, which could
+    /* Assume result is not opaque if there is an enabled Mask modifier, which could
      * introduce alpha. */
-    if (modifier_enabled && ELEM(smd.type, eSeqModifierType_Mask, eSeqModifierType_Compositor)) {
+    if (modifier_enabled && smd.type == eSeqModifierType_Mask) {
       return false;
     }
   }
