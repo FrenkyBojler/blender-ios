@@ -35,6 +35,8 @@
 #include "sculpt_automask.hh"
 #include "sculpt_intern.hh"
 
+#include <iostream>
+
 namespace blender {
 
 namespace ed::sculpt_paint::paint::image {
@@ -355,8 +357,8 @@ static void do_paint_pixels(const Depsgraph &depsgraph,
     const IndexMask valid_rows = IndexMask::from_predicate(
         tile_data.pixel_rows.index_range(), memory, [&](const int i) {
           const PackedPixelRowPosition &pixel_row_position = tile_data.pixel_row_positions[i];
-          return brush_test[tile_data.pixel_rows[i].uv_primitive_index] &&
-                 brush_bounds.intersects_segment(pixel_row_position.start, pixel_row_position.end);
+          return brush_test[tile_data.pixel_rows[i].uv_primitive_index] /*&&
+                 brush_bounds.intersects_segment(pixel_row_position.start, pixel_row_position.end)*/;
         });
 
     Array<bool> row_changed(valid_rows.min_array_size(), false);
@@ -386,6 +388,13 @@ static void do_paint_pixels(const Depsgraph &depsgraph,
 
             if (std::ranges::all_of(factors, [](const float factor) { return factor == 0.0f; })) {
               return;
+            }
+            if (!brush_bounds.intersects_segment(pixel_row_position.start,pixel_row_position.end)) {
+              std::cout << "Location: " << location << " Radius: " << radius << std::endl;
+              std::cout << "Center: " << brush_bounds.center() << " Min: " << brush_bounds.min << " Max: " << brush_bounds.max << std::endl;
+              std::cout << "Ray: " << pixel_row_position.start  << " to " << pixel_row_position.end << std::endl;
+              std::cout << "Result: " << brush_bounds.intersects_segment(pixel_row_position.start, pixel_row_position.end) << std::endl;
+              BLI_assert(0);
             }
             row_changed[row_i] = true;
 
