@@ -20,16 +20,32 @@ import sys
 from pathlib import Path
 
 from make_utils import call
+from make_update import floating_checkout_update
 
 
 def parse_arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("build_directory")
+    parser.add_argument(
+        "--git-command",
+        default="git",
+        help="Path to the git binary. (Only useful if it is not in your PATH)")
     return parser.parse_args()
 
 
 def main() -> int:
     args = parse_arguments()
+
+    msg = floating_checkout_update(
+        args,
+        "blender-benchmarks",
+        Path("tests") / "benchmarks",
+        "main",
+    )
+
+    if msg:
+        sys.stderr.write("Unable to initialize / update 'benchmark' repository: {}".format(msg))
+        return 1
 
     benchmark_dir = Path(__file__).absolute().parent.joinpath("benchmark")
     if not benchmark_dir.exists():
