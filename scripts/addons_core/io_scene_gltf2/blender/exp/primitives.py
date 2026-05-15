@@ -251,7 +251,6 @@ def __gather_indices(blender_primitive, blender_data, modifiers, export_settings
             'filter': filter
         })
     return gather_accessor(
-        'INDICES',
         binary_data,
         component_type,
         len(indices),

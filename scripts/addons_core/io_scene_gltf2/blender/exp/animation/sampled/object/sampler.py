@@ -108,7 +108,6 @@ def __convert_keyframes(obj_uuid: str, channel: str, keyframes, action_name: str
         })
 
     input = gather_accessor(
-        'TIME',
         binary_data,
         gltf2_io_constants.ComponentType.Float,
         len(times),
@@ -186,7 +185,6 @@ def __convert_keyframes(obj_uuid: str, channel: str, keyframes, action_name: str
                 f"Meshopt compression for channel {channel} is not supported, skipping compression for this channel")
 
     output = gather_accessor(
-        compressed_type,
         binary_values,
         component_type,
         len(values) // gltf2_io_constants.DataType.num_elements(data_type),

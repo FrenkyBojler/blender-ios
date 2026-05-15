@@ -274,16 +274,16 @@ class GlTF2Exporter:
 
             # Create Accessors for the extension
 
+            binary_data_translation = gltf2_io_binary_data.BinaryData.from_list(translation, ComponentType.Float)
+            binary_data_rotation = gltf2_io_binary_data.BinaryData.from_list(rotation, ComponentType.Float)
+            binary_data_scale = gltf2_io_binary_data.BinaryData.from_list(scale, ComponentType.Float)
             normalized_rotation = None
+            filter_rotation = None
             if self.export_settings['gltf_meshopt_compression']:
 
                 byteStride_translation = 12
                 byteStride_rotation = 8
                 byteStride_scale = 12
-
-                binary_data_translation = gltf2_io_binary_data.BinaryData.from_list(translation, ComponentType.Float)
-                binary_data_rotation = gltf2_io_binary_data.BinaryData.from_list(rotation, ComponentType.Float)
-                binary_data_scale = gltf2_io_binary_data.BinaryData.from_list(scale, ComponentType.Float)
 
                 num_components_translation = DataType.num_elements(DataType.Vec3)
                 num_components_rotation = DataType.num_elements(DataType.Vec4)
@@ -330,7 +330,6 @@ class GlTF2Exporter:
             ext = {}
             ext['attributes'] = {}
             ext['attributes']['TRANSLATION'] = gather_accessor(
-                'GPU_TRANSLATION',
                 binary_data_translation,
                 ComponentType.Float,
                 len(translation) // 3,
@@ -341,7 +340,6 @@ class GlTF2Exporter:
                 self.export_settings
             )
             rotation_accessor = gather_accessor(
-                'GPU_ROTATION',
                 binary_data_rotation,
                 ComponentType.Short if filter_rotation == 'QUATERNION' else ComponentType.Float,
                 len(rotation) // 4,
@@ -355,7 +353,6 @@ class GlTF2Exporter:
                 rotation_accessor.normalized = True
             ext['attributes']['ROTATION'] = rotation_accessor
             ext['attributes']['SCALE'] = gather_accessor(
-                'GPU_SCALE',
                 binary_data_scale,
                 ComponentType.Float,
                 len(scale) // 3,

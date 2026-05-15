@@ -104,7 +104,6 @@ def __convert_keyframes(blender_type_data, blender_id, channel, keyframes, actio
         })
 
     input = gather_accessor(
-        'TIME',
         binary_data,
         gltf2_io_constants.ComponentType.Float,
         len(times),
@@ -127,7 +126,6 @@ def __convert_keyframes(blender_type_data, blender_id, channel, keyframes, actio
         data_type = gltf2_io_constants.DataType.vec_type_from_num(1)
 
     output = gather_accessor(
-        None,  # Manage data meshopt ?
         gltf2_io_binary_data.BinaryData.from_list(values, component_type),
         component_type,
         len(values) // gltf2_io_constants.DataType.num_elements(data_type),
