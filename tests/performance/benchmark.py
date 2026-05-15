@@ -522,10 +522,10 @@ def cmd_bisect(env: api.TestEnvironment, argv: list):
             hour_groups[hour_key] = []
         hour_groups[hour_key].append((commit_hash, commit_ts))
 
-    bad_hour_commit = bad_commit
-    bad_hour_ts = bad_ts
-    good_hour_commit = good_commit
-    good_hour_ts = good_ts
+    first_bad_commit = bad_commit
+    first_bad_ts = bad_ts
+    last_good_commit = good_commit
+    last_good_ts = good_ts
     hourly_found_bad = False
 
     sorted_hours = sorted(hour_groups.keys())
@@ -535,9 +535,8 @@ def cmd_bisect(env: api.TestEnvironment, argv: list):
         if not untested:
             continue
 
-        current_remaining = sum(
-            len([c for c in hour_groups[sorted_hours[j]] if c[0] not in tested])
-            for j in range(hour_index, len(sorted_hours)))
+        current_remaining = len([(h, t) for h, t in all_commits
+                                 if h not in tested and last_good_ts < t < first_bad_ts])
 
         attempts = 0
         for commit_hash, commit_ts in untested:
@@ -548,11 +547,11 @@ def cmd_bisect(env: api.TestEnvironment, argv: list):
             if status == 'build':
                 continue
             if status == 'pass':
-                good_hour_commit = commit_hash
-                good_hour_ts = commit_ts
+                last_good_commit = commit_hash
+                last_good_ts = commit_ts
             else:
-                bad_hour_commit = commit_hash
-                bad_hour_ts = commit_ts
+                first_bad_commit = commit_hash
+                first_bad_ts = commit_ts
                 hourly_found_bad = True
             break
 
@@ -562,11 +561,12 @@ def cmd_bisect(env: api.TestEnvironment, argv: list):
     # Phase 3: Per-commit scan between good and bad (Phase 2) commits.
     # Phase 2 narrowed the window to the hour-level; check every commit
     # within that narrowed range to find the exact regression.
-    per_commits = env.commits_in_window(good_hour_ts, bad_hour_ts)
+    per_commits = env.commits_in_window(last_good_ts, first_bad_ts)
     for commit_hash, commit_ts in per_commits:
         if commit_hash in tested:
             continue
-        current_remaining = len([c for c in per_commits if c[0] not in tested])
+        current_remaining = len([(h, t) for h, t in all_commits
+                                 if h not in tested and last_good_ts < t < first_bad_ts])
         _, status = test_commit(commit_hash, commit_ts)
         if status == 'fail':
             title = env.commit_title(commit_hash)
@@ -575,12 +575,12 @@ def cmd_bisect(env: api.TestEnvironment, argv: list):
         elif status == 'pass':
             continue
 
-    # If no failing commit was found in the window, the bad_hour_commit
+    # If no failing commit was found in the window, the first_bad_commit
     # (from Phase 2) is the first failing commit. It may have been
     # excluded from the git log window because --before is exclusive.
-    if bad_hour_commit:
-        title = env.commit_title(bad_hour_commit)
-        print(f'\nRegression introduced by commit {bad_hour_commit}: {title}')
+    if first_bad_commit:
+        title = env.commit_title(first_bad_commit)
+        print(f'\nRegression introduced by commit {first_bad_commit}: {title}')
         return
 
     print('\nCould not pinpoint the exact commit.')
