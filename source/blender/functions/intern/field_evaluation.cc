@@ -591,7 +591,7 @@ void FieldEvaluator::evaluate()
 
   Vector<GFieldRef> fields;
   fields.reserve(fields_to_evaluate_.size());
-  const bool true_value = true;
+  static constexpr bool true_value = true;
   for (const int i : fields_to_evaluate_.index_range()) {
     const GField &field = fields_to_evaluate_[i];
     if (field == selection_field_) {
@@ -599,7 +599,7 @@ void FieldEvaluator::evaluate()
       fields.append(GFieldRef::from_constant(CPPType::get<bool>(), &true_value));
     }
     else {
-      fields.append(fields_to_evaluate_[i]);
+      fields.append(field);
     }
   }
   evaluated_varrays_ = evaluate_fields(scope_, fields, selection_mask_, context_, dst_varrays_);
