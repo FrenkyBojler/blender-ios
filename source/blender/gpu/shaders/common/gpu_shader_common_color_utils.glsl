@@ -153,6 +153,48 @@ void hsl_to_rgb(float4 hsl, float4 &outcol)
       (nr - 0.5f) * chroma + l, (ng - 0.5f) * chroma + l, (nb - 0.5f) * chroma + l, hsl.w);
 }
 
+[[node]]
+void rgb_to_oklab(float4 rgb, float4 &outcol)
+{
+  float l, m, s;
+
+  l = 0.4122214708f * rgb[0] + 0.5363325363f * rgb[1] + 0.0514459929f * rgb[2];
+	m = 0.2119034982f * rgb[0] + 0.6806995451f * rgb[1] + 0.1073969566f * rgb[2];
+	s = 0.0883024619f * rgb[0] + 0.2817188376f * rgb[1] + 0.6299787005f * rgb[2];
+
+  l = pow(l, 1.0f/3.0f);
+  m = pow(m, 1.0f/3.0f);
+  s = pow(s, 1.0f/3.0f);
+
+  outcol = float4(
+    0.2104542553f * l + 0.7936177850f * m - 0.0040720468f * s,
+    1.9779984951f * l - 2.4285922050f * m + 0.4505937099f * s,
+    0.0259040371f * l + 0.7827717662f * m - 0.8086757660f * s,
+    rgb[3]
+  );
+}
+
+[[node]]
+void oklab_to_rgb(float4 lab, float4 &outcol)
+{
+  float l, m, s;
+
+  l = lab[0] + 0.3963377774f * lab[1] + 0.2158037573f * lab[2];
+  m = lab[0] - 0.1055613458f * lab[1] - 0.0638541728f * lab[2];
+  s = lab[0] - 0.0894841775f * lab[1] - 1.2914855480f * lab[2];
+
+  l = l * l * l;
+  m = m * m * m;
+  s = s * s * s;
+
+  outcol = float4(
+    +4.0767416621f * l - 3.3077115913f * m + 0.2309699292f * s,
+    -1.2684380046f * l + 2.6097574011f * m - 0.3413193965f * s,
+    -0.0041960863f * l - 0.7034186147f * m + 1.7076147010f * s,
+    lab[3]
+  );
+}
+
 /* ** YCCA to RGBA ** */
 
 [[node]]

@@ -38,6 +38,8 @@ static void node_declare(NodeDeclarationBuilder &b)
       case CMP_NODE_COMBSEP_COLOR_HSV:
       case CMP_NODE_COMBSEP_COLOR_HSL:
         return IFACE_("Hue");
+      case CMP_NODE_COMBSEP_COLOR_LAB:
+        return IFACE_("L");
       case CMP_NODE_COMBSEP_COLOR_YCC:
       case CMP_NODE_COMBSEP_COLOR_YUV:
         return IFACE_("Y");
@@ -51,6 +53,8 @@ static void node_declare(NodeDeclarationBuilder &b)
       case CMP_NODE_COMBSEP_COLOR_HSV:
       case CMP_NODE_COMBSEP_COLOR_HSL:
         return IFACE_("Saturation");
+      case CMP_NODE_COMBSEP_COLOR_LAB:
+        return IFACE_("A");
       case CMP_NODE_COMBSEP_COLOR_YCC:
         return IFACE_("Cb");
       case CMP_NODE_COMBSEP_COLOR_YUV:
@@ -66,6 +70,8 @@ static void node_declare(NodeDeclarationBuilder &b)
         return CTX_IFACE_(BLT_I18NCONTEXT_COLOR, "Value");
       case CMP_NODE_COMBSEP_COLOR_HSL:
         return IFACE_("Lightness");
+      case CMP_NODE_COMBSEP_COLOR_LAB:
+        return IFACE_("B");
       case CMP_NODE_COMBSEP_COLOR_YCC:
         return IFACE_("Cr");
       case CMP_NODE_COMBSEP_COLOR_YUV:
@@ -138,6 +144,14 @@ static void node_build_multi_function(nodes::NodeMultiFunctionBuilder &builder)
       },
       mf::build::exec_presets::AllSpanOrSingle());
 
+  static auto oklab_function = mf::build::SI1_SO4<Color, float, float, float, float>(
+      "Separate Color LAB",
+      [](const Color &color, float &l, float &a, float &b, float &alpha) -> void {
+        rgb_to_oklab(color.r, color.g, color.b, &l, &a, &b);
+        alpha = color.a;
+      },
+      mf::build::exec_presets::AllSpanOrSingle());
+
   static auto yuva_function = mf::build::SI1_SO4<Color, float, float, float, float>(
       "Separate Color YUVA",
       [](const Color &color, float &y, float &u, float &v, float &a) -> void {
@@ -188,6 +202,9 @@ static void node_build_multi_function(nodes::NodeMultiFunctionBuilder &builder)
       break;
     case CMP_NODE_COMBSEP_COLOR_HSL:
       builder.set_matching_fn(hsla_function);
+      break;
+    case CMP_NODE_COMBSEP_COLOR_LAB:
+      builder.set_matching_fn(oklab_function);
       break;
     case CMP_NODE_COMBSEP_COLOR_YUV:
       builder.set_matching_fn(yuva_function);
