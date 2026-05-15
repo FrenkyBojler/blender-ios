@@ -3060,7 +3060,7 @@ static void UI_OT_view_item_navigate(wmOperatorType *ot)
   ot->description = "Navigate view item";
 
   ot->invoke = ui_view_item_navigate_invoke;
-  ot->poll = ui_tree_view_item_navigate_poll;
+  ot->poll = view_focused_poll;
 
   ot->flag = OPTYPE_INTERNAL;
 

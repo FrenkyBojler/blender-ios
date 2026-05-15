@@ -95,6 +95,7 @@ class AbstractGridView : public AbstractView {
    * #update_from_old(). */
   Map<StringRef, AbstractGridViewItem *> item_map_;
   GridViewStyle style_;
+  int cols_per_row_ = 0;
 
  public:
   AbstractGridView();
