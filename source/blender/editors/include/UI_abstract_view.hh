@@ -163,6 +163,7 @@ class AbstractView {
   virtual AbstractViewItem *navigate_up(AbstractViewItem *from) = 0;
   virtual AbstractViewItem *navigate_down(AbstractViewItem *from) = 0;
 
+  virtual void scroll_active_into_view() = 0;
  protected:
   AbstractView() = default;
 

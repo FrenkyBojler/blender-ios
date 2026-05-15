@@ -216,6 +216,11 @@ AbstractViewItem *AbstractGridView::navigate_down(AbstractViewItem *from)
   return next_item ? next_item : from;
 }
 
+void AbstractGridView::scroll_active_into_view()
+{
+
+}
+
 GridViewStyle::GridViewStyle(int width, int height) : tile_width(width), tile_height(height) {}
 
 /* ---------------------------------------------------------------------- */
