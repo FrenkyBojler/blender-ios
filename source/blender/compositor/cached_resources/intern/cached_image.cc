@@ -341,7 +341,6 @@ CachedImage::CachedImage(Context &context,
     buffer_result.share_data(linear_image_buffer->float_buffer.data,
                              size,
                              linear_image_buffer->float_buffer.sharing_info);
-    IMB_freeImBuf(linear_image_buffer);
     this->result.allocate_texture(size, false);
 
     if (buffer_result.type() == ResultType::Color && result.type() == ResultType::Float4) {
@@ -374,6 +373,7 @@ CachedImage::CachedImage(Context &context,
         math::from_location<float3x3>(float2(int2(image_buffer->display_offset))));
   }
 
+  IMB_freeImBuf(linear_image_buffer);
   BKE_image_release_ibuf(image, image_buffer, nullptr);
 }
 
