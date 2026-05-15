@@ -35,6 +35,8 @@
 #include "BKE_node.hh"
 #include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
+#include "BKE_paint.hh"
+#include "BKE_paint_types.hh"
 #include "BKE_report.hh"
 
 #include "SEQ_iterator.hh"
@@ -639,6 +641,26 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
           if (scrubbing_region) {
             scrubbing_region->alignment = RGN_ALIGN_BOTTOM | RGN_STACK_ON_PREV |
                                           RGN_ALIGN_HIDE_WITH_PREV;
+          }
+        }
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 30)) {
+    for (Scene &scene : bmain->scenes) {
+      VPaint *wpaint = scene.toolsettings->wpaint;
+      if (wpaint) {
+        const StringRefNull old_asset_id =
+            wpaint->paint.brush_asset_reference->relative_asset_identifier;
+        if (wpaint->paint.brush == nullptr && old_asset_id.endswith("Paint")) {
+          /* The "Paint" brush asset was renamed to "Add Weight", find it via the default instead
+           * of hardcoding the new name. */
+          if (std::optional<AssetWeakReference> paint_brush_asset_reference =
+                  BKE_paint_brush_type_default_reference(PaintMode::Weight,
+                                                         WPAINT_BRUSH_TYPE_DRAW))
+          {
+            BKE_paint_brush_set(bmain, &wpaint->paint, *paint_brush_asset_reference);
           }
         }
       }
