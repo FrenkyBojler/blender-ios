@@ -292,7 +292,7 @@ static std::string strip_modifier_add_asset_get_description(bContext *C,
   return TIP_(asset->get_metadata().description);
 }
 
-void SEQUENCER_OT_strip_modifier_add_node_group(wmOperatorType *ot)
+static void SEQUENCER_OT_strip_modifier_add_node_group(wmOperatorType *ot)
 {
   ot->name = "Add Strip Modifier";
   ot->description = "Add a modifier to the strip";
