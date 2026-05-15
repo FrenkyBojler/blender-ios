@@ -67,6 +67,7 @@
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"
 
+#include "ANIM_action.hh"
 #include "ANIM_action_iterators.hh"
 
 namespace blender {
@@ -442,9 +443,13 @@ static void refresh_node_sockets_animation_inout(Main &bmain,
                                                  const Span<bNodeSocket *> old_sockets,
                                                  const Span<bNodeSocket *> new_sockets)
 {
-  if (!ntree.adt || !ntree.adt->action) {
+  std::optional<std::pair<animrig::Action *, animrig::Slot *>> action_and_slot =
+      animrig::get_action_slot_pair(ntree.id);
+  if (!action_and_slot) {
     return;
   }
+  animrig::Action &action = *action_and_slot->first;
+  animrig::Slot &slot = *action_and_slot->second;
 
   Map<UString, int> new_index_by_identifier;
   for (const int new_i : new_sockets.index_range()) {
@@ -476,8 +481,6 @@ static void refresh_node_sockets_animation_inout(Main &bmain,
   }
 
   const std::string node_path = fmt::format("nodes[\"{}\"]", BLI_str_escape(node.name));
-  animrig::Action &action = ntree.adt->action->wrap();
-  const animrig::slot_handle_t slot_handle = ntree.adt->slot_handle;
   const StringRef inout_str = in_out == SOCK_IN ? "inputs" : "outputs";
   bool animation_changed = false;
 
@@ -517,7 +520,7 @@ static void refresh_node_sockets_animation_inout(Main &bmain,
      * sockets swap their position, the same fcurve may be modified twice and ends up with its
      * original rna path. */
     animrig::foreach_fcurve_in_action_slot(
-        action, slot_handle, [&](FCurve &fcurve) { handle_rna_path(&fcurve.rna_path); });
+        action, slot.handle, [&](FCurve &fcurve) { handle_rna_path(&fcurve.rna_path); });
     for (FCurve &driver_fcurve : ntree.adt->drivers) {
       handle_rna_path(&driver_fcurve.rna_path);
     }
@@ -525,7 +528,7 @@ static void refresh_node_sockets_animation_inout(Main &bmain,
 
   if (animation_changed) {
     DEG_id_tag_update(&ntree.id, ID_RECALC_ANIMATION);
-    DEG_id_tag_update(&ntree.adt->action->id, ID_RECALC_SYNC_TO_EVAL);
+    DEG_id_tag_update(&action.id, ID_RECALC_SYNC_TO_EVAL);
     DEG_relations_tag_update(&bmain);
   }
 }
