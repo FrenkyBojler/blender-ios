@@ -3012,87 +3012,32 @@ static wmOperatorStatus ui_view_item_navigate_invoke(bContext *C,
 {
   ARegion &region = *CTX_wm_region(C);
   const Direction direction = Direction(RNA_enum_get(op->ptr, "direction"));
-  AbstractTreeView &tree_view = *dynamic_cast<AbstractTreeView *>(get_view_focused(C));
+  AbstractView *view = get_view_focused(C);
 
-  bool found_active = false;
-  auto iter_fn = [&](blender::ui::BasicTreeViewItem::ItemIterFn fn) {
-    found_active = false;
-    tree_view.foreach_item(fn,
-                           AbstractTreeView::IterOptions::SkipCollapsed |
-                               AbstractTreeView::IterOptions::SkipFiltered);
-  };
-
-  AbstractTreeViewItem *active_item = nullptr;
-  iter_fn([&](AbstractTreeViewItem &item) {
-    if (active_item == nullptr) {
-      /* Active item might be filtered out due to search string, set the first visible element
-       * active in that case. */
-      active_item = &item;
-    }
-    if (item.is_active() && item.is_filtered_visible()) {
-      active_item = &item;
-      found_active = true;
-    }
-  });
-
-  if (!found_active) {
-    view_item_click_select(*C, active_item, tree_view, false, false, false);
-    tree_view.scroll_active_into_view();
-    ED_region_tag_redraw(&region);
-    return OPERATOR_FINISHED;
-  }
-
-  found_active = false;
-  AbstractTreeViewItem *next_item = nullptr;
+  AbstractViewItem *from = view->find_active_or_visible_item();
+  AbstractViewItem *next_item = nullptr;
   switch (direction) {
     case Direction::UP: {
-      iter_fn([&](AbstractTreeViewItem &item) {
-        found_active |= item.is_active();
-        if (!found_active) {
-          /* Store the element which is just before the active. */
-          next_item = &item;
-        }
-      });
+      next_item = view->navigate_up(from);
       break;
     }
     case Direction::Down: {
-      iter_fn([&](AbstractTreeViewItem &item) {
-        if (found_active) {
-          /* Store the element next to the active. */
-          next_item = &item;
-          found_active = false;
-        }
-        found_active = item.is_active();
-      });
+      next_item = view->navigate_down(from);
       break;
     }
     case Direction::LEFT: {
-      /* Jump to parent of active element then collapse the parent. */
-      if (!active_item->is_collapsible() || active_item->is_collapsed()) {
-        next_item = active_item->get_parent();
-        break;
-      }
-      active_item->set_collapsed(true);
+      next_item = view->navigate_left(from);
       break;
     }
     case Direction::RIGHT: {
-      /* Expand active element if it's collapsed. */
-      if (!active_item->is_collapsible()) {
-        break;
-      }
-
-      if (active_item->is_collapsed()) {
-        active_item->set_collapsed(false);
-        break;
-      }
-      next_item = active_item->get_child();
+      next_item = view->navigate_right(from);
       break;
     }
   }
 
   if (next_item) {
-    view_item_click_select(*C, next_item, tree_view, false, false, false);
-    tree_view.scroll_active_into_view();
+    view_item_click_select(*C, next_item, *view, false, false, false);
+    //tree_view.scroll_active_into_view();
   }
   ED_region_tag_redraw(&region);
   return OPERATOR_FINISHED;

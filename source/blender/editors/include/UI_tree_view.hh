@@ -214,6 +214,11 @@ class AbstractTreeView : public AbstractView, public TreeViewItemContainer {
 
   int count_visible_descendants(const AbstractTreeViewItem &parent) const;
   void sort_inverted();
+  AbstractViewItem *find_active_or_visible_item() const override;
+  AbstractViewItem *navigate_left(AbstractViewItem *from) override;
+  AbstractViewItem *navigate_right(AbstractViewItem *from) override;
+  AbstractViewItem *navigate_up(AbstractViewItem *from) override;
+  AbstractViewItem *navigate_down(AbstractViewItem *from) override;
 };
 
 /** \} */

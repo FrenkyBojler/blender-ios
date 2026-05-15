@@ -123,7 +123,11 @@ class AbstractGridView : public AbstractView {
   int get_item_count_filtered() const;
 
   void set_tile_size(int tile_width, int tile_height);
-
+  AbstractViewItem *find_active_or_visible_item() const override;
+  AbstractViewItem *navigate_left(AbstractViewItem *from) override;
+  AbstractViewItem *navigate_right(AbstractViewItem *from) override;
+  AbstractViewItem *navigate_up(AbstractViewItem *from) override;
+  AbstractViewItem *navigate_down(AbstractViewItem *from) override;
  protected:
   virtual void build_items() = 0;
 

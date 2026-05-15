@@ -123,6 +123,28 @@ void AbstractGridView::set_tile_size(int tile_width, int tile_height)
   style_.tile_height = tile_height;
 }
 
+AbstractViewItem *AbstractGridView::find_active_or_visible_item() const
+{
+
+}
+
+AbstractViewItem *AbstractGridView::navigate_left(AbstractViewItem *from)
+{
+  return nullptr;
+}
+AbstractViewItem *AbstractGridView::navigate_right(AbstractViewItem *from)
+{
+  return nullptr;
+}
+AbstractViewItem *AbstractGridView::navigate_up(AbstractViewItem *from)
+{
+  return nullptr;
+}
+AbstractViewItem *AbstractGridView::navigate_down(AbstractViewItem *from)
+{
+  return nullptr;
+}
+
 GridViewStyle::GridViewStyle(int width, int height) : tile_width(width), tile_height(height) {}
 
 /* ---------------------------------------------------------------------- */
