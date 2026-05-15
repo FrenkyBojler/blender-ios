@@ -2447,7 +2447,7 @@ static int active_face_set_id_get(ViewContext &vc, Cache &expand_cache, const fl
   const Object &object = *vc.obact;
 
   const std::optional<ActiveElementInfo> active_element_info = active_element_info_get(vc, mval);
-  if(!active_element_info) {
+  if (!active_element_info) {
     return face_set_none_id;
   }
 
@@ -2456,8 +2456,8 @@ static int active_face_set_id_get(ViewContext &vc, Cache &expand_cache, const fl
       return expand_cache.original_face_sets[active_element_info->active_face_idx];
     case bke::pbvh::Type::Grids: {
       SculptSession &ss = *object.runtime->sculpt_session;
-      const int face_index = BKE_subdiv_ccg_grid_to_face_index(*ss.subdiv_ccg,
-                                                               active_element_info->active_grid_idx);
+      const int face_index = BKE_subdiv_ccg_grid_to_face_index(
+          *ss.subdiv_ccg, active_element_info->active_grid_idx);
       return expand_cache.original_face_sets[face_index];
     }
     case bke::pbvh::Type::BMesh: {

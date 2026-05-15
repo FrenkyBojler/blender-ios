@@ -348,6 +348,9 @@ struct StrokeCache {
   float4x4 symm_rot_mat = float4x4::identity();
   float4x4 symm_rot_mat_inv = float4x4::identity();
 
+  std::optional<int> active_face_index;
+  std::optional<int> active_grid_index;
+
   /**
    * Accumulate mode.
    * \note inverted for #SCULPT_BRUSH_TYPE_DRAW_SHARP.

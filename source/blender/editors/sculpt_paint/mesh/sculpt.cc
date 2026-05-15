@@ -196,25 +196,34 @@ namespace face_set {
 int active_face_set_get(const Object &object)
 {
   const SculptSession &ss = *object.runtime->sculpt_session;
+  std::optional<int> active_face_index, active_grid_index;
+  if (ss.cache != nullptr) {
+    active_face_index = ss.cache->active_face_index;
+    active_grid_index = ss.cache->active_grid_index;
+  }
+  else {
+    /* Fallback codepath, must mean theres an unnacounted usage of ss.active_ properties */
+    active_face_index = ss.active_face_index;
+    active_grid_index = ss.active_grid_index;
+  }
   switch (bke::object::pbvh_get(object)->type()) {
     case bke::pbvh::Type::Mesh: {
       const Mesh &mesh = *id_cast<const Mesh *>(object.data);
       const bke::AttributeAccessor attributes = mesh.attributes();
       const VArray face_sets = *attributes.lookup<int>(".sculpt_face_set", bke::AttrDomain::Face);
-      if (!face_sets || !ss.active_face_index) {
+      if (!face_sets || !active_face_index) {
         return face_set_none_id;
       }
-      return face_sets[*ss.active_face_index];
+      return face_sets[*active_face_index];
     }
     case bke::pbvh::Type::Grids: {
       const Mesh &mesh = *id_cast<const Mesh *>(object.data);
       const bke::AttributeAccessor attributes = mesh.attributes();
       const VArray face_sets = *attributes.lookup<int>(".sculpt_face_set", bke::AttrDomain::Face);
-      if (!face_sets || !ss.active_grid_index) {
+      if (!face_sets || !active_grid_index) {
         return face_set_none_id;
       }
-      const int face_index = BKE_subdiv_ccg_grid_to_face_index(*ss.subdiv_ccg,
-                                                               *ss.active_grid_index);
+      const int face_index = BKE_subdiv_ccg_grid_to_face_index(*ss.subdiv_ccg, *active_grid_index);
       return face_sets[face_index];
     }
     case bke::pbvh::Type::BMesh:
@@ -229,7 +238,7 @@ int active_face_set_get(bContext *C, const float2 &mval)
   ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
 
   const std::optional<ActiveElementInfo> active_element_info = active_element_info_get(vc, mval);
-  if(!active_element_info) {
+  if (!active_element_info) {
     return face_set_none_id;
   }
 
@@ -257,8 +266,8 @@ int active_face_set_get(bContext *C, const float2 &mval)
       if (!face_sets) {
         return face_set_none_id;
       }
-      const int face_index = BKE_subdiv_ccg_grid_to_face_index(*ss.subdiv_ccg,
-        active_element_info->active_grid_idx);
+      const int face_index = BKE_subdiv_ccg_grid_to_face_index(
+          *ss.subdiv_ccg, active_element_info->active_grid_idx);
       return face_sets[face_index];
     }
     case bke::pbvh::Type::BMesh:
@@ -4723,7 +4732,7 @@ std::optional<ActiveElementInfo> active_element_info_get(ViewContext &vc, const 
   srd.hit = false;
   srd.depth = depth;
 
-  srd.is_mid_stroke = false;
+  srd.is_mid_stroke = ss.cache != nullptr;
   srd.use_original = false;
   if (pbvh->type() == bke::pbvh::Type::Mesh) {
     const Mesh &mesh = *id_cast<const Mesh *>(ob.data);
@@ -4864,6 +4873,11 @@ std::optional<CursorGeometryInfo> cursor_geometry_info_update(Depsgraph &depsgra
       ss.active_face_index = std::nullopt;
       ss.active_grid_index = std::nullopt;
       break;
+  }
+
+  if (ss.cache != nullptr) {
+    ss.cache->active_face_index = ss.active_face_index;
+    ss.cache->active_grid_index = ss.active_grid_index;
   }
 
   out.location = ray_start + ray_normal * srd.depth;
