@@ -142,18 +142,21 @@ class TestEnvironment:
             cmake_cache = self.build_dir / "CMakeCache.txt"
             if cmake_cache.exists():
                 cmake_cache.unlink()
+                self.call([self.cmake_executable, self.blender_dir, '.'] + self.cmake_options, self.build_dir)
 
         jobs = str(multiprocessing.cpu_count())
         cmake_options = list(self.cmake_options)
         cmake_options += [f"-DCMAKE_INSTALL_PREFIX={install_dir}"]
         try:
-            self.call([self.cmake_executable, self.blender_dir, '.'] + self.cmake_options, self.build_dir)
+            self.call([self.cmake_executable, '.'] + cmake_options, self.build_dir)
             self.call([self.cmake_executable, '--build', '.', '-j', jobs, '--target', 'install'], self.build_dir)
             if complete_txt:
                 complete_txt.write_text(git_hash)
         except KeyboardInterrupt as e:
             raise e
         except:
+            import traceback
+            print(traceback.format_exc())
             return False
 
         self._init_default_blender_executable()
