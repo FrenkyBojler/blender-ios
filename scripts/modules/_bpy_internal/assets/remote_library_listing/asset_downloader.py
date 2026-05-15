@@ -189,21 +189,20 @@ def downloader_status(asset_library_url: str) -> DownloadStatus:
     return _asset_downloaders[asset_library_url].status
 
 
-def is_downloading_any_assets() -> bool:
-    """Return whether any downloader is still downloading."""
-
-    for downloader in _asset_downloaders.values():
-        if downloader.status == DownloadStatus.DOWNLOADING:
-            return True
-    return False
-
-
 def on_asset_download_queue_empty() -> None:
     """Called by the asset downloader when its download queue emptied."""
-    if is_downloading_any_assets():
+    if any_asset_downloading():
         return
     # TODO: ping Blender that all asset downloads are done.
     logger.info("Asset downloader: all assets are done downloading")
+
+
+def any_asset_downloading() -> bool:
+    """Returns true if there is any downloader currently downloading assets."""
+    return any(
+        downloader.status == DownloadStatus.DOWNLOADING
+        for downloader in _asset_downloaders.values()
+    )
 
 
 class DownloadStatus(enum.Enum):
