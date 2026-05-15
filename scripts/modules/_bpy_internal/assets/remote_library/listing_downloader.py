@@ -815,8 +815,10 @@ class RemoteAssetListingDownloader:
         """
         for relpath in self._backup_listing_direntries():
             src_abspath = src_path/relpath
-            dst_abspath = dst_path/relpath
+            if not src_abspath.exists():
+                continue
 
+            dst_abspath = dst_path/relpath
             if src_abspath.is_dir():
                 shutil.copytree(src_abspath, dst_abspath, dirs_exist_ok=True)
             else:
