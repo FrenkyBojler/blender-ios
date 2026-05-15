@@ -503,7 +503,10 @@ static void pose_slide_apply_property_snapshots(tPoseSlideOp &pso,
     Array<float> prev_frame_values = base_values;
     {
       float prev_frame, next_frame;
-      pose_frame_range_from_id_get(&pso, slide_subject.ptr.owner_id, &prev_frame, &next_frame);
+      const bool success = pose_frame_range_from_id_get(
+          &pso, slide_subject.ptr.owner_id, &prev_frame, &next_frame);
+      /* All `SlideSubject`s should have a frame range. */
+      BLI_assert(success);
       const Vector<FCurve *> fcurves = fcurves_filtered_by_path(slide_subject.fcurves,
                                                                 path.value());
       if (fcurves.size() == 0) {
@@ -537,7 +540,7 @@ static void pose_slide_apply_property_snapshots(tPoseSlideOp &pso,
         break;
 
       case POSESLIDE_BLEND: {
-        const float blend_factor = fabs((factor - 0.5f) * 2);
+        const float blend_factor = fabsf((factor - 0.5f) * 2);
         if (factor < 0.5) {
           values = ed::property_interpolated(base_values, prev_frame_values, blend_factor);
         }

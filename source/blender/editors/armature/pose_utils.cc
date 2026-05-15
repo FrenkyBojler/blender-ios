@@ -146,8 +146,8 @@ static eAction_TransformFlags get_item_transform_flags_and_fcurves(Object &ob,
   return eAction_TransformFlags(flags);
 }
 /**
- * Stores a `PropertySnapshot` of the property with the given `property_name` in the given
- * If the property does not exist in the `ptr` the function doesn't do anything. Also the
+ * Stores a `PropertySnapshot` of the property with the given `property_name` in the given Vector.
+ * If the property does not exist in the `ptr` the function doesn't do anything. Also the property
  * has to be supported by `ed::rna_property_get_as_float`.
  */
 static void store_property_snapshot(PointerRNA &ptr,
@@ -212,7 +212,6 @@ static void fcurves_to_pchan_links_get(ListBaseT<SlideSubject> &slide_subjects,
     store_property_snapshot(bone_ptr, "bbone_curveinz", slide_subject->additional_properties);
     store_property_snapshot(bone_ptr, "bbone_curveoutz", slide_subject->additional_properties);
     store_property_snapshot(bone_ptr, "bbone_easein", slide_subject->additional_properties);
-
     store_property_snapshot(bone_ptr, "bbone_easeout", slide_subject->additional_properties);
     store_property_snapshot(bone_ptr, "bbone_scalein", slide_subject->additional_properties);
     store_property_snapshot(bone_ptr, "bbone_scaleout", slide_subject->additional_properties);

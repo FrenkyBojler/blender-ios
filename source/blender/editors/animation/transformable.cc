@@ -12,10 +12,10 @@
 
 namespace blender::ed {
 
-TransformFloats property_interpolated(const Span<float> a, const Span<float> b, const float factor)
+Array<float> property_interpolated(const Span<float> a, const Span<float> b, const float factor)
 {
   BLI_assert(a.size() == b.size());
-  TransformFloats interpolated(a.size());
+  Array<float> interpolated(a.size());
   for (const int i : a.index_range()) {
     interpolated[i] = interpf(b[i], a[i], factor);
   }

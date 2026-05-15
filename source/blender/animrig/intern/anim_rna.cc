@@ -278,7 +278,7 @@ void rna_property_set_as_float(PointerRNA &ptr, PropertyRNA &prop, const Span<fl
   switch (RNA_property_type(&prop)) {
     case PROP_BOOLEAN:
       if (is_array) {
-        for (int i : values.index_range()) {
+        for (const int i : values.index_range()) {
           RNA_property_boolean_set_index(&ptr, &prop, i, values[i]);
         }
       }
@@ -288,7 +288,7 @@ void rna_property_set_as_float(PointerRNA &ptr, PropertyRNA &prop, const Span<fl
       break;
     case PROP_INT:
       if (is_array) {
-        for (int i : values.index_range()) {
+        for (const int i : values.index_range()) {
           RNA_property_int_set_index(&ptr, &prop, i, values[i]);
         }
       }
