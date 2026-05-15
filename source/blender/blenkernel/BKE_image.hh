@@ -12,6 +12,8 @@
 #include "BLI_compiler_attrs.h"
 #include "BLI_mutex.hh"
 
+#include "IMB_imbuf_enums.h"
+
 #include <cstdint>
 #include <limits>
 #include <optional>
@@ -166,12 +168,12 @@ bool BKE_imbuf_write_as(ImBuf *ibuf,
  * Used by sequencer too.
  */
 MovieReader *openanim(const char *filepath,
-                      int ibuf_flags,
+                      ImBufFlags ibuf_flags,
                       int streamindex,
                       bool keep_original_colorspace,
                       char colorspace[IMA_MAX_SPACE]);
 MovieReader *openanim_noload(const char *filepath,
-                             int flags,
+                             ImBufFlags flags,
                              int streamindex,
                              bool keep_original_colorspace,
                              char colorspace[IMA_MAX_SPACE]);
@@ -453,7 +455,7 @@ void BKE_image_merge(Main *bmain, Image *dest, Image *source);
 bool BKE_image_scale(Image *image, int width, int height, ImageUser *iuser);
 
 /**
- * Check if texture has alpha `planes == 32 || planes == 16`.
+ * Check if image might contain alpha.
  */
 bool BKE_image_has_alpha(Image *image);
 
