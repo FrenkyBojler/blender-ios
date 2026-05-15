@@ -48,6 +48,7 @@ class TestEnvironment:
         self.cmake_options = ['-DWITH_INTERNATIONAL=OFF', '-DWITH_BUILDINFO=OFF']
         self.log_file = None
         self.machine = None
+        self._title_cache = {}
         self._init_default_blender_executable()
         self.set_default_blender_executable()
 
@@ -374,3 +375,45 @@ class TestEnvironment:
         # Get commit data for a git hash.
         lines = self.call([self.git_executable, 'log', '-n1', git_hash, '--format=%at'], self.blender_git_dir)
         return int(lines[0].strip()) if len(lines) else 0
+
+    def commits_in_window(self, after_ts: int, before_ts: int) -> list[tuple[str, int]]:
+        """List commits in a time window, oldest first.
+
+        Returns a list of ``(commit_hash, unix_timestamp)`` tuples
+        for commits reachable from ``HEAD`` whose author date falls
+        between ``after_ts`` and ``before_ts``.
+        """
+        try:
+            lines = self.call(
+                [self.git_executable, 'log', '--first-parent', '--reverse',
+                 '--after=' + str(after_ts - 1), '--before=' + str(before_ts),
+                 '--format=%H %at', 'HEAD'],
+                self.blender_git_dir, silent=True)
+        except:
+            return []
+        result: list[tuple[str, int]] = []
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+            parts = line.split()
+            if len(parts) >= 2:
+                try:
+                    result.append((parts[0][:12], int(parts[1])))
+                except:
+                    pass
+        return result
+
+    def commit_title(self, git_hash: str) -> str:
+        """Return the one-line subject of a commit, with caching."""
+        if git_hash in self._title_cache:
+            return self._title_cache[git_hash]
+        try:
+            lines = self.call(
+                [self.git_executable, 'log', '-n1', '--format=%s', git_hash],
+                self.blender_git_dir, silent=True)
+            title = lines[0].strip() if lines else ''
+        except:
+            title = ''
+        self._title_cache[git_hash] = title
+        return title

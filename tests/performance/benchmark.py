@@ -387,16 +387,25 @@ def _resolve_device(env: api.TestEnvironment, device_str: str):
 
 def cmd_bisect(env: api.TestEnvironment, argv: list):
     import datetime
+    from api.bisect import is_good, test_commit as _test_commit
 
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--device', required=True)
-    parser.add_argument('--category', required=True)
-    parser.add_argument('--test', required=True)
-    parser.add_argument('--attribute', required=True)
-    parser.add_argument('--threshold', required=True, type=float)
-    parser.add_argument('--success', required=True, choices=['greater_than', 'less_than'])
-    parser.add_argument('--range', required=True)
-    parser.add_argument('--count', default=1, type=int)
+    parser = argparse.ArgumentParser(prog='benchmark.py bisect')
+    parser.add_argument('--device', required=True,
+                        help='Device type or ID to run tests on')
+    parser.add_argument('--category', required=True,
+                        help='Test category (e.g. eevee, cycles)')
+    parser.add_argument('--test', required=True,
+                        help='Test name (supports glob patterns)')
+    parser.add_argument('--attribute', required=True,
+                        help='Performance attribute to compare (e.g. fps, time)')
+    parser.add_argument('--threshold', required=True, type=float,
+                        help='Threshold value for pass/fail decision')
+    parser.add_argument('--success', required=True, choices=['greater_than', 'less_than'],
+                        help='Whether higher or lower values are considered a success')
+    parser.add_argument('--range', required=True,
+                        help='Date range in YYYYMMDD-YYYYMMDD format')
+    parser.add_argument('--count', default=1, type=int,
+                        help='Number of benchmark runs per commit (default=1)')
     args = parser.parse_args(argv)
 
     if not env.build_dir.exists() or not env.blender_dir.exists():
@@ -424,41 +433,6 @@ def cmd_bisect(env: api.TestEnvironment, argv: list):
     threshold = args.threshold
     count = args.count
 
-    commit_hash_len = 12
-    commit_title_max_len = 70
-
-    def commits_in_window(after_ts, before_ts):
-        try:
-            lines = env.call(
-                [env.git_executable, 'log', '--first-parent', '--reverse',
-                 '--after=' + str(after_ts - 1), '--before=' + str(before_ts),
-                 '--format=%H %at', 'HEAD'],
-                env.blender_git_dir, silent=True)
-        except:
-            return []
-        result = []
-        for line in lines:
-            line = line.strip()
-            if not line:
-                continue
-            parts = line.split()
-            if len(parts) >= 2:
-                try:
-                    result.append((parts[0][:commit_hash_len], int(parts[1])))
-                except:
-                    pass
-        return result
-
-    def date_str(ts):
-        return datetime.datetime.fromtimestamp(ts, tz=datetime.timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
-
-    def is_good(value):
-        if args.success == 'greater_than':
-            return value > threshold
-        elif args.success == 'less_than':
-            return value < threshold
-        return false
-
     print(f"Device: {args.device}")
     print(f"Category: {args.category}")
     print(f"Test: {args.test}")
@@ -466,67 +440,24 @@ def cmd_bisect(env: api.TestEnvironment, argv: list):
 
     table = api.MarkdownTable()
     table.add_column("Date (UTC)", width=22)
-    table.add_column("Commit", width=commit_hash_len)
-    table.add_column("Title", width=commit_title_max_len)
+    table.add_column("Remaining", width=5, alignment='RIGHT')
+    table.add_column("Commit", width=12)
+    table.add_column("Title", width=70)
     table.add_column(args.attribute, width=14, alignment='RIGHT')
     table.add_column("Status", width=8)
     table.print_header()
 
     tested = set()
-    _title_cache = {}
+    current_remaining = 0
 
-    def commit_title(git_hash):
-        if git_hash in _title_cache:
-            return _title_cache[git_hash]
-        try:
-            lines = env.call(
-                [env.git_executable, 'log', '-n1', '--format=%s', git_hash],
-                env.blender_git_dir, silent=True)
-            title = lines[0].strip() if lines else ''
-        except:
-            title = ''
-        _title_cache[git_hash] = title
-        return title
+    def print_status(row_values, end='\n'):
+        table.print_row([row_values[0]] + [str(current_remaining)] + row_values[1:], end=end)
 
-    def test_commit(git_hash, ts):
-        if git_hash in tested:
-            return None, 'skip'
-        tested.add(git_hash)
-
-        title = commit_title(git_hash)[:commit_title_max_len]
-        table.print_row([date_str(ts), git_hash, title, '', 'building'], end='\r')
-
-        install_dir = env.install_dir
-        ok = env.build(git_hash, install_dir)
-        if not ok:
-            table.print_row([date_str(ts), git_hash, title, 'error', 'FAIL (build)'])
-            return None, 'build'
-
-        env.set_blender_executable(install_dir, {})
-
-        values = []
-        try:
-            for run_idx in range(count):
-                run_status = 'running' if count == 1 else f'run [{run_idx + 1}/{count}]'
-                table.print_row([date_str(ts), git_hash, title, '', run_status], end='\r')
-                output = test.run(env, device_id, gpu_backend)
-                if not output or args.attribute not in output:
-                    env.set_default_blender_executable()
-                    table.print_row([date_str(ts), git_hash, title, 'error', 'run'])
-                    return None, 'run'
-                values.append(output[args.attribute])
-        except Exception as e:
-            env.set_default_blender_executable()
-            table.print_row([date_str(ts), git_hash, title, 'error', str(e)[:30]])
-            return None, 'run'
-
-        env.set_default_blender_executable()
-        avg = sum(values) / len(values)
-
-        good = is_good(avg)
-        status = 'PASS' if good else 'FAIL'
-        table.print_row([date_str(ts), git_hash, title, f'{avg:.4f}', status])
-        return avg, 'pass' if good else 'fail'
+    def test_commit(commit_hash, commit_ts):
+        return _test_commit(
+            env, test, device_id, gpu_backend, count, args.attribute,
+            args.success, threshold, tested,
+            print_status, commit_hash, commit_ts)
 
     # Phase 1: Daily scan
     start_ts = int(start_dt.timestamp())
@@ -536,35 +467,45 @@ def cmd_bisect(env: api.TestEnvironment, argv: list):
     good_ts = None
     bad_commit = None
     bad_ts = None
-    day_ts = start_ts
     last_tested = None
 
+    # Pre-compute all day windows for remaining-count tracking
+    day_windows: list[list[tuple[str, int]]] = []
+    day_ts = start_ts
     while day_ts <= end_ts:
         next_day_ts = day_ts + 86400
-        day_commits = commits_in_window(day_ts, next_day_ts)
+        day_windows.append(env.commits_in_window(day_ts, next_day_ts))
+        day_ts = next_day_ts
+
+    day_index = 0
+    while day_index < len(day_windows):
+        day_commits = day_windows[day_index]
+        current_remaining = sum(
+            len([c for c in day_windows[j] if c[0] not in tested])
+            for j in range(day_index, len(day_windows)))
 
         attempts = 0
-        for chash, cts in day_commits:
-            if chash == last_tested:
+        for commit_hash, commit_ts in day_commits:
+            if commit_hash == last_tested:
                 continue
             if attempts >= 3:
                 break
             attempts += 1
-            _, status = test_commit(chash, cts)
+            _, status = test_commit(commit_hash, commit_ts)
             if status == 'build':
                 continue
             if status == 'pass':
-                good_commit = chash
-                good_ts = cts
+                good_commit = commit_hash
+                good_ts = commit_ts
             else:
-                bad_commit = chash
-                bad_ts = cts
-            last_tested = chash
+                bad_commit = commit_hash
+                bad_ts = commit_ts
+            last_tested = commit_hash
             break
 
         if bad_commit:
             break
-        day_ts = next_day_ts
+        day_index += 1
 
     if bad_commit is None:
         print('\nNo regression found in the given date range.')
@@ -573,13 +514,13 @@ def cmd_bisect(env: api.TestEnvironment, argv: list):
     # Phase 2: Hourly scan between good and bad timestamps
     good_ts = good_ts or start_ts
 
-    all_commits = commits_in_window(good_ts, bad_ts)
+    all_commits = env.commits_in_window(good_ts, bad_ts)
     hour_groups = {}
-    for chash, cts in all_commits:
-        hour_key = (cts // 3600) * 3600
+    for commit_hash, commit_ts in all_commits:
+        hour_key = (commit_ts // 3600) * 3600
         if hour_key not in hour_groups:
             hour_groups[hour_key] = []
-        hour_groups[hour_key].append((chash, cts))
+        hour_groups[hour_key].append((commit_hash, commit_ts))
 
     bad_hour_commit = bad_commit
     bad_hour_ts = bad_ts
@@ -587,26 +528,31 @@ def cmd_bisect(env: api.TestEnvironment, argv: list):
     good_hour_ts = good_ts
     hourly_found_bad = False
 
-    for hour_key in sorted(hour_groups.keys()):
+    sorted_hours = sorted(hour_groups.keys())
+    for hour_index, hour_key in enumerate(sorted_hours):
         hour_commits = hour_groups[hour_key]
         untested = [(h, t) for h, t in hour_commits if h not in tested]
         if not untested:
             continue
 
+        current_remaining = sum(
+            len([c for c in hour_groups[sorted_hours[j]] if c[0] not in tested])
+            for j in range(hour_index, len(sorted_hours)))
+
         attempts = 0
-        for chash, cts in untested:
+        for commit_hash, commit_ts in untested:
             if attempts >= 3:
                 break
             attempts += 1
-            _, status = test_commit(chash, cts)
+            _, status = test_commit(commit_hash, commit_ts)
             if status == 'build':
                 continue
             if status == 'pass':
-                good_hour_commit = chash
-                good_hour_ts = cts
+                good_hour_commit = commit_hash
+                good_hour_ts = commit_ts
             else:
-                bad_hour_commit = chash
-                bad_hour_ts = cts
+                bad_hour_commit = commit_hash
+                bad_hour_ts = commit_ts
                 hourly_found_bad = True
             break
 
@@ -614,14 +560,15 @@ def cmd_bisect(env: api.TestEnvironment, argv: list):
             break
 
     # Phase 3: Per-commit scan between good and bad hour commits
-    per_commits = commits_in_window(good_hour_ts, bad_hour_ts)
-    for chash, cts in per_commits:
-        if chash in tested:
+    per_commits = env.commits_in_window(good_hour_ts, bad_hour_ts)
+    for commit_hash, commit_ts in per_commits:
+        if commit_hash in tested:
             continue
-        _, status = test_commit(chash, cts)
+        current_remaining = len([c for c in per_commits if c[0] not in tested])
+        _, status = test_commit(commit_hash, commit_ts)
         if status == 'fail':
-            title = commit_title(chash)
-            print(f'\nRegression introduced by commit {chash}: {title} ({date_str(cts)})')
+            title = env.commit_title(commit_hash)
+            print(f'\nRegression introduced by commit {commit_hash}: {title}')
             return
         elif status == 'pass':
             continue
