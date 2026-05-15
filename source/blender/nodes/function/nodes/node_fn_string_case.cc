@@ -1,12 +1,11 @@
-/* SPDX-FileCopyrightText: 2025 Blender Authors
+/* SPDX-FileCopyrightText: 2026 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BLI_array.hh"
 #include "BLI_string_utf8.h"
 
 #include "node_function_util.hh"
-
-#include <vector>
 
 namespace blender::nodes::node_fn_string_case_cc {
 
@@ -52,7 +51,7 @@ static std::string apply_string_case(const std::string &s, const Case mode)
   size_t len_bytes;
   const size_t len_chars = BLI_strlen_utf8_ex(s.c_str(), &len_bytes);
 
-  std::vector<char32_t> utf32(len_chars + 1);
+  Array<char32_t> utf32(len_chars + 1);
   BLI_str_utf8_as_utf32(utf32.data(), s.c_str(), utf32.size());
 
   bool word_start = true;
@@ -67,8 +66,7 @@ static std::string apply_string_case(const std::string &s, const Case mode)
         utf32[i] = BLI_str_utf32_char_to_lower(c);
         break;
       case Case::TitleCase: {
-        const bool is_space = (c == U' ' || c == U'\t' || c == U'\n' || c == U'\r');
-        if (is_space) {
+        if (std::isspace(c)) {
           word_start = true;
         }
         else if (word_start) {
