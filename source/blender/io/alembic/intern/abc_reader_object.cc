@@ -411,17 +411,7 @@ static IDProperty *make_idprop_from_int_values(StringRef prop_name,
     return bke::idprop::create(prop_name, int_values[0]).release();
   }
 
-  if (num_values == 3 && interpretation == "rgb") {
-    /* Convert to a color. We use the original sample values to avoid sign conversions. */
-    float rgb[3] = {float(sample_values[0]) / 255.0f,
-                    float(sample_values[1]) / 255.0f,
-                    float(sample_values[2]) / 255.0f};
-    IDProperty *result = bke::idprop::create(prop_name, Span(rgb, 3)).release();
-    set_ui_data_from_interpretation(result, interpretation);
-    return result;
-  }
-
-  if (num_values == 4 && interpretation == "rgba") {
+  if (num_values == 4 && interpretation == Alembic::Abc::C4cTPTraits::interpretation()) {
     /* Convert to a color. We use the original sample values to avoid sign conversions. */
     float rgb[4] = {float(sample_values[0]) / 255.0f,
                     float(sample_values[1]) / 255.0f,
@@ -432,7 +422,72 @@ static IDProperty *make_idprop_from_int_values(StringRef prop_name,
     return result;
   }
 
+  if (num_values == 3) {
+    if (interpretation == Alembic::Abc::C3cTPTraits::interpretation()) {
+      /* Convert to a color. We use the original sample values to avoid sign conversions. */
+      float rgb[3] = {float(sample_values[0]) / 255.0f,
+                      float(sample_values[1]) / 255.0f,
+                      float(sample_values[2]) / 255.0f};
+      IDProperty *result = bke::idprop::create(prop_name, Span(rgb, 3)).release();
+      set_ui_data_from_interpretation(result, interpretation);
+      return result;
+    }
+
+    if (interpretation == Alembic::Abc::V3iTPTraits::interpretation() ||
+        interpretation == Alembic::Abc::P3iTPTraits::interpretation())
+    {
+      copy_zup_from_yup(int_values, int_values);
+    }
+  }
+  else if (num_values == 6 && interpretation == Alembic::Abc::Box3iTPTraits::interpretation()) {
+    copy_zup_from_yup(int_values, int_values);
+    copy_zup_from_yup(int_values + 3, int_values + 3);
+  }
+
   return bke::idprop::create(prop_name, Span(int_values, num_values)).release();
+}
+
+template<typename T> static void convert_matrix_values(T *values, const size_t num_values)
+{
+  float matrix[4][4];
+
+  if (num_values == 9) {
+    unit_m4(matrix);
+
+    for (int i = 0; i < 3; i++) {
+      for (int j = 0; j < 3; j++) {
+        matrix[i][j] = float(values[i * 3 + j]);
+      }
+    }
+  }
+  else {
+    BLI_assert(num_values == 16);
+
+    for (int i = 0; i < 4; i++) {
+      for (int j = 0; j < 4; j++) {
+        matrix[i][j] = float(values[i * 4 + j]);
+      }
+    }
+  }
+
+  copy_m44_axis_swap(matrix, matrix, ABC_ZUP_FROM_YUP);
+
+  if (num_values == 9) {
+    for (int i = 0; i < 3; i++) {
+      for (int j = 0; j < 3; j++) {
+        values[i * 3 + j] = matrix[i][j];
+      }
+    }
+  }
+  else {
+    BLI_assert(num_values == 16);
+
+    for (int i = 0; i < 4; i++) {
+      for (int j = 0; j < 4; j++) {
+        values[i * 4 + j] = matrix[i][j];
+      }
+    }
+  }
 }
 
 template<typename T>
@@ -443,6 +498,35 @@ static IDProperty *make_idprop_from_floats(StringRef prop_name,
 {
   if (num_values == 1) {
     return bke::idprop::create(prop_name, sample_values[0]).release();
+  }
+
+  /* Make a copy in case we need to swap axis. */
+  T values[ABC_MAX_POD_EXTENT];
+  for (size_t i = 0; i < num_values; i++) {
+    values[i] = sample_values[i];
+  }
+
+  /* NOTE: the interpretations are the same regardless of the underlying data type, i.e. V3f and
+   * V3d have the same interpretation. */
+  if (interpretation == Alembic::Abc::V3fTPTraits::interpretation() ||
+      interpretation == Alembic::Abc::P3fTPTraits::interpretation() ||
+      interpretation == Alembic::Abc::N3fTPTraits::interpretation())
+  {
+    if (num_values == 3) {
+      copy_zup_from_yup(values, sample_values);
+      sample_values = values;
+    }
+  }
+  else if (interpretation == Alembic::Abc::Box3fTPTraits::interpretation()) {
+    if (num_values == 6) {
+      copy_zup_from_yup(values, sample_values);
+      copy_zup_from_yup(values + 3, sample_values + 3);
+      sample_values = values;
+    }
+  }
+  else if (interpretation == Alembic::Abc::M44fTPTraits::interpretation()) {
+    convert_matrix_values(values, num_values);
+    sample_values = values;
   }
 
   IDProperty *result = bke::idprop::create(prop_name, Span(sample_values, num_values)).release();
