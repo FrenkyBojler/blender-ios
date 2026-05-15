@@ -6,9 +6,6 @@
  * \ingroup edscr
  */
 
-#include <cstdio>
-#include <cstring>
-
 #include "DNA_userdef_types.h"
 #include "DNA_vec_types.h"
 
@@ -19,7 +16,6 @@
 #include "IMB_colormanagement.hh"
 #include "IMB_imbuf_types.hh"
 
-#include "GPU_context.hh"
 #include "GPU_immediate.hh"
 #include "GPU_texture.hh"
 
@@ -142,144 +138,46 @@ void immDrawPixelsTexTiled_scaling(IMMDrawPixelsTexState *state,
                                    float yzoom,
                                    const float color[4])
 {
-  int subpart_x, subpart_y, tex_w = 256, tex_h = 256;
-  if (ELEM(GPU_backend_get_type(), GPU_BACKEND_METAL, GPU_BACKEND_VULKAN)) {
-    /* NOTE: These backend will keep all temporary texture memory within a command
-     * submission in-flight, so using a partial tile size does not provide any tangible memory
-     * reduction, but does incur additional API overhead and significant cache inefficiency on
-     * specific platforms.
-     *
-     * The Metal API also provides smart resource paging such that the application can
-     * still efficiently swap memory, even if system is low in physical memory. */
-    tex_w = img_w;
-    tex_h = img_h;
-  }
-  int seamless, offset_x, offset_y, nsubparts_x, nsubparts_y;
-  int components;
-  const float white[4] = {1.0f, 1.0f, 1.0f, 1.0f};
-
-  if (ELEM(gpu_format, gpu::TextureFormat::UNORM_8_8_8_8, gpu::TextureFormat::SFLOAT_16_16_16_16))
-  {
-    components = 4;
-  }
-  else if (ELEM(gpu_format, gpu::TextureFormat::SFLOAT_16_16_16)) {
-    components = 3;
-  }
-  else if (ELEM(gpu_format, gpu::TextureFormat::UNORM_8, gpu::TextureFormat::SFLOAT_16)) {
-    components = 1;
-  }
-  else {
-    BLI_assert_msg(0, "Incompatible format passed to immDrawPixels");
-    return;
-  }
-
   const bool use_float_data = ELEM(gpu_format,
                                    gpu::TextureFormat::SFLOAT_16_16_16_16,
                                    gpu::TextureFormat::SFLOAT_16_16_16,
                                    gpu::TextureFormat::SFLOAT_16);
-  eGPUDataFormat gpu_data = (use_float_data) ? GPU_DATA_FLOAT : GPU_DATA_UBYTE;
-  size_t stride = components * ((use_float_data) ? sizeof(float) : sizeof(uchar));
+  eGPUDataFormat gpu_data = use_float_data ? GPU_DATA_FLOAT : GPU_DATA_UBYTE;
 
   gpu::Texture *tex = GPU_texture_create_2d(
-      "immDrawPixels", tex_w, tex_h, 1, gpu_format, GPU_TEXTURE_USAGE_SHADER_READ, nullptr);
+      "immDrawPixels", img_w, img_h, 1, gpu_format, GPU_TEXTURE_USAGE_SHADER_READ, nullptr);
 
   GPU_texture_filter_mode(tex, use_filter);
   GPU_texture_extend_mode(tex, GPU_SAMPLER_EXTEND_MODE_EXTEND);
 
   GPU_texture_bind(tex, 0);
 
-  /* setup seamless 2=on, 0=off */
-  seamless = ((tex_w < img_w || tex_h < img_h) && tex_w > 2 && tex_h > 2) ? 2 : 0;
-
-  offset_x = tex_w - seamless;
-  offset_y = tex_h - seamless;
-
-  nsubparts_x = (img_w + (offset_x - 1)) / (offset_x);
-  nsubparts_y = (img_h + (offset_y - 1)) / (offset_y);
-
   /* optional */
   /* NOTE: Shader could be null for GLSL OCIO drawing, it is fine, since
    * it does not need color.
    */
+  const float white[4] = {1.0f, 1.0f, 1.0f, 1.0f};
   if (state->shader != nullptr && GPU_shader_get_uniform(state->shader, "color") != -1) {
     immUniformColor4fv((color) ? color : white);
   }
 
-  for (subpart_y = 0; subpart_y < nsubparts_y; subpart_y++) {
-    for (subpart_x = 0; subpart_x < nsubparts_x; subpart_x++) {
-      int remainder_x = img_w - subpart_x * offset_x;
-      int remainder_y = img_h - subpart_y * offset_y;
-      int subpart_w = (remainder_x < tex_w) ? remainder_x : tex_w;
-      int subpart_h = (remainder_y < tex_h) ? remainder_y : tex_h;
-      int offset_left = (seamless && subpart_x != 0) ? 1 : 0;
-      int offset_bot = (seamless && subpart_y != 0) ? 1 : 0;
-      int offset_right = (seamless && remainder_x > tex_w) ? 1 : 0;
-      int offset_top = (seamless && remainder_y > tex_h) ? 1 : 0;
-      float rast_x = x + subpart_x * offset_x * xzoom;
-      float rast_y = y + subpart_y * offset_y * yzoom;
-      /* check if we already got these because we always get 2 more when doing seamless */
-      if (subpart_w <= seamless || subpart_h <= seamless) {
-        continue;
-      }
+  GPU_texture_update(tex, gpu_data, rect);
 
-      int right = subpart_w - offset_right;
-      int top = subpart_h - offset_top;
-      int bottom = 0 + offset_bot;
-      int left = 0 + offset_left;
+  uint pos = state->pos, texco = state->texco;
 
-      {
-        int src_y = subpart_y * offset_y;
-        int src_x = subpart_x * offset_x;
+  immBegin(GPU_PRIM_TRI_FAN, 4);
+  immAttr2f(texco, 0, 0);
+  immVertex2f(pos, x, y);
 
-#define DATA(_y, _x) (static_cast<const char *>(rect) + stride * (size_t(_y) * img_w + (_x)))
-        {
-          const void *data = DATA(src_y, src_x);
-          GPU_texture_update_sub(tex, gpu_data, data, 0, 0, 0, subpart_w, subpart_h, 0, img_w);
-        }
-        /* Add an extra border of pixels so linear interpolation looks ok
-         * at edges of full image. */
-        if (subpart_w < tex_w) {
-          const void *data = DATA(src_y, src_x + subpart_w - 1);
-          const int offset[2] = {subpart_w, 0};
-          const int extent[2] = {1, subpart_h};
-          GPU_texture_update_sub(
-              tex, gpu_data, data, UNPACK2(offset), 0, UNPACK2(extent), 0, img_w);
-        }
-        if (subpart_h < tex_h) {
-          const void *data = DATA(src_y + subpart_h - 1, src_x);
-          const int offset[2] = {0, subpart_h};
-          const int extent[2] = {subpart_w, 1};
-          GPU_texture_update_sub(
-              tex, gpu_data, data, UNPACK2(offset), 0, UNPACK2(extent), 0, img_w);
-        }
+  immAttr2f(texco, 1, 0);
+  immVertex2f(pos, x + img_w * xzoom * scaleX, y);
 
-        if (subpart_w < tex_w && subpart_h < tex_h) {
-          const void *data = DATA(src_y + subpart_h - 1, src_x + subpart_w - 1);
-          const int offset[2] = {subpart_w, subpart_h};
-          const int extent[2] = {1, 1};
-          GPU_texture_update_sub(
-              tex, gpu_data, data, UNPACK2(offset), 0, UNPACK2(extent), 0, img_w);
-        }
-#undef DATA
-      }
+  immAttr2f(texco, 1, 1);
+  immVertex2f(pos, x + img_w * xzoom * scaleX, y + img_h * yzoom * scaleY);
 
-      uint pos = state->pos, texco = state->texco;
-
-      immBegin(GPU_PRIM_TRI_FAN, 4);
-      immAttr2f(texco, left / float(tex_w), bottom / float(tex_h));
-      immVertex2f(pos, rast_x + offset_left * xzoom, rast_y + offset_bot * yzoom);
-
-      immAttr2f(texco, right / float(tex_w), bottom / float(tex_h));
-      immVertex2f(pos, rast_x + right * xzoom * scaleX, rast_y + offset_bot * yzoom);
-
-      immAttr2f(texco, right / float(tex_w), top / float(tex_h));
-      immVertex2f(pos, rast_x + right * xzoom * scaleX, rast_y + top * yzoom * scaleY);
-
-      immAttr2f(texco, left / float(tex_w), top / float(tex_h));
-      immVertex2f(pos, rast_x + offset_left * xzoom, rast_y + top * yzoom * scaleY);
-      immEnd();
-    }
-  }
+  immAttr2f(texco, 0, 1);
+  immVertex2f(pos, x, y + img_h * yzoom * scaleY);
+  immEnd();
 
   if (state->do_shader_unbind) {
     immUnbindProgram();
