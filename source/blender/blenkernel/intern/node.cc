@@ -2284,10 +2284,15 @@ IDProperty *node_create_asset_meta_data_properties(const bNodeTree &node_tree)
 
   auto outputs = idprop::create_group("outputs");
   for (const bNodeTreeInterfaceSocket *socket : node_tree.interface_outputs()) {
-    auto *prop = idprop::create(socket->name ? socket->name : "", socket->socket_type).release();
-    if (!IDP_AddToGroup(outputs.get(), prop)) {
-      IDP_FreeProperty(prop);
-    }
+    const bNodeSocketType *base_typeinfo = node_socket_type_find(socket->socket_type);
+    auto input = idprop::create_group(socket->identifier);
+    IDP_AddToGroup(input.get(),
+                   idprop::create("name", socket->name ? socket->name : "").release());
+    IDP_AddToGroup(input.get(), idprop::create("type", base_typeinfo->type).release());
+    IDP_AddToGroup(
+        input.get(),
+        idprop::create("description", socket->description ? socket->description : "").release());
+    IDP_AddToGroup(outputs.get(), input.release());
   }
   IDP_AddToGroup(properties.get(), outputs.release());
 
