@@ -710,13 +710,14 @@ void remote_library_request_preview_download(const bContext &C,
 void remote_library_cancel_all_asset_downloads(bContext &C)
 {
 #ifdef WITH_PYTHON
-  std::string script =
-      "import _bpy_internal.assets.remote_library_listing.asset_downloader as asset_dl\n"
-      "\n"
-      "asset_dl.cancel_download_all_assets()\n";
+  constexpr const char *SCRIPT = R"(
+import _bpy_internal.assets.remote_library_listing.asset_downloader as asset_dl
+
+asset_dl.cancel_download_all_assets()
+  )";
 
   std::unique_ptr locals = bke::idprop::create_group("locals");
-  BPY_run_string_exec_with_locals(&C, script, *locals);
+  BPY_run_string_exec_with_locals(&C, SCRIPT, *locals);
   ProgressTracker::on_all_finished(*CTX_wm_manager(&C));
 #else
   UNUSED_VARS(C);

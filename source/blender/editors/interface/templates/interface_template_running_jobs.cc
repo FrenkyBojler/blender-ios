@@ -341,7 +341,7 @@ void template_running_jobs(Layout *layout, bContext *C)
                                    string_width + UI_UNIT_X * 1.5,
                                    UI_UNIT_Y,
                                    nullptr,
-                                   TIP_("Cancel asset download(s)"));
+                                   TIP_("Cancel all asset downloads"));
     button_func_set(
         but, [](bContext &C) { asset_system::remote_library_cancel_all_asset_downloads(C); });
   }
