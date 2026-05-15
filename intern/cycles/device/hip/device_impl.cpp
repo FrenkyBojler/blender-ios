@@ -431,7 +431,7 @@ void HIPDevice::reserve_local_memory(const uint kernel_features)
     const DeviceKernel test_kernel = (kernel_features & KERNEL_FEATURE_NODE_RAYTRACE) ?
                                          DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE_RAYTRACE :
                                      (kernel_features & KERNEL_FEATURE_MNEE) ?
-                                         DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE_MNEE :
+                                         DEVICE_KERNEL_INTEGRATOR_INTERSECT_MNEE :
                                          DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE;
 
     /* Launch kernel, using just 1 block appears sufficient to reserve memory for all
