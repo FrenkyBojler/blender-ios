@@ -1342,17 +1342,15 @@ def brush_settings_advanced(layout, context, settings, brush, popover=False):
         layout.separator()
         layout.label(text="Advanced")
 
-    # These options are shared across many modes.
-    use_accumulate = False
-    use_frontface = False
-
     if mode == 'SCULPT':
         layout.prop(brush, "sculpt_brush_type")
         layout.separator()
 
         capabilities = brush.sculpt_capabilities
-        use_accumulate = capabilities.has_accumulate
-        use_frontface = True
+        if capabilities.has_accumulate:
+            layout.prop(brush, "use_accumulate")
+
+        layout.prop(brush, "use_frontface", text="Front Faces Only")
 
         col = layout.column(heading="Auto-Masking", align=True)
         automasking = brush.mesh_automasking_settings
@@ -1464,6 +1462,9 @@ def brush_settings_advanced(layout, context, settings, brush, popover=False):
         else:
             layout.prop(brush, "use_alpha")
 
+        if capabilities.has_accumulate:
+            layout.prop(brush, "use_accumulate")
+
         # Tool specific settings
         if brush.image_brush_type == 'SOFTEN':
             layout.separator()
@@ -1487,29 +1488,26 @@ def brush_settings_advanced(layout, context, settings, brush, popover=False):
         layout.separator()
 
         layout.prop(brush, "use_alpha")
+        # TODO: Make this a "Capability"
         if brush.vertex_brush_type != 'SMEAR':
-            use_accumulate = True
-        use_frontface = True
+            layout.prop(brush, "use_accumulate")
+
+        layout.prop(brush, "use_frontface", text="Front Faces Only")
 
     # Weight Paint
     elif mode == 'PAINT_WEIGHT':
         layout.prop(brush, "weight_brush_type")
         layout.separator()
 
+        # TODO: Make this a "Capability"
         if brush.weight_brush_type != 'SMEAR':
-            use_accumulate = True
-        use_frontface = True
+            layout.prop(brush, "use_accumulate")
+
+        layout.prop(brush, "use_frontface", text="Front Faces Only")
 
     # Sculpt Curves
     elif mode == 'SCULPT_CURVES':
         layout.prop(brush, "curves_sculpt_brush_type")
-
-    # Draw shared settings.
-    if use_accumulate:
-        layout.prop(brush, "use_accumulate")
-
-    if use_frontface:
-        layout.prop(brush, "use_frontface", text="Front Faces Only")
 
     if popover:
         color_jitter_panel(layout, context, brush)
