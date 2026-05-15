@@ -17,7 +17,6 @@
 #include "BLI_math_vector_types.hh"
 #include "BLI_utildefines.h"
 
-#include "GPU_capabilities.hh"
 #include "GPU_shader.hh"
 #include "GPU_state.hh"
 #include "GPU_texture.hh"
@@ -374,7 +373,7 @@ static Domain sanitize_domain_size(const Domain domain,
   Domain sanitized_domain = domain;
   const bool use_gpu = storage_type.has_value() ? storage_type.value() == ResultStorageType::GPU :
                                                   context.use_gpu();
-  const int max_size = use_gpu ? GPU_max_texture_size() : 65536;
+  const int max_size = use_gpu ? 8192 : 32768;
   sanitized_domain.data_size = math::clamp(domain.data_size, int2(1), int2(max_size));
   return sanitized_domain;
 }
@@ -523,11 +522,7 @@ void Result::share_data(const Result &source)
   *this = source;
   reference_count_ = reference_count;
 
-  /* External data is intrinsically shared, and data_reference_count_ is nullptr in this case since
-   * it is not needed. */
-  if (!is_external_) {
-    (*data_reference_count_)++;
-  }
+  (*data_reference_count_)++;
 }
 
 void Result::steal_data(Result &source)
@@ -582,6 +577,7 @@ void Result::wrap_external(gpu::Texture *texture)
   is_external_ = true;
   is_single_value_ = false;
   domain_ = Domain(int2(GPU_texture_width(texture), GPU_texture_height(texture)));
+  data_reference_count_ = new int(1);
 }
 
 void Result::wrap_external(void *data, int2 size)
@@ -593,6 +589,7 @@ void Result::wrap_external(void *data, int2 size)
   storage_type_ = ResultStorageType::CPU;
   is_external_ = true;
   domain_ = Domain(size);
+  data_reference_count_ = new int(1);
 }
 
 void Result::wrap_external(const Result &result)
@@ -606,6 +603,7 @@ void Result::wrap_external(const Result &result)
   Result result_copy = result;
   this->steal_data(result_copy);
   is_external_ = true;
+  (*data_reference_count_)++;
 }
 
 void Result::set_transformation(const float3x3 &transformation)
@@ -657,13 +655,6 @@ void Result::release()
 
 void Result::free()
 {
-  /* The data in the result are not owned by the result, so we only free the derived resources. */
-  if (is_external_) {
-    delete derived_resources_;
-    derived_resources_ = nullptr;
-    return;
-  }
-
   if (!this->is_allocated()) {
     return;
   }
@@ -689,6 +680,24 @@ void Result::free()
     return;
   }
 
+  delete data_reference_count_;
+  data_reference_count_ = nullptr;
+
+  delete derived_resources_;
+  derived_resources_ = nullptr;
+
+  if (is_external_) {
+    switch (storage_type_) {
+      case ResultStorageType::GPU:
+        gpu_texture_ = nullptr;
+        break;
+      case ResultStorageType::CPU:
+        cpu_data_ = GMutableSpan();
+        break;
+    }
+    return;
+  }
+
   switch (storage_type_) {
     case ResultStorageType::GPU:
       if (is_from_pool_) {
@@ -704,12 +713,6 @@ void Result::free()
       cpu_data_ = GMutableSpan();
       break;
   }
-
-  delete data_reference_count_;
-  data_reference_count_ = nullptr;
-
-  delete derived_resources_;
-  derived_resources_ = nullptr;
 }
 
 bool Result::should_compute()

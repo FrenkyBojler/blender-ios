@@ -5367,6 +5367,8 @@ void store_mesh_from_eval(const wmOperator &op,
         /* Use lower level API to add the position attribute to avoid copying the array and to
          * allow using #tag_positions_changed_no_normals instead of #tag_positions_changed (which
          * would be called by the attribute API). */
+        position.sharing_info->add_user();
+
         bke::Attribute::ArrayData data{};
         data.data = const_cast<float3 *>(position.varray.get_internal_span().data());
         data.size = position.varray.size();
@@ -5951,7 +5953,16 @@ static wmOperatorStatus sculpt_brush_stroke_invoke(bContext *C,
   {
     return OPERATOR_CANCELLED;
   }
-  if (brush_type_is_mask(brush.sculpt_brush_type)) {
+  /* Currently, we only switch the brush as part of StrokeCache initialization, which does not
+   * happen until the brush goes over the mesh. Instead, check the #BrushSwitchMode which will
+   * tell if the brush will toggled at that point.
+   *
+   * Temporary mitigation to avoid backporting larger refactor for 5.1 backport.
+   *
+   * TODO: Remove this workaround, create `StrokeCache` here with "immutable" toggle values.
+   */
+  const BrushSwitchMode mode = BrushSwitchMode(RNA_enum_get(op->ptr, "brush_toggle"));
+  if (brush_type_is_mask(brush.sculpt_brush_type) || mode == BrushSwitchMode::Mask) {
     MultiresModifierData *mmd = BKE_sculpt_multires_active(&scene, &ob);
     BKE_sculpt_mask_layers_ensure(CTX_data_depsgraph_pointer(C), CTX_data_main(C), &ob, mmd);
 
@@ -7752,6 +7763,15 @@ void PositionDeformData::deform(MutableSpan<float3> translations, const Span<int
   }
   else {
     apply_translations(translations, verts, orig_);
+  }
+}
+
+void filter_translations(const MutableSpan<float3> translations, const Span<float> factors)
+{
+  for (const int i : translations.index_range()) {
+    if (factors[i] == 0.0f) {
+      translations[i] = float3(0.0f);
+    }
   }
 }
 

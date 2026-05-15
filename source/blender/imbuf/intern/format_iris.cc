@@ -28,7 +28,7 @@
 
 namespace blender {
 
-static CLG_LogRef LOG = {"image.jpeg"};
+static CLG_LogRef LOG = {"image.iris"};
 
 /**
  * The SGI IRIS magic number.
@@ -433,9 +433,9 @@ ImBuf *imb_loadiris(const uchar *mem, size_t size, int flags, ImFileColorSpace &
       }
       else {
         fptr = fbase;
-        float *fptr_next = fptr + (xsize * 4);
 
         for (size_t y = 0; y < ysize; y++) {
+          float *fptr_next = fptr + (xsize * 4);
 
           for (size_t z = 0; z < zsize_read; z++) {
             MFILE_SEEK(inf, starttab[y + z * ysize]);
@@ -656,7 +656,7 @@ static int expandrow2(
     if (!(count = (pixel & 0x7f))) {
       return false;
     }
-    const float *optr_next = optr + count;
+    const float *optr_next = optr + (int(count) * 4);
     EXPAND_CAPACITY_AT_OUTPUT_OK_OR_FAIL(optr_next);
     if (pixel & 0x80) {
       iptr_next = iptr + (count * 2);
@@ -914,7 +914,7 @@ static void lumrow(const uchar *rgbptr, uchar *lumptr, int n)
 {
   lumptr += CHANOFFSET(0);
   while (n--) {
-    *lumptr = ILUM(rgbptr[OFFSET_R], rgbptr[OFFSET_G], rgbptr[OFFSET_B]);
+    *lumptr = ILUM(rgbptr[CHANOFFSET(0)], rgbptr[CHANOFFSET(1)], rgbptr[CHANOFFSET(2)]);
     lumptr += 4;
     rgbptr += 4;
   }

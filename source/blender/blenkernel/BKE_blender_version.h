@@ -22,16 +22,16 @@ namespace blender {
 /** Blender major and minor version. */
 #define BLENDER_VERSION 501
 /** Blender patch version for bug-fix releases. */
-#define BLENDER_VERSION_PATCH 0
+#define BLENDER_VERSION_PATCH 2
 /** Blender release cycle stage: alpha/beta/rc/release. */
-#define BLENDER_VERSION_CYCLE beta
+#define BLENDER_VERSION_CYCLE rc
 /** Blender release type suffix. LTS or blank. */
 #define BLENDER_VERSION_SUFFIX
 
 /* Blender file format version. */
 #define BLENDER_FILE_VERSION BLENDER_VERSION
 
-#define BLENDER_FILE_SUBVERSION 29
+#define BLENDER_FILE_SUBVERSION 30
 
 /* Minimum Blender version that supports reading file written with the current
  * version. Older Blender versions will test this and cancel loading the file, showing a warning to

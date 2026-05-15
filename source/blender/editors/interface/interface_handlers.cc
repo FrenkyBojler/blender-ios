@@ -358,6 +358,9 @@ struct HandleButtonMulti {
    * here so we can tell if this is a vertical motion or not. */
   float drag_dir[2] = {0.0f, 0.0f};
 
+  /* Previous mouse position for accumulating drag_dir. */
+  int drag_dir_prev[2] = {0, 0};
+
   /* values copied direct from event->xy
    * used to detect buttons between the current and initial mouse position */
   int drag_start[2] = {0, 0};
@@ -3695,8 +3698,10 @@ static void ui_textedit_end(bContext *C, Button *but, HandleButtonData *data)
           /* ensure menu (popup) too is closed! */
           data->escapecancel = true;
 
-          WM_global_reportf(RPT_ERROR, "Failed to find '%s'", but->editstr);
-          WM_report_banner_show(CTX_wm_manager(C), win);
+          if (but->editstr[0]) {
+            WM_global_reportf(RPT_ERROR, "Failed to find '%s'", but->editstr);
+            WM_report_banner_show(CTX_wm_manager(C), win);
+          }
         }
       }
 
@@ -3952,9 +3957,9 @@ static int ui_do_but_textedit(
           int selsta, selend;
           BLI_str_cursor_step_bounds_utf8(
               text_edit.edit_string, str_len, but->pos, &selsta, &selend);
-          but->pos = short(selend);
-          but->selsta = short(selsta);
-          but->selend = short(selend);
+          but->pos = selend;
+          but->selsta = selsta;
+          but->selend = selend;
           /* Anchor selection to the left side unless the last word. */
           text_edit.sel_pos_init = ((selend == str_len) && (selsta != 0)) ? selend : selsta;
           retval = WM_UI_HANDLER_BREAK;
@@ -5785,6 +5790,8 @@ static int ui_do_but_NUM(
 
 #ifdef USE_DRAG_MULTINUM
       copy_v2_v2_int(data->multi_data.drag_start, event->xy);
+      data->multi_data.drag_dir_prev[0] = mx;
+      data->multi_data.drag_dir_prev[1] = my;
 #endif
     }
   }
@@ -5819,8 +5826,10 @@ static int ui_do_but_NUM(
       float fac;
 
 #ifdef USE_DRAG_MULTINUM
-      data->multi_data.drag_dir[0] += abs(data->draglastx - mx);
-      data->multi_data.drag_dir[1] += abs(data->draglasty - my);
+      data->multi_data.drag_dir[0] += abs(data->multi_data.drag_dir_prev[0] - mx);
+      data->multi_data.drag_dir[1] += abs(data->multi_data.drag_dir_prev[1] - my);
+      data->multi_data.drag_dir_prev[0] = mx;
+      data->multi_data.drag_dir_prev[1] = my;
 #endif
 
       fac = 1.0f;
@@ -6151,6 +6160,8 @@ static int ui_do_but_SLI(
     }
 #ifdef USE_DRAG_MULTINUM
     copy_v2_v2_int(data->multi_data.drag_start, event->xy);
+    data->multi_data.drag_dir_prev[0] = mx;
+    data->multi_data.drag_dir_prev[1] = my;
 #endif
   }
   else if (data->state == BUTTON_STATE_NUM_EDITING) {
@@ -6185,8 +6196,10 @@ static int ui_do_but_SLI(
     else if ((event->type == MOUSEMOVE) || ui_event_is_snap(event)) {
       const bool is_motion = (event->type == MOUSEMOVE);
 #ifdef USE_DRAG_MULTINUM
-      data->multi_data.drag_dir[0] += abs(data->draglastx - mx);
-      data->multi_data.drag_dir[1] += abs(data->draglasty - my);
+      data->multi_data.drag_dir[0] += abs(data->multi_data.drag_dir_prev[0] - mx);
+      data->multi_data.drag_dir[1] += abs(data->multi_data.drag_dir_prev[1] - my);
+      data->multi_data.drag_dir_prev[0] = mx;
+      data->multi_data.drag_dir_prev[1] = my;
 #endif
       if (ui_numedit_but_SLI(but,
                              data,
@@ -9861,8 +9874,10 @@ static int ui_handle_button_event(bContext *C, const wmEvent *event, Button *but
         if (event->customdata == data->autoopentimer) {
           WM_event_timer_remove(data->wm, data->window, data->autoopentimer);
           data->autoopentimer = nullptr;
-
-          if (button_contains_point_px(but, region, event->xy) || but->active) {
+          /* Do not open sub-menus while using an auto-scroll handler. */
+          if ((block_is_pie_menu(block) || !block->handle || !block->handle->scrolltimer) &&
+              (button_contains_point_px(but, region, event->xy) || but->active))
+          {
             button_activate_state(C, but, BUTTON_STATE_MENU_OPEN);
           }
         }
@@ -10536,12 +10551,12 @@ static char ui_menu_scroll_test(Block *block, int my)
 {
   if (block->flag & (BLOCK_CLIPTOP | BLOCK_CLIPBOTTOM)) {
     if (block->flag & BLOCK_CLIPTOP) {
-      if (my > block->rect.ymax - UI_MENU_SCROLL_MOUSE) {
+      if (my > block->rect.ymax - UI_MENU_SCROLL_MOUSE / block->aspect) {
         return 't';
       }
     }
     if (block->flag & BLOCK_CLIPBOTTOM) {
-      if (my < block->rect.ymin + UI_MENU_SCROLL_MOUSE) {
+      if (my < block->rect.ymin + UI_MENU_SCROLL_MOUSE / block->aspect) {
         return 'b';
       }
     }
@@ -10599,13 +10614,13 @@ static bool ui_menu_scroll_to_but(ARegion *region, Block *block, Button *but_tar
 {
   float dy = 0.0;
   if (block->flag & BLOCK_CLIPTOP) {
-    if (but_target->rect.ymax > block->rect.ymax - UI_MENU_SCROLL_MOUSE) {
-      dy = block->rect.ymax - but_target->rect.ymax - UI_MENU_SCROLL_MOUSE;
+    if (but_target->rect.ymax > block->rect.ymax - UI_MENU_SCROLL_MOUSE / block->aspect) {
+      dy = block->rect.ymax - but_target->rect.ymax - UI_MENU_SCROLL_MOUSE / block->aspect;
     }
   }
   if (block->flag & BLOCK_CLIPBOTTOM) {
-    if (but_target->rect.ymin < block->rect.ymin + UI_MENU_SCROLL_MOUSE) {
-      dy = block->rect.ymin - but_target->rect.ymin + UI_MENU_SCROLL_MOUSE;
+    if (but_target->rect.ymin < block->rect.ymin + UI_MENU_SCROLL_MOUSE / block->aspect) {
+      dy = block->rect.ymin - but_target->rect.ymin + UI_MENU_SCROLL_MOUSE / block->aspect;
     }
   }
   if (dy != 0.0f) {
@@ -10621,10 +10636,10 @@ static bool ui_menu_scroll_to_y(ARegion *region, Block *block, int y)
   const char test = ui_menu_scroll_test(block, y);
   float dy = 0.0f;
   if (test == 't') {
-    dy = -UI_UNIT_Y; /* scroll to the top */
+    dy = -UI_UNIT_Y / block->aspect; /* scroll to the top */
   }
   else if (test == 'b') {
-    dy = UI_UNIT_Y; /* scroll to the bottom */
+    dy = UI_UNIT_Y / block->aspect; /* scroll to the bottom */
   }
   if (dy != 0.0f) {
     ui_menu_scroll_apply_offset_y(region, block, dy);
@@ -10640,13 +10655,13 @@ static bool ui_menu_scroll_step(ARegion *region, Block *block, const int scroll_
     if ((block->flag & BLOCK_CLIPTOP) == 0) {
       return false;
     }
-    my = block->rect.ymax + UI_UNIT_Y;
+    my = block->rect.ymax + UI_UNIT_Y / block->aspect;
   }
   else if (scroll_dir == -1) {
     if ((block->flag & BLOCK_CLIPBOTTOM) == 0) {
       return false;
     }
-    my = block->rect.ymin - UI_UNIT_Y;
+    my = block->rect.ymin - UI_UNIT_Y / block->aspect;
   }
   else {
     BLI_assert(0);
@@ -10893,7 +10908,13 @@ static int ui_handle_menu_event(bContext *C,
   }
   else if (event->type == TIMER) {
     if (event->customdata == menu->scrolltimer) {
-      ui_menu_scroll_to_y(region, block, my);
+      if (!ui_menu_scroll_test(block, my)) {
+        WM_event_timer_remove(CTX_wm_manager(C), win, menu->scrolltimer);
+        menu->scrolltimer = nullptr;
+      }
+      else {
+        ui_menu_scroll_to_y(region, block, my);
+      }
     }
   }
   else {

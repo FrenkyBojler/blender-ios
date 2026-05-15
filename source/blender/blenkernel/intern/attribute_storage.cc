@@ -13,6 +13,8 @@
 #include "BLI_string_utils.hh"
 #include "BLI_vector_set.hh"
 
+#include "BLT_translation.hh"
+
 #include "BLO_read_write.hh"
 
 #include "DNA_attribute_types.h"
@@ -304,8 +306,11 @@ bool AttributeStorage::remove(const StringRef name)
 
 std::string AttributeStorage::unique_name_calc(const StringRef name) const
 {
+  const StringRef name_final = name.is_empty() ? DATA_("Attribute") : name;
   return BLI_uniquename_cb(
-      [&](const StringRef check_name) { return this->lookup(check_name) != nullptr; }, '.', name);
+      [&](const StringRef check_name) { return this->lookup(check_name) != nullptr; },
+      '.',
+      name_final);
 }
 
 void AttributeStorage::rename(const StringRef old_name, std::string new_name)
@@ -435,7 +440,7 @@ static std::optional<Attribute::DataVariant> read_attr_data(BlendDataReader &rea
       }
       Attribute::ArrayData array_data{
           data.data, data.size, ImplicitSharingPtr<>(data.sharing_info)};
-      if (data.is_single) {
+      if (data.is_single && data.size) {
         const CPPType &cpp_type = attribute_type_to_cpp_type(AttrType(dna_attr_type));
         return Attribute::SingleData::from_value(GPointer(cpp_type, data.data));
       }

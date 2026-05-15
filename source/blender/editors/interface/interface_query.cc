@@ -340,7 +340,12 @@ Button *button_find_mouse_over_ex(const ARegion *region,
   for (Block &block : region->runtime->uiblocks) {
     float mx = xy[0], my = xy[1];
     window_to_block_fl(region, &block, &mx, &my);
-
+    /* Skip when the mouse is hovering auto-scroll handlers. */
+    if ((block.flag & BLOCK_CLIPTOP && block.rect.ymax - UI_MENU_SCROLL_MOUSE < my) ||
+        (block.flag & BLOCK_CLIPBOTTOM && block.rect.ymin + UI_MENU_SCROLL_MOUSE > my))
+    {
+      continue;
+    }
     for (int i = block.buttons.size() - 1; i >= 0; i--) {
       Button *but = block.buttons[i].get();
       if (find_poll && find_poll(but, find_custom_data) == false) {
@@ -679,7 +684,8 @@ bool block_is_pie_menu(const Block *block)
 
 bool block_is_popup_any(const Block *block)
 {
-  return (block_is_menu(block) || block_is_popover(block) || block_is_pie_menu(block));
+  return (block_is_menu(block) || block_is_popover(block) || block_is_pie_menu(block) ||
+          (block->flag & BLOCK_POPUP));
 }
 
 static const Button *ui_but_next_non_separator(const Button *but)

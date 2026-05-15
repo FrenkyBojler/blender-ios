@@ -48,6 +48,17 @@ void PyC_StackSpit();
  */
 [[nodiscard]] PyObject *PyC_ExceptionBuffer_Simple() ATTR_RETURNS_NONNULL;
 
+/**
+ * Get exit code `sys.exit(..)` was called with.
+ */
+[[nodiscard]] std::optional<int> PyC_ExceptionSystemExitCode();
+
+/**
+ * If the current exception is `SystemExit`, capture the exit code and return true.
+ * Otherwise return false;
+ */
+bool PyC_Err_CaptureSystemExitCode();
+
 [[nodiscard]] PyObject *PyC_Object_GetAttrStringArgs(PyObject *o, Py_ssize_t n, ...);
 [[nodiscard]] PyObject *PyC_FrozenSetFromStrings(const char **strings);
 
@@ -486,5 +497,13 @@ struct PyC_StringEnum {
 {
   return PyC_Tuple_PackArray_Bool(values.data(), values.size());
 }
+
+/**
+ * Check that all keys in `dict` are Python strings.
+ *
+ * Use this to validate keyword arguments from `tp_call` which,
+ * unlike regular Python function calls, does not enforce string keys.
+ */
+[[nodiscard]] bool PyC_Dict_CheckKeysAreStrings(PyObject *dict);
 
 }  // namespace blender
