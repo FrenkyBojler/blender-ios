@@ -70,6 +70,9 @@ void immDrawPixels(const IMMDrawPixelsTexState *state,
   }
   gpu::Texture *tex = GPU_texture_create_2d(
       "immDrawPixels", img_w, img_h, mip_len, gpu_format, usage, nullptr);
+  if (tex == nullptr) {
+    return;
+  }
 
   const bool use_float_data = ELEM(gpu_format,
                                    gpu::TextureFormat::SFLOAT_16_16_16_16,
