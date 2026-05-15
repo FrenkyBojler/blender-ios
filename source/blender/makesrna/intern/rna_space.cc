@@ -408,6 +408,25 @@ static const EnumPropertyItem rna_enum_asset_import_method_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
+const EnumPropertyItem rna_enum_asset_access_items[] = {
+    {int(AssetAccess::OnlineAndOffline),
+     "ALL",
+     0,
+     "Online and Offline",
+     "Show assets that are both hosted online (need downloading) and available on disk already"},
+    {int(AssetAccess::OnlyOnline),
+     "ONLY_ONLINE",
+     0,
+     "Online Only",
+     "Show only assets that need downloading (requires internet access)"},
+    {int(AssetAccess::OnlyOffline),
+     "ONLY_OFFLINE",
+     0,
+     "Offline Only",
+     "Show only assets that are available on disk already (no internet access needed)"},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
 #ifndef RNA_RUNTIME
 static const EnumPropertyItem stereo3d_eye_items[] = {
     {STEREO_LEFT_ID, "LEFT_EYE", ICON_NONE, "Left Eye"},
@@ -6788,6 +6807,13 @@ static void rna_def_space_sequencer(BlenderRNA *brna)
       prop, "Limit View to Contents", "Limit timeline height to maximum used channel slot");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SEQUENCER, nullptr);
 
+  prop = RNA_def_property(srna, "show_scrubbing_region", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", SEQ_SHOW_SCRUBBING_REGION);
+  RNA_def_property_ui_text(prop,
+                           "Show Scrubbing Region",
+                           "Region with full playback range for scrubbing in the sequencer");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SEQUENCER, nullptr);
+
   /* Annotations */
   prop = RNA_def_property(srna, "annotation", PROP_POINTER, PROP_NONE);
   RNA_def_property_pointer_sdna(prop, nullptr, "gpd");
@@ -7822,9 +7848,9 @@ static void rna_def_fileselect_asset_params(BlenderRNA *brna)
   RNA_def_struct_ui_text(
       srna, "Asset Select Parameters", "Settings for the file selection in Asset Browser mode");
 
-  prop = rna_def_asset_library_reference_common(srna,
-                                                "rna_FileAssetSelectParams_asset_library_get",
-                                                "rna_FileAssetSelectParams_asset_library_set");
+  prop = rna_def_asset_library_ui_reference_common(srna,
+                                                   "rna_FileAssetSelectParams_asset_library_get",
+                                                   "rna_FileAssetSelectParams_asset_library_set");
   RNA_def_property_ui_text(prop, "Asset Library", "");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_FILE_PARAMS, nullptr);
 
@@ -7863,11 +7889,10 @@ static void rna_def_fileselect_asset_params(BlenderRNA *brna)
                            "them directly to the scene");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_FILE_PARAMS, nullptr);
 
-  prop = RNA_def_property(srna, "show_online_assets", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_negative_sdna(prop, nullptr, "asset_flags", FILE_ASSETS_HIDE_ONLINE);
-  RNA_def_property_ui_text(prop,
-                           "Show Online Assets",
-                           "When internet access is enabled, load and display online assets");
+  prop = RNA_def_property(srna, "asset_access", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, rna_enum_asset_access_items);
+  RNA_def_property_ui_text(
+      prop, "Asset Access", "Choose the visibility of online and offline assets");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_FILE_PARAMS, nullptr);
 
   prop = RNA_def_property(srna, "instance_collections_on_append", PROP_BOOLEAN, PROP_NONE);
