@@ -1332,12 +1332,7 @@ void gpu::MTLTexture::copy_to(Texture *dst, IndexRange mip_levels)
         for (int mip : mip_levels) {
           /* NOTE: mip_size_get() won't override any dimension that is equal to 0. */
           int extent[3] = {1, 1, 1};
-          if (source_texture_) {
-            source_texture_->mip_size_get(mip, extent);
-          }
-          else {
-            this->mip_size_get(mip, extent);
-          }
+          this->mip_size_get(mip, extent);
 
           int slice = 0;
           this->blit(blit_encoder,
