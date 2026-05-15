@@ -2484,7 +2484,7 @@ static wmOperatorStatus sculpt_cloth_filter_invoke(bContext *C,
 
   const bool use_face_sets = RNA_boolean_get(op->ptr, "use_face_sets");
   if (use_face_sets) {
-    ss.filter_cache->active_face_set = face_set::active_face_set_get(ob);
+    ss.filter_cache->active_face_set = face_set::active_face_set_get(C, mval_fl);
   }
   else {
     ss.filter_cache->active_face_set = face_set_none_id;

@@ -8,6 +8,7 @@
 #include "sculpt_expand.hh"
 
 #include <cmath>
+#include <optional>
 
 #include "MEM_guardedalloc.h"
 
@@ -35,6 +36,8 @@
 #include "BKE_subdiv_ccg.hh"
 
 #include "BLT_translation.hh"
+
+#include "ED_view3d.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -2377,14 +2380,14 @@ static bool set_initial_components_for_mouse(bContext *C,
 
   copy_v2_v2(ss.expand_cache->initial_mouse, mval);
   expand_cache.initial_active_vert = *initial_vert;
-  expand_cache.initial_active_face_set = face_set::active_face_set_get(ob);
+  expand_cache.initial_active_face_set = face_set::active_face_set_get(C, mval);
 
   if (expand_cache.next_face_set == face_set_none_id) {
     /* Only set the next face set once, otherwise this ID will constantly update to a new one each
      * time this function is called for using a new initial vertex from a different cursor
      * position. */
     if (expand_cache.modify_active_face_set) {
-      expand_cache.next_face_set = face_set::active_face_set_get(ob);
+      expand_cache.next_face_set = expand_cache.initial_active_face_set;
     }
     else {
       expand_cache.next_face_set = face_set::find_next_available_id(ob);
@@ -2439,21 +2442,22 @@ static void ensure_sculptsession_data(Object &ob)
 /**
  * Returns the active face set ID from the enabled face or grid in the #SculptSession.
  */
-static int active_face_set_id_get(Object &object, Cache &expand_cache)
+static int active_face_set_id_get(ViewContext &vc, Cache &expand_cache, const float2 &mval)
 {
-  SculptSession &ss = *object.runtime->sculpt_session;
+  const Object &object = *vc.obact;
+
+  const std::optional<ActiveElementInfo> active_element_info = active_element_info_get(vc, mval);
+  if(!active_element_info) {
+    return face_set_none_id;
+  }
+
   switch (bke::object::pbvh_get(object)->type()) {
     case bke::pbvh::Type::Mesh:
-      if (!ss.active_face_index) {
-        return face_set_none_id;
-      }
-      return expand_cache.original_face_sets[*ss.active_face_index];
+      return expand_cache.original_face_sets[active_element_info->active_face_idx];
     case bke::pbvh::Type::Grids: {
-      if (!ss.active_grid_index) {
-        return face_set_none_id;
-      }
+      SculptSession &ss = *object.runtime->sculpt_session;
       const int face_index = BKE_subdiv_ccg_grid_to_face_index(*ss.subdiv_ccg,
-                                                               *ss.active_grid_index);
+                                                               active_element_info->active_grid_idx);
       return expand_cache.original_face_sets[face_index];
     }
     case bke::pbvh::Type::BMesh: {
@@ -2705,7 +2709,8 @@ static wmOperatorStatus sculpt_expand_modal(bContext *C, wmOperator *op, const w
 
   /* Add new face set IDs to the snapping set if enabled. */
   if (expand_cache.snap) {
-    const int active_face_set_id = active_face_set_id_get(ob, expand_cache);
+    ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
+    const int active_face_set_id = active_face_set_id_get(vc, expand_cache, mval_fl);
     /* The key may exist, in that case this does nothing. */
     expand_cache.snap_enabled_face_sets->add(active_face_set_id);
   }

@@ -8,12 +8,14 @@
 
 #pragma once
 
+#include "BKE_context.hh"
 #include "BLI_array.hh"
 #include "BLI_offset_indices.hh"
 #include "BLI_set.hh"
 #include "BLI_span.hh"
 
 #include "BKE_attribute.hh"
+#include "ED_view3d.hh"
 
 namespace blender {
 
@@ -28,6 +30,7 @@ struct SubdivCCGCoord;
 namespace ed::sculpt_paint::face_set {
 
 int active_face_set_get(const Object &object);
+int active_face_set_get(bContext *C, const float2 &mval);
 
 /* TODO: vert_face_set_max_get should likely be avoided and existing usages cleaned up, since by
  * definition, a vertex can be associated to more than a single face set. */

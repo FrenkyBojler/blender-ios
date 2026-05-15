@@ -148,11 +148,7 @@ int active_update_and_get(bContext *C, Object &ob, const float mval[2])
     return face_set_none_id;
   }
 
-  if (!cursor_geometry_info_update(C, mval, false)) {
-    return face_set_none_id;
-  }
-
-  return active_face_set_get(ob);
+  return active_face_set_get(C, mval);
 }
 
 bool create_face_sets_mesh(Object &object)
@@ -1120,9 +1116,8 @@ static wmOperatorStatus change_visibility_invoke(bContext *C, wmOperator *op, co
    * cursor updates. */
   const float mval_fl[2] = {float(event->mval[0]), float(event->mval[1])};
   vert_random_access_ensure(ob);
-  cursor_geometry_info_update(C, mval_fl, false);
 
-  const int active_face_set = active_face_set_get(ob);
+  const int active_face_set = active_face_set_get(C, mval_fl);
   RNA_int_set(op->ptr, "active_face_set", active_face_set);
 
   return change_visibility_exec(C, op);
@@ -1596,11 +1591,12 @@ static wmOperatorStatus edit_op_invoke(bContext *C, wmOperator *op, const wmEven
   /* Update the current active face set and Vertex as the operator can be used directly from the
    * tool without brush cursor. */
   const float mval_fl[2] = {float(event->mval[0]), float(event->mval[1])};
-  if (!cursor_geometry_info_update(C, mval_fl, false)) {
+  const int active_face_set = active_face_set_get(C, mval_fl);
+  if (active_face_set == face_set_none_id) {
     /* The cursor is not over the mesh. Cancel to avoid editing the last updated face set ID. */
     return OPERATOR_CANCELLED;
   }
-  RNA_int_set(op->ptr, "active_face_set", active_face_set_get(ob));
+  RNA_int_set(op->ptr, "active_face_set", active_face_set);
 
   return edit_op_exec(C, op);
 }

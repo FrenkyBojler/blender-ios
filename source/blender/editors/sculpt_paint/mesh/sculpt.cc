@@ -10,6 +10,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
+#include <optional>
 
 #include "MEM_guardedalloc.h"
 
@@ -214,6 +215,50 @@ int active_face_set_get(const Object &object)
       }
       const int face_index = BKE_subdiv_ccg_grid_to_face_index(*ss.subdiv_ccg,
                                                                *ss.active_grid_index);
+      return face_sets[face_index];
+    }
+    case bke::pbvh::Type::BMesh:
+      return face_set_none_id;
+  }
+  return face_set_none_id;
+}
+
+int active_face_set_get(bContext *C, const float2 &mval)
+{
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+  ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
+
+  const std::optional<ActiveElementInfo> active_element_info = active_element_info_get(vc, mval);
+  if(!active_element_info) {
+    return face_set_none_id;
+  }
+
+  const Object &object = *vc.obact;
+  SculptSession &ss = *object.runtime->sculpt_session;
+
+  /* Update cached values */
+  ss.active_face_index = active_element_info->active_face_idx;
+  ss.active_grid_index = active_element_info->active_grid_idx;
+
+  switch (bke::object::pbvh_get(object)->type()) {
+    case bke::pbvh::Type::Mesh: {
+      const Mesh &mesh = *id_cast<const Mesh *>(object.data);
+      const bke::AttributeAccessor attributes = mesh.attributes();
+      const VArray face_sets = *attributes.lookup<int>(".sculpt_face_set", bke::AttrDomain::Face);
+      if (!face_sets) {
+        return face_set_none_id;
+      }
+      return face_sets[active_element_info->active_face_idx];
+    }
+    case bke::pbvh::Type::Grids: {
+      const Mesh &mesh = *id_cast<const Mesh *>(object.data);
+      const bke::AttributeAccessor attributes = mesh.attributes();
+      const VArray face_sets = *attributes.lookup<int>(".sculpt_face_set", bke::AttrDomain::Face);
+      if (!face_sets) {
+        return face_set_none_id;
+      }
+      const int face_index = BKE_subdiv_ccg_grid_to_face_index(*ss.subdiv_ccg,
+        active_element_info->active_grid_idx);
       return face_sets[face_index];
     }
     case bke::pbvh::Type::BMesh:
