@@ -1663,13 +1663,12 @@ static wmOperatorStatus node_delete_exec(bContext *C, wmOperator * /*op*/)
     }
 
     /* Set the parent of the node to the lowest frame that is not going to be deleted. */
-    bNode *parent = node;
-    while (parent = parent->parent) {
+    for (bNode *parent = node->parent; parent; parent = parent->parent) {
       if ((parent->flag & SELECT) == 0) {
+        node->parent = parent;
         break;
       }
     }
-    node->parent = parent;
   }
 
   for (bNode &node : snode->edittree->nodes.items_mutable()) {
