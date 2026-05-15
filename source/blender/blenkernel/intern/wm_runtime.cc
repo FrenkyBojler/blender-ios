@@ -105,16 +105,29 @@ void wm_runtime_evaluate_next_frame(Main &bmain, WindowRuntime &runtime, const S
 
   Vector<ID *> ids;
   Bounds<int> eval_range = {};
-  for (bke::AsyncEvalId &off_frame_id : runtime.async_eval_ids) {
+  Vector<int> invalid_id_indices;
+  for (const int i : runtime.async_eval_ids.index_range()) {
+    bke::AsyncEvalId &off_frame_id = runtime.async_eval_ids[i];
+    /* Searching here means computationally this scales linear with the amount of `id_type` in the
+     * file. This is not ideal performance wise, but doing it this way means we can react to the
+     * object being deleted solely in this function without having to call a deregister function
+     * anywhere. */
     ID *id = BKE_libblock_find_session_uid(&bmain, off_frame_id.id_type, off_frame_id.id_uid);
     if (!id) {
-      /* TODO: remove from eval list. */
-      return;
+      invalid_id_indices.append(i);
+      continue;
     }
     off_frame_id.id = id;
     ids.append(id);
     eval_range = bounds::merge(eval_range, off_frame_id.range);
   }
+
+  while (!invalid_id_indices.is_empty()) {
+    const int i = invalid_id_indices.pop_last();
+    runtime.async_eval_ids.remove(i);
+    runtime.rebuild_async_depsgraph = true;
+  }
+
   if (eval_range.is_empty()) {
     return;
   }
