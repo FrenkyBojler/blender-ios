@@ -146,7 +146,7 @@ static bool is_object_data_in_editmode(const ID *id, const Object *obact)
 
 static void restrictbutton_recursive_ebone(bArmature *arm,
                                            EditBone *ebone_parent,
-                                           int flag,
+                                           eBone_Flag flag,
                                            bool set_flag)
 {
   for (EditBone &ebone : *arm->edbo) {
@@ -162,7 +162,7 @@ static void restrictbutton_recursive_ebone(bArmature *arm,
   }
 }
 
-static void restrictbutton_recursive_bone(Bone *bone_parent, int flag, bool set_flag)
+static void restrictbutton_recursive_bone(Bone *bone_parent, eBone_Flag flag, bool set_flag)
 {
   for (Bone &bone : bone_parent->childbase) {
     if (set_flag) {
@@ -183,10 +183,10 @@ static void restrictbutton_r_lay_fn(bContext *C, void *poin, void * /*poin2*/)
 
 static void restrictbutton_bone_visibility_fn(bContext *C, void *poin, void *poin2)
 {
-  const Object *ob = static_cast<Object *>(poin);
+  Object *ob = static_cast<Object *>(poin);
   bPoseChannel *pchan = static_cast<bPoseChannel *>(poin2);
   if (CTX_wm_window(C)->runtime->eventstate->modifier & KM_SHIFT) {
-    animrig::pose_bone_descendent_iterator(*ob->pose, *pchan, [&](bPoseChannel &descendent) {
+    animrig::pose_bone_descendent_iterator(*ob, *pchan, [&](bPoseChannel &descendent) {
       if (pchan->drawflag & PCHAN_DRAW_HIDDEN) {
         descendent.drawflag |= PCHAN_DRAW_HIDDEN;
       }
@@ -742,13 +742,12 @@ static void scenes__collection_set_flag_recursive_fn(bContext *C, void *poin, vo
   outliner_collection_set_flag_recursive_fn(C, nullptr, collection, propname);
 }
 
-static void namebutton_fn(bContext *C, void *tsep, char *oldname)
+static void namebutton_fn(bContext *C, TreeStoreElem *tselem, const char *oldname)
 {
   Main *bmain = CTX_data_main(C);
   SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
   wmMsgBus *mbus = CTX_wm_message_bus(C);
   BLI_mempool *ts = space_outliner->treestore;
-  TreeStoreElem *tselem = static_cast<TreeStoreElem *>(tsep);
 
   const char *undo_str = nullptr;
 
@@ -908,7 +907,7 @@ static void namebutton_fn(bContext *C, void *tsep, char *oldname)
           STRNCPY_UTF8(newname, pchan->name);
           STRNCPY_UTF8(pchan->name, oldname);
           ED_armature_bone_rename(bmain, id_cast<bArmature *>(ob->data), oldname, newname);
-          WM_msg_publish_rna_prop(mbus, &arm->id, pchan->bone, Bone, name);
+          WM_msg_publish_rna_prop(mbus, &arm->id, pchan->bone_get(*ob), Bone, name);
           WM_event_add_notifier(C, NC_OBJECT | ND_ARMATURE_STRUCTURE, arm);
           WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN, arm);
           DEG_id_tag_update(tselem->id, ID_RECALC_SYNC_TO_EVAL);
@@ -995,6 +994,8 @@ static void namebutton_fn(bContext *C, void *tsep, char *oldname)
           undo_str = CTX_N_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Rename Action Slot");
           break;
         }
+        default:
+          break;
       }
     }
     tselem->flag &= ~TSE_TEXTBUT;
@@ -1245,18 +1246,18 @@ static void outliner_draw_restrictbuts(ui::Block *block,
           /* View layer render toggle. */
           ViewLayer *layer = static_cast<ViewLayer *>(te.directdata);
 
-          bt = uiDefIconButBitS(block,
-                                ui::ButtonType::IconToggleN,
-                                VIEW_LAYER_RENDER,
-                                ICON_RESTRICT_RENDER_OFF,
-                                int(region->v2d.cur.xmax - restrict_offsets.render),
-                                te.ys,
-                                UI_UNIT_X,
-                                UI_UNIT_Y,
-                                &layer->flag,
-                                0,
-                                0,
-                                TIP_("Use view layer for rendering"));
+          bt = uiDefIconButBit(block,
+                               ui::ButtonType::IconToggleN,
+                               VIEW_LAYER_RENDER,
+                               ICON_RESTRICT_RENDER_OFF,
+                               int(region->v2d.cur.xmax - restrict_offsets.render),
+                               te.ys,
+                               UI_UNIT_X,
+                               UI_UNIT_Y,
+                               &layer->flag,
+                               0,
+                               0,
+                               TIP_("Use view layer for rendering"));
           button_func_set(bt, restrictbutton_r_lay_fn, tselem->id, nullptr);
           button_flag_enable(bt, ui::BUT_DRAG_LOCK);
           button_drawflag_enable(bt, ui::BUT_ICON_REVERSE);
@@ -1440,7 +1441,6 @@ static void outliner_draw_restrictbuts(ui::Block *block,
       }
       else if (tselem->type == TSE_POSE_CHANNEL) {
         bPoseChannel *pchan = static_cast<bPoseChannel *>(te.directdata);
-        Bone *bone = pchan->bone;
         Object *ob = id_cast<Object *>(tselem->id);
         bArmature *arm = id_cast<bArmature *>(ob->data);
 
@@ -1467,19 +1467,20 @@ static void outliner_draw_restrictbuts(ui::Block *block,
         }
 
         if (space_outliner->show_restrict_flags & SO_RESTRICT_SELECT) {
-          bt = uiDefIconButBitI(block,
-                                ui::ButtonType::IconToggle,
-                                BONE_UNSELECTABLE,
-                                ICON_RESTRICT_SELECT_OFF,
-                                int(region->v2d.cur.xmax - restrict_offsets.select),
-                                te.ys,
-                                UI_UNIT_X,
-                                UI_UNIT_Y,
-                                &(bone->flag),
-                                0,
-                                0,
-                                TIP_("Restrict selection in the 3D View\n"
-                                     " \u2022 Shift to set children"));
+          Bone *bone = pchan->bone_get(*ob);
+          bt = uiDefIconButBit(block,
+                               ui::ButtonType::IconToggle,
+                               BONE_UNSELECTABLE,
+                               ICON_RESTRICT_SELECT_OFF,
+                               int(region->v2d.cur.xmax - restrict_offsets.select),
+                               te.ys,
+                               UI_UNIT_X,
+                               UI_UNIT_Y,
+                               &bone->flag,
+                               0,
+                               0,
+                               TIP_("Restrict selection in the 3D View\n"
+                                    " \u2022 Shift to set children"));
           button_func_set(bt, restrictbutton_bone_select_fn, ob->data, bone);
           button_flag_enable(bt, ui::BUT_DRAG_LOCK);
           button_drawflag_enable(bt, ui::BUT_ICON_REVERSE);
@@ -1490,38 +1491,38 @@ static void outliner_draw_restrictbuts(ui::Block *block,
         EditBone *ebone = static_cast<EditBone *>(te.directdata);
 
         if (space_outliner->show_restrict_flags & SO_RESTRICT_VIEWPORT) {
-          bt = uiDefIconButBitI(block,
-                                ui::ButtonType::IconToggle,
-                                BONE_HIDDEN_A,
-                                ICON_RESTRICT_VIEW_OFF,
-                                int(region->v2d.cur.xmax - restrict_offsets.viewport),
-                                te.ys,
-                                UI_UNIT_X,
-                                UI_UNIT_Y,
-                                &(ebone->flag),
-                                0,
-                                0,
-                                TIP_("Restrict visibility in the 3D View\n"
-                                     " \u2022 Shift to set children"));
+          bt = uiDefIconButBit(block,
+                               ui::ButtonType::IconToggle,
+                               BONE_HIDDEN_A,
+                               ICON_RESTRICT_VIEW_OFF,
+                               int(region->v2d.cur.xmax - restrict_offsets.viewport),
+                               te.ys,
+                               UI_UNIT_X,
+                               UI_UNIT_Y,
+                               &ebone->flag,
+                               0,
+                               0,
+                               TIP_("Restrict visibility in the 3D View\n"
+                                    " \u2022 Shift to set children"));
           button_func_set(bt, restrictbutton_ebone_visibility_fn, arm, ebone);
           button_flag_enable(bt, ui::BUT_DRAG_LOCK);
           button_drawflag_enable(bt, ui::BUT_ICON_REVERSE);
         }
 
         if (space_outliner->show_restrict_flags & SO_RESTRICT_SELECT) {
-          bt = uiDefIconButBitI(block,
-                                ui::ButtonType::IconToggle,
-                                BONE_UNSELECTABLE,
-                                ICON_RESTRICT_SELECT_OFF,
-                                int(region->v2d.cur.xmax - restrict_offsets.select),
-                                te.ys,
-                                UI_UNIT_X,
-                                UI_UNIT_Y,
-                                &(ebone->flag),
-                                0,
-                                0,
-                                TIP_("Restrict selection in the 3D View\n"
-                                     " \u2022 Shift to set children"));
+          bt = uiDefIconButBit(block,
+                               ui::ButtonType::IconToggle,
+                               BONE_UNSELECTABLE,
+                               ICON_RESTRICT_SELECT_OFF,
+                               int(region->v2d.cur.xmax - restrict_offsets.select),
+                               te.ys,
+                               UI_UNIT_X,
+                               UI_UNIT_Y,
+                               &ebone->flag,
+                               0,
+                               0,
+                               TIP_("Restrict selection in the 3D View\n"
+                                    " \u2022 Shift to set children"));
           button_func_set(bt, restrictbutton_ebone_select_fn, arm, ebone);
           button_flag_enable(bt, ui::BUT_DRAG_LOCK);
           button_drawflag_enable(bt, ui::BUT_ICON_REVERSE);
@@ -1532,36 +1533,36 @@ static void outliner_draw_restrictbuts(ui::Block *block,
         bGPDlayer *gpl = static_cast<bGPDlayer *>(te.directdata);
 
         if (space_outliner->show_restrict_flags & SO_RESTRICT_HIDE) {
-          bt = uiDefIconButBitS(block,
-                                ui::ButtonType::IconToggle,
-                                GP_LAYER_HIDE,
-                                ICON_HIDE_OFF,
-                                int(region->v2d.cur.xmax - restrict_offsets.hide),
-                                te.ys,
-                                UI_UNIT_X,
-                                UI_UNIT_Y,
-                                &gpl->flag,
-                                0,
-                                0,
-                                TIP_("Restrict visibility in the 3D View"));
+          bt = uiDefIconButBit(block,
+                               ui::ButtonType::IconToggle,
+                               GP_LAYER_HIDE,
+                               ICON_HIDE_OFF,
+                               int(region->v2d.cur.xmax - restrict_offsets.hide),
+                               te.ys,
+                               UI_UNIT_X,
+                               UI_UNIT_Y,
+                               &gpl->flag,
+                               0,
+                               0,
+                               TIP_("Restrict visibility in the 3D View"));
           button_func_set(bt, restrictbutton_gp_layer_flag_fn, id, gpl);
           button_flag_enable(bt, ui::BUT_DRAG_LOCK);
           button_drawflag_enable(bt, ui::BUT_ICON_REVERSE);
         }
 
         if (space_outliner->show_restrict_flags & SO_RESTRICT_SELECT) {
-          bt = uiDefIconButBitS(block,
-                                ui::ButtonType::IconToggle,
-                                GP_LAYER_LOCKED,
-                                ICON_UNLOCKED,
-                                int(region->v2d.cur.xmax - restrict_offsets.select),
-                                te.ys,
-                                UI_UNIT_X,
-                                UI_UNIT_Y,
-                                &gpl->flag,
-                                0,
-                                0,
-                                TIP_("Restrict editing of strokes and keyframes in this layer"));
+          bt = uiDefIconButBit(block,
+                               ui::ButtonType::IconToggle,
+                               GP_LAYER_LOCKED,
+                               ICON_UNLOCKED,
+                               int(region->v2d.cur.xmax - restrict_offsets.select),
+                               te.ys,
+                               UI_UNIT_X,
+                               UI_UNIT_Y,
+                               &gpl->flag,
+                               0,
+                               0,
+                               TIP_("Restrict editing of strokes and keyframes in this layer"));
           button_func_set(bt, restrictbutton_gp_layer_flag_fn, id, gpl);
           button_flag_enable(bt, ui::BUT_DRAG_LOCK);
         }
@@ -1892,18 +1893,18 @@ static void outliner_draw_userbuts(ui::Block *block,
         }
       }
 
-      bt = uiDefIconButBitS(block,
-                            ui::ButtonType::IconToggle,
-                            ID_FLAG_FAKEUSER,
-                            ICON_FAKE_USER_OFF,
-                            int(region->v2d.cur.xmax - OL_TOG_USER_BUTS_USERS),
-                            te->ys,
-                            UI_UNIT_X,
-                            UI_UNIT_Y,
-                            &id->flag,
-                            0,
-                            0,
-                            tip);
+      bt = uiDefIconButBit(block,
+                           ui::ButtonType::IconToggle,
+                           ID_FLAG_FAKEUSER,
+                           ICON_FAKE_USER_OFF,
+                           int(region->v2d.cur.xmax - OL_TOG_USER_BUTS_USERS),
+                           te->ys,
+                           UI_UNIT_X,
+                           UI_UNIT_Y,
+                           &id->flag,
+                           0,
+                           0,
+                           tip);
 
       if (is_linked) {
         button_flag_enable(bt, ui::BUT_DISABLED);
@@ -2229,7 +2230,9 @@ static void outliner_buttons(const bContext *C,
    * code (see #apply_but_undo) would not work here, as the new name is not yet applied to the
    * ID. */
   button_flag_disable(bt, ui::BUT_UNDO);
-  button_func_rename_set(bt, namebutton_fn, tselem);
+  text_button_func_rename_set(bt, [tselem](bContext &C, StringRefNull oldname) {
+    namebutton_fn(&C, tselem, oldname.c_str());
+  });
 
   /* Returns false if button got removed. */
   if (false == button_active_only(C, region, block, bt)) {
@@ -2895,7 +2898,7 @@ TreeElementIcon tree_element_get_icon(TreeStoreElem *tselem, TreeElement *te)
 
           data.icon = ICON_GREASEPENCIL_LAYER_GROUP;
           if (group.color_tag != LAYERGROUP_COLOR_NONE) {
-            data.icon = ICON_LAYERGROUP_COLOR_01 + group.color_tag;
+            data.icon = ICON_LAYERGROUP_COLOR_01 + int(group.color_tag);
           }
         }
         break;
@@ -2961,7 +2964,7 @@ static bool tselem_draw_icon(ui::Block *block,
       if (collection->color_tag != COLLECTION_COLOR_NONE) {
         icon_draw_ex(x,
                      y,
-                     ICON_COLLECTION_COLOR_01 + collection->color_tag,
+                     ICON_COLLECTION_COLOR_01 + int(collection->color_tag),
                      UI_INV_SCALE_FAC,
                      alpha,
                      0.0f,
@@ -3109,7 +3112,7 @@ int tree_element_id_type_to_index(TreeElement *te)
   }
   if (id_index == INDEX_ID_OB) {
     const Object *ob = id_cast<Object *>(tselem->id);
-    return INDEX_ID_OB + ob->type;
+    return int(INDEX_ID_OB) + int(ob->type);
   }
   return id_index + OB_TYPE_MAX;
 }

@@ -224,8 +224,7 @@ static void movieclip_blend_write(BlendWriter *writer, ID *id, const void *id_ad
 static void direct_link_movieReconstruction(BlendDataReader *reader,
                                             MovieTrackingReconstruction *reconstruction)
 {
-  BLO_read_struct_array(
-      reader, MovieReconstructedCamera, reconstruction->camnr, &reconstruction->cameras);
+  BLO_read_array_and_validate_size(reader, &reconstruction->cameras, &reconstruction->camnr);
 }
 
 static void direct_link_movieTracks(BlendDataReader *reader,
@@ -234,7 +233,7 @@ static void direct_link_movieTracks(BlendDataReader *reader,
   BLO_read_struct_list(reader, MovieTrackingTrack, tracksbase);
 
   for (MovieTrackingTrack &track : *tracksbase) {
-    BLO_read_struct_array(reader, MovieTrackingMarker, track.markersnr, &track.markers);
+    BLO_read_array_and_validate_size(reader, &track.markers, &track.markersnr);
   }
 }
 
@@ -244,14 +243,13 @@ static void direct_link_moviePlaneTracks(BlendDataReader *reader,
   BLO_read_struct_list(reader, MovieTrackingPlaneTrack, plane_tracks_base);
 
   for (MovieTrackingPlaneTrack &plane_track : *plane_tracks_base) {
-    BLO_read_pointer_array(
-        reader, plane_track.point_tracksnr, reinterpret_cast<void **>(&plane_track.point_tracks));
+    BLO_read_pointer_array_and_validate_size(
+        reader, &plane_track.point_tracks, &plane_track.point_tracksnr);
     for (int i = 0; i < plane_track.point_tracksnr; i++) {
       BLO_read_struct(reader, MovieTrackingTrack, &plane_track.point_tracks[i]);
     }
 
-    BLO_read_struct_array(
-        reader, MovieTrackingPlaneMarker, plane_track.markersnr, &plane_track.markers);
+    BLO_read_array_and_validate_size(reader, &plane_track.markers, &plane_track.markersnr);
   }
 }
 
@@ -529,7 +527,7 @@ void BKE_movieclip_convert_multilayer_ibuf(ImBuf *ibuf)
                              movieclip_convert_multilayer_add_pass);
   if (ctx.combined_pass != nullptr) {
     BLI_assert(ibuf->float_data() == nullptr);
-    IMB_assign_float_buffer(ibuf, ctx.combined_pass, IB_TAKE_OWNERSHIP);
+    ibuf->assign_float_data(ctx.combined_pass);
     ibuf->channels = ctx.num_combined_channels;
   }
   IMB_exr_close(ibuf->exrhandle);
@@ -543,7 +541,6 @@ static ImBuf *movieclip_load_sequence_file(MovieClip *clip,
 {
   ImBuf *ibuf;
   char filepath[FILE_MAX];
-  int loadflag;
   bool use_proxy = false;
   char *colorspace;
 
@@ -569,7 +566,8 @@ static ImBuf *movieclip_load_sequence_file(MovieClip *clip,
     colorspace = clip->colorspace_settings.name;
   }
 
-  loadflag = IB_byte_data | IB_multilayer | IB_alphamode_detect | IB_metadata;
+  ImBufFlags loadflag = ImBufFlags::ByteData | ImBufFlags::MultiLayer | ImBufFlags::AlphaDetect |
+                        ImBufFlags::Metadata;
 
   /* read ibuf */
   ibuf = IMB_load_image_from_filepath(filepath, loadflag, colorspace);
@@ -587,7 +585,8 @@ static void movieclip_open_anim_file(MovieClip *clip)
     BLI_path_abs(filepath_abs, ID_BLEND_PATH_FROM_GLOBAL(&clip->id));
 
     /* FIXME: make several stream accessible in image editor, too */
-    clip->anim = openanim(filepath_abs, IB_byte_data, 0, false, clip->colorspace_settings.name);
+    clip->anim = openanim(
+        filepath_abs, ImBufFlags::Zero, 0, false, clip->colorspace_settings.name);
 
     if (clip->anim) {
       if (clip->flag & MCLIP_USE_PROXY_CUSTOM_DIR) {
@@ -936,7 +935,8 @@ static void detect_clip_source(Main *bmain, MovieClip *clip)
   STRNCPY(filepath, clip->filepath);
   BLI_path_abs(filepath, ID_BLEND_PATH(bmain, &clip->id));
 
-  ibuf = IMB_load_image_from_filepath(filepath, IB_byte_data | IB_multilayer | IB_test);
+  ibuf = IMB_load_image_from_filepath(
+      filepath, ImBufFlags::ByteData | ImBufFlags::MultiLayer | ImBufFlags::Test);
   if (ibuf) {
     clip->source = MCLIP_SRC_SEQUENCE;
     IMB_freeImBuf(ibuf);
@@ -1038,6 +1038,10 @@ static void real_ibuf_size(
       case MCLIP_PROXY_RENDER_SIZE_75:
         *width = float(*width) * 4.0f / 3.0f;
         *height = float(*height) * 4.0f / 3.0f;
+        break;
+
+      case MCLIP_PROXY_RENDER_SIZE_100:
+      case MCLIP_PROXY_RENDER_SIZE_FULL:
         break;
     }
   }
@@ -1797,9 +1801,8 @@ static void movieclip_build_proxy_ibuf(const MovieClip *clip,
   quality = clip->proxy.quality;
   scaleibuf->ftype = IMB_FTYPE_JPG;
   scaleibuf->foptions.quality = quality;
-  /* unsupported feature only confuses other s/w */
-  if (scaleibuf->planes == 32) {
-    scaleibuf->planes = 24;
+  if (scaleibuf->can_contain_alpha()) {
+    scaleibuf->color_mode = ImColorMode::RGB;
   }
 
   /* TODO: currently the most weak part of multi-threaded proxies,
@@ -1809,7 +1812,7 @@ static void movieclip_build_proxy_ibuf(const MovieClip *clip,
   BLI_thread_lock(LOCK_MOVIECLIP);
 
   BLI_file_ensure_parent_dir_exists(filepath);
-  if (IMB_save_image(scaleibuf, filepath, IB_byte_data) == 0) {
+  if (IMB_save_image(scaleibuf, filepath, ImBufFlags::ByteData) == 0) {
     perror(filepath);
   }
 
@@ -1834,7 +1837,7 @@ void BKE_movieclip_build_proxy_frame(MovieClip *clip,
   }
 
   user.framenr = cfra;
-  user.render_flag = 0;
+  user.render_flag = {};
   user.render_size = MCLIP_PROXY_RENDER_SIZE_FULL;
 
   ibuf = BKE_movieclip_get_ibuf_flag(clip, &user, clip_flag, MovieClipCacheFlag::SkipCache);

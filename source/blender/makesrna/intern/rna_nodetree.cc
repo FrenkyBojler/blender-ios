@@ -2559,9 +2559,7 @@ static void rna_Node_internal_links_begin(CollectionPropertyIterator *iter, Poin
 static bool allow_identifier_lookup(const bNode &node)
 {
   switch (node.type_legacy) {
-    case FN_NODE_RANDOM_VALUE:
     case SH_NODE_MIX:
-    case FN_NODE_COMPARE:
     case SH_NODE_MAP_RANGE:
       return false;
     default:
@@ -3277,7 +3275,7 @@ static const EnumPropertyItem *rna_ShaderNodeMix_data_type_itemf(bContext * /*C*
     const eNodeSocketDatatype data_type = eNodeSocketDatatype(item->value);
     if (data_type == SOCK_ROTATION) {
       const bNodeTree *tree = reinterpret_cast<const bNodeTree *>(ptr->owner_id);
-      if (tree->type == NTREE_GEOMETRY) {
+      if (ELEM(tree->type, NTREE_GEOMETRY, NTREE_COMPOSIT)) {
         return true;
       }
     }
@@ -3448,8 +3446,8 @@ static void rna_Image_Node_update_id(Main *bmain, Scene *scene, PointerRNA *ptr)
 static void rna_NodeColorBalance_input_whitepoint_get(PointerRNA *ptr, float value[3])
 {
   bNode *node = ptr->data_as<bNode>();
-  bNodeSocket *temperature_input = bke::node_find_socket(*node, SOCK_IN, "Input Temperature");
-  bNodeSocket *tint_input = bke::node_find_socket(*node, SOCK_IN, "Input Tint");
+  bNodeSocket *temperature_input = bke::node_find_socket(*node, SOCK_IN, "Input Temperature"_ustr);
+  bNodeSocket *tint_input = bke::node_find_socket(*node, SOCK_IN, "Input Tint"_ustr);
   IMB_colormanagement_get_whitepoint(
       temperature_input->default_value_typed<bNodeSocketValueFloat>()->value,
       tint_input->default_value_typed<bNodeSocketValueFloat>()->value,
@@ -3459,8 +3457,8 @@ static void rna_NodeColorBalance_input_whitepoint_get(PointerRNA *ptr, float val
 static void rna_NodeColorBalance_input_whitepoint_set(PointerRNA *ptr, const float value[3])
 {
   bNode *node = ptr->data_as<bNode>();
-  bNodeSocket *temperature_input = bke::node_find_socket(*node, SOCK_IN, "Input Temperature");
-  bNodeSocket *tint_input = bke::node_find_socket(*node, SOCK_IN, "Input Tint");
+  bNodeSocket *temperature_input = bke::node_find_socket(*node, SOCK_IN, "Input Temperature"_ustr);
+  bNodeSocket *tint_input = bke::node_find_socket(*node, SOCK_IN, "Input Tint"_ustr);
   IMB_colormanagement_set_whitepoint(
       value,
       temperature_input->default_value_typed<bNodeSocketValueFloat>()->value,
@@ -3470,8 +3468,9 @@ static void rna_NodeColorBalance_input_whitepoint_set(PointerRNA *ptr, const flo
 static void rna_NodeColorBalance_output_whitepoint_get(PointerRNA *ptr, float value[3])
 {
   bNode *node = ptr->data_as<bNode>();
-  bNodeSocket *temperature_input = bke::node_find_socket(*node, SOCK_IN, "Output Temperature");
-  bNodeSocket *tint_input = bke::node_find_socket(*node, SOCK_IN, "Output Tint");
+  bNodeSocket *temperature_input = bke::node_find_socket(
+      *node, SOCK_IN, "Output Temperature"_ustr);
+  bNodeSocket *tint_input = bke::node_find_socket(*node, SOCK_IN, "Output Tint"_ustr);
   IMB_colormanagement_get_whitepoint(
       temperature_input->default_value_typed<bNodeSocketValueFloat>()->value,
       tint_input->default_value_typed<bNodeSocketValueFloat>()->value,
@@ -3481,8 +3480,9 @@ static void rna_NodeColorBalance_output_whitepoint_get(PointerRNA *ptr, float va
 static void rna_NodeColorBalance_output_whitepoint_set(PointerRNA *ptr, const float value[3])
 {
   bNode *node = ptr->data_as<bNode>();
-  bNodeSocket *temperature_input = bke::node_find_socket(*node, SOCK_IN, "Output Temperature");
-  bNodeSocket *tint_input = bke::node_find_socket(*node, SOCK_IN, "Output Tint");
+  bNodeSocket *temperature_input = bke::node_find_socket(
+      *node, SOCK_IN, "Output Temperature"_ustr);
+  bNodeSocket *tint_input = bke::node_find_socket(*node, SOCK_IN, "Output Tint"_ustr);
   IMB_colormanagement_set_whitepoint(
       value,
       temperature_input->default_value_typed<bNodeSocketValueFloat>()->value,
@@ -10135,19 +10135,6 @@ static StructRNA *define_specific_node(BlenderRNA *brna,
   return srna;
 }
 
-static void rna_def_node_instance_hash(BlenderRNA *brna)
-{
-  StructRNA *srna;
-
-  srna = RNA_def_struct(brna, "NodeInstanceHash", nullptr);
-  RNA_def_struct_ui_text(srna, "Node Instance Hash", "Hash table containing node instance data");
-
-  /* XXX This type is a stub for now, only used to store instance hash in the context.
-   * Eventually could use a StructRNA pointer to define a specific data type
-   * and expose lookup functions.
-   */
-}
-
 static void rna_def_nodes(BlenderRNA *brna)
 {
   const auto define = [&](const char *base_name,
@@ -10179,6 +10166,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("NodeInternal", "NodeEnableOutput");
   define("NodeInternal", "NodeEvaluateClosure", def_evaluate_closure);
   define("NodeInternal", "NodeGetBundleItem");
+  define("NodeInternal", "NodeGetNestedBundlePaths");
   define("NodeInternal", "NodeJoinBundle");
   define("NodeInternal", "NodeSeparateBundle", def_separate_bundle);
   define("NodeInternal", "NodeStoreBundleItem");
@@ -10442,6 +10430,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("FunctionNode", "FunctionNodeQuaternionToRotation");
   define("FunctionNode", "FunctionNodeRandomValue", def_fn_random_value);
   define("FunctionNode", "FunctionNodeReplaceString");
+  define("FunctionNode", "FunctionNodeReverseString");
   define("FunctionNode", "FunctionNodeRotateEuler", def_fn_rotate_euler);
   define("FunctionNode", "FunctionNodeRotateRotation");
   define("FunctionNode", "FunctionNodeRotateVector");
@@ -10462,6 +10451,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("FunctionNode", "FunctionNodeValueToString");
 
   define("GeometryNode", "GeometryNodeAccumulateField");
+  define("GeometryNode", "GeometryNodeApplySimulatedData");
   define("GeometryNode", "GeometryNodeAttributeDomainSize");
   define("GeometryNode", "GeometryNodeAttributeStatistic");
   define("GeometryNode", "GeometryNodeBake", rna_def_geo_bake);
@@ -10470,6 +10460,8 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("GeometryNode", "GeometryNodeBoundBox");
   define("GeometryNode", "GeometryNodeCameraInfo");
   define("GeometryNode", "GeometryNodeCaptureAttribute", rna_def_geo_capture_attribute);
+  define("GeometryNode", "GeometryNodeClusterByConnected");
+  define("GeometryNode", "GeometryNodeClusterByDistance");
   define("GeometryNode", "GeometryNodeCollectionChildren");
   define("GeometryNode", "GeometryNodeCollectionInfo");
   define("GeometryNode", "GeometryNodeConvexHull");
@@ -10521,6 +10513,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("GeometryNode", "GeometryNodeForeachGeometryElementInput", def_geo_foreach_geometry_element_input);
   define("GeometryNode", "GeometryNodeForeachGeometryElementOutput", def_geo_foreach_geometry_element_output);
   define("GeometryNode", "GeometryNodeGeometryToInstance");
+  define("GeometryNode", "GeometryNodeGetAttributeNames");
   define("GeometryNode", "GeometryNodeGetGeometryBundle");
   define("GeometryNode", "GeometryNodeGetNamedGrid");
   define("GeometryNode", "GeometryNodeGizmoDial");
@@ -10607,6 +10600,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("GeometryNode", "GeometryNodeMenuSwitch", def_geo_menu_switch);
   define("GeometryNode", "GeometryNodeMergeByDistance");
   define("GeometryNode", "GeometryNodeMergeLayers");
+  define("GeometryNode", "GeometryNodeMergePoints");
   define("GeometryNode", "GeometryNodeMeshBoolean");
   define("GeometryNode", "GeometryNodeMeshCircle");
   define("GeometryNode", "GeometryNodeMeshCone");
@@ -10700,6 +10694,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("GeometryNode", "GeometryNodeSubdivideMesh");
   define("GeometryNode", "GeometryNodeSubdivisionSurface");
   define("GeometryNode", "GeometryNodeSwitch");
+  define("GeometryNode", "GeometryNodeTagFilter");
   define("GeometryNode", "GeometryNodeTool3DCursor");
   define("GeometryNode", "GeometryNodeToolActiveElement");
   define("GeometryNode", "GeometryNodeToolFaceSet");
@@ -10709,6 +10704,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("GeometryNode", "GeometryNodeToolSetSelection");
   define("GeometryNode", "GeometryNodeTransform");
   define("GeometryNode", "GeometryNodeTranslateInstances");
+  define("GeometryNode", "GeometryNodeTransferAttributes");
   define("GeometryNode", "GeometryNodeTriangulate");
   define("GeometryNode", "GeometryNodeTrimCurve");
   define("GeometryNode", "GeometryNodeUVPackIslands");
@@ -10720,6 +10716,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("GeometryNode", "GeometryNodeVolumeCube");
   define("GeometryNode", "GeometryNodeVolumeToMesh");
   define("GeometryNode", "GeometryNodeWarning");
+  define("GeometryNode", "GeometryNodeXPBDSolver");
 
 
   /* Node group types are currently defined for each tree type individually. */
@@ -10777,8 +10774,6 @@ void RNA_def_nodetree(BlenderRNA *brna)
                    "Geometry Custom Group",
                    "Custom Geometry Group Node for Python nodes",
                    "rna_GeometryNodeCustomGroup_register");
-
-  rna_def_node_instance_hash(brna);
 }
 
 /* clean up macro definition */
