@@ -3,8 +3,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import bpy
+import numpy as np
 from ......io.com import gltf2_io
 from ......io.exp import binary_data as gltf2_io_binary_data
+from ......io.exp.meshopt import MeshoptEncoder
 from ......io.com import constants as gltf2_io_constants
 from ....cache import cached
 from ....accessors import gather_accessor
@@ -86,13 +88,30 @@ def __convert_keyframes(blender_type_data, blender_id, channel, keyframes, actio
             k.seconds = k.frame / bpy.context.scene.render.fps
 
     times = [k.seconds for k in keyframes]
+
+    binary_data = gltf2_io_binary_data.BinaryData.from_list(times, gltf2_io_constants.ComponentType.Float)
+    if export_settings['gltf_meshopt_compression']:
+        compressed_time, filter = MeshoptEncoder.encode_attribute(
+            'TIME', np.array(times, dtype=np.float32), 4, export_settings)
+        binary_data.set_extension(export_settings['gltf_meshopt_extension'], {
+            'buffer': compressed_time,  # to be filled in later by the exporter, use data in placeholder for now
+            'byteOffset': None,  # to be filled in later by the exporter
+            'byteLength': len(compressed_time),
+            'byteStride': 4,
+            'count': len(times),
+            'mode': 'ATTRIBUTES',
+            'filter': filter
+        })
+
     input = gather_accessor(
-        gltf2_io_binary_data.BinaryData.from_list(times, gltf2_io_constants.ComponentType.Float),
+        'TIME',
+        binary_data,
         gltf2_io_constants.ComponentType.Float,
         len(times),
         tuple([max(times)]),
         tuple([min(times)]),
         gltf2_io_constants.DataType.Scalar,
+        None,
         export_settings)
 
     values = []
@@ -108,12 +127,14 @@ def __convert_keyframes(blender_type_data, blender_id, channel, keyframes, actio
         data_type = gltf2_io_constants.DataType.vec_type_from_num(1)
 
     output = gather_accessor(
+        None,  # Manage data meshopt ?
         gltf2_io_binary_data.BinaryData.from_list(values, component_type),
         component_type,
         len(values) // gltf2_io_constants.DataType.num_elements(data_type),
         None,
         None,
         data_type,
+        None,
         export_settings
     )
 
