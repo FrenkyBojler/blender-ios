@@ -1280,6 +1280,10 @@ Depsgraph *animviz_depsgraph_build(Main *bmain,
                                    Span<MPathTarget *> targets);
 
 void animviz_tag_for_motion_path_eval(wmWindow &window, Object &object);
+void animviz_tag_for_motion_path_eval(wmWindow &window,
+                                      Object &armature_object,
+                                      bPoseChannel &pose_bone);
+
 /**
  * Evaluated the given `depsgraph` for all targets.
  *

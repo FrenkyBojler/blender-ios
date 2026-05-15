@@ -29,6 +29,7 @@ struct wmJob;
 struct wmDrag;
 struct wmPaintCursor;
 struct WindowDrawCB;
+struct Main;
 
 namespace bke {
 
@@ -128,11 +129,21 @@ struct WindowManagerRuntime {
   ~WindowManagerRuntime();
 };
 
+using EvalCallback =
+    FunctionRef<bool(ID &orig_id, ID &evaluated_id, StringRef component_name, int frame)>;
+
 struct AsyncEvalId {
-  ID *id;
+  /* Storing the session uid instead of a pointer so we can react to deletions in the evaluation
+   * code. Doing so means we have to search for the ID * every iteration though. */
+  uint32_t id_uid;
+  ID_Type id_type = ID_OB;
+  /* Storing the index to a bone or other component.  */
+  std::string component_name;
   /* The range to evaluate for this ID. */
   Bounds<int> range;
-  FunctionRef<bool(ID &orig_id, ID &evaluated_id, int frame)> callback;
+  EvalCallback callback;
+
+  ID *id;
 };
 
 struct WindowRuntime {
@@ -216,7 +227,8 @@ struct WindowRuntime {
 /**
  * Register an ID to be evaluated on full frames for the given range. Evaluation happens spread out
  * over time in the main event loop of Blender with a minimal depsgraph that covers all IDs that
- * should be evaluated.
+ * should be evaluated. This avoids freezing Blender while the calculation runs.
+ * Once complete, the ID is automatically deregistered from the evaluation list.
  *
  * If the given ID is already in the list of IDs to evaluate, the given range is combined with the
  * existing range for that ID.
@@ -224,14 +236,13 @@ struct WindowRuntime {
  * \param range determines the frames for which this ID shall be evaluated. Inclusive at the start,
  * exclusive at the end.
  */
-void wm_runtime_range_eval_register(
-    WindowRuntime &runtime,
-    ID &id,
-    Bounds<int> range,
-    FunctionRef<bool(ID &orig_id, ID &evaluated_id, int frame)> callback);
+void wm_runtime_range_eval_register(WindowRuntime &runtime,
+                                    ID &id,
+                                    const StringRef component_name,
+                                    Bounds<int> range,
+                                    EvalCallback callback);
 
-void wm_runtime_range_eval_deregister(WindowRuntime &runtime, const ID &id);
-void wm_runtime_evaluate_next_frame(WindowRuntime &runtime, const Scene &scene);
+void wm_runtime_evaluate_next_frame(Main &bmain, WindowRuntime &runtime, const Scene &scene);
 
 }  // namespace bke
 }  // namespace blender

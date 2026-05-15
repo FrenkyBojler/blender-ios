@@ -6,6 +6,8 @@
  * \ingroup bke
  */
 
+#include "BKE_lib_id.hh"
+#include "BKE_main.hh"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
 #include "BKE_undo_system.hh"
@@ -73,39 +75,27 @@ WindowRuntime::~WindowRuntime()
   BLI_assert(BLI_listbase_is_empty(&this->event_queue));
 }
 
-void wm_runtime_range_eval_register(
-    WindowRuntime &runtime,
-    ID &id,
-    const Bounds<int> range,
-    FunctionRef<bool(ID &orig_id, ID &evaluated_id, int frame)> callback)
+void wm_runtime_range_eval_register(WindowRuntime &runtime,
+                                    ID &id,
+                                    const StringRef component_name,
+                                    const Bounds<int> range,
+                                    EvalCallback callback)
 {
   for (AsyncEvalId &eval_id : runtime.async_eval_ids) {
-    if (eval_id.id == &id) {
+    if (eval_id.id_uid == id.session_uid && eval_id.component_name == component_name) {
       /* ID already in objects to evaluate. */
       eval_id.range = bounds::merge(eval_id.range, range);
       runtime.evaluated_range = {};
       return;
     }
   }
-  runtime.async_eval_ids.append({&id, range, callback});
+  runtime.async_eval_ids.append(
+      {id.session_uid, GS(id.name), std::string(component_name), range, callback});
   runtime.rebuild_async_depsgraph = true;
   runtime.evaluated_range = {};
 }
 
-void wm_runtime_range_eval_deregister(WindowRuntime &runtime, const ID &id)
-{
-  for (const int i : runtime.async_eval_ids.index_range()) {
-    AsyncEvalId &eval_id = runtime.async_eval_ids[i];
-    if (eval_id.id != &id) {
-      continue;
-    }
-    runtime.async_eval_ids.remove(i);
-    runtime.rebuild_async_depsgraph = true;
-    break;
-  }
-}
-
-void wm_runtime_evaluate_next_frame(WindowRuntime &runtime, const Scene &scene)
+void wm_runtime_evaluate_next_frame(Main &bmain, WindowRuntime &runtime, const Scene &scene)
 {
   if (runtime.async_depsgraph == nullptr) {
     /* Depsgraph should be built before. */
@@ -116,7 +106,13 @@ void wm_runtime_evaluate_next_frame(WindowRuntime &runtime, const Scene &scene)
   Vector<ID *> ids;
   Bounds<int> eval_range = {};
   for (bke::AsyncEvalId &off_frame_id : runtime.async_eval_ids) {
-    ids.append(off_frame_id.id);
+    ID *id = BKE_libblock_find_session_uid(&bmain, off_frame_id.id_type, off_frame_id.id_uid);
+    if (!id) {
+      /* TODO: remove from eval list. */
+      return;
+    }
+    off_frame_id.id = id;
+    ids.append(id);
     eval_range = bounds::merge(eval_range, off_frame_id.range);
   }
   if (eval_range.is_empty()) {
@@ -158,7 +154,7 @@ void wm_runtime_evaluate_next_frame(WindowRuntime &runtime, const Scene &scene)
   } */
   DEG_evaluate_on_framechange(runtime.async_depsgraph, eval_frame);
 
-  Vector<int> finished_ids;
+  Vector<int> finished_indices;
   for (const int i : runtime.async_eval_ids.index_range()) {
     bke::AsyncEvalId &off_frame_id = runtime.async_eval_ids[i];
     ID *eval_id = DEG_get_evaluated_id(runtime.async_depsgraph, off_frame_id.id);
@@ -166,13 +162,14 @@ void wm_runtime_evaluate_next_frame(WindowRuntime &runtime, const Scene &scene)
       continue;
     }
     /* The callback shall return true when the evaluation has completed. */
-    if (off_frame_id.callback(*off_frame_id.id, *eval_id, eval_frame)) {
-      finished_ids.append(i);
+    if (off_frame_id.callback(*off_frame_id.id, *eval_id, off_frame_id.component_name, eval_frame))
+    {
+      finished_indices.append(i);
     }
   }
 
-  while (!finished_ids.is_empty()) {
-    int i = finished_ids.pop_last();
+  while (!finished_indices.is_empty()) {
+    const int i = finished_indices.pop_last();
     runtime.async_eval_ids.remove(i);
     runtime.rebuild_async_depsgraph = true;
   }

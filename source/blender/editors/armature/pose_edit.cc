@@ -144,52 +144,17 @@ void ED_pose_recalculate_paths(bContext *C, Scene *scene, Object *ob, eAnimvizCa
     return;
   }
 
-  Main *bmain = CTX_data_main(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
-
-  Depsgraph *depsgraph;
-  bool free_depsgraph = false;
-
-  Vector<MPathTarget *> targets;
-  /* set flag to force recalc, then grab the relevant bones to target */
-  ob->pose->avs.recalc |= ANIMVIZ_RECALC_PATHS;
-  animviz_build_motionpath_targets(ob, targets);
-
-/* recalculate paths, then free */
-#ifdef DEBUG_TIME
-  TIMEIT_START(pose_path_calc);
-#endif
-
-  /* For a single frame update it's faster to re-use existing dependency graph and avoid overhead
-   * of building all the relations and so on for a temporary one. */
-  if (range == ANIMVIZ_CALC_RANGE_CURRENT_FRAME) {
-    /* NOTE: Dependency graph will be evaluated at all the frames, but we first need to access some
-     * nested pointers, like animation data. */
-    depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-    free_depsgraph = false;
-  }
-  else {
-    depsgraph = animviz_depsgraph_build(bmain, scene, view_layer, targets);
-    free_depsgraph = true;
-  }
-
-  animviz_calc_motionpaths(depsgraph, bmain, scene, targets, range);
-
-#ifdef DEBUG_TIME
-  TIMEIT_END(pose_path_calc);
-#endif
-
-  animviz_free_motionpath_targets(targets);
-
-  if (range != ANIMVIZ_CALC_RANGE_CURRENT_FRAME) {
-    /* Tag armature object for copy-on-eval - so paths will draw/redraw.
-     * For currently frame only we update evaluated object directly. */
-    DEG_id_tag_update(&ob->id, ID_RECALC_SYNC_TO_EVAL);
-  }
-
-  /* Free temporary depsgraph. */
-  if (free_depsgraph) {
-    DEG_graph_free(depsgraph);
+  bArmature *arm = id_cast<bArmature *>(ob->data);
+  wmWindow *window = CTX_wm_window(C);
+  for (bPoseChannel &pchan : ob->pose->chanbase) {
+    if (!pchan.mpath) {
+      continue;
+    }
+    Bone *bone = pchan.bone_get(*ob);
+    if (!bone || !ANIM_bone_in_visible_collection(arm, bone)) {
+      continue;
+    }
+    animviz_tag_for_motion_path_eval(*window, *ob, pchan);
   }
 }
 

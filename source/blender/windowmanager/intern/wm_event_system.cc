@@ -548,6 +548,7 @@ void wm_event_evaluate_depsgraph_off_frame(bContext *C)
   // using Clock = std::chrono::steady_clock;
 
   wmWindowManager *wm = CTX_wm_manager(C);
+  Main *bmain = CTX_data_main(C);
   for (wmWindow &win : wm->windows) {
     bke::WindowRuntime &runtime = *win.runtime;
     if (runtime.async_eval_ids.is_empty()) {
@@ -561,7 +562,7 @@ void wm_event_evaluate_depsgraph_off_frame(bContext *C)
       runtime.rebuild_async_depsgraph = true;
     }
 
-    bke::wm_runtime_evaluate_next_frame(runtime, *scene);
+    bke::wm_runtime_evaluate_next_frame(*bmain, runtime, *scene);
 
     /* Doing at most one evaluation even if there are multiple windows. */
     break;

@@ -428,7 +428,10 @@ static bool are_all_verts_evaluated(bMotionPath &mpath)
   return true;
 }
 
-static bool update_callback(ID &orig_id, ID &eval_id, const int frame)
+static bool update_callback(ID &orig_id,
+                            ID &eval_id,
+                            const StringRef /* component_name */,
+                            const int frame)
 {
   Object *ob = id_cast<Object *>(&orig_id);
   Object *ob_eval = id_cast<Object *>(&eval_id);
@@ -442,6 +445,7 @@ static bool update_callback(ID &orig_id, ID &eval_id, const int frame)
   if ((frame < mpath->start_frame) || (frame >= mpath->end_frame)) {
     return are_all_verts_evaluated(*mpath);
   }
+
   const int index = frame - mpath->start_frame;
   BLI_assert(index >= 0 && index < mpath->length);
   bMotionPathVert &mpv = mpath->points[index];
@@ -449,11 +453,49 @@ static bool update_callback(ID &orig_id, ID &eval_id, const int frame)
   /* World-space object location. */
   copy_v3_v3(mpv.co, ob_eval->object_to_world().location());
   mpv.flag |= MOTIONPATH_VERT_EVALUATED;
-  bMotionPath *mpath_eval = ob_eval->mpath;
-  mpath_eval->points[index] = mpv;
-  GPU_VERTBUF_DISCARD_SAFE(mpath_eval->points_vbo);
-  GPU_BATCH_DISCARD_SAFE(mpath_eval->batch_line);
-  GPU_BATCH_DISCARD_SAFE(mpath_eval->batch_points);
+
+  DEG_id_tag_update(&ob->id, ID_RECALC_ANIMATION_NO_FLUSH);
+  WM_main_add_notifier(NC_OBJECT | ND_DRAW_ANIMVIZ, ob);
+
+  return are_all_verts_evaluated(*mpath);
+}
+
+static bool update_callback_pose_bone(ID &orig_id,
+                                      ID &eval_id,
+                                      const StringRef component_name,
+                                      const int frame)
+{
+  Object *ob = id_cast<Object *>(&orig_id);
+  Object *ob_eval = id_cast<Object *>(&eval_id);
+
+  bPoseChannel *pose_bone = BKE_pose_channel_find_name(ob->pose, component_name.data());
+  bPoseChannel *pose_bone_eval = BKE_pose_channel_find_name(ob_eval->pose, component_name.data());
+
+  if (!pose_bone || !pose_bone->mpath) {
+    /* Pose bone or its motion path was deleted. */
+    return true;
+  }
+
+  bMotionPath *mpath = pose_bone->mpath;
+
+  if ((frame < mpath->start_frame) || (frame >= mpath->end_frame)) {
+    return are_all_verts_evaluated(*mpath);
+  }
+
+  const int index = frame - mpath->start_frame;
+  BLI_assert(index >= 0 && index < mpath->length);
+  bMotionPathVert &mpv = mpath->points[index];
+
+  if (mpath->flag & MOTIONPATH_FLAG_BHEAD) {
+    copy_v3_v3(mpv.co, pose_bone_eval->pose_head);
+  }
+  else {
+    copy_v3_v3(mpv.co, pose_bone_eval->pose_tail);
+  }
+
+  /* Result must be in world-space. */
+  mul_m4_v3(ob_eval->object_to_world().ptr(), mpv.co);
+  mpv.flag |= MOTIONPATH_VERT_EVALUATED;
 
   DEG_id_tag_update(&ob->id, ID_RECALC_ANIMATION_NO_FLUSH);
   WM_main_add_notifier(NC_OBJECT | ND_DRAW_ANIMVIZ, ob);
@@ -473,7 +515,26 @@ void animviz_tag_for_motion_path_eval(wmWindow &window, Object &object)
     mpath->points[i].flag &= ~MOTIONPATH_VERT_EVALUATED;
   }
   bke::wm_runtime_range_eval_register(
-      *window.runtime, object.id, {mpath->start_frame, mpath->end_frame}, update_callback);
+      *window.runtime, object.id, "", {mpath->start_frame, mpath->end_frame}, update_callback);
+}
+
+void animviz_tag_for_motion_path_eval(wmWindow &window,
+                                      Object &armature_object,
+                                      bPoseChannel &pose_bone)
+{
+  bMotionPath *mpath = pose_bone.mpath;
+  if (!mpath) {
+    BLI_assert_unreachable();
+    return;
+  }
+  for (int i = 0; i < mpath->length; i++) {
+    mpath->points[i].flag &= ~MOTIONPATH_VERT_EVALUATED;
+  }
+  bke::wm_runtime_range_eval_register(*window.runtime,
+                                      armature_object.id,
+                                      pose_bone.name,
+                                      {mpath->start_frame, mpath->end_frame},
+                                      update_callback_pose_bone);
 }
 
 void animviz_calc_motionpaths(Depsgraph *depsgraph,
