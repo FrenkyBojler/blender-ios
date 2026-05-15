@@ -905,7 +905,7 @@ static void icon_verify_datatoc(IconImage *iimg)
 
   if (iimg->datatoc_rect) {
     ImBuf *bbuf = IMB_load_image_from_memory(
-        iimg->datatoc_rect, iimg->datatoc_size, IB_byte_data, "<matcap icon>");
+        iimg->datatoc_rect, iimg->datatoc_size, ImBufFlags::ByteData, "<matcap icon>");
     /* w and h were set on initialize */
     if (bbuf->x != iimg->h && bbuf->y != iimg->w) {
       IMB_scale(bbuf, iimg->w, iimg->h, IMBScaleFilter::Box, false);
@@ -1363,7 +1363,7 @@ PreviewImage *icon_to_preview(int icon_id)
 
     bbuf = IMB_load_image_from_memory(di->data.buffer.image->datatoc_rect,
                                       di->data.buffer.image->datatoc_size,
-                                      IB_byte_data,
+                                      ImBufFlags::ByteData,
                                       __func__);
     if (bbuf) {
       PreviewImage *prv = BKE_previewimg_create();
@@ -1441,19 +1441,17 @@ static void icon_draw_rect(float x,
     immUniform1f("factor", desaturate);
   }
 
-  immDrawPixelsTexScaledFullSize(&state,
-                                 draw_x,
-                                 draw_y,
-                                 rw,
-                                 rh,
-                                 gpu::TextureFormat::UNORM_8_8_8_8,
-                                 true,
-                                 rect,
-                                 scale_x,
-                                 scale_y,
-                                 1.0f,
-                                 1.0f,
-                                 col);
+  immDrawPixels(&state,
+                draw_x,
+                draw_y,
+                rw,
+                rh,
+                gpu::TextureFormat::UNORM_8_8_8_8,
+                true,
+                rect,
+                scale_x,
+                scale_y,
+                col);
 }
 
 /* Drawing size for preview images */
