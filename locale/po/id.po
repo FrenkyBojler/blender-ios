@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 Alpha (b'8bc0d293b105')\n"
+"Project-Id-Version: Blender 5.2.0 Alpha (b'8c7c45ad114e')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-04-28 08:59+0000\n"
+"POT-Creation-Date: 2026-05-11 07:23+0000\n"
 "PO-Revision-Date: 2025-12-23 20:36+0000\n"
 "Last-Translator: \"Adriel Y.\" <mixnblend@users.noreply.translate.blender.org>\n"
 "Language-Team: Indonesian <https://translate.blender.org/projects/blender-ui/ui/id/>\n"
@@ -15640,56 +15640,8 @@ msgid "Use Material Mask"
 msgstr "Gunakan Masker Bahan"
 
 
-msgid "Names"
-msgstr "Nama"
-
-
-msgid "Apply"
-msgstr "Tetapkan"
-
-
-msgid "Math"
-msgstr "Matematika"
-
-
-msgid "Utilities"
-msgstr "Utilitas"
-
-
-msgid "Merge"
-msgstr "Menggabungkan"
-
-
-msgid "Sample"
-msgstr "Sampel"
-
-
-msgid "Metaball"
-msgstr "Metabola"
-
-
-msgid "Gizmo"
-msgstr "Gizmo"
-
-
-msgid "Instances"
-msgstr "Contoh-contoh"
-
-
-msgid "Import"
-msgstr "Impor"
-
-
 msgid "Snap"
 msgstr "Jepret"
-
-
-msgid "UV"
-msgstr "UV"
-
-
-msgid "Mirror"
-msgstr "Cermin"
 
 
 msgid "Navigation"
@@ -15700,12 +15652,24 @@ msgid "Select Linked"
 msgstr "Seleksi yang Terhubung"
 
 
+msgid "Math"
+msgstr "Matematika"
+
+
+msgid "Utilities"
+msgstr "Utilitas"
+
+
 msgid "Assign Material"
 msgstr "Tugaskan Bahan"
 
 
-msgid "Layout"
-msgstr "Tata Letak"
+msgid "Metaball"
+msgstr "Metabola"
+
+
+msgid "Sample"
+msgstr "Sampel"
 
 
 msgid "Light"
@@ -15720,12 +15684,24 @@ msgid "Add Image"
 msgstr "Tambah Gambar"
 
 
-msgid "Tracking"
-msgstr "Pelacakan"
+msgid "Gizmo"
+msgstr "Gizmo"
+
+
+msgid "Apply"
+msgstr "Tetapkan"
+
+
+msgid "Instances"
+msgstr "Contoh-contoh"
 
 
 msgid "Track"
 msgstr "Lacak"
+
+
+msgid "Import"
+msgstr "Impor"
 
 
 msgid "Asset"
@@ -15734,6 +15710,30 @@ msgstr "Aset"
 
 msgid "Hooks"
 msgstr "Kait"
+
+
+msgid "UV"
+msgstr "UV"
+
+
+msgid "Names"
+msgstr "Nama"
+
+
+msgid "Merge"
+msgstr "Menggabungkan"
+
+
+msgid "Layout"
+msgstr "Tata Letak"
+
+
+msgid "Tracking"
+msgstr "Pelacakan"
+
+
+msgid "Mirror"
+msgstr "Cermin"
 
 
 msgid "Animals"
@@ -26216,10 +26216,6 @@ msgid "Device"
 msgstr "Perangkat"
 
 
-msgid "2D Texture"
-msgstr "Tekstur 2D"
-
-
 msgid "Ambient Color"
 msgstr "Warna Ambien"
 
@@ -32289,14 +32285,6 @@ msgstr "Hapus bingkai kunci yang terseleksi?"
 
 msgid "No selected F-Curves to paste into"
 msgstr "Hapus"
-
-
-msgid "Property is not editable"
-msgstr "Properti tidak dapat diubah"
-
-
-msgid "Property is not editable: %s"
-msgstr "Properti tidak dapat diubah: %s"
 
 
 msgid "Position:"

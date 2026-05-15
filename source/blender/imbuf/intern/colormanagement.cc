@@ -482,7 +482,7 @@ void IMB_colormanagement_init_untonemapped_view_settings(
   /* TODO(sergey): Find a way to safely/reliable un-hardcode this. */
   STRNCPY_UTF8(view_settings->look, "None");
   /* Initialize rest of the settings. */
-  view_settings->flag = 0;
+  view_settings->flag = {};
   view_settings->gamma = 1.0f;
   view_settings->exposure = 0.0f;
   view_settings->temperature = 6500.0f;
@@ -524,7 +524,6 @@ void colormanage_imbuf_make_linear(ImBuf *ibuf,
   const ColorSpace *colorspace = g_config()->get_color_space(from_colorspace);
 
   if (colorspace && colorspace->is_data()) {
-    ibuf->colormanage_flag |= IMB_COLORMANAGE_IS_DATA;
     return;
   }
 
@@ -889,61 +888,33 @@ const char *IMB_colormanagement_role_colorspace_name_get(int role)
   return nullptr;
 }
 
-void IMB_colormanagement_check_is_data(ImBuf *ibuf, const char *name)
-{
-  const ColorSpace *colorspace = g_config()->get_color_space(name);
-
-  if (colorspace && colorspace->is_data()) {
-    ibuf->colormanage_flag |= IMB_COLORMANAGE_IS_DATA;
-  }
-  else {
-    ibuf->colormanage_flag &= ~IMB_COLORMANAGE_IS_DATA;
-  }
-}
-
 void IMB_colormanagement_copy_settings(ImBuf *ibuf_src, ImBuf *ibuf_dst)
 {
   IMB_colormanagement_assign_byte_colorspace(ibuf_dst,
                                              IMB_colormanagement_get_byte_colorspace(ibuf_src));
   IMB_colormanagement_assign_float_colorspace(ibuf_dst,
                                               IMB_colormanagement_get_float_colorspace(ibuf_src));
-  if (ibuf_src->flags & IB_alphamode_premul) {
-    ibuf_dst->flags |= IB_alphamode_premul;
+  if (flag_is_set(ibuf_src->flags, ImBufFlags::AlphaPremul)) {
+    ibuf_dst->flags |= ImBufFlags::AlphaPremul;
   }
-  else if (ibuf_src->flags & IB_alphamode_channel_packed) {
-    ibuf_dst->flags |= IB_alphamode_channel_packed;
+  else if (flag_is_set(ibuf_src->flags, ImBufFlags::AlphaChannelPacked)) {
+    ibuf_dst->flags |= ImBufFlags::AlphaChannelPacked;
   }
-  else if (ibuf_src->flags & IB_alphamode_ignore) {
-    ibuf_dst->flags |= IB_alphamode_ignore;
+  else if (flag_is_set(ibuf_src->flags, ImBufFlags::AlphaIgnore)) {
+    ibuf_dst->flags |= ImBufFlags::AlphaIgnore;
   }
 }
 
 void IMB_colormanagement_assign_float_colorspace(ImBuf *ibuf, const char *name)
 {
   const ColorSpace *colorspace = g_config()->get_color_space(name);
-
   ibuf->float_buffer.colorspace = colorspace;
-
-  if (colorspace && colorspace->is_data()) {
-    ibuf->colormanage_flag |= IMB_COLORMANAGE_IS_DATA;
-  }
-  else {
-    ibuf->colormanage_flag &= ~IMB_COLORMANAGE_IS_DATA;
-  }
 }
 
 void IMB_colormanagement_assign_byte_colorspace(ImBuf *ibuf, const char *name)
 {
   const ColorSpace *colorspace = g_config()->get_color_space(name);
-
   ibuf->byte_buffer.colorspace = colorspace;
-
-  if (colorspace && colorspace->is_data()) {
-    ibuf->colormanage_flag |= IMB_COLORMANAGE_IS_DATA;
-  }
-  else {
-    ibuf->colormanage_flag &= ~IMB_COLORMANAGE_IS_DATA;
-  }
 }
 
 const char *IMB_colormanagement_get_float_colorspace(const ImBuf *ibuf)
@@ -1336,7 +1307,7 @@ static void display_buffer_init_handle(DisplayBufferThread *handle,
 
   int channels = ibuf->channels;
   float dither = ibuf->dither;
-  bool is_data = (ibuf->colormanage_flag & IMB_COLORMANAGE_IS_DATA) != 0;
+  bool is_data = ibuf->colorspace_is_data();
 
   size_t offset = size_t(channels) * start_line * ibuf->x;
   size_t display_buffer_byte_offset = size_t(DISPLAY_BUFFER_CHANNELS) * start_line * ibuf->x;
@@ -2328,7 +2299,7 @@ ImBuf *IMB_colormanagement_imbuf_for_write(ImBuf *ibuf,
    * made already. helps keep things locally here, not spreading it to all possible image writers
    * we've got.
    */
-  if (image_format->planes != R_IMF_PLANES_RGBA) {
+  if (image_format->color_mode != ImColorMode::RGBA) {
     float color[3] = {0, 0, 0};
 
     colormanaged_ibuf = imbuf_ensure_editable(ibuf, colormanaged_ibuf, allocate_result);
@@ -2602,13 +2573,17 @@ int IMB_colormanagement_view_max_nits(const char *display_name, const char *view
 }
 
 ocio::ScopeInfo IMB_colormanagement_get_scope_info(
-    const ColorManagedDisplaySettings *display_settings, const char *view_name)
+    const ColorManagedDisplaySettings *display_settings,
+    const ColorManagedViewSettings *view_settings)
 {
   const ocio::Display *display = g_config()->get_display_by_name(display_settings->display_device);
   if (display == nullptr) {
     return {};
   }
-  const ocio::View *view = (display) ? display->get_view_by_name(view_name) : nullptr;
+  const ocio::View *view = (display) ? (view_settings) ?
+                                       display->get_view_by_name(view_settings->view_transform) :
+                                       display->get_untonemapped_view() :
+                                       nullptr;
   if (view == nullptr) {
     return {};
   }
