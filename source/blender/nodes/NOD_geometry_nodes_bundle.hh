@@ -182,10 +182,7 @@ template<typename T> inline const T *BundleItemValue::as_pointer() const
   if (!socket_value) {
     return nullptr;
   }
-  if (!socket_value->value.is_single()) {
-    return nullptr;
-  }
-  const GPointer ptr = socket_value->value.get_single_ptr();
+  const GPointer ptr = socket_value->value.get();
   if (!ptr.is_type<T>()) {
     return nullptr;
   }

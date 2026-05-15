@@ -79,9 +79,7 @@ class SocketValueVariant {
  public:
   SocketValueVariant() = default;
 
-  template<typename T>
-  explicit SocketValueVariant(T &&value)
-    requires(std::is_trivial_v<std::decay_t<T>> || is_same_any_v<std::decay_t<T>, std::string>);
+  template<typename T> explicit SocketValueVariant(T &&value);
 
   template<typename T, typename... Args> T &emplace(Args &&...args);
 
@@ -111,9 +109,7 @@ class SocketValueVariant {
   static void *allocate(const CPPType &type, detail::SocketValueVariantAny &value);
 };
 
-template<typename T>
-inline SocketValueVariant::SocketValueVariant(T &&value)
-  requires(std::is_trivial_v<std::decay_t<T>> || is_same_any_v<std::decay_t<T>, std::string>)
+template<typename T> inline SocketValueVariant::SocketValueVariant(T &&value)
 {
   this->emplace<std::decay_t<T>>(std::forward<T>(value));
 }
