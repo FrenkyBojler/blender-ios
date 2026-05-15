@@ -31,7 +31,6 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   GeometrySet component_geo;
   bool exists = false;
-  std::shared_ptr<int> a;
 
   switch (type) {
     case bke::GeometryComponent::Type::Mesh:
