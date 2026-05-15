@@ -13,6 +13,7 @@
 
 #include "BLI_implicit_sharing.hh"
 #include "BLI_implicit_sharing_cache.hh"
+#include "BLI_set.hh"
 
 namespace blender::implicit_sharing {
 
@@ -127,4 +128,28 @@ void *resize_trivial_array_impl(void *old_data,
 }
 
 }  // namespace detail
+
+static auto &get_global_caches()
+{
+  static Set<CacheBase *> caches;
+  return caches;
+}
+
+CacheBase::CacheBase(const StringRef name) : debug_name_(name)
+{
+  get_global_caches().add_new(this);
+}
+
+CacheBase::~CacheBase()
+{
+  get_global_caches().remove(this);
+}
+
+void clear_unused_caches_all()
+{
+  for (CacheBase *cache : get_global_caches()) {
+    cache->clear_unused();
+  }
+}
+
 }  // namespace blender::implicit_sharing

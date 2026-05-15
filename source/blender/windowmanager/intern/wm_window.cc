@@ -2160,7 +2160,7 @@ static bool wm_window_timers_process(const bContext *C, int *sleep_us_p)
     }
     else if (wt.event_type == TIMERCACHES) {
       /* Clear unused caches. */
-      implicit_sharing::CacheManager::instance().clear_unused_all();
+      implicit_sharing::clear_unused_caches_all();
     }
     else if (wmWindow *win = wt.win) {
       wmEvent event;
