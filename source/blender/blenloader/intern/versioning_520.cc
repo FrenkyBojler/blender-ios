@@ -299,7 +299,8 @@ static void version_text_strip_abs_space_line(Main &bmain)
     seq::foreach_strip(&ed->seqbase, [&](Strip *strip) {
       if (strip->type == STRIP_TYPE_TEXT && strip->effectdata != nullptr) {
         TextVars *data = static_cast<TextVars *>(strip->effectdata);
-        data->abs_space_line = 0.0f;
+        data->abs_space_line = 60.0f;
+        data->flag &= ~SEQ_TEXT_USE_ABSOLUTE_LINE_SPACING;
       }
       return true;
     });
