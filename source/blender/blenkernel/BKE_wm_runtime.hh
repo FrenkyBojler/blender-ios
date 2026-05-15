@@ -206,21 +206,32 @@ struct WindowRuntime {
    */
   struct Depsgraph *async_depsgraph = nullptr;
   Vector<AsyncEvalId> async_eval_ids = {};
-  bool rebuild_async_depsgraph = false;
   Bounds<int> evaluated_range = {};
+  bool rebuild_async_depsgraph = false;
 
   WindowRuntime() = default;
   ~WindowRuntime();
 };
 
 /**
+ * Register an ID to be evaluated on full frames for the given range. Evaluation happens spread out
+ * over time in the main event loop of Blender with a minimal depsgraph that covers all IDs that
+ * should be evaluated.
  *
+ * If the given ID is already in the list of IDs to evaluate, the given range is combined with the
+ * existing range for that ID.
+ *
+ * \param range determines the frames for which this ID shall be evaluated. Inclusive at the start,
+ * exclusive at the end.
  */
-void wm_runtime_register_for_range_eval(
+void wm_runtime_range_eval_register(
     WindowRuntime &runtime,
     ID &id,
     Bounds<int> range,
     FunctionRef<bool(ID &orig_id, ID &evaluated_id, int frame)> callback);
+
+void wm_runtime_range_eval_deregister(WindowRuntime &runtime, const ID &id);
+void wm_runtime_evaluate_next_frame(WindowRuntime &runtime, const Scene &scene);
 
 }  // namespace bke
 }  // namespace blender

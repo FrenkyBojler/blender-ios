@@ -10,6 +10,7 @@
  * Also some operator reports utility functions.
  */
 
+#include <chrono>
 #include <cstdlib>
 #include <cstring>
 #include <fmt/format.h>
@@ -544,6 +545,8 @@ void wm_event_do_depsgraph(bContext *C, bool is_after_open_file)
 
 void wm_event_evaluate_depsgraph_off_frame(bContext *C)
 {
+  // using Clock = std::chrono::steady_clock;
+
   wmWindowManager *wm = CTX_wm_manager(C);
   for (wmWindow &win : wm->windows) {
     bke::WindowRuntime &runtime = *win.runtime;
@@ -558,59 +561,7 @@ void wm_event_evaluate_depsgraph_off_frame(bContext *C)
       runtime.rebuild_async_depsgraph = true;
     }
 
-    Vector<ID *> ids;
-    Bounds<int> eval_range = {};
-    for (bke::AsyncEvalId &off_frame_id : runtime.async_eval_ids) {
-      ids.append(off_frame_id.id);
-      eval_range = bounds::merge(eval_range, off_frame_id.range);
-    }
-    if (eval_range.is_empty()) {
-      continue;
-    }
-
-    if (runtime.rebuild_async_depsgraph) {
-      DEG_graph_build_from_ids(runtime.async_depsgraph, ids);
-      runtime.rebuild_async_depsgraph = false;
-    }
-
-    const int cfra = BKE_scene_frame_get(scene);
-    int eval_frame;
-    if (runtime.evaluated_range.is_empty()) {
-      if (eval_range.contains(cfra)) {
-        eval_frame = cfra;
-      }
-      else if (abs(eval_range.min - cfra) < abs(eval_range.max - cfra)) {
-        eval_frame = eval_range.min;
-      }
-      else {
-        eval_frame = eval_range.max;
-      }
-      runtime.evaluated_range = {cfra, cfra + 1};
-    }
-    else {
-      if (abs(runtime.evaluated_range.min - cfra) < abs(runtime.evaluated_range.max - cfra)) {
-        eval_frame = runtime.evaluated_range.min - 1;
-        runtime.evaluated_range.min -= 1;
-      }
-      else {
-        eval_frame = runtime.evaluated_range.max;
-        runtime.evaluated_range.max += 1;
-      }
-    }
-    DEG_evaluate_on_framechange(runtime.async_depsgraph, eval_frame);
-    Vector<int> finished_ids;
-    for (const int i : runtime.async_eval_ids.index_range()) {
-      bke::AsyncEvalId &off_frame_id = runtime.async_eval_ids[i];
-      ID *eval_id = DEG_get_evaluated_id(runtime.async_depsgraph, off_frame_id.id);
-      if (off_frame_id.callback(*off_frame_id.id, *eval_id, eval_frame)) {
-        finished_ids.append(i);
-      }
-    }
-    while (!finished_ids.is_empty()) {
-      int i = finished_ids.pop_last();
-      runtime.async_eval_ids.remove(i);
-      runtime.rebuild_async_depsgraph = true;
-    }
+    bke::wm_runtime_evaluate_next_frame(runtime, *scene);
 
     /* Doing at most one evaluation even if there are multiple windows. */
     break;

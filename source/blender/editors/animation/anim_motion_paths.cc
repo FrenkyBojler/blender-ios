@@ -435,7 +435,8 @@ static bool update_callback(ID &orig_id, ID &eval_id, const int frame)
   bMotionPath *mpath = ob->mpath;
 
   if (!mpath) {
-    return false;
+    /* If the motion path was deleted, signal that this evaluation can end. */
+    return true;
   }
 
   if ((frame < mpath->start_frame) || (frame >= mpath->end_frame)) {
@@ -471,7 +472,7 @@ void animviz_tag_for_motion_path_eval(wmWindow &window, Object &object)
   for (int i = 0; i < mpath->length; i++) {
     mpath->points[i].flag &= ~MOTIONPATH_VERT_EVALUATED;
   }
-  bke::wm_runtime_register_for_range_eval(
+  bke::wm_runtime_range_eval_register(
       *window.runtime, object.id, {mpath->start_frame, mpath->end_frame}, update_callback);
 }
 
