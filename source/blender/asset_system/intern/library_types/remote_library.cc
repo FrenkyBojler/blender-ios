@@ -29,6 +29,8 @@
 #  include "BPY_extern_run.hh"
 #endif
 
+#include "CLG_log.h"
+
 #include "DNA_asset_types.h"
 #include "DNA_space_enums.h"
 #include "DNA_userdef_types.h"
@@ -46,6 +48,8 @@
 #include "AS_essentials_library.hh"
 #include "AS_remote_library.hh"
 #include "remote_library.hh"
+
+static CLG_LogRef LOG = {"assets.remote_library"};
 
 namespace blender::asset_system {
 
@@ -141,6 +145,97 @@ bool PreferencesRemoteAssetLibrary::is_enabled() const
 /** \} */
 
 /* -------------------------------------------------------------------- */
+/** \name Progress Tracking
+ * \{ */
+
+struct ProgressTracker {
+  bool any_loading = false;
+
+  static ProgressTracker &instance();
+  static void file_requested();
+  static void file_finished(const bContext &C);
+
+  /** Should be called when all downloads finished, successfully or not. */
+  static void on_all_finished(wmWindowManager &wm);
+};
+
+ProgressTracker &ProgressTracker::instance()
+{
+  static ProgressTracker tracker = ProgressTracker{};
+  return tracker;
+}
+
+void ProgressTracker::file_requested()
+{
+  ProgressTracker &tracker = ProgressTracker::instance();
+
+  tracker.any_loading = true;
+}
+
+/* Call into Python to ask the downloader if there are any assets currently downloading. */
+static bool downloader_status_any_asset_downloading(const bContext &C)
+{
+#ifdef WITH_PYTHON
+  constexpr const char *SCRIPT = R"(
+import _bpy_internal.assets.remote_library_listing.asset_downloader as asset_dl
+
+_result = asset_dl.any_asset_downloading()
+  )";
+
+  const std::unique_ptr locals = bke::idprop::create_group("locals");
+
+  std::optional<IDProperty *> any_downloading_idptr =
+      /* TODO Casting away const is annoying. Could pass a context copy instead, but `BPY_run_`
+       * functions don't handle that well yet. */
+      BPY_run_string_exec_with_locals_return_idprop(
+          const_cast<bContext *>(&C), SCRIPT, *locals, "_result");
+  if (!any_downloading_idptr || !*any_downloading_idptr) {
+    CLOG_ERROR(&LOG, "Failed to query downloader status");
+    return false;
+  }
+  if ((*any_downloading_idptr)->type != IDP_BOOLEAN) {
+    CLOG_ERROR(&LOG, "Failed to query downloader status: expected boolean result");
+    return false;
+  }
+
+  const bool any_downloading(IDP_bool_get(*any_downloading_idptr));
+  IDP_FreeProperty(*any_downloading_idptr);
+  return any_downloading;
+#else
+  UNUSED_VARS(C);
+  return false;
+#endif
+}
+
+void ProgressTracker::file_finished(const bContext &C)
+{
+  ProgressTracker &tracker = ProgressTracker::instance();
+
+  /* Whenever a file finishes, update the "any downloading" flag. We call into Python for this, so
+   * by only doing it when a file finishes, we avoid unnecessary calls. */
+  tracker.any_loading = downloader_status_any_asset_downloading(C);
+
+  if (!tracker.any_loading) {
+    ProgressTracker::on_all_finished(*CTX_wm_manager(&C));
+  }
+}
+
+void ProgressTracker::on_all_finished(wmWindowManager &wm)
+{
+  ProgressTracker &tracker = ProgressTracker::instance();
+  tracker.any_loading = false;
+  /* Add notifier so job UIs redraw, and the progress/cancel buttons disappear. */
+  WM_event_add_notifier_ex(&wm, nullptr, NC_WM | ND_JOB, nullptr);
+}
+
+bool remote_library_has_unfinished_asset_downloads()
+{
+  return ProgressTracker::instance().any_loading;
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Remote Library Loading Status
  * \{ */
 
@@ -213,11 +308,13 @@ void RemoteLibraryLoadingStatus::ping_new_preview(const bContext &C,
   ED_preview_online_download_finished(CTX_wm_manager(&C), preview_full_filepath);
 }
 
-void RemoteLibraryLoadingStatus::ping_new_assets(const bContext &C, const StringRef url)
+void RemoteLibraryLoadingStatus::ping_asset_file_download_done(const bContext &C,
+                                                               const StringRef library_url)
 {
   wmWindowManager *wm = CTX_wm_manager(&C);
 
-  ed::asset::list::on_remote_assets_downloaded(*wm, url);
+  ed::asset::list::on_remote_assets_downloaded(*wm, library_url);
+  ProgressTracker::file_finished(C);
 
   /* Redraw drags, they may show some "asset being downloaded" info. */
   if (!BLI_listbase_is_empty(&wm->runtime->drags)) {
@@ -529,6 +626,8 @@ void remote_library_request_asset_download(const bContext &C,
        * asset that Blender's asset browser doesn't know is broken). */
       break;
     }
+
+    ProgressTracker::file_requested();
   }
 #else
   UNUSED_VARS(C, asset);
@@ -599,6 +698,28 @@ void remote_library_request_preview_download(const bContext &C,
   BKE_report(reports,
              RPT_ERROR,
              "Downloading asset previews requires Python, and this Blender is built without");
+#endif
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Download Cancelling
+ * \{ */
+
+void remote_library_cancel_all_asset_downloads(bContext &C)
+{
+#ifdef WITH_PYTHON
+  std::string script =
+      "import _bpy_internal.assets.remote_library_listing.asset_downloader as asset_dl\n"
+      "\n"
+      "asset_dl.cancel_download_all_assets()\n";
+
+  std::unique_ptr locals = bke::idprop::create_group("locals");
+  BPY_run_string_exec_with_locals(&C, script, *locals);
+  ProgressTracker::on_all_finished(*CTX_wm_manager(&C));
+#else
+  UNUSED_VARS(C);
 #endif
 }
 
