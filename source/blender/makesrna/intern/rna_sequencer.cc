@@ -3960,22 +3960,19 @@ static void rna_def_text(StructRNA *srna)
   RNA_def_property_ui_range(prop, 0.0f, 10.0f, 1.0f, 1);
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
 
-    prop = RNA_def_property(srna, "abs_space_line", PROP_FLOAT, PROP_UNSIGNED);
+  prop = RNA_def_property(srna, "abs_space_line", PROP_FLOAT, PROP_UNSIGNED);
   RNA_def_property_float_sdna(prop, nullptr, "abs_space_line");
-  RNA_def_property_ui_text(prop, "Absolute Line Spacing", "Distance between lines of text regardless of text size");
+  RNA_def_property_ui_text(prop, "Absolute Line Spacing", "Distance between lines in pixels");
+  RNA_def_property_subtype(prop, PROP_PIXEL);
   RNA_def_property_range(prop, 0.0, 5000.0f);
   RNA_def_property_ui_range(prop, 0.0f, 500.0f, 1.0f, 1);
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
 
   prop = RNA_def_property(srna, "use_absolute_line_spacing", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(
-      prop, nullptr, "flag", SEQ_TEXT_USE_ABSOLUTE_LINE_SPACING);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", SEQ_TEXT_USE_ABSOLUTE_LINE_SPACING);
   RNA_def_property_ui_text(
-      prop,
-      "Absolute Line Spacing",
-      "Use absolute line spacing instead of relative spacing");
-  RNA_def_property_update(
-      prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
+      prop, "Absolute Line Spacing", "Use absolute line spacing instead of relative spacing");
+  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
 
   prop = RNA_def_property(srna, "color", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_float_sdna(prop, nullptr, "color");

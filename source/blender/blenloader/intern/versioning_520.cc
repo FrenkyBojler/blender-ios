@@ -643,7 +643,7 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 28)) {
     version_text_strip_space_line(*bmain);
   }
-    if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 29)) {
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 29)) {
     version_text_strip_abs_space_line(*bmain);
   }
 
