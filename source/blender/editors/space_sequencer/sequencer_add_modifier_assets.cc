@@ -249,7 +249,7 @@ static wmOperatorStatus strip_modifier_add_asset_exec(bContext *C, wmOperator *o
     return OPERATOR_CANCELLED;
   }
 
-  SequencerCompositorModifierData *cmd = reinterpret_cast<SequencerCompositorModifierData *>(
+  auto *cmd = reinterpret_cast<SequencerCompositorModifierData *>(
       seq::modifier_new(strip, nullptr, eSeqModifierType_Compositor));
   if (!cmd) {
     return OPERATOR_CANCELLED;
