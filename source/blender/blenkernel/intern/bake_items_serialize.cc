@@ -4,6 +4,7 @@
 
 #include "BKE_anonymous_attribute_id.hh"
 #include "BKE_attribute_legacy_convert.hh"
+#include "BKE_bake_attribute_field.hh"
 #include "BKE_bake_items_serialize.hh"
 #include "BKE_curves.hh"
 #include "BKE_customdata.hh"
@@ -1725,19 +1726,17 @@ static std::optional<SocketValueVariant> deserialize_bake_item(const DictionaryV
     if (!name) {
       return {};
     }
-    std::optional<StringRefNull> type = io_attribute->lookup_str("data_type");
-    if (!type) {
-      return {};
+    const CPPType *field_cpp_type = nullptr;
+    if (const std::optional<StringRefNull> type = io_attribute->lookup_str("data_type")) {
+      if (const std::optional<eCustomDataType> data_type = get_data_type_from_io_name(*type)) {
+        field_cpp_type = custom_data_type_to_cpp_type(*data_type);
+      }
     }
-    const std::optional<eCustomDataType> data_type = get_data_type_from_io_name(*type);
-    if (!data_type) {
-      return {};
+    if (field_cpp_type) {
+      return SocketValueVariant::From(AttributeFieldInput::from(*name, *field_cpp_type));
     }
-    const CPPType *cpp_type = custom_data_type_to_cpp_type(*data_type);
-    if (!cpp_type) {
-      return {};
-    }
-    return SocketValueVariant::From(AttributeFieldInput::from(*name, *cpp_type));
+    return SocketValueVariant::From(
+        fn::GField::from_input<DeferredTypeAttributeFieldInput>(*name));
   }
 #ifdef WITH_OPENVDB
   if (*state_item_type == StringRef("GRID")) {

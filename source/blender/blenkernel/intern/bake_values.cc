@@ -5,6 +5,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BKE_anonymous_attribute_make.hh"
+#include "BKE_bake_attribute_field.hh"
 #include "BKE_bake_values.hh"
 #include "BKE_curves.hh"
 #include "BKE_geometry_fields.hh"
@@ -13,8 +14,8 @@
 #include "BKE_mesh_types.hh"
 #include "BKE_node.hh"
 #include "BKE_pointcloud.hh"
-
 #include "BKE_volume.hh"
+
 #include "DNA_curves_types.h"
 #include "DNA_grease_pencil_types.h"
 #include "DNA_mesh_types.h"
@@ -409,9 +410,20 @@ class BakeToRuntimeValue {
         const StringRef bake_attribute_name = attribute_field->attribute_name();
         if (bake_attribute_name.startswith(anonymous_bake_attribute_prefix)) {
           std::string anonymous_attribute_name = this->get_anonymous_attribute_name(
-              attribute_field->attribute_name());
+              bake_attribute_name);
           value_variant.set(AttributeFieldInput::from(std::move(anonymous_attribute_name),
                                                       attribute_field->cpp_type()));
+        }
+      }
+      if (const auto *attribute_field = field.get_input_if<DeferredTypeAttributeFieldInput>()) {
+        const StringRef bake_attribute_name = attribute_field->attribute_name;
+        if (bake_attribute_name.startswith(anonymous_bake_attribute_prefix)) {
+          std::string anonymous_attribute_name = this->get_anonymous_attribute_name(
+              bake_attribute_name);
+          // TODO: Find an attribute with the same name and get its type.
+          const CPPType &cpp_type = CPPType::get<float>();
+          value_variant.set(
+              AttributeFieldInput::from(std::move(anonymous_attribute_name), cpp_type));
         }
       }
       return;
