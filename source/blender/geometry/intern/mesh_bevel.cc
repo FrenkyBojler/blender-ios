@@ -240,6 +240,26 @@ class ExtendableMesh {
     }
   }
 
+  /* Override the `uv_seam` attribute for a new edge, independent of its example edge.
+   * `value` = 0 → force false, 1 → force true.  -1 (default) = inherit from example.
+   * Applied after attribute gathering in #build_output_mesh. */
+  void edge_set_seam_override(const int edge_index, int8_t value)
+  {
+    const int new_idx = edge_index - mesh.edges_num;
+    if (new_idx >= 0 && new_idx < int(new_edge_seam_overrides_.size())) {
+      new_edge_seam_overrides_[new_idx] = value;
+    }
+  }
+
+  /* Override the `sharp_edge` attribute for a new edge, independent of its example edge. */
+  void edge_set_sharp_override(const int edge_index, int8_t value)
+  {
+    const int new_idx = edge_index - mesh.edges_num;
+    if (new_idx >= 0 && new_idx < int(new_edge_sharp_overrides_.size())) {
+      new_edge_sharp_overrides_[new_idx] = value;
+    }
+  }
+
   /* Allocates per-UV-layer float2 storage for new corners.  Must be called after
    * UVLayerInfo is initialized and before any face_create call. */
   void init_uv_storage(int uv_layers_num);
@@ -341,6 +361,14 @@ class ExtendableMesh {
   {
     return new_edge_examples_;
   }
+  Span<int8_t> new_edge_seam_overrides() const
+  {
+    return new_edge_seam_overrides_;
+  }
+  Span<int8_t> new_edge_sharp_overrides() const
+  {
+    return new_edge_sharp_overrides_;
+  }
   Span<int> new_face_examples() const
   {
     return new_face_examples_;
@@ -386,6 +414,9 @@ class ExtendableMesh {
   /* Representative original element indices for attribute propagation (-1 = unknown). */
   Vector<int> new_vert_examples_;
   Vector<int> new_edge_examples_;
+  /* Per-new-edge seam/sharp overrides: -1=inherit, 0=force false, 1=force true. */
+  Vector<int8_t> new_edge_seam_overrides_;
+  Vector<int8_t> new_edge_sharp_overrides_;
   Vector<int> new_face_examples_;
   Vector<int> new_corner_examples_;
 
@@ -545,6 +576,8 @@ int ExtendableMesh::edge_create(const int v1, const int v2, const int example_ed
   const int index = mesh.edges_num + new_edges_.size();
   new_edges_.append(int2(v1, v2));
   new_edge_examples_.append(example_edge);
+  new_edge_seam_overrides_.append(-1);
+  new_edge_sharp_overrides_.append(-1);
   edge_lookup_.add_new(key, index);
   return index;
 }
@@ -4829,6 +4862,11 @@ static int bev_rebuild_polygon(BevelState &state, const int f_idx)
                            * For VMesh arc vertices this equals bv->v (the original beveled
                            * vertex whose VMesh produced the arc). Used to identify the
                            * best-matching original edge example for each rebuilt edge. */
+  Vector<int, 32> orig_e; /* Original edge example for the segment from vv[i] to vv[i+1].
+                           * Mirrors BMesh's `ee[]` array in #bev_rebuild_polygon.
+                           * For arc edges within a beveled vertex, this is the original beveled
+                           * edge (e->e). For non-beveled vertex edges, this is the face loop's
+                           * edge (e_prev_idx). -1 if no suitable example is known. */
 
   const int sz = int(corners.size());
   for (int ci = 0; ci < sz; ci++) {
@@ -4845,6 +4883,10 @@ static int bev_rebuild_polygon(BevelState &state, const int f_idx)
       EdgeHalf *e = find_edge_half_for_edge(bv, e_idx);
       EdgeHalf *eprev = find_edge_half_for_edge(bv, e_prev_idx);
       BLI_assert(e && eprev);
+
+      /* The original beveled edge used as the example for arc segments,
+       * matching BMesh's `bme = e->e` and `ee.append(bme)`. */
+      const int bme = e->e;
 
       /* Determine CCW vs CW traversal (matching BMesh go_ccw logic). */
       bool go_ccw;
@@ -4882,6 +4924,7 @@ static int bev_rebuild_polygon(BevelState &state, const int f_idx)
       /* Emit the starting corner vertex. */
       vv.append(geom::mesh_vert(vm, vstart->index, 0, 0)->v);
       orig_v.append(bv->v);
+      orig_e.append(bme);
 
       BoundVert *v = vstart;
       while (v != vend) {
@@ -4892,6 +4935,7 @@ static int bev_rebuild_polygon(BevelState &state, const int f_idx)
             if (nv >= 0) {
               vv.append(nv);
               orig_v.append(bv->v);
+              orig_e.append(bme);
             }
           }
           v = v->next;
@@ -4903,6 +4947,7 @@ static int bev_rebuild_polygon(BevelState &state, const int f_idx)
             if (nv >= 0) {
               vv.append(nv);
               orig_v.append(bv->v);
+              orig_e.append(bme);
             }
           }
           v = v->prev;
@@ -4914,33 +4959,110 @@ static int bev_rebuild_polygon(BevelState &state, const int f_idx)
       /* Non-beveled vertex: keep as-is. */
       vv.append(v_idx);
       orig_v.append(v_idx);
+      orig_e.append(e_idx);
     }
   }
 
   if (do_rebuild && vv.size() >= 3) {
-    /* Pre-create edges with representative original edge examples so that face_create's
-     * internal edge_create calls inherit the correct example via the dedup lookup.
-     * - "Complete" case: both orig_v entries are original vertices → find the original edge.
-     * - "Partial" case: one or both are VMesh arc endpoints → find the original edge between
-     *   the two representative original vertices (bv->v or the original vertex). */
+    /* Pre-create edges with example original edges so that face_create's internal
+     * edge_create calls inherit the correct example via the dedup lookup.
+     * Only needed for cross-vertex edges (ov_a != ov_b). */
     const int n = int(vv.size());
     for (int i = 0; i < n; i++) {
       const int ov_a = orig_v[i];
       const int ov_b = orig_v[(i + 1) % n];
-      if (ov_a == ov_b) {
-        /* Both vv entries came from the same beveled vertex's VMesh arc; no original
-         * edge spans this arc segment — leave example as -1. */
-        continue;
-      }
-      /* Look for an original edge between ov_a and ov_b. */
-      const int example_edge = emesh.find_edge(ov_a, ov_b);
-      if (example_edge >= 0 && example_edge < emesh.mesh.edges_num) {
-        state.emesh.edge_create(vv[i], vv[(i + 1) % n], example_edge);
+      if (ov_a != ov_b) {
+        const int example_edge = emesh.find_edge(ov_a, ov_b);
+        if (example_edge >= 0 && example_edge < emesh.mesh.edges_num) {
+          state.emesh.edge_create(vv[i], vv[(i + 1) % n], example_edge);
+        }
       }
     }
 
     const int new_face_idx = state.emesh.face_create(vv.as_span(), f_idx);
-    /* TODO: copy seam/sharp edge attributes to the new face's edges. */
+
+    /* Post-hoc: set example edges for ALL rebuilt edges, mirroring BMesh's
+     * `BM_elem_attrs_copy(bm, ee[k], bme_new)` in #bev_rebuild_polygon.
+     * This is necessary because arc edges within a beveled vertex's boundary ring
+     * may already have been created (during vertex mesh construction) with example=-1.
+     * The edge_set_example call overwrites the example, propagating attributes like
+     * bevel_weight_edge and uv_seam from the original beveled edge. */
+    for (int i = 0; i < n; i++) {
+      const int ov_a = orig_v[i];
+      const int ov_b = orig_v[(i + 1) % n];
+      int example_edge;
+      if (ov_a != ov_b) {
+        example_edge = emesh.find_edge(ov_a, ov_b);
+        if (example_edge < 0 || example_edge >= emesh.mesh.edges_num) {
+          example_edge = -1;
+        }
+      }
+      else {
+        /* Arc edge within the same beveled vertex: use orig_e (the beveled edge). */
+        example_edge = orig_e[i];
+      }
+      if (example_edge >= 0) {
+        const int new_edge = state.emesh.find_edge(vv[i], vv[(i + 1) % n]);
+        if (new_edge >= 0) {
+          state.emesh.edge_set_example(new_edge, example_edge);
+        }
+      }
+    }
+
+    /* Corner-segment seam/sharp fixup, matching BMesh's #bev_rebuild_polygon (lines 7316-7332).
+     * When consecutive edges in the rebuilt face share the same original edge (i.e. they are
+     * adjacent arc segments within the same beveled vertex), undo seam/sharp if it is not
+     * contiguous with the previous original edge in the face ring.
+     *
+     * Specifically: if orig_e[k] == orig_e[k+1] (corner segment), and orig_e[k] has seam=True
+     * but the previous *different* original edge (bme_prev) does NOT, then clear seam on the
+     * new edge.  This prevents arc edges from spuriously inheriting seam from the beveled edge
+     * when the seam is not supposed to continue around that side of the vertex. */
+    {
+      const bke::AttributeAccessor src_attrs_check = emesh.mesh.attributes();
+      const bke::AttributeReader<bool> seam_reader = src_attrs_check.lookup<bool>(
+          "uv_seam", bke::AttrDomain::Edge);
+      const bke::AttributeReader<bool> sharp_reader = src_attrs_check.lookup<bool>(
+          "sharp_edge", bke::AttrDomain::Edge);
+
+      auto orig_has_seam = [&](int e_idx) -> bool {
+        if (!seam_reader || e_idx < 0 || e_idx >= int(emesh.mesh.edges_num)) {
+          return false;
+        }
+        return bool(seam_reader.varray[e_idx]);
+      };
+      auto orig_has_sharp = [&](int e_idx) -> bool {
+        if (!sharp_reader || e_idx < 0 || e_idx >= int(emesh.mesh.edges_num)) {
+          return false;
+        }
+        return bool(sharp_reader.varray[e_idx]);
+      };
+
+      int bme_prev_idx = orig_e[(n - 1) % n];
+      for (int k = 0; k < n; k++) {
+        const int oe_k = orig_e[k];
+        const int new_edge = state.emesh.find_edge(vv[k], vv[(k + 1) % n]);
+        if (new_edge < 0 || oe_k < 0) {
+          bme_prev_idx = oe_k;
+          continue;
+        }
+
+        if (k < n - 1 && oe_k == orig_e[k + 1]) {
+          /* Corner segment: oe_k == oe_{k+1}. */
+          if (orig_has_seam(oe_k) && !orig_has_seam(bme_prev_idx)) {
+            state.emesh.edge_set_seam_override(new_edge, 0);
+          }
+          /* For sharp: reverse test (smooth flag is inverted relative to sharp). */
+          if (orig_has_sharp(oe_k) && !orig_has_sharp(bme_prev_idx)) {
+            state.emesh.edge_set_sharp_override(new_edge, 0);
+          }
+        }
+        else {
+          bme_prev_idx = oe_k;
+        }
+      }
+    }
+
     return new_face_idx;
   }
   return -1;
@@ -5062,18 +5184,24 @@ static void bevel_build_edge_polygons(BevelState &state, int edge_index)
   VMesh *vm2 = bv2->vmesh.get();
 
   /* The two adjacent original faces for this edge.
-   * Strips on the left half  (k <= mid) use f1; strips on the right half use f2.
-   * When nseg is odd, the center strip (k == mid+1) is the tie-break case. */
+   * Strips on the left half (k <= mid) use f1; strips on the right half use f2. */
   const int f1 = e1->fprev; /* -1 on a boundary edge. */
   const int f2 = e1->fnext; /* -1 on a boundary edge. */
-  const int mid = nseg / 2;
-  const bool odd_nseg = (nseg % 2) != 0;
 
-  /* For odd nseg with a seam at e1, choose the winner once via choose_rep_face. */
-  int f_choice = f1;
-  if (odd_nseg && e1->is_seam) {
+  const int odd = nseg % 2;
+  const int mid = nseg / 2;
+
+  /* For odd nseg with a seam at e1, choose the winner once via #choose_rep_face.
+   * Also compute center_adj_k: the strip index adjacent to the center strip,
+   * on the other UV-island side.  This mirrors BMesh exactly. */
+  int f_choice = -1;
+  int center_adj_k = -1;
+  if (odd && e1->is_seam) {
     const int candidates[2] = {f1, f2};
     f_choice = choose_rep_face(state, Span<int>(candidates, 2));
+    if (nseg > 1) {
+      center_adj_k = (f_choice == f1) ? mid + 2 : mid;
+    }
   }
 
   /* Starting vertices at k=0 on bv1's end and k=nseg on bv2's end.
@@ -5092,29 +5220,19 @@ static void bevel_build_edge_polygons(BevelState &state, int edge_index)
     const int v_next_2 = geom::mesh_vert(vm2, i2, 0, nseg - k)->v; /* v3 in BMesh diagram. */
 
     /* Choose face rep and per-corner face reps / snap edges, mirroring BMesh's
-     * #bevel_build_edge_polygons (lines 7580–7640 of bmesh_bevel.cc).
+     * #bevel_build_edge_polygons exactly.
      *
-     * The quad winds:  [0]=v_prev_1, [1]=v_prev_2, [2]=v_next_2, [3]=v_next_1.
-     * verts[0]/[1] are on the bv1/bv2 side of the previous strip boundary;
-     * verts[2]/[3] are on the bv2/bv1 side of the next strip boundary.
-     *
-     * Strip regions (k=1..nseg):
-     *   k <= mid           → entirely in f1 (left face), no snap
-     *   k >  mid+1         → entirely in f2 (right face), no snap
-     *   k == mid+1, odd    → straddles the center:
-     *     is_seam: all verts use f_choice, verts on the non-chosen side snap to bme
-     *     no seam: verts[0],[1] use f1, verts[2],[3] use f2, no snap
-     *   k == mid, even     → left strip touching center: verts[2],[3] snap to bme, use f1
-     *   k == mid+1, even   → right strip touching center: verts[0],[1] snap to bme, use f2
-     */
+     * The quad winds:  [0]=v_prev_1, [1]=v_prev_2, [2]=v_next_2, [3]=v_next_1. */
     int face_rep;
     int corner_reps[4] = {-1, -1, -1, -1};
     int corner_snaps[4] = {-1, -1, -1, -1};
 
-    if (odd_nseg && k == mid + 1) {
-      face_rep = f_choice;
+    if (odd && k == mid + 1) {
+      /* Center strip of an odd-segment bevel. */
       if (e1->is_seam) {
-        /* Straddles a seam: snap verts on the non-chosen side to the original beveled edge. */
+        /* Straddles a seam: interpolate in f_choice and snap the verts on
+         * the non-chosen side to bme for interpolation purposes. */
+        face_rep = f_choice;
         if (f_choice == f1) {
           corner_snaps[2] = corner_snaps[3] = edge_index;
         }
@@ -5125,22 +5243,36 @@ static void bevel_build_edge_polygons(BevelState &state, int edge_index)
       }
       else {
         /* Straddles but not a seam: interpolate left half in f1, right half in f2.
-         * Mirrors BMesh's `faces[4] = {f1, f1, f2, f2}` approach (bmesh_bevel.cc line 7548). */
+         * f_choice is -1 here; face_rep uses f1 but per-corner reps override it. */
+        face_rep = f1;
         corner_reps[0] = corner_reps[1] = f1;
         corner_reps[2] = corner_reps[3] = f2;
       }
     }
-    else if (!odd_nseg && k == mid && e1->is_seam) {
-      /* Left strip touching even center line on its right edge: snap right verts. */
+    else if (odd && k == center_adj_k && e1->is_seam) {
+      /* The strip adjacent to the center one, in another UV island.
+       * Snap the edge near the seam to bme to match what happens in the bevel rings. */
+      if (k == mid) {
+        face_rep = f1;
+        corner_snaps[2] = corner_snaps[3] = edge_index;
+      }
+      else {
+        face_rep = f2;
+        corner_snaps[0] = corner_snaps[1] = edge_index;
+      }
+    }
+    else if (!odd && k == mid) {
+      /* Left poly that touches an even center line on right. */
       face_rep = f1;
       corner_snaps[2] = corner_snaps[3] = edge_index;
     }
-    else if (!odd_nseg && k == mid + 1 && e1->is_seam) {
-      /* Right strip touching even center line on its left edge: snap left verts. */
+    else if (!odd && k == mid + 1) {
+      /* Right poly that touches an even center line on left. */
       face_rep = f2;
       corner_snaps[0] = corner_snaps[1] = edge_index;
     }
     else {
+      /* Doesn't cross or touch the center line, so interpolate in appropriate f1 or f2. */
       face_rep = (k <= mid) ? f1 : f2;
     }
 
@@ -5186,16 +5318,13 @@ static void bevel_build_edge_polygons(BevelState &state, int edge_index)
     }
 #endif
 
-    /* TODO: record F_EDGE face kind and copy edge attributes (seam/sharp),
-     * matching bev_create_ngon / record_face_kind / BM_elem_attrs_copy. */
-
     v_prev_1 = v_next_1;
     v_prev_2 = v_next_2;
   }
 
   /* Copy edge attributes to the first and last "long" edges of the strip (those that run
-   * parallel to the original beveled edge), mirroring BMesh's #bevel_build_edge_polygons
-   * post-loop BM_elem_attrs_copy calls on bme1/bme2.
+   * parallel to the original beveled edge), mirroring BMesh's post-loop
+   * `BM_elem_attrs_copy(bm, bme, bme1)` / `BM_elem_attrs_copy(bm, bme, bme2)`.
    * After the loop: v_prev_1 = v4, v_prev_2 = v3 (BMesh diagram).
    * The first outer edge is between v1 (v_bme1) and v2 (v_bme2).
    * The last outer edge is between v3 (v_prev_2) and v4 (v_prev_1). */
@@ -5208,8 +5337,53 @@ static void bevel_build_edge_polygons(BevelState &state, int edge_index)
     state.emesh.edge_set_example(outer_edge2, edge_index);
   }
 
-  /* TODO: implement weld-cross edge attribute continuity (weld_cross_attrs_copy). */
-  (void)bevvert_is_weld_cross;
+  /* If either end is a "weld cross", want continuity of edge attributes across
+   * the boundary arc edges.  Mirrors BMesh's #weld_cross_attrs_copy:
+   * For a weld-cross vertex (4 edges, 2 beveled, the beveled pair opposite each other),
+   * find the adjacent non-beveled edges (bme_prev, bme_next).  If their seam status
+   * disagrees, clear seam on all arc edges.  Then set the example for each arc edge
+   * to bme_prev so that other attributes (bevel weight, sharp, etc.) propagate. */
+  auto weld_cross_attrs_copy = [&](BevVert *bv, VMesh *vm, int vmindex, EdgeHalf *e) {
+    int e_prev = -1;
+    int e_next = -1;
+    for (int i = 0; i < 4; i++) {
+      if (&bv->edges[i] == e) {
+        e_prev = bv->edges[(i + 3) % 4].e;
+        e_next = bv->edges[(i + 1) % 4].e;
+        break;
+      }
+    }
+    BLI_assert(e_prev >= 0 && e_next >= 0);
+
+    /* Want seams to cross only if that way on both sides.
+     * Look up the `uv_seam` edge attribute via the attribute API. */
+    const bke::AttributeAccessor attrs = emesh.mesh.attributes();
+    const bke::AttributeReader<bool> seam_reader = attrs.lookup<bool>("uv_seam",
+                                                                      bke::AttrDomain::Edge);
+    const bool prev_seam = seam_reader ? bool(seam_reader.varray[e_prev]) : false;
+    const bool next_seam = seam_reader ? bool(seam_reader.varray[e_next]) : false;
+    const bool disable_seam = (prev_seam != next_seam);
+
+    for (int i = 0; i < nseg; i++) {
+      const int va = geom::mesh_vert(vm, vmindex, 0, i)->v;
+      const int vb = geom::mesh_vert(vm, vmindex, 0, i + 1)->v;
+      const int arc_edge = state.emesh.find_edge(va, vb);
+      if (arc_edge >= 0) {
+        state.emesh.edge_set_example(arc_edge, e_prev);
+        /* TODO: if disable_seam is true, the seam attribute on the arc edge should be
+         * cleared after attribute propagation.  This requires post-processing support
+         * not yet available.  Similarly for enable_smooth (sharp disagree). */
+        (void)disable_seam;
+      }
+    }
+  };
+
+  if (bevvert_is_weld_cross(bv1)) {
+    weld_cross_attrs_copy(bv1, vm1, i1, e1);
+  }
+  if (bevvert_is_weld_cross(bv2)) {
+    weld_cross_attrs_copy(bv2, vm2, i2, e2);
+  }
 }
 
 /** \} */
@@ -7082,6 +7256,107 @@ static void merge_uvs(BevelState &state)
   }
 }
 
+/* Extend edge data (seam, sharp, bevel_weight) to boundary arc edges.
+ * Mirrors BMesh's #bevel_extend_edge_data / #bevel_extend_edge_data_ex.
+ *
+ * For each BevVert, walk the BoundVert ring.  When a BoundVert has seam_len > 0
+ * (or sharp_len > 0), the boundary arc edges for the next `seam_len` BoundVerts
+ * need to be marked.  We do this by setting their example edge to the original
+ * beveled edge that has the corresponding property (seam, bevel_weight, etc.).
+ *
+ * BMesh does this by directly setting BM_ELEM_SEAM / BM_ELEM_SMOOTH flags.
+ * In the GN system, we use edge_set_example to propagate all edge attributes
+ * from the original edge that carries the flag. */
+static void bevel_extend_edge_data(BevelState &state)
+{
+  for (auto bv_entry : state.vert_hash.items()) {
+    BevVert *bv = bv_entry.value;
+    if (!bv || !bv->vmesh) {
+      continue;
+    }
+    VMesh *vm = bv->vmesh.get();
+    if (vm->mesh_kind == MeshKind::TRI_FAN || bv->selcount < 2) {
+      continue;
+    }
+
+    /* Find an original edge with the seam property to use as example.
+     * This is the edge e such that e->rightv == bcur (the BoundVert with seam_len > 0).
+     * In #check_edge_data_seam_sharp_edges, seam_len is set on e->rightv,
+     * where e is the EdgeHalf that HAS the seam property.  So the example edge is e->e. */
+    auto find_example_edge_for_flag = [&](BoundVert *bcur, bool is_seam_flag) -> int {
+      for (int ei = 0; ei < bv->edgecount; ei++) {
+        EdgeHalf *eh = &bv->edges[ei];
+        if (eh->rightv == bcur) {
+          return eh->e;
+        }
+      }
+      (void)is_seam_flag;
+      return -1;
+    };
+
+    /* Helper: walk boundary arcs from `bcur` for `extend_len` BoundVerts,
+     * setting the example edge on each arc and spoke edge. */
+    auto extend_arcs = [&](BoundVert *&bcur, int extend_len, int example) {
+      const int idx_end = bcur->index + extend_len;
+      for (int i = bcur->index; i < idx_end; i++) {
+        for (int k = 0; k < vm->seg; k++) {
+          const int va = geom::mesh_vert(vm, i % vm->count, 0, k)->v;
+          const int vb = geom::mesh_vert(vm, i % vm->count, 0, k + 1)->v;
+          if (va >= 0 && vb >= 0) {
+            const int arc_edge = state.emesh.find_edge(va, vb);
+            if (arc_edge >= 0 && example >= 0) {
+              state.emesh.edge_set_example(arc_edge, example);
+            }
+          }
+        }
+        const int va = geom::mesh_vert(vm, i % vm->count, 0, vm->seg)->v;
+        const int vb = geom::mesh_vert(vm, (i + 1) % vm->count, 0, 0)->v;
+        if (va >= 0 && vb >= 0) {
+          const int spoke_edge = state.emesh.find_edge(va, vb);
+          if (spoke_edge >= 0 && example >= 0) {
+            state.emesh.edge_set_example(spoke_edge, example);
+          }
+        }
+        bcur = bcur->next;
+      }
+    };
+
+    /* Process seam extension. */
+    BoundVert *bcur = vm->boundstart;
+    BoundVert *start = bcur;
+    do {
+      const int extend_len = bcur->seam_len;
+      if (extend_len > 0) {
+        if (!vm->boundstart->seam_len && start == vm->boundstart) {
+          start = bcur;
+        }
+        const int example = find_example_edge_for_flag(bcur, true);
+        extend_arcs(bcur, extend_len, example);
+      }
+      else {
+        bcur = bcur->next;
+      }
+    } while (bcur != start);
+
+    /* Process sharp extension (analogous, using sharp_len). */
+    bcur = vm->boundstart;
+    start = bcur;
+    do {
+      const int extend_len = bcur->sharp_len;
+      if (extend_len > 0) {
+        if (!vm->boundstart->sharp_len && start == vm->boundstart) {
+          start = bcur;
+        }
+        const int example = find_example_edge_for_flag(bcur, false);
+        extend_arcs(bcur, extend_len, example);
+      }
+      else {
+        bcur = bcur->next;
+      }
+    } while (bcur != start);
+  }
+}
+
 static std::optional<Mesh *> build_output_mesh(const BevelState &state)
 {
   const ExtendableMesh &emesh = state.emesh;
@@ -7265,6 +7540,37 @@ static std::optional<Mesh *> build_output_mesh(const BevelState &state)
                            geom_filter,
                            src_for_dst,
                            dst_attrs);
+
+    /* Apply per-edge seam/sharp overrides, matching BMesh's post-copy fixup
+     * that undoes seam/smooth on corner segments where those flags are not contiguous.
+     * Only apply if the attribute already exists (created by gather_attributes above). */
+    {
+      bke::MutableAttributeAccessor mut_attrs = dst->attributes_for_write();
+      bke::SpanAttributeWriter<bool> seam_writer = mut_attrs.lookup_for_write_span<bool>(
+          "uv_seam");
+      if (seam_writer) {
+        MutableSpan<bool> seam_span = seam_writer.span;
+        for (const int ni : IndexRange(n_new_edges)) {
+          const int8_t ov = emesh.new_edge_seam_overrides()[ni];
+          if (ov >= 0) {
+            seam_span[n_surv_edges + ni] = (ov == 1);
+          }
+        }
+        seam_writer.finish();
+      }
+      bke::SpanAttributeWriter<bool> sharp_writer = mut_attrs.lookup_for_write_span<bool>(
+          "sharp_edge");
+      if (sharp_writer) {
+        MutableSpan<bool> sharp_span = sharp_writer.span;
+        for (const int ni : IndexRange(n_new_edges)) {
+          const int8_t ov = emesh.new_edge_sharp_overrides()[ni];
+          if (ov >= 0) {
+            sharp_span[n_surv_edges + ni] = (ov == 1);
+          }
+        }
+        sharp_writer.finish();
+      }
+    }
   }
 
   /* 7c. Face domain: surviving original faces then new faces. */
@@ -7429,7 +7735,7 @@ std::optional<Mesh *> mesh_bevel(
 #endif
   }
 
-  /* TODO: bevel_extend_edge_data (sharp/seam propagation). */
+  construct::bevel_extend_edge_data(state);
 
   return construct::build_output_mesh(state);
 }
