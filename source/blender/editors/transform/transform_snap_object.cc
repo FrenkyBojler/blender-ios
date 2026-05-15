@@ -507,7 +507,7 @@ static eSnapMode iter_snap_objects(SnapObjectContext *sctx, IterSnapObjsCallback
   Scene *scene = DEG_get_input_scene(sctx->runtime.depsgraph);
   ViewLayer *view_layer = DEG_get_input_view_layer(sctx->runtime.depsgraph);
   const eSnapTargetOP snap_target_select = sctx->runtime.params.snap_target_select;
-  BKE_view_layer_synced_ensure(scene, view_layer);
+  BKE_view_layer_synced_ensure(*DEG_get_bmain(sctx->runtime.depsgraph), scene, view_layer);
   Base *base_act = BKE_view_layer_active_base_get(view_layer);
 
   DupliList duplilist;
@@ -983,6 +983,9 @@ static eSnapMode snap_obj_fn(SnapObjectContext *sctx,
     case OB_ARMATURE:
       retval = snapArmature(sctx, ob_eval, obmat, is_object_active);
       break;
+    case OB_LATTICE:
+      retval = snapLattice(sctx, ob_eval, obmat);
+      break;
     case OB_CURVES_LEGACY:
     case OB_SURF:
       if (ob_eval->type == OB_CURVES_LEGACY || BKE_object_is_in_editmode(ob_eval)) {
@@ -998,6 +1001,8 @@ static eSnapMode snap_obj_fn(SnapObjectContext *sctx,
       break;
     case OB_CAMERA:
       retval = snapCamera(sctx, ob_eval, obmat, sctx->runtime.snap_to_flag);
+      break;
+    default:
       break;
   }
 

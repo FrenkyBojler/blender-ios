@@ -51,6 +51,14 @@ logger = logging.getLogger(__name__)
 # is used.
 HTTP_CACHEBUST_RESOLUTION_SEC = 60
 
+# JSON files that are larger than this size will not be parsed. This prevents a
+# malicious server from effectively DOSsing Blender by sending it a huge JSON file.
+#
+# This is the size in MiB. The largest files in the remote asset listing are the
+# `assets-{number}.json` files. The server determines how large they are, but
+# typically they are in the order of 1 MB.
+MAX_JSON_FILE_SIZE_MB = 64
+
 
 class RemoteAssetListingLocator:
     """Construct paths for various components of a remote asset library.
@@ -264,6 +272,7 @@ class RemoteAssetListingDownloader:
                     'X-Blender': "{:d}.{:d}".format(*bpy.app.version),
                 },
                 timeout=300,
+                max_disk_size_bytes=MAX_JSON_FILE_SIZE_MB * 1024 * 1024,
             ),
             on_callback_error=self._on_callback_error,
         )
@@ -532,7 +541,8 @@ class RemoteAssetListingDownloader:
     def _shutdown_if_done(self) -> None:
         if self._num_asset_pages_pending == 0 and self._bg_downloader.all_downloads_done:
             # Done downloading everything, let's shut down.
-            self.shutdown(DownloadStatus.FINISHED_SUCCESSFULLY)
+            self._status = DownloadStatus.FINISHED_SUCCESSFULLY
+            self.shutdown()
 
     @staticmethod
     def _cache_bust_stamp(*, _mocked_now: _datetime | None = None) -> int:
@@ -588,6 +598,11 @@ class RemoteAssetListingDownloader:
             used_unsafe_file = False
 
         logger.info("Validating %s", path_to_load)
+
+        if path_to_load.stat().st_size > MAX_JSON_FILE_SIZE_MB * 1024 * 1024:
+            raise ValueError("{!s} is larger than {:d} MiB, rejecting the file to prevent memory issues".format(
+                path_to_load, MAX_JSON_FILE_SIZE_MB))
+
         json_data = path_to_load.read_bytes()
         parsed_data = self._parser.parse_and_validate(api_model, json_data)
 
@@ -617,7 +632,8 @@ class RemoteAssetListingDownloader:
             "exception while handling downloaded file ({!r}, saved to {!r})".format(
                 http_req_descr, local_file))
         self.report({'ERROR'}, "Asset library index had an issue, download aborted")
-        self.shutdown(DownloadStatus.FAILED)
+        self._status = DownloadStatus.FAILED
+        self.shutdown()
 
     def _queue_download(
         self,
@@ -646,10 +662,18 @@ class RemoteAssetListingDownloader:
         if 'ERROR' in level:
             self._error_message = message
 
-    def shutdown(self, status: DownloadStatus) -> None:
-        """Stop the background downloader, update the status and call the 'done' callback."""
+    def cancel_and_shutdown(self) -> None:
+        """Cancel all downloads and shut down the background downloader."""
 
-        self._status = status
+        if self._status == DownloadStatus.LOADING:
+            self._status = DownloadStatus.FAILED
+
+        # The downloads themselves don't have to be explicitly cancelled,
+        # shutting down the downloader will do that implicitly.
+        self.shutdown()
+
+    def shutdown(self) -> None:
+        """Stop the background downloader and call the 'done' callback."""
 
         # The timer is no longer necessary, the bg_downloader.shutdown() call
         # takes care of the last queued messages.
@@ -679,7 +703,8 @@ class RemoteAssetListingDownloader:
             self._bg_downloader.update()
         except http_dl.BackgroundProcessNotRunningError:
             logger.error("Background downloader subprocess died, aborting.")
-            self.shutdown(DownloadStatus.FAILED)
+            self._status = DownloadStatus.FAILED
+            self.shutdown()
             return 0  # Deactivate the timer.
         except Exception:
             logger.exception(
@@ -730,22 +755,27 @@ class RemoteAssetListingDownloader:
             if self._num_asset_pages_pending:
                 self.report({'WARNING'}, "Cancelled {} pending download".format(self._num_asset_pages_pending))
             logger.warning("Download cancelled: %s", http_req_descr)
-            self.shutdown(DownloadStatus.FAILED)
+            self._status = DownloadStatus.FAILED
+            self.shutdown()
             return
 
         self.report({'ERROR'}, "Error downloading {}: {}".format(http_req_descr.url, error))
         logger.error("Error downloading %s: %s", http_req_descr, error)
-        self.shutdown(DownloadStatus.FAILED)
+        self._status = DownloadStatus.FAILED
+        self.shutdown()
 
     def download_progress(
         self,
         http_req_descr: http_dl.RequestDescription,
-        content_length_bytes: int,
-        downloaded_bytes: int,
+        progress: http_dl.DownloadProgress,
     ) -> None:
-        percentage = downloaded_bytes / content_length_bytes * 100
-        self.report({'INFO'}, "File download progress: {:.0f}%".format(percentage))
-        # logger.info("File download progress: %.0f%%", percentage)
+        if progress.network_bytes_total is None:
+            downloaded = http_dl.humanize_size(progress.disk_bytes_written)
+            self.report({'INFO'}, "File download progress: {!s}".format(downloaded))
+        else:
+            percentage = 100 * progress.network_bytes_streamed / progress.network_bytes_total
+            self.report({'INFO'}, "File download progress: {:.0f}%".format(percentage))
+            # logger.info("File download progress: %.0f%%", percentage)
 
     def download_finished(
         self,

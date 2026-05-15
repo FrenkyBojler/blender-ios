@@ -147,7 +147,7 @@ struct Resources {
     if (this->interpolation == 2) [[static_branch]] {
       return sample_tricubic(ima, co);
     }
-    /* Use hardware interpolation*/
+    /* Use hardware interpolation. */
     return texture(ima, co);
   }
 };
@@ -330,7 +330,7 @@ struct VertOut {
                                 [[out, condition(use_slice)]] VertOut &v_out,
                                 [[position]] float4 &out_position)
 {
-  drw_ResourceID_iface.resource_index = drw_resource_id_raw();
+  drw_ResourceID_iface.resource_id = drw_resource_id_raw();
 
   float3 final_pos;
 
