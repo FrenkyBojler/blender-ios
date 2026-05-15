@@ -298,14 +298,14 @@ class Context : public compositor::Context {
     }
 
     if (!viewer_result.is_single_value()) {
-      image_buffer->flags |= IB_has_display_window;
+      image_buffer->flags |= ImBufFlags::HasDisplayWindow;
       const int2 display_offset = int2(viewer_result.domain().transformation.location());
       copy_v2_v2_int(image_buffer->display_size, viewer_result.domain().display_size);
       copy_v2_v2_int(image_buffer->display_offset, display_offset);
       copy_v2_v2_int(image_buffer->data_offset, viewer_result.domain().data_offset);
     }
     else {
-      image_buffer->flags &= ~IB_has_display_window;
+      image_buffer->flags &= ~ImBufFlags::HasDisplayWindow;
     }
 
     BKE_image_partial_update_mark_full_update(image);
@@ -579,15 +579,10 @@ class Context : public compositor::Context {
     using namespace compositor;
     const NodeGroupOutputTypes needed_outputs = this->needed_outputs();
     const bNodeTree &node_group = *input_data_.node_tree;
-    Map<bNodeInstanceKey, bke::bNodePreview> *node_previews =
-        flag_is_set(needed_outputs, NodeGroupOutputTypes::NodePreviews) ?
-            &node_group.runtime->previews :
-            nullptr;
     const bke::DataBlockComputeContext compute_context(nullptr, this->get_scene().id);
     NodeGroupOperation node_group_operation(*this,
                                             node_group,
                                             needed_outputs,
-                                            node_previews,
                                             node_group.active_viewer_key,
                                             bke::NODE_INSTANCE_KEY_BASE,
                                             compute_context);
