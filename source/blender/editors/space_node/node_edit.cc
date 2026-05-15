@@ -397,7 +397,7 @@ static bool socket_is_occluded(const float2 &cursor,
 
     /* The hitbox of the socket is larger than the socket symbol to make dragging links easier. So
      * we check if the socket is fully occluded to prevent dragging links from behind nodes.
-     * Subtract some tolerance to avoid picking the socket when it's is only barely visible.
+     * Subtract some tolerance to avoid picking the socket when it's only barely visible.
      */
     const float2 &location = socket.runtime->location;
     const float tolerance = 0.1f * U.widget_unit;
