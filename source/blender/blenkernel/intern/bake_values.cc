@@ -119,7 +119,7 @@ class RuntimeToBakeValue {
   {
     if (value_variant.is_context_dependent_field()) {
       const fn::GField field = value_variant.get<fn::GField>();
-      if (const auto *attribute_field = dynamic_cast<const AttributeFieldInput *>(&field.node())) {
+      if (const auto *attribute_field = field.get_input_if<AttributeFieldInput>()) {
         const StringRef attribute_name = attribute_field->attribute_name();
         if (attribute_name_is_anonymous(attribute_name)) {
           this->handle_anonymous_attribute_reference(attribute_name);
@@ -133,27 +133,27 @@ class RuntimeToBakeValue {
       return;
     }
     if (value_variant.is_list()) {
-      const nodes::ListPtr list_ptr = value_variant.get<nodes::ListPtr>();
+      const nodes::GListPtr list_ptr = value_variant.get<nodes::GListPtr>();
       if (list_ptr) {
         this->gather__List(*list_ptr);
       }
     }
   }
 
-  void gather__List(const nodes::List &list)
+  void gather__List(const nodes::GList &list)
   {
     const CPPType &list_cpp_type = list.cpp_type();
     if (list_cpp_type.is<SocketValueVariant>()) {
-      list.foreach<SocketValueVariant>([&](const SocketValueVariant &value_variant) {
+      list.typed<SocketValueVariant>().foreach([&](const SocketValueVariant &value_variant) {
         this->gather__SocketValueVariant(value_variant);
       });
     }
     else if (list_cpp_type.is<GeometrySet>()) {
-      list.foreach<GeometrySet>(
+      list.typed<GeometrySet>().foreach(
           [&](const GeometrySet &geometry) { this->gather__GeometrySet(geometry); });
     }
     else if (list_cpp_type.is<nodes::BundlePtr>()) {
-      list.foreach<nodes::BundlePtr>([&](const nodes::BundlePtr &bundle_ptr) {
+      list.typed<nodes::BundlePtr>().foreach([&](const nodes::BundlePtr &bundle_ptr) {
         if (bundle_ptr) {
           this->gather__Bundle(*bundle_ptr);
         }
@@ -221,7 +221,7 @@ class RuntimeToBakeValue {
   {
     if (value_variant.is_context_dependent_field()) {
       const fn::GField field = value_variant.get<fn::GField>();
-      if (const auto *attribute_field = dynamic_cast<const AttributeFieldInput *>(&field.node())) {
+      if (const auto *attribute_field = field.get_input_if<AttributeFieldInput>()) {
         if (const std::string *new_name = referenced_anonymous_attributes_.lookup_ptr(
                 attribute_field->attribute_name()))
         {
@@ -240,34 +240,34 @@ class RuntimeToBakeValue {
       return;
     }
     if (value_variant.is_list()) {
-      nodes::ListPtr list_ptr = value_variant.extract<nodes::ListPtr>();
+      nodes::GListPtr list_ptr = value_variant.extract<nodes::GListPtr>();
       if (list_ptr) {
-        nodes::List &list = list_ptr.ensure_mutable_inplace();
+        nodes::GList &list = list_ptr.get_for_write();
         this->prepare_for_bake__List(list);
       }
       value_variant.set(std::move(list_ptr));
     }
   }
 
-  void prepare_for_bake__List(nodes::List &list)
+  void prepare_for_bake__List(nodes::GList &list)
   {
     const CPPType &list_cpp_type = list.cpp_type();
     if (list_cpp_type.is<SocketValueVariant>()) {
-      list.foreach_for_write<SocketValueVariant>([&](SocketValueVariant &value_variant) {
+      list.typed<SocketValueVariant>().foreach_for_write([&](SocketValueVariant &value_variant) {
         this->prepare_for_bake__SocketValueVariant(value_variant);
       });
     }
     else if (list_cpp_type.is<GeometrySet>()) {
-      list.foreach_for_write<GeometrySet>(
+      list.typed<GeometrySet>().foreach_for_write(
           [&](GeometrySet &geometry) { this->prepare_for_bake__GeometrySet(geometry); });
     }
     else if (list_cpp_type.is<nodes::BundlePtr>()) {
-      list.foreach_for_write<nodes::BundlePtr>([&](nodes::BundlePtr &bundle_ptr) {
+      list.typed<nodes::BundlePtr>().foreach_for_write([&](nodes::BundlePtr &bundle_ptr) {
         this->prepare_for_bake__Bundle(bundle_ptr.ensure_mutable_inplace());
       });
     }
     else if (list_cpp_type.is<nodes::ClosurePtr>()) {
-      list.foreach_for_write<nodes::ClosurePtr>(
+      list.typed<nodes::ClosurePtr>().foreach_for_write(
           [&](nodes::ClosurePtr &closure_ptr) { closure_ptr.reset(); });
     }
   }
@@ -405,7 +405,7 @@ class BakeToRuntimeValue {
   {
     if (value_variant.is_context_dependent_field()) {
       const fn::GField field = value_variant.get<fn::GField>();
-      if (const auto *attribute_field = dynamic_cast<const AttributeFieldInput *>(&field.node())) {
+      if (const auto *attribute_field = field.get_input_if<AttributeFieldInput>()) {
         const StringRef bake_attribute_name = attribute_field->attribute_name();
         if (bake_attribute_name.startswith(anonymous_bake_attribute_prefix)) {
           std::string anonymous_attribute_name = this->get_anonymous_attribute_name(
@@ -422,9 +422,9 @@ class BakeToRuntimeValue {
       return;
     }
     if (value_variant.is_list()) {
-      nodes::ListPtr list_ptr = value_variant.extract<nodes::ListPtr>();
+      nodes::GListPtr list_ptr = value_variant.extract<nodes::GListPtr>();
       if (list_ptr) {
-        nodes::List &list = list_ptr.ensure_mutable_inplace();
+        nodes::GList &list = list_ptr.get_for_write();
         this->bake_to_runtime__List(list);
       }
       value_variant.set(std::move(list_ptr));
@@ -532,20 +532,20 @@ class BakeToRuntimeValue {
     }
   }
 
-  void bake_to_runtime__List(nodes::List &list)
+  void bake_to_runtime__List(nodes::GList &list)
   {
     const CPPType &list_cpp_type = list.cpp_type();
     if (list_cpp_type.is<SocketValueVariant>()) {
-      list.foreach_for_write<SocketValueVariant>([&](SocketValueVariant &value_variant) {
+      list.typed<SocketValueVariant>().foreach_for_write([&](SocketValueVariant &value_variant) {
         this->bake_to_runtime__SocketValueVariant(value_variant);
       });
     }
     else if (list_cpp_type.is<GeometrySet>()) {
-      list.foreach_for_write<GeometrySet>(
+      list.typed<GeometrySet>().foreach_for_write(
           [&](GeometrySet &geometry) { this->bake_to_runtime__GeometrySet(geometry); });
     }
     else if (list_cpp_type.is<nodes::BundlePtr>()) {
-      list.foreach_for_write<nodes::BundlePtr>([&](nodes::BundlePtr &bundle_ptr) {
+      list.typed<nodes::BundlePtr>().foreach_for_write([&](nodes::BundlePtr &bundle_ptr) {
         this->bake_to_runtime__Bundle(bundle_ptr.ensure_mutable_inplace());
       });
     }
