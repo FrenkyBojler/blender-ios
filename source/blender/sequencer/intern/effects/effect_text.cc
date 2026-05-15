@@ -1067,52 +1067,86 @@ static ImBuf *do_text_effect(const RenderData *context,
                              ImBuf * /*ibuf1*/,
                              ImBuf * /*ibuf2*/)
 {
-  /* NOTE: text rasterization only fills in part of output image,
-   * need to clear it. */
-  ImBuf *out = prepare_effect_imbufs(context, nullptr, nullptr, false);
   TextVars *data = static_cast<TextVars *>(strip->effectdata);
-
   const FontFlags font_flags = ((data->flag & SEQ_TEXT_BOLD) ? BLF_BOLD : BLF_NONE) |
                                ((data->flag & SEQ_TEXT_ITALIC) ? BLF_ITALIC : BLF_NONE);
-
-  /* Guard against parallel accesses to the fonts map. */
   std::lock_guard font_map_lock(g_font_map.mutex);
   std::lock_guard text_runtime_lock(text_runtime_mutex);
-
+  /* Temporarily compute runtime using the normal context size. */
+  const int base_w = context->rectx;
+  const int base_h = context->recty;
   const int font = text_effect_font_init(context, strip, font_flags);
-
-  if (data->runtime != nullptr) {
+  if (data->runtime) {
     MEM_delete(data->runtime);
   }
-
-  TextVarsRuntime *runtime = text_effect_calc_runtime(strip, font, {out->x, out->y});
+  TextVarsRuntime *runtime = text_effect_calc_runtime(strip, font, int2(base_w, base_h));
   data->runtime = runtime;
-
-  rcti outline_rect = draw_text_outline(context, data, runtime, out);
-  BLF_buffer(
-      font, nullptr, out->byte_data_for_write(), out->x, out->y, 4, out->byte_buffer.colorspace);
+  /* Compute how large the text really is. */
+  rcti bb = runtime->text_boundbox;
+  /* Compute expansion needed for outline. */
+  int expand_outline = 0;
+  if (data->flag & SEQ_TEXT_OUTLINE) {
+    expand_outline = int(runtime->line_height * 0.5f * data->outline_width) + 4;
+  }
+  /* Compute expansion needed for shadow. */
+  int expand_shadow = 0;
+  if (data->flag & SEQ_TEXT_SHADOW) {
+    int off = int(runtime->line_height * data->shadow_offset) + 2;
+    int blur = int(runtime->line_height * 0.5f * data->shadow_blur) + 2;
+    expand_shadow = off + blur;
+  }
+  /* Compute expansion needed for box. */
+  int expand_box = 0;
+  if (data->flag & SEQ_TEXT_BOX) {
+    expand_box = int(data->box_margin * base_w) + 4;
+  }
+  /* Final expansion margin. */
+  int expand = std::max(expand_outline, std::max(expand_shadow, expand_box));
+  /* Compute the extra area needed on each side. */
+  int left = std::max(0, -bb.xmin + expand);
+  int right = std::max(0, bb.xmax - base_w + expand);
+  int bottom = std::max(0, -bb.ymin + expand);
+  int top = std::max(0, bb.ymax - base_h + expand);
+  /* New buffer dimensions. */
+  RenderData big_ctx = *context;
+  big_ctx.rectx = base_w + left + right;
+  big_ctx.recty = base_h + bottom + top;
+  /* Allocate oversized buffer. */
+  ImBuf *out = prepare_effect_imbufs(&big_ctx, nullptr, nullptr, false);
+  /* Shift text positions into the oversized buffer. */
+  for (LineInfo &line : runtime->lines) {
+    for (CharInfo &ch : line.characters) {
+      ch.position.x += left;
+      ch.position.y += bottom;
+    }
+  }
+  BLI_rcti_translate(&runtime->text_boundbox, left, bottom);
+  /* Now draw everything as usual. */
+  rcti outline_rect = draw_text_outline(&big_ctx, data, runtime, out);
+  BLF_buffer(font,
+             nullptr,
+             out->byte_data_for_write(),
+             out->x,
+             out->y,
+             4,
+             out->byte_buffer.colorspace);
   text_draw(data->text_ptr, runtime, data->color);
   BLF_buffer(font, nullptr, nullptr, 0, 0, 4, nullptr);
   BLF_disable(font, font_flags);
-
-  /* Draw shadow. */
   if (data->flag & SEQ_TEXT_SHADOW) {
-    draw_text_shadow(context, data, runtime->line_height, outline_rect, out);
+    draw_text_shadow(&big_ctx, data, runtime->line_height, outline_rect, out);
   }
-
-  /* Draw box under text. */
   if (data->flag & SEQ_TEXT_BOX) {
     if (out->byte_data()) {
-      const int margin = data->box_margin * out->x;
-      const int minx = runtime->text_boundbox.xmin - margin;
-      const int maxx = runtime->text_boundbox.xmax + margin;
-      const int miny = runtime->text_boundbox.ymin - margin;
-      const int maxy = runtime->text_boundbox.ymax + margin;
-      float corner_radius = data->box_roundness * (maxy - miny) / 2.0f;
+      int margin = int(data->box_margin * out->x);
+      int minx = runtime->text_boundbox.xmin - margin;
+      int maxx = runtime->text_boundbox.xmax + margin;
+      int miny = runtime->text_boundbox.ymin - margin;
+      int maxy = runtime->text_boundbox.ymax + margin;
+      float corner_radius = data->box_roundness * float(maxy - miny) * 0.5f;
       fill_rect_alpha_under(out, data->box_color, minx, miny, maxx, maxy, corner_radius);
     }
   }
-
   return out;
 }
 
