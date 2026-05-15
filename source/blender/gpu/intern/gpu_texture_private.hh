@@ -260,6 +260,7 @@ class Texture {
       case GPU_TEXTURE_1D_ARRAY:
         return h_;
       case GPU_TEXTURE_2D_ARRAY:
+      case GPU_TEXTURE_CUBE:
       case GPU_TEXTURE_CUBE_ARRAY:
         return d_;
       default:

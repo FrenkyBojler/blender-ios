@@ -160,9 +160,6 @@ bool Texture::init_view(Texture *src,
   if (type & GPU_TEXTURE_ARRAY) {
     view_extent[src->dimensions_count() - 1] = std::min(layer_len,
                                                         (src->layer_count() - view_layer_start_));
-    if (cube_as_array) {
-      view_extent[2] *= 6;
-    }
   }
   else {
     view_extent[src->dimensions_count()] = 0;

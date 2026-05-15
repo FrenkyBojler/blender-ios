@@ -169,11 +169,6 @@ class VKTexture : public Texture {
   bool allocate();
 
   /**
-   * Determine the layerCount for vulkan based on the texture type.
-   */
-  int vk_layer_count() const;
-
-  /**
    * Determine the VkExtent3D for the given mip_level.
    */
   VkExtent3D vk_extent_3d(int mip_level) const;

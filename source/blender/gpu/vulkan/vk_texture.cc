@@ -78,7 +78,7 @@ void VKTexture::generate_mipmap()
   }
   update_mipmaps.vk_image_aspect = to_vk_image_aspect_flag_bits(device_format_);
   update_mipmaps.mipmaps = mipmaps_;
-  update_mipmaps.layer_count = vk_layer_count();
+  update_mipmaps.layer_count = layer_count();
   context.render_graph().add_node(update_mipmaps);
 }
 
@@ -97,12 +97,12 @@ void VKTexture::copy_to(VKTexture &dst_texture,
     copy_image.node_data.dst_image = dst_texture.vk_image_handle();
     copy_image.node_data.region.srcSubresource.aspectMask = vk_image_aspect;
     copy_image.node_data.region.srcSubresource.mipLevel = mip + mip_map_range().first();
-    copy_image.node_data.region.srcSubresource.layerCount = vk_layer_count();
+    copy_image.node_data.region.srcSubresource.layerCount = layer_count();
     copy_image.node_data.region.srcSubresource.baseArrayLayer = vk_layer_range().first();
     copy_image.node_data.region.dstSubresource.aspectMask = vk_image_aspect;
     copy_image.node_data.region.dstSubresource.mipLevel = mip +
                                                           dst_texture.mip_map_range().first();
-    copy_image.node_data.region.dstSubresource.layerCount = vk_layer_count();
+    copy_image.node_data.region.dstSubresource.layerCount = layer_count();
     copy_image.node_data.region.dstSubresource.baseArrayLayer =
         dst_texture.vk_layer_range().first();
     copy_image.node_data.region.extent = vk_extent_3d(mip_levels.first());
@@ -349,7 +349,7 @@ void VKTexture::read(int mip, eGPUDataFormat format, void *data)
   if (mip_size[2] == 0) {
     mip_size[2] = 1;
   }
-  IndexRange layers = IndexRange(view_layer_start_, vk_layer_count());
+  IndexRange layers = IndexRange(view_layer_start_, layer_count());
 
   int region[6] = {0, 0, 0, mip_size[0], mip_size[1], mip_size[2]};
   read_sub(mip, format, region, layers, data);
@@ -694,7 +694,7 @@ bool VKTexture::allocate()
   image_info.imageType = to_vk_image_type(type_);
   image_info.extent = vk_extent;
   image_info.mipLevels = max_ii(mipmaps_, 1);
-  image_info.arrayLayers = vk_layer_count();
+  image_info.arrayLayers = layer_count();
   image_info.format = to_vk_format(device_format_);
   /* Some platforms (NVIDIA) requires that attached textures are always tiled optimal.
    *
@@ -763,14 +763,7 @@ IndexRange VKTexture::mip_map_range() const
 
 IndexRange VKTexture::vk_layer_range() const
 {
-  const int layer_scale = ELEM(type_, GPU_TEXTURE_CUBE, GPU_TEXTURE_CUBE_ARRAY) ? 6 : 1;
-  return IndexRange(is_texture_view() ? view_layer_start_ * layer_scale : 0, vk_layer_count());
-}
-
-int VKTexture::vk_layer_count() const
-{
-  const int layer_scale = ELEM(type_, GPU_TEXTURE_CUBE, GPU_TEXTURE_CUBE_ARRAY) ? 6 : 1;
-  return layer_count() * layer_scale;
+  return IndexRange(view_layer_start_, layer_count());
 }
 
 VkExtent3D VKTexture::vk_extent_3d(int mip_level) const
