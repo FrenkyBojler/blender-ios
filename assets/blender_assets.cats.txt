@@ -14,6 +14,10 @@ VERSION 1
 00c402c1-8f55-45ab-bb26-b4c57c9e87ad:Brushes/Grease Pencil Draw:Brushes-Grease Pencil Draw
 f14d7a24-428a-4753-bf88-ef136a66be73:Brushes/Grease Pencil Draw/Draw:Brushes-Grease Pencil Draw-Draw
 db855991-aff2-45d1-9ba5-cd0dccea5fe0:Brushes/Grease Pencil Draw/Erase:Brushes-Grease Pencil Draw-Erase
+c6d7e4e8-3246-461d-b7a9-9f142c237689:Brushes/Grease Pencil Draw/Textured:Brushes-Grease Pencil Draw-Textured
+4f6bcecf-1336-46dd-9de7-afb3992653db:Brushes/Grease Pencil Draw/Textured/Lines:Brushes-Grease Pencil Draw-Textured-Lines
+9d560bd3-1471-4eb7-8422-ada3ecfb7a62:Brushes/Grease Pencil Draw/Textured/Patterns:Brushes-Grease Pencil Draw-Textured-Patterns
+99e0ae99-e299-4d73-bdf0-cb0c7711c26d:Brushes/Grease Pencil Draw/Textured/Surfaces:Brushes-Grease Pencil Draw-Textured-Surfaces
 bef62e73-63d2-43e6-89fd-e72245350bc7:Brushes/Grease Pencil Draw/Utilities:Brushes-Grease Pencil Draw-Utilities
 98c3c158-b363-48d3-80cd-ce4846f5aed1:Brushes/Grease Pencil Paint:Brushes-Grease Pencil Paint
 eb75aff6-7006-4ecf-a41d-48c14e09c32c:Brushes/Grease Pencil Sculpt:Brushes-Grease Pencil Sculpt
