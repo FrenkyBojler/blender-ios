@@ -3043,16 +3043,6 @@ static wmOperatorStatus ui_view_item_navigate_invoke(bContext *C,
   return OPERATOR_FINISHED;
 }
 
-static bool ui_tree_view_item_navigate_poll(bContext *C)
-{
-  AbstractView *view = get_view_focused(C);
-  if (view) {
-    AbstractTreeView *tree_view = dynamic_cast<AbstractTreeView *>(view);
-    return tree_view != nullptr;
-  }
-  return false;
-}
-
 static void UI_OT_view_item_navigate(wmOperatorType *ot)
 {
   ot->name = "Navigate Tree View";

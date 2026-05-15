@@ -140,15 +140,16 @@ AbstractViewItem *AbstractTreeView::find_active_or_visible_item() const
 {
   AbstractViewItem *active_item = nullptr;
   AbstractViewItem *first_visible_item = nullptr;
-  this->foreach_item([&](AbstractViewItem &item) {
-    if (item.is_active()) {
-      active_item = &item;
-    }
-    if (!first_visible_item) {
-      first_visible_item = &item;
-    }
-  }, AbstractTreeView::IterOptions::SkipCollapsed |
-                                AbstractTreeView::IterOptions::SkipFiltered);
+  this->foreach_item(
+      [&](AbstractViewItem &item) {
+        if (item.is_active()) {
+          active_item = &item;
+        }
+        if (!first_visible_item) {
+          first_visible_item = &item;
+        }
+      },
+      AbstractTreeView::IterOptions::SkipCollapsed | AbstractTreeView::IterOptions::SkipFiltered);
 
   return active_item ? active_item : first_visible_item;
 }
@@ -165,7 +166,7 @@ AbstractViewItem *AbstractTreeView::navigate_left(AbstractViewItem *from)
 
 AbstractViewItem *AbstractTreeView::navigate_right(AbstractViewItem *from)
 {
-   AbstractTreeViewItem *active_item = dynamic_cast<AbstractTreeViewItem *>(from);
+  AbstractTreeViewItem *active_item = dynamic_cast<AbstractTreeViewItem *>(from);
   if (!active_item->is_collapsible() || active_item->is_collapsed()) {
     return active_item;
   }
@@ -176,14 +177,15 @@ AbstractViewItem *AbstractTreeView::navigate_up(AbstractViewItem *from)
 {
   AbstractViewItem *next_item = nullptr;
   bool found_active = false;
-  this->foreach_item([&](AbstractViewItem &item) {
+  this->foreach_item(
+      [&](AbstractViewItem &item) {
         found_active |= item.is_active();
         if (!found_active) {
           /* Store the element which is just before the active. */
           next_item = &item;
         }
-  }, AbstractTreeView::IterOptions::SkipCollapsed |
-                                AbstractTreeView::IterOptions::SkipFiltered);
+      },
+      AbstractTreeView::IterOptions::SkipCollapsed | AbstractTreeView::IterOptions::SkipFiltered);
   return next_item ? next_item : from;
 }
 
@@ -191,15 +193,16 @@ AbstractViewItem *AbstractTreeView::navigate_down(AbstractViewItem *from)
 {
   AbstractViewItem *next_item = nullptr;
   bool found_active = false;
-  this->foreach_item([&](AbstractViewItem &item) {
-    if (found_active) {
-      /* Store the element next to the active. */
-      next_item = &item;
-      found_active = false;
-    }
-    found_active = item.is_active();
-  }, AbstractTreeView::IterOptions::SkipCollapsed |
-                                AbstractTreeView::IterOptions::SkipFiltered);
+  this->foreach_item(
+      [&](AbstractViewItem &item) {
+        if (found_active) {
+          /* Store the element next to the active. */
+          next_item = &item;
+          found_active = false;
+        }
+        found_active = item.is_active();
+      },
+      AbstractTreeView::IterOptions::SkipCollapsed | AbstractTreeView::IterOptions::SkipFiltered);
   return next_item ? next_item : from;
 }
 

@@ -162,7 +162,8 @@ AbstractViewItem *AbstractGridView::navigate_left(AbstractViewItem *from)
       next_item = &item;
     }
   });
-  printf("next item: %s\n", next_item ? next_item->debug_name().value_or("empty").c_str() : "none");
+  printf("next item: %s\n",
+         next_item ? next_item->debug_name().value_or("empty").c_str() : "none");
   return next_item ? next_item : from;
 }
 
@@ -178,13 +179,15 @@ AbstractViewItem *AbstractGridView::navigate_right(AbstractViewItem *from)
     }
     found_active = &item == from;
   });
-  printf("next item: %s\n", next_item ? next_item->debug_name().value_or("empty").c_str() : "none");
+  printf("next item: %s\n",
+         next_item ? next_item->debug_name().value_or("empty").c_str() : "none");
   return next_item ? next_item : from;
 }
 
 AbstractViewItem *AbstractGridView::navigate_up(AbstractViewItem *from)
 {
-  std::optional<int> next_item_idx = find_filtered_item_index(dynamic_cast<const AbstractGridViewItem &>(*from));
+  std::optional<int> next_item_idx = find_filtered_item_index(
+      dynamic_cast<const AbstractGridViewItem &>(*from));
   *next_item_idx = std::clamp(*next_item_idx - cols_per_row_, 0, get_item_count_filtered() - 1);
   AbstractViewItem *next_item = nullptr;
   if (next_item_idx) {
@@ -201,7 +204,8 @@ AbstractViewItem *AbstractGridView::navigate_up(AbstractViewItem *from)
 
 AbstractViewItem *AbstractGridView::navigate_down(AbstractViewItem *from)
 {
-  std::optional<int> next_item_idx = find_filtered_item_index(dynamic_cast<const AbstractGridViewItem &>(*from));
+  std::optional<int> next_item_idx = find_filtered_item_index(
+      dynamic_cast<const AbstractGridViewItem &>(*from));
   *next_item_idx = std::clamp(*next_item_idx + cols_per_row_, 0, get_item_count_filtered() - 1);
   AbstractViewItem *next_item = nullptr;
   if (next_item_idx) {
@@ -216,10 +220,7 @@ AbstractViewItem *AbstractGridView::navigate_down(AbstractViewItem *from)
   return next_item ? next_item : from;
 }
 
-void AbstractGridView::scroll_active_into_view()
-{
-
-}
+void AbstractGridView::scroll_active_into_view() {}
 
 GridViewStyle::GridViewStyle(int width, int height) : tile_width(width), tile_height(height) {}
 
@@ -435,9 +436,7 @@ class GridViewLayoutBuilder {
  public:
   GridViewLayoutBuilder(Layout &layout);
 
-  void build_from_view(const bContext &C,
-                       AbstractGridView &grid_view,
-                       const View2D &v2d) const;
+  void build_from_view(const bContext &C, AbstractGridView &grid_view, const View2D &v2d) const;
 
  private:
   void build_grid_tile(const bContext &C, Layout &grid_layout, AbstractGridViewItem &item) const;
