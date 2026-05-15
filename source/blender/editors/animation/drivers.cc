@@ -433,70 +433,27 @@ int ANIM_add_driver(ReportList *reports,
       driver->type = type;
 
       /* Creating drivers for buttons will create the driver(s) with type
-       * "scripted expression" so that their values won't be lost immediately,
-       * so here we copy those values over to the driver's expression
+       * "scripted expression".
        *
        * If the "default dvar" option (for easier UI setup of drivers) is provided,
        * include "var" in the expressions too, so that the user doesn't have to edit
-       * it to get something to happen. It should be fine to just add it to the default
-       * value, so that we get both in the expression, even if it's a bit more confusing
-       * that way...
+       * it to get something to happen.
        */
       if (type == DRIVER_TYPE_PYTHON) {
-        PropertyType proptype = RNA_property_type(prop);
-        int array = RNA_property_array_length(&ptr, prop);
-        const char *dvar_prefix = (flag & CREATEDRIVER_WITH_DEFAULT_DVAR) ? "var + " : "";
         char *expression = driver->expression;
         const size_t expression_maxncpy = sizeof(driver->expression);
-        int val;
-        float fval;
 
-        if (proptype == PROP_BOOLEAN) {
-          if (!array) {
-            val = RNA_property_boolean_get(&ptr, prop);
-          }
-          else {
-            val = RNA_property_boolean_get_index(&ptr, prop, array_index);
-          }
-
-          BLI_snprintf_utf8(
-              expression, expression_maxncpy, "%s%s", dvar_prefix, (val) ? "True" : "False");
-        }
-        else if (proptype == PROP_INT) {
-          if (!array) {
-            val = RNA_property_int_get(&ptr, prop);
-          }
-          else {
-            val = RNA_property_int_get_index(&ptr, prop, array_index);
-          }
-
-          BLI_snprintf_utf8(expression, expression_maxncpy, "%s%d", dvar_prefix, val);
-        }
-        else if (proptype == PROP_FLOAT) {
-          if (!array) {
-            fval = RNA_property_float_get(&ptr, prop);
-          }
-          else {
-            fval = RNA_property_float_get_index(&ptr, prop, array_index);
-          }
-
-          BLI_snprintf_utf8(expression, expression_maxncpy, "%s%.3f", dvar_prefix, fval);
-          BLI_str_rstrip_float_zero(expression, '\0');
-        }
-        else if (flag & CREATEDRIVER_WITH_DEFAULT_DVAR) {
-          BLI_strncpy_utf8(expression, "var", expression_maxncpy);
-        }
-      }
-
-      /* for easier setup of drivers from UI, a driver variable should be
-       * added if flag is set (UI calls only)
-       */
-      if (flag & CREATEDRIVER_WITH_DEFAULT_DVAR) {
-        /* assume that users will mostly want this to be of type "Transform Channel" too,
-         * since this allows the easiest setting up of common rig components
+        /* for easier setup of drivers from UI, a driver variable should be
+         * added if flag is set (UI calls only)
          */
-        DriverVar *dvar = driver_add_new_variable(driver);
-        driver_change_variable_type(dvar, DVAR_TYPE_TRANSFORM_CHAN);
+        if (flag & CREATEDRIVER_WITH_DEFAULT_DVAR) {
+          /* assume that users will mostly want this to be of type "Transform Channel" too,
+           * since this allows the easiest setting up of common rig components
+           */
+          BLI_strncpy_utf8(expression, "var", expression_maxncpy);
+          DriverVar *dvar = driver_add_new_variable(driver);
+          driver_change_variable_type(dvar, DVAR_TYPE_TRANSFORM_CHAN);
+        }
       }
     }
 
