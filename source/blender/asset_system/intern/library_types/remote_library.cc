@@ -151,12 +151,24 @@ bool PreferencesRemoteAssetLibrary::is_enabled() const
 struct ProgressTracker {
   bool any_loading = false;
 
-  static ProgressTracker &instance();
+  /** Should be called when a file download is requested. */
   static void file_requested();
+  /** Should be called when a file download is finished, successfully or not. */
   static void file_finished(const bContext &C);
 
   /** Should be called when all downloads finished, successfully or not. */
   static void on_all_finished(wmWindowManager &wm);
+
+  /**
+   * Returns true if any asset files are currently downloading. This information is taken from the
+   * downloader every time a file is finished. So we don't rely on keeping track of all in-flight
+   * downloads ourselves.
+   */
+  static bool is_any_loading();
+
+ private:
+  ProgressTracker() = default;
+  static ProgressTracker &instance();
 };
 
 ProgressTracker &ProgressTracker::instance()
@@ -228,9 +240,14 @@ void ProgressTracker::on_all_finished(wmWindowManager &wm)
   WM_event_add_notifier_ex(&wm, nullptr, NC_WM | ND_JOB, nullptr);
 }
 
-bool remote_library_has_unfinished_asset_downloads()
+bool ProgressTracker::is_any_loading()
 {
   return ProgressTracker::instance().any_loading;
+}
+
+bool remote_library_has_unfinished_asset_downloads()
+{
+  return ProgressTracker::is_any_loading();
 }
 
 /** \} */
