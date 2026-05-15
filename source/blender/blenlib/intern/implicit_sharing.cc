@@ -111,11 +111,6 @@ void *resize_trivial_array_impl(void *old_data,
 
 }  // namespace detail
 
-bool operator==(const SnapshotRef &a, const Snapshot &b)
-{
-  return a.sharing_info == b.sharing_info && a.sharing_info->version() == b.version;
-}
-
 static auto &get_global_caches()
 {
   static Set<CacheBase *> caches;
