@@ -83,9 +83,7 @@ float *ImBuf::float_data_for_write()
     this->float_buffer.sharing_info->tag_ensured_mutable();
   }
   else {
-    /* Channels seems to have a default of 4. */
-    const int channels = this->channels == 0 ? 4 : this->channels;
-    const size_t size = size_t(this->x) * size_t(this->y) * channels;
+    const size_t size = size_t(this->x) * size_t(this->y) * this->channels;
     float *new_data = MEM_new_array_uninitialized<float>(size, __func__);
     std::copy_n(this->float_buffer.data, size, new_data);
     this->float_buffer.data = new_data;
