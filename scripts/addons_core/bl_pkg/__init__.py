@@ -485,6 +485,20 @@ def remote_asset_library_sync(
     _downloaders.append(downloader)
 
 
+def remote_asset_library_sync_cancel() -> None:
+    """Cancel all remote asset library sync operations.
+
+    This will cancel all running downloads & shut down the downloaders. Any
+    partially-downloaded listing will have to be re-downloaded to be fully
+    correct again.
+    """
+
+    # This calls the relevant _remote_asset_library_sync_done() functions as well, ensuring that each downloader is
+    # properly cleaned up. That includes removing items from _downloaders, hence the copy of that list.
+    for downloader in _downloaders[:]:
+        downloader.cancel_and_shutdown()
+
+
 def _remote_asset_library_sync_done(downloader: _RemoteAssetListingDownloader) -> None:
     """
     Called when the downloading of the remote asset listing is done.
@@ -537,6 +551,8 @@ def _remote_asset_library_sync_all_periodic():
 
     for asset_lib in bpy.context.preferences.filepaths.asset_libraries:
         if not asset_lib.enabled:
+            continue
+        if not asset_lib.use_remote_url:
             continue
         remote_asset_library_sync(asset_lib.remote_url, Path(asset_lib.path),
                                   only_if_older_than_sec=REMOTE_ASSET_LIBS_AUTOSYNC_PERIOD_SEC)
