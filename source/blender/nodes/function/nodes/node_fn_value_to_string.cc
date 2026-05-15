@@ -30,19 +30,18 @@ static void node_declare(NodeDeclarationBuilder &b)
     auto &decimals = b.add_input<decl::Int>("Decimals"_ustr).min(0);
     decimals.available(data_type == SOCK_FLOAT);
 
-    auto &base = b.add_input<decl::Int>("Base"_ustr)
-                     .min(2)
-                     .max(36)
-                     .default_value(10)
-                     .description("Numeric base for the output string (e.g. 2 for binary, 16 for hexadecimal)");
-    base.available(data_type == SOCK_INT);
+    b.add_input<decl::Int>("Base"_ustr)
+        .min(2)
+        .max(36)
+        .default_value(10)
+        .description("Numeric base for the output string (e.g. 2 for binary, 16 for hexadecimal)")
+        .available(data_type == SOCK_INT);
 
-    auto &padding = b.add_input<decl::Int>("Padding"_ustr)
-                        .min(0)
-                        .default_value(0)
-                        .description(
-                            "Minimum number of characters in the output, zero-padded if shorter");
-    padding.available(data_type == SOCK_INT);
+    b.add_input<decl::Int>("Padding"_ustr)
+        .min(0)
+        .default_value(0)
+        .description("Minimum number of characters in the output, zero-padded if shorter")
+        .available(data_type == SOCK_INT);
   }
 
   b.add_output<decl::String>("String"_ustr);
@@ -63,7 +62,7 @@ static const mf::MultiFunction *get_multi_function(const bNode &bnode)
           return {};
         }
         padding = std::max(0, padding);
-        /* maximum possible string length, 32-bit integer -> base 2 binary string length */
+        /* Maximum possible string length, 32-bit integer -> base 2 binary string length. */
         char buf[32];
         auto [ptr, ec] = std::to_chars(buf, buf + sizeof(buf), value, base);
         std::string result(buf, ptr);

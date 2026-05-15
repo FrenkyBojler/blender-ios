@@ -26,13 +26,12 @@ static void node_declare(NodeDeclarationBuilder &b)
   const bNode *node = b.node_or_null();
   if (node != nullptr) {
     const eNodeSocketDatatype data_type = eNodeSocketDatatype(node->custom1);
-    auto &base = b.add_input<decl::Int>("Base"_ustr)
-                     .min(2)
-                     .max(36)
-                     .default_value(10)
-                     .description(
-                         "Numeric base for the input string (e.g. 2 for binary, 16 for hexadecimal)");
-    base.available(data_type == SOCK_INT);
+    b.add_input<decl::Int>("Base"_ustr)
+        .min(2)
+        .max(36)
+        .default_value(10)
+        .description("Numeric base for the input string (e.g. 2 for binary, 16 for hexadecimal)")
+        .available(data_type == SOCK_INT);
     b.add_output(data_type, "Value"_ustr);
   }
 
