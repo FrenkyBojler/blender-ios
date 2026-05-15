@@ -12,7 +12,7 @@
 
 namespace blender::ed {
 
-TransformFloats property_interpolated(const Span<float> a, const Span<float> b, float factor)
+TransformFloats property_interpolated(const Span<float> a, const Span<float> b, const float factor)
 {
   BLI_assert(a.size() == b.size());
   TransformFloats interpolated(a.size());

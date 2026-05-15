@@ -151,7 +151,7 @@ static eAction_TransformFlags get_item_transform_flags_and_fcurves(Object &ob,
  * has to be supported by `ed::rna_property_get_as_float`.
  */
 static void store_property_snapshot(PointerRNA &ptr,
-                                    StringRef property_name,
+                                    const StringRef property_name,
                                     Vector<PropertySnapshot> &snapshots)
 {
 
@@ -233,7 +233,7 @@ static void fcurves_to_pchan_links_get(ListBaseT<SlideSubject> &slide_subjects,
       }
     }
     if (pchan.system_properties) {
-      for (const IDProperty &id_prop : pchan.prop->data.group) {
+      for (const IDProperty &id_prop : pchan.system_properties->data.group) {
         if (ELEM(id_prop.type, IDP_STRING, IDP_ID, IDP_IDPARRAY)) {
           continue;
         }
