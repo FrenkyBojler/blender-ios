@@ -203,10 +203,18 @@ static void calc_bmesh(const Depsgraph &depsgraph,
 }  // namespace mask_cc
 
 void do_mask_brush(const Depsgraph &depsgraph,
+                   PaintModeSettings paint_mode_settings,
                    const Sculpt &sd,
                    Object &object,
-                   const IndexMask &node_mask)
+                   const IndexMask &node_mask,
+                   const IndexMask &texnode_mask)
 {
+  if (paint_mode_settings.canvas_source == PAINT_CANVAS_SOURCE_IMAGE &&
+      SCULPT_use_image_paint_brush(paint_mode_settings, object))
+  {
+    SCULPT_do_paint_brush_image(depsgraph, sd, object, texnode_mask);
+    return;
+  }
   SculptSession &ss = *object.runtime->sculpt_session;
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   const Brush &brush = *BKE_paint_brush_for_read(&sd.paint);

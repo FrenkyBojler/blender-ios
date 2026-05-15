@@ -326,6 +326,23 @@ static Bounds<int2> negative_bounds()
   return {int2(std::numeric_limits<int>::max()), int2(std::numeric_limits<int>::lowest())};
 }
 
+static float4 get_brush_color(SculptSession &ss, const Paint &paint, const Brush &brush)
+{
+  if (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_MASK) {
+    /* Mask uses brush strength to determine if the brush is flipped/inverted. */
+    const bool negative_strength = ss.cache->bstrength < 0.0;
+    /* Brush strength must be positive to work correctly when texture painting. */
+    ss.cache->bstrength = std::abs(ss.cache->bstrength);
+    return float4(negative_strength ? float3(0.0f, 0.0f, 0.0f) : float3(1.0f, 1.0f, 1.0f), 1.0f);
+  }
+  else {
+    return float4(ss.cache->toggle_settings.invert ?
+                      BKE_brush_secondary_color_get(&paint, &brush) :
+                      BKE_brush_color_get(&paint, &brush),
+                  1.0f);
+  }
+}
+
 static void do_paint_pixels(const Depsgraph &depsgraph,
                             Object &object,
                             const Paint &paint,
@@ -343,10 +360,7 @@ static void do_paint_pixels(const Depsgraph &depsgraph,
   BitVector<> brush_test = init_uv_primitives_brush_test(
       ss, pbvh_data.vert_tris, pixel_node.uv_primitives.tri_indices, positions);
 
-  float4 brush_color = float4(ss.cache->toggle_settings.invert ?
-                                  BKE_brush_secondary_color_get(&paint, &brush) :
-                                  BKE_brush_color_get(&paint, &brush),
-                              1.0f);
+  float4 brush_color = get_brush_color(ss, paint, brush);
 
 #ifdef DEBUG_PIXEL_NODES
   float4 debug_color;

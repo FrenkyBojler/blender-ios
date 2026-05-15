@@ -2882,9 +2882,19 @@ static void update_brush_local_mat(const Sculpt &sd, Object &ob)
 /** \name Texture painting
  * \{ */
 
-static bool sculpt_needs_pbvh_pixels(const Brush &brush, const Object &ob)
+static bool mask_paint_brush(const Brush *brush, PaintModeSettings &paint_mode_settings)
 {
-  if (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_PAINT &&
+  return brush->sculpt_brush_type == SCULPT_BRUSH_TYPE_MASK &&
+         paint_mode_settings.canvas_source == PAINT_CANVAS_SOURCE_IMAGE &&
+         paint_mode_settings.canvas_image && USER_EXPERIMENTAL_TEST(&U, use_sculpt_texture_paint);
+}
+
+static bool sculpt_needs_pbvh_pixels(const Brush &brush,
+                                     PaintModeSettings &paint_mode_settings,
+                                     Object &ob)
+{
+  if ((brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_PAINT ||
+       mask_paint_brush(&brush, paint_mode_settings)) &&
       USER_EXPERIMENTAL_TEST(&U, use_sculpt_texture_paint))
   {
     return ob.runtime->sculpt_session->cache->image_data.get();
@@ -3331,9 +3341,9 @@ static void do_brush_action(const Depsgraph &depsgraph,
 
   const bool use_original = brush_type_needs_original(brush.sculpt_brush_type) ? true :
                                                                                  !ss.cache->accum;
-  const bool use_pixels = sculpt_needs_pbvh_pixels(brush, ob);
+  const bool use_pixels = sculpt_needs_pbvh_pixels(brush, paint_mode_settings, ob);
 
-  if (sculpt_needs_pbvh_pixels(brush, ob)) {
+  if (sculpt_needs_pbvh_pixels(brush, paint_mode_settings, ob)) {
     sculpt_pbvh_update_pixels(depsgraph, ob);
 
     texnode_mask = pbvh_gather_texpaint(ob, brush, use_original, 1.0f, memory);
@@ -3477,7 +3487,7 @@ static void do_brush_action(const Depsgraph &depsgraph,
     case SCULPT_BRUSH_TYPE_MASK:
       switch (BrushMaskTool(brush.mask_tool)) {
         case BRUSH_MASK_DRAW:
-          brushes::do_mask_brush(depsgraph, sd, ob, node_mask);
+          brushes::do_mask_brush(depsgraph, paint_mode_settings, sd, ob, node_mask, texnode_mask);
           break;
         case BRUSH_MASK_SMOOTH:
           brushes::do_smooth_mask_brush(depsgraph, sd, ob, node_mask, ss.cache->bstrength);
@@ -5617,7 +5627,9 @@ static void stroke_undo_begin(const Scene &scene,
 {
   /* Setup the correct undo system. Image painting and sculpting are mutual exclusive.
    * Color attributes are part of the sculpting undo system. */
-  if (brush && brush->sculpt_brush_type == SCULPT_BRUSH_TYPE_PAINT &&
+  if (brush &&
+      (brush->sculpt_brush_type == SCULPT_BRUSH_TYPE_PAINT ||
+       mask_paint_brush(brush, paint_mode_settings)) &&
       SCULPT_use_image_paint_brush(paint_mode_settings, object))
   {
     ED_image_undo_push_begin(op->type->name, PaintMode::Sculpt);
@@ -5629,7 +5641,9 @@ static void stroke_undo_begin(const Scene &scene,
 
 static void stroke_undo_end(PaintModeSettings &paint_mode_settings, Object &object, Brush *brush)
 {
-  if (brush && brush->sculpt_brush_type == SCULPT_BRUSH_TYPE_PAINT &&
+  if (brush &&
+      (brush->sculpt_brush_type == SCULPT_BRUSH_TYPE_PAINT ||
+       mask_paint_brush(brush, paint_mode_settings)) &&
       SCULPT_use_image_paint_brush(paint_mode_settings, object))
   {
     ED_image_undo_push_end();
@@ -5758,7 +5772,9 @@ void SculptPaintStroke::stroke_cache_init(const float mval[2])
 
   /* Original coordinates require the sculpt undo system, which isn't used
    * for image brushes. It's also not necessary, just disable it. */
-  if (brush && brush->sculpt_brush_type == SCULPT_BRUSH_TYPE_PAINT &&
+  if (brush &&
+      (brush->sculpt_brush_type == SCULPT_BRUSH_TYPE_PAINT ||
+       mask_paint_brush(brush, *paint_mode_settings_)) &&
       SCULPT_use_image_paint_brush(*paint_mode_settings_, ob))
   {
     cache->accum = true;
@@ -5952,16 +5968,18 @@ void SculptPaintStroke::update_step(wmOperator * /*op*/, PointerRNA *itemptr)
   copy_v3_v3(ss.cache->last_location, ss.cache->location);
 
   /* Cleanup. */
-  if (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_MASK) {
-    flush_update_step(this->vc, *this->object, UpdateType::Mask);
-  }
-  else if (brush_type_is_paint(brush.sculpt_brush_type)) {
+  if ((brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_PAINT ||
+       mask_paint_brush(&brush, *this->paint_mode_settings_)))
+  {
     if (SCULPT_use_image_paint_brush(*this->paint_mode_settings_, ob)) {
       flush_update_step(this->vc, *this->object, UpdateType::Image);
     }
     else {
       flush_update_step(this->vc, *this->object, UpdateType::Color);
     }
+  }
+  else if (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_MASK) {
+    flush_update_step(this->vc, *this->object, UpdateType::Mask);
   }
   else {
     flush_update_step(this->vc, *this->object, UpdateType::Position);
@@ -6015,16 +6033,18 @@ void SculptPaintStroke::done(bool is_cancel, bool stroke_started)
     stroke_undo_end(*paint_mode_settings_, *this->object, brush);
   }
 
-  if (brush->sculpt_brush_type == SCULPT_BRUSH_TYPE_MASK) {
-    flush_update_done(this->vc, *wm_, ob, UpdateType::Mask);
-  }
-  else if (brush->sculpt_brush_type == SCULPT_BRUSH_TYPE_PAINT) {
+  if ((brush->sculpt_brush_type == SCULPT_BRUSH_TYPE_PAINT ||
+       mask_paint_brush(brush, *this->paint_mode_settings_)))
+  {
     if (SCULPT_use_image_paint_brush(*this->paint_mode_settings_, ob)) {
       flush_update_done(this->vc, *wm_, ob, UpdateType::Image);
     }
     else {
       flush_update_done(this->vc, *wm_, ob, UpdateType::Color);
     }
+  }
+  else if (brush->sculpt_brush_type == SCULPT_BRUSH_TYPE_MASK) {
+    flush_update_done(this->vc, *wm_, ob, UpdateType::Mask);
   }
   else {
     flush_update_done(this->vc, *wm_, ob, UpdateType::Position);
