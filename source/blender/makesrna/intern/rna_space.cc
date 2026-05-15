@@ -72,6 +72,11 @@ const EnumPropertyItem rna_enum_geometry_component_type_items[] = {
      ICON_GREASEPENCIL,
      "Grease Pencil",
      "Grease Pencil component containing layers and curves data"},
+    {int(bke::GeometryComponent::Type::Volume),
+     "VOLUME",
+     ICON_VOLUME_DATA,
+     "Volume",
+     "Volume component containing volume grids"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -6807,6 +6812,13 @@ static void rna_def_space_sequencer(BlenderRNA *brna)
       prop, "Limit View to Contents", "Limit timeline height to maximum used channel slot");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SEQUENCER, nullptr);
 
+  prop = RNA_def_property(srna, "show_scrubbing_region", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", SEQ_SHOW_SCRUBBING_REGION);
+  RNA_def_property_ui_text(prop,
+                           "Show Scrubbing Region",
+                           "Region with full playback range for scrubbing in the sequencer");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SEQUENCER, nullptr);
+
   /* Annotations */
   prop = RNA_def_property(srna, "annotation", PROP_POINTER, PROP_NONE);
   RNA_def_property_pointer_sdna(prop, nullptr, "gpd");
@@ -7841,9 +7853,9 @@ static void rna_def_fileselect_asset_params(BlenderRNA *brna)
   RNA_def_struct_ui_text(
       srna, "Asset Select Parameters", "Settings for the file selection in Asset Browser mode");
 
-  prop = rna_def_asset_library_reference_common(srna,
-                                                "rna_FileAssetSelectParams_asset_library_get",
-                                                "rna_FileAssetSelectParams_asset_library_set");
+  prop = rna_def_asset_library_ui_reference_common(srna,
+                                                   "rna_FileAssetSelectParams_asset_library_get",
+                                                   "rna_FileAssetSelectParams_asset_library_set");
   RNA_def_property_ui_text(prop, "Asset Library", "");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_FILE_PARAMS, nullptr);
 
