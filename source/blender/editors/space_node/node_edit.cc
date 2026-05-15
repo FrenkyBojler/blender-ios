@@ -401,13 +401,13 @@ static bool socket_is_occluded(const float2 &cursor,
      */
     const float2 &location = socket.runtime->location;
     const float tolerance = 0.1f * U.widget_unit;
-    const float socket_width = NODE_SOCKSIZE - tolerance;
-    const float socket_height = node_socket_calculate_height(socket) - tolerance;
+    const float half_width = NODE_SOCKSIZE - tolerance;
+    const float half_height = node_socket_calculate_height(socket) - tolerance;
 
-    const rctf socket_bounds = {location.x - socket_width,
-                                location.x + socket_width,
-                                location.y - socket_height,
-                                location.y + socket_height};
+    const rctf socket_bounds = {location.x - half_width,
+                                location.x + half_width,
+                                location.y - half_height,
+                                location.y + half_height};
 
     if (BLI_rctf_inside_rctf(&node->runtime->draw_bounds, &socket_bounds)) {
       return true;
