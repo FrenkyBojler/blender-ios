@@ -79,6 +79,18 @@ gpu::Batch *hair_sub_pass_setup_implementation(PassT &sub_ps,
     return cache.batch_get(0, 0, face_per_segment, false, unused_error);
   }
 
+  if (source.curves_num() == 0) {
+    /* No strands, nothing to draw. Return an empty batch. */
+    /* Clear stale sentinel buffers that may have been created in a previous frame. */
+    cache.evaluated_pos_rad_buf.reset();
+    cache.evaluated_time_buf.reset();
+    cache.curves_length_buf.reset();
+    cache.indirection_ribbon_buf.reset();
+    cache.indirection_cylinder_buf.reset();
+    bool unused_error;
+    return cache.batch_get(0, 0, face_per_segment, false, unused_error);
+  }
+
   /* TODO(fclem): Remove Global access. */
   CurvesModule &module = *drw_get().data->curves_module;
 

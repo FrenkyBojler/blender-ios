@@ -892,14 +892,13 @@ gpu::Batch *CurvesEvalCache::batch_get(const int evaluated_point_count,
   GPUPrimType prim_type = GPU_PRIM_NONE;
 
   if (face_per_segment == 0) {
-    /* Add one point per curve to restart the primitive. */
-    segment_count = int64_t(evaluated_point_count) + curve_count;
+    /* Strands are drawn as line strips with one vertex per segment.
+     * Each curve has (num_eval_points - 1) segments, no restart markers.
+     * For cyclic curves, one extra segment is added per curve for the closing edge. */
+    segment_count = int64_t(evaluated_point_count) - curve_count;
     if (use_cyclic) {
       segment_count += curve_count;
     }
-    /* The last segment is always a restart vertex. However, it is not accounted for inside the
-     * data buffers and can lead to out of bound reads (see #148914). */
-    segment_count -= (segment_count > 0) ? 1 : 0;
     vert_per_segment = 1;
     prim_type = GPU_PRIM_LINE_STRIP;
   }

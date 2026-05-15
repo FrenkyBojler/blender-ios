@@ -352,6 +352,47 @@ static void test_draw_curves_topology()
     EXPECT_EQ(indirection_buf[8], 0);
   }
 
+  /* Strand topology (is_ribbon_topology = false, use_cyclic = false).
+   * Strand topology does not write restart markers since curves are drawn as independent
+   * line strips. The indirection buffer size is num_segment - 1 per curve.
+   * This test validates the fix for Vulkan validation layer error #157755: the vertex count
+   * must match the number of valid indirection entries to prevent out-of-bounds reads. */
+  {
+    StorageArrayBuffer<int, 512> indirection_buf;
+    indirection_buf.clear_to_zero();
+
+    PassSimple pass("Strand Curves");
+    pass.init();
+    pass.shader_set(sh);
+    pass.bind_ssbo("evaluated_offsets_buf", curve_offsets_buf);
+    pass.bind_ssbo("curves_cyclic_buf", curve_offsets_buf);
+    pass.bind_ssbo("indirection_buf", indirection_buf);
+    pass.push_constant("curves_start", 0);
+    pass.push_constant("curves_count", 3);
+    pass.push_constant("is_ribbon_topology", false);
+    pass.push_constant("use_cyclic", false);
+    pass.dispatch(1);
+    pass.barrier(GPU_BARRIER_BUFFER_UPDATE);
+
+    manager.submit(pass);
+
+    indirection_buf.read();
+
+    /* Curve 0: 5 evaluated points -> 4 indirection entries (5-1). */
+    EXPECT_EQ(indirection_buf[0], 0);
+    EXPECT_EQ(indirection_buf[1], -1);
+    EXPECT_EQ(indirection_buf[2], -2);
+    EXPECT_EQ(indirection_buf[3], -3);
+    /* Curve 1: 3 evaluated points -> 2 indirection entries (3-1). */
+    EXPECT_EQ(indirection_buf[4], 1);
+    EXPECT_EQ(indirection_buf[5], -1);
+    /* Curve 2: 2 evaluated points -> 1 indirection entry (2-1). */
+    EXPECT_EQ(indirection_buf[6], 2);
+    /* Ensure the rest of the buffer is untouched. */
+    EXPECT_EQ(indirection_buf[7], 0);
+    EXPECT_EQ(indirection_buf[8], 0);
+  }
+
   GPU_shader_unbind();
 
   GPU_SHADER_FREE_SAFE(sh);
