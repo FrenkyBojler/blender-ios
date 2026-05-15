@@ -12,7 +12,6 @@
 #  include "draw_view_infos.hh"
 
 #  include "eevee_geom_infos.hh"
-#  include "eevee_surf_depth_infos.hh"
 #  include "eevee_surf_shadow_infos.hh"
 #  include "eevee_surf_volume_infos.hh"
 #  include "eevee_surf_world_infos.hh"
@@ -51,11 +50,11 @@ CREATE_INFO_VARIANT(eevee_surface_world_curves, eevee_geom_curves, eevee_surf_wo
 CREATE_INFO_VARIANT(eevee_surface_world_mesh, eevee_geom_mesh, eevee_surf_world, eevee_material_stub)
 CREATE_INFO_VARIANT(eevee_surface_world_pointcloud, eevee_geom_pointcloud, eevee_surf_world, eevee_material_stub)
 CREATE_INFO_VARIANT(eevee_surface_world_volume, eevee_geom_volume, eevee_surf_world, eevee_material_stub)
-CREATE_INFO_VARIANT(eevee_surface_depth_world, eevee_geom_world, eevee_surf_depth, eevee_material_stub)
-CREATE_INFO_VARIANT(eevee_surface_depth_curves, eevee_geom_curves, eevee_surf_depth, eevee_material_stub)
-CREATE_INFO_VARIANT(eevee_surface_depth_mesh, eevee_geom_mesh, eevee_surf_depth, eevee_material_stub)
-CREATE_INFO_VARIANT(eevee_surface_depth_pointcloud, eevee_geom_pointcloud, eevee_surf_depth, eevee_material_stub)
-CREATE_INFO_VARIANT(eevee_surface_depth_volume, eevee_geom_volume, eevee_surf_depth, eevee_material_stub)
+// CREATE_INFO_VARIANT(eevee_surface_depth_world, eevee_geom_world, eevee_surf_depth, eevee_material_stub)
+// CREATE_INFO_VARIANT(eevee_surface_depth_curves, eevee_geom_curves, eevee_surf_depth, eevee_material_stub)
+// CREATE_INFO_VARIANT(eevee_surface_depth_mesh, eevee_geom_mesh, eevee_surf_depth, eevee_material_stub)
+// CREATE_INFO_VARIANT(eevee_surface_depth_pointcloud, eevee_geom_pointcloud, eevee_surf_depth, eevee_material_stub)
+// CREATE_INFO_VARIANT(eevee_surface_depth_volume, eevee_geom_volume, eevee_surf_depth, eevee_material_stub)
 // CREATE_INFO_VARIANT(eevee_surface_deferred_world, eevee_geom_world, eevee_surf_deferred, eevee_material_stub)
 // CREATE_INFO_VARIANT(eevee_surface_deferred_curves, eevee_geom_curves, eevee_surf_deferred, eevee_material_stub)
 // CREATE_INFO_VARIANT(eevee_surface_deferred_mesh, eevee_geom_mesh, eevee_surf_deferred, eevee_material_stub)

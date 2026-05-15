@@ -19,7 +19,9 @@
 #ifdef GLSL_CPP_STUBS
 #  define EEVEE_SAMPLING_DATA
 #  define MAT_CLIP_PLANE
+#  define MAT_VELOCITY
 #  define MAT_RENDER_PASS_SUPPORT
+#  define MAT_TRANSPARENT
 #endif
 
 #include "eevee_defines.hh"

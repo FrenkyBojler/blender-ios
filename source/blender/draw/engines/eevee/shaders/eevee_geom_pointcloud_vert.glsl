@@ -48,15 +48,18 @@ void main()
 #endif
 
 #ifdef MAT_VELOCITY
-  float3 lP = drw_point_world_to_object(pointcloud_interp.position);
-  float3 prv, nxt;
-  velocity_local_pos_get(lP, pointcloud_interp_flat.id, prv, nxt);
-  /* FIXME(fclem): Evaluating before displacement avoid displacement being treated as motion but
-   * ignores motion from animated displacement. Supporting animated displacement motion vectors
-   * would require evaluating the nodetree multiple time with different nodetree UBOs evaluated at
-   * different times, but also with different attributes (maybe we could assume static attribute at
-   * least). */
-  velocity_vertex(prv, lP, nxt, motion.prev, motion.next);
+  {
+    auto &motion = interface_get(eevee_velocity_geom, motion);
+    float3 lP = drw_point_world_to_object(pointcloud_interp.position);
+    float3 prv, nxt;
+    velocity_local_pos_get(lP, pointcloud_interp_flat.id, prv, nxt, drw_resource_id());
+    /* FIXME(fclem): Evaluating before displacement avoid displacement being treated as motion but
+     * ignores motion from animated displacement. Supporting animated displacement motion vectors
+     * would require evaluating the nodetree multiple time with different nodetree UBOs evaluated
+     * at different times, but also with different attributes (maybe we could assume static
+     * attribute at least). */
+    velocity_vertex(prv, lP, nxt, motion.prev, motion.next, drw_resource_id(), drw_modelmat());
+  }
 #endif
 
   init_globals();
