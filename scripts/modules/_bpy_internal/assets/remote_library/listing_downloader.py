@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 from __future__ import absolute_import, annotations
+import shutil
 
 __all__ = (
     'RemoteAssetListingLocator',
@@ -300,6 +301,9 @@ class RemoteAssetListingDownloader:
             )
             # Double-check the registration worked, see #139720 for details.
             assert bpy.app.timers.is_registered(self.on_timer_event)
+
+        # Only create a backup when the downloader & timer were created succesfully.
+        self._backup_create()
 
         # Kickstart the download process by downloading the remote asset meta file.
         top_meta_url = "{!s}?s={:d}".format(
@@ -675,6 +679,11 @@ class RemoteAssetListingDownloader:
     def shutdown(self) -> None:
         """Stop the background downloader and call the 'done' callback."""
 
+        if self._status == DownloadStatus.FINISHED_SUCCESSFULLY:
+            self._backup_erase()
+        else:
+            self._backup_restore()
+
         # The timer is no longer necessary, the bg_downloader.shutdown() call
         # takes care of the last queued messages.
         if bpy.app.timers.is_registered(self.on_timer_event):
@@ -731,6 +740,88 @@ class RemoteAssetListingDownloader:
     @property
     def error_message(self) -> str:
         return self._error_message
+
+    def _backup_create(self) -> None:
+        """Create a backup of the asset library's current listing.
+
+        This only creates a backup if none exists already. If there is already
+        a backup, that is an indicator that a previous download didn't succeed,
+        and so the current files shouldn't be trusted to be correct; better not
+        overwrite that already-existing backup with them.
+        """
+        backup_path = self._backup_location()
+
+        if backup_path.is_dir():
+            logger.debug("Asset Listing backup path already exists: %s", backup_path)
+            return
+
+        # If it exists but is not a directory, just delete it. It's not made by us.
+        backup_path.unlink(missing_ok=True)
+        backup_path.mkdir(mode=0o700, parents=True)
+
+        self._backup_files_from_to(self._locator.local_path, backup_path)
+
+    def _backup_restore(self) -> None:
+        """Restore a backup of the asset library's listing, if it exists."""
+        backup_path = self._backup_location()
+
+        if not backup_path.is_dir():
+            logger.warning("Asset Listing backup did not exist, cannot restore: %s", backup_path)
+            return
+        logger.debug("Asset Listing: restoring from backup at %s", backup_path)
+
+        # First delete all the files from the listing, as the newly-downloaded-but-failing listing
+        # may have had new files. And it may have `.part` files, etc.
+        local_path = self._locator.local_path
+        for relpath in self._backup_listing_direntries():
+            local_abspath = local_path/relpath
+            if local_abspath.is_dir():
+                shutil.rmtree(local_abspath)
+            else:
+                local_abspath.unlink(missing_ok=True)
+
+        # Only after the local directory has been cleaned up, put the backup back.
+        self._backup_files_from_to(backup_path, local_path)
+        self._backup_erase()
+        logger.info("Asset Listing: restored from backup at %s", backup_path)
+
+    def _backup_erase(self) -> None:
+        """Erase the backup of the asset library's listing, if it exists."""
+
+        backup_path = self._backup_location()
+        if not backup_path.exists():
+            return
+        shutil.rmtree(backup_path)
+
+    def _backup_location(self) -> Path:
+        """Return the location used for temporary backups of the listing files."""
+        base_path = self._locator.local_path
+        return base_path / "_listing_backup"
+
+    def _backup_listing_direntries(self) -> list[Path]:
+        """Return the listing dirs & files that need backing up/restoring.
+
+        Returns paths relative to the local asset cache directory.
+        """
+        return [
+            Path(listing_common.ASSET_TOP_METADATA_FILENAME),
+            Path(listing_common.API_VERSIONED_SUBDIR),
+        ]
+
+    def _backup_files_from_to(self, src_path: Path, dst_path: Path) -> None:
+        """Create or restore a backup by copying from src_path to dst_path.
+
+        dst_path has to exist, it's the caller's responsibility to ensure this.
+        """
+        for relpath in self._backup_listing_direntries():
+            src_abspath = src_path/relpath
+            dst_abspath = dst_path/relpath
+
+            if src_abspath.is_dir():
+                shutil.copytree(src_abspath, dst_abspath, dirs_exist_ok=True)
+            else:
+                shutil.copy2(src_abspath, dst_abspath)
+
 
     # Below here: CachingDownloadReporter functions:
 
