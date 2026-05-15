@@ -269,4 +269,19 @@ void main()
     EXPECT_NEAR(out_reflection.N, data_in.closure[1].N, 1e-5f);
     EXPECT_NEAR(out_reflection.data.r, data_in.closure[1].data.r, 1e-5f);
   }
+
+  TEST(eevee_gbuffer, ClosureDataDither)
+  {
+    constexpr float quantization_step = 1.0f / 1023.0f;
+
+    float4 data = float4(0.5f, 0.25f, 0.75f, 1.0f);
+    EXPECT_NEAR(gbuffer::closure_data_dither(data, float3(0.5f)), data, 1e-7f);
+    EXPECT_NEAR(gbuffer::closure_data_dither(data, float3(0.0f)).rgb,
+                data.rgb - float3(quantization_step * 0.5f),
+                1e-7f);
+    EXPECT_EQ(gbuffer::closure_data_dither(data, float3(0.0f)).a, data.a);
+
+    float4 endpoints = float4(0.0f, 1.0f, 0.0f, 0.25f);
+    EXPECT_NEAR(gbuffer::closure_data_dither(endpoints, float3(0.0f)).rgb, endpoints.rgb, 1e-7f);
+  }
 }

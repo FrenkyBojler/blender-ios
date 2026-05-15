@@ -23,6 +23,7 @@
 #include "infos/eevee_common_infos.hh"
 
 #include "eevee_gbuffer_lib.glsl"
+#include "eevee_sampling_lib.glsl"
 
 /* Allows to reduce shader complexity and compilation time.
  * Prefer removing the defines to let the loading lib have all cases by default. */
@@ -103,6 +104,36 @@ struct Packed {
   uint object_id;
   UsedLayerFlag used_layers;
 };
+
+bool closure_mode_uses_extra_data(GBufferMode mode)
+{
+  return mode == GBUF_REFLECTION || mode == GBUF_REFRACTION || mode == GBUF_SUBSURFACE;
+}
+
+float3 closure_data_dither(float3 data, float3 noise)
+{
+  constexpr float quantization_step = 1.0f / 1023.0f;
+  float3 data_clamped = saturate(data);
+  float3 amplitude = min(float3(quantization_step * 0.5f), min(data_clamped, 1.0f - data_clamped));
+  return data + (noise * 2.0f - 1.0f) * amplitude;
+}
+
+float4 closure_data_dither(float4 data, float3 noise)
+{
+  /* Only dither the 10-bit RGB channels. Alpha can store a 2-bit shared exponent. */
+  return float4(closure_data_dither(data.rgb, noise), data.a);
+}
+
+float3 closure_dither_noise(float2 texel, uint layer_id, float3 offset)
+{
+  float seed = float(layer_id) * 3.0f;
+  return interleaved_gradient_noise(texel, float3(seed, seed + 1.0f, seed + 2.0f), offset);
+}
+
+float4 closure_data_layer_dither(float4 data, float2 texel, uint layer_id, float3 offset)
+{
+  return closure_data_dither(data, closure_dither_noise(texel, layer_id, offset));
+}
 
 /* Transient data used during packing. */
 struct Packer {
@@ -314,6 +345,59 @@ Packed pack(InputClosures cl_data,
   packer.header.geometry_normal_set(Ng, packer.closures[0].N);
 
   return packer.result_get();
+}
+
+Packed pack_dithered(InputClosures cl_data,
+                     float3 Ng,
+                     packed_float3 surface_N,
+                     Thickness thickness,
+                     bool use_object_id,
+                     float2 texel,
+                     float3 dither_offset)
+{
+  Packed data = pack(cl_data, Ng, surface_N, thickness, use_object_id);
+
+  Header header = Header::from_data(data.header);
+  uchar closure_count = header.closure_len();
+  uint3 layer_modes = header.bin_types_per_layer();
+
+  data.closure[0] = closure_data_layer_dither(data.closure[0], texel, 0u, dither_offset);
+
+#if GBUFFER_LAYER_MAX > 1
+  if (closure_count > 1u) {
+    data.closure[1] = closure_data_layer_dither(data.closure[1], texel, 1u, dither_offset);
+  }
+#endif
+#if GBUFFER_LAYER_MAX > 2
+  if (closure_count > 2u) {
+    data.closure[2] = closure_data_layer_dither(data.closure[2], texel, 2u, dither_offset);
+  }
+#endif
+
+#if defined(GBUFFER_SIMPLE_CLOSURE_LAYOUT)
+  bool dither_first_extra_data = closure_count == 1u &&
+                                 closure_mode_uses_extra_data(GBufferMode(layer_modes.x));
+#else
+  bool dither_first_extra_data = closure_mode_uses_extra_data(GBufferMode(layer_modes.x));
+#endif
+  if (dither_first_extra_data) {
+    data.closure[closure_count] = closure_data_layer_dither(
+        data.closure[closure_count], texel, closure_count, dither_offset);
+  }
+#if GBUFFER_LAYER_MAX > 1 && !defined(GBUFFER_SIMPLE_CLOSURE_LAYOUT)
+  if (closure_count > 1u && closure_mode_uses_extra_data(GBufferMode(layer_modes.y))) {
+    data.closure[closure_count + 1u] = closure_data_layer_dither(
+        data.closure[closure_count + 1u], texel, closure_count + 1u, dither_offset);
+  }
+#endif
+#if GBUFFER_LAYER_MAX > 2
+  if (closure_count > 2u && closure_mode_uses_extra_data(GBufferMode(layer_modes.z))) {
+    data.closure[closure_count + 2u] = closure_data_layer_dither(
+        data.closure[closure_count + 2u], texel, closure_count + 2u, dither_offset);
+  }
+#endif
+
+  return data;
 }
 
 /** \} */

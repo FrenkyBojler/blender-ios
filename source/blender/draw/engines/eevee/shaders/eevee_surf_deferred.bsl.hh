@@ -162,7 +162,9 @@ void surf_deferred([[resource_table]] SurfaceDeferred &srt,
 #endif
   const bool use_object_id = use_sss || use_light_linking || use_terminator_offset;
 
-  gbuffer::Packed gbuf = gbuffer::pack(gbuf_data, g_data.Ng, g_data.N, thickness, use_object_id);
+  float3 gbuffer_dither = sampling_rng_3D_get(SAMPLING_GBUFFER_U);
+  gbuffer::Packed gbuf = gbuffer::pack_dithered(
+      gbuf_data, g_data.Ng, g_data.N, thickness, use_object_id, frag_co.xy, gbuffer_dither);
 
   /* Output header and first closure using frame-buffer attachment. */
   frag_out.gbuf_header = gbuf.header;
