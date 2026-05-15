@@ -878,7 +878,7 @@ void tooltip_color_field_add(TooltipData &data,
   TooltipImage image_data;
   image_data.width = int(w);
   image_data.height = int(w / (has_alpha ? 4.0f : 3.0f));
-  image_data.ibuf = IMB_allocImBuf(image_data.width, image_data.height, 32, IB_byte_data);
+  image_data.ibuf = IMB_allocImBuf(image_data.width, image_data.height, ImBufFlags::ByteData);
   image_data.border = true;
   image_data.premultiplied = false;
 
@@ -1139,7 +1139,7 @@ static std::unique_ptr<TooltipData> tooltip_data_from_button_or_extra_icon(
                            true);
   }
 
-  if (ELEM(but->type, ButtonType::Text, ButtonType::SearchMenu)) {
+  if (ELEM(but->type, ButtonType::TextBox, ButtonType::Text, ButtonType::SearchMenu)) {
     /* Better not show the value of a password. */
     if ((rnaprop && (RNA_property_subtype(rnaprop) == PROP_PASSWORD)) == 0) {
       /* Full string. */
@@ -1888,10 +1888,10 @@ static void tooltip_from_clip(MovieClip &clip, TooltipData &data)
 
   std::string image_type;
   switch (clip.source) {
-    case IMA_SRC_SEQUENCE:
+    case MCLIP_SRC_SEQUENCE:
       image_type = TIP_("Image Sequence");
       break;
-    case IMA_SRC_MOVIE:
+    case MCLIP_SRC_MOVIE:
       image_type = TIP_("Movie");
       break;
   }

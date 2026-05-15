@@ -17,6 +17,7 @@
 #include "DNA_color_types.h"
 #include "DNA_defs.h"
 #include "DNA_listBase.h"
+#include "DNA_scene_enums.h"
 #include "DNA_screen_types.h" /* for #TextboxState. */
 #include "DNA_vec_types.h"    /* for #rctf */
 
@@ -400,6 +401,9 @@ struct Strip {
   struct Scene *scene = nullptr;
   /** Override scene camera. */
   struct Object *scene_camera = nullptr;
+  /** View layer to render for SCENE strips. Initialized to scene's default render view layer.
+   * If `strip->scene` is set, then this should not be `nullptr`! */
+  char *scene_view_layer_name = nullptr;
   /** For MOVIECLIP strips. */
   struct MovieClip *clip = nullptr;
   /** For MASK strips. */
@@ -454,7 +458,7 @@ struct Strip {
   int sfra = 0;
 
   /* Multiview */
-  char views_format = 0;
+  eImageFormat_ViewsFormat views_format = {};
   char _pad3[3] = {};
   struct Stereo3dFormat *stereo3d_format = nullptr;
 
@@ -806,6 +810,7 @@ struct TextVars {
   struct VFont *text_font = nullptr;
   int text_blf_id = 0;
   float text_size = 0;
+  float space_line = 1.0f;
   float color[4] = {}, shadow_color[4] = {}, box_color[4] = {}, outline_color[4] = {};
   float loc[2] = {};
   float wrap_width = 0;
@@ -829,7 +834,7 @@ struct TextVars {
 
   eEffectTextAnchorX anchor_x = SEQ_TEXT_ANCHOR_X_LEFT;
   eEffectTextAnchorY anchor_y = SEQ_TEXT_ANCHOR_Y_TOP;
-  char _pad1 = {};
+  char _pad1[5] = {};
   seq::TextVarsRuntime *runtime = nullptr;
 
   /* Fixed size text buffer, only exists for forward/backward compatibility.
@@ -880,6 +885,7 @@ enum eStripModifierFlag : uint32_t {
   STRIP_MODIFIER_FLAG_MUTE = (1 << 0),
   STRIP_MODIFIER_FLAG_EXPANDED = (1 << 1),
   STRIP_MODIFIER_FLAG_ACTIVE = (1 << 2),
+  STRIP_MODIFIER_FLAG_SHOW_PREVIEW = (1 << 3),
 };
 ENUM_OPERATORS(eStripModifierFlag);
 
@@ -924,6 +930,10 @@ struct StripModifierData {
   struct IDProperty *system_properties = nullptr;
 
   blender::seq::StripModifierDataRuntime *runtime = nullptr;
+
+#ifdef __cplusplus
+  bool is_type_sound() const;
+#endif
 };
 
 struct ColorBalanceModifierData {
