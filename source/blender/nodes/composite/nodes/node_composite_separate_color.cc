@@ -94,6 +94,8 @@ static int node_gpu_material(GPUMaterial *material,
       return GPU_stack_link(material, node, "node_composite_separate_hsva", inputs, outputs);
     case CMP_NODE_COMBSEP_COLOR_HSL:
       return GPU_stack_link(material, node, "node_composite_separate_hsla", inputs, outputs);
+    case CMP_NODE_COMBSEP_COLOR_LAB:
+      return GPU_stack_link(material, node, "node_composite_separate_oklab", inputs, outputs);
     case CMP_NODE_COMBSEP_COLOR_YUV:
       return GPU_stack_link(
           material, node, "node_composite_separate_yuva_itu_709", inputs, outputs);
