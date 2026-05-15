@@ -565,6 +565,7 @@ void wm_event_evaluate_depsgraph_off_frame(bContext *C)
     /* 16ms == 60fps. That should give enough headroom for the rest of Blender to keep feeling
      * responsive. */
     while (Clock::now() - start < std::chrono::milliseconds(16)) {
+      /* TODO early exit when all eval is done. */
       bke::wm_runtime_evaluate_next_frame(*bmain, runtime, *scene);
     }
 
