@@ -245,17 +245,6 @@ struct Button : NonMovable {
   ButtonCompleteFunc autocomplete_func = nullptr;
   void *autofunc_arg = nullptr;
 
-  ButtonHandleRenameFunc rename_func = nullptr;
-  void *rename_arg1 = nullptr;
-  char *rename_orig = nullptr;
-
-  /**
-   * When defined, and the button edits a string RNA property,
-   * the new name is _not_ set at all, instead this function is called with the new name.
-   */
-  std::function<void(std::string &new_name)> rename_full_func = nullptr;
-  std::string rename_full_new;
-
   /** Run an action when holding the button down. */
   ButtonHandleHoldFunc hold_func = nullptr;
   void *hold_argN = nullptr;
@@ -372,6 +361,18 @@ struct TextWrapCache {
   Vector<StringRef> wrapped_lines;
 };
 
+/** Derived struct for #ButtonType::Text */
+struct ButtonText : public Button {
+  std::function<void(bContext &, StringRefNull)> rename_func = nullptr;
+  char *rename_orig = nullptr;
+  /**
+   * When defined, and the button edits a string RNA property,
+   * the new name is _not_ set at all, instead this function is called with the new name.
+   */
+  std::function<void(StringRefNull new_name)> rename_full_func = nullptr;
+  std::string rename_full_new;
+};
+
 /** Derived struct for #ButtonType::TextBox */
 struct ButtonTextBox : public Button {
 
@@ -382,6 +383,10 @@ struct ButtonTextBox : public Button {
 
   /** Wrap cache from last redraw/event handling. */
   std::unique_ptr<TextWrapCache> wrap_cache;
+
+  /** Placeholder wrap cache from last draw. */
+  std::unique_ptr<TextWrapCache> placeholder_wrap_cache;
+
   void line_scroll_set(int line_scroll);
   int line_scroll() const;
   int visible_lines() const;
@@ -1605,7 +1610,7 @@ Button *listrow_find_index(const ARegion *region,
                            int index,
                            Button *listbox) ATTR_WARN_UNUSED_RESULT;
 Button *view_item_find_mouse_over(const ARegion *region, const int xy[2]) ATTR_NONNULL(1, 2);
-Button *view_item_find_active(const ARegion *region);
+Button *view_item_find_active(const ARegion *region, const AbstractView *view = nullptr);
 Button *view_item_find_search_highlight(const ARegion *region);
 
 using ButtonFindPollFn = bool (*)(const Button *but, const void *customdata);

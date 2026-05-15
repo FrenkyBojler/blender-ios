@@ -28,6 +28,7 @@
 #include "BKE_colortools.hh"
 #include "BKE_curves.hh"
 #include "BKE_idprop.hh"
+#include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
 #include "BKE_mesh_legacy_convert.hh"
@@ -261,11 +262,29 @@ static void version_clear_strip_linear_modifier_flag(Main &bmain)
     Editing *ed = seq::editing_get(&scene);
     if (ed != nullptr) {
       seq::foreach_strip(&ed->seqbase, [&](Strip *strip) {
-        constexpr int flag_linear_modifiers = 1 << 23;
+        constexpr eStripFlag flag_linear_modifiers = eStripFlag(1 << 23);
         strip->flag &= ~flag_linear_modifiers;
         return true;
       });
     }
+  }
+}
+
+static void version_text_strip_space_line(Main &bmain)
+{
+  for (Scene &scene : bmain.scenes) {
+    Editing *ed = seq::editing_get(&scene);
+    if (ed == nullptr) {
+      continue;
+    }
+
+    seq::foreach_strip(&ed->seqbase, [&](Strip *strip) {
+      if (strip->type == STRIP_TYPE_TEXT && strip->effectdata != nullptr) {
+        TextVars *data = static_cast<TextVars *>(strip->effectdata);
+        data->space_line = 1.0f;
+      }
+      return true;
+    });
   }
 }
 
@@ -284,6 +303,42 @@ static void fix_single_point_curves_custom_knots(Main *bmain)
         nu->flagv &= (CU_NURB_CYCLIC | CU_NURB_BEZIER | CU_NURB_ENDPOINT);
       }
     }
+  }
+}
+
+static void version_strip_modifier_show_preview_flag(Main &bmain)
+{
+  for (Scene &scene : bmain.scenes) {
+    Editing *ed = seq::editing_get(&scene);
+    if (ed == nullptr) {
+      continue;
+    }
+    seq::foreach_strip(&ed->seqbase, [&](Strip *strip) {
+      for (StripModifierData &smd : strip->modifiers) {
+        if ((smd.flag & STRIP_MODIFIER_FLAG_MUTE) == 0) {
+          smd.flag |= STRIP_MODIFIER_FLAG_SHOW_PREVIEW;
+        }
+      }
+      return true;
+    });
+  }
+}
+
+static void version_scene_strip_view_layer_name(Main &bmain)
+{
+  for (const Scene &scene : bmain.scenes) {
+    Editing *ed = seq::editing_get(&scene);
+    if (ed == nullptr) {
+      continue;
+    }
+
+    seq::foreach_strip(&ed->seqbase, [&](Strip *strip) {
+      if (strip->type != STRIP_TYPE_SCENE || strip->scene == nullptr) {
+        return true;
+      }
+      strip->scene_view_layer_name = BLI_strdup(BKE_view_layer_default_render(strip->scene)->name);
+      return true;
+    });
   }
 }
 
@@ -308,6 +363,10 @@ void do_versions_after_linking_520(FileData *fd, Main *bmain)
         }
       }
     }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 27)) {
+    version_scene_strip_view_layer_name(*bmain);
   }
 
   /**
@@ -494,6 +553,94 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
         materials.gp_style->random_saturation_factor = 0.0f;
         materials.gp_style->random_value_factor = 0.0f;
         materials.gp_style->random_noise_scale = 1.0f;
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 22)) {
+    version_strip_modifier_show_preview_flag(*bmain);
+  }
+
+  /* The ID member of the Viewer node is no longer initialized to the Viewer Image, so clear that
+   * member. */
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 23)) {
+    FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
+      if (node_tree->type == NTREE_COMPOSIT) {
+        for (bNode &node : node_tree->nodes) {
+          if (node.type_legacy == CMP_NODE_VIEWER) {
+            node.id = nullptr;
+          }
+        }
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 24)) {
+    FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
+      if (node_tree->type == NTREE_SHADER) {
+        for (bNode &node : node_tree->nodes) {
+          if (node.type_legacy == SH_NODE_RAYCAST && node.storage == nullptr) {
+            node.storage = MEM_new<NodeShaderRaycast>(__func__);
+          }
+        }
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 25)) {
+    for (bScreen &screen : bmain->screens) {
+      for (ScrArea &area : screen.areabase) {
+        for (SpaceLink &space : area.spacedata) {
+          if (space.spacetype == SPACE_OUTLINER) {
+            SpaceOutliner *space_outliner = reinterpret_cast<SpaceOutliner *>(&space);
+            space_outliner->flag |= SO_SCROLL_TO_ACTIVE;
+          }
+        }
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 26)) {
+    FOREACH_NODETREE_BEGIN (bmain, tree, id) {
+      if (tree->type != NTREE_GEOMETRY) {
+        continue;
+      }
+      for (bNode &node : tree->nodes) {
+        switch (node.type_legacy) {
+          case FN_NODE_COMPARE:
+          case FN_NODE_RANDOM_VALUE: {
+            version_socket_identifier_suffixes_for_dynamic_types(node.inputs, "_");
+            version_socket_identifier_suffixes_for_dynamic_types(node.outputs, "_");
+            break;
+          }
+        }
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 28)) {
+    version_text_strip_space_line(*bmain);
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 29)) {
+    for (bScreen &screen : bmain->screens) {
+      for (ScrArea &area : screen.areabase) {
+        for (SpaceLink &sl : area.spacedata) {
+          if (sl.spacetype != SPACE_SEQ) {
+            continue;
+          }
+          ListBaseT<ARegion> *regionbase = (&sl == area.spacedata.first) ? &area.regionbase :
+                                                                           &sl.regionbase;
+          ARegion *scrubbing_region = do_versions_add_region_if_not_found(
+              regionbase, RGN_TYPE_SCRUBBING, "Scrubbing Region", RGN_TYPE_FOOTER);
+          if (scrubbing_region) {
+            scrubbing_region->alignment = RGN_ALIGN_BOTTOM | RGN_STACK_ON_PREV |
+                                          RGN_ALIGN_HIDE_WITH_PREV;
+          }
+        }
       }
     }
   }
