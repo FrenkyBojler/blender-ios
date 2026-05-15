@@ -244,10 +244,6 @@ static wmOperatorStatus strip_modifier_add_asset_exec(bContext *C, wmOperator *o
   Scene *scene = CTX_data_sequencer_scene(C);
   Strip *strip = seq::select_active_get(scene);
 
-  if (!strip) {
-    return OPERATOR_CANCELLED;
-  }
-
   bNodeTree *node_group = get_node_group(*C, *op->ptr, op->reports);
   if (!node_group) {
     return OPERATOR_CANCELLED;
