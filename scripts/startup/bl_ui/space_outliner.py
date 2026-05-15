@@ -60,7 +60,7 @@ class OUTLINER_HT_header(Header):
         row = layout.row(align=True)
         if display_mode in {'SCENES', 'VIEW_LAYER', 'LIBRARY_OVERRIDES'}:
             row.popover(
-                panel="OUTLINER_PT_options",
+                panel="OUTLINER_PT_filter",
                 text="",
             )
 
@@ -399,7 +399,7 @@ class OUTLINER_MT_liboverride(Menu):
         ).selection_set = 'SELECTED'
 
 
-class OUTLINER_PT_options(Panel):
+class OUTLINER_PT_filter(Panel):
     bl_space_type = 'OUTLINER'
     bl_region_type = 'HEADER'
     bl_label = "Options"
@@ -456,7 +456,7 @@ class OUTLINER_PT_options_search(Panel):
     bl_space_type = 'OUTLINER'
     bl_region_type = 'HEADER'
     bl_label = "Search"
-    bl_parent_id = "OUTLINER_PT_options"
+    bl_parent_id = "OUTLINER_PT_filter"
 
     @classmethod
     def poll(cls, context):
@@ -485,7 +485,7 @@ class OUTLINER_PT_options_filter(Panel):
     bl_space_type = 'OUTLINER'
     bl_region_type = 'HEADER'
     bl_label = "Filter"
-    bl_parent_id = "OUTLINER_PT_options"
+    bl_parent_id = "OUTLINER_PT_filter"
 
     @classmethod
     def poll(cls, context):
@@ -582,7 +582,7 @@ classes = (
     OUTLINER_MT_context_menu,
     OUTLINER_MT_context_menu_view,
     OUTLINER_MT_view_pie,
-    OUTLINER_PT_options,
+    OUTLINER_PT_filter,
     OUTLINER_PT_options_search,
     OUTLINER_PT_options_filter,
 )
