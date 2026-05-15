@@ -116,7 +116,7 @@ static bool unassigned_local_poll(const Main &bmain)
 {
   for (const bNodeTree &group : bmain.nodetrees) {
     /* Assets are displayed in other menus, and non-local data-blocks aren't added to this menu. */
-    if (group.id.library_weak_reference || group.id.asset_data) {
+    if (ID_IS_ASSET(&group.id)) {
       continue;
     }
     if (!group.compositor_node_asset_traits ||
@@ -145,7 +145,7 @@ static void unassigned_assets_draw(const bContext *C, Menu *menu)
   bool add_separator = !tree.unassigned_assets.is_empty();
   for (const bNodeTree &group : bmain.nodetrees) {
     /* Assets are displayed in other menus, and non-local data-blocks aren't added to this menu. */
-    if (group.id.library_weak_reference || group.id.asset_data) {
+    if (ID_IS_ASSET(&group.id)) {
       continue;
     }
     if (!group.compositor_node_asset_traits ||
