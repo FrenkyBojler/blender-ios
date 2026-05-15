@@ -377,6 +377,7 @@ static void enable_compositor_nodes_is_strip_modifier(Main &bmain)
         group.compositor_node_asset_traits = MEM_new<CompositorNodeAssetTraits>(__func__);
       }
       group.compositor_node_asset_traits->flag |= COMPOSIT_NODE_ASSET_STRIP_MODIFIER;
+      bke::node_update_asset_metadata(group);
     }
   }
 }

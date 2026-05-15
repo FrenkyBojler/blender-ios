@@ -1917,6 +1917,7 @@ static wmOperatorStatus new_compositor_sequencer_node_group_exec(bContext *C, wm
       ntree->compositor_node_asset_traits = MEM_new<CompositorNodeAssetTraits>(__func__);
     }
     ntree->compositor_node_asset_traits->flag |= COMPOSIT_NODE_ASSET_STRIP_MODIFIER;
+    bke::node_update_asset_metadata(*ntree);
   }
   node_templateID_assign(C, ntree);
 
