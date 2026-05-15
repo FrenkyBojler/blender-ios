@@ -762,7 +762,7 @@ class RemoteAssetListingDownloader:
         self._backup_files_from_to(self._locator.local_path, backup_path)
 
     def _backup_restore(self) -> None:
-        """Restore a backup of the asset library's listing, if it exists."""
+        """Restore a backup of the asset library's listing."""
         backup_path = self._backup_location()
 
         if not backup_path.is_dir():
