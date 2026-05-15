@@ -149,7 +149,7 @@ bool PreferencesRemoteAssetLibrary::is_enabled() const
  * \{ */
 
 struct ProgressTracker {
-  bool any_loading = false;
+  static bool any_loading;
 
   /** Should be called when a file download is requested. */
   static void file_requested();
@@ -165,23 +165,13 @@ struct ProgressTracker {
    * downloads ourselves.
    */
   static bool is_any_loading();
-
- private:
-  ProgressTracker() = default;
-  static ProgressTracker &instance();
 };
 
-ProgressTracker &ProgressTracker::instance()
-{
-  static ProgressTracker tracker = ProgressTracker{};
-  return tracker;
-}
+bool ProgressTracker::any_loading = false;
 
 void ProgressTracker::file_requested()
 {
-  ProgressTracker &tracker = ProgressTracker::instance();
-
-  tracker.any_loading = true;
+  ProgressTracker::any_loading = true;
 }
 
 /* Call into Python to ask the downloader if there are any assets currently downloading. */
@@ -221,28 +211,25 @@ _result = asset_dl.any_asset_downloading()
 
 void ProgressTracker::file_finished(const bContext &C)
 {
-  ProgressTracker &tracker = ProgressTracker::instance();
-
   /* Whenever a file finishes, update the "any downloading" flag. We call into Python for this, so
    * by only doing it when a file finishes, we avoid unnecessary calls. */
-  tracker.any_loading = downloader_status_any_asset_downloading(C);
+  ProgressTracker::any_loading = downloader_status_any_asset_downloading(C);
 
-  if (!tracker.any_loading) {
+  if (!ProgressTracker::any_loading) {
     ProgressTracker::on_all_finished(*CTX_wm_manager(&C));
   }
 }
 
 void ProgressTracker::on_all_finished(wmWindowManager &wm)
 {
-  ProgressTracker &tracker = ProgressTracker::instance();
-  tracker.any_loading = false;
+  ProgressTracker::any_loading = false;
   /* Add notifier so job UIs redraw, and the progress/cancel buttons disappear. */
   WM_event_add_notifier_ex(&wm, nullptr, NC_WM | ND_JOB, nullptr);
 }
 
 bool ProgressTracker::is_any_loading()
 {
-  return ProgressTracker::instance().any_loading;
+  return ProgressTracker::any_loading;
 }
 
 bool remote_library_has_unfinished_asset_downloads()
