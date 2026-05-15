@@ -167,13 +167,21 @@ class IMAGE_MT_select(Menu):
 
         layout.operator_menu_enum("uv.select_similar", "type", text="Select Similar")
         layout.menu("IMAGE_MT_select_linked")
-        layout.operator("uv.select_tile")
 
         layout.separator()
-
-        layout.operator("uv.select_pinned", text="Select Pinned")
         layout.operator("uv.select_split")
-        layout.operator("uv.select_overlap")
+        layout.menu("IMAGE_MT_select_all_by_trait")
+
+
+class IMAGE_MT_select_all_by_trait(Menu):
+    bl_label = "Select All by Trait"
+
+    def draw(self, _context):
+        layout = self.layout
+        layout.operator("uv.select_tile", text="Tile")
+        layout.operator("uv.select_pinned", text="Pinned")
+        layout.operator("uv.select_overlap", text="Overlap")
+        layout.operator("uv.select_by_winding", text="Winding")
 
 
 class IMAGE_MT_select_linked(Menu):
@@ -616,10 +624,10 @@ class IMAGE_MT_pivot_pie(Menu):
 
         sima = context.space_data
 
-        pie.prop_enum(sima, "pivot_point", value='CENTER')
+        pie.prop_enum(sima, "pivot_point", value='BOUNDING_BOX_CENTER')
         pie.prop_enum(sima, "pivot_point", value='CURSOR')
         pie.prop_enum(sima, "pivot_point", value='INDIVIDUAL_ORIGINS')
-        pie.prop_enum(sima, "pivot_point", value='MEDIAN')
+        pie.prop_enum(sima, "pivot_point", value='MEDIAN_POINT')
 
 
 class IMAGE_MT_uvs_snap_pie(Menu):
@@ -934,7 +942,7 @@ class IMAGE_HT_header(Header):
 
         if show_uvedit:
             mesh = context.edit_object.data
-            layout.prop_search(mesh.uv_layers, "active", mesh, "uv_layers", text="")
+            layout.prop_search(mesh.uv_layers, "active", mesh, "uv_layers", text="", icon='GROUP_UVS')
 
         if ima:
             seq_scene = context.sequencer_scene
@@ -1600,6 +1608,13 @@ class IMAGE_PT_gizmo_display(Panel):
         colsub = col.column()
         colsub.prop(view, "show_gizmo_navigate", text="Navigate")
 
+        image = view.image
+        show_compositor_gizmos = (image is not None and image.type == 'COMPOSITING' and
+                                  view.ui_mode in ('VIEW', 'MASK'))
+        if show_compositor_gizmos:
+            colsub = col.column()
+            colsub.prop(view, "show_gizmo_active_node")
+
 
 class IMAGE_PT_overlay(Panel):
     bl_space_type = 'IMAGE_EDITOR'
@@ -1832,6 +1847,7 @@ classes = (
     IMAGE_MT_view,
     IMAGE_MT_view_zoom,
     IMAGE_MT_select,
+    IMAGE_MT_select_all_by_trait,
     IMAGE_MT_select_linked,
     IMAGE_MT_image,
     IMAGE_MT_image_transform,

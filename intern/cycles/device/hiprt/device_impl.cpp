@@ -4,10 +4,12 @@
 
 #ifdef WITH_HIPRT
 
+#  include "device/hiprt/device_impl.h"
+
+#  include <hiprt/hiprt.h>
 #  include <iomanip>
 
 #  include "device/hip/util.h"
-#  include "device/hiprt/device_impl.h"
 #  include "kernel/device/hiprt/globals.h"
 
 #  include "util/log.h"
@@ -17,9 +19,12 @@
 #  include "util/string.h"
 #  include "util/time.h"
 #  include "util/types.h"
+#  include "util/vector.h"
 
-#  ifdef _WIN32
+#  if defined(_WIN32)
 #    include "util/windows.h"
+#  elif defined(__linux__)
+#    include <dlfcn.h>
 #  endif
 
 #  include "bvh/hiprt.h"
@@ -53,7 +58,47 @@ static void get_hiprt_transform(float matrix[][4], Transform &tfm)
   matrix[row][col++] = tfm.z.w;
 }
 
-class HIPRTDevice;
+bool HIPRTDevice::is_supported()
+{
+#  if defined(__linux__)
+  static bool is_initialized = false;
+  static bool is_supported = false;
+
+  if (is_initialized) {
+    return is_supported;
+  }
+  is_initialized = true;
+
+  /* The current version of HIP-RT requires libamdhip64.so which Fedora puts in a separate package
+   * than libamdhip64.so.6 as required by HIP. For now check for the existence of this. In the
+   * future update we'll make HIP-RT consistent, and this code can be removed. */
+  const vector<const char *> hip_paths = {
+      "libamdhip64.so",
+      "/opt/rocm/lib/libamdhip64.so",
+      "/opt/rocm/hip/lib/libamdhip64.so",
+  };
+
+  LOG_INFO << "Checking for libamdhip64.so";
+
+  for (const char *hip_path : hip_paths) {
+    void *hip_lib = dlopen(hip_path, RTLD_LAZY);
+    if (hip_lib) {
+      LOG_DEBUG << "Found libamdhip64.so at: " << hip_path;
+      is_supported = true;
+      dlclose(hip_lib);
+      break;
+    }
+  }
+
+  if (!is_supported) {
+    LOG_INFO << "libamdhip64.so not found, HIP-RT will be disabled";
+  }
+
+  return is_supported;
+#  else
+  return true;
+#  endif
+}
 
 BVHLayoutMask HIPRTDevice::get_bvh_layout_mask(const uint /* kernel_features */) const
 {
@@ -88,8 +133,7 @@ HIPRTDevice::HIPRTDevice(const DeviceInfo &info,
   hiprt_context_input.ctxt = hipContext;
   hiprt_context_input.device = hipDevice;
   hiprt_context_input.deviceType = hiprtDeviceAMD;
-  hiprtError rt_result = hiprtCreateContext(
-      HIPRT_API_VERSION, hiprt_context_input, &hiprt_context);
+  hiprtError rt_result = hiprtCreateContext(HIPRT_API_VERSION, hiprt_context_input, hiprt_context);
 
   if (rt_result != hiprtSuccess) {
     set_error("Failed to create HIPRT context");
@@ -372,6 +416,7 @@ hiprtGeometryBuildInput HIPRTDevice::prepare_triangle_blas(BVHHIPRT *bvh, Mesh *
     const size_t num_triangles = mesh->num_triangles();
     const float3 *verts = mesh->get_verts().data();
     int num_bounds = 0;
+    float sum_area = 0.0f;
 
     if (bvh->params.num_motion_triangle_steps == 0 || bvh->params.use_spatial_split) {
       bvh->custom_primitive_bound.alloc(num_triangles);
@@ -388,6 +433,7 @@ hiprtGeometryBuildInput HIPRTDevice::prepare_triangle_blas(BVHHIPRT *bvh, Mesh *
           bvh->custom_primitive_bound[num_bounds] = bounds;
           bvh->custom_prim_info[num_bounds].x = j;
           bvh->custom_prim_info[num_bounds].y = mesh->primitive_type();
+          sum_area += bounds.area();
           num_bounds++;
         }
       }
@@ -426,12 +472,16 @@ hiprtGeometryBuildInput HIPRTDevice::prepare_triangle_blas(BVHHIPRT *bvh, Mesh *
             bvh->custom_prim_info[num_bounds].y = mesh->primitive_type();
             bvh->prims_time[num_bounds].x = curr_time;
             bvh->prims_time[num_bounds].y = prev_time;
+            sum_area += bounds.area();
             num_bounds++;
           }
           prev_bounds = curr_bounds;
         }
       }
     }
+
+    const float union_area = mesh->bounds.area();
+    bvh->aabb_overlap_ratio = (union_area > 0.0f && num_bounds > 1) ? sum_area / union_area : 0.0f;
 
     bvh->custom_prim_aabb.aabbCount = num_bounds;
     bvh->custom_prim_aabb.aabbStride = sizeof(BoundBox);
@@ -510,6 +560,7 @@ hiprtGeometryBuildInput HIPRTDevice::prepare_curve_blas(BVHHIPRT *bvh, Hair *hai
   }
 
   int num_bounds = 0;
+  float sum_area = 0.0f;
   float3 *curve_keys = hair->get_curve_keys().data();
 
   for (uint j = 0; j < num_curves; j++) {
@@ -540,6 +591,7 @@ hiprtGeometryBuildInput HIPRTDevice::prepare_curve_blas(BVHHIPRT *bvh, Hair *hai
           bvh->custom_prim_info[num_bounds].x = j;
           bvh->custom_prim_info[num_bounds].y = type;
           bvh->custom_primitive_bound[num_bounds] = bounds;
+          sum_area += bounds.area();
           num_bounds++;
         }
       }
@@ -559,6 +611,7 @@ hiprtGeometryBuildInput HIPRTDevice::prepare_curve_blas(BVHHIPRT *bvh, Hair *hai
             bvh->custom_prim_info[num_bounds].x = j;
             bvh->custom_prim_info[num_bounds].y = type;
             bvh->custom_primitive_bound[num_bounds] = bounds;
+            sum_area += bounds.area();
             num_bounds++;
           }
         }
@@ -607,6 +660,7 @@ hiprtGeometryBuildInput HIPRTDevice::prepare_curve_blas(BVHHIPRT *bvh, Hair *hai
               bvh->custom_primitive_bound[num_bounds] = bounds;
               bvh->prims_time[num_bounds].x = prev_time;
               bvh->prims_time[num_bounds].y = curr_time;
+              sum_area += bounds.area();
               num_bounds++;
             }
             prev_bounds = curr_bounds;
@@ -615,6 +669,9 @@ hiprtGeometryBuildInput HIPRTDevice::prepare_curve_blas(BVHHIPRT *bvh, Hair *hai
       }
     }
   }
+
+  const float union_area = hair->bounds.area();
+  bvh->aabb_overlap_ratio = (union_area > 0.0f && num_bounds > 1) ? sum_area / union_area : 0.0f;
 
   bvh->custom_prim_aabb.aabbCount = num_bounds;
   bvh->custom_prim_aabb.aabbStride = sizeof(BoundBox);
@@ -648,6 +705,7 @@ hiprtGeometryBuildInput HIPRTDevice::prepare_point_blas(BVHHIPRT *bvh, PointClou
   const size_t num_steps = pointcloud->get_motion_steps();
 
   int num_bounds = 0;
+  float sum_area = 0.0f;
 
   if (point_attr_mP == nullptr) {
     bvh->custom_prim_info.resize(num_points);
@@ -660,6 +718,7 @@ hiprtGeometryBuildInput HIPRTDevice::prepare_point_blas(BVHHIPRT *bvh, PointClou
         bvh->custom_primitive_bound[num_bounds] = bounds;
         bvh->custom_prim_info[num_bounds].x = j;
         bvh->custom_prim_info[num_bounds].y = PRIMITIVE_POINT;
+        sum_area += bounds.area();
         num_bounds++;
       }
     }
@@ -679,6 +738,7 @@ hiprtGeometryBuildInput HIPRTDevice::prepare_point_blas(BVHHIPRT *bvh, PointClou
         bvh->custom_primitive_bound[num_bounds] = bounds;
         bvh->custom_prim_info[num_bounds].x = j;
         bvh->custom_prim_info[num_bounds].y = PRIMITIVE_MOTION_POINT;
+        sum_area += bounds.area();
         num_bounds++;
       }
     }
@@ -716,12 +776,16 @@ hiprtGeometryBuildInput HIPRTDevice::prepare_point_blas(BVHHIPRT *bvh, PointClou
           bvh->custom_prim_info[num_bounds].y = PRIMITIVE_MOTION_POINT;
           bvh->prims_time[num_bounds].x = prev_time;
           bvh->prims_time[num_bounds].y = curr_time;
+          sum_area += bounds.area();
           num_bounds++;
         }
         prev_bounds = curr_bounds;
       }
     }
   }
+
+  const float union_area = pointcloud->bounds.area();
+  bvh->aabb_overlap_ratio = (union_area > 0.0f && num_bounds > 1) ? sum_area / union_area : 0.0f;
 
   bvh->custom_prim_aabb.aabbCount = num_bounds;
   bvh->custom_prim_aabb.aabbStride = sizeof(BoundBox);
@@ -737,6 +801,61 @@ hiprtGeometryBuildInput HIPRTDevice::prepare_point_blas(BVHHIPRT *bvh, PointClou
   }
 
   return geom_input;
+}
+
+hiprtBuildFlags HIPRTDevice::select_blas_build_flags(BVHHIPRT *bvh,
+                                                     Geometry *geom,
+                                                     const hiprtGeometryBuildInput &geom_input)
+{
+  constexpr float memory_pressure_threshold = 0.25f;
+  constexpr float overlap_ratio_threshold = 2.0f;
+
+  bool use_high_quality = true;
+  const char *reason = "default";
+
+  size_t total_mem = 0, free_mem = 0;
+  get_device_memory_info(total_mem, free_mem);
+
+  size_t hq_scratch_size = 0;
+  hiprtBuildOptions hq_options;
+  hq_options.buildFlags = hiprtBuildFlagBitPreferHighQualityBuild;
+  hiprtError rt_err = hiprtGetGeometryBuildTemporaryBufferSize(
+      hiprt_context, geom_input, hq_options, hq_scratch_size);
+
+  if (rt_err != hiprtSuccess) {
+    set_error("Failed to get scratch buffer size for BLAS");
+    return hiprtBuildFlagBitPreferFastBuild;
+  }
+
+  const float memory_ratio = (free_mem > 0) ? (float)hq_scratch_size / (float)free_mem : 1.0f;
+  if (memory_ratio > memory_pressure_threshold) {
+    use_high_quality = false;
+    reason = "memory pressure";
+    LOG_INFO << "HIPRT BLAS build: switching to BalancedBuild for \"" << geom->name.c_str()
+             << "\" due to low GPU memory"
+             << " (free: " << string_human_readable_size(free_mem)
+             << ", scratch: " << string_human_readable_size(hq_scratch_size)
+             << ", ratio: " << memory_ratio << ")";
+  }
+
+  const int aabb_count = bvh->custom_prim_aabb.aabbCount;
+  const float overlap_ratio = bvh->aabb_overlap_ratio;
+  if (use_high_quality && aabb_count > 0) {
+    if (overlap_ratio < overlap_ratio_threshold) {
+      use_high_quality = false;
+      reason = "low AABB overlap";
+    }
+  }
+
+  LOG_DEBUG << "HIPRT BLAS build flag for \"" << geom->name.c_str()
+            << "\": " << (use_high_quality ? "HighQualityBuild" : "BalancedBuild")
+            << " (reason: " << reason << ", free: " << string_human_readable_size(free_mem)
+            << ", scratch: " << string_human_readable_size(hq_scratch_size)
+            << ", mem_ratio: " << memory_ratio << ", aabb_count: " << aabb_count
+            << ", overlap_ratio: " << overlap_ratio << ")";
+
+  return use_high_quality ? hiprtBuildFlagBitPreferHighQualityBuild :
+                            hiprtBuildFlagBitPreferBalancedBuild;
 }
 
 void HIPRTDevice::build_blas(BVHHIPRT *bvh, Geometry *geom, hiprtBuildOptions options)
@@ -777,12 +896,22 @@ void HIPRTDevice::build_blas(BVHHIPRT *bvh, Geometry *geom, hiprtBuildOptions op
       break;
     }
 
-    case Geometry::LIGHT:
+    case Geometry::AREA_LIGHT:
+    case Geometry::BACKGROUND_LIGHT:
+    case Geometry::POINT_LIGHT:
+    case Geometry::SPOT_LIGHT:
+    case Geometry::SUN_LIGHT:
       return;
 
     default:
       assert(geom_input.geomType != hiprtInvalidValue);
   }
+
+  if (have_error()) {
+    return;
+  }
+
+  options.buildFlags = select_blas_build_flags(bvh, geom, geom_input);
 
   if (have_error()) {
     return;

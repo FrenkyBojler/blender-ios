@@ -26,17 +26,17 @@ namespace blender {
 PyDoc_STRVAR(
     /* Wrap. */
     pygpu_compute_dispatch_doc,
-    ".. function:: dispatch(shader, groups_x_len,  groups_y_len,  groups_z_len)\n"
+    ".. function:: dispatch(shader, groups_x_len, groups_y_len, groups_z_len)\n"
     "\n"
     "   Dispatches GPU compute.\n"
     "\n"
-    "   :arg shader: The shader that you want to dispatch.\n"
+    "   :param shader: The shader that you want to dispatch.\n"
     "   :type shader: :class:`gpu.types.GPUShader`\n"
-    "   :arg groups_x_len: Int for group x length:\n"
+    "   :param groups_x_len: Int for group x length:\n"
     "   :type groups_x_len: int\n"
-    "   :arg groups_y_len: Int for group y length:\n"
+    "   :param groups_y_len: Int for group y length:\n"
     "   :type groups_y_len: int\n"
-    "   :arg groups_z_len: Int for group z length:\n"
+    "   :param groups_z_len: Int for group z length:\n"
     "   :type groups_z_len: int\n");
 static PyObject *pygpu_compute_dispatch(PyObject * /*self*/, PyObject *args, PyObject *kwds)
 {

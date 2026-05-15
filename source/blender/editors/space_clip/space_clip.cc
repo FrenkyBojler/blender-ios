@@ -109,12 +109,12 @@ static void init_preview_region(const Scene *scene,
 
     region->v2d.minzoom = 0.0f;
     region->v2d.maxzoom = 0.0f;
-    region->v2d.keepzoom = 0;
-    region->v2d.keepofs = 0;
-    region->v2d.align = 0;
-    region->v2d.flag = 0;
+    region->v2d.keepzoom = eView2D_KeepZoom{};
+    region->v2d.keepofs = eView2D_KeepOfs{};
+    region->v2d.align = eView2D_Align{};
+    region->v2d.flag = eView2D_Flag{};
 
-    region->v2d.keeptot = 0;
+    region->v2d.keeptot = eView2D_KeepTot{};
   }
 }
 
@@ -896,7 +896,7 @@ static void graph_region_draw(const bContext *C, ARegion *region)
     rcti rect;
     BLI_rcti_init(
         &rect, 0, 15 * UI_SCALE_FAC, 15 * UI_SCALE_FAC, region->winy - UI_TIME_SCRUB_MARGIN_Y);
-    ui::view2d_draw_scale_y__values(region, v2d, &rect, TH_TEXT, 10);
+    ui::view2d_draw_scale_y(region, v2d, &rect, TH_TEXT, 10);
   }
 }
 
@@ -920,8 +920,7 @@ static void dopesheet_region_draw(const bContext *C, ARegion *region)
 
   /* time grid */
   if (!minimized) {
-    ui::view2d_draw_lines_x__discrete_frames_or_seconds(
-        v2d, scene, sc->flag & SC_SHOW_SECONDS, true);
+    ui::view2d_draw_lines_x_frames(v2d, scene, sc->flag & SC_SHOW_SECONDS, false, true);
   }
 
   /* data... */

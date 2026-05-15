@@ -79,7 +79,7 @@ static SpaceLink *action_create(const ScrArea *area, const Scene *scene)
 
   saction->ads.filterflag |= ADS_FILTER_SUMMARY;
   if (is_timeline) {
-    saction->ads.filterflag |= ADS_FLAG_SUMMARY_COLLAPSED;
+    saction->ads.flag |= ADS_FLAG_SUMMARY_COLLAPSED;
   }
 
   saction->cache_display = TIME_CACHE_DISPLAY | TIME_CACHE_SOFTBODY | TIME_CACHE_PARTICLES |
@@ -108,7 +108,9 @@ static SpaceLink *action_create(const ScrArea *area, const Scene *scene)
   region->regiontype = RGN_TYPE_CHANNELS;
   region->alignment = RGN_ALIGN_LEFT;
   /* Channel list is hidden by default in timeline mode, and visible in other modes. */
-  region->flag |= is_timeline ? RGN_FLAG_HIDDEN : 0;
+  if (is_timeline) {
+    region->flag |= RGN_FLAG_HIDDEN;
+  }
 
   /* Only need to set scroll settings, as this will use `listview` v2d configuration. */
   region->v2d.scroll = V2D_SCROLL_BOTTOM;
@@ -244,8 +246,7 @@ static void action_main_region_draw(const bContext *C, ARegion *region)
 
   /* time grid */
   if (region->winy > min_height) {
-    ui::view2d_draw_lines_x__discrete_frames_or_seconds(
-        v2d, scene, saction->flag & SACTION_DRAWTIME, true);
+    ui::view2d_draw_lines_x_frames(v2d, scene, saction->flag & SACTION_DRAWTIME, false, true);
   }
 
   ED_region_draw_cb_draw(C, region, REGION_DRAW_PRE_VIEW);

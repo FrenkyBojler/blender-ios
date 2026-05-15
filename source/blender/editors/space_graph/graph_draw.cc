@@ -128,7 +128,7 @@ static void draw_fcurve_modifier_controls_envelope(FModifier *fcm,
     /* set size of vertices (non-adjustable for now) */
     GPU_point_size(2.0f);
 
-    immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
+    immBindBuiltinProgram(GPU_SHADER_3D_POINT_UNIFORM_COLOR);
 
     /* for now, point color is fixed, and is white */
     immUniformColor3f(1.0f, 1.0f, 1.0f);
@@ -1254,6 +1254,8 @@ static void draw_fcurve(bAnimContext *ac, SpaceGraph *sipo, ARegion *region, bAn
         switch (fcm->type) {
           case FMODIFIER_TYPE_ENVELOPE: /* envelope */
             draw_fcurve_modifier_controls_envelope(fcm, &region->v2d, ale);
+            break;
+          default:
             break;
         }
       }
