@@ -13,6 +13,7 @@
 #include "BKE_curves_utils.hh"
 #include "BKE_deform.hh"
 #include "BKE_grease_pencil.hh"
+#include "BKE_grease_pencil_fills.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_material.hh"
 #include "BKE_paint.hh"
@@ -21,7 +22,6 @@
 
 #include "BLI_array_utils.hh"
 #include "BLI_bounds.hh"
-#include "BLI_implicit_sharing_cache.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_vector.hh"
@@ -1835,7 +1835,7 @@ void add_single_curve(bke::greasepencil::Drawing &drawing, const bool at_end)
     });
     /* Update the fill cache if it exists. */
     if (curves.attributes().contains("fill_id")) {
-      const implicit_sharing::CacheKeyRef key({
+      const bke::greasepencil::FillCache::KeyRef key({
           curves.attributes().lookup<int>("fill_id").sharing_info,
       });
       auto &cache = bke::greasepencil::get_fill_cache();

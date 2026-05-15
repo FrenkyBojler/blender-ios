@@ -12,7 +12,6 @@
 #include <atomic>
 
 #include "BLI_color_types.hh"
-#include "BLI_implicit_sharing_cache.hh"
 #include "BLI_implicit_sharing_ptr.hh"
 #include "BLI_map.hh"
 #include "BLI_math_matrix_types.hh"
@@ -91,10 +90,6 @@ struct TriangleCache {
   Vector<int3> triangles;
   Vector<int> triangle_offsets;
 };
-
-using FillCache = implicit_sharing::Cache<std::optional<FillData>>;
-
-FillCache &get_fill_cache();
 
 class DrawingRuntime {
  public:

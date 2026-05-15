@@ -39,6 +39,7 @@
 #include "BLI_color_types.hh"
 #include "BLI_delaunay_2d.hh"
 #include "BLI_enumerable_thread_specific.hh"
+#include "BLI_implicit_sharing_cache.hh"
 #include "BLI_listbase.h"
 #include "BLI_map.hh"
 #include "BLI_math_euler_types.hh"
@@ -446,6 +447,8 @@ Drawing::~Drawing()
   this->runtime = nullptr;
 }
 
+using FillCache = implicit_sharing::Cache<1, std::optional<FillData>>;
+
 FillCache &get_fill_cache()
 {
   static FillCache cache("Grease Pencil Fills");
@@ -462,7 +465,7 @@ std::optional<GroupedSpan<int>> Drawing::fills() const
     return std::nullopt;
   }
 
-  const implicit_sharing::CacheKeyRef key({
+  const FillCache::KeyRef key({
       fill_attr.sharing_info,
   });
 

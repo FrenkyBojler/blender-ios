@@ -8,15 +8,13 @@
  * \ingroup bli
  */
 
-#include "BLI_array.hh"
-#include "BLI_cache_mutex.hh"
+#include <array>
+
 #include "BLI_function_ref.hh"
 #include "BLI_implicit_sharing_ptr.hh"
 #include "BLI_map.hh"
 #include "BLI_mutex.hh"
-
-#include <iostream>
-#include <ostream>
+#include "BLI_task.hh"
 
 namespace blender::implicit_sharing {
 
@@ -66,12 +64,12 @@ struct Snapshot {
   }
 };
 
-struct CacheKey;
+template<int SnapshotsNum> struct CacheKey;
 
-struct CacheKeyRef {
-  Array<SnapshotRef> inputs;
+template<int SnapshotsNum> struct CacheKeyRef {
+  std::array<SnapshotRef, SnapshotsNum> inputs;
 
-  CacheKeyRef(Span<const ImplicitSharingInfo *> inputs) : inputs(inputs)
+  CacheKeyRef(std::array<SnapshotRef, SnapshotsNum> inputs) : inputs(inputs)
   {
     // for (const int i : inputs.index_range()) {
     //   std::cout << inputs[i] << std::endl;
@@ -87,32 +85,48 @@ struct CacheKeyRef {
   {
     return a.inputs.as_span() == b.inputs.as_span();
   }
-  friend bool operator==(const CacheKey &a, const CacheKeyRef &b);
-  friend bool operator==(const CacheKeyRef &a, const CacheKey &b)
+  friend bool operator==(const CacheKey<SnapshotsNum> &a, const CacheKeyRef &b)
+  {
+    if (a.inputs.size() != b.inputs.size()) {
+      return false;
+    }
+    for (const int i : a.inputs.index_range()) {
+      if (!(a.inputs[i] == b.inputs[i])) {
+        return false;
+      }
+    }
+    return true;
+  }
+  friend bool operator==(const CacheKeyRef &a, const CacheKey<SnapshotsNum> &b)
   {
     return b == a;
   }
 };
 
-struct CacheKey {
-  Array<Snapshot> inputs;
+template<int SnapshotsNum> struct CacheKey {
+  std::array<Snapshot, SnapshotsNum> inputs;
 
   CacheKey() = default;
-  CacheKey(const CacheKeyRef &other) : inputs(other.inputs.as_span()) {}
+  CacheKey(const CacheKeyRef<SnapshotsNum> &other)
+  {
+    for (const int64_t i : IndexRange(other.inputs.size())) {
+      inputs[i] = other.inputs[i];
+    }
+  }
 
   uint64_t hash() const
   {
-    return get_default_hash(this->inputs.as_span());
+    return get_default_hash(Span(this->inputs));
   }
 
-  static uint64_t hash_as(const CacheKeyRef &key)
+  static uint64_t hash_as(const CacheKeyRef<SnapshotsNum> &key)
   {
-    return get_default_hash(key.inputs.as_span());
+    return get_default_hash(Span(key.inputs));
   }
 
   friend bool operator==(const CacheKey &a, const CacheKey &b)
   {
-    return a.inputs.as_span() == b.inputs.as_span();
+    return a.inputs == b.inputs;
   }
 };
 
@@ -125,14 +139,20 @@ struct CacheBase {
   virtual ~CacheBase();
 };
 
-template<typename T> class Cache : public CacheBase {
-  struct Value {
-    T value;
-    CacheMutex mutex;
+template<int KeySnapShotsNum, typename Value> class Cache : public CacheBase {
+ public:
+  using Key = CacheKey<KeySnapShotsNum>;
+  using KeyRef = CacheKeyRef<KeySnapShotsNum>;
+
+ private:
+  struct Entry {
+    Value value;
+    Mutex mutex;
+    std::atomic<bool> created = false;
   };
 
   Mutex global_mutex_;
-  Map<CacheKey, std::unique_ptr<Value>> map_;
+  Map<Key, std::unique_ptr<Entry>> map_;
 
  public:
   Cache(const StringRef name) : CacheBase(name) {}
@@ -149,23 +169,30 @@ template<typename T> class Cache : public CacheBase {
     });
   }
 
-  T &lookup_or_compute(const CacheKeyRef &key, const FunctionRef<T()> create_fn)
+  Value &lookup_or_compute(const KeyRef &key, const FunctionRef<Value()> create_fn)
   {
-    Value *value;
+    Entry *value;
     {
       std::lock_guard lock{global_mutex_};
-      value = map_.lookup_or_add_cb(key, [&]() { return std::make_unique<Value>(); }).get();
+      value = map_.lookup_or_add_cb(key, [&]() { return std::make_unique<Entry>(); }).get();
     }
-    value->mutex.ensure([&]() { value->value = create_fn(); });
+    if (value->created) {
+      return value->value;
+    }
+    std::lock_guard lock{value->mutex};
+    if (value->created) {
+      return value->value;
+    }
+    threading::isolate_task([&]() { value->value = create_fn(); });
     return value->value;
   }
 
-  void update(const CacheKeyRef &key, const FunctionRef<void(T &)> update_fn)
+  void update(const KeyRef &key, const FunctionRef<void(Value &)> update_fn)
   {
-    Value *value;
+    Entry *value;
     {
       std::lock_guard lock{global_mutex_};
-      value = map_.lookup_or_add_cb(key, [&]() { return std::make_unique<Value>(); }).get();
+      value = map_.lookup_or_add_cb(key, [&]() { return std::make_unique<Entry>(); }).get();
     }
     // TODO: Is a lock here necessary?
     // Yes: Another thread might be referencing the cache at the same time? What if the cache data
@@ -175,7 +202,8 @@ template<typename T> class Cache : public CacheBase {
     // key will be different anyway. Basically, higher level "unsharing" (copy-on-write) keeps this
     // working.
     // TODO: Convinced by "No", got to write it in a comment though.
-    value->mutex.ensure([&]() { update_fn(value->value); });
+    std::lock_guard lock{value->mutex};
+    threading::isolate_task([&]() { update_fn(value->value); });
   }
 
  private:
