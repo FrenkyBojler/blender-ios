@@ -144,6 +144,9 @@ void BKE_image_format_set(ImageFormatData *imf, ID *owner_id, const char imtype)
   if ((imf->color_mode == ImColorMode::BW) && !(chan_flag & IMA_CHAN_FLAG_BW)) {
     imf->color_mode = ImColorMode::RGBA;
   }
+  if ((imf->color_mode == ImColorMode::BW_A) && !(chan_flag & IMA_CHAN_FLAG_BW_A)) {
+    imf->color_mode = (chan_flag & IMA_CHAN_FLAG_RGBA) ? ImColorMode::RGBA : ImColorMode::RGB;
+  }
   if ((imf->color_mode == ImColorMode::RGBA) && !(chan_flag & IMA_CHAN_FLAG_RGBA)) {
     imf->color_mode = ImColorMode::RGB;
   }
@@ -380,6 +383,16 @@ char BKE_imtype_valid_channels(const char imtype)
     case R_IMF_IMTYPE_OPENEXR:
     case R_IMF_IMTYPE_JP2:
       chan_flag |= IMA_CHAN_FLAG_BW;
+      break;
+  }
+
+  /* BW + Alpha. */
+  switch (imtype) {
+    case R_IMF_IMTYPE_PNG:
+    case R_IMF_IMTYPE_TIFF:
+    case R_IMF_IMTYPE_IRIS:
+    case R_IMF_IMTYPE_JP2:
+      chan_flag |= IMA_CHAN_FLAG_BW_A;
       break;
   }
 

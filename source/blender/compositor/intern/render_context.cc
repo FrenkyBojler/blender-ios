@@ -93,6 +93,9 @@ void FileOutput::add_view(const char *view_name, const Result &data)
   if (data.channels_count() == 1) {
     color_mode = ImColorMode::BW;
   }
+  else if (data.channels_count() == 2) {
+    color_mode = ImColorMode::BW_A;
+  }
   else if (data.channels_count() == 3) {
     color_mode = ImColorMode::RGB;
   }
@@ -134,6 +137,9 @@ void FileOutput::add_pass(const char *pass_name,
   ImColorMode color_mode = ImColorMode::RGBA;
   if (render_pass->channels == 1) {
     color_mode = ImColorMode::BW;
+  }
+  else if (render_pass->channels == 2) {
+    color_mode = ImColorMode::BW_A;
   }
   else if (render_pass->channels == 3) {
     color_mode = ImColorMode::RGB;

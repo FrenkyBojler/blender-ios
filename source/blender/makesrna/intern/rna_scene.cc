@@ -401,6 +401,11 @@ const EnumPropertyItem rna_enum_image_color_mode_items[] = {
      0,
      "BW",
      "Images get saved in 8-bit grayscale (only PNG, JPEG, TGA, TIF)"},
+    {int(ImColorMode::BW_A),
+     "BW_A",
+     0,
+     "BW+A",
+     "Images are saved with grayscale and alpha data (if supported)"},
     {int(ImColorMode::RGB), "RGB", 0, "RGB", "Images are saved with RGB (color) data"},
     {int(ImColorMode::RGBA),
      "RGBA",
@@ -412,8 +417,9 @@ const EnumPropertyItem rna_enum_image_color_mode_items[] = {
 
 #ifdef RNA_RUNTIME
 #  define IMAGE_COLOR_MODE_BW rna_enum_image_color_mode_items[0]
-#  define IMAGE_COLOR_MODE_RGB rna_enum_image_color_mode_items[1]
-#  define IMAGE_COLOR_MODE_RGBA rna_enum_image_color_mode_items[2]
+#  define IMAGE_COLOR_MODE_BW_A rna_enum_image_color_mode_items[1]
+#  define IMAGE_COLOR_MODE_RGB rna_enum_image_color_mode_items[2]
+#  define IMAGE_COLOR_MODE_RGBA rna_enum_image_color_mode_items[3]
 #endif
 
 const EnumPropertyItem rna_enum_image_color_depth_items[] = {
@@ -1552,7 +1558,9 @@ static const EnumPropertyItem *rna_ImageFormatSettings_color_mode_itemf(bContext
     }
   }
 
-  if (chan_flag == (IMA_CHAN_FLAG_BW | IMA_CHAN_FLAG_RGB | IMA_CHAN_FLAG_RGBA)) {
+  if (chan_flag ==
+      (IMA_CHAN_FLAG_BW | IMA_CHAN_FLAG_BW_A | IMA_CHAN_FLAG_RGB | IMA_CHAN_FLAG_RGBA))
+  {
     return rna_enum_image_color_mode_items;
   }
   else {
@@ -1561,6 +1569,9 @@ static const EnumPropertyItem *rna_ImageFormatSettings_color_mode_itemf(bContext
 
     if (chan_flag & IMA_CHAN_FLAG_BW) {
       RNA_enum_item_add(&item, &totitem, &IMAGE_COLOR_MODE_BW);
+    }
+    if (chan_flag & IMA_CHAN_FLAG_BW_A) {
+      RNA_enum_item_add(&item, &totitem, &IMAGE_COLOR_MODE_BW_A);
     }
     if (chan_flag & IMA_CHAN_FLAG_RGB) {
       RNA_enum_item_add(&item, &totitem, &IMAGE_COLOR_MODE_RGB);

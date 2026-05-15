@@ -73,7 +73,7 @@ void IMB_filtery(ImBuf *ibuf)
 
   for (; x > 0; x--) {
     if (point) {
-      if (ibuf->color_mode == ImColorMode::RGBA) {
+      if (ELEM(ibuf->color_mode, ImColorMode::RGBA, ImColorMode::BW_A)) {
         filtcolum(point, y, skip);
       }
       point++;
@@ -85,7 +85,7 @@ void IMB_filtery(ImBuf *ibuf)
       point++;
     }
     if (pointf) {
-      if (ibuf->color_mode == ImColorMode::RGBA) {
+      if (ELEM(ibuf->color_mode, ImColorMode::RGBA, ImColorMode::BW_A)) {
         filtcolumf(pointf, y, skip);
       }
       pointf++;

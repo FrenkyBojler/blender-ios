@@ -179,6 +179,8 @@ static ImColorMode get_color_mode_for_pass(const RenderPass &render_pass)
   switch (render_pass.channels) {
     case 1:
       return ImColorMode::BW;
+    case 2:
+      return ImColorMode::BW_A;
     case 3:
       return ImColorMode::RGB;
     case 4:
@@ -1127,9 +1129,12 @@ ImBuf *RE_render_result_rect_to_ibuf(RenderResult *rr,
     }
   }
 
-  /* Color -> gray-scale. */
+  /* Color -> gray-scale.
+   * For BW_A, `IMB_color_to_bw` writes luminance into R/G/B and leaves alpha intact,
+   * so per-format writers that extract gray from channel 0 get luminance. */
   /* editing directly would alter the render view */
-  if (imf->color_mode == ImColorMode::BW && imf->imtype != R_IMF_IMTYPE_MULTILAYER &&
+  if (ELEM(imf->color_mode, ImColorMode::BW, ImColorMode::BW_A) &&
+      imf->imtype != R_IMF_IMTYPE_MULTILAYER &&
       !(ibuf->float_data() && !ibuf->byte_data() && ibuf->channels == 1))
   {
     ImBuf *ibuf_bw = IMB_dupImBuf(ibuf);

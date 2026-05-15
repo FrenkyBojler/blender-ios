@@ -99,8 +99,9 @@ int BKE_image_path_ext_from_imtype_ensure(char *filepath, size_t filepath_maxncp
 /* File Types */
 
 #define IMA_CHAN_FLAG_BW 1
-#define IMA_CHAN_FLAG_RGB 2
-#define IMA_CHAN_FLAG_RGBA 4
+#define IMA_CHAN_FLAG_BW_A 2
+#define IMA_CHAN_FLAG_RGB 4
+#define IMA_CHAN_FLAG_RGBA 8
 
 char BKE_ftype_to_imtype(eImbFileType ftype, const ImbFormatOptions *options);
 eImbFileType BKE_imtype_to_ftype(char imtype, ImbFormatOptions *r_options);

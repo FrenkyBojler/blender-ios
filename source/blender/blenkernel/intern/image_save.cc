@@ -129,7 +129,12 @@ bool BKE_image_save_options_init(ImageSaveOptions *opts,
     /* sanitize all settings */
 
     /* unlikely but just in case */
-    if (!ELEM(opts->im_format.color_mode, ImColorMode::BW, ImColorMode::RGB, ImColorMode::RGBA)) {
+    if (!ELEM(opts->im_format.color_mode,
+              ImColorMode::BW,
+              ImColorMode::BW_A,
+              ImColorMode::RGB,
+              ImColorMode::RGBA))
+    {
       opts->im_format.color_mode = ImColorMode::RGBA;
     }
 
@@ -362,6 +367,9 @@ static bool image_save_single(ReportList *reports,
     }
     else if (opts->im_format.color_mode == ImColorMode::RGB) {
       ibuf->color_mode = ImColorMode::RGB;
+    }
+    else if (opts->im_format.color_mode == ImColorMode::BW_A) {
+      ibuf->color_mode = ImColorMode::BW_A;
     }
   }
   else {
