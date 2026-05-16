@@ -19,7 +19,6 @@ namespace blender::nodes::node_geo_bevel_cc {
 static const EnumPropertyItem affect_items[] = {
     {int(geometry::BevelAffect::Vertices), "VERTICES", 0, "Vertices", "Bevel affects vertices"},
     {int(geometry::BevelAffect::Edges), "EDGES", 0, "Edges", "Bevel affects edges"},
-    {int(geometry::BevelAffect::Faces), "FACES", 0, "Faces", "Bevel affects faces"},
     {0, nullptr, 0, nullptr, nullptr}};
 
 static void node_declare(NodeDeclarationBuilder &b)
@@ -144,7 +143,7 @@ static void node_geo_exec(GeoNodeExecParams params)
       bevel_params.attribute_outputs.outer_edge_id =
           params.get_output_anonymous_attribute_id_if_needed("Outer Edge"_ustr);
       bevel_params.attribute_outputs.mid_edge_id =
-          params.get_output_anonymous_attribute_id_if_needed("Vertex Face"_ustr);
+          params.get_output_anonymous_attribute_id_if_needed("Mid Edge"_ustr);
 
       std::optional<Mesh *> mesh = geometry::mesh_bevel(
           *src_mesh, selection, bevel_params, attribute_filter);
