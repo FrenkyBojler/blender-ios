@@ -17,7 +17,7 @@
 #include "infos/eevee_nodetree_infos.hh"
 
 FRAGMENT_SHADER_CREATE_INFO(eevee_nodetree)
-FRAGMENT_SHADER_CREATE_INFO(eevee_geom_mesh)
+FRAGMENT_SHADER_CREATE_INFO(eevee_geom_iface_info)
 
 #include "eevee_nodetree_frag_lib.glsl"
 #include "eevee_sampling_lib.glsl"
@@ -36,6 +36,7 @@ struct SurfShadow {
   [[legacy_info]] ShaderCreateInfo eevee_global_ubo;
   [[legacy_info]] ShaderCreateInfo eevee_utility_texture;
   [[legacy_info]] ShaderCreateInfo eevee_sampling_data;
+  [[legacy_info]] ShaderCreateInfo eevee_geom_iface_info;
 
   [[storage(SHADOW_RENDER_MAP_BUF_SLOT,
             read)]] const uint (&render_map_buf)[SHADOW_RENDER_MAP_SIZE];
@@ -44,7 +45,9 @@ struct SurfShadow {
 };
 
 [[fragment]] [[texture_atomic]]
-void surf_shadow([[resource_table]] SurfShadow &srt, [[front_facing]] const bool front_face)
+void surf_shadow([[resource_table]] SurfShadow &srt,
+                 [[front_facing]] const bool front_face,
+                 [[frag_coord]] const float4 frag_co)
 {
   auto &shadow_iface = interface_get(eevee_shadow_iface_info, shadow_iface);
   auto &shadow_clip = interface_get(eevee_shadow_iface_info, shadow_clip);
@@ -72,7 +75,7 @@ void surf_shadow([[resource_table]] SurfShadow &srt, [[front_facing]] const bool
   }
 #endif
 
-  int2 texel_co = int2(gl_FragCoord.xy);
+  int2 texel_co = int2(frag_co.xy);
 
   /* Using bitwise ops is way faster than integer ops. */
   constexpr int page_shift = SHADOW_PAGE_LOD;

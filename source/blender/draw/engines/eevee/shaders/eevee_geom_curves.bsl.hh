@@ -2,12 +2,14 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#pragma once
+
+#include "draw_view_infos.hh"
 #include "infos/eevee_geom_infos.hh"
 #include "infos/eevee_nodetree_infos.hh"
 
 VERTEX_SHADER_CREATE_INFO(eevee_nodetree)
 VERTEX_SHADER_CREATE_INFO(eevee_clip_plane)
-VERTEX_SHADER_CREATE_INFO(eevee_geom_curves)
 
 #include "draw_curves_lib.glsl"
 #include "draw_model_lib.glsl"
@@ -22,22 +24,47 @@ VERTEX_SHADER_CREATE_INFO(eevee_geom_curves)
 #  define const
 #endif
 
-void main()
+namespace eevee {
+
+struct GeomCurve {
+  [[legacy_info]] ShaderCreateInfo draw_modelmat;
+  [[legacy_info]] ShaderCreateInfo draw_object_infos;
+  [[legacy_info]] ShaderCreateInfo draw_resource_id_varying;
+  [[legacy_info]] ShaderCreateInfo draw_view;
+  [[legacy_info]] ShaderCreateInfo draw_curves;
+  [[legacy_info]] ShaderCreateInfo draw_curves_infos;
+
+  [[legacy_info]] ShaderCreateInfo eevee_geom_iface_info;
+  /* WORKAROUND: Until we get condition support for interfaces. */
+  [[legacy_info]] ShaderCreateInfo eevee_geom_curves_iface_info;
+};
+
+[[vertex]] void geom_curves([[resource_table]] const GeomCurve & /*srt*/,
+                            [[instance_id]] const int /*inst_id*/,     /* Used by model_lib. */
+                            [[base_instance]] const int /*base_inst*/, /* Used by model_lib. */
+                            [[vertex_id]] const int vert_id,
+                            [[position]] float4 &out_position,
+                            [[viewport_index]] int &out_viewport)
 {
   DRW_VIEW_FROM_RESOURCE_ID;
+
+  auto &interp = interface_get(eevee_geom_iface_info, interp);
+  auto &curve_interp = interface_get(eevee_geom_curves_iface_info, curve_interp);
+  auto &curve_interp_flat = interface_get(eevee_geom_curves_iface_info, curve_interp_flat);
+
 #ifdef MAT_SHADOW
   {
     auto &shadow_iface = interface_get(eevee_shadow_iface_info, shadow_iface);
     auto &render_view_buf = buffer_get(eevee::GeomShadow, render_view_buf);
 
     shadow_iface.shadow_view_id = int(drw_view_id);
-    gpu_ViewportIndex = int(render_view_buf[drw_view_id].viewport_index);
+    out_viewport = int(render_view_buf[drw_view_id].viewport_index);
   }
 #endif
 
   init_interface();
 
-  const curves::Point ls_pt = curves::point_get(uint(gl_VertexID));
+  const curves::Point ls_pt = curves::point_get(uint(vert_id));
   const curves::Point ws_pt = curves::object_to_world(ls_pt, drw_modelmat());
 
   const float3 V = drw_world_incident_vector(ws_pt.P);
@@ -46,6 +73,7 @@ void main()
   interp.P = pt.P;
   /* Correct normal is derived in fragment shader. */
   interp.N = pt.curve_N;
+
   curve_interp.binormal = pt.curve_B;
   curve_interp.tangent = pt.curve_T;
   /* Final radius is used for correct normal interpolation. */
@@ -101,5 +129,12 @@ void main()
   }
 #endif
 
-  gl_Position = reverse_z::transform(drw_point_world_to_homogenous(interp.P));
+  out_position = reverse_z::transform(drw_point_world_to_homogenous(interp.P));
 }
+
+}  // namespace eevee
+
+#if defined(GPU_NVIDIA) && defined(GPU_OPENGL)
+/* WORKAROUND: Fix legacy driver compiler issue (see #148472). */
+#  undef const
+#endif

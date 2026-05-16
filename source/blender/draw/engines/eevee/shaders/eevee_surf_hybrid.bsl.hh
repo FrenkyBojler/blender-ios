@@ -15,7 +15,7 @@
 #include "infos/eevee_nodetree_infos.hh"
 
 FRAGMENT_SHADER_CREATE_INFO(eevee_nodetree)
-FRAGMENT_SHADER_CREATE_INFO(eevee_geom_mesh)
+FRAGMENT_SHADER_CREATE_INFO(eevee_geom_iface_info)
 FRAGMENT_SHADER_CREATE_INFO(eevee_render_pass_out)
 FRAGMENT_SHADER_CREATE_INFO(eevee_cryptomatte_out)
 
@@ -70,6 +70,7 @@ struct SurfaceHybrid {
   [[legacy_info]] ShaderCreateInfo eevee_sampling_data;
   [[legacy_info]] ShaderCreateInfo eevee_hiz_data;
   [[legacy_info]] ShaderCreateInfo draw_view_culling;
+  [[legacy_info]] ShaderCreateInfo eevee_geom_iface_info;
 
   /* For closure_to_rgba. */
   [[legacy_info]] ShaderCreateInfo eevee_lightprobe_data;
@@ -158,7 +159,7 @@ void surf_hybrid([[resource_table]] SurfaceHybrid &srt,
   constexpr bool use_sss = false;
 #endif
 
-  ObjectInfos object_infos = drw_infos[drw_resource_id()];
+  ObjectInfos object_infos = drw_object_infos();
   bool use_light_linking = receiver_light_set_get(object_infos) != 0;
   bool use_terminator_offset = object_infos.shadow_terminator_normal_offset > 0.0;
 

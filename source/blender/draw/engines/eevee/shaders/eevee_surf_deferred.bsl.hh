@@ -14,7 +14,6 @@
 #include "infos/eevee_nodetree_infos.hh"
 
 FRAGMENT_SHADER_CREATE_INFO(eevee_nodetree)
-FRAGMENT_SHADER_CREATE_INFO(eevee_geom_mesh)
 FRAGMENT_SHADER_CREATE_INFO(eevee_render_pass_out)
 FRAGMENT_SHADER_CREATE_INFO(eevee_cryptomatte_out)
 
@@ -51,6 +50,7 @@ struct SurfaceDeferred {
   [[legacy_info]] ShaderCreateInfo eevee_sampling_data;
   [[legacy_info]] ShaderCreateInfo eevee_hiz_data;
   [[legacy_info]] ShaderCreateInfo draw_view_culling;
+  [[legacy_info]] ShaderCreateInfo eevee_geom_iface_info;
 
   /* Everything is stored inside a two layered target, one for each format. This is to fit the
    * limitation of the number of images we can bind on a single shader. */
@@ -135,7 +135,7 @@ void surf_deferred([[resource_table]] SurfaceDeferred &srt,
   constexpr bool use_sss = false;
 #endif
 
-  ObjectInfos object_infos = drw_infos[drw_resource_id()];
+  ObjectInfos object_infos = drw_object_infos();
   bool use_light_linking = receiver_light_set_get(object_infos) != 0;
   bool use_terminator_offset = object_infos.shadow_terminator_normal_offset > 0.0;
 

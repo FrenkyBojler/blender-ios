@@ -8,7 +8,6 @@
 
 #include "infos/eevee_uniform_infos.hh"
 
-SHADER_LIBRARY_CREATE_INFO(eevee_geom_mesh)
 SHADER_LIBRARY_CREATE_INFO(eevee_global_ubo)
 
 #include "draw_view_lib.glsl"
@@ -61,6 +60,7 @@ void init_globals_curves()
 
 void init_globals(bool front_face)
 {
+  auto &interp = interface_get(eevee_geom_iface_info, interp);
   /* Default values. */
   g_data.P = interp.P;
   g_data.Ni = interp.N;

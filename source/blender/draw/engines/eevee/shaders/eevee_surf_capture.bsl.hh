@@ -14,7 +14,7 @@
 #include "infos/eevee_nodetree_infos.hh"
 
 FRAGMENT_SHADER_CREATE_INFO(eevee_nodetree)
-FRAGMENT_SHADER_CREATE_INFO(eevee_geom_mesh)
+FRAGMENT_SHADER_CREATE_INFO(eevee_geom_iface_info)
 
 #include "draw_curves_lib.glsl" /* IWYU pragma: export. For nodetree functions. */
 #include "draw_view_lib.glsl"   /* IWYU pragma: export. For nodetree functions. */
@@ -33,6 +33,8 @@ namespace eevee {
 struct SurfaceCapture {
   [[legacy_info]] ShaderCreateInfo eevee_global_ubo;
   [[legacy_info]] ShaderCreateInfo eevee_utility_texture;
+  [[legacy_info]] ShaderCreateInfo eevee_geom_iface_info;
+  [[legacy_info]] ShaderCreateInfo draw_object_infos;
 
   [[storage(SURFEL_BUF_SLOT, write)]] Surfel (&surfel_buf)[];
   [[storage(CAPTURE_BUF_SLOT, read_write)]] CaptureInfoData &capture_info_buf;
@@ -72,7 +74,7 @@ void surf_capture([[resource_table]] SurfaceCapture &srt, [[front_facing]] const
     if (is_surface_view_aligned) {
       uint surfel_id = atomicAdd(srt.capture_info_buf.surfel_len, 1u);
       if (srt.capture_info_buf.do_surfel_output) {
-        ObjectInfos object_infos = drw_infos[drw_resource_id()];
+        ObjectInfos object_infos = drw_object_infos();
         srt.surfel_buf[surfel_id].position = g_data.P;
         srt.surfel_buf[surfel_id].normal = front_face ? g_data.Ng : -g_data.Ng;
         srt.surfel_buf[surfel_id].albedo_front = albedo;

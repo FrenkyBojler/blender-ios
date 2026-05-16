@@ -2,73 +2,79 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#pragma once
+
 #include "infos/eevee_geom_infos.hh"
 #include "infos/eevee_nodetree_infos.hh"
 
 VERTEX_SHADER_CREATE_INFO(eevee_nodetree)
 VERTEX_SHADER_CREATE_INFO(eevee_clip_plane)
-VERTEX_SHADER_CREATE_INFO(eevee_geom_pointcloud)
 
 #include "draw_model_lib.glsl"
-#include "draw_pointcloud_lib.glsl"
-#include "eevee_attributes_pointcloud_lib.glsl"
+#include "eevee_attributes_mesh_lib.glsl"
 #include "eevee_nodetree_vert_lib.glsl"
 #include "eevee_reverse_z_lib.bsl.hh"
 #include "eevee_surf_lib.glsl"
 #include "eevee_velocity_lib.glsl"
 
-void main()
+namespace eevee {
+
+struct GeomMesh {
+  [[legacy_info]] ShaderCreateInfo draw_modelmat;
+  [[legacy_info]] ShaderCreateInfo draw_object_infos;
+  [[legacy_info]] ShaderCreateInfo draw_resource_id_varying;
+  [[legacy_info]] ShaderCreateInfo draw_view;
+
+  [[legacy_info]] ShaderCreateInfo eevee_geom_iface_info;
+};
+
+struct GeomMeshVertIn {
+  [[attribute(0)]] float3 pos;
+  [[attribute(1)]] float3 nor;
+};
+
+[[vertex]] void geom_mesh([[resource_table]] const GeomMesh & /*srt*/,
+                          [[in]] const GeomMeshVertIn &vert_in,
+                          [[instance_id]] const int /*inst_id*/,     /* Used by model_lib. */
+                          [[base_instance]] const int /*base_inst*/, /* Used by model_lib. */
+                          [[vertex_id]] const int vert_id,
+                          [[position]] float4 &out_position,
+                          [[viewport_index]] int &out_viewport)
 {
   DRW_VIEW_FROM_RESOURCE_ID;
+
+  auto &interp = interface_get(eevee_geom_iface_info, interp);
+
 #ifdef MAT_SHADOW
   {
     auto &shadow_iface = interface_get(eevee_shadow_iface_info, shadow_iface);
     auto &render_view_buf = buffer_get(eevee::GeomShadow, render_view_buf);
 
     shadow_iface.shadow_view_id = int(drw_view_id);
-    gpu_ViewportIndex = int(render_view_buf[drw_view_id].viewport_index);
+    out_viewport = int(render_view_buf[drw_view_id].viewport_index);
   }
 #endif
 
   init_interface();
 
-  const eObjectInfoFlag ob_flag = buffer_get(draw_object_infos, drw_infos)[drw_resource_id()].flag;
-
-  const pointcloud::Point ls_pt = pointcloud::point_get(uint(gl_VertexID));
-  const pointcloud::Point ws_pt = pointcloud::object_to_world(ls_pt, drw_modelmat());
-  const pointcloud::ShapePoint pt = pointcloud::shape_point_get(
-      ws_pt, drw_world_incident_vector(ws_pt.P), drw_view_up(), ob_flag);
-
-  pointcloud_interp_flat.id = ws_pt.point_id;
-  pointcloud_interp.position = ws_pt.P;
-  pointcloud_interp.radius = ws_pt.radius;
-
-  interp.P = pt.P;
-  interp.N = pt.N;
-
-#ifdef MAT_SHADOW
-  /* Since point clouds always face the view, camera and shadow orientation don't match.
-   * Apply a bias to avoid self-shadow issues. */
-  interp.P -= drw_world_incident_vector(interp.P) * pointcloud_interp.radius;
-#endif
-
+  interp.P = drw_point_object_to_world(vert_in.pos);
+  interp.N = normalize(drw_normal_object_to_world(vert_in.nor));
 #ifdef MAT_VELOCITY
   {
     auto &motion = interface_get(eevee_velocity_geom, motion);
-    float3 lP = drw_point_world_to_object(pointcloud_interp.position);
     float3 prv, nxt;
-    velocity_local_pos_get(lP, pointcloud_interp_flat.id, prv, nxt, drw_resource_id());
+    velocity_local_pos_get(pos, vert_id, prv, nxt, drw_resource_id());
     /* FIXME(fclem): Evaluating before displacement avoid displacement being treated as motion but
      * ignores motion from animated displacement. Supporting animated displacement motion vectors
      * would require evaluating the nodetree multiple time with different nodetree UBOs evaluated
      * at different times, but also with different attributes (maybe we could assume static
      * attribute at least). */
-    velocity_vertex(prv, lP, nxt, motion.prev, motion.next, drw_resource_id(), drw_modelmat());
+    velocity_vertex(prv, pos, nxt, motion.prev, motion.next, drw_resource_id(), drw_modelmat());
   }
 #endif
 
   init_globals(true);
-  attrib_load(PointCloudPoint{ws_pt.point_id});
+  attrib_load(MeshVertex{0});
 
   interp.P += nodetree_displacement();
 
@@ -88,5 +94,7 @@ void main()
   }
 #endif
 
-  gl_Position = reverse_z::transform(drw_point_world_to_homogenous(interp.P));
+  out_position = reverse_z::transform(drw_point_world_to_homogenous(interp.P));
 }
+
+}  // namespace eevee

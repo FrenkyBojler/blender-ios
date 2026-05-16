@@ -12,7 +12,7 @@
 
 FRAGMENT_SHADER_CREATE_INFO(eevee_nodetree)
 FRAGMENT_SHADER_CREATE_INFO(eevee_clip_plane)
-FRAGMENT_SHADER_CREATE_INFO(eevee_geom_mesh)
+FRAGMENT_SHADER_CREATE_INFO(eevee_geom_iface_info)
 
 #include "draw_curves_lib.glsl" /* IWYU pragma: export. For nodetree functions. */
 #include "draw_view_lib.glsl"   /* IWYU pragma: export. For nodetree functions. */
@@ -40,24 +40,32 @@ struct SurfaceDepth {
   [[legacy_info]] ShaderCreateInfo eevee_global_ubo;
   [[legacy_info]] ShaderCreateInfo eevee_sampling_data;
   [[legacy_info]] ShaderCreateInfo eevee_utility_texture;
+  [[legacy_info]] ShaderCreateInfo eevee_geom_iface_info;
 
   [[compilation_constant]] bool use_velocity;
 };
 
-struct SurfaceDepthFragOut {
+/* WORKAROUND(fclem): This is not supposed to be needed.
+ * But Metal still writes to the velocity buffer if the frag output is defined. And conditions are
+ * not yet supported on in/out. */
+template<bool with_velocity> struct SurfaceDepthFragOut {};
+
+template<> struct SurfaceDepthFragOut<false> {
   [[frag_color(PREPASS_FRAG_OUT_NORMAL)]] float4 normal;
   [[frag_color(PREPASS_FRAG_OUT_OB_ID)]] uint object_id;
 };
 
-struct VelocityFragOut {
+template<> struct SurfaceDepthFragOut<true> {
+  [[frag_color(PREPASS_FRAG_OUT_NORMAL)]] float4 normal;
+  [[frag_color(PREPASS_FRAG_OUT_OB_ID)]] uint object_id;
   [[frag_color(PREPASS_FRAG_OUT_VELOCITY)]] float4 velocity;
 };
 
+template<bool with_velocity>
 [[fragment]]
-void surf_depth([[resource_table]] SurfaceDepth & /*srt*/,
+void surf_depth([[resource_table]] SurfaceDepth &srt,
                 [[frag_coord]] const float4 frag_co,
-                [[out]] SurfaceDepthFragOut &frag_out,
-                [[out, condition(use_velocity)]] VelocityFragOut &vel_out,
+                [[out]] SurfaceDepthFragOut<with_velocity> &frag_out,
                 [[front_facing]] const bool front_face)
 {
 #ifdef MAT_TRANSPARENT
@@ -87,10 +95,10 @@ void surf_depth([[resource_table]] SurfaceDepth & /*srt*/,
 #endif
 
 #ifdef MAT_VELOCITY
-  {
+  if (srt.use_velocity) [[static_branch]] {
     const auto &motion = interface_get(eevee_velocity_geom, motion);
-    vel_out.velocity = velocity_surface(interp.P + motion.prev, interp.P, interp.P + motion.next);
-    vel_out.velocity = velocity_pack(vel_out.velocity);
+    frag_out.velocity = velocity_surface(interp.P + motion.prev, interp.P, interp.P + motion.next);
+    frag_out.velocity = velocity_pack(frag_out.velocity);
   }
 #endif
 
@@ -98,5 +106,14 @@ void surf_depth([[resource_table]] SurfaceDepth & /*srt*/,
   frag_out.normal.rgb = normalize(interp.N) * 0.5f + 0.5f;
   frag_out.object_id = drw_resource_id() & 0xFFFF;
 }
+
+template void surf_depth<true>(SurfaceDepth &,
+                               const float4,
+                               SurfaceDepthFragOut<true> &,
+                               const bool);
+template void surf_depth<false>(SurfaceDepth &,
+                                const float4,
+                                SurfaceDepthFragOut<false> &,
+                                const bool);
 
 }  // namespace eevee

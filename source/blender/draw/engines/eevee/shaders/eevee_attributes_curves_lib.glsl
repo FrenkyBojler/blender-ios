@@ -41,8 +41,9 @@ float3 attr_load_orco(CurvesPoint point, float4 orco, int index)
  * based on the attribute scope (point or spline). */
 int curves_attribute_element_id(CurvesPoint point, int index)
 {
-  if (drw_curves.is_point_attribute[index][0] != 0u) {
-    return int(point.point_id);
+  const auto &curves_buf = buffer_get(draw_curves_infos, drw_curves);
+  if (curves_buf.is_point_attribute[index][0] != 0u) {
+    return point.point_id;
   }
   return point.curve_id;
 }

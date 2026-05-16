@@ -728,7 +728,7 @@ static SlotAllocator add_pipeline_create_info(gpu::shader::ShaderCreateInfo &inf
       switch (pipeline_type) {
         case MAT_PIPE_PREPASS_FORWARD_VELOCITY:
         case MAT_PIPE_PREPASS_DEFERRED_VELOCITY:
-          pipeline_info_name = "eevee_surf_depth_infos_";
+          pipeline_info_name = "eevee_surf_depthTtrue_infos_";
           additional_info_name = "eevee_velocity_geom";
           info.name_ += "_depth_velocity";
           info.compilation_constant(gpu::shader::Type::bool_t, "use_velocity", true);
@@ -737,12 +737,12 @@ static SlotAllocator add_pipeline_create_info(gpu::shader::ShaderCreateInfo &inf
           /* Until every vertex shader are ported, we need to bridge the gap here by defining the
            * pipeline. */
           info.fragment_source("eevee_surf_depth.bsl.hh");
-          info.fragment_function("eevee_surf_depth");
+          info.fragment_function("eevee_surf_depthTtrue");
           break;
         case MAT_PIPE_PREPASS_OVERLAP:
         case MAT_PIPE_PREPASS_FORWARD:
         case MAT_PIPE_PREPASS_DEFERRED:
-          pipeline_info_name = "eevee_surf_depth_infos_";
+          pipeline_info_name = "eevee_surf_depthTfalse_infos_";
           info.name_ += "_depth";
           info.compilation_constant(gpu::shader::Type::bool_t, "use_velocity", false);
           info.define("MAT_DEPTH");
@@ -750,10 +750,10 @@ static SlotAllocator add_pipeline_create_info(gpu::shader::ShaderCreateInfo &inf
           /* Until every vertex shader are ported, we need to bridge the gap here by defining the
            * pipeline. */
           info.fragment_source("eevee_surf_depth.bsl.hh");
-          info.fragment_function("eevee_surf_depth");
+          info.fragment_function("eevee_surf_depthTfalse");
           break;
         case MAT_PIPE_PREPASS_PLANAR:
-          pipeline_info_name = "eevee_surf_depth_infos_";
+          pipeline_info_name = "eevee_surf_depthTfalse_infos_";
           additional_info_name = "eevee_clip_plane";
           info.name_ += "_depth_clip";
           info.compilation_constant(gpu::shader::Type::bool_t, "use_velocity", false);
@@ -762,7 +762,7 @@ static SlotAllocator add_pipeline_create_info(gpu::shader::ShaderCreateInfo &inf
           /* Until every vertex shader are ported, we need to bridge the gap here by defining the
            * pipeline. */
           info.fragment_source("eevee_surf_depth.bsl.hh");
-          info.fragment_function("eevee_surf_depth");
+          info.fragment_function("eevee_surf_depthTfalse");
           break;
         case MAT_PIPE_SHADOW:
           pipeline_info_name = "eevee_surf_shadow_infos_";
@@ -846,24 +846,49 @@ static SlotAllocator add_pipeline_create_info(gpu::shader::ShaderCreateInfo &inf
   StringRefNull geometry_info_name;
   switch (geometry_type) {
     case MAT_GEOM_WORLD:
-      geometry_info_name = "eevee_geom_world";
+      geometry_info_name = "eevee_geom_world_infos_";
       info.name_ += "_world";
+      info.define("MAT_GEOM_WORLD");
+      /* Until every vertex shader are ported, we need to bridge the gap here by defining the
+       * pipeline. */
+      info.vertex_source("eevee_geom_world.bsl.hh");
+      info.vertex_function("eevee_geom_world");
       break;
     case MAT_GEOM_CURVES:
-      geometry_info_name = "eevee_geom_curves";
+      geometry_info_name = "eevee_geom_curves_infos_";
       info.name_ += "_curves";
+      info.define("MAT_GEOM_CURVES");
+      /* Until every vertex shader are ported, we need to bridge the gap here by defining the
+       * pipeline. */
+      info.vertex_source("eevee_geom_curves.bsl.hh");
+      info.vertex_function("eevee_geom_curves");
       break;
     case MAT_GEOM_MESH:
-      geometry_info_name = "eevee_geom_mesh";
+      geometry_info_name = "eevee_geom_mesh_infos_";
       info.name_ += "_mesh";
+      info.define("MAT_GEOM_MESH");
+      /* Until every vertex shader are ported, we need to bridge the gap here by defining the
+       * pipeline. */
+      info.vertex_source("eevee_geom_mesh.bsl.hh");
+      info.vertex_function("eevee_geom_mesh");
       break;
     case MAT_GEOM_POINTCLOUD:
-      geometry_info_name = "eevee_geom_pointcloud";
+      geometry_info_name = "eevee_geom_pointcloud_infos_";
       info.name_ += "_pointcloud";
+      info.define("MAT_GEOM_POINTCLOUD");
+      /* Until every vertex shader are ported, we need to bridge the gap here by defining the
+       * pipeline. */
+      info.vertex_source("eevee_geom_pointcloud.bsl.hh");
+      info.vertex_function("eevee_geom_pointcloud");
       break;
     case MAT_GEOM_VOLUME:
-      geometry_info_name = "eevee_geom_volume";
+      geometry_info_name = "eevee_geom_volume_infos_";
       info.name_ += "_volume";
+      info.define("MAT_GEOM_VOLUME");
+      /* Until every vertex shader are ported, we need to bridge the gap here by defining the
+       * pipeline. */
+      info.vertex_source("eevee_geom_volume.bsl.hh");
+      info.vertex_function("eevee_geom_volume");
       break;
   }
 

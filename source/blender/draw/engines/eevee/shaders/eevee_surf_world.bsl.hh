@@ -13,7 +13,7 @@
 #include "infos/eevee_nodetree_infos.hh"
 
 FRAGMENT_SHADER_CREATE_INFO(eevee_nodetree)
-FRAGMENT_SHADER_CREATE_INFO(eevee_geom_world)
+FRAGMENT_SHADER_CREATE_INFO(eevee_geom_iface_info)
 
 #include "draw_view_lib.glsl"
 #include "eevee_attributes_world_lib.glsl"
@@ -37,6 +37,7 @@ struct SurfWorld {
   [[legacy_info]] ShaderCreateInfo eevee_volume_probe_data;
   [[legacy_info]] ShaderCreateInfo eevee_sampling_data;
   [[legacy_info]] ShaderCreateInfo eevee_utility_texture;
+  [[legacy_info]] ShaderCreateInfo eevee_geom_iface_info;
 
   /* Optionally added depending on the material. */
   // [[legacy_info]] ShaderCreateInfo eevee_render_pass_out;
@@ -53,6 +54,7 @@ struct SurfWorldFragOut {
 
 [[fragment]] [[early_fragment_tests]]
 void surf_world([[resource_table]] SurfWorld &srt,
+                [[frag_coord]] const float4 frag_co,
                 [[out]] SurfWorldFragOut &frag_out,
                 [[front_facing]] const bool front_face)
 {

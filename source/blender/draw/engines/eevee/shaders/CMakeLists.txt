@@ -27,11 +27,6 @@ set(SRC_GLSL_VERT
   eevee_debug_surfels_vert.glsl
   eevee_depth_of_field_scatter_vert.glsl
   eevee_fullscreen_vert.glsl
-  eevee_geom_curves_vert.glsl
-  eevee_geom_mesh_vert.glsl
-  eevee_geom_pointcloud_vert.glsl
-  eevee_geom_volume_vert.glsl
-  eevee_geom_world_vert.glsl
   eevee_lookdev_display_vert.glsl
 )
 

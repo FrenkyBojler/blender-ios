@@ -13,7 +13,7 @@
 #include "infos/eevee_nodetree_infos.hh"
 
 FRAGMENT_SHADER_CREATE_INFO(eevee_nodetree)
-FRAGMENT_SHADER_CREATE_INFO(eevee_geom_mesh)
+FRAGMENT_SHADER_CREATE_INFO(eevee_geom_iface_info)
 FRAGMENT_SHADER_CREATE_INFO(eevee_volume_lib)
 
 #include "draw_curves_lib.glsl" /* IWYU pragma: export. For nodetree functions. */
@@ -67,6 +67,7 @@ struct SurfaceForward {
   [[legacy_info]] ShaderCreateInfo eevee_sampling_data;
   [[legacy_info]] ShaderCreateInfo eevee_hiz_data;
   [[legacy_info]] ShaderCreateInfo eevee_volume_lib;
+  [[legacy_info]] ShaderCreateInfo eevee_geom_iface_info;
 
   [[legacy_info]] ShaderCreateInfo draw_view_culling;
 

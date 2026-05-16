@@ -17,7 +17,6 @@
 #endif
 
 FRAGMENT_SHADER_CREATE_INFO(eevee_nodetree)
-FRAGMENT_SHADER_CREATE_INFO(eevee_geom_mesh)
 
 #include "eevee_volume_lib.bsl.hh"
 
@@ -137,7 +136,9 @@ struct SurfVolume {
 
 /* Note: Only the front fragments have to be invoked. */
 [[fragment]] [[early_fragment_tests]]
-void surf_volume([[resource_table]] SurfVolume &srt, [[frag_coord]] const float4 &frag_co)
+void surf_volume([[resource_table]] SurfVolume &srt,
+                 [[frag_coord]] const float4 frag_co,
+                 [[front_facing]] const bool /*front_face*/ /* Needed for nodes. */)
 {
   int3 froxel = int3(int2(frag_co.xy), 0);
   float offset = sampling_rng_1D_get(SAMPLING_VOLUME_W);
