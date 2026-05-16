@@ -32,7 +32,7 @@
 
 #include "BKE_attribute.hh"
 #include "BKE_attribute_filters.hh"
-#include "BKE_curveprofile.h"
+
 #include "BKE_mesh.hh"
 #include "BKE_mesh_mapping.hh"
 
@@ -2591,7 +2591,7 @@ static void build_boundary_terminal_edge(const BevelState &state,
       adjust_bound_vert(e->leftv, co);
     }
     float d = efirst->offset_l_spec;
-    if (state.params.custom_profile != nullptr || state.params.shape < 0.25f) {
+    if (!state.params.custom_profile_samples.is_empty() || state.params.shape < 0.25f) {
       d *= math::sqrt(2.0f);
     }
     for (e = e->next; e->next != efirst; e = e->next) {
@@ -2628,7 +2628,7 @@ static void build_boundary_terminal_edge(const BevelState &state,
         /* Use TRI_FAN unless the extra point is coplanar with the profile
          * (custom-profile case), in which case POLY avoids overhanging edges. */
         bool use_tri_fan = true;
-        if (state.params.custom_profile != nullptr) {
+        if (!state.params.custom_profile_samples.is_empty()) {
           BoundVert *bndv = efirst->leftv;
           float profile_plane[4];
           plane_from_point_normal_v3(
@@ -3650,7 +3650,7 @@ static float find_profile_fullness(BevelState *bs)
   };
 
   float fullness;
-  if (bs->params.custom_profile) {
+  if (!bs->params.custom_profile_samples.is_empty()) {
     fullness = 0.0f;
     for (int i = 0; i < nseg; i++) {
       fullness += float(bs->pro_spacing.xvals[i] + bs->pro_spacing.yvals[i]) / (2.0f * nseg);
@@ -3698,47 +3698,62 @@ static void set_profile_spacing(BevelState *bs, ProfileSpacing *pro_spacing, boo
   int seg_2 = std::max(power_of_2_max_i(bs->params.segments), 4);
   bs->pro_spacing.seg_2 = seg_2;
 
+  /**
+   * Helper lambda: linearly resamples the pre-sampled custom profile at `n` evenly spaced
+   * intervals.  The input `src` has `segments + 1` entries (from the caller who built it at
+   * the node-eval resolution).  When `n != segments` we linearly interpolate to re-sample at
+   * the new resolution (typically `seg_2`, a power-of-two used during subdivision).
+   */
+  auto fill_from_custom = [&](Array<double> &r_xvals, Array<double> &r_yvals, int n) {
+    const Span<float2> src = bs->params.custom_profile_samples.as_span();
+    const int src_n = int(src.size()) - 1; /* Number of source segments. */
+    r_xvals = Array<double>(n + 1);
+    r_yvals = Array<double>(n + 1);
+    for (const int i : IndexRange(n + 1)) {
+      /* Map output index i in [0, n] → source parameter t in [0, src_n]. */
+      const float t = float(i) * float(src_n) / float(n);
+      const int lo = std::min(int(t), src_n - 1);
+      const int hi = lo + 1;
+      const float f = t - float(lo);
+      const float x = (1.0f - f) * src[lo].x + f * src[hi].x;
+      const float y = (1.0f - f) * src[lo].y + f * src[hi].y;
+      /* The GN curve uses (x=position-along-strip, y=profile-height) directly,
+       * with x going from 0 (strip start) to 1 (strip end).  Unlike the legacy
+       * CurveProfile widget (which stores path[0] at x=1 and path[last] at x=0,
+       * requiring an x↔y swap), the GN curve's coordinate space already matches
+       * what calculate_profile_segments expects, so no swap is needed. */
+      r_xvals[i] = double(x);
+      r_yvals[i] = double(y);
+    }
+  };
+
   /* Sample the seg_2 segments used during vertex mesh subdivision. */
-  pro_spacing->xvals_2 = Array<double>(seg_2 + 1);
-  pro_spacing->yvals_2 = Array<double>(seg_2 + 1);
   if (seg_2 != segments) {
     if (custom) {
-      /* Make sure the curve profile widget's sample table is full of the seg_2 samples. */
-      BKE_curveprofile_init(bs->params.custom_profile, short(seg_2));
-      for (const int i : IndexRange(seg_2 + 1)) {
-        pro_spacing->xvals_2[i] = double(bs->params.custom_profile->segments[i].y);
-        pro_spacing->yvals_2[i] = double(bs->params.custom_profile->segments[i].x);
-      }
+      fill_from_custom(pro_spacing->xvals_2, pro_spacing->yvals_2, seg_2);
     }
     else {
+      pro_spacing->xvals_2 = Array<double>(seg_2 + 1);
+      pro_spacing->yvals_2 = Array<double>(seg_2 + 1);
       find_even_superellipse_chords(
           seg_2, bs->pro_super_r, pro_spacing->xvals_2, pro_spacing->yvals_2);
     }
   }
 
   /* Sample the input number of segments. */
-  pro_spacing->xvals = Array<double>(segments + 1);
-  pro_spacing->yvals = Array<double>(segments + 1);
   if (custom) {
-    /* Make sure the curve profile's sample table is full. */
-    if (bs->params.custom_profile->segments_len != segments ||
-        !bs->params.custom_profile->segments)
-    {
-      BKE_curveprofile_init(bs->params.custom_profile, short(segments));
-    }
-    for (const int i : IndexRange(segments + 1)) {
-      pro_spacing->xvals[i] = double(bs->params.custom_profile->segments[i].y);
-      pro_spacing->yvals[i] = double(bs->params.custom_profile->segments[i].x);
-    }
+    fill_from_custom(pro_spacing->xvals, pro_spacing->yvals, segments);
   }
   else {
+    pro_spacing->xvals = Array<double>(segments + 1);
+    pro_spacing->yvals = Array<double>(segments + 1);
     find_even_superellipse_chords(
         segments, bs->pro_super_r, pro_spacing->xvals, pro_spacing->yvals);
   }
 
   if (seg_2 == segments) {
-    std::copy(pro_spacing->xvals.begin(), pro_spacing->xvals.end(), pro_spacing->xvals_2.begin());
-    std::copy(pro_spacing->yvals.begin(), pro_spacing->yvals.end(), pro_spacing->yvals_2.begin());
+    pro_spacing->xvals_2 = pro_spacing->xvals;
+    pro_spacing->yvals_2 = pro_spacing->yvals;
   }
 }
 
@@ -4015,13 +4030,12 @@ static void calculate_profile_segments(const Profile &pro,
 
 /**
  * Computes the `prof_co` (and optionally `prof_co_2`) arrays for `bndv->profile`,
- * applying the superellipse 2D-to-3D mapping and projection.
+ * applying the superellipse (or custom profile) 2D-to-3D mapping and projection.
  * No-op when `params.segments == 1`.
  */
 static void calculate_profile(BevelState &state, BoundVert *bndv, bool reversed, bool /*miter*/)
 {
   Profile &pro = bndv->profile;
-  /* TODO: handle custom profile (BEVEL_PROFILE_CUSTOM). */
   const ProfileSpacing &pro_spacing = state.pro_spacing;
 
   if (state.params.segments <= 1) {
@@ -4038,9 +4052,13 @@ static void calculate_profile(BevelState &state, BoundVert *bndv, bool reversed,
     /* prof_co_2 alias is set below after prof_co is filled. */
   }
 
+  /* Mirror the BMesh logic: skip the map only for a superellipse line profile.
+   * When a custom profile is active the xvals/yvals in pro_spacing already encode the
+   * custom shape, but they still need to be mapped through the unit-square-to-3D transform,
+   * so use_map must be true in that case. */
   bool use_map;
   float map[4][4];
-  if (pro.super_r == PRO_LINE_R) {
+  if (state.params.custom_profile_samples.is_empty() && pro.super_r == PRO_LINE_R) {
     use_map = false;
   }
   else {
@@ -4133,7 +4151,8 @@ void BevelState::initialize_profile_data()
     this->pro_super_r = profile::PRO_SQUARE_IN_R;
   }
 
-  profile::set_profile_spacing(this, &this->pro_spacing, this->params.custom_profile != nullptr);
+  profile::set_profile_spacing(
+      this, &this->pro_spacing, !this->params.custom_profile_samples.is_empty());
 
   if (this->params.segments > 1) {
     this->pro_spacing.fullness = profile::find_profile_fullness(this);
@@ -5817,7 +5836,7 @@ static void build_vmesh(BevelState &state, BevVert *bv)
       VMesh vm_adj;
       BoundVert *vpipe = pipe_test(state, bv);
       if (state.pro_super_r == profile::PRO_SQUARE_R && bv->selcount >= 3 && (ns % 2 == 0) &&
-          state.params.custom_profile == nullptr)
+          state.params.custom_profile_samples.is_empty())
       {
         vm_adj = square_out_adj_vmesh(state, bv);
       }
@@ -6062,7 +6081,7 @@ static VMesh cubic_subdiv(const BevelState &state, VMesh &vm_in)
       float co[3];
       copy_v3_v3(co, geom::mesh_vert(&vm_in, i, 0, k)->co);
       /* Smooth boundary (not for custom profile). */
-      if (state.params.custom_profile == nullptr) {
+      if (state.params.custom_profile_samples.is_empty()) {
         float acc[3];
         add_v3_v3v3(acc,
                     geom::mesh_vert(&vm_in, i, 0, k - 1)->co,
@@ -6080,7 +6099,7 @@ static VMesh cubic_subdiv(const BevelState &state, VMesh &vm_in)
     for (int k = 1; k < ns_out; k += 2) {
       float co[3];
       profile::get_profile_point(state, &bndv->profile, k, ns_out, co);
-      if (state.params.custom_profile == nullptr) {
+      if (state.params.custom_profile_samples.is_empty()) {
         float acc[3];
         add_v3_v3v3(acc,
                     geom::mesh_vert_canon(&vm_out, i, 0, k - 1)->co,
@@ -6413,7 +6432,7 @@ static VMesh make_cube_corner_adj_vmesh(BevelState &state)
   /* Short-circuit for square profiles: the superellipsoid snap path below assumes z ≈ 0
    * only for the general superellipse case; for the two square extremes BMesh calls
    * dedicated helpers that never invoke snap_to_superellipsoid. */
-  if (state.params.custom_profile == nullptr) {
+  if (state.params.custom_profile_samples.is_empty()) {
     if (r == profile::PRO_SQUARE_R) {
       return make_cube_corner_square(nseg);
     }
@@ -6679,7 +6698,7 @@ static VMesh pipe_adj_vmesh(BevelState &state, BevVert *bv, BoundVert *vpipe)
           continue;
         }
         /* With a custom profile just copy the shape of the profile at each ring. */
-        if (state.params.custom_profile != nullptr) {
+        if (!state.params.custom_profile_samples.is_empty()) {
           /* Find both profile vertices that correspond to this point. */
           float *profile_point_pipe1, *profile_point_pipe2, f;
           if (ELEM(i, ipipe1, ipipe2)) {
@@ -6975,7 +6994,8 @@ static VMesh square_out_adj_vmesh(BevelState &state, BevVert *bv)
 static int tri_corner_test(const BevelState &state, const BevVert *bv)
 {
   /* Custom profiles and vertex-only mode skip this path. */
-  if (state.params.affect_type == BevelAffect::Vertices || state.params.custom_profile != nullptr)
+  if (state.params.affect_type == BevelAffect::Vertices ||
+      !state.params.custom_profile_samples.is_empty())
   {
     return -1;
   }
@@ -7959,17 +7979,16 @@ static std::optional<Mesh *> build_output_mesh(const BevelState &state)
   if (ao.vertex_face_id || ao.edge_face_id) {
     const Span<NewFaceKind> face_kinds = emesh.new_face_kinds();
     if (ao.vertex_face_id) {
-      bke::SpanAttributeWriter<bool> writer =
-          dst_attrs.lookup_or_add_for_write_span<bool>(*ao.vertex_face_id,
-                                                       bke::AttrDomain::Face);
+      bke::SpanAttributeWriter<bool> writer = dst_attrs.lookup_or_add_for_write_span<bool>(
+          *ao.vertex_face_id, bke::AttrDomain::Face);
       for (const int nf : IndexRange(n_new_faces)) {
         writer.span[n_surv_faces + nf] = (face_kinds[nf] == NewFaceKind::VERTEX_FACE);
       }
       writer.finish();
     }
     if (ao.edge_face_id) {
-      bke::SpanAttributeWriter<bool> writer =
-          dst_attrs.lookup_or_add_for_write_span<bool>(*ao.edge_face_id, bke::AttrDomain::Face);
+      bke::SpanAttributeWriter<bool> writer = dst_attrs.lookup_or_add_for_write_span<bool>(
+          *ao.edge_face_id, bke::AttrDomain::Face);
       for (const int nf : IndexRange(n_new_faces)) {
         writer.span[n_surv_faces + nf] = (face_kinds[nf] == NewFaceKind::EDGE_FACE);
       }
@@ -7978,8 +7997,8 @@ static std::optional<Mesh *> build_output_mesh(const BevelState &state)
   }
 
   if (ao.outer_edge_id) {
-    bke::SpanAttributeWriter<bool> writer =
-        dst_attrs.lookup_or_add_for_write_span<bool>(*ao.outer_edge_id, bke::AttrDomain::Edge);
+    bke::SpanAttributeWriter<bool> writer = dst_attrs.lookup_or_add_for_write_span<bool>(
+        *ao.outer_edge_id, bke::AttrDomain::Edge);
     /* Outer edges are surviving original edges, identified via src_edge_map. */
     for (const int se : state.outer_edge_src_indices) {
       const int dst_e = src_edge_map[se];
@@ -7998,8 +8017,8 @@ static std::optional<Mesh *> build_output_mesh(const BevelState &state)
   }
 
   if (ao.mid_edge_id) {
-    bke::SpanAttributeWriter<bool> writer =
-        dst_attrs.lookup_or_add_for_write_span<bool>(*ao.mid_edge_id, bke::AttrDomain::Edge);
+    bke::SpanAttributeWriter<bool> writer = dst_attrs.lookup_or_add_for_write_span<bool>(
+        *ao.mid_edge_id, bke::AttrDomain::Edge);
     const Span<NewEdgeKind> edge_kinds = emesh.new_edge_kinds();
     for (const int ne : IndexRange(n_new_edges)) {
       if (edge_kinds[ne] == NewEdgeKind::MID_EDGE) {
@@ -8012,7 +8031,6 @@ static std::optional<Mesh *> build_output_mesh(const BevelState &state)
   BLI_assert(bke::mesh_is_valid(*dst));
   return dst;
 }
-
 
 /** \} */
 
@@ -8065,7 +8083,6 @@ std::optional<Mesh *> mesh_bevel(
       kinds[nf] = NewFaceKind::VERTEX_FACE;
     }
   });
-
 
   /* Build edge-strip polygons along each beveled edge. */
   if (params.affect_type != BevelAffect::Vertices) {

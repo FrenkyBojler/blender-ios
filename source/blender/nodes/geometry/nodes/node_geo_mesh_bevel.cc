@@ -2,7 +2,11 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "DNA_curves_types.h"
 #include "DNA_mesh_types.h"
+
+#include "BKE_curves.hh"
+#include "BKE_geometry_set.hh"
 
 #include "NOD_rna_define.hh"
 
@@ -92,6 +96,47 @@ static void node_declare(NodeDeclarationBuilder &b)
           " and continued through vertices (round down if odd number of segments)");
 }
 
+/* -------------------------------------------------------------------- */
+/** \name Profile Curve Sampling
+ *
+ * Samples the first spline of a #bke::CurvesGeometry into a flat array of (x, y) pairs
+ * for use as `BevelParameters::custom_profile_samples`.
+ *
+ * The input curve is expected to start near (0, 1, z) and end near (1, 0, z) in its local
+ * XY plane (Z is ignored).  The evaluated positions are used directly, so Bezier, poly,
+ * Catmull-Rom, and NURBS curves all work without any special-casing.
+ * \{ */
+
+/**
+ * Returns the evaluated (x, y) positions of the first spline of `curves`.
+ * Returns an empty array when the geometry has no splines or fewer than 2 evaluated points.
+ */
+static Array<float2> sample_profile_curve(const bke::CurvesGeometry &curves)
+{
+  if (curves.curves_num() == 0) {
+    return {};
+  }
+
+  /* Use the evaluator to get dense positions that correctly represent the curve shape
+   * regardless of type (Bezier, Catmull-Rom, poly, NURBS). */
+  const OffsetIndices<int> eval_by_curve = curves.evaluated_points_by_curve();
+  const Span<float3> eval_positions = curves.evaluated_positions();
+  const IndexRange eval_pts = eval_by_curve[0];
+
+  if (eval_pts.size() < 2) {
+    return {};
+  }
+
+  Array<float2> samples(eval_pts.size());
+  for (const int i : IndexRange(eval_pts.size())) {
+    const float3 &p = eval_positions[eval_pts[i]];
+    samples[i] = float2(p.x, p.y);
+  }
+  return samples;
+}
+
+/** \} */
+
 static void node_geo_exec(GeoNodeExecParams params)
 {
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Mesh"_ustr);
@@ -109,6 +154,16 @@ static void node_geo_exec(GeoNodeExecParams params)
   Field<bool> miter_field = params.extract_input<Field<bool>>("Miter"_ustr);
   Field<float> spread_field = params.extract_input<Field<float>>("Spread"_ustr);
 
+  /* Sample the Profile input curve into a flat float2 array.
+   * The array is built once here and shared across all instances in the geometry loop;
+   * BevelParameters holds it by const reference (non-owning Span). */
+  GeometrySet profile_set = params.extract_input<GeometrySet>("Profile"_ustr);
+  Array<float2> profile_samples;
+  if (const Curves *profile_curves_id = profile_set.get_curves()) {
+    const bke::CurvesGeometry &profile_geom = profile_curves_id->geometry.wrap();
+    profile_samples = sample_profile_curve(profile_geom);
+  }
+
   geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry_set) {
     const Mesh *src_mesh = geometry_set.get_mesh();
     if (!src_mesh) {
@@ -118,6 +173,9 @@ static void node_geo_exec(GeoNodeExecParams params)
     bevel_params.affect_type = affect;
     bevel_params.segments = segments;
     bevel_params.shape = params.extract_input<float>("Shape"_ustr);
+    /* Move the samples into bevel_params (zero-copy; profile_samples stays valid
+     * through the geometry loop because it is declared in this outer scope). */
+    bevel_params.custom_profile_samples = profile_samples;
     const int ne = src_mesh->edges_num;
 
     /* Shared logic executed after the selection/offset evaluator (and its lifetime) is set up.
