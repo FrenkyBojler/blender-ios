@@ -97,7 +97,6 @@
 namespace blender {
 
 namespace lf = fn::lazy_function;
-namespace geo_log = nodes::geo_eval_log;
 namespace bake = bke::bake;
 
 static void init_data(ModifierData *md)
@@ -268,18 +267,14 @@ static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void 
   NodesModifierData *nmd = reinterpret_cast<NodesModifierData *>(md);
   walk(user_data, ob, reinterpret_cast<ID **>(&nmd->node_group), IDWALK_CB_USER);
 
-  if (nmd->settings.properties) {
+  if (nmd->settings_legacy.properties) {
     /* Also walk legacy properties because they are still used at runtime before post linking
      * versioning. */
-    IDP_foreach_property(nmd->settings.properties, IDP_TYPE_FILTER_ID, [&](IDProperty *id_prop) {
-      walk(user_data, ob, reinterpret_cast<ID **>(&id_prop->data.pointer), IDWALK_CB_USER);
-    });
+    IDP_foreach_property(
+        nmd->settings_legacy.properties, IDP_TYPE_FILTER_ID, [&](IDProperty *id_prop) {
+          walk(user_data, ob, reinterpret_cast<ID **>(&id_prop->data.pointer), IDWALK_CB_USER);
+        });
   }
-
-  IDP_foreach_property(
-      nmd->modifier.system_properties, IDP_TYPE_FILTER_ID, [&](IDProperty *id_prop) {
-        walk(user_data, ob, reinterpret_cast<ID **>(&id_prop->data.pointer), IDWALK_CB_USER);
-      });
 
   for (NodesModifierBake &bake : MutableSpan(nmd->bakes, nmd->bakes_num)) {
     for (NodesModifierDataBlock &data_block : MutableSpan(bake.data_blocks, bake.data_blocks_num))
@@ -899,8 +894,8 @@ static void find_verbose_log_contexts(const NodesModifierData &nmd,
           continue;
         }
         const Map<const bke::bNodeTreeZone *, ComputeContextHash> hash_by_zone =
-            geo_log::GeoNodesLog::get_context_hash_by_zone_for_node_editor(snode,
-                                                                           compute_context_cache);
+            nodes::eval_log::NodesEvalLog::get_context_hash_by_zone_for_node_editor(
+                snode, compute_context_cache);
         for (const ComputeContextHash &hash : hash_by_zone.values()) {
           r_socket_log_contexts.add(hash);
         }
@@ -1825,7 +1820,7 @@ static void modifyGeometry(ModifierData *md,
   nodes::GeoNodesModifierData modifier_eval_data{};
   modifier_eval_data.depsgraph = ctx->depsgraph;
   modifier_eval_data.self_object = ctx->object;
-  auto eval_log = std::make_unique<geo_log::GeoNodesLog>();
+  auto eval_log = std::make_unique<nodes::eval_log::NodesEvalLog>();
   call_data.modifier_data = &modifier_eval_data;
 
   NodesModifierSimulationParams simulation_params(*nmd, *ctx);
@@ -1986,10 +1981,10 @@ static void blend_write(BlendWriter *writer, const ID * /*id_owner*/, const Modi
 
   writer->write_string(nmd->bake_directory);
 
-  if (nmd->settings.properties != nullptr) {
+  if (nmd->settings_legacy.properties != nullptr) {
     /* Write legacy settings for forward compatibility. Created by
      * #create_legacy_geometry_nodes_properties. */
-    IDP_BlendWrite(writer, nmd->settings.properties);
+    IDP_BlendWrite(writer, nmd->settings_legacy.properties);
   }
 
   writer->write_struct_array(nmd->bakes_num, nmd->bakes);
@@ -2032,14 +2027,14 @@ static void blend_read(BlendDataReader *reader, ModifierData *md)
   BLO_read_string(reader, &nmd->bake_directory);
   if (nmd->node_group == nullptr || nmd->modifier.system_properties) {
     /* Don't bother reading old settings when modifier system properties are available. */
-    nmd->settings.properties = nullptr;
+    nmd->settings_legacy.properties = nullptr;
   }
   else {
-    BLO_read_struct(reader, IDProperty, &nmd->settings.properties);
-    IDP_BlendDataRead(reader, &nmd->settings.properties);
+    BLO_read_struct(reader, IDProperty, &nmd->settings_legacy.properties);
+    IDP_BlendDataRead(reader, &nmd->settings_legacy.properties);
   }
 
-  BLO_read_struct_array(reader, NodesModifierBake, nmd->bakes_num, &nmd->bakes);
+  BLO_read_array_and_validate_size(reader, &nmd->bakes, &nmd->bakes_num);
 
   if (nmd->bakes_num > 0 && nmd->bakes == nullptr) {
     /* This case generally shouldn't be allowed to happen. However, there is a bug report with a
@@ -2053,7 +2048,7 @@ static void blend_read(BlendDataReader *reader, ModifierData *md)
   for (NodesModifierBake &bake : MutableSpan(nmd->bakes, nmd->bakes_num)) {
     BLO_read_string(reader, &bake.directory);
 
-    BLO_read_struct_array(reader, NodesModifierDataBlock, bake.data_blocks_num, &bake.data_blocks);
+    BLO_read_array_and_validate_size(reader, &bake.data_blocks, &bake.data_blocks_num);
     for (NodesModifierDataBlock &data_block : MutableSpan(bake.data_blocks, bake.data_blocks_num))
     {
       BLO_read_string(reader, &data_block.id_name);
@@ -2062,10 +2057,10 @@ static void blend_read(BlendDataReader *reader, ModifierData *md)
 
     BLO_read_struct(reader, NodesModifierPackedBake, &bake.packed);
     if (bake.packed) {
-      BLO_read_struct_array(
-          reader, NodesModifierBakeFile, bake.packed->meta_files_num, &bake.packed->meta_files);
-      BLO_read_struct_array(
-          reader, NodesModifierBakeFile, bake.packed->blob_files_num, &bake.packed->blob_files);
+      BLO_read_array_and_validate_size(
+          reader, &bake.packed->meta_files, &bake.packed->meta_files_num);
+      BLO_read_array_and_validate_size(
+          reader, &bake.packed->blob_files, &bake.packed->blob_files_num);
       const auto read_bake_file = [&](NodesModifierBakeFile &bake_file) {
         BLO_read_string(reader, &bake_file.name);
         if (bake_file.packed_file) {
@@ -2084,7 +2079,7 @@ static void blend_read(BlendDataReader *reader, ModifierData *md)
       }
     }
   }
-  BLO_read_struct_array(reader, NodesModifierPanel, nmd->panels_num, &nmd->panels);
+  BLO_read_array_and_validate_size(reader, &nmd->panels, &nmd->panels_num);
 
   nmd->runtime = MEM_new<NodesModifierRuntime>(__func__);
   nmd->runtime->cache = std::make_shared<bake::ModifierCache>();

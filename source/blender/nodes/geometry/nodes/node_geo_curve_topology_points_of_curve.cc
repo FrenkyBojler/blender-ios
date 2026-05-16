@@ -41,10 +41,10 @@ static bool use_start_point_special_case(const Field<int> &curve_index,
                                          const Field<int> &sort_index,
                                          const Field<float> &sort_weights)
 {
-  if (!dynamic_cast<const fn::IndexFieldInput *>(&curve_index.node())) {
+  if (!curve_index.get_input_if<fn::IndexFieldInput>()) {
     return false;
   }
-  if (sort_index.node().depends_on_input() || sort_weights.node().depends_on_input()) {
+  if (sort_index.depends_on_input() || sort_weights.depends_on_input()) {
     return false;
   }
   return fn::evaluate_constant_field(sort_index) == 0;
@@ -138,25 +138,20 @@ class PointsOfCurveInput final : public bke::GeometryFieldInput {
     return VArray<int>::from_container(std::move(point_of_curve));
   }
 
-  void for_each_field_input_recursive(FunctionRef<void(const FieldInput &)> fn) const override
+  void foreach_recursive_field(FunctionRef<void(const GField &)> fn) const override
   {
-    curve_index_.node().for_each_field_input_recursive(fn);
-    sort_index_.node().for_each_field_input_recursive(fn);
-    sort_weight_.node().for_each_field_input_recursive(fn);
+    fn(curve_index_);
+    fn(sort_index_);
+    fn(sort_weight_);
   }
 
-  uint64_t hash() const override
+  void hash_unique(UniqueHashBytes &hash, fn::FieldHashDeep &deep_hash_cache) const override
   {
-    return 26978695677882;
-  }
-
-  bool is_equal_to(const fn::FieldNode &other) const override
-  {
-    if (const auto *typed = dynamic_cast<const PointsOfCurveInput *>(&other)) {
-      return typed->curve_index_ == curve_index_ && typed->sort_index_ == sort_index_ &&
-             typed->sort_weight_ == sort_weight_;
-    }
-    return false;
+    static constexpr int8_t id = 0;
+    hash.add(&id);
+    hash.add(deep_hash_cache.ensure(curve_index_));
+    hash.add(deep_hash_cache.ensure(sort_index_));
+    hash.add(deep_hash_cache.ensure(sort_weight_));
   }
 
   std::optional<AttrDomain> preferred_domain(const GeometryComponent & /*component*/) const final
@@ -182,14 +177,10 @@ class CurvePointCountInput final : public bke::CurvesFieldInput {
     });
   }
 
-  uint64_t hash() const final
+  void hash_unique(UniqueHashBytes &hash, fn::FieldHashDeep & /*deep_hash_cache*/) const override
   {
-    return 903847569873762;
-  }
-
-  bool is_equal_to(const fn::FieldNode &other) const final
-  {
-    return dynamic_cast<const CurvePointCountInput *>(&other) != nullptr;
+    static constexpr int8_t id = 0;
+    hash.add(&id);
   }
 
   std::optional<AttrDomain> preferred_domain(const bke::CurvesGeometry & /*curves*/) const final
@@ -202,25 +193,25 @@ static void node_geo_exec(GeoNodeExecParams params)
 {
   const Field<int> curve_index = params.extract_input<Field<int>>("Curve Index"_ustr);
   if (params.output_is_required("Total"_ustr)) {
-    params.set_output("Total"_ustr,
-                      Field<int>(std::make_shared<bke::EvaluateAtIndexInput>(
-                          curve_index,
-                          Field<int>(std::make_shared<CurvePointCountInput>()),
-                          AttrDomain::Curve)));
+    params.set_output(
+        "Total"_ustr,
+        Field<int>::from_input<bke::EvaluateAtIndexInput>(
+            curve_index, Field<int>::from_input<CurvePointCountInput>(), AttrDomain::Curve));
   }
   if (params.output_is_required("Point Index"_ustr)) {
     params.set_output("Point Index"_ustr,
-                      Field<int>(std::make_shared<PointsOfCurveInput>(
+                      Field<int>::from_input<PointsOfCurveInput>(
                           curve_index,
                           params.extract_input<Field<int>>("Sort Index"_ustr),
-                          params.extract_input<Field<float>>("Weights"_ustr))));
+                          params.extract_input<Field<float>>("Weights"_ustr)));
   }
 }
 
 static void node_register()
 {
   static bke::bNodeType ntype;
-  geo_node_type_base(&ntype, "GeometryNodePointsOfCurve", GEO_NODE_CURVE_TOPOLOGY_POINTS_OF_CURVE);
+  geo_node_type_base(
+      &ntype, "GeometryNodePointsOfCurve"_ustr, GEO_NODE_CURVE_TOPOLOGY_POINTS_OF_CURVE);
   ntype.ui_name = "Points of Curve";
   ntype.ui_description = "Retrieve a point index within a curve";
   ntype.enum_name_legacy = "POINTS_OF_CURVE";

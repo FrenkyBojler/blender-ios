@@ -85,15 +85,10 @@ class FaceNeighborCountFieldInput final : public bke::MeshFieldInput {
     return construct_neighbor_count_varray(mesh, domain);
   }
 
-  uint64_t hash() const override
+  void hash_unique(UniqueHashBytes &hash, fn::FieldHashDeep & /*deep_hash_cache*/) const override
   {
-    /* Some random constant hash. */
-    return 823543774;
-  }
-
-  bool is_equal_to(const fn::FieldNode &other) const override
-  {
-    return dynamic_cast<const FaceNeighborCountFieldInput *>(&other) != nullptr;
+    static constexpr int8_t id = 0;
+    hash.add(&id);
   }
 
   std::optional<AttrDomain> preferred_domain(const Mesh & /*mesh*/) const override
@@ -123,15 +118,10 @@ class FaceVertexCountFieldInput final : public bke::MeshFieldInput {
     return construct_vertex_count_varray(mesh, domain);
   }
 
-  uint64_t hash() const override
+  void hash_unique(UniqueHashBytes &hash, fn::FieldHashDeep & /*deep_hash_cache*/) const override
   {
-    /* Some random constant hash. */
-    return 236235463634;
-  }
-
-  bool is_equal_to(const fn::FieldNode &other) const override
-  {
-    return dynamic_cast<const FaceVertexCountFieldInput *>(&other) != nullptr;
+    static constexpr int8_t id = 0;
+    hash.add(&id);
   }
 
   std::optional<AttrDomain> preferred_domain(const Mesh & /*mesh*/) const override
@@ -142,17 +132,15 @@ class FaceVertexCountFieldInput final : public bke::MeshFieldInput {
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  Field<int> vertex_count_field{std::make_shared<FaceVertexCountFieldInput>()};
-  Field<int> neighbor_count_field{std::make_shared<FaceNeighborCountFieldInput>()};
-  params.set_output("Vertex Count"_ustr, std::move(vertex_count_field));
-  params.set_output("Face Count"_ustr, std::move(neighbor_count_field));
+  params.set_output("Vertex Count"_ustr, Field<int>::from_input<FaceVertexCountFieldInput>());
+  params.set_output("Face Count"_ustr, Field<int>::from_input<FaceNeighborCountFieldInput>());
 }
 
 static void node_register()
 {
   static bke::bNodeType ntype;
   geo_node_type_base(
-      &ntype, "GeometryNodeInputMeshFaceNeighbors", GEO_NODE_INPUT_MESH_FACE_NEIGHBORS);
+      &ntype, "GeometryNodeInputMeshFaceNeighbors"_ustr, GEO_NODE_INPUT_MESH_FACE_NEIGHBORS);
   ntype.ui_name = "Face Neighbors";
   ntype.ui_description = "Retrieve topology information relating to each face of a mesh";
   ntype.enum_name_legacy = "MESH_FACE_NEIGHBORS";

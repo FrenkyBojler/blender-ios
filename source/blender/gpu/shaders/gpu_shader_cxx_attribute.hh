@@ -30,6 +30,10 @@
 #  define early_fragment_tests maybe_unused
 /* Metal specific hints. To be used on entry point functions. */
 #  define metal_max_total_threads_per_threadgroup(count) maybe_unused
+/* Enable shader patching on GL to remap clip range to 0..1. */
+#  define clip_control maybe_unused
+/* Enable texture atomics on older versions of metal. */
+#  define texture_atomic maybe_unused
 
 /* In a compute function, specify an input variable containing the 3-dimensional index of the local
  * work invocation within the work group that the current shader is executing in. */
@@ -68,8 +72,10 @@
 
 /* Vertex shader input vertex index, which includes the base vertex if one is specified. */
 #  define vertex_id maybe_unused
-/* Vertex shader input instance index, which includes the base instance if one is specified. */
+/* Vertex shader input instance index, which doesn't include the base instance. */
 #  define instance_id maybe_unused
+/* Vertex shader input instance index, which includes the base instance if one is specified. */
+#  define instance_index maybe_unused
 /* Vertex shader input base instance value added to each instance identifier before reading
  * per-instance data. */
 #  define base_instance maybe_unused
@@ -87,6 +93,8 @@
 #  define frag_stencil_ref maybe_unused
 /* Fragment shader color output index for dual source blending. */
 #  define index(i) maybe_unused
+/* Fragment shader color output index for raster order group on Metal. */
+#  define raster_order_group(i) maybe_unused
 
 /* Graphic pipeline stage in/out. */
 #  define in maybe_unused

@@ -44,6 +44,8 @@ BLOCKLIST = [
     "principled_bsdf_transmission.blend",
     # Blocked due to platform-dependent noise differences (likely floating-point/fast-math differences).
     "raycast_bump.blend",
+    # Blocked due to platform-dependent uninitialized pixels.
+    "image_mapping_udim.blend",
 ]
 
 BLOCKLIST_METAL = [
@@ -129,6 +131,9 @@ def setup():
         ray_tracing.screen_trace_quality = 1.0
         ray_tracing.screen_trace_thickness = 1.0
 
+        # Fast GI
+        eevee.fast_gi_quality = 0.8
+
         # Light-probes
         eevee.gi_cubemap_resolution = '256'
 
@@ -145,7 +150,6 @@ def setup():
             if ob.name != 'Plane' and ob.type != 'LIGHT':
                 ob.hide_probe_volume = True
                 ob.hide_probe_sphere = True
-                ob.hide_probe_plane = True
 
             # Counteract the versioning from legacy EEVEE. Should be changed per file at some point.
             if not skip_subsurface_setup:
@@ -295,6 +299,9 @@ def main():
     elif test_dir_name.startswith('pointcloud'):
         # points transparent
         report.set_fail_threshold(0.06)
+    elif test_dir_name.startswith("lightprobe"):
+        # Avoid higher threshold of the light case
+        report.set_fail_threshold(0.01)
     elif test_dir_name.startswith('light_linking'):
         # Noise difference in transparent material
         report.set_fail_threshold(0.05)
@@ -303,6 +310,9 @@ def main():
         report.set_fail_threshold(0.03)
     elif test_dir_name.startswith('texture'):
         # Noise difference in "white noise 256pp" (Old AMD/Linux/OpenGL only, see #154515)
+        report.set_fail_threshold(0.02)
+    elif test_dir_name.startswith('instancing'):
+        # Noise difference in "instance_types" on the point-clouds (Metal only, to investigate)
         report.set_fail_threshold(0.02)
 
     ok = report.run(args.testdir, args.blender, get_arguments, batch=args.batch)

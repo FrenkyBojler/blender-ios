@@ -118,25 +118,20 @@ class CornersOfVertInput final : public bke::MeshFieldInput {
     return VArray<int>::from_container(std::move(corner_of_vertex));
   }
 
-  void for_each_field_input_recursive(FunctionRef<void(const FieldInput &)> fn) const override
+  void foreach_recursive_field(FunctionRef<void(const GField &)> fn) const override
   {
-    vert_index_.node().for_each_field_input_recursive(fn);
-    sort_index_.node().for_each_field_input_recursive(fn);
-    sort_weight_.node().for_each_field_input_recursive(fn);
+    fn(vert_index_);
+    fn(sort_index_);
+    fn(sort_weight_);
   }
 
-  uint64_t hash() const final
+  void hash_unique(UniqueHashBytes &hash, fn::FieldHashDeep &deep_hash_cache) const override
   {
-    return 3541871368173645;
-  }
-
-  bool is_equal_to(const fn::FieldNode &other) const final
-  {
-    if (const auto *typed = dynamic_cast<const CornersOfVertInput *>(&other)) {
-      return typed->vert_index_ == vert_index_ && typed->sort_index_ == sort_index_ &&
-             typed->sort_weight_ == sort_weight_;
-    }
-    return false;
+    static constexpr int8_t id = 0;
+    hash.add(&id);
+    hash.add(deep_hash_cache.ensure(vert_index_));
+    hash.add(deep_hash_cache.ensure(sort_index_));
+    hash.add(deep_hash_cache.ensure(sort_weight_));
   }
 
   std::optional<AttrDomain> preferred_domain(const Mesh & /*mesh*/) const final
@@ -161,14 +156,10 @@ class CornersOfVertCountInput final : public bke::MeshFieldInput {
     return VArray<int>::from_container(std::move(counts));
   }
 
-  uint64_t hash() const final
+  void hash_unique(UniqueHashBytes &hash, fn::FieldHashDeep & /*deep_hash_cache*/) const override
   {
-    return 253098745374645;
-  }
-
-  bool is_equal_to(const fn::FieldNode &other) const final
-  {
-    return dynamic_cast<const CornersOfVertCountInput *>(&other) != nullptr;
+    static constexpr int8_t id = 0;
+    hash.add(&id);
   }
 
   std::optional<AttrDomain> preferred_domain(const Mesh & /*mesh*/) const final
@@ -181,18 +172,17 @@ static void node_geo_exec(GeoNodeExecParams params)
 {
   const Field<int> vert_index = params.extract_input<Field<int>>("Vertex Index"_ustr);
   if (params.output_is_required("Total"_ustr)) {
-    params.set_output("Total"_ustr,
-                      Field<int>(std::make_shared<bke::EvaluateAtIndexInput>(
-                          vert_index,
-                          Field<int>(std::make_shared<CornersOfVertCountInput>()),
-                          AttrDomain::Point)));
+    params.set_output(
+        "Total"_ustr,
+        Field<int>::from_input<bke::EvaluateAtIndexInput>(
+            vert_index, Field<int>::from_input<CornersOfVertCountInput>(), AttrDomain::Point));
   }
   if (params.output_is_required("Corner Index"_ustr)) {
     params.set_output("Corner Index"_ustr,
-                      Field<int>(std::make_shared<CornersOfVertInput>(
+                      Field<int>::from_input<CornersOfVertInput>(
                           vert_index,
                           params.extract_input<Field<int>>("Sort Index"_ustr),
-                          params.extract_input<Field<float>>("Weights"_ustr))));
+                          params.extract_input<Field<float>>("Weights"_ustr)));
   }
 }
 
@@ -200,7 +190,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
   geo_node_type_base(
-      &ntype, "GeometryNodeCornersOfVertex", GEO_NODE_MESH_TOPOLOGY_CORNERS_OF_VERTEX);
+      &ntype, "GeometryNodeCornersOfVertex"_ustr, GEO_NODE_MESH_TOPOLOGY_CORNERS_OF_VERTEX);
   ntype.ui_name = "Corners of Vertex";
   ntype.ui_description = "Retrieve face corners connected to vertices";
   ntype.enum_name_legacy = "CORNERS_OF_VERTEX";

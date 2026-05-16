@@ -238,8 +238,8 @@ ImBuf *RE_RenderLayerGetPassImBuf(RenderLayer *rl, const char *name, const char 
 
 float *RE_RenderLayerGetPass(RenderLayer *rl, const char *name, const char *viewname)
 {
-  const ImBuf *ibuf = RE_RenderLayerGetPassImBuf(rl, name, viewname);
-  return ibuf ? ibuf->float_buffer.data : nullptr;
+  ImBuf *ibuf = RE_RenderLayerGetPassImBuf(rl, name, viewname);
+  return ibuf ? ibuf->float_data_for_write() : nullptr;
 }
 
 RenderLayer *RE_GetRenderLayer(RenderResult *rr, const char *name)
@@ -466,14 +466,14 @@ void RE_ReleaseResultImage(Render *re)
   }
 }
 
-void RE_ResultGet32(Render *re, uint *rect)
+void RE_ResultGet32(Render *re, uint8_t *dst)
 {
   RenderResult rres;
   const int view_id = BKE_scene_multiview_view_id_get(&re->r, re->viewname);
 
   RE_AcquireResultImageViews(re, &rres);
   render_result_rect_get_pixels(&rres,
-                                rect,
+                                dst,
                                 re->rectx,
                                 re->recty,
                                 &re->scene->view_settings,
@@ -1158,7 +1158,7 @@ static bool node_tree_has_group_output(const bNodeTree *node_tree)
   }
 
   node_tree->ensure_topology_cache();
-  for (const bNode *node : node_tree->nodes_by_type("NodeGroupOutput")) {
+  for (const bNode *node : node_tree->nodes_by_type("NodeGroupOutput"_ustr)) {
     if (node->flag & NODE_DO_OUTPUT && !node->is_muted()) {
       return true;
     }
@@ -1290,7 +1290,6 @@ static void do_render_compositor(Render *re)
                                 *ntree,
                                 rv.name,
                                 &compositor_render_context,
-                                nullptr,
                                 needed_outputs);
         }
         compositor_render_context.save_file_outputs(re->pipeline_scene_eval);
@@ -1490,7 +1489,6 @@ static void do_render_full_pipeline(Render *re)
 
   /* ensure no rendered results are cached from previous animated sequences */
   BKE_image_all_free_anim_ibufs(re->main, re->r.cfra);
-  seq::cache_cleanup(re->scene, seq::CacheCleanup::FinalAndIntra);
 
   if (RE_engine_render(re, true)) {
     /* in this case external render overrides all */
@@ -1678,7 +1676,7 @@ static bool is_compositing_possible_on_gpu(Scene *scene, ReportList *reports)
 
   int width, height;
   BKE_render_resolution(&scene->r, false, &width, &height);
-  if (!GPU_is_safe_texture_size(width, height)) {
+  if (width > 8192 || height > 8192) {
     BKE_report(reports, RPT_ERROR, "Render size too large for GPU, use CPU compositor instead");
     return false;
   }
@@ -2674,7 +2672,7 @@ void RE_layer_load_from_file(
   }
 
   /* OCIO_TODO: assume layer was saved in default color space */
-  ImBuf *ibuf = IMB_load_image_from_filepath(filepath, IB_byte_data);
+  ImBuf *ibuf = IMB_load_image_from_filepath(filepath, ImBufFlags::ByteData);
   RenderPass *rpass = nullptr;
 
   /* multi-view: since the API takes no 'view', we use the first combined pass found */
@@ -2692,37 +2690,20 @@ void RE_layer_load_from_file(
                 filepath);
   }
 
-  if (ibuf && (ibuf->byte_buffer.data || ibuf->float_buffer.data)) {
+  if (ibuf && (ibuf->byte_data() || ibuf->float_data())) {
     if (ibuf->x == layer->rectx && ibuf->y == layer->recty) {
-      if (ibuf->float_buffer.data == nullptr) {
+      if (ibuf->float_data() == nullptr) {
         IMB_float_from_byte(ibuf);
       }
 
-      memcpy(rpass->ibuf->float_buffer.data,
-             ibuf->float_buffer.data,
-             sizeof(float[4]) * layer->rectx * layer->recty);
+      rpass->ibuf->float_buffer = ibuf->float_buffer;
     }
     else {
       if ((ibuf->x - x >= layer->rectx) && (ibuf->y - y >= layer->recty)) {
-        ImBuf *ibuf_clip;
-
-        if (ibuf->float_buffer.data == nullptr) {
+        if (ibuf->float_data() == nullptr) {
           IMB_float_from_byte(ibuf);
         }
-
-        ibuf_clip = IMB_allocImBuf(layer->rectx, layer->recty, 32, IB_float_data);
-        if (ibuf_clip) {
-          IMB_rectcpy(ibuf_clip, ibuf, 0, 0, x, y, layer->rectx, layer->recty);
-
-          memcpy(rpass->ibuf->float_buffer.data,
-                 ibuf_clip->float_buffer.data,
-                 sizeof(float[4]) * layer->rectx * layer->recty);
-          IMB_freeImBuf(ibuf_clip);
-        }
-        else {
-          BKE_reportf(
-              reports, RPT_ERROR, "%s: failed to allocate clip buffer '%s'", __func__, filepath);
-        }
+        IMB_copy_rect(rpass->ibuf, ibuf, int2(x, y), int2(0, 0), int2(layer->rectx, layer->recty));
       }
       else {
         BKE_reportf(reports,

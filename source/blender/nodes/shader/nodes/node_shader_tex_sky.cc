@@ -326,7 +326,7 @@ static int node_shader_gpu_tex_sky(GPUMaterial *mat,
 
 static void node_shader_update_sky(bNodeTree *ntree, bNode *node)
 {
-  bNodeSocket *sockVector = bke::node_find_socket(*node, SOCK_IN, "Vector");
+  bNodeSocket *sockVector = bke::node_find_socket(*node, SOCK_IN, "Vector"_ustr);
 
   NodeTexSky *tex = static_cast<NodeTexSky *>(node->storage);
   bke::node_set_socket_availability(
@@ -347,7 +347,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
                                                  SOCK_FLOAT))
   {
     params.add_item(IFACE_("Vector"), [](LinkSearchOpParams &params) {
-      bNode &node = params.add_node("ShaderNodeTexSky");
+      bNode &node = params.add_node("ShaderNodeTexSky"_ustr);
       NodeTexSky *tex = static_cast<NodeTexSky *>(node.storage);
       tex->sun_disc = false;
       params.update_and_connect_available_socket(node, "Vector"_ustr);
@@ -364,7 +364,7 @@ void register_node_type_sh_tex_sky()
 
   static bke::bNodeType ntype;
 
-  sh_node_type_base(&ntype, "ShaderNodeTexSky", SH_NODE_TEX_SKY);
+  sh_node_type_base(&ntype, "ShaderNodeTexSky"_ustr, SH_NODE_TEX_SKY);
   ntype.ui_name = "Sky Texture";
   ntype.ui_description = "Generate a procedural sky texture";
   ntype.enum_name_legacy = "TEX_SKY";

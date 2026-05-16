@@ -825,7 +825,12 @@ void WM_main_remap_editor_id_reference(const bke::id::IDRemapper &mappings);
 
 /**
  * Show the report in the info header.
+ *
  * \param win: When NULL, a best-guess is used.
+ *
+ * \note This shows the most recently added report. In most cases, calls to this function should
+ * be guarded by a check to whether a report was actually added by a previous line to avoid showing
+ * the user outdated reports.
  */
 void WM_report_banner_show(wmWindowManager *wm, wmWindow *win) ATTR_NONNULL(1);
 /**
@@ -1896,6 +1901,7 @@ enum eWM_JobType {
   WM_JOB_TYPE_BAKE_GEOMETRY_NODES,
   WM_JOB_TYPE_UV_PACK,
   WM_JOB_TYPE_GENERATE_TEXTURE_CACHE,
+  WM_JOB_TYPE_SOUND_MIXDOWN,
   /* Add as needed, bake, seq proxy build
    * if having hard coded values is a problem. */
 };
@@ -2083,8 +2089,11 @@ int WM_main_playanim(int argc, const char **argv);
 bool write_crash_blend();
 
 bool WM_autosave_is_scheduled(wmWindowManager *wm);
-/** Flushes all changes from edit modes and stores the auto-save file. */
-void WM_autosave_write(wmWindowManager *wm, Main *bmain);
+/**
+ * Flushes all changes from edit modes and stores the auto-save file.
+ * \return success, false if the autosave file could not be written.
+ */
+bool WM_autosave_write(wmWindowManager *wm, Main *bmain, ReportList *reports);
 
 /**
  * Lock the interface for any communication.

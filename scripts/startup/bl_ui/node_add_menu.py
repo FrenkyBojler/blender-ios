@@ -13,7 +13,9 @@ __all__ = (
     "add_repeat_zone",
     "add_simulation_zone",
     "draw_node_group_add_menu",
-    "set_math_node_default_props"
+    "set_math_node_default_props",
+    "set_int_math_node_default_props",
+    "set_vector_math_node_defaults"
 )
 
 import bpy
@@ -111,6 +113,12 @@ def add_closure_zone(layout, label):
     return props
 
 
+def add_typed_bundle(layout):
+    props = layout.operator("node.add_typed_bundle", text="Typed Bundle", text_ctxt=i18n_contexts.default)
+    props.use_transform = True
+    return props
+
+
 def set_socket_default_value(settings, socket_identifier, socket_default_value):
     prop = settings.add()
     prop.name = "inputs[\"{:s}\"].default_value".format(socket_identifier)
@@ -138,6 +146,36 @@ def set_math_node_default_props(enum_identifier, props):
     elif enum_identifier == 'MULTIPLY_ADD':
         set_socket_default_value(props.settings, "Value_001", "1.0")
         set_socket_default_value(props.settings, "Value_002", "0.0")
+
+
+def set_int_math_node_default_props(enum_identifier, props):
+    if enum_identifier in (
+        'MULTIPLY',
+        'DIVIDE',
+        'DIVIDE_ROUND',
+        'DIVIDE_FLOOR',
+        'DIVIDE_CEIL',
+        'FLOORED_MODULO',
+            'MODULO'):
+        set_socket_default_value(props.settings, "Value", "1")
+        set_socket_default_value(props.settings, "Value_001", "1")
+
+    elif enum_identifier == 'MULTIPLY_ADD':
+        set_socket_default_value(props.settings, "Value", "1")
+        set_socket_default_value(props.settings, "Value_001", "0")
+
+
+def set_vector_math_node_defaults(enum_identifier, props):
+    if enum_identifier in ('MULTIPLY', 'DIVIDE', 'POWER', 'MODULO'):
+        set_socket_default_value(props.settings, "Vector", "(1.0, 1.0, 1.0)")
+        set_socket_default_value(props.settings, "Vector_001", "(1.0, 1.0, 1.0)")
+    elif enum_identifier == 'SUBTRACT':
+        # 1 - x operations are common for subtraction.
+        set_socket_default_value(props.settings, "Vector", "(1.0, 1.0, 1.0)")
+        set_socket_default_value(props.settings, "Vector_001", "(0.0, 0.0, 0.0)")
+    elif enum_identifier == 'MULTIPLY_ADD':
+        set_socket_default_value(props.settings, "Vector_001", "(1.0, 1.0, 1.0)")
+        set_socket_default_value(props.settings, "Vector_002", "(0.0, 0.0, 0.0)")
 
 
 class NodeMenu(Menu):
@@ -323,6 +361,15 @@ class NodeMenu(Menu):
                 props.use_transform = cls.use_transform
 
         return operators
+
+    @classmethod
+    def typed_bundle(cls, layout, label):
+        props = layout.operator("node.add_typed_bundle", text=label, text_ctxt=i18n_contexts.default)
+
+        if hasattr(props, "use_transform"):
+            props.use_transform = cls.use_transform
+
+        return props
 
     @classmethod
     def new_empty_group(cls, layout):

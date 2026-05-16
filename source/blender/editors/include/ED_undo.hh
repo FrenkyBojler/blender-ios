@@ -27,7 +27,7 @@ struct wmOperator;
 struct wmOperatorType;
 struct wmWindowManager;
 
-/* undo.c */
+/* ed_undo.cc */
 
 /**
  * Run from the main event loop, basic checks that undo is left in a correct state.
@@ -64,6 +64,10 @@ void ED_undo_operator_repeat_cb_evt(bContext *C, void *arg_op, int arg_unused);
  * Name optionally, function used to check for operator redo panel.
  */
 bool ED_undo_is_valid(const bContext *C, const char *undoname);
+/**
+ * Returns true if there are redo steps available.
+ */
+bool ED_undo_has_redo_step(const bContext *C);
 
 bool ED_undo_is_memfile_compatible(const bContext *C);
 

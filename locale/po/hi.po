@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 Alpha (b'227100a72567')\n"
+"Project-Id-Version: Blender 5.2.0 Alpha (b'8c7c45ad114e')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-03-30 09:56+0000\n"
+"POT-Creation-Date: 2026-05-11 07:23+0000\n"
 "PO-Revision-Date: 2025-12-04 22:18+0000\n"
 "Last-Translator: Jackson Zheng <business.jackson.zheng@gmail.com>\n"
 "Language-Team: Hindi <https://translate.blender.org/projects/blender-ui/ui/hi/>\n"
@@ -696,6 +696,11 @@ msgstr "पदार्थ"
 
 msgid "Vertex Color"
 msgstr "शिरोबिन्दु रंग"
+
+
+msgctxt "Operator"
+msgid "Poly"
+msgstr "बहु"
 
 
 msgid "All"
@@ -2577,36 +2582,16 @@ msgid "Dots"
 msgstr "बिन्दु्"
 
 
-msgid "Math"
-msgstr "गणित"
-
-
-msgid "Names"
-msgstr "नाम"
-
-
-msgid "Bone Roll"
-msgstr "हड्डी पंजी"
-
-
-msgid "Show/Hide"
-msgstr "छुपाएँ / दिखाएँ"
+msgid "Placement"
+msgstr "नियोजन"
 
 
 msgid "Snap"
 msgstr "स्नैप"
 
 
-msgid "Import"
-msgstr "आयात करें"
-
-
-msgid "Mirror"
-msgstr "दर्पण"
-
-
-msgid "UV"
-msgstr "यूवी"
+msgid "Math"
+msgstr "गणित"
 
 
 msgid "Light"
@@ -2629,6 +2614,14 @@ msgid "Quick Effects"
 msgstr "त्वरित प्रभाव"
 
 
+msgid "Show/Hide"
+msgstr "छुपाएँ / दिखाएँ"
+
+
+msgid "Import"
+msgstr "आयात करें"
+
+
 msgid "Make Single User"
 msgstr "एकल प्रयोक्ता बनाएँ"
 
@@ -2637,8 +2630,12 @@ msgid "Hooks"
 msgstr "खूँटी"
 
 
-msgid "Keying"
-msgstr "कुंजीयन"
+msgid "UV"
+msgstr "यूवी"
+
+
+msgid "Names"
+msgstr "नाम"
 
 
 msgid "Toggle Bone Options"
@@ -2651,6 +2648,18 @@ msgstr "हड्डी विकल्प को सक्षम करें"
 
 msgid "Merge"
 msgstr "विलय करें"
+
+
+msgid "Bone Roll"
+msgstr "हड्डी पंजी"
+
+
+msgid "Keying"
+msgstr "कुंजीयन"
+
+
+msgid "Mirror"
+msgstr "दर्पण"
 
 
 msgid "Basic"
@@ -3377,10 +3386,6 @@ msgstr "चिन्हक जोड़ें"
 msgctxt "Operator"
 msgid "Delete Marker"
 msgstr "चिन्हक मिटाएँ"
-
-
-msgid "Placement"
-msgstr "नियोजन"
 
 
 msgid "Whole Frame"
@@ -4198,10 +4203,6 @@ msgid "Align"
 msgstr "संरेखित करें"
 
 
-msgid "Axis Direction"
-msgstr "अक्ष दिशा"
-
-
 msgctxt "Operator"
 msgid "Cube Projection"
 msgstr "घन प्रक्षेपण"
@@ -4405,12 +4406,12 @@ msgid "Lock Y"
 msgstr "तालाबंदी y"
 
 
-msgid "Motion Tracking"
-msgstr "गति मार्गन"
-
-
 msgid "Transform Orientations"
 msgstr "दिक् विन्यास संरचनांतरण"
+
+
+msgid "Motion Tracking"
+msgstr "गति मार्गन"
 
 
 msgid "Predefined tracking camera intrinsics"
@@ -5188,11 +5189,6 @@ msgstr "प्राथमिकता"
 
 msgid "Draw:"
 msgstr "चित्रण:"
-
-
-msgctxt "Operator"
-msgid "Poly"
-msgstr "बहु"
 
 
 msgctxt "Operator"
