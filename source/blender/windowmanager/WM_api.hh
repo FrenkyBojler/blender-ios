@@ -404,7 +404,7 @@ enum eWindowAlignment {
 };
 
 /**
- * \param rect: Position & size of the window.
+ * \param rect_unscaled: Position & size of the window.
  * \param space_type: #SPACE_VIEW3D, #SPACE_INFO, ... (#eSpace_Type).
  * \param toplevel: Not a child owned by other windows. A peer of main window.
  * \param dialog: whether this should be made as a dialog-style window
@@ -798,6 +798,16 @@ void WM_event_add_mousemove(wmWindow *win);
 /* 3D mouse. */
 void WM_ndof_deadzone_set(float deadzone);
 #endif
+
+/**
+ * Mark the current event queue to break its current processing, and delay handling of remaining
+ * events to the next main event loop iteration in `WM_main()`.
+ *
+ * Used e.g. by undo/redo code to ensure that a redraw has been done before processing further
+ * events.
+ */
+void WM_event_handling_break(const bContext &C);
+
 /* Notifiers. */
 void WM_event_add_notifier_ex(wmWindowManager *wm,
                               const wmWindow *win,
@@ -815,7 +825,12 @@ void WM_main_remap_editor_id_reference(const bke::id::IDRemapper &mappings);
 
 /**
  * Show the report in the info header.
+ *
  * \param win: When NULL, a best-guess is used.
+ *
+ * \note This shows the most recently added report. In most cases, calls to this function should
+ * be guarded by a check to whether a report was actually added by a previous line to avoid showing
+ * the user outdated reports.
  */
 void WM_report_banner_show(wmWindowManager *wm, wmWindow *win) ATTR_NONNULL(1);
 /**
@@ -832,9 +847,9 @@ void WM_report_banners_cancel(Main *bmain);
  * given \a reports will be empty after calling this function. The \a reports #ReportList data
  * itself is not freed or cleared though, and remains fully usable after this call.
  *
- * \params reports The #ReportList from which to move reports to the WM one, may be `nullptr`.
- * \params wm the WindowManager to add given \a reports to. If `nullptr`, the first WM of current
- * #G_MAIN will be used.
+ * \param wm: the WindowManager to add given \a reports to.
+ * If `nullptr`, the first WM of current #G_MAIN will be used.
+ * \param reports: The #ReportList from which to move reports to the WM one, may be `nullptr`.
  */
 void WM_reports_from_reports_move(wmWindowManager *wm, ReportList *reports);
 
@@ -1856,6 +1871,11 @@ enum eWM_JobType {
   WM_JOB_TYPE_OBJECT_BAKE,
   WM_JOB_TYPE_FILESEL_READDIR,
   WM_JOB_TYPE_ASSET_LIBRARY_LOAD,
+  /** For the global asset list storage (#ED_asset_list.hh). Use a different job type from
+   * #WM_JOB_TYPE_ASSET_LIBRARY_LOAD (used by the asset browser) so the global storage loading can
+   * happen independently of the asset browser loading. They would block each other if the type was
+   * the same. */
+  WM_JOB_TYPE_ASSET_LIBRARY_GLOBAL_LISTING_LOAD,
   WM_JOB_TYPE_CLIP_BUILD_PROXY,
   WM_JOB_TYPE_CLIP_TRACK_MARKERS,
   WM_JOB_TYPE_CLIP_SOLVE_CAMERA,
@@ -1880,6 +1900,8 @@ enum eWM_JobType {
   WM_JOB_TYPE_CALCULATE_SIMULATION_NODES,
   WM_JOB_TYPE_BAKE_GEOMETRY_NODES,
   WM_JOB_TYPE_UV_PACK,
+  WM_JOB_TYPE_GENERATE_TEXTURE_CACHE,
+  WM_JOB_TYPE_SOUND_MIXDOWN,
   /* Add as needed, bake, seq proxy build
    * if having hard coded values is a problem. */
 };
@@ -2067,8 +2089,11 @@ int WM_main_playanim(int argc, const char **argv);
 bool write_crash_blend();
 
 bool WM_autosave_is_scheduled(wmWindowManager *wm);
-/** Flushes all changes from edit modes and stores the auto-save file. */
-void WM_autosave_write(wmWindowManager *wm, Main *bmain);
+/**
+ * Flushes all changes from edit modes and stores the auto-save file.
+ * \return success, false if the autosave file could not be written.
+ */
+bool WM_autosave_write(wmWindowManager *wm, Main *bmain, ReportList *reports);
 
 /**
  * Lock the interface for any communication.

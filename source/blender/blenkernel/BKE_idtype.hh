@@ -57,7 +57,7 @@ enum {
    */
   IDTYPE_FLAGS_NO_MEMFILE_UNDO = 1 << 5,
   /**
-   * Indicates that the given IDType is considered as unused.
+   * Indicates that the given IDType is never considered as unused, even when having zero users.
    *
    * This is used for some 'root' ID types which typically do not have any actual user (WM.
    * Scene...). It prevents e.g. their deletion through the 'Purge' operation.
@@ -454,7 +454,7 @@ short BKE_idtype_idfilter_to_idcode(uint64_t idfilter);
 /**
  * Return an ID code and steps the index forward 1.
  *
- * \param index: start as 0.
+ * \param idtype_index: start as 0.
  * \return the code, 0 when all codes have been returned.
  */
 short BKE_idtype_idcode_iter_step(int *idtype_index);

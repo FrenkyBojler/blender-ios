@@ -451,14 +451,14 @@ void GeometryManager::device_update_preprocess(Device *device, Scene *scene, Pro
 
     if (geom->has_volume) {
       if (geom->is_modified()) {
-        scene->volume_manager->tag_update(geom);
+        scene->volume_manager->tag_update({geom});
       }
       if (!prev_has_volume) {
         scene->volume_manager->tag_update();
       }
     }
     else if (prev_has_volume) {
-      scene->volume_manager->tag_update(geom);
+      scene->volume_manager->tag_update({geom});
     }
 
     if (geom->is_hair()) {
@@ -758,8 +758,8 @@ void GeometryManager::device_update(Device *device,
     for (Geometry *geom : scene->geometry) {
       if (geom->is_hair()) {
         Hair *hair = static_cast<Hair *>(geom);
-        if ((geom->is_modified() && hair->need_shadow_transparency()) ||
-            hair->need_update_shadow_transparency())
+        if (hair->need_shadow_transparency() &&
+            (geom->is_modified() || hair->need_update_shadow_transparency()))
         {
           curve_need_update_shadow_transparency = true;
           break;
@@ -805,6 +805,8 @@ void GeometryManager::device_update(Device *device,
     }
 
     Mesh *mesh = static_cast<Mesh *>(geom);
+    /* Apply generated attribute if needed or remove if not needed */
+    mesh->update_generated(scene);
 
     if (num_tessellation && mesh->need_tesselation()) {
       {
@@ -833,8 +835,6 @@ void GeometryManager::device_update(Device *device,
       mesh->tessellate(subd_params);
     }
 
-    /* Apply generated attribute if needed or remove if not needed */
-    mesh->update_generated(scene);
     /* Apply tangents for generated and UVs (if any need them) or remove if not needed */
     mesh->update_tangents(scene, true);
     if (!mesh->has_true_displacement()) {
