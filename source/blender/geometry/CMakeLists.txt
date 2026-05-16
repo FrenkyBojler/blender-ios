@@ -4,6 +4,7 @@
 
 set(INC
   PUBLIC .
+  PUBLIC xpbd
   ../makesrna
   ../../../intern/eigen
   ../draw/intern
@@ -30,7 +31,7 @@ set(SRC
   intern/mesh_boolean.cc
   intern/mesh_boolean_manifold.cc
   intern/mesh_copy_selection.cc
-  intern/mesh_merge_by_distance.cc
+  intern/mesh_merge_verts.cc
   intern/mesh_primitive_cuboid.cc
   intern/mesh_primitive_cylinder_cone.cc
   intern/mesh_primitive_grid.cc
@@ -42,7 +43,7 @@ set(SRC
   intern/mesh_to_volume.cc
   intern/mesh_triangulate.cc
   intern/mix_geometries.cc
-  intern/point_merge_by_distance.cc
+  intern/point_merge.cc
   intern/points_to_volume.cc
   intern/randomize.cc
   intern/realize_instances.cc
@@ -60,6 +61,8 @@ set(SRC
   intern/uv_parametrizer.cc
   intern/volume_grid_resample.cc
 
+  xpbd/intern/xpbd_constraint_coloring.cc
+
   GEO_add_curves_on_mesh.hh
   GEO_curve_constraints.hh
   GEO_curves_remove_and_split.hh
@@ -75,7 +78,7 @@ set(SRC
   GEO_mesh_bevel.hh
   GEO_mesh_boolean.hh
   GEO_mesh_copy_selection.hh
-  GEO_mesh_merge_by_distance.hh
+  GEO_mesh_merge_verts.hh
   GEO_mesh_primitive_cuboid.hh
   GEO_mesh_primitive_cylinder_cone.hh
   GEO_mesh_primitive_grid.hh
@@ -87,7 +90,7 @@ set(SRC
   GEO_mesh_to_volume.hh
   GEO_mesh_triangulate.hh
   GEO_mix_geometries.hh
-  GEO_point_merge_by_distance.hh
+  GEO_point_merge.hh
   GEO_points_to_volume.hh
   GEO_randomize.hh
   GEO_realize_instances.hh
@@ -104,6 +107,28 @@ set(SRC
   GEO_uv_pack.hh
   GEO_uv_parametrizer.hh
   GEO_volume_grid_resample.hh
+
+  xpbd/GEO_xpbd_constraint_align_rotations.hh
+  xpbd/GEO_xpbd_constraint_collision_edge.hh
+  xpbd/GEO_xpbd_constraint_collision_face.hh
+  xpbd/GEO_xpbd_constraint_coloring.hh
+  xpbd/GEO_xpbd_constraint_damping_angular.hh
+  xpbd/GEO_xpbd_constraint_damping_linear.hh
+  xpbd/GEO_xpbd_constraint_distance.hh
+  xpbd/GEO_xpbd_constraint_friction_edge.hh
+  xpbd/GEO_xpbd_constraint_friction_face.hh
+  xpbd/GEO_xpbd_constraint_math.hh
+  xpbd/GEO_xpbd_constraint_pin_position.hh
+  xpbd/GEO_xpbd_constraint_pin_rotation.hh
+  xpbd/GEO_xpbd_constraint_rod_bend_twist.hh
+  xpbd/GEO_xpbd_constraint_rod_stretch_shear.hh
+  xpbd/GEO_xpbd_constraint_set.hh
+  xpbd/GEO_xpbd_constraint_set_params.hh
+  xpbd/GEO_xpbd_constraint_set_templated.hh
+  xpbd/GEO_xpbd_geometry_ref.hh
+  xpbd/GEO_xpbd_updater_gauss_seidel.hh
+  xpbd/GEO_xpbd_updater_velocity.hh
+
   intern/mesh_boolean_intern.hh
   intern/mesh_boolean_manifold.hh
 )

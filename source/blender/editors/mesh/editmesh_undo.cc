@@ -182,6 +182,8 @@ struct UndoMesh {
   size_t undo_size;
 };
 
+/** \} */
+
 #ifdef USE_ARRAY_STORE
 
 /* -------------------------------------------------------------------- */
@@ -912,6 +914,10 @@ static UndoMesh **mesh_undostep_reference_elems_from_objects(Object **object, in
 
 #endif /* USE_ARRAY_STORE */
 
+/* -------------------------------------------------------------------- */
+/** \name Undo/Redo Helper Functions
+ * \{ */
+
 /* for callbacks */
 /* undo simply makes copies of a bmesh */
 /**
@@ -1144,9 +1150,9 @@ struct MeshUndoStep_Elem {
  */
 struct MeshUndoStep_SceneData {
   char selectmode;
-  char uv_selectmode;
-  char uv_sticky;
-  char uv_flag;
+  eTool_UvSelectMode uv_selectmode;
+  eTool_UvSticky uv_sticky;
+  eTool_UvFlag uv_flag;
 };
 
 struct MeshUndoStep {
@@ -1276,7 +1282,7 @@ static void mesh_undosys_step_decode(
      * While other flags could be included too: it's important the user doesn't
      * undo into a state where the scene settings would show a different selection
      * to the selection the user was previously editing. */
-    constexpr char uv_flag_undo = UV_FLAG_SELECT_SYNC | UV_FLAG_SELECT_ISLAND;
+    constexpr eTool_UvFlag uv_flag_undo = UV_FLAG_SELECT_SYNC | UV_FLAG_SELECT_ISLAND;
 
     ToolSettings *ts = scene->toolsettings;
     const MeshUndoStep_SceneData &scene_data = us->scene_data;
