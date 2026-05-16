@@ -240,7 +240,7 @@ ImBuf *seq_proxy_fetch(const RenderData *context, Strip *strip, int timeline_fra
       /* Sequencer takes care of colorspace conversion of the result. The input is the best to be
        * kept unchanged for the performance reasons. */
       proxy->anim = openanim(
-          filepath, IB_byte_data, 0, true, strip->data->colorspace_settings.name);
+          filepath, ImBufFlags::Zero, 0, true, strip->data->colorspace_settings.name);
     }
     if (proxy->anim == nullptr) {
       return nullptr;
@@ -261,13 +261,14 @@ ImBuf *seq_proxy_fetch(const RenderData *context, Strip *strip, int timeline_fra
   }
 
   if (BLI_exists(filepath)) {
-    ImBuf *ibuf = IMB_load_image_from_filepath(filepath, IB_byte_data | IB_metadata);
-
-    if (ibuf) {
-      seq_imbuf_assign_spaces(context->scene, ibuf);
-    }
-
-    return ibuf;
+    /* Proxies are already be in the sequencer colorspace for fast loading, don't perform
+     * conversion of float to scene linear that would usually be done. */
+    char colorspace[IMA_MAX_SPACE];
+    STRNCPY(colorspace, context->scene->sequencer_colorspace_settings.name);
+    return IMB_load_image_from_filepath(filepath,
+                                        ImBufFlags::ByteData | ImBufFlags::Metadata |
+                                            ImBufFlags::NoColorspaceConvert,
+                                        colorspace);
   }
 
   return nullptr;
@@ -364,6 +365,8 @@ static int seq_proxy_context_count(Strip *strip, Scene *scene)
       }
       break;
     }
+    default:
+      break;
   }
 
   return num_views;
@@ -413,8 +416,7 @@ bool proxy_build_start(Main *bmain,
 
     strip_free_movie_readers(strip);
 
-    ProxyBuildContext *context = MEM_new_for_free<ProxyBuildContext>(
-        "strip proxy rebuild context");
+    ProxyBuildContext *context = MEM_new<ProxyBuildContext>("strip proxy rebuild context");
 
     Strip *strip_new = strip_duplicate_recursive(
         bmain, scene, scene, nullptr, strip, StripDuplicate::Selected);
@@ -444,7 +446,7 @@ bool proxy_build_start(Main *bmain,
             build_only_on_bad_performance);
       }
       if (!context->movie_proxy_builder) {
-        MEM_freeN(context);
+        MEM_delete(context);
         return false;
       }
     }
@@ -488,7 +490,7 @@ static void seq_proxy_build_frame(const Scene *scene,
   }
 
   const int quality = strip.data->proxy->quality;
-  const bool save_float = ibuf->float_buffer.data != nullptr;
+  const bool save_float = ibuf->float_data() != nullptr;
   ibuf->foptions.quality = quality;
   if (save_float) {
     /* Float image: save as EXR with FP16 data and DWAA compression. */
@@ -498,13 +500,14 @@ static void seq_proxy_build_frame(const Scene *scene,
   else {
     /* Byte image: save as JPG. */
     ibuf->ftype = IMB_FTYPE_JPG;
-    if (ibuf->planes == 32) {
-      ibuf->planes = 24; /* JPGs do not support alpha. */
+    if (ibuf->can_contain_alpha()) {
+      ibuf->color_mode = ImColorMode::RGB; /* JPGs do not support alpha. */
     }
   }
   BLI_file_ensure_parent_dir_exists(filepath);
 
-  const bool ok = IMB_save_image(ibuf, filepath, save_float ? IB_float_data : IB_byte_data);
+  const bool ok = IMB_save_image(
+      ibuf, filepath, save_float ? ImBufFlags::FloatData : ImBufFlags::ByteData);
   if (ok == false) {
     perror(filepath);
   }
@@ -523,9 +526,9 @@ static ImBuf *render_image_strip_frame(const ProxyBuildContext &context,
 {
   ImBuf *ibuf = nullptr;
 
-  int flag = IB_byte_data | IB_metadata | IB_multilayer;
+  ImBufFlags flag = ImBufFlags::ByteData | ImBufFlags::Metadata | ImBufFlags::MultiLayer;
   if (strip.alpha_mode == SEQ_ALPHA_PREMUL) {
-    flag |= IB_alphamode_premul;
+    flag |= ImBufFlags::AlphaPremul;
   }
 
   if (prefix[0] == '\0') {
@@ -542,10 +545,10 @@ static ImBuf *render_image_strip_frame(const ProxyBuildContext &context,
   }
 
   convert_multilayer_ibuf(ibuf);
-  if (ibuf->float_buffer.data != nullptr && ibuf->byte_buffer.data != nullptr) {
+  if (ibuf->float_data() != nullptr && ibuf->byte_data() != nullptr) {
     IMB_free_byte_pixels(ibuf); /* If both float & byte exist, free byte buffer. */
   }
-  seq_imbuf_to_sequencer_space(context.scene, ibuf, false);
+  ensure_ibuf_is_sequencer_space(context.scene, ibuf, false);
   return ibuf;
 }
 
@@ -687,7 +690,7 @@ void proxy_build_finish(ProxyBuildContext *context)
   close_movie_proxy_builder(context, false);
   seq_free_strip_recurse(nullptr, context->strip, true);
 
-  MEM_freeN(context);
+  MEM_delete(context);
 }
 
 void proxy_set(Strip *strip, bool value)

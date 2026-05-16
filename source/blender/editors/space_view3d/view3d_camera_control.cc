@@ -81,7 +81,7 @@ struct View3DCameraControl {
    * Remember if we're orthographic or not,
    * only used for restoring the view if it was a orthographic view.
    */
-  char persp_backup;
+  eRegionView3D_Persp persp_backup;
 
   /**
    * True when flying an orthographic camera in perspective view,
@@ -117,7 +117,7 @@ View3DCameraControl *ED_view3d_cameracontrol_acquire(Depsgraph *depsgraph,
 {
   View3DCameraControl *vctrl;
 
-  vctrl = MEM_callocN<View3DCameraControl>(__func__);
+  vctrl = MEM_new_zeroed<View3DCameraControl>(__func__);
 
   /* Store context */
   vctrl->ctx_scene = scene;
@@ -347,10 +347,10 @@ void ED_view3d_cameracontrol_release(View3DCameraControl *vctrl, const bool rest
   }
 
   if (vctrl->obtfm) {
-    MEM_freeN(vctrl->obtfm);
+    BKE_object_tfm_free(vctrl->obtfm);
   }
 
-  MEM_freeN(vctrl);
+  MEM_delete(vctrl);
 }
 
 }  // namespace blender

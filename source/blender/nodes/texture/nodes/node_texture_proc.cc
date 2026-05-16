@@ -233,11 +233,11 @@ ProcDef(stucci);
 
 static void init(bNodeTree * /*ntree*/, bNode *node)
 {
-  Tex *tex = MEM_new_for_free<Tex>("Tex");
+  Tex *tex = MEM_new<Tex>("Tex");
   node->storage = tex;
 
   BKE_texture_default(tex);
-  tex->type = node->type_legacy - TEX_NODE_PROC;
+  tex->type = eTex_Type(node->type_legacy - TEX_NODE_PROC);
 
   if (tex->type == TEX_WOOD) {
     tex->stype = TEX_BANDNOISE;
@@ -250,7 +250,7 @@ static void init(bNodeTree * /*ntree*/, bNode *node)
   { \
     static bke::bNodeType ntype; \
 \
-    tex_node_type_base(&ntype, idname, TEX_NODE_PROC + TEXTYPE); \
+    tex_node_type_base(&ntype, UString(idname), TEX_NODE_PROC + TEXTYPE); \
     ntype.ui_name = Name; \
     ntype.enum_name_legacy = EnumNameLegacy; \
     ntype.nclass = NODE_CLASS_TEXTURE; \

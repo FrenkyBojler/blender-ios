@@ -408,22 +408,22 @@ static int *bm_edge_symmetry_map(BMesh *bm, uint symmetry_axis, float limit)
   uint i;
   int *edge_symmetry_map;
   const float limit_sq = square_f(limit);
-  KDTree_3d *tree;
+  KDTree<float3> *tree;
 
-  tree = kdtree_3d_new(bm->totedge);
+  tree = kdtree_new<float3>(bm->totedge);
 
-  etable = MEM_malloc_arrayN<BMEdge *>(bm->totedge, __func__);
-  edge_symmetry_map = MEM_malloc_arrayN<int>(bm->totedge, __func__);
+  etable = MEM_new_array_uninitialized<BMEdge *>(bm->totedge, __func__);
+  edge_symmetry_map = MEM_new_array_uninitialized<int>(bm->totedge, __func__);
 
   BM_ITER_MESH_INDEX (e, &iter, bm, BM_EDGES_OF_MESH, i) {
     float co[3];
     mid_v3_v3v3(co, e->v1->co, e->v2->co);
-    kdtree_3d_insert(tree, i, co);
+    kdtree_insert<float3>(tree, i, co);
     etable[i] = e;
     edge_symmetry_map[i] = -1;
   }
 
-  kdtree_3d_balance(tree);
+  kdtree_balance<float3>(tree);
 
   sym_data.etable = etable;
   sym_data.limit_sq = limit_sq;
@@ -441,7 +441,10 @@ static int *bm_edge_symmetry_map(BMesh *bm, uint symmetry_axis, float limit)
       sub_v3_v3v3(sym_data.e_dir, sym_data.e_v2_co, sym_data.e_v1_co);
       sym_data.e_found_index = -1;
 
-      kdtree_3d_range_search_cb(tree, co, limit, bm_edge_symmetry_check_cb, &sym_data);
+      kdtree_range_search_cb<float3>(
+          tree, co, limit, [&](int index, const float3 &co, float dist_sq) {
+            return bm_edge_symmetry_check_cb(&sym_data, index, co, dist_sq);
+          });
 
       if (sym_data.e_found_index != -1) {
         const int i_other = sym_data.e_found_index;
@@ -451,8 +454,8 @@ static int *bm_edge_symmetry_map(BMesh *bm, uint symmetry_axis, float limit)
     }
   }
 
-  MEM_freeN(etable);
-  kdtree_3d_free(tree);
+  MEM_delete(etable);
+  kdtree_free<float3>(tree);
 
   return edge_symmetry_map;
 }
@@ -582,7 +585,7 @@ static bool bm_decim_triangulate_begin(BMesh *bm, int *r_edges_tri_tot)
     while (faces_double) {
       LinkNode *next = faces_double->next;
       BM_face_kill(bm, static_cast<BMFace *>(faces_double->link));
-      MEM_freeN(faces_double);
+      MEM_delete(faces_double);
       faces_double = next;
     }
 
@@ -609,7 +612,8 @@ static void bm_decim_triangulate_end(BMesh *bm, const int edges_tri_tot)
   BMEdge *e;
 
   /* we need to collect before merging for ngons since the loops indices will be lost */
-  BMEdge **edges_tri = MEM_malloc_arrayN<BMEdge *>(std::min(edges_tri_tot, bm->totedge), __func__);
+  BMEdge **edges_tri = MEM_new_array_uninitialized<BMEdge *>(std::min(edges_tri_tot, bm->totedge),
+                                                             __func__);
   STACK_DECLARE(edges_tri);
 
   STACK_INIT(edges_tri, std::min(edges_tri_tot, bm->totedge));
@@ -676,7 +680,7 @@ static void bm_decim_triangulate_end(BMesh *bm, const int edges_tri_tot)
       }
     }
   }
-  MEM_freeN(edges_tri);
+  MEM_delete(edges_tri);
 }
 
 #endif /* USE_TRIANGULATE */
@@ -1313,10 +1317,10 @@ void BM_mesh_decimate_collapse(BMesh *bm,
 #endif
 
   /* Allocate variables. */
-  vquadrics = MEM_calloc_arrayN<Quadric>(bm->totvert, __func__);
+  vquadrics = MEM_new_array_zeroed<Quadric>(bm->totvert, __func__);
   /* Since some edges may be degenerate, we might be over allocating a little here. */
   eheap = BLI_heap_new_ex(bm->totedge);
-  eheap_table = MEM_malloc_arrayN<HeapNode *>(bm->totedge, __func__);
+  eheap_table = MEM_new_array_uninitialized<HeapNode *>(bm->totedge, __func__);
   tot_edge_orig = bm->totedge;
 
   /* build initial edge collapse cost data */
@@ -1505,7 +1509,7 @@ void BM_mesh_decimate_collapse(BMesh *bm,
       }
     }
 
-    MEM_freeN(edge_symmetry_map);
+    MEM_delete(edge_symmetry_map);
   }
 #endif /* USE_SYMMETRY */
 
@@ -1520,8 +1524,8 @@ void BM_mesh_decimate_collapse(BMesh *bm,
 #endif
 
   /* free vars */
-  MEM_freeN(vquadrics);
-  MEM_freeN(eheap_table);
+  MEM_delete(vquadrics);
+  MEM_delete(eheap_table);
   BLI_heap_free(eheap, nullptr);
 
   /* testing only */

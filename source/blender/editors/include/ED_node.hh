@@ -54,6 +54,9 @@ void tree_update(const bContext *C);
 
 float grid_size_get();
 
+/* Compute the nearest 1D coordinate corresponding to the nearest grid in node editors. */
+float nearest_node_grid_coord(float co);
+
 /** Update the active node tree based on the context. */
 void snode_set_context(const bContext &C);
 
@@ -102,8 +105,8 @@ std::optional<nodes::FoundNestedNodeID> find_nested_node_id_in_root(
     const bNodeTree &root_tree, const ComputeContext *compute_context, const int node_id);
 
 struct ObjectAndModifier {
-  const Object *object;
-  const NodesModifierData *nmd;
+  const Object *object = nullptr;
+  const NodesModifierData *nmd = nullptr;
 };
 /**
  * Finds the context-modifier for the node editor.
@@ -161,6 +164,9 @@ const char *node_socket_get_description(const bNodeSocket *socket);
 
 std::optional<Bounds<float2>> node_bounds(Span<const bNode *> nodes);
 std::optional<Bounds<float2>> node_location_bounds(Span<const bNode *> nodes);
+
+/** Find the top-most parent shared by all the nodes, or null if no parent contains all nodes. */
+bNode *find_common_parent_node(Span<bNode *> nodes);
 
 }  // namespace ed::space_node
 

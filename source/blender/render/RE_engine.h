@@ -162,7 +162,7 @@ struct RenderEngine {
   void *update_render_passes_data;
 
   /* GPU context. */
-  void *system_gpu_context; /* WindowManager GPU context -> GHOSTContext. */
+  GHOST_IContext *system_gpu_context; /* WindowManager GPU context -> GHOSTContext. */
   ThreadMutex blender_gpu_context_mutex;
   bool use_drw_render_context;
   struct GPUContext *blender_gpu_context;
@@ -272,8 +272,8 @@ void RE_engine_gpu_context_unlock(struct RenderEngine *engine);
 
 /* Engine Types */
 
-void RE_engines_init(void);
-void RE_engines_exit(void);
+void RE_engines_init();
+void RE_engines_exit();
 void RE_engines_register(RenderEngineType *render_type);
 
 RenderEngineType *RE_engines_find(const char *idname);

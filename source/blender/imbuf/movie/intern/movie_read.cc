@@ -141,7 +141,7 @@ static void probe_video_colorspace(MovieReader *anim, char r_colorspace_name[IM_
 }
 
 MovieReader *MOV_open_file(const char *filepath,
-                           const int ib_flags,
+                           const ImBufFlags ib_flags,
                            const int streamindex,
                            const bool keep_original_colorspace,
                            char colorspace[IM_MAX_SPACE])
@@ -492,14 +492,14 @@ static int startffmpeg(MovieReader *anim)
     return -1;
   }
 
-  if (anim->ib_flags & IB_animdeinterlace) {
+  if (flag_is_set(anim->ib_flags, ImBufFlags::Deinterlace)) {
     anim->pFrameDeinterlaced->format = anim->pCodecCtx->pix_fmt;
     anim->pFrameDeinterlaced->width = anim->pCodecCtx->width;
     anim->pFrameDeinterlaced->height = anim->pCodecCtx->height;
     av_image_fill_arrays(
         anim->pFrameDeinterlaced->data,
         anim->pFrameDeinterlaced->linesize,
-        MEM_calloc_arrayN<uint8_t>(
+        MEM_new_array_zeroed<uint8_t>(
             av_image_get_buffer_size(
                 anim->pCodecCtx->pix_fmt, anim->pCodecCtx->width, anim->pCodecCtx->height, 1),
             "ffmpeg deinterlace"),
@@ -607,6 +607,7 @@ static void float_planar_to_interleaved(const AVFrame *frame, const int rotation
   BLI_assert_msg(frame->linesize[1] == src_linesize && frame->linesize[2] == src_linesize &&
                      frame->linesize[3] == src_linesize,
                  "ffmpeg frame should be 4 same size planes for a floating point image case");
+  float *float_data = ibuf->float_data_for_write();
   threading::parallel_for(IndexRange(ibuf->y), 256, [&](const IndexRange y_range) {
     const int size_x = ibuf->x;
     const int size_y = ibuf->y;
@@ -618,7 +619,7 @@ static void float_planar_to_interleaved(const AVFrame *frame, const int rotation
         const float *src_b = reinterpret_cast<const float *>(frame->data[1] + src_offset);
         const float *src_r = reinterpret_cast<const float *>(frame->data[2] + src_offset);
         const float *src_a = reinterpret_cast<const float *>(frame->data[3] + src_offset);
-        float *dst = ibuf->float_buffer.data + (y + (size_x - 1) * size_y) * 4;
+        float *dst = float_data + (y + (size_x - 1) * size_y) * 4;
         for (int x = 0; x < size_x; x++) {
           dst[0] = *src_r++;
           dst[1] = *src_g++;
@@ -636,7 +637,7 @@ static void float_planar_to_interleaved(const AVFrame *frame, const int rotation
         const float *src_b = reinterpret_cast<const float *>(frame->data[1] + src_offset);
         const float *src_r = reinterpret_cast<const float *>(frame->data[2] + src_offset);
         const float *src_a = reinterpret_cast<const float *>(frame->data[3] + src_offset);
-        float *dst = ibuf->float_buffer.data + ((size_y - y - 1) * size_x + size_x - 1) * 4;
+        float *dst = float_data + ((size_y - y - 1) * size_x + size_x - 1) * 4;
         for (int x = 0; x < size_x; x++) {
           dst[0] = *src_r++;
           dst[1] = *src_g++;
@@ -654,7 +655,7 @@ static void float_planar_to_interleaved(const AVFrame *frame, const int rotation
         const float *src_b = reinterpret_cast<const float *>(frame->data[1] + src_offset);
         const float *src_r = reinterpret_cast<const float *>(frame->data[2] + src_offset);
         const float *src_a = reinterpret_cast<const float *>(frame->data[3] + src_offset);
-        float *dst = ibuf->float_buffer.data + (size_y - y - 1) * 4;
+        float *dst = float_data + (size_y - y - 1) * 4;
         for (int x = 0; x < size_x; x++) {
           dst[0] = *src_r++;
           dst[1] = *src_g++;
@@ -672,7 +673,7 @@ static void float_planar_to_interleaved(const AVFrame *frame, const int rotation
         const float *src_b = reinterpret_cast<const float *>(frame->data[1] + src_offset);
         const float *src_r = reinterpret_cast<const float *>(frame->data[2] + src_offset);
         const float *src_a = reinterpret_cast<const float *>(frame->data[3] + src_offset);
-        float *dst = ibuf->float_buffer.data + size_x * y * 4;
+        float *dst = float_data + size_x * y * 4;
         for (int x = 0; x < size_x; x++) {
           *dst++ = *src_r++;
           *dst++ = *src_g++;
@@ -716,7 +717,7 @@ static void ffmpeg_postprocess(MovieReader *anim, AVFrame *input, ImBuf *ibuf)
          input->data[2],
          input->data[3]);
 
-  if (anim->ib_flags & IB_animdeinterlace) {
+  if (flag_is_set(anim->ib_flags, ImBufFlags::Deinterlace)) {
     if (ffmpeg_deinterlace(anim->pFrameDeinterlaced,
                            anim->pFrame,
                            anim->pCodecCtx->pix_fmt,
@@ -761,7 +762,7 @@ static void ffmpeg_postprocess(MovieReader *anim, AVFrame *input, ImBuf *ibuf)
       /* Decode RGB and do vertical flip directly into destination image, by using negative
        * line size. */
       anim->pFrameRGB->linesize[0] = -ibuf_linesize;
-      anim->pFrameRGB->data[0] = ibuf->byte_buffer.data + (ibuf->y - 1) * ibuf_linesize;
+      anim->pFrameRGB->data[0] = ibuf->byte_data_for_write() + (ibuf->y - 1) * ibuf_linesize;
 
       ffmpeg_sws_scale_frame(anim->img_convert_ctx, anim->pFrameRGB, input);
 
@@ -780,7 +781,7 @@ static void ffmpeg_postprocess(MovieReader *anim, AVFrame *input, ImBuf *ibuf)
                                               anim->pFrameRGB->width,
                                               anim->pFrameRGB->height,
                                               1);
-      av_image_copy_to_buffer(ibuf->byte_buffer.data,
+      av_image_copy_to_buffer(ibuf->byte_data_for_write(),
                               dst_size,
                               src,
                               src_linesize,
@@ -1282,23 +1283,24 @@ static ImBuf *ffmpeg_fetchibuf(MovieReader *anim, int position, IMB_Timecode_Typ
 
   const AVPixFmtDescriptor *pix_fmt_descriptor = av_pix_fmt_desc_get(anim->pCodecCtx->pix_fmt);
 
-  int planes = R_IMF_PLANES_RGBA;
+  ImColorMode color_mode = ImColorMode::RGBA;
   if ((pix_fmt_descriptor->flags & AV_PIX_FMT_FLAG_ALPHA) == 0) {
-    planes = R_IMF_PLANES_RGB;
+    color_mode = ImColorMode::RGB;
   }
 
-  ImBuf *cur_frame_final = IMB_allocImBuf(anim->x, anim->y, planes, 0);
+  ImBuf *cur_frame_final = IMB_allocImBuf(anim->x, anim->y, ImBufFlags::Zero);
+  cur_frame_final->color_mode = color_mode;
 
   /* Allocate the storage explicitly to ensure the memory is aligned. */
   const size_t align = ffmpeg_get_buffer_alignment();
   const size_t pixel_size = anim->is_float ? 16 : 4;
   uint8_t *buffer_data = static_cast<uint8_t *>(
-      MEM_mallocN_aligned(pixel_size * anim->x * anim->y, align, "ffmpeg ibuf"));
+      MEM_new_uninitialized_aligned(pixel_size * anim->x * anim->y, align, "ffmpeg ibuf"));
   if (anim->is_float) {
-    IMB_assign_float_buffer(cur_frame_final, (float *)buffer_data, IB_TAKE_OWNERSHIP);
+    cur_frame_final->assign_float_data((float *)buffer_data);
   }
   else {
-    IMB_assign_byte_buffer(cur_frame_final, buffer_data, IB_TAKE_OWNERSHIP);
+    cur_frame_final->assign_byte_data(buffer_data);
   }
 
   AVFrame *final_frame = ffmpeg_frame_by_pts_get(anim, pts_to_search);
@@ -1359,7 +1361,7 @@ static void free_anim_ffmpeg(MovieReader *anim)
     av_frame_free(&anim->pFrame_backup);
     av_frame_free(&anim->pFrameRGB);
     if (anim->pFrameDeinterlaced->data[0] != nullptr) {
-      MEM_freeN(anim->pFrameDeinterlaced->data[0]);
+      MEM_delete(anim->pFrameDeinterlaced->data[0]);
     }
     av_frame_free(&anim->pFrameDeinterlaced);
     ffmpeg_sws_release_context(anim->img_convert_ctx);
@@ -1475,10 +1477,35 @@ ImBuf *MOV_decode_frame(MovieReader *anim,
 #endif
 
   if (ibuf) {
-    STRNCPY(ibuf->filepath, anim->filepath);
+    ibuf->filepath = anim->filepath;
     ibuf->fileframe = anim->cur_position + 1;
   }
   return ibuf;
+}
+
+int MOV_get_video_stream_count(MovieReader *anim)
+{
+#ifdef WITH_FFMPEG
+  if (anim == nullptr) {
+    return 0;
+  }
+  if (anim->state == MovieReader::State::Uninitialized && !anim_getnew(anim)) {
+    return 0;
+  }
+  if (anim->pFormatCtx == nullptr) {
+    return 0;
+  }
+  int count = 0;
+  for (int i = 0; i < anim->pFormatCtx->nb_streams; i++) {
+    if (anim->pFormatCtx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
+      count++;
+    }
+  }
+  return count;
+#else
+  UNUSED_VARS(anim);
+  return 0;
+#endif
 }
 
 int MOV_get_duration_frames(MovieReader *anim, IMB_Timecode_Type tc)

@@ -424,10 +424,11 @@ static bool view3d_ruler_item_mousemove(const bContext *C,
           ruler_info->constrain_mode != CONSTRAIN_MODE_OFF)
       {
 
+        const Main *bmain = CTX_data_main(C);
         Scene *scene = DEG_get_input_scene(depsgraph);
         ViewLayer *view_layer = DEG_get_input_view_layer(depsgraph);
         RegionView3D *rv3d = static_cast<RegionView3D *>(ruler_info->region->regiondata);
-        BKE_view_layer_synced_ensure(scene, view_layer);
+        BKE_view_layer_synced_ensure(*bmain, scene, view_layer);
         Object *ob = BKE_view_layer_active_object_get(view_layer);
         Object *obedit = OBEDIT_FROM_OBACT(ob);
 
@@ -441,8 +442,16 @@ static bool view3d_ruler_item_mousemove(const bContext *C,
         const int pivot_point = scene->toolsettings->transform_pivot_point;
         float3x3 mat;
 
-        ed::transform::calc_orientation_from_type_ex(
-            scene, view_layer, v3d, rv3d, ob, obedit, orient_index, pivot_point, mat.ptr());
+        ed::transform::calc_orientation_from_type_ex(*bmain,
+                                                     scene,
+                                                     view_layer,
+                                                     v3d,
+                                                     rv3d,
+                                                     ob,
+                                                     obedit,
+                                                     orient_index,
+                                                     pivot_point,
+                                                     mat.ptr());
 
         ruler_item->co = math::invert(mat) * ruler_item->co;
 
@@ -551,10 +560,10 @@ static bool view3d_ruler_to_gpencil(bContext *C, wmGizmoGroup *gzgroup)
     int j;
 
     /* allocate memory for a new stroke */
-    gps = MEM_new_for_free<bGPDstroke>("gp_stroke");
+    gps = MEM_new<bGPDstroke>("gp_stroke");
     if (ruler_item->flag & RULERITEM_USE_ANGLE) {
       gps->totpoints = 3;
-      pt = gps->points = MEM_new_array_for_free<bGPDspoint>(gps->totpoints, "gp_stroke_points");
+      pt = gps->points = MEM_new_array<bGPDspoint>(gps->totpoints, "gp_stroke_points");
       for (j = 0; j < 3; j++) {
         copy_v3_v3(&pt->x, ruler_item->co[j]);
         pt->pressure = 1.0f;
@@ -564,7 +573,7 @@ static bool view3d_ruler_to_gpencil(bContext *C, wmGizmoGroup *gzgroup)
     }
     else {
       gps->totpoints = 2;
-      pt = gps->points = MEM_new_array_for_free<bGPDspoint>(gps->totpoints, "gp_stroke_points");
+      pt = gps->points = MEM_new_array<bGPDspoint>(gps->totpoints, "gp_stroke_points");
       for (j = 0; j < 3; j += 2) {
         copy_v3_v3(&pt->x, ruler_item->co[j]);
         pt->pressure = 1.0f;
@@ -1139,7 +1148,7 @@ static wmOperatorStatus gizmo_ruler_invoke(bContext *C, wmGizmo *gz, const wmEve
   wmGizmoGroup *gzgroup = gz->parent_gzgroup;
   RulerInfo *ruler_info = static_cast<RulerInfo *>(gzgroup->customdata);
   RulerItem *ruler_item_pick = reinterpret_cast<RulerItem *>(gz);
-  RulerInteraction *inter = MEM_callocN<RulerInteraction>(__func__);
+  RulerInteraction *inter = MEM_new_zeroed<RulerInteraction>(__func__);
   gz->interaction_data = inter;
 
   ARegion *region = ruler_info->region;
@@ -1253,7 +1262,7 @@ static void gizmo_ruler_exit(bContext *C, wmGizmo *gz, const bool cancel)
   }
 
   RulerInteraction *inter = static_cast<RulerInteraction *>(gz->interaction_data);
-  MEM_freeN(inter);
+  MEM_delete(inter);
   gz->interaction_data = nullptr;
 
   ruler_state_set(ruler_info, RULER_STATE_NORMAL);
@@ -1291,7 +1300,7 @@ void VIEW3D_GT_ruler_item(wmGizmoType *gzt)
 
 static void WIDGETGROUP_ruler_setup(const bContext *C, wmGizmoGroup *gzgroup)
 {
-  RulerInfo *ruler_info = MEM_callocN<RulerInfo>(__func__);
+  RulerInfo *ruler_info = MEM_new_zeroed<RulerInfo>(__func__);
 
   wmGizmo *gizmo;
   {

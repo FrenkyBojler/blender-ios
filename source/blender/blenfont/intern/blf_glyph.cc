@@ -154,7 +154,7 @@ GlyphCacheBLF::~GlyphCacheBLF()
     GPU_texture_free(this->texture);
   }
   if (this->bitmap_result) {
-    MEM_freeN(this->bitmap_result);
+    MEM_delete(this->bitmap_result);
   }
 }
 
@@ -269,7 +269,7 @@ static GlyphBLF *blf_glyph_cache_add_glyph(GlyphCacheBLF *gc,
     }
 
     const int buffer_size = g->dims[0] * g->dims[1] * g->num_channels;
-    g->bitmap = MEM_malloc_arrayN<uchar>(size_t(buffer_size), "glyph bitmap");
+    g->bitmap = MEM_new_array_uninitialized<uchar>(size_t(buffer_size), "glyph bitmap");
 
     if (ELEM(glyph->bitmap.pixel_mode,
              FT_PIXEL_MODE_GRAY,
@@ -417,7 +417,7 @@ static GlyphBLF *blf_glyph_cache_add_svg(GlyphCacheBLF *gc,
   g->num_channels = color ? 4 : 1;
 
   const int buffer_size = g->dims[0] * g->dims[1] * g->num_channels;
-  g->bitmap = MEM_malloc_arrayN<uchar>(size_t(buffer_size), "glyph bitmap");
+  g->bitmap = MEM_new_array_uninitialized<uchar>(size_t(buffer_size), "glyph bitmap");
 
   if (color) {
     memcpy(g->bitmap, render_bmp.data(), size_t(buffer_size));
@@ -1353,13 +1353,13 @@ FT_GlyphSlot blf_glyph_render_outline(FontBLF *settings_font,
 GlyphBLF *blf_glyph_ensure(FontBLF *font, GlyphCacheBLF *gc, const uint charcode, uint8_t subpixel)
 {
   if (charcode < 32) {
-    if (ELEM(charcode, 0x10, 0x13)) {
+    if (ELEM(charcode, '\n', '\r')) {
       /* Do not render line feed or carriage return. #134972. */
       return nullptr;
     }
     /* Other C0 controls (U+0000 - U+001F) can show as space. #135421. */
     /* TODO: Return all but TAB as ".notdef" character when we have our own. */
-    return blf_glyph_cache_find_glyph(gc, ' ', 0);
+    return blf_glyph_ensure(font, gc, ' ');
   }
 
   GlyphBLF *g = blf_glyph_cache_find_glyph(gc, charcode, subpixel);
@@ -1435,7 +1435,7 @@ GlyphBLF *blf_glyph_ensure_subpixel(FontBLF *font, GlyphCacheBLF *gc, GlyphBLF *
 GlyphBLF::~GlyphBLF()
 {
   if (this->bitmap) {
-    MEM_freeN(this->bitmap);
+    MEM_delete(this->bitmap);
   }
 }
 
@@ -1523,7 +1523,7 @@ void blf_glyph_draw(FontBLF *font, GlyphCacheBLF *gc, GlyphBLF *g, const int x, 
 
       gc->bitmap_len_alloc = w * h;
       gc->bitmap_result = static_cast<char *>(
-          MEM_reallocN(gc->bitmap_result, size_t(gc->bitmap_len_alloc)));
+          MEM_realloc_uninitialized(gc->bitmap_result, size_t(gc->bitmap_len_alloc)));
 
       /* Keep in sync with the texture. */
       if (gc->texture) {

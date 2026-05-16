@@ -270,6 +270,10 @@ void ANIM_armature_bonecoll_is_expanded_set(BoneCollection *bcoll, bool is_expan
  */
 bool ANIM_armature_bonecoll_assign(BoneCollection *bcoll, Bone *bone);
 bool ANIM_armature_bonecoll_assign_editbone(BoneCollection *bcoll, EditBone *ebone);
+/**
+ *  Keep existing membership on the destination but assign additional ones from source.
+ */
+void ANIM_armature_bonecoll_assign_from_other_editbone(EditBone *dst, EditBone *src);
 bool ANIM_armature_bonecoll_assign_and_move(BoneCollection *bcoll, Bone *bone);
 bool ANIM_armature_bonecoll_assign_and_move_editbone(BoneCollection *bcoll, EditBone *ebone);
 bool ANIM_armature_bonecoll_unassign(BoneCollection *bcoll, Bone *bone);
@@ -317,7 +321,7 @@ bool ANIM_bonecoll_is_visible_editbone(const bArmature *armature, const EditBone
 
 inline bool ANIM_bonecoll_is_visible_pchan(const bArmature *armature, const bPoseChannel *pchan)
 {
-  return ANIM_bone_in_visible_collection(armature, pchan->bone);
+  return ANIM_bone_in_visible_collection(armature, pchan->bone_get(*armature));
 }
 
 inline bool ANIM_bonecoll_is_visible_actbone(const bArmature *armature)

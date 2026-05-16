@@ -30,54 +30,56 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.use_custom_socket_order();
   b.allow_any_socket_order();
 
-  b.add_input<decl::Closure>("Closure");
+  b.add_input<decl::Closure>("Closure"_ustr);
 
   const bNode *node = b.node_or_null();
-  auto &panel = b.add_panel("Interface");
+  auto &panel = b.add_panel("Interface"_ustr);
   if (node) {
     const auto &storage = node_storage(*node);
     for (const int i : IndexRange(storage.output_items.items_num)) {
       const NodeEvaluateClosureOutputItem &item = storage.output_items.items[i];
       const eNodeSocketDatatype socket_type = eNodeSocketDatatype(item.socket_type);
-      const std::string identifier =
-          EvaluateClosureOutputItemsAccessor::socket_identifier_for_item(item);
-      auto &decl = panel.add_output(socket_type, item.name, identifier);
-      if (item.structure_type != NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO) {
+      const UString identifier(
+          EvaluateClosureOutputItemsAccessor::socket_identifier_for_item(item));
+      auto &decl = panel.add_output(socket_type, UString(item.name), identifier);
+      if (item.structure_type != NodeSocketInterfaceStructureType::Auto) {
         decl.structure_type(StructureType(item.structure_type));
       }
       else {
         decl.structure_type(StructureType::Dynamic);
       }
     }
-    panel.add_output<decl::Extend>("", "__extend__");
+    panel.add_output<decl::Extend>(""_ustr, "__extend__"_ustr);
     for (const int i : IndexRange(storage.input_items.items_num)) {
       const NodeEvaluateClosureInputItem &item = storage.input_items.items[i];
       const eNodeSocketDatatype socket_type = eNodeSocketDatatype(item.socket_type);
-      const std::string identifier = EvaluateClosureInputItemsAccessor::socket_identifier_for_item(
-          item);
-      auto &decl = panel.add_input(socket_type, item.name, identifier);
-      if (item.structure_type != NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO) {
+      const UString identifier(
+          EvaluateClosureInputItemsAccessor::socket_identifier_for_item(item));
+      auto &decl = panel.add_input(socket_type, UString(item.name), identifier);
+      if (socket_type_supports_fields(socket_type)) {
+        decl.supports_field();
+      }
+      if (item.structure_type != NodeSocketInterfaceStructureType::Auto) {
         decl.structure_type(StructureType(item.structure_type));
       }
       else {
         decl.structure_type(StructureType::Dynamic);
       }
     }
-    panel.add_input<decl::Extend>("", "__extend__");
+    panel.add_input<decl::Extend>(""_ustr, "__extend__"_ustr);
   }
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  auto *storage = MEM_new_for_free<NodeEvaluateClosure>(__func__);
+  auto *storage = MEM_new<NodeEvaluateClosure>(__func__);
   node->storage = storage;
 }
 
 static void node_copy_storage(bNodeTree * /*tree*/, bNode *dst_node, const bNode *src_node)
 {
   const NodeEvaluateClosure &src_storage = node_storage(*src_node);
-  auto *dst_storage = MEM_new_for_free<NodeEvaluateClosure>(__func__,
-                                                            dna::shallow_copy(src_storage));
+  auto *dst_storage = MEM_new<NodeEvaluateClosure>(__func__, dna::shallow_copy(src_storage));
   dst_node->storage = dst_storage;
 
   socket_items::copy_array<EvaluateClosureInputItemsAccessor>(*src_node, *dst_node);
@@ -88,7 +90,7 @@ static void node_free_storage(bNode *node)
 {
   socket_items::destruct_array<EvaluateClosureInputItemsAccessor>(*node);
   socket_items::destruct_array<EvaluateClosureOutputItemsAccessor>(*node);
-  MEM_freeN(node->storage);
+  MEM_delete(static_cast<NodeEvaluateClosure *>(node->storage));
 }
 
 static bool node_insert_link(bke::NodeInsertLinkParams &params)
@@ -129,13 +131,10 @@ static void node_layout_ex(ui::Layout &layout, bContext *C, PointerRNA *ptr)
         C, panel, tree, node);
     socket_items::ui::draw_active_item_props<EvaluateClosureInputItemsAccessor>(
         tree, node, [&](PointerRNA *item_ptr) {
-          const auto &item = *item_ptr->data_as<NodeEvaluateClosureInputItem>();
           panel->use_property_split_set(true);
           panel->use_property_decorate_set(false);
           panel->prop(item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-          if (!socket_type_always_single(eNodeSocketDatatype(item.socket_type))) {
-            panel->prop(item_ptr, "structure_type", UI_ITEM_NONE, IFACE_("Shape"), ICON_NONE);
-          }
+          panel->prop(item_ptr, "structure_type", UI_ITEM_NONE, IFACE_("Shape"), ICON_NONE);
         });
   }
   if (ui::Layout *panel = layout.panel(C, "output_items", false, IFACE_("Output Items"))) {
@@ -143,13 +142,10 @@ static void node_layout_ex(ui::Layout &layout, bContext *C, PointerRNA *ptr)
         C, panel, tree, node);
     socket_items::ui::draw_active_item_props<EvaluateClosureOutputItemsAccessor>(
         tree, node, [&](PointerRNA *item_ptr) {
-          const auto &item = *item_ptr->data_as<NodeEvaluateClosureOutputItem>();
           panel->use_property_split_set(true);
           panel->use_property_decorate_set(false);
           panel->prop(item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-          if (!socket_type_always_single(eNodeSocketDatatype(item.socket_type))) {
-            panel->prop(item_ptr, "structure_type", UI_ITEM_NONE, IFACE_("Shape"), ICON_NONE);
-          }
+          panel->prop(item_ptr, "structure_type", UI_ITEM_NONE, IFACE_("Shape"), ICON_NONE);
         });
   }
 }
@@ -166,18 +162,18 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
   const bNodeSocket &other_socket = params.other_socket();
   if (other_socket.in_out == SOCK_IN) {
     params.add_item(IFACE_("Item"), [](LinkSearchOpParams &params) {
-      bNode &node = params.add_node("NodeEvaluateClosure");
+      bNode &node = params.add_node("NodeEvaluateClosure"_ustr);
       const auto *item =
           socket_items::add_item_with_socket_type_and_name<EvaluateClosureOutputItemsAccessor>(
               params.node_tree, node, params.socket.typeinfo->type, params.socket.name);
-      params.update_and_connect_available_socket(node, item->name);
+      params.update_and_connect_available_socket(node, UString(item->name));
     });
     return;
   }
   if (other_socket.type == SOCK_CLOSURE) {
     params.add_item(IFACE_("Closure"), [](LinkSearchOpParams &params) {
-      bNode &node = params.add_node("NodeEvaluateClosure");
-      params.connect_available_socket(node, "Closure");
+      bNode &node = params.add_node("NodeEvaluateClosure"_ustr);
+      params.connect_available_socket(node, "Closure"_ustr);
 
       SpaceNode &snode = *CTX_wm_space_node(&params.C);
       sync_sockets_evaluate_closure(snode, node, nullptr);
@@ -189,13 +185,13 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
     params.add_item(
         IFACE_("Item"),
         [](LinkSearchOpParams &params) {
-          bNode &node = params.add_node("NodeEvaluateClosure");
+          bNode &node = params.add_node("NodeEvaluateClosure"_ustr);
           const auto *item =
               socket_items::add_item_with_socket_type_and_name<EvaluateClosureInputItemsAccessor>(
                   params.node_tree, node, params.socket.typeinfo->type, params.socket.name);
           nodes::update_node_declaration_and_sockets(params.node_tree, node);
           params.connect_available_socket_by_identifier(
-              node, EvaluateClosureInputItemsAccessor::socket_identifier_for_item(*item));
+              node, UString(EvaluateClosureInputItemsAccessor::socket_identifier_for_item(*item)));
         },
         other_socket.type == SOCK_CLOSURE ? -1 : 0);
   }
@@ -223,7 +219,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  sh_geo_node_type_base(&ntype, "NodeEvaluateClosure", NODE_EVALUATE_CLOSURE);
+  sh_geo_node_type_base(&ntype, "NodeEvaluateClosure"_ustr, NODE_EVALUATE_CLOSURE);
   ntype.ui_name = "Evaluate Closure";
   ntype.ui_description = "Execute a given closure";
   ntype.nclass = NODE_CLASS_CONVERTER;
@@ -249,7 +245,7 @@ StructRNA **EvaluateClosureInputItemsAccessor::item_srna = &RNA_NodeEvaluateClos
 
 void EvaluateClosureInputItemsAccessor::blend_write_item(BlendWriter *writer, const ItemT &item)
 {
-  BLO_write_string(writer, item.name);
+  writer->write_string(item.name);
 }
 
 void EvaluateClosureInputItemsAccessor::blend_read_data_item(BlendDataReader *reader, ItemT &item)
@@ -261,7 +257,7 @@ StructRNA **EvaluateClosureOutputItemsAccessor::item_srna = &RNA_NodeEvaluateClo
 
 void EvaluateClosureOutputItemsAccessor::blend_write_item(BlendWriter *writer, const ItemT &item)
 {
-  BLO_write_string(writer, item.name);
+  writer->write_string(item.name);
 }
 
 void EvaluateClosureOutputItemsAccessor::blend_read_data_item(BlendDataReader *reader, ItemT &item)
@@ -273,7 +269,7 @@ const bNodeSocket *evaluate_closure_node_internally_linked_input(const bNodeSock
 {
   const bNode &node = output_socket.owner_node();
   const bNodeTree &tree = node.owner_tree();
-  BLI_assert(node.is_type("NodeEvaluateClosure"));
+  BLI_assert(node.is_type("NodeEvaluateClosure"_ustr));
   const auto &storage = *static_cast<const NodeEvaluateClosure *>(node.storage);
   if (output_socket.index() >= storage.output_items.items_num) {
     return nullptr;

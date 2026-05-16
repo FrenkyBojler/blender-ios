@@ -6,11 +6,12 @@
  * \ingroup gpu
  */
 
+#include <algorithm>
+#include <cstdio>
 #include <sstream>
 
-#include "GHOST_C-api.h"
-
 #include "BLI_path_utils.hh"
+#include "BLI_string.h"
 #include "BLI_threads.h"
 
 #include "CLG_log.h"
@@ -77,7 +78,8 @@ bool GPU_vulkan_is_supported_driver(VkPhysicalDevice vk_physical_device)
     const uint32_t driver_version = vk_physical_device_properties.properties.driverVersion;
     uint32_t driver_version_major = driver_version >> 14u;
     uint32_t driver_version_minor = driver_version & 0x3fffu;
-    if (driver_version_major < 101 || driver_version_major == 101 && driver_version_minor < 2140) {
+    if (driver_version_major < 101 || (driver_version_major == 101 && driver_version_minor < 2140))
+    {
       return false;
     }
   }
@@ -154,10 +156,10 @@ static Vector<StringRefNull> missing_capabilities_get(VkPhysicalDevice vk_physic
   if (features.features.geometryShader == VK_FALSE) {
     missing_capabilities.append("geometry shaders");
   }
+#endif
   if (features.features.vertexPipelineStoresAndAtomics == VK_FALSE) {
     missing_capabilities.append("vertex pipeline stores and atomics");
   }
-#endif
   if (features.features.multiViewport == VK_FALSE) {
     missing_capabilities.append("multi viewport");
   }
@@ -220,16 +222,17 @@ static Vector<StringRefNull> missing_capabilities_get(VkPhysicalDevice vk_physic
   return missing_capabilities;
 }
 
-bool VKBackend::is_supported()
+/**
+ * Disable implicit layers and only allow layers that we trust.
+ *
+ * Render doc layer is hidden behind a debug flag. There are malicious layers that impersonate
+ * RenderDoc and can crash when loaded. See #139543.
+ *
+ * Must be called before any `vkCreateInstance` so temporary Vulkan instances created during
+ * argument handling (e.g. `--gpu-device help`) don't load implicit layers either.
+ */
+static void vk_restrict_loader_layers()
 {
-  CLG_logref_init(&LOG);
-
-  /*
-   * Disable implicit layers and only allow layers that we trust.
-   *
-   * Render doc layer is hidden behind a debug flag. There are malicious layers that impersonate
-   * RenderDoc and can crash when loaded. See #139543
-   */
   std::stringstream allowed_layers;
   allowed_layers << "VK_LAYER_KHRONOS_*";
   allowed_layers << ",VK_LAYER_AMD_*";
@@ -242,6 +245,11 @@ bool VKBackend::is_supported()
   }
   BLI_setenv("VK_LOADER_LAYERS_DISABLE", "~implicit~");
   BLI_setenv("VK_LOADER_LAYERS_ALLOW", allowed_layers.str().c_str());
+}
+
+static bool vk_instance_create_for_platform_checks(VkInstance *r_instance)
+{
+  vk_restrict_loader_layers();
 
   /* Initialize an vulkan 1.2 instance. */
   VkApplicationInfo vk_application_info = {VK_STRUCTURE_TYPE_APPLICATION_INFO};
@@ -254,9 +262,18 @@ bool VKBackend::is_supported()
   VkInstanceCreateInfo vk_instance_info = {VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO};
   vk_instance_info.pApplicationInfo = &vk_application_info;
 
+  *r_instance = VK_NULL_HANDLE;
+  vkCreateInstance(&vk_instance_info, nullptr, r_instance);
+
+  return *r_instance != VK_NULL_HANDLE;
+}
+
+bool VKBackend::is_supported()
+{
+  CLG_logref_init(&LOG);
+
   VkInstance vk_instance = VK_NULL_HANDLE;
-  vkCreateInstance(&vk_instance_info, nullptr, &vk_instance);
-  if (vk_instance == VK_NULL_HANDLE) {
+  if (!vk_instance_create_for_platform_checks(&vk_instance)) {
     CLOG_ERROR(&LOG, "Unable to initialize a Vulkan 1.2 instance.");
     return false;
   }
@@ -313,6 +330,73 @@ bool VKBackend::is_supported()
   return false;
 }
 
+void VKBackend::supported_devices_print(FILE *fp)
+{
+  CLG_logref_init(&LOG);
+
+  VkInstance vk_instance = VK_NULL_HANDLE;
+  if (!vk_instance_create_for_platform_checks(&vk_instance)) {
+    fprintf(fp, "Unable to initialize a Vulkan 1.2 instance.\n");
+    return;
+  }
+
+  uint32_t physical_devices_count = 0;
+  vkEnumeratePhysicalDevices(vk_instance, &physical_devices_count, nullptr);
+  Array<VkPhysicalDevice> vk_physical_devices(physical_devices_count);
+  vkEnumeratePhysicalDevices(vk_instance, &physical_devices_count, vk_physical_devices.data());
+
+  struct Row {
+    int index;
+    std::string identifier;
+    std::string name;
+  };
+  Vector<Row> rows;
+  int index = 0;
+  for (VkPhysicalDevice vk_physical_device : vk_physical_devices) {
+    if (missing_capabilities_get(vk_physical_device).is_empty() &&
+        GPU_vulkan_is_supported_driver(vk_physical_device))
+    {
+      VkPhysicalDeviceProperties vk_properties = {};
+      vkGetPhysicalDeviceProperties(vk_physical_device, &vk_properties);
+      std::stringstream identifier;
+      identifier << std::hex << vk_properties.vendorID << "/" << vk_properties.deviceID << "/"
+                 << index;
+      rows.append({index, identifier.str(), std::string(vk_properties.deviceName)});
+    }
+    index++;
+  }
+
+  if (rows.is_empty()) {
+    fprintf(fp, "  (no supported Vulkan devices found)\n");
+    vkDestroyInstance(vk_instance, nullptr);
+    return;
+  }
+
+  const char *col_index = "Index";
+  const char *col_id = "Device-ID";
+  const char *col_name = "Name";
+  size_t w_index = strlen(col_index);
+  size_t w_id = strlen(col_id);
+  for (const Row &row : rows) {
+    char buf[16];
+    w_index = std::max(w_index, BLI_snprintf_rlen(buf, sizeof(buf), "%d", row.index));
+    w_id = std::max(w_id, row.identifier.size());
+  }
+
+  fprintf(fp, "  %-*s  %-*s  %s\n", int(w_index), col_index, int(w_id), col_id, col_name);
+  for (const Row &row : rows) {
+    fprintf(fp,
+            "  %-*d  %-*s  %s\n",
+            int(w_index),
+            row.index,
+            int(w_id),
+            row.identifier.c_str(),
+            row.name.c_str());
+  }
+
+  vkDestroyInstance(vk_instance, nullptr);
+}
+
 static GPUOSType determine_os_type()
 {
 #ifdef _WIN32
@@ -337,10 +421,10 @@ void VKBackend::platform_init()
            GPU_ARCHITECTURE_IMR);
 }
 
-static void init_device_list(GHOST_ContextHandle ghost_context)
+static void init_device_list(GHOST_IContext *ghost_context)
 {
   GHOST_VulkanHandles vulkan_handles = {};
-  GHOST_GetVulkanHandles(ghost_context, &vulkan_handles);
+  ghost_context->getVulkanHandles(vulkan_handles);
 
   uint32_t physical_devices_count = 0;
   vkEnumeratePhysicalDevices(vulkan_handles.instance, &physical_devices_count, nullptr);
@@ -366,7 +450,7 @@ static void init_device_list(GHOST_ContextHandle ghost_context)
     index++;
   }
 
-  std::sort(GPG.devices.begin(), GPG.devices.end(), [&](const GPUDevice &a, const GPUDevice &b) {
+  std::ranges::sort(GPG.devices, [&](const GPUDevice &a, const GPUDevice &b) {
     if (a.name == b.name) {
       return a.index < b.index;
     }
@@ -441,10 +525,15 @@ void VKBackend::detect_workarounds(VKDevice &device)
     extensions.line_rasterization = false;
     extensions.extended_dynamic_state = false;
     GCaps.stencil_export_support = false;
+    GCaps.texture_pool_workaround = true;
 
     device.workarounds_ = workarounds;
     device.extensions_ = extensions;
     return;
+  }
+
+  if (G.debug & G_DEBUG_GPU_NO_TEXTURE_POOL) {
+    GCaps.texture_pool_workaround = true;
   }
 
   extensions.shader_output_layer =
@@ -500,6 +589,16 @@ void VKBackend::detect_workarounds(VKDevice &device)
     extensions.vertex_input_dynamic_state = false;
   }
 
+  /* Disable vertex input dynamic state for Qualcomm devices (#153414).
+   *
+   * TODO: We should re-validate vertex input dynamic state as there are multiple vendors with
+   * similar issues. It might be an oversight. Will wait for feedback from the driver developers
+   * and perform some out of bounds error checks.
+   */
+  if (GPU_type_matches(GPU_DEVICE_QUALCOMM, GPU_OS_WIN, GPU_DRIVER_ANY)) {
+    extensions.vertex_input_dynamic_state = false;
+  }
+
   /* Only enable by default dynamic rendering local read on Qualcomm devices. NVIDIA, AMD and Intel
    * performance is better when disabled (20%). On Qualcomm devices the improvement can be
    * substantial (16% on shader_balls.blend).
@@ -526,6 +625,34 @@ void VKBackend::detect_workarounds(VKDevice &device)
   if (GPU_type_matches(GPU_DEVICE_NVIDIA, GPU_OS_ANY, GPU_DRIVER_OFFICIAL)) {
     extensions.host_image_copy = false;
   }
+
+#ifdef _WIN32
+  /* Intel 7th to 10th Gen Processor iGPUs show a black screen at application startup when using
+   * VK_EXT_vertex_input_dynamic_state. Furthermore, texture pool usage leads to visual artifacts.
+   * The used driver version for these iGPUs is 101.2xxx or older.
+   *
+   * See #147721
+   */
+  if (GPU_type_matches(GPU_DEVICE_INTEL | GPU_DEVICE_INTEL_UHD, GPU_OS_WIN, GPU_DRIVER_OFFICIAL)) {
+    const uint32_t driver_version = device.physical_device_properties_get().driverVersion;
+    uint32_t driver_version_major = driver_version >> 14u;
+    uint32_t driver_version_minor = driver_version & 0x3fffu;
+    if (driver_version_major < 101 || (driver_version_major == 101 && driver_version_minor < 3000))
+    {
+      extensions.vertex_input_dynamic_state = false;
+      GCaps.texture_pool_workaround = true;
+    }
+  }
+
+  /* Using the texture pool causes issues on Intel Meteor/Arrow/Alder Lake and older iGPUs.
+   * - When using the image cache, visual artifacts can be seen (#156496).
+   * - When using the texture pool without the image cache, memory leaks happen (#157777).
+   * Until the issues have been resolved, the texture pool workaround is used.
+   */
+  if (GPU_type_matches(GPU_DEVICE_INTEL | GPU_DEVICE_INTEL_UHD, GPU_OS_WIN, GPU_DRIVER_OFFICIAL)) {
+    GCaps.texture_pool_workaround = true;
+  }
+#endif
 
 #ifdef __APPLE__
   extensions.extended_dynamic_state = false;
@@ -555,14 +682,6 @@ void VKBackend::delete_resources()
   MEM_delete(compiler_);
 }
 
-void VKBackend::samplers_update()
-{
-  VKDevice &device = VKBackend::get().device;
-  if (device.is_initialized()) {
-    device.reinit();
-  }
-}
-
 void VKBackend::compute_dispatch(int groups_x_len, int groups_y_len, int groups_z_len)
 {
   VKContext &context = *VKContext::get();
@@ -588,11 +707,11 @@ void VKBackend::compute_dispatch_indirect(StorageBuf *indirect_buf)
   context.render_graph().add_node(dispatch_indirect_info);
 }
 
-Context *VKBackend::context_alloc(void *ghost_window, void *ghost_context)
+Context *VKBackend::context_alloc(GHOST_IWindow *ghost_window, GHOST_IContext *ghost_context)
 {
   if (ghost_window) {
     BLI_assert(ghost_context == nullptr);
-    ghost_context = GHOST_GetDrawingContext(static_cast<GHOST_WindowHandle>(ghost_window));
+    ghost_context = ghost_window->getDrawingContext();
   }
 
   BLI_assert(ghost_context != nullptr);
@@ -600,16 +719,16 @@ Context *VKBackend::context_alloc(void *ghost_window, void *ghost_context)
     device.init(ghost_context);
     device.extensions_get().log();
     device.workarounds_get().log();
-    init_device_list(static_cast<GHOST_ContextHandle>(ghost_context));
+    init_device_list(ghost_context);
   }
 
   VKContext *context = new VKContext(ghost_window, ghost_context);
   device.context_register(*context);
-  GHOST_SetVulkanSwapBuffersCallbacks(static_cast<GHOST_ContextHandle>(ghost_context),
-                                      VKContext::swap_buffer_draw_callback,
-                                      VKContext::swap_buffer_acquired_callback,
-                                      VKContext::openxr_acquire_framebuffer_image_callback,
-                                      VKContext::openxr_release_framebuffer_image_callback);
+  ghost_context->setVulkanSwapBuffersCallbacks(
+      VKContext::swap_buffer_draw_callback,
+      VKContext::swap_buffer_acquired_callback,
+      VKContext::openxr_acquire_framebuffer_image_callback,
+      VKContext::openxr_release_framebuffer_image_callback);
 
   return context;
 }
@@ -656,6 +775,11 @@ Texture *VKBackend::texture_alloc(const char *name)
 
 TexturePool *VKBackend::texturepool_alloc()
 {
+  if (GCaps.texture_pool_workaround) {
+    CLOG_TRACE(&LOG, "Using texture pool \"TexturePoolImpl\".");
+    return new TexturePoolImpl();
+  }
+  CLOG_TRACE(&LOG, "Using texture pool \"VKTexturePool\".");
   return new VKTexturePool();
 }
 
@@ -732,10 +856,7 @@ void VKBackend::capabilities_init(VKDevice &device)
   GCaps.max_texture_3d_size = min_uu(limits.maxImageDimension3D, INT_MAX);
   GCaps.max_buffer_texture_size = min_uu(limits.maxTexelBufferElements, UINT_MAX);
   GCaps.max_texture_layers = min_uu(limits.maxImageArrayLayers, INT_MAX);
-  GCaps.max_textures = min_uu(limits.maxDescriptorSetSampledImages, INT_MAX);
-  GCaps.max_textures_vert = GCaps.max_textures_geom = GCaps.max_textures_frag = min_uu(
-      limits.maxPerStageDescriptorSampledImages, INT_MAX);
-  GCaps.max_samplers = min_uu(limits.maxSamplerAllocationCount, INT_MAX);
+  GCaps.max_textures = min_uu(limits.maxPerStageDescriptorSampledImages, INT_MAX);
   GCaps.max_images = min_uu(limits.maxPerStageDescriptorStorageImages, INT_MAX);
   for (int i = 0; i < 3; i++) {
     GCaps.max_work_group_count[i] = min_uu(limits.maxComputeWorkGroupCount[i], INT_MAX);
