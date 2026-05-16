@@ -71,6 +71,12 @@ class glTFDataExtractor:
             # glTF + bin + textures
             self.json = glTFDataExtractor.load_json(content)
 
+            # Let's ignore buffers and binary data when the file has meshopt compression
+            if any('KHR_meshopt_compression' in bv.get('extensions', {}) for bv in self.json.get('bufferViews', [])):
+                return
+            if any('EXT_meshopt_compression' in bv.get('extensions', {}) for bv in self.json.get('bufferViews', [])):
+                return
+
             # Get buffers
             for buffer in self.json.get('buffers', []):
                 uri = buffer.get('uri', '')
