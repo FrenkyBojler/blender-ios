@@ -369,6 +369,18 @@ static inline Transform get_transform(const blender::float4x4 &matrix)
                         ptr[14]);
 }
 
+static inline float2 get_float2(blender::PointerRNA &ptr, const char *name)
+{
+  float2 f;
+  RNA_float_get_array(&ptr, name, &f.x);
+  return f;
+}
+
+static inline void set_float2(blender::PointerRNA &ptr, const char *name, const float2 value)
+{
+  RNA_float_set_array(&ptr, name, &value.x);
+}
+
 static inline float3 get_float3(blender::PointerRNA &ptr, const char *name)
 {
   float3 f;
@@ -477,14 +489,14 @@ static inline void set_string(blender::PointerRNA &ptr, const char *name, const 
 /* Relative Paths */
 
 static inline string blender_absolute_path(blender::Main &b_data,
-                                           blender::ID &b_id,
+                                           blender::ID *b_id,
                                            const string &path)
 {
   if (path.size() >= 2 && path[0] == '/' && path[1] == '/') {
     string dirname;
 
-    if (b_id.lib) {
-      dirname = blender_absolute_path(b_data, b_id.lib->id, b_id.lib->filepath);
+    if (b_id && b_id->lib) {
+      dirname = blender_absolute_path(b_data, &b_id->lib->id, b_id->lib->filepath);
     }
     else {
       dirname = b_data.filepath;
@@ -787,7 +799,7 @@ class EdgeMap {
   bool exists(int v0, int v1)
   {
     get_sorted_verts(v0, v1);
-    return edges_.find(std::pair<int, int>(v0, v1)) != edges_.end();
+    return edges_.contains(std::pair<int, int>(v0, v1));
   }
 
  protected:

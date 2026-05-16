@@ -45,7 +45,7 @@
 #include "MOD_modifiertypes.hh"
 #include "MOD_ui_common.hh"
 
-#include "GEO_mesh_merge_by_distance.hh"
+#include "GEO_mesh_merge_verts.hh"
 
 #include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
 
@@ -844,7 +844,9 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
         vert_loop_map ? vert_loop_map[edges_new[i][0]] : UINT_MAX,
         vert_loop_map ? vert_loop_map[edges_new[i][1]] : UINT_MAX,
     };
-    const bool has_mloop_orig = mloop_index_orig[0] != UINT_MAX;
+
+    const bool has_mloop_orig = edge_face_map && (edge_face_map[i] != UINT_MAX) &&
+                                (mloop_index_orig[0] != UINT_MAX);
 
     int mat_nr;
 

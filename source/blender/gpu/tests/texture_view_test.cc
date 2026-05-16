@@ -27,12 +27,14 @@
 
 namespace blender::gpu::tests {
 
+#ifdef WITH_BACKEND_OPENGL
+
 /* Test operates on a 4x4 texture patch. */
 constexpr uint texture_size_x = 4;
 constexpr uint texture_size_y = 4;
 constexpr uint texture_size = texture_size_x * texture_size_y;
 
-/* Repeat the first `components` components of a float4 `n` times, into a vector.*/
+/* Repeat the first `components` components of a float4 `n` times, into a vector. */
 template<typename T> static Vector<T> repeat_data(VecBase<T, 4> data, size_t n, size_t components)
 {
   Vector<T> out(n * components);
@@ -168,13 +170,13 @@ template<TextureFormat FormatA, TextureFormat FormatB> static void texture_view_
   GPU_render_end();
 }
 
-static void test_vexture_view_SFLOAT_32_32_32_32()
+static void test_texture_view_SFLOAT_32_32_32_32()
 {
   texture_view_create_test<TextureFormat::SFLOAT_32_32_32_32, TextureFormat::SFLOAT_32_32_32_32>();
   texture_view_create_test<TextureFormat::SFLOAT_32_32_32_32, TextureFormat::UINT_32_32_32_32>();
   texture_view_create_test<TextureFormat::SFLOAT_32_32_32_32, TextureFormat::SINT_32_32_32_32>();
 }
-GPU_OPENGL_TEST(vexture_view_SFLOAT_32_32_32_32);
+GPU_OPENGL_TEST(texture_view_SFLOAT_32_32_32_32);
 
 static void test_texture_view_SFLOAT_32_32()
 {
@@ -236,5 +238,5 @@ static void test_texture_view_UINT_8()
   texture_view_create_test<TextureFormat::UINT_8, TextureFormat::UNORM_8>();
 }
 GPU_OPENGL_TEST(texture_view_UINT_8);
-
+#endif
 }  // namespace blender::gpu::tests
