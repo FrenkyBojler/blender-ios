@@ -7,6 +7,7 @@
 #include "BLT_translation.hh"
 
 #include "BKE_anonymous_attribute_make.hh"
+#include "BKE_attribute_legacy_convert.hh"
 #include "BKE_bake_attribute_field.hh"
 #include "BKE_bake_values.hh"
 #include "BKE_curves.hh"
@@ -467,8 +468,7 @@ class RuntimeToBakeValue {
 
   bool is_bakeable_single_value_type(const CPPType &type) const
   {
-    // TODO: Use cpp_type_to_custom_data_type once it returns an optional.
-    return false;
+    return cpp_type_to_custom_data_type(type).has_value();
   }
 };
 
