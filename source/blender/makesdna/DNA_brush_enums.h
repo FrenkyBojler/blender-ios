@@ -122,9 +122,9 @@ enum eGP_FillLayerModes : short {
 };
 
 /* BrushGpencilSettings->fill_method */
-enum eGP_FillMethod {
-  GP_FILL_METHOD_EXACT = 0,
-  GP_FILL_METHOD_FLOOD = 1,
+enum eGP_FillSolver {
+  GP_FILL_SOLVER_DELAUNAY = 0,
+  GP_FILL_SOLVER_FLOOD = 1,
 };
 
 /* BrushGpencilSettings->gp_eraser_mode */

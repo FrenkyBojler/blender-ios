@@ -1924,7 +1924,10 @@ class VIEW3D_PT_tools_grease_pencil_v3_brush_fill_advanced(View3DPanel, Panel):
         if brush is None:
             return
 
-        if gp_settings.fill_method == 'EXACT':
+        col.prop(gp_settings, "fill_solver")
+        col.separator()
+
+        if gp_settings.fill_solver == 'EXACT':
             row = col.row(align=True)
             row.prop(brush, "use_locked_size", expand=True)
             col.separator()
@@ -1942,7 +1945,7 @@ class VIEW3D_PT_tools_grease_pencil_v3_brush_fill_advanced(View3DPanel, Panel):
         row = col.row(align=True)
         row.prop(gp_settings, "fill_layer_mode", text="Layers")
 
-        if gp_settings.fill_method == 'FLOOD':
+        if gp_settings.fill_solver == 'FLOOD':
             col.separator()
             col.prop(gp_settings, "fill_simplify_level", text="Simplify")
         if gp_settings.fill_draw_mode != 'STROKE':
@@ -1956,7 +1959,7 @@ class VIEW3D_PT_tools_grease_pencil_v3_brush_fill_advanced(View3DPanel, Panel):
             sub.prop(gp_settings, "fill_threshold", text="")
 
         col.separator()
-        if gp_settings.fill_method == 'FLOOD':
+        if gp_settings.fill_solver == 'FLOOD':
             row = col.row(align=True)
             row.prop(gp_settings, "use_fill_limit")
         row = col.row(align=True)
@@ -2318,7 +2321,7 @@ class VIEW3D_PT_tools_grease_pencil_v3_brush_gap_closure(View3DPanel, Panel):
 
         col = layout.column()
 
-        if brush.gpencil_settings.fill_method == 'FLOOD':
+        if brush.gpencil_settings.fill_solver == 'FLOOD':
             col.prop(gp_settings, "extend_stroke_factor", text="Size")
             row = col.row(align=True)
             row.prop(gp_settings, "fill_extend_mode", text="Mode")

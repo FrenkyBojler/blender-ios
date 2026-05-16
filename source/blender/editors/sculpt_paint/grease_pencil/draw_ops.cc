@@ -711,11 +711,11 @@ struct GreasePencilFillOpData {
     const eGP_FillExtendModes extension_mode = eGP_FillExtendModes(
         brush.gpencil_settings->fill_extend_mode);
 
-    const bool is_exact = brush.gpencil_settings->fill_method == GP_FILL_METHOD_EXACT;
+    const bool is_delaunay = brush.gpencil_settings->fill_solver == GP_FILL_SOLVER_DELAUNAY;
     const bool show_boundaries = (brush.gpencil_settings->flag & GP_BRUSH_FILL_SHOW_HELPLINES) &&
-                                 !is_exact;
+                                 !is_delaunay;
     const bool show_extension = (brush.gpencil_settings->flag & GP_BRUSH_FILL_SHOW_EXTENDLINES) &&
-                                !is_exact;
+                                !is_delaunay;
     const float extension_length = brush.gpencil_settings->fill_extend_fac *
                                    bke::greasepencil::LEGACY_RADIUS_CONVERSION_FACTOR;
     const bool extension_cut = brush.gpencil_settings->flag & GP_BRUSH_FILL_STROKE_COLLIDE;
@@ -1468,7 +1468,7 @@ static bool grease_pencil_apply_fill(bContext &C, wmOperator &op, const wmEvent 
   const bool on_back = (ts.gpencil_flags & GP_TOOL_FLAG_PAINT_ONBACK);
   const bool auto_remove_fill_guides = (brush.gpencil_settings->flag &
                                         GP_BRUSH_FILL_AUTO_REMOVE_FILL_GUIDES) != 0;
-  const bool is_exact = brush.gpencil_settings->fill_method == GP_FILL_METHOD_EXACT;
+  const bool is_delaunay = brush.gpencil_settings->fill_solver == GP_FILL_SOLVER_DELAUNAY;
 
   if (!grease_pencil.has_active_layer()) {
     return false;
@@ -1486,7 +1486,7 @@ static bool grease_pencil_apply_fill(bContext &C, wmOperator &op, const wmEvent 
 
     std::optional<bke::CurvesGeometry> op_fill_curves;
 
-    if (!is_exact) {
+    if (!is_delaunay) {
       const ed::greasepencil::ExtensionData extensions = grease_pencil_fill_get_extension_data(
           C, op_data);
 
@@ -1593,7 +1593,7 @@ static bool grease_pencil_apply_fill(bContext &C, wmOperator &op, const wmEvent 
     /* Only create fills. Users can change the appearance however they please afterwards. */
     attributes.add<bool>("hide_stroke", bke::AttrDomain::Curve, bke::AttributeInitValue(true));
 
-    if (!is_exact) {
+    if (!is_delaunay) {
       smooth_fill_strokes(fill_curves, fill_curves.curves_range());
 
       if (simplify_levels > 0) {
