@@ -229,6 +229,9 @@ class STRIP_PT_effect(StripButtonsPanel, Panel):
         if strip_type == 'COLOR':
             layout.template_color_picker(strip, "color", value_slider=True, cubic=True)
             layout.prop(strip, "color", text="")
+            col = layout.column(align=True)
+            col.prop(strip, "width")
+            col.prop(strip, "height")
 
         elif strip_type == 'WIPE':
             col = layout.column()

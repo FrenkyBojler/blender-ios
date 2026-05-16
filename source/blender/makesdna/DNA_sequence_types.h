@@ -783,7 +783,8 @@ struct TransformVarsLegacy {
 
 struct SolidColorVars {
   float col[3] = {};
-  char _pad[4] = {};
+  int width;
+  int height;
 };
 
 struct SpeedControlVars {

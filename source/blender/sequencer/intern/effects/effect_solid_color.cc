@@ -8,10 +8,15 @@
 
 #include "BLI_task.hh"
 
+
+#include "RNA_prototypes.hh"
+
+#include "SEQ_render.hh"
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
-
+#include "IMB_imbuf.hh"
 #include "effects.hh"
+
 
 namespace blender::seq {
 
@@ -20,6 +25,8 @@ static void init_solid_color(Strip *strip)
   SolidColorVars *data = MEM_new<SolidColorVars>("solidcolor");
   strip->effectdata = data;
   data->col[0] = data->col[1] = data->col[2] = 0.5;
+  data->width = 0;
+  data->height = 0;
 }
 
 static void free_solid_color(Strip *strip, const bool /*do_id_user*/)
@@ -44,10 +51,14 @@ static ImBuf *do_solid_color(const RenderData *context,
                              ImBuf *ibuf1,
                              ImBuf *ibuf2)
 {
-  ImBuf *out = prepare_effect_imbufs(context, ibuf1, ibuf2);
+
 
   SolidColorVars *cv = static_cast<SolidColorVars *>(strip->effectdata);
 
+  const int width = cv->width > 0 ? cv->width : context->rectx;
+  const int height = cv->height > 0 ? cv->height : context->recty;
+
+  ImBuf *out = IMB_allocImBuf(width, height, ImBufFlags::ByteData);
   uchar *byte_data = out->byte_data_for_write();
   float *float_data = out->float_data_for_write();
   threading::parallel_for(IndexRange(out->y), 64, [&](const IndexRange y_range) {
