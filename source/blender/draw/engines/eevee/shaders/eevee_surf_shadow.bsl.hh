@@ -46,7 +46,7 @@ struct SurfShadow {
 };
 
 [[fragment]] [[texture_atomic]]
-void surf_shadow([[resource_table]] SurfShadow &srt)
+void surf_shadow([[resource_table]] SurfShadow &srt, [[front_facing]] const bool front_face)
 {
 #ifdef MAT_SHADOW /* TODO remove after all vertex shaders are ported. */
   auto &shadow_iface = interface_get(eevee_surf_shadow_infos_, shadow_iface);
@@ -61,7 +61,7 @@ void surf_shadow([[resource_table]] SurfShadow &srt)
   }
 
 #  ifdef MAT_TRANSPARENT
-  init_globals();
+  init_globals(front_face);
 
   nodetree_surface(0.0f);
 

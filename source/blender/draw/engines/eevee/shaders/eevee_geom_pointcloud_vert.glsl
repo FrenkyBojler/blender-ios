@@ -67,7 +67,7 @@ void main()
   }
 #endif
 
-  init_globals();
+  init_globals(true);
   attrib_load(PointCloudPoint{ws_pt.point_id});
 
   interp.P += nodetree_displacement();

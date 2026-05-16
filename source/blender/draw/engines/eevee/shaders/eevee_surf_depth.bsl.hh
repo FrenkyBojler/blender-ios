@@ -57,10 +57,11 @@ struct VelocityFragOut {
 void surf_depth([[resource_table]] SurfaceDepth & /*srt*/,
                 [[frag_coord]] const float4 frag_co,
                 [[out]] SurfaceDepthFragOut &frag_out,
-                [[out, condition(use_velocity)]] VelocityFragOut &vel_out)
+                [[out, condition(use_velocity)]] VelocityFragOut &vel_out,
+                [[front_facing]] const bool front_face)
 {
 #ifdef MAT_TRANSPARENT
-  init_globals();
+  init_globals(front_face);
 
   nodetree_surface(0.0f);
 

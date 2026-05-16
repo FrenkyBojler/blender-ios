@@ -47,7 +47,7 @@ void main()
   }
 #endif
 
-  init_globals();
+  init_globals(true);
   attrib_load(MeshVertex{0});
 
   interp.P += nodetree_displacement();

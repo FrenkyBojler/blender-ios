@@ -709,8 +709,13 @@ static SlotAllocator add_pipeline_create_info(gpu::shader::ShaderCreateInfo &inf
           info.name_ += "_world_volume";
           break;
         default:
-          pipeline_info_name = "eevee_surf_world";
+          pipeline_info_name = "eevee_surf_world_infos_";
           info.name_ += "_world";
+          info.define("closure_to_rgba", "closure_to_rgba_world");
+          /* Until every vertex shader are ported, we need to bridge the gap here by defining the
+           * pipeline. */
+          info.fragment_source("eevee_surf_world.bsl.hh");
+          info.fragment_function("eevee_surf_world");
           break;
       }
       break;

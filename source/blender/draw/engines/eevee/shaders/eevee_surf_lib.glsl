@@ -58,7 +58,7 @@ void init_globals_curves()
 #endif
 }
 
-void init_globals()
+void init_globals(bool front_face)
 {
   /* Default values. */
   g_data.P = interp.P;
@@ -80,9 +80,9 @@ void init_globals()
   g_data.barycentric_coords = float2(0.0f);
   g_data.barycentric_dists = float3(0.0f);
 
+  g_data.N = (front_face) ? g_data.N : -g_data.N;
+  g_data.Ni = (front_face) ? g_data.Ni : -g_data.Ni;
 #ifdef GPU_FRAGMENT_SHADER
-  g_data.N = (gl_FrontFacing) ? g_data.N : -g_data.N;
-  g_data.Ni = (gl_FrontFacing) ? g_data.Ni : -g_data.Ni;
   g_data.Ng = safe_normalize(cross(gpu_dfdx(g_data.P), gpu_dfdy(g_data.P)));
   if (pipeline_buf.is_main_view_inverted) {
     g_data.Ng = -g_data.Ng;

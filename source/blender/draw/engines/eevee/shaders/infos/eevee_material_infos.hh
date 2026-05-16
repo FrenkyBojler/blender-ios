@@ -13,7 +13,6 @@
 
 #  include "eevee_geom_infos.hh"
 #  include "eevee_surf_volume_infos.hh"
-#  include "eevee_surf_world_infos.hh"
 #endif
 
 #ifdef GLSL_CPP_STUBS
@@ -43,11 +42,11 @@ UNIFORM_BUF(0, int, node_tree)
 GPU_SHADER_CREATE_END()
 
 /* clang-format off */
-CREATE_INFO_VARIANT(eevee_surface_world_world, eevee_geom_world, eevee_surf_world, eevee_material_stub)
-CREATE_INFO_VARIANT(eevee_surface_world_curves, eevee_geom_curves, eevee_surf_world, eevee_material_stub)
-CREATE_INFO_VARIANT(eevee_surface_world_mesh, eevee_geom_mesh, eevee_surf_world, eevee_material_stub)
-CREATE_INFO_VARIANT(eevee_surface_world_pointcloud, eevee_geom_pointcloud, eevee_surf_world, eevee_material_stub)
-CREATE_INFO_VARIANT(eevee_surface_world_volume, eevee_geom_volume, eevee_surf_world, eevee_material_stub)
+// CREATE_INFO_VARIANT(eevee_surface_world_world, eevee_geom_world, eevee_surf_world, eevee_material_stub)
+// CREATE_INFO_VARIANT(eevee_surface_world_curves, eevee_geom_curves, eevee_surf_world, eevee_material_stub)
+// CREATE_INFO_VARIANT(eevee_surface_world_mesh, eevee_geom_mesh, eevee_surf_world, eevee_material_stub)
+// CREATE_INFO_VARIANT(eevee_surface_world_pointcloud, eevee_geom_pointcloud, eevee_surf_world, eevee_material_stub)
+// CREATE_INFO_VARIANT(eevee_surface_world_volume, eevee_geom_volume, eevee_surf_world, eevee_material_stub)
 // CREATE_INFO_VARIANT(eevee_surface_depth_world, eevee_geom_world, eevee_surf_depth, eevee_material_stub)
 // CREATE_INFO_VARIANT(eevee_surface_depth_curves, eevee_geom_curves, eevee_surf_depth, eevee_material_stub)
 // CREATE_INFO_VARIANT(eevee_surface_depth_mesh, eevee_geom_mesh, eevee_surf_depth, eevee_material_stub)
