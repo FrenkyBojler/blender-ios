@@ -66,7 +66,7 @@ void hsl_to_rgb_v(const float hsl[3], float r_rgb[3])
   hsl_to_rgb(hsl[0], hsl[1], hsl[2], &r_rgb[0], &r_rgb[1], &r_rgb[2]);
 }
 
-void oklab_to_rgb(float l, float a, float b, float *r_r, float *r_g, float *r_b)
+void lab_to_rgb(float l, float a, float b, float *r_r, float *r_g, float *r_b)
 {
   float lo = l + 0.3963377774f * a + 0.2158037573f * b;
   float me = l - 0.1055613458f * a - 0.0638541728f * b;
@@ -76,9 +76,17 @@ void oklab_to_rgb(float l, float a, float b, float *r_r, float *r_g, float *r_b)
   me = me * me * me;
   sh = sh * sh * sh;
 
-  *r_r = +4.0767416621f * lo - 3.3077115913f * me + 0.2309699292f * sh;
+  *r_r = 4.0767416621f * lo - 3.3077115913f * me + 0.2309699292f * sh;
   *r_g = -1.2684380046f * lo + 2.6097574011f * me - 0.3413193965f * sh;
   *r_b = -0.0041960863f * lo - 0.7034186147f * me + 1.7076147010f * sh;
+}
+
+void lch_to_rgb(float l, float c, float h, float *r_r, float *r_g, float *r_b)
+{
+  float a = c * cos(h * 6.2831853072f) / 4.0f;
+  float b = c * sin(h * 6.2831853072f) / 4.0f;
+
+  lab_to_rgb(l, a, b, r_r, r_g, r_b);
 }
 
 void rgb_to_yuv(float r, float g, float b, float *r_y, float *r_u, float *r_v, int colorspace)
@@ -442,7 +450,7 @@ void rgb_to_hsv_compat_v(const float rgb[3], float r_hsv[3])
   rgb_to_hsv_compat(rgb[0], rgb[1], rgb[2], &r_hsv[0], &r_hsv[1], &r_hsv[2]);
 }
 
-void rgb_to_oklab(float r, float g, float b, float *r_l, float *r_a, float *r_b)
+void rgb_to_lab(float r, float g, float b, float *r_l, float *r_a, float *r_b)
 {
   float l = 0.4122214708f * r + 0.5363325363f * g + 0.0514459929f * b;
 	float m = 0.2119034982f * r + 0.6806995451f * g + 0.1073969566f * b;
@@ -455,6 +463,16 @@ void rgb_to_oklab(float r, float g, float b, float *r_l, float *r_a, float *r_b)
   *r_l = 0.2104542553f * l + 0.7936177850f * m - 0.0040720468f * s;
   *r_a = 1.9779984951f * l - 2.4285922050f * m + 0.4505937099f * s;
   *r_b = 0.0259040371f * l + 0.7827717662f * m - 0.8086757660f * s;
+}
+
+void rgb_to_lch(float r, float g, float b, float *r_l, float *r_c, float *r_h)
+{
+  float lab_l, lab_a, lab_b;
+  rgb_to_lab(r, g, b, &lab_l, &lab_a, &lab_b);
+
+  *r_l = lab_l;
+  *r_c = sqrt(lab_a * lab_a + lab_b * lab_b) * 4.0f;
+  *r_h = atan2(lab_b, lab_a);
 }
 
 void hsv_clamp_v(float hsv[3], float v_max)

@@ -36,7 +36,8 @@ void hsv_to_rgb_v(const float hsv[3], float r_rgb[3]);
 void hsl_to_rgb(float h, float s, float l, float *r_r, float *r_g, float *r_b);
 void hsl_to_rgb_v(const float hsl[3], float r_rgb[3]);
 void hex_to_rgb(const char *hexcol, float *r_r, float *r_g, float *r_b);
-void oklab_to_rgb(float l, float a, float b, float *r_r, float *r_g, float *r_b);
+void lab_to_rgb(float l, float a, float b, float *r_r, float *r_g, float *r_b);
+void lch_to_rgb(float l, float c, float h, float *r_r, float *r_g, float *r_b);
 void yuv_to_rgb(float y, float u, float v, float *r_r, float *r_g, float *r_b, int colorspace);
 void ycc_to_rgb(float y, float cb, float cr, float *r_r, float *r_g, float *r_b, int colorspace);
 void cpack_to_rgb(unsigned int col, float *r_r, float *r_g, float *r_b);
@@ -70,7 +71,8 @@ void rgb_to_hsl_compat(float r, float g, float b, float *r_h, float *r_s, float 
 void rgb_to_hsl_compat_v(const float rgb[3], float r_hsl[3]);
 void rgb_to_hsv_compat(float r, float g, float b, float *r_h, float *r_s, float *r_v);
 void rgb_to_hsv_compat_v(const float rgb[3], float r_hsv[3]);
-void rgb_to_oklab(float r, float g, float b, float *r_l, float *r_a, float *r_b);
+void rgb_to_lab(float r, float g, float b, float *r_l, float *r_a, float *r_b);
+void rgb_to_lch(float r, float g, float b, float *r_l, float *r_c, float *r_h);
 unsigned int rgb_to_cpack(float r, float g, float b);
 /**
  * We define a 'cpack' here as a (3 byte color code)

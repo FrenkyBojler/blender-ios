@@ -154,7 +154,7 @@ void hsl_to_rgb(float4 hsl, float4 &outcol)
 }
 
 [[node]]
-void rgb_to_oklab(float4 rgb, float4 &outcol)
+void rgb_to_lab(float4 rgb, float4 &outcol)
 {
   float l, m, s;
 
@@ -175,7 +175,7 @@ void rgb_to_oklab(float4 rgb, float4 &outcol)
 }
 
 [[node]]
-void oklab_to_rgb(float4 lab, float4 &outcol)
+void lab_to_rgb(float4 lab, float4 &outcol)
 {
   float l, m, s;
 
@@ -193,6 +193,30 @@ void oklab_to_rgb(float4 lab, float4 &outcol)
     -0.0041960863f * l - 0.7034186147f * m + 1.7076147010f * s,
     lab[3]
   );
+}
+
+[[node]]
+void rgb_to_lch(float4 rgb, float4 &outcol)
+{
+  float c, h;
+  float4 lab;
+  rgb_to_lab(rgb, lab);
+
+  c = sqrt(lab[1] * lab[1] + lab[2] * lab[2]) * 4.0f;
+  h = atan(lab[2], lab[1]) / radians(360.0f);
+
+  outcol = float4(lab[0], c, h, lab[3]);
+}
+
+[[node]]
+void lch_to_rgb(float4 lch, float4 &outcol)
+{
+  float a, b;
+
+  a = lch[1] * cos(lch[2] * radians(360.0f)) / 4.0f;
+  b = lch[1] * sin(lch[2] * radians(360.0f)) / 4.0f;
+
+  lab_to_rgb(float4(lch[0], a, b, lch[3]), outcol);
 }
 
 /* ** YCCA to RGBA ** */
