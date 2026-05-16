@@ -1576,9 +1576,10 @@ static void serialize_single_value(const GPointer value,
     }
     return;
   }
-  const eCustomDataType data_type = cpp_type_to_custom_data_type(type);
-  r_io_item.append_str("type", get_data_type_io_name(data_type));
-  auto io_data = serialize_primitive_value(data_type, value.get());
+  const std::optional<eCustomDataType> data_type = cpp_type_to_custom_data_type(type);
+  BLI_assert(data_type);
+  r_io_item.append_str("type", get_data_type_io_name(*data_type));
+  auto io_data = serialize_primitive_value(*data_type, value.get());
   r_io_item.append("data", std::move(io_data));
 }
 
@@ -1591,10 +1592,11 @@ static void serialize_field(const fn::GField &field,
   if (const auto *attribute_field_input = field.get_input_if<AttributeFieldInput>()) {
     const StringRef attribute_name = attribute_field_input->attribute_name();
     const CPPType &type = field.cpp_type();
-    const eCustomDataType data_type = cpp_type_to_custom_data_type(type);
+    const std::optional<eCustomDataType> data_type = cpp_type_to_custom_data_type(type);
+    BLI_assert(data_type);
     r_io_item.append_str("type", "ATTRIBUTE");
     r_io_item.append_str("name", attribute_name);
-    r_io_item.append_str("data_type", get_data_type_io_name(data_type));
+    r_io_item.append_str("data_type", get_data_type_io_name(*data_type));
   }
 }
 
@@ -1634,8 +1636,9 @@ static void serialize_list(const nodes::GListPtr &list_ptr,
     r_io_item.append_str("item_type", "SOCKET_VALUE_VARIANT");
   }
   else {
-    const eCustomDataType data_type = cpp_type_to_custom_data_type(type);
-    r_io_item.append_str("item_type", get_data_type_io_name(data_type));
+    const std::optional<eCustomDataType> data_type = cpp_type_to_custom_data_type(type);
+    BLI_assert(data_type);
+    r_io_item.append_str("item_type", get_data_type_io_name(*data_type));
   }
   r_io_item.append_int("num_items", list.size());
   if (const auto *single_data = std::get_if<nodes::GList::SingleData>(&list.data())) {
