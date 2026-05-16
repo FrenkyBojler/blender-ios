@@ -241,8 +241,8 @@ static void calculate_splines_axis(Span<float> distances,
     Array<float> upper_diag(num_verts);
     Array<float> rhs(num_verts);
     for (const int i : IndexRange(num_verts)) {
-      const int v_prev = mod_i(i - 1, num_verts);
-      const int v_next = mod_i(i + 1, num_verts);
+      const int v_prev = math::mod_periodic(i - 1, num_verts);
+      const int v_next = math::mod_periodic(i + 1, num_verts);
       lower_diag[i] = segment_length[v_prev];
       diag[i] = 2.0f * (segment_length[v_prev] + segment_length[i]);
       upper_diag[i] = segment_length[i];
@@ -276,7 +276,7 @@ static void calculate_splines_axis(Span<float> distances,
 
   /* Build polynomial coefficients for each segment. */
   for (const int i : IndexRange(num_segments)) {
-    const int v_next = is_closed ? mod_i(i + 1, num_verts) : i + 1;
+    const int v_next = is_closed ? math::mod_periodic(i + 1, num_verts) : i + 1;
 
     const float coeff_a = coords[i];
     const float coeff_b = ((coords[v_next] - coords[i]) / segment_length[i]) -
@@ -307,7 +307,7 @@ static float3 evaluate_linear(Span<float> tknots,
   float seg_end = tknots[segment + 1];
   float denom = seg_end - seg_start;
   float factor = denom > 0 ? (target_distance - seg_start) / denom : 0.0f;
-  int next_knot = mod_i(segment + 1, coords_x.size());
+  int next_knot = math::mod_periodic(segment + 1, int(coords_x.size()));
   float3 start_pos(coords_x[segment], coords_y[segment], coords_z[segment]);
   float3 end_pos(coords_x[next_knot], coords_y[next_knot], coords_z[next_knot]);
   return math::interpolate(start_pos, end_pos, factor);
