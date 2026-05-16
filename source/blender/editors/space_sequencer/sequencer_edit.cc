@@ -966,6 +966,8 @@ static wmOperatorStatus sequencer_slip_invoke(bContext *C, wmOperator *op, const
   /* Notify so we draw extensions immediately. */
   WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
 
+  G.moving |= G_TRANSFORM_SEQ;
+
   return OPERATOR_RUNNING_MODAL;
 }
 
@@ -987,8 +989,6 @@ static void slip_strips_delta(
 
   bool slip_keyframes = RNA_boolean_get(op->ptr, "slip_keyframes");
   for (Strip *strip : data->strips) {
-    /* Prefetch must be stopped before strip is changed. */
-    seq::prefetch_stop(scene);
     seq::time_slip_strip(scene, strip, frame_delta, subframe_delta, slip_keyframes);
     seq::relations_invalidate_cache(scene, strip);
 
@@ -1027,6 +1027,8 @@ static void slip_cleanup(bContext *C, wmOperator *op, Scene *scene)
   ED_workspace_status_text(C, nullptr);
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
   WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
+
+  G.moving &= ~G_TRANSFORM_SEQ;
 }
 
 /* Returns clamped offset delta relative to current strip positions,
