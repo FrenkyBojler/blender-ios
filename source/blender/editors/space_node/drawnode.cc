@@ -62,6 +62,7 @@
 #include "IMB_imbuf_types.hh"
 
 #include "NOD_geometry.hh"
+#include "NOD_geometry_nodes_bundle.hh"
 #include "NOD_geometry_nodes_gizmos.hh"
 #include "NOD_node_declaration.hh"
 #include "NOD_socket.hh"
@@ -1096,6 +1097,17 @@ static bool socket_needs_volume_grid_search(const bNode &node, const bNodeSocket
   return socket.runtime->declaration->is_volume_grid_name;
 }
 
+static bool socket_needs_bundle_type_search(const bNode &node, const bNodeSocket &socket)
+{
+  if (node.type_legacy == NODE_COMBINE_BUNDLE) {
+    return socket.name == nodes::Bundle::type_item_name;
+  }
+  if (node.is_type("NodeGetNestedBundlePaths"_ustr)) {
+    return socket.name == StringRef("Bundle Type");
+  }
+  return false;
+}
+
 static void draw_gizmo_pin_icon(ui::Layout *layout, PointerRNA *socket_ptr)
 {
   layout->prop(socket_ptr, "pin_gizmo", UI_ITEM_NONE, "", ICON_GIZMO);
@@ -1296,6 +1308,16 @@ static void std_node_socket_draw(
           ui::Layout *row = &layout->split(0.4f, false);
           row->label(label, ICON_NONE);
           node_geometry_add_volume_grid_search_button(*C, *node, *ptr, *row);
+        }
+      }
+      else if (socket_needs_bundle_type_search(*node, *sock)) {
+        if (optional_label) {
+          node_bundle_type_add_string_search_button(*C, *node, *ptr, *layout, label);
+        }
+        else {
+          ui::Layout *row = &layout->split(0.4f, false);
+          row->label(label, ICON_NONE);
+          node_bundle_type_add_string_search_button(*C, *node, *ptr, *row);
         }
       }
       else {
@@ -1678,8 +1700,9 @@ void draw_nodespace_back_pix(const bContext &C,
   if (ibuf) {
     /* somehow the offset has to be calculated inverse */
     wmOrtho2_region_pixelspace(&region);
-    const float2 offset = ibuf->flags & IB_has_display_window ? float2(ibuf->display_offset) :
-                                                                float2(0.0f);
+    const float2 offset = flag_is_set(ibuf->flags, ImBufFlags::HasDisplayWindow) ?
+                              float2(ibuf->display_offset) :
+                              float2(0.0f);
     const float offset_x = snode.xof + offset.x * snode.zoom;
     const float offset_y = snode.yof + offset.y * snode.zoom;
     const float x = (region.winx - snode.zoom * ibuf->x) / 2 + offset_x;
