@@ -1587,6 +1587,7 @@ static void serialize_field(const fn::GField &field,
                             BlobWriteSharing & /*blob_sharing*/,
                             DictionaryValue &r_io_item)
 {
+  /* Only fields that are pure attribute references can be serialized currently. */
   if (const auto *attribute_field_input = field.get_input_if<AttributeFieldInput>()) {
     const StringRef attribute_name = attribute_field_input->attribute_name();
     const CPPType &type = field.cpp_type();
@@ -1604,7 +1605,6 @@ static void serialize_volume_grid(const volume_grid::GVolumeGrid &volume_grid,
                                   DictionaryValue &r_io_item)
 {
   r_io_item.append_str("type", "GRID");
-  // TODO: could use blob sharing?
   auto io_vdb = blob_writer
                     .write_as_stream(".vdb",
                                      [&](std::ostream &stream) {
@@ -1734,6 +1734,8 @@ static std::optional<SocketValueVariant> deserialize_bake_item(const DictionaryV
     if (field_cpp_type) {
       return SocketValueVariant::From(AttributeFieldInput::from(*name, *field_cpp_type));
     }
+    /* The data type hasn't been written to the bake, it will be derived later from the attribute
+     * type. */
     return SocketValueVariant::From(
         fn::GField::from_input<DeferredTypeAttributeFieldInput>(*name));
   }
@@ -1834,12 +1836,7 @@ static std::optional<SocketValueVariant> deserialize_bake_item(const DictionaryV
         }
         values[i] = std::move(*value);
       }
-      auto *values_ptr = new ImplicitSharedValue<Vector<SocketValueVariant>>(std::move(values));
-      nodes::GList::ArrayData array_data;
-      array_data.data = values_ptr->data.data();
-      array_data.sharing_info = ImplicitSharingPtr<>{values_ptr};
-      return SocketValueVariant::From(nodes::GList::create(
-          CPPType::get<SocketValueVariant>(), std::move(array_data), *num_items));
+      return SocketValueVariant::From(nodes::GList::from_container(values));
     }
     if (const std::optional<eCustomDataType> data_type = get_data_type_from_io_name(
             *io_list_item_type))
@@ -1862,12 +1859,7 @@ static std::optional<SocketValueVariant> deserialize_bake_item(const DictionaryV
         {
           return {};
         }
-        nodes::GList::ArrayData array_data;
-        const auto *sharing_info = new ImplicitSharedValue<GArray<>>(std::move(buffer));
-        array_data.data = const_cast<void *>(sharing_info->data.data());
-        array_data.sharing_info = ImplicitSharingPtr<>(sharing_info);
-        auto list = nodes::GList::create(*cpp_type, std::move(array_data), *num_items);
-        return SocketValueVariant::From(std::move(list));
+        return SocketValueVariant::From(nodes::GList::from_garray(std::move(buffer)));
       }
     }
   }

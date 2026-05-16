@@ -34,6 +34,10 @@
 
 namespace blender::bke::bake {
 
+/**
+ * Anonymous attributes are renamed before they are written to the bake. This simplifies the names
+ * written to the bake and ensures that anonymous attributes are always handled explicitly.
+ */
 static constexpr StringRef anonymous_bake_attribute_prefix = ".bake_";
 
 static std::unique_ptr<BakeMaterialsList> materials_to_weak_references(
@@ -85,6 +89,9 @@ static void restore_materials(Material ***materials,
   }
 }
 
+/**
+ * Utility class to recursively convert run-time data to bake data.
+ */
 class RuntimeToBakeValue {
  private:
   MutableSpan<BakeValues::InputValue> root_values_;
@@ -99,7 +106,7 @@ class RuntimeToBakeValue {
   {
   }
 
-  void prepare()
+  void convert()
   {
     for (BakeValues::InputValue &input_value : root_values_) {
       input_value.value.ensure_owns_direct_data();
@@ -110,17 +117,18 @@ class RuntimeToBakeValue {
     /* As a pre-pass, gather all directly referenced anonymous attributes, because those will be
      * kept on the geometries. */
     for (const BakeValues::InputValue &input_value : root_values_) {
-      this->gather(input_value);
+      this->scan(input_value);
     }
 
     /* Now process all data to be stored in a bake. This involves removing data that can't be
      * baked. */
     for (BakeValues::InputValue &input_value : root_values_) {
-      this->prepare_for_bake(input_value);
+      this->runtime_to_bake__SocketValueVariant(input_value.value);
     }
   }
 
  private:
+  /** Evaluate fields on the preciding geometry if necessary. */
   void top_level_fields_to_attributes()
   {
     GeometrySet *prev_geo = nullptr;
@@ -165,104 +173,99 @@ class RuntimeToBakeValue {
     }
   }
 
-  void gather(const BakeValues::InputValue &input_value)
+  void scan(const BakeValues::InputValue &input_value)
   {
-    this->gather__SocketValueVariant(input_value.value);
+    this->scan__SocketValueVariant(input_value.value);
   }
 
-  void gather__SocketValueVariant(const SocketValueVariant &value_variant)
+  void scan__SocketValueVariant(const SocketValueVariant &value_variant)
   {
     if (value_variant.is_context_dependent_field()) {
       const fn::GField field = value_variant.get<fn::GField>();
       if (const auto *attribute_field = field.get_input_if<AttributeFieldInput>()) {
         const StringRef attribute_name = attribute_field->attribute_name();
         if (attribute_name_is_anonymous(attribute_name)) {
-          this->handle_anonymous_attribute_reference(attribute_name);
+          referenced_anonymous_attributes_.lookup_or_add_cb_as(
+              attribute_name, [&]() { return this->get_next_bake_attribute_name(); });
         }
       }
       return;
     }
     if (value_variant.is_single()) {
       const GPointer value_ptr = value_variant.get_single_ptr();
-      this->gather__GPointer(value_ptr);
+      this->scan__GPointer(value_ptr);
       return;
     }
     if (value_variant.is_list()) {
       const nodes::GListPtr list_ptr = value_variant.get<nodes::GListPtr>();
       if (list_ptr) {
-        this->gather__List(*list_ptr);
+        this->scan__List(*list_ptr);
       }
     }
   }
 
-  void gather__List(const nodes::GList &list)
+  void scan__List(const nodes::GList &list)
   {
     const CPPType &list_cpp_type = list.cpp_type();
     if (list_cpp_type.is<SocketValueVariant>()) {
       list.typed<SocketValueVariant>().foreach([&](const SocketValueVariant &value_variant) {
-        this->gather__SocketValueVariant(value_variant);
+        this->scan__SocketValueVariant(value_variant);
       });
     }
     else if (list_cpp_type.is<GeometrySet>()) {
       list.typed<GeometrySet>().foreach(
-          [&](const GeometrySet &geometry) { this->gather__GeometrySet(geometry); });
+          [&](const GeometrySet &geometry) { this->scan__GeometrySet(geometry); });
     }
     else if (list_cpp_type.is<nodes::BundlePtr>()) {
       list.typed<nodes::BundlePtr>().foreach([&](const nodes::BundlePtr &bundle_ptr) {
         if (bundle_ptr) {
-          this->gather__Bundle(*bundle_ptr);
+          this->scan__Bundle(*bundle_ptr);
         }
       });
     }
   }
 
-  void gather__GPointer(const GPointer &value_ptr)
+  void scan__GPointer(const GPointer &value_ptr)
   {
     const CPPType &type = *value_ptr.type();
     if (type.is<GeometrySet>()) {
       const GeometrySet &geometry = *value_ptr.get<GeometrySet>();
-      this->gather__GeometrySet(geometry);
+      this->scan__GeometrySet(geometry);
       return;
     }
     if (type.is<nodes::BundlePtr>()) {
       const nodes::BundlePtr &bundle_ptr = *value_ptr.get<nodes::BundlePtr>();
       if (bundle_ptr) {
-        this->gather__Bundle(*bundle_ptr);
+        this->scan__Bundle(*bundle_ptr);
       }
       return;
     }
   }
 
-  void gather__GeometrySet(const GeometrySet &geometry)
+  void scan__GeometrySet(const GeometrySet &geometry)
   {
     if (geometry.has_bundle()) {
       const nodes::Bundle &bundle = *geometry.bundle();
-      this->gather__Bundle(bundle);
+      this->scan__Bundle(bundle);
     }
     if (geometry.has_instances()) {
       const Instances &instances = *geometry.get_instances();
       for (const bke::InstanceReference &reference : instances.references()) {
         GeometrySet geometry;
         reference.to_geometry_set(geometry);
-        this->gather__GeometrySet(geometry);
+        this->scan__GeometrySet(geometry);
       }
     }
   }
 
-  void gather__Bundle(const nodes::Bundle &bundle)
+  void scan__Bundle(const nodes::Bundle &bundle)
   {
     for (const auto &item : bundle.items()) {
       if (const auto *socket_value = std::get_if<nodes::BundleItemSocketValue>(&item.value.value))
       {
-        this->gather__SocketValueVariant(socket_value->value);
+        this->scan__SocketValueVariant(socket_value->value);
       }
     }
-  }
-
-  void handle_anonymous_attribute_reference(const StringRef attribute_name)
-  {
-    referenced_anonymous_attributes_.lookup_or_add_cb_as(
-        attribute_name, [&]() { return this->get_next_bake_attribute_name(); });
   }
 
   std::string get_next_bake_attribute_name()
@@ -270,12 +273,7 @@ class RuntimeToBakeValue {
     return fmt::format("{}{}", anonymous_bake_attribute_prefix, attribute_field_count_++);
   }
 
-  void prepare_for_bake(BakeValues::InputValue &input_value)
-  {
-    this->prepare_for_bake__SocketValueVariant(input_value.value);
-  }
-
-  void prepare_for_bake__SocketValueVariant(SocketValueVariant &value_variant)
+  void runtime_to_bake__SocketValueVariant(SocketValueVariant &value_variant)
   {
     if (value_variant.is_context_dependent_field()) {
       const fn::GField field = value_variant.get<fn::GField>();
@@ -294,34 +292,34 @@ class RuntimeToBakeValue {
     }
     if (value_variant.is_single()) {
       GMutablePointer value_ptr = value_variant.get_single_ptr();
-      this->prepare_for_bake__GMutablePointer(value_ptr);
+      this->runtime_to_bake__GMutablePointer(value_ptr);
       return;
     }
     if (value_variant.is_list()) {
       nodes::GListPtr list_ptr = value_variant.extract<nodes::GListPtr>();
       if (list_ptr) {
         nodes::GList &list = list_ptr.get_for_write();
-        this->prepare_for_bake__List(list);
+        this->runtime_to_bake__List(list);
       }
       value_variant.set(std::move(list_ptr));
     }
   }
 
-  void prepare_for_bake__List(nodes::GList &list)
+  void runtime_to_bake__List(nodes::GList &list)
   {
     const CPPType &list_cpp_type = list.cpp_type();
     if (list_cpp_type.is<SocketValueVariant>()) {
       list.typed<SocketValueVariant>().foreach_for_write([&](SocketValueVariant &value_variant) {
-        this->prepare_for_bake__SocketValueVariant(value_variant);
+        this->runtime_to_bake__SocketValueVariant(value_variant);
       });
     }
     else if (list_cpp_type.is<GeometrySet>()) {
       list.typed<GeometrySet>().foreach_for_write(
-          [&](GeometrySet &geometry) { this->prepare_for_bake__GeometrySet(geometry); });
+          [&](GeometrySet &geometry) { this->runtime_to_bake__GeometrySet(geometry); });
     }
     else if (list_cpp_type.is<nodes::BundlePtr>()) {
       list.typed<nodes::BundlePtr>().foreach_for_write([&](nodes::BundlePtr &bundle_ptr) {
-        this->prepare_for_bake__Bundle(bundle_ptr.ensure_mutable_inplace());
+        this->runtime_to_bake__Bundle(bundle_ptr.ensure_mutable_inplace());
       });
     }
     else if (list_cpp_type.is<nodes::ClosurePtr>()) {
@@ -330,18 +328,18 @@ class RuntimeToBakeValue {
     }
   }
 
-  void prepare_for_bake__GMutablePointer(GMutablePointer value_ptr)
+  void runtime_to_bake__GMutablePointer(GMutablePointer value_ptr)
   {
     const CPPType &type = *value_ptr.type();
     if (type.is<GeometrySet>()) {
       GeometrySet &geometry = *value_ptr.get<GeometrySet>();
-      this->prepare_for_bake__GeometrySet(geometry);
+      this->runtime_to_bake__GeometrySet(geometry);
     }
     if (type.is<nodes::BundlePtr>()) {
       nodes::BundlePtr &bundle_ptr = *value_ptr.get<nodes::BundlePtr>();
       if (bundle_ptr) {
         nodes::Bundle &bundle = bundle_ptr.ensure_mutable_inplace();
-        this->prepare_for_bake__Bundle(bundle);
+        this->runtime_to_bake__Bundle(bundle);
       }
     }
     if (type.is<nodes::ClosurePtr>()) {
@@ -350,50 +348,50 @@ class RuntimeToBakeValue {
     }
   }
 
-  void prepare_for_bake__GeometrySet(GeometrySet &geometry)
+  void runtime_to_bake__GeometrySet(GeometrySet &geometry)
   {
     geometry.ensure_owns_all_data();
     if (geometry.has_bundle()) {
       nodes::BundlePtr &bundle_ptr = geometry.bundle_ptr();
       nodes::Bundle &bundle = bundle_ptr.ensure_mutable_inplace();
-      this->prepare_for_bake__Bundle(bundle);
+      this->runtime_to_bake__Bundle(bundle);
     }
     if (geometry.has_instances()) {
       Instances &instances = *geometry.get_instances_for_write();
       instances.ensure_geometry_instances();
-      this->prepare_for_bake__AttributeStorage(instances.attribute_storage());
+      this->runtime_to_bake__AttributeStorage(instances.attribute_storage());
       for (bke::InstanceReference &reference : instances.references_for_write()) {
         GeometrySet &geometry = reference.geometry_set();
-        this->prepare_for_bake__GeometrySet(geometry);
+        this->runtime_to_bake__GeometrySet(geometry);
       }
     }
     if (geometry.has_mesh()) {
       Mesh &mesh = *geometry.get_mesh_for_write();
-      this->prepare_for_bake__AttributeStorage(mesh.attribute_storage.wrap());
+      this->runtime_to_bake__AttributeStorage(mesh.attribute_storage.wrap());
       mesh.runtime->bake_materials = materials_to_weak_references(
           &mesh.mat, &mesh.totcol, data_block_map_);
     }
     if (geometry.has_curves()) {
       Curves &curves = *geometry.get_curves_for_write();
-      this->prepare_for_bake__AttributeStorage(curves.geometry.attribute_storage.wrap());
+      this->runtime_to_bake__AttributeStorage(curves.geometry.attribute_storage.wrap());
       curves.geometry.runtime->bake_materials = materials_to_weak_references(
           &curves.mat, &curves.totcol, data_block_map_);
     }
     if (geometry.has_pointcloud()) {
       PointCloud &pointcloud = *geometry.get_pointcloud_for_write();
-      this->prepare_for_bake__AttributeStorage(pointcloud.attribute_storage.wrap());
+      this->runtime_to_bake__AttributeStorage(pointcloud.attribute_storage.wrap());
       pointcloud.runtime->bake_materials = materials_to_weak_references(
           &pointcloud.mat, &pointcloud.totcol, data_block_map_);
     }
     if (geometry.has_grease_pencil()) {
       GreasePencil &grease_pencil = *geometry.get_grease_pencil_for_write();
-      this->prepare_for_bake__AttributeStorage(grease_pencil.attribute_storage.wrap());
+      this->runtime_to_bake__AttributeStorage(grease_pencil.attribute_storage.wrap());
       for (GreasePencilDrawingBase *base : grease_pencil.drawings()) {
         if (base->type != GP_DRAWING) {
           continue;
         }
         greasepencil::Drawing &drawing = reinterpret_cast<GreasePencilDrawing *>(base)->wrap();
-        this->prepare_for_bake__AttributeStorage(
+        this->runtime_to_bake__AttributeStorage(
             drawing.strokes_for_write().attribute_storage.wrap());
       }
       grease_pencil.runtime->bake_materials = materials_to_weak_references(
@@ -406,7 +404,7 @@ class RuntimeToBakeValue {
     }
   }
 
-  void prepare_for_bake__AttributeStorage(AttributeStorage &attributes)
+  void runtime_to_bake__AttributeStorage(AttributeStorage &attributes)
   {
     Vector<std::string> attributes_to_remove;
     Vector<std::pair<std::string, std::string>> attributes_to_rename;
@@ -432,21 +430,28 @@ class RuntimeToBakeValue {
     }
   }
 
-  void prepare_for_bake__Bundle(nodes::Bundle &bundle)
+  void runtime_to_bake__Bundle(nodes::Bundle &bundle)
   {
     for (const auto &item : bundle.items()) {
       if (auto *socket_value = std::get_if<nodes::BundleItemSocketValue>(&item.value.value)) {
-        this->prepare_for_bake__SocketValueVariant(socket_value->value);
+        this->runtime_to_bake__SocketValueVariant(socket_value->value);
       }
     }
   }
 };
 
+/**
+ * Utility class to recursively convert bake data to run-time data.
+ */
 class BakeToRuntimeValue {
  private:
+  /** Used to make newly created anonymous attributes unique. */
   std::string anonymous_attribute_name_mixin_;
-  Map<std::string, std::string> used_anonymous_attributes_;
+  /** Stores how bake attributes are renamed to anonymous attributes again. */
+  Map<std::string, std::string> runtime_name_by_bake_attribute_;
+  /** The types of every bake attributes to create a proper new field for them. */
   Map<std::string, const CPPType *> attribute_field_types_;
+  /** Provided by the caller to restore data-block references if possible. */
   BakeDataBlockMap *data_block_map_ = nullptr;
 
  public:
@@ -732,7 +737,7 @@ class BakeToRuntimeValue {
 
   std::string get_anonymous_attribute_name(const StringRef bake_attribute_name)
   {
-    return used_anonymous_attributes_.lookup_or_add_cb(bake_attribute_name, [&]() {
+    return runtime_name_by_bake_attribute_.lookup_or_add_cb(bake_attribute_name, [&]() {
       return hash_to_anonymous_attribute_name(anonymous_attribute_name_mixin_,
                                               bake_attribute_name);
     });
@@ -743,7 +748,7 @@ BakeValues BakeValues::from_runtime_values(Vector<InputValue> runtime_values,
                                            BakeDataBlockMap *data_block_map)
 {
   RuntimeToBakeValue preparation{runtime_values, data_block_map};
-  preparation.prepare();
+  preparation.convert();
 
   BakeValues bake_values;
   for (InputValue &input_value : runtime_values) {
