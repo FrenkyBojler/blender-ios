@@ -1695,7 +1695,7 @@ static void serialize_bake_item(const BakeValues::Item &item,
                                 DictionaryValue &r_io_item)
 {
   if (item.name.has_value()) {
-    r_io_item.append_str("name", *item.name);
+    r_io_item.append_str("value_name", *item.name);
   }
   serialize_socket_value_variant(item.value, blob_writer, blob_sharing, r_io_item);
 }
@@ -1704,7 +1704,6 @@ static std::optional<SocketValueVariant> deserialize_bake_item(const DictionaryV
                                                                const BlobReader &blob_reader,
                                                                const BlobReadSharing &blob_sharing)
 {
-
   const std::optional<StringRefNull> state_item_type = io_item.lookup_str("type");
   if (!state_item_type) {
     return {};
@@ -1722,7 +1721,7 @@ static std::optional<SocketValueVariant> deserialize_bake_item(const DictionaryV
     if (!io_attribute) {
       return {};
     }
-    std::optional<StringRefNull> name = io_attribute->lookup_str("attribute_name");
+    std::optional<StringRefNull> name = io_attribute->lookup_str("name");
     if (!name) {
       return {};
     }
@@ -1896,7 +1895,7 @@ static std::optional<SocketValueVariant> deserialize_bake_item(const DictionaryV
   return {};
 }
 
-static constexpr int bake_file_version = 4;
+static constexpr int bake_file_version = 3;
 
 void serialize_bake(const BakeValues &bake_values,
                     BlobWriter &blob_writer,

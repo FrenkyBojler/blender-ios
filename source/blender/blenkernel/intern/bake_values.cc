@@ -766,23 +766,22 @@ Vector<SocketValueVariant> BakeValues::to_runtime_values(const Span<OutputKey> k
   }
   for (const int i : keys.index_range()) {
     const OutputKey &key = keys[i];
+    bke::bNodeSocketType *stype = node_socket_type_find_static(key.type);
+    if (!stype || !stype->geometry_nodes_default_value) {
+      continue;
+    }
     SocketValueVariant &output_value = output_values[i];
     const Item *item = values_by_id_.lookup_ptr(key.id);
-    if (!item || !item->value.valid_for_socket(key.type)) {
-      bke::bNodeSocketType *stype = node_socket_type_find_static(key.type);
-      if (!stype) {
-        continue;
-      }
-      if (!stype->geometry_nodes_default_value) {
-        continue;
-      }
+    if (!item) {
       output_value = *stype->geometry_nodes_default_value;
       continue;
     }
-
     output_value = item->value;
-
     bake_to_runtime_op.bake_to_runtime(output_value, item->name.value_or(""));
+    if (!output_value.valid_for_socket(key.type)) {
+      output_value = *stype->geometry_nodes_default_value;
+      continue;
+    }
   }
   return output_values;
 }
