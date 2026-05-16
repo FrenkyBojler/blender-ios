@@ -705,8 +705,13 @@ static SlotAllocator add_pipeline_create_info(gpu::shader::ShaderCreateInfo &inf
     case MAT_GEOM_WORLD:
       switch (pipeline_type) {
         case MAT_PIPE_VOLUME_MATERIAL:
-          pipeline_info_name = "eevee_surf_volume";
+          pipeline_info_name = "eevee_surf_volume_infos_";
           info.name_ += "_world_volume";
+          info.define("MAT_VOLUME");
+          /* Until every vertex shader are ported, we need to bridge the gap here by defining the
+           * pipeline. */
+          info.fragment_source("eevee_surf_volume.bsl.hh");
+          info.fragment_function("eevee_surf_volume");
           break;
         default:
           pipeline_info_name = "eevee_surf_world_infos_";
@@ -774,12 +779,22 @@ static SlotAllocator add_pipeline_create_info(gpu::shader::ShaderCreateInfo &inf
           info.additional_info("eevee_shadow_iface_info");
           break;
         case MAT_PIPE_VOLUME_OCCUPANCY:
-          pipeline_info_name = "eevee_surf_occupancy";
+          pipeline_info_name = "eevee_surf_occupancy_infos_";
           info.name_ += "_occupancy";
+          info.define("MAT_OCCUPANCY");
+          /* Until every vertex shader are ported, we need to bridge the gap here by defining the
+           * pipeline. */
+          info.fragment_source("eevee_surf_occupancy.bsl.hh");
+          info.fragment_function("eevee_surf_occupancy");
           break;
         case MAT_PIPE_VOLUME_MATERIAL:
-          pipeline_info_name = "eevee_surf_volume";
+          pipeline_info_name = "eevee_surf_volume_infos_";
           info.name_ += "_volume";
+          info.define("MAT_VOLUME");
+          /* Until every vertex shader are ported, we need to bridge the gap here by defining the
+           * pipeline. */
+          info.fragment_source("eevee_surf_volume.bsl.hh");
+          info.fragment_function("eevee_surf_volume");
           break;
         case MAT_PIPE_CAPTURE:
           pipeline_info_name = "eevee_surf_capture_infos_";

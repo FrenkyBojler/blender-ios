@@ -12,7 +12,6 @@
 #  include "draw_view_infos.hh"
 
 #  include "eevee_geom_infos.hh"
-#  include "eevee_surf_volume_infos.hh"
 #endif
 
 #ifdef GLSL_CPP_STUBS
@@ -67,16 +66,16 @@ GPU_SHADER_CREATE_END()
 // CREATE_INFO_VARIANT(eevee_surface_capture_mesh, eevee_geom_mesh, eevee_surf_capture, eevee_material_stub)
 // CREATE_INFO_VARIANT(eevee_surface_capture_pointcloud, eevee_geom_pointcloud, eevee_surf_capture, eevee_material_stub)
 // CREATE_INFO_VARIANT(eevee_surface_capture_volume, eevee_geom_volume, eevee_surf_capture, eevee_material_stub)
-CREATE_INFO_VARIANT(eevee_surface_volume_world, eevee_geom_world, eevee_surf_volume, eevee_material_stub)
-CREATE_INFO_VARIANT(eevee_surface_volume_curves, eevee_geom_curves, eevee_surf_volume, eevee_material_stub)
-CREATE_INFO_VARIANT(eevee_surface_volume_mesh, eevee_geom_mesh, eevee_surf_volume, eevee_material_stub)
-CREATE_INFO_VARIANT(eevee_surface_volume_pointcloud, eevee_geom_pointcloud, eevee_surf_volume, eevee_material_stub)
-CREATE_INFO_VARIANT(eevee_surface_volume_volume, eevee_geom_volume, eevee_surf_volume, eevee_material_stub)
-CREATE_INFO_VARIANT(eevee_surface_occupancy_world, eevee_geom_world, eevee_surf_occupancy, eevee_material_stub)
-CREATE_INFO_VARIANT(eevee_surface_occupancy_curves, eevee_geom_curves, eevee_surf_occupancy, eevee_material_stub)
-CREATE_INFO_VARIANT(eevee_surface_occupancy_mesh, eevee_geom_mesh, eevee_surf_occupancy, eevee_material_stub)
-CREATE_INFO_VARIANT(eevee_surface_occupancy_pointcloud, eevee_geom_pointcloud, eevee_surf_occupancy, eevee_material_stub)
-CREATE_INFO_VARIANT(eevee_surface_occupancy_volume, eevee_geom_volume, eevee_surf_occupancy, eevee_material_stub)
+// CREATE_INFO_VARIANT(eevee_surface_volume_world, eevee_geom_world, eevee_surf_volume, eevee_material_stub)
+// CREATE_INFO_VARIANT(eevee_surface_volume_curves, eevee_geom_curves, eevee_surf_volume, eevee_material_stub)
+// CREATE_INFO_VARIANT(eevee_surface_volume_mesh, eevee_geom_mesh, eevee_surf_volume, eevee_material_stub)
+// CREATE_INFO_VARIANT(eevee_surface_volume_pointcloud, eevee_geom_pointcloud, eevee_surf_volume, eevee_material_stub)
+// CREATE_INFO_VARIANT(eevee_surface_volume_volume, eevee_geom_volume, eevee_surf_volume, eevee_material_stub)
+// CREATE_INFO_VARIANT(eevee_surface_occupancy_world, eevee_geom_world, eevee_surf_occupancy, eevee_material_stub)
+// CREATE_INFO_VARIANT(eevee_surface_occupancy_curves, eevee_geom_curves, eevee_surf_occupancy, eevee_material_stub)
+// CREATE_INFO_VARIANT(eevee_surface_occupancy_mesh, eevee_geom_mesh, eevee_surf_occupancy, eevee_material_stub)
+// CREATE_INFO_VARIANT(eevee_surface_occupancy_pointcloud, eevee_geom_pointcloud, eevee_surf_occupancy, eevee_material_stub)
+// CREATE_INFO_VARIANT(eevee_surface_occupancy_volume, eevee_geom_volume, eevee_surf_occupancy, eevee_material_stub)
 // CREATE_INFO_VARIANT(eevee_surface_shadow_atomic_world, eevee_geom_world, eevee_surf_shadow_atomic, eevee_material_stub)
 // CREATE_INFO_VARIANT(eevee_surface_shadow_atomic_curves, eevee_geom_curves, eevee_surf_shadow_atomic, eevee_material_stub)
 // CREATE_INFO_VARIANT(eevee_surface_shadow_atomic_mesh, eevee_geom_mesh, eevee_surf_shadow_atomic, eevee_material_stub)
