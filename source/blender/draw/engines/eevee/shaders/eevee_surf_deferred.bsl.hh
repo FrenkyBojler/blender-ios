@@ -42,9 +42,9 @@ float4 closure_to_rgba(Closure /*cl*/)
 namespace eevee {
 
 struct SurfaceDeferred {
-  /* Added at runtime because of test shaders not having `node_tree`. */
-  // [[legacy_info]] ShaderCreateInfo eevee_render_pass_out;
-  // [[legacy_info]] ShaderCreateInfo eevee_cryptomatte_out;
+  [[legacy_info]] ShaderCreateInfo eevee_render_pass_out;
+  [[legacy_info]] ShaderCreateInfo eevee_cryptomatte_out;
+
   [[legacy_info]] ShaderCreateInfo eevee_global_ubo;
   [[legacy_info]] ShaderCreateInfo eevee_utility_texture;
   [[legacy_info]] ShaderCreateInfo eevee_sampling_data;
@@ -141,7 +141,6 @@ void surf_deferred([[resource_table]] SurfaceDeferred &srt,
 
   /* ----- Render Passes output ----- */
 
-#ifdef MAT_RENDER_PASS_SUPPORT /* Needed because node_tree isn't present in test shaders. */
   /* Some render pass can be written during the gbuffer pass. Light passes are written later. */
   if (imageSize(rp_cryptomatte_img).x > 1) {
     float4 cryptomatte_output = float4(
@@ -149,7 +148,6 @@ void surf_deferred([[resource_table]] SurfaceDeferred &srt,
     imageStoreFast(rp_cryptomatte_img, out_texel, cryptomatte_output);
   }
   output_renderpass_color(uniform_buf.render_pass.emission_id, float4(g_emission, 1.0f));
-#endif
 
   /* ----- GBuffer output ----- */
 

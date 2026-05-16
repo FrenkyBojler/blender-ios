@@ -140,7 +140,7 @@ struct SurfVolume {
 };
 
 /* Note: Only the front fragments have to be invoked. */
-[[fragment]] [[early_fragment_tests]]
+[[fragment]] [[early_fragment_tests]] [[texture_atomic]]
 void surf_volume([[resource_table]] SurfVolume &srt,
                  [[frag_coord]] const float4 frag_co,
                  [[front_facing]] const bool /*front_face*/ /* Needed for nodes. */)

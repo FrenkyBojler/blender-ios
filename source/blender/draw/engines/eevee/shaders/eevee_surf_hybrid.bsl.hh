@@ -62,9 +62,9 @@ float4 closure_to_rgba_hybrid(Closure /*cl*/)
 namespace eevee {
 
 struct SurfaceHybrid {
-  /* Added at runtime because of test shaders not having `node_tree`. */
-  // [[legacy_info]] ShaderCreateInfo eevee_render_pass_out;
-  // [[legacy_info]] ShaderCreateInfo eevee_cryptomatte_out;
+  [[legacy_info]] ShaderCreateInfo eevee_render_pass_out;
+  [[legacy_info]] ShaderCreateInfo eevee_cryptomatte_out;
+
   [[legacy_info]] ShaderCreateInfo eevee_global_ubo;
   [[legacy_info]] ShaderCreateInfo eevee_utility_texture;
   [[legacy_info]] ShaderCreateInfo eevee_sampling_data;

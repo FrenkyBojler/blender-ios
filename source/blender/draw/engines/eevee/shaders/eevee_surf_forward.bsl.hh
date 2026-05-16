@@ -72,8 +72,6 @@ struct SurfaceForward {
   [[legacy_info]] ShaderCreateInfo draw_view_culling;
 
   /* Optionally added depending on the material. */
-  // [[legacy_info]] ShaderCreateInfo eevee_render_pass_out;
-  // [[legacy_info]] ShaderCreateInfo eevee_cryptomatte_out;
   // [[legacy_info]] ShaderCreateInfo eevee_hiz_prev_data;
   // [[legacy_info]] ShaderCreateInfo eevee_previous_layer_radiance;
 };
