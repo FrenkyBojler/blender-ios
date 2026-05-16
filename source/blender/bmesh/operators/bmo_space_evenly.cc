@@ -332,7 +332,7 @@ static float3 evaluate_cubic(Span<float> tknots,
                 cz.a + dt * (cz.b + dt * (cz.c + dt * cz.d)));
 }
 
-void bmo_space_evenly_exec(BMesh *bm, BMOperator *op)
+void bmo_space_edge_loops_evenly_exec(BMesh *bm, BMOperator *op)
 {
   const float influence = BMO_slot_float_get(op->slots_in, "factor");
   const SpaceInterpolationMethod interpolation = static_cast<SpaceInterpolationMethod>(

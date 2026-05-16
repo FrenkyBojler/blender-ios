@@ -2826,7 +2826,7 @@ static BMOpDefine bmo_convex_hull_def = {
  * Space the vertices in a regular distribution on the loop.
  */
 static BMOpDefine bmo_space_def = {
-    /*opname*/ "space_evenly",
+    /*opname*/ "space_edge_loops_evenly",
     /*slot_types_in*/
     {
         /* Input geometry. */
@@ -2846,7 +2846,7 @@ static BMOpDefine bmo_space_def = {
     /*slot_types_out*/
     {{{'\0'}}},
     /*init*/ nullptr,
-    /*exec*/ bmo_space_evenly_exec,
+    /*exec*/ bmo_space_edge_loops_evenly_exec,
     /*type_flag*/
     (BMO_OPTYPE_FLAG_NORMALS_CALC),
 };

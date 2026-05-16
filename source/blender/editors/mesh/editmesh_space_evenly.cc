@@ -34,7 +34,7 @@ static const EnumPropertyItem prop_interpolation_items[] = {
     {0, nullptr},
 };
 
-static wmOperatorStatus edbm_space_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus edbm_space_edge_loops_evenly_exec(bContext *C, wmOperator *op)
 {
   const Main *bmain = CTX_data_main(C);
   const Scene *scene = CTX_data_scene(C);
@@ -55,7 +55,7 @@ static wmOperatorStatus edbm_space_exec(bContext *C, wmOperator *op)
     }
     if (!EDBM_op_callf(em,
                        op,
-                       "space_evenly geom=%hvef interpolation=%i factor=%f "
+                       "space_edge_loops_evenly geom=%hvef interpolation=%i factor=%f "
                        "lock_x=%b lock_y=%b lock_z=%b",
                        BM_ELEM_SELECT,
                        interpolation,
@@ -91,15 +91,15 @@ static void edbm_space_ui(bContext * /*C*/, wmOperator *op)
   lock_row.prop(op->ptr, lock_prop, 2, 0, ui::ITEM_R_TOGGLE, "Z", ICON_NONE);
 }
 
-void MESH_OT_space_evenly(wmOperatorType *ot)
+void MESH_OT_space_edge_loops_evenly(wmOperatorType *ot)
 {
   /* identifiers */
-  ot->name = "Space Evenly";
+  ot->name = "Space Edge loops Evenly";
   ot->description = "Space the vertices in a regular distribution on the loop";
-  ot->idname = "MESH_OT_space_evenly";
+  ot->idname = "MESH_OT_space_edge_loops_evenly";
 
   /* API callbacks */
-  ot->exec = edbm_space_exec;
+  ot->exec = edbm_space_edge_loops_evenly_exec;
   ot->poll = ED_operator_editmesh;
 
   /* flags */
