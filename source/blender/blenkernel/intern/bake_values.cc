@@ -94,14 +94,13 @@ static void restore_materials(Material ***materials,
  */
 class RuntimeToBakeValue {
  private:
-  MutableSpan<BakeValues::InputValue> root_values_;
+  Vector<BakeValues::InputValue> &root_values_;
   Map<std::string, std::string> referenced_anonymous_attributes_;
   int attribute_field_count_ = 0;
   BakeDataBlockMap *data_block_map_ = nullptr;
 
  public:
-  RuntimeToBakeValue(MutableSpan<BakeValues::InputValue> root_values,
-                     BakeDataBlockMap *data_block_map)
+  RuntimeToBakeValue(Vector<BakeValues::InputValue> &root_values, BakeDataBlockMap *data_block_map)
       : root_values_(root_values), data_block_map_(data_block_map)
   {
   }
@@ -122,8 +121,15 @@ class RuntimeToBakeValue {
 
     /* Now process all data to be stored in a bake. This involves removing data that can't be
      * baked. */
-    for (BakeValues::InputValue &input_value : root_values_) {
-      this->runtime_to_bake__SocketValueVariant(input_value.value);
+    Vector<int> inputs_to_remove;
+    for (const int i : root_values_.index_range()) {
+      if (!this->runtime_to_bake__SocketValueVariant(root_values_[i].value)) {
+        inputs_to_remove.append(i);
+      }
+    }
+    /* Remove invalid values. */
+    for (int i = inputs_to_remove.size() - 1; i >= 0; i--) {
+      root_values_.remove_and_reorder(inputs_to_remove[i]);
     }
   }
 
@@ -273,7 +279,7 @@ class RuntimeToBakeValue {
     return fmt::format("{}{}", anonymous_bake_attribute_prefix, attribute_field_count_++);
   }
 
-  void runtime_to_bake__SocketValueVariant(SocketValueVariant &value_variant)
+  [[nodiscard]] bool runtime_to_bake__SocketValueVariant(SocketValueVariant &value_variant)
   {
     if (value_variant.is_context_dependent_field()) {
       const fn::GField field = value_variant.get<fn::GField>();
@@ -288,52 +294,65 @@ class RuntimeToBakeValue {
         /* Only attribute fields can be baked. Other fields are discarded. */
         value_variant.convert_to_single();
       }
-      return;
+      return true;
     }
     if (value_variant.is_single()) {
       GMutablePointer value_ptr = value_variant.get_single_ptr();
-      this->runtime_to_bake__GMutablePointer(value_ptr);
-      return;
+      return this->runtime_to_bake__GMutablePointer(value_ptr);
     }
     if (value_variant.is_list()) {
       nodes::GListPtr list_ptr = value_variant.extract<nodes::GListPtr>();
       if (list_ptr) {
         nodes::GList &list = list_ptr.get_for_write();
-        this->runtime_to_bake__List(list);
+        if (!this->runtime_to_bake__List(list)) {
+          return false;
+        }
       }
       value_variant.set(std::move(list_ptr));
+      return true;
     }
+    if (value_variant.is_volume_grid()) {
+      return true;
+    }
+    return false;
   }
 
-  void runtime_to_bake__List(nodes::GList &list)
+  [[nodiscard]] bool runtime_to_bake__List(nodes::GList &list)
   {
     const CPPType &list_cpp_type = list.cpp_type();
     if (list_cpp_type.is<SocketValueVariant>()) {
+      bool found_invalid = true;
       list.typed<SocketValueVariant>().foreach_for_write([&](SocketValueVariant &value_variant) {
-        this->runtime_to_bake__SocketValueVariant(value_variant);
+        if (!this->runtime_to_bake__SocketValueVariant(value_variant)) {
+          found_invalid = true;
+        }
       });
+      return !found_invalid;
     }
-    else if (list_cpp_type.is<GeometrySet>()) {
+    if (list_cpp_type.is<GeometrySet>()) {
       list.typed<GeometrySet>().foreach_for_write(
           [&](GeometrySet &geometry) { this->runtime_to_bake__GeometrySet(geometry); });
+      return true;
     }
-    else if (list_cpp_type.is<nodes::BundlePtr>()) {
+    if (list_cpp_type.is<nodes::BundlePtr>()) {
       list.typed<nodes::BundlePtr>().foreach_for_write([&](nodes::BundlePtr &bundle_ptr) {
         this->runtime_to_bake__Bundle(bundle_ptr.ensure_mutable_inplace());
       });
+      return true;
     }
-    else if (list_cpp_type.is<nodes::ClosurePtr>()) {
-      list.typed<nodes::ClosurePtr>().foreach_for_write(
-          [&](nodes::ClosurePtr &closure_ptr) { closure_ptr.reset(); });
+    if (this->is_bakeable_single_value_type(list_cpp_type)) {
+      return true;
     }
+    return false;
   }
 
-  void runtime_to_bake__GMutablePointer(GMutablePointer value_ptr)
+  [[nodiscard]] bool runtime_to_bake__GMutablePointer(GMutablePointer value_ptr)
   {
     const CPPType &type = *value_ptr.type();
     if (type.is<GeometrySet>()) {
       GeometrySet &geometry = *value_ptr.get<GeometrySet>();
       this->runtime_to_bake__GeometrySet(geometry);
+      return true;
     }
     if (type.is<nodes::BundlePtr>()) {
       nodes::BundlePtr &bundle_ptr = *value_ptr.get<nodes::BundlePtr>();
@@ -341,11 +360,12 @@ class RuntimeToBakeValue {
         nodes::Bundle &bundle = bundle_ptr.ensure_mutable_inplace();
         this->runtime_to_bake__Bundle(bundle);
       }
+      return true;
     }
-    if (type.is<nodes::ClosurePtr>()) {
-      nodes::ClosurePtr &closure_ptr = *value_ptr.get<nodes::ClosurePtr>();
-      closure_ptr.reset();
+    if (this->is_bakeable_single_value_type(type)) {
+      return true;
     }
+    return false;
   }
 
   void runtime_to_bake__GeometrySet(GeometrySet &geometry)
@@ -432,11 +452,23 @@ class RuntimeToBakeValue {
 
   void runtime_to_bake__Bundle(nodes::Bundle &bundle)
   {
+    Vector<UString> values_to_remove;
     for (const auto &item : bundle.items()) {
       if (auto *socket_value = std::get_if<nodes::BundleItemSocketValue>(&item.value.value)) {
-        this->runtime_to_bake__SocketValueVariant(socket_value->value);
+        if (!this->runtime_to_bake__SocketValueVariant(socket_value->value)) {
+          values_to_remove.append(item.key);
+        }
       }
     }
+    for (const UString &value_to_remove : values_to_remove) {
+      bundle.remove(value_to_remove);
+    }
+  }
+
+  bool is_bakeable_single_value_type(const CPPType &type) const
+  {
+    // TODO: Use cpp_type_to_custom_data_type once it returns an optional.
+    return false;
   }
 };
 
