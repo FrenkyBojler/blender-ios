@@ -72,6 +72,9 @@ exclude_patterns = [
     "include__bmesh.rst",
 ]
 
+# To only show the name of the element without any parents (i.e. ``method()``).
+toc_object_entries_show_parents = 'hide'
+
 html_title = "Blender Python API"
 
 # The fallback to a built-in theme when `furo` is not found.
