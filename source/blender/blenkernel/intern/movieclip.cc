@@ -52,10 +52,10 @@
 #include "BKE_node_tree_update.hh"
 #include "BKE_tracking.hh"
 
+#include "IMB_cache.hh"
 #include "IMB_colormanagement.hh"
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
-#include "IMB_moviecache.hh"
 #include "IMB_openexr.hh"
 
 #include "MOV_read.hh"
@@ -186,7 +186,7 @@ static void write_moviePlaneTracks(BlendWriter *writer,
   for (MovieTrackingPlaneTrack &plane_track : *plane_tracks_base) {
     writer->write_struct(&plane_track);
 
-    BLO_write_pointer_array(writer, plane_track.point_tracksnr, plane_track.point_tracks);
+    writer->write_pointer_array(plane_track.point_tracksnr, plane_track.point_tracks);
     writer->write_struct_array(plane_track.markersnr, plane_track.markers);
   }
 }
@@ -224,8 +224,7 @@ static void movieclip_blend_write(BlendWriter *writer, ID *id, const void *id_ad
 static void direct_link_movieReconstruction(BlendDataReader *reader,
                                             MovieTrackingReconstruction *reconstruction)
 {
-  BLO_read_struct_array(
-      reader, MovieReconstructedCamera, reconstruction->camnr, &reconstruction->cameras);
+  BLO_read_array_and_validate_size(reader, &reconstruction->cameras, &reconstruction->camnr);
 }
 
 static void direct_link_movieTracks(BlendDataReader *reader,
@@ -234,7 +233,7 @@ static void direct_link_movieTracks(BlendDataReader *reader,
   BLO_read_struct_list(reader, MovieTrackingTrack, tracksbase);
 
   for (MovieTrackingTrack &track : *tracksbase) {
-    BLO_read_struct_array(reader, MovieTrackingMarker, track.markersnr, &track.markers);
+    BLO_read_array_and_validate_size(reader, &track.markers, &track.markersnr);
   }
 }
 
@@ -244,14 +243,13 @@ static void direct_link_moviePlaneTracks(BlendDataReader *reader,
   BLO_read_struct_list(reader, MovieTrackingPlaneTrack, plane_tracks_base);
 
   for (MovieTrackingPlaneTrack &plane_track : *plane_tracks_base) {
-    BLO_read_pointer_array(
-        reader, plane_track.point_tracksnr, reinterpret_cast<void **>(&plane_track.point_tracks));
+    BLO_read_pointer_array_and_validate_size(
+        reader, &plane_track.point_tracks, &plane_track.point_tracksnr);
     for (int i = 0; i < plane_track.point_tracksnr; i++) {
       BLO_read_struct(reader, MovieTrackingTrack, &plane_track.point_tracks[i]);
     }
 
-    BLO_read_struct_array(
-        reader, MovieTrackingPlaneMarker, plane_track.markersnr, &plane_track.markers);
+    BLO_read_array_and_validate_size(reader, &plane_track.markers, &plane_track.markersnr);
   }
 }
 
@@ -465,8 +463,6 @@ static void get_proxy_filepath(const MovieClip *clip,
   BLI_strncat(filepath, ".jpg", FILE_MAX);
 }
 
-#ifdef WITH_IMAGE_OPENEXR
-
 namespace {
 
 struct MultilayerConvertContext {
@@ -513,14 +509,11 @@ static void movieclip_convert_multilayer_add_pass(void * /*layer*/,
   }
 }
 
-#endif /* WITH_IMAGE_OPENEXR */
-
 void BKE_movieclip_convert_multilayer_ibuf(ImBuf *ibuf)
 {
   if (ibuf == nullptr) {
     return;
   }
-#ifdef WITH_IMAGE_OPENEXR
   if (ibuf->ftype != IMB_FTYPE_OPENEXR || ibuf->exrhandle == nullptr) {
     return;
   }
@@ -533,13 +526,12 @@ void BKE_movieclip_convert_multilayer_ibuf(ImBuf *ibuf)
                              movieclip_convert_multilayer_add_layer,
                              movieclip_convert_multilayer_add_pass);
   if (ctx.combined_pass != nullptr) {
-    BLI_assert(ibuf->float_buffer.data == nullptr);
-    IMB_assign_float_buffer(ibuf, ctx.combined_pass, IB_TAKE_OWNERSHIP);
+    BLI_assert(ibuf->float_data() == nullptr);
+    ibuf->assign_float_data(ctx.combined_pass);
     ibuf->channels = ctx.num_combined_channels;
   }
   IMB_exr_close(ibuf->exrhandle);
   ibuf->exrhandle = nullptr;
-#endif
 }
 
 static ImBuf *movieclip_load_sequence_file(MovieClip *clip,
@@ -549,7 +541,6 @@ static ImBuf *movieclip_load_sequence_file(MovieClip *clip,
 {
   ImBuf *ibuf;
   char filepath[FILE_MAX];
-  int loadflag;
   bool use_proxy = false;
   char *colorspace;
 
@@ -575,7 +566,8 @@ static ImBuf *movieclip_load_sequence_file(MovieClip *clip,
     colorspace = clip->colorspace_settings.name;
   }
 
-  loadflag = IB_byte_data | IB_multilayer | IB_alphamode_detect | IB_metadata;
+  ImBufFlags loadflag = ImBufFlags::ByteData | ImBufFlags::MultiLayer | ImBufFlags::AlphaDetect |
+                        ImBufFlags::Metadata;
 
   /* read ibuf */
   ibuf = IMB_load_image_from_filepath(filepath, loadflag, colorspace);
@@ -593,7 +585,8 @@ static void movieclip_open_anim_file(MovieClip *clip)
     BLI_path_abs(filepath_abs, ID_BLEND_PATH_FROM_GLOBAL(&clip->id));
 
     /* FIXME: make several stream accessible in image editor, too */
-    clip->anim = openanim(filepath_abs, IB_byte_data, 0, false, clip->colorspace_settings.name);
+    clip->anim = openanim(
+        filepath_abs, ImBufFlags::Zero, 0, false, clip->colorspace_settings.name);
 
     if (clip->anim) {
       if (clip->flag & MCLIP_USE_PROXY_CUSTOM_DIR) {
@@ -664,8 +657,8 @@ static void movieclip_calc_length(MovieClip *clip)
 /*********************** image buffer cache *************************/
 
 struct MovieClipCache {
-  /* regular movie cache */
-  MovieCache *moviecache;
+  /* regular imbuf cache */
+  ImBufCache *imbufcache;
 
   /* cached postprocessed shot */
   struct {
@@ -753,7 +746,7 @@ static void moviecache_keydata(void *userkey, int *framenr, int *proxy, int *ren
   *render_flags = key->render_flag;
 }
 
-static uint moviecache_hashhash(const void *keyv)
+static uint movieclip_hashhash(const void *keyv)
 {
   const MovieClipImBufCacheKey *key = static_cast<const MovieClipImBufCacheKey *>(keyv);
   int rval = key->framenr;
@@ -761,7 +754,7 @@ static uint moviecache_hashhash(const void *keyv)
   return rval;
 }
 
-static bool moviecache_hashcmp(const void *av, const void *bv)
+static bool imbufcache_hashcmp(const void *av, const void *bv)
 {
   const MovieClipImBufCacheKey *a = static_cast<const MovieClipImBufCacheKey *>(av);
   const MovieClipImBufCacheKey *b = static_cast<const MovieClipImBufCacheKey *>(bv);
@@ -819,7 +812,7 @@ static ImBuf *get_imbuf_cache(MovieClip *clip, const MovieClipUser *user, int fl
       key.render_flag = 0;
     }
 
-    return IMB_moviecache_get(clip->cache->moviecache, &key, nullptr);
+    return IMB_cache_get(clip->cache->imbufcache, &key, nullptr);
   }
 
   return nullptr;
@@ -841,7 +834,7 @@ static bool has_imbuf_cache(MovieClip *clip, const MovieClipUser *user, int flag
       key.render_flag = 0;
     }
 
-    return IMB_moviecache_has_frame(clip->cache->moviecache, &key);
+    return IMB_cache_has_frame(clip->cache->imbufcache, &key);
   }
 
   return false;
@@ -853,23 +846,23 @@ static bool put_imbuf_cache(
   MovieClipImBufCacheKey key;
 
   if (clip->cache == nullptr) {
-    MovieCache *moviecache;
+    ImBufCache *imbufcache;
 
     // char cache_name[64];
     // SNPRINTF(cache_name, "movie %s", clip->id.name);
 
     clip->cache = MEM_new_zeroed<MovieClipCache>("movieClipCache");
 
-    moviecache = IMB_moviecache_create(
-        "movieclip", sizeof(MovieClipImBufCacheKey), moviecache_hashhash, moviecache_hashcmp);
+    imbufcache = IMB_cache_create(
+        "movieclip", sizeof(MovieClipImBufCacheKey), movieclip_hashhash, imbufcache_hashcmp);
 
-    IMB_moviecache_set_getdata_callback(moviecache, moviecache_keydata);
-    IMB_moviecache_set_priority_callback(moviecache,
-                                         moviecache_getprioritydata,
-                                         moviecache_getitempriority,
-                                         moviecache_prioritydeleter);
+    IMB_cache_set_getdata_callback(imbufcache, moviecache_keydata);
+    IMB_cache_set_priority_callback(imbufcache,
+                                    moviecache_getprioritydata,
+                                    moviecache_getitempriority,
+                                    moviecache_prioritydeleter);
 
-    clip->cache->moviecache = moviecache;
+    clip->cache->imbufcache = imbufcache;
     clip->cache->sequence_offset = -1;
     if (clip->source == MCLIP_SRC_SEQUENCE) {
       ushort numlen;
@@ -895,11 +888,11 @@ static bool put_imbuf_cache(
   }
 
   if (destructive) {
-    IMB_moviecache_put(clip->cache->moviecache, &key, ibuf);
+    IMB_cache_put(clip->cache->imbufcache, &key, ibuf);
     return true;
   }
 
-  return IMB_moviecache_put_if_possible(clip->cache->moviecache, &key, ibuf);
+  return IMB_cache_put_if_possible(clip->cache->imbufcache, &key, ibuf);
 }
 
 static bool moviecache_check_free_proxy(ImBuf * /*ibuf*/, void *userkey, void * /*userdata*/)
@@ -942,7 +935,8 @@ static void detect_clip_source(Main *bmain, MovieClip *clip)
   STRNCPY(filepath, clip->filepath);
   BLI_path_abs(filepath, ID_BLEND_PATH(bmain, &clip->id));
 
-  ibuf = IMB_load_image_from_filepath(filepath, IB_byte_data | IB_multilayer | IB_test);
+  ibuf = IMB_load_image_from_filepath(
+      filepath, ImBufFlags::ByteData | ImBufFlags::MultiLayer | ImBufFlags::Test);
   if (ibuf) {
     clip->source = MCLIP_SRC_SEQUENCE;
     IMB_freeImBuf(ibuf);
@@ -1044,6 +1038,10 @@ static void real_ibuf_size(
       case MCLIP_PROXY_RENDER_SIZE_75:
         *width = float(*width) * 4.0f / 3.0f;
         *height = float(*height) * 4.0f / 3.0f;
+        break;
+
+      case MCLIP_PROXY_RENDER_SIZE_100:
+      case MCLIP_PROXY_RENDER_SIZE_FULL:
         break;
     }
   }
@@ -1607,8 +1605,8 @@ void BKE_movieclip_get_cache_segments(MovieClip *clip,
     int proxy = rendersize_to_proxy(user, clip->flag);
 
     BLI_thread_lock(LOCK_MOVIECLIP);
-    IMB_moviecache_get_cache_segments(
-        clip->cache->moviecache, proxy, user->render_flag, r_totseg, r_points);
+    IMB_cache_get_cache_segments(
+        clip->cache->imbufcache, proxy, user->render_flag, r_totseg, r_points);
     BLI_thread_unlock(LOCK_MOVIECLIP);
   }
 }
@@ -1623,7 +1621,7 @@ void BKE_movieclip_user_set_frame(MovieClipUser *user, int framenr)
 static void free_buffers(MovieClip *clip)
 {
   if (clip->cache) {
-    IMB_moviecache_free(clip->cache->moviecache);
+    IMB_cache_free(clip->cache->imbufcache);
 
     if (clip->cache->postprocessed.ibuf) {
       IMB_freeImBuf(clip->cache->postprocessed.ibuf);
@@ -1663,8 +1661,8 @@ void BKE_movieclip_clear_cache(MovieClip *clip)
 
 void BKE_movieclip_clear_proxy_cache(MovieClip *clip)
 {
-  if (clip->cache && clip->cache->moviecache) {
-    IMB_moviecache_cleanup(clip->cache->moviecache, moviecache_check_free_proxy, nullptr);
+  if (clip->cache && clip->cache->imbufcache) {
+    IMB_cache_cleanup(clip->cache->imbufcache, moviecache_check_free_proxy, nullptr);
   }
 }
 
@@ -1734,7 +1732,7 @@ void BKE_movieclip_update_scopes(MovieClip *clip,
 
     scopes->track_disabled = false;
 
-    if (ibuf && (ibuf->byte_buffer.data || ibuf->float_buffer.data)) {
+    if (ibuf && (ibuf->byte_data() || ibuf->float_data())) {
       MovieTrackingMarker undist_marker = *marker;
 
       if (user->render_flag & MCLIP_PROXY_RENDER_UNDISTORT) {
@@ -1803,9 +1801,8 @@ static void movieclip_build_proxy_ibuf(const MovieClip *clip,
   quality = clip->proxy.quality;
   scaleibuf->ftype = IMB_FTYPE_JPG;
   scaleibuf->foptions.quality = quality;
-  /* unsupported feature only confuses other s/w */
-  if (scaleibuf->planes == 32) {
-    scaleibuf->planes = 24;
+  if (scaleibuf->can_contain_alpha()) {
+    scaleibuf->color_mode = ImColorMode::RGB;
   }
 
   /* TODO: currently the most weak part of multi-threaded proxies,
@@ -1815,7 +1812,7 @@ static void movieclip_build_proxy_ibuf(const MovieClip *clip,
   BLI_thread_lock(LOCK_MOVIECLIP);
 
   BLI_file_ensure_parent_dir_exists(filepath);
-  if (IMB_save_image(scaleibuf, filepath, IB_byte_data) == 0) {
+  if (IMB_save_image(scaleibuf, filepath, ImBufFlags::ByteData) == 0) {
     perror(filepath);
   }
 
@@ -1840,7 +1837,7 @@ void BKE_movieclip_build_proxy_frame(MovieClip *clip,
   }
 
   user.framenr = cfra;
-  user.render_flag = 0;
+  user.render_flag = {};
   user.render_size = MCLIP_PROXY_RENDER_SIZE_FULL;
 
   ibuf = BKE_movieclip_get_ibuf_flag(clip, &user, clip_flag, MovieClipCacheFlag::SkipCache);
@@ -2049,8 +2046,8 @@ gpu::Texture *BKE_movieclip_get_gpu_texture(MovieClip *clip, MovieClipUser *cuse
 
   /* This only means RGBA16F instead of RGBA32F. */
   const bool high_bitdepth = false;
-  const bool store_premultiplied = ibuf->float_buffer.data ? false : true;
-  *tex = IMB_create_gpu_texture(clip->id.name + 2, ibuf, high_bitdepth, store_premultiplied);
+  const bool store_premultiplied = ibuf->float_data() ? false : true;
+  *tex = IMB_create_gpu_texture(clip->id.name + 2, ibuf, high_bitdepth, store_premultiplied, true);
 
   /* Do not generate mips for movieclips... too slow. */
   GPU_texture_mipmap_mode(*tex, false, true);

@@ -55,6 +55,15 @@ void PlanarProbeModule::init()
   }
 
   do_display_draw_ = false;
+
+  eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_READ;
+  /* Tag the end of the array. */
+  dummy_resources.dummy_probe_planar_buf_[0].layer_id = -1;
+  dummy_resources.dummy_probe_planar_buf_.push_update();
+  dummy_resources.dummy_radiance_tx_.ensure_2d_array(
+      gpu::TextureFormat::UFLOAT_11_11_10, int2(1), 1, usage);
+  dummy_resources.dummy_depth_tx_.ensure_2d_array(
+      gpu::TextureFormat::SFLOAT_32_DEPTH, int2(1), 1, usage);
 }
 
 void PlanarProbeModule::end_sync()
@@ -111,7 +120,7 @@ void PlanarProbeModule::set_view(const draw::View &main_view, int2 main_view_ext
 
     const bool with_raycast = inst_.pipelines.has_raycast;
     res.prepass_fb.ensure(
-        GPU_ATTACHMENT_TEXTURE(depth_tx_),
+        GPU_ATTACHMENT_TEXTURE_LAYER(depth_tx_, resource_index),
         with_raycast ? GPU_ATTACHMENT_TEXTURE(rbufs.prepass_normal_tx) : GPU_ATTACHMENT_NONE,
         with_raycast ? GPU_ATTACHMENT_TEXTURE(rbufs.object_id_tx) : GPU_ATTACHMENT_NONE,
         GPU_ATTACHMENT_NONE /* motion vectors */);

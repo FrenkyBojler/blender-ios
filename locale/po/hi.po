@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Beta (b'fd269015ba63')\n"
+"Project-Id-Version: Blender 5.2.0 Alpha (b'8c7c45ad114e')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-03-02 13:27+0000\n"
+"POT-Creation-Date: 2026-05-11 07:23+0000\n"
 "PO-Revision-Date: 2025-12-04 22:18+0000\n"
 "Last-Translator: Jackson Zheng <business.jackson.zheng@gmail.com>\n"
 "Language-Team: Hindi <https://translate.blender.org/projects/blender-ui/ui/hi/>\n"
@@ -298,6 +298,10 @@ msgstr "सूचना"
 
 msgid "Default"
 msgstr "मूलभूत"
+
+
+msgid "Display Mode"
+msgstr "प्रदर्शित रूप"
 
 
 msgid "Coordinates"
@@ -694,6 +698,11 @@ msgid "Vertex Color"
 msgstr "शिरोबिन्दु रंग"
 
 
+msgctxt "Operator"
+msgid "Poly"
+msgstr "बहु"
+
+
 msgid "All"
 msgstr "सभी"
 
@@ -708,6 +717,10 @@ msgstr "छटा"
 
 msgid "Fill"
 msgstr "भरण"
+
+
+msgid "Both"
+msgstr "दोनों"
 
 
 msgid "Background Image"
@@ -1410,10 +1423,6 @@ msgstr "निर्देशिका"
 
 msgid "Directory displayed in the file browser"
 msgstr "निर्देशिका संचिका विचरक में प्रदर्शित"
-
-
-msgid "Display Mode"
-msgstr "प्रदर्शित रूप"
 
 
 msgid "File Name"
@@ -2573,32 +2582,12 @@ msgid "Dots"
 msgstr "बिन्दु्"
 
 
-msgid "UV"
-msgstr "यूवी"
-
-
-msgid "Show/Hide"
-msgstr "छुपाएँ / दिखाएँ"
-
-
-msgid "Names"
-msgstr "नाम"
-
-
-msgid "Bone Roll"
-msgstr "हड्डी पंजी"
+msgid "Placement"
+msgstr "नियोजन"
 
 
 msgid "Snap"
 msgstr "स्नैप"
-
-
-msgid "Mirror"
-msgstr "दर्पण"
-
-
-msgid "Keying"
-msgstr "कुंजीयन"
 
 
 msgid "Math"
@@ -2625,12 +2614,28 @@ msgid "Quick Effects"
 msgstr "त्वरित प्रभाव"
 
 
+msgid "Show/Hide"
+msgstr "छुपाएँ / दिखाएँ"
+
+
+msgid "Import"
+msgstr "आयात करें"
+
+
 msgid "Make Single User"
 msgstr "एकल प्रयोक्ता बनाएँ"
 
 
 msgid "Hooks"
 msgstr "खूँटी"
+
+
+msgid "UV"
+msgstr "यूवी"
+
+
+msgid "Names"
+msgstr "नाम"
 
 
 msgid "Toggle Bone Options"
@@ -2641,12 +2646,20 @@ msgid "Enable Bone Options"
 msgstr "हड्डी विकल्प को सक्षम करें"
 
 
-msgid "Import"
-msgstr "आयात करें"
-
-
 msgid "Merge"
 msgstr "विलय करें"
+
+
+msgid "Bone Roll"
+msgstr "हड्डी पंजी"
+
+
+msgid "Keying"
+msgstr "कुंजीयन"
+
+
+msgid "Mirror"
+msgstr "दर्पण"
 
 
 msgid "Basic"
@@ -3022,10 +3035,6 @@ msgid "NLA Track is locked"
 msgstr "अरैखिक अनुप्राणन ट्रैक अवरोधित है"
 
 
-msgid "Height of the node"
-msgstr "ग्रन्थि की ऊंचाई"
-
-
 msgid "To"
 msgstr "करने के लिए"
 
@@ -3379,10 +3388,6 @@ msgid "Delete Marker"
 msgstr "चिन्हक मिटाएँ"
 
 
-msgid "Placement"
-msgstr "नियोजन"
-
-
 msgid "Whole Frame"
 msgstr "संप गठन"
 
@@ -3600,10 +3605,6 @@ msgstr "समतल"
 
 msgid "Side"
 msgstr "किनारा"
-
-
-msgid "Both"
-msgstr "दोनों"
 
 
 msgid "Next Keyframe"
@@ -3941,10 +3942,6 @@ msgid "Bake All Physics"
 msgstr "सभी भौतिकी भर्जन"
 
 
-msgid "Bake all physics"
-msgstr "सभी भौतिकी भर्जन"
-
-
 msgctxt "Operator"
 msgid "Render"
 msgstr " प्रतिपादन"
@@ -4206,10 +4203,6 @@ msgid "Align"
 msgstr "संरेखित करें"
 
 
-msgid "Axis Direction"
-msgstr "अक्ष दिशा"
-
-
 msgctxt "Operator"
 msgid "Cube Projection"
 msgstr "घन प्रक्षेपण"
@@ -4413,12 +4406,12 @@ msgid "Lock Y"
 msgstr "तालाबंदी y"
 
 
-msgid "Motion Tracking"
-msgstr "गति मार्गन"
-
-
 msgid "Transform Orientations"
 msgstr "दिक् विन्यास संरचनांतरण"
+
+
+msgid "Motion Tracking"
+msgstr "गति मार्गन"
 
 
 msgid "Predefined tracking camera intrinsics"
@@ -5196,11 +5189,6 @@ msgstr "प्राथमिकता"
 
 msgid "Draw:"
 msgstr "चित्रण:"
-
-
-msgctxt "Operator"
-msgid "Poly"
-msgstr "बहु"
 
 
 msgctxt "Operator"

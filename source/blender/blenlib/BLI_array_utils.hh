@@ -188,7 +188,7 @@ inline void gather(const VArray<T> &src,
                    MutableSpan<T> dst,
                    const Mode mode = {})
 {
-  BLI_assert(indices.size() == dst.size());
+  BLI_assert(indices.size() >= dst.size());
   if constexpr (!mode.is_parallel) {
     src.materialize_compressed_to_uninitialized(indices, dst);
   }
@@ -210,7 +210,7 @@ inline void gather(const Span<T> src,
                    MutableSpan<T> dst,
                    const Mode mode = {})
 {
-  BLI_assert(indices.size() == dst.size());
+  BLI_assert(indices.size() >= dst.size());
   dst_mask.foreach_index_optimized<int64_t>([&](const int64_t i) { dst[i] = src[indices[i]]; },
                                             exec_mode_tag_for_copy(mode, sizeof(T)));
 }
@@ -403,6 +403,26 @@ template<typename T> inline void fill_index_range(MutableSpan<T> span, const T s
   std::iota(span.begin(), span.end(), start);
 }
 
+template<typename T, exec_mode::Tag Mode = exec_mode::Parallel>
+inline void fill_index_range(const IndexMask &mask, MutableSpan<T> span, const Mode mode = {})
+{
+  mask.foreach_index_optimized<T>([&](const T index) { span[index] = index; }, mode);
+}
+
+template<typename T, exec_mode::Tag Mode = exec_mode::Parallel>
+inline void fill_index_range(const IndexMask &mask,
+                             MutableSpan<T> span,
+                             const T start,
+                             const Mode mode = {})
+{
+  if (start == 0) {
+    fill_index_range(mask, span, mode);
+  }
+  else {
+    mask.foreach_index_optimized<T>([&](const T index) { span[index] = start + index; }, mode);
+  }
+}
+
 template<typename T>
 bool indexed_data_equal(const Span<T> all_values, const Span<int> indices, const Span<T> values)
 {
@@ -422,6 +442,30 @@ bool indices_are_range(Span<int> indices, IndexRange range);
  * array is empty.
  */
 template<typename T>
+inline std::optional<int64_t> max_element_index(const Span<T> &span,
+                                                const int64_t grain_size = 8192)
+{
+  const T *max_it = threading::parallel_reduce(
+      span.index_range(),
+      grain_size,
+      span.begin(),
+      [&](const IndexRange range, const T *init_max) {
+        const Span<T> sub_span = span.slice(range);
+        const T *max_elem = std::max_element(sub_span.begin(), sub_span.end());
+        if (*max_elem < *init_max) {
+          return init_max;
+        }
+        return max_elem;
+      },
+      [&](const T *a, const T *b) {
+        if (*a < *b) {
+          return a;
+        }
+        return b;
+      });
+  return std::distance(span.begin(), max_it);
+}
+template<typename T>
 inline std::optional<int64_t> max_element_index(const VArray<T> &array,
                                                 const int64_t grain_size = 8192)
 {
@@ -429,34 +473,15 @@ inline std::optional<int64_t> max_element_index(const VArray<T> &array,
     return std::nullopt;
   }
   if (array.is_single()) {
-    return 0;
+    return array.first();
   }
   if (array.is_span()) {
-    const Span<T> span = array.get_internal_span();
-    const T *max_it = threading::parallel_reduce(
-        span.index_range(),
-        grain_size,
-        span.begin(),
-        [&](const IndexRange range, const T *init_max) {
-          const Span<T> sub_span = span.slice(range);
-          const T *max_elem = std::max_element(sub_span.begin(), sub_span.end());
-          if (*max_elem < *init_max) {
-            return init_max;
-          }
-          return max_elem;
-        },
-        [&](const T *a, const T *b) {
-          if (*a < *b) {
-            return a;
-          }
-          return b;
-        });
-    return std::distance(span.begin(), max_it);
+    return max_element_index(array.get_internal_span(), grain_size);
   }
   return threading::parallel_reduce(
       array.index_range(),
       grain_size,
-      0,
+      array.first(),
       [&](const IndexRange range, const int64_t init_i) {
         int64_t max_index = init_i;
         T max_elem = array[max_index];

@@ -51,6 +51,52 @@ const EnumPropertyItem rna_enum_attribute_type_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
+const EnumPropertyItem rna_enum_attrtype_items[] = {
+    {int(bke::AttrType::Float), "FLOAT", 0, "Float", "Floating-point value"},
+    {int(bke::AttrType::Int32), "INT", 0, "Integer", "32-bit integer"},
+    {int(bke::AttrType::Bool), "BOOLEAN", 0, "Boolean", "True or false"},
+    {int(bke::AttrType::Float3),
+     "FLOAT_VECTOR",
+     0,
+     "Vector",
+     "3D vector with floating-point values"},
+    {int(bke::AttrType::ColorFloat),
+     "FLOAT_COLOR",
+     0,
+     "Color",
+     "RGBA color with 32-bit floating-point values"},
+    {int(bke::AttrType::Quaternion),
+     "QUATERNION",
+     0,
+     "Quaternion",
+     "Floating point quaternion rotation"},
+    {int(bke::AttrType::Float4x4), "FLOAT4X4", 0, "4x4 Matrix", "Floating point matrix"},
+    {int(bke::AttrType::String), "STRING", 0, "String", "Text string"},
+    {int(bke::AttrType::Int8),
+     "INT8",
+     0,
+     "8-Bit Integer",
+     "Smaller integer with a range from -128 to 127"},
+    {int(bke::AttrType::Int16_2D),
+     "INT16_2D",
+     0,
+     "2D 16-Bit Integer Vector",
+     "16-bit signed integer vector"},
+    {int(bke::AttrType::Int32_2D),
+     "INT32_2D",
+     0,
+     "2D Integer Vector",
+     "32-bit signed integer vector"},
+    {int(bke::AttrType::Float2), "FLOAT2", 0, "2D Vector", "2D vector with floating-point values"},
+    {int(bke::AttrType::Float4), "FLOAT4", 0, "4D Vector", "4D vector with floating-point values"},
+    {int(bke::AttrType::ColorByte),
+     "BYTE_COLOR",
+     0,
+     "Byte Color",
+     "RGBA color with 8-bit positive integer values"},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
 const EnumPropertyItem rna_enum_color_attribute_type_items[] = {
     {CD_PROP_COLOR, "FLOAT_COLOR", 0, "Color", "RGBA color 32-bit floating-point values"},
     {CD_PROP_BYTE_COLOR,
@@ -362,6 +408,8 @@ static StructRNA *srna_value_by_custom_data_layer_type(const eCustomDataType typ
       return RNA_QuaternionAttributeValue;
     case CD_PROP_FLOAT4X4:
       return RNA_Float4x4AttributeValue;
+    case CD_PROP_FLOAT4:
+      return RNA_Float4AttributeValue;
     default:
       return nullptr;
   }
@@ -1075,6 +1123,11 @@ static void rna_AttributeGroupID_active_set(PointerRNA *ptr,
   }
 
   bke::Attribute *attr = attribute_ptr.data_as<bke::Attribute>();
+  if (!attr) {
+    BKE_attributes_active_clear(owner);
+    return;
+  }
+
   BKE_attributes_active_set(owner, attr->name());
 }
 
@@ -1402,7 +1455,7 @@ static void rna_def_attribute_float(BlenderRNA *brna)
                                     "rna_iterator_array_end",
                                     "rna_iterator_array_get",
                                     "rna_Attribute_data_length",
-                                    nullptr,
+                                    "rna_Attribute_data_lookup_int",
                                     nullptr,
                                     nullptr);
   RNA_def_property_update(prop, 0, "rna_Attribute_update_data");
@@ -1435,7 +1488,7 @@ static void rna_def_attribute_float_vector(BlenderRNA *brna)
                                     "rna_iterator_array_end",
                                     "rna_iterator_array_get",
                                     "rna_Attribute_data_length",
-                                    nullptr,
+                                    "rna_Attribute_data_lookup_int",
                                     nullptr,
                                     nullptr);
   RNA_def_property_update(prop, 0, "rna_Attribute_update_data");
@@ -1874,7 +1927,7 @@ static void rna_def_attribute_float4(BlenderRNA *brna)
                                     "rna_iterator_array_end",
                                     "rna_iterator_array_get",
                                     "rna_Attribute_data_length",
-                                    nullptr,
+                                    "rna_Attribute_data_lookup_int",
                                     nullptr,
                                     nullptr);
   RNA_def_property_update(prop, 0, "rna_Attribute_update_data");

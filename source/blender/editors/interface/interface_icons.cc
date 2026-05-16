@@ -58,11 +58,9 @@
 
 #include <fmt/format.h>
 
-namespace blender {
+namespace blender::ui {
 
 static CLG_LogRef LOG = {"ui.icon"};
-
-namespace ui {
 
 struct IconImage {
   int w;
@@ -167,14 +165,15 @@ static DrawInfo *def_internal_icon(
 
       /* Here we store the rect in the icon - same as before */
       if (size == bbuf->x && size == bbuf->y && xofs == 0 && yofs == 0) {
-        memcpy(iimg->rect, bbuf->byte_buffer.data, size * size * 4 * sizeof(uint8_t));
+        memcpy(iimg->rect, bbuf->byte_data(), size * size * 4 * sizeof(uint8_t));
       }
       else {
         /* this code assumes square images */
         imgsize = bbuf->x;
+        const uchar *data = bbuf->byte_data();
         for (y = 0; y < size; y++) {
           memcpy(&iimg->rect[y * size],
-                 &bbuf->byte_buffer.data[(y + yofs) * imgsize + xofs],
+                 &data[(y + yofs) * imgsize + xofs],
                  size * 4 * sizeof(uint8_t));
         }
       }
@@ -618,6 +617,7 @@ DEF_ICON_NODE_SOCKET_DRAW(menu, eNodeSocketDatatype::SOCK_MENU)
 DEF_ICON_NODE_SOCKET_DRAW(matrix, eNodeSocketDatatype::SOCK_MATRIX)
 DEF_ICON_NODE_SOCKET_DRAW(bundle, eNodeSocketDatatype::SOCK_BUNDLE)
 DEF_ICON_NODE_SOCKET_DRAW(closure, eNodeSocketDatatype::SOCK_CLOSURE)
+DEF_ICON_NODE_SOCKET_DRAW(int_vector, eNodeSocketDatatype::SOCK_INT_VECTOR)
 
 /* Dynamically render icon instead of rendering a plain color to a texture/buffer
  * This is not strictly a "vicon", as it needs access to icon->obj to get the color info,
@@ -905,13 +905,15 @@ static void icon_verify_datatoc(IconImage *iimg)
 
   if (iimg->datatoc_rect) {
     ImBuf *bbuf = IMB_load_image_from_memory(
-        iimg->datatoc_rect, iimg->datatoc_size, IB_byte_data, "<matcap icon>");
+        iimg->datatoc_rect, iimg->datatoc_size, ImBufFlags::ByteData, "<matcap icon>");
     /* w and h were set on initialize */
     if (bbuf->x != iimg->h && bbuf->y != iimg->w) {
       IMB_scale(bbuf, iimg->w, iimg->h, IMBScaleFilter::Box, false);
     }
 
-    iimg->rect = IMB_steal_byte_buffer(bbuf);
+    const size_t size_in_bytes = size_t(bbuf->x) * size_t(bbuf->y) * sizeof(uint);
+    iimg->rect = MEM_new_array_uninitialized<uchar>(size_in_bytes, __func__);
+    memcpy(iimg->rect, reinterpret_cast<const uint *>(bbuf->byte_data()), size_in_bytes);
     IMB_freeImBuf(bbuf);
   }
 }
@@ -1011,6 +1013,7 @@ static void init_internal_icons()
   def_internal_vicon(ICON_NODE_SOCKET_TEXT, icon_node_socket_draw_text);
   def_internal_vicon(ICON_NODE_SOCKET_MASK, icon_node_socket_draw_mask);
   def_internal_vicon(ICON_NODE_SOCKET_SOUND, icon_node_socket_draw_sound);
+  def_internal_vicon(ICON_NODE_SOCKET_INT_VECTOR, icon_node_socket_draw_int_vector);
 }
 
 #else
@@ -1143,10 +1146,10 @@ static void icon_create_rect(PreviewImage *prv_img, enum eIconSizes size)
   }
 }
 
-static void ui_id_preview_image_render_size(
+static void id_preview_image_render_size(
     const bContext *C, Scene *scene, ID *id, PreviewImage *pi, int size, const bool use_job);
 
-static void ui_studiolight_icon_job_exec(void *customdata, wmJobWorkerStatus * /*worker_status*/)
+static void studiolight_icon_job_exec(void *customdata, wmJobWorkerStatus * /*worker_status*/)
 {
   Icon **tmp = static_cast<Icon **>(customdata);
   Icon *icon = *tmp;
@@ -1156,14 +1159,14 @@ static void ui_studiolight_icon_job_exec(void *customdata, wmJobWorkerStatus * /
       reinterpret_cast<uint *>(di->data.buffer.image->rect), sl, icon->id_type);
 }
 
-static void ui_studiolight_kill_icon_preview_job(wmWindowManager *wm, int icon_id)
+static void studiolight_kill_icon_preview_job(wmWindowManager *wm, int icon_id)
 {
   Icon *icon = BKE_icon_get(icon_id);
   WM_jobs_kill_type(wm, icon, WM_JOB_TYPE_STUDIOLIGHT);
   icon->obj = nullptr;
 }
 
-static void ui_studiolight_free_function(StudioLight *sl, void *data)
+static void studiolight_free_function(StudioLight *sl, void *data)
 {
   wmWindowManager *wm = static_cast<wmWindowManager *>(data);
 
@@ -1174,25 +1177,25 @@ static void ui_studiolight_free_function(StudioLight *sl, void *data)
 
   /* get icons_id, get icons and kill wm jobs */
   if (sl->icon_id_radiance) {
-    ui_studiolight_kill_icon_preview_job(wm, sl->icon_id_radiance);
+    studiolight_kill_icon_preview_job(wm, sl->icon_id_radiance);
   }
   if (sl->icon_id_irradiance) {
-    ui_studiolight_kill_icon_preview_job(wm, sl->icon_id_irradiance);
+    studiolight_kill_icon_preview_job(wm, sl->icon_id_irradiance);
   }
   if (sl->icon_id_matcap) {
-    ui_studiolight_kill_icon_preview_job(wm, sl->icon_id_matcap);
+    studiolight_kill_icon_preview_job(wm, sl->icon_id_matcap);
   }
   if (sl->icon_id_matcap_flipped) {
-    ui_studiolight_kill_icon_preview_job(wm, sl->icon_id_matcap_flipped);
+    studiolight_kill_icon_preview_job(wm, sl->icon_id_matcap_flipped);
   }
 }
 
-static void ui_studiolight_icon_job_end(void *customdata)
+static void studiolight_icon_job_end(void *customdata)
 {
   Icon **tmp = static_cast<Icon **>(customdata);
   Icon *icon = *tmp;
   StudioLight *sl = static_cast<StudioLight *>(icon->obj);
-  BKE_studiolight_set_free_function(sl, &ui_studiolight_free_function, nullptr);
+  BKE_studiolight_set_free_function(sl, &studiolight_free_function, nullptr);
 }
 
 void icon_ensure_deferred(const bContext *C, const int icon_id, const bool big)
@@ -1222,7 +1225,7 @@ void icon_ensure_deferred(const bContext *C, const int icon_id, const bool big)
         const int size = big ? ICON_SIZE_PREVIEW : ICON_SIZE_ICON;
 
         if (id || prv->runtime->deferred_loading_data) {
-          ui_id_preview_image_render_size(C, nullptr, id, prv, size, use_jobs);
+          id_preview_image_render_size(C, nullptr, id, prv, size, use_jobs);
         }
       }
       break;
@@ -1232,7 +1235,7 @@ void icon_ensure_deferred(const bContext *C, const int icon_id, const bool big)
         if (di->data.buffer.image == nullptr) {
           wmWindowManager *wm = CTX_wm_manager(C);
           StudioLight *sl = static_cast<StudioLight *>(icon->obj);
-          BKE_studiolight_set_free_function(sl, &ui_studiolight_free_function, wm);
+          BKE_studiolight_set_free_function(sl, &studiolight_free_function, wm);
           IconImage *img = MEM_new_zeroed<IconImage>(__func__);
 
           img->w = STUDIOLIGHT_ICON_SIZE;
@@ -1253,7 +1256,7 @@ void icon_ensure_deferred(const bContext *C, const int icon_id, const bool big)
           WM_jobs_customdata_set(wm_job, tmp, MEM_delete_void);
           WM_jobs_timer(wm_job, 0.01, 0, NC_WINDOW);
           WM_jobs_callbacks(
-              wm_job, ui_studiolight_icon_job_exec, nullptr, nullptr, ui_studiolight_icon_job_end);
+              wm_job, studiolight_icon_job_exec, nullptr, nullptr, studiolight_icon_job_end);
           WM_jobs_start(CTX_wm_manager(C), wm_job);
         }
       }
@@ -1362,12 +1365,14 @@ PreviewImage *icon_to_preview(int icon_id)
 
     bbuf = IMB_load_image_from_memory(di->data.buffer.image->datatoc_rect,
                                       di->data.buffer.image->datatoc_size,
-                                      IB_byte_data,
+                                      ImBufFlags::ByteData,
                                       __func__);
     if (bbuf) {
       PreviewImage *prv = BKE_previewimg_create();
 
-      prv->rect[0] = reinterpret_cast<uint *>(IMB_steal_byte_buffer(bbuf));
+      const size_t size = size_t(bbuf->x) * size_t(bbuf->y);
+      prv->rect[0] = MEM_new_array_uninitialized<uint>(size, __func__);
+      memcpy(prv->rect[0], reinterpret_cast<const uint *>(bbuf->byte_data()), size * sizeof(uint));
 
       prv->w[0] = bbuf->x;
       prv->h[0] = bbuf->y;
@@ -1440,19 +1445,17 @@ static void icon_draw_rect(float x,
     immUniform1f("factor", desaturate);
   }
 
-  immDrawPixelsTexScaledFullSize(&state,
-                                 draw_x,
-                                 draw_y,
-                                 rw,
-                                 rh,
-                                 gpu::TextureFormat::UNORM_8_8_8_8,
-                                 true,
-                                 rect,
-                                 scale_x,
-                                 scale_y,
-                                 1.0f,
-                                 1.0f,
-                                 col);
+  immDrawPixels(&state,
+                draw_x,
+                draw_y,
+                rw,
+                rh,
+                gpu::TextureFormat::UNORM_8_8_8_8,
+                true,
+                rect,
+                scale_x,
+                scale_y,
+                col);
 }
 
 /* Drawing size for preview images */
@@ -1681,7 +1684,7 @@ static void icon_draw_size(float x,
     const ImBuf *ibuf = static_cast<const ImBuf *>(icon->obj);
 
     GPU_blend(GPU_BLEND_ALPHA_PREMULT);
-    icon_draw_rect(x, y, w, h, ibuf->x, ibuf->y, ibuf->byte_buffer.data, alpha, desaturate);
+    icon_draw_rect(x, y, w, h, ibuf->x, ibuf->y, ibuf->byte_data(), alpha, desaturate);
     GPU_blend(GPU_BLEND_ALPHA);
   }
   else if (di->type == ICON_TYPE_VECTOR) {
@@ -1722,7 +1725,7 @@ static void icon_draw_size(float x,
     }
 
     GPU_blend(GPU_BLEND_ALPHA_PREMULT);
-    icon_draw_rect(x, y, w, h, w, h, ibuf->byte_buffer.data, alpha, desaturate);
+    icon_draw_rect(x, y, w, h, w, h, ibuf->byte_data(), alpha, desaturate);
     GPU_blend(GPU_BLEND_ALPHA);
   }
   else if (di->type == ICON_TYPE_EVENT) {
@@ -1861,7 +1864,7 @@ static void icon_draw_size(float x,
   }
 }
 
-static void ui_id_preview_image_render_size(
+static void id_preview_image_render_size(
     const bContext *C, Scene *scene, ID *id, PreviewImage *pi, int size, const bool use_job)
 {
   /* changed only ever set by dynamic icons */
@@ -1881,7 +1884,7 @@ void icon_render_id_ex(const bContext *C,
                        const bool use_job,
                        PreviewImage *r_preview_image)
 {
-  ui_id_preview_image_render_size(C, scene, id_to_render, r_preview_image, size, use_job);
+  id_preview_image_render_size(C, scene, id_to_render, r_preview_image, size, use_job);
 }
 
 void icon_render_id(
@@ -1909,7 +1912,7 @@ void icon_render_id(
   icon_render_id_ex(C, scene, id_to_render, size, use_job, pi);
 }
 
-static void ui_id_icon_render(const bContext *C, ID *id, bool use_jobs)
+static void id_icon_render(const bContext *C, ID *id, bool use_jobs)
 {
   PreviewImage *pi = BKE_previewimg_id_ensure(id);
 
@@ -1918,15 +1921,15 @@ static void ui_id_icon_render(const bContext *C, ID *id, bool use_jobs)
   }
 
   for (int i = 0; i < NUM_ICON_SIZES; i++) {
-    ui_id_preview_image_render_size(C, nullptr, id, pi, i, use_jobs);
+    id_preview_image_render_size(C, nullptr, id, pi, i, use_jobs);
   }
 }
 
-static int ui_id_screen_get_icon(const bContext *C, ID *id)
+static int id_screen_get_icon(const bContext *C, ID *id)
 {
   BKE_icon_id_ensure(id);
   /* Don't use jobs here, off-screen rendering doesn't like this and crashes. */
-  ui_id_icon_render(C, id, false);
+  id_icon_render(C, id, false);
 
   return id->icon_id;
 }
@@ -1947,7 +1950,7 @@ int id_icon_get(const bContext *C, ID *id, const bool big)
       icon_render_id(C, nullptr, id, big ? ICON_SIZE_PREVIEW : ICON_SIZE_ICON, true);
       break;
     case ID_SCR:
-      iconid = ui_id_screen_get_icon(C, id);
+      iconid = id_screen_get_icon(C, id);
       break;
     case ID_OB:
       iconid = icon_from_object_type(id_cast<Object *>(id));
@@ -2209,6 +2212,9 @@ int icon_from_object_type(const Object *object)
       }
     case OB_GREASE_PENCIL:
       return ICON_OUTLINER_OB_GREASEPENCIL;
+    case OB_GPENCIL_LEGACY:
+    case OB_TYPE_MAX:
+      break;
   }
   return ICON_NONE;
 }
@@ -2218,7 +2224,7 @@ int icon_color_from_collection(const Collection *collection)
   int icon = ICON_OUTLINER_COLLECTION;
 
   if (collection->color_tag != COLLECTION_COLOR_NONE) {
-    icon = ICON_COLLECTION_COLOR_01 + collection->color_tag;
+    icon = ICON_COLLECTION_COLOR_01 + int(collection->color_tag);
   }
 
   return icon;
@@ -2355,5 +2361,4 @@ ImBuf *icon_alert_imbuf_get(AlertIcon icon, float size)
 #endif
 }
 
-}  // namespace ui
-}  // namespace blender
+}  // namespace blender::ui
