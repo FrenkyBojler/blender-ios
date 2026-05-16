@@ -1041,25 +1041,30 @@ bool ensure_selection_domain(ToolSettings *ts, Object *object)
       changed |= true;
     }
 
-    /* Convert selection domain. */
-    const GVArray src = *attributes.lookup(".selection", domain);
-    if (src) {
-      const CPPType &type = src.type();
-      void *dst = MEM_new_array_uninitialized(attributes.domain_size(domain), type.size, __func__);
-      src.materialize(dst);
+    for (const StringRef selection_attribute_name :
+         ed::curves::get_curves_selection_attribute_names(curves))
+    {
+      /* Convert selection domain. */
+      const GVArray src = *attributes.lookup(selection_attribute_name, domain);
+      if (src) {
+        const CPPType &type = src.type();
+        void *dst = MEM_new_array_uninitialized(
+            attributes.domain_size(domain), type.size, __func__);
+        src.materialize(dst);
 
-      attributes.remove(".selection");
-      if (!attributes.add(".selection",
-                          domain,
-                          bke::cpp_type_to_attribute_type(type),
-                          bke::AttributeInitMoveArray(dst)))
-      {
-        MEM_delete_void(dst);
+        attributes.remove(selection_attribute_name);
+        if (!attributes.add(selection_attribute_name,
+                            domain,
+                            bke::cpp_type_to_attribute_type(type),
+                            bke::AttributeInitMoveArray(dst)))
+        {
+          MEM_delete_void(dst);
+        }
+
+        changed = true;
+
+        /* TODO: expand point selection to segments when in 'segment' mode. */
       }
-
-      changed = true;
-
-      /* TODO: expand point selection to segments when in 'segment' mode. */
     }
   }
 
