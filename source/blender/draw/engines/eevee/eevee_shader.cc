@@ -755,8 +755,18 @@ static SlotAllocator add_pipeline_create_info(gpu::shader::ShaderCreateInfo &inf
           info.fragment_function("eevee_surf_depth");
           break;
         case MAT_PIPE_SHADOW:
-          pipeline_info_name = "eevee_surf_shadow_atomic";
+          pipeline_info_name = "eevee_surf_shadow_infos_";
           info.name_ += "_shadow";
+          info.define("DRW_VIEW_LEN", STRINGIFY(SHADOW_VIEW_MAX));
+          info.define("MAT_SHADOW");
+          info.define("closure_to_rgba", "closure_to_rgba_shadow");
+          /* TODO(fclem): Should go to the vertex shader entry point. */
+          info.builtins(BuiltinBits::VIEWPORT_INDEX);
+          /* Until every vertex shader are ported, we need to bridge the gap here by defining the
+           * pipeline. */
+          info.fragment_source("eevee_surf_shadow.bsl.hh");
+          info.fragment_function("eevee_surf_shadow");
+          info.additional_info("eevee_shadow_iface_info");
           break;
         case MAT_PIPE_VOLUME_OCCUPANCY:
           pipeline_info_name = "eevee_surf_occupancy";

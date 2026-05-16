@@ -49,7 +49,6 @@ set(SRC_GLSL_FRAG
   eevee_lookdev_display_frag.glsl
   eevee_occupancy_convert_frag.glsl
   eevee_surf_occupancy_frag.glsl
-  eevee_surf_shadow_frag.glsl
   eevee_surf_volume_frag.glsl
   eevee_surf_world_frag.glsl
   eevee_transparency_resolve_frag.glsl

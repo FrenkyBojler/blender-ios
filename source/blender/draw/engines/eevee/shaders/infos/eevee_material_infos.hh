@@ -12,7 +12,6 @@
 #  include "draw_view_infos.hh"
 
 #  include "eevee_geom_infos.hh"
-#  include "eevee_surf_shadow_infos.hh"
 #  include "eevee_surf_volume_infos.hh"
 #  include "eevee_surf_world_infos.hh"
 #endif
@@ -24,7 +23,6 @@
 #  define POINTCLOUD_SHADER
 #  define DRW_POINTCLOUD_INFO
 
-#  define SHADOW_UPDATE_ATOMIC_RASTER
 #  define MAT_TRANSPARENT
 #endif
 
@@ -80,16 +78,11 @@ CREATE_INFO_VARIANT(eevee_surface_occupancy_curves, eevee_geom_curves, eevee_sur
 CREATE_INFO_VARIANT(eevee_surface_occupancy_mesh, eevee_geom_mesh, eevee_surf_occupancy, eevee_material_stub)
 CREATE_INFO_VARIANT(eevee_surface_occupancy_pointcloud, eevee_geom_pointcloud, eevee_surf_occupancy, eevee_material_stub)
 CREATE_INFO_VARIANT(eevee_surface_occupancy_volume, eevee_geom_volume, eevee_surf_occupancy, eevee_material_stub)
-CREATE_INFO_VARIANT(eevee_surface_shadow_atomic_world, eevee_geom_world, eevee_surf_shadow_atomic, eevee_material_stub)
-CREATE_INFO_VARIANT(eevee_surface_shadow_atomic_curves, eevee_geom_curves, eevee_surf_shadow_atomic, eevee_material_stub)
-CREATE_INFO_VARIANT(eevee_surface_shadow_atomic_mesh, eevee_geom_mesh, eevee_surf_shadow_atomic, eevee_material_stub)
-CREATE_INFO_VARIANT(eevee_surface_shadow_atomic_pointcloud, eevee_geom_pointcloud, eevee_surf_shadow_atomic, eevee_material_stub)
-CREATE_INFO_VARIANT(eevee_surface_shadow_atomic_volume, eevee_geom_volume, eevee_surf_shadow_atomic, eevee_material_stub)
-CREATE_INFO_VARIANT(eevee_surface_shadow_tbdr_world, eevee_geom_world, eevee_surf_shadow_tbdr, eevee_material_stub)
-CREATE_INFO_VARIANT(eevee_surface_shadow_tbdr_curves, eevee_geom_curves, eevee_surf_shadow_tbdr, eevee_material_stub)
-CREATE_INFO_VARIANT(eevee_surface_shadow_tbdr_mesh, eevee_geom_mesh, eevee_surf_shadow_tbdr, eevee_material_stub)
-CREATE_INFO_VARIANT(eevee_surface_shadow_tbdr_pointcloud, eevee_geom_pointcloud, eevee_surf_shadow_tbdr, eevee_material_stub)
-CREATE_INFO_VARIANT(eevee_surface_shadow_tbdr_volume, eevee_geom_volume, eevee_surf_shadow_tbdr, eevee_material_stub)
+// CREATE_INFO_VARIANT(eevee_surface_shadow_atomic_world, eevee_geom_world, eevee_surf_shadow_atomic, eevee_material_stub)
+// CREATE_INFO_VARIANT(eevee_surface_shadow_atomic_curves, eevee_geom_curves, eevee_surf_shadow_atomic, eevee_material_stub)
+// CREATE_INFO_VARIANT(eevee_surface_shadow_atomic_mesh, eevee_geom_mesh, eevee_surf_shadow_atomic, eevee_material_stub)
+// CREATE_INFO_VARIANT(eevee_surface_shadow_atomic_pointcloud, eevee_geom_pointcloud, eevee_surf_shadow_atomic, eevee_material_stub)
+// CREATE_INFO_VARIANT(eevee_surface_shadow_atomic_volume, eevee_geom_volume, eevee_surf_shadow_atomic, eevee_material_stub)
 /* clang-format on */
 #endif
 

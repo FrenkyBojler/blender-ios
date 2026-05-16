@@ -25,7 +25,6 @@
 #  define POINTCLOUD_SHADER
 #  define DRW_POINTCLOUD_INFO
 
-#  define SHADOW_UPDATE_ATOMIC_RASTER
 #  define MAT_TRANSPARENT
 #endif
 
