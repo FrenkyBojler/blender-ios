@@ -4,6 +4,8 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLT_translation.hh"
+
 #include "BKE_anonymous_attribute_make.hh"
 #include "BKE_bake_attribute_field.hh"
 #include "BKE_bake_values.hh"
@@ -26,6 +28,7 @@
 
 #include "NOD_geometry_nodes_bundle.hh"
 #include "NOD_geometry_nodes_closure.hh"
+#include "NOD_geometry_nodes_lazy_function.hh"
 #include "NOD_geometry_nodes_list.hh"
 #include "NOD_geometry_nodes_values.hh"
 
@@ -458,9 +461,9 @@ class BakeToRuntimeValue {
     this->scan__SocketValueVariant(root_value);
   }
 
-  void bake_to_runtime(SocketValueVariant &root_value)
+  void bake_to_runtime(SocketValueVariant &root_value, const StringRef name)
   {
-    this->bake_to_runtime__SocketValueVariant(root_value);
+    this->bake_to_runtime__SocketValueVariant(root_value, name);
   }
 
  private:
@@ -560,20 +563,24 @@ class BakeToRuntimeValue {
     }
   }
 
-  void bake_to_runtime__SocketValueVariant(SocketValueVariant &value_variant)
+  void bake_to_runtime__SocketValueVariant(SocketValueVariant &value_variant, const StringRef name)
   {
     if (value_variant.is_context_dependent_field()) {
       const fn::GField field = value_variant.get<fn::GField>();
+      std::string socket_inspection = nodes::make_anonymous_attribute_socket_inspection_string(
+          TIP_("Bake"), name);
       if (const auto *attribute_field = field.get_input_if<AttributeFieldInput>()) {
         const StringRef bake_attribute_name = attribute_field->attribute_name();
         if (bake_attribute_name.startswith(anonymous_bake_attribute_prefix)) {
           std::string anonymous_attribute_name = this->get_anonymous_attribute_name(
               bake_attribute_name);
           value_variant.set(AttributeFieldInput::from(std::move(anonymous_attribute_name),
-                                                      attribute_field->cpp_type()));
+                                                      attribute_field->cpp_type(),
+                                                      std::move(socket_inspection)));
         }
       }
-      if (const auto *attribute_field = field.get_input_if<DeferredTypeAttributeFieldInput>()) {
+      else if (const auto *attribute_field = field.get_input_if<DeferredTypeAttributeFieldInput>())
+      {
         const StringRef bake_attribute_name = attribute_field->attribute_name;
         if (bake_attribute_name.startswith(anonymous_bake_attribute_prefix)) {
           if (const CPPType *cpp_type = attribute_field_types_.lookup_default(bake_attribute_name,
@@ -581,8 +588,8 @@ class BakeToRuntimeValue {
           {
             std::string anonymous_attribute_name = this->get_anonymous_attribute_name(
                 bake_attribute_name);
-            value_variant.set(
-                AttributeFieldInput::from(std::move(anonymous_attribute_name), *cpp_type));
+            value_variant.set(AttributeFieldInput::from(
+                std::move(anonymous_attribute_name), *cpp_type, std::move(socket_inspection)));
           }
         }
       }
@@ -699,7 +706,7 @@ class BakeToRuntimeValue {
   {
     for (auto &&item : bundle.items()) {
       if (auto *socket_value = std::get_if<nodes::BundleItemSocketValue>(&item.value.value)) {
-        this->bake_to_runtime__SocketValueVariant(socket_value->value);
+        this->bake_to_runtime__SocketValueVariant(socket_value->value, item.key.ref());
       }
     }
   }
@@ -709,7 +716,7 @@ class BakeToRuntimeValue {
     const CPPType &list_cpp_type = list.cpp_type();
     if (list_cpp_type.is<SocketValueVariant>()) {
       list.typed<SocketValueVariant>().foreach_for_write([&](SocketValueVariant &value_variant) {
-        this->bake_to_runtime__SocketValueVariant(value_variant);
+        this->bake_to_runtime__SocketValueVariant(value_variant, TIP_("List Item"));
       });
     }
     else if (list_cpp_type.is<GeometrySet>()) {
@@ -775,7 +782,7 @@ Vector<SocketValueVariant> BakeValues::to_runtime_values(const Span<OutputKey> k
 
     output_value = item->value;
 
-    bake_to_runtime_op.bake_to_runtime(output_value);
+    bake_to_runtime_op.bake_to_runtime(output_value, item->name.value_or(""));
   }
   return output_values;
 }
