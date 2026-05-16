@@ -2,13 +2,18 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BLI_array.hh"
+#include "BLI_index_mask.hh"
+
 #include "BKE_attribute_legacy_convert.hh"
+#include "BKE_node_socket_value.hh"
 
 #include "NOD_rna_define.hh"
 
 #include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
+#include "NOD_geometry_nodes_list.hh"
 #include "NOD_socket_search_link.hh"
 
 #include "RNA_enum_types.hh"
@@ -23,14 +28,19 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   const bNode *node = b.node_or_null();
 
-  b.add_input<decl::String>("Name"_ustr).is_attribute_name().optional_label();
+  b.add_input<decl::String>("Name"_ustr)
+      .is_attribute_name()
+      .optional_label()
+      .structure_type(StructureType::Dynamic);
 
   if (node != nullptr) {
     const NodeGeometryInputNamedAttribute &storage = node_storage(*node);
     const eCustomDataType data_type = eCustomDataType(storage.data_type);
-    b.add_output(data_type, "Attribute"_ustr).field_source();
+    b.add_output(data_type, "Attribute"_ustr)
+        .field_source()
+        .structure_type(StructureType::Dynamic);
   }
-  b.add_output<decl::Bool>("Exists"_ustr).field_source();
+  b.add_output<decl::Bool>("Exists"_ustr).field_source().structure_type(StructureType::Dynamic);
 }
 
 static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
@@ -81,30 +91,103 @@ static void node_geo_exec(GeoNodeExecParams params)
   const NodeGeometryInputNamedAttribute &storage = node_storage(params.node());
   const eCustomDataType data_type = eCustomDataType(storage.data_type);
 
-  std::string name = params.extract_input<std::string>("Name"_ustr);
-
-  if (name.empty()) {
+  const bke::SocketValueVariant names_socket_value = params.extract_input<bke::SocketValueVariant>(
+      "Name"_ustr);
+  if (!names_socket_value.is_single() && !names_socket_value.is_list()) {
+    params.error_message_add(NodeWarningType::Error, "Not supported name value kind");
     params.set_default_remaining_outputs();
     return;
   }
-  if (!bke::allow_procedural_attribute_access(name)) {
-    params.error_message_add(NodeWarningType::Info, TIP_(bke::no_procedural_access_message));
-    params.set_default_remaining_outputs();
-    return;
-  }
-  if (bke::attribute_name_is_anonymous(name)) {
-    params.error_message_add(NodeWarningType::Info,
-                             TIP_("Anonymous attributes cannot be accessed by name"));
-    params.set_default_remaining_outputs();
-    return;
-  }
-
-  params.used_named_attribute(name, NamedAttributeUsage::Read);
 
   const CPPType &type = *bke::custom_data_type_to_cpp_type(data_type);
 
-  params.set_output<GField>("Attribute"_ustr, AttributeFieldInput::from(name, type));
-  params.set_output("Exists"_ustr, bke::AttributeExistsFieldInput::from(std::move(name)));
+  const auto validate_name = [&](const std::string &name) -> bool {
+    if (name.empty()) {
+      return false;
+    }
+    if (!bke::allow_procedural_attribute_access(name)) {
+      params.error_message_add(NodeWarningType::Info, TIP_(bke::no_procedural_access_message));
+      return false;
+    }
+    if (bke::attribute_name_is_anonymous(name)) {
+      params.error_message_add(NodeWarningType::Info,
+                               TIP_("Anonymous attributes cannot be accessed by name"));
+      return false;
+    }
+    return true;
+  };
+
+  if (names_socket_value.is_single()) {
+    const std::string &name_value = *names_socket_value.get_single_ptr().get<std::string>();
+    if (!validate_name(name_value)) {
+      params.set_default_remaining_outputs();
+      return;
+    }
+
+    params.used_named_attribute(name_value, NamedAttributeUsage::Read);
+    params.set_output<GField>("Attribute"_ustr, AttributeFieldInput::from(name_value, type));
+    params.set_output("Exists"_ustr, bke::AttributeExistsFieldInput::from(std::move(name_value)));
+    return;
+  }
+
+  const auto names_list_value = names_socket_value.get<GListPtr>();
+  if (names_list_value->is_single()) {
+    const std::string &name_value = names_list_value->get_single<std::string>();
+    if (!validate_name(name_value)) {
+      params.set_default_remaining_outputs();
+      return;
+    }
+
+    if (params.output_is_required("Attribute"_ustr)) {
+      bke::SocketValueVariant attribute_value = bke::SocketValueVariant::From(
+          AttributeFieldInput::from(name_value, type));
+      params.set_output("Attribute"_ustr,
+                        GList::from_single(attribute_value, names_list_value->size()));
+    }
+
+    if (params.output_is_required("Exists"_ustr)) {
+      bke::SocketValueVariant attribute_exists = bke::SocketValueVariant::From(
+          bke::AttributeExistsFieldInput::from(name_value));
+      params.set_output("Exists"_ustr,
+                        GList::from_single(attribute_exists, names_list_value->size()));
+    }
+
+    return;
+  }
+
+  const VArraySpan<std::string> names_list = names_list_value->typed<std::string>().varray();
+
+  IndexMaskMemory memory;
+  const IndexMask valid_names = IndexMask::from_predicate(
+      names_list.index_range(),
+      memory,
+      [&](const int i) { return validate_name(names_list[i]); },
+      exec_mode::serial);
+
+  if (valid_names.is_empty()) {
+    params.set_default_remaining_outputs();
+    return;
+  }
+
+  if (params.output_is_required("Attribute"_ustr)) {
+    Array<bke::SocketValueVariant> attribute_values(names_list.size());
+    valid_names.foreach_index([&](const int i) {
+      attribute_values[i] = bke::SocketValueVariant::From(
+          AttributeFieldInput::from(names_list[i], type));
+    });
+
+    params.set_output("Attribute"_ustr, GList::from_container(std::move(attribute_values)));
+  }
+
+  if (params.output_is_required("Exists"_ustr)) {
+    Array<bke::SocketValueVariant> exists_values(names_list.size());
+    valid_names.foreach_index([&](const int i) {
+      exists_values[i] = bke::SocketValueVariant::From(
+          bke::AttributeExistsFieldInput::from(names_list[i]));
+    });
+
+    params.set_output("Exists"_ustr, GList::from_container(std::move(exists_values)));
+  }
 }
 
 static void node_rna(StructRNA *srna)

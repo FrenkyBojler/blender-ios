@@ -68,6 +68,7 @@ class GList : public ImplicitSharingMixin {
   GList(const CPPType &type, DataVariant data, const int64_t size);
   static GListPtr create(const CPPType &type, DataVariant data, const int64_t size);
   template<typename ContainerT> static GListPtr from_container(ContainerT &&container);
+  template<typename T> static GListPtr from_single(T &&value, const int64_t size);
   static GListPtr from_garray(GArray<> array);
 
   DataVariant &data();
@@ -75,10 +76,15 @@ class GList : public ImplicitSharingMixin {
   const CPPType &cpp_type() const;
   int64_t size() const;
 
+  bool is_single() const;
+  bool is_span() const;
+
   /** Access values stored in the list. This is a variant because lists support different storage
    * backends and more may be added in the future. */
   std::variant<GSpan, GPointer> values() const;
   std::variant<GMutableSpan, GMutablePointer> values_for_write();
+
+  template<typename T> const T &get_single() const;
 
   void delete_self() override;
   GListPtr copy() const;
@@ -184,6 +190,12 @@ template<typename ContainerT> inline GListPtr GList::from_container(ContainerT &
   return GList::create(CPPType::get<T>(), std::move(array_data), sharable_data->data.size());
 }
 
+template<typename T> static GListPtr GList::from_single(T &&value, const int64_t size)
+{
+  SingleData single_data = SingleData::ForValue(GPointer(&value));
+  return GList::create(CPPType::get<T>(), std::move(single_data), size);
+}
+
 template<typename T>
 template<typename ContainerT>
   requires std::is_same_v<typename ContainerT::value_type, T>
@@ -210,6 +222,23 @@ inline const CPPType &GList::cpp_type() const
 inline int64_t GList::size() const
 {
   return size_;
+}
+
+inline bool GList::is_single() const
+{
+  return std::holds_alternative<SingleData>(data_);
+}
+
+inline bool GList::is_span() const
+{
+  return std::holds_alternative<ArrayData>(data_);
+}
+
+template<typename T> const T &GList::get_single() const
+{
+  BLI_assert(this->is_single());
+  BLI_assert(cpp_type_.is<T>());
+  return *static_cast<const T *>(std::get<SingleData>(data_).value);
 }
 
 template<typename T> inline const List<T> &GList::typed() const
