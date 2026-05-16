@@ -35,6 +35,10 @@
 #include <jerror.h>
 #include <jpeglib.h>
 
+namespace blender {
+
+const char *imb_file_extensions_jpeg[] = {".jpg", ".jpeg", nullptr};
+
 static CLG_LogRef LOG = {"image.jpeg"};
 
 /* the types are from the jpeg lib */
@@ -45,8 +49,6 @@ static void skip_input_data(j_decompress_ptr cinfo, long num_bytes);
 static void term_source(j_decompress_ptr cinfo);
 static void memory_source(j_decompress_ptr cinfo, const uchar *buffer, size_t size);
 static boolean handle_app1(j_decompress_ptr cinfo);
-static ImBuf *ibJpegImageFromCinfo(
-    jpeg_decompress_struct *cinfo, int flags, int max_size, size_t *r_width, size_t *r_height);
 
 static const uchar jpeg_default_quality = 75;
 static uchar ibuf_quality;
@@ -74,7 +76,7 @@ using my_error_ptr = my_error_mgr *;
 
 static void jpeg_error(j_common_ptr cinfo)
 {
-  my_error_ptr err = (my_error_ptr)cinfo->err;
+  my_error_ptr err = reinterpret_cast<my_error_ptr>(cinfo->err);
 
   /* Always display the message */
   (*cinfo->err->output_message)(cinfo);
@@ -107,7 +109,7 @@ static void init_source(j_decompress_ptr cinfo)
 
 static boolean fill_input_buffer(j_decompress_ptr cinfo)
 {
-  my_src_ptr src = (my_src_ptr)cinfo->src;
+  my_src_ptr src = reinterpret_cast<my_src_ptr>(cinfo->src);
 
   /* Since we have given all we have got already
    * we simply fake an end of file
@@ -115,15 +117,15 @@ static boolean fill_input_buffer(j_decompress_ptr cinfo)
 
   src->pub.next_input_byte = src->terminal;
   src->pub.bytes_in_buffer = 2;
-  src->terminal[0] = (JOCTET)0xFF;
-  src->terminal[1] = (JOCTET)JPEG_EOI;
+  src->terminal[0] = JOCTET(0xFF);
+  src->terminal[1] = JOCTET(JPEG_EOI);
 
   return true;
 }
 
 static void skip_input_data(j_decompress_ptr cinfo, long num_bytes)
 {
-  my_src_ptr src = (my_src_ptr)cinfo->src;
+  my_src_ptr src = reinterpret_cast<my_src_ptr>(cinfo->src);
 
   if (num_bytes > 0) {
     /* prevent skipping over file end */
@@ -145,11 +147,11 @@ static void memory_source(j_decompress_ptr cinfo, const uchar *buffer, size_t si
   my_src_ptr src;
 
   if (cinfo->src == nullptr) { /* first time for this JPEG object? */
-    cinfo->src = (jpeg_source_mgr *)(*cinfo->mem->alloc_small)(
-        (j_common_ptr)cinfo, JPOOL_PERMANENT, sizeof(my_source_mgr));
+    cinfo->src = static_cast<jpeg_source_mgr *>((*cinfo->mem->alloc_small)(
+        reinterpret_cast<j_common_ptr>(cinfo), JPOOL_PERMANENT, sizeof(my_source_mgr)));
   }
 
-  src = (my_src_ptr)cinfo->src;
+  src = reinterpret_cast<my_src_ptr>(cinfo->src);
   src->pub.init_source = init_source;
   src->pub.fill_input_buffer = fill_input_buffer;
   src->pub.skip_input_data = skip_input_data;
@@ -235,7 +237,7 @@ static boolean handle_app1(j_decompress_ptr cinfo)
     }
     length = 0;
     if (STRPREFIX(neogeo, "NeoGeo")) {
-      NeoGeo_Word *neogeo_word = (NeoGeo_Word *)(neogeo + 6);
+      NeoGeo_Word *neogeo_word = reinterpret_cast<NeoGeo_Word *>(neogeo + 6);
       ibuf_quality = neogeo_word->quality;
     }
   }
@@ -246,8 +248,11 @@ static boolean handle_app1(j_decompress_ptr cinfo)
   return true;
 }
 
-static ImBuf *ibJpegImageFromCinfo(
-    jpeg_decompress_struct *cinfo, int flags, int max_size, size_t *r_width, size_t *r_height)
+static ImBuf *ibJpegImageFromCinfo(jpeg_decompress_struct *cinfo,
+                                   ImBufFlags flags,
+                                   int max_size,
+                                   size_t *r_width,
+                                   size_t *r_height)
 {
   JSAMPARRAY row_pointer;
   JSAMPLE *buffer = nullptr;
@@ -293,23 +298,37 @@ static ImBuf *ibJpegImageFromCinfo(
     x = cinfo->output_width;
     y = cinfo->output_height;
 
-    if (flags & IB_test) {
-      jpeg_abort_decompress(cinfo);
-      ibuf = IMB_allocImBuf(x, y, 8 * depth, 0);
+    ImColorMode color_mode = ImColorMode::RGBA;
+    if (depth == 1) {
+      color_mode = ImColorMode::BW;
     }
-    else if ((ibuf = IMB_allocImBuf(x, y, 8 * depth, IB_byte_data | IB_uninitialized_pixels)) ==
-             nullptr)
+    else if (depth == 3) {
+      color_mode = ImColorMode::RGB;
+    }
+
+    if (flag_is_set(flags, ImBufFlags::Test)) {
+      jpeg_abort_decompress(cinfo);
+      ibuf = IMB_allocImBuf(x, y, ImBufFlags::Zero);
+      if (ibuf) {
+        ibuf->color_mode = color_mode;
+      }
+    }
+    else if ((ibuf = IMB_allocImBuf(
+                  x, y, ImBufFlags::ByteData | ImBufFlags::UninitializedPixels)) == nullptr)
     {
       jpeg_abort_decompress(cinfo);
     }
     else {
+      ibuf->color_mode = color_mode;
       row_stride = cinfo->output_width * depth;
 
-      row_pointer = (*cinfo->mem->alloc_sarray)((j_common_ptr)cinfo, JPOOL_IMAGE, row_stride, 1);
+      row_pointer = (*cinfo->mem->alloc_sarray)(
+          reinterpret_cast<j_common_ptr>(cinfo), JPOOL_IMAGE, row_stride, 1);
 
+      uchar *byte_data = ibuf->byte_data_for_write();
       for (y = ibuf->y - 1; y >= 0; y--) {
         jpeg_read_scanlines(cinfo, row_pointer, 1);
-        rect = ibuf->byte_buffer.data + 4 * y * size_t(ibuf->x);
+        rect = byte_data + 4 * y * size_t(ibuf->x);
         buffer = row_pointer[0];
 
         switch (depth) {
@@ -362,8 +381,9 @@ static ImBuf *ibJpegImageFromCinfo(
          *
          * Files saved from Blender pre v4.0 were null terminated,
          * use `BLI_strnlen` to prevent assertion on passing in too short a string. */
-        str = BLI_strdupn((const char *)marker->data,
-                          BLI_strnlen((const char *)marker->data, marker->data_length));
+        str = BLI_strdupn(
+            reinterpret_cast<const char *>(marker->data),
+            BLI_strnlen(reinterpret_cast<const char *>(marker->data), marker->data_length));
 
         /*
          * Because JPEG format don't support the
@@ -386,8 +406,8 @@ static ImBuf *ibJpegImageFromCinfo(
            */
           IMB_metadata_ensure(&ibuf->metadata);
           IMB_metadata_set_field(ibuf->metadata, "None", str);
-          ibuf->flags |= IB_metadata;
-          MEM_freeN(str);
+          ibuf->flags |= ImBufFlags::Metadata;
+          MEM_delete(str);
           goto next_stamp_marker;
         }
 
@@ -398,14 +418,14 @@ static ImBuf *ibJpegImageFromCinfo(
          * then segfault ;)
          */
         if (!key) {
-          MEM_freeN(str);
+          MEM_delete(str);
           goto next_stamp_marker;
         }
 
         key++;
         value = strchr(key, ':');
         if (!value) {
-          MEM_freeN(str);
+          MEM_delete(str);
           goto next_stamp_marker;
         }
 
@@ -413,8 +433,8 @@ static ImBuf *ibJpegImageFromCinfo(
         value++;
         IMB_metadata_ensure(&ibuf->metadata);
         IMB_metadata_set_field(ibuf->metadata, key, value);
-        ibuf->flags |= IB_metadata;
-        MEM_freeN(str);
+        ibuf->flags |= ImBufFlags::Metadata;
+        MEM_delete(str);
       next_stamp_marker:
         marker = marker->next;
       }
@@ -437,7 +457,7 @@ static ImBuf *ibJpegImageFromCinfo(
       ibuf->ftype = IMB_FTYPE_JPG;
       ibuf->foptions.quality = std::min<char>(ibuf_quality, 100);
     }
-    jpeg_destroy((j_common_ptr)cinfo);
+    jpeg_destroy(reinterpret_cast<j_common_ptr>(cinfo));
   }
 
   return ibuf;
@@ -445,7 +465,7 @@ static ImBuf *ibJpegImageFromCinfo(
 
 ImBuf *imb_load_jpeg(const uchar *buffer,
                      size_t size,
-                     int flags,
+                     ImBufFlags flags,
                      ImFileColorSpace & /*r_colorspace*/)
 {
   jpeg_decompress_struct _cinfo, *cinfo = &_cinfo;
@@ -483,7 +503,7 @@ ImBuf *imb_load_jpeg(const uchar *buffer,
 #define JPEG_APP1_MAX (1 << 16)
 
 ImBuf *imb_thumbnail_jpeg(const char *filepath,
-                          const int flags,
+                          const ImBufFlags flags,
                           const size_t max_thumb_size,
                           ImFileColorSpace &r_colorspace,
                           size_t *r_width,
@@ -525,14 +545,14 @@ ImBuf *imb_thumbnail_jpeg(const char *filepath,
     if (i > 0 && !feof(infile)) {
       /* We found a JPEG thumbnail inside this image. */
       ImBuf *ibuf = nullptr;
-      uchar *buffer = MEM_calloc_arrayN<uchar>(JPEG_APP1_MAX, "thumbbuffer");
+      uchar *buffer = MEM_new_array_zeroed<uchar>(JPEG_APP1_MAX, "thumbbuffer");
       /* Just put SOI directly in buffer rather than seeking back 2 bytes. */
       buffer[0] = JPEG_MARKER_MSB;
       buffer[1] = JPEG_MARKER_SOI;
       if (fread(buffer + 2, JPEG_APP1_MAX - 2, 1, infile) == 1) {
         ibuf = imb_load_jpeg(buffer, JPEG_APP1_MAX, flags, r_colorspace);
       }
-      MEM_SAFE_FREE(buffer);
+      MEM_SAFE_DELETE(buffer);
       if (ibuf) {
         fclose(infile);
         return ibuf;
@@ -561,7 +581,6 @@ static void write_jpeg(jpeg_compress_struct *cinfo, ImBuf *ibuf)
 {
   JSAMPLE *buffer = nullptr;
   JSAMPROW row_pointer[1];
-  uchar *rect;
   int x, y;
   char neogeo[128];
   NeoGeo_Word *neogeo_word;
@@ -569,20 +588,21 @@ static void write_jpeg(jpeg_compress_struct *cinfo, ImBuf *ibuf)
   jpeg_start_compress(cinfo, true);
 
   STRNCPY_UTF8(neogeo, "NeoGeo");
-  neogeo_word = (NeoGeo_Word *)(neogeo + 6);
+  neogeo_word = reinterpret_cast<NeoGeo_Word *>(neogeo + 6);
   memset(neogeo_word, 0, sizeof(*neogeo_word));
   neogeo_word->quality = ibuf->foptions.quality;
-  jpeg_write_marker(cinfo, 0xe1, (JOCTET *)neogeo, 10);
+  jpeg_write_marker(cinfo, 0xe1, reinterpret_cast<JOCTET *>(neogeo), 10);
   if (ibuf->metadata) {
 
     /* Static storage array for the short metadata. */
     char static_text[1024];
     const size_t static_text_size = ARRAY_SIZE(static_text);
-    LISTBASE_FOREACH (IDProperty *, prop, &ibuf->metadata->data.group) {
-      if (prop->type == IDP_STRING) {
+    for (IDProperty &prop : ibuf->metadata->data.group) {
+      if (prop.type == IDP_STRING) {
         size_t text_len;
-        if (STREQ(prop->name, "None")) {
-          jpeg_write_marker(cinfo, JPEG_COM, (JOCTET *)IDP_string_get(prop), prop->len);
+        if (STREQ(prop.name, "None")) {
+          jpeg_write_marker(
+              cinfo, JPEG_COM, reinterpret_cast<JOCTET *> IDP_string_get(&prop), prop.len);
         }
 
         char *text = static_text;
@@ -590,10 +610,10 @@ static void write_jpeg(jpeg_compress_struct *cinfo, ImBuf *ibuf)
         /* 7 is for Blender, 2 colon separators, length of property
          * name and property value, followed by the nullptr-terminator
          * which isn't needed by JPEG but #BLI_snprintf_rlen requires it. */
-        const size_t text_length_required = 7 + 2 + strlen(prop->name) +
-                                            strlen(IDP_string_get(prop)) + 1;
+        const size_t text_length_required = 7 + 2 + strlen(prop.name) +
+                                            strlen(IDP_string_get(&prop)) + 1;
         if (text_length_required > static_text_size) {
-          text = MEM_malloc_arrayN<char>(text_length_required, "jpeg metadata field");
+          text = MEM_new_array_uninitialized<char>(text_length_required, "jpeg metadata field");
           text_size = text_length_required;
         }
 
@@ -607,15 +627,15 @@ static void write_jpeg(jpeg_compress_struct *cinfo, ImBuf *ibuf)
          * in the read process.
          */
         text_len = BLI_snprintf_utf8_rlen(
-            text, text_size, "Blender:%s:%s", prop->name, IDP_string_get(prop));
+            text, text_size, "Blender:%s:%s", prop.name, IDP_string_get(&prop));
         /* Don't write the null byte (not expected by the JPEG format). */
-        jpeg_write_marker(cinfo, JPEG_COM, (JOCTET *)text, uint(text_len));
+        jpeg_write_marker(cinfo, JPEG_COM, reinterpret_cast<JOCTET *>(text), uint(text_len));
 
         /* TODO(sergey): Ideally we will try to re-use allocation as
          * much as possible. In practice, such long fields don't happen
          * often. */
         if (text != static_text) {
-          MEM_freeN(text);
+          MEM_delete(text);
         }
       }
     }
@@ -624,7 +644,7 @@ static void write_jpeg(jpeg_compress_struct *cinfo, ImBuf *ibuf)
   /* Write ICC profile if there is one associated with the colorspace. */
   const ColorSpace *colorspace = ibuf->byte_buffer.colorspace;
   if (colorspace) {
-    blender::Vector<char> icc_profile = IMB_colormanagement_space_icc_profile(colorspace);
+    Vector<char> icc_profile = IMB_colormanagement_space_to_icc_profile(colorspace);
     if (!icc_profile.is_empty()) {
       icc_profile.prepend({'I', 'C', 'C', '_', 'P', 'R', 'O', 'F', 'I', 'L', 'E', 0, 0, 1});
       jpeg_write_marker(cinfo,
@@ -634,11 +654,12 @@ static void write_jpeg(jpeg_compress_struct *cinfo, ImBuf *ibuf)
     }
   }
 
-  row_pointer[0] = MEM_malloc_arrayN<std::remove_pointer_t<JSAMPROW>>(
+  row_pointer[0] = MEM_new_array_uninitialized<std::remove_pointer_t<JSAMPROW>>(
       size_t(cinfo->input_components) * size_t(cinfo->image_width), "jpeg row_pointer");
 
+  const uchar *byte_data = ibuf->byte_data();
   for (y = ibuf->y - 1; y >= 0; y--) {
-    rect = ibuf->byte_buffer.data + 4 * y * size_t(ibuf->x);
+    const uchar *rect = byte_data + 4 * y * size_t(ibuf->x);
     buffer = row_pointer[0];
 
     switch (cinfo->in_color_space) {
@@ -669,7 +690,7 @@ static void write_jpeg(jpeg_compress_struct *cinfo, ImBuf *ibuf)
   }
 
   jpeg_finish_compress(cinfo);
-  MEM_freeN(row_pointer[0]);
+  MEM_delete(row_pointer[0]);
 }
 
 static int init_jpeg(FILE *outfile, jpeg_compress_struct *cinfo, ImBuf *ibuf)
@@ -689,17 +710,9 @@ static int init_jpeg(FILE *outfile, jpeg_compress_struct *cinfo, ImBuf *ibuf)
   cinfo->image_height = ibuf->y;
 
   cinfo->in_color_space = JCS_RGB;
-  if (ibuf->planes == 8) {
+  if (ibuf->color_mode == ImColorMode::BW) {
     cinfo->in_color_space = JCS_GRAYSCALE;
   }
-#if 0
-  /* just write RGBA as RGB,
-   * unsupported feature only confuses other s/w */
-
-  if (ibuf->planes == 32) {
-    cinfo->in_color_space = JCS_UNKNOWN;
-  }
-#endif
   switch (cinfo->in_color_space) {
     case JCS_RGB:
       cinfo->input_components = 3;
@@ -759,9 +772,11 @@ static bool save_stdjpeg(const char *filepath, ImBuf *ibuf)
   return true;
 }
 
-bool imb_savejpeg(ImBuf *ibuf, const char *filepath, int flags)
+bool imb_savejpeg(ImBuf *ibuf, const char *filepath, ImBufFlags flags)
 {
 
   ibuf->flags = flags;
   return save_stdjpeg(filepath, ibuf);
 }
+
+}  // namespace blender

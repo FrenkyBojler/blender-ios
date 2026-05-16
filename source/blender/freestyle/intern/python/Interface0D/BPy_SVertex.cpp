@@ -27,19 +27,23 @@ PyDoc_STRVAR(
     "\n"
     "Class to define a vertex of the embedding.\n"
     "\n"
-    ".. method:: __init__()\n"
-    "            __init__(brother)\n"
-    "            __init__(point_3d, id)\n"
+    ".. method:: __init__(*args)\n"
+    "\n"
+    "   Accepted call signatures:\n"
+    "\n"
+    "   - ``__init__()``\n"
+    "   - ``__init__(brother)``\n"
+    "   - ``__init__(point_3d, id)``\n"
     "\n"
     "   Builds a :class:`SVertex` using the default constructor,\n"
     "   copy constructor or the overloaded constructor which builds"
     "   a :class:`SVertex` from 3D coordinates and an Id.\n"
     "\n"
-    "   :arg brother: A SVertex object.\n"
+    "   :param brother: A SVertex object.\n"
     "   :type brother: :class:`SVertex`\n"
-    "   :arg point_3d: A three-dimensional vector.\n"
+    "   :param point_3d: A three-dimensional vector.\n"
     "   :type point_3d: :class:`mathutils.Vector`\n"
-    "   :arg id: An Id object.\n"
+    "   :param id: An Id object.\n"
     "   :type id: :class:`Id`\n");
 static int SVertex_init(BPy_SVertex *self, PyObject *args, PyObject *kwds)
 {
@@ -80,7 +84,7 @@ PyDoc_STRVAR(
     "   Adds a normal to the SVertex's set of normals. If the same normal\n"
     "   is already in the set, nothing changes.\n"
     "\n"
-    "   :arg normal: A three-dimensional vector.\n"
+    "   :param normal: A three-dimensional vector.\n"
     "   :type normal: :class:`mathutils.Vector` | tuple[float, float, float] | list[float]\n");
 static PyObject *SVertex_add_normal(BPy_SVertex *self, PyObject *args, PyObject *kwds)
 {
@@ -107,7 +111,7 @@ PyDoc_STRVAR(
     "\n"
     "   Add an FEdge to the list of edges emanating from this SVertex.\n"
     "\n"
-    "   :arg fedge: An FEdge.\n"
+    "   :param fedge: An FEdge.\n"
     "   :type fedge: :class:`FEdge`\n");
 static PyObject *SVertex_add_fedge(BPy_SVertex *self, PyObject *args, PyObject *kwds)
 {
@@ -159,7 +163,7 @@ static PyMethodDef BPy_SVertex_methods[] = {
 #define MATHUTILS_SUBTYPE_POINT3D 1
 #define MATHUTILS_SUBTYPE_POINT2D 2
 
-static int SVertex_mathutils_check(BaseMathObject *bmo)
+static int SVertex_mathutils_check(blender::BaseMathObject *bmo)
 {
   if (!BPy_SVertex_Check(bmo->cb_user)) {
     return -1;
@@ -167,7 +171,7 @@ static int SVertex_mathutils_check(BaseMathObject *bmo)
   return 0;
 }
 
-static int SVertex_mathutils_get(BaseMathObject *bmo, int subtype)
+static int SVertex_mathutils_get(blender::BaseMathObject *bmo, int subtype)
 {
   BPy_SVertex *self = (BPy_SVertex *)bmo->cb_user;
   switch (subtype) {
@@ -187,7 +191,7 @@ static int SVertex_mathutils_get(BaseMathObject *bmo, int subtype)
   return 0;
 }
 
-static int SVertex_mathutils_set(BaseMathObject *bmo, int subtype)
+static int SVertex_mathutils_set(blender::BaseMathObject *bmo, int subtype)
 {
   BPy_SVertex *self = (BPy_SVertex *)bmo->cb_user;
   switch (subtype) {
@@ -207,7 +211,7 @@ static int SVertex_mathutils_set(BaseMathObject *bmo, int subtype)
   return 0;
 }
 
-static int SVertex_mathutils_get_index(BaseMathObject *bmo, int subtype, int index)
+static int SVertex_mathutils_get_index(blender::BaseMathObject *bmo, int subtype, int index)
 {
   BPy_SVertex *self = (BPy_SVertex *)bmo->cb_user;
   switch (subtype) {
@@ -247,7 +251,7 @@ static int SVertex_mathutils_get_index(BaseMathObject *bmo, int subtype, int ind
   return 0;
 }
 
-static int SVertex_mathutils_set_index(BaseMathObject *bmo, int subtype, int index)
+static int SVertex_mathutils_set_index(blender::BaseMathObject *bmo, int subtype, int index)
 {
   BPy_SVertex *self = (BPy_SVertex *)bmo->cb_user;
   switch (subtype) {
@@ -269,7 +273,7 @@ static int SVertex_mathutils_set_index(BaseMathObject *bmo, int subtype, int ind
   return 0;
 }
 
-static Mathutils_Callback SVertex_mathutils_cb = {
+static blender::Mathutils_Callback SVertex_mathutils_cb = {
     SVertex_mathutils_check,
     SVertex_mathutils_get,
     SVertex_mathutils_set,
@@ -294,14 +298,15 @@ PyDoc_STRVAR(
     ":type: :class:`mathutils.Vector`\n");
 static PyObject *SVertex_point_3d_get(BPy_SVertex *self, void * /*closure*/)
 {
-  return Vector_CreatePyObject_cb(
+  return blender::Vector_CreatePyObject_cb(
       (PyObject *)self, 3, SVertex_mathutils_cb_index, MATHUTILS_SUBTYPE_POINT3D);
 }
 
 static int SVertex_point_3d_set(BPy_SVertex *self, PyObject *value, void * /*closure*/)
 {
   float v[3];
-  if (mathutils_array_parse(v, 3, 3, value, "value must be a 3-dimensional vector") == -1) {
+  if (blender::mathutils_array_parse(v, 3, 3, value, "value must be a 3-dimensional vector") == -1)
+  {
     return -1;
   }
   Vec3r p(v[0], v[1], v[2]);
@@ -317,14 +322,15 @@ PyDoc_STRVAR(
     ":type: :class:`mathutils.Vector`\n");
 static PyObject *SVertex_point_2d_get(BPy_SVertex *self, void * /*closure*/)
 {
-  return Vector_CreatePyObject_cb(
+  return blender::Vector_CreatePyObject_cb(
       (PyObject *)self, 3, SVertex_mathutils_cb_index, MATHUTILS_SUBTYPE_POINT2D);
 }
 
 static int SVertex_point_2d_set(BPy_SVertex *self, PyObject *value, void * /*closure*/)
 {
   float v[3];
-  if (mathutils_array_parse(v, 3, 3, value, "value must be a 3-dimensional vector") == -1) {
+  if (blender::mathutils_array_parse(v, 3, 3, value, "value must be a 3-dimensional vector") == -1)
+  {
     return -1;
   }
   Vec3r p(v[0], v[1], v[2]);
@@ -361,7 +367,7 @@ PyDoc_STRVAR(
     "has exactly one normal. In a smooth surface, an SVertex can have any\n"
     "number of normals.\n"
     "\n"
-    ":type: list of :class:`mathutils.Vector`\n");
+    ":type: list[:class:`mathutils.Vector`]\n");
 static PyObject *SVertex_normals_get(BPy_SVertex *self, void * /*closure*/)
 {
   PyObject *py_normals;

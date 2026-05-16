@@ -14,6 +14,7 @@ set(LIB
   PRIVATE bf::bmesh
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
+  PRIVATE bf::functions
   PRIVATE bf::gpu
   PRIVATE bf::imbuf
   PRIVATE bf::imbuf::movie
@@ -22,7 +23,7 @@ set(LIB
   PRIVATE bf::render
   PRIVATE bf::sequencer
   PRIVATE bf::windowmanager
-  PRIVATE bf::dependencies::optional::opencolorio
+  PRIVATE bf::dependencies::opencolorio
 )
 
 if(HAVE_FEENABLEEXCEPT)
@@ -72,17 +73,14 @@ if(WITH_CODEC_FFMPEG)
   add_definitions(-DWITH_FFMPEG)
 endif()
 
-if(WITH_TBB)
+if(WITH_TBB OR WITH_TBB_MALLOC_PROXY)
   list(APPEND INC ${TBB_INCLUDE_DIRS})
+endif()
+if(WITH_TBB)
   if(WIN32)
     # For `pragma` that links `tbbmalloc_proxy.lib`.
     link_directories(${LIBDIR}/tbb/lib)
   endif()
-endif()
-
-if(WIN32)
-  # Windows.h will define min/max macros that will collide with the STL versions.
-  add_definitions(-DNOMINMAX)
 endif()
 
 if(WITH_USD)
@@ -115,6 +113,10 @@ if(WITH_SDL)
   add_definitions(-DWITH_SDL)
 endif()
 
+if(WITH_INPUT_NDOF)
+  add_definitions(-DWITH_INPUT_NDOF)
+endif()
+
 if(WITH_BINRELOC)
   list(APPEND INC ${BINRELOC_INCLUDE_DIRS})
   add_definitions(-DWITH_BINRELOC)
@@ -132,6 +134,10 @@ endif()
 if(WITH_GMP)
   list(APPEND INC ${GMP_INCLUDE_DIRS})
   add_definitions(-DWITH_GMP)
+endif()
+
+if(WITH_TBB_MALLOC_PROXY)
+  add_definitions(-DWITH_TBB_MALLOC)
 endif()
 
 # Setup the EXE sources and `buildinfo`.
@@ -283,7 +289,7 @@ if(WITH_BUILDINFO)
   add_dependencies(buildinfoobj buildinfo)
 endif()
 
-add_cc_flags_custom_test(blender)
+add_c_and_cxx_flags_custom_test(blender)
 
 # message(STATUS "Configuring blender")
 if(WITH_PYTHON_MODULE)
@@ -484,7 +490,14 @@ if(WITH_PYTHON)
 
   if(WITH_DRACO)
     install(
-      PROGRAMS $<TARGET_FILE:extern_draco>
+      PROGRAMS $<TARGET_FILE:bf_intern_draco_bridge>
+      DESTINATION ${TARGETDIR_VER}/scripts/addons_core/io_scene_gltf2
+    )
+  endif()
+
+  if(WITH_MESHOPTIMIZER)
+    install(
+      PROGRAMS $<TARGET_FILE:bf_intern_meshopt_bridge>
       DESTINATION ${TARGETDIR_VER}/scripts/addons_core/io_scene_gltf2
     )
   endif()
@@ -540,12 +553,10 @@ if(WITH_INTERNATIONAL)
 endif()
 
 # Color management.
-if(WITH_OPENCOLORIO)
-  install(
-    DIRECTORY ${CMAKE_SOURCE_DIR}/release/datafiles/colormanagement
-    DESTINATION ${TARGETDIR_VER}/datafiles
-  )
-endif()
+install(
+  DIRECTORY ${CMAKE_SOURCE_DIR}/release/datafiles/colormanagement
+  DESTINATION ${TARGETDIR_VER}/datafiles
+)
 if(WIN32)
   if(EXISTS ${LIBDIR}/osl/lib/python${PYTHON_VERSION}/site-packages/oslquery) # 4.4+
     install(
@@ -557,6 +568,18 @@ if(WIN32)
       DIRECTORY ${LIBDIR}/osl/lib/python${PYTHON_VERSION}_debug/site-packages/oslquery
       DESTINATION ${TARGETDIR_SITE_PACKAGES}
       CONFIGURATIONS Debug
+    )
+  endif()
+  if(EXISTS ${LIBDIR}/ceres/bin/ceres.dll) # 5.1+
+    windows_install_shared_manifest(
+      FILES
+        ${LIBDIR}/ceres/bin/ceres.dll
+      RELEASE
+    )
+    windows_install_shared_manifest(
+      FILES
+        ${LIBDIR}/ceres/bin/ceres-debug.dll
+      DEBUG
     )
   endif()
   if(EXISTS ${LIBDIR}/osl/bin/oslquery.dll) # 4.1+
@@ -587,14 +610,31 @@ if(WIN32)
       DEBUG
     )
   endif()
-  if(EXISTS ${LIBDIR}/opencolorio/bin/opencolorio_2_3.dll) # 4.1
+  if(EXISTS ${LIBDIR}/opencolorio/bin/opencolorio_2_5.dll) # 5.1
     windows_install_shared_manifest(
-      FILES ${LIBDIR}/opencolorio/bin/opencolorio_2_3.dll
+      FILES ${LIBDIR}/opencolorio/bin/opencolorio_2_5.dll
       RELEASE
     )
     windows_install_shared_manifest(
-      FILES ${LIBDIR}/opencolorio/bin/opencolorio_d_2_3.dll
+      FILES ${LIBDIR}/opencolorio/bin/opencolorio_d_2_5.dll
       DEBUG
+    )
+  endif()
+  if(EXISTS ${LIBDIR}/openjph/bin/openjph.0.25.dll) # 5.1
+    windows_install_shared_manifest(
+      FILES ${LIBDIR}/openjph/bin/openjph.0.25.dll
+      RELEASE
+    )
+    windows_install_shared_manifest(
+      FILES ${LIBDIR}/openjph/bin/openjph.0.25d.dll
+      DEBUG
+    )
+  endif()
+  if(EXISTS "${LIBDIR}/aom/bin/aom.dll") # 5.1
+    windows_install_shared_manifest(
+      FILES
+        ${LIBDIR}/aom/bin/aom.dll
+      ALL
     )
   endif()
   install(
@@ -657,7 +697,8 @@ endif()
 unset(_install_cmd)
 
 # macro to help install files without dragging in unnecessary data.
-macro(install_dir from to)
+# Install a directory, excluding common junk files.
+function(install_dir from to)
   install(
     DIRECTORY ${from}
     DESTINATION ${to}
@@ -684,7 +725,7 @@ macro(install_dir from to)
     PATTERN "turtle.py" EXCLUDE                 # ./turtle.py
     PATTERN "wininst*.exe" EXCLUDE              # from distutils, avoid malware false positive
   )
-endmacro()
+endfunction()
 
 # -----------------------------------------------------------------------------
 # Install Targets (Platform Specific)
@@ -745,34 +786,11 @@ if(UNIX AND NOT APPLE)
     # NOTE: there is a bug in CMake 3.25.1 where `LIBDIR` is reported as undefined.
     if(NOT DEFINED LIBDIR)
       # Pass.
-    elseif(EXISTS ${LIBDIR}/mesa)
-      install(
-        # Trailing slash is needed to install contents instead of directory itself.
-        DIRECTORY ${LIBDIR}/mesa/lib/
-        DESTINATION "./lib/mesa"
-      )
-
+    elseif(EXISTS ${LIBDIR})
       install(
         PROGRAMS
         ${CMAKE_SOURCE_DIR}/release/bin/blender-launcher
-        ${CMAKE_SOURCE_DIR}/release/bin/blender-softwaregl
         DESTINATION "."
-      )
-
-      # Remove from old location, so existing builds don't start with software
-      # OpenGL now that the `./lib/` directory is used for other libraries.
-      install(
-        CODE "\
-file(REMOVE ${CMAKE_BINARY_DIR}/bin/lib/libGL.so)\n
-file(REMOVE ${CMAKE_BINARY_DIR}/bin/lib/libGL.so.1)\n
-file(REMOVE ${CMAKE_BINARY_DIR}/bin/lib/libGL.so.1.5.0)\n
-file(REMOVE ${CMAKE_BINARY_DIR}/bin/lib/libGLU.so)\n
-file(REMOVE ${CMAKE_BINARY_DIR}/bin/lib/libGLU.so.1)\n
-file(REMOVE ${CMAKE_BINARY_DIR}/bin/lib/libGLU.so.1.3.1)\n
-file(REMOVE ${CMAKE_BINARY_DIR}/bin/lib/libglapi.so)\n
-file(REMOVE ${CMAKE_BINARY_DIR}/bin/lib/libglapi.so.0)\n
-file(REMOVE ${CMAKE_BINARY_DIR}/bin/lib/libglapi.so.0.0.0)\n
-"
       )
     endif()
   else()
@@ -1118,9 +1136,35 @@ elseif(WIN32)
   )
 
   if(WITH_WINDOWS_RELEASE_PDB)
-    # Skip install of stripped PDB if compiling with clang since there doesn't seem
-    # to be a PDB-stripped version for `clang-cl`.
-    if(WITH_WINDOWS_RELEASE_STRIPPED_PDB AND NOT MSVC_CLANG)
+    if(MSVC_CLANG AND WITH_WINDOWS_RELEASE_STRIPPED_PDB)
+      # clang-cl doesn't support stripped pdbs yet, it takes the /PDBSTRIPPED argument
+      # without errors, but will just proceed to not do anything with it. So for now
+      # just call pdbcopy manually to create the stripped pdb.
+      if(CMAKE_SYSTEM_PROCESSOR STREQUAL "ARM64")
+        set(SDK_SEARCH_DIR $ENV{WindowsSdkDir}/Debuggers/arm64)
+      else()
+        set(SDK_SEARCH_DIR $ENV{WindowsSdkDir}/Debuggers/x64)
+      endif()
+      find_program(PDBCOPY_EXECUTABLE
+        NAMES
+          pdbcopy
+        HINTS
+          ${SDK_SEARCH_DIR}
+      )
+      if(PDBCOPY_EXECUTABLE)
+        add_custom_command(
+          TARGET blender POST_BUILD
+          COMMAND ${CMAKE_COMMAND} -E rm -f ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_BUILD_TYPE}/blender_public.pdb
+          COMMAND ${PDBCOPY_EXECUTABLE} $<TARGET_PDB_FILE:blender> ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_BUILD_TYPE}/blender_public.pdb -p
+          COMMENT "Stripping PDB file..."
+        )
+      else()
+        message(WARNING "pdbcopy not found in ${SDK_SEARCH_DIR}. PDB stripping will be skipped.")
+        set(WITH_WINDOWS_RELEASE_STRIPPED_PDB off)
+      endif()
+    endif()
+
+    if(WITH_WINDOWS_RELEASE_STRIPPED_PDB)
       # Icky hack for older CMAKE from https://stackoverflow.com/a/21198501
       # `$<CONFIG>` will work in newer CMAKE but the version currently (3.12)
       # on the build-bot does not support this endeavor.
@@ -1204,7 +1248,7 @@ elseif(WIN32)
     string(REPLACE "." "" _PYTHON_VERSION_NO_DOTS ${PYTHON_VERSION})
 
     if(NOT WITH_PYTHON_MODULE)
-      if(NOT CMAKE_COMPILER_IS_GNUCC)
+      if(NOT CMAKE_C_COMPILER_ID STREQUAL "GNU")
         install(
           FILES
             ${LIBDIR}/python/${_PYTHON_VERSION_NO_DOTS}/bin/python${_PYTHON_VERSION_NO_DOTS}.dll
@@ -1420,7 +1464,26 @@ elseif(WIN32)
 
   # Filenames change slightly between FFMPEG versions check both 6.0 and fallback to 5.0
   # to ease the transition between versions.
-  if(EXISTS "${LIBDIR}/ffmpeg/lib/avcodec-61.dll")
+  if(EXISTS "${LIBDIR}/ffmpeg/lib/avfilter-10.dll")
+    windows_install_shared_manifest(
+      FILES
+        ${LIBDIR}/ffmpeg/lib/avfilter-10.dll
+      ALL
+    )
+  endif()
+  if(EXISTS "${LIBDIR}/ffmpeg/lib/avcodec-62.dll")
+    windows_install_shared_manifest(
+      FILES
+        ${LIBDIR}/ffmpeg/lib/avcodec-62.dll
+        ${LIBDIR}/ffmpeg/lib/avformat-62.dll
+        ${LIBDIR}/ffmpeg/lib/avdevice-62.dll
+        ${LIBDIR}/ffmpeg/lib/avutil-60.dll
+        ${LIBDIR}/ffmpeg/lib/swscale-9.dll
+        ${LIBDIR}/ffmpeg/lib/swresample-6.dll
+        ${LIBDIR}/ffmpeg/lib/avfilter-11.dll
+      ALL
+    )
+  elseif(EXISTS "${LIBDIR}/ffmpeg/lib/avcodec-61.dll")
     windows_install_shared_manifest(
       FILES
         ${LIBDIR}/ffmpeg/lib/avcodec-61.dll
@@ -1517,7 +1580,7 @@ elseif(WIN32)
   )
 
   windows_install_shared_manifest(
-    FILES ${LIBDIR}/sdl/lib/SDL2.dll
+    FILES ${LIBDIR}/sdl/bin/SDL3.dll
     ALL
   )
 
@@ -1612,6 +1675,12 @@ elseif(APPLE)
     MACOSX_BUNDLE_INFO_PLIST ${OSX_APP_SOURCEDIR}/Contents/Info.plist
     MACOSX_BUNDLE_SHORT_VERSION_STRING "${BLENDER_VERSION}.${BLENDER_VERSION_PATCH}"
     MACOSX_BUNDLE_LONG_VERSION_STRING "${BLENDER_VERSION}.${BLENDER_VERSION_PATCH} ${BLENDER_DATE}"
+  )
+
+  # Xcode Archiving support for distributing the application (Testflight, App Store Connect, etc...)
+  set_target_properties(blender PROPERTIES
+    XCODE_ATTRIBUTE_SKIP_INSTALL "NO"
+    XCODE_ATTRIBUTE_INSTALL_PATH "$(LOCAL_APPS_DIR)"
   )
 
   if(WITH_BLENDER_THUMBNAILER)
@@ -1729,7 +1798,7 @@ endif()
 # the site-packages directory.
 if(WITH_PYTHON_MODULE AND LIBDIR AND NOT WIN32)
   # It's possible for a build using LIBDIR to reference a non-standard Python installation.
-  path_is_prefix(LIBDIR PYTHON_INCLUDE_DIR _is_python_in_libdir)
+  cmake_path(IS_PREFIX LIBDIR "${PYTHON_INCLUDE_DIR}" NORMALIZE _is_python_in_libdir)
   if(_is_python_in_libdir)
     install(
       DIRECTORY ${LIBDIR}/python/lib/python${PYTHON_VERSION}/site-packages/MaterialX
@@ -1808,7 +1877,7 @@ unset(TARGETDIR_TEXT)
 
 # Geometry icons.
 get_property(_icon_names GLOBAL PROPERTY ICON_GEOM_NAMES)
-set(_icon_files)
+set(_icon_files "")
 foreach(_f ${_icon_names})
   list(APPEND _icon_files
     "${CMAKE_SOURCE_DIR}/release/datafiles/icons/${_f}.dat"
@@ -1855,10 +1924,7 @@ unset(LIB)
 
 setup_platform_linker_flags(blender)
 setup_platform_linker_libs(blender)
-
-if(DEFINED PLATFORM_SYMBOLS_MAP)
-  set_target_properties(blender PROPERTIES LINK_DEPENDS ${PLATFORM_SYMBOLS_MAP})
-endif()
+setup_platform_linker_symbol_hiding(blender)
 
 blender_target_include_dirs(blender ${INC})
 
@@ -1889,32 +1955,19 @@ if((DEFINED LIBDIR) AND TARGETDIR_LIB)
         ${USD_LIBRARY_DIR}/usd
         DESTINATION ${TARGETDIR_LIB}
       )
-      install(DIRECTORY
-        ${LIBDIR}/usd/plugin/usd/hdStorm
-        ${LIBDIR}/usd/plugin/usd/usdShaders
-        ${LIBDIR}/usd/plugin/usd/hioOiio
-        DESTINATION "blender.shared/usd"
-      )
+      install(DIRECTORY ${LIBDIR}/usd/plugin/usd/ DESTINATION "blender.shared/usd")
     elseif(USD_PYTHON_SUPPORT)
       install(DIRECTORY
         ${USD_LIBRARY_DIR}/usd
         DESTINATION ${TARGETDIR_LIB}
       )
-      install(DIRECTORY
-        ${LIBDIR}/usd/plugin/usd/hdStorm
-        ${LIBDIR}/usd/plugin/usd/usdShaders
-        DESTINATION ${TARGETDIR_LIB}/usd
-      )
+      install(DIRECTORY ${LIBDIR}/usd/plugin/usd/ DESTINATION ${TARGETDIR_LIB}/usd)
     else()
       install(DIRECTORY
         ${USD_LIBRARY_DIR}/usd
         DESTINATION "${TARGETDIR_VER}/datafiles"
       )
-      install(DIRECTORY
-        ${LIBDIR}/usd/plugin/usd/hdStorm
-        ${LIBDIR}/usd/plugin/usd/usdShaders
-        DESTINATION "${TARGETDIR_VER}/datafiles/usd"
-      )
+      install(DIRECTORY ${LIBDIR}/usd/plugin/usd/ DESTINATION "${TARGETDIR_VER}/datafiles/usd")
     endif()
   endif()
   if(WIN32)
@@ -1954,36 +2007,17 @@ if((DEFINED LIBDIR) AND TARGETDIR_LIB AND WITH_MATERIALX)
   )
 endif()
 
-if(WIN32 AND DEFINED BOOST_LIBPATH)
-  if(EXISTS ${BOOST_LIBPATH})
-    set(BOOST_COMPONENTS atomic chrono date_time filesystem
-      iostreams locale program_options regex
-      serialization system thread wave wserialization
-      python${_PYTHON_VERSION_NO_DOTS} numpy${_PYTHON_VERSION_NO_DOTS}
-    )
-    foreach(component ${BOOST_COMPONENTS})
-      if(EXISTS ${BOOST_LIBPATH}/${BOOST_PREFIX}boost_${component}-${BOOST_POSTFIX}.dll)
-        windows_install_shared_manifest(
-          FILES ${BOOST_LIBPATH}/${BOOST_PREFIX}boost_${component}-${BOOST_POSTFIX}.dll
-          RELEASE
-        )
-        windows_install_shared_manifest(
-          FILES ${BOOST_LIBPATH}/${BOOST_PREFIX}boost_${component}-${BOOST_DEBUG_POSTFIX}.dll
-          DEBUG
-        )
-      endif()
-    endforeach()
-  endif()
-endif()
-
 if(WIN32)
   if(WITH_CYCLES_DEVICE_HIPRT)
-    if(EXISTS ${LIBDIR}/hiprt/bin/hiprt64.dll)
-      install(
-        FILES ${LIBDIR}/hiprt/bin/hiprt64.dll
-        DESTINATION "./"
-      )
-    endif()
+    # Cycles does `find_package(HIPRT)` for its compilation purposes, and the variables defined by
+    # the FindHIPRT.cmake are only available in Cycles. In order to access HIPRT_VERSION need to
+    # find the package from here as well.
+    # For the strict compilation rely on Cycles to take care of set_and_warn_library_found().
+    find_package(HIPRT)
+    windows_install_shared_manifest(
+      FILES ${LIBDIR}/hiprt/bin/hiprt${HIPRT_VERSION}64.dll
+      ALL
+    )
   endif()
 endif()
 
@@ -1997,7 +2031,7 @@ if(WIN32)
   )
   # If compiling with clang-cl we skip PDBSTRIPPED.
   # There's doesn't seem to be a switch for it currently
-  if(WITH_WINDOWS_RELEASE_PDB AND WITH_WINDOWS_RELEASE_STRIPPED_PDB AND NOT MSVC_CLANG)
+  if(WITH_WINDOWS_RELEASE_PDB AND WITH_WINDOWS_RELEASE_STRIPPED_PDB)
     # This is slightly messy, but single target generators like ninja will not have the
     # `CMAKE_CFG_INTDIR` variable and multi-target generators like `msbuild` will not have
     # `CMAKE_BUILD_TYPE`. This can be simplified by `target_link_options` and the `$<CONFIG>`

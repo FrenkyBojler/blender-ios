@@ -11,6 +11,8 @@
 
 #include "BLI_sys_types.h"
 
+namespace blender {
+
 struct BlendThumbnail;
 struct Main;
 struct MemFile;
@@ -38,13 +40,15 @@ enum eBLO_WritePathRemap {
 
 /** Similar to #BlendFileReadParams. */
 struct BlendFileWriteParams {
-  eBLO_WritePathRemap remap_mode;
+  eBLO_WritePathRemap remap_mode = {};
   /** Save `.blend1`, `.blend2`... etc. */
-  uint use_save_versions : 1;
+  uint use_save_versions : 1 = false;
   /** On write, restore paths after editing them (see #BLO_WRITE_PATH_REMAP_RELATIVE). */
-  uint use_save_as_copy : 1;
-  uint use_userdef : 1;
-  const BlendThumbnail *thumb;
+  uint use_save_as_copy : 1 = false;
+  uint use_userdef : 1 = false;
+  /** This is writing a copy/paste buffer, not a regular blendfile. */
+  uint is_copypaste_buffer : 1 = false;
+  const BlendThumbnail *thumb = nullptr;
 };
 
 /**
@@ -62,3 +66,5 @@ extern bool BLO_write_file(Main *mainvar,
 extern bool BLO_write_file_mem(Main *mainvar, MemFile *compare, MemFile *current, int write_flags);
 
 /** \} */
+
+}  // namespace blender

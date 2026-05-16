@@ -20,7 +20,7 @@
  * without dealing with none-closures.
  */
 
-#include "infos/eevee_common_info.hh"
+#include "infos/eevee_common_infos.hh"
 
 #include "eevee_gbuffer_lib.glsl"
 
@@ -59,7 +59,12 @@ ClosurePacking pack_closure(ClosureUndetermined cl)
   switch (cl_packed.mode) {
 #ifdef GBUFFER_HAS_REFLECTION
     case GBUF_REFLECTION:
+#  ifdef MAT_REFLECTION_COLORLESS
+      /* Material is colored, but the flag is set to colorless. */
+      assert(false);
+#  else
       gbuffer::Reflection::pack_additional(cl_packed, cl);
+#  endif
       break;
     case GBUF_REFLECTION_COLORLESS:
       gbuffer::ReflectionColorless::pack_additional(cl_packed, cl);
@@ -67,7 +72,12 @@ ClosurePacking pack_closure(ClosureUndetermined cl)
 #endif
 #ifdef GBUFFER_HAS_REFRACTION
     case GBUF_REFRACTION:
+#  ifdef MAT_REFRACTION_COLORLESS
+      /* Material is colored, but the flag is set to colorless. */
+      assert(false);
+#  else
       gbuffer::Refraction::pack_additional(cl_packed, cl);
+#  endif
       break;
     case GBUF_REFRACTION_COLORLESS:
       gbuffer::RefractionColorless::pack_additional(cl_packed, cl);
@@ -214,10 +224,12 @@ struct Packer {
       case 2u:
         data.closure[0] = this->closures[0].data0;
         data.closure[1] = this->closures[1].data0;
+#  ifndef GBUFFER_SIMPLE_CLOSURE_LAYOUT
         data.closure[2] = this->closures[0].data1;
         data.closure[3] = this->closures[1].data1;
         set_flag_from_test(used_layers, this->closures[0].use_data1(), CLOSURE_DATA_2);
         set_flag_from_test(used_layers, this->closures[1].use_data1(), CLOSURE_DATA_3);
+#  endif
         break;
 #endif
 #if GBUFFER_LAYER_MAX > 2
@@ -257,13 +269,17 @@ struct InputClosures {
 };
 
 /**
-  * surface_N: Fallback normal is there is no closure.
-  * thickness: Additional object information if any closure needs it.
-  float thickness;
-  * use_object_id: True if surface uses a dedicated object id layer. Should only be turned on if
-  needed. */
-Packed pack(
-    InputClosures cl_data, float3 Ng, packed_float3 surface_N, float thickness, bool use_object_id)
+ * - cl_data       : general closure output data.
+ * - Ng            : geometric normal.
+ * - surface_N     : packed surface normal.
+ * - thickness     : object thickness, packed in additional information if a closure needs it.
+ * - use_object_id : if surface uses a dedicated object id layer. Should only be on if needed.
+ */
+Packed pack(InputClosures cl_data,
+            float3 Ng,
+            packed_float3 surface_N,
+            Thickness thickness,
+            bool use_object_id)
 {
   Packer packer;
   packer.header = Header::zero();
@@ -274,7 +290,7 @@ Packed pack(
   }
 
   for (int i = 0; i < GBUFFER_LAYER_MAX; i++) {
-    packer.header.closure_set(i, packer.closures[i].mode);
+    packer.header.closure_set(uchar(i), packer.closures[i].mode);
   }
 
   if (packer.header.has_additional_data()) {

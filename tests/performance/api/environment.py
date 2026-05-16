@@ -154,6 +154,19 @@ class TestEnvironment:
         else:
             return pathlib.Path('blender')
 
+    def _has_install_files(self, executable_path: pathlib.Path) -> bool:
+        """
+        Check if the given executable is a full installation of blender by checking
+        the availability of the 'license' directory.
+        """
+        # Follow symlink to actual install location.
+        executable_path = executable_path.resolve()
+        if platform.system() == "Darwin":
+            license_path = executable_path.parent.parent / 'Resources' / 'text' / 'license'
+        else:
+            license_path = executable_path.parent / 'license'
+        return license_path.is_dir()
+
     def _blender_executable_from_path(self, executable: pathlib.Path) -> pathlib.Path:
         if executable.is_dir():
             # Directory
@@ -162,7 +175,7 @@ class TestEnvironment:
             # Executable path without proper path on Windows or macOS.
             executable = executable.parent / self._blender_executable_name()
 
-        if executable.is_file():
+        if executable.is_file() and self._has_install_files(executable):
             return executable
 
         return None
