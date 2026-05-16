@@ -343,6 +343,7 @@ class LazyFunctionForBakeNode final : public LazyFunction {
       bake::BakeValues::InputValue &bake_input_value = bake_input_values[i];
       bake_input_value.id = item.identifier;
       bake_input_value.name = item.name;
+      bake_input_value.field_domain = AttrDomain(item.attribute_domain);
       bake_input_value.value = std::move(*input_value_pointers[i]);
     }
 

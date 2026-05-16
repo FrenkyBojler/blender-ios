@@ -86,6 +86,7 @@ class RuntimeToBakeValue {
  private:
   MutableSpan<BakeValues::InputValue> root_values_;
   Map<std::string, std::string> referenced_anonymous_attributes_;
+  int attribute_field_count_ = 0;
   BakeDataBlockMap *data_block_map_ = nullptr;
 
  public:
@@ -97,6 +98,12 @@ class RuntimeToBakeValue {
 
   void prepare()
   {
+    for (BakeValues::InputValue &input_value : root_values_) {
+      input_value.value.ensure_owns_direct_data();
+    }
+
+    this->top_level_fields_to_attributes();
+
     /* As a pre-pass, gather all directly referenced anonymous attributes, because those will be
      * kept on the geometries. */
     for (const BakeValues::InputValue &input_value : root_values_) {
@@ -111,6 +118,50 @@ class RuntimeToBakeValue {
   }
 
  private:
+  void top_level_fields_to_attributes()
+  {
+    GeometrySet *prev_geo = nullptr;
+    for (const int value_i : root_values_.index_range()) {
+      BakeValues::InputValue &input_value = root_values_[value_i];
+      if (input_value.value.is_single()) {
+        const GMutablePointer value_ptr = input_value.value.get_single_ptr();
+        if (value_ptr.is_type<GeometrySet>()) {
+          prev_geo = value_ptr.get<GeometrySet>();
+          continue;
+        }
+      }
+      if (prev_geo && input_value.field_domain.has_value() &&
+          input_value.value.is_context_dependent_field())
+      {
+        const fn::GField field = input_value.value.get<fn::GField>();
+        if (field.get_input_if<AttributeFieldInput>()) {
+          continue;
+        }
+        std::string attribute_name = this->get_next_bake_attribute_name();
+        bool any_success = false;
+        for (const GeometryComponent::Type type : {
+                 GeometryComponent::Type::Mesh,
+                 GeometryComponent::Type::PointCloud,
+                 GeometryComponent::Type::GreasePencil,
+                 GeometryComponent::Type::Curve,
+                 GeometryComponent::Type::Instance,
+             })
+        {
+          if (!prev_geo->has(type)) {
+            continue;
+          }
+          GeometryComponent &component = prev_geo->get_component_for_write(type);
+          any_success |= try_capture_field_on_geometry(
+              component, attribute_name, *input_value.field_domain, field);
+        }
+        if (any_success) {
+          /* Replace the field with the one that was just captured. */
+          input_value.value.set(AttributeFieldInput::from(attribute_name, field.cpp_type()));
+        }
+      }
+    }
+  }
+
   void gather(const BakeValues::InputValue &input_value)
   {
     this->gather__SocketValueVariant(input_value.value);
@@ -207,10 +258,13 @@ class RuntimeToBakeValue {
 
   void handle_anonymous_attribute_reference(const StringRef attribute_name)
   {
-    referenced_anonymous_attributes_.lookup_or_add_cb_as(attribute_name, [&]() {
-      return fmt::format(
-          "{}{}", anonymous_bake_attribute_prefix, referenced_anonymous_attributes_.size());
-    });
+    referenced_anonymous_attributes_.lookup_or_add_cb_as(
+        attribute_name, [&]() { return this->get_next_bake_attribute_name(); });
+  }
+
+  std::string get_next_bake_attribute_name()
+  {
+    return fmt::format("{}{}", anonymous_bake_attribute_prefix, attribute_field_count_++);
   }
 
   void prepare_for_bake(BakeValues::InputValue &input_value)
@@ -355,7 +409,9 @@ class RuntimeToBakeValue {
     Vector<std::pair<std::string, std::string>> attributes_to_rename;
     for (const Attribute &attribute : attributes) {
       const StringRef attribute_name = attribute.name();
-      if (attribute_name_is_anonymous(attribute_name)) {
+      if (attribute_name_is_anonymous(attribute_name) &&
+          !attribute_name.startswith(anonymous_bake_attribute_prefix))
+      {
         const std::string *new_name = referenced_anonymous_attributes_.lookup_ptr(attribute_name);
         if (new_name) {
           attributes_to_rename.append({attribute_name, *new_name});
@@ -683,9 +739,6 @@ BakeValues BakeValues::from_runtime_values(Vector<InputValue> runtime_values,
   preparation.prepare();
 
   BakeValues bake_values;
-  for (InputValue &input_value : runtime_values) {
-    input_value.value.ensure_owns_direct_data();
-  }
   for (InputValue &input_value : runtime_values) {
     bake_values.values_by_id_.add(input_value.id,
                                   Item{std::move(input_value.value), std::move(input_value.name)});

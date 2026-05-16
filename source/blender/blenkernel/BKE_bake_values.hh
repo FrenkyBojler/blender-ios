@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "BKE_attribute_enums.hh"
 #include "BKE_bake_data_block_map.hh"
 #include "BKE_node_socket_value.hh"
 
@@ -27,6 +28,11 @@ class BakeValues {
     int id;
     std::string name;
     SocketValueVariant value;
+    /**
+     * If a domain is given and the value is a field (that is not just an attribute), the field is
+     * captured on the previous geometry. This mainly exists to preserve legacy behavior.
+     */
+    std::optional<AttrDomain> field_domain;
   };
   struct OutputKey {
     int id;

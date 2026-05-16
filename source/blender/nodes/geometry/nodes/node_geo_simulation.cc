@@ -269,6 +269,7 @@ class LazyFunctionForSimulationInputNode final : public LazyFunction {
       bke::bake::BakeValues::InputValue &input_value = input_values[i];
       input_value.id = item.identifier;
       input_value.name = item.name;
+      input_value.field_domain = AttrDomain(item.attribute_domain);
       input_value.value = std::move(*input_value_pointers[i]);
     }
     return bke::bake::BakeValues::from_runtime_values(std::move(input_values), data_block_map);
@@ -602,6 +603,7 @@ class LazyFunctionForSimulationOutputNode final : public LazyFunction {
       bke::bake::BakeValues::InputValue &input_value = input_values[i];
       input_value.id = item.identifier;
       input_value.name = item.name;
+      input_value.field_domain = AttrDomain(item.attribute_domain);
       input_value.value = std::move(*input_value_pointers[i]);
     }
     return bke::bake::BakeValues::from_runtime_values(std::move(input_values), data_block_map);
