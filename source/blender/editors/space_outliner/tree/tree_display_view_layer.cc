@@ -186,7 +186,7 @@ void TreeDisplayViewLayer::add_layer_collection_objects(ListBaseT<TreeElement> &
   }
 
   if (space_outliner_.sort_method == SO_SORT_CUSTOM) {
-    std::sort(cobs.begin(), cobs.end(), [](const CollectionObject *a, const CollectionObject *b) {
+    std::ranges::sort(cobs, [](const CollectionObject *a, const CollectionObject *b) {
       return a->sort_index < b->sort_index;
     });
   }
