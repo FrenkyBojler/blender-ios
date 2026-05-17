@@ -52,11 +52,9 @@ struct GeomPointCloud {
 
   if (pipe.is_shadow_pipe) [[static_branch]] {
     auto &shadow_iface = interface_get(eevee_shadow_iface_info, shadow_iface);
-    /* FIXME(fclem): This is a workaround for a bug in the BSL compiler. */
-    [[resource_table]] const GeomShadow &sh = shadow;
 
     shadow_iface.shadow_view_id = int(drw_view_id);
-    out_viewport = int(sh.render_view_buf[drw_view_id].viewport_index);
+    out_viewport = int(shadow.render_view_buf[drw_view_id].viewport_index);
   }
 
   init_interface();
@@ -105,11 +103,9 @@ struct GeomPointCloud {
 
   if (pipe.is_shadow_pipe) [[static_branch]] {
     auto &shadow_clip = interface_get(eevee_shadow_iface_info, shadow_clip);
-    /* FIXME(fclem): This is a workaround for a bug in the BSL compiler. */
-    [[resource_table]] const GeomShadow &sh = shadow;
 
     float3 vs_P = drw_point_world_to_view(interp.P);
-    ShadowRenderView view = sh.render_view_buf[drw_view_id];
+    ShadowRenderView view = shadow.render_view_buf[drw_view_id];
     shadow_clip.position = shadow_position_vector_get(vs_P, view);
     shadow_clip.vector = shadow_clip_vector_get(vs_P, view.clip_distance_inv);
   }
