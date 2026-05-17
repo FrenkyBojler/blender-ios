@@ -25,6 +25,7 @@
 
 #include "BKE_callbacks.hh"
 #include "BKE_context.hh"
+#include "BKE_file_handler.hh"
 #include "BKE_global.hh"
 #include "BKE_main.hh"
 #include "BKE_preferences.h"
@@ -964,7 +965,18 @@ static wmOperatorStatus preferences_extension_url_drop_invoke(bContext *C,
                                                               wmOperator *op,
                                                               const wmEvent *event)
 {
-  std::string url = RNA_string_get(op->ptr, "url");
+  std::string url;
+  if (RNA_struct_property_is_set(op->ptr, "url")) {
+    url = RNA_string_get(op->ptr, "url");
+  }
+  else if (RNA_struct_property_is_set(op->ptr, "filepath")) {
+    url = RNA_string_get(op->ptr, "filepath");
+  }
+  else {
+    BKE_reportf(op->reports, RPT_ERROR, "Extension URL/filepath not provided.");
+    return OPERATOR_FINISHED;
+  }
+
   const bool url_is_file = STRPREFIX(url.c_str(), "file://");
   const bool url_is_online = STRPREFIX(url.c_str(), "http://") ||
                              STRPREFIX(url.c_str(), "https://");
@@ -1010,6 +1022,8 @@ static void PREFERENCES_OT_extension_url_drop(wmOperatorType *ot)
   ot->invoke = preferences_extension_url_drop_invoke;
 
   RNA_def_string(ot->srna, "url", nullptr, 0, "URL", "Location of the extension to install");
+  RNA_def_string(
+      ot->srna, "filepath", nullptr, 0, "Filepath", "Filepath of the extension to install");
 }
 
 /** \} */
@@ -1222,27 +1236,21 @@ static void drop_extension_url_copy(bContext * /*C*/, wmDrag *drag, wmDropBox *d
 /* -------------------------------------------------------------------- */
 /** \name Drag & Drop Paths
  * \{ */
-
-static bool drop_extension_path_poll(bContext * /*C*/, wmDrag *drag, const wmEvent * /*event*/)
+static bool extension_file_handler_poll(const bContext * /*C*/,
+                                        blender::bke::FileHandlerType * /*fh*/)
 {
-  if (drag->type != WM_DRAG_PATH) {
-    return false;
-  }
-
-  const char *cstr = WM_drag_get_single_path(drag);
-  const char *cstr_ext = BLI_path_extension(cstr);
-  if (!(cstr_ext && STRCASEEQ(cstr_ext, ".zip"))) {
-    return false;
-  }
-
   return true;
 }
 
-static void drop_extension_path_copy(bContext * /*C*/, wmDrag *drag, wmDropBox *drop)
+static void extension_file_handler_add()
 {
-  /* Copy drag URL to properties. */
-  const char *cstr = WM_drag_get_single_path(drag);
-  RNA_string_set(drop->ptr, "url", cstr);
+  auto fh = std::make_unique<blender::bke::FileHandlerType>();
+  STRNCPY(fh->idname, "PREFERENCES_FH_extension");
+  STRNCPY(fh->import_operator, "PREFERENCES_OT_extension_url_drop");
+  STRNCPY(fh->label, "Install Extension");
+  STRNCPY(fh->file_extensions_str, ".zip");
+  fh->poll_drop = extension_file_handler_poll;
+  blender::bke::file_handler_add(std::move(fh));
 }
 
 /** \} */
@@ -1256,12 +1264,7 @@ static void ED_dropbox_drop_extension()
                  drop_extension_url_copy,
                  nullptr,
                  nullptr);
-  WM_dropbox_add(lb,
-                 "PREFERENCES_OT_extension_url_drop",
-                 drop_extension_path_poll,
-                 drop_extension_path_copy,
-                 nullptr,
-                 nullptr);
+  extension_file_handler_add();
 }
 
 /* -------------------------------------------------------------------- */
