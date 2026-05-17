@@ -132,14 +132,17 @@ static void node_geo_exec(GeoNodeExecParams params)
     const auto type = eNodeSocketDatatype(items[item_i].socket_type);
     socket_types[required_i] = bke::node_socket_type_find_static(type);
   }
+  if (socket_types.as_span().contains(nullptr)) {
+    params.set_default_remaining_outputs();
+    return;
+  }
 
   Array<Array<bke::SocketValueVariant>> closure_results(required_items.size(), NoInitialization());
   for (const int i : closure_results.index_range()) {
     new (&closure_results[i]) Array<bke::SocketValueVariant>(count, NoInitialization());
   }
 
-  GeoNodesUserData user_data = *params.user_data();
-  const ComputeContext *parent_context = user_data.compute_context;
+  const GeoNodesUserData &parent_user_data = *params.user_data();
 
   /* The grain size is completely arbitrary since we don't know how expensive the closure is.
    * However since the closure evaluation itself has fairly high overhead, it makes to optimize for
@@ -147,7 +150,6 @@ static void node_geo_exec(GeoNodeExecParams params)
   const bke::bNodeSocketType *int_type = bke::node_socket_type_find("NodeSocketInt");
   threading::parallel_for(IndexRange(count), 8, [&](const IndexRange range) {
     ClosureEagerEvalParams closure_params;
-    closure_params.user_data = &user_data;
 
     /* Create inputs. */
     closure_params.inputs.resize(1);
@@ -172,8 +174,12 @@ static void node_geo_exec(GeoNodeExecParams params)
         closure_params.outputs[required_i].value = &closure_results[required_i][list_i];
       }
 
-      bke::ClosureToListComputeContext context(parent_context, node.identifier, int(list_i));
+      const bke::ClosureToListComputeContext context(
+          parent_user_data.compute_context, node.identifier, int(list_i));
+      GeoNodesUserData user_data = parent_user_data;
       user_data.compute_context = &context;
+      user_data.verbose_log = should_log_verbose_in_context(user_data, context.hash());
+      closure_params.user_data = &user_data;
 
       evaluate_closure_eagerly(*closure, closure_params);
     }
