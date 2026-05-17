@@ -6,7 +6,6 @@
 
 #include "DNA_node_types.h"
 
-#include "NOD_node_declaration.hh"
 #include "WM_api.hh"
 
 #include "UI_interface.hh"
@@ -20,6 +19,7 @@
 
 #include "BKE_screen.hh"
 
+#include "NOD_node_declaration.hh"
 #include "NOD_socket_items.hh"
 
 namespace blender::nodes::socket_items::ui {
