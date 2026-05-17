@@ -28,7 +28,7 @@ static bool target_socket_evaluates_closure(const SocketInContext &socket)
   }
   if (const SocketDeclaration *decl = socket->runtime->declaration) {
     if (const auto *closure_decl = dynamic_cast<const decl::Closure *>(decl)) {
-      return bool(closure_decl->signature);
+      return bool(closure_decl->create_signature);
     }
   }
   return false;
@@ -686,14 +686,15 @@ LinkedClosureSignatures gather_linked_target_closure_signatures(
         const bNode &node = socket->owner_node();
         if (const SocketDeclaration *decl = socket.socket->runtime->declaration) {
           if (const auto *closure_decl = dynamic_cast<const decl::Closure *>(decl)) {
-            if (const ClosureSignature *signature = closure_decl->signature.get()) {
+            if (closure_decl->create_signature) {
               bool define_signature = false;
               if (node.is_type("NodeEvaluateClosure"_ustr)) {
                 const auto &storage = *static_cast<const NodeEvaluateClosure *>(node.storage);
                 define_signature = bool(storage.flag &
                                         NODE_EVALUATE_CLOSURE_FLAG_DEFINE_SIGNATURE);
               }
-              result.items.append({*signature, define_signature, socket});
+              result.items.append(
+                  {(*closure_decl->create_signature)(node), define_signature, socket});
               return true;
             }
           }
