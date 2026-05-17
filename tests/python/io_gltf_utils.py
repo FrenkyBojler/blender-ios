@@ -35,7 +35,6 @@ def gltf_generate_descr(output_datafile: pathlib.Path) -> str:
     # we need to override generator field to avoid test failures
     gltf.json['asset']['generator'] = "glTF-Blender-IO Test Suite"
 
-
     def avoid_values(val):
         """Replace float and int values with "N/A" to avoid precision issues
         when meshopt compression is used, as it can lead to small differences that are not relevant.
@@ -73,7 +72,8 @@ def gltf_generate_descr(output_datafile: pathlib.Path) -> str:
         return o
 
     if is_simple_compare(gltf.json):
-        # Avoid comparing data when meshopt compression is used, as it can lead to small differences that are not relevant.
+        # Avoid comparing data when meshopt compression is used, as it can lead to
+        # small differences that are not relevant.
         add_TRS_to_json(gltf.json)
         text += json.dumps(avoid_values(gltf.json), indent=2, ensure_ascii=False)
     else:
