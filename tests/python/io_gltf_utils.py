@@ -35,28 +35,34 @@ def gltf_generate_descr(output_datafile: pathlib.Path) -> str:
     # we need to override generator field to avoid test failures
     gltf.json['asset']['generator'] = "glTF-Blender-IO Test Suite"
 
-    def avoid_values(val):
-        """Replace float and int values with "N/A" to avoid precision issues
-        when meshopt compression is used, as it can lead to small differences that are not relevant.
-        """
-        if isinstance(val, float) or isinstance(val, int):
-            return "N/A"
-        if isinstance(val, dict):
-            return {k: avoid_values(v) for k, v in val.items()}
-        if isinstance(val, (list, tuple)):
-            return [avoid_values(x) for x in val]
-        return val
+    def avoid_compressed_buffer_values(val):
+        for buffer_view in val.get('bufferViews', []):
+            if 'extensions' in buffer_view:
+                    # Avoid comparing data when meshopt compression is used, as it can lead to
+                    # small differences that are not relevant.
+                if 'KHR_meshopt_compression' in buffer_view['extensions']:
+                    buffer_view['extensions']['KHR_meshopt_compression']['byteLength'] = "N/A"
+                    buffer_view['extensions']['KHR_meshopt_compression']['byteOffset'] = "N/A"
+                elif 'EXT_meshopt_compression' in buffer_view['extensions']:
 
-    def add_TRS_to_json(json_):
-        """Add translation, rotation and scale values to json
+                    buffer_view['extensions']['EXT_meshopt_compression']['byteLength'] = "N/A"
+                    buffer_view['extensions']['EXT_meshopt_compression']['byteOffset'] = "N/A"
+
+        for buffer in val.get('buffers', []):
+            if buffer.get('uri') is not None:
+                # This is the buffer of compressed data, so avoid comparing the length
+                buffer['byteLength'] = "N/A"
+
+    def remove_TRS_from_json(json_):
+        """Remove translation, rotation and scale values from json
         when meshopt compression is used, as it can lead to small differences that are not relevant."""
         for node in json_.get('nodes', []):
-            if 'translation' not in node:
-                node.setdefault('translation', [0.0, 0.0, 0.0])
-            if 'rotation' not in node:
-                node.setdefault('rotation', [0.0, 0.0, 0.0, 1.0])
-            if 'scale' not in node:
-                node.setdefault('scale', [1.0, 1.0, 1.0])
+            if 'translation' in node:
+                del node['translation']
+            if 'rotation' in node:
+                del node['rotation']
+            if 'scale' in node:
+                del node['scale']
 
     def round_floats(o):
         if isinstance(o, float):
@@ -74,8 +80,9 @@ def gltf_generate_descr(output_datafile: pathlib.Path) -> str:
     if is_simple_compare(gltf.json):
         # Avoid comparing data when meshopt compression is used, as it can lead to
         # small differences that are not relevant.
-        add_TRS_to_json(gltf.json)
-        text += json.dumps(avoid_values(gltf.json), indent=2, ensure_ascii=False)
+        remove_TRS_from_json(gltf.json)
+        avoid_compressed_buffer_values(gltf.json)
+        text += json.dumps(round_floats(gltf.json), indent=2, ensure_ascii=False)
     else:
         text += json.dumps(round_floats(gltf.json), indent=2, ensure_ascii=False)
     for accessor in gltf.accessors_data:
