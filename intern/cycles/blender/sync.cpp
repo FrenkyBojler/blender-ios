@@ -4,6 +4,8 @@
 
 #include "BKE_appdir.hh"
 #include "DEG_depsgraph_query.hh"
+#include "DNA_scene_types.h"
+#include "DNA_userdef_types.h"
 #include "DNA_world_types.h"
 #include "RNA_prototypes.hh"
 #include "RNA_types.hh"
@@ -222,7 +224,7 @@ void BlenderSync::sync_recalc(blender::Depsgraph &b_depsgraph,
       }
       shader_map.set_recalc(b_id);
     }
-    /* World */
+    /* Scene */
     else if (GS(b_id->name) == blender::ID_SCE) {
       shader_map.set_recalc(b_id);
     }
@@ -375,6 +377,27 @@ void BlenderSync::sync_integrator(blender::ViewLayer &b_view_layer,
   integrator->set_caustics_reflective(get_boolean(cscene, "caustics_reflective"));
   integrator->set_caustics_refractive(get_boolean(cscene, "caustics_refractive"));
   integrator->set_filter_glossy(get_float(cscene, "blur_glossy"));
+
+  integrator->set_use_pixel_jitter(get_boolean(cscene, "use_pixel_jitter"));
+
+  bool use_custom_pixel_jitter_sample = false;
+  blender::PropertyRNA *override_pixel_jitter_sample_prop = RNA_struct_find_property(
+      &scene_rna_ptr, "[\"override_pixel_jitter_sample\"]");
+  if (override_pixel_jitter_sample_prop) {
+    const int array_length = RNA_property_array_length(&scene_rna_ptr,
+                                                       override_pixel_jitter_sample_prop);
+    if (array_length == 2) {
+      array<float> pixel_jitter_sample_arr(2);
+      RNA_property_float_get_array(
+          &scene_rna_ptr, override_pixel_jitter_sample_prop, &pixel_jitter_sample_arr[0]);
+      integrator->set_custom_pixel_jitter_sample(pixel_jitter_sample_arr);
+      use_custom_pixel_jitter_sample = true;
+    }
+    else if (array_length != 0) {
+      printf("%s: scene.custom_pixel_jitter_sample length is not 0 or 2.\n", __func__);
+    }
+  }
+  integrator->set_use_custom_pixel_jitter_sample(use_custom_pixel_jitter_sample);
 
   int seed = get_int(cscene, "seed");
   if (get_boolean(cscene, "use_animated_seed")) {
@@ -550,14 +573,10 @@ void BlenderSync::sync_integrator(blender::ViewLayer &b_view_layer,
     integrator->set_denoiser_type(denoise_params.type);
     integrator->set_denoise_use_gpu(denoise_params.use_gpu);
     integrator->set_denoise_start_sample(denoise_params.start_sample);
-    integrator->set_use_denoise_pass_albedo(denoise_params.use_pass_albedo);
-    integrator->set_use_denoise_pass_specular_albedo(denoise_params.use_pass_specular_albedo);
-    integrator->set_use_denoise_pass_normal(denoise_params.use_pass_normal);
-    integrator->set_use_denoise_pass_roughness(denoise_params.use_pass_roughness);
-    integrator->set_use_denoise_pass_depth(denoise_params.use_pass_depth);
-    integrator->set_use_denoise_pass_motion(denoise_params.temporally_stable);
+    integrator->set_denoiser_passes(denoise_params.passes);
     integrator->set_denoiser_prefilter(denoise_params.prefilter);
     integrator->set_denoiser_quality(denoise_params.quality);
+    integrator->set_denoiser_upscale_factor(denoise_params.upscale_factor);
   }
 
   /* UPDATE_NONE as we don't want to tag the integrator as modified (this was done by the
@@ -618,6 +637,12 @@ void BlenderSync::sync_film(blender::ViewLayer &b_view_layer,
   else {
     film->set_use_approximate_shadow_catcher(!get_boolean(crl, "use_pass_shadow_catcher"));
   }
+
+  /* Denoising passes. */
+  film->set_denoising_pass_follow_reflections(
+      get_boolean(crl, "denoising_pass_follow_reflections"));
+  film->set_denoising_pass_use_albedo_roughness_weighting(
+      get_boolean(crl, "denoising_pass_use_albedo_roughness_weighting"));
 }
 
 /* Render Layer */
@@ -742,6 +767,7 @@ static bool get_known_pass_type(blender::RenderPass &b_pass, PassType &type, Pas
   MAP_PASS("Denoising Normal", PASS_DENOISING_NORMAL, true);
   MAP_PASS("Denoising Roughness", PASS_DENOISING_ROUGHNESS, true);
   MAP_PASS("Denoising Depth", PASS_DENOISING_DEPTH, true);
+  MAP_PASS("Denoising Backward Motion", PASS_DENOISING_BACKWARD_MOTION, true);
 
   MAP_PASS("Shadow Catcher", PASS_SHADOW_CATCHER, false);
   MAP_PASS("Noisy Shadow Catcher", PASS_SHADOW_CATCHER, true);
@@ -836,7 +862,7 @@ void BlenderSync::sync_render_passes(blender::RenderLayer &b_rlay,
     PassMode pass_mode = PassMode::DENOISED;
 
     if (!get_known_pass_type(b_pass, pass_type, pass_mode)) {
-      if (!expected_passes.count(b_pass.name)) {
+      if (!expected_passes.contains(b_pass.name)) {
         LOG_ERROR << "Unknown pass " << b_pass.name;
       }
       continue;
@@ -911,7 +937,9 @@ void BlenderSync::free_data_after_sync(blender::Depsgraph &b_depsgraph)
 
 /* Scene Parameters */
 
-SceneParams BlenderSync::get_scene_params(blender::Scene &b_scene,
+SceneParams BlenderSync::get_scene_params(blender::UserDef &b_preferences,
+                                          blender::Main &b_data,
+                                          blender::Scene &b_scene,
                                           const bool background,
                                           const bool use_developer_ui)
 {
@@ -944,23 +972,32 @@ SceneParams BlenderSync::get_scene_params(blender::Scene &b_scene,
   params.hair_shape = (CurveShapeType)get_enum(
       csscene, "shape", CURVE_NUM_SHAPE_TYPES, CURVE_THICK);
 
+  float texture_resolution;
   int texture_limit;
   if (background) {
+    texture_resolution = RNA_float_get(&cscene, "texture_resolution_render");
     texture_limit = RNA_enum_get(&cscene, "texture_limit_render");
   }
   else {
+    texture_resolution = RNA_float_get(&cscene, "texture_resolution");
     texture_limit = RNA_enum_get(&cscene, "texture_limit");
   }
-  if (texture_limit > 0 && (b_scene.r.mode & blender::R_SIMPLIFY) != 0) {
-    params.texture_limit = 1 << (texture_limit + 6);
+  if ((b_scene.r.mode & blender::R_SIMPLIFY) != 0) {
+    params.texture_resolution = (texture_resolution < 1.0f) ? texture_resolution : 1.0f;
+    params.texture_limit = (texture_limit > 0) ? (1 << (texture_limit + 6)) : 0;
   }
   else {
+    params.texture_resolution = 1.0f;
     params.texture_limit = 0;
   }
 
   params.bvh_layout = DebugFlags().cpu.bvh_layout;
 
   params.background = background;
+  params.use_texture_cache = b_scene.r.scemode & blender::R_USE_TEXTURE_CACHE;
+  params.auto_texture_cache = b_scene.r.scemode & blender::R_TEXTURE_CACHE_AUTO_GENERATE;
+  params.texture_cache_path = blender_absolute_path(
+      b_data, nullptr, b_preferences.texture_cachedir);
 
   return params;
 }
@@ -1149,18 +1186,15 @@ DenoiseParams BlenderSync::get_denoise_params(blender::Scene &b_scene,
 
   switch (input_passes) {
     case DENOISER_INPUT_RGB:
-      denoising.use_pass_albedo = false;
-      denoising.use_pass_normal = false;
+      denoising.passes = DENOISER_PASS_NONE;
       break;
 
     case DENOISER_INPUT_RGB_ALBEDO:
-      denoising.use_pass_albedo = true;
-      denoising.use_pass_normal = false;
+      denoising.passes = DENOISER_PASS_ALBEDO;
       break;
 
     case DENOISER_INPUT_RGB_ALBEDO_NORMAL:
-      denoising.use_pass_albedo = true;
-      denoising.use_pass_normal = true;
+      denoising.passes = DENOISER_PASS_ALBEDO | DENOISER_PASS_NORMAL;
       break;
 
     default:

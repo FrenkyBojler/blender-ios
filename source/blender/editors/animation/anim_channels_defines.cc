@@ -79,6 +79,7 @@
 #include "ED_anim_api.hh"
 
 #include "ANIM_fcurve.hh"
+#include "ANIM_nla.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -280,6 +281,11 @@ static short acf_nodetree_rootType_offset(bNodeTree *ntree)
       case NTREE_TEXTURE:
         /* 2 additional levels */
         return INDENT_STEP_SIZE * 2;
+
+      case NTREE_GEOMETRY:
+      case NTREE_UNDEFINED:
+      case NTREE_CUSTOM:
+        break;
     }
   }
 
@@ -4035,7 +4041,7 @@ static int layer_group_icon(bAnimListElem *ale)
   const LayerGroup &group = *static_cast<LayerGroup *>(ale->data);
   int icon = ICON_GREASEPENCIL_LAYER_GROUP;
   if (group.color_tag != LAYERGROUP_COLOR_NONE) {
-    icon = ICON_LAYERGROUP_COLOR_01 + group.color_tag;
+    icon = ICON_LAYERGROUP_COLOR_01 + int(group.color_tag);
   }
   return icon;
 }
@@ -5633,14 +5639,14 @@ static void achannel_setting_slider_cb(bContext *C, void *id_poin, void *fcu_poi
     }
 
     /* insert a keyframe for this F-Curve */
-    done = animrig::insert_keyframe_direct(reports,
-                                           ptr,
-                                           prop,
-                                           fcu,
-                                           &anim_eval_context,
-                                           eBezTriple_KeyframeType(ts->keyframe_type),
-                                           nla_context,
-                                           flag);
+    done = animrig::nla::insert_keyframe_direct(reports,
+                                                ptr,
+                                                prop,
+                                                fcu,
+                                                &anim_eval_context,
+                                                eBezTriple_KeyframeType(ts->keyframe_type),
+                                                nla_context,
+                                                flag);
 
     if (done) {
       if (adt->action != nullptr) {
@@ -5692,25 +5698,20 @@ static void achannel_setting_slider_shapekey_cb(bContext *C, void *key_poin, voi
 /* callback for NLA Control Curve widget sliders - insert keyframes */
 static void achannel_setting_slider_nla_curve_cb(bContext *C, void * /*id_poin*/, void *fcu_poin)
 {
-  // ID *id = (ID *)id_poin;
   FCurve *fcu = static_cast<FCurve *>(fcu_poin);
 
   PointerRNA ptr;
   PropertyRNA *prop;
   int index;
 
-  ReportList *reports = CTX_wm_reports(C);
   Scene *scene = CTX_data_scene(C);
   ToolSettings *ts = scene->toolsettings;
-  eInsertKeyFlags flag = INSERTKEY_NOFLAGS;
-  bool done = false;
-  float cfra;
 
   /* get current frame - *no* NLA mapping should be done */
-  cfra = float(scene->r.cfra);
+  const float cfra = float(scene->r.cfra);
 
   /* get flags for keyframing */
-  flag = animrig::get_keyframing_flags(scene);
+  eInsertKeyFlags flag = animrig::get_keyframing_flags(scene);
 
   /* Get pointer and property from the slider -
    * this should all match up with the NlaStrip required. */
@@ -5723,20 +5724,14 @@ static void achannel_setting_slider_nla_curve_cb(bContext *C, void * /*id_poin*/
     }
 
     /* insert a keyframe for this F-Curve */
-    Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
-    const AnimationEvalContext anim_eval_context = BKE_animsys_eval_context_construct(depsgraph,
-                                                                                      cfra);
-    done = animrig::insert_keyframe_direct(reports,
-                                           ptr,
-                                           prop,
-                                           fcu,
-                                           &anim_eval_context,
-                                           eBezTriple_KeyframeType(ts->keyframe_type),
-                                           nullptr,
-                                           flag);
-
-    if (done) {
+    const animrig::SingleKeyingResult result = animrig::insert_keyframe_direct(
+        ptr, *prop, *fcu, cfra, eBezTriple_KeyframeType(ts->keyframe_type), flag);
+    if (result == animrig::SingleKeyingResult::SUCCESS) {
       WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);
+    }
+    else {
+      ReportList *reports = CTX_wm_reports(C);
+      generate_single_keying_result_report(result, reports);
     }
   }
 }
@@ -5886,48 +5881,48 @@ static void draw_setting_widget(bAnimContext *ac,
   ui::Button *but = nullptr;
   switch (ptrsize) {
     case sizeof(int): /* integer pointer for setting */
-      but = uiDefIconButBitI(block,
-                             butType,
-                             flag,
-                             icon,
-                             xpos,
-                             ypos,
-                             ICON_WIDTH,
-                             ICON_WIDTH,
-                             static_cast<int *>(ptr),
-                             0,
-                             0,
-                             tooltip);
+      but = uiDefIconButBit(block,
+                            butType,
+                            flag,
+                            icon,
+                            xpos,
+                            ypos,
+                            ICON_WIDTH,
+                            ICON_WIDTH,
+                            static_cast<int *>(ptr),
+                            0,
+                            0,
+                            tooltip);
       break;
 
     case sizeof(short): /* short pointer for setting */
-      but = uiDefIconButBitS(block,
-                             butType,
-                             flag,
-                             icon,
-                             xpos,
-                             ypos,
-                             ICON_WIDTH,
-                             ICON_WIDTH,
-                             static_cast<short *>(ptr),
-                             0,
-                             0,
-                             tooltip);
+      but = uiDefIconButBit(block,
+                            butType,
+                            flag,
+                            icon,
+                            xpos,
+                            ypos,
+                            ICON_WIDTH,
+                            ICON_WIDTH,
+                            static_cast<short *>(ptr),
+                            0,
+                            0,
+                            tooltip);
       break;
 
     case sizeof(char): /* char pointer for setting */
-      but = uiDefIconButBitC(block,
-                             butType,
-                             flag,
-                             icon,
-                             xpos,
-                             ypos,
-                             ICON_WIDTH,
-                             ICON_WIDTH,
-                             static_cast<char *>(ptr),
-                             0,
-                             0,
-                             tooltip);
+      but = uiDefIconButBit(block,
+                            butType,
+                            flag,
+                            icon,
+                            xpos,
+                            ypos,
+                            ICON_WIDTH,
+                            ICON_WIDTH,
+                            static_cast<char *>(ptr),
+                            0,
+                            0,
+                            tooltip);
       break;
   }
   if (!but) {

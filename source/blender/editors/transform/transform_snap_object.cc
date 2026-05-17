@@ -503,7 +503,7 @@ static eSnapMode iter_snap_objects(SnapObjectContext *sctx, IterSnapObjsCallback
   Scene *scene = DEG_get_input_scene(sctx->runtime.depsgraph);
   ViewLayer *view_layer = DEG_get_input_view_layer(sctx->runtime.depsgraph);
   const eSnapTargetOP snap_target_select = sctx->runtime.params.snap_target_select;
-  BKE_view_layer_synced_ensure(scene, view_layer);
+  BKE_view_layer_synced_ensure(*DEG_get_bmain(sctx->runtime.depsgraph), scene, view_layer);
   Base *base_act = BKE_view_layer_active_base_get(view_layer);
 
   /*Evaluate 3D cursor as pseudo-entity*/
@@ -694,8 +694,8 @@ static eSnapMode raycast_obj_fn(SnapObjectContext *sctx,
  * Read/Write Args
  * ---------------
  *
- * \param ray_depth: maximum depth allowed for r_co,
- * elements deeper than this value will be ignored.
+ * - `ray_depth`: maximum depth allowed for r_co,
+ *   elements deeper than this value will be ignored.
  */
 static bool raycastObjects(SnapObjectContext *sctx)
 {
@@ -826,10 +826,10 @@ static eSnapMode nearest_world_object_fn(SnapObjectContext *sctx,
  *
  * Walks through all objects in the scene to find the nearest location on target surface.
  *
- * \param sctx: Snap context to store data.
- * \param params: Settings for snapping.
- * \param init_co: Initial location of source point.
- * \param prev_co: Current location of source point after transformation but before snapping.
+ * - `sctx`: Snap context to store data.
+ * - `params`: Settings for snapping.
+ * - `init_co`: Initial location of source point.
+ * - `prev_co`: Current location of source point after transformation but before snapping.
  */
 static bool nearestWorldObjects(SnapObjectContext *sctx)
 {
@@ -1008,6 +1008,9 @@ static eSnapMode snap_obj_fn(SnapObjectContext *sctx,
     case OB_ARMATURE:
       retval = snapArmature(sctx, ob_eval, obmat, is_object_active);
       break;
+    case OB_LATTICE:
+      retval = snapLattice(sctx, ob_eval, obmat);
+      break;
     case OB_CURVES_LEGACY:
     case OB_SURF:
       if (ob_eval->type == OB_CURVES_LEGACY || BKE_object_is_in_editmode(ob_eval)) {
@@ -1017,7 +1020,9 @@ static eSnapMode snap_obj_fn(SnapObjectContext *sctx,
     case OB_CAMERA:
       retval = snapCamera(sctx, ob_eval, obmat);
       break;
-      /* TODO: Add remaining specific handling of objects (lattice, grease pencil, ...) */
+    /* TODO: Add remaining specific handling of objects (lattice, grease pencil, ...) */
+    default:
+      break;
   }
 
   if (retval == SCE_SNAP_TO_NONE) {
@@ -1038,7 +1043,7 @@ static eSnapMode snap_obj_fn(SnapObjectContext *sctx,
  * Read/Write Args
  * ---------------
  *
- * \param dist_px: Maximum threshold distance (in pixels).
+ * - `dist_px`: Maximum threshold distance (in pixels).
  */
 static eSnapMode snapObjectsRay(SnapObjectContext *sctx)
 {

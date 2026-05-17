@@ -400,7 +400,7 @@ std::unique_ptr<SocketDeclaration> make_declaration_for_socket_type(
 }
 
 BaseSocketDeclarationBuilder &DeclarationListBuilder::add_input(
-    const eNodeSocketDatatype socket_type, const StringRef name, const StringRef identifier)
+    const eNodeSocketDatatype socket_type, const UString name, const UString identifier)
 {
   BaseSocketDeclarationBuilder *decl = nullptr;
   socket_type_to_static_decl_type(socket_type, [&]<std::derived_from<SocketDeclaration> DeclT>() {
@@ -408,20 +408,20 @@ BaseSocketDeclarationBuilder &DeclarationListBuilder::add_input(
   });
   if (!decl) {
     BLI_assert_unreachable();
-    decl = &this->add_input<decl::Float>("", "");
+    decl = &this->add_input<decl::Float>(""_ustr, ""_ustr);
   }
   return *decl;
 }
 
 BaseSocketDeclarationBuilder &DeclarationListBuilder::add_input(const eCustomDataType data_type,
-                                                                const StringRef name,
-                                                                const StringRef identifier)
+                                                                const UString name,
+                                                                const UString identifier)
 {
   return this->add_input(*bke::custom_data_type_to_socket_type(data_type), name, identifier);
 }
 
 BaseSocketDeclarationBuilder &DeclarationListBuilder::add_output(
-    const eNodeSocketDatatype socket_type, const StringRef name, const StringRef identifier)
+    const eNodeSocketDatatype socket_type, const UString name, const UString identifier)
 {
   BaseSocketDeclarationBuilder *decl = nullptr;
   socket_type_to_static_decl_type(socket_type, [&]<std::derived_from<SocketDeclaration> DeclT>() {
@@ -429,14 +429,14 @@ BaseSocketDeclarationBuilder &DeclarationListBuilder::add_output(
   });
   if (!decl) {
     BLI_assert_unreachable();
-    decl = &this->add_output<decl::Float>("", "");
+    decl = &this->add_output<decl::Float>(""_ustr, ""_ustr);
   }
   return *decl;
 }
 
 BaseSocketDeclarationBuilder &DeclarationListBuilder::add_output(const eCustomDataType data_type,
-                                                                 const StringRef name,
-                                                                 const StringRef identifier)
+                                                                 const UString name,
+                                                                 const UString identifier)
 {
   return this->add_output(*bke::custom_data_type_to_socket_type(data_type), name, identifier);
 }
@@ -850,13 +850,13 @@ BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::usage_by_single_menu
         return std::nullopt;
       }
     }
-    return params.menu_input_may_be(socket.identifier, menu_value);
+    return params.menu_input_may_be(socket.identifier_ustr(), menu_value);
   });
   return *this;
 }
 
 BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::usage_by_menu(
-    const StringRef menu_input_identifier, const int menu_value)
+    const UString menu_input_identifier, const int menu_value)
 {
   Array<int> menu_values = {menu_value};
   this->usage_by_menu(menu_input_identifier, menu_values);
@@ -864,7 +864,7 @@ BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::usage_by_menu(
 }
 
 BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::usage_by_menu(
-    const StringRef menu_input_identifier, const Array<int> menu_values)
+    const UString menu_input_identifier, const Array<int> menu_values)
 {
   this->make_available([menu_input_identifier, menu_values](bNode &node) {
     bNodeSocket &menu_socket = *bke::node_find_socket(node, SOCK_IN, menu_input_identifier);
@@ -900,7 +900,7 @@ BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::usage_by_menu(
         }
 
         const bNodeSocket &menu_socket = *bke::node_find_socket(
-            params.node, SOCK_IN, menu_input_identifier);
+            params.node, SOCK_IN, UString(menu_input_identifier.ref()));
         const SocketDeclaration &menu_socket_declaration = *menu_socket.runtime->declaration;
         if (!menu_socket_declaration.usage_inference_fn) {
           return menu_might_be_any_value;
@@ -920,6 +920,56 @@ BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::usage_by_menu(
   return *this;
 }
 
+BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::usage_by_bool(
+    const UString bool_input_identifier, const bool value)
+{
+  this->make_available([bool_input_identifier, value](bNode &node) {
+    bNodeSocket &bool_socket = *bke::node_find_socket(node, SOCK_IN, bool_input_identifier);
+    const SocketDeclaration &socket_declaration = *bool_socket.runtime->declaration;
+    socket_declaration.make_available(node);
+    bool_socket.default_value_typed<bNodeSocketValueBoolean>()->value = value;
+  });
+  this->usage_inference(
+      [bool_input_identifier,
+       value](const socket_usage_inference::SocketUsageParams &params) -> std::optional<bool> {
+        if (params.socket.is_input()) {
+          if (std::optional<bool> any_output_used = params.any_output_is_used()) {
+            if (!*any_output_used) {
+              /* If no output is used, none of the inputs is used either. */
+              return false;
+            }
+          }
+          else {
+            /* It's not known if any output is used yet. This function will be called again once
+             * new information about output usages is available. */
+            return std::nullopt;
+          }
+        }
+        const bool might_be_value = params.bool_input_may_be(bool_input_identifier, value);
+        const bNodeSocket &bool_socket = *bke::node_find_socket(
+            params.node, SOCK_IN, bool_input_identifier);
+        const SocketDeclaration &bool_socket_declaration = *bool_socket.runtime->declaration;
+        if (!bool_socket_declaration.usage_inference_fn) {
+          return might_be_value;
+        }
+        const std::optional<bool> bool_might_be_used =
+            (*bool_socket_declaration.usage_inference_fn)(params);
+        if (!bool_might_be_used.has_value()) {
+          return might_be_value;
+        }
+        return *bool_might_be_used && might_be_value;
+      });
+  return *this;
+}
+
+BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::usage_by_panel_toggle()
+{
+  if (const SocketDeclaration *panel_toggle_decl = decl_base_->parent->panel_input_decl()) {
+    this->usage_by_bool(panel_toggle_decl->identifier, true);
+  }
+  return *this;
+}
+
 BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::align_with_previous(const bool value)
 {
   decl_base_->align_with_previous_socket = value;
@@ -930,7 +980,7 @@ BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::structure_type(
     const StructureType structure_type)
 {
   BLI_assert(NodeSocketInterfaceStructureType(structure_type) !=
-             NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO);
+             NodeSocketInterfaceStructureType::Auto);
   decl_base_->structure_type = structure_type;
   return *this;
 }
@@ -970,6 +1020,13 @@ BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::is_layer_name(const 
 BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::is_volume_grid_name(const bool value)
 {
   decl_base_->is_volume_grid_name = value;
+  return *this;
+}
+
+BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::try_copy_ui_data(
+    const SocketDeclaration & /*other_decl*/)
+{
+  /* Can't copy any value by default. */
   return *this;
 }
 
@@ -1058,43 +1115,40 @@ namespace implicit_field_inputs {
 static void position(const bNode & /*node*/, void *r_value)
 {
   bke::SocketValueVariant::ConstructIn(r_value,
-                                       bke::AttributeFieldInput::from<float3>("position"));
+                                       bke::AttributeFieldInput::get_field<float3, "position">());
 }
 
 static void normal(const bNode & /*node*/, void *r_value)
 {
-  bke::SocketValueVariant::ConstructIn(
-      r_value, fn::Field<float3>(std::make_shared<bke::NormalFieldInput>()));
+  bke::SocketValueVariant::ConstructIn(r_value, bke::NormalFieldInput::get_field());
 }
 
 static void index(const bNode & /*node*/, void *r_value)
 {
-  bke::SocketValueVariant::ConstructIn(r_value,
-                                       fn::Field<int>(std::make_shared<fn::IndexFieldInput>()));
+  bke::SocketValueVariant::ConstructIn(r_value, fn::IndexFieldInput::get_field());
 }
 
 static void id_or_index(const bNode & /*node*/, void *r_value)
 {
-  bke::SocketValueVariant::ConstructIn(
-      r_value, fn::Field<int>(std::make_shared<bke::IDAttributeFieldInput>()));
+  bke::SocketValueVariant::ConstructIn(r_value, bke::IDAttributeFieldInput::get_field());
 }
 
 static void instance_transform(const bNode & /*node*/, void *r_value)
 {
   bke::SocketValueVariant::ConstructIn(
-      r_value, bke::AttributeFieldInput::from<float4x4>("instance_transform"));
+      r_value, bke::AttributeFieldInput::get_field<float4x4, "instance_transform">());
 }
 
 static void handle_left(const bNode & /*node*/, void *r_value)
 {
-  bke::SocketValueVariant::ConstructIn(r_value,
-                                       bke::AttributeFieldInput::from<float3>("handle_left"));
+  bke::SocketValueVariant::ConstructIn(
+      r_value, bke::AttributeFieldInput::get_field<float3, "handle_left">());
 }
 
 static void handle_right(const bNode & /*node*/, void *r_value)
 {
-  bke::SocketValueVariant::ConstructIn(r_value,
-                                       bke::AttributeFieldInput::from<float3>("handle_right"));
+  bke::SocketValueVariant::ConstructIn(
+      r_value, bke::AttributeFieldInput::get_field<float3, "handle_right">());
 }
 
 }  // namespace implicit_field_inputs

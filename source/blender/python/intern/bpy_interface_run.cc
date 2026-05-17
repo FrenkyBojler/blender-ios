@@ -319,7 +319,7 @@ bool BPY_run_string_exec(bContext *C, const char *imports[], const char *expr)
  *
  * Only supports bool, int, float, string, and None values.
  *
- * \param obj The Python object to convert. Should NOT be nullptr.
+ * \param py_object: The Python object to convert. Should NOT be nullptr.
  * \return IDProperty The converted property, or nullptr if the Python value was None. The caller
  * owns the pointer, and is responsible for freeing it.
  */
@@ -367,7 +367,6 @@ static bool bpy_run_string_exec_with_locals_assume_gil(
   }
 
   /* Clean up references. */
-  Py_DECREF(py_globals);
   Py_DECREF(py_locals);
 
   return ok;

@@ -261,7 +261,7 @@ void mesh_cursor_active_draw(PaintCursorContext &pcontext)
 
   /* Most of the brushes initialize the necessary data for the custom cursor drawing after the
    * first brush step. */
-  if (SCULPT_stroke_is_first_brush_step_of_symmetry_pass(*ss.cache)) {
+  if (stroke_is_first_brush_step_of_symmetry_pass(*ss.cache)) {
     return;
   }
 
@@ -290,7 +290,7 @@ void mesh_cursor_active_draw(PaintCursorContext &pcontext)
       break;
     case SCULPT_BRUSH_TYPE_CLOTH: {
       if (brush.cloth_force_falloff_type == BRUSH_CLOTH_FORCE_FALLOFF_PLANE) {
-        /* By definition, the 'Plane Falloff' mode does not have drawable limits.*/
+        /* By definition, the 'Plane Falloff' mode does not have drawable limits. */
         cloth::plane_falloff_preview_draw(
             pcontext.pos, ss, pcontext.outline_col, pcontext.outline_alpha);
       }
@@ -399,7 +399,7 @@ static void point_with_symmetry_draw(const PaintMode paint_mode,
                                      const float radius)
 {
   const Mesh *mesh = id_cast<const Mesh *>(ob.data);
-  const char symm = SCULPT_mesh_symmetry_xyz_get(ob);
+  const char symm = mesh_symmetry_xyz_get(ob);
   float3 location;
   float symm_rot_mat[4][4];
 

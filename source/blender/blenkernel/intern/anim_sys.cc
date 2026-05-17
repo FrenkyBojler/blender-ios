@@ -29,6 +29,7 @@
 
 #include "BLT_translation.hh"
 
+#include "DNA_anim_enums.h"
 #include "DNA_anim_types.h"
 #include "DNA_light_types.h"
 #include "DNA_material_types.h"
@@ -46,6 +47,7 @@
 #include "BKE_fcurve.hh"
 #include "BKE_global.hh"
 #include "BKE_idprop.hh"
+#include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_main.hh"
@@ -138,8 +140,8 @@ KS_Path *BKE_keyingset_find_path(KeyingSet *ks,
 KeyingSet *BKE_keyingset_add(ListBaseT<KeyingSet> *list,
                              const char idname[],
                              const char name[],
-                             short flag,
-                             short keyingflag)
+                             eKS_Settings flag,
+                             eInsertKeyFlags keyingflag)
 {
   KeyingSet *ks;
 
@@ -173,8 +175,8 @@ KS_Path *BKE_keyingset_add_path(KeyingSet *ks,
                                 const char group_name[],
                                 const char rna_path[],
                                 int array_index,
-                                short flag,
-                                short groupmode)
+                                eKSP_Settings flag,
+                                eKSP_Grouping groupmode)
 {
   KS_Path *ksp;
 
@@ -699,8 +701,8 @@ static float get_fcurve_blend_value(FCurve &fcu,
  * Apply the rotation fcurves to the `ptr` by converting them to a matrix first. This means the
  * rotation can be applied regardless of rotation mode.
  *
- * \param blend_factor LERP between the current rotation value of the ptr and the value of the
- * rotation_fcurves. A `1` means the rotation_fcurves will be applied at 100%.
+ * \param blend_factor: LERP between the current rotation value of the `ptr` and the value of the
+ * `rotation_fcurves`. A `1` means the `rotation_fcurves` will be applied at 100%.
  */
 static void blend_rotation_with_conversion(PointerRNA &ptr,
                                            const Span<FCurve *> rotation_fcurves,
@@ -1096,6 +1098,8 @@ NlaEvalStrip *nlastrips_ctime_get_strip(ListBaseT<NlaEvalStrip> *list,
         case NLASTRIP_EXTEND_HOLD_FORWARD:
           in_range = ctime >= strip.start;
           break;
+        case NLASTRIP_EXTEND_NOTHING:
+          break;
       }
     }
 
@@ -1187,7 +1191,7 @@ NlaEvalStrip *nlastrips_ctime_get_strip(ListBaseT<NlaEvalStrip> *list,
       }
       break;
       /* There must be strips to transition from and to (i.e. `prev` and `next` required). */
-    case NLASTRIP_TYPE_TRANSITION:
+    case NLASTRIP_TYPE_TRANSITION: {
       if (ELEM(nullptr, estrip->prev, estrip->next)) {
         return nullptr;
       }
@@ -1199,6 +1203,10 @@ NlaEvalStrip *nlastrips_ctime_get_strip(ListBaseT<NlaEvalStrip> *list,
           anim_eval_context, estrip->end);
       nlastrip_evaluate_controls(estrip->prev, &start_eval_context, flush_to_original);
       nlastrip_evaluate_controls(estrip->next, &end_eval_context, flush_to_original);
+      break;
+    }
+    case NLASTRIP_TYPE_META:
+    case NLASTRIP_TYPE_SOUND:
       break;
   }
 
@@ -2251,7 +2259,7 @@ static void nlaevalchan_combine_quaternion(NlaEvalChannelSnapshot *lower_necs,
  * \param upper_necs: Can be nullptr.
  * \param upper_blendmode: Enum value in eNlaStrip_Blend_Mode.
  * \param upper_influence: Value in range [0, 1].
- * \param upper_necs: Never nullptr.
+ * \param r_blended_necs: Never nullptr.
  */
 static void nlaevalchan_blendOrcombine(NlaEvalChannelSnapshot *lower_necs,
                                        NlaEvalChannelSnapshot *upper_necs,
@@ -4180,7 +4188,7 @@ void BKE_animsys_evaluate_all_animation(Main *main, Depsgraph *depsgraph, float 
    * this tagged by Depsgraph on frame-change. This optimization means that objects
    * linked from other (not-visible) scenes will not need their data calculated.
    */
-  EVAL_ANIM_IDS(main->objects.first, eAnimData_Recalc(0));
+  EVAL_ANIM_IDS(main->objects.first, eAnimData_Recalc{});
 
   /* masks */
   EVAL_ANIM_IDS(main->masks.first, ADT_RECALC_ANIM);
@@ -4336,7 +4344,12 @@ void BKE_animsys_eval_driver(Depsgraph *depsgraph, ID *id, int driver_index, FCu
 
       /* set error-flag if evaluation failed */
       if (ok == 0) {
-        CLOG_WARN(&LOG_ANIM_DRIVER, "Invalid driver - %s[%d]", fcu->rna_path, fcu->array_index);
+        CLOG_WARN(&LOG_ANIM_DRIVER,
+                  "Invalid driver on %s '%s' - %s[%d]",
+                  BKE_idtype_idcode_to_name(GS(id->name)),
+                  id->name + 2,
+                  fcu->rna_path,
+                  fcu->array_index);
         driver_orig->flag |= DRIVER_FLAG_INVALID;
       }
     }
