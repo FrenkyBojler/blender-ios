@@ -94,7 +94,7 @@ class ShortestEdgePathsNextVertFieldInput final : public bke::MeshFieldInput {
 
   GVArray get_varray_for_context(const Mesh &mesh,
                                  const AttrDomain domain,
-                                 const IndexMask & /*mask*/) const final
+                                 const IndexMask &mask) const final
   {
     const bke::MeshFieldContext edge_context{mesh, AttrDomain::Edge};
     fn::FieldEvaluator edge_evaluator{edge_context, mesh.edges_num};
@@ -108,14 +108,12 @@ class ShortestEdgePathsNextVertFieldInput final : public bke::MeshFieldInput {
     point_evaluator.evaluate();
     const IndexMask end_selection = point_evaluator.get_evaluated_as_mask(0);
 
+    if (end_selection.is_empty()) {
+      return fn::IndexFieldInput::get_index_varray(mask);
+    }
+
     Array<int> next_index(mesh.verts_num, -1);
     Array<float> cost(mesh.verts_num, FLT_MAX);
-
-    if (end_selection.is_empty()) {
-      array_utils::fill_index_range<int>(next_index);
-      return mesh.attributes().adapt_domain<int>(
-          VArray<int>::from_container(std::move(next_index)), AttrDomain::Point, domain);
-    }
 
     const Span<int2> edges = mesh.edges();
     Array<int> vert_to_edge_offset_data;
