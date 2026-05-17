@@ -88,9 +88,9 @@ static void shortest_paths(const Mesh &mesh,
   /* Though it uses more memory, calculating the adjacent vertex
    * across each edge beforehand is noticeably faster. */
   Array<int> other_vertex;
-  const GroupedSpan<int> vert_to_verts = edges_to_verts_map(edges, vert_to_edge, r_other_vertex);
+  const GroupedSpan<int> vert_to_verts = edges_to_verts_map(edges, vert_to_edge, other_vertex);
 
-  Array<int> distances(r_cost.size(), std::numeric_limits<int>::max());
+  Array<int> distances(mesh.verts_num, std::numeric_limits<int>::max());
   breadth_first_search(end_selection, vert_to_verts, distances);
 
   /* TODO: Compute only next index or cost. */
@@ -109,7 +109,7 @@ static void shortest_paths(const Mesh &mesh,
 static void shortest_paths(const Mesh &mesh,
                            const GroupedSpan<int> vert_to_edge,
                            const IndexMask end_selection,
-                           const float input_cost,
+                           const float /*input_cost*/,
                            MutableSpan<int> r_next_index)
 {
   const Span<int2> edges = mesh.edges();
@@ -117,9 +117,9 @@ static void shortest_paths(const Mesh &mesh,
   /* Though it uses more memory, calculating the adjacent vertex
    * across each edge beforehand is noticeably faster. */
   Array<int> other_vertex;
-  const GroupedSpan<int> vert_to_verts = edges_to_verts_map(edges, vert_to_edge, r_other_vertex);
+  const GroupedSpan<int> vert_to_verts = edges_to_verts_map(edges, vert_to_edge, other_vertex);
 
-  Array<int> distances(r_cost.size(), std::numeric_limits<int>::max());
+  Array<int> distances(mesh.verts_num, std::numeric_limits<int>::max());
   breadth_first_search(end_selection, vert_to_verts, distances);
 
   threading::parallel_for(distances.index_range(), 1024, [&](const IndexRange range) {
@@ -155,7 +155,7 @@ static void shortest_paths(const Mesh &mesh,
   /* Though it uses more memory, calculating the adjacent vertex
    * across each edge beforehand is noticeably faster. */
   Array<int> other_vertex;
-  const GroupedSpan<int> vert_to_verts = edges_to_verts_map(edges, vert_to_edge, r_other_vertex);
+  const GroupedSpan<int> vert_to_verts = edges_to_verts_map(edges, vert_to_edge, other_vertex);
 
   Array<bool> visited(mesh.verts_num, false);
 
