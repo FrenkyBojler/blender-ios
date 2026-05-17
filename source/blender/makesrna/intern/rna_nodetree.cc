@@ -3877,7 +3877,7 @@ static const EnumPropertyItem *rna_GeometryNodeClosureToListItem_structure_type_
        item++)
   {
     switch (NodeSocketInterfaceStructureType(item->value)) {
-      case NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_SINGLE: {
+      case NodeSocketInterfaceStructureType::Single: {
         RNA_enum_item_add(&items, &items_count, item);
         break;
       }
