@@ -111,7 +111,14 @@ class ShortestEdgePathsNextVertFieldInput final : public bke::MeshFieldInput {
     const IndexMask end_selection = point_evaluator.get_evaluated_as_mask(0);
 
     if (end_selection.is_empty()) {
-      return fn::IndexFieldInput::get_index_varray(mask);
+      if (domain == AttrDomain::Point) {
+        return fn::IndexFieldInput::get_index_varray(mask);
+      }
+
+      Array<int> next_index(mesh.verts_num);
+      array_utils::fill_index_range<int>(next_index);
+      return mesh.attributes().adapt_domain<int>(
+          VArray<int>::from_container(std::move(next_index)), AttrDomain::Point, domain);
     }
 
     Array<int> next_index(mesh.verts_num, -1);
