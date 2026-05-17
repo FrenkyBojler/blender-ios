@@ -1850,8 +1850,11 @@ static void copy_vertex_group_names(Mesh &dst_mesh,
 
 static int get_mapped_material_index(const MeshRealizeInfo &info, const int index)
 {
+  if (info.mesh->totcol == 0) {
+    return info.material_index_map.first();
+  }
   const bool valid = IndexRange(info.mesh->totcol).contains(index);
-  return valid ? info.material_index_map[index] : 0;
+  return valid ? info.material_index_map[index] : info.material_index_map.first();
 }
 
 /**
@@ -2130,6 +2133,8 @@ static void execute_realize_mesh_tasks(const RealizeInstancesOptions &options,
   }
   vert_ids.finish();
   custom_normals.finish();
+
+  bke::mesh_ensure_default_uv_map(*dst_mesh);
 
   if (all_meshes_info.no_loose_edges_hint) {
     dst_mesh->tag_loose_edges_none();
@@ -2798,6 +2803,9 @@ static void execute_realize_grease_pencil_tasks(
     dst_attribute.finish();
   }
 }
+
+/** \} */
+
 /* -------------------------------------------------------------------- */
 /** \name Edit Data
  * \{ */

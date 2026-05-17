@@ -10,6 +10,9 @@ namespace nodes::node_shader_bsdf_refraction_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
+  const bNodeTree *ntree = b.tree_or_null();
+  const bool is_gpu_internal = ntree && (ntree->flag & NTREE_IS_GPU_SHADER_INTERNAL);
+
   b.add_input<decl::Color>("Color"_ustr).default_value({1.0f, 1.0f, 1.0f, 1.0f});
   b.add_input<decl::Float>("Roughness"_ustr)
       .default_value(0.0f)
@@ -18,7 +21,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .subtype(PROP_FACTOR);
   b.add_input<decl::Float>("IOR"_ustr).default_value(1.45f).min(0.0f).max(1000.0f);
   b.add_input<decl::Vector>("Normal"_ustr).hide_value();
-  b.add_input<decl::Float>("Weight"_ustr).available(false);
+  b.add_input<decl::Float>("Weight"_ustr).available(is_gpu_internal);
   b.add_output<decl::Shader>("BSDF"_ustr);
 }
 
@@ -77,7 +80,7 @@ void register_node_type_sh_bsdf_refraction()
 
   static bke::bNodeType ntype;
 
-  sh_node_type_base(&ntype, "ShaderNodeBsdfRefraction", SH_NODE_BSDF_REFRACTION);
+  sh_node_type_base(&ntype, "ShaderNodeBsdfRefraction"_ustr, SH_NODE_BSDF_REFRACTION);
   ntype.ui_name = "Refraction BSDF";
   ntype.ui_description =
       "Glossy refraction with sharp or microfacet distribution, typically used for materials that "

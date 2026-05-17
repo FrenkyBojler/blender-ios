@@ -79,19 +79,12 @@ class OffsetCornerInFaceFieldInput final : public bke::MeshFieldInput {
     fn(offset_);
   }
 
-  uint64_t hash() const final
+  void hash_unique(UniqueHashBytes &hash, fn::FieldHashDeep &deep_hash_cache) const final
   {
-    return get_default_hash(offset_);
-  }
-
-  bool is_equal_to(const fn::FieldInput &other) const final
-  {
-    if (const OffsetCornerInFaceFieldInput *other_field =
-            dynamic_cast<const OffsetCornerInFaceFieldInput *>(&other))
-    {
-      return other_field->corner_index_ == corner_index_ && other_field->offset_ == offset_;
-    }
-    return false;
+    static constexpr int8_t id = 0;
+    hash.add(&id);
+    hash.add(deep_hash_cache.ensure(corner_index_));
+    hash.add(deep_hash_cache.ensure(offset_));
   }
 
   std::optional<AttrDomain> preferred_domain(const Mesh & /*mesh*/) const final
@@ -112,7 +105,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
   geo_node_type_base(
-      &ntype, "GeometryNodeOffsetCornerInFace", GEO_NODE_MESH_TOPOLOGY_OFFSET_CORNER_IN_FACE);
+      &ntype, "GeometryNodeOffsetCornerInFace"_ustr, GEO_NODE_MESH_TOPOLOGY_OFFSET_CORNER_IN_FACE);
   ntype.ui_name = "Offset Corner in Face";
   ntype.ui_description = "Retrieve corners in the same face as another";
   ntype.enum_name_legacy = "OFFSET_CORNER_IN_FACE";

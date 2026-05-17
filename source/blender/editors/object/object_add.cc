@@ -640,14 +640,14 @@ Object *add_type_with_obdata(bContext *C,
   Object *ob;
   if (obdata != nullptr) {
     BLI_assert(type == BKE_object_obdata_to_type(obdata));
-    ob = BKE_object_add_for_data(bmain, scene, view_layer, type, name, obdata, true);
+    ob = BKE_object_add_for_data(bmain, scene, view_layer, ObjectType(type), name, obdata, true);
     const short *materials_len_p = BKE_id_material_len_p(obdata);
     if (materials_len_p && *materials_len_p > 0) {
       BKE_object_materials_sync_length(bmain, ob, ob->data);
     }
   }
   else {
-    ob = BKE_object_add(bmain, scene, view_layer, type, name);
+    ob = BKE_object_add(bmain, scene, view_layer, ObjectType(type), name);
   }
 
   BKE_view_layer_synced_ensure(*bmain, scene, view_layer);
@@ -755,6 +755,8 @@ void OBJECT_OT_add(wmOperatorType *ot)
 
   add_generic_props(ot, true);
 }
+
+/** \} */
 
 /* -------------------------------------------------------------------- */
 /** \name Add Lattice Deformation to Selected Operator
@@ -1030,7 +1032,7 @@ static wmOperatorStatus lightprobe_add_exec(bContext *C, wmOperator *op)
   WM_operator_view3d_unit_defaults(C, op);
   add_generic_get_opts(C, op, 'Z', loc, rot, nullptr, &enter_editmode, &local_view_bits, nullptr);
 
-  int type = RNA_enum_get(op->ptr, "type");
+  eLightProbeType type = eLightProbeType(RNA_enum_get(op->ptr, "type"));
   float radius = RNA_float_get(op->ptr, "radius");
 
   Object *ob = add_type(
@@ -1846,7 +1848,7 @@ static wmOperatorStatus object_light_add_exec(bContext *C, wmOperator *op)
 {
   Object *ob;
   Light *la;
-  int type = RNA_enum_get(op->ptr, "type");
+  eLightType type = eLightType(RNA_enum_get(op->ptr, "type"));
   ushort local_view_bits;
   float loc[3], rot[3];
 
@@ -2345,8 +2347,9 @@ static wmOperatorStatus object_curves_empty_hair_add_exec(bContext *C, wmOperato
     curves_id->surface_uv_map = BLI_strdupn(uv_name.data(), uv_name.size());
   }
 
-  /* Add deformation modifier. */
-  ed::curves::ensure_surface_deformation_node_exists(*C, *curves_ob);
+  if (!U.experimental.use_geometry_nodes_hair_dynamics) {
+    ed::curves::ensure_surface_deformation_node_exists(*C, *curves_ob);
+  }
 
   /* Make sure the surface object has a rest position attribute which is necessary for
    * deformations. */
@@ -3053,6 +3056,9 @@ static void object_data_convert_curve_to_mesh(Main *bmain, Depsgraph *depsgraph,
   }
 
   BKE_object_free_modifiers(ob, 0);
+
+  bke::mesh_ensure_active_uv_map(*mesh);
+
   /* Replace curve used by the object itself. */
   ob->data = id_cast<ID *>(mesh);
   ob->type = OB_MESH;
@@ -3362,6 +3368,8 @@ static Object *convert_mesh_to_mesh(Base &base, ObjectConversionInfo &info, Base
     }
   }
   BKE_mesh_nomain_to_mesh(new_mesh, ob_data_mesh, newob);
+
+  bke::mesh_ensure_active_uv_map(*ob_data_mesh);
 
   BKE_object_free_modifiers(newob, 0); /* after derivedmesh calls! */
 
@@ -3684,6 +3692,8 @@ static Object *convert_curves_to_mesh(Base &base, ObjectConversionInfo &info, Ba
   BKE_object_free_derived_caches(newob);
   BKE_object_free_modifiers(newob, 0);
 
+  bke::mesh_ensure_active_uv_map(*new_mesh);
+
   return newob;
 }
 
@@ -3845,6 +3855,8 @@ static Object *convert_grease_pencil_to_mesh(Base &base,
 
     BKE_object_free_derived_caches(newob);
     BKE_object_free_modifiers(newob, 0);
+
+    bke::mesh_ensure_active_uv_map(*new_mesh);
   }
   else {
     BKE_reportf(
@@ -4243,6 +4255,8 @@ static Object *convert_mball_to_mesh(Base &base,
     newob->data = id_cast<ID *>(mesh);
     newob->type = OB_MESH;
 
+    bke::mesh_ensure_active_uv_map(*mesh);
+
     if (info.obact && (info.obact->type == OB_MBALL)) {
       *r_act_base = *r_new_base;
     }
@@ -4414,8 +4428,8 @@ static wmOperatorStatus object_convert_exec(bContext *C, wmOperator *op)
 
     if (ob->flag & OB_DONE || !IS_TAGGED(ob->data)) {
       if (ob->type != target) {
-        base->flag &= ~SELECT;
-        ob->flag &= ~SELECT;
+        base->flag &= ~BASE_SELECTED;
+        ob->flag &= ~OB_SELECT;
       }
 
       /* obdata already modified */
@@ -4767,7 +4781,7 @@ static wmOperatorStatus duplicate_exec(bContext *C, wmOperator *op)
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   const bool linked = RNA_boolean_get(op->ptr, "linked");
-  const eDupli_ID_Flags dupflag = (linked) ? eDupli_ID_Flags(0) : eDupli_ID_Flags(U.dupflag);
+  const eDupli_ID_Flags dupflag = (linked) ? eDupli_ID_Flags{} : eDupli_ID_Flags(U.dupflag);
 
   /* We need to handle that here ourselves, because we may duplicate several objects, in which case
    * we also want to remap pointers between those... */
@@ -4898,7 +4912,7 @@ static wmOperatorStatus object_add_named_exec(bContext *C, wmOperator *op)
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   const bool linked = RNA_boolean_get(op->ptr, "linked");
-  const eDupli_ID_Flags dupflag = (linked) ? eDupli_ID_Flags(0) : eDupli_ID_Flags(U.dupflag);
+  const eDupli_ID_Flags dupflag = (linked) ? eDupli_ID_Flags{} : eDupli_ID_Flags(U.dupflag);
 
   /* Find object, create fake base. */
 

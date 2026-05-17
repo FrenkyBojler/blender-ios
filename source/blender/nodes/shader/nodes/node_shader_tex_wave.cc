@@ -235,6 +235,16 @@ class WaveFunction : public mf::MultiFunction {
       });
     }
   }
+
+  void hash_unique(UniqueHashBytes &hash) const override
+  {
+    static constexpr int8_t id = 0;
+    hash.add(&id);
+    hash.add(wave_type_);
+    hash.add(bands_direction_);
+    hash.add(rings_direction_);
+    hash.add(wave_profile_);
+  }
 };
 
 static void sh_node_wave_tex_build_multi_function(NodeMultiFunctionBuilder &builder)
@@ -343,7 +353,7 @@ void register_node_type_sh_tex_wave()
 
   static bke::bNodeType ntype;
 
-  common_node_type_base(&ntype, "ShaderNodeTexWave", SH_NODE_TEX_WAVE);
+  common_node_type_base(&ntype, "ShaderNodeTexWave"_ustr, SH_NODE_TEX_WAVE);
   ntype.ui_name = "Wave Texture";
   ntype.ui_description = "Generate procedural bands or rings with noise";
   ntype.enum_name_legacy = "TEX_WAVE";

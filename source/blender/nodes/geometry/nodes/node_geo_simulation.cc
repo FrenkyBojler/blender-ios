@@ -418,6 +418,10 @@ static void node_declare(NodeDeclarationBuilder &b)
       input_decl.supports_field().structure_type(StructureType::Dynamic);
       output_decl.dependent_field({input_decl.index()});
     }
+    if (socket_type == SOCK_BUNDLE) {
+      dynamic_cast<decl::BundleBuilder &>(output_decl)
+          .pass_through_input_index(input_decl.index());
+    }
   }
   b.add_input<decl::Extend>(""_ustr, "__extend__"_ustr).structure_type(StructureType::Dynamic);
   b.add_output<decl::Extend>(""_ustr, "__extend__"_ustr)
@@ -454,7 +458,7 @@ static bool node_insert_link(bke::NodeInsertLinkParams &params)
 static void node_register()
 {
   static bke::bNodeType ntype;
-  geo_node_type_base(&ntype, "GeometryNodeSimulationInput", GEO_NODE_SIMULATION_INPUT);
+  geo_node_type_base(&ntype, "GeometryNodeSimulationInput"_ustr, GEO_NODE_SIMULATION_INPUT);
   ntype.ui_name = "Simulation Input";
   ntype.ui_description = "Input data for the simulation zone";
   ntype.enum_name_legacy = "SIMULATION_INPUT";
@@ -546,9 +550,7 @@ class LazyFunctionForSimulationOutputNode final : public LazyFunction {
       return;
     }
     if (!user_data.call_data->simulation_params) {
-      if (geo_eval_log::GeoTreeLogger *tree_logger = local_user_data.try_get_tree_logger(
-              user_data))
-      {
+      if (eval_log::NodeTreeLogger *tree_logger = local_user_data.try_get_tree_logger(user_data)) {
         tree_logger->node_warnings.append(
             *tree_logger->allocator,
             {node_.identifier,
@@ -563,9 +565,7 @@ class LazyFunctionForSimulationOutputNode final : public LazyFunction {
       return;
     }
     if (found_id->is_in_loop || found_id->is_in_closure) {
-      if (geo_eval_log::GeoTreeLogger *tree_logger = local_user_data.try_get_tree_logger(
-              user_data))
-      {
+      if (eval_log::NodeTreeLogger *tree_logger = local_user_data.try_get_tree_logger(user_data)) {
         const StringRefNull message = TIP_("Simulation must not be in a loop or closure");
         tree_logger->node_warnings.append(*tree_logger->allocator,
                                           {node_.identifier, {NodeWarningType::Error, message}});
@@ -753,6 +753,10 @@ static void node_declare(NodeDeclarationBuilder &b)
       input_decl.supports_field().structure_type(StructureType::Dynamic);
       output_decl.dependent_field({input_decl.index()});
     }
+    if (socket_type == SOCK_BUNDLE) {
+      dynamic_cast<decl::BundleBuilder &>(output_decl)
+          .pass_through_input_index(input_decl.index());
+    }
   }
   b.add_input<decl::Extend>(""_ustr, "__extend__"_ustr).structure_type(StructureType::Dynamic);
   b.add_output<decl::Extend>(""_ustr, "__extend__"_ustr)
@@ -830,8 +834,8 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
     return;
   }
   params.add_item_full_name(IFACE_("Simulation"), [](LinkSearchOpParams &params) {
-    bNode &input_node = params.add_node("GeometryNodeSimulationInput");
-    bNode &output_node = params.add_node("GeometryNodeSimulationOutput");
+    bNode &input_node = params.add_node("GeometryNodeSimulationInput"_ustr);
+    bNode &output_node = params.add_node("GeometryNodeSimulationOutput"_ustr);
     output_node.location[0] = 300;
 
     auto &input_storage = *static_cast<NodeGeometrySimulationInput *>(input_node.storage);
@@ -872,7 +876,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeSimulationOutput", GEO_NODE_SIMULATION_OUTPUT);
+  geo_node_type_base(&ntype, "GeometryNodeSimulationOutput"_ustr, GEO_NODE_SIMULATION_OUTPUT);
   ntype.ui_name = "Simulation Output";
   ntype.ui_description = "Output data from the simulation zone";
   ntype.enum_name_legacy = "SIMULATION_OUTPUT";

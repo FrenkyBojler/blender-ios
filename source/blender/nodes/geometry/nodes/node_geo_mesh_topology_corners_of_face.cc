@@ -119,18 +119,13 @@ class CornersOfFaceInput final : public bke::MeshFieldInput {
     fn(sort_weight_);
   }
 
-  uint64_t hash() const final
+  void hash_unique(UniqueHashBytes &hash, fn::FieldHashDeep &deep_hash_cache) const final
   {
-    return 6927982716657;
-  }
-
-  bool is_equal_to(const fn::FieldInput &other) const final
-  {
-    if (const auto *typed = dynamic_cast<const CornersOfFaceInput *>(&other)) {
-      return typed->face_index_ == face_index_ && typed->sort_index_ == sort_index_ &&
-             typed->sort_weight_ == sort_weight_;
-    }
-    return false;
+    static constexpr int8_t id = 0;
+    hash.add(&id);
+    hash.add(deep_hash_cache.ensure(face_index_));
+    hash.add(deep_hash_cache.ensure(sort_index_));
+    hash.add(deep_hash_cache.ensure(sort_weight_));
   }
 
   std::optional<AttrDomain> preferred_domain(const Mesh & /*mesh*/) const final
@@ -155,14 +150,10 @@ class CornersOfFaceCountInput final : public bke::MeshFieldInput {
                                   [faces](const int64_t i) { return faces[i].size(); });
   }
 
-  uint64_t hash() const final
+  void hash_unique(UniqueHashBytes &hash, fn::FieldHashDeep & /*deep_hash_cache*/) const override
   {
-    return 8345908765432698;
-  }
-
-  bool is_equal_to(const fn::FieldInput &other) const final
-  {
-    return dynamic_cast<const CornersOfFaceCountInput *>(&other) != nullptr;
+    static constexpr int8_t id = 0;
+    hash.add(&id);
   }
 
   std::optional<AttrDomain> preferred_domain(const Mesh & /*mesh*/) const final
@@ -192,7 +183,8 @@ static void node_geo_exec(GeoNodeExecParams params)
 static void node_register()
 {
   static bke::bNodeType ntype;
-  geo_node_type_base(&ntype, "GeometryNodeCornersOfFace", GEO_NODE_MESH_TOPOLOGY_CORNERS_OF_FACE);
+  geo_node_type_base(
+      &ntype, "GeometryNodeCornersOfFace"_ustr, GEO_NODE_MESH_TOPOLOGY_CORNERS_OF_FACE);
   ntype.ui_name = "Corners of Face";
   ntype.ui_description = "Retrieve corners that make up a face";
   ntype.enum_name_legacy = "CORNERS_OF_FACE";

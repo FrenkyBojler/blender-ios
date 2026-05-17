@@ -46,15 +46,10 @@ class SplineCountFieldInput final : public bke::CurvesFieldInput {
     return construct_curve_point_count_gvarray(curves, domain);
   }
 
-  uint64_t hash() const override
+  void hash_unique(UniqueHashBytes &hash, fn::FieldHashDeep & /*deep_hash_cache*/) const override
   {
-    /* Some random constant hash. */
-    return 456364322625;
-  }
-
-  bool is_equal_to(const fn::FieldInput &other) const override
-  {
-    return dynamic_cast<const SplineCountFieldInput *>(&other) != nullptr;
+    static constexpr int8_t id = 0;
+    hash.add(&id);
   }
 
   std::optional<AttrDomain> preferred_domain(const bke::CurvesGeometry & /*curves*/) const final
@@ -72,7 +67,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 static void node_register()
 {
   static bke::bNodeType ntype;
-  geo_node_type_base(&ntype, "GeometryNodeSplineLength", GEO_NODE_INPUT_SPLINE_LENGTH);
+  geo_node_type_base(&ntype, "GeometryNodeSplineLength"_ustr, GEO_NODE_INPUT_SPLINE_LENGTH);
   ntype.ui_name = "Spline Length";
   ntype.ui_description =
       "Retrieve the total length of each spline, as a distance or as a number of points";

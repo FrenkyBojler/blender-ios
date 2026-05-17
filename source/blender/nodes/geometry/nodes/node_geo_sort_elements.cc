@@ -179,8 +179,7 @@ static std::optional<Array<int>> sorted_indices(const fn::FieldContext &field_co
   Array<int> indices(domain_size);
 
   array_utils::scatter<int>(gathered_indices, mask, indices);
-  unselected.foreach_index_optimized<int>([&](const int index) { indices[index] = index; },
-                                          exec_mode::grain_size(4096));
+  array_utils::fill_index_range<int>(unselected, indices);
 
   if (array_utils::indices_are_range(indices, indices.index_range())) {
     return std::nullopt;
@@ -293,7 +292,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeSortElements", GEO_NODE_SORT_ELEMENTS);
+  geo_node_type_base(&ntype, "GeometryNodeSortElements"_ustr, GEO_NODE_SORT_ELEMENTS);
   ntype.ui_name = "Sort Elements";
   ntype.ui_description = "Rearrange geometry elements, changing their indices";
   ntype.enum_name_legacy = "SORT_ELEMENTS";

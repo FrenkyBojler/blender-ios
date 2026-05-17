@@ -208,11 +208,10 @@ class KeyingOperation : public NodeOperation {
       }
 
       if (output_matte.should_compute()) {
-        output_matte.steal_data(feathered_matte);
+        output_matte.share_data(feathered_matte);
       }
-      else {
-        feathered_matte.release();
-      }
+
+      feathered_matte.release();
     }
     else {
       tweaked_matte.release();
@@ -814,7 +813,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, "CompositorNodeKeying", CMP_NODE_KEYING);
+  cmp_node_type_base(&ntype, "CompositorNodeKeying"_ustr, CMP_NODE_KEYING);
   ntype.ui_name = "Keying";
   ntype.ui_description =
       "Perform both chroma keying (to remove the backdrop) and despill (to correct color cast "
