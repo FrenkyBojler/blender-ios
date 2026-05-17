@@ -738,7 +738,8 @@ static wmOperatorStatus node_add_object_invoke(bContext *C, wmOperator *op, cons
 static bool node_add_object_poll(bContext *C)
 {
   const SpaceNode *snode = CTX_wm_space_node(C);
-  return ED_operator_node_editable(C) && ELEM(snode->nodetree->type, NTREE_GEOMETRY);
+  return ED_operator_node_editable(C) &&
+         ELEM(snode->nodetree->type, NTREE_GEOMETRY, NTREE_COMPOSIT);
 }
 
 void NODE_OT_add_object(wmOperatorType *ot)
@@ -1599,6 +1600,8 @@ void NODE_OT_add_color(wmOperatorType *ot)
   RNA_def_boolean(
       ot->srna, "has_alpha", false, "Has Alpha", "The source color contains an Alpha component");
 }
+
+/** \} */
 
 /* -------------------------------------------------------------------- */
 /** \name New Node Tree Operator
