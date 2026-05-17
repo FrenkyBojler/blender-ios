@@ -218,7 +218,6 @@ class ShortestEdgePathsNextVertFieldInput final : public bke::MeshFieldInput {
     const IndexMask end_selection = point_evaluator.get_evaluated_as_mask(0);
 
     Array<int> next_index(mesh.verts_num, -1);
-    Array<float> cost(mesh.verts_num, FLT_MAX);
 
     if (end_selection.is_empty()) {
       array_utils::fill_index_range<int>(next_index);
@@ -236,6 +235,7 @@ class ShortestEdgePathsNextVertFieldInput final : public bke::MeshFieldInput {
           mesh, vert_to_edge, end_selection, input_cost.get_internal_single(), next_index);
     }
     else {
+      Array<float> cost(mesh.verts_num, FLT_MAX);
       shortest_paths(mesh, vert_to_edge, end_selection, input_cost, next_index, cost);
     }
 
@@ -304,7 +304,6 @@ class ShortestEdgePathsCostFieldInput final : public bke::MeshFieldInput {
           VArray<float>::from_single(0.0f, mesh.verts_num), AttrDomain::Point, domain);
     }
 
-    Array<int> next_index(mesh.verts_num, -1);
     Array<float> cost(mesh.verts_num, FLT_MAX);
 
     const Span<int2> edges = mesh.edges();
@@ -316,6 +315,7 @@ class ShortestEdgePathsCostFieldInput final : public bke::MeshFieldInput {
       shortest_paths(mesh, vert_to_edge, end_selection, input_cost.get_internal_single(), cost);
     }
     else {
+      Array<int> next_index(mesh.verts_num, -1);
       shortest_paths(mesh, vert_to_edge, end_selection, input_cost, next_index, cost);
     }
 
