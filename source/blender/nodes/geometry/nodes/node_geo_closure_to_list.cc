@@ -32,7 +32,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
   b.add_input<decl::Int>("Count"_ustr)
       .default_value(1)
-      .min(1)
+      .min(0)
       .description("The number of elements in the list");
 
   const bNode *node = b.node_or_null();
