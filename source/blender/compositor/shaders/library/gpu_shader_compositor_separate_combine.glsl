@@ -79,16 +79,16 @@ void node_composite_separate_hsla(float4 color, float &h, float &s, float &l, fl
 /* ** Combine/Separate LAB using OKLAB ** */
 
 [[node]]
-void node_composite_combine_lab(float l, float a, float b, float alpha, float4 &color)
+void node_composite_combine_oklab(float l, float a, float b, float alpha, float4 &color)
 {
-  lab_to_rgb(float4(l, a, b, alpha), color);
+  oklab_to_rgb(float4(l, a, b, alpha), color);
 }
 
 [[node]]
-void node_composite_separate_lab(float4 color, float &l, float &a, float &b, float &alpha)
+void node_composite_separate_oklab(float4 color, float &l, float &a, float &b, float &alpha)
 {
   float4 lab;
-  rgb_to_lab(color, lab);
+  rgb_to_oklab(color, lab);
   l = lab.x;
   a = lab.y;
   b = lab.z;
@@ -98,16 +98,16 @@ void node_composite_separate_lab(float4 color, float &l, float &a, float &b, flo
 /* ** Combine/Separate LCH using OKLAB ** */
 
 [[node]]
-void node_composite_combine_lch(float l, float c, float h, float alpha, float4 &color)
+void node_composite_combine_oklch(float l, float c, float h, float alpha, float4 &color)
 {
-  lch_to_rgb(float4(l, c, h, alpha), color);
+  oklch_to_rgb(float4(l, c, h, alpha), color);
 }
 
 [[node]]
-void node_composite_separate_lch(float4 color, float &l, float &c, float &h, float &alpha)
+void node_composite_separate_oklch(float4 color, float &l, float &c, float &h, float &alpha)
 {
   float4 lch;
-  rgb_to_lch(color, lch);
+  rgb_to_oklch(color, lch);
   l = lch.x;
   c = lch.y;
   h = lch.z;

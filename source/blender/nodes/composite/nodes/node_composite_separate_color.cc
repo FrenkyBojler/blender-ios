@@ -38,8 +38,8 @@ static void node_declare(NodeDeclarationBuilder &b)
       case CMP_NODE_COMBSEP_COLOR_HSV:
       case CMP_NODE_COMBSEP_COLOR_HSL:
         return IFACE_("Hue");
-      case CMP_NODE_COMBSEP_COLOR_LAB:
-      case CMP_NODE_COMBSEP_COLOR_LCH:
+      case CMP_NODE_COMBSEP_COLOR_OKLAB:
+      case CMP_NODE_COMBSEP_COLOR_OKLCH:
         return IFACE_("L");
       case CMP_NODE_COMBSEP_COLOR_YCC:
       case CMP_NODE_COMBSEP_COLOR_YUV:
@@ -54,9 +54,9 @@ static void node_declare(NodeDeclarationBuilder &b)
       case CMP_NODE_COMBSEP_COLOR_HSV:
       case CMP_NODE_COMBSEP_COLOR_HSL:
         return IFACE_("Saturation");
-      case CMP_NODE_COMBSEP_COLOR_LAB:
-        return IFACE_("A");
-      case CMP_NODE_COMBSEP_COLOR_LCH:
+      case CMP_NODE_COMBSEP_COLOR_OKLAB:
+        return IFACE_("a");
+      case CMP_NODE_COMBSEP_COLOR_OKLCH:
         return IFACE_("C");
       case CMP_NODE_COMBSEP_COLOR_YCC:
         return IFACE_("Cb");
@@ -73,10 +73,10 @@ static void node_declare(NodeDeclarationBuilder &b)
         return CTX_IFACE_(BLT_I18NCONTEXT_COLOR, "Value");
       case CMP_NODE_COMBSEP_COLOR_HSL:
         return IFACE_("Lightness");
-      case CMP_NODE_COMBSEP_COLOR_LAB:
-        return IFACE_("B");
-      case CMP_NODE_COMBSEP_COLOR_LCH:
-        return IFACE_("H");
+      case CMP_NODE_COMBSEP_COLOR_OKLAB:
+        return IFACE_("b");
+      case CMP_NODE_COMBSEP_COLOR_OKLCH:
+        return IFACE_("h");
       case CMP_NODE_COMBSEP_COLOR_YCC:
         return IFACE_("Cr");
       case CMP_NODE_COMBSEP_COLOR_YUV:
@@ -99,10 +99,10 @@ static int node_gpu_material(GPUMaterial *material,
       return GPU_stack_link(material, node, "node_composite_separate_hsva", inputs, outputs);
     case CMP_NODE_COMBSEP_COLOR_HSL:
       return GPU_stack_link(material, node, "node_composite_separate_hsla", inputs, outputs);
-    case CMP_NODE_COMBSEP_COLOR_LAB:
-      return GPU_stack_link(material, node, "node_composite_separate_lab", inputs, outputs);
-    case CMP_NODE_COMBSEP_COLOR_LCH:
-      return GPU_stack_link(material, node, "node_composite_separate_lch", inputs, outputs);
+    case CMP_NODE_COMBSEP_COLOR_OKLAB:
+      return GPU_stack_link(material, node, "node_composite_separate_oklab", inputs, outputs);
+    case CMP_NODE_COMBSEP_COLOR_OKLCH:
+      return GPU_stack_link(material, node, "node_composite_separate_oklch", inputs, outputs);
     case CMP_NODE_COMBSEP_COLOR_YUV:
       return GPU_stack_link(
           material, node, "node_composite_separate_yuva_itu_709", inputs, outputs);
@@ -153,18 +153,18 @@ static void node_build_multi_function(nodes::NodeMultiFunctionBuilder &builder)
       },
       mf::build::exec_presets::AllSpanOrSingle());
 
-  static auto lab_function = mf::build::SI1_SO4<Color, float, float, float, float>(
-      "Separate Color LAB",
+  static auto oklab_function = mf::build::SI1_SO4<Color, float, float, float, float>(
+      "Separate Color OkLAB",
       [](const Color &color, float &l, float &a, float &b, float &alpha) -> void {
-        rgb_to_lab(color.r, color.g, color.b, &l, &a, &b);
+        rgb_to_oklab(color.r, color.g, color.b, &l, &a, &b);
         alpha = color.a;
       },
       mf::build::exec_presets::AllSpanOrSingle());
 
-  static auto lch_function = mf::build::SI1_SO4<Color, float, float, float, float>(
-      "Separate Color LCH",
+  static auto oklch_function = mf::build::SI1_SO4<Color, float, float, float, float>(
+      "Separate Color OkLCH",
       [](const Color &color, float &l, float &c, float &h, float &alpha) -> void {
-        rgb_to_lch(color.r, color.g, color.b, &l, &c, &h);
+        rgb_to_oklch(color.r, color.g, color.b, &l, &c, &h);
         alpha = color.a;
       },
       mf::build::exec_presets::AllSpanOrSingle());
@@ -220,11 +220,11 @@ static void node_build_multi_function(nodes::NodeMultiFunctionBuilder &builder)
     case CMP_NODE_COMBSEP_COLOR_HSL:
       builder.set_matching_fn(hsla_function);
       break;
-    case CMP_NODE_COMBSEP_COLOR_LAB:
-      builder.set_matching_fn(lab_function);
+    case CMP_NODE_COMBSEP_COLOR_OKLAB:
+      builder.set_matching_fn(oklab_function);
       break;
-    case CMP_NODE_COMBSEP_COLOR_LCH:
-      builder.set_matching_fn(lch_function);
+    case CMP_NODE_COMBSEP_COLOR_OKLCH:
+      builder.set_matching_fn(oklch_function);
       break;
     case CMP_NODE_COMBSEP_COLOR_YUV:
       builder.set_matching_fn(yuva_function);
