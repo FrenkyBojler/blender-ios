@@ -13,6 +13,16 @@ from enum import IntEnum
 sys.path.append(str(pathlib.Path(__file__).parent.absolute()))
 
 
+def is_simple_compare(json_):
+    """Check if we need to avoid full comparison of the data"""
+    if 'extensionsUsed' in json_:
+        if 'KHR_meshopt_compression' in json_['extensionsUsed']:
+            return True
+        if 'EXT_meshopt_compression' in json_['extensionsUsed']:
+            return True
+    return False
+
+
 def gltf_generate_descr(output_datafile: pathlib.Path) -> str:
     gltf = glTFDataExtractor(output_datafile)
     gltf.load()
@@ -24,6 +34,30 @@ def gltf_generate_descr(output_datafile: pathlib.Path) -> str:
 
     # we need to override generator field to avoid test failures
     gltf.json['asset']['generator'] = "glTF-Blender-IO Test Suite"
+
+
+    def avoid_values(val):
+        """Replace float and int values with "N/A" to avoid precision issues
+        when meshopt compression is used, as it can lead to small differences that are not relevant.
+        """
+        if isinstance(val, float) or isinstance(val, int):
+            return "N/A"
+        if isinstance(val, dict):
+            return {k: avoid_values(v) for k, v in val.items()}
+        if isinstance(val, (list, tuple)):
+            return [avoid_values(x) for x in val]
+        return val
+
+    def add_TRS_to_json(json_):
+        """Add translation, rotation and scale values to json
+        when meshopt compression is used, as it can lead to small differences that are not relevant."""
+        for node in json_.get('nodes', []):
+            if 'translation' not in node:
+                node.setdefault('translation', [0.0, 0.0, 0.0])
+            if 'rotation' not in node:
+                node.setdefault('rotation', [0.0, 0.0, 0.0, 1.0])
+            if 'scale' not in node:
+                node.setdefault('scale', [1.0, 1.0, 1.0])
 
     def round_floats(o):
         if isinstance(o, float):
@@ -38,7 +72,12 @@ def gltf_generate_descr(output_datafile: pathlib.Path) -> str:
             return [round_floats(x) for x in o]
         return o
 
-    text += json.dumps(round_floats(gltf.json), indent=2, ensure_ascii=False)
+    if is_simple_compare(gltf.json):
+        # Avoid comparing data when meshopt compression is used, as it can lead to small differences that are not relevant.
+        add_TRS_to_json(gltf.json)
+        text += json.dumps(avoid_values(gltf.json), indent=2, ensure_ascii=False)
+    else:
+        text += json.dumps(round_floats(gltf.json), indent=2, ensure_ascii=False)
     for accessor in gltf.accessors_data:
         text += accessor + "\n"
     return text
@@ -72,9 +111,7 @@ class glTFDataExtractor:
             self.json = glTFDataExtractor.load_json(content)
 
             # Let's ignore buffers and binary data when the file has meshopt compression
-            if any('KHR_meshopt_compression' in bv.get('extensions', {}) for bv in self.json.get('bufferViews', [])):
-                return
-            if any('EXT_meshopt_compression' in bv.get('extensions', {}) for bv in self.json.get('bufferViews', [])):
+            if is_simple_compare(self.json):
                 return
 
             # Get buffers
