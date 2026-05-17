@@ -23,6 +23,22 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Float>("Total Cost"_ustr).field_source().reference_pass_all();
 }
 
+static GroupedSpan<int> edges_to_verts_map(const Span<int2> edges,
+                                           const GroupedSpan<int> vert_to_edge,
+                                           Array<int> &r_other_vertex)
+{
+  r_other_vertex.reinitialize(vert_to_edge.data.size());
+  threading::parallel_for(vert_to_edge.index_range(), 2048, [&](const IndexRange range) {
+    for (const int vert_i : range) {
+      for (const int edge_i : vert_to_edge.offsets[vert_i]) {
+        r_other_vertex[edge_i] = bke::mesh::edge_other_vert(edges[vert_to_edge.data[edge_i]],
+                                                            vert_i);
+      }
+    }
+  });
+  return {vert_to_edge.offsets, r_other_vertex.as_span()};
+}
+
 static int breadth_first_search(const IndexMask start_mask,
                                 const GroupedSpan<int> vert_to_verts,
                                 MutableSpan<int> r_distances)
@@ -61,6 +77,70 @@ static int breadth_first_search(const IndexMask start_mask,
   return topology_distance;
 }
 
+static void shortest_paths(const Mesh &mesh,
+                           const GroupedSpan<int> vert_to_edge,
+                           const IndexMask end_selection,
+                           const float input_cost,
+                           MutableSpan<float> r_cost)
+{
+  const Span<int2> edges = mesh.edges();
+
+  /* Though it uses more memory, calculating the adjacent vertex
+   * across each edge beforehand is noticeably faster. */
+  Array<int> other_vertex;
+  const GroupedSpan<int> vert_to_verts = edges_to_verts_map(edges, vert_to_edge, r_other_vertex);
+
+  Array<int> distances(r_cost.size(), std::numeric_limits<int>::max());
+  breadth_first_search(end_selection, vert_to_verts, distances);
+
+  /* TODO: Compute only next index or cost. */
+  threading::parallel_for(distances.index_range(), 1024, [&](const IndexRange range) {
+    for (const int vert_i : range) {
+      if (distances[vert_i] != std::numeric_limits<int>::max()) {
+        r_cost[vert_i] = distances[vert_i] * input_cost;
+      }
+      else {
+        r_cost[vert_i] = 0.0f;
+      }
+    }
+  });
+}
+
+static void shortest_paths(const Mesh &mesh,
+                           const GroupedSpan<int> vert_to_edge,
+                           const IndexMask end_selection,
+                           const float input_cost,
+                           MutableSpan<int> r_next_index)
+{
+  const Span<int2> edges = mesh.edges();
+
+  /* Though it uses more memory, calculating the adjacent vertex
+   * across each edge beforehand is noticeably faster. */
+  Array<int> other_vertex;
+  const GroupedSpan<int> vert_to_verts = edges_to_verts_map(edges, vert_to_edge, r_other_vertex);
+
+  Array<int> distances(r_cost.size(), std::numeric_limits<int>::max());
+  breadth_first_search(end_selection, vert_to_verts, distances);
+
+  threading::parallel_for(distances.index_range(), 1024, [&](const IndexRange range) {
+    for (const int vert_i : range) {
+      if (ELEM(distances[vert_i], 0, std::numeric_limits<int>::max())) {
+        r_next_index[vert_i] = vert_i;
+        continue;
+      }
+
+      std::pair<int, int> distance_and_index(distances[vert_i], vert_i);
+      for (const int other_vert : vert_to_verts[vert_i]) {
+        const std::pair<int, int> other(distances[other_vert], other_vert);
+        if (other < distance_and_index) {
+          distance_and_index = other;
+        }
+      }
+      r_next_index[vert_i] = distance_and_index.second;
+    }
+  });
+}
+
 using VertPriority = std::pair<float, int>;
 
 static void shortest_paths(const Mesh &mesh,
@@ -74,55 +154,8 @@ static void shortest_paths(const Mesh &mesh,
 
   /* Though it uses more memory, calculating the adjacent vertex
    * across each edge beforehand is noticeably faster. */
-  Array<int> other_vertex(vert_to_edge.data.size());
-  threading::parallel_for(vert_to_edge.index_range(), 2048, [&](const IndexRange range) {
-    for (const int vert_i : range) {
-      for (const int edge_i : vert_to_edge.offsets[vert_i]) {
-        other_vertex[edge_i] = bke::mesh::edge_other_vert(edges[vert_to_edge.data[edge_i]],
-                                                          vert_i);
-      }
-    }
-  });
-
-  if (input_cost.is_single()) {
-    const GroupedSpan<int> vert_to_verts(vert_to_edge.offsets, other_vertex.as_span());
-
-    Array<int> distances(r_cost.size(), std::numeric_limits<int>::max());
-    breadth_first_search(end_selection, vert_to_verts, distances);
-
-    /* TODO: Compute only next index or cost. */
-    const float cost = input_cost.get_internal_single();
-    threading::parallel_for(distances.index_range(), 1024, [&](const IndexRange range) {
-      for (const int vert_i : range) {
-        if (distances[vert_i] != std::numeric_limits<int>::max()) {
-          r_cost[vert_i] = distances[vert_i] * cost;
-        }
-        else {
-          r_cost[vert_i] = 0.0f;
-        }
-      }
-    });
-
-    threading::parallel_for(distances.index_range(), 1024, [&](const IndexRange range) {
-      for (const int vert_i : range) {
-        if (ELEM(distances[vert_i], 0, std::numeric_limits<int>::max())) {
-          r_next_index[vert_i] = vert_i;
-          continue;
-        }
-
-        std::pair<int, int> distance_and_index(distances[vert_i], vert_i);
-        for (const int other_vert : vert_to_verts[vert_i]) {
-          const std::pair<int, int> other(distances[other_vert], other_vert);
-          if (other < distance_and_index) {
-            distance_and_index = other;
-          }
-        }
-        r_next_index[vert_i] = distance_and_index.second;
-      }
-    });
-
-    return;
-  }
+  Array<int> other_vertex;
+  const GroupedSpan<int> vert_to_verts = edges_to_verts_map(edges, vert_to_edge, r_other_vertex);
 
   Array<bool> visited(mesh.verts_num, false);
 
@@ -198,7 +231,13 @@ class ShortestEdgePathsNextVertFieldInput final : public bke::MeshFieldInput {
     Array<int> vert_to_edge_indices;
     const GroupedSpan<int> vert_to_edge = bke::mesh::build_vert_to_edge_map(
         edges, mesh.verts_num, vert_to_edge_offset_data, vert_to_edge_indices);
-    shortest_paths(mesh, vert_to_edge, end_selection, input_cost, next_index, cost);
+    if (input_cost.is_single()) {
+      shortest_paths(
+          mesh, vert_to_edge, end_selection, input_cost.get_internal_single(), next_index);
+    }
+    else {
+      shortest_paths(mesh, vert_to_edge, end_selection, input_cost, next_index, cost);
+    }
 
     threading::parallel_for(next_index.index_range(), 1024, [&](const IndexRange range) {
       for (const int i : range) {
@@ -273,7 +312,12 @@ class ShortestEdgePathsCostFieldInput final : public bke::MeshFieldInput {
     Array<int> vert_to_edge_indices;
     const GroupedSpan<int> vert_to_edge = bke::mesh::build_vert_to_edge_map(
         edges, mesh.verts_num, vert_to_edge_offset_data, vert_to_edge_indices);
-    shortest_paths(mesh, vert_to_edge, end_selection, input_cost, next_index, cost);
+    if (input_cost.is_single()) {
+      shortest_paths(mesh, vert_to_edge, end_selection, input_cost.get_internal_single(), cost);
+    }
+    else {
+      shortest_paths(mesh, vert_to_edge, end_selection, input_cost, next_index, cost);
+    }
 
     threading::parallel_for(cost.index_range(), 1024, [&](const IndexRange range) {
       for (const int i : range) {
