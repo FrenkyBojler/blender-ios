@@ -181,6 +181,9 @@ inline void add_item(wmOperatorType *ot,
   ot->poll = editable_node_active_poll<Accessor>;
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
+  static const char *socket_type_id = "socket_type";
+  static const char *item_name_id = "item_name";
+
   ot->invoke = [](bContext *C, wmOperator *op, const wmEvent *event) {
     const bool show_dialog = RNA_boolean_get(op->ptr, "show_dialog");
     const bool needs_dialog = Accessor::has_type || Accessor::has_name;
@@ -195,10 +198,10 @@ inline void add_item(wmOperatorType *ot,
     if constexpr (Accessor::has_name) {
       ui::Layout &row = layout.row(true);
       row.activate_init_set(true);
-      row.prop(op->ptr, "item_name", UI_ITEM_NONE, "", ICON_NONE);
+      row.prop(op->ptr, item_name_id, UI_ITEM_NONE, "", ICON_NONE);
     }
     if constexpr (Accessor::has_type) {
-      layout.prop(op->ptr, "socket_type", UI_ITEM_NONE, "", ICON_NONE);
+      layout.prop(op->ptr, socket_type_id, UI_ITEM_NONE, "", ICON_NONE);
     }
   };
 
@@ -207,6 +210,7 @@ inline void add_item(wmOperatorType *ot,
     if (node_ptr.data == nullptr) {
       return OPERATOR_CANCELLED;
     }
+    bNodeTree *ntree = reinterpret_cast<bNodeTree *>(node_ptr.owner_id);
     bNode &node = *static_cast<bNode *>(node_ptr.data);
     SocketItemsRef ref = Accessor::get_items_from_node(node);
     const typename Accessor::ItemT *active_item = nullptr;
@@ -219,23 +223,29 @@ inline void add_item(wmOperatorType *ot,
       }
     }
 
-    if constexpr (Accessor::has_type && Accessor::has_name) {
-      bNodeTree *ntree = reinterpret_cast<bNodeTree *>(node_ptr.owner_id);
-
-      std::string name;
-      if (RNA_struct_property_is_set(op->ptr, "item_name")) {
-        name = RNA_string_get(op->ptr, "item_name");
+    /* Determine name if necessary. */
+    const bool init_from_active = RNA_boolean_get(op->ptr, "init_from_active");
+    std::optional<std::string> name;
+    if constexpr (Accessor::has_name) {
+      if (!init_from_active) {
+        name = RNA_string_get(op->ptr, item_name_id);
       }
       else if (active_item) {
         name = active_item->name;
       }
-      if constexpr (Accessor::has_custom_initial_name) {
-        name = Accessor::custom_initial_name(node, name);
+      else {
+        name = "";
       }
+      if constexpr (Accessor::has_custom_initial_name) {
+        name = Accessor::custom_initial_name(node, *name);
+      }
+    }
 
-      eNodeSocketDatatype socket_type;
-      if (RNA_struct_property_is_set(op->ptr, "socket_type")) {
-        socket_type = eNodeSocketDatatype(RNA_enum_get(op->ptr, "socket_type"));
+    /* Determine socket type if necessary. */
+    std::optional<eNodeSocketDatatype> socket_type;
+    if constexpr (Accessor::has_type) {
+      if (!init_from_active) {
+        socket_type = eNodeSocketDatatype(RNA_enum_get(op->ptr, socket_type_id));
       }
       else if (active_item) {
         socket_type = Accessor::get_socket_type(*active_item);
@@ -244,16 +254,14 @@ inline void add_item(wmOperatorType *ot,
         socket_type = Accessor::supports_socket_type(SOCK_GEOMETRY, ntree->type) ? SOCK_GEOMETRY :
                                                                                    SOCK_FLOAT;
       }
+    }
 
+    if constexpr (Accessor::has_type && Accessor::has_name) {
       socket_items::add_item_with_socket_type_and_name<Accessor>(
-          *ntree,
-          node,
-          socket_type,
-          /* Empty name so it is based on the type. */
-          name.c_str());
+          *ntree, node, *socket_type, name->c_str());
     }
     else if constexpr (!Accessor::has_type && Accessor::has_name) {
-      socket_items::add_item_with_name<Accessor>(node, active_item ? active_item->name : "");
+      socket_items::add_item_with_name<Accessor>(node, name->c_str());
     }
     else if constexpr (!Accessor::has_type && !Accessor::has_name) {
       socket_items::add_item<Accessor>(node);
@@ -281,9 +289,17 @@ inline void add_item(wmOperatorType *ot,
                          "Show a dialog to edit the initial properties");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 
+  prop = RNA_def_boolean(
+      ot->srna,
+      "init_from_active",
+      true,
+      "Init from Active",
+      "Instead of using the provided name or type, copy the state of the active item");
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+
   if constexpr (Accessor::has_type) {
     prop = RNA_def_enum(ot->srna,
-                        "socket_type",
+                        socket_type_id,
                         rna_enum_node_socket_data_type_items,
                         SOCK_FLOAT,
                         "Socket Type",
@@ -305,7 +321,7 @@ inline void add_item(wmOperatorType *ot,
         nullptr);
   }
   if constexpr (Accessor::has_name) {
-    RNA_def_string(ot->srna, "item_name", nullptr, 0, "Item Name", "Name of the new socket item");
+    RNA_def_string(ot->srna, item_name_id, nullptr, 0, "Item Name", "Name of the new socket item");
   }
 }
 

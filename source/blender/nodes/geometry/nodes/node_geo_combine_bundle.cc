@@ -73,13 +73,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       }
     }
     b.add_input<decl::Extend>(""_ustr, "__extend__"_ustr)
-        .custom_draw([](CustomSocketDrawParams &params) {
-          ui::Layout &layout = params.layout;
-          layout.emboss_set(ui::EmbossType::None);
-          PointerRNA op_ptr = layout.op("node.combine_bundle_item_add", "", ICON_ADD);
-          RNA_int_set(&op_ptr, "node_identifier", params.node.identifier);
-          RNA_boolean_set(&op_ptr, "show_dialog", true);
-        });
+        .custom_draw(socket_items::ui::draw_extend_socket_fn<CombineBundleItemsAccessor>());
   }
 }
 
