@@ -881,9 +881,16 @@ bNodeSocket &Closure::update_or_build(bNodeTree &ntree, bNode &node, bNodeSocket
   return socket;
 }
 
-void ClosureBuilder::signature(std::unique_ptr<ClosureSignature> signature)
+void ClosureBuilder::create_signature(
+    std::function<ClosureSignature(const bNode &)> create_signature)
 {
-  decl_->signature = std::move(signature);
+  if (create_signature) {
+    decl_->create_signature = std::make_unique<std::function<ClosureSignature(const bNode &)>>(
+        std::move(create_signature));
+  }
+  else {
+    decl_->create_signature.reset();
+  }
 }
 
 /** \} */

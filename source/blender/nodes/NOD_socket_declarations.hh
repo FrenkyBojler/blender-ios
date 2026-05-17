@@ -338,7 +338,7 @@ class ClosureBuilder;
 
 class Closure : public SocketDeclaration {
  public:
-  std::unique_ptr<ClosureSignature> signature;
+  std::unique_ptr<std::function<ClosureSignature(const bNode &)>> create_signature;
 
   Closure();
   ~Closure() override;
@@ -357,7 +357,7 @@ class Closure : public SocketDeclaration {
 
 class ClosureBuilder : public SocketDeclarationBuilder<Closure> {
  public:
-  void signature(std::unique_ptr<ClosureSignature> signature);
+  void create_signature(std::function<ClosureSignature(const bNode &)> create_signature);
 };
 
 class IDSocketDeclaration : public SocketDeclaration {
