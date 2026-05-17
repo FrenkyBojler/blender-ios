@@ -723,11 +723,10 @@ void ED_view3d_win_to_vector(const ARegion *region, const float mval[2], float r
   RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
 
   if (rv3d->is_persp) {
-    r_out[0] = 2.0f * (mval[0] / region->winx) - 1.0f;
-    r_out[1] = 2.0f * (mval[1] / region->winy) - 1.0f;
-    r_out[2] = -0.5f;
-    mul_project_m4_v3(rv3d->persinv, r_out);
-    sub_v3_v3(r_out, rv3d->viewinv[3]);
+    r_out[0] = (2.0f * (mval[0] / region->winx) - 1.0f) / rv3d->winmat[0][0];
+    r_out[1] = (2.0f * (mval[1] / region->winy) - 1.0f) / rv3d->winmat[1][1];
+    r_out[2] = -1.0f;
+    mul_transposed_mat3_m4_v3(rv3d->viewmat, r_out);
   }
   else {
     negate_v3_v3(r_out, rv3d->viewinv[2]);
