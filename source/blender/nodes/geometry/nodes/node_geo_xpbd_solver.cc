@@ -1933,7 +1933,7 @@ class XpbdSolverStep {
     Array<int> offsets;
     Array<int> indices;
     const GroupedSpan<int> edge_to_faces = bke::mesh::build_edge_to_face_map(
-        mesh.faces(), mesh.corner_edges(), mesh.edges_num, offsets, indices);
+        faces, mesh.corner_edges(), mesh.edges_num, offsets, indices);
 
     for (const int edge_i : edges.index_range()) {
       const int2 &edge = edges[edge_i];
