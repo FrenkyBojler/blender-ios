@@ -202,7 +202,7 @@ int active_face_set_get(const Object &object)
     active_grid_index = ss.cache->active_grid_index;
   }
   else {
-    /* Fallback codepath, must mean theres an unnacounted usage of ss.active_ properties */
+    /* Fallback codepath , must mean theres an unnacounted usage of ss.active_ properties */
     active_face_index = ss.active_face_index;
     active_grid_index = ss.active_grid_index;
     BKE_report_log(eReportType::RPT_INFO, "Fallback reliance on ss._active properties", &LOG);
@@ -216,13 +216,21 @@ int active_face_set_get(bContext *C, const float2 &mval)
   Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
   ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
 
+  const Object &object = *vc.obact;
+  SculptSession &ss = *object.runtime->sculpt_session;
+
+  /*
+   * Must mean that the value was cached earlier from cursor_geometry_info_update,
+   * TODO: confirm if this condition should be included as it does go against the on-demand nature of this function
+  if(ss.cache != nullptr) {
+    return active_face_set_get(object, ss.cache->active_face_index, ss.cache->active_grid_index);
+  }
+   */
+
   const std::optional<ActiveElementInfo> active_element_info = active_element_info_get(vc, mval);
   if (!active_element_info) {
     return face_set_none_id;
   }
-
-  const Object &object = *vc.obact;
-  SculptSession &ss = *object.runtime->sculpt_session;
 
   /* Update cached values */
   if (ss.cache) {
@@ -230,7 +238,7 @@ int active_face_set_get(bContext *C, const float2 &mval)
     ss.cache->active_grid_index = active_element_info->active_grid_index;
   }
   else {
-    /* Fallback code path, ideally should never run */
+    /* Fallback update to avoid breaking anything until fully tested , should be allowed to run */
     ss.active_face_index = active_element_info->active_face_index;
     ss.active_grid_index = active_element_info->active_grid_index;
     BKE_report_log(eReportType::RPT_INFO, "Fallback update on ss._active properties", &LOG);
