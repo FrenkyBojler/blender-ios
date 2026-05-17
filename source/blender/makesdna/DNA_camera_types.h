@@ -210,7 +210,7 @@ struct Camera {
 
   /** CAM_PERSP, CAM_ORTHO, CAM_PANO or CAM_CUSTOM. */
   eCamera_Type type = {};
-  DNA_DEPRECATED char dtx = 0;
+  char _pad0[1] = {};
   /** Composition Guide Flags. */
   eCompositionGuideFlags composition_guide_flags = COMPOSITION_GUIDES_ENABLED;
   eCamera_Flag flag = CAM_SHOWPASSEPARTOUT;

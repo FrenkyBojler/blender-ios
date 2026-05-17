@@ -1109,7 +1109,9 @@ void ED_region_image_metadata_draw(
   GPU_matrix_pop();
 }
 
-/** Composition Guides */
+/* -------------------------------------------------------------------- */
+/** \name Composition Guides
+ * \{ */
 
 #define M_GOLDEN_RATIO_CONJUGATE 0.618033988749895f
 
@@ -1265,6 +1267,8 @@ void ED_draw_composition_guides(uint shdr_pos,
     drawviewborder_triangle(shdr_pos, rect, 1, 'B');
   }
 }
+
+/** \} */
 
 #undef MAX_METADATA_STR
 
