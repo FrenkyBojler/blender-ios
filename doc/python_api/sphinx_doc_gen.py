@@ -2394,7 +2394,6 @@ def pyrna2sphinx(basepath: Path) -> None:
 
         fw(title_string(title, "="))
 
-
         fw(".. currentmodule:: {:s}\n\n".format(struct_module_name))
 
         # Docs first? OK.
@@ -3006,7 +3005,7 @@ def write_rst_types_index(basepath: Path) -> None:
 
         for type_name in bpy_types_capi_iter():
             identifier = "bpy.types." + type_name
-            if identifier in EXCLUDE_MODULES:
+            if identifier in GLOBAL.exclude_modules:
                 continue
             fw("   {:s}.rst\n".format(identifier))
         fw("\n")
