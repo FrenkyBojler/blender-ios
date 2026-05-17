@@ -43,7 +43,9 @@ static void node_declare(NodeDeclarationBuilder &b)
   const Span<GeometryNodeClosureToListItem> items(storage.items, storage.items_num);
 
   auto signature = std::make_unique<ClosureSignature>();
-  signature->inputs.add({.key = "Index", .type = bke::node_socket_type_find("NodeSocketInt")});
+  signature->inputs.add({.key = "Index",
+                         .type = bke::node_socket_type_find("NodeSocketInt"),
+                         .structure_type = NodeSocketInterfaceStructureType::Single});
   for (const int i : items.index_range()) {
     const GeometryNodeClosureToListItem &item = items[i];
     const UString output_identifier{ItemsAccessor::output_socket_identifier_for_item(item)};
