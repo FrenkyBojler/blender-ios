@@ -42,37 +42,18 @@ static void node_declare(NodeDeclarationBuilder &b)
   const GeometryNodeClosureToList &storage = node_storage(*node);
   const Span<GeometryNodeClosureToListItem> items(storage.items, storage.items_num);
 
-  auto signature = std::make_unique<ClosureSignature>();
-
   for (const int i : items.index_range()) {
     const GeometryNodeClosureToListItem &item = items[i];
     const UString output_identifier{ItemsAccessor::output_socket_identifier_for_item(item)};
     const UString name{item.name};
     const auto type = eNodeSocketDatatype(item.socket_type);
-    signature->outputs.add(
-        {.key = name.ref(),
-         .type = bke::node_socket_type_find_static(type),
-         .structure_type = NodeSocketInterfaceStructureType(item.structure_type)});
     b.add_output(type, name, output_identifier).structure_type(StructureType::List);
   }
 
   b.add_output<decl::Extend>(""_ustr, "__extend__"_ustr).structure_type(StructureType::List);
 
   b.add_input<decl::Closure>("Closure"_ustr).create_signature([](const bNode &node) {
-    const GeometryNodeClosureToList &storage = node_storage(node);
-    ClosureSignature signature;
-    signature.inputs.add({.key = "Index",
-                          .type = bke::node_socket_type_find("NodeSocketInt"),
-                          .structure_type = NodeSocketInterfaceStructureType::Single});
-    for (const int i : IndexRange(storage.items_num)) {
-      const GeometryNodeClosureToListItem &item = storage.items[i];
-      const auto type = eNodeSocketDatatype(item.socket_type);
-      signature.outputs.add(
-          {.key = item.name,
-           .type = bke::node_socket_type_find_static(type),
-           .structure_type = NodeSocketInterfaceStructureType(item.structure_type)});
-    }
-    return signature;
+    return ClosureSignature::from_closure_to_list_node(node);
   });
 }
 
