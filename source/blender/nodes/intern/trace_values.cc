@@ -171,14 +171,10 @@ static Vector<SocketInContext> find_target_sockets_through_contexts(
         const Vector<SocketInContext> target_sockets = find_target_sockets_through_contexts(
             node.output_socket(0), compute_context_cache, target_socket_evaluates_closure, true);
         for (const auto &target_socket : target_sockets) {
-          if (const SocketDeclaration *decl = target_socket.socket->runtime->declaration) {
-            if (const auto *closure_decl = dynamic_cast<const decl::Closure *>(decl)) {
-              if (closure_decl->signature) {
-                continue;
-              }
-            }
-          }
           const NodeInContext evaluate_node = target_socket.owner_node();
+          if (!evaluate_node->is_type("NodeEvaluateClosure"_ustr)) {
+            continue;
+          }
           const auto &evaluate_storage = *static_cast<const NodeEvaluateClosure *>(
               evaluate_node->storage);
           for (const int i : IndexRange(evaluate_storage.output_items.items_num)) {
@@ -330,14 +326,10 @@ static Vector<SocketInContext> find_target_sockets_through_contexts(
     return nullptr;
   }
   const SocketInContext target_socket = target_sockets[0];
-  if (const SocketDeclaration *decl = target_socket.socket->runtime->declaration) {
-    if (const auto *closure_decl = dynamic_cast<const decl::Closure *>(decl)) {
-      if (closure_decl->signature) {
-        return nullptr;
-      }
-    }
-  }
   const NodeInContext target_node = target_socket.owner_node();
+  if (!target_node->is_type("NodeEvaluateClosure"_ustr)) {
+    return nullptr;
+  }
   return &compute_context_cache.for_evaluate_closure(target_socket.context,
                                                      target_node->identifier,
                                                      &target_socket->owner_tree(),
@@ -522,14 +514,10 @@ static Vector<SocketInContext> find_origin_sockets_through_contexts(
             target_socket_evaluates_closure,
             true);
         for (const SocketInContext &target_socket : target_sockets) {
-          if (const SocketDeclaration *decl = socket.socket->runtime->declaration) {
-            if (const auto *closure_decl = dynamic_cast<const decl::Closure *>(decl)) {
-              if (closure_decl->signature) {
-                continue;
-              }
-            }
-          }
           const NodeInContext target_node = target_socket.owner_node();
+          if (!target_node->is_type("NodeEvaluateClosure"_ustr)) {
+            continue;
+          }
           const auto &evaluate_storage = *static_cast<const NodeEvaluateClosure *>(
               target_node.node->storage);
           for (const int i : IndexRange(evaluate_storage.input_items.items_num)) {
@@ -695,21 +683,20 @@ LinkedClosureSignatures gather_linked_target_closure_signatures(
       {closure_socket_context, &closure_socket},
       compute_context_cache,
       [&](const SocketInContext &socket) {
+        const bNode &node = socket->owner_node();
         if (const SocketDeclaration *decl = socket.socket->runtime->declaration) {
           if (const auto *closure_decl = dynamic_cast<const decl::Closure *>(decl)) {
             if (const ClosureSignature *signature = closure_decl->signature.get()) {
-              result.items.append({*signature, true, socket});
+              bool define_signature = false;
+              if (node.is_type("NodeEvaluateClosure"_ustr)) {
+                const auto &storage = *static_cast<const NodeEvaluateClosure *>(node.storage);
+                define_signature = bool(storage.flag &
+                                        NODE_EVALUATE_CLOSURE_FLAG_DEFINE_SIGNATURE);
+              }
+              result.items.append({*signature, define_signature, socket});
               return true;
             }
           }
-        }
-        const bNode &node = socket->owner_node();
-        if (target_socket_evaluates_closure(socket)) {
-          const auto &storage = *static_cast<const NodeEvaluateClosure *>(node.storage);
-          result.items.append({ClosureSignature::from_evaluate_closure_node(node, false),
-                               bool(storage.flag & NODE_EVALUATE_CLOSURE_FLAG_DEFINE_SIGNATURE),
-                               socket});
-          return true;
         }
         return false;
       },
