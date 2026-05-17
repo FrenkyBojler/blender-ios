@@ -196,9 +196,10 @@ inline void add_item(wmOperatorType *ot,
   ot->ui = [](bContext * /*C*/, wmOperator *op) {
     ui::Layout &layout = *op->layout;
     if constexpr (Accessor::has_name) {
+      PropertyRNA *prop = RNA_struct_find_property(op->ptr, item_name_id);
       ui::Layout &row = layout.row(true);
       row.activate_init_set(true);
-      row.prop(op->ptr, item_name_id, UI_ITEM_NONE, "", ICON_NONE);
+      row.prop(op->ptr, prop, RNA_NO_INDEX, 0, UI_ITEM_NONE, "", ICON_NONE, IFACE_("Name"));
     }
     if constexpr (Accessor::has_type) {
       layout.prop(op->ptr, socket_type_id, UI_ITEM_NONE, "", ICON_NONE);
@@ -230,14 +231,11 @@ inline void add_item(wmOperatorType *ot,
       if (!init_from_active) {
         name = RNA_string_get(op->ptr, item_name_id);
       }
-      else if (active_item) {
-        name = active_item->name;
-      }
       else {
-        name = "";
-      }
-      if constexpr (Accessor::has_custom_initial_name) {
-        name = Accessor::custom_initial_name(node, *name);
+        name = active_item ? active_item->name : "";
+        if constexpr (Accessor::has_custom_initial_name) {
+          name = Accessor::custom_initial_name(node, *name);
+        }
       }
     }
 
