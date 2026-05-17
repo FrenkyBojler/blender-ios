@@ -188,7 +188,9 @@ inline void gather(const VArray<T> &src,
                    MutableSpan<T> dst,
                    const Mode mode = {})
 {
-  BLI_assert(indices.size() >= dst.size());
+  BLI_assert(indices.size() == dst.size());
+  BLI_assert(indices.min_array_size() <= src.size());
+
   if constexpr (!mode.is_parallel) {
     src.materialize_compressed_to_uninitialized(indices, dst);
   }
@@ -210,7 +212,11 @@ inline void gather(const Span<T> src,
                    MutableSpan<T> dst,
                    const Mode mode = {})
 {
-  BLI_assert(indices.size() >= dst.size());
+  BLI_assert(dst.size() == dst_mask.size());
+  BLI_assert(indices.size() >= dst_mask.min_array_size());
+  BLI_assert(src.index_range().contains(*std::ranges::min_element(indices)));
+  BLI_assert(src.index_range().contains(*std::ranges::max_element(indices)));
+
   dst_mask.foreach_index_optimized<int64_t>([&](const int64_t i) { dst[i] = src[indices[i]]; },
                                             exec_mode_tag_for_copy(mode, sizeof(T)));
 }
@@ -237,7 +243,11 @@ inline void gather(const VArray<T> &src,
                    MutableSpan<T> dst,
                    const Mode mode = {})
 {
+  BLI_assert(dst.size() == dst_mask.size());
   BLI_assert(indices.size() >= dst_mask.min_array_size());
+  BLI_assert(src.index_range().contains(*std::ranges::min_element(indices)));
+  BLI_assert(src.index_range().contains(*std::ranges::max_element(indices)));
+
   const CommonVArrayInfo info = src.common_info();
   switch (info.type) {
     case CommonVArrayInfo::Type::Any: {
