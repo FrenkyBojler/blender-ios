@@ -37,6 +37,8 @@
 
 namespace blender {
 
+const char *imb_file_extensions_jpeg[] = {".jpg", ".jpeg", nullptr};
+
 static CLG_LogRef LOG = {"image.jpeg"};
 
 /* the types are from the jpeg lib */
@@ -47,8 +49,6 @@ static void skip_input_data(j_decompress_ptr cinfo, long num_bytes);
 static void term_source(j_decompress_ptr cinfo);
 static void memory_source(j_decompress_ptr cinfo, const uchar *buffer, size_t size);
 static boolean handle_app1(j_decompress_ptr cinfo);
-static ImBuf *ibJpegImageFromCinfo(
-    jpeg_decompress_struct *cinfo, int flags, int max_size, size_t *r_width, size_t *r_height);
 
 static const uchar jpeg_default_quality = 75;
 static uchar ibuf_quality;
@@ -248,8 +248,11 @@ static boolean handle_app1(j_decompress_ptr cinfo)
   return true;
 }
 
-static ImBuf *ibJpegImageFromCinfo(
-    jpeg_decompress_struct *cinfo, int flags, int max_size, size_t *r_width, size_t *r_height)
+static ImBuf *ibJpegImageFromCinfo(jpeg_decompress_struct *cinfo,
+                                   ImBufFlags flags,
+                                   int max_size,
+                                   size_t *r_width,
+                                   size_t *r_height)
 {
   JSAMPARRAY row_pointer;
   JSAMPLE *buffer = nullptr;
@@ -295,24 +298,37 @@ static ImBuf *ibJpegImageFromCinfo(
     x = cinfo->output_width;
     y = cinfo->output_height;
 
-    if (flags & IB_test) {
-      jpeg_abort_decompress(cinfo);
-      ibuf = IMB_allocImBuf(x, y, 8 * depth, 0);
+    ImColorMode color_mode = ImColorMode::RGBA;
+    if (depth == 1) {
+      color_mode = ImColorMode::BW;
     }
-    else if ((ibuf = IMB_allocImBuf(x, y, 8 * depth, IB_byte_data | IB_uninitialized_pixels)) ==
-             nullptr)
+    else if (depth == 3) {
+      color_mode = ImColorMode::RGB;
+    }
+
+    if (flag_is_set(flags, ImBufFlags::Test)) {
+      jpeg_abort_decompress(cinfo);
+      ibuf = IMB_allocImBuf(x, y, ImBufFlags::Zero);
+      if (ibuf) {
+        ibuf->color_mode = color_mode;
+      }
+    }
+    else if ((ibuf = IMB_allocImBuf(
+                  x, y, ImBufFlags::ByteData | ImBufFlags::UninitializedPixels)) == nullptr)
     {
       jpeg_abort_decompress(cinfo);
     }
     else {
+      ibuf->color_mode = color_mode;
       row_stride = cinfo->output_width * depth;
 
       row_pointer = (*cinfo->mem->alloc_sarray)(
           reinterpret_cast<j_common_ptr>(cinfo), JPOOL_IMAGE, row_stride, 1);
 
+      uchar *byte_data = ibuf->byte_data_for_write();
       for (y = ibuf->y - 1; y >= 0; y--) {
         jpeg_read_scanlines(cinfo, row_pointer, 1);
-        rect = ibuf->byte_buffer.data + 4 * y * size_t(ibuf->x);
+        rect = byte_data + 4 * y * size_t(ibuf->x);
         buffer = row_pointer[0];
 
         switch (depth) {
@@ -390,7 +406,7 @@ static ImBuf *ibJpegImageFromCinfo(
            */
           IMB_metadata_ensure(&ibuf->metadata);
           IMB_metadata_set_field(ibuf->metadata, "None", str);
-          ibuf->flags |= IB_metadata;
+          ibuf->flags |= ImBufFlags::Metadata;
           MEM_delete(str);
           goto next_stamp_marker;
         }
@@ -417,7 +433,7 @@ static ImBuf *ibJpegImageFromCinfo(
         value++;
         IMB_metadata_ensure(&ibuf->metadata);
         IMB_metadata_set_field(ibuf->metadata, key, value);
-        ibuf->flags |= IB_metadata;
+        ibuf->flags |= ImBufFlags::Metadata;
         MEM_delete(str);
       next_stamp_marker:
         marker = marker->next;
@@ -449,7 +465,7 @@ static ImBuf *ibJpegImageFromCinfo(
 
 ImBuf *imb_load_jpeg(const uchar *buffer,
                      size_t size,
-                     int flags,
+                     ImBufFlags flags,
                      ImFileColorSpace & /*r_colorspace*/)
 {
   jpeg_decompress_struct _cinfo, *cinfo = &_cinfo;
@@ -487,7 +503,7 @@ ImBuf *imb_load_jpeg(const uchar *buffer,
 #define JPEG_APP1_MAX (1 << 16)
 
 ImBuf *imb_thumbnail_jpeg(const char *filepath,
-                          const int flags,
+                          const ImBufFlags flags,
                           const size_t max_thumb_size,
                           ImFileColorSpace &r_colorspace,
                           size_t *r_width,
@@ -565,7 +581,6 @@ static void write_jpeg(jpeg_compress_struct *cinfo, ImBuf *ibuf)
 {
   JSAMPLE *buffer = nullptr;
   JSAMPROW row_pointer[1];
-  uchar *rect;
   int x, y;
   char neogeo[128];
   NeoGeo_Word *neogeo_word;
@@ -642,8 +657,9 @@ static void write_jpeg(jpeg_compress_struct *cinfo, ImBuf *ibuf)
   row_pointer[0] = MEM_new_array_uninitialized<std::remove_pointer_t<JSAMPROW>>(
       size_t(cinfo->input_components) * size_t(cinfo->image_width), "jpeg row_pointer");
 
+  const uchar *byte_data = ibuf->byte_data();
   for (y = ibuf->y - 1; y >= 0; y--) {
-    rect = ibuf->byte_buffer.data + 4 * y * size_t(ibuf->x);
+    const uchar *rect = byte_data + 4 * y * size_t(ibuf->x);
     buffer = row_pointer[0];
 
     switch (cinfo->in_color_space) {
@@ -694,17 +710,9 @@ static int init_jpeg(FILE *outfile, jpeg_compress_struct *cinfo, ImBuf *ibuf)
   cinfo->image_height = ibuf->y;
 
   cinfo->in_color_space = JCS_RGB;
-  if (ibuf->planes == 8) {
+  if (ibuf->color_mode == ImColorMode::BW) {
     cinfo->in_color_space = JCS_GRAYSCALE;
   }
-#if 0
-  /* just write RGBA as RGB,
-   * unsupported feature only confuses other s/w */
-
-  if (ibuf->planes == 32) {
-    cinfo->in_color_space = JCS_UNKNOWN;
-  }
-#endif
   switch (cinfo->in_color_space) {
     case JCS_RGB:
       cinfo->input_components = 3;
@@ -764,7 +772,7 @@ static bool save_stdjpeg(const char *filepath, ImBuf *ibuf)
   return true;
 }
 
-bool imb_savejpeg(ImBuf *ibuf, const char *filepath, int flags)
+bool imb_savejpeg(ImBuf *ibuf, const char *filepath, ImBufFlags flags)
 {
 
   ibuf->flags = flags;

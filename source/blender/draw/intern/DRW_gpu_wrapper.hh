@@ -1084,6 +1084,13 @@ class TextureFromPool : public Texture, NonMovable {
                gpu::TextureFormat format,
                eGPUTextureUsage usage = GPU_TEXTURE_USAGE_GENERAL)
   {
+    if (tx_ != nullptr) {
+      /* Ensure retained texture has the correct requested size. */
+      if (GPU_texture_width(tx_) != extent.x || GPU_texture_height(tx_) != extent.y) {
+        release();
+      }
+    }
+
     if (tx_ == nullptr) {
       pool_ = &gpu::TexturePool::get();
       tx_ = pool_->acquire_texture(extent, format, usage, name_);
@@ -1261,7 +1268,7 @@ class Framebuffer : NonCopyable {
 
   void clear_color(float4 color)
   {
-    GPU_framebuffer_clear_color(fb_, color);
+    GPU_framebuffer_clear_color(fb_, double4(color));
   }
 
   Framebuffer &operator=(Framebuffer &&a)

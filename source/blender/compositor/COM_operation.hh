@@ -114,9 +114,8 @@ class Operation {
    * output results. */
   virtual void execute() = 0;
 
-  /* Compute and set a preview of the operation if needed. This method defaults to an empty
-   * implementation and should be implemented by operations which can have previews. */
-  virtual void compute_preview();
+  /* Log the data of the operation into the context logger. */
+  virtual void log_data();
 
   /* Add the given result to the results_ map identified by the given output identifier. This
    * should be called during operation construction for all outputs. The provided result shouldn't
@@ -130,6 +129,9 @@ class Operation {
 
   /* Get a reference to the descriptor of the input identified by the given identified. */
   InputDescriptor &get_input_descriptor(StringRef identifier);
+
+  /* Allocates all needed outputs that are not yet allocated and default initialize them. */
+  void allocate_default_remaining_outputs();
 
   /* Returns a reference to the compositor context. */
   Context &context() const;

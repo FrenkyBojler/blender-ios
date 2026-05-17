@@ -1,15 +1,18 @@
 /* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
+
+#include <ranges>
+
 #include "testing/testing.h"
 
-#include "CLG_log.h"
-
+#include "BLI_array.hh"
 #include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
 
 #include "BKE_collection.hh"
+#include "BKE_gtest_base.hh"
 #include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_library.hh"
@@ -22,18 +25,66 @@
 
 namespace blender::bke::tests {
 
-class BMainTest : public testing::Test {
+class BMainTest : public bke::BlenderGTestBase {};
+
+class BMainAllIDsIteratorTest : public BMainTest {
  public:
-  static void SetUpTestSuite()
+  void SetUp() override
   {
-    CLG_init();
-    BKE_idtype_init();
+    bmain = BKE_main_new();
   }
-  static void TearDownTestSuite()
+
+  void TearDown() override
   {
-    CLG_exit();
+    if (bmain) {
+      BKE_main_free(bmain);
+    }
   }
+
+  Main *bmain;
 };
+
+TEST_F(BMainAllIDsIteratorTest, basics)
+{
+  EXPECT_TRUE(BLI_listbase_is_empty(&bmain->libraries));
+  EXPECT_TRUE(BLI_listbase_is_empty(&bmain->collections));
+  EXPECT_TRUE(BLI_listbase_is_empty(&bmain->objects));
+
+  /* Test also (default-constructed) empty iterator. */
+  MainAllIDsIterator empty_main_iter{};
+  EXPECT_EQ(empty_main_iter, empty_main_iter.end());
+  EXPECT_EQ(0, empty_main_iter.size());
+  EXPECT_EQ(empty_main_iter.begin(), empty_main_iter.end());
+
+  Library *lib = BKE_id_new<Library>(bmain, "Library");
+  Collection *coll = BKE_id_new<Collection>(bmain, "Collection");
+  Object *ob = BKE_id_new<Object>(bmain, "Object");
+  BKE_collection_object_add(bmain, coll, ob);
+  Object *ob_linked = BKE_id_new_in_lib<Object>(bmain, lib, "Object_linked");
+  BKE_collection_object_add(bmain, coll, ob_linked);
+
+  Array<ID *> expected_ids = {&lib->id, &ob->id, &ob_linked->id, &coll->id};
+
+  EXPECT_EQ(1, BLI_listbase_count(&bmain->libraries));
+  EXPECT_EQ(1, BLI_listbase_count(&bmain->collections));
+  EXPECT_EQ(2, BLI_listbase_count(&bmain->objects));
+
+  MainAllIDsIterator main_iter{*bmain};
+  EXPECT_EQ(4, main_iter.size());
+  int i = 0;
+  for (ID &id_iter : main_iter) {
+    EXPECT_EQ(expected_ids[i], &id_iter);
+    i++;
+  }
+  EXPECT_EQ(4, i);
+
+  i = 4;
+  for (ID &id_iter : main_iter.begin() | std::views::reverse) {
+    i--;
+    EXPECT_EQ(expected_ids[i], &id_iter);
+  }
+  EXPECT_EQ(0, i);
+}
 
 class BMainMergeTest : public BMainTest {
  public:
@@ -88,16 +139,21 @@ TEST_F(BMainMergeTest, basics)
   EXPECT_EQ(0, reports.num_remapped_libraries);
   EXPECT_EQ(nullptr, bmain_src);
 
-  bmain_src = BKE_main_new();
-  Collection *coll_2 = BKE_id_new<Collection>(bmain_src, "Coll_src_2");
-  Object *ob_2 = BKE_id_new<Object>(bmain_src, "Ob_src");
-  BKE_collection_object_add(bmain_src, coll_2, ob_2);
+  auto gen_main_new = [](Collection **r_coll, Object **r_ob) -> Main * {
+    Main *bmain_new = BKE_main_new();
+    *r_coll = BKE_id_new<Collection>(bmain_new, "Coll_src_2");
+    *r_ob = BKE_id_new<Object>(bmain_new, "Ob_src");
+    BKE_collection_object_add(bmain_new, *r_coll, *r_ob);
 
-  EXPECT_EQ(2, BLI_listbase_count(&bmain_dst->collections));
-  EXPECT_EQ(1, BLI_listbase_count(&bmain_dst->objects));
-  EXPECT_EQ(1, BLI_listbase_count(&bmain_src->collections));
-  EXPECT_EQ(1, BLI_listbase_count(&bmain_src->objects));
+    EXPECT_EQ(1, BLI_listbase_count(&bmain_new->collections));
+    EXPECT_EQ(1, BLI_listbase_count(&bmain_new->objects));
 
+    return bmain_new;
+  };
+
+  Collection *coll_2;
+  Object *ob_2;
+  bmain_src = gen_main_new(&coll_2, &ob_2);
   reports = {};
   BKE_main_merge(bmain_dst, &bmain_src, reports);
 
@@ -113,6 +169,32 @@ TEST_F(BMainMergeTest, basics)
 
   /* `Coll_src_2` should have been remapped to using `Ob_src` in `bmain_dst`, instead of `Ob_src`
    * in `bmain_src`. */
+  EXPECT_EQ(1, BLI_listbase_count(&coll_2->gobject));
+  EXPECT_EQ(ob, static_cast<CollectionObject *>(coll_2->gobject.first)->ob);
+
+  Collection *coll_3;
+  Object *ob_3;
+  bmain_src = gen_main_new(&coll_3, &ob_3);
+  reports = {};
+  Set<ID *> force_merge_ids = {id_cast<ID *>(ob_3)};
+  BKE_main_merge(bmain_dst, &force_merge_ids, &bmain_src, reports);
+
+  /* The third `Ob_src` object in `bmain_src` is forced to be merged in `bmain_dst`, even though
+   * its name will collide with the first object. So it will be renamed. The third source
+   * collection however will not be merged. */
+  EXPECT_EQ(3, BLI_listbase_count(&bmain_dst->collections));
+  EXPECT_EQ(2, BLI_listbase_count(&bmain_dst->objects));
+  EXPECT_EQ(1, reports.num_merged_ids);
+  EXPECT_EQ(0, reports.num_unknown_ids);
+  EXPECT_EQ(1, reports.num_remapped_ids);
+  EXPECT_EQ(0, reports.num_remapped_libraries);
+  EXPECT_EQ(nullptr, bmain_src);
+
+  EXPECT_TRUE(BKE_id_is_in_main(bmain_dst, id_cast<ID *>(ob_3)));
+  EXPECT_EQ(std::string("Ob_src.001"), BKE_id_name(*id_cast<ID *>(ob_3)));
+
+  /* `Coll_src_2` should not have been modified here (Ob_3 is not instantiated at all in
+   * destination Main). */
   EXPECT_EQ(1, BLI_listbase_count(&coll_2->gobject));
   EXPECT_EQ(ob, static_cast<CollectionObject *>(coll_2->gobject.first)->ob);
 }

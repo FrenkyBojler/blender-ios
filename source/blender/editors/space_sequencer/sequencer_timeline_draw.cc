@@ -29,6 +29,7 @@
 #include "BKE_context.hh"
 #include "BKE_fcurve.hh"
 #include "BKE_global.hh"
+#include "BKE_layer.hh"
 #include "BKE_screen.hh"
 #include "BKE_sound.hh"
 
@@ -242,6 +243,7 @@ static StripDrawContext strip_draw_context_get(const TimelineDrawContext &ctx, S
   strip_ctx.missing_data_block = !strip_has_valid_data(strip);
   strip_ctx.missing_media = media_presence_is_missing(scene, strip);
   strip_ctx.is_connected = is_strip_connected(strip);
+  strip_ctx.has_retiming = retiming_has_keys(strip);
   if (strip->type == STRIP_TYPE_META) {
     const ListBaseT<Strip> *seqbase = &strip->seqbase;
     for (const Strip &sub : *seqbase) {
@@ -343,6 +345,7 @@ static void color3ubv_from_seq(const Scene *curscene,
     case STRIP_TYPE_CROSS:
     case STRIP_TYPE_GAMCROSS:
     case STRIP_TYPE_WIPE:
+    case STRIP_TYPE_COMPOSITOR:
       ui::theme::get_color_3ubv(TH_SEQ_TRANSITION, r_col);
 
       /* Slightly offset hue to distinguish different transition types. */
@@ -351,6 +354,9 @@ static void color3ubv_from_seq(const Scene *curscene,
       }
       else if (strip->type == STRIP_TYPE_WIPE) {
         rgb_byte_set_hue_float_offset(r_col, 0.06);
+      }
+      else if (strip->type == STRIP_TYPE_COMPOSITOR) {
+        rgb_byte_set_hue_float_offset(r_col, -0.03f);
       }
       break;
 
@@ -771,7 +777,13 @@ static void draw_seq_text_get_source(const Strip *strip, char *r_source, size_t 
     }
     case STRIP_TYPE_SOUND: {
       if (strip->sound != nullptr) {
-        BLI_strncpy_utf8(r_source, strip->sound->filepath, source_maxncpy);
+        if (strip->sound->packedfile != nullptr) {
+          /* The sound data has been packed, don't display the path. */
+          BLI_strncpy_utf8(r_source, "<Packed File>", source_maxncpy);
+        }
+        else {
+          BLI_strncpy_utf8(r_source, strip->sound->filepath, source_maxncpy);
+        }
       }
       break;
     }
@@ -811,6 +823,8 @@ static void draw_seq_text_get_source(const Strip *strip, char *r_source, size_t 
       }
       break;
     }
+    default:
+      break;
   }
 }
 
@@ -822,7 +836,7 @@ static size_t draw_seq_text_get_overlay_string(const TimelineDrawContext &ctx,
   const Strip *strip = strip_ctx.strip;
 
   const char *text_sep = " | ";
-  const char *text_array[5];
+  const char *text_array[7];
   int i = 0;
 
   if (ctx.sseq->timeline_overlay.flag & SEQ_TIMELINE_SHOW_STRIP_NAME) {
@@ -837,6 +851,16 @@ static size_t draw_seq_text_get_overlay_string(const TimelineDrawContext &ctx,
         text_array[i++] = text_sep;
       }
       text_array[i++] = source;
+    }
+
+    if (strip->type == STRIP_TYPE_SCENE && strip->scene != nullptr &&
+        (strip->flag & SEQ_SCENE_STRIPS) == 0)
+    {
+      BLI_assert(strip->scene_view_layer_name != nullptr);
+      if (i != 0) {
+        text_array[i++] = text_sep;
+      }
+      text_array[i++] = strip->scene_view_layer_name;
     }
   }
 
@@ -916,13 +940,12 @@ static void draw_icon_centered(const TimelineDrawContext &ctx,
 static void draw_strip_icons(const TimelineDrawContext &ctx,
                              const Vector<StripDrawContext> &strips)
 {
-  const float icon_size_x = ICON_SIZE * ctx.pixelx * UI_SCALE_FAC;
-
   for (const StripDrawContext &strip : strips) {
     const bool missing_data = strip.missing_data_block;
     const bool missing_media = strip.missing_media;
     const bool is_connected = strip.is_connected;
-    if (!missing_data && !missing_media && !is_connected) {
+    const bool has_retiming = strip.has_retiming;
+    if (!missing_data && !missing_media && !is_connected && !has_retiming) {
       continue;
     }
 
@@ -931,24 +954,35 @@ static void draw_strip_icons(const TimelineDrawContext &ctx,
       uchar col[4];
       get_strip_text_color(strip, col);
 
-      float icon_indent = 2.0f * strip.handle_width - 4 * ctx.pixelx * UI_SCALE_FAC;
+      const float icon_size_x = ICON_SIZE * ctx.pixelx * UI_SCALE_FAC;
+      const float icon_indent = 2.0f * strip.handle_width - 4 * ctx.pixelx * UI_SCALE_FAC;
+      const float icon_spacing = 3.0f * ctx.pixelx * UI_SCALE_FAC;
       rctf rect;
       rect.ymin = strip.top - strip_header_size_get(ctx);
       rect.ymax = strip.top;
       rect.xmin = max_ff(strip.left_handle, ctx.v2d->cur.xmin) + icon_indent;
       if (missing_data) {
-        rect.xmax = min_ff(strip.right_handle - strip.handle_width, rect.xmin + icon_size_x);
+        rect.xmax = min_ff(strip.right_handle - strip.handle_width,
+                           rect.xmin + icon_size_x + icon_spacing);
         draw_icon_centered(ctx, rect, ICON_LIBRARY_DATA_BROKEN, col);
         rect.xmin = rect.xmax;
       }
       if (missing_media) {
-        rect.xmax = min_ff(strip.right_handle - strip.handle_width, rect.xmin + icon_size_x);
+        rect.xmax = min_ff(strip.right_handle - strip.handle_width,
+                           rect.xmin + icon_size_x + icon_spacing);
         draw_icon_centered(ctx, rect, ICON_ERROR, col);
         rect.xmin = rect.xmax;
       }
       if (is_connected) {
-        rect.xmax = min_ff(strip.right_handle - strip.handle_width, rect.xmin + icon_size_x);
+        rect.xmax = min_ff(strip.right_handle - strip.handle_width,
+                           rect.xmin + icon_size_x + icon_spacing);
         draw_icon_centered(ctx, rect, ICON_LINKED, col);
+        rect.xmin = rect.xmax;
+      }
+      if (has_retiming) {
+        rect.xmax = min_ff(strip.right_handle - strip.handle_width,
+                           rect.xmin + icon_size_x + icon_spacing);
+        draw_icon_centered(ctx, rect, ICON_MOD_TIME, col);
       }
     }
 
@@ -995,7 +1029,8 @@ static void draw_seq_text_overlay(const TimelineDrawContext &ctx,
   uchar col[4];
   get_strip_text_color(strip_ctx, col);
 
-  float text_margin = 2.0f * strip_ctx.handle_width;
+  /* Note that the subtracted portion is half of `icon_indent`'s  in `draw_strip_icons`. */
+  float text_margin = 2.0f * strip_ctx.handle_width - 2 * ctx.pixelx * UI_SCALE_FAC;
   rctf rect;
   rect.xmin = strip_ctx.left_handle + text_margin;
   rect.xmax = strip_ctx.right_handle - text_margin;
@@ -1013,7 +1048,11 @@ static void draw_seq_text_overlay(const TimelineDrawContext &ctx,
   if (strip_ctx.is_connected) {
     num_icons++;
   }
-  rect.xmin += num_icons * ICON_SIZE * ctx.pixelx * UI_SCALE_FAC;
+  if (strip_ctx.has_retiming) {
+    num_icons++;
+  }
+  rect.xmin += num_icons * ICON_SIZE * ctx.pixelx * UI_SCALE_FAC; /* Icon widths. */
+  rect.xmin += num_icons * 3.0f * ctx.pixelx * UI_SCALE_FAC;      /* Icon spacings. */
   rect.xmin = min_ff(rect.xmin, ctx.v2d->cur.xmax);
 
   CLAMP(rect.xmax, ctx.v2d->cur.xmin + text_margin, ctx.v2d->cur.xmax);
@@ -1179,7 +1218,7 @@ static void draw_multicam_highlight(const TimelineDrawContext &ctx,
 static void seq_prefetch_wm_notify(const bContext *C, Scene *scene)
 {
   if (seq::prefetch_need_redraw(C, scene)) {
-    WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, nullptr);
+    WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER_PREFETCH, nullptr);
   }
 }
 
@@ -1276,6 +1315,27 @@ static void draw_strips_background(const TimelineDrawContext &ctx,
     }
     data.col_background = color_pack(col);
 
+    const bool show_thumbnails = (ctx.sseq->timeline_overlay.flag &
+                                  SEQ_TIMELINE_STRIP_END_THUMBNAILS) ||
+                                 (ctx.sseq->timeline_overlay.flag &
+                                  SEQ_TIMELINE_CONTINUOUS_THUMBNAILS);
+    /* Darker color band for thumbnail strips. */
+    if (show_overlay && seq::strip_can_have_thumbnail(scene, strip.strip) && show_thumbnails) {
+      /* The more negative the offset, darker the color. */
+      const int color_offset = -20;
+      uchar col_in[3] = {col[0], col[1], col[2]};
+      uchar col_out[3];
+
+      ui::theme::get_color_shade_3ubv(col_in, color_offset, col_out);
+
+      col[0] = col_out[0];
+      col[1] = col_out[1];
+      col[2] = col_out[2];
+
+      data.flags |= GPU_SEQ_FLAG_COLOR_BAND;
+      data.col_color_band = color_pack(col);
+    }
+
     /* Color band state. */
     if (show_overlay && (strip.strip->type == STRIP_TYPE_COLOR)) {
       data.flags |= GPU_SEQ_FLAG_COLOR_BAND;
@@ -1286,7 +1346,7 @@ static void draw_strips_background(const TimelineDrawContext &ctx,
 
     /* Transition state. */
     if (show_overlay && strip.can_draw_strip_content &&
-        seq::effect_is_transition(StripType(strip.strip->type)))
+        seq::effect_is_transition(strip.strip->type) && strip.strip->input1 && strip.strip->input2)
     {
       data.flags |= GPU_SEQ_FLAG_TRANSITION;
 

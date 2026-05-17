@@ -127,7 +127,7 @@ static SpaceLink *graph_create(const ScrArea * /*area*/, const Scene *scene)
   region->v2d.scroll = (V2D_SCROLL_BOTTOM | V2D_SCROLL_HORIZONTAL_HANDLES);
   region->v2d.scroll |= (V2D_SCROLL_RIGHT | V2D_SCROLL_VERTICAL_HANDLES);
 
-  region->v2d.keeptot = 0;
+  region->v2d.keeptot = eView2D_KeepTot{};
 
   return reinterpret_cast<SpaceLink *>(sipo);
 }
@@ -242,7 +242,7 @@ static void graph_main_region_draw(const bContext *C, ARegion *region)
   const bool display_seconds = (sipo->mode == SIPO_MODE_ANIMATION) && (sipo->flag & SIPO_DRAWTIME);
   if (region->winy > min_height) {
     if (sipo->mode == SIPO_MODE_DRIVERS) {
-      ui::view2d_draw_lines_x(v2d, false, true, true, driver_step);
+      ui::view2d_draw_lines_x(v2d, scene, false, true, true, driver_step);
     }
     else {
       ui::view2d_draw_lines_x_frames(v2d, scene, display_seconds, true, true);
@@ -885,7 +885,7 @@ static int graph_space_subtype_get(ScrArea *area)
 static void graph_space_subtype_set(ScrArea *area, int value)
 {
   SpaceGraph *sgraph = static_cast<SpaceGraph *>(area->spacedata.first);
-  sgraph->mode = value;
+  sgraph->mode = eGraphEdit_Mode(value);
 }
 
 static void graph_space_subtype_item_extend(bContext * /*C*/,

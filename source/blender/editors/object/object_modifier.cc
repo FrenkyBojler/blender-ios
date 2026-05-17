@@ -81,6 +81,7 @@
 #include "DEG_depsgraph_build.hh"
 #include "DEG_depsgraph_query.hh"
 
+#include "NOD_geometry_nodes_srna.hh"
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
@@ -149,7 +150,7 @@ static void object_force_modifier_bind_simple_options(Depsgraph *depsgraph,
                                                       ModifierData *md)
 {
   ModifierData *md_eval = BKE_modifier_get_evaluated(depsgraph, object, md);
-  const int mode = md_eval->mode;
+  const ModifierMode mode = md_eval->mode;
   md_eval->mode |= eModifierMode_Realtime;
   object_force_modifier_update_for_bind(depsgraph, object);
   md_eval->mode = mode;
@@ -203,7 +204,7 @@ ModifierData *modifier_add(
     }
     else if (type == eModifierType_Collision) {
       if (!ob->pd) {
-        ob->pd = BKE_partdeflect_new(0);
+        ob->pd = BKE_partdeflect_new(PFIELD_NULL);
       }
 
       ob->pd->deflect = 1;
@@ -568,12 +569,12 @@ void modifier_link(bContext *C, Object *ob_dst, Object *ob_src)
   DEG_relations_tag_update(bmain);
 }
 
-bool modifier_copy_to_object(Main *bmain,
-                             const Scene *scene,
-                             const Object *ob_src,
-                             const ModifierData *md,
-                             Object *ob_dst,
-                             ReportList *reports)
+ModifierData *modifier_copy_to_object(Main *bmain,
+                                      const Scene *scene,
+                                      const Object *ob_src,
+                                      const ModifierData *md,
+                                      Object *ob_dst,
+                                      ReportList *reports)
 {
   const ModifierTypeInfo *mti = BKE_modifier_get_info(ModifierType(md->type));
 
@@ -586,7 +587,7 @@ bool modifier_copy_to_object(Main *bmain,
                 "Object '%s' does not support %s modifiers",
                 ob_dst->id.name + 2,
                 RPT_(mti->name));
-    return false;
+    return nullptr;
   }
 
   if (mti->flags & eModifierTypeFlag_Single) {
@@ -595,23 +596,24 @@ bool modifier_copy_to_object(Main *bmain,
                   RPT_WARNING,
                   "Modifier can only be added once to object '%s'",
                   ob_dst->id.name + 2);
-      return false;
+      return nullptr;
     }
   }
 
-  if (!BKE_object_copy_modifier(bmain, scene, ob_dst, ob_src, md)) {
+  ModifierData *md_dst = BKE_object_copy_modifier(bmain, scene, ob_dst, ob_src, md);
+  if (!md_dst) {
     BKE_reportf(reports,
                 RPT_ERROR,
                 "Copying modifier '%s' to object '%s' failed",
                 md->name,
                 ob_dst->id.name + 2);
-    return false;
+    return nullptr;
   }
 
   WM_main_add_notifier(NC_OBJECT | ND_MODIFIER | NA_ADDED, ob_dst);
   DEG_id_tag_update(&ob_dst->id, ID_RECALC_GEOMETRY | ID_RECALC_ANIMATION);
   DEG_relations_tag_update(bmain);
-  return true;
+  return md_dst;
 }
 
 bool convert_psys_to_mesh(ReportList * /*reports*/,
@@ -996,7 +998,7 @@ static bool apply_grease_pencil_for_modifier_all_keyframes(Depsgraph *depsgraph,
   for (const int key : layer_indices_to_apply_per_frame.keys()) {
     sorted_frame_times[i++] = key;
   }
-  std::sort(sorted_frame_times.begin(), sorted_frame_times.end());
+  std::ranges::sort(sorted_frame_times);
 
   const int prev_frame = int(DEG_get_ctime(depsgraph));
   bool changed = false;
@@ -1105,6 +1107,9 @@ static bool modifier_apply_obdata(ReportList *reports,
 
       /* Remove strings referring to attributes if they no longer exist. */
       bke::mesh_remove_invalid_attribute_strings(*mesh);
+
+      /* Make sure that if there are uv maps, one is marked as active. */
+      bke::mesh_ensure_active_uv_map(*mesh);
 
       if (md_eval->type == eModifierType_Multires) {
         multires_customdata_delete(mesh);
@@ -1697,7 +1702,7 @@ static wmOperatorStatus modifier_remove_exec(bContext *C, wmOperator *op)
     /* if cloth/softbody was removed, particle mode could be cleared */
     if (mode_orig & OB_MODE_PARTICLE_EDIT) {
       if ((ob->mode & OB_MODE_PARTICLE_EDIT) == 0) {
-        BKE_view_layer_synced_ensure(scene, view_layer);
+        BKE_view_layer_synced_ensure(*bmain, scene, view_layer);
         if (ob == BKE_view_layer_active_object_get(view_layer)) {
           WM_event_add_notifier(C, NC_SCENE | ND_MODE | NS_MODE_OBJECT, nullptr);
         }
@@ -2371,7 +2376,9 @@ static wmOperatorStatus modifier_copy_to_selected_exec(bContext *C, wmOperator *
     if (!ID_IS_EDITABLE(ob)) {
       continue;
     }
-    if (modifier_copy_to_object(bmain, scene, obact, md, ob, op->reports)) {
+    ModifierData *md_dst = modifier_copy_to_object(bmain, scene, obact, md, ob, op->reports);
+    if (md_dst) {
+      BKE_object_modifier_set_active(ob, md_dst);
       WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER | NA_ADDED, ob);
       num_copied++;
     }
@@ -2481,8 +2488,13 @@ static wmOperatorStatus object_modifiers_copy_exec(bContext *C, wmOperator *op)
       continue;
     }
     for (const ModifierData &md : active_object->modifiers) {
-      if (modifier_copy_to_object(bmain, scene, active_object, &md, object, op->reports)) {
+      ModifierData *md_dst = modifier_copy_to_object(
+          bmain, scene, active_object, &md, object, op->reports);
+      if (md_dst) {
         WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER | NA_ADDED, object);
+        if (md.flag & eModifierFlag_Active) {
+          BKE_object_modifier_set_active(object, md_dst);
+        }
       }
     }
   }
@@ -3488,21 +3500,27 @@ static wmOperatorStatus geometry_nodes_input_attribute_toggle_exec(bContext *C, 
   char input_name[MAX_NAME];
   RNA_string_get(op->ptr, "input_name", input_name);
 
-  IDProperty *use_attribute = IDP_GetPropertyFromGroup(
-      nmd->settings.properties, std::string(input_name + std::string("_use_attribute")).c_str());
-  if (!use_attribute) {
+  PointerRNA modifier_ptr = RNA_pointer_create_discrete(&ob->id, RNA_NodesModifier, nmd);
+  PointerRNA properties_ptr = RNA_pointer_get(&modifier_ptr, "properties");
+  PointerRNA inputs_ptr = RNA_pointer_get(&properties_ptr, "inputs");
+  PointerRNA input_ptr = RNA_pointer_get(&inputs_ptr, input_name);
+  PropertyRNA *type_prop = RNA_struct_find_property(&input_ptr, "type");
+  if (!type_prop) {
     return OPERATOR_CANCELLED;
   }
 
-  if (use_attribute->type == IDP_INT) {
-    IDP_int_set(use_attribute, !IDP_int_get(use_attribute));
-  }
-  else if (use_attribute->type == IDP_BOOLEAN) {
-    IDP_bool_set(use_attribute, !IDP_bool_get(use_attribute));
+  int type = RNA_property_enum_get(&input_ptr, type_prop);
+  if (type == int(nodes::GeometryNodesInputType::Attribute)) {
+    type = int(nodes::GeometryNodesInputType::Value);
   }
   else {
+    type = int(nodes::GeometryNodesInputType::Attribute);
+  }
+  EnumPropertyItem type_item;
+  if (!RNA_property_enum_item_from_value(nullptr, &input_ptr, type_prop, type, &type_item)) {
     return OPERATOR_CANCELLED;
   }
+  RNA_property_enum_set(&input_ptr, type_prop, type);
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
@@ -3542,7 +3560,7 @@ static wmOperatorStatus geometry_node_tree_copy_assign_exec(bContext *C, wmOpera
 
   NodesModifierData *nmd = reinterpret_cast<NodesModifierData *>(md);
   bNodeTree *tree = nmd->node_group;
-  if (tree == nullptr) {
+  if (tree == nullptr || ID_MISSING(tree)) {
     return OPERATOR_CANCELLED;
   }
 

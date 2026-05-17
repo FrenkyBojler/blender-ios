@@ -218,6 +218,15 @@ static PyObject *pygpu_buffer_to_list(BPyGPUBuffer *self)
   return list;
 }
 
+PyDoc_STRVAR(
+    /* Wrap. */
+    pygpu_buffer_to_list_doc,
+    ".. method:: to_list()\n"
+    "\n"
+    "   Return the buffer as a list.\n"
+    "\n"
+    "   :return: The buffer as a list.\n"
+    "   :rtype: list\n");
 static PyObject *pygpu_buffer_to_list_recursive(BPyGPUBuffer *self)
 {
   PyObject *list;
@@ -242,6 +251,14 @@ static PyObject *pygpu_buffer_to_list_recursive(BPyGPUBuffer *self)
   return list;
 }
 
+PyDoc_STRVAR(
+    /* Wrap. */
+    pygpu_buffer_dimensions_doc,
+    "The size of the buffer for each dimension.\n"
+    "\n"
+    "Setting the dimensions is supported when the total number of elements is unchanged.\n"
+    "\n"
+    ":type: list[int]\n");
 static PyObject *pygpu_buffer_dimensions_get(BPyGPUBuffer *self, void * /*arg*/)
 {
   PyObject *list = PyList_New(self->shape_len);
@@ -576,7 +593,7 @@ static PyMethodDef pygpu_buffer__tp_methods[] = {
     {"to_list",
      reinterpret_cast<PyCFunction>(pygpu_buffer_to_list_recursive),
      METH_NOARGS,
-     "return the buffer as a list"},
+     pygpu_buffer_to_list_doc},
     {nullptr, nullptr, 0, nullptr},
 };
 
@@ -592,7 +609,7 @@ static PyGetSetDef pygpu_buffer_getseters[] = {
     {"dimensions",
      reinterpret_cast<getter>(pygpu_buffer_dimensions_get),
      reinterpret_cast<setter>(pygpu_buffer_dimensions_set),
-     nullptr,
+     pygpu_buffer_dimensions_doc,
      nullptr},
     {nullptr, nullptr, nullptr, nullptr, nullptr},
 };
@@ -622,9 +639,10 @@ static void pygpu_buffer_strides_calc(const eGPUDataFormat format,
                                       const Py_ssize_t *shape,
                                       Py_ssize_t *r_strides)
 {
-  r_strides[0] = GPU_texture_dataformat_size(format);
-  for (int i = 1; i < shape_len; i++) {
-    r_strides[i] = r_strides[i - 1] * shape[i - 1];
+  Py_ssize_t stride = GPU_texture_dataformat_size(format);
+  for (int i = shape_len; i-- > 0;) {
+    r_strides[i] = stride;
+    stride *= shape[i];
   }
 }
 
@@ -677,19 +695,20 @@ static PyBufferProcs pygpu_buffer__tp_as_buffer = {
 PyDoc_STRVAR(
     /* Wrap. */
     pygpu_buffer__tp_doc,
-    ".. class:: Buffer(format, dimensions, data)\n"
+    ".. class:: Buffer\n"
     "\n"
     "   For Python access to GPU functions requiring a pointer.\n"
     "\n"
-    "   :arg format: Format type to interpret the buffer.\n"
-    "      Possible values are ``FLOAT``, ``INT``, ``UINT``, ``UBYTE``, ``UINT_24_8`` & "
-    "``10_11_11_REV``.\n"
-    "      ``UINT_24_8`` is deprecated, use ``FLOAT`` instead.\n"
-    "   :type format: str\n"
-    "   :arg dimensions: Array describing the dimensions.\n"
-    "   :type dimensions: int\n"
-    "   :arg data: Optional data array.\n"
-    "   :type data: Buffer | Sequence[float] | Sequence[int]\n");
+    "   .. method:: __init__(format, dimensions, data)\n"
+    "\n"
+    "      :param format: Format type to interpret the buffer.\n"
+    "         ``UINT_24_8`` is deprecated, use ``FLOAT`` instead.\n"
+    "      :type format: " PYDOC_DATAFORMAT_LITERAL
+    "\n"
+    "      :param dimensions: Array describing the dimensions.\n"
+    "      :type dimensions: int | Sequence[int]\n"
+    "      :param data: Optional data array.\n"
+    "      :type data: Buffer | Sequence[float] | Sequence[int]\n");
 PyTypeObject BPyGPU_BufferType = {
     /*ob_base*/ PyVarObject_HEAD_INIT(nullptr, 0)
     /*tp_name*/ "Buffer",

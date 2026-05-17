@@ -60,6 +60,25 @@ const char *to_string(ShaderStage stage)
   return "Unknown Shader Stage";
 }
 
+std::string shader_stage_define(const ShaderStage stage)
+{
+  std::string define = "#define ";
+  switch (stage) {
+    case ShaderStage::VERTEX:
+      define += "GPU_VERTEX_SHADER";
+      break;
+    case ShaderStage::FRAGMENT:
+      define += "GPU_FRAGMENT_SHADER";
+      break;
+    case ShaderStage::COMPUTE:
+      define += "GPU_COMPUTE_SHADER";
+      break;
+    default:
+      BLI_assert_unreachable();
+  }
+  return define;
+}
+
 /* -------------------------------------------------------------------- */
 /** \name Creation / Destruction.
  * \{ */
@@ -147,7 +166,7 @@ const shader::ShaderCreateInfo &MTLShader::patch_create_info(
     patch_create_info_atomic_workaround(patched_info_, original_info);
   }
 
-  if (original_info.max_sampler_slot() > 16) {
+  if (original_info.max_sampler_slot() >= 16) {
     if (patched_info_ == nullptr) {
       patched_info_ = std::make_unique<PatchedShaderCreateInfo>(original_info);
     }
@@ -222,6 +241,8 @@ id<MTLLibrary> MTLShader::create_shader_library(const shader::ShaderCreateInfo &
   std::string shader_compat;
   {
     std::stringstream ss;
+    /* Shader stage needs to be defined before the compat part. */
+    ss << shader_stage_define(stage) << "\n";
     ss << "#define MTL_WORKGROUP_SIZE_X " << info.compute_layout_.local_size_x << "\n";
     ss << "#define MTL_WORKGROUP_SIZE_Y " << info.compute_layout_.local_size_y << "\n";
     ss << "#define MTL_WORKGROUP_SIZE_Z " << info.compute_layout_.local_size_z << "\n";
@@ -248,14 +269,23 @@ id<MTLLibrary> MTLShader::create_shader_library(const shader::ShaderCreateInfo &
 
   sources[SOURCES_INDEX_VERSION] = shader_compat;
 
-  std::string concat_source = fmt::to_string(fmt::join(sources, "")) + wrapper.second;
-
-  dump_source_to_disk(this->name_get(), this->entry_point_name_get(stage), ".msl", concat_source);
-
-  concat_source = run_preprocessor(concat_source);
+  const std::string original_source = fmt::to_string(fmt::join(sources, "")) + wrapper.second;
 
   dump_source_to_disk(
-      this->name_get(), this->entry_point_name_get(stage) + ".expanded", ".msl", concat_source);
+      this->name_get(), this->entry_point_name_get(stage), ".msl", original_source);
+
+  std::string processed_source;
+  if (!this->skip_preprocessor) {
+    processed_source = run_preprocessor(original_source, G.debug & G_DEBUG_GPU_SHADER_NO_DCE);
+
+    dump_source_to_disk(this->name_get(),
+                        this->entry_point_name_get(stage) + ".expanded",
+                        ".msl",
+                        processed_source);
+  }
+  else {
+    processed_source = original_source;
+  }
 
   {
     ::MTLCompileOptions *options = get_compile_options(
@@ -263,7 +293,7 @@ id<MTLLibrary> MTLShader::create_shader_library(const shader::ShaderCreateInfo &
 
     NSError *error = nullptr;
     id<MTLLibrary> library = [context_->device
-        newLibraryWithSource:[NSString stringWithUTF8String:concat_source.c_str()]
+        newLibraryWithSource:[NSString stringWithUTF8String:processed_source.c_str()]
                      options:options
                        error:&error];
     library.label = [NSString stringWithUTF8String:this->name];
@@ -285,7 +315,7 @@ id<MTLLibrary> MTLShader::create_shader_library(const shader::ShaderCreateInfo &
     [library release];
 
     MTLLogParser parser;
-    print_log({concat_source}, [error_localized UTF8String], to_string(stage), true, &parser);
+    print_log({original_source}, [error_localized UTF8String], to_string(stage), true, &parser);
   }
   return nil;
 }
@@ -322,16 +352,16 @@ bool MTLShader::finalize(const shader::ShaderCreateInfo *info)
     return false;
   }
 
-  if (this->shader_library_frag_ == nil && this->shader_library_frag_ == nil &&
+  if (this->shader_library_vert_ == nil && this->shader_library_frag_ == nil &&
       this->shader_library_comp_ == nil)
   {
     /* All compilations failed. */
     return false;
   }
 
-  const bool is_compute = (this->shader_library_frag_ == nil && this->shader_library_frag_ == nil);
+  const bool is_compute = (this->shader_library_vert_ == nil && this->shader_library_frag_ == nil);
 
-  if (!is_compute && (this->shader_library_frag_ == nil || this->shader_library_frag_ == nil)) {
+  if (!is_compute && (this->shader_library_vert_ == nil || this->shader_library_frag_ == nil)) {
     /* One stage failed to compile. */
     return false;
   }

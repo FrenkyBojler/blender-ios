@@ -58,6 +58,7 @@ struct bNodeTreeExec;
 
 class CPPType;
 namespace nodes {
+struct GeneratedTreeSrnaData;
 class NodeMultiFunctionBuilder;
 class GeoNodeExecParams;
 class NodeDeclaration;
@@ -106,7 +107,7 @@ struct bNodeSocketTemplate {
   float min, max;
   /** Would use PropertySubType but this is a bad level include to use RNA. */
   int subtype;
-  int flag;
+  eNodeSocketFlag flag;
 
   /* After this line is used internal only. */
 
@@ -149,6 +150,11 @@ using NodeBlendWriteFunction = void (*)(const bNodeTree &tree,
                                         BlendWriter &writer);
 using NodeBlendDataReadFunction = void (*)(bNodeTree &tree, bNode &node, BlendDataReader &reader);
 
+using SocketMakeNodesInputSrnaFunction = void (*)(const bNodeTree &tree,
+                                                  StructRNA &srna,
+                                                  const bNodeTreeInterfaceSocket &io_socket,
+                                                  nodes::GeneratedTreeSrnaData &r_generated);
+
 /**
  * \brief Defines a socket type.
  *
@@ -156,7 +162,7 @@ using NodeBlendDataReadFunction = void (*)(bNodeTree &tree, bNode &node, BlendDa
  */
 struct bNodeSocketType {
   /** Identifier name. */
-  std::string idname;
+  UString idname;
   /** Type label. */
   std::string label;
   /** Sub-type label. */
@@ -208,6 +214,9 @@ struct bNodeSocketType {
   SocketGetGeometryNodesCPPValueFunction get_geometry_nodes_cpp_value = nullptr;
   /* Default value for this socket type. */
   const SocketValueVariant *geometry_nodes_default_value = nullptr;
+
+  SocketMakeNodesInputSrnaFunction make_geometry_nodes_input_srna = nullptr;
+  SocketMakeNodesInputSrnaFunction make_compositor_nodes_input_srna = nullptr;
 };
 
 using NodeInitExecFunction = void *(*)(bNodeExecContext * context,
@@ -235,7 +244,7 @@ struct NodeInsertLinkParams {
  * implementing the node behavior.
  */
 struct bNodeType {
-  std::string idname;
+  UString idname;
   /** See bNode::type_legacy. */
   int type_legacy;
 
@@ -247,7 +256,8 @@ struct bNodeType {
 
   float width = 0.0f, minwidth = 0.0f, maxwidth = 0.0f;
   float height = 0.0f, minheight = 0.0f, maxheight = 0.0f;
-  short nclass = 0, flag = 0;
+  short nclass = 0;
+  eNode_Flag flag = {};
 
   /* templates for static sockets */
   bNodeSocketTemplate *inputs = nullptr, *outputs = nullptr;
@@ -439,7 +449,7 @@ struct bNodeType {
    * to catch typos earlier. One can compare with `bNodeType::idname` directly if the idname might
    * not be registered.
    */
-  bool is_type(StringRef query_idname) const;
+  bool is_type(UString query_idname) const;
 };
 
 /** #bNodeType.nclass (for add-menu and themes). */
@@ -491,11 +501,11 @@ enum class NodeColorTag {
 using bNodeClassCallback = void (*)(void *calldata, int nclass, StringRefNull name);
 
 struct bNodeTreeType {
-  int type = 0;       /* type identifier */
-  std::string idname; /* identifier name */
+  eNodeTree_Type type = {}; /* type identifier */
+  UString idname;           /* identifier name */
 
   /* The ID name of group nodes for this type. */
-  std::string group_idname;
+  UString group_idname;
 
   std::string ui_name;
   std::string ui_description;
@@ -626,11 +636,19 @@ void node_tree_blend_write(BlendWriter *writer, bNodeTree *ntree);
 /** \name Generic API, Nodes
  * \{ */
 
-bNodeType *node_type_find(StringRef idname);
-StringRefNull node_type_find_alias(StringRefNull alias);
+bNodeType *node_type_find(UString idname);
+UString node_type_find_alias(UString alias);
 void node_register_type(bNodeType &ntype);
 void node_unregister_type(bNodeType &ntype);
-void node_register_alias(bNodeType &nt, StringRef alias);
+void node_register_alias(bNodeType &nt, UString alias);
+
+/**
+ * Set the node type \a idname and \a type_legacy to "undefined" to prevent future access to broken
+ * nodes. This should be used for nodes with missing data that cannot be fixed and should be
+ * permanently disabled.
+ * \warning The node type is not recoverable afterwards!
+ */
+void node_set_undefined_type(bNode &node);
 
 Span<bNodeType *> node_types_get();
 
@@ -654,10 +672,10 @@ std::optional<StringRefNull> node_static_socket_label(int type, int subtype);
 
 Span<bNodeSocketType *> node_socket_types_get();
 
-bNodeSocket *node_find_socket(bNode &node, eNodeSocketInOut in_out, StringRef identifier);
+bNodeSocket *node_find_socket(bNode &node, eNodeSocketInOut in_out, UString identifier);
 const bNodeSocket *node_find_socket(const bNode &node,
                                     eNodeSocketInOut in_out,
-                                    StringRef identifier);
+                                    UString identifier);
 bNodeSocket *node_add_socket(bNodeTree &ntree,
                              bNode &node,
                              eNodeSocketInOut in_out,
@@ -678,7 +696,7 @@ void node_modify_socket_type_static(
 
 bNode *node_add_node(const bContext *C,
                      bNodeTree &ntree,
-                     StringRef idname,
+                     UString idname,
                      std::optional<int> unique_identifier = std::nullopt);
 bNode *node_add_static_node(const bContext *C, bNodeTree &ntree, int type);
 
@@ -920,9 +938,10 @@ void node_tree_free_local_node(bNodeTree &ntree, bNode &node);
 void node_tree_update_all_new(Main &main);
 
 /** Update asset meta-data cache of data-block properties. */
+IDProperty *node_create_asset_meta_data_properties(const bNodeTree &node_tree);
 void node_update_asset_metadata(bNodeTree &node_tree);
 
-void node_tree_node_flag_set(bNodeTree &ntree, int flag, bool enable);
+void node_tree_node_flag_set(bNodeTree &ntree, eNode_Flag flag, bool enable);
 
 /**
  * \note `ntree` itself has been read!
@@ -956,10 +975,10 @@ void node_rebuild_id_vector(bNodeTree &node_tree);
 
 /**
  * \note keeps socket list order identical, for copying links.
- * \param dst_name: The name of the copied node. This is expected to be unique in the destination
- *   tree if provided. If not provided, the src name is used and is made unique unless
- *   allow_duplicate_names is true.
- * \param dst_identifier: Same ad dst_name, but for the identifier.
+ * \param dst_unique_name: The name of the copied node.
+ * This is expected to be unique in the destination tree if provided. If not provided,
+ * the src name is used and is made unique unless allow_duplicate_names is true.
+ * \param dst_unique_identifier: Same ad dst_name, but for the identifier.
  */
 bNode *node_copy_with_mapping(bNodeTree *dst_tree,
                               const bNode &node_src,
@@ -1069,7 +1088,7 @@ bNode *node_get_active_paint_canvas(bNodeTree &ntree);
 /**
  * \brief Does the given node supports the sub active flag.
  *
- * \param sub_active: The active flag to check. #NODE_ACTIVE_TEXTURE / #NODE_ACTIVE_PAINT_CANVAS.
+ * \param sub_activity: The active flag to check. #NODE_ACTIVE_TEXTURE / #NODE_ACTIVE_PAINT_CANVAS.
  */
 bool node_supports_active_flag(const bNode &node, int sub_activity);
 
@@ -1092,29 +1111,6 @@ bool node_declaration_ensure_on_outdated_node(bNodeTree &ntree, bNode &node);
  * and sockets are up to date already.
  */
 void node_socket_declarations_update(bNode *node);
-
-/* Node Previews */
-bool node_preview_used(const bNode &node);
-
-struct bNodePreview {
-  ImBuf *ibuf = nullptr;
-
-  bNodePreview() = default;
-  bNodePreview(const bNodePreview &other);
-  bNodePreview(bNodePreview &&other);
-  ~bNodePreview();
-};
-
-/* Ensure that a node preview of the given size exists in the given previews map for the node with
- * the given instance key. */
-bNodePreview *node_ensure_preview(Map<bNodeInstanceKey, bNodePreview> &previews,
-                                  bNodeInstanceKey key,
-                                  int xsize,
-                                  int ysize);
-
-void node_preview_remove_unused(bNodeTree *ntree);
-
-void node_preview_merge_tree(bNodeTree *to_ntree, bNodeTree *from_ntree, bool remove_old);
 
 /* -------------------------------------------------------------------- */
 /** \name Node Type Access
@@ -1144,7 +1140,7 @@ NodeColorTag node_color_tag(const bNode &node);
  * Initialize a new node type struct with default values and callbacks.
  */
 void node_type_base(bNodeType &ntype,
-                    std::string idname,
+                    UString idname,
                     std::optional<int16_t> legacy_type = std::nullopt);
 
 void node_type_socket_templates(bNodeType *ntype,
@@ -1161,6 +1157,8 @@ enum class eNodeSizePreset : int8_t {
 };
 
 void node_type_size_preset(bNodeType &ntype, eNodeSizePreset size);
+
+/** \} */
 
 /* -------------------------------------------------------------------- */
 /** \name Node Generic Functions
@@ -1192,8 +1190,8 @@ std::optional<eNodeSocketDatatype> grid_type_to_socket_type(VolumeGridType type)
  */
 class bNodeZoneType {
  public:
-  std::string input_idname;
-  std::string output_idname;
+  UString input_idname;
+  UString output_idname;
   int input_type;
   int output_type;
   int theme_id;
@@ -1223,12 +1221,14 @@ Span<int> all_zone_input_node_types();
 Span<int> all_zone_output_node_types();
 const bNodeZoneType *zone_type_by_node_type(const int node_type);
 
-inline bool bNodeType::is_type(const StringRef query_idname) const
+inline bool bNodeType::is_type(const UString query_idname) const
 {
   /* Ensure that the given idname exists to check for typos. */
   BLI_assert(node_type_find(query_idname) != nullptr);
   return this->idname == query_idname;
 }
+
+/** \} */
 
 }  // namespace bke
 

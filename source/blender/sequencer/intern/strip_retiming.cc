@@ -27,6 +27,7 @@
 #include "BKE_sound.hh"
 
 #include "SEQ_iterator.hh"
+#include "SEQ_relations.hh"
 #include "SEQ_retiming.hh"
 #include "SEQ_sequencer.hh"
 #include "SEQ_time.hh"
@@ -37,7 +38,7 @@
 
 namespace blender::seq {
 
-/*-------------------------------------------------------------------- */
+/* -------------------------------------------------------------------- */
 /** \name Retiming Get
  * \{ */
 
@@ -120,9 +121,34 @@ int retiming_keys_count(const Strip *strip)
   return strip->retiming_keys_num;
 }
 
-bool retiming_data_is_editable(const Strip *strip)
+bool retiming_show_keys(const Strip *strip)
 {
   return strip->flag & SEQ_SHOW_RETIMING;
+}
+
+bool retiming_keys_are_selected(const Scene *scene)
+{
+  if (!scene) {
+    return false;
+  }
+
+  Editing *ed = seq::editing_get(scene);
+  if (!ed) {
+    return false;
+  }
+
+  const Map retiming_sel = seq::retiming_selection_get(ed);
+  if (retiming_sel.is_empty()) {
+    return false;
+  }
+
+  for (const Strip *strip : retiming_sel.values()) {
+    if (seq::retiming_show_keys(strip)) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 bool retiming_is_allowed(const Strip *strip)
@@ -142,9 +168,10 @@ bool retiming_is_allowed(const Strip *strip)
               STRIP_TYPE_MASK);
 }
 
-bool retiming_is_active(const Strip *strip)
+bool retiming_has_keys(const Strip *strip)
 {
-  return strip->retiming_keys_num > 1;
+  /* Technically all strips must have at least 2 keys, but we can assume none violate this. */
+  return strip->retiming_keys_num > 0;
 }
 
 static Bounds<float> strip_retiming_clamp_bounds_get(const Scene *scene,
@@ -230,7 +257,7 @@ void retiming_key_speed_set(const Scene *scene,
 
 /** \} */
 
-/*-------------------------------------------------------------------- */
+/* -------------------------------------------------------------------- */
 /** \name Retiming Freeze Frame
  * \{ */
 
@@ -317,7 +344,7 @@ static void strip_retiming_cleanup_freeze_frame(SeqRetimingKey *key)
 
 /** \} */
 
-/*-------------------------------------------------------------------- */
+/* -------------------------------------------------------------------- */
 /** \name Retiming Edit
  * \{ */
 
@@ -327,7 +354,7 @@ void retiming_data_ensure(Strip *strip)
     return;
   }
 
-  if (retiming_is_active(strip)) {
+  if (retiming_has_keys(strip)) {
     return;
   }
 
@@ -359,7 +386,7 @@ SeqRetimingKey fake_retiming_key_init(const Scene *scene, const Strip *strip, in
   SeqRetimingKey fake_key = {0};
   fake_key.strip_frame_index = (frame - strip->content_start() - sound_offset) *
                                strip->media_playback_rate_factor(scene_fps);
-  fake_key.flag = 0;
+  fake_key.flag = SEQ_RETIMING_FLAG_NONE;
   return fake_key;
 }
 
@@ -378,7 +405,7 @@ static void retiming_key_overlap(Scene *scene, Strip *strip)
   VectorSet<Strip *> strips;
   VectorSet<Strip *> dependant;
   dependant.add(strip);
-  iterator_set_expand(scene, seqbase, dependant, query_strip_effect_chain);
+  iterator_set_expand(seqbase, dependant, query_strip_effect_chain);
   strips.add_multiple(dependant);
   dependant.remove(strip);
   transform_handle_overlap(scene, seqbase, strips, dependant, true);
@@ -397,6 +424,7 @@ void retiming_reset(Scene *scene, Strip *strip)
   time_update_meta_strip_range(scene, lookup_meta_by_strip(scene->ed, strip));
 
   retiming_key_overlap(scene, strip);
+  seq::relations_invalidate_cache(scene, strip);
 }
 
 static SeqRetimingKey *strip_retiming_add_key(Strip *strip, float frame_index)
@@ -591,7 +619,7 @@ void retiming_remove_key(Strip *strip, SeqRetimingKey *key)
 
 /** \} */
 
-/*-------------------------------------------------------------------- */
+/* -------------------------------------------------------------------- */
 /** \name Retiming Transition
  * \{ */
 
@@ -880,7 +908,7 @@ static void strip_retiming_key_offset(const Scene *scene,
 
 /** \} */
 
-/*-------------------------------------------------------------------- */
+/* -------------------------------------------------------------------- */
 /** \name Retiming Set
  * \{ */
 
@@ -953,7 +981,7 @@ void retiming_key_frame_set(const Scene *scene, Strip *strip, SeqRetimingKey *ke
 
 /** \} */
 
-/*-------------------------------------------------------------------- */
+/* -------------------------------------------------------------------- */
 /** \name Retiming Range
  * \{ */
 
@@ -1250,7 +1278,7 @@ void retiming_sound_animation_data_set(const Scene *scene, const Strip *strip)
 
 /** \} */
 
-/*-------------------------------------------------------------------- */
+/* -------------------------------------------------------------------- */
 /** \name Retiming Selection
  * \{ */
 
