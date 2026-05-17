@@ -180,19 +180,8 @@ void TreeDisplayViewLayer::add_layer_collection_objects(ListBaseT<TreeElement> &
                                                         TreeElement &ten)
 {
   BKE_view_layer_synced_ensure(*bmain_, scene_, view_layer_);
-  Vector<CollectionObject *> cobs;
   for (CollectionObject &cob : lc.collection->gobject) {
-    cobs.append(&cob);
-  }
-
-  if (space_outliner_.sort_method == SO_SORT_CUSTOM) {
-    std::ranges::sort(cobs, [](const CollectionObject *a, const CollectionObject *b) {
-      return a->sort_index < b->sort_index;
-    });
-  }
-
-  for (CollectionObject *cob : cobs) {
-    Base *base = BKE_view_layer_base_find(view_layer_, cob->ob);
+    Base *base = BKE_view_layer_base_find(view_layer_, cob.ob);
     TreeElement *te_object = add_element(
         &tree, reinterpret_cast<ID *>(base->object), nullptr, &ten, TSE_SOME_ID, 0);
     te_object->directdata = base;
