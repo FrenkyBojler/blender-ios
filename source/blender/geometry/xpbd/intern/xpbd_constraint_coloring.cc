@@ -4,6 +4,8 @@
 
 #include "BLI_multi_value_map.hh"
 
+#include "BKE_mesh_mapping.hh"
+
 #include "GEO_xpbd_constraint_coloring_utils.hh"
 
 namespace blender::xpbd {
@@ -72,13 +74,95 @@ ConstraintColoring color_constraints__unary(const Span<int> affected_points,
       memory);
 }
 
+template<typename T, typename Values, typename TConvert>
+static int64_t max_element_of(const Values elements,
+                              const int64_t grain_size,
+                              const TConvert &convert)
+{
+  return threading::parallel_reduce(
+             elements.index_range().drop_front(1),
+             grain_size,
+             std::make_pair(convert(elements.first()), 0),
+             [&](const IndexRange range, auto value) {
+               for (const int index : range) {
+                 auto item_value = convert(elements[index]);
+                 if (item_value > value.first) {
+                   value.first = std::move(item_value);
+                   value.second = index;
+                 }
+                 else if (item_value == value.first) {
+                   value.second = std::min(value.second, index);
+                 }
+               }
+               return value;
+             },
+             [&](const auto &a, const auto &b) {
+               if (a.first < b.first) {
+                 return b;
+               }
+               else if (a.first == b.first) {
+                 return std::make_pair(a.first, std::min(a.second, b.second));
+               }
+               return a;
+             })
+      .second;
+}
+
 ConstraintColoring color_constraints__binary(const Span<int2> affected_points,
                                              IndexMaskMemory &memory)
 {
-  return generic_constraint_coloring<int>(
-      [&](const int constraint_i) { return Span<int>(&affected_points[constraint_i][0], 2); },
-      affected_points.size(),
-      memory);
+  const Span<int> verts = affected_points.cast<int>();
+  const int max_vert_index = max_element_of<int>(verts, 2048, [&](const int i) { return i; });
+  const int total_verts = verts[max_vert_index] + 1;
+
+  Array<int> offsets;
+  Array<int> indices;
+  const GroupedSpan<int> vert_to_edges = bke::mesh::build_vert_to_edge_map(
+      affected_points, total_verts, offsets, indices);
+
+  const int max_degree = max_element_of<int>(
+      vert_to_edges.index_range(), 2048, [&](const int vert_i) {
+        return vert_to_edges[vert_i].size();
+      });
+  const int max_colors_num = max_degree;
+
+  Vector<bool, 16> color_is_used(max_colors_num, false);
+  int max_colors = 0;
+
+  const int constraints_num = affected_points.size();
+  Array<int> colors(constraints_num);
+  for (const int constraint_i : affected_points.index_range()) {
+    for (const int point_id : {affected_points[constraint_i][0], affected_points[constraint_i][1]})
+    {
+      for (const int other_constraint_i : vert_to_edges[point_id]) {
+        if (other_constraint_i >= constraint_i) {
+          continue;
+        }
+        color_is_used.resize(colors[other_constraint_i] + 1, false);
+        color_is_used[colors[other_constraint_i]] = true;
+      }
+    }
+    const int best_color = color_is_used.as_span().first_index_try(false);
+    color_is_used.as_mutable_span().fill(false);
+
+    if (best_color == -1) {
+      max_colors = std::max<int>(max_colors, color_is_used.size() + 1);
+      colors[constraint_i] = color_is_used.size();
+    }
+    else {
+      max_colors = std::max<int>(max_colors, color_is_used.size());
+      colors[constraint_i] = best_color;
+    }
+  }
+
+  ConstraintColoring coloring;
+  coloring.colors.reinitialize(max_colors);
+  IndexMask::from_groups<int>(
+      IndexRange(constraints_num),
+      memory,
+      [&](const int i) { return colors[i]; },
+      coloring.colors);
+  return coloring;
 }
 
 ConstraintColoring color_constraints__n_ary(const GroupedSpan<int> affected_points,
