@@ -600,22 +600,34 @@ void PaintStroke::finish_roll_stroke(bContext *C,
                                      const float2 &mouse_up,
                                      float pressure)
 {
+  printf("[ROLL FINISH] enter: pressure=%.4f last_pressure_=%.4f num_points=%d cur_point=%d "
+         "last_painted=%d spacing_raw=%.4f\n",
+         pressure, last_pressure_, num_points_, cur_point_, last_painted_roll_idx_,
+         spacing_raw_);
+  fflush(stdout);
+
   if (!need_roll_mapping_ || num_points_ < 4) {
+    printf("[ROLL FINISH] early-exit: need_roll=%d num_points=%d\n",
+           int(need_roll_mapping_), num_points_);
+    fflush(stdout);
     return;
   }
 
   /* Clamp pen lift-off pressure (same minimum as add_roll_point) to avoid
-   * near-zero spacing that would create thousands of expensive roll dabs. */
+   * a width spike on the last recorded point. */
   pressure = std::max(pressure, MIN_ROLL_PRESSURE);
 
   const PaintMode mode = BKE_paintmode_get_active_from_context(C);
   const Brush &brush = *BKE_paint_brush_for_read(this->paint);
   bke::PaintRuntime *paint_runtime = this->paint->runtime;
 
-  /* 1. Process any remaining spacing steps up to the mouse-up position. */
-  if (paint_space_stroke_enabled(brush, mode)) {
-    space_stroke(C, op, mouse_up, pressure);
-  }
+  /* 1. Skip space_stroke at finish — with a low brush spacing setting and
+   *    near-zero pen-lift pressure, it can spawn thousands of expensive
+   *    roll dabs (each rebuilds spline, grid, LUT, and paints).  The
+   *    mouse-up position is force-recorded directly in step 2 below and
+   *    deferred dabs are flushed in step 4, so the stroke still ends at
+   *    the correct position — only the per-dab fill between the last
+   *    mouse-move and the lift is dropped. */
 
   /* 2. Force-record the exact mouse-up position as a roll point
    *    (even if it doesn't fall on a spacing boundary). */
@@ -648,6 +660,9 @@ void PaintStroke::finish_roll_stroke(bContext *C,
     }
     make_roll_spline(C);
   }
+  printf("[ROLL FINISH] after step 2: num_points=%d cur_point=%d spline_size=%d\n",
+         num_points_, cur_point_, int(roll_spline_.poly_3d.size()));
+  fflush(stdout);
 
   /* 3. Append a virtual forward extension so the last dab has spline
    *    coverage for the brush half that extends beyond the stroke end.
@@ -755,6 +770,12 @@ void PaintStroke::finish_roll_stroke(bContext *C,
   const int newest = (cur_point_ - 1 + buf_cap) % buf_cap;
   int idx = (flush_start + 1) % buf_cap;
 
+  printf("[ROLL FINISH] flush start: flush_start=%d newest=%d idx=%d num_points=%d "
+         "cur_point=%d half=%d\n",
+         flush_start, newest, idx, num_points_, cur_point_, half);
+  fflush(stdout);
+
+  int flush_iter = 0;
   while (idx != newest) {
     PaintStrokePoint *point = &points_[idx];
 
@@ -768,12 +789,29 @@ void PaintStroke::finish_roll_stroke(bContext *C,
     RNA_float_set(&itemptr, "x_tilt", point->x_tilt);
     RNA_float_set(&itemptr, "y_tilt", point->y_tilt);
 
+    if (flush_iter % 10 == 0) {
+      printf("[ROLL FINISH] flush iter=%d idx=%d newest=%d pressure=%.4f size=%.4f\n",
+             flush_iter, idx, newest, point->pressure, point->size);
+      fflush(stdout);
+    }
+
     this->update_step(op, &itemptr);
     RNA_collection_clear(op->ptr, "stroke");
 
     tot_samples_++;
     idx = (idx + 1) % buf_cap;
+    flush_iter++;
+
+    /* Safety cap to prevent runaway loops during debugging. */
+    if (flush_iter > buf_cap + 10) {
+      printf("[ROLL FINISH] BREAKING out of flush — too many iterations!\n");
+      fflush(stdout);
+      break;
+    }
   }
+  printf("[ROLL FINISH] flush done: total iterations=%d num_points=%d cur_point=%d\n",
+         flush_iter, num_points_, cur_point_);
+  fflush(stdout);
 }
 
 /**
@@ -1512,9 +1550,11 @@ void PaintStroke::compute_roll_center(StrokeCache &cache)
         cache.roll_lut_uv.reinitialize(lut_total);
         cache.roll_lut_dist_sq.reinitialize(lut_total);
         cache.roll_lut_tan.reinitialize(lut_total);
+        cache.roll_lut_row.reinitialize(lut_total);
         for (int i = 0; i < lut_total; i++) {
           cache.roll_lut_uv[i] = float2(FLT_MAX, 0.0f);
           cache.roll_lut_dist_sq[i] = FLT_MAX;
+          cache.roll_lut_row[i] = -1;
         }
 
         auto cross2d = [](float2 a, float2 b) { return a.x * b.y - a.y * b.x; };
@@ -1601,8 +1641,27 @@ void PaintStroke::compute_roll_center(StrokeCache &cache)
                 const float dsq = math::distance_squared(query, pnt);
 
                 const int li = py * RES + px;
-                if (dsq < cache.roll_lut_dist_sq[li]) {
+                /* Prefer older rows on overlap to keep the LUT stable.
+                 *
+                 * The loop iterates rows low→high, so a non-empty pixel
+                 * was written by a row ≤ r.  Cases:
+                 *   - empty: write
+                 *   - same/adjacent row (within 2): use dsq (better fit wins)
+                 *   - far row (existing < r - 2): keep older (don't write)
+                 * This way overlapping branches at sharp turns get a stable
+                 * single stroke position rather than flickering between
+                 * competing branches based on tiny float distances. */
+                const int existing_row = cache.roll_lut_row[li];
+                bool write = false;
+                if (existing_row < 0) {
+                  write = true;
+                }
+                else if (r - existing_row <= 2) {
+                  write = (dsq < cache.roll_lut_dist_sq[li]);
+                }
+                if (write) {
                   cache.roll_lut_dist_sq[li] = dsq;
+                  cache.roll_lut_row[li] = r;
                   /* Interpolate UV. */
                   const float2 &UV00 = grid_uv[r * cur_cols + c];
                   const float2 &UV10 = grid_uv[r * cur_cols + c + 1];
@@ -1714,17 +1773,50 @@ void PaintStroke::spline_uv(const StrokeCache &cache,
     if (b11) { uv11 = fill_uv; t11 = fill_t; }
   }
 
-  const float2 uv_result = (1 - tx) * (1 - ty) * uv00 + tx * (1 - ty) * uv10 +
-                            (1 - tx) * ty * uv01 + tx * ty * uv11;
+  /* Detect overlap discontinuity: at sharp turns, multiple grid quads
+   * compete for the same LUT pixels.  Adjacent pixels may pick different
+   * quads (tiny float-distance differences flip the winner), making
+   * bilinear interpolation blend UVs from unrelated stroke positions.
+   *
+   * If the 4 V values vary too much, fall back to nearest-neighbor
+   * (the pixel with the smallest dist_sq) — at least the result is a
+   * single valid stroke position rather than a fabricated midpoint.
+   *
+   * Threshold is "half a brush-radius worth of arc length".  In pressure
+   * mode V is already normalized (≈1 unit per radius), so 0.5 directly.
+   * In non-pressure mode V is in world units, so 0.5 × radius. */
+  const float v_min = std::min({uv00.y, uv10.y, uv01.y, uv11.y});
+  const float v_max = std::max({uv00.y, uv10.y, uv01.y, uv11.y});
+  const bool use_norm_v_threshold = brush && brush->mtex.roll_pressure_scale &&
+                                    BKE_brush_use_size_pressure(brush);
+  const float v_threshold = use_norm_v_threshold ? 0.5f : 0.5f * cache.initial_radius;
+  float2 uv_result;
+  float3 t_result;
+  if (UNLIKELY(v_max - v_min > v_threshold)) {
+    /* Pick the LUT pixel with the smallest dist_sq among the 4 neighbors. */
+    const float d00 = cache.roll_lut_dist_sq[iy * RES + ix];
+    const float d10 = cache.roll_lut_dist_sq[iy * RES + ix + 1];
+    const float d01 = cache.roll_lut_dist_sq[(iy + 1) * RES + ix];
+    const float d11 = cache.roll_lut_dist_sq[(iy + 1) * RES + ix + 1];
+    float best_d = d00;
+    uv_result = uv00;
+    t_result = t00;
+    if (d10 < best_d) { best_d = d10; uv_result = uv10; t_result = t10; }
+    if (d01 < best_d) { best_d = d01; uv_result = uv01; t_result = t01; }
+    if (d11 < best_d) {                uv_result = uv11; t_result = t11; }
+  }
+  else {
+    uv_result = (1 - tx) * (1 - ty) * uv00 + tx * (1 - ty) * uv10 +
+                (1 - tx) * ty * uv01 + tx * ty * uv11;
+    t_result = (1 - tx) * (1 - ty) * t00 + tx * (1 - ty) * t10 +
+               (1 - tx) * ty * t01 + tx * ty * t11;
+  }
 
   r_out[0] = -uv_result.x;
   r_out[1] = uv_result.y;
   r_out[2] = 0.0f;
 
-  /* Bilinear interpolation of tangent (using filled-in values if edge). */
-  const float3 tan = math::normalize((1 - tx) * (1 - ty) * t00 + tx * (1 - ty) * t10 +
-                                     (1 - tx) * ty * t01 + tx * ty * t11);
-  copy_v3_v3(r_tan, tan);
+  copy_v3_v3(r_tan, math::normalize(t_result));
 
   /* Apply V offset to keep texture continuous as virtual knots are consumed.
    * Use normalized offset when pressure-scaled V is baked into the grid. */

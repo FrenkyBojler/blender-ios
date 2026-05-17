@@ -900,7 +900,13 @@ int PaintStroke::space_stroke(bContext *C,
   const float no_pressure_spacing = paint_space_stroke_spacing_no_pressure(
       this->vc, &paint, &brush, last_world_space_position_, zoom_2d_);
   int count = 0;
-  while (length > 0.0f) {
+  /* Safety cap on iterations.  paint_space_stroke_spacing() floors at
+   * FLT_EPSILON to avoid division by zero (#129853), but that's not enough
+   * to prevent a multi-second hang when pen-lift pressure → 0 with
+   * size_pressure on.  Cap at a large but finite number — for any
+   * realistic brush this is well above the dab count of a normal stroke. */
+  constexpr int max_dabs_per_event = 10000;
+  while (length > 0.0f && count < max_dabs_per_event) {
     const float spacing = paint_space_stroke_spacing_variable(this->vc,
                                                               &paint,
                                                               &brush,

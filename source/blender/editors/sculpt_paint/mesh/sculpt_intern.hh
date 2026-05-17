@@ -254,6 +254,7 @@ struct StrokeCache {
   Vector<float2> roll_lut_uv;           /* UV at each LUT pixel */
   Vector<float> roll_lut_dist_sq;       /* best distance² (for rasterization) */
   Vector<float3> roll_lut_tan;          /* tangent at each LUT pixel */
+  Vector<int> roll_lut_row;             /* polyline row that wrote each pixel */
   float2 roll_lut_min = {};             /* 2D bounding box min */
   float2 roll_lut_inv_extent = {};      /* 1.0 / (max - min) * LUT_RES */
   bool roll_lut_ready = false;
