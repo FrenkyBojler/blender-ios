@@ -41,6 +41,11 @@
 
 #include "GEO_mesh_bevel.hh"
 
+// #define DEBUG_TIME
+#ifdef DEBUG_TIME
+#  include "BLI_timeit.hh"
+#endif
+
 namespace blender::geometry {
 
 enum class FKind {
@@ -8051,11 +8056,19 @@ std::optional<Mesh *> mesh_bevel(
     return std::nullopt;
   }
 
+#ifdef DEBUG_TIME
+  fmt::println("BEVEL NODE starts");
+  const timeit::TimePoint start_time = timeit::Clock::now();
+#endif
   BevelState state(src_mesh, params, selection);
   state.initialize_profile_data();
   state.uv_init();
 
   state.bev_verts.reserve(state.bevel_affected_vertices.size());
+#ifdef DEBUG_TIME
+  const timeit::TimePoint init_time = timeit::Clock::now();
+  fmt::println("BEVEL NODE initialization, {:.4} ms", (init_time - start_time).count() / 1.0e6f);
+#endif
 
   /* Phase 1: construct BevVerts and build initial boundaries. */
   state.bevel_affected_vertices.foreach_index([&](const int v) {
@@ -8064,10 +8077,22 @@ std::optional<Mesh *> mesh_bevel(
     construct::build_boundary(state, bv, true);
   });
 
+#ifdef DEBUG_TIME
+  const timeit::TimePoint vert_and_boundaries_time = timeit::Clock::now();
+  fmt::println("BEVEL NODE bevel construct and build boundaries,{:.4} ms",
+               (vert_and_boundaries_time - init_time).count() / 1.0e6f);
+#endif
+
   /* Phase 2: adjust offsets for even-width bevels, then rebuild boundaries. */
   if (state.offset_adjust) {
     construct::adjust_offsets(state);
   }
+
+#ifdef DEBUG_TIME
+  const timeit::TimePoint adjust_time = timeit::Clock::now();
+  fmt::println("BEVEL NODE adjust offsets, {:.4} ms",
+               (adjust_time - vert_and_boundaries_time).count() / 1.0e6f);
+#endif
 
   /* Phase 3: UV connectivity and vmesh construction (depends on final BoundVert positions). */
   state.bevel_affected_vertices.foreach_index([&](const int v) {
@@ -8084,16 +8109,32 @@ std::optional<Mesh *> mesh_bevel(
     }
   });
 
+#ifdef DEBUG_TIME
+  const timeit::TimePoint vmesh_and_uv_time = timeit::Clock::now();
+  fmt::println("BEVEL NODE vmesh and uv connectivity, {:.4} ms",
+               (vmesh_and_uv_time - vert_and_boundaries_time).count() / 1.0e6f);
+#endif
+
   /* Build edge-strip polygons along each beveled edge. */
   if (params.affect_type != BevelAffect::Vertices) {
     state.selection.foreach_index(
         [&](const int e) { construct::bevel_build_edge_polygons(state, e); });
   }
 
+#ifdef DEBUG_TIME
+  const timeit::TimePoint edge_time = timeit::Clock::now();
+  fmt::println("BEVEL NODE edge mesh, {:.4} ms", (edge_time - vmesh_and_uv_time).count() / 1.0e6f);
+#endif
+
   /* Rebuild original faces that touch beveled vertices. */
   Vector<int> rebuilt_orig_faces;
   int rebuilt_face_0 = -1;
   construct::bevel_rebuild_existing_polygons(state, rebuilt_orig_faces, rebuilt_face_0);
+
+#ifdef DEBUG_TIME
+  const timeit::TimePoint face_time = timeit::Clock::now();
+  fmt::println("BEVEL NODE face mesh, {:.4} ms", (face_time - edge_time).count() / 1.0e6f);
+#endif
 
   /* Kill the original faces that were rebuilt, mirroring BMesh's deferred kill pattern. */
   for (const int f : rebuilt_orig_faces) {
@@ -8140,7 +8181,22 @@ std::optional<Mesh *> mesh_bevel(
 
   construct::bevel_extend_edge_data(state);
 
-  return construct::build_output_mesh(state);
+#ifdef DEBUG_TIME
+  const timeit::TimePoint uv_edge_data_time = timeit::Clock::now();
+  fmt::println("BEVEL NODE uvs and edge data, {:.4} ms",
+               (uv_edge_data_time - face_time).count() / 1.0e6f);
+#endif
+
+  std::optional<Mesh *> ans = construct::build_output_mesh(state);
+
+#ifdef DEBUG_TIME
+  const timeit::TimePoint end_time = timeit::Clock::now();
+  fmt::println("BEVEL NODE construct output mesh, {:.4} ms",
+               (end_time - uv_edge_data_time).count() / 1.0e6f);
+  fmt::println("BEVEL NODE total, {:5} ms", (end_time - start_time).count() / 1.0e6f);
+#endif
+
+  return ans;
 }
 
 }  // namespace blender::geometry
