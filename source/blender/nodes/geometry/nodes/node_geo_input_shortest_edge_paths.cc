@@ -7,9 +7,10 @@
 #include "BLI_array_utils.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_task.hh"
-
 #include "BKE_mesh.hh"
 #include "BKE_mesh_mapping.hh"
+
+#include "FN_field.hh"
 
 #include "node_geometry_util.hh"
 
