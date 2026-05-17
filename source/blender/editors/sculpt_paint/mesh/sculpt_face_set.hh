@@ -9,6 +9,7 @@
 #pragma once
 
 #include "BKE_context.hh"
+#include "BKE_paint.hh"
 #include "BLI_array.hh"
 #include "BLI_offset_indices.hh"
 #include "BLI_set.hh"
@@ -16,6 +17,7 @@
 
 #include "BKE_attribute.hh"
 #include "ED_view3d.hh"
+#include <optional>
 
 namespace blender {
 
@@ -31,6 +33,9 @@ namespace ed::sculpt_paint::face_set {
 
 int active_face_set_get(const Object &object);
 int active_face_set_get(bContext *C, const float2 &mval);
+int active_face_set_get(const Object &object,
+                        const std::optional<int> active_face_index,
+                        const std::optional<int> active_grid_index);
 
 /* TODO: vert_face_set_max_get should likely be avoided and existing usages cleaned up, since by
  * definition, a vertex can be associated to more than a single face set. */

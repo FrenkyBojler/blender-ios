@@ -1638,7 +1638,8 @@ static std::unique_ptr<IKChain> ik_chain_init_face_sets_fk_mesh(const Depsgraph 
                                                                 Object &object,
                                                                 SculptSession &ss,
                                                                 const float radius,
-                                                                const float3 &initial_location)
+                                                                const float3 &initial_location,
+                                                                const int active_face_set)
 {
   const Mesh &mesh = *id_cast<Mesh *>(object.data);
   const GroupedSpan<int> vert_to_face_map = mesh.vert_to_face_map();
@@ -1649,8 +1650,6 @@ static std::unique_ptr<IKChain> ik_chain_init_face_sets_fk_mesh(const Depsgraph 
   std::unique_ptr<IKChain> ik_chain = ik_chain_new(1, mesh.verts_num);
 
   const int active_vert = std::get<int>(ss.active_vert());
-
-  const int active_face_set = face_set::active_face_set_get(object);
 
   Set<int> visited_face_sets;
   Array<int> floodfill_step(mesh.verts_num);
@@ -1716,7 +1715,8 @@ static std::unique_ptr<IKChain> ik_chain_init_face_sets_fk_grids(const Depsgraph
                                                                  Object &object,
                                                                  SculptSession &ss,
                                                                  const float radius,
-                                                                 const float3 &initial_location)
+                                                                 const float3 &initial_location,
+                                                                 const int active_face_set)
 {
   const Mesh &mesh = *id_cast<const Mesh *>(object.data);
   const OffsetIndices<int> faces = mesh.faces();
@@ -1734,8 +1734,6 @@ static std::unique_ptr<IKChain> ik_chain_init_face_sets_fk_grids(const Depsgraph
   std::unique_ptr<IKChain> ik_chain = ik_chain_new(1, grids_num);
 
   const int active_vert_index = ss.active_vert_index();
-
-  const int active_face_set = face_set::active_face_set_get(object);
 
   Set<int> visited_face_sets;
   Array<int> floodfill_step(grids_num);
@@ -1819,7 +1817,8 @@ static std::unique_ptr<IKChain> ik_chain_init_face_sets_fk_bmesh(const Depsgraph
                                                                  Object &object,
                                                                  SculptSession &ss,
                                                                  const float radius,
-                                                                 const float3 &initial_location)
+                                                                 const float3 &initial_location,
+                                                                 const int active_face_set)
 {
   vert_random_access_ensure(object);
 
@@ -1832,8 +1831,6 @@ static std::unique_ptr<IKChain> ik_chain_init_face_sets_fk_bmesh(const Depsgraph
 
   BMVert *active_vert = std::get<BMVert *>(ss.active_vert());
   const int active_vert_index = BM_elem_index_get(active_vert);
-
-  const int active_face_set = face_set::active_face_set_get(object);
 
   Set<int> visited_face_sets;
   Array<int> floodfill_step(verts_num);
@@ -1905,15 +1902,19 @@ static std::unique_ptr<IKChain> ik_chain_init_face_sets_fk(const Depsgraph &deps
                                                            Object &object,
                                                            SculptSession &ss,
                                                            const float radius,
-                                                           const float3 &initial_location)
+                                                           const float3 &initial_location,
+                                                           const int active_face_set)
 {
   switch (bke::object::pbvh_get(object)->type()) {
     case bke::pbvh::Type::Mesh:
-      return ik_chain_init_face_sets_fk_mesh(depsgraph, object, ss, radius, initial_location);
+      return ik_chain_init_face_sets_fk_mesh(
+          depsgraph, object, ss, radius, initial_location, active_face_set);
     case bke::pbvh::Type::Grids:
-      return ik_chain_init_face_sets_fk_grids(depsgraph, object, ss, radius, initial_location);
+      return ik_chain_init_face_sets_fk_grids(
+          depsgraph, object, ss, radius, initial_location, active_face_set);
     case bke::pbvh::Type::BMesh:
-      return ik_chain_init_face_sets_fk_bmesh(depsgraph, object, ss, radius, initial_location);
+      return ik_chain_init_face_sets_fk_bmesh(
+          depsgraph, object, ss, radius, initial_location, active_face_set);
   }
   BLI_assert_unreachable();
   return nullptr;
@@ -1924,7 +1925,8 @@ static std::unique_ptr<IKChain> ik_chain_init(const Depsgraph &depsgraph,
                                               SculptSession &ss,
                                               const Brush &brush,
                                               const float3 &initial_location,
-                                              const float radius)
+                                              const float radius,
+                                              const int active_face_set)
 {
   std::unique_ptr<IKChain> ik_chain;
 
@@ -1937,6 +1939,7 @@ static std::unique_ptr<IKChain> ik_chain_init(const Depsgraph &depsgraph,
     fake_neighbors_free(ob);
   }
 
+  /* TODO: confirm if passing the face set through the call chain is good idea? */
   switch (brush.pose_origin_type) {
     case BRUSH_POSE_ORIGIN_TOPOLOGY:
       ik_chain = ik_chain_init_topology(depsgraph, ob, ss, brush, initial_location, radius);
@@ -1945,7 +1948,8 @@ static std::unique_ptr<IKChain> ik_chain_init(const Depsgraph &depsgraph,
       ik_chain = ik_chain_init_face_sets(depsgraph, ob, ss, brush, radius);
       break;
     case BRUSH_POSE_ORIGIN_FACE_SETS_FK:
-      ik_chain = ik_chain_init_face_sets_fk(depsgraph, ob, ss, radius, initial_location);
+      ik_chain = ik_chain_init_face_sets_fk(
+          depsgraph, ob, ss, radius, initial_location, active_face_set);
       break;
   }
 
@@ -1957,9 +1961,12 @@ static bool pose_brush_init(const Depsgraph &depsgraph,
                             SculptSession &ss,
                             const Brush &brush)
 {
+  const int active_face_set = face_set::active_face_set_get(
+      ob, ss.cache->active_face_index, ss.cache->active_grid_index);
+
   /* Init the IK chain that is going to be used to deform the vertices. */
   ss.cache->pose_ik_chain = ik_chain_init(
-      depsgraph, ob, ss, brush, ss.cache->location, ss.cache->radius);
+      depsgraph, ob, ss, brush, ss.cache->location, ss.cache->radius, active_face_set);
 
   if (!ss.cache->pose_ik_chain) {
     return false;
@@ -1978,10 +1985,11 @@ std::unique_ptr<SculptPoseIKChainPreview> preview_ik_chain_init(const Depsgraph 
                                                                 SculptSession &ss,
                                                                 const Brush &brush,
                                                                 const float3 &initial_location,
-                                                                const float radius)
+                                                                const float radius,
+                                                                const int active_face_set)
 {
   const std::unique_ptr<IKChain> chain = ik_chain_init(
-      depsgraph, ob, ss, brush, initial_location, radius);
+      depsgraph, ob, ss, brush, initial_location, radius, active_face_set);
   if (!chain) {
     return nullptr;
   }

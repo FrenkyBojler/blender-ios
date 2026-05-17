@@ -29,6 +29,7 @@
 
 #include "WM_api.hh"
 
+#include "editors/sculpt_paint/mesh/sculpt_face_set.hh"
 #include "sculpt_boundary.hh"
 #include "sculpt_cloth.hh"
 #include "sculpt_expand.hh"
@@ -40,6 +41,7 @@
 #include "editors/sculpt_paint/paint_intern.hh"
 
 #include "bmesh.hh"
+#include <optional>
 
 namespace blender::ed::sculpt_paint {
 static int brush_radius_project(ViewContext *vc, float radius, const float location[3])
@@ -190,6 +192,17 @@ void mesh_cursor_update_and_init(PaintCursorContext &pcontext)
   else {
     pcontext.is_cursor_over_mesh = paint_runtime.last_hit;
     pcontext.location = paint_runtime.last_location;
+  }
+
+  /* Part of the ongoing refactor to replace cursor_geometry_info_update
+   * Will better integrate this into the existing codeflow once more active_ properties of
+   * SculptSession have been refactored away
+   */
+  const std::optional<ActiveElementInfo> active_element_info = active_element_info_get(vc,
+                                                                                       mval_fl);
+  if (active_element_info) {
+    pcontext.active_face_index = active_element_info->active_face_index;
+    pcontext.active_grid_index = active_element_info->active_grid_index;
   }
 
   if (bke::paint::supports_scene_size(pcontext.mode)) {
@@ -615,9 +628,17 @@ static void screen_space_overlays_draw(const PaintCursorContext &pcontext)
           ss.pose_ik_chain_preview.reset();
         }
 
+        const int active_face_set = face_set::active_face_set_get(
+            active_object, pcontext.active_face_index, pcontext.active_grid_index);
+
         /* Generate a new pose brush preview from the current cursor location. */
-        ss.pose_ik_chain_preview = pose::preview_ik_chain_init(
-            *pcontext.depsgraph, active_object, ss, brush, pcontext.location, pcontext.radius);
+        ss.pose_ik_chain_preview = pose::preview_ik_chain_init(*pcontext.depsgraph,
+                                                               active_object,
+                                                               ss,
+                                                               brush,
+                                                               pcontext.location,
+                                                               pcontext.radius,
+                                                               active_face_set);
       }
 
       /* Draw the pose brush rotation origins. */

@@ -534,8 +534,8 @@ bool stroke_get_location_bvh(Depsgraph &depsgraph,
 
 struct ActiveElementInfo {
   ActiveVert vert = {};
-  int active_face_idx = -1;
-  int active_grid_idx = -1;
+  std::optional<int> active_face_index;
+  std::optional<int> active_grid_index;
 };
 
 /**

@@ -66,7 +66,8 @@ std::unique_ptr<SculptPoseIKChainPreview> preview_ik_chain_init(const Depsgraph 
                                                                 SculptSession &ss,
                                                                 const Brush &brush,
                                                                 const float3 &initial_location,
-                                                                float radius);
+                                                                float radius,
+                                                                const int active_face_set);
 
 }  // namespace ed::sculpt_paint::pose
 

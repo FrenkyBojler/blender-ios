@@ -8,6 +8,8 @@
 
 #pragma once
 
+#include <optional>
+
 #include "DNA_brush_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
@@ -49,6 +51,12 @@ struct PaintCursorContext {
    * Previous active vertex index , used to determine if the preview is updated for the pose brush.
    */
   int prev_active_vert_index = -1;
+
+  /**
+   * Active face and grid index data for the cursor , used for pose brush calculations
+   */
+  std::optional<int> active_face_index;
+  std::optional<int> active_grid_index;
 
   /** Whether the current tool is a brush. We can have a `Brush *` without this being true */
   bool is_brush_active = false;
