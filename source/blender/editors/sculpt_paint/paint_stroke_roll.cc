@@ -600,16 +600,7 @@ void PaintStroke::finish_roll_stroke(bContext *C,
                                      const float2 &mouse_up,
                                      float pressure)
 {
-  printf("[ROLL FINISH] enter: pressure=%.4f last_pressure_=%.4f num_points=%d cur_point=%d "
-         "last_painted=%d spacing_raw=%.4f\n",
-         pressure, last_pressure_, num_points_, cur_point_, last_painted_roll_idx_,
-         spacing_raw_);
-  fflush(stdout);
-
   if (!need_roll_mapping_ || num_points_ < 4) {
-    printf("[ROLL FINISH] early-exit: need_roll=%d num_points=%d\n",
-           int(need_roll_mapping_), num_points_);
-    fflush(stdout);
     return;
   }
 
@@ -660,10 +651,6 @@ void PaintStroke::finish_roll_stroke(bContext *C,
     }
     make_roll_spline(C);
   }
-  printf("[ROLL FINISH] after step 2: num_points=%d cur_point=%d spline_size=%d\n",
-         num_points_, cur_point_, int(roll_spline_.poly_3d.size()));
-  fflush(stdout);
-
   /* 3. Append a virtual forward extension so the last dab has spline
    *    coverage for the brush half that extends beyond the stroke end.
    *    Uses the same curvature-following logic as prepend_virtual_roll_points()
@@ -770,12 +757,6 @@ void PaintStroke::finish_roll_stroke(bContext *C,
   const int newest = (cur_point_ - 1 + buf_cap) % buf_cap;
   int idx = (flush_start + 1) % buf_cap;
 
-  printf("[ROLL FINISH] flush start: flush_start=%d newest=%d idx=%d num_points=%d "
-         "cur_point=%d half=%d\n",
-         flush_start, newest, idx, num_points_, cur_point_, half);
-  fflush(stdout);
-
-  int flush_iter = 0;
   while (idx != newest) {
     PaintStrokePoint *point = &points_[idx];
 
@@ -789,29 +770,12 @@ void PaintStroke::finish_roll_stroke(bContext *C,
     RNA_float_set(&itemptr, "x_tilt", point->x_tilt);
     RNA_float_set(&itemptr, "y_tilt", point->y_tilt);
 
-    if (flush_iter % 10 == 0) {
-      printf("[ROLL FINISH] flush iter=%d idx=%d newest=%d pressure=%.4f size=%.4f\n",
-             flush_iter, idx, newest, point->pressure, point->size);
-      fflush(stdout);
-    }
-
     this->update_step(op, &itemptr);
     RNA_collection_clear(op->ptr, "stroke");
 
     tot_samples_++;
     idx = (idx + 1) % buf_cap;
-    flush_iter++;
-
-    /* Safety cap to prevent runaway loops during debugging. */
-    if (flush_iter > buf_cap + 10) {
-      printf("[ROLL FINISH] BREAKING out of flush — too many iterations!\n");
-      fflush(stdout);
-      break;
-    }
   }
-  printf("[ROLL FINISH] flush done: total iterations=%d num_points=%d cur_point=%d\n",
-         flush_iter, num_points_, cur_point_);
-  fflush(stdout);
 }
 
 /**
