@@ -38,8 +38,8 @@ def gltf_generate_descr(output_datafile: pathlib.Path) -> str:
     def avoid_compressed_buffer_values(val):
         for buffer_view in val.get('bufferViews', []):
             if 'extensions' in buffer_view:
-                    # Avoid comparing data when meshopt compression is used, as it can lead to
-                    # small differences that are not relevant.
+                # Avoid comparing data when meshopt compression is used, as it can lead to
+                # small differences that are not relevant.
                 if 'KHR_meshopt_compression' in buffer_view['extensions']:
                     buffer_view['extensions']['KHR_meshopt_compression']['byteLength'] = "N/A"
                     buffer_view['extensions']['KHR_meshopt_compression']['byteOffset'] = "N/A"
