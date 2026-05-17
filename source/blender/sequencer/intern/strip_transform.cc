@@ -628,13 +628,12 @@ float2 image_transform_raw_size_get(const Scene *scene, const Strip *strip)
 
     std::unique_lock<Mutex> lock = text_runtime_scoped_lock_get();
     const int font = text_effect_font_init(nullptr, strip, font_flags);
-    const TextVarsRuntime *runtime = text_effect_calc_runtime(
-        strip, font, int2(scene_render_size));
+    TextVarsRuntime runtime;
+    text_effect_update_runtime(*data, runtime, font, int2(scene_render_size));
     BLF_disable(font, font_flags);
 
-    const float2 text_size(float(BLI_rcti_size_x(&runtime->text_boundbox)),
-                           float(BLI_rcti_size_y(&runtime->text_boundbox)));
-    MEM_delete(runtime);
+    const float2 text_size(float(BLI_rcti_size_x(&runtime.text_boundbox)),
+                           float(BLI_rcti_size_y(&runtime.text_boundbox)));
     return text_size;
   }
 

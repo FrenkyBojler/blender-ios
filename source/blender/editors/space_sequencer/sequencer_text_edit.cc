@@ -710,14 +710,14 @@ void SEQUENCER_OT_text_delete(wmOperatorType *ot)
 static bool text_insert(TextVars *data, const char *buf, const size_t buf_len)
 {
   BLI_assert(strlen(buf) == buf_len);
-  const seq::TextVarsRuntime *runtime = data->runtime;
 
   delete_selected_text(data);
 
   size_t needed_size = data->text_len_bytes + buf_len + 1;
   char *new_text = MEM_new_array_uninitialized<char>(needed_size, "text");
 
-  const seq::CharInfo cur_char = character_at_cursor_offset_get(runtime, data->cursor_offset);
+  const seq::CharInfo cur_char = character_at_cursor_offset_get(data->runtime,
+                                                                data->cursor_offset);
   BLI_assert(cur_char.offset >= 0 && cur_char.offset <= data->text_len_bytes);
   std::memcpy(new_text, data->text_ptr, cur_char.offset);
   std::memcpy(new_text + cur_char.offset, buf, buf_len);
@@ -729,6 +729,9 @@ static bool text_insert(TextVars *data, const char *buf, const size_t buf_len)
   data->text_ptr = new_text;
 
   data->cursor_offset += 1;
+
+  text_effect_update_runtime(
+      *data, *data->runtime, data->runtime->font, data->runtime->image_size);
   return true;
 }
 
