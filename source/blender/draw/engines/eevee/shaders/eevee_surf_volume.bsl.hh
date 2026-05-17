@@ -108,19 +108,10 @@ struct SurfVolume {
 
     float3 vP = volume_jitter_to_view(uvw);
     float3 wP = drw_point_view_to_world(vP);
-#if !defined(MAT_GEOM_CURVES) && !defined(MAT_GEOM_POINTCLOUD)
-#  ifdef GRID_ATTRIBUTES
-    g_lP = drw_point_world_to_object(wP);
-#  else
-    g_wP = wP;
-#  endif
-    /* TODO(fclem): This is very dangerous as it requires a reset for each time `attrib_load` is
-     * called. Instead, the right attribute index should be passed to attr_load_* functions. */
-    g_attr_id = 0;
-#endif
+    float3 lP = drw_point_world_to_object(wP);
 
     g_data = init_globals(wP);
-    attrib_load(VolumePoint{0});
+    attrib_load(VolumePoint{lP});
     nodetree_volume();
 
     if (is_volume_object) [[static_branch]] {

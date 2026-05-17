@@ -74,7 +74,7 @@ struct GeomMeshVertIn {
   }
 
   init_globals(true);
-  attrib_load(MeshVertex{0});
+  attrib_load(MeshVertex{vert_in.pos});
 
   interp.P += nodetree_displacement();
 

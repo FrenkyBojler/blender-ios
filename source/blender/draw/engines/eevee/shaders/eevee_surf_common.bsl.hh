@@ -56,7 +56,9 @@ void init_globals_mesh()
 
 void init_globals_curves()
 {
-#if defined(MAT_GEOM_CURVES)
+  auto &interp = interface_get(eevee_geom_iface_info, interp);
+  auto &curve_interp = interface_get(eevee_geom_curves_iface_info, curve_interp);
+  auto &curve_interp_flat = interface_get(eevee_geom_curves_iface_info, curve_interp_flat);
   /* Shade as a cylinder. */
   float cos_theta = curve_interp.time_width / curve_interp.radius;
   float sin_theta = sin_from_cos(cos_theta);
@@ -71,10 +73,9 @@ void init_globals_curves()
   g_data.is_strand = true;
   g_data.hair_diameter = curve_interp.radius * 2.0;
   g_data.hair_strand_id = curve_interp_flat.strand_id;
-#  if defined(USE_BARYCENTRICS) && defined(GPU_FRAGMENT_SHADER)
+#if defined(USE_BARYCENTRICS) && defined(GPU_FRAGMENT_SHADER)
   g_data.barycentric_coords.y = fract(curve_interp.point_id);
   g_data.barycentric_coords.x = 1.0 - g_data.barycentric_coords.y;
-#  endif
 #endif
 }
 
@@ -121,6 +122,7 @@ void init_globals(bool front_face)
 void init_interface()
 {
 #ifdef GPU_VERTEX_SHADER
+  auto &interp = interface_get(eevee_geom_iface_info, interp);
   interp.P = float3(0.0f);
   interp.N = float3(0.0f);
   drw_ResourceID_iface.resource_id = drw_resource_id_raw();
