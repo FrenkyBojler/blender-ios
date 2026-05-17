@@ -726,7 +726,7 @@ void ED_view3d_win_to_vector(const ARegion *region, const float mval[2], float r
     r_out[0] = (2.0f * (mval[0] / region->winx) - 1.0f + rv3d->winmat[2][0]) / rv3d->winmat[0][0];
     r_out[1] = (2.0f * (mval[1] / region->winy) - 1.0f + rv3d->winmat[2][1]) / rv3d->winmat[1][1];
     r_out[2] = -1.0f;
-    mul_transposed_mat3_m4_v3(rv3d->viewmat, r_out);
+    mul_mat3_m4_v3(rv3d->viewinv, r_out);
   }
   else {
     negate_v3_v3(r_out, rv3d->viewinv[2]);
