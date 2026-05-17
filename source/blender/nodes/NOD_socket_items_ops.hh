@@ -4,6 +4,9 @@
 
 #pragma once
 
+#include "BLT_translation.hh"
+
+#include "NOD_rna_define.hh"
 #include "NOD_socket_items.hh"
 
 #include "WM_api.hh"
@@ -16,9 +19,13 @@
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
+#include "RNA_enum_types.hh"
 #include "RNA_prototypes.hh"
 
 #include "ED_node.hh"
+
+#include "UI_interface.hh"
+#include "UI_resources.hh"
 
 #include "DNA_space_types.h"
 
@@ -172,9 +179,25 @@ inline void add_item(wmOperatorType *ot,
   ot->idname = idname;
   ot->description = description;
   ot->poll = editable_node_active_poll<Accessor>;
-  ot->flag = OPTYPE_UNDO;
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  ot->invoke = [](bContext *C, wmOperator *op, const wmEvent *event) {
+    const bool show_dialog = RNA_boolean_get(op->ptr, "show_dialog");
+    if (show_dialog) {
+      return WM_operator_props_popup_confirm_ex(C, op, event, IFACE_("Add Item"));
+    }
+    return op->type->exec(C, op);
+  };
+
+  ot->ui = [](bContext * /*C*/, wmOperator *op) {
+    ui::Layout &layout = *op->layout;
+    if constexpr (Accessor::has_type) {
+      layout.prop(op->ptr, "socket_type", UI_ITEM_NONE, "", ICON_NONE);
+    }
+  };
 
   ot->exec = [](bContext *C, wmOperator *op) -> wmOperatorStatus {
+    const bool show_dialog = RNA_boolean_get(op->ptr, "show_dialog");
     PointerRNA node_ptr = get_active_node_to_operate_on(C, op, Accessor::node_idname);
     if (node_ptr.data == nullptr) {
       return OPERATOR_CANCELLED;
@@ -197,13 +220,22 @@ inline void add_item(wmOperatorType *ot,
         name = Accessor::custom_initial_name(node, name);
       }
       bNodeTree *ntree = reinterpret_cast<bNodeTree *>(node_ptr.owner_id);
+      eNodeSocketDatatype socket_type;
+      if (show_dialog) {
+        socket_type = eNodeSocketDatatype(RNA_enum_get(op->ptr, "socket_type"));
+      }
+      else if (active_item) {
+        socket_type = Accessor::get_socket_type(*active_item);
+      }
+      else {
+        socket_type = Accessor::supports_socket_type(SOCK_GEOMETRY, ntree->type) ? SOCK_GEOMETRY :
+                                                                                   SOCK_FLOAT;
+      }
+
       socket_items::add_item_with_socket_type_and_name<Accessor>(
           *ntree,
           node,
-          active_item ?
-              Accessor::get_socket_type(*active_item) :
-              (Accessor::supports_socket_type(SOCK_GEOMETRY, ntree->type) ? SOCK_GEOMETRY :
-                                                                            SOCK_FLOAT),
+          socket_type,
           /* Empty name so it is based on the type. */
           name.c_str());
     }
@@ -227,6 +259,38 @@ inline void add_item(wmOperatorType *ot,
   };
 
   add_node_identifier_property(ot);
+
+  PropertyRNA *prop;
+  prop = RNA_def_boolean(ot->srna,
+                         "show_dialog",
+                         false,
+                         "Show Dialog",
+                         "Show a dialog to edit the initial properties");
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+
+  if constexpr (Accessor::has_type) {
+    prop = RNA_def_enum(ot->srna,
+                        "socket_type",
+                        rna_enum_node_socket_data_type_items,
+                        SOCK_FLOAT,
+                        "Socket Type",
+                        "Type of the new socket item");
+    RNA_def_property_enum_funcs_runtime(
+        prop,
+        nullptr,
+        nullptr,
+        [](bContext *C, PointerRNA * /*ptr*/, PropertyRNA * /*prop*/, bool *r_free) {
+          *r_free = true;
+          SpaceNode *snode = CTX_wm_space_node(C);
+          return enum_items_filter(rna_enum_node_socket_data_type_items,
+                                   [&](const EnumPropertyItem &item) -> bool {
+                                     return Accessor::supports_socket_type(
+                                         eNodeSocketDatatype(item.value), snode->edittree->type);
+                                   });
+        },
+        nullptr,
+        nullptr);
+  }
 }
 
 enum class MoveDirection {
