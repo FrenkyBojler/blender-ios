@@ -1360,15 +1360,18 @@ void outliner_build_tree(Main *mainvar,
   space_outliner->runtime->tree = ListBaseT<TreeElement>{
       space_outliner->runtime->tree_display->build_tree(source_data)};
 
-  if ((space_outliner->flag & SO_SKIP_SORT_ALPHA) == 0) {
-    outliner_sort(&space_outliner->runtime->tree);
-  }
-  else if ((space_outliner->filter & SO_FILTER_NO_CHILDREN) == 0) {
-    /* We group the children that are in the collection before the ones that are not.
-     * This way we can try to draw them in a different style altogether.
-     * We also have to respect the original order of the elements in case alphabetical
-     * sorting is not enabled. This keep object data and modifiers before its children. */
-    outliner_collections_children_sort(&space_outliner->runtime->tree);
+  switch (space_outliner->sort_method) {
+    case SO_SORT_ALPHA:
+      outliner_sort(&space_outliner->runtime->tree);
+      break;
+
+    case SO_SORT_CUSTOM:
+      outliner_sort_custom(&space_outliner->runtime->tree);
+      break;
+
+    case SO_SORT_TYPE:
+      outliner_sort_type(&space_outliner->runtime->tree);
+      break;
   }
 
   outliner_filter_tree(*mainvar, space_outliner, scene, view_layer);
