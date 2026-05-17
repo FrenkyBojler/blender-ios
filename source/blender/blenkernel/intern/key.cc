@@ -132,7 +132,7 @@ static void shapekey_blend_write(BlendWriter *writer, ID *id, const void *id_add
     }
     writer->write_struct_at_address(&kb, &tmp_kb);
     if (tmp_kb.data != nullptr) {
-      BLO_write_raw(writer, tmp_kb.totelem * key->elemsize, tmp_kb.data);
+      writer->write_raw(tmp_kb.totelem * key->elemsize, tmp_kb.data);
     }
   }
 }
@@ -150,7 +150,8 @@ static void shapekey_blend_read_data(BlendDataReader *reader, ID *id)
   BLO_read_struct(reader, KeyBlock, &key->refkey);
 
   for (KeyBlock &kb : key->block) {
-    BLO_read_data_address(reader, &kb.data);
+    BLO_read_array_and_validate_size(
+        reader, reinterpret_cast<std::byte **>(&kb.data), &kb.totelem, key->elemsize);
 
     /* NOTE: This is endianness-sensitive. */
     /* Keyblock data would need specific endian switching depending of the exact type of data it
@@ -167,37 +168,37 @@ static void shapekey_blend_read_after_liblink(BlendLibReader * /*reader*/, ID *i
 }
 
 IDTypeInfo IDType_ID_KE = {
-    /*id_code*/ Key::id_type,
-    /*id_filter*/ FILTER_ID_KE,
+    .id_code = Key::id_type,
+    .id_filter = FILTER_ID_KE,
     /* Warning! key->from, could be more types in future? */
-    /*dependencies_id_types*/ FILTER_ID_ME | FILTER_ID_CU_LEGACY | FILTER_ID_LT,
-    /*main_listbase_index*/ INDEX_ID_KE,
-    /*struct_size*/ sizeof(Key),
-    /*name*/ "Key",
-    /*name_plural*/ N_("shape_keys"),
-    /*translation_context*/ BLT_I18NCONTEXT_ID_SHAPEKEY,
-    /*flags*/ IDTYPE_FLAGS_NO_LIBLINKING,
-    /*asset_type_info*/ nullptr,
+    .dependencies_id_types = FILTER_ID_ME | FILTER_ID_CU_LEGACY | FILTER_ID_LT,
+    .main_listbase_index = INDEX_ID_KE,
+    .struct_size = sizeof(Key),
+    .name = "Key",
+    .name_plural = N_("shape_keys"),
+    .translation_context = BLT_I18NCONTEXT_ID_SHAPEKEY,
+    .flags = IDTYPE_FLAGS_NO_LIBLINKING,
+    .asset_type_info = nullptr,
 
-    /*init_data*/ nullptr,
-    /*copy_data*/ shapekey_copy_data,
-    /*free_data*/ shapekey_free_data,
-    /*make_local*/ nullptr,
-    /*foreach_id*/ shapekey_foreach_id,
-    /*foreach_cache*/ nullptr,
-    /*foreach_path*/ nullptr,
-    /*foreach_working_space_color*/ nullptr,
+    .init_data = nullptr,
+    .copy_data = shapekey_copy_data,
+    .free_data = shapekey_free_data,
+    .make_local = nullptr,
+    .foreach_id = shapekey_foreach_id,
+    .foreach_cache = nullptr,
+    .foreach_path = nullptr,
+    .foreach_working_space_color = nullptr,
     /* A bit weird, due to shape-keys not being strictly speaking embedded data... But they also
      * share a lot with those (non linkable, only ever used by one owner ID, etc.). */
-    /*owner_pointer_get*/ shapekey_owner_pointer_get,
+    .owner_pointer_get = shapekey_owner_pointer_get,
 
-    /*blend_write*/ shapekey_blend_write,
-    /*blend_read_data*/ shapekey_blend_read_data,
-    /*blend_read_after_liblink*/ shapekey_blend_read_after_liblink,
+    .blend_write = shapekey_blend_write,
+    .blend_read_data = shapekey_blend_read_data,
+    .blend_read_after_liblink = shapekey_blend_read_after_liblink,
 
-    /*blend_read_undo_preserve*/ nullptr,
+    .blend_read_undo_preserve = nullptr,
 
-    /*lib_override_apply_post*/ nullptr,
+    .lib_override_apply_post = nullptr,
 };
 
 #define KEY_MODE_DUMMY 0 /* Use where mode isn't checked for. */
@@ -558,8 +559,8 @@ static char *key_block_get_data(Key *key, KeyBlock *actkb, KeyBlock *kb, char **
 /**
  * Move the point in `r_targets` along the vector of ab by a factor of `weight`.
  *
- * \param start_index points to the x value in the flat float array. Indices of +1 and +2 from this
- * are accessed.
+ * \param start_index: points to the x value in the flat float array.
+ * Indices of +1 and +2 from this are accessed.
  */
 static void add_weighted_vector(
     const int start_index, const float weight, const float *a, const float *b, float *r_target)
@@ -620,8 +621,9 @@ static void copy_key_float3(
 /**
  * Copy the shapekey data of `source` into the output array of `r_target`.
  *
- * \param weights is a float array of size `vertex_count`. It determines how much of `source` is
- * blended into the result. The base for it is the reference key. If this is passed as a nullptr,
+ * \param weights: is a float array of size `vertex_count`.
+ * It determines how much of `source` is blended into the result.
+ * The base for it is the reference key. If this is passed as a nullptr,
  * `source` is copied at full weight.
  */
 static void copy_key_float3_weighted(const int vertex_count,
@@ -668,9 +670,9 @@ static void copy_key_float3_weighted(const int vertex_count,
 /**
  * Shapekey evaluation for data of 3 floats (Vector3).
  *
- * \param target_data is the float array into which the result of the evaluation is written.
- * \param per_keyblock_weights is a 2d array which gives a per KeyBlock per Vertex weight. Can be a
- * nullptr.
+ * \param per_keyblock_weights: is a 2d array which gives a per KeyBlock per Vertex weight. Can be
+ * \param target_data: is the float array into which the result of the evaluation is written.
+ * a nullptr.
  */
 static void key_evaluate_relative_float3(Key *key,
                                          KeyBlock *active_keyblock,

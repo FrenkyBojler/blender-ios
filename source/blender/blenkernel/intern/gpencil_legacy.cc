@@ -61,6 +61,10 @@
 
 namespace blender {
 
+/* -------------------------------------------------------------------- */
+/** \name Grease Pencil Data Block
+ * \{ */
+
 static CLG_LogRef LOG = {"geom.gpencil"};
 
 static void greasepencil_copy_data(Main * /*bmain*/,
@@ -155,7 +159,7 @@ static void greasepencil_blend_write(BlendWriter *writer, ID *id, const void *id
 
   BKE_defbase_blend_write(writer, &gpd->vertex_group_names);
 
-  BLO_write_pointer_array(writer, gpd->totcol, gpd->mat);
+  writer->write_pointer_array(gpd->totcol, gpd->mat);
 
   /* write grease-pencil layers to file */
   writer->write_struct_list(&gpd->layers);
@@ -213,7 +217,7 @@ void BKE_gpencil_blend_read_data(BlendDataReader *reader, bGPdata *gpd)
   BLO_read_struct_list(reader, bDeformGroup, &gpd->vertex_group_names);
 
   /* Materials. */
-  BLO_read_pointer_array(reader, gpd->totcol, reinterpret_cast<void **>(&gpd->mat));
+  BLO_read_pointer_array_and_validate_size(reader, &gpd->mat, &gpd->totcol);
 
   /* Relink layers. */
   BLO_read_struct_list(reader, bGPDlayer, &gpd->layers);
@@ -235,22 +239,21 @@ void BKE_gpencil_blend_read_data(BlendDataReader *reader, bGPdata *gpd)
 
       for (bGPDstroke &gps : gpf.strokes) {
         /* Relink stroke points array. */
-        BLO_read_struct_array(reader, bGPDspoint, gps.totpoints, &gps.points);
+        BLO_read_array_and_validate_size(reader, &gps.points, &gps.totpoints);
         /* Relink geometry. */
-        BLO_read_struct_array(reader, bGPDtriangle, gps.tot_triangles, &gps.triangles);
+        BLO_read_array_and_validate_size(reader, &gps.triangles, &gps.tot_triangles);
 
         /* Relink stroke edit curve. */
         BLO_read_struct(reader, bGPDcurve, &gps.editcurve);
         if (gps.editcurve != nullptr) {
           /* Relink curve point array. */
           bGPDcurve *gpc = gps.editcurve;
-          BLO_read_struct_array(
-              reader, bGPDcurve_point, gpc->tot_curve_points, &gps.editcurve->curve_points);
+          BLO_read_array_and_validate_size(
+              reader, &gps.editcurve->curve_points, &gpc->tot_curve_points);
         }
 
         /* Relink weight data. */
-        if (gps.dvert) {
-          BLO_read_struct_array(reader, MDeformVert, gps.totpoints, &gps.dvert);
+        if (gps.dvert && BLO_read_array(reader, &gps.dvert, gps.totpoints)) {
           BKE_defvert_blend_read(reader, gps.totpoints, gps.dvert);
         }
       }
@@ -265,34 +268,34 @@ static void greasepencil_blend_read_data(BlendDataReader *reader, ID *id)
 }
 
 IDTypeInfo IDType_ID_GD_LEGACY = {
-    /*id_code*/ bGPdata::id_type,
-    /*id_filter*/ FILTER_ID_GD_LEGACY,
-    /*dependencies_id_types*/ FILTER_ID_MA,
-    /*main_listbase_index*/ INDEX_ID_GD_LEGACY,
-    /*struct_size*/ sizeof(bGPdata),
-    /*name*/ "Annotation",
-    /*name_plural*/ N_("annotations"),
-    /*translation_context*/ BLT_I18NCONTEXT_ID_GPENCIL,
-    /*flags*/ IDTYPE_FLAGS_APPEND_IS_REUSABLE,
-    /*asset_type_info*/ nullptr,
+    .id_code = bGPdata::id_type,
+    .id_filter = FILTER_ID_GD_LEGACY,
+    .dependencies_id_types = FILTER_ID_MA,
+    .main_listbase_index = INDEX_ID_GD_LEGACY,
+    .struct_size = sizeof(bGPdata),
+    .name = "Annotation",
+    .name_plural = N_("annotations"),
+    .translation_context = BLT_I18NCONTEXT_ID_GPENCIL,
+    .flags = IDTYPE_FLAGS_APPEND_IS_REUSABLE,
+    .asset_type_info = nullptr,
 
-    /*init_data*/ nullptr,
-    /*copy_data*/ greasepencil_copy_data,
-    /*free_data*/ greasepencil_free_data,
-    /*make_local*/ nullptr,
-    /*foreach_id*/ greasepencil_foreach_id,
-    /*foreach_cache*/ nullptr,
-    /*foreach_path*/ nullptr,
-    /*foreach_working_space_color*/ nullptr,
-    /*owner_pointer_get*/ nullptr,
+    .init_data = nullptr,
+    .copy_data = greasepencil_copy_data,
+    .free_data = greasepencil_free_data,
+    .make_local = nullptr,
+    .foreach_id = greasepencil_foreach_id,
+    .foreach_cache = nullptr,
+    .foreach_path = nullptr,
+    .foreach_working_space_color = nullptr,
+    .owner_pointer_get = nullptr,
 
-    /*blend_write*/ greasepencil_blend_write,
-    /*blend_read_data*/ greasepencil_blend_read_data,
-    /*blend_read_after_liblink*/ nullptr,
+    .blend_write = greasepencil_blend_write,
+    .blend_read_data = greasepencil_blend_read_data,
+    .blend_read_after_liblink = nullptr,
 
-    /*blend_read_undo_preserve*/ nullptr,
+    .blend_read_undo_preserve = nullptr,
 
-    /*lib_override_apply_post*/ nullptr,
+    .lib_override_apply_post = nullptr,
 };
 
 /* ************************************************** */

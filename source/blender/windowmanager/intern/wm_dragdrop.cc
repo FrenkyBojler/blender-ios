@@ -9,6 +9,7 @@
  */
 
 #include <cstring>
+#include <functional>
 
 #include "AS_asset_representation.hh"
 
@@ -36,6 +37,7 @@
 #include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
+#include "BKE_node_tree_interface.hh"
 #include "BKE_preview_image.hh"
 #include "BKE_screen.hh"
 
@@ -95,6 +97,18 @@ struct wmDropBoxMap {
   char idname[KMAP_MAX_NAME];
 };
 
+struct wmDragPrefetchHandler {
+  eWM_DragDataType drag_type;
+
+  std::function<void(bContext &C, wmDrag &drag)> on_drag_start;
+};
+
+static Vector<wmDragPrefetchHandler> &global_prefetch_handlers()
+{
+  static Vector<wmDragPrefetchHandler> storage;
+  return storage;
+}
+
 ListBaseT<wmDropBox> *WM_dropboxmap_find(const char *idname, int spaceid, int regionid)
 {
   for (wmDropBoxMap &dm : dropboxes) {
@@ -144,6 +158,17 @@ wmDropBox *WM_dropbox_add(ListBaseT<wmDropBox> *lb,
   BLI_addtail(lb, drop);
 
   return drop;
+}
+
+void WM_drag_global_prefetch_handler_add(
+    const eWM_DragDataType drag_type,
+    const std::function<void(bContext &C, wmDrag &drag)> on_drag_start)
+{
+  wmDragPrefetchHandler handler{};
+  handler.drag_type = drag_type;
+  handler.on_drag_start = on_drag_start;
+
+  global_prefetch_handlers().append(handler);
 }
 
 static void wm_dropbox_item_update_ot(wmDropBox *drop)
@@ -231,6 +256,12 @@ void wm_dropbox_free()
 
 static void wm_dropbox_invoke(bContext *C, wmDrag *drag)
 {
+  for (wmDragPrefetchHandler &handler : global_prefetch_handlers()) {
+    if (handler.drag_type == drag->type) {
+      handler.on_drag_start(*C, *drag);
+    }
+  }
+
   wmWindowManager *wm = CTX_wm_manager(C);
 
   /* Create a bitmap flag matrix of all currently visible region and area types.
@@ -327,12 +358,24 @@ void WM_event_start_drag(bContext *C, int icon, eWM_DragDataType type, void *poi
   WM_event_start_prepared_drag(C, drag);
 }
 
+static void wm_dragdrop_free_timer(wmWindowManager *wm, wmWindow *win)
+{
+  for (wmDrag &drag : wm->runtime->drags) {
+    if (wmDropBox *dropbox = drag.drop_state.active_dropbox) {
+      WM_event_timer_remove(wm, win, dropbox->timer);
+      dropbox->timer = nullptr;
+    }
+  }
+}
+
 void wm_drags_exit(wmWindowManager *wm, wmWindow *win)
 {
   /* Turn off modal cursor for all windows. */
   for (wmWindow &win : wm->windows) {
     WM_cursor_modal_restore(&win);
   }
+
+  wm_dragdrop_free_timer(wm, win);
 
   /* Active area should always redraw, even if canceled. */
   int event_xy_target[2];
@@ -416,6 +459,12 @@ void WM_drag_data_free(eWM_DragDataType dragtype, void *poin)
     case WM_DRAG_STRING: {
       std::string *str = static_cast<std::string *>(poin);
       MEM_delete(str);
+      break;
+    }
+    case WM_DRAG_NODE_TREE_INTERFACE: {
+      bke::node_interface::bNodeTreeInterfaceItemReference *item_reference =
+          static_cast<bke::node_interface::bNodeTreeInterfaceItemReference *>(poin);
+      bke::node_interface::item_reference_free(item_reference);
       break;
     }
     default:
@@ -508,12 +557,57 @@ static wmDropBox *dropbox_active(bContext *C,
   return nullptr;
 }
 
+static bool has_single_asset_drag(const wmWindowManager &wm)
+{
+  for (const wmDrag &drag : wm.runtime->drags) {
+    if (drag.type == WM_DRAG_ASSET) {
+      return true;
+    }
+  }
+  return false;
+}
+
+static bool drag_global_poll(const bContext *C,
+                             const wmDrag *drag,
+                             std::string *r_status_info,
+                             std::string *r_disabled_info)
+{
+  if (wmDragAsset *asset_data = WM_drag_get_asset_data(drag, 0)) {
+    if (asset_data->asset->is_online()) {
+      *r_status_info = RPT_("Downloading asset...");
+      return false;
+    }
+  }
+
+  if (!wm_drag_asset_path_exists(drag).value_or(true)) {
+    if ((drag->type == WM_DRAG_ASSET_LIST) && has_single_asset_drag(*CTX_wm_manager(C))) {
+      /* Return false without displaying a message. The "Asset not found" message below tends to
+       * show up twice when both #WM_DRAG_ASSET and #WM_DRAG_ASSET_LIST are present. Skip the check
+       * for the former if the latter exists. */
+      return false;
+    }
+
+    *r_disabled_info = RPT_("Asset not found");
+    return false;
+  }
+
+  return true;
+}
+
 /* Return active operator tooltip/name when mouse is in box. */
 static wmDropBox *wm_dropbox_active(bContext *C, wmDrag *drag, const wmEvent *event)
 {
-  /* Always do this check for asset dragging (as if it was in every poll). */
-  if (!wm_drag_asset_path_exists(drag).value_or(true)) {
-    drag->drop_state.disabled_info = RPT_("Asset not found");
+  drag->drop_state.disabled_info = std::nullopt;
+
+  std::string disabled_info;
+  /* The red of the `disabled_info` looks scary. Use this instead for non-error conditions, it will
+   * show in the normal text color. */
+  std::string status_info;
+  /* Always do these checks for dragging (as if they were in every poll). */
+  if (!drag_global_poll(C, drag, &status_info, &disabled_info)) {
+    drag->drop_state.disabled_info = disabled_info;
+    /* Just use the tooltip for status info. There's no drop-box active to fill it anyway. */
+    drag->drop_state.tooltip = status_info;
     return nullptr;
   }
 
@@ -522,10 +616,8 @@ static wmDropBox *wm_dropbox_active(bContext *C, wmDrag *drag, const wmEvent *ev
   ScrArea *area = BKE_screen_find_area_xy(screen, SPACE_TYPE_ANY, event->xy);
   wmDropBox *drop = nullptr;
 
-  drag->drop_state.disabled_info = std::nullopt;
-
   if (area) {
-    ARegion *region = BKE_area_find_region_xy(area, RGN_TYPE_ANY, event->xy);
+    ARegion *region = ED_area_find_region_xy_visual(area, RGN_TYPE_ANY, event->xy);
     if (region) {
       drop = dropbox_active(C, &region->runtime->handlers, drag, event);
     }
@@ -563,9 +655,14 @@ static void wm_drop_update_active(bContext *C, wmDrag *drag, const wmEvent *even
   wmDropBox *drop_prev = drag->drop_state.active_dropbox;
   wmDropBox *drop = wm_dropbox_active(C, drag, event);
   if (drop != drop_prev) {
-    if (drop_prev && drop_prev->on_exit) {
-      drop_prev->on_exit(drop_prev, drag);
-      BLI_assert(drop_prev->draw_data == nullptr);
+    if (drop_prev) {
+      /* Remove timer if any when exiting the dropbox. */
+      WM_event_timer_remove(CTX_wm_manager(C), nullptr, drop_prev->timer);
+      drop_prev->timer = nullptr;
+      if (drop_prev->on_exit) {
+        drop_prev->on_exit(drop_prev, drag);
+        BLI_assert(drop_prev->draw_data == nullptr);
+      }
     }
     if (drop && drop->on_enter) {
       drop->on_enter(drop, drag);
@@ -603,22 +700,56 @@ void wm_drop_end(bContext *C, wmDrag * /*drag*/, wmDropBox * /*drop*/)
   CTX_store_set(C, nullptr);
 }
 
-void wm_drags_check_ops(bContext *C, const wmEvent *event)
+void wm_drags_handle_events(bContext *C, const wmEvent *event)
 {
-  wmWindowManager *wm = CTX_wm_manager(C);
+  if (!ELEM(event->type, TIMER, MOUSEMOVE, EVT_DROP)) {
+    return;
+  }
+  const wmWindowManager *wm = CTX_wm_manager(C);
+  const ARegion *region = CTX_wm_region(C);
+
+  /* Make sure the timer event belongs to an active dropbox in the currently handled region, skip
+   * handling this event otherwise. */
+  {
+    if (event->type == TIMER) {
+      bool has_drag_timer = false;
+
+      for (const wmDrag &drag : wm->runtime->drags) {
+        if (drag.drop_state.active_dropbox &&
+            (event->customdata == drag.drop_state.active_dropbox->timer) &&
+            (region == drag.drop_state.region_from))
+        {
+          has_drag_timer = true;
+        }
+      }
+      if (!has_drag_timer) {
+        return;
+      }
+    }
+  }
 
   bool any_active = false;
   for (wmDrag &drag : wm->runtime->drags) {
-    wm_drop_update_active(C, &drag, event);
+    switch (event->type) {
+      case MOUSEMOVE:
+      case EVT_DROP:
+        wm_drop_update_active(C, &drag, event);
+        break;
+      default:
+        break;
+    }
 
-    if (drag.drop_state.active_dropbox) {
+    if (wmDropBox *dropbox = drag.drop_state.active_dropbox) {
       any_active = true;
+      if (dropbox->on_event_while_hover) {
+        dropbox->on_event_while_hover(C, *dropbox, event);
+      }
     }
   }
 
   /* Change the cursor to display that dropping isn't possible here. But only if there is something
    * being dragged actually. Cursor will be restored in #wm_drags_exit(). */
-  if (!BLI_listbase_is_empty(&wm->runtime->drags)) {
+  if (!BLI_listbase_is_empty(&wm->runtime->drags) && ELEM(event->type, MOUSEMOVE, EVT_DROP)) {
     WM_cursor_modal_set(CTX_wm_window(C), any_active ? WM_CURSOR_DEFAULT : WM_CURSOR_STOP);
   }
 }
@@ -1097,20 +1228,17 @@ static void wm_drag_draw_icon(bContext * /*C*/, wmWindow * /*win*/, wmDrag *drag
     y = xy[1] - (wm_drag_imbuf_icon_height_get(drag) / 2);
 
     const float col[4] = {1.0f, 1.0f, 1.0f, 0.65f}; /* This blends texture. */
-    IMMDrawPixelsTexState state = immDrawPixelsTexSetup(GPU_SHADER_3D_IMAGE_COLOR);
-    immDrawPixelsTexTiled_scaling(&state,
-                                  x,
-                                  y,
-                                  drag->imb->x,
-                                  drag->imb->y,
-                                  gpu::TextureFormat::UNORM_8_8_8_8,
-                                  false,
-                                  drag->imb->byte_buffer.data,
-                                  drag->imbuf_scale,
-                                  drag->imbuf_scale,
-                                  1.0f,
-                                  1.0f,
-                                  col);
+    PixelBitmapDrawer drawer(GPU_SHADER_3D_IMAGE_COLOR);
+    drawer.draw(x,
+                y,
+                drag->imb->x,
+                drag->imb->y,
+                gpu::TextureFormat::UNORM_8_8_8_8,
+                false,
+                drag->imb->byte_data(),
+                drag->imbuf_scale,
+                drag->imbuf_scale,
+                col);
   }
   else if (drag->preview_icon_id) {
     const int size = wm_drag_preview_icon_size_get();

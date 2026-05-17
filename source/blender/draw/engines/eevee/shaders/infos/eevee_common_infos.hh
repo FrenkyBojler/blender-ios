@@ -19,9 +19,7 @@
 #ifdef GLSL_CPP_STUBS
 #  define EEVEE_SAMPLING_DATA
 #  define MAT_CLIP_PLANE
-#  define PLANAR_PROBES
 #  define MAT_RENDER_PASS_SUPPORT
-#  define SHADOW_READ_ATOMIC
 #endif
 
 #include "eevee_defines.hh"
@@ -59,7 +57,6 @@ IMAGE(VOLUME_PROP_PHASE_WEIGHT_IMG_SLOT, SFLOAT_16, read, image3D, in_phase_weig
 GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(eevee_gbuffer_data)
-DEFINE("GBUFFER_LOAD")
 SAMPLER(GBUF_HEADER_TEX_SLOT, usampler2DArray, gbuf_header_tx)
 SAMPLER(GBUF_CLOSURE_TEX_SLOT, sampler2DArray, gbuf_closure_tx)
 SAMPLER(GBUF_NORMAL_TEX_SLOT, sampler2DArray, gbuf_normal_tx)

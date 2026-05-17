@@ -18,6 +18,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_path_utils.hh"
+#include "BLI_string.h"
 #include "BLI_string_utf8.h"
 
 #include "DNA_object_types.h"
@@ -753,7 +754,7 @@ static GreasePencil *try_load_grease_pencil(const DictionaryValue &io_geometry,
   for (const int layer_i : IndexRange(layers_num)) {
     greasepencil::Layer &layer = grease_pencil->layer(layer_i);
     layer.opacity = layer_opacities[layer_i];
-    layer.blend_mode = layer_blend_modes[layer_i];
+    layer.blend_mode = GreasePencilLayerBlendMode(layer_blend_modes[layer_i]);
     layer.set_local_transform(layer_transforms[layer_i]);
   }
 
@@ -832,6 +833,18 @@ static Mesh *try_load_mesh(const DictionaryValue &io_geometry,
     }
   }
 
+  if (const std::optional<StringRefNull> default_uv_map_name = io_mesh->lookup_str(
+          "default_uv_map_name"))
+  {
+    mesh->uv_maps_default_set(*default_uv_map_name);
+  }
+  if (const std::optional<StringRefNull> default_color_attribute = io_mesh->lookup_str(
+          "default_color_name"))
+  {
+    mesh->default_color_attribute = BLI_strdupn(default_color_attribute->data(),
+                                                default_color_attribute->size());
+  }
+
   return mesh;
 }
 
@@ -860,8 +873,7 @@ static std::unique_ptr<Instances> try_load_instances(const DictionaryValue &io_g
     return nullptr;
   }
 
-  std::unique_ptr<Instances> instances = std::make_unique<Instances>();
-  instances->resize(num_instances);
+  std::unique_ptr<Instances> instances = std::make_unique<Instances>(num_instances);
 
   for (const auto &io_reference_value : io_references->elements()) {
     const DictionaryValue *io_reference = io_reference_value->as_dictionary_value();
@@ -1091,6 +1103,15 @@ static std::shared_ptr<DictionaryValue> serialize_geometry_set(const GeometrySet
       }
     }
 
+    const StringRef default_uv_map_name = mesh.default_uv_map_name();
+    if (!default_uv_map_name.is_empty()) {
+      io_mesh->append_str("default_uv_map_name", default_uv_map_name);
+    }
+    const StringRef default_color_attribute = mesh.default_color_attribute;
+    if (!default_color_attribute.is_empty()) {
+      io_mesh->append_str("default_color_name", default_color_attribute);
+    }
+
     auto io_attributes = serialize_attributes(mesh.attributes(), blob_writer, blob_sharing, {});
     io_mesh->append("attributes", io_attributes);
   }
@@ -1139,7 +1160,7 @@ static std::shared_ptr<DictionaryValue> serialize_geometry_set(const GeometrySet
       }
 
       layer_opacities.append(layer->opacity);
-      layer_blend_modes.append(layer->blend_mode);
+      layer_blend_modes.append(int8_t(layer->blend_mode));
       layer_transforms.append(layer->local_transform());
     }
 
@@ -1246,6 +1267,10 @@ static std::shared_ptr<io::serialize::Value> serialize_primitive_value(
     case CD_PROP_FLOAT3: {
       const float3 value = *static_cast<const float3 *>(value_ptr);
       return serialize_float_array({&value.x, 3});
+    }
+    case CD_PROP_FLOAT4: {
+      const float4 value = *static_cast<const float4 *>(value_ptr);
+      return serialize_float_array({&value.x, 4});
     }
     case CD_PROP_BOOL: {
       const bool value = *static_cast<const bool *>(value_ptr);
@@ -1371,6 +1396,9 @@ template<typename T>
     case CD_PROP_FLOAT3: {
       return deserialize_float_array(io_value, {static_cast<float *>(r_value), 3});
     }
+    case CD_PROP_FLOAT4: {
+      return deserialize_float_array(io_value, {static_cast<float *>(r_value), 4});
+    }
     case CD_PROP_BOOL: {
       if (const io::serialize::BooleanValue *io_value_boolean = io_value.as_boolean_value()) {
         *static_cast<bool *>(r_value) = io_value_boolean->value();
@@ -1438,8 +1466,8 @@ template<typename T>
     if (!value) {
       return false;
     }
-    r_bake_item.items.append(
-        BundleBakeItem::Item{*key, BundleBakeItem::SocketValue{*socket_idname, std::move(value)}});
+    r_bake_item.items.append(BundleBakeItem::Item{
+        UString(*key), BundleBakeItem::SocketValue{*socket_idname, std::move(value)}});
   }
   return true;
 }
@@ -1494,9 +1522,11 @@ static void serialize_bake_item(const BakeItem &item,
     }
   }
   else if (const auto *primitive_state_item = dynamic_cast<const PrimitiveBakeItem *>(&item)) {
-    const eCustomDataType data_type = cpp_type_to_custom_data_type(primitive_state_item->type());
-    r_io_item.append_str("type", get_data_type_io_name(data_type));
-    auto io_data = serialize_primitive_value(data_type, primitive_state_item->value());
+    const std::optional<eCustomDataType> data_type = cpp_type_to_custom_data_type(
+        primitive_state_item->type());
+    BLI_assert(data_type);
+    r_io_item.append_str("type", get_data_type_io_name(*data_type));
+    auto io_data = serialize_primitive_value(*data_type, primitive_state_item->value());
     r_io_item.append("data", std::move(io_data));
   }
   else if (const auto *bundle_state_item = dynamic_cast<const BundleBakeItem *>(&item)) {
@@ -1505,7 +1535,7 @@ static void serialize_bake_item(const BakeItem &item,
     for (const BundleBakeItem::Item &item : bundle_state_item->items) {
       if (const auto *socket_value = std::get_if<BundleBakeItem::SocketValue>(&item.value)) {
         DictionaryValue &io_bundle_item = *io_items.append_dict();
-        io_bundle_item.append_str("key", item.key);
+        io_bundle_item.append_str("key", item.key.string());
         io_bundle_item.append_str("socket_idname", socket_value->socket_idname);
         io::serialize::DictionaryValue &io_bundle_item_value = *io_bundle_item.append_dict(
             "value");
@@ -1515,21 +1545,24 @@ static void serialize_bake_item(const BakeItem &item,
   }
   else if (const auto *list_state_item = dynamic_cast<const ListBakeItem *>(&item)) {
     r_io_item.append_str("type", "LIST");
-    if (const nodes::ListPtr *simple_list = std::get_if<nodes::ListPtr>(&list_state_item->value)) {
+    if (const nodes::GListPtr *simple_list = std::get_if<nodes::GListPtr>(&list_state_item->value))
+    {
       if (*simple_list) {
-        const nodes::List &list = **simple_list;
+        const nodes::GList &list = **simple_list;
         if (list.cpp_type() == CPPType::get<std::string>()) {
           /* TODO Not supported yet, can't be constructed by users. */
           BLI_assert_unreachable();
         }
         else {
-          const eCustomDataType data_type = cpp_type_to_custom_data_type(list.cpp_type());
-          r_io_item.append_str("item_type", get_data_type_io_name(data_type));
+          const std::optional<eCustomDataType> data_type = cpp_type_to_custom_data_type(
+              list.cpp_type());
+          BLI_assert(data_type);
+          r_io_item.append_str("item_type", get_data_type_io_name(*data_type));
           r_io_item.append_int("num_items", list.size());
-          if (const auto *single_data = std::get_if<nodes::List::SingleData>(&list.data())) {
-            r_io_item.append("value", serialize_primitive_value(data_type, single_data->value));
+          if (const auto *single_data = std::get_if<nodes::GList::SingleData>(&list.data())) {
+            r_io_item.append("value", serialize_primitive_value(*data_type, single_data->value));
           }
-          else if (const auto *array_data = std::get_if<nodes::List::ArrayData>(&list.data())) {
+          else if (const auto *array_data = std::get_if<nodes::GList::ArrayData>(&list.data())) {
             const GSpan array_span = {list.cpp_type(), array_data->data, list.size()};
             r_io_item.append(
                 "data",
@@ -1656,8 +1689,8 @@ static std::unique_ptr<BakeItem> deserialize_bake_item(const DictionaryValue &io
         if (!deserialize_primitive_value(**io_value, *data_type, buffer)) {
           return {};
         }
-        auto list = nodes::List::create(
-            *cpp_type, nodes::List::SingleData::ForValue(GPointer{cpp_type, buffer}), *num_items);
+        auto list = nodes::GList::create(
+            *cpp_type, nodes::GList::SingleData::ForValue(GPointer{cpp_type, buffer}), *num_items);
         return std::make_unique<ListBakeItem>(std::move(list));
       }
       if (const io::serialize::DictionaryValue *io_data = io_item.lookup_dict("data")) {
@@ -1667,11 +1700,11 @@ static std::unique_ptr<BakeItem> deserialize_bake_item(const DictionaryValue &io
         {
           return {};
         }
-        nodes::List::ArrayData array_data;
+        nodes::GList::ArrayData array_data;
         const auto *sharing_info = new ImplicitSharedValue<GArray<>>(std::move(buffer));
         array_data.data = const_cast<void *>(sharing_info->data.data());
         array_data.sharing_info = ImplicitSharingPtr<>(sharing_info);
-        auto list = nodes::List::create(*cpp_type, std::move(array_data), *num_items);
+        auto list = nodes::GList::create(*cpp_type, std::move(array_data), *num_items);
         return std::make_unique<ListBakeItem>(std::move(list));
       }
     }

@@ -8,10 +8,6 @@
  * Interactive editmesh knife tool.
  */
 
-#ifdef _MSC_VER
-#  define _USE_MATH_DEFINES
-#endif
-
 #include <fmt/format.h>
 
 #include "MEM_guardedalloc.h"
@@ -1091,13 +1087,15 @@ static void knife_update_header(bContext *C, wmOperator *op, KnifeTool_OpData *k
           kcd->angle_snapping_increment :
           KNIFE_DEFAULT_ANGLE_SNAPPING_INCREMENT,
       kcd->angle_snapping ?
-          ((kcd->angle_snapping_mode == KNF_CONSTRAIN_ANGLE_MODE_SCREEN) ? "Screen" : "Relative") :
-          "OFF", /* TODO: Can this be simplified? */
+          ((kcd->angle_snapping_mode == KNF_CONSTRAIN_ANGLE_MODE_SCREEN) ? IFACE_("Screen") :
+                                                                           IFACE_("Relative")) :
+          IFACE_("Off"), /* TODO: Can this be simplified? */
       (kcd->angle_snapping_mode == KNF_CONSTRAIN_ANGLE_MODE_RELATIVE) ? " - " : "",
       (kcd->angle_snapping_mode == KNF_CONSTRAIN_ANGLE_MODE_RELATIVE) ?
           get_modal_key_str(KNF_MODAL_CYCLE_ANGLE_SNAP_EDGE) :
           "",
-      (kcd->angle_snapping_mode == KNF_CONSTRAIN_ANGLE_MODE_RELATIVE) ? ": Cycle Edge" : "");
+      (kcd->angle_snapping_mode == KNF_CONSTRAIN_ANGLE_MODE_RELATIVE) ? IFACE_(": Cycle Edge") :
+                                                                        "");
 
   status.opmodal(angle, op->type, KNF_MODAL_ANGLE_SNAP_TOGGLE);
 }
@@ -2997,9 +2995,13 @@ static void knife_find_line_hits(KnifeTool_OpData *kcd)
     }
   }
 
-  /* Now face hits; don't add if a vertex or edge in face should have hit. */
-  const bool use_hit_prev = (kcd->prev.vert == nullptr) && (kcd->prev.edge == nullptr);
-  const bool use_hit_curr = (kcd->curr.vert == nullptr) && (kcd->curr.edge == nullptr) &&
+  /* Now face hits; don't add if a vertex or edge in face should have hit, except
+   * in the case where cut through is enabled since skipping face hits at vertex or edge
+   * cuts would result in incomplete cuts. See #158104. */
+  const bool use_hit_prev = (kcd->prev.vert == nullptr && kcd->prev.edge == nullptr) ||
+                            kcd->cut_through;
+  const bool use_hit_curr = ((kcd->curr.vert == nullptr && kcd->curr.edge == nullptr) ||
+                             kcd->cut_through) &&
                             !kcd->is_drag_hold;
   if (use_hit_prev || use_hit_curr) {
     float3 v3, v4;
@@ -3598,8 +3600,16 @@ static void knife_constrain_axis(const KnifeTool_OpData *kcd,
                                                        kcd->constrain_axis_mode - 1;
     const int pivot_point = scene->toolsettings->transform_pivot_point;
     float mat[3][3];
-    ed::transform::calc_orientation_from_type_ex(
-        scene, view_layer, kcd->vc.v3d, rv3d, obedit, obedit, orientation_type, pivot_point, mat);
+    ed::transform::calc_orientation_from_type_ex(*kcd->vc.bmain,
+                                                 scene,
+                                                 view_layer,
+                                                 kcd->vc.v3d,
+                                                 rv3d,
+                                                 obedit,
+                                                 obedit,
+                                                 orientation_type,
+                                                 pivot_point,
+                                                 mat);
 
     constrain_dir = mat[kcd->constrain_axis - 1];
   }
@@ -4576,17 +4586,17 @@ static wmOperatorStatus knifetool_invoke(bContext *C, wmOperator *op, const wmEv
   /* alloc new customdata */
   KnifeTool_OpData *kcd = MEM_new<KnifeTool_OpData>(__func__);
   op->customdata = kcd;
-  knifetool_init(
-      &vc,
-      kcd,
-      BKE_view_layer_array_from_objects_in_edit_mode_unique_data(vc.scene, vc.view_layer, vc.v3d),
-      only_select,
-      cut_through,
-      xray,
-      visible_measurements,
-      angle_snapping,
-      angle_snapping_increment,
-      true);
+  knifetool_init(&vc,
+                 kcd,
+                 BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
+                     *vc.bmain, vc.scene, vc.view_layer, vc.v3d),
+                 only_select,
+                 cut_through,
+                 xray,
+                 visible_measurements,
+                 angle_snapping,
+                 angle_snapping_increment,
+                 true);
 
   if (only_select) {
     bool faces_selected = false;
@@ -4675,12 +4685,14 @@ void MESH_OT_knife_tool(wmOperatorType *ot)
   RNA_def_boolean(ot->srna, "only_selected", false, "Only Selected", "Only cut selected geometry");
   RNA_def_boolean(ot->srna, "xray", true, "X-Ray", "Show cuts hidden by geometry");
 
-  RNA_def_enum(ot->srna,
-               "visible_measurements",
-               visible_measurements_items,
-               KNF_MEASUREMENT_NONE,
-               "Measurements",
-               "Visible distance and angle measurements");
+  prop = RNA_def_enum(ot->srna,
+                      "visible_measurements",
+                      visible_measurements_items,
+                      KNF_MEASUREMENT_NONE,
+                      "Measurements",
+                      "Visible distance and angle measurements");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_MESH);
+
   prop = RNA_def_enum(ot->srna,
                       "angle_snapping",
                       angle_snapping_items,

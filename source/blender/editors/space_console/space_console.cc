@@ -325,8 +325,7 @@ static void console_blend_read_data(BlendDataReader *reader, SpaceLink *sl)
    * from left to right.  the right-most expression sets the result of the comma
    * expression as a whole. */
   for (ConsoleLine &cl : sconsole->history.items_mutable()) {
-    BLO_read_char_array(reader, size_t(cl.len) + 1, &cl.line);
-    if (cl.line) {
+    if (BLO_read_array(reader, &cl.line, size_t(cl.len) + 1) && cl.line) {
       /* The allocated length is not written, so reset here. */
       cl.len_alloc = cl.len + 1;
     }
@@ -344,7 +343,7 @@ static void console_space_blend_write(BlendWriter *writer, SpaceLink *sl)
   for (ConsoleLine &cl : con->history) {
     /* 'len_alloc' is invalid on write, set from 'len' on read */
     writer->write_struct(&cl);
-    BLO_write_char_array(writer, size_t(cl.len) + 1, cl.line);
+    writer->write_char_array(size_t(cl.len) + 1, cl.line);
   }
   writer->write_struct_cast<SpaceConsole>(sl);
 }

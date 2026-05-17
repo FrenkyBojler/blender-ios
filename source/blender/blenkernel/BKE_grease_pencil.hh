@@ -63,7 +63,7 @@ struct FillCache {
    * used as group IDs (arbitrary integers, not indices!).
    *
    * The #fill_map is an index mapping where groups are the consecutive indices of curves in each
-   * fill (ordered by the first occurance of the fill ID).
+   * fill (ordered by the first occurrence of the fill ID).
    * The #fill_offsets are offset indices into #fill_map where each range represents a fill.
    *
    * For example:
@@ -74,7 +74,7 @@ struct FillCache {
    * fill_map:     2 4 6 5 7 8
    * fill_offsets: 0     3 4   6
    * fills:        _____ _ ___
-   *               a     c b           (ordered by the first occurance in `fill_id`)
+   *               a     c b           (ordered by the first occurrence in `fill_id`)
    */
   Vector<int> fill_map;
   Vector<int> fill_offsets;
@@ -997,7 +997,7 @@ class GreasePencilRuntime {
    * Temporarily enable the eraser. Used by the draw tool.
    */
   bool temp_use_eraser = false;
-  float temp_eraser_size = 0.0f;
+  float temp_eraser_radius = 0.0f;
 
   std::unique_ptr<bake::BakeMaterialsList> bake_materials;
 
@@ -1066,7 +1066,7 @@ inline const bke::greasepencil::DrawingReference &GreasePencilDrawingReference::
 
 inline GreasePencilFrame GreasePencilFrame::end()
 {
-  return GreasePencilFrame{-1, 0, 0};
+  return GreasePencilFrame{-1, {}, 0};
 }
 
 inline bool GreasePencilFrame::is_end() const
@@ -1100,6 +1100,15 @@ inline bke::greasepencil::Layer &GreasePencilLayer::wrap()
 inline const bke::greasepencil::Layer &GreasePencilLayer::wrap() const
 {
   return *reinterpret_cast<const bke::greasepencil::Layer *>(this);
+}
+
+inline bke::greasepencil::LayerMask &GreasePencilLayerMask::wrap()
+{
+  return *reinterpret_cast<bke::greasepencil::LayerMask *>(this);
+}
+inline const bke::greasepencil::LayerMask &GreasePencilLayerMask::wrap() const
+{
+  return *reinterpret_cast<const bke::greasepencil::LayerMask *>(this);
 }
 
 inline bke::greasepencil::LayerGroup &GreasePencilLayerTreeGroup::wrap()

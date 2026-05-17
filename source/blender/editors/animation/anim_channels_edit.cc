@@ -1407,7 +1407,7 @@ static void rearrange_animchannels_filter_visible(
     ListBaseT<bAnimListElem> *anim_data_visible,
     bAnimContext *ac,
     const eAnim_ChannelType type,
-    const eAnimFilter_Flags additional_filters = eAnimFilter_Flags(0))
+    const eAnimFilter_Flags additional_filters = eAnimFilter_Flags{})
 {
   ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
   eAnimFilter_Flags filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE |
@@ -4030,6 +4030,7 @@ static int click_select_channel_object(bContext *C,
                                        const short /* eEditKeyframes_Select or -1 */ selectmode)
 {
   using namespace blender::ed;
+  const Main *bmain = CTX_data_main(C);
   Scene *scene = ac->scene;
   ViewLayer *view_layer = ac->view_layer;
   Base *base = static_cast<Base *>(ale->data);
@@ -4055,7 +4056,7 @@ static int click_select_channel_object(bContext *C,
   else {
     /* deselect all */
     ANIM_anim_channels_select_set(ac, ACHANNEL_SETFLAG_CLEAR);
-    BKE_view_layer_synced_ensure(scene, view_layer);
+    BKE_view_layer_synced_ensure(*bmain, scene, view_layer);
     /* TODO: should this deselect all other types of channels too? */
     for (Base &b : *BKE_view_layer_object_bases_get(view_layer)) {
       object::base_select(&b, object::BA_DESELECT);
@@ -4756,7 +4757,7 @@ static bool select_anim_channel_keys(bAnimContext *ac, int channel_index, bool e
 
         if (fcu_inner != nullptr && fcu_inner->bezt != nullptr) {
           for (i = 0, bezt = fcu_inner->bezt; i < fcu_inner->totvert; i++, bezt++) {
-            bezt->f2 = bezt->f1 = bezt->f3 = 0;
+            bezt->f2 = bezt->f1 = bezt->f3 = eBezTriple_Flag{};
           }
         }
       }
@@ -4765,7 +4766,7 @@ static bool select_anim_channel_keys(bAnimContext *ac, int channel_index, bool e
     }
 
     for (i = 0, bezt = fcu->bezt; i < fcu->totvert; i++, bezt++) {
-      bezt->f2 = bezt->f1 = bezt->f3 = SELECT;
+      bezt->f2 = bezt->f1 = bezt->f3 = BEZT_FLAG_SELECT;
     }
   }
 
@@ -5077,7 +5078,8 @@ static wmOperatorStatus channels_bake_exec(bContext *C, wmOperator *op)
   const bool remove_outside_range = RNA_boolean_get(op->ptr, "remove_outside_range");
   const BakeCurveRemove remove_existing = remove_outside_range ? BakeCurveRemove::ALL :
                                                                  BakeCurveRemove::IN_RANGE;
-  const int interpolation_type = RNA_enum_get(op->ptr, "interpolation_type");
+  const eBezTriple_Interpolation interpolation_type = eBezTriple_Interpolation(
+      RNA_enum_get(op->ptr, "interpolation_type"));
   const bool bake_modifiers = RNA_boolean_get(op->ptr, "bake_modifiers");
 
   for (bAnimListElem &ale : anim_data) {
@@ -5090,7 +5092,7 @@ static wmOperatorStatus channels_bake_exec(bContext *C, wmOperator *op)
         int(ANIM_nla_tweakedit_remap(&ale, frame_range[1], NLATIME_CONVERT_UNMAP)),
     };
     /* Save current state of modifier flags so they can be reapplied after baking. */
-    Vector<short> modifier_flags;
+    Vector<eFModifier_Flags> modifier_flags;
     if (!bake_modifiers) {
       for (FModifier &modifier : fcu->modifiers) {
         modifier_flags.append(modifier.flag);
@@ -5105,7 +5107,8 @@ static wmOperatorStatus channels_bake_exec(bContext *C, wmOperator *op)
     /* Since the interpolation of a key defines the curve following it, the last key in the baked
      * segment needs to keep the interpolation mode that existed previously so the curve isn't
      * changed. */
-    const char segment_end_interpolation = fcu->bezt[min_ii(last_index, fcu->totvert - 1)].ipo;
+    const eBezTriple_Interpolation segment_end_interpolation =
+        fcu->bezt[min_ii(last_index, fcu->totvert - 1)].ipo;
 
     const float step = RNA_float_get(op->ptr, "step");
     bake_fcurve(fcu, nla_mapped_range, step, remove_existing);
@@ -5282,10 +5285,11 @@ static wmOperatorStatus slot_channels_move_to_new_action_exec(bContext *C, wmOpe
 
 static bool slot_channels_move_to_new_action_poll(bContext *C)
 {
+  const Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   ScrArea *area = CTX_wm_area(C);
-  bAction *action = ANIM_active_action_from_area(scene, view_layer, area);
+  bAction *action = ANIM_active_action_from_area(*bmain, scene, view_layer, area);
 
   if (!action) {
     CTX_wm_operator_poll_msg_set(C, "No active action to operate on");

@@ -409,6 +409,16 @@ ImBuf *BKE_icon_imbuf_get_buffer(int icon_id)
   return static_cast<ImBuf *>(icon->obj);
 }
 
+bool BKE_icon_is_imbuf(const int icon_id)
+{
+  const Icon *icon = icon_ghash_lookup(icon_id);
+  if (!icon) {
+    CLOG_ERROR(&LOG, "no icon for icon ID: %d", icon_id);
+    return false;
+  }
+  return icon->obj_type == ICON_DATA_IMBUF;
+}
+
 static IconBufferRef construct_icon_buffer(const int width,
                                            const int height,
                                            const int channels,
@@ -452,7 +462,10 @@ std::optional<IconBufferRef> BKE_icon_get_buffer(const int icon_id, const eIconS
   switch (icon->obj_type) {
     case ICON_DATA_IMBUF: {
       const ImBuf *ibuf = static_cast<ImBuf *>(icon->obj);
-      return construct_icon_buffer(ibuf->x, ibuf->y, ibuf->channels, ibuf->byte_buffer.data);
+      if (!ibuf->byte_data()) {
+        return std::nullopt;
+      }
+      return construct_icon_buffer(ibuf->x, ibuf->y, ibuf->channels, ibuf->byte_data());
     }
     case ICON_DATA_ID: {
       const ID *id = static_cast<ID *>(icon->obj);
@@ -463,7 +476,7 @@ std::optional<IconBufferRef> BKE_icon_get_buffer(const int icon_id, const eIconS
     }
     case ICON_DATA_PREVIEW: {
       if (const PreviewImage *preview = static_cast<PreviewImage *>(icon->obj)) {
-        if (preview->flag[size] & PRV_RENDERING) {
+        if (!BKE_previewimg_is_finished(preview, size)) {
           return std::nullopt;
         }
         return icon_buffer_from_preview(preview, size);
