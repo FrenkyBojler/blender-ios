@@ -1,3 +1,4 @@
 Referenced by issue #158092, UV layout is hidden in texture paint workspace in default startup
 Referenced by pull request #158159, Fix #158092: UV Edges are not shown in default Texture Paint workspace
 Referenced by commit 3ae90ba40e63248b228ae7e214c1353aa977fe6c, Fix #158092: UV Edges are not shown in default Texture Paint workspace
+Referenced by issue #158711, Display UVs overlay in Image Editor missing
