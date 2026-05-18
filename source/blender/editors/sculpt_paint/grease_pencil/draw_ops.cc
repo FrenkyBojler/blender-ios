@@ -1538,7 +1538,7 @@ static bool grease_pencil_apply_fill(bContext &C, wmOperator &op, const wmEvent 
       for (const int point_i : op_fill_curves->points_range()) {
         /* Calculate radius and opacity for the outline as if it was a user stroke with full
          * pressure. */
-        constexpr const float pressure = 1.0f;
+        const float pressure = 1.0f;
         radii.span[point_i] = ed::greasepencil::radius_from_input_sample(
             view_context.rv3d,
             view_context.region,
