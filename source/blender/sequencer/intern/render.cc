@@ -1328,24 +1328,7 @@ static ImBuf *seq_render_scene_strip_ex(const RenderData *context,
   ImBuf *ibuf = nullptr;
   Object *camera;
 
-  /* Old info:
-   * Hack! This function can be called from do_render_seq(), in that case
-   * the strip->scene can already have a Render initialized with same name,
-   * so we have to use a default name. (compositor uses scene name to
-   * find render).
-   * However, when called from within the UI (image preview in sequencer)
-   * we do want to use scene Render, that way the render result is defined
-   * for display in render/image-window
-   *
-   * Hmm, don't see, why we can't do that all the time,
-   * and since G.is_rendering is uhm, gone... (Peter)
-   */
-
-  /* New info:
-   * Using the same name for the renders works just fine as the do_render_seq()
-   * render is not used while the scene strips are rendered.
-   *
-   * However rendering from UI (through sequencer_preview_area_draw) can crash in
+  /* Rendering from UI (through sequencer_preview_area_draw) can crash in
    * very many cases since other renders (material preview, an actual render etc.)
    * can be started while this sequence preview render is running. The only proper
    * solution is to make the sequencer preview render a proper job, which can be
@@ -1355,8 +1338,6 @@ static ImBuf *seq_render_scene_strip_ex(const RenderData *context,
    * As a result the active scene now only uses OpenGL rendering for the sequencer
    * preview. This is far from nice, but is the only way to prevent crashes at this
    * time.
-   *
-   * -jahka
    */
 
   Scene *scene = strip->scene;

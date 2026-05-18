@@ -58,7 +58,7 @@ static SeqResult do_add_effect(const RenderData *context,
   AddEffectOp op;
   op.factor = fac;
   apply_effect_op(op, src1.image, src2.image, dst.image);
-  /* destination uses alpha from src1 */
+  /* Destination uses alpha from src1 */
   dst.is_opaque_before_transform = !src1.image->can_contain_alpha();
   return dst;
 }
@@ -105,7 +105,7 @@ static SeqResult do_sub_effect(const RenderData *context,
   SubEffectOp op;
   op.factor = fac;
   apply_effect_op(op, src1.image, src2.image, dst.image);
-  /* destination uses alpha from src1 */
+  /* Destination uses alpha from src1 */
   dst.is_opaque_before_transform = !src1.image->can_contain_alpha();
   return dst;
 }
