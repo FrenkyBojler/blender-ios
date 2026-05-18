@@ -88,7 +88,6 @@ void main()
 {
   uint work_group_index = gl_NumWorkGroups.x * gl_WorkGroupID.y + gl_WorkGroupID.x;
   const uint local_index = gl_LocalInvocationIndex;
-  constexpr uint group_size = gl_WorkGroupSize.x * gl_WorkGroupSize.y;
 
   SphereProbeUvArea world_coord = reinterpret_as_atlas_coord(world_coord_packed);
   SphereProbePixelArea write_coord = reinterpret_as_write_coord(write_coord_packed);
@@ -130,19 +129,48 @@ void main()
   if (extract_sun) {
     /* Parallel sum. Result is stored inside local_radiance[0]. */
     local_radiance[local_index] = radiance_sun.xyzz * sample_weight;
-    /* OpenGL/Intel drivers have known issues where it isn't able to compile barriers inside for
-     * loops. Unroll is needed as driver might decide to not unroll in shaders with more
-     * complexity. */
-    /* Vulkan validation layers detects a data race on `local_radiance[local_index] +=
-     * local_radiance[local_index + stride]`. This is a false positive. The issue is that SPIR-V
-     * generated uses a variable based stride (`stride = group_size >> (i+1u)`), which cannot be
-     * statically analyzed between barriers. */
-    for (uint i = 0; i < 10; i++) [[unroll]] {
-      barrier();
-      uint stride = group_size >> (i + 1u);
-      if (local_index < stride) {
-        local_radiance[local_index] += local_radiance[local_index + stride];
-      }
+    /* Using compile-time constant strides to avoid VVL false positive data race detection on
+     * shared memory. SPIR-V generates variable-based stride loads when `group_size >> (i+1u)` is
+     * used even when the loop is `[[unroll]]`ed, which cannot be statically analyzed. */
+    barrier();
+    if (local_index < 512u) {
+      local_radiance[local_index] += local_radiance[local_index + 512u];
+    }
+    barrier();
+    if (local_index < 256u) {
+      local_radiance[local_index] += local_radiance[local_index + 256u];
+    }
+    barrier();
+    if (local_index < 128u) {
+      local_radiance[local_index] += local_radiance[local_index + 128u];
+    }
+    barrier();
+    if (local_index < 64u) {
+      local_radiance[local_index] += local_radiance[local_index + 64u];
+    }
+    barrier();
+    if (local_index < 32u) {
+      local_radiance[local_index] += local_radiance[local_index + 32u];
+    }
+    barrier();
+    if (local_index < 16u) {
+      local_radiance[local_index] += local_radiance[local_index + 16u];
+    }
+    barrier();
+    if (local_index < 8u) {
+      local_radiance[local_index] += local_radiance[local_index + 8u];
+    }
+    barrier();
+    if (local_index < 4u) {
+      local_radiance[local_index] += local_radiance[local_index + 4u];
+    }
+    barrier();
+    if (local_index < 2u) {
+      local_radiance[local_index] += local_radiance[local_index + 2u];
+    }
+    barrier();
+    if (local_index < 1u) {
+      local_radiance[local_index] += local_radiance[local_index + 1u];
     }
     barrier();
 
@@ -156,19 +184,47 @@ void main()
 
     local_direction[local_index] = float4(normalize(direction), 1.0f) * sample_weight *
                                    length(radiance_sun.xyz);
-    /* OpenGL/Intel drivers have known issues where it isn't able to compile barriers inside for
-     * loops. Unroll is needed as driver might decide to not unroll in shaders with more
-     * complexity. */
-    /* Vulkan validation layers detects a data race on `local_direction[local_index] +=
-     * local_direction[local_index + stride]`. This is a false positive. The issue is that SPIR-V
-     * generated uses a variable based stride (`stride = group_size >> (i+1u)`), which cannot be
-     * statically analyzed between barriers. */
-    for (uint i = 0; i < 10; i++) [[unroll]] {
-      barrier();
-      uint stride = group_size >> (i + 1u);
-      if (local_index < stride) {
-        local_direction[local_index] += local_direction[local_index + stride];
-      }
+    /* Using compile-time constant strides to avoid VVL false positive data race detection on
+     * shared memory. */
+    barrier();
+    if (local_index < 512u) {
+      local_direction[local_index] += local_direction[local_index + 512u];
+    }
+    barrier();
+    if (local_index < 256u) {
+      local_direction[local_index] += local_direction[local_index + 256u];
+    }
+    barrier();
+    if (local_index < 128u) {
+      local_direction[local_index] += local_direction[local_index + 128u];
+    }
+    barrier();
+    if (local_index < 64u) {
+      local_direction[local_index] += local_direction[local_index + 64u];
+    }
+    barrier();
+    if (local_index < 32u) {
+      local_direction[local_index] += local_direction[local_index + 32u];
+    }
+    barrier();
+    if (local_index < 16u) {
+      local_direction[local_index] += local_direction[local_index + 16u];
+    }
+    barrier();
+    if (local_index < 8u) {
+      local_direction[local_index] += local_direction[local_index + 8u];
+    }
+    barrier();
+    if (local_index < 4u) {
+      local_direction[local_index] += local_direction[local_index + 4u];
+    }
+    barrier();
+    if (local_index < 2u) {
+      local_direction[local_index] += local_direction[local_index + 2u];
+    }
+    barrier();
+    if (local_index < 1u) {
+      local_direction[local_index] += local_direction[local_index + 1u];
     }
     barrier();
 
@@ -181,19 +237,47 @@ void main()
   if (extract_sh) {
     /* Parallel sum. Result is stored inside local_radiance[0]. */
     local_radiance[local_index] = radiance.xyzz * sample_weight;
-    /* OpenGL/Intel drivers have known issues where it isn't able to compile barriers inside for
-     * loops. Unroll is needed as driver might decide to not unroll in shaders with more
-     * complexity. */
-    /* Vulkan validation layers detects a data race on `local_radiance[local_index] +=
-     * local_radiance[local_index + stride]`. This is a false positive. The issue is that SPIR-V
-     * generated uses a variable based stride (`stride = group_size >> (i+1u)`), which cannot be
-     * statically analyzed between barriers. */
-    for (uint i = 0; i < 10; i++) [[unroll]] {
-      barrier();
-      uint stride = group_size >> (i + 1u);
-      if (local_index < stride) {
-        local_radiance[local_index] += local_radiance[local_index + stride];
-      }
+    /* Using compile-time constant strides to avoid VVL false positive data race detection on
+     * shared memory. */
+    barrier();
+    if (local_index < 512u) {
+      local_radiance[local_index] += local_radiance[local_index + 512u];
+    }
+    barrier();
+    if (local_index < 256u) {
+      local_radiance[local_index] += local_radiance[local_index + 256u];
+    }
+    barrier();
+    if (local_index < 128u) {
+      local_radiance[local_index] += local_radiance[local_index + 128u];
+    }
+    barrier();
+    if (local_index < 64u) {
+      local_radiance[local_index] += local_radiance[local_index + 64u];
+    }
+    barrier();
+    if (local_index < 32u) {
+      local_radiance[local_index] += local_radiance[local_index + 32u];
+    }
+    barrier();
+    if (local_index < 16u) {
+      local_radiance[local_index] += local_radiance[local_index + 16u];
+    }
+    barrier();
+    if (local_index < 8u) {
+      local_radiance[local_index] += local_radiance[local_index + 8u];
+    }
+    barrier();
+    if (local_index < 4u) {
+      local_radiance[local_index] += local_radiance[local_index + 4u];
+    }
+    barrier();
+    if (local_index < 2u) {
+      local_radiance[local_index] += local_radiance[local_index + 2u];
+    }
+    barrier();
+    if (local_index < 1u) {
+      local_radiance[local_index] += local_radiance[local_index + 1u];
     }
     barrier();
 
