@@ -1293,6 +1293,7 @@ def brush_shared_settings(layout, context, brush, popover=False):
     if direction:
         layout.row().prop(brush, "direction", expand=True)
 
+
 def draw_color_jitter_panel(layout, context, brush):
     ups = UnifiedPaintPanel.paint_settings(context).unified_paint_settings
 
