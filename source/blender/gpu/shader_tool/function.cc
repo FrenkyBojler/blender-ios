@@ -33,6 +33,8 @@ void SourceProcessor::lower_entry_points(Parser &parser)
     bool is_vertex_func = false;
     bool is_fragment_func = false;
     bool use_early_frag_test = false;
+    bool use_clip_control = false;
+    bool use_texture_atomic = false;
     string metal_max_total_threads_per_threadgroup;
     string local_size;
 
@@ -61,6 +63,12 @@ void SourceProcessor::lower_entry_points(Parser &parser)
         else if (attr_str == "metal_max_total_threads_per_threadgroup") {
           metal_max_total_threads_per_threadgroup = attr_scope.str();
         }
+        else if (attr_str == "clip_control") {
+          use_clip_control = true;
+        }
+        else if (attr_str == "texture_atomic") {
+          use_texture_atomic = true;
+        }
       });
     }
 
@@ -68,6 +76,28 @@ void SourceProcessor::lower_entry_points(Parser &parser)
       report_error(type, "Entry point function must return void.");
       return;
     }
+
+    auto parse_condition = [&](const Scope &attributes) {
+      string cond;
+      attributes.foreach_attribute([&](Token attribute_name, Scope attribute_parameters) {
+        if (attribute_name.str() == "condition") {
+          if (!cond.empty()) {
+            report_error(attribute_name, "Only one condition attribute is allowed.");
+            return;
+          }
+          attribute_parameters[1].scope().foreach_token(Word, [&](const Token tok) {
+            cond += "int " + string(tok.str()) + " = ";
+            cond += "ShaderCreateInfo::find_constant(constants, \"" + string(tok.str()) + "\"); ";
+          });
+          cond += "return " + string(attribute_parameters[1].scope().str()) + ";";
+        }
+      });
+
+      if (!cond.empty()) {
+        cond = ", [](blender::Span<CompilationConstant> constants) { " + cond + "}";
+      }
+      return cond;
+    };
 
     auto replace_word = [&](const string &replaced, const string &replacement) {
       fn_body.foreach_token(Word, [&](const Token tok) {
@@ -104,6 +134,19 @@ void SourceProcessor::lower_entry_points(Parser &parser)
       else {
         create_info_decl += "EARLY_FRAGMENT_TEST(true)\n";
       }
+    }
+
+    if (use_clip_control) {
+      if (!is_vertex_func) {
+        report_error(type, "Only vertex entry point function can use [[clip_control]].");
+      }
+      else {
+        create_info_decl += "BUILTINS(BuiltinBits::CLIP_CONTROL)\n";
+      }
+    }
+
+    if (use_texture_atomic) {
+      create_info_decl += "BUILTINS(BuiltinBits::TEXTURE_ATOMIC)\n";
     }
 
     if (!metal_max_total_threads_per_threadgroup.empty()) {
@@ -384,7 +427,14 @@ void SourceProcessor::lower_entry_points(Parser &parser)
           /* Add dummy var at start of function body. */
           parser.insert_after(fn_body.front().str_index_start(),
                               " " + srt_type + " " + srt_var + "{};");
-          create_info_decl += "ADDITIONAL_INFO(" + srt_type + ")\n";
+          string res_condition_lambda = parse_condition(attributes);
+          if (res_condition_lambda.empty()) {
+            create_info_decl += "ADDITIONAL_INFO(" + srt_type + ")\n";
+          }
+          else {
+            create_info_decl += ".additional_info_with_condition(\"" + srt_type + "\"" +
+                                res_condition_lambda + ")\n";
+          }
         }
       }
       else if (srt_attr == "frag_depth") {
@@ -397,7 +447,7 @@ void SourceProcessor::lower_entry_points(Parser &parser)
           report_error(attributes[3], "unrecognized mode, expecting 'any', 'greater' or 'less'");
         }
         else {
-          create_info_decl += "DEPTH_WRITE(" + to_uppercase(mode) + ")\n";
+          create_info_decl += "DEPTH_WRITE(DepthWrite::" + to_uppercase(mode) + ")\n";
           replace_word(srt_var, "gl_FragDepth");
         }
       }
