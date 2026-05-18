@@ -7673,7 +7673,8 @@ static void bevel_extend_edge_data(BevelState &state)
   }
 }
 
-static std::optional<Mesh *> build_output_mesh(const BevelState &state)
+static std::optional<Mesh *> build_output_mesh(const BevelState &state,
+                                               const bke::AttributeFilter &attribute_filter)
 {
   const ExtendableMesh &emesh = state.emesh;
   const Mesh &src_mesh = emesh.mesh;
@@ -7713,11 +7714,11 @@ static std::optional<Mesh *> build_output_mesh(const BevelState &state)
   const int n_new_faces = emesh.new_faces_num();
   const int n_new_corners = int(new_cv.size());
 
-  Mesh *dst = BKE_mesh_new_nomain_from_template(&src_mesh,
-                                                n_surv_verts + n_new_verts,
-                                                n_surv_edges + n_new_edges,
-                                                n_surv_faces + n_new_faces,
-                                                n_surv_corners + n_new_corners);
+  Mesh *dst = BKE_mesh_new_nomain(n_surv_verts + n_new_verts,
+                                  n_surv_edges + n_new_edges,
+                                  n_surv_faces + n_new_faces,
+                                  n_surv_corners + n_new_corners);
+  BKE_mesh_copy_parameters_for_eval(dst, &src_mesh);
 
   MutableSpan<float3> dst_positions = dst->vert_positions_for_write();
   MutableSpan<int2> dst_edges = dst->edges_for_write();
@@ -7811,9 +7812,11 @@ static std::optional<Mesh *> build_output_mesh(const BevelState &state)
    *   .edge_verts  – written with remapped vertex indices in steps 3-4.
    *   .corner_vert – written with remapped vertex indices in steps 5-6.
    *   .corner_edge – written with remapped edge indices in steps 5-6. */
-  const StringRef skip_names[] = {"position", ".edge_verts", ".corner_vert", ".corner_edge"};
-  const auto geom_filter = bke::attribute_filter_from_skip_ref(
-      Span<StringRef>{skip_names, ARRAY_SIZE(skip_names)});
+  Set<StringRef> skip_names{"position", ".edge_verts", ".corner_vert", ".corner_edge"};
+  for (const StringRef uv_map : src_mesh.uv_map_names()) {
+    skip_names.add(uv_map);
+  }
+  const auto geom_filter = bke::attribute_filter_with_skip_ref(attribute_filter, skip_names);
 
   /* 7a. Point domain (verts): surviving originals then new verts. */
   {
@@ -7831,11 +7834,6 @@ static std::optional<Mesh *> build_output_mesh(const BevelState &state)
                            geom_filter,
                            src_for_dst,
                            dst_attrs);
-    /* Re-apply new vert positions: gather_attributes above copies position from the example vert,
-     * but new bevel verts must keep their computed profile positions. */
-    for (const int ni : IndexRange(n_new_verts)) {
-      dst_positions[n_surv_verts + ni] = new_positions[ni];
-    }
   }
 
   /* 7b. Edge domain: surviving original edges then new edges. */
@@ -7929,32 +7927,23 @@ static std::optional<Mesh *> build_output_mesh(const BevelState &state)
                            dst_attrs);
 
     /* Write precomputed UV values for new corners into the output mesh. */
-    const int num_uv_layers = int(state.uv_layer_info.uv_maps.size());
-    if (num_uv_layers > 0) {
+    const int uv_maps_num = int(state.uv_layer_info.uv_maps.size());
+    if (uv_maps_num > 0) {
       bke::MutableAttributeAccessor out_attrs = dst->attributes_for_write();
-      const Span<int> new_corner_verts = emesh.new_corner_verts();
 
-      const int new_corner_dst_start = n_surv_corners;
-
-      for (int li = 0; li < num_uv_layers; li++) {
-        const StringRef layer_name = state.uv_layer_info.uv_maps[li].name;
-        bke::AttributeWriter<float2> uv_writer = out_attrs.lookup_for_write<float2>(layer_name);
-        if (!uv_writer) {
-          continue;
-        }
-        MutableSpan<float2> dst_uv = uv_writer.varray.get_internal_span();
-        if (dst_uv.is_empty()) {
-          /* Varray is not backed by a contiguous span; skip. */
-          uv_writer.finish();
+      for (const int i : IndexRange(uv_maps_num)) {
+        const StringRef name = state.uv_layer_info.uv_maps[i].name;
+        const VArraySpan src_uvs = *src_attrs.lookup<float2>(name, bke::AttrDomain::Corner);
+        bke::SpanAttributeWriter dst_uvs = out_attrs.lookup_or_add_for_write_only_span<float2>(
+            name, bke::AttrDomain::Corner);
+        if (!dst_uvs) {
           continue;
         }
 
-        /* Overwrite new-corner UV values with the interpolated + merged results. */
-        const Span<float2> new_uvs = emesh.new_corner_uvs(li);
-        for (int nc = 0; nc < int(new_corner_verts.size()); nc++) {
-          dst_uv[new_corner_dst_start + nc] = new_uvs[nc];
-        }
-        uv_writer.finish();
+        array_utils::gather(
+            src_uvs, src_for_dst.as_span(), dst_uvs.span.take_front(n_surv_corners));
+        array_utils::copy(emesh.new_corner_uvs(i), dst_uvs.span.take_back(n_new_corners));
+        dst_uvs.finish();
       }
     }
   }
@@ -8031,11 +8020,10 @@ static std::optional<Mesh *> build_output_mesh(const BevelState &state)
 
 }  // namespace construct
 
-std::optional<Mesh *> mesh_bevel(
-    const Mesh &src_mesh,
-    const IndexMask &selection,
-    const BevelParameters &params,
-    const bke::AttributeFilter & /*attribute_filter*/)  // TODO: implement this
+std::optional<Mesh *> mesh_bevel(const Mesh &src_mesh,
+                                 const IndexMask &selection,
+                                 const BevelParameters &params,
+                                 const bke::AttributeFilter &attribute_filter)
 {
   auto all_non_positive = [](const Span<float> span) {
     return std::ranges::all_of(span, [](float value) { return value <= 0.0f; });
@@ -8177,7 +8165,7 @@ std::optional<Mesh *> mesh_bevel(
                (uv_edge_data_time - face_time).count() / 1.0e6f);
 #endif
 
-  std::optional<Mesh *> ans = construct::build_output_mesh(state);
+  std::optional<Mesh *> ans = construct::build_output_mesh(state, attribute_filter);
 
 #ifdef DEBUG_TIME
   const timeit::TimePoint end_time = timeit::Clock::now();
