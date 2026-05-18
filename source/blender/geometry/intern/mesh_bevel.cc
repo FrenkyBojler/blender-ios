@@ -770,15 +770,16 @@ void UVMapInfo::init(const Mesh &mesh)
   has_uv_maps = false;
   const bke::AttributeAccessor attrs = mesh.attributes();
   attrs.foreach_attribute([&](const bke::AttributeIter &iter) {
-    if (iter.domain == bke::AttrDomain::Corner && iter.data_type == bke::AttrType::Float2) {
-      bke::AttributeReader<float2> uv_reader = iter.get<float2>();
-      if (uv_reader) {
-        this->uv_maps.append(UVLayer{
-            .name = iter.name,
-            .values = VArraySpan<float2>(*uv_reader),
-        });
-        this->has_uv_maps = true;
-      }
+    if (!bke::mesh::is_uv_map(bke::AttributeMetaData(iter.domain, iter.data_type))) {
+      return;
+    }
+    const bke::AttributeReader<float2> uv_reader = iter.get<float2>();
+    if (uv_reader) {
+      this->uv_maps.append(UVLayer{
+          .name = iter.name,
+          .values = VArraySpan<float2>(*uv_reader),
+      });
+      this->has_uv_maps = true;
     }
   });
 }
