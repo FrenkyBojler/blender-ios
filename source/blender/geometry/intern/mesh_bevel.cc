@@ -1094,12 +1094,10 @@ BevelState::BevelState(const Mesh &mesh, const BevelParameters &params, const In
 
   /* Precompute fast-path miter flags. */
   const Span<bool> miter_span = this->params.miter.as_span();
-  this->all_miters_off = miter_span.is_empty() || std::none_of(miter_span.begin(),
-                                                               miter_span.end(),
-                                                               [](bool b) { return b; });
-  this->all_miters_on = !miter_span.is_empty() && std::all_of(miter_span.begin(),
-                                                              miter_span.end(),
-                                                              [](bool b) { return b; });
+  this->all_miters_off = miter_span.is_empty() ||
+                         std::ranges::none_of(miter_span, [](bool b) { return b; });
+  this->all_miters_on = !miter_span.is_empty() &&
+                        std::ranges::all_of(miter_span, [](bool b) { return b; });
 }
 
 namespace geom {
