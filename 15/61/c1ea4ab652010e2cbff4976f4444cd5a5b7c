@@ -19,3 +19,4 @@ Referenced by issue #157706, Font socket linked to group input no longer leads t
 Referenced by issue #158280, Crash when executing node tool with Menu input
 Referenced by pull request #158301, Fix: Two node tools issues
 Referenced by commit b68a2f3921ff16bb1a8e69fbfd05b32ca512fbf1, Fix #158280: Node Tools: Menu inputs broken since recent refactor
+Referenced by issue #158707, GN: NodeTreeInterfaceSocketVector.default_attribute_name behaves differently in Blender 5.2
