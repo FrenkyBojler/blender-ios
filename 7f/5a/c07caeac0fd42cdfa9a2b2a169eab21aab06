@@ -1,2 +1,3 @@
 Referenced by issue #153257, Blender requires missing DLLs
 Referenced by issue #155798, subdiv broken
+Referenced by issue #158737, 44x increase in memory usage for geometry nodes + mesh unions
