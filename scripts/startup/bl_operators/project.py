@@ -54,7 +54,8 @@ class ProjectLoadException(Exception):
 # -------------------------------------------------------------
 
 def save_project(project, report=None):
-    """Save the passed project to disk.
+    """
+    Save the passed project to disk.
 
     Throws a ProjectSaveException in any of the following cases:
 
@@ -141,7 +142,8 @@ def save_project(project, report=None):
 
 
 def find_and_load_project_for_blend_path(context, blend_path, report=None):
-    """Load the project the blend file is in, or clears the project if none is found.
+    """
+    Load the project the blend file is in, or clears the project if none is found.
 
     Throws a ProjectLoadException if a project is found but is invalid
     (missing config file, config validation error, etc.).
@@ -177,7 +179,8 @@ def find_and_load_project_for_blend_path(context, blend_path, report=None):
 
 
 def find_project_root_from_blend_file_path(blend_path):
-    """Search for a project root in the parent directories of the given path.
+    """
+    Search for a project root in the parent directories of the given path.
 
     Returns the project root if found, or None otherwise.
     """
@@ -189,7 +192,8 @@ def find_project_root_from_blend_file_path(blend_path):
 
 
 def read_project_toml_config(root_path, report=None) -> ProjectConfig:
-    """Read the project config for the given project root path.
+    """
+    Read the project config for the given project root path.
 
     Throws a ProjectLoadException if no config is found, if the config is
     not readable due to filesystem permissions, or if it's not a valid
@@ -242,7 +246,8 @@ def read_project_toml_config(root_path, report=None) -> ProjectConfig:
 
 
 def blend_file_is_in_valid_project(blend_file_path):
-    """Return whether the blend file is inside a valid project or not.
+    """
+    Return whether the blend file is inside a valid project or not.
 
     True if the blend file is inside a valid project, false if no project is
     found or if the project is invalid.
