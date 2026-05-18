@@ -1032,13 +1032,8 @@ BevelState::BevelState(const Mesh &mesh, const BevelParameters &params, const In
      * exactly two incident faces can be beveled. Boundary edges (one face) and wire edges
      * (zero faces) are silently excluded, matching the behavior of the bevel operator. */
     const GroupedSpan<int> edge_faces = emesh.edge_faces();
-    Array<bool> is_manifold_selected(mesh.edges_num, false);
-    selection.foreach_index([&](const int e) {
-      if (edge_faces[e].size() == 2) {
-        is_manifold_selected[e] = true;
-      }
-    });
-    this->selection = IndexMask::from_bools(is_manifold_selected, memory);
+    this->selection = IndexMask::from_predicate(
+        selection, memory, [&](const int i) { return edge_faces[i].size() == 2; });
 
     const Span<int2> src_edges = mesh.edges();
     Array<bool> is_affected(mesh.verts_num, false);
