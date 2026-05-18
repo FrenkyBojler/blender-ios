@@ -186,20 +186,20 @@ struct BevVert {
 
 /** Identifies the role of a newly created face for the #BevelAttributeOutputs fields. */
 enum class NewFaceKind : uint8_t {
-  OTHER = 0,
+  Other = 0,
   /** Face that fills the VMesh cap around a beveled vertex. */
-  VERTEX_FACE = 1,
+  VertexFace = 1,
   /** Face (quad) that fills a bevel strip along a beveled edge. */
-  EDGE_FACE = 2,
+  EdgeFace = 2,
 };
 
 /** Identifies the role of a newly created edge for the #BevelAttributeOutputs fields. */
 enum class NewEdgeKind : uint8_t {
-  OTHER = 0,
+  Other = 0,
   /** Outermost edge of a bevel strip — adjacent to the surviving original geometry. */
-  OUTER_EDGE = 1,
+  OuterEdge = 1,
   /** Mid-ring edge of a bevel strip (at `k = nseg / 2`, only when `nseg >= 2`). */
-  MID_EDGE = 2,
+  MidEdge = 2,
 };
 
 class ExtendableMesh {
@@ -597,7 +597,7 @@ int ExtendableMesh::edge_create(const int v1, const int v2, const int example_ed
     new_edge_examples_.append(example_edge);
     new_edge_seam_overrides_.append(-1);
     new_edge_sharp_overrides_.append(-1);
-    new_edge_kinds_.append(NewEdgeKind::OTHER);
+    new_edge_kinds_.append(NewEdgeKind::Other);
   }
   return index;
 }
@@ -630,7 +630,7 @@ int ExtendableMesh::face_create(const Span<int> verts, const int example_face)
 
   new_face_offsets_.append(int(new_corner_verts_.size()));
   new_face_examples_.append(example_face);
-  new_face_kinds_.append(NewFaceKind::OTHER);
+  new_face_kinds_.append(NewFaceKind::Other);
 
   return face_index;
 }
@@ -5548,7 +5548,7 @@ static void bevel_build_edge_polygons(BevelState &state, const int edge_index)
     /* The quad winds as: v_prev_1 -> v_prev_2 -> v_next_2 -> v_next_1. */
     const int quad[4] = {v_prev_1, v_prev_2, v_next_2, v_next_1};
     const int new_face = state.emesh.face_create(Span<int>(quad, 4), face_rep);
-    state.emesh.tag_last_face(NewFaceKind::EDGE_FACE);
+    state.emesh.tag_last_face(NewFaceKind::EdgeFace);
 
     /* Tag the mid-ring edge: the shared boundary between quads k and k+1 at k == mid,
      * i.e. the ring at index mid in the strip.  Only applies when nseg >= 2.
@@ -5558,7 +5558,7 @@ static void bevel_build_edge_polygons(BevelState &state, const int edge_index)
     if (nseg >= 2 && k == mid) {
       const int mid_edge = state.emesh.find_edge(v_next_1, v_next_2);
       if (mid_edge >= 0) {
-        state.emesh.tag_edge_kind(mid_edge, NewEdgeKind::MID_EDGE);
+        state.emesh.tag_edge_kind(mid_edge, NewEdgeKind::MidEdge);
       }
     }
 
@@ -5614,12 +5614,12 @@ static void bevel_build_edge_polygons(BevelState &state, const int edge_index)
   const int outer_edge2 = state.emesh.find_edge(v_prev_2, v_prev_1);
   if (outer_edge1 >= 0) {
     state.emesh.edge_set_example(outer_edge1, edge_index);
-    state.emesh.tag_edge_kind(outer_edge1, NewEdgeKind::OUTER_EDGE);
+    state.emesh.tag_edge_kind(outer_edge1, NewEdgeKind::OuterEdge);
     state.outer_edge_src_indices.append(edge_index);
   }
   if (outer_edge2 >= 0) {
     state.emesh.edge_set_example(outer_edge2, edge_index);
-    state.emesh.tag_edge_kind(outer_edge2, NewEdgeKind::OUTER_EDGE);
+    state.emesh.tag_edge_kind(outer_edge2, NewEdgeKind::OuterEdge);
     if (outer_edge2 != outer_edge1) {
       /* Only record once if both outer edges are the same (nseg == 1 degenerate case). */
       state.outer_edge_src_indices.append(edge_index);
@@ -7939,7 +7939,7 @@ static std::optional<Mesh *> build_output_mesh(const BevelState &state,
       bke::SpanAttributeWriter<bool> writer = dst_attrs.lookup_or_add_for_write_span<bool>(
           *ao.vertex_face_id, bke::AttrDomain::Face);
       for (const int nf : IndexRange(n_new_faces)) {
-        writer.span[n_surv_faces + nf] = (face_kinds[nf] == NewFaceKind::VERTEX_FACE);
+        writer.span[n_surv_faces + nf] = (face_kinds[nf] == NewFaceKind::VertexFace);
       }
       writer.finish();
     }
@@ -7947,7 +7947,7 @@ static std::optional<Mesh *> build_output_mesh(const BevelState &state,
       bke::SpanAttributeWriter<bool> writer = dst_attrs.lookup_or_add_for_write_span<bool>(
           *ao.edge_face_id, bke::AttrDomain::Face);
       for (const int nf : IndexRange(n_new_faces)) {
-        writer.span[n_surv_faces + nf] = (face_kinds[nf] == NewFaceKind::EDGE_FACE);
+        writer.span[n_surv_faces + nf] = (face_kinds[nf] == NewFaceKind::EdgeFace);
       }
       writer.finish();
     }
@@ -7966,7 +7966,7 @@ static std::optional<Mesh *> build_output_mesh(const BevelState &state,
     /* Also check new edges tagged as OUTER_EDGE (can happen when the outer edge is new). */
     const Span<NewEdgeKind> edge_kinds = emesh.new_edge_kinds();
     for (const int ne : IndexRange(n_new_edges)) {
-      if (edge_kinds[ne] == NewEdgeKind::OUTER_EDGE) {
+      if (edge_kinds[ne] == NewEdgeKind::OuterEdge) {
         writer.span[n_surv_edges + ne] = true;
       }
     }
@@ -7978,7 +7978,7 @@ static std::optional<Mesh *> build_output_mesh(const BevelState &state,
         *ao.mid_edge_id, bke::AttrDomain::Edge);
     const Span<NewEdgeKind> edge_kinds = emesh.new_edge_kinds();
     for (const int ne : IndexRange(n_new_edges)) {
-      if (edge_kinds[ne] == NewEdgeKind::MID_EDGE) {
+      if (edge_kinds[ne] == NewEdgeKind::MidEdge) {
         writer.span[n_surv_edges + ne] = true;
       }
     }
@@ -8056,7 +8056,7 @@ std::optional<Mesh *> mesh_bevel(const Mesh &src_mesh,
     const int faces_after = state.emesh.new_faces_num();
     MutableSpan<NewFaceKind> kinds = state.emesh.new_face_kinds_mutable();
     for (int nf = faces_before; nf < faces_after; nf++) {
-      kinds[nf] = NewFaceKind::VERTEX_FACE;
+      kinds[nf] = NewFaceKind::VertexFace;
     }
   });
 
