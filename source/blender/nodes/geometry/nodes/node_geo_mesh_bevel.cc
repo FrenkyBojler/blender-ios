@@ -27,15 +27,20 @@ static const EnumPropertyItem affect_items[] = {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
+
   b.add_input<decl::Geometry>("Mesh"_ustr).supported_type(GeometryComponent::Type::Mesh);
+  b.add_output<decl::Geometry>("Mesh"_ustr).propagate_all().align_with_previous();
+  b.add_input<decl::Bool>("Selection"_ustr)
+      .default_value(true)
+      .hide_value()
+      .field_on_all()
+      .description("Selects elements of 'Affect Kind' for beveling");
   b.add_input<decl::Menu>("Affect Kind"_ustr)
       .default_value(geometry::BevelAffect::Edges)
       .static_items(affect_items)
       .optional_label();
-  b.add_input<decl::Bool>("Selection"_ustr)
-      .default_value(true)
-      .field_on_all()
-      .description("Selects elements of 'Affect Kind' for beveling");
   /* TODO: when there is good support for 4d vectors, use those here. */
   b.add_input<decl::Float>("Offset 0"_ustr)
       .default_value(0.1f)
@@ -54,13 +59,13 @@ static void node_declare(NodeDeclarationBuilder &b)
       .min(0.0f)
       .subtype(PROP_DISTANCE)
       .field_on_all()
-      .description("Offset for left side of dest end of edge");
+      .description("Offset for left side of destination end of edge");
   b.add_input<decl::Float>("Offset 3"_ustr)
       .default_value(0.1f)
       .min(0.0f)
       .subtype(PROP_DISTANCE)
       .field_on_all()
-      .description("Offset for right side of dest end of edge");
+      .description("Offset for right side of destination end of edge");
   b.add_input<decl::Bool>("Miter"_ustr)
       .default_value(false)
       .field_on_all()
@@ -87,17 +92,18 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Geometry>("Profile"_ustr)
       .supported_type(GeometryComponent::Type::Curve)
       .description("If present, will be sampled to give custom profile on edges");
-  b.add_output<decl::Geometry>("Mesh"_ustr).propagate_all();
-  b.add_output<decl::Bool>("Vertex Face"_ustr)
+
+  PanelDeclarationBuilder &selections_panel = b.add_panel("Selections"_ustr);
+  selections_panel.add_output<decl::Bool>("Vertex Face"_ustr)
       .field_on_all()
       .description("Identifies output faces that are in the new mesh parts for vertices");
-  b.add_output<decl::Bool>("Edge Face"_ustr)
+  selections_panel.add_output<decl::Bool>("Edge Face"_ustr)
       .field_on_all()
       .description("Identifies output faces that are in the new mesh parts for edges");
-  b.add_output<decl::Bool>("Outer Edge"_ustr)
+  selections_panel.add_output<decl::Bool>("Outer Edge"_ustr)
       .field_on_all()
       .description("Identifies output edges that are on the outsides of new mesh parts for edges");
-  b.add_output<decl::Bool>("Mid Edge"_ustr)
+  selections_panel.add_output<decl::Bool>("Mid Edge"_ustr)
       .field_on_all()
       .description(
           "Identifies output edges that are in the middle of new mesh parts of edges "
