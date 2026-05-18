@@ -639,7 +639,6 @@ struct ExtensionData {
  * \param opacity_threshold: Render transparent stroke where opacity is below the threshold.
  * \param fill_point: Point from which to start the bucket fill.
  * \param fit_method: View fitting method to include all strokes.
- * \param stroke_material_index: Material index to use for the new strokes.
  * \param keep_images: Keep the image data block after generating curves.
  */
 bke::CurvesGeometry flood_fill_strokes(const ViewContext &view_context,
@@ -653,7 +652,6 @@ bke::CurvesGeometry flood_fill_strokes(const ViewContext &view_context,
                                        const float2 &fill_point,
                                        const ExtensionData &extensions,
                                        FillToolFitMethod fit_method,
-                                       int stroke_material_index,
                                        bool keep_images);
 
 /**

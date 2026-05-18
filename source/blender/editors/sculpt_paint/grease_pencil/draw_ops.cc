@@ -1433,6 +1433,87 @@ static bke::CurvesGeometry simplify_fixed(bke::CurvesGeometry &curves, const int
   return bke::curves_copy_point_selection(curves, points_to_keep, {});
 }
 
+static void set_fill_attributes(bke::CurvesGeometry &fill_curves,
+                                const ViewContext &view_context,
+                                const Brush &brush,
+                                const Scene &scene,
+                                const float4x4 &to_world,
+                                const int material_index,
+                                const float hardness)
+{
+  /* Attributes that are defined explicitly and should not be set to default values. */
+  Set<std::string> skip_curve_attributes = {
+      "curve_type", "material_index", "cyclic", "hardness", "fill_opacity"};
+  Set<std::string> skip_point_attributes = {"position", "radius", "opacity"};
+
+  bke::MutableAttributeAccessor attributes = fill_curves.attributes_for_write();
+  const Span<float3> positions = fill_curves.positions();
+  bke::SpanAttributeWriter<float> radii = attributes.lookup_or_add_for_write_span<float>(
+      "radius", bke::AttrDomain::Point, bke::AttributeInitValue(0.01f));
+  bke::SpanAttributeWriter<float> opacities = attributes.lookup_or_add_for_write_span<float>(
+      "opacity", bke::AttrDomain::Point, bke::AttributeInitValue(1.0f));
+
+  for (const int point_i : fill_curves.points_range()) {
+    /* Calculate radius and opacity for the outline as if it was a user stroke with full
+     * pressure. */
+    const float pressure = 1.0f;
+    radii.span[point_i] = ed::greasepencil::radius_from_input_sample(view_context.rv3d,
+                                                                     view_context.region,
+                                                                     &brush,
+                                                                     pressure,
+                                                                     positions[point_i],
+                                                                     to_world,
+                                                                     brush.gpencil_settings);
+    opacities.span[point_i] = ed::greasepencil::opacity_from_input_sample(
+        pressure, &brush, brush.gpencil_settings);
+  }
+
+  radii.finish();
+  opacities.finish();
+
+  attributes.add<int>(
+      "material_index", bke::AttrDomain::Curve, bke::AttributeInitValue(material_index));
+  attributes.add<bool>("cyclic", bke::AttrDomain::Curve, bke::AttributeInitValue(true));
+  attributes.add<float>("hardness", bke::AttrDomain::Curve, bke::AttributeInitValue(hardness));
+  /* TODO: `fill_opacities` are currently always 1.0f for the new strokes. Maybe this should be a
+   * parameter. */
+  attributes.add<float>("fill_opacity", bke::AttrDomain::Curve, bke::AttributeInitValue(1.0f));
+
+  const bool use_vertex_color = ed::sculpt_paint::greasepencil::brush_using_vertex_color(
+      scene.toolsettings->gp_paint, &brush);
+  if (use_vertex_color) {
+    ColorGeometry4f vertex_color;
+    copy_v3_v3(vertex_color, brush.color);
+    vertex_color.a = brush.gpencil_settings->vertex_factor;
+
+    skip_curve_attributes.add("fill_color");
+    bke::SpanAttributeWriter<ColorGeometry4f> fill_colors =
+        attributes.lookup_or_add_for_write_span<ColorGeometry4f>("fill_color",
+                                                                 bke::AttrDomain::Curve);
+    fill_colors.span.fill(vertex_color);
+    fill_colors.finish();
+
+    if (brush.gpencil_settings->flag2 & GP_BRUSH_USE_STROKE) {
+      skip_point_attributes.add("vertex_color");
+      bke::SpanAttributeWriter<ColorGeometry4f> vertex_colors =
+          attributes.lookup_or_add_for_write_span<ColorGeometry4f>("vertex_color",
+                                                                   bke::AttrDomain::Point);
+      vertex_colors.span.fill(vertex_color);
+      vertex_colors.finish();
+    }
+  }
+
+  /* Initialize the rest of the attributes with default values. */
+  bke::fill_attribute_range_default(attributes,
+                                    bke::AttrDomain::Curve,
+                                    bke::attribute_filter_from_skip_ref(skip_curve_attributes),
+                                    fill_curves.curves_range());
+  bke::fill_attribute_range_default(attributes,
+                                    bke::AttrDomain::Point,
+                                    bke::attribute_filter_from_skip_ref(skip_point_attributes),
+                                    fill_curves.points_range());
+}
+
 static bool grease_pencil_apply_fill(bContext &C, wmOperator &op, const wmEvent &event)
 {
   using bke::greasepencil::Layer;
@@ -1501,7 +1582,6 @@ static bool grease_pencil_apply_fill(bContext &C, wmOperator &op, const wmEvent 
                                                              mouse_position,
                                                              extensions,
                                                              fit_method,
-                                                             op_data.material_index,
                                                              keep_images));
     }
     else {
@@ -1523,65 +1603,24 @@ static bool grease_pencil_apply_fill(bContext &C, wmOperator &op, const wmEvent 
                                              opacity_threshold,
                                              gap_factor,
                                              fill_points);
+    }
 
-      if (!op_fill_curves) {
-        continue;
-      }
-
-      bke::MutableAttributeAccessor attributes = op_fill_curves->attributes_for_write();
-      const Span<float3> positions = op_fill_curves->positions();
-      bke::SpanAttributeWriter<float> radii = attributes.lookup_or_add_for_write_span<float>(
-          "radius", bke::AttrDomain::Point, bke::AttributeInitValue(0.01f));
-      bke::SpanAttributeWriter<float> opacities = attributes.lookup_or_add_for_write_span<float>(
-          "opacity", bke::AttrDomain::Point, bke::AttributeInitValue(1.0f));
-
-      for (const int point_i : op_fill_curves->points_range()) {
-        /* Calculate radius and opacity for the outline as if it was a user stroke with full
-         * pressure. */
-        const float pressure = 1.0f;
-        radii.span[point_i] = ed::greasepencil::radius_from_input_sample(
-            view_context.rv3d,
-            view_context.region,
-            &brush,
-            pressure,
-            positions[point_i],
-            layer.to_world_space(object),
-            brush.gpencil_settings);
-        opacities.span[point_i] = ed::greasepencil::opacity_from_input_sample(
-            pressure, &brush, brush.gpencil_settings);
-      }
-
-      attributes.add<int>("material_index",
-                          bke::AttrDomain::Curve,
-                          bke::AttributeInitValue(op_data.material_index));
-
-      radii.finish();
-      opacities.finish();
-
-      const bool use_vertex_color = ed::sculpt_paint::greasepencil::brush_using_vertex_color(
-          scene.toolsettings->gp_paint, &brush);
-      if (use_vertex_color) {
-        ColorGeometry4f vertex_color;
-        copy_v3_v3(vertex_color, brush.color);
-        vertex_color.a = brush.gpencil_settings->vertex_factor;
-
-        bke::SpanAttributeWriter<ColorGeometry4f> fill_colors =
-            attributes.lookup_or_add_for_write_span<ColorGeometry4f>("fill_color",
-                                                                     bke::AttrDomain::Curve);
-        fill_colors.span.fill(vertex_color);
-        fill_colors.finish();
-
-        if (brush.gpencil_settings->flag2 & GP_BRUSH_USE_STROKE) {
-          bke::SpanAttributeWriter<ColorGeometry4f> vertex_colors =
-              attributes.lookup_or_add_for_write_span<ColorGeometry4f>("vertex_color",
-                                                                       bke::AttrDomain::Point);
-          vertex_colors.span.fill(vertex_color);
-          vertex_colors.finish();
-        }
-      }
+    if (!op_fill_curves) {
+      continue;
     }
 
     bke::CurvesGeometry &fill_curves = *op_fill_curves;
+
+    /* TODO should use the same hardness as the paint brush. */
+    const float stroke_hardness = 1.0f;
+
+    set_fill_attributes(fill_curves,
+                        view_context,
+                        brush,
+                        scene,
+                        layer.to_world_space(object),
+                        op_data.material_index,
+                        stroke_hardness);
 
     if (fill_curves.is_empty()) {
       continue;
