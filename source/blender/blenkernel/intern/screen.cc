@@ -1681,4 +1681,6 @@ void BKE_screen_area_blend_read_after_liblink(BlendLibReader *reader, ID *parent
   }
 }
 
+/** \} */
+
 }  // namespace blender
