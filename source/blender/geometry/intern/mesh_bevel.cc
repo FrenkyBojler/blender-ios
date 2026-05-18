@@ -1005,15 +1005,11 @@ struct BevelState {
   bool offset_adjust;
   bool mark_seam;
   bool mark_sharp;
-  bool harden_normals;
 
   /** Source-edge indices of the two outer edges of each bevel strip, accumulated during
    * #bevel_build_edge_polygons for use by the #BevelAttributeOutputs `outer_edge_id` field. */
   Vector<int> outer_edge_src_indices;
 
-  /* Other data that might be needed depending on what attributes we are transferring. */
-  int mat_nr;
-  int face_strength_mode;
   VMeshMethod vmesh_method;
 
   BevelState(const Mesh &mesh, const BevelParameters &params, const IndexMask &selection);
@@ -1068,9 +1064,6 @@ BevelState::BevelState(const Mesh &mesh, const BevelParameters &params, const In
   this->offset_adjust = (params.affect_type != BevelAffect::Vertices);
   this->mark_seam = false;
   this->mark_sharp = false;
-  this->harden_normals = false;
-  this->mat_nr = -1;
-  this->face_strength_mode = 0;
   this->vmesh_method = VMeshMethod::BEVEL_VMESH_ADJ;
   if (this->vmesh_method == VMeshMethod::BEVEL_VMESH_CUTOFF) {
     /* ignoring miters */
