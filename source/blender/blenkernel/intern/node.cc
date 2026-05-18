@@ -5928,18 +5928,6 @@ void node_type_socket_templates(bNodeType *ntype,
   }
 }
 
-void node_type_size(bNodeType &ntype, const int width, const int minwidth, const int maxwidth)
-{
-  ntype.default_width = width;
-  ntype.minwidth = minwidth;
-  if (maxwidth <= minwidth) {
-    ntype.maxwidth = FLT_MAX;
-  }
-  else {
-    ntype.maxwidth = maxwidth;
-  }
-}
-
 void node_type_storage(bNodeType &ntype,
                        const std::optional<StringRefNull> storagename,
                        void (*freefunc)(bNode *node),

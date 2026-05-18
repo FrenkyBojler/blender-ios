@@ -1168,8 +1168,6 @@ void node_type_socket_templates(bNodeType *ntype,
                                 bNodeSocketTemplate *inputs,
                                 bNodeSocketTemplate *outputs);
 
-void node_type_size(bNodeType &ntype, int width, int minwidth, int maxwidth);
-
 /** \} */
 
 /* -------------------------------------------------------------------- */
