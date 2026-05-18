@@ -13,9 +13,9 @@
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 
-#include "BLI_ghash.h"
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
+#include "BLI_set.hh"
 
 #include "BKE_brush.hh"
 #include "BKE_context.hh"
@@ -179,65 +179,40 @@ static void palette_sort_luminance(PaletteColorHSV *color_array, const int totco
   qsort(color_array, totcol, sizeof(PaletteColorHSV), palettecolor_compare_luminance);
 }
 
-static bool palette_from_hash(Main *bmain, GHash *color_table, const char *name)
+static bool palette_from_hash(Main *bmain, const Set<uint> &color_table, const char *name)
 {
-  PaletteColorHSV *color_array = nullptr;
-  PaletteColorHSV *col_elm = nullptr;
-  bool done = false;
-
-  const int totpal = BLI_ghash_len(color_table);
-
-  if (totpal > 0) {
-    color_array = MEM_new_array<PaletteColorHSV>(totpal, __func__);
-    /* Put all colors in an array. */
-    GHashIterator gh_iter;
-    int t = 0;
-    GHASH_ITER (gh_iter, color_table) {
-      const uint col = POINTER_AS_INT(BLI_ghashIterator_getValue(&gh_iter));
-      float r, g, b;
-      float h, s, v;
-      cpack_to_rgb(col, &r, &g, &b);
-      rgb_to_hsv(r, g, b, &h, &s, &v);
-
-      col_elm = &color_array[t];
-      col_elm->rgb[0] = r;
-      col_elm->rgb[1] = g;
-      col_elm->rgb[2] = b;
-      col_elm->h = h;
-      col_elm->s = s;
-      col_elm->v = v;
-      t++;
-    }
+  if (color_table.is_empty()) {
+    return false;
   }
+
+  /* Put colors into array. */
+  Array<PaletteColorHSV> color_array(color_table.size());
+  int64_t index = 0;
+  for (uint col : color_table) {
+    PaletteColorHSV pal_col;
+    cpack_to_rgb(col, &pal_col.rgb[0], &pal_col.rgb[1], &pal_col.rgb[2]);
+    rgb_to_hsv(pal_col.rgb[0], pal_col.rgb[1], pal_col.rgb[2], &pal_col.h, &pal_col.s, &pal_col.v);
+    pal_col.value = 0;
+    color_array[index++] = pal_col;
+  }
+
+  /* Sort by Hue and saturation. */
+  palette_sort_hsv(color_array.data(), color_array.size());
 
   /* Create the Palette. */
-  if (totpal > 0) {
-    /* Sort by Hue and saturation. */
-    palette_sort_hsv(color_array, totpal);
-
-    Palette *palette = BKE_palette_add(bmain, name);
-    if (palette) {
-      for (int i = 0; i < totpal; i++) {
-        col_elm = &color_array[i];
-        PaletteColor *palcol = BKE_palette_color_add(palette);
-        if (palcol) {
-          /* Hex was stored as sRGB. */
-          IMB_colormanagement_srgb_to_scene_linear_v3(palcol->color, col_elm->rgb);
-        }
-      }
-      done = true;
+  Palette *palette = BKE_palette_add(bmain, name);
+  if (!palette) {
+    return false;
+  }
+  for (const PaletteColorHSV &col_src : color_array) {
+    PaletteColor *col_dst = BKE_palette_color_add(palette);
+    if (col_dst) {
+      IMB_colormanagement_srgb_to_scene_linear_v3(col_dst->color, col_src.rgb);
     }
   }
-  else {
-    done = false;
-  }
-
-  if (totpal > 0) {
-    MEM_SAFE_DELETE(color_array);
-  }
-
-  return done;
+  return true;
 }
+
 static wmOperatorStatus palette_new_exec(bContext *C, wmOperator * /*op*/)
 {
   Paint *paint = BKE_paint_get_active_from_context(C);
@@ -377,13 +352,11 @@ static wmOperatorStatus palette_extract_img_exec(bContext *C, wmOperator *op)
   Image *image = sima->image;
   ImageUser iuser = sima->iuser;
   void *lock;
-  ImBuf *ibuf;
-  GHash *color_table = BLI_ghash_int_new(__func__);
-
-  ibuf = BKE_image_acquire_ibuf(image, &iuser, &lock);
+  ImBuf *ibuf = BKE_image_acquire_ibuf(image, &iuser, &lock);
 
   if (ibuf && ibuf->byte_data()) {
     /* Extract all colors. */
+    Set<uint> color_table;
     const int range = int(pow(10.0f, threshold));
     const uint8_t *src_data = ibuf->byte_data();
     for (size_t i = 0, n = IMB_get_pixel_count(ibuf); i != n; i++) {
@@ -396,9 +369,7 @@ static wmOperatorStatus palette_extract_img_exec(bContext *C, wmOperator *op)
         color[i] = truncf(color[i] * range) / range;
       }
       uint key = rgb_to_cpack(color[0], color[1], color[2]);
-      if (!BLI_ghash_haskey(color_table, POINTER_FROM_INT(key))) {
-        BLI_ghash_insert(color_table, POINTER_FROM_INT(key), POINTER_FROM_INT(key));
-      }
+      color_table.add(key);
 
       src_data += 4;
     }
@@ -406,8 +377,6 @@ static wmOperatorStatus palette_extract_img_exec(bContext *C, wmOperator *op)
     done = palette_from_hash(bmain, color_table, image->id.name + 2);
   }
 
-  /* Free memory. */
-  BLI_ghash_free(color_table, nullptr, nullptr);
   BKE_image_release_ibuf(image, ibuf, lock);
 
   if (done) {
