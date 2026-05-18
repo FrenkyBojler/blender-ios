@@ -245,56 +245,55 @@ void Prepass::init(DRWState extra_state, FunctionRef<void(PassMain &pass)> pass_
   const DRWState common_state = DRW_STATE_WRITE_DEPTH | DRW_STATE_CLIP_CONTROL_UNIT_RANGE |
                                 inst_.film.depth.test_state | extra_state;
 
-  for (PassMain *pass : {&raycast_vis_on_ps_, &raycast_vis_off_ps_}) {
-    pass->init();
-    /* Common resources. */
-    pass->bind_texture(RBUFS_UTILITY_TEX_SLOT, inst_.pipelines.utility_tx);
-    pass->bind_resources(inst_.uniform_data);
-    pass->bind_resources(inst_.velocity);
-    pass->bind_resources(inst_.sampling);
-    if (pass_setup_cb) {
-      pass_setup_cb(*pass);
-    }
+  pass_.init();
+  /* Common resources. */
+  pass_.bind_texture(RBUFS_UTILITY_TEX_SLOT, inst_.pipelines.utility_tx);
+  pass_.bind_resources(inst_.uniform_data);
+  pass_.bind_resources(inst_.velocity);
+  pass_.bind_resources(inst_.sampling);
+  if (pass_setup_cb) {
+    pass_setup_cb(pass_);
   }
 
   static constexpr const char
-      *raycast_vis_on_names[2 /*double sided*/][2 /*moving*/][2 /*write id*/] = {
-          {{"SingleSided.Static", "SingleSided.Static.ID"},
-           {"SingleSided.Moving", "SingleSided.Moving.ID"}},
-          {{"DoubleSided.Static", "DoubleSided.Static.ID"},
-           {"DoubleSided.Moving", "DoubleSided.Moving.ID"}}};
+      *subpass_names[2 /*hide from raycast*/][2 /*double sided*/][2 /*moving*/][2 /*write id*/] = {
+          {{{"SingleSided.Static", "SingleSided.Static.ID"},
+            {"SingleSided.Moving", "SingleSided.Moving.ID"}},
+           {{"DoubleSided.Static", "DoubleSided.Static.ID"},
+            {"DoubleSided.Moving", "DoubleSided.Moving.ID"}}},
+          {{{"HideFromRaycast.SingleSided.Static", ""},
+            {"HideFromRaycast.SingleSided.Moving", ""}},
+           {{"HideFromRaycast.DoubleSided.Static", ""},
+            {"HideFromRaycast.DoubleSided.Moving", ""}}}};
 
-  for (bool double_sided : {false, true}) {
-    for (bool moving : {false, true}) {
-      for (bool write_id : {false, true}) {
-        PassMain::Sub *&subpass = raycast_vis_on_subs_[double_sided][moving][write_id];
-        subpass = &raycast_vis_on_ps_.sub(raycast_vis_on_names[double_sided][moving][write_id]);
-        subpass->state_set(common_state | DRW_STATE_WRITE_COLOR |
-                           (double_sided ? DRW_STATE_NO_DRAW : DRW_STATE_CULL_BACK));
-        subpass->subpass_transition(GPU_ATTACHMENT_WRITE,
-                                    {GPU_ATTACHMENT_WRITE, /* normal */
-                                     write_id ? GPU_ATTACHMENT_WRITE : GPU_ATTACHMENT_IGNORE,
-                                     moving ? GPU_ATTACHMENT_WRITE : GPU_ATTACHMENT_IGNORE});
+  for (bool hide_from_raycast : {false, true}) {
+    for (bool double_sided : {false, true}) {
+      for (bool moving : {false, true}) {
+        for (bool write_id : {false, true}) {
+          if (hide_from_raycast && write_id) {
+            /* Never needed. */
+            continue;
+          }
+          PassMain::Sub *&sub = subs_[hide_from_raycast][double_sided][moving][write_id];
+          sub = &pass_.sub(subpass_names[hide_from_raycast][double_sided][moving][write_id]);
+          sub->state_set(common_state | DRW_STATE_WRITE_COLOR |
+                         (double_sided ? DRW_STATE_NO_DRAW : DRW_STATE_CULL_BACK));
+          sub->subpass_transition(GPU_ATTACHMENT_WRITE,
+                                  {GPU_ATTACHMENT_WRITE, /* normal */
+                                   write_id ? GPU_ATTACHMENT_WRITE : GPU_ATTACHMENT_IGNORE,
+                                   moving ? GPU_ATTACHMENT_WRITE : GPU_ATTACHMENT_IGNORE});
+        }
       }
     }
   }
 
-  static constexpr const char *raycast_vis_off_names[2 /*double sided*/][2 /*moving*/] = {
-      {"HideOnRaycast.SingleSided.Static", "HideOnRaycast.SingleSided.Moving"},
-      {"HideOnRaycast.DoubleSided.Static", "HideOnRaycast.DoubleSided.Moving"}};
-
-  for (bool double_sided : {false, true}) {
-    for (bool moving : {false, true}) {
-      PassMain::Sub *&subpass = raycast_vis_off_subs_[double_sided][moving];
-      subpass = &raycast_vis_off_ps_.sub(raycast_vis_off_names[double_sided][moving]);
-      subpass->state_set(common_state | (moving ? DRW_STATE_WRITE_COLOR : DRW_STATE_NO_DRAW) |
-                         (double_sided ? DRW_STATE_NO_DRAW : DRW_STATE_CULL_BACK));
-      subpass->subpass_transition(GPU_ATTACHMENT_WRITE,
-                                  {GPU_ATTACHMENT_IGNORE, /* normal */
-                                   GPU_ATTACHMENT_IGNORE, /*id*/
-                                   moving ? GPU_ATTACHMENT_WRITE : GPU_ATTACHMENT_IGNORE});
-    }
-  }
+  /* First Subpass. */
+  subs_[false][false][false][false]->bind_ubo(PIPELINE_BUF_SLOT, &pipeline_buf_copy_);
+  /* First HideFromRaycast Subpass. */
+  subs_[true][false][false][false]->bind_ubo(PIPELINE_BUF_SLOT,
+                                             &pipeline_buf_copy_hide_from_raycast_);
+  subs_[true][false][false][false]->texture_copy(&fb_depth_tx_,
+                                                 &inst_.render_buffers.raycast_depth_tx);
 
   dummy_raycast_depth_tx_.ensure_2d(RenderBuffers::depth_format, int2(1));
   dummy_raycast_id_tx_.ensure_2d(RenderBuffers::object_id_format, int2(1));
@@ -310,49 +309,40 @@ PassMain::Sub *Prepass::add(blender::Material *blender_mat,
   const bool has_raycast = GPU_material_flag_get(gpumat, GPU_MATFLAG_RAYCAST);
   const bool write_id = has_raycast && !hide_from_raycast;
 
-  if (hide_from_raycast) {
-    PassMain::Sub &sub = raycast_vis_off_subs_[double_sided][has_motion]->sub(
-        GPU_material_get_name(gpumat));
-    if (has_raycast) {
-      /* NOTE: Bound per subpass since material textures could override these slots. */
-      sub.bind_texture(RAYCAST_DEPTH_TEX_SLOT, &inst_.render_buffers.raycast_depth_tx);
-      sub.bind_texture(OBJECT_ID_TEX_SLOT, &inst_.render_buffers.object_id_tx);
-      sub.bind_texture(PREPASS_NORMAL_TEX_SLOT, &inst_.render_buffers.prepass_normal_tx);
-    }
-    return &sub;
-  }
-
-  PassMain::Sub &sub = raycast_vis_on_subs_[double_sided][has_motion][write_id]->sub(
+  PassMain::Sub &sub = subs_[hide_from_raycast][double_sided][has_motion][write_id]->sub(
       GPU_material_get_name(gpumat));
   if (has_raycast) {
     /* NOTE: Bound per subpass since material textures could override these slots. */
-    sub.bind_texture(RAYCAST_DEPTH_TEX_SLOT, dummy_raycast_depth_tx_);
-    sub.bind_texture(OBJECT_ID_TEX_SLOT, dummy_raycast_normal_tx_);
-    sub.bind_texture(PREPASS_NORMAL_TEX_SLOT, dummy_raycast_id_tx_);
+    sub.bind_texture(RAYCAST_DEPTH_TEX_SLOT,
+                     hide_from_raycast ? &inst_.render_buffers.raycast_depth_tx :
+                                         &dummy_raycast_depth_tx_);
+    sub.bind_texture(OBJECT_ID_TEX_SLOT,
+                     hide_from_raycast ? &inst_.render_buffers.object_id_tx :
+                                         &dummy_raycast_id_tx_);
+    sub.bind_texture(PREPASS_NORMAL_TEX_SLOT,
+                     hide_from_raycast ? &inst_.render_buffers.prepass_normal_tx :
+                                         &dummy_raycast_normal_tx_);
   }
   return &sub;
 }
 
 void Prepass::render(View &view, gpu::Texture *fb_depth_tx, bool can_raycast)
 {
-  auto set_can_raycast = [&](bool32_t value) {
-    if (can_raycast && assign_if_different(inst_.uniform_data.pipeline.can_raycast, value)) {
-      inst_.uniform_data.pipeline.push_update();
-    }
-  };
+  *pipeline_buf_copy_.data() = *inst_.uniform_data.pipeline.data();
+  pipeline_buf_copy_.can_raycast = false;
+  pipeline_buf_copy_.push_update();
 
-  set_can_raycast(false);
-  inst_.manager->submit(raycast_vis_on_ps_, view);
+  *pipeline_buf_copy_hide_from_raycast_.data() = *inst_.uniform_data.pipeline.data();
+  pipeline_buf_copy_hide_from_raycast_.can_raycast = can_raycast;
+  pipeline_buf_copy_hide_from_raycast_.push_update();
 
+  /* Null by default to skip the copy. */
+  fb_depth_tx_ = nullptr;
   if (fb_depth_tx && inst_.pipelines.has_raycast) {
-    Framebuffer copy_fb;
-    copy_fb.ensure(GPU_ATTACHMENT_TEXTURE(inst_.render_buffers.raycast_depth_tx));
-    GPU_framebuffer_blit(
-        GPU_framebuffer_active_get(), -1, copy_fb, -1, GPUFrameBufferBits::GPU_DEPTH_BIT);
+    fb_depth_tx_ = fb_depth_tx;
   }
 
-  set_can_raycast(true);
-  inst_.manager->submit(raycast_vis_off_ps_, view);
+  inst_.manager->submit(pass_, view);
 }
 
 /** \} */
@@ -1465,7 +1455,7 @@ void DeferredProbePipeline::begin_sync()
 
 void DeferredProbePipeline::end_sync()
 {
-  if (!opaque_layer_.prepass_.is_empty()) {
+  if (!opaque_layer_.gbuffer_ps_.is_empty()) {
     PassSimple &pass = eval_light_ps_;
     pass.init();
     /* Use depth test to reject background pixels. */
@@ -1566,7 +1556,7 @@ void PlanarProbePipeline::begin_sync()
 
 void PlanarProbePipeline::end_sync()
 {
-  if (!prepass_.is_empty()) {
+  if (!gbuffer_ps_.is_empty()) {
     PassSimple &pass = eval_light_ps_;
     pass.init();
     pass.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_ADD_FULL);

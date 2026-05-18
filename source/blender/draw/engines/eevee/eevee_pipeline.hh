@@ -147,18 +147,21 @@ class ShadowPipeline {
 class Prepass {
   Instance &inst_;
 
-  PassMain raycast_vis_on_ps_{"Prepass Raycast Visibility On"};
-  PassMain::Sub *raycast_vis_on_subs_[2 /*double sided*/][2 /*moving*/][2 /*write id*/] = {
-      {{nullptr}}};
-
-  PassMain raycast_vis_off_ps_{"Prepass Raycast Visibility Off"};
-  PassMain::Sub *raycast_vis_off_subs_[2 /*double sided*/][2 /*moving*/] = {{nullptr}};
+  PassMain pass_{"Prepass"};
+  PassMain::Sub *subs_[2 /*hide from raycast*/][2 /*double sided*/][2 /*moving*/][2 /*write id*/] =
+      {{{{nullptr}}}};
 
   /* These are never read in practice,
    * only needed for GPU API correctness without extra shader variants. */
   Texture dummy_raycast_depth_tx_;
   Texture dummy_raycast_id_tx_;
   Texture dummy_raycast_normal_tx_;
+
+  /* Copies of UniformDataModule::pipeline with can_raycast overridden.
+   * Needed so we can render the whole Prepass in a single PassMain. */
+  draw::UniformBuffer<PipelineInfoData> pipeline_buf_copy_;
+  draw::UniformBuffer<PipelineInfoData> pipeline_buf_copy_hide_from_raycast_;
+  gpu::Texture *fb_depth_tx_;
 
  public:
   Prepass(Instance &inst) : inst_(inst) {};
@@ -170,11 +173,6 @@ class Prepass {
                      GPUMaterial *gpumat,
                      bool has_motion,
                      bool hide_from_raycast);
-
-  bool is_empty()
-  {
-    return raycast_vis_on_ps_.is_empty() && raycast_vis_off_ps_.is_empty();
-  }
 
   void render(View &view, gpu::Texture *fb_depth_tx, bool can_raycast);
 };
