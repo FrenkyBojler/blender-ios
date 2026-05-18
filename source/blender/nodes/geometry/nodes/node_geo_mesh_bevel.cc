@@ -30,30 +30,35 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Geometry>("Mesh"_ustr).supported_type(GeometryComponent::Type::Mesh);
   b.add_input<decl::Menu>("Affect Kind"_ustr)
       .default_value(geometry::BevelAffect::Edges)
-      .static_items(affect_items);
+      .static_items(affect_items)
+      .optional_label();
   b.add_input<decl::Bool>("Selection"_ustr)
       .default_value(true)
       .field_on_all()
       .description("Selects elements of 'Affect Kind' for beveling");
   /* TODO: when there is good support for 4d vectors, use those here. */
-  b.add_input<decl::Float>("Offset0"_ustr)
-      .default_value(0.0f)
+  b.add_input<decl::Float>("Offset 0"_ustr)
+      .default_value(0.1f)
       .min(0.0f)
+      .subtype(PROP_DISTANCE)
       .field_on_all()
       .description("Offset for left side of source end of edge");
-  b.add_input<decl::Float>("Offset1"_ustr)
-      .default_value(0.0f)
+  b.add_input<decl::Float>("Offset 1"_ustr)
+      .default_value(0.1f)
       .min(0.0f)
+      .subtype(PROP_DISTANCE)
       .field_on_all()
       .description("Offset for right side of source end of edge");
-  b.add_input<decl::Float>("Offset2"_ustr)
-      .default_value(0.0f)
+  b.add_input<decl::Float>("Offset 2"_ustr)
+      .default_value(0.1f)
       .min(0.0f)
+      .subtype(PROP_DISTANCE)
       .field_on_all()
       .description("Offset for left side of dest end of edge");
-  b.add_input<decl::Float>("Offset3"_ustr)
-      .default_value(0.0f)
+  b.add_input<decl::Float>("Offset 3"_ustr)
+      .default_value(0.1f)
       .min(0.0f)
+      .subtype(PROP_DISTANCE)
       .field_on_all()
       .description("Offset for right side of dest end of edge");
   b.add_input<decl::Bool>("Miter"_ustr)
@@ -62,8 +67,10 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description("Use a miter for corner");
   b.add_input<decl::Float>("Spread"_ustr)
       .default_value(0.0f)
+      .subtype(PROP_DISTANCE)
       .field_on_all()
-      .description("Per corner specification of 'spread' for arc miters");
+      .description("Per corner specification of 'spread' for arc miters")
+      .usage_by_bool("Miter"_ustr, true);
   b.add_input<decl::Int>("Segments"_ustr)
       .default_value(1)
       .description(
@@ -73,6 +80,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .default_value(0.5f)
       .min(0.0f)
       .max(1.0f)
+      .subtype(PROP_FACTOR)
       .description(
           "Superellipse shape parameter, used when there is no Profile, "
           " and also used for Arc and Patch miters");
@@ -146,10 +154,10 @@ static void node_geo_exec(GeoNodeExecParams params)
   geometry::BevelAffect affect = params.extract_input<blender::geometry::BevelAffect>(
       "Affect Kind"_ustr);
 
-  Field<float> offset0_field = params.extract_input<Field<float>>("Offset0"_ustr);
-  Field<float> offset1_field = params.extract_input<Field<float>>("Offset1"_ustr);
-  Field<float> offset2_field = params.extract_input<Field<float>>("Offset2"_ustr);
-  Field<float> offset3_field = params.extract_input<Field<float>>("Offset3"_ustr);
+  Field<float> offset0_field = params.extract_input<Field<float>>("Offset 0"_ustr);
+  Field<float> offset1_field = params.extract_input<Field<float>>("Offset 1"_ustr);
+  Field<float> offset2_field = params.extract_input<Field<float>>("Offset 2"_ustr);
+  Field<float> offset3_field = params.extract_input<Field<float>>("Offset 3"_ustr);
 
   Field<bool> miter_field = params.extract_input<Field<bool>>("Miter"_ustr);
   Field<float> spread_field = params.extract_input<Field<float>>("Spread"_ustr);
