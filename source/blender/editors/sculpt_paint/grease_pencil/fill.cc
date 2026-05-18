@@ -1456,14 +1456,9 @@ static void add_weights_for_tri(const Span<int3> tri_adjacency,
 
       const float weight = std::min(edge_weights[edge_index], r_tri_weights[tri_index]);
 
-      if (weight > r_tri_weights[next_tri]) {
-        tris_to_check.push(next_tri);
-        r_tri_hint_index[next_tri] = hint_index;
-        r_tri_weights[next_tri] = weight;
-        continue;
-      }
-
-      if (weight == r_tri_weights[next_tri] && r_tri_hint_index[next_tri] != hint_index) {
+      const float next_tri_weight = r_tri_weights[next_tri];
+      const int next_tri_hint = r_tri_hint_index[next_tri];
+      if (weight > next_tri_weight || (weight == next_tri_weight && next_tri_hint != hint_index)) {
         tris_to_check.push(next_tri);
         r_tri_hint_index[next_tri] = hint_index;
         r_tri_weights[next_tri] = weight;
