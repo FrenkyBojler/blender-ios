@@ -7806,12 +7806,7 @@ static std::optional<Mesh *> build_output_mesh(const BevelState &state,
   bke::MutableAttributeAccessor dst_attrs = dst->attributes_for_write();
 
   /* Skip attributes that encode topology already written with correct remapped indices in
-   * steps 1-6 above.  Letting gather_attributes overwrite these with un-remapped original
-   * indices produces invalid geometry:
-   *   position     – re-applied explicitly for new verts after the Point domain gather.
-   *   .edge_verts  – written with remapped vertex indices in steps 3-4.
-   *   .corner_vert – written with remapped vertex indices in steps 5-6.
-   *   .corner_edge – written with remapped edge indices in steps 5-6. */
+   * steps 1-6 above. */
   Set<StringRef> skip_names{"position", ".edge_verts", ".corner_vert", ".corner_edge"};
   for (const StringRef uv_map : src_mesh.uv_map_names()) {
     skip_names.add(uv_map);
