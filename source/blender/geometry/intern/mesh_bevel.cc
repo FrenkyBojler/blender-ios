@@ -631,7 +631,7 @@ int ExtendableMesh::face_create(Span<int> verts, const int example_face)
     const int v1 = verts[i];
     const int v2 = verts[(i + 1) % verts.size()];
     /* Edges created inside face_create have no single representative edge; use -1. */
-    const int e = edge_create(v1, v2, -1);
+    const int e = this->edge_create(v1, v2, -1);
 
     const int nc = int(new_corner_verts_.size());
     new_corner_verts_.append(v1);
@@ -4189,18 +4189,18 @@ void BevelState::initialize_profile_data()
 
 void BevelState::uv_init()
 {
-  face_hash.emplace();
+  this->face_hash.emplace();
 
-  uv_layer_info.init(emesh.mesh);
-  if (params.segments % 2 != 0) {
-    uv_layer_info.find_components(emesh);
+  this->uv_layer_info.init(this->emesh.mesh);
+  if (this->params.segments % 2 != 0) {
+    this->uv_layer_info.find_components(this->emesh);
   }
 
-  uv_vert_maps.clear();
-  uv_vert_maps.resize(uv_layer_info.layers.size());
+  this->uv_vert_maps.clear();
+  this->uv_vert_maps.resize(this->uv_layer_info.layers.size());
 
   /* Allocate per-UV-layer storage for new corner UV values. */
-  emesh.init_uv_storage(int(uv_layer_info.layers.size()));
+  this->emesh.init_uv_storage(int(this->uv_layer_info.layers.size()));
 }
 
 namespace construct {
