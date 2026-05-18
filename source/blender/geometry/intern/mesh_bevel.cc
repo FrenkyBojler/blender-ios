@@ -1070,12 +1070,7 @@ BevelState::BevelState(const Mesh &mesh, const BevelParameters &params, const In
   this->face_centers = Array<float3>(mesh.faces_num, float3(0.0f));
   const Span<float3> positions = mesh.vert_positions();
   this->bevel_affected_faces.foreach_index([&](const int f) {
-    float3 center(0.0f);
-    const IndexRange corners = faces[f];
-    for (const int c : corners) {
-      center += positions[corner_verts[c]];
-    }
-    this->face_centers[f] = center / float(corners.size());
+    this->face_centers[f] = bke::mesh::face_center_calc(positions, corner_verts.slice(faces[f]));
   });
 
   this->affect_vertices_odd = false;
