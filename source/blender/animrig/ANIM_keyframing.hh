@@ -235,6 +235,8 @@ bool is_keying_flag(const Scene *scene, eKeying_Flag flag);
  */
 bool id_frame_has_keyframe(ID *id, float frame);
 
+bool bone_frame_has_keyframe(const Object &object, StringRefNull bone_name, float frame);
+
 /**
  * Get the settings for key-framing from the given scene.
  */

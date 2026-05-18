@@ -496,6 +496,12 @@ static bool update_callback_pose_bone(ID &orig_id,
   /* Result must be in world-space. */
   mul_m4_v3(ob_eval->object_to_world().ptr(), mpv.co);
   mpv.flag |= MOTIONPATH_VERT_EVALUATED;
+  if (animrig::bone_frame_has_keyframe(*ob, pose_bone->name, frame)) {
+    mpv.flag |= MOTIONPATH_VERT_KEY;
+  }
+  else {
+    mpv.flag &= ~MOTIONPATH_VERT_KEY;
+  }
 
   DEG_id_tag_update(&ob->id, ID_RECALC_ANIMATION_NO_FLUSH);
   WM_main_add_notifier(NC_OBJECT | ND_DRAW_ANIMVIZ, ob);

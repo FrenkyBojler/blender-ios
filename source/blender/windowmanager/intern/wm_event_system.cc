@@ -555,18 +555,17 @@ void wm_event_evaluate_depsgraph_off_frame(bContext *C)
       continue;
     }
 
+    bke::wm_runtime_prepare_for_eval(*bmain, win);
+
     Scene *scene = WM_window_get_active_scene(&win);
-    if (runtime.async_depsgraph == nullptr) {
-      runtime.async_depsgraph = DEG_graph_new(
-          CTX_data_main(C), scene, WM_window_get_active_view_layer(&win), DAG_EVAL_VIEWPORT);
-      runtime.rebuild_async_depsgraph = true;
-    }
+    const int current_frame = BKE_scene_frame_get(scene);
     Clock::time_point start = Clock::now();
     /* 16ms == 60fps. That should give enough headroom for the rest of Blender to keep feeling
      * responsive. */
     while (Clock::now() - start < std::chrono::milliseconds(16)) {
-      /* TODO early exit when all eval is done. */
-      bke::wm_runtime_evaluate_next_frame(*bmain, runtime, *scene);
+      if (!bke::wm_runtime_evaluate_next_frame(runtime, current_frame)) {
+        break;
+      }
     }
 
     /* Doing at most one evaluation even if there are multiple windows. */

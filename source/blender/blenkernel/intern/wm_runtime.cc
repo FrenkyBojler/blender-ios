@@ -91,20 +91,17 @@ void wm_runtime_range_eval_register(WindowRuntime &runtime,
   }
   runtime.async_eval_ids.append(
       {id.session_uid, GS(id.name), std::string(component_name), range, callback});
-  runtime.rebuild_async_depsgraph = true;
+
+  /* Deleting the graph triggers a rebuild. */
+  DEG_graph_free(runtime.async_depsgraph);
+  runtime.async_depsgraph = nullptr;
   runtime.evaluated_range = {};
 }
 
-void wm_runtime_evaluate_next_frame(Main &bmain, WindowRuntime &runtime, const Scene &scene)
+void wm_runtime_prepare_for_eval(Main &bmain, wmWindow &window)
 {
-  if (runtime.async_depsgraph == nullptr) {
-    /* Depsgraph should be built before. */
-    BLI_assert_unreachable();
-    return;
-  }
-
+  WindowRuntime &runtime = *window.runtime;
   Vector<ID *> ids;
-  Bounds<int> eval_range = {};
   Vector<int> invalid_id_indices;
   for (const int i : runtime.async_eval_ids.index_range()) {
     bke::AsyncEvalId &off_frame_id = runtime.async_eval_ids[i];
@@ -115,29 +112,31 @@ void wm_runtime_evaluate_next_frame(Main &bmain, WindowRuntime &runtime, const S
     ID *id = BKE_libblock_find_session_uid(&bmain, off_frame_id.id_type, off_frame_id.id_uid);
     if (!id) {
       invalid_id_indices.append(i);
+      off_frame_id.id = nullptr;
       continue;
     }
-    off_frame_id.id = id;
     ids.append(id);
-    eval_range = bounds::merge(eval_range, off_frame_id.range);
+    off_frame_id.id = id;
   }
 
   while (!invalid_id_indices.is_empty()) {
     const int i = invalid_id_indices.pop_last();
     runtime.async_eval_ids.remove(i);
-    runtime.rebuild_async_depsgraph = true;
+    DEG_graph_free(runtime.async_depsgraph);
+    runtime.async_depsgraph = nullptr;
   }
 
-  if (eval_range.is_empty()) {
-    return;
-  }
-
-  if (runtime.rebuild_async_depsgraph) {
+  if (!runtime.async_depsgraph) {
+    runtime.async_depsgraph = DEG_graph_new(&bmain,
+                                            WM_window_get_active_scene(&window),
+                                            WM_window_get_active_view_layer(&window),
+                                            DAG_EVAL_VIEWPORT);
     DEG_graph_build_from_ids(runtime.async_depsgraph, ids);
-    runtime.rebuild_async_depsgraph = false;
   }
+}
 
-  const int cfra = BKE_scene_frame_get(&scene);
+static int get_next_frame(WindowRuntime &runtime, const Bounds<int> eval_range, const int cfra)
+{
   int eval_frame;
   if (runtime.evaluated_range.is_empty()) {
     if (eval_range.contains(cfra)) {
@@ -161,10 +160,30 @@ void wm_runtime_evaluate_next_frame(Main &bmain, WindowRuntime &runtime, const S
       runtime.evaluated_range.max += 1;
     }
   }
+  return eval_frame;
+}
 
-  /* const Clock::time_point start = Clock::now();
-  while (Clock::now() - start < std::chrono::milliseconds(16)) {
-  } */
+bool wm_runtime_evaluate_next_frame(WindowRuntime &runtime, const int current_frame)
+{
+  if (runtime.async_depsgraph == nullptr) {
+    /* Call `wm_runtime_prepare_for_eval` before. */
+    BLI_assert_unreachable();
+    return false;
+  }
+
+  Bounds<int> eval_range = {};
+  for (const int i : runtime.async_eval_ids.index_range()) {
+    bke::AsyncEvalId &off_frame_id = runtime.async_eval_ids[i];
+    /* `wm_runtime_prepare_for_eval` has to be called before. */
+    BLI_assert(off_frame_id.id != nullptr);
+    eval_range = bounds::merge(eval_range, off_frame_id.range);
+  }
+
+  if (eval_range.is_empty()) {
+    return false;
+  }
+
+  const int eval_frame = get_next_frame(runtime, eval_range, current_frame);
   DEG_evaluate_on_framechange(runtime.async_depsgraph, eval_frame);
 
   Vector<int> finished_indices;
@@ -184,8 +203,14 @@ void wm_runtime_evaluate_next_frame(Main &bmain, WindowRuntime &runtime, const S
   while (!finished_indices.is_empty()) {
     const int i = finished_indices.pop_last();
     runtime.async_eval_ids.remove(i);
-    runtime.rebuild_async_depsgraph = true;
+    DEG_graph_free(runtime.async_depsgraph);
+    runtime.async_depsgraph = nullptr;
+    /* There may still be IDs to evaluate, however we have to rebuild the depsgraph so we signal
+     * the caller that for now there is nothing more to evaluate and we will wait for the next
+     * iteration. */
+    return false;
   }
+  return true;
 }
 
 }  // namespace blender::bke

@@ -386,6 +386,29 @@ bool id_frame_has_keyframe(ID *id, float frame)
   return false;
 }
 
+bool bone_frame_has_keyframe(const Object &object,
+                             const StringRefNull bone_name,
+                             const float frame)
+{
+  if (!object.adt || !object.adt->action || object.adt->slot_handle == Slot::unassigned) {
+    return false;
+  }
+  bool has_key = false;
+  foreach_fcurve_in_action_slot(
+      object.adt->action->wrap(), object.adt->slot_handle, [&](FCurve &fcurve) {
+        if (has_key) {
+          return;
+        }
+        if (!fcurve_matches_collection_path(fcurve, "pose.bones[", bone_name)) {
+          return;
+        }
+        if (fcurve_frame_has_keyframe(&fcurve, frame)) {
+          has_key = true;
+        }
+      });
+  return has_key;
+}
+
 bool key_insertion_may_create_fcurve(const eInsertKeyFlags insert_key_flags)
 {
   return (insert_key_flags & (INSERTKEY_REPLACE | INSERTKEY_AVAILABLE)) == 0;

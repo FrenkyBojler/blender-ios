@@ -143,6 +143,8 @@ struct AsyncEvalId {
   Bounds<int> range;
   EvalCallback callback;
 
+  /* Cached pointer to the ID based on `id_uid` and `id_type`. This is only valid after calling
+   * `wm_runtime_prepare_for_eval`. */
   ID *id;
 };
 
@@ -218,7 +220,6 @@ struct WindowRuntime {
   struct Depsgraph *async_depsgraph = nullptr;
   Vector<AsyncEvalId> async_eval_ids = {};
   Bounds<int> evaluated_range = {};
-  bool rebuild_async_depsgraph = false;
 
   WindowRuntime() = default;
   ~WindowRuntime();
@@ -242,7 +243,11 @@ void wm_runtime_range_eval_register(WindowRuntime &runtime,
                                     Bounds<int> range,
                                     EvalCallback callback);
 
-void wm_runtime_evaluate_next_frame(Main &bmain, WindowRuntime &runtime, const Scene &scene);
+void wm_runtime_prepare_for_eval(Main &bmain, wmWindow &window);
+/**
+ * \returns true if the function can be called again to evaluate another frame.
+ */
+bool wm_runtime_evaluate_next_frame(WindowRuntime &runtime, int current_frame);
 
 }  // namespace bke
 }  // namespace blender
