@@ -12,7 +12,11 @@
 #include "BKE_node_runtime.hh"
 #include "BKE_type_conversions.hh"
 
+#include "BLI_math_angle_types.hh"
+#include "BLI_math_base.hh"
 #include "BLI_math_euler.hh"
+#include "BLI_math_matrix.hh"
+#include "BLI_math_vector_types.hh"
 #include "BLI_string.h"
 
 #include "BLT_translation.hh"
@@ -24,6 +28,7 @@
 #include "NOD_menu_value.hh"
 #include "NOD_node_declaration.hh"
 #include "NOD_socket.hh"
+#include "NOD_socket_declarations.hh"
 
 #include "ED_node.hh"
 
@@ -49,6 +54,7 @@ class SocketTooltipBuilder {
     Label,
     Description,
     Value,
+    BundleType,
     Python,
   };
 
@@ -85,6 +91,7 @@ class SocketTooltipBuilder {
     }
     this->build_tooltip_description();
     this->build_tooltip_value();
+    this->build_tooltip_expected_bundle_type();
     this->build_python();
 
     /* Extra padding at the bottom. */
@@ -348,6 +355,9 @@ class SocketTooltipBuilder {
     }
     else if (const auto *list_log = dynamic_cast<const eval_log::ListInfoLog *>(&value_log)) {
       this->build_tooltip_value_list_log(*list_log);
+    }
+    else if (const auto *image_log = dynamic_cast<const eval_log::ImageInfoLog *>(&value_log)) {
+      this->build_tooltip_value_image_log(*image_log);
     }
   }
 
@@ -770,6 +780,76 @@ class SocketTooltipBuilder {
     this->add_text_field_mono(TIP_("Type: List"));
   }
 
+  void build_tooltip_value_image_log(const eval_log::ImageInfoLog &image_log)
+  {
+    const bool has_display_window = image_log.data_size != image_log.display_size ||
+                                    image_log.data_offset != int2(0);
+    if (has_display_window) {
+      this->add_text_field_mono(TIP_("Display/Data Window:"));
+      this->add_text_field_mono(fmt::format(
+          "\u2022 {}: {}x{}", TIP_("Data Size"), image_log.data_size.x, image_log.data_size.y));
+      this->add_text_field_mono(fmt::format("\u2022 {}: {}x{}",
+                                            TIP_("Display Size"),
+                                            image_log.display_size.x,
+                                            image_log.display_size.y));
+      this->add_text_field_mono(fmt::format("\u2022 {}: ({}, {})",
+                                            TIP_("Data Offset"),
+                                            image_log.data_offset.x,
+                                            image_log.data_offset.y));
+    }
+    else {
+      this->add_text_field_mono(fmt::format(
+          "{}: {}x{}", TIP_("Resolution"), image_log.data_size.x, image_log.data_size.y));
+    }
+
+    this->add_space();
+
+    float2 location;
+    math::AngleRadian rotation;
+    float2 scale;
+    to_loc_rot_scale(image_log.transformation, location, rotation, scale);
+
+    const bool is_translated = !math::is_equal(location, float2(0.0f), 10e-6f);
+    const bool is_rotated = math::abs(rotation.degree()) > 10e-6f;
+    const bool is_scaled = !math::is_equal(scale, float2(1.0f), 10e-6f);
+    if (is_translated || is_rotated || is_scaled) {
+      this->add_text_field_mono(TIP_("Transformation:"));
+      if (is_translated) {
+        this->add_text_field_mono(
+            fmt::format("\u2022 {}: ({}, {})", TIP_("Translation"), location.x, location.y));
+      }
+      if (is_rotated) {
+        this->add_text_field_mono(fmt::format(
+            "\u2022 {}: {}" BLI_STR_UTF8_DEGREE_SIGN, TIP_("Rotation"), rotation.degree()));
+      }
+      if (is_scaled) {
+        this->add_text_field_mono(
+            fmt::format("\u2022 {}: ({}, {})", TIP_("Scale"), scale.x, scale.y));
+      }
+    }
+    else {
+      this->add_text_field_mono(TIP_("Transformation: Identity"));
+    }
+
+    this->add_space();
+
+    this->add_text_field_mono(TIP_("Sampling:"));
+    this->add_text_field_mono(
+        fmt::format("\u2022 {}: {}", TIP_("Interpolation"), TIP_(image_log.interpolation)));
+    this->add_text_field_mono(
+        fmt::format("\u2022 {}: {}", TIP_("Extension X"), TIP_(image_log.extension_x)));
+    this->add_text_field_mono(
+        fmt::format("\u2022 {}: {}", TIP_("Extension Y"), TIP_(image_log.extension_y)));
+
+    this->add_space();
+
+    this->add_text_field_mono(fmt::format("{}: {}", TIP_("Precision"), TIP_(image_log.precision)));
+
+    this->add_space();
+
+    this->add_text_field_mono(TIP_("Type: Image"));
+  }
+
   void build_tooltip_value_implicit_default(const NodeDefaultInputType &type)
   {
     switch (type) {
@@ -830,6 +910,51 @@ class SocketTooltipBuilder {
       return false;
     }
     return true;
+  }
+
+  void build_tooltip_expected_bundle_type()
+  {
+    if (socket_.type != SOCK_BUNDLE) {
+      return;
+    }
+    if (socket_.is_output()) {
+      return;
+    }
+    const auto *socket_decl = dynamic_cast<const nodes::decl::Bundle *>(
+        socket_.runtime->declaration);
+    if (!socket_decl) {
+      return;
+    }
+    if (!socket_decl->bundle_type) {
+      return;
+    }
+    const nodes::BundleType &bundle_type = *socket_decl->bundle_type;
+
+    if (const auto *nested_bundle_type = std::get_if<nodes::NestedBundleTypePtr>(
+            &bundle_type.type))
+    {
+      this->start_block(TooltipBlockType::BundleType);
+      this->add_text_field_mono(TIP_("Nested Bundle Types:"));
+      for (const nodes::FlatBundleTypePtr &flat_type : (*nested_bundle_type)->items()) {
+        this->add_space();
+        this->add_text_field_mono(fmt::format(" \u2022 {}", flat_type->name()));
+        indentation_++;
+        BLI_SCOPED_DEFER([&]() { indentation_--; });
+
+        for (const nodes::FlatBundleType::Item &item : flat_type->items()) {
+          this->add_text_field_mono(fmt::format(" \u2022 {}", item.name()));
+        }
+      }
+    }
+    else if (const auto *flat_bundle_type = std::get_if<nodes::FlatBundleTypePtr>(
+                 &bundle_type.type))
+    {
+      this->start_block(TooltipBlockType::BundleType);
+      this->add_text_field_mono(TIP_("Bundle Type:"));
+      for (const nodes::FlatBundleType::Item &item : (*flat_bundle_type)->items()) {
+        this->add_text_field_mono(fmt::format(" \u2022 {}", item.name()));
+      }
+    }
   }
 
   StringRef get_structure_type_tooltip(const nodes::StructureType &structure_type)

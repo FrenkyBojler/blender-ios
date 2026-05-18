@@ -32,7 +32,6 @@
 #include "BLI_array_utils.hh"
 #include "BLI_bit_group_vector.hh"
 #include "BLI_bit_span_ops.hh"
-#include "BLI_cpp_types.hh"
 #include "BLI_lazy_threading.hh"
 #include "BLI_map.hh"
 #include "BLI_stack.hh"
@@ -462,6 +461,7 @@ static void execute_multi_function_on_value_variant__single(
     void *value = output_variant.allocate_single(socket_type);
     params.add_uninitialized_single_output(GMutableSpan{cpp_type, value, 1});
   }
+  fn.prepare_for_execution();
   fn.call(mask, params, context);
 }
 
@@ -1397,6 +1397,23 @@ class LazyFunctionForExtractingReferenceSet : public lf::LazyFunction {
       if (value.is_type<ClosurePtr>()) {
         const ClosurePtr &closure = *value.get<ClosurePtr>();
         this->gather__closure(closure, r_references);
+      }
+      if (value.is_type<GeometrySet>()) {
+        const GeometrySet &geometry = *value.get<GeometrySet>();
+        this->gather__geometry(geometry, r_references);
+      }
+    }
+  }
+
+  void gather__geometry(const GeometrySet &geometry, GeometryNodesReferenceSet &r_references) const
+  {
+    this->gather__bundle(geometry.bundle_ptr(), r_references);
+    if (geometry.has_instances()) {
+      const bke::Instances &instances = *geometry.get_instances();
+      for (const bke::InstanceReference &reference : instances.references()) {
+        GeometrySet instance_geometry;
+        reference.to_geometry_set(instance_geometry);
+        this->gather__geometry(instance_geometry, r_references);
       }
     }
   }
@@ -4330,6 +4347,9 @@ static const ID *get_only_evaluated_id(const Depsgraph &depsgraph, const ID &id_
 
 const ID *GeoNodesOperatorDepsgraphs::get_evaluated_id(const ID &id_orig) const
 {
+  if (!ID_TYPE_USE_COPY_ON_EVAL(GS(id_orig.name))) {
+    return &id_orig;
+  }
   if (const Depsgraph *graph = this->active) {
     if (const ID *id = get_only_evaluated_id(*graph, id_orig)) {
       return id;

@@ -696,11 +696,27 @@ void funcTA() { A_fn(); }
 template<typename T>
 void func(T a) {a;}
 template void func<float>(float a);
+template<typename T>
+void foo(T &a) {a;}
+template void foo<float>(float &a);
+
+void f(float a)
+{
+  func(a);
+  foo(a);
+}
 )";
     string expect = R"(
 #line 3
 void func(float a) {a;}
-#line 5
+#line 6
+void foo(_ref(float ,a)) {a;}
+#line 9
+void f(float a)
+{
+  func(a);
+  foo(a);
+}
 )";
     string error;
     string output = process_test_string(input, error);
@@ -1424,6 +1440,12 @@ void func([[resource_table]] Resources &srt)
   } else {
     test;
   }
+
+  if (srt.use_color_band) [[static_branch]] {
+    if (srt.use_color_band) [[static_branch]] {
+      test;
+    }
+  }
 }
 )";
     string expect = R"(
@@ -1528,13 +1550,28 @@ void func(Resources  srt)
          {
     test;
   }
+#endif
+
+#if SRT_CONSTANT_use_color_band
+#line 38
+                                                               {
+
+#if SRT_CONSTANT_use_color_band
+#line 39
+                                                                 {
+      test;
+    }
 
 #endif
-#line 37
+#line 42
+  }
+
+#endif
+#line 43
 }
 
 #endif
-#line 38
+#line 44
 )";
     string error;
     string output = process_test_string(input, error);
@@ -2866,7 +2903,7 @@ BUILTINS(BuiltinBits::CLIP_DISTANCES)
 GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(ns_fragment_function_infos_)
-DEPTH_WRITE(GREATER)
+DEPTH_WRITE(DepthWrite::GREATER)
 BUILTINS(BuiltinBits::STENCIL_REF)
 BUILTINS(BuiltinBits::POINT_COORD)
 BUILTINS(BuiltinBits::FRONT_FACING)
