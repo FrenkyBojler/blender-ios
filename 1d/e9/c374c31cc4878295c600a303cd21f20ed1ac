@@ -1,2 +1,3 @@
 Referenced by issue #157128, VSE: Template update for region scrubbing
 Referenced by issue #158713, shortcut conflict with text prompt in VSE
+Referenced by commit dbed07c316d62b908ed8e9735f88efc504892174, Fix #158713: VSE: Shortcut conflict during text editing
