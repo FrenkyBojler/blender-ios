@@ -1505,6 +1505,8 @@ static bool grease_pencil_apply_fill(bContext &C, wmOperator &op, const wmEvent 
                                                              keep_images));
     }
     else {
+      /* TODO: For now only create a single point for the source of the fill algorithm. This should
+       * take multiple points in the future. */
       const Array<int> fill_point_offset = {0, 1};
       const Array<float2> fill_point_data = {mouse_position};
       const GroupedSpan<float2> fill_points = GroupedSpan<float2>(
