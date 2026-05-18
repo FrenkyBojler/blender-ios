@@ -672,10 +672,10 @@ std::optional<StringRefNull> node_static_socket_label(int type, int subtype);
 
 Span<bNodeSocketType *> node_socket_types_get();
 
-bNodeSocket *node_find_socket(bNode &node, eNodeSocketInOut in_out, StringRef identifier);
+bNodeSocket *node_find_socket(bNode &node, eNodeSocketInOut in_out, UString identifier);
 const bNodeSocket *node_find_socket(const bNode &node,
                                     eNodeSocketInOut in_out,
-                                    StringRef identifier);
+                                    UString identifier);
 bNodeSocket *node_add_socket(bNodeTree &ntree,
                              bNode &node,
                              eNodeSocketInOut in_out,
@@ -975,10 +975,10 @@ void node_rebuild_id_vector(bNodeTree &node_tree);
 
 /**
  * \note keeps socket list order identical, for copying links.
- * \param dst_name: The name of the copied node. This is expected to be unique in the destination
- *   tree if provided. If not provided, the src name is used and is made unique unless
- *   allow_duplicate_names is true.
- * \param dst_identifier: Same ad dst_name, but for the identifier.
+ * \param dst_unique_name: The name of the copied node.
+ * This is expected to be unique in the destination tree if provided. If not provided,
+ * the src name is used and is made unique unless allow_duplicate_names is true.
+ * \param dst_unique_identifier: Same ad dst_name, but for the identifier.
  */
 bNode *node_copy_with_mapping(bNodeTree *dst_tree,
                               const bNode &node_src,
@@ -1088,7 +1088,7 @@ bNode *node_get_active_paint_canvas(bNodeTree &ntree);
 /**
  * \brief Does the given node supports the sub active flag.
  *
- * \param sub_active: The active flag to check. #NODE_ACTIVE_TEXTURE / #NODE_ACTIVE_PAINT_CANVAS.
+ * \param sub_activity: The active flag to check. #NODE_ACTIVE_TEXTURE / #NODE_ACTIVE_PAINT_CANVAS.
  */
 bool node_supports_active_flag(const bNode &node, int sub_activity);
 
@@ -1111,29 +1111,6 @@ bool node_declaration_ensure_on_outdated_node(bNodeTree &ntree, bNode &node);
  * and sockets are up to date already.
  */
 void node_socket_declarations_update(bNode *node);
-
-/* Node Previews */
-bool node_preview_used(const bNode &node);
-
-struct bNodePreview {
-  ImBuf *ibuf = nullptr;
-
-  bNodePreview() = default;
-  bNodePreview(const bNodePreview &other);
-  bNodePreview(bNodePreview &&other);
-  ~bNodePreview();
-};
-
-/* Ensure that a node preview of the given size exists in the given previews map for the node with
- * the given instance key. */
-bNodePreview *node_ensure_preview(Map<bNodeInstanceKey, bNodePreview> &previews,
-                                  bNodeInstanceKey key,
-                                  int xsize,
-                                  int ysize);
-
-void node_preview_remove_unused(bNodeTree *ntree);
-
-void node_preview_merge_tree(bNodeTree *to_ntree, bNodeTree *from_ntree, bool remove_old);
 
 /* -------------------------------------------------------------------- */
 /** \name Node Type Access
@@ -1180,6 +1157,8 @@ enum class eNodeSizePreset : int8_t {
 };
 
 void node_type_size_preset(bNodeType &ntype, eNodeSizePreset size);
+
+/** \} */
 
 /* -------------------------------------------------------------------- */
 /** \name Node Generic Functions
@@ -1248,6 +1227,8 @@ inline bool bNodeType::is_type(const UString query_idname) const
   BLI_assert(node_type_find(query_idname) != nullptr);
   return this->idname == query_idname;
 }
+
+/** \} */
 
 }  // namespace bke
 
