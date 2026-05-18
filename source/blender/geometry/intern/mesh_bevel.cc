@@ -204,6 +204,79 @@ class ExtendableMesh {
  public:
   const Mesh &mesh;
 
+ private:
+  Span<float3> src_positions_;
+  Span<int2> src_edges_;
+  OffsetIndices<int> src_faces_;
+  Span<int> src_corner_verts_;
+  Span<int> src_corner_edges_;
+
+  Span<float3> src_face_normals_;
+
+  Vector<float3> new_vert_positions_;
+  Vector<int> new_face_offsets_;
+  Vector<int> new_corner_verts_;
+  Vector<int> new_corner_edges_;
+
+  /* Representative original element indices for attribute propagation (-1 = unknown). */
+  Vector<int> new_vert_examples_;
+  Vector<int> new_edge_examples_;
+  /* Per-new-edge seam/sharp overrides: -1=inherit, 0=force false, 1=force true. */
+  Vector<int8_t> new_edge_seam_overrides_;
+  Vector<int8_t> new_edge_sharp_overrides_;
+  Vector<int> new_face_examples_;
+  Vector<NewFaceKind> new_face_kinds_;
+  Vector<NewEdgeKind> new_edge_kinds_;
+  Vector<int> new_corner_examples_;
+
+  /* Per-corner UV face representative (-1 = use face-level new_face_examples_). */
+  Vector<int> new_corner_face_reps_;
+  /* Per-corner snap-edge index (-1 = no snap).  Set by #face_set_corner_reps. */
+  Vector<int> new_corner_snap_edges_;
+
+  /* Per-UV-layer float2 values for new corners, indexed [layer][new_corner]. */
+  Vector<Vector<float2>> new_corner_uvs_;
+
+  /**
+   * Maps each vertex (original or new) to the new-corner indices incident on it.
+   * Populated in O(1) per corner by #face_create; never rebuilt.
+   */
+  Map<int, Vector<int>> new_vert_to_new_corners_;
+
+  /**
+   * Maps each new vertex (index >= mesh.verts_num) to the original bevel vertex (`bv->v`)
+   * it descended from.  Populated in #vert_create when `example_vert` >= 0.
+   */
+  Map<int, int> new_vert_bev_origin_;
+
+  Array<bool> kill_verts_;
+  Array<bool> kill_edges_;
+  Array<bool> kill_faces_;
+  Array<bool> kill_corners_;
+
+  using EdgeMap = VectorSet<OrderedEdge,
+                            32,
+                            DefaultProbingStrategy,
+                            DefaultHash<OrderedEdge>,
+                            DefaultEquality<OrderedEdge>,
+                            SimpleVectorSetSlot<OrderedEdge, int>,
+                            GuardedAllocator>;
+  EdgeMap edge_lookup_;
+
+  index_mask::IndexMaskMemory memory_;
+  Array<int> vert_to_edge_offsets_;
+  Array<int> vert_to_edge_indices_;
+  Array<int> edge_to_face_map_offsets_;
+  Array<int> edge_to_face_map_indices_;
+  Array<int> vert_to_corner_offsets_;
+  Array<int> vert_to_corner_indices_;
+  Array<int> corner_to_face_map_;
+
+  GroupedSpan<int> vert_edges_;
+  GroupedSpan<int> edge_faces_;
+  GroupedSpan<int> vert_corners_;
+
+ public:
   ExtendableMesh(const Mesh &mesh);
 
   float3 vert_position(const int v) const;
@@ -443,78 +516,6 @@ class ExtendableMesh {
   {
     return kill_corners_;
   }
-
- private:
-  Span<float3> src_positions_;
-  Span<int2> src_edges_;
-  OffsetIndices<int> src_faces_;
-  Span<int> src_corner_verts_;
-  Span<int> src_corner_edges_;
-
-  Span<float3> src_face_normals_;
-
-  Vector<float3> new_vert_positions_;
-  Vector<int> new_face_offsets_;
-  Vector<int> new_corner_verts_;
-  Vector<int> new_corner_edges_;
-
-  /* Representative original element indices for attribute propagation (-1 = unknown). */
-  Vector<int> new_vert_examples_;
-  Vector<int> new_edge_examples_;
-  /* Per-new-edge seam/sharp overrides: -1=inherit, 0=force false, 1=force true. */
-  Vector<int8_t> new_edge_seam_overrides_;
-  Vector<int8_t> new_edge_sharp_overrides_;
-  Vector<int> new_face_examples_;
-  Vector<NewFaceKind> new_face_kinds_;
-  Vector<NewEdgeKind> new_edge_kinds_;
-  Vector<int> new_corner_examples_;
-
-  /* Per-corner UV face representative (-1 = use face-level new_face_examples_). */
-  Vector<int> new_corner_face_reps_;
-  /* Per-corner snap-edge index (-1 = no snap).  Set by #face_set_corner_reps. */
-  Vector<int> new_corner_snap_edges_;
-
-  /* Per-UV-layer float2 values for new corners, indexed [layer][new_corner]. */
-  Vector<Vector<float2>> new_corner_uvs_;
-
-  /**
-   * Maps each vertex (original or new) to the new-corner indices incident on it.
-   * Populated in O(1) per corner by #face_create; never rebuilt.
-   */
-  Map<int, Vector<int>> new_vert_to_new_corners_;
-
-  /**
-   * Maps each new vertex (index >= mesh.verts_num) to the original bevel vertex (`bv->v`)
-   * it descended from.  Populated in #vert_create when `example_vert` >= 0.
-   */
-  Map<int, int> new_vert_bev_origin_;
-
-  Array<bool> kill_verts_;
-  Array<bool> kill_edges_;
-  Array<bool> kill_faces_;
-  Array<bool> kill_corners_;
-
-  using EdgeMap = VectorSet<OrderedEdge,
-                            32,
-                            DefaultProbingStrategy,
-                            DefaultHash<OrderedEdge>,
-                            DefaultEquality<OrderedEdge>,
-                            SimpleVectorSetSlot<OrderedEdge, int>,
-                            GuardedAllocator>;
-  EdgeMap edge_lookup_;
-
-  index_mask::IndexMaskMemory memory_;
-  Array<int> vert_to_edge_offsets_;
-  Array<int> vert_to_edge_indices_;
-  Array<int> edge_to_face_map_offsets_;
-  Array<int> edge_to_face_map_indices_;
-  Array<int> vert_to_corner_offsets_;
-  Array<int> vert_to_corner_indices_;
-  Array<int> corner_to_face_map_;
-
-  GroupedSpan<int> vert_edges_;
-  GroupedSpan<int> edge_faces_;
-  GroupedSpan<int> vert_corners_;
 };
 
 ExtendableMesh::ExtendableMesh(const Mesh &mesh)
