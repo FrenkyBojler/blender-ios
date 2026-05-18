@@ -188,8 +188,8 @@ static void pchan_to_slide_subject(ListBaseT<SlideSubject> &slide_subjects,
   slide_subject->pchan = &pchan;
 
   /* Get the RNA path to this pchan - this needs to be freed! */
-  PointerRNA ptr = RNA_pointer_create_discrete(reinterpret_cast<ID *>(&ob), RNA_PoseBone, &pchan);
-  slide_subject->pchan_path = BLI_strdup(RNA_path_from_ID_to_struct(&ptr).value_or("").c_str());
+  slide_subject->pchan_path = BLI_strdup(
+      RNA_path_from_ID_to_struct(&bone_ptr).value_or("").c_str());
 
   BLI_addtail(&slide_subjects, slide_subject);
 
