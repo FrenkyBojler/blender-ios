@@ -7746,14 +7746,11 @@ static std::optional<Mesh *> build_output_mesh(const BevelState &state)
   };
 
   /* 1. Surviving original vert positions. */
-  src_survive_verts.foreach_index([&](const int64_t src_v, const int64_t dst_v) {
-    dst_positions[dst_v] = src_positions[src_v];
-  });
+  array_utils::gather(
+      src_positions, src_survive_verts, dst_positions.take_front(src_survive_verts.size()));
 
   /* 2. New vert positions. */
-  for (const int nv : IndexRange(n_new_verts)) {
-    dst_positions[n_surv_verts + nv] = new_positions[nv];
-  }
+  dst_positions.take_back(new_positions.size()).copy_from(new_positions);
 
   /* 3. Surviving original edges (vertex pairs remapped to destination indices). */
   src_survive_edges.foreach_index([&](const int64_t src_e, const int64_t dst_e) {
@@ -7767,27 +7764,28 @@ static std::optional<Mesh *> build_output_mesh(const BevelState &state)
     dst_edges[n_surv_edges + ne][1] = mixed_vert_map(new_edge_data[ne][1]);
   }
 
-  /* 5. Surviving original faces: offsets and corner data (remapped). */
-  {
-    int dst_corner = 0;
-    src_survive_faces.foreach_index([&](const int64_t src_f, const int64_t dst_f) {
-      const IndexRange src_face = src_faces[src_f];
-      dst_face_offsets[dst_f] = dst_corner;
-      for (const int i : src_face.index_range()) {
-        dst_corner_verts[dst_corner] = src_vert_map[src_corner_verts[src_face[i]]];
-        dst_corner_edges[dst_corner] = src_edge_map[src_corner_edges[src_face[i]]];
-        dst_corner++;
-      }
-    });
-    BLI_assert(dst_corner == n_surv_corners);
-  }
-
-  /* 6. New faces: offsets and corner data. */
+  /* 5. Face offsets. */
+  offset_indices::gather_selected_offsets(
+      src_faces, src_survive_faces, dst_face_offsets.take_front(src_survive_faces.size() + 1));
   for (const int nf : IndexRange(n_new_faces)) {
     dst_face_offsets[n_surv_faces + nf] = n_surv_corners + new_face_offs[nf];
   }
   /* Sentinel at the end (Blender stores offsets as face_offsets[face_num] = corners_num). */
   dst_face_offsets[n_surv_faces + n_new_faces] = n_surv_corners + new_face_offs[n_new_faces];
+
+  const OffsetIndices<int> dst_faces(dst_face_offsets);
+
+  /* 6. Corner data. */
+  src_survive_faces.foreach_index(
+      [&](const int64_t src_f, const int64_t dst_f) {
+        const IndexRange src_face = src_faces[src_f];
+        const IndexRange dst_face = dst_faces[dst_f];
+        for (const int i : src_face.index_range()) {
+          dst_corner_verts[dst_face[i]] = src_vert_map[src_corner_verts[src_face[i]]];
+          dst_corner_edges[dst_face[i]] = src_edge_map[src_corner_edges[src_face[i]]];
+        }
+      },
+      exec_mode::grain_size(512));
   for (const int nc : IndexRange(n_new_corners)) {
     dst_corner_verts[n_surv_corners + nc] = mixed_vert_map(new_cv[nc]);
     dst_corner_edges[n_surv_corners + nc] = mixed_edge_map(new_ce[nc]);
