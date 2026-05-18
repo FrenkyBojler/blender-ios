@@ -2430,7 +2430,7 @@ static void node_init(const bContext *C, bNodeTree *ntree, bNode *node)
   }
 
   node->flag = NODE_SELECT | NODE_OPTIONS | (ntype->flag & ~NODE_PREVIEW);
-  node->width = ntype->width;
+  node->width = ntype->default_width;
   node->height = ntype->height;
   node->color[0] = node->color[1] = node->color[2] = 0.608; /* default theme color */
   /* initialize the node name with the node label.
@@ -4664,12 +4664,12 @@ void node_position_relative(bNode &from_node,
 
   /* Socket to plug into. */
   if (eNodeSocketInOut(to_sock.in_out) == SOCK_IN) {
-    offset_x = -(from_node.typeinfo->width + 50);
+    offset_x = -(from_node.typeinfo->default_width + 50);
     tot_sock_idx = BLI_listbase_count(&to_node.outputs);
     tot_sock_idx += BLI_findindex(&to_node.inputs, &to_sock);
   }
   else {
-    offset_x = to_node.typeinfo->width + 50;
+    offset_x = to_node.typeinfo->default_width + 50;
     tot_sock_idx = BLI_findindex(&to_node.outputs, &to_sock);
   }
 
@@ -5932,7 +5932,7 @@ void node_type_socket_templates(bNodeType *ntype,
 
 void node_type_size(bNodeType &ntype, const int width, const int minwidth, const int maxwidth)
 {
-  ntype.width = width;
+  ntype.default_width = width;
   ntype.minwidth = minwidth;
   if (maxwidth <= minwidth) {
     ntype.maxwidth = FLT_MAX;

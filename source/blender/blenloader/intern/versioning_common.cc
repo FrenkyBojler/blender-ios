@@ -258,7 +258,7 @@ bNode &version_node_add_empty(bNodeTree &ntree, const char *idname)
   bke::node_unique_name(ntree, *node);
 
   node->flag = NODE_SELECT | NODE_OPTIONS | NODE_INIT;
-  node->width = ntype->width;
+  node->width = ntype->default_width;
   node->height = ntype->height;
   node->color[0] = node->color[1] = node->color[2] = 0.608;
 
@@ -285,7 +285,7 @@ bNode &version_node_add_unknown(bNodeTree &ntree,
   ntype.idname = UString(idname);
   ntype.type_legacy = legacy_type;
   ntype.height = height;
-  ntype.width = width;
+  ntype.default_width = width;
   node_type_size_preset(ntype, eNodeSizePreset::Default);
   ntype.minheight = 30.0f;
   ntype.maxheight = FLT_MAX;
@@ -308,7 +308,7 @@ bNode &version_node_add_unknown(bNodeTree &ntree,
   node_unique_name(ntree, *node);
 
   node->flag = NODE_SELECT | NODE_OPTIONS | NODE_INIT;
-  node->width = ntype.width;
+  node->width = ntype.default_width;
   node->height = ntype.height;
   node->color[0] = node->color[1] = node->color[2] = 0.608f;
 
