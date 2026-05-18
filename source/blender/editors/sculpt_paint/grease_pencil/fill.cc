@@ -1616,6 +1616,8 @@ std::optional<bke::CurvesGeometry> delaunay_fill_strokes(
 
   Vector<float2> pos_hint = {fill_points[0].first()};
 
+  /* Each `hint` is the source of a fill region. The `hint_index` is the index of the triangle this
+   * hint is within. */
   int hint_index = 0;
   int first_tri_index = get_tri_for_point(pos_hint[hint_index]);
 
