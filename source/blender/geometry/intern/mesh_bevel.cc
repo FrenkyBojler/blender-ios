@@ -8067,8 +8067,8 @@ std::optional<Mesh *> mesh_bevel(
     const BevelParameters &params,
     const bke::AttributeFilter & /*attribute_filter*/)  // TODO: implement this
 {
-  auto all_non_positive = [](const Span<float> o) {
-    return std::ranges::all_of(o, [](float f) { return f <= 0.0f; });
+  auto all_non_positive = [](const Span<float> span) {
+    return std::ranges::all_of(span, [](float value) { return value <= 0.0f; });
   };
   if (all_non_positive(params.offsets[0]) && all_non_positive(params.offsets[1]) &&
       all_non_positive(params.offsets[2]) && all_non_positive(params.offsets[3]))
