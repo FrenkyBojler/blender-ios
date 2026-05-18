@@ -1644,6 +1644,9 @@ std::optional<bke::CurvesGeometry> delaunay_fill_strokes(
     first_tri_index = get_first_boundary_tri();
   }
 
+  /* When the `gap_factor` is used, automatically segmentate the geometry until all triangles have
+   * full or close to full weight. the `gap_factor` is the factor that a triangle can be within and
+   * be considered full. */
   if (gap_factor > 0.0f) {
     add_weights_for_tri(tri_adjacency.as_span(),
                         tri_edges.as_span(),
