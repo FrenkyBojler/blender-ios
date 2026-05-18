@@ -111,6 +111,7 @@ struct RemoteLibraryDefinitionRef {
  * anything if a download with the library's URL is already ongoing.
  */
 void remote_library_request_download(const RemoteLibraryDefinitionRef &library_definition);
+void remote_library_cancel_all_listing_downloads(const bContext &C);
 
 void remote_library_request_asset_download(const bContext &C,
                                            const AssetRepresentation &asset,
@@ -216,6 +217,7 @@ class RemoteLibraryLoadingStatus {
                                             StringRef absolute_file_url);
   static void ping_metafiles_in_place(StringRef url);
   static void set_finished(StringRef url);
+  static void set_cancelled(const StringRef url);
   static void set_failure(StringRef url, std::optional<StringRefNull> failure_message);
 
   static std::optional<StringRefNull> failure_message(StringRef url);
