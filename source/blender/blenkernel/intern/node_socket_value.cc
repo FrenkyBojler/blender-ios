@@ -785,9 +785,10 @@ void SocketValueVariant::count_memory(MemoryCounter &memory) const
   template TYPE SocketValueVariant::get() const; \
   template void SocketValueVariant::store_impl(TYPE);
 
-#define INSTANTIATE_SINGLE_AND_FIELD(TYPE) \
+#define INSTANTIATE_SINGLE_AND_FIELD_AND_LIST(TYPE) \
   INSTANTIATE(TYPE) \
-  INSTANTIATE(fn::Field<TYPE>)
+  INSTANTIATE(fn::Field<TYPE>) \
+  INSTANTIATE(nodes::ListPtr<TYPE>)
 
 #ifdef WITH_OPENVDB
 #  define INSTANTIATE_SINGLE_AND_FIELD_AND_GRID_AND_LIST(TYPE) \
@@ -813,8 +814,7 @@ INSTANTIATE_SINGLE_AND_FIELD_AND_GRID_AND_LIST(float3)
 INSTANTIATE_SINGLE_AND_FIELD_AND_GRID_AND_LIST(ColorGeometry4f)
 INSTANTIATE_SINGLE_AND_FIELD_AND_GRID_AND_LIST(math::Quaternion)
 
-
-INSTANTIATE_SINGLE_AND_FIELD(std::string)
+INSTANTIATE_SINGLE_AND_FIELD_AND_LIST(std::string)
 INSTANTIATE(fn::GField)
 INSTANTIATE_SINGLE_AND_LIST(nodes::BundlePtr)
 INSTANTIATE_SINGLE_AND_LIST(nodes::ClosurePtr)
