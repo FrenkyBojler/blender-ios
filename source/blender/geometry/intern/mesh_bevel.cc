@@ -3059,9 +3059,9 @@ static void adjust_miter_inner_coords(const BevelState &state, BevVert *bv, Edge
         int corner = -1;
         if (e->fnext != -1) {
           const IndexRange face = state.emesh.src_faces[e->fnext];
-          const Span<int> cverts = state.emesh.src_corner_verts.slice(face);
-          for (const int i : cverts.index_range()) {
-            if (cverts[i] == bv->v) {
+          const Span<int> face_verts = state.emesh.src_corner_verts.slice(face);
+          for (const int i : face_verts.index_range()) {
+            if (face_verts[i] == bv->v) {
               corner = face.start() + i;
               break;
             }
