@@ -13,6 +13,7 @@
 #include "BKE_global.hh"
 #include "BKE_main.hh"
 
+#include "BLI_function_ref.hh"
 #include "BLI_string_ref.hh"
 
 namespace blender {
@@ -78,7 +79,7 @@ bke::BlenderProject *BKE_blender_project_get(const Main *bmain)
 }
 
 void BKE_with_blender_project(const Main *bmain,
-                              std::function<void(const bke::BlenderProject *)> lambda)
+                              FunctionRef<void(const bke::BlenderProject *)> lambda)
 {
   std::shared_lock<std::shared_mutex> lock(get_project_mutex());
   const bke::BlenderProject *project = BKE_blender_project_get(bmain);
@@ -87,7 +88,7 @@ void BKE_with_blender_project(const Main *bmain,
 }
 
 void BKE_with_blender_project_write(const Main *bmain,
-                                    std::function<void(bke::BlenderProject *)> lambda)
+                                    FunctionRef<void(bke::BlenderProject *)> lambda)
 {
   std::unique_lock<std::shared_mutex> lock(get_project_mutex());
   bke::BlenderProject *project = BKE_blender_project_get(bmain);

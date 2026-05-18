@@ -10,6 +10,7 @@
 
 #include <functional>
 
+#include "BLI_function_ref.hh"
 #include "BLI_string_ref.hh"
 
 namespace blender {
@@ -107,7 +108,7 @@ bke::BlenderProject *BKE_blender_project_get(const Main *bmain);
  * \see BKE_with_blender_project_write()
  */
 void BKE_with_blender_project(const Main *bmain,
-                              std::function<void(const bke::BlenderProject *)> lambda);
+                              FunctionRef<void(const bke::BlenderProject *)> lambda);
 
 /**
  * Run the given lambda with write access to the active Blender Project, if any.
@@ -123,7 +124,7 @@ void BKE_with_blender_project(const Main *bmain,
  * \see BKE_with_blender_project()
  */
 void BKE_with_blender_project_write(const Main *bmain,
-                                    std::function<void(bke::BlenderProject *)> lambda);
+                                    FunctionRef<void(bke::BlenderProject *)> lambda);
 
 /**
  * Initialize a new active Blender Project.
