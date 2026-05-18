@@ -269,8 +269,6 @@ class ExtendableMesh {
   Array<int> vert_to_edge_indices_;
   Array<int> edge_to_face_map_offsets_;
   Array<int> edge_to_face_map_indices_;
-  Array<int> vert_to_corner_offsets_;
-  Array<int> vert_to_corner_indices_;
   Array<int> corner_to_face_map_;
 
   GroupedSpan<int> vert_edges_;
@@ -535,8 +533,7 @@ ExtendableMesh::ExtendableMesh(const Mesh &mesh)
                                                   mesh.edges_num,
                                                   edge_to_face_map_indices_,
                                                   edge_to_face_map_offsets_);
-  vert_corners_ = bke::mesh::build_vert_to_corner_map(
-      this->src_corner_verts, mesh.verts_num, vert_to_corner_offsets_, vert_to_corner_indices_);
+  vert_corners_ = mesh.vert_to_corner_map();
   corner_to_face_map_ = bke::mesh::build_corner_to_face_map(src_faces);
 
   kill_verts_ = Array<bool>(mesh.verts_num, false);
