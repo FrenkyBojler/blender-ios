@@ -42,16 +42,16 @@
 namespace blender::geometry {
 
 enum class FKind {
-  ORIG = 0,
-  EDGE = 1,
-  VERT = 2,
-  PROFILE = 3,
+  Orig = 0,
+  Edge = 1,
+  Vert = 2,
+  Profile = 3,
 };
 
 enum class AngleKind {
-  SMALLER = -1,
-  STRAIGHT = 0,
-  LARGER = 1,
+  Smaller = -1,
+  Straight = 0,
+  Larger = 1,
 };
 
 struct ProfileSpacing {
@@ -72,16 +72,16 @@ using UVVertBucket = Set<int>;
 using UVVertMap = Map<int, Vector<UVVertBucket>>;
 
 enum class MeshKind {
-  NONE = 0,
-  POLY,
-  ADJ,
-  TRI_FAN,
-  CUTOFF,
+  None = 0,
+  Poly,
+  Adj,
+  TriFan,
+  Cutoff,
 };
 
 enum class VMeshMethod {
-  BEVEL_VMESH_ADJ,
-  BEVEL_VMESH_CUTOFF,
+  Adj,
+  Cutoff,
 };
 
 struct NewVert {
@@ -162,7 +162,7 @@ struct VMesh {
   BoundVert *boundstart = nullptr;
   int count = 0;
   int seg = 0;
-  MeshKind mesh_kind = MeshKind::NONE;
+  MeshKind mesh_kind = MeshKind::None;
 };
 
 struct BevVert {
@@ -1045,8 +1045,8 @@ BevelState::BevelState(const Mesh &mesh, const BevelParameters &params, const In
   this->offset_adjust = (params.affect_type != BevelAffect::Vertices);
   this->mark_seam = false;
   this->mark_sharp = false;
-  this->vmesh_method = VMeshMethod::BEVEL_VMESH_ADJ;
-  if (this->vmesh_method == VMeshMethod::BEVEL_VMESH_CUTOFF) {
+  this->vmesh_method = VMeshMethod::Adj;
+  if (this->vmesh_method == VMeshMethod::Cutoff) {
     /* ignoring miters */
     this->params.miter.fill(false);
   }
@@ -1780,15 +1780,15 @@ template<typename T> [[maybe_unused]] static void print_span(Span<T> span, const
 [[maybe_unused]] static const char *mesh_kind_name(MeshKind kind)
 {
   switch (kind) {
-    case MeshKind::NONE:
+    case MeshKind::None:
       return "NONE";
-    case MeshKind::POLY:
+    case MeshKind::Poly:
       return "POLY";
-    case MeshKind::ADJ:
+    case MeshKind::Adj:
       return "ADJ";
-    case MeshKind::TRI_FAN:
+    case MeshKind::TriFan:
       return "TRI_FAN";
-    case MeshKind::CUTOFF:
+    case MeshKind::Cutoff:
       return "CUTOFF";
     default:
       return "?";
@@ -2482,13 +2482,13 @@ static void build_boundary_vertex_only(const BevelState &state, BevVert *bv, boo
     }
     VMesh *vm = bv->vmesh.get();
     if (vm->count == 2) {
-      vm->mesh_kind = MeshKind::NONE;
+      vm->mesh_kind = MeshKind::None;
     }
     else if (state.params.segments == 1) {
-      vm->mesh_kind = MeshKind::POLY;
+      vm->mesh_kind = MeshKind::Poly;
     }
     else {
-      vm->mesh_kind = MeshKind::ADJ;
+      vm->mesh_kind = MeshKind::Adj;
     }
   }
 }
@@ -2597,7 +2597,7 @@ static void build_boundary_terminal_edge(const BevelState &state,
        * #build_boundary_terminal_edge (BMesh lines 3452-3471). */
       VMesh *vm = bv->vmesh.get();
       if (vm->count == 2 && bv->edgecount == 3) {
-        vm->mesh_kind = MeshKind::NONE;
+        vm->mesh_kind = MeshKind::None;
       }
       else if (vm->count == 3) {
         /* Use TRI_FAN unless the extra point is coplanar with the profile
@@ -2614,10 +2614,10 @@ static void build_boundary_terminal_edge(const BevelState &state,
             use_tri_fan = false;
           }
         }
-        vm->mesh_kind = use_tri_fan ? MeshKind::TRI_FAN : MeshKind::POLY;
+        vm->mesh_kind = use_tri_fan ? MeshKind::TriFan : MeshKind::Poly;
       }
       else {
-        vm->mesh_kind = MeshKind::POLY;
+        vm->mesh_kind = MeshKind::Poly;
       }
     }
   }
@@ -2946,18 +2946,18 @@ static void build_boundary(const BevelState &state, BevVert *bv, bool construct)
     set_bound_vert_seams(state, bv, state.mark_seam, state.mark_sharp);
 
     if (vm->count == 2) {
-      vm->mesh_kind = MeshKind::NONE;
+      vm->mesh_kind = MeshKind::None;
     }
     else if (efirst->seg == 1) {
-      vm->mesh_kind = MeshKind::POLY;
+      vm->mesh_kind = MeshKind::Poly;
     }
     else {
       switch (state.vmesh_method) {
-        case VMeshMethod::BEVEL_VMESH_ADJ:
-          vm->mesh_kind = MeshKind::ADJ;
+        case VMeshMethod::Adj:
+          vm->mesh_kind = MeshKind::Adj;
           break;
-        case VMeshMethod::BEVEL_VMESH_CUTOFF:
-          vm->mesh_kind = MeshKind::CUTOFF;
+        case VMeshMethod::Cutoff:
+          vm->mesh_kind = MeshKind::Cutoff;
           break;
       }
     }
@@ -5742,7 +5742,7 @@ static void build_vmesh(BevelState &state, BevVert *bv)
     copy_v3_v3(geom::mesh_vert(vm, i, 0, ns)->co, bndv->next->nv.co);
     geom::mesh_vert(vm, i, 0, ns)->v = bndv->next->nv.v;
 
-    if (vm->mesh_kind != MeshKind::ADJ) {
+    if (vm->mesh_kind != MeshKind::Adj) {
       for (int k = 1; k < ns; k++) {
         if (bndv->ebev) {
           float co[3];
@@ -5763,7 +5763,7 @@ static void build_vmesh(BevelState &state, BevVert *bv)
 
   /* Weld case: build a blended profile between the two weld BoundVerts. */
   if (weld) {
-    vm->mesh_kind = MeshKind::NONE;
+    vm->mesh_kind = MeshKind::None;
     for (int k = 1; k < ns; k++) {
       const float3 &v_w1 = geom::mesh_vert(vm, weld1->index, 0, k)->co;
       const float3 &v_w2 = geom::mesh_vert(vm, weld2->index, 0, ns - k)->co;
@@ -5794,18 +5794,18 @@ static void build_vmesh(BevelState &state, BevVert *bv)
   }
 
   switch (vm->mesh_kind) {
-    case MeshKind::NONE:
+    case MeshKind::None:
       if (n == 2 && state.params.affect_type == BevelAffect::Vertices) {
         bevel_vert_two_edges(state, bv);
       }
       break;
-    case MeshKind::POLY:
+    case MeshKind::Poly:
       bevel_build_poly(state, bv);
       break;
-    case MeshKind::TRI_FAN:
+    case MeshKind::TriFan:
       bevel_build_trifan(state, bv);
       break;
-    case MeshKind::ADJ: {
+    case MeshKind::Adj: {
       /* Compute the ADJ interior coordinates via cubic subdivision. */
       VMesh vm_adj;
       BoundVert *vpipe = pipe_test(state, bv);
@@ -5841,7 +5841,7 @@ static void build_vmesh(BevelState &state, BevVert *bv)
       bevel_build_rings(state, bv);
       break;
     }
-    case MeshKind::CUTOFF:
+    case MeshKind::Cutoff:
       /* TODO: implement M_CUTOFF. */
       break;
   }
@@ -5903,7 +5903,7 @@ static VMesh new_adj_vmesh(int count, int seg, BoundVert *bounds)
   vm.seg = seg;
   vm.boundstart = bounds;
   vm.mesh = Array<NewVert>(count * (seg / 2 + 1) * (seg + 1), NewVert{-1, float3(0.0f)});
-  vm.mesh_kind = MeshKind::ADJ;
+  vm.mesh_kind = MeshKind::Adj;
   return vm;
 }
 
@@ -7572,7 +7572,7 @@ static void bevel_extend_edge_data(BevelState &state)
       continue;
     }
     VMesh *vm = bv->vmesh.get();
-    if (vm->mesh_kind == MeshKind::TRI_FAN || bv->selcount < 2) {
+    if (vm->mesh_kind == MeshKind::TriFan || bv->selcount < 2) {
       continue;
     }
 
