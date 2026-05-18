@@ -398,4 +398,13 @@ void *SocketValueVariant::allocate(const CPPType &type, detail::SocketValueVaria
   return nullptr;
 }
 
+bool SocketValueVariant::is_context_dependent_field() const
+{
+  const fn::GField *field = this->get_if<fn::GField>();
+  if (!field) {
+    return false;
+  }
+  return field->depends_on_input();
+}
+
 }  // namespace blender::bke

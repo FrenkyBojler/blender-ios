@@ -339,10 +339,10 @@ class LazyFunctionForIndexSwitchNode : public LazyFunction {
   {
     SocketValueVariant index_variant = params.get_input<SocketValueVariant>(0);
     if (index_variant.is_context_dependent_field() && can_be_field_) {
-      this->execute_field(index_variant.get<Field<int>>(), params);
+      this->execute_field(*index_variant.get().get<Field<int>>(), params);
     }
     else {
-      this->execute_single(index_variant.get<int>(), params);
+      this->execute_single(*index_variant.get().get<int>(), params);
     }
   }
 
@@ -393,7 +393,7 @@ class LazyFunctionForIndexSwitchNode : public LazyFunction {
 
     Vector<GField> input_fields({std::move(index)});
     for (const int i : IndexRange(values_num)) {
-      input_fields.append(input_values[i]->extract<GField>());
+      input_fields.append(std::move(*input_values[i]->get().get<GField>()));
     }
 
     std::unique_ptr<mf::MultiFunction> switch_fn = std::make_unique<IndexSwitchFunction>(
@@ -401,7 +401,7 @@ class LazyFunctionForIndexSwitchNode : public LazyFunction {
     GField output_field(FieldOperation::from(std::move(switch_fn), std::move(input_fields)));
 
     void *output_ptr = params.get_output_data_ptr(0);
-    SocketValueVariant::ConstructIn(output_ptr, std::move(output_field));
+    new (output_ptr) SocketValueVariant(std::move(output_field));
     params.output_set(0);
   }
 };

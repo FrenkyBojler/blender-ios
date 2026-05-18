@@ -35,8 +35,8 @@ bool execute_multi_function_on_value_variant__volume_grid(
 
   for (const int i : input_values.index_range()) {
     bke::SocketValueVariant &input_value = *input_values[i];
-    if (input_value.is_volume_grid()) {
-      input_grids[i] = input_value.extract<bke::volume_grid::GVolumeGrid>();
+    if (input_value.get().is_type<bke::volume_grid::GVolumeGrid>()) {
+      input_grids[i] = std::move(*input_value.get().get<bke::volume_grid::GVolumeGrid>());
       inputs[i] = &input_grids[i]->grid(input_tree_tokens[i]);
     }
     else if (input_value.is_context_dependent_field()) {

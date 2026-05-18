@@ -97,6 +97,8 @@ class SocketValueVariant {
 
   void *allocate_single(const CPPType &type);
 
+  bool is_context_dependent_field() const;
+
   void count_memory(MemoryCounter &memory) const;
 
  private:
@@ -227,6 +229,17 @@ template<typename T> inline T &SocketValueVariant::init_default()
 inline void *SocketValueVariant::init_default(const CPPType &type)
 {
   return SocketValueVariant::init_default(type, value_);
+}
+
+inline bool is_context_dependent_field(const GPointer &value)
+{
+  if (value.is_type<fn::GField>()) {
+    const fn::GField &field = *value.get<fn::GField>();
+    if (field.depends_on_input()) {
+      return true;
+    }
+  }
+  return false;
 }
 
 }  // namespace blender::bke
