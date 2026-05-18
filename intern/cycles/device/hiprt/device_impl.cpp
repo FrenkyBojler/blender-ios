@@ -846,9 +846,10 @@ hiprtBuildFlags HIPRTDevice::select_blas_build_flags(BVHHIPRT *bvh,
       reason = "low AABB overlap";
     }
   }
-  // This override is to handle transparent shadows. With high quality bvh, same curve segments
-  // might get duplicated in multiple nodes, and then the shadow intersection might get called
-  // multilpe times on the same segment and double count the hit, leading to darker shadows.
+  /** This override handles transparent shadows. When high quality bvh is used, same curve segments
+   *  might get duplicated in multiple nodes, and the shadow intersection might run multiple times
+   *  on the same segment leading to double counting of the hit, and darker shadows.
+  */
   if (use_high_quality && geom->geometry_type == Geometry::HAIR) {
     Hair *hair = static_cast<Hair *>(geom);
     if (hair->need_shadow_transparency()) {
