@@ -204,15 +204,16 @@ class ExtendableMesh {
  public:
   const Mesh &mesh;
 
+  Span<float3> src_positions;
+  Span<int2> src_edges;
+  OffsetIndices<int> src_faces;
+  Span<int> src_corner_verts;
+  Span<int> src_corner_edges;
+
+  Span<float3> src_vert_normals;
+  Span<float3> src_face_normals;
+
  private:
-  Span<float3> src_positions_;
-  Span<int2> src_edges_;
-  OffsetIndices<int> src_faces_;
-  Span<int> src_corner_verts_;
-  Span<int> src_corner_edges_;
-
-  Span<float3> src_face_normals_;
-
   Vector<float3> new_vert_positions_;
   Vector<int> new_face_offsets_;
   Vector<int> new_corner_verts_;
@@ -282,7 +283,6 @@ class ExtendableMesh {
   float3 vert_position(const int v) const;
   int2 edge_verts(const int e) const;
   IndexRange face_corners(const int f) const;
-  float3 face_normal(const int f) const;
   int corner_vert(const int c) const;
   int corner_edge(const int c) const;
 
@@ -420,7 +420,7 @@ class ExtendableMesh {
   }
   Span<int2> new_edges() const
   {
-    return edge_lookup_.as_span().cast<int2>().drop_front(src_edges_.size());
+    return edge_lookup_.as_span().cast<int2>().drop_front(src_edges.size());
   }
   /** Face offset array for new faces: size is new_faces_num()+1, sentinel 0 at index 0. */
   Span<int> new_face_offsets() const
@@ -520,23 +520,24 @@ class ExtendableMesh {
 
 ExtendableMesh::ExtendableMesh(const Mesh &mesh)
     : mesh(mesh),
-      src_positions_(mesh.vert_positions()),
-      src_edges_(mesh.edges()),
-      src_faces_(mesh.faces()),
-      src_corner_verts_(mesh.corner_verts()),
-      src_corner_edges_(mesh.corner_edges()),
-      src_face_normals_(mesh.face_normals())
+      src_positions(mesh.vert_positions()),
+      src_edges(mesh.edges()),
+      src_faces(mesh.faces()),
+      src_corner_verts(mesh.corner_verts()),
+      src_corner_edges(mesh.corner_edges()),
+      src_vert_normals(mesh.vert_normals()),
+      src_face_normals(mesh.face_normals())
 {
   vert_edges_ = bke::mesh::build_vert_to_edge_map(
-      src_edges_, mesh.verts_num, vert_to_edge_offsets_, vert_to_edge_indices_);
-  edge_faces_ = bke::mesh::build_edge_to_face_map(src_faces_,
-                                                  src_corner_edges_,
+      this->src_edges, mesh.verts_num, vert_to_edge_offsets_, vert_to_edge_indices_);
+  edge_faces_ = bke::mesh::build_edge_to_face_map(this->src_faces,
+                                                  this->src_corner_edges,
                                                   mesh.edges_num,
                                                   edge_to_face_map_indices_,
                                                   edge_to_face_map_offsets_);
   vert_corners_ = bke::mesh::build_vert_to_corner_map(
-      src_corner_verts_, mesh.verts_num, vert_to_corner_offsets_, vert_to_corner_indices_);
-  corner_to_face_map_ = bke::mesh::build_corner_to_face_map(src_faces_);
+      this->src_corner_verts, mesh.verts_num, vert_to_corner_offsets_, vert_to_corner_indices_);
+  corner_to_face_map_ = bke::mesh::build_corner_to_face_map(src_faces);
 
   kill_verts_ = Array<bool>(mesh.verts_num, false);
   kill_edges_ = Array<bool>(mesh.edges_num, false);
@@ -544,8 +545,8 @@ ExtendableMesh::ExtendableMesh(const Mesh &mesh)
   kill_corners_ = Array<bool>(mesh.corners_num, false);
 
   edge_lookup_.reserve(mesh.edges_num);
-  for (const int e : src_edges_.index_range()) {
-    edge_lookup_.add_new(OrderedEdge(src_edges_[e]));
+  for (const int e : this->src_edges.index_range()) {
+    edge_lookup_.add_new(OrderedEdge(this->src_edges[e]));
   }
 
   new_face_offsets_.append(0);
@@ -554,7 +555,7 @@ ExtendableMesh::ExtendableMesh(const Mesh &mesh)
 float3 ExtendableMesh::vert_position(const int v) const
 {
   if (v < mesh.verts_num) {
-    return src_positions_[v];
+    return this->src_positions[v];
   }
   return new_vert_positions_[v - mesh.verts_num];
 }
@@ -562,7 +563,7 @@ float3 ExtendableMesh::vert_position(const int v) const
 int2 ExtendableMesh::edge_verts(const int e) const
 {
   if (e < mesh.edges_num) {
-    return src_edges_[e];
+    return this->src_edges[e];
   }
   return int2(edge_lookup_[e].v_low, edge_lookup_[e].v_high);
 }
@@ -570,7 +571,7 @@ int2 ExtendableMesh::edge_verts(const int e) const
 IndexRange ExtendableMesh::face_corners(const int f) const
 {
   if (f < mesh.faces_num) {
-    return src_faces_[f];
+    return this->src_faces[f];
   }
   const int f_new = f - mesh.faces_num;
   const int start = new_face_offsets_[f_new];
@@ -578,17 +579,10 @@ IndexRange ExtendableMesh::face_corners(const int f) const
   return IndexRange(mesh.corners_num + start, size);
 }
 
-float3 ExtendableMesh::face_normal(const int f) const
-{
-  /* Only valid for original mesh faces; new faces are not used in tri_corner_test. */
-  BLI_assert(f < mesh.faces_num);
-  return src_face_normals_[f];
-}
-
 int ExtendableMesh::corner_vert(const int c) const
 {
   if (c < mesh.corners_num) {
-    return src_corner_verts_[c];
+    return this->src_corner_verts[c];
   }
   return new_corner_verts_[c - mesh.corners_num];
 }
@@ -596,7 +590,7 @@ int ExtendableMesh::corner_vert(const int c) const
 int ExtendableMesh::corner_edge(const int c) const
 {
   if (c < mesh.corners_num) {
-    return src_corner_edges_[c];
+    return this->src_corner_edges[c];
   }
   return new_corner_edges_[c - mesh.corners_num];
 }
@@ -761,7 +755,7 @@ class UVLayerInfo {
   void find_components(const ExtendableMesh &emesh);
 
   /** Returns true when UV data is contiguous across edge `e` between faces `f1` and `f2`. */
-  bool contig_ldata_across_edge(const Mesh &mesh, int e, int f1, int f2) const;
+  bool contig_ldata_across_edge(const ExtendableMesh &mesh, int e, int f1, int f2) const;
 
   /**
    * Returns true when UV data is contiguous at vertex `v`:
@@ -790,19 +784,22 @@ void UVLayerInfo::init(const Mesh &mesh)
   });
 }
 
-bool UVLayerInfo::contig_ldata_across_edge(const Mesh &mesh, int e, int f1, int f2) const
+bool UVLayerInfo::contig_ldata_across_edge(const ExtendableMesh &emesh,
+                                           int e,
+                                           int f1,
+                                           int f2) const
 {
   if (!has_uv_layers) {
     return true;
   }
 
-  const int2 edge_verts = mesh.edges()[e];
+  const int2 edge_verts = emesh.src_edges[e];
   const int v1 = edge_verts[0];
   const int v2 = edge_verts[1];
 
-  Span<int> corner_verts = mesh.corner_verts();
-  IndexRange f1_corners = mesh.faces()[f1];
-  IndexRange f2_corners = mesh.faces()[f2];
+  Span<int> corner_verts = emesh.src_corner_verts;
+  IndexRange f1_corners = emesh.src_faces[f1];
+  IndexRange f2_corners = emesh.src_faces[f2];
 
   int c1_v1 = bke::mesh::face_find_corner_from_vert(f1_corners, corner_verts, v1);
   int c1_v2 = bke::mesh::face_find_corner_from_vert(f1_corners, corner_verts, v2);
@@ -831,21 +828,23 @@ void UVLayerInfo::find_components(const ExtendableMesh &emesh)
     return;
   }
 
-  const Mesh &mesh = emesh.mesh;
-  const int totface = mesh.faces_num;
-  face_component = Array<int>(totface, -1);
-  if (totface == 0) {
+  const Span<float3> positions = emesh.src_positions;
+  const OffsetIndices<int> faces = emesh.src_faces;
+  const Span<int> corner_verts = emesh.src_corner_verts;
+  const Span<int> corner_edges = emesh.src_corner_edges;
+  face_component = Array<int>(faces.size(), -1);
+  if (faces.is_empty()) {
     return;
   }
 
   GroupedSpan<int> edge_faces = emesh.edge_faces();
 
-  Array<bool> in_stack(totface, false);
+  Array<bool> in_stack(faces.size(), false);
   Vector<int> stack;
-  stack.reserve(totface);
+  stack.reserve(faces.size());
 
   int current_component = -1;
-  for (int f = 0; f < totface; f++) {
+  for (int f = 0; f < faces.size(); f++) {
     if (face_component[f] == -1 && !in_stack[f]) {
       current_component++;
       stack.append(f);
@@ -861,7 +860,7 @@ void UVLayerInfo::find_components(const ExtendableMesh &emesh)
         face_component[f_curr] = current_component;
 
         /* Find neighbors via edges. */
-        const Span<int> f_edges = mesh.corner_edges().slice(mesh.faces()[f_curr]);
+        const Span<int> f_edges = corner_edges.slice(faces[f_curr]);
         for (const int e_index : f_edges) {
           const Span<int> adj_faces = edge_faces[e_index];
           for (const int f_other : adj_faces) {
@@ -869,7 +868,7 @@ void UVLayerInfo::find_components(const ExtendableMesh &emesh)
               if (face_component[f_other] != -1 || in_stack[f_other]) {
                 continue;
               }
-              if (contig_ldata_across_edge(mesh, e_index, f_curr, f_other)) {
+              if (contig_ldata_across_edge(emesh, e_index, f_curr, f_other)) {
                 stack.append(f_other);
                 in_stack[f_other] = true;
               }
@@ -892,13 +891,10 @@ void UVLayerInfo::find_components(const ExtendableMesh &emesh)
   float bot_face_z = 1e30f;
   int bot_face_component = -1;
 
-  const Span<int> corner_verts = mesh.corner_verts();
-  const Span<float3> positions = mesh.vert_positions();
-
-  for (int f = 0; f < totface; f++) {
+  for (int f = 0; f < faces.size(); f++) {
     float min_z = 1e30f;
     float max_z = -1e30f;
-    for (const int corner : mesh.faces()[f]) {
+    for (const int corner : faces[f]) {
       const float fz = positions[corner_verts[corner]].z;
       min_z = std::min(min_z, fz);
       max_z = std::max(max_z, fz);
@@ -1045,9 +1041,10 @@ BevelState::BevelState(const Mesh &mesh, const BevelParameters &params, const In
     });
     this->selection = IndexMask::from_bools(is_manifold_selected, memory);
 
+    const Span<int2> src_edges = mesh.edges();
     Array<bool> is_affected(mesh.verts_num, false);
     this->selection.foreach_index([&](const int e) {
-      const int2 edge_verts = mesh.edges()[e];
+      const int2 edge_verts = src_edges[e];
       is_affected[edge_verts[0]] = true;
       is_affected[edge_verts[1]] = true;
     });
@@ -1184,11 +1181,11 @@ static bool point_between_edges(
   float ang1co = angle_normalized_v3v3(dir1, dirco);
   float3 no;
   no = math::cross(dir1, dir2);
-  if (math::dot(no, emesh.mesh.face_normals()[f]) < 0.0f) {
+  if (math::dot(no, emesh.src_face_normals[f]) < 0.0f) {
     ang11 = float(M_PI * 2.0) - ang11;
   }
   no = math::cross(dir1, dirco);
-  if (math::dot(no, emesh.mesh.face_normals()[f]) < 0.0f) {
+  if (math::dot(no, emesh.src_face_normals[f]) < 0.0f) {
     ang1co = float(M_PI * 2.0) - ang1co;
   }
   return (ang11 - ang1co > -BEVEL_EPSILON_ANG);
@@ -1231,7 +1228,7 @@ static bool edge_edge_angle_less_than_180(const ExtendableMesh &emesh,
   float3 dir1 = emesh.vert_position(v1) - emesh.vert_position(v);
   float3 dir2 = emesh.vert_position(v2) - emesh.vert_position(v);
   float3 cross = math::cross(dir1, dir2);
-  return math::dot(cross, emesh.mesh.face_normals()[f]) > 0.0f;
+  return math::dot(cross, emesh.src_face_normals[f]) > 0.0f;
 }
 
 static int get_edge_starting_at(const ExtendableMesh &emesh, int f, int vert)
@@ -1293,18 +1290,18 @@ static void offset_meet(const ExtendableMesh &emesh,
      * situation arises elsewhere but with opposite roles for e1 and e2). */
     float3 norm_v = float3(0.0f);
     if (f != -1) {
-      norm_v = emesh.mesh.face_normals()[f];
+      norm_v = emesh.src_face_normals[f];
     }
     else {
       int fcount = 0;
       for (EdgeHalf *eloop = e1; eloop != e2; eloop = eloop->next) {
         if (eloop->fnext != -1) {
-          norm_v += emesh.mesh.face_normals()[eloop->fnext];
+          norm_v += emesh.src_face_normals[eloop->fnext];
           fcount++;
         }
       }
       if (fcount == 0) {
-        norm_v = emesh.mesh.vert_normals()[v];
+        norm_v = emesh.src_vert_normals[v];
       }
       else {
         norm_v /= float(fcount);
@@ -1333,13 +1330,13 @@ static void offset_meet(const ExtendableMesh &emesh,
      * Use the face normal to figure out which side to look at angle from. */
     float3 norm_v1, norm_v2;
     if (f != -1 && ang < BEVEL_SMALL_ANG) {
-      norm_v1 = norm_v2 = emesh.mesh.face_normals()[f];
+      norm_v1 = norm_v2 = emesh.src_face_normals[f];
     }
     else if (!edges_between) {
       /* Get normal as cross product of the two edge directions. */
       norm_v1 = math::normalize(math::cross(dir2, dir1));
-      if (math::dot(norm_v1,
-                    f != -1 ? emesh.mesh.face_normals()[f] : emesh.mesh.vert_normals()[v]) < 0.0f)
+      if (math::dot(norm_v1, f != -1 ? emesh.src_face_normals[f] : emesh.src_vert_normals[v]) <
+          0.0f)
       {
         norm_v1 = -norm_v1;
       }
@@ -1350,16 +1347,16 @@ static void offset_meet(const ExtendableMesh &emesh,
       norm_v1 = math::normalize(math::cross(dir1n, dir1));
       int f_curr = e1->fnext;
       if (math::dot(norm_v1,
-                    f_curr != -1 ? emesh.mesh.face_normals()[f_curr] :
-                                   emesh.mesh.vert_normals()[v]) < 0.0f)
+                    f_curr != -1 ? emesh.src_face_normals[f_curr] : emesh.src_vert_normals[v]) <
+          0.0f)
       {
         norm_v1 = -norm_v1;
       }
       norm_v2 = math::normalize(math::cross(dir2, dir2p));
       f_curr = e2->fprev;
       if (math::dot(norm_v2,
-                    f_curr != -1 ? emesh.mesh.face_normals()[f_curr] :
-                                   emesh.mesh.vert_normals()[v]) < 0.0f)
+                    f_curr != -1 ? emesh.src_face_normals[f_curr] : emesh.src_vert_normals[v]) <
+          0.0f)
       {
         norm_v2 = -norm_v2;
       }
@@ -1407,13 +1404,13 @@ static void offset_meet(const ExtendableMesh &emesh,
             continue;
           }
           float plane[4];
-          float3 no = emesh.mesh.face_normals()[fnext];
+          float3 no = emesh.src_face_normals[fnext];
           plane_from_point_normal_v3(plane, v_co, no);
           float dropco[3];
           closest_to_plane_normalized_v3(dropco, plane, meetco);
           /* Don't drop to faces next to the in-plane edge. */
           if (e_in_plane) {
-            float ang = angle_v3v3(no, emesh.mesh.face_normals()[e_in_plane->fnext]);
+            float ang = angle_v3v3(no, emesh.src_face_normals[e_in_plane->fnext]);
             if ((math::abs(ang) < BEVEL_SMALL_ANG) ||
                 (math::abs(ang - float(M_PI)) < BEVEL_SMALL_ANG))
             {
@@ -1452,7 +1449,7 @@ static bool offset_meet_edge(const ExtendableMesh &emesh,
     return false;
   }
   float3 fno = math::cross(dir1, dir2);
-  if (math::dot(fno, emesh.mesh.vert_normals()[v]) < 0.0f) {
+  if (math::dot(fno, emesh.src_vert_normals[v]) < 0.0f) {
     /* Angle is reflex. */
     ang = 2.0f * float(M_PI) - ang;
     if (r_angle) {
@@ -2552,8 +2549,8 @@ static void build_boundary_terminal_edge(const BevelState &state,
   if (bv->edgecount == 2) {
     /* Only 2 edges in, so terminate the edge with an artificial vertex on the unbeveled edge. */
     const float3 *no = e->fprev != -1 ?
-                           &emesh.mesh.face_normals()[e->fprev] :
-                           (e->fnext != -1 ? &emesh.mesh.face_normals()[e->fnext] : nullptr);
+                           &emesh.src_face_normals[e->fprev] :
+                           (e->fnext != -1 ? &emesh.src_face_normals[e->fnext] : nullptr);
     offset_in_plane(emesh, e, no, true, co);
     if (construct) {
       BoundVert *bndv = add_new_bound_vert(bv, co);
@@ -2563,8 +2560,8 @@ static void build_boundary_terminal_edge(const BevelState &state,
     else {
       adjust_bound_vert(e->leftv, co);
     }
-    no = e->fnext != -1 ? &emesh.mesh.face_normals()[e->fnext] :
-                          (e->fprev != -1 ? &emesh.mesh.face_normals()[e->fprev] : nullptr);
+    no = e->fnext != -1 ? &emesh.src_face_normals[e->fnext] :
+                          (e->fprev != -1 ? &emesh.src_face_normals[e->fprev] : nullptr);
     offset_in_plane(emesh, e, no, false, co);
     if (construct) {
       BoundVert *bndv = add_new_bound_vert(bv, co);
@@ -2701,8 +2698,7 @@ static bool eh_on_plane(const ExtendableMesh &emesh, EdgeHalf *e)
   if (e->fprev == -1 || e->fnext == -1) {
     return false;
   }
-  const float dot = math::dot(emesh.mesh.face_normals()[e->fprev],
-                              emesh.mesh.face_normals()[e->fnext]);
+  const float dot = math::dot(emesh.src_face_normals[e->fprev], emesh.src_face_normals[e->fnext]);
   return fabsf(dot + 1.0f) <= geom::BEVEL_EPSILON_BIG ||
          fabsf(dot - 1.0f) <= geom::BEVEL_EPSILON_BIG;
 }
@@ -2729,13 +2725,13 @@ static AngleKind edges_angle_kind(const ExtendableMesh &emesh, EdgeHalf *e1, Edg
   float3 cross = math::normalize(math::cross(dir1, dir2));
   float3 no;
   if (e1->fnext != -1) {
-    no = emesh.mesh.face_normals()[e1->fnext];
+    no = emesh.src_face_normals[e1->fnext];
   }
   else if (e2->fprev != -1) {
-    no = emesh.mesh.face_normals()[e2->fprev];
+    no = emesh.src_face_normals[e2->fprev];
   }
   else {
-    no = emesh.mesh.vert_normals()[v];
+    no = emesh.src_vert_normals[v];
   }
 
   if (math::dot(cross, no) < 0.0f) {
@@ -2761,9 +2757,8 @@ static bool edge_has_miter(const BevelState &state, const EdgeHalf *e, int v)
   if (e->fnext == -1) {
     return false;
   }
-  const Mesh &mesh = state.emesh.mesh;
-  const IndexRange face = mesh.faces()[e->fnext];
-  const Span<int> corner_verts = mesh.corner_verts().slice(face);
+  const IndexRange face = state.emesh.src_faces[e->fnext];
+  const Span<int> corner_verts = state.emesh.src_corner_verts.slice(face);
   for (const int i : corner_verts.index_range()) {
     if (corner_verts[i] == v) {
       const int corner = face.start() + i;
@@ -3089,9 +3084,8 @@ static void adjust_miter_inner_coords(const BevelState &state, BevVert *bv, Edge
         /* Spread: use per-corner value from params if available; fall back to 0. */
         int corner = -1;
         if (e->fnext != -1) {
-          const Mesh &mesh = state.emesh.mesh;
-          const IndexRange face = mesh.faces()[e->fnext];
-          const Span<int> cverts = mesh.corner_verts().slice(face);
+          const IndexRange face = state.emesh.src_faces[e->fnext];
+          const Span<int> cverts = state.emesh.src_corner_verts.slice(face);
           for (const int i : cverts.index_range()) {
             if (cverts[i] == bv->v) {
               corner = face.start() + i;
@@ -4226,7 +4220,7 @@ static VMesh adj_vmesh(BevelState &state, BevVert *bv);
  */
 static bool face_point_inside_test(const ExtendableMesh &emesh, const int f, const float3 co)
 {
-  const float3 no = emesh.face_normal(f);
+  const float3 no = emesh.src_face_normals[f];
   float axis_mat[3][3];
   axis_dominant_v3_to_m3(axis_mat, no);
 
@@ -4235,9 +4229,9 @@ static bool face_point_inside_test(const ExtendableMesh &emesh, const int f, con
   mul_v2_m3v3(co_2d, axis_mat, co);
 
   /* Project every corner of the face. */
-  const OffsetIndices faces = emesh.mesh.faces();
-  const Span<int> corner_verts = emesh.mesh.corner_verts();
-  const Span<float3> positions = emesh.mesh.vert_positions();
+  const OffsetIndices faces = emesh.src_faces;
+  const Span<int> corner_verts = emesh.src_corner_verts;
+  const Span<float3> positions = emesh.src_positions;
   const IndexRange face_range = faces[f];
   const int n = face_range.size();
   Array<float2> projverts(n);
@@ -4263,14 +4257,15 @@ static void get_incident_edges(
   if (f < 0) {
     return;
   }
-  const OffsetIndices faces = emesh.mesh.faces();
-  const Span<int> corner_verts = emesh.mesh.corner_verts();
-  const Span<int> corner_edges = emesh.mesh.corner_edges();
+  const Span<int2> edges = emesh.src_edges;
+  const OffsetIndices faces = emesh.src_faces;
+  const Span<int> corner_verts = emesh.src_corner_verts;
+  const Span<int> corner_edges = emesh.src_corner_edges;
   const IndexRange face_range = faces[f];
   const int n = face_range.size();
   for (int i = 0; i < n; i++) {
     const int e = corner_edges[face_range[i]];
-    const int2 &ev = emesh.mesh.edges()[e];
+    const int2 &ev = edges[e];
     if (ev[0] == v_idx || ev[1] == v_idx) {
       if (*r_e1 < 0) {
         *r_e1 = e;
@@ -4329,7 +4324,7 @@ static float projected_boundary_area(const BevelState &state, BevVert *bv, const
   VMesh *vm = bv->vmesh.get();
   BLI_assert(vm != nullptr);
 
-  const float3 no = emesh.face_normal(f);
+  const float3 no = emesh.src_face_normals[f];
   float axis_mat[3][3];
   axis_dominant_v3_to_m3(axis_mat, no);
 
@@ -4340,9 +4335,9 @@ static float projected_boundary_area(const BevelState &state, BevVert *bv, const
   BoundVert *unsnapped[3];
   find_face_internal_boundverts(emesh, bv, f, unsnapped);
 
-  const Span<float3> positions = emesh.mesh.vert_positions();
-  const int2 &ev1 = emesh.mesh.edges()[e1];
-  const int2 &ev2 = emesh.mesh.edges()[e2];
+  const Span<float3> positions = emesh.src_positions;
+  const int2 &ev1 = emesh.src_edges[e1];
+  const int2 &ev2 = emesh.src_edges[e2];
   const float *e1v1 = positions[ev1[0]];
   const float *e1v2 = positions[ev1[1]];
   const float *e2v1 = positions[ev2[0]];
@@ -6646,7 +6641,7 @@ static BoundVert *pipe_test(const BevelState &state, BevVert *bv)
   for (int i = 0; i < bv->edgecount; i++) {
     EdgeHalf *e = &bv->edges[i];
     if (e->fnext >= 0) {
-      const float3 face_no = state.emesh.face_normal(e->fnext);
+      const float3 face_no = state.emesh.src_face_normals[e->fnext];
       if (fabsf(dot_v3v3(dir1, face_no)) > geom::BEVEL_EPSILON_BIG) {
         return nullptr;
       }
@@ -7042,8 +7037,8 @@ static int tri_corner_test(const BevelState &state, const BevVert *bv)
     /* Compute the signed dihedral angle of this edge from its two adjacent face normals. */
     float ang = 0.0f;
     if (e.fprev >= 0 && e.fnext >= 0) {
-      const float3 no_prev = emesh.face_normal(e.fprev);
-      const float3 no_next = emesh.face_normal(e.fnext);
+      const float3 no_prev = emesh.src_face_normals[e.fprev];
+      const float3 no_next = emesh.src_face_normals[e.fnext];
       ang = angle_signed_on_axis_v3v3_v3(no_prev, no_next, float3(0.0f) /* unused */);
       /* Use the dot-product sign to distinguish concave from convex. */
       const float dot = math::dot(no_prev, no_next);
@@ -7317,7 +7312,7 @@ static void bevel_vert_construct(BevelState &state, int v)
       /* Determine which end of the edge contains this vertex.
        * `edges()[e][0]` is the source end and `[1]` is the destination end.
        * Left and right offsets are selected from the corresponding index pair. */
-      const int2 &ev = emesh.mesh.edges()[eh->e];
+      const int2 &ev = emesh.src_edges[eh->e];
       const bool at_src = (ev[0] == v);
       if (at_src) {
         eh->offset_l = state.params.offsets[0][eh->e];
@@ -7347,7 +7342,7 @@ static void bevel_vert_construct(BevelState &state, int v)
      * in #bev_vert_construct. */
     if (eh->fprev != -1 && eh->fnext != -1) {
       eh->is_seam = !state.uv_layer_info.contig_ldata_across_edge(
-          emesh.mesh, eh->e, eh->fprev, eh->fnext);
+          emesh, eh->e, eh->fprev, eh->fnext);
     }
     else {
       eh->is_seam = true;
@@ -7381,13 +7376,13 @@ static float2 interp_uv_from_face(const ExtendableMesh &emesh,
                                   const int f_src,
                                   const float3 dst_co)
 {
-  const OffsetIndices src_faces = emesh.mesh.faces();
-  const Span<int> corner_verts = emesh.mesh.corner_verts();
-  const Span<float3> positions = emesh.mesh.vert_positions();
+  const OffsetIndices src_faces = emesh.src_faces;
+  const Span<int> corner_verts = emesh.src_corner_verts;
+  const Span<float3> positions = emesh.src_positions;
   const IndexRange face_range = src_faces[f_src];
   const int n = face_range.size();
 
-  const float3 no = emesh.face_normal(f_src);
+  const float3 no = emesh.src_face_normals[f_src];
   float axis_mat[3][3];
   axis_dominant_v3_to_m3(axis_mat, no);
 
@@ -7512,8 +7507,8 @@ static void merge_uvs(BevelState &state)
 
   /* Build a map: (original_face, original_vertex) → source corner index.
    * Used to look up which bucket a new corner's representative face corner at origin_v is in. */
-  const OffsetIndices src_faces = emesh.mesh.faces();
-  const Span<int> src_corner_verts = emesh.mesh.corner_verts();
+  const OffsetIndices src_faces = emesh.src_faces;
+  const Span<int> src_corner_verts = emesh.src_corner_verts;
   /* key = face_idx * mesh.verts_num + vert_idx; value = source corner index. */
   Map<int64_t, int> face_vert_to_src_corner;
   face_vert_to_src_corner.reserve(emesh.mesh.corners_num);
