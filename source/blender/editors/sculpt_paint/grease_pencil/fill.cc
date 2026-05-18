@@ -588,7 +588,6 @@ static bke::CurvesGeometry boundary_to_curves(const FillBoundary &boundary,
 
   curves.offsets_for_write().copy_from(boundary.offset_indices);
   MutableSpan<float3> positions = curves.positions_for_write();
-  bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
 
   curves.fill_curve_types(CURVE_TYPE_POLY);
 
