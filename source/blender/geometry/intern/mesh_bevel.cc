@@ -980,8 +980,6 @@ struct BevelState {
   Vector<BevVert> bev_verts;
   Map<int, BevVert *> vert_hash;
 
-  Map<int, std::unique_ptr<UVFace>> uv_face_hash;
-
   Vector<UVVertMap> uv_vert_maps;
 
   ProfileSpacing pro_spacing;
