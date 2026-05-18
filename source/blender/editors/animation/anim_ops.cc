@@ -28,7 +28,6 @@
 #include "BKE_node.hh"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
-
 #include "BLT_translation.hh"
 
 #include "UI_interface_c.hh"
@@ -77,12 +76,16 @@ class FrameChangeModalData {
    */
  public:
   AnimKeylist *keylist;
-  wmTimer *anim_timer;
+  bool was_playing;
+  int play_sync;
+  int play_mode;
 
   FrameChangeModalData()
   {
     keylist = nullptr;
-    anim_timer = nullptr;
+    was_playing = false;
+    play_sync = -1;
+    play_mode = 1;
   }
 
   ~FrameChangeModalData()
@@ -692,6 +695,17 @@ static wmOperatorStatus change_frame_invoke(bContext *C, wmOperator *op, const w
   FrameChangeModalData *op_data = MEM_new<FrameChangeModalData>(__func__);
   op->customdata = op_data;
 
+  screen->scrubbing = true;
+  if (screen->animtimer) {
+    ScreenAnimData *sad = static_cast<ScreenAnimData *>(screen->animtimer->customdata);
+    op_data->was_playing = true;
+    op_data->play_mode = (sad->flag & ANIMPLAY_FLAG_REVERSE) ? -1 : 1;
+    op_data->play_sync = (sad->flag & ANIMPLAY_FLAG_SYNC) ? 1 :
+                         (sad->flag & ANIMPLAY_FLAG_NO_SYNC) ? 0 :
+                                                               -1;
+    ED_screen_animation_play(C, 0, 0);
+  }
+
   /* This check is done in case scrubbing and strip tweaking in the sequencer are bound to the same
    * event (e.g. RCS keymap where both are activated on left mouse press). Tweaking should take
    * precedence. */
@@ -709,13 +723,6 @@ static wmOperatorStatus change_frame_invoke(bContext *C, wmOperator *op, const w
 
   if (use_playhead_snapping(C)) {
     RNA_boolean_set(op->ptr, "snap", true);
-  }
-
-  screen->scrubbing = true;
-  if (screen->animtimer) {
-    op_data->anim_timer = screen->animtimer;
-    screen->animtimer = nullptr;
-    WM_event_timer_sleep(CTX_wm_manager(C), CTX_wm_window(C), op_data->anim_timer, true);
   }
 
   if (RNA_boolean_get(op->ptr, "seq_solo_preview")) {
@@ -750,11 +757,9 @@ static bool need_extra_redraw_after_scrubbing_ends(bContext *C)
 static void change_frame_restore_playback(bContext *C, wmOperator *op)
 {
   FrameChangeModalData *op_data = static_cast<FrameChangeModalData *>(op->customdata);
-  if (op_data && op_data->anim_timer) {
-    bScreen *screen = CTX_wm_screen(C);
-    screen->animtimer = op_data->anim_timer;
-    WM_event_timer_sleep(CTX_wm_manager(C), CTX_wm_window(C), op_data->anim_timer, false);
-    op_data->anim_timer = nullptr;
+  if (op_data && op_data->was_playing) {
+    op_data->was_playing = false;
+    ED_screen_animation_play(C, op_data->play_sync, op_data->play_mode);
   }
 }
 
