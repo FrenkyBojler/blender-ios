@@ -5109,9 +5109,6 @@ static void bevel_build_rings(BevelState &state, BevVert *bv)
   }
 }
 
-/* Forward declaration — defined in the Edge polygon construction section below. */
-static EdgeHalf *find_edge_half_for_edge(BevVert *bv, int edge_index);
-
 /* -------------------------------------------------------------------- */
 /** \name Face rebuild
  * \{ */
