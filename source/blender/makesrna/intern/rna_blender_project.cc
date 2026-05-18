@@ -63,14 +63,12 @@ static void rna_BlenderProject_name_get(PointerRNA *ptr, char *value)
 
 static int rna_BlenderProject_name_length(PointerRNA *ptr)
 {
-  int length;
-  BKE_with_blender_project(G_MAIN, [&](const bke::BlenderProject *locked_project) {
+  return BKE_with_blender_project(G_MAIN, [&](const bke::BlenderProject *locked_project) {
     const bke::BlenderProject *project = static_cast<bke::BlenderProject *>(ptr->data);
     BLI_assert(project == locked_project);
 
-    length = project->get_name().size();
+    return project->get_name().size();
   });
-  return length;
 }
 
 static void rna_BlenderProject_name_set(PointerRNA *ptr, const char *value)
@@ -102,25 +100,21 @@ static void rna_BlenderProject_root_path_get(PointerRNA *ptr, char *value)
 
 static int rna_BlenderProject_root_path_length(PointerRNA *ptr)
 {
-  int length;
-  BKE_with_blender_project(G_MAIN, [&](const bke::BlenderProject *locked_project) {
+  return BKE_with_blender_project(G_MAIN, [&](const bke::BlenderProject *locked_project) {
     const bke::BlenderProject *project = static_cast<bke::BlenderProject *>(ptr->data);
     BLI_assert(project == locked_project);
 
-    length = project->get_root_path().size();
+    return project->get_root_path().size();
   });
-  return length;
 }
 
 static bool rna_BlenderProject_is_dirty_get(PointerRNA *ptr)
 {
-  bool is_dirty;
-  BKE_with_blender_project(G_MAIN, [&](const bke::BlenderProject *locked_project) {
+  return BKE_with_blender_project(G_MAIN, [&](const bke::BlenderProject *locked_project) {
     bke::BlenderProject *project = static_cast<bke::BlenderProject *>(ptr->data);
     BLI_assert(project == locked_project);
-    is_dirty = project->is_dirty;
+    return project->is_dirty;
   });
-  return is_dirty;
 }
 
 static void rna_BlenderProject_is_dirty_set(PointerRNA *ptr, bool value)

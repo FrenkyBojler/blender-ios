@@ -996,18 +996,18 @@ static bool screen_opengl_render_anim_init(wmOperator *op)
       const char *suffix = is_multiview_name ?
                                BKE_scene_multiview_view_id_suffix_get(&scene->r, i) :
                                "";
-      MovieWriter *writer;
-      BKE_with_blender_project(G_MAIN, [&](const bke::BlenderProject *project) {
-        writer = MOV_write_begin(scene_eval,
-                                 project,
-                                 &scene->r,
-                                 &image_format,
-                                 width,
-                                 height,
-                                 oglrender->reports,
-                                 PRVRANGEON != 0,
-                                 suffix);
-      });
+      MovieWriter *writer = BKE_with_blender_project(G_MAIN,
+                                                     [&](const bke::BlenderProject *project) {
+                                                       return MOV_write_begin(scene_eval,
+                                                                              project,
+                                                                              &scene->r,
+                                                                              &image_format,
+                                                                              width,
+                                                                              height,
+                                                                              oglrender->reports,
+                                                                              PRVRANGEON != 0,
+                                                                              suffix);
+                                                     });
       if (writer == nullptr) {
         BKE_image_format_free(&image_format);
         screen_opengl_render_end(oglrender);

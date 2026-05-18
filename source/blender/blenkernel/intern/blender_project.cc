@@ -18,6 +18,41 @@
 
 namespace blender {
 
+/**
+ * Get a reference to the global Blender project.
+ *
+ * As a general rule, the project's mutex should be held while accessing this to
+ * prevent data races. The public APIs `BKE_with_blender_project()` and
+ * `BKE_with_blender_project_write()` enforce this (if not abused) and should be
+ * used where possible.
+ *
+ * \see get_project_mutex()
+ *
+ * \see BKE_with_blender_project()
+ *
+ * \see BKE_with_blender_project_write()
+ */
+static std::optional<bke::BlenderProject> &get_project()
+{
+  /* Construct on First Use idiom. */
+  static std::optional<bke::BlenderProject> project;
+
+  return project;
+}
+
+/**
+ * Get a reference to the global Blender project's mutex.
+ *
+ * \see get_project()
+ */
+static std::shared_mutex &get_project_mutex()
+{
+  /* Construct on First Use idiom. */
+  static std::shared_mutex project_mutex;
+
+  return project_mutex;
+}
+
 namespace bke {
 
 void BlenderProject::set_name(StringRef name)
@@ -48,21 +83,25 @@ StringRefNull BlenderProject::get_root_path() const
   return StringRefNull(this->root_path_);
 }
 
+void with_blender_project_for_read_impl(const Main *bmain,
+                                        FunctionRef<void(const bke::BlenderProject *)> lambda)
+{
+  std::shared_lock<std::shared_mutex> lock(get_project_mutex());
+  const bke::BlenderProject *project = BKE_blender_project_get(bmain);
+
+  lambda(project);
+}
+
+void with_blender_project_for_write_impl(const Main *bmain,
+                                         FunctionRef<void(bke::BlenderProject *)> lambda)
+{
+  std::unique_lock<std::shared_mutex> lock(get_project_mutex());
+  bke::BlenderProject *project = BKE_blender_project_get(bmain);
+
+  lambda(project);
+}
+
 }  // namespace bke
-
-static std::optional<bke::BlenderProject> &get_project()
-{
-  static std::optional<bke::BlenderProject> project;
-
-  return project;
-}
-
-static std::shared_mutex &get_project_mutex()
-{
-  static std::shared_mutex project_mutex;
-
-  return project_mutex;
-}
 
 bke::BlenderProject *BKE_blender_project_get(const Main *bmain)
 {
@@ -76,24 +115,6 @@ bke::BlenderProject *BKE_blender_project_get(const Main *bmain)
   }
 
   return &*project;
-}
-
-void BKE_with_blender_project(const Main *bmain,
-                              FunctionRef<void(const bke::BlenderProject *)> lambda)
-{
-  std::shared_lock<std::shared_mutex> lock(get_project_mutex());
-  const bke::BlenderProject *project = BKE_blender_project_get(bmain);
-
-  lambda(project);
-}
-
-void BKE_with_blender_project_write(const Main *bmain,
-                                    FunctionRef<void(bke::BlenderProject *)> lambda)
-{
-  std::unique_lock<std::shared_mutex> lock(get_project_mutex());
-  bke::BlenderProject *project = BKE_blender_project_get(bmain);
-
-  lambda(project);
 }
 
 bool BKE_blender_project_init(blender::StringRef name, blender::StringRef root_path)

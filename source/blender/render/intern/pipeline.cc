@@ -2359,18 +2359,18 @@ void RE_RenderAnim(Render *re,
     for (int i = 0; i < totvideos; i++) {
       const char *suffix = is_multiview_name ? BKE_scene_multiview_view_id_suffix_get(&re->r, i) :
                                                "";
-      MovieWriter *writer;
-      BKE_with_blender_project(bmain, [&](const bke::BlenderProject *project) {
-        writer = MOV_write_begin(re->pipeline_scene_eval,
-                                 project,
-                                 &re->r,
-                                 &image_format,
-                                 width,
-                                 height,
-                                 re->reports,
-                                 false,
-                                 suffix);
-      });
+      MovieWriter *writer = BKE_with_blender_project(
+          bmain, [&](const bke::BlenderProject *project) {
+            return MOV_write_begin(re->pipeline_scene_eval,
+                                   project,
+                                   &re->r,
+                                   &image_format,
+                                   width,
+                                   height,
+                                   re->reports,
+                                   false,
+                                   suffix);
+          });
       if (writer == nullptr) {
         is_error = true;
         break;
