@@ -4257,7 +4257,6 @@ static void get_incident_edges(
   }
   const Span<int2> edges = emesh.src_edges;
   const OffsetIndices faces = emesh.src_faces;
-  const Span<int> corner_verts = emesh.src_corner_verts;
   const Span<int> corner_edges = emesh.src_corner_edges;
   const IndexRange face_range = faces[f];
   const int n = face_range.size();
@@ -4272,7 +4271,6 @@ static void get_incident_edges(
         *r_e2 = e;
       }
     }
-    (void)corner_verts;
   }
 }
 
