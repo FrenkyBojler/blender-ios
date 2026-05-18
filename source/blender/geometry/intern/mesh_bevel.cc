@@ -346,7 +346,7 @@ class ExtendableMesh {
   }
 
   /* Allocates per-UV-layer float2 storage for new corners.  Must be called after
-   * UVLayerInfo is initialized and before any face_create call. */
+   * UVMapInfo is initialized and before any face_create call. */
   void init_uv_storage(int uv_layers_num);
 
   /* Per-UV-layer float2 values for new corners (one per layer, parallel to new_corner_verts_). */
@@ -735,16 +735,16 @@ bool ExtendableMesh::is_corner_killed(const int c) const
 
 namespace uv {
 
-class UVLayerInfo {
+class UVMapInfo {
  public:
-  bool has_uv_layers = false;
+  bool has_uv_maps = false;
   Array<int> face_component;
 
   struct UVLayer {
     std::string name;
     Array<float2> values;
   };
-  Vector<UVLayer> layers;
+  Vector<UVLayer> uv_maps;
 
   void init(const Mesh &mesh);
 
@@ -755,41 +755,40 @@ class UVLayerInfo {
   void find_components(const ExtendableMesh &emesh);
 
   /** Returns true when UV data is contiguous across edge `e` between faces `f1` and `f2`. */
-  bool contig_ldata_across_edge(const ExtendableMesh &mesh, int e, int f1, int f2) const;
+  bool contig_uv_maps_across_edge(const ExtendableMesh &mesh, int e, int f1, int f2) const;
 
   /**
    * Returns true when UV data is contiguous at vertex `v`:
    * all corners at `v` have the same UV value in every layer.
    * Mirrors #contig_ldata_around_vert from `bmesh_bevel.cc`.
    */
-  bool contig_ldata_around_vert(const ExtendableMesh &emesh, int v) const;
+  bool contig_uv_maps_around_vert(const ExtendableMesh &emesh, int v) const;
 };
 
-void UVLayerInfo::init(const Mesh &mesh)
+void UVMapInfo::init(const Mesh &mesh)
 {
-  has_uv_layers = false;
+  has_uv_maps = false;
   const bke::AttributeAccessor attrs = mesh.attributes();
   attrs.foreach_attribute([&](const bke::AttributeIter &iter) {
     if (iter.domain == bke::AttrDomain::Corner && iter.data_type == bke::AttrType::Float2) {
       bke::AttributeReader<float2> uv_reader = iter.get<float2>();
       if (uv_reader) {
-        UVLayer layer;
-        layer.name = iter.name;
-        layer.values = Array<float2>(mesh.corners_num);
-        uv_reader.varray.materialize(layer.values.as_mutable_span());
-        this->layers.append(std::move(layer));
-        this->has_uv_layers = true;
+        this->uv_maps.append(UVLayer{
+            .name = iter.name,
+            .values = VArraySpan<float2>(*uv_reader),
+        });
+        this->has_uv_maps = true;
       }
     }
   });
 }
 
-bool UVLayerInfo::contig_ldata_across_edge(const ExtendableMesh &emesh,
+bool UVMapInfo::contig_uv_maps_across_edge(const ExtendableMesh &emesh,
                                            const int e,
                                            const int f1,
                                            const int f2) const
 {
-  if (!has_uv_layers) {
+  if (!has_uv_maps) {
     return true;
   }
 
@@ -810,11 +809,11 @@ bool UVLayerInfo::contig_ldata_across_edge(const ExtendableMesh &emesh,
     return false;
   }
 
-  for (const UVLayer &layer : layers) {
-    if (layer.values[c1_v1] != layer.values[c2_v1]) {
+  for (const UVLayer &attr : uv_maps) {
+    if (attr.values[c1_v1] != attr.values[c2_v1]) {
       return false;
     }
-    if (layer.values[c1_v2] != layer.values[c2_v2]) {
+    if (attr.values[c1_v2] != attr.values[c2_v2]) {
       return false;
     }
   }
@@ -822,9 +821,9 @@ bool UVLayerInfo::contig_ldata_across_edge(const ExtendableMesh &emesh,
   return true;
 }
 
-void UVLayerInfo::find_components(const ExtendableMesh &emesh)
+void UVMapInfo::find_components(const ExtendableMesh &emesh)
 {
-  if (!has_uv_layers) {
+  if (!has_uv_maps) {
     return;
   }
 
@@ -868,7 +867,7 @@ void UVLayerInfo::find_components(const ExtendableMesh &emesh)
               if (face_component[f_other] != -1 || in_stack[f_other]) {
                 continue;
               }
-              if (contig_ldata_across_edge(emesh, e_index, f_curr, f_other)) {
+              if (contig_uv_maps_across_edge(emesh, e_index, f_curr, f_other)) {
                 stack.append(f_other);
                 in_stack[f_other] = true;
               }
@@ -936,9 +935,9 @@ void UVLayerInfo::find_components(const ExtendableMesh &emesh)
   }
 }
 
-bool UVLayerInfo::contig_ldata_around_vert(const ExtendableMesh &emesh, const int v) const
+bool UVMapInfo::contig_uv_maps_around_vert(const ExtendableMesh &emesh, const int v) const
 {
-  if (!has_uv_layers) {
+  if (!has_uv_maps) {
     return true;
   }
   /* Gather all corners at v. */
@@ -947,10 +946,10 @@ bool UVLayerInfo::contig_ldata_around_vert(const ExtendableMesh &emesh, const in
     return true;
   }
   const int c_first = corners[0];
-  for (const UVLayer &layer : layers) {
-    const float2 &uv_ref = layer.values[c_first];
+  for (const UVLayer &attr : uv_maps) {
+    const float2 &uv_ref = attr.values[c_first];
     for (const int c : corners.drop_front(1)) {
-      if (layer.values[c] != uv_ref) {
+      if (attr.values[c] != uv_ref) {
         return false;
       }
     }
@@ -988,7 +987,7 @@ struct BevelState {
 
   ProfileSpacing pro_spacing;
   ProfileSpacing pro_spacing_miter;
-  uv::UVLayerInfo uv_layer_info;
+  uv::UVMapInfo uv_layer_info;
 
   /* Additional State mimicking bmesh_bevel that isn't fully contained in BevelParameters. */
   bool affect_vertices_odd;
@@ -2054,7 +2053,7 @@ template<typename T> [[maybe_unused]] static void print_span(Span<T> span, const
   const int n_new = emesh.new_faces_num();
   fmt::println("MESH new face examples ({} new faces):", n_new);
   const Span<int> exs = emesh.new_face_examples();
-  const uv::UVLayerInfo &uvi = state.uv_layer_info;
+  const uv::UVMapInfo &uvi = state.uv_layer_info;
   for (int i = 0; i < n_new; i++) {
     const int face_idx = emesh.mesh.faces_num + i;
     const int ex = (i < int(exs.size())) ? exs[i] : -1;
@@ -2496,7 +2495,7 @@ static void build_boundary_vertex_only(const BevelState &state, BevVert *bv, boo
      * Only needed when the segment count is odd (the "affect_vertices_odd" condition), since
      * `uv_layer_info.face_component` is only populated for odd segment counts. */
     if (state.params.segments % 2 == 1) {
-      if (!bv->any_seam && !state.uv_layer_info.contig_ldata_around_vert(state.emesh, bv->v)) {
+      if (!bv->any_seam && !state.uv_layer_info.contig_uv_maps_around_vert(state.emesh, bv->v)) {
         bv->any_seam = true;
       }
     }
@@ -4167,10 +4166,10 @@ void BevelState::uv_init()
   }
 
   this->uv_vert_maps.clear();
-  this->uv_vert_maps.resize(this->uv_layer_info.layers.size());
+  this->uv_vert_maps.resize(this->uv_layer_info.uv_maps.size());
 
-  /* Allocate per-UV-layer storage for new corner UV values. */
-  this->emesh.init_uv_storage(int(this->uv_layer_info.layers.size()));
+  /* Allocate per-UV-attr storage for new corner UV values. */
+  this->emesh.init_uv_storage(int(this->uv_layer_info.uv_maps.size()));
 }
 
 namespace construct {
@@ -4370,7 +4369,7 @@ static int choose_rep_face(const BevelState &state, const Span<int> faces)
   }
 
   /* Read optional per-face attributes once. */
-  const uv::UVLayerInfo &uvi = state.uv_layer_info;
+  const uv::UVMapInfo &uvi = state.uv_layer_info;
   const Mesh &mesh = state.emesh.mesh;
   const bke::AttributeAccessor attrs = mesh.attributes();
   VArraySpan<int> mat_span;
@@ -4647,7 +4646,7 @@ static int frep_for_center_poly(const BevelState &state, const BevVert *bv)
       }
     }
     if (!already_there) {
-      if (state.uv_layer_info.has_uv_layers) {
+      if (state.uv_layer_info.has_uv_maps) {
         /* Skip candidates that would produce a degenerate UV polygon. */
         if (is_bad_uv_poly(state, const_cast<BevVert *>(bv), bmf)) {
           continue;
@@ -5874,15 +5873,15 @@ static void build_vmesh(BevelState &state, BevVert *bv)
  * `state.uv_vert_maps[i][v]`, one entry per UV layer.
  *
  * This is the Mesh equivalent of the BMesh #determine_uv_vert_connectivity function.
- * Corners play the role of BMesh loops; #uv::UVLayerInfo::layers supplies the UV values.
+ * Corners play the role of BMesh loops; #uv::UVMapInfo::layers supplies the UV values.
  */
 static void determine_uv_vert_connectivity(BevelState &state, const int v)
 {
-  const int num_uv_layers = int(state.uv_layer_info.layers.size());
+  const int num_uv_layers = int(state.uv_layer_info.uv_maps.size());
   BLI_assert(int(state.uv_vert_maps.size()) == num_uv_layers);
 
   for (int i = 0; i < num_uv_layers; i++) {
-    const Span<float2> uv_vals = state.uv_layer_info.layers[i].values.as_span();
+    const Span<float2> uv_vals = state.uv_layer_info.uv_maps[i].values;
     Vector<UVVertBucket> uv_vert_buckets;
 
     for (const int c : state.emesh.vert_corners()[v]) {
@@ -7312,7 +7311,7 @@ static void bevel_vert_construct(BevelState &state, int v)
      * or when one of those faces is absent (boundary edge). Mirrors the BMesh logic
      * in #bev_vert_construct. */
     if (eh->fprev != -1 && eh->fnext != -1) {
-      eh->is_seam = !state.uv_layer_info.contig_ldata_across_edge(
+      eh->is_seam = !state.uv_layer_info.contig_uv_maps_across_edge(
           emesh, eh->e, eh->fprev, eh->fnext);
     }
     else {
@@ -7388,7 +7387,7 @@ static float2 interp_uv_from_face(const ExtendableMesh &emesh,
  */
 static void fill_new_corner_uvs(BevelState &state)
 {
-  const int num_uv_layers = int(state.uv_layer_info.layers.size());
+  const int num_uv_layers = int(state.uv_layer_info.uv_maps.size());
   if (num_uv_layers == 0) {
     return;
   }
@@ -7405,9 +7404,9 @@ static void fill_new_corner_uvs(BevelState &state)
     /* Face-level fallback representative face. */
     const int face_fallback = new_face_exs[nf];
     const IndexRange new_corners = new_faces[nf];
-    for (int layer = 0; layer < num_uv_layers; layer++) {
-      const Span<float2> uv_vals = state.uv_layer_info.layers[layer].values.as_span();
-      MutableSpan<float2> dst_uvs = emesh.new_corner_uvs(layer);
+    for (int uv_i = 0; uv_i < num_uv_layers; uv_i++) {
+      const Span<float2> uv_vals = state.uv_layer_info.uv_maps[uv_i].values;
+      MutableSpan<float2> dst_uvs = emesh.new_corner_uvs(uv_i);
       for (const int nc : new_corners) {
         /* Use the per-corner face rep if set; otherwise fall back to the face-level one. */
         const int f_src = (new_corner_face_reps[nc] >= 0) ? new_corner_face_reps[nc] :
@@ -7454,7 +7453,7 @@ static void fill_new_corner_uvs(BevelState &state)
  */
 static void merge_uvs(BevelState &state)
 {
-  const int num_uv_layers = int(state.uv_layer_info.layers.size());
+  const int num_uv_layers = int(state.uv_layer_info.uv_maps.size());
   if (num_uv_layers == 0) {
     return;
   }
@@ -7492,12 +7491,12 @@ static void merge_uvs(BevelState &state)
     }
   }
 
-  for (int layer = 0; layer < num_uv_layers; layer++) {
-    MutableSpan<float2> src_uv_vals = state.uv_layer_info.layers[layer].values.as_mutable_span();
-    MutableSpan<float2> new_uv_vals = emesh.new_corner_uvs(layer);
+  for (int uv_i = 0; uv_i < num_uv_layers; uv_i++) {
+    MutableSpan<float2> src_uv_vals = state.uv_layer_info.uv_maps[uv_i].values.as_mutable_span();
+    MutableSpan<float2> new_uv_vals = emesh.new_corner_uvs(uv_i);
 
     /* --- Pass 1: source corners at original bevel vertices ------------------- */
-    for (auto item : state.uv_vert_maps[layer].items()) {
+    for (auto item : state.uv_vert_maps[uv_i].items()) {
       Vector<UVVertBucket> &uv_vert_buckets = item.value;
       for (UVVertBucket &bucket : uv_vert_buckets) {
         if (bucket.size() <= 1) {
@@ -7531,7 +7530,7 @@ static void merge_uvs(BevelState &state)
       const int origin_v = *origin_v_ptr;
 
       /* Look up the UV buckets for the parent vertex on this layer. */
-      const Vector<UVVertBucket> *buckets = state.uv_vert_maps[layer].lookup_ptr(origin_v);
+      const Vector<UVVertBucket> *buckets = state.uv_vert_maps[uv_i].lookup_ptr(origin_v);
       if (buckets == nullptr) {
         continue;
       }
@@ -7931,7 +7930,7 @@ static std::optional<Mesh *> build_output_mesh(const BevelState &state)
                            dst_attrs);
 
     /* Write precomputed UV values for new corners into the output mesh. */
-    const int num_uv_layers = int(state.uv_layer_info.layers.size());
+    const int num_uv_layers = int(state.uv_layer_info.uv_maps.size());
     if (num_uv_layers > 0) {
       bke::MutableAttributeAccessor out_attrs = dst->attributes_for_write();
       const Span<int> new_corner_verts = emesh.new_corner_verts();
@@ -7939,7 +7938,7 @@ static std::optional<Mesh *> build_output_mesh(const BevelState &state)
       const int new_corner_dst_start = n_surv_corners;
 
       for (int li = 0; li < num_uv_layers; li++) {
-        const StringRef layer_name = state.uv_layer_info.layers[li].name;
+        const StringRef layer_name = state.uv_layer_info.uv_maps[li].name;
         bke::AttributeWriter<float2> uv_writer = out_attrs.lookup_for_write<float2>(layer_name);
         if (!uv_writer) {
           continue;
@@ -8137,7 +8136,7 @@ std::optional<Mesh *> mesh_bevel(
   state.bevel_affected_vertices.foreach_index([&](const int v) { state.emesh.vert_kill(v); });
 
   /* Interpolate UV values for new corners, then merge at seam vertices. */
-  if (state.uv_layer_info.has_uv_layers) {
+  if (state.uv_layer_info.has_uv_maps) {
     construct::fill_new_corner_uvs(state);
 #ifdef BEVEL_DEBUG
     {
@@ -8150,11 +8149,11 @@ std::optional<Mesh *> mesh_bevel(
                      nf + state.emesh.mesh.faces_num,
                      nc_range.start(),
                      nc_range.last());
-        for (int layer = 0; layer < int(state.uv_layer_info.layers.size()); layer++) {
-          const Span<float2> new_uv = state.emesh.new_corner_uvs(layer);
+        for (int uv_i = 0; uv_i < int(state.uv_layer_info.layers.size()); uv_i++) {
+          const Span<float2> new_uv = state.emesh.new_corner_uvs(uv_i);
           for (const int nc : nc_range) {
-            fmt::println("  layer={} corner={} v={} uv=({:.5f},{:.5f})",
-                         layer,
+            fmt::println("  uv_i={} corner={} v={} uv=({:.5f},{:.5f})",
+                         uv_i,
                          nc,
                          ncv[nc],
                          new_uv[nc].x,
