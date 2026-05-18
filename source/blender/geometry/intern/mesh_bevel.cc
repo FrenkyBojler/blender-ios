@@ -608,8 +608,9 @@ int ExtendableMesh::vert_create(const float3 &co, const int example_vert)
 
 int ExtendableMesh::edge_create(const int v1, const int v2, const int example_edge)
 {
+  const int start_size = edge_lookup_.size();
   const int index = edge_lookup_.index_of_or_add(OrderedEdge(v1, v2));
-  if (index == (edge_lookup_.size() - 1)) {
+  if (edge_lookup_.size() != start_size) {
     new_edge_examples_.append(example_edge);
     new_edge_seam_overrides_.append(-1);
     new_edge_sharp_overrides_.append(-1);
