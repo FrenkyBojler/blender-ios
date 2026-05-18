@@ -158,6 +158,8 @@ def find_and_load_project_for_blend_path(context, blend_path, report=None):
         bpy.data.project_clear()
         return
 
+    # Note: `blend_path` (and consequently the resulting `root_path`) are
+    # assumed/expected to be absolute here.
     root_path = find_project_root_from_blend_file_path(Path(blend_path))
     if root_path is None:
         # No project.
