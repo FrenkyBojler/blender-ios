@@ -254,8 +254,7 @@ void slide_subjects_get(bContext *C, ListBaseT<SlideSubject> *slide_subjects)
 {
   BLI_assert(slide_subjects != nullptr);
   /* For each Pose-Channel which gets affected, get the F-Curves for that channel
-   * and set the relevant transform flags...
-   */
+   * and set the relevant transform flags... */
   Object *prev_ob, *ob_pose_armature;
 
   prev_ob = nullptr;
