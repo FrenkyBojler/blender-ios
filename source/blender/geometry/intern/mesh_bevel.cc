@@ -32,6 +32,7 @@
 #include "eigen_capi.h"
 
 #include "GEO_mesh_bevel.hh"
+#include "GEO_mesh_selection.hh"
 
 #define DEBUG_TIME
 #ifdef DEBUG_TIME
@@ -1036,13 +1037,8 @@ BevelState::BevelState(const Mesh &mesh, const BevelParameters &params, const In
         selection, memory, [&](const int i) { return edge_faces[i].size() == 2; });
 
     const Span<int2> src_edges = mesh.edges();
-    Array<bool> is_affected(mesh.verts_num, false);
-    this->selection.foreach_index([&](const int e) {
-      const int2 edge_verts = src_edges[e];
-      is_affected[edge_verts[0]] = true;
-      is_affected[edge_verts[1]] = true;
-    });
-    this->bevel_affected_vertices = IndexMask::from_bools(is_affected, memory);
+    this->bevel_affected_vertices = vert_selection_from_edge(
+        src_edges, this->selection, mesh.verts_num, memory);
   }
 
   /* Calculate affected faces and their centers. */
