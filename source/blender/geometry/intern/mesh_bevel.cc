@@ -18,6 +18,7 @@
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
 #include "BLI_math_vector.hh"
+#include "BLI_ordered_edge.hh"
 #include "BLI_span.hh"
 #include "BLI_vector.hh"
 
@@ -237,9 +238,7 @@ class ExtendableMesh {
    * or -1 if no such edge exists yet. */
   int find_edge(const int v1, const int v2) const
   {
-    const int min_v = std::min(v1, v2);
-    const int max_v = std::max(v1, v2);
-    return edge_lookup_.lookup_default(int2(min_v, max_v), -1);
+    return edge_lookup_.index_of_try(OrderedEdge(v1, v2));
   }
 
   /* Sets the example edge of a previously created new edge.
@@ -348,7 +347,7 @@ class ExtendableMesh {
   }
   Span<int2> new_edges() const
   {
-    return new_edges_;
+    return edge_lookup_.as_span().cast<int2>().drop_front(src_edges_.size());
   }
   /** Face offset array for new faces: size is new_faces_num()+1, sentinel 0 at index 0. */
   Span<int> new_face_offsets() const
@@ -449,11 +448,10 @@ class ExtendableMesh {
   Span<float3> src_positions_;
   Span<int2> src_edges_;
   OffsetIndices<int> src_faces_;
-  const Span<int> src_corner_verts_;
-  const Span<int> src_corner_edges_;
+  Span<int> src_corner_verts_;
+  Span<int> src_corner_edges_;
 
   Vector<float3> new_vert_positions_;
-  Vector<int2> new_edges_;
   Vector<int> new_face_offsets_;
   Vector<int> new_corner_verts_;
   Vector<int> new_corner_edges_;
@@ -494,7 +492,14 @@ class ExtendableMesh {
   Array<bool> kill_faces_;
   Array<bool> kill_corners_;
 
-  Map<int2, int> edge_lookup_;
+  using EdgeMap = VectorSet<OrderedEdge,
+                            32,
+                            DefaultProbingStrategy,
+                            DefaultHash<OrderedEdge>,
+                            DefaultEquality<OrderedEdge>,
+                            SimpleVectorSetSlot<OrderedEdge, int>,
+                            GuardedAllocator>;
+  EdgeMap edge_lookup_;
 
   index_mask::IndexMaskMemory memory_;
   Array<int> vert_to_edge_offsets_;
@@ -536,10 +541,7 @@ ExtendableMesh::ExtendableMesh(const Mesh &mesh)
 
   edge_lookup_.reserve(mesh.edges_num);
   for (const int e : src_edges_.index_range()) {
-    const int2 verts = src_edges_[e];
-    const int v1 = std::min(verts[0], verts[1]);
-    const int v2 = std::max(verts[0], verts[1]);
-    edge_lookup_.add_new(int2(v1, v2), e);
+    edge_lookup_.add_new(OrderedEdge(src_edges_[e]));
   }
 
   new_face_offsets_.append(0);
@@ -558,7 +560,7 @@ int2 ExtendableMesh::edge_verts(const int e) const
   if (e < mesh.edges_num) {
     return src_edges_[e];
   }
-  return new_edges_[e - mesh.edges_num];
+  return int2(edge_lookup_[e].v_low, edge_lookup_[e].v_high);
 }
 
 IndexRange ExtendableMesh::face_corners(const int f) const
@@ -608,22 +610,13 @@ int ExtendableMesh::vert_create(const float3 &co, const int example_vert)
 
 int ExtendableMesh::edge_create(const int v1, const int v2, const int example_edge)
 {
-  const int min_v = std::min(v1, v2);
-  const int max_v = std::max(v1, v2);
-  const int2 key(min_v, max_v);
-
-  if (const int *existing_edge = edge_lookup_.lookup_ptr(key)) {
-    /* Edge already exists (original or previously created); skip example. */
-    return *existing_edge;
+  const int index = edge_lookup_.index_of_or_add(OrderedEdge(v1, v2));
+  if (index == (edge_lookup_.size() - 1)) {
+    new_edge_examples_.append(example_edge);
+    new_edge_seam_overrides_.append(-1);
+    new_edge_sharp_overrides_.append(-1);
+    new_edge_kinds_.append(NewEdgeKind::OTHER);
   }
-
-  const int index = mesh.edges_num + new_edges_.size();
-  new_edges_.append(int2(v1, v2));
-  new_edge_examples_.append(example_edge);
-  new_edge_seam_overrides_.append(-1);
-  new_edge_sharp_overrides_.append(-1);
-  new_edge_kinds_.append(NewEdgeKind::OTHER);
-  edge_lookup_.add_new(key, index);
   return index;
 }
 
