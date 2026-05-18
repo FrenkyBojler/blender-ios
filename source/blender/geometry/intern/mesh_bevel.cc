@@ -278,7 +278,7 @@ class ExtendableMesh {
   GroupedSpan<int> vert_corners_;
 
  public:
-  ExtendableMesh(const Mesh &mesh);
+  explicit ExtendableMesh(const Mesh &mesh);
 
   float3 vert_position(const int v) const;
   int2 edge_verts(const int e) const;
