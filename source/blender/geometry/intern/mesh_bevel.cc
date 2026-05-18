@@ -7880,13 +7880,14 @@ static std::optional<Mesh *> build_output_mesh(const BevelState &state,
    * uv::fill_new_corner_uvs / uv::merge_uvs (all other corner attributes stay at default). */
   {
     Array<int> src_by_dst(n_surv_corners + n_new_corners, 0);
-    int dst_c = 0;
-    src_survive_faces.foreach_index([&](const int64_t src_f, const int64_t /*dst_f*/) {
-      for (const int sc : src_faces[src_f]) {
-        src_by_dst[dst_c++] = sc;
-      }
-    });
-    BLI_assert(dst_c == n_surv_corners);
+    src_survive_faces.foreach_index(
+        [&](const int64_t src_f, const int64_t dst_f) {
+          const IndexRange src_face = src_faces[src_f];
+          const IndexRange dst_face = dst_faces[dst_f];
+          array_utils::fill_index_range(src_by_dst.as_mutable_span().slice(dst_face),
+                                        int(src_face.first()));
+        },
+        exec_mode::grain_size(1024));
     /* New corners: all attributes except UV default to 0 (from gather_attributes below).
      * UV values are written separately after the gather. */
     bke::gather_attributes(src_attrs,
