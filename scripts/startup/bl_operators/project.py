@@ -409,11 +409,14 @@ class PROJECT_OT_OpenBlendInProject(Operator):
 # exiting.
 
 def log_project_save_error():
-    logger.error(f"Error trying to save project '{bpy.data.project.name}' at '{bpy.data.project.root_path}'.")
+    logger.error(
+        "Error trying to save project '{:s}' at '{:s}'.".format(
+            bpy.data.project.name,
+            bpy.data.project.root_path))
 
 
 def log_project_load_error(blend_path):
-    logger.error(f"Error trying to load project for blend file '{blend_path}'.")
+    logger.error("Error trying to load project for blend file '{:s}'.".format(blend_path))
 
 
 @bpy.app.handlers.persistent
