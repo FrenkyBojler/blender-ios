@@ -345,7 +345,10 @@ void Prepass::render(View &view, gpu::Texture *fb_depth_tx, bool can_raycast)
   inst_.manager->submit(raycast_vis_on_ps_, view);
 
   if (fb_depth_tx && inst_.pipelines.has_raycast) {
-    GPU_texture_copy(inst_.render_buffers.raycast_depth_tx, fb_depth_tx);
+    Framebuffer copy_fb;
+    copy_fb.ensure(GPU_ATTACHMENT_TEXTURE(inst_.render_buffers.raycast_depth_tx));
+    GPU_framebuffer_blit(
+        GPU_framebuffer_active_get(), -1, copy_fb, -1, GPUFrameBufferBits::GPU_DEPTH_BIT);
   }
 
   set_can_raycast(true);
