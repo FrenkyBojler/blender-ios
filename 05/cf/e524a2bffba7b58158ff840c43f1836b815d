@@ -5,3 +5,4 @@ Referenced by issue #151096, absolute increment snap behave differently
 Referenced by issue #153293, Random "worlds" being added automatically.
 Referenced by issue #155798, subdiv broken
 Referenced by issue #155846, regression: mesh attributes are not initialized to zeros
+Referenced by issue #158737, 44x increase in memory usage for geometry nodes + mesh unions
