@@ -366,29 +366,15 @@ void TextureCopy::execute() const
     return;
   }
 
-  /** WORKAROUND: There are some issues with copies involving texture views. */
-  /** TODO(@pragma37): This path should be removed in 5.3 once #158607 lands. */
+  /* WORKAROUND: There are some issues with copies involving texture views.
+   * Needed for the EEVEE Prepass depth copy. */
+  /* TODO(@pragma37): This path should be removed in 5.3 once #158607 lands. */
+  BLI_assert(GPU_texture_has_depth_format(exec_src));
   gpu::FrameBuffer *src_fb = GPU_framebuffer_create("TextureCopy-tmp-src");
   gpu::FrameBuffer *dst_fb = GPU_framebuffer_create("TextureCopy-tmp-dst");
-  const bool has_depth = GPU_texture_has_depth_format(exec_src);
-  if (has_depth) {
-    GPU_framebuffer_ensure_config(&src_fb,
-                                  {GPU_ATTACHMENT_TEXTURE(exec_src), GPU_ATTACHMENT_NONE});
-    GPU_framebuffer_ensure_config(&dst_fb,
-                                  {GPU_ATTACHMENT_TEXTURE(exec_dst), GPU_ATTACHMENT_NONE});
-  }
-  else {
-    GPU_framebuffer_ensure_config(&src_fb,
-                                  {GPU_ATTACHMENT_NONE, GPU_ATTACHMENT_TEXTURE(exec_src)});
-    GPU_framebuffer_ensure_config(&dst_fb,
-                                  {GPU_ATTACHMENT_NONE, GPU_ATTACHMENT_TEXTURE(exec_dst)});
-  }
-  GPU_framebuffer_blit(src_fb,
-                       0,
-                       dst_fb,
-                       0,
-                       has_depth ? GPUFrameBufferBits::GPU_DEPTH_BIT :
-                                   GPUFrameBufferBits::GPU_COLOR_BIT);
+  GPU_framebuffer_ensure_config(&src_fb, {GPU_ATTACHMENT_TEXTURE(exec_src)});
+  GPU_framebuffer_ensure_config(&dst_fb, {GPU_ATTACHMENT_TEXTURE(exec_dst)});
+  GPU_framebuffer_blit(src_fb, 0, dst_fb, 0, GPUFrameBufferBits::GPU_DEPTH_BIT);
   GPU_framebuffer_free(src_fb);
   GPU_framebuffer_free(dst_fb);
 }
