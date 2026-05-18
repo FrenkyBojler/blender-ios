@@ -152,16 +152,16 @@ static eAction_TransformFlags get_item_transform_flags_and_fcurves(ID &id,
   /* return flags found */
   return eAction_TransformFlags(flags);
 }
-
 /**
- * Stores a `PropertySnapshot` of the property with the given `property_name` in the given vector.
+ * Stores a `PropertySnapshot` of the property with the given `property_name` in the given Vector.
  * If the property does not exist in the `ptr` the function doesn't do anything. Also the property
  * has to be supported by `ed::rna_property_get_as_float`.
  */
 static void store_property_snapshot(PointerRNA &ptr,
-                                    StringRef property_name,
+                                    const StringRef property_name,
                                     Vector<PropertySnapshot> &snapshots)
 {
+
   PropertyRNA *prop = RNA_struct_find_property(&ptr, property_name.data());
   if (!prop) {
     return;
@@ -205,7 +205,6 @@ static void pchan_to_slide_subject(ListBaseT<SlideSubject> &slide_subjects,
 
   slide_subject->ptr = bone_ptr;
 
-  /* Store current bbone values. */
   if (transFlags & ACT_TRANS_BBONE) {
     store_property_snapshot(bone_ptr, "bbone_rollin", slide_subject->additional_properties);
     store_property_snapshot(bone_ptr, "bbone_rollout", slide_subject->additional_properties);
@@ -229,16 +228,15 @@ static void pchan_to_slide_subject(ListBaseT<SlideSubject> &slide_subjects,
         char name_escaped[MAX_IDPROP_NAME * 2];
         BLI_str_escape(name_escaped, id_prop.name, sizeof(name_escaped));
         std::string property_name_with_brackets = fmt::format("[\"{}\"]", name_escaped);
-        store_property_snapshot(
-            bone_ptr, property_name_with_brackets, slide_subject->custom_properties);
+        store_property_snapshot(bone_ptr, property_name_with_brackets, slide_subject->properties);
       }
     }
     if (pchan.system_properties) {
-      for (const IDProperty &id_prop : pchan.prop->data.group) {
+      for (const IDProperty &id_prop : pchan.system_properties->data.group) {
         if (ELEM(id_prop.type, IDP_STRING, IDP_ID, IDP_IDPARRAY)) {
           continue;
         }
-        store_property_snapshot(bone_ptr, id_prop.name, slide_subject->custom_properties);
+        store_property_snapshot(bone_ptr, id_prop.name, slide_subject->system_properties);
       }
     }
   }
@@ -382,6 +380,10 @@ void slide_subjects_reset(ListBaseT<SlideSubject> *slide_subjects)
     }
 
     for (PropertySnapshot &custom_prop : slide_subject.custom_properties) {
+      animrig::rna_property_set_as_float(
+          slide_subject.ptr, *custom_prop.property, custom_prop.values);
+    }
+    for (PropertySnapshot &custom_prop : slide_subject.system_properties) {
       animrig::rna_property_set_as_float(
           slide_subject.ptr, *custom_prop.property, custom_prop.values);
     }

@@ -11,6 +11,8 @@
 #include "DNA_armature_types.h"
 #include "DNA_listBase.h"
 
+#include "RNA_types.hh"
+
 #include "BLI_span.hh"
 
 #include "ED_transformable.hh"
@@ -59,6 +61,7 @@ void ARMATURE_OT_shortest_path_pick(wmOperatorType *ot);
 void ARMATURE_OT_delete(wmOperatorType *ot);
 void ARMATURE_OT_dissolve(wmOperatorType *ot);
 void ARMATURE_OT_duplicate(wmOperatorType *ot);
+void ARMATURE_OT_duplicate_rename(wmOperatorType *ot);
 void ARMATURE_OT_symmetrize(wmOperatorType *ot);
 void ARMATURE_OT_extrude(wmOperatorType *ot);
 void ARMATURE_OT_hide(wmOperatorType *ot);
@@ -162,6 +165,7 @@ struct PropertySnapshot {
 struct SlideSubject {
   SlideSubject *next, *prev;
 
+  /** F-Curves for this PoseChannel (wrapped with LinkData) */
   /** The Transformable which the data is attached to */
   ed::Transformable *transformable;
   /* A pointer to the data represented by this link. */
@@ -177,11 +181,14 @@ struct SlideSubject {
   ed::Rotation old_rot;
   ed::TransformFloats old_scale;
 
-  /* Additional properties of the transformable to affect which are not custom properties. */
+  /* Additional properties of the transformable to affect which are not custom properties. Bones
+   * use this to store bbone data, e.g. `bbone_rollin`. */
   Vector<PropertySnapshot> additional_properties;
 
-  /* User defined properties, either by addon or through UI. */
-  Vector<PropertySnapshot> custom_properties;
+  /* Custom properties defined via the UI. See ID::properties. */
+  Vector<PropertySnapshot> properties;
+  /* User defined properties through addons. See ID::system_properties. */
+  Vector<PropertySnapshot> system_properties;
 };
 
 /* ----------- */

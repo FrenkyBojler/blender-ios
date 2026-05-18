@@ -65,6 +65,7 @@
 #include "ED_markers.hh"
 #include "ED_numinput.hh"
 #include "ED_screen.hh"
+#include "ED_transformable.hh"
 #include "ED_util.hh"
 
 #include "ANIM_fcurve.hh"
@@ -174,7 +175,7 @@ static const EnumPropertyItem prop_channels_types[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-/* Property enum for ePoseSlide_AxisLock */
+/* Property enum for AxisMutable. */
 static const EnumPropertyItem prop_axis_lock_types[] = {
     {ed::AXIS_MUTABLE_ALL, "FREE", 0, "Free", "All axes are affected"},
     {ed::AXIS_MUTABLE_X, "X", 0, "X", "Only X-axis transforms are affected"},
@@ -294,6 +295,22 @@ static void pose_slide_exit(bContext *C, wmOperator *op)
 }
 
 /* ------------------------------------ */
+
+static bool pose_frame_range_from_id_get(const tPoseSlideOp *pso,
+                                         const ID *id,
+                                         float *prev_frame,
+                                         float *next_frame)
+{
+  for (const ObjectFrameRange &offset_range : pso->ob_data_array) {
+    if (&offset_range.ob->id == id) {
+      *prev_frame = offset_range.prev_frame;
+      *next_frame = offset_range.next_frame;
+      return true;
+    }
+  }
+  *prev_frame = *next_frame = 0.0f;
+  return false;
+}
 
 /**
  * Helper for apply() / reset() - refresh the data.
@@ -664,7 +681,8 @@ static void pose_slide_apply(bContext *C, tPoseSlideOp *pso)
     }
 
     if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_PROPS)) {
-      pose_slide_apply_property_snapshots(*pso, slide_subject, slide_subject.custom_properties);
+      pose_slide_apply_property_snapshots(*pso, slide_subject, slide_subject.properties);
+      pose_slide_apply_property_snapshots(*pso, slide_subject, slide_subject.system_properties);
     }
   }
 
@@ -890,9 +908,11 @@ static void pose_slide_toggle_channels_mode(wmOperator *op,
 }
 
 /**
- * Handle an event to toggle axis locks - returns whether any change in state is needed.
+ * Handle an event to toggle axis mutability - returns whether any change in state is needed.
  */
-static bool pose_slide_toggle_axis_locks(wmOperator *op, tPoseSlideOp *pso, ed::AxisMutable axis)
+static bool pose_slide_toggle_axis_mutability(wmOperator *op,
+                                              tPoseSlideOp *pso,
+                                              const ed::AxisMutable axis)
 {
   /* Axis can only be set when a transform is set - it doesn't make sense otherwise */
   if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_BBONE_SHAPE, PS_TFM_PROPS)) {
@@ -1039,19 +1059,19 @@ static wmOperatorStatus pose_slide_modal(bContext *C, wmOperator *op, const wmEv
           /* Axis Locks */
           /* XXX: Hardcoded... */
           case EVT_XKEY: {
-            if (pose_slide_toggle_axis_locks(op, pso, ed::AXIS_MUTABLE_X)) {
+            if (pose_slide_toggle_axis_mutability(op, pso, ed::AXIS_MUTABLE_X)) {
               do_pose_update = true;
             }
             break;
           }
           case EVT_YKEY: {
-            if (pose_slide_toggle_axis_locks(op, pso, ed::AXIS_MUTABLE_Y)) {
+            if (pose_slide_toggle_axis_mutability(op, pso, ed::AXIS_MUTABLE_Y)) {
               do_pose_update = true;
             }
             break;
           }
           case EVT_ZKEY: {
-            if (pose_slide_toggle_axis_locks(op, pso, ed::AXIS_MUTABLE_Z)) {
+            if (pose_slide_toggle_axis_mutability(op, pso, ed::AXIS_MUTABLE_Z)) {
               do_pose_update = true;
             }
             break;

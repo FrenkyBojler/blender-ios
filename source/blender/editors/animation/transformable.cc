@@ -86,14 +86,10 @@ static void blend_linear(MutableSpan<float> values,
   }
 }
 
-/**
- * Returns a new array which is the linear interpolation between boths spans. The given spans are
- * expected to have the same size.
- */
-TransformFloats property_interpolated(const Span<float> a, const Span<float> b, float factor)
+Array<float> property_interpolated(const Span<float> a, const Span<float> b, const float factor)
 {
   BLI_assert(a.size() == b.size());
-  TransformFloats interpolated(a.size());
+  Array<float> interpolated(a.size());
   for (const int i : a.index_range()) {
     interpolated[i] = interpf(b[i], a[i], factor);
   }

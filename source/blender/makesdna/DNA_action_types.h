@@ -676,8 +676,11 @@ struct bPoseChannel_BBoneSegmentBoundary {
   float depth_scale = 0;
 };
 
+static constexpr int64_t BONE_INDEX_UNKNOWN = -1;
 struct bPoseChannel_Runtime {
   SessionUID session_uid;
+
+  int64_t bone_index = BONE_INDEX_UNKNOWN;
 
   /* Cached dual quaternion for deformation. */
   struct DualQuat deform_dual_quat;
@@ -757,8 +760,6 @@ struct bPoseChannel {
   DNA_DEPRECATED char bboneflag = 0;
   char _pad0[4] = {};
 
-  /** Set on read file or rebuild pose. */
-  struct Bone *bone = nullptr; /* Soon to be DNA_DEPRECATED. */
   /** Set on read file or rebuild pose. */
   struct bPoseChannel *parent = nullptr;
   /** Set on read file or rebuild pose, the 'ik' child, for b-bones. */
@@ -875,8 +876,6 @@ struct bPoseChannel {
 
   BoneColor color; /* MUST be named the same as in Bone and EditBone structs. */
 
-  void *_pad2 = nullptr;
-
   /** Runtime data (keep last). */
   struct bPoseChannel_Runtime runtime;
 
@@ -936,7 +935,7 @@ struct bPose {
   ePose_IKSolverType iksolver = {};
   /** Temporary IK data, depends on the IK solver. Not saved in file. */
   void *ikdata = nullptr;
-  /** IK solver parameter for ItaSC .*/
+  /** IK solver parameter for ItaSC. */
   bItasc *ikparam = nullptr;
 
   /** Settings for visualization of bone animation. */
