@@ -379,7 +379,7 @@ void slide_subjects_reset(ListBaseT<SlideSubject> *slide_subjects)
           slide_subject.ptr, *extra_prop.property, extra_prop.values);
     }
 
-    for (PropertySnapshot &custom_prop : slide_subject.custom_properties) {
+    for (PropertySnapshot &custom_prop : slide_subject.properties) {
       animrig::rna_property_set_as_float(
           slide_subject.ptr, *custom_prop.property, custom_prop.values);
     }

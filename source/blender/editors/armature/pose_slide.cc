@@ -296,22 +296,6 @@ static void pose_slide_exit(bContext *C, wmOperator *op)
 
 /* ------------------------------------ */
 
-static bool pose_frame_range_from_id_get(const tPoseSlideOp *pso,
-                                         const ID *id,
-                                         float *prev_frame,
-                                         float *next_frame)
-{
-  for (const ObjectFrameRange &offset_range : pso->ob_data_array) {
-    if (&offset_range.ob->id == id) {
-      *prev_frame = offset_range.prev_frame;
-      *next_frame = offset_range.next_frame;
-      return true;
-    }
-  }
-  *prev_frame = *next_frame = 0.0f;
-  return false;
-}
-
 /**
  * Helper for apply() / reset() - refresh the data.
  */
