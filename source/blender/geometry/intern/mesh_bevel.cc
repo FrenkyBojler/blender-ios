@@ -6032,8 +6032,10 @@ static VMesh interp_vmesh(const BevelState &state, VMesh &vm_in, int nseg)
   const int odd = nseg % 2;
   VMesh vm_out = new_adj_vmesh(n_bndv, nseg, vm_in.boundstart);
 
-  Array<float, 8> prev_frac(ns_in + 1), frac(ns_in + 1);
-  Array<float, 8> new_frac(nseg + 1), prev_new_frac(nseg + 1);
+  Array<float, 8> prev_frac(ns_in + 1);
+  Array<float, 8> frac(ns_in + 1);
+  Array<float, 8> new_frac(nseg + 1);
+  Array<float, 8> prev_new_frac(nseg + 1);
 
   fill_vmesh_fracs(&vm_in, prev_frac, n_bndv - 1);
   BoundVert *bndv = vm_in.boundstart;
