@@ -104,6 +104,16 @@ class MTLFrameBuffer : public FrameBuffer {
   /** Whether the primary Frame-buffer attachment is an SRGB target or not. */
   bool srgb_;
 
+  /** Attachment width/height represent raw size of active frame-buffer attachments.
+   * For consistency with OpenGL backend, as width_/height_ can affect viewport and scissor
+   * size, we need to track this differently to ensure viewport state does not get reset.
+   * This size is only used to reset viewport/scissor regions when viewports and scissor are
+   * disabled, as Metal does not provide a utility to fully disable either without manually
+   * specifying the size.
+   */
+  int attachment_width_ = 0;
+  int attachment_height_ = 0;
+
  public:
   /**
    * Create a conventional frame-buffer to attach texture to.
@@ -213,6 +223,9 @@ class MTLFrameBuffer : public FrameBuffer {
 
   int get_width();
   int get_height();
+  int get_attachment_width();
+  int get_attachment_height();
+  void attachment_size_set(int w, int h);
 
   bool get_dirty()
   {
