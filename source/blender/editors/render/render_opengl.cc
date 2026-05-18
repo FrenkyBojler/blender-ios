@@ -996,7 +996,7 @@ static bool screen_opengl_render_anim_init(wmOperator *op)
       const char *suffix = is_multiview_name ?
                                BKE_scene_multiview_view_id_suffix_get(&scene->r, i) :
                                "";
-      MovieWriter *writer = BKE_with_blender_project(G_MAIN,
+      MovieWriter *writer = BKE_with_blender_project(oglrender->bmain,
                                                      [&](const bke::BlenderProject *project) {
                                                        return MOV_write_begin(scene_eval,
                                                                               project,
@@ -1314,7 +1314,7 @@ static void opengl_render_startjob(void *customdata, wmJobWorkerStatus *worker_s
       canceled = true;
     }
     else {
-      BKE_with_blender_project(G_MAIN, [&](const bke::BlenderProject *project) {
+      BKE_with_blender_project(oglrender->bmain, [&](const bke::BlenderProject *project) {
         finished = !screen_opengl_render_anim_step(project, oglrender);
       });
       worker_status->progress = float(scene->r.cfra - playback_range.start_frame + 1) /
