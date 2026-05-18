@@ -41,7 +41,7 @@ int template_search_textbut_width(PointerRNA *ptr, PropertyRNA *name_prop)
   const int estimated_width = fontstyle_string_width(fstyle, name) + margin;
 
   if (name != str) {
-    MEM_freeN(name);
+    MEM_delete(name);
   }
 
   /* Clamp to some min/max width. */
@@ -297,6 +297,8 @@ void template_node_socket(Layout *layout, bContext * /*C*/, const float color[4]
 
   block_align_end(block);
 }
+
+/** \} */
 
 /* -------------------------------------------------------------------- */
 /** \name FileSelectParams Path Button Template

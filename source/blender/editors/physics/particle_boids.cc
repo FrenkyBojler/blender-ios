@@ -37,7 +37,7 @@ static wmOperatorStatus rule_add_exec(bContext *C, wmOperator *op)
 {
   PointerRNA ptr = CTX_data_pointer_get_type(C, "particle_settings", RNA_ParticleSettings);
   ParticleSettings *part = static_cast<ParticleSettings *>(ptr.data);
-  int type = RNA_enum_get(op->ptr, "type");
+  eBoidRuleType type = eBoidRuleType(RNA_enum_get(op->ptr, "type"));
 
   BoidRule *rule;
   BoidState *state;
@@ -95,7 +95,7 @@ static wmOperatorStatus rule_del_exec(bContext *C, wmOperator * /*op*/)
   for (BoidRule &rule : state->rules) {
     if (rule.flag & BOIDRULE_CURRENT) {
       BLI_remlink(&state->rules, &rule);
-      MEM_freeN(&rule);
+      MEM_delete(&rule);
       break;
     }
   }
@@ -248,7 +248,7 @@ static wmOperatorStatus state_del_exec(bContext *C, wmOperator * /*op*/)
   for (BoidState &state : part->boids->states) {
     if (state.flag & BOIDSTATE_CURRENT) {
       BLI_remlink(&part->boids->states, &state);
-      MEM_freeN(&state);
+      MEM_delete(&state);
       break;
     }
   }

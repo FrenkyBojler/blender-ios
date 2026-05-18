@@ -12,9 +12,7 @@
 #  include "draw_view_infos.hh"
 
 #  include "eevee_common_infos.hh"
-#  include "eevee_light_infos.hh"
 #  include "eevee_sampling_infos.hh"
-#  include "eevee_shadow_infos.hh"
 #  include "eevee_shadow_shared.hh"
 #  include "eevee_uniform_infos.hh"
 #  include "eevee_volume_infos.hh"
@@ -37,6 +35,8 @@
 GPU_SHADER_CREATE_INFO(eevee_surf_depth)
 DEFINE("MAT_DEPTH")
 FRAGMENT_SOURCE("eevee_surf_depth_frag.glsl")
+FRAGMENT_OUT(PREPASS_FRAG_OUT_NORMAL, float4, out_normal)
+FRAGMENT_OUT(PREPASS_FRAG_OUT_OB_ID, uint, out_object_id)
 ADDITIONAL_INFO(eevee_global_ubo)
 ADDITIONAL_INFO(eevee_sampling_data)
 ADDITIONAL_INFO(eevee_utility_texture)

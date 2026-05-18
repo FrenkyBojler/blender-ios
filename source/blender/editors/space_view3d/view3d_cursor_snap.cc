@@ -185,7 +185,7 @@ static void v3d_cursor_plane_draw_grid(const int resolution,
   immBindBuiltinProgram(GPU_SHADER_3D_SMOOTH_COLOR);
 
   const size_t coords_len = resolution * resolution;
-  float (*coords)[3] = MEM_malloc_arrayN<float[3]>(coords_len, __func__);
+  float (*coords)[3] = MEM_new_array_uninitialized<float[3]>(coords_len, __func__);
 
   const int axis_x = (plane_axis + 0) % 3;
   const int axis_y = (plane_axis + 1) % 3;
@@ -248,7 +248,7 @@ static void v3d_cursor_plane_draw_grid(const int resolution,
     }
   }
 
-  MEM_freeN(coords);
+  MEM_delete(coords);
 
   immEnd();
 
@@ -727,13 +727,14 @@ static void v3d_cursor_snap_update(V3DSnapCursorState *state,
       copy_m3_m4(omat, obmat);
     }
     else {
+      const Main *bmain = CTX_data_main(C);
       ViewLayer *view_layer = CTX_data_view_layer(C);
-      BKE_view_layer_synced_ensure(CTX_data_scene(C), view_layer);
+      BKE_view_layer_synced_ensure(*bmain, CTX_data_scene(C), view_layer);
       Object *ob = BKE_view_layer_active_object_get(view_layer);
       const int orient_index = BKE_scene_orientation_get_index(scene, SCE_ORIENT_DEFAULT);
       const int pivot_point = scene->toolsettings->transform_pivot_point;
       ed::transform::calc_orientation_from_type_ex(
-          scene, view_layer, v3d, rv3d, ob, nullptr, orient_index, pivot_point, omat);
+          *bmain, scene, view_layer, v3d, rv3d, ob, nullptr, orient_index, pivot_point, omat);
 
       if (tool_settings->use_plane_axis_auto) {
         mat3_align_axis_to_v3(omat, tool_settings->plane_axis, rv3d->viewinv[2]);
@@ -1035,7 +1036,7 @@ V3DSnapCursorState *ED_view3d_cursor_snap_state_create()
     v3d_cursor_snap_activate();
   }
 
-  SnapStateIntern *state_intern = MEM_mallocN<SnapStateIntern>(__func__);
+  SnapStateIntern *state_intern = MEM_new_uninitialized<SnapStateIntern>(__func__);
   state_intern->snap_state = g_data_intern.state_default;
   BLI_addtail(&g_data_intern.state_intern, state_intern);
 
@@ -1051,7 +1052,7 @@ void ED_view3d_cursor_snap_state_free(V3DSnapCursorState *state)
 
   SnapStateIntern *state_intern = STATE_INTERN_GET(state);
   BLI_remlink(&data_intern->state_intern, state_intern);
-  MEM_freeN(state_intern);
+  MEM_delete(state_intern);
   if (BLI_listbase_is_empty(&data_intern->state_intern)) {
     v3d_cursor_snap_free();
   }

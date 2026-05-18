@@ -44,7 +44,7 @@ static void alloc_child_particles(ParticleSystem *psys, int tot)
       return;
     }
 
-    MEM_freeN(psys->child);
+    MEM_delete(psys->child);
     psys->child = nullptr;
     psys->totchild = 0;
   }
@@ -52,7 +52,7 @@ static void alloc_child_particles(ParticleSystem *psys, int tot)
   if (psys->part->childtype) {
     psys->totchild = tot;
     if (psys->totchild) {
-      psys->child = MEM_calloc_arrayN<ChildParticle>(psys->totchild, "child_particles");
+      psys->child = MEM_new_array_zeroed<ChildParticle>(psys->totchild, "child_particles");
     }
   }
 }
@@ -369,7 +369,7 @@ static void init_mv_jit(float *jit, int num, int seed2, float amount)
   }
 
   /* FIXME: The `+ 3` number of items does not seem to be required? */
-  jit2 = MEM_malloc_arrayN<float>(3 + 2 * size_t(num), "initjit");
+  jit2 = MEM_new_array_uninitialized<float>(3 + 2 * size_t(num), "initjit");
 
   for (i = 0; i < 4; i++) {
     BLI_jitterate1(
@@ -379,7 +379,7 @@ static void init_mv_jit(float *jit, int num, int seed2, float amount)
     BLI_jitterate2(
         reinterpret_cast<float (*)[2]>(jit), reinterpret_cast<float (*)[2]>(jit2), num, rad2);
   }
-  MEM_freeN(jit2);
+  MEM_delete(jit2);
   BLI_rng_free(rng);
 }
 
@@ -501,13 +501,13 @@ static void distribute_from_verts_exec(ParticleTask *thread, ParticleData *pa, i
 
 #if ONLY_WORKING_WITH_PA_VERTS
   if (ctx->tree) {
-    KDTreeNearest_3d ptn[3];
+    KDTreeNearest<float3> ptn[3];
     int w, maxw;
 
     psys_particle_on_dm(
         ctx->mesh, from, pa->num, pa->num_dmcache, pa->fuv, pa->foffset, co1, 0, 0, 0, orco1, 0);
     BKE_mesh_orco_verts_transform(ob->data, &orco1, 1, true);
-    maxw = kdtree_3d_find_nearest_n(ctx->tree, orco1, ptn, 3);
+    maxw = kdtree_find_nearest_n<float3>(ctx->tree, orco1, ptn, 3);
 
     for (w = 0; w < maxw; w++) {
       pa->verts[w] = ptn->num;
@@ -723,9 +723,9 @@ static void distribute_children_exec(ParticleTask *thread, ChildParticle *cpa, i
   cpa->num = ctx->index[p];
 
   if (ctx->tree) {
-    KDTreeNearest_3d ptn[10];
+    KDTreeNearest<float3> ptn[10];
     int w, maxw;  //, do_seams;
-    float maxd /*, mind,dd */, totw = 0.0f;
+    float maxd /* , mind, dd */, totw = 0.0f;
     int parent[10];
     float pweight[10];
 
@@ -741,7 +741,7 @@ static void distribute_children_exec(ParticleTask *thread, ChildParticle *cpa, i
                         nullptr,
                         orco1);
     BKE_mesh_orco_verts_transform(id_cast<Mesh *>(ob->data), &orco1, 1, true);
-    maxw = kdtree_3d_find_nearest_n(ctx->tree, orco1, ptn, 3);
+    maxw = kdtree_find_nearest_n<float3>(ctx->tree, orco1, ptn, 3);
 
     maxd = ptn[maxw - 1].dist;
     // mind=ptn[0].dist; /* UNUSED */
@@ -808,6 +808,8 @@ static void exec_distribute_parent(TaskPool *__restrict /*pool*/, void *taskdata
       for (p = task->begin; p < task->end; p++, pa++) {
         distribute_from_verts_exec(task, pa, p);
       }
+      break;
+    case PART_FROM_CHILD:
       break;
   }
 }
@@ -898,7 +900,7 @@ static int psys_thread_context_init_distribute(ParticleThreadContext *ctx,
   ParticleData *pa = nullptr, *tpars = nullptr;
   ParticleSettings *part;
   ParticleSeam *seams = nullptr;
-  KDTree_3d *tree = nullptr;
+  KDTree<float3> *tree = nullptr;
   Mesh *mesh = nullptr;
   float *jit = nullptr;
   int i, p = 0;
@@ -982,7 +984,7 @@ static int psys_thread_context_init_distribute(ParticleThreadContext *ctx,
 
     children = 1;
 
-    tree = kdtree_3d_new(totpart);
+    tree = kdtree_new<float3>(totpart);
 
     for (p = 0, pa = psys->particles; p < totpart; p++, pa++) {
       psys_particle_on_dm(mesh,
@@ -997,10 +999,10 @@ static int psys_thread_context_init_distribute(ParticleThreadContext *ctx,
                           nullptr,
                           orco);
       BKE_mesh_orco_verts_transform(id_cast<Mesh *>(ob->data), &orco, 1, true);
-      kdtree_3d_insert(tree, p, orco);
+      kdtree_insert<float3>(tree, p, orco);
     }
 
-    kdtree_3d_balance(tree);
+    kdtree_balance<float3>(tree);
 
     totpart = psys_get_tot_child(scene, psys, use_render_params);
     cfrom = from = PART_FROM_FACE;
@@ -1029,7 +1031,7 @@ static int psys_thread_context_init_distribute(ParticleThreadContext *ctx,
           CustomData_get_layer(&mesh->vert_data, CD_ORCO));
       int totvert = mesh->verts_num;
 
-      tree = kdtree_3d_new(totvert);
+      tree = kdtree_new<float3>(totvert);
 
       for (p = 0; p < totvert; p++) {
         if (orcodata) {
@@ -1039,10 +1041,10 @@ static int psys_thread_context_init_distribute(ParticleThreadContext *ctx,
         else {
           copy_v3_v3(co, positions[p]);
         }
-        kdtree_3d_insert(tree, p, co);
+        kdtree_insert<float3>(tree, p, co);
       }
 
-      kdtree_3d_balance(tree);
+      kdtree_balance<float3>(tree);
     }
   }
 
@@ -1060,15 +1062,15 @@ static int psys_thread_context_init_distribute(ParticleThreadContext *ctx,
       BKE_id_free(nullptr, mesh);
     }
 
-    kdtree_3d_free(tree);
+    kdtree_free<float3>(tree);
     BLI_rng_free(rng);
 
     return 0;
   }
 
-  element_weight = MEM_calloc_arrayN<float>(totelem, "particle_distribution_weights");
-  particle_element = MEM_calloc_arrayN<int>(totpart, "particle_distribution_indexes");
-  jitter_offset = MEM_calloc_arrayN<float>(totelem, "particle_distribution_jitoff");
+  element_weight = MEM_new_array_zeroed<float>(totelem, "particle_distribution_weights");
+  particle_element = MEM_new_array_zeroed<int>(totpart, "particle_distribution_indexes");
+  jitter_offset = MEM_new_array_zeroed<float>(totelem, "particle_distribution_jitoff");
 
   /* Calculate weights from face areas */
   if ((part->flag & PART_EDISTR || children) && from != PART_FROM_VERT) {
@@ -1154,7 +1156,7 @@ static int psys_thread_context_init_distribute(ParticleThreadContext *ctx,
         element_weight[i] *= tweight;
       }
     }
-    MEM_freeN(vweight);
+    MEM_delete(vweight);
   }
 
   /* Calculate total weight of all elements */
@@ -1172,11 +1174,11 @@ static int psys_thread_context_init_distribute(ParticleThreadContext *ctx,
     if (mesh != final_mesh) {
       BKE_id_free(nullptr, mesh);
     }
-    kdtree_3d_free(tree);
+    kdtree_free<float3>(tree);
     BLI_rng_free(rng);
-    MEM_freeN(element_weight);
-    MEM_freeN(particle_element);
-    MEM_freeN(jitter_offset);
+    MEM_delete(element_weight);
+    MEM_delete(particle_element);
+    MEM_delete(jitter_offset);
     return 0;
   }
 
@@ -1188,8 +1190,8 @@ static int psys_thread_context_init_distribute(ParticleThreadContext *ctx,
    * This simplifies greatly the filtering of zero-weighted items - and can be much more efficient
    * especially in random case (reducing a lot the size of binary-searched array)...
    */
-  float *element_sum = MEM_malloc_arrayN<float>(size_t(totmapped), __func__);
-  int *element_map = MEM_malloc_arrayN<int>(size_t(totmapped), __func__);
+  float *element_sum = MEM_new_array_uninitialized<float>(size_t(totmapped), __func__);
+  int *element_map = MEM_new_array_uninitialized<int>(size_t(totmapped), __func__);
   int i_mapped = 0;
 
   for (i = 0; i < totelem && element_weight[i] == 0.0f; i++) {
@@ -1248,8 +1250,8 @@ static int psys_thread_context_init_distribute(ParticleThreadContext *ctx,
     }
   }
 
-  MEM_freeN(element_sum);
-  MEM_freeN(element_map);
+  MEM_delete(element_sum);
+  MEM_delete(element_map);
 
   /* For hair, sort by #CD_ORIGINDEX (allows optimization's in rendering),
    * however with virtual parents the children need to be in random order. */
@@ -1290,7 +1292,7 @@ static int psys_thread_context_init_distribute(ParticleThreadContext *ctx,
       jitlevel = std::max(jitlevel, 3);
     }
 
-    jit = MEM_calloc_arrayN<float>(2 + size_t(jitlevel * 2), "jit");
+    jit = MEM_new_array_zeroed<float>(2 + size_t(jitlevel * 2), "jit");
 
     /* for small amounts of particles we use regular jitter since it looks
      * a bit better, for larger amounts we switch to hammersley sequence

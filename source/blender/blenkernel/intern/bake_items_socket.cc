@@ -59,9 +59,10 @@ static void move_bundle_socket_value_to_bake_item(
       if (std::unique_ptr<BakeItem> bake_item = move_common_socket_value_to_bake_item(
               *item_socket_value->type, value_variant, std::nullopt, r_geometry_bake_items))
       {
-        bundle_bake_item.items.append(BundleBakeItem::Item{
-            bundle_item.key,
-            BundleBakeItem::SocketValue{item_socket_value->type->idname, std::move(bake_item)}});
+        bundle_bake_item.items.append(
+            BundleBakeItem::Item{UString(bundle_item.key),
+                                 BundleBakeItem::SocketValue{item_socket_value->type->idname.ref(),
+                                                             std::move(bake_item)}});
       }
     }
     else if (const auto *internal_value = std::get_if<nodes::BundleItemInternalValue>(
@@ -92,7 +93,7 @@ static std::unique_ptr<BakeItem> move_common_socket_value_to_bake_item(
     }
     case SOCK_STRING: {
       if (socket_value.is_list()) {
-        return std::make_unique<ListBakeItem>(socket_value.extract<nodes::ListPtr>());
+        return std::make_unique<ListBakeItem>(socket_value.extract<nodes::GListPtr>());
       }
       return std::make_unique<StringBakeItem>(socket_value.extract<std::string>());
     }
@@ -108,7 +109,7 @@ static std::unique_ptr<BakeItem> move_common_socket_value_to_bake_item(
         return {};
       }
       if (socket_value.is_list()) {
-        return std::make_unique<ListBakeItem>(socket_value.extract<nodes::ListPtr>());
+        return std::make_unique<ListBakeItem>(socket_value.extract<nodes::GListPtr>());
       }
 #ifdef WITH_OPENVDB
       if (socket_value.is_volume_grid()) {
@@ -129,9 +130,9 @@ static std::unique_ptr<BakeItem> move_common_socket_value_to_bake_item(
     }
     case SOCK_BUNDLE: {
       if (socket_value.is_list()) {
-        const nodes::ListPtr list = socket_value.extract<nodes::ListPtr>();
+        const nodes::GListPtr list = socket_value.extract<nodes::GListPtr>();
         Vector<BundleBakeItem> bake_item_list(list->size());
-        const VArray<nodes::BundlePtr> bundle_varray = list->varray<nodes::BundlePtr>();
+        const VArray<nodes::BundlePtr> bundle_varray = list->typed<nodes::BundlePtr>().varray();
         for (const int i : bake_item_list.index_range()) {
           nodes::BundlePtr bundle_ptr = bundle_varray[i];
           if (bundle_ptr) {
@@ -246,7 +247,7 @@ Array<std::unique_ptr<BakeItem>> move_socket_values_to_bake_items(
 [[nodiscard]] static std::optional<SocketValueVariant> copy_bake_item_to_socket_value(
     const BakeItem &bake_item,
     const eNodeSocketDatatype socket_type,
-    const FunctionRef<std::shared_ptr<AttributeFieldInput>(const CPPType &type)>
+    const FunctionRef<ImplicitSharingPtr<AttributeFieldInput>(const CPPType &type)>
         make_attribute_field,
     BakeDataBlockMap *data_block_map,
     Map<std::string, std::string> &r_attribute_map);
@@ -293,7 +294,7 @@ static bool copy_bundle_bake_item_to_socket_value(const BundleBakeItem &bundle_b
 [[nodiscard]] static std::optional<SocketValueVariant> copy_bake_item_to_socket_value(
     const BakeItem &bake_item,
     const eNodeSocketDatatype socket_type,
-    const FunctionRef<std::shared_ptr<AttributeFieldInput>(const CPPType &type)>
+    const FunctionRef<ImplicitSharingPtr<AttributeFieldInput>(const CPPType &type)>
         make_attribute_field,
     BakeDataBlockMap *data_block_map,
     Map<std::string, std::string> &r_attribute_map)
@@ -327,13 +328,13 @@ static bool copy_bundle_bake_item_to_socket_value(const BundleBakeItem &bundle_b
         if (!make_attribute_field) {
           return std::nullopt;
         }
-        std::shared_ptr<AttributeFieldInput> attribute_field = make_attribute_field(base_type);
+        ImplicitSharingPtr<AttributeFieldInput> attribute_field = make_attribute_field(base_type);
         r_attribute_map.add(item->name(), attribute_field->attribute_name());
         fn::GField field{attribute_field};
         return SocketValueVariant::From(std::move(field));
       }
       if (const auto *item = dynamic_cast<const ListBakeItem *>(&bake_item)) {
-        if (const auto *simple_list = std::get_if<nodes::ListPtr>(&item->value)) {
+        if (const auto *simple_list = std::get_if<nodes::GListPtr>(&item->value)) {
           if (*simple_list && (*simple_list)->cpp_type() == base_type) {
             return SocketValueVariant::From(std::move(*simple_list));
           }
@@ -362,7 +363,7 @@ static bool copy_bundle_bake_item_to_socket_value(const BundleBakeItem &bundle_b
         return SocketValueVariant(std::string(item->value()));
       }
       if (const auto *item = dynamic_cast<const ListBakeItem *>(&bake_item)) {
-        if (const auto *simple_list = std::get_if<nodes::ListPtr>(&item->value)) {
+        if (const auto *simple_list = std::get_if<nodes::GListPtr>(&item->value)) {
           if (*simple_list && (*simple_list)->cpp_type() == CPPType::get<std::string>()) {
             return SocketValueVariant::From(std::move(*simple_list));
           }
@@ -385,15 +386,16 @@ static bool copy_bundle_bake_item_to_socket_value(const BundleBakeItem &bundle_b
         if (const auto *bundle_list = std::get_if<ListBakeItem::BundleList>(&item->value)) {
           const CPPType &type = CPPType::get<nodes::BundlePtr>();
           const int count = bundle_list->size();
-          auto array_data = nodes::List::ArrayData::ForDefaultValue(type, count);
-          MutableSpan array_span(static_cast<nodes::BundlePtr *>(array_data.data), count);
+          auto array_data = nodes::GList::ArrayData::ForDefaultValue(type, count);
+          MutableSpan array_span(
+              static_cast<nodes::BundlePtr *>(const_cast<void *>(array_data.data)), count);
           for (const int i : IndexRange(count)) {
             array_span[i] = nodes::Bundle::create();
             nodes::Bundle &bundle = const_cast<nodes::Bundle &>(*array_span[i]);
             copy_bundle_bake_item_to_socket_value(
                 (*bundle_list)[i], bundle, data_block_map, r_attribute_map);
           }
-          nodes::ListPtr list_ptr = nodes::List::create(type, std::move(array_data), count);
+          nodes::GListPtr list_ptr = nodes::GList::create(type, std::move(array_data), count);
           return bke::SocketValueVariant::From(std::move(list_ptr));
         }
         return std::nullopt;
@@ -447,7 +449,8 @@ Vector<SocketValueVariant> move_bake_items_to_socket_values(
     const Span<BakeItem *> bake_items,
     const BakeSocketConfig &config,
     BakeDataBlockMap *data_block_map,
-    FunctionRef<std::shared_ptr<AttributeFieldInput>(int, const CPPType &)> make_attribute_field)
+    FunctionRef<ImplicitSharingPtr<AttributeFieldInput>(int, const CPPType &)>
+        make_attribute_field)
 {
   Map<std::string, std::string> attribute_map;
   Vector<SocketValueVariant> socket_values;
@@ -493,7 +496,8 @@ Vector<SocketValueVariant> copy_bake_items_to_socket_values(
     const Span<const BakeItem *> bake_items,
     const BakeSocketConfig &config,
     BakeDataBlockMap *data_block_map,
-    FunctionRef<std::shared_ptr<AttributeFieldInput>(int, const CPPType &)> make_attribute_field)
+    FunctionRef<ImplicitSharingPtr<AttributeFieldInput>(int, const CPPType &)>
+        make_attribute_field)
 {
   Map<std::string, std::string> attribute_map;
   Vector<SocketValueVariant> socket_values;

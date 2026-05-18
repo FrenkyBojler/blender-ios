@@ -180,9 +180,7 @@ static void edge_verts_sort(const float co[3], LinkBase *v_ls_base)
     vert_sort[i].v = v;
   }
 
-  std::sort(vert_sort.begin(), vert_sort.end(), [](const VertSort &a, const VertSort &b) {
-    return a.val < b.val;
-  });
+  std::ranges::sort(vert_sort, [](const VertSort &a, const VertSort &b) { return a.val < b.val; });
 
   for (i = 0, node = v_ls_base->list; i < v_ls_base->list_len; i++, node = node->next) {
     node->link = vert_sort[i].v;
@@ -935,7 +933,7 @@ static int isect_bvhtree_point_v3(BVHTree *tree, const float **looptris, const f
     const float eps = FLT_EPSILON * 10;
     num_isect = 1; /* always count first */
 
-    std::sort(z_buffer.begin(), z_buffer.end());
+    std::ranges::sort(z_buffer);
 
     const float *depth_arr = z_buffer.data();
     float depth_last = depth_arr[0];
@@ -1038,7 +1036,7 @@ bool BM_mesh_intersect(BMesh *bm,
     float **cos;
     int i, j;
 
-    cos = MEM_malloc_arrayN<float *>(size_t(looptris.size()) * 3, __func__);
+    cos = MEM_new_array_uninitialized<float *>(size_t(looptris.size()) * 3, __func__);
     for (i = 0, j = 0; i < int(looptris.size()); i++) {
       cos[j++] = looptris[i][0]->v->co;
       cos[j++] = looptris[i][1]->v->co;
@@ -1118,7 +1116,7 @@ bool BM_mesh_intersect(BMesh *bm,
       printf(")),\n");
 #  endif
     }
-    MEM_freeN(overlap);
+    MEM_delete(overlap);
   }
 
   if (boolean_mode == BMESH_ISECT_BOOLEAN_NONE) {
@@ -1250,7 +1248,7 @@ bool BM_mesh_intersect(BMesh *bm,
       }
     }
 
-    splice_ls = MEM_malloc_arrayN<BMVert *[2]>(size_t(s.wire_edges->size()), __func__);
+    splice_ls = MEM_new_array_uninitialized<BMVert *[2]>(size_t(s.wire_edges->size()), __func__);
     STACK_INIT(splice_ls, s.wire_edges->size());
 
     for (node = s.vert_dissolve; node; node = node->next) {
@@ -1443,7 +1441,7 @@ bool BM_mesh_intersect(BMesh *bm,
       }
     }
 
-    MEM_freeN(splice_ls);
+    MEM_delete(splice_ls);
   }
 #endif /* USE_DISSOLVE */
 
@@ -1522,7 +1520,7 @@ bool BM_mesh_intersect(BMesh *bm,
     user_data_wrap.test_fn = test_fn;
     user_data_wrap.user_data = user_data;
 
-    groups_array = MEM_malloc_arrayN<int>(size_t(bm->totface), __func__);
+    groups_array = MEM_new_array_uninitialized<int>(size_t(bm->totface), __func__);
     group_tot = BM_mesh_calc_face_groups(
         bm, groups_array, &group_index, bm_loop_filter_fn, nullptr, &user_data_wrap, 0, BM_EDGE);
 
@@ -1586,8 +1584,8 @@ bool BM_mesh_intersect(BMesh *bm,
       has_edit_boolean |= (do_flip || do_remove);
     }
 
-    MEM_freeN(groups_array);
-    MEM_freeN(group_index);
+    MEM_delete(groups_array);
+    MEM_delete(group_index);
 
 #ifdef USE_DISSOLVE
     /* We have dissolve code above, this is alternative logic,
@@ -1642,7 +1640,7 @@ bool BM_mesh_intersect(BMesh *bm,
   }
 
   if (boolean_mode != BMESH_ISECT_BOOLEAN_NONE) {
-    MEM_freeN(looptri_coords);
+    MEM_delete(looptri_coords);
 
     /* no booleans, just free immediate */
     BLI_bvhtree_free(tree_a);

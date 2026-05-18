@@ -15,8 +15,10 @@ struct ID;
 struct Main;
 struct Scene;
 struct SpaceNode;
+struct wmWindow;
 struct Tex;
 struct View2D;
+struct ViewLayer;
 struct bContext;
 struct bNode;
 struct bNodeTree;
@@ -33,10 +35,6 @@ struct bNodeSocketType;
 #define NODE_EDGE_PAN_MAX_SPEED 26 /* In UI units per second, slower than default. */
 #define NODE_EDGE_PAN_DELAY 0.5f
 #define NODE_EDGE_PAN_ZOOM_INFLUENCE 0.5f
-
-/* `clipboard.cc` */
-
-void ED_node_clipboard_free();
 
 /* `space_node.cc` */
 
@@ -85,10 +83,12 @@ void ED_node_post_apply_transform(bContext *C, bNodeTree *ntree);
 void ED_node_set_active(
     Main *bmain, SpaceNode *snode, bNodeTree *ntree, bNode *node, bool *r_active_texture_changed);
 
+/* `node_compositor_job.cc` */
+
 /**
- * Launch a compositor job for the scene of the given context.
+ * Launch a compositor job for the given scene and view layer.
  */
-void ED_node_compositor_job(const bContext *C);
+void ED_node_compositor_job(Main *bmain, Scene *scene, ViewLayer *view_layer);
 
 /* `node_ops.cc` */
 

@@ -497,7 +497,8 @@ void bmo_collapse_exec(BMesh *bm, BMOperator *op)
            EDGE_MARK,
            BMW_MASK_NOP,
            BMW_FLAG_NOP, /* No need to use #BMW_FLAG_TEST_HIDDEN, already marked data. */
-           BMW_NIL_LAY);
+           BMW_NIL_LAY,
+           BMW_DELIMIT_NONE);
 
   edge_stack = BLI_stack_new(sizeof(BMEdge *), __func__);
 
@@ -580,7 +581,8 @@ static void bmo_collapsecon_do_layer(BMesh *bm, const int layer, const short ofl
            oflag,
            BMW_MASK_NOP,
            BMW_FLAG_NOP, /* No need to use #BMW_FLAG_TEST_HIDDEN, already marked data. */
-           layer);
+           layer,
+           BMW_DELIMIT_NONE);
 
   block_stack = BLI_stack_new(sizeof(void *), __func__);
 
@@ -664,13 +666,13 @@ static int *bmesh_find_doubles_by_distance_impl(BMesh *bm,
                                                 const float dist,
                                                 const bool has_keep_vert)
 {
-  int *duplicates = MEM_malloc_arrayN<int>(verts_len, __func__);
+  int *duplicates = MEM_new_array_uninitialized<int>(verts_len, __func__);
   bool found_duplicates = false;
   bool has_self_index = false;
 
-  KDTree_3d *tree = kdtree_3d_new(verts_len);
+  KDTree<float3> *tree = kdtree_new<float3>(verts_len);
   for (int i = 0; i < verts_len; i++) {
-    kdtree_3d_insert(tree, i, verts[i]->co);
+    kdtree_insert<float3>(tree, i, verts[i]->co);
     if (has_keep_vert && BMO_vert_flag_test(bm, verts[i], VERT_KEEP)) {
       duplicates[i] = i;
       has_self_index = true;
@@ -680,7 +682,7 @@ static int *bmesh_find_doubles_by_distance_impl(BMesh *bm,
     }
   }
 
-  kdtree_3d_balance(tree);
+  kdtree_balance<float3>(tree);
 
   /* Given a cluster of duplicates, pick the index to keep. */
   auto deduplicate_target_calc_fn = [&verts](const int *cluster, const int cluster_num) -> int {
@@ -720,13 +722,13 @@ static int *bmesh_find_doubles_by_distance_impl(BMesh *bm,
     return i_best;
   };
 
-  found_duplicates = kdtree_calc_duplicates_cb_cpp<float3>(
+  found_duplicates = kdtree_calc_duplicates_cb<float3>(
                          tree, dist, duplicates, has_self_index, deduplicate_target_calc_fn) != 0;
 
-  kdtree_3d_free(tree);
+  kdtree_free<float3>(tree);
 
   if (!found_duplicates) {
-    MEM_freeN(duplicates);
+    MEM_delete(duplicates);
     duplicates = nullptr;
   }
   return duplicates;
@@ -739,7 +741,7 @@ static int *bmesh_find_doubles_by_distance_connected_impl(BMesh *bm,
                                                           const float dist,
                                                           const bool has_keep_vert)
 {
-  int *duplicates = MEM_malloc_arrayN<int>(verts_len, __func__);
+  int *duplicates = MEM_new_array_uninitialized<int>(verts_len, __func__);
   bool found_duplicates = false;
 
   Stack<int> vert_stack;
@@ -819,7 +821,7 @@ static int *bmesh_find_doubles_by_distance_connected_impl(BMesh *bm,
   }
 
   if (!found_duplicates) {
-    MEM_freeN(duplicates);
+    MEM_delete(duplicates);
     duplicates = nullptr;
   }
   return duplicates;
@@ -876,7 +878,7 @@ static void bmesh_find_doubles_common(BMesh *bm,
         BMO_slot_map_elem_insert(optarget, optarget_slot, v_check, v_other);
       }
     }
-    MEM_freeN(duplicates);
+    MEM_delete(duplicates);
   }
 }
 

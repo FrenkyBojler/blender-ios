@@ -546,9 +546,17 @@ void Film::sync()
    *
    * Compute shader is also used to work around Metal/Intel iGPU issues concerning
    * read write support for array textures. In this case the copy_ps_ is used to
-   * copy the right color/value to the framebuffer. */
+   * copy the right color/value to the framebuffer.
+   *
+   * It is also disabled for Windows on ARM as certain GPU/Driver combinations will cause a driver
+   * compiler crash. There is no way to detect up front when this is the case.
+   *
+   * See #153463
+   */
   use_compute_ = !inst_.is_viewport() ||
-                 GPU_type_matches(GPU_DEVICE_INTEL, GPU_OS_MAC, GPU_DRIVER_ANY);
+                 GPU_type_matches(GPU_DEVICE_INTEL, GPU_OS_MAC, GPU_DRIVER_ANY) ||
+                 GPU_type_matches_ex(
+                     GPU_DEVICE_QUALCOMM, GPU_OS_WIN, GPU_DRIVER_ANY, GPU_BACKEND_VULKAN);
 
   eShaderType shader = use_compute_ ? FILM_COMP : FILM_FRAG;
 
@@ -563,6 +571,7 @@ void Film::sync()
     accumulate_ps_.dispatch(int3(math::divide_ceil(data_.extent, int2(FILM_GROUP_SIZE)), 1));
   }
   else {
+    accumulate_ps_.push_constant("display_only", &display_only_);
     accumulate_ps_.draw_procedural(GPU_PRIM_TRIS, 1, 3);
   }
 
@@ -661,7 +670,9 @@ float2 Film::pixel_jitter_get() const
 {
   float2 jitter = inst_.sampling.rng_2d_get(SAMPLING_FILTER_U);
 
-  if (!use_box_filter && data_.filter_radius < M_SQRT1_2 && !inst_.camera.is_panoramic()) {
+  if (!use_box_filter && data_.filter_radius < M_SQRT1_2 && !inst_.camera.is_panoramic() &&
+      !inst_.sampling.use_custom_pixel_jitter_sample())
+  {
     /* For filter size less than a pixel, change sampling strategy and use a uniform disk
      * distribution covering the filter shape. This avoids putting samples in areas without any
      * weights. */
@@ -845,19 +856,14 @@ void Film::accumulate(View &view, gpu::Texture *combined_final_tx)
     GPU_framebuffer_bind(dfbl->default_fb);
     /* Clear when using render borders. */
     if (data_.extent != int2(GPU_texture_width(dtxl->color), GPU_texture_height(dtxl->color))) {
-      float4 clear_color = {0.0f, 0.0f, 0.0f, 0.0f};
-      GPU_framebuffer_clear_color(dfbl->default_fb, clear_color);
+      GPU_framebuffer_clear_color(dfbl->default_fb, double4(0.0));
     }
     GPU_framebuffer_viewport_set(dfbl->default_fb, UNPACK2(data_.offset), UNPACK2(data_.extent));
   }
 
-  update_sample_table();
-
   combined_final_tx_ = combined_final_tx;
 
-  data_.display_only = false;
-  inst_.uniform_data.push_update();
-
+  display_only_ = false;
   inst_.manager->submit(accumulate_ps_, view);
   inst_.manager->submit(copy_ps_, view);
 
@@ -883,11 +889,9 @@ void Film::display()
 
   combined_final_tx_ = inst_.render_buffers.combined_tx;
 
-  data_.display_only = true;
-  inst_.uniform_data.push_update();
-
   draw::View &drw_view = draw::View::default_get();
 
+  display_only_ = true;
   DRW_manager_get()->submit(accumulate_ps_, drw_view);
 
   inst_.render_buffers.release();
@@ -988,13 +992,6 @@ void Film::write_viewport_compositor_passes()
     const eViewLayerEEVEEPassType pass_type = eViewLayerEEVEEPassType(
         viewport_compositor_enabled_passes_ & (1 << i));
     if (pass_type == 0) {
-      continue;
-    }
-
-    /* The compositor will use the viewport color texture as the combined pass because the viewport
-     * texture will include Grease Pencil, so no need to write the combined pass from the engine
-     * side. */
-    if (pass_type == EEVEE_RENDER_PASS_COMBINED) {
       continue;
     }
 

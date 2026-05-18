@@ -282,7 +282,7 @@ static int initialize_chain(Object * /*ob*/, bPoseChannel *pchan_tip, bConstrain
 
   /* setup the chain data */
   /* create a target */
-  target = MEM_callocN<PoseTarget>("posetarget");
+  target = MEM_new_zeroed<PoseTarget>("posetarget");
   target->con = con;
   /* by construction there can be only one tree per channel
    * and each channel can be part of at most one tree. */
@@ -290,14 +290,14 @@ static int initialize_chain(Object * /*ob*/, bPoseChannel *pchan_tip, bConstrain
 
   if (tree == nullptr) {
     /* make new tree */
-    tree = MEM_callocN<PoseTree>("posetree");
+    tree = MEM_new_zeroed<PoseTree>("posetree");
 
     tree->iterations = data->iterations;
     tree->totchannel = segcount;
     tree->stretch = (data->flag & CONSTRAINT_IK_STRETCH);
 
-    tree->pchan = MEM_calloc_arrayN<bPoseChannel *>(segcount, "ik tree pchan");
-    tree->parent = MEM_calloc_arrayN<int>(segcount, "ik tree parent");
+    tree->pchan = MEM_new_array_zeroed<bPoseChannel *>(segcount, "ik tree pchan");
+    tree->parent = MEM_new_array_zeroed<int>(segcount, "ik tree parent");
     for (a = 0; a < segcount; a++) {
       tree->pchan[a] = chanlist[segcount - a - 1];
       tree->parent[a] = a - 1;
@@ -351,12 +351,12 @@ static int initialize_chain(Object * /*ob*/, bPoseChannel *pchan_tip, bConstrain
       oldchan = tree->pchan;
       oldparent = tree->parent;
 
-      tree->pchan = MEM_calloc_arrayN<bPoseChannel *>(newsize, "ik tree pchan");
-      tree->parent = MEM_calloc_arrayN<int>(newsize, "ik tree parent");
+      tree->pchan = MEM_new_array_zeroed<bPoseChannel *>(newsize, "ik tree pchan");
+      tree->parent = MEM_new_array_zeroed<int>(newsize, "ik tree parent");
       memcpy(tree->pchan, oldchan, sizeof(void *) * tree->totchannel);
       memcpy(tree->parent, oldparent, sizeof(int) * tree->totchannel);
-      MEM_freeN(oldchan);
-      MEM_freeN(oldparent);
+      MEM_delete(oldchan);
+      MEM_delete(oldparent);
 
       /* add new pose channels at the end, in reverse order */
       for (a = 0; a < segcount; a++) {
@@ -426,7 +426,7 @@ static IK_Data *get_ikdata(bPose *pose)
   if (pose->ikdata) {
     return static_cast<IK_Data *>(pose->ikdata);
   }
-  pose->ikdata = MEM_callocN<IK_Data>("iTaSC ikdata");
+  pose->ikdata = MEM_new_zeroed<IK_Data>("iTaSC ikdata");
   /* here init ikdata if needed
    * now that we have scene, make sure the default param are initialized */
   if (!DefIKParam.iksolver) {
@@ -1088,7 +1088,7 @@ static void convert_pose(IK_Scene *ikscene)
        a++, ikchan++)
   {
     pchan = ikchan->pchan;
-    bone = pchan->bone;
+    bone = pchan->bone_get(*ikscene->blArmature);
 
     if (pchan->parent) {
       unit_m4(bmat);
@@ -1112,7 +1112,7 @@ static void convert_pose(IK_Scene *ikscene)
 }
 
 /* compute array of joint value corresponding to current pose */
-static void BKE_pose_rest(IK_Scene *ikscene)
+static void pose_rest(IK_Scene *ikscene)
 {
   bPoseChannel *pchan;
   IK_Channel *ikchan;
@@ -1132,7 +1132,7 @@ static void BKE_pose_rest(IK_Scene *ikscene)
        a++, ikchan++)
   {
     pchan = ikchan->pchan;
-    bone = pchan->bone;
+    bone = pchan->bone_get(*ikscene->blArmature);
 
     if (ikchan->jointType & IK_TRANSY) {
       rot[ikchan->ndof - 1] = bone->length * scale;
@@ -1212,12 +1212,12 @@ static IK_Scene *convert_tree(
   /* build the array of joints corresponding to the IK chain */
   convert_channels(depsgraph, ikscene, tree, ctime);
   /* in Blender, the rest pose is always 0 for joints */
-  BKE_pose_rest(ikscene);
+  pose_rest(ikscene);
   rot = ikscene->jointArray(0);
 
   for (a = 0, ikchan = ikscene->channels; a < tree->totchannel; a++, ikchan++) {
     pchan = ikchan->pchan;
-    bone = pchan->bone;
+    bone = pchan->bone_get(*ob);
 
     KDL::Frame tip(iTaSC::F_identity);
     /* compute the position and rotation of the head from previous segment */
@@ -1257,7 +1257,7 @@ static IK_Scene *convert_tree(
     length = bone->length * ikscene->blScale;
     parent = (a > 0) ? ikscene->channels[tree->parent[a]].tail : root;
     /* first the fixed segment to the bone head */
-    if (!(ikchan->pchan->bone->flag & BONE_CONNECTED) || head.M.GetRot().Norm() > KDL::epsilon) {
+    if (!(bone->flag & BONE_CONNECTED) || head.M.GetRot().Norm() > KDL::epsilon) {
       joint = bone->name;
       joint += ":H";
       ret = arm->addSegment(joint, parent, KDL::Joint::None, 0.0, head);
@@ -1466,15 +1466,16 @@ static IK_Scene *convert_tree(
         break;
       }
       /* initialize all the fields that we can set at this time */
+      const Bone *bone = pchan->bone_get(*ob);
       iktarget->blenderConstraint = target->con;
       iktarget->channel = target->tip;
       iktarget->simulation = (ikparam->flag & ITASC_SIMULATION);
       iktarget->rootChannel = ikscene->channels[0].pchan;
       iktarget->owner = ob;
-      iktarget->targetName = pchan->bone->name;
+      iktarget->targetName = bone->name;
       iktarget->targetName += ":T:";
       iktarget->targetName += target->con->name;
-      iktarget->constraintName = pchan->bone->name;
+      iktarget->constraintName = bone->name;
       iktarget->constraintName += ":C:";
       iktarget->constraintName += target->con->name;
       numtarget++;
@@ -1523,9 +1524,10 @@ static IK_Scene *convert_tree(
     /* it has a parent, get the pose matrix from it */
     float baseFrame[4][4];
     pchan = pchan->parent;
-    copy_m4_m4(baseFrame, pchan->bone->arm_mat);
+    const Bone *bone = pchan->bone_get(*ob);
+    copy_m4_m4(baseFrame, bone->arm_mat);
     /* move to the tail and scale to get rest pose of armature base */
-    copy_v3_v3(baseFrame[3], pchan->bone->arm_tail);
+    copy_v3_v3(baseFrame[3], bone->arm_tail);
     invert_m4_m4(invBaseFrame, baseFrame);
   }
   else {
@@ -1547,13 +1549,16 @@ static IK_Scene *convert_tree(
     for (bone_count = 0, bone_length = 0.0f, a = iktarget->channel; a >= 0;
          a = tree->parent[a], bone_count++)
     {
-      bone_length += ikscene->blScale * tree->pchan[a]->bone->length;
+      const bPoseChannel *pchan = tree->pchan[a];
+      const Bone *bone = pchan->bone_get(*ob);
+      bone_length += ikscene->blScale * bone->length;
     }
     bone_length /= bone_count;
 
     /* store the rest pose of the end effector to compute enforce target */
-    copy_m4_m4(mat, pchan->bone->arm_mat);
-    copy_v3_v3(mat[3], pchan->bone->arm_tail);
+    const Bone *bone = pchan->bone_get(*ob);
+    copy_m4_m4(mat, bone->arm_mat);
+    copy_v3_v3(mat[3], bone->arm_tail);
     /* get the rest pose relative to the armature base */
     mul_m4_m4m4(iktarget->eeRest, invBaseFrame, mat);
     iktarget->eeBlend = (!ikscene->polarConstraint && condata->type == CONSTRAINT_IK_COPYPOSE) ?
@@ -1673,15 +1678,15 @@ static void create_scene(Depsgraph *depsgraph, Scene *scene, Object *ob, float c
         BLI_remlink(&pchan.iktree, tree);
         BLI_freelistN(&tree->targets);
         if (tree->pchan) {
-          MEM_freeN(tree->pchan);
+          MEM_delete(tree->pchan);
         }
         if (tree->parent) {
-          MEM_freeN(tree->parent);
+          MEM_delete(tree->parent);
         }
         if (tree->basis_change) {
-          MEM_freeN(tree->basis_change);
+          MEM_delete(tree->basis_change);
         }
-        MEM_freeN(tree);
+        MEM_delete(tree);
         tree = (PoseTree *)pchan.iktree.first;
       }
     }
@@ -1953,7 +1958,7 @@ void itasc_clear_data(bPose *pose)
       ikdata->first = scene->next;
       delete scene;
     }
-    MEM_freeN(ikdata);
+    MEM_delete(ikdata);
     pose->ikdata = nullptr;
   }
 }

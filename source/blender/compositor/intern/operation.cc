@@ -27,7 +27,7 @@ void Operation::evaluate()
 {
   this->evaluate_input_processors();
   this->execute();
-  this->compute_preview();
+  this->log_data();
   this->release_inputs();
   this->context().evaluate_operation_post();
 }
@@ -112,7 +112,7 @@ void Operation::evaluate_input_processors()
   }
 }
 
-void Operation::compute_preview() {};
+void Operation::log_data() {};
 
 void Operation::populate_result(StringRef identifier, Result result)
 {
@@ -127,6 +127,15 @@ void Operation::declare_input_descriptor(StringRef identifier, InputDescriptor d
 InputDescriptor &Operation::get_input_descriptor(StringRef identifier)
 {
   return input_descriptors_.lookup(identifier);
+}
+
+void Operation::allocate_default_remaining_outputs()
+{
+  for (Result &result : results_.values()) {
+    if (result.should_compute() && !result.is_allocated()) {
+      result.allocate_invalid();
+    }
+  }
 }
 
 Context &Operation::context() const

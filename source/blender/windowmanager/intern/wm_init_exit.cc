@@ -68,7 +68,7 @@
 #  include "BPY_extern_run.hh"
 #endif
 
-#include "GHOST_C-api.h"
+#include "GHOST_ISystem.hh"
 
 #include "RNA_define.hh"
 
@@ -292,6 +292,18 @@ void WM_init(bContext *C, int argc, const char **argv)
   ED_file_init();
 
   if (!G.background) {
+    wmWindowManager *wm = CTX_wm_manager(C);
+    if (wm != nullptr) {
+      wm_window_ghostwindows_remove_invalid(C, wm);
+    }
+    if (wm == nullptr || BLI_listbase_is_empty(&wm->windows)) {
+      if (params_file_read_post != nullptr) {
+        MEM_delete_void(static_cast<void *>(params_file_read_post));
+        params_file_read_post = nullptr;
+      }
+      WM_exit(C, EXIT_FAILURE);
+    }
+
     GPU_render_begin();
 
 #ifdef WITH_INPUT_NDOF
@@ -322,11 +334,12 @@ void WM_init(bContext *C, int argc, const char **argv)
 #endif
 
   if (!G.background) {
+    GHOST_ISystem *ghost_system = GHOST_ISystem::getSystem();
     if (wm_start_with_console) {
-      GHOST_setConsoleWindowState(GHOST_kConsoleWindowStateShow);
+      ghost_system->setConsoleWindowState(GHOST_kConsoleWindowStateShow);
     }
     else {
-      GHOST_setConsoleWindowState(GHOST_kConsoleWindowStateHideForNonConsoleLaunch);
+      ghost_system->setConsoleWindowState(GHOST_kConsoleWindowStateHideForNonConsoleLaunch);
     }
   }
 
@@ -418,7 +431,7 @@ static void wm_init_scripts_extensions_once(bContext *C)
 static void free_openrecent()
 {
   for (RecentFile &recent : G.recent_files) {
-    MEM_freeN(recent.filepath);
+    MEM_delete(recent.filepath);
   }
 
   BLI_freelistN(&(G.recent_files));
@@ -432,18 +445,30 @@ static int wm_exit_handler(bContext *C, const wmEvent *event, void *userdata)
   return WM_UI_HANDLER_BREAK;
 }
 
+static void wm_exit_schedule_delayed_for_window(const bContext *C, wmWindow &win)
+{
+  /* Use modal UI handler for now.
+   * Could add separate WM handlers or so, but probably not worth it. */
+  WM_event_add_ui_handler(
+      C, &win.runtime->modalhandlers, wm_exit_handler, nullptr, nullptr, eWM_EventHandlerFlag(0));
+  WM_event_add_mousemove(&win); /* Ensure handler actually gets called. */
+}
+
 void wm_exit_schedule_delayed(const bContext *C)
 {
   /* What we do here is a little bit hacky, but quite simple and doesn't require bigger
    * changes: Add a handler wrapping WM_exit() to cause a delayed call of it. */
 
-  wmWindow *win = CTX_wm_window(C);
-
-  /* Use modal UI handler for now.
-   * Could add separate WM handlers or so, but probably not worth it. */
-  WM_event_add_ui_handler(
-      C, &win->runtime->modalhandlers, wm_exit_handler, nullptr, nullptr, eWM_EventHandlerFlag(0));
-  WM_event_add_mousemove(win); /* Ensure handler actually gets called. */
+  if (wmWindow *win = CTX_wm_window(C)) {
+    wm_exit_schedule_delayed_for_window(C, *win);
+  }
+  else {
+    /* Unlikely but possible, in this case just ensure exit runs as it's not interactive. */
+    wmWindowManager *wm = static_cast<wmWindowManager *>(G_MAIN->wm.first);
+    for (wmWindow &win : wm->windows) {
+      wm_exit_schedule_delayed_for_window(C, win);
+    }
+  }
 }
 
 void UV_clipboard_free();
@@ -573,13 +598,11 @@ void WM_exit_ex(bContext *C, const bool do_python_exit, const bool do_user_exit_
   RE_engines_exit();
 
   ED_preview_free_dbase(); /* Frees a Main dbase, before #BKE_blender_free! */
-  ED_preview_restart_queue_free();
   ed::asset::list::storage_exit();
 
   BKE_tracking_clipboard_free();
   BKE_mask_clipboard_free();
   BKE_vfont_clipboard_free();
-  ED_node_clipboard_free();
   ed::greasepencil::clipboard_free();
   UV_clipboard_free();
   wm_clipboard_free();
@@ -648,14 +671,14 @@ void WM_exit_ex(bContext *C, const bool do_python_exit, const bool do_user_exit_
    * is also deleted with the context active. */
   if (gpu_is_init) {
     DRW_gpu_context_enable_ex(false);
-    ui::ui_exit();
+    ui::exit();
     GPU_shader_cache_dir_clear_old();
     GPU_exit();
     DRW_gpu_context_disable_ex(false);
     DRW_gpu_context_destroy();
   }
   else {
-    ui::ui_exit();
+    ui::exit();
   }
 
   BKE_blender_userdef_data_free(&U, false);

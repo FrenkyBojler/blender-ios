@@ -34,18 +34,9 @@
 #  include "GHOST_NDOFManagerCocoa.hh"
 #endif
 
-#include "AssertMacros.h"
-
-#import <Cocoa/Cocoa.h>
-
 /* For the currently not ported to Cocoa keyboard layout functions (64bit & 10.6 compatible) */
 #include <Carbon/Carbon.h>
-
-#include <sys/sysctl.h>
 #include <sys/time.h>
-#include <sys/types.h>
-
-#include <mach/mach_time.h>
 
 /* --------------------------------------------------------------------
  * Keymaps, mouse converters.
@@ -1199,6 +1190,7 @@ GHOST_TSuccess GHOST_SystemCocoa::handleWindowEvent(GHOST_TEventType eventType,
       if (!ignore_window_sized_messages_) {
         /* Enforce only one resize message per event loop
          * (coalescing all the live resize messages). */
+        window->updateDrawingSize();
         window->updateDrawingContext();
         pushEvent(
             std::make_unique<GHOST_Event>(getMilliSeconds(), GHOST_kEventWindowSize, window));
@@ -1213,6 +1205,7 @@ GHOST_TSuccess GHOST_SystemCocoa::handleWindowEvent(GHOST_TEventType eventType,
       }
       break;
     case GHOST_kEventNativeResolutionChange:
+      window->updateDrawingSize();
 
       if (native_pixel_) {
         window->setNativePixelSize();
@@ -1252,7 +1245,7 @@ static blender::ImBuf *NSImageToImBuf(NSImage *image)
 {
   const NSSize imageSize = getNSImagePixelSize(image);
   blender::ImBuf *ibuf = blender::IMB_allocImBuf(
-      imageSize.width, imageSize.height, 32, blender::IB_byte_data);
+      imageSize.width, imageSize.height, blender::ImBufFlags::ByteData);
 
   if (!ibuf) {
     return nullptr;
@@ -1273,7 +1266,7 @@ static blender::ImBuf *NSImageToImBuf(NSImage *image)
       return nullptr;
     }
 
-    uint8_t *ibuf_data = ibuf->byte_buffer.data;
+    uint8_t *ibuf_data = ibuf->byte_data_for_write();
     uint8_t *bmp_data = (uint8_t *)bitmapImage.bitmapData;
 
     /* Vertical Flip. */
@@ -2119,7 +2112,7 @@ uint *GHOST_SystemCocoa::getClipboardImage(int *r_width, int *r_height) const
         return nullptr;
       }
 
-      memcpy(rgba, ibuf->byte_buffer.data, byteCount);
+      memcpy(rgba, ibuf->byte_data(), byteCount);
       blender::IMB_freeImBuf(ibuf);
 
       *r_width = clipboardImageSize.width;
