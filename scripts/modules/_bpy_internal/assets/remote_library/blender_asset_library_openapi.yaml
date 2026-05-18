@@ -279,7 +279,7 @@ components:
             The catalog UUID that contains this asset. Having the UUID here
             makes it easier to create a per-blendfile .cats.txt file, if that's
             ever necessary.
-        "import":
+        "import_meth":
           type: string
           description: >
             The import method preferred by this asset. For example, base meshes for
