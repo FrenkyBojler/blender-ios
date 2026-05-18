@@ -498,19 +498,19 @@ class ExtendableMesh {
   {
     return new_corner_snap_edges_;
   }
-  const Array<bool> &kill_verts_array() const
+  Span<bool> kill_verts_array() const
   {
     return kill_verts_;
   }
-  const Array<bool> &kill_edges_array() const
+  Span<bool> kill_edges_array() const
   {
     return kill_edges_;
   }
-  const Array<bool> &kill_faces_array() const
+  Span<bool> kill_faces_array() const
   {
     return kill_faces_;
   }
-  const Array<bool> &kill_corners_array() const
+  Span<bool> kill_corners_array() const
   {
     return kill_corners_;
   }
@@ -5959,7 +5959,7 @@ static VMesh new_adj_vmesh(int count, int seg, BoundVert *bounds)
 }
 
 /* Fills frac[0..ns] with cumulative arc-length fractions along ring 0 of vmesh row i. */
-static void fill_vmesh_fracs(VMesh *vm, Array<float> &frac, int i)
+static void fill_vmesh_fracs(VMesh *vm, MutableSpan<float> frac, int i)
 {
   const int ns = vm->seg;
   frac[0] = 0.0f;
@@ -5982,7 +5982,7 @@ static void fill_vmesh_fracs(VMesh *vm, Array<float> &frac, int i)
 /* Fills frac[0..ns] with cumulative arc-length fractions along bndv's profile. */
 static void fill_profile_fracs(const BevelState &state,
                                const BoundVert *bndv,
-                               Array<float> &frac,
+                               MutableSpan<float> frac,
                                const int ns)
 {
   float co[3], nextco[3];
@@ -6006,7 +6006,7 @@ static void fill_profile_fracs(const BevelState &state,
 }
 
 /* Returns index i such that frac[i] <= f <= frac[i+1], and sets r_rest to the remainder. */
-static int interp_range(const Array<float> &frac, const int n, const float f, float *r_rest)
+static int interp_range(const Span<float> frac, const int n, const float f, float *r_rest)
 {
   for (int i = 0; i < n; i++) {
     if (f <= frac[i + 1]) {
@@ -8067,7 +8067,7 @@ std::optional<Mesh *> mesh_bevel(
     const BevelParameters &params,
     const bke::AttributeFilter & /*attribute_filter*/)  // TODO: implement this
 {
-  auto all_non_positive = [](const Array<float> &o) {
+  auto all_non_positive = [](const Span<float> o) {
     return std::ranges::all_of(o, [](float f) { return f <= 0.0f; });
   };
   if (all_non_positive(params.offsets[0]) && all_non_positive(params.offsets[1]) &&
