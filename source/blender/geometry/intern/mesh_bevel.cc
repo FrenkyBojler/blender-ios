@@ -451,6 +451,8 @@ class ExtendableMesh {
   Span<int> src_corner_verts_;
   Span<int> src_corner_edges_;
 
+  Span<float3> src_face_normals_;
+
   Vector<float3> new_vert_positions_;
   Vector<int> new_face_offsets_;
   Vector<int> new_corner_verts_;
@@ -521,7 +523,8 @@ ExtendableMesh::ExtendableMesh(const Mesh &mesh)
       src_edges_(mesh.edges()),
       src_faces_(mesh.faces()),
       src_corner_verts_(mesh.corner_verts()),
-      src_corner_edges_(mesh.corner_edges())
+      src_corner_edges_(mesh.corner_edges()),
+      src_face_normals_(mesh.face_normals())
 {
   vert_edges_ = bke::mesh::build_vert_to_edge_map(
       src_edges_, mesh.verts_num, vert_to_edge_offsets_, vert_to_edge_indices_);
@@ -578,7 +581,7 @@ float3 ExtendableMesh::face_normal(const int f) const
 {
   /* Only valid for original mesh faces; new faces are not used in tri_corner_test. */
   BLI_assert(f < mesh.faces_num);
-  return mesh.face_normals()[f];
+  return src_face_normals_[f];
 }
 
 int ExtendableMesh::corner_vert(const int c) const
