@@ -4232,7 +4232,7 @@ static bool face_point_inside_test(const ExtendableMesh &emesh, const int f, con
   const Span<float3> positions = emesh.src_positions;
   const IndexRange face_range = faces[f];
   const int n = face_range.size();
-  Array<float2> projverts(n);
+  Array<float2, 16> projverts(n);
   for (int i = 0; i < n; i++) {
     mul_v2_m3v3(projverts[i], axis_mat, positions[corner_verts[face_range[i]]]);
   }
@@ -4342,7 +4342,7 @@ static float projected_boundary_area(const BevelState &state, BevVert *bv, const
   const float *e2v2 = positions[ev2[1]];
 
   const int count = vm->count;
-  Array<float2> proj_co(count);
+  Array<float2, 16> proj_co(count);
   BoundVert *v = vm->boundstart;
   int i = 0;
   do {
@@ -6032,8 +6032,8 @@ static VMesh interp_vmesh(const BevelState &state, VMesh &vm_in, int nseg)
   const int odd = nseg % 2;
   VMesh vm_out = new_adj_vmesh(n_bndv, nseg, vm_in.boundstart);
 
-  Array<float> prev_frac(ns_in + 1), frac(ns_in + 1);
-  Array<float> new_frac(nseg + 1), prev_new_frac(nseg + 1);
+  Array<float, 8> prev_frac(ns_in + 1), frac(ns_in + 1);
+  Array<float, 8> new_frac(nseg + 1), prev_new_frac(nseg + 1);
 
   fill_vmesh_fracs(&vm_in, prev_frac, n_bndv - 1);
   BoundVert *bndv = vm_in.boundstart;
@@ -6789,8 +6789,8 @@ static VMesh square_out_adj_vmesh(BevelState &state, BevVert *bv)
   float ns2inv = 1.0f / float(ns2);
   VMesh vm = new_adj_vmesh(n_bndv, ns, bv->vmesh->boundstart);
   const int clstride = 3 * (ns2 + 1);
-  Array<float> centerline(clstride * n_bndv);
-  Array<bool> cset(n_bndv, false);
+  Array<float, 8> centerline(clstride * n_bndv);
+  Array<bool, 8> cset(n_bndv, false);
 
   const float3 bv_co = state.emesh.vert_position(bv->v);
 
@@ -7388,7 +7388,7 @@ static float2 interp_uv_from_face(const ExtendableMesh &emesh,
   axis_dominant_v3_to_m3(axis_mat, no);
 
   /* Project face corners to 2D. */
-  Array<float2> cos_2d(n);
+  Array<float2, 16> cos_2d(n);
   for (int i = 0; i < n; i++) {
     mul_v2_m3v3(cos_2d[i], axis_mat, positions[corner_verts[face_range[i]]]);
   }
@@ -7398,7 +7398,7 @@ static float2 interp_uv_from_face(const ExtendableMesh &emesh,
   mul_v2_m3v3(co_2d, axis_mat, dst_co);
 
   /* Compute mean-value interpolation weights. */
-  Array<float> w(n);
+  Array<float, 16> w(n);
   interp_weights_poly_v2(w.data(), reinterpret_cast<float (*)[2]>(cos_2d.data()), n, co_2d);
 
   /* Weighted sum of UV values. */
