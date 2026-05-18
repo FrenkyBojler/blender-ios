@@ -26,8 +26,8 @@
 #include "BKE_paint_types.hh"
 
 #include "IMB_colormanagement.hh"
+#include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
-#include "IMB_interp.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -385,21 +385,22 @@ static wmOperatorStatus palette_extract_img_exec(bContext *C, wmOperator *op)
   if (ibuf && ibuf->byte_data()) {
     /* Extract all colors. */
     const int range = int(pow(10.0f, threshold));
-    for (int row = 0; row < ibuf->y; row++) {
-      for (int col = 0; col < ibuf->x; col++) {
-        float color[3];
-        IMB_sampleImageAtLocation(ibuf, float(col), float(row), color);
-        /* Convert to sRGB for hex. */
-        IMB_colormanagement_scene_linear_to_srgb_v3(color, color);
-        for (int i = 0; i < 3; i++) {
-          color[i] = truncf(color[i] * range) / range;
-        }
+    const uint8_t *src_data = ibuf->byte_data();
+    for (size_t i = 0, n = IMB_get_pixel_count(ibuf); i != n; i++) {
+      float color[3];
+      rgb_uchar_to_float(color, src_data);
+      IMB_colormanagement_colorspace_to_scene_linear_v3(color, ibuf->byte_buffer.colorspace);
+      IMB_colormanagement_scene_linear_to_srgb_v3(color, color);
 
-        uint key = rgb_to_cpack(color[0], color[1], color[2]);
-        if (!BLI_ghash_haskey(color_table, POINTER_FROM_INT(key))) {
-          BLI_ghash_insert(color_table, POINTER_FROM_INT(key), POINTER_FROM_INT(key));
-        }
+      for (int i = 0; i < 3; i++) {
+        color[i] = truncf(color[i] * range) / range;
       }
+      uint key = rgb_to_cpack(color[0], color[1], color[2]);
+      if (!BLI_ghash_haskey(color_table, POINTER_FROM_INT(key))) {
+        BLI_ghash_insert(color_table, POINTER_FROM_INT(key), POINTER_FROM_INT(key));
+      }
+
+      src_data += 4;
     }
 
     done = palette_from_hash(bmain, color_table, image->id.name + 2);
