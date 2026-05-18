@@ -1,1 +1,2 @@
 Referenced by commit 1377b9e0db2cd0590499962738b58591f84f3d13, Fix: Failing (harmless) assert on file save after recent commit
+Referenced by issue #158733, Can no longer rename Essential asset catalogs
