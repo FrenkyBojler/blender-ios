@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 import os
-from pathlib import Path
 import logging
 from dataclasses import dataclass
 
@@ -69,6 +68,7 @@ def save_project(project, report=None):
 
     import cattrs
     import tomli_w
+    from pathlib import Path
 
     if project is None:
         if report:
@@ -148,6 +148,8 @@ def find_and_load_project_for_blend_path(context, blend_path, report=None):
 
     Optionally takes an `Operator.report` for reporting errors to the user.
     """
+
+    from pathlib import Path
 
     if blend_path == "":
         # Not an on-disk blend file, so there is no project to load.
@@ -285,6 +287,8 @@ class PROJECT_OT_NewProject(Operator):
         return bpy.data.project is None and bpy.data.filepath != ""
 
     def execute(self, context):
+        from pathlib import Path
+
         if not context.preferences.experimental.use_blender_projects:
             self.report({'ERROR'}, "Blender Projects experimental feature not enabled.")
             return {'CANCELLED'}
@@ -386,6 +390,8 @@ class PROJECT_OT_OpenBlendInProject(Operator):
         return True
 
     def execute(self, context):
+        from pathlib import Path
+
         if not context.preferences.experimental.use_blender_projects:
             self.report({'ERROR'}, "Blender Projects experimental feature not enabled.")
             return {'CANCELLED'}
