@@ -1,3 +1,4 @@
 Referenced by issue #150066, Asset Browser: Fuzzy Search support
 Referenced by pull request #154451, Fix: Search broken in Remote Asset Libraries
 Referenced by commit c444d9279031a5fc581d7ffb14d1d70a954835ea, Fix: Search broken in Remote Asset Libraries
+Referenced by issue #158725, "Sort By: Name" in Asset Library seemingly just entirely broken with numbers when searching
