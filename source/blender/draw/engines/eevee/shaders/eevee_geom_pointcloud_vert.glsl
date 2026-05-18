@@ -22,8 +22,8 @@ void main()
   DRW_VIEW_FROM_RESOURCE_ID;
 #ifdef MAT_SHADOW
   {
-    auto &shadow_iface = interface_get(eevee_surf_shadow_infos_, shadow_iface);
-    auto &render_view_buf = buffer_get(eevee_surf_shadow_infos_, render_view_buf);
+    auto &shadow_iface = interface_get(eevee_shadow_iface_info, shadow_iface);
+    auto &render_view_buf = buffer_get(eevee::GeomShadow, render_view_buf);
 
     shadow_iface.shadow_view_id = int(drw_view_id);
     gpu_ViewportIndex = int(render_view_buf[drw_view_id].viewport_index);
@@ -78,8 +78,8 @@ void main()
 
 #ifdef MAT_SHADOW
   {
-    auto &shadow_clip = interface_get(eevee_surf_shadow_infos_, shadow_clip);
-    auto &render_view_buf = buffer_get(eevee_surf_shadow_infos_, render_view_buf);
+    auto &shadow_clip = interface_get(eevee_shadow_iface_info, shadow_clip);
+    auto &render_view_buf = buffer_get(eevee::GeomShadow, render_view_buf);
 
     float3 vs_P = drw_point_world_to_view(interp.P);
     ShadowRenderView view = render_view_buf[drw_view_id];

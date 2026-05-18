@@ -33,8 +33,8 @@ void main()
 
 #ifdef MAT_SHADOW
   {
-    auto &shadow_iface = interface_get(eevee_surf_shadow_infos_, shadow_iface);
-    auto &shadow_clip = interface_get(eevee_surf_shadow_infos_, shadow_clip);
+    auto &shadow_iface = interface_get(eevee_shadow_iface_info, shadow_iface);
+    auto &shadow_clip = interface_get(eevee_shadow_iface_info, shadow_clip);
     /* Volumes currently do not support shadow. But the shader validation pipeline still compiles
      * the shadow variant of this shader. Avoid linking error on Intel Windows drivers. */
     shadow_iface.shadow_view_id = 0;

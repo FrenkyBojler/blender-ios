@@ -37,8 +37,6 @@ struct SurfShadow {
   [[legacy_info]] ShaderCreateInfo eevee_utility_texture;
   [[legacy_info]] ShaderCreateInfo eevee_sampling_data;
 
-  [[storage(SHADOW_RENDER_VIEW_BUF_SLOT,
-            read)]] const ShadowRenderView (&render_view_buf)[SHADOW_VIEW_MAX];
   [[storage(SHADOW_RENDER_MAP_BUF_SLOT,
             read)]] const uint (&render_map_buf)[SHADOW_RENDER_MAP_SIZE];
 
@@ -48,9 +46,8 @@ struct SurfShadow {
 [[fragment]] [[texture_atomic]]
 void surf_shadow([[resource_table]] SurfShadow &srt, [[front_facing]] const bool front_face)
 {
-#ifdef MAT_SHADOW /* TODO remove after all vertex shaders are ported. */
-  auto &shadow_iface = interface_get(eevee_surf_shadow_infos_, shadow_iface);
-  auto &shadow_clip = interface_get(eevee_surf_shadow_infos_, shadow_clip);
+  auto &shadow_iface = interface_get(eevee_shadow_iface_info, shadow_iface);
+  auto &shadow_clip = interface_get(eevee_shadow_iface_info, shadow_clip);
 
   float linear_depth = length(shadow_clip.position);
 
@@ -60,7 +57,7 @@ void surf_shadow([[resource_table]] SurfShadow &srt, [[front_facing]] const bool
     return;
   }
 
-#  ifdef MAT_TRANSPARENT
+#ifdef MAT_TRANSPARENT
   init_globals(front_face);
 
   nodetree_surface(0.0f);
@@ -73,7 +70,7 @@ void surf_shadow([[resource_table]] SurfShadow &srt, [[front_facing]] const bool
     gpu_discard_fragment();
     return;
   }
-#  endif
+#endif
 
   int2 texel_co = int2(gl_FragCoord.xy);
 
@@ -114,7 +111,6 @@ void surf_shadow([[resource_table]] SurfShadow &srt, [[front_facing]] const bool
   else {
     imageAtomicMin(srt.shadow_atlas_img, out_texel, u_depth);
   }
-#endif
 }
 
 }  // namespace eevee

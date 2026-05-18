@@ -777,6 +777,7 @@ static SlotAllocator add_pipeline_create_info(gpu::shader::ShaderCreateInfo &inf
           info.fragment_source("eevee_surf_shadow.bsl.hh");
           info.fragment_function("eevee_surf_shadow");
           info.additional_info("eevee_shadow_iface_info");
+          info.additional_info("eevee_GeomShadow");
           break;
         case MAT_PIPE_VOLUME_OCCUPANCY:
           pipeline_info_name = "eevee_surf_occupancy_infos_";
