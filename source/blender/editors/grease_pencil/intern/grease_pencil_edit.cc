@@ -3944,7 +3944,16 @@ static wmOperatorStatus grease_pencil_texture_gradient_exec(bContext *C, wmOpera
   ARegion *region = CTX_wm_region(C);
   GreasePencil &grease_pencil = *id_cast<GreasePencil *>(object->data);
 
-  std::atomic<bool> changed = false;
+  bool inserted_keyframe = false;
+  const bool use_duplicate_previous_key = true;
+  for (bke::greasepencil::Layer *layer : grease_pencil.layers_for_write()) {
+    if (layer->is_editable()) {
+      ed::greasepencil::ensure_active_keyframe(
+          *scene, grease_pencil, *layer, use_duplicate_previous_key, inserted_keyframe);
+    }
+  }
+
+  std::atomic<bool> changed = inserted_keyframe;
   const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(*scene, grease_pencil);
   threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
     IndexMaskMemory memory;
@@ -4562,6 +4571,8 @@ static void GREASE_PENCIL_OT_remove_fill_guides(wmOperatorType *ot)
       ot->srna, "mode", rna_mode_items, int(RemoveFillGuidesMode::AllFrames), "Mode", "");
 }
 
+/** \} */
+
 /* -------------------------------------------------------------------- */
 /** \name Outline Operator
  * \{ */
@@ -4956,7 +4967,7 @@ static wmOperatorStatus grease_pencil_set_corner_type_exec(bContext *C, wmOperat
     miter_angle = GP_STROKE_MITER_ANGLE_BEVEL;
   }
   else if (corner_type == CornerType::Miter) {
-    /* Prevent the angle from being set to zero, and becoming the `Round` type.*/
+    /* Prevent the angle from being set to zero, and becoming the `Round` type. */
     if (miter_angle == 0.0f) {
       miter_angle = DEG2RADF(1.0f);
     }
@@ -5107,20 +5118,10 @@ static wmOperatorStatus grease_pencil_set_stroke_type_exec(bContext *C, wmOperat
     }
 
     if (ELEM(type, StrokeType::Fill, StrokeType::Both)) {
-      /* Get the first id that does not already exist. */
-      int new_fill_id = *std::max_element(fill_ids.span.begin(), fill_ids.span.end()) + 1;
-
-      if (new_fill_id == 0) {
-        new_fill_id++;
-      }
-
-      /* Each non fill selected stroke becomes a new fill. */
-      strokes.foreach_index([&](const int64_t i) {
-        if (fill_ids.span[i] == 0) {
-          fill_ids.span[i] = new_fill_id;
-          new_fill_id++;
-        }
-      });
+      const IndexMask selected_non_fill_strokes = IndexMask::from_predicate(
+          strokes, memory, [&](const int64_t index) { return fill_ids.span[index] == 0; });
+      bke::greasepencil::gather_next_available_fill_ids(
+          fill_ids.span.varray(), selected_non_fill_strokes, fill_ids.span);
     }
 
     hide_stroke.finish();

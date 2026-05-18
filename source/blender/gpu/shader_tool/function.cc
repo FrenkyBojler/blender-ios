@@ -33,6 +33,8 @@ void SourceProcessor::lower_entry_points(Parser &parser)
     bool is_vertex_func = false;
     bool is_fragment_func = false;
     bool use_early_frag_test = false;
+    bool use_clip_control = false;
+    bool use_texture_atomic = false;
     string metal_max_total_threads_per_threadgroup;
     string local_size;
 
@@ -60,6 +62,12 @@ void SourceProcessor::lower_entry_points(Parser &parser)
         }
         else if (attr_str == "metal_max_total_threads_per_threadgroup") {
           metal_max_total_threads_per_threadgroup = attr_scope.str();
+        }
+        else if (attr_str == "clip_control") {
+          use_clip_control = true;
+        }
+        else if (attr_str == "texture_atomic") {
+          use_texture_atomic = true;
         }
       });
     }
@@ -106,6 +114,19 @@ void SourceProcessor::lower_entry_points(Parser &parser)
       }
     }
 
+    if (use_clip_control) {
+      if (!is_vertex_func) {
+        report_error(type, "Only vertex entry point function can use [[clip_control]].");
+      }
+      else {
+        create_info_decl += "BUILTINS(BuiltinBits::CLIP_CONTROL)\n";
+      }
+    }
+
+    if (use_texture_atomic) {
+      create_info_decl += "BUILTINS(BuiltinBits::TEXTURE_ATOMIC)\n";
+    }
+
     if (!metal_max_total_threads_per_threadgroup.empty()) {
       if (!is_compute_func) {
         report_error(type,
@@ -144,6 +165,17 @@ void SourceProcessor::lower_entry_points(Parser &parser)
         }
         replace_word(srt_var, "gl_InstanceID");
         metadata_.builtins.emplace_back(Builtin(hash("gl_InstanceID")));
+        create_info_decl += "BUILTINS(BuiltinBits::INSTANCE_ID)\n";
+      }
+      else if (srt_attr == "instance_index" && is_entry_point) {
+        if (!is_vertex_func) {
+          report_error(attributes[1], "[[instance_index]] is only supported in vertex functions.");
+        }
+        else if (!is_const || srt_type != "int") {
+          report_error(type, "[[instance_index]] must be declared as `const int`.");
+        }
+        replace_word(srt_var, "gpu_InstanceIndex");
+        metadata_.builtins.emplace_back(Builtin(hash("gpu_InstanceIndex")));
         create_info_decl += "BUILTINS(BuiltinBits::INSTANCE_ID)\n";
       }
       else if (srt_attr == "base_instance" && is_entry_point) {
@@ -386,7 +418,7 @@ void SourceProcessor::lower_entry_points(Parser &parser)
           report_error(attributes[3], "unrecognized mode, expecting 'any', 'greater' or 'less'");
         }
         else {
-          create_info_decl += "DEPTH_WRITE(" + to_uppercase(mode) + ")\n";
+          create_info_decl += "DEPTH_WRITE(DepthWrite::" + to_uppercase(mode) + ")\n";
           replace_word(srt_var, "gl_FragDepth");
         }
       }

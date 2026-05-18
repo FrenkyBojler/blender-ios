@@ -68,7 +68,7 @@ static void node_draw_buttons(ui::Layout &layout, bContext *C, PointerRNA *ptr)
 {
   bNode *node = static_cast<bNode *>(ptr->data);
 
-  template_id(&layout, C, ptr, "clip", nullptr, nullptr, nullptr);
+  template_id(&layout, C, ptr, "clip", nullptr, "CLIP_OT_open", nullptr);
 
   if (node->id) {
     MovieClip *clip = id_cast<MovieClip *>(node->id);
@@ -103,7 +103,7 @@ class KeyingScreenOperation : public NodeOperation {
     }
 
     Result &keying_screen = get_result("Screen");
-    keying_screen.wrap_external(cached_keying_screen);
+    keying_screen.share_data(cached_keying_screen);
   }
 
   Domain compute_domain() override
@@ -172,7 +172,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, "CompositorNodeKeyingScreen", CMP_NODE_KEYINGSCREEN);
+  cmp_node_type_base(&ntype, "CompositorNodeKeyingScreen"_ustr, CMP_NODE_KEYINGSCREEN);
   ntype.ui_name = "Keying Screen";
   ntype.ui_description = "Create plates for use as a color reference for keying nodes";
   ntype.enum_name_legacy = "KEYINGSCREEN";

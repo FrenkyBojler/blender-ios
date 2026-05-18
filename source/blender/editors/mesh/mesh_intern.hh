@@ -135,9 +135,9 @@ void MESH_OT_bisect(wmOperatorType *ot);
 
 void MESH_OT_circularize(wmOperatorType *ot);
 
-/* *** `editmesh_relax.cc` *** */
+/* *** `editmesh_flatten.cc` *** */
 
-void MESH_OT_relax(wmOperatorType *ot);
+void MESH_OT_flatten(wmOperatorType *ot);
 
 /* *** `editmesh_extrude.cc` *** */
 

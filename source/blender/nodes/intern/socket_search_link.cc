@@ -81,7 +81,7 @@ void LinkSearchOpParams::connect_available_socket_by_identifier(bNode &new_node,
                                                                 const UString socket_identifier)
 {
   const eNodeSocketInOut in_out = this->socket.in_out == SOCK_IN ? SOCK_OUT : SOCK_IN;
-  bNodeSocket *new_node_socket = bke::node_find_socket(new_node, in_out, socket_identifier.ref());
+  bNodeSocket *new_node_socket = bke::node_find_socket(new_node, in_out, socket_identifier);
   BLI_assert(new_node_socket);
   this->connect_socket(new_node, *new_node_socket);
 }
@@ -97,7 +97,7 @@ void LinkSearchOpParams::connect_socket(bNode &new_node, bNodeSocket &new_socket
   }
 }
 
-bNode &LinkSearchOpParams::add_node(StringRef idname)
+bNode &LinkSearchOpParams::add_node(UString idname)
 {
   bNode *node = bke::node_add_node(&C, node_tree, idname);
   BLI_assert(node != nullptr);
@@ -107,7 +107,7 @@ bNode &LinkSearchOpParams::add_node(StringRef idname)
 
 bNode &LinkSearchOpParams::add_node(const bke::bNodeType &node_type)
 {
-  return this->add_node(node_type.idname.ref());
+  return this->add_node(node_type.idname);
 }
 
 void LinkSearchOpParams::update_and_connect_available_socket(bNode &new_node, UString socket_name)

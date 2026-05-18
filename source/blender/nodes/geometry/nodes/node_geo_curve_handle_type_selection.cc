@@ -97,19 +97,12 @@ class HandleTypeFieldInput final : public bke::CurvesFieldInput {
     return VArray<bool>::from_container(std::move(selection));
   }
 
-  uint64_t hash() const final
+  void hash_unique(UniqueHashBytes &hash, fn::FieldHashDeep & /*deep_hash_cache*/) const override
   {
-    return get_default_hash(int(mode_), int(type_));
-  }
-
-  bool is_equal_to(const fn::FieldInput &other) const final
-  {
-    if (const HandleTypeFieldInput *other_handle_selection =
-            dynamic_cast<const HandleTypeFieldInput *>(&other))
-    {
-      return mode_ == other_handle_selection->mode_ && type_ == other_handle_selection->type_;
-    }
-    return false;
+    static constexpr int8_t id = 0;
+    hash.add(&id);
+    hash.add(type_);
+    hash.add(mode_);
   }
 
   std::optional<AttrDomain> preferred_domain(const bke::CurvesGeometry & /*curves*/) const final
@@ -134,7 +127,7 @@ static void node_register()
   static bke::bNodeType ntype;
 
   geo_node_type_base(
-      &ntype, "GeometryNodeCurveHandleTypeSelection", GEO_NODE_CURVE_HANDLE_TYPE_SELECTION);
+      &ntype, "GeometryNodeCurveHandleTypeSelection"_ustr, GEO_NODE_CURVE_HANDLE_TYPE_SELECTION);
   ntype.ui_name = "Handle Type Selection";
   ntype.ui_description = "Provide a selection based on the handle types of Bézier control points";
   ntype.enum_name_legacy = "CURVE_HANDLE_TYPE_SELECTION";

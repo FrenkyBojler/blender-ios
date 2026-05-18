@@ -80,20 +80,21 @@ class PlanarFieldInput final : public bke::MeshFieldInput {
     fn(threshold_);
   }
 
-  uint64_t hash() const override
+  void hash_unique(UniqueHashBytes &hash, fn::FieldHashDeep &deep_hash_cache) const override
   {
-    /* Some random constant hash. */
-    return 2356235652;
-  }
-
-  bool is_equal_to(const fn::FieldInput &other) const override
-  {
-    return dynamic_cast<const PlanarFieldInput *>(&other) != nullptr;
+    static constexpr int8_t id = 0;
+    hash.add(&id);
+    hash.add(deep_hash_cache.ensure(threshold_));
   }
 
   std::optional<AttrDomain> preferred_domain(const Mesh & /*mesh*/) const override
   {
     return AttrDomain::Face;
+  }
+
+  bke::NativeFieldDomain native_domain_info(const Mesh & /*mesh*/) const override
+  {
+    return bke::NativeFieldDomain::Domain{AttrDomain::Face};
   }
 };
 
@@ -108,7 +109,7 @@ static void node_register()
   static bke::bNodeType ntype;
 
   geo_node_type_base(
-      &ntype, "GeometryNodeInputMeshFaceIsPlanar", GEO_NODE_INPUT_MESH_FACE_IS_PLANAR);
+      &ntype, "GeometryNodeInputMeshFaceIsPlanar"_ustr, GEO_NODE_INPUT_MESH_FACE_IS_PLANAR);
   ntype.ui_name = "Is Face Planar";
   ntype.ui_description =
       "Retrieve whether all triangles in a face are on the same plane, i.e. whether they have the "

@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 Alpha (b'a0888131c6dd')\n"
+"Project-Id-Version: Blender 5.2.0 Alpha (b'8c7c45ad114e')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-04-06 09:15+0000\n"
+"POT-Creation-Date: 2026-05-11 07:23+0000\n"
 "PO-Revision-Date: 2025-12-01 09:17+0000\n"
 "Last-Translator: Matt Mitacek <mattmitacek@gmail.com>\n"
 "Language-Team: Czech <https://translate.blender.org/projects/blender-ui/ui/cs/>\n"
@@ -13823,6 +13823,10 @@ msgid "UV Factor"
 msgstr "UV Faktor"
 
 
+msgid "Placement"
+msgstr "Umístění"
+
+
 msgid "Material slot in an object"
 msgstr "Přivlastnit"
 
@@ -13833,18 +13837,6 @@ msgstr "Odstranit označené Objekt(y)"
 
 msgid "Material slot name"
 msgstr "Název okénka materiálu"
-
-
-msgid "Math"
-msgstr "Matematika"
-
-
-msgid "Utilities"
-msgstr "Nástroje"
-
-
-msgid "Mirror"
-msgstr "Zrcadlit"
 
 
 msgid "Snap"
@@ -13871,20 +13863,20 @@ msgid "Select Linked"
 msgstr "Vybrat Propojené"
 
 
+msgid "Math"
+msgstr "Matematika"
+
+
+msgid "Utilities"
+msgstr "Nástroje"
+
+
 msgid "Assign Material"
 msgstr "Přiřadit Materiál"
 
 
-msgid "Instances"
-msgstr "Instance"
-
-
 msgid "Metaball"
 msgstr "Meta objekt"
-
-
-msgid "Import"
-msgstr "Importovat"
 
 
 msgid "Light"
@@ -13903,6 +13895,10 @@ msgid "Apply"
 msgstr "Použít"
 
 
+msgid "Instances"
+msgstr "Instance"
+
+
 msgid "Track"
 msgstr "Sledování"
 
@@ -13917,6 +13913,10 @@ msgstr "Zobrazit/skrýt"
 
 msgid "Clean Up"
 msgstr "Vyčistit"
+
+
+msgid "Import"
+msgstr "Importovat"
 
 
 msgid "Make Single User"
@@ -13951,20 +13951,20 @@ msgid "Merge"
 msgstr "Sloučit"
 
 
-msgid "Layout"
-msgstr "Rozložení"
-
-
 msgid "Special Characters"
 msgstr "Speciální Znaky"
 
 
-msgid "Keying"
-msgstr "Klíčovací sestava"
+msgid "Layout"
+msgstr "Rozložení"
 
 
 msgid "Bone Roll"
 msgstr "Kost"
+
+
+msgid "Keying"
+msgstr "Klíčovací sestava"
 
 
 msgid "Tracking"
@@ -13977,6 +13977,10 @@ msgstr "Bod pro pivot"
 
 msgid "Proportional Editing Falloff"
 msgstr "Způsob útlumu"
+
+
+msgid "Mirror"
+msgstr "Zrcadlit"
 
 
 msgid "Basic"
@@ -17945,11 +17949,6 @@ msgstr "Skrýt skryté soubory"
 
 
 msgctxt "Operator"
-msgid "Import SVG"
-msgstr "Importovat"
-
-
-msgctxt "Operator"
 msgid "Import FBX"
 msgstr "Importovat FBX"
 
@@ -18640,11 +18639,11 @@ msgid "Flip times of selected keyframes using the current frame as the mirror li
 msgstr "Převede označené hrany na plošky a označí nové vertexy"
 
 
-msgid "Flip values of selected keyframes (i.e. negative values become positive, and vice versa)"
+msgid "Flip times of selected keyframes using the first selected marker as the reference point"
 msgstr "Převede označené hrany na plošky a označí nové vertexy"
 
 
-msgid "Flip times of selected keyframes using the first selected marker as the reference point"
+msgid "Flip values of selected keyframes (i.e. negative values become positive, and vice versa)"
 msgstr "Převede označené hrany na plošky a označí nové vertexy"
 
 
@@ -18790,6 +18789,11 @@ msgstr "Y Max"
 
 msgid "Y Min"
 msgstr "Y Min"
+
+
+msgctxt "Operator"
+msgid "Select by Type"
+msgstr "Vybrat podle Typu"
 
 
 msgctxt "Operator"
@@ -19815,10 +19819,6 @@ msgstr "Vybrat podle vzoru"
 
 msgid "Automatically detect features and place markers to track"
 msgstr "Automatické sloučení vrcholů posuntých na to samé umístění"
-
-
-msgid "Placement"
-msgstr "Umístění"
 
 
 msgid "Placement for detected features"
@@ -21903,11 +21903,11 @@ msgid "Next Keyframe"
 msgstr "Další klíč"
 
 
-msgid "Flip values of selected keyframes using the cursor value (Y/Horizontal component) as the mirror line"
+msgid "Flip times of selected keyframes, effectively reversing the order they appear in"
 msgstr "Převede označené hrany na plošky a označí nové vertexy"
 
 
-msgid "Flip times of selected keyframes, effectively reversing the order they appear in"
+msgid "Flip values of selected keyframes using the cursor value (Y/Horizontal component) as the mirror line"
 msgstr "Převede označené hrany na plošky a označí nové vertexy"
 
 
@@ -25392,11 +25392,6 @@ msgid "Change selection of all visible objects in scene"
 msgstr "Změní výběr všech viditelných objektů ve scéně"
 
 
-msgctxt "Operator"
-msgid "Select by Type"
-msgstr "Vybrat podle Typu"
-
-
 msgid "Select all visible objects that are of a type"
 msgstr "Vybere všechny viditelné objekty, které jsou typu"
 
@@ -27276,11 +27271,6 @@ msgstr "Přichytávání"
 
 
 msgctxt "Operator"
-msgid "Area Options"
-msgstr "Nastavení oblasti"
-
-
-msgctxt "Operator"
 msgid "Split Area"
 msgstr "Rozdělit oblast"
 
@@ -28787,10 +28777,6 @@ msgstr "Průměrná hodnota"
 msgctxt "Operator"
 msgid "Copy Mirrored UV Coords"
 msgstr "Kopírovat Zrcadlené UV Souřadnice"
-
-
-msgid "Axis Direction"
-msgstr "Odznačit spojené"
 
 
 msgctxt "Operator"
@@ -30361,30 +30347,6 @@ msgid "Restrict"
 msgstr "Omezit"
 
 
-msgid "Shadow Settings"
-msgstr "Nastavení Stínů"
-
-
-msgid "SSAO Settings"
-msgstr "Nastavení SSAO"
-
-
-msgid "Cavity"
-msgstr "Dutina"
-
-
-msgid "Overlays"
-msgstr "Překrytí"
-
-
-msgid "Guides"
-msgstr "Vodítka"
-
-
-msgid "Motion Tracking"
-msgstr "Sledování Pohybu"
-
-
 msgid "Mesh Edit Mode"
 msgstr "Editační Režim Sítě"
 
@@ -30401,6 +30363,10 @@ msgid "Transform Orientations"
 msgstr "Orientace transformací"
 
 
+msgid "Guides"
+msgstr "Vodítka"
+
+
 msgid "Stereoscopy"
 msgstr "Stereoskopie"
 
@@ -30415,6 +30381,26 @@ msgstr "Aktivní nástroj"
 
 msgid "View Lock"
 msgstr "Zámek zobrazení"
+
+
+msgid "Shadow Settings"
+msgstr "Nastavení Stínů"
+
+
+msgid "SSAO Settings"
+msgstr "Nastavení SSAO"
+
+
+msgid "Cavity"
+msgstr "Dutina"
+
+
+msgid "Overlays"
+msgstr "Překrytí"
+
+
+msgid "Motion Tracking"
+msgstr "Sledování Pohybu"
 
 
 msgid "Chain Scaling"
@@ -32395,14 +32381,6 @@ msgstr "GL Omezení Textury"
 
 msgid "Device"
 msgstr "Zařízení"
-
-
-msgid "Image Display Method"
-msgstr "Metoda zobrazení obrázku"
-
-
-msgid "2D Texture"
-msgstr "2D Textura"
 
 
 msgid "Ambient Color"
@@ -40549,10 +40527,6 @@ msgid "Failed to set value"
 msgstr "Nastavení hodnoty se nezdařilo"
 
 
-msgid "Pin"
-msgstr "Připnout"
-
-
 msgctxt "Operator"
 msgid "Open File Externally"
 msgstr "Otevřít Soubor Externě"
@@ -40902,10 +40876,6 @@ msgstr "Procházet Soubory v Mezipaměti k připojení"
 
 msgid "Browse Workspace to be linked"
 msgstr "Procházet Pracovní Prostředí k připojení"
-
-
-msgid "Browse LightProbe to be linked"
-msgstr "Procházet Světelnou Sondu k připojení"
 
 
 msgid "Browse Point Cloud Data to be linked"
