@@ -1030,6 +1030,7 @@ static bool screen_opengl_render_anim_init(wmOperator *op)
 }
 
 struct WriteTaskData {
+  Main *bmain;
   RenderResult *rr = nullptr;
   Scene tmp_scene;
 };
@@ -1136,7 +1137,7 @@ static void write_result_func(TaskPool *__restrict pool, void *task_data_v)
    * and cause the render thread and writing threads to deadlock waiting for each other. */
   WriteTaskData *task_data = static_cast<WriteTaskData *>(task_data_v);
   threading::isolate_task([&] {
-    BKE_with_blender_project(G_MAIN, [&](const bke::BlenderProject *project) {
+    BKE_with_blender_project(task_data->bmain, [&](const bke::BlenderProject *project) {
       write_result(project, pool, task_data);
     });
   });
@@ -1150,6 +1151,7 @@ static bool schedule_write_result(OGLRender *oglrender, RenderResult *rr)
   }
   Scene *scene = oglrender->scene;
   WriteTaskData *task_data = MEM_new<WriteTaskData>("write task data");
+  task_data->bmain = oglrender->bmain;
   task_data->rr = rr;
   task_data->tmp_scene = dna::shallow_copy(*scene);
   {
