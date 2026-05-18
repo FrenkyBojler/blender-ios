@@ -215,6 +215,11 @@ class ExtendableMesh {
   Span<float3> src_vert_normals;
   Span<float3> src_face_normals;
 
+  GroupedSpan<int> src_vert_to_edge;
+  GroupedSpan<int> src_edge_to_face;
+  GroupedSpan<int> src_vert_to_corner;
+  Array<int> src_corner_to_face;
+
  private:
   Vector<float3> new_vert_positions_;
   Vector<int> new_face_offsets_;
@@ -271,11 +276,6 @@ class ExtendableMesh {
   Array<int> vert_to_edge_indices_;
   Array<int> edge_to_face_map_offsets_;
   Array<int> edge_to_face_map_indices_;
-  Array<int> corner_to_face_map_;
-
-  GroupedSpan<int> vert_edges_;
-  GroupedSpan<int> edge_faces_;
-  GroupedSpan<int> vert_corners_;
 
  public:
   explicit ExtendableMesh(const Mesh &mesh);
@@ -390,22 +390,6 @@ class ExtendableMesh {
   bool is_face_killed(const int f) const;
   bool is_corner_killed(const int c) const;
 
-  GroupedSpan<int> vert_edges() const
-  {
-    return vert_edges_;
-  }
-  GroupedSpan<int> edge_faces() const
-  {
-    return edge_faces_;
-  }
-  GroupedSpan<int> vert_corners() const
-  {
-    return vert_corners_;
-  }
-  int corner_face(const int c) const
-  {
-    return corner_to_face_map_[c];
-  }
   /** Returns the number of newly created faces (not counting the original mesh faces). */
   int new_faces_num() const
   {
@@ -528,15 +512,15 @@ ExtendableMesh::ExtendableMesh(const Mesh &mesh)
       src_vert_normals(mesh.vert_normals()),
       src_face_normals(mesh.face_normals())
 {
-  vert_edges_ = bke::mesh::build_vert_to_edge_map(
+  this->src_vert_to_edge = bke::mesh::build_vert_to_edge_map(
       this->src_edges, mesh.verts_num, vert_to_edge_offsets_, vert_to_edge_indices_);
-  edge_faces_ = bke::mesh::build_edge_to_face_map(this->src_faces,
-                                                  this->src_corner_edges,
-                                                  mesh.edges_num,
-                                                  edge_to_face_map_indices_,
-                                                  edge_to_face_map_offsets_);
-  vert_corners_ = mesh.vert_to_corner_map();
-  corner_to_face_map_ = bke::mesh::build_corner_to_face_map(src_faces);
+  this->src_edge_to_face = bke::mesh::build_edge_to_face_map(this->src_faces,
+                                                             this->src_corner_edges,
+                                                             mesh.edges_num,
+                                                             edge_to_face_map_indices_,
+                                                             edge_to_face_map_offsets_);
+  this->src_vert_to_corner = mesh.vert_to_corner_map();
+  this->src_corner_to_face = bke::mesh::build_corner_to_face_map(src_faces);
 
   kill_verts_ = Array<bool>(mesh.verts_num, false);
   kill_edges_ = Array<bool>(mesh.edges_num, false);
@@ -682,7 +666,7 @@ void ExtendableMesh::vert_kill(const int v)
   if (v < mesh.verts_num) {
     kill_verts_[v] = true;
     /* Also kill all edges incident to this vertex, matching BMesh's BM_vert_kill semantics. */
-    for (const int e : vert_edges()[v]) {
+    for (const int e : this->src_vert_to_edge[v]) {
       kill_edges_[e] = true;
     }
   }
@@ -837,7 +821,7 @@ void UVMapInfo::find_components(const ExtendableMesh &emesh)
     return;
   }
 
-  GroupedSpan<int> edge_faces = emesh.edge_faces();
+  const GroupedSpan<int> edge_faces = emesh.src_edge_to_face;
 
   Array<bool> in_stack(faces.size(), false);
   Vector<int> stack;
@@ -942,7 +926,7 @@ bool UVMapInfo::contig_uv_maps_around_vert(const ExtendableMesh &emesh, const in
     return true;
   }
   /* Gather all corners at v. */
-  const Span<int> corners = emesh.vert_corners()[v];
+  const Span<int> corners = emesh.src_vert_to_corner[v];
   if (corners.size() < 2) {
     return true;
   }
@@ -1025,7 +1009,7 @@ BevelState::BevelState(const Mesh &mesh, const BevelParameters &params, const In
     /* Mirror the BMesh operator's manifold filter (see #bmo_bevel_exec): only edges with
      * exactly two incident faces can be beveled. Boundary edges (one face) and wire edges
      * (zero faces) are silently excluded, matching the behavior of the bevel operator. */
-    const GroupedSpan<int> edge_faces = emesh.edge_faces();
+    const GroupedSpan<int> edge_faces = emesh.src_edge_to_face;
     this->selection = IndexMask::from_predicate(
         selection, memory, [&](const int i) { return edge_faces[i].size() == 2; });
 
@@ -2112,7 +2096,7 @@ static void adjust_miter_inner_coords(const BevelState &state, BevVert *bv, Edge
  * where the next or previous edge in the face must be e2. */
 static bool edges_face_connected_at_vert(const ExtendableMesh &emesh, const int e1, const int e2)
 {
-  const GroupedSpan<int> edge_faces = emesh.edge_faces();
+  const GroupedSpan<int> edge_faces = emesh.src_edge_to_face;
   const Span<int> e1_faces = edge_faces[e1];
   const Span<int> e2_faces = edge_faces[e2];
   for (const int f1 : e1_faces) {
@@ -2162,14 +2146,14 @@ static bool fast_bevel_edge_order(const ExtendableMesh &emesh, BevVert *bv, bool
 
   EdgeHalf *eh = &bv->edges[0];
   int e = eh->e;
-  if (emesh.edge_faces()[e].is_empty()) {
+  if (emesh.src_edge_to_face[e].is_empty()) {
     return false;
   }
 
   for (int i = 1; i < ntot; i++) {
     int num_shared_face = 0;
     int first_suc = -1;
-    for (const int e2 : emesh.vert_edges()[bv->v]) {
+    for (const int e2 : emesh.src_vert_to_edge[bv->v]) {
       bool used = false;
       for (int k = 0; k < i; k++) {
         if (bv->edges[k].e == e2) {
@@ -2183,8 +2167,8 @@ static bool fast_bevel_edge_order(const ExtendableMesh &emesh, BevVert *bv, bool
         continue;
       }
 
-      for (const int f : emesh.edge_faces()[e2]) {
-        if (emesh.edge_faces()[e].contains(f)) {
+      for (const int f : emesh.src_edge_to_face[e2]) {
+        if (emesh.src_edge_to_face[e].contains(f)) {
           num_shared_face++;
           if (first_suc == -1) {
             first_suc = e2;
@@ -2230,7 +2214,7 @@ static int bevel_edge_order_extend(const ExtendableMesh &emesh,
 
   int e = bv->edges[i].e;
 
-  for (const int e2 : emesh.vert_edges()[bv->v]) {
+  for (const int e2 : emesh.src_vert_to_edge[bv->v]) {
     bool used = false;
     for (int k = 0; k <= i; k++) {
       if (bv->edges[k].e == e2) {
@@ -3108,7 +3092,7 @@ static void find_bevel_edge_order(const ExtendableMesh &emesh,
       break;
     }
     first_e = -1;
-    for (const int e : emesh.vert_edges()[bv->v]) {
+    for (const int e : emesh.src_vert_to_edge[bv->v]) {
       bool used = false;
       for (int k = 0; k < i; k++) {
         if (bv->edges[k].e == e) {
@@ -3124,7 +3108,7 @@ static void find_bevel_edge_order(const ExtendableMesh &emesh,
       if (first_e == -1) {
         first_e = e;
       }
-      if (emesh.edge_faces()[e].size() == 1) {
+      if (emesh.src_edge_to_face[e].size() == 1) {
         first_e = e;
         break;
       }
@@ -3139,8 +3123,8 @@ static void find_bevel_edge_order(const ExtendableMesh &emesh,
       continue;
     }
     int bestf = -1;
-    for (const int f : emesh.edge_faces()[e]) {
-      if (emesh.edge_faces()[e2].contains(f)) {
+    for (const int f : emesh.src_edge_to_face[e]) {
+      if (emesh.src_edge_to_face[e2].contains(f)) {
         const IndexRange corners = emesh.face_corners(f);
         for (const int c : corners) {
           if (emesh.corner_vert(c) == bv->v) {
@@ -5370,8 +5354,8 @@ static void bevel_rebuild_existing_polygons(BevelState &state,
   r_rebuilt_face_0 = -1;
 
   state.bevel_affected_vertices.foreach_index([&](const int v) {
-    for (const int c : emesh.vert_corners()[v]) {
-      const int f_idx = emesh.corner_face(c);
+    for (const int c : emesh.src_vert_to_corner[v]) {
+      const int f_idx = emesh.src_corner_to_face[c];
       if (f_idx < orig_faces_num && !rebuilt[f_idx]) {
         const int new_f = bev_rebuild_polygon(state, f_idx);
         if (new_f >= 0) {
@@ -5442,7 +5426,7 @@ static void bevel_build_edge_polygons(BevelState &state, const int edge_index)
   const int v2_idx = edge_verts[1];
 
   /* Skip non-manifold edges (those with != 2 adjacent faces). */
-  const GroupedSpan<int> edge_faces = emesh.edge_faces();
+  const GroupedSpan<int> edge_faces = emesh.src_edge_to_face;
   if (edge_index >= emesh.mesh.edges_num || edge_faces[edge_index].size() != 2) {
     return;
   }
@@ -5879,7 +5863,7 @@ static void determine_uv_vert_connectivity(BevelState &state, const int v)
     const Span<float2> uv_vals = state.uv_layer_info.uv_maps[i].values;
     Vector<UVVertBucket> uv_vert_buckets;
 
-    for (const int c : state.emesh.vert_corners()[v]) {
+    for (const int c : state.emesh.src_vert_to_corner[v]) {
       const float2 &luv = uv_vals[c];
       bool is_overlap_found = false;
       for (UVVertBucket &bucket : uv_vert_buckets) {
@@ -7164,8 +7148,8 @@ static void bevel_vert_construct(BevelState &state, int v)
    * Want to ignore wire edges completely for edge beveling.
    * TODO: make following work when more than one gap. */
 
-  for (const int e : emesh.vert_edges()[v]) {
-    int face_count = emesh.edge_faces()[e].size();
+  for (const int e : emesh.src_vert_to_edge[v]) {
+    int face_count = emesh.src_edge_to_face[e].size();
 
     bool is_selected = (state.params.affect_type != BevelAffect::Vertices &&
                         state.selection.contains(e));
@@ -7187,8 +7171,8 @@ static void bevel_vert_construct(BevelState &state, int v)
     }
   }
 
-  if (first_e == -1 && !emesh.vert_edges()[v].is_empty()) {
-    first_e = emesh.vert_edges()[v].first();
+  if (first_e == -1 && !emesh.src_vert_to_edge[v].is_empty()) {
+    first_e = emesh.src_vert_to_edge[v].first();
   }
 
   if ((nsel == 0 && state.params.affect_type != BevelAffect::Vertices) ||
@@ -7219,8 +7203,8 @@ static void bevel_vert_construct(BevelState &state, int v)
   if (tot_wire > 0) {
     bv->wire_edges = Array<int>(tot_wire);
     int i = 0;
-    for (const int e : emesh.vert_edges()[v]) {
-      if (emesh.edge_faces()[e].is_empty()) {
+    for (const int e : emesh.src_vert_to_edge[v]) {
+      if (emesh.src_edge_to_face[e].is_empty()) {
         bv->wire_edges[i++] = e;
       }
     }
