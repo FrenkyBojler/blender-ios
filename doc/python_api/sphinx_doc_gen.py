@@ -909,6 +909,47 @@ def escape_rst(text: str) -> str:
     return text.translate(ESCAPE_RST_TRANS)
 
 
+def write_rst_list_table(
+        rows: Sequence[tuple[str, str, str]],
+        *,
+        widths: tuple[int, int, int] = (15, 15, 70),
+) -> str:
+    """
+    Generate an RST list-table for enum items.
+    """
+
+    def rst_table_cell(text: str) -> str:
+        """
+        Prepare text for use inside an RST list-table cell.
+        """
+        text = escape_rst(text)
+
+        # Indent continuation lines inside table cells.
+        return text.replace("\n", "\n\n       ")
+
+    lines = [
+        ".. list-table::",
+        "   :header-rows: 1",
+        f"   :widths: {widths[0]} {widths[1]} {widths[2]}",
+        "   :width: 100%",
+        "",
+        "   * - Value",
+        "     - UI Name",
+        "     - Description",
+    ]
+
+    for identifier, name, description in rows:
+        identifier = rst_table_cell(identifier) if identifier else ""
+        name = rst_table_cell(name) if name else ""
+        description = rst_table_cell(description) if description else ""
+
+        lines.append(f"   * - ``{identifier}``")
+        lines.append(f"     - {name}")
+        lines.append(f"     - {description}")
+
+    return "\n".join(lines) + "\n"
+
+
 def is_struct_seq(value: object) -> bool:
     return isinstance(value, tuple) and type(value) != tuple and hasattr(value, "n_fields")
 
@@ -2207,7 +2248,7 @@ def pycontext_members2sphinx(ident: str, fw: WriteFn, written_props: set[str]) -
 
 def pyrna_enum2sphinx(prop: stub.InfoPropertyRNA, use_empty_descriptions: bool = False) -> str:
     """
-    Write a bullet point list of enum + descriptions.
+    Write enum items as an RST list-table.
     """
 
     # Write a link to the enum if this is part of `rna_enum_pointer_map`.
@@ -2218,23 +2259,21 @@ def pyrna_enum2sphinx(prop: stub.InfoPropertyRNA, use_empty_descriptions: bool =
     if use_empty_descriptions:
         ok = True
     else:
-        ok = False
-        for identifier, name, description in prop.enum_items:
-            if description:
-                ok = True
-                break
+        ok = any(description for _identifier, _name, description in prop.enum_items)
 
-    if ok:
-        return "".join([
-            "- ``{:s}``\n"
-            "{:s}.\n".format(
-                identifier,
-                # Account for multi-line enum descriptions, allowing this to be a block of text.
-                indent(" -- ".join(escape_rst(val) for val in (name, description) if val) or "Undocumented", "  "),
-            )
-            for identifier, name, description in prop.enum_items
-        ])
-    return ""
+    if not ok:
+        return ""
+
+    rows = [
+        (
+            identifier or "",
+            name or "",
+            description or "",
+        )
+        for identifier, name, description in prop.enum_items
+    ]
+
+    return write_rst_list_table(rows)
 
 
 def pyrna_deprecated_directive(ident: str, deprecated: stub.RnaDeprecated) -> str:
@@ -3173,26 +3212,36 @@ def write_rst_enum_items(
 
         fw(title_string(key_no_prefix.replace("_", " ").title(), "#"))
 
-        for item in enum_items:
-            identifier = item.identifier
-            name = item.name
-            description = item.description
-            if identifier:
-                fw(":{:s}: {:s}\n".format(item.identifier, (escape_rst(name) + ".") if name else ""))
-                if description:
-                    fw("\n")
-                    write_indented_lines("   ", fw, escape_rst(description) + ".")
-                else:
-                    fw("\n")
-            else:
-                if name:
-                    fw("\n\n**{:s}**\n\n".format(name))
-                else:
-                    fw("\n\n----\n\n")
+        rows = []
 
-                if description:
-                    fw(escape_rst(description) + ".")
-                    fw("\n\n")
+        for item in enum_items:
+            identifier = item.identifier or ""
+            name = item.name or ""
+            description = item.description or ""
+
+            # Section heading.
+            if name and not identifier:
+                if rows:
+                    fw(write_rst_list_table(rows))
+                    rows.clear()
+
+                fw("\n")
+                fw(title_string(name, "="))
+                continue
+
+            # Separator row.
+            if not identifier:
+                if rows:
+                    fw(write_rst_list_table(rows))
+                    rows.clear()
+
+                fw("\n\n----\n\n")
+                continue
+
+            rows.append((identifier, name, description))
+
+        if rows:
+            fw(write_rst_list_table(rows))
 
 
 def write_rst_enum_items_and_index(basepath: Path) -> None:
