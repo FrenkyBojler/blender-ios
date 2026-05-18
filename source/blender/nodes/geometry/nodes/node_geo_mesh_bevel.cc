@@ -77,6 +77,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description("Per corner specification of 'spread' for arc miters")
       .usage_by_bool("Miter"_ustr, true);
   b.add_input<decl::Int>("Segments"_ustr)
+      .min(1)
       .default_value(1)
       .description(
           "How many pieces is an edge beveled into, "
