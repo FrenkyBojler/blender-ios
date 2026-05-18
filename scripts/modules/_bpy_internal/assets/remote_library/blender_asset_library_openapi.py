@@ -238,7 +238,7 @@ class AssetMetadataV1:
     .cats.txt file, if that's ever necessary.
     """
 
-    import_meth: str | None = None
+    preferred_import_method: str | None = None
     """The import method preferred by this asset.
 
     For example, base meshes for sculpting can declare they should

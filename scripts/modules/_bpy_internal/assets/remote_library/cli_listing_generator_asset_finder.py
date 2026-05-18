@@ -142,7 +142,7 @@ def _get_asset_meta(asset_data: bpy.types.AssetData) -> api_models.AssetMetadata
     if asset_data.copyright:
         meta.copyright = asset_data.copyright
     if asset_data.use_preferred_import_method:
-        meta.import_meth = asset_data.preferred_import_method
+        meta.preferred_import_method = asset_data.preferred_import_method
 
     # Convert custom properties.
     import rna_prop_ui
