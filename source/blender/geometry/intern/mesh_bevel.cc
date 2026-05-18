@@ -980,8 +980,6 @@ struct BevelState {
   Vector<BevVert> bev_verts;
   Map<int, BevVert *> vert_hash;
 
-  std::optional<Map<int, FKind>> face_hash;
-
   Map<int, std::unique_ptr<UVFace>> uv_face_hash;
 
   Vector<UVVertMap> uv_vert_maps;
@@ -4159,8 +4157,6 @@ void BevelState::initialize_profile_data()
 
 void BevelState::uv_init()
 {
-  this->face_hash.emplace();
-
   this->uv_layer_info.init(this->emesh.mesh);
   if (this->params.segments % 2 != 0) {
     this->uv_layer_info.find_components(this->emesh);
