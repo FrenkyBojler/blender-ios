@@ -188,11 +188,14 @@ struct SlideSubject {
   float oldangle;
   float oldaxis[3];
 
-  /* Additional properties of the transformable to affect which are not custom properties. */
+  /* Additional properties of the transformable to affect which are not custom properties. Bones
+   * use this to store bbone data, e.g. `bbone_rollin`. */
   Vector<PropertySnapshot> additional_properties;
 
-  /* User defined properties, either by addon or through UI. */
-  Vector<PropertySnapshot> custom_properties;
+  /* Custom properties defined via the UI. See ID::properties. */
+  Vector<PropertySnapshot> properties;
+  /* User defined properties through addons. See ID::system_properties. */
+  Vector<PropertySnapshot> system_properties;
 };
 
 /* ----------- */

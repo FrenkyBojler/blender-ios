@@ -227,8 +227,7 @@ static void fcurves_to_pchan_links_get(ListBaseT<SlideSubject> &slide_subjects,
         char name_escaped[MAX_IDPROP_NAME * 2];
         BLI_str_escape(name_escaped, id_prop.name, sizeof(name_escaped));
         std::string property_name_with_brackets = fmt::format("[\"{}\"]", name_escaped);
-        store_property_snapshot(
-            bone_ptr, property_name_with_brackets, slide_subject->custom_properties);
+        store_property_snapshot(bone_ptr, property_name_with_brackets, slide_subject->properties);
       }
     }
     if (pchan.system_properties) {
@@ -236,7 +235,7 @@ static void fcurves_to_pchan_links_get(ListBaseT<SlideSubject> &slide_subjects,
         if (ELEM(id_prop.type, IDP_STRING, IDP_ID, IDP_IDPARRAY)) {
           continue;
         }
-        store_property_snapshot(bone_ptr, id_prop.name, slide_subject->custom_properties);
+        store_property_snapshot(bone_ptr, id_prop.name, slide_subject->system_properties);
       }
     }
   }
@@ -359,7 +358,11 @@ void slide_subjects_reset(ListBaseT<SlideSubject> *slide_subjects)
           slide_subject.ptr, *extra_prop.property, extra_prop.values);
     }
 
-    for (PropertySnapshot &custom_prop : slide_subject.custom_properties) {
+    for (PropertySnapshot &custom_prop : slide_subject.properties) {
+      animrig::rna_property_set_as_float(
+          slide_subject.ptr, *custom_prop.property, custom_prop.values);
+    }
+    for (PropertySnapshot &custom_prop : slide_subject.system_properties) {
       animrig::rna_property_set_as_float(
           slide_subject.ptr, *custom_prop.property, custom_prop.values);
     }

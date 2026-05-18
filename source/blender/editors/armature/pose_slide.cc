@@ -847,7 +847,8 @@ static void pose_slide_apply(bContext *C, tPoseSlideOp *pso)
     }
 
     if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_PROPS)) {
-      pose_slide_apply_property_snapshots(*pso, slide_subject, slide_subject.custom_properties);
+      pose_slide_apply_property_snapshots(*pso, slide_subject, slide_subject.properties);
+      pose_slide_apply_property_snapshots(*pso, slide_subject, slide_subject.system_properties);
     }
   }
 
