@@ -139,7 +139,7 @@ static void rna_Main_ID_remove(Main *bmain,
       if (wm && WM_jobs_test(wm, nullptr, WM_JOB_TYPE_LIGHT_BAKE)) {
         BKE_reportf(reports,
                     RPT_ERROR,
-                    "Cannot remove volume light probe while lights probe baking is active");
+                    "Cannot remove volume light probes while light probe baking is running");
         return;
       }
     }
