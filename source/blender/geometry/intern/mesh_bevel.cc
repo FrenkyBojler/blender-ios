@@ -7784,7 +7784,7 @@ static std::optional<Mesh *> build_output_mesh(const BevelState &state,
   bke::MutableAttributeAccessor dst_attrs = dst->attributes_for_write();
 
   /* Skip attributes that encode topology already written with correct remapped indices in
-   * steps 1-6 above. */
+   * steps 1-6 above. UV values are written separately afterwards. */
   Set<StringRef> skip_names{"position", ".edge_verts", ".corner_vert", ".corner_edge"};
   for (const StringRef uv_map : src_mesh.uv_map_names()) {
     skip_names.add(uv_map);
@@ -7888,14 +7888,16 @@ static std::optional<Mesh *> build_output_mesh(const BevelState &state,
                                         int(src_face.first()));
         },
         exec_mode::grain_size(1024));
-    /* New corners: all attributes except UV default to 0 (from gather_attributes below).
-     * UV values are written separately after the gather. */
     bke::gather_attributes(src_attrs,
                            bke::AttrDomain::Corner,
                            bke::AttrDomain::Corner,
                            geom_filter,
                            src_by_dst,
                            dst_attrs);
+    bke::fill_attribute_range_default(dst_attrs,
+                                      bke::AttrDomain::Corner,
+                                      geom_filter,
+                                      IndexRange(n_surv_corners, n_new_corners));
 
     /* Write precomputed UV values for new corners into the output mesh. */
     const int uv_maps_num = int(state.uv_layer_info.uv_maps.size());
