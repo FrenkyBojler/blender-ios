@@ -883,7 +883,8 @@ void UVLayerInfo::find_components(const ExtendableMesh &emesh)
    * are the topmost and bottom-most (in z-coordinate) components,
    * so adjust component indices to make that so. */
   if (current_component <= 0) {
-    return; /* Only one component, so no need to do this. */
+    /* Only one component, so no need to do this. */
+    return;
   }
 
   float top_face_z = -1e30f;
