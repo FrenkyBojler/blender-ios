@@ -1544,6 +1544,83 @@ static meshintersect::CDT_input<double> get_input_from_drawings(
   return input;
 }
 
+static std::optional<EdgeCurves> create_connected_edges_from_fill(
+    const Span<bool> tri_to_fill,
+    const bool invert,
+    const Span<int3> tri_adjacency,
+    const Span<int3> tri_edges,
+    const Span<std::pair<int, int>> edges)
+{
+  Set<int> boundary_edges;
+
+  for (const int tri_index : tri_to_fill.index_range()) {
+    if (!tri_to_fill[tri_index]) {
+      continue;
+    }
+
+    for (const int j : IndexRange(3)) {
+      const int next_tri = tri_adjacency[tri_index][j];
+      const int edge_index = tri_edges[tri_index][j];
+
+      if (next_tri == NULL_INDEX) {
+        if (!invert) {
+          /* Return no geometry if we try to fill all of space. */
+          return std::nullopt;
+        }
+        /* When inverting just skip the edge without returning. */
+        continue;
+      }
+
+      if (tri_to_fill[next_tri]) {
+        continue;
+      }
+
+      boundary_edges.add_new(edge_index);
+    }
+  }
+
+  Array<EdgeConnections> edge_connections(edges.size(), EdgeConnections(EDGE_CONNECTION_NULL));
+
+  Array<int> all_edges(edges.size());
+  Array<bool> edges_to_keep(edges.size(), false);
+  array_utils::fill_index_range<int>(all_edges);
+
+  for (const int edge_index : boundary_edges) {
+    edges_to_keep[edge_index] = true;
+  }
+
+  auto connect = [&](const EncodedConnection point_1, const EncodedConnection point_2) {
+    edge_connections[decode_index(point_1)][decode_side(point_1)] = encode_index_and_side(
+        decode_index(point_2), decode_side(point_2));
+    edge_connections[decode_index(point_2)][decode_side(point_2)] = encode_index_and_side(
+        decode_index(point_1), decode_side(point_1));
+  };
+
+  MultiValueMap<int, EncodedConnection> vert_to_edge_ends;
+
+  for (const int edge_index : boundary_edges) {
+    const std::pair<int, int> edge = edges[edge_index];
+
+    const EncodedConnection point_1 = encode_index_and_side(edge_index, Side::Start);
+    const EncodedConnection point_2 = encode_index_and_side(edge_index, Side::End);
+
+    vert_to_edge_ends.add(edge.first, point_1);
+    vert_to_edge_ends.add(edge.second, point_2);
+  }
+
+  for (Span<EncodedConnection> edge_ends : vert_to_edge_ends.values()) {
+    BLI_assert(edge_ends.size() % 2 == 0);
+    for (const int edge_pair_index : IndexRange(edge_ends.size() / 2)) {
+      const EncodedConnection end_1 = edge_ends[edge_pair_index * 2];
+      const EncodedConnection end_2 = edge_ends[edge_pair_index * 2 + 1];
+
+      connect(end_1, end_2);
+    }
+  }
+
+  return std::make_optional(follow_edge_connections(all_edges, edges_to_keep, edge_connections));
+}
+
 std::optional<bke::CurvesGeometry> delaunay_fill_strokes(
     const ViewContext &view_context,
     const Scene &scene,
@@ -1725,16 +1802,7 @@ std::optional<bke::CurvesGeometry> delaunay_fill_strokes(
     hint_index++;
   }
 
-  Array<bool> tri_to_fill(result.face.size(), false);
-
-  if (invert) {
-    for (const int tri_index : result.face.index_range()) {
-      if (tri_hint_index[tri_index] != 0) {
-        tri_to_fill[tri_index] = true;
-      }
-    }
-  }
-  else {
+  if (!invert) {
     /* Add the mouse fill again to make sure it as highest priority. */
     add_weights_for_tri(tri_adjacency.as_span(),
                         tri_edges.as_span(),
@@ -1745,7 +1813,20 @@ std::optional<bke::CurvesGeometry> delaunay_fill_strokes(
                         hint_index,
                         tri_hint_index.as_mutable_span(),
                         tri_weights.as_mutable_span());
+  }
 
+  Array<bool> tri_to_fill(result.face.size(), false);
+
+  if (invert) {
+    threading::parallel_for(result.face.index_range(), 512, [&](const IndexRange range) {
+      for (const int64_t tri_index : range) {
+        if (tri_hint_index[tri_index] != 0) {
+          tri_to_fill[tri_index] = true;
+        }
+      }
+    });
+  }
+  else {
     threading::parallel_for(result.face.index_range(), 512, [&](const IndexRange range) {
       for (const int64_t tri_index : range) {
         if (tri_hint_index[tri_index] == hint_index) {
@@ -1755,80 +1836,16 @@ std::optional<bke::CurvesGeometry> delaunay_fill_strokes(
     });
   }
 
-  Set<int> boundary_edges;
+  const std::optional<EdgeCurves> edge_curves = create_connected_edges_from_fill(
+      tri_to_fill, invert, tri_adjacency, tri_edges, result.edge.as_span());
 
-  for (const int tri_index : result.face.index_range()) {
-    if (!tri_to_fill[tri_index]) {
-      continue;
-    }
-
-    for (const int j : IndexRange(3)) {
-      const int next_tri = tri_adjacency[tri_index][j];
-      const int edge_index = tri_edges[tri_index][j];
-
-      if (next_tri == NULL_INDEX) {
-        if (!invert) {
-          /* Return no geometry if we try to fill all of space. */
-          return {};
-        }
-        /* When inverting just skip the edge without returning. */
-        continue;
-      }
-
-      if (tri_to_fill[next_tri]) {
-        continue;
-      }
-
-      boundary_edges.add_new(edge_index);
-    }
+  if (!edge_curves) {
+    return std::nullopt;
   }
-
-  Array<EdgeConnections> edge_connections(result.edge.size(),
-                                          EdgeConnections(EDGE_CONNECTION_NULL));
-
-  Array<int> all_edges(result.edge.size());
-  Array<bool> edges_to_keep(result.edge.size(), false);
-  array_utils::fill_index_range<int>(all_edges);
-
-  for (const int edge_index : boundary_edges) {
-    edges_to_keep[edge_index] = true;
-  }
-
-  auto connect = [&](const EncodedConnection point_1, const EncodedConnection point_2) {
-    edge_connections[decode_index(point_1)][decode_side(point_1)] = encode_index_and_side(
-        decode_index(point_2), decode_side(point_2));
-    edge_connections[decode_index(point_2)][decode_side(point_2)] = encode_index_and_side(
-        decode_index(point_1), decode_side(point_1));
-  };
-
-  MultiValueMap<int, EncodedConnection> vert_to_edge_ends;
-
-  for (const int edge_index : boundary_edges) {
-    const std::pair<int, int> edge = result.edge[edge_index];
-
-    const EncodedConnection point_1 = encode_index_and_side(edge_index, Side::Start);
-    const EncodedConnection point_2 = encode_index_and_side(edge_index, Side::End);
-
-    vert_to_edge_ends.add(edge.first, point_1);
-    vert_to_edge_ends.add(edge.second, point_2);
-  }
-
-  for (Span<EncodedConnection> edge_ends : vert_to_edge_ends.values()) {
-    BLI_assert(edge_ends.size() % 2 == 0);
-    for (const int edge_pair_index : IndexRange(edge_ends.size() / 2)) {
-      const EncodedConnection end_1 = edge_ends[edge_pair_index * 2];
-      const EncodedConnection end_2 = edge_ends[edge_pair_index * 2 + 1];
-
-      connect(end_1, end_2);
-    }
-  }
-
-  const EdgeCurves edge_curves = follow_edge_connections(
-      all_edges, edges_to_keep, edge_connections);
 
   /* Because all of the curves are cyclical and have more than 2 points:
    * They have the same number of edges as vertices. */
-  const OffsetIndices<int> output_verts_offset = OffsetIndices<int>(edge_curves.offset_data);
+  const OffsetIndices<int> output_verts_offset = OffsetIndices<int>(edge_curves->offset_data);
 
   if (output_verts_offset.total_size() == 0) {
     return std::nullopt;
@@ -1844,8 +1861,8 @@ std::optional<bke::CurvesGeometry> delaunay_fill_strokes(
       const IndexRange edges_range = output_verts_offset[curve_i];
 
       for (const int point_i : edges_range) {
-        const int edge_index = edge_curves.edges[point_i];
-        const bool reversed = edge_curves.reversed[point_i];
+        const int edge_index = edge_curves->edges[point_i];
+        const bool reversed = edge_curves->reversed[point_i];
         const std::pair<int, int> edge = result.edge[edge_index];
         const int vert_id = reversed ? edge.second : edge.first;
 
