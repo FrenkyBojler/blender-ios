@@ -1927,7 +1927,7 @@ class VIEW3D_PT_tools_grease_pencil_v3_brush_fill_advanced(View3DPanel, Panel):
         col.prop(gp_settings, "fill_solver")
         col.separator()
 
-        if gp_settings.fill_solver == 'EXACT':
+        if gp_settings.fill_solver == 'DELAUNAY':
             row = col.row(align=True)
             row.prop(brush, "use_locked_size", expand=True)
             col.separator()
