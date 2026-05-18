@@ -396,13 +396,13 @@ const EnumPropertyItem rna_enum_image_type_all_items[] = {
 };
 
 const EnumPropertyItem rna_enum_image_color_mode_items[] = {
-    {R_IMF_PLANES_BW,
+    {int(ImColorMode::BW),
      "BW",
      0,
      "BW",
      "Images get saved in 8-bit grayscale (only PNG, JPEG, TGA, TIF)"},
-    {R_IMF_PLANES_RGB, "RGB", 0, "RGB", "Images are saved with RGB (color) data"},
-    {R_IMF_PLANES_RGBA,
+    {int(ImColorMode::RGB), "RGB", 0, "RGB", "Images are saved with RGB (color) data"},
+    {int(ImColorMode::RGBA),
      "RGBA",
      0,
      "RGBA",
@@ -1587,7 +1587,8 @@ static const EnumPropertyItem *rna_ImageFormatSettings_color_depth_itemf(bContex
     return rna_enum_image_color_depth_items;
   }
   else {
-    const int depth_ok = BKE_imtype_valid_depths_with_video(imf->imtype, ptr->owner_id);
+    const eImageFormatDepth depth_ok = BKE_imtype_valid_depths_with_video(imf->imtype,
+                                                                          ptr->owner_id);
     const int is_float = ELEM(
         imf->imtype, R_IMF_IMTYPE_RADHDR, R_IMF_IMTYPE_OPENEXR, R_IMF_IMTYPE_MULTILAYER);
 
@@ -3096,9 +3097,10 @@ static void rna_FFmpegSettings_codec_update(Main * /*bmain*/, Scene * /*scene*/,
   const bool is_render = (id && GS(id->name) == ID_SCE);
   if (is_render) {
     Scene *scene = (Scene *)ptr->owner_id;
-    const int valid_depths = BKE_imtype_valid_depths_with_video(scene->r.im_format.imtype, id);
+    const eImageFormatDepth valid_depths = BKE_imtype_valid_depths_with_video(
+        scene->r.im_format.imtype, id);
     if ((scene->r.im_format.depth & valid_depths) == 0) {
-      scene->r.im_format.depth = eImageFormatDepth(BKE_imtype_first_valid_depth(valid_depths));
+      scene->r.im_format.depth = BKE_imtype_first_valid_depth(valid_depths);
     }
   }
 }
@@ -4275,19 +4277,16 @@ static void rna_def_tool_settings(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "anim_fix_to_cam_use_loc", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "fix_to_cam_flag", FIX_TO_CAM_FLAG_USE_LOC);
-  RNA_def_property_boolean_default(prop, true);
   RNA_def_property_ui_text(
       prop, "Use Location for Camera Fix", "Create location keys when fixing to the scene camera");
 
   prop = RNA_def_property(srna, "anim_fix_to_cam_use_rot", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "fix_to_cam_flag", FIX_TO_CAM_FLAG_USE_ROT);
-  RNA_def_property_boolean_default(prop, true);
   RNA_def_property_ui_text(
       prop, "Use Rotation for Camera Fix", "Create rotation keys when fixing to the scene camera");
 
   prop = RNA_def_property(srna, "anim_fix_to_cam_use_scale", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "fix_to_cam_flag", FIX_TO_CAM_FLAG_USE_SCALE);
-  RNA_def_property_boolean_default(prop, true);
   RNA_def_property_ui_text(
       prop, "Use Scale for Camera Fix", "Create scale keys when fixing to the scene camera");
 
@@ -6443,7 +6442,7 @@ static void rna_def_scene_image_format_data(BlenderRNA *brna)
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
 
   prop = RNA_def_property(srna, "color_mode", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_bitflag_sdna(prop, nullptr, "planes");
+  RNA_def_property_enum_sdna(prop, nullptr, "color_mode");
   RNA_def_property_enum_items(prop, rna_enum_image_color_mode_items);
   RNA_def_property_enum_funcs(prop, nullptr, nullptr, "rna_ImageFormatSettings_color_mode_itemf");
   RNA_def_property_ui_text(
@@ -6454,7 +6453,7 @@ static void rna_def_scene_image_format_data(BlenderRNA *brna)
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
 
   prop = RNA_def_property(srna, "color_depth", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_bitflag_sdna(prop, nullptr, "depth");
+  RNA_def_property_enum_sdna(prop, nullptr, "depth");
   RNA_def_property_enum_items(prop, rna_enum_image_color_depth_items);
   RNA_def_property_enum_funcs(prop, nullptr, nullptr, "rna_ImageFormatSettings_color_depth_itemf");
   RNA_def_property_ui_text(prop, "Color Depth", "Bit depth per channel");
@@ -8123,6 +8122,21 @@ static void rna_def_raytrace_eevee(BlenderRNA *brna)
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
 
+  prop = RNA_def_property(srna, "use_backface_hit", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", RAYTRACE_EEVEE_USE_BACKFACE);
+  RNA_def_property_ui_text(prop, "Hit Backfaces", "Consider rays hitting backfaces as valid");
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
+
+  prop = RNA_def_property(srna, "backface_radiance_scale", PROP_FLOAT, PROP_FACTOR);
+  RNA_def_property_ui_text(prop,
+                           "Backface Radiance Scale",
+                           "Amount of the front face lighting to reuse for backface "
+                           "lighting approximation");
+  RNA_def_property_range(prop, 0.0f, 1.0f);
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
+
   prop = RNA_def_property(srna, "use_denoise", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", RAYTRACE_EEVEE_USE_DENOISE);
   RNA_def_property_ui_text(
@@ -8201,6 +8215,19 @@ static void rna_def_scene_eevee(BlenderRNA *brna)
       {256, "256", 0, "256 MB", ""},
       {512, "512", 0, "512 MB", ""},
       {1024, "1024", 0, "1 GB", ""},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  static const EnumPropertyItem eevee_shadow_pool_size_items[] = {
+      {16, "16", 0, "16 MB", ""},
+      {32, "32", 0, "32 MB", ""},
+      {64, "64", 0, "64 MB", ""},
+      {128, "128", 0, "128 MB", ""},
+      {256, "256", 0, "256 MB", ""},
+      {512, "512", 0, "512 MB", ""},
+      {1024, "1024", 0, "1 GB", ""},
+      {1536, "1536", 0, "1.5 GB", ""},
+      {2048, "2048", 0, "2 GB", ""},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -8475,25 +8502,16 @@ static void rna_def_scene_eevee(BlenderRNA *brna)
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
 
+  /* Could be renamed to `fast_gi_thickness`, but would break API. */
   prop = RNA_def_property(srna, "fast_gi_thickness_near", PROP_FLOAT, PROP_DISTANCE);
+  RNA_def_property_float_sdna(prop, nullptr, "fast_gi_thickness_near");
   RNA_def_property_ui_text(
       prop,
-      "Near Thickness",
+      "Thickness",
       "Geometric thickness of the surfaces when computing fast GI and ambient occlusion. "
       "Reduces light leaking and missing contact occlusion.");
   RNA_def_property_range(prop, 0.0f, 100000.0f);
   RNA_def_property_ui_range(prop, 0.0f, 100.0f, 1.0f, 3);
-  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
-  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
-
-  prop = RNA_def_property(srna, "fast_gi_thickness_far", PROP_FLOAT, PROP_ANGLE);
-  RNA_def_property_ui_text(
-      prop,
-      "Far Thickness",
-      "Angular thickness of the surfaces when computing fast GI and ambient occlusion. "
-      "Reduces energy loss and missing occlusion of far geometry.");
-  RNA_def_property_range(prop, DEG2RADF(1.0f), DEG2RADF(180.0f));
-  RNA_def_property_ui_range(prop, DEG2RADF(1.0f), DEG2RADF(180.0f), 10.0f, 3);
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
 
@@ -8627,7 +8645,7 @@ static void rna_def_scene_eevee(BlenderRNA *brna)
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
 
   prop = RNA_def_property(srna, "shadow_pool_size", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_items(prop, eevee_pool_size_items);
+  RNA_def_property_enum_items(prop, eevee_shadow_pool_size_items);
   RNA_def_property_ui_text(prop,
                            "Shadow Pool Size",
                            "Size of the shadow pool, "

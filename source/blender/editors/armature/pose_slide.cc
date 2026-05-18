@@ -64,9 +64,11 @@
 #include "ED_markers.hh"
 #include "ED_numinput.hh"
 #include "ED_screen.hh"
+#include "ED_transformable.hh"
 #include "ED_util.hh"
 
 #include "ANIM_fcurve.hh"
+#include "ANIM_rna.hh"
 
 #include "armature_intern.hh"
 
@@ -75,12 +77,15 @@ namespace blender {
 /* **************************************************** */
 /* A) Push & Relax, Breakdowner */
 
-/** Axis Locks. */
-enum ePoseSlide_AxisLock {
-  PS_LOCK_X = (1 << 0),
-  PS_LOCK_Y = (1 << 1),
-  PS_LOCK_Z = (1 << 2),
-};
+/**
+ * Returns true if the given property index matches the axis flag.
+ */
+static bool is_axis_mutable(const int index, const ed::AxisMutable axis_flag)
+{
+  /* AxisMutable happens to be set up in such a way that X, Y and Z correspond to bits 0, 1
+   * and 2. The AXIS_MUTABLE_ALL case has all these bits set. */
+  return axis_flag & (1 << index);
+}
 
 /** Pose Sliding Modes. */
 enum ePoseSlide_Modes {
@@ -155,7 +160,7 @@ struct tPoseSlideOp {
   /** Which transforms/channels are affected. */
   ePoseSlide_Channels channels;
   /** Axis-limits for transforms. */
-  ePoseSlide_AxisLock axislock;
+  ed::AxisMutable axis_mutability;
 
   tSlider *slider;
 
@@ -181,12 +186,16 @@ static const EnumPropertyItem prop_channels_types[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-/* Property enum for ePoseSlide_AxisLock */
+/* Property enum for AxisMutable. */
 static const EnumPropertyItem prop_axis_lock_types[] = {
-    {0, "FREE", 0, "Free", "All axes are affected"},
-    {PS_LOCK_X, "X", 0, "X", "Only X-axis transforms are affected"},
-    {PS_LOCK_Y, "Y", 0, "Y", "Only Y-axis transforms are affected"},
-    {PS_LOCK_Z, "Z", 0, "Z", "Only Z-axis transforms are affected"}, /* TODO: Combinations? */
+    {ed::AXIS_MUTABLE_ALL, "FREE", 0, "Free", "All axes are affected"},
+    {ed::AXIS_MUTABLE_X, "X", 0, "X", "Only X-axis transforms are affected"},
+    {ed::AXIS_MUTABLE_Y, "Y", 0, "Y", "Only Y-axis transforms are affected"},
+    {ed::AXIS_MUTABLE_Z,
+     "Z",
+     0,
+     "Z",
+     "Only Z-axis transforms are affected"}, /* TODO: Combinations? */
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -228,7 +237,7 @@ static int pose_slide_init(bContext *C, wmOperator *op, ePoseSlide_Modes mode)
 
   /* Get the set of properties/axes that can be operated on. */
   pso->channels = ePoseSlide_Channels(RNA_enum_get(op->ptr, "channels"));
-  pso->axislock = ePoseSlide_AxisLock(RNA_enum_get(op->ptr, "axis_lock"));
+  pso->axis_mutability = ed::AxisMutable(RNA_enum_get(op->ptr, "axis_lock"));
 
   pso->slider = ED_slider_create(C);
   ED_slider_factor_set(pso->slider, RNA_float_get(op->ptr, "factor"));
@@ -312,6 +321,22 @@ static void pose_slide_exit(bContext *C, wmOperator *op)
 }
 
 /* ------------------------------------ */
+
+static bool pose_frame_range_from_id_get(const tPoseSlideOp *pso,
+                                         const ID *id,
+                                         float *prev_frame,
+                                         float *next_frame)
+{
+  for (const ObjectFrameRange &offset_range : pso->ob_data_array) {
+    if (&offset_range.ob->id == id) {
+      *prev_frame = offset_range.prev_frame;
+      *next_frame = offset_range.next_frame;
+      return true;
+    }
+  }
+  *prev_frame = *next_frame = 0.0f;
+  return false;
+}
 
 /**
  * Helper for apply() / reset() - refresh the data.
@@ -446,14 +471,12 @@ static void pose_slide_apply_vec3(tPoseSlideOp *pso,
   const Vector<FCurve *> fcurves = fcurves_filtered_by_path(slide_subject->fcurves, path);
   for (FCurve *fcurve : fcurves) {
     const int idx = fcurve->array_index;
-    const int lock = pso->axislock;
+    const ed::AxisMutable axis_flags = pso->axis_mutability;
 
     /* Check if this F-Curve is ok given the current axis locks. */
     BLI_assert(fcurve->array_index < 3);
 
-    if ((lock == 0) || ((lock & PS_LOCK_X) && (idx == 0)) || ((lock & PS_LOCK_Y) && (idx == 1)) ||
-        ((lock & PS_LOCK_Z) && (idx == 2)))
-    {
+    if (is_axis_mutable(idx, axis_flags)) {
       /* Just work on these channels one by one... there's no interaction between values. */
       pose_slide_apply_val(pso, fcurve, slide_subject->ob, &vec[fcurve->array_index]);
     }
@@ -463,130 +486,77 @@ static void pose_slide_apply_vec3(tPoseSlideOp *pso,
   MEM_delete(path);
 }
 
-/**
- * Helper for apply() - perform sliding for custom properties or bbone properties.
- */
-static void pose_slide_apply_props(tPoseSlideOp *pso,
-                                   SlideSubject *slide_subject,
-                                   const char prop_prefix[])
+static void pose_slide_apply_property_snapshots(tPoseSlideOp &pso,
+                                                SlideSubject &slide_subject,
+                                                const Span<PropertySnapshot> snapshots)
 {
-  int len = strlen(slide_subject->pchan_path);
-
-  /* Setup pointer RNA for resolving paths. */
-  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, RNA_PoseBone, slide_subject->pchan);
-
-  /* - custom properties are just denoted using ["..."][etc.] after the end of the base path,
-   *   so just check for opening pair after the end of the path
-   * - bbone properties are similar, but they always start with a prefix "bbone_*",
-   *   so a similar method should work here for those too
-   */
-  for (FCurve *fcu : slide_subject->fcurves) {
-    const char *bPtr, *pPtr;
-
-    if (fcu->rna_path == nullptr) {
+  for (const PropertySnapshot &snapshot : snapshots) {
+    std::optional<std::string> path = RNA_path_from_ID_to_property(&slide_subject.ptr,
+                                                                   snapshot.property);
+    if (!path) {
+      BLI_assert_unreachable();
       continue;
     }
-
-    /* Do we have a match?
-     * - bPtr is the RNA Path with the standard part chopped off.
-     * - pPtr is the chunk of the path which is left over.
-     */
-    bPtr = strstr(fcu->rna_path, slide_subject->pchan_path) + len;
-    pPtr = strstr(bPtr, prop_prefix);
-
-    if (pPtr) {
-      /* Use RNA to try and get a handle on this property, then, assuming that it is just
-       * numerical, try and grab the value as a float for temp editing before setting back. */
-      PropertyRNA *prop = RNA_struct_find_property(&ptr, pPtr);
-
-      if (prop) {
-        switch (RNA_property_type(prop)) {
-          /* Continuous values that can be smoothly interpolated. */
-          case PROP_FLOAT: {
-            const bool is_array = RNA_property_array_check(prop);
-            float tval;
-            if (is_array) {
-              if (UNLIKELY(uint(fcu->array_index) >= RNA_property_array_length(&ptr, prop))) {
-                break; /* Out of range, skip. */
-              }
-              tval = RNA_property_float_get_index(&ptr, prop, fcu->array_index);
-            }
-            else {
-              tval = RNA_property_float_get(&ptr, prop);
-            }
-
-            pose_slide_apply_val(pso, fcu, slide_subject->ob, &tval);
-
-            if (is_array) {
-              RNA_property_float_set_index(&ptr, prop, fcu->array_index, tval);
-            }
-            else {
-              RNA_property_float_set(&ptr, prop, tval);
-            }
-            break;
-          }
-          case PROP_INT: {
-            const bool is_array = RNA_property_array_check(prop);
-            float tval;
-            if (is_array) {
-              if (UNLIKELY(uint(fcu->array_index) >= RNA_property_array_length(&ptr, prop))) {
-                break; /* Out of range, skip. */
-              }
-              tval = RNA_property_int_get_index(&ptr, prop, fcu->array_index);
-            }
-            else {
-              tval = RNA_property_int_get(&ptr, prop);
-            }
-
-            pose_slide_apply_val(pso, fcu, slide_subject->ob, &tval);
-
-            if (is_array) {
-              RNA_property_int_set_index(&ptr, prop, fcu->array_index, tval);
-            }
-            else {
-              RNA_property_int_set(&ptr, prop, tval);
-            }
-            break;
-          }
-
-          /* Values which can only take discrete values. */
-          case PROP_BOOLEAN: {
-            const bool is_array = RNA_property_array_check(prop);
-            float tval;
-            if (is_array) {
-              if (UNLIKELY(uint(fcu->array_index) >= RNA_property_array_length(&ptr, prop))) {
-                break; /* Out of range, skip. */
-              }
-              tval = float(RNA_property_boolean_get_index(&ptr, prop, fcu->array_index));
-            }
-            else {
-              tval = float(RNA_property_boolean_get(&ptr, prop));
-            }
-
-            pose_slide_apply_val(pso, fcu, slide_subject->ob, &tval);
-
-            /* XXX: do we need threshold clamping here? */
-            if (is_array) {
-              RNA_property_boolean_set_index(&ptr, prop, fcu->array_index, tval);
-            }
-            else {
-              RNA_property_boolean_set(&ptr, prop, tval);
-            }
-            break;
-          }
-          case PROP_ENUM: {
-            /* Don't handle this case - these don't usually represent interchangeable
-             * set of values which should be interpolated between. */
-            break;
-          }
-
-          default:
-            /* Cannot handle. */
-            // printf("Cannot Pose Slide non-numerical property\n");
-            break;
-        }
+    const float factor = ED_slider_factor_get(pso.slider);
+    Array<float> base_values = snapshot.values;
+    Array<float> next_frame_values = base_values;
+    Array<float> prev_frame_values = base_values;
+    {
+      float prev_frame, next_frame;
+      const bool success = pose_frame_range_from_id_get(
+          &pso, slide_subject.ptr.owner_id, &prev_frame, &next_frame);
+      /* All `SlideSubject`s should have a frame range. */
+      BLI_assert(success);
+      UNUSED_VARS_NDEBUG(success);
+      const Vector<FCurve *> fcurves = fcurves_filtered_by_path(slide_subject.fcurves,
+                                                                path.value());
+      if (fcurves.size() == 0) {
+        /* Property is not animated. */
+        continue;
+      }
+      for (const FCurve *fcurve : fcurves) {
+        prev_frame_values[fcurve->array_index] = evaluate_fcurve(fcurve, prev_frame);
+        next_frame_values[fcurve->array_index] = evaluate_fcurve(fcurve, next_frame);
       }
     }
+
+    Array<float> values;
+    switch (pso.mode) {
+      case POSESLIDE_PUSH:
+      case POSESLIDE_RELAX: {
+        /* See comment in `pose_slide_apply_linear` for the meaning of those values
+         * and push/relax. */
+        const float current_frame_factor = (pso.current_frame - pso.prev_frame) /
+                                           float(pso.next_frame - pso.prev_frame);
+        const Array<float> current_frame_breakdown = ed::property_interpolated(
+            prev_frame_values, next_frame_values, current_frame_factor);
+        const float factor_sign = pso.mode == POSESLIDE_RELAX ? 1 : -1;
+        values = ed::property_interpolated(
+            base_values, current_frame_breakdown, factor * factor_sign);
+        break;
+      }
+
+      case POSESLIDE_BREAKDOWN:
+        values = ed::property_interpolated(prev_frame_values, next_frame_values, factor);
+        break;
+
+      case POSESLIDE_BLEND: {
+        const float blend_factor = fabsf((factor - 0.5f) * 2);
+        if (factor < 0.5) {
+          values = ed::property_interpolated(base_values, prev_frame_values, blend_factor);
+        }
+        else {
+          values = ed::property_interpolated(base_values, next_frame_values, blend_factor);
+        }
+        break;
+      }
+      case POSESLIDE_BLEND_REST:
+        /* Those are handled in pose_slide_rest_pose_apply. */
+        BLI_assert_unreachable();
+        values = base_values;
+        break;
+    }
+    animrig::rna_property_set_as_float(slide_subject.ptr, *snapshot.property, values);
   }
 }
 
@@ -717,12 +687,10 @@ static void pose_slide_apply_quat(tPoseSlideOp *pso, SlideSubject *slide_subject
 static void pose_slide_rest_pose_apply_vec3(tPoseSlideOp *pso, float vec[3], float default_value)
 {
   /* We only slide to the rest pose. So only use the default rest pose value. */
-  const int lock = pso->axislock;
+  const ed::AxisMutable axis_flags = pso->axis_mutability;
   const float factor = ED_slider_factor_get(pso->slider);
   for (int idx = 0; idx < 3; idx++) {
-    if ((lock == 0) || ((lock & PS_LOCK_X) && (idx == 0)) || ((lock & PS_LOCK_Y) && (idx == 1)) ||
-        ((lock & PS_LOCK_Z) && (idx == 2)))
-    {
+    if (is_axis_mutable(idx, axis_flags)) {
       float diff_val = default_value - vec[idx];
       vec[idx] += factor * diff_val;
     }
@@ -795,14 +763,12 @@ static void pose_slide_rest_pose_apply(bContext *C, tPoseSlideOp *pso)
     {
       /* Bbone properties - they all start a "bbone_" prefix. */
       /* TODO: Not implemented. */
-      // pose_slide_apply_props(pso, slide_subject, "bbone_");
     }
 
-    if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_PROPS) && (slide_subject.oldprops)) {
+    if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_PROPS)) {
       /* Not strictly a transform, but custom properties contribute
        * to the pose produced in many rigs (e.g. the facial rigs used in Sintel). */
       /* TODO: Not implemented. */
-      // pose_slide_apply_props(pso, slide_subject, "[\"");
     }
   }
 
@@ -877,14 +843,13 @@ static void pose_slide_apply(bContext *C, tPoseSlideOp *pso)
     if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_BBONE_SHAPE) &&
         (slide_subject.transform_flag & ACT_TRANS_BBONE))
     {
-      /* Bbone properties - they all start a "bbone_" prefix. */
-      pose_slide_apply_props(pso, &slide_subject, "bbone_");
+      pose_slide_apply_property_snapshots(
+          *pso, slide_subject, slide_subject.additional_properties);
     }
 
-    if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_PROPS) && (slide_subject.oldprops)) {
-      /* Not strictly a transform, but custom properties contribute
-       * to the pose produced in many rigs (e.g. the facial rigs used in Sintel). */
-      pose_slide_apply_props(pso, &slide_subject, "[\"");
+    if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_PROPS)) {
+      pose_slide_apply_property_snapshots(*pso, slide_subject, slide_subject.properties);
+      pose_slide_apply_property_snapshots(*pso, slide_subject, slide_subject.system_properties);
     }
   }
 
@@ -975,10 +940,12 @@ static void pose_slide_draw_status(bContext *C, tPoseSlideOp *pso)
   }
 
   if (ELEM(pso->channels, PS_TFM_LOC, PS_TFM_ROT, PS_TFM_SCALE)) {
-    status.item_bool("", pso->axislock & PS_LOCK_X, ICON_EVENT_X);
-    status.item_bool("", pso->axislock & PS_LOCK_Y, ICON_EVENT_Y);
-    status.item_bool("", pso->axislock & PS_LOCK_Z, ICON_EVENT_Z);
-    status.item(pso->axislock == 0 ? IFACE_("Axis Constraint") : IFACE_("Axis Only"), ICON_NONE);
+    status.item_bool("", pso->axis_mutability & ed::AXIS_MUTABLE_X, ICON_EVENT_X);
+    status.item_bool("", pso->axis_mutability & ed::AXIS_MUTABLE_Y, ICON_EVENT_Y);
+    status.item_bool("", pso->axis_mutability & ed::AXIS_MUTABLE_Z, ICON_EVENT_Z);
+    status.item(pso->axis_mutability == ed::AXIS_MUTABLE_ALL ? IFACE_("All Axes") :
+                                                               IFACE_("Single Axis"),
+                ICON_NONE);
   }
 
   if (hasNumInput(&pso->num)) {
@@ -1106,34 +1073,34 @@ static void pose_slide_toggle_channels_mode(wmOperator *op,
   RNA_enum_set(op->ptr, "channels", pso->channels);
 
   /* Reset axis limits too for good measure */
-  pso->axislock = ePoseSlide_AxisLock(0);
-  RNA_enum_set(op->ptr, "axis_lock", pso->axislock);
+  pso->axis_mutability = ed::AXIS_MUTABLE_ALL;
+  RNA_enum_set(op->ptr, "axis_lock", pso->axis_mutability);
 }
 
 /**
- * Handle an event to toggle axis locks - returns whether any change in state is needed.
+ * Handle an event to toggle axis mutability - returns whether any change in state is needed.
  */
-static bool pose_slide_toggle_axis_locks(wmOperator *op,
-                                         tPoseSlideOp *pso,
-                                         ePoseSlide_AxisLock axis)
+static bool pose_slide_toggle_axis_mutability(wmOperator *op,
+                                              tPoseSlideOp *pso,
+                                              ed::AxisMutable axis)
 {
   /* Axis can only be set when a transform is set - it doesn't make sense otherwise */
   if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_BBONE_SHAPE, PS_TFM_PROPS)) {
-    pso->axislock = ePoseSlide_AxisLock(0);
-    RNA_enum_set(op->ptr, "axis_lock", pso->axislock);
+    pso->axis_mutability = ed::AXIS_MUTABLE_ALL;
+    RNA_enum_set(op->ptr, "axis_lock", pso->axis_mutability);
     return false;
   }
 
   /* Turn on or off? */
-  if (pso->axislock == axis) {
+  if (pso->axis_mutability == axis) {
     /* Already limiting on this axis, so turn off */
-    pso->axislock = ePoseSlide_AxisLock(0);
+    pso->axis_mutability = ed::AXIS_MUTABLE_ALL;
   }
   else {
     /* Only this axis */
-    pso->axislock = axis;
+    pso->axis_mutability = axis;
   }
-  RNA_enum_set(op->ptr, "axis_lock", pso->axislock);
+  RNA_enum_set(op->ptr, "axis_lock", pso->axis_mutability);
 
   /* Setting changed, so pose update is needed */
   return true;
@@ -1262,19 +1229,19 @@ static wmOperatorStatus pose_slide_modal(bContext *C, wmOperator *op, const wmEv
           /* Axis Locks */
           /* XXX: Hardcoded... */
           case EVT_XKEY: {
-            if (pose_slide_toggle_axis_locks(op, pso, PS_LOCK_X)) {
+            if (pose_slide_toggle_axis_mutability(op, pso, ed::AXIS_MUTABLE_X)) {
               do_pose_update = true;
             }
             break;
           }
           case EVT_YKEY: {
-            if (pose_slide_toggle_axis_locks(op, pso, PS_LOCK_Y)) {
+            if (pose_slide_toggle_axis_mutability(op, pso, ed::AXIS_MUTABLE_Y)) {
               do_pose_update = true;
             }
             break;
           }
           case EVT_ZKEY: {
-            if (pose_slide_toggle_axis_locks(op, pso, PS_LOCK_Z)) {
+            if (pose_slide_toggle_axis_mutability(op, pso, ed::AXIS_MUTABLE_Z)) {
               do_pose_update = true;
             }
             break;
@@ -1407,7 +1374,7 @@ static void pose_slide_opdef_properties(wmOperatorType *ot)
   prop = RNA_def_enum(ot->srna,
                       "axis_lock",
                       prop_axis_lock_types,
-                      0,
+                      ed::AXIS_MUTABLE_ALL,
                       "Axis Lock",
                       "Transform axis to restrict effects to");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
