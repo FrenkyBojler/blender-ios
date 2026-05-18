@@ -1461,7 +1461,7 @@ static bool grease_pencil_apply_fill(bContext &C, wmOperator &op, const wmEvent 
   Brush &brush = *BKE_paint_brush(&ts.gp_paint->paint);
   const float2 mouse_position = float2(event.mval);
   const int simplify_levels = brush.gpencil_settings->fill_simplylvl;
-  const std::optional<float> alpha_threshold =
+  const std::optional<float> opacity_threshold =
       (brush.gpencil_settings->flag & GP_BRUSH_FILL_HIDE) ?
           std::nullopt :
           std::make_optional(brush.gpencil_settings->fill_threshold);
@@ -1497,7 +1497,7 @@ static bool grease_pencil_apply_fill(bContext &C, wmOperator &op, const wmEvent 
                                                              boundary_layers,
                                                              info.sources,
                                                              op_data.invert,
-                                                             alpha_threshold,
+                                                             opacity_threshold,
                                                              mouse_position,
                                                              extensions,
                                                              fit_method,
@@ -1518,7 +1518,7 @@ static bool grease_pencil_apply_fill(bContext &C, wmOperator &op, const wmEvent 
                                              boundary_layers,
                                              info.sources,
                                              op_data.invert,
-                                             alpha_threshold,
+                                             opacity_threshold,
                                              gap_factor,
                                              fill_points);
 

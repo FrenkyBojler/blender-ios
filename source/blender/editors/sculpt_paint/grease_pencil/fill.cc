@@ -800,9 +800,9 @@ static VArray<ColorGeometry4f> get_stroke_colors(const Object &object,
                                                  const VArray<float> &opacities,
                                                  const VArray<int> materials,
                                                  const ColorGeometry4f &tint_color,
-                                                 const std::optional<float> alpha_threshold)
+                                                 const std::optional<float> opacity_threshold)
 {
-  if (!alpha_threshold) {
+  if (!opacity_threshold) {
     return VArray<ColorGeometry4f>::from_single(tint_color, curves.points_num());
   }
 
@@ -816,7 +816,8 @@ static VArray<ColorGeometry4f> get_stroke_colors(const Object &object,
                                        1.0f;
       const IndexRange points = curves.points_by_curve()[curve_i];
       for (const int point_i : points) {
-        const float alpha = (material_alpha * opacities[point_i] > *alpha_threshold ? 1.0f : 0.0f);
+        const float alpha = (material_alpha * opacities[point_i] > *opacity_threshold ? 1.0f :
+                                                                                        0.0f);
         colors[point_i] = ColorGeometry4f(tint_color.r, tint_color.g, tint_color.b, alpha);
       }
     }
@@ -983,7 +984,7 @@ static Image *render_strokes(const ViewContext &view_context,
                              const VArray<bool> &boundary_layers,
                              const Span<DrawingInfo> src_drawings,
                              const int2 &image_size,
-                             const std::optional<float> alpha_threshold,
+                             const std::optional<float> opacity_threshold,
                              const float2 &fill_point,
                              const ExtensionData &extensions,
                              const ed::greasepencil::DrawingPlacement &placement,
@@ -1054,7 +1055,7 @@ static Image *render_strokes(const ViewContext &view_context,
                                                                     opacities,
                                                                     materials,
                                                                     draw_boundary_color,
-                                                                    alpha_threshold);
+                                                                    opacity_threshold);
 
     image_render::draw_grease_pencil_strokes(rv3d,
                                              image_size,
@@ -1097,7 +1098,7 @@ bke::CurvesGeometry flood_fill_strokes(const ViewContext &view_context,
                                        const VArray<bool> &boundary_layers,
                                        const Span<DrawingInfo> src_drawings,
                                        const bool invert,
-                                       const std::optional<float> alpha_threshold,
+                                       const std::optional<float> opacity_threshold,
                                        const float2 &fill_point,
                                        const ExtensionData &extensions,
                                        const FillToolFitMethod fit_method,
@@ -1140,7 +1141,7 @@ bke::CurvesGeometry flood_fill_strokes(const ViewContext &view_context,
                               boundary_layers,
                               src_drawings,
                               image_size,
-                              alpha_threshold,
+                              opacity_threshold,
                               fill_point,
                               extensions,
                               placement,
@@ -1424,7 +1425,7 @@ static meshintersect::CDT_input<double> get_input_from_drawings(
     const Object &object_eval,
     const VArray<bool> &boundary_layers,
     const ARegion &region,
-    const std::optional<float> alpha_threshold)
+    const std::optional<float> opacity_threshold)
 {
   using bke::greasepencil::Drawing;
   using bke::greasepencil::Layer;
@@ -1492,8 +1493,8 @@ static meshintersect::CDT_input<double> get_input_from_drawings(
 
         if (is_fill && is_stroke_hidden) {
           /* Skip transparent curves. */
-          if (alpha_threshold &&
-              (material_fill_alpha * fill_opacities[curve_i] < *alpha_threshold))
+          if (opacity_threshold &&
+              (material_fill_alpha * fill_opacities[curve_i] < *opacity_threshold))
           {
             return;
           }
@@ -1504,7 +1505,8 @@ static meshintersect::CDT_input<double> get_input_from_drawings(
         for (const int point_i : points) {
           if (!is_fill) {
             /* Skip transparent points. */
-            if (alpha_threshold && (material_stroke_alpha * opacities[point_i] < *alpha_threshold))
+            if (opacity_threshold &&
+                (material_stroke_alpha * opacities[point_i] < *opacity_threshold))
             {
               continue;
             }
@@ -1599,7 +1601,7 @@ std::optional<bke::CurvesGeometry> delaunay_fill_strokes(
     const VArray<bool> &boundary_layers,
     const Span<DrawingInfo> src_drawings,
     const bool invert,
-    const std::optional<float> alpha_threshold,
+    const std::optional<float> opacity_threshold,
     const float gap_factor,
     const GroupedSpan<float2> &fill_points)
 {
@@ -1616,7 +1618,7 @@ std::optional<bke::CurvesGeometry> delaunay_fill_strokes(
   }
 
   const meshintersect::CDT_input<double> input = get_input_from_drawings(
-      src_drawings, object, object_eval, boundary_layers, region, alpha_threshold);
+      src_drawings, object, object_eval, boundary_layers, region, opacity_threshold);
   meshintersect::CDT_result<double> result = delaunay_2d_calc(input, CDT_FULL);
 
   Array<bool> is_source_edge(result.edge.size(), false);
