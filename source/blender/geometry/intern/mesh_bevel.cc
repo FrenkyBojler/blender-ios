@@ -3,31 +3,22 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include <algorithm>
-#include <iostream>
 #include <memory>
-#include <numeric>
 #include <optional>
 #include <utility>
 
 #include <fmt/format.h>
 
 #include "BLI_array.hh"
-#include "BLI_array_utils.hh"
-#include "BLI_atomic_disjoint_set.hh"
 #include "BLI_index_mask.hh"
 #include "BLI_map.hh"
 #include "BLI_math_base.h"
 #include "BLI_math_base.hh"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
-#include "BLI_math_matrix.hh"
 #include "BLI_math_vector.h"
 #include "BLI_math_vector.hh"
-#include "BLI_multi_value_map.hh"
-#include "BLI_offset_indices.hh"
 #include "BLI_span.hh"
-#include "BLI_task.hh"
-#include "BLI_time.h"
 #include "BLI_vector.hh"
 
 #include "BKE_attribute.hh"
@@ -36,7 +27,6 @@
 #include "BKE_mesh.hh"
 #include "BKE_mesh_mapping.hh"
 
-#include "atomic_ops.h"
 #include "eigen_capi.h"
 
 #include "GEO_mesh_bevel.hh"
