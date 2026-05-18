@@ -693,10 +693,11 @@ static void rna_def_asset_data(BlenderRNA *brna)
   prop = RNA_def_property(srna, "use_preferred_import_method", PROP_BOOLEAN, PROP_BOOLEAN);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", ASSETDATA_USE_OWN_IMPORT_METHOD);
   RNA_def_property_editable_func(prop, "rna_AssetMetaData_editable");
-  RNA_def_property_ui_text(prop,
-                           "Use Preferred Import Method",
-                           "When \"Follow Asset or Preferences\" is selected for the import "
-                           "method, use the preferred import method of this asset");
+  RNA_def_property_ui_text(
+      prop,
+      "Use Preferred Import Method",
+      "When \"Follow Asset or Preferences\" is selected for the import "
+      "method in the Asset Browser, use the preferred import method of this asset");
 
   prop = RNA_def_property(srna, "preferred_import_method", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, rna_enum_asset_import_method_items);

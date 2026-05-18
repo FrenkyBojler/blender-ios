@@ -77,6 +77,12 @@ struct AssetTag {
 };
 
 enum AssetMetaDataFlag : int {
+  /**
+   * When the import method is set to "Follow Asset or Preferences", use the asset's own import
+   * method instead of the one from the library. Not used often, but for some assets there's a
+   * specific preferred import method. For example, base mesh objects may always want to use
+   * appending, so they can be edited directly and independently from previous usages.
+   */
   ASSETDATA_USE_OWN_IMPORT_METHOD = (1 << 0),
 };
 ENUM_OPERATORS(AssetMetaDataFlag);
@@ -134,7 +140,7 @@ struct AssetMetaData {
 
   /** The import method to use when "Follow Asset or Preferences" is used and
    * #AssetMetaDataFlag::ASSETDATA_USE_OWN_IMPORT_METHOD is set in the flags above. */
-  eAssetImportMethod preferred_import_method = ASSET_IMPORT_PACK;
+  eAssetImportMethod preferred_import_method = ASSET_IMPORT_APPEND;
 
   char _pad[4] = {};
 

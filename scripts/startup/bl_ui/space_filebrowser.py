@@ -814,11 +814,11 @@ class ASSETBROWSER_PT_import(asset_utils.AssetMetaDataPanel, Panel):
             return False
 
         metadata = context.asset.metadata
-        # Hide the import options when the import method cannot be edited and isn't used.
-        if metadata.is_property_readonly("use_preferred_import_method") and not metadata.use_preferred_import_method:
-            return False
+        is_editable = not metadata.is_property_readonly("use_preferred_import_method")
 
-        return True
+        # Hide the import options when the import method cannot be edited and isn't used. Otherwise
+        # show them.
+        return is_editable or metadata.use_preferred_import_method
 
     def draw(self, context):
         layout = self.layout
