@@ -1687,7 +1687,6 @@ std::optional<bke::CurvesGeometry> delaunay_fill_strokes(
       result.edge.size(), result.face.as_span(), tri_edges);
   const Array<float> edge_weights = get_edge_weights(result.edge.as_span(), result.vert.as_span());
 
-  /* TODO: Use a BVH. */
   auto get_tri_for_point = [&](const float2 &v) {
     for (const int tri_index : result.face.index_range()) {
       const Vector<int> &tri = result.face[tri_index];
@@ -1895,7 +1894,6 @@ std::optional<bke::CurvesGeometry> delaunay_fill_strokes(
         decode_index(point_1), decode_side(point_1));
   };
 
-  /* vert index to edge ends. */
   MultiValueMap<int, EncodedConnection> vert_to_edge_ends;
 
   for (const int edge_index : boundary_edges) {
@@ -1922,7 +1920,7 @@ std::optional<bke::CurvesGeometry> delaunay_fill_strokes(
       all_edges, edges_to_keep, edge_connections);
 
   /* Because all of the curves are cyclical and have more than 2 points:
-   * There are the same number of edges as vertices. */
+   * They have the same number of edges as vertices. */
   const OffsetIndices<int> output_verts_offset = OffsetIndices<int>(edge_curves.offset_data);
 
   if (output_verts_offset.total_size() == 0) {
