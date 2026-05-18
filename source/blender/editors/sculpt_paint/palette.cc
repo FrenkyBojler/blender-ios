@@ -358,10 +358,11 @@ static wmOperatorStatus palette_extract_img_exec(bContext *C, wmOperator *op)
     /* Extract all colors. */
     Set<uint> color_table;
     const int range = int(pow(10.0f, threshold));
-    const uint8_t *src_data = ibuf->byte_data();
-    for (size_t i = 0, n = IMB_get_pixel_count(ibuf); i != n; i++) {
+    Span<uchar4> byte_buffer = Span(reinterpret_cast<const uchar4 *>(ibuf->byte_data()),
+                                    IMB_get_pixel_count(ibuf));
+    for (uchar4 pix : byte_buffer) {
       float color[3];
-      rgb_uchar_to_float(color, src_data);
+      rgb_uchar_to_float(color, pix);
       IMB_colormanagement_colorspace_to_scene_linear_v3(color, ibuf->byte_buffer.colorspace);
       IMB_colormanagement_scene_linear_to_srgb_v3(color, color);
 
@@ -370,8 +371,6 @@ static wmOperatorStatus palette_extract_img_exec(bContext *C, wmOperator *op)
       }
       uint key = rgb_to_cpack(color[0], color[1], color[2]);
       color_table.add(key);
-
-      src_data += 4;
     }
 
     done = palette_from_hash(bmain, color_table, image->id.name + 2);
