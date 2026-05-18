@@ -59,7 +59,7 @@ static void node_register()
   ntype.declare = node_declare;
   bke::node_type_size_preset(ntype, bke::eNodeSizePreset::Default);
   ntype.get_compositor_operation = get_compositor_operation;
-  ntype.deprecation_notice = N_("Use the GeometryNodeSwitch node instead");
+  ntype.deprecation_notice = N_("Use Utilities \u25B8 Switch  node instead");
 
   bke::node_register_type(ntype);
 }
