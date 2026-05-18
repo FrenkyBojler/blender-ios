@@ -155,6 +155,7 @@ struct RodStretchShearConstraint {
 struct RodStretchShearConstraintUsage {
   /** Index of corresponding #RodStretchShearConstraint. */
   int constraint_i;
+  bool is_valid = false;
   VArraySpan<float> rest_lengths;
   VArrayRangeSpans<float> compliances;
   MutableSpan<float3> lambdas_pos;
@@ -221,7 +222,7 @@ struct EdgeLengthConstraint {
 struct EdgeLengthConstraintUsage {
   /** Index of corresponding #EdgeLengthConstraint. */
   int constraint_i;
-
+  bool is_valid = false;
   VArraySpan<float> rest_lengths;
   VArraySpan<float> compliances;
   MutableSpan<float> lambdas;
@@ -1700,6 +1701,11 @@ class XpbdSolverStep {
       {
         const RodStretchShearConstraint &constraint =
             constraints_.rod_stretch_shear_constraints[constraint_usage.constraint_i];
+        VArray<float> rest_lengths = this->lookup_attribute_required<float>(
+            data_key_i, this->prop_attr_name(constraint.path, "rest_length"), geo_data.domain);
+        if (!rest_lengths) {
+          continue;
+        }
 
         constraint_usage.compliances = this->make_range_spans(
             tls,
@@ -1708,11 +1714,8 @@ class XpbdSolverStep {
                 this->prop_attr_name(constraint.path, "compliance"),
                 geo_data.domain,
                 0.0f));
-        constraint_usage.rest_lengths = this->lookup_attribute_default<float>(
-            data_key_i,
-            this->prop_attr_name(constraint.path, "rest_length"),
-            geo_data.domain,
-            0.0f);
+        constraint_usage.rest_lengths = std::move(rest_lengths);
+        constraint_usage.is_valid = true;
 
         constraint_usage.lambdas_pos = tls.allocator.allocate_array<float3>(geo_data.size);
         constraint_usage.lambdas_rot = tls.allocator.allocate_array<float3>(geo_data.size);
@@ -1733,6 +1736,9 @@ class XpbdSolverStep {
     for (const RodStretchShearConstraintUsage &constraint_usage :
          geo_data.rod_stretch_shear_constraints)
     {
+      if (!constraint_usage.is_valid) {
+        continue;
+      }
       chunk_data.static_constraints.append(
           &tls.scope.construct<xpbd::RodStretchAndShearConstraintSet>(
               chunk.data_key_i,
@@ -1752,6 +1758,9 @@ class XpbdSolverStep {
       for (const RodStretchShearConstraintUsage &constraint_usage :
            geo_data.rod_stretch_shear_constraints)
       {
+        if (!constraint_usage.is_valid) {
+          continue;
+        }
         const RodStretchShearConstraint &constraint =
             constraints_.rod_stretch_shear_constraints[constraint_usage.constraint_i];
         geo_data.attributes.remove(constraint.lambda_pos_attr);
@@ -1879,17 +1888,20 @@ class XpbdSolverStep {
         const Span<int2> edges = mesh.edges();
         const int edge_num = edges.size();
 
+        VArray<float> rest_lengths = this->lookup_attribute_required<float>(
+            data_key_i, this->prop_attr_name(constraint.path, "rest_length"), AttrDomain::Edge);
+        if (!rest_lengths) {
+          continue;
+        }
+
         constraint_usage.lambdas = tls.allocator.allocate_array<float>(edge_num);
-        constraint_usage.rest_lengths = this->lookup_attribute_default<float>(
-            data_key_i,
-            this->prop_attr_name(constraint.path, "rest_length"),
-            AttrDomain::Edge,
-            0.0f);
+        constraint_usage.rest_lengths = rest_lengths;
         constraint_usage.compliances = this->lookup_attribute_default<float>(
             data_key_i,
             this->prop_attr_name(constraint.path, "compliance"),
             AttrDomain::Edge,
             0.0f);
+        constraint_usage.is_valid = true;
 
         auto &constraint_set = tls.scope.construct<xpbd::DistanceConstraintSet>(
             data_key_i,
@@ -3222,7 +3234,7 @@ class XpbdSolverStep {
       this->report(
           NodeWarningType::Info,
           fmt::format(
-              "Attribute '{}' not found in '{}', using fallback value",
+              "Attribute \"{}\" not found in \"{}\", using fallback value",
               attribute_name,
               geometries_.geometry_sets[geometries_.data_keys[data_key_i].geo_bundle_i].path));
       return VArray<T>::from_single(default_value, geo_data.attributes.domain_size(domain));
@@ -3241,7 +3253,7 @@ class XpbdSolverStep {
       this->report(
           NodeWarningType::Error,
           fmt::format(
-              "Attribute '{}' not found on '{}', some functionality is disabled",
+              "Attribute \"{}\" not found on \"{}\", some functionality is disabled",
               attribute_name,
               geometries_.geometry_sets[geometries_.data_keys[data_key_i].geo_bundle_i].path));
     }
@@ -3255,6 +3267,14 @@ class XpbdSolverStep {
   {
     GeometryData &geo_data = *geometries_.data[data_key_i];
     VArray<T> varray = *geo_data.attributes.lookup<T>(attribute_name, domain);
+    if (!varray) {
+      this->report(
+          NodeWarningType::Info,
+          fmt::format(
+              "Optional attribute \"{}\" not found on \"{}\"",
+              attribute_name,
+              geometries_.geometry_sets[geometries_.data_keys[data_key_i].geo_bundle_i].path));
+    }
     return varray;
   }
 
