@@ -312,7 +312,7 @@ void VKTexture::read_sub(
   /* Convert the data to r_data. */
   for (int index : transfer_regions.index_range()) {
     const TransferRegion &transfer_region = transfer_regions[index];
-    const VKBuffer &staging_buffer = staging_buffers[index];
+    VKBuffer &staging_buffer = staging_buffers[index];
     size_t sample_len = transfer_region.sample_count();
 
     size_t data_offset = full_transfer_region.result_offset(transfer_region.offset,
