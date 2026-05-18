@@ -14,6 +14,7 @@
 #include "BLI_enum_flags.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_span.hh"
+#include "BLI_vector.hh"
 
 #include "IMB_imbuf_types.hh"
 
@@ -44,24 +45,25 @@ void IMB_deactivate_gpu_context();
  */
 ImBuf *IMB_load_image_from_memory(const unsigned char *mem,
                                   size_t size,
-                                  int flags,
+                                  ImBufFlags flags,
                                   const char *descr,
                                   const char *filepath = nullptr,
                                   char r_colorspace[IM_MAX_SPACE] = nullptr);
 
 ImBuf *IMB_load_image_from_file_descriptor(int file,
-                                           int flags,
+                                           ImBufFlags flags,
                                            const char *filepath = nullptr,
                                            char r_colorspace[IM_MAX_SPACE] = nullptr);
 
 ImBuf *IMB_load_image_from_filepath(const char *filepath,
-                                    int flags,
+                                    ImBufFlags flags,
                                     char r_colorspace[IM_MAX_SPACE] = nullptr);
 
 /**
  * Save image.
  */
-bool IMB_save_image(ImBuf *ibuf, const char *filepath, int flags);
+bool IMB_save_image(ImBuf *ibuf, const char *filepath, ImBufFlags flags);
+Vector<uint8_t> IMB_save_image_to_buffer(ImBuf *ibuf, ImBufFlags flags);
 
 /**
  * Test image file.
@@ -120,7 +122,7 @@ ImBuf *IMB_thumb_load_image(const char *filepath,
 /**
  * Allocate and free image buffer.
  */
-ImBuf *IMB_allocImBuf(unsigned int x, unsigned int y, unsigned char planes, unsigned int flags);
+ImBuf *IMB_allocImBuf(unsigned int x, unsigned int y, ImBufFlags flags);
 void IMB_freeImBuf(ImBuf *ibuf);
 
 /**
@@ -128,8 +130,7 @@ void IMB_freeImBuf(ImBuf *ibuf);
  *
  * Use in cases when temporary image buffer is allocated on stack.
  */
-bool IMB_initImBuf(
-    ImBuf *ibuf, unsigned int x, unsigned int y, unsigned char planes, unsigned int flags);
+bool IMB_initImBuf(ImBuf *ibuf, unsigned int x, unsigned int y, ImBufFlags flags);
 
 /**
  * Create a copy of a pixel buffer and wrap it to a new ImBuf
@@ -151,15 +152,6 @@ ImBuf *IMB_allocFromBuffer(const uint8_t *byte_buffer,
                            unsigned int channels);
 
 /**
- * Assign the content of the corresponding buffer with the given data and ownership.
- * The current content of the buffer is released corresponding to its ownership configuration.
- *
- * \note Does not modify the topology (width, height, number of channels).
- */
-void IMB_assign_byte_buffer(ImBuf *ibuf, uint8_t *buffer_data, ImBufOwnership ownership);
-void IMB_assign_float_buffer(ImBuf *ibuf, float *buffer_data, ImBufOwnership ownership);
-
-/**
  * Assign the GPU texture of the buffer to the given texture. The current GPU texture is released.
  *
  * \note Does not modify the topology (width, height, number of channels).
@@ -174,35 +166,6 @@ void IMB_assign_gpu_texture(ImBuf *ibuf, gpu::Texture *texture);
  * \warning Not thread-safe, so callee should worry about thread locks.
  */
 void IMB_ensure_host_buffer(ImBuf *ibuf);
-
-/**
- * Assign the content and the color space of the corresponding buffer the data from the given
- * buffer.
- *
- * \note Does not modify the topology (width, height, number of channels).
- *
- * \note The ownership of the data in the source buffer is ignored.
- */
-void IMB_assign_byte_buffer(ImBuf *ibuf, const ImBufByteBuffer &buffer, ImBufOwnership ownership);
-void IMB_assign_float_buffer(ImBuf *ibuf,
-                             const ImBufFloatBuffer &buffer,
-                             ImBufOwnership ownership);
-
-/**
- * Make corresponding buffers available for modification.
- * Is achieved by ensuring that the given ImBuf is the only owner of the underlying buffer data.
- */
-void IMB_make_writable_byte_buffer(ImBuf *ibuf);
-void IMB_make_writable_float_buffer(ImBuf *ibuf);
-
-/**
- * Steal the buffer data pointer: the ImBuf is no longer an owner of this data.
- * \note If the ImBuf does not own the data the behavior is undefined.
- * \note Stealing encoded buffer resets the encoded size.
- */
-uint8_t *IMB_steal_byte_buffer(ImBuf *ibuf);
-float *IMB_steal_float_buffer(ImBuf *ibuf);
-uint8_t *IMB_steal_encoded_buffer(ImBuf *ibuf);
 
 /**
  * Increase reference count to imbuf
@@ -396,6 +359,19 @@ enum class IMBScaleFilter {
   Box,
 };
 
+void IMB_scale_box(const float *src_buffer,
+                   int2 src_size,
+                   int channels,
+                   float *dst_buffer,
+                   int2 dst_size,
+                   bool threaded);
+void IMB_scale_box(const uchar *src_buffer,
+                   int2 src_size,
+                   int channels,
+                   uchar *dst_buffer,
+                   int2 dst_size,
+                   bool threaded);
+
 /**
  * Scale/resize image to new dimensions.
  * Return true if \a ibuf is modified.
@@ -560,7 +536,6 @@ void IMB_rectfill(ImBuf *drect, const float col[4]);
  * of the rectangular area to be filled, (x2, y2) is the end point. Note that values are allowed to
  * be loosely ordered, which means that x2 is allowed to be lower than x1, as well as y2 is allowed
  * to be lower than y1. No matter the order the area between x1 and x2, and y1 and y2 is filled.
- * \param colorspace: color-space reference for display space.
  */
 void IMB_rectfill_area(
     ImBuf *ibuf, const float scene_linear_color[4], int x1, int y1, int x2, int y2);
@@ -597,7 +572,7 @@ bool IMB_alloc_float_pixels(ImBuf *ibuf, unsigned int channels, bool initialize_
  */
 void IMB_free_float_pixels(ImBuf *ibuf);
 
-/** Deallocate all CPU side data storage (byte, float, encoded). */
+/** Deallocate all CPU side data storage (byte, float). */
 void IMB_free_all_data(ImBuf *ibuf);
 
 /**

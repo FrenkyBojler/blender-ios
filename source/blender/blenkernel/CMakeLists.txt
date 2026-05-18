@@ -56,10 +56,9 @@ set(SRC
   intern/bake_data_block_map.cc
   intern/bake_geometry_nodes_modifier.cc
   intern/bake_geometry_nodes_modifier_pack.cc
-  intern/bake_items.cc
   intern/bake_items_paths.cc
   intern/bake_items_serialize.cc
-  intern/bake_items_socket.cc
+  intern/bake_values.cc
   intern/blender.cc
   intern/blender_cli_command.cc
   intern/blender_copybuffer.cc
@@ -309,6 +308,7 @@ set(SRC
   intern/volume_grid.cc
   intern/volume_grid_fields.cc
   intern/volume_grid_file_cache.cc
+  intern/volume_grid_multi_function_eval.cc
   intern/volume_render.cc
   intern/volume_to_mesh.cc
   intern/wm_runtime.cc
@@ -329,6 +329,7 @@ set(SRC
   BKE_asset_edit.hh
   BKE_attribute.h
   BKE_attribute.hh
+  BKE_attribute_enums.hh
   BKE_attribute_filter.hh
   BKE_attribute_filters.hh
   BKE_attribute_legacy_convert.hh
@@ -340,10 +341,9 @@ set(SRC
   BKE_bake_data_block_map.hh
   BKE_bake_geometry_nodes_modifier.hh
   BKE_bake_geometry_nodes_modifier_pack.hh
-  BKE_bake_items.hh
   BKE_bake_items_paths.hh
   BKE_bake_items_serialize.hh
-  BKE_bake_items_socket.hh
+  BKE_bake_values.hh
   BKE_blender.hh
   BKE_blender_cli_command.hh
   BKE_blender_copybuffer.hh
@@ -495,6 +495,7 @@ set(SRC
   BKE_path_templates.hh
   BKE_pointcache.h
   BKE_pointcloud.hh
+  BKE_pose.hh
   BKE_pose_backup.h
   BKE_preferences.h
   BKE_preview_image.hh
@@ -536,6 +537,7 @@ set(SRC
   BKE_volume_grid_fields.hh
   BKE_volume_grid_file_cache.hh
   BKE_volume_grid_fwd.hh
+  BKE_volume_grid_multi_function_eval.hh
   BKE_volume_grid_process.hh
   BKE_volume_grid_type_traits.hh
   BKE_volume_openvdb.hh

@@ -218,7 +218,7 @@ struct ProjPaintImage {
   ImBuf *ibuf;
   ImagePaintPartialRedraw *partRedrawRect;
   /** Only used to build undo tiles during painting. */
-  volatile void **undoRect;
+  volatile const void **undoRect;
   /** The mask accumulation must happen on canvas, not on space screen bucket.
    * Here we store the mask rectangle. */
   ushort **maskRect;
@@ -1831,30 +1831,46 @@ static int project_paint_undo_subtiles(const TileInfo *tinf, int tx, int ty)
 
   if (generate_tile) {
     PaintTileMap *undo_tiles = ED_image_paint_tile_map_get();
-    volatile void *undorect;
+    volatile const void *undorect = nullptr;
     if (tinf->masked) {
-      undorect = ED_image_paint_tile_push(undo_tiles,
-                                          pjIma->ima,
-                                          pjIma->ibuf,
-                                          &pjIma->iuser,
-                                          tx,
-                                          ty,
-                                          &pjIma->maskRect[tile_index],
-                                          &pjIma->valid[tile_index],
-                                          true,
-                                          false);
+      if (const ImBuf *ibuf = ED_image_paint_tile_push(undo_tiles,
+                                                       pjIma->ima,
+                                                       pjIma->ibuf,
+                                                       &pjIma->iuser,
+                                                       tx,
+                                                       ty,
+                                                       &pjIma->maskRect[tile_index],
+                                                       &pjIma->valid[tile_index],
+                                                       true,
+                                                       false))
+      {
+        if (ibuf->float_data()) {
+          undorect = ibuf->float_data();
+        }
+        else {
+          undorect = ibuf->byte_data();
+        }
+      }
     }
     else {
-      undorect = ED_image_paint_tile_push(undo_tiles,
-                                          pjIma->ima,
-                                          pjIma->ibuf,
-                                          &pjIma->iuser,
-                                          tx,
-                                          ty,
-                                          nullptr,
-                                          &pjIma->valid[tile_index],
-                                          true,
-                                          false);
+      if (const ImBuf *ibuf = ED_image_paint_tile_push(undo_tiles,
+                                                       pjIma->ima,
+                                                       pjIma->ibuf,
+                                                       &pjIma->iuser,
+                                                       tx,
+                                                       ty,
+                                                       nullptr,
+                                                       &pjIma->valid[tile_index],
+                                                       true,
+                                                       false))
+      {
+        if (ibuf->float_data()) {
+          undorect = ibuf->float_data();
+        }
+        else {
+          undorect = ibuf->byte_data();
+        }
+      }
     }
 
     BKE_image_mark_dirty(pjIma->ima, pjIma->ibuf);
@@ -4348,14 +4364,13 @@ static void project_paint_build_proj_ima(ProjPaintState *ps,
 {
   ProjPaintImage *projIma;
   PrepareImageEntry *entry;
-  int i;
 
   /* build an array of images we use */
   projIma = ps->projImages = static_cast<ProjPaintImage *>(
       BLI_memarena_alloc(arena, sizeof(ProjPaintImage) * ps->image_tot));
 
-  for (entry = static_cast<PrepareImageEntry *>(used_images->first), i = 0; entry;
-       entry = entry->next, i++, projIma++)
+  for (entry = static_cast<PrepareImageEntry *>(used_images->first); entry;
+       entry = entry->next, projIma++)
   {
     projIma->iuser = entry->iuser;
     int size;
@@ -4372,7 +4387,7 @@ static void project_paint_build_proj_ima(ProjPaintState *ps,
     projIma->partRedrawRect = static_cast<ImagePaintPartialRedraw *>(
         BLI_memarena_alloc(arena, sizeof(ImagePaintPartialRedraw) * PROJ_BOUNDBOX_SQUARED));
     partial_redraw_array_init(projIma->partRedrawRect);
-    projIma->undoRect = static_cast<volatile void **>(BLI_memarena_alloc(arena, size));
+    projIma->undoRect = static_cast<volatile const void **>(BLI_memarena_alloc(arena, size));
     memset(static_cast<void *>(projIma->undoRect), 0, size);
     projIma->maskRect = static_cast<ushort **>(BLI_memarena_alloc(arena, size));
     memset(projIma->maskRect, 0, size);
@@ -5904,7 +5919,7 @@ static void paint_proj_stroke_ps(const bContext * /*C*/,
       img->is_data = false;
       img->is_srgb = false;
 
-      if (ibuf->colormanage_flag & IMB_COLORMANAGE_IS_DATA) {
+      if (ibuf->colorspace_is_data()) {
         img->is_data = true;
       }
       else if (ibuf->byte_data() && ibuf->byte_buffer.colorspace) {
@@ -6445,8 +6460,8 @@ static wmOperatorStatus texture_paint_image_from_view_exec(bContext *C, wmOperat
    * texture paint overlay opacity */
   View3D *v3d = static_cast<View3D *>(area->spacedata.first);
   View3D v3d_copy = dna::shallow_copy(*v3d);
-  v3d_copy.gridflag = 0;
-  v3d_copy.flag2 = 0;
+  v3d_copy.gridflag = eView3D_GridFlag{};
+  v3d_copy.flag2 = eView3D_Flag2{};
   v3d_copy.flag = V3D_HIDE_HELPLINES;
   v3d_copy.gizmo_flag = V3D_GIZMO_HIDE;
 
@@ -6463,7 +6478,7 @@ static wmOperatorStatus texture_paint_image_from_view_exec(bContext *C, wmOperat
                                         region,
                                         w,
                                         h,
-                                        IB_byte_data,
+                                        ImBufFlags::ByteData,
                                         R_ALPHAPREMUL,
                                         nullptr,
                                         false,
@@ -6557,7 +6572,7 @@ bool ED_paint_proj_mesh_data_check(Scene &scene,
   bool has_stencil = true;
   bool has_uvs = true;
 
-  imapaint.missing_data = 0;
+  imapaint.missing_data = eImagePaint_MissingData{};
 
   BLI_assert(ob.type == OB_MESH);
 
@@ -6786,7 +6801,7 @@ static void default_paint_slot_color_get(int layer_type, Material *ma, float col
         in_node = bke::node_add_static_node(nullptr, *ntree, SH_NODE_BSDF_PRINCIPLED);
       }
       bNodeSocket *in_sock = bke::node_find_socket(
-          *in_node, SOCK_IN, layer_type_items[layer_type].name);
+          *in_node, SOCK_IN, UString(layer_type_items[layer_type].name));
       switch (in_sock->type) {
         case SOCK_FLOAT: {
           bNodeSocketValueFloat *socket_data = static_cast<bNodeSocketValueFloat *>(
@@ -6887,21 +6902,21 @@ static bool proj_paint_add_slot(bContext *C, wmOperator *op)
     bNode *out_node = new_node;
 
     if (in_node != nullptr) {
-      bNodeSocket *out_sock = bke::node_find_socket(*out_node, SOCK_OUT, "Color");
+      bNodeSocket *out_sock = bke::node_find_socket(*out_node, SOCK_OUT, "Color"_ustr);
       bNodeSocket *in_sock = nullptr;
 
       if (type >= LAYER_BASE_COLOR && type < LAYER_NORMAL) {
-        in_sock = bke::node_find_socket(*in_node, SOCK_IN, layer_type_items[type].name);
+        in_sock = bke::node_find_socket(*in_node, SOCK_IN, UString(layer_type_items[type].name));
       }
       else if (type == LAYER_NORMAL) {
         bNode *nor_node;
         nor_node = bke::node_add_static_node(C, *ntree, SH_NODE_NORMAL_MAP);
 
-        in_sock = bke::node_find_socket(*nor_node, SOCK_IN, "Color");
+        in_sock = bke::node_find_socket(*nor_node, SOCK_IN, "Color"_ustr);
         bke::node_add_link(*ntree, *out_node, *out_sock, *nor_node, *in_sock);
 
-        in_sock = bke::node_find_socket(*in_node, SOCK_IN, "Normal");
-        out_sock = bke::node_find_socket(*nor_node, SOCK_OUT, "Normal");
+        in_sock = bke::node_find_socket(*in_node, SOCK_IN, "Normal"_ustr);
+        out_sock = bke::node_find_socket(*nor_node, SOCK_OUT, "Normal"_ustr);
 
         out_node = nor_node;
       }
@@ -6909,11 +6924,11 @@ static bool proj_paint_add_slot(bContext *C, wmOperator *op)
         bNode *bump_node;
         bump_node = bke::node_add_static_node(C, *ntree, SH_NODE_BUMP);
 
-        in_sock = bke::node_find_socket(*bump_node, SOCK_IN, "Height");
+        in_sock = bke::node_find_socket(*bump_node, SOCK_IN, "Height"_ustr);
         bke::node_add_link(*ntree, *out_node, *out_sock, *bump_node, *in_sock);
 
-        in_sock = bke::node_find_socket(*in_node, SOCK_IN, "Normal");
-        out_sock = bke::node_find_socket(*bump_node, SOCK_OUT, "Normal");
+        in_sock = bke::node_find_socket(*in_node, SOCK_IN, "Normal"_ustr);
+        out_sock = bke::node_find_socket(*bump_node, SOCK_OUT, "Normal"_ustr);
 
         out_node = bump_node;
       }
@@ -6923,7 +6938,7 @@ static bool proj_paint_add_slot(bContext *C, wmOperator *op)
         in_node = output_nodes.is_empty() ? nullptr : output_nodes.first();
 
         if (in_node != nullptr) {
-          in_sock = bke::node_find_socket(*in_node, SOCK_IN, layer_type_items[type].name);
+          in_sock = bke::node_find_socket(*in_node, SOCK_IN, UString(layer_type_items[type].name));
         }
         else {
           in_sock = nullptr;
