@@ -154,27 +154,26 @@ static Array<float2> sample_profile_curve(const bke::CurvesGeometry &curves)
 static void node_geo_exec(GeoNodeExecParams params)
 {
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Mesh"_ustr);
-  Field<bool> selection_field = params.extract_input<Field<bool>>("Selection"_ustr);
+  const Field<bool> selection_field = params.extract_input<Field<bool>>("Selection"_ustr);
   const AttributeFilter &attribute_filter = params.get_attribute_filter("Mesh"_ustr);
-  int segments = params.extract_input<int>("Segments"_ustr);
-  geometry::BevelAffect affect = params.extract_input<blender::geometry::BevelAffect>(
-      "Affect Kind"_ustr);
+  const int segments = params.extract_input<int>("Segments"_ustr);
+  const auto affect = params.extract_input<blender::geometry::BevelAffect>("Affect Kind"_ustr);
 
-  Field<float> offset0_field = params.extract_input<Field<float>>("Offset 0"_ustr);
-  Field<float> offset1_field = params.extract_input<Field<float>>("Offset 1"_ustr);
-  Field<float> offset2_field = params.extract_input<Field<float>>("Offset 2"_ustr);
-  Field<float> offset3_field = params.extract_input<Field<float>>("Offset 3"_ustr);
+  const Field<float> offset0_field = params.extract_input<Field<float>>("Offset 0"_ustr);
+  const Field<float> offset1_field = params.extract_input<Field<float>>("Offset 1"_ustr);
+  const Field<float> offset2_field = params.extract_input<Field<float>>("Offset 2"_ustr);
+  const Field<float> offset3_field = params.extract_input<Field<float>>("Offset 3"_ustr);
 
-  Field<bool> miter_field = params.extract_input<Field<bool>>("Miter"_ustr);
-  Field<float> spread_field = params.extract_input<Field<float>>("Spread"_ustr);
+  const Field<bool> miter_field = params.extract_input<Field<bool>>("Miter"_ustr);
+  const Field<float> spread_field = params.extract_input<Field<float>>("Spread"_ustr);
   const float shape = params.extract_input<float>("Shape"_ustr);
 
   /* Sample the Profile input curve into a flat float2 array.
    * The array is built once here and shared across all instances in the geometry loop;
    * BevelParameters holds it by const reference (non-owning Span). */
-  GeometrySet profile_set = params.extract_input<GeometrySet>("Profile"_ustr);
+  const GeometrySet profile_geometry = params.extract_input<GeometrySet>("Profile"_ustr);
   Array<float2> profile_samples;
-  if (const Curves *profile_curves_id = profile_set.get_curves()) {
+  if (const Curves *profile_curves_id = profile_geometry.get_curves()) {
     const bke::CurvesGeometry &profile_geom = profile_curves_id->geometry.wrap();
     profile_samples = sample_profile_curve(profile_geom);
   }
