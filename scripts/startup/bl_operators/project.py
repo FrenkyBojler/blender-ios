@@ -25,6 +25,7 @@ PROJECT_CONFIG = "project.toml"
 class ProjectConfig:
     name: str
 
+    @staticmethod
     def new_from_project(project):
         """Create a ProjectConfig object from an existing real project."""
         return ProjectConfig(name=project.name)
