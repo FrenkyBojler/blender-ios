@@ -164,7 +164,7 @@ struct RequestIdentifier {
 };
 
 struct FileProgress {
-  std::optional<int64_t> expected_size_in_bytes;
+  int64_t expected_size_in_bytes;
   int64_t current_size_in_bytes = 0;
 };
 
@@ -198,7 +198,7 @@ struct ProgressTracker {
   static void file_requested(wmWindowManager &wm,
                              RequestIdentifier &&request,
                              std::string &&abs_url,
-                             std::optional<int64_t> size_in_bytes);
+                             int64_t size_in_bytes);
   static void file_report_progress(StringRef absolute_file_url, int64_t size_in_bytes);
   /** Should be called when a file download is finished, successfully or not. */
   static void file_finished(const bContext &C, StringRef absolute_file_url);
@@ -223,7 +223,7 @@ wmTimer *ProgressTracker::notification_timer = nullptr;
 void ProgressTracker::file_requested(wmWindowManager &wm,
                                      RequestIdentifier &&request,
                                      std::string &&abs_url,
-                                     const std::optional<int64_t> size_in_bytes)
+                                     const int64_t size_in_bytes)
 {
   ProgressTracker::requested_files.add(abs_url,
                                        FileProgress{.expected_size_in_bytes = size_in_bytes});
@@ -321,25 +321,22 @@ float remote_library_total_asset_downloads_progress()
   int expected_bytes = 0;
   int current_bytes = 0;
   for (const FileProgress &progress : ProgressTracker::requested_files.values()) {
-    // TODO better handle files without expected size?
-    if (progress.expected_size_in_bytes) {
-      expected_bytes += *progress.expected_size_in_bytes;
-      current_bytes += progress.current_size_in_bytes;
-    }
+    expected_bytes += progress.expected_size_in_bytes;
+    current_bytes += progress.current_size_in_bytes;
   }
 
   for (const FileProgress &finished : ProgressTracker::done_files.values()) {
-    if (finished.expected_size_in_bytes) {
-      expected_bytes += *finished.expected_size_in_bytes;
-      current_bytes += *finished.expected_size_in_bytes;
-    }
+    expected_bytes += finished.expected_size_in_bytes;
+    current_bytes += finished.expected_size_in_bytes;
   }
 
   if (!expected_bytes) {
     return 0.0f;
   }
 
-  return std::clamp(float(current_bytes) / expected_bytes, 0.0f, 1.0f);
+  const float progress = float(current_bytes) / expected_bytes;
+  BLI_assert(progress >= -0.0001f && progress <= 1.0001f);
+  return std::clamp(progress, 0.0f, 1.0f);
 }
 
 bool remote_library_has_unfinished_asset_downloads()
