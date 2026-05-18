@@ -1679,10 +1679,12 @@ class XpbdSolverStep {
 
       for (const int data_key_i : geometries_.data_keys.index_range()) {
         GeometryData &geo_data = *geometries_.data[data_key_i];
-        if (!geo_data.uses_rotation) {
+        if (!geo_data.curves) {
           continue;
         }
-        if (!geo_data.curves) {
+        if (!geo_data.uses_rotation) {
+          this->report(NodeWarningType::Error,
+                       TIP_("Rod stretch/shear constraint requires \"rotation\" attribute"));
           continue;
         }
         if (!this->effector_applies_to_geometry(path, bundle, data_key_i)) {
@@ -1787,10 +1789,12 @@ class XpbdSolverStep {
 
       for (const int data_key_i : geometries_.data.index_range()) {
         GeometryData &geo_data = *geometries_.data[data_key_i];
-        if (!geo_data.uses_rotation) {
+        if (!geo_data.curves) {
           continue;
         }
-        if (!geo_data.curves) {
+        if (!geo_data.uses_rotation) {
+          this->report(NodeWarningType::Error,
+                       TIP_("Rod stretch/shear constraint requires \"rotation\" attribute"));
           continue;
         }
         if (!this->effector_applies_to_geometry(path, bundle, data_key_i)) {
