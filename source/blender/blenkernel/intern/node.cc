@@ -2128,80 +2128,83 @@ static std::unique_ptr<IDProperty, idprop::IDPropertyDeleter> create_socket_meta
 {
   const bNodeSocketType *base_typeinfo = node_socket_type_find(socket.socket_type);
 
-  auto sock_prop = idprop::create_group(socket.identifier);
-  IDP_AddToGroup(sock_prop.get(),
+  auto socket_prop = idprop::create_group(socket.identifier);
+  IDP_AddToGroup(socket_prop.get(),
                  idprop::create("name", socket.name ? socket.name : "").release());
-  IDP_AddToGroup(sock_prop.get(), idprop::create("type", base_typeinfo->type).release());
+  IDP_AddToGroup(socket_prop.get(), idprop::create("type", base_typeinfo->type).release());
   IDP_AddToGroup(
-      sock_prop.get(),
+      socket_prop.get(),
       idprop::create("description", socket.description ? socket.description : "").release());
   switch (base_typeinfo->type) {
     case SOCK_FLOAT: {
       const auto &value = node_interface::get_socket_data_as<bNodeSocketValueFloat>(socket);
-      IDP_AddToGroup(sock_prop.get(), idprop::create("subtype", value.subtype).release());
-      IDP_AddToGroup(sock_prop.get(), idprop::create("min", value.min).release());
-      IDP_AddToGroup(sock_prop.get(), idprop::create("max", value.max).release());
-      IDP_AddToGroup(sock_prop.get(), idprop::create("default_value", value.value).release());
+      IDP_AddToGroup(socket_prop.get(), idprop::create("subtype", value.subtype).release());
+      IDP_AddToGroup(socket_prop.get(), idprop::create("min", value.min).release());
+      IDP_AddToGroup(socket_prop.get(), idprop::create("max", value.max).release());
+      IDP_AddToGroup(socket_prop.get(), idprop::create("default_value", value.value).release());
       if (socket.default_attribute_name) {
         IDP_AddToGroup(
-            sock_prop.get(),
+            socket_prop.get(),
             idprop::create("default_attribute_name", socket.default_attribute_name).release());
       }
       break;
     }
     case SOCK_VECTOR: {
       const auto &value = node_interface::get_socket_data_as<bNodeSocketValueVector>(socket);
-      IDP_AddToGroup(sock_prop.get(), idprop::create("subtype", value.subtype).release());
+      IDP_AddToGroup(socket_prop.get(), idprop::create("subtype", value.subtype).release());
       IDP_AddToGroup(
-          sock_prop.get(),
+          socket_prop.get(),
           idprop::create("default_value", Span(value.value, value.dimensions)).release());
       if (value.dimensions != 3) {
-        IDP_AddToGroup(sock_prop.get(), idprop::create("dimensions", value.dimensions).release());
+        IDP_AddToGroup(socket_prop.get(),
+                       idprop::create("dimensions", value.dimensions).release());
       }
-      IDP_AddToGroup(sock_prop.get(), idprop::create("min", value.min).release());
-      IDP_AddToGroup(sock_prop.get(), idprop::create("max", value.max).release());
+      IDP_AddToGroup(socket_prop.get(), idprop::create("min", value.min).release());
+      IDP_AddToGroup(socket_prop.get(), idprop::create("max", value.max).release());
       if (socket.default_attribute_name) {
         IDP_AddToGroup(
-            sock_prop.get(),
+            socket_prop.get(),
             idprop::create("default_attribute_name", socket.default_attribute_name).release());
       }
       break;
     }
     case SOCK_INT_VECTOR: {
       const auto &value = node_interface::get_socket_data_as<bNodeSocketValueIntVector>(socket);
-      IDP_AddToGroup(sock_prop.get(), idprop::create("subtype", value.subtype).release());
+      IDP_AddToGroup(socket_prop.get(), idprop::create("subtype", value.subtype).release());
       IDP_AddToGroup(
-          sock_prop.get(),
+          socket_prop.get(),
           idprop::create("default_value", Span(value.value, value.dimensions)).release());
       if (value.dimensions != 3) {
-        IDP_AddToGroup(sock_prop.get(), idprop::create("dimensions", value.dimensions).release());
+        IDP_AddToGroup(socket_prop.get(),
+                       idprop::create("dimensions", value.dimensions).release());
       }
-      IDP_AddToGroup(sock_prop.get(), idprop::create("min", value.min).release());
-      IDP_AddToGroup(sock_prop.get(), idprop::create("max", value.max).release());
+      IDP_AddToGroup(socket_prop.get(), idprop::create("min", value.min).release());
+      IDP_AddToGroup(socket_prop.get(), idprop::create("max", value.max).release());
       if (socket.default_attribute_name) {
         IDP_AddToGroup(
-            sock_prop.get(),
+            socket_prop.get(),
             idprop::create("default_attribute_name", socket.default_attribute_name).release());
       }
       break;
     }
     case SOCK_RGBA: {
       const auto &value = node_interface::get_socket_data_as<bNodeSocketValueRGBA>(socket);
-      IDP_AddToGroup(sock_prop.get(),
+      IDP_AddToGroup(socket_prop.get(),
                      idprop::create("default_value", Span(value.value, 4)).release());
       if (socket.default_attribute_name) {
         IDP_AddToGroup(
-            sock_prop.get(),
+            socket_prop.get(),
             idprop::create("default_attribute_name", socket.default_attribute_name).release());
       }
       break;
     }
     case SOCK_BOOLEAN: {
       const auto &value = node_interface::get_socket_data_as<bNodeSocketValueBoolean>(socket);
-      IDP_AddToGroup(sock_prop.get(), idprop::create_bool("default_value", value.value).release());
+      IDP_AddToGroup(socket_prop.get(),
+                     idprop::create_bool("default_value", value.value).release());
       if (socket.default_attribute_name) {
         IDP_AddToGroup(
-            sock_prop.get(),
+            socket_prop.get(),
             idprop::create("default_attribute_name", socket.default_attribute_name).release());
       }
       break;
@@ -2209,32 +2212,32 @@ static std::unique_ptr<IDProperty, idprop::IDPropertyDeleter> create_socket_meta
     case SOCK_ROTATION: {
       const auto &value = node_interface::get_socket_data_as<bNodeSocketValueRotation>(socket);
       const float3 default_value = float3(math::EulerXYZ(float3(value.value_euler)));
-      IDP_AddToGroup(sock_prop.get(),
+      IDP_AddToGroup(socket_prop.get(),
                      idprop::create("default_value", Span(&default_value.x, 3)).release());
       if (socket.default_attribute_name) {
         IDP_AddToGroup(
-            sock_prop.get(),
+            socket_prop.get(),
             idprop::create("default_attribute_name", socket.default_attribute_name).release());
       }
       break;
     }
     case SOCK_INT: {
       const auto &value = node_interface::get_socket_data_as<bNodeSocketValueInt>(socket);
-      IDP_AddToGroup(sock_prop.get(), idprop::create("subtype", value.subtype).release());
-      IDP_AddToGroup(sock_prop.get(), idprop::create("min", value.min).release());
-      IDP_AddToGroup(sock_prop.get(), idprop::create("max", value.max).release());
-      IDP_AddToGroup(sock_prop.get(), idprop::create("default_value", value.value).release());
+      IDP_AddToGroup(socket_prop.get(), idprop::create("subtype", value.subtype).release());
+      IDP_AddToGroup(socket_prop.get(), idprop::create("min", value.min).release());
+      IDP_AddToGroup(socket_prop.get(), idprop::create("max", value.max).release());
+      IDP_AddToGroup(socket_prop.get(), idprop::create("default_value", value.value).release());
       if (socket.default_attribute_name) {
         IDP_AddToGroup(
-            sock_prop.get(),
+            socket_prop.get(),
             idprop::create("default_attribute_name", socket.default_attribute_name).release());
       }
       break;
     }
     case SOCK_STRING: {
       const auto &value = node_interface::get_socket_data_as<bNodeSocketValueString>(socket);
-      IDP_AddToGroup(sock_prop.get(), idprop::create("subtype", value.subtype).release());
-      IDP_AddToGroup(sock_prop.get(), idprop::create("default_value", value.value).release());
+      IDP_AddToGroup(socket_prop.get(), idprop::create("subtype", value.subtype).release());
+      IDP_AddToGroup(socket_prop.get(), idprop::create("default_value", value.value).release());
       break;
     }
     case SOCK_MENU: {
@@ -2245,7 +2248,8 @@ static std::unique_ptr<IDProperty, idprop::IDPropertyDeleter> create_socket_meta
             }))
         {
           /* Only add the default value property if it's contained in the enum items. */
-          IDP_AddToGroup(sock_prop.get(), idprop::create("default_value", value.value).release());
+          IDP_AddToGroup(socket_prop.get(),
+                         idprop::create("default_value", value.value).release());
         }
         auto items = idprop::create_group("items");
         for (const RuntimeNodeEnumItem &enum_item : value.enum_items->items) {
@@ -2255,7 +2259,7 @@ static std::unique_ptr<IDProperty, idprop::IDPropertyDeleter> create_socket_meta
                          idprop::create("description", enum_item.description).release());
           IDP_AddToGroup(items.get(), item.release());
         }
-        IDP_AddToGroup(sock_prop.get(), items.release());
+        IDP_AddToGroup(socket_prop.get(), items.release());
       }
       break;
     }
@@ -2277,7 +2281,7 @@ static std::unique_ptr<IDProperty, idprop::IDPropertyDeleter> create_socket_meta
     case SOCK_SOUND:
       break;
   }
-  return sock_prop;
+  return socket_prop;
 }
 
 IDProperty *node_create_asset_meta_data_properties(const bNodeTree &node_tree)
