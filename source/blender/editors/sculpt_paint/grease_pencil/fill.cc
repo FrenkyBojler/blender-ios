@@ -1718,7 +1718,7 @@ std::optional<bke::CurvesGeometry> delaunay_fill_strokes(
   int first_tri_index = get_tri_for_point(pos_hint[hint_index]);
 
   /* Get the first triangle that is touching the bounding box. */
-  auto get_first_boundery_tri = [&]() {
+  auto get_first_boundary_tri = [&]() {
     for (const int tri_index : result.face.index_range()) {
       for (const int j : IndexRange(3)) {
         const int next_tri = tri_adjacency[tri_index][j];
@@ -1737,7 +1737,7 @@ std::optional<bke::CurvesGeometry> delaunay_fill_strokes(
     if (!invert) {
       return std::nullopt;
     }
-    first_tri_index = get_first_boundery_tri();
+    first_tri_index = get_first_boundary_tri();
   }
 
   if (gap_factor > 0.0f) {
@@ -1805,7 +1805,7 @@ std::optional<bke::CurvesGeometry> delaunay_fill_strokes(
     }
   }
   else {
-    int hint_tri_index = get_first_boundery_tri();
+    int hint_tri_index = get_first_boundary_tri();
     add_weights_for_tri(tri_adjacency.as_span(),
                         tri_edges.as_span(),
                         edge_weights.as_span(),
