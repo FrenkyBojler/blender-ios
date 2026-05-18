@@ -266,7 +266,7 @@ class ExtendableMesh {
                             GuardedAllocator>;
   EdgeMap edge_lookup_;
 
-  index_mask::IndexMaskMemory memory_;
+  IndexMaskMemory memory_;
   Array<int> vert_to_edge_offsets_;
   Array<int> vert_to_edge_indices_;
   Array<int> edge_to_face_map_offsets_;
@@ -844,7 +844,7 @@ void UVMapInfo::find_components(const ExtendableMesh &emesh)
   stack.reserve(faces.size());
 
   int current_component = -1;
-  for (int f = 0; f < faces.size(); f++) {
+  for (const int f : faces.index_range()) {
     if (this->face_component[f] == -1 && !in_stack[f]) {
       current_component++;
       stack.append(f);
@@ -892,7 +892,7 @@ void UVMapInfo::find_components(const ExtendableMesh &emesh)
   float bot_face_z = 1e30f;
   int bot_face_component = -1;
 
-  for (int f = 0; f < faces.size(); f++) {
+  for (const int f : faces.index_range()) {
     float min_z = 1e30f;
     float max_z = -1e30f;
     for (const int corner : faces[f]) {
@@ -7679,7 +7679,7 @@ static std::optional<Mesh *> build_output_mesh(const BevelState &state)
   const Mesh &src_mesh = emesh.mesh;
 
   /* Collect surviving original element masks from the kill arrays. */
-  index_mask::IndexMaskMemory memory;
+  IndexMaskMemory memory;
   const IndexMask src_survive_verts = IndexMask::from_bools(emesh.kill_verts_array(), memory)
                                           .complement(IndexMask(src_mesh.verts_num), memory);
   const IndexMask src_survive_edges = IndexMask::from_bools(emesh.kill_edges_array(), memory)
