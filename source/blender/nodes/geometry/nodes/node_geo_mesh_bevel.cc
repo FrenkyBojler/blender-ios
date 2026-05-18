@@ -167,6 +167,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   Field<bool> miter_field = params.extract_input<Field<bool>>("Miter"_ustr);
   Field<float> spread_field = params.extract_input<Field<float>>("Spread"_ustr);
+  const float shape = params.extract_input<float>("Shape"_ustr);
 
   /* Sample the Profile input curve into a flat float2 array.
    * The array is built once here and shared across all instances in the geometry loop;
@@ -186,7 +187,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     geometry::BevelParameters bevel_params;
     bevel_params.affect_type = affect;
     bevel_params.segments = segments;
-    bevel_params.shape = params.extract_input<float>("Shape"_ustr);
+    bevel_params.shape = shape;
     /* Move the samples into bevel_params (zero-copy; profile_samples stays valid
      * through the geometry loop because it is declared in this outer scope). */
     bevel_params.custom_profile_samples = profile_samples;
