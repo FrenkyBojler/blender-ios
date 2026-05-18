@@ -79,12 +79,14 @@ static void rna_BlenderProject_name_set(PointerRNA *ptr, const char *value)
     bke::BlenderProject *project = static_cast<bke::BlenderProject *>(ptr->data);
     BLI_assert(project == locked_project);
 
-    if (strlen(value) == 0) {
+    StringRef name = StringRef(value);
+
+    if (name.is_empty()) {
       /* Leave the name as-is when passed an empty (which is invalid) name. */
       return;
     }
 
-    project->set_name(value);
+    project->set_name(name);
   });
 }
 
