@@ -261,8 +261,7 @@ TEST(bounds, IntersectSegment3D)
   EXPECT_TRUE(int_bounds.intersects_segment(int3(0, 2, -4), int3(0, 2, 4)));
 
   /* Line segment is single point inside bounding box. */
-  EXPECT_TRUE(
-      float_bounds.intersects_segment(float3(0.0f, 0.0f, 0.0f), float3(0.0f, 0.0f, 0.0f)));
+  EXPECT_TRUE(float_bounds.intersects_segment(float3(0.0f, 0.0f, 0.0f), float3(0.0f, 0.0f, 0.0f)));
   EXPECT_TRUE(int_bounds.intersects_segment(int3(0, 0, 0), int3(0, 0, 0)));
 
   /* Line segment is single point outside bounding box. */
