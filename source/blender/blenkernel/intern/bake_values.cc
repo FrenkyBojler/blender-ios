@@ -427,28 +427,24 @@ class RuntimeToBakeValue {
 
   void runtime_to_bake__AttributeStorage(AttributeStorage &attributes)
   {
-    Vector<std::string> attributes_to_remove;
-    Vector<std::pair<std::string, std::string>> attributes_to_rename;
-    for (const Attribute &attribute : attributes) {
+    Set<const Attribute *> attributes_to_remove;
+    Map<Attribute *, StringRef> attributes_to_rename;
+    for (Attribute &attribute : attributes) {
       const StringRef attribute_name = attribute.name();
       if (attribute_name_is_anonymous(attribute_name) &&
           !attribute_name.startswith(anonymous_bake_attribute_prefix))
       {
         const std::string *new_name = referenced_anonymous_attributes_.lookup_ptr(attribute_name);
         if (new_name) {
-          attributes_to_rename.append({attribute_name, *new_name});
+          attributes_to_rename.add_new(&attribute, *new_name);
         }
         else {
-          attributes_to_remove.append(attribute_name);
+          attributes_to_remove.add_new(&attribute);
         }
       }
     }
-    for (const StringRef attribute_name : attributes_to_remove) {
-      attributes.remove(attribute_name);
-    }
-    for (const std::pair<std::string, std::string> &attribute_to_rename : attributes_to_rename) {
-      attributes.rename(attribute_to_rename.first, attribute_to_rename.second);
-    }
+    attributes.remove(attributes_to_remove);
+    attributes.rename(attributes_to_rename);
   }
 
   void runtime_to_bake__Bundle(nodes::Bundle &bundle)
