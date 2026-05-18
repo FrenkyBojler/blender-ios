@@ -446,6 +446,12 @@ class ExtendableMesh {
   }
 
  private:
+  Span<float3> src_positions_;
+  Span<int2> src_edges_;
+  OffsetIndices<int> src_faces_;
+  const Span<int> src_corner_verts_;
+  const Span<int> src_corner_edges_;
+
   Vector<float3> new_vert_positions_;
   Vector<int2> new_edges_;
   Vector<int> new_face_offsets_;
@@ -504,18 +510,24 @@ class ExtendableMesh {
   GroupedSpan<int> vert_corners_;
 };
 
-ExtendableMesh::ExtendableMesh(const Mesh &mesh) : mesh(mesh)
+ExtendableMesh::ExtendableMesh(const Mesh &mesh)
+    : mesh(mesh),
+      src_positions_(mesh.vert_positions()),
+      src_edges_(mesh.edges()),
+      src_faces_(mesh.faces()),
+      src_corner_verts_(mesh.corner_verts()),
+      src_corner_edges_(mesh.corner_edges())
 {
   vert_edges_ = bke::mesh::build_vert_to_edge_map(
-      mesh.edges(), mesh.verts_num, vert_to_edge_offsets_, vert_to_edge_indices_);
-  edge_faces_ = bke::mesh::build_edge_to_face_map(mesh.faces(),
-                                                  mesh.corner_edges(),
+      src_edges_, mesh.verts_num, vert_to_edge_offsets_, vert_to_edge_indices_);
+  edge_faces_ = bke::mesh::build_edge_to_face_map(src_faces_,
+                                                  src_corner_edges_,
                                                   mesh.edges_num,
                                                   edge_to_face_map_indices_,
                                                   edge_to_face_map_offsets_);
   vert_corners_ = bke::mesh::build_vert_to_corner_map(
-      mesh.corner_verts(), mesh.verts_num, vert_to_corner_offsets_, vert_to_corner_indices_);
-  corner_to_face_map_ = bke::mesh::build_corner_to_face_map(mesh.faces());
+      src_corner_verts_, mesh.verts_num, vert_to_corner_offsets_, vert_to_corner_indices_);
+  corner_to_face_map_ = bke::mesh::build_corner_to_face_map(src_faces_);
 
   kill_verts_ = Array<bool>(mesh.verts_num, false);
   kill_edges_ = Array<bool>(mesh.edges_num, false);
@@ -523,8 +535,8 @@ ExtendableMesh::ExtendableMesh(const Mesh &mesh) : mesh(mesh)
   kill_corners_ = Array<bool>(mesh.corners_num, false);
 
   edge_lookup_.reserve(mesh.edges_num);
-  for (const int e : mesh.edges().index_range()) {
-    const int2 verts = mesh.edges()[e];
+  for (const int e : src_edges_.index_range()) {
+    const int2 verts = src_edges_[e];
     const int v1 = std::min(verts[0], verts[1]);
     const int v2 = std::max(verts[0], verts[1]);
     edge_lookup_.add_new(int2(v1, v2), e);
@@ -536,7 +548,7 @@ ExtendableMesh::ExtendableMesh(const Mesh &mesh) : mesh(mesh)
 float3 ExtendableMesh::vert_position(const int v) const
 {
   if (v < mesh.verts_num) {
-    return mesh.vert_positions()[v];
+    return src_positions_[v];
   }
   return new_vert_positions_[v - mesh.verts_num];
 }
@@ -544,7 +556,7 @@ float3 ExtendableMesh::vert_position(const int v) const
 int2 ExtendableMesh::edge_verts(const int e) const
 {
   if (e < mesh.edges_num) {
-    return mesh.edges()[e];
+    return src_edges_[e];
   }
   return new_edges_[e - mesh.edges_num];
 }
@@ -552,7 +564,7 @@ int2 ExtendableMesh::edge_verts(const int e) const
 IndexRange ExtendableMesh::face_corners(const int f) const
 {
   if (f < mesh.faces_num) {
-    return mesh.faces()[f];
+    return src_faces_[f];
   }
   const int f_new = f - mesh.faces_num;
   const int start = new_face_offsets_[f_new];
@@ -570,7 +582,7 @@ float3 ExtendableMesh::face_normal(const int f) const
 int ExtendableMesh::corner_vert(const int c) const
 {
   if (c < mesh.corners_num) {
-    return mesh.corner_verts()[c];
+    return src_corner_verts_[c];
   }
   return new_corner_verts_[c - mesh.corners_num];
 }
@@ -578,7 +590,7 @@ int ExtendableMesh::corner_vert(const int c) const
 int ExtendableMesh::corner_edge(const int c) const
 {
   if (c < mesh.corners_num) {
-    return mesh.corner_edges()[c];
+    return src_corner_edges_[c];
   }
   return new_corner_edges_[c - mesh.corners_num];
 }
