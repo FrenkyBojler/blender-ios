@@ -671,19 +671,20 @@ class USERPREF_PT_animation_fcurves(AnimationPanel, CenterAlignMixIn, Panel):
         flow.prop(edit, "use_fcurve_high_quality_drawing")
 
 
-class USERPREF_PT_animation_advanced(AnimationPanel, CenterAlignMixIn, Panel):
+class USERPREF_PT_animation_timeline_advanced(AnimationPanel, CenterAlignMixIn, Panel):
     bl_label = "Advanced"
     bl_options = {'DEFAULT_CLOSED'}
+    bl_parent_id = 'USERPREF_PT_animation_timeline'
 
     def draw_centered(self, context, layout):
         prefs = context.preferences
         edit = prefs.edit
 
-        box = layout.box()
-        col = box.column(align=True)
-        col.prop(edit, "use_negative_frames")
-        col.label(text="Using negative frames can cause issues, for example")
-        col.label(text="with audio playback or with some exporters.")
+        layout.prop(edit, "use_negative_frames")
+        row = layout.row(align=False)
+        row.active = edit.use_negative_frames
+        row.alignment = 'RIGHT'
+        row.label(icon="ERROR", text="Negative frames can cause issues with audio playback and exporters.")
 
 
 # -----------------------------------------------------------------------------
@@ -3180,7 +3181,7 @@ classes = (
     USERPREF_PT_animation_timeline,
     USERPREF_PT_animation_keyframes,
     USERPREF_PT_animation_fcurves,
-    USERPREF_PT_animation_advanced,
+    USERPREF_PT_animation_timeline_advanced,
 
     USERPREF_PT_system_cycles_devices,
     USERPREF_PT_system_display_graphics,
