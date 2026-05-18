@@ -254,7 +254,10 @@ struct bNodeType {
   /** Should usually use the idname instead, but this enum type is still exposed in Python. */
   const char *enum_name_legacy = nullptr;
 
-  float width = 0.0f, minwidth = 0.0f, maxwidth = 0.0f;
+  float width = 0.0f;
+  float minwidth = 0.0f;
+  float maxwidth = 0.0f;
+
   float height = 0.0f, minheight = 0.0f, maxheight = 0.0f;
   short nclass = 0;
   eNode_Flag flag = {};
