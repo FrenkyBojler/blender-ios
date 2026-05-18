@@ -5,7 +5,6 @@
 /** \file
  * \ingroup animrig
  */
-#include <type_traits>
 
 #include "BLI_math_rotation.h"
 #include "BLI_string.h"
@@ -27,6 +26,8 @@ namespace blender::ed {
  */
 static bool is_axis_mutable(const int index, const AxisMutable axis_flag)
 {
+  /* AxisMutable happens to be set up in such a way that X, Y and Z correspond to bits 0, 1
+   * and 2. The AXIS_MUTABLE_ALL case has all these bits set. */
   return axis_flag & (1 << index);
 }
 
