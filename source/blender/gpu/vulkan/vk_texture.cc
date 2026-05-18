@@ -318,6 +318,7 @@ void VKTexture::read_sub(
     size_t data_offset = full_transfer_region.result_offset(transfer_region.offset,
                                                             transfer_region.layers.start()) *
                          sample_bytesize;
+    staging_buffer.invalidate_mapped_memory();
     convert_device_to_host(static_cast<void *>(static_cast<uint8_t *>(r_data) + data_offset),
                            staging_buffer.mapped_memory_get(),
                            sample_len,
@@ -495,6 +496,7 @@ void VKTexture::update_sub(int mip,
         dst_ptr += dst_row_stride;
       }
     }
+    staging_buffer.flush_mapped_memory();
   }
   else {
     BLI_assert(pixel_buffer);
