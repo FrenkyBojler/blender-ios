@@ -183,6 +183,7 @@ static void init_text_effect(Strip *strip)
   data->text_font = nullptr;
   data->text_blf_id = -1;
   data->text_size = 60.0f;
+  data->space_line = 1.0f;
 
   copy_v4_fl(data->color, 1.0f);
   data->shadow_color[3] = 0.7f;
@@ -601,6 +602,7 @@ static rcti draw_text_outline(const RenderData *context,
              reinterpret_cast<uchar *>(tmp_buf.data()),
              size.x,
              size.y,
+             4,
              out->byte_buffer.colorspace);
 
   text_draw(data->text_ptr, runtime, float4(1.0f));
@@ -702,7 +704,7 @@ static rcti draw_text_outline(const RenderData *context,
       }
     }
   });
-  BLF_buffer(runtime->font, nullptr, byte_data, size.x, size.y, out->byte_buffer.colorspace);
+  BLF_buffer(runtime->font, nullptr, byte_data, size.x, size.y, 4, out->byte_buffer.colorspace);
 
   return outline_rect;
 }
@@ -931,7 +933,7 @@ static void apply_word_wrapping(const TextVars *data,
     if (character.do_wrap) {
       runtime->lines.append(LineInfo());
       cur_pixel_pos.x = 0;
-      cur_pixel_pos.y -= runtime->line_height;
+      cur_pixel_pos.y -= runtime->line_height * data->space_line;
     }
   }
 }
@@ -997,7 +999,7 @@ static void calc_boundbox(const TextVars *data, TextVarsRuntime *runtime, const 
   /* `BLF_bounds_max()` is used, because some fonts have glyphs overlapping with lines above. */
   rctf glyph_bounds_max;
   BLF_bounds_max(runtime->font, &glyph_bounds_max);
-  const int text_height = (runtime->lines.size() - 1) * runtime->line_height +
+  const int text_height = (runtime->lines.size() - 1) * (runtime->line_height * data->space_line) +
                           math::ceil(BLI_rctf_size_y(&glyph_bounds_max));
 
   int width_max = text_box_width_get(runtime->lines);
@@ -1021,7 +1023,8 @@ static void apply_text_alignment(const TextVars *data,
                                  const int2 image_size)
 {
   const int box_width = text_box_width_get(runtime->lines);
-  const int box_height = runtime->lines.size() * runtime->line_height;
+  const int box_height = runtime->line_height +
+                         (runtime->lines.size() - 1) * (runtime->line_height * data->space_line);
 
   const float2 image_center{data->loc[0] * image_size.x, data->loc[1] * image_size.y};
   const float2 line_height_offset{0.0f,
@@ -1087,9 +1090,9 @@ static ImBuf *do_text_effect(const RenderData *context,
 
   rcti outline_rect = draw_text_outline(context, data, runtime, out);
   BLF_buffer(
-      font, nullptr, out->byte_data_for_write(), out->x, out->y, out->byte_buffer.colorspace);
+      font, nullptr, out->byte_data_for_write(), out->x, out->y, 4, out->byte_buffer.colorspace);
   text_draw(data->text_ptr, runtime, data->color);
-  BLF_buffer(font, nullptr, nullptr, 0, 0, nullptr);
+  BLF_buffer(font, nullptr, nullptr, 0, 0, 4, nullptr);
   BLF_disable(font, font_flags);
 
   /* Draw shadow. */
