@@ -133,14 +133,13 @@ def test_open_editor_types():
 
     # Build a grid with at least `count` areas, yielding after each split
     yield from ui.build_grid(screen, count)
-    yield 
+    yield
 
     areas = sorted_grid_areas(screen)
 
-    #Part 1: Apply all editor variants
+    # Part 1: Apply all editor variants
     apply_failures = set()   # Track names that failed during apply
     part1_failures = []
-
 
     for area, variant in zip(areas, variants):
         name = variant["name"]
@@ -160,7 +159,7 @@ def test_open_editor_types():
     yield
     yield
 
-    #Part 2: Validate all successfully opened variants
+    # Part 2: Validate all successfully opened variants
     part2_failures = []
 
     for area, variant in zip(areas, variants):
