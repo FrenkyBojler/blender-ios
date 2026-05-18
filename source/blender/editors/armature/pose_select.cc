@@ -1407,6 +1407,7 @@ static wmOperatorStatus pose_select_mirror_exec(bContext *C, wmOperator *op)
   Vector<Object *> objects = BKE_object_pose_array_get_unique(
       *bmain, scene, view_layer, CTX_wm_view3d(C));
   for (Object *ob : objects) {
+    BKE_pose_ensure_bone_indices(*ob);
     bArmature *arm = id_cast<bArmature *>(ob->data);
     Bone *mirror_bone_act = nullptr;
 
