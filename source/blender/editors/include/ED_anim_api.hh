@@ -1287,8 +1287,8 @@ void animviz_tag_for_motion_path_eval(wmWindow &window,
 /**
  * Evaluated the given `depsgraph` for all targets.
  *
- * \param range determines which frames the Depsgraph is evaluated for. This can have big
- * performance implications.
+ * \param range: determines which frames the Depsgraph is evaluated for.
+ * This can have big performance implications.
  */
 void animviz_calc_motionpaths(Depsgraph *depsgraph,
                               Main *bmain,
