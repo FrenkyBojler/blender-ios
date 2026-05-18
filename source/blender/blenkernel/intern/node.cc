@@ -2328,12 +2328,23 @@ IDProperty *node_create_asset_meta_data_properties(const bNodeTree &node_tree)
   }
   IDP_AddToGroup(properties.get(), panels.release());
 
+  /* NOTE: The `output` group is kept for compatibility. This should be replaced by
+   * `output_sockets` in the next breaking release. */
   auto outputs = idprop::create_group("outputs");
   for (const bNodeTreeInterfaceSocket *socket : node_tree.interface_outputs()) {
-    auto output = create_socket_meta_data_properties(*socket, false);
-    IDP_AddToGroup(outputs.get(), output.release());
+    auto *prop = idprop::create(socket->name ? socket->name : "", socket->socket_type).release();
+    if (!IDP_AddToGroup(outputs.get(), prop)) {
+      IDP_FreeProperty(prop);
+    }
   }
   IDP_AddToGroup(properties.get(), outputs.release());
+
+  auto output_sockets = idprop::create_group("output_sockets");
+  for (const bNodeTreeInterfaceSocket *socket : node_tree.interface_outputs()) {
+    auto output = create_socket_meta_data_properties(*socket, false);
+    IDP_AddToGroup(output_sockets.get(), output.release());
+  }
+  IDP_AddToGroup(properties.get(), output_sockets.release());
 
   return properties.release();
 }
