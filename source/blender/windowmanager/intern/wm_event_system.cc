@@ -568,7 +568,7 @@ void wm_event_evaluate_depsgraph_off_frame(bContext *C)
       }
     }
 
-    /* Doing at most one evaluation even if there are multiple windows. */
+    /* Doing at most one runtime even if there are multiple windows. */
     break;
   }
 }

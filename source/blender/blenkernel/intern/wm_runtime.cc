@@ -135,23 +135,27 @@ void wm_runtime_prepare_for_eval(Main &bmain, wmWindow &window)
   }
 }
 
-static int get_next_frame(WindowRuntime &runtime, const Bounds<int> eval_range, const int cfra)
+static int get_next_frame(WindowRuntime &runtime,
+                          const Bounds<int> eval_range,
+                          const int current_frame)
 {
   int eval_frame;
   if (runtime.evaluated_range.is_empty()) {
-    if (eval_range.contains(cfra)) {
-      eval_frame = cfra;
+    if (eval_range.contains(current_frame)) {
+      eval_frame = current_frame;
     }
-    else if (abs(eval_range.min - cfra) < abs(eval_range.max - cfra)) {
+    else if (abs(eval_range.min - current_frame) < abs(eval_range.max - current_frame)) {
       eval_frame = eval_range.min;
     }
     else {
       eval_frame = eval_range.max;
     }
-    runtime.evaluated_range = {cfra, cfra + 1};
+    runtime.evaluated_range = {current_frame, current_frame + 1};
   }
   else {
-    if (abs(runtime.evaluated_range.min - cfra) < abs(runtime.evaluated_range.max - cfra)) {
+    if (abs(runtime.evaluated_range.min - current_frame) <
+        abs(runtime.evaluated_range.max - current_frame))
+    {
       eval_frame = runtime.evaluated_range.min - 1;
       runtime.evaluated_range.min -= 1;
     }
@@ -190,9 +194,6 @@ bool wm_runtime_evaluate_next_frame(WindowRuntime &runtime, const int current_fr
   for (const int i : runtime.async_eval_ids.index_range()) {
     bke::AsyncEvalId &off_frame_id = runtime.async_eval_ids[i];
     ID *eval_id = DEG_get_evaluated_id(runtime.async_depsgraph, off_frame_id.id);
-    if (!off_frame_id.range.contains(eval_frame)) {
-      continue;
-    }
     /* The callback shall return true when the evaluation has completed. */
     if (off_frame_id.callback(*off_frame_id.id, *eval_id, off_frame_id.component_name, eval_frame))
     {

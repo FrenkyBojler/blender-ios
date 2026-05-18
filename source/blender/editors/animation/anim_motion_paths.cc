@@ -454,6 +454,13 @@ static bool update_callback(ID &orig_id,
   copy_v3_v3(mpv.co, ob_eval->object_to_world().location());
   mpv.flag |= MOTIONPATH_VERT_EVALUATED;
 
+  if (animrig::id_frame_has_keyframe(&ob->id, frame)) {
+    mpv.flag |= MOTIONPATH_VERT_KEY;
+  }
+  else {
+    mpv.flag &= ~MOTIONPATH_VERT_KEY;
+  }
+
   DEG_id_tag_update(&ob->id, ID_RECALC_ANIMATION_NO_FLUSH);
   WM_main_add_notifier(NC_OBJECT | ND_DRAW_ANIMVIZ, ob);
 

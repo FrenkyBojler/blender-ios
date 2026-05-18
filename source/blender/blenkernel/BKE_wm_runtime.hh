@@ -243,8 +243,16 @@ void wm_runtime_range_eval_register(WindowRuntime &runtime,
                                     Bounds<int> range,
                                     EvalCallback callback);
 
-void wm_runtime_prepare_for_eval(Main &bmain, wmWindow &window);
 /**
+ * Has to be called before calling `wm_runtime_evaluate_next_frame`. It is possible to do
+ * consecutive calls to `wm_runtime_evaluate_next_frame` after calling prepare once.
+ */
+void wm_runtime_prepare_for_eval(Main &bmain, wmWindow &window);
+
+/**
+ * Runs the evaluation for the next frame and calls the callbacks of `AsyncEvalID`.
+ * The next frame is the closest frame to `current_frame` that is not inside `evaluated_range`.
+ *
  * \returns true if the function can be called again to evaluate another frame.
  */
 bool wm_runtime_evaluate_next_frame(WindowRuntime &runtime, int current_frame);
