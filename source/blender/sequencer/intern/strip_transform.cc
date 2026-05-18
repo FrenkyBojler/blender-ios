@@ -621,6 +621,13 @@ float2 image_transform_raw_size_get(const Scene *scene, const Strip *strip)
     }
   }
 
+  if (strip->type == STRIP_TYPE_COLOR) {
+    const SolidColorVars *data = static_cast<const SolidColorVars *>(strip->effectdata);
+    if (data->width > 0 && data->height > 0) {
+      return {float(data->width), float(data->height)};
+    }
+  }
+
   if (strip->type == STRIP_TYPE_TEXT) {
     const TextVars *data = static_cast<TextVars *>(strip->effectdata);
     const FontFlags font_flags = ((data->flag & SEQ_TEXT_BOLD) ? BLF_BOLD : BLF_NONE) |

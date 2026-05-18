@@ -2034,6 +2034,8 @@ static wmOperatorStatus sequencer_add_effect_strip_exec(bContext *C, wmOperator 
   if (strip->type == STRIP_TYPE_COLOR) {
     SolidColorVars *colvars = static_cast<SolidColorVars *>(strip->effectdata);
     RNA_float_get_array(op->ptr, "color", colvars->col);
+    colvars->width = RNA_int_get(op->ptr, "width");
+    colvars->height = RNA_int_get(op->ptr, "height");
   }
   else if (strip->type == STRIP_TYPE_TEXT) {
     TextVars *textvars = static_cast<TextVars *>(strip->effectdata);
@@ -2087,6 +2089,16 @@ static wmOperatorStatus sequencer_add_effect_strip_invoke(bContext *C,
 
   sequencer_generic_invoke_xy__internal(C, op, prop_flag, type, event);
 
+  if (type == STRIP_TYPE_COLOR) {
+    const Scene *scene = CTX_data_sequencer_scene(C);
+    if (!RNA_struct_property_is_set(op->ptr, "width")) {
+      RNA_int_set(op->ptr, "width", scene->r.xsch);
+    }
+    if (!RNA_struct_property_is_set(op->ptr, "height")) {
+      RNA_int_set(op->ptr, "height", scene->r.ysch);
+    }
+  }
+
   return sequencer_add_effect_strip_exec(C, op);
 }
 
@@ -2103,7 +2115,7 @@ static bool sequencer_add_effect_strip_poll_property(const bContext *C,
       return false;
     }
   }
-  if ((type != STRIP_TYPE_COLOR) && STREQ(prop_id, "color")) {
+  if (type != STRIP_TYPE_COLOR && STR_ELEM(prop_id, "color", "width", "height")) {
     return false;
   }
 
@@ -2204,6 +2216,9 @@ void SEQUENCER_OT_effect_strip_add(wmOperatorType *ot)
                              0.0f,
                              1.0f);
   RNA_def_property_subtype(prop, PROP_COLOR_GAMMA);
+  /* Only used when strip is of the Color type. */
+  RNA_def_int(ot->srna, "width", 0, 1, SHRT_MAX, "Width", "Width of the color strip in pixels", 1, SHRT_MAX);
+  RNA_def_int(ot->srna, "height", 0, 1, SHRT_MAX, "Height", "Height of the color strip in pixels", 1, SHRT_MAX);
 }
 
 /** \} */
