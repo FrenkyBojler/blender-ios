@@ -825,29 +825,24 @@ int text_effect_font_init(const RenderData *context, const Strip *strip, FontFla
 static Vector<CharInfo> build_character_info(const TextVars *data, int font)
 {
   Vector<CharInfo> characters;
-  const int len_max = data->text_len_bytes;
-  int byte_offset = 0;
-  int char_index = 0;
+  characters.reserve(data->text_len_bytes / 2);
 
   const bool use_fallback = BLF_is_builtin(font);
   if (!use_fallback) {
     BLF_enable(font, BLF_NO_FALLBACK);
   }
 
-  while (byte_offset <= len_max) {
-    const char *str = data->text_ptr + byte_offset;
-    const int char_length = BLI_str_utf8_size_safe(str);
-
-    CharInfo char_info;
-    char_info.index = char_index;
-    char_info.offset = byte_offset;
-    char_info.byte_length = char_length;
-    char_info.advance_x = BLF_glyph_advance(font, str);
-    characters.append(char_info);
-
-    byte_offset += char_length;
-    char_index++;
-  }
+  BLF_info_foreach_glyph(font,
+                         data->text_ptr,
+                         data->text_len_bytes,
+                         [&](int index, size_t byte_offset, int byte_len, int advance_x) {
+                           CharInfo info;
+                           info.index = index;
+                           info.offset = byte_offset;
+                           info.byte_length = byte_len;
+                           info.advance_x = advance_x;
+                           characters.append(info);
+                         });
 
   if (!use_fallback) {
     BLF_disable(font, BLF_NO_FALLBACK);
