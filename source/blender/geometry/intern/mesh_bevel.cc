@@ -1125,9 +1125,8 @@ static void slide_dist(const ExtendableMesh &emesh, int e, int v, float d, float
 {
   float3 v_co = emesh.vert_position(v);
   float3 other_co = emesh.vert_position(geom::edge_other_vert(emesh, e, v));
-  float3 dir = other_co - v_co;
-  float len = math::length(dir);
-  dir /= len;
+  float len;
+  const float3 dir = math::normalize_and_get_length(other_co - v_co, len);
 
   if (d > len) {
     d = len - 50.0f * BEVEL_EPSILON_D;
