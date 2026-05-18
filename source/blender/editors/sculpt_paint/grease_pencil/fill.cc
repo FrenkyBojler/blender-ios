@@ -1300,10 +1300,11 @@ static std::pair<int, int> order_edge(const std::pair<int, int> &edge)
   return edge;
 }
 
-static void get_all_triangle_edges(const Span<std::pair<int, int>> edges,
-                                   const Span<Vector<int>> tris,
-                                   MutableSpan<int3> r_tri_edges)
+static Array<int3> get_all_triangle_edges(const Span<std::pair<int, int>> edges,
+                                          const Span<Vector<int>> tris)
 {
+  Array<int3> tri_edges(tris.size(), int3(NULL_INDEX));
+
   Map<std::pair<int, int>, int> edge_to_index;
   for (const int edge_index : edges.index_range()) {
     const std::pair<int, int> &edge = edges[edge_index];
@@ -1318,17 +1319,20 @@ static void get_all_triangle_edges(const Span<std::pair<int, int>> edges,
       const std::pair<int, int> edge1 = order_edge(std::pair<int, int>(face[1], face[2]));
       const std::pair<int, int> edge2 = order_edge(std::pair<int, int>(face[2], face[0]));
 
-      r_tri_edges[tri_index] = int3(
+      tri_edges[tri_index] = int3(
           edge_to_index.lookup(edge0), edge_to_index.lookup(edge1), edge_to_index.lookup(edge2));
     }
   });
+
+  return tri_edges;
 }
 
-static void get_all_triangle_adjacency(const int num_edges,
-                                       const Span<Vector<int>> tris,
-                                       const Span<int3> tri_edges,
-                                       MutableSpan<int3> r_tri_adjacency)
+static Array<int3> get_all_triangle_adjacency(const int num_edges,
+                                              const Span<Vector<int>> tris,
+                                              const Span<int3> tri_edges)
 {
+  Array<int3> tri_adjacency(tris.size(), int3(NULL_INDEX));
+
   Array<std::pair<int, int>> edge_to_tris(num_edges, std::pair<int, int>(NULL_INDEX, NULL_INDEX));
 
   for (const int tri_index : tris.index_range()) {
@@ -1353,20 +1357,69 @@ static void get_all_triangle_adjacency(const int num_edges,
 
         const int index_0 = edge_to_tris[edge].first;
         if (index_0 != tri_index && index_0 != NULL_INDEX) {
-          r_tri_adjacency[tri_index][j] = index_0;
+          tri_adjacency[tri_index][j] = index_0;
           continue;
         }
 
         const int index_1 = edge_to_tris[edge].second;
         if (index_1 != tri_index && index_1 != NULL_INDEX) {
-          r_tri_adjacency[tri_index][j] = index_1;
+          tri_adjacency[tri_index][j] = index_1;
           continue;
         }
 
-        r_tri_adjacency[tri_index][j] = NULL_INDEX;
+        tri_adjacency[tri_index][j] = NULL_INDEX;
       }
     }
   });
+
+  return tri_adjacency;
+}
+
+static Array<float> get_edge_weights(const Span<std::pair<int, int>> edges,
+                                     const Span<double2> verts)
+{
+  Array<float> edge_weights(edges.size());
+
+  threading::parallel_for(edges.index_range(), 512, [&](const IndexRange range) {
+    for (const int64_t edge_index : range) {
+      const std::pair<int, int> &edge = edges[edge_index];
+      const double2 &v1 = verts[edge.first];
+      const double2 &v2 = verts[edge.second];
+      edge_weights[edge_index] = math::distance(v1, v2);
+    }
+  });
+
+  return edge_weights;
+}
+
+static Array<float> get_tri_max_weight(const int num_tris,
+                                       const Span<int3> tri_adjacency,
+                                       const Span<int3> tri_edges,
+                                       const Span<float> edge_weights,
+                                       const Span<bool> is_source_edge)
+{
+  Array<float> tri_max_weight(num_tris, 0.0f);
+
+  threading::parallel_for(IndexRange(num_tris), 512, [&](const IndexRange range) {
+    for (const int64_t tri_index : range) {
+      for (const int j : IndexRange(3)) {
+        const int next_tri = tri_adjacency[tri_index][j];
+        const int edge_index = tri_edges[tri_index][j];
+
+        if (next_tri == NULL_INDEX) {
+          continue;
+        }
+
+        if (is_source_edge[edge_index]) {
+          continue;
+        }
+
+        tri_max_weight[tri_index] = math::max(tri_max_weight[tri_index], edge_weights[edge_index]);
+      }
+    }
+  });
+
+  return tri_max_weight;
 }
 
 static void add_weights_for_tri(const Span<int3> tri_adjacency,
@@ -1633,26 +1686,11 @@ std::optional<bke::CurvesGeometry> delaunay_fill_strokes(
     }
   });
 
-  Array<int3> tri_edges(result.face.size(), int3(NULL_INDEX));
-
-  get_all_triangle_edges(
-      result.edge.as_span(), result.face.as_span(), tri_edges.as_mutable_span());
-
-  Array<int3> tri_adjacency(result.face.size(), int3(NULL_INDEX));
-
-  get_all_triangle_adjacency(
-      result.edge.size(), result.face.as_span(), tri_edges, tri_adjacency.as_mutable_span());
-
-  Array<float> edge_weights(result.edge.size());
-
-  threading::parallel_for(result.edge.index_range(), 512, [&](const IndexRange range) {
-    for (const int64_t edge_index : range) {
-      const std::pair<int, int> &edge = result.edge[edge_index];
-      const double2 &v1 = result.vert[edge.first];
-      const double2 &v2 = result.vert[edge.second];
-      edge_weights[edge_index] = math::distance(v1, v2);
-    }
-  });
+  const Array<int3> tri_edges = get_all_triangle_edges(result.edge.as_span(),
+                                                       result.face.as_span());
+  const Array<int3> tri_adjacency = get_all_triangle_adjacency(
+      result.edge.size(), result.face.as_span(), tri_edges);
+  const Array<float> edge_weights = get_edge_weights(result.edge.as_span(), result.vert.as_span());
 
   /* TODO: Use a BVH. */
   auto get_tri_for_point = [&](const float2 &v) {
@@ -1670,26 +1708,11 @@ std::optional<bke::CurvesGeometry> delaunay_fill_strokes(
     return NULL_INDEX;
   };
 
-  Array<float> tri_max_weight(result.face.size(), 0.0f);
-
-  threading::parallel_for(result.face.index_range(), 512, [&](const IndexRange range) {
-    for (const int64_t tri_index : range) {
-      for (const int j : IndexRange(3)) {
-        const int next_tri = tri_adjacency[tri_index][j];
-        const int edge_index = tri_edges[tri_index][j];
-
-        if (next_tri == NULL_INDEX) {
-          continue;
-        }
-
-        if (is_source_edge[edge_index]) {
-          continue;
-        }
-
-        tri_max_weight[tri_index] = math::max(tri_max_weight[tri_index], edge_weights[edge_index]);
-      }
-    }
-  });
+  Array<float> tri_max_weight = get_tri_max_weight(result.face.size(),
+                                                   tri_adjacency.as_span(),
+                                                   tri_edges.as_span(),
+                                                   edge_weights.as_span(),
+                                                   is_source_edge.as_span());
 
   Array<int> tri_hint_index(result.face.size(), NULL_INDEX);
   Array<float> tri_weights(result.face.size(), 0.0f);
