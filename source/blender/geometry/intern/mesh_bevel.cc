@@ -7793,35 +7793,35 @@ static std::optional<Mesh *> build_output_mesh(const BevelState &state,
 
   /* 7a. Point domain (verts): surviving originals then new verts. */
   {
-    Array<int> src_for_dst(n_surv_verts + n_new_verts, 0);
-    src_survive_verts.to_indices<int>(src_for_dst);
+    Array<int> src_by_dst(n_surv_verts + n_new_verts, 0);
+    src_survive_verts.to_indices<int>(src_by_dst);
     const Span<int> new_vert_exs = emesh.new_vert_examples();
     for (const int ni : IndexRange(n_new_verts)) {
       const int ex = new_vert_exs[ni];
-      src_for_dst[n_surv_verts + ni] = (ex >= 0) ? ex : 0;
+      src_by_dst[n_surv_verts + ni] = (ex >= 0) ? ex : 0;
     }
     bke::gather_attributes(src_attrs,
                            bke::AttrDomain::Point,
                            bke::AttrDomain::Point,
                            geom_filter,
-                           src_for_dst,
+                           src_by_dst,
                            dst_attrs);
   }
 
   /* 7b. Edge domain: surviving original edges then new edges. */
   {
-    Array<int> src_for_dst(n_surv_edges + n_new_edges, 0);
-    src_survive_edges.to_indices<int>(src_for_dst);
+    Array<int> src_by_dst(n_surv_edges + n_new_edges, 0);
+    src_survive_edges.to_indices<int>(src_by_dst);
     const Span<int> new_edge_exs = emesh.new_edge_examples();
     for (const int ni : IndexRange(n_new_edges)) {
       const int ex = new_edge_exs[ni];
-      src_for_dst[n_surv_edges + ni] = (ex >= 0) ? ex : 0;
+      src_by_dst[n_surv_edges + ni] = (ex >= 0) ? ex : 0;
     }
     bke::gather_attributes(src_attrs,
                            bke::AttrDomain::Edge,
                            bke::AttrDomain::Edge,
                            geom_filter,
-                           src_for_dst,
+                           src_by_dst,
                            dst_attrs);
 
     /* Apply per-edge seam/sharp overrides, matching BMesh's post-copy fixup
@@ -7858,32 +7858,32 @@ static std::optional<Mesh *> build_output_mesh(const BevelState &state,
 
   /* 7c. Face domain: surviving original faces then new faces. */
   {
-    Array<int> src_for_dst(n_surv_faces + n_new_faces, 0);
-    src_survive_faces.to_indices<int>(src_for_dst);
+    Array<int> src_by_dst(n_surv_faces + n_new_faces, 0);
+    src_survive_faces.to_indices<int>(src_by_dst);
     const Span<int> new_face_exs = emesh.new_face_examples();
     for (const int nf : IndexRange(n_new_faces)) {
       const int ex = new_face_exs[nf];
-      src_for_dst[n_surv_faces + nf] = (ex >= 0) ? ex : 0;
+      src_by_dst[n_surv_faces + nf] = (ex >= 0) ? ex : 0;
     }
     bke::gather_attributes(src_attrs,
                            bke::AttrDomain::Face,
                            bke::AttrDomain::Face,
                            geom_filter,
-                           src_for_dst,
+                           src_by_dst,
                            dst_attrs);
   }
 
   /* 7d. Corner domain: surviving original corners (from surviving faces) then new corners.
    *
-   * Surviving corners are mapped to themselves via src_for_dst[0..n_surv_corners-1].
+   * Surviving corners are mapped to themselves via src_by_dst[0..n_surv_corners-1].
    * For new corners we write UV values that were precomputed by
    * uv::fill_new_corner_uvs / uv::merge_uvs (all other corner attributes stay at default). */
   {
-    Array<int> src_for_dst(n_surv_corners + n_new_corners, 0);
+    Array<int> src_by_dst(n_surv_corners + n_new_corners, 0);
     int dst_c = 0;
     src_survive_faces.foreach_index([&](const int64_t src_f, const int64_t /*dst_f*/) {
       for (const int sc : src_faces[src_f]) {
-        src_for_dst[dst_c++] = sc;
+        src_by_dst[dst_c++] = sc;
       }
     });
     BLI_assert(dst_c == n_surv_corners);
@@ -7893,7 +7893,7 @@ static std::optional<Mesh *> build_output_mesh(const BevelState &state,
                            bke::AttrDomain::Corner,
                            bke::AttrDomain::Corner,
                            geom_filter,
-                           src_for_dst,
+                           src_by_dst,
                            dst_attrs);
 
     /* Write precomputed UV values for new corners into the output mesh. */
@@ -7911,7 +7911,7 @@ static std::optional<Mesh *> build_output_mesh(const BevelState &state,
         }
 
         array_utils::gather(
-            src_uvs, src_for_dst.as_span(), dst_uvs.span.take_front(n_surv_corners));
+            src_uvs, src_by_dst.as_span(), dst_uvs.span.take_front(n_surv_corners));
         array_utils::copy(emesh.new_corner_uvs(i), dst_uvs.span.take_back(n_new_corners));
         dst_uvs.finish();
       }
