@@ -1,4 +1,4 @@
 Referenced by issue #90555, Noise Node Placement in Search
 Referenced by issue #86891, Scene drop-down orders by length instead of alphabetically (stable) without query
 Referenced by issue #157920, Fuzzy Search breaks/changes order in Pop-over searchable menu (prefers short items)
-Referenced by issue #158725, "Sort By: Name" in Asset Library seemingly just entirely broken with numbers when searching
+Referenced by issue #158725, Fuzzy Search breaks/changes order in Asset Browser "Sort By: Name" with numbers (prefers short items)
