@@ -1489,7 +1489,6 @@ template<typename T>
     const BlobReadSharing &blob_sharing,
     nodes::Bundle &r_bundle)
 {
-
   for (const auto &io_item_ : io_bundle_items.elements()) {
     const DictionaryValue *io_item = io_item_->as_dictionary_value();
     if (!io_item) {
