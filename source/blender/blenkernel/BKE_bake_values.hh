@@ -15,9 +15,10 @@ namespace blender::bke::bake {
 
 /**
  * Intermediate storage for values that are read from a bake or are about to written to a bake.
- * Values stored in the intermediate form is limited. For example, it can't store arbitrary fields
- * (only attribute fields currently since those can be serialized). Additionally, data-block
- * references to e.g. materials are weak and will only be restored in #to_runtime_values.
+ * Values stored in this intermediate form have some constraints. For example, they can't store
+ * arbitrary fields (only attribute fields currently since those can be serialized). Additionally,
+ * data-block references to e.g. materials are weak and will only be restored in
+ * #to_runtime_values.
  */
 class BakeValues {
  public:
