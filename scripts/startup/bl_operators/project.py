@@ -284,7 +284,7 @@ class PROJECT_OT_NewProject(Operator):
         return bpy.data.project is None and bpy.data.filepath != ""
 
     def execute(self, context):
-        if not bpy.context.preferences.experimental.use_blender_projects:
+        if not context.preferences.experimental.use_blender_projects:
             self.report({'ERROR'}, "Blender Projects experimental feature not enabled.")
             return {'CANCELLED'}
 
@@ -344,7 +344,7 @@ class PROJECT_OT_SaveProject(Operator):
         return bpy.data.project is not None
 
     def execute(self, context):
-        if not bpy.context.preferences.experimental.use_blender_projects:
+        if not context.preferences.experimental.use_blender_projects:
             self.report({'ERROR'}, "Blender Projects experimental feature not enabled.")
             return {'CANCELLED'}
 
@@ -385,7 +385,7 @@ class PROJECT_OT_OpenBlendInProject(Operator):
         return True
 
     def execute(self, context):
-        if not bpy.context.preferences.experimental.use_blender_projects:
+        if not context.preferences.experimental.use_blender_projects:
             self.report({'ERROR'}, "Blender Projects experimental feature not enabled.")
             return {'CANCELLED'}
 
