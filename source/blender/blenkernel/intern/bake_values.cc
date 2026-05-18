@@ -780,6 +780,7 @@ BakeValues BakeValues::from_runtime_values(Vector<InputValue> runtime_values,
                                            BakeDataBlockMap *data_block_map)
 {
   RuntimeToBakeValue preparation{runtime_values, data_block_map};
+  /* This may also remove runtime values that can't be baked. */
   preparation.convert();
 
   BakeValues bake_values;
