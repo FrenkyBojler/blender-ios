@@ -1045,18 +1045,13 @@ BevelState::BevelState(const Mesh &mesh, const BevelParameters &params, const In
   Array<bool> is_vert_affected(mesh.verts_num, false);
   this->bevel_affected_vertices.to_bools(is_vert_affected.as_mutable_span());
 
-  Array<bool> face_affected(mesh.faces_num, false);
   const Span<int> corner_verts = mesh.corner_verts();
   const OffsetIndices faces = mesh.faces();
-  for (int f = 0; f < mesh.faces_num; f++) {
-    for (const int c : faces[f]) {
-      if (is_vert_affected[corner_verts[c]]) {
-        face_affected[f] = true;
-        break;
-      }
-    }
-  }
-  this->bevel_affected_faces = IndexMask::from_bools(face_affected, memory);
+  this->bevel_affected_faces = IndexMask::from_predicate(
+      faces.index_range(), memory, [&](const int i) {
+        return std::ranges::any_of(corner_verts.slice(faces[i]),
+                                   [&](const int v) { return is_vert_affected[v]; });
+      });
 
   this->face_centers = Array<float3>(mesh.faces_num, float3(0.0f));
   const Span<float3> positions = mesh.vert_positions();
