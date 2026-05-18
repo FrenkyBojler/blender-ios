@@ -7797,7 +7797,8 @@ static std::optional<Mesh *> build_output_mesh(const BevelState &state,
   /* 7a. Point domain (verts): surviving originals then new verts. */
   {
     Array<int> src_by_dst(n_surv_verts + n_new_verts, 0);
-    src_survive_verts.to_indices<int>(src_by_dst);
+    src_survive_verts.to_indices<int>(
+        src_by_dst.as_mutable_span().take_front(src_survive_verts.size()));
     const Span<int> new_vert_exs = emesh.new_vert_examples();
     for (const int ni : IndexRange(n_new_verts)) {
       const int ex = new_vert_exs[ni];
@@ -7814,7 +7815,8 @@ static std::optional<Mesh *> build_output_mesh(const BevelState &state,
   /* 7b. Edge domain: surviving original edges then new edges. */
   {
     Array<int> src_by_dst(n_surv_edges + n_new_edges, 0);
-    src_survive_edges.to_indices<int>(src_by_dst);
+    src_survive_edges.to_indices<int>(
+        src_by_dst.as_mutable_span().take_front(src_survive_edges.size()));
     const Span<int> new_edge_exs = emesh.new_edge_examples();
     for (const int ni : IndexRange(n_new_edges)) {
       const int ex = new_edge_exs[ni];
@@ -7862,7 +7864,8 @@ static std::optional<Mesh *> build_output_mesh(const BevelState &state,
   /* 7c. Face domain: surviving original faces then new faces. */
   {
     Array<int> src_by_dst(n_surv_faces + n_new_faces, 0);
-    src_survive_faces.to_indices<int>(src_by_dst);
+    src_survive_faces.to_indices<int>(
+        src_by_dst.as_mutable_span().take_front(src_survive_faces.size()));
     const Span<int> new_face_exs = emesh.new_face_examples();
     for (const int nf : IndexRange(n_new_faces)) {
       const int ex = new_face_exs[nf];
