@@ -43,7 +43,7 @@ static const EnumPropertyItem prop_iterations_items[] = {
     {0, nullptr},
 };
 
-static wmOperatorStatus edbm_relax_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus edbm_relax_edge_loops_exec(bContext *C, wmOperator *op)
 {
   const Main *bmain = CTX_data_main(C);
   const Scene *scene = CTX_data_scene(C);
@@ -61,7 +61,7 @@ static wmOperatorStatus edbm_relax_exec(bContext *C, wmOperator *op)
 
     if (!EDBM_op_callf(em,
                        op,
-                       "relax geom=%hvef interpolation=%i iterations=%i regular=%b",
+                       "relax_edge_loops geom=%hvef interpolation=%i iterations=%i regular=%b",
                        BM_ELEM_SELECT,
                        interpolation,
                        iterations,
@@ -89,13 +89,13 @@ static void edbm_relax_ui(bContext * /*C*/, wmOperator *op)
   layout.prop(op->ptr, "interpolation", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
-void MESH_OT_relax(wmOperatorType *ot)
+void MESH_OT_relax_edge_loops(wmOperatorType *ot)
 {
   ot->name = "Relax";
   ot->description = "Relax the loop, so it is smoother";
-  ot->idname = "MESH_OT_relax";
+  ot->idname = "MESH_OT_relax_edge_loops";
 
-  ot->exec = edbm_relax_exec;
+  ot->exec = edbm_relax_edge_loops_exec;
   ot->poll = ED_operator_editmesh;
   ot->ui = edbm_relax_ui;
 

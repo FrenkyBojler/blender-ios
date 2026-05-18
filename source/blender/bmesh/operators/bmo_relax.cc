@@ -415,7 +415,7 @@ static void execute_relax_phase(Span<BMVert *> verts,
   }
 }
 
-void bmo_relax_exec(BMesh *bm, BMOperator *op)
+void bmo_relax_edge_loops_exec(BMesh *bm, BMOperator *op)
 {
   const int iterations = BMO_slot_int_get(op->slots_in, "iterations");
   const int interpolation = BMO_slot_int_get(op->slots_in, "interpolation");

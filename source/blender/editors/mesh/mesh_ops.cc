@@ -196,6 +196,7 @@ void ED_operatortypes_mesh()
 
   WM_operatortype_append(MESH_OT_circularize);
   WM_operatortype_append(MESH_OT_flatten);
+  WM_operatortype_append(MESH_OT_relax_edge_loops);
 }
 
 #if 0 /* UNUSED, remove? */
