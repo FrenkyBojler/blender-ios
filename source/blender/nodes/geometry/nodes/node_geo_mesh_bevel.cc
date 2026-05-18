@@ -157,6 +157,12 @@ static void node_geo_exec(GeoNodeExecParams params)
   const Field<bool> selection_field = params.extract_input<Field<bool>>("Selection"_ustr);
   const AttributeFilter &attribute_filter = params.get_attribute_filter("Mesh"_ustr);
   const int segments = params.extract_input<int>("Segments"_ustr);
+  if (segments < 1) {
+    params.error_message_add(NodeWarningType::Error, "Segments must be at least 1");
+    params.set_output("Mesh"_ustr, std::move(geometry_set));
+    params.set_default_remaining_outputs();
+    return;
+  }
   const auto affect = params.extract_input<blender::geometry::BevelAffect>("Affect Kind"_ustr);
 
   const Field<float> offset0_field = params.extract_input<Field<float>>("Offset 0"_ustr);
