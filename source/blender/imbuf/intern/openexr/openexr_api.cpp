@@ -2168,14 +2168,14 @@ ImBuf *imb_load_openexr(const uchar *mem,
         if (flag_is_set(flags, ImBufFlags::Metadata)) {
           Header::ConstIterator iter;
 
-          IMB_metadata_ensure(&ibuf->metadata);
+          IDProperty *metadata = ibuf->metadata_for_write();
           for (iter = file_header.begin(); iter != file_header.end(); iter++) {
             const StringAttribute *attr = file_header.findTypedAttribute<StringAttribute>(
                 iter.name());
 
             /* not all attributes are string attributes so we might get some NULLs here */
             if (attr) {
-              IMB_metadata_set_field(ibuf->metadata, iter.name(), attr->value().c_str());
+              IMB_metadata_set_field(metadata, iter.name(), attr->value().c_str());
               ibuf->flags |= ImBufFlags::Metadata;
             }
           }

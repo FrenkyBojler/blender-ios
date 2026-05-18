@@ -244,14 +244,14 @@ static ImBuf *get_oiio_ibuf(ImageInput *in, const ReadContext &ctx, ImFileColorS
 
     /* Transfer metadata to the ibuf if necessary. */
     if (flag_is_set(ctx.flags, ImBufFlags::Metadata)) {
-      IMB_metadata_ensure(&ibuf->metadata);
+      IDProperty *metadata = ibuf->metadata_for_write();
       ibuf->flags |= spec.extra_attribs.empty() ? ImBufFlags::Zero : ImBufFlags::Metadata;
 
       for (const auto &attrib : spec.extra_attribs) {
         if (attrib.name().find("ICCProfile") != string::npos) {
           continue;
         }
-        IMB_metadata_set_field(ibuf->metadata, attrib.name().c_str(), attrib.get_string().c_str());
+        IMB_metadata_set_field(metadata, attrib.name().c_str(), attrib.get_string().c_str());
       }
     }
   }

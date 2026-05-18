@@ -206,8 +206,12 @@ struct ImBuf {
   int index = 0;
   /** used to set imbuf to dirty and other stuff */
   int userflags = 0;
-  /** image metadata */
+
+  /** Image Metadata */
   IDProperty *metadata = nullptr;
+  /** Implicit-sharing owner for #metadata/. */
+  ImplicitSharingPtr<> metadata_sharing_info;
+
   /** OpenEXR handle. */
   ExrHandle *exrhandle = nullptr;
 
@@ -237,6 +241,11 @@ struct ImBuf {
   /** Share ownership with the implicit sharing referenced by the pointer. */
   void assign_byte_data(const uint8_t *data, ImplicitSharingPtr<> sharing_ptr);
   void assign_float_data(const float *data, ImplicitSharingPtr<> sharing_ptr);
+
+  /** Metadata access, should go through these methods instead of direct access. */
+  const IDProperty *metadata_for_read() const;
+  IDProperty *metadata_for_write();
+  void assign_metadata(const IDProperty *metadata, ImplicitSharingPtr<> sharing_info);
 
   [[nodiscard]] bool colorspace_is_data() const;
 
