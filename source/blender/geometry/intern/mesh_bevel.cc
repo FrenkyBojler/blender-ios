@@ -858,8 +858,8 @@ void UVLayerInfo::find_components(const ExtendableMesh &emesh)
         this->face_component[f_curr] = current_component;
 
         /* Find neighbors via edges. */
-        const Span<int> f_edges = corner_edges.slice(faces[f_curr]);
-        for (const int e_index : f_edges) {
+        const Span<int> face_edges = corner_edges.slice(faces[f_curr]);
+        for (const int e_index : face_edges) {
           const Span<int> adj_faces = edge_faces[e_index];
           for (const int f_other : adj_faces) {
             if (f_other != f_curr) {
@@ -2756,9 +2756,9 @@ static bool edge_has_miter(const BevelState &state, const EdgeHalf *e, int v)
     return false;
   }
   const IndexRange face = state.emesh.src_faces[e->fnext];
-  const Span<int> corner_verts = state.emesh.src_corner_verts.slice(face);
-  for (const int i : corner_verts.index_range()) {
-    if (corner_verts[i] == v) {
+  const Span<int> face_verts = state.emesh.src_corner_verts.slice(face);
+  for (const int i : face_verts.index_range()) {
+    if (face_verts[i] == v) {
       const int corner = face.start() + i;
       return (corner < int(state.params.miter.size())) && state.params.miter[corner];
     }
@@ -4228,18 +4228,17 @@ static bool face_point_inside_test(const ExtendableMesh &emesh, const int f, con
 
   /* Project every corner of the face. */
   const OffsetIndices faces = emesh.src_faces;
-  const Span<int> corner_verts = emesh.src_corner_verts;
   const Span<float3> positions = emesh.src_positions;
-  const IndexRange face_range = faces[f];
-  const int n = face_range.size();
-  Array<float2, 16> projverts(n);
-  for (int i = 0; i < n; i++) {
-    mul_v2_m3v3(projverts[i], axis_mat, positions[corner_verts[face_range[i]]]);
+  const Span<int> corner_verts = emesh.src_corner_verts;
+  const Span<int> face_verts = corner_verts.slice(faces[f]);
+  Array<float2, 16> projverts(face_verts.size());
+  for (const int i : face_verts.index_range()) {
+    const int vert = face_verts[i];
+    mul_v2_m3v3(projverts[i], axis_mat, positions[vert]);
   }
 
-  (void)corner_verts;
   return isect_point_poly_v2(
-      co_2d, reinterpret_cast<const float (*)[2]>(projverts.data()), uint(n));
+      co_2d, reinterpret_cast<const float (*)[2]>(projverts.data()), uint(face_verts.size()));
 }
 
 /**
@@ -4258,10 +4257,7 @@ static void get_incident_edges(
   const Span<int2> edges = emesh.src_edges;
   const OffsetIndices faces = emesh.src_faces;
   const Span<int> corner_edges = emesh.src_corner_edges;
-  const IndexRange face_range = faces[f];
-  const int n = face_range.size();
-  for (int i = 0; i < n; i++) {
-    const int e = corner_edges[face_range[i]];
+  for (const int e : corner_edges.slice(faces[f])) {
     const int2 &ev = edges[e];
     if (ev[0] == v_idx || ev[1] == v_idx) {
       if (*r_e1 < 0) {
@@ -7380,17 +7376,18 @@ static float2 interp_uv_from_face(const ExtendableMesh &emesh,
   const OffsetIndices src_faces = emesh.src_faces;
   const Span<int> corner_verts = emesh.src_corner_verts;
   const Span<float3> positions = emesh.src_positions;
-  const IndexRange face_range = src_faces[f_src];
-  const int n = face_range.size();
+  const IndexRange face_corners = src_faces[f_src];
 
   const float3 no = emesh.src_face_normals[f_src];
   float axis_mat[3][3];
   axis_dominant_v3_to_m3(axis_mat, no);
 
   /* Project face corners to 2D. */
-  Array<float2, 16> cos_2d(n);
-  for (int i = 0; i < n; i++) {
-    mul_v2_m3v3(cos_2d[i], axis_mat, positions[corner_verts[face_range[i]]]);
+  Array<float2, 16> cos_2d(face_corners.size());
+  const Span<int> face_verts = corner_verts.slice(face_corners);
+  for (const int i : face_corners.index_range()) {
+    const int vert = face_verts[i];
+    mul_v2_m3v3(cos_2d[i], axis_mat, positions[vert]);
   }
 
   /* Project destination point to 2D. */
@@ -7398,13 +7395,14 @@ static float2 interp_uv_from_face(const ExtendableMesh &emesh,
   mul_v2_m3v3(co_2d, axis_mat, dst_co);
 
   /* Compute mean-value interpolation weights. */
-  Array<float, 16> w(n);
-  interp_weights_poly_v2(w.data(), reinterpret_cast<float (*)[2]>(cos_2d.data()), n, co_2d);
+  Array<float, 16> w(face_corners.size());
+  interp_weights_poly_v2(
+      w.data(), reinterpret_cast<float (*)[2]>(cos_2d.data()), face_corners.size(), co_2d);
 
   /* Weighted sum of UV values. */
   float2 result(0.0f);
-  for (int i = 0; i < n; i++) {
-    result += w[i] * uv_vals[face_range[i]];
+  for (const int i : face_corners.index_range()) {
+    result += w[i] * uv_vals[face_corners[i]];
   }
   return result;
 }
