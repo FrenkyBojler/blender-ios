@@ -2329,7 +2329,7 @@ IDProperty *node_create_asset_meta_data_properties(const bNodeTree &node_tree)
   IDP_AddToGroup(properties.get(), panels.release());
 
   /* NOTE: The `output` group is kept for compatibility. This should be replaced by
-   * `output_sockets` in the next breaking release. */
+   * `output_sockets` in Blender 6.0 (next breaking release). */
   auto outputs = idprop::create_group("outputs");
   for (const bNodeTreeInterfaceSocket *socket : node_tree.interface_outputs()) {
     auto *prop = idprop::create(socket->name ? socket->name : "", socket->socket_type).release();
