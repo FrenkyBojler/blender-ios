@@ -758,8 +758,8 @@ void MTLFrameBuffer::apply_state()
     int viewport_h = viewport_[0][3];
     if (viewport_w == 0 || viewport_h == 0) {
       MTL_LOG_WARNING("Viewport had width and height of (0,0) -- Updating -- DEBUG Safety check");
-      viewport_w = default_width_;
-      viewport_h = default_height_;
+      viewport_w = width_;
+      viewport_h = height_;
     }
 
     /* Update Context State. */
@@ -883,27 +883,6 @@ bool MTLFrameBuffer::add_color_attachment(gpu::MTLTexture *texture,
         break;
     }
 
-    /* Update default attachment size and ensure future attachments match the same size. */
-    int width_of_miplayer, height_of_miplayer;
-    if (miplevel <= 0) {
-      width_of_miplayer = texture->width_get();
-      height_of_miplayer = texture->height_get();
-    }
-    else {
-      width_of_miplayer = max_ii(texture->width_get() >> miplevel, 1);
-      height_of_miplayer = max_ii(texture->height_get() >> miplevel, 1);
-    }
-
-    if (default_width_ == 0 || default_height_ == 0) {
-      this->default_size_set(width_of_miplayer, height_of_miplayer);
-      BLI_assert(default_width_ > 0);
-      BLI_assert(default_height_ > 0);
-    }
-    else {
-      BLI_assert(default_width_ == width_of_miplayer);
-      BLI_assert(default_height_ == height_of_miplayer);
-    }
-
     /* Flag as dirty. */
     this->mark_dirty();
   }
@@ -1000,27 +979,6 @@ bool MTLFrameBuffer::add_depth_attachment(gpu::MTLTexture *texture, int miplevel
       default:
         BLI_assert_msg(false, "Unrecognized texture type");
         break;
-    }
-
-    /* Update default attachment size and ensure future attachments match the same size. */
-    int width_of_miplayer, height_of_miplayer;
-    if (miplevel <= 0) {
-      width_of_miplayer = texture->width_get();
-      height_of_miplayer = texture->height_get();
-    }
-    else {
-      width_of_miplayer = max_ii(texture->width_get() >> miplevel, 1);
-      height_of_miplayer = max_ii(texture->height_get() >> miplevel, 1);
-    }
-
-    if (default_width_ == 0 || default_height_ == 0) {
-      this->default_size_set(width_of_miplayer, height_of_miplayer);
-      BLI_assert(default_width_ > 0);
-      BLI_assert(default_height_ > 0);
-    }
-    else {
-      BLI_assert(default_width_ == width_of_miplayer);
-      BLI_assert(default_height_ == height_of_miplayer);
     }
 
     /* Flag as dirty after attachments changed. */
@@ -1121,34 +1079,14 @@ bool MTLFrameBuffer::add_stencil_attachment(gpu::MTLTexture *texture, int miplev
         break;
     }
 
-    /* Update default attachment size and ensure future attachments match the same size. */
-    int width_of_miplayer, height_of_miplayer;
-    if (miplevel <= 0) {
-      width_of_miplayer = texture->width_get();
-      height_of_miplayer = texture->height_get();
-    }
-    else {
-      width_of_miplayer = max_ii(texture->width_get() >> miplevel, 1);
-      height_of_miplayer = max_ii(texture->height_get() >> miplevel, 1);
-    }
-
-    if (default_width_ == 0 || default_height_ == 0) {
-      this->default_size_set(width_of_miplayer, height_of_miplayer);
-      BLI_assert(default_width_ > 0);
-      BLI_assert(default_height_ > 0);
-    }
-    else {
-      BLI_assert(default_width_ == width_of_miplayer);
-      BLI_assert(default_height_ == height_of_miplayer);
-    }
-
     /* Flag as dirty after attachments changed. */
     this->mark_dirty();
   }
   else {
     MTL_LOG_ERROR(
         "Passing in null texture to MTLFrameBuffer::addStencilAttachment (This could be due to "
-        "not all texture types being supported).");
+        "not "
+        "all texture types being supported).");
   }
   return true;
 }
@@ -1213,16 +1151,7 @@ void MTLFrameBuffer::remove_all_attachments()
   dirty_attachments_ = false;
 }
 
-void MTLFrameBuffer::ensure_render_target_size()
-{
-  /* If we have no attachments, reset width and height to zero. */
-  if (colour_attachment_count_ == 0 && !this->has_depth_attachment() &&
-      !this->has_stencil_attachment())
-  {
-    /* Reset default size for empty framebuffer. */
-    this->default_size_set(0, 0);
-  }
-}
+void MTLFrameBuffer::ensure_render_target_size() {}
 
 /** \} */
 
@@ -1936,15 +1865,6 @@ int MTLFrameBuffer::get_width()
 int MTLFrameBuffer::get_height()
 {
   return height_;
-}
-
-int MTLFrameBuffer::get_default_width()
-{
-  return default_width_;
-}
-int MTLFrameBuffer::get_default_height()
-{
-  return default_height_;
 }
 
 /** \} */

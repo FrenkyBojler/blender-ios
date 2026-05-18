@@ -167,7 +167,7 @@ class FrameBuffer {
   }
 
   /* Sets the size for frame-buffer with no attachments. */
-  virtual void default_size_set(int width, int height)
+  void default_size_set(int width, int height)
   {
     width_ = width;
     height_ = height;
