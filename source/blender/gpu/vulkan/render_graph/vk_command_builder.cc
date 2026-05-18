@@ -650,6 +650,30 @@ void VKCommandBuilder::add_image_read_barriers(VKRenderGraph &render_graph,
                              resource_state.image_layout,
                              link.vk_image_layout,
                              r_barrier);
+        resource_state.image_layout = link.vk_image_layout;
+      }
+      /* Image tracker only tracks layout changes. Access flag synchronization is still needed
+       * to avoid WRITE->READ hazards between rendering scopes. See #158501. */
+      VkAccessFlags wait_access = resource_state.vk_access;
+      r_barrier.src_stage_mask |= resource_state.vk_pipeline_stages;
+      r_barrier.dst_stage_mask |= node_stages;
+      if (is_first_read) {
+        resource_state.vk_access = link.vk_access_flags;
+        resource_state.vk_pipeline_stages = node_stages;
+      }
+      else {
+        resource_state.vk_access |= link.vk_access_flags;
+        resource_state.vk_pipeline_stages |= node_stages;
+      }
+      if (wait_access != VK_ACCESS_NONE && (wait_access & ~link.vk_access_flags) != 0) {
+        add_image_barrier(resource.image.vk_image,
+                          r_barrier,
+                          wait_access,
+                          link.vk_access_flags,
+                          resource_state.image_layout,
+                          link.vk_image_layout,
+                          link.vk_image_aspect,
+                          {});
       }
       continue;
     }
@@ -712,6 +736,23 @@ void VKCommandBuilder::add_image_write_barriers(VKRenderGraph &render_graph,
                              resource_state.image_layout,
                              link.vk_image_layout,
                              r_barrier);
+        resource_state.image_layout = link.vk_image_layout;
+      }
+      /* Image tracker only tracks layout changes. Access flag synchronization is still needed
+       * to avoid READ->WRITE hazards between rendering scopes. See #158501. */
+      r_barrier.src_stage_mask |= resource_state.vk_pipeline_stages;
+      r_barrier.dst_stage_mask |= node_stages;
+      resource_state.vk_access = link.vk_access_flags;
+      resource_state.vk_pipeline_stages = node_stages;
+      if (wait_access != VK_ACCESS_NONE && (wait_access & ~link.vk_access_flags) != 0) {
+        add_image_barrier(resource.image.vk_image,
+                          r_barrier,
+                          wait_access,
+                          link.vk_access_flags,
+                          resource_state.image_layout,
+                          link.vk_image_layout,
+                          link.vk_image_aspect,
+                          {});
       }
       continue;
     }
