@@ -616,7 +616,7 @@ int ExtendableMesh::edge_create(const int v1, const int v2, const int example_ed
   return index;
 }
 
-int ExtendableMesh::face_create(Span<int> verts, const int example_face)
+int ExtendableMesh::face_create(const Span<int> verts, const int example_face)
 {
   const int face_index = mesh.faces_num + new_face_offsets_.size() - 1;
 
@@ -783,9 +783,9 @@ void UVLayerInfo::init(const Mesh &mesh)
 }
 
 bool UVLayerInfo::contig_ldata_across_edge(const ExtendableMesh &emesh,
-                                           int e,
-                                           int f1,
-                                           int f2) const
+                                           const int e,
+                                           const int f1,
+                                           const int f2) const
 {
   if (!has_uv_layers) {
     return true;
@@ -795,14 +795,14 @@ bool UVLayerInfo::contig_ldata_across_edge(const ExtendableMesh &emesh,
   const int v1 = edge_verts[0];
   const int v2 = edge_verts[1];
 
-  Span<int> corner_verts = emesh.src_corner_verts;
-  IndexRange f1_corners = emesh.src_faces[f1];
-  IndexRange f2_corners = emesh.src_faces[f2];
+  const Span<int> corner_verts = emesh.src_corner_verts;
+  const IndexRange f1_corners = emesh.src_faces[f1];
+  const IndexRange f2_corners = emesh.src_faces[f2];
 
-  int c1_v1 = bke::mesh::face_find_corner_from_vert(f1_corners, corner_verts, v1);
-  int c1_v2 = bke::mesh::face_find_corner_from_vert(f1_corners, corner_verts, v2);
-  int c2_v1 = bke::mesh::face_find_corner_from_vert(f2_corners, corner_verts, v1);
-  int c2_v2 = bke::mesh::face_find_corner_from_vert(f2_corners, corner_verts, v2);
+  const int c1_v1 = bke::mesh::face_find_corner_from_vert(f1_corners, corner_verts, v1);
+  const int c1_v2 = bke::mesh::face_find_corner_from_vert(f1_corners, corner_verts, v2);
+  const int c2_v1 = bke::mesh::face_find_corner_from_vert(f2_corners, corner_verts, v1);
+  const int c2_v2 = bke::mesh::face_find_corner_from_vert(f2_corners, corner_verts, v2);
 
   if (c1_v1 == -1 || c1_v2 == -1 || c2_v1 == -1 || c2_v2 == -1) {
     return false;
@@ -830,7 +830,7 @@ void UVLayerInfo::find_components(const ExtendableMesh &emesh)
   const OffsetIndices<int> faces = emesh.src_faces;
   const Span<int> corner_verts = emesh.src_corner_verts;
   const Span<int> corner_edges = emesh.src_corner_edges;
-  face_component = Array<int>(faces.size(), -1);
+  this->face_component = Array<int>(faces.size(), -1);
   if (faces.is_empty()) {
     return;
   }
@@ -843,7 +843,7 @@ void UVLayerInfo::find_components(const ExtendableMesh &emesh)
 
   int current_component = -1;
   for (int f = 0; f < faces.size(); f++) {
-    if (face_component[f] == -1 && !in_stack[f]) {
+    if (this->face_component[f] == -1 && !in_stack[f]) {
       current_component++;
       stack.append(f);
       in_stack[f] = true;
@@ -852,10 +852,10 @@ void UVLayerInfo::find_components(const ExtendableMesh &emesh)
         int f_curr = stack.pop_last();
         in_stack[f_curr] = false;
 
-        if (face_component[f_curr] != -1) {
+        if (this->face_component[f_curr] != -1) {
           continue;
         }
-        face_component[f_curr] = current_component;
+        this->face_component[f_curr] = current_component;
 
         /* Find neighbors via edges. */
         const Span<int> f_edges = corner_edges.slice(faces[f_curr]);
@@ -901,11 +901,11 @@ void UVLayerInfo::find_components(const ExtendableMesh &emesh)
 
     if (fz > top_face_z) {
       top_face_z = fz;
-      top_face_component = face_component[f];
+      top_face_component = this->face_component[f];
     }
     if (fz < bot_face_z) {
       bot_face_z = fz;
-      bot_face_component = face_component[f];
+      bot_face_component = this->face_component[f];
     }
   }
 
@@ -913,7 +913,7 @@ void UVLayerInfo::find_components(const ExtendableMesh &emesh)
     if (c1 == c2) {
       return;
     }
-    for (int &c : face_component) {
+    for (int &c : this->face_component) {
       if (c == c1) {
         c = c2;
       }
@@ -923,17 +923,17 @@ void UVLayerInfo::find_components(const ExtendableMesh &emesh)
     }
   };
 
-  swap_face_components(face_component[0], top_face_component);
+  swap_face_components(this->face_component[0], top_face_component);
   if (bot_face_component != top_face_component) {
     if (bot_face_component == 0) {
       /* It was swapped with old top_face_component. */
       bot_face_component = top_face_component;
     }
-    swap_face_components(face_component[1], bot_face_component);
+    swap_face_components(this->face_component[1], bot_face_component);
   }
 }
 
-bool UVLayerInfo::contig_ldata_around_vert(const ExtendableMesh &emesh, int v) const
+bool UVLayerInfo::contig_ldata_around_vert(const ExtendableMesh &emesh, const int v) const
 {
   if (!has_uv_layers) {
     return true;
@@ -4389,7 +4389,7 @@ static bool is_bad_uv_poly(const BevelState &state, BevVert *bv, const int frep)
  *
  * Returns -1 when every candidate is -1.
  */
-static int choose_rep_face(const BevelState &state, Span<int> faces)
+static int choose_rep_face(const BevelState &state, const Span<int> faces)
 {
   constexpr int VEC_VALUE_LEN = 6;
 
@@ -4541,7 +4541,10 @@ static int boundvert_rep_face(const BoundVert *v, int *r_fother)
  * Returns the edge (either `e1` or `e2`) whose line segment is closest to `co`.
  * Mirrors BMesh's #find_closer_edge.
  */
-static int find_closer_edge(const ExtendableMesh &emesh, const float3 &co, int e1, int e2)
+static int find_closer_edge(const ExtendableMesh &emesh,
+                            const float3 &co,
+                            const int e1,
+                            const int e2)
 {
   BLI_assert(e1 >= 0 && e2 >= 0);
   const int2 ev1 = emesh.edge_verts(e1);
@@ -4558,12 +4561,12 @@ static int find_closer_edge(const ExtendableMesh &emesh, const float3 &co, int e
  * Mirrors BMesh's #snap_edge_for_center_vmesh_vert.
  * `eprev` / `enext` are the bevel edges for BoundVert `i-1` / `i` respectively (-1 = none).
  */
-static int snap_edge_for_center_vmesh_vert(int i,
-                                           int n_bndv,
-                                           int eprev,
-                                           int enext,
+static int snap_edge_for_center_vmesh_vert(const int i,
+                                           const int n_bndv,
+                                           const int eprev,
+                                           const int enext,
                                            const Span<int> bndv_rep_faces,
-                                           int center_frep,
+                                           const int center_frep,
                                            const Span<bool> frep_beats_next)
 {
   const int previ = (i + n_bndv - 1) % n_bndv;
@@ -4582,17 +4585,17 @@ static int snap_edge_for_center_vmesh_vert(int i,
  * Mirrors BMesh's #snap_edges_for_vmesh_vert.
  * Only meaningful for odd segment counts; for even ns all entries are set to -1.
  */
-static void snap_edges_for_vmesh_vert(int i,
-                                      int j,
-                                      int k,
-                                      int ns,
-                                      int ns2,
-                                      int n_bndv,
-                                      int eprev,
-                                      int enext,
-                                      int enextnext,
+static void snap_edges_for_vmesh_vert(const int i,
+                                      const int j,
+                                      const int k,
+                                      const int ns,
+                                      const int ns2,
+                                      const int n_bndv,
+                                      const int eprev,
+                                      const int enext,
+                                      const int enextnext,
                                       const Span<int> bndv_rep_faces,
-                                      int center_frep,
+                                      const int center_frep,
                                       const Span<bool> frep_beats_next,
                                       int r_snap_edges[4])
 {
@@ -5431,7 +5434,7 @@ static void bevel_rebuild_existing_polygons(BevelState &state,
  * Returns the #EdgeHalf in `bv` whose beveled edge index equals `edge_index`,
  * or `nullptr` if not found.
  */
-static EdgeHalf *find_edge_half_for_edge(BevVert *bv, int edge_index)
+static EdgeHalf *find_edge_half_for_edge(BevVert *bv, const int edge_index)
 {
   for (int i = 0; i < bv->edgecount; i++) {
     if (bv->edges[i].e == edge_index) {
@@ -5469,7 +5472,7 @@ static bool bevvert_is_weld_cross(const BevVert *bv)
  * `v1`/`v4` are the leftv/rightv BoundVerts on bv1 (the e1-\>leftv side),
  * `v2`/`v3` are the rightv/leftv BoundVerts on bv2.
  */
-static void bevel_build_edge_polygons(BevelState &state, int edge_index)
+static void bevel_build_edge_polygons(BevelState &state, const int edge_index)
 {
   const ExtendableMesh &emesh = state.emesh;
   const int2 edge_verts = emesh.edge_verts(edge_index);
@@ -5905,7 +5908,7 @@ static void build_vmesh(BevelState &state, BevVert *bv)
  * This is the Mesh equivalent of the BMesh #determine_uv_vert_connectivity function.
  * Corners play the role of BMesh loops; #uv::UVLayerInfo::layers supplies the UV values.
  */
-static void determine_uv_vert_connectivity(BevelState &state, int v)
+static void determine_uv_vert_connectivity(BevelState &state, const int v)
 {
   const int num_uv_layers = int(state.uv_layer_info.layers.size());
   BLI_assert(int(state.uv_vert_maps.size()) == num_uv_layers);
@@ -5978,9 +5981,9 @@ static void fill_vmesh_fracs(VMesh *vm, Array<float> &frac, int i)
 
 /* Fills frac[0..ns] with cumulative arc-length fractions along bndv's profile. */
 static void fill_profile_fracs(const BevelState &state,
-                               BoundVert *bndv,
+                               const BoundVert *bndv,
                                Array<float> &frac,
-                               int ns)
+                               const int ns)
 {
   float co[3], nextco[3];
   frac[0] = 0.0f;
@@ -6003,7 +6006,7 @@ static void fill_profile_fracs(const BevelState &state,
 }
 
 /* Returns index i such that frac[i] <= f <= frac[i+1], and sets r_rest to the remainder. */
-static int interp_range(const Array<float> &frac, int n, float f, float *r_rest)
+static int interp_range(const Array<float> &frac, const int n, const float f, float *r_rest)
 {
   for (int i = 0; i < n; i++) {
     if (f <= frac[i + 1]) {
@@ -6257,7 +6260,7 @@ static VMesh cubic_subdiv(const BevelState &state, VMesh &vm_in)
  * When `r == PRO_CIRCLE_R` normalizes the vector; for the square cases snaps
  * to the nearest axis-aligned face. Only used for cube corner special cases.
  */
-static void snap_to_superellipsoid(float co[3], const float super_r, bool midline)
+static void snap_to_superellipsoid(float co[3], const float super_r, const bool midline)
 {
   const float r = super_r;
   if (r == profile::PRO_CIRCLE_R) {
