@@ -41,7 +41,7 @@
 
 #include "GEO_mesh_bevel.hh"
 
-// #define DEBUG_TIME
+#define DEBUG_TIME
 #ifdef DEBUG_TIME
 #  include "BLI_timeit.hh"
 #endif
@@ -219,7 +219,6 @@ class ExtendableMesh {
   int2 edge_verts(const int e) const;
   IndexRange face_corners(const int f) const;
   float3 face_normal(const int f) const;
-  float3 face_center(const int f) const;
   int corner_vert(const int c) const;
   int corner_edge(const int c) const;
 
@@ -576,17 +575,6 @@ float3 ExtendableMesh::face_normal(const int f) const
   /* Only valid for original mesh faces; new faces are not used in tri_corner_test. */
   BLI_assert(f < mesh.faces_num);
   return mesh.face_normals()[f];
-}
-
-float3 ExtendableMesh::face_center(const int f) const
-{
-  /* Average the corner vertex positions. */
-  const IndexRange corners = face_corners(f);
-  float3 center(0.0f);
-  for (const int c : corners) {
-    center += vert_position(corner_vert(c));
-  }
-  return center / float(corners.size());
 }
 
 int ExtendableMesh::corner_vert(const int c) const
@@ -986,6 +974,8 @@ struct BevelState {
   /* Bevel affected vertices mask and its memory. */
   index_mask::IndexMaskMemory memory;
   IndexMask bevel_affected_vertices;
+  IndexMask bevel_affected_faces;
+  Array<float3> face_centers;
 
   /* The encapsulated extendable mesh. */
   ExtendableMesh emesh;
@@ -1032,6 +1022,7 @@ struct BevelState {
   VMeshMethod vmesh_method;
 
   BevelState(const Mesh &mesh, const BevelParameters &params, const IndexMask &selection);
+  float3 face_center(const int f) const;
   void initialize_profile_data();
   void uv_init();
 };
@@ -1063,6 +1054,34 @@ BevelState::BevelState(const Mesh &mesh, const BevelParameters &params, const In
     });
     this->bevel_affected_vertices = IndexMask::from_bools(is_affected, memory);
   }
+
+  /* Calculate affected faces and their centers. */
+  Array<bool> is_vert_affected(mesh.verts_num, false);
+  this->bevel_affected_vertices.to_bools(is_vert_affected.as_mutable_span());
+
+  Array<bool> face_affected(mesh.faces_num, false);
+  const Span<int> corner_verts = mesh.corner_verts();
+  const OffsetIndices faces = mesh.faces();
+  for (int f = 0; f < mesh.faces_num; f++) {
+    for (const int c : faces[f]) {
+      if (is_vert_affected[corner_verts[c]]) {
+        face_affected[f] = true;
+        break;
+      }
+    }
+  }
+  this->bevel_affected_faces = IndexMask::from_bools(face_affected, memory);
+
+  this->face_centers = Array<float3>(mesh.faces_num, float3(0.0f));
+  const Span<float3> positions = mesh.vert_positions();
+  this->bevel_affected_faces.foreach_index([&](const int f) {
+    float3 center(0.0f);
+    const IndexRange corners = faces[f];
+    for (const int c : corners) {
+      center += positions[corner_verts[c]];
+    }
+    this->face_centers[f] = center / float(corners.size());
+  });
 
   this->affect_vertices_odd = false;
   this->loop_slide = true;
@@ -2070,7 +2089,7 @@ template<typename T> [[maybe_unused]] static void print_span(Span<T> span, const
     const int ex = (i < int(exs.size())) ? exs[i] : -1;
     if (ex >= 0 && ex < emesh.mesh.faces_num) {
       const int comp = (!uvi.face_component.is_empty()) ? uvi.face_component[ex] : -1;
-      const float3 cent = emesh.face_center(ex);
+      const float3 cent = state.face_center(ex);
       fmt::println("  new_face={} example={} comp={} center=({:.3f},{:.3f},{:.3f})",
                    face_idx,
                    ex,
@@ -4137,6 +4156,12 @@ static void calculate_vm_profiles(BevelState &state, BevVert *bv, VMesh *vm)
 
 }  // namespace profile
 
+float3 BevelState::face_center(const int f) const
+{
+  BLI_assert(f >= 0 && f < this->face_centers.size());
+  return this->face_centers[f];
+}
+
 void BevelState::initialize_profile_data()
 {
   const float psr = -std::numbers::ln2_v<float> /
@@ -4415,7 +4440,7 @@ static int choose_rep_face(const BevelState &state, Span<int> faces)
     /* 2: Material index. */
     value_vecs[fi][vi++] = mat_span.is_empty() ? 0.0f : float(mat_span[f]);
     /* 3–5: Face center coordinates.  Lower z wins (matches BMesh's un-negated cent[2]). */
-    const float3 cent = state.emesh.face_center(f);
+    const float3 cent = state.face_center(f);
     value_vecs[fi][vi++] = cent.z;
     value_vecs[fi][vi++] = cent.x;
     value_vecs[fi][vi++] = cent.y;
@@ -7026,7 +7051,7 @@ static int tri_corner_test(const BevelState &state, const BevVert *bv)
       ang = acosf(math::clamp(dot, -1.0f, 1.0f));
       /* Negate for concave (the dihedral is > π). */
       if (math::dot(math::cross(no_prev, no_next),
-                    emesh.vert_position(bv->v) - emesh.face_center(e.fprev)) < 0.0f)
+                    emesh.vert_position(bv->v) - state.face_center(e.fprev)) < 0.0f)
       {
         ang = -ang;
       }
