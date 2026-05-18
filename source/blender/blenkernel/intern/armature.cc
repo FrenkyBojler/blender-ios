@@ -2994,7 +2994,12 @@ void BKE_pose_ensure(Main *bmain, Object *ob, bArmature *arm, const bool do_id_u
   }
 }
 
-/* This is a trimmed-down copy of rebuild_pose_from_armature() that just deals with bone indices.
+/**
+ * This is a trimmed-down copy of rebuild_pose_from_armature() that just deals with bone indices.
+ *
+ * Note: it's not thread-safe, so it's up the caller to make sure this doesn't get called while the
+ * object or armature data is being edited. It should be fine to call this function multiple times
+ * in parallel, as it would just write the same data twice.
  */
 static void rebuild_pose_bone_indices(const Object &pose_ob)
 {
