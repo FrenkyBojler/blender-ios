@@ -10,6 +10,7 @@
 #include <fmt/format.h>
 
 #include "BLI_array.hh"
+#include "BLI_array_utils.hh"
 #include "BLI_index_mask.hh"
 #include "BLI_map.hh"
 #include "BLI_math_base.h"
@@ -1093,11 +1094,12 @@ BevelState::BevelState(const Mesh &mesh, const BevelParameters &params, const In
   }
 
   /* Precompute fast-path miter flags. */
-  const Span<bool> miter_span = this->params.miter.as_span();
-  this->all_miters_off = miter_span.is_empty() ||
-                         std::ranges::none_of(miter_span, [](bool b) { return b; });
-  this->all_miters_on = !miter_span.is_empty() &&
-                        std::ranges::all_of(miter_span, [](bool b) { return b; });
+  const array_utils::BooleanMix miter_mix = array_utils::booleans_mix_calc(
+      VArray<bool>::from_span(this->params.miter));
+  this->all_miters_off = this->params.miter.is_empty() ||
+                         miter_mix == array_utils::BooleanMix::AllFalse;
+  this->all_miters_on = !this->params.miter.is_empty() &&
+                        miter_mix == array_utils::BooleanMix::AllTrue;
 }
 
 namespace geom {
