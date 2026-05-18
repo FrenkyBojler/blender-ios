@@ -684,7 +684,7 @@ void ExtendableMesh::face_kill(const int f)
   if (f < mesh.faces_num) {
     kill_faces_[f] = true;
     /* Also kill all corners of this face, matching BMesh's BM_face_kill semantics. */
-    for (const int c : face_corners(f)) {
+    for (const int c : this->face_corners(f)) {
       kill_corners_[c] = true;
     }
   }
@@ -5125,17 +5125,20 @@ static int bev_rebuild_polygon(BevelState &state, const int f_idx)
   }
 
   bool do_rebuild = false;
-  Vector<int, 32> vv;     /* New vertex indices for the rebuilt face. */
-  Vector<int, 32> orig_v; /* Representative original vertex for each vv entry.
-                           * For non-beveled vertices this equals vv[i] (the original vertex).
-                           * For VMesh arc vertices this equals bv->v (the original beveled
-                           * vertex whose VMesh produced the arc). Used to identify the
-                           * best-matching original edge example for each rebuilt edge. */
-  Vector<int, 32> orig_e; /* Original edge example for the segment from vv[i] to vv[i+1].
-                           * Mirrors BMesh's `ee[]` array in #bev_rebuild_polygon.
-                           * For arc edges within a beveled vertex, this is the original beveled
-                           * edge (e->e). For non-beveled vertex edges, this is the face loop's
-                           * edge (e_prev_idx). -1 if no suitable example is known. */
+  /* New vertex indices for the rebuilt face. */
+  Vector<int, 32> vv;
+  /* Representative original vertex for each vv entry.
+   * For non-beveled vertices this equals vv[i] (the original vertex).
+   * For VMesh arc vertices this equals bv->v (the original beveled
+   * vertex whose VMesh produced the arc). Used to identify the
+   * best-matching original edge example for each rebuilt edge. */
+  Vector<int, 32> orig_v;
+  /* Original edge example for the segment from vv[i] to vv[i+1].
+   * Mirrors BMesh's `ee[]` array in #bev_rebuild_polygon.
+   * For arc edges within a beveled vertex, this is the original beveled
+   * edge (e->e). For non-beveled vertex edges, this is the face loop's
+   * edge (e_prev_idx). -1 if no suitable example is known. */
+  Vector<int, 32> orig_e;
 
   const int sz = int(corners.size());
   for (int ci = 0; ci < sz; ci++) {
