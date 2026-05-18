@@ -9757,8 +9757,8 @@ static void rna_def_nodetree(BlenderRNA *brna)
   RNA_def_property_update(prop, NC_NODE, nullptr);
 
   prop = RNA_def_property(srna, "default_group_node_width", PROP_INT, PROP_NONE);
-  RNA_def_property_int_default(prop, GROUP_NODE_DEFAULT_WIDTH);
-  RNA_def_property_range(prop, GROUP_NODE_MIN_WIDTH, GROUP_NODE_MAX_WIDTH);
+  RNA_def_property_int_default(prop, bke::NodeWidth::Default);
+  RNA_def_property_range(prop, bke::NodeWidth::GroupMin, bke::NodeWidth::DefaultMax);
   RNA_def_property_ui_text(
       prop, "Default Group Node Width", "The width for newly created group nodes");
   RNA_def_property_update(prop, NC_NODE, nullptr);

@@ -286,7 +286,6 @@ bNode &version_node_add_unknown(bNodeTree &ntree,
   ntype.type_legacy = legacy_type;
   ntype.height = height;
   ntype.default_width = width;
-  node_type_size_preset(ntype, eNodeSizePreset::Default);
   ntype.minheight = 30.0f;
   ntype.maxheight = FLT_MAX;
 
