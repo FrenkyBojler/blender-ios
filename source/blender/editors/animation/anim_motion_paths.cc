@@ -527,7 +527,7 @@ void animviz_tag_for_motion_path_eval(wmWindow &window, Object &object)
   for (int i = 0; i < mpath->length; i++) {
     mpath->points[i].flag &= ~MOTIONPATH_VERT_EVALUATED;
   }
-  bke::wm_runtime_range_eval_register(
+  bke::wm_staggered_eval_register(
       *window.runtime, object.id, "", {mpath->start_frame, mpath->end_frame}, update_callback);
 }
 
@@ -543,11 +543,11 @@ void animviz_tag_for_motion_path_eval(wmWindow &window,
   for (int i = 0; i < mpath->length; i++) {
     mpath->points[i].flag &= ~MOTIONPATH_VERT_EVALUATED;
   }
-  bke::wm_runtime_range_eval_register(*window.runtime,
-                                      armature_object.id,
-                                      pose_bone.name,
-                                      {mpath->start_frame, mpath->end_frame},
-                                      update_callback_pose_bone);
+  bke::wm_staggered_eval_register(*window.runtime,
+                                  armature_object.id,
+                                  pose_bone.name,
+                                  {mpath->start_frame, mpath->end_frame},
+                                  update_callback_pose_bone);
 }
 
 void animviz_calc_motionpaths(Depsgraph *depsgraph,

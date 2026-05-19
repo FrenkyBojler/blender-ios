@@ -132,9 +132,9 @@ struct WindowManagerRuntime {
 using EvalCallback =
     FunctionRef<bool(ID &orig_id, ID &evaluated_id, StringRef component_name, int frame)>;
 
-struct AsyncEvalId {
+struct StaggeredEvalTarget {
   /* Storing the session uid instead of a pointer so we can react to deletions in the evaluation
-   * code. Doing so means we have to search for the ID * every iteration though. */
+   * code. Doing so means we have to search for the `ID*`. */
   uint32_t id_uid;
   ID_Type id_type = ID_OB;
   /* Storing the index to a bone or other component.  */
@@ -144,8 +144,18 @@ struct AsyncEvalId {
   EvalCallback callback;
 
   /* Cached pointer to the ID based on `id_uid` and `id_type`. This is only valid after calling
-   * `wm_runtime_prepare_for_eval`. */
+   * `wm_staggered_eval_prepare`. */
   ID *id;
+};
+
+struct StaggeredEvaluationData {
+  /**
+   * A dependency graph used for evaluating the motion path objects of the current scene.
+   * This depsgraph is a minimal version that only includes the motion path objects.
+   */
+  struct Depsgraph *depsgraph = nullptr;
+  Vector<StaggeredEvalTarget> targets = {};
+  Bounds<int> range = {};
 };
 
 struct WindowRuntime {
@@ -217,8 +227,8 @@ struct WindowRuntime {
    * This depsgraph is a minimal version that only includes the motion path objects.
    * It is evaluated at most once per main loop until all required data has been generated.
    */
-  struct Depsgraph *async_depsgraph = nullptr;
-  Vector<AsyncEvalId> async_eval_ids = {};
+  struct Depsgraph *staggered_depsgraph = nullptr;
+  Vector<StaggeredEvalTarget> staggered_eval_targets = {};
   Bounds<int> evaluated_range = {};
 
   WindowRuntime() = default;
@@ -234,28 +244,32 @@ struct WindowRuntime {
  * If the given ID is already in the list of IDs to evaluate, the given range is combined with the
  * existing range for that ID.
  *
- * \param range determines the frames for which this ID shall be evaluated. Inclusive at the start,
- * exclusive at the end.
+ * \param component_name is passed back into the callback and is up to the caller of this function
+ * on how to use.
+ * \param range determines the frames for which this ID shall be evaluated.
+ * Inclusive at the start, exclusive at the end.
+ * \param callback is the function that will be called for every frame in the given `range`.
  */
-void wm_runtime_range_eval_register(WindowRuntime &runtime,
-                                    ID &id,
-                                    const StringRef component_name,
-                                    Bounds<int> range,
-                                    EvalCallback callback);
+void wm_staggered_eval_register(WindowRuntime &runtime,
+                                ID &id,
+                                const StringRef component_name,
+                                Bounds<int> range,
+                                EvalCallback callback);
 
 /**
- * Has to be called before calling `wm_runtime_evaluate_next_frame`. It is possible to do
- * consecutive calls to `wm_runtime_evaluate_next_frame` after calling prepare once.
+ * Has to be called before calling `wm_staggered_eval_next_frame`. It is possible to do
+ * consecutive calls to `wm_staggered_eval_next_frame` after calling prepare once.
  */
-void wm_runtime_prepare_for_eval(Main &bmain, wmWindow &window);
+void wm_staggered_eval_prepare(Main &bmain, wmWindow &window);
 
 /**
- * Runs the evaluation for the next frame and calls the callbacks of `AsyncEvalID`.
+ * Runs the evaluation for the next frame and calls the callbacks of `StaggeredEvalTarget`.
  * The next frame is the closest frame to `current_frame` that is not inside `evaluated_range`.
  *
- * \returns true if the function can be called again to evaluate another frame.
+ * \returns true if the function can be called again to evaluate another frame. If false is
+ * returned, `wm_staggered_eval_prepare` has to be called.
  */
-bool wm_runtime_evaluate_next_frame(WindowRuntime &runtime, int current_frame);
+bool wm_staggered_eval_next_frame(WindowRuntime &runtime, int current_frame);
 
 }  // namespace bke
 }  // namespace blender

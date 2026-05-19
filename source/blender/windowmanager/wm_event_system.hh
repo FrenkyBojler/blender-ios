@@ -167,7 +167,6 @@ void wm_event_add_xrevent(wmWindow *win, wmXrActionData *actiondata, short val);
 #endif
 
 void wm_event_do_depsgraph(bContext *C, bool is_after_open_file);
-void wm_event_evaluate_depsgraph_off_frame(bContext *C);
 /**
  * Was part of #wm_event_do_notifiers,
  * split out so it can be called once before entering the #WM_main loop.

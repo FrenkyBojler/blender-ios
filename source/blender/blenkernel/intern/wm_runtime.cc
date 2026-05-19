@@ -73,16 +73,16 @@ WindowRuntime::~WindowRuntime()
 #endif
   /** The event_queue should be freed when the window is freed. */
   BLI_assert(BLI_listbase_is_empty(&this->event_queue));
-  DEG_graph_free(this->async_depsgraph);
+  DEG_graph_free(this->staggered_depsgraph);
 }
 
-void wm_runtime_range_eval_register(WindowRuntime &runtime,
-                                    ID &id,
-                                    const StringRef component_name,
-                                    const Bounds<int> range,
-                                    EvalCallback callback)
+void wm_staggered_eval_register(WindowRuntime &runtime,
+                                ID &id,
+                                const StringRef component_name,
+                                const Bounds<int> range,
+                                EvalCallback callback)
 {
-  for (AsyncEvalId &eval_id : runtime.async_eval_ids) {
+  for (StaggeredEvalTarget &eval_id : runtime.staggered_eval_targets) {
     if (eval_id.id_uid == id.session_uid && eval_id.component_name == component_name) {
       /* ID already in objects to evaluate. */
       eval_id.range = bounds::merge(eval_id.range, range);
@@ -90,22 +90,22 @@ void wm_runtime_range_eval_register(WindowRuntime &runtime,
       return;
     }
   }
-  runtime.async_eval_ids.append(
+  runtime.staggered_eval_targets.append(
       {id.session_uid, GS(id.name), std::string(component_name), range, callback});
 
   /* Deleting the graph triggers a rebuild. */
-  DEG_graph_free(runtime.async_depsgraph);
-  runtime.async_depsgraph = nullptr;
+  DEG_graph_free(runtime.staggered_depsgraph);
+  runtime.staggered_depsgraph = nullptr;
   runtime.evaluated_range = {};
 }
 
-void wm_runtime_prepare_for_eval(Main &bmain, wmWindow &window)
+void wm_staggered_eval_prepare(Main &bmain, wmWindow &window)
 {
   WindowRuntime &runtime = *window.runtime;
   Vector<ID *> ids;
   Vector<int> invalid_id_indices;
-  for (const int i : runtime.async_eval_ids.index_range()) {
-    bke::AsyncEvalId &off_frame_id = runtime.async_eval_ids[i];
+  for (const int i : runtime.staggered_eval_targets.index_range()) {
+    bke::StaggeredEvalTarget &off_frame_id = runtime.staggered_eval_targets[i];
     /* Searching here means computationally this scales linear with the amount of `id_type` in the
      * file. This is not ideal performance wise, but doing it this way means we can react to the
      * object being deleted solely in this function without having to call a deregister function
@@ -124,22 +124,22 @@ void wm_runtime_prepare_for_eval(Main &bmain, wmWindow &window)
 
   while (!invalid_id_indices.is_empty()) {
     const int i = invalid_id_indices.pop_last();
-    runtime.async_eval_ids.remove(i);
-    DEG_graph_free(runtime.async_depsgraph);
-    runtime.async_depsgraph = nullptr;
+    runtime.staggered_eval_targets.remove(i);
+    DEG_graph_free(runtime.staggered_depsgraph);
+    runtime.staggered_depsgraph = nullptr;
   }
 
-  if (runtime.async_depsgraph && DEG_needs_update_relations(runtime.async_depsgraph)) {
-    DEG_graph_free(runtime.async_depsgraph);
-    runtime.async_depsgraph = nullptr;
+  if (runtime.staggered_depsgraph && DEG_needs_update_relations(runtime.staggered_depsgraph)) {
+    DEG_graph_free(runtime.staggered_depsgraph);
+    runtime.staggered_depsgraph = nullptr;
   }
 
-  if (!runtime.async_depsgraph) {
-    runtime.async_depsgraph = DEG_graph_new(&bmain,
-                                            WM_window_get_active_scene(&window),
-                                            WM_window_get_active_view_layer(&window),
-                                            DAG_EVAL_VIEWPORT);
-    DEG_graph_build_from_ids(runtime.async_depsgraph, ids);
+  if (!runtime.staggered_depsgraph) {
+    runtime.staggered_depsgraph = DEG_graph_new(&bmain,
+                                                WM_window_get_active_scene(&window),
+                                                WM_window_get_active_view_layer(&window),
+                                                DAG_EVAL_VIEWPORT);
+    DEG_graph_build_from_ids(runtime.staggered_depsgraph, ids);
   }
 }
 
@@ -175,18 +175,18 @@ static int get_next_frame(WindowRuntime &runtime,
   return eval_frame;
 }
 
-bool wm_runtime_evaluate_next_frame(WindowRuntime &runtime, const int current_frame)
+bool wm_staggered_eval_next_frame(WindowRuntime &runtime, const int current_frame)
 {
-  if (runtime.async_depsgraph == nullptr) {
-    /* Call `wm_runtime_prepare_for_eval` before. */
+  if (runtime.staggered_depsgraph == nullptr) {
+    /* Call `wm_staggered_eval_prepare` before. */
     BLI_assert_unreachable();
     return false;
   }
 
   Bounds<int> eval_range = {};
-  for (const int i : runtime.async_eval_ids.index_range()) {
-    bke::AsyncEvalId &off_frame_id = runtime.async_eval_ids[i];
-    /* `wm_runtime_prepare_for_eval` has to be called before. */
+  for (const int i : runtime.staggered_eval_targets.index_range()) {
+    bke::StaggeredEvalTarget &off_frame_id = runtime.staggered_eval_targets[i];
+    /* `wm_staggered_eval_prepare` has to be called before. */
     BLI_assert(off_frame_id.id != nullptr);
     eval_range = bounds::merge(eval_range, off_frame_id.range);
   }
@@ -196,12 +196,12 @@ bool wm_runtime_evaluate_next_frame(WindowRuntime &runtime, const int current_fr
   }
 
   const int eval_frame = get_next_frame(runtime, eval_range, current_frame);
-  DEG_evaluate_on_framechange(runtime.async_depsgraph, eval_frame);
+  DEG_evaluate_on_framechange(runtime.staggered_depsgraph, eval_frame);
 
   Vector<int> finished_indices;
-  for (const int i : runtime.async_eval_ids.index_range()) {
-    bke::AsyncEvalId &off_frame_id = runtime.async_eval_ids[i];
-    ID *eval_id = DEG_get_evaluated_id(runtime.async_depsgraph, off_frame_id.id);
+  for (const int i : runtime.staggered_eval_targets.index_range()) {
+    bke::StaggeredEvalTarget &off_frame_id = runtime.staggered_eval_targets[i];
+    ID *eval_id = DEG_get_evaluated_id(runtime.staggered_depsgraph, off_frame_id.id);
     /* The callback shall return true when the evaluation has completed. */
     if (off_frame_id.callback(*off_frame_id.id, *eval_id, off_frame_id.component_name, eval_frame))
     {
@@ -211,9 +211,9 @@ bool wm_runtime_evaluate_next_frame(WindowRuntime &runtime, const int current_fr
 
   while (!finished_indices.is_empty()) {
     const int i = finished_indices.pop_last();
-    runtime.async_eval_ids.remove(i);
-    DEG_graph_free(runtime.async_depsgraph);
-    runtime.async_depsgraph = nullptr;
+    runtime.staggered_eval_targets.remove(i);
+    DEG_graph_free(runtime.staggered_depsgraph);
+    runtime.staggered_depsgraph = nullptr;
     /* There may still be IDs to evaluate, however we have to rebuild the depsgraph so we signal
      * the caller that for now there is nothing more to evaluate and we will wait for the next
      * iteration. */

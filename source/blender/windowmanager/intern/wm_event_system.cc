@@ -543,7 +543,7 @@ void wm_event_do_depsgraph(bContext *C, bool is_after_open_file)
   wm_surfaces_do_depsgraph(C);
 }
 
-void wm_event_evaluate_depsgraph_off_frame(bContext *C)
+static void wm_evaluate_depsgraph_staggered(bContext *C)
 {
   using Clock = std::chrono::steady_clock;
 
@@ -551,11 +551,11 @@ void wm_event_evaluate_depsgraph_off_frame(bContext *C)
   Main *bmain = CTX_data_main(C);
   for (wmWindow &win : wm->windows) {
     bke::WindowRuntime &runtime = *win.runtime;
-    if (runtime.async_eval_ids.is_empty()) {
+    if (runtime.staggered_eval_targets.is_empty()) {
       continue;
     }
 
-    bke::wm_runtime_prepare_for_eval(*bmain, win);
+    bke::wm_staggered_eval_prepare(*bmain, win);
 
     Scene *scene = WM_window_get_active_scene(&win);
     const int current_frame = BKE_scene_frame_get(scene);
@@ -563,7 +563,7 @@ void wm_event_evaluate_depsgraph_off_frame(bContext *C)
     /* 16ms == 60fps. That should give enough headroom for the rest of Blender to keep feeling
      * responsive. */
     while (Clock::now() - start < std::chrono::milliseconds(16)) {
-      if (!bke::wm_runtime_evaluate_next_frame(runtime, current_frame)) {
+      if (!bke::wm_staggered_eval_next_frame(runtime, current_frame)) {
         break;
       }
     }
@@ -864,7 +864,7 @@ void wm_event_do_notifiers(bContext *C)
   }
 
   wm_event_do_refresh_wm_and_depsgraph(C);
-  wm_event_evaluate_depsgraph_off_frame(C);
+  wm_evaluate_depsgraph_staggered(C);
 
   RE_FreeUnusedGPUResources();
 
