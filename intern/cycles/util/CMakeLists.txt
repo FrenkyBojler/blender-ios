@@ -108,6 +108,7 @@ set(SRC_HEADERS
   queue.h
   random_access_iterator_mixin.h
   rect.h
+  sanity_checker.h
   scoped_defer.h
   set.h
   simd.h

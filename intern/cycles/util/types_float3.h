@@ -195,6 +195,15 @@ struct packed_float3 {
 };
 #endif
 
+ccl_device_inline bool is_valid(const float3 &a)
+{
+  bool valid = true;
+  valid &= is_valid(a.x);
+  valid &= is_valid(a.y);
+  valid &= is_valid(a.z);
+  return valid;
+}
+
 static_assert(sizeof(packed_float3) == 12, "packed_float3 expected to be exactly 12 bytes");
 
 CCL_NAMESPACE_END

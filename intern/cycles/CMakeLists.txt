@@ -212,6 +212,15 @@ add_definitions(
 if(WITH_CYCLES_DEBUG)
   add_definitions(-DWITH_CYCLES_DEBUG)
 endif()
+
+if(WITH_CYCLES_SANITY_CHECKS)
+  add_definitions(-DWITH_CYCLES_SANITY_CHECKS)
+endif()
+
+if(WITH_CYCLES_SANITY_CHECKS_RANGE_CHECKS)
+  add_definitions(-DWITH_CYCLES_SANITY_CHECKS_RANGE_CHECKS)
+endif()
+
 if(WITH_CYCLES_STANDALONE_GUI)
   add_definitions(-DWITH_CYCLES_STANDALONE_GUI)
 endif()

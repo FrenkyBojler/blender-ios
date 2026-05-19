@@ -55,6 +55,16 @@ struct VolumeIntegrateResult {
   ShaderVolumePhases indirect_phases;
 };
 
+ccl_device_inline bool is_valid(VolumeIntegrateResult &result)
+{
+  bool valid = true;
+  valid &= is_valid(result.direct_throughput);
+  valid &= is_valid(result.direct_t);
+  valid &= is_valid(result.indirect_throughput);
+  valid &= is_valid(result.indirect_t);
+  return valid;
+}
+
 /* We use both volume octree and volume stack, sometimes they disagree on whether a point is inside
  * a volume or not. We accept small numerical precision issues, above this threshold the volume
  * stack shall prevail. */
@@ -849,6 +859,25 @@ struct VolumeIntegrateState {
   float sample_dt;
 };
 
+ccl_device_inline bool is_valid(VolumeIntegrateState &state)
+{
+  bool valid = true;
+  valid &= is_valid_rnd(state.rscatter);
+  valid &= is_valid_pdf(state.distance_pdf);
+  valid &= is_valid_pdf(state.equiangular_pdf);
+  valid &= is_valid(state.sigma_max);
+  valid &= is_valid(state.transmittance);
+  valid &= is_valid(state.t);
+  valid &= is_valid(state.optical_depth);
+  valid &= state.step < VOLUME_MAX_STEPS;
+  valid &= is_valid(state.scatter_prob);
+  valid &= is_valid(state.majorant_scale);
+  valid &= is_valid(state.direct_rr_scale);
+  valid &= is_valid(state.dt);
+  valid &= is_valid(state.sample_dt);
+  return valid;
+}
+
 /* Accumulate transmittance for equiangular distance sampling without MIS. Using telescoping to
  * reduce noise. */
 ccl_device_inline void volume_equiangular_transmittance(
@@ -1464,6 +1493,9 @@ ccl_device void volume_integrate_step_scattering(
   const float prob_n = 1.0f - prob_s;
   result.indirect_throughput *= safe_divide(sigma_n, prob_n);
   vstate.transmittance *= prob_n;
+
+  SANITY_IS_VALID(result);
+  SANITY_IS_VALID(vstate);
 }
 
 /* Evaluate coefficients at the equiangular scatter position, and update the direct throughput. */
@@ -1501,6 +1533,8 @@ ccl_device_inline void volume_equiangular_direct_scatter(
     /* Scattering coefficient is zero at the sampled position. */
     result.direct_scatter = false;
   }
+  SANITY_IS_VALID(result);
+  SANITY_IS_VALID(vstate);
 }
 
 /* Multiple Importance Sampling between equiangular sampling and distance sampling.
@@ -1600,6 +1634,7 @@ ccl_device_inline void volume_integrate_state_init(KernelGlobals kg,
 #  ifdef __DENOISING_FEATURES__
   vstate.albedo = zero_spectrum();
 #  endif
+  SANITY_IS_VALID(vstate);
 }
 
 ccl_device_inline void volume_integrate_result_init(
@@ -1624,6 +1659,7 @@ ccl_device_inline void volume_integrate_result_init(
 #  if defined(__PATH_GUIDING__)
   result.direct_sample_method = vstate.direct_sample_method;
 #  endif
+  SANITY_IS_VALID(result);
 }
 
 /* Compute guided volume scatter probability and the majorant scale needed for achieving the
@@ -1717,6 +1753,8 @@ ccl_device_forceinline void volume_integrate_homogeneous(KernelGlobals kg,
   if ((INTEGRATOR_STATE(state, path, flag) & PATH_RAY_TERMINATE) || is_zero(coeff.sigma_s)) {
     /* Attenuation only. */
     result.indirect_throughput *= transmittance;
+    SANITY_IS_VALID(vstate);
+    SANITY_IS_VALID(result);
     return;
   }
 
@@ -1762,6 +1800,8 @@ ccl_device_forceinline void volume_integrate_homogeneous(KernelGlobals kg,
 
   /* Direct scatter. */
   if (vstate.direct_sample_method == VOLUME_SAMPLE_NONE) {
+    SANITY_IS_VALID(vstate);
+    SANITY_IS_VALID(result);
     return;
   }
 
@@ -1792,6 +1832,8 @@ ccl_device_forceinline void volume_integrate_homogeneous(KernelGlobals kg,
                                 channel_pdf);
     }
   }
+  SANITY_IS_VALID(result);
+  SANITY_IS_VALID(vstate);
 }
 
 /* heterogeneous volume distance sampling: integrate stepping through the
@@ -1840,6 +1882,8 @@ ccl_device_forceinline void volume_integrate_heterogeneous(
 
   volume_distance_sampling_finalize(kg, state, ray, sd, vstate, result, reservoir);
   volume_equiangular_direct_scatter(kg, state, ray, sd, vstate, result);
+  SANITY_IS_VALID(vstate);
+  SANITY_IS_VALID(result);
 }
 
 /* Path tracing: sample point on light using equiangular sampling. */
@@ -1962,6 +2006,7 @@ ccl_device void volume_integrate_null_scattering(KernelGlobals kg,
   if (INTEGRATOR_STATE(state, path, bounce) == 0) {
     INTEGRATOR_STATE_WRITE(state, path, optical_depth) += vstate.optical_depth;
   }
+  SANITY_IS_VALID(result);
 }
 
 /* -------------------------------------------------------------------- */
@@ -2109,6 +2154,16 @@ struct VolumeRayMarchingState {
   float equiangular_pdf;
 };
 
+ccl_device_inline bool is_valid(VolumeRayMarchingState &state)
+{
+  bool valid = true;
+  valid &= is_valid_rnd(state.rscatter);
+  valid &= is_valid(state.rchannel);
+  valid &= is_valid_pdf(state.distance_pdf);
+  valid &= is_valid_pdf(state.equiangular_pdf);
+  return valid;
+}
+
 ccl_device_inline void volume_ray_marching_state_init(
     KernelGlobals kg,
     const ccl_private RNGState *rng_state,
@@ -2178,7 +2233,8 @@ ccl_device bool volume_sample_indirect_scatter_ray_marching(
       }
 
       volume_shader_copy_phases(&result.indirect_phases, sd);
-
+      SANITY_IS_VALID(vstate);
+      SANITY_IS_VALID(result);
       return true;
     }
   }
@@ -2193,7 +2249,8 @@ ccl_device bool volume_sample_indirect_scatter_ray_marching(
     /* Remap rscatter so we can reuse it and keep thing stratified. */
     vstate.rscatter = 1.0f - (1.0f - vstate.rscatter) / sample_transmittance;
   }
-
+  SANITY_IS_VALID(vstate);
+  SANITY_IS_VALID(result);
   return false;
 }
 
@@ -2263,6 +2320,8 @@ ccl_device_forceinline void volume_ray_marching_step_scattering(
       }
     }
   }
+  SANITY_IS_VALID(vstate);
+  SANITY_IS_VALID(result);
 }
 
 /* heterogeneous volume distance sampling: integrate stepping through the
@@ -2380,6 +2439,7 @@ ccl_device_forceinline void volume_integrate_ray_marching(
         kg, state, accum_albedo, result.indirect_scatter, render_buffer);
   }
 #  endif /* __DENOISING_FEATURES__ */
+  SANITY_IS_VALID(result);
 }
 
 /** \} */
@@ -2789,6 +2849,7 @@ volume_integrate_event(KernelGlobals kg,
     INTEGRATOR_STATE_WRITE(state, guiding, use_volume_guiding) = false;
   }
 #  endif
+  SANITY_IS_VALID(result);
   return VOLUME_PATH_ATTENUATED;
 }
 

@@ -20,6 +20,7 @@
 #endif
 
 #include "util/projection.h"
+#include "util/sanity_checker.h"
 #include "util/static_assert.h"
 
 #include "kernel/features.h"
