@@ -67,6 +67,33 @@ struct SplineCoeffs {
 };
 
 /**
+ * Return the next tagged edge to walk from `v`, or null.
+ * A null return will occur:
+ * - When no other edge can be found.
+ * - When there are 3+ connected edges (a logical "junction").
+ */
+static BMEdge *vert_next_walk_edge(BMVert *v, const Set<BMEdge *> &visited)
+{
+  BMEdge *e_next = nullptr;
+  int tagged_count = 0;
+  BMIter eiter;
+  BMEdge *e;
+  BM_ITER_ELEM (e, &eiter, v, BM_EDGES_OF_VERT) {
+    if (!BM_elem_flag_test(e, BM_ELEM_TAG)) {
+      continue;
+    }
+    tagged_count++;
+    if (tagged_count >= 3) {
+      return nullptr;
+    }
+    if (!e_next && !visited.contains(e)) {
+      e_next = e;
+    }
+  }
+  return e_next;
+}
+
+/**
  * Walk from start_edge in both directions and return the resulting vertex chain.
  * Returns std::nullopt when all vertices are at the same position.
  */
@@ -83,22 +110,7 @@ static std::optional<SpaceChainData> walk_edges(BMEdge *start_edge, Set<BMEdge *
 
   auto walk_fn = [&](BMVert *curr_v, Vector<BMVert *> &list) {
     while (true) {
-      int selected_edge_count = 0;
-      BMEdge *next_e = nullptr;
-      BMIter eiter;
-      BMEdge *e_candidate;
-      BM_ITER_ELEM (e_candidate, &eiter, curr_v, BM_EDGES_OF_VERT) {
-        if (!BM_elem_flag_test(e_candidate, BM_ELEM_TAG)) {
-          continue;
-        }
-        selected_edge_count++;
-        if (!r_visited.contains(e_candidate)) {
-          next_e = e_candidate;
-        }
-      }
-      if (selected_edge_count > 2) {
-        break;
-      }
+      BMEdge *next_e = vert_next_walk_edge(curr_v, r_visited);
       if (!next_e) {
         break;
       }
@@ -139,9 +151,14 @@ static std::optional<SpaceChainData> walk_edges(BMEdge *start_edge, Set<BMEdge *
   if (all_stacked) {
     return std::nullopt;
   }
-
-  BMEdge *closing_edge = BM_edge_exists(chain_data.verts.first(), chain_data.verts.last());
-  if (closing_edge && BM_elem_flag_test(closing_edge, BM_ELEM_TAG)) {
+  /* Close the ring, ensuring the closing vertex is *not* a junction. */
+  BMVert *v_first = chain_data.verts.first();
+  BMVert *v_last = chain_data.verts.last();
+  BMEdge *closing_edge = BM_edge_exists(v_first, v_last);
+  if (closing_edge && BM_elem_flag_test(closing_edge, BM_ELEM_TAG) &&
+      vert_next_walk_edge(v_first, r_visited) == closing_edge &&
+      vert_next_walk_edge(v_last, r_visited) == closing_edge)
+  {
     r_visited.add(closing_edge);
     chain_data.is_closed = true;
   }
