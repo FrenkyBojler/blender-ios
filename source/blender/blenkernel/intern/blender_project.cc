@@ -22,15 +22,15 @@ namespace blender {
  * Get a reference to the global Blender project.
  *
  * As a general rule, the project's mutex should be held while accessing this to
- * prevent data races. The public APIs `BKE_with_blender_project()` and
- * `BKE_with_blender_project_write()` enforce this (if not abused) and should be
+ * prevent data races. The public APIs `BKE_blender_project_read_callback()` and
+ * `BKE_blender_project_write_callback()` enforce this (if not abused) and should be
  * used where possible.
  *
  * \see get_project_mutex()
  *
- * \see BKE_with_blender_project()
+ * \see BKE_blender_project_read_callback()
  *
- * \see BKE_with_blender_project_write()
+ * \see BKE_blender_project_write_callback()
  */
 static std::optional<bke::BlenderProject> &get_project()
 {
@@ -95,13 +95,13 @@ void with_blender_project_write_lock(FunctionRef<void()> lambda)
   lambda();
 }
 
-void with_blender_project_for_read_impl(const Main *bmain,
+void blender_project_read_callback_impl(const Main *bmain,
                                         FunctionRef<void(const bke::BlenderProject *)> lambda)
 {
   with_blender_project_read_lock([&] { lambda(BKE_blender_project_get(bmain)); });
 }
 
-void with_blender_project_for_write_impl(const Main *bmain,
+void blender_project_write_callback_impl(const Main *bmain,
                                          FunctionRef<void(bke::BlenderProject *)> lambda)
 {
   with_blender_project_write_lock([&] { lambda(BKE_blender_project_get(bmain)); });

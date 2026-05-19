@@ -128,13 +128,13 @@ static void rna_SceneRender_get_frame_path(ID *id,
   }
 
   if (BKE_imtype_is_movie(rd->im_format.imtype)) {
-    BKE_with_blender_project(bmain, [&](const bke::BlenderProject *project) {
+    BKE_blender_project_read_callback(bmain, [&](const bke::BlenderProject *project) {
       MOV_filepath_from_settings(filepath, scene, project, rd, preview != 0, suffix, reports);
     });
   }
   else {
     bke::path_templates::VariableMap template_variables;
-    BKE_with_blender_project(bmain, [&](const bke::BlenderProject *project) {
+    BKE_blender_project_read_callback(bmain, [&](const bke::BlenderProject *project) {
       BKE_add_template_variables_general(template_variables, &scene->id, project);
     });
     BKE_add_template_variables_for_render_path(template_variables, *scene);

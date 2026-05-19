@@ -236,7 +236,7 @@ std::optional<VariableMap> BKE_build_template_variables_for_prop(const bContext 
   VariableMap variables;
 
   /* General variables. */
-  BKE_with_blender_project(CTX_data_main(C), [&](const bke::BlenderProject *project) {
+  BKE_blender_project_read_callback(CTX_data_main(C), [&](const bke::BlenderProject *project) {
     BKE_add_template_variables_general(variables, ptr->owner_id, project);
   });
 

@@ -996,18 +996,18 @@ static bool screen_opengl_render_anim_init(wmOperator *op)
       const char *suffix = is_multiview_name ?
                                BKE_scene_multiview_view_id_suffix_get(&scene->r, i) :
                                "";
-      MovieWriter *writer = BKE_with_blender_project(oglrender->bmain,
-                                                     [&](const bke::BlenderProject *project) {
-                                                       return MOV_write_begin(scene_eval,
-                                                                              project,
-                                                                              &scene->r,
-                                                                              &image_format,
-                                                                              width,
-                                                                              height,
-                                                                              oglrender->reports,
-                                                                              PRVRANGEON != 0,
-                                                                              suffix);
-                                                     });
+      MovieWriter *writer = BKE_blender_project_read_callback(
+          oglrender->bmain, [&](const bke::BlenderProject *project) {
+            return MOV_write_begin(scene_eval,
+                                   project,
+                                   &scene->r,
+                                   &image_format,
+                                   width,
+                                   height,
+                                   oglrender->reports,
+                                   PRVRANGEON != 0,
+                                   suffix);
+          });
       if (writer == nullptr) {
         BKE_image_format_free(&image_format);
         screen_opengl_render_end(oglrender);
@@ -1137,7 +1137,7 @@ static void write_result_func(TaskPool *__restrict pool, void *task_data_v)
    * and cause the render thread and writing threads to deadlock waiting for each other. */
   WriteTaskData *task_data = static_cast<WriteTaskData *>(task_data_v);
   threading::isolate_task([&] {
-    BKE_with_blender_project(task_data->bmain, [&](const bke::BlenderProject *project) {
+    BKE_blender_project_read_callback(task_data->bmain, [&](const bke::BlenderProject *project) {
       write_result(project, pool, task_data);
     });
   });
@@ -1280,7 +1280,7 @@ static wmOperatorStatus screen_opengl_render_modal(bContext *C,
   /* Still render completes immediately, but still modal to show some feedback
    * in case render initialization takes a while. */
   if (!oglrender->is_animation) {
-    BKE_with_blender_project(CTX_data_main(C), [&](const bke::BlenderProject *project) {
+    BKE_blender_project_read_callback(CTX_data_main(C), [&](const bke::BlenderProject *project) {
       screen_opengl_render_apply(project, oglrender);
     });
     screen_opengl_render_end(oglrender);
@@ -1316,7 +1316,7 @@ static void opengl_render_startjob(void *customdata, wmJobWorkerStatus *worker_s
       canceled = true;
     }
     else {
-      BKE_with_blender_project(oglrender->bmain, [&](const bke::BlenderProject *project) {
+      BKE_blender_project_read_callback(oglrender->bmain, [&](const bke::BlenderProject *project) {
         finished = !screen_opengl_render_anim_step(project, oglrender);
       });
       worker_status->progress = float(scene->r.cfra - playback_range.start_frame + 1) /
@@ -1402,7 +1402,7 @@ static wmOperatorStatus screen_opengl_render_exec(bContext *C, wmOperator *op)
   OGLRender *oglrender = static_cast<OGLRender *>(op->customdata);
 
   if (!oglrender->is_animation) { /* same as invoke */
-    BKE_with_blender_project(bmain, [&](const bke::BlenderProject *project) {
+    BKE_blender_project_read_callback(bmain, [&](const bke::BlenderProject *project) {
       screen_opengl_render_apply(project, oglrender);
     });
     screen_opengl_render_end(oglrender);
@@ -1417,7 +1417,7 @@ static wmOperatorStatus screen_opengl_render_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  BKE_with_blender_project(bmain, [&](const bke::BlenderProject *project) {
+  BKE_blender_project_read_callback(bmain, [&](const bke::BlenderProject *project) {
     while (ret) {
       ret = screen_opengl_render_anim_step(project, oglrender);
     }

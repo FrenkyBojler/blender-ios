@@ -1937,7 +1937,7 @@ void RE_RenderFrame(Render *re,
         char filepath_override[FILE_MAX];
         const char *relbase = BKE_main_blendfile_path(bmain);
         path_templates::VariableMap template_variables;
-        BKE_with_blender_project(bmain, [&](const bke::BlenderProject *project) {
+        BKE_blender_project_read_callback(bmain, [&](const bke::BlenderProject *project) {
           BKE_add_template_variables_general(template_variables, &scene->id, project);
         });
         BKE_add_template_variables_for_render_path(template_variables, *scene);
@@ -2173,7 +2173,7 @@ static bool do_write_image_or_movie(Render *re,
 
     /* write movie or image */
     if (BKE_imtype_is_movie(scene->r.im_format.imtype)) {
-      BKE_with_blender_project(bmain, [&](const bke::BlenderProject *project) {
+      BKE_blender_project_read_callback(bmain, [&](const bke::BlenderProject *project) {
         RE_WriteRenderViewsMovie(re->reports,
                                  &rres,
                                  project,
@@ -2191,7 +2191,7 @@ static bool do_write_image_or_movie(Render *re,
       else {
         const char *relbase = BKE_main_blendfile_path(bmain);
         path_templates::VariableMap template_variables;
-        BKE_with_blender_project(bmain, [&](const bke::BlenderProject *project) {
+        BKE_blender_project_read_callback(bmain, [&](const bke::BlenderProject *project) {
           BKE_add_template_variables_general(template_variables, &scene->id, project);
         });
         BKE_add_template_variables_for_render_path(template_variables, *scene);
@@ -2359,7 +2359,7 @@ void RE_RenderAnim(Render *re,
     for (int i = 0; i < totvideos; i++) {
       const char *suffix = is_multiview_name ? BKE_scene_multiview_view_id_suffix_get(&re->r, i) :
                                                "";
-      MovieWriter *writer = BKE_with_blender_project(
+      MovieWriter *writer = BKE_blender_project_read_callback(
           bmain, [&](const bke::BlenderProject *project) {
             return MOV_write_begin(re->pipeline_scene_eval,
                                    project,
@@ -2436,7 +2436,7 @@ void RE_RenderAnim(Render *re,
     /* Touch/NoOverwrite options are only valid for image's */
     if (is_movie == false && do_write_file) {
       path_templates::VariableMap template_variables;
-      BKE_with_blender_project(bmain, [&](const bke::BlenderProject *project) {
+      BKE_blender_project_read_callback(bmain, [&](const bke::BlenderProject *project) {
         BKE_add_template_variables_general(template_variables, &scene->id, project);
       });
       BKE_add_template_variables_for_render_path(template_variables, *scene);
