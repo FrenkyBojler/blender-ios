@@ -1763,12 +1763,6 @@ std::optional<bke::CurvesGeometry> delaunay_fill_strokes(
     hint_index++;
 
     while (hint_tri_index != NULL_INDEX) {
-      const Vector<int> &tri = result.face[hint_tri_index];
-      const double2 &vert0 = result.vert[tri[0]];
-      const double2 &vert1 = result.vert[tri[1]];
-      const double2 &vert2 = result.vert[tri[2]];
-      pos_hint.append(float2((vert0 + vert1 + vert2) / 3.0f));
-
       add_weights_for_tri(tri_adjacency.as_span(),
                           tri_edges.as_span(),
                           edge_weights.as_span(),
