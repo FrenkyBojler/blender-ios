@@ -8,7 +8,10 @@ from dataclasses import dataclass
 
 import bpy
 from bpy.types import Operator
-from bpy.app.translations import pgettext_rpt as rpt_
+from bpy.app.translations import (
+    pgettext_rpt as rpt_,
+    pgettext_data as data_,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -16,9 +19,11 @@ logger = logging.getLogger(__name__)
 PROJECT_DIR = ".blender_project"
 PROJECT_CONFIG = "project.toml"
 
+PROJECT_DEFAULT_NAME = "Untitled Project"
 
 # -------------------------------------------------------------
 # Types that define the schema for reading/writing project config TOML files.
+
 
 @dataclass
 class ProjectConfig:
@@ -321,7 +326,13 @@ class PROJECT_OT_NewProject(Operator):
             return {'CANCELLED'}
 
         # Get the initial project name based on the folder name.
-        project_name = os.path.basename(os.path.normpath(self.directory)).title()
+        #
+        # If the folder name contains no valid unicode (resulting in an empty
+        # string after processing), we fallback to a default.
+        project_name = os.path.basename(os.path.normpath(self.directory)).title() \
+            .encode('utf-8', 'surrogateescape') \
+            .decode('utf-8', 'ignore') \
+            or data_(PROJECT_DEFAULT_NAME)
 
         # Create the project.
         bpy.data.project_init(project_name, self.directory)
