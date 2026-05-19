@@ -14,6 +14,7 @@ set(INC
   ../../io/wavefront_obj
   ../../makesrna
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
+  $ENV{HOME}/opentimelineio/include
 )
 
 set(INC_SYS
@@ -56,6 +57,7 @@ set(LIB
   PRIVATE bf::dna
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::intern::clog
+  PRIVATE bf::sequencer
   PRIVATE bf::windowmanager
 )
 
@@ -110,6 +112,9 @@ if(WITH_USD)
 endif()
 
 if(WITH_OTIO)
+  list(APPEND LIB
+    PRIVATE "$ENV{HOME}/opentimelineio/lib/libopentimelineio.a"
+  )
   add_definitions(-DWITH_OTIO)
 endif()
 

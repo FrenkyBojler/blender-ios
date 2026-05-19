@@ -10,6 +10,7 @@
 
 #  include <cerrno>
 #  include <cstring>
+#  include <map>
 
 #  include "DNA_modifier_types.h"
 #  include "DNA_object_types.h"
@@ -21,6 +22,7 @@
 #  include "BKE_main.hh"
 #  include "BKE_report.hh"
 
+#  include "BLI_listbase_iterator.hh"
 #  include "BLI_path_utils.hh"
 #  include "BLI_string_utf8.h"
 #  include "BLI_utildefines.h"
@@ -43,8 +45,17 @@
 
 #  include "DEG_depsgraph.hh"
 
+#  include "SEQ_sequencer.hh"
+
 #  include "io_otio.hh"
 #  include "io_utils.hh"
+#  include "opentime/rationalTime.h"
+#  include "opentime/timeRange.h"
+#  include "opentimelineio/clip.h"
+#  include "opentimelineio/externalReference.h"
+#  include "opentimelineio/gap.h"
+#  include "opentimelineio/timeline.h"
+#  include "opentimelineio/track.h"
 
 #  include "UI_interface_layout.hh"
 
@@ -99,7 +110,7 @@ static wmOperatorStatus wm_otio_export_invoke(bContext *C,
   return OPERATOR_RUNNING_MODAL;
 }
 
-static wmOperatorStatus wm_otio_export_exec(bContext * /*C*/, wmOperator *op)
+static wmOperatorStatus wm_otio_export_exec(bContext *C, wmOperator *op)
 {
   if (!RNA_struct_property_is_set_ex(op->ptr, "filepath", false)) {
     BKE_report(op->reports, RPT_ERROR, "No filepath given");
@@ -109,8 +120,98 @@ static wmOperatorStatus wm_otio_export_exec(bContext * /*C*/, wmOperator *op)
   char filepath[FILE_MAX];
   RNA_string_get(op->ptr, "filepath", filepath);
 
-  /* Todo (Bipin): Export OTIO here. */
+  Scene *scene = CTX_data_sequencer_scene(C);
+  Editing *editing = seq::editing_get(scene);
+  ListBaseT<Strip> *seqbase = &editing->seqbase;
 
+  if (!scene || !editing) {
+    BKE_report(op->reports, RPT_ERROR, "No Sequencer Scene found");
+    return OPERATOR_CANCELLED;
+  }
+
+  namespace otio = opentimelineio::OPENTIMELINEIO_VERSION_NS;
+
+  auto timeline = otio::SerializableObject::Retainer<otio::Timeline>(
+      new otio::Timeline(scene->id.name));
+  auto main_stack = otio::SerializableObject::Retainer<otio::Stack>(new otio::Stack());
+
+  auto compare_strip_channels = [](const Strip *a, const Strip *b) { return a->start < b->start; };
+  std::map<int, std::set<Strip *, decltype(compare_strip_channels)>> video_channels;
+  std::map<int, std::set<Strip *, decltype(compare_strip_channels)>> audio_channels;
+
+  for (Strip &strip : *seqbase) {
+    if (ELEM(strip.type, STRIP_TYPE_SOUND)) {
+      audio_channels[strip.channel].insert(&strip);
+    }
+    else {
+      video_channels[strip.channel].insert(&strip);
+    }
+  }
+  /* First Add Video Tracks in the Stack. */
+  for (auto [original_channel, strips] : video_channels) {
+
+    auto track_source_range = otio::TimeRange(
+        otio::RationalTime(0, scene->frames_per_second()),
+        otio::RationalTime(scene->r.efra, scene->frames_per_second()));
+
+    auto track = otio::SerializableObject::Retainer<otio::Track>(
+        new otio::Track("", track_source_range, otio::Track::Kind::video));
+
+    int last_strip_end = 0;
+    /* Append all the strips of this channel in the track. */
+    for (Strip *strip : strips) {
+      /* Only export Movie strips for now. */
+      if (!ELEM(strip->type, STRIP_TYPE_MOVIE)) {
+        continue;
+      }
+      int space_between = strip->start - last_strip_end;
+      if (space_between > 0) {
+        /* Add gap object. */
+        auto gap_duration = otio::RationalTime(space_between, scene->frames_per_second());
+        auto gap = otio::SerializableObject::Retainer<otio::Gap>(new otio::Gap(gap_duration));
+        track->append_child(gap);
+      }
+      char media_filepath[FILE_MAX];
+      BLI_path_join(media_filepath,
+                    sizeof(media_filepath),
+                    strip->data->dirpath,
+                    strip->data->stripdata->filename);
+
+      auto media_available_range = otio::TimeRange(
+          otio::RationalTime(0, strip->media_fps(scene)),
+          otio::RationalTime(strip->len, strip->media_fps(scene)));
+
+      auto strip_source_range = otio::TimeRange(
+          otio::RationalTime(strip->startofs, strip->media_fps(scene)),
+          otio::RationalTime(strip->len - (strip->startofs + strip->endofs),
+                             strip->media_fps(scene)));
+
+      auto external_reference = otio::SerializableObject::Retainer<otio::ExternalReference>(
+          new otio::ExternalReference(media_filepath, media_available_range));
+
+      external_reference->set_name(strip->data->stripdata->filename);
+
+      auto clip = otio::SerializableObject::Retainer<otio::Clip>(
+          new otio::Clip(strip->name, external_reference, strip_source_range));
+
+      track->append_child(clip);
+
+      last_strip_end = strip->start + (strip->len - (strip->startofs + strip->endofs));
+    }
+    if (scene->r.efra - last_strip_end > 0) {
+      auto gap_duration = otio::RationalTime(scene->r.efra - last_strip_end,
+                                             scene->frames_per_second());
+      auto gap = otio::SerializableObject::Retainer<otio::Gap>(new otio::Gap(gap_duration));
+      track->append_child(gap);
+    }
+
+    main_stack->append_child(track);
+  }
+
+  timeline->set_tracks(main_stack);
+  timeline->to_json_file(filepath);
+
+  BKE_report(op->reports, RPT_INFO, "File exported successfully");
   return OPERATOR_FINISHED;
 }
 
