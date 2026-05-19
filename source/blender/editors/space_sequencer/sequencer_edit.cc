@@ -608,6 +608,13 @@ static wmOperatorStatus sequencer_snap_exec(bContext *C, wmOperator *op)
      * to calculate the offset for the entire strip group. */
     Strip *strip = seq::select_active_get(scene);
 
+    if(strip == nullptr) {
+      BKE_report(op->reports,
+               RPT_WARNING,
+               "Strip snap canceled because there is not active strip");
+      return OPERATOR_CANCELLED;
+    }
+
     /* Ensure active strip always participates in the operation to avoid inconsistent snapping. */
     if (!(strip->flag & SEQ_SELECT)) {
       strip->flag |= SEQ_SELECT;
