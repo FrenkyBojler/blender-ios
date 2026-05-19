@@ -864,7 +864,6 @@ class DOPESHEET_MT_context_menu(Menu):
         if st.mode == 'GPENCIL':
             layout.separator()
             layout.operator("grease_pencil.delete_breakdown")
-            layout.operator("grease_pencil.frame_clean_duplicate", text="Delete Duplicate Frames")
 
         layout.operator_context = 'EXEC_REGION_WIN'
         layout.operator("action.delete")
