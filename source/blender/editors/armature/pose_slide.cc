@@ -420,7 +420,11 @@ static void pose_slide_apply_property_snapshots(tPoseSlideOp &pso,
     Array<float> prev_frame_values = base_values;
     {
       float prev_frame, next_frame;
-      pose_frame_range_from_id_get(&pso, slide_subject.ptr.owner_id, &prev_frame, &next_frame);
+      const bool success = pose_frame_range_from_id_get(
+          &pso, slide_subject.ptr.owner_id, &prev_frame, &next_frame);
+      /* All `SlideSubject`s should have a frame range. */
+      BLI_assert(success);
+      UNUSED_VARS_NDEBUG(success);
       const Vector<FCurve *> fcurves = fcurves_filtered_by_path(slide_subject.fcurves,
                                                                 path.value());
       if (fcurves.size() == 0) {
@@ -1573,7 +1577,7 @@ static void get_selected_marker_positions(Scene *scene, ListBaseT<FrameLink> *ta
 {
   ListBaseT<CfraElem> selected_markers = {nullptr, nullptr};
   ED_markers_make_cfra_list(&scene->markers, &selected_markers, true);
-  for (CfraElem &marker : selected_markers) {
+  for (const CfraElem &marker : selected_markers) {
     FrameLink *link = MEM_new_zeroed<FrameLink>("Marker Key Link");
     link->frame = marker.cfra;
     BLI_addtail(target_frames, link);
@@ -1581,7 +1585,7 @@ static void get_selected_marker_positions(Scene *scene, ListBaseT<FrameLink> *ta
   BLI_freelistN(&selected_markers);
 }
 
-static void get_keyed_frames_in_range(ListBaseT<SlideSubject> *slide_subjects,
+static void get_keyed_frames_in_range(const ListBaseT<SlideSubject> *slide_subjects,
                                       const float start_frame,
                                       const float end_frame,
                                       ListBaseT<FrameLink> *target_frames)
@@ -1592,7 +1596,7 @@ static void get_keyed_frames_in_range(ListBaseT<SlideSubject> *slide_subjects,
       fcurve_to_keylist(nullptr, fcu, keylist, 0, {start_frame, end_frame}, false);
     }
   }
-  for (ActKeyColumn &column : *ED_keylist_listbase(keylist)) {
+  for (const ActKeyColumn &column : *ED_keylist_listbase(keylist)) {
     if (column.cfra <= start_frame) {
       continue;
     }

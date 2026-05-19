@@ -188,7 +188,7 @@ static void pchan_to_slide_subject(ListBaseT<SlideSubject> &slide_subjects,
     return;
   }
 
-  SlideSubject *slide_subject = MEM_new<SlideSubject>("tPChanFCurveLink");
+  SlideSubject *slide_subject = MEM_new<SlideSubject>("SlideSubject");
   BLI_addtail(&slide_subjects, slide_subject);
   slide_subject->fcurves = curves;
 
@@ -334,7 +334,7 @@ void slide_subjects_free(ListBaseT<SlideSubject> *slide_subjects)
     MEM_delete(slide_subject->transformable);
 
     /* We cannot use BLI_freelinkN because that casts the SlideSubject to a C-style
-     * struct causing MEM_delete to do a C-style delete and not deallocating the Vector. */
+     * struct causing MEM_delete to do a C-style delete and not deallocate the Vector. */
     BLI_remlink(slide_subjects, slide_subject);
     MEM_delete(slide_subject);
   }
