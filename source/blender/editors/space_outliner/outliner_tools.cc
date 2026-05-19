@@ -2124,13 +2124,9 @@ static void outliner_do_liboverride_property_selection_set(bContext *C,
     TreeStoreElem *tselem = TREESTORE(&element);
     ListBaseT<TreeElement> subtree = element.subtree;
 
-    const bool is_selected = (tselem->flag & TSE_SELECTED);
-    if (is_selected || has_parent_selected) {
-      if (ELEM(tselem->type,
-               TSE_LIBRARY_OVERRIDE_BASE,
-               TSE_LIBRARY_OVERRIDE,
-               TSE_LIBRARY_OVERRIDE_OPERATION))
-      {
+    const bool is_selected = (tselem->flag & TSE_SELECTED) || has_parent_selected;
+    if (is_selected) {
+      if (ELEM(tselem->type, TSE_LIBRARY_OVERRIDE, TSE_LIBRARY_OVERRIDE_OPERATION)) {
         TreeStoreElem *tsep = element.parent ? TREESTORE(element.parent) : nullptr;
         operation_fn(C, reports, scene, &element, tsep, tselem);
       }
@@ -2152,7 +2148,12 @@ static bool outliner_liboverride_property_remove_poll(bContext *C)
   TreeElement *te = get_target_element(space_outliner);
   TreeStoreElem *tselem = TREESTORE(te);
 
-  return ELEM(tselem->type, TSE_LIBRARY_OVERRIDE_OPERATION, TSE_LIBRARY_OVERRIDE);
+  return (space_outliner->outlinevis == SO_OVERRIDES_LIBRARY &&
+          ELEM(tselem->type,
+               TSE_GENERIC_LABEL,
+               TSE_LIBRARY_OVERRIDE_BASE,
+               TSE_LIBRARY_OVERRIDE,
+               TSE_LIBRARY_OVERRIDE_OPERATION));
 }
 
 template<typename TreeElementOverridesT>
@@ -2171,7 +2172,7 @@ static bool outliner_liboverride_property_remove_do(bContext *C,
   if (!liboverride_property) {
     BKE_reportf(reports,
                 RPT_ERROR,
-                "Failed find a matching Library Override property for ID '%s' (Library "
+                "Failed to find a matching Library Override property for ID '%s' (Library "
                 "'%s'), path '%s'",
                 current_id->override_library->reference->name,
                 current_id->override_library->reference->lib ?
@@ -2184,7 +2185,8 @@ static bool outliner_liboverride_property_remove_do(bContext *C,
   IDOverrideLibraryPropertyOperation *liboverride_property_operation = nullptr;
   if constexpr (std::is_same_v<TreeElementOverridesT, const TreeElementOverridesPropertyOperation>)
   {
-    const eID_OverrideLib_Op override_opcode = eID_OverrideLib_Op(override_elem.get_operation());
+    const eID_OverrideLib_Op override_opcode = eID_OverrideLib_Op(
+        override_elem.get_operation_type());
     if (ELEM(override_opcode, LIBOVERRIDE_OP_INSERT_AFTER, LIBOVERRIDE_OP_INSERT_BEFORE)) {
       BKE_reportf(reports,
                   RPT_WARNING,
@@ -2201,7 +2203,7 @@ static bool outliner_liboverride_property_remove_do(bContext *C,
     if (!liboverride_property_operation) {
       BKE_reportf(reports,
                   RPT_ERROR,
-                  "Failed find a matching Library Override property operation for ID '%s' "
+                  "Failed to find a matching Library Override property operation for ID '%s' "
                   "(Library '%s'), path '%s'",
                   current_id->override_library->reference->name,
                   current_id->override_library->reference->lib ?
@@ -2327,7 +2329,8 @@ void OUTLINER_OT_liboverride_property_remove(wmOperatorType *ot)
   ot->name = "Outliner Library Override Propery Remove";
   ot->idname = "OUTLINER_OT_liboverride_property_remove";
   ot->description =
-      "Remove a library override property, and reset relevant data to the linked reference values";
+      "Remove the selected library override properties, and reset the relevant data to the linked "
+      "reference values";
 
   /* callbacks */
   ot->exec = outliner_liboverride_property_remove_exec;

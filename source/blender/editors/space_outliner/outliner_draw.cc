@@ -81,6 +81,7 @@
 #include "RNA_access.hh"
 
 #include "outliner_intern.hh"
+#include "tree/tree_element.hh"
 #include "tree/tree_element_grease_pencil_node.hh"
 #include "tree/tree_element_id.hh"
 #include "tree/tree_element_overrides.hh"

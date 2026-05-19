@@ -90,7 +90,7 @@ class TreeElementOverridesPropertyOperation final : public TreeElementOverridesP
   std::optional<BIFIconID> get_icon() const override;
 
   /** Return liboverride operation type (#eID_OverrideLib_Op). */
-  short get_operation() const;
+  short get_operation_type() const;
 
   /**
    * Return the liboverride operation matching this tree element, for the given ID and library

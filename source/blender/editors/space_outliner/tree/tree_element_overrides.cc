@@ -270,7 +270,7 @@ std::optional<BIFIconID> TreeElementOverridesPropertyOperation::get_icon() const
   return {};
 }
 
-short TreeElementOverridesPropertyOperation::get_operation() const
+short TreeElementOverridesPropertyOperation::get_operation_type() const
 {
   return operation_->operation;
 }
@@ -484,7 +484,8 @@ void OverrideRNAPathTreeBuilder::ensure_entire_collection(
                                                     index++);
     }
     else {
-      // current_te = &ensure_label_element_for_ptr(te_to_expand, coll_item_path, itemptr, index);
+      /* NOTE: Do not generate entries for collection items which are not affected by liboverride,
+       * this is more disturbing than useful. */
     }
 
     MEM_delete(coll_item_path);

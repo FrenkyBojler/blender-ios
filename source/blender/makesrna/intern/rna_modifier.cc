@@ -1169,7 +1169,7 @@ static bool rna_HookModifier_object_override_apply(Main *bmain,
   IDOverrideLibraryPropertyOperation *opop = rnaapply_ctx.liboverride_operation;
 
   BLI_assert(len_dst == len_src && (!ptr_storage || len_dst == len_storage) && len_dst == 0);
-  BLI_assert(opop->operation == LIBOVERRIDE_OP_CUSTOM &&
+  BLI_assert(opop->operation == LIBOVERRIDE_OP_REPLACE &&
              "Unsupported RNA override operation on Hook modifier target object pointer");
   UNUSED_VARS_NDEBUG(ptr_storage, len_dst, len_src, len_storage, opop);
 
@@ -2138,7 +2138,7 @@ static PointerRNA rna_NodesModifierBake_node_get(PointerRNA *ptr)
 void rna_NodesModifierBake_override_diff(Main *bmain, RNAPropertyOverrideDiffContext &rnadiff_ctx)
 {
   /* This diffing code uses the `LIBOVERRIDE_OP_CUSTOM` liboverride operation to encode a 'packed
-   * data is changed into that bake' info. */
+   * data is changed into that bake's info. */
 
   rna_property_override_diff_default(bmain, rnadiff_ctx);
 
@@ -2166,10 +2166,9 @@ void rna_NodesModifierBake_override_diff(Main *bmain, RNAPropertyOverrideDiffCon
 
     if (nmd_bake_a->id != nmd_bake_b->id) {
       /* Bakes for different nodes, cannot do anything else here, ignore. */
-      /* NOTE: Not sure if this can actually happen? Maybe in case user assign a different nodetree
-       * in the overridden version of the modifier? */
-      /* NOTE: Since bake IDs are exposed in RNA, different IDs should already have been detected
-       * by the generic diffing code anyway. */
+      /* NOTE: Not sure if this can actually happen? Maybe in case the user assigns a different
+       * nodetree in the overridden version of the modifier, which happens to have exactly the same
+       * amount of bake nodes? */
       BLI_assert_unreachable();
       continue;
     }
@@ -2215,7 +2214,7 @@ void rna_NodesModifierBake_override_diff(Main *bmain, RNAPropertyOverrideDiffCon
       }
     }
 
-    /* Sign doesn't make sense here, as the numerical values are the same. */
+    /* Sign doesn't make sense here, these are not orderable data. */
     rnadiff_ctx.comparison = 1;
 
     /* The remainder of this function was taken from rna_property_override_diff_default(). It's

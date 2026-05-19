@@ -252,7 +252,7 @@ bool RNA_property_copy(Main *bmain,
     /* Note that here, when removing a liboverride operation, the reference data is copied into the
      * override one, which is the opposite from regular liboverride apply process (where
      * liboverride data is copied into the reference data). hence the inversion of local and
-     * reference subitem identifying info below. */
+     * reference subitem identification info below. */
     opop.subitem_local_id = removed_opop->subitem_reference_id;
     opop.subitem_reference_id = removed_opop->subitem_local_id;
     opop.subitem_local_index = removed_opop->subitem_reference_index;
