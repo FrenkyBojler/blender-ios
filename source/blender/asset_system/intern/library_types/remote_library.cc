@@ -771,8 +771,13 @@ static std::optional<std::string> remote_library_request_asset_download_file(
       BPY_run_string_exec_with_locals_return_idprop(
           const_cast<bContext *>(&C), script, *locals, "_result");
 
+  if (!abs_url_idptr) {
+    CLOG_ERROR(&LOG, "Failed to retrieve URL from downloader - bug in Python script");
+    BLI_assert_unreachable();
+    return std::nullopt;
+  }
   BLI_SCOPED_DEFER([&] { IDP_FreeProperty(*abs_url_idptr); });
-  if (!abs_url_idptr || !*abs_url_idptr) {
+  if (!*abs_url_idptr) {
     CLOG_ERROR(&LOG, "Failed to retrieve URL from downloader");
     return std::nullopt;
   }
