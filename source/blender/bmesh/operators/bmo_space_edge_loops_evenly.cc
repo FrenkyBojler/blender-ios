@@ -58,7 +58,7 @@ struct SpaceMeasurements {
 };
 
 /**
- * Coefficients for the cubic spline curve equation.
+ * Coefficients for the cubic spline curve equation, calculated per coordinate axis.
  */
 struct SplineCoeffs {
   /** Value at the start of the segment. */
