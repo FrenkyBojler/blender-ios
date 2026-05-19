@@ -827,9 +827,7 @@ void convert_multilayer_ibuf(ImBuf *ibuf)
                                          IB_PROFILE_LINEAR_RGB,
                                          false,
                                          ibuf->x,
-                                         ibuf->y,
-                                         ibuf->x,
-                                         ibuf->x);
+                                         ibuf->y);
     ibuf->assign_float_data(dst);
     ibuf->channels = 4;
   }

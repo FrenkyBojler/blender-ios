@@ -224,8 +224,6 @@ void IMB_buffer_byte_from_float_mask(uchar *rect_to,
                                      bool predivide,
                                      int width,
                                      int height,
-                                     int stride_to,
-                                     int stride_from,
                                      char *mask)
 {
   int x, y;
@@ -233,8 +231,8 @@ void IMB_buffer_byte_from_float_mask(uchar *rect_to,
   for (y = 0; y < height; y++) {
     if (channels_from == 1) {
       /* single channel input */
-      const float *from = rect_from + size_t(stride_from) * y;
-      uchar *to = rect_to + size_t(stride_to) * y * 4;
+      const float *from = rect_from + size_t(width) * y;
+      uchar *to = rect_to + size_t(width) * y * 4;
 
       for (x = 0; x < width; x++, from++, to += 4) {
         if (*mask++ == FILTER_MASK_USED) {
@@ -244,8 +242,8 @@ void IMB_buffer_byte_from_float_mask(uchar *rect_to,
     }
     else if (channels_from == 3) {
       /* RGB input */
-      const float *from = rect_from + size_t(stride_from) * y * 3;
-      uchar *to = rect_to + size_t(stride_to) * y * 4;
+      const float *from = rect_from + size_t(width) * y * 3;
+      uchar *to = rect_to + size_t(width) * y * 4;
 
       for (x = 0; x < width; x++, from += 3, to += 4) {
         if (*mask++ == FILTER_MASK_USED) {
@@ -256,8 +254,8 @@ void IMB_buffer_byte_from_float_mask(uchar *rect_to,
     }
     else if (channels_from == 4) {
       /* RGBA input */
-      const float *from = rect_from + size_t(stride_from) * y * 4;
-      uchar *to = rect_to + size_t(stride_to) * y * 4;
+      const float *from = rect_from + size_t(width) * y * 4;
+      uchar *to = rect_to + size_t(width) * y * 4;
 
       if (dither && predivide) {
         float straight[4];
@@ -355,17 +353,15 @@ void IMB_buffer_float_from_float(float *rect_to,
                                  int profile_from,
                                  bool predivide,
                                  int width,
-                                 int height,
-                                 int stride_to,
-                                 int stride_from)
+                                 int height)
 {
   int x, y;
 
   if (channels_from == 1) {
     /* single channel input */
     for (y = 0; y < height; y++) {
-      const float *from = rect_from + size_t(stride_from) * y;
-      float *to = rect_to + size_t(stride_to) * y * 4;
+      const float *from = rect_from + size_t(width) * y;
+      float *to = rect_to + size_t(width) * y * 4;
 
       for (x = 0; x < width; x++, from++, to += 4) {
         to[0] = to[1] = to[2] = to[3] = from[0];
@@ -375,8 +371,8 @@ void IMB_buffer_float_from_float(float *rect_to,
   else if (channels_from == 3) {
     /* RGB input */
     for (y = 0; y < height; y++) {
-      const float *from = rect_from + size_t(stride_from) * y * 3;
-      float *to = rect_to + size_t(stride_to) * y * 4;
+      const float *from = rect_from + size_t(width) * y * 3;
+      float *to = rect_to + size_t(width) * y * 4;
 
       if (profile_to == profile_from) {
         /* no color space conversion */
@@ -404,8 +400,8 @@ void IMB_buffer_float_from_float(float *rect_to,
   else if (channels_from == 4) {
     /* RGBA input */
     for (y = 0; y < height; y++) {
-      const float *from = rect_from + size_t(stride_from) * y * 4;
-      float *to = rect_to + size_t(stride_to) * y * 4;
+      const float *from = rect_from + size_t(width) * y * 4;
+      float *to = rect_to + size_t(width) * y * 4;
 
       if (profile_to == profile_from) {
         /* same profile, copy */
@@ -448,13 +444,11 @@ void IMB_buffer_float_from_float_threaded(float *rect_to,
                                           int profile_from,
                                           bool predivide,
                                           int width,
-                                          int height,
-                                          int stride_to,
-                                          int stride_from)
+                                          int height)
 {
   threading::parallel_for(IndexRange(height), 64, [&](const IndexRange y_range) {
-    int64_t offset_from = y_range.first() * stride_from * channels_from;
-    int64_t offset_to = y_range.first() * stride_to * 4;
+    int64_t offset_from = y_range.first() * width * channels_from;
+    int64_t offset_to = y_range.first() * width * 4;
     IMB_buffer_float_from_float(rect_to + offset_to,
                                 rect_from + offset_from,
                                 channels_from,
@@ -462,28 +456,20 @@ void IMB_buffer_float_from_float_threaded(float *rect_to,
                                 profile_from,
                                 predivide,
                                 width,
-                                y_range.size(),
-                                stride_to,
-                                stride_from);
+                                y_range.size());
   });
 }
 
-void IMB_buffer_float_from_float_mask(float *rect_to,
-                                      const float *rect_from,
-                                      int channels_from,
-                                      int width,
-                                      int height,
-                                      int stride_to,
-                                      int stride_from,
-                                      char *mask)
+void IMB_buffer_float_from_float_mask(
+    float *rect_to, const float *rect_from, int channels_from, int width, int height, char *mask)
 {
   int x, y;
 
   if (channels_from == 1) {
     /* single channel input */
     for (y = 0; y < height; y++) {
-      const float *from = rect_from + size_t(stride_from) * y;
-      float *to = rect_to + size_t(stride_to) * y * 4;
+      const float *from = rect_from + size_t(width) * y;
+      float *to = rect_to + size_t(width) * y * 4;
 
       for (x = 0; x < width; x++, from++, to += 4) {
         if (*mask++ == FILTER_MASK_USED) {
@@ -495,8 +481,8 @@ void IMB_buffer_float_from_float_mask(float *rect_to,
   else if (channels_from == 3) {
     /* RGB input */
     for (y = 0; y < height; y++) {
-      const float *from = rect_from + size_t(stride_from) * y * 3;
-      float *to = rect_to + size_t(stride_to) * y * 4;
+      const float *from = rect_from + size_t(width) * y * 3;
+      float *to = rect_to + size_t(width) * y * 4;
 
       for (x = 0; x < width; x++, from += 3, to += 4) {
         if (*mask++ == FILTER_MASK_USED) {
@@ -509,8 +495,8 @@ void IMB_buffer_float_from_float_mask(float *rect_to,
   else if (channels_from == 4) {
     /* RGBA input */
     for (y = 0; y < height; y++) {
-      const float *from = rect_from + size_t(stride_from) * y * 4;
-      float *to = rect_to + size_t(stride_to) * y * 4;
+      const float *from = rect_from + size_t(width) * y * 4;
+      float *to = rect_to + size_t(width) * y * 4;
 
       for (x = 0; x < width; x++, from += 4, to += 4) {
         if (*mask++ == FILTER_MASK_USED) {
@@ -527,17 +513,15 @@ void IMB_buffer_byte_from_byte(uchar *rect_to,
                                int profile_from,
                                bool predivide,
                                int width,
-                               int height,
-                               int stride_to,
-                               int stride_from)
+                               int height)
 {
   float tmp[4];
   int x, y;
 
   /* always RGBA input */
   for (y = 0; y < height; y++) {
-    const uchar *from = rect_from + size_t(stride_from) * y * 4;
-    uchar *to = rect_to + size_t(stride_to) * y * 4;
+    const uchar *from = rect_from + size_t(width) * y * 4;
+    uchar *to = rect_to + size_t(width) * y * 4;
 
     if (profile_to == profile_from) {
       /* same profile, copy */

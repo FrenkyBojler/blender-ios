@@ -1438,9 +1438,7 @@ static void do_display_buffer_apply_no_processor(DisplayBufferThread *handle)
                                 IB_PROFILE_SRGB,
                                 false,
                                 width,
-                                height,
-                                width,
-                                width);
+                                height);
     }
     else if (handle->buffer) {
       IMB_buffer_byte_from_float(handle->display_buffer_byte,
@@ -1478,9 +1476,7 @@ static void do_display_buffer_apply_no_processor(DisplayBufferThread *handle)
                                   IB_PROFILE_SRGB,
                                   handle->predivide,
                                   width,
-                                  height,
-                                  width,
-                                  width);
+                                  height);
     }
   }
 }

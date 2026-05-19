@@ -326,9 +326,7 @@ static float *studiolight_multilayer_convert_pass(const ImBuf *ibuf,
                               IB_PROFILE_LINEAR_RGB,
                               false,
                               ibuf->x,
-                              ibuf->y,
-                              ibuf->x,
-                              ibuf->x);
+                              ibuf->y);
 
   MEM_delete(rect);
   return new_rect;

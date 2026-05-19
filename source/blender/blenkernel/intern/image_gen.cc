@@ -386,16 +386,8 @@ void BKE_image_buf_fill_checker_color(uchar *rect, float *rect_float, int width,
      * linearize it afterwards. This could be optimized with some smart
      * trickery around blending factors and such.
      */
-    IMB_buffer_float_from_float_threaded(rect_float,
-                                         rect_float,
-                                         4,
-                                         IB_PROFILE_LINEAR_RGB,
-                                         IB_PROFILE_SRGB,
-                                         true,
-                                         width,
-                                         height,
-                                         width,
-                                         width);
+    IMB_buffer_float_from_float_threaded(
+        rect_float, rect_float, 4, IB_PROFILE_LINEAR_RGB, IB_PROFILE_SRGB, true, width, height);
   }
 }
 

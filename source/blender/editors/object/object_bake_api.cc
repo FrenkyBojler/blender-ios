@@ -282,9 +282,7 @@ static bool write_internal_bake_pixels(Image *image,
                                   IB_PROFILE_LINEAR_RGB,
                                   false,
                                   ibuf->x,
-                                  ibuf->y,
-                                  ibuf->x,
-                                  ibuf->x);
+                                  ibuf->y);
     }
     else {
       IMB_buffer_byte_from_float(ibuf->byte_data_for_write(),
@@ -302,14 +300,8 @@ static bool write_internal_bake_pixels(Image *image,
   }
   else {
     if (is_float) {
-      IMB_buffer_float_from_float_mask(ibuf->float_data_for_write(),
-                                       buffer,
-                                       ibuf->channels,
-                                       ibuf->x,
-                                       ibuf->y,
-                                       ibuf->x,
-                                       ibuf->x,
-                                       mask_buffer);
+      IMB_buffer_float_from_float_mask(
+          ibuf->float_data_for_write(), buffer, ibuf->channels, ibuf->x, ibuf->y, mask_buffer);
     }
     else {
       IMB_buffer_byte_from_float_mask(ibuf->byte_data_for_write(),
@@ -319,8 +311,6 @@ static bool write_internal_bake_pixels(Image *image,
                                       false,
                                       ibuf->x,
                                       ibuf->y,
-                                      ibuf->x,
-                                      ibuf->x,
                                       mask_buffer);
     }
   }
@@ -395,9 +385,7 @@ static bool write_external_bake_pixels(const char *filepath,
                                 IB_PROFILE_LINEAR_RGB,
                                 false,
                                 ibuf->x,
-                                ibuf->y,
-                                ibuf->x,
-                                ibuf->x);
+                                ibuf->y);
   }
   else {
     if (!is_noncolor) {
