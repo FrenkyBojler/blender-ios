@@ -198,6 +198,7 @@ void NodeGroupOperation::map_node_operation_inputs_to_their_results(const bNode 
       operations_stream_.append(std::unique_ptr<SingleValueNodeInputOperation>(input_operation));
       input_operation->evaluate();
       operation->map_input_to_result(input->identifier, &input_operation->get_result());
+      continue;
     }
 
     ImplicitInputOperation *input_operation = new ImplicitInputOperation(
