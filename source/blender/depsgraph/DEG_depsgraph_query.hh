@@ -173,6 +173,11 @@ template<typename T> bool DEG_is_evaluated(const T *id)
 bool DEG_is_fully_evaluated(const Depsgraph *depsgraph);
 
 /**
+ *
+ */
+bool DEG_needs_update_relations(const Depsgraph *depsgraph);
+
+/**
  * Check every component of the data-block is evaluated. For example, an object disabled in the
  * viewport is not fully evaluated, even though the copy-on-eval data-block is created.
  */

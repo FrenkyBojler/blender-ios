@@ -109,7 +109,9 @@ void wm_runtime_prepare_for_eval(Main &bmain, wmWindow &window)
     /* Searching here means computationally this scales linear with the amount of `id_type` in the
      * file. This is not ideal performance wise, but doing it this way means we can react to the
      * object being deleted solely in this function without having to call a deregister function
-     * anywhere. */
+     * anywhere. This leaves a small issue where X to delete may remove the object from the scene
+     * without deleting it from Main. In that case this logic will fail to remove the ID from
+     * the evaluation. However it will just run to completion which should create no problem. */
     ID *id = BKE_libblock_find_session_uid(&bmain, off_frame_id.id_type, off_frame_id.id_uid);
     if (!id) {
       invalid_id_indices.append(i);
@@ -123,6 +125,11 @@ void wm_runtime_prepare_for_eval(Main &bmain, wmWindow &window)
   while (!invalid_id_indices.is_empty()) {
     const int i = invalid_id_indices.pop_last();
     runtime.async_eval_ids.remove(i);
+    DEG_graph_free(runtime.async_depsgraph);
+    runtime.async_depsgraph = nullptr;
+  }
+
+  if (runtime.async_depsgraph && DEG_needs_update_relations(runtime.async_depsgraph)) {
     DEG_graph_free(runtime.async_depsgraph);
     runtime.async_depsgraph = nullptr;
   }
