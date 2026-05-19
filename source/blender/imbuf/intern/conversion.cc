@@ -85,10 +85,6 @@ void IMB_buffer_byte_from_float(uchar *rect_to,
   float tmp[4];
   int x, y;
 
-  /* we need valid profiles */
-  BLI_assert(profile_to != IB_PROFILE_NONE);
-  BLI_assert(profile_from != IB_PROFILE_NONE);
-
   for (y = 0; y < height; y++) {
     if (channels_from == 1) {
       /* single channel input */
@@ -310,10 +306,6 @@ void IMB_buffer_float_from_byte(float *rect_to,
   float tmp[4];
   int x, y;
 
-  /* we need valid profiles */
-  BLI_assert(profile_to != IB_PROFILE_NONE);
-  BLI_assert(profile_from != IB_PROFILE_NONE);
-
   /* RGBA input */
   for (y = 0; y < height; y++) {
     const uchar *from = rect_from + size_t(stride_from) * y * 4;
@@ -368,10 +360,6 @@ void IMB_buffer_float_from_float(float *rect_to,
                                  int stride_from)
 {
   int x, y;
-
-  /* we need valid profiles */
-  BLI_assert(profile_to != IB_PROFILE_NONE);
-  BLI_assert(profile_from != IB_PROFILE_NONE);
 
   if (channels_from == 1) {
     /* single channel input */
@@ -545,10 +533,6 @@ void IMB_buffer_byte_from_byte(uchar *rect_to,
 {
   float tmp[4];
   int x, y;
-
-  /* we need valid profiles */
-  BLI_assert(profile_to != IB_PROFILE_NONE);
-  BLI_assert(profile_from != IB_PROFILE_NONE);
 
   /* always RGBA input */
   for (y = 0; y < height; y++) {

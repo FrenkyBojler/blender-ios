@@ -287,10 +287,8 @@ enum {
  * \brief Some predefined color space profiles that 8 bit imbufs can represent.
  * \{ */
 
-#define IB_PROFILE_NONE 0
 #define IB_PROFILE_LINEAR_RGB 1
 #define IB_PROFILE_SRGB 2
-#define IB_PROFILE_CUSTOM 3
 
 /** \} */
 
