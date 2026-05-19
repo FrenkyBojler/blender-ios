@@ -33,7 +33,7 @@ struct GeomShadow {
             read)]] const ShadowRenderView (&render_view_buf)[SHADOW_VIEW_MAX];
 };
 
-};  // namespace eevee
+}  // namespace eevee
 
 #if defined(USE_BARYCENTRICS) && defined(GPU_FRAGMENT_SHADER) && defined(MAT_GEOM_MESH)
 float3 barycentric_distances_get()
