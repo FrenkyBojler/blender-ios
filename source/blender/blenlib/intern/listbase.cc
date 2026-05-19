@@ -498,7 +498,7 @@ void BLI_freelist(ListBase *listbase)
     link = next;
   }
 
-  listbase->clear_no_delete();
+  BLI_listbase_clear(listbase);
 }
 
 void BLI_freelistN(ListBase *listbase)
@@ -512,7 +512,7 @@ void BLI_freelistN(ListBase *listbase)
     link = next;
   }
 
-  listbase->clear_no_delete();
+  BLI_listbase_clear(listbase);
 }
 
 int BLI_listbase_count_at_most(const ListBase *listbase, const int count_max)

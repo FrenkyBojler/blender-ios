@@ -12,6 +12,7 @@
 
 #pragma once
 
+#include "MEM_guardedalloc.h"
 namespace blender {
 
 /** Generic - all structs which are put into linked lists begin with this. */
@@ -67,7 +68,7 @@ template<typename T> struct ListBaseT : public ListBase {
   void free_no_destruct()
   {
     for (T &item : this->items_mutable()) {
-      MEM_delete_void(static_cast<void *)(&item));
+      MEM_delete_void(static_cast<void *>(&item));
     }
     this->first = nullptr;
     this->last = nullptr;
