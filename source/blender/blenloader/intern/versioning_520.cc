@@ -652,7 +652,7 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
         for (SpaceLink &sl : area.spacedata) {
           if (sl.spacetype == SPACE_SEQ) {
             SpaceSeq *sseq = reinterpret_cast<SpaceSeq *>(&sl);
-            sseq->preview_overlay.composition_guide_flags |= COMPOSITION_GUIDES_ENABLED;
+            sseq->preview_overlay.composition_guide_flags |= COMPOSITION_GUIDES_THIRDS;
             float default_col[4] = {0.5f, 0.5f, 0.5f, 1.0f};
             copy_v4_v4(sseq->preview_overlay.composition_guide_color, default_col);
           }
