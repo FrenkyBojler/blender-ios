@@ -22,7 +22,7 @@ class SceneAttributes : public Node {
   NODE_SOCKET_API(float, frame)
 
   enum : uint32_t {
-    /* tag everything in the manager for an update */
+    /* Tag everything in the manager for an update. */
     UPDATE_ALL = ~0u,
 
     UPDATE_NONE = 0u,
