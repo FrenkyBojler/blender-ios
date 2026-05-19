@@ -143,12 +143,12 @@ def setup():
         eevee.direct_light_intensity = 1.0
         eevee.indirect_light_intensity = 1.0
 
-        # Only include the plane in probes
         for ob in scene.objects:
             if ob.type == 'LIGHT' and not skip_shadow_setup:
                 # Set maximum resolution
                 ob.data.shadow_maximum_resolution = 0.0
 
+            # Only include the plane in probes
             if ob.name != 'Plane' and ob.type != 'LIGHT' and not skip_probes_setup:
                 ob.hide_probe_volume = True
                 ob.hide_probe_sphere = True
