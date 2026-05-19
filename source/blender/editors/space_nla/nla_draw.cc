@@ -118,7 +118,7 @@ static void nla_action_draw_keyframes(
 
   /* Count keys before drawing. */
   const ListBaseT<ActKeyColumn> *keys = ED_keylist_listbase(keylist);
-  uint key_len = BLI_listbase_count(keys);
+  uint key_len = keys->size();
 
   if (key_len > 0) {
     format = immVertexFormat();

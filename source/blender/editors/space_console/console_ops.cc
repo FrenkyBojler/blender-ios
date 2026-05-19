@@ -211,7 +211,7 @@ static void console_lb_debug__internal(ListBaseT<ConsoleLine> *lb)
 {
   ConsoleLine *cl;
 
-  printf("%d: ", BLI_listbase_count(lb));
+  printf("%d: ", lb->size());
   for (cl = lb->first; cl; cl = cl->next) {
     printf("<%s> ", cl->line);
   }

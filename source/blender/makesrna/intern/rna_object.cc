@@ -965,7 +965,7 @@ static void rna_Object_active_vertex_group_index_range(
     return;
   }
   const ListBaseT<bDeformGroup> *defbase = BKE_object_defgroup_list(ob);
-  *max = max_ii(0, BLI_listbase_count(defbase) - 1);
+  *max = max_ii(0, defbase->size() - 1);
 }
 
 void rna_object_vgroup_name_index_get(PointerRNA *ptr, char *value, int index)

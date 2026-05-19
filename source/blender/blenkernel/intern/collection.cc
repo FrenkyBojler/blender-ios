@@ -1593,7 +1593,7 @@ void BKE_collection_exporter_remove(Collection *collection, CollectionExport *da
 
   MEM_delete(data);
 
-  const int count = BLI_listbase_count(exporters);
+  const int count = exporters->size();
   const int new_index = count == 0 ? 0 : std::min(collection->active_exporter_index, count - 1);
   collection->active_exporter_index = new_index;
 }

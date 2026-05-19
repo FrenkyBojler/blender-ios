@@ -338,7 +338,7 @@ struct BArrayState {
 struct BChunkList {
   /** List of #BChunkRef's. */
   ListBaseT<BChunkRef> chunk_refs;
-  /** Result of `BLI_listbase_count(chunks)`, store for reuse. */
+  /** Result of `chunks->size()`, store for reuse. */
   uint chunk_refs_len;
   /** Size of all chunks (expanded). */
   size_t total_expanded_size;

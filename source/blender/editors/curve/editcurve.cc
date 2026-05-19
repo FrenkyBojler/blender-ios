@@ -1556,10 +1556,10 @@ static wmOperatorStatus curve_split_exec(bContext *C, wmOperator *op)
     }
 
     ListBaseT<Nurb> *editnurb = object_editcurve_get(obedit);
-    const int len_orig = BLI_listbase_count(editnurb);
+    const int len_orig = editnurb->size();
 
     curve_delete_segments(obedit, v3d, true);
-    cu->actnu -= len_orig - BLI_listbase_count(editnurb);
+    cu->actnu -= len_orig - editnurb->size();
     BLI_movelisttolist(editnurb, &newnurb);
 
     if (ED_curve_updateAnimPaths(bmain, id_cast<Curve *>(obedit->data))) {
@@ -2178,7 +2178,7 @@ static void calc_duplicate_actnurb(const ListBaseT<Nurb> *editnurb,
                                    const ListBaseT<Nurb> *newnurb,
                                    Curve *cu)
 {
-  cu->actnu = BLI_listbase_count(editnurb) + BLI_listbase_count(newnurb);
+  cu->actnu = editnurb->size() + newnurb->size();
 }
 
 static bool calc_duplicate_actvert(const ListBaseT<Nurb> *editnurb,

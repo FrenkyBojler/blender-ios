@@ -153,7 +153,7 @@ bool filelist_readjob_append_entries(FileListReadJob *job_params,
                                      ListBaseT<FileListInternEntry> *from_entries,
                                      int from_entries_num)
 {
-  BLI_assert(BLI_listbase_count(from_entries) == from_entries_num);
+  BLI_assert(from_entries->size() == from_entries_num);
   if (from_entries_num <= 0) {
     return false;
   }
