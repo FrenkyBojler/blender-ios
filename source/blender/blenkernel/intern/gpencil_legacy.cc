@@ -435,7 +435,7 @@ void BKE_gpencil_free_legacy_palette_data(ListBaseT<bGPDpalette> *list)
     BLI_freelistN(&palette.colors);
     MEM_delete(&palette);
   }
-  BLI_listbase_clear(list);
+  list->clear_no_delete();
 }
 
 void BKE_gpencil_free_data(bGPdata *gpd, bool /*free_all*/)

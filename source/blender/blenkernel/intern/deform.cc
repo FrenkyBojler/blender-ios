@@ -73,7 +73,7 @@ bDeformGroup *BKE_object_defgroup_new(Object *ob, const StringRef name)
 void BKE_defgroup_copy_list(ListBaseT<bDeformGroup> *outbase,
                             const ListBaseT<bDeformGroup> *inbase)
 {
-  BLI_listbase_clear(outbase);
+  outbase->clear_no_delete();
   for (const bDeformGroup &defgroup : *inbase) {
     bDeformGroup *defgroupn = BKE_defgroup_duplicate(&defgroup);
     BLI_addtail(outbase, defgroupn);

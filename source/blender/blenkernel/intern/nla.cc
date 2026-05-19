@@ -141,7 +141,7 @@ void BKE_nla_tracks_free(ListBaseT<NlaTrack> *tracks, bool do_id_user)
   }
 
   /* clear the list's pointers to be safe */
-  BLI_listbase_clear(tracks);
+  tracks->clear_no_delete();
 }
 
 /* Copying ------------------------------------------- */
@@ -238,7 +238,7 @@ void BKE_nla_tracks_copy(Main *bmain,
   }
 
   /* clear out the destination list first for precautions... */
-  BLI_listbase_clear(dst);
+  dst->clear_no_delete();
 
   /* copy each NLA-track, one at a time */
   for (NlaTrack &nlt : *src) {

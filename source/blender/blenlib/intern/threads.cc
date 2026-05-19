@@ -124,7 +124,7 @@ void BLI_threadpool_init(ListBaseT<ThreadSlot> *threadbase, void *(*do_thread)(v
   int a;
 
   if (threadbase != nullptr && tot > 0) {
-    BLI_listbase_clear(threadbase);
+    threadbase->clear_no_delete();
 
     if (tot > RE_MAX_THREAD) {
       tot = RE_MAX_THREAD;

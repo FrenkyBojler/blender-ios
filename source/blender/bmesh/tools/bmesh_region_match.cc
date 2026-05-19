@@ -1377,7 +1377,7 @@ int BM_mesh_region_match(BMesh *bm,
     return 0;
   }
 
-  BLI_listbase_clear(r_face_regions);
+  r_face_regions->clear_no_delete();
 
 #ifdef USE_PIVOT_FASTMATCH
   if (depth > 0) {

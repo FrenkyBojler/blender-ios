@@ -112,7 +112,7 @@ void BKE_fcurves_free(ListBaseT<FCurve> *list)
   }
 
   /* Clear pointers just in case. */
-  BLI_listbase_clear(list);
+  list->clear_no_delete();
 }
 
 /** \} */
@@ -159,7 +159,7 @@ void BKE_fcurves_copy(ListBaseT<FCurve> *dst, ListBaseT<FCurve> *src)
   }
 
   /* Clear destination list first. */
-  BLI_listbase_clear(dst);
+  dst->clear_no_delete();
 
   /* Copy one-by-one. */
   for (FCurve &sfcu : *src) {

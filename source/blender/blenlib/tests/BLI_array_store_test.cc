@@ -75,7 +75,7 @@ static void testchunk_list_free(ListBaseT<TestChunk> *lb)
     MEM_delete_void(const_cast<void *>(tc->data));
     MEM_delete(tc);
   }
-  BLI_listbase_clear(lb);
+  lb->clear_no_delete();
 }
 
 #if 0
@@ -197,7 +197,7 @@ static void testbuffer_list_state_from_data__stride_expand(ListBaseT<TestBuffer>
 
 #define TESTBUFFER_STRINGS_CREATE(lb, ...) \
   { \
-    BLI_listbase_clear(lb); \
+    lb->clear_no_delete(); \
     const char *data_array[] = {__VA_ARGS__ nullptr}; \
     testbuffer_list_state_from_string_array((lb), data_array); \
   } \
@@ -273,7 +273,7 @@ static void testbuffer_list_free(ListBaseT<TestBuffer> *lb)
     MEM_delete_void(const_cast<void *>(tb->data));
     MEM_delete(tb);
   }
-  BLI_listbase_clear(lb);
+  lb->clear_no_delete();
 }
 
 static void testbuffer_run_tests_single(BArrayStore *bs, ListBaseT<TestBuffer> *lb)

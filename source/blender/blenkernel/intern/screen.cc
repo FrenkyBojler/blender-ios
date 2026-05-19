@@ -414,7 +414,7 @@ void BKE_spacedata_freelist(ListBaseT<SpaceLink> *lb)
 
 static void panel_list_copy(ListBaseT<Panel> *newlb, const ListBaseT<Panel> *lb)
 {
-  BLI_listbase_clear(newlb);
+  newlb->clear_no_delete();
 
   for (const Panel &old_panel : *lb) {
     Panel *new_panel = BKE_panel_new(old_panel.type);
@@ -491,7 +491,7 @@ ARegion *BKE_area_region_new()
 static void region_copylist(SpaceType *st, ListBaseT<ARegion> *lb_dst, ListBaseT<ARegion> *lb_src)
 {
   /* to be sure */
-  BLI_listbase_clear(lb_dst);
+  lb_dst->clear_no_delete();
 
   for (ARegion &region : *lb_src) {
     ARegion *region_new = BKE_area_region_copy(st, &region);
@@ -501,7 +501,7 @@ static void region_copylist(SpaceType *st, ListBaseT<ARegion> *lb_dst, ListBaseT
 
 void BKE_spacedata_copylist(ListBaseT<SpaceLink> *lb_dst, ListBaseT<SpaceLink> *lb_src)
 {
-  BLI_listbase_clear(lb_dst); /* to be sure */
+  lb_dst->clear_no_delete(); /* to be sure */
 
   for (SpaceLink &sl : *lb_src) {
     SpaceType *st = BKE_spacetype_from_id(sl.spacetype);
@@ -691,7 +691,7 @@ void BKE_area_region_panels_free(ListBaseT<Panel> *panels)
     }
     area_region_panels_free_recursive(&panel);
   }
-  BLI_listbase_clear(panels);
+  panels->clear_no_delete();
 }
 
 void BKE_area_region_free(SpaceType *st, ARegion *region)

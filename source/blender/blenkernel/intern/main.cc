@@ -175,7 +175,7 @@ void BKE_main_clear(Main &bmain)
 
 #endif
     }
-    BLI_listbase_clear(lb);
+    lb->clear_no_delete();
   }
 
   if (bmain.relations) {

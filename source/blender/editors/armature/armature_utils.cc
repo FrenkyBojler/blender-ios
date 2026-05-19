@@ -896,7 +896,7 @@ void ED_armature_ebone_listbase_free(ListBaseT<EditBone> *lb, const bool do_id_u
     MEM_delete(ebone);
   }
 
-  BLI_listbase_clear(lb);
+  lb->clear_no_delete();
 }
 
 void ED_armature_ebone_listbase_copy(ListBaseT<EditBone> *lb_dst,

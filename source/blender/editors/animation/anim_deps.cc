@@ -472,7 +472,7 @@ void ANIM_animdata_freelist(ListBaseT<bAnimListElem> *anim_data)
     BLI_assert(ale->update == 0);
     MEM_delete(ale);
   }
-  BLI_listbase_clear(anim_data);
+  anim_data->clear_no_delete();
 #else
   BLI_freelistN(anim_data);
 #endif

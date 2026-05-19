@@ -620,7 +620,7 @@ static void uhandle_free_list(ListBaseT<UndoImageHandle> *undo_handles)
     }
     MEM_delete(&uh);
   }
-  BLI_listbase_clear(undo_handles);
+  undo_handles->clear_no_delete();
 }
 
 /** \} */

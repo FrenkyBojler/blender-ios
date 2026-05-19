@@ -3034,7 +3034,7 @@ PointCache *BKE_ptcache_copy_list(ListBaseT<PointCache> *ptcaches_new,
 {
   PointCache *cache = static_cast<PointCache *>(ptcaches_old->first);
 
-  BLI_listbase_clear(ptcaches_new);
+  ptcaches_new->clear_no_delete();
 
   for (; cache; cache = cache->next) {
     BLI_addtail(ptcaches_new, ptcache_copy(cache, (flag & LIB_ID_COPY_CACHES) != 0));

@@ -630,7 +630,7 @@ static void outliner_sort(ListBaseT<TreeElement> *lb)
         }
       }
 
-      BLI_listbase_clear(lb);
+      lb->clear_no_delete();
       tp = tear;
       while (totelem--) {
         BLI_addtail(lb, tp->te);
@@ -672,7 +672,7 @@ static void outliner_collections_children_sort(ListBaseT<TreeElement> *lb)
 
       qsort(tear, totelem, sizeof(tTreeSort), treesort_child_not_in_collection);
 
-      BLI_listbase_clear(lb);
+      lb->clear_no_delete();
       tp = tear;
       while (totelem--) {
         BLI_addtail(lb, tp->te);

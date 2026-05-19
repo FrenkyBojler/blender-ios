@@ -1541,7 +1541,7 @@ static ListBaseT<LinkData> *knife_empty_list(KnifeTool_OpData *kcd)
 
   list = static_cast<ListBaseT<LinkData> *>(
       BLI_memarena_alloc(kcd->arena, sizeof(ListBaseT<LinkData>)));
-  BLI_listbase_clear(list);
+  list->clear_no_delete();
   return list;
 }
 

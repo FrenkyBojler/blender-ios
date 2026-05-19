@@ -2010,7 +2010,7 @@ void BKE_linestyle_modifier_list_color_ramps(FreestyleLineStyle *linestyle,
   ColorBand *color_ramp;
   LinkData *link;
 
-  BLI_listbase_clear(listbase);
+  listbase->clear_no_delete();
 
   for (LineStyleModifier &m : linestyle->color_modifiers) {
     switch (m.type) {

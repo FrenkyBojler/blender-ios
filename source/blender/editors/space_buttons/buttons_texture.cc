@@ -286,7 +286,7 @@ static void buttons_texture_users_from_context(ListBaseT<ButsTextureUser> *users
   }
 
   /* fill users */
-  BLI_listbase_clear(users);
+  users->clear_no_delete();
 
   if (scene && scene->compositing_node_group) {
     buttons_texture_users_find_nodetree(

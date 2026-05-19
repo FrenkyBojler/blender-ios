@@ -721,7 +721,7 @@ static void copy_image_packedfiles(ListBaseT<ImagePackedFile> *lb_dst,
 {
   const ImagePackedFile *imapf_src;
 
-  BLI_listbase_clear(lb_dst);
+  lb_dst->clear_no_delete();
   for (imapf_src = static_cast<const ImagePackedFile *>(lb_src->first); imapf_src;
        imapf_src = imapf_src->next)
   {

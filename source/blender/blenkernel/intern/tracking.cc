@@ -194,7 +194,7 @@ static void tracking_tracks_copy(TrackingCopyContext *ctx,
                                  const ListBaseT<MovieTrackingTrack> *tracks_src,
                                  const int flag)
 {
-  BLI_listbase_clear(tracks_dst);
+  tracks_dst->clear_no_delete();
 
   for (MovieTrackingTrack &track_src : *tracks_src) {
     MovieTrackingTrack *track_dst = MEM_new<MovieTrackingTrack>(__func__, track_src);
@@ -219,7 +219,7 @@ static void tracking_plane_tracks_copy(
     const ListBaseT<MovieTrackingPlaneTrack> *plane_tracks_list_src,
     const int flag)
 {
-  BLI_listbase_clear(plane_tracks_list_dst);
+  plane_tracks_list_dst->clear_no_delete();
 
   for (MovieTrackingPlaneTrack &plane_track_src : *plane_tracks_list_src) {
     MovieTrackingPlaneTrack *plane_track_dst = MEM_new<MovieTrackingPlaneTrack>(__func__,
@@ -299,7 +299,7 @@ static void tracking_objects_copy(ListBaseT<MovieTrackingObject> *tracking_objec
                                   const ListBaseT<MovieTrackingObject> *tracking_objects_src,
                                   const int flag)
 {
-  BLI_listbase_clear(tracking_objects_dst);
+  tracking_objects_dst->clear_no_delete();
 
   for (MovieTrackingObject &tracking_object_src : *tracking_objects_src) {
     MovieTrackingObject *tracking_object_dst = MEM_new<MovieTrackingObject>(__func__);

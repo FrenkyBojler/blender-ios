@@ -619,7 +619,7 @@ void BKE_nurbList_free(ListBaseT<Nurb> *lb)
   for (Nurb &nu : lb->items_mutable()) {
     BKE_nurb_free(&nu);
   }
-  BLI_listbase_clear(lb);
+  lb->clear_no_delete();
 }
 
 Nurb *BKE_nurb_duplicate(const Nurb *nu)
@@ -2550,7 +2550,7 @@ void BKE_curve_bevelList_free(ListBaseT<BevList> *bev)
     MEM_delete(&bl);
   }
 
-  BLI_listbase_clear(bev);
+  bev->clear_no_delete();
 }
 
 void BKE_curve_bevelList_make(Object *ob, const ListBaseT<Nurb> *nurbs, const bool for_render)

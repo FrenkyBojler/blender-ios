@@ -23,7 +23,7 @@ static void strip_connections_free(Strip *strip)
   for (StripConnection &con : connections->items_mutable()) {
     MEM_delete(&con);
   }
-  BLI_listbase_clear(connections);
+  connections->clear_no_delete();
 }
 
 void connections_duplicate(ListBaseT<StripConnection> *connections_dst,
