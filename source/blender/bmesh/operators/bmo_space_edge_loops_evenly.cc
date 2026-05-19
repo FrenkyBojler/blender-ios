@@ -17,7 +17,6 @@
 #include "BLI_math_geom.h"
 #include "BLI_math_solvers.h"
 #include "BLI_math_vector.hh"
-
 #include "BLI_length_parameterize.hh"
 #include "BLI_set.hh"
 #include "BLI_span.hh"
