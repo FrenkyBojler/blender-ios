@@ -115,20 +115,20 @@ static std::optional<SpaceChainData> walk_edges(BMEdge *start_edge, Set<BMEdge *
   visited_verts.add(start_edge->v2);
   r_visited.add(start_edge);
 
-  auto walk_fn = [&](BMVert *curr_v, Vector<BMVert *> &list) {
+  auto walk_fn = [&](BMVert *v_curr, Vector<BMVert *> &list) {
     while (true) {
-      BMEdge *next_e = vert_next_walk_edge(curr_v, r_visited);
-      if (!next_e) {
+      BMEdge *e_next = vert_next_walk_edge(v_curr, r_visited);
+      if (!e_next) {
         break;
       }
-      BMVert *next_v = BM_edge_other_vert(next_e, curr_v);
-      if (visited_verts.contains(next_v)) {
+      BMVert *v_next = BM_edge_other_vert(e_next, v_curr);
+      if (visited_verts.contains(v_next)) {
         break;
       }
-      curr_v = next_v;
-      visited_verts.add(curr_v);
-      list.append(curr_v);
-      r_visited.add(next_e);
+      v_curr = v_next;
+      visited_verts.add(v_curr);
+      list.append(v_curr);
+      r_visited.add(e_next);
     }
   };
 
