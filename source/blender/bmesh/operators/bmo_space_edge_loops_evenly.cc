@@ -302,7 +302,7 @@ static void calculate_splines_axis(Span<float> distances,
 }
 
 /** Return the index of the spline segment that contains target_distance. */
-static int find_spline_segment(Span<float> knot_distances, const float target_distance)
+static int calc_spline_segment(Span<float> knot_distances, const float target_distance)
 {
   const int segment_index = binary_search::last_if(
       knot_distances, [&](const float value) { return value <= target_distance; });
@@ -316,7 +316,7 @@ static float3 evaluate_cubic(Span<float> tknots,
                              Span<SplineCoeffs> coeffs_z,
                              const float target_distance)
 {
-  int segment = find_spline_segment(tknots, target_distance);
+  int segment = calc_spline_segment(tknots, target_distance);
   float dt = target_distance - coeffs_x[segment].x;
 
   const SplineCoeffs &cx = coeffs_x[segment];
