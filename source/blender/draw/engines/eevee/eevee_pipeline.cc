@@ -240,10 +240,13 @@ void ShadowPipeline::render(View &view)
  * Helper class for handling prepasses in Forward and Deferred pipelines.
  * \{ */
 
-void Prepass::init(DRWState extra_state, FunctionRef<void(PassMain &pass)> pass_setup_cb)
+void Prepass::init(DRWState extra_state,
+                   bool supports_motion_vectors,
+                   FunctionRef<void(PassMain &pass)> pass_setup_cb)
 {
-  const DRWState common_state = DRW_STATE_WRITE_DEPTH | DRW_STATE_CLIP_CONTROL_UNIT_RANGE |
-                                inst_.film.depth.test_state | extra_state;
+  common_state_ = DRW_STATE_WRITE_DEPTH | DRW_STATE_CLIP_CONTROL_UNIT_RANGE |
+                  inst_.film.depth.test_state | extra_state;
+  supports_motion_vectors_ = supports_motion_vectors;
 
   pass_.init();
   /* Common resources. */
@@ -270,31 +273,21 @@ void Prepass::init(DRWState extra_state, FunctionRef<void(PassMain &pass)> pass_
     for (bool double_sided : {false, true}) {
       for (bool moving : {false, true}) {
         for (bool write_id : {false, true}) {
-          if (hide_from_raycast && write_id) {
+          PassMain::Sub *&sub = subs_[hide_from_raycast][double_sided][moving][write_id];
+          PassMain::Sub *&setup_sub =
+              setup_subs_[hide_from_raycast][double_sided][moving][write_id];
+          if ((hide_from_raycast && write_id) || (!supports_motion_vectors && moving)) {
             /* Never needed. */
+            sub = nullptr;
+            setup_sub = nullptr;
             continue;
           }
-          PassMain::Sub *&sub = subs_[hide_from_raycast][double_sided][moving][write_id];
           sub = &pass_.sub(subpass_names[hide_from_raycast][double_sided][moving][write_id]);
-          sub->state_set(common_state | DRW_STATE_WRITE_COLOR |
-                         (double_sided ? DRW_STATE_NO_DRAW : DRW_STATE_CULL_BACK));
-          sub->subpass_transition(
-              GPU_ATTACHMENT_WRITE,
-              {hide_from_raycast ? GPU_ATTACHMENT_READ : GPU_ATTACHMENT_WRITE, /* normal */
-               write_id ? GPU_ATTACHMENT_WRITE : GPU_ATTACHMENT_READ,
-               moving ? GPU_ATTACHMENT_WRITE : GPU_ATTACHMENT_IGNORE});
+          setup_sub = &sub->sub("Setup");
         }
       }
     }
   }
-
-  /* First Subpass. */
-  subs_[false][false][false][false]->bind_ubo(PIPELINE_BUF_SLOT, &pipeline_buf_copy_);
-  /* First HideFromRaycast Subpass. */
-  subs_[true][false][false][false]->bind_ubo(PIPELINE_BUF_SLOT,
-                                             &pipeline_buf_copy_hide_from_raycast_);
-  subs_[true][false][false][false]->texture_copy(&fb_depth_tx_,
-                                                 &inst_.render_buffers.raycast_depth_tx);
 
   dummy_raycast_depth_tx_.ensure_2d(RenderBuffers::depth_format, int2(1));
   dummy_raycast_id_tx_.ensure_2d(RenderBuffers::object_id_format, int2(1));
@@ -327,6 +320,51 @@ PassMain::Sub *Prepass::add(blender::Material *blender_mat,
   return &sub;
 }
 
+void Prepass::end_sync()
+{
+  const bool has_raycast = inst_.pipelines.has_raycast;
+
+  for (bool hide_from_raycast : {false, true}) {
+    for (bool double_sided : {false, true}) {
+      for (bool moving : {false, true}) {
+        for (bool write_id : {false, true}) {
+          PassMain::Sub *sub = setup_subs_[hide_from_raycast][double_sided][moving][write_id];
+          if (!sub) {
+            continue;
+          }
+          const bool write_raycast = has_raycast && !hide_from_raycast;
+          const bool read_raycast = has_raycast && hide_from_raycast;
+          const bool write_motion = supports_motion_vectors_ && moving;
+          DRWState state = common_state_;
+          SET_FLAG_FROM_TEST(state, !double_sided, DRW_STATE_CULL_BACK);
+          SET_FLAG_FROM_TEST(state, write_raycast || write_motion, DRW_STATE_WRITE_COLOR);
+          sub->state_set(state);
+          sub->subpass_transition(
+              GPU_ATTACHMENT_WRITE,
+              {write_raycast ?
+                   GPU_ATTACHMENT_WRITE :
+                   (read_raycast ? GPU_ATTACHMENT_READ : GPU_ATTACHMENT_IGNORE), /* normal */
+               (write_raycast && write_id) ?
+                   GPU_ATTACHMENT_WRITE :
+                   (read_raycast ? GPU_ATTACHMENT_READ : GPU_ATTACHMENT_IGNORE),
+               write_motion ? GPU_ATTACHMENT_WRITE : GPU_ATTACHMENT_IGNORE});
+        }
+      }
+    }
+  }
+
+  /* First Subpass. */
+  setup_subs_[false][false][false][false]->bind_ubo(PIPELINE_BUF_SLOT, &pipeline_buf_copy_);
+  /* First HideFromRaycast Subpass. */
+  setup_subs_[true][false][false][false]->bind_ubo(PIPELINE_BUF_SLOT,
+                                                   &pipeline_buf_copy_hide_from_raycast_);
+
+  if (has_raycast) {
+    setup_subs_[true][false][false][false]->texture_copy(&fb_depth_tx_,
+                                                         &inst_.render_buffers.raycast_depth_tx);
+  }
+}
+
 void Prepass::render(View &view, gpu::Texture *fb_depth_tx, bool can_raycast)
 {
   *pipeline_buf_copy_.data() = *inst_.uniform_data.pipeline.data();
@@ -337,11 +375,7 @@ void Prepass::render(View &view, gpu::Texture *fb_depth_tx, bool can_raycast)
   pipeline_buf_copy_hide_from_raycast_.can_raycast = can_raycast;
   pipeline_buf_copy_hide_from_raycast_.push_update();
 
-  /* Null by default to skip the copy. */
-  fb_depth_tx_ = nullptr;
-  if (fb_depth_tx && inst_.pipelines.has_raycast) {
-    fb_depth_tx_ = fb_depth_tx;
-  }
+  fb_depth_tx_ = fb_depth_tx;
 
   inst_.manager->submit(pass_, view);
 }
@@ -443,6 +477,7 @@ void ForwardPipeline::sync()
 void ForwardPipeline::end_sync()
 {
   inst_.pipelines.data.use_monochromatic_transmittance = !use_colored_transparency();
+  prepass_.end_sync();
 }
 
 PassMain::Sub *ForwardPipeline::prepass_opaque_add(blender::Material *blender_mat,
@@ -734,8 +769,9 @@ void DeferredLayer::begin_sync()
   bool alpha_hash_subpixel_scale = !inst_.is_viewport() || !inst_.velocity.camera_has_motion();
   inst_.pipelines.data.alpha_hash_scale = alpha_hash_subpixel_scale ? 0.1f : 1.0f;
 
-  prepass_.init(DRW_STATE_WRITE_STENCIL | DRW_STATE_STENCIL_ALWAYS,
-                [](PassMain &pass) { pass.state_stencil(0xFFu, 0u, 0xFFu); });
+  prepass_.init(DRW_STATE_WRITE_STENCIL | DRW_STATE_STENCIL_ALWAYS, true, [](PassMain &pass) {
+    pass.state_stencil(0xFFu, 0u, 0xFFu);
+  });
 
   {
     gpu::Shader *sh = inst_.shaders.static_shader_get(DEFERRED_AOV_CLEAR);
@@ -768,6 +804,8 @@ void DeferredLayer::end_sync(bool is_first_pass,
                              bool is_last_pass,
                              bool next_layer_has_transmission)
 {
+  prepass_.end_sync();
+
   const bool has_any_closure = closure_bits_ != 0;
   /* We need the feedback output in case of refraction in the next pass (see #126455). */
   const bool is_layer_refracted = (next_layer_has_transmission && has_any_closure);
@@ -1449,13 +1487,14 @@ bool VolumePipeline::use_hit_list() const
 
 void DeferredProbePipeline::begin_sync()
 {
-  opaque_layer_.prepass_.init();
+  opaque_layer_.prepass_.init({}, false);
 
   opaque_layer_.gbuffer_pass_sync(inst_);
 }
 
 void DeferredProbePipeline::end_sync()
 {
+  opaque_layer_.prepass_.end_sync();
   if (!opaque_layer_.gbuffer_ps_.is_empty()) {
     PassSimple &pass = eval_light_ps_;
     pass.init();
@@ -1545,7 +1584,7 @@ void DeferredProbePipeline::render(View &view,
 
 void PlanarProbePipeline::begin_sync()
 {
-  prepass_.init(DRW_STATE_NO_DRAW, [&](PassMain &pass) {
+  prepass_.init(DRW_STATE_NO_DRAW, false, [&](PassMain &pass) {
     pass.bind_ubo(CLIP_PLANE_BUF, inst_.planar_probes.world_clip_buf_);
   });
 
@@ -1557,6 +1596,7 @@ void PlanarProbePipeline::begin_sync()
 
 void PlanarProbePipeline::end_sync()
 {
+  prepass_.end_sync();
   if (!gbuffer_ps_.is_empty()) {
     PassSimple &pass = eval_light_ps_;
     pass.init();

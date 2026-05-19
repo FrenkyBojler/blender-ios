@@ -150,6 +150,11 @@ class Prepass {
   PassMain pass_{"Prepass"};
   PassMain::Sub *subs_[2 /*hide from raycast*/][2 /*double sided*/][2 /*moving*/][2 /*write id*/] =
       {{{{nullptr}}}};
+  PassMain::Sub *setup_subs_[2 /*hide from raycast*/][2 /*double sided*/][2 /*moving*/]
+                            [2 /*write id*/] = {{{{nullptr}}}};
+
+  DRWState common_state_{};
+  bool supports_motion_vectors_ = false;
 
   /* These are never read in practice,
    * only needed for GPU API correctness without extra shader variants. */
@@ -167,12 +172,15 @@ class Prepass {
   Prepass(Instance &inst) : inst_(inst) {};
 
   void init(DRWState extra_state = DRW_STATE_NO_DRAW,
+            bool supports_motion_vectors = true,
             FunctionRef<void(PassMain &pass)> pass_setup_cb = {});
 
   PassMain::Sub *add(blender::Material *blender_mat,
                      GPUMaterial *gpumat,
                      bool has_motion,
                      bool hide_from_raycast);
+
+  void end_sync();
 
   void render(View &view, gpu::Texture *fb_depth_tx, bool can_raycast);
 };
