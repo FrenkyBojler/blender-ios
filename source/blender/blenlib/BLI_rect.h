@@ -12,12 +12,10 @@
 #include "BLI_sys_types.h" /* bool */
 #include "DNA_vec_types.h"
 
+namespace blender {
+
 struct rctf;
 struct rcti;
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /**
  * Determine if a `rect` is empty.
@@ -67,6 +65,7 @@ void BLI_rctf_transform_pt_v(const rctf *dst,
 void BLI_rctf_transform_calc_m4_pivot_min_ex(
     const rctf *dst, const rctf *src, float matrix[4][4], uint x, uint y);
 void BLI_rctf_transform_calc_m4_pivot_min(const rctf *dst, const rctf *src, float matrix[4][4]);
+void BLI_rctf_transform_calc_m3_pivot_min(const rctf *dst, const rctf *src, float matrix[3][3]);
 
 void BLI_rctf_translate(struct rctf *rect, float x, float y);
 void BLI_rcti_translate(struct rcti *rect, int x, int y);
@@ -145,10 +144,20 @@ bool BLI_rcti_inside_rcti(const rcti *rct_a, const rcti *rct_b);
 bool BLI_rctf_inside_rctf(const rctf *rct_a, const rctf *rct_b);
 void BLI_rcti_union(struct rcti *rct_a, const struct rcti *rct_b);
 void BLI_rctf_union(struct rctf *rct_a, const struct rctf *rct_b);
+void BLI_rctf_union_x(struct rctf *rct, float x);
+void BLI_rctf_union_y(struct rctf *rct, float y);
 void BLI_rcti_rctf_copy(struct rcti *dst, const struct rctf *src);
 void BLI_rctf_rcti_copy(struct rctf *dst, const struct rcti *src);
 void BLI_rcti_rctf_copy_floor(struct rcti *dst, const struct rctf *src);
 void BLI_rcti_rctf_copy_round(struct rcti *dst, const struct rctf *src);
+
+/**
+ * Clamps the given segment to be within the rectangle.
+ *
+ * \return False when no part of the segment is within the rectangle, in which case the s1 and s2
+ * values should be ignored.
+ */
+bool BLI_rctf_clamp_segment(const struct rctf *rect, float s1[2], float s2[2]);
 
 /**
  * Expand the rectangle to fit a rotated \a src.
@@ -163,11 +172,11 @@ void print_rcti(const char *str, const struct rcti *rect);
 
 BLI_INLINE float BLI_rcti_cent_x_fl(const struct rcti *rct)
 {
-  return (float)(rct->xmin + rct->xmax) / 2.0f;
+  return float(rct->xmin + rct->xmax) / 2.0f;
 }
 BLI_INLINE float BLI_rcti_cent_y_fl(const struct rcti *rct)
 {
-  return (float)(rct->ymin + rct->ymax) / 2.0f;
+  return float(rct->ymin + rct->ymax) / 2.0f;
 }
 BLI_INLINE int BLI_rcti_cent_x(const struct rcti *rct)
 {
@@ -203,6 +212,4 @@ BLI_INLINE float BLI_rctf_size_y(const struct rctf *rct)
   return (rct->ymax - rct->ymin);
 }
 
-#ifdef __cplusplus
-}
-#endif
+}  // namespace blender

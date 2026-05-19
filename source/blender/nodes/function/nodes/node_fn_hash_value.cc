@@ -4,18 +4,16 @@
 
 #include "BLI_hash.h"
 #include "BLI_math_matrix_types.hh"
-#include "BLI_math_quaternion.hh"
 #include "BLI_noise.hh"
 
 #include "NOD_rna_define.hh"
-#include "NOD_socket.hh"
 #include "NOD_socket_search_link.hh"
 
 #include "RNA_enum_types.hh"
 
 #include "node_function_util.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 namespace blender::nodes::node_fn_hash_value_cc {
@@ -27,15 +25,15 @@ static void node_declare(NodeDeclarationBuilder &b)
   const bNode *node = b.node_or_null();
   if (node) {
     const eNodeSocketDatatype data_type = eNodeSocketDatatype(node->custom1);
-    b.add_input(data_type, "Value");
+    b.add_input(data_type, "Value"_ustr);
   }
-  b.add_input<decl::Int>("Seed", "Seed");
-  b.add_output<decl::Int>("Hash");
+  b.add_input<decl::Int>("Seed"_ustr, "Seed"_ustr);
+  b.add_output<decl::Int>("Hash"_ustr);
 }
 
-static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
@@ -45,7 +43,7 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
 
 static const mf::MultiFunction *get_multi_function(const bNode &bnode)
 {
-  const eNodeSocketDatatype socket_type = static_cast<eNodeSocketDatatype>(bnode.custom1);
+  const eNodeSocketDatatype socket_type = eNodeSocketDatatype(bnode.custom1);
 
   static auto exec_preset = mf::build::exec_presets::AllSpanOrSingle();
 
@@ -101,11 +99,11 @@ static const mf::MultiFunction *get_multi_function(const bNode &bnode)
 
 class SocketSearchOp {
  public:
-  const StringRef socket_name;
+  UString socket_name;
   eNodeSocketDatatype socket_type;
   void operator()(LinkSearchOpParams &params)
   {
-    bNode &node = params.add_node("FunctionNodeHashValue");
+    bNode &node = params.add_node("FunctionNodeHashValue"_ustr);
     node.custom1 = socket_type;
     params.update_and_connect_available_socket(node, socket_name);
   }
@@ -137,13 +135,13 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
     if (socket_type == SOCK_BOOLEAN) {
       socket_type = SOCK_INT;
     }
-    params.add_item(IFACE_("Value"), SocketSearchOp{"Value", socket_type});
-    params.add_item(IFACE_("Seed"), SocketSearchOp{"Seed", SOCK_INT});
+    params.add_item(IFACE_("Value"), SocketSearchOp{"Value"_ustr, socket_type});
+    params.add_item(IFACE_("Seed"), SocketSearchOp{"Seed"_ustr, SOCK_INT});
   }
   else {
     if (!ELEM(socket_type, SOCK_STRING)) {
       const int weight = ELEM(params.other_socket().type, SOCK_INT) ? 0 : -1;
-      params.add_item(IFACE_("Hash"), SocketSearchOp{"Hash", SOCK_INT}, weight);
+      params.add_item(IFACE_("Hash"), SocketSearchOp{"Hash"_ustr, SOCK_INT}, weight);
     }
   }
 }
@@ -176,14 +174,18 @@ static void node_rna(StructRNA *srna)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
-  fn_node_type_base(&ntype, FN_NODE_HASH_VALUE, "Hash Value", NODE_CLASS_CONVERTER);
+  static bke::bNodeType ntype;
+  fn_node_type_base(&ntype, "FunctionNodeHashValue"_ustr, FN_NODE_HASH_VALUE);
+  ntype.ui_name = "Hash Value";
+  ntype.ui_description = "Generate a randomized integer using the given input value as a seed";
+  ntype.enum_name_legacy = "HASH_VALUE";
+  ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = node_declare;
   ntype.initfunc = node_init;
   ntype.build_multi_function = node_build_multi_function;
   ntype.draw_buttons = node_layout;
   ntype.gather_link_search_ops = node_gather_link_searches;
-  blender::bke::node_register_type(&ntype);
+  bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

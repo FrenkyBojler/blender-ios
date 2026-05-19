@@ -11,9 +11,7 @@
 
 #include <sys/stat.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+namespace blender {
 
 #if defined(WIN32)
 typedef unsigned int mode_t;
@@ -45,6 +43,4 @@ struct dirlink {
   char *name;
 };
 
-#ifdef __cplusplus
-}
-#endif
+}  // namespace blender

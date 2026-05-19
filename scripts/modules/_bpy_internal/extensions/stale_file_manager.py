@@ -16,9 +16,7 @@ __all__ = (
 )
 
 
-from typing import (
-    Dict,
-    List,
+from collections.abc import (
     Sequence,
 )
 
@@ -68,10 +66,10 @@ class StaleFiles:
         base_directory = os.path.normpath(base_directory)
         self._base_directory = base_directory if base_directory.endswith(sep) else (base_directory + sep)
         self._stale_filename = stale_filename
-        self._paths: List[str] = []
+        self._paths: list[str] = []
         self._debug: bool = debug
 
-        self._index_cache: Dict[str, int] = {}
+        self._index_cache: dict[str, int] = {}
         self._is_modified: bool = True
 
     def is_empty(self) -> bool:
@@ -90,7 +88,7 @@ class StaleFiles:
         debug = self._debug
 
         assert base_directory.endswith(sep)
-        # Don't support loading multiple times or after adding files.
+        # Don't support loading multiple times or running again after adding files.
         assert len(paths) == 0
 
         stale_filepath = os.path.join(base_directory, self._stale_filename)
@@ -153,7 +151,7 @@ class StaleFiles:
 
                 # Ensure the `base_directory` & `path_abs` they are not the same.
                 # One could be forgiven for thinking they must never be the same since `path`
-                # is known not be be an empty string, one would be mistaken!
+                # is known not be an empty string, one would be mistaken!
                 # WIN32 which considers `C:\path\` the same as `C:\path\. ` to be the same.
                 # Therefor, literal lines containing any combination of trailing full-stop
                 # or space characters would be considered files that cannot be removed.
@@ -164,7 +162,7 @@ class StaleFiles:
                 #
                 # If this ever did happen besides potentially trying to remove `base_directory`,
                 # this path could be treated as a file which could not be removed and queued for
-                # removal again causing a single space (for e.g.) to be left in the stale file,
+                # removal again causing a single space (for example) to be left in the stale file,
                 # trying to be removed every startup and failing.
                 # Avoid all these issues by checking the path doesn't resolve to being the same path as it's parent.
                 is_same = False

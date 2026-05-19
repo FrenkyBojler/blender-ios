@@ -19,8 +19,6 @@
 
 #include "BKE_outliner_treehash.hh"
 
-#include "MEM_guardedalloc.h"
-
 namespace blender::bke::outliner::treehash {
 
 /* -------------------------------------------------------------------- */
@@ -29,7 +27,7 @@ namespace blender::bke::outliner::treehash {
 
 class TseGroup {
  public:
-  blender::Vector<TreeStoreElem *> elems;
+  Vector<TreeStoreElem *> elems;
   /* Index of last used #TreeStoreElem item, to speed up search for another one. */
   int lastused = 0;
   /* Counter used to reduce the amount of 'rests' of `lastused` index, otherwise search for unused

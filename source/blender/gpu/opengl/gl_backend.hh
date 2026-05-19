@@ -8,9 +8,15 @@
 
 #pragma once
 
+#include "GPU_capabilities.hh"
+#include "GPU_platform.hh"
+
 #include "gpu_backend.hh"
 
+#include "BLI_threads.h"
 #include "BLI_vector.hh"
+
+#include "gpu_capabilities_private.hh"
 
 #ifdef WITH_RENDERDOC
 #  include "renderdoc_api.hh"
@@ -20,18 +26,17 @@
 #include "gl_compilation_subprocess.hh"
 #include "gl_compute.hh"
 #include "gl_context.hh"
-#include "gl_drawlist.hh"
 #include "gl_framebuffer.hh"
 #include "gl_index_buffer.hh"
 #include "gl_query.hh"
 #include "gl_shader.hh"
 #include "gl_storage_buffer.hh"
 #include "gl_texture.hh"
+#include "gl_texture_pool.hh"
 #include "gl_uniform_buffer.hh"
 #include "gl_vertex_buffer.hh"
 
-namespace blender {
-namespace gpu {
+namespace blender::gpu {
 
 class GLBackend : public GPUBackend {
  private:
@@ -40,7 +45,8 @@ class GLBackend : public GPUBackend {
   renderdoc::api::Renderdoc renderdoc_;
 #endif
 
-  GLShaderCompiler compiler_;
+  Set<int> valid_contexts_;
+  std::mutex valid_contexts_mutex_;
 
  public:
   GLBackend()
@@ -49,6 +55,8 @@ class GLBackend : public GPUBackend {
     GLBackend::platform_init();
 
     GLBackend::capabilities_init();
+    GLBackend::log_extensions();
+    GLBackend::log_workarounds();
     GLTexture::samplers_init();
   }
   ~GLBackend()
@@ -56,10 +64,21 @@ class GLBackend : public GPUBackend {
     GLBackend::platform_exit();
   }
 
+  void init_resources() override
+  {
+    if (GCaps.use_subprocess_shader_compilations) {
+      compiler_ = MEM_new<GLSubprocessShaderCompiler>(__func__);
+    }
+    else {
+      compiler_ = MEM_new<GLShaderCompiler>(__func__);
+    }
+  };
+
   void delete_resources() override
   {
     /* Delete any resources with context active. */
     GLTexture::samplers_free();
+    MEM_delete(compiler_);
   }
 
   static GLBackend *get()
@@ -67,29 +86,32 @@ class GLBackend : public GPUBackend {
     return static_cast<GLBackend *>(GPUBackend::get());
   }
 
-  GLShaderCompiler *get_compiler()
-  {
-    return &compiler_;
-  }
-
-  void samplers_update() override
-  {
-    GLTexture::samplers_update();
-  };
-
-  Context *context_alloc(void *ghost_window, void * /*ghost_context*/) override
+  Context *context_alloc(GHOST_IWindow *ghost_window, GHOST_IContext * /*ghost_context*/) override
   {
     return new GLContext(ghost_window, shared_orphan_list_);
   };
 
+  void add_context_id(int context_id)
+  {
+    std::lock_guard lock(valid_contexts_mutex_);
+    valid_contexts_.add(context_id);
+  }
+
+  void remove_context_id(int context_id)
+  {
+    std::lock_guard lock(valid_contexts_mutex_);
+    valid_contexts_.remove(context_id);
+  }
+
+  bool is_valid_context_id(int context_id)
+  {
+    std::lock_guard lock(valid_contexts_mutex_);
+    return valid_contexts_.contains(context_id);
+  }
+
   Batch *batch_alloc() override
   {
     return new GLBatch();
-  };
-
-  DrawList *drawlist_alloc(int list_length) override
-  {
-    return new GLDrawList(list_length);
   };
 
   Fence *fence_alloc() override
@@ -127,6 +149,8 @@ class GLBackend : public GPUBackend {
     return new GLTexture(name);
   };
 
+  TexturePool *texturepool_alloc() override;
+
   UniformBuf *uniformbuf_alloc(size_t size, const char *name) override
   {
     return new GLUniformBuf(size, name);
@@ -161,7 +185,7 @@ class GLBackend : public GPUBackend {
     /* This barrier needs to be here as it only work on the currently bound indirect buffer. */
     glMemoryBarrier(GL_COMMAND_BARRIER_BIT);
 
-    glDispatchComputeIndirect((GLintptr)0);
+    glDispatchComputeIndirect(GLintptr(0));
     /* Unbind. */
     glBindBuffer(GL_DISPATCH_INDIRECT_BUFFER, 0);
   }
@@ -174,9 +198,9 @@ class GLBackend : public GPUBackend {
   }
 
   /* Render Frame Coordination */
-  void render_begin() override{};
-  void render_end() override{};
-  void render_step() override{};
+  void render_begin() override {};
+  void render_end() override {};
+  void render_step(bool /*force_resource_release*/) override {};
 
   bool debug_capture_begin(const char *title);
   void debug_capture_end();
@@ -186,7 +210,9 @@ class GLBackend : public GPUBackend {
   static void platform_exit();
 
   static void capabilities_init();
+
+  static void log_extensions();
+  static void log_workarounds();
 };
 
-}  // namespace gpu
-}  // namespace blender
+}  // namespace blender::gpu

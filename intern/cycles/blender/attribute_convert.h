@@ -2,15 +2,13 @@
  *
  * SPDX-License-Identifier: Apache-2.0 */
 
-#ifndef __BLENDER_ATTRIBUTE_CONVERT_H__
-#define __BLENDER_ATTRIBUTE_CONVERT_H__
+#pragma once
 
-#include "util/array.h"
 #include "util/color.h"
 #include "util/param.h"
 #include "util/types.h"
 
-#include "BLI_math_color.hh"
+#include "BLI_color_types.hh"
 #include "BLI_math_quaternion_types.hh"
 #include "BLI_math_vector_types.hh"
 
@@ -23,6 +21,7 @@ template<typename BlenderT> struct AttributeConverter {
 template<> struct AttributeConverter<float> {
   using CyclesT = float;
   static constexpr auto type_desc = TypeFloat;
+  static constexpr bool layout_compatible = true;
   static CyclesT convert(const float &value)
   {
     return value;
@@ -31,6 +30,7 @@ template<> struct AttributeConverter<float> {
 template<> struct AttributeConverter<int> {
   using CyclesT = float;
   static constexpr auto type_desc = TypeFloat;
+  static constexpr bool layout_compatible = false;
   static CyclesT convert(const int &value)
   {
     return float(value);
@@ -39,6 +39,7 @@ template<> struct AttributeConverter<int> {
 template<> struct AttributeConverter<blender::float2> {
   using CyclesT = float2;
   static constexpr auto type_desc = TypeFloat2;
+  static constexpr bool layout_compatible = true;
   static CyclesT convert(const blender::float2 &value)
   {
     return make_float2(value[0], value[1]);
@@ -47,14 +48,27 @@ template<> struct AttributeConverter<blender::float2> {
 template<> struct AttributeConverter<blender::float3> {
   using CyclesT = float3;
   static constexpr auto type_desc = TypeVector;
+  static constexpr bool layout_compatible = false;
   static CyclesT convert(const blender::float3 &value)
   {
     return make_float3(value[0], value[1], value[2]);
   }
 };
+template<> struct AttributeConverter<blender::float4> {
+  using CyclesT = float4;
+  static constexpr auto type_desc = TypeFloat4;
+  /* Allocation alignment is not compatible with Cycles */
+  static constexpr bool layout_compatible = false;
+  static CyclesT convert(const blender::float4 &value)
+  {
+    return make_float4(value[0], value[1], value[2], value[3]);
+  }
+};
 template<> struct AttributeConverter<blender::ColorGeometry4f> {
   using CyclesT = float4;
   static constexpr auto type_desc = TypeRGBA;
+  /* Allocation alignment is not compatible with Cycles */
+  static constexpr bool layout_compatible = false;
   static CyclesT convert(const blender::ColorGeometry4f &value)
   {
     return make_float4(value[0], value[1], value[2], value[3]);
@@ -63,6 +77,7 @@ template<> struct AttributeConverter<blender::ColorGeometry4f> {
 template<> struct AttributeConverter<blender::ColorGeometry4b> {
   using CyclesT = float4;
   static constexpr auto type_desc = TypeRGBA;
+  static constexpr bool layout_compatible = false;
   static CyclesT convert(const blender::ColorGeometry4b &value)
   {
     return color_srgb_to_linear_v4(make_float4(byte_to_float(value[0]),
@@ -74,6 +89,7 @@ template<> struct AttributeConverter<blender::ColorGeometry4b> {
 template<> struct AttributeConverter<bool> {
   using CyclesT = float;
   static constexpr auto type_desc = TypeFloat;
+  static constexpr bool layout_compatible = false;
   static CyclesT convert(const bool &value)
   {
     return float(value);
@@ -82,6 +98,7 @@ template<> struct AttributeConverter<bool> {
 template<> struct AttributeConverter<int8_t> {
   using CyclesT = float;
   static constexpr auto type_desc = TypeFloat;
+  static constexpr bool layout_compatible = false;
   static CyclesT convert(const int8_t &value)
   {
     return float(value);
@@ -90,6 +107,8 @@ template<> struct AttributeConverter<int8_t> {
 template<> struct AttributeConverter<blender::math::Quaternion> {
   using CyclesT = float4;
   static constexpr auto type_desc = TypeFloat4;
+  /* Allocation alignment is not compatible with Cycles */
+  static constexpr bool layout_compatible = false;
   static CyclesT convert(const blender::math::Quaternion &value)
   {
     return make_float4(value.w, value.x, value.y, value.z);
@@ -97,5 +116,3 @@ template<> struct AttributeConverter<blender::math::Quaternion> {
 };
 
 CCL_NAMESPACE_END
-
-#endif /* __BLENDER_ATTRIBUTE_CONVERT_H__ */

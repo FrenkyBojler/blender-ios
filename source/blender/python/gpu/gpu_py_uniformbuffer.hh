@@ -8,9 +8,15 @@
 
 #pragma once
 
+#include <Python.h>
+
 #include "BLI_compiler_attrs.h"
 
-struct GPUUniformBuf;
+namespace blender {
+
+namespace gpu {
+class UniformBuf;
+}  // namespace gpu
 
 extern PyTypeObject BPyGPUUniformBuf_Type;
 
@@ -18,7 +24,9 @@ extern PyTypeObject BPyGPUUniformBuf_Type;
 
 struct BPyGPUUniformBuf {
   PyObject_HEAD
-  GPUUniformBuf *ubo;
+  gpu::UniformBuf *ubo;
 };
 
-PyObject *BPyGPUUniformBuf_CreatePyObject(GPUUniformBuf *ubo) ATTR_NONNULL(1);
+[[nodiscard]] PyObject *BPyGPUUniformBuf_CreatePyObject(gpu::UniformBuf *ubo) ATTR_NONNULL(1);
+
+}  // namespace blender

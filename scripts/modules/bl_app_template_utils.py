@@ -35,7 +35,7 @@ _modules = {}
 
 
 def _enable(template_id, *, handle_error=None, ignore_not_found=False):
-    from bpy_restrict_state import RestrictBlend
+    from _bpy_restrict_state import RestrictBlend
 
     if handle_error is None:
         def handle_error(_ex):
@@ -83,11 +83,11 @@ def _disable(template_id, *, handle_error=None):
     """
     Disables a template by name.
 
-    :arg template_id: The name of the template and module.
-    :type template_id: string
-    :arg handle_error: Called in the case of an error,
+    :param template_id: The name of the template and module.
+    :type template_id: str
+    :param handle_error: Called in the case of an error,
        taking an exception argument.
-    :type handle_error: function
+    :type handle_error: Callable[[Exception], None] | None
     """
 
     if handle_error is None:

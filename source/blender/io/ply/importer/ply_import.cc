@@ -8,6 +8,7 @@
 
 #include "BKE_context.hh"
 #include "BKE_layer.hh"
+#include "BKE_library.hh"
 #include "BKE_mesh.hh"
 #include "BKE_object.hh"
 #include "BKE_report.hh"
@@ -18,7 +19,6 @@
 
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
-#include "BLI_math_vector.h"
 #include "BLI_span.hh"
 #include "BLI_string.h"
 
@@ -31,7 +31,13 @@
 #include "ply_import_data.hh"
 #include "ply_import_mesh.hh"
 
-namespace blender::io::ply {
+#include "CLG_log.h"
+
+namespace blender {
+
+static CLG_LogRef LOG = {"io.ply"};
+
+namespace io::ply {
 
 /* If line starts with keyword, returns true and drops it from the line. */
 static bool parse_keyword(Span<char> &str, StringRef keyword)
@@ -169,7 +175,7 @@ static Mesh *read_ply_to_mesh(const PLYImportParams &import_params, const char *
   PlyHeader header;
   const char *err = read_header(file, header);
   if (err != nullptr) {
-    fprintf(stderr, "PLY Importer: %s: %s\n", ob_name, err);
+    CLOG_ERROR(&LOG, "PLY Importer: %s: %s", ob_name, err);
     BKE_reportf(import_params.reports, RPT_ERROR, "PLY Importer: %s: %s", ob_name, err);
     return nullptr;
   }
@@ -177,17 +183,17 @@ static Mesh *read_ply_to_mesh(const PLYImportParams &import_params, const char *
   /* Parse actual file data. */
   std::unique_ptr<PlyData> data = import_ply_data(file, header);
   if (data == nullptr) {
-    fprintf(stderr, "PLY Importer: failed importing %s, unknown error\n", ob_name);
+    CLOG_ERROR(&LOG, "PLY Importer: failed importing %s, unknown error", ob_name);
     BKE_report(import_params.reports, RPT_ERROR, "PLY Importer: failed importing, unknown error");
     return nullptr;
   }
   if (!data->error.empty()) {
-    fprintf(stderr, "PLY Importer: failed importing %s: %s\n", ob_name, data->error.c_str());
+    CLOG_ERROR(&LOG, "PLY Importer: failed importing %s: %s", ob_name, data->error.c_str());
     BKE_report(import_params.reports, RPT_ERROR, "PLY Importer: failed importing, unknown error");
     return nullptr;
   }
   if (data->vertices.is_empty()) {
-    fprintf(stderr, "PLY Importer: file %s contains no vertices\n", ob_name);
+    CLOG_ERROR(&LOG, "PLY Importer: file %s contains no vertices", ob_name);
     BKE_report(import_params.reports, RPT_ERROR, "PLY Importer: failed importing, no vertices");
     return nullptr;
   }
@@ -233,14 +239,22 @@ void importer_main(Main *bmain,
 
   /* Create mesh and do all prep work. */
   Mesh *mesh_in_main = BKE_mesh_add(bmain, ob_name);
-  BKE_view_layer_base_deselect_all(scene, view_layer);
-  LayerCollection *lc = BKE_layer_collection_get_active(view_layer);
+  BKE_view_layer_base_deselect_all(*bmain, scene, view_layer);
+  LayerCollection *lc = BKE_layer_collection_get_active_editable(view_layer);
+  if (!ID_IS_EDITABLE(lc->collection)) {
+    BKE_report(import_params.reports,
+               RPT_WARNING,
+               "Could not find an editable collection in current scene, imported data will not be "
+               "instantiated");
+  }
   Object *obj = BKE_object_add_only_object(bmain, OB_MESH, ob_name);
-  obj->data = mesh_in_main;
+  obj->data = id_cast<ID *>(mesh_in_main);
   BKE_collection_object_add(bmain, lc->collection, obj);
-  BKE_view_layer_synced_ensure(scene, view_layer);
-  Base *base = BKE_view_layer_base_find(view_layer, obj);
-  BKE_view_layer_base_select_and_set_active(view_layer, base);
+  BKE_view_layer_synced_ensure(*bmain, scene, view_layer);
+  if (Base *base = BKE_view_layer_base_find(view_layer, obj)) {
+    /* `base` will be nullptr if the Object could not be instantiated in the current viewlayer. */
+    BKE_view_layer_base_select_and_set_active(view_layer, base);
+  }
 
   BKE_mesh_nomain_to_mesh(mesh, mesh_in_main, obj);
 
@@ -268,4 +282,5 @@ void importer_main(Main *bmain,
   DEG_id_tag_update(&scene->id, ID_RECALC_BASE_FLAGS);
   DEG_relations_tag_update(bmain);
 }
-}  // namespace blender::io::ply
+}  // namespace io::ply
+}  // namespace blender

@@ -33,10 +33,10 @@ from bpy.props import (
     IntProperty,
 )
 from bpy.app.translations import (
+    pgettext_n as n_,
     pgettext_iface as iface_,
     pgettext_tip as tip_,
     pgettext_rpt as rpt_,
-
 )
 
 from . import (
@@ -47,7 +47,7 @@ from . import (
 )
 
 rna_prop_url = StringProperty(name="URL", subtype='FILE_PATH', options={'HIDDEN'})
-rna_prop_directory = StringProperty(name="Repo Directory", subtype='FILE_PATH')
+rna_prop_directory = StringProperty(name="Repo Directory", subtype='DIR_PATH')
 rna_prop_repo_index = IntProperty(name="Repo Index", default=-1)
 rna_prop_remote_url = StringProperty(name="Repo URL", subtype='FILE_PATH')
 rna_prop_pkg_id = StringProperty(name="Package ID")
@@ -61,8 +61,8 @@ rna_prop_enable_on_install = BoolProperty(
     options={'SKIP_SAVE'}
 )
 rna_prop_enable_on_install_type_map = {
-    "add-on": "Enable Add-on",
-    "theme": "Set Current Theme",
+    "add-on": n_("Enable Add-on"),
+    "theme": n_("Set Current Theme"),
 }
 
 _ext_base_pkg_idname = "bl_ext"
@@ -70,8 +70,13 @@ _ext_base_pkg_idname_with_dot = _ext_base_pkg_idname + "."
 
 
 def url_append_defaults(url):
+    import sys
     from .bl_extension_utils import url_append_query_for_blender
-    return url_append_query_for_blender(url, blender_version=bpy.app.version)
+    return url_append_query_for_blender(
+        url=url,
+        blender_version=bpy.app.version,
+        python_version=sys.version_info[:3],
+    )
 
 
 def url_normalize(url):
@@ -89,7 +94,7 @@ def url_normalize(url):
                 # Ensure:
                 # MS-Edge uses: `file://HOST/share/path`
                 # Firefox uses: `file://///HOST/share/path`
-                # Both can work prefer the shorter one.
+                # Both can work, prefer the shorter one.
                 url = prefix + path_lstrip
     return url
 
@@ -138,13 +143,13 @@ def repo_lookup_by_index_or_none(index):
 def repo_lookup_by_index_or_none_with_report(index, report_fn):
     result = repo_lookup_by_index_or_none(index)
     if result is None:
-        report_fn({'WARNING'}, "Called with invalid index")
+        report_fn({'WARNING'}, "Repository index is not valid")
     return result
 
 
 def repo_user_directory(repo_module_name):
     path = bpy.utils.user_resource('EXTENSIONS')
-    # Technically possible this is empty but in practice never happens.
+    # Technically possible this is empty but should not happen.
     if path:
         path = os.path.join(path, ".user", repo_module_name)
     return path
@@ -164,7 +169,6 @@ blender_extension_show = set()
 blender_filter_by_type_map = {
     "ALL": "",
     "ADDON": "add-on",
-    "KEYMAP": "keymap",
     "THEME": "theme",
 }
 
@@ -201,7 +205,7 @@ class CheckSIGINT_Context:
 # -----------------------------------------------------------------------------
 # Operator Notify State
 #
-# Support for
+# Support for non-blocking operations that update the UI during sync.
 
 class OperatorNonBlockingSyncHelper:
     __slots__ = (
@@ -312,7 +316,7 @@ def _extensions_repo_temp_files_make_stale(
 
 def _extensions_repo_uninstall_stale_package_fallback(
         repo_directory,  # `str`
-        pkg_id_sequence,  # `List[str]`
+        pkg_id_sequence,  # `list[str]`
 ):  # `-> None`
     # If uninstall failed, make the package stale (by renaming it & queue to remove later).
     import addon_utils
@@ -332,12 +336,12 @@ def _extensions_repo_uninstall_stale_package_fallback(
 
 def _extensions_repo_install_stale_package_clear(
         repo_directory,  # `str`
-        pkg_id_sequence,  # `List[str]`
+        pkg_id_sequence,  # `list[str]`
 ):  # `-> None`
     # If install succeeds, ensure the package is not stale.
     #
-    # This can happen when a package fails to remove (if one of it's files are locked),
-    # it is queued for removal. Then the user successfully removes it & re-installs in.
+    # This can happen when a package fails to remove (if one of its files are locked),
+    # it is queued for removal. Then the user successfully removes it & re-installs it.
     # In this case the package will be tagged for later removal, so ensure it's removed.
     import addon_utils
 
@@ -375,7 +379,7 @@ def extension_url_find_repo_index_and_pkg_id(url):
     from .bl_extension_utils import (
         pkg_manifest_archive_url_abs_from_remote_url,
     )
-    # return repo_index, pkg_id
+    # return (repo_index, repo.name, pkg_id, item_remote, item_local | None)
 
     # NOTE: we might want to use `urllib.parse.urlsplit` so it's possible to include variables in the URL.
     url_basename = url.rpartition("/")[2]
@@ -383,12 +387,16 @@ def extension_url_find_repo_index_and_pkg_id(url):
     repos_all = extension_repos_read()
     repo_cache_store = repo_cache_store_ensure()
 
+    # Regarding `ignore_missing`, set to True, otherwise a user-repository
+    # or a new repository that has not yet been initialized will report errors.
+    # It's OK to silently ignore these.
+
     for repo_index, (
             pkg_manifest_local,
             pkg_manifest_remote,
     ) in enumerate(zip(
-        repo_cache_store.pkg_manifest_from_local_ensure(error_fn=print),
-        repo_cache_store.pkg_manifest_from_remote_ensure(error_fn=print),
+        repo_cache_store.pkg_manifest_from_local_ensure(error_fn=print, ignore_missing=True),
+        repo_cache_store.pkg_manifest_from_remote_ensure(error_fn=print, ignore_missing=True),
         strict=True,
     )):
         # It's possible the remote repo could not be connected to when syncing.
@@ -429,7 +437,7 @@ def online_user_agent_from_blender():
 
 def lock_result_any_failed_with_report(op, lock_result, report_type='ERROR'):
     """
-    Convert any locking errors from ``bl_extension_utils.RepoLock.acquire`` into reports.
+    Convert any locking errors from ``bl_extension_utils.RepoLock`` acquire/release into reports.
 
     Note that we might want to allow some repositories not to lock and still proceed (in the future).
     """
@@ -460,7 +468,7 @@ def lock_result_any_failed_with_report(op, lock_result, report_type='ERROR'):
         print("Error locking repository \"{:s}\": {:s}".format(repo_name, lock_result_for_repo))
         op.report(
             {report_type},
-            "Repository \"{:s}\": {:s}{:s}".format(
+            rpt_("Repository \"{:s}\": {:s}{:s}").format(
                 repo_name,
                 lock_result_for_repo,
                 "" if any_errors else unlock_hint_text,
@@ -533,7 +541,7 @@ def wm_wait_cursor(value):
 
 
 def operator_finished_result(operator_result):
-    # Inspect results for modal operator, return None when the result isn't known.
+    # Inspect operator results, return True if cancelled, False if finished, None if still running.
     if 'CANCELLED' in operator_result:
         return True
     if 'FINISHED' in operator_result:
@@ -545,9 +553,11 @@ def pkg_manifest_params_compatible_or_error_for_this_system(
     *,
     blender_version_min,  # `str`
     blender_version_max,  # `str`
-    platforms,  # `List[str]`
-):  # `Optional[str]`
-    # Return true if the parameters are compatible with this system.
+    platforms,  # `list[str]`
+    python_versions,  # `list[str]`
+):  # `str | None`
+    # Return an error message if the parameters are incompatible, or None if compatible.
+    import sys
     from .bl_extension_utils import (
         pkg_manifest_params_compatible_or_error,
         platform_from_this_system,
@@ -557,8 +567,10 @@ def pkg_manifest_params_compatible_or_error_for_this_system(
         blender_version_min=blender_version_min,
         blender_version_max=blender_version_max,
         platforms=platforms,
+        python_versions=python_versions,
         # This system.
         this_platform=platform_from_this_system(),
+        this_python_version=sys.version_info,
         this_blender_version=bpy.app.version,
         error_fn=print,
     )
@@ -609,8 +621,8 @@ def repo_cache_store_refresh_from_prefs(repo_cache_store, include_disabled=False
 
 def _preferences_pkg_id_sequence_filter_enabled(
         repo_item,  # `RepoItem`
-        pkg_id_sequence,  # `List[str]`
-):  # `-> List[str]`
+        pkg_id_sequence,  # `list[str]`
+):  # `-> list[str]`
     import addon_utils
     result = []
 
@@ -632,10 +644,10 @@ def _preferences_pkg_id_sequence_filter_enabled(
 def _preferences_ensure_disabled(
         *,
         repo_item,  # `RepoItem`
-        pkg_id_sequence,  # `List[str]`
+        pkg_id_sequence,  # `list[str]`
         default_set,  # `bool`
         error_fn,  # `Callable[[Exception], None]`
-):  # `-> Dict[str, Tuple[boo, bool]]`
+):  # `-> dict[str, tuple[bool, bool]]`
     import sys
     import addon_utils
 
@@ -666,7 +678,12 @@ def _preferences_ensure_disabled(
             if not hasattr(repo_module, pkg_id):
                 print("Repo module \"{:s}.{:s}\" not a sub-module!".format(".".join(module_base_elem), pkg_id))
 
-        addon_utils.disable(addon_module_name, default_set=default_set, handle_error=error_fn)
+        addon_utils.disable(
+            addon_module_name,
+            default_set=default_set,
+            refresh_handled=True,
+            handle_error=error_fn,
+        )
 
         modules_clear.append(pkg_id)
 
@@ -693,10 +710,10 @@ def _preferences_ensure_disabled(
             continue
 
         # Use pop instead of del because there is a (very) small chance
-        # that classes defined in a removed module define a `__del__` method manipulates modules.
+        # that classes defined in a removed module define a `__del__` method that manipulates modules.
         sys.modules.pop(key, None)
 
-    # Now remove from the module from it's parent (when found).
+    # Now remove the module from its parent (when found).
     # Although in most cases this isn't needed because disabling the add-on typically deletes the module,
     # don't report a warning if this is the case.
     if repo_module is not None:
@@ -716,7 +733,12 @@ def _preferences_ensure_enabled(*, repo_item, pkg_id_sequence, result, handle_er
         if not loaded_state:
             continue
 
-        addon_utils.enable(addon_module_name, default_set=loaded_default, handle_error=handle_error)
+        addon_utils.enable(
+            addon_module_name,
+            default_set=loaded_default,
+            refresh_handled=True,
+            handle_error=handle_error,
+        )
 
 
 def _preferences_ensure_enabled_all(*, addon_restore, handle_error):
@@ -734,7 +756,7 @@ def _preferences_install_post_enable_on_install(
         directory,
         pkg_manifest_local,
         pkg_id_sequence,
-        # There were already installed and an attempt to enable it will have already been made.
+        # These were already installed and an attempt to enable them will have already been made.
         pkg_id_sequence_upgrade,
         handle_error,
 ):
@@ -747,17 +769,23 @@ def _preferences_install_post_enable_on_install(
     for pkg_id in pkg_id_sequence:
         item_local = pkg_manifest_local.get(pkg_id)
         if item_local is None:
-            # Unlikely but possible, do nothing in this case.
-            print("Package should have been installed but not found:", pkg_id)
+            # Unlikely but possible, report and skip in this case.
+            print("Package was expected to be installed but not found:", pkg_id)
             return
 
         if item_local.type == "add-on":
-            # Check if the add-on will have been enabled from re-installing.
+            # Skip add-ons being upgraded, they are re-enabled as part of re-installation.
             if pkg_id in pkg_id_sequence_upgrade:
                 continue
 
             addon_module_name = "{:s}.{:s}.{:s}".format(_ext_base_pkg_idname, repo_item.module, pkg_id)
-            addon_utils.enable(addon_module_name, default_set=True, handle_error=handle_error)
+            addon_utils.enable(
+                addon_module_name,
+                default_set=True,
+                # Handled by `_extensions_repo_sync_wheels`.
+                refresh_handled=True,
+                handle_error=handle_error,
+            )
         elif item_local.type == "theme":
             if has_theme:
                 continue
@@ -866,7 +894,7 @@ def _extensions_repo_from_directory(directory):
 
 def _extensions_repo_from_directory_and_report(directory, report_fn):
     if not directory:
-        report_fn({'ERROR', "Directory not set"})
+        report_fn({'ERROR'}, "Directory not set")
         return None
 
     repo_item = _extensions_repo_from_directory(directory)
@@ -891,7 +919,7 @@ def _pkg_marked_by_repo(repo_cache_store, pkg_manifest_all):
             if not ui_visibility.test((pkg_id, repo_index)):
                 continue
         else:
-            # Background mode, just to a simple range check.
+            # Background mode, just do a simple range check.
             # While this should be prevented, any marked packages out of the range will cause problems, skip them.
             if repo_index >= len(pkg_manifest_all):
                 continue
@@ -913,14 +941,28 @@ def _pkg_marked_by_repo(repo_cache_store, pkg_manifest_all):
 # Wheel Handling
 #
 
-def _extensions_wheel_filter_for_platform(wheels):
+def _extensions_wheel_filter_for_this_system(wheels):
 
     # Copied from `wheel.bwheel_dist.get_platform(..)` which isn't part of Python.
     # This misses some additional checks which aren't supported by official Blender builds,
-    # it's highly doubtful users ever run into this but we could add extend this if it's really needed.
+    # it's highly doubtful users ever run into this but we could extend this if it's really needed.
     # (e.g. `linux-i686` on 64 bit systems & `linux-armv7l`).
     import sysconfig
+
+    # When false, suppress printing for incompatible wheels.
+    # This generally isn't a problem as it's common for an extension to include wheels for multiple platforms.
+    # Printing is mainly useful when installation fails because none of the wheels are compatible.
+    debug = bpy.app.debug_python
+
     platform_tag_current = sysconfig.get_platform().replace("-", "_")
+
+    import sys
+    from .bl_extension_utils import (
+        python_versions_from_wheel_python_tag,
+        python_versions_from_wheel_abi_tag,
+    )
+
+    python_version_current = sys.version_info[:2]
 
     # https://packaging.python.org/en/latest/specifications/binary-distribution-format/#file-name-convention
     # This also defines the name spec:
@@ -942,16 +984,18 @@ def _extensions_wheel_filter_for_platform(wheels):
         if not (5 <= len(wheel_filename_split) <= 6):
             print("Error: wheel doesn't follow naming spec \"{:s}\"".format(wheel_filename))
             continue
-        # TODO: Match Python & ABI tags.
-        _python_tag, _abi_tag, platform_tag = wheel_filename_split[-3:]
 
+        python_tag, abi_tag, platform_tag = wheel_filename_split[-3:]
+
+        # Perform Platform Checks.
         if platform_tag in {"any", platform_tag_current}:
             pass
         elif platform_tag_current.startswith("macosx_") and (
                 # FIXME: `macosx_11.00` should be `macosx_11_0`.
                 platform_tag.startswith("macosx_") and
                 # Ignore the MACOSX version, ensure `arm64` suffix.
-                platform_tag.endswith("_" + platform_tag_current.rpartition("_")[2])
+                (platform_tag.endswith("_" + platform_tag_current.rpartition("_")[2]) or
+                 platform_tag.endswith("_universal2"))
         ):
             pass
         elif platform_tag_current.startswith("linux_") and (
@@ -964,15 +1008,61 @@ def _extensions_wheel_filter_for_platform(wheels):
         ):
             pass
         else:
-            # Useful to know, can quiet print in the future.
-            print(
-                "Skipping wheel for other system",
-                "({:s} != {:s}):".format(platform_tag, platform_tag_current),
-                wheel_filename,
-            )
+            if debug:
+                print(
+                    "Skipping wheel for other system",
+                    "({:s} != {:s}):".format(platform_tag, platform_tag_current),
+                    wheel_filename,
+                )
             continue
 
+        # Perform Python Version Checks.
+        if isinstance(python_versions := python_versions_from_wheel_python_tag(python_tag), str):
+            print("Error: wheel \"{:s}\" unable to parse Python version {:s}".format(wheel_filename, python_versions))
+        else:
+            python_version_is_compat = False
+            for python_version in python_versions:
+                if len(python_version) == 1:
+                    if python_version_current[0] == python_version[0]:
+                        python_version_is_compat = True
+                        break
+                else:
+                    if python_version_current == python_version:
+                        python_version_is_compat = True
+                        break
+
+                    # When there is a stable ABI: Allow an older Python wheel to be compatible
+                    # with a newer Python as long as the older wheel uses the stable ABI, see:
+                    # https://packaging.python.org/en/latest/specifications/platform-compatibility-tags/#abi-tag
+                    if isinstance(
+                            python_versions_stable_abi := python_versions_from_wheel_abi_tag(abi_tag, stable_only=True),
+                            str,
+                    ):
+                        print("Error: wheel \"{:s}\" unable to parse Python ABI version {:s}".format(
+                            # `python_versions_stable_abi` is the error.
+                            wheel_filename, python_versions_stable_abi,
+                        ))
+                    elif (python_version_current[0],) in python_versions_stable_abi:
+                        if python_version_current >= python_version:
+                            python_version_is_compat = True
+                            break
+
+            if not python_version_is_compat:
+                if debug:
+                    print(
+                        "Skipping wheel for other Python version",
+                        "({:s}=>({:s}) not in {:d}.{:d}):".format(
+                            python_tag,
+                            ", ".join([".".join(str(i) for i in v) for v in python_versions]),
+                            python_version_current[0],
+                            python_version_current[1],
+                        ),
+                        wheel_filename,
+                    )
+                continue
+
         wheels_compatible.append(wheel)
+
     return wheels_compatible
 
 
@@ -980,10 +1070,10 @@ def pkg_wheel_filter(
         repo_module,  # `str`
         pkg_id,  # `str`
         repo_directory,  # `str`
-        wheels_rel,  # `List[str]`
-):  # `-> Tuple[str, List[str]]`
+        wheels_rel,  # `list[str]`
+):  # `-> tuple[str, list[str]] | None`
     # Filter only the wheels for this platform.
-    wheels_rel = _extensions_wheel_filter_for_platform(wheels_rel)
+    wheels_rel = _extensions_wheel_filter_for_this_system(wheels_rel)
     if not wheels_rel:
         return None
 
@@ -1019,8 +1109,8 @@ def _extensions_enabled():
 
 
 def _extensions_enabled_from_repo_directory_and_pkg_id_sequence(repo_directory_and_pkg_id_sequence):
-    # Use to calculate extensions which will be enabled,
-    # needed so the wheels for the extensions can be enabled before the add-on is enabled that uses them.
+    # Calculate which extensions are pending to be enabled,
+    # needed so wheels for extensions can be extracted before any add-on using them is enabled.
     extensions_enabled_pending = set()
     repo_directory_to_module_map = _extension_repos_directory_to_module_map()
     for repo_directory, pkg_id_sequence in repo_directory_and_pkg_id_sequence:
@@ -1030,7 +1120,12 @@ def _extensions_enabled_from_repo_directory_and_pkg_id_sequence(repo_directory_a
     return extensions_enabled_pending
 
 
-def _extensions_repo_sync_wheels(repo_cache_store, extensions_enabled):
+def _extensions_repo_sync_wheels(
+        repo_cache_store,  # `bl_extension_utils.RepoCacheStore`
+        extensions_enabled,  # `set[tuple[str, str]]`
+        *,
+        error_fn,  # `Callable[[Exception], None]`
+):  # `-> None`
     """
     This function collects all wheels from all packages and ensures the packages are either extracted or removed
     when they are no longer used.
@@ -1042,7 +1137,7 @@ def _extensions_repo_sync_wheels(repo_cache_store, extensions_enabled):
     wheel_list = []
 
     for repo_index, pkg_manifest_local in enumerate(repo_cache_store.pkg_manifest_from_local_ensure(
-            error_fn=print,
+            error_fn=error_fn,
             ignore_missing=True,
     )):
         repo = repos_all[repo_index]
@@ -1071,24 +1166,44 @@ def _extensions_repo_sync_wheels(repo_cache_store, extensions_enabled):
         local_dir=local_dir,
         wheel_list=wheel_list,
         debug=bpy.app.debug_python,
+        error_fn=error_fn,
     )
 
 
-def _extensions_repo_refresh_on_change(repo_cache_store, *, extensions_enabled, compat_calc, stats_calc):
+def _extensions_repo_refresh_on_change(
+        repo_cache_store,  # `bl_extension_utils.RepoCacheStore`
+        *,
+        extensions_enabled,  # `set[tuple[str, str]] | None`
+        compat_calc,  # `bool`
+        stats_calc,  # `bool`
+        error_fn,  # `Callable[[Exception], None]`
+):  # `-> None`
     import addon_utils
     if extensions_enabled is not None:
-        _extensions_repo_sync_wheels(repo_cache_store, extensions_enabled)
+        _extensions_repo_sync_wheels(
+            repo_cache_store,
+            extensions_enabled,
+            error_fn=error_fn,
+        )
     # Wheel sync handled above.
 
     if compat_calc:
         # NOTE: `extensions_enabled` may contain add-ons which are not yet enabled (these are pending).
-        # These will *not* have their compatibility information refreshed here.
-        # This is acceptable because:
-        # - Installing & enabling an extension relies on the extension being compatible,
-        #   so it can be assumed to already be the compatible.
-        # - If the add-on existed and was incompatible it *will* have it's compatibility recalculated.
-        # - Any missing cache entries will cause cache to be re-generated on next start or from an explicit refresh.
-        addon_utils.extensions_refresh(ensure_wheels=False)
+        # They *must* have their compatibility information refreshed here,
+        # even though compatibility is guaranteed based on the code-path that calls this function.
+        #
+        # Without updating compatibility information, un-installing the extensions won't detect the
+        # add-on as having been removed and won't remove any wheels the extension may use, see #125958.
+        addon_modules_pending = None if extensions_enabled is None else ([
+            "{:s}{:s}.{:s}".format(_ext_base_pkg_idname_with_dot, repo_module, pkg_id)
+            for repo_module, pkg_id in extensions_enabled
+        ])
+
+        addon_utils.extensions_refresh(
+            ensure_wheels=False,
+            addon_modules_pending=addon_modules_pending,
+            handle_error=error_fn,
+        )
 
     if stats_calc:
         repo_stats_calc()
@@ -1124,21 +1239,22 @@ def _preferences_theme_state_create():
     if (result := file_mtime_or_none(filepath)) is not None:
         return result, filepath
 
-    # It's possible the XML was renamed after upgrading, detect another.
+    # Fallback for renamed XML theme files: the theme XML may have been renamed
+    # after upgrading (e.g. version bump), so scan the directory for any XML file.
     dirpath = os.path.dirname(filepath)
+    del filepath
 
     # Not essential, just avoids a demoted error from `scandir` which seems like it may be a bug.
     if not os.path.exists(dirpath):
         return None, None
 
-    filepath = ""
     for entry in scandir_with_demoted_errors(dirpath):
         if entry.is_dir():
             continue
-        # There must only ever be one.
+        # Theme directories contain only one XML file, use the first one found.
         if entry.name.lower().endswith(".xml"):
             if (result := file_mtime_or_none(entry.path)) is not None:
-                return result, filepath
+                return result, entry.path
     return None, None
 
 
@@ -1357,9 +1473,9 @@ class _ExtCmdMixIn:
     """
     Utility to execute mix-in.
 
-    Sub-class must define.
-    - bl_idname
-    - bl_label
+    Sub-class must define:
+    - bl_idname (Operator)
+    - bl_label (Operator)
     - exec_command_iter
     - exec_command_finish
     """
@@ -1371,7 +1487,7 @@ class _ExtCmdMixIn:
     def __init_subclass__(cls) -> None:
         for attr in ("exec_command_iter", "exec_command_finish"):
             if getattr(cls, attr) is getattr(_ExtCmdMixIn, attr):
-                raise Exception("Subclass did not define 'exec_command_iter'!")
+                raise Exception("Subclass did not define {!r}!".format(attr))
 
     def exec_command_iter(self, is_modal):
         raise Exception("Subclass must define!")
@@ -1391,7 +1507,7 @@ class _ExtCmdMixIn:
         if cmd_batch is None:
             return {'CANCELLED'}
 
-        # Needed in cast there are no commands within `cmd_batch`,
+        # Needed in case there are no commands within `cmd_batch`,
         # the title should still be set.
         repo_status_text.title = cmd_batch.title
 
@@ -1426,30 +1542,6 @@ class _ExtCmdMixIn:
 
     def runtime_handle_clear(self):
         del self._runtime_handle
-
-
-class EXTENSIONS_OT_dummy_progress(Operator, _ExtCmdMixIn):
-    bl_idname = "extensions.dummy_progress"
-    bl_label = "Ext Demo"
-    __slots__ = _ExtCmdMixIn.cls_slots
-
-    def exec_command_iter(self, is_modal):
-        from . import bl_extension_utils
-
-        return bl_extension_utils.CommandBatch(
-            title="Dummy Progress",
-            batch=[
-                partial(
-                    bl_extension_utils.dummy_progress,
-                    use_idle=is_modal,
-                    python_args=bpy.app.python_args,
-                ),
-            ],
-            batch_job_limit=1,
-        )
-
-    def exec_command_finish(self, canceled):
-        _preferences_ui_redraw()
 
 
 class EXTENSIONS_OT_repo_sync(Operator, _ExtCmdMixIn):
@@ -1637,20 +1729,36 @@ class EXTENSIONS_OT_repo_sync_all(Operator, _ExtCmdMixIn):
 
 
 class EXTENSIONS_OT_repo_refresh_all(Operator):
-    """Scan extension & legacy add-ons for changes to modules & meta-data (similar to restarting). """ \
-        """Any issues are reported as warnings"""
+    """Refresh extension & legacy add-ons, reloading modules & meta-data (similar to restarting)"""
     bl_idname = "extensions.repo_refresh_all"
     bl_label = "Refresh Local"
+
+    use_active_only: BoolProperty(
+        name="Active Only",
+        description="Only refresh the active repository",
+    )
 
     def _exceptions_as_report(self, repo_name, ex):
         self.report({'WARNING'}, "{:s}: {:s}".format(repo_name, str(ex)))
 
     def execute(self, _context):
+        # NOTE: report errors as warnings.
+        # - So the user is aware there are problems.
+        # - Because this operation may involve many repositories,
+        #   failing with a single error doesn't make sense.
         import importlib
         import addon_utils
 
-        repos_all = extension_repos_read()
+        use_active_only = self.use_active_only
+        repos_all = extension_repos_read(use_active_only=use_active_only)
         repo_cache_store = repo_cache_store_ensure()
+
+        if not repos_all:
+            if use_active_only:
+                self.report({'INFO'}, "The active repository has invalid settings")
+            else:
+                assert False, "unreachable"  # Poll prevents this.
+            return {'CANCELLED'}
 
         for repo_item in repos_all:
             # Re-generate JSON meta-data from TOML files (needed for offline repository).
@@ -1680,7 +1788,10 @@ class EXTENSIONS_OT_repo_refresh_all(Operator):
         # In-line `bpy.ops.preferences.addon_refresh`.
         addon_utils.modules_refresh()
         # Ensure compatibility info and wheels is up to date.
-        addon_utils.extensions_refresh(ensure_wheels=True)
+        addon_utils.extensions_refresh(
+            ensure_wheels=True,
+            handle_error=lambda ex: self.report({'WARNING'}, str(ex)),
+        )
 
         _preferences_ui_redraw()
         _preferences_ui_refresh_addons()
@@ -1755,7 +1866,7 @@ class EXTENSIONS_OT_repo_unlock(Operator):
         # Either return a message for why the lock cannot be unlocked, or,
         # the lock time and a possible error when accessing it.
         if not repos:
-            return "Active repository is not enabled has invalid settings", None, None
+            return "Active repository is not enabled or has invalid settings", None, None
         repo = repos[0]
 
         from . import bl_extension_utils
@@ -1813,10 +1924,10 @@ class EXTENSIONS_OT_repo_unlock(Operator):
 
         repo_name, repo_directory, _lock_age, _lock_error = self._repo_vars
         if (error := bl_extension_utils.repo_lock_directory_force_unlock(repo_directory)):
-            self.report({'ERROR'}, "Force unlock failed: {:s}".format(error))
+            self.report({'ERROR'}, rpt_("Force unlock failed: {:s}").format(error))
             return {'CANCELLED'}
 
-        self.report({'INFO'}, "Unlocked: {:s}".format(repo_name))
+        self.report({'INFO'}, rpt_("Unlocked: {:s}").format(repo_name))
         return {'FINISHED'}
 
     def draw(self, _context):
@@ -1843,7 +1954,7 @@ class EXTENSIONS_OT_repo_unlock(Operator):
 
 
 class EXTENSIONS_OT_package_upgrade_all(Operator, _ExtCmdMixIn):
-    """Upgrade all the extensions to their latest version for all the remote repositories"""
+    """Upgrade installed extensions to their latest version from remote repositories"""
     bl_idname = "extensions.package_upgrade_all"
     bl_label = "Install Available Updates"
     __slots__ = (
@@ -1853,7 +1964,7 @@ class EXTENSIONS_OT_package_upgrade_all(Operator, _ExtCmdMixIn):
 
     use_active_only: BoolProperty(
         name="Active Only",
-        description="Only sync the active repository",
+        description="Only upgrade the active repository",
     )
 
     @classmethod
@@ -1876,6 +1987,7 @@ class EXTENSIONS_OT_package_upgrade_all(Operator, _ExtCmdMixIn):
         return ""  # Default.
 
     def exec_command_iter(self, is_modal):
+        import sys
         from . import bl_extension_utils
         # pylint: disable-next=attribute-defined-outside-init
         self._repo_directories = set()
@@ -1889,7 +2001,7 @@ class EXTENSIONS_OT_package_upgrade_all(Operator, _ExtCmdMixIn):
         repos_all = extension_repos_read(use_active_only=use_active_only)
         repo_cache_store = repo_cache_store_ensure()
 
-        repo_directory_supset = [repo_entry.directory for repo_entry in repos_all] if use_active_only else None
+        repo_directory_subset = [repo_entry.directory for repo_entry in repos_all] if use_active_only else None
 
         if not repos_all:
             if use_active_only:
@@ -1919,11 +2031,11 @@ class EXTENSIONS_OT_package_upgrade_all(Operator, _ExtCmdMixIn):
 
         pkg_manifest_local_all = list(repo_cache_store.pkg_manifest_from_local_ensure(
             error_fn=self.error_fn_from_exception,
-            directory_subset=repo_directory_supset,
+            directory_subset=repo_directory_subset,
         ))
         for repo_index, pkg_manifest_remote in enumerate(repo_cache_store.pkg_manifest_from_remote_ensure(
             error_fn=self.error_fn_from_exception,
-            directory_subset=repo_directory_supset,
+            directory_subset=repo_directory_subset,
         )):
             if pkg_manifest_remote is None:
                 continue
@@ -1966,6 +2078,7 @@ class EXTENSIONS_OT_package_upgrade_all(Operator, _ExtCmdMixIn):
                     pkg_id_sequence=pkg_id_sequence_iter,
                     online_user_agent=online_user_agent_from_blender(),
                     blender_version=bpy.app.version,
+                    python_version=sys.version_info[:3],
                     access_token=repo_item.access_token,
                     timeout=prefs.system.network_timeout,
                     use_cache=repo_item.use_cache,
@@ -2019,11 +2132,22 @@ class EXTENSIONS_OT_package_upgrade_all(Operator, _ExtCmdMixIn):
                 error_fn=self.error_fn_from_exception,
             )
 
-        repo_stats_calc()
-
         # TODO: it would be nice to include this message in the banner.
         def handle_error(ex):
             self.report({'ERROR'}, str(ex))
+
+        # Ensure wheels are refreshed before re-enabling.
+        _extensions_repo_refresh_on_change(
+            repo_cache_store,
+            extensions_enabled=set(
+                (repo_item.module, pkg_id)
+                for (repo_item, pkg_id_sequence, result) in self._addon_restore
+                for pkg_id in pkg_id_sequence
+            ),
+            compat_calc=True,
+            stats_calc=True,
+            error_fn=handle_error,
+        )
 
         _preferences_ensure_enabled_all(
             addon_restore=self._addon_restore,
@@ -2037,7 +2161,7 @@ class EXTENSIONS_OT_package_upgrade_all(Operator, _ExtCmdMixIn):
 
 class EXTENSIONS_OT_package_install_marked(Operator, _ExtCmdMixIn):
     bl_idname = "extensions.package_install_marked"
-    bl_label = "Ext Package Install_marked"
+    bl_label = "Ext Package Install Marked"
     __slots__ = (
         *_ExtCmdMixIn.cls_slots,
         "_repo_directories",
@@ -2047,6 +2171,7 @@ class EXTENSIONS_OT_package_install_marked(Operator, _ExtCmdMixIn):
     enable_on_install: rna_prop_enable_on_install
 
     def exec_command_iter(self, is_modal):
+        import sys
         from . import bl_extension_utils
 
         repos_all = extension_repos_read()
@@ -2088,6 +2213,7 @@ class EXTENSIONS_OT_package_install_marked(Operator, _ExtCmdMixIn):
                     pkg_id_sequence=pkg_id_sequence_iter,
                     online_user_agent=online_user_agent_from_blender(),
                     blender_version=bpy.app.version,
+                    python_version=sys.version_info[:3],
                     access_token=repo_item.access_token,
                     timeout=prefs.system.network_timeout,
                     use_cache=repo_item.use_cache,
@@ -2109,7 +2235,7 @@ class EXTENSIONS_OT_package_install_marked(Operator, _ExtCmdMixIn):
                 self._repo_map_packages_addon_only.append((repo_item.directory, pkg_id_sequence_addon_only))
 
         if not cmd_batch:
-            self.report({'ERROR'}, "No uninstalled packages marked")
+            self.report({'ERROR'}, "No installable packages marked")
             return None
 
         # Lock repositories.
@@ -2132,6 +2258,10 @@ class EXTENSIONS_OT_package_install_marked(Operator, _ExtCmdMixIn):
         # Unlock repositories.
         lock_result_any_failed_with_report(self, self.repo_lock.release(), report_type='WARNING')
         del self.repo_lock
+
+        # TODO: it would be nice to include this message in the banner.
+        def handle_error(ex):
+            self.report({'ERROR'}, str(ex))
 
         # Refresh installed packages for repositories that were operated on.
         repo_cache_store = repo_cache_store_ensure()
@@ -2156,11 +2286,8 @@ class EXTENSIONS_OT_package_install_marked(Operator, _ExtCmdMixIn):
             extensions_enabled=extensions_enabled,
             compat_calc=True,
             stats_calc=True,
+            error_fn=handle_error,
         )
-
-        # TODO: it would be nice to include this message in the banner.
-        def handle_error(ex):
-            self.report({'ERROR'}, str(ex))
 
         for directory, pkg_id_sequence in self._repo_map_packages_addon_only:
 
@@ -2190,6 +2317,7 @@ class EXTENSIONS_OT_package_install_marked(Operator, _ExtCmdMixIn):
                     extensions_enabled=extensions_enabled_test,
                     compat_calc=False,
                     stats_calc=False,
+                    error_fn=handle_error,
                 )
 
         _preferences_ui_redraw()
@@ -2293,6 +2421,10 @@ class EXTENSIONS_OT_package_uninstall_marked(Operator, _ExtCmdMixIn):
         lock_result_any_failed_with_report(self, self.repo_lock.release(), report_type='WARNING')
         del self.repo_lock
 
+        # TODO: it would be nice to include this message in the banner.
+        def handle_error(ex):
+            self.report({'ERROR'}, str(ex))
+
         for directory, pkg_id_sequence in self._pkg_id_sequence_from_directory.items():
             _extensions_repo_temp_files_make_stale(repo_directory=directory)
             _extensions_repo_uninstall_stale_package_fallback(
@@ -2313,6 +2445,7 @@ class EXTENSIONS_OT_package_uninstall_marked(Operator, _ExtCmdMixIn):
             extensions_enabled=_extensions_enabled(),
             compat_calc=True,
             stats_calc=True,
+            error_fn=handle_error,
         )
 
         _preferences_theme_state_restore(self._theme_restore)
@@ -2330,7 +2463,19 @@ class EXTENSIONS_OT_package_install_files(Operator, _ExtCmdMixIn):
         "repo_directory",
         "pkg_id_sequence"
     )
+
+    # Dropping a file-path stores values in the class instance, values used are as follows:
+    #
+    # - None: Unset (not dropping), this value is read from the class.
+    # - (pkg_id, pkg_type): Drop values have been extracted from the ZIP file.
+    #   Where the `pkg_id` is the ID in the extensions manifest and the `pkg_type`
+    #   is the type of extension see `rna_prop_enable_on_install_type_map` keys.
     _drop_variables = None
+    # Used when dropping legacy add-ons:
+    #
+    # - None: Unset, not dropping a legacy add-on.
+    # - True: Drop treats the `filepath` as a legacy add-on,
+    #   in this case `_drop_variables` remains None (not extracted from ZIP).
     _legacy_drop = None
 
     filter_glob: StringProperty(default="*.zip;*.py", options={'HIDDEN'})
@@ -2345,7 +2490,7 @@ class EXTENSIONS_OT_package_install_files(Operator, _ExtCmdMixIn):
         options={'HIDDEN', 'SKIP_SAVE'}
     )
 
-    # Use for for scripts.
+    # Use for scripts.
     filepath: StringProperty(
         subtype='FILE_PATH',
     )
@@ -2375,6 +2520,7 @@ class EXTENSIONS_OT_package_install_files(Operator, _ExtCmdMixIn):
     url: rna_prop_url
 
     def exec_command_iter(self, is_modal):
+        import sys
         from . import bl_extension_utils
         from .bl_extension_utils import (
             pkg_manifest_dict_from_archive_or_error,
@@ -2489,6 +2635,7 @@ class EXTENSIONS_OT_package_install_files(Operator, _ExtCmdMixIn):
                     directory=directory,
                     files=pkg_files,
                     blender_version=bpy.app.version,
+                    python_version=sys.version_info[:3],
                     use_idle=is_modal,
                     python_args=bpy.app.python_args,
                 )
@@ -2513,6 +2660,10 @@ class EXTENSIONS_OT_package_install_files(Operator, _ExtCmdMixIn):
         lock_result_any_failed_with_report(self, self.repo_lock.release(), report_type='WARNING')
         del self.repo_lock
 
+        # TODO: it would be nice to include this message in the banner.
+        def handle_error(ex):
+            self.report({'ERROR'}, str(ex))
+
         pkg_manifest_local = repo_cache_store.refresh_local_from_directory(
             directory=self.repo_directory,
             error_fn=self.error_fn_from_exception,
@@ -2533,12 +2684,8 @@ class EXTENSIONS_OT_package_install_files(Operator, _ExtCmdMixIn):
             extensions_enabled=extensions_enabled,
             compat_calc=True,
             stats_calc=True,
+            error_fn=handle_error,
         )
-
-        # TODO: it would be nice to include this message in the banner.
-
-        def handle_error(ex):
-            self.report({'ERROR'}, str(ex))
 
         _preferences_ensure_enabled_all(
             addon_restore=self._addon_restore,
@@ -2569,6 +2716,7 @@ class EXTENSIONS_OT_package_install_files(Operator, _ExtCmdMixIn):
                     extensions_enabled=extensions_enabled_test,
                     compat_calc=False,
                     stats_calc=False,
+                    error_fn=handle_error,
                 )
 
         _extensions_repo_temp_files_make_stale(self.repo_directory)
@@ -2596,7 +2744,7 @@ class EXTENSIONS_OT_package_install_files(Operator, _ExtCmdMixIn):
         # - If it's a "local" repository, use it.
         # - If it's a "remote" repository, reset.
         # This is done because installing a file into a remote repository is a corner-case supported so
-        # it's possible to download large extensions before installing or to down-grade to older versions.
+        # it's possible to download large extensions before installing as well as down-grading to older versions.
         # Installing into a remote repository should be intentional, not the default.
         # This could be annoying to users if they want to install many files into a remote repository,
         # in this case they would be better off using the file selector "Install from disk"
@@ -2667,9 +2815,6 @@ class EXTENSIONS_OT_package_install_files(Operator, _ExtCmdMixIn):
         from .bl_extension_utils import pkg_is_legacy_addon
 
         if not pkg_is_legacy_addon(filepath):
-            self._drop_variables = True
-            self._legacy_drop = None
-
             from .bl_extension_utils import pkg_manifest_dict_from_archive_or_error
 
             repos_valid = self._repos_valid_for_install(context)
@@ -2678,7 +2823,7 @@ class EXTENSIONS_OT_package_install_files(Operator, _ExtCmdMixIn):
                 return {'CANCELLED'}
 
             if isinstance(result := pkg_manifest_dict_from_archive_or_error(filepath), str):
-                self.report({'ERROR'}, "Error in manifest {:s}".format(result))
+                self.report({'ERROR'}, rpt_("Manifest validation failed: {:s}").format(result))
                 return {'CANCELLED'}
 
             pkg_id = result["id"]
@@ -2690,12 +2835,14 @@ class EXTENSIONS_OT_package_install_files(Operator, _ExtCmdMixIn):
                 del repo
 
             self._drop_variables = pkg_id, pkg_type
+            self._legacy_drop = None
+
             del result, pkg_id, pkg_type
         else:
             self._drop_variables = None
             self._legacy_drop = True
 
-        # Set to it's self to the property is considered "set".
+        # Set to itself so the property is considered "set".
         self.repo = self.repo
         self.filepath = filepath
 
@@ -2781,6 +2928,17 @@ class EXTENSIONS_OT_package_install(Operator, _ExtCmdMixIn):
     bl_label = "Install Extension"
     __slots__ = _ExtCmdMixIn.cls_slots
 
+    # Dropping a URL stores values in the class instance, values used are as follows:
+    #
+    # - None: Unset (not-dropping), this value is read from the class.
+    # - A tuple containing values needed to execute the drop:
+    #   `(repo_index: int, repo_name: str, pkg_id: str, item_remote: PkgManifest_Normalized)`.
+    #
+    #   NOTE: these values aren't set immediately when dropping as they
+    #   require the local repository to sync first, so the up to date meta-data
+    #   from the URL can be used to ensure the dropped extension is known
+    #   and any errors are based on up to date information.
+    #
     _drop_variables = None
     # Optional draw & keyword-arguments, return True to terminate drawing.
     _draw_override = None
@@ -2796,7 +2954,7 @@ class EXTENSIONS_OT_package_install(Operator, _ExtCmdMixIn):
     url: rna_prop_url
 
     # NOTE: this can be removed once upgrading from 4.1 is no longer relevant.
-    # Only used when moving from  previously built-in add-ons to extensions.
+    # Only used when moving from previously built-in add-ons to extensions.
     do_legacy_replace: BoolProperty(
         name="Do Legacy Replace",
         default=False,
@@ -2817,6 +2975,7 @@ class EXTENSIONS_OT_package_install(Operator, _ExtCmdMixIn):
         return True
 
     def exec_command_iter(self, is_modal):
+        import sys
         from . import bl_extension_utils
 
         if not self._is_ready_to_execute():
@@ -2871,6 +3030,7 @@ class EXTENSIONS_OT_package_install(Operator, _ExtCmdMixIn):
                     pkg_id_sequence=(pkg_id,),
                     online_user_agent=online_user_agent_from_blender(),
                     blender_version=bpy.app.version,
+                    python_version=sys.version_info[:3],
                     access_token=repo_item.access_token,
                     timeout=prefs.system.network_timeout,
                     use_cache=repo_item.use_cache,
@@ -2882,6 +3042,10 @@ class EXTENSIONS_OT_package_install(Operator, _ExtCmdMixIn):
         )
 
     def exec_command_finish(self, canceled):
+
+        # TODO: it would be nice to include this message in the banner.
+        def handle_error(ex):
+            self.report({'ERROR'}, str(ex))
 
         # Unlock repositories.
         lock_result_any_failed_with_report(self, self.repo_lock.release(), report_type='WARNING')
@@ -2910,11 +3074,8 @@ class EXTENSIONS_OT_package_install(Operator, _ExtCmdMixIn):
             extensions_enabled=extensions_enabled,
             compat_calc=True,
             stats_calc=True,
+            error_fn=handle_error,
         )
-
-        # TODO: it would be nice to include this message in the banner.
-        def handle_error(ex):
-            self.report({'ERROR'}, str(ex))
 
         _preferences_ensure_enabled_all(
             addon_restore=self._addon_restore,
@@ -2945,6 +3106,7 @@ class EXTENSIONS_OT_package_install(Operator, _ExtCmdMixIn):
                     extensions_enabled=extensions_enabled_test,
                     compat_calc=False,
                     stats_calc=False,
+                    error_fn=handle_error,
                 )
 
         _extensions_repo_temp_files_make_stale(self.repo_directory)
@@ -2998,8 +3160,12 @@ class EXTENSIONS_OT_package_install(Operator, _ExtCmdMixIn):
                 blender_version_min=url_params.get("blender_version_min", ""),
                 blender_version_max=url_params.get("blender_version_max", ""),
                 platforms=[platform for platform in url_params.get("platforms", "").split(",") if platform],
+                python_versions=[
+                    python_version for python_version in url_params.get("python_versions", "").split(",")
+                    if python_version
+                ],
         ), str):
-            self.report({'ERROR'}, iface_("The extension is incompatible with this system:\n{:s}").format(error))
+            self.report({'ERROR'}, rpt_("The extension is incompatible with this system:\n{:s}").format(error))
             return {'CANCELLED'}
         del error
 
@@ -3054,12 +3220,18 @@ class EXTENSIONS_OT_package_install(Operator, _ExtCmdMixIn):
 
         _repo_index, repo_name, _pkg_id, item_remote = self._drop_variables
 
-        layout.label(text="Do you want to install the following {:s}?".format(item_remote.type))
+        layout.label(
+            text=iface_("Do you want to install the following {:s}?").format(item_remote.type),
+            translate=False,
+        )
 
         col = layout.column(align=True)
-        col.label(text="Name: {:s}".format(item_remote.name))
-        col.label(text="Repository: {:s}".format(repo_name))
-        col.label(text="Size: {:s}".format(size_as_fmt_string(item_remote.archive_size, precision=0)))
+        col.label(text=iface_("Name: {:s}").format(item_remote.name), translate=False)
+        col.label(text=iface_("Repository: {:s}").format(repo_name), translate=False)
+        col.label(
+            text=iface_("Size: {:s}").format(size_as_fmt_string(item_remote.archive_size, precision=0)),
+            translate=False,
+        )
         del col
 
         layout.separator()
@@ -3082,7 +3254,7 @@ class EXTENSIONS_OT_package_install(Operator, _ExtCmdMixIn):
         from .bl_extension_ui import extensions_map_from_legacy_addons_reverse_lookup
         addon_module_name = extensions_map_from_legacy_addons_reverse_lookup(pkg_id)
         if not addon_module_name:
-            # This shouldn't happen unless someone goes out of there way
+            # This shouldn't happen unless someone goes out of their way
             # to enable `do_legacy_replace` for a non-legacy extension.
             # Use a print here as it's such a corner case and harmless.
             print("Internal error, legacy lookup failed:", addon_module_name)
@@ -3105,7 +3277,7 @@ class EXTENSIONS_OT_package_install(Operator, _ExtCmdMixIn):
             *,
             context,  # `bpy.types.Context`
             op_notify,  # `OperatorNonBlockingSyncHelper`
-            remote_url,  # `Optional[str]`
+            remote_url,  # `str | None`
             repo_from_url_name,  # `str`
             url,  # `str`
     ):
@@ -3131,7 +3303,7 @@ class EXTENSIONS_OT_package_install(Operator, _ExtCmdMixIn):
             self,
             *,
             context,  # `bpy.types.Context`
-            remote_url,   # `Optional[str]`
+            remote_url,   # `str | None`
             repo_from_url_name,  # `str`
             url,  # `str`
     ):
@@ -3258,7 +3430,7 @@ class EXTENSIONS_OT_package_install(Operator, _ExtCmdMixIn):
             *,
             remote_url,
     ):
-        # Skip the URL prefix scheme, e.g. `https://` for less "noisy" outpout.
+        # Skip the URL prefix scheme, e.g. `https://` for less "noisy" output.
         url_split = remote_url.partition("://")
         url_for_display = url_split[2] if url_split[2] else remote_url
 
@@ -3344,6 +3516,10 @@ class EXTENSIONS_OT_package_uninstall(Operator, _ExtCmdMixIn):
 
     def exec_command_finish(self, canceled):
 
+        # TODO: it would be nice to include this message in the banner.
+        def handle_error(ex):
+            self.report({'ERROR'}, str(ex))
+
         _extensions_repo_temp_files_make_stale(repo_directory=self.repo_directory)
         _extensions_repo_uninstall_stale_package_fallback(
             repo_directory=self.repo_directory,
@@ -3376,9 +3552,10 @@ class EXTENSIONS_OT_package_uninstall(Operator, _ExtCmdMixIn):
 
         _extensions_repo_refresh_on_change(
             repo_cache_store,
-            extensions_enabled=None,
+            extensions_enabled=_extensions_enabled(),
             compat_calc=True,
             stats_calc=True,
+            error_fn=handle_error,
         )
 
         _preferences_theme_state_restore(self._theme_restore)
@@ -3414,12 +3591,13 @@ class EXTENSIONS_OT_package_disable(Operator):
     bl_label = "Disable extension"
 
     def execute(self, _context):
+        # NOTE: add-ons use `preferences.addon_disable`, so only themes reach this operator.
         self.report({'WARNING'}, "Disabling themes is not yet supported")
         return {'CANCELLED'}
 
 
 class EXTENSIONS_OT_package_theme_enable(Operator):
-    """Turn off this theme"""
+    """Turn on this theme"""
     bl_idname = "extensions.package_theme_enable"
     bl_label = "Enable theme extension"
 
@@ -3429,12 +3607,11 @@ class EXTENSIONS_OT_package_theme_enable(Operator):
     def execute(self, _context):
         repo_item = extension_repos_read_index(self.repo_index)
         extension_theme_enable(repo_item.directory, self.pkg_id)
-        print(repo_item.directory, self.pkg_id)
         return {'FINISHED'}
 
 
 class EXTENSIONS_OT_package_theme_disable(Operator):
-    """Turn off this theme"""
+    """Reset to the default theme if this theme is active"""
     bl_idname = "extensions.package_theme_disable"
     bl_label = "Disable theme extension"
 
@@ -3599,7 +3776,7 @@ class EXTENSIONS_OT_package_show_settings(Operator):
 # Testing Operators
 #
 
-class EXTENSIONS_OT_package_obselete_marked(Operator):
+class EXTENSIONS_OT_package_obsolete_marked(Operator):
     """Zeroes package versions, useful for development - to test upgrading"""
     bl_idname = "extensions.package_obsolete_marked"
     bl_label = "Obsolete Marked"
@@ -3689,7 +3866,7 @@ class EXTENSIONS_OT_repo_lock_all(Operator):
             lock_handle.release()
             return {'CANCELLED'}
 
-        self.report({'INFO'}, "Locked {:d} repos(s)".format(len(lock_result)))
+        self.report({'INFO'}, rpt_("Locked {:d} repo(s)").format(len(lock_result)))
         EXTENSIONS_OT_repo_lock_all.lock = lock_handle
         return {'FINISHED'}
 
@@ -3713,7 +3890,7 @@ class EXTENSIONS_OT_repo_unlock_all(Operator):
             # This isn't canceled, but there were issues unlocking.
             return {'FINISHED'}
 
-        self.report({'INFO'}, "Unlocked {:d} repos(s)".format(len(lock_result)))
+        self.report({'INFO'}, rpt_("Unlocked {:d} repo(s)").format(len(lock_result)))
         return {'FINISHED'}
 
 
@@ -3771,6 +3948,9 @@ class EXTENSIONS_OT_userpref_show_for_update(Operator):
         prefs = context.preferences
 
         prefs.active_section = 'EXTENSIONS'
+
+        # Extensions may be of any type, so show all.
+        wm.extension_type = 'ALL'
 
         # Show only extensions that will be updated.
         wm.extension_show_panel_installed = True
@@ -3867,28 +4047,12 @@ class EXTENSIONS_OT_userpref_allow_online_popup(Operator):
             )
         else:
             lines = (
-                rpt_("Please turn Online Access on in the System settings."),
+                rpt_("Please enable Online Access from the System settings."),
                 "",
                 rpt_("Internet access is required to install extensions from the internet."),
             )
         for line in lines:
             col.label(text=line, translate=False)
-
-
-class EXTENSIONS_OT_package_enable_not_installed(Operator):
-    """Turn on this extension"""
-    bl_idname = "extensions.package_enable_not_installed"
-    bl_label = "Enable Extension"
-
-    @classmethod
-    def poll(cls, _context):
-        cls.poll_message_set("Extension needs to be installed before it can be enabled")
-        return False
-
-    def execute(self, _context):
-        # This operator only exists to be able to show disabled check-boxes for extensions
-        # while giving users a reasonable explanation on why is that.
-        return {'CANCELLED'}
 
 
 # -----------------------------------------------------------------------------
@@ -3925,7 +4089,7 @@ classes = (
     EXTENSIONS_OT_package_mark_clear_all,
     EXTENSIONS_OT_package_show_settings,
 
-    EXTENSIONS_OT_package_obselete_marked,
+    EXTENSIONS_OT_package_obsolete_marked,
     EXTENSIONS_OT_repo_lock_all,
     EXTENSIONS_OT_repo_unlock_all,
 
@@ -3934,12 +4098,6 @@ classes = (
     EXTENSIONS_OT_userpref_show_online,
     EXTENSIONS_OT_userpref_allow_online,
     EXTENSIONS_OT_userpref_allow_online_popup,
-
-    # Dummy, just shows a message.
-    EXTENSIONS_OT_package_enable_not_installed,
-
-    # Dummy commands (for testing).
-    EXTENSIONS_OT_dummy_progress,
 )
 
 

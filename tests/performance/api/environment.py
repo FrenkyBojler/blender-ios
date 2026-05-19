@@ -12,10 +12,27 @@ import platform
 import pickle
 import subprocess
 import sys
-from typing import Callable, Dict, List
+
+from collections.abc import (
+    Callable,
+)
 
 from .config import TestConfig
 from .device import TestMachine
+
+
+class TestFailure(Exception):
+    def __init__(self, *args, message, output_lines=[], **kwargs):
+        super().__init__(message, *args)
+        self.message = message
+        self.output_lines = output_lines
+
+    def __str__(self):
+        msg = self.message
+        if self.output_lines:
+            msg += f":\n{'': <10} | "
+            msg += f"\n{'': <10} | ".join(l.rstrip(' \r\n\t') for l in self.output_lines)
+        return msg
 
 
 class TestEnvironment:
@@ -40,7 +57,7 @@ class TestEnvironment:
 
         return self.machine
 
-    def init(self, build) -> None:
+    def init(self, build: bool, blender_bin: str) -> None:
         if not self.benchmarks_dir.exists():
             sys.stderr.write(f'Error: benchmark files directory not found at {self.benchmarks_dir}')
             sys.exit(1)
@@ -52,7 +69,7 @@ class TestEnvironment:
         if len(self.get_config_names()) == 0:
             config_dir = self.base_dir / 'default'
             print(f'Creating default configuration in {config_dir}')
-            TestConfig.write_default_config(self, config_dir)
+            TestConfig.write_default_config(self, config_dir, blender_bin)
 
         if build:
             if not self.blender_dir.exists():
@@ -75,7 +92,7 @@ class TestEnvironment:
 
         print('Done')
 
-    def checkout(self, git_hash: str) -> None:
+    def checkout(self, git_hash: str, update_submodules: bool = True) -> None:
         # Checkout Blender revision
         if not self.blender_dir.exists():
             sys.stderr.write('\n\nError: no build set up, run `./benchmark init --build` first\n')
@@ -85,7 +102,24 @@ class TestEnvironment:
         self.call([self.git_executable, 'reset', '--hard', 'HEAD'], self.blender_dir)
         self.call([self.git_executable, 'checkout', '--detach', git_hash], self.blender_dir)
 
-    def build(self, git_hash: str, install_dir: pathlib.Path) -> bool:
+        if update_submodules:
+            self.call([self.git_executable, 'submodule', 'update', '--recursive', '--force'], self.blender_dir)
+
+    def _submodule_key(self) -> str:
+        """
+        Return a key to identify the current submodule checkout. The key only includes checked out
+        submodules.
+
+        The key is used to determine if submodules have changed between builds. In that case the
+        CMakeCache should be reevaluated as it can point to different libraries/versions.
+        """
+        log_lines = self.call([self.git_executable, 'submodule', 'status'], self.blender_dir, silent=True)
+        # Only add submodules that are checked out
+        log_lines = [line for line in log_lines if not line.startswith("-")]
+        submodule_key = ",".join([l.split()[0] for l in log_lines])
+        return submodule_key
+
+    def build(self, git_hash: str, install_dir: pathlib.Path, update_submodules: bool = True) -> bool:
         # Build Blender revision
         if not self.build_dir.exists():
             sys.stderr.write('\n\nError: no build set up, run `./benchmark init --build` first\n')
@@ -103,13 +137,19 @@ class TestEnvironment:
         else:
             complete_txt = None
 
-        self.checkout(git_hash)
+        old_submodule_key = self._submodule_key()
+        self.checkout(git_hash, update_submodules)
+        new_submodule_key = self._submodule_key()
+        if old_submodule_key != new_submodule_key:
+            cmake_cache = self.build_dir / "CMakeCache.txt"
+            if cmake_cache.exists():
+                cmake_cache.unlink()
 
         jobs = str(multiprocessing.cpu_count())
         cmake_options = list(self.cmake_options)
         cmake_options += [f"-DCMAKE_INSTALL_PREFIX={install_dir}"]
         try:
-            self.call([self.cmake_executable, '.'] + cmake_options, self.build_dir)
+            self.call([self.cmake_executable, self.blender_dir, '.'] + cmake_options, self.build_dir)
             self.call([self.cmake_executable, '--build', '.', '-j', jobs, '--target', 'install'], self.build_dir)
             if complete_txt:
                 complete_txt.write_text(git_hash)
@@ -121,7 +161,7 @@ class TestEnvironment:
         self._init_default_blender_executable()
         return True
 
-    def set_blender_executable(self, executable_path: pathlib.Path, environment: Dict = {}) -> None:
+    def set_blender_executable(self, executable_path: pathlib.Path, environment: dict = {}) -> None:
         if executable_path.is_dir():
             executable_path = self._blender_executable_from_path(executable_path)
 
@@ -137,6 +177,19 @@ class TestEnvironment:
         else:
             return pathlib.Path('blender')
 
+    def _has_install_files(self, executable_path: pathlib.Path) -> bool:
+        """
+        Check if the given executable is a full installation of blender by checking
+        the availability of the 'license' directory.
+        """
+        # Follow symlink to actual install location.
+        executable_path = executable_path.resolve()
+        if platform.system() == "Darwin":
+            license_path = executable_path.parent.parent / 'Resources' / 'text' / 'license'
+        else:
+            license_path = executable_path.parent / 'license'
+        return license_path.is_dir()
+
     def _blender_executable_from_path(self, executable: pathlib.Path) -> pathlib.Path:
         if executable.is_dir():
             # Directory
@@ -145,7 +198,7 @@ class TestEnvironment:
             # Executable path without proper path on Windows or macOS.
             executable = executable.parent / self._blender_executable_name()
 
-        if executable.is_file():
+        if executable.is_file() and self._has_install_files(executable):
             return executable
 
         return None
@@ -183,7 +236,7 @@ class TestEnvironment:
     def unset_log_file(self) -> None:
         self.log_file = None
 
-    def call(self, args: List[str], cwd: pathlib.Path, silent: bool = False, environment: Dict = {}) -> List[str]:
+    def call(self, args: list[str], cwd: pathlib.Path, silent: bool = False, environment: dict = {}) -> list[str]:
         # Execute command with arguments in specified directory,
         # and return combined stdout and stderr output.
 
@@ -220,15 +273,19 @@ class TestEnvironment:
 
         # Raise error on failure
         if proc.returncode != 0 and not silent:
-            raise Exception("Error executing command")
+            raise TestFailure(message="Error executing command", output_lines=lines)
 
         return lines
 
-    def call_blender(self, args: List[str], foreground=False) -> List[str]:
+    def call_blender(self, args: list[str], foreground=False) -> list[str]:
         # Execute Blender command with arguments.
         common_args = ['--factory-startup', '-noaudio', '--enable-autoexec', '--python-exit-code', '1']
+        if sys.platform == 'win32':
+            # Set HighQoS level on Windows to avoid reduced performance when the window is out of focus.
+            # See: https://learn.microsoft.com/en-us/windows/win32/procthread/quality-of-service
+            common_args += ['--qos', 'high']
         if foreground:
-            common_args += ['--no-window-focus', '--window-geometry', '0', '0', '1024', '768']
+            common_args += ['--no-window-focus', '--window-geometry', '0', '0', '1024', '768', '--gpu-vsync', 'off']
         else:
             common_args += ['--background']
 
@@ -236,10 +293,10 @@ class TestEnvironment:
                          environment=self.blender_executable_environment)
 
     def run_in_blender(self,
-                       function: Callable[[Dict], Dict],
-                       args: Dict,
-                       blender_args: List = [],
-                       foreground=False) -> Dict:
+                       function: Callable[[dict], dict],
+                       args: dict,
+                       blender_args: list = [],
+                       foreground=False) -> dict:
         # Run function in a Blender instance. Arguments and return values are
         # passed as a Python object that must be serializable with pickle.
 
@@ -272,7 +329,7 @@ class TestEnvironment:
 
         return {}, lines
 
-    def find_blend_files(self, dirpath: pathlib.Path) -> List:
+    def find_blend_files(self, dirpath: pathlib.Path) -> list:
         # Find .blend files in subdirectories of the given directory in the
         # lib/benchmarks directory.
         dirpath = self.benchmarks_dir / dirpath
@@ -281,7 +338,7 @@ class TestEnvironment:
             filepaths.append(pathlib.Path(filename))
         return filepaths
 
-    def get_config_names(self) -> List:
+    def get_config_names(self) -> list:
         names = []
 
         if self.base_dir.exists():
@@ -292,7 +349,7 @@ class TestEnvironment:
 
         return names
 
-    def get_configs(self, name: str = None, names_only: bool = False) -> List:
+    def get_configs(self, name: str = None, names_only: bool = False) -> list:
         # Get list of configurations in the benchmarks directory.
         configs = []
 

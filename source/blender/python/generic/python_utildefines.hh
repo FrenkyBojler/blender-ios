@@ -10,6 +10,10 @@
 
 #pragma once
 
+#include <Python.h>
+
+namespace blender {
+
 #define PyTuple_SET_ITEMS(op_arg, ...) \
   { \
     PyTupleObject *op = (PyTupleObject *)op_arg; \
@@ -21,16 +25,6 @@
   (void)0
 
 /**
- * Wrap #Py_INCREF & return the result,
- * use sparingly to avoid comma operator or temp var assignment.
- */
-Py_LOCAL_INLINE(PyObject *) Py_INCREF_RET(PyObject *op)
-{
-  Py_INCREF(op);
-  return op;
-}
-
-/**
  * Append & transfer ownership to the list,
  * avoids inline #Py_DECREF all over (which is quite a large macro).
  */
@@ -40,3 +34,5 @@ Py_LOCAL_INLINE(int) PyList_APPEND(PyObject *op, PyObject *v)
   Py_DecRef(v);
   return ret;
 }
+
+}  // namespace blender
