@@ -2836,7 +2836,7 @@ static BMOpDefine bmo_space_def = {
     /*slot_types_in*/
     {
         /* Input geometry. */
-        {"geom", BMO_OP_SLOT_ELEMENT_BUF, {BM_VERT | BM_EDGE | BM_FACE}},
+        {"geom", BMO_OP_SLOT_ELEMENT_BUF, {BM_EDGE}},
         /* Method used for interpolation. */
         {"interpolation",
          BMO_OP_SLOT_INT,

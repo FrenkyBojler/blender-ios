@@ -55,7 +55,7 @@ static wmOperatorStatus edbm_space_edge_loops_evenly_exec(bContext *C, wmOperato
     }
     if (!EDBM_op_callf(em,
                        op,
-                       "space_edge_loops_evenly geom=%hvef interpolation=%i factor=%f "
+                       "space_edge_loops_evenly geom=%he interpolation=%i factor=%f "
                        "lock_x=%b lock_y=%b lock_z=%b",
                        BM_ELEM_SELECT,
                        interpolation,

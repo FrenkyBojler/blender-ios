@@ -337,9 +337,8 @@ void bmo_space_edge_loops_evenly_exec(BMesh *bm, BMOperator *op)
   const bool lock_y = BMO_slot_bool_get(op->slots_in, "lock_y");
   const bool lock_z = BMO_slot_bool_get(op->slots_in, "lock_z");
 
-  BM_mesh_elem_hflag_disable_all(bm, BM_VERT | BM_EDGE | BM_FACE, BM_ELEM_TAG, false);
-  BMO_slot_buffer_hflag_enable(
-      bm, op->slots_in, "geom", BM_VERT | BM_EDGE | BM_FACE, BM_ELEM_TAG, false);
+  BM_mesh_elem_hflag_disable_all(bm, BM_EDGE, BM_ELEM_TAG, false);
+  BMO_slot_buffer_hflag_enable(bm, op->slots_in, "geom", BM_EDGE, BM_ELEM_TAG, false);
 
   Vector<SpaceChainData> chains;
   get_space_input_chains(bm, chains);
