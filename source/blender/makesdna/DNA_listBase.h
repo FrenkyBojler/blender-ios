@@ -53,6 +53,11 @@ template<typename T> struct ListBaseT : public ListBase {
     return this->first == nullptr;
   }
 
+  bool is_single() const
+  {
+    return this->first != nullptr && this->last == this->first;
+  }
+
   /* TODO: Add const and non-const iterators. However this will require some refactoring
    * as some places rely on being able to get a mutable list element from a const list. */
   ListBaseTIterator<T> begin() const
