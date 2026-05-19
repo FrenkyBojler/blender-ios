@@ -84,6 +84,7 @@ void surf_depth([[resource_table]] PipelineConstants &pipe,
   }
 
   if (pipe.use_clip_plane) [[static_branch]] {
+    auto &clip_interp = interface_get(eevee_clip_plane, clip_interp);
     /* Do not use hardware clip planes as they modify the rasterization (some GPUs add vertices).
      * This would in turn create a discrepancy between the pre-pass depth and the G-buffer depth
      * which exhibits missing pixels data. */

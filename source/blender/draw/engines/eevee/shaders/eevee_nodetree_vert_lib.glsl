@@ -8,6 +8,7 @@
 
 #include "eevee_geom_types_lib.glsl"
 #include "eevee_nodetree_lib.glsl"
+#include "eevee_nodetree_type_lib.glsl"
 
 /* Loading of the attributes into GlobalData. */
 void attrib_load(MeshVertex /*domain*/) {}

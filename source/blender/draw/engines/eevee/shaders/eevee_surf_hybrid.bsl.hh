@@ -162,8 +162,9 @@ void surf_hybrid([[resource_table]] PipelineConstants &pipe,
 
   /* Some render pass can be written during the gbuffer pass. Light passes are written later. */
   if (imageSize(rp_cryptomatte_img).x > 1) {
+    const auto &nt = buffer_get(eevee_nodetree, node_tree);
     float4 cryptomatte_output = float4(
-        cryptomatte_object_buf[drw_resource_id()], node_tree.crypto_hash, 0.0f);
+        cryptomatte_object_buf[drw_resource_id()], nt.crypto_hash, 0.0f);
     imageStoreFast(rp_cryptomatte_img, out_texel, cryptomatte_output);
   }
   output_renderpass_color(uniform_buf.render_pass.emission_id, float4(g_emission, 1.0f));
