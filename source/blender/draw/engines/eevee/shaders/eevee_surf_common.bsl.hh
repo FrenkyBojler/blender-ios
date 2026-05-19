@@ -11,7 +11,6 @@
 SHADER_LIBRARY_CREATE_INFO(eevee_global_ubo)
 
 #include "draw_view_lib.glsl"
-#include "eevee_surf_common.bsl.hh"
 #include "gpu_shader_codegen_lib.glsl"
 #include "gpu_shader_math_base_lib.glsl"
 #include "gpu_shader_math_vector_safe_lib.glsl"
