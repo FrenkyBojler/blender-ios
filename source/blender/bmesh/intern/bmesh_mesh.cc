@@ -320,7 +320,7 @@ void bmesh_edit_end(BMesh *bm, BMOpTypeFlag type_flag)
 
   if ((type_flag & BMO_OPTYPE_FLAG_SELECT_VALIDATE) == 0) {
     select_history = bm->selected;
-    BLI_listbase_clear(&bm->selected);
+    bm->selected.clear_no_delete();
   }
 
   if (type_flag & BMO_OPTYPE_FLAG_SELECT_FLUSH) {

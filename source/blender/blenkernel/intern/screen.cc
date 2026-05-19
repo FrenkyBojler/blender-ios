@@ -124,7 +124,7 @@ static void screen_copy_data(Main * /*bmain*/,
   BLI_duplicatelist(&screen_dst->vertbase, &screen_src->vertbase);
   BLI_duplicatelist(&screen_dst->edgebase, &screen_src->edgebase);
   BLI_duplicatelist(&screen_dst->areabase, &screen_src->areabase);
-  BLI_listbase_clear(&screen_dst->regionbase);
+  screen_dst->regionbase.clear_no_delete();
 
   {
     ScrVert *sv_dst = static_cast<ScrVert *>(screen_dst->vertbase.first);
@@ -149,10 +149,10 @@ static void screen_copy_data(Main * /*bmain*/,
       area_dst->v3 = area_dst->v3->newv;
       area_dst->v4 = area_dst->v4->newv;
 
-      BLI_listbase_clear(&area_dst->spacedata);
-      BLI_listbase_clear(&area_dst->regionbase);
-      BLI_listbase_clear(&area_dst->actionzones);
-      BLI_listbase_clear(&area_dst->handlers);
+      area_dst->spacedata.clear_no_delete();
+      area_dst->regionbase.clear_no_delete();
+      area_dst->actionzones.clear_no_delete();
+      area_dst->handlers.clear_no_delete();
 
       BKE_area_copy(area_dst, area_src);
     }
@@ -424,7 +424,7 @@ static void panel_list_copy(ListBaseT<Panel> *newlb, const ListBaseT<Panel> *lb)
     new_panel->activedata = nullptr;
     new_panel->drawname = nullptr;
 
-    BLI_listbase_clear(&new_panel->layout_panel_states);
+    new_panel->layout_panel_states.clear_no_delete();
     new_panel->layout_panel_states_clock = old_panel.layout_panel_states_clock;
     for (LayoutPanelState &src_state : old_panel.layout_panel_states) {
       LayoutPanelState *new_state = MEM_new<LayoutPanelState>(__func__, src_state);
@@ -446,8 +446,8 @@ ARegion *BKE_area_region_copy(const SpaceType *st, const ARegion *region)
   dst->runtime->do_draw = region->runtime->do_draw;
 
   dst->prev = dst->next = nullptr;
-  BLI_listbase_clear(&dst->panels_category_active);
-  BLI_listbase_clear(&dst->ui_lists);
+  dst->panels_category_active.clear_no_delete();
+  dst->ui_lists.clear_no_delete();
 
   /* use optional regiondata callback */
   if (region->regiondata) {
@@ -466,11 +466,11 @@ ARegion *BKE_area_region_copy(const SpaceType *st, const ARegion *region)
 
   panel_list_copy(&dst->panels, &region->panels);
 
-  BLI_listbase_clear(&dst->ui_previews);
+  dst->ui_previews.clear_no_delete();
   BLI_duplicatelist(&dst->ui_previews, &region->ui_previews);
-  BLI_listbase_clear(&dst->view_states);
+  dst->view_states.clear_no_delete();
   BLI_duplicatelist(&dst->view_states, &region->view_states);
-  BLI_listbase_clear(&dst->textbox_states);
+  dst->textbox_states.clear_no_delete();
   for (const uiTextboxStateLink &textbox_state : region->textbox_states) {
     uiTextboxStateLink *copy = MEM_new<uiTextboxStateLink>("uiTextboxStateLink", textbox_state);
     copy->idname = BLI_strdup(textbox_state.idname);
@@ -971,7 +971,7 @@ void BKE_area_copy(ScrArea *area_dst, ScrArea *area_src)
   BKE_spacedata_copylist(&area_dst->spacedata, &area_src->spacedata);
 
   /* Regions. */
-  BLI_listbase_clear(&area_dst->regionbase);
+  area_dst->regionbase.clear_no_delete();
   /* NOTE: SPACE_EMPTY is possible on new screens. */
   SpaceType *st = BKE_spacetype_from_id(area_src->spacetype);
   for (ARegion &region_src : area_src->regionbase) {
@@ -1528,7 +1528,7 @@ static void direct_link_area(BlendDataReader *reader, ScrArea *area)
   BLO_read_struct_list(reader, SpaceLink, &(area->spacedata));
   BLO_read_struct_list(reader, ARegion, &(area->regionbase));
 
-  BLI_listbase_clear(&area->handlers);
+  area->handlers.clear_no_delete();
   area->type = nullptr; /* spacetype callbacks */
 
   area->runtime = ScrArea_Runtime{};
@@ -1587,7 +1587,7 @@ static void direct_link_area(BlendDataReader *reader, ScrArea *area)
     }
   }
 
-  BLI_listbase_clear(&area->actionzones);
+  area->actionzones.clear_no_delete();
 
   BLO_read_struct(reader, ScrVert, &area->v1);
   BLO_read_struct(reader, ScrVert, &area->v2);

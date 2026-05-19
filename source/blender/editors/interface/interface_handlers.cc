@@ -1134,7 +1134,7 @@ static void apply_but_funcs_after(bContext *C)
 {
   /* Copy to avoid recursive calls. */
   ListBaseT<AfterFunc> funcs = UIAfterFuncs;
-  BLI_listbase_clear(&UIAfterFuncs);
+  UIAfterFuncs.clear_no_delete();
 
   for (AfterFunc &afterf : funcs.items_mutable()) {
     AfterFunc after = afterf; /* Copy to avoid memory leak on exit(). */

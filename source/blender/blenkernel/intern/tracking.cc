@@ -151,8 +151,8 @@ static void tracking_dopesheet_free(MovieTrackingDopesheet *dopesheet)
   BLI_freelistN(&dopesheet->coverage_segments);
 
   /* Ensure lists are clean. */
-  BLI_listbase_clear(&dopesheet->channels);
-  BLI_listbase_clear(&dopesheet->coverage_segments);
+  dopesheet->channels.clear_no_delete();
+  dopesheet->coverage_segments.clear_no_delete();
   dopesheet->tot_channel = 0;
 }
 
@@ -321,8 +321,8 @@ void BKE_tracking_copy(MovieTracking *tracking_dst,
   /* Those remaining are runtime data, they will be reconstructed as needed,
    * do not bother copying them. */
   tracking_dst->dopesheet.ok = false;
-  BLI_listbase_clear(&tracking_dst->dopesheet.channels);
-  BLI_listbase_clear(&tracking_dst->dopesheet.coverage_segments);
+  tracking_dst->dopesheet.channels.clear_no_delete();
+  tracking_dst->dopesheet.coverage_segments.clear_no_delete();
 
   tracking_dst->camera.intrinsics = nullptr;
   tracking_dst->stats = nullptr;
@@ -456,7 +456,7 @@ void BKE_tracking_clipboard_free()
     track = next_track;
   }
 
-  BLI_listbase_clear(&tracking_clipboard.tracks);
+  tracking_clipboard.tracks.clear_no_delete();
 }
 
 void BKE_tracking_clipboard_copy_tracks(MovieTracking * /*tracking*/,

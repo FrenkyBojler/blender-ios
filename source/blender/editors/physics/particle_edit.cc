@@ -5363,7 +5363,7 @@ void PE_create_particle_edit(
       psys->free_edit = PE_free_ptcache_edit;
 
       edit->pathcache = nullptr;
-      BLI_listbase_clear(&edit->pathcachebufs);
+      edit->pathcachebufs.clear_no_delete();
 
       pa = psys->particles;
       LOOP_POINTS {

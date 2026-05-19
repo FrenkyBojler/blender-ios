@@ -277,7 +277,7 @@ void action_groups_reconstruct(bAction *act)
   /* Clear out all group channels. Channels that are actually in use are
    * reconstructed below; this step is necessary to clear out unused groups. */
   for (bActionGroup &group : act->groups) {
-    BLI_listbase_clear(&group.channels);
+    group.channels.clear_no_delete();
   }
   /* Sort the channels into the group lists, destroying the act->curves list. */
   ListBaseT<FCurve> ungrouped = {nullptr, nullptr};
@@ -291,7 +291,7 @@ void action_groups_reconstruct(bAction *act)
     }
   }
   /* Recombine into the main list. */
-  BLI_listbase_clear(&act->curves);
+  act->curves.clear_no_delete();
   for (bActionGroup &group : act->groups) {
     /* Copy the list header to preserve the pointers in the group. */
     ListBase tmp = group.channels;

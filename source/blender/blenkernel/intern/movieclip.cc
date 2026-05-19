@@ -80,7 +80,7 @@ static void movie_clip_runtime_reset(MovieClip *clip)
 {
   /* TODO: we could store those in undo cache storage as well, and preserve them instead of
    * re-creating them... */
-  BLI_listbase_clear(&clip->runtime.gputextures);
+  clip->runtime.gputextures.clear_no_delete();
 
   clip->runtime.last_update = 0;
 }
@@ -273,8 +273,8 @@ static void movieclip_blend_read_data(BlendDataReader *reader, ID *id)
   BLO_read_struct(reader, MovieTrackingTrack, &clip->tracking.stabilization.rot_track_legacy);
 
   clip->tracking.dopesheet.ok = 0;
-  BLI_listbase_clear(&clip->tracking.dopesheet.channels);
-  BLI_listbase_clear(&clip->tracking.dopesheet.coverage_segments);
+  clip->tracking.dopesheet.channels.clear_no_delete();
+  clip->tracking.dopesheet.coverage_segments.clear_no_delete();
 
   BLO_read_struct_list(reader, MovieTrackingObject, &tracking->objects);
 

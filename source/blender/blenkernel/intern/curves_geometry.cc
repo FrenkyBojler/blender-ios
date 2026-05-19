@@ -73,7 +73,7 @@ CurvesGeometry::CurvesGeometry(const int point_num, const int curve_num)
   CustomData_reset(&this->point_data);
   CustomData_reset(&this->curve_data_legacy);
   new (&this->attribute_storage.wrap()) bke::AttributeStorage();
-  BLI_listbase_clear(&this->vertex_group_names);
+  this->vertex_group_names.clear_no_delete();
 
   this->attributes_for_write().add<float3>(
       "position", AttrDomain::Point, AttributeInitConstruct());
@@ -184,7 +184,7 @@ CurvesGeometry::CurvesGeometry(CurvesGeometry &&other)
   other.curve_num = 0;
 
   this->vertex_group_names = other.vertex_group_names;
-  BLI_listbase_clear(&other.vertex_group_names);
+  other.vertex_group_names.clear_no_delete();
 
   this->vertex_group_active_index = other.vertex_group_active_index;
   other.vertex_group_active_index = 0;

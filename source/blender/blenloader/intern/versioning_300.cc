@@ -378,7 +378,7 @@ static void sort_linked_ids(Main *bmain)
   ListBaseT<ID> *lb;
   FOREACH_MAIN_LISTBASE_BEGIN (bmain, lb) {
     ListBaseT<ID> temp_list;
-    BLI_listbase_clear(&temp_list);
+    temp_list.clear_no_delete();
     for (ID &id : lb->items_mutable()) {
       if (ID_IS_LINKED(&id)) {
         BLI_remlink(lb, &id);

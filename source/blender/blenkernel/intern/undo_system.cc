@@ -293,7 +293,7 @@ void BKE_undosys_stack_clear(UndoStack *ustack)
     undosys_step_free_and_unlink(ustack, us);
     ustack->step_init = nullptr;
   }
-  BLI_listbase_clear(&ustack->steps);
+  ustack->steps.clear_no_delete();
   ustack->step_active = nullptr;
 }
 

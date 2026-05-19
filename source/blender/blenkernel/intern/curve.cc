@@ -86,7 +86,7 @@ static void curve_copy_data(Main *bmain,
   Curve *curve_dst = id_cast<Curve *>(id_dst);
   const Curve *curve_src = id_cast<const Curve *>(id_src);
 
-  BLI_listbase_clear(&curve_dst->nurb);
+  curve_dst->nurb.clear_no_delete();
   BKE_nurbList_duplicate(&(curve_dst->nurb), &(curve_src->nurb));
 
   curve_dst->mat = MEM_dupalloc(curve_src->mat);

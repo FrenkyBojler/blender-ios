@@ -92,7 +92,7 @@ void wm_gizmogroup_free(bContext *C, wmGizmoGroup *gzgroup)
     }
     WM_gizmo_free(gz);
   }
-  BLI_listbase_clear(&gzgroup->gizmos);
+  gzgroup->gizmos.clear_no_delete();
 
 #ifdef WITH_PYTHON
   if (gzgroup->py_instance) {

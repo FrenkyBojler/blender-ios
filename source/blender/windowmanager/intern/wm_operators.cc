@@ -3223,7 +3223,7 @@ static wmOperatorStatus radial_control_invoke(bContext *C, wmOperator *op, const
   /* Temporarily disable other paint cursors. */
   wmWindowManager *wm = CTX_wm_manager(C);
   rc->orig_paintcursors = wm->runtime->paintcursors;
-  BLI_listbase_clear(&wm->runtime->paintcursors);
+  wm->runtime->paintcursors.clear_no_delete();
 
   /* Add radial control paint cursor. */
   rc->cursor = WM_paint_cursor_activate(

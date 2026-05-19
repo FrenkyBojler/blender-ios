@@ -99,7 +99,7 @@ static void layer_collection_free(ViewLayer *view_layer, LayerCollection *lc)
     layer_collection_free(view_layer, &nlc);
     MEM_delete(&nlc);
   }
-  BLI_listbase_clear(&lc->layer_collections);
+  lc->layer_collections.clear_no_delete();
 }
 
 static Base *object_base_new(Object *ob)
@@ -298,7 +298,7 @@ void BKE_view_layer_free_object_content(ViewLayer *view_layer)
     layer_collection_free(view_layer, &lc);
     MEM_delete(&lc);
   }
-  BLI_listbase_clear(&view_layer->layer_collections);
+  view_layer->layer_collections.clear_no_delete();
 }
 
 void BKE_view_layer_selected_objects_tag(const Main &bmain,
@@ -529,7 +529,7 @@ void BKE_view_layer_copy_data(Scene *scene_dst,
 
   /* Copy layer collections and object bases. */
   /* Inline #BLI_duplicatelist and update the active base. */
-  BLI_listbase_clear(&view_layer_dst->object_bases);
+  view_layer_dst->object_bases.clear_no_delete();
   BLI_assert_msg((view_layer_src->flag & VIEW_LAYER_OUT_OF_SYNC) == 0,
                  "View Layer Object Base out of sync, invoke BKE_view_layer_synced_ensure.");
   for (const Base &base_src : view_layer_src->object_bases) {
@@ -550,11 +550,11 @@ void BKE_view_layer_copy_data(Scene *scene_dst,
       view_layer_dst->layer_collections.first);
   lc_scene_dst->collection = scene_dst->master_collection;
 
-  BLI_listbase_clear(&view_layer_dst->aovs);
+  view_layer_dst->aovs.clear_no_delete();
   layer_aov_copy_data(
       view_layer_dst, view_layer_src, &view_layer_dst->aovs, &view_layer_src->aovs);
 
-  BLI_listbase_clear(&view_layer_dst->lightgroups);
+  view_layer_dst->lightgroups.clear_no_delete();
   layer_lightgroup_copy_data(
       view_layer_dst, view_layer_src, &view_layer_dst->lightgroups, &view_layer_src->lightgroups);
 
@@ -1360,7 +1360,7 @@ void BKE_layer_collection_doversion_2_80(const Scene *scene, ViewLayer *view_lay
      * viewlayer's list. This is not a valid situation, add a layer for the master collection and
      * add all existing first-level layers as children of that new master layer. */
     ListBaseT<LayerCollection> layer_collections = view_layer->layer_collections;
-    BLI_listbase_clear(&view_layer->layer_collections);
+    view_layer->layer_collections.clear_no_delete();
     LayerCollection *master_layer_collection = layer_collection_add(&view_layer->layer_collections,
                                                                     scene->master_collection);
     master_layer_collection->layer_collections = layer_collections;

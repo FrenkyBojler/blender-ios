@@ -243,7 +243,7 @@ static void node_copy_cryptomatte(bNodeTree * /*dst_ntree*/,
   NodeCryptomatte *dest_nc = static_cast<NodeCryptomatte *>(MEM_dupalloc(src_nc));
 
   BLI_duplicatelist(&dest_nc->entries, &src_nc->entries);
-  BLI_listbase_clear(&dest_nc->runtime.layers);
+  dest_nc->runtime.layers.clear_no_delete();
   dest_nc->matte_id = static_cast<char *>(MEM_dupalloc(src_nc->matte_id));
   dest_node->storage = dest_nc;
 }

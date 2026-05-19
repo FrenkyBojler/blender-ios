@@ -6997,7 +6997,7 @@ wmOperatorStatus ED_curve_join_objects_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  BLI_listbase_clear(&tempbase);
+  tempbase.clear_no_delete();
   /* Inverse transform for all selected curves in this object,
    * See object_join_exec for detailed comment on why the safe version is used. */
   invert_m4_m4_safe_ortho(imat, ob_active->object_to_world().ptr());

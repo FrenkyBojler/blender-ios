@@ -2211,7 +2211,7 @@ static void area_init_type_fallback(ScrArea *area, eSpace_Type space_type)
       /* swap regions */
       sl_old->regionbase = area->regionbase;
       area->regionbase = sl->regionbase;
-      BLI_listbase_clear(&sl->regionbase);
+      sl->regionbase.clear_no_delete();
     }
   }
   else {
@@ -2844,7 +2844,7 @@ void ED_area_newspace(bContext *C, ScrArea *area, int type, const bool skip_regi
       /* swap regions */
       slold->regionbase = area->regionbase;
       area->regionbase = sl->regionbase;
-      BLI_listbase_clear(&sl->regionbase);
+      sl->regionbase.clear_no_delete();
       /* SPACE_FLAG_TYPE_WAS_ACTIVE is only used to go back to a previously active space that is
        * overlapped by temporary ones. It's now properly activated, so the flag should be cleared
        * at this point. */
@@ -2867,7 +2867,7 @@ void ED_area_newspace(bContext *C, ScrArea *area, int type, const bool skip_regi
           slold->regionbase = area->regionbase;
         }
         area->regionbase = sl->regionbase;
-        BLI_listbase_clear(&sl->regionbase);
+        sl->regionbase.clear_no_delete();
       }
     }
 

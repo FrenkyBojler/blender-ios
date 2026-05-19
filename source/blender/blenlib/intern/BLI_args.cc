@@ -129,7 +129,7 @@ bArgs *BLI_args_create(int argc, const char **argv)
   bArgs *ba = MEM_new_zeroed<bArgs>("bArgs");
   ba->passes = MEM_new_array_zeroed<int>(argc, "bArgs passes");
   ba->items = BLI_ghash_new(keyhash, keycmp, "bArgs passes gh");
-  BLI_listbase_clear(&ba->docs);
+  ba->docs.clear_no_delete();
   ba->argc = argc;
   ba->argv = argv;
 

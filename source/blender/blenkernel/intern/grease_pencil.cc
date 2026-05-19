@@ -1422,7 +1422,7 @@ Layer::Layer()
 
   this->viewlayername = nullptr;
 
-  BLI_listbase_clear(&this->masks);
+  this->masks.clear_no_delete();
   this->active_mask_index = 0;
 
   this->runtime = MEM_new<LayerRuntime>(__func__);
@@ -1476,7 +1476,7 @@ Layer::~Layer()
   for (GreasePencilLayerMask &mask : this->masks.items_mutable()) {
     MEM_delete(reinterpret_cast<LayerMask *>(&mask));
   }
-  BLI_listbase_clear(&this->masks);
+  this->masks.clear_no_delete();
 
   MEM_SAFE_DELETE(this->parsubstr);
   MEM_SAFE_DELETE(this->viewlayername);
@@ -1869,7 +1869,7 @@ LayerGroup::LayerGroup()
 {
   new (&this->base) TreeNode(GP_LAYER_TREE_GROUP);
 
-  BLI_listbase_clear(&this->children);
+  this->children.clear_no_delete();
   this->color_tag = LAYERGROUP_COLOR_NONE;
 
   this->runtime = MEM_new<LayerGroupRuntime>(__func__);

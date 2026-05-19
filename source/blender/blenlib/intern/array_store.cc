@@ -450,7 +450,7 @@ static BChunkList *bchunk_list_new(BArrayMemory *bs_mem, size_t total_expanded_s
 {
   BChunkList *chunk_list = static_cast<BChunkList *>(BLI_mempool_alloc(bs_mem->chunk_list));
 
-  BLI_listbase_clear(&chunk_list->chunk_refs);
+  chunk_list->chunk_refs.clear_no_delete();
   chunk_list->chunk_refs_len = 0;
   chunk_list->total_expanded_size = total_expanded_size;
   chunk_list->users = 0;
@@ -1801,7 +1801,7 @@ void BLI_array_store_clear(BArrayStore *bs)
 {
   array_store_free_data(bs);
 
-  BLI_listbase_clear(&bs->states);
+  bs->states.clear_no_delete();
 
   BLI_mempool_clear(bs->memory.chunk_list);
   BLI_mempool_clear(bs->memory.chunk_ref);

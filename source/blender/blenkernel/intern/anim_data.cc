@@ -319,7 +319,7 @@ AnimData *BKE_animdata_copy_in_lib(Main *bmain,
   dadt->driver_array = nullptr;
 
   /* don't copy overrides */
-  BLI_listbase_clear(&dadt->overrides);
+  dadt->overrides.clear_no_delete();
 
   const bool is_main = (flag & LIB_ID_CREATE_NO_MAIN) == 0;
   if (is_main) {

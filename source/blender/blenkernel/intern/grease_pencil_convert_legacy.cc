@@ -646,7 +646,7 @@ static void find_used_vertex_groups(const bGPDframe &gpf,
       }
     }
   }
-  BLI_listbase_clear(&r_vertex_group_names);
+  r_vertex_group_names.clear_no_delete();
   r_indices.reinitialize(num_vertex_groups);
   int new_group_i = 0;
 

@@ -164,9 +164,9 @@ static void collection_copy_data(Main *bmain,
 
   collection_dst->flag &= ~(COLLECTION_HAS_OBJECT_CACHE | COLLECTION_HAS_OBJECT_CACHE_INSTANCED);
 
-  BLI_listbase_clear(&collection_dst->gobject);
-  BLI_listbase_clear(&collection_dst->children);
-  BLI_listbase_clear(&collection_dst->exporters);
+  collection_dst->gobject.clear_no_delete();
+  collection_dst->children.clear_no_delete();
+  collection_dst->exporters.clear_no_delete();
   collection_dst->importer = nullptr;
 
   for (CollectionChild &child : collection_src->children) {

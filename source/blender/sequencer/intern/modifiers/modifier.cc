@@ -485,7 +485,7 @@ void modifier_clear(Strip *strip)
     modifier_free(smd);
   }
 
-  BLI_listbase_clear(&strip->modifiers);
+  strip->modifiers.clear_no_delete();
 }
 
 void modifier_free(StripModifierData *smd)

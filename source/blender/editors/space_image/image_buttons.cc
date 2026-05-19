@@ -257,7 +257,7 @@ static void ui_imageuser_pass_menu(bContext * /*C*/, ui::Layout *layout, void *r
   nr = (rl == nullptr) ? 1 : 0;
 
   ListBaseT<LinkData> added_passes;
-  BLI_listbase_clear(&added_passes);
+  added_passes.clear_no_delete();
 
   /* rendered results don't have a Combined pass */
   /* multiview: the ordering must be ascending, so the left-most pass is always the one picked */

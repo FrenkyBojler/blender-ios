@@ -185,7 +185,7 @@ NlaStrip *BKE_nlastrip_copy(Main *bmain,
   copy_fmodifiers(&strip_d->modifiers, &strip->modifiers);
 
   /* make a copy of all the child-strips, one at a time */
-  BLI_listbase_clear(&strip_d->strips);
+  strip_d->strips.clear_no_delete();
 
   for (NlaStrip &cs : strip->strips) {
     cs_d = BKE_nlastrip_copy(bmain, &cs, use_same_action, flag);
@@ -214,7 +214,7 @@ NlaTrack *BKE_nlatrack_copy(Main *bmain,
   nlt_d->next = nlt_d->prev = nullptr;
 
   /* make a copy of all the strips, one at a time */
-  BLI_listbase_clear(&nlt_d->strips);
+  nlt_d->strips.clear_no_delete();
 
   for (NlaStrip &strip : nlt->strips) {
     strip_d = BKE_nlastrip_copy(bmain, &strip, use_same_actions, flag);

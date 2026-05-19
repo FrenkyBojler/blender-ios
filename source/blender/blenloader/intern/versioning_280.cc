@@ -180,7 +180,7 @@ static void do_version_area_change_space_to_space_action(ScrArea *area, const Sc
 
   BLI_addhead(&area->spacedata, saction);
   area->regionbase = saction->regionbase;
-  BLI_listbase_clear(&saction->regionbase);
+  saction->regionbase.clear_no_delete();
 
   /* Different defaults for timeline */
   region_channels = BKE_area_find_region_type(area, RGN_TYPE_CHANNELS);
@@ -3849,7 +3849,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
         rbw->shared->ptcaches = rbw->ptcaches;
 
         rbw->pointcache = nullptr;
-        BLI_listbase_clear(&rbw->ptcaches);
+        rbw->ptcaches.clear_no_delete();
 
         if (rbw->shared->pointcache == nullptr) {
           rbw->shared->pointcache = BKE_ptcache_add(&(rbw->shared->ptcaches));
@@ -3872,7 +3872,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
         sb->shared->ptcaches = sb->ptcaches;
 
         sb->pointcache = nullptr;
-        BLI_listbase_clear(&sb->ptcaches);
+        sb->ptcaches.clear_no_delete();
       }
     }
 

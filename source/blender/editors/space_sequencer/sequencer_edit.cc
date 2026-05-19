@@ -2924,7 +2924,7 @@ static wmOperatorStatus sequencer_meta_separate_exec(bContext *C, wmOperator * /
   /* Remove all selected from meta, and put in main list.
    * Strip is moved within the same edit, no need to re-generate the UID. */
   BLI_movelisttolist(ed->current_strips(), &active_strip->seqbase);
-  BLI_listbase_clear(&active_strip->seqbase);
+  active_strip->seqbase.clear_no_delete();
 
   ListBaseT<Strip> *active_seqbase = seq::active_seqbase_get(ed);
   seq::edit_flag_for_removal(scene, active_seqbase, active_strip);

@@ -286,7 +286,7 @@ static wmOperatorStatus strip_modifier_copy_exec(bContext *C, wmOperator *op)
           seq::modifier_free(smd);
           smd = smd_tmp;
         }
-        BLI_listbase_clear(&strip_iter->modifiers);
+        strip_iter->modifiers.clear_no_delete();
       }
     }
 

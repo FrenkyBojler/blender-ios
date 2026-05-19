@@ -80,7 +80,7 @@ void ED_node_tree_start(ARegion *region, SpaceNode *snode, bNodeTree *ntree, ID 
   for (bNodeTreePath &path : snode->treepath.items_mutable()) {
     MEM_delete(&path);
   }
-  BLI_listbase_clear(&snode->treepath);
+  snode->treepath.clear_no_delete();
 
   if (ntree) {
     bNodeTreePath *path = MEM_new<bNodeTreePath>("node tree path");

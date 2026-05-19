@@ -307,7 +307,7 @@ static int gpencil_anim_copy_cfra = 0;
 void ED_gpencil_anim_copybuf_free()
 {
   BKE_gpencil_free_layers(&gpencil_anim_copybuf);
-  BLI_listbase_clear(&gpencil_anim_copybuf);
+  gpencil_anim_copybuf.clear_no_delete();
 
   gpencil_anim_copy_firstframe = 999999999;
   gpencil_anim_copy_lastframe = -999999999;

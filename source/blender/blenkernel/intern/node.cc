@@ -170,7 +170,7 @@ static void ntree_copy_data(Main * /*bmain*/,
   Map<const bNodeSocket *, bNodeSocket *> socket_map;
 
   dst_runtime.nodes_by_id.reserve(ntree_src->all_nodes().size());
-  BLI_listbase_clear(&ntree_dst->nodes);
+  ntree_dst->nodes.clear_no_delete();
 
   for (const auto [i, src_node] : ntree_src->nodes.enumerate()) {
     /* Don't find a unique name for every node, since they should have valid names already. */
@@ -184,7 +184,7 @@ static void ntree_copy_data(Main * /*bmain*/,
   }
 
   /* copy links */
-  BLI_listbase_clear(&ntree_dst->links);
+  ntree_dst->links.clear_no_delete();
   for (const bNodeLink &src_link : ntree_src->links) {
     bNodeLink *dst_link = MEM_dupalloc(&src_link);
     dst_link->fromnode = dst_runtime.nodes_by_id.lookup_key_as(src_link.fromnode->identifier);
@@ -1949,7 +1949,7 @@ static void node_blend_read_data_storage(BlendDataReader *reader, bNodeTree *ntr
       NodeCryptomatte *nc = static_cast<NodeCryptomatte *>(node->storage);
       BLO_read_string(reader, &nc->matte_id);
       BLO_read_struct_list(reader, CryptomatteEntry, &nc->entries);
-      BLI_listbase_clear(&nc->runtime.layers);
+      nc->runtime.layers.clear_no_delete();
       break;
     }
     case TEX_NODE_IMAGE: {
@@ -4261,7 +4261,7 @@ bNode *node_copy_with_mapping(bNodeTree *dst_tree,
     BLI_addtail(&dst_tree->nodes, node_dst);
   }
 
-  BLI_listbase_clear(&node_dst->inputs);
+  node_dst->inputs.clear_no_delete();
   for (const bNodeSocket &src_socket : node_src.inputs) {
     bNodeSocket *dst_socket = MEM_dupalloc(&src_socket);
     node_socket_copy(dst_socket, &src_socket, flag);
@@ -4269,7 +4269,7 @@ bNode *node_copy_with_mapping(bNodeTree *dst_tree,
     socket_map.add_new(&src_socket, dst_socket);
   }
 
-  BLI_listbase_clear(&node_dst->outputs);
+  node_dst->outputs.clear_no_delete();
   for (const bNodeSocket &src_socket : node_src.outputs) {
     bNodeSocket *dst_socket = MEM_dupalloc(&src_socket);
     node_socket_copy(dst_socket, &src_socket, flag);

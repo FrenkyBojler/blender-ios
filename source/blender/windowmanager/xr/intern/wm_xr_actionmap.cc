@@ -102,7 +102,7 @@ static XrActionMapBinding *wm_xr_actionmap_binding_copy(XrActionMapBinding *amb_
   XrActionMapBinding *amb_dst = MEM_dupalloc(amb_src);
   amb_dst->prev = amb_dst->next = nullptr;
 
-  BLI_listbase_clear(&amb_dst->component_paths);
+  amb_dst->component_paths.clear_no_delete();
   for (XrComponentPath &path : amb_src->component_paths) {
     XrComponentPath *path_new = MEM_dupalloc(&path);
     BLI_addtail(&amb_dst->component_paths, path_new);
@@ -304,7 +304,7 @@ static XrActionMapItem *wm_xr_actionmap_item_copy(XrActionMapItem *ami_src)
   XrActionMapItem *ami_dst = MEM_dupalloc(ami_src);
   ami_dst->prev = ami_dst->next = nullptr;
 
-  BLI_listbase_clear(&ami_dst->bindings);
+  ami_dst->bindings.clear_no_delete();
   for (XrActionMapBinding &amb : ami_src->bindings) {
     XrActionMapBinding *amb_new = wm_xr_actionmap_binding_copy(&amb);
     BLI_addtail(&ami_dst->bindings, amb_new);
@@ -321,7 +321,7 @@ static XrActionMapItem *wm_xr_actionmap_item_copy(XrActionMapItem *ami_src)
     ami_dst->op_properties_ptr = nullptr;
   }
 
-  BLI_listbase_clear(&ami_dst->user_paths);
+  ami_dst->user_paths.clear_no_delete();
   for (XrUserPath &path : ami_src->user_paths) {
     XrUserPath *path_new = MEM_dupalloc(&path);
     BLI_addtail(&ami_dst->user_paths, path_new);
@@ -441,7 +441,7 @@ static XrActionMap *wm_xr_actionmap_copy(XrActionMap *am_src)
   XrActionMap *am_dst = MEM_dupalloc(am_src);
   am_dst->prev = am_dst->next = nullptr;
 
-  BLI_listbase_clear(&am_dst->items);
+  am_dst->items.clear_no_delete();
   for (XrActionMapItem &ami : am_src->items) {
     XrActionMapItem *ami_new = wm_xr_actionmap_item_copy(&ami);
     BLI_addtail(&am_dst->items, ami_new);

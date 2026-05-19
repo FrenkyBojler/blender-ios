@@ -95,7 +95,7 @@ static void cache_file_blend_write(BlendWriter *writer, ID *id, const void *id_a
   CacheFile *cache_file = id_cast<CacheFile *>(id);
 
   /* Clean up, important in undo case to reduce false detection of changed datablocks. */
-  BLI_listbase_clear(&cache_file->object_paths);
+  cache_file->object_paths.clear_no_delete();
   cache_file->handle = nullptr;
   memset(cache_file->handle_filepath, 0, sizeof(cache_file->handle_filepath));
   cache_file->handle_readers = nullptr;
@@ -112,7 +112,7 @@ static void cache_file_blend_write(BlendWriter *writer, ID *id, const void *id_a
 static void cache_file_blend_read_data(BlendDataReader *reader, ID *id)
 {
   CacheFile *cache_file = id_cast<CacheFile *>(id);
-  BLI_listbase_clear(&cache_file->object_paths);
+  cache_file->object_paths.clear_no_delete();
   cache_file->handle = nullptr;
   cache_file->handle_filepath[0] = '\0';
   cache_file->handle_readers = nullptr;

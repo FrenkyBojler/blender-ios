@@ -381,7 +381,7 @@ void buttons_texture_context_compute(const bContext *C, SpaceProperties *sbuts)
     for (ButsTextureUser &user : ct->users.items_mutable()) {
       MEM_delete(&user);
     }
-    BLI_listbase_clear(&ct->users);
+    ct->users.clear_no_delete();
   }
 
   buttons_texture_users_from_context(&ct->users, C, sbuts);

@@ -3674,7 +3674,7 @@ static bool lib_override_library_main_resync_on_library_indirect_level(
   for (ID &id_iter : no_main_ids_list.items_mutable()) {
     BKE_id_free(bmain, &id_iter);
   }
-  BLI_listbase_clear(&no_main_ids_list);
+  no_main_ids_list.clear_no_delete();
 
   /* Just in case, should not be needed in theory, since #lib_override_library_resync should have
    * already cleared them all. */

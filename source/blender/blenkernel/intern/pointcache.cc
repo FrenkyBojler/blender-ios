@@ -2993,7 +2993,7 @@ static PointCache *ptcache_copy(PointCache *cache, const bool copy_data)
 
   ncache = MEM_dupalloc(cache);
 
-  BLI_listbase_clear(&ncache->mem_cache);
+  ncache->mem_cache.clear_no_delete();
 
   if (copy_data == false) {
     ncache->cached_frames = nullptr;
@@ -3824,7 +3824,7 @@ static void direct_link_pointcache(BlendDataReader *reader, PointCache *cache)
     }
   }
   else {
-    BLI_listbase_clear(&cache->mem_cache);
+    cache->mem_cache.clear_no_delete();
   }
 
   cache->flag &= ~PTCACHE_SIMULATION_VALID;

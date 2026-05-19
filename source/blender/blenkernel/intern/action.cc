@@ -138,7 +138,7 @@ static void action_copy_data(Main * /*bmain*/,
   BKE_copy_time_markers(action_dst.markers, action_src.markers, flag);
 
   /* Copy F-Curves, fixing up the links as we go. */
-  BLI_listbase_clear(&action_dst.curves);
+  action_dst.curves.clear_no_delete();
 
   for (fcurve_src = static_cast<FCurve *>(action_src.curves.first); fcurve_src;
        fcurve_src = fcurve_src->next)
@@ -403,7 +403,7 @@ static void action_blend_write_make_legacy_channel_groups_listbase(
     ListBaseT<bActionGroup> &listbase, const Span<bActionGroup *> channel_groups)
 {
   if (channel_groups.is_empty()) {
-    BLI_listbase_clear(&listbase);
+    listbase.clear_no_delete();
     return;
   }
 
@@ -442,7 +442,7 @@ static void action_blend_write_clear_legacy_channel_groups_listbase(
     group.channels = {nullptr, nullptr};
   }
 
-  BLI_listbase_clear(&listbase);
+  listbase.clear_no_delete();
 }
 
 /**
@@ -463,7 +463,7 @@ static void action_blend_write_make_legacy_fcurves_listbase(ListBaseT<FCurve> &l
                                                             const Span<FCurve *> fcurves)
 {
   if (fcurves.is_empty()) {
-    BLI_listbase_clear(&listbase);
+    listbase.clear_no_delete();
     return;
   }
 
@@ -485,7 +485,7 @@ static void action_blend_write_clear_legacy_fcurves_listbase(ListBaseT<FCurve> &
     fcurve.next = nullptr;
   }
 
-  BLI_listbase_clear(&listbase);
+  listbase.clear_no_delete();
 }
 
 static void action_blend_write(BlendWriter *writer, ID *id, const void *id_address)
@@ -680,8 +680,8 @@ static void action_blend_read_data(BlendDataReader *reader, ID *id)
 
   if (animrig::versioning::action_is_layered(action)) {
     /* Clear the forward-compatible storage (see action_blend_write_data()). */
-    BLI_listbase_clear(&action.curves);
-    BLI_listbase_clear(&action.groups);
+    action.curves.clear_no_delete();
+    action.groups.clear_no_delete();
 
     /* Layered actions should always have `idroot == 0`, but when writing an
      * action to a blend file `idroot` is typically set otherwise for forward
@@ -1956,8 +1956,8 @@ void BKE_pose_blend_read_data(BlendDataReader *reader, ID *id_owner, bPose *pose
       animviz_motionpath_blend_read_data(reader, pchan.mpath);
     }
 
-    BLI_listbase_clear(&pchan.iktree);
-    BLI_listbase_clear(&pchan.siktree);
+    pchan.iktree.clear_no_delete();
+    pchan.siktree.clear_no_delete();
 
     /* in case this value changes in future, clamp else we get undefined behavior */
     CLAMP(pchan.rotmode, ROT_MODE_MIN, ROT_MODE_MAX);

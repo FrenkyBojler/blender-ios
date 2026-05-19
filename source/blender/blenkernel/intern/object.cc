@@ -221,7 +221,7 @@ static void object_copy_data(Main *bmain,
     ob_dst->iuser = MEM_dupalloc(ob_src->iuser);
   }
 
-  BLI_listbase_clear(&ob_dst->shader_fx);
+  ob_dst->shader_fx.clear_no_delete();
   for (ShaderFxData &fx : ob_src->shader_fx) {
     ShaderFxData *nfx = BKE_shaderfx_new(fx.type);
     STRNCPY(nfx->name, fx.name);
@@ -248,13 +248,13 @@ static void object_copy_data(Main *bmain,
   }
   BKE_rigidbody_object_copy(bmain, ob_dst, ob_src, flag_subdata);
 
-  BLI_listbase_clear(&ob_dst->modifiers);
-  BLI_listbase_clear(&ob_dst->greasepencil_modifiers);
+  ob_dst->modifiers.clear_no_delete();
+  ob_dst->greasepencil_modifiers.clear_no_delete();
   /* NOTE: Also takes care of soft-body and particle systems copying. */
   BKE_object_modifier_stack_copy(ob_dst, ob_src, true, flag_subdata);
   BLI_assert(BKE_modifiers_persistent_uids_are_valid(*ob_dst));
 
-  BLI_listbase_clear(&ob_dst->pc_ids);
+  ob_dst->pc_ids.clear_no_delete();
 
   ob_dst->avs = ob_src->avs;
   ob_dst->mpath = animviz_copy_motionpath(ob_src->mpath);
@@ -2385,8 +2385,8 @@ ParticleSystem *BKE_object_copy_particlesystem(ParticleSystem *psys, const int f
   psysn->bvhtree = nullptr;
   psysn->batch_cache = nullptr;
 
-  BLI_listbase_clear(&psysn->pathcachebufs);
-  BLI_listbase_clear(&psysn->childcachebufs);
+  psysn->pathcachebufs.clear_no_delete();
+  psysn->childcachebufs.clear_no_delete();
 
   if (flag & LIB_ID_COPY_SET_COPIED_ON_WRITE) {
     /* XXX Disabled, fails when evaluating depsgraph after copying ID with no main for preview
@@ -2419,7 +2419,7 @@ void BKE_object_copy_particlesystems(Object *ob_dst, const Object *ob_src, const
     return;
   }
 
-  BLI_listbase_clear(&ob_dst->particlesystem);
+  ob_dst->particlesystem.clear_no_delete();
   for (ParticleSystem &psys : ob_src->particlesystem) {
     ParticleSystem *npsys = BKE_object_copy_particlesystem(&psys, flag);
 

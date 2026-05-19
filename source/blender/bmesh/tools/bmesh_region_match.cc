@@ -198,7 +198,7 @@ static void bm_uidwalk_init(UIDWalk *uidwalk,
                             const uint faces_src_region_len,
                             const uint verts_src_region_len)
 {
-  BLI_listbase_clear(&uidwalk->faces_step);
+  uidwalk->faces_step.clear_no_delete();
 
   uidwalk->verts_uid = ghash_bmelem_new_ex(__func__, verts_src_region_len);
   uidwalk->faces_uid = ghash_bmelem_new_ex(__func__, faces_src_region_len);
@@ -224,7 +224,7 @@ static void bm_uidwalk_init(UIDWalk *uidwalk,
 
 static void bm_uidwalk_clear(UIDWalk *uidwalk)
 {
-  BLI_listbase_clear(&uidwalk->faces_step);
+  uidwalk->faces_step.clear_no_delete();
 
   BLI_ghash_clear(uidwalk->verts_uid, nullptr, nullptr);
   BLI_ghash_clear(uidwalk->faces_uid, nullptr, nullptr);
@@ -494,7 +494,7 @@ static void bm_uidwalk_pass_add(UIDWalk *uidwalk, LinkNode *faces_pass, const ui
   fstep = static_cast<UIDFaceStep *>(BLI_mempool_alloc(uidwalk->step_pool));
   BLI_addhead(&uidwalk->faces_step, fstep);
   fstep->faces = nullptr;
-  BLI_listbase_clear(&fstep->items);
+  fstep->items.clear_no_delete();
 
   for (f_link = faces_pass; f_link; f_link = f_link->next) {
     BMFace *f = static_cast<BMFace *>(f_link->link);

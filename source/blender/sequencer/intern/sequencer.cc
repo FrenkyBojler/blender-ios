@@ -672,22 +672,22 @@ static Strip *strip_duplicate(StripDuplicateContext &ctx,
   }
 
   if (strip_new->modifiers.first) {
-    BLI_listbase_clear(&strip_new->modifiers);
+    strip_new->modifiers.clear_no_delete();
 
     modifier_list_copy(strip_new, strip, ctx.copy_flag);
   }
   BLI_assert(modifier_persistent_uids_are_valid(*strip));
 
   if (is_strip_connected(strip)) {
-    BLI_listbase_clear(&strip_new->connections);
+    strip_new->connections.clear_no_delete();
     connections_duplicate(&strip_new->connections, &strip->connections);
   }
 
   if (strip->type == STRIP_TYPE_META) {
     strip_new->data->stripdata = nullptr;
 
-    BLI_listbase_clear(&strip_new->seqbase);
-    BLI_listbase_clear(&strip_new->channels);
+    strip_new->seqbase.clear_no_delete();
+    strip_new->channels.clear_no_delete();
     channels_duplicate(&strip_new->channels, &strip->channels);
   }
   else if (strip->type == STRIP_TYPE_SCENE) {

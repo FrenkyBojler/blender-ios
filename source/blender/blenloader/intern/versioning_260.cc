@@ -393,7 +393,7 @@ static void do_versions_nodetree_multi_file_output_format_2_62_1(Scene *sce, bNo
        * checks when adding new sockets.
        * sock->storage is expected to contain path info in ntreeCompositOutputFileAddSocket.
        */
-      BLI_listbase_clear(&node.inputs);
+      node.inputs.clear_no_delete();
 
       node.storage = nimf;
 

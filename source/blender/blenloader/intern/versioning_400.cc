@@ -456,8 +456,8 @@ static void version_motion_tracking_legacy_camera_object(MovieClip &movieclip)
   /* Clear pointers in the legacy storage.
    * Always do it, in the case something got missed in the logic above, so that the legacy storage
    * is always ensured to be empty after load. */
-  BLI_listbase_clear(&tracking.tracks_legacy);
-  BLI_listbase_clear(&tracking.plane_tracks_legacy);
+  tracking.tracks_legacy.clear_no_delete();
+  tracking.plane_tracks_legacy.clear_no_delete();
   tracking.act_track_legacy = nullptr;
   tracking.act_plane_track_legacy = nullptr;
   tracking.reconstruction_legacy = MovieTrackingReconstruction{};
@@ -1525,8 +1525,8 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
         MEM_delete(legacy_socket.runtime);
         MEM_delete(&legacy_socket);
       }
-      BLI_listbase_clear(&ntree->inputs_legacy);
-      BLI_listbase_clear(&ntree->outputs_legacy);
+      ntree->inputs_legacy.clear_no_delete();
+      ntree->outputs_legacy.clear_no_delete();
     }
     FOREACH_NODETREE_END;
   }

@@ -593,7 +593,7 @@ void blo_do_versions_270(FileData *fd, Library * /*lib*/, Main *bmain)
           ListBaseT<ARegion> *lb = (&sl == area.spacedata.first) ? &area.regionbase :
                                                                    &sl.regionbase;
           for (ARegion &region : *lb) {
-            BLI_listbase_clear(&region.ui_previews);
+            region.ui_previews.clear_no_delete();
           }
         }
       }

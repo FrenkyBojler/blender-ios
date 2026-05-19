@@ -173,7 +173,7 @@ static void image_copy_data(Main * /*bmain*/,
     slot.render = nullptr;
   }
 
-  BLI_listbase_clear(&image_dst->anims);
+  image_dst->anims.clear_no_delete();
 
   BLI_duplicatelist(&image_dst->tiles, &image_src->tiles);
 
@@ -331,7 +331,7 @@ static void image_blend_write(BlendWriter *writer, ID *id, const void *id_addres
    */
   ima->runtime = nullptr;
 
-  BLI_listbase_clear(&ima->anims);
+  ima->anims.clear_no_delete();
 
   ImagePackedFile *imapf;
 
@@ -339,7 +339,7 @@ static void image_blend_write(BlendWriter *writer, ID *id, const void *id_addres
   if (!is_undo) {
     /* Do not store packed files in case this is a library override ID. */
     if (ID_IS_OVERRIDE_LIBRARY(ima)) {
-      BLI_listbase_clear(&ima->packedfiles);
+      ima->packedfiles.clear_no_delete();
     }
     else {
       /* Some trickery to keep forward compatibility of packed images. */
@@ -401,7 +401,7 @@ static void image_blend_read_data(BlendDataReader *reader, ID *id)
     BKE_packedfile_blend_read(reader, &ima->packedfile, ima->filepath);
   }
 
-  BLI_listbase_clear(&ima->anims);
+  ima->anims.clear_no_delete();
   BLO_read_struct(reader, PreviewImage, &ima->preview);
   BKE_previewimg_blend_read(reader, ima->preview);
   BLO_read_struct(reader, Stereo3dFormat, &ima->stereo3d_format);

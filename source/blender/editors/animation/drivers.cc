@@ -683,7 +683,7 @@ void ANIM_driver_vars_copybuf_free()
     }
   }
 
-  BLI_listbase_clear(&driver_vars_copybuf);
+  driver_vars_copybuf.clear_no_delete();
 }
 
 bool ANIM_driver_vars_can_paste()
@@ -744,7 +744,7 @@ bool ANIM_driver_vars_paste(ReportList *reports, FCurve *fcu, bool replace)
       driver_free_variable_ex(driver, dvar);
     }
 
-    BLI_listbase_clear(&driver->variables);
+    driver->variables.clear_no_delete();
   }
 
   /* 3) Add new vars */

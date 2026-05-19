@@ -92,16 +92,16 @@ static void workspace_copy_data(
   BLI_duplicatelist(&workspace_dst->owner_ids, &workspace_src->owner_ids);
 
   /* TODO(@ideasman42): tools */
-  BLI_listbase_clear(&workspace_dst->tools);
+  workspace_dst->tools.clear_no_delete();
 
-  BLI_listbase_clear(&workspace_dst->hook_layout_relations);
+  workspace_dst->hook_layout_relations.clear_no_delete();
 
   /* WARNING! This is effectively duplicating other IDs (bScreen ones) inside the copying callback
    * of a workspace.
    *
    * This is similar to what is already done with ShapeKeys.
    */
-  BLI_listbase_clear(&workspace_dst->layouts);
+  workspace_dst->layouts.clear_no_delete();
   for (WorkSpaceLayout &layout_src : workspace_src->layouts) {
     if (flag & LIB_ID_COPY_SCREEN) {
       BKE_workspace_layout_add_from_layout(bmain, *workspace_dst, layout_src, flag);

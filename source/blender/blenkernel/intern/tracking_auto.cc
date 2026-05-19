@@ -712,7 +712,7 @@ bool BKE_autotrack_context_step(AutoTrackContext *context)
   }
 
   AutoTrackTLS tls;
-  BLI_listbase_clear(&tls.results);
+  tls.results.clear_no_delete();
 
   TaskParallelSettings settings;
   BLI_parallel_range_settings_defaults(&settings);
@@ -764,7 +764,7 @@ void BKE_autotrack_context_sync(AutoTrackContext *context)
 
   BLI_spin_lock(&context->spin_lock);
   ListBaseT<AutoTrackTrackingResult> results_to_sync = context->results_to_sync;
-  BLI_listbase_clear(&context->results_to_sync);
+  context->results_to_sync.clear_no_delete();
   BLI_spin_unlock(&context->spin_lock);
 
   for (AutoTrackTrackingResult &autotrack_result : results_to_sync.items_mutable()) {

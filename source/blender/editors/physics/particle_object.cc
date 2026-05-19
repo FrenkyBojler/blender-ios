@@ -1015,7 +1015,7 @@ static void copy_particle_edit(Depsgraph *depsgraph,
 
   edit->pathcache = nullptr;
   edit->mirror_cache = nullptr;
-  BLI_listbase_clear(&edit->pathcachebufs);
+  edit->pathcachebufs.clear_no_delete();
 
   edit->emitter_field = nullptr;
   edit->emitter_cosnos = nullptr;

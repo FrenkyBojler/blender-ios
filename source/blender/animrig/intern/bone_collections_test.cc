@@ -79,7 +79,7 @@ class ArmatureBoneCollections : public bke::BlenderGTestBase {
   {
     /* Avoid freeing the bones, as they are part of this struct and not owned by
      * the armature. */
-    BLI_listbase_clear(&arm.bonebase);
+    arm.bonebase.clear_no_delete();
 
     BKE_libblock_free_datablock(&arm.id, 0);
 

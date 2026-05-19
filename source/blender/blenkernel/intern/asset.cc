@@ -83,7 +83,7 @@ AssetMetaData::AssetMetaData(AssetMetaData &&other)
 {
   STRNCPY(catalog_simple_name, other.catalog_simple_name);
   tags = other.tags;
-  BLI_listbase_clear(&other.tags);
+  other.tags.clear_no_delete();
 }
 
 AssetMetaData::~AssetMetaData()

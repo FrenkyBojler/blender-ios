@@ -1418,7 +1418,7 @@ Map<BoneCollection *, BoneCollection *> ANIM_bonecoll_array_copy_no_membership(
     BoneCollection *bcoll_dst = MEM_dupalloc(bcoll_src);
 
     /* This will be rebuilt from the edit bones, so we don't need to copy it. */
-    BLI_listbase_clear(&bcoll_dst->bones);
+    bcoll_dst->bones.clear_no_delete();
 
     if (bcoll_src->prop) {
       bcoll_dst->prop = IDP_CopyProperty_ex(bcoll_src->prop,

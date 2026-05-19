@@ -402,7 +402,7 @@ static void armature_blend_write(BlendWriter *writer, ID *id, const void *id_add
     arm->collection_array[i]->next = nullptr;
     arm->collection_array[i + 1]->prev = nullptr;
   }
-  BLI_listbase_clear(&arm->collections_legacy);
+  arm->collections_legacy.clear_no_delete();
 
   arm->runtime = runtime_backup;
 }
@@ -481,7 +481,7 @@ static void read_bone_collections(BlendDataReader *reader, bArmature *arm)
     arm->collection_array[i]->next = nullptr;
     arm->collection_array[i + 1]->prev = nullptr;
   }
-  BLI_listbase_clear(&arm->collections_legacy);
+  arm->collections_legacy.clear_no_delete();
 
   /* Bone collections added via an override can be edited, but ones that already exist in another
    * blend file (so on the linked Armature) should not be touched. */
@@ -649,7 +649,7 @@ static void copy_bonechildren(Bone *bone_dst,
   /* Clear the runtime cache of the collection relations, these will be
    * reconstructed after the entire armature duplication is done. Don't free,
    * just clear, as these pointers refer to the original and not the copy. */
-  BLI_listbase_clear(&bone_dst->runtime.collections);
+  bone_dst->runtime.collections.clear_no_delete();
 
   /* Copy this bone's list */
   BLI_duplicatelist(&bone_dst->childbase, &bone_src->childbase);

@@ -3103,7 +3103,7 @@ static void psys_thread_create_path(ParticleTask *task,
 
     if (pa) {
       ListBaseT<ModifierData> modifiers;
-      BLI_listbase_clear(&modifiers);
+      modifiers.clear_no_delete();
 
       psys_particle_on_emitter(ctx->sim.psmd,
                                part->from,
@@ -5639,8 +5639,8 @@ void BKE_particle_system_blend_read_data(BlendDataReader *reader,
     psys.free_edit = nullptr;
     psys.pathcache = nullptr;
     psys.childcache = nullptr;
-    BLI_listbase_clear(&psys.pathcachebufs);
-    BLI_listbase_clear(&psys.childcachebufs);
+    psys.pathcachebufs.clear_no_delete();
+    psys.childcachebufs.clear_no_delete();
     psys.pdd = nullptr;
 
     if (psys.clmd) {

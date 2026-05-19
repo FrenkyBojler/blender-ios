@@ -360,7 +360,7 @@ static wmOperatorStatus graphkeys_click_insert_exec(bContext *C, wmOperator *op)
 
     ale->update |= ANIM_UPDATE_DEPS;
 
-    BLI_listbase_clear(&anim_data);
+    anim_data.clear_no_delete();
     BLI_addtail(&anim_data, ale);
 
     ANIM_animdata_update(&ac, &anim_data);

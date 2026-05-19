@@ -1808,7 +1808,7 @@ void button_extra_operator_icons_free(Button *but)
   for (ButtonExtraOpIcon &op_icon : but->extra_op_icons.items_mutable()) {
     but_extra_operator_icon_free(&op_icon);
   }
-  BLI_listbase_clear(&but->extra_op_icons);
+  but->extra_op_icons.clear_no_delete();
 }
 
 PointerRNA *button_extra_operator_icon_add(Button *but,

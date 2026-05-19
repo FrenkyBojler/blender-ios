@@ -74,7 +74,7 @@ static void text_init_data(ID *id)
     text->flags |= TXT_TABSTOSPACES;
   }
 
-  BLI_listbase_clear(&text->lines);
+  text->lines.clear_no_delete();
 
   TextLine *tmp = txt_line_malloc();
   tmp->line = MEM_new_array_uninitialized<char>(1, "textline_string");
@@ -120,7 +120,7 @@ static void text_copy_data(Main * /*bmain*/,
 
   text_dst->flags |= TXT_ISDIRTY;
 
-  BLI_listbase_clear(&text_dst->lines);
+  text_dst->lines.clear_no_delete();
   text_dst->curl = text_dst->sell = nullptr;
   text_dst->compiled = nullptr;
 
@@ -276,7 +276,7 @@ void BKE_text_free_lines(Text *text)
     MEM_delete(tmp);
   }
 
-  BLI_listbase_clear(&text->lines);
+  text->lines.clear_no_delete();
 
   text->curl = text->sell = nullptr;
 }
@@ -476,7 +476,7 @@ Text *BKE_text_load_ex(Main *bmain,
   id_us_min(&ta->id);
   id_fake_user_set(&ta->id);
 
-  BLI_listbase_clear(&ta->lines);
+  ta->lines.clear_no_delete();
   ta->curl = ta->sell = nullptr;
 
   if ((U.flag & USER_TXT_TABSTOSPACES_DISABLE) == 0) {
@@ -1372,7 +1372,7 @@ void txt_from_buf_for_undo(Text *text, const char *buf, size_t buf_len)
    * Good for undo since it means in practice many operations re-use all
    * except for the modified line. */
   TextLine *l_src = static_cast<TextLine *>(text->lines.first);
-  BLI_listbase_clear(&text->lines);
+  text->lines.clear_no_delete();
   while (buf_step != buf_end && l_src) {
     /* New lines are ensured by #txt_to_buf_for_undo. */
     const char *buf_step_next = strchr(buf_step, '\n');

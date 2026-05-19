@@ -1089,7 +1089,7 @@ ChannelDriver *fcurve_copy_driver(const ChannelDriver *driver)
   /* Copy variables. */
 
   /* To get rid of refs to non-copied data (that's still used on original). */
-  BLI_listbase_clear(&ndriver->variables);
+  ndriver->variables.clear_no_delete();
   driver_variables_copy(&ndriver->variables, &driver->variables);
 
   /* Return the new driver. */
