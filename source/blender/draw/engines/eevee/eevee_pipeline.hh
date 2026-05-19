@@ -158,14 +158,15 @@ class Prepass {
 
   /* These are never read in practice,
    * only needed for GPU API correctness without extra shader variants. */
-  Texture dummy_raycast_depth_tx_;
-  Texture dummy_raycast_id_tx_;
-  Texture dummy_raycast_normal_tx_;
+  Texture dummy_raycast_depth_tx_{"prepass.dummy_raycast_depth_tx_"};
+  Texture dummy_raycast_id_tx_{"prepass.dummy_raycast_id_tx_"};
+  Texture dummy_raycast_normal_tx_{"prepass.dummy_raycast_normal_tx_"};
 
   /* Copies of UniformDataModule::pipeline with can_raycast overridden.
    * Needed so we can render the whole Prepass in a single PassMain. */
-  draw::UniformBuffer<PipelineInfoData> pipeline_buf_copy_;
-  draw::UniformBuffer<PipelineInfoData> pipeline_buf_copy_hide_from_raycast_;
+  draw::UniformBuffer<PipelineInfoData> pipeline_buf_copy_{"prepass.pipeline_buf"};
+  draw::UniformBuffer<PipelineInfoData> pipeline_buf_copy_hide_from_raycast_{
+      "prepass.pipeline_buf_hide_from_raycast"};
   gpu::Texture *fb_depth_tx_;
 
  public:
