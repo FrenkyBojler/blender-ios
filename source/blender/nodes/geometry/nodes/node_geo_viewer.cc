@@ -129,7 +129,7 @@ static bool draw_gpointer(CustomSocketDrawParams &params, const GPointer value)
   }
   if (value.is_type<Collection *>()) {
     const Collection *collection = *value.get<Collection *>();
-    /* Using original collection because changing the color tag does not cause a the eval copy to
+    /* Using original collection because changing the color tag does not cause the eval copy to
      * be updated. */
     const Collection *orig_collection = DEG_get_original(collection);
     if (orig_collection) {
