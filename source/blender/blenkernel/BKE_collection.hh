@@ -10,7 +10,6 @@
 
 #include <string>
 
-#include "BLI_ghash.h"
 #include "BLI_iterator.h"
 #include "BLI_map.hh"
 #include "BLI_set.hh"
@@ -34,7 +33,6 @@ struct CollectionChild;
 struct CollectionImport;
 struct CollectionExport;
 struct CollectionObject;
-struct GHash;
 struct Main;
 struct Object;
 struct Scene;
