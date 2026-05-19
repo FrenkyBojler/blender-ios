@@ -1941,7 +1941,7 @@ LayerGroup &LayerGroup::operator=(const LayerGroup &other)
 
 bool LayerGroup::is_empty() const
 {
-  return BLI_listbase_is_empty(&this->children);
+  return this->children.is_empty();
 }
 
 TreeNode &LayerGroup::add_node(TreeNode &node)
@@ -4514,7 +4514,7 @@ void GreasePencil::remove_group(bke::greasepencil::LayerGroup &group, const bool
           BLI_assert_unreachable();
       }
     }
-    BLI_assert(BLI_listbase_is_empty(&group.children));
+    BLI_assert(group.children.is_empty());
   }
 
   /* Unlink then delete active group node. */

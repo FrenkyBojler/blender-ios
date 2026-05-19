@@ -73,7 +73,7 @@ void TreeElementIDObject::expand_materials() const
 
 void TreeElementIDObject::expand_constraints() const
 {
-  if (BLI_listbase_is_empty(&object_.constraints)) {
+  if (object_.constraints.is_empty()) {
     return;
   }
   TreeElement *tenla = add_element(
@@ -87,7 +87,7 @@ void TreeElementIDObject::expand_constraints() const
 
 void TreeElementIDObject::expand_modifiers() const
 {
-  if (BLI_listbase_is_empty(&object_.modifiers)) {
+  if (object_.modifiers.is_empty()) {
     return;
   }
   add_element(&legacy_te_.subtree, &object_.id, nullptr, &legacy_te_, TSE_MODIFIER_BASE, 0);
@@ -95,7 +95,7 @@ void TreeElementIDObject::expand_modifiers() const
 
 void TreeElementIDObject::expand_gpencil_modifiers() const
 {
-  if (BLI_listbase_is_empty(&object_.greasepencil_modifiers)) {
+  if (object_.greasepencil_modifiers.is_empty()) {
     return;
   }
   add_element(&legacy_te_.subtree, &object_.id, nullptr, &legacy_te_, TSE_MODIFIER_BASE, 0);
@@ -103,7 +103,7 @@ void TreeElementIDObject::expand_gpencil_modifiers() const
 
 void TreeElementIDObject::expand_gpencil_effects() const
 {
-  if (BLI_listbase_is_empty(&object_.shader_fx)) {
+  if (object_.shader_fx.is_empty()) {
     return;
   }
   add_element(&legacy_te_.subtree, &object_.id, nullptr, &legacy_te_, TSE_GPENCIL_EFFECT_BASE, 0);

@@ -132,7 +132,7 @@ static void wm_msg_rna_update_by_id(wmMsgBus *mbus, ID *id_src, ID *id_dst)
 
       bool remove = true;
 
-      if (BLI_listbase_is_empty(&key->head.values)) {
+      if (key->head.values.is_empty()) {
         /* Remove, no reason to keep. */
       }
       else if (key->msg.params.ptr.data == key->msg.params.ptr.owner_id) {

@@ -2728,7 +2728,7 @@ static bool lib_override_library_resync(Main *bmain,
             BLI_freelinkN(&op.operations, &opop);
           }
         }
-        if (BLI_listbase_is_empty(&op.operations)) {
+        if (op.operations.is_empty()) {
           BKE_lib_override_library_property_delete(id_override_new->override_library, &op);
         }
         else if (do_clear_parenting_override) {
@@ -4820,7 +4820,7 @@ void BKE_lib_override_library_operations_restore(Main *bmain, ID *local, int *r_
           BKE_lib_override_library_property_operation_delete(&op, &opop);
         }
       }
-      if (BLI_listbase_is_empty(&local->override_library->properties)) {
+      if (local->override_library->properties.is_empty()) {
         BKE_lib_override_library_property_delete(local->override_library, &op);
       }
       else {
@@ -5220,7 +5220,7 @@ void BKE_lib_override_library_id_unused_cleanup(ID *local)
             BKE_lib_override_library_property_operation_delete(&op, &opop);
           }
         }
-        if (BLI_listbase_is_empty(&op.operations)) {
+        if (op.operations.is_empty()) {
           BKE_lib_override_library_property_delete(local->override_library, &op);
         }
       }

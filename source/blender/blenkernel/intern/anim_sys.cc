@@ -3855,7 +3855,7 @@ void BKE_animsys_nla_remap_keyframe_values(NlaKeyframingContext *context,
   float influence = context->strip.influence;
 
   if (blend_mode == NLASTRIP_MODE_REPLACE && influence == 1.0f &&
-      BLI_listbase_is_empty(&context->upper_estrips))
+      context->upper_estrips.is_empty())
   {
     r_values_mask = remap_domain;
     return;
@@ -4112,7 +4112,7 @@ void BKE_animsys_evaluate_all_animation(Main *main, Depsgraph *depsgraph, float 
    * however, if there are some curves, we will need to make sure that their 'ctime' property gets
    * set correctly, so this optimization must be skipped in that case...
    */
-  if (BLI_listbase_is_empty(&main->actions) && BLI_listbase_is_empty(&main->curves)) {
+  if (main->actions.is_empty() && main->curves.is_empty()) {
     if (G.debug & G_DEBUG) {
       printf("\tNo Actions, so no animation needs to be evaluated...\n");
     }

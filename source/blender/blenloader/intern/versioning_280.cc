@@ -205,7 +205,7 @@ static void do_version_area_change_space_to_space_action(ScrArea *area, const Sc
  */
 static void do_version_workspaces_after_lib_link(Main *bmain)
 {
-  BLI_assert(BLI_listbase_is_empty(&bmain->workspaces));
+  BLI_assert(bmain->workspaces.is_empty());
 
   do_version_workspaces_create_from_screens(bmain);
 
@@ -4847,7 +4847,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 280, 49)) {
     /* All tool names changed, reset to defaults. */
     for (WorkSpace &workspace : bmain->workspaces) {
-      while (!BLI_listbase_is_empty(&workspace.tools)) {
+      while (!workspace.tools.is_empty()) {
         BKE_workspace_tool_remove(&workspace, static_cast<bToolRef *>(workspace.tools.first));
       }
     }

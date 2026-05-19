@@ -361,7 +361,7 @@ static void text_from_buf(Text *text, const uchar *buffer, const int len)
 {
   int i, llen, lines_count;
 
-  BLI_assert(BLI_listbase_is_empty(&text->lines));
+  BLI_assert(text->lines.is_empty());
 
   llen = 0;
   lines_count = 0;
@@ -1433,7 +1433,7 @@ void txt_from_buf_for_undo(Text *text, const char *buf, size_t buf_len)
 
 char *txt_to_buf(Text *text, size_t *r_buf_strlen)
 {
-  const bool has_data = !BLI_listbase_is_empty(&text->lines);
+  const bool has_data = !text->lines.is_empty();
   /* Identical to #txt_to_buf_for_undo except that the string is nil terminated. */
   size_t buf_len = 0;
   for (const TextLine &l : text->lines) {

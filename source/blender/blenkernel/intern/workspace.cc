@@ -61,7 +61,7 @@ static void workspace_free_data(ID *id)
   BLI_freelistN(&workspace->owner_ids);
   BLI_freelistN(&workspace->layouts);
 
-  while (!BLI_listbase_is_empty(&workspace->tools)) {
+  while (!workspace->tools.is_empty()) {
     BKE_workspace_tool_remove(workspace, static_cast<bToolRef *>(workspace->tools.first));
   }
 
@@ -404,7 +404,7 @@ void BKE_workspace_instance_hook_free(const Main *bmain, WorkSpaceInstanceHook *
   /* workspaces should never be freed before wm (during which we call this function).
    * However, when running in background mode, loading a blend file may allocate windows (that need
    * to be freed) without creating workspaces. This happens in BlendfileLoadingBaseTest. */
-  BLI_assert(!BLI_listbase_is_empty(&bmain->workspaces) || G.background);
+  BLI_assert(!bmain->workspaces.is_empty() || G.background);
 
   /* Free relations for this hook */
   for (WorkSpace *workspace = static_cast<WorkSpace *>(bmain->workspaces.first); workspace;

@@ -199,7 +199,7 @@ static void spreadsheet_main_region_init(wmWindowManager *wm, ARegion *region)
 
 ID *get_current_id(const SpaceSpreadsheet *sspreadsheet)
 {
-  if (BLI_listbase_is_empty(&sspreadsheet->geometry_id.viewer_path.path)) {
+  if (sspreadsheet->geometry_id.viewer_path.path.is_empty()) {
     return nullptr;
   }
   ViewerPathElem *root_context = static_cast<ViewerPathElem *>(

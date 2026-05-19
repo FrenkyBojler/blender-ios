@@ -801,7 +801,7 @@ static void armature_transform_recurse(ListBaseT<Bone> *bonebase,
       bone.zwidth *= scale;
     }
 
-    if (!BLI_listbase_is_empty(&bone.childbase)) {
+    if (!bone.childbase.is_empty()) {
       float arm_mat_inv[4][4];
       invert_m4_m4(arm_mat_inv, bone.arm_mat);
       armature_transform_recurse(&bone.childbase, mat, do_props, mat3, scale, &bone, arm_mat_inv);
@@ -3482,8 +3482,8 @@ const Bone *bArmature::bone_get_indexed(const int64_t bone_index) const
 {
   /* The logic 'if runtime->bones is empty, the array needs rebuilding' is only valid when calling
    * this function implies there is at least one bone. */
-  BLI_assert(!BLI_listbase_is_empty(&this->bonebase));
-  if (BLI_listbase_is_empty(&this->bonebase)) {
+  BLI_assert(!this->bonebase.is_empty());
+  if (this->bonebase.is_empty()) {
     return nullptr;
   }
 

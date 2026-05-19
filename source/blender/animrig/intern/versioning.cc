@@ -48,8 +48,7 @@ bool action_is_layered(const bAction &dna_action)
   const animrig::Action &action = dna_action.wrap();
 
   const bool has_layered_data = action.layer_array_num > 0 || action.slot_array_num > 0;
-  const bool has_animato_data = !(BLI_listbase_is_empty(&action.curves) &&
-                                  BLI_listbase_is_empty(&action.groups));
+  const bool has_animato_data = !(action.curves.is_empty() && action.groups.is_empty());
 
   return has_layered_data || !has_animato_data;
 }

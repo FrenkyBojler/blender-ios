@@ -30,7 +30,7 @@ TEST_F(AnimBoneCollectionTest, bonecoll_new_free)
   BoneCollection *bcoll = ANIM_bonecoll_new("some name");
   EXPECT_NE(nullptr, bcoll);
   EXPECT_EQ("some name", std::string(bcoll->name));
-  EXPECT_TRUE(BLI_listbase_is_empty(&bcoll->bones));
+  EXPECT_TRUE(bcoll->bones.is_empty());
   EXPECT_EQ(BONE_COLLECTION_VISIBLE | BONE_COLLECTION_SELECTABLE |
                 BONE_COLLECTION_ANCESTORS_VISIBLE,
             bcoll->flags);

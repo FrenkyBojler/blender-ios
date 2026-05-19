@@ -837,7 +837,7 @@ void filelist_readjob_directories_and_libraries(const bool do_lib,
   FileList *filelist = job_params->tmp_filelist; /* Use the thread-safe filelist queue. */
 
   //  BLI_assert(filelist->filtered == nullptr);
-  BLI_assert(BLI_listbase_is_empty(&filelist->filelist.entries) &&
+  BLI_assert(filelist->filelist.entries.is_empty() &&
              (filelist->filelist.entries_num == FILEDIR_NBR_ENTRIES_UNSET));
 
   /* A valid, but empty directory from now. */

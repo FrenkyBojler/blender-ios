@@ -46,9 +46,9 @@ class BMainAllIDsIteratorTest : public BMainTest {
 
 TEST_F(BMainAllIDsIteratorTest, basics)
 {
-  EXPECT_TRUE(BLI_listbase_is_empty(&bmain->libraries));
-  EXPECT_TRUE(BLI_listbase_is_empty(&bmain->collections));
-  EXPECT_TRUE(BLI_listbase_is_empty(&bmain->objects));
+  EXPECT_TRUE(bmain->libraries.is_empty());
+  EXPECT_TRUE(bmain->collections.is_empty());
+  EXPECT_TRUE(bmain->objects.is_empty());
 
   /* Test also (default-constructed) empty iterator. */
   MainAllIDsIterator empty_main_iter{};
@@ -110,13 +110,13 @@ class BMainMergeTest : public BMainTest {
 
 TEST_F(BMainMergeTest, basics)
 {
-  EXPECT_TRUE(BLI_listbase_is_empty(&bmain_dst->libraries));
-  EXPECT_TRUE(BLI_listbase_is_empty(&bmain_dst->collections));
-  EXPECT_TRUE(BLI_listbase_is_empty(&bmain_dst->objects));
+  EXPECT_TRUE(bmain_dst->libraries.is_empty());
+  EXPECT_TRUE(bmain_dst->collections.is_empty());
+  EXPECT_TRUE(bmain_dst->objects.is_empty());
 
-  EXPECT_TRUE(BLI_listbase_is_empty(&bmain_src->libraries));
-  EXPECT_TRUE(BLI_listbase_is_empty(&bmain_src->collections));
-  EXPECT_TRUE(BLI_listbase_is_empty(&bmain_src->objects));
+  EXPECT_TRUE(bmain_src->libraries.is_empty());
+  EXPECT_TRUE(bmain_src->collections.is_empty());
+  EXPECT_TRUE(bmain_src->objects.is_empty());
 
   BKE_id_new(bmain_dst, ID_GR, "Coll_dst");
   Collection *coll = BKE_id_new<Collection>(bmain_src, "Coll_src");
@@ -214,13 +214,13 @@ TEST_F(BMainMergeTest, linked_data)
   constexpr char LIB_PATH_RELATIVE_ABS_SRC[] = ABS_ROOT "tmp" SEP_STR "src" SEP_STR "lib" SEP_STR
                                                         "lib.blend";
 
-  EXPECT_TRUE(BLI_listbase_is_empty(&bmain_dst->libraries));
-  EXPECT_TRUE(BLI_listbase_is_empty(&bmain_dst->collections));
-  EXPECT_TRUE(BLI_listbase_is_empty(&bmain_dst->objects));
+  EXPECT_TRUE(bmain_dst->libraries.is_empty());
+  EXPECT_TRUE(bmain_dst->collections.is_empty());
+  EXPECT_TRUE(bmain_dst->objects.is_empty());
 
-  EXPECT_TRUE(BLI_listbase_is_empty(&bmain_src->libraries));
-  EXPECT_TRUE(BLI_listbase_is_empty(&bmain_src->collections));
-  EXPECT_TRUE(BLI_listbase_is_empty(&bmain_src->objects));
+  EXPECT_TRUE(bmain_src->libraries.is_empty());
+  EXPECT_TRUE(bmain_src->collections.is_empty());
+  EXPECT_TRUE(bmain_src->objects.is_empty());
 
   STRNCPY(bmain_dst->filepath, DST_PATH);
   STRNCPY(bmain_src->filepath, SRC_PATH);

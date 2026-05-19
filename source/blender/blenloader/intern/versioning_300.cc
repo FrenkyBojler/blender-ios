@@ -669,7 +669,7 @@ static bool strip_speed_factor_set(Strip *strip, void *user_data)
     if (scene->adt && scene->adt->action) {
       strip_speed_factor_fix_rna_path(strip, &scene->adt->action->curves);
     }
-    if (scene->adt && !BLI_listbase_is_empty(&scene->adt->drivers)) {
+    if (scene->adt && !scene->adt->drivers.is_empty()) {
       strip_speed_factor_fix_rna_path(strip, &scene->adt->drivers);
     }
 

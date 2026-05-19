@@ -764,7 +764,7 @@ static bool rna_XrSessionState_action_create(bContext *C,
 {
 #  ifdef WITH_XR_OPENXR
   wmWindowManager *wm = CTX_wm_manager(C);
-  if (BLI_listbase_is_empty(&ami->user_paths)) {
+  if (ami->user_paths.is_empty()) {
     return false;
   }
 

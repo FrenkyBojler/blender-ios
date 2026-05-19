@@ -704,7 +704,7 @@ static void nla_draw_strip_frames_text(
  */
 static ListBaseT<NlaStrip> get_visible_nla_strips(NlaTrack *nlt, View2D *v2d)
 {
-  if (BLI_listbase_is_empty(&nlt->strips)) {
+  if (nlt->strips.is_empty()) {
     ListBaseT<NlaStrip> empty = {nullptr, nullptr};
     return empty;
   }

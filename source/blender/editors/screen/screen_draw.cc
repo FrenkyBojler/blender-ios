@@ -149,7 +149,7 @@ void ED_screen_draw_edges(wmWindow *win)
     active_area = BKE_screen_find_area_xy(screen, SPACE_TYPE_ANY, win->runtime->eventstate->xy);
     /* We don't want an active area when resizing, otherwise outline for active area flickers, see:
      * #136314. */
-    if (active_area && !BLI_listbase_is_empty(&win->runtime->drawcalls)) {
+    if (active_area && !win->runtime->drawcalls.is_empty()) {
       active_area = nullptr;
     }
   }

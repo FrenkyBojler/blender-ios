@@ -2915,7 +2915,7 @@ void do_versions_after_linking_500(FileData *fd, Main *bmain)
     for (bArmature &armature : bmain->armatures) {
       AnimData *arm_adt = BKE_animdata_from_id(&armature.id);
 
-      if (!arm_adt || BLI_listbase_is_empty(&arm_adt->drivers)) {
+      if (!arm_adt || arm_adt->drivers.is_empty()) {
         continue;
       }
 

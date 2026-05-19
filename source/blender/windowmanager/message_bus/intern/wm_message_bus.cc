@@ -93,7 +93,7 @@ void WM_msgbus_clear_by_owner(wmMsgBus *mbus, void *owner)
       }
     }
 
-    if (BLI_listbase_is_empty(&msg_key->values)) {
+    if (msg_key->values.is_empty()) {
       const wmMsg *msg = wm_msg_subscribe_value_msg_cast(msg_key);
       wmMsgTypeInfo *info = &wm_msg_types[msg->type];
       BLI_remlink(&mbus->messages, msg_key);

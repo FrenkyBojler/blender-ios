@@ -1280,7 +1280,7 @@ void psys_make_temp_pointcache(Object *ob, ParticleSystem *psys)
 {
   PointCache *cache = psys->pointcache;
 
-  if (cache->flag & PTCACHE_DISK_CACHE && BLI_listbase_is_empty(&cache->mem_cache)) {
+  if (cache->flag & PTCACHE_DISK_CACHE && cache->mem_cache.is_empty()) {
     PTCacheID pid;
     BKE_ptcache_id_from_particles(&pid, ob, psys);
     cache->flag &= ~PTCACHE_DISK_CACHE;

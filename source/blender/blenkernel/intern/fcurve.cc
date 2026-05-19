@@ -318,7 +318,7 @@ FCurve *BKE_animadata_fcurve_find_by_rna_path(
   }
 
   /* If not animated, check if driven. */
-  const bool has_drivers = !BLI_listbase_is_empty(&animdata->drivers);
+  const bool has_drivers = !animdata->drivers.is_empty();
   if (has_drivers) {
     FCurve *fcu = BKE_fcurve_find(&animdata->drivers, rna_path, rna_index);
 
@@ -1848,7 +1848,7 @@ void BKE_fcurve_merge_duplicate_keys(FCurve *fcu, const int sel_flag, const bool
     }
   }
 
-  if (BLI_listbase_is_empty(&retained_keys)) {
+  if (retained_keys.is_empty()) {
     /* This may happen if none of the points were selected... */
     if (G.debug & G_DEBUG) {
       printf("%s: nothing to do for FCurve %p (rna_path = '%s')\n", __func__, fcu, fcu->rna_path);

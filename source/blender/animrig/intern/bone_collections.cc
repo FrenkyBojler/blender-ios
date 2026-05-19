@@ -71,7 +71,7 @@ BoneCollection *ANIM_bonecoll_new(const char *name)
 
 void ANIM_bonecoll_free(BoneCollection *bcoll, const bool do_id_user_count)
 {
-  BLI_assert_msg(BLI_listbase_is_empty(&bcoll->bones),
+  BLI_assert_msg(bcoll->bones.is_empty(),
                  "bone collection still has bones assigned to it, will cause dangling pointers in "
                  "bone runtime data");
   if (bcoll->prop) {

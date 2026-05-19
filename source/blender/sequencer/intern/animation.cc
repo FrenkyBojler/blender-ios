@@ -30,7 +30,7 @@ bool animation_keyframes_exist(const Scene *scene)
 
 bool animation_drivers_exist(Scene *scene)
 {
-  return scene->adt != nullptr && !BLI_listbase_is_empty(&scene->adt->drivers);
+  return scene->adt != nullptr && !scene->adt->drivers.is_empty();
 }
 
 bool fcurve_matches(const Strip &strip, const FCurve &fcurve)
@@ -109,7 +109,7 @@ void animation_backup_original(Scene *scene, AnimationBackup *backup)
 
 void animation_restore_original(Scene *scene, AnimationBackup *backup)
 {
-  if (!BLI_listbase_is_empty(&backup->curves) || !backup->channelbag.fcurves().is_empty()) {
+  if (!backup->curves.is_empty() || !backup->channelbag.fcurves().is_empty()) {
     BLI_assert(scene->adt != nullptr && scene->adt->action != nullptr);
 
     animrig::Action &action = scene->adt->action->wrap();
@@ -125,7 +125,7 @@ void animation_restore_original(Scene *scene, AnimationBackup *backup)
     animrig::channelbag_fcurves_move(*channelbag, backup->channelbag);
   }
 
-  if (!BLI_listbase_is_empty(&backup->drivers)) {
+  if (!backup->drivers.is_empty()) {
     BLI_assert(scene->adt != nullptr);
     BLI_movelisttolist(&scene->adt->drivers, &backup->drivers);
   }
@@ -146,10 +146,10 @@ static void strip_animation_duplicate(Strip *strip,
   }
 
   Vector<FCurve *> fcurves = {};
-  BLI_assert_msg(BLI_listbase_is_empty(&src->curves) || src->channelbag.fcurves().is_empty(),
+  BLI_assert_msg(src->curves.is_empty() || src->channelbag.fcurves().is_empty(),
                  "SeqAnimationBackup has fcurves for both legacy and layered actions, which "
                  "should never happen.");
-  if (BLI_listbase_is_empty(&src->curves)) {
+  if (src->curves.is_empty()) {
     fcurves = animrig::fcurves_in_span_filtered(
         src->channelbag.fcurves(),
         [&](const FCurve &fcurve) { return fcurve_matches(*strip, fcurve); });
@@ -198,13 +198,13 @@ void animation_duplicate_backup_to_scene(Scene *scene, Strip *strip, AnimationBa
 {
   BLI_assert(scene != nullptr);
 
-  if (!BLI_listbase_is_empty(&backup->curves) || !backup->channelbag.fcurves().is_empty()) {
+  if (!backup->curves.is_empty() || !backup->channelbag.fcurves().is_empty()) {
     BLI_assert(scene->adt != nullptr);
     BLI_assert(scene->adt->action != nullptr);
     strip_animation_duplicate(strip, scene->adt->action->wrap(), scene->adt->slot_handle, backup);
   }
 
-  if (!BLI_listbase_is_empty(&backup->drivers)) {
+  if (!backup->drivers.is_empty()) {
     BLI_assert(scene->adt != nullptr);
     strip_drivers_duplicate(strip, scene->adt, backup);
   }

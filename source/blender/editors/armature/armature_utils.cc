@@ -439,7 +439,7 @@ void ED_armature_edit_transform_mirror_update(Object *obedit)
  */
 static void copy_bonecollection_membership(EditBone *eBone, const Bone *bone)
 {
-  BLI_assert(BLI_listbase_is_empty(&eBone->bone_collections));
+  BLI_assert(eBone->bone_collections.is_empty());
   BLI_duplicatelist(&eBone->bone_collections, &bone->runtime.collections);
 }
 

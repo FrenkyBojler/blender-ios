@@ -321,7 +321,7 @@ void RemoteLibraryLoadingStatus::ping_asset_file_download_done(const bContext &C
   ProgressTracker::file_finished(C);
 
   /* Redraw drags, they may show some "asset being downloaded" info. */
-  if (!BLI_listbase_is_empty(&wm->runtime->drags)) {
+  if (!wm->runtime->drags.is_empty()) {
     WM_event_add_mousemove(CTX_wm_window(&C));
   }
 }

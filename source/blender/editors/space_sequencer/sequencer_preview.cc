@@ -106,7 +106,7 @@ static void preview_startjob(void *data, wmJobWorkerStatus *worker_status)
      * is done. */
     BLI_mutex_lock(pj->mutex);
 
-    while (BLI_listbase_is_empty(&pj->previews) && pj->processed != pj->total) {
+    while (pj->previews.is_empty() && pj->processed != pj->total) {
 
       float current_progress = (pj->total > 0) ? float(pj->processed) / float(pj->total) : 1.0f;
 

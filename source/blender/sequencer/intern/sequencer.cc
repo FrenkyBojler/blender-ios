@@ -1194,7 +1194,7 @@ static void seq_update_sound_strips(Scene *scene, Strip *strip)
   }
 
   /* Ensure strip is playing correct sound. */
-  if (BLI_listbase_is_empty(&strip->modifiers)) {
+  if (strip->modifiers.is_empty()) {
     /* No modifiers: ensure we are playing the sound ID. However do not do this
      * if we are pitch correcting, as the proper playback handle will be assigned there.
      * Changing between original file sound and the pitch correction sound produces garbage

@@ -696,7 +696,7 @@ static void autotrack_context_reduce(const void *__restrict /*userdata*/,
                                      void *__restrict chunk)
 {
   AutoTrackTLS *autotrack_tls = static_cast<AutoTrackTLS *>(chunk);
-  if (BLI_listbase_is_empty(&autotrack_tls->results)) {
+  if (autotrack_tls->results.is_empty()) {
     /* Nothing to be joined from. */
     return;
   }

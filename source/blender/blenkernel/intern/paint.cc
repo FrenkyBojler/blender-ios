@@ -1303,7 +1303,7 @@ void BKE_palette_color_remove(Palette *palette, PaletteColor *color)
 
   BLI_remlink(&palette->colors, color);
 
-  if (palette->active_color < 0 && !BLI_listbase_is_empty(&palette->colors)) {
+  if (palette->active_color < 0 && !palette->colors.is_empty()) {
     palette->active_color = 0;
   }
 
@@ -1342,7 +1342,7 @@ PaletteColor *BKE_palette_color_add(Palette *palette)
 
 bool BKE_palette_is_empty(const Palette *palette)
 {
-  return BLI_listbase_is_empty(&palette->colors);
+  return palette->colors.is_empty();
 }
 
 bool BKE_paint_select_face_test(const Object *ob)

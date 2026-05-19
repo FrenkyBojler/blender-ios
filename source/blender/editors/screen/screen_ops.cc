@@ -4270,7 +4270,7 @@ static bool screen_maximize_area_poll(bContext *C)
          /* Don't change temporary screens. */
          !WM_window_is_temp_screen(win) &&
          /* Don't maximize when dragging. */
-         BLI_listbase_is_empty(&wm->runtime->drags);
+         wm->runtime->drags.is_empty();
 }
 
 static void SCREEN_OT_screen_full_area(wmOperatorType *ot)
@@ -4635,7 +4635,7 @@ void static area_docking_apply(bContext *C, wmOperator *op)
   {
     ED_area_swapspace(C, jd->sa2, jd->sa1);
     if (BLI_listbase_is_single(&WM_window_get_active_screen(jd->win1)->areabase) &&
-        BLI_listbase_is_empty(&jd->win1->global_areas.areabase))
+        jd->win1->global_areas.areabase.is_empty())
     {
       jd->close_win = true;
       /* Clear the active region in each screen, otherwise they are pointing
@@ -5147,7 +5147,7 @@ static wmOperatorStatus area_join_modal(bContext *C, wmOperator *op, const wmEve
             if (!screen_area_close(C, op->reports, WM_window_get_active_screen(jd->win1), jd->sa1))
             {
               if (BLI_listbase_is_single(&WM_window_get_active_screen(jd->win1)->areabase) &&
-                  BLI_listbase_is_empty(&jd->win1->global_areas.areabase))
+                  jd->win1->global_areas.areabase.is_empty())
               {
                 /* We've pulled a single editor out of the window into empty space.
                  * Close the source window so we don't end up with a duplicate. */
@@ -5457,7 +5457,7 @@ static bool repeat_history_poll(bContext *C)
     return false;
   }
   wmWindowManager *wm = CTX_wm_manager(C);
-  return !BLI_listbase_is_empty(&wm->runtime->operators);
+  return !wm->runtime->operators.is_empty();
 }
 
 static wmOperatorStatus repeat_last_exec(bContext *C, wmOperator * /*op*/)

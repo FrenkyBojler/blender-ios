@@ -1206,8 +1206,7 @@ Collection *BKE_collection_object_find(Main *bmain,
 
 bool BKE_collection_is_empty(const Collection *collection)
 {
-  return BLI_listbase_is_empty(&collection->gobject) &&
-         BLI_listbase_is_empty(&collection->children);
+  return collection->gobject.is_empty() && collection->children.is_empty();
 }
 
 /** \} */
@@ -2193,7 +2192,7 @@ void BKE_main_collections_parent_relations_rebuild(Main *bmain)
      * nullptr.
      */
     if (scene.master_collection != nullptr) {
-      BLI_assert(BLI_listbase_is_empty(&scene.master_collection->runtime->parents));
+      BLI_assert(scene.master_collection->runtime->parents.is_empty());
       scene.master_collection->runtime->tag |= COLLECTION_TAG_RELATION_REBUILD;
       collection_parents_rebuild_recursive(scene.master_collection);
     }

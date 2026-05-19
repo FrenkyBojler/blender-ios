@@ -646,7 +646,7 @@ static wmOperatorStatus collection_duplicate_exec(bContext *C, wmOperator *op)
                          &selected_collections);
 
   /* Can happen when calling from a key binding. */
-  if (BLI_listbase_is_empty(&selected_collections.selected_array)) {
+  if (selected_collections.selected_array.is_empty()) {
     BKE_report(op->reports, RPT_ERROR, "No collection selected");
     return OPERATOR_CANCELLED;
   }

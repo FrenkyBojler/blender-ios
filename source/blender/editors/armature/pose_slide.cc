@@ -1823,7 +1823,7 @@ static wmOperatorStatus pose_propagate_exec(bContext *C, wmOperator *op)
   /* Isolate F-Curves related to the selected bones. */
   slide_subjects_get(C, &slide_subjects);
 
-  if (BLI_listbase_is_empty(&slide_subjects)) {
+  if (slide_subjects.is_empty()) {
     /* There is a change the reason the list is empty is
      * that there is no valid object to propagate poses for.
      * This is very unlikely though, so we focus on the most likely issue. */

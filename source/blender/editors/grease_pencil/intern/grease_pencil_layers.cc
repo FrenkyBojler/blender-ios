@@ -942,7 +942,7 @@ static bool grease_pencil_layer_mask_poll(bContext *C)
   GreasePencil &grease_pencil = *ed::greasepencil::from_context(*C);
   Layer &active_layer = *grease_pencil.get_active_layer();
 
-  return !BLI_listbase_is_empty(&active_layer.masks);
+  return !active_layer.masks.is_empty();
 }
 
 static wmOperatorStatus grease_pencil_layer_mask_remove_exec(bContext *C, wmOperator * /*op*/)

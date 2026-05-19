@@ -1815,7 +1815,7 @@ static bool sequencer_add_images(bContext *C, wmOperator *op, seq::LoadData &loa
   const char *blendfile_path = BKE_main_blendfile_path(bmain);
   ListBaseT<ImageFrameRange> ranges = ED_image_filesel_detect_sequences(
       blendfile_path, blendfile_path, op, false);
-  if (BLI_listbase_is_empty(&ranges)) {
+  if (ranges.is_empty()) {
     sequencer_add_free(C, op);
     return false;
   }

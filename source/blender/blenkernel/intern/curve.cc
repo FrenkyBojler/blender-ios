@@ -5491,7 +5491,7 @@ void BKE_curve_correct_bezpart(const float v1[2], float v2[2], float v3[2], cons
 
 std::optional<int> Curve::material_index_max() const
 {
-  if (BLI_listbase_is_empty(&this->nurb)) {
+  if (this->nurb.is_empty()) {
     return std::nullopt;
   }
   int max_index = 0;

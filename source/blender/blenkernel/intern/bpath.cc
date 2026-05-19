@@ -264,7 +264,7 @@ void BKE_bpath_missing_files_check(Main *bmain, ReportList *reports)
   path_data.user_data = reports;
   BKE_bpath_foreach_path_main(&path_data);
 
-  if (BLI_listbase_is_empty(&reports->list)) {
+  if (reports->list.is_empty()) {
     BKE_reportf(reports, RPT_INFO, "No missing files");
   }
 }

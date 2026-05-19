@@ -325,7 +325,7 @@ static wmOperatorStatus weight_sample_group_invoke(bContext *C,
 
   Mesh *mesh = BKE_mesh_from_object(vc.obact);
   const MDeformVert *dverts = mesh->deform_verts().data();
-  if (BLI_listbase_is_empty(&mesh->vertex_group_names) || (dverts == nullptr)) {
+  if (mesh->vertex_group_names.is_empty() || (dverts == nullptr)) {
     BKE_report(op->reports, RPT_WARNING, "No vertex group data");
     return OPERATOR_CANCELLED;
   }

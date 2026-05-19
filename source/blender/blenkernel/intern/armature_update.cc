@@ -847,7 +847,7 @@ void BKE_pose_eval_init(Depsgraph *depsgraph, Scene * /*scene*/, Object *object)
     }
   }
 
-  BLI_assert(pose->chan_array != nullptr || BLI_listbase_is_empty(&pose->chanbase));
+  BLI_assert(pose->chan_array != nullptr || pose->chanbase.is_empty());
 }
 
 void BKE_pose_eval_init_ik(Depsgraph *depsgraph, Scene *scene, Object *object)
@@ -1043,7 +1043,7 @@ static void pose_eval_cleanup_common(Object *object)
 {
   bPose *pose = object->pose;
   BLI_assert(pose != nullptr);
-  BLI_assert(pose->chan_array != nullptr || BLI_listbase_is_empty(&pose->chanbase));
+  BLI_assert(pose->chan_array != nullptr || pose->chanbase.is_empty());
   UNUSED_VARS_NDEBUG(pose);
 }
 

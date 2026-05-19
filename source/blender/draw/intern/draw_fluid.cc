@@ -582,7 +582,7 @@ void DRW_fluid_ensure_range_field(FluidModifierData *fmd)
 
 void DRW_smoke_begin_sync(DRWData *drw_data)
 {
-  if (BLI_listbase_is_empty(&drw_data->smoke_textures)) {
+  if (drw_data->smoke_textures.is_empty()) {
     return;
   }
   /* See workaround at blender::eevee::Instance::render_sample

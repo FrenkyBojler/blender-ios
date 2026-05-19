@@ -156,7 +156,7 @@ static void filelist_readjob_free(void *flrjv)
   if (flrj->tmp_filelist) {
     /* tmp_filelist shall never ever be filtered! */
     BLI_assert(flrj->tmp_filelist->filelist.entries_num == 0);
-    BLI_assert(BLI_listbase_is_empty(&flrj->tmp_filelist->filelist.entries));
+    BLI_assert(flrj->tmp_filelist->filelist.entries.is_empty());
 
     filelist_freelib(flrj->tmp_filelist);
     filelist_free(flrj->tmp_filelist);

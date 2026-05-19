@@ -362,8 +362,7 @@ static bool object_modifier_remove(
     }
   }
 
-  if (ELEM(md->type, eModifierType_Softbody, eModifierType_Cloth) &&
-      BLI_listbase_is_empty(&ob->particlesystem))
+  if (ELEM(md->type, eModifierType_Softbody, eModifierType_Cloth) && ob->particlesystem.is_empty())
   {
     ob->mode &= ~OB_MODE_PARTICLE_EDIT;
   }
@@ -2518,7 +2517,7 @@ static bool modifiers_copy_to_selected_poll(bContext *C)
   if (!BKE_object_supports_modifiers(active_object)) {
     return false;
   }
-  if (BLI_listbase_is_empty(&active_object->modifiers)) {
+  if (active_object->modifiers.is_empty()) {
     CTX_wm_operator_poll_msg_set(C, "Active object has no modifiers");
     return false;
   }

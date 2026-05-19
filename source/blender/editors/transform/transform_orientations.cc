@@ -880,7 +880,7 @@ static uint bm_mesh_elems_select_get_n__internal(
   BLI_assert(ELEM(htype, BM_VERT, BM_EDGE, BM_FACE));
   BLI_assert(ELEM(itype, BM_VERTS_OF_MESH, BM_EDGES_OF_MESH, BM_FACES_OF_MESH));
 
-  if (!BLI_listbase_is_empty(&bm->selected)) {
+  if (!bm->selected.is_empty()) {
     /* Quick check. */
     i = 0;
     for (BMEditSelection &ese : bm->selected.items_reversed()) {

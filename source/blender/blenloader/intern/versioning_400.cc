@@ -439,12 +439,12 @@ static void version_motion_tracking_legacy_camera_object(MovieClip &movieclip)
 
   BLI_assert(tracking_camera_object != nullptr);
 
-  if (BLI_listbase_is_empty(&tracking_camera_object->tracks)) {
+  if (tracking_camera_object->tracks.is_empty()) {
     tracking_camera_object->tracks = tracking.tracks_legacy;
     active_tracking_object->active_track = tracking.act_track_legacy;
   }
 
-  if (BLI_listbase_is_empty(&tracking_camera_object->plane_tracks)) {
+  if (tracking_camera_object->plane_tracks.is_empty()) {
     tracking_camera_object->plane_tracks = tracking.plane_tracks_legacy;
     active_tracking_object->active_plane_track = tracking.act_plane_track_legacy;
   }

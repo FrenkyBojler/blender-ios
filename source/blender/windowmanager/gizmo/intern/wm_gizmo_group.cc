@@ -803,7 +803,7 @@ static wmKeyMap *WM_gizmogroup_keymap_template_select_ex(wmKeyConfig *kc,
   /* Use area and region id since we might have multiple gizmos
    * with the same name in different areas/regions. */
   wmKeyMap *km = WM_keymap_ensure(kc, name, params->spaceid, params->regionid);
-  const bool do_init = BLI_listbase_is_empty(&km->items);
+  const bool do_init = km->items.is_empty();
 
 /* FIXME(@ideasman42): Currently hard coded. */
 #if 0

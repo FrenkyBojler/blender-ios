@@ -5377,12 +5377,12 @@ int BKE_image_sequence_guess_offset(Image *image)
 
 bool BKE_image_has_anim(Image *ima)
 {
-  return (BLI_listbase_is_empty(&ima->anims) == false);
+  return (ima->anims.is_empty() == false);
 }
 
 bool BKE_image_has_packedfile(const Image *ima)
 {
-  return (BLI_listbase_is_empty(&ima->packedfiles) == false);
+  return (ima->packedfiles.is_empty() == false);
 }
 
 bool BKE_image_has_filepath(const Image *ima)

@@ -213,7 +213,7 @@ TEST(listbase, SplitAfter)
   BLI_listbase_clear(&split_after_lb);
 
   BLI_listbase_split_after(&lb, &split_after_lb, nullptr);
-  EXPECT_EQ(BLI_listbase_is_empty(&split_after_lb), true);
+  EXPECT_EQ(split_after_lb.is_empty(), true);
 
   /* One link */
   BLI_listbase_clear(&lb);
@@ -221,7 +221,7 @@ TEST(listbase, SplitAfter)
   BLI_addtail(&lb, link1);
 
   BLI_listbase_split_after(&lb, &split_after_lb, nullptr);
-  EXPECT_EQ(BLI_listbase_is_empty(&lb), true);
+  EXPECT_EQ(lb.is_empty(), true);
   EXPECT_EQ(BLI_listbase_count(&split_after_lb), 1);
   EXPECT_EQ(BLI_findindex(&split_after_lb, link1), 0);
   EXPECT_EQ(split_after_lb.first, link1);
@@ -236,7 +236,7 @@ TEST(listbase, SplitAfter)
   EXPECT_EQ(BLI_findindex(&lb, link1), 0);
   EXPECT_EQ(lb.first, link1);
   EXPECT_EQ(lb.last, link1);
-  EXPECT_EQ(BLI_listbase_is_empty(&split_after_lb), true);
+  EXPECT_EQ(split_after_lb.is_empty(), true);
 
   /* Two links */
   BLI_listbase_clear(&lb);
@@ -245,7 +245,7 @@ TEST(listbase, SplitAfter)
   BLI_addtail(&lb, link2);
 
   BLI_listbase_split_after(&lb, &split_after_lb, nullptr);
-  EXPECT_EQ(BLI_listbase_is_empty(&lb), true);
+  EXPECT_EQ(lb.is_empty(), true);
   EXPECT_EQ(BLI_listbase_count(&split_after_lb), 2);
   EXPECT_EQ(BLI_findindex(&split_after_lb, link1), 0);
   EXPECT_EQ(BLI_findindex(&split_after_lb, link2), 1);

@@ -1227,7 +1227,7 @@ static bool copy_particle_systems_poll(bContext *C)
   }
 
   ob = ed::object::context_active_object(C);
-  if (BLI_listbase_is_empty(&ob->particlesystem)) {
+  if (ob->particlesystem.is_empty()) {
     return false;
   }
 
@@ -1333,7 +1333,7 @@ static bool duplicate_particle_systems_poll(bContext *C)
     return false;
   }
   Object *ob = ed::object::context_active_object(C);
-  if (BLI_listbase_is_empty(&ob->particlesystem)) {
+  if (ob->particlesystem.is_empty()) {
     return false;
   }
   if (ob->mode != OB_MODE_OBJECT) {
@@ -1385,7 +1385,7 @@ static bool remove_all_particle_systems_poll(bContext *C)
     return false;
   }
   const Object *ob = ed::object::context_active_object(C);
-  if (BLI_listbase_is_empty(&ob->particlesystem)) {
+  if (ob->particlesystem.is_empty()) {
     return false;
   }
   if (ob->mode != OB_MODE_OBJECT) {

@@ -5333,7 +5333,7 @@ void PE_create_particle_edit(
     return;
   }
 
-  if (psys == nullptr && (cache && BLI_listbase_is_empty(&cache->mem_cache))) {
+  if (psys == nullptr && (cache && cache->mem_cache.is_empty())) {
     return;
   }
 

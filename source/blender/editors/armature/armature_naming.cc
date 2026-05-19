@@ -483,7 +483,7 @@ static wmOperatorStatus armature_flip_names_exec(bContext *C, wmOperator *op)
       }
     }
 
-    if (BLI_listbase_is_empty(&bones_names)) {
+    if (bones_names.is_empty()) {
       continue;
     }
 

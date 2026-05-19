@@ -754,7 +754,7 @@ static int rna_KeyingSet_active_ksPath_editable(const PointerRNA *ptr, const cha
   KeyingSet *ks = static_cast<KeyingSet *>(ptr->data);
 
   /* only editable if there are some paths to change to */
-  return (BLI_listbase_is_empty(&ks->paths) == false) ? PROP_EDITABLE : PropertyFlag(0);
+  return (ks->paths.is_empty() == false) ? PROP_EDITABLE : PropertyFlag(0);
 }
 
 static PointerRNA rna_KeyingSet_active_ksPath_get(PointerRNA *ptr)

@@ -258,11 +258,11 @@ static void undosys_step_free_and_unlink(UndoStack *ustack, UndoStep *us)
 static void undosys_stack_validate(UndoStack *ustack, bool expect_non_empty)
 {
   if (ustack->step_active != nullptr) {
-    BLI_assert(!BLI_listbase_is_empty(&ustack->steps));
+    BLI_assert(!ustack->steps.is_empty());
     BLI_assert(BLI_findindex(&ustack->steps, ustack->step_active) != -1);
   }
   if (expect_non_empty) {
-    BLI_assert(!BLI_listbase_is_empty(&ustack->steps));
+    BLI_assert(!ustack->steps.is_empty());
   }
 }
 #else
@@ -385,7 +385,7 @@ bool BKE_undosys_stack_has_undo(const UndoStack *ustack, const char *name)
     return us && us->prev;
   }
 
-  return !BLI_listbase_is_empty(&ustack->steps);
+  return !ustack->steps.is_empty();
 }
 
 bool BKE_undosys_stack_has_redo(const UndoStack *ustack)

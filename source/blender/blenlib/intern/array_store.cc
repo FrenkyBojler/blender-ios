@@ -664,7 +664,7 @@ static void bchunk_list_append_data(const BArrayInfo *info,
 #ifdef USE_MERGE_CHUNKS
   BLI_assert(data_len <= info->chunk_byte_size_max);
 
-  if (!BLI_listbase_is_empty(&chunk_list->chunk_refs)) {
+  if (!chunk_list->chunk_refs.is_empty()) {
     BChunkRef *cref = static_cast<BChunkRef *>(chunk_list->chunk_refs.last);
     BChunk *chunk_prev = cref->link;
 
@@ -778,7 +778,7 @@ static void bchunk_list_fill_from_array(const BArrayInfo *info,
                                         const uchar *data,
                                         const size_t data_len)
 {
-  BLI_assert(BLI_listbase_is_empty(&chunk_list->chunk_refs));
+  BLI_assert(chunk_list->chunk_refs.is_empty());
 
   size_t data_trim_len, data_last_chunk_len;
   bchunk_list_calc_trim_len(info, data_len, &data_trim_len, &data_last_chunk_len);
@@ -1368,7 +1368,7 @@ static BChunkList *bchunk_list_from_data_merge(const BArrayInfo *info,
   const BChunkRef *chunk_list_reference_last = nullptr;
 
 #ifdef USE_FASTPATH_CHUNKS_LAST
-  if (!BLI_listbase_is_empty(&chunk_list_reference->chunk_refs)) {
+  if (!chunk_list_reference->chunk_refs.is_empty()) {
     const BChunkRef *cref = static_cast<const BChunkRef *>(chunk_list_reference->chunk_refs.last);
     while ((cref->prev != nullptr) && (cref != cref_match_first) &&
            (cref->link->data_len <= data_len - i_prev))

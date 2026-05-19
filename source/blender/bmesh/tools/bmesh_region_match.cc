@@ -618,7 +618,7 @@ static bool bm_uidwalk_facestep_begin(UIDWalk *uidwalk, UIDFaceStep *fstep)
   bool ok = false;
 
   BLI_assert(BLI_ghash_len(uidwalk->cache.faces_from_uid) == 0);
-  BLI_assert(BLI_listbase_is_empty(&fstep->items));
+  BLI_assert(fstep->items.is_empty());
 
   f_link_prev_p = &fstep->faces;
   for (f_link = fstep->faces; f_link; f_link = f_link_next) {
@@ -681,7 +681,7 @@ static void bm_uidwalk_facestep_free(UIDWalk *uidwalk, UIDFaceStep *fstep)
 {
   LinkNode *f_link, *f_link_next;
 
-  BLI_assert(BLI_listbase_is_empty(&fstep->items));
+  BLI_assert(fstep->items.is_empty());
 
   for (f_link = fstep->faces; f_link; f_link = f_link_next) {
     f_link_next = f_link->next;

@@ -364,7 +364,7 @@ void BKE_gpencil_free_stroke(bGPDstroke *gps)
 
 bool BKE_gpencil_free_strokes(bGPDframe *gpf)
 {
-  bool changed = (BLI_listbase_is_empty(&gpf->strokes) == false);
+  bool changed = (gpf->strokes.is_empty() == false);
 
   /* free strokes */
   for (bGPDstroke &gps : gpf->strokes.items_mutable()) {

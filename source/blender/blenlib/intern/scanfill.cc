@@ -1006,7 +1006,7 @@ uint BLI_scanfill_calc_ex(ScanFillContext *sf_ctx, const int flag, const float n
         }
       }
     }
-    if (BLI_listbase_is_empty(&sf_ctx->filledgebase)) {
+    if (sf_ctx->filledgebase.is_empty()) {
       // printf("All edges removed\n");
       return 0;
     }

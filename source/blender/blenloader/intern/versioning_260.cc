@@ -1564,7 +1564,7 @@ void blo_do_versions_260(FileData *fd, Library * /*lib*/, Main *bmain)
           tracking->settings.object_distance = 1.0f;
         }
 
-        if (BLI_listbase_is_empty(&tracking->objects)) {
+        if (tracking->objects.is_empty()) {
           BKE_tracking_object_add(tracking, "Camera");
         }
 

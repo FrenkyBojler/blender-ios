@@ -942,7 +942,7 @@ static wmOperatorStatus armature_switch_direction_exec(bContext *C, wmOperator *
 
     /* get chains of bones (ends on chains) */
     chains_find_tips(arm->edbo, &chains);
-    if (BLI_listbase_is_empty(&chains)) {
+    if (chains.is_empty()) {
       continue;
     }
 

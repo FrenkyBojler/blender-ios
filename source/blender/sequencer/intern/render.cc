@@ -1962,7 +1962,7 @@ ImBuf *render_give_ibuf(const RenderData *context, float timeline_frame, int cha
     return nullptr;
   }
 
-  if ((chanshown < 0) && !BLI_listbase_is_empty(&ed->metastack)) {
+  if ((chanshown < 0) && !ed->metastack.is_empty()) {
     int count = BLI_listbase_count(&ed->metastack);
     count = max_ii(count + chanshown, 0);
     MetaStack *ms = static_cast<MetaStack *>(BLI_findlink(&ed->metastack, count));

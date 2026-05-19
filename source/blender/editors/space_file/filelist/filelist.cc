@@ -471,7 +471,7 @@ static void filelist_direntryarr_free(FileDirEntryArr *array)
   }
   BLI_listbase_clear(&array->entries);
 #else
-  BLI_assert(BLI_listbase_is_empty(&array->entries));
+  BLI_assert(array->entries.is_empty());
 #endif
   array->entries_num = FILEDIR_NBR_ENTRIES_UNSET;
   array->entries_filtered_num = FILEDIR_NBR_ENTRIES_UNSET;

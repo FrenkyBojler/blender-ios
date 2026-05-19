@@ -248,7 +248,7 @@ void ANIM_set_active_channel(bAnimContext *ac,
 
   /* try to build list of filtered items */
   ANIM_animdata_filter(ac, &anim_data, filter, data, datatype);
-  if (BLI_listbase_is_empty(&anim_data)) {
+  if (anim_data.is_empty()) {
     return;
   }
 
@@ -1548,7 +1548,7 @@ static void rearrange_nla_tracks(bAnimContext *ac, AnimData *adt, eRearrangeAnim
       &adt->nla_tracks, rearrange_func, mode, ANIMTYPE_NLATRACK, &anim_data_visible);
 
   /* Add back non-local NLA tracks at the beginning of the animation data's list. */
-  if (!BLI_listbase_is_empty(&extracted_nonlocal_nla_tracks)) {
+  if (!extracted_nonlocal_nla_tracks.is_empty()) {
     BLI_assert(is_liboverride);
     static_cast<NlaTrack *>(extracted_nonlocal_nla_tracks.last)->next = static_cast<NlaTrack *>(
         adt->nla_tracks.first);

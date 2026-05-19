@@ -2618,7 +2618,7 @@ void BKE_nla_debug_print_flags(AnimData *adt, ID *owner_id)
   }
   printf("\n");
 
-  if (BLI_listbase_is_empty(&adt->nla_tracks)) {
+  if (adt->nla_tracks.is_empty()) {
     printf("  - No tracks\n");
     return;
   }
@@ -2773,7 +2773,7 @@ void BKE_nla_liboverride_post_process(ID *id, AnimData *adt)
   UNUSED_VARS_NDEBUG(id);
 
   const bool is_tweak_mode = (adt->flag & ADT_NLA_EDIT_ON);
-  const bool has_tracks = !BLI_listbase_is_empty(&adt->nla_tracks);
+  const bool has_tracks = !adt->nla_tracks.is_empty();
 
   if (!has_tracks) {
     if (is_tweak_mode) {

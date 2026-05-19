@@ -1290,7 +1290,7 @@ void blo_do_versions_270(FileData *fd, Library * /*lib*/, Main *bmain)
        * Loop all strokes and create the palette and all colors
        */
       for (bGPdata &gpd : bmain->gpencils) {
-        if (BLI_listbase_is_empty(&gpd.palettes)) {
+        if (gpd.palettes.is_empty()) {
           /* create palette */
           bGPDpalette *palette = BKE_gpencil_palette_addnew(&gpd, "GP_Palette");
           for (bGPDlayer &gpl : gpd.layers) {

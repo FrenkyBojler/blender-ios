@@ -880,7 +880,7 @@ static LayerCollectionResync *layer_collection_resync_create_recurse(
     layer_resync->is_used = false;
   }
 
-  if (BLI_listbase_is_empty(&layer->layer_collections)) {
+  if (layer->layer_collections.is_empty()) {
     layer_resync->is_valid_as_parent = layer_resync->is_usable;
   }
   else {
@@ -1280,7 +1280,7 @@ static void layer_collection_sync(ViewLayer *view_layer,
       child_layer->runtime_flag |= LAYER_COLLECTION_VISIBLE_VIEW_LAYER;
     }
 
-    if (!BLI_listbase_is_empty(&child_collection->exporters) &&
+    if (!child_collection->exporters.is_empty() &&
         !(ID_IS_LINKED(&child_collection->id) || ID_IS_OVERRIDE_LIBRARY(&child_collection->id)))
     {
       view_layer->flag |= VIEW_LAYER_HAS_EXPORT_COLLECTIONS;
@@ -1378,7 +1378,7 @@ bool BKE_layer_collection_sync(const Main &bmain, const Scene *scene, ViewLayer 
     return false;
   }
 
-  if (BLI_listbase_is_empty(&view_layer->layer_collections)) {
+  if (view_layer->layer_collections.is_empty()) {
     /* In some cases (from older files, or when creating a new ViewLayer from
      * #BKE_view_layer_add), we do have a master collection, yet no matching layer. Create the
      * master one here, so that the rest of the code can work as expected. */

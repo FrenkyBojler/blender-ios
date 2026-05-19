@@ -477,7 +477,7 @@ void BKE_tracking_clipboard_copy_tracks(MovieTracking * /*tracking*/,
 
 bool BKE_tracking_clipboard_has_tracks()
 {
-  return (BLI_listbase_is_empty(&tracking_clipboard.tracks) == false);
+  return (tracking_clipboard.tracks.is_empty() == false);
 }
 
 void BKE_tracking_clipboard_paste_tracks(MovieTracking * /*tracking*/,

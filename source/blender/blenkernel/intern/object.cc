@@ -1626,9 +1626,7 @@ bool BKE_object_modifier_stack_copy(Object *ob_dst,
                                     const bool do_copy_all,
                                     const int flag_subdata)
 {
-  if (!BLI_listbase_is_empty(&ob_dst->modifiers) ||
-      !BLI_listbase_is_empty(&ob_dst->greasepencil_modifiers))
-  {
+  if (!ob_dst->modifiers.is_empty() || !ob_dst->greasepencil_modifiers.is_empty()) {
     BLI_assert_msg(
         false,
         "Trying to copy a modifier stack into an object having a non-empty modifier stack.");
@@ -4770,7 +4768,7 @@ bool BKE_object_shapekey_remove(Main *bmain, Object *ob, KeyBlock *kb)
   MEM_delete(kb);
 
   /* Unset active when all are freed. */
-  if (BLI_listbase_is_empty(&key->block)) {
+  if (key->block.is_empty()) {
     ob->shapenr = 0;
   }
   else if (ob->shapenr > 1) {
@@ -4866,7 +4864,7 @@ bool BKE_object_moves_in_time(const Object *object, bool recurse_parent)
   if (BKE_animdata_id_is_animated(&object->id)) {
     return true;
   }
-  if (!BLI_listbase_is_empty(&object->constraints)) {
+  if (!object->constraints.is_empty()) {
     return true;
   }
   if (recurse_parent && object->parent != nullptr) {
@@ -4885,7 +4883,7 @@ static bool object_deforms_in_time(Object *object)
   if (BKE_key_from_object(object) != nullptr) {
     return true;
   }
-  if (!BLI_listbase_is_empty(&object->modifiers)) {
+  if (!object->modifiers.is_empty()) {
     return true;
   }
   return object_moves_in_time(object);

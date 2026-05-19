@@ -2831,7 +2831,7 @@ void ED_area_newspace(bContext *C, ScrArea *area, int type, const bool skip_regi
     }
 
     /* old spacedata... happened during work on 2.50, remove */
-    if (sl && BLI_listbase_is_empty(&sl->regionbase)) {
+    if (sl && sl->regionbase.is_empty()) {
       st->free(sl);
       BLI_freelinkN(&area->spacedata, sl);
       if (slold == sl) {
@@ -4444,7 +4444,7 @@ void ED_region_message_subscribe(wmRegionMessageSubscribeParams *params)
     WM_gizmomap_message_subscribe(C, region->runtime->gizmo_map, region, mbus);
   }
 
-  if (!BLI_listbase_is_empty(&region->runtime->uiblocks)) {
+  if (!region->runtime->uiblocks.is_empty()) {
     ui::region_message_subscribe(region, mbus);
   }
 

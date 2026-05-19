@@ -1433,7 +1433,7 @@ static wmOperatorStatus separate_exec(bContext *C, wmOperator *op)
     /* 1. Duplicate geometry and check for valid selection for separate. */
     adduplicateflagNurb(oldob, v3d, &newnurb, BEZT_FLAG_SELECT, true);
 
-    if (BLI_listbase_is_empty(&newnurb)) {
+    if (newnurb.is_empty()) {
       status.error_generic++;
       continue;
     }
@@ -1550,7 +1550,7 @@ static wmOperatorStatus curve_split_exec(bContext *C, wmOperator *op)
 
     adduplicateflagNurb(obedit, v3d, &newnurb, BEZT_FLAG_SELECT, true);
 
-    if (BLI_listbase_is_empty(&newnurb)) {
+    if (newnurb.is_empty()) {
       count_failed += 1;
       continue;
     }
@@ -5271,7 +5271,7 @@ static bool ed_editcurve_extrude(Curve *cu, EditNurb *editnurb, View3D *v3d)
     void *p;
   } cu_actvert;
 
-  if (BLI_listbase_is_empty(&editnurb->nurbs)) {
+  if (editnurb->nurbs.is_empty()) {
     return changed;
   }
 
@@ -6067,7 +6067,7 @@ static wmOperatorStatus duplicate_exec(bContext *C, wmOperator *op)
     ListBaseT<Nurb> newnurb = {nullptr, nullptr};
     adduplicateflagNurb(obedit, v3d, &newnurb, BEZT_FLAG_SELECT, false);
 
-    if (BLI_listbase_is_empty(&newnurb)) {
+    if (newnurb.is_empty()) {
       count_failed += 1;
       continue;
     }

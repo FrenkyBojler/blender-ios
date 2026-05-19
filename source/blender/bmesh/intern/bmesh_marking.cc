@@ -1275,7 +1275,7 @@ bool BM_select_history_active_get(BMesh *bm, BMEditSelection *ese)
 
 GHash *BM_select_history_map_create(BMesh *bm)
 {
-  if (BLI_listbase_is_empty(&bm->selected)) {
+  if (bm->selected.is_empty()) {
     return nullptr;
   }
 
