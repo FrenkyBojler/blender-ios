@@ -237,7 +237,7 @@ static void calculate_splines_axis(const Span<float> distances,
     segment_length[i] = (is_closed && i == verts_num - 1) ?
                             total_length - distances[verts_num - 1] :
                             distances[i + 1] - distances[i];
-    if (segment_length[i] == 0.0f) {
+    if (!(segment_length[i] > 0.0f)) {
       segment_length[i] = SPACE_EPSILON;
     }
   }
