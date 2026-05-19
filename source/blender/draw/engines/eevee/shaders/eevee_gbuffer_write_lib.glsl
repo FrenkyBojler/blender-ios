@@ -105,7 +105,7 @@ struct Packed {
   UsedLayerFlag used_layers;
 };
 
-  /* ROP writes round to nearest. */
+/* ROP writes round to nearest. */
 float3 closure_data_dither_round_to_nearest(float3 data, float3 noise)
 {
   constexpr float quantization_step = 1.0f / 1023.0f;
@@ -140,8 +140,7 @@ float4 closure_data_layer_dither_round_to_nearest(float4 data,
                                                   uint layer_id,
                                                   float3 offset)
 {
-  return closure_data_dither_round_to_nearest(
-      data, closure_dither_noise(texel, layer_id, offset));
+  return closure_data_dither_round_to_nearest(data, closure_dither_noise(texel, layer_id, offset));
 }
 
 float4 closure_data_layer_dither_flush_to_zero(float4 data,
@@ -149,8 +148,7 @@ float4 closure_data_layer_dither_flush_to_zero(float4 data,
                                                uint layer_id,
                                                float3 offset)
 {
-  return closure_data_dither_flush_to_zero(data,
-                                           closure_dither_noise(texel, layer_id, offset));
+  return closure_data_dither_flush_to_zero(data, closure_dither_noise(texel, layer_id, offset));
 }
 
 /* Transient data used during packing. */

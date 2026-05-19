@@ -186,8 +186,7 @@ void surf_hybrid([[resource_table]] SurfaceHybrid &srt,
   const bool use_object_id = use_sss || use_light_linking || use_terminator_offset;
 
   float3 gbuffer_dither = sampling_rng_3D_get(SAMPLING_GBUFFER_U);
-  gbuffer::Packed gbuf = gbuffer::pack(
-      gbuf_data, g_data.Ng, g_data.N, g_thickness, use_object_id);
+  gbuffer::Packed gbuf = gbuffer::pack(gbuf_data, g_data.Ng, g_data.N, g_thickness, use_object_id);
 
   /* Output header and first closure using frame-buffer attachment. */
   frag_out.gbuf_header = gbuf.header;
