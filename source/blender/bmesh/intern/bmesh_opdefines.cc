@@ -2820,6 +2820,12 @@ static BMOpDefine bmo_convex_hull_def = {
 };
 #endif
 
+static BMO_FlagSet bmo_enum_space_edge_loops_evenly_interpolation_method[] = {
+    {SPACE_INTERP_CUBIC, "CUBIC"},
+    {SPACE_INTERP_LINEAR, "LINEAR"},
+    {0, nullptr},
+};
+
 /*
  * Space Evenly.
  *
@@ -2832,7 +2838,10 @@ static BMOpDefine bmo_space_def = {
         /* Input geometry. */
         {"geom", BMO_OP_SLOT_ELEMENT_BUF, {BM_VERT | BM_EDGE | BM_FACE}},
         /* Method used for interpolation. */
-        {"interpolation", BMO_OP_SLOT_INT},
+        {"interpolation",
+         BMO_OP_SLOT_INT,
+         to_subtype_union(BMO_OP_SLOT_SUBTYPE_INT_ENUM),
+         bmo_enum_space_edge_loops_evenly_interpolation_method},
         /* Influence factor: spans from 0.0 to 1.0. */
         {"factor", BMO_OP_SLOT_FLT},
         /* Lock X-axis editing. */
