@@ -1,3 +1,3 @@
 Referenced by issue #155007, Blender Crash on Maximise Area
 Referenced by issue #157704, Blender crashes when attempting to edit a mesh that has a Geometry Nodes modifier.
-Referenced by issue #158811, `Points to Curves` is non-deterministic above 1024 points
+Referenced by issue #158811, Regression: `Points to Curves` is non-deterministic above 1024 points
