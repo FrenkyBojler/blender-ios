@@ -228,15 +228,9 @@ static void clip_free(SpaceLink *sl)
 static void clip_init(wmWindowManager * /*wm*/, ScrArea *area)
 {
   ListBaseT<wmDropBox> *lb = WM_dropboxmap_find("Clip", SPACE_CLIP, RGN_TYPE_WINDOW);
-  area->flag |= AREA_FLAG_REDO_PANEL_PADDING;
 
   /* add drop boxes */
   WM_event_add_dropbox_handler(&area->handlers, lb);
-}
-
-void clip_exit(wmWindowManager *wm, ScrArea *area)
-{
-  area->flag &= ~AREA_FLAG_REDO_PANEL_PADDING;
 }
 
 static SpaceLink *clip_duplicate(SpaceLink *sl)
@@ -1244,7 +1238,6 @@ void ED_spacetype_clip()
   st->create = clip_create;
   st->free = clip_free;
   st->init = clip_init;
-  st->exit = clip_exit;
   st->duplicate = clip_duplicate;
   st->operatortypes = clip_operatortypes;
   st->keymap = clip_keymap;
