@@ -152,7 +152,12 @@ void search_link_ops_for_declarations(GatherLinkSearchOpParams &params,
      * has a smaller weight than zero so that it does not have the same weight as the main socket.
      * Negative weights are used to avoid making the highest weight dependent on the number of
      * sockets. */
-    const int weight = (&socket == main_socket) ? 0 : -1 - i;
+    int weight = (&socket == main_socket) ? 0 : -1 - i;
+    /* Give a higher weight to rotation sockets when link-drag searching, making
+     * rotation nodes show up first in the search. */
+    if (params.other_socket().type == SOCK_ROTATION && socket.socket_type == SOCK_ROTATION) {
+      weight = 1;
+    }
     params.add_item(
         IFACE_(socket.name.ref()),
         [&node_type, &socket](LinkSearchOpParams &params) {
