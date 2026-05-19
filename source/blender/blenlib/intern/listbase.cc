@@ -68,7 +68,7 @@ void BLI_movelisttolist_reverse(ListBase *dst, ListBase *src)
 
 void BLI_listbase_split_after(ListBase *original_listbase, ListBase *split_listbase, void *vlink)
 {
-  BLI_assert(split_listbase->is_empty());
+  BLI_assert(BLI_listbase_is_empty(split_listbase));
   BLI_assert(vlink == nullptr || BLI_findindex(original_listbase, vlink) >= 0);
 
   if (vlink == original_listbase->last) {
