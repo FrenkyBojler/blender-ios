@@ -85,6 +85,7 @@ def setup():
         scene.render.engine = 'BLENDER_EEVEE'
 
         skip_hair_setup = scene.get("EEVEE_skip_hair_setup", False)
+        skip_probes_setup = scene.get("EEVEE_skip_probes_setup", False)
         skip_shadow_setup = scene.get("EEVEE_skip_shadow_setup", False)
         skip_subsurface_setup = scene.get("EEVEE_skip_subsurface_setup", False)
 
@@ -135,7 +136,8 @@ def setup():
         eevee.fast_gi_quality = 0.8
 
         # Light-probes
-        eevee.gi_cubemap_resolution = '256'
+        if not skip_probes_setup:
+            eevee.gi_cubemap_resolution = '256'
 
         # Light-path intensity
         eevee.direct_light_intensity = 1.0
@@ -147,7 +149,7 @@ def setup():
                 # Set maximum resolution
                 ob.data.shadow_maximum_resolution = 0.0
 
-            if ob.name != 'Plane' and ob.type != 'LIGHT':
+            if ob.name != 'Plane' and ob.type != 'LIGHT' and not skip_probes_setup:
                 ob.hide_probe_volume = True
                 ob.hide_probe_sphere = True
 
@@ -161,7 +163,7 @@ def setup():
             # Some file already have pre existing probe setup with baked data.
             pass
         # Does not work in edit mode
-        elif bpy.context.mode == 'OBJECT':
+        elif bpy.context.mode == 'OBJECT' and not skip_probes_setup:
             # Simple probe setup
             bpy.ops.object.lightprobe_add(type='SPHERE', location=(0.0, 0.1, 1.0))
             cubemap = bpy.context.selected_objects[0]
