@@ -83,14 +83,21 @@ static std::optional<SpaceChainData> walk_edges(BMEdge *start_edge, Set<BMEdge *
 
   auto walk_fn = [&](BMVert *curr_v, Vector<BMVert *> &list) {
     while (true) {
+      int selected_edge_count = 0;
       BMEdge *next_e = nullptr;
       BMIter eiter;
       BMEdge *e_candidate;
       BM_ITER_ELEM (e_candidate, &eiter, curr_v, BM_EDGES_OF_VERT) {
-        if (!r_visited.contains(e_candidate) && BM_elem_flag_test(e_candidate, BM_ELEM_TAG)) {
-          next_e = e_candidate;
-          break;
+        if (!BM_elem_flag_test(e_candidate, BM_ELEM_TAG)) {
+          continue;
         }
+        selected_edge_count++;
+        if (!r_visited.contains(e_candidate)) {
+          next_e = e_candidate;
+        }
+      }
+      if (selected_edge_count > 2) {
+        break;
       }
       if (!next_e) {
         break;
