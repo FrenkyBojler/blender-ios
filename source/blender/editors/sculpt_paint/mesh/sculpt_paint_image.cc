@@ -355,12 +355,19 @@ static void do_paint_pixels(const Depsgraph &depsgraph,
     const TileColorspaceProcessor *processors = image_data.processors.lookup_ptr(
         tile_data.tile_number);
 
-    const IndexMask valid_rows = IndexMask::from_predicate(
+
+    const IndexMask valid_uv_rows = IndexMask::from_predicate(
         tile_data.pixel_rows.index_range(), memory, [&](const int i) {
-          const PackedPixelRowPosition &pixel_row_position = tile_data.pixel_row_positions[i];
-          return brush_test[tile_data.pixel_rows[i].uv_primitive_index] &&
-                 brush_bounds.intersects_segment(pixel_row_position.start, pixel_row_position.end);
+          return brush_test[tile_data.pixel_rows[i].uv_primitive_index];
         });
+
+    Array<bool> row_bounds_test(tile_data.pixel_rows.size(), false);
+    valid_uv_rows.foreach_index([&](const int i) {
+          row_bounds_test[i] = brush_bounds.intersects_segment(
+              tile_data.pixel_row_positions[i].start, tile_data.pixel_row_positions[i].end);
+    }, exec_mode::grain_size(256));
+
+    const IndexMask valid_rows = IndexMask::from_bools(valid_uv_rows, row_bounds_test, memory);
 
     Array<bool> row_changed(valid_rows.min_array_size(), false);
     threading::EnumerableThreadSpecific<PaintLocalData> all_factor_tls;
