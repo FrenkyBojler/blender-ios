@@ -140,10 +140,6 @@ NODE_DEFINE(Camera)
   SOCKET_FLOAT(viewplane.right, "Viewplane Right", 0);
   SOCKET_FLOAT(viewplane.bottom, "Viewplane Bottom", 0);
   SOCKET_FLOAT(viewplane.top, "Viewplane Top", 0);
-  SOCKET_FLOAT(viewplane_pre.left, "Viewplane Pre Left", 0);
-  SOCKET_FLOAT(viewplane_pre.right, "Viewplane Pre Right", 0);
-  SOCKET_FLOAT(viewplane_pre.bottom, "Viewplane Pre Bottom", 0);
-  SOCKET_FLOAT(viewplane_pre.top, "Viewplane Pre Top", 0);
 
   SOCKET_FLOAT(border.left, "Border Left", 0);
   SOCKET_FLOAT(border.right, "Border Right", 0);
@@ -365,19 +361,17 @@ void Camera::update(Scene *scene)
     have_motion = have_motion || motion[i] != matrix;
   }
 
-  if (need_motion == Scene::MOTION_PASS) {
-    if (camera_type == CAMERA_PANORAMA || camera_type == CAMERA_CUSTOM) {
-      if (have_motion) {
-        kcam->motion_pass_pre = transform_inverse(motion[0]);
-        kcam->motion_pass_post = transform_inverse(motion[motion.size() - 1]);
-      }
-      else {
-        kcam->motion_pass_pre = kcam->worldtocamera;
-        kcam->motion_pass_post = kcam->worldtocamera;
-      }
+  if (need_motion == Scene::MOTION_PASS || need_motion == Scene::MOTION_PASS_INTERACTIVE) {
+    if (have_motion) {
+      kcam->motion_pass_pre = transform_inverse(motion[0]);
+      kcam->motion_pass_post = transform_inverse(motion[motion.size() - 1]);
     }
     else {
-      if (have_motion || fov != fov_pre || fov != fov_post || viewplane != viewplane_pre) {
+      kcam->motion_pass_pre = kcam->worldtocamera;
+      kcam->motion_pass_post = kcam->worldtocamera;
+    }
+    if (camera_type != CAMERA_PANORAMA && camera_type != CAMERA_CUSTOM) {
+      if (have_motion || fov != fov_pre || fov != fov_post) {
         /* Note the values for perspective_pre/perspective_post calculated for MOTION_PASS are
          * different to those calculated for MOTION_BLUR below, so the code has not been combined.
          */
@@ -388,10 +382,7 @@ void Camera::update(Scene *scene)
           cameratoscreen_post = projection_perspective(fov_post, nearclip, farclip);
         }
 
-        const Transform screentondc_pre = fulltoborder * transform_from_viewplane(viewplane_pre);
-
-        const ProjectionTransform cameratoraster_pre = ndctoraster * screentondc_pre *
-                                                       cameratoscreen_pre;
+        const ProjectionTransform cameratoraster_pre = screentoraster * cameratoscreen_pre;
         const ProjectionTransform cameratoraster_post = screentoraster * cameratoscreen_post;
         if (have_motion) {
           kcam->perspective_pre = cameratoraster_pre * transform_inverse(motion[0]);
@@ -513,6 +504,20 @@ void Camera::update(Scene *scene)
   need_device_update = true;
   need_flags_update = true;
   previous_need_motion = need_motion;
+}
+
+void Camera::update_interactive_motion()
+{
+  array<Transform> motion = get_motion();
+  if (!motion.empty()) {
+    motion[0] = matrix;
+
+    /* Trigger another update if there was motion compared to previous frame, so that last viewport
+     * camera movement does not stick around. */
+    set_motion(motion);
+  }
+
+  set_fov_pre(fov);
 }
 
 void Camera::device_update(Device * /*device*/, DeviceScene *dscene, Scene *scene)
@@ -955,7 +960,9 @@ void Camera::set_osl_camera(Scene *scene,
       /* Skip unsupported types. */
       if (param->varlenarray || param->isstruct || param->type.arraylen > 1 || param->isoutput ||
           param->isclosure)
+      {
         continue;
+      }
 
       vector<uint8_t> raw_data;
       int vec_size = (int)param->type.aggregate;
@@ -983,8 +990,9 @@ void Camera::set_osl_camera(Scene *scene,
         raw_data.resize(data.length() + 1);
         memcpy(raw_data.data(), data.c_str(), data.length() + 1);
       }
-      else
+      else {
         continue;
+      }
 
       auto entry = std::make_pair(raw_data, param->type);
       auto it = script_params.find(param->name);
@@ -1002,7 +1010,7 @@ void Camera::set_osl_camera(Scene *scene,
 
     /* Remove unused parameters. */
     for (auto it = script_params.begin(); it != script_params.end();) {
-      if (used_params.count(it->first)) {
+      if (used_params.contains(it->first)) {
         it++;
       }
       else {

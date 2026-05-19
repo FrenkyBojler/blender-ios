@@ -227,6 +227,13 @@ class RaycastFunction : public mf::MultiFunction {
                     params.uninitialized_single_output_if_required<float3>(5, "Hit Normal"),
                     params.uninitialized_single_output_if_required<float>(6, "Distance"));
   }
+
+  void hash_unique(UniqueHashBytes &hash) const override
+  {
+    static constexpr int8_t id = 0;
+    hash.add(&id);
+    hash.add(target_.get_mesh());
+  }
 };
 
 static void node_geo_exec(GeoNodeExecParams params)
@@ -386,7 +393,7 @@ static void node_register()
       "each hit point";
   ntype.enum_name_legacy = "RAYCAST";
   ntype.nclass = NODE_CLASS_GEOMETRY;
-  bke::node_type_size_preset(ntype, bke::eNodeSizePreset::Middle);
+  ntype.default_width = bke::NodeWidth::_160;
   ntype.initfunc = node_init;
   bke::node_type_storage(
       ntype, "NodeGeometryRaycast", node_free_standard_storage, node_copy_standard_storage);

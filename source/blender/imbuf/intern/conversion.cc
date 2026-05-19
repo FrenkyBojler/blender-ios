@@ -16,7 +16,6 @@
 #include "IMB_imbuf_types.hh"
 
 #include "IMB_colormanagement.hh"
-#include "IMB_colormanagement_intern.hh"
 
 #include "MEM_guardedalloc.h"
 
@@ -67,7 +66,7 @@ MINLINE void float_to_byte_dither_v4(uchar b[4], const float f[4], float dither,
 
 bool IMB_alpha_affects_rgb(const ImBuf *ibuf)
 {
-  return ibuf && (ibuf->flags & IB_alphamode_channel_packed) == 0;
+  return ibuf && !flag_is_set(ibuf->flags, ImBufFlags::AlphaChannelPacked);
 }
 
 void IMB_buffer_byte_from_float(uchar *rect_to,
