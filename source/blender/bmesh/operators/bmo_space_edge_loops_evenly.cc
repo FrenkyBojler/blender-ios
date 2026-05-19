@@ -344,27 +344,27 @@ void bmo_space_edge_loops_evenly_exec(BMesh *bm, BMOperator *op)
   get_space_input_chains(bm, chains);
 
   for (SpaceChainData &chain : chains) {
-    const int num_verts = chain.verts.size();
+    const int verts_num = chain.verts.size();
     SpaceMeasurements measure = measure_chain(chain);
 
-    Array<int> sample_indices(num_verts);
-    Array<float> sample_factors(num_verts);
+    Array<int> sample_indices(verts_num);
+    Array<float> sample_factors(verts_num);
     length_parameterize::sample_uniform(measure.knot_distances.as_span().drop_front(1),
                                         !chain.is_closed,
                                         sample_indices,
                                         sample_factors);
 
-    Array<float3> new_positions(num_verts);
+    Array<float3> new_positions(verts_num);
 
     if (interpolation == SPACE_INTERP_LINEAR) {
       length_parameterize::interpolate<float3>(
           measure.positions, sample_indices, sample_factors, new_positions);
     }
     else {
-      Array<float> coords_x(num_verts);
-      Array<float> coords_y(num_verts);
-      Array<float> coords_z(num_verts);
-      for (const int i : IndexRange(num_verts)) {
+      Array<float> coords_x(verts_num);
+      Array<float> coords_y(verts_num);
+      Array<float> coords_z(verts_num);
+      for (const int i : IndexRange(verts_num)) {
         coords_x[i] = measure.positions[i].x;
         coords_y[i] = measure.positions[i].y;
         coords_z[i] = measure.positions[i].z;
@@ -380,7 +380,7 @@ void bmo_space_edge_loops_evenly_exec(BMesh *bm, BMOperator *op)
       calculate_splines_axis(
           measure.knot_distances, coords_z, chain.is_closed, measure.total_length, coeffs_z);
 
-      for (const int i : IndexRange(num_verts)) {
+      for (const int i : IndexRange(verts_num)) {
         const int seg = sample_indices[i];
         const float target_dist = math::interpolate(
             measure.knot_distances[seg], measure.knot_distances[seg + 1], sample_factors[i]);
@@ -390,9 +390,9 @@ void bmo_space_edge_loops_evenly_exec(BMesh *bm, BMOperator *op)
       }
     }
 
-    for (const int i : IndexRange(num_verts)) {
+    for (const int i : IndexRange(verts_num)) {
       /* The first and last vertices of an open chain are anchor points so they are skipped. */
-      if (!chain.is_closed && (i == 0 || i == num_verts - 1)) {
+      if (!chain.is_closed && (i == 0 || i == verts_num - 1)) {
         continue;
       }
 
