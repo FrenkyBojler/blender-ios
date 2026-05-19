@@ -536,8 +536,8 @@ bool DLSSDenoiser::denoise_run(const DenoiseContext &context, const DenoisePass 
 
   params->Set(NVSDK_NGX_Parameter_Reset, 0);
 
-  params->Set(NVSDK_NGX_Parameter_Jitter_Offset_X, -context.pixel_jitter.x);
-  params->Set(NVSDK_NGX_Parameter_Jitter_Offset_Y, -context.pixel_jitter.y);
+  params->Set(NVSDK_NGX_Parameter_Jitter_Offset_X, context.pixel_jitter.x);
+  params->Set(NVSDK_NGX_Parameter_Jitter_Offset_Y, context.pixel_jitter.y);
   params->Set(NVSDK_NGX_Parameter_MV_Scale_X, -1.0f);
   params->Set(NVSDK_NGX_Parameter_MV_Scale_Y, -1.0f);
 
