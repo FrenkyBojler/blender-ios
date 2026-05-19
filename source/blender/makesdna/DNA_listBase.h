@@ -64,6 +64,15 @@ template<typename T> struct ListBaseT : public ListBase {
     this->last = nullptr;
   }
 
+  void free_no_destruct()
+  {
+    for (T &item : this->items_mutable()) {
+      MEM_delete_void(static_cast<void *)(&item));
+    }
+    this->first = nullptr;
+    this->last = nullptr;
+  }
+
   /* TODO: Add const and non-const iterators. However this will require some refactoring
    * as some places rely on being able to get a mutable list element from a const list. */
   ListBaseTIterator<T> begin() const
