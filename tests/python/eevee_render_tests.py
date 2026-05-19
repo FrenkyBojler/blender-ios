@@ -46,6 +46,8 @@ BLOCKLIST = [
     "raycast_bump.blend",
     # Blocked due to platform-dependent uninitialized pixels.
     "image_mapping_udim.blend",
+    # Redundant with hair_linear_close_up.
+    "hair_ribbon_close_up.blend",
 ]
 
 BLOCKLIST_METAL = [
