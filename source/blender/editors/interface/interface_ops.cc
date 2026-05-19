@@ -3031,7 +3031,7 @@ static wmOperatorStatus ui_view_item_active_focus_invoke(bContext *C,
 
 static void UI_OT_view_item_active_focus(wmOperatorType *ot)
 {
-  ot->name = "Auto focus";
+  ot->name = "Focus Active Item";
   ot->idname = "UI_OT_view_item_active_focus";
   ot->description = "Focus active list item";
 
