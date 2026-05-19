@@ -52,7 +52,7 @@ struct SpaceMeasurements {
   /** 3D coordinates of the vertices. */
   Array<float3> positions;
   /** Cumulative distances along the chain. */
-  Vector<float> knot_distances;
+  Array<float> knot_distances;
   /** The total length of the chain. */
   float total_length;
 };
@@ -207,7 +207,7 @@ static SpaceMeasurements measure_chain(const SpaceChainData &chain)
   for (const int i : IndexRange(num_verts)) {
     measure.positions[i] = float3(chain.verts[i]->co);
   }
-  measure.knot_distances.resize(num_verts + (chain.is_closed ? 1 : 0));
+  measure.knot_distances.reinitialize(num_verts + (chain.is_closed ? 1 : 0));
   measure.knot_distances[0] = 0.0f;
   length_parameterize::accumulate_lengths<float3>(
       measure.positions, chain.is_closed, measure.knot_distances.as_mutable_span().drop_front(1));
