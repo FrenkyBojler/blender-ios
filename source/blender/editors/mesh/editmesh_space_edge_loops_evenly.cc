@@ -12,6 +12,7 @@
 #include "BKE_context.hh"
 #include "BKE_editmesh.hh"
 #include "BKE_layer.hh"
+#include "BKE_report.hh"
 
 #include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
@@ -46,12 +47,18 @@ static wmOperatorStatus edbm_space_edge_loops_evenly_exec(bContext *C, wmOperato
   const int interpolation = RNA_enum_get(op->ptr, "interpolation");
   bool lock[3];
   RNA_boolean_get_array(op->ptr, "lock", lock);
-  bool changed = false;
+  bool has_edges_selected = false;
+  bool changed_multi = false;
 
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
     BMesh *bm = em->bm;
-    if (bm->totvertsel < 3) {
+    if (bm->totedgesel > 0) {
+      has_edges_selected = true;
+    }
+    /* At least 2 connected edges are needed to form a chain.
+     * This check isn't fool-proof since edges may be disconnected. */
+    if (bm->totedgesel < 2) {
       continue;
     }
     if (!EDBM_op_callf(em,
@@ -67,14 +74,23 @@ static wmOperatorStatus edbm_space_edge_loops_evenly_exec(bContext *C, wmOperato
     {
       continue;
     }
-    changed = true;
+    changed_multi = true;
     EDBMUpdate_Params params{};
     params.calc_looptris = true;
     params.calc_normals = true;
     EDBM_update(id_cast<Mesh *>(obedit->data), &params);
   }
 
-  return changed ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
+  if (!changed_multi) {
+    if (!has_edges_selected) {
+      BKE_report(op->reports, RPT_WARNING, "No edges selected");
+    }
+    else {
+      BKE_report(op->reports, RPT_WARNING, "No edge loops found containing 2 or more edges");
+    }
+  }
+
+  return changed_multi ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
 }
 
 static void edbm_space_ui(bContext * /*C*/, wmOperator *op)
