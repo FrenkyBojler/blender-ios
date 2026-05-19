@@ -19,6 +19,10 @@ enum class StringPatternMode {
   Wildcard = 1,
 };
 
+/**
+ * A predicate for strings. A pattern can be created and then other strings can be tested against
+ * it.
+ */
 class StringPattern {
  private:
   struct Exact {
@@ -46,12 +50,18 @@ class StringPattern {
   StringPattern(PatternVariant variant) : variant_(std::move(variant)) {}
 
  public:
+  /**
+   * Create a new pattern. If the pattern is invalid, nullopt is returned and the error message is
+   * set.
+   */
   static std::optional<StringPattern> from_string(StringPatternMode mode,
                                                   StringRef pattern,
                                                   std::string &r_error);
 
+  /** Returns true if the string matches the pattern. */
   bool match(StringRef query) const;
 
+  /** Sometimes things can be implemented more efficiently when there is an exact pattern. */
   std::optional<StringRef> exact_pattern() const
   {
     if (const Exact *exact = std::get_if<Exact>(&variant_)) {
