@@ -86,6 +86,7 @@ def setup():
 
         skip_hair_setup = scene.get("EEVEE_skip_hair_setup", False)
         skip_probes_setup = scene.get("EEVEE_skip_probes_setup", False)
+        skip_raytracing_setup = scene.get("EEVEE_skip_raytracing_setup", False)
         skip_shadow_setup = scene.get("EEVEE_skip_shadow_setup", False)
         skip_subsurface_setup = scene.get("EEVEE_skip_subsurface_setup", False)
 
@@ -124,16 +125,16 @@ def setup():
         if scene.render.use_motion_blur:
             eevee.motion_blur_steps = 10
 
-        # Ray-tracing
-        eevee.use_raytracing = True
-        eevee.ray_tracing_method = 'SCREEN'
-        ray_tracing = eevee.ray_tracing_options
-        ray_tracing.resolution_scale = "1"
-        ray_tracing.screen_trace_quality = 1.0
-        ray_tracing.screen_trace_thickness = 1.0
-
-        # Fast GI
-        eevee.fast_gi_quality = 0.8
+        if not skip_raytracing_setup:
+            # Ray-tracing
+            eevee.use_raytracing = True
+            eevee.ray_tracing_method = 'SCREEN'
+            ray_tracing = eevee.ray_tracing_options
+            ray_tracing.resolution_scale = "1"
+            ray_tracing.screen_trace_quality = 1.0
+            ray_tracing.screen_trace_thickness = 1.0
+            # Fast GI
+            eevee.fast_gi_quality = 0.8
 
         # Light-probes
         if not skip_probes_setup:
