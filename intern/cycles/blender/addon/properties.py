@@ -239,6 +239,8 @@ enum_view3d_shading_render_pass = (
 )
 
 enum_view3d_debug_render_pass = (
+    ('MOTION', "Vector", "Show motion vectors"),
+
     ('VOLUME_SCATTER', "Volume Scatter", "Show the contribution of scattered ray in volume"),
     ('VOLUME_TRANSMIT', "Volume Transmit", "Show the contribution of transmitted ray in volume"),
     ('VOLUME_MAJORANT', "Volume Majorant", "Show the majorant transmittance of the volume")
@@ -1581,6 +1583,18 @@ class CyclesRenderLayerSettings(bpy.types.PropertyGroup):
         name="Store Denoising Passes",
         description="Store the denoising feature passes and the noisy image. The passes adapt to the denoiser selected for rendering",
         default=False,
+        update=update_render_passes,
+    )
+    denoising_pass_follow_reflections: BoolProperty(
+        name="Denoising Pass Reflections",
+        description="Follow reflections for the denoising feature passes",
+        default=True,
+        update=update_render_passes,
+    )
+    denoising_pass_use_albedo_roughness_weighting: BoolProperty(
+        name="Denoising Pass Albedo Roughness Weighting",
+        description="Use roughness-based weighting of the albedo for the denoising feature passes",
+        default=True,
         update=update_render_passes,
     )
 

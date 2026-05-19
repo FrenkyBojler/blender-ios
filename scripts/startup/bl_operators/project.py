@@ -3,14 +3,16 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 import os
-from pathlib import Path
 import logging
 from dataclasses import dataclass
 from enum import Enum
 
 import bpy
 from bpy.types import Operator
-from bpy.app.translations import pgettext_rpt as rpt_
+from bpy.app.translations import (
+    pgettext_rpt as rpt_,
+    pgettext_data as data_,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -18,9 +20,11 @@ logger = logging.getLogger(__name__)
 PROJECT_DIR = ".blender_project"
 PROJECT_CONFIG = "project.toml"
 
+PROJECT_DEFAULT_NAME = "Untitled Project"
 
 # -------------------------------------------------------------
 # Types that define the schema for reading/writing project config TOML files.
+
 
 class VariableType(Enum):
     INTEGER = 'INTEGER'
@@ -36,6 +40,7 @@ class ProjectVariable:
     value: int | str | float
     description: str | None = None
 
+    @staticmethod
     def new_from_real(project_variable):
         match project_variable.type:
             case 'INTEGER':
@@ -59,6 +64,7 @@ class ProjectConfig:
     name: str
     variables: list[ProjectVariable] | None = None
 
+    @staticmethod
     def new_from_project(project):
         """Create a ProjectConfig object from an existing real project."""
         return ProjectConfig(
@@ -108,7 +114,8 @@ class ProjectLoadException(Exception):
 # -------------------------------------------------------------
 
 def save_project(project, report=None):
-    """Save the passed project to disk.
+    """
+    Save the passed project to disk.
 
     Throws a ProjectSaveException in any of the following cases:
 
@@ -122,6 +129,7 @@ def save_project(project, report=None):
 
     import cattrs
     import tomli_w
+    from pathlib import Path
 
     if project is None:
         if report:
@@ -194,7 +202,8 @@ def save_project(project, report=None):
 
 
 def find_and_load_project_for_blend_path(context, blend_path, report=None):
-    """Load the project the blend file is in, or clears the project if none is found.
+    """
+    Load the project the blend file is in, or clears the project if none is found.
 
     Throws a ProjectLoadException if a project is found but is invalid
     (missing config file, config validation error, etc.).
@@ -202,11 +211,15 @@ def find_and_load_project_for_blend_path(context, blend_path, report=None):
     Optionally takes an `Operator.report` for reporting errors to the user.
     """
 
+    from pathlib import Path
+
     if blend_path == "":
         # Not an on-disk blend file, so there is no project to load.
         bpy.data.project_clear()
         return
 
+    # Note: `blend_path` (and consequently the resulting `root_path`) are
+    # assumed/expected to be absolute here.
     root_path = find_project_root_from_blend_file_path(Path(blend_path))
     if root_path is None:
         # No project.
@@ -228,7 +241,8 @@ def find_and_load_project_for_blend_path(context, blend_path, report=None):
 
 
 def find_project_root_from_blend_file_path(blend_path):
-    """Search for a project root in the parent directories of the given path.
+    """
+    Search for a project root in the parent directories of the given path.
 
     Returns the project root if found, or None otherwise.
     """
@@ -240,7 +254,8 @@ def find_project_root_from_blend_file_path(blend_path):
 
 
 def read_project_toml_config(root_path, report=None) -> ProjectConfig:
-    """Read the project config for the given project root path.
+    """
+    Read the project config for the given project root path.
 
     Throws a ProjectLoadException if no config is found, if the config is
     not readable due to filesystem permissions, or if it's not a valid
@@ -296,7 +311,8 @@ def read_project_toml_config(root_path, report=None) -> ProjectConfig:
 
 
 def blend_file_is_in_valid_project(blend_file_path):
-    """Return whether the blend file is inside a valid project or not.
+    """
+    Return whether the blend file is inside a valid project or not.
 
     True if the blend file is inside a valid project, false if no project is
     found or if the project is invalid.
@@ -341,7 +357,9 @@ class PROJECT_OT_NewProject(Operator):
         return bpy.data.project is None and bpy.data.filepath != ""
 
     def execute(self, context):
-        if not bpy.context.preferences.experimental.use_blender_projects:
+        from pathlib import Path
+
+        if not context.preferences.experimental.use_blender_projects:
             self.report({'ERROR'}, "Blender Projects experimental feature not enabled.")
             return {'CANCELLED'}
 
@@ -366,7 +384,13 @@ class PROJECT_OT_NewProject(Operator):
             return {'CANCELLED'}
 
         # Get the initial project name based on the folder name.
-        project_name = os.path.basename(os.path.normpath(self.directory)).title()
+        #
+        # If the folder name contains no valid unicode (resulting in an empty
+        # string after processing), we fallback to a default.
+        project_name = os.path.basename(os.path.normpath(self.directory)).title() \
+            .encode('utf-8', 'surrogateescape') \
+            .decode('utf-8', 'ignore') \
+            or data_(PROJECT_DEFAULT_NAME)
 
         # Create the project.
         bpy.data.project_init(project_name, self.directory)
@@ -401,7 +425,7 @@ class PROJECT_OT_SaveProject(Operator):
         return bpy.data.project is not None
 
     def execute(self, context):
-        if not bpy.context.preferences.experimental.use_blender_projects:
+        if not context.preferences.experimental.use_blender_projects:
             self.report({'ERROR'}, "Blender Projects experimental feature not enabled.")
             return {'CANCELLED'}
 
@@ -442,7 +466,9 @@ class PROJECT_OT_OpenBlendInProject(Operator):
         return True
 
     def execute(self, context):
-        if not bpy.context.preferences.experimental.use_blender_projects:
+        from pathlib import Path
+
+        if not context.preferences.experimental.use_blender_projects:
             self.report({'ERROR'}, "Blender Projects experimental feature not enabled.")
             return {'CANCELLED'}
 
@@ -551,11 +577,14 @@ class PROJECT_OT_MoveVariable(Operator):
 # exiting.
 
 def log_project_save_error():
-    logger.error(f"Error trying to save project '{bpy.data.project.name}' at '{bpy.data.project.root_path}'.")
+    logger.error(
+        "Error trying to save project '{:s}' at '{:s}'.".format(
+            bpy.data.project.name,
+            bpy.data.project.root_path))
 
 
 def log_project_load_error(blend_path):
-    logger.error(f"Error trying to load project for blend file '{blend_path}'.")
+    logger.error("Error trying to load project for blend file '{:s}'.".format(blend_path))
 
 
 @bpy.app.handlers.persistent

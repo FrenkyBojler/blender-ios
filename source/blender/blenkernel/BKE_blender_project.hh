@@ -8,10 +8,12 @@
 
 #pragma once
 
+#include <concepts>
 #include <cstdint>
-#include <functional>
 #include <memory>
+#include <optional>
 
+#include "BLI_function_ref.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_vector.hh"
 
@@ -108,6 +110,48 @@ class BlenderProject {
   void move_variable(int from_index, int to_index);
 };
 
+/**
+ * Run the given lambda with the global project mutex locked for reading.
+ *
+ * NOTE: you should avoid using this function directly, except in RNA code where
+ * the project pointer is already directly provided. Prefer using
+ * `BKE_blender_project_read_callback()`, which fetches the appropriate project for a
+ * given `Main`.
+ *
+ * \see BKE_blender_project_read_callback()
+ */
+void with_blender_project_read_lock(FunctionRef<void()> lambda);
+
+/**
+ * Run the given lambda with the global project mutex locked for writing.
+ *
+ * NOTE: you should avoid using this function directly, except in RNA code where
+ * the project pointer is already directly provided. Prefer using
+ * `BKE_blender_project_write_callback()`, which fetches the appropriate project for
+ * a given `Main`.
+ *
+ * \see BKE_blender_project_read_callback()
+ */
+void with_blender_project_write_lock(FunctionRef<void()> lambda);
+
+/**
+ * Underlying impl for `BKE_blender_project_read_callback()`.
+ *
+ * Please see the documentation for and use `BKE_blender_project_read_callback()` instead
+ * of this.
+ */
+void blender_project_read_callback_impl(const Main *bmain,
+                                        FunctionRef<void(const bke::BlenderProject *)> lambda);
+
+/**
+ * Underlying impl for `BKE_blender_project_write_callback()`.
+ *
+ * Please see the documentation for and use `BKE_blender_project_write_callback()`
+ * instead of this.
+ */
+void blender_project_write_callback_impl(const Main *bmain,
+                                         FunctionRef<void(bke::BlenderProject *)> lambda);
+
 }  // namespace bke
 
 /**
@@ -115,7 +159,7 @@ class BlenderProject {
  *
  * WARNING: this fetches the project without any synchronization for
  * multi-threading, so it is your responsibility to ensure thread safety. Prefer
- * using `BKE_with_blender_project()` and `BKE_with_blender_project_write()`,
+ * using `BKE_blender_project_read_callback()` and `BKE_blender_project_write_callback()`,
  * which handle thread synchronization for you.
  *
  * \param bmain: The `Main` to return the active project for. At the moment,
@@ -126,9 +170,9 @@ class BlenderProject {
  * \returns Either the current active project, or nullptr if there is no active
  * project or if the passed bmain is considered projectless.
  *
- * \see BKE_with_blender_project()
+ * \see BKE_blender_project_read_callback()
  *
- * \see BKE_with_blender_project_write()
+ * \see BKE_blender_project_write_callback()
  */
 bke::BlenderProject *BKE_blender_project_get(const Main *bmain);
 
@@ -136,34 +180,66 @@ bke::BlenderProject *BKE_blender_project_get(const Main *bmain);
  * Run the given lambda with read-only access to the active Blender Project, if
  * any.
  *
- * This follows the same semantics as `BKE_blender_project_get()`, but ensures
- * thread safety by holding a shared mutex lock while the lambda is run.
+ * This follows the same project-fetching semantics as
+ * `BKE_blender_project_get()`, but ensures thread safety by holding a shared
+ * mutex lock while running the lambda with access to the fetched project.
+ *
+ * The lambda takes a single `const BlenderProject *` parameter, and may return
+ * a value of any type (including `void` if none). The returned value (if any)
+ * is passed through and returned by this function.
  *
  * NOTE: the lambda is run even if there is no project, in which case the lambda
  * receives a nullptr.
  *
  * \see BKE_blender_project_get()
  *
- * \see BKE_with_blender_project_write()
+ * \see BKE_blender_project_write_callback()
  */
-void BKE_with_blender_project(const Main *bmain,
-                              std::function<void(const bke::BlenderProject *)> lambda);
+template<std::invocable<const bke::BlenderProject *> Fn>
+inline auto BKE_blender_project_read_callback(const Main *bmain, Fn lambda)
+{
+  using T = std::invoke_result_t<Fn, const bke::BlenderProject *>;
+  if constexpr (std::is_void_v<T>) {
+    bke::blender_project_read_callback_impl(bmain, lambda);
+  }
+  else {
+    std::optional<T> result;
+    bke::blender_project_read_callback_impl(
+        bmain, [&](const bke::BlenderProject *project) { result = lambda(project); });
+    BLI_assert(result.has_value());
+    return std::move(*result);
+  }
+}
 
 /**
  * Run the given lambda with write access to the active Blender Project, if any.
  *
- * Same as `BKE_with_blender_project()`, except that it takes an exclusive mutex
- * lock to provide write access to the project.
+ * Same as `BKE_blender_project_read_callback()`, except that it takes an
+ * exclusive mutex lock to provide write access to the project, and the lambda
+ * in turn takes a non-const `BlenderProject *` parameter.
  *
- * If you only need to read from the project, use `BKE_with_blender_project()`
+ * If you only need to read from the project, use `BKE_blender_project_read_callback()`
  * instead of this to reduce thread contention.
  *
  * \see BKE_blender_project_get()
  *
- * \see BKE_with_blender_project()
+ * \see BKE_blender_project_read_callback()
  */
-void BKE_with_blender_project_write(const Main *bmain,
-                                    std::function<void(bke::BlenderProject *)> lambda);
+template<std::invocable<bke::BlenderProject *> Fn>
+inline auto BKE_blender_project_write_callback(const Main *bmain, Fn lambda)
+{
+  using T = std::invoke_result_t<Fn, bke::BlenderProject *>;
+  if constexpr (std::is_void_v<T>) {
+    bke::blender_project_write_callback_impl(bmain, lambda);
+  }
+  else {
+    std::optional<T> result;
+    bke::blender_project_write_callback_impl(
+        bmain, [&](bke::BlenderProject *project) { result = lambda(project); });
+    BLI_assert(result.has_value());
+    return std::move(*result);
+  }
+}
 
 /**
  * Initialize a new active Blender Project.

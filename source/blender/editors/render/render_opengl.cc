@@ -297,7 +297,7 @@ static void screen_opengl_render_doit(OGLRender *oglrender, RenderResult *rr)
     }
     else if (gpd) {
       /* If there are no strips, Grease Pencil still needs a buffer to draw on */
-      ibuf_result = IMB_allocImBuf(sizex, sizey, 32, IB_byte_data);
+      ibuf_result = IMB_allocImBuf(sizex, sizey, ImBufFlags::ByteData);
     }
 
     if (gpd) {
@@ -347,12 +347,12 @@ static void screen_opengl_render_doit(OGLRender *oglrender, RenderResult *rr)
       ARegion *region = oglrender->region;
       ibuf_view = ED_view3d_draw_offscreen_imbuf(depsgraph,
                                                  scene,
-                                                 static_cast<eDrawType>(v3d->shading.type),
+                                                 v3d->shading.type,
                                                  v3d,
                                                  region,
                                                  sizex,
                                                  sizey,
-                                                 IB_float_data,
+                                                 ImBufFlags::FloatData,
                                                  alpha_mode,
                                                  viewname,
                                                  true,
@@ -375,7 +375,7 @@ static void screen_opengl_render_doit(OGLRender *oglrender, RenderResult *rr)
                                                         scene->camera,
                                                         sizex,
                                                         sizey,
-                                                        IB_float_data,
+                                                        ImBufFlags::FloatData,
                                                         V3D_OFSDRAW_SHOW_ANNOTATION,
                                                         alpha_mode,
                                                         viewname,
@@ -724,8 +724,9 @@ static bool screen_opengl_render_init(bContext *C, wmOperator *op)
   const bool is_animation = RNA_boolean_get(op->ptr, "animation");
   const bool is_render_keyed_only = RNA_boolean_get(op->ptr, "render_keyed_only");
   const bool is_write_still = RNA_boolean_get(op->ptr, "write_still");
-  const eImageFormatDepth color_depth = static_cast<eImageFormatDepth>(
-      (is_animation) ? eImageFormatDepth(scene->r.im_format.depth) : R_IMF_CHAN_DEPTH_32);
+  const eImageFormatDepth color_depth = is_animation ?
+                                            eImageFormatDepth(scene->r.im_format.depth) :
+                                            R_IMF_CHAN_DEPTH_32;
   char err_out[256] = "unknown";
 
   if (G.background) {
@@ -995,18 +996,18 @@ static bool screen_opengl_render_anim_init(wmOperator *op)
       const char *suffix = is_multiview_name ?
                                BKE_scene_multiview_view_id_suffix_get(&scene->r, i) :
                                "";
-      MovieWriter *writer;
-      BKE_with_blender_project(G_MAIN, [&](const bke::BlenderProject *project) {
-        writer = MOV_write_begin(scene_eval,
-                                 project,
-                                 &scene->r,
-                                 &image_format,
-                                 width,
-                                 height,
-                                 oglrender->reports,
-                                 PRVRANGEON != 0,
-                                 suffix);
-      });
+      MovieWriter *writer = BKE_blender_project_read_callback(
+          oglrender->bmain, [&](const bke::BlenderProject *project) {
+            return MOV_write_begin(scene_eval,
+                                   project,
+                                   &scene->r,
+                                   &image_format,
+                                   width,
+                                   height,
+                                   oglrender->reports,
+                                   PRVRANGEON != 0,
+                                   suffix);
+          });
       if (writer == nullptr) {
         BKE_image_format_free(&image_format);
         screen_opengl_render_end(oglrender);
@@ -1029,6 +1030,7 @@ static bool screen_opengl_render_anim_init(wmOperator *op)
 }
 
 struct WriteTaskData {
+  Main *bmain;
   RenderResult *rr = nullptr;
   Scene tmp_scene;
 };
@@ -1135,7 +1137,7 @@ static void write_result_func(TaskPool *__restrict pool, void *task_data_v)
    * and cause the render thread and writing threads to deadlock waiting for each other. */
   WriteTaskData *task_data = static_cast<WriteTaskData *>(task_data_v);
   threading::isolate_task([&] {
-    BKE_with_blender_project(G_MAIN, [&](const bke::BlenderProject *project) {
+    BKE_blender_project_read_callback(task_data->bmain, [&](const bke::BlenderProject *project) {
       write_result(project, pool, task_data);
     });
   });
@@ -1149,6 +1151,7 @@ static bool schedule_write_result(OGLRender *oglrender, RenderResult *rr)
   }
   Scene *scene = oglrender->scene;
   WriteTaskData *task_data = MEM_new<WriteTaskData>("write task data");
+  task_data->bmain = oglrender->bmain;
   task_data->rr = rr;
   task_data->tmp_scene = dna::shallow_copy(*scene);
   {
@@ -1277,7 +1280,7 @@ static wmOperatorStatus screen_opengl_render_modal(bContext *C,
   /* Still render completes immediately, but still modal to show some feedback
    * in case render initialization takes a while. */
   if (!oglrender->is_animation) {
-    BKE_with_blender_project(CTX_data_main(C), [&](const bke::BlenderProject *project) {
+    BKE_blender_project_read_callback(CTX_data_main(C), [&](const bke::BlenderProject *project) {
       screen_opengl_render_apply(project, oglrender);
     });
     screen_opengl_render_end(oglrender);
@@ -1313,7 +1316,7 @@ static void opengl_render_startjob(void *customdata, wmJobWorkerStatus *worker_s
       canceled = true;
     }
     else {
-      BKE_with_blender_project(G_MAIN, [&](const bke::BlenderProject *project) {
+      BKE_blender_project_read_callback(oglrender->bmain, [&](const bke::BlenderProject *project) {
         finished = !screen_opengl_render_anim_step(project, oglrender);
       });
       worker_status->progress = float(scene->r.cfra - playback_range.start_frame + 1) /
@@ -1399,7 +1402,7 @@ static wmOperatorStatus screen_opengl_render_exec(bContext *C, wmOperator *op)
   OGLRender *oglrender = static_cast<OGLRender *>(op->customdata);
 
   if (!oglrender->is_animation) { /* same as invoke */
-    BKE_with_blender_project(bmain, [&](const bke::BlenderProject *project) {
+    BKE_blender_project_read_callback(bmain, [&](const bke::BlenderProject *project) {
       screen_opengl_render_apply(project, oglrender);
     });
     screen_opengl_render_end(oglrender);
@@ -1414,7 +1417,7 @@ static wmOperatorStatus screen_opengl_render_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  BKE_with_blender_project(bmain, [&](const bke::BlenderProject *project) {
+  BKE_blender_project_read_callback(bmain, [&](const bke::BlenderProject *project) {
     while (ret) {
       ret = screen_opengl_render_anim_step(project, oglrender);
     }

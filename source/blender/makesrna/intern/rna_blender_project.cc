@@ -39,17 +39,10 @@ namespace blender {
 
 using namespace bke;
 
-/* --------------------------------------------------------- */
-
-static void project_mark_dirty()
+static void project_mark_dirty(bke::BlenderProject *project)
 {
-  BKE_with_blender_project_write(G_MAIN, [&](bke::BlenderProject *project) {
-    if (project == nullptr) {
-      return;
-    }
-
-    project->is_dirty = true;
-  });
+  BLI_assert(project != nullptr);
+  bke::with_blender_project_write_lock([&] { project->is_dirty = true; });
 }
 
 /* For properties that AREN'T saved to disk as part of the project data. */
@@ -60,9 +53,21 @@ static void rna_BlenderProject_ui_update(Main * /*bmain*/, Scene * /*scene*/, Po
 }
 
 /* For properties that ARE saved to disk as part of the project data. */
-static void rna_BlenderProject_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA * /*ptr*/)
+static void rna_BlenderProject_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)
 {
-  project_mark_dirty();
+  bke::BlenderProject *project = static_cast<bke::BlenderProject *>(ptr->data);
+  project_mark_dirty(project);
+
+  /* Force full redraw of all windows. */
+  WM_main_add_notifier(NC_WINDOW, nullptr);
+}
+
+static void rna_ProjectVariable_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)
+{
+  BlenderProject *project = ptr->parent().data_as<BlenderProject>();
+  BLI_assert(project != nullptr);
+
+  project_mark_dirty(project);
 
   /* Force full redraw of all windows. */
   WM_main_add_notifier(NC_WINDOW, nullptr);
@@ -195,61 +200,54 @@ static void rna_ProjectVariable_value_string_set(PointerRNA *ptr, const char *va
 
 static void rna_BlenderProject_name_get(PointerRNA *ptr, char *value)
 {
-  BKE_with_blender_project(G_MAIN, [&](const bke::BlenderProject *locked_project) {
+  bke::with_blender_project_read_lock([&] {
     const bke::BlenderProject *project = static_cast<bke::BlenderProject *>(ptr->data);
-    BLI_assert(project == locked_project);
-
     strcpy(value, project->get_name().c_str());
   });
 }
 
 static int rna_BlenderProject_name_length(PointerRNA *ptr)
 {
-  int length;
-  BKE_with_blender_project(G_MAIN, [&](const bke::BlenderProject *locked_project) {
+  int name_length;
+  bke::with_blender_project_read_lock([&] {
     const bke::BlenderProject *project = static_cast<bke::BlenderProject *>(ptr->data);
-    BLI_assert(project == locked_project);
-
-    length = project->get_name().size();
+    name_length = project->get_name().size();
   });
-  return length;
+  return name_length;
 }
 
 static void rna_BlenderProject_name_set(PointerRNA *ptr, const char *value)
 {
-  BKE_with_blender_project_write(G_MAIN, [&](bke::BlenderProject *locked_project) {
+  bke::with_blender_project_write_lock([&] {
     bke::BlenderProject *project = static_cast<bke::BlenderProject *>(ptr->data);
-    BLI_assert(project == locked_project);
 
-    if (strlen(value) == 0) {
+    StringRef name = StringRef(value);
+
+    if (name.is_empty()) {
       /* Leave the name as-is when passed an empty (which is invalid) name. */
       return;
     }
 
-    project->set_name(value);
+    project->set_name(name);
   });
 }
 
 static void rna_BlenderProject_root_path_get(PointerRNA *ptr, char *value)
 {
-  BKE_with_blender_project(G_MAIN, [&](const bke::BlenderProject *locked_project) {
+  bke::with_blender_project_read_lock([&] {
     const bke::BlenderProject *project = static_cast<bke::BlenderProject *>(ptr->data);
-    BLI_assert(project == locked_project);
-
     strcpy(value, project->get_root_path().c_str());
   });
 }
 
 static int rna_BlenderProject_root_path_length(PointerRNA *ptr)
 {
-  int length;
-  BKE_with_blender_project(G_MAIN, [&](const bke::BlenderProject *locked_project) {
+  int root_path_length;
+  bke::with_blender_project_read_lock([&] {
     const bke::BlenderProject *project = static_cast<bke::BlenderProject *>(ptr->data);
-    BLI_assert(project == locked_project);
-
-    length = project->get_root_path().size();
+    root_path_length = project->get_root_path().size();
   });
-  return length;
+  return root_path_length;
 }
 
 static int rna_BlenderProject_active_variable_index_get(PointerRNA *ptr)
@@ -339,7 +337,7 @@ static PointerRNA rna_ProjectVariables_new(bke::BlenderProject *project,
 
   project->active_variable_index = project->variables.size() - 1;
 
-  project_mark_dirty();
+  project_mark_dirty(project);
 
   return RNA_pointer_create_with_parent(
       RNA_pointer_create_discrete(nullptr, RNA_BlenderProject, project),
@@ -368,7 +366,7 @@ void rna_ProjectVariables_remove(bke::BlenderProject *project_data,
   project_data->active_variable_index = std::min(project_data->active_variable_index,
                                                  int(project_data->variables.size() - 1));
 
-  project_mark_dirty();
+  project_mark_dirty(project_data);
 }
 
 void rna_ProjectVariables_move(bke::BlenderProject *project_data,
@@ -388,7 +386,7 @@ void rna_ProjectVariables_move(bke::BlenderProject *project_data,
 
   project_data->move_variable(from_index, to_index);
 
-  project_mark_dirty();
+  project_mark_dirty(project_data);
 }
 
 /* --------------------------------------------------------- */
@@ -396,9 +394,8 @@ void rna_ProjectVariables_move(bke::BlenderProject *project_data,
 static bool rna_BlenderProject_is_dirty_get(PointerRNA *ptr)
 {
   bool is_dirty;
-  BKE_with_blender_project(G_MAIN, [&](const bke::BlenderProject *locked_project) {
+  bke::with_blender_project_read_lock([&] {
     bke::BlenderProject *project = static_cast<bke::BlenderProject *>(ptr->data);
-    BLI_assert(project == locked_project);
     is_dirty = project->is_dirty;
   });
   return is_dirty;
@@ -406,9 +403,8 @@ static bool rna_BlenderProject_is_dirty_get(PointerRNA *ptr)
 
 static void rna_BlenderProject_is_dirty_set(PointerRNA *ptr, bool value)
 {
-  BKE_with_blender_project_write(G_MAIN, [&](bke::BlenderProject *locked_project) {
+  bke::with_blender_project_write_lock([&] {
     bke::BlenderProject *project = static_cast<bke::BlenderProject *>(ptr->data);
-    BLI_assert(project == locked_project);
     project->is_dirty = value;
   });
 }
@@ -433,7 +429,7 @@ void rna_def_project_variable(BlenderRNA *brna)
                                 "rna_ProjectVariable_name_get",
                                 "rna_ProjectVariable_name_length",
                                 "rna_ProjectVariable_name_set");
-  RNA_def_property_update(prop, 0, "rna_BlenderProject_update");
+  RNA_def_property_update(prop, 0, "rna_ProjectVariable_update");
 
   prop = RNA_def_property(srna, "description", PROP_STRING, PROP_NONE);
   RNA_def_property_ui_text(
@@ -442,26 +438,26 @@ void rna_def_project_variable(BlenderRNA *brna)
                                 "rna_ProjectVariable_description_get",
                                 "rna_ProjectVariable_description_length",
                                 "rna_ProjectVariable_description_set");
-  RNA_def_property_update(prop, 0, "rna_BlenderProject_update");
+  RNA_def_property_update(prop, 0, "rna_ProjectVariable_update");
 
   prop = RNA_def_property(srna, "type", PROP_ENUM, PROP_NONE);
   RNA_def_property_ui_text(prop, "Type", "The variable's data type");
   RNA_def_property_enum_items(prop, rna_enum_project_variable_type_items);
   RNA_def_property_enum_funcs(
       prop, "rna_ProjectVariable_type_get", "rna_ProjectVariable_type_set", nullptr);
-  RNA_def_property_update(prop, 0, "rna_BlenderProject_update");
+  RNA_def_property_update(prop, 0, "rna_ProjectVariable_update");
 
   prop = RNA_def_property(srna, "value_int", PROP_INT, PROP_NONE);
   RNA_def_property_ui_text(prop, "Value", "The variable's integer value");
   RNA_def_property_int_funcs(
       prop, "rna_ProjectVariable_value_int_get", "rna_ProjectVariable_value_int_set", nullptr);
-  RNA_def_property_update(prop, 0, "rna_BlenderProject_update");
+  RNA_def_property_update(prop, 0, "rna_ProjectVariable_update");
 
   prop = RNA_def_property(srna, "value_float", PROP_FLOAT, PROP_NONE);
   RNA_def_property_ui_text(prop, "Value", "The variable's floating point value");
   RNA_def_property_float_funcs(
       prop, "rna_ProjectVariable_value_float_get", "rna_ProjectVariable_value_float_set", nullptr);
-  RNA_def_property_update(prop, 0, "rna_BlenderProject_update");
+  RNA_def_property_update(prop, 0, "rna_ProjectVariable_update");
 
   prop = RNA_def_property(srna, "value_string", PROP_STRING, PROP_NONE);
   RNA_def_property_ui_text(prop, "Value", "The variable's string/path value");
@@ -469,7 +465,7 @@ void rna_def_project_variable(BlenderRNA *brna)
                                 "rna_ProjectVariable_value_string_get",
                                 "rna_ProjectVariable_value_string_length",
                                 "rna_ProjectVariable_value_string_set");
-  RNA_def_property_update(prop, 0, "rna_BlenderProject_update");
+  RNA_def_property_update(prop, 0, "rna_ProjectVariable_update");
 }
 
 static void rna_def_ProjectVariables(BlenderRNA *brna, PropertyRNA *cprop)

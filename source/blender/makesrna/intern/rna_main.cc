@@ -146,13 +146,11 @@ static PointerRNA rna_Main_blender_project_get(PointerRNA *ptr)
 {
   Main *bmain = reinterpret_cast<Main *>(ptr->data);
 
-  PointerRNA ret_ptr;
-  /* Needs to be the `_write` variant of `BKE_with_blender_project` because
+  /* Needs to be the `write_callback` variant instead of `read_callback` because
    * `RNA_pointer_create_discrete()` expects a non-const pointer. */
-  BKE_with_blender_project_write(bmain, [&](bke::BlenderProject *project) {
-    ret_ptr = RNA_pointer_create_discrete(nullptr, RNA_BlenderProject, project);
+  return BKE_blender_project_write_callback(bmain, [&](bke::BlenderProject *project) {
+    return RNA_pointer_create_discrete(nullptr, RNA_BlenderProject, project);
   });
-  return ret_ptr;
 }
 #  endif
 
