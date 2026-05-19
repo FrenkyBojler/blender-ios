@@ -1,1 +1,2 @@
 Referenced by issue #158783, VSE crash using Split, Delete and Shift+S
+Referenced by pull request #158786, Fix #158783: VSE snap strip crash with no active strip
