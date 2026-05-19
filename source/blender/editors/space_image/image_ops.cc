@@ -4513,7 +4513,7 @@ static bool tile_remove_poll(bContext *C)
 {
   Image *ima = CTX_data_edit_image(C);
 
-  return (ima != nullptr && ima->source == IMA_SRC_TILED && !BLI_listbase_is_single(&ima->tiles));
+  return (ima != nullptr && ima->source == IMA_SRC_TILED && !ima->tiles.is_single());
 }
 
 static wmOperatorStatus tile_remove_exec(bContext *C, wmOperator * /*op*/)

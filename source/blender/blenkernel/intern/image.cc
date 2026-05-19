@@ -3086,7 +3086,7 @@ static void image_free_tile(Image *ima, ImageTile *tile)
 
 static bool image_remove_tile(Image *ima, ImageTile *tile)
 {
-  if (BLI_listbase_is_single(&ima->tiles)) {
+  if (ima->tiles.is_single()) {
     /* Can't remove the last remaining tile. */
     return false;
   }

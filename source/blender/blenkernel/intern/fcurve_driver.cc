@@ -1317,7 +1317,7 @@ static void evaluate_driver_sum(const AnimationEvalContext *anim_eval_context,
   DriverVar *dvar;
 
   /* Check how many variables there are first (i.e. just one?). */
-  if (BLI_listbase_is_single(&driver->variables)) {
+  if (driver->variables.is_single()) {
     /* Just one target, so just use that. */
     dvar = static_cast<DriverVar *>(driver->variables.first);
     driver->curval = driver_get_variable_value(anim_eval_context, driver, dvar);

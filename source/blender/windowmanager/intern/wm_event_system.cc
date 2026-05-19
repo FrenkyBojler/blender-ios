@@ -2925,7 +2925,7 @@ static eHandlerActionFlag wm_handler_fileselect_do(bContext *C,
 
           ED_fileselect_params_to_userdef(static_cast<SpaceFile *>(file_area->spacedata.first));
 
-          if (BLI_listbase_is_single(&file_area->spacedata)) {
+          if (file_area->spacedata.is_single()) {
             BLI_assert(root_win != &win);
 
             wm_window_close_request(C, wm, &win);

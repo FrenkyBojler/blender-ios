@@ -120,7 +120,7 @@ void ED_screen_draw_edges(wmWindow *win)
     return;
   }
 
-  if (BLI_listbase_is_single(&screen->areabase) && win->global_areas.areabase.first == nullptr) {
+  if (screen->areabase.is_single() && win->global_areas.areabase.first == nullptr) {
     /* Do not show edges on windows without global areas and with only one editor. */
     return;
   }

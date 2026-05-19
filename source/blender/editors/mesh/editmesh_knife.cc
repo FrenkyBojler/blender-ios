@@ -1508,7 +1508,7 @@ static BMElem *bm_elem_from_knife_vert(KnifeVert *kfv, KnifeEdge **r_kfe)
 
   /* face? */
   if (ele_test == nullptr) {
-    if (BLI_listbase_is_single(&kfe->faces)) {
+    if (kfe->faces.is_single()) {
       ele_test = static_cast<BMElem *>((static_cast<LinkData *>(kfe->faces.first))->data);
     }
   }

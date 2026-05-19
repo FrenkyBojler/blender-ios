@@ -312,7 +312,7 @@ static PTCacheEdit *pe_get_current(Depsgraph *depsgraph, Scene *scene, Object *o
   BKE_ptcache_ids_from_object(&pidlist, ob, nullptr, 0);
 
   /* in the case of only one editable thing, set pset->edittype accordingly */
-  if (BLI_listbase_is_single(&pidlist)) {
+  if (pidlist.is_single()) {
     pid = static_cast<PTCacheID *>(pidlist.first);
     switch (pid->type) {
       case PTCACHE_TYPE_PARTICLES:

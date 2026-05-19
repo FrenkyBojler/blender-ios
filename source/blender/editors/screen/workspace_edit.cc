@@ -257,7 +257,7 @@ WorkSpace *ED_workspace_duplicate(WorkSpace *workspace_old, Main *bmain, wmWindo
 
 bool ED_workspace_delete(WorkSpace *workspace, Main *bmain, bContext *C, wmWindowManager *wm)
 {
-  if (BLI_listbase_is_single(&bmain->workspaces)) {
+  if (bmain->workspaces.is_single()) {
     return false;
   }
 

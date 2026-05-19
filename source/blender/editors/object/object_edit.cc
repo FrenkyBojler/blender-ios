@@ -2275,7 +2275,7 @@ static wmOperatorStatus move_to_collection_exec(bContext *C, wmOperator *op)
     collection = BKE_collection_add(bmain, collection, new_collection_name);
   }
 
-  Object *single_object = BLI_listbase_is_single(&objects) ?
+  Object *single_object = objects.is_single() ?
                               static_cast<Object *>(
                                   (static_cast<LinkData *>(objects.first))->data) :
                               nullptr;

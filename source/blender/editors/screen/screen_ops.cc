@@ -4248,7 +4248,7 @@ static wmOperatorStatus screen_maximize_area_exec(bContext *C, wmOperator *op)
     if (!ELEM(screen->state, SCREENNORMAL, SCREENMAXIMIZED)) {
       return OPERATOR_CANCELLED;
     }
-    if (BLI_listbase_is_single(&screen->areabase) && screen->state == SCREENNORMAL) {
+    if (screen->areabase.is_single() && screen->state == SCREENNORMAL) {
       /* SCREENMAXIMIZED is not useful when a singleton. #144740. */
       return OPERATOR_CANCELLED;
     }
@@ -4479,7 +4479,7 @@ static bool area_join_apply(bContext *C, wmOperator *op)
     CTX_wm_region_set(C, nullptr);
   }
 
-  if (BLI_listbase_is_single(&screen->areabase)) {
+  if (screen->areabase.is_single()) {
     /* Areas reduced to just one, so show nicer title. */
     WM_window_title_refresh(CTX_wm_manager(C), CTX_wm_window(C));
   }

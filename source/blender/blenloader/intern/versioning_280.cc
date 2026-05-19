@@ -387,7 +387,7 @@ static void do_version_layers_to_collections(Main *bmain, Scene *scene)
 
     /* If we ported all the original render layers,
      * we don't need to make the viewport layer renderable. */
-    if (!BLI_listbase_is_single(&scene->view_layers)) {
+    if (!scene->view_layers.is_single()) {
       view_layer->flag &= ~VIEW_LAYER_RENDER;
     }
 
@@ -2283,7 +2283,7 @@ void do_versions_after_linking_280(FileData *fd, Main *bmain)
 
             space_outliner->outlinevis = SO_VIEW_LAYER;
 
-            if (BLI_listbase_is_single(&layer->layer_collections)) {
+            if (layer->layer_collections.is_single()) {
               if (space_outliner->treestore == nullptr) {
                 space_outliner->treestore = BLI_mempool_create(
                     sizeof(TreeStoreElem), 1, 512, BLI_MEMPOOL_ALLOW_ITER);

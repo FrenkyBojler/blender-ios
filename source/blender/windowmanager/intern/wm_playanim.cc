@@ -904,8 +904,7 @@ static void playanim_toscreen(PlayState &ps, const PlayAnimPict *picture, const 
       frame_indicator_factor = float(double(picture->frame) / double(frame_range));
     }
     else {
-      BLI_assert_msg(BLI_listbase_is_single(&ps.picsbase),
-                     "Multiple frames without a valid range!");
+      BLI_assert_msg(ps.picsbase.is_single(), "Multiple frames without a valid range!");
     }
   }
 
