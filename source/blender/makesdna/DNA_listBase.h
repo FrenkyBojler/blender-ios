@@ -13,6 +13,7 @@
 #pragma once
 
 #include "MEM_guardedalloc.h"
+
 namespace blender {
 
 /** Generic - all structs which are put into linked lists begin with this. */
