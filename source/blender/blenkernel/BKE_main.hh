@@ -366,6 +366,12 @@ struct Main : NonCopyable, NonMovable {
 
   /**
    * Whether this bmain belongs to the global Blender Project or not.
+   *
+   * NOTE: this is currently always true, as we haven't yet determined which
+   * cases it should be false for, and at the moment it's unlikely to hurt much
+   * of anything to be erroneously true. However, in principle this can be false
+   * and likely will be false in some cases of temp mains in the future, so code
+   * should never assume that it's true.
    */
   bool is_part_of_project = true;
 
