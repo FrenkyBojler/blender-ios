@@ -246,7 +246,7 @@ static bool transfer_attributes(
         src_attr.varray.materialize_to_uninitialized(copy_slice, dst_data);
         adapted_old_dst.varray.materialize_to_uninitialized(
             IndexRange(dst_size).drop_front(copy_num), dst_data);
-        if (dst_attributes.add(
+        if (dst_attributes.add_override(
                 item.name, item.domain, item.type, bke::AttributeInitMoveArray(dst_data)))
         {
           transferred_num++;
@@ -303,7 +303,7 @@ static bool transfer_attributes(
       void *dst_data = MEM_new_array_uninitialized_aligned(
           dst_size, type.size, type.alignment, __func__);
       bke::attribute_math::gather(*src_attr, ids.src_by_dst_index, {type, dst_data, dst_size});
-      if (dst_attributes.add(
+      if (dst_attributes.add_override(
               item.name, item.domain, item.type, bke::AttributeInitMoveArray(dst_data)))
       {
         transferred_num++;
@@ -329,7 +329,7 @@ static bool transfer_attributes(
       void *dst_data = MEM_new_array_uninitialized_aligned(
           dst_size, type.size, type.alignment, __func__);
       bke::attribute_math::gather(
-          *src_attr, ids.src_by_dst_index, ids.default_mask, {type, dst_data, dst_size});
+          *src_attr, ids.src_by_dst_index, ids.gather_mask, {type, dst_data, dst_size});
       type.fill_construct_indices(type.default_value(), dst_data, ids.default_mask);
       if (dst_attributes.add(
               item.name, item.domain, item.type, bke::AttributeInitMoveArray(dst_data)))
@@ -352,7 +352,7 @@ static bool transfer_attributes(
     bke::attribute_math::gather(
         src_attr.varray, ids.src_by_dst_index, ids.gather_mask, {type, dst_data, dst_size});
     adapted_old_dst.varray.materialize_to_uninitialized(ids.default_mask, dst_data);
-    if (dst_attributes.add(
+    if (dst_attributes.add_override(
             item.name, item.domain, item.type, bke::AttributeInitMoveArray(dst_data)))
     {
       transferred_num++;
