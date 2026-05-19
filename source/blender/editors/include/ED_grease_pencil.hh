@@ -660,7 +660,7 @@ bke::CurvesGeometry pixel_fill_strokes(const ViewContext &view_context,
  * This uses delaunay triangulation to compute exact fill geometry.
  *
  * This is based on "Delaunay painting: Perceptual image colouring from raster contours with gaps."
- * (Parakkat, Amal Dev, Pooran Memari, and Marie‐Paule Cani)
+ * (Parakkat, Amal Dev, Pooran Memari, and Marie-Paule Cani)
  *
  * Will return `nullopt` when unable to fill.
  *
