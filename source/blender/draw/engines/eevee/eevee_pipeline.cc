@@ -278,10 +278,11 @@ void Prepass::init(DRWState extra_state, FunctionRef<void(PassMain &pass)> pass_
           sub = &pass_.sub(subpass_names[hide_from_raycast][double_sided][moving][write_id]);
           sub->state_set(common_state | DRW_STATE_WRITE_COLOR |
                          (double_sided ? DRW_STATE_NO_DRAW : DRW_STATE_CULL_BACK));
-          sub->subpass_transition(GPU_ATTACHMENT_WRITE,
-                                  {GPU_ATTACHMENT_WRITE, /* normal */
-                                   write_id ? GPU_ATTACHMENT_WRITE : GPU_ATTACHMENT_IGNORE,
-                                   moving ? GPU_ATTACHMENT_WRITE : GPU_ATTACHMENT_IGNORE});
+          sub->subpass_transition(
+              GPU_ATTACHMENT_WRITE,
+              {hide_from_raycast ? GPU_ATTACHMENT_READ : GPU_ATTACHMENT_WRITE, /* normal */
+               write_id ? GPU_ATTACHMENT_WRITE : GPU_ATTACHMENT_READ,
+               moving ? GPU_ATTACHMENT_WRITE : GPU_ATTACHMENT_IGNORE});
         }
       }
     }
