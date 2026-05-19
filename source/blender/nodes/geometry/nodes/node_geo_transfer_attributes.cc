@@ -185,7 +185,11 @@ static bool transfer_attributes(
                                                  old_dst_meta->domain == item.domain &&
                                                  old_dst_meta->data_type == item.type;
 
-    // TODO: Double check that uninitialized data is used correctly.
+    if (!type.is_trivial) {
+      /* Non-trivial types are disabled for now because the behavior of the gather function
+       * regarding uninitialized data needs to be more well defined. */
+      continue;
+    }
 
     /* When the source and destination ids are just the index field transfers can be more
      * efficient. */
