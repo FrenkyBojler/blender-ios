@@ -202,13 +202,13 @@ static void get_space_input_chains(BMesh *bm, Vector<SpaceChainData> &r_chains)
 static SpaceMeasurements measure_chain(const SpaceChainData &chain)
 {
   SpaceMeasurements measure;
-  const int num_verts = chain.verts.size();
+  const int verts_num = chain.verts.size();
 
-  measure.positions.reinitialize(num_verts);
-  for (const int i : IndexRange(num_verts)) {
+  measure.positions.reinitialize(verts_num);
+  for (const int i : IndexRange(verts_num)) {
     measure.positions[i] = float3(chain.verts[i]->co);
   }
-  measure.knot_distances.reinitialize(num_verts + (chain.is_closed ? 1 : 0));
+  measure.knot_distances.reinitialize(verts_num + (chain.is_closed ? 1 : 0));
   measure.knot_distances[0] = 0.0f;
   length_parameterize::accumulate_lengths<float3>(
       measure.positions, chain.is_closed, measure.knot_distances.as_mutable_span().drop_front(1));
@@ -226,16 +226,16 @@ static void calculate_splines_axis(Span<float> distances,
                                    float total_length,
                                    Vector<SplineCoeffs> &r_coeffs)
 {
-  const int num_verts = coords.size();
-  if (num_verts < 2) {
+  const int verts_num = coords.size();
+  if (verts_num < 2) {
     return;
   }
-  const int num_segments = is_closed ? num_verts : num_verts - 1;
+  const int num_segments = is_closed ? verts_num : verts_num - 1;
   Array<float> segment_length(num_segments);
 
   for (const int i : IndexRange(num_segments)) {
-    segment_length[i] = (is_closed && i == num_verts - 1) ?
-                            total_length - distances[num_verts - 1] :
+    segment_length[i] = (is_closed && i == verts_num - 1) ?
+                            total_length - distances[verts_num - 1] :
                             distances[i + 1] - distances[i];
     if (segment_length[i] == 0.0f) {
       segment_length[i] = SPACE_EPSILON;
@@ -244,19 +244,19 @@ static void calculate_splines_axis(Span<float> distances,
 
   /* Stores second derivative coefficients. For a natural cubic spline, the boundary
    * condition defines the first and last points as zero. */
-  Array<float> c_vals(num_verts, 0.0f);
+  Array<float> c_vals(verts_num, 0.0f);
 
   /* The Thomas algorithm used in `BLI_tridiagonal_solve` can't properly solve
    * a cyclic tridiagonal system so in this case, we use the Sherman-Morrison formula
    * via `BLI_tridiagonal_solve_cyclic`. */
   if (is_closed) {
-    Array<float> lower_diag(num_verts);
-    Array<float> diag(num_verts);
-    Array<float> upper_diag(num_verts);
-    Array<float> rhs(num_verts);
-    for (const int i : IndexRange(num_verts)) {
-      const int v_prev = math::mod_periodic(i - 1, num_verts);
-      const int v_next = math::mod_periodic(i + 1, num_verts);
+    Array<float> lower_diag(verts_num);
+    Array<float> diag(verts_num);
+    Array<float> upper_diag(verts_num);
+    Array<float> rhs(verts_num);
+    for (const int i : IndexRange(verts_num)) {
+      const int v_prev = math::mod_periodic(i - 1, verts_num);
+      const int v_next = math::mod_periodic(i + 1, verts_num);
       lower_diag[i] = segment_length[v_prev];
       diag[i] = 2.0f * (segment_length[v_prev] + segment_length[i]);
       upper_diag[i] = segment_length[i];
@@ -264,12 +264,12 @@ static void calculate_splines_axis(Span<float> distances,
                        ((coords[i] - coords[v_prev]) / segment_length[v_prev]));
     }
     BLI_tridiagonal_solve_cyclic(
-        lower_diag.data(), diag.data(), upper_diag.data(), rhs.data(), c_vals.data(), num_verts);
+        lower_diag.data(), diag.data(), upper_diag.data(), rhs.data(), c_vals.data(), verts_num);
   }
   else {
     /* For a natural cubic spline the curvature at the first and last point
      * is 0, so for n given points, we only have n-2 unknown interior points. */
-    const int interior = num_verts - 2;
+    const int interior = verts_num - 2;
     Array<float> lower_diag(interior), diag(interior), upper_diag(interior), rhs(interior);
 
     for (const int i_curr : IndexRange(interior)) {
@@ -290,7 +290,7 @@ static void calculate_splines_axis(Span<float> distances,
 
   /* Build polynomial coefficients for each segment. */
   for (const int i : IndexRange(num_segments)) {
-    const int v_next = is_closed ? math::mod_periodic(i + 1, num_verts) : i + 1;
+    const int v_next = is_closed ? math::mod_periodic(i + 1, verts_num) : i + 1;
 
     const float coeff_a = coords[i];
     const float coeff_b = ((coords[v_next] - coords[i]) / segment_length[i]) -
