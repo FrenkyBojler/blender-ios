@@ -3063,7 +3063,7 @@ static void rna_def_object(BlenderRNA *brna)
   RNA_def_property_float_default(prop, 1.0f);
   RNA_def_property_range(prop, 0.0f, 1.0f);
   RNA_def_property_ui_range(prop, 0.0, 1.0, 1, 2);
-  RNA_def_property_ui_text(prop, "Parent Bone Head/Tail", "Target along length of bone: Head is 0, Tail is 1");
+  RNA_def_property_ui_text(prop, "Parent Bone Head/Tail", "Position along the length of bone");
   RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Object_internal_update");
 
   prop = RNA_def_property(srna, "use_parent_final_indices", PROP_BOOLEAN, PROP_NONE);

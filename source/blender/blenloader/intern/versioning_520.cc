@@ -659,4 +659,3 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
 }
 
 }  // namespace blender
-
