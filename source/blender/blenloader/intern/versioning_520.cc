@@ -10,9 +10,6 @@
 
 #include "NOD_geometry_nodes_srna.hh"
 
-/* Define macros in `DNA_genfile.h`. */
-#define DNA_GENFILE_VERSIONING_MACROS
-
 #include "DNA_ID.h"
 #include "DNA_brush_types.h"
 #include "DNA_camera_types.h"
@@ -382,7 +379,7 @@ void do_versions_after_linking_520(FileData *fd, Main *bmain)
    */
 }
 
-void blo_do_versions_520(FileData *fd, Library * /*lib*/, Main *bmain)
+void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
 {
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 1)) {
     for (Scene &scene : bmain->scenes) {
@@ -666,10 +663,10 @@ void blo_do_versions_520(FileData *fd, Library * /*lib*/, Main *bmain)
     for (Camera &cam : bmain->cameras) {
       /* Convert old `dtx` char to the new `composition_guide_flags` short. */
       const short old = short(cam.composition_guide_flags) & 0xFF;
-      
+
       /* All bits were shifted up by 1; bit 0 is now COMPOSITION_GUIDES_ENABLED, set by default. */
       cam.composition_guide_flags = eCompositionGuideFlags((old << 1) |
-                                                          COMPOSITION_GUIDES_ENABLED);
+                                                           COMPOSITION_GUIDES_ENABLED);
     }
   }
   /**
