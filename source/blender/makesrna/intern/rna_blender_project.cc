@@ -252,45 +252,45 @@ static int rna_BlenderProject_root_path_length(PointerRNA *ptr)
 
 static int rna_BlenderProject_active_variable_index_get(PointerRNA *ptr)
 {
-  const bke::BlenderProject *project_data = static_cast<bke::BlenderProject *>(ptr->data);
+  const bke::BlenderProject *project = static_cast<bke::BlenderProject *>(ptr->data);
 
-  return project_data->active_variable_index;
+  return project->active_variable_index;
 }
 
 static void rna_BlenderProject_active_variable_index_set(PointerRNA *ptr, int value)
 {
-  bke::BlenderProject *project_data = static_cast<bke::BlenderProject *>(ptr->data);
+  bke::BlenderProject *project = static_cast<bke::BlenderProject *>(ptr->data);
 
-  project_data->active_variable_index = value;
+  project->active_variable_index = value;
 }
 
 static void rna_BlenderProject_active_variable_index_range(
     PointerRNA *ptr, int *min, int *max, int * /*softmin*/, int * /*softmax*/)
 {
-  const bke::BlenderProject *project_data = static_cast<bke::BlenderProject *>(ptr->data);
+  const bke::BlenderProject *project = static_cast<bke::BlenderProject *>(ptr->data);
 
   *min = 0;
-  *max = project_data->variables.size() - 1;
+  *max = project->variables.size() - 1;
 }
 
 static void rna_iterator_BlenderProject_variables_begin(CollectionPropertyIterator *iter,
                                                         PointerRNA *ptr)
 {
-  bke::BlenderProject *project_data = static_cast<bke::BlenderProject *>(ptr->data);
+  bke::BlenderProject *project = static_cast<bke::BlenderProject *>(ptr->data);
 
   rna_iterator_array_begin(iter,
                            ptr,
-                           (void *)project_data->variables.begin(),
+                           (void *)project->variables.begin(),
                            sizeof(std::unique_ptr<ProjectVariable>),
-                           project_data->variables.size(),
+                           project->variables.size(),
                            0,
                            nullptr);
 }
 
 static int rna_iterator_BlenderProject_variables_length(PointerRNA *ptr)
 {
-  const bke::BlenderProject *project_data = static_cast<bke::BlenderProject *>(ptr->data);
-  return project_data->variables.size();
+  const bke::BlenderProject *project = static_cast<bke::BlenderProject *>(ptr->data);
+  return project->variables.size();
 }
 
 static PointerRNA rna_iterator_BlenderProject_variables_get(CollectionPropertyIterator *iter)
@@ -345,48 +345,48 @@ static PointerRNA rna_ProjectVariables_new(bke::BlenderProject *project,
       new_var);
 }
 
-void rna_ProjectVariables_remove(bke::BlenderProject *project_data,
+void rna_ProjectVariables_remove(bke::BlenderProject *project,
                                  ReportList *reports,
                                  PointerRNA *variable_ptr)
 {
   BLI_assert(variable_ptr->type == RNA_ProjectVariable);
   ProjectVariable *var = static_cast<ProjectVariable *>(variable_ptr->data);
 
-  const int removed_index = project_data->remove_variable(var);
+  const int removed_index = project->remove_variable(var);
 
   if (removed_index == -1) {
     BKE_reportf(reports, RPT_ERROR, "Variable not found in project variables.");
     return;
   }
 
-  if (project_data->active_variable_index > removed_index) {
-    project_data->active_variable_index -= 1;
+  if (project->active_variable_index > removed_index) {
+    project->active_variable_index -= 1;
   }
 
-  project_data->active_variable_index = std::min(project_data->active_variable_index,
-                                                 int(project_data->variables.size() - 1));
+  project->active_variable_index = std::min(project->active_variable_index,
+                                            int(project->variables.size() - 1));
 
-  project_mark_dirty(project_data);
+  project_mark_dirty(project);
 }
 
-void rna_ProjectVariables_move(bke::BlenderProject *project_data,
+void rna_ProjectVariables_move(bke::BlenderProject *project,
                                ReportList *reports,
                                int from_index,
                                int to_index)
 {
-  if (from_index >= project_data->variables.size()) {
+  if (from_index >= project->variables.size()) {
     BKE_reportf(reports, RPT_ERROR, "From index is out of bounds of the variable list.");
     return;
   }
 
-  if (to_index >= project_data->variables.size()) {
+  if (to_index >= project->variables.size()) {
     BKE_reportf(reports, RPT_ERROR, "To index is out of bounds of the variable list.");
     return;
   }
 
-  project_data->move_variable(from_index, to_index);
+  project->move_variable(from_index, to_index);
 
-  project_mark_dirty(project_data);
+  project_mark_dirty(project);
 }
 
 /* --------------------------------------------------------- */
