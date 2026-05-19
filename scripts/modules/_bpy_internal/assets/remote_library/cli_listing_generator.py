@@ -90,6 +90,8 @@ def cli_main(arguments_raw: argparse.Namespace) -> None:
         assets.extend(assets_in_file)
         files.append(bfile_info)
 
+    _sort_assets(assets)
+
     # Write the listing index and the pages:
     asset_index_pages = pagination.paginate_asset_list(assets, files, arguments.page_size)
     index_path = _write_json_files(arguments, asset_index_pages)
@@ -112,6 +114,25 @@ def _toplevel_meta_read(meta_json_path: Path) -> api_models.AssetLibraryMeta:
         logger.error(msg.format(meta_json_path, ex))
         raise SystemExit(1) from None
     return metadata
+
+
+def _sort_assets(assets: list[api_models.AssetV1]) -> None:
+    """Sorts the assets in-place.
+
+    Sorting helps to get the generated listing stable, so that a diff between
+    two runs of the generator is as clean as possible.
+    """
+
+    # Sort assets by their primary filename first. This places related assets together, and minimizes the repeats of the
+    # same file across multiple listing pages.
+    def sort_key(asset: api_models.AssetV1) -> tuple[str, str, str]:
+        if asset.files:
+            first_file = asset.files[0].lower()
+        else:
+            first_file = ""
+        return (first_file, asset.id_type.lower(), asset.name.lower())
+
+    assets.sort(key=sort_key)
 
 
 def _write_json_files(
@@ -139,11 +160,12 @@ def _write_json_files(
     page_infos: list[api_models.URLWithHash] = []
     for page_index, page in enumerate(asset_index_pages):
         page_relpath = listing_common.api_versioned(f"assets-{page_index:05}.json")
-        _save_json(page, outdir_root / page_relpath)
+        page_abspath = outdir_root / page_relpath
+        _save_json(page, page_abspath)
 
         page_infos.append(api_models.URLWithHash(
             url=urllib.parse.quote(page_relpath.as_posix()),
-            hash=hashing.hash_file(page_relpath),
+            hash=hashing.hash_file(page_abspath),
         ))
 
     # Library Index file /_v1/asset-index.json:
