@@ -52,6 +52,8 @@ BLOCKLIST = [
     "transparent_shadow_limit_.*",
     # Redundant with transparent_shadow_hair.
     "transparent_shadow_hair_blur.blend",
+    # Unsupported feature. Redundant tests.
+    "osl_camera_.*",
 ]
 
 BLOCKLIST_METAL = [
