@@ -22,8 +22,6 @@
 #include "pbvh_pixels_copy.hh"
 #include "pbvh_uv_islands.hh"
 
-#include <iostream>
-
 namespace blender {
 
 namespace bke::pbvh::pixels {
@@ -346,11 +344,6 @@ static void do_calculate_3d_positions(const uv_islands::MeshData &mesh_data,
       tile_data.pixel_row_positions[i].start = start;
       tile_data.pixel_row_positions[i].end = end;
       tile_data.pixel_row_positions[i].delta = delta;
-      float3 min(std::numeric_limits<float>::max());
-      float3 max(std::numeric_limits<float>::lowest());
-      math::min_max(start, min, max);
-      math::min_max(end, min, max);
-      tile_data.pixel_row_positions[i].bounds = Bounds<float3>(min, max);
     }
   }
 }

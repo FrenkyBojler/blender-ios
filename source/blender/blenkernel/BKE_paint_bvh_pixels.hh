@@ -45,7 +45,6 @@ struct PackedPixelRowPosition {
   float3 start;
   float3 end;
   float3 delta;
-  Bounds<float3> bounds;
 };
 
 /**
