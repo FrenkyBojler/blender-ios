@@ -48,6 +48,11 @@ template<typename T> struct ListBaseMutableBackwardWrapper;
  * structs. It is written as untyped #ListBase in .blend files for compatibility.
  */
 template<typename T> struct ListBaseT : public ListBase {
+  bool is_empty() const
+  {
+    return this->first == nullptr;
+  }
+
   /* TODO: Add const and non-const iterators. However this will require some refactoring
    * as some places rely on being able to get a mutable list element from a const list. */
   ListBaseTIterator<T> begin() const
