@@ -22,6 +22,7 @@ from bl_ui.space_toolsystem_common import (
 
 from rna_prop_ui import PropertyPanel
 from bl_ui.space_time import playback_controls
+from bl_ui.properties_data_camera import DATA_PT_camera_display_composition_guides
 
 
 def _space_view_types(st):
@@ -225,17 +226,12 @@ class SEQUENCER_PT_preview_overlay(Panel):
         col.prop(overlay_settings, "show_image_outline")
         col.prop(ed, "show_overlay_frame", text="Frame Overlay")
         col.prop(overlay_settings, "show_metadata", text="Metadata")
+        col.prop(overlay_settings, "show_composition_guides", text="Composition Guides")
 
         col = split.column()
         col.prop(overlay_settings, "show_cursor")
         col.prop(overlay_settings, "show_safe_areas", text="Safe Areas")
         col.prop(overlay_settings, "show_annotation", text="Annotations")
-
-        header, body = layout.panel("comp_guides", default_closed=True)
-
-        header.prop(overlay_settings, "show_composition_guides", text="Composition Guides")
-        if (body):
-            SEQUENCER_PT_view_composition_guides.draw_composition_guides_panel(overlay_settings, body)
 
 
 class SEQUENCER_PT_sequencer_overlay(Panel):
@@ -1956,38 +1952,8 @@ class SEQUENCER_PT_view_composition_guides(SequencerButtonsPanel_Output, Panel):
         layout.prop(overlay_settings, "show_composition_guides", text="Composition Guides")
 
     def draw(self, context):
-        layout = self.layout
         overlay_settings = context.space_data.preview_overlay
-        self.draw_composition_guides_panel(overlay_settings, layout)
-
-    @classmethod
-    def draw_composition_guides_panel(cls, item, layout):
-        if (not item.show_composition_guides):
-            layout.enabled = False
-
-        # Left Side
-        split = layout.split(factor=0.5, align=True)
-        col = split.column(align=True)
-        col.prop(item, "show_composition_thirds")
-
-        col = col.column(heading="Golden", align=True)
-        col.prop(item, "show_composition_golden", text="Ratio")
-        col.prop(item, "show_composition_golden_tria_a", text="Triangle A")
-        col.prop(item, "show_composition_golden_tria_b", text="Triangle B")
-
-        # Right Side
-        col = split.column(align=True)
-
-        col = col.column(heading="Center", align=True)
-        col.prop(item, "show_composition_center")
-        col.prop(item, "show_composition_center_diagonal", text="Diagonal")
-
-        col = col.column(heading="Harmony", align=True)
-        col.prop(item, "show_composition_harmony_tri_a", text="Triangle A")
-        col.prop(item, "show_composition_harmony_tri_b", text="Triangle B")
-
-        col = layout.column()
-        col.prop(item, "composition_guide_color", text="Color")
+        DATA_PT_camera_display_composition_guides.draw_panel(self.layout, overlay_settings)
 
 
 class SEQUENCER_PT_annotation(AnnotationDataPanel, SequencerButtonsPanel_Output, Panel):

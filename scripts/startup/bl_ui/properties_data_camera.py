@@ -476,31 +476,32 @@ class DATA_PT_camera_display_composition_guides(CameraButtonsPanel, Panel):
         self.layout.prop(cam, "show_composition_guides", text="")
 
     def draw(self, context):
-        layout = self.layout
+        self.draw_panel(self.layout, context.camera)
 
-        cam = context.camera
-        if not cam.show_composition_guides:
+    @classmethod
+    def draw_panel(cls, layout, item):
+        if not item.show_composition_guides:
             layout.enabled = False
 
         layout.use_property_split = True
 
-        layout.prop(cam, "show_composition_thirds")
+        layout.prop(item, "show_composition_thirds")
 
         col = layout.column(heading="Center", align=True)
-        col.prop(cam, "show_composition_center")
-        col.prop(cam, "show_composition_center_diagonal", text="Diagonal")
+        col.prop(item, "show_composition_center")
+        col.prop(item, "show_composition_center_diagonal", text="Diagonal")
 
         col = layout.column(heading="Golden", align=True)
-        col.prop(cam, "show_composition_golden", text="Ratio")
-        col.prop(cam, "show_composition_golden_tria_a", text="Triangle A")
-        col.prop(cam, "show_composition_golden_tria_b", text="Triangle B")
+        col.prop(item, "show_composition_golden", text="Ratio")
+        col.prop(item, "show_composition_golden_tria_a", text="Triangle A")
+        col.prop(item, "show_composition_golden_tria_b", text="Triangle B")
 
         col = layout.column(heading="Harmony", align=True)
-        col.prop(cam, "show_composition_harmony_tri_a", text="Triangle A")
-        col.prop(cam, "show_composition_harmony_tri_b", text="Triangle B")
+        col.prop(item, "show_composition_harmony_tri_a", text="Triangle A")
+        col.prop(item, "show_composition_harmony_tri_b", text="Triangle B")
 
         col = layout.column()
-        col.prop(cam, "composition_guide_color", text="Color")
+        col.prop(item, "composition_guide_color", text="Color")
 
 
 class DATA_PT_camera_safe_areas(CameraButtonsPanel, Panel):
