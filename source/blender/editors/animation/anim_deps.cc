@@ -474,7 +474,7 @@ void ANIM_animdata_freelist(ListBaseT<bAnimListElem> *anim_data)
   }
   anim_data->clear_no_delete();
 #else
-  BLI_freelistN(anim_data);
+  anim_data->free_no_destruct();
 #endif
 }
 

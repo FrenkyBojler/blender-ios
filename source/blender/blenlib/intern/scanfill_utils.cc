@@ -270,7 +270,7 @@ static bool scanfill_preprocess_self_isect(ScanFillContext *sf_ctx,
           eed = eed_subd;
         }
 
-        BLI_freelistN(e_ls);
+        e_ls->free_no_destruct();
         MEM_delete(e_ls);
 
         if (pi->edge_last == nullptr) {

@@ -5978,7 +5978,7 @@ void BKE_constraints_free_ex(ListBaseT<bConstraint> *list, bool do_id_user)
   }
 
   /* Free the whole list */
-  BLI_freelistN(list);
+  list->free_no_destruct();
 }
 
 void BKE_constraints_free(ListBaseT<bConstraint> *list)

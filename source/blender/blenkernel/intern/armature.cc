@@ -610,7 +610,7 @@ void BKE_armature_bonelist_free(ListBaseT<Bone> *lb, const bool do_id_user)
     BKE_armature_bonelist_free(&bone.childbase, do_id_user);
   }
 
-  BLI_freelistN(lb);
+  lb->free_no_destruct();
 }
 
 void BKE_armature_editbonelist_free(ListBaseT<EditBone> *lb, const bool do_id_user)

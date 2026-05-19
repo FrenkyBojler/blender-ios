@@ -227,7 +227,7 @@ TEST(task, MempoolIterTLS)
   }
   EXPECT_EQ(number_accum, (ITEMS_NUM * (ITEMS_NUM + 1)) / 2);
 
-  BLI_freelistN(tls_data.accumulate_items);
+  tls_data.accumulate_items->free_no_destruct();
   MEM_delete(tls_data.accumulate_items);
 
   BLI_mempool_destroy(mempool);

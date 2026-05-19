@@ -724,7 +724,7 @@ void BKE_bpath_list_free(void *path_list_handle)
    * #bpath_list_restore. */
   BLI_assert(path_list->is_empty());
 
-  BLI_freelistN(path_list);
+  path_list->free_no_destruct();
   MEM_delete(path_list);
 }
 

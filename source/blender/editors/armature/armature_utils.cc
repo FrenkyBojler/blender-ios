@@ -856,7 +856,7 @@ void ED_armature_edit_free(bArmature *arm)
         BLI_freelistN(&eBone.bone_collections);
       }
 
-      BLI_freelistN(arm->edbo);
+      arm->edbo->free_no_destruct();
     }
     MEM_delete(arm->edbo);
     arm->edbo = nullptr;

@@ -944,7 +944,7 @@ static void gpu_inputs_free(ListBaseT<GPUInput> *inputs)
     }
   }
 
-  BLI_freelistN(inputs);
+  inputs->free_no_destruct();
 }
 
 static void gpu_node_free(GPUNode *node)

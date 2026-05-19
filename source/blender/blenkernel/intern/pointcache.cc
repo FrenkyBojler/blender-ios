@@ -2966,7 +2966,7 @@ void BKE_ptcache_free_mem(ListBaseT<PTCacheMem> *mem_cache)
       ptcache_mem_clear(pm);
     }
 
-    BLI_freelistN(mem_cache);
+    mem_cache->free_no_destruct();
   }
 }
 void BKE_ptcache_free(PointCache *cache)

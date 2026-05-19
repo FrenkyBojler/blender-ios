@@ -449,7 +449,7 @@ bool vgroup_array_copy(Object *ob, Object *ob_from)
   }
 
   /* do the copy */
-  BLI_freelistN(defbase_dst);
+  defbase_dst->free_no_destruct();
   BLI_duplicatelist(defbase_dst, defbase_src);
   BKE_object_defgroup_active_index_set(ob, BKE_object_defgroup_active_index_get(ob_from));
 

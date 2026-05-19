@@ -3945,7 +3945,7 @@ void BKE_animsys_free_nla_keyframing_context_cache(ListBaseT<NlaKeyframingContex
     nlaeval_free(&ctx.lower_eval_data);
   }
 
-  BLI_freelistN(cache);
+  cache->free_no_destruct();
 }
 
 /* ***************************************** */

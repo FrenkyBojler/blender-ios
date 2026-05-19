@@ -62,7 +62,7 @@ void BIF_clearTransformOrientation(bContext *C)
   Scene *scene = CTX_data_scene(C);
   ListBaseT<TransformOrientation> *transform_orientations = &scene->transform_spaces;
 
-  BLI_freelistN(transform_orientations);
+  transform_orientations->free_no_destruct();
 
   for (int i = 0; i < ARRAY_SIZE(scene->orientation_slots); i++) {
     TransformOrientationSlot *orient_slot = &scene->orientation_slots[i];

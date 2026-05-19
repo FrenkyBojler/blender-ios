@@ -527,7 +527,7 @@ static void psys_free_path_cache_buffers(ParticleCacheKey **cache, ListBaseT<Lin
   for (LinkData &buf : *bufs) {
     MEM_delete(static_cast<ParticleCacheKey *>(buf.data));
   }
-  BLI_freelistN(bufs);
+  bufs->free_no_destruct();
 }
 
 /************************************************/

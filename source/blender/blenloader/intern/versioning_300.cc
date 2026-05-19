@@ -422,7 +422,7 @@ static void move_vertex_group_names_to_object_data(Main *bmain)
       }
       else {
         /* Clear the list in case the it was already assigned from another object. */
-        BLI_freelistN(new_defbase);
+        new_defbase->free_no_destruct();
         *new_defbase = object.defbase;
         BKE_object_defgroup_active_index_set(&object, object.actdef);
       }

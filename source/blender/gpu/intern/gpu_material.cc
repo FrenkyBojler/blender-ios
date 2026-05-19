@@ -271,7 +271,7 @@ void GPU_material_free(ListBaseT<LinkData> *gpumaterial)
     GPUMaterial *material = static_cast<GPUMaterial *>(link.data);
     GPU_material_free_single(material);
   }
-  BLI_freelistN(gpumaterial);
+  gpumaterial->free_no_destruct();
 }
 
 void GPU_materials_free(Main *bmain)

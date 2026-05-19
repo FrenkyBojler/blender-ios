@@ -409,7 +409,7 @@ void BKE_spacedata_freelist(ListBaseT<SpaceLink> *lb)
     }
   }
 
-  BLI_freelistN(lb);
+  lb->free_no_destruct();
 }
 
 static void panel_list_copy(ListBaseT<Panel> *newlb, const ListBaseT<Panel> *lb)

@@ -1277,7 +1277,7 @@ ListBaseT<CollisionRelation> *BKE_collision_relations_create(Depsgraph *depsgrap
 void BKE_collision_relations_free(ListBaseT<CollisionRelation> *relations)
 {
   if (relations) {
-    BLI_freelistN(relations);
+    relations->free_no_destruct();
     MEM_delete(relations);
   }
 }

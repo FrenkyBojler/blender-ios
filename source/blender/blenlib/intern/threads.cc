@@ -246,7 +246,7 @@ void BLI_threadpool_end(ListBaseT<ThreadSlot> *threadbase)
       pthread_join(tslot.pthread, nullptr);
     }
   }
-  BLI_freelistN(threadbase);
+  threadbase->free_no_destruct();
 }
 
 /* System Information */

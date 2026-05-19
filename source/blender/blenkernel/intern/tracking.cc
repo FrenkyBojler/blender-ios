@@ -80,7 +80,7 @@ static void tracking_tracks_free(ListBaseT<MovieTrackingTrack> *tracks)
     BKE_tracking_track_free(&track);
   }
 
-  BLI_freelistN(tracks);
+  tracks->free_no_destruct();
 }
 
 /* Free the whole list of plane tracks, list's head and tail are set to nullptr. */
@@ -90,7 +90,7 @@ static void tracking_plane_tracks_free(ListBaseT<MovieTrackingPlaneTrack> *plane
     BKE_tracking_plane_track_free(&plane_track);
   }
 
-  BLI_freelistN(plane_tracks);
+  plane_tracks->free_no_destruct();
 }
 
 /* Free reconstruction structures, only frees contents of a structure,
@@ -126,7 +126,7 @@ static void tracking_objects_free(ListBaseT<MovieTrackingObject> *objects)
   }
 
   /* Free objects themselves. */
-  BLI_freelistN(objects);
+  objects->free_no_destruct();
 }
 
 /* Free memory used by a dopesheet, only frees dopesheet contents.
