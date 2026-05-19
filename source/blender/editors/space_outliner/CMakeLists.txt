@@ -5,15 +5,7 @@
 set(INC
   ../include
   ../../blenfont
-  ../../blenloader
-  ../../blentranslation
-  ../../imbuf
   ../../makesrna
-  ../../sequencer
-  ../../windowmanager
-
-  ../../../../extern/fmtlib/include
-
   # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
@@ -46,6 +38,7 @@ set(SRC
   tree/tree_display_sequencer.cc
   tree/tree_display_view_layer.cc
   tree/tree_element.cc
+  tree/tree_element_action_slot.cc
   tree/tree_element_anim_data.cc
   tree/tree_element_bone.cc
   tree/tree_element_bone_collection.cc
@@ -58,6 +51,7 @@ set(SRC
   tree/tree_element_gpencil_layer.cc
   tree/tree_element_grease_pencil_node.cc
   tree/tree_element_id.cc
+  tree/tree_element_id_action.cc
   tree/tree_element_id_armature.cc
   tree/tree_element_id_collection.cc
   tree/tree_element_id_curve.cc
@@ -90,6 +84,7 @@ set(SRC
   tree/common.hh
   tree/tree_display.hh
   tree/tree_element.hh
+  tree/tree_element_action_slot.hh
   tree/tree_element_anim_data.hh
   tree/tree_element_bone.hh
   tree/tree_element_bone_collection.hh
@@ -102,6 +97,7 @@ set(SRC
   tree/tree_element_gpencil_layer.hh
   tree/tree_element_grease_pencil_node.hh
   tree/tree_element_id.hh
+  tree/tree_element_id_action.hh
   tree/tree_element_id_armature.hh
   tree/tree_element_id_collection.hh
   tree/tree_element_id_curve.hh
@@ -135,14 +131,19 @@ set(LIB
   PRIVATE bf::animrig
   PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
+  PRIVATE bf::blenloader
+  PRIVATE bf::blentranslation
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
   bf_editor_id_management
   bf_editor_undo
   PRIVATE bf::gpu
+  PRIVATE bf::imbuf
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
-  extern_fmtlib
+  PRIVATE bf::nodes
+  PRIVATE bf::sequencer
+  PRIVATE bf::windowmanager
 )
 
 

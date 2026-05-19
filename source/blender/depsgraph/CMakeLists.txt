@@ -5,12 +5,9 @@
 set(INC
   PUBLIC .
   ../animrig
-  ../draw
-  ../functions
   ../makesrna
   ../modifiers
-  ../sequencer
-  ../windowmanager
+  ../nodes
   # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
@@ -154,8 +151,15 @@ set(LIB
   PRIVATE bf::blenlib
   PRIVATE bf::bmesh
   PRIVATE bf::dna
+  PRIVATE bf::draw
+  PRIVATE bf::functions
+  PRIVATE bf::imbuf
   PRIVATE bf::intern::atomic
+  PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::sequencer
+  PRIVATE bf::windowmanager
+  PRIVATE bf::dependencies::optional::audaspace
 )
 
 if(WITH_PYTHON)
@@ -178,7 +182,8 @@ if(WITH_GTESTS)
     intern/builder/deg_builder_rna_test.cc
   )
   set(TEST_LIB
+    ${LIB}
     bf_depsgraph
   )
-  blender_add_test_suite_lib(depsgraph "${TEST_SRC}" "${INC};${TEST_INC}" "${INC_SYS}" "${LIB}")
+  blender_add_test_suite_lib(depsgraph "${TEST_SRC}" "${INC};${TEST_INC}" "${INC_SYS}" "${TEST_LIB}")
 endif()

@@ -191,13 +191,14 @@ class VKNodeInfo : public NonCopyable {
    * This function must be implemented by all node classes. But due to cyclic inclusion of header
    * files it is implemented as a template function.
    */
-  template<typename Node> static void set_node_data(Node &node, const CreateInfo &create_info);
+  template<typename Node, typename Storage>
+  static void set_node_data(Node &node, Storage &storage, const CreateInfo &create_info);
 
   /**
    * Extract read/write resource dependencies from `create_info` and add them to `node_links`.
    */
   virtual void build_links(VKResourceStateTracker &resources,
-                           VKRenderGraphNodeLinks &node_links,
+                           VKRenderGraphLinks &links,
                            const CreateInfo &create_info) = 0;
 
   /**
@@ -208,6 +209,7 @@ class VKNodeInfo : public NonCopyable {
    */
   virtual void build_commands(VKCommandBufferInterface &command_buffer,
                               Data &data,
+                              Span<uint8_t> storage_push_constants,
                               VKBoundPipelines &r_bound_pipelines) = 0;
 };
 }  // namespace blender::gpu::render_graph

@@ -11,8 +11,7 @@
  * separately.
  */
 
-#ifndef __FFMPEG_COMPAT_H__
-#define __FFMPEG_COMPAT_H__
+#pragma once
 
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
@@ -20,11 +19,11 @@
 #include <libavutil/display.h>
 #include <libswscale/swscale.h>
 
-/* Check if our ffmpeg is new enough, avoids user complaints.
+/* Check if our FFMPEG is new enough, avoids user complaints.
  * Minimum supported version is currently 3.2.0 which mean the following library versions:
- * libavutil   > 55.30
- * libavcodec  > 57.60
- * libavformat > 57.50
+ * `libavutil`   > 55.30
+ * `libavcodec`  > 57.60
+ * `libavformat` > 57.50
  *
  * We only check for one of these as they are usually updated in tandem.
  */
@@ -42,31 +41,31 @@
 #endif
 
 #if LIBAVUTIL_VERSION_INT < AV_VERSION_INT(58, 29, 100)
-/* In ffmpeg 6.1 usage of the "key_frame" variable from "AVFrame" has been deprecated.
+/* In FFMPEG 6.1 usage of the "key_frame" variable from "AVFrame" has been deprecated.
  * used the new method to query for the "AV_FRAME_FLAG_KEY" flag instead.
  */
 #  define FFMPEG_OLD_KEY_FRAME_QUERY_METHOD
 #endif
 
 #if (LIBAVFORMAT_VERSION_MAJOR < 59)
-/* For versions older than ffmpeg 5.0, use the old channel layout variables.
- * We intend to only keep this  workaround for around two releases (3.5, 3.6).
+/* For versions older than FFMPEG 5.0, use the old channel layout variables.
+ * We intend to only keep this workaround for around two releases (3.5, 3.6).
  * If it sticks around any longer, then we should consider refactoring this.
  */
 #  define FFMPEG_USE_OLD_CHANNEL_VARS
 #endif
 
-/* Threaded sws_scale_frame was added in ffmpeg 5.0 (swscale version 6.1). */
+/* Threaded sws_scale_frame was added in FFMPEG 5.0 (`swscale` version 6.1). */
 #if (LIBSWSCALE_VERSION_INT >= AV_VERSION_INT(6, 1, 100))
 #  define FFMPEG_SWSCALE_THREADING
 #endif
 
 /* AV_CODEC_CAP_AUTO_THREADS was renamed to AV_CODEC_CAP_OTHER_THREADS with
  * upstream commit
- * github.com/FFmpeg/FFmpeg/commit/7d09579190def3ef7562399489e628f3b65714ce
- * (lavc 58.132.100) and removed with commit
- * github.com/FFmpeg/FFmpeg/commit/10c9a0874cb361336237557391d306d26d43f137
- * for ffmpeg 6.0.
+ * `github.com/FFmpeg/FFmpeg/commit/7d09579190def3ef7562399489e628f3b65714ce`
+ * (`lavc` 58.132.100) and removed with commit
+ * `github.com/FFmpeg/FFmpeg/commit/10c9a0874cb361336237557391d306d26d43f137`
+ * for FFMPEG 6.0.
  */
 #if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(58, 132, 100)
 #  define AV_CODEC_CAP_OTHER_THREADS AV_CODEC_CAP_AUTO_THREADS
@@ -76,10 +75,10 @@
     ((LIBAVFORMAT_VERSION_MAJOR == 58) && (LIBAVFORMAT_VERSION_MINOR < 76))
 #  define FFMPEG_USE_DURATION_WORKAROUND 1
 
-/* Before ffmpeg 4.4, package duration calculation used depricated variables to calculate the
+/* Before FFMPEG 4.4, package duration calculation used deprecated variables to calculate the
  * packet duration. Use the function from commit
- * github.com/FFmpeg/FFmpeg/commit/1c0885334dda9ee8652e60c586fa2e3674056586
- * to calculate the correct framerate for ffmpeg < 4.4.
+ * `github.com/FFmpeg/FFmpeg/commit/1c0885334dda9ee8652e60c586fa2e3674056586`
+ * to calculate the correct frame-rate for FFMPEG < 4.4.
  */
 
 FFMPEG_INLINE
@@ -139,7 +138,7 @@ int64_t av_get_pts_from_frame(AVFrame *picture)
   return timestamp_from_pts_or_dts(picture->pts, picture->pkt_dts);
 }
 
-/*  Duration of the frame, in the same units as pts. 0 if unknown. */
+/* Duration of the frame, in the same units as pts. 0 if unknown. */
 FFMPEG_INLINE
 int64_t av_get_frame_duration_in_pts_units(const AVFrame *picture)
 {
@@ -153,7 +152,7 @@ int64_t av_get_frame_duration_in_pts_units(const AVFrame *picture)
 FFMPEG_INLINE size_t ffmpeg_get_buffer_alignment()
 {
   /* NOTE: even if av_frame_get_buffer suggests to pass 0 for alignment,
-   * as of ffmpeg 6.1/7.0 it does not use correct alignment for AVX512
+   * as of FFMPEG 6.1/7.0 it does not use correct alignment for AVX512
    * CPU (frame.c get_video_buffer ends up always using 32 alignment,
    * whereas it should have used 64). Reported upstream:
    * https://trac.ffmpeg.org/ticket/11116 and the fix on their code
@@ -207,4 +206,49 @@ FFMPEG_INLINE int ffmpeg_get_video_rotation(const AVStream *stream)
   return 0;
 }
 
+#if LIBAVCODEC_VERSION_INT >= AV_VERSION_INT(61, 13, 100)
+FFMPEG_INLINE const enum AVPixelFormat *ffmpeg_get_pix_fmts(struct AVCodecContext *context,
+                                                            const AVCodec *codec)
+{
+  const enum AVPixelFormat *pix_fmts = nullptr;
+  avcodec_get_supported_config(
+      context, codec, AV_CODEC_CONFIG_PIX_FORMAT, 0, (const void **)&pix_fmts, nullptr);
+  return pix_fmts;
+}
+
+FFMPEG_INLINE const enum AVSampleFormat *ffmpeg_get_sample_fmts(struct AVCodecContext *context,
+                                                                const AVCodec *codec)
+{
+  const enum AVSampleFormat *sample_fmts = nullptr;
+  avcodec_get_supported_config(
+      context, codec, AV_CODEC_CONFIG_SAMPLE_FORMAT, 0, (const void **)&sample_fmts, nullptr);
+  return sample_fmts;
+}
+
+FFMPEG_INLINE const int *ffmpeg_get_sample_rates(struct AVCodecContext *context,
+                                                 const AVCodec *codec)
+{
+  const int *sample_rates = nullptr;
+  avcodec_get_supported_config(
+      context, codec, AV_CODEC_CONFIG_SAMPLE_RATE, 0, (const void **)&sample_rates, nullptr);
+  return sample_rates;
+}
+#else
+FFMPEG_INLINE const enum AVPixelFormat *ffmpeg_get_pix_fmts(struct AVCodecContext * /*context*/,
+                                                            const AVCodec *codec)
+{
+  return codec->pix_fmts;
+}
+
+FFMPEG_INLINE const enum AVSampleFormat *ffmpeg_get_sample_fmts(
+    struct AVCodecContext * /*context*/, const AVCodec *codec)
+{
+  return codec->sample_fmts;
+}
+
+FFMPEG_INLINE const int *ffmpeg_get_sample_rates(struct AVCodecContext * /*context*/,
+                                                 const AVCodec *codec)
+{
+  return codec->supported_samplerates;
+}
 #endif

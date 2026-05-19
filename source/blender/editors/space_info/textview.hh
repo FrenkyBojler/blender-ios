@@ -8,6 +8,12 @@
 
 #pragma once
 
+#include "BLI_enum_flags.hh"
+
+#include "DNA_vec_types.h"
+
+namespace blender {
+
 #define TVC_TAB_COLUMNS 4
 
 enum eTextViewContext_LineFlag {
@@ -17,7 +23,7 @@ enum eTextViewContext_LineFlag {
   TVC_LINE_ICON_FG = (1 << 3),
   TVC_LINE_ICON_BG = (1 << 4)
 };
-ENUM_OPERATORS(eTextViewContext_LineFlag, TVC_LINE_ICON_BG)
+ENUM_OPERATORS(eTextViewContext_LineFlag)
 
 struct TextViewContext {
   /** Font size scaled by the interface size. */
@@ -27,7 +33,7 @@ struct TextViewContext {
 
   int row_vpadding;
 
-  /** Area to draw text: (0, 0, winx, winy) with a margin applied and scroll-bar subtracted. */
+  /** Area to draw text: `(0, 0, winx, winy)` with a margin applied and scroll-bar subtracted. */
   rcti draw_rect;
   /** Area to draw text background colors (extending beyond text in some cases). */
   rcti draw_rect_outer;
@@ -75,3 +81,5 @@ int textview_draw(TextViewContext *tvc,
                   const int mval_init[2],
                   void **r_mval_pick_item,
                   int *r_mval_pick_offset);
+
+}  // namespace blender

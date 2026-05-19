@@ -2,7 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BLI_math_base.hh"
 #include "BLI_math_vector.hh"
 
 #include "COM_context.hh"
@@ -16,7 +15,7 @@
 namespace blender::compositor {
 
 /* Compute the Gaussian sigma from the radius, where the radius is in pixels. Blender's filter is
- * truncated at |x| > 3 * sigma as can be seen in the R_FILTER_GAUSS case of the RE_filter_value
+ * truncated at |x| > 3 * sigma as can be seen in the Gauss case of the filter_kernel_value
  * function, so we divide by three to get the approximate sigma value. Further, ensure the radius
  * is at least 1 since recursive Gaussian implementations can't handle zero radii. */
 static float2 compute_sigma_from_radius(float2 radius)
@@ -47,23 +46,28 @@ static float2 compute_sigma_from_radius(float2 radius)
  * high blur radius. The criteria suggested by the paper is a sigma value threshold of 3 and 32 for
  * the Deriche and Van Vliet filters respectively, which we apply on the larger of the two
  * dimensions. */
-void recursive_gaussian_blur(Context &context, Result &input, Result &output, float2 radius)
+void recursive_gaussian_blur(Context &context,
+                             const Result &input,
+                             Result &output,
+                             const float2 &radius,
+                             const bool extend_bounds)
 {
   /* The radius is in pixel units, while both recursive implementations expect the sigma value of
    * the Gaussian function. */
   const float2 sigma = compute_sigma_from_radius(radius);
 
   if (math::reduce_max(sigma) < 3.0f) {
-    symmetric_separable_blur(context, input, output, radius);
+    symmetric_separable_blur(
+        context, input, output, radius, math::FilterKernel::Gauss, extend_bounds);
     return;
   }
 
   if (math::reduce_max(sigma) < 32.0f) {
-    deriche_gaussian_blur(context, input, output, sigma);
+    deriche_gaussian_blur(context, input, output, sigma, extend_bounds);
     return;
   }
 
-  van_vliet_gaussian_blur(context, input, output, sigma);
+  van_vliet_gaussian_blur(context, input, output, sigma, extend_bounds);
 }
 
 }  // namespace blender::compositor

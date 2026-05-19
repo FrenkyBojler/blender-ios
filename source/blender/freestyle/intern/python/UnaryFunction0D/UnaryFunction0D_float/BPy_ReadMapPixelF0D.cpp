@@ -10,10 +10,6 @@
 
 #include "../../../stroke/AdvancedFunctions0D.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -30,9 +26,9 @@ PyDoc_STRVAR(
     "\n"
     "   Builds a ReadMapPixelF0D object.\n"
     "\n"
-    "   :arg map_name: The name of the map to be read.\n"
+    "   :param map_name: The name of the map to be read.\n"
     "   :type map_name: str\n"
-    "   :arg level: The level of the pyramid from which the pixel must be\n"
+    "   :param level: The level of the pyramid from which the pixel must be\n"
     "      read.\n"
     "   :type level: int\n"
     "\n"
@@ -40,11 +36,10 @@ PyDoc_STRVAR(
     "\n"
     "   Reads a pixel in a map.\n"
     "\n"
-    "   :arg it: An Interface0DIterator object.\n"
+    "   :param it: An Interface0DIterator object.\n"
     "   :type it: :class:`freestyle.types.Interface0DIterator`\n"
     "   :return: A pixel in a map.\n"
     "   :rtype: float\n");
-
 static int ReadMapPixelF0D___init__(BPy_ReadMapPixelF0D *self, PyObject *args, PyObject *kwds)
 {
   static const char *kwlist[] = {"map_name", "level", nullptr};
@@ -103,7 +98,3 @@ PyTypeObject ReadMapPixelF0D_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

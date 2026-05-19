@@ -6,7 +6,6 @@
  * \ingroup bli
  */
 
-#include "BLI_array.hh"
 #include "BLI_math_color.h"
 #include "BLI_math_color.hh"
 #include "BLI_math_matrix.hh"
@@ -14,9 +13,12 @@
 #include "BLI_simd.hh"
 #include "BLI_utildefines.h"
 
-#include <string.h>
+#include <algorithm>
+#include <cstring>
 
-#include "BLI_strict_flags.h" /* Keep last. */
+#include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
+
+namespace blender {
 
 void hsv_to_rgb(float h, float s, float v, float *r_r, float *r_g, float *r_b)
 {
@@ -187,48 +189,108 @@ void hex_to_rgb(const char *hexcol, float *r_r, float *r_g, float *r_b)
   hex_to_rgba(hexcol, r_r, r_g, r_b, nullptr);
 }
 
-void hex_to_rgba(const char *hexcol, float *r_r, float *r_g, float *r_b, float *r_a)
+/**
+ * Parse a hex color string into RGBA float values.
+ *
+ * \param hexcol: The hex string to parse (e.g. "#RRGGBB", "RRGGBB", "#RGB").
+ * \param r_r, r_g, r_b: Pointers to store the parsed RGB values (0.0 - 1.0).
+ * \param r_a: Pointer to store the parsed Alpha value (0.0 - 1.0). Can be NULL.
+ *             If the hex string does not contain alpha, this value is NOT modified.
+ * \return True if the hex string was successfully parsed, false otherwise.
+ *         If false is returned, the output values are left unchanged.
+ */
+bool hex_to_rgba(const char *hexcol, float *r_r, float *r_g, float *r_b, float *r_a)
 {
-  uint ri, gi, bi, ai;
-  bool has_alpha = false;
-
   if (hexcol[0] == '#') {
     hexcol++;
   }
 
-  if (sscanf(hexcol, "%02x%02x%02x%02x", &ri, &gi, &bi, &ai) == 4) {
-    /* height digit hex colors with alpha */
-    has_alpha = true;
-  }
-  else if (sscanf(hexcol, "%02x%02x%02x", &ri, &gi, &bi) == 3) {
-    /* six digit hex colors */
-  }
-  else if (sscanf(hexcol, "%01x%01x%01x", &ri, &gi, &bi) == 3) {
-    /* three digit hex colors (#123 becomes #112233) */
-    ri += ri << 4;
-    gi += gi << 4;
-    bi += bi << 4;
-  }
-  else {
-    /* avoid using un-initialized vars */
-    *r_r = *r_g = *r_b = 0.0f;
-    if (r_a) {
-      *r_a = 0.0f;
-    }
-    return;
+  size_t hex_len = strlen(hexcol);
+  uint r, g, b, a;
+  bool alpha_parsed = false;
+
+  switch (hex_len) {
+    case 8: /* #RRGGBBAA */
+      if (sscanf(hexcol, "%2x%2x%2x%2x", &r, &g, &b, &a) != 4) {
+        return false;
+      }
+      alpha_parsed = true;
+      break;
+    case 7: /* #RRGGBBA -> #RRGGBBA0 */
+      if (sscanf(hexcol, "%2x%2x%2x%1x", &r, &g, &b, &a) != 4) {
+        return false;
+      }
+      a <<= 4;
+      alpha_parsed = true;
+      break;
+    case 6: /* #RRGGBB */
+      if (sscanf(hexcol, "%2x%2x%2x", &r, &g, &b) != 3) {
+        return false;
+      }
+      break;
+    case 5: /* #RGBAA -> #RRGGBBAA */
+      if (sscanf(hexcol, "%1x%1x%1x%2x", &r, &g, &b, &a) != 4) {
+        return false;
+      }
+      r = (r << 4) | r;
+      g = (g << 4) | g;
+      b = (b << 4) | b;
+      alpha_parsed = true;
+      break;
+    case 4: /* #RGBA -> #RRGGBBAA */
+      if (sscanf(hexcol, "%1x%1x%1x%1x", &r, &g, &b, &a) != 4) {
+        return false;
+      }
+      r = (r << 4) | r;
+      g = (g << 4) | g;
+      b = (b << 4) | b;
+      a = (a << 4) | a;
+      alpha_parsed = true;
+      break;
+    case 3: /* #RGB -> #RRGGBB */
+      if (sscanf(hexcol, "%1x%1x%1x", &r, &g, &b) != 3) {
+        return false;
+      }
+      r = (r << 4) | r;
+      g = (g << 4) | g;
+      b = (b << 4) | b;
+      break;
+    case 2: /* #AB -> #ABABAB */
+      if (sscanf(hexcol, "%2x", &r) != 1) {
+        return false;
+      }
+      g = r;
+      b = r;
+      break;
+    case 1: /* #A -> #AAAAAA */
+      if (sscanf(hexcol, "%1x", &r) != 1) {
+        return false;
+      }
+      r = (r << 4) | r;
+      g = r;
+      b = r;
+      break;
+    default:
+      /* Invalid hex color length - leave color unchanged. */
+      return false;
   }
 
-  *r_r = float(ri) * (1.0f / 255.0f);
-  *r_g = float(gi) * (1.0f / 255.0f);
-  *r_b = float(bi) * (1.0f / 255.0f);
+  /* Convert integer color channels to float. */
+  const float scale = 1.0f / 255.0f;
+  *r_r = float(r) * scale;
+  *r_g = float(g) * scale;
+  *r_b = float(b) * scale;
+
   CLAMP(*r_r, 0.0f, 1.0f);
   CLAMP(*r_g, 0.0f, 1.0f);
   CLAMP(*r_b, 0.0f, 1.0f);
 
-  if (r_a && has_alpha) {
-    *r_a = float(ai) * (1.0f / 255.0f);
+  /* Assign alpha if present. */
+  if (r_a && alpha_parsed) {
+    *r_a = float(a) * scale;
     CLAMP(*r_a, 0.0f, 1.0f);
   }
+  return true;
 }
 
 void rgb_to_hsv(float r, float g, float b, float *r_h, float *r_s, float *r_v)
@@ -291,22 +353,32 @@ void rgb_to_hsl(float r, float g, float b, float *r_h, float *r_s, float *r_l)
 
 void rgb_to_hsl_compat(float r, float g, float b, float *r_h, float *r_s, float *r_l)
 {
+  /* Convert RGB to HSL, while staying as close as possible to existing HSL values.
+   * Uses a threshold as there can be small errors introduced by color space conversions
+   * or other operations. */
   const float orig_s = *r_s;
   const float orig_h = *r_h;
+  const float threshold = 1e-5f;
 
   rgb_to_hsl(r, g, b, r_h, r_s, r_l);
 
-  if (*r_l <= 0.0f) {
+  /* For (near) zero lightness or saturation, keep the other values unchanged,
+   * as they are either undefined or very sensitive to small lightness changes. */
+  if (*r_l <= threshold) {
     *r_h = orig_h;
     *r_s = orig_s;
   }
-  else if (*r_s <= 0.0f) {
+  else if (*r_s <= threshold) {
     *r_h = orig_h;
     *r_s = orig_s;
   }
 
-  if (*r_h == 0.0f && orig_h >= 1.0f) {
+  /* Hue wraps around, keep it on the same side. */
+  if (fabsf(*r_h) <= threshold && fabsf(orig_h - 1.0f) <= threshold) {
     *r_h = 1.0f;
+  }
+  else if (fabsf(*r_h - 1.0f) <= threshold && fabsf(orig_h) <= threshold) {
+    *r_h = 0.0f;
   }
 }
 
@@ -322,22 +394,31 @@ void rgb_to_hsl_v(const float rgb[3], float r_hsl[3])
 
 void rgb_to_hsv_compat(float r, float g, float b, float *r_h, float *r_s, float *r_v)
 {
+  /* Convert RGB to HSV, while staying as close as possible to existing HSV values.
+   * Uses a threshold as there can be small errors introduced by color space conversions
+   * or other operations. */
   const float orig_h = *r_h;
   const float orig_s = *r_s;
+  const float threshold = 1e-5f;
 
   rgb_to_hsv(r, g, b, r_h, r_s, r_v);
 
-  if (*r_v <= 1e-8) {
-    /* Very low V values will affect the HS values, correct them in post. */
+  /* For (near) zero values or saturation, keep the other values unchanged,
+   * as they are either undefined or very sensitive to small value changes. */
+  if (*r_v <= threshold) {
     *r_h = orig_h;
     *r_s = orig_s;
   }
-  else if (*r_s <= 1e-8) {
+  else if (*r_s <= threshold) {
     *r_h = orig_h;
   }
 
-  if (*r_h == 0.0f && orig_h >= 1.0f) {
+  /* Hue wraps around, keep it on the same side. */
+  if (fabsf(*r_h) <= threshold && fabsf(orig_h - 1.0f) <= threshold) {
     *r_h = 1.0f;
+  }
+  else if (fabsf(*r_h - 1.0f) <= threshold && fabsf(orig_h) <= threshold) {
+    *r_h = 0.0f;
   }
 }
 
@@ -379,15 +460,9 @@ uint rgb_to_cpack(float r, float g, float b)
   ig = uint(floorf(255.0f * max_ff(g, 0.0f)));
   ib = uint(floorf(255.0f * max_ff(b, 0.0f)));
 
-  if (ir > 255) {
-    ir = 255;
-  }
-  if (ig > 255) {
-    ig = 255;
-  }
-  if (ib > 255) {
-    ib = 255;
-  }
+  ir = std::min<uint>(ir, 255);
+  ig = std::min<uint>(ig, 255);
+  ib = std::min<uint>(ib, 255);
 
   return (ir + (ig * 256) + (ib * 256 * 256));
 }
@@ -397,31 +472,6 @@ void cpack_to_rgb(uint col, float *r_r, float *r_g, float *r_b)
   *r_r = float(col & 0xFF) * (1.0f / 255.0f);
   *r_g = float((col >> 8) & 0xFF) * (1.0f / 255.0f);
   *r_b = float((col >> 16) & 0xFF) * (1.0f / 255.0f);
-}
-
-void rgb_uchar_to_float(float r_col[3], const uchar col_ub[3])
-{
-  r_col[0] = float(col_ub[0]) * (1.0f / 255.0f);
-  r_col[1] = float(col_ub[1]) * (1.0f / 255.0f);
-  r_col[2] = float(col_ub[2]) * (1.0f / 255.0f);
-}
-
-void rgba_uchar_to_float(float r_col[4], const uchar col_ub[4])
-{
-  r_col[0] = float(col_ub[0]) * (1.0f / 255.0f);
-  r_col[1] = float(col_ub[1]) * (1.0f / 255.0f);
-  r_col[2] = float(col_ub[2]) * (1.0f / 255.0f);
-  r_col[3] = float(col_ub[3]) * (1.0f / 255.0f);
-}
-
-void rgb_float_to_uchar(uchar r_col[3], const float col_f[3])
-{
-  unit_float_to_uchar_clamp_v3(r_col, col_f);
-}
-
-void rgba_float_to_uchar(uchar r_col[4], const float col_f[4])
-{
-  unit_float_to_uchar_clamp_v4(r_col, col_f);
 }
 
 /* ********************************* color transforms ********************************* */
@@ -566,7 +616,7 @@ MALWAYS_INLINE __m128 linearrgb_to_srgb_v4_simd(const __m128 c)
 void srgb_to_linearrgb_v3_v3(float linear[3], const float srgb[3])
 {
   float r[4] = {srgb[0], srgb[1], srgb[2], 1.0f};
-  __m128 *rv = (__m128 *)&r;
+  __m128 *rv = reinterpret_cast<__m128 *>(&r);
   *rv = srgb_to_linearrgb_v4_simd(*rv);
   linear[0] = r[0];
   linear[1] = r[1];
@@ -576,7 +626,7 @@ void srgb_to_linearrgb_v3_v3(float linear[3], const float srgb[3])
 void linearrgb_to_srgb_v3_v3(float srgb[3], const float linear[3])
 {
   float r[4] = {linear[0], linear[1], linear[2], 1.0f};
-  __m128 *rv = (__m128 *)&r;
+  __m128 *rv = reinterpret_cast<__m128 *>(&r);
   *rv = linearrgb_to_srgb_v4_simd(*rv);
   srgb[0] = r[0];
   srgb[1] = r[1];
@@ -682,47 +732,6 @@ void linearrgb_to_srgb_v3_v3(float srgb[3], const float linear[3])
 
 #endif /* BLI_HAVE_SSE2 */
 
-void minmax_rgb(short c[3])
-{
-  if (c[0] > 255) {
-    c[0] = 255;
-  }
-  else if (c[0] < 0) {
-    c[0] = 0;
-  }
-
-  if (c[1] > 255) {
-    c[1] = 255;
-  }
-  else if (c[1] < 0) {
-    c[1] = 0;
-  }
-
-  if (c[2] > 255) {
-    c[2] = 255;
-  }
-  else if (c[2] < 0) {
-    c[2] = 0;
-  }
-}
-
-int constrain_rgb(float *r, float *g, float *b)
-{
-  /* Amount of white needed */
-  const float w = -min_ffff(0.0f, *r, *g, *b);
-
-  /* Add just enough white to make r, g, b all positive. */
-  if (w > 0.0f) {
-    *r += w;
-    *g += w;
-    *b += w;
-
-    return 1; /* Color modified to fit RGB gamut */
-  }
-
-  return 0; /* Color within RGB gamut */
-}
-
 /* ************************************* other ************************************************* */
 
 void rgb_float_set_hue_float_offset(float rgb[3], float hue_offset)
@@ -751,96 +760,24 @@ void rgb_byte_set_hue_float_offset(uchar rgb[3], float hue_offset)
   rgb_float_to_uchar(rgb, rgb_float);
 }
 
-/* fast sRGB conversion
- * LUT from linear float to 16-bit short
- * based on http://mysite.verizon.net/spitzak/conversion/
- */
-
 float BLI_color_from_srgb_table[256];
-ushort BLI_color_to_srgb_table[0x10000];
-
-static ushort hipart(const float f)
-{
-  union {
-    float f;
-    ushort us[2];
-  } tmp;
-
-  tmp.f = f;
-
-#ifdef __BIG_ENDIAN__
-  return tmp.us[0];
-#else
-  return tmp.us[1];
-#endif
-}
-
-static float index_to_float(const ushort i)
-{
-
-  union {
-    float f;
-    ushort us[2];
-  } tmp;
-
-  /* positive and negative zeros, and all gradual underflow, turn into zero: */
-  if (i < 0x80 || (i >= 0x8000 && i < 0x8080)) {
-    return 0;
-  }
-  /* All NaN's and infinity turn into the largest possible legal float: */
-  if (i >= 0x7f80 && i < 0x8000) {
-    return FLT_MAX;
-  }
-  if (i >= 0xff80) {
-    return -FLT_MAX;
-  }
-
-#ifdef __BIG_ENDIAN__
-  tmp.us[0] = i;
-  tmp.us[1] = 0x8000;
-#else
-  tmp.us[0] = 0x8000;
-  tmp.us[1] = i;
-#endif
-
-  return tmp.f;
-}
 
 void BLI_init_srgb_conversion()
 {
   static bool initialized = false;
-  uint i, b;
-
   if (initialized) {
     return;
   }
   initialized = true;
 
-  /* Fill in the lookup table to convert floats to bytes: */
-  for (i = 0; i < 0x10000; i++) {
-    float f = linearrgb_to_srgb(index_to_float(ushort(i))) * 255.0f;
-    if (f <= 0) {
-      BLI_color_to_srgb_table[i] = 0;
-    }
-    else if (f < 255) {
-      BLI_color_to_srgb_table[i] = ushort(f * 0x100 + 0.5f);
-    }
-    else {
-      BLI_color_to_srgb_table[i] = 0xff00;
-    }
-  }
-
   /* Fill in the lookup table to convert bytes to float: */
-  for (b = 0; b <= 255; b++) {
+  for (int b = 0; b <= 255; b++) {
     float f = srgb_to_linearrgb(float(b) * (1.0f / 255.0f));
     BLI_color_from_srgb_table[b] = f;
-    i = hipart(f);
-    /* replace entries so byte->float->byte does not change the data: */
-    BLI_color_to_srgb_table[i] = ushort(b * 0x100);
   }
 }
 
-namespace blender::math {
+namespace math {
 
 struct locus_entry_t {
   float mired; /* Inverse temperature */
@@ -884,7 +821,8 @@ bool whitepoint_to_temp_tint(const float3 &white, float &temperature, float &tin
 
   /* Find first entry that's "to the right" of the white point. */
   auto check = [uv](const float val, const locus_entry_t &entry) { return entry.dist(uv) < val; };
-  const auto entry = std::upper_bound(planck_locus.begin(), planck_locus.end(), 0.0f, check);
+  std::array<locus_entry_t, 31>::const_iterator entry = std::upper_bound(
+      planck_locus.begin(), planck_locus.end(), 0.0f, check);
   if (entry == planck_locus.begin() || entry == planck_locus.end()) {
     return false;
   }
@@ -914,7 +852,8 @@ float3 whitepoint_from_temp_tint(const float temperature, const float tint)
   const float mired = clamp(
       1e6f / temperature, planck_locus[0].mired, planck_locus[planck_locus.size() - 1].mired);
   auto check = [](const locus_entry_t &entry, const float val) { return entry.mired < val; };
-  const auto entry = std::lower_bound(planck_locus.begin(), planck_locus.end(), mired, check);
+  std::array<locus_entry_t, 31>::const_iterator entry = std::lower_bound(
+      planck_locus.begin(), planck_locus.end(), mired, check);
   const size_t i = size_t(entry - planck_locus.begin());
   const locus_entry_t &low = planck_locus[i - 1], high = planck_locus[i];
 
@@ -958,4 +897,5 @@ float3x3 chromatic_adaption_matrix(const float3 &from_XYZ, const float3 &to_XYZ)
   return invert(bradford) * from_scale<float3x3>(to_LMS / from_LMS) * bradford;
 }
 
-}  // namespace blender::math
+}  // namespace math
+}  // namespace blender

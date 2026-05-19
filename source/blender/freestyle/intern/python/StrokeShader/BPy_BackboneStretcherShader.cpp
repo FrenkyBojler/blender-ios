@@ -10,10 +10,6 @@
 
 #include "../../stroke/BasicStrokeShaders.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -31,7 +27,7 @@ PyDoc_STRVAR(
     "\n"
     "   Builds a BackboneStretcherShader object.\n"
     "\n"
-    "   :arg amount: The stretching amount value.\n"
+    "   :param amount: The stretching amount value.\n"
     "   :type amount: float\n"
     "\n"
     ".. method:: shade(stroke)\n"
@@ -39,9 +35,8 @@ PyDoc_STRVAR(
     "   Stretches the stroke at its two extremities and following the\n"
     "   respective directions: v(1)v(0) and v(n-1)v(n).\n"
     "\n"
-    "   :arg stroke: A Stroke object.\n"
+    "   :param stroke: A Stroke object.\n"
     "   :type stroke: :class:`freestyle.types.Stroke`\n");
-
 static int BackboneStretcherShader___init__(BPy_BackboneStretcherShader *self,
                                             PyObject *args,
                                             PyObject *kwds)
@@ -100,7 +95,3 @@ PyTypeObject BackboneStretcherShader_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

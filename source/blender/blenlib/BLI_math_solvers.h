@@ -8,12 +8,9 @@
  * \ingroup bli
  */
 
-#include "BLI_compiler_attrs.h"
 #include "BLI_math_inline.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+namespace blender {
 
 #ifdef BLI_MATH_GCC_WARN_PRAGMA
 #  pragma GCC diagnostic push
@@ -113,6 +110,4 @@ bool BLI_newton3d_solve(Newton3D_DeltaFunc func_delta,
 
 /** \} */
 
-#ifdef __cplusplus
-}
-#endif
+}  // namespace blender

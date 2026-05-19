@@ -8,6 +8,11 @@
 
 #pragma once
 
+#include "DNA_scene_types.h"
+
+namespace blender {
+
+struct FFMpegCodecData;
 struct ImageFormatData;
 struct RenderData;
 
@@ -26,22 +31,26 @@ void MOV_exit();
  */
 bool MOV_is_movie_file(const char *filepath);
 
-/** Checks whether given ffmpeg video AVCodecID supports alpha channel (RGBA). */
-bool MOV_codec_supports_alpha(int av_codec_id);
-
-/** Checks whether given ffmpeg video AVCodecID supports CRF (i.e. "quality level")
- * setting. For codecs that do not support constant quality, only target bitrate
- * can be specified. */
-bool MOV_codec_supports_crf(int av_codec_id);
+/** Checks whether given FFMPEG codec and profile combination supports alpha channel (RGBA). */
+bool MOV_codec_supports_alpha(IMB_Ffmpeg_Codec_ID codec_id, int ffmpeg_profile);
 
 /**
- * Which pixel bit depths are supported by a given ffmpeg video AVCodecID.
- * Returns bitmask of `R_IMF_CHAN_DEPTH_` flags.
+ * Checks whether given FFMPEG video AVCodecID supports CRF (i.e. "quality level")
+ * setting. For codecs that do not support constant quality, only target bit-rate
+ * can be specified.
  */
-int MOV_codec_valid_bit_depths(int av_codec_id);
+bool MOV_codec_supports_crf(IMB_Ffmpeg_Codec_ID codec_id);
 
 /**
- * Given desired output image format type, sets up required ffmpeg
+ * Which pixel bit depths are supported by a given FFMPEG video CodecID.
+ * Returns bit-mask of `R_IMF_CHAN_DEPTH_` flags.
+ */
+eImageFormatDepth MOV_codec_valid_bit_depths(IMB_Ffmpeg_Codec_ID codec_id);
+
+/**
+ * Given desired output image format type, sets up required FFMPEG
  * related settings in render data.
  */
 void MOV_validate_output_settings(RenderData *rd, const ImageFormatData *imf);
+
+}  // namespace blender

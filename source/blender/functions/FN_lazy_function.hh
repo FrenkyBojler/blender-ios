@@ -42,18 +42,19 @@
 
 #include "BLI_cpp_type.hh"
 #include "BLI_function_ref.hh"
-#include "BLI_generic_pointer.hh"
 #include "BLI_linear_allocator.hh"
 #include "BLI_vector.hh"
 
-#include <atomic>
-#include <thread>
+#include "FN_user_data.hh"
 
 #ifndef NDEBUG
+#  include <atomic>
+#  include <thread>
 #  define FN_LAZY_FUNCTION_DEBUG_THREADS
 #endif
 
-namespace blender::fn::lazy_function {
+namespace blender {
+namespace fn::lazy_function {
 
 enum class ValueUsage : uint8_t {
   /**
@@ -73,33 +74,6 @@ enum class ValueUsage : uint8_t {
 };
 
 class LazyFunction;
-
-/**
- * Extension of #UserData that is thread-local. This avoids accessing e.g.
- * `EnumerableThreadSpecific.local()` in every nested lazy-function because the thread local
- * data is passed in by the caller.
- */
-class LocalUserData {
- public:
-  virtual ~LocalUserData() = default;
-};
-
-/**
- * This allows passing arbitrary data into a lazy-function during execution. For that, #UserData
- * has to be subclassed. This mainly exists because it's more type safe than passing a `void *`
- * with no type information attached.
- *
- * Some lazy-functions may expect to find a certain type of user data when executed.
- */
-class UserData {
- public:
-  virtual ~UserData() = default;
-
-  /**
-   * Get thread local data for this user-data and the current thread.
-   */
-  virtual destruct_ptr<LocalUserData> get_local(LinearAllocator<> &allocator);
-};
 
 /**
  * Passed to the lazy-function when it is executed.
@@ -141,7 +115,6 @@ class Params {
   std::atomic<bool> allow_multi_threading_;
 #endif
 
- public:
   Params(const LazyFunction &fn, bool allow_multi_threading_initially);
 
   /**
@@ -495,8 +468,8 @@ inline void Params::assert_valid_thread() const
 
 /** \} */
 
-}  // namespace blender::fn::lazy_function
+}  // namespace fn::lazy_function
 
-namespace blender {
 namespace lf = fn::lazy_function;
-}
+
+}  // namespace blender

@@ -15,13 +15,13 @@
 
 #include "BKE_context.hh"
 
-#include "RE_engine.h"
-
 #include "RNA_prototypes.hh"
 
 #include "hydra/image.hh"
 
-namespace blender::render::hydra {
+namespace blender {
+
+namespace render::hydra {
 
 template<typename T> T *pyrna_to_pointer(PyObject *pyobject, const StructRNA *rnatype)
 {
@@ -37,9 +37,9 @@ static PyObject *engine_create_func(PyObject * /*self*/, PyObject *args)
     return nullptr;
   }
 
-  RenderEngine *bl_engine = pyrna_to_pointer<RenderEngine>(pyengine, &RNA_RenderEngine);
+  RenderEngine *bl_engine = pyrna_to_pointer<RenderEngine>(pyengine, RNA_RenderEngine);
 
-  CLOG_INFO(LOG_HYDRA_RENDER, 1, "Engine %s", engine_type);
+  CLOG_DEBUG(LOG_HYDRA_RENDER, "Engine %s", engine_type);
   Engine *engine = nullptr;
   try {
     if (STREQ(engine_type, "VIEWPORT")) {
@@ -56,7 +56,7 @@ static PyObject *engine_create_func(PyObject * /*self*/, PyObject *args)
     CLOG_ERROR(LOG_HYDRA_RENDER, "%s", e.what());
   }
 
-  CLOG_INFO(LOG_HYDRA_RENDER, 1, "Engine %p", engine);
+  CLOG_DEBUG(LOG_HYDRA_RENDER, "Engine %p", engine);
   return PyLong_FromVoidPtr(engine);
 }
 
@@ -68,7 +68,7 @@ static PyObject *engine_free_func(PyObject * /*self*/, PyObject *args)
   }
 
   Engine *engine = static_cast<Engine *>(PyLong_AsVoidPtr(pyengine));
-  CLOG_INFO(LOG_HYDRA_RENDER, 1, "Engine %p", engine);
+  CLOG_DEBUG(LOG_HYDRA_RENDER, "Engine %p", engine);
   delete engine;
 
   Py_RETURN_NONE;
@@ -82,10 +82,10 @@ static PyObject *engine_update_func(PyObject * /*self*/, PyObject *args)
   }
 
   Engine *engine = static_cast<Engine *>(PyLong_AsVoidPtr(pyengine));
-  Depsgraph *depsgraph = pyrna_to_pointer<Depsgraph>(pydepsgraph, &RNA_Depsgraph);
-  bContext *context = pyrna_to_pointer<bContext>(pycontext, &RNA_Context);
+  Depsgraph *depsgraph = pyrna_to_pointer<Depsgraph>(pydepsgraph, RNA_Depsgraph);
+  bContext *context = pyrna_to_pointer<bContext>(pycontext, RNA_Context);
 
-  CLOG_INFO(LOG_HYDRA_RENDER, 2, "Engine %p", engine);
+  CLOG_DEBUG(LOG_HYDRA_RENDER, "Engine %p", engine);
   engine->sync(depsgraph, context);
 
   Py_RETURN_NONE;
@@ -100,7 +100,7 @@ static PyObject *engine_render_func(PyObject * /*self*/, PyObject *args)
 
   Engine *engine = static_cast<Engine *>(PyLong_AsVoidPtr(pyengine));
 
-  CLOG_INFO(LOG_HYDRA_RENDER, 2, "Engine %p", engine);
+  CLOG_DEBUG(LOG_HYDRA_RENDER, "Engine %p", engine);
 
   /* Allow Blender to execute other Python scripts. */
   Py_BEGIN_ALLOW_THREADS;
@@ -118,9 +118,9 @@ static PyObject *engine_view_draw_func(PyObject * /*self*/, PyObject *args)
   }
 
   ViewportEngine *engine = static_cast<ViewportEngine *>(PyLong_AsVoidPtr(pyengine));
-  bContext *context = pyrna_to_pointer<bContext>(pycontext, &RNA_Context);
+  bContext *context = pyrna_to_pointer<bContext>(pycontext, RNA_Context);
 
-  CLOG_INFO(LOG_HYDRA_RENDER, 3, "Engine %p", engine);
+  CLOG_DEBUG(LOG_HYDRA_RENDER, "Engine %p", engine);
 
   /* Allow Blender to execute other Python scripts. */
   Py_BEGIN_ALLOW_THREADS;
@@ -158,7 +158,7 @@ static PyObject *engine_set_render_setting_func(PyObject * /*self*/, PyObject *a
 
   Engine *engine = static_cast<Engine *>(PyLong_AsVoidPtr(pyengine));
 
-  CLOG_INFO(LOG_HYDRA_RENDER, 3, "Engine %p: %s", engine, key);
+  CLOG_DEBUG(LOG_HYDRA_RENDER, "Engine %p: %s", engine, key);
   engine->set_render_setting(key, get_setting_val(pyval));
 
   Py_RETURN_NONE;
@@ -204,12 +204,14 @@ static PyModuleDef module = {
     nullptr,
 };
 
-}  // namespace blender::render::hydra
+}  // namespace render::hydra
 
 PyObject *BPyInit_hydra();
 
 PyObject *BPyInit_hydra()
 {
-  PyObject *mod = PyModule_Create(&blender::render::hydra::module);
+  PyObject *mod = PyModule_Create(&render::hydra::module);
   return mod;
 }
+
+}  // namespace blender

@@ -9,28 +9,26 @@
  * \brief A general argument parsing module.
  */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-struct bArgs;
-typedef struct bArgs bArgs;
-
 #include <stdarg.h> /* For `va_list`. */
+#include <stdbool.h>
 
 #include "BLI_compiler_attrs.h"
+
+namespace blender {
+
+struct bArgs;
 
 /**
  * Returns the number of extra arguments consumed by the function.
  * -  0 is normal value,
  * - -1 stops parsing arguments, other negative indicates skip
  */
-typedef int (*BA_ArgCallback)(int argc, const char **argv, void *data);
+using BA_ArgCallback = int (*)(int argc, const char **argv, void *data);
 
 struct bArgs *BLI_args_create(int argc, const char **argv);
 void BLI_args_destroy(struct bArgs *ba);
 
-typedef void (*bArgPrintFn)(void *user_data, const char *format, va_list args);
+using bArgPrintFn = void (*)(void *user_data, const char *format, va_list args);
 void BLI_args_printf(struct bArgs *ba, const char *format, ...);
 void BLI_args_print_fn_set(struct bArgs *ba,
                            ATTR_PRINTF_FORMAT(2, 0) bArgPrintFn print_fn,
@@ -71,6 +69,4 @@ bool BLI_args_has_other_doc(const struct bArgs *ba);
 
 void BLI_args_print(const struct bArgs *ba);
 
-#ifdef __cplusplus
-}
-#endif
+}  // namespace blender

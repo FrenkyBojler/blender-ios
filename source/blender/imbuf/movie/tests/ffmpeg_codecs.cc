@@ -4,6 +4,8 @@
 
 #include "testing/testing.h"
 
+#include "BKE_gtest_base.hh"
+
 extern "C" {
 #include "ffmpeg_compat.h"
 
@@ -26,7 +28,7 @@ bool test_vcodec(const AVCodec *codec, AVPixelFormat pixelformat)
       ctx->pix_fmt = pixelformat;
       ctx->width = 720;
       ctx->height = 576;
-      int open = avcodec_open2(ctx, codec, NULL);
+      int open = avcodec_open2(ctx, codec, nullptr);
       if (open >= 0) {
         avcodec_free_context(&ctx);
         result = true;
@@ -50,7 +52,7 @@ bool test_acodec(const AVCodec *codec, AVSampleFormat fmt)
       av_channel_layout_from_mask(&ctx->ch_layout, AV_CH_LAYOUT_MONO);
 #endif
       ctx->bit_rate = 128000;
-      int open = avcodec_open2(ctx, codec, NULL);
+      int open = avcodec_open2(ctx, codec, nullptr);
       if (open >= 0) {
         avcodec_free_context(&ctx);
         result = true;
@@ -100,27 +102,29 @@ bool test_codec_audio_by_name(const char *codecname, AVSampleFormat fmt)
   return result;
 }
 
+class FFmpegTest : public blender::bke::BlenderGTestBase {};
+
 #define str(s) #s
 #define FFMPEG_TEST_VCODEC_ID(codec, fmt) \
-  TEST(ffmpeg, codec##_##fmt) \
+  TEST_F(FFmpegTest, codec##_##fmt) \
   { \
     EXPECT_TRUE(test_codec_video_by_codecid(codec, fmt)); \
   }
 
 #define FFMPEG_TEST_VCODEC_NAME(codec, fmt) \
-  TEST(ffmpeg, codec##_##fmt) \
+  TEST_F(FFmpegTest, codec##_##fmt) \
   { \
     EXPECT_TRUE(test_codec_video_by_name(str(codec), fmt)); \
   }
 
 #define FFMPEG_TEST_ACODEC_ID(codec, fmt) \
-  TEST(ffmpeg, codec##_##fmt) \
+  TEST_F(FFmpegTest, codec##_##fmt) \
   { \
     EXPECT_TRUE(test_codec_audio_by_codecid(codec, fmt)); \
   }
 
 #define FFMPEG_TEST_ACODEC_NAME(codec, fmt) \
-  TEST(ffmpeg, codec) \
+  TEST_F(FFmpegTest, codec) \
   { \
     EXPECT_TRUE(test_codec_audio_by_name(str(codec), fmt)); \
   }
@@ -165,9 +169,9 @@ FFMPEG_TEST_VCODEC_NAME(libtheora, AV_PIX_FMT_YUV420P)
 FFMPEG_TEST_VCODEC_NAME(libx264, AV_PIX_FMT_YUV420P)
 FFMPEG_TEST_VCODEC_NAME(libvpx, AV_PIX_FMT_YUV420P)
 FFMPEG_TEST_VCODEC_NAME(libopenjpeg, AV_PIX_FMT_YUV420P)
-/* aom's AV1 encoder is "libaom-av1". FFMPEG_TEST_VCODEC_NAME(libaom-av1, ...)
+/* AOM's AV1 encoder is `libaom-av1`. `FFMPEG_TEST_VCODEC_NAME(libaom-av1, ...)`
  * will not work because the dash will not work with the test macro. */
-TEST(ffmpeg, libaom_av1_AV_PIX_FMT_YUV420P)
+TEST_F(FFmpegTest, libaom_av1_AV_PIX_FMT_YUV420P)
 {
   EXPECT_TRUE(test_codec_video_by_name("libaom-av1", AV_PIX_FMT_YUV420P));
 }

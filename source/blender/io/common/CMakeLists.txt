@@ -17,6 +17,7 @@ set(SRC
   intern/object_identifier.cc
   intern/orientation.cc
   intern/path_util.cc
+  intern/string_utils.cc
   intern/subdiv_disabler.cc
 
   IO_abstract_hierarchy_iterator.h
@@ -24,8 +25,10 @@ set(SRC
   IO_orientation.hh
   IO_path_util.hh
   IO_path_util_types.hh
+  IO_string_utils.hh
   IO_subdiv_disabler.hh
   IO_types.hh
+  IO_validate.hh
   intern/dupli_parent_finder.hh
 )
 
@@ -36,18 +39,16 @@ set(LIB
   PRIVATE bf::dna
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
-  PRIVATE bf::extern::fmtlib
+  PRIVATE bf::extern::fast_float
 )
 
 blender_add_lib(bf_io_common "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 
-target_link_libraries(bf_io_common INTERFACE)
-
 if(WITH_GTESTS)
   set(TEST_SRC
     intern/abstract_hierarchy_iterator_test.cc
-    intern/hierarchy_context_order_test.cc
     intern/object_identifier_test.cc
+    intern/string_utils_tests.cc
   )
   set(TEST_INC
     ../../blenloader

@@ -5,14 +5,11 @@
 set(INC
   ../include
   ../../makesrna
-  ../../sequencer
-  ../../windowmanager
   # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
 
 set(INC_SYS
-
 )
 
 set(SRC
@@ -27,23 +24,10 @@ set(LIB
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
   PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::sequencer
+  PRIVATE bf::windowmanager
+  PRIVATE bf::dependencies::optional::audaspace
 )
-
-if(WITH_AUDASPACE)
-  list(APPEND LIB
-    bf_intern_audaspace
-  )
-  list(APPEND INC_SYS
-    ${AUDASPACE_C_INCLUDE_DIRS}
-  )
-  if(WITH_SYSTEM_AUDASPACE)
-    list(APPEND LIB
-      ${AUDASPACE_C_LIBRARIES}
-      ${AUDASPACE_PY_LIBRARIES}
-    )
-  endif()
-  add_definitions(-DWITH_AUDASPACE)
-endif()
 
 if(WITH_CODEC_FFMPEG)
   add_definitions(-DWITH_FFMPEG)

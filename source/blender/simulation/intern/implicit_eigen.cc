@@ -6,8 +6,6 @@
  * \ingroup sim
  */
 
-#include "implicit.h"
-
 #ifdef IMPLICIT_SOLVER_EIGEN
 
 // #define USE_EIGEN_CORE
@@ -132,8 +130,9 @@ class fMatrix : public Eigen::Matrix3f {
   }
 };
 
-/* Extension of dense Eigen vectors,
- * providing 3-float block access for blenlib math functions
+/**
+ * Extension of dense Eigen vectors,
+ * providing 3-float block access for `blenlib` math functions
  */
 class lVector : public Eigen::VectorXf {
  public:

@@ -4,13 +4,10 @@
 
 set(INC
   PUBLIC .
-  ../blentranslation
-  ../imbuf
   ../makesrna
 )
 
 set(INC_SYS
-  ${FREETYPE_INCLUDE_DIRS}
 )
 
 set(SRC
@@ -20,8 +17,10 @@ set(SRC
   intern/blf_font.cc
   intern/blf_font_default.cc
   intern/blf_glyph.cc
+  intern/blf_glyph_curves.cc
   intern/blf_thumbs.cc
   BLF_api.hh
+  BLF_enums.hh
   intern/blf_internal.hh
   intern/blf_internal_types.hh
 )
@@ -29,10 +28,12 @@ set(SRC
 set(LIB
   PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
+  PRIVATE bf::blentranslation
   PRIVATE bf::dna
   PRIVATE bf::gpu
+  PRIVATE bf::imbuf
   PRIVATE bf::intern::guardedalloc
-  ${FREETYPE_LIBRARIES} ${BROTLI_LIBRARIES}
+  PRIVATE bf::dependencies::freetype
 )
 
 if(WIN32)
@@ -61,3 +62,15 @@ endif()
 
 blender_add_lib(bf_blenfont "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 add_library(bf::blenfont ALIAS bf_blenfont)
+
+if(WITH_GTESTS)
+  set(TEST_SRC
+    tests/BLF_tests.cc
+  )
+  set(TEST_INC
+  )
+  set(TEST_LIB
+    bf::blenfont
+  )
+  blender_add_test_suite_lib(blenfont "${TEST_SRC}" "${INC};${TEST_INC}" "${INC_SYS}" "${LIB};${TEST_LIB}")
+endif()

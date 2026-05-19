@@ -2,9 +2,17 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include <fmt/format.h>
+
+#include "BLI_generic_span.hh"
 #include "BLI_math_vector_types.hh"
+#include "BLI_utildefines.h"
 
 #include "GPU_shader.hh"
+
+#include "IMB_colormanagement.hh"
+
+#include "BKE_type_conversions.hh"
 
 #include "COM_context.hh"
 #include "COM_conversion_operation.hh"
@@ -14,14 +22,25 @@
 
 namespace blender::compositor {
 
-/* --------------------------------------------------------------------
- * Conversion Operation
- */
+ConversionOperation::ConversionOperation(Context &context,
+                                         const ResultType input_type,
+                                         const ResultType expected_type)
+    : SimpleOperation(context)
+{
+  this->declare_input_descriptor(InputDescriptor{input_type});
+  this->populate_result(context.create_result(expected_type));
+}
 
 void ConversionOperation::execute()
 {
-  Result &result = get_result();
-  const Result &input = get_input();
+  Result &result = this->get_result();
+  const Result &input = this->get_input();
+
+  const bke::DataTypeConversions &conversions = bke::get_implicit_type_conversions();
+  if (!conversions.is_convertible(input.get_cpp_type(), result.get_cpp_type())) {
+    this->allocate_default_remaining_outputs();
+    return;
+  }
 
   if (input.is_single_value()) {
     result.allocate_single_value();
@@ -30,14 +49,25 @@ void ConversionOperation::execute()
   }
 
   result.allocate_texture(input.domain());
-  if (context().use_gpu()) {
-    GPUShader *shader = get_conversion_shader();
+  if (this->context().use_gpu()) {
+    const std::string shader_name = fmt::format("compositor_convert_{}_to_{}",
+                                                Result::type_name(this->get_input().type()),
+                                                Result::type_name(this->get_result().type()));
+    gpu::Shader *shader = this->context().get_shader(shader_name.c_str());
     GPU_shader_bind(shader);
+
+    if (this->get_input().type() == ResultType::Color &&
+        ELEM(this->get_result().type(), ResultType::Float, ResultType::Int, ResultType::Bool))
+    {
+      float luminance_coefficients[3];
+      IMB_colormanagement_get_luminance_coefficients(luminance_coefficients);
+      GPU_shader_uniform_3fv(shader, "luminance_coefficients_u", luminance_coefficients);
+    }
 
     input.bind_as_texture(shader, "input_tx");
     result.bind_as_image(shader, "output_img");
 
-    compute_dispatch_threads_at_least(shader, input.domain().size);
+    compute_dispatch_threads_at_least(shader, input.domain().data_size);
 
     input.unbind_as_texture();
     result.unbind_as_image();
@@ -52,222 +82,31 @@ SimpleOperation *ConversionOperation::construct_if_needed(Context &context,
                                                           const Result &input_result,
                                                           const InputDescriptor &input_descriptor)
 {
-  ResultType result_type = input_result.type();
-  ResultType expected_type = input_descriptor.type;
-
-  /* If the result type differs from the expected type, return an instance of an appropriate
-   * conversion operation. Otherwise, return a null pointer. */
-
-  if (result_type == ResultType::Float && expected_type == ResultType::Vector) {
-    return new ConvertFloatToVectorOperation(context);
+  if (input_descriptor.skip_type_conversion) {
+    return nullptr;
   }
 
-  if (result_type == ResultType::Float && expected_type == ResultType::Color) {
-    return new ConvertFloatToColorOperation(context);
+  const ResultType result_type = input_result.type();
+  const ResultType expected_type = input_descriptor.type;
+  if (result_type != expected_type) {
+    return new ConversionOperation(context, result_type, expected_type);
   }
-
-  if (result_type == ResultType::Color && expected_type == ResultType::Float) {
-    return new ConvertColorToFloatOperation(context);
-  }
-
-  if (result_type == ResultType::Color && expected_type == ResultType::Vector) {
-    return new ConvertColorToVectorOperation(context);
-  }
-
-  if (result_type == ResultType::Vector && expected_type == ResultType::Float) {
-    return new ConvertVectorToFloatOperation(context);
-  }
-
-  if (result_type == ResultType::Vector && expected_type == ResultType::Color) {
-    return new ConvertVectorToColorOperation(context);
-  }
-
   return nullptr;
 }
 
-/* --------------------------------------------------------------------
- * Convert Float to Vector Operation
- */
-
-ConvertFloatToVectorOperation::ConvertFloatToVectorOperation(Context &context)
-    : ConversionOperation(context)
+void ConversionOperation::execute_single(const Result &input, Result &output)
 {
-  InputDescriptor input_descriptor;
-  input_descriptor.type = ResultType::Float;
-  declare_input_descriptor(input_descriptor);
-  populate_result(context.create_result(ResultType::Vector));
+  const bke::DataTypeConversions &conversions = bke::get_implicit_type_conversions();
+  conversions.convert_to_initialized_n(
+      GSpan(input.single_value().type(), input.single_value().get(), 1),
+      GMutableSpan(output.single_value().type(), output.single_value().get(), 1));
+  output.update_single_value_data();
 }
 
-void ConvertFloatToVectorOperation::execute_single(const Result &input, Result &output)
+void ConversionOperation::execute_cpu(const Result &input, Result &output)
 {
-  output.set_vector_value(float4(float3(input.get_float_value()), 1.0f));
-}
-
-void ConvertFloatToVectorOperation::execute_cpu(const Result &input, Result &output)
-{
-  parallel_for(input.domain().size, [&](const int2 texel) {
-    output.store_pixel(texel, float4(float3(input.load_pixel<float>(texel)), 1.0f));
-  });
-}
-
-GPUShader *ConvertFloatToVectorOperation::get_conversion_shader() const
-{
-  return context().get_shader("compositor_convert_float_to_vector");
-}
-
-/* --------------------------------------------------------------------
- * Convert Float to Color Operation
- */
-
-ConvertFloatToColorOperation::ConvertFloatToColorOperation(Context &context)
-    : ConversionOperation(context)
-{
-  InputDescriptor input_descriptor;
-  input_descriptor.type = ResultType::Float;
-  declare_input_descriptor(input_descriptor);
-  populate_result(context.create_result(ResultType::Color));
-}
-
-void ConvertFloatToColorOperation::execute_single(const Result &input, Result &output)
-{
-  output.set_color_value(float4(float3(input.get_float_value()), 1.0f));
-}
-
-void ConvertFloatToColorOperation::execute_cpu(const Result &input, Result &output)
-{
-  parallel_for(input.domain().size, [&](const int2 texel) {
-    output.store_pixel(texel, float4(float3(input.load_pixel<float>(texel)), 1.0f));
-  });
-}
-
-GPUShader *ConvertFloatToColorOperation::get_conversion_shader() const
-{
-  return context().get_shader("compositor_convert_float_to_color");
-}
-
-/* --------------------------------------------------------------------
- * Convert Color to Float Operation
- */
-
-ConvertColorToFloatOperation::ConvertColorToFloatOperation(Context &context)
-    : ConversionOperation(context)
-{
-  InputDescriptor input_descriptor;
-  input_descriptor.type = ResultType::Color;
-  declare_input_descriptor(input_descriptor);
-  populate_result(context.create_result(ResultType::Float));
-}
-
-void ConvertColorToFloatOperation::execute_single(const Result &input, Result &output)
-{
-  float4 color = input.get_color_value();
-  output.set_float_value((color.x + color.y + color.z) / 3.0f);
-}
-
-void ConvertColorToFloatOperation::execute_cpu(const Result &input, Result &output)
-{
-  parallel_for(input.domain().size, [&](const int2 texel) {
-    const float4 color = input.load_pixel<float4>(texel);
-    output.store_pixel(texel, (color.x + color.y + color.z) / 3.0f);
-  });
-}
-
-GPUShader *ConvertColorToFloatOperation::get_conversion_shader() const
-{
-  return context().get_shader("compositor_convert_color_to_float");
-}
-
-/* --------------------------------------------------------------------
- * Convert Color to Vector Operation
- */
-
-ConvertColorToVectorOperation::ConvertColorToVectorOperation(Context &context)
-    : ConversionOperation(context)
-{
-  InputDescriptor input_descriptor;
-  input_descriptor.type = ResultType::Color;
-  declare_input_descriptor(input_descriptor);
-  populate_result(context.create_result(ResultType::Vector));
-}
-
-void ConvertColorToVectorOperation::execute_single(const Result &input, Result &output)
-{
-  float4 color = input.get_color_value();
-  output.set_vector_value(color);
-}
-
-void ConvertColorToVectorOperation::execute_cpu(const Result &input, Result &output)
-{
-  parallel_for(input.domain().size, [&](const int2 texel) {
-    output.store_pixel(texel, input.load_pixel<float4>(texel));
-  });
-}
-
-GPUShader *ConvertColorToVectorOperation::get_conversion_shader() const
-{
-  return context().get_shader("compositor_convert_color_to_vector");
-}
-
-/* --------------------------------------------------------------------
- * Convert Vector to Float Operation
- */
-
-ConvertVectorToFloatOperation::ConvertVectorToFloatOperation(Context &context)
-    : ConversionOperation(context)
-{
-  InputDescriptor input_descriptor;
-  input_descriptor.type = ResultType::Vector;
-  declare_input_descriptor(input_descriptor);
-  populate_result(context.create_result(ResultType::Float));
-}
-
-void ConvertVectorToFloatOperation::execute_single(const Result &input, Result &output)
-{
-  float4 vector = input.get_vector_value();
-  output.set_float_value((vector[0] + vector[1] + vector[2]) / 3.0f);
-}
-
-void ConvertVectorToFloatOperation::execute_cpu(const Result &input, Result &output)
-{
-  parallel_for(input.domain().size, [&](const int2 texel) {
-    const float4 vector = input.load_pixel<float4>(texel);
-    output.store_pixel(texel, (vector.x + vector.y + vector.z) / 3.0f);
-  });
-}
-
-GPUShader *ConvertVectorToFloatOperation::get_conversion_shader() const
-{
-  return context().get_shader("compositor_convert_vector_to_float");
-}
-
-/* --------------------------------------------------------------------
- * Convert Vector to Color Operation
- */
-
-ConvertVectorToColorOperation::ConvertVectorToColorOperation(Context &context)
-    : ConversionOperation(context)
-{
-  InputDescriptor input_descriptor;
-  input_descriptor.type = ResultType::Vector;
-  declare_input_descriptor(input_descriptor);
-  populate_result(context.create_result(ResultType::Color));
-}
-
-void ConvertVectorToColorOperation::execute_single(const Result &input, Result &output)
-{
-  output.set_color_value(float4(float3(input.get_vector_value()), 1.0f));
-}
-
-void ConvertVectorToColorOperation::execute_cpu(const Result &input, Result &output)
-{
-  parallel_for(input.domain().size, [&](const int2 texel) {
-    output.store_pixel(texel, float4(input.load_pixel<float4>(texel).xyz(), 1.0f));
-  });
-}
-
-GPUShader *ConvertVectorToColorOperation::get_conversion_shader() const
-{
-  return context().get_shader("compositor_convert_vector_to_color");
+  const bke::DataTypeConversions &conversions = bke::get_implicit_type_conversions();
+  conversions.convert_to_initialized_n(input.cpu_data(), output.cpu_data_for_write());
 }
 
 }  // namespace blender::compositor

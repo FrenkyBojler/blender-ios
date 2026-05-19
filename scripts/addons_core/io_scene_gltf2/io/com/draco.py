@@ -5,7 +5,6 @@
 import os
 import sys
 from pathlib import Path
-import bpy
 
 
 def dll_path() -> Path:
@@ -13,7 +12,7 @@ def dll_path() -> Path:
     Get the library path, that should be at addon root
     :return: library path.
     """
-    lib_name = 'extern_draco'
+    lib_name = 'bf_intern_draco_bridge'
     library_name = {
         'win32': '{}.dll'.format(lib_name),
         'linux': 'lib{}.so'.format(lib_name),
@@ -26,6 +25,7 @@ def dll_path() -> Path:
 
     if library_name is None:
         print('WARNING', 'Unsupported platform {}, Draco mesh compression is unavailable'.format(sys.platform))
+
 
 def dll_exists(quiet=False) -> bool:
     """

@@ -5,24 +5,13 @@
 set(INC
   .
   ../common
-  ../../blenloader
-  ../../blentranslation
   ../../editors/include
   ../../makesrna
-  ../../windowmanager
   ../../../../intern/utfconv
 )
 
 set(INC_SYS
-  ${ALEMBIC_INCLUDE_DIRS}
-  ${OPENEXR_INCLUDE_DIRS}
 )
-
-if(WITH_BOOST)
-  list(APPEND INC_SYS
-    ${BOOST_INCLUDE_DIR}
-  )
-endif()
 
 set(SRC
   intern/abc_axis_conversion.cc
@@ -84,22 +73,19 @@ set(SRC
 set(LIB
   PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
+  PRIVATE bf::blenloader
+  PRIVATE bf::blentranslation
   PRIVATE bf::bmesh
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
   bf_io_common
+  PRIVATE bf::windowmanager
 
-  ${ALEMBIC_LIBRARIES}
-  ${OPENEXR_LIBRARIES}
+  PRIVATE bf::dependencies::optional::alembic
+  PRIVATE bf::dependencies::openexr
 )
-
-if(WITH_BOOST)
-  list(APPEND LIB
-    ${BOOST_LIBRARIES}
-  )
-endif()
 
 blender_add_lib(bf_io_alembic "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 

@@ -4,21 +4,15 @@
 
 
 set(INC
-  .
+  PUBLIC .
   intern
-  ../blentranslation
   ../compositor
   ../compositor/cached_resources
-  ../draw
+  ../compositor/derived_resources
   ../draw/intern
   ../gpu/intern
-  ../imbuf
-  ../imbuf/movie
   ../makesrna
-  ../nodes
-  ../sequencer
   ../simulation
-  ../windowmanager
   ../../../intern/mikktspace
   ../../../intern/mantaflow/extern
 )
@@ -37,7 +31,6 @@ set(SRC
   intern/render_types.cc
   intern/texture_image.cc
   intern/texture_margin.cc
-  intern/texture_pointdensity.cc
   intern/texture_procedural.cc
   intern/tile_highlight.cc
   intern/zbuf.cc
@@ -61,13 +54,21 @@ set(SRC
 set(LIB
   PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
+  PRIVATE bf::blentranslation
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
-  PRIVATE bf::extern::fmtlib
+  PRIVATE bf::draw
   PRIVATE bf::gpu
+  PRIVATE bf::imbuf
+  PRIVATE bf::imbuf::movie
   PRIVATE bf::intern::guardedalloc
   bf_compositor
+  bf_imbuf_openexr
   PRIVATE bf::intern::atomic
+  PRIVATE bf::intern::clog
+  PRIVATE bf::nodes
+  PRIVATE bf::sequencer
+  PRIVATE bf::windowmanager
 )
 
 if(WITH_PYTHON)
@@ -75,13 +76,6 @@ if(WITH_PYTHON)
   list(APPEND INC
     ../python
   )
-endif()
-
-if(WITH_IMAGE_OPENEXR)
-  list(APPEND LIB
-    bf_imbuf_openexr
-  )
-  add_definitions(-DWITH_OPENEXR)
 endif()
 
 if(WITH_FREESTYLE)
@@ -99,3 +93,4 @@ if(WITH_HYDRA)
 endif()
 
 blender_add_lib_nolist(bf_render "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
+add_library(bf::render ALIAS bf_render)

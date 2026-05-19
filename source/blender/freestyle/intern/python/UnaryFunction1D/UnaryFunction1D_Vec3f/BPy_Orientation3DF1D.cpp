@@ -12,10 +12,6 @@
 #include "../../BPy_Convert.h"
 #include "../../BPy_IntegrationType.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -32,7 +28,7 @@ PyDoc_STRVAR(
     "\n"
     "   Builds an Orientation3DF1D object.\n"
     "\n"
-    "   :arg integration_type: The integration method used to compute a single value\n"
+    "   :param integration_type: The integration method used to compute a single value\n"
     "      from a set of values.\n"
     "   :type integration_type: :class:`freestyle.types.IntegrationType`\n"
     "\n"
@@ -40,11 +36,10 @@ PyDoc_STRVAR(
     "\n"
     "   Returns the 3D orientation of the Interface1D.\n"
     "\n"
-    "   :arg inter: An Interface1D object.\n"
+    "   :param inter: An Interface1D object.\n"
     "   :type inter: :class:`freestyle.types.Interface1D`\n"
     "   :return: The 3D orientation of the Interface1D.\n"
     "   :rtype: :class:`mathutils.Vector`\n");
-
 static int Orientation3DF1D___init__(BPy_Orientation3DF1D *self, PyObject *args, PyObject *kwds)
 {
   static const char *kwlist[] = {"integration_type", nullptr};
@@ -104,7 +99,3 @@ PyTypeObject Orientation3DF1D_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

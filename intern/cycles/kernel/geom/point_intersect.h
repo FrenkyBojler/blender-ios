@@ -4,6 +4,12 @@
 
 #pragma once
 
+#include "kernel/globals.h"
+#include "kernel/types.h"
+
+#include "kernel/geom/motion_point.h"
+#include "kernel/geom/object.h"
+
 CCL_NAMESPACE_BEGIN
 
 /* Point primitive intersection functions. */
@@ -85,8 +91,8 @@ ccl_device_forceinline bool point_intersect(KernelGlobals kg,
 
 ccl_device_inline void point_shader_setup(KernelGlobals kg,
                                           ccl_private ShaderData *sd,
-                                          ccl_private const Intersection *isect,
-                                          ccl_private const Ray *ray)
+                                          const ccl_private Intersection *isect,
+                                          const ccl_private Ray *ray)
 {
   sd->shader = kernel_data_fetch(points_shader, isect->prim);
   sd->P = ray->P + ray->D * isect->t;
@@ -102,7 +108,7 @@ ccl_device_inline void point_shader_setup(KernelGlobals kg,
                                   motion_point(kg, sd->object, sd->prim, sd->time) :
                                   kernel_data_fetch(points, sd->prim));
   if (!(sd->object_flag & SD_OBJECT_TRANSFORM_APPLIED)) {
-    object_position_transform_auto(kg, sd, &center);
+    object_position_transform(kg, sd, &center);
   }
 
   /* Normal */

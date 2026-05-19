@@ -9,18 +9,16 @@
 
 #pragma once
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+namespace blender {
 
 /**
  * Return an indication of time, expressed as seconds since some fixed point.
  * Successive calls are guaranteed to generate values greater than or equal to the last call.
  */
-extern double BLI_time_now_seconds(void);
+extern double BLI_time_now_seconds();
 
 /** `int` version of #BLI_time_now_seconds. */
-extern long int BLI_time_now_seconds_i(void);
+extern long int BLI_time_now_seconds_i();
 
 /**
  * Platform-independent sleep function.
@@ -28,6 +26,12 @@ extern long int BLI_time_now_seconds_i(void);
  */
 void BLI_time_sleep_ms(int ms);
 
-#ifdef __cplusplus
-}
-#endif
+/**
+ * Platform-independent high-resolution sleep function.
+ * Using this function can have advantages over \see BLI_time_sleep_ms on Windows due to a default
+ * non-precise sleep resolution of 15.25ms.
+ * \param us: Number of microseconds to sleep
+ */
+void BLI_time_sleep_precise_us(int us);
+
+}  // namespace blender
