@@ -1188,9 +1188,10 @@ bool socket_type_supports_default_input_type(const bke::bNodeSocketType &socket_
   switch (input_type) {
     case NODE_DEFAULT_INPUT_VALUE:
       return true;
+    case NODE_DEFAULT_INPUT_SCENE_FRAME:
+      return ELEM(stype, SOCK_FLOAT, SOCK_INT);
     case NODE_DEFAULT_INPUT_ID_INDEX_FIELD:
     case NODE_DEFAULT_INPUT_INDEX_FIELD:
-    case NODE_DEFAULT_INPUT_SCENE_FRAME:
       return stype == SOCK_INT;
     case NODE_DEFAULT_INPUT_NORMAL_FIELD:
     case NODE_DEFAULT_INPUT_POSITION_FIELD:
