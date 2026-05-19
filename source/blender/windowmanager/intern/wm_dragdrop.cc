@@ -1004,7 +1004,7 @@ std::optional<bool> wm_drag_asset_path_exists(const wmDrag *drag)
 
   if (const ListBaseT<wmDragAssetListItem> *asset_drags = WM_drag_asset_list_get(drag)) {
 
-    if (BLI_listbase_is_empty(asset_drags)) {
+    if (asset_drags->is_empty()) {
       /* #button_drag_start() will start a drag of type WM_DRAG_ASSET_LIST for dragging a
        * WM_DRAG_ID button (so we do not early out above in this case). Its #asset_items list will
        * always be empty though, so avoid returning false at the end of this function, treat this

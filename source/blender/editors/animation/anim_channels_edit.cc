@@ -1388,7 +1388,7 @@ static void rearrange_animchannel_flatten_islands(ListBaseT<tReorderChannelIslan
   tReorderChannelIsland *island, *isn = nullptr;
 
   /* make sure srcList is empty now */
-  BLI_assert(BLI_listbase_is_empty(srcList));
+  BLI_assert(srcList->is_empty());
 
   /* go through merging islands */
   for (island = static_cast<tReorderChannelIsland *>(islands->first); island; island = isn) {
@@ -1451,7 +1451,7 @@ static bool rearrange_animchannel_islands(ListBaseT<T> *list,
   bool done = false;
 
   /* don't waste effort on an empty list */
-  if (BLI_listbase_is_empty(list)) {
+  if (list->is_empty()) {
     return false;
   }
 

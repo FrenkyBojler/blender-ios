@@ -676,7 +676,7 @@ static bool bpath_list_restore(BPathForeachPathData *bpath_data,
 
   /* `ls->first` should never be nullptr, because the number of paths should not change.
    * If this happens, there is a bug in caller code. */
-  BLI_assert(!BLI_listbase_is_empty(path_list));
+  BLI_assert(!path_list->is_empty());
 
   PathStore *path_store = static_cast<PathStore *>(path_list->first);
   const char *filepath = path_store->filepath;
@@ -722,7 +722,7 @@ void BKE_bpath_list_free(void *path_list_handle)
   ListBaseT<PathStore> *path_list = static_cast<ListBaseT<PathStore> *>(path_list_handle);
   /* The whole list should have been consumed by #BKE_bpath_list_restore, see also comment in
    * #bpath_list_restore. */
-  BLI_assert(BLI_listbase_is_empty(path_list));
+  BLI_assert(path_list->is_empty());
 
   BLI_freelistN(path_list);
   MEM_delete(path_list);

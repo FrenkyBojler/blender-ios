@@ -261,7 +261,7 @@ static void get_nearest_fcurve_verts_list(bAnimContext *ac,
 static tNearestVertInfo *get_best_nearest_fcurve_vert(ListBaseT<tNearestVertInfo> *matches)
 {
   /* abort if list is empty */
-  if (BLI_listbase_is_empty(matches)) {
+  if (matches->is_empty()) {
     return nullptr;
   }
 

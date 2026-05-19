@@ -1332,7 +1332,7 @@ bool BKE_nlatrack_has_space(NlaTrack *nlt, float start, float end)
 bool BKE_nlatrack_has_strips(ListBaseT<NlaTrack> *tracks)
 {
   /* sanity checks */
-  if (BLI_listbase_is_empty(tracks)) {
+  if (tracks->is_empty()) {
     return false;
   }
 

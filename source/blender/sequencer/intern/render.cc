@@ -1616,7 +1616,7 @@ static ImBuf *do_render_strip_seqbase(const RenderData *context,
 
   seqbase = get_seqbase_from_strip(strip, &channels, &offset);
 
-  if (seqbase && !BLI_listbase_is_empty(seqbase)) {
+  if (seqbase && !seqbase->is_empty()) {
 
     frame_index += offset;
 

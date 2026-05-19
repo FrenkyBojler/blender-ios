@@ -2823,7 +2823,7 @@ static int collision_detect(ParticleData *pa,
   const int raycast_flag = BVH_RAYCAST_DEFAULT & ~BVH_RAYCAST_WATERTIGHT;
   float ray_dir[3];
 
-  if (BLI_listbase_is_empty(colliders)) {
+  if (colliders->is_empty()) {
     return 0;
   }
 

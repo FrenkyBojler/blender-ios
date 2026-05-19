@@ -169,7 +169,7 @@ static bool transdata_get_track_shuffle_offset_side(ListBaseT<LinkData> *trans_d
                                                     int *r_total_offset)
 {
   *r_total_offset = 0;
-  if (BLI_listbase_is_empty(trans_datas)) {
+  if (trans_datas->is_empty()) {
     return false;
   }
 

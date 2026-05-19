@@ -5103,7 +5103,7 @@ bool WM_event_handler_region_marker_poll(const wmWindow *win,
    * for now. */
   const ListBaseT<TimeMarker> *markers = ED_scene_markers_get_from_area(
       *G_MAIN, scene, WM_window_get_active_view_layer(win), area);
-  if (BLI_listbase_is_empty(markers)) {
+  if (markers->is_empty()) {
     return false;
   }
 
@@ -5127,7 +5127,7 @@ bool WM_event_handler_region_v2d_mask_no_marker_poll(const wmWindow *win,
    * for now. */
   const ListBaseT<TimeMarker> *markers = ED_scene_markers_get_from_area(
       *G_MAIN, WM_window_get_active_scene(win), WM_window_get_active_view_layer(win), area);
-  if (markers && !BLI_listbase_is_empty(markers)) {
+  if (markers && !markers->is_empty()) {
     return !WM_event_handler_region_marker_poll(win, area, region, event);
   }
   return true;

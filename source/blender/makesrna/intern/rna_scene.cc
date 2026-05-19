@@ -2937,7 +2937,7 @@ static const EnumPropertyItem *rna_TransformOrientation_impl_itemf(Scene *scene,
                                                                       &scene->transform_spaces :
                                                                       nullptr;
 
-  if (transform_orientations && (BLI_listbase_is_empty(transform_orientations) == false)) {
+  if (transform_orientations && (transform_orientations->is_empty() == false)) {
     RNA_enum_item_add_separator(&item, &totitem);
 
     for (TransformOrientation &ts : *transform_orientations) {

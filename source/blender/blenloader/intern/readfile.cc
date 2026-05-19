@@ -1915,7 +1915,7 @@ static void link_glob_list(FileData *fd, ListBase *lb) /* for glob data */
   Link *ln, *prev;
   void *poin;
 
-  if (BLI_listbase_is_empty(lb)) {
+  if (lb->is_empty()) {
     return;
   }
   poin = newdataadr(fd, lb->first);
@@ -2921,7 +2921,7 @@ static void read_undo_reuse_noundo_local_ids(FileData *fd)
     }
 
     ListBaseT<ID> *new_lb = which_libbase(new_bmain, id_type->id_code);
-    BLI_assert(BLI_listbase_is_empty(new_lb));
+    BLI_assert(new_lb->is_empty());
     BLI_movelisttolist(new_lb, lbarray[i]);
 
     /* Update mappings accordingly. */
@@ -6000,7 +6000,7 @@ void BLO_read_struct_list_with_size(BlendDataReader *reader,
                                     const size_t expected_elem_size,
                                     ListBase *list)
 {
-  if (BLI_listbase_is_empty(list)) {
+  if (list->is_empty()) {
     return;
   }
 

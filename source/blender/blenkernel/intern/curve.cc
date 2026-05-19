@@ -5106,7 +5106,7 @@ void BKE_curve_nurb_vert_active_validate(Curve *cu)
 static std::optional<Bounds<float3>> calc_nurblist_bounds(const ListBaseT<Nurb> *nurbs,
                                                           const bool use_radius)
 {
-  if (BLI_listbase_is_empty(nurbs)) {
+  if (nurbs->is_empty()) {
     return std::nullopt;
   }
   float3 min(std::numeric_limits<float>::max());
@@ -5120,7 +5120,7 @@ static std::optional<Bounds<float3>> calc_nurblist_bounds(const ListBaseT<Nurb> 
 std::optional<Bounds<float3>> BKE_curve_minmax(const Curve *cu, bool use_radius)
 {
   const ListBaseT<Nurb> *nurb_lb = BKE_curve_nurbs_get_for_read(cu);
-  const bool is_font = BLI_listbase_is_empty(nurb_lb) && (cu->len != 0);
+  const bool is_font = nurb_lb->is_empty() && (cu->len != 0);
   /* For font curves we generate temp list of splines.
    *
    * This is likely to be fine, this function is not supposed to be called

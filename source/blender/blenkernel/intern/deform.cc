@@ -1418,7 +1418,7 @@ bool data_transfer_layersmapping_vgroups(Vector<CustomDataTransferLayerMap> *r_m
    */
 
   const ListBaseT<bDeformGroup> *src_defbase = BKE_object_defgroup_list(ob_src);
-  if (BLI_listbase_is_empty(src_defbase)) {
+  if (src_defbase->is_empty()) {
     if (use_delete) {
       BKE_object_defgroup_remove_all(ob_dst);
     }

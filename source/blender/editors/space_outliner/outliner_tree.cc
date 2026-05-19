@@ -1132,7 +1132,7 @@ static int outliner_filter_subtree(SpaceOutliner *space_outliner,
   }
 
   /* if there are still items in the list, that means that there were still some matches */
-  return (BLI_listbase_is_empty(lb) == false);
+  return (lb->is_empty() == false);
 }
 
 static void outliner_filter_tree(const Main &bmain,

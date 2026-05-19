@@ -104,7 +104,7 @@ bool ED_wpaint_ensure_data(bContext *C,
       }
     }
   }
-  if (BLI_listbase_is_empty(defbase)) {
+  if (defbase->is_empty()) {
     BKE_object_defgroup_add(ob);
     DEG_relations_tag_update(bmain);
   }

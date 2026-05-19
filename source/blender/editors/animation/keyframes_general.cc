@@ -2124,7 +2124,7 @@ eKeyPasteError paste_animedit_keys(bAnimContext *ac,
   if (!keyframe_copy_buffer || keyframe_copy_buffer->is_empty()) {
     return KEYFRAME_PASTE_NOTHING_TO_PASTE;
   }
-  if (BLI_listbase_is_empty(anim_data)) {
+  if (anim_data->is_empty()) {
     return KEYFRAME_PASTE_NOWHERE_TO_PASTE;
   }
 

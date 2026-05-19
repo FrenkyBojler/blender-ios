@@ -95,7 +95,7 @@ bool folderlist_clear_next(SpaceFile *sfile)
   FolderList *folder;
 
   /* if there is no folder_next there is nothing we can clear */
-  if (BLI_listbase_is_empty(sfile->folders_next)) {
+  if (sfile->folders_next->is_empty()) {
     return false;
   }
 

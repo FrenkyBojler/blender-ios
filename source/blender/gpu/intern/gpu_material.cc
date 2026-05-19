@@ -413,7 +413,7 @@ const GPUUniformAttrList *GPU_material_uniform_attributes(const GPUMaterial *mat
 const ListBaseT<GPULayerAttr> *GPU_material_layer_attributes(const GPUMaterial *material)
 {
   const ListBaseT<GPULayerAttr> *attrs = &material->graph.layer_attrs;
-  return !BLI_listbase_is_empty(attrs) ? attrs : nullptr;
+  return !attrs->is_empty() ? attrs : nullptr;
 }
 
 GPUNodeGraph *gpu_material_node_graph(GPUMaterial *material)

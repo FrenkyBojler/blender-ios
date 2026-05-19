@@ -115,7 +115,7 @@ void TreeElementIDObject::expand_vertex_groups() const
     return;
   }
   const ListBaseT<bDeformGroup> *defbase = BKE_object_defgroup_list(&object_);
-  if (BLI_listbase_is_empty(defbase)) {
+  if (defbase->is_empty()) {
     return;
   }
   add_element(&legacy_te_.subtree, &object_.id, nullptr, &legacy_te_, TSE_DEFGROUP_BASE, 0);

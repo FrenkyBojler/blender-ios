@@ -281,7 +281,7 @@ void slide_subjects_get(bContext *C, ListBaseT<SlideSubject> *slide_subjects)
   /* If no PoseChannels were found, try a second pass, doing visible ones instead.
    * i.e. if nothing selected, do whole pose.
    */
-  if (BLI_listbase_is_empty(slide_subjects)) {
+  if (slide_subjects->is_empty()) {
     prev_ob = nullptr;
     ob_pose_armature = nullptr;
     CTX_DATA_BEGIN_WITH_ID (C, bPoseChannel *, pchan, visible_pose_bones, Object *, ob) {

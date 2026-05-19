@@ -444,7 +444,7 @@ void DepsgraphRelationBuilder::add_particle_forcefield_relations(const Operation
   ListBaseT<EffectorRelation> *relations = build_effector_relations(graph_, eff->group);
 
   /* Make sure physics effects like wind are properly re-evaluating the modifier stack. */
-  if (!BLI_listbase_is_empty(relations)) {
+  if (!relations->is_empty()) {
     TimeSourceKey time_src_key;
     ComponentKey geometry_key(&object->id, NodeType::GEOMETRY);
     add_relation(

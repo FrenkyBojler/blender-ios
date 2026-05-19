@@ -1169,7 +1169,7 @@ MainAllIDsIterator &MainAllIDsIterator::operator++()
     /* Listbase pointers from lbarray_ can be nullptr when no data was provided (default
      * constructor case). */
     ListBaseT<ID> *lb_ids = lbarray_[size_t(curr_lbarray_index_)];
-    if (lb_ids && !BLI_listbase_is_empty(lb_ids)) {
+    if (lb_ids && !lb_ids->is_empty()) {
       curr_id_ = static_cast<ID *>(lb_ids->first);
       return *this;
     }
@@ -1201,7 +1201,7 @@ MainAllIDsIterator &MainAllIDsIterator::operator--()
     /* Listbase pointers from lbarray_ can be nullptr when no data was provided (default
      * constructor case). */
     ListBaseT<ID> *lb_ids = lbarray_[size_t(curr_lbarray_index_)];
-    if (lb_ids && !BLI_listbase_is_empty(lb_ids)) {
+    if (lb_ids && !lb_ids->is_empty()) {
       curr_id_ = static_cast<ID *>(lb_ids->last);
       return *this;
     }

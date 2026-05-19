@@ -1009,7 +1009,7 @@ static bool any_bone_collection_visible(const bArmature *armature,
 {
   /* Special case: Hide bone when solo is active and it doesn't belong to any collection, see:
    * #137090. */
-  if (BLI_listbase_is_empty(collection_refs) && !(armature->flag & ARM_BCOLL_SOLO_ACTIVE)) {
+  if (collection_refs->is_empty() && !(armature->flag & ARM_BCOLL_SOLO_ACTIVE)) {
     return true;
   }
 

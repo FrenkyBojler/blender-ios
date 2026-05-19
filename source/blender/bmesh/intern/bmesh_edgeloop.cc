@@ -258,7 +258,7 @@ static bool bm_loop_path_build_step(BLI_mempool *vs_pool,
   /* `lb` is now full of freed items, overwrite. */
   *lb = lb_tmp;
 
-  return (BLI_listbase_is_empty(lb) == false);
+  return (lb->is_empty() == false);
 }
 
 bool BM_mesh_edgeloops_find_path(BMesh *bm,

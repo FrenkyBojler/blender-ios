@@ -2583,7 +2583,7 @@ static void adduplicateflagNurb(Object *obedit,
     }
   }
 
-  if (BLI_listbase_is_empty(newnurb) == false) {
+  if (newnurb->is_empty() == false) {
     for (Nurb &nu : *newnurb) {
       if (nu.type == CU_BEZIER) {
         if (split) {

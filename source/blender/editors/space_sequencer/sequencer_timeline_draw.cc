@@ -638,7 +638,7 @@ static void drawmeta_contents(const TimelineDrawContext &ctx,
 
   ListBaseT<Strip> *meta_seqbase = get_seqbase_from_strip(strip_meta, &meta_channels, &offset);
 
-  if (!meta_seqbase || BLI_listbase_is_empty(meta_seqbase)) {
+  if (!meta_seqbase || meta_seqbase->is_empty()) {
     return;
   }
 

@@ -903,7 +903,7 @@ void ED_armature_ebone_listbase_copy(ListBaseT<EditBone> *lb_dst,
                                      ListBaseT<EditBone> *lb_src,
                                      const bool do_id_user)
 {
-  BLI_assert(BLI_listbase_is_empty(lb_dst));
+  BLI_assert(lb_dst->is_empty());
 
   for (EditBone &ebone_src : *lb_src) {
     EditBone *ebone_dst = MEM_dupalloc(&ebone_src);
