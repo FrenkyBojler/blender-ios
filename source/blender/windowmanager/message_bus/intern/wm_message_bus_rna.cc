@@ -96,7 +96,7 @@ static void wm_msg_rna_repr(FILE *stream, const wmMsgSubscribeKey *msg_key)
           m->msg.params.prop ?
               RNA_property_identifier(const_cast<PropertyRNA *>(m->msg.params.prop)) :
               none,
-          BLI_listbase_count(&m->head.values));
+          m->head.values.size());
 }
 
 static void wm_msg_rna_update_by_id(wmMsgBus *mbus, ID *id_src, ID *id_dst)

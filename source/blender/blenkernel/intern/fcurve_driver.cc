@@ -1113,7 +1113,7 @@ enum {
 static ExprPyLike_Parsed *driver_compile_simple_expr_impl(ChannelDriver *driver)
 {
   /* Prepare parameter names. */
-  int names_len = BLI_listbase_count(&driver->variables);
+  int names_len = driver->variables.size();
   const char **names = static_cast<const char **>(
       BLI_array_alloca(names, names_len + VAR_INDEX_CUSTOM));
   int i = VAR_INDEX_CUSTOM;
@@ -1140,7 +1140,7 @@ static bool driver_evaluate_simple_expr(const AnimationEvalContext *anim_eval_co
                                         float time)
 {
   /* Prepare parameter values. */
-  int vars_len = BLI_listbase_count(&driver->variables);
+  int vars_len = driver->variables.size();
   double *vars = static_cast<double *>(BLI_array_alloca(vars, vars_len + VAR_INDEX_CUSTOM));
   int i = VAR_INDEX_CUSTOM;
 

@@ -447,7 +447,7 @@ static void read_bone_collections(BlendDataReader *reader, bArmature *arm)
 {
   /* Read as listbase, but convert to an array on the armature. */
   BLO_read_struct_list(reader, BoneCollection, &arm->collections_legacy);
-  arm->collection_array_num = BLI_listbase_count(&arm->collections_legacy);
+  arm->collection_array_num = arm->collections_legacy.size();
   arm->collection_array = MEM_new_array_uninitialized<BoneCollection *>(
       size_t(arm->collection_array_num), __func__);
   {

@@ -2253,7 +2253,7 @@ static KeyingSet *verify_active_keyingset(Scene *scene, short add)
   if ((add) && (ks == nullptr)) {
     ks = BKE_keyingset_add(
         &scene->keyingsets, nullptr, nullptr, KEYINGSET_ABSOLUTE, INSERTKEY_NOFLAGS);
-    scene->active_keyingset = BLI_listbase_count(&scene->keyingsets);
+    scene->active_keyingset = scene->keyingsets.size();
   }
 
   return ks;
@@ -2300,7 +2300,7 @@ static void do_outliner_keyingset_editop(SpaceOutliner *space_outliner,
            * for now, we don't supply one, and just let this use the KeyingSet name */
           BKE_keyingset_add_path(
               ks, id, nullptr, path, array_index, eKSP_Settings(flag), groupmode);
-          ks->active_path = BLI_listbase_count(&ks->paths);
+          ks->active_path = ks->paths.size();
           break;
         }
         case KEYINGSET_EDITMODE_REMOVE: {

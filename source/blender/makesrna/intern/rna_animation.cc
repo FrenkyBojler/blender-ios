@@ -791,7 +791,7 @@ static void rna_KeyingSet_active_ksPath_index_range(
   KeyingSet *ks = static_cast<KeyingSet *>(ptr->data);
 
   *min = 0;
-  *max = max_ii(0, BLI_listbase_count(&ks->paths) - 1);
+  *max = max_ii(0, ks->paths.size() - 1);
 }
 
 static PointerRNA rna_KeyingSet_typeinfo_get(PointerRNA *ptr)
@@ -828,7 +828,7 @@ static KS_Path *rna_KeyingSet_paths_add(KeyingSet *keyingset,
   if (keyingset) {
     ksp = BKE_keyingset_add_path(
         keyingset, id, group_name, rna_path, index, flag, eKSP_Grouping(group_method));
-    keyingset->active_path = BLI_listbase_count(&keyingset->paths);
+    keyingset->active_path = keyingset->paths.size();
   }
   else {
     BKE_report(reports, RPT_ERROR, "Keying set path could not be added");

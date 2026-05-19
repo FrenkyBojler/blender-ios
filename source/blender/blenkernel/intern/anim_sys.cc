@@ -4226,7 +4226,7 @@ void BKE_animsys_update_driver_array(ID *id)
   if (adt && adt->drivers.first) {
     BLI_assert(!adt->driver_array);
 
-    int num_drivers = BLI_listbase_count(&adt->drivers);
+    int num_drivers = adt->drivers.size();
     adt->driver_array = MEM_new_array_uninitialized<FCurve *>(size_t(num_drivers),
                                                               "adt->driver_array");
 

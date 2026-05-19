@@ -193,7 +193,7 @@ static void nla_actionclip_draw_markers(
   }
   immUniformThemeColorShade(TH_STRIP_SELECT, shade);
 
-  immBeginAtMost(GPU_PRIM_LINES, BLI_listbase_count(&act->markers) * 2);
+  immBeginAtMost(GPU_PRIM_LINES, act->markers.size() * 2);
   for (TimeMarker &marker : act->markers) {
     if ((marker.frame > strip->actstart) && (marker.frame < strip->actend)) {
       float frame = nlastrip_get_frame(strip, marker.frame, NLATIME_CONVERT_MAP);
@@ -586,7 +586,7 @@ static void nla_draw_strip(SpaceNla *snla,
     const float y = (ymaxc - yminc) * 0.5f + yminc;
 
     /* up to 2 lines per strip */
-    immBeginAtMost(GPU_PRIM_LINES, 4 * BLI_listbase_count(&strip->strips));
+    immBeginAtMost(GPU_PRIM_LINES, 4 * strip->strips.size());
 
     /* only draw first-level of child-strips, but don't draw any lines on the endpoints */
     for (NlaStrip &cs : strip->strips) {

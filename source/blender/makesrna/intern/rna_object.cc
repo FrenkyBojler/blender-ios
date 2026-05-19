@@ -1150,7 +1150,7 @@ static void rna_Object_active_particle_system_index_range(
 {
   Object *ob = reinterpret_cast<Object *>(ptr->owner_id);
   *min = 0;
-  *max = max_ii(0, BLI_listbase_count(&ob->particlesystem) - 1);
+  *max = max_ii(0, ob->particlesystem.size() - 1);
 }
 
 static int rna_Object_active_particle_system_index_get(PointerRNA *ptr)
@@ -1516,7 +1516,7 @@ static void rna_Object_active_shape_key_index_range(
 
   *min = 0;
   if (key) {
-    *max = BLI_listbase_count(&key->block) - 1;
+    *max = key->block.size() - 1;
     if (*max < 0) {
       *max = 0;
     }

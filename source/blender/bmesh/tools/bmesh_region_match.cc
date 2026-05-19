@@ -744,7 +744,7 @@ static BMFace **bm_mesh_region_match_pair(
     UIDFaceStep *fstep_src = static_cast<UIDFaceStep *>(w_src->faces_step.first);
     UIDFaceStep *fstep_dst = static_cast<UIDFaceStep *>(w_dst->faces_step.first);
 
-    BLI_assert(BLI_listbase_count(&w_src->faces_step) == BLI_listbase_count(&w_dst->faces_step));
+    BLI_assert(w_src->faces_step.size() == w_dst->faces_step.size());
 
     while (fstep_src) {
 

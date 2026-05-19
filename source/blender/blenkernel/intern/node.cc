@@ -2049,7 +2049,7 @@ void node_tree_blend_read_data(BlendDataReader *reader, ID *owner_id, bNodeTree 
     node_blend_read_data_storage(reader, ntree, &node);
   }
   BLO_read_struct_list(reader, bNodeLink, &ntree->links);
-  BLI_assert(ntree->all_nodes().size() == BLI_listbase_count(&ntree->nodes));
+  BLI_assert(ntree->all_nodes().size() == ntree->nodes.size());
 
   /* and we connect the rest */
   for (bNode &node : ntree->nodes) {
@@ -4734,7 +4734,7 @@ void node_position_relative(bNode &from_node,
   /* Socket to plug into. */
   if (eNodeSocketInOut(to_sock.in_out) == SOCK_IN) {
     offset_x = -(from_node.typeinfo->default_width + 50);
-    tot_sock_idx = BLI_listbase_count(&to_node.outputs);
+    tot_sock_idx = to_node.outputs.size();
     tot_sock_idx += BLI_findindex(&to_node.inputs, &to_sock);
   }
   else {
@@ -4749,7 +4749,7 @@ void node_position_relative(bNode &from_node,
   /* Output socket. */
   if (from_sock) {
     if (eNodeSocketInOut(from_sock->in_out) == SOCK_IN) {
-      tot_sock_idx = BLI_listbase_count(&from_node.outputs);
+      tot_sock_idx = from_node.outputs.size();
       tot_sock_idx += BLI_findindex(&from_node.inputs, from_sock);
     }
     else {

@@ -397,7 +397,7 @@ static wmOperatorStatus preferences_asset_library_remove_exec(bContext *C, wmOpe
   }
 
   /* Update active library index to be in range. */
-  const int count_remaining = BLI_listbase_count(&U.asset_libraries);
+  const int count_remaining = U.asset_libraries.size();
   CLAMP(U.active_asset_library, 0, count_remaining - 1);
   U.runtime.is_dirty = true;
 
@@ -918,7 +918,7 @@ static wmOperatorStatus preferences_extension_repo_remove_exec(bContext *C, wmOp
   }
 
   BKE_preferences_extension_repo_remove(&U, repo);
-  const int count_remaining = BLI_listbase_count(&U.extension_repos);
+  const int count_remaining = U.extension_repos.size();
   /* Update active repo index to be in range. */
   CLAMP(U.active_extension_repo, 0, count_remaining - 1);
   U.runtime.is_dirty = true;

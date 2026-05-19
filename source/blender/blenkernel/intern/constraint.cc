@@ -2531,7 +2531,7 @@ static int armdef_get_tars(bConstraint *con, ListBaseT<bConstraintTarget> *list)
 
     *list = data->targets;
 
-    return BLI_listbase_count(&data->targets);
+    return data->targets.size();
   }
 
   return 0;

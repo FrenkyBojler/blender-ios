@@ -1963,7 +1963,7 @@ bool BLI_array_store_is_valid(BArrayStore *bs)
       return false;
     }
 
-    if (BLI_listbase_count(&chunk_list->chunk_refs) != int(chunk_list->chunk_refs_len)) {
+    if (chunk_list->chunk_refs.size() != int(chunk_list->chunk_refs_len)) {
       return false;
     }
 

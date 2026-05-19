@@ -1290,7 +1290,7 @@ void txt_sel_set(Text *text, int startl, int startc, int endl, int endc)
 
   /* Support negative indices. */
   if (startl < 0 || endl < 0) {
-    int end = BLI_listbase_count(&text->lines) - 1;
+    int end = text->lines.size() - 1;
     if (startl < 0) {
       startl = end + startl + 1;
     }

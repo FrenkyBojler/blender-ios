@@ -644,7 +644,7 @@ void blo_do_versions_270(FileData *fd, Library * /*lib*/, Main *bmain)
 
     {
       for (Scene &scene : bmain->scenes) {
-        int num_layers = BLI_listbase_count(&scene.r.layers);
+        int num_layers = scene.r.layers.size();
         scene.r.actlay = min_ff(scene.r.actlay, num_layers - 1);
       }
     }

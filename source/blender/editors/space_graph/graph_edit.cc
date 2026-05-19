@@ -2046,7 +2046,7 @@ static wmOperatorStatus graphkeys_euler_filter_exec(bContext *C, wmOperator *op)
 
   int groups = 0;
   ListBaseT<tEulerFilter> eulers = euler_filter_group_channels(&anim_data, op->reports, &groups);
-  BLI_assert(BLI_listbase_count(&eulers) == groups);
+  BLI_assert(eulers.size() == groups);
 
   if (groups == 0) {
     ANIM_animdata_freelist(&anim_data);

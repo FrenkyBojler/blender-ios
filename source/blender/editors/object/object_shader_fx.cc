@@ -192,7 +192,7 @@ bool shaderfx_move_to_index(ReportList *reports, Object *ob, ShaderFxData *fx, c
 {
   BLI_assert(fx != nullptr);
   BLI_assert(index >= 0);
-  if (index >= BLI_listbase_count(&ob->shader_fx)) {
+  if (index >= ob->shader_fx.size()) {
     BKE_report(reports, RPT_WARNING, "Cannot move effect beyond the end of the stack");
     return false;
   }

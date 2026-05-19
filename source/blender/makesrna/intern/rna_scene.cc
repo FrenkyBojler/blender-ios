@@ -1775,7 +1775,7 @@ static void rna_RenderSettings_active_view_index_range(
   RenderData *rd = static_cast<RenderData *>(ptr->data);
 
   *min = 0;
-  *max = max_ii(0, BLI_listbase_count(&rd->views) - 1);
+  *max = max_ii(0, rd->views.size() - 1);
 }
 
 static PointerRNA rna_RenderSettings_active_view_get(PointerRNA *ptr)
@@ -1903,7 +1903,7 @@ static void rna_Scene_update_render_engine(Main *bmain)
 
 static bool rna_RenderSettings_multiple_engines_get(PointerRNA * /*ptr*/)
 {
-  return (BLI_listbase_count(&R_engines) > 1);
+  return (R_engines.size() > 1);
 }
 
 static bool rna_RenderSettings_use_spherical_stereo_get(PointerRNA *ptr)
@@ -2530,7 +2530,7 @@ static KeyingSet *rna_Scene_keying_set_new(Scene *sce,
   ks = BKE_keyingset_add(&sce->keyingsets, idname, name, KEYINGSET_ABSOLUTE, INSERTKEY_NOFLAGS);
 
   if (ks) {
-    sce->active_keyingset = BLI_listbase_count(&sce->keyingsets);
+    sce->active_keyingset = sce->keyingsets.size();
     return ks;
   }
   else {
@@ -2680,7 +2680,7 @@ void rna_FreestyleSettings_active_lineset_index_range(
   FreestyleConfig *config = static_cast<FreestyleConfig *>(ptr->data);
 
   *min = 0;
-  *max = max_ii(0, BLI_listbase_count(&config->linesets) - 1);
+  *max = max_ii(0, config->linesets.size() - 1);
 }
 
 int rna_FreestyleSettings_active_lineset_index_get(PointerRNA *ptr)
@@ -2804,7 +2804,7 @@ void rna_ViewLayer_active_aov_index_range(
   ViewLayer *view_layer = static_cast<ViewLayer *>(ptr->data);
 
   *min = 0;
-  *max = max_ii(0, BLI_listbase_count(&view_layer->aovs) - 1);
+  *max = max_ii(0, view_layer->aovs.size() - 1);
 }
 
 int rna_ViewLayer_active_aov_index_get(PointerRNA *ptr)
@@ -2826,7 +2826,7 @@ void rna_ViewLayer_active_lightgroup_index_range(
   ViewLayer *view_layer = static_cast<ViewLayer *>(ptr->data);
 
   *min = 0;
-  *max = max_ii(0, BLI_listbase_count(&view_layer->lightgroups) - 1);
+  *max = max_ii(0, view_layer->lightgroups.size() - 1);
 }
 
 int rna_ViewLayer_active_lightgroup_index_get(PointerRNA *ptr)

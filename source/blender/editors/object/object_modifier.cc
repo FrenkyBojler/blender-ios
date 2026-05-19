@@ -499,7 +499,7 @@ bool modifier_move_to_index(ReportList *reports,
 {
   BLI_assert(md != nullptr);
 
-  if (index < 0 || index >= BLI_listbase_count(&ob->modifiers)) {
+  if (index < 0 || index >= ob->modifiers.size()) {
     BKE_report(reports, error_type, "Cannot move modifier beyond the end of the stack");
     return false;
   }
@@ -1988,7 +1988,7 @@ static wmOperatorStatus modifier_apply_exec_ex(bContext *C,
   RNA_string_get(op->ptr, "modifier", name);
 
   const bool do_report = RNA_boolean_get(op->ptr, "report");
-  const int reports_len = do_report ? BLI_listbase_count(&op->reports->list) : 0;
+  const int reports_len = do_report ? op->reports->list.size() : 0;
 
   const bool do_single_user = (apply_as == MODIFIER_APPLY_DATA) ?
                                   RNA_boolean_get(op->ptr, "single_user") :
@@ -2049,7 +2049,7 @@ static wmOperatorStatus modifier_apply_exec_ex(bContext *C,
   if (do_report) {
     /* Only add this report if the operator didn't cause another one. The purpose here is
      * to alert that something happened, and the previous report will do that anyway. */
-    if (BLI_listbase_count(&op->reports->list) == reports_len) {
+    if (op->reports->list.size() == reports_len) {
       BKE_reportf(op->reports, RPT_INFO, "Applied modifier: %s", name);
     }
   }

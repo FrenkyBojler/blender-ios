@@ -797,7 +797,7 @@ void BKE_splineik_execute_tree(
 void BKE_pose_pchan_index_rebuild(bPose *pose)
 {
   MEM_SAFE_DELETE(pose->chan_array);
-  const int num_channels = BLI_listbase_count(&pose->chanbase);
+  const int num_channels = pose->chanbase.size();
   pose->chan_array = MEM_new_array_uninitialized<bPoseChannel *>(size_t(num_channels),
                                                                  "pose->chan_array");
   int pchan_index = 0;

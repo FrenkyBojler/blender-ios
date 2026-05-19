@@ -1991,7 +1991,7 @@ void LayerGroup::move_node_bottom(TreeNode &node)
 
 int64_t LayerGroup::num_direct_nodes() const
 {
-  return BLI_listbase_count(&this->children);
+  return this->children.size();
 }
 
 int64_t LayerGroup::num_nodes_total() const
