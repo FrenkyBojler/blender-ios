@@ -209,24 +209,14 @@ integrate_direct_light_shadow_init_common(KernelGlobals kg,
                                           const int mnee_vertex_count,
                                           const bool constant_light_shader)
 {
-  const DeviceKernel next_kernel = (constant_light_shader) ?
-                                       DEVICE_KERNEL_INTEGRATOR_INTERSECT_SHADOW :
-                                       DEVICE_KERNEL_INTEGRATOR_SHADE_LIGHT_NEE;
 
   /* Branch off shadow kernel. */
-  IntegratorShadowState shadow_state;
-#if 0
-  if (mnee_vertex_count > 0) {
-    /* Reuse shadow path that was already allocated by intersect_mnee. */
-    shadow_state = integrator_state_get_mnee_shadow_state(state);
-    integrator_shadow_path_next(
-        shadow_state, DEVICE_KERNEL_INTEGRATOR_SHADOW_PATH_MNEE_PENDING, next_kernel);
-  }
-  else
-#endif
-  {
-    shadow_state = integrator_shadow_path_init(kg, state, next_kernel, false);
-  }
+  IntegratorShadowState shadow_state = integrator_shadow_path_init(
+      kg,
+      state,
+      (constant_light_shader) ? DEVICE_KERNEL_INTEGRATOR_INTERSECT_SHADOW :
+                                DEVICE_KERNEL_INTEGRATOR_SHADE_LIGHT_NEE,
+      false);
 
 #ifdef __VOLUME__
   /* Copy volume stack and enter/exit volume. */
@@ -267,7 +257,7 @@ integrate_direct_light_shadow_init_common(KernelGlobals kg,
         state, path, portal_bounce);
   }
 
-#if 0
+#ifdef __MNEE__
   if (mnee_vertex_count > 0) {
     INTEGRATOR_STATE_WRITE(shadow_state, shadow_path, transmission_bounce) =
         INTEGRATOR_STATE(state, path, transmission_bounce) + mnee_vertex_count - 1;
@@ -324,20 +314,9 @@ ccl_device
     return SHADER_EVAL_EMPTY;
   }
 
+  /* Sample position on a light. */
   LightSample ls ccl_optional_struct_init;
-  int mnee_vertex_count = 0;  // NOLINT
-
-#if 0
-  if ((kernel_data.kernel_features & KERNEL_FEATURE_MNEE) &&
-      (INTEGRATOR_STATE(state, path, mnee) & PATH_MNEE_SAMPLED))
   {
-    /* MNEE already sampled a light and caustics casters. */
-    integrator_state_read_mnee(state, &ls, &mnee_vertex_count);
-  }
-  else
-#endif
-  {
-    /* Sample position on a light. */
     const uint32_t path_flag = INTEGRATOR_STATE(state, path, flag);
     const uint bounce = INTEGRATOR_STATE(state, path, bounce);
     const float3 rand_light = path_state_rng_3D(kg, rng_state, PRNG_LIGHT);
@@ -369,44 +348,25 @@ ccl_device
     }
   }
 
-#if 0
-  /* On a caustic caster, a caustic light's contribution is delivered to receivers by
-   * MNEE and does not need to be computed again here. */
-  if (kernel_data.kernel_features & KERNEL_FEATURE_MNEE) {
-    if (mnee_vertex_count == 0 && is_transmission &&
-        (sd->object_flag & SD_OBJECT_CAUSTICS_CASTER) && ls.type != LIGHT_TRIANGLE &&
-        kernel_data_fetch(lights, ls.prim).use_caustics)
-    {
-      return SHADER_EVAL_EMPTY;
-    }
-  }
-#endif
+  Ray ray ccl_optional_struct_init;
+  BsdfEval bsdf_eval ccl_optional_struct_init;
+
+  int mnee_vertex_count = 0;  // NOLINT
 
   /* Evaluate constant part of light shader, rest will optionally be done in another kernel. */
   Spectrum light_shader_eval ccl_optional_struct_init;
   const bool is_constant_light_shader = light_sample_shader_eval_nee_constant(
       kg, ls.shader, ls.prim, ls.type != LIGHT_TRIANGLE, light_shader_eval);
 
-  /* Evaluate BSDF. */
-  BsdfEval bsdf_eval ccl_optional_struct_init;
-  const float bsdf_pdf = surface_shader_bsdf_eval(kg, state, sd, ls.D, &bsdf_eval, ls.shader);
-
-  Ray ray ccl_optional_struct_init;
-
-#if 0
+#ifdef __MNEE__
   if (mnee_vertex_count > 0) {
-    light_shader_eval *= integrator_state_read_mnee_throughput(state);
     bsdf_eval_mul(&bsdf_eval, light_shader_eval);
-
-    if (bsdf_eval_is_zero(&bsdf_eval)) {
-      return SHADER_EVAL_EMPTY;
-    }
-
-    integrator_state_read_mnee_ray(state, &ls, &ray);
   }
   else
 #endif /* __MNEE__ */
   {
+    /* Evaluate BSDF. */
+    const float bsdf_pdf = surface_shader_bsdf_eval(kg, state, sd, ls.D, &bsdf_eval, ls.shader);
     const float mis_weight = light_sample_mis_weight_nee(kg, ls.pdf, bsdf_pdf);
     bsdf_eval_mul(&bsdf_eval, light_shader_eval * ls.eval_fac / ls.pdf * mis_weight);
 
@@ -889,24 +849,6 @@ ccl_device_forceinline void integrator_shade_surface(KernelGlobals kg,
     integrator_path_cache_miss_sorted(state, current_kernel);
     return;
   }
-
-#if 0
-  /* Cleanup MNEE flag and shadow path if it was not reused for shadow trace. */
-  if ((kernel_data.kernel_features & KERNEL_FEATURE_MNEE) &&
-      (INTEGRATOR_STATE(state, path, mnee) & PATH_MNEE_SAMPLED))
-  {
-    INTEGRATOR_STATE_WRITE(state, path, mnee) &= ~PATH_MNEE_SAMPLED;
-
-    const IntegratorShadowState shadow_state = integrator_state_get_mnee_shadow_state(state);
-    if (INTEGRATOR_STATE(shadow_state, shadow_path, queued_kernel) ==
-        DEVICE_KERNEL_INTEGRATOR_SHADOW_PATH_MNEE_PENDING)
-    {
-      integrator_shadow_path_terminate(shadow_state,
-                                       DEVICE_KERNEL_INTEGRATOR_SHADOW_PATH_MNEE_PENDING);
-    }
-  }
-#endif
-
   if (continue_path_label == LABEL_NONE) {
     integrator_path_terminate(kg, state, render_buffer, current_kernel);
     return;
