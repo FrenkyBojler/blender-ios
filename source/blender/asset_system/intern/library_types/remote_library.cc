@@ -168,8 +168,8 @@ struct FileProgress {
   int64_t current_size_in_bytes = 0;
 };
 
-struct ProgressTracker {
-  static bool any_asset_file_loading;
+struct ProgressData {
+  bool any_asset_file_loading;
 
   /**
    * Assets stored in the asset system may only contain a relative URL. The downloader turns this
@@ -181,16 +181,20 @@ struct ProgressTracker {
    * This maps the asset library URL and the potentially relative asset file URL to the absolute
    * URL used by the downloader.
    */
-  static Map<RequestIdentifier, std::string> req_to_full_urls;
+  Map<RequestIdentifier, std::string> req_to_full_urls;
 
   /** Absolute URLs (see #req_to_full_urls) of all requested files mapped to their expected size on
    * disk (if known). Files that are done downloading (successfully or not) are removed and added
    * to #done_files below. */
-  static Map<std::string, FileProgress> requested_files;
+  Map<std::string, FileProgress> requested_files;
   /** Absolute URLs of files that are done downloading (successfully or not) mapped to their
    * expected size on disk (if known). Will be cleared once all current requests are done. This way
    * total progress reporting can include "done" assets, and progress bars fill up as expected. */
-  static Map<std::string, FileProgress> done_files;
+  Map<std::string, FileProgress> done_files;
+};
+
+struct ProgressTracker {
+  static ProgressData current;
 
   static wmTimer *notification_timer;
 
@@ -214,10 +218,7 @@ struct ProgressTracker {
   static bool is_any_loading();
 };
 
-bool ProgressTracker::any_asset_file_loading = false;
-decltype(ProgressTracker::req_to_full_urls) ProgressTracker::req_to_full_urls = {};
-decltype(ProgressTracker::requested_files) ProgressTracker::requested_files = {};
-decltype(ProgressTracker::done_files) ProgressTracker::done_files = {};
+ProgressData ProgressTracker::current = {};
 wmTimer *ProgressTracker::notification_timer = nullptr;
 
 void ProgressTracker::file_requested(wmWindowManager &wm,
@@ -225,13 +226,13 @@ void ProgressTracker::file_requested(wmWindowManager &wm,
                                      std::string &&abs_url,
                                      const int64_t size_in_bytes)
 {
-  ProgressTracker::requested_files.add(abs_url,
-                                       FileProgress{.expected_size_in_bytes = size_in_bytes});
+  ProgressTracker::current.requested_files.add(
+      abs_url, FileProgress{.expected_size_in_bytes = size_in_bytes});
   /* Make the absolute URL known to the progress reporting, so we can query it later using the
    * potentially relative URL that is known to the asset system. */
-  ProgressTracker::req_to_full_urls.add(std::move(request), std::move(abs_url));
+  ProgressTracker::current.req_to_full_urls.add(std::move(request), std::move(abs_url));
 
-  ProgressTracker::any_asset_file_loading = true;
+  ProgressTracker::current.any_asset_file_loading = true;
 
   if (!ProgressTracker::notification_timer) {
     ProgressTracker::notification_timer = WM_event_timer_add_notifier(
@@ -277,7 +278,9 @@ _result = asset_dl.any_asset_downloading()
 void ProgressTracker::file_report_progress(const StringRef absolute_file_url,
                                            const int64_t size_in_bytes)
 {
-  if (FileProgress *progress = ProgressTracker::requested_files.lookup_ptr_as(absolute_file_url)) {
+  if (FileProgress *progress = ProgressTracker::current.requested_files.lookup_ptr_as(
+          absolute_file_url))
+  {
     progress->current_size_in_bytes = size_in_bytes;
   }
 }
@@ -286,23 +289,23 @@ void ProgressTracker::file_finished(const bContext &C, const StringRef absolute_
 {
   /* Whenever a file finishes, update the "any downloading" flag. We call into Python for this, so
    * by only doing it when a file finishes, we avoid unnecessary calls. */
-  ProgressTracker::any_asset_file_loading = downloader_status_any_asset_downloading(C);
+  ProgressTracker::current.any_asset_file_loading = downloader_status_any_asset_downloading(C);
 
-  if (!ProgressTracker::any_asset_file_loading) {
+  if (!ProgressTracker::current.any_asset_file_loading) {
     ProgressTracker::on_all_finished(*CTX_wm_manager(&C));
   }
-  if (FileProgress *progress = ProgressTracker::requested_files.lookup_ptr_as(absolute_file_url)) {
-    ProgressTracker::done_files.add(absolute_file_url, *progress);
-    ProgressTracker::requested_files.remove_contained_as(absolute_file_url);
+  if (FileProgress *progress = ProgressTracker::current.requested_files.lookup_ptr_as(
+          absolute_file_url))
+  {
+    ProgressTracker::current.done_files.add(absolute_file_url, *progress);
+    ProgressTracker::current.requested_files.remove_contained_as(absolute_file_url);
   }
 }
 
 void ProgressTracker::on_all_finished(wmWindowManager &wm)
 {
-  ProgressTracker::any_asset_file_loading = false;
-  ProgressTracker::req_to_full_urls.clear();
-  ProgressTracker::requested_files.clear();
-  ProgressTracker::done_files.clear();
+  /* Clear all progress data. */
+  ProgressTracker::current = {};
   if (ProgressTracker::notification_timer) {
     WM_event_timer_remove(&wm, nullptr, ProgressTracker::notification_timer);
     ProgressTracker::notification_timer = nullptr;
@@ -313,19 +316,19 @@ void ProgressTracker::on_all_finished(wmWindowManager &wm)
 
 bool ProgressTracker::is_any_loading()
 {
-  return ProgressTracker::any_asset_file_loading;
+  return ProgressTracker::current.any_asset_file_loading;
 }
 
 float remote_library_total_asset_downloads_progress()
 {
   int expected_bytes = 0;
   int current_bytes = 0;
-  for (const FileProgress &progress : ProgressTracker::requested_files.values()) {
+  for (const FileProgress &progress : ProgressTracker::current.requested_files.values()) {
     expected_bytes += progress.expected_size_in_bytes;
     current_bytes += progress.current_size_in_bytes;
   }
 
-  for (const FileProgress &finished : ProgressTracker::done_files.values()) {
+  for (const FileProgress &finished : ProgressTracker::current.done_files.values()) {
     expected_bytes += finished.expected_size_in_bytes;
     current_bytes += finished.expected_size_in_bytes;
   }
