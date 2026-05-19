@@ -31,8 +31,16 @@
 namespace blender {
 
 static const EnumPropertyItem prop_interpolation_items[] = {
-    {SPACE_INTERP_CUBIC, "CUBIC", 0, "Cubic", "Natural cubic spline, smooth results"},
-    {SPACE_INTERP_LINEAR, "LINEAR", 0, "Linear", "Vertices are projected on existing edges"},
+    {SPACE_EDGE_LOOPS_EVENLY_INTERP_CUBIC,
+     "CUBIC",
+     0,
+     "Cubic",
+     "Natural cubic spline, smooth results"},
+    {SPACE_EDGE_LOOPS_EVENLY_INTERP_LINEAR,
+     "LINEAR",
+     0,
+     "Linear",
+     "Vertices are projected on existing edges"},
     {0, nullptr},
 };
 

@@ -359,7 +359,7 @@ void bmo_space_edge_loops_evenly_exec(BMesh *bm, BMOperator *op)
 
     Array<float3> new_positions(verts_num, NoInitialization{});
 
-    if (interpolation == SPACE_INTERP_LINEAR) {
+    if (interpolation == SPACE_EDGE_LOOPS_EVENLY_INTERP_LINEAR) {
       length_parameterize::interpolate<float3>(
           measure.positions, sample_indices, sample_factors, new_positions);
     }

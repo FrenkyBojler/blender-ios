@@ -146,8 +146,8 @@ enum {
 
 /** Interpolation method used for spacing vertices. */
 enum SpaceInterpolationMethod {
-  SPACE_INTERP_CUBIC = 0,
-  SPACE_INTERP_LINEAR = 1,
+  SPACE_EDGE_LOOPS_EVENLY_INTERP_CUBIC = 0,
+  SPACE_EDGE_LOOPS_EVENLY_INTERP_LINEAR = 1,
 };
 
 /**

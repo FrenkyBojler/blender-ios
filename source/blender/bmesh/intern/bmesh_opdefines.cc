@@ -2821,8 +2821,8 @@ static BMOpDefine bmo_convex_hull_def = {
 #endif
 
 static BMO_FlagSet bmo_enum_space_edge_loops_evenly_interpolation_method[] = {
-    {SPACE_INTERP_CUBIC, "CUBIC"},
-    {SPACE_INTERP_LINEAR, "LINEAR"},
+    {SPACE_EDGE_LOOPS_EVENLY_INTERP_CUBIC, "CUBIC"},
+    {SPACE_EDGE_LOOPS_EVENLY_INTERP_LINEAR, "LINEAR"},
     {0, nullptr},
 };
 
