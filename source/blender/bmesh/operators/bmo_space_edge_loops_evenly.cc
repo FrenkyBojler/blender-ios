@@ -148,8 +148,9 @@ static std::optional<SpaceChainData> walk_edges(BMEdge *start_edge, Set<BMEdge *
   /* Skip chains where all vertices are at the same location. */
   bool all_stacked = true;
   for (const int i : chain_data.verts.index_range().drop_back(1)) {
-    if (math::distance(float3(chain_data.verts[i]->co), float3(chain_data.verts[i + 1]->co)) >
-        STACKED_THRESHOLD)
+    if (math::distance_squared(float3(chain_data.verts[i]->co),
+                               float3(chain_data.verts[i + 1]->co)) >
+        math::square(STACKED_THRESHOLD))
     {
       all_stacked = false;
       break;
