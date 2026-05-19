@@ -482,6 +482,8 @@ wmOperatorStatus ED_imbuf_sample_invoke(bContext *C, wmOperator *op, const wmEve
 
   WM_event_add_modal_handler(C, op);
 
+  ED_area_tag_region_hud_size_update(area, region);
+
   return OPERATOR_RUNNING_MODAL;
 }
 
@@ -491,6 +493,9 @@ wmOperatorStatus ED_imbuf_sample_modal(bContext *C, wmOperator *op, const wmEven
     case LEFTMOUSE:
     case RIGHTMOUSE: /* XXX hardcoded */
       if (event->val == KM_RELEASE) {
+        ScrArea *area = CTX_wm_area(C);
+        ARegion *region = CTX_wm_region(C);
+        ED_area_tag_region_hud_size_update(area, region);
         ED_imbuf_sample_exit(C, op);
         return OPERATOR_CANCELLED;
       }
