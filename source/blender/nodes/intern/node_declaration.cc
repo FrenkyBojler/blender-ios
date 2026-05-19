@@ -675,6 +675,9 @@ BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::default_input_type(
     const NodeDefaultInputType value)
 {
   decl_base_->default_input_type = value;
+  if (value != NodeDefaultInputType::NODE_DEFAULT_INPUT_VALUE) {
+    this->hide_value();
+  }
   return *this;
 }
 
@@ -1172,6 +1175,8 @@ std::optional<ImplicitInputValueFn> get_implicit_input_value_fn(const NodeDefaul
       return std::make_optional(implicit_field_inputs::handle_left);
     case NODE_DEFAULT_INPUT_HANDLE_RIGHT_FIELD:
       return std::make_optional(implicit_field_inputs::handle_right);
+    case NODE_DEFAULT_INPUT_SCENE_FRAME:
+      return std::nullopt;
   }
   return std::nullopt;
 }
@@ -1185,6 +1190,7 @@ bool socket_type_supports_default_input_type(const bke::bNodeSocketType &socket_
       return true;
     case NODE_DEFAULT_INPUT_ID_INDEX_FIELD:
     case NODE_DEFAULT_INPUT_INDEX_FIELD:
+    case NODE_DEFAULT_INPUT_SCENE_FRAME:
       return stype == SOCK_INT;
     case NODE_DEFAULT_INPUT_NORMAL_FIELD:
     case NODE_DEFAULT_INPUT_POSITION_FIELD:

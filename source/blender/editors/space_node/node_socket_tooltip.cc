@@ -892,6 +892,9 @@ class SocketTooltipBuilder {
         this->build_tooltip_value_and_type_oneline(
             TIP_("Right Handle Field"), this->get_field_type_name(CPPType::get<float3>()));
         break;
+      case NODE_DEFAULT_INPUT_SCENE_FRAME:
+        this->build_tooltip_value_and_type_oneline(TIP_("Scene Frame"), TIP_("Int"));
+        break;
     }
   }
 

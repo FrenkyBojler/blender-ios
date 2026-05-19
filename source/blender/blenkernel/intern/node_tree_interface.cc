@@ -1722,6 +1722,13 @@ bNode *create_proxy_implicit_input_node(const eNodeSocketDatatype socket_type,
       if (default_input == NODE_DEFAULT_INPUT_ID_INDEX_FIELD) {
         return bke::node_add_node(&C, tree, "GeometryNodeInputID"_ustr);
       }
+      if (default_input == NODE_DEFAULT_INPUT_SCENE_FRAME) {
+        if (tree.type == NTREE_COMPOSIT) {
+          bNode *node = bke::node_add_node(&C, tree, "CompositorNodeSceneTime"_ustr);
+          bke::node_find_socket(*node, SOCK_OUT, "Seconds"_ustr)->flag |= SOCK_HIDDEN;
+          return node;
+        }
+      }
       return nullptr;
 
     case SOCK_MATRIX:
