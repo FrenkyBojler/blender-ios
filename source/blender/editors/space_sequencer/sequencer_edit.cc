@@ -608,36 +608,32 @@ static wmOperatorStatus sequencer_snap_exec(bContext *C, wmOperator *op)
      * to calculate the offset for the entire strip group. */
     Strip *strip = seq::select_active_get(scene);
 
-    if(strip == nullptr) {
-      BKE_report(op->reports,
-               RPT_WARNING,
-               "Strip snap canceled because there is not active strip");
-      return OPERATOR_CANCELLED;
-    }
-
-    /* Ensure active strip always participates in the operation to avoid inconsistent snapping. */
-    if (!(strip->flag & SEQ_SELECT)) {
-      strip->flag |= SEQ_SELECT;
-      selected.add(strip);
-    }
-
-    const bool left_sel = strip->flag & SEQ_LEFTSEL;
-    const bool right_sel = strip->flag & SEQ_RIGHTSEL;
-
-    if (left_sel) {
-      group_delta = snap_frame - strip->left_handle();
-    }
-    if (right_sel) {
-      const int right_delta = snap_frame - strip->right_handle(scene);
-      if (!group_delta.has_value() || math::abs(right_delta) < group_delta) {
-        group_delta = right_delta;
+    if (strip != nullptr) {
+      /* Ensure active strip always participates in the operation to avoid inconsistent snapping.
+       */
+      if (!(strip->flag & SEQ_SELECT)) {
+        strip->flag |= SEQ_SELECT;
+        selected.add(strip);
       }
-    }
 
-    /* No handles selected: choose either left or right of active
-     * strip based on mouse position relative to playhead. */
-    if (!group_delta.has_value()) {
-      group_delta = delta_from_snap_side_get(strip);
+      const bool left_sel = strip->flag & SEQ_LEFTSEL;
+      const bool right_sel = strip->flag & SEQ_RIGHTSEL;
+
+      if (left_sel) {
+        group_delta = snap_frame - strip->left_handle();
+      }
+      if (right_sel) {
+        const int right_delta = snap_frame - strip->right_handle(scene);
+        if (!group_delta.has_value() || math::abs(right_delta) < group_delta) {
+          group_delta = right_delta;
+        }
+      }
+
+      /* No handles selected: choose either left or right of active
+       * strip based on mouse position relative to playhead. */
+      if (!group_delta.has_value()) {
+        group_delta = delta_from_snap_side_get(strip);
+      }
     }
   }
 
