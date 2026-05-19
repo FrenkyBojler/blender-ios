@@ -231,7 +231,7 @@ static void calculate_splines_axis(const Span<float> distances,
     return;
   }
   const int num_segments = is_closed ? verts_num : verts_num - 1;
-  Array<float> segment_length(num_segments, NoInitialization{});
+  Array<float> segment_length(num_segments);
 
   for (const int i : IndexRange(num_segments)) {
     segment_length[i] = (is_closed && i == verts_num - 1) ?
@@ -250,10 +250,10 @@ static void calculate_splines_axis(const Span<float> distances,
    * a cyclic tridiagonal system so in this case, we use the Sherman-Morrison formula
    * via `BLI_tridiagonal_solve_cyclic`. */
   if (is_closed) {
-    Array<float> lower_diag(verts_num, NoInitialization{});
-    Array<float> diag(verts_num, NoInitialization{});
-    Array<float> upper_diag(verts_num, NoInitialization{});
-    Array<float> rhs(verts_num, NoInitialization{});
+    Array<float> lower_diag(verts_num);
+    Array<float> diag(verts_num);
+    Array<float> upper_diag(verts_num);
+    Array<float> rhs(verts_num);
     for (const int i : IndexRange(verts_num)) {
       const int v_prev = math::mod_periodic(i - 1, verts_num);
       const int v_next = math::mod_periodic(i + 1, verts_num);
@@ -270,10 +270,10 @@ static void calculate_splines_axis(const Span<float> distances,
     /* For a natural cubic spline the curvature at the first and last point
      * is 0, so for n given points, we only have n-2 unknown interior points. */
     const int interior = verts_num - 2;
-    Array<float> lower_diag(interior, NoInitialization{});
-    Array<float> diag(interior, NoInitialization{});
-    Array<float> upper_diag(interior, NoInitialization{});
-    Array<float> rhs(interior, NoInitialization{});
+    Array<float> lower_diag(interior);
+    Array<float> diag(interior);
+    Array<float> upper_diag(interior);
+    Array<float> rhs(interior);
 
     for (const int i_curr : IndexRange(interior)) {
       const int i_next = i_curr + 1;
@@ -350,23 +350,23 @@ void bmo_space_edge_loops_evenly_exec(BMesh *bm, BMOperator *op)
     const int verts_num = chain.verts.size();
     SpaceMeasurements measure = measure_chain(chain);
 
-    Array<int> sample_indices(verts_num, NoInitialization{});
-    Array<float> sample_factors(verts_num, NoInitialization{});
+    Array<int> sample_indices(verts_num);
+    Array<float> sample_factors(verts_num);
     length_parameterize::sample_uniform(measure.knot_distances.as_span().drop_front(1),
                                         !chain.is_closed,
                                         sample_indices,
                                         sample_factors);
 
-    Array<float3> new_positions(verts_num, NoInitialization{});
+    Array<float3> new_positions(verts_num);
 
     if (interpolation == SPACE_EDGE_LOOPS_EVENLY_INTERP_LINEAR) {
       length_parameterize::interpolate<float3>(
           measure.positions, sample_indices, sample_factors, new_positions);
     }
     else {
-      Array<float> coords_x(verts_num, NoInitialization{});
-      Array<float> coords_y(verts_num, NoInitialization{});
-      Array<float> coords_z(verts_num, NoInitialization{});
+      Array<float> coords_x(verts_num);
+      Array<float> coords_y(verts_num);
+      Array<float> coords_z(verts_num);
       for (const int i : IndexRange(verts_num)) {
         coords_x[i] = measure.positions[i].x;
         coords_y[i] = measure.positions[i].y;
