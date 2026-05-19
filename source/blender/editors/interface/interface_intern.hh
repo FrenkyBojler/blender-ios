@@ -1820,5 +1820,6 @@ int paste_property_drivers(Span<FCurve *> src_drivers,
 
 }  // namespace internal
 
+void template_id_menutypes();
 }  // namespace ui
 }  // namespace blender

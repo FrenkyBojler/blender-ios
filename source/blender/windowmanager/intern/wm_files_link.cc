@@ -62,6 +62,8 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
+#include "UI_interface_c.hh"
+
 #include "wm_files.hh"
 
 namespace blender {
@@ -89,10 +91,25 @@ static bool wm_link_append_poll(bContext *C)
   return false;
 }
 
+static void wm_link_append_cancel(bContext * /*C*/, wmOperator *op)
+{
+  MEM_delete(static_cast<PropertyPointerRNA *>(op->customdata));
+  op->customdata = nullptr;
+}
+
+static void wm_link_append_init(bContext *C, wmOperator *op)
+{
+  PropertyPointerRNA *pprop;
+
+  op->customdata = pprop = MEM_new<PropertyPointerRNA>(__func__);
+  ui::context_active_but_prop_get_templateID(C, &pprop->ptr, &pprop->prop);
+}
+
 static wmOperatorStatus wm_link_append_invoke(bContext *C,
                                               wmOperator *op,
                                               const wmEvent * /*event*/)
 {
+  wm_link_append_init(C, op);
   if (!RNA_struct_property_is_set(op->ptr, "filepath")) {
     const char *blendfile_path = BKE_main_blendfile_path_from_global();
     if (G.filepath_last_library[0] != '\0') {
@@ -202,6 +219,9 @@ static bool wm_link_append_item_poll(ReportList *reports,
 
 static wmOperatorStatus wm_link_append_exec(bContext *C, wmOperator *op)
 {
+  PropertyPointerRNA *pprop = static_cast<PropertyPointerRNA *>(op->customdata);
+  BLI_SCOPED_DEFER([&]() { MEM_delete(pprop); })
+
   Main *bmain = CTX_data_main(C);
   const char *blendfile_path = BKE_main_blendfile_path(bmain);
   Scene *scene = CTX_data_scene(C);
@@ -380,6 +400,16 @@ static wmOperatorStatus wm_link_append_exec(bContext *C, wmOperator *op)
   BKE_blendfile_link_append_instantiate_loose(lapp_context, op->reports);
 
   BKE_blendfile_link_append_context_finalize(lapp_context);
+  if (!RNA_pointer_is_null(&pprop->ptr) && pprop->prop) {
+    for (BlendfileLinkAppendContextItem &item : lapp_context->items) {
+      if (item.idcode == ID_MA) {
+        PointerRNA idptr = RNA_id_pointer_create(item.new_id);
+        RNA_property_pointer_set(&pprop->ptr, pprop->prop, idptr, nullptr);
+        RNA_property_update(C, &pprop->ptr, pprop->prop);
+        break;
+      }
+    }
+  }
 
   BKE_blendfile_link_append_context_free(lapp_context);
 
@@ -480,6 +510,7 @@ void WM_OT_link(wmOperatorType *ot)
   ot->invoke = wm_link_append_invoke;
   ot->exec = wm_link_append_exec;
   ot->poll = wm_link_append_poll;
+  ot->cancel = wm_link_append_cancel;
 
   ot->flag = OPTYPE_UNDO;
 
@@ -504,6 +535,7 @@ void WM_OT_append(wmOperatorType *ot)
   ot->invoke = wm_link_append_invoke;
   ot->exec = wm_link_append_exec;
   ot->poll = wm_link_append_poll;
+  ot->cancel = wm_link_append_cancel;
 
   ot->flag = OPTYPE_UNDO;
 

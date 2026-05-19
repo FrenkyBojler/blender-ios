@@ -17,6 +17,7 @@
 #include "BKE_main.hh"
 #include "BKE_main_invariants.hh"
 #include "BKE_packedFile.hh"
+#include "BKE_screen.hh"
 
 #include "BLI_listbase.h"
 #include "BLI_string_search.hh"
@@ -30,6 +31,7 @@
 #include "DNA_scene_types.h"
 #include "DNA_workspace_types.h"
 
+#include "ED_asset_mark_clear.hh"
 #include "ED_id_management.hh"
 #include "ED_node.hh"
 #include "ED_object.hh"
@@ -315,16 +317,19 @@ void context_active_but_prop_get_templateID(const bContext *C,
                                             PointerRNA *r_ptr,
                                             PropertyRNA **r_prop)
 {
-  Button *but = context_active_but_get(C);
-
   *r_ptr = {};
   *r_prop = nullptr;
-  if (!but || !but->context) {
-    return;
+  const PointerRNA *ptr = nullptr;
+  std::optional<StringRefNull> prop_name = std::nullopt;
+
+  if (Button *but = context_active_but_get(C); but && but->context) {
+    ptr = CTX_store_ptr_lookup(but->context, "template_id_ptr");
+    prop_name = CTX_store_string_lookup(but->context, "template_id_prop");
   }
-  const PointerRNA *ptr = CTX_store_ptr_lookup(but->context, "template_id_ptr");
-  std::optional<StringRefNull> prop_name = CTX_store_string_lookup(but->context,
-                                                                   "template_id_prop");
+  else if (const bContextStore *store = CTX_store_get(C)) {
+    ptr = CTX_store_ptr_lookup(store, "template_id_ptr");
+    prop_name = CTX_store_string_lookup(store, "template_id_prop");
+  }
 
   if (!ptr || !prop_name) {
     return;
@@ -725,7 +730,7 @@ static void template_id_liboverride_hierarchy_make(bContext *C,
   }
 }
 
-static void template_ui_delete(bContext &C, TemplateID &template_ui)
+static void template_ui_delete(bContext &C, TemplateID &template_ui, bool delete_all_users)
 {
   PointerRNA idptr = RNA_property_pointer_get(&template_ui.ptr, template_ui.prop);
   ID *id = static_cast<ID *>(idptr.data);
@@ -736,7 +741,7 @@ static void template_ui_delete(bContext &C, TemplateID &template_ui)
   RNA_property_pointer_set(&template_ui.ptr, template_ui.prop, idptr, nullptr);
   RNA_property_update(&C, &template_ui.ptr, template_ui.prop);
 
-  if (id && CTX_wm_window(&C)->runtime->eventstate->modifier & KM_SHIFT) {
+  if (id && delete_all_users) {
     /* only way to force-remove data (on save) */
     id_us_clear_real(id);
     id_fake_user_clear(id);
@@ -1046,6 +1051,133 @@ static Button *template_id_def_new_but(Block *block,
 #endif
 
   return but;
+}
+
+static void mark_as_asset_items(const bContext &C, Layout &layout)
+{
+  if (!ed::asset::can_mark_single_from_context(&C)) {
+    return;
+  }
+  const ID *id = static_cast<const ID *>(CTX_data_pointer_get_type(&C, "id", RNA_ID).data);
+
+  /* Gray out items depending on if data-block is an asset. Preferably this could be done via
+   * operator poll, but that doesn't work since the operator also works with "selected_ids",
+   * which isn't cheap to check. */
+  Layout *sub = &layout.column(true);
+  sub->enabled_set(!id->asset_data);
+  sub->op("ASSET_OT_mark_single",
+          CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Mark as Asset"),
+          ICON_ASSET_MANAGER);
+  sub = &layout.column(true);
+  sub->enabled_set(id->asset_data);
+  sub->op("ASSET_OT_clear_single",
+          CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Clear Asset"),
+          ICON_NONE);
+  layout.separator();
+}
+
+static void template_id_material_menu_draw(const bContext *C, Menu *menu)
+{
+  Layout &layout = *menu->layout;
+  Block *block = layout.block();
+
+  PointerRNA ptr;
+  PropertyRNA *prop;
+  context_active_but_prop_get_templateID(C, &ptr, &prop);
+  StructRNA *type = RNA_property_pointer_type(&ptr, prop);
+  if (RNA_pointer_is_null(&ptr) || !RNA_struct_is_a(type, RNA_Material)) {
+    return;
+  }
+  if (const PointerRNA *idptr_ptr = layout.context_ptr_get("id", RNA_Material)) {
+    PointerRNA idptr = *idptr_ptr;
+    mark_as_asset_items(*C, layout);
+
+    layout.prop(&idptr, "use_fake_user", UI_ITEM_NONE, "Fake User", ICON_NONE);
+
+    PointerRNA opptr = layout.op("object.make_single_user", "Make Single User", ICON_BLANK1);
+    RNA_boolean_set(&opptr, "object", false);
+    RNA_boolean_set(&opptr, "obdata", false);
+    RNA_boolean_set(&opptr, "material", true);
+    RNA_boolean_set(&opptr, "animation", false);
+    RNA_boolean_set(&opptr, "obdata_animation", false);
+
+    layout.separator();
+
+    opptr = layout.op("object.material_slot_add", "Duplicate into New Slot", ICON_DUPLICATE);
+    RNA_boolean_set(&opptr, "duplicate_active_material", true);
+    layout.separator();
+
+    Button *but = uiDefIconTextBut(block,
+                                   ButtonType::But,
+                                   ICON_X,
+                                   "Unlink",
+                                   0,
+                                   0,
+                                   UI_UNIT_X,
+                                   UI_UNIT_Y,
+                                   nullptr,
+                                   TIP_("Unlink data-block"));
+    TemplateID template_ui = {ptr, prop};
+    button_func_set(but, [template_ui = template_ui](bContext &C) mutable {
+      template_ui_delete(C, template_ui, false);
+    });
+    but = uiDefIconTextBut(block,
+                           ButtonType::But,
+                           ICON_BLANK1,
+                           "Unlink (All Users)",
+                           0,
+                           0,
+                           UI_UNIT_X,
+                           UI_UNIT_Y,
+                           nullptr,
+                           TIP_("Unlink (All Users)"));
+
+    button_func_set(but, [template_ui = template_ui](bContext &C) mutable {
+      template_ui_delete(C, template_ui, true);
+    });
+  }
+  else {
+    // uiDefIconTextBut(block,
+    //                  ButtonType::But,
+    //                  ICON_ASSET_MANAGER,
+    //                  "Browse Assets...",
+    //                  0,
+    //                  0,
+    //                  UI_UNIT_X,
+    //                  UI_UNIT_Y,
+    //                  nullptr,
+    //                  TIP_("Unlink data-block"));
+    layout.separator();
+
+    layout.op("wm.link", "Link...", ICON_LINKED);
+    layout.op("wm.append", "Append...", ICON_NONE);
+
+    layout.separator();
+    PointerRNA opptr = layout.op("material.paste", "Paste as New Material", ICON_PASTEDOWN);
+    RNA_boolean_set(&opptr, "paste_as_new_material", true);
+  }
+}
+
+void template_id_menutypes()
+{
+  MenuType *mt = MEM_new_zeroed<MenuType>("UI_MT_template_material");
+  STRNCPY_UTF8(mt->idname, "UI_MT_template_material");
+  STRNCPY_UTF8(mt->label, N_("Material"));
+  mt->draw = template_id_material_menu_draw;
+  WM_menutype_add(mt);
+}
+
+static MenuType *template_menu_for_type(int idtype)
+{
+  StringRef menu_name = nullptr;
+  switch (idtype) {
+    case ID_MA:
+      menu_name = "UI_MT_template_material";
+      break;
+    default:
+      break;
+  }
+  return !menu_name.is_empty() ? WM_menutype_find(menu_name, true) : nullptr;
 }
 
 static void template_ID(const bContext *C,
@@ -1412,7 +1544,8 @@ static void template_ID(const bContext *C,
             TIP_("Unlink data-block "
                  "(Shift + Click to set users to zero, data will then not be saved)"));
         button_func_set(but, [template_ui = template_ui](bContext &C) mutable {
-          template_ui_delete(C, template_ui);
+          template_ui_delete(
+              C, template_ui, CTX_wm_window(&C)->runtime->eventstate->modifier & KM_SHIFT);
         });
 
         if (RNA_property_flag(template_ui.prop) & PROP_NEVER_NULL) {
@@ -1430,6 +1563,10 @@ static void template_ID(const bContext *C,
 
   if (template_ui.idcode == ID_TE) {
     uiTemplateTextureShow(&layout, C, &template_ui.ptr, template_ui.prop);
+  }
+  MenuType *template_menu = template_menu_for_type(template_ui.idcode);
+  if (template_menu) {
+    layout.menu(template_menu, "", ICON_DOWNARROW_HLT);
   }
   block_align_end(block);
 }

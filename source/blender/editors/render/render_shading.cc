@@ -196,7 +196,7 @@ static bool material_slot_populated_poll(bContext *C)
 /** \name Material Slot Add Operator
  * \{ */
 
-static wmOperatorStatus material_slot_add_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus material_slot_add_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   Object *ob = ed::object::context_object(C);
@@ -205,8 +205,44 @@ static wmOperatorStatus material_slot_add_exec(bContext *C, wmOperator * /*op*/)
     return OPERATOR_CANCELLED;
   }
 
+  Material *ma = nullptr;
+  if (RNA_boolean_get(op->ptr, "duplicate_active_material")) {
+    ma = static_cast<Material *>(CTX_data_pointer_get_type(C, "material", RNA_Material).data);
+  }
   BKE_object_material_slot_add(bmain, ob);
+  if (ma) {
+    Material *new_ma = id_cast<Material *>(
+        BKE_id_copy_ex(bmain, &ma->id, nullptr, LIB_ID_COPY_DEFAULT | LIB_ID_COPY_ACTIONS));
+    ma = new_ma;
+    PointerRNA ptr;
+    PropertyRNA *prop;
 
+    /* hook into UI */
+    ui::context_active_but_prop_get_templateID(C, &ptr, &prop);
+
+    Object *ob = static_cast<Object *>((prop && RNA_struct_is_a(ptr.type, RNA_Object)) ? ptr.data :
+                                                                                         nullptr);
+    nodes::node_tree_shader_default(C, bmain, &ma->id);
+    if (ob != nullptr) {
+      /* Add slot follows user-preferences for creating new slots,
+       * RNA pointer assignment doesn't, see: #60014. */
+      if (BKE_object_material_get_p(ob, ob->actcol) == nullptr) {
+        BKE_object_material_slot_add(bmain, ob);
+      }
+    }
+
+    /* when creating new ID blocks, use is already 1, but RNA
+     * pointer use also increases user, so this compensates it */
+    id_us_min(&ma->id);
+
+    if (ptr.owner_id) {
+      BKE_id_move_to_same_lib(*bmain, ma->id, *ptr.owner_id);
+    }
+
+    PointerRNA idptr = RNA_id_pointer_create(&ma->id);
+    RNA_property_pointer_set(&ptr, prop, idptr, nullptr);
+    RNA_property_update(C, &ptr, prop);
+  }
   if (ob->mode & OB_MODE_TEXTURE_PAINT) {
     Scene *scene = CTX_data_scene(C);
     ED_paint_proj_mesh_data_check(*scene, *ob, nullptr, nullptr, nullptr, nullptr);
@@ -233,6 +269,10 @@ void OBJECT_OT_material_slot_add(wmOperatorType *ot)
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
+
+  PropertyRNA *prop = RNA_def_boolean(
+      ot->srna, "duplicate_active_material", false, "Duplicate Active Material", "");
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
 /** \} */
@@ -2871,6 +2911,45 @@ static wmOperatorStatus paste_material_exec(bContext *C, wmOperator *op)
   Material *ma = static_cast<Material *>(
       CTX_data_pointer_get_type(C, "material", RNA_Material).data);
 
+  PointerRNA ptr;
+  PropertyRNA *prop;
+
+  /* hook into UI */
+  ui::context_active_but_prop_get_templateID(C, &ptr, &prop);
+
+  Object *ob = static_cast<Object *>((prop && RNA_struct_is_a(ptr.type, RNA_Object)) ? ptr.data :
+                                                                                       nullptr);
+
+  if (RNA_boolean_get(op->ptr, "paste_as_new_material")) {
+    const char *name = DATA_("Material");
+    if (!(ob != nullptr && ob->type == OB_GREASE_PENCIL)) {
+      ma = BKE_material_add(bmain, name);
+    }
+    else {
+      ma = BKE_gpencil_material_add(bmain, name);
+    }
+    nodes::node_tree_shader_default(C, bmain, &ma->id);
+    if (ob != nullptr) {
+      /* Add slot follows user-preferences for creating new slots,
+       * RNA pointer assignment doesn't, see: #60014. */
+      if (BKE_object_material_get_p(ob, ob->actcol) == nullptr) {
+        BKE_object_material_slot_add(bmain, ob);
+      }
+    }
+
+    /* when creating new ID blocks, use is already 1, but RNA
+     * pointer use also increases user, so this compensates it */
+    id_us_min(&ma->id);
+
+    if (ptr.owner_id) {
+      BKE_id_move_to_same_lib(*bmain, ma->id, *ptr.owner_id);
+    }
+
+    PointerRNA idptr = RNA_id_pointer_create(&ma->id);
+    RNA_property_pointer_set(&ptr, prop, idptr, nullptr);
+    RNA_property_update(C, &ptr, prop);
+  }
+
   if (ma == nullptr) {
     BKE_report(op->reports, RPT_WARNING, "Cannot paste without a material");
     return OPERATOR_CANCELLED;
@@ -3029,6 +3108,10 @@ void MATERIAL_OT_paste(wmOperatorType *ot)
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
+
+  PropertyRNA *prop = RNA_def_boolean(
+      ot->srna, "paste_as_new_material", false, "Paste as New Material", "");
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
 /** \} */
