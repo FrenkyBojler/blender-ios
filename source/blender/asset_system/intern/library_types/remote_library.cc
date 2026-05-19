@@ -339,8 +339,8 @@ bool ProgressTracker::is_any_loading()
 
 float remote_library_total_asset_downloads_progress()
 {
-  int expected_bytes = 0;
-  int current_bytes = 0;
+  int64_t expected_bytes = 0;
+  int64_t current_bytes = 0;
   for (const FileProgress &progress : ProgressTracker::current.requested_files.values()) {
     expected_bytes += progress.expected_size_in_bytes;
     current_bytes += progress.current_size_in_bytes;
