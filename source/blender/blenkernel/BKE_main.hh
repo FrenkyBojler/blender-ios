@@ -41,7 +41,6 @@ namespace blender {
 
 struct BLI_mempool;
 struct BlendThumbnail;
-struct GHash;
 struct ID;
 struct IDNameLib_Map;
 struct ImBuf;

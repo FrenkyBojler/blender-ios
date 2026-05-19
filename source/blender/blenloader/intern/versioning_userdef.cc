@@ -1761,7 +1761,7 @@ void blo_do_versions_userdef(UserDef *userdef)
     userdef->geometry_nodes_stack_limit = 100;
   }
 
-  if (!USER_VERSION_ATLEAST(502, 30)) {
+  if (!USER_VERSION_ATLEAST(502, 32)) {
     userdef->pref_flag |= USER_PREF_FLAG_PROJECT_SAVE;
   }
 
