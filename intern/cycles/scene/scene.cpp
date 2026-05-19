@@ -395,6 +395,13 @@ void Scene::device_update(Device *device_, Progress &progress)
 
   device->optimize_for_scene(this);
 
+  if (need_motion() == MOTION_PASS_INTERACTIVE) {
+    /* Swap current camera/object/vertex positions to previous positions for next frame. */
+    camera->update_interactive_motion();
+    object_manager->update_interactive_motion(this);
+    geometry_manager->update_interactive_motion(this);
+  }
+
   if (print_stats) {
     const size_t mem_used = util_guarded_get_mem_used();
     const size_t mem_peak = util_guarded_get_mem_peak();
@@ -412,21 +419,26 @@ Scene::MotionType Scene::need_motion() const
   if (integrator->get_motion_blur()) {
     return MOTION_BLUR;
   }
-  if (Pass::contains(passes, PASS_MOTION)) {
-    return MOTION_PASS;
+  const bool denoiser_motion = integrator->get_use_denoise() &&
+                               (integrator->get_denoiser_passes() &
+                                (DENOISER_PASS_MOTION | DENOISER_PASS_BACKWARD_MOTION)) != 0;
+  if (denoiser_motion || (Pass::contains(passes, PASS_MOTION) ||
+                          Pass::contains(passes, PASS_DENOISING_BACKWARD_MOTION)))
+  {
+    return params.background ? MOTION_PASS : MOTION_PASS_INTERACTIVE;
   }
   return MOTION_NONE;
 }
 
 float Scene::motion_shutter_time()
 {
-  if (need_motion() == Scene::MOTION_PASS) {
+  if (need_motion() == Scene::MOTION_PASS || need_motion() == Scene::MOTION_PASS_INTERACTIVE) {
     return 2.0f;
   }
   return camera->get_shuttertime();
 }
 
-bool Scene::need_global_attribute(AttributeStandard std)
+bool Scene::need_global_attribute(AttributeStandard std) const
 {
   if (std == ATTR_STD_UV) {
     return Pass::contains(passes, PASS_UV);
@@ -449,6 +461,10 @@ void Scene::need_global_attributes(AttributeRequestSet &attributes)
     if (need_global_attribute((AttributeStandard)std)) {
       attributes.add((AttributeStandard)std);
     }
+  }
+
+  for (const Shader *shader : shaders) {
+    attributes.add(shader->global_attributes);
   }
 }
 
@@ -632,15 +648,25 @@ bool Scene::update(Progress &progress)
 
 bool Scene::update_camera_resolution(Progress &progress, int width, int height)
 {
-  if (!camera->set_screen_size(width, height)) {
-    return false;
+  bool update_data = false;
+
+  if (camera->set_screen_size(width, height)) {
+    camera->device_update(device, &dscene, this);
+    update_data = true;
   }
 
-  camera->device_update(device, &dscene, this);
+  if (integrator->get_use_pixel_jitter()) {
+    integrator->tag_use_pixel_jitter_modified();
 
-  progress.set_status("Updating Device", "Writing constant memory");
-  device->const_copy_to("data", &dscene.data, sizeof(dscene.data));
-  return true;
+    integrator->device_update(device, &dscene, this);
+    update_data = true;
+  }
+
+  if (update_data) {
+    progress.set_status("Updating Device", "Writing constant memory");
+    device->const_copy_to("data", &dscene.data, sizeof(dscene.data));
+  }
+  return update_data;
 }
 
 static void log_kernel_features(const uint features)

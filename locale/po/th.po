@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 Alpha (b'b1f67602e773')\n"
+"Project-Id-Version: Blender 5.2.0 Alpha (b'bc0a0ff2c0ce')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-04-13 10:20+0000\n"
+"POT-Creation-Date: 2026-05-18 11:20+0000\n"
 "PO-Revision-Date: 2026-03-19 12:41+0000\n"
 "Last-Translator: Banditer1483 <pleum.wongvarit@gmail.com>\n"
 "Language-Team: Thai <https://translate.blender.org/projects/blender-ui/ui/th/>\n"
@@ -1797,10 +1797,6 @@ msgstr "แสดงสินทรัพย์ที่มีอยู่ใน
 
 msgid "Essentials"
 msgstr "รากแก่น"
-
-
-msgid "Show the basic building blocks and utilities coming with Blender"
-msgstr "แสดงส่วนประกอบพื้นฐานและเครื่องมือต่างๆ ที่มาพร้อมกับเบลนเดอร์"
 
 
 msgid "Custom"
@@ -4941,52 +4937,12 @@ msgid "Mix Color"
 msgstr "ผสมสี"
 
 
-msgid "Face Data"
-msgstr "ข้อมูลด้าน"
-
-
-msgid "Math"
-msgstr "คณิตศาสตร์"
-
-
-msgid "Merge"
-msgstr "ผสาน"
-
-
-msgid "Metaball"
-msgstr "เมตาบอล"
-
-
-msgid "Names"
-msgstr "ชื่อ"
-
-
-msgid "Pivot Point"
-msgstr "จุดหมุน"
+msgid "Mirror"
+msgstr "กระจกสะท้อน"
 
 
 msgid "Snap"
 msgstr "ยึดติด"
-
-
-msgid "Import"
-msgstr "นำเข้า"
-
-
-msgid "Proportional Editing Falloff"
-msgstr "แก้ไข"
-
-
-msgid "Mask Edit"
-msgstr "การแก้ไขหน้ากาก"
-
-
-msgid "UV"
-msgstr "UV"
-
-
-msgid "Mirror"
-msgstr "กระจกสะท้อน"
 
 
 msgid "Local View"
@@ -4995,6 +4951,10 @@ msgstr "มุมมองท้องถิ่น"
 
 msgid "Viewpoint"
 msgstr "จุดของมุมมอง"
+
+
+msgid "Math"
+msgstr "คณิตศาสตร์"
 
 
 msgid "Navigation"
@@ -5013,6 +4973,10 @@ msgid "View Regions"
 msgstr "ขอบเขตมุมมอง"
 
 
+msgid "Metaball"
+msgstr "เมตาบอล"
+
+
 msgid "Light"
 msgstr "แสง"
 
@@ -5021,8 +4985,8 @@ msgid "Add Image"
 msgstr "เพิ่มภาพ"
 
 
-msgid "Layout"
-msgstr "เค้าโครง"
+msgid "Import"
+msgstr "นำเข้า"
 
 
 msgid "Apply"
@@ -5033,12 +4997,44 @@ msgid "Track"
 msgstr "แทร็ค"
 
 
-msgid "Keying"
-msgstr "คีย์"
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Hooks"
 msgstr "ตะขอ"
+
+
+msgid "Names"
+msgstr "ชื่อ"
+
+
+msgid "Face Data"
+msgstr "ข้อมูลด้าน"
+
+
+msgid "Merge"
+msgstr "ผสาน"
+
+
+msgid "Layout"
+msgstr "เค้าโครง"
+
+
+msgid "Keying"
+msgstr "คีย์"
+
+
+msgid "Pivot Point"
+msgstr "จุดหมุน"
+
+
+msgid "Proportional Editing Falloff"
+msgstr "แก้ไข"
+
+
+msgid "Mask Edit"
+msgstr "การแก้ไขหน้ากาก"
 
 
 msgid "Zoom"
@@ -5444,6 +5440,10 @@ msgstr "แกนมุมมอง"
 
 msgid "Move"
 msgstr "เคลื่อนที่"
+
+
+msgid "Search"
+msgstr "ค้นหา"
 
 
 msgctxt "Operator"
@@ -6299,12 +6299,12 @@ msgid "Single Image"
 msgstr "ภาพเดี่ยว"
 
 
-msgid "View Lock"
-msgstr "ล็อกมุมมอง"
-
-
 msgid "Overlays"
 msgstr "วางซ้อน"
+
+
+msgid "View Lock"
+msgstr "ล็อกมุมมอง"
 
 
 msgid "Mask Display"
@@ -6834,10 +6834,6 @@ msgstr "วิธีที่จะแสดง/แรเงาวัตถุ�
 
 msgid "Error Message"
 msgstr "ข้อความแสดงข้อผิดพลาด"
-
-
-msgid "Search"
-msgstr "ค้นหา"
 
 
 msgctxt "WindowManager"

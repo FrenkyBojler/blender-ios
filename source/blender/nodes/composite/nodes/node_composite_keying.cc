@@ -208,11 +208,10 @@ class KeyingOperation : public NodeOperation {
       }
 
       if (output_matte.should_compute()) {
-        output_matte.steal_data(feathered_matte);
+        output_matte.share_data(feathered_matte);
       }
-      else {
-        feathered_matte.release();
-      }
+
+      feathered_matte.release();
     }
     else {
       tweaked_matte.release();
@@ -826,7 +825,7 @@ static void node_register()
   bke::node_type_storage(
       ntype, "NodeKeyingData", node_free_standard_storage, node_copy_standard_storage);
   ntype.get_compositor_operation = get_compositor_operation;
-  bke::node_type_size(ntype, 155, 140, NODE_DEFAULT_MAX_WIDTH);
+  ntype.default_width = bke::NodeWidth::_160;
 
   bke::node_register_type(ntype);
 }

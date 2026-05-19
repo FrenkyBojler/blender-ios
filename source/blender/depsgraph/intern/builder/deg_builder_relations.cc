@@ -1052,6 +1052,10 @@ void DepsgraphRelationBuilder::build_object_data(Object *object)
     case OB_SPEAKER:
       build_object_data_speaker(object);
       break;
+    case OB_EMPTY:
+    case OB_GPENCIL_LEGACY:
+    case OB_TYPE_MAX:
+      break;
   }
   Key *key = BKE_key_from_object(object);
   if (key != nullptr) {
@@ -2578,6 +2582,8 @@ void DepsgraphRelationBuilder::build_particle_systems(Object *object)
           }
         }
         break;
+      default:
+        break;
     }
   }
   /* Particle depends on the object transform, so that channel is to be ready
@@ -3579,6 +3585,7 @@ static bool strip_build_prop_cb(Strip *strip, void *user_data)
     cd->has_audio_strips = true;
   }
   if (strip->type == STRIP_TYPE_SCENE && strip->scene != nullptr) {
+    BLI_assert(strip->scene_view_layer_name != nullptr);
     if (strip->flag & SEQ_SCENE_STRIPS) {
       cd->builder->build_scene_sequencer(strip->scene);
       ComponentKey sequence_scene_audio_key(&strip->scene->id, NodeType::AUDIO);
@@ -3588,8 +3595,8 @@ static bool strip_build_prop_cb(Strip *strip, void *user_data)
       cd->builder->add_relation(
           sequence_scene_key, cd->sequencer_key, "Sequence Scene -> Sequencer");
     }
-    ViewLayer *sequence_view_layer = BKE_view_layer_default_render(strip->scene);
-    cd->builder->build_scene_speakers(strip->scene, sequence_view_layer);
+    ViewLayer *strip_view_layer = BKE_view_layer_find(strip->scene, strip->scene_view_layer_name);
+    cd->builder->build_scene_speakers(strip->scene, strip_view_layer);
   }
   if (strip->type == STRIP_TYPE_COMPOSITOR && strip->effectdata) {
     const CompositorEffectVars *comp_data = static_cast<CompositorEffectVars *>(strip->effectdata);
