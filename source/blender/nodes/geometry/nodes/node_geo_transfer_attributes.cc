@@ -172,6 +172,7 @@ static bool transfer_attributes(
     const bke::GAttributeReader src_attr = src_attributes.lookup(item.name);
     const CommonVArrayInfo info = src_attr.varray.common_info();
     const IDs &ids = ids_by_domain.lookup(item.domain);
+    const CPPType &type = src_attr.varray.type();
     if (info.type == CommonVArrayInfo::Type::Single) {
       if (ids.dst_mask.size() == dst_attributes.domain_size(item.domain)) {
         if (dst_attributes.add(item.name,
@@ -218,8 +219,12 @@ static bool transfer_attributes(
 
     if (ids.transfer_by_index) {
       const int copy_num = std::min(src_size, dst_size);
-      const IndexRange slice(copy_num);
-      array_utils::copy(src_attr.varray.slice(slice), dst_attr.span.slice(slice));
+      const int default_fill_num = dst_size - copy_num;
+      const IndexRange copy_slice(copy_num);
+      array_utils::copy(src_attr.varray.slice(copy_slice), dst_attr.span.slice(copy_slice));
+      type.fill_assign_n(type.default_value(),
+                         POINTER_OFFSET(dst_attr.span.data(), type.size * copy_num),
+                         default_fill_num);
     }
     else {
       bke::attribute_math::gather(*src_attr, ids.src_by_dst_index, ids.dst_mask, dst_attr.span);
