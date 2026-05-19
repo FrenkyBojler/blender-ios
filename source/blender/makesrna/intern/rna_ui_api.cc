@@ -48,6 +48,11 @@ static const EnumPropertyItem popup_draw_direction_items[] = {
 };
 }  // namespace blender
 
+enum class TextAlignAnchor : int {
+  Left = 0,
+  Right = 1,
+};
+
 #ifdef RNA_RUNTIME
 
 #  include "BLT_translation.hh"
@@ -206,7 +211,7 @@ static void rna_uiItemR(Layout *layout,
   if (invert_checkbox) {
     flag |= ui::ITEM_R_CHECKBOX_INVERT;
   }
-  if (align == 1) {
+  if (align == int(TextAlignAnchor::Right)) {
     flag |= ui::ITEM_R_TEXT_RIGHT;
   }
 
@@ -1592,10 +1597,11 @@ void RNA_api_ui_layout(StructRNA *srna)
   RNA_def_property_ui_text(parm, "Icon Value", "Override automatic icon of the item");
   RNA_def_boolean(func, "invert_checkbox", false, "", "Draw checkbox value inverted");
   static const EnumPropertyItem rna_enum_prop_align[] = {
-      {0, "LEFT", 0, "", ""},
-      {1, "RIGHT", 0, "", ""},
+      {int(TextAlignAnchor::Left), "LEFT", 0, "", ""},
+      {int(TextAlignAnchor::Right), "RIGHT", 0, "", ""},
+      {0, nullptr, 0, nullptr, nullptr},
   };
-  parm = RNA_def_enum(func, "align", rna_enum_prop_align, 0, "", "Text input alignment");
+  parm = RNA_def_enum(func, "text_align", rna_enum_prop_align, 0, "", "Text alignment");
 
   func = RNA_def_function(srna, "props_enum", "rna_uiItemsEnumR");
   api_ui_item_rna_common(func);
