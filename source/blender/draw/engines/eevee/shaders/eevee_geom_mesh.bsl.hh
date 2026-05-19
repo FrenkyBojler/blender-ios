@@ -14,7 +14,7 @@ VERTEX_SHADER_CREATE_INFO(eevee_clip_plane)
 #include "eevee_attributes_mesh_lib.glsl"
 #include "eevee_nodetree_vert_lib.glsl"
 #include "eevee_reverse_z_lib.bsl.hh"
-#include "eevee_surf_lib.glsl"
+#include "eevee_surf_common.bsl.hh"
 #include "eevee_velocity_lib.glsl"
 
 namespace eevee {
@@ -33,7 +33,9 @@ struct GeomMeshVertIn {
   [[attribute(1)]] float3 nor;
 };
 
-[[vertex]] void geom_mesh([[resource_table]] const GeomMesh & /*srt*/,
+[[vertex]] void geom_mesh([[resource_table]] const PipelineConstants &pipe,
+                          [[resource_table]] const GeomMesh & /*srt*/,
+                          [[resource_table, condition(is_shadow_pipe)]] const GeomShadow &shadow,
                           [[in]] const GeomMeshVertIn &vert_in,
                           [[instance_id]] const int /*inst_id*/,     /* Used by model_lib. */
                           [[base_instance]] const int /*base_inst*/, /* Used by model_lib. */
@@ -45,54 +47,51 @@ struct GeomMeshVertIn {
 
   auto &interp = interface_get(eevee_geom_iface_info, interp);
 
-#ifdef MAT_SHADOW
-  {
+  if (pipe.is_shadow_pipe) [[static_branch]] {
     auto &shadow_iface = interface_get(eevee_shadow_iface_info, shadow_iface);
-    auto &render_view_buf = buffer_get(eevee::GeomShadow, render_view_buf);
+    /* FIXME(fclem): This is a workaround for a bug in the BSL compiler. */
+    [[resource_table]] const GeomShadow &sh = shadow;
 
     shadow_iface.shadow_view_id = int(drw_view_id);
-    out_viewport = int(render_view_buf[drw_view_id].viewport_index);
+    out_viewport = int(sh.render_view_buf[drw_view_id].viewport_index);
   }
-#endif
 
   init_interface();
 
   interp.P = drw_point_object_to_world(vert_in.pos);
   interp.N = normalize(drw_normal_object_to_world(vert_in.nor));
-#ifdef MAT_VELOCITY
-  {
+  if (pipe.use_velocity) [[static_branch]] {
     auto &motion = interface_get(eevee_velocity_geom, motion);
     float3 prv, nxt;
-    velocity_local_pos_get(pos, vert_id, prv, nxt, drw_resource_id());
+    velocity_local_pos_get(vert_in.pos, vert_id, prv, nxt, drw_resource_id());
     /* FIXME(fclem): Evaluating before displacement avoid displacement being treated as motion but
      * ignores motion from animated displacement. Supporting animated displacement motion vectors
      * would require evaluating the nodetree multiple time with different nodetree UBOs evaluated
      * at different times, but also with different attributes (maybe we could assume static
      * attribute at least). */
-    velocity_vertex(prv, pos, nxt, motion.prev, motion.next, drw_resource_id(), drw_modelmat());
+    velocity_vertex(
+        prv, vert_in.pos, nxt, motion.prev, motion.next, drw_resource_id(), drw_modelmat());
   }
-#endif
 
   init_globals(true);
   attrib_load(MeshVertex{0});
 
   interp.P += nodetree_displacement();
 
-#ifdef MAT_CLIP_PLANE
-  clip_interp.clip_distance = dot(clip_plane.plane, float4(interp.P, 1.0f));
-#endif
+  if (pipe.use_clip_plane) [[static_branch]] {
+    clip_interp.clip_distance = dot(clip_plane.plane, float4(interp.P, 1.0f));
+  }
 
-#ifdef MAT_SHADOW
-  {
+  if (pipe.is_shadow_pipe) [[static_branch]] {
     auto &shadow_clip = interface_get(eevee_shadow_iface_info, shadow_clip);
-    auto &render_view_buf = buffer_get(eevee::GeomShadow, render_view_buf);
+    /* FIXME(fclem): This is a workaround for a bug in the BSL compiler. */
+    [[resource_table]] const GeomShadow &sh = shadow;
 
     float3 vs_P = drw_point_world_to_view(interp.P);
-    ShadowRenderView view = render_view_buf[drw_view_id];
+    ShadowRenderView view = sh.render_view_buf[drw_view_id];
     shadow_clip.position = shadow_position_vector_get(vs_P, view);
     shadow_clip.vector = shadow_clip_vector_get(vs_P, view.clip_distance_inv);
   }
-#endif
 
   out_position = reverse_z::transform(drw_point_world_to_homogenous(interp.P));
 }

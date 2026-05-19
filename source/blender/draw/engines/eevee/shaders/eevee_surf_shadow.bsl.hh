@@ -23,7 +23,7 @@ FRAGMENT_SHADER_CREATE_INFO(eevee_geom_iface_info)
 #include "eevee_sampling_lib.glsl"
 #include "eevee_shadow_shared.hh"
 #include "eevee_shadow_tilemap_lib.bsl.hh"
-#include "eevee_surf_lib.glsl"
+#include "eevee_surf_common.bsl.hh"
 
 float4 closure_to_rgba_shadow(Closure /*cl*/)
 {
@@ -45,7 +45,8 @@ struct SurfShadow {
 };
 
 [[fragment]] [[texture_atomic]]
-void surf_shadow([[resource_table]] SurfShadow &srt,
+void surf_shadow([[resource_table]] PipelineConstants &pipe,
+                 [[resource_table]] SurfShadow &srt,
                  [[front_facing]] const bool front_face,
                  [[frag_coord]] const float4 frag_co)
 {
@@ -60,20 +61,20 @@ void surf_shadow([[resource_table]] SurfShadow &srt,
     return;
   }
 
-#ifdef MAT_TRANSPARENT
-  init_globals(front_face);
+  if (pipe.use_transparency) [[static_branch]] {
+    init_globals(front_face);
 
-  nodetree_surface(0.0f);
+    nodetree_surface(0.0f);
 
-  float noise_offset = sampling_rng_1D_get(SAMPLING_TRANSPARENCY);
-  float random_threshold = pcg4d(float4(g_data.P, noise_offset)).x;
+    float noise_offset = sampling_rng_1D_get(SAMPLING_TRANSPARENCY);
+    float random_threshold = pcg4d(float4(g_data.P, noise_offset)).x;
 
-  float transparency = average(g_transmittance);
-  if (transparency > random_threshold) {
-    gpu_discard_fragment();
-    return;
+    float transparency = average(g_transmittance);
+    if (transparency > random_threshold) {
+      gpu_discard_fragment();
+      return;
+    }
   }
-#endif
 
   int2 texel_co = int2(frag_co.xy);
 

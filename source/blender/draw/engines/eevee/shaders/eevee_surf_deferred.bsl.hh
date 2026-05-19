@@ -22,7 +22,7 @@ FRAGMENT_SHADER_CREATE_INFO(eevee_cryptomatte_out)
 #include "eevee_gbuffer_write_lib.glsl"
 #include "eevee_nodetree_frag_lib.glsl"
 #include "eevee_sampling_lib.glsl"
-#include "eevee_surf_lib.glsl"
+#include "eevee_surf_common.bsl.hh"
 #include "eevee_thickness_lib.bsl.hh"
 
 float4 closure_to_rgba(Closure /*cl*/)
@@ -93,7 +93,8 @@ struct DeferredFragOut {
 
 /* NOTE: This removes the possibility of using gl_FragDepth. */
 [[fragment]] [[early_fragment_tests]]
-void surf_deferred([[resource_table]] SurfaceDeferred &srt,
+void surf_deferred([[resource_table]] PipelineConstants &pipe,
+                   [[resource_table]] SurfaceDeferred &srt,
                    [[frag_coord]] const float4 frag_co,
                    [[out]] DeferredFragOut &frag_out,
                    [[front_facing]] const bool front_face)
@@ -129,12 +130,6 @@ void surf_deferred([[resource_table]] SurfaceDeferred &srt,
 
   int2 out_texel = int2(frag_co.xy);
 
-#ifdef MAT_SUBSURFACE
-  constexpr bool use_sss = true;
-#else
-  constexpr bool use_sss = false;
-#endif
-
   ObjectInfos object_infos = drw_object_infos();
   bool use_light_linking = receiver_light_set_get(object_infos) != 0;
   bool use_terminator_offset = object_infos.shadow_terminator_normal_offset > 0.0;
@@ -152,14 +147,12 @@ void surf_deferred([[resource_table]] SurfaceDeferred &srt,
   /* ----- GBuffer output ----- */
 
   gbuffer::InputClosures gbuf_data;
-  gbuf_data.closure[0] = g_closure_get_resolved(0, alpha_rcp);
-#if CLOSURE_BIN_COUNT > 1
-  gbuf_data.closure[1] = g_closure_get_resolved(1, alpha_rcp);
-#endif
-#if CLOSURE_BIN_COUNT > 2
-  gbuf_data.closure[2] = g_closure_get_resolved(2, alpha_rcp);
-#endif
-  const bool use_object_id = use_sss || use_light_linking || use_terminator_offset;
+  for (int i = 0; i < 3; i++) [[unroll]] {
+    if (pipe.closure_bin_count > i) [[static_branch]] {
+      gbuf_data.closure[i] = g_closure_get_resolved(i, alpha_rcp);
+    }
+  }
+  const bool use_object_id = pipe.use_sss || use_light_linking || use_terminator_offset;
 
   gbuffer::Packed gbuf = gbuffer::pack(gbuf_data, g_data.Ng, g_data.N, thickness, use_object_id);
 

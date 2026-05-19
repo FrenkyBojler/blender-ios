@@ -15,7 +15,7 @@ VERTEX_SHADER_CREATE_INFO(eevee_clip_plane)
 #include "eevee_attributes_pointcloud_lib.glsl"
 #include "eevee_nodetree_vert_lib.glsl"
 #include "eevee_reverse_z_lib.bsl.hh"
-#include "eevee_surf_lib.glsl"
+#include "eevee_surf_common.bsl.hh"
 #include "eevee_velocity_lib.glsl"
 
 namespace eevee {
@@ -34,7 +34,9 @@ struct GeomPointCloud {
   [[push_constant]] bool ptcloud_backface;
 };
 
-[[vertex]] void geom_pointcloud([[resource_table]] const GeomPointCloud & /*srt*/,
+[[vertex]] void geom_pointcloud([[resource_table]] const PipelineConstants &pipe,
+                                [[resource_table]] const GeomPointCloud & /*srt*/,
+                                [[resource_table, condition(is_shadow_pipe)]] GeomShadow &shadow,
                                 [[instance_id]] const int /*inst_id*/,     /* Used by model_lib. */
                                 [[base_instance]] const int /*base_inst*/, /* Used by model_lib. */
                                 [[vertex_id]] const int vert_id,
@@ -48,15 +50,14 @@ struct GeomPointCloud {
   auto &pointcloud_interp_flat = interface_get(eevee_geom_pointcloud_iface_info,
                                                pointcloud_interp_flat);
 
-#ifdef MAT_SHADOW
-  {
+  if (pipe.is_shadow_pipe) [[static_branch]] {
     auto &shadow_iface = interface_get(eevee_shadow_iface_info, shadow_iface);
-    auto &render_view_buf = buffer_get(eevee::GeomShadow, render_view_buf);
+    /* FIXME(fclem): This is a workaround for a bug in the BSL compiler. */
+    [[resource_table]] const GeomShadow &sh = shadow;
 
     shadow_iface.shadow_view_id = int(drw_view_id);
-    out_viewport = int(render_view_buf[drw_view_id].viewport_index);
+    out_viewport = int(sh.render_view_buf[drw_view_id].viewport_index);
   }
-#endif
 
   init_interface();
 
@@ -74,14 +75,13 @@ struct GeomPointCloud {
   interp.P = pt.P;
   interp.N = pt.N;
 
-#ifdef MAT_SHADOW
-  /* Since point clouds always face the view, camera and shadow orientation don't match.
-   * Apply a bias to avoid self-shadow issues. */
-  interp.P -= drw_world_incident_vector(interp.P) * pointcloud_interp.radius;
-#endif
+  if (pipe.is_shadow_pipe) [[static_branch]] {
+    /* Since point clouds always face the view, camera and shadow orientation don't match.
+     * Apply a bias to avoid self-shadow issues. */
+    interp.P -= drw_world_incident_vector(interp.P) * pointcloud_interp.radius;
+  }
 
-#ifdef MAT_VELOCITY
-  {
+  if (pipe.use_velocity) [[static_branch]] {
     auto &motion = interface_get(eevee_velocity_geom, motion);
     float3 lP = drw_point_world_to_object(pointcloud_interp.position);
     float3 prv, nxt;
@@ -93,28 +93,26 @@ struct GeomPointCloud {
      * attribute at least). */
     velocity_vertex(prv, lP, nxt, motion.prev, motion.next, drw_resource_id(), drw_modelmat());
   }
-#endif
 
   init_globals(true);
   attrib_load(PointCloudPoint{ws_pt.point_id});
 
   interp.P += nodetree_displacement();
 
-#ifdef MAT_CLIP_PLANE
-  clip_interp.clip_distance = dot(clip_plane.plane, float4(interp.P, 1.0f));
-#endif
+  if (pipe.use_clip_plane) [[static_branch]] {
+    clip_interp.clip_distance = dot(clip_plane.plane, float4(interp.P, 1.0f));
+  }
 
-#ifdef MAT_SHADOW
-  {
+  if (pipe.is_shadow_pipe) [[static_branch]] {
     auto &shadow_clip = interface_get(eevee_shadow_iface_info, shadow_clip);
-    auto &render_view_buf = buffer_get(eevee::GeomShadow, render_view_buf);
+    /* FIXME(fclem): This is a workaround for a bug in the BSL compiler. */
+    [[resource_table]] const GeomShadow &sh = shadow;
 
     float3 vs_P = drw_point_world_to_view(interp.P);
-    ShadowRenderView view = render_view_buf[drw_view_id];
+    ShadowRenderView view = sh.render_view_buf[drw_view_id];
     shadow_clip.position = shadow_position_vector_get(vs_P, view);
     shadow_clip.vector = shadow_clip_vector_get(vs_P, view.clip_distance_inv);
   }
-#endif
 
   out_position = reverse_z::transform(drw_point_world_to_homogenous(interp.P));
 }

@@ -18,7 +18,7 @@ FRAGMENT_SHADER_CREATE_INFO(eevee_geom_iface_info)
 #include "draw_view_lib.glsl"   /* IWYU pragma: export. For nodetree functions. */
 #include "eevee_nodetree_frag_lib.glsl"
 #include "eevee_sampling_lib.glsl"
-#include "eevee_surf_lib.glsl"
+#include "eevee_surf_common.bsl.hh"
 #include "eevee_transparency_lib.glsl"
 #include "eevee_velocity_lib.glsl"
 
@@ -41,8 +41,6 @@ struct SurfaceDepth {
   [[legacy_info]] ShaderCreateInfo eevee_sampling_data;
   [[legacy_info]] ShaderCreateInfo eevee_utility_texture;
   [[legacy_info]] ShaderCreateInfo eevee_geom_iface_info;
-
-  [[compilation_constant]] bool use_velocity;
 };
 
 /* WORKAROUND(fclem): This is not supposed to be needed.
@@ -63,57 +61,55 @@ template<> struct SurfaceDepthFragOut<true> {
 
 template<bool with_velocity>
 [[fragment]]
-void surf_depth([[resource_table]] SurfaceDepth &srt,
+void surf_depth([[resource_table]] PipelineConstants &pipe,
+                [[resource_table]] SurfaceDepth &srt,
                 [[frag_coord]] const float4 frag_co,
                 [[out]] SurfaceDepthFragOut<with_velocity> &frag_out,
                 [[front_facing]] const bool front_face)
 {
-#ifdef MAT_TRANSPARENT
-  init_globals(front_face);
+  if (pipe.use_transparency) [[static_branch]] {
+    init_globals(front_face);
 
-  nodetree_surface(0.0f);
+    nodetree_surface(0.0f);
 
-  float noise_offset = sampling_rng_1D_get(SAMPLING_TRANSPARENCY);
-  float threshold = transparency_hashed_alpha_threshold(
-      pipeline_buf.alpha_hash_scale, noise_offset, g_data.P);
+    float noise_offset = sampling_rng_1D_get(SAMPLING_TRANSPARENCY);
+    float threshold = transparency_hashed_alpha_threshold(
+        pipeline_buf.alpha_hash_scale, noise_offset, g_data.P);
 
-  float transparency = average(g_transmittance);
-  if (transparency > threshold) {
-    gpu_discard_fragment();
-    return;
+    float transparency = average(g_transmittance);
+    if (transparency > threshold) {
+      gpu_discard_fragment();
+      return;
+    }
   }
-#endif
 
-#ifdef MAT_CLIP_PLANE
-  /* Do not use hardware clip planes as they modify the rasterization (some GPUs add vertices).
-   * This would in turn create a discrepancy between the pre-pass depth and the G-buffer depth
-   * which exhibits missing pixels data. */
-  if (clip_interp.clip_distance > 0.0f) {
-    gpu_discard_fragment();
-    return;
+  if (pipe.use_clip_plane) [[static_branch]] {
+    /* Do not use hardware clip planes as they modify the rasterization (some GPUs add vertices).
+     * This would in turn create a discrepancy between the pre-pass depth and the G-buffer depth
+     * which exhibits missing pixels data. */
+    if (clip_interp.clip_distance > 0.0f) {
+      gpu_discard_fragment();
+      return;
+    }
   }
-#endif
 
-#ifdef MAT_VELOCITY
-  if (srt.use_velocity) [[static_branch]] {
-    const auto &motion = interface_get(eevee_velocity_geom, motion);
-    frag_out.velocity = velocity_surface(interp.P + motion.prev, interp.P, interp.P + motion.next);
-    frag_out.velocity = velocity_pack(frag_out.velocity);
+  if constexpr (with_velocity) {
+    if (pipe.use_velocity) [[static_branch]] {
+      const auto &motion = interface_get(eevee_velocity_geom, motion);
+      frag_out.velocity = velocity_surface(
+          interp.P + motion.prev, interp.P, interp.P + motion.next);
+      frag_out.velocity = velocity_pack(frag_out.velocity);
+    }
   }
-#endif
 
   /* Always written, but may be optimized out by frame-buffer/subpass setup. */
   frag_out.normal.rgb = normalize(interp.N) * 0.5f + 0.5f;
   frag_out.object_id = drw_resource_id() & 0xFFFF;
 }
 
-template void surf_depth<true>(SurfaceDepth &,
-                               const float4,
-                               SurfaceDepthFragOut<true> &,
-                               const bool);
-template void surf_depth<false>(SurfaceDepth &,
-                                const float4,
-                                SurfaceDepthFragOut<false> &,
-                                const bool);
+template void surf_depth<true>(
+    PipelineConstants &, SurfaceDepth &, const float4, SurfaceDepthFragOut<true> &, const bool);
+template void surf_depth<false>(
+    PipelineConstants &, SurfaceDepth &, const float4, SurfaceDepthFragOut<false> &, const bool);
 
 }  // namespace eevee

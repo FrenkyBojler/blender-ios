@@ -111,7 +111,6 @@ set(SRC_GLSL_LIB
   eevee_renderpass_lib.glsl
   eevee_sampling_lib.glsl
   eevee_subsurface_lib.glsl
-  eevee_surf_lib.glsl
   # eevee_transparency_lib.glsl # Require Fragment shader include
   # eevee_velocity_lib.glsl # Has dependency on draw_model_lib that is hard to resolve
 )

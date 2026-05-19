@@ -22,7 +22,7 @@ FRAGMENT_SHADER_CREATE_INFO(eevee_volume_lib)
 #include "eevee_nodetree_frag_lib.glsl"
 #include "eevee_reverse_z_lib.bsl.hh"
 #include "eevee_sampling_lib.glsl"
-#include "eevee_surf_lib.glsl"
+#include "eevee_surf_common.bsl.hh"
 #include "eevee_volume_lib.bsl.hh"
 
 /* Global thickness because it is needed for closure_to_rgba. */
@@ -88,7 +88,8 @@ struct SurfaceForwardFragOut {
 /* Early fragment test is needed for render passes support for forward surfaces. */
 /* NOTE: This removes the possibility of using gl_FragDepth. */
 [[fragment]] [[early_fragment_tests]]
-void surf_forward([[resource_table]] SurfaceForward & /*srt*/,
+void surf_forward([[resource_table]] PipelineConstants & /*pipe*/,
+                  [[resource_table]] SurfaceForward & /*srt*/,
                   [[resource_table]] LightEvalIterator & /*lights*/,
                   [[frag_coord]] const float4 frag_co,
                   [[out]] SurfaceForwardFragOut &frag_out,

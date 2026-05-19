@@ -63,11 +63,11 @@ PipelineGraphic eevee_surface_occupancy_curves(geom_curves, surf_occupancy);
 PipelineGraphic eevee_surface_occupancy_mesh(geom_mesh, surf_occupancy);
 PipelineGraphic eevee_surface_occupancy_pointcloud(geom_pointcloud, surf_occupancy);
 PipelineGraphic eevee_surface_occupancy_volume(geom_volume, surf_occupancy);
-PipelineGraphic eevee_surface_shadow_world(geom_world, surf_shadow);
+//PipelineGraphic eevee_surface_shadow_world(geom_world, surf_shadow); /* N/A */
 PipelineGraphic eevee_surface_shadow_curves(geom_curves, surf_shadow);
 PipelineGraphic eevee_surface_shadow_mesh(geom_mesh, surf_shadow);
 PipelineGraphic eevee_surface_shadow_pointcloud(geom_pointcloud, surf_shadow);
-PipelineGraphic eevee_surface_shadow_volume(geom_volume, surf_shadow);
+//PipelineGraphic eevee_surface_shadow_volume(geom_volume, surf_shadow); /* N/A */
 /* clang-format on */
 #endif
 
