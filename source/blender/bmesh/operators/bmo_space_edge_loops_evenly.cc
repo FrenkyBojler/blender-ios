@@ -333,7 +333,7 @@ static float3 evaluate_cubic(const Span<float> tknots,
 
 void bmo_space_edge_loops_evenly_exec(BMesh *bm, BMOperator *op)
 {
-  const float influence = BMO_slot_float_get(op->slots_in, "factor");
+  const float factor = BMO_slot_float_get(op->slots_in, "factor");
   const SpaceInterpolationMethod interpolation = static_cast<SpaceInterpolationMethod>(
       BMO_slot_int_get(op->slots_in, "interpolation"));
   const bool lock_x = BMO_slot_bool_get(op->slots_in, "lock_x");
@@ -411,7 +411,7 @@ void bmo_space_edge_loops_evenly_exec(BMesh *bm, BMOperator *op)
         new_pos.z = measure.positions[i].z;
       }
 
-      float3 final_pos = math::interpolate(measure.positions[i], new_pos, influence);
+      float3 final_pos = math::interpolate(measure.positions[i], new_pos, factor);
       copy_v3_v3(chain.verts[i]->co, final_pos);
     }
   }

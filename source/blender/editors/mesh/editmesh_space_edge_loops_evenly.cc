@@ -51,7 +51,7 @@ static wmOperatorStatus edbm_space_edge_loops_evenly_exec(bContext *C, wmOperato
   ViewLayer *view_layer = CTX_data_view_layer(C);
   const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
       *bmain, scene, view_layer, CTX_wm_view3d(C));
-  const float influence = RNA_float_get(op->ptr, "influence");
+  const float factor = RNA_float_get(op->ptr, "factor");
   const int interpolation = RNA_enum_get(op->ptr, "interpolation");
   bool lock[3];
   RNA_boolean_get_array(op->ptr, "lock", lock);
@@ -75,7 +75,7 @@ static wmOperatorStatus edbm_space_edge_loops_evenly_exec(bContext *C, wmOperato
                        "lock_x=%b lock_y=%b lock_z=%b",
                        BM_ELEM_SELECT,
                        interpolation,
-                       influence,
+                       factor,
                        lock[0],
                        lock[1],
                        lock[2]))
@@ -106,7 +106,7 @@ static void edbm_space_ui(bContext * /*C*/, wmOperator *op)
   ui::Layout &layout = *op->layout;
   layout.use_property_split_set(true);
 
-  layout.prop(op->ptr, "influence", UI_ITEM_NONE, IFACE_("Factor"), ICON_NONE);
+  layout.prop(op->ptr, "factor", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   layout.prop(op->ptr, "interpolation", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   ui::Layout &lock_row = layout.row(true, IFACE_("Lock"));
@@ -132,7 +132,7 @@ void MESH_OT_space_edge_loops_evenly(wmOperatorType *ot)
   ot->ui = edbm_space_ui;
 
   RNA_def_float_factor(
-      ot->srna, "influence", 1.0f, 0.0f, 1.0f, "Influence", "Force of the tool", 0.0f, 1.0f);
+      ot->srna, "factor", 1.0f, 0.0f, 1.0f, "Factor", "Force of the tool", 0.0f, 1.0f);
   RNA_def_enum(ot->srna,
                "interpolation",
                prop_interpolation_items,
