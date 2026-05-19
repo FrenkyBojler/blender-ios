@@ -215,7 +215,7 @@ integrate_direct_light_shadow_init_common(KernelGlobals kg,
 
   /* Branch off shadow kernel. */
   IntegratorShadowState shadow_state;
-#ifdef __MNEE__
+#if 0
   if (mnee_vertex_count > 0) {
     /* Reuse shadow path that was already allocated by intersect_mnee. */
     shadow_state = integrator_state_get_mnee_shadow_state(state);
@@ -267,7 +267,7 @@ integrate_direct_light_shadow_init_common(KernelGlobals kg,
         state, path, portal_bounce);
   }
 
-#ifdef __MNEE__
+#if 0
   if (mnee_vertex_count > 0) {
     INTEGRATOR_STATE_WRITE(shadow_state, shadow_path, transmission_bounce) =
         INTEGRATOR_STATE(state, path, transmission_bounce) + mnee_vertex_count - 1;
@@ -327,7 +327,7 @@ ccl_device
   LightSample ls ccl_optional_struct_init;
   int mnee_vertex_count = 0;  // NOLINT
 
-#ifdef __MNEE__
+#if 0
   if ((kernel_data.kernel_features & KERNEL_FEATURE_MNEE) &&
       (INTEGRATOR_STATE(state, path, mnee) & PATH_MNEE_SAMPLED))
   {
@@ -369,7 +369,7 @@ ccl_device
     }
   }
 
-#ifdef __MNEE__
+#if 0
   /* On a caustic caster, a caustic light's contribution is delivered to receivers by
    * MNEE and does not need to be computed again here. */
   if (kernel_data.kernel_features & KERNEL_FEATURE_MNEE) {
@@ -393,7 +393,7 @@ ccl_device
 
   Ray ray ccl_optional_struct_init;
 
-#ifdef __MNEE__
+#if 0
   if (mnee_vertex_count > 0) {
     light_shader_eval *= integrator_state_read_mnee_throughput(state);
     bsdf_eval_mul(&bsdf_eval, light_shader_eval);
@@ -890,7 +890,7 @@ ccl_device_forceinline void integrator_shade_surface(KernelGlobals kg,
     return;
   }
 
-#ifdef __MNEE__
+#if 0
   /* Cleanup MNEE flag and shadow path if it was not reused for shadow trace. */
   if ((kernel_data.kernel_features & KERNEL_FEATURE_MNEE) &&
       (INTEGRATOR_STATE(state, path, mnee) & PATH_MNEE_SAMPLED))
