@@ -13,6 +13,7 @@
 #include "DNA_ID.h"
 #include "DNA_brush_types.h"
 #include "DNA_curve_types.h"
+#include "DNA_mesh_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_node_tree_interface_types.h"
 #include "DNA_node_types.h"
@@ -25,9 +26,11 @@
 #include "BLI_sys_types.h"
 
 #include "BKE_animsys.h"
+#include "BKE_attribute.hh"
 #include "BKE_colortools.hh"
 #include "BKE_curves.hh"
 #include "BKE_idprop.hh"
+#include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
 #include "BKE_mesh_legacy_convert.hh"
@@ -269,6 +272,24 @@ static void version_clear_strip_linear_modifier_flag(Main &bmain)
   }
 }
 
+static void version_text_strip_space_line(Main &bmain)
+{
+  for (Scene &scene : bmain.scenes) {
+    Editing *ed = seq::editing_get(&scene);
+    if (ed == nullptr) {
+      continue;
+    }
+
+    seq::foreach_strip(&ed->seqbase, [&](Strip *strip) {
+      if (strip->type == STRIP_TYPE_TEXT && strip->effectdata != nullptr) {
+        TextVars *data = static_cast<TextVars *>(strip->effectdata);
+        data->space_line = 1.0f;
+      }
+      return true;
+    });
+  }
+}
+
 static void fix_single_point_curves_custom_knots(Main *bmain)
 {
   /* Fix corrupted flagu/flagv values created by older versions of the Curve Pen tool.
@@ -305,6 +326,64 @@ static void version_strip_modifier_show_preview_flag(Main &bmain)
   }
 }
 
+static void version_scene_strip_view_layer_name(Main &bmain)
+{
+  for (const Scene &scene : bmain.scenes) {
+    Editing *ed = seq::editing_get(&scene);
+    if (ed == nullptr) {
+      continue;
+    }
+
+    seq::foreach_strip(&ed->seqbase, [&](Strip *strip) {
+      if (strip->type != STRIP_TYPE_SCENE || strip->scene == nullptr) {
+        return true;
+      }
+      strip->scene_view_layer_name = BLI_strdup(BKE_view_layer_default_render(strip->scene)->name);
+      return true;
+    });
+  }
+}
+
+/* Compositor node trees with an image input and an image output can likely be used as strip
+ * modifiers. */
+static void enable_compositor_nodes_is_strip_modifier(Main &bmain)
+{
+  for (bNodeTree &group : bmain.nodetrees) {
+    if (group.type != NTREE_COMPOSIT) {
+      continue;
+    }
+    bool has_image_input = false;
+    bool has_image_output = false;
+    group.tree_interface.foreach_item([&](const bNodeTreeInterfaceItem &item) {
+      if (item.item_type != NODE_INTERFACE_SOCKET) {
+        /* Continue. */
+        return true;
+      }
+      const auto &socket = reinterpret_cast<const bNodeTreeInterfaceSocket &>(item);
+      if (socket.flag & NODE_INTERFACE_SOCKET_INPUT) {
+        has_image_input = has_image_input || STREQ(socket.socket_type, "NodeSocketColor");
+        /* Continue. */
+        return true;
+      }
+      if (socket.flag & NODE_INTERFACE_SOCKET_OUTPUT) {
+        has_image_output = has_image_output || STREQ(socket.socket_type, "NodeSocketColor");
+        /* Continue. */
+        return true;
+      }
+      /* Break. */
+      return false;
+    });
+
+    if (has_image_input && has_image_output) {
+      if (!group.compositor_node_asset_traits) {
+        group.compositor_node_asset_traits = MEM_new<CompositorNodeAssetTraits>(__func__);
+      }
+      group.compositor_node_asset_traits->flag |= COMPOSIT_NODE_ASSET_STRIP_MODIFIER;
+      bke::node_update_asset_metadata(group);
+    }
+  }
+}
+
 void do_versions_after_linking_520(FileData *fd, Main *bmain)
 {
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 2)) {
@@ -326,6 +405,10 @@ void do_versions_after_linking_520(FileData *fd, Main *bmain)
         }
       }
     }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 27)) {
+    version_scene_strip_view_layer_name(*bmain);
   }
 
   /**
@@ -557,6 +640,61 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
             space_outliner->flag |= SO_SCROLL_TO_ACTIVE;
           }
         }
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 26)) {
+    FOREACH_NODETREE_BEGIN (bmain, tree, id) {
+      if (tree->type != NTREE_GEOMETRY) {
+        continue;
+      }
+      for (bNode &node : tree->nodes) {
+        switch (node.type_legacy) {
+          case FN_NODE_COMPARE:
+          case FN_NODE_RANDOM_VALUE: {
+            version_socket_identifier_suffixes_for_dynamic_types(node.inputs, "_");
+            version_socket_identifier_suffixes_for_dynamic_types(node.outputs, "_");
+            break;
+          }
+        }
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 28)) {
+    version_text_strip_space_line(*bmain);
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 29)) {
+    for (bScreen &screen : bmain->screens) {
+      for (ScrArea &area : screen.areabase) {
+        for (SpaceLink &sl : area.spacedata) {
+          if (sl.spacetype != SPACE_SEQ) {
+            continue;
+          }
+          ListBaseT<ARegion> *regionbase = (&sl == area.spacedata.first) ? &area.regionbase :
+                                                                           &sl.regionbase;
+          ARegion *scrubbing_region = do_versions_add_region_if_not_found(
+              regionbase, RGN_TYPE_SCRUBBING, "Scrubbing Region", RGN_TYPE_FOOTER);
+          if (scrubbing_region) {
+            scrubbing_region->alignment = RGN_ALIGN_BOTTOM | RGN_STACK_ON_PREV |
+                                          RGN_ALIGN_HIDE_WITH_PREV;
+          }
+        }
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 30)) {
+    enable_compositor_nodes_is_strip_modifier(*bmain);
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 31)) {
+    for (Mesh &mesh : bmain->meshes) {
+      if (mesh.attributes().contains(".uv_seam")) {
+        mesh.attributes_for_write().rename(".uv_seam", "uv_seam");
       }
     }
   }
