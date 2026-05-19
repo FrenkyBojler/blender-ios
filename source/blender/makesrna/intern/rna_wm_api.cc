@@ -848,9 +848,17 @@ static void rna_asset_library_status_ping_loaded_new_preview(bContext *C,
   RemoteLibraryLoadingStatus::ping_new_preview(*C, preview_full_path);
 }
 
-static void rna_asset_library_status_ping_asset_file_done(bContext *C, const char *library_url)
+static void rna_asset_library_status_ping_asset_file_progress(const char *absolute_file_url,
+                                                              const int size_written)
 {
-  RemoteLibraryLoadingStatus::ping_asset_file_download_done(*C, library_url);
+  RemoteLibraryLoadingStatus::ping_asset_file_progress(absolute_file_url, size_written);
+}
+
+static void rna_asset_library_status_ping_asset_file_done(bContext *C,
+                                                          const char *library_url,
+                                                          const char *absolute_file_url)
+{
+  RemoteLibraryLoadingStatus::ping_asset_file_download_done(*C, library_url, absolute_file_url);
 }
 
 static void rna_asset_library_status_finished_loading(const char *library_url)
@@ -1698,6 +1706,31 @@ void RNA_api_asset_library_loading_status(StructRNA *srna)
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 
   func = RNA_def_function(srna,
+                          "asset_library_status_ping_asset_file_progress",
+                          "rna_asset_library_status_ping_asset_file_progress");
+  RNA_def_function_ui_description(
+      func, "Inform the asset system about the current progress of an asset file.");
+  RNA_def_function_flag(func, FUNC_NO_SELF);
+  parm = RNA_def_string(func,
+                        "absolute_file_url",
+                        nullptr,
+                        0,
+                        "URL",
+                        "The absolute URL this file was downloaded from");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+  parm = RNA_def_int(
+      func,
+      "size_written",
+      0,
+      0,
+      INT_MAX,
+      "Size Written to Disk",
+      "The number of bytes written to disk after uncompressing the download data, if needed",
+      0,
+      0);
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+
+  func = RNA_def_function(srna,
                           "asset_library_status_ping_asset_file_done",
                           "rna_asset_library_status_ping_asset_file_done");
   RNA_def_function_ui_description(func,
@@ -1710,6 +1743,13 @@ void RNA_api_asset_library_loading_status(StructRNA *srna)
                         0,
                         "URL",
                         "The URL identifying the asset library being loaded");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+  parm = RNA_def_string(func,
+                        "absolute_file_url",
+                        nullptr,
+                        0,
+                        "URL",
+                        "The absolute URL this file was downloaded from");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 
   func = RNA_def_function(
