@@ -117,7 +117,7 @@ class FileV1:
     blender_version: str
     """Version of Blender used to write this file.
 
-    Only contains the major and minor version, no micro version ("5.2",
+    Only contains the major and minor version, no patch version ("5.2",
     "6.3", etc. but not "5.2.1").
     """
 
