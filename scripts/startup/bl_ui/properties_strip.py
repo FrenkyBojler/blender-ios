@@ -230,8 +230,14 @@ class STRIP_PT_effect(StripButtonsPanel, Panel):
             layout.template_color_picker(strip, "color", value_slider=True, cubic=True)
             layout.prop(strip, "color", text="")
             col = layout.column(align=True)
-            col.prop(strip, "width")
-            col.prop(strip, "height")
+            row = col.row(align=True)
+            row.prop(strip, "width")
+            op = row.operator("sequencer.color_strip_set_render_size", text="", icon='RENDER_STILL')
+            op.use_width = True
+            row = col.row(align=True)
+            row.prop(strip, "height")
+            op = row.operator("sequencer.color_strip_set_render_size", text="", icon='RENDER_STILL')
+            op.use_width = False
 
         elif strip_type == 'WIPE':
             col = layout.column()
@@ -1087,7 +1093,26 @@ class STRIP_PT_custom_props(StripButtonsPanel, PropertyPanel, Panel):
     _property_type = (bpy.types.Strip,)
 
 
+class SEQUENCER_OT_color_strip_set_render_size(bpy.types.Operator):
+    bl_idname = "sequencer.color_strip_set_render_size"
+    bl_label = "Set to Render Size"
+    bl_description = "Set to scene render resolution"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    use_width: bpy.props.BoolProperty()
+
+    def execute(self, context):
+        strip = context.active_strip
+        render = context.scene.render
+        if self.use_width:
+            strip.width = render.resolution_x
+        else:
+            strip.height = render.resolution_y
+        return {'FINISHED'}
+
+
 classes = (
+    SEQUENCER_OT_color_strip_set_render_size,
     STRIP_PT_color_tag_picker,
 
     STRIP_PT_strip,
