@@ -197,7 +197,7 @@ static void testbuffer_list_state_from_data__stride_expand(ListBaseT<TestBuffer>
 
 #define TESTBUFFER_STRINGS_CREATE(lb, ...) \
   { \
-    lb->clear_no_delete(); \
+    BLI_listbase_clear(lb); \
     const char *data_array[] = {__VA_ARGS__ nullptr}; \
     testbuffer_list_state_from_string_array((lb), data_array); \
   } \

@@ -133,7 +133,7 @@ static void nla_free(SpaceLink *sl)
   SpaceNla *snla = reinterpret_cast<SpaceNla *>(sl);
 
   if (snla->ads) {
-    snla->ads->chanbase.free_no_destruct();
+    BLI_freelistN(&snla->ads->chanbase);
     MEM_delete(snla->ads);
   }
 }

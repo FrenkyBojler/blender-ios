@@ -1915,7 +1915,7 @@ static void link_glob_list(FileData *fd, ListBase *lb) /* for glob data */
   Link *ln, *prev;
   void *poin;
 
-  if (lb->is_empty()) {
+  if (BLI_listbase_is_empty(lb)) {
     return;
   }
   poin = newdataadr(fd, lb->first);
@@ -6000,7 +6000,7 @@ void BLO_read_struct_list_with_size(BlendDataReader *reader,
                                     const size_t expected_elem_size,
                                     ListBase *list)
 {
-  if (list->is_empty()) {
+  if (BLI_listbase_is_empty(list)) {
     return;
   }
 

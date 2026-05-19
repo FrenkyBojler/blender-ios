@@ -1698,8 +1698,8 @@ void boid_free_settings(BoidSettings *boids)
 
     for (; state; state = state->next) {
       state->rules.free_no_destruct();
-      state->conditions.free_no_destruct();
-      state->actions.free_no_destruct();
+      BLI_freelistN(&state->conditions);
+      BLI_freelistN(&state->actions);
     }
 
     boids->states.free_no_destruct();
