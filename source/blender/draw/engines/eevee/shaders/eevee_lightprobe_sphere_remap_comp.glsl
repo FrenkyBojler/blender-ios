@@ -134,9 +134,7 @@ void main()
      * loops. Unroll is needed as driver might decide to not unroll in shaders with more
      * complexity. */
     /* Vulkan validation layers detects a data race on `local_radiance[local_index] +=
-     * local_radiance[local_index + stride]`. This is a false positive. The issue is that SPIR-V
-     * generated uses a variable based stride (`stride = group_size >> (i+1u)`), which cannot be
-     * statically analyzed between barriers. */
+     * local_radiance[local_index + stride]`. This is a false positive. */
     for (uint i = 0; i < 10; i++) [[unroll]] {
       barrier();
       uint stride = group_size >> (i + 1u);
@@ -160,9 +158,7 @@ void main()
      * loops. Unroll is needed as driver might decide to not unroll in shaders with more
      * complexity. */
     /* Vulkan validation layers detects a data race on `local_direction[local_index] +=
-     * local_direction[local_index + stride]`. This is a false positive. The issue is that SPIR-V
-     * generated uses a variable based stride (`stride = group_size >> (i+1u)`), which cannot be
-     * statically analyzed between barriers. */
+     * local_direction[local_index + stride]`. This is a false positive. */
     for (uint i = 0; i < 10; i++) [[unroll]] {
       barrier();
       uint stride = group_size >> (i + 1u);
@@ -185,9 +181,7 @@ void main()
      * loops. Unroll is needed as driver might decide to not unroll in shaders with more
      * complexity. */
     /* Vulkan validation layers detects a data race on `local_radiance[local_index] +=
-     * local_radiance[local_index + stride]`. This is a false positive. The issue is that SPIR-V
-     * generated uses a variable based stride (`stride = group_size >> (i+1u)`), which cannot be
-     * statically analyzed between barriers. */
+     * local_radiance[local_index + stride]`. This is a false positive. */
     for (uint i = 0; i < 10; i++) [[unroll]] {
       barrier();
       uint stride = group_size >> (i + 1u);
