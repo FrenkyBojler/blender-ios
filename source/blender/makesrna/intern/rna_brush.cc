@@ -372,7 +372,7 @@ static EnumPropertyItem rna_enum_gpencil_fill_direction_items[] = {
 
 static EnumPropertyItem rna_enum_gpencil_fill_solver_items[] = {
     {GP_FILL_SOLVER_DELAUNAY, "DELAUNAY", 0, "Delaunay", "Use the exact geometry to create fills"},
-    {GP_FILL_SOLVER_FLOOD, "FLOOD", 0, "Flood", "Use pixel based flooding to create fills"},
+    {GP_FILL_SOLVER_PIXEL, "PIXEL", 0, "Pixel", "Use pixel based flooding to create fills"},
     {0, nullptr, 0, nullptr, nullptr}};
 
 static EnumPropertyItem rna_enum_gpencil_brush_modes_items[] = {

@@ -1571,7 +1571,7 @@ static bool grease_pencil_apply_fill(bContext &C, wmOperator &op, const wmEvent 
       const ed::greasepencil::ExtensionData extensions = grease_pencil_fill_get_extension_data(
           C, op_data);
 
-      op_fill_curves = std::make_optional(flood_fill_strokes(view_context,
+      op_fill_curves = std::make_optional(pixel_fill_strokes(view_context,
                                                              brush,
                                                              scene,
                                                              layer,

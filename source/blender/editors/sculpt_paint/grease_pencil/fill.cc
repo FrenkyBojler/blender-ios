@@ -1005,7 +1005,7 @@ static Image *render_strokes(const ViewContext &view_context,
   return image_render::image_render_end(*view_context.bmain, offscreen_buffer);
 }
 
-bke::CurvesGeometry flood_fill_strokes(const ViewContext &view_context,
+bke::CurvesGeometry pixel_fill_strokes(const ViewContext &view_context,
                                        const Brush &brush,
                                        const Scene &scene,
                                        const bke::greasepencil::Layer &layer,

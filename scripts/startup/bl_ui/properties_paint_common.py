@@ -1845,7 +1845,7 @@ def brush_basic_grease_pencil_paint_settings(layout, context, brush, props, *, c
             row.prop(gp_settings, "fill_direction", expand=True)
 
         row = layout.row(align=True)
-        if gp_settings.fill_solver == 'FLOOD':
+        if gp_settings.fill_solver == 'PIXEL':
             row = layout.row(align=True)
             row.prop(gp_settings, "fill_factor")
             row = layout.row(align=True)

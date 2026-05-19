@@ -124,7 +124,7 @@ enum eGP_FillLayerModes : short {
 /* BrushGpencilSettings->fill_method */
 enum eGP_FillSolver {
   GP_FILL_SOLVER_DELAUNAY = 0,
-  GP_FILL_SOLVER_FLOOD = 1,
+  GP_FILL_SOLVER_PIXEL = 1,
 };
 
 /* BrushGpencilSettings->gp_eraser_mode */
