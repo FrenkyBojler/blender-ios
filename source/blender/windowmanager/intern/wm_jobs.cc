@@ -265,7 +265,7 @@ bool WM_jobs_test(const wmWindowManager *wm, const void *owner, int job_type)
 {
   /* Job can be running or about to run (suspended). */
   for (wmJob &wm_job : wm->runtime->jobs) {
-    if (owner && wm_job.owner != owner) {
+    if (wm_job.owner != owner) {
       continue;
     }
 
