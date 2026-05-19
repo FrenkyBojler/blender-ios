@@ -73,12 +73,12 @@ def test_commit(
     tested.add(commit_hash)
 
     title = env.commit_title(commit_hash)[:70]
-    on_progress([date_str(commit_ts), commit_hash, title, '', 'building'], end='\r')
+    on_progress([commit_hash, date_str(commit_ts), title, '', 'building'], end='\r')
 
     install_dir = env.install_dir
     ok = env.build(commit_hash, install_dir)
     if not ok:
-        on_progress([date_str(commit_ts), commit_hash, title, 'error', 'FAIL (build)'])
+        on_progress([commit_hash, date_str(commit_ts), title, 'error', 'FAIL (build)'])
         return None, 'build'
 
     env.set_blender_executable(install_dir, {})
@@ -87,16 +87,16 @@ def test_commit(
     try:
         for run_idx in range(count):
             run_status = 'running' if count == 1 else f'run [{run_idx + 1}/{count}]'
-            on_progress([date_str(commit_ts), commit_hash, title, '', run_status], end='\r')
+            on_progress([commit_hash, date_str(commit_ts), title, '', run_status], end='\r')
             output = test.run(env, device_id, gpu_backend)
             if not output or attribute not in output:
                 env.set_default_blender_executable()
-                on_progress([date_str(commit_ts), commit_hash, title, 'error', 'run'])
+                on_progress([commit_hash, date_str(commit_ts), title, 'error', 'run'])
                 return None, 'run'
             values.append(output[attribute])
     except Exception as e:
         env.set_default_blender_executable()
-        on_progress([date_str(commit_ts), commit_hash, title, 'error', str(e)[:30]])
+        on_progress([commit_hash, date_str(commit_ts), title, 'error', str(e)[:30]])
         return None, 'run'
 
     env.set_default_blender_executable()
@@ -104,5 +104,5 @@ def test_commit(
 
     good = is_good(avg, success, threshold)
     status = 'PASS' if good else 'FAIL'
-    on_progress([date_str(commit_ts), commit_hash, title, f'{avg:.4f}', status])
+    on_progress([commit_hash, date_str(commit_ts), title, f'{avg:.4f}', status])
     return avg, 'pass' if good else 'fail'

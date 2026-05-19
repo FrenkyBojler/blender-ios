@@ -387,7 +387,7 @@ class TestEnvironment:
             lines = self.call(
                 [self.git_executable, 'log', '--first-parent', '--reverse',
                  '--after=' + str(after_ts - 1), '--before=' + str(before_ts),
-                 '--format=%H %at', 'HEAD'],
+                 '--format=%H %ct', 'HEAD'],
                 self.blender_git_dir, silent=True)
         except:
             return []

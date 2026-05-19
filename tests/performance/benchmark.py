@@ -439,9 +439,9 @@ def cmd_bisect(env: api.TestEnvironment, argv: list):
     print()
 
     table = api.MarkdownTable()
-    table.add_column("Date (UTC)", width=22)
     table.add_column("Remaining", width=5, alignment='RIGHT')
     table.add_column("Commit", width=12)
+    table.add_column("Date (UTC)", width=22)
     table.add_column("Title", width=70)
     table.add_column(args.attribute, width=14, alignment='RIGHT')
     table.add_column("Status", width=8)
@@ -451,7 +451,7 @@ def cmd_bisect(env: api.TestEnvironment, argv: list):
     current_remaining = 0
 
     def print_status(row_values, end='\n'):
-        table.print_row([row_values[0]] + [str(current_remaining)] + row_values[1:], end=end)
+        table.print_row([str(current_remaining)] + row_values, end=end)
 
     def test_commit(commit_hash, commit_ts):
         return _test_commit(
@@ -463,11 +463,10 @@ def cmd_bisect(env: api.TestEnvironment, argv: list):
     start_ts = int(start_dt.timestamp())
     end_ts = int(end_dt.timestamp())
 
-    good_commit = None
-    good_ts = None
-    bad_commit = None
-    bad_ts = None
+    last_good = None
+    first_bad = None
     last_tested = None
+    commit_status = {}
 
     # Pre-compute all day windows for remaining-count tracking
     day_windows: list[list[tuple[str, int]]] = []
@@ -495,95 +494,63 @@ def cmd_bisect(env: api.TestEnvironment, argv: list):
             if status == 'build':
                 continue
             if status == 'pass':
-                good_commit = commit_hash
-                good_ts = commit_ts
+                last_good = commit_hash
+                commit_status[commit_hash] = 'pass'
             else:
-                bad_commit = commit_hash
-                bad_ts = commit_ts
+                first_bad = commit_hash
+                commit_status[commit_hash] = 'fail'
             last_tested = commit_hash
             break
 
-        if bad_commit:
+        if first_bad:
             break
         day_index += 1
 
-    if bad_commit is None:
+    if first_bad is None:
         print('\nNo regression found in the given date range.')
         return
 
-    # Phase 2: Hourly scan between good and bad timestamps
-    good_ts = good_ts or start_ts
+    # Phase 2: Binary search between last_good and first_bad
+    all_commits = env.commits_in_window(start_ts, end_ts + 86400)
 
-    all_commits = env.commits_in_window(good_ts, bad_ts)
-    hour_groups = {}
-    for commit_hash, commit_ts in all_commits:
-        hour_key = (commit_ts // 3600) * 3600
-        if hour_key not in hour_groups:
-            hour_groups[hour_key] = []
-        hour_groups[hour_key].append((commit_hash, commit_ts))
+    lo = 0
+    hi = next(i for i, (h, _) in enumerate(all_commits) if h == first_bad)
+    if last_good:
+        good_idx = next(i for i, (h, _) in enumerate(all_commits) if h == last_good)
+        lo = good_idx + 1
 
-    first_bad_commit = bad_commit
-    first_bad_ts = bad_ts
-    last_good_commit = good_commit
-    last_good_ts = good_ts
-    hourly_found_bad = False
+    def _binary_search(commits, lo, hi):
+        nonlocal current_remaining, last_good, first_bad
+        while lo < hi:
+            mid = (lo + hi) // 2
+            h, ts = commits[mid]
 
-    sorted_hours = sorted(hour_groups.keys())
-    for hour_index, hour_key in enumerate(sorted_hours):
-        hour_commits = hour_groups[hour_key]
-        untested = [(h, t) for h, t in hour_commits if h not in tested]
-        if not untested:
-            continue
-
-        current_remaining = len([(h, t) for h, t in all_commits
-                                 if h not in tested and last_good_ts < t < first_bad_ts])
-
-        attempts = 0
-        for commit_hash, commit_ts in untested:
-            if attempts >= 3:
-                break
-            attempts += 1
-            _, status = test_commit(commit_hash, commit_ts)
-            if status == 'build':
+            if h in commit_status:
+                if commit_status[h] == 'pass':
+                    lo = mid + 1
+                else:
+                    hi = mid
                 continue
-            if status == 'pass':
-                last_good_commit = commit_hash
-                last_good_ts = commit_ts
-            else:
-                first_bad_commit = commit_hash
-                first_bad_ts = commit_ts
-                hourly_found_bad = True
-            break
 
-        if hourly_found_bad:
-            break
+            current_remaining = hi - lo
+            _, status = test_commit(h, ts)
 
-    # Phase 3: Per-commit scan between good and bad (Phase 2) commits.
-    # Phase 2 narrowed the window to the hour-level; check every commit
-    # within that narrowed range to find the exact regression.
-    per_commits = env.commits_in_window(last_good_ts, first_bad_ts)
-    for commit_hash, commit_ts in per_commits:
-        if commit_hash in tested:
-            continue
-        current_remaining = len([(h, t) for h, t in all_commits
-                                 if h not in tested and last_good_ts < t < first_bad_ts])
-        _, status = test_commit(commit_hash, commit_ts)
-        if status == 'fail':
-            title = env.commit_title(commit_hash)
-            print(f'\nRegression introduced by commit {commit_hash}: {title}')
-            return
-        elif status == 'pass':
-            continue
+            if status in ('build', 'run', 'skip'):
+                commits.pop(mid)
+                hi -= 1
+            elif status == 'pass':
+                commit_status[h] = 'pass'
+                last_good = h
+                lo = mid + 1
+            else:  # fail
+                commit_status[h] = 'fail'
+                first_bad = h
+                hi = mid
 
-    # If no failing commit was found in the window, the first_bad_commit
-    # (from Phase 2) is the first failing commit. It may have been
-    # excluded from the git log window because --before is exclusive.
-    if first_bad_commit:
-        title = env.commit_title(first_bad_commit)
-        print(f'\nRegression introduced by commit {first_bad_commit}: {title}')
-        return
+    _binary_search(all_commits, lo, hi)
 
-    print('\nCould not pinpoint the exact commit.')
+    title = env.commit_title(first_bad)
+    print(f'\nRegression introduced by commit {first_bad}: {title}')
 
 
 def cmd_graph(argv: list):
