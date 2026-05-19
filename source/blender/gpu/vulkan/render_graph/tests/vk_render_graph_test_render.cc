@@ -347,6 +347,10 @@ TEST_P(VKRenderGraphTestRender, begin_draw_end__layered)
       log[8]);
 }
 
+/**
+ * Tests that a synchronization barrier is generated for input attachment reads on layered images
+ * after a color attachment write. Regression test for #158501.
+ */
 TEST_P(VKRenderGraphTestRender, begin_draw_begin_draw_end__layered_input_attachment)
 {
   VkHandle<VkImage> image(1u);

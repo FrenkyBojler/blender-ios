@@ -587,18 +587,16 @@ struct VKGraphicsPipelineCreateInfoBuilder {
     vk_pipeline_rendering_create_info = {VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO};
     if (extensions.dynamic_rendering_local_read && max_input_attachment_index > 0) {
       vk_pipeline_rendering_create_info.colorAttachmentCount = max_input_attachment_index + 1;
-      dummy_color_attachment_formats_.resize(max_input_attachment_index + 1,
-                                             VK_FORMAT_UNDEFINED);
+      dummy_color_attachment_formats_.resize(max_input_attachment_index + 1, VK_FORMAT_UNDEFINED);
       vk_pipeline_rendering_create_info.pColorAttachmentFormats =
           dummy_color_attachment_formats_.data();
 
       vk_rendering_input_attachment_index_info_ = {};
       vk_rendering_input_attachment_index_info_.sType =
           VK_STRUCTURE_TYPE_RENDERING_INPUT_ATTACHMENT_INDEX_INFO;
-      vk_rendering_input_attachment_index_info_.colorAttachmentCount =
-          max_input_attachment_index + 1;
-      vk_pipeline_rendering_create_info.pNext =
-          &vk_rendering_input_attachment_index_info_;
+      vk_rendering_input_attachment_index_info_.colorAttachmentCount = max_input_attachment_index +
+                                                                       1;
+      vk_pipeline_rendering_create_info.pNext = &vk_rendering_input_attachment_index_info_;
     }
   }
 

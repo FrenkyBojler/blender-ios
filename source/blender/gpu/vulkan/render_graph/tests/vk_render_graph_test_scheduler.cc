@@ -1261,6 +1261,11 @@ TEST_P(VKRenderGraphTestScheduler, begin_rendering_end_rendering_begin_rendering
   }
 }
 
+/**
+ * Tests correct barrier synchronization when an image transitions from color attachment to shader
+ * storage access, then back to color attachment across two rendering scopes. Exercises the
+ * non-subresource ImageTracker path.
+ */
 TEST_P(VKRenderGraphTestScheduler, begin_draw_storage_end_begin_draw_end)
 {
   VkHandle<VkImage> image(1u);
@@ -1297,11 +1302,10 @@ TEST_P(VKRenderGraphTestScheduler, begin_draw_storage_end_begin_draw_end)
   {
     VKResourceAccessInfo access_info = {};
     /* Image accessed as shader storage (simulates storage image binding in EEVEE gbuffer). */
-    access_info.images.append(
-        {image,
-         VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT,
-         VK_IMAGE_ASPECT_COLOR_BIT,
-         {}});
+    access_info.images.append({image,
+                               VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT,
+                               VK_IMAGE_ASPECT_COLOR_BIT,
+                               {}});
     VKDrawNode::CreateInfo draw(access_info);
     draw.node_data.first_instance = 0;
     draw.node_data.first_vertex = 0;
@@ -1394,7 +1398,8 @@ TEST_P(VKRenderGraphTestScheduler, begin_draw_storage_end_begin_draw_end)
           "old_layout=" +
           color_attachment_layout_str() +
           ", "
-          "new_layout=VK_IMAGE_LAYOUT_GENERAL, image=0x1, subresource_range=" + endl() +
+          "new_layout=VK_IMAGE_LAYOUT_GENERAL, image=0x1, subresource_range=" +
+          endl() +
           "    aspect_mask=VK_IMAGE_ASPECT_COLOR_BIT, base_mip_level=0, level_count=4294967295, "
           "base_array_layer=0, layer_count=4294967295  )" +
           endl() + ")",
@@ -1447,6 +1452,11 @@ TEST_P(VKRenderGraphTestScheduler, begin_draw_storage_end_begin_draw_end)
   EXPECT_EQ("end_rendering()", log[11]);
 }
 
+/**
+ * Tests barrier synchronization for storage-to-color-attachment transition with subresource
+ * tracking enabled. Verifies the suspend barrier correctly reverts from GENERAL layout and the
+ * next scope's barrier uses the correct oldLayout from the suspended state.
+ */
 TEST_P(VKRenderGraphTestScheduler, begin_draw_storage_end_begin_draw_end_subresource)
 {
   VkHandle<VkImage> image(1u);
@@ -1484,11 +1494,10 @@ TEST_P(VKRenderGraphTestScheduler, begin_draw_storage_end_begin_draw_end_subreso
   {
     VKResourceAccessInfo access_info = {};
     /* Image accessed as shader storage. */
-    access_info.images.append(
-        {image,
-         VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT,
-         VK_IMAGE_ASPECT_COLOR_BIT,
-         {}});
+    access_info.images.append({image,
+                               VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT,
+                               VK_IMAGE_ASPECT_COLOR_BIT,
+                               {}});
     VKDrawNode::CreateInfo draw(access_info);
     draw.node_data.first_instance = 0;
     draw.node_data.first_vertex = 0;
@@ -1556,7 +1565,7 @@ TEST_P(VKRenderGraphTestScheduler, begin_draw_storage_end_begin_draw_end_subreso
   submit(render_graph, command_buffer);
 
   ASSERT_EQ(13, log.size());
-  /* Initial transition: UNDEFINED → color_attachment_layout. */
+  /* Initial transition: UNDEFINED -> color_attachment_layout. */
   EXPECT_EQ(
       "pipeline_barrier(src_stage_mask=VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, "
       "dst_stage_mask=VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT" +
@@ -1571,7 +1580,7 @@ TEST_P(VKRenderGraphTestScheduler, begin_draw_storage_end_begin_draw_end_subreso
           "base_array_layer=0, layer_count=4294967295  )" +
           endl() + ")",
       log[0]);
-  /* Storage access transition: color_attachment_layout → GENERAL, merged with access sync. */
+  /* Storage access transition: color_attachment_layout -> GENERAL, merged with access sync. */
   EXPECT_EQ(
       "pipeline_barrier(src_stage_mask=VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT, "
       "VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, "
@@ -1585,7 +1594,8 @@ TEST_P(VKRenderGraphTestScheduler, begin_draw_storage_end_begin_draw_end_subreso
           "old_layout=" +
           color_attachment_layout_str() +
           ", "
-          "new_layout=VK_IMAGE_LAYOUT_GENERAL, image=0x1, subresource_range=" + endl() +
+          "new_layout=VK_IMAGE_LAYOUT_GENERAL, image=0x1, subresource_range=" +
+          endl() +
           "    aspect_mask=VK_IMAGE_ASPECT_COLOR_BIT, base_mip_level=0, level_count=4294967295, "
           "base_array_layer=0, layer_count=4294967295  )" +
           endl() + ")",
@@ -1607,7 +1617,7 @@ TEST_P(VKRenderGraphTestScheduler, begin_draw_storage_end_begin_draw_end_subreso
             log[5]);
   EXPECT_EQ("draw(vertex_count=4, instance_count=1, first_vertex=0, first_instance=0)", log[6]);
   EXPECT_EQ("end_rendering()", log[7]);
-  /* Suspend barrier from image_tracker.end(). Reverts GENERAL → default layout. */
+  /* Suspend barrier from image_tracker.end(). Reverts GENERAL -> default layout. */
   EXPECT_EQ(
       "pipeline_barrier(src_stage_mask=VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, "
       "dst_stage_mask=VK_PIPELINE_STAGE_ALL_COMMANDS_BIT" +
@@ -1706,11 +1716,10 @@ TEST_P(VKRenderGraphTestScheduler, begin_draw_storage_dispatch_begin_draw_end_su
 
   {
     VKResourceAccessInfo access_info = {};
-    access_info.images.append(
-        {image,
-         VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT,
-         VK_IMAGE_ASPECT_COLOR_BIT,
-         {}});
+    access_info.images.append({image,
+                               VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT,
+                               VK_IMAGE_ASPECT_COLOR_BIT,
+                               {}});
     VKDrawNode::CreateInfo draw(access_info);
     draw.node_data.first_instance = 0;
     draw.node_data.first_vertex = 0;
@@ -1787,13 +1796,13 @@ TEST_P(VKRenderGraphTestScheduler, begin_draw_storage_dispatch_begin_draw_end_su
 
   /* Log structure (determined by scheduler topological order):
    * [0]: copy_buffer (non-rendering, scheduled first)
-   * [1]: BEGIN_RENDERING pre-barrier (UNDEFINED → color_attachment_layout)
-   * [2]: DRAW(storage) pre-barrier (color_attachment_layout → GENERAL)
+   * [1]: BEGIN_RENDERING pre-barrier (UNDEFINED -> color_attachment_layout)
+   * [2]: DRAW(storage) pre-barrier (color_attachment_layout -> GENERAL)
    * [3]: begin_rendering
    * [4-7]: draw commands (set_viewport, set_scissor, bind_pipeline, draw)
    * [8]: end_rendering (after-group-loop in groups_build_commands)
-   * [9]: after-group-loop suspend barrier (GENERAL → color_attachment_layout)
-   * [10]: second scope access barrier (color_attachment_layout → same, for access sync)
+   * [9]: after-group-loop suspend barrier (GENERAL -> color_attachment_layout)
+   * [10]: second scope access barrier (color_attachment_layout -> same, for access sync)
    * [11]: begin_rendering (second scope)
    * [12]: draw
    * [13]: end_rendering
@@ -1801,16 +1810,16 @@ TEST_P(VKRenderGraphTestScheduler, begin_draw_storage_dispatch_begin_draw_end_su
   ASSERT_EQ(14, log.size());
   /* Log[0]: copy buffer. */
   EXPECT_NE(log[0].find("copy_buffer"), std::string::npos);
-  /* Log[1]: initial UNDEFINED → color_attachment_layout barrier. */
+  /* Log[1]: initial UNDEFINED -> color_attachment_layout barrier. */
   EXPECT_NE(log[1].find("old_layout=VK_IMAGE_LAYOUT_UNDEFINED"), std::string::npos);
   EXPECT_NE(log[1].find("new_layout=" + color_attachment_layout_str()), std::string::npos);
-  /* Log[2]: storage access transition (color_attachment_layout → GENERAL). */
+  /* Log[2]: storage access transition (color_attachment_layout -> GENERAL). */
   EXPECT_NE(log[2].find("new_layout=VK_IMAGE_LAYOUT_GENERAL"), std::string::npos);
   /* Log[3]: begin_rendering. */
   EXPECT_NE(log[3].find("begin_rendering"), std::string::npos);
   /* Log[8]: end_rendering (from after-group-loop). */
   EXPECT_NE(log[8].find("end_rendering"), std::string::npos);
-  /* Log[9]: after-group-loop suspend barrier: GENERAL → color_attachment_layout. */
+  /* Log[9]: after-group-loop suspend barrier: GENERAL -> color_attachment_layout. */
   EXPECT_NE(log[9].find("pipeline_barrier"), std::string::npos);
   EXPECT_NE(log[9].find("old_layout=VK_IMAGE_LAYOUT_GENERAL"), std::string::npos);
   EXPECT_NE(log[9].find("new_layout=" + color_attachment_layout_str()), std::string::npos);
