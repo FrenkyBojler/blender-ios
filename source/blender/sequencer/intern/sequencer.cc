@@ -330,7 +330,7 @@ void editing_free(Scene *scene, const bool do_id_user)
     seq_free_strip_recurse(scene, &strip, do_id_user);
   }
 
-  BLI_freelistN(&ed->metastack);
+  ed->metastack.free_no_destruct();
   strip_lookup_free(ed);
   media_presence_free(scene);
   thumbnail_cache_destroy(scene);
@@ -477,7 +477,7 @@ void meta_stack_set(const Scene *scene, Strip *dst)
 {
   Editing *ed = editing_get(scene);
   /* Clear metastack */
-  BLI_freelistN(&ed->metastack);
+  ed->metastack.free_no_destruct();
 
   if (dst != nullptr) {
     /* Allocate meta stack in a way, that represents meta hierarchy in timeline. */

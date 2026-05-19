@@ -1442,10 +1442,10 @@ static wmOperatorStatus image_open_exec(bContext *C, wmOperator *op)
       frame_ofs = range.offset;
     }
 
-    BLI_freelistN(&range.udim_tiles);
-    BLI_freelistN(&range.frames);
+    range.udim_tiles.free_no_destruct();
+    range.frames.free_no_destruct();
   }
-  BLI_freelistN(&ranges);
+  ranges.free_no_destruct();
 
   if (ima == nullptr) {
     return OPERATOR_CANCELLED;

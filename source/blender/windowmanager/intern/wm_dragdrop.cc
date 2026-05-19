@@ -246,10 +246,10 @@ void wm_dropbox_free()
     for (wmDropBox &drop : dm.dropboxes) {
       wm_drop_item_free_data(&drop);
     }
-    BLI_freelistN(&dm.dropboxes);
+    dm.dropboxes.free_no_destruct();
   }
 
-  BLI_freelistN(&dropboxes);
+  dropboxes.free_no_destruct();
 }
 
 /* *********************************** */
@@ -482,7 +482,7 @@ void WM_drag_free(wmDrag *drag)
     WM_drag_data_free(drag->type, drag->poin);
   }
   drag->drop_state.ui_context.reset();
-  BLI_freelistN(&drag->ids);
+  drag->ids.free_no_destruct();
   for (wmDragAssetListItem &asset_item : drag->asset_items.items_mutable()) {
     if (asset_item.is_external) {
       wm_drag_free_asset_data(&asset_item.asset_data.external_info);

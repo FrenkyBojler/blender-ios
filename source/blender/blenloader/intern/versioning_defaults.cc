@@ -125,7 +125,7 @@ static void blo_update_defaults_screen(bScreen *screen,
       /* Remove all stored panels, we want to use defaults
        * (order, open/closed) as defined by UI code here! */
       BKE_area_region_panels_free(&region.panels);
-      BLI_freelistN(&region.panels_category_active);
+      region.panels_category_active.free_no_destruct();
 
       /* Reset size so it uses consistent defaults from the region types. */
       region.sizex = 0;

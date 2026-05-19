@@ -312,8 +312,8 @@ static void userdef_free_keymaps(UserDef *userdef)
       keymap_item_free(&kmi);
     }
 
-    BLI_freelistN(&km->diff_items);
-    BLI_freelistN(&km->items);
+    km->diff_items.free_no_destruct();
+    km->items.free_no_destruct();
 
     MEM_delete(km);
   }
@@ -375,9 +375,9 @@ void BKE_blender_userdef_data_free(UserDef *userdef, bool clear_fonts)
     BLF_default_set(-1);
   }
 
-  BLI_freelistN(&userdef->autoexec_paths);
-  BLI_freelistN(&userdef->script_directories);
-  BLI_freelistN(&userdef->asset_libraries);
+  userdef->autoexec_paths.free_no_destruct();
+  userdef->script_directories.free_no_destruct();
+  userdef->asset_libraries.free_no_destruct();
 
   for (bUserExtensionRepo &repo_ref : userdef->extension_repos.items_mutable()) {
     MEM_SAFE_DELETE(repo_ref.access_token);
@@ -391,9 +391,9 @@ void BKE_blender_userdef_data_free(UserDef *userdef, bool clear_fonts)
   }
   userdef->asset_shelves_settings.clear_no_delete();
 
-  BLI_freelistN(&userdef->uistyles);
-  BLI_freelistN(&userdef->uifonts);
-  BLI_freelistN(&userdef->themes);
+  userdef->uistyles.free_no_destruct();
+  userdef->uifonts.free_no_destruct();
+  userdef->themes.free_no_destruct();
 
 #undef U
 }

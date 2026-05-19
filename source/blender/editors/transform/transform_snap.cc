@@ -1249,7 +1249,7 @@ void getSnapPoint(const TransInfo *t, float vec[3])
 static void snap_multipoints_free(TransInfo *t)
 {
   if (t->tsnap.status & SNAP_MULTI_POINTS) {
-    BLI_freelistN(&t->tsnap.points);
+    t->tsnap.points.free_no_destruct();
     t->tsnap.status &= ~SNAP_MULTI_POINTS;
     t->tsnap.selectedPoint = nullptr;
   }

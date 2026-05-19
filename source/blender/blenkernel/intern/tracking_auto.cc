@@ -892,7 +892,7 @@ void BKE_autotrack_context_free(AutoTrackContext *context)
   MEM_SAFE_DELETE(context->all_autotrack_tracks);
   MEM_SAFE_DELETE(context->autotrack_markers);
 
-  BLI_freelistN(&context->results_to_sync);
+  context->results_to_sync.free_no_destruct();
 
   BLI_spin_end(&context->spin_lock);
 

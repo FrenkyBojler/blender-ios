@@ -200,7 +200,7 @@ static void image_free_data(ID *id)
       slot.render = nullptr;
     }
   }
-  BLI_freelistN(&image->renderslots);
+  image->renderslots.free_no_destruct();
 
   BKE_image_free_views(image);
   MEM_SAFE_DELETE(image->stereo3d_format);
@@ -208,7 +208,7 @@ static void image_free_data(ID *id)
   BKE_icon_id_delete(&image->id);
   BKE_previewimg_id_free(&image->id);
 
-  BLI_freelistN(&image->tiles);
+  image->tiles.free_no_destruct();
 
   image_runtime_free_data(image);
   MEM_delete(image->runtime);
@@ -580,7 +580,7 @@ void BKE_image_free_packedfiles(Image *ima)
 
 void BKE_image_free_views(Image *image)
 {
-  BLI_freelistN(&image->views);
+  image->views.free_no_destruct();
 }
 
 static void image_free_anims(Image *ima)
@@ -2497,7 +2497,7 @@ void BKE_stamp_data_free(StampData *stamp_data)
   for (StampDataCustomField &custom_field : stamp_data->custom_fields) {
     MEM_delete(custom_field.value);
   }
-  BLI_freelistN(&stamp_data->custom_fields);
+  stamp_data->custom_fields.free_no_destruct();
   MEM_delete(stamp_data);
 }
 
@@ -3269,7 +3269,7 @@ void BKE_image_signal(Main *bmain, Image *ima, ImageUser *iuser, int signal)
             BKE_image_remove_tile(ima, BKE_image_get_tile(ima, remaining_tile_number));
           }
         }
-        BLI_freelistN(&new_tiles);
+        new_tiles.free_no_destruct();
       }
       else if (ima->filepath[0] != '\0') {
         /* If the filepath is set at this point remove the generation flag. */

@@ -1540,7 +1540,7 @@ static void wm_xr_session_surface_free_data(wmSurface *surface)
   }
 
   if (data->controller_art) {
-    BLI_freelistN(&data->controller_art->drawcalls);
+    data->controller_art->drawcalls.free_no_destruct();
     MEM_delete(data->controller_art);
   }
 

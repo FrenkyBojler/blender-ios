@@ -398,7 +398,7 @@ static void popup_block_position(wmWindow *window, ARegion *butregion, Button *b
   SafetyRect *saferct = MEM_new<SafetyRect>(__func__);
   saferct->parent = butrct;
   saferct->safety = block->safety;
-  BLI_freelistN(&block->saferct);
+  block->saferct.free_no_destruct();
   BLI_duplicatelist(&block->saferct, &but->block->saferct);
   BLI_addhead(&block->saferct, saferct);
 }

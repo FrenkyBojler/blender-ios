@@ -117,7 +117,7 @@ void ANIM_armature_runtime_free(bArmature *armature)
 {
   /* Free the bone-to-its-collections mapping. */
   ANIM_armature_foreach_bone(&armature->bonebase,
-                             [&](Bone *bone) { BLI_freelistN(&bone->runtime.collections); });
+                             [&](Bone *bone) { bone->runtime.collections.free_no_destruct(); });
 }
 
 /**
@@ -993,7 +993,7 @@ void ANIM_armature_bonecoll_reconstruct(bArmature *armature)
 {
   /* Remove all the old collection memberships. */
   for (BoneCollection *bcoll : armature->collections_span()) {
-    BLI_freelistN(&bcoll->bones);
+    bcoll->bones.free_no_destruct();
   }
 
   /* For all bones, restore their collection memberships. */
@@ -1456,7 +1456,7 @@ void ANIM_bonecoll_array_free(BoneCollection ***bcoll_array,
      * However, during undo this is also used to free the BoneCollection
      * list on the Armature itself before copying over the undo BoneCollection
      * list, in which case this of Bone pointers may not be empty. */
-    BLI_freelistN(&bcoll->bones);
+    bcoll->bones.free_no_destruct();
 
     MEM_delete(bcoll);
   }

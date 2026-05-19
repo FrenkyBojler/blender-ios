@@ -227,7 +227,7 @@ void BM_mesh_data_free(BMesh *bm)
   BLI_mempool_destroy(bm->looplistpool);
 #endif
 
-  BLI_freelistN(&bm->selected);
+  bm->selected.free_no_destruct();
 
   if (bm->lnor_spacearr) {
     BKE_lnor_spacearr_free(bm->lnor_spacearr);

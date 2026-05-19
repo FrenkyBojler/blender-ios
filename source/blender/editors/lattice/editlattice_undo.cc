@@ -166,7 +166,7 @@ static void undolatt_free_data(UndoLattice *ult)
     BKE_defvert_array_free(ult->dvert, ult->pntsu * ult->pntsv * ult->pntsw);
     ult->dvert = nullptr;
   }
-  BLI_freelistN(&ult->vertex_group_names);
+  ult->vertex_group_names.free_no_destruct();
 }
 
 #if 0

@@ -125,7 +125,7 @@ void bone_free(bArmature *arm, EditBone *bone)
     }
   }
 
-  BLI_freelistN(&bone->bone_collections);
+  bone->bone_collections.free_no_destruct();
   BLI_freelinkN(arm->edbo, bone);
 }
 
@@ -853,7 +853,7 @@ void ED_armature_edit_free(bArmature *arm)
         if (eBone.system_properties) {
           IDP_FreeProperty(eBone.system_properties);
         }
-        BLI_freelistN(&eBone.bone_collections);
+        eBone.bone_collections.free_no_destruct();
       }
 
       arm->edbo->free_no_destruct();
@@ -891,7 +891,7 @@ void ED_armature_ebone_listbase_free(ListBaseT<EditBone> *lb, const bool do_id_u
       IDP_FreeProperty_ex(ebone->system_properties, do_id_user);
     }
 
-    BLI_freelistN(&ebone->bone_collections);
+    ebone->bone_collections.free_no_destruct();
 
     MEM_delete(ebone);
   }

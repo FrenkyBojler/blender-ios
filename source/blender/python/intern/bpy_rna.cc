@@ -4638,7 +4638,7 @@ static PyObject *pyrna_struct_dir(BPy_StructRNA *self)
       PyList_APPEND(ret, PyUnicode_FromString(static_cast<const char *>(link.data)));
     }
 
-    BLI_freelistN(&lb);
+    lb.free_no_destruct();
   }
 
   {

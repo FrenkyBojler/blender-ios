@@ -418,7 +418,7 @@ static void move_vertex_group_names_to_object_data(Main *bmain)
 
       /* Choose the longest vertex group name list among all linked duplicates. */
       if (BLI_listbase_count(&object.defbase) < BLI_listbase_count(new_defbase)) {
-        BLI_freelistN(&object.defbase);
+        object.defbase.free_no_destruct();
       }
       else {
         /* Clear the list in case the it was already assigned from another object. */

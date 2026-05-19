@@ -1651,7 +1651,7 @@ static void free_buffers(MovieClip *clip)
       }
     }
   }
-  BLI_freelistN(&clip->runtime.gputextures);
+  clip->runtime.gputextures.free_no_destruct();
 }
 
 void BKE_movieclip_clear_cache(MovieClip *clip)

@@ -605,7 +605,7 @@ static void workspace_add_menu_draw(ui::Layout &layout)
     layout.menu_fn_argN_free(display_name, ICON_NONE, workspace_add_menu, app_template);
   }
 
-  BLI_freelistN(&templates);
+  templates.free_no_destruct();
 
   layout.separator();
   layout.op("WORKSPACE_OT_duplicate",

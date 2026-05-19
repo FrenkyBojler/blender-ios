@@ -224,7 +224,7 @@ bool shaderfx_move_to_index(ReportList *reports, Object *ob, ShaderFxData *fx, c
 
 void shaderfx_link(Object *dst, Object *src)
 {
-  BLI_freelistN(&dst->shader_fx);
+  dst->shader_fx.free_no_destruct();
   BKE_shaderfx_copy(&dst->shader_fx, &src->shader_fx);
 
   DEG_id_tag_update(&dst->id, ID_RECALC_GEOMETRY);

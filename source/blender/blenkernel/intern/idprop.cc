@@ -793,7 +793,7 @@ static void IDP_FreeGroup(IDProperty *prop, const bool do_id_user)
   for (IDProperty &loop : prop->data.group) {
     IDP_FreePropertyContent_ex(&loop, do_id_user);
   }
-  BLI_freelistN(&prop->data.group);
+  prop->data.group.free_no_destruct();
 }
 
 std::optional<StringRefNull> IDP_group_lookup_string(const IDProperty &group, StringRef name)

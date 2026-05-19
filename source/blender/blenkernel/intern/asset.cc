@@ -95,7 +95,7 @@ AssetMetaData::~AssetMetaData()
   MEM_SAFE_DELETE(description);
   MEM_SAFE_DELETE(copyright);
   MEM_SAFE_DELETE(license);
-  BLI_freelistN(&tags);
+  tags.free_no_destruct();
 }
 
 static AssetTag *asset_metadata_tag_add(AssetMetaData *asset_data, const char *const name)

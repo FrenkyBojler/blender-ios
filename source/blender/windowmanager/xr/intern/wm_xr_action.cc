@@ -50,8 +50,8 @@ static void action_set_destroy(void *val)
 
   MEM_SAFE_DELETE(action_set->name);
 
-  BLI_freelistN(&action_set->active_modal_actions);
-  BLI_freelistN(&action_set->active_haptic_actions);
+  action_set->active_modal_actions.free_no_destruct();
+  action_set->active_haptic_actions.free_no_destruct();
 
   MEM_delete(action_set);
 }
@@ -200,8 +200,8 @@ void WM_xr_action_set_destroy(wmXrData *xr, const char *action_set_name)
       action_set->controller_grip_action = action_set->controller_aim_action = nullptr;
     }
 
-    BLI_freelistN(&action_set->active_modal_actions);
-    BLI_freelistN(&action_set->active_haptic_actions);
+    action_set->active_modal_actions.free_no_destruct();
+    action_set->active_haptic_actions.free_no_destruct();
 
     session_state->active_action_set = nullptr;
   }
@@ -408,8 +408,8 @@ bool WM_xr_active_action_set_set(wmXrData *xr, const char *action_set_name, bool
     /* Clear any active modal/haptic actions. */
     wmXrActionSet *active_action_set = xr->runtime->session_state.active_action_set;
     if (active_action_set) {
-      BLI_freelistN(&active_action_set->active_modal_actions);
-      BLI_freelistN(&active_action_set->active_haptic_actions);
+      active_action_set->active_modal_actions.free_no_destruct();
+      active_action_set->active_haptic_actions.free_no_destruct();
     }
   }
 

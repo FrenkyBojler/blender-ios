@@ -240,7 +240,7 @@ static void grease_pencil_free_data(ID *id)
   free_drawing_array(*grease_pencil);
   MEM_delete(&grease_pencil->root_group());
 
-  BLI_freelistN(&grease_pencil->vertex_group_names);
+  grease_pencil->vertex_group_names.free_no_destruct();
 
   BKE_grease_pencil_batch_cache_free(grease_pencil);
 

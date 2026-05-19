@@ -403,8 +403,8 @@ static void scene_free_data(ID *id)
   }
 
   scene_free_markers(scene, do_id_user);
-  BLI_freelistN(&scene->transform_spaces);
-  BLI_freelistN(&scene->r.views);
+  scene->transform_spaces.free_no_destruct();
+  scene->r.views.free_no_destruct();
 
   BKE_toolsettings_free(scene->toolsettings);
   scene->toolsettings = nullptr;

@@ -367,13 +367,13 @@ void ZstdWriteWrap::write_seekable_frames()
 bool ZstdWriteWrap::close()
 {
   BLI_threadpool_end(&threadpool);
-  BLI_freelistN(&tasks);
+  tasks.free_no_destruct();
 
   BLI_mutex_end(&mutex);
   BLI_condition_end(&condition);
 
   write_seekable_frames();
-  BLI_freelistN(&frames);
+  frames.free_no_destruct();
 
   return base_wrap.close() && !write_error;
 }

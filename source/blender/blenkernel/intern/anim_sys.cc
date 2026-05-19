@@ -1424,7 +1424,7 @@ static void nlaeval_free(NlaEvalData *nlaeval)
     nlaevalchan_free_data(&nec);
   }
 
-  BLI_freelistN(&nlaeval->channels);
+  nlaeval->channels.free_no_destruct();
   BLI_ghash_free(nlaeval->path_hash, nullptr, nullptr);
   MEM_delete(nlaeval->key_hash);
 }
@@ -3472,7 +3472,7 @@ static bool animsys_evaluate_nla_for_flush(NlaEvalData *echannels,
   }
 
   if (is_action_track_evaluated_without_nla(adt, has_strips)) {
-    BLI_freelistN(&estrips);
+    estrips.free_no_destruct();
     return false;
   }
 
@@ -3492,7 +3492,7 @@ static bool animsys_evaluate_nla_for_flush(NlaEvalData *echannels,
   }
 
   /* Free temporary evaluation data that's not used elsewhere. */
-  BLI_freelistN(&estrips);
+  estrips.free_no_destruct();
   return true;
 }
 
@@ -3577,7 +3577,7 @@ static void animsys_evaluate_nla_for_keyframing(PointerRNA *ptr,
    * keyframe remap function detects (r_context->strip.act == nullptr) and will keyframe without
    * remapping. */
   if (is_action_track_evaluated_without_nla(adt, has_strips)) {
-    BLI_freelistN(&lower_estrips);
+    lower_estrips.free_no_destruct();
     return;
   }
 
@@ -3603,7 +3603,7 @@ static void animsys_evaluate_nla_for_keyframing(PointerRNA *ptr,
 
   /* If nullptr, then keyframing will fail. No need to do any more processing. */
   if (!r_context->eval_strip) {
-    BLI_freelistN(&lower_estrips);
+    lower_estrips.free_no_destruct();
     return;
   }
 
@@ -3611,7 +3611,7 @@ static void animsys_evaluate_nla_for_keyframing(PointerRNA *ptr,
   if (r_context->strip.blendmode == NLASTRIP_MODE_REPLACE &&
       IS_EQF(r_context->strip.influence, 1.0f))
   {
-    BLI_freelistN(&lower_estrips);
+    lower_estrips.free_no_destruct();
     return;
   }
 
@@ -3627,7 +3627,7 @@ static void animsys_evaluate_nla_for_keyframing(PointerRNA *ptr,
   }
 
   /* Free temporary evaluation data that's not used elsewhere. */
-  BLI_freelistN(&lower_estrips);
+  lower_estrips.free_no_destruct();
 }
 
 /**
@@ -3941,7 +3941,7 @@ void BKE_animsys_free_nla_keyframing_context_cache(ListBaseT<NlaKeyframingContex
 {
   for (NlaKeyframingContext &ctx : *cache) {
     MEM_SAFE_DELETE(ctx.eval_strip);
-    BLI_freelistN(&ctx.upper_estrips);
+    ctx.upper_estrips.free_no_destruct();
     nlaeval_free(&ctx.lower_eval_data);
   }
 

@@ -520,7 +520,7 @@ BMEdgeLoopStore *BM_edgeloop_from_verts(BMVert **v_arr, const int v_arr_tot, boo
 
 void BM_edgeloop_free(BMEdgeLoopStore *el_store)
 {
-  BLI_freelistN(&el_store->verts);
+  el_store->verts.free_no_destruct();
   MEM_delete(el_store);
 }
 

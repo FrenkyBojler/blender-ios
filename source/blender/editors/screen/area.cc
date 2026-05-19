@@ -1047,7 +1047,7 @@ void ED_workspace_status_text(bContext *C, const char *str)
 static void area_azone_init(const wmWindow *win, const bScreen *screen, ScrArea *area)
 {
   /* reinitialize entirely, regions and full-screen add azones too */
-  BLI_freelistN(&area->actionzones);
+  area->actionzones.free_no_destruct();
 
   if (screen->state != SCREENNORMAL) {
     return;

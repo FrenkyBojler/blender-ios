@@ -191,19 +191,19 @@ static void collection_free_data(ID *id)
   /* No animation-data here. */
   BKE_previewimg_id_free(&collection->id);
 
-  BLI_freelistN(&collection->gobject);
+  collection->gobject.free_no_destruct();
   if (collection->runtime->gobject_hash) {
     MEM_delete(collection->runtime->gobject_hash);
     collection->runtime->gobject_hash = nullptr;
   }
 
-  BLI_freelistN(&collection->children);
-  BLI_freelistN(&collection->runtime->parents);
+  collection->children.free_no_destruct();
+  collection->runtime->parents.free_no_destruct();
 
   for (CollectionExport &data : collection->exporters) {
     BKE_collection_exporter_free_data(&data);
   }
-  BLI_freelistN(&collection->exporters);
+  collection->exporters.free_no_destruct();
 
   if (collection->importer) {
     BKE_collection_importer_free_data(collection->importer);
@@ -954,8 +954,8 @@ static void collection_object_cache_free(const Main *bmain,
                                          const uint id_recalc_flag)
 {
   collection->flag &= ~(COLLECTION_HAS_OBJECT_CACHE | COLLECTION_HAS_OBJECT_CACHE_INSTANCED);
-  BLI_freelistN(&collection->runtime->object_cache);
-  BLI_freelistN(&collection->runtime->object_cache_instanced);
+  collection->runtime->object_cache.free_no_destruct();
+  collection->runtime->object_cache_instanced.free_no_destruct();
 
   /* Although it may seem abusive to call depsgraph updates from this utility function,
    * it is called from any code-path modifying the collections hierarchy and/or their objects.
@@ -2180,7 +2180,7 @@ void BKE_main_collections_parent_relations_rebuild(Main *bmain)
 {
   /* Only collections not in bmain (master ones in scenes) have no parent... */
   for (Collection &collection : bmain->collections) {
-    BLI_freelistN(&collection.runtime->parents);
+    collection.runtime->parents.free_no_destruct();
 
     collection.runtime->tag |= COLLECTION_TAG_RELATION_REBUILD;
   }

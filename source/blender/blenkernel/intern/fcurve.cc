@@ -1912,7 +1912,7 @@ void BKE_fcurve_merge_duplicate_keys(FCurve *fcu, const int sel_flag, const bool
   testhandles_fcurve(fcu, eBezTriple_Flag(sel_flag), use_handle);
 
   /* cleanup */
-  BLI_freelistN(&retained_keys);
+  retained_keys.free_no_destruct();
 }
 
 void BKE_fcurve_deduplicate_keys(FCurve *fcu)

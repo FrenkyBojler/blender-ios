@@ -1497,7 +1497,7 @@ static wmOperatorStatus pose_clear_user_transforms_exec(bContext *C, wmOperator 
       }
 
       /* was copied without constraints */
-      BLI_freelistN(&dummyPose->chanbase);
+      dummyPose->chanbase.free_no_destruct();
       MEM_delete(dummyPose);
     }
     else {

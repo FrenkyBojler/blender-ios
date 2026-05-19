@@ -1357,7 +1357,7 @@ void blo_filedata_free(FileData *fd)
 {
   /* Free all BHeadN data blocks */
 #ifdef NDEBUG
-  BLI_freelistN(&fd->bhead_list);
+  fd->bhead_list.free_no_destruct();
 #else
   /* Sanity check we're not keeping memory we don't need. */
   for (BHeadN &new_bhead : fd->bhead_list.items_mutable()) {

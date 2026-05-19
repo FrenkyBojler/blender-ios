@@ -234,10 +234,10 @@ static void action_free_data(ID *id)
 
   /* Free legacy F-Curves & groups. */
   BKE_fcurves_free(&action.curves);
-  BLI_freelistN(&action.groups);
+  action.groups.free_no_destruct();
 
   /* Free markers & preview. */
-  BLI_freelistN(&action.markers);
+  action.markers.free_no_destruct();
   BKE_previewimg_id_free(&action.id);
 
   BLI_assert(action.is_empty());
@@ -1401,7 +1401,7 @@ void BKE_pose_channels_free_ex(bPose *pose, bool do_id_user)
       BKE_pose_channel_free_ex(&pchan, do_id_user);
     }
 
-    BLI_freelistN(&pose->chanbase);
+    pose->chanbase.free_no_destruct();
   }
 
   BKE_pose_channels_hash_free(pose);
@@ -1421,7 +1421,7 @@ void BKE_pose_free_data_ex(bPose *pose, bool do_id_user)
 
   /* free pose-groups */
   if (pose->agroups.first) {
-    BLI_freelistN(&pose->agroups);
+    pose->agroups.free_no_destruct();
   }
 
   /* free IK solver state */

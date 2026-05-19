@@ -105,7 +105,7 @@ TEST(listbase, FindLinkOrIndex)
   /* After end of list */
   EXPECT_EQ(BLI_findlinkfrom(static_cast<Link *>(lb.first), 2), static_cast<void *>(nullptr));
 
-  BLI_freelistN(&lb);
+  lb.free_no_destruct();
 }
 
 TEST(listbase, FindLinkFromStringOrPointer)
@@ -173,7 +173,7 @@ TEST(listbase, FindLinkFromStringOrPointer)
   EXPECT_EQ(BLI_listbase_string_or_index_find(&lb, nullptr, name_offset, -1),
             static_cast<void *>(nullptr));
 
-  BLI_freelistN(&lb);
+  lb.free_no_destruct();
 }
 
 TEST(listbase, FromLink)
@@ -198,7 +198,7 @@ TEST(listbase, FromLink)
   BLI_addtail(&lb, link3);
   EXPECT_EQ(lb, BLI_listbase_from_link(link2));
 
-  BLI_freelistN(&lb);
+  lb.free_no_destruct();
 }
 
 TEST(listbase, SplitAfter)
@@ -267,8 +267,8 @@ TEST(listbase, SplitAfter)
   EXPECT_EQ(split_after_lb.first, link2);
   EXPECT_EQ(split_after_lb.last, link2);
 
-  BLI_freelistN(&lb);
-  BLI_freelistN(&split_after_lb);
+  lb.free_no_destruct();
+  split_after_lb.free_no_destruct();
 }
 
 TEST(listbase, EnumerateIterator)
@@ -304,7 +304,7 @@ TEST(listbase, EnumerateIterator)
   }
   EXPECT_EQ(count, 2);
 
-  BLI_freelistN(&lb);
+  lb.free_no_destruct();
 }
 
 TEST(listbase, ReversedIterator)
@@ -337,7 +337,7 @@ TEST(listbase, ReversedIterator)
   }
   EXPECT_EQ(count, 2);
 
-  BLI_freelistN(&lb);
+  lb.free_no_destruct();
 }
 
 TEST(listbase, MutableIterator)
@@ -371,7 +371,7 @@ TEST(listbase, MutableIterator)
   EXPECT_EQ(lb.first, link1);
   EXPECT_EQ(lb.last, link3);
 
-  BLI_freelistN(&lb);
+  lb.free_no_destruct();
 }
 
 TEST(listbase, MutableReversedIterator)
@@ -405,7 +405,7 @@ TEST(listbase, MutableReversedIterator)
   EXPECT_EQ(lb.first, link1);
   EXPECT_EQ(lb.last, link3);
 
-  BLI_freelistN(&lb);
+  lb.free_no_destruct();
 }
 
 /* -------------------------------------------------------------------- */

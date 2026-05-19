@@ -79,8 +79,8 @@ static void cache_file_free_data(ID *id)
 {
   CacheFile *cache_file = id_cast<CacheFile *>(id);
   cachefile_handle_free(cache_file);
-  BLI_freelistN(&cache_file->object_paths);
-  BLI_freelistN(&cache_file->layers);
+  cache_file->object_paths.free_no_destruct();
+  cache_file->layers.free_no_destruct();
 }
 
 static void cache_file_foreach_path(ID *id, BPathForeachPathData *bpath_data)
@@ -340,7 +340,7 @@ void BKE_cachefile_eval(Main *bmain, Depsgraph *depsgraph, CacheFile *cache_file
   }
 
   cachefile_handle_free(cache_file);
-  BLI_freelistN(&cache_file->object_paths);
+  cache_file->object_paths.free_no_destruct();
 
 #ifdef WITH_ALEMBIC
   if (BLI_path_extension_check_glob(filepath, "*.abc")) {
@@ -364,7 +364,7 @@ void BKE_cachefile_eval(Main *bmain, Depsgraph *depsgraph, CacheFile *cache_file
   if (DEG_is_active(depsgraph)) {
     /* Flush object paths back to original data-block for UI. */
     CacheFile *cache_file_orig = DEG_get_original(cache_file);
-    BLI_freelistN(&cache_file_orig->object_paths);
+    cache_file_orig->object_paths.free_no_destruct();
     BLI_duplicatelist(&cache_file_orig->object_paths, &cache_file->object_paths);
   }
 }

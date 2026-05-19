@@ -210,7 +210,7 @@ CurvesGeometry::~CurvesGeometry()
 {
   CustomData_free(&this->point_data);
   this->attribute_storage.wrap().~AttributeStorage();
-  BLI_freelistN(&this->vertex_group_names);
+  this->vertex_group_names.free_no_destruct();
   if (this->runtime) {
     implicit_sharing::free_shared_data(&this->curve_offsets,
                                        &this->runtime->curve_offsets_sharing_info);

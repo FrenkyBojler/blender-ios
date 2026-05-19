@@ -432,7 +432,7 @@ void BKE_gpencil_free_layers(ListBaseT<bGPDlayer> *list)
 void BKE_gpencil_free_legacy_palette_data(ListBaseT<bGPDpalette> *list)
 {
   for (bGPDpalette &palette : list->items_mutable()) {
-    BLI_freelistN(&palette.colors);
+    palette.colors.free_no_destruct();
     MEM_delete(&palette);
   }
   list->clear_no_delete();
@@ -447,7 +447,7 @@ void BKE_gpencil_free_data(bGPdata *gpd, bool /*free_all*/)
   /* materials */
   MEM_SAFE_DELETE(gpd->mat);
 
-  BLI_freelistN(&gpd->vertex_group_names);
+  gpd->vertex_group_names.free_no_destruct();
 }
 
 void BKE_gpencil_tag(bGPdata *gpd)

@@ -1759,7 +1759,7 @@ static void get_selected_marker_positions(Scene *scene, ListBaseT<FrameLink> *ta
     link->frame = marker.cfra;
     BLI_addtail(target_frames, link);
   }
-  BLI_freelistN(&selected_markers);
+  selected_markers.free_no_destruct();
 }
 
 static void get_keyed_frames_in_range(const ListBaseT<SlideSubject> *slide_subjects,
@@ -1878,7 +1878,7 @@ static wmOperatorStatus pose_propagate_exec(bContext *C, wmOperator *op)
     }
   }
 
-  BLI_freelistN(&target_frames);
+  target_frames.free_no_destruct();
 
   /* Free temp data. */
   slide_subjects_free(&slide_subjects);

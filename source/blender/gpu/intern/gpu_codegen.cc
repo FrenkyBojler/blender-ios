@@ -136,7 +136,7 @@ GPUCodegen::~GPUCodegen()
 {
   MEM_SAFE_DELETE(cryptomatte_input_);
   MEM_delete(create_info);
-  BLI_freelistN(&ubo_inputs_);
+  ubo_inputs_.free_no_destruct();
 };
 
 bool GPUCodegen::should_optimize_heuristic() const

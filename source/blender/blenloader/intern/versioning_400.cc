@@ -1498,8 +1498,8 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
       versioning_convert_node_tree_socket_lists_to_interface(ntree);
       /* Clear legacy sockets after conversion.
        * Internal data pointers have been moved or freed already. */
-      BLI_freelistN(&ntree->inputs_legacy);
-      BLI_freelistN(&ntree->outputs_legacy);
+      ntree->inputs_legacy.free_no_destruct();
+      ntree->outputs_legacy.free_no_destruct();
     }
     FOREACH_NODETREE_END;
   }

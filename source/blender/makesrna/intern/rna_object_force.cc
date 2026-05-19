@@ -360,7 +360,7 @@ static void rna_Cache_idname_change(Main * /*bmain*/, Scene * /*scene*/, Pointer
       STRNCPY(cache->prev_name, cache->name);
     }
 
-    BLI_freelistN(&pidlist);
+    pidlist.free_no_destruct();
   }
 }
 

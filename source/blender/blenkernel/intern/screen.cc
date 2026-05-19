@@ -85,7 +85,7 @@ static void screen_free_data(ID *id)
     BKE_area_region_free(nullptr, &region);
   }
 
-  BLI_freelistN(&screen->regionbase);
+  screen->regionbase.free_no_destruct();
 
   BKE_screen_area_map_free(AREAMAP_FROM_SCREEN(screen));
 
@@ -297,14 +297,14 @@ SpaceType::~SpaceType()
 #ifdef WITH_PYTHON
     BPY_callback_screen_free(&art);
 #endif
-    BLI_freelistN(&art.drawcalls);
+    art.drawcalls.free_no_destruct();
 
     for (PanelType &pt : art.paneltypes) {
       if (pt.rna_ext.free) {
         pt.rna_ext.free(pt.rna_ext.data);
       }
 
-      BLI_freelistN(&pt.children);
+      pt.children.free_no_destruct();
     }
 
     for (HeaderType &ht : art.headertypes) {
@@ -313,11 +313,11 @@ SpaceType::~SpaceType()
       }
     }
 
-    BLI_freelistN(&art.paneltypes);
-    BLI_freelistN(&art.headertypes);
+    art.paneltypes.free_no_destruct();
+    art.headertypes.free_no_destruct();
   }
 
-  BLI_freelistN(&this->regiontypes);
+  this->regiontypes.free_no_destruct();
 }
 
 void BKE_spacetypes_free()
@@ -402,7 +402,7 @@ void BKE_spacedata_freelist(ListBaseT<SpaceLink> *lb)
       BKE_area_region_free(st, &region);
     }
 
-    BLI_freelistN(&sl.regionbase);
+    sl.regionbase.free_no_destruct();
 
     if (st && st->free) {
       st->free(&sl);
@@ -727,11 +727,11 @@ void BKE_area_region_free(SpaceType *st, ARegion *region)
     region_free_gizmomap_callback(region->runtime->gizmo_map);
   }
 
-  BLI_freelistN(&region->ui_lists);
-  BLI_freelistN(&region->ui_previews);
-  BLI_freelistN(&region->runtime->panels_category);
-  BLI_freelistN(&region->panels_category_active);
-  BLI_freelistN(&region->view_states);
+  region->ui_lists.free_no_destruct();
+  region->ui_previews.free_no_destruct();
+  region->runtime->panels_category.free_no_destruct();
+  region->panels_category_active.free_no_destruct();
+  region->view_states.free_no_destruct();
   for (uiTextboxStateLink &textbox_state : region->textbox_states.items_mutable()) {
     BLI_remlink(&region->textbox_states, &textbox_state);
     MEM_delete(textbox_state.idname);
@@ -750,11 +750,11 @@ void BKE_screen_area_free(ScrArea *area)
   }
 
   MEM_SAFE_DELETE(area->global);
-  BLI_freelistN(&area->regionbase);
+  area->regionbase.free_no_destruct();
 
   BKE_spacedata_freelist(&area->spacedata);
 
-  BLI_freelistN(&area->actionzones);
+  area->actionzones.free_no_destruct();
 }
 
 void BKE_screen_area_map_free(ScrAreaMap *area_map)
@@ -763,9 +763,9 @@ void BKE_screen_area_map_free(ScrAreaMap *area_map)
     BKE_screen_area_free(&area);
   }
 
-  BLI_freelistN(&area_map->vertbase);
-  BLI_freelistN(&area_map->edgebase);
-  BLI_freelistN(&area_map->areabase);
+  area_map->vertbase.free_no_destruct();
+  area_map->edgebase.free_no_destruct();
+  area_map->areabase.free_no_destruct();
 }
 
 void BKE_screen_free_data(bScreen *screen)

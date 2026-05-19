@@ -301,7 +301,7 @@ static void panel_delete(ARegion *region, ListBaseT<Panel> *panels, Panel *panel
   for (Panel &child : panel->children.items_mutable()) {
     panel_delete(region, &panel->children, &child);
   }
-  BLI_freelistN(&panel->children);
+  panel->children.free_no_destruct();
 
   BLI_remlink(panels, panel);
   BKE_panel_free(panel);
@@ -2560,7 +2560,7 @@ void panel_category_add(ARegion *region, const char *name, int icon)
 
 void panel_category_clear_all(ARegion *region)
 {
-  BLI_freelistN(&region->runtime->panels_category);
+  region->runtime->panels_category.free_no_destruct();
 }
 
 static int handle_panel_category_cycling(const wmEvent *event,

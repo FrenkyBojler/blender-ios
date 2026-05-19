@@ -1697,12 +1697,12 @@ void boid_free_settings(BoidSettings *boids)
     BoidState *state = static_cast<BoidState *>(boids->states.first);
 
     for (; state; state = state->next) {
-      BLI_freelistN(&state->rules);
-      BLI_freelistN(&state->conditions);
-      BLI_freelistN(&state->actions);
+      state->rules.free_no_destruct();
+      state->conditions.free_no_destruct();
+      state->actions.free_no_destruct();
     }
 
-    BLI_freelistN(&boids->states);
+    boids->states.free_no_destruct();
 
     MEM_delete(boids);
   }

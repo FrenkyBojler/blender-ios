@@ -291,7 +291,7 @@ static void ntree_free_data(ID *id)
   /* XXX not nice, but needed to free localized node groups properly */
   free_localized_node_groups(ntree);
 
-  BLI_freelistN(&ntree->links);
+  ntree->links.free_no_destruct();
 
   /* Iterate backwards because this allows for more efficient node deletion while keeping
    * bNodeTreeRuntime::nodes_by_id valid. */

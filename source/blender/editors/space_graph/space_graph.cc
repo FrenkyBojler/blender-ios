@@ -138,7 +138,7 @@ static void graph_free(SpaceLink *sl)
   SpaceGraph *si = reinterpret_cast<SpaceGraph *>(sl);
 
   if (si->ads) {
-    BLI_freelistN(&si->ads->chanbase);
+    si->ads->chanbase.free_no_destruct();
     MEM_delete(si->ads);
   }
 

@@ -1381,7 +1381,7 @@ void BKE_mesh_legacy_face_map_to_generic(Main *bmain)
     for (const auto [i, face_map] : object.fmaps.enumerate()) {
       mesh->attributes_for_write().rename(".temp_face_map_" + std::to_string(i), face_map.name);
     }
-    BLI_freelistN(&object.fmaps);
+    object.fmaps.free_no_destruct();
   }
 }
 

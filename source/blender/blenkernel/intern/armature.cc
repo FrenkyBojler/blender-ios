@@ -232,7 +232,7 @@ static void armature_free_data(ID *id)
   /* Free all BoneCollectionMembership objects. */
   if (armature->collection_array) {
     for (BoneCollection *bcoll : armature->collections_span()) {
-      BLI_freelistN(&bcoll->bones);
+      bcoll->bones.free_no_destruct();
       ANIM_bonecoll_free(bcoll, false);
     }
     MEM_delete(armature->collection_array);
@@ -606,7 +606,7 @@ void BKE_armature_bonelist_free(ListBaseT<Bone> *lb, const bool do_id_user)
     if (bone.system_properties) {
       IDP_FreeProperty_ex(bone.system_properties, do_id_user);
     }
-    BLI_freelistN(&bone.runtime.collections);
+    bone.runtime.collections.free_no_destruct();
     BKE_armature_bonelist_free(&bone.childbase, do_id_user);
   }
 

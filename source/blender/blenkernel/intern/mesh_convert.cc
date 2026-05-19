@@ -496,7 +496,7 @@ void BKE_mesh_to_curve_nurblist(const Mesh *mesh,
           bp->f1 = SELECT;
           bp->radius = bp->weight = 1.0;
         }
-        BLI_freelistN(&polyline);
+        polyline.free_no_destruct();
 
         /* add nurb to curve */
         BLI_addtail(nurblist, nu);

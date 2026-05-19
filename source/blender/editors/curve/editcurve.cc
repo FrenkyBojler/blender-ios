@@ -4505,7 +4505,7 @@ static int merge_nurb(View3D *v3d, Object *obedit)
   make_selection_list_nurb(v3d, editnurb, &nsortbase);
 
   if (nsortbase.first == nsortbase.last) {
-    BLI_freelistN(&nsortbase);
+    nsortbase.free_no_destruct();
     return CURVE_MERGE_ERR_FEW_SELECTION;
   }
 
@@ -4540,7 +4540,7 @@ static int merge_nurb(View3D *v3d, Object *obedit)
   }
 
   if (ok == false) {
-    BLI_freelistN(&nsortbase);
+    nsortbase.free_no_destruct();
     return CURVE_MERGE_ERR_RESOLUTION_ALL;
   }
 
@@ -4551,7 +4551,7 @@ static int merge_nurb(View3D *v3d, Object *obedit)
     nus2 = nus2->next;
   }
 
-  BLI_freelistN(&nsortbase);
+  nsortbase.free_no_destruct();
   BKE_curve_nurb_active_set(id_cast<Curve *>(obedit->data), nullptr);
 
   return ok ? CURVE_MERGE_OK : CURVE_MERGE_ERR_RESOLUTION_SOME;

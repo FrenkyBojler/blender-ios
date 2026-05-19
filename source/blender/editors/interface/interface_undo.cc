@@ -109,7 +109,7 @@ UndoStack_Text *textedit_undo_stack_create()
 
 void textedit_undo_stack_destroy(UndoStack_Text *stack)
 {
-  BLI_freelistN(&stack->states);
+  stack->states.free_no_destruct();
   MEM_delete(stack);
 }
 

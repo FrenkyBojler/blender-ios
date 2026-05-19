@@ -60,7 +60,7 @@ static void free_preview_job(void *data)
   PreviewJob *pj = static_cast<PreviewJob *>(data);
 
   BLI_mutex_free(pj->mutex);
-  BLI_freelistN(&pj->previews);
+  pj->previews.free_no_destruct();
   MEM_delete(pj);
 }
 
@@ -131,7 +131,7 @@ static void preview_startjob(void *data, wmJobWorkerStatus *worker_status)
         BKE_sound_runtime_clear_waveform_loading_tag(previewjb.sound);
       }
 
-      BLI_freelistN(&pj->previews);
+      pj->previews.free_no_destruct();
       pj->processed = 0;
       pj->total = 0;
       pj->running = false;

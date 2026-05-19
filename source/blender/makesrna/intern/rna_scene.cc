@@ -2508,7 +2508,7 @@ static void rna_TimeLine_remove(Scene *scene, ReportList *reports, PointerRNA *m
 
 static void rna_TimeLine_clear(Scene *scene)
 {
-  BLI_freelistN(&scene->markers);
+  scene->markers.free_no_destruct();
 
   WM_main_add_notifier(NC_SCENE | ND_MARKERS, nullptr);
   WM_main_add_notifier(NC_ANIMATION | ND_MARKERS, nullptr);

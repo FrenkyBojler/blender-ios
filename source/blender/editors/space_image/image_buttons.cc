@@ -297,7 +297,7 @@ static void ui_imageuser_pass_menu(bContext * /*C*/, ui::Layout *layout, void *r
            0.0,
            "");
 
-  BLI_freelistN(&added_passes);
+  added_passes.free_no_destruct();
 
   BKE_image_release_renderresult(scene, image, rr);
 }

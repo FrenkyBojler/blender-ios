@@ -58,8 +58,8 @@ static void workspace_free_data(ID *id)
 
   BKE_workspace_relations_free(&workspace->hook_layout_relations);
 
-  BLI_freelistN(&workspace->owner_ids);
-  BLI_freelistN(&workspace->layouts);
+  workspace->owner_ids.free_no_destruct();
+  workspace->layouts.free_no_destruct();
 
   while (!workspace->tools.is_empty()) {
     BKE_workspace_tool_remove(workspace, static_cast<bToolRef *>(workspace->tools.first));

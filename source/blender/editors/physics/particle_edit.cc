@@ -392,7 +392,7 @@ static PTCacheEdit *pe_get_current(Depsgraph *depsgraph, Scene *scene, Object *o
     }
   }
 
-  BLI_freelistN(&pidlist);
+  pidlist.free_no_destruct();
 
   return edit;
 }

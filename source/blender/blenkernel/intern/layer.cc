@@ -259,9 +259,9 @@ void BKE_view_layer_free_ex(ViewLayer *view_layer, const bool do_id_user)
 {
   BKE_view_layer_free_object_content(view_layer);
 
-  BLI_freelistN(&view_layer->aovs);
+  view_layer->aovs.free_no_destruct();
   view_layer->active_aov = nullptr;
-  BLI_freelistN(&view_layer->lightgroups);
+  view_layer->lightgroups.free_no_destruct();
   view_layer->active_lightgroup = nullptr;
 
   /* Cannot use MEM_SAFE_DELETE, as #SceneStats type is only forward-declared in
@@ -290,7 +290,7 @@ void BKE_view_layer_free_object_content(ViewLayer *view_layer)
 {
   view_layer->basact = nullptr;
 
-  BLI_freelistN(&view_layer->object_bases);
+  view_layer->object_bases.free_no_destruct();
 
   MEM_delete(view_layer->object_bases_hash);
 
@@ -1459,7 +1459,7 @@ bool BKE_layer_collection_sync(const Main &bmain, const Scene *scene, ViewLayer 
     }
   }
 
-  BLI_freelistN(&view_layer->object_bases);
+  view_layer->object_bases.free_no_destruct();
   view_layer->object_bases = new_object_bases;
 
   view_layer_objects_base_cache_validate(view_layer, nullptr);

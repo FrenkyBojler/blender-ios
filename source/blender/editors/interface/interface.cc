@@ -3801,9 +3801,9 @@ void block_free(const bContext *C, Block *block)
 
   block_free_active_operator(block);
 
-  BLI_freelistN(&block->saferct);
-  BLI_freelistN(&block->color_pickers.list);
-  BLI_freelistN(&block->dynamic_listeners);
+  block->saferct.free_no_destruct();
+  block->color_pickers.list.free_no_destruct();
+  block->dynamic_listeners.free_no_destruct();
 
   block_free_views(block);
 

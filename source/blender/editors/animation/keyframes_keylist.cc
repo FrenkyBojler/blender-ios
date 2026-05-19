@@ -99,7 +99,7 @@ struct AnimKeylist {
 
   ~AnimKeylist()
   {
-    BLI_freelistN(&this->key_columns);
+    this->key_columns.free_no_destruct();
     this->runtime.list_wrapper.clear_no_delete();
   }
 

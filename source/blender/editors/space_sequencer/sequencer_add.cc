@@ -1843,9 +1843,9 @@ static bool sequencer_add_images(bContext *C, wmOperator *op, seq::LoadData &loa
     seq_load_apply_generic_options(C, op, strip);
     load_data.start_frame += seq::transform_single_image_check(strip) ? load_data.image.length :
                                                                         load_data.image.count;
-    BLI_freelistN(&range.frames);
+    range.frames.free_no_destruct();
   }
-  BLI_freelistN(&ranges);
+  ranges.free_no_destruct();
   return true;
 }
 

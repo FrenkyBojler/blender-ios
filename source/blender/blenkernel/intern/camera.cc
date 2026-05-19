@@ -96,7 +96,7 @@ static void camera_copy_data(Main * /*bmain*/,
 static void camera_free_data(ID *id)
 {
   Camera *cam = id_cast<Camera *>(id);
-  BLI_freelistN(&cam->bg_images);
+  cam->bg_images.free_no_destruct();
   if (cam->custom_bytecode) {
     MEM_delete(cam->custom_bytecode);
   }

@@ -923,9 +923,9 @@ static void nlastrip_shuffle_transformed(TransDataContainer *tc, TransDataNla *f
 
   /* Memory cleanup. */
   for (IDGroupedTransData &group : grouped_trans_datas) {
-    BLI_freelistN(&group.trans_datas);
+    group.trans_datas.free_no_destruct();
   }
-  BLI_freelistN(&grouped_trans_datas);
+  grouped_trans_datas.free_no_destruct();
 }
 
 static void special_aftertrans_update__nla(bContext *C, TransInfo *t)

@@ -147,8 +147,8 @@ static void tracking_dopesheet_free(MovieTrackingDopesheet *dopesheet)
   }
 
   /* Free lists themselves. */
-  BLI_freelistN(&dopesheet->channels);
-  BLI_freelistN(&dopesheet->coverage_segments);
+  dopesheet->channels.free_no_destruct();
+  dopesheet->coverage_segments.free_no_destruct();
 
   /* Ensure lists are clean. */
   dopesheet->channels.clear_no_delete();

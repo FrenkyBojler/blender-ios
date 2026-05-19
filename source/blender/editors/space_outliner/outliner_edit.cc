@@ -2047,7 +2047,7 @@ static void tree_element_to_path(TreeElement *te,
   }
 
   /* free temp data */
-  BLI_freelistN(&hierarchy);
+  hierarchy.free_no_destruct();
 }
 
 /** \} */

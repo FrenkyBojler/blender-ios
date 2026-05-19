@@ -735,7 +735,7 @@ void ED_markers_draw(const bContext *C, int flag)
     marker.flag &= ~ELEVATED;
   }
 
-  BLI_freelistN(&sorted_markers);
+  sorted_markers.free_no_destruct();
 
   GPU_matrix_pop();
 }

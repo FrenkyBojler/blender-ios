@@ -1466,7 +1466,7 @@ static void do_version_remove_lzo_and_lzma_compression(FileData *fd, Object *obj
         pid.owner_id->name + 2);
   }
 
-  BLI_freelistN(&pidlist);
+  pidlist.free_no_destruct();
 }
 
 static void do_version_convert_gp_jitter_values(Brush *brush)

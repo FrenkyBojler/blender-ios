@@ -808,7 +808,7 @@ bool editmode_exit_ex(Main *bmain, Scene *scene, Object *obedit, int flag)
         pid.cache->flag |= PTCACHE_OUTDATED;
       }
     }
-    BLI_freelistN(&pidlist);
+    pidlist.free_no_destruct();
 
     BKE_particlesystem_reset_all(obedit);
     BKE_ptcache_object_reset(scene, obedit, PTCACHE_RESET_OUTDATED);
@@ -2288,7 +2288,7 @@ static wmOperatorStatus move_to_collection_exec(bContext *C, wmOperator *op)
                 "%s already in %s",
                 single_object->id.name + 2,
                 BKE_collection_ui_name_get(collection));
-    BLI_freelistN(&objects);
+    objects.free_no_destruct();
     return OPERATOR_CANCELLED;
   }
 
@@ -2302,7 +2302,7 @@ static wmOperatorStatus move_to_collection_exec(bContext *C, wmOperator *op)
       BKE_collection_object_add(bmain, collection, ob);
     }
   }
-  BLI_freelistN(&objects);
+  objects.free_no_destruct();
 
   if (is_link) {
     if (single_object != nullptr) {
@@ -2358,7 +2358,7 @@ static wmOperatorStatus move_to_collection_invoke(bContext *C,
     BKE_report(op->reports, RPT_ERROR, "No objects selected");
     return OPERATOR_CANCELLED;
   }
-  BLI_freelistN(&objects);
+  objects.free_no_destruct();
   PropertyRNA *prop = RNA_struct_find_property(op->ptr, "collection_uid");
   bool is_move = STREQ(op->type->idname, "OBJECT_OT_move_to_collection");
   if (!RNA_property_is_set(op->ptr, prop)) {

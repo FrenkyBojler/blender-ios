@@ -173,7 +173,7 @@ static void do_version_area_change_space_to_space_action(ScrArea *area, const Sc
   for (ARegion &region : area->regionbase) {
     BKE_area_region_free(area->type, &region);
   }
-  BLI_freelistN(&area->regionbase);
+  area->regionbase.free_no_destruct();
 
   area->type = stype;
   area->spacetype = stype->spaceid;
@@ -253,7 +253,7 @@ static void do_version_workspaces_after_lib_link(Main *bmain)
 
   for (bScreen &screen : bmain->screens) {
     /* Deprecated from now on! */
-    BLI_freelistN(&screen.scene->transform_spaces);
+    screen.scene->transform_spaces.free_no_destruct();
     screen.scene = nullptr;
   }
 }
@@ -377,7 +377,7 @@ static void do_version_layers_to_collections(Main *bmain, Scene *scene)
     }
   }
 
-  BLI_freelistN(&scene->r.layers);
+  scene->r.layers.free_no_destruct();
 
   /* If render layers included overrides, or there are no render layers,
    * we also create a vanilla viewport layer. */
@@ -413,7 +413,7 @@ static void do_version_layers_to_collections(Main *bmain, Scene *scene)
     id_us_min(&base.object->id);
   }
 
-  BLI_freelistN(&scene->base);
+  scene->base.free_no_destruct();
   scene->basact = nullptr;
 }
 
@@ -2345,7 +2345,7 @@ void do_versions_after_linking_280(FileData *fd, Main *bmain)
         }
         BKE_freestyle_config_free(&srl.freestyleConfig, true);
       }
-      BLI_freelistN(&scene.r.layers);
+      scene.r.layers.free_no_destruct();
     }
   }
 

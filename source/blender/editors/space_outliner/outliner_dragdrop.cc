@@ -1598,7 +1598,7 @@ static wmOperatorStatus outliner_item_drag_drop_invoke(bContext *C,
       WM_drag_add_local_ID(drag, id, &parent->id);
     }
 
-    BLI_freelistN(&selected.selected_array);
+    selected.selected_array.free_no_destruct();
   }
   else {
     /* Add single ID. */

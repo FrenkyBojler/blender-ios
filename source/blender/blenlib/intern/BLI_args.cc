@@ -148,7 +148,7 @@ void BLI_args_destroy(bArgs *ba)
 {
   BLI_ghash_free(ba->items, MEM_delete_void, MEM_delete_void);
   MEM_delete(ba->passes);
-  BLI_freelistN(&ba->docs);
+  ba->docs.free_no_destruct();
   MEM_delete(ba);
 }
 

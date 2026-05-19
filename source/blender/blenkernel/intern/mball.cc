@@ -88,7 +88,7 @@ static void metaball_free_data(ID *id)
 
   MEM_SAFE_DELETE(metaball->mat);
 
-  BLI_freelistN(&metaball->elems);
+  metaball->elems.free_no_destruct();
 }
 
 static void metaball_foreach_id(ID *id, LibraryForeachIDData *data)

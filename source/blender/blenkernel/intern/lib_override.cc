@@ -247,7 +247,7 @@ void BKE_lib_override_library_clear(IDOverrideLibrary *liboverride, const bool d
   for (IDOverrideLibraryProperty &op : liboverride->properties) {
     lib_override_library_property_clear(&op);
   }
-  BLI_freelistN(&liboverride->properties);
+  liboverride->properties.free_no_destruct();
 
   if (do_id_user) {
     id_us_min(liboverride->reference);
@@ -752,7 +752,7 @@ bool BKE_lib_override_library_create_from_tag(Main *bmain,
     }
   }
 
-  BLI_freelistN(&todo_ids);
+  todo_ids.free_no_destruct();
 
   return success;
 }
@@ -4193,7 +4193,7 @@ void lib_override_library_property_clear(IDOverrideLibraryProperty *op)
   for (IDOverrideLibraryPropertyOperation &opop : op->operations) {
     lib_override_library_property_operation_clear(&opop);
   }
-  BLI_freelistN(&op->operations);
+  op->operations.free_no_destruct();
 }
 
 bool BKE_lib_override_library_property_rna_path_change(IDOverrideLibrary *liboverride,

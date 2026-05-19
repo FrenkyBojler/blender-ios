@@ -675,7 +675,7 @@ static SpaceLink *node_create(const ScrArea * /*area*/, const Scene * /*scene*/)
 static void node_free(SpaceLink *sl)
 {
   SpaceNode *snode = reinterpret_cast<SpaceNode *>(sl);
-  BLI_freelistN(&snode->treepath);
+  snode->treepath.free_no_destruct();
   MEM_delete(snode->runtime);
 }
 
@@ -1432,7 +1432,7 @@ static void node_id_remap(ID *old_id, ID *new_id, SpaceNode *snode)
     /* nasty DNA logic for SpaceNode:
      * ideally should be handled by editor code, but would be bad level call
      */
-    BLI_freelistN(&snode->treepath);
+    snode->treepath.free_no_destruct();
 
     /* XXX Untested in case new_id != nullptr... */
     snode->id = new_id;

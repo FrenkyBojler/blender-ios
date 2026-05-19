@@ -280,7 +280,7 @@ static bool scanfill_preprocess_self_isect(ScanFillContext *sf_ctx,
     }
   }
 
-  BLI_freelistN(&isect_lb);
+  isect_lb.free_no_destruct();
   MEM_delete(isect_hash);
 
   {

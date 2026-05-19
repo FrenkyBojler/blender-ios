@@ -716,7 +716,7 @@ void gpu_select_pick_cache_end()
   g_pick_state.use_cache = false;
   g_pick_state.is_cached = false;
 
-  BLI_freelistN(&g_pick_state.cache.bufs);
+  g_pick_state.cache.bufs.free_no_destruct();
 }
 
 bool gpu_select_pick_is_cached()

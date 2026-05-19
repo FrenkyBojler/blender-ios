@@ -1676,7 +1676,7 @@ static void create_scene(Depsgraph *depsgraph, Scene *scene, Object *ob, float c
       /* delete the trees once we are done */
       while (tree) {
         BLI_remlink(&pchan.iktree, tree);
-        BLI_freelistN(&tree->targets);
+        tree->targets.free_no_destruct();
         if (tree->pchan) {
           MEM_delete(tree->pchan);
         }

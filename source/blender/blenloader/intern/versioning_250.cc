@@ -768,7 +768,7 @@ void blo_do_versions_250(FileData *fd, Library * /*lib*/, Main *bmain)
         pid.cache->flag |= PTCACHE_DISK_CACHE;
       }
 
-      BLI_freelistN(&pidlist);
+      pidlist.free_no_destruct();
     }
 #endif
 
@@ -795,7 +795,7 @@ void blo_do_versions_250(FileData *fd, Library * /*lib*/, Main *bmain)
         }
       }
 
-      BLI_freelistN(&pidlist);
+      pidlist.free_no_destruct();
 #endif
 
       if (ob.totcol && ob.matbits == nullptr) {

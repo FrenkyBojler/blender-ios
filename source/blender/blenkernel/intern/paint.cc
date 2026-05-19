@@ -110,7 +110,7 @@ static void palette_free_data(ID *id)
 {
   Palette *palette = id_cast<Palette *>(id);
 
-  BLI_freelistN(&palette->colors);
+  palette->colors.free_no_destruct();
 }
 
 static void palette_foreach_working_space_color(ID *id,
@@ -1312,7 +1312,7 @@ void BKE_palette_color_remove(Palette *palette, PaletteColor *color)
 
 void BKE_palette_clear(Palette *palette)
 {
-  BLI_freelistN(&palette->colors);
+  palette->colors.free_no_destruct();
   palette->active_color = 0;
 }
 

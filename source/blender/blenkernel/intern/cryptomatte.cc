@@ -300,7 +300,7 @@ char *BKE_cryptomatte_entries_to_matte_id(NodeCryptomatte *node_storage)
 
 void BKE_cryptomatte_matte_id_to_entries(NodeCryptomatte *node_storage, const char *matte_id)
 {
-  BLI_freelistN(&node_storage->entries);
+  node_storage->entries.free_no_destruct();
 
   if (matte_id == nullptr) {
     MEM_SAFE_DELETE(node_storage->matte_id);

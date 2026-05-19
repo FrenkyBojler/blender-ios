@@ -125,7 +125,7 @@ XrActionMapBinding *WM_xr_actionmap_binding_add_copy(XrActionMapItem *ami,
 
 static void wm_xr_actionmap_binding_clear(XrActionMapBinding *amb)
 {
-  BLI_freelistN(&amb->component_paths);
+  amb->component_paths.free_no_destruct();
 }
 
 bool WM_xr_actionmap_binding_remove(XrActionMapItem *ami, XrActionMapBinding *amb)
@@ -190,12 +190,12 @@ static void wm_xr_actionmap_item_clear(XrActionMapItem *ami)
   for (XrActionMapBinding &amb : ami->bindings) {
     wm_xr_actionmap_binding_clear(&amb);
   }
-  BLI_freelistN(&ami->bindings);
+  ami->bindings.free_no_destruct();
   ami->selbinding = 0;
 
   wm_xr_actionmap_item_properties_free(ami);
 
-  BLI_freelistN(&ami->user_paths);
+  ami->user_paths.free_no_destruct();
 }
 
 void WM_xr_actionmap_item_properties_update_ot(XrActionMapItem *ami)
@@ -501,7 +501,7 @@ void WM_xr_actionmap_clear(XrActionMap *actionmap)
   for (XrActionMapItem &ami : actionmap->items) {
     wm_xr_actionmap_item_clear(&ami);
   }
-  BLI_freelistN(&actionmap->items);
+  actionmap->items.free_no_destruct();
   actionmap->selitem = 0;
 }
 
@@ -510,7 +510,7 @@ void WM_xr_actionmaps_clear(wmXrRuntimeData *runtime)
   for (XrActionMap &am : runtime->actionmaps) {
     WM_xr_actionmap_clear(&am);
   }
-  BLI_freelistN(&runtime->actionmaps);
+  runtime->actionmaps.free_no_destruct();
   runtime->actactionmap = runtime->selactionmap = 0;
 }
 

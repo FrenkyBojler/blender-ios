@@ -59,8 +59,8 @@ void BKE_freestyle_config_free(FreestyleConfig *config, const bool do_id_user)
       lineset.linestyle = nullptr;
     }
   }
-  BLI_freelistN(&config->linesets);
-  BLI_freelistN(&config->modules);
+  config->linesets.free_no_destruct();
+  config->modules.free_no_destruct();
 }
 
 void BKE_freestyle_config_copy(FreestyleConfig *new_config,

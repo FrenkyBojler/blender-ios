@@ -1111,7 +1111,7 @@ bool decimate_fcurve(bAnimListElem *ale, float remove_ratio, float error_sq_max)
   for (FCurveSegment &segment : segments) {
     decimate_fcurve_segment(fcu, segment.start_index, segment.length, remove_ratio, error_sq_max);
   }
-  BLI_freelistN(&segments);
+  segments.free_no_destruct();
 
   uint old_totvert = fcu->totvert;
   fcu->bezt = nullptr;

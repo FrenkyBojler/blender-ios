@@ -2513,7 +2513,7 @@ static void armdef_free(bConstraint *con)
   bArmatureConstraint *data = static_cast<bArmatureConstraint *>(con->data);
 
   /* Target list. */
-  BLI_freelistN(&data->targets);
+  data->targets.free_no_destruct();
 }
 
 static void armdef_copy(bConstraint *con, bConstraint *srccon)

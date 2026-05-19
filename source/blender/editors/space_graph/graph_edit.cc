@@ -2061,7 +2061,7 @@ static wmOperatorStatus graphkeys_euler_filter_exec(bContext *C, wmOperator *op)
   int curves_seen;
   euler_filter_perform_filter(&eulers, op->reports, &curves_filtered, &curves_seen);
 
-  BLI_freelistN(&eulers);
+  eulers.free_no_destruct();
   ANIM_animdata_update(&ac, &anim_data);
   ANIM_animdata_freelist(&anim_data);
 

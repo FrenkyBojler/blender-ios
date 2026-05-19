@@ -602,7 +602,7 @@ void DRW_smoke_exit(DRWData *drw_data)
   for (LinkData &link : drw_data->smoke_textures) {
     GPU_TEXTURE_FREE_SAFE(*(gpu::Texture **)link.data);
   }
-  BLI_freelistN(&drw_data->smoke_textures);
+  drw_data->smoke_textures.free_no_destruct();
 }
 
 /** \} */

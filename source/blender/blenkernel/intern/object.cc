@@ -319,7 +319,7 @@ static void object_free_data(ID *id)
 
   BKE_sculptsession_free(ob);
 
-  BLI_freelistN(&ob->pc_ids);
+  ob->pc_ids.free_no_destruct();
 
   /* Free runtime curves data. */
   if (ob->runtime->curve_cache) {
@@ -1217,8 +1217,8 @@ static void object_lib_override_apply_post(ID *id_dst, ID *id_src)
       }
     }
   }
-  BLI_freelistN(&pidlist_dst);
-  BLI_freelistN(&pidlist_src);
+  pidlist_dst.free_no_destruct();
+  pidlist_src.free_no_destruct();
 }
 
 static IDProperty *object_asset_dimensions_property(Object *ob)
@@ -5414,7 +5414,7 @@ static void object_cacheIgnoreClear(Object *ob, const bool state)
     }
   }
 
-  BLI_freelistN(&pidlist);
+  pidlist.free_no_destruct();
 }
 
 struct ObjectModifierUpdateContext {

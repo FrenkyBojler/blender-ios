@@ -417,7 +417,7 @@ static const char *wm_context_member_from_ptr(bContext *C, const PointerRNA *ptr
       }
     }
   }
-  BLI_freelistN(&lb);
+  lb.free_no_destruct();
 
   if (member_found) {
     *r_is_id = member_found_is_id;

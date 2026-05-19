@@ -160,7 +160,7 @@ static void particle_settings_free_data(ID *id)
 
   MEM_SAFE_DELETE(particle_settings->effector_weights);
 
-  BLI_freelistN(&particle_settings->instance_weights);
+  particle_settings->instance_weights.free_no_destruct();
 
   boid_free_settings(particle_settings->boids);
   fluid_free_settings(particle_settings->fluid);
@@ -373,7 +373,7 @@ static void particle_settings_blend_read_after_liblink(BlendLibReader * /*reader
   ParticleSettings *part = reinterpret_cast<ParticleSettings *>(id);
 
   if (part->instance_weights.first && !part->instance_collection) {
-    BLI_freelistN(&part->instance_weights);
+    part->instance_weights.free_no_destruct();
   }
 }
 
@@ -767,7 +767,7 @@ void psys_check_group_weights(ParticleSettings *part)
   ParticleDupliWeight *dw, *tdw;
 
   if (part->ren_as != PART_DRAW_GR || !part->instance_collection) {
-    BLI_freelistN(&part->instance_weights);
+    part->instance_weights.free_no_destruct();
     return;
   }
 
@@ -1030,7 +1030,7 @@ void psys_free(Object *ob, ParticleSystem *psys)
     }
     psys->pointcache = nullptr;
 
-    BLI_freelistN(&psys->targets);
+    psys->targets.free_no_destruct();
 
     BLI_bvhtree_free(psys->bvhtree);
     kdtree_free<float3>(psys->tree);
