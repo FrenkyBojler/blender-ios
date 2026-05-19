@@ -16,7 +16,7 @@
 #include "RNA_define.hh"
 #include "RNA_prototypes.hh"
 
-#include "ED_transformable.hh"
+#include "ED_anim_transformable.hh"
 
 #include "CLG_log.h"
 #include "testing/testing.h"
@@ -70,10 +70,10 @@ class TransformableTest : public testing::Test {
 
 TEST_F(TransformableTest, transformable_get_values)
 {
-  Transformable transformable(*armature_object, *pose_bone);
+  AnimTransformable transformable(*armature_object, *pose_bone);
   EXPECT_STREQ(transformable.rna_path().c_str(), "pose.bones[\"Bone\"]");
 
-  Array<float> location = transformable.get_property(Transformable::PropertyType::LOCATION);
+  Array<float> location = transformable.get_property(AnimTransformable::PropertyType::LOCATION);
   Array<float> expected = {0, 0, 0};
   EXPECT_EQ(expected, location);
 
@@ -83,11 +83,12 @@ TEST_F(TransformableTest, transformable_get_values)
   /* The returned values are a copy, changing the underlying data does not modify the array. */
   EXPECT_EQ(expected, location);
 
-  location = transformable.get_property(Transformable::PropertyType::LOCATION);
+  location = transformable.get_property(AnimTransformable::PropertyType::LOCATION);
   expected = {1, 0, 0};
   EXPECT_EQ(expected, location);
 
-  Array<float> rotation_values = transformable.get_property(Transformable::PropertyType::ROTATION);
+  Array<float> rotation_values = transformable.get_property(
+      AnimTransformable::PropertyType::ROTATION);
   EXPECT_EQ(pose_bone->rotmode, ROT_MODE_QUAT);
   EXPECT_EQ(transformable.get_rotation_mode(), pose_bone->rotmode);
   EXPECT_EQ(rotation_values.size(), 4);
@@ -96,7 +97,7 @@ TEST_F(TransformableTest, transformable_get_values)
 
 TEST_F(TransformableTest, transformable_rotation)
 {
-  Transformable transformable(*armature_object, *pose_bone);
+  AnimTransformable transformable(*armature_object, *pose_bone);
   Rotation rotation = transformable.get_rotation();
   /* The rotation is always returned in the mode of the transformable. */
   EXPECT_EQ(rotation.mode, transformable.get_rotation_mode());
@@ -116,35 +117,35 @@ TEST_F(TransformableTest, transformable_rotation)
 
 TEST_F(TransformableTest, transformable_blend_to)
 {
-  Transformable transformable(*armature_object, *pose_bone);
+  AnimTransformable transformable(*armature_object, *pose_bone);
   transformable.blend_property_to(
-      Transformable::PropertyType::LOCATION, {1, 0, 0}, 0.0f, AXIS_MUTABLE_ALL);
+      AnimTransformable::PropertyType::LOCATION, {1, 0, 0}, 0.0f, AXIS_MUTABLE_ALL);
   Array<float> expected = {0, 0, 0};
   /* A blend factor of 0 keeps the current values. */
   EXPECT_NEAR_SPAN(expected.as_span(),
-                   transformable.get_property(Transformable::PropertyType::LOCATION).as_span(),
+                   transformable.get_property(AnimTransformable::PropertyType::LOCATION).as_span(),
                    0.001);
 
   transformable.blend_property_to(
-      Transformable::PropertyType::LOCATION, {1, 0, 0}, 0.1f, AXIS_MUTABLE_ALL);
+      AnimTransformable::PropertyType::LOCATION, {1, 0, 0}, 0.1f, AXIS_MUTABLE_ALL);
   expected = {0.1f, 0, 0};
   /* Blending linearly to 1. */
   EXPECT_NEAR_SPAN(expected.as_span(),
-                   transformable.get_property(Transformable::PropertyType::LOCATION).as_span(),
+                   transformable.get_property(AnimTransformable::PropertyType::LOCATION).as_span(),
                    0.001);
 
   transformable.blend_property_to(
-      Transformable::PropertyType::LOCATION, {1, 0, 0}, 1.0f, AXIS_MUTABLE_ALL);
+      AnimTransformable::PropertyType::LOCATION, {1, 0, 0}, 1.0f, AXIS_MUTABLE_ALL);
   expected = {1.0f, 0, 0};
   /* Blending linearly to 1. */
   EXPECT_NEAR_SPAN(expected.as_span(),
-                   transformable.get_property(Transformable::PropertyType::LOCATION).as_span(),
+                   transformable.get_property(AnimTransformable::PropertyType::LOCATION).as_span(),
                    0.001);
 }
 
 TEST_F(TransformableTest, transformable_blend_rotation_to)
 {
-  Transformable transformable(*armature_object, *pose_bone);
+  AnimTransformable transformable(*armature_object, *pose_bone);
   /* There is a special function for rotations that does spherical interpolation for
    * quaternions. */
   EXPECT_EQ(pose_bone->rotmode, ROT_MODE_QUAT);
@@ -163,7 +164,7 @@ TEST_F(TransformableTest, transformable_blend_rotation_to)
   /* Using the generic blend function assumes that the given values are in the rotation mode that
    * the object is currently in. As long as that is the case it will work as expected. */
   transformable.blend_property_to(
-      Transformable::PropertyType::ROTATION, rot_90_x.values, 0.5f, AXIS_MUTABLE_ALL);
+      AnimTransformable::PropertyType::ROTATION, rot_90_x.values, 0.5f, AXIS_MUTABLE_ALL);
   EXPECT_NEAR(current_rotation.values[0], 0.92387f, 0.001);
   EXPECT_NEAR(current_rotation.values[1], 0.38268f, 0.001);
 }
@@ -172,29 +173,29 @@ TEST_F(TransformableTest, transformable_axis_constraints)
 {
   /* It is possible to only set and blend certain axes. This is a feature of the pose slide code
    * and had to be added to transformables. */
-  Transformable transformable(*armature_object, *pose_bone);
+  AnimTransformable transformable(*armature_object, *pose_bone);
 
-  transformable.set_property(Transformable::PropertyType::LOCATION, {1, 1, 1}, AXIS_MUTABLE_X);
+  transformable.set_property(AnimTransformable::PropertyType::LOCATION, {1, 1, 1}, AXIS_MUTABLE_X);
   Array<float> expected = {1, 0, 0};
   EXPECT_NEAR_SPAN(expected.as_span(),
-                   transformable.get_property(Transformable::PropertyType::LOCATION).as_span(),
+                   transformable.get_property(AnimTransformable::PropertyType::LOCATION).as_span(),
                    0.001);
 
-  transformable.set_property(Transformable::PropertyType::LOCATION,
+  transformable.set_property(AnimTransformable::PropertyType::LOCATION,
                              {2, 2, 2},
                              AxisMutable(AXIS_MUTABLE_X | AXIS_MUTABLE_Y));
   expected = {2, 2, 0};
   EXPECT_NEAR_SPAN(expected.as_span(),
-                   transformable.get_property(Transformable::PropertyType::LOCATION).as_span(),
+                   transformable.get_property(AnimTransformable::PropertyType::LOCATION).as_span(),
                    0.001);
 
-  transformable.blend_property_to(Transformable::PropertyType::LOCATION,
+  transformable.blend_property_to(AnimTransformable::PropertyType::LOCATION,
                                   {3, 3, 3},
                                   1.0f,
                                   AxisMutable(AXIS_MUTABLE_Y | AXIS_MUTABLE_Z));
   expected = {2, 3, 3};
   EXPECT_NEAR_SPAN(expected.as_span(),
-                   transformable.get_property(Transformable::PropertyType::LOCATION).as_span(),
+                   transformable.get_property(AnimTransformable::PropertyType::LOCATION).as_span(),
                    0.001);
 }
 

@@ -36,9 +36,9 @@
 #include "WM_types.hh"
 
 #include "ED_anim_api.hh"
+#include "ED_anim_transformable.hh"
 #include "ED_armature.hh"
 #include "ED_keyframing.hh"
-#include "ED_transformable.hh"
 
 #include "ANIM_action.hh"
 #include "ANIM_action_iterators.hh"
@@ -192,16 +192,18 @@ static void pchan_to_slide_subject(ListBaseT<SlideSubject> &slide_subjects,
   BLI_addtail(&slide_subjects, slide_subject);
   slide_subject->fcurves = curves;
 
-  ed::Transformable *transformable = MEM_new<ed::Transformable>(
+  ed::AnimTransformable *transformable = MEM_new<ed::AnimTransformable>(
       "transformable_pose_bone", ob, pchan);
   slide_subject->transformable = transformable;
 
   /* Set pchan's transform flags. */
   slide_subject->transform_flag = transFlags;
 
-  slide_subject->old_loc = transformable->get_property(ed::Transformable::PropertyType::LOCATION);
+  slide_subject->old_loc = transformable->get_property(
+      ed::AnimTransformable::PropertyType::LOCATION);
   slide_subject->old_rot = transformable->get_rotation();
-  slide_subject->old_scale = transformable->get_property(ed::Transformable::PropertyType::SCALE);
+  slide_subject->old_scale = transformable->get_property(
+      ed::AnimTransformable::PropertyType::SCALE);
 
   slide_subject->ptr = bone_ptr;
 
@@ -365,14 +367,15 @@ void slide_subjects_reset(ListBaseT<SlideSubject> *slide_subjects)
 {
   /* Iterate over each transformable affected, restoring all channels to their original values. */
   for (SlideSubject &slide_subject : *slide_subjects) {
-    ed::Transformable *transformable = slide_subject.transformable;
+    ed::AnimTransformable *transformable = slide_subject.transformable;
 
     /* just copy all the values over regardless of whether they changed or not */
-    transformable->set_property(
-        ed::Transformable::PropertyType::LOCATION, slide_subject.old_loc, ed::AXIS_MUTABLE_ALL);
+    transformable->set_property(ed::AnimTransformable::PropertyType::LOCATION,
+                                slide_subject.old_loc,
+                                ed::AXIS_MUTABLE_ALL);
     transformable->set_rotation(slide_subject.old_rot);
     transformable->set_property(
-        ed::Transformable::PropertyType::SCALE, slide_subject.old_scale, ed::AXIS_MUTABLE_ALL);
+        ed::AnimTransformable::PropertyType::SCALE, slide_subject.old_scale, ed::AXIS_MUTABLE_ALL);
 
     for (PropertySnapshot &extra_prop : slide_subject.additional_properties) {
       animrig::rna_property_set_as_float(

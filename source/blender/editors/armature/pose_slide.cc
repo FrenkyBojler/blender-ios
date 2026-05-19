@@ -60,12 +60,12 @@
 
 #include "UI_interface.hh"
 
+#include "ED_anim_transformable.hh"
 #include "ED_keyframes_edit.hh"
 #include "ED_keyframes_keylist.hh"
 #include "ED_markers.hh"
 #include "ED_numinput.hh"
 #include "ED_screen.hh"
-#include "ED_transformable.hh"
 #include "ED_util.hh"
 
 #include "ANIM_fcurve.hh"
@@ -329,11 +329,11 @@ static bool pose_frame_range_from_id_get(const tPoseSlideOp *pso,
 /* Apply linear blending to the values of the given `prop_type`. */
 static void pose_slide_apply_linear(tPoseSlideOp &pso,
                                     SlideSubject &slide_subject,
-                                    const ed::Transformable::PropertyType prop_type)
+                                    const ed::AnimTransformable::PropertyType prop_type)
 {
 
   const float factor = ED_slider_factor_get(pso.slider);
-  ed::Transformable *transformable = slide_subject.transformable;
+  ed::AnimTransformable *transformable = slide_subject.transformable;
   Array<float> prev_values = transformable->get_property(prop_type);
   Array<float> next_values = prev_values;
 
@@ -482,7 +482,7 @@ static void pose_slide_apply_property_snapshots(tPoseSlideOp &pso,
  */
 static void pose_slide_apply_quat(tPoseSlideOp *pso, SlideSubject *slide_subject)
 {
-  ed::Transformable *transformable = slide_subject->transformable;
+  ed::AnimTransformable *transformable = slide_subject->transformable;
   float prev_frame, next_frame;
 
   if (!pose_frame_range_from_id_get(pso, transformable->owner_id(), &prev_frame, &next_frame)) {
@@ -491,7 +491,7 @@ static void pose_slide_apply_quat(tPoseSlideOp *pso, SlideSubject *slide_subject
   }
 
   const std::string path = transformable->rna_path_to_property(
-      ed::Transformable::PropertyType::ROTATION);
+      ed::AnimTransformable::PropertyType::ROTATION);
 
   const float current_frame = float(pso->current_frame);
   const float factor = ED_slider_factor_get(pso->slider);
@@ -567,20 +567,20 @@ static void pose_slide_rest_pose_apply(bContext *C, tPoseSlideOp *pso)
      *   but rotations get more complicated since we may want to use quaternion blending
      *   for quaternions instead.
      */
-    ed::Transformable *transformable = slide_subject.transformable;
+    ed::AnimTransformable *transformable = slide_subject.transformable;
 
     if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_LOC) &&
         (slide_subject.transform_flag & ACT_TRANS_LOC))
     {
       transformable->blend_property_to(
-          ed::Transformable::PropertyType::LOCATION, 0.0f, slider_factor, axis_flag);
+          ed::AnimTransformable::PropertyType::LOCATION, 0.0f, slider_factor, axis_flag);
     }
 
     if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_SCALE) &&
         (slide_subject.transform_flag & ACT_TRANS_SCALE))
     {
       transformable->blend_property_to(
-          ed::Transformable::PropertyType::SCALE, 1.0f, slider_factor, axis_flag);
+          ed::AnimTransformable::PropertyType::SCALE, 1.0f, slider_factor, axis_flag);
     }
 
     if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_ROT) &&
@@ -628,20 +628,20 @@ static void pose_slide_apply(bContext *C, tPoseSlideOp *pso)
 
   /* For each link, handle each set of transforms. */
   for (SlideSubject &slide_subject : pso->slide_subjects) {
-    ed::Transformable *transformable = slide_subject.transformable;
+    ed::AnimTransformable *transformable = slide_subject.transformable;
 
     if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_LOC) &&
         (slide_subject.transform_flag & ACT_TRANS_LOC))
     {
       /* Calculate these for the 'location' vector, and use location curves. */
-      pose_slide_apply_linear(*pso, slide_subject, ed::Transformable::PropertyType::LOCATION);
+      pose_slide_apply_linear(*pso, slide_subject, ed::AnimTransformable::PropertyType::LOCATION);
     }
 
     if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_SCALE) &&
         (slide_subject.transform_flag & ACT_TRANS_SCALE))
     {
       /* Calculate these for the 'scale' vector, and use scale curves. */
-      pose_slide_apply_linear(*pso, slide_subject, ed::Transformable::PropertyType::SCALE);
+      pose_slide_apply_linear(*pso, slide_subject, ed::AnimTransformable::PropertyType::SCALE);
     }
 
     if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_ROT) &&
@@ -650,7 +650,8 @@ static void pose_slide_apply(bContext *C, tPoseSlideOp *pso)
       /* Everything depends on the rotation mode. */
       const eRotationModes rot_mode = transformable->get_rotation_mode();
       if (rot_mode > 0) {
-        pose_slide_apply_linear(*pso, slide_subject, ed::Transformable::PropertyType::ROTATION);
+        pose_slide_apply_linear(
+            *pso, slide_subject, ed::AnimTransformable::PropertyType::ROTATION);
       }
       else if (rot_mode == ROT_MODE_AXISANGLE) {
         /* TODO: need to figure out how to do this! */

@@ -16,7 +16,7 @@
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"
 
-#include "ED_transformable.hh"
+#include "ED_anim_transformable.hh"
 
 namespace blender::ed {
 
@@ -243,8 +243,8 @@ static void build_rotations_array(
   rotations[ROT_IDX_AXIS_ANGLE][0] = angle;
 }
 
-Transformable::Transformable(Object &owner_id, bPoseChannel &pchan)
-    : type_(Transformable::Type::POSE_BONE),
+AnimTransformable::AnimTransformable(Object &owner_id, bPoseChannel &pchan)
+    : type_(AnimTransformable::Type::POSE_BONE),
       owner_id_(&owner_id.id),
       data_(&pchan),
       location_({pchan.loc, 3}),
@@ -255,18 +255,18 @@ Transformable::Transformable(Object &owner_id, bPoseChannel &pchan)
   rna_path_from_id_ = get_pose_bone_rna_path(pchan);
 }
 
-template<> bPoseChannel *Transformable::data<bPoseChannel *>() const
+template<> bPoseChannel *AnimTransformable::data<bPoseChannel *>() const
 {
   BLI_assert(type_ == Type::POSE_BONE);
   return static_cast<bPoseChannel *>(data_);
 }
 
-StringRefNull Transformable::rna_path() const
+StringRefNull AnimTransformable::rna_path() const
 {
   return rna_path_from_id_;
 }
 
-std::string Transformable::rna_path_to_property(const PropertyType prop_type) const
+std::string AnimTransformable::rna_path_to_property(const PropertyType prop_type) const
 {
   /* Note that this assumes the property name for the underlying struct. If we add support for a
    * struct where this doesn't match, the property names have to be moved to the constructor. */
@@ -289,7 +289,7 @@ std::string Transformable::rna_path_to_property(const PropertyType prop_type) co
   return fmt::format("{}.{}", rna_path_from_id_, property_name);
 }
 
-TransformFloats Transformable::get_property(const PropertyType prop_type) const
+TransformFloats AnimTransformable::get_property(const PropertyType prop_type) const
 {
   switch (prop_type) {
     case PropertyType::LOCATION:
@@ -307,9 +307,9 @@ TransformFloats Transformable::get_property(const PropertyType prop_type) const
   return {};
 }
 
-void Transformable::set_property(const PropertyType prop_type,
-                                 const Span<float> values,
-                                 const AxisMutable axis_flag)
+void AnimTransformable::set_property(const PropertyType prop_type,
+                                     const Span<float> values,
+                                     const AxisMutable axis_flag)
 {
   switch (prop_type) {
     case PropertyType::LOCATION:
@@ -339,10 +339,10 @@ void Transformable::set_property(const PropertyType prop_type,
   }
 }
 
-void Transformable::blend_property_to(const PropertyType prop_type,
-                                      const Span<float> target,
-                                      const float factor,
-                                      const AxisMutable axis_flag)
+void AnimTransformable::blend_property_to(const PropertyType prop_type,
+                                          const Span<float> target,
+                                          const float factor,
+                                          const AxisMutable axis_flag)
 {
   switch (prop_type) {
     case PropertyType::LOCATION:
@@ -370,10 +370,10 @@ void Transformable::blend_property_to(const PropertyType prop_type,
   }
 }
 
-void Transformable::blend_property_to(const PropertyType prop_type,
-                                      const float target,
-                                      const float factor,
-                                      const AxisMutable axis_flag)
+void AnimTransformable::blend_property_to(const PropertyType prop_type,
+                                          const float target,
+                                          const float factor,
+                                          const AxisMutable axis_flag)
 {
   switch (prop_type) {
     case PropertyType::LOCATION:
@@ -397,7 +397,7 @@ void Transformable::blend_property_to(const PropertyType prop_type,
   }
 }
 
-const TransformFloatPtrs *Transformable::get_rotation_array_from_mode(
+const TransformFloatPtrs *AnimTransformable::get_rotation_array_from_mode(
     const eRotationModes mode) const
 {
   const TransformFloatPtrs *rotations_array = nullptr;
@@ -416,7 +416,7 @@ const TransformFloatPtrs *Transformable::get_rotation_array_from_mode(
   return rotations_array;
 }
 
-Rotation Transformable::get_rotation() const
+Rotation AnimTransformable::get_rotation() const
 {
   Rotation rotation;
   rotation.mode = *rotation_mode_;
@@ -426,7 +426,7 @@ Rotation Transformable::get_rotation() const
   return rotation;
 }
 
-void Transformable::set_rotation(const Rotation &rotation)
+void AnimTransformable::set_rotation(const Rotation &rotation)
 {
   const TransformFloatPtrs *rotations_array = get_rotation_array_from_mode(*rotation_mode_);
   BLI_assert(rotations_array != nullptr);
@@ -444,14 +444,14 @@ void Transformable::set_rotation(const Rotation &rotation)
   }
 }
 
-eRotationModes Transformable::get_rotation_mode() const
+eRotationModes AnimTransformable::get_rotation_mode() const
 {
   return *rotation_mode_;
 }
 
-void Transformable::blend_rotation_to(const Rotation &target,
-                                      const float factor,
-                                      const AxisMutable axis_flag)
+void AnimTransformable::blend_rotation_to(const Rotation &target,
+                                          const float factor,
+                                          const AxisMutable axis_flag)
 {
   /* If `target` matches the `current_mode`, the function will return `target` unmodified. */
   Rotation compatible_rotation = target.converted_to_mode(*rotation_mode_);

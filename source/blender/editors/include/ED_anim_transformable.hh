@@ -6,7 +6,7 @@
  * \ingroup edanimation
  *
  * \brief Defines an abstraction around various structs to modify their transform properties via a
- * unified API.
+ * unified API for the purpose of animation.
  */
 
 #pragma once
@@ -63,7 +63,7 @@ struct Rotation {
  * In a way this is similar to RNA, however RNA has the issue that the properties don't have
  * consistent naming making it impossible to work with them in a generic way.
  */
-class Transformable {
+class AnimTransformable {
  public:
   enum class Type : int8_t {
     POSE_BONE,
@@ -75,10 +75,10 @@ class Transformable {
  private:
   Type type_;
   ID *owner_id_;
-  /* The struct wrapped by the Transformable. For possible types see `Type`. */
+  /* The struct wrapped by the AnimTransformable. For possible types see `Type`. */
   void *data_;
 
-  /* This is the path from the owner ID to the struct that the Transformable represents. Has to be
+  /* This is the path from the owner ID to the struct that the AnimTransformable represents. Has to be
    * created in the constructor. For structs that are an ID this is an empty string. */
   std::string rna_path_from_id_;
 
@@ -103,7 +103,7 @@ class Transformable {
  public:
   /* There has to be a constructor for every struct supported. */
   /* Constructor for pose bones. */
-  Transformable(Object &owner_id, bPoseChannel &pchan);
+  AnimTransformable(Object &owner_id, bPoseChannel &pchan);
   /* TODO (christoph): Add object support. */
 
   Type type() const

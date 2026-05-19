@@ -15,7 +15,7 @@
 
 #include "BLI_span.hh"
 
-#include "ED_transformable.hh"
+#include "ED_anim_transformable.hh"
 
 namespace blender {
 
@@ -166,11 +166,11 @@ struct SlideSubject {
   SlideSubject *next, *prev;
 
   /** F-Curves for this PoseChannel (wrapped with LinkData) */
-  /** The Transformable which the data is attached to */
-  ed::Transformable *transformable;
+  /** The AnimTransformable which the data is attached to */
+  ed::AnimTransformable *transformable;
   /* A pointer to the data represented by this link. */
   PointerRNA ptr;
-  /** F-Curves for this Transformable. */
+  /** F-Curves for this AnimTransformable. */
   Vector<FCurve *> fcurves;
   /* This is used as an optimization to only do blending on transform types that actually have
    * animation. */
