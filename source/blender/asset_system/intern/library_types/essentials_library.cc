@@ -59,14 +59,7 @@ void EssentialsAssetLibrary::refresh_catalogs()
   std::unique_ptr<AssetCatalogService> new_catalog_service = std::make_unique<AssetCatalogService>(
       AssetCatalogService::read_only_tag());
 
-  const bool skip_remote_libraries = !USER_EXPERIMENTAL_TEST(&U, use_remote_asset_libraries);
-
   const auto load_catalogs_fn = [&](const AssetLibrary *library) {
-    const bool is_online_lib = library->remote_url().has_value();
-    if (is_online_lib && skip_remote_libraries) {
-      return;
-    }
-
     library->catalog_service().reload_catalogs();
 
     new_catalog_service->add_from_existing(

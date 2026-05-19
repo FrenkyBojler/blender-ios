@@ -546,8 +546,6 @@ def _remote_asset_library_sync_all_periodic():
     """Periodically download remote asset library listings."""
     if not bpy.app.online_access:
         return
-    if not bpy.context.preferences.experimental.use_remote_asset_libraries:
-        return
 
     for asset_lib in bpy.context.preferences.filepaths.asset_libraries:
         if not asset_lib.enabled:
@@ -566,8 +564,6 @@ def _remote_asset_library_restore_backups() -> None:
     the listing was being downloaded, and it's probably incomplete. Better to
     restore the backup.
     """
-    if not bpy.context.preferences.experimental.use_remote_asset_libraries:
-        return
 
     from _bpy_internal.assets.remote_library import listing_downloader
 

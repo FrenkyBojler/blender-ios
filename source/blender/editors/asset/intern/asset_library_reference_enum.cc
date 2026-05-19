@@ -54,7 +54,6 @@ static bool custom_library_is_valid(const bUserAssetLibrary *user_library)
   }
 
   return BKE_preferences_asset_library_is_valid(
-      &U,
       user_library,
       /* Don't check if the path exists on disk. If an invalid library path is used, the Asset
        * Browser can give a nice hint on what's wrong, so include such items in menus the user can

@@ -268,24 +268,6 @@ static constexpr EnumPropertyItem custom_library_type_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-static const EnumPropertyItem *custom_library_type_itemf(bContext * /*C*/,
-                                                         PointerRNA * /*ptr*/,
-                                                         PropertyRNA * /*prop*/,
-                                                         bool *r_free)
-{
-  *r_free = false;
-
-  if (USER_EXPERIMENTAL_TEST(&U, use_remote_asset_libraries)) {
-    /* Experimental flag is enabled, just return all items. */
-    return custom_library_type_items;
-  }
-
-  /* Since the Remote item is the first in the list, we can just return a pointer to
-   * the 2nd item in the list, when remote asset libraries should be hidden. */
-  static_assert(custom_library_type_items[0].value == int(bUserAssetLibraryAddType::Remote));
-  return custom_library_type_items + 1;
-}
-
 static void PREFERENCES_OT_asset_library_add(wmOperatorType *ot)
 {
   ot->name = "Add Asset Library";
@@ -335,7 +317,6 @@ static void PREFERENCES_OT_asset_library_add(wmOperatorType *ot)
 
   ot->prop = RNA_def_enum(
       ot->srna, "type", custom_library_type_items, 0, "Type", "The kind of asset library to add");
-  RNA_def_enum_funcs(ot->prop, custom_library_type_itemf);
   RNA_def_property_flag(ot->prop, PROP_SKIP_SAVE | PROP_HIDDEN);
 }
 
@@ -363,38 +344,7 @@ static wmOperatorStatus preferences_asset_library_remove_exec(bContext *C, wmOpe
     return OPERATOR_CANCELLED;
   }
 
-  const bool use_remote_libraries = USER_EXPERIMENTAL_TEST(&U, use_remote_asset_libraries);
-  const bool is_remote_library = library->flag & ASSET_LIBRARY_USE_REMOTE_URL;
-
-  if (is_remote_library && !use_remote_libraries) {
-    /* This is a corner case, where the active library is a remote one, but remote libraries are
-     * not shown. This only happens right after disabling the experimental flag, which doesn't
-     * update the active library index, or when somebody set the active index via Python. Just
-     * pretend the deletion happened (because actually deleting hidden things is bad), and let the
-     * code below activate a non-remote (and so visible) library. */
-  }
-  else {
-    BKE_preferences_asset_library_remove(&U, library);
-  }
-
-  /* If the experimental flag was disabled, make sure the newly activated asset
-   * library is not a remote one. */
-  if (!use_remote_libraries) {
-    int nonremote_index = 0;
-    for (auto [index, lib] : U.asset_libraries.enumerate()) {
-      if (lib.flag & ASSET_LIBRARY_USE_REMOTE_URL) {
-        /* Ignore remote libraries. */
-        continue;
-      }
-
-      nonremote_index = index;
-      if (index >= U.active_asset_library) {
-        /* We've found the first usable library above the deleted one, the search can stop. */
-        break;
-      }
-    }
-    U.active_asset_library = nonremote_index;
-  }
+  BKE_preferences_asset_library_remove(&U, library);
 
   /* Update active library index to be in range. */
   const int count_remaining = BLI_listbase_count(&U.asset_libraries);
