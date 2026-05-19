@@ -5,7 +5,13 @@
 /** \file
  * \ingroup bmesh
  *
- * Distributes vertices evenly along an edge.
+ * Distributes vertices evenly along one or more edge loops.
+ * Endpoints of edge loops are not modified unless the loop is
+ * cyclic.
+ *
+ * Vertices along the edge loop are redistributed to uniform spacing
+ * based on the cumulative length of the edge loop and are interpolated
+ * either smoothly via a natural cubic spline or linearly.
  */
 #include "BLI_binary_search.hh"
 #include "BLI_math_geom.h"
