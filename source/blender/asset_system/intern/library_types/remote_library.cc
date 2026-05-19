@@ -777,7 +777,7 @@ static std::optional<std::string> remote_library_request_asset_download_file(
     return std::nullopt;
   }
   if ((*abs_url_idptr)->type != IDP_STRING) {
-    CLOG_ERROR(&LOG, "Failed to retrieve URL from downloader - rxpected string return value");
+    CLOG_ERROR(&LOG, "Failed to retrieve URL from downloader - expected string return value");
     return std::nullopt;
   }
 

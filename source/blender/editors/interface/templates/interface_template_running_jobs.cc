@@ -340,7 +340,7 @@ void template_running_jobs(Layout *layout, bContext *C)
     uiDefIconTextBut(block,
                      ButtonType::Label,
                      ICON_ASSET_MANAGER,
-                     "Downloading Assets",
+                     IFACE_("Downloading Assets"),
                      0,
                      0,
                      UI_UNIT_X,

@@ -1748,7 +1748,7 @@ void RNA_api_asset_library_loading_status(StructRNA *srna)
                           "rna_asset_library_status_ping_asset_file_succeeded");
   RNA_def_function_ui_description(func,
                                   "Inform the asset system that a single asset file download has "
-                                  "finished sucessfully.");
+                                  "finished successfully.");
   RNA_def_function_flag(func, FUNC_NO_SELF | FUNC_USE_CONTEXT);
   parm = RNA_def_string(func,
                         "library_url",
