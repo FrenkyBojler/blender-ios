@@ -458,7 +458,7 @@ static void pose_slide_apply_property_snapshots(tPoseSlideOp &pso,
         break;
 
       case POSESLIDE_BLEND: {
-        const float blend_factor = fabs((factor - 0.5f) * 2);
+        const float blend_factor = fabsf((factor - 0.5f) * 2);
         if (factor < 0.5) {
           values = ed::property_interpolated(base_values, prev_frame_values, blend_factor);
         }
@@ -1518,7 +1518,7 @@ static void propagate_curve_values(ListBaseT<SlideSubject> *slide_subjects,
 {
   using namespace blender::animrig;
   const KeyframeSettings settings = get_keyframe_settings(true);
-  for (const SlideSubject &slide_subject : *slide_subjects) {
+  for (SlideSubject &slide_subject : *slide_subjects) {
     for (FCurve *fcu : slide_subject.fcurves) {
       if (!fcu->bezt) {
         continue;
