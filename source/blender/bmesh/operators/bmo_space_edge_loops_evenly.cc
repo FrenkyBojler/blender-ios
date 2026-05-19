@@ -272,13 +272,13 @@ static void calculate_splines_axis(Span<float> distances,
     const int interior = num_verts - 2;
     Array<float> lower_diag(interior), diag(interior), upper_diag(interior), rhs(interior);
 
-    for (const int i : IndexRange(interior)) {
-      const int v_index = i + 1;
-      lower_diag[i] = segment_length[v_index - 1];
-      diag[i] = 2.0f * (segment_length[v_index - 1] + segment_length[v_index]);
-      upper_diag[i] = segment_length[v_index];
-      rhs[i] = 3.0f * (((coords[v_index + 1] - coords[v_index]) / segment_length[v_index]) -
-                       ((coords[v_index] - coords[v_index - 1]) / segment_length[v_index - 1]));
+    for (const int i_curr : IndexRange(interior)) {
+      const int i_next = i_curr + 1;
+      lower_diag[i_curr] = segment_length[i_curr];
+      diag[i_curr] = 2.0f * (segment_length[i_curr] + segment_length[i_next]);
+      upper_diag[i_curr] = segment_length[i_next];
+      rhs[i_curr] = 3.0f * (((coords[i_next + 1] - coords[i_next]) / segment_length[i_next]) -
+                            ((coords[i_next] - coords[i_curr]) / segment_length[i_curr]));
     }
     BLI_tridiagonal_solve(lower_diag.data(),
                           diag.data(),
