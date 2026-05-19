@@ -42,7 +42,8 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Menu>("Mode"_ustr).static_items(mode_items).optional_label();
   b.add_input<decl::Menu>("Pattern Mode"_ustr)
       .static_items(string_pattern_mode_items)
-      .optional_label();
+      .optional_label()
+      .usage_by_menu("Mode"_ustr, int(Mode::BundleType));
   b.add_input<decl::String>("Bundle Type"_ustr)
       .optional_label()
       .usage_by_menu("Mode"_ustr, int(Mode::BundleType));
