@@ -358,9 +358,7 @@ void TextureCopy::execute() const
 {
   gpu::Texture *exec_src = src_is_ref ? *src_ref : src;
   gpu::Texture *exec_dst = dst_is_ref ? *dst_ref : dst;
-  if (!exec_src || !exec_dst) {
-    return;
-  }
+
   if (!GPU_texture_is_view(exec_src) && !GPU_texture_is_view(exec_dst)) {
     GPU_texture_copy(exec_dst, exec_src);
     return;
