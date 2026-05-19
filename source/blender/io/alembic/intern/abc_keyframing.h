@@ -2,6 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#pragma once
+
 #include <functional>
 
 #include <Alembic/Abc/ISampleSelector.h>
@@ -51,7 +53,7 @@ class FCurveCreationHelper {
 
   /* Called every frame. Derived classes should set the sample for every FCurve that they have
    * created. */
-  virtual void set_fcurves_sample(FrameSampleInfo sample_info) = 0;
+  virtual void set_fcurves_sample(const FrameSampleInfo &sample_info) = 0;
 
   void finish();
 

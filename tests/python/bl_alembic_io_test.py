@@ -514,7 +514,7 @@ class AlembicAnimatedVisibilityImportTests(AbstractAlembicTest):
         next_fib = a + b
 
         # Compare visibility against the expected value for every frame
-        for frame in range(1, 24):
+        for frame in range(1, 25):
             bpy.context.scene.frame_set(frame)
             depsgraph = bpy.context.evaluated_depsgraph_get()
             point_object = bpy.data.objects["ANIMATED"].evaluated_get(depsgraph)
@@ -534,7 +534,7 @@ class AlembicAnimatedVisibilityImportTests(AbstractAlembicTest):
 
 
 class AlembicAnimatedCameraImportTests(AbstractAlembicTest):
-    def test_import_visibility_animated(self):
+    def test_import_camera_data_animation(self):
         res = bpy.ops.wm.alembic_import(
             filepath=str(self.testdir / "camera-data-animated.abc"),
             as_background_job=False)
@@ -543,7 +543,7 @@ class AlembicAnimatedCameraImportTests(AbstractAlembicTest):
         view_layer = bpy.context.view_layer
 
         # Compare Blender data against the expected value for every frame
-        for frame in range(1, 25):
+        for frame in range(1, 26):
             bpy.context.scene.frame_set(frame)
             depsgraph = bpy.context.evaluated_depsgraph_get()
             camera_object = bpy.data.objects["Camera"].evaluated_get(depsgraph)

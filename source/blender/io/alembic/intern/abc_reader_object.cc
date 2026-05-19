@@ -173,7 +173,6 @@ bool AbcObjectReader::topology_changed(const Mesh * /*existing_mesh*/,
 }
 
 class VisibilityFCurveCreationHelper : public FCurveCreationHelper {
-  Object *object_ = nullptr;
   IObject vis_object_{};
   IVisibilityProperty vis_prop_{};
 
@@ -181,11 +180,10 @@ class VisibilityFCurveCreationHelper : public FCurveCreationHelper {
   FCurve *render_fcurve = nullptr;
 
  public:
-  VisibilityFCurveCreationHelper(Object *object, IObject vis_object, IVisibilityProperty vis_prop)
-      : FCurveCreationHelper(&object->id),
-        object_(object),
-        vis_object_(vis_object),
-        vis_prop_(vis_prop)
+  VisibilityFCurveCreationHelper(Object *object,
+                                 const IObject &vis_object,
+                                 const IVisibilityProperty &vis_prop)
+      : FCurveCreationHelper(&object->id), vis_object_(vis_object), vis_prop_(vis_prop)
   {
   }
 
@@ -195,12 +193,12 @@ class VisibilityFCurveCreationHelper : public FCurveCreationHelper {
     render_fcurve = create_fcurve({"hide_render", 0}, sample_count);
   }
 
-  void set_fcurves_sample(FrameSampleInfo sample_info) override
+  void set_fcurves_sample(const FrameSampleInfo &sample_info) override
   {
-    auto vis = ObjectVisibility(vis_prop_.getValue(sample_info.selector));
+    ObjectVisibility vis = ObjectVisibility(vis_prop_.getValue(sample_info.selector));
 
     if (vis == Alembic::AbcGeom::kVisibilityDeferred) {
-      auto parent = vis_object_.getParent();
+      IObject parent = vis_object_.getParent();
 
       while (parent) {
         const IVisibilityProperty &parent_vis_prop(

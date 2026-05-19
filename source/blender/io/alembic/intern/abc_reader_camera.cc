@@ -10,6 +10,9 @@
 #include "abc_keyframing.h"
 #include "abc_util.h"
 
+/* Silence warnings from copying deprecated fields. */
+#define DNA_DEPRECATED_ALLOW
+
 #include "DNA_camera_types.h"
 #include "DNA_object_types.h"
 
@@ -126,7 +129,7 @@ void AbcCameraReader::readObjectData(Main *bmain, const ISampleSelector &sample_
 
 class CameraFCurveCreationHelper : public FCurveCreationHelper {
   Camera *camera_ = nullptr;
-  Alembic::AbcGeom::ICameraSchema schema_{};
+  const Alembic::AbcGeom::ICameraSchema &schema_{};
 
   /* Keep track of what has been modified to remove unnecessary fcurves at the end as Alembic
    * seemingly does not have per property information. */
@@ -143,7 +146,7 @@ class CameraFCurveCreationHelper : public FCurveCreationHelper {
 #undef DECLARE_FCURVES
 
  public:
-  CameraFCurveCreationHelper(Camera *camera, Alembic::AbcGeom::ICameraSchema schema)
+  CameraFCurveCreationHelper(Camera *camera, const Alembic::AbcGeom::ICameraSchema &schema)
       : FCurveCreationHelper(&camera->id), camera_(camera), schema_(schema)
   {
   }
@@ -156,7 +159,7 @@ class CameraFCurveCreationHelper : public FCurveCreationHelper {
 #undef CREATE_FCURVE
   }
 
-  void set_fcurves_sample(FrameSampleInfo sample_info) override
+  void set_fcurves_sample(const FrameSampleInfo &sample_info) override
   {
     /* To detect what has been modified. */
     Camera last_camera = *camera_;
