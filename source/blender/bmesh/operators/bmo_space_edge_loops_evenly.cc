@@ -13,18 +13,19 @@
  * based on the cumulative length of the edge loop and are interpolated
  * either smoothly via a natural cubic spline or linearly.
  */
+#include <optional>
+
 #include "BLI_binary_search.hh"
+#include "BLI_length_parameterize.hh"
 #include "BLI_math_geom.h"
 #include "BLI_math_solvers.h"
 #include "BLI_math_vector.hh"
-#include "BLI_length_parameterize.hh"
 #include "BLI_set.hh"
 #include "BLI_span.hh"
 #include "BLI_vector.hh"
 
 #include "bmesh.hh"
 #include "intern/bmesh_operators_private.hh" /* own include */
-#include <optional>
 
 namespace blender {
 
