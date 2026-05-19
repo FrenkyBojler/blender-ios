@@ -71,6 +71,30 @@ class BlenderProject {
 };
 
 /**
+ * Run the lambda with the global project mutex locked for reading.
+ *
+ * NOTE: you should avoid using this function directly, except in RNA code where
+ * the project pointer is already directly provided. Prefer using
+ * `BKE_with_blender_project()`, which fetches the appropriate project for a
+ * given `Main`.
+ *
+ * \see BKE_with_blender_project()
+ */
+void with_blender_project_read_lock(FunctionRef<void()> lambda);
+
+/**
+ * Run the lambda with the global project mutex locked for writing.
+ *
+ * NOTE: you should avoid using this function directly, except in RNA code where
+ * the project pointer is already directly provided. Prefer using
+ * `BKE_with_blender_project_write()`, which fetches the appropriate project for
+ * a given `Main`.
+ *
+ * \see BKE_with_blender_project()
+ */
+void with_blender_project_write_lock(FunctionRef<void()> lambda);
+
+/**
  * Underlying impl for `BKE_with_blender_project()`.
  *
  * Please see the documentation for and use `BKE_with_blender_project()` instead

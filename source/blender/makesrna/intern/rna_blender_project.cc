@@ -24,15 +24,10 @@
 
 namespace blender {
 
-static void project_mark_dirty()
+static void project_mark_dirty(bke::BlenderProject *project)
 {
-  BKE_with_blender_project_write(G_MAIN, [&](bke::BlenderProject *project) {
-    if (project == nullptr) {
-      return;
-    }
-
-    project->is_dirty = true;
-  });
+  BLI_assert(project != nullptr);
+  bke::with_blender_project_write_lock([&] { project->is_dirty = true; });
 }
 
 /* For properties that AREN'T saved to disk as part of the project data. */
@@ -43,9 +38,10 @@ static void rna_BlenderProject_ui_update(Main * /*bmain*/, Scene * /*scene*/, Po
 }
 
 /* For properties that ARE saved to disk as part of the project data. */
-static void rna_BlenderProject_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA * /*ptr*/)
+static void rna_BlenderProject_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)
 {
-  project_mark_dirty();
+  bke::BlenderProject *project = static_cast<bke::BlenderProject *>(ptr->data);
+  project_mark_dirty(project);
 
   /* Force full redraw of all windows. */
   WM_main_add_notifier(NC_WINDOW, nullptr);
@@ -53,29 +49,26 @@ static void rna_BlenderProject_update(Main * /*bmain*/, Scene * /*scene*/, Point
 
 static void rna_BlenderProject_name_get(PointerRNA *ptr, char *value)
 {
-  BKE_with_blender_project(G_MAIN, [&](const bke::BlenderProject *locked_project) {
+  bke::with_blender_project_read_lock([&] {
     const bke::BlenderProject *project = static_cast<bke::BlenderProject *>(ptr->data);
-    BLI_assert(project == locked_project);
-
     strcpy(value, project->get_name().c_str());
   });
 }
 
 static int rna_BlenderProject_name_length(PointerRNA *ptr)
 {
-  return BKE_with_blender_project(G_MAIN, [&](const bke::BlenderProject *locked_project) {
+  int name_length;
+  bke::with_blender_project_read_lock([&] {
     const bke::BlenderProject *project = static_cast<bke::BlenderProject *>(ptr->data);
-    BLI_assert(project == locked_project);
-
-    return project->get_name().size();
+    name_length = project->get_name().size();
   });
+  return name_length;
 }
 
 static void rna_BlenderProject_name_set(PointerRNA *ptr, const char *value)
 {
-  BKE_with_blender_project_write(G_MAIN, [&](bke::BlenderProject *locked_project) {
+  bke::with_blender_project_write_lock([&] {
     bke::BlenderProject *project = static_cast<bke::BlenderProject *>(ptr->data);
-    BLI_assert(project == locked_project);
 
     StringRef name = StringRef(value);
 
@@ -90,38 +83,36 @@ static void rna_BlenderProject_name_set(PointerRNA *ptr, const char *value)
 
 static void rna_BlenderProject_root_path_get(PointerRNA *ptr, char *value)
 {
-  BKE_with_blender_project(G_MAIN, [&](const bke::BlenderProject *locked_project) {
+  bke::with_blender_project_read_lock([&] {
     const bke::BlenderProject *project = static_cast<bke::BlenderProject *>(ptr->data);
-    BLI_assert(project == locked_project);
-
     strcpy(value, project->get_root_path().c_str());
   });
 }
 
 static int rna_BlenderProject_root_path_length(PointerRNA *ptr)
 {
-  return BKE_with_blender_project(G_MAIN, [&](const bke::BlenderProject *locked_project) {
+  int root_path_length;
+  bke::with_blender_project_read_lock([&] {
     const bke::BlenderProject *project = static_cast<bke::BlenderProject *>(ptr->data);
-    BLI_assert(project == locked_project);
-
-    return project->get_root_path().size();
+    root_path_length = project->get_root_path().size();
   });
+  return root_path_length;
 }
 
 static bool rna_BlenderProject_is_dirty_get(PointerRNA *ptr)
 {
-  return BKE_with_blender_project(G_MAIN, [&](const bke::BlenderProject *locked_project) {
+  bool is_dirty;
+  bke::with_blender_project_read_lock([&] {
     bke::BlenderProject *project = static_cast<bke::BlenderProject *>(ptr->data);
-    BLI_assert(project == locked_project);
-    return project->is_dirty;
+    is_dirty = project->is_dirty;
   });
+  return is_dirty;
 }
 
 static void rna_BlenderProject_is_dirty_set(PointerRNA *ptr, bool value)
 {
-  BKE_with_blender_project_write(G_MAIN, [&](bke::BlenderProject *locked_project) {
+  bke::with_blender_project_write_lock([&] {
     bke::BlenderProject *project = static_cast<bke::BlenderProject *>(ptr->data);
-    BLI_assert(project == locked_project);
     project->is_dirty = value;
   });
 }

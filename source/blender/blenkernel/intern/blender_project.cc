@@ -83,22 +83,28 @@ StringRefNull BlenderProject::get_root_path() const
   return StringRefNull(this->root_path_);
 }
 
+void with_blender_project_read_lock(FunctionRef<void()> lambda)
+{
+  std::shared_lock<std::shared_mutex> lock(get_project_mutex());
+  lambda();
+}
+
+void with_blender_project_write_lock(FunctionRef<void()> lambda)
+{
+  std::unique_lock<std::shared_mutex> lock(get_project_mutex());
+  lambda();
+}
+
 void with_blender_project_for_read_impl(const Main *bmain,
                                         FunctionRef<void(const bke::BlenderProject *)> lambda)
 {
-  std::shared_lock<std::shared_mutex> lock(get_project_mutex());
-  const bke::BlenderProject *project = BKE_blender_project_get(bmain);
-
-  lambda(project);
+  with_blender_project_read_lock([&] { lambda(BKE_blender_project_get(bmain)); });
 }
 
 void with_blender_project_for_write_impl(const Main *bmain,
                                          FunctionRef<void(bke::BlenderProject *)> lambda)
 {
-  std::unique_lock<std::shared_mutex> lock(get_project_mutex());
-  bke::BlenderProject *project = BKE_blender_project_get(bmain);
-
-  lambda(project);
+  with_blender_project_write_lock([&] { lambda(BKE_blender_project_get(bmain)); });
 }
 
 }  // namespace bke
@@ -125,13 +131,14 @@ bool BKE_blender_project_init(blender::StringRef name, blender::StringRef root_p
 
   BKE_blender_project_clear();
 
-  std::unique_lock<std::shared_mutex> lock(get_project_mutex());
-  std::optional<bke::BlenderProject> &project = get_project();
+  bke::with_blender_project_write_lock([&] {
+    std::optional<bke::BlenderProject> &project = get_project();
 
-  project = blender::bke::BlenderProject();
+    project = blender::bke::BlenderProject();
 
-  project->set_name(name);
-  project->set_root_path(root_path);
+    project->set_name(name);
+    project->set_root_path(root_path);
+  });
 
   return true;
 }
@@ -144,10 +151,11 @@ void BKE_blender_project_clear()
    * one place the code for ensuring those things are properly unloaded when the
    * active project is cleared. */
 
-  std::unique_lock<std::shared_mutex> lock(get_project_mutex());
-  std::optional<bke::BlenderProject> &project = get_project();
+  bke::with_blender_project_write_lock([&] {
+    std::optional<bke::BlenderProject> &project = get_project();
 
-  project = std::nullopt;
+    project = std::nullopt;
+  });
 }
 
 }  // namespace blender
