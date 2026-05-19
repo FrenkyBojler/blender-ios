@@ -1,2 +1,3 @@
 Referenced by issue #158716, Crash in Weight Paint when Clean → Deform Pose Bones
 Referenced by pull request #158757, Fix #158644: Crash on operator redo
+Referenced by commit 2e8dd735a9edb10114a80bebf9be87a962d7bc15, Fix #158644: Crash on operator redo
