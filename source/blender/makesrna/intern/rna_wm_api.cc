@@ -854,11 +854,24 @@ static void rna_asset_library_status_ping_asset_file_progress(const char *absolu
   RemoteLibraryLoadingStatus::ping_asset_file_progress(absolute_file_url, size_written);
 }
 
-static void rna_asset_library_status_ping_asset_file_done(bContext *C,
-                                                          const char *library_url,
-                                                          const char *absolute_file_url)
+static void rna_asset_library_status_ping_asset_file_succeeded(bContext *C,
+                                                               const char *library_url,
+                                                               const char *absolute_file_url)
 {
-  RemoteLibraryLoadingStatus::ping_asset_file_download_done(*C, library_url, absolute_file_url);
+  RemoteLibraryLoadingStatus::ping_asset_file_download_succeeded(
+      *C, library_url, absolute_file_url);
+}
+
+static void rna_asset_library_status_ping_asset_file_failed(bContext *C,
+                                                            const char *library_url,
+                                                            const char *absolute_file_url)
+{
+  RemoteLibraryLoadingStatus::ping_asset_file_download_failed(*C, library_url, absolute_file_url);
+}
+
+static void rna_asset_library_status_ping_download_queue_empty(bContext *C)
+{
+  RemoteLibraryLoadingStatus::ping_asset_file_download_queue_empty(*C);
 }
 
 static void rna_asset_library_status_finished_loading(const char *library_url)
@@ -1731,11 +1744,11 @@ void RNA_api_asset_library_loading_status(StructRNA *srna)
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 
   func = RNA_def_function(srna,
-                          "asset_library_status_ping_asset_file_done",
-                          "rna_asset_library_status_ping_asset_file_done");
+                          "asset_library_status_ping_asset_file_succeeded",
+                          "rna_asset_library_status_ping_asset_file_succeeded");
   RNA_def_function_ui_description(func,
                                   "Inform the asset system that a single asset file download has "
-                                  "finished, sucessfully or not.");
+                                  "finished sucessfully.");
   RNA_def_function_flag(func, FUNC_NO_SELF | FUNC_USE_CONTEXT);
   parm = RNA_def_string(func,
                         "library_url",
@@ -1751,6 +1764,35 @@ void RNA_api_asset_library_loading_status(StructRNA *srna)
                         "URL",
                         "The absolute URL this file was downloaded from");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+
+  func = RNA_def_function(srna,
+                          "asset_library_status_ping_asset_file_failed",
+                          "rna_asset_library_status_ping_asset_file_failed");
+  RNA_def_function_ui_description(func,
+                                  "Inform the asset system that a single asset file download has "
+                                  "stopped because of some failure.");
+  RNA_def_function_flag(func, FUNC_NO_SELF | FUNC_USE_CONTEXT);
+  parm = RNA_def_string(func,
+                        "library_url",
+                        nullptr,
+                        0,
+                        "URL",
+                        "The URL identifying the asset library being loaded");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+  parm = RNA_def_string(func,
+                        "absolute_file_url",
+                        nullptr,
+                        0,
+                        "URL",
+                        "The absolute URL this file was downloaded from");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+
+  func = RNA_def_function(srna,
+                          "asset_library_status_ping_download_queue_empty",
+                          "rna_asset_library_status_ping_download_queue_empty");
+  RNA_def_function_ui_description(
+      func, "Inform the asset system that an asset library's download queue became empty.");
+  RNA_def_function_flag(func, FUNC_NO_SELF | FUNC_USE_CONTEXT);
 
   func = RNA_def_function(
       srna, "asset_library_status_finished_loading", "rna_asset_library_status_finished_loading");

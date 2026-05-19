@@ -70,7 +70,7 @@ def download_asset_file(
             asset_library_url,
             asset_library_local_path,
             reporter=AssetReporter(asset_library_url=asset_library_url),
-            on_queue_empty_callback=on_asset_download_queue_empty,
+            on_queue_empty_callback=bpy.types.WindowManager.asset_library_status_ping_download_queue_empty,
         )
         downloader.start()
         _asset_downloaders[asset_library_url] = downloader
@@ -187,14 +187,6 @@ def downloader_status(asset_library_url: str) -> DownloadStatus:
     Raises a KeyError if there never was a downloader for this URL.
     """
     return _asset_downloaders[asset_library_url].status
-
-
-def on_asset_download_queue_empty() -> None:
-    """Called by the asset downloader when its download queue emptied."""
-    if any_asset_downloading():
-        return
-    # TODO: ping Blender that all asset downloads are done.
-    logger.info("Asset downloader: all assets are done downloading")
 
 
 def any_asset_downloading() -> bool:
@@ -561,7 +553,8 @@ class AssetReporter:
         local_file: Path,
     ) -> None:
         logger.debug("Download unnecessary, file already downloaded: %s", http_req_descr.url)
-        bpy.types.WindowManager.asset_library_status_ping_asset_file_done(self.asset_library_url, http_req_descr.url)
+        bpy.types.WindowManager.asset_library_status_ping_asset_file_succeeded(
+            self.asset_library_url, http_req_descr.url)
 
     def download_error(
         self,
@@ -570,16 +563,15 @@ class AssetReporter:
         error: Exception,
     ) -> None:
         logger.warning("Could not download file %s: %s", http_req_descr, error)
-        # TODO: tell Blender about this error.
-        # The call below is here just to make a pull request a non-functional change.
-        bpy.types.WindowManager.asset_library_status_ping_asset_file_done(self.asset_library_url, http_req_descr.url)
+        bpy.types.WindowManager.asset_library_status_ping_asset_file_failed(self.asset_library_url, http_req_descr.url)
 
     def download_progress(
         self,
         http_req_descr: http_dl.RequestDescription,
         progress: http_dl.DownloadProgress,
     ) -> None:
-        bpy.types.WindowManager.asset_library_status_ping_asset_file_progress(http_req_descr.url, progress.disk_bytes_written)
+        bpy.types.WindowManager.asset_library_status_ping_asset_file_progress(
+            http_req_descr.url, progress.disk_bytes_written)
 
     def download_finished(
         self,
@@ -587,7 +579,8 @@ class AssetReporter:
         local_file: Path,
     ) -> None:
         logger.info("Download finished: %s to %s", http_req_descr, local_file)
-        bpy.types.WindowManager.asset_library_status_ping_asset_file_done(self.asset_library_url, http_req_descr.url)
+        bpy.types.WindowManager.asset_library_status_ping_asset_file_succeeded(
+            self.asset_library_url, http_req_descr.url)
 
 
 @dataclasses.dataclass

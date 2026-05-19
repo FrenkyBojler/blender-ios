@@ -193,6 +193,11 @@ struct ProgressData {
   Map<std::string, FileProgress> done_files;
 };
 
+enum class DownloadOutcome {
+  Succeeded,
+  Failed,
+};
+
 struct ProgressTracker {
   static ProgressData current;
 
@@ -205,7 +210,9 @@ struct ProgressTracker {
                              int64_t size_in_bytes);
   static void file_report_progress(StringRef absolute_file_url, int64_t size_in_bytes);
   /** Should be called when a file download is finished, successfully or not. */
-  static void file_finished(const bContext &C, StringRef absolute_file_url);
+  static void file_finished(StringRef absolute_file_url, DownloadOutcome outcome);
+  /** Should be called when any library's download queue becomes empty. */
+  static void download_queue_empty(const bContext &C);
 
   /** Should be called when all downloads finished, successfully or not. */
   static void on_all_finished(wmWindowManager &wm);
@@ -285,20 +292,31 @@ void ProgressTracker::file_report_progress(const StringRef absolute_file_url,
   }
 }
 
-void ProgressTracker::file_finished(const bContext &C, const StringRef absolute_file_url)
+void ProgressTracker::file_finished(const StringRef absolute_file_url,
+                                    const DownloadOutcome outcome)
 {
-  /* Whenever a file finishes, update the "any downloading" flag. We call into Python for this, so
-   * by only doing it when a file finishes, we avoid unnecessary calls. */
-  ProgressTracker::current.any_asset_file_loading = downloader_status_any_asset_downloading(C);
-
-  if (!ProgressTracker::current.any_asset_file_loading) {
-    ProgressTracker::on_all_finished(*CTX_wm_manager(&C));
-  }
   if (FileProgress *progress = ProgressTracker::current.requested_files.lookup_ptr_as(
           absolute_file_url))
   {
-    ProgressTracker::current.done_files.add(absolute_file_url, *progress);
+    switch (outcome) {
+      case DownloadOutcome::Failed:
+        /* The file is 'done', but shouldn't count towards any download progress any more. */
+        break;
+      case DownloadOutcome::Succeeded:
+        ProgressTracker::current.done_files.add(absolute_file_url, *progress);
+        break;
+    }
+
+    /* Regardless of the outcome, the file is no longer downloading. */
     ProgressTracker::current.requested_files.remove_contained_as(absolute_file_url);
+  }
+}
+
+void ProgressTracker::download_queue_empty(const bContext &C)
+{
+  ProgressTracker::current.any_asset_file_loading = downloader_status_any_asset_downloading(C);
+  if (!ProgressTracker::current.any_asset_file_loading) {
+    ProgressTracker::on_all_finished(*CTX_wm_manager(&C));
   }
 }
 
@@ -428,19 +446,38 @@ void RemoteLibraryLoadingStatus::ping_asset_file_progress(const StringRef absolu
   ProgressTracker::file_report_progress(absolute_file_url, size_in_bytes);
 }
 
-void RemoteLibraryLoadingStatus::ping_asset_file_download_done(const bContext &C,
-                                                               const StringRef library_url,
-                                                               const StringRef absolute_file_url)
+static void ping_asset_file_done_impl(const bContext &C,
+                                      const StringRef library_url,
+                                      const StringRef absolute_file_url,
+                                      const DownloadOutcome outcome)
 {
   wmWindowManager *wm = CTX_wm_manager(&C);
 
   ed::asset::list::on_remote_assets_downloaded(*wm, library_url);
-  ProgressTracker::file_finished(C, absolute_file_url);
+  ProgressTracker::file_finished(absolute_file_url, outcome);
 
   /* Redraw drags, they may show some "asset being downloaded" info. */
   if (!BLI_listbase_is_empty(&wm->runtime->drags)) {
     WM_event_add_mousemove(CTX_wm_window(&C));
   }
+}
+
+void RemoteLibraryLoadingStatus::ping_asset_file_download_succeeded(
+    const bContext &C, const StringRef library_url, const StringRef absolute_file_url)
+{
+  ping_asset_file_done_impl(C, library_url, absolute_file_url, DownloadOutcome::Succeeded);
+}
+
+void RemoteLibraryLoadingStatus::ping_asset_file_download_failed(const bContext &C,
+                                                                 const StringRef library_url,
+                                                                 const StringRef absolute_file_url)
+{
+  ping_asset_file_done_impl(C, library_url, absolute_file_url, DownloadOutcome::Failed);
+}
+
+void RemoteLibraryLoadingStatus::ping_asset_file_download_queue_empty(const bContext &C)
+{
+  ProgressTracker::download_queue_empty(C);
 }
 
 void RemoteLibraryLoadingStatus::ping_metafiles_in_place(const StringRef url)
