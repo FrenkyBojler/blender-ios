@@ -736,8 +736,6 @@ static inline uint object_ray_visibility(blender::Object &b_ob)
   flag |= ((b_ob.visibility_flag & blender::OB_HIDE_VOLUME_SCATTER) == 0) ?
               PATH_RAY_VOLUME_SCATTER :
               PathRayFlag(0);
-  flag |= ((b_ob.visibility_flag & blender::OB_HIDE_RAYCAST) == 0) ? PATH_RAY_RAYCAST :
-                                                                     PathRayFlag(0);
 
   return flag;
 }

@@ -154,19 +154,17 @@ enum PathRayFlag : uint32_t {
   PATH_RAY_SHADOW_TRANSPARENT = (1U << 10U),
   PATH_RAY_SHADOW = (PATH_RAY_SHADOW_OPAQUE | PATH_RAY_SHADOW_TRANSPARENT),
 
-  PATH_RAY_RAYCAST = (1U << 11U),
-
   /* Subset of flags used for ray visibility for intersection.
    *
    * NOTE: SHADOW_CATCHER macros below assume there are no more than
    * 16 visibility bits. */
-  PATH_RAY_ALL_VISIBILITY = ((1U << 12U) - 1U),
+  PATH_RAY_ALL_VISIBILITY = ((1U << 11U) - 1U),
 
   /* Special flag to tag unaligned BVH nodes.
    * Only set and used in BVH nodes to distinguish how to interpret bounding box information stored
    * in the node (either it should be intersected as AABB or as OBBU).
    * So this can overlap with path flags. */
-  PATH_RAY_NODE_UNALIGNED = (1U << 12U),
+  PATH_RAY_NODE_UNALIGNED = (1U << 11U),
 
   /* --------------------------------------------------------------------
    * Path flags.
