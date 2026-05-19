@@ -222,7 +222,7 @@ static SpaceMeasurements measure_chain(const SpaceChainData &chain)
  */
 static void calculate_splines_axis(Span<float> distances,
                                    Span<float> coords,
-                                   bool is_closed,
+                                   const bool is_closed,
                                    float total_length,
                                    Vector<SplineCoeffs> &r_coeffs)
 {
@@ -302,7 +302,7 @@ static void calculate_splines_axis(Span<float> distances,
 }
 
 /** Return the index of the spline segment that contains target_distance. */
-static int find_spline_segment(Span<float> knot_distances, float target_distance)
+static int find_spline_segment(Span<float> knot_distances, const float target_distance)
 {
   const int segment_index = binary_search::last_if(
       knot_distances, [&](const float value) { return value <= target_distance; });
@@ -314,7 +314,7 @@ static float3 evaluate_cubic(Span<float> tknots,
                              Span<SplineCoeffs> coeffs_x,
                              Span<SplineCoeffs> coeffs_y,
                              Span<SplineCoeffs> coeffs_z,
-                             float target_distance)
+                             const float target_distance)
 {
   int segment = find_spline_segment(tknots, target_distance);
   float dt = target_distance - coeffs_x[segment].x;
