@@ -63,6 +63,9 @@ class TreeElementOverridesProperty : public AbstractTreeElement {
   TreeElementOverridesProperty(TreeElement &legacy_te, TreeElementOverridesData &override_data);
 
   StringRefNull get_warning() const override;
+
+  /** Return the liboverride property matching this tree element, for the given ID. */
+  IDOverrideLibraryProperty *get_override_property_from_id(ID &id) const;
 };
 
 /**
@@ -85,6 +88,16 @@ class TreeElementOverridesPropertyOperation final : public TreeElementOverridesP
    * the override operation did (e.g. added or removed a collection item). */
   StringRefNull get_override_operation_label() const;
   std::optional<BIFIconID> get_icon() const override;
+
+  /** Return liboverride operation type (#eID_OverrideLib_Op). */
+  short get_operation() const;
+
+  /**
+   * Return the liboverride operation matching this tree element, for the given ID and library
+   * override property.
+   */
+  IDOverrideLibraryPropertyOperation *get_override_operation_from_id(
+      ID &id, IDOverrideLibraryProperty &override_property) const;
 
  private:
   std::optional<PointerRNA> get_collection_ptr() const;

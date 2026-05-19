@@ -109,6 +109,12 @@ static const EnumPropertyItem rna_enum_override_library_property_operation_items
      "Insert Before",
      "Insert a new item into collection before the one referenced in "
      "subitem_reference_name/_id or _index (NOT USED)"},
+    {LIBOVERRIDE_OP_CUSTOM,
+     "CUSTOM",
+     0,
+     "Custom",
+     "Custom operation, specific to a RNA property, and handled through dedicated callbacks (used "
+     "in specific cases, e.g. to handle data not actually exposed in RNA)"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 

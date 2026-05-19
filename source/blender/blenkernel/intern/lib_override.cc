@@ -4595,6 +4595,10 @@ bool BKE_lib_override_library_property_operation_operands_validate(
   switch (liboverride_property_operation->operation) {
     case LIBOVERRIDE_OP_NOOP:
       return true;
+    case LIBOVERRIDE_OP_CUSTOM:
+      /* No way to validate these here, custom RNA liboverride callbacks have to take care of
+       * validation. */
+      return true;
     case LIBOVERRIDE_OP_ADD:
       ATTR_FALLTHROUGH;
     case LIBOVERRIDE_OP_SUBTRACT:
@@ -5547,6 +5551,8 @@ StringRefNull BKE_lib_override_operation_as_string(const eID_OverrideLib_Op oper
       return "Insert After";
     case LIBOVERRIDE_OP_INSERT_BEFORE:
       return "Insert Before";
+    case LIBOVERRIDE_OP_CUSTOM:
+      return "Custom";
   }
   BLI_assert_unreachable();
   return "Unknown";
