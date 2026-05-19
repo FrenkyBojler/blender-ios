@@ -395,7 +395,7 @@ int ANIM_add_driver(ReportList *reports,
   int array_index_max;
   int done_tot = 0;
 
-  /* validate pointer first - exit if failure */
+  /* Validate pointer first - exit if failure. */
   PointerRNA id_ptr = RNA_id_pointer_create(id);
   if (RNA_path_resolve_property(&id_ptr, rna_path, &ptr, &prop) == false) {
     BKE_reportf(
@@ -407,7 +407,7 @@ int ANIM_add_driver(ReportList *reports,
     return 0;
   }
 
-  /* key entire array convenience method */
+  /* Key entire array convenience method. */
   if (array_index == -1) {
     array_index_max = RNA_property_array_length(&ptr, prop);
     array_index = 0;
@@ -416,52 +416,42 @@ int ANIM_add_driver(ReportList *reports,
     array_index_max = array_index;
   }
 
-  /* maximum index should be greater than the start index */
+  /* Maximum index should be greater than the start index. */
   if (array_index == array_index_max) {
     array_index_max += 1;
   }
 
-  /* will only loop once unless the array index was -1 */
+  /* Will only loop once unless the array index was -1. */
   for (; array_index < array_index_max; array_index++) {
-    /* create F-Curve with Driver */
+    /* Create F-Curve with Driver. */
     fcu = verify_driver_fcurve(id, rna_path, array_index, DRIVER_FCURVE_KEYFRAMES);
 
     if (fcu && fcu->driver) {
       ChannelDriver *driver = fcu->driver;
 
-      /* set the type of the driver */
       driver->type = type;
 
-      /* Creating drivers for buttons will create the driver(s) with type
-       * "scripted expression".
-       *
-       * If the "default dvar" option (for easier UI setup of drivers) is provided,
-       * include "var" in the expressions too, so that the user doesn't have to edit
-       * it to get something to happen.
-       */
+      /* Adding drivers via the UI will create the driver(s) with type
+       * "scripted expression". */
       if (type == DRIVER_TYPE_PYTHON) {
         char *expression = driver->expression;
         const size_t expression_maxncpy = sizeof(driver->expression);
 
-        /* for easier setup of drivers from UI, a driver variable should be
-         * added if flag is set (UI calls only)
-         */
         if (flag & CREATEDRIVER_WITH_DEFAULT_DVAR) {
-          /* assume that users will mostly want this to be of type "Transform Channel" too,
-           * since this allows the easiest setting up of common rig components
-           */
+          /* Add a driver variable ("var") if driver was added from the UI. */
           BLI_strncpy_utf8(expression, "var", expression_maxncpy);
           DriverVar *dvar = driver_add_new_variable(driver);
+          /* Assumes users will mostly want "Transform Channel". */
           driver_change_variable_type(dvar, DVAR_TYPE_TRANSFORM_CHAN);
         }
       }
     }
 
-    /* set the done status */
+    /* Set the done status. */
     done_tot += (fcu != nullptr);
   }
 
-  /* done */
+  /* Done. */
   return done_tot;
 }
 
