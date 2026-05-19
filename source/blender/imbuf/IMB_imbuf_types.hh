@@ -281,17 +281,6 @@ enum {
 
 /** \} */
 
-/* -------------------------------------------------------------------- */
-/** \name ImBuf Preset Profile Tags
- *
- * \brief Some predefined color space profiles that 8 bit imbufs can represent.
- * \{ */
-
-#define IB_PROFILE_LINEAR_RGB 1
-#define IB_PROFILE_SRGB 2
-
-/** \} */
-
 /**
  * Known image extensions, in most cases these match values
  * for images which Blender creates, there are some exceptions to this.
