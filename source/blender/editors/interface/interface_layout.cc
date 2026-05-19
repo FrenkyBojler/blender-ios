@@ -1082,7 +1082,7 @@ static void keymap_but_cb(bContext * /*C*/, void *but_v, void * /*key_v*/)
  *
  * \param w_hint: For varying width layout, this becomes the label width.
  *                Otherwise it's used to fit both items into it.
- * \param button_type: Overrides the default button type for \a prop, see #uiDefAutoButR.
+ * \param button_type_override: Overrides the default button type for \a prop, see #uiDefAutoButR.
  * \param caller_fn_name: A friendly function name of the caller for tracing keymap item warnings,
  * matching the RNA struct function name. For example `"UILayout.prop()"`.
  */
@@ -2271,8 +2271,10 @@ void Layout::prop(PointerRNA *ptr,
     if (is_id_name_prop) {
       Main *bmain = CTX_data_main(static_cast<bContext *>(block->evil_C));
       ID *id = ptr->owner_id;
-      button_func_rename_full_set(
-          but, [bmain, id](const std::string &new_name) { ED_id_rename(*bmain, *id, new_name); });
+      BLI_assert(type == PROP_STRING);
+      BLI_assert(!RNA_property_string_search_flag(prop));
+      text_button_func_rename_full_set(
+          but, [bmain, id](StringRefNull new_name) { ED_id_rename(*bmain, *id, new_name); });
     }
 
     if (layout->red_alert()) {
