@@ -92,6 +92,7 @@ struct LayoutRoot {
   const uiStyle *style;
   Block *block;
   Layout *layout;
+  LayoutDirection direction;
 };
 
 /* Item */
@@ -195,6 +196,7 @@ Layout::Layout(ItemType type, LayoutRoot *root) : Item(type), root_{root} {};
 
 struct ButtonItem : public Item {
   Button *but = nullptr;
+  std::optional<int> full_width = std::nullopt;
   ButtonItem() : Item(ItemType::Button) {}
 };
 
@@ -562,15 +564,16 @@ int LayoutInternal::layout_space_get(Layout *layout)
 LayoutDirection Layout::local_direction() const
 {
   switch (this->type()) {
-    case ItemType::LayoutRow:
     case ItemType::LayoutRoot:
+      return this->root_->direction;
+    case ItemType::LayoutRow:
     case ItemType::LayoutOverlap:
     case ItemType::LayoutPanelHeader:
     case ItemType::LayoutGridFlow:
+    case ItemType::LayoutSplit:
       return LayoutDirection::Horizontal;
     case ItemType::LayoutColumn:
     case ItemType::LayoutColumnFlow:
-    case ItemType::LayoutSplit:
     case ItemType::LayoutAbsolute:
     case ItemType::LayoutBox:
     case ItemType::LayoutPanelBody:
@@ -5600,10 +5603,193 @@ void Layout::resolve()
   }
 }
 
+static int text_icon_full_width(const StringRefNull name,
+                                int icon,
+                                const TextIconPadFactor &pad_factor,
+                                const uiFontStyle *fstyle)
+{
+  /* When there is no text, always behave as if this is an icon-only button
+   * since it's not useful to return empty space. */
+  if (icon && name.is_empty()) {
+    return UI_UNIT_X * (1.0f + pad_factor.icon_only);
+  }
+
+  if (!icon && name.is_empty()) {
+    return UI_UNIT_X * (1.0f + pad_factor.icon_only);
+  }
+
+  float margin = pad_factor.text;
+  if (icon) {
+    margin += pad_factor.icon;
+  }
+
+  return fontstyle_string_width(fstyle, name.c_str()) + std::ceil(UI_UNIT_X * margin);
+}
+
+static int item_estimate_fit_text_extra_width(Item &item)
+{
+  if (item.type() == ItemType::Button) {
+    auto &button_item = static_cast<ButtonItem &>(item);
+    const Button &button = *button_item.but;
+    if (button.str.empty()) {
+      return 0;
+    }
+    int width = BLI_rctf_size_x(&button.rect);
+
+    if (button_item.full_width) {
+      return std::max(*button_item.full_width - width, 0);
+    }
+
+    int full_width = width;
+    if (button.type == ButtonType::Label) {
+      full_width = text_icon_full_width(button.str, button.icon, text_pad_none, UI_FSTYLE_WIDGET);
+    }
+    else if (button.rnaprop && RNA_property_type(button.rnaprop) == PROP_BOOLEAN) {
+      full_width = text_icon_full_width(
+          button.str, button.icon, text_pad_default, UI_FSTYLE_WIDGET);
+    }
+    button_item.full_width = std::nullopt;
+    return std::max(full_width - width, 0);
+  }
+
+  auto &layout = static_cast<const Layout &>(item);
+  if (layout.items().is_empty()) {
+    return 0;
+  }
+
+  if (layout.type() == ItemType::LayoutSplit) {
+    /* Do width proportionally for split sub-items. */
+    float factor = 1.0f;
+    for (auto &sub : layout.items()) {
+      factor = std::max(factor,
+                        (sub->size().x + item_estimate_fit_text_extra_width(*sub)) /
+                            float(sub->size().x));
+    }
+    return int((layout.size().x * (factor - 1)));
+  }
+
+  if (layout.local_direction() == LayoutDirection::Vertical) {
+    int max_extra_width = 0;
+    for (auto &sub : layout.items()) {
+      max_extra_width = std::max(max_extra_width, item_estimate_fit_text_extra_width(*sub));
+    }
+    return max_extra_width;
+  }
+  /* For fixed or auto fixed sub items adds it extra fit width. */
+  int add_extra_width = 0;
+  /* For non fixed or non auto fixed sub items add the max fit width per item. */
+  int max_extra_width = 0;
+  int max_extra_width_n = 0;
+
+  for (auto &sub : layout.items()) {
+    if (sub->type() != ItemType::Button) {
+      if (sub->fixed_size() || ItemInternal::auto_fixed_size(sub)) {
+        add_extra_width += item_estimate_fit_text_extra_width(*sub);
+        continue;
+      }
+    }
+    max_extra_width = std::max(max_extra_width, item_estimate_fit_text_extra_width(*sub));
+    max_extra_width_n++;
+  }
+  return add_extra_width + (max_extra_width * max_extra_width_n);
+}
+
+/**
+ * When the block is a popup/popover it estimates the necesary width so buttons can fit text
+ * nicely, avoiding text truncation between different languages.
+ */
+static std::optional<int> layout_estimate_popup_fit_width(Layout *layout)
+{
+  Block *block = layout->block();
+  block->popup_auto_width.width = layout->width();
+  block->popup_auto_width.oldwidth = layout->width();
+
+  if (!(block_is_popup_any(block) && !block_is_menu(block) && !block_is_pie_menu(block))) {
+    return std::nullopt;
+  }
+  int extra_width = item_estimate_fit_text_extra_width(*layout);
+  if (extra_width == 0) {
+    return std::nullopt;
+  }
+  else {
+    const int old_width = block->popup_auto_width.oldwidth;
+    int new_width = std::max<float>(old_width, extra_width + layout->width());
+    const int min_width = block->popup_auto_width.min_width;
+    new_width = std::clamp(new_width, min_width, min_width * 2);
+    if (new_width > old_width) {
+      return new_width;
+    }
+    return std::nullopt;
+  }
+}
+
+struct ItemSourceState {
+  Item *item;
+  int2 pos;
+  int2 size;
+  bool auto_fixed;
+  bool fixed_size;
+};
+
+static void backup_item_source_state_recursive(Vector<ItemSourceState> &items_source_states,
+                                               Item &item)
+{
+  items_source_states.append({
+      .item = &item,
+      .pos = item.offset(),
+      .size = item.size(),
+      .auto_fixed = ItemInternal::auto_fixed_size(&item),
+      .fixed_size = item.fixed_size(),
+  });
+  if (item.type() == ItemType::Button) {
+    return;
+  }
+  Layout &layout = static_cast<Layout &>(item);
+  for (Item *sub : layout.items()) {
+    backup_item_source_state_recursive(items_source_states, *sub);
+  }
+}
+
 static int2 layout_end(Layout *layout)
 {
+
+  Vector<ItemSourceState> items_source_states;
+  Block *block = layout->block();
+  /* Some popups tags blocks as popups before using #block_layout, check again now. */
+  if (block_is_popup_any(block)) {
+    if (block->popup_auto_width.min_width == 0) {
+      block->popup_auto_width.min_width = layout->width();
+    }
+  }
+  if (block_is_popup_any(block) && !block_is_menu(block) && !block_is_pie_menu(block)) {
+    backup_item_source_state_recursive(items_source_states, *layout);
+  }
+
   LayoutInternal::layout_estimate(layout);
   LayoutInternal::layout_resolve(layout);
+
+  /* Redo layout for popup that can get widen to properly show text content, usually this is done
+   * just once. */
+  while (std::optional<int> popop_fit_width = layout_estimate_popup_fit_width(layout)) {
+    block->popup_auto_width.width = *popop_fit_width;
+    block->popup_auto_width.oldwidth = *popop_fit_width;
+    if (block->panel) {
+      block->panel->runtime->layout_panels.bodies.clear();
+      block->panel->runtime->layout_panels.headers.clear();
+    }
+    items_source_states[0].size.x = block->popup_auto_width.width;
+    for (ItemSourceState &source_state : items_source_states) {
+      item_position(source_state.item,
+                    source_state.pos.x,
+                    source_state.pos.y,
+                    source_state.size.x,
+                    source_state.size.y);
+      source_state.item->fixed_size_set(source_state.fixed_size);
+      ItemInternal::auto_fixed_size_set(source_state.item, source_state.auto_fixed);
+    }
+    LayoutInternal::layout_estimate(layout);
+    LayoutInternal::layout_resolve(layout);
+  }
   return layout->offset();
 }
 
@@ -5649,12 +5835,22 @@ Layout &block_layout(Block *block,
                      int padding,
                      const uiStyle *style)
 {
+  /* Reuse last popup auto width, this makes elements to fit on redraws. */
+  if (block_is_popup_any(block)) {
+    if (block->popup_auto_width.min_width == 0) {
+      block->popup_auto_width.min_width = size;
+    }
+    size = std::max(block->popup_auto_width.width, size);
+    block->popup_auto_width.width = size;
+    block->popup_auto_width.oldwidth = size;
+  }
   LayoutRoot *root = MEM_new_zeroed<LayoutRoot>(__func__);
   root->type = type;
   root->style = style;
   root->block = block;
   root->padding = padding;
   root->opcontext = wm::OpCallContext::InvokeRegionWin;
+  root->direction = dir;
   const char *func = __func__;
   Layout *layout = [&]() -> Layout * {
     switch (type) {

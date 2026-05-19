@@ -772,6 +772,13 @@ struct Block {
 
   std::unique_ptr<PieMenuData> pie_data;
 
+  /** Auto popup width, this makes label/checkbox elements to fit in popups/popovers.  */
+  struct {
+    int min_width = 0;
+    int oldwidth = 0;
+    int width = 0;
+  } popup_auto_width = {};
+
   void remove_but(const Button *but);
   [[nodiscard]] Button *first_but() const;
   [[nodiscard]] Button *last_but() const;

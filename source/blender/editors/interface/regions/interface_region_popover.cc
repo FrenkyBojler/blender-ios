@@ -234,7 +234,7 @@ static Block *block_func_POPOVER(bContext *C, PopupBlockHandle *handle, void *ar
         bounds_offset[1] = -BLI_rctf_cent_y(&but->rect);
       }
       else {
-        bounds_offset[0] = -(pup->ui_size_x / 2);
+        bounds_offset[0] = -(block->popup_auto_width.width / 2);
         bounds_offset[1] = but_first ? -BLI_rctf_cent_y(&but_first->rect) : (UI_UNIT_Y / 2);
       }
       copy_v2_v2_int(handle->prev_bounds_offset, bounds_offset);

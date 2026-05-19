@@ -3895,6 +3895,7 @@ void block_region_set(Block *block, ARegion *region)
       oldblock->active = false;
       oldblock->panel = nullptr;
       oldblock->handle = nullptr;
+      block->popup_auto_width = oldblock->popup_auto_width;
     }
 
     /* at the beginning of the list! for dynamical menus/blocks */
