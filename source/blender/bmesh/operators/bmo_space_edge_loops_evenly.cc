@@ -41,7 +41,7 @@ struct SpaceChainData {
   /** Ordered vertices from one end of the chain to the other. */
   Vector<BMVert *> verts;
   /** True if the path forms a closed ring. */
-  bool is_closed;
+  bool is_closed = false;
 };
 
 /**
