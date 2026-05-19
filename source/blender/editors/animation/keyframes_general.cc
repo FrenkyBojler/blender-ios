@@ -2130,7 +2130,7 @@ eKeyPasteError paste_animedit_keys(bAnimContext *ac,
 
   const Scene *scene = (ac->scene);
   const bool from_single = keyframe_copy_buffer->is_single_fcurve();
-  const bool to_single = BLI_listbase_is_single(anim_data);
+  const bool to_single = anim_data->is_single();
   float offset[2] = {0, 0};
 
   /* methods of offset */

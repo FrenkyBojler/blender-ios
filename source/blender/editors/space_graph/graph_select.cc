@@ -266,7 +266,7 @@ static tNearestVertInfo *get_best_nearest_fcurve_vert(ListBaseT<tNearestVertInfo
   }
 
   /* if list only has 1 item, remove it from the list and return */
-  if (BLI_listbase_is_single(matches)) {
+  if (matches->is_single()) {
     /* need to remove from the list, otherwise it gets freed and then we can't return it */
     return static_cast<tNearestVertInfo *>(BLI_pophead(matches));
   }

@@ -236,7 +236,7 @@ static bool scanfill_preprocess_self_isect(ScanFillContext *sf_ctx,
           pi->edge_last = nullptr;
         }
 
-        if (BLI_listbase_is_single(e_ls) == false) {
+        if (e_ls->is_single() == false) {
           BLI_listbase_sort_r(e_ls, edge_isect_ls_sort_cb, eed->v2->co);
         }
 
