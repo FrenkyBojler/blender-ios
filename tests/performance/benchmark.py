@@ -387,7 +387,8 @@ def _resolve_device(env: api.TestEnvironment, device_str: str):
 
 def cmd_bisect(env: api.TestEnvironment, argv: list):
     import datetime
-    from api.bisect import is_good, test_commit as _test_commit
+    from api.bisect import passes_threshold, test_commit as _test_commit
+    SECONDS_PER_DAY = 86400
 
     parser = argparse.ArgumentParser(prog='benchmark.py bisect')
     parser.add_argument('--device', required=True,
@@ -461,7 +462,7 @@ def cmd_bisect(env: api.TestEnvironment, argv: list):
 
     # Phase 1: Daily scan
     start_ts = int(start_dt.timestamp())
-    end_ts = int(end_dt.timestamp())
+    end_ts = int(end_dt.timestamp()) + SECONDS_PER_DAY
 
     last_good = None
     first_bad = None
@@ -471,8 +472,8 @@ def cmd_bisect(env: api.TestEnvironment, argv: list):
     # Pre-compute all day windows for remaining-count tracking
     day_windows: list[list[tuple[str, int]]] = []
     day_ts = start_ts
-    while day_ts <= end_ts:
-        next_day_ts = day_ts + 86400
+    while day_ts < end_ts:
+        next_day_ts = day_ts + SECONDS_PER_DAY
         day_windows.append(env.commits_in_window(day_ts, next_day_ts))
         day_ts = next_day_ts
 
@@ -491,7 +492,7 @@ def cmd_bisect(env: api.TestEnvironment, argv: list):
                 break
             attempts += 1
             _, status = test_commit(commit_hash, commit_ts)
-            if status == 'build':
+            if status == 'build_error':
                 continue
             if status == 'pass':
                 last_good = commit_hash
@@ -511,43 +512,75 @@ def cmd_bisect(env: api.TestEnvironment, argv: list):
         return
 
     # Phase 2: Binary search between last_good and first_bad
-    all_commits = env.commits_in_window(start_ts, end_ts + 86400)
+    all_commits = env.commits_in_window(start_ts, end_ts)
 
-    lo = 0
-    hi = next(i for i, (h, _) in enumerate(all_commits) if h == first_bad)
-    if last_good:
-        good_idx = next(i for i, (h, _) in enumerate(all_commits) if h == last_good)
-        lo = good_idx + 1
+    commit_index = {commit_hash: index for index, (commit_hash, _) in enumerate(all_commits)}
+    max_index = commit_index[first_bad]
+    min_index = commit_index[last_good] + 1 if last_good else 0
 
-    def _binary_search(commits, lo, hi):
+    def _binary_search(commits, min_index, max_index):
+        """
+        Binary search to find the first failing commit.
+
+        When a commit errors on build or run, _forward_scan finds the next testable commit to continue the search."""
         nonlocal current_remaining, last_good, first_bad
-        while lo < hi:
-            mid = (lo + hi) // 2
-            h, ts = commits[mid]
 
-            if h in commit_status:
-                if commit_status[h] == 'pass':
-                    lo = mid + 1
+        def _forward_scan(start_index):
+            """
+            Scan forward from start_index for a testable commit.
+            Returns True if bounds were updated, False if no testable commit was found.
+            """
+            nonlocal min_index, max_index, current_remaining, last_good, first_bad
+            for scan_index in range(start_index, max_index):
+                scan_hash, scan_ts = commits[scan_index]
+                if scan_hash in commit_status:
+                    if commit_status[scan_hash] == 'fail':
+                        first_bad = scan_hash
+                        max_index = scan_index
+                        return True
+                    continue
+                current_remaining = max_index - min_index
+                _, status = test_commit(scan_hash, scan_ts)
+                if status == 'pass':
+                    commit_status[scan_hash] = 'pass'
+                    last_good = scan_hash
+                    min_index = scan_index + 1
+                    return True
+                elif status == 'fail':
+                    commit_status[scan_hash] = 'fail'
+                    first_bad = scan_hash
+                    max_index = scan_index
+                    return True
+            return False
+
+        while min_index < max_index:
+            mid = (min_index + max_index) // 2
+            commit_hash, commit_ts = commits[mid]
+
+            if commit_hash in commit_status:
+                if commit_status[commit_hash] == 'pass':
+                    min_index = mid + 1
                 else:
-                    hi = mid
+                    max_index = mid
                 continue
 
-            current_remaining = hi - lo
-            _, status = test_commit(h, ts)
+            current_remaining = max_index - min_index
+            _, status = test_commit(commit_hash, commit_ts)
 
-            if status in ('build', 'run', 'skip'):
-                commits.pop(mid)
-                hi -= 1
-            elif status == 'pass':
-                commit_status[h] = 'pass'
-                last_good = h
-                lo = mid + 1
-            else:  # fail
-                commit_status[h] = 'fail'
-                first_bad = h
-                hi = mid
+            if status == 'pass':
+                commit_status[commit_hash] = 'pass'
+                last_good = commit_hash
+                min_index = mid + 1
+            elif status == 'fail':
+                commit_status[commit_hash] = 'fail'
+                first_bad = commit_hash
+                max_index = mid
+            else:
+                if not _forward_scan(mid + 1):
+                    # All remaining commits untestable, stop searching.
+                    break
 
-    _binary_search(all_commits, lo, hi)
+    _binary_search(all_commits, min_index, max_index)
 
     title = env.commit_title(first_bad)
     print(f'\nRegression introduced by commit {first_bad}: {title}')

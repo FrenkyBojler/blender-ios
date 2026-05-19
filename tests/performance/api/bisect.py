@@ -18,7 +18,7 @@ def date_str(ts: int) -> str:
     return datetime.datetime.fromtimestamp(ts, tz=datetime.timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
 
 
-def is_good(value: float, success: str, threshold: float) -> bool:
+def passes_threshold(value: float, success: str, threshold: float) -> bool:
     """Check if a performance value passes the given threshold.
 
     Returns True when the value is on the good side of the threshold
@@ -65,9 +65,12 @@ def test_commit(
         commit_ts: Unix timestamp of the commit.
 
     Returns:
-        Tuple ``(average_value, status)`` where status is one of
-        ``'skip'``, ``'build'``, ``'run'``, ``'pass'``, or ``'fail'``.
+        Tuple ``(value, status)`` where status is one of
+        ``'skip'``, ``'build_error'``, ``'no_output'``, ``'run_error``, ``'pass'`` or ``'fail'``.
+        value can be None when status is ``'skip'``, ``'build_error'``, ``'no_output'``, ``'run_error'``.
     """
+    # During the weekends it can happen that a day doesn't have any commit. In that case a commit
+    # can be selected that has already been performed.
     if commit_hash in tested:
         return None, 'skip'
     tested.add(commit_hash)
@@ -79,7 +82,7 @@ def test_commit(
     ok = env.build(commit_hash, install_dir)
     if not ok:
         on_progress([commit_hash, date_str(commit_ts), title, 'error', 'FAIL (build)'])
-        return None, 'build'
+        return None, 'build_error'
 
     env.set_blender_executable(install_dir, {})
 
@@ -92,17 +95,17 @@ def test_commit(
             if not output or attribute not in output:
                 env.set_default_blender_executable()
                 on_progress([commit_hash, date_str(commit_ts), title, 'error', 'run'])
-                return None, 'run'
+                return None, 'no_output'
             values.append(output[attribute])
     except Exception as e:
         env.set_default_blender_executable()
         on_progress([commit_hash, date_str(commit_ts), title, 'error', str(e)[:30]])
-        return None, 'run'
+        return None, 'run_error'
 
     env.set_default_blender_executable()
     avg = sum(values) / len(values)
 
-    good = is_good(avg, success, threshold)
+    good = passes_threshold(avg, success, threshold)
     status = 'PASS' if good else 'FAIL'
     on_progress([commit_hash, date_str(commit_ts), title, f'{avg:.4f}', status])
     return avg, 'pass' if good else 'fail'
