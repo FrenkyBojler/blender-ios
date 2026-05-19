@@ -119,7 +119,7 @@ static void edbm_space_ui(bContext * /*C*/, wmOperator *op)
 void MESH_OT_space_edge_loops_evenly(wmOperatorType *ot)
 {
   /* identifiers */
-  ot->name = "Space Edge loops Evenly";
+  ot->name = "Space Edge Loops Evenly";
   ot->description = "Space the vertices in a regular distribution on the loop";
   ot->idname = "MESH_OT_space_edge_loops_evenly";
 
