@@ -1,3 +1,4 @@
 Referenced by pull request #154953, Fix: Incorrect face adjacency indices in subdivision draw cache
 Referenced by pull request #154965, Fix: Incorrect face adjacency indices in subdivision draw cache
 Referenced by commit 7f9a58756fc69ddb5ffd5c4b83f79ef0367d0a4d, Fix: Incorrect face adjacency indices in subdivision draw cache
+Referenced by issue #158811, Regression: `Points to Curves` is non-deterministic above 1024 points
