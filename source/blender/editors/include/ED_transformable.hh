@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
- * \ingroup animrig
+ * \ingroup edanimation
  *
  * \brief Defines an abstraction around various structs to modify their transform properties via a
  * unified API.

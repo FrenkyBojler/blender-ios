@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
- * \ingroup animrig
+ * \ingroup edanimation
  */
 
 #include "BLI_math_rotation.h"

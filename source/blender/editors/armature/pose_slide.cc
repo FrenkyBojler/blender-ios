@@ -107,7 +107,7 @@ enum ePoseSlide_Channels {
  * Stores the frame range per Object. Since objects can have an NLA, the frame for looking up keys
  * needs to be adjusted per object.
  */
-struct OffsetFrameRange {
+struct ObjectFrameRange {
   /** The Object for which these frame values are valid. */
   Object *object;
   /** `prev_frame`, but in local action time (for F-Curve look-ups to work). */
@@ -156,7 +156,7 @@ struct tPoseSlideOp {
   /** Numeric input. */
   NumInput num;
 
-  Array<OffsetFrameRange> offset_frame_ranges;
+  Array<ObjectFrameRange> ob_data_array;
 };
 
 /** Property enum for #ePoseSlide_Channels. */
@@ -234,10 +234,10 @@ static int pose_slide_init(bContext *C, wmOperator *op, ePoseSlide_Modes mode)
   for (const SlideSubject &tflink : pso->slide_subjects) {
     unique_ids.add(tflink.ptr.owner_id);
   }
-  pso->offset_frame_ranges.reinitialize(unique_ids.size());
+  pso->ob_data_array.reinitialize(unique_ids.size());
   int i = 0;
   for (ID *id : unique_ids) {
-    OffsetFrameRange *range_data = &pso->offset_frame_ranges[i];
+    ObjectFrameRange *range_data = &pso->ob_data_array[i];
     i++;
     BLI_assert(GS(id->name) == ID_OB);
     range_data->object = id_cast<Object *>(id);
@@ -302,8 +302,8 @@ static void pose_slide_exit(bContext *C, wmOperator *op)
 static void pose_slide_refresh(bContext *C, tPoseSlideOp *pso)
 {
   /* Wrapper around the generic version, allowing us to add some custom stuff later still. */
-  for (OffsetFrameRange &offset_range : pso->offset_frame_ranges) {
-    slide_subjects_refresh(C, &offset_range.object->id);
+  for (ObjectFrameRange &object_range : pso->ob_data_array) {
+    slide_subjects_refresh(C, &object_range.object->id);
   }
 }
 
@@ -315,10 +315,10 @@ static bool pose_frame_range_from_id_get(const tPoseSlideOp *pso,
                                          float *prev_frame,
                                          float *next_frame)
 {
-  for (const OffsetFrameRange &offset_range : pso->offset_frame_ranges) {
-    if (&offset_range.object->id == id) {
-      *prev_frame = offset_range.prev_frame;
-      *next_frame = offset_range.next_frame;
+  for (const ObjectFrameRange &object_range : pso->ob_data_array) {
+    if (&object_range.object->id == id) {
+      *prev_frame = object_range.prev_frame;
+      *next_frame = object_range.next_frame;
       return true;
     }
   }
@@ -616,12 +616,12 @@ static void pose_slide_apply(bContext *C, tPoseSlideOp *pso)
     pso->prev_frame--;
     pso->next_frame++;
 
-    for (OffsetFrameRange &offset_range : pso->offset_frame_ranges) {
-      AnimData *adt = offset_range.object->adt;
+    for (ObjectFrameRange &object_range : pso->ob_data_array) {
+      AnimData *adt = object_range.object->adt;
       /* Apply NLA mapping corrections so the frame look-ups work. */
-      offset_range.prev_frame = BKE_nla_tweakedit_remap(
+      object_range.prev_frame = BKE_nla_tweakedit_remap(
           adt, pso->prev_frame, NLATIME_CONVERT_UNMAP);
-      offset_range.next_frame = BKE_nla_tweakedit_remap(
+      object_range.next_frame = BKE_nla_tweakedit_remap(
           adt, pso->next_frame, NLATIME_CONVERT_UNMAP);
     }
   }
@@ -842,10 +842,10 @@ static wmOperatorStatus pose_slide_invoke_common(bContext *C, wmOperator *op, co
   }
 
   /* Apply NLA mapping corrections so the frame look-ups work. */
-  for (OffsetFrameRange &offset_range : pso->offset_frame_ranges) {
-    AnimData *adt = offset_range.object->adt;
-    offset_range.prev_frame = BKE_nla_tweakedit_remap(adt, pso->prev_frame, NLATIME_CONVERT_UNMAP);
-    offset_range.next_frame = BKE_nla_tweakedit_remap(adt, pso->next_frame, NLATIME_CONVERT_UNMAP);
+  for (ObjectFrameRange &object_range : pso->ob_data_array) {
+    AnimData *adt = object_range.object->adt;
+    object_range.prev_frame = BKE_nla_tweakedit_remap(adt, pso->prev_frame, NLATIME_CONVERT_UNMAP);
+    object_range.next_frame = BKE_nla_tweakedit_remap(adt, pso->next_frame, NLATIME_CONVERT_UNMAP);
   }
 
   /* Initial apply for operator. */
@@ -1239,9 +1239,7 @@ void POSE_OT_push(wmOperatorType *ot)
   /* identifiers */
   ot->name = "Push Pose from Breakdown";
   ot->idname = "POSE_OT_push";
-  ot->description =
-      "From the current pose, interpolate away from the linear interpolation between the previous "
-      "and next frame";
+  ot->description = "Exaggerate the current pose in regards to the breakdown pose";
 
   /* callbacks */
   ot->exec = pose_slide_push_exec;
@@ -1298,9 +1296,7 @@ void POSE_OT_relax(wmOperatorType *ot)
   /* identifiers */
   ot->name = "Relax Pose to Breakdown";
   ot->idname = "POSE_OT_relax";
-  ot->description =
-      "From the current pose, interpolate towards the linear interpolation between the previous "
-      "and next frame";
+  ot->description = "Make the current pose more similar to its breakdown pose";
 
   /* callbacks */
   ot->exec = pose_slide_relax_exec;
