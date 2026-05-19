@@ -262,58 +262,60 @@ def main():
 
     report.set_pixelated(True)
     report.set_reference_dir("eevee_renders")
+    report.set_fail_percent(0.06)
+    report.set_fail_threshold(2.0 / 255.0)
 
-    test_dir_name = Path(args.testdir).name
-    if test_dir_name.startswith('image_mapping'):
-        # Platform dependent border values. To be fixed
-        report.set_fail_threshold(0.2)
-    elif test_dir_name.startswith('image'):
-        report.set_fail_threshold(0.051)
-    elif test_dir_name.startswith('displacement'):
-        # metal shadow and wireframe difference. To be fixed.
-        report.set_fail_threshold(0.07)
-    elif test_dir_name.startswith('bsdf'):
-        # metallic thinfilm tests and dithered transparency
-        report.set_fail_threshold(0.045)
-    elif test_dir_name.startswith('principled_bsdf'):
-        # principled bsdf transmission test
-        report.set_fail_threshold(0.02)
-    elif test_dir_name.startswith('camera'):
-        # Line/rasterization difference (Old AMD/Linux/OpenGL only, see #154515)
-        report.set_fail_threshold(0.0375)
-    elif test_dir_name.startswith('raycast'):
-        # Line/rasterization difference (Old AMD/Linux/OpenGL only, see #154516)
-        report.set_fail_threshold(0.02)
+    # test_dir_name = Path(args.testdir).name
+    # if test_dir_name.startswith('image_mapping'):
+    #     # Platform dependent border values. To be fixed
+    #     report.set_fail_threshold(0.2)
+    # elif test_dir_name.startswith('image'):
+    #     report.set_fail_threshold(0.051)
+    # elif test_dir_name.startswith('displacement'):
+    #     # metal shadow and wireframe difference. To be fixed.
+    #     report.set_fail_threshold(0.07)
+    # elif test_dir_name.startswith('bsdf'):
+    #     # metallic thinfilm tests and dithered transparency
+    #     report.set_fail_threshold(0.045)
+    # elif test_dir_name.startswith('principled_bsdf'):
+    #     # principled bsdf transmission test
+    #     report.set_fail_threshold(0.02)
+    # elif test_dir_name.startswith('camera'):
+    #     # Line/rasterization difference (Old AMD/Linux/OpenGL only, see #154515)
+    #     report.set_fail_threshold(0.0375)
+    # elif test_dir_name.startswith('raycast'):
+    #     # Line/rasterization difference (Old AMD/Linux/OpenGL only, see #154516)
+    #     report.set_fail_threshold(0.02)
 
-    # Noise pattern changes depending on platform. Mostly caused by transparency.
-    # TODO(fclem): See if we can just increase number of samples per file.
-    if test_dir_name.startswith('render_layer'):
-        # shadow pass, rlayer flag
-        report.set_fail_threshold(0.08)
-    elif test_dir_name.startswith('hair'):
-        # hair close up
-        report.set_fail_threshold(0.0275)
-    elif test_dir_name.startswith('integrator'):
-        # Noise difference in transparent materials
-        report.set_fail_threshold(0.05)
-    elif test_dir_name.startswith('pointcloud'):
-        # points transparent
-        report.set_fail_threshold(0.06)
-    elif test_dir_name.startswith("lightprobe"):
-        # Avoid higher threshold of the light case
-        report.set_fail_threshold(0.01)
-    elif test_dir_name.startswith('light_linking'):
-        # Noise difference in transparent material
-        report.set_fail_threshold(0.05)
-    elif test_dir_name.startswith('light'):
-        # Noise difference in background
-        report.set_fail_threshold(0.03)
-    elif test_dir_name.startswith('texture'):
-        # Noise difference in "white noise 256pp" (Old AMD/Linux/OpenGL only, see #154515)
-        report.set_fail_threshold(0.02)
-    elif test_dir_name.startswith('instancing'):
-        # Noise difference in "instance_types" on the point-clouds (Metal only, to investigate)
-        report.set_fail_threshold(0.02)
+    # # Noise pattern changes depending on platform. Mostly caused by transparency.
+    # # TODO(fclem): See if we can just increase number of samples per file.
+    # if test_dir_name.startswith('render_layer'):
+    #     # shadow pass, rlayer flag
+    #     report.set_fail_threshold(0.08)
+    # elif test_dir_name.startswith('hair'):
+    #     # hair close up
+    #     report.set_fail_threshold(0.0275)
+    # elif test_dir_name.startswith('integrator'):
+    #     # Noise difference in transparent materials
+    #     report.set_fail_threshold(0.05)
+    # elif test_dir_name.startswith('pointcloud'):
+    #     # points transparent
+    #     report.set_fail_threshold(0.06)
+    # elif test_dir_name.startswith("lightprobe"):
+    #     # Avoid higher threshold of the light case
+    #     report.set_fail_threshold(0.01)
+    # elif test_dir_name.startswith('light_linking'):
+    #     # Noise difference in transparent material
+    #     report.set_fail_threshold(0.05)
+    # elif test_dir_name.startswith('light'):
+    #     # Noise difference in background
+    #     report.set_fail_threshold(0.03)
+    # elif test_dir_name.startswith('texture'):
+    #     # Noise difference in "white noise 256pp" (Old AMD/Linux/OpenGL only, see #154515)
+    #     report.set_fail_threshold(0.02)
+    # elif test_dir_name.startswith('instancing'):
+    #     # Noise difference in "instance_types" on the point-clouds (Metal only, to investigate)
+    #     report.set_fail_threshold(0.02)
 
     ok = report.run(args.testdir, args.blender, get_arguments, batch=args.batch)
     sys.exit(not ok)
