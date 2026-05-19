@@ -103,6 +103,7 @@ static wmOperatorStatus edbm_space_edge_loops_evenly_exec(bContext *C, wmOperato
 
 static void edbm_space_ui(bContext * /*C*/, wmOperator *op)
 {
+  /* A custom UI function is needed to draw the axis locks (X/Y/Z) as a row of toggle buttons. */
   ui::Layout &layout = *op->layout;
   layout.use_property_split_set(true);
 
