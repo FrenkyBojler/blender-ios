@@ -73,6 +73,15 @@ template<typename T> struct ListBaseT : public ListBase {
     this->last = nullptr;
   }
 
+  int size() const
+  {
+    int count = 0;
+    for (const T &item : *this) {
+      count++;
+    }
+    return count;
+  }
+
   /* TODO: Add const and non-const iterators. However this will require some refactoring
    * as some places rely on being able to get a mutable list element from a const list. */
   ListBaseTIterator<T> begin() const
