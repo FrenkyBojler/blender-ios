@@ -329,6 +329,11 @@ def main():
     elif test_dir_name.startswith('pointcloud'):
         # Only because of points_transparent
         report.set_fail_threshold(8.0 / 255.0)
+    elif test_dir_name.startswith('motion_blur'):
+        # Failure can be subtle, tighten threshold
+        report.set_fail_percent(0.04)
+        report.set_fail_threshold(2.0 / 255.0)
+
 
     ok = report.run(args.testdir, args.blender, get_arguments, batch=args.batch)
     sys.exit(not ok)
