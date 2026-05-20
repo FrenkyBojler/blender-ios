@@ -377,7 +377,7 @@ class TestEnvironment:
         """List commits in a time window, oldest first.
 
         Returns a list of ``(commit_hash, unix_timestamp)`` tuples
-        for commits reachable from ``HEAD`` whose author date falls
+        for commits reachable from ``HEAD`` whose commit date falls
         between ``after_ts`` and ``before_ts``.
         """
         try:
