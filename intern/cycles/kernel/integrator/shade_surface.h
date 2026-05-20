@@ -16,6 +16,8 @@
 #include "kernel/geom/motion_triangle.h"
 #include "kernel/geom/triangle.h"
 
+#include "kernel/integrator/mnee.h"
+
 #include "kernel/integrator/guiding.h"
 #include "kernel/integrator/shadow_linking.h"
 #include "kernel/integrator/subsurface.h"
@@ -352,6 +354,50 @@ ccl_device
   BsdfEval bsdf_eval ccl_optional_struct_init;
 
   int mnee_vertex_count = 0;  // NOLINT
+#ifdef __MNEE__
+  IF_KERNEL_FEATURE(MNEE)
+  {
+    if (ls.type != LIGHT_TRIANGLE) {
+      /* Is this a caustic light? */
+      const bool use_caustics = kernel_data_fetch(lights, ls.prim).use_caustics;
+      if (use_caustics) {
+        /* Are we on a caustic caster? */
+        if (is_transmission && (sd->object_flag & SD_OBJECT_CAUSTICS_CASTER)) {
+          return SHADER_EVAL_EMPTY;
+        }
+
+        /* Are we on a caustic receiver? */
+        if (!is_transmission && (sd->object_flag & SD_OBJECT_CAUSTICS_RECEIVER)) {
+          ShaderDataCausticsStorage emission_sd_storage;
+          ccl_private ShaderData *emission_sd = AS_SHADER_DATA(&emission_sd_storage);
+          float3 receiver_wo;
+          Spectrum throughput;
+
+          ShaderEvalResult result = kernel_path_mnee_sample(kg,
+                                                            state,
+                                                            sd,
+                                                            emission_sd,
+                                                            rng_state,
+                                                            &ls,
+                                                            &throughput,
+                                                            &receiver_wo,
+                                                            mnee_vertex_count);
+          bsdf_eval_init(&bsdf_eval, throughput);
+          if (result == SHADER_EVAL_CACHE_MISS) {
+            return SHADER_EVAL_CACHE_MISS;
+          }
+
+          if (mnee_vertex_count > 0) {
+            /* Create shadow ray after successful manifold walk:
+             * emission_sd contains the last interface intersection and
+             * the light sample ls has been updated */
+            light_sample_to_surface_shadow_ray(kg, emission_sd, &ls, &ray);
+          }
+        }
+      }
+    }
+  }
+#endif
 
   /* Evaluate constant part of light shader, rest will optionally be done in another kernel. */
   Spectrum light_shader_eval ccl_optional_struct_init;
@@ -873,6 +919,16 @@ ccl_device_forceinline void integrator_shade_surface_raytrace(
   integrator_shade_surface<KERNEL_FEATURE_NODE_MASK_SURFACE,
                            DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE_RAYTRACE>(
       kg, state, render_buffer);
+}
+
+ccl_device_forceinline void integrator_shade_surface_mnee(
+    KernelGlobals kg, IntegratorState state, ccl_global float *ccl_restrict render_buffer)
+{
+#ifdef __MNEE__
+  integrator_shade_surface<(KERNEL_FEATURE_NODE_MASK_SURFACE & ~KERNEL_FEATURE_NODE_RAYTRACE) |
+                               KERNEL_FEATURE_MNEE,
+                           DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE_MNEE>(kg, state, render_buffer);
+#endif
 }
 
 CCL_NAMESPACE_END

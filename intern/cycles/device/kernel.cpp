@@ -17,6 +17,7 @@ bool device_kernel_has_shading(DeviceKernel kernel)
           kernel == DEVICE_KERNEL_INTEGRATOR_SHADE_LIGHT_FORWARD ||
           kernel == DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE ||
           kernel == DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE_RAYTRACE ||
+          kernel == DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE_MNEE ||
           kernel == DEVICE_KERNEL_INTEGRATOR_SHADE_VOLUME ||
           kernel == DEVICE_KERNEL_INTEGRATOR_SHADE_VOLUME_RAY_MARCHING ||
           kernel == DEVICE_KERNEL_INTEGRATOR_SHADE_SHADOW ||
@@ -35,7 +36,8 @@ bool device_kernel_has_intersection(DeviceKernel kernel)
           kernel == DEVICE_KERNEL_INTEGRATOR_INTERSECT_VOLUME_STACK ||
           kernel == DEVICE_KERNEL_INTEGRATOR_INTERSECT_DEDICATED_LIGHT ||
           kernel == DEVICE_KERNEL_INTEGRATOR_INTERSECT_MNEE ||
-          kernel == DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE_RAYTRACE);
+          kernel == DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE_RAYTRACE ||
+          kernel == DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE_MNEE);
 }
 
 bool device_kernel_has_gpu_function(DeviceKernel kernel)
@@ -78,6 +80,8 @@ const char *device_kernel_as_string(DeviceKernel kernel)
       return "integrator_shade_surface";
     case DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE_RAYTRACE:
       return "integrator_shade_surface_raytrace";
+    case DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE_MNEE:
+      return "integrator_shade_surface_mnee";
     case DEVICE_KERNEL_INTEGRATOR_SHADE_VOLUME:
       return "integrator_shade_volume";
     case DEVICE_KERNEL_INTEGRATOR_SHADE_VOLUME_RAY_MARCHING:
