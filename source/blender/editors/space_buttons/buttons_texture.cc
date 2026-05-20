@@ -84,7 +84,7 @@ static void buttons_texture_user_socket_property_add(ListBaseT<ButsTextureUser> 
   user->category = category;
   user->icon = icon;
   user->name = name;
-  user->index = users->size();
+  user->index = BLI_listbase_count(users);
 
   BLI_addtail(users, user);
 }
@@ -105,7 +105,7 @@ static void buttons_texture_user_property_add(ListBaseT<ButsTextureUser> *users,
   user->category = category;
   user->icon = icon;
   user->name = name;
-  user->index = users->size();
+  user->index = BLI_listbase_count(users);
 
   BLI_addtail(users, user);
 }
@@ -130,7 +130,7 @@ static void buttons_texture_user_node_add(ListBaseT<ButsTextureUser> *users,
   user->category = category;
   user->icon = icon;
   user->name = name;
-  user->index = users->size();
+  user->index = BLI_listbase_count(users);
 
   BLI_addtail(users, user);
 }

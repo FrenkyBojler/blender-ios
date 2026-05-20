@@ -1106,7 +1106,7 @@ static wmOperatorStatus similar_vert_select_exec(bContext *C, wmOperator *op)
         continue;
       }
       const ListBaseT<bDeformGroup> *defbase = BKE_object_defgroup_list(ob);
-      defbase_len = defbase->size();
+      defbase_len = BLI_listbase_count(defbase);
       if (defbase_len == 0) {
         continue;
       }

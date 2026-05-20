@@ -2067,7 +2067,7 @@ static void knife_make_face_cuts(KnifeTool_OpData *kcd,
                                  ListBaseT<LinkData> *kfedges)
 {
   KnifeEdge *kfe;
-  int edge_array_len = kfedges->size();
+  int edge_array_len = BLI_listbase_count(kfedges);
   int i;
 
   blender::Array<BMEdge *, BM_DEFAULT_TOPOLOGY_STACK_SIZE> edge_array_buf(edge_array_len);

@@ -626,7 +626,7 @@ static int *object_defgroup_unlocked_flip_map_ex(const Object *ob,
                                                  int *r_flip_map_num)
 {
   const ListBaseT<bDeformGroup> *defbase = BKE_object_defgroup_list(ob);
-  const int defbase_num = defbase->size();
+  const int defbase_num = BLI_listbase_count(defbase);
   *r_flip_map_num = defbase_num;
 
   if (defbase_num == 0) {
@@ -686,7 +686,7 @@ int *BKE_object_defgroup_flip_map_single(const Object *ob,
                                          int *r_flip_map_num)
 {
   const ListBaseT<bDeformGroup> *defbase = BKE_object_defgroup_list(ob);
-  const int defbase_num = defbase->size();
+  const int defbase_num = BLI_listbase_count(defbase);
   *r_flip_map_num = defbase_num;
 
   if (defbase_num == 0) {
@@ -1279,7 +1279,7 @@ static bool data_transfer_layersmapping_vgroups_multisrc_to_dst(
   const ListBaseT<bDeformGroup> *src_list = &mesh_src.vertex_group_names;
   ListBaseT<bDeformGroup> *dst_defbase = &mesh_dst.vertex_group_names;
 
-  const int tot_dst = dst_defbase->size();
+  const int tot_dst = BLI_listbase_count(dst_defbase);
 
   const size_t elem_size = sizeof(MDeformVert);
 
@@ -1430,7 +1430,7 @@ bool data_transfer_layersmapping_vgroups(Vector<CustomDataTransferLayerMap> *r_m
 
     if (fromlayers >= 0) {
       idx_src = fromlayers;
-      if (idx_src >= src_defbase->size()) {
+      if (idx_src >= BLI_listbase_count(src_defbase)) {
         /* This can happen when vgroups are removed from source object...
          * Remapping would be really tricky here, we'd need to go over all objects in
          * Main every time we delete a vgroup... for now, simpler and safer to abort. */
@@ -1445,7 +1445,7 @@ bool data_transfer_layersmapping_vgroups(Vector<CustomDataTransferLayerMap> *r_m
       /* NOTE: in this case we assume layer exists! */
       idx_dst = tolayers;
       const ListBaseT<bDeformGroup> *dst_defbase = BKE_object_defgroup_list(ob_dst);
-      BLI_assert(idx_dst < dst_defbase->size());
+      BLI_assert(idx_dst < BLI_listbase_count(dst_defbase));
       UNUSED_VARS_NDEBUG(dst_defbase);
     }
     else if (tolayers == DT_LAYERS_ACTIVE_DST) {
@@ -1461,7 +1461,7 @@ bool data_transfer_layersmapping_vgroups(Vector<CustomDataTransferLayerMap> *r_m
       }
     }
     else if (tolayers == DT_LAYERS_INDEX_DST) {
-      int num = src_defbase->size();
+      int num = BLI_listbase_count(src_defbase);
       idx_dst = idx_src;
       if (num <= idx_dst) {
         if (!use_create) {

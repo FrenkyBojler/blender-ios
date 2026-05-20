@@ -2703,7 +2703,7 @@ static void nlasnapshot_from_action(PointerRNA *ptr,
 {
   /* Evaluate modifiers which modify time to evaluate the base curves at. */
   FModifiersStackStorage storage;
-  storage.modifier_count = modifiers->size();
+  storage.modifier_count = BLI_listbase_count(modifiers);
   storage.size_per_modifier = evaluate_fmodifiers_storage_size_per_modifier(modifiers);
   storage.buffer = alloca(storage.modifier_count * storage.size_per_modifier);
 

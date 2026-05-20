@@ -428,7 +428,7 @@ static std::unique_ptr<XFormObjectData> data_xform_create_ex(ID *id, bool is_edi
         auto xod = std::make_unique<XFormObjectData_Armature>();
         xod->id = id;
         xod->is_edit_mode = is_edit_mode;
-        xod->elems.reinitialize(arm->edbo->size());
+        xod->elems.reinitialize(BLI_listbase_count(arm->edbo));
         edit_armature_coords_and_quats_get(arm, xod->elems);
         return xod;
       }

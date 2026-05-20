@@ -587,7 +587,7 @@ static void outliner_sort(ListBaseT<TreeElement> *lb)
   if (inside_armature_data || ELEM(last_tselem->type, TSE_DEFGROUP, TSE_ID_BASE) ||
       ((last_tselem->type == TSE_SOME_ID) && (last_te->idcode == ID_OB)))
   {
-    int totelem = lb->size();
+    int totelem = BLI_listbase_count(lb);
 
     if (totelem > 1) {
       tTreeSort *tear = MEM_new_array_uninitialized<tTreeSort>(totelem, "tree sort array");
@@ -655,7 +655,7 @@ static void outliner_collections_children_sort(ListBaseT<TreeElement> *lb)
 
   /* Sorting rules: only object lists. */
   if ((last_tselem->type == TSE_SOME_ID) && (last_te->idcode == ID_OB)) {
-    int totelem = lb->size();
+    int totelem = BLI_listbase_count(lb);
 
     if (totelem > 1) {
       tTreeSort *tear = MEM_new_array_uninitialized<tTreeSort>(totelem, "tree sort array");
