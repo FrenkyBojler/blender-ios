@@ -72,7 +72,7 @@ void ShadingView::sync()
 
   main_view_.sync(viewmat, winmat);
 
-  inst_.uniform_data.data.pipeline.is_main_view_inverted = main_view_.is_inverted();
+  inst_.uniform_data.pipeline.is_main_view_inverted = main_view_.is_inverted();
 }
 
 void ShadingView::render()
@@ -82,10 +82,13 @@ void ShadingView::render()
   }
 
   update_view();
-
-  /* Need to be set early for planar probe renderding (if using raycast node) and raycast nodes in
+  inst_.shadows.set_view(render_view_, extent_);
+  inst_.volume.set_view(main_view_);
+  inst_.uniform_data.data.push_update();
+  /* Need to be set early for planar probe rendering (if using ray-cast node) and ray-cast nodes in
    * deferred / forward pipelines. */
   inst_.raytracing.thickness_parameters_setup(render_view_.winmat(), extent_);
+  inst_.uniform_data.raytrace.push_update();
 
   GPU_debug_group_begin(name_);
 
@@ -165,6 +168,8 @@ void ShadingView::render()
 
   inst_.pipelines.forward.render(
       render_view_, rbufs.depth_tx, prepass_fb_, transparent_fb_, combined_fb_, extent_);
+
+  inst_.lights.shape_display_draw(render_view_, combined_fb_);
 
   inst_.lights.debug_draw(render_view_, combined_fb_);
   inst_.hiz_buffer.debug_draw(render_view_, combined_fb_);
@@ -302,7 +307,7 @@ void CaptureView::render_world()
   if (update_info->do_render) {
     auto render_cubemap = [&](RayPipelineType ray_type) {
       if (assign_if_different(inst_.pipelines.data.ray_type, ray_type)) {
-        inst_.uniform_data.push_update();
+        inst_.uniform_data.pipeline.push_update();
       }
 
       for (int face : IndexRange(6)) {
@@ -343,7 +348,7 @@ void CaptureView::render_world()
   }
 
   if (assign_if_different(inst_.pipelines.data.ray_type, RAY_TYPE_CAMERA)) {
-    inst_.uniform_data.push_update();
+    inst_.uniform_data.pipeline.push_update();
   }
 
   GPU_debug_group_end();
@@ -367,7 +372,7 @@ void CaptureView::render_probes()
     {
       /* Set correct thickness for raycast node in probe pipelines. */
       inst_.raytracing.thickness_parameters_setup(win_m4, int2(update_info->cube_target_extent));
-      inst_.uniform_data.push_update();
+      inst_.uniform_data.raytrace.push_update();
     }
 
     prev_extent = update_info->cube_target_extent;
@@ -405,6 +410,10 @@ void CaptureView::render_probes()
                                                       update_info->clipping_distances.y);
       view.sync(view_m4, win_m4);
 
+      inst_.shadows.set_view(view, extent);
+      inst_.volume.set_view(view);
+      inst_.uniform_data.data.push_update();
+
       combined_fb_.ensure(GPU_ATTACHMENT_TEXTURE(inst_.render_buffers.depth_tx),
                           GPU_ATTACHMENT_TEXTURE_CUBEFACE(inst_.sphere_probes.cubemap_tx_, face));
 
@@ -429,7 +438,7 @@ void CaptureView::render_probes()
   }
 
   if (assign_if_different(inst_.pipelines.data.ray_type, RAY_TYPE_CAMERA)) {
-    inst_.uniform_data.push_update();
+    inst_.uniform_data.pipeline.push_update();
   }
 }
 

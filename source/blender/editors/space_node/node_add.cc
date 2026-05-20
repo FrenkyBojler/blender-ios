@@ -699,7 +699,7 @@ static wmOperatorStatus node_add_object_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  bNodeSocket *sock = bke::node_find_socket(*object_node, SOCK_IN, "Object");
+  bNodeSocket *sock = bke::node_find_socket(*object_node, SOCK_IN, "Object"_ustr);
   if (!sock) {
     BLI_assert_unreachable();
     return OPERATOR_CANCELLED;
@@ -738,7 +738,8 @@ static wmOperatorStatus node_add_object_invoke(bContext *C, wmOperator *op, cons
 static bool node_add_object_poll(bContext *C)
 {
   const SpaceNode *snode = CTX_wm_space_node(C);
-  return ED_operator_node_editable(C) && ELEM(snode->nodetree->type, NTREE_GEOMETRY);
+  return ED_operator_node_editable(C) &&
+         ELEM(snode->nodetree->type, NTREE_GEOMETRY, NTREE_COMPOSIT);
 }
 
 void NODE_OT_add_object(wmOperatorType *ot)
@@ -786,7 +787,7 @@ static wmOperatorStatus node_add_collection_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  bNodeSocket *sock = bke::node_find_socket(*collection_node, SOCK_IN, "Collection");
+  bNodeSocket *sock = bke::node_find_socket(*collection_node, SOCK_IN, "Collection"_ustr);
   if (!sock) {
     BKE_report(op->reports, RPT_WARNING, "Could not find node collection socket");
     return OPERATOR_CANCELLED;
@@ -1600,6 +1601,8 @@ void NODE_OT_add_color(wmOperatorType *ot)
       ot->srna, "has_alpha", false, "Has Alpha", "The source color contains an Alpha component");
 }
 
+/** \} */
+
 /* -------------------------------------------------------------------- */
 /** \name New Node Tree Operator
  * \{ */
@@ -1910,6 +1913,14 @@ static wmOperatorStatus new_compositor_sequencer_node_group_exec(bContext *C, wm
    * already have been called. */
   bNodeTree *ntree = bke::node_tree_add_tree(bmain, tree_name, "CompositorNodeTree");
   initialize_compositor_sequencer_node_group(C, *ntree, is_effect_active, effect_input_count);
+  if (!is_effect_active) {
+    /* Set the compositor asset trait `is_strip_modifier` to true. */
+    if (!ntree->compositor_node_asset_traits) {
+      ntree->compositor_node_asset_traits = MEM_new<CompositorNodeAssetTraits>(__func__);
+    }
+    ntree->compositor_node_asset_traits->flag |= COMPOSIT_NODE_ASSET_STRIP_MODIFIER;
+    bke::node_update_asset_metadata(*ntree);
+  }
   node_templateID_assign(C, ntree);
 
   if (strip != nullptr && strip->type != STRIP_TYPE_SOUND) {

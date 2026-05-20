@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 Alpha (b'396b6a98e9f6')\n"
+"Project-Id-Version: Blender 5.2.0 Alpha (b'bc0a0ff2c0ce')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-05-04 07:43+0000\n"
+"POT-Creation-Date: 2026-05-18 11:20+0000\n"
 "PO-Revision-Date: 2026-05-04 00:12+0000\n"
 "Last-Translator: Alessandro Vecchio <alessandrovecchio1907@gmail.com>\n"
 "Language-Team: Italian <https://translate.blender.org/projects/blender-ui/ui/it/>\n"
@@ -1823,10 +1823,6 @@ msgstr "Mostra le risorse attualmente disponibili in questa sessione di Blender"
 
 msgid "Essentials"
 msgstr "Essenziali"
-
-
-msgid "Show the basic building blocks and utilities coming with Blender"
-msgstr "Mostra i moduli di base e le utilità fornite con Blender"
 
 
 msgid "Custom"
@@ -9369,10 +9365,6 @@ msgstr "Include la visualizzazione dei dati di animazione relativi al reticolo"
 
 msgid "Display Light Probe"
 msgstr "Mostra Sensore di Luce"
-
-
-msgid "Include visualization of lightprobe related animation data"
-msgstr "Include la visualizzazione dei dati di animazione relativi al sensore di luce"
 
 
 msgid "Display Light"
@@ -24530,96 +24522,12 @@ msgid "Material slot name"
 msgstr "Nome dello slot materiale"
 
 
-msgid "Clean Up"
-msgstr "Ripulisci"
-
-
-msgid "Show/Hide"
-msgstr "Mostra/Nascondi"
-
-
-msgid "Special Characters"
-msgstr "Caratteri Speciali"
-
-
-msgid "Kerning"
-msgstr "Crenatura"
-
-
-msgid "Metaball"
-msgstr "Metaball"
-
-
-msgid "Names"
-msgstr "Nomi"
-
-
-msgid "Math"
-msgstr "Matematica"
-
-
-msgid "Bone Roll"
-msgstr "Rollio Osso"
-
-
-msgid "Utilities"
-msgstr "Utilità"
-
-
-msgid "Pivot Point"
-msgstr "Punto di Perno"
-
-
-msgid "Read"
-msgstr "Lettura"
+msgid "Mirror"
+msgstr "Specchia"
 
 
 msgid "Snap"
 msgstr "Aggancia"
-
-
-msgid "Sample"
-msgstr "Campione"
-
-
-msgid "Proportional Editing Falloff"
-msgstr "Decadimento Modifica Proporzionale"
-
-
-msgid "Write"
-msgstr "Scrittura"
-
-
-msgid "Mask Edit"
-msgstr "Modifica Maschera"
-
-
-msgid "Automasking"
-msgstr "Automascheramento"
-
-
-msgid "Primitives"
-msgstr "Primitive"
-
-
-msgid "Face Sets Edit"
-msgstr "Modifica Sets di Facce"
-
-
-msgid "Vertex Group Locks"
-msgstr "Blocchi del Gruppo di Vertici"
-
-
-msgid "Instances"
-msgstr "Istanze"
-
-
-msgid "Import"
-msgstr "Importa"
-
-
-msgid "Mirror"
-msgstr "Specchia"
 
 
 msgid "UV Mapping"
@@ -24634,12 +24542,20 @@ msgid "Viewpoint"
 msgstr "Punto di vista"
 
 
+msgid "Math"
+msgstr "Matematica"
+
+
 msgid "Navigation"
 msgstr "Navigazione"
 
 
 msgid "Align View"
 msgstr "Allinea Vista"
+
+
+msgid "Utilities"
+msgstr "Utilità"
 
 
 msgid "Align View to Active"
@@ -24652,10 +24568,6 @@ msgstr "Regione Vista"
 
 msgid "Select More/Less"
 msgstr "Seleziona Più/Meno"
-
-
-msgid "UV"
-msgstr "UV"
 
 
 msgid "Select Similar"
@@ -24674,8 +24586,28 @@ msgid "Select Loops"
 msgstr "Seleziona Anelli"
 
 
+msgid "Read"
+msgstr "Lettura"
+
+
+msgid "Sample"
+msgstr "Campione"
+
+
 msgid "Assign Material"
 msgstr "Assegna Materiale"
+
+
+msgid "Write"
+msgstr "Scrittura"
+
+
+msgid "Primitives"
+msgstr "Primitive"
+
+
+msgid "Metaball"
+msgstr "Metaball"
 
 
 msgid "Light"
@@ -24686,12 +24618,20 @@ msgid "Light Probe"
 msgstr "Sensore di Luce"
 
 
+msgid "Instances"
+msgstr "Istanze"
+
+
 msgid "Add Image"
 msgstr "Aggiungi Immagine"
 
 
 msgid "Relations"
 msgstr "Relazioni"
+
+
+msgid "Import"
+msgstr "Importa"
 
 
 msgid "Rigid Body"
@@ -24710,6 +24650,14 @@ msgid "Quick Effects"
 msgstr "Effetti Veloci"
 
 
+msgid "Show/Hide"
+msgstr "Mostra/Nascondi"
+
+
+msgid "Clean Up"
+msgstr "Ripulisci"
+
+
 msgid "Asset"
 msgstr "Risorsa"
 
@@ -24722,6 +24670,10 @@ msgid "Convert"
 msgstr "Converti"
 
 
+msgid "UV"
+msgstr "UV"
+
+
 msgid "Link/Transfer Data"
 msgstr "Collega/Trasferisci Dati"
 
@@ -24730,8 +24682,8 @@ msgid "Hooks"
 msgstr "Ganci"
 
 
-msgid "Layout"
-msgstr "Layout"
+msgid "Vertex Group Locks"
+msgstr "Blocchi del Gruppo di Vertici"
 
 
 msgid "Face Sets Init"
@@ -24742,10 +24694,6 @@ msgid "Random Mask"
 msgstr "Maschera Casuale"
 
 
-msgid "Adjust"
-msgstr "Regola"
-
-
 msgid "Clear Transform"
 msgstr "Cancella Trasformazione"
 
@@ -24754,20 +24702,16 @@ msgid "In-Betweens"
 msgstr "Intermedio"
 
 
-msgid "Keying"
-msgstr "Keying"
-
-
 msgid "Propagate"
 msgstr "Propaga"
 
 
-msgid "Tracking"
-msgstr "Tracciamento"
-
-
 msgid "Bone Collections"
 msgstr "Raccolte di Ossa"
+
+
+msgid "Names"
+msgstr "Nomi"
 
 
 msgid "Toggle Bone Options"
@@ -24800,6 +24744,54 @@ msgstr "Imposta Intensità Faccia"
 
 msgid "Merge"
 msgstr "Unisci"
+
+
+msgid "Layout"
+msgstr "Layout"
+
+
+msgid "Special Characters"
+msgstr "Caratteri Speciali"
+
+
+msgid "Kerning"
+msgstr "Crenatura"
+
+
+msgid "Adjust"
+msgstr "Regola"
+
+
+msgid "Bone Roll"
+msgstr "Rollio Osso"
+
+
+msgid "Keying"
+msgstr "Keying"
+
+
+msgid "Tracking"
+msgstr "Tracciamento"
+
+
+msgid "Pivot Point"
+msgstr "Punto di Perno"
+
+
+msgid "Proportional Editing Falloff"
+msgstr "Decadimento Modifica Proporzionale"
+
+
+msgid "Mask Edit"
+msgstr "Modifica Maschera"
+
+
+msgid "Automasking"
+msgstr "Automascheramento"
+
+
+msgid "Face Sets Edit"
+msgstr "Modifica Sets di Facce"
 
 
 msgid "Keyframe Insert Pie"
@@ -34126,16 +34118,16 @@ msgid "Flip times of selected keyframes using the current frame as the mirror li
 msgstr "Ribalta i tempi dei keyframes selezionati utilizzando il fotogramma corrente come linea di simmetria"
 
 
-msgid "Flip values of selected keyframes (i.e. negative values become positive, and vice versa)"
-msgstr "Ribalta i valori dei keyframes selezionati (ovvero i valori negativi diventano positivi e viceversa)"
-
-
 msgid "By Times Over First Selected Marker"
 msgstr "Per Volte rispetto al Primo Marcatore Selezionato"
 
 
 msgid "Flip times of selected keyframes using the first selected marker as the reference point"
 msgstr "Ribalta i tempi dei keyframes selezionati utilizzando il primo marcatore selezionato come punto di riferimento"
+
+
+msgid "Flip values of selected keyframes (i.e. negative values become positive, and vice versa)"
+msgstr "Ribalta i valori dei keyframes selezionati (ovvero i valori negativi diventano positivi e viceversa)"
 
 
 msgctxt "Operator"
@@ -34891,6 +34883,10 @@ msgid "Add Bone"
 msgstr "Aggiungi Osso"
 
 
+msgid "Axes"
+msgstr "Assi"
+
+
 msgid "Name of the newly created bone"
 msgstr "Nome del nuovo osso creato"
 
@@ -35014,6 +35010,10 @@ msgstr "Duplica Ossa Selezionate"
 
 msgid "Move"
 msgstr "Muovi"
+
+
+msgid "Search"
+msgstr "Ricerca"
 
 
 msgctxt "Operator"
@@ -38295,12 +38295,12 @@ msgid "Next Keyframe"
 msgstr "Keyframe Successivo"
 
 
-msgid "Flip values of selected keyframes using the cursor value (Y/Horizontal component) as the mirror line"
-msgstr "Ribalta i valori dei keyframes selezionati utilizzando il valore del cursore (Y/componente orizzontale) come linea di specchio"
-
-
 msgid "Flip times of selected keyframes, effectively reversing the order they appear in"
 msgstr "Ribalta i tempi dei keyframes selezionati, invertendo l'ordine in cui appaiono"
+
+
+msgid "Flip values of selected keyframes using the cursor value (Y/Horizontal component) as the mirror line"
+msgstr "Ribalta i valori dei keyframes selezionati utilizzando il valore del cursore (Y/componente orizzontale) come linea di specchio"
 
 
 msgctxt "Operator"
@@ -59636,10 +59636,6 @@ msgid "Positional Tracking"
 msgstr "Tracciatura Posizione"
 
 
-msgid "Search"
-msgstr "Ricerca"
-
-
 msgid "Navigate"
 msgstr "Navigare"
 
@@ -60820,10 +60816,6 @@ msgstr "Offset Perno"
 
 msgid "Shapes"
 msgstr "Forme"
-
-
-msgid "Axes"
-msgstr "Assi"
 
 
 msgid "Control Rotation"
@@ -64836,6 +64828,10 @@ msgid "No edge rings found"
 msgstr "Nessuna fascia di spigoli trovata"
 
 
+msgid "Anisotropic"
+msgstr "Anisotropico"
+
+
 msgid "Baking lighting..."
 msgstr "Precalcolo illuminazione..."
 
@@ -68248,10 +68244,6 @@ msgid "Unable to create socket"
 msgstr "Impossibile creare il connettore"
 
 
-msgid "Anisotropic"
-msgstr "Anisotropico"
-
-
 msgid "Unable to locate socket '%s' in node"
 msgstr "Impossibile trovare il connettore '%s' nel nodo"
 
@@ -69765,16 +69757,16 @@ msgid "Ignore Sharpness"
 msgstr "Ignora Nitidezza"
 
 
-msgid "Hair Tie Scale"
-msgstr "Scala Elastico per Capelli"
-
-
 msgid "Minimum distance between two guides"
 msgstr "Distanza minima tra due Guide"
 
 
 msgid "Curve Root"
 msgstr "Radice Curva"
+
+
+msgid "Hair Tie Scale"
+msgstr "Scala Elastico per Capelli"
 
 
 msgid "Cumulative Offset"
