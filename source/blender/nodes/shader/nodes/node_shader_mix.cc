@@ -547,9 +547,11 @@ static const mf::MultiFunction *get_multi_function(const bNode &node)
               });
       return &fn;
     }
+    default: {
+      BLI_assert_unreachable();
+      return nullptr;
+    }
   }
-  BLI_assert_unreachable();
-  return nullptr;
 }
 
 static void sh_node_mix_build_multi_function(NodeMultiFunctionBuilder &builder)
