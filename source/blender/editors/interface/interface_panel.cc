@@ -2515,6 +2515,23 @@ static void panel_region_width_set(ARegion *region, const float aspect, int unsc
   view2d_curRect_validate(&region->v2d);
 }
 
+static bool panel_categories_is_mouse_over(ARegion *region, const wmEvent *event)
+{
+  BLI_assert(BKE_regiontype_uses_category_tabs(region->runtime->type));
+  rcti rect;
+  rect.ymin = rect.ymax = region->v2d.mask.ymax;
+  rect.xmax = region->v2d.mask.xmax;
+  rect.xmin = region->v2d.mask.xmin;
+
+  if (Block *block = region->runtime->block_name_map.lookup_as("panel_category_tabs")) {
+    rect.ymin = block->buttons_ptrs.last()->rect.ymax;
+  }
+  if (BLI_rcti_isect_pt(&rect, event->mval[0], event->mval[1])) {
+    return true;
+  }
+  return false;
+}
+
 int handler_panel_region(bContext *C,
                          const wmEvent *event,
                          ARegion *region,
@@ -2580,6 +2597,14 @@ int handler_panel_region(bContext *C,
             C, &block, mx, event->type, event->modifier & KM_CTRL, event->modifier & KM_SHIFT);
         break;
       }
+    }
+
+    if ((event->type == RIGHTMOUSE) && panel_category_tabs_is_visible(region) &&
+        panel_categories_is_mouse_over(region, event))
+    {
+      retval = WM_UI_HANDLER_BREAK;
+      popup_context_menu_for_panel(C, region, block.panel);
+      break;
     }
 
     /* Don't do any other panel handling with an active button. */
