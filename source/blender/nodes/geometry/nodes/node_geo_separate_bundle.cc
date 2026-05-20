@@ -46,7 +46,7 @@ static void node_declare(NodeDeclarationBuilder &b)
                            &tree->id, *SeparateBundleItemsAccessor::item_srna, &item, "name")
                        .propagate_all()
                        .reference_pass_all();
-      if (item.structure_type != NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO) {
+      if (item.structure_type != NodeSocketInterfaceStructureType::Auto) {
         decl.structure_type(StructureType(item.structure_type));
       }
       else {
@@ -54,7 +54,8 @@ static void node_declare(NodeDeclarationBuilder &b)
       }
     }
   }
-  b.add_output<decl::Extend>(""_ustr, "__extend__"_ustr);
+  b.add_output<decl::Extend>(""_ustr, "__extend__"_ustr)
+      .custom_draw(socket_items::ui::draw_extend_socket_fn<SeparateBundleItemsAccessor>());
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)

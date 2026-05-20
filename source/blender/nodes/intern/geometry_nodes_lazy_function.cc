@@ -50,6 +50,7 @@
 #include "BKE_node_socket_value.hh"
 #include "BKE_node_tree_reference_lifetimes.hh"
 #include "BKE_node_tree_zones.hh"
+#include "BKE_scene.hh"
 #include "BKE_type_conversions.hh"
 
 #include "ED_node.hh"
@@ -461,6 +462,7 @@ static void execute_multi_function_on_value_variant__single(
     void *value = output_variant.allocate_single(socket_type);
     params.add_uninitialized_single_output(GMutableSpan{cpp_type, value, 1});
   }
+  fn.prepare_for_execution();
   fn.call(mask, params, context);
 }
 
@@ -793,6 +795,36 @@ class LazyFunctionForImplicitInput : public LazyFunction {
     void *value = params.get_output_data_ptr(0);
     init_fn_(value);
     params.output_set(0);
+  }
+};
+
+template<typename T>
+  requires std::is_integral_v<T> || std::is_floating_point_v<T>
+class LazyFunctionForImplicitSceneFrame : public LazyFunction {
+ public:
+  LazyFunctionForImplicitSceneFrame()
+  {
+    debug_name_ = "Scene Time";
+    outputs_.append({"Scene Time", CPPType::get<SocketValueVariant>()});
+  }
+
+  void execute_impl(lf::Params &params, const lf::Context &context) const override
+  {
+    const GeoNodesUserData &user_data = *static_cast<const GeoNodesUserData *>(context.user_data);
+    const Depsgraph *depsgraph = nullptr;
+    if (user_data.call_data->modifier_data) {
+      depsgraph = user_data.call_data->modifier_data->depsgraph;
+    }
+    else if (user_data.call_data->operator_data) {
+      depsgraph = user_data.call_data->operator_data->depsgraphs->active;
+    }
+    if (!depsgraph) {
+      params.set_output(0, SocketValueVariant(T(0)));
+      return;
+    }
+    const Scene *scene = DEG_get_input_scene(depsgraph);
+    const float scene_ctime = BKE_scene_ctime_get(scene);
+    params.set_output(0, SocketValueVariant(T(scene_ctime)));
   }
 };
 
@@ -1396,6 +1428,23 @@ class LazyFunctionForExtractingReferenceSet : public lf::LazyFunction {
       if (value.is_type<ClosurePtr>()) {
         const ClosurePtr &closure = *value.get<ClosurePtr>();
         this->gather__closure(closure, r_references);
+      }
+      if (value.is_type<GeometrySet>()) {
+        const GeometrySet &geometry = *value.get<GeometrySet>();
+        this->gather__geometry(geometry, r_references);
+      }
+    }
+  }
+
+  void gather__geometry(const GeometrySet &geometry, GeometryNodesReferenceSet &r_references) const
+  {
+    this->gather__bundle(geometry.bundle_ptr(), r_references);
+    if (geometry.has_instances()) {
+      const bke::Instances &instances = *geometry.get_instances();
+      for (const bke::InstanceReference &reference : instances.references()) {
+        GeometrySet instance_geometry;
+        reference.to_geometry_set(instance_geometry);
+        this->gather__geometry(instance_geometry, r_references);
       }
     }
   }
@@ -3946,17 +3995,30 @@ struct GeometryNodesLazyFunctionBuilder {
     if (socket_decl->input_field_type != InputSocketFieldType::Implicit) {
       return false;
     }
-    std::optional<ImplicitInputValueFn> implicit_input_fn = get_implicit_input_value_fn(
-        socket_decl->default_input_type);
-    if (!implicit_input_fn.has_value()) {
+    lf::LazyFunction *lazy_function = nullptr;
+    if (std::optional<ImplicitInputValueFn> implicit_input_fn = get_implicit_input_value_fn(
+            socket_decl->default_input_type))
+    {
+      std::function<void(void *)> init_fn = [&bnode, implicit_input_fn](void *r_value) {
+        (*implicit_input_fn)(bnode, r_value);
+      };
+      const CPPType &type = input_lf_socket.type();
+      lazy_function = &scope_.construct<LazyFunctionForImplicitInput>(type, std::move(init_fn));
+    }
+    else if (socket_decl->default_input_type == NODE_DEFAULT_INPUT_SCENE_FRAME) {
+      if (input_bsocket.type == SOCK_INT) {
+        static LazyFunctionForImplicitSceneFrame<int> scene_frame_int;
+        lazy_function = &scene_frame_int;
+      }
+      else if (input_bsocket.type == SOCK_FLOAT) {
+        static LazyFunctionForImplicitSceneFrame<float> scene_frame_float;
+        lazy_function = &scene_frame_float;
+      }
+    }
+    if (!lazy_function) {
       return false;
     }
-    std::function<void(void *)> init_fn = [&bnode, implicit_input_fn](void *r_value) {
-      (*implicit_input_fn)(bnode, r_value);
-    };
-    const CPPType &type = input_lf_socket.type();
-    auto &lazy_function = scope_.construct<LazyFunctionForImplicitInput>(type, std::move(init_fn));
-    lf::Node &lf_node = graph_params.lf_graph.add_function(lazy_function);
+    lf::Node &lf_node = graph_params.lf_graph.add_function(*lazy_function);
     graph_params.lf_graph.add_link(lf_node.output(0), input_lf_socket);
     return true;
   }
@@ -4329,6 +4391,9 @@ static const ID *get_only_evaluated_id(const Depsgraph &depsgraph, const ID &id_
 
 const ID *GeoNodesOperatorDepsgraphs::get_evaluated_id(const ID &id_orig) const
 {
+  if (!ID_TYPE_USE_COPY_ON_EVAL(GS(id_orig.name))) {
+    return &id_orig;
+  }
   if (const Depsgraph *graph = this->active) {
     if (const ID *id = get_only_evaluated_id(*graph, id_orig)) {
       return id;
