@@ -2561,7 +2561,7 @@ void ED_image_internal_autosave_flush(const Main *bmain)
 
     if (image_should_be_saved(ima, &is_format_writable)) {
       if (BKE_image_has_packedfile(ima) || image_should_pack_during_save_all(ima) ||
-               (is_format_writable && image_has_valid_path(ima)))
+          (is_format_writable && image_has_valid_path(ima)))
       {
         BKE_image_autosave_memorypack(ima);
       }
