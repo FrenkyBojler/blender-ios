@@ -2594,7 +2594,7 @@ ccl_device_forceinline void integrate_volume_direct_light(
     INTEGRATOR_STATE(shadow_state, shadow_path, guiding_mis_weight) = 0.0f;
   }
 #  endif
-
+  SANITY_IS_VALID(shadow_state);
   integrator_state_copy_volume_stack_to_shadow(kg, shadow_state, state);
 }
 

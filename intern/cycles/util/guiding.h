@@ -13,6 +13,11 @@
 
 CCL_NAMESPACE_BEGIN
 
+
+static inline bool is_valid(openpgl::cpp::PathSegment*&){
+  return true;
+}
+
 static int guiding_device_type()
 {
 #if defined(WITH_PATH_GUIDING)

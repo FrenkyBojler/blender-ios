@@ -64,6 +64,46 @@ struct IntegratorShadowStateCPU {
 #undef KERNEL_STRUCT_ARRAY_MEMBER
 #undef KERNEL_STRUCT_END
 #undef KERNEL_STRUCT_END_ARRAY
+#undef KERNEL_STRUCT_VOLUME_STACK_SIZE
+};
+
+ccl_device_inline bool is_valid(IntegratorShadowStateCPU* shadow_state){
+  bool valid = true;
+#define KERNEL_STRUCT_BEGIN(name) \
+  { \
+    int i = 0; \
+    bool done = false; \
+    while (!done) { 
+#define KERNEL_STRUCT_BEGIN_PACKED(parent_struct, feature)  \
+  { \
+    int i = 0; \
+    bool done = false; \
+    while (!done) { 
+#define KERNEL_STRUCT_MEMBER(parent_struct, type, name, feature) valid &= is_valid(shadow_state->parent_struct.name); kernel_assert(valid);
+#define KERNEL_STRUCT_MEMBER_PACKED(parent_struct, type, name, feature) valid &= is_valid(shadow_state->parent_struct.name); kernel_assert(valid);
+#define KERNEL_STRUCT_ARRAY_MEMBER(parent_struct, type, name, feature)
+//#define KERNEL_STRUCT_ARRAY_MEMBER(parent_struct, type, name, feature) valid &= is_valid(shadow_state->parent_struct[i].name); kernel_assert(valid);
+#define KERNEL_STRUCT_END(name) \
+      i++; \
+      done = true; \
+    } \
+  };
+#define KERNEL_STRUCT_END_ARRAY(name, cpu_size, gpu_size)  \
+      i++; \
+      done = (i == int(cpu_size)); \
+    } \
+  };
+#define KERNEL_STRUCT_VOLUME_STACK_SIZE MAX_VOLUME_STACK_SIZE
+#include "kernel/integrator/shadow_state_template.h"
+#undef KERNEL_STRUCT_BEGIN
+#undef KERNEL_STRUCT_BEGIN_PACKED
+#undef KERNEL_STRUCT_MEMBER
+#undef KERNEL_STRUCT_MEMBER_PACKED
+#undef KERNEL_STRUCT_ARRAY_MEMBER
+#undef KERNEL_STRUCT_END
+#undef KERNEL_STRUCT_END_ARRAY
+#undef KERNEL_STRUCT_VOLUME_STACK_SIZE
+  return valid;
 };
 
 struct IntegratorStateCPU {
@@ -91,6 +131,46 @@ struct IntegratorStateCPU {
 
   IntegratorShadowStateCPU shadow;
   IntegratorShadowStateCPU ao;
+};
+
+ccl_device_inline bool is_valid(IntegratorStateCPU* state){
+  bool valid = true;
+#define KERNEL_STRUCT_BEGIN(name) \
+  { \
+    int i = 0; \
+    bool done = false; \
+    while (!done) { 
+#define KERNEL_STRUCT_BEGIN_PACKED(parent_struct, feature)  \
+  { \
+    int i = 0; \
+    bool done = false; \
+    while (!done) { 
+#define KERNEL_STRUCT_MEMBER(parent_struct, type, name, feature) valid &= is_valid(state->parent_struct.name);
+#define KERNEL_STRUCT_MEMBER_PACKED(parent_struct, type, name, feature) valid &= is_valid(state->parent_struct.name);
+#define KERNEL_STRUCT_ARRAY_MEMBER(parent_struct, type, name, feature) valid &= is_valid(state->parent_struct[i].name);
+#define KERNEL_STRUCT_END(name) \
+      i++; \
+      done = true; \
+    } \
+  };
+#define KERNEL_STRUCT_END_ARRAY(name, cpu_size, gpu_size)  \
+      i++; \
+      done = (i == int(cpu_size)); \
+    } \
+  };
+#define KERNEL_STRUCT_VOLUME_STACK_SIZE MAX_VOLUME_STACK_SIZE
+#include "kernel/integrator/state_template.h"
+#undef KERNEL_STRUCT_BEGIN
+#undef KERNEL_STRUCT_BEGIN_PACKED
+#undef KERNEL_STRUCT_MEMBER
+#undef KERNEL_STRUCT_MEMBER_PACKED
+#undef KERNEL_STRUCT_ARRAY_MEMBER
+#undef KERNEL_STRUCT_END
+#undef KERNEL_STRUCT_END_ARRAY
+#undef KERNEL_STRUCT_VOLUME_STACK_SIZE
+  valid &= is_valid(&state->shadow);
+  valid &= is_valid(&state->ao);
+  return valid;
 };
 
 /* Path Queue
