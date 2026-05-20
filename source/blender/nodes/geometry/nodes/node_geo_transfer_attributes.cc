@@ -219,8 +219,6 @@ static bool transfer_attributes(
           transferred_num++;
           continue;
         }
-        /* Transfer failed. */
-        continue;
       }
 
       const int copy_num = std::min(src_size, dst_size);
