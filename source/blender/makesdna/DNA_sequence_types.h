@@ -781,10 +781,20 @@ struct TransformVarsLegacy {
   int uniform_scale = 0;
 };
 
+enum eEffectColorFlags : uint8_t {
+  SEQ_COLOR_USE_ABSOLUTE_WIDTH = (1 << 0),
+  SEQ_COLOR_USE_ABSOLUTE_HEIGHT = (1 << 1),
+};
+ENUM_OPERATORS(eEffectColorFlags);
+
 struct SolidColorVars {
   float col[3] = {};
-  int width;
-  int height;
+  float width;
+  float height;
+  int width_abs;
+  int height_abs;
+  eEffectColorFlags flag = eEffectColorFlags(0);
+  char _pad[3] = {};
 };
 
 struct SpeedControlVars {

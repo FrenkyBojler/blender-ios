@@ -2034,8 +2034,8 @@ static wmOperatorStatus sequencer_add_effect_strip_exec(bContext *C, wmOperator 
   if (strip->type == STRIP_TYPE_COLOR) {
     SolidColorVars *colvars = static_cast<SolidColorVars *>(strip->effectdata);
     RNA_float_get_array(op->ptr, "color", colvars->col);
-    colvars->width = RNA_int_get(op->ptr, "width");
-    colvars->height = RNA_int_get(op->ptr, "height");
+    colvars->width_abs = RNA_int_get(op->ptr, "width");
+    colvars->height_abs = RNA_int_get(op->ptr, "height");
   }
   else if (strip->type == STRIP_TYPE_TEXT) {
     TextVars *textvars = static_cast<TextVars *>(strip->effectdata);
