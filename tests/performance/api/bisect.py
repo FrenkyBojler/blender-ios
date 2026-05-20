@@ -2,15 +2,11 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-from __future__ import annotations
-
 import datetime
 from collections.abc import Callable
-from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from .environment import TestEnvironment
-    from .test import Test
+from .environment import TestEnvironment
+from .test import Test
 
 
 def date_str(ts: int) -> str:
