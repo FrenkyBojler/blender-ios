@@ -1784,7 +1784,7 @@ class XpbdSolverStep {
               points_by_curve,
               constraint_usage.rest_lengths,
               constraint_usage.compliances.get_span_for_range(chunk.points_range),
-              math::square(constraint_usage.error_threshold),
+              constraint_usage.error_threshold,
               constraint_usage.lambdas_pos,
               constraint_usage.lambdas_rot));
     }

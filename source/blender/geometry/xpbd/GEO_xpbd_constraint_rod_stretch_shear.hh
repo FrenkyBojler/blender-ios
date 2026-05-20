@@ -99,8 +99,8 @@ class RodStretchAndShearConstraintSet
   /** Indexed by `point_i - first_point_i_in_constraint_set`. */
   Span<float> compliances_;
 
-  /* Threshold value for scaling the total residual error. */
-  float error_threshold_squared_;
+  /* Scale factor for residual error. */
+  float error_scale_;
 
  public:
   static constexpr StringRefNull debug_name = "Rod Stretch and Shear";
@@ -110,7 +110,7 @@ class RodStretchAndShearConstraintSet
                                   const OffsetIndices<int> points_by_curve,
                                   const Span<float> rest_lengths,
                                   const Span<float> compliances,
-                                  const float error_threshold_squared,
+                                  const float error_threshold,
                                   MutableSpan<float3> lambdas_pos,
                                   MutableSpan<float3> lambdas_rot)
       : TemplatedConstraintSet<RodStretchAndShearConstraintSet>(curves_range.size(), {geo_i}),
@@ -120,7 +120,7 @@ class RodStretchAndShearConstraintSet
         lambdas_pos_(lambdas_pos),
         lambdas_rot_(lambdas_rot),
         compliances_(compliances),
-        error_threshold_squared_(error_threshold_squared)
+        error_scale_(1.0f / std::max(math::square(error_threshold), 1e-12f))
   {
   }
 
@@ -141,7 +141,6 @@ class RodStretchAndShearConstraintSet
     const IndexRange points = points_by_curve_[curve_i];
     const int geo_i = affected_geo_indices_[0];
     const int first_point_i_in_constraint_set = points_by_curve_[curves_range_.first()].first();
-    const float error_scale = 1.0f / std::max(error_threshold_squared_, 1e-12f);
 
     /* Could try implementing bilateral interleaving ordering for better stability. */
     for (const int point_i0 : points.drop_back(1)) {
@@ -163,7 +162,7 @@ class RodStretchAndShearConstraintSet
       updater.update_position(geo_i, point_i0, result.offset0);
       updater.update_position(geo_i, point_i1, result.offset1);
       updater.update_rotation(geo_i, point_i0, result.offset_rot);
-      updater.add_residual_error(geo_i, result.residual_error_squared * error_scale);
+      updater.add_residual_error(geo_i, result.residual_error_squared * error_scale_);
     }
   }
 
