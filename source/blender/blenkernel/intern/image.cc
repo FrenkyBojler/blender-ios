@@ -1514,7 +1514,7 @@ static bool image_memorypack_imbuf_for_autosave(
 {
   ibuf->ftype = ibuf->float_data() ? IMB_FTYPE_OPENEXR : IMB_FTYPE_PNG;
 
-  Vector<uint8_t> encoded = IMB_save_image_to_buffer(ibuf, IB_byte_data);
+  Vector<uint8_t> encoded = IMB_save_image_to_buffer(ibuf, ImBufFlags::ByteData);
   if (encoded.is_empty()) {
     CLOG_STR_ERROR(&LOG, "memory save for pack error");
     image_free_packedfiles(ima);
@@ -4509,7 +4509,8 @@ void BKE_image_populate_cache_from_autosave(Image *ima)
   const bool tiled = ima->source == IMA_SRC_TILED;
   const int index = image_get_multiview_index(ima, nullptr);
 
-  const int flag = IB_byte_data | IB_multilayer | IB_metadata | imbuf_alpha_flags_for_image(ima);
+  const ImBufFlags flag = ImBufFlags::ByteData | ImBufFlags::MultiLayer | ImBufFlags::Metadata |
+                    imbuf_alpha_flags_for_image(ima);
   for (ImagePackedFile &imapf : ima->autosave_packedfiles) {
     if (imapf.packedfile) {
       const int entry = tiled ? imapf.tile_number : 0;
