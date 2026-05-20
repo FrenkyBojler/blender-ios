@@ -26,11 +26,17 @@ class GHOST_ContextD3D : public GHOST_Context {
   GHOST_ContextD3D(const GHOST_ContextParams &context_params, HWND hWnd);
   ~GHOST_ContextD3D() override;
 
+  /** \copydoc #GHOST_IContext::swapBuffersAcquire */
+  GHOST_TSuccess swapBufferAcquire() override
+  {
+    return GHOST_kSuccess;
+  }
+
   /**
    * Swaps front and back buffers of a window.
    * \return A boolean success indicator.
    */
-  GHOST_TSuccess swapBuffers() override;
+  GHOST_TSuccess swapBufferRelease() override;
 
   /**
    * Activates the drawing context of this window.
@@ -81,7 +87,7 @@ class GHOST_ContextD3D : public GHOST_Context {
    * \param interval_out: Variable to store the swap interval if it can be read.
    * \return Whether the swap interval can be read.
    */
-  GHOST_TSuccess getSwapInterval(int & /*unused*/) override
+  GHOST_TSuccess getSwapInterval(int & /*interval_out*/) override
   {
     return GHOST_kFailure;
   }

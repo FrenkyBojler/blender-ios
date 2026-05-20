@@ -5,6 +5,7 @@
 #include "scene/pass.h"
 
 #include "util/log.h"
+#include "util/time.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -86,12 +87,16 @@ const NodeEnum *Pass::get_type_enum()
     pass_type_enum.insert("glossy_color", PASS_GLOSSY_COLOR);
     pass_type_enum.insert("transmission_color", PASS_TRANSMISSION_COLOR);
     pass_type_enum.insert("mist", PASS_MIST);
-    pass_type_enum.insert("denoising_normal", PASS_DENOISING_NORMAL);
     pass_type_enum.insert("denoising_albedo", PASS_DENOISING_ALBEDO);
+    pass_type_enum.insert("denoising_specular_albedo", PASS_DENOISING_SPECULAR_ALBEDO);
+    pass_type_enum.insert("denoising_normal", PASS_DENOISING_NORMAL);
+    pass_type_enum.insert("denoising_roughness", PASS_DENOISING_ROUGHNESS);
     pass_type_enum.insert("denoising_depth", PASS_DENOISING_DEPTH);
+    pass_type_enum.insert("denoising_backward_motion", PASS_DENOISING_BACKWARD_MOTION);
     pass_type_enum.insert("denoising_previous", PASS_DENOISING_PREVIOUS);
     pass_type_enum.insert("volume_majorant", PASS_VOLUME_MAJORANT);
     pass_type_enum.insert("volume_majorant_sample_count", PASS_VOLUME_MAJORANT_SAMPLE_COUNT);
+    pass_type_enum.insert("render_time", PASS_RENDER_TIME);
 
     pass_type_enum.insert("shadow_catcher", PASS_SHADOW_CATCHER);
     pass_type_enum.insert("shadow_catcher_sample_count", PASS_SHADOW_CATCHER_SAMPLE_COUNT);
@@ -304,12 +309,13 @@ PassInfo Pass::get_info(const PassType type,
       pass_info.num_components = 4;
       break;
 
-    case PASS_DENOISING_NORMAL:
-      pass_info.num_components = 3;
-      break;
     case PASS_DENOISING_ALBEDO:
+    case PASS_DENOISING_SPECULAR_ALBEDO:
+    case PASS_DENOISING_NORMAL:
+    case PASS_DENOISING_BACKWARD_MOTION:
       pass_info.num_components = 3;
       break;
+    case PASS_DENOISING_ROUGHNESS:
     case PASS_DENOISING_DEPTH:
       pass_info.num_components = 1;
       break;
@@ -344,6 +350,12 @@ PassInfo Pass::get_info(const PassType type,
       pass_info.num_components = 1;
       pass_info.use_exposure = false;
       break;
+    case PASS_RENDER_TIME:
+      pass_info.num_components = 1;
+      pass_info.use_exposure = false;
+      pass_info.use_filter = false;
+      pass_info.scale = 1000.0f / float(time_fast_frequency());
+      break;
 
     case PASS_AOV_COLOR:
       pass_info.num_components = 4;
@@ -368,13 +380,6 @@ PassInfo Pass::get_info(const PassType type,
       pass_info.use_filter = false;
       break;
 
-    case PASS_CATEGORY_LIGHT_END:
-    case PASS_CATEGORY_DATA_END:
-    case PASS_CATEGORY_BAKE_END:
-    case PASS_NUM:
-      LOG_DFATAL << "Unexpected pass type is used " << type;
-      pass_info.num_components = 0;
-      break;
     case PASS_GUIDING_COLOR:
       pass_info.num_components = 3;
       break;
@@ -383,6 +388,11 @@ PassInfo Pass::get_info(const PassType type,
       break;
     case PASS_GUIDING_AVG_ROUGHNESS:
       pass_info.num_components = 1;
+      break;
+
+    default:
+      LOG_DFATAL << "Unexpected pass type is used " << type;
+      pass_info.num_components = 0;
       break;
   }
 

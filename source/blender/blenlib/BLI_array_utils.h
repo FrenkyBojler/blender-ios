@@ -12,6 +12,8 @@
 #include "BLI_compiler_typecheck.h"
 #include "BLI_sys_types.h"
 
+namespace blender {
+
 /**
  * In-place array reverse.
  *
@@ -30,7 +32,7 @@ void _bli_array_wrap(void *arr_v, uint arr_len, size_t arr_stride, int dir);
 #define BLI_array_wrap(arr, arr_len, dir) _bli_array_wrap(arr, arr_len, sizeof(*(arr)), dir)
 
 /**
- *In-place array permute.
+ * In-place array permute.
  * (re-arrange elements based on an array of indices).
  *
  * Access via #BLI_array_wrap
@@ -142,3 +144,5 @@ bool _bli_array_iter_spiral_square(const void *arr_v,
                                    void *user_data);
 #define BLI_array_iter_spiral_square(arr, arr_shape, center, test_fn, user_data) \
   _bli_array_iter_spiral_square(arr, arr_shape, sizeof(*(arr)), center, test_fn, user_data)
+
+}  // namespace blender

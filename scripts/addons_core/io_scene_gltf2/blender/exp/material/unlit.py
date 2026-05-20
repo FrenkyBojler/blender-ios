@@ -8,21 +8,18 @@ from .search_node_tree import \
     NodeSocket, \
     previous_socket, \
     previous_node, \
-    get_factor_from_socket, \
     gather_alpha_info,  \
     gather_color_info
 
 
-def detect_shadeless_material(blender_material_node_tree, use_nodes, export_settings):
+def detect_shadeless_material(blender_material_node_tree, export_settings):
     """Detect if this material is "shadeless" ie. should be exported
     with KHR_materials_unlit. Returns None if not. Otherwise, returns
     a dict with info from parsing the node tree.
     """
-    if not use_nodes:
-        return None
 
     # Old Background node detection (unlikely to happen)
-    bg_socket = get_socket(blender_material_node_tree, use_nodes, "Background")
+    bg_socket = get_socket(blender_material_node_tree, "Background")
     if bg_socket.socket is not None:
         return {'rgb_socket': bg_socket}
 
@@ -110,7 +107,7 @@ def __detect_lightpath_trick(socket):
     in0 = previous_socket(NodeSocket(prev.node.inputs[0], prev.group_path))
     if in0.socket is None or in0.socket.node.type != 'LIGHT_PATH':
         return None
-    if in0.socket.name != 'Is Camera Ray':
+    if in0.socket.identifier != 'Is Camera Ray':
         return None
     next_socket = NodeSocket(prev.node.inputs[2], prev.group_path)
 
@@ -126,7 +123,6 @@ def gather_base_color_factor(info, export_settings):
     rgb, alpha = None, None
     path, path_alpha = None, None
     vc_info = {"color": None, "alpha": None, "color_type": None, "alpha_type": None, "alpha_mode": "OPAQUE"}
-
 
     if 'rgb_socket' in info:
         rgb_vc_info = gather_color_info(info['rgb_socket'].to_node_nav())

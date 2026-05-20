@@ -20,7 +20,7 @@ set or returned, but do not control how/where that data is stored.
 .. note::
 
    It is possible to define both ``get``/``set`` and ``get_transform``/``set_transform`` callbacks
-   for a same property. In practice however, this should rarely be needed, as most 'transform'
+   for the same property. In practice however, this should rarely be needed, as most 'transform'
    operation can also happen within a ``get``/``set`` callback.
 
 .. warning::
@@ -106,7 +106,7 @@ print("test_array:", tuple(scene.test_array))
 
 # Boolean array, using 'transform' accessors.
 # Note how the same result is achieved as with previous get/set example, but using default RNA storage.
-# Transform accessors also have access to more informations.
+# Transform accessors also have access to more information.
 # Also note how the stored data _is_ a two-items array.
 # - Set function stores a single boolean value, returned as the second component.
 # - Array getters must return a list or tuple.
