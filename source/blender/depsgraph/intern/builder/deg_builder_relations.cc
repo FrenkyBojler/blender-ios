@@ -2297,7 +2297,7 @@ void DepsgraphRelationBuilder::build_dynamic_override_target(ID *id)
   for (const DynamicOverrideRule *rule_iter :
        dynamic_override_ctx_->get_override_rules_for_id(*id))
   {
-    if (rule_iter->type != DynamicOverrideRuleType::IDDATA) {
+    if (rule_iter->type != DynamicOverrideRuleType::IDData) {
       continue;
     }
     const DynamicOverrideRuleIDData *id_rule = reinterpret_cast<const DynamicOverrideRuleIDData *>(

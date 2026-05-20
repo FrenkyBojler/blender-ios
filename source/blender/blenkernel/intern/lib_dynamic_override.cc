@@ -210,17 +210,17 @@ static void dynamic_override_rule_copy(DynamicOverrideRule &dynoverride_rule_dst
    * using `BLI_duplicatelist`). */
 
   BLI_assert(dynoverride_rule_dst.type == dynoverride_rule_src.type);
-  BLI_assert(dynoverride_rule_dst.type != DynamicOverrideRuleType::UNKNOWN);
+  BLI_assert(dynoverride_rule_dst.type != DynamicOverrideRuleType::Unknown);
 
   switch (dynoverride_rule_dst.type) {
-    case DynamicOverrideRuleType::IDDATA: {
+    case DynamicOverrideRuleType::IDData: {
       DynamicOverrideRuleIDData &rule_dst = reinterpret_cast<DynamicOverrideRuleIDData &>(
           dynoverride_rule_dst);
       DynamicOverrideRuleIDData &rule_src = reinterpret_cast<DynamicOverrideRuleIDData &>(
           dynoverride_rule_src);
 
       if ((flag & LIB_ID_CREATE_NO_USER_REFCOUNT) == 0) {
-        id_us_plus(rule_dst.owner_id);
+        id_us_plus(rule_dst.base.target_filter.target_id);
       }
 
       BLI_duplicatelist(&rule_dst.properties, &rule_src.properties);
@@ -254,7 +254,7 @@ static void dynamic_override_rule_property_free(
 static void dynamic_override_rule_free(DynamicOverrideRule &dynoverride_rule)
 {
   switch (dynoverride_rule.type) {
-    case DynamicOverrideRuleType::IDDATA: {
+    case DynamicOverrideRuleType::IDData: {
       DynamicOverrideRuleIDData &rule = reinterpret_cast<DynamicOverrideRuleIDData &>(
           dynoverride_rule);
 
@@ -286,11 +286,11 @@ static void dynamic_override_rule_foreach_id(DynamicOverrideRule &dynoverride_ru
                                              LibraryForeachIDData &data)
 {
   switch (dynoverride_rule.type) {
-    case DynamicOverrideRuleType::IDDATA: {
+    case DynamicOverrideRuleType::IDData: {
       DynamicOverrideRuleIDData &rule = reinterpret_cast<DynamicOverrideRuleIDData &>(
           dynoverride_rule);
 
-      BKE_LIB_FOREACHID_PROCESS_ID(&data, rule.owner_id, IDWALK_CB_NOP);
+      BKE_LIB_FOREACHID_PROCESS_ID(&data, rule.base.target_filter.target_id, IDWALK_CB_NOP);
 
       for (DynamicOverrideRuleProperty &property : rule.properties) {
         dynamic_override_rule_property_foreach_id(property, data);
@@ -321,7 +321,7 @@ static void dynamic_override_rule_property_write(
 static void dynamic_override_rule_write(BlendWriter &writer, DynamicOverrideRule &dynoverride_rule)
 {
   switch (dynoverride_rule.type) {
-    case DynamicOverrideRuleType::IDDATA: {
+    case DynamicOverrideRuleType::IDData: {
       DynamicOverrideRuleIDData &rule = reinterpret_cast<DynamicOverrideRuleIDData &>(
           dynoverride_rule);
 
@@ -358,7 +358,7 @@ static void dynamic_override_rule_read_data(BlendDataReader &reader,
                                             DynamicOverrideRule &dynoverride_rule)
 {
   switch (dynoverride_rule.type) {
-    case DynamicOverrideRuleType::IDDATA: {
+    case DynamicOverrideRuleType::IDData: {
       DynamicOverrideRuleIDData &rule = reinterpret_cast<DynamicOverrideRuleIDData &>(
           dynoverride_rule);
 
@@ -386,11 +386,11 @@ static DynamicOverrideRuleIDData *dynamic_override_rule_get_for_id(
 {
   /* TODO: use runtime data for mappings etc. */
   for (DynamicOverrideRule &rule : dynamic_override.rules) {
-    if (rule.type != DynamicOverrideRuleType::IDDATA) {
+    if (rule.type != DynamicOverrideRuleType::IDData) {
       continue;
     }
     DynamicOverrideRuleIDData &rule_id_data = reinterpret_cast<DynamicOverrideRuleIDData &>(rule);
-    if (rule_id_data.owner_id == &owner_id) {
+    if (rule_id_data.base.target_filter.target_id == &owner_id) {
       return &rule_id_data;
     }
   }
@@ -404,8 +404,9 @@ static DynamicOverrideRuleIDData &dynamic_override_rule_add_for_id(
   BLI_assert(!dynamic_override_rule_get_for_id(dynamic_override, owner_id));
 
   DynamicOverrideRuleIDData *rule_id_data = MEM_new<DynamicOverrideRuleIDData>(__func__);
-  rule_id_data->owner_id = &owner_id;
-  rule_id_data->base.type = DynamicOverrideRuleType::IDDATA;
+  rule_id_data->base.type = DynamicOverrideRuleType::IDData;
+  rule_id_data->base.target_filter.type = DynamicOverrideRuleTargetFilterType::IDSingle;
+  rule_id_data->base.target_filter.target_id = &owner_id;
   BLI_addtail(&dynamic_override.rules, rule_id_data);
 
   DEG_id_tag_update(&dynamic_override.id, ID_RECALC_PARAMETERS);
@@ -433,11 +434,11 @@ void dynamic_override_rule_remove(DynamicOverride &dynamic_override,
   BLI_assert(BLI_findindex(&dynamic_override.rules, existing_rule) != -1);
   BLI_remlink(&dynamic_override.rules, existing_rule);
 
-  if (existing_rule->type == DynamicOverrideRuleType::IDDATA) {
+  if (existing_rule->type == DynamicOverrideRuleType::IDData) {
     DynamicOverrideRuleIDData *iddata_rule = reinterpret_cast<DynamicOverrideRuleIDData *>(
         existing_rule);
     DEG_id_tag_update(&dynamic_override.id, ID_RECALC_PARAMETERS);
-    DEG_id_tag_update(iddata_rule->owner_id, ID_RECALC_DYNAMIC_OVERRIDE);
+    DEG_id_tag_update(iddata_rule->base.target_filter.target_id, ID_RECALC_DYNAMIC_OVERRIDE);
     DEG_relations_tag_update(G_MAIN);
   }
 
@@ -479,7 +480,7 @@ static IDProperty *idproperty_from_rna_property(PointerRNA &ptr,
 DynamicOverrideRuleProperty *dynamic_override_rule_rna_property_add(DynamicOverrideRule &rule,
                                                                     RNAPath &rna_path)
 {
-  if (rule.type != DynamicOverrideRuleType::IDDATA) {
+  if (rule.type != DynamicOverrideRuleType::IDData) {
     return nullptr;
   }
 
@@ -487,7 +488,7 @@ DynamicOverrideRuleProperty *dynamic_override_rule_rna_property_add(DynamicOverr
   PointerRNA owner_id_ptr, ptr;
   PropertyRNA *prop;
 
-  owner_id_ptr = RNA_id_pointer_create(rule_iddata.owner_id);
+  owner_id_ptr = RNA_id_pointer_create(rule_iddata.base.target_filter.target_id);
   RNA_path_resolve(&owner_id_ptr, rna_path.path.c_str(), &ptr, &prop);
 
   if (!ptr.data || !prop) {
@@ -515,7 +516,7 @@ DynamicOverrideRuleProperty *dynamic_override_rule_rna_property_add(DynamicOverr
 void dynamic_override_rule_property_remove(DynamicOverrideRule &rule,
                                            DynamicOverrideRuleProperty *existing_property)
 {
-  BLI_assert(rule.type == DynamicOverrideRuleType::IDDATA);
+  BLI_assert(rule.type == DynamicOverrideRuleType::IDData);
 
   DynamicOverrideRuleIDData &rule_iddata = reinterpret_cast<DynamicOverrideRuleIDData &>(rule);
   BLI_assert(BLI_findindex(&rule_iddata.properties, existing_property) != -1);
@@ -560,14 +561,14 @@ void DynamicOverrideDepsgraphCtx::gather_id_targets(const bool force_reset)
   gather_dynamic_overrides(force_reset);
   for (const DynamicOverride *dynoverride_iter : dynamic_overrides_) {
     for (const DynamicOverrideRule &rule_iter : dynoverride_iter->rules) {
-      if (rule_iter.type == DynamicOverrideRuleType::IDDATA) {
+      if (rule_iter.type == DynamicOverrideRuleType::IDData) {
         const DynamicOverrideRuleIDData &id_rule =
             reinterpret_cast<const DynamicOverrideRuleIDData &>(rule_iter);
-        if (id_rule.owner_id) {
+        if (id_rule.base.target_filter.target_id) {
           /* Dynamic overrides are not allowed to be overridden by other dynamic overrides!
            * NOTE: Once implemented, dynoverride imports will be a different case. */
-          BLI_assert(GS(id_rule.owner_id->name) != ID_OV);
-          id_targets_.lookup_or_add(id_rule.owner_id, {}).append(&rule_iter);
+          BLI_assert(GS(id_rule.base.target_filter.target_id->name) != ID_OV);
+          id_targets_.lookup_or_add(id_rule.base.target_filter.target_id, {}).append(&rule_iter);
         }
       }
     }
@@ -620,11 +621,11 @@ void dynamic_override_eval_for_id(Depsgraph &depsgraph,
 
   PointerRNA id_cow_ptr = RNA_id_pointer_create(&id_cow);
   for (DynamicOverrideRule &rule : dynamic_override->rules) {
-    if (rule.type != DynamicOverrideRuleType::IDDATA) {
+    if (rule.type != DynamicOverrideRuleType::IDData) {
       continue;
     }
     DynamicOverrideRuleIDData &rule_iddata = reinterpret_cast<DynamicOverrideRuleIDData &>(rule);
-    if (rule_iddata.owner_id != &id_cow) {
+    if (rule_iddata.base.target_filter.target_id != &id_cow) {
       continue;
     }
     for (DynamicOverrideRuleProperty &prop : rule_iddata.properties) {

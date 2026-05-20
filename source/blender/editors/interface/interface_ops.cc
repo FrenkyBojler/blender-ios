@@ -1060,7 +1060,8 @@ static wmOperatorStatus dynamic_override_add_button_exec(bContext *C, wmOperator
   /* Outliner e.g. has to be aware of this change. */
   // WM_main_add_notifier(NC_WM | ND_LIB_OVERRIDE_CHANGED, nullptr);
   DEG_id_tag_update(&scene->dynamic_override->id, ID_RECALC_PARAMETERS);
-  DEG_id_tag_update(dynamic_override_rule.owner_id, ID_RECALC_DYNAMIC_OVERRIDE);
+  DEG_id_tag_update(dynamic_override_rule.base.target_filter.target_id,
+                    ID_RECALC_DYNAMIC_OVERRIDE);
   DEG_relations_tag_update(bmain);
 
   return operator_button_property_finish(C, &ptr, prop);

@@ -32,6 +32,19 @@
 
 namespace blender {
 
+static StructRNA *rna_DynamicOverrideRuleTargetFilter_refine(PointerRNA *ptr)
+{
+  DynamicOverrideRuleTargetFilter *filter = ptr->data_as<DynamicOverrideRuleTargetFilter>();
+
+  switch (filter->type) {
+    case DynamicOverrideRuleTargetFilterType::IDSingle:
+      return RNA_DynamicOverrideRuleTargetFilterIDSingle;
+    case DynamicOverrideRuleTargetFilterType::Unknown:
+      break;
+  }
+  return RNA_DynamicOverrideRuleTargetFilter;
+}
+
 static StructRNA *rna_DynamicOverrideRuleProperty_refine(PointerRNA *ptr)
 {
   DynamicOverrideRuleProperty *rule_prop = ptr->data_as<DynamicOverrideRuleProperty>();
@@ -125,7 +138,7 @@ static void rna_DynamicOverride_rule_property_override_value_float_array_update(
 
   DynamicOverrideRuleIDData *rule = static_cast<DynamicOverrideRuleIDData *>(
       rule_ancestor_ptr->data);
-  DEG_id_tag_update(rule->owner_id, ID_RECALC_DYNAMIC_OVERRIDE);
+  DEG_id_tag_update(rule->base.target_filter.target_id, ID_RECALC_DYNAMIC_OVERRIDE);
 }
 
 static int rna_DynamicOverride_rule_property_original_value_float_array_get_length(
@@ -165,7 +178,7 @@ static void rna_DynamicOverride_rule_property_remove(DynamicOverrideRule *dynami
                                                      ReportList *reports,
                                                      DynamicOverrideRuleProperty *property)
 {
-  if (dynamic_override_rule->type != DynamicOverrideRuleType::IDDATA) {
+  if (dynamic_override_rule->type != DynamicOverrideRuleType::IDData) {
     BKE_report(
         reports, RPT_ERROR, "This dynamic override rule cannot conatin RNA-based properties");
     return;
@@ -187,17 +200,19 @@ static StructRNA *rna_DynamicOverrideRule_refine(PointerRNA *ptr)
   DynamicOverrideRule *rule = ptr->data_as<DynamicOverrideRule>();
 
   switch (rule->type) {
-    case DynamicOverrideRuleType::IDDATA:
+    case DynamicOverrideRuleType::IDData:
       return RNA_DynamicOverrideRuleIDData;
+    case DynamicOverrideRuleType::Unknown:
+      break;
   }
   return RNA_DynamicOverrideRule;
 }
 
 static DynamicOverrideRule *rna_DynamicOverride_rule_iddata_ensure(
-    DynamicOverride *dynamic_override, ReportList *reports, ID *owner_id)
+    DynamicOverride *dynamic_override, ReportList *reports, ID *target_id)
 {
   DynamicOverrideRuleIDData &result = bke::dynamic_override_rule_ensure_for_id(*dynamic_override,
-                                                                               *owner_id);
+                                                                               *target_id);
 
   // WM_main_add_notifier(NC_WM | ND_LIB_OVERRIDE_CHANGED, nullptr);
   return &result.base;
@@ -224,6 +239,31 @@ static void rna_DynamicOverride_rule_remove(DynamicOverride *dynamic_override,
 #else
 
 namespace blender {
+
+static void rna_def_dynamic_override_rule_target_filter(BlenderRNA *brna)
+{
+  StructRNA *srna;
+
+  srna = RNA_def_struct(brna, "DynamicOverrideRuleTargetFilter", nullptr);
+  RNA_def_struct_ui_text(
+      srna, "Dynamic Override Rule Target Filter", "Define which ID(s) are affected by this rule");
+  RNA_def_struct_sdna(srna, "DynamicOverrideRuleTargetFilter");
+  RNA_def_struct_refine_func(srna, "rna_DynamicOverrideRuleTargetFilter_refine");
+}
+
+static void rna_def_dynamic_override_rule_target_filter_single_id(BlenderRNA *brna)
+{
+  StructRNA *srna;
+
+  srna = RNA_def_struct(
+      brna, "DynamicOverrideRuleTargetFilterIDSingle", "DynamicOverrideRuleTargetFilter");
+  RNA_def_struct_ui_text(srna,
+                         "Dynamic Override Rule Target Filter Single ID",
+                         "Rules with this type of filter only affect a single ID");
+  RNA_def_struct_sdna(srna, "DynamicOverrideRuleTargetFilter");
+
+  RNA_def_pointer(srna, "target_id", "ID", "Target ID", "Data-block affected by this rule");
+}
 
 static void rna_def_dynamic_override_rule_property(BlenderRNA *brna)
 {
@@ -347,8 +387,6 @@ static void rna_def_dynamic_override_rule_iddata(BlenderRNA *brna)
                          "Dynamic override rule for a given data-block properties");
   RNA_def_struct_sdna(srna, "DynamicOverrideRuleIDData");
 
-  prop = RNA_def_pointer(srna, "owner_id", "ID", "Owner ID", "The ID affected by this rule");
-
   prop = RNA_def_collection(srna,
                             "properties",
                             "DynamicOverrideRuleProperty",
@@ -368,6 +406,12 @@ static void rna_def_dynamic_override_rule(BlenderRNA *brna)
       srna, "Dynamic Override Rule", "Base type for all types of dynamic override rules");
   RNA_def_struct_sdna(srna, "DynamicOverrideRule");
   RNA_def_struct_refine_func(srna, "rna_DynamicOverrideRule_refine");
+
+  RNA_def_pointer(srna,
+                  "target_filter",
+                  "DynamicOverrideRuleTargetFilter",
+                  "Target Filter",
+                  "Set of options to control which IDs are affected by this rule");
 }
 
 static void rna_def_dynamic_override_rules(BlenderRNA *brna, PropertyRNA *cprop)
@@ -391,9 +435,9 @@ static void rna_def_dynamic_override_rules(BlenderRNA *brna, PropertyRNA *cprop)
       "rule",
       "DynamicOverrideRule",
       "New Rule",
-      "Newly created dynamic override rule for the given owner ID, or the matching existing one");
+      "Newly created dynamic override rule for the given target ID, or the matching existing one");
   RNA_def_function_return(func, parm);
-  parm = RNA_def_pointer(func, "owner_id", "ID", "Owner ID", "Datablock affected by the rule");
+  parm = RNA_def_pointer(func, "target_id", "ID", "Target ID", "Datablock affected by the rule");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 
   func = RNA_def_function(srna, "remove", "rna_DynamicOverride_rule_remove");
@@ -423,6 +467,9 @@ static void rna_def_dynamic_override(BlenderRNA *brna)
 
 void RNA_def_dynamic_override(BlenderRNA *brna)
 {
+  rna_def_dynamic_override_rule_target_filter(brna);
+  rna_def_dynamic_override_rule_target_filter_single_id(brna);
+
   rna_def_dynamic_override_rule_property(brna);
   rna_def_dynamic_override_rule_property_float_array(brna);
 

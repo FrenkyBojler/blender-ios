@@ -78,13 +78,14 @@ class SCENE_PT_scene_dynamic_override(SceneButtonsPanel, Panel):
             return
 
         for rule in dynoverride.rules:
-            if not hasattr(rule, "owner_id"):
+            if not rule.target_filter.target_id:
                 continue
-            layout.label(text=f"Properties for {rule.owner_id.name}...")
-            for prop in rule.properties:
-                layout.label(text=f"\t\t{prop.rna_path}:")
-                layout.prop(prop, "original_value")
-                layout.prop(prop, "override_value")
+            layout.label(text=f"Properties for {rule.target_filter.target_id.name}...")
+            if isinstance(rule, bpy.types.DynamicOverrideRuleIDData):
+                for prop in rule.properties:
+                    layout.label(text=f"\t\t{prop.rna_path}:")
+                    layout.prop(prop, "original_value")
+                    layout.prop(prop, "override_value")
 
 
 class SCENE_PT_unit(SceneButtonsPanel, Panel):
