@@ -2673,9 +2673,8 @@ static void panel_region_width_set(ARegion *region, const float aspect, int unsc
 }
 
 struct PanelCategoryDragData {
-  PanelCategoryDyn *pc_dyn;
-  int xy_init[2];
   ARegion *region;
+  int xy_init[2];
 };
 
 static void handler_region_category_tab_drag_remove(bContext * /*C*/, void *userdata)
@@ -2688,14 +2687,14 @@ static int handler_region_category_tab_drag(bContext *C, const wmEvent *event, v
 {
   PanelCategoryDragData *drag_data = static_cast<PanelCategoryDragData *>(userdata);
 
-  bool handle_tab = false;
+  bool find_category_tab = false;
   switch (event->type) {
     case MOUSEMOVE: {
-      handle_tab = true;
+      find_category_tab = true;
       break;
     }
     case LEFTMOUSE:
-      handle_tab = event->val == KM_PRESS;
+      find_category_tab = event->val == KM_PRESS;
       if (event->val == KM_RELEASE) {
         WM_event_remove_ui_handler(&CTX_wm_window(C)->runtime->modalhandlers,
                                    handler_region_category_tab_drag,
@@ -2711,7 +2710,7 @@ static int handler_region_category_tab_drag(bContext *C, const wmEvent *event, v
     }
   }
 
-  if (handle_tab) {
+  if (find_category_tab) {
     ARegion *region = drag_data->region;
     int xy[2] = {drag_data->xy_init[0] - region->winrct.xmin, event->xy[1] - region->winrct.ymin};
     if (PanelCategoryDyn *pc_dyn = panel_categories_find_mouse_over(region, xy)) {
@@ -2753,7 +2752,6 @@ int handler_panel_region(bContext *C,
                                               aspect));
 
         PanelCategoryDragData *drag_data = MEM_new<PanelCategoryDragData>(__func__);
-        drag_data->pc_dyn = pc_dyn;
         drag_data->region = region;
         copy_v2_v2_int(drag_data->xy_init, event->xy);
         WM_event_add_ui_handler(C,
