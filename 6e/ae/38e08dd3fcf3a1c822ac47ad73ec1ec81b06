@@ -4,3 +4,4 @@ Referenced by pull request #154368, Fix: potential use-after-free in sculpt brus
 Referenced by pull request #157776, Fix #157766: 'Line' paint stroke angle constraint broken
 Referenced by commit cc3c07e240c4cac58976e33a4abf129bcb9d5069, Fix #157766: 'Line' paint stroke angle constraint broken
 Referenced by pull request #157878, Fix #157838: Grease Pencil sculpting crashes using a paintcurve brush
+Referenced by commit 4e3c40527f007f1904fe3d4817d1db267504b5b5, Fix #157838: Grease Pencil sculpting crashes using a paintcurve brush
