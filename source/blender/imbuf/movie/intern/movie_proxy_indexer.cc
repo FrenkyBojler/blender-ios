@@ -1,5 +1,5 @@
 /* SPDX-FileCopyrightText: 2011 Peter Schlaile <peter [at] schlaile [dot] de>.
- * SPDX-FileCopyrightText: 2024 Blender Authors
+ * SPDX-FileCopyrightText: 2024-2026 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -11,7 +11,6 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_endian_defines.h"
 #include "BLI_endian_switch.h"
 #include "BLI_fileops.h"
 #include "BLI_math_base.h"
@@ -19,7 +18,6 @@
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_string_utils.hh"
-#include "BLI_threads.h"
 #include "BLI_time.h"
 #include "BLI_utildefines.h"
 
@@ -43,227 +41,9 @@ namespace blender {
 
 static CLG_LogRef LOG = {"video.proxy"};
 
-#ifdef WITH_FFMPEG
-static const char temp_ext[] = "_part";
-#endif
-
-static const char binary_header_str[] = "BlenMIdx";
-
 static const IMB_Proxy_Size proxy_sizes[] = {
     IMB_PROXY_25, IMB_PROXY_50, IMB_PROXY_75, IMB_PROXY_100};
 static const float proxy_fac[] = {0.25, 0.50, 0.75, 1.00};
-
-#define INDEX_FILE_VERSION 2
-
-/* ----------------------------------------------------------------------
- * - time code index functions
- * ---------------------------------------------------------------------- */
-
-#ifdef WITH_FFMPEG
-
-struct MovieIndexBuilder {
-  FILE *fp;
-  char filepath[FILE_MAX];
-  char filepath_temp[FILE_MAX];
-};
-
-static MovieIndexBuilder *index_builder_create(const char *filepath)
-{
-  MovieIndexBuilder *rv = MEM_new_zeroed<MovieIndexBuilder>("index builder");
-
-  STRNCPY(rv->filepath, filepath);
-
-  STRNCPY(rv->filepath_temp, filepath);
-  BLI_string_join(rv->filepath_temp, sizeof(rv->filepath_temp), filepath, temp_ext);
-
-  BLI_file_ensure_parent_dir_exists(rv->filepath_temp);
-
-  rv->fp = BLI_fopen(rv->filepath_temp, "wb");
-
-  if (!rv->fp) {
-    CLOG_ERROR(&LOG,
-               "Failed to build index for '%s': could not open '%s' for writing",
-               filepath,
-               rv->filepath_temp);
-    MEM_delete(rv);
-    return nullptr;
-  }
-
-  fprintf(rv->fp,
-          "%s%c%.3d",
-          binary_header_str,
-          /* NOTE: this is endianness-sensitive.
-           * On Big Endian system 'V' must be used instead of 'v'. */
-          'v',
-          INDEX_FILE_VERSION);
-
-  return rv;
-}
-
-static void index_builder_add_entry(
-    MovieIndexBuilder *fp, int frameno, uint64_t seek_pos_pts, uint64_t seek_pos_dts, uint64_t pts)
-{
-  uint64_t pad = 0;
-  fwrite(&frameno, sizeof(int), 1, fp->fp);
-  fwrite(&pad, sizeof(uint64_t), 1, fp->fp);
-  fwrite(&seek_pos_pts, sizeof(uint64_t), 1, fp->fp);
-  fwrite(&seek_pos_dts, sizeof(uint64_t), 1, fp->fp);
-  fwrite(&pts, sizeof(uint64_t), 1, fp->fp);
-}
-
-static void index_builder_finish(MovieIndexBuilder *fp, bool rollback)
-{
-  fclose(fp->fp);
-
-  if (rollback) {
-    BLI_delete(fp->filepath_temp, false, false);
-  }
-  else {
-    BLI_rename_overwrite(fp->filepath_temp, fp->filepath);
-  }
-
-  MEM_delete(fp);
-}
-
-#endif
-
-static MovieIndex *movie_index_open(const char *filepath)
-{
-  FILE *fp = BLI_fopen(filepath, "rb");
-  if (!fp) {
-    return nullptr;
-  }
-
-  constexpr int64_t header_size = 12;
-  char header[header_size + 1];
-  if (fread(header, header_size, 1, fp) != 1) {
-    CLOG_ERROR(&LOG, "Couldn't read indexer file: %s", filepath);
-    fclose(fp);
-    return nullptr;
-  }
-
-  header[header_size] = 0;
-
-  if (memcmp(header, binary_header_str, 8) != 0) {
-    CLOG_ERROR(&LOG, "Error reading %s: Binary file type string mismatch", filepath);
-    fclose(fp);
-    return nullptr;
-  }
-
-  if (atoi(header + 9) != INDEX_FILE_VERSION) {
-    CLOG_ERROR(&LOG, "Error reading %s: File version mismatch", filepath);
-    fclose(fp);
-    return nullptr;
-  }
-
-  MovieIndex *idx = MEM_new<MovieIndex>("MovieIndex");
-
-  STRNCPY(idx->filepath, filepath);
-
-  fseek(fp, 0, SEEK_END);
-
-  constexpr int64_t entry_size = sizeof(int) +      /* framepos */
-                                 sizeof(uint64_t) + /* _pad */
-                                 sizeof(uint64_t) + /* seek_pos_pts */
-                                 sizeof(uint64_t) + /* seek_pos_dts */
-                                 sizeof(uint64_t);  /* pts */
-
-  int64_t num_entries = (ftell(fp) - header_size) / entry_size;
-  fseek(fp, header_size, SEEK_SET);
-
-  idx->entries.resize(num_entries);
-
-  int64_t items_read = 0;
-  uint64_t pad;
-  for (int64_t i = 0; i < num_entries; i++) {
-    items_read += fread(&idx->entries[i].frameno, sizeof(int), 1, fp);
-    items_read += fread(&pad, sizeof(uint64_t), 1, fp);
-    items_read += fread(&idx->entries[i].seek_pos_pts, sizeof(uint64_t), 1, fp);
-    items_read += fread(&idx->entries[i].seek_pos_dts, sizeof(uint64_t), 1, fp);
-    items_read += fread(&idx->entries[i].pts, sizeof(uint64_t), 1, fp);
-  }
-
-  if (items_read != num_entries * 5) {
-    CLOG_ERROR(&LOG, "Error: Element data size mismatch in: %s", filepath);
-    MEM_delete(idx);
-    fclose(fp);
-    return nullptr;
-  }
-
-  /* NOTE: this is endianness-sensitive. */
-  BLI_assert(ELEM(header[8], 'v', 'V'));
-  const int16_t file_endianness = (header[8] == 'v') ? L_ENDIAN : B_ENDIAN;
-  if (file_endianness == B_ENDIAN) {
-    for (int64_t i = 0; i < num_entries; i++) {
-      BLI_endian_switch_int32(&idx->entries[i].frameno);
-      BLI_endian_switch_uint64(&idx->entries[i].seek_pos_pts);
-      BLI_endian_switch_uint64(&idx->entries[i].seek_pos_dts);
-      BLI_endian_switch_uint64(&idx->entries[i].pts);
-    }
-  }
-
-  fclose(fp);
-
-  return idx;
-}
-
-uint64_t MovieIndex::get_seek_pos_pts(int frame_index) const
-{
-  frame_index = math::clamp<int>(frame_index, 0, this->entries.size() - 1);
-  return this->entries[frame_index].seek_pos_pts;
-}
-
-uint64_t MovieIndex::get_seek_pos_dts(int frame_index) const
-{
-  frame_index = math::clamp<int>(frame_index, 0, this->entries.size() - 1);
-  return this->entries[frame_index].seek_pos_dts;
-}
-
-int MovieIndex::get_frame_index(int frameno) const
-{
-  int len = int(this->entries.size());
-  int first = 0;
-
-  /* Binary-search (lower bound) the right index. */
-  while (len > 0) {
-    int half = len >> 1;
-    int middle = first + half;
-
-    if (this->entries[middle].frameno < frameno) {
-      first = middle;
-      first++;
-      len = len - half - 1;
-    }
-    else {
-      len = half;
-    }
-  }
-
-  if (first == this->entries.size()) {
-    return int(this->entries.size()) - 1;
-  }
-
-  return first;
-}
-
-uint64_t MovieIndex::get_pts(int frame_index) const
-{
-  frame_index = math::clamp<int>(frame_index, 0, this->entries.size() - 1);
-  return this->entries[frame_index].pts;
-}
-
-int MovieIndex::get_duration() const
-{
-  if (this->entries.is_empty()) {
-    return 0;
-  }
-  return this->entries.last().frameno + 1;
-}
-
-static void movie_index_free(MovieIndex *idx)
-{
-  MEM_delete(idx);
-}
 
 static int proxy_size_to_array_index(IMB_Proxy_Size pr_size)
 {
@@ -284,20 +64,16 @@ static int proxy_size_to_array_index(IMB_Proxy_Size pr_size)
   }
 }
 
-/* ----------------------------------------------------------------------
- * - rebuild helper functions
- * ---------------------------------------------------------------------- */
-
-static void get_index_dir(const MovieReader *anim, char *index_dir, size_t index_dir_maxncpy)
+static void get_proxy_dir(const MovieReader *anim, char *index_dir, size_t index_dir_maxncpy)
 {
-  if (!anim->index_dir[0]) {
+  if (!anim->proxy_dir[0]) {
     char filename[FILE_MAXFILE];
     char dirname[FILE_MAXDIR];
     BLI_path_split_dir_file(anim->filepath, dirname, sizeof(dirname), filename, sizeof(filename));
     BLI_path_join(index_dir, index_dir_maxncpy, dirname, "BL_proxy", filename);
   }
   else {
-    BLI_strncpy(index_dir, anim->index_dir, index_dir_maxncpy);
+    BLI_strncpy(index_dir, anim->proxy_dir, index_dir_maxncpy);
   }
 }
 
@@ -323,7 +99,7 @@ static bool get_proxy_filepath(const MovieReader *anim,
 
   SNPRINTF(proxy_name, name, int(proxy_fac[i] * 100), stream_suffix, anim->suffix);
 
-  get_index_dir(anim, index_dir, sizeof(index_dir));
+  get_proxy_dir(anim, index_dir, sizeof(index_dir));
 
   if (BLI_path_ncmp(anim->filepath, index_dir, FILE_MAXDIR) == 0) {
     return false;
@@ -331,32 +107,6 @@ static bool get_proxy_filepath(const MovieReader *anim,
 
   BLI_path_join(filepath, FILE_MAXFILE + FILE_MAXDIR, index_dir, proxy_name);
   return true;
-}
-
-static void get_tc_filepath(MovieReader *anim, IMB_Timecode_Type tc, char *filepath)
-{
-  char index_dir[FILE_MAXDIR];
-  int i = tc == IMB_TC_RECORD_RUN_NO_GAPS ? 1 : 0;
-
-  const char *index_names[] = {
-      "record_run%s%s.blen_tc",
-      "record_run_no_gaps%s%s.blen_tc",
-  };
-
-  char stream_suffix[20];
-  char index_name[256];
-
-  stream_suffix[0] = 0;
-
-  if (anim->streamindex > 0) {
-    SNPRINTF(stream_suffix, "_st%d", anim->streamindex);
-  }
-
-  SNPRINTF(index_name, index_names[i], stream_suffix, anim->suffix);
-
-  get_index_dir(anim, index_dir, sizeof(index_dir));
-
-  BLI_path_join(filepath, FILE_MAXFILE + FILE_MAXDIR, index_dir, index_name);
 }
 
 /* ----------------------------------------------------------------------
@@ -675,9 +425,6 @@ static void free_proxy_output_ffmpeg(proxy_output_ctx *ctx, int rollback)
   MEM_delete(ctx);
 }
 
-static IMB_Timecode_Type tc_types[IMB_TC_NUM_TYPES] = {IMB_TC_RECORD_RUN,
-                                                       IMB_TC_RECORD_RUN_NO_GAPS};
-
 struct MovieProxyBuilder {
 
   AVFormatContext *iFormatCtx;
@@ -689,27 +436,14 @@ struct MovieProxyBuilder {
   int num_proxy_sizes;
 
   proxy_output_ctx *proxy_ctx[IMB_PROXY_MAX_SLOT];
-  MovieIndexBuilder *indexer[IMB_TC_NUM_TYPES];
 
-  int tcs_in_use;
   int proxy_sizes_in_use;
-
-  uint64_t seek_pos_pts;
-  uint64_t seek_pos_dts;
-  uint64_t last_seek_pos_pts;
-  uint64_t last_seek_pos_dts;
-  uint64_t start_pts;
-  double frame_rate;
-  double pts_time_base;
-  int frameno, frameno_gapless;
-  int start_pts_set;
 
   bool build_only_on_bad_performance;
   bool building_cancelled;
 };
 
 static MovieProxyBuilder *index_ffmpeg_create_context(MovieReader *anim,
-                                                      int tcs_in_use,
                                                       int proxy_sizes_in_use,
                                                       int quality,
                                                       bool build_only_on_bad_performance)
@@ -723,13 +457,11 @@ static MovieProxyBuilder *index_ffmpeg_create_context(MovieReader *anim,
   int num_proxy_sizes = IMB_PROXY_MAX_SLOT;
   int i, streamcount;
 
-  context->tcs_in_use = tcs_in_use;
   context->proxy_sizes_in_use = proxy_sizes_in_use;
   context->num_proxy_sizes = IMB_PROXY_MAX_SLOT;
   context->build_only_on_bad_performance = build_only_on_bad_performance;
 
   memset(context->proxy_ctx, 0, sizeof(context->proxy_ctx));
-  memset(context->indexer, 0, sizeof(context->indexer));
 
   if (avformat_open_input(&context->iFormatCtx, anim->filepath, nullptr, nullptr) != 0) {
     MEM_delete(context);
@@ -821,35 +553,14 @@ static MovieProxyBuilder *index_ffmpeg_create_context(MovieReader *anim,
     return nullptr; /* Nothing to transcode. */
   }
 
-  for (i = 0; i < IMB_TC_NUM_TYPES; i++) {
-    if (tcs_in_use & tc_types[i]) {
-      char filepath[FILE_MAX];
-
-      get_tc_filepath(anim, tc_types[i], filepath);
-
-      context->indexer[i] = index_builder_create(filepath);
-      if (!context->indexer[i]) {
-        tcs_in_use &= ~int(tc_types[i]);
-      }
-    }
-  }
-
   return context;
 }
 
 static void index_rebuild_ffmpeg_finish(MovieProxyBuilder *context, const bool stop)
 {
-  int i;
-
   const bool do_rollback = stop || context->building_cancelled;
 
-  for (i = 0; i < IMB_TC_NUM_TYPES; i++) {
-    if (context->tcs_in_use & tc_types[i]) {
-      index_builder_finish(context->indexer[i], do_rollback);
-    }
-  }
-
-  for (i = 0; i < context->num_proxy_sizes; i++) {
+  for (int i = 0; i < context->num_proxy_sizes; i++) {
     if (context->proxy_sizes_in_use & proxy_sizes[i]) {
       free_proxy_output_ffmpeg(context->proxy_ctx[i], do_rollback);
     }
@@ -863,47 +574,9 @@ static void index_rebuild_ffmpeg_finish(MovieProxyBuilder *context, const bool s
 
 static void index_rebuild_ffmpeg_proc_decoded_frame(MovieProxyBuilder *context, AVFrame *in_frame)
 {
-  int i;
-  uint64_t s_pts = context->seek_pos_pts;
-  uint64_t s_dts = context->seek_pos_dts;
-  uint64_t pts = av_get_pts_from_frame(in_frame);
-
-  for (i = 0; i < context->num_proxy_sizes; i++) {
+  for (int i = 0; i < context->num_proxy_sizes; i++) {
     add_to_proxy_output_ffmpeg(context->proxy_ctx[i], in_frame);
   }
-
-  if (!context->start_pts_set) {
-    context->start_pts = pts;
-    context->start_pts_set = true;
-  }
-
-  context->frameno = floor(
-      (pts - context->start_pts) * context->pts_time_base * context->frame_rate + 0.5);
-
-  int64_t seek_pos_pts = timestamp_from_pts_or_dts(context->seek_pos_pts, context->seek_pos_dts);
-
-  if (pts < seek_pos_pts) {
-    /* Decoding starts *always* on I-Frames. In this case our position is
-     * before our seek I-Frame. So we need to pick the previous available
-     * I-Frame to be able to decode this one properly.
-     */
-    s_pts = context->last_seek_pos_pts;
-    s_dts = context->last_seek_pos_dts;
-  }
-
-  for (i = 0; i < IMB_TC_NUM_TYPES; i++) {
-    if (context->tcs_in_use & tc_types[i]) {
-      int tc_frameno = context->frameno;
-
-      if (tc_types[i] == IMB_TC_RECORD_RUN_NO_GAPS) {
-        tc_frameno = context->frameno_gapless;
-      }
-
-      index_builder_add_entry(context->indexer[i], tc_frameno, s_pts, s_dts, pts);
-    }
-  }
-
-  context->frameno_gapless++;
 }
 
 static int index_rebuild_ffmpeg(MovieProxyBuilder *context,
@@ -913,13 +586,7 @@ static int index_rebuild_ffmpeg(MovieProxyBuilder *context,
 {
   AVFrame *in_frame = av_frame_alloc();
   AVPacket *next_packet = av_packet_alloc();
-  uint64_t stream_size;
-
-  stream_size = avio_size(context->iFormatCtx->pb);
-
-  context->frame_rate = av_q2d(
-      av_guess_frame_rate(context->iFormatCtx, context->iStream, nullptr));
-  context->pts_time_base = av_q2d(context->iStream->time_base);
+  uint64_t stream_size = avio_size(context->iFormatCtx->pb);
 
   float progress = 0.0f;
   while (av_read_frame(context->iFormatCtx, next_packet) >= 0) {
@@ -952,14 +619,6 @@ static int index_rebuild_ffmpeg(MovieProxyBuilder *context,
           av_make_error_string(error_str, AV_ERROR_MAX_STRING_SIZE, ret);
           CLOG_ERROR(&LOG, "Error decoding proxy frame: %s", error_str);
           break;
-        }
-
-        if (next_packet->flags & AV_PKT_FLAG_KEY) {
-          context->last_seek_pos_pts = context->seek_pos_pts;
-          context->last_seek_pos_dts = context->seek_pos_dts;
-
-          context->seek_pos_pts = in_frame->pts;
-          context->seek_pos_dts = in_frame->pkt_dts;
         }
 
         index_rebuild_ffmpeg_proc_decoded_frame(context, in_frame);
@@ -1123,7 +782,6 @@ static bool indexer_need_to_build_proxy(MovieProxyBuilder *context)
  * ---------------------------------------------------------------------- */
 
 MovieProxyBuilder *MOV_proxy_builder_start(MovieReader *anim,
-                                           IMB_Timecode_Type tcs_in_use,
                                            int proxy_sizes_in_use,
                                            int quality,
                                            const bool overwrite,
@@ -1175,7 +833,7 @@ MovieProxyBuilder *MOV_proxy_builder_start(MovieReader *anim,
 #ifdef WITH_FFMPEG
   if (anim->state == MovieReader::State::Valid) {
     context = index_ffmpeg_create_context(
-        anim, tcs_in_use, proxy_sizes_to_build, quality, build_only_on_bad_performance);
+        anim, proxy_sizes_to_build, quality, build_only_on_bad_performance);
   }
 #else
   UNUSED_VARS(build_only_on_bad_performance);
@@ -1183,7 +841,7 @@ MovieProxyBuilder *MOV_proxy_builder_start(MovieReader *anim,
 
   return context;
 
-  UNUSED_VARS(tcs_in_use, proxy_sizes_in_use, quality);
+  UNUSED_VARS(proxy_sizes_in_use, quality);
 }
 
 void MOV_proxy_builder_process(MovieProxyBuilder *context,
@@ -1227,25 +885,15 @@ void MOV_close_proxies(MovieReader *anim)
     }
   }
 
-  if (anim->record_run) {
-    movie_index_free(anim->record_run);
-    anim->record_run = nullptr;
-  }
-  if (anim->no_gaps) {
-    movie_index_free(anim->no_gaps);
-    anim->no_gaps = nullptr;
-  }
-
   anim->proxies_tried = 0;
-  anim->indices_tried = 0;
 }
 
 void MOV_set_custom_proxy_dir(MovieReader *anim, const char *dir)
 {
-  if (STREQ(anim->index_dir, dir)) {
+  if (STREQ(anim->proxy_dir, dir)) {
     return;
   }
-  STRNCPY(anim->index_dir, dir);
+  STRNCPY(anim->proxy_dir, dir);
 
   MOV_close_proxies(anim);
 }
@@ -1278,46 +926,6 @@ MovieReader *movie_open_proxy(MovieReader *anim, IMB_Proxy_Size preview_size)
   anim->proxies_tried |= preview_size;
 
   return anim->proxy_anim[i];
-}
-
-const MovieIndex *movie_open_index(MovieReader *anim, IMB_Timecode_Type tc)
-{
-  char filepath[FILE_MAX];
-
-  MovieIndex **index = nullptr;
-
-  if (tc == IMB_TC_RECORD_RUN) {
-    index = &anim->record_run;
-  }
-  else if (tc == IMB_TC_RECORD_RUN_NO_GAPS) {
-    index = &anim->no_gaps;
-  }
-
-  if (anim->indices_tried & tc) {
-    return nullptr;
-  }
-  if (index == nullptr) {
-    return nullptr;
-  }
-
-  get_tc_filepath(anim, tc, filepath);
-
-  *index = movie_index_open(filepath);
-
-  anim->indices_tried |= tc;
-
-  return *index;
-}
-
-int MOV_calc_frame_index_with_timecode(MovieReader *anim, IMB_Timecode_Type tc, int position)
-{
-  const MovieIndex *idx = movie_open_index(anim, tc);
-
-  if (!idx) {
-    return position;
-  }
-
-  return idx->get_frame_index(position);
 }
 
 int MOV_get_existing_proxies(const MovieReader *anim)
