@@ -472,7 +472,7 @@ static void execute_multi_function_on_value_variant__field(
   /* Convert all inputs into fields, so that they can be used as input in the new field. */
   Vector<GField> input_fields;
   for (const int i : input_values.index_range()) {
-    input_fields.append(*input_values[i]->get().get<GField>());
+    input_fields.append(input_values[i]->extract<GField>());
   }
 
   /* Construct the new field node. */

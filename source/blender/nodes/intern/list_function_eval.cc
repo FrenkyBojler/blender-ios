@@ -89,7 +89,7 @@ void execute_multi_function_on_value_variant__list(const MultiFunction &fn,
   int64_t max_size = 0;
   for (const int i : input_values.index_range()) {
     SocketValueVariant &input_variant = *input_values[i];
-    if (input_variant.get().is_type<nodes::GListPtr>()) {
+    if (input_variant.is_list()) {
       if (GListPtr list = *input_variant.get().get<nodes::GListPtr>()) {
         max_size = std::max(max_size, list->size());
       }
@@ -110,7 +110,7 @@ void execute_multi_function_on_value_variant__list(const MultiFunction &fn,
       const void *value = input_variant.get().get();
       params.add_readonly_single_input(GPointer(cpp_type, value));
     }
-    else if (input_variant.get().is_type<GListPtr>()) {
+    else if (input_variant.is_list()) {
       GListPtr list_ptr = std::move(*input_variant.get().get<GListPtr>());
       if (!list_ptr || list_ptr->size() == 0) {
         params.add_readonly_single_input(GPointer(cpp_type, cpp_type.default_value()));

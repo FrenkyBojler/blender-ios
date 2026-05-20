@@ -79,12 +79,16 @@ class SocketValueVariant {
  public:
   SocketValueVariant() = default;
 
-  template<typename T> explicit SocketValueVariant(T &&value);
+  template<typename T>
+  explicit SocketValueVariant(T &&value)
+    requires(std::is_trivial_v<T> || std::is_same_v<T, std::string>);
 
   template<typename T, typename... Args> T &emplace(Args &&...args);
 
   template<typename T> T &ensure_type();
   void *ensure_type(const CPPType &type);
+
+  template<typename T> T extract();
 
   template<typename T> const T *get_if() const;
   template<typename T> T *get_if();
@@ -97,6 +101,9 @@ class SocketValueVariant {
 
   void *allocate_single(const CPPType &type);
 
+  bool is_single() const;
+  bool is_list() const;
+  bool is_volume_grid() const;
   bool is_context_dependent_field() const;
 
   void count_memory(MemoryCounter &memory) const;
@@ -111,7 +118,9 @@ class SocketValueVariant {
   static void *allocate(const CPPType &type, detail::SocketValueVariantAny &value);
 };
 
-template<typename T> inline SocketValueVariant::SocketValueVariant(T &&value)
+template<typename T>
+inline SocketValueVariant::SocketValueVariant(T &&value)
+  requires(std::is_trivial_v<T> || std::is_same_v<T, std::string>)
 {
   this->emplace<std::decay_t<T>>(std::forward<T>(value));
 }
@@ -231,15 +240,9 @@ inline void *SocketValueVariant::init_default(const CPPType &type)
   return SocketValueVariant::init_default(type, value_);
 }
 
-inline bool is_context_dependent_field(const GPointer &value)
+template<typename T> inline T SocketValueVariant::extract()
 {
-  if (value.is_type<fn::GField>()) {
-    const fn::GField &field = *value.get<fn::GField>();
-    if (field.depends_on_input()) {
-      return true;
-    }
-  }
-  return false;
+  return std::move(this->ensure_type<T>());
 }
 
 }  // namespace blender::bke

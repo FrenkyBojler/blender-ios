@@ -398,6 +398,20 @@ void *SocketValueVariant::allocate(const CPPType &type, detail::SocketValueVaria
   return nullptr;
 }
 
+bool SocketValueVariant::is_single() const
+{
+  return this->get().type()->is_any<int, float>();
+}
+
+bool SocketValueVariant::is_list() const
+{
+  return this->get().type()->is<nodes::GListPtr>();
+}
+bool SocketValueVariant::is_volume_grid() const
+{
+  return this->get().type()->is<bke::GVolumeGrid>();
+}
+
 bool SocketValueVariant::is_context_dependent_field() const
 {
   const fn::GField *field = this->get_if<fn::GField>();
