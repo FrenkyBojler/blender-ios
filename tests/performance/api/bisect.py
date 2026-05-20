@@ -116,6 +116,18 @@ class _SearchBounds:
     first_bad: str | None
 
 
+class BisectProgress:
+    """Tracks the current search window during a binary search."""
+
+    def __init__(self, min_index: int, max_index: int) -> None:
+        self.min_index = min_index
+        self.max_index = max_index
+
+    @property
+    def remaining(self) -> int:
+        return self.max_index - self.min_index
+
+
 def binary_search(
     commits: list[tuple[str, int]],
     min_index: int,
@@ -124,6 +136,7 @@ def binary_search(
     first_bad: str | None,
     commit_status: dict[str, str],
     test_commit: Callable[..., tuple[float | None, str]],
+    progress: BisectProgress | None = None,
 ) -> tuple[str | None, str | None]:
     """
     Binary search to find the first failing commit.
@@ -138,6 +151,7 @@ def binary_search(
         first_bad: Commit hash of the first known failing commit (or None).
         commit_status: Map of previously tested commit hashes to ``'pass'`` or ``'fail'``.
         test_commit: Callable ``(commit_hash, commit_ts) -> (value, status)`` that tests a commit.
+        progress: Optional ``BisectProgress`` updated as the search bounds change.
 
     Returns:
         Tuple ``(last_good, first_bad)`` with the updated bounds after the search.
@@ -153,6 +167,9 @@ def binary_search(
                 bounds.min_index = mid + 1
             else:
                 bounds.max_index = mid
+            if progress:
+                progress.min_index = bounds.min_index
+                progress.max_index = bounds.max_index
             continue
 
         _, status = test_commit(commit_hash, commit_ts)
@@ -167,9 +184,12 @@ def binary_search(
             bounds.max_index = mid
         else:
             found, bounds = _forward_scan(
-                commits, mid + 1, commit_status, test_commit, bounds)
+                commits, mid + 1, commit_status, test_commit, bounds, progress)
             if not found:
                 break
+        if progress:
+            progress.min_index = bounds.min_index
+            progress.max_index = bounds.max_index
 
     return bounds.last_good, bounds.first_bad
 
@@ -180,6 +200,7 @@ def _forward_scan(
     commit_status: dict[str, str],
     test_commit: Callable[..., tuple[float | None, str]],
     bounds: _SearchBounds,
+    progress: BisectProgress | None = None,
 ) -> tuple[bool, _SearchBounds]:
     """Scan forward from start_index for a testable commit.
 
@@ -191,6 +212,9 @@ def _forward_scan(
             if commit_status[scan_hash] == 'fail':
                 bounds.first_bad = scan_hash
                 bounds.max_index = scan_index
+                if progress:
+                    progress.min_index = bounds.min_index
+                    progress.max_index = bounds.max_index
                 return True, bounds
             continue
         _, status = test_commit(scan_hash, scan_ts)
@@ -198,10 +222,16 @@ def _forward_scan(
             commit_status[scan_hash] = 'pass'
             bounds.last_good = scan_hash
             bounds.min_index = scan_index + 1
+            if progress:
+                progress.min_index = bounds.min_index
+                progress.max_index = bounds.max_index
             return True, bounds
         elif status == 'fail':
             commit_status[scan_hash] = 'fail'
             bounds.first_bad = scan_hash
             bounds.max_index = scan_index
+            if progress:
+                progress.min_index = bounds.min_index
+                progress.max_index = bounds.max_index
             return True, bounds
     return False, bounds

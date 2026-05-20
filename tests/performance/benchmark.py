@@ -11,6 +11,7 @@ for a general introduction to the topic.
 
 import api
 import argparse
+
 import fnmatch
 import glob
 import logging
@@ -368,7 +369,7 @@ def cmd_run(env: api.TestEnvironment, argv: list, update_only: bool):
 
 def cmd_bisect(env: api.TestEnvironment, argv: list):
     import datetime
-    from api.bisect import binary_search, passes_threshold, test_commit as _test_commit
+    from api.bisect import BisectProgress, binary_search, passes_threshold, test_commit as _test_commit
     SECONDS_PER_DAY = 86400
 
     parser = argparse.ArgumentParser(prog='benchmark.py bisect')
@@ -430,10 +431,9 @@ def cmd_bisect(env: api.TestEnvironment, argv: list):
     table.print_header()
 
     tested = set()
-    current_remaining = 0
 
     def print_status(row_values, end='\n'):
-        table.print_row([str(current_remaining)] + row_values, end=end)
+        table.print_row([str(progress.remaining)] + row_values, end=end)
 
     def test_commit(commit_hash, commit_ts):
         return _test_commit(
@@ -458,12 +458,15 @@ def cmd_bisect(env: api.TestEnvironment, argv: list):
         day_windows.append(env.commits_in_window(day_ts, next_day_ts))
         day_ts = next_day_ts
 
+    total_commits = sum(len(w) for w in day_windows)
+    progress = BisectProgress(0, total_commits)
+
     day_index = 0
+    consumed = 0
     while day_index < len(day_windows):
         day_commits = day_windows[day_index]
-        current_remaining = sum(
-            len([c for c in day_windows[j] if c[0] not in tested])
-            for j in range(day_index, len(day_windows)))
+        progress.min_index = consumed
+        consumed += len(day_commits)
 
         attempts = 0
         for commit_hash, commit_ts in day_commits:
@@ -499,8 +502,13 @@ def cmd_bisect(env: api.TestEnvironment, argv: list):
     max_index = commit_index[first_bad]
     min_index = commit_index[last_good] + 1 if last_good else 0
 
-    last_good, first_bad = binary_search(all_commits, min_index, max_index,
-                                         last_good, first_bad, commit_status, test_commit)
+    progress.min_index = min_index
+    progress.max_index = max_index
+
+    last_good, first_bad = binary_search(
+        all_commits, min_index, max_index,
+        last_good, first_bad, commit_status, test_commit,
+        progress=progress)
 
     title = env.commit_title(first_bad)
     print(f'\nRegression introduced by commit {first_bad}: {title}')
