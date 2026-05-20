@@ -475,6 +475,12 @@ bool BKE_lib_override_library_property_operation_operands_validate(
     PropertyRNA *prop_storage);
 
 /**
+ * Set the label (UI-only 'name') of the given operation.
+ */
+void BKE_lib_override_library_property_operation_label_set(
+    IDOverrideLibraryPropertyOperation &liboverride_property_operation, StringRefNull label);
+
+/**
  * Check against potential \a bmain.
  */
 void BKE_lib_override_library_validate(Main *bmain, ID *id, ReportList *reports);

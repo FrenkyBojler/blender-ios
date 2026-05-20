@@ -1949,7 +1949,7 @@ static void outliner_draw_overrides_rna_buts(ui::Block *block,
 {
   const float pad_x = 2.0f * UI_SCALE_FAC;
   const float pad_y = 0.5f * U.pixelsize;
-  const float item_max_width = round_fl_to_int(OL_RNA_COL_SIZEX - 2 * pad_x);
+  const float item_max_width = round_fl_to_int(OL_RNA_COL_SIZEX * 2.0f - 2 * pad_x);
   const float item_height = round_fl_to_int(UI_UNIT_Y - 2.0f * pad_y);
 
   for (const TreeElement &te : *lb) {

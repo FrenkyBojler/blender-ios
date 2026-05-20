@@ -2229,16 +2229,33 @@ void rna_NodesModifierBake_override_diff(Main *bmain, RNAPropertyOverrideDiffCon
     bool created = false;
     IDOverrideLibraryProperty *op = BKE_lib_override_library_property_get(
         rnadiff_ctx.liboverride, rnadiff_ctx.rna_path, &created);
+    if (!op) {
+      continue;
+    }
 
-    if (op) {
-      if (created || op->rna_prop_type == 0) {
-        op->rna_prop_type = PROP_COLLECTION;
-      }
-      else {
-        BLI_assert(op->rna_prop_type == PROP_COLLECTION);
-      }
-      BKE_lib_override_library_property_operation_get(
-          op, LIBOVERRIDE_OP_CUSTOM, nullptr, nullptr, {}, {}, i, i, true, nullptr, nullptr);
+    if (created || op->rna_prop_type == 0) {
+      op->rna_prop_type = PROP_COLLECTION;
+    }
+    else {
+      BLI_assert(op->rna_prop_type == PROP_COLLECTION);
+    }
+    IDOverrideLibraryPropertyOperation *opop = BKE_lib_override_library_property_operation_get(
+        op, LIBOVERRIDE_OP_CUSTOM, nullptr, nullptr, {}, {}, i, i, true, nullptr, &created);
+    if (!opop) {
+      continue;
+    }
+
+    const bNodeTree *owner_ntree = nullptr;
+    const bNode *node = nmd_a->node_group->find_nested_node(nmd_bake_a->id, &owner_ntree);
+    owner_ntree = owner_ntree ? owner_ntree : nmd_a->node_group;
+
+    if (node) {
+      BKE_lib_override_library_property_operation_label_set(
+          *opop,
+          fmt::format(fmt::runtime(DATA_("{}::{}")), BKE_id_name(owner_ntree->id), node->name));
+    }
+
+    if (created) {
       rnadiff_ctx.report_flag |= RNA_OVERRIDE_MATCH_RESULT_CREATED;
     }
   }

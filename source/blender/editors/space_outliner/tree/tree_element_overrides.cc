@@ -238,6 +238,9 @@ TreeElementOverridesPropertyOperation::TreeElementOverridesPropertyOperation(
 
 StringRefNull TreeElementOverridesPropertyOperation::get_override_operation_label() const
 {
+  if (operation_->label) {
+    return operation_->label;
+  }
   switch (eID_OverrideLib_Op(operation_->operation)) {
     case LIBOVERRIDE_OP_INSERT_AFTER:
     case LIBOVERRIDE_OP_INSERT_BEFORE:

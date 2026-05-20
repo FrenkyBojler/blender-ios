@@ -273,6 +273,15 @@ struct IDOverrideLibraryPropertyOperation {
    * same name. */
   struct ID *subitem_reference_id = nullptr;
   struct ID *subitem_local_id = nullptr;
+
+  /**
+   * A UI-only label to represent that operation.
+   *
+   * Typically used for collection items, when the `subitem_reference_name`/`subitem_local_name`
+   * are not available or not usable from a UI PoV.
+   * See e.g. its usage by `rna_NodesModifierBake_override_diff` for geonodes packed bakes items.
+   */
+  char *label = nullptr;
 };
 
 /* IDOverrideLibrary->flag */
