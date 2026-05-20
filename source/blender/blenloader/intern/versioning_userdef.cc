@@ -436,7 +436,6 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
   }
 
   if (!USER_VERSION_ATLEAST(502, 32)) {
-    btheme->space_view3d.grid_axis_mix = U_theme_default.space_view3d.grid_axis_mix;
     btheme->space_view3d.grid_axis_offset = U_theme_default.space_view3d.grid_axis_offset;
   }
 
