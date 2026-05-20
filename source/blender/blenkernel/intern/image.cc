@@ -160,9 +160,6 @@ static void image_copy_data(Main * /*bmain*/,
   BKE_color_managed_colorspace_settings_copy(&image_dst->colorspace_settings,
                                              &image_src->colorspace_settings);
 
-  BLI_assert_msg(BLI_listbase_count(&image_src->packedfiles) == 0 ||
-                     BLI_listbase_count(&image_src->autosave_packedfiles) == 0,
-                 "An image should never have both autosaved and actual packedfiles");
   copy_image_packedfiles(&image_dst->packedfiles, &image_src->packedfiles);
   copy_image_packedfiles(&image_dst->autosave_packedfiles, &image_src->autosave_packedfiles);
 
@@ -361,9 +358,6 @@ static void image_blend_write(BlendWriter *writer, ID *id, const void *id_addres
   writer->write_id_struct(id_address, ima);
   BKE_id_blend_write(writer, &ima->id);
 
-  BLI_assert_msg(BLI_listbase_count(&ima->packedfiles) == 0 ||
-                     BLI_listbase_count(&ima->autosave_packedfiles) == 0,
-                 "An image should never have both autosaved and actual packedfiles");
   for (ImagePackedFile &imapf : ima->packedfiles) {
     writer->write_struct(&imapf);
     BKE_packedfile_blend_write(writer, imapf.packedfile);
@@ -426,10 +420,6 @@ static void image_blend_read_data(BlendDataReader *reader, ID *id)
     }
   }
 
-  BLI_assert_msg(BLI_listbase_count(&ima->packedfiles) == 0 ||
-                     BLI_listbase_count(&ima->autosave_packedfiles) == 0,
-                 "An image should never have both autosaved and actual packedfiles");
-
   BLI_listbase_clear(&ima->anims);
   BLO_read_struct(reader, PreviewImage, &ima->preview);
   BKE_previewimg_blend_read(reader, ima->preview);
@@ -445,6 +435,9 @@ static void image_blend_read_after_liblink(BlendLibReader * /*reader*/, ID *id)
   BKE_image_populate_cache_from_autosave(ima);
   BLI_assert_msg(!(ima->flag & IMA_AUTOSAVE_TEMPPACK),
                  "An image should never be marked as temporary packed after loading");
+  BLI_assert_msg(BLI_listbase_count(&ima->autosave_packedfiles) == 0,
+                 "An image should never have autosave data after loading");
+
 
   /* Images have some kind of 'main' cache, when null we should also clear all others. */
   /* Needs to be done *after* cache pointers are restored (call to
@@ -1539,8 +1532,6 @@ static bool image_memorypack_imbuf_for_autosave(
 
 bool BKE_image_autosave_memorypack(Image *ima)
 {
-  BLI_assert(BLI_listbase_count(&ima->packedfiles) == 0);
-
   bool ok = true;
 
   image_free_autosave_packedfiles(ima);
