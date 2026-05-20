@@ -286,8 +286,8 @@ def main():
     elif test_dir_name.startswith('displacement'):
         # Real & bump displacement use hardware derivatives which results in platform differences.
         report.set_fail_percent(0.3)
-    elif test_dir_name.startswith('bsdf'):
-        # Dithered transparency uses platform dependent noise pattern. TODO split to another folder
+    elif test_dir_name.startswith('transparency'):
+        # Dithered transparency uses platform dependent noise pattern.
         report.set_fail_percent(0.22)
         report.set_fail_threshold(10.0 / 255.0)
     elif test_dir_name.startswith('hair'):
