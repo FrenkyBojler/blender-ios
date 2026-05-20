@@ -11,7 +11,6 @@ for a general introduction to the topic.
 
 import api
 import argparse
-
 import fnmatch
 import glob
 import logging
