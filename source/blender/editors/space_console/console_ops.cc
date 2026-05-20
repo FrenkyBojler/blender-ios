@@ -178,7 +178,7 @@ static void console_scrollback_limit(SpaceConsole *sc)
 {
   int tot;
 
-  for (tot = BLI_listbase_count(&sc->scrollback); tot > U.scrollback; tot--) {
+  for (tot = sc->scrollback.count(); tot > U.scrollback; tot--) {
     console_scrollback_free(sc, static_cast<ConsoleLine *>(sc->scrollback.first));
   }
 }

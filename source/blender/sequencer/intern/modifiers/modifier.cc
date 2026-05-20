@@ -140,7 +140,7 @@ static void modifier_ops_extra_draw(bContext *C, ui::Layout *layout, void *smd_v
                     wm::OpCallContext::InvokeDefault,
                     UI_ITEM_NONE);
     RNA_string_set(&op_ptr, "modifier", smd->name);
-    RNA_int_set(&op_ptr, "index", BLI_listbase_count(&strip->modifiers) - 1);
+    RNA_int_set(&op_ptr, "index", strip->modifiers.count() - 1);
     row.enabled_set(smd->next != nullptr);
   }
 

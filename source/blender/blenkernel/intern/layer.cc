@@ -1289,8 +1289,8 @@ static void layer_collection_sync(ViewLayer *view_layer,
 
   /* Replace layer collection list with new one. */
   layer_resync->layer->layer_collections = new_lb_layer;
-  BLI_assert(BLI_listbase_count(&layer_resync->collection->children) - skipped_children ==
-             BLI_listbase_count(&new_lb_layer));
+  BLI_assert(layer_resync->collection->children.count() - skipped_children ==
+             new_lb_layer.count());
   UNUSED_VARS_NDEBUG(skipped_children);
 
   /* Update bases etc. for objects. */

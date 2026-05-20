@@ -2739,7 +2739,7 @@ static bool image_views_match_render_views(const Image *image, const RenderData 
   /* The number of views in the image do not match the number of active views in the render
    * data. */
   const int number_of_active_views = BKE_scene_multiview_num_views_get(render_data);
-  if (BLI_listbase_count(&image->views) != number_of_active_views) {
+  if (image->views.count() != number_of_active_views) {
     return false;
   }
 
@@ -3074,7 +3074,7 @@ static void image_free_tile(Image *ima, ImageTile *tile)
   BKE_image_partial_update_mark_full_update(ima);
 
   if (BKE_image_is_multiview(ima)) {
-    const int totviews = BLI_listbase_count(&ima->views);
+    const int totviews = ima->views.count();
     for (int i = 0; i < totviews; i++) {
       image_remove_ibuf(ima, i, tile->tile_number);
     }
@@ -3204,7 +3204,7 @@ void BKE_image_signal(Main *bmain, Image *ima, ImageUser *iuser, int signal)
       /* try to repack file */
       if (BKE_image_has_packedfile(ima)) {
         const int tot_viewfiles = image_num_viewfiles(ima);
-        const int tot_files = tot_viewfiles * BLI_listbase_count(&ima->tiles);
+        const int tot_files = tot_viewfiles * ima->tiles.count();
 
         if (!BLI_listbase_count_is_equal_to(&ima->packedfiles, tot_files)) {
           /* in case there are new available files to be loaded */
@@ -3497,7 +3497,7 @@ void BKE_image_reassign_tile(Image *ima, ImageTile *tile, int new_tile_number)
   tile->tile_number = new_tile_number;
 
   if (BKE_image_is_multiview(ima)) {
-    const int totviews = BLI_listbase_count(&ima->views);
+    const int totviews = ima->views.count();
     for (int i = 0; i < totviews; i++) {
       ImBuf *ibuf = image_get_cached_ibuf_for_index_entry(ima, i, old_tile_number, nullptr);
       image_remove_ibuf(ima, i, old_tile_number);
@@ -3732,7 +3732,7 @@ RenderPass *BKE_image_multilayer_index(RenderResult *rr, ImageUser *iuser)
         break;
       }
 
-      index += BLI_listbase_count(&rl->passes);
+      index += rl->passes.count();
     }
   }
 
@@ -3796,7 +3796,7 @@ static void image_init_multilayer_multiview(Image *ima, RenderResult *rr)
    * to avoid invalid memory access during render. ideally these should always
    * be acquired with a mutex along with the render result, but there are still
    * some places with just an image pointer that need to access views */
-  if (rr && BLI_listbase_count(&ima->views) == BLI_listbase_count(&rr->views)) {
+  if (rr && ima->views.count() == rr->views.count()) {
     ImageView *iv = static_cast<ImageView *>(ima->views.first);
     RenderView *rv = static_cast<RenderView *>(rr->views.first);
     bool modified = false;
@@ -3886,7 +3886,7 @@ void BKE_image_backup_render(Scene *scene, Image *ima, bool free_current_slot)
     ima->render_slot = 0;
     ima->last_render_slot = 0;
   }
-  else if (ima->render_slot >= BLI_listbase_count(&ima->renderslots)) {
+  else if (ima->render_slot >= ima->renderslots.count()) {
     ima->render_slot = 0;
     ima->last_render_slot = 0;
   }
@@ -4020,7 +4020,7 @@ static int image_num_viewfiles(Image *ima)
   }
   /* R_IMF_VIEWS_INDIVIDUAL */
 
-  return BLI_listbase_count(&ima->views);
+  return ima->views.count();
 }
 
 static ImBuf *image_load_sequence_multilayer(Image *ima, ImageUser *iuser, int entry, int frame)
@@ -4133,7 +4133,7 @@ static ImBuf *image_load_movie_file(Image *ima, ImageUser *iuser, int frame)
     image_assign_ibuf(ima, ibuf, 0, frame);
   }
   else {
-    const int totviews = BLI_listbase_count(&ima->views);
+    const int totviews = ima->views.count();
     Array<ImBuf *> ibuf_arr(totviews);
 
     for (int i = 0; i < tot_viewfiles; i++) {
@@ -4275,7 +4275,7 @@ static ImBuf *image_load_image_file(
 
   /* this should never happen, but just playing safe */
   if (!is_sequence && has_packed) {
-    const int totfiles = tot_viewfiles * BLI_listbase_count(&ima->tiles);
+    const int totfiles = tot_viewfiles * ima->tiles.count();
     if (!BLI_listbase_count_is_equal_to(&ima->packedfiles, totfiles)) {
       image_free_packedfiles(ima);
       has_packed = false;
@@ -4291,7 +4291,7 @@ static ImBuf *image_load_image_file(
     }
   }
   else {
-    const int totviews = BLI_listbase_count(&ima->views);
+    const int totviews = ima->views.count();
     BLI_assert(totviews > 0);
 
     Array<ImBuf *> ibuf_arr(totviews);
@@ -5619,7 +5619,7 @@ RenderSlot *BKE_image_add_renderslot(Image *ima, const char *name)
     STRNCPY_UTF8(slot->name, name);
   }
   else {
-    int n = BLI_listbase_count(&ima->renderslots) + 1;
+    int n = ima->renderslots.count() + 1;
     SNPRINTF_UTF8(slot->name, DATA_("Slot %d"), n);
   }
   BLI_addtail(&ima->renderslots, slot);
@@ -5635,7 +5635,7 @@ bool BKE_image_remove_renderslot(Image *ima, ImageUser *iuser, int slot)
     }
   }
 
-  int num_slots = BLI_listbase_count(&ima->renderslots);
+  int num_slots = ima->renderslots.count();
   if (slot >= num_slots || num_slots == 1) {
     return false;
   }

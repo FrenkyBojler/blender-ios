@@ -1638,7 +1638,7 @@ static void do_version_file_output_node(bNode &node)
   STRNCPY(data->directory, directory);
   data->file_name = BLI_strdup_null(file_name);
 
-  data->items_count = BLI_listbase_count(&node.inputs);
+  data->items_count = node.inputs.count();
   data->items = MEM_new_array<NodeCompositorFileOutputItem>(data->items_count, __func__);
 
   for (const auto [i, input] : node.inputs.enumerate()) {
@@ -2414,7 +2414,7 @@ static void version_dynamic_viewer_node_items(bNodeTree &ntree)
       return;
     }
     NodeGeometryViewer *storage = static_cast<NodeGeometryViewer *>(node.storage);
-    const int input_sockets_num = BLI_listbase_count(&node.inputs);
+    const int input_sockets_num = node.inputs.count();
     if (input_sockets_num == storage->items_num + 1) {
       /* Make versioning idempotent. */
       continue;

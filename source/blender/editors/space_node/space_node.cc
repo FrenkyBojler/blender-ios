@@ -199,7 +199,7 @@ void ED_node_tree_pop(ARegion *region, SpaceNode *snode)
 
 int ED_node_tree_depth(SpaceNode *snode)
 {
-  return BLI_listbase_count(&snode->treepath);
+  return snode->treepath.count();
 }
 
 bNodeTree *ED_node_tree_get(SpaceNode *snode, int level)

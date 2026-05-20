@@ -417,7 +417,7 @@ static void move_vertex_group_names_to_object_data(Main *bmain)
       ListBaseT<bDeformGroup> *new_defbase = BKE_object_defgroup_list_mutable(&object);
 
       /* Choose the longest vertex group name list among all linked duplicates. */
-      if (BLI_listbase_count(&object.defbase) < new_defbase->count()) {
+      if (object.defbase.count() < new_defbase->count()) {
         object.defbase.free_no_destruct();
       }
       else {
@@ -1697,7 +1697,7 @@ static void version_geometry_nodes_set_position_node_offset(bNodeTree *ntree)
     if (node.type_legacy != GEO_NODE_SET_POSITION) {
       continue;
     }
-    if (BLI_listbase_count(&node.inputs) < 4) {
+    if (node.inputs.count() < 4) {
       /* The offset socket didn't exist in the file yet. */
       return;
     }

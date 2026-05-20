@@ -345,7 +345,7 @@ void ZstdWriteWrap::write_seekable_frames()
   write_u32_le(0x184D2A5E);
 
   /* The actual frame number might not match num_frames if there was a write error. */
-  const uint32_t num_frames = BLI_listbase_count(&frames);
+  const uint32_t num_frames = frames.count();
   /* Each frame consists of two u32, so 8 bytes each.
    * After the frames, a footer containing two u32 and one byte (9 bytes total) is written. */
   const uint32_t frame_size = num_frames * 8 + 9;

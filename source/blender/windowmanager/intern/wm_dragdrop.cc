@@ -1163,7 +1163,7 @@ const std::string WM_drag_get_item_name(wmDrag *drag)
   switch (drag->type) {
     case WM_DRAG_ID: {
       ID *id = WM_drag_get_local_ID(drag, 0);
-      const int dragged_ids = BLI_listbase_count(&drag->ids);
+      const int dragged_ids = drag->ids.count();
 
       if (dragged_ids == 1) {
         return id->name + 2;

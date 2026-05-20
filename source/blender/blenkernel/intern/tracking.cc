@@ -1917,7 +1917,7 @@ MovieTrackingObject *BKE_tracking_object_add(MovieTracking *tracking, const char
   BLI_addtail(&tracking->objects, tracking_object);
 
   tracking->tot_object++;
-  tracking->objectnr = BLI_listbase_count(&tracking->objects) - 1;
+  tracking->objectnr = tracking->objects.count() - 1;
 
   tracking_object->scale = 1.0f;
   tracking_object->keyframe1 = 1;

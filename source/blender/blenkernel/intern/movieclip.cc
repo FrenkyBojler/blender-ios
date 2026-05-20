@@ -2064,7 +2064,7 @@ void BKE_movieclip_free_gputexture(MovieClip *clip)
    * movie clips around, as they can be large. */
   const int MOVIECLIP_NUM_GPUTEXTURES = 1;
 
-  while (BLI_listbase_count(&clip->runtime.gputextures) > MOVIECLIP_NUM_GPUTEXTURES) {
+  while (clip->runtime.gputextures.count() > MOVIECLIP_NUM_GPUTEXTURES) {
     MovieClip_RuntimeGPUTexture *tex = static_cast<MovieClip_RuntimeGPUTexture *>(
         BLI_pophead(&clip->runtime.gputextures));
     for (int i = 0; i < TEXTARGET_COUNT; i++) {

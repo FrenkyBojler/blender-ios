@@ -298,7 +298,7 @@ static void update_active_strip(AnimData *adt_dest,
                                 const AnimData *adt_source,
                                 const NlaTrack *track_source)
 {
-  BLI_assert(BLI_listbase_count(&track_source->strips) == BLI_listbase_count(&track_dest->strips));
+  BLI_assert(track_source->strips.count() == track_dest->strips.count());
 
   NlaStrip *active_strip = find_active_strip_from_listbase(
       adt_source->actstrip, &track_source->strips, &track_dest->strips);
@@ -314,8 +314,7 @@ static void update_active_track(AnimData *adt_dest, const AnimData *adt_source)
     return;
   }
 
-  BLI_assert(BLI_listbase_count(&adt_source->nla_tracks) ==
-             BLI_listbase_count(&adt_dest->nla_tracks));
+  BLI_assert(adt_source->nla_tracks.count() == adt_dest->nla_tracks.count());
 
   NlaTrack *track_dest = static_cast<NlaTrack *>(adt_dest->nla_tracks.first);
   for (NlaTrack &track_source : adt_source->nla_tracks) {
@@ -1338,7 +1337,7 @@ bool BKE_nlatrack_has_strips(ListBaseT<NlaTrack> *tracks)
 
   /* Check each track for NLA strips. */
   for (NlaTrack &track : *tracks) {
-    if (BLI_listbase_count(&track.strips) > 0) {
+    if (track.strips.count() > 0) {
       return true;
     }
   }

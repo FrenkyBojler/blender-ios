@@ -5422,7 +5422,7 @@ static wmOperatorStatus spacedata_cleanup_exec(bContext *C, wmOperator *op)
         SpaceLink *sl = static_cast<SpaceLink *>(area.spacedata.first);
 
         BLI_remlink(&area.spacedata, sl);
-        tot += BLI_listbase_count(&area.spacedata);
+        tot += area.spacedata.count();
         BKE_spacedata_freelist(&area.spacedata);
         BLI_addtail(&area.spacedata, sl);
       }
@@ -5506,7 +5506,7 @@ static wmOperatorStatus repeat_history_invoke(bContext *C,
 {
   wmWindowManager *wm = CTX_wm_manager(C);
 
-  int items = BLI_listbase_count(&wm->runtime->operators);
+  int items = wm->runtime->operators.count();
   if (items == 0) {
     return OPERATOR_CANCELLED;
   }

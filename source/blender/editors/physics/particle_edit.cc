@@ -5394,7 +5394,7 @@ void PE_create_particle_edit(
       cache->free_edit = PE_free_ptcache_edit;
       edit->psys = nullptr;
 
-      totframe += BLI_listbase_count(&cache->mem_cache);
+      totframe += cache->mem_cache.count();
 
       for (PTCacheMem &pm : cache->mem_cache) {
         LOOP_POINTS {

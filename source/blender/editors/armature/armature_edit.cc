@@ -720,7 +720,7 @@ static wmOperatorStatus armature_fill_bones_exec(bContext *C, wmOperator *op)
    *  2) between the two joints (order is dependent on active-bone/hierarchy)
    *  3+) error (a smarter method involving finding chains needs to be worked out
    */
-  count = BLI_listbase_count(&points);
+  count = points.count();
 
   if (count == 0) {
     BKE_report(op->reports, RPT_ERROR, "No joints selected");
