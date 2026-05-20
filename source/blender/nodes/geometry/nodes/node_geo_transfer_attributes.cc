@@ -62,18 +62,21 @@ static void node_declare(NodeDeclarationBuilder &b)
 
   b.add_input<decl::Menu>("Pattern Mode"_ustr)
       .static_items(string_pattern_mode_items)
+      .default_value(StringPatternMode::Wildcard)
       .optional_label();
   b.add_input<decl::String>("Names"_ustr)
       .optional_label()
       .structure_type(StructureType::List)
       .description(
           "List of attribute names (not) to transfer. A wildcard (*) at the end is allowed");
-  b.add_input<decl::Bool>("Ignore Names"_ustr).default_value(false);
+  b.add_input<decl::Bool>("Exclude Names"_ustr)
+      .default_value(false)
+      .description("Transfer all attributes except the ones matching any of the names");
 }
 
 static bool should_transfer(const Span<StringPattern> patterns,
                             const StringRef name,
-                            const bool ignore_names,
+                            const bool exclude_names,
                             MutableSpan<bool> r_found_attribute_using_pattern)
 {
   if (ELEM(name, ".corner_vert", ".corner_edge", ".edge_verts")) {
@@ -87,7 +90,7 @@ static bool should_transfer(const Span<StringPattern> patterns,
       r_found_attribute_using_pattern[pattern_i] = true;
     }
   }
-  if (ignore_names) {
+  if (exclude_names) {
     return !match_found;
   }
   return match_found;
@@ -95,7 +98,7 @@ static bool should_transfer(const Span<StringPattern> patterns,
 
 static void transfer_attributes(
     const Span<StringPattern> patterns,
-    const bool ignore_names,
+    const bool exclude_names,
     const bke::AttributeAccessor &src_attributes,
     bke::MutableAttributeAccessor &dst_attributes,
     const Map<bke::AttrDomain, Field<int>> &src_id_fields,
@@ -121,7 +124,7 @@ static void transfer_attributes(
   Map<bke::AttrDomain, IDs> ids_by_domain;
   Vector<AttrItem> items;
   src_attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
-    if (should_transfer(patterns, iter.name, ignore_names, r_found_attribute_using_pattern)) {
+    if (should_transfer(patterns, iter.name, exclude_names, r_found_attribute_using_pattern)) {
       items.append({iter.name, iter.domain, iter.data_type});
       ids_by_domain.lookup_or_add_default(iter.domain);
     }
@@ -374,7 +377,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   const StringPatternMode pattern_mode = params.extract_input<StringPatternMode>(
       "Pattern Mode"_ustr);
   const GListPtr attribute_patterns_list = params.extract_input<GListPtr>("Names"_ustr);
-  const bool ignore_names = params.extract_input<bool>("Ignore Names"_ustr);
+  const bool exclude_names = params.extract_input<bool>("Exclude Names"_ustr);
 
   Map<bke::AttrDomain, Field<int>> dst_id_fields = {
       {AttrDomain::Point, params.extract_input<Field<int>>("Target Point ID"_ustr)},
@@ -438,7 +441,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     bke::MutableAttributeAccessor dst_attributes = *dst_component.attributes_for_write();
     transfer_attributes(
         patterns,
-        ignore_names,
+        exclude_names,
         src_attributes,
         dst_attributes,
         src_id_fields,
@@ -478,7 +481,7 @@ static void node_geo_exec(GeoNodeExecParams params)
       bke::MutableAttributeAccessor dst_attributes = dst_curves.attributes_for_write();
       transfer_attributes(
           patterns,
-          ignore_names,
+          exclude_names,
           src_attributes,
           dst_attributes,
           src_id_fields,
@@ -498,12 +501,12 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   transferred_names.remove_if([&](const StringRef name) { return name.startswith("."); });
 
-  if (!ignore_names) {
+  if (!exclude_names) {
     for (const int pattern_i : patterns.index_range()) {
       if (!found_attribute_using_pattern[pattern_i]) {
         params.error_message_add(NodeWarningType::Info,
-                                 fmt::format("{}: \"{}\"",
-                                             TIP_("No attribute found found for"),
+                                 fmt::format("{} \"{}\"",
+                                             TIP_("No attribute found matching"),
                                              patterns[pattern_i].full_pattern()));
       }
     }
@@ -523,6 +526,7 @@ static void node_register()
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
+  ntype.default_width = bke::NodeWidth::_160;
   bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
