@@ -913,6 +913,8 @@ static void calc_text_rcts(SpaceText *st, ARegion *region, rcti *r_scroll, rcti 
   int lhlstart, lhlend, ltexth, sell_off, curl_off;
   short barheight, barstart, hlstart, hlend, blank_lines;
   short pix_available, pix_top_margin, pix_bottom_margin, pix_bardiff;
+  /* Margin for scroller to avoid overlapping with hide region button, see #68366. */
+  float top_resize_indicator_margin = 1.3 * U.widget_unit;
 
   pix_top_margin = (0.4 * U.widget_unit);
   pix_bottom_margin = (0.4 * U.widget_unit);
@@ -929,7 +931,7 @@ static void calc_text_rcts(SpaceText *st, ARegion *region, rcti *r_scroll, rcti 
   r_scroll->xmax = region->winx - (0.2 * U.widget_unit);
   r_scroll->xmin = r_scroll->xmax - (0.4 * U.widget_unit);
   r_scroll->ymin = pix_top_margin;
-  r_scroll->ymax = pix_available - 1.3 * U.widget_unit;
+  r_scroll->ymax = pix_available - top_resize_indicator_margin;
 
   /* When re-sizing a 2D Viewport with the bar at the bottom to a greater height
    * more blank lines will be added. */
