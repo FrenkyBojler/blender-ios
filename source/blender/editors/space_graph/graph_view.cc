@@ -728,7 +728,7 @@ static bool local_view_exit(bContext *C,
   return changed;
 }
 
-static wmOperatorStatus graphview_fcurves_isolate_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus graph_local_view_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
   ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
@@ -769,7 +769,7 @@ static wmOperatorStatus graphview_fcurves_isolate_exec(bContext *C, wmOperator *
   return OPERATOR_FINISHED;
 }
 
-static bool graph_isolate_poll(bContext *C)
+static bool graph_local_view_poll(bContext *C)
 {
   if (!ED_operator_graphedit_active(C)) {
     return false;
@@ -780,16 +780,16 @@ static bool graph_isolate_poll(bContext *C)
   return sipo->mode != SIPO_MODE_DRIVERS;
 }
 
-void GRAPH_OT_isolate(wmOperatorType *ot)
+void GRAPH_OT_local_view(wmOperatorType *ot)
 {
   /* identifiers */
-  ot->name = "Isolate F-Curves";
-  ot->idname = "GRAPH_OT_isolate";
+  ot->name = "Local View";
+  ot->idname = "GRAPH_OT_local_view";
   ot->description = "Isolate selected F-Curves in Graph Editor view";
 
   /* API callbacks. */
-  ot->exec = graphview_fcurves_isolate_exec;
-  ot->poll = graph_isolate_poll;
+  ot->exec = graph_local_view_exec;
+  ot->poll = graph_local_view_poll;
 
   /* flags */
   ot->flag = OPTYPE_UNDO;

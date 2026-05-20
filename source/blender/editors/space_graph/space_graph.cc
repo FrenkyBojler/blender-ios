@@ -700,20 +700,24 @@ static void graph_listener(const wmSpaceTypeListenerParams *params)
 /* Exit local view when no fcurve channel exists. */
 static void local_view_exit_if_unused(const bContext *C, SpaceGraph *sipo)
 {
-  if (sipo->local_view_bit) {
-    bAnimContext ac;
-    if (ANIM_animdata_get_context(C, &ac)) {
-      ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
-      const eAnimFilter_Flags filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE |
-                                        ANIMFILTER_LIST_CHANNELS | ANIMFILTER_FCURVESONLY);
-      const size_t item_count = ANIM_animdata_filter(
-          &ac, &anim_data, filter, ac.data, ac.datatype);
-      if (item_count == 0) {
-        sipo->local_view_bit = 0;
-      }
-      ANIM_animdata_freelist(&anim_data);
-    }
+  if (!sipo->local_view_bit) {
+    return;
   }
+
+  bAnimContext ac;
+  if (!ANIM_animdata_get_context(C, &ac)) {
+    return;
+  }
+
+  ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
+  const eAnimFilter_Flags filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE |
+                                    ANIMFILTER_LIST_CHANNELS | ANIMFILTER_FCURVESONLY);
+  const size_t item_count = ANIM_animdata_filter(&ac, &anim_data, filter, ac.data, ac.datatype);
+  if (item_count == 0) {
+    sipo->local_view_bit = 0;
+  }
+
+  ANIM_animdata_freelist(&anim_data);
 }
 
 /* Update F-Curve colors */
