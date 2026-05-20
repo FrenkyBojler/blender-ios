@@ -75,7 +75,7 @@ static void node_rna(StructRNA *srna)
       srna,
       "socket_type",
       "Socket Type",
-      "Value may be implicitly converted if the type does not match",
+      "",
       rna_enum_node_socket_data_type_items,
       NOD_inline_enum_accessors(custom1),
       SOCK_FLOAT,
