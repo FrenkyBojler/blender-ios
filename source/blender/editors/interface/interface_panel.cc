@@ -51,6 +51,8 @@
 #include "GPU_matrix.hh"
 #include "GPU_state.hh"
 
+#include "RNA_prototypes.hh"
+
 #include "interface_intern.hh"
 
 namespace blender::ui {
@@ -1413,16 +1415,17 @@ bool panel_should_show_background(const ARegion *region, const PanelType *panel_
 #define TABS_PADDING_BETWEEN_FACTOR 4.0f
 #define TABS_PADDING_TEXT_FACTOR 6.0f
 
-void panel_category_tabs_draw_all(ARegion *region, const char *category_id_active)
+void panel_category_tabs_draw_all(const bContext *C,
+                                  ARegion *region,
+                                  const char * /* category_id_active */)
 {
-  // #define USE_FLAT_INACTIVE
   const bool is_left = RGN_ALIGN_ENUM_FROM_MASK(region->alignment) != RGN_ALIGN_RIGHT;
   View2D *v2d = &region->v2d;
   const uiStyle *style = style_get();
   const uiFontStyle *fstyle = &style->widget;
   fontstyle_set(fstyle);
   const int fontid = fstyle->uifont_id;
-  float fstyle_points = fstyle->points;
+
   const float aspect = BLI_rctf_size_y(&region->v2d.cur) /
                        (BLI_rcti_size_y(&region->v2d.mask) + 1);
   const float zoom = 1.0f / aspect;
@@ -1433,53 +1436,24 @@ void panel_category_tabs_draw_all(ARegion *region, const char *category_id_activ
   const int tab_v_pad_text = round_fl_to_int(TABS_PADDING_TEXT_FACTOR * dpi_fac * zoom) + 2 * px;
   /* Padding between tabs. */
   const int tab_v_pad = round_fl_to_int(TABS_PADDING_BETWEEN_FACTOR * dpi_fac * zoom);
-  bTheme *btheme = theme::theme_get();
-  const float tab_curve_radius = btheme->tui.wcol_tab.roundness * U.widget_unit * zoom;
-  /* Round all corners when region overlap is on. */
-  const int roundboxtype = region->overlap ? CNR_ALL :
-                                             (is_left ? (CNR_TOP_LEFT | CNR_BOTTOM_LEFT) :
-                                                        (CNR_TOP_RIGHT | CNR_BOTTOM_RIGHT));
-  bool is_alpha;
-#ifdef USE_FLAT_INACTIVE
-  bool is_active_prev = false;
-#endif
+
+  Block *block = block_begin(C, region, "panel_category_tabs", EmbossType::Emboss);
+  block_layout(block,
+               LayoutDirection::Vertical,
+               LayoutType::Panel,
+               is_left ? v2d->mask.xmin : (v2d->mask.xmax - category_tabs_width),
+               v2d->mask.ymax,
+               category_tabs_width + 3,
+               0,
+               tab_v_pad,
+               ui::style_get_dpi());
+
   /* Same for all tabs. */
   /* Intentionally don't scale by 'px'. */
   const int rct_xmin = is_left ? v2d->mask.xmin + 3 : (v2d->mask.xmax - category_tabs_width);
   const int rct_xmax = is_left ? v2d->mask.xmin + category_tabs_width : (v2d->mask.xmax - 3);
-  int y_ofs = tab_v_pad;
-
-  /* Primary theme colors. */
-  uchar theme_col_back[4];
-
-  /* Tab colors. */
-  uchar theme_col_tab_bg[4];
-  uchar theme_col_tab_text[3];
-  uchar theme_col_tab_text_sel[3];
-  float theme_col_tab_active[4];
-  float theme_col_tab_inactive[4];
-  float theme_col_tab_outline[4];
-  float theme_col_tab_outline_sel[4];
-
-  theme::get_color_4ubv(TH_BACK, theme_col_back);
-  theme::get_color_3ubv(TH_TAB_TEXT, theme_col_tab_text);
-  theme::get_color_3ubv(TH_TAB_TEXT_HI, theme_col_tab_text_sel);
-  theme::get_color_4ubv(TH_TAB_BACK, theme_col_tab_bg);
-  theme::get_color_4fv(TH_TAB_ACTIVE, theme_col_tab_active);
-  theme::get_color_4fv(TH_TAB_INACTIVE, theme_col_tab_inactive);
-  theme::get_color_4fv(TH_TAB_OUTLINE, theme_col_tab_outline);
-  theme::get_color_4fv(TH_TAB_OUTLINE_ACTIVE, theme_col_tab_outline_sel);
-
-  is_alpha = (region->overlap && (theme_col_back[3] != 255));
 
   const bool compact = U.uiflag2 & USER_UIFLAG2_PANEL_TABS_COMPACT;
-  if (!compact) {
-    BLF_enable(fontid, BLF_ROTATION);
-    BLF_rotation(fontid, is_left ? M_PI_2 : -M_PI_2);
-  }
-
-  fontscale(&fstyle_points, aspect);
-  BLF_size(fontid, fstyle_points * UI_SCALE_FAC);
 
   /* Check the region type supports categories to avoid an assert
    * for showing 3D view panels in the properties space. */
@@ -1488,161 +1462,30 @@ void panel_category_tabs_draw_all(ARegion *region, const char *category_id_activ
   }
 
   /* Calculate tab rectangle for each panel. */
+  PointerRNA ptr = RNA_pointer_create_discrete(
+      reinterpret_cast<ID *>(CTX_wm_screen(C)), RNA_Region, region);
+  PropertyRNA *prop = RNA_struct_find_property(&ptr, "active_panel_category");
+  int n = 0;
   for (PanelCategoryDyn &pc_dyn : region->runtime->panels_category) {
-    rcti *rct = &pc_dyn.rect;
+    Button *button = nullptr;
     const char *category_id = pc_dyn.idname;
     const char *category_id_draw = IFACE_(category_id);
-    const int category_width = round_fl_to_int(
-        compact ? 10.5 * UI_SCALE_FAC * zoom :
-                  BLF_width(fontid, category_id_draw, BLF_DRAW_STR_DUMMY_MAX));
+    const int category_width =
+        round_fl_to_int(compact ? 10.5 * UI_SCALE_FAC * zoom :
+                                  BLF_width(fontid, category_id_draw, BLF_DRAW_STR_DUMMY_MAX)) *
+        zoom;
 
-    rct->xmin = rct_xmin;
-    rct->xmax = rct_xmax;
-
-    rct->ymin = v2d->mask.ymax - (y_ofs + category_width + (tab_v_pad_text * 2));
-    rct->ymax = v2d->mask.ymax - (y_ofs);
-
-    y_ofs += category_width + tab_v_pad + (tab_v_pad_text * 2);
-  }
-
-  const int max_scroll = max_ii(y_ofs - BLI_rcti_size_y(&v2d->mask), 0);
-  const int scroll = clamp_i(region->category_scroll, 0, max_scroll);
-  region->category_scroll = scroll;
-  for (PanelCategoryDyn &pc_dyn : region->runtime->panels_category) {
-    rcti *rct = &pc_dyn.rect;
-    rct->ymin += scroll;
-    rct->ymax += scroll;
-  }
-
-  /* Begin drawing. */
-  GPU_line_smooth(true);
-
-  uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", gpu::VertAttrType::SFLOAT_32_32);
-  immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
-
-  /* Draw the background. */
-  if (is_alpha) {
-    GPU_blend(GPU_BLEND_ALPHA);
-    immUniformColor4ubv(theme_col_tab_bg);
-  }
-  else {
-    immUniformColor3ubv(theme_col_tab_bg);
-  }
-
-  if (is_left) {
-    immRectf(
-        pos, v2d->mask.xmin, v2d->mask.ymin, v2d->mask.xmin + category_tabs_width, v2d->mask.ymax);
-  }
-  else {
-    immRectf(pos,
-             v2d->mask.xmax - category_tabs_width,
-             v2d->mask.ymin,
-             v2d->mask.xmax + 1,
-             v2d->mask.ymax);
-  }
-
-  if (is_alpha) {
-    GPU_blend(GPU_BLEND_NONE);
-  }
-
-  immUnbindProgram();
-
-  /* If the area is too small to show panels, then don't show any tabs as active. */
-  const bool too_narrow = BLI_rcti_size_x(&region->winrct) <=
-                          int(UI_PANEL_CATEGORY_MIN_WIDTH * UI_SCALE_FAC / aspect);
-
-  for (PanelCategoryDyn &pc_dyn : region->runtime->panels_category) {
-    const rcti *rct = &pc_dyn.rect;
-    if (rct->ymin > v2d->mask.ymax) {
-      /* Scrolled outside the top of the view, check the next tab. */
-      continue;
+    const int w = rct_xmax - rct_xmin + 2 * px;
+    const int h = category_width + tab_v_pad_text * 2 + 2 * px;
+    if (compact && pc_dyn.icon != ICON_NONE) {
+      button = uiDefIconButR_prop(
+          block, ButtonType::Tab, ICON_NONE, 0, 0, w, h, &ptr, prop, -1, 0, n++, category_id_draw);
     }
-    if (rct->ymax < v2d->mask.ymin) {
-      /* Scrolled past visible bounds, no need to draw other tabs. */
-      break;
-    }
-    const char *category_id = pc_dyn.idname;
-    const char *category_id_draw = IFACE_(category_id);
-    size_t category_draw_len = BLF_DRAW_STR_DUMMY_MAX;
-    const bool is_active = !too_narrow && STREQ(category_id, category_id_active);
+    else {
+      std::string title = category_id_draw;
+      if (compact) {
+        size_t category_draw_len = BLF_DRAW_STR_DUMMY_MAX;
 
-    GPU_blend(GPU_BLEND_ALPHA);
-
-#ifdef USE_FLAT_INACTIVE
-    /* Draw line between inactive tabs. */
-    if (is_active == false && is_active_prev == false && pc_dyn->prev) {
-      pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", gpu::VertAttrType::SFLOAT_32_32);
-      immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
-      immUniformColor3fvAlpha(theme_col_tab_outline, 0.3f);
-      immRectf(pos,
-               is_left ? v2d->mask.xmin + (category_tabs_width / 5) :
-                         v2d->mask.xmax - (category_tabs_width / 5),
-               rct->ymax + px,
-               is_left ? (v2d->mask.xmin + category_tabs_width) - (category_tabs_width / 5) :
-                         (v2d->mask.xmax - category_tabs_width) + (category_tabs_width / 5),
-               rct->ymax + (px * 3));
-      immUnbindProgram();
-    }
-
-    is_active_prev = is_active;
-
-    if (is_active)
-#endif
-    {
-      /* Draw filled rectangle and outline for tab. */
-      draw_roundbox_corner_set(roundboxtype);
-      rctf box_rect;
-      box_rect.xmin = rct->xmin;
-      box_rect.xmax = rct->xmax;
-      box_rect.ymin = rct->ymin;
-      box_rect.ymax = rct->ymax;
-
-      draw_roundbox_4fv(&box_rect,
-                        true,
-                        tab_curve_radius,
-                        is_active ? theme_col_tab_active : theme_col_tab_inactive);
-      draw_roundbox_4fv(&box_rect,
-                        false,
-                        tab_curve_radius,
-                        is_active ? theme_col_tab_outline_sel : theme_col_tab_outline);
-
-      /* Disguise the outline on one side to join the tab to the panel. */
-      if (!region->overlap) {
-        pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", gpu::VertAttrType::SFLOAT_32_32);
-        immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
-
-        immUniformColor4fv(is_active ? theme_col_tab_active : theme_col_tab_inactive);
-        immRectf(pos,
-                 is_left ? rct->xmax - px : rct->xmin,
-                 rct->ymin + px,
-                 is_left ? rct->xmax : rct->xmin + px,
-                 rct->ymax - px);
-        immUnbindProgram();
-      }
-    }
-
-    /* Tab titles. */
-    BLF_color3ubv(fontid, is_active ? theme_col_tab_text_sel : theme_col_tab_text);
-
-    if (compact) {
-      if (pc_dyn.icon != ICON_NONE) {
-        const float icon_size = 16.0f * UI_SCALE_FAC * zoom;
-        const float ofs_x = float(rct_xmax - rct_xmin - icon_size) / 2.0f;
-        const float ofs_y = float(rct->ymax - rct->ymin - icon_size) / 2.0f;
-        icon_draw_ex(float(rct_xmin) + ofs_x,
-                     float(rct->ymin) + ofs_y,
-                     pc_dyn.icon,
-                     aspect / UI_SCALE_FAC,
-                     0.9f,
-                     0.0f,
-                     nullptr,
-                     false,
-                     nullptr,
-                     false);
-        BLF_size(fontid, fstyle_points * UI_SCALE_FAC);
-      }
-      else {
-        std::string title;
         int char_offset1 = BLI_str_utf8_offset_from_index(category_id_draw, category_draw_len, 1);
         if (char_offset1 > 2) {
           /* Only a single complex character, symbol, or emoji. */
@@ -1665,56 +1508,35 @@ void panel_category_tabs_draw_all(ARegion *region, const char *category_id_activ
             title = std::string(category_id_draw, char_offset2);
           }
         }
-
-        float width;
-        float height;
-        BLF_width_and_height(fontid, title.c_str(), title.size(), &width, &height);
-        const float ofs_x = float(rct_xmax - rct_xmin - width) / 2.0f;
-        const float ofs_y = float(rct->ymax - rct->ymin - height) / 2.0f;
-        BLF_position(fontid, rct->xmin + ofs_x, rct->ymin + ofs_y, 0.0f);
-        BLF_draw(fontid, title.c_str(), title.size());
       }
+      button = uiDefIconTextButR_prop(block,
+                                      ButtonType::Tab,
+                                      ICON_NONE,
+                                      title,
+                                      0,
+                                      0,
+                                      w,
+                                      h,
+                                      &ptr,
+                                      prop,
+                                      -1,
+                                      0,
+                                      n++,
+                                      compact ? category_id_draw : nullptr);
+      button->text_direction = compact ? TextDirection::Default :
+                                         (is_left ? TextDirection::Up : TextDirection::Down);
     }
-    else {
-      /* Offset toward the middle of the rect. */
-      const int text_v_ofs = round_fl_to_int(float(rct_xmax - rct_xmin) * 0.5f);
-      /* Offset down as the font size increases. */
-      const int text_size_offset = round_fl_to_int(fstyle_points * UI_SCALE_FAC * 0.35f);
-
-      BLF_position(fontid,
-                   is_left ? rct->xmax - text_v_ofs + text_size_offset :
-                             rct->xmin + text_v_ofs - text_size_offset,
-                   is_left ? rct->ymin + tab_v_pad_text : rct->ymax - tab_v_pad_text,
-                   0.0f);
-      if (fstyle->shadow) {
-        BLF_enable(fontid, BLF_SHADOW);
-        const float shadow_color[4] = {
-            fstyle->shadowcolor, fstyle->shadowcolor, fstyle->shadowcolor, fstyle->shadowalpha};
-        BLF_shadow(fontid, FontShadowType(fstyle->shadow), shadow_color);
-        BLF_shadow_offset(fontid, fstyle->shadx, fstyle->shady);
-      }
-
-      BLF_draw(fontid, category_id_draw, category_draw_len);
-
-      if (fstyle->shadow) {
-        BLF_disable(fontid, BLF_SHADOW);
-      }
-    }
-
-    GPU_blend(GPU_BLEND_NONE);
-
-    /* Not essential, but allows events to be handled right up to the region edge (#38171). */
-    if (is_left) {
-      pc_dyn.rect.xmin = v2d->mask.xmin;
-    }
-    else {
-      pc_dyn.rect.xmax = v2d->mask.xmax;
-    }
+    button->flag |= ui::BUT_DRAG_LOCK;
   }
+  int2 co = block_layout_resolve(block);
+  const int max_scroll = std::max(-co.y, 0);
+  const int scroll = std::clamp(region->category_scroll, 0, max_scroll);
+  region->category_scroll = scroll;
+  block_end(C, block);
+  block->aspect = aspect;
 
-  GPU_line_smooth(false);
-
-  BLF_disable(fontid, BLF_ROTATION);
+  block_translate(block, 0, region->category_scroll);
+  block_draw(C, block);
 }
 
 #undef TABS_PADDING_BETWEEN_FACTOR

@@ -2349,6 +2349,30 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
     draw_widget_scroll(&wscroll, &scroll_rect, &slider_rect, 0);
   }
 }
+static void widget_draw_vertical_text(const uiFontStyle *fstyle,
+                                      const uiWidgetColors *wcol,
+                                      const Button *but,
+                                      const rcti *rect)
+{
+  fontstyle_set(fstyle);
+  BLF_enable(fstyle->uifont_id, BLF_ROTATION);
+  BLF_rotation(fstyle->uifont_id, but->text_direction == TextDirection::Up ? M_PI_2 : -M_PI_2);
+  BLF_color4ubv(fstyle->uifont_id, wcol->text);
+  bool down = but->text_direction == TextDirection::Down;
+  float width;
+  float height;
+  BLF_width_and_height(
+      fstyle->uifont_id, but->drawstr.c_str(), but->drawstr.size(), &width, &height);
+  int xoff = int(fontstyle_height_max(fstyle) / 2.0f) * (down ? 1 : -1);
+  int yoff = (BLI_rcti_size_y(rect) - width) / 2 * (down ? 1 : -1);
+  BLF_position(fstyle->uifont_id,
+               (down ? rect->xmin : rect->xmax) + xoff,
+               (down ? rect->ymax : rect->ymin) - yoff,
+               0.0f);
+  BLF_draw(fstyle->uifont_id, but->drawstr.c_str(), but->drawstr.size());
+
+  BLF_disable(fstyle->uifont_id, BLF_ROTATION);
+}
 
 static void widget_draw_text(const uiFontStyle *fstyle,
                              const uiWidgetColors *wcol,
@@ -2908,6 +2932,9 @@ static void widget_draw_text_icon(const uiFontStyle *fstyle,
   /* Textbox wraps content in lines, skip clipping text.  */
   if (but->type == ButtonType::TextBox) {
   }
+  /* Do not clip vertical text.  */
+  else if (but->text_direction != TextDirection::Default) {
+  }
   else if (but->editstr && but->pos >= 0) {
     /* clip but->drawstr to fit in available space */
     text_clip_cursor(fstyle, but, rect);
@@ -2929,7 +2956,10 @@ static void widget_draw_text_icon(const uiFontStyle *fstyle,
   }
 
   /* Always draw text for text-button cursor. */
-  if (but->type != ButtonType::TextBox) {
+  if (ELEM(but->text_direction, TextDirection::Down, TextDirection::Up)) {
+    widget_draw_vertical_text(fstyle, wcol, but, rect);
+  }
+  else if (but->type != ButtonType::TextBox) {
     widget_draw_text(fstyle, wcol, but, rect);
   }
   else {

@@ -2231,7 +2231,9 @@ void panel_category_clear_all(ARegion *region);
 /**
  * Draw vertical tabs on the left side of the region, one tab per category.
  */
-void panel_category_tabs_draw_all(ARegion *region, const char *category_id_active);
+void panel_category_tabs_draw_all(const bContext *C,
+                                  ARegion *region,
+                                  const char *category_id_active);
 
 void panel_stop_animation(const bContext *C, Panel *panel);
 
