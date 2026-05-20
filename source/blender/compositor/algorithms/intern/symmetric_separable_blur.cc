@@ -144,6 +144,7 @@ static void blur_pass(Context &context,
 {
   if (context.use_gpu()) {
     blur_pass_gpu(context, input, output, radius, filter_type);
+    return;
   }
   blur_pass_cpu(context, input, output, radius, filter_type);
 }

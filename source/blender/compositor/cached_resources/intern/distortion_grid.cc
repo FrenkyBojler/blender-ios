@@ -222,7 +222,7 @@ DistortionGrid::DistortionGrid(Context &context,
   BKE_tracking_distortion_free(distortion);
 
   if (context.use_gpu()) {
-    Result distortion_grid_gpu = this->result.upload_to_gpu(false);
+    Result distortion_grid_gpu = distortion_grid_cpu.upload_to_gpu(false);
     this->result.share_data(distortion_grid_gpu);
     distortion_grid_gpu.release();
   }
