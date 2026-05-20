@@ -48,12 +48,12 @@ class Bisect:
     def __init__(
         self,
         env: TestEnvironment,
-        test_commit: Callable[..., tuple[float | None, str]],
+        test_commit_cb: Callable[..., tuple[float | None, str]],
         start_ts: int,
         end_ts: int,
     ) -> None:
         self.env = env
-        self.test_commit = test_commit
+        self.test_commit_cb = test_commit_cb
         self.start_ts = start_ts
         self.end_ts = end_ts
         self.commit_status: dict[str, str] = {}
@@ -102,7 +102,7 @@ class Bisect:
                 if attempts >= 3:
                     break
                 attempts += 1
-                _, status = self.test_commit(commit_hash, commit_ts)
+                _, status = self.test_commit_cb(commit_hash, commit_ts)
                 if status in {'build_error', 'no_output', 'run_error', 'skip'}:
                     continue
                 if status == 'pass':
@@ -143,7 +143,7 @@ class Bisect:
                 self._update_progress(progress, min_index, max_index)
                 continue
 
-            _, status = self.test_commit(commit_hash, commit_ts)
+            _, status = self.test_commit_cb(commit_hash, commit_ts)
 
             if status == 'pass':
                 self.commit_status[commit_hash] = 'pass'
@@ -176,7 +176,7 @@ class Bisect:
                     self._update_progress(progress, start_index, scan_index)
                     return start_index, scan_index
                 continue
-            _, status = self.test_commit(scan_hash, scan_ts)
+            _, status = self.test_commit_cb(scan_hash, scan_ts)
             if status == 'pass':
                 self.commit_status[scan_hash] = 'pass'
                 self.last_good = scan_hash
@@ -190,7 +190,7 @@ class Bisect:
         return None, None
 
     @staticmethod
-    def test_commit(
+    def run_commit(
         env: TestEnvironment,
         test: Test,
         device_id: str,

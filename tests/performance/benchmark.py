@@ -431,8 +431,8 @@ def cmd_bisect(env: api.TestEnvironment, argv: list):
     def print_status(row_values, end='\n'):
         table.print_row([str(progress.remaining)] + row_values, end=end)
 
-    def test_commit_wrapper(commit_hash, commit_ts):
-        return api.Bisect.test_commit(
+    def run_commit_wrapper(commit_hash, commit_ts):
+        return api.Bisect.run_commit(
             env, test, device_id, gpu_backend, args.count, args.attribute,
             args.success, args.threshold, tested,
             print_status, commit_hash, commit_ts)
@@ -442,7 +442,7 @@ def cmd_bisect(env: api.TestEnvironment, argv: list):
     end_ts = int(end_dt.timestamp()) + SECONDS_PER_DAY
 
     progress = api.bisect.BisectProgress()
-    bisect = api.bisect.Bisect(env, test_commit_wrapper, start_ts, end_ts)
+    bisect = api.bisect.Bisect(env, run_commit_wrapper, start_ts, end_ts)
     bisect.run(progress=progress)
 
     if bisect.first_bad is None:
