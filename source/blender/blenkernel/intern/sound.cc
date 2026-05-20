@@ -2605,7 +2605,7 @@ static float db4_transient_energy(const Span<float> high)
 }
 
 const bSoundTransientSampler *bSoundTransientSampler::get_cached(const bSound &sound,
-                                                                  const Key &key)
+                                                                 const Key &key)
 {
 #ifdef WITH_AUDASPACE
   {
@@ -2675,9 +2675,8 @@ std::optional<float> bSoundTransientSampler::ensure_window_cache(int window_i) c
   window_i = std::clamp<int>(window_i, 0, window_caches_.size() - 1);
 
   const WindowCache &window = window_caches_[window_i];
-  window.mutex.ensure([&]() {
-    window.transient_energy = this->compute_dwt(window_i * window_cache_stride_);
-  });
+  window.mutex.ensure(
+      [&]() { window.transient_energy = this->compute_dwt(window_i * window_cache_stride_); });
   return window.transient_energy;
 }
 

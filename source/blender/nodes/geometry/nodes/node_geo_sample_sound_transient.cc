@@ -120,8 +120,8 @@ class SampleSoundTransientFunction : public mf::MultiFunction {
       bke::bSoundTransientSampler::Key key;
       key.window_size = window_size_;
       key.channel = *all_channels_value ? std::nullopt : channel_value;
-      const bke::bSoundTransientSampler *sampler = bke::bSoundTransientSampler::get_cached(
-          sound_, key);
+      const bke::bSoundTransientSampler *sampler = bke::bSoundTransientSampler::get_cached(sound_,
+                                                                                           key);
       if (!sampler) {
         index_mask::masked_fill(energies, 0.0f, mask);
         index_mask::masked_fill(is_beat, false, mask);
@@ -163,8 +163,8 @@ class SampleSoundTransientFunction : public mf::MultiFunction {
       bke::bSoundTransientSampler::Key key;
       key.window_size = window_size_;
       key.channel = channel;
-      const bke::bSoundTransientSampler *sampler = bke::bSoundTransientSampler::get_cached(
-          sound_, key);
+      const bke::bSoundTransientSampler *sampler = bke::bSoundTransientSampler::get_cached(sound_,
+                                                                                           key);
       if (!sampler) {
         energies.fill_indices(indices, 0.0f);
         is_beat.fill_indices(indices, false);
@@ -221,18 +221,17 @@ static void node_geo_exec(GeoNodeExecParams params)
   SocketValueVariant all_channels = params.extract_input<SocketValueVariant>("All Channels"_ustr);
   SocketValueVariant channels = params.extract_input<SocketValueVariant>("Channel"_ustr);
 
-  auto sample_fn = std::make_shared<SampleSoundTransientFunction>(
-      *sound, to_window_size_int(window_size));
+  auto sample_fn = std::make_shared<SampleSoundTransientFunction>(*sound,
+                                                                  to_window_size_int(window_size));
 
   SocketValueVariant energies;
   SocketValueVariant beats;
   std::string error_message;
-  if (!execute_multi_function_on_value_variant(
-          std::move(sample_fn),
-          {&times, &thresholds, &all_channels, &channels},
-          {&energies, &beats},
-          params.user_data(),
-          error_message))
+  if (!execute_multi_function_on_value_variant(std::move(sample_fn),
+                                               {&times, &thresholds, &all_channels, &channels},
+                                               {&energies, &beats},
+                                               params.user_data(),
+                                               error_message))
   {
     params.set_default_remaining_outputs();
     params.error_message_add(NodeWarningType::Error, std::move(error_message));
