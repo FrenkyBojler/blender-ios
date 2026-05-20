@@ -2534,17 +2534,22 @@ const char *panel_category_active_get(ARegion *region, bool set_fallback)
   return nullptr;
 }
 
-static PanelCategoryDyn *panel_categories_find_mouse_over(ARegion *region, const wmEvent *event)
+static PanelCategoryDyn *panel_categories_find_mouse_over(ARegion *region, const int xy[2])
 {
   BLI_assert(BKE_regiontype_uses_category_tabs(region->runtime->type));
 
   for (PanelCategoryDyn &ptd : region->runtime->panels_category) {
-    if (BLI_rcti_isect_pt(&ptd.rect, event->mval[0], event->mval[1])) {
+    if (BLI_rcti_isect_pt(&ptd.rect, xy[0], xy[1])) {
       return &ptd;
     }
   }
 
   return nullptr;
+}
+
+static PanelCategoryDyn *panel_categories_find_mouse_over(ARegion *region, const wmEvent *event)
+{
+  return panel_categories_find_mouse_over(region, event->mval);
 }
 
 void panel_category_add(ARegion *region, const char *name, int icon)
@@ -2667,6 +2672,50 @@ static void panel_region_width_set(ARegion *region, const float aspect, int unsc
   view2d_curRect_validate(&region->v2d);
 }
 
+struct PanelCategoryDragData {
+  PanelCategoryDyn *pc_dyn;
+  int xy_init[2];
+  ARegion *region;
+};
+
+static void handler_region_category_tab_drag_remove(bContext * /*C*/, void *userdata)
+{
+  PanelCategoryDragData *drag_data = static_cast<PanelCategoryDragData *>(userdata);
+  MEM_delete(drag_data);
+}
+
+static int handler_region_category_tab_drag(bContext *C, const wmEvent *event, void *userdata)
+{
+  PanelCategoryDragData *drag_data = static_cast<PanelCategoryDragData *>(userdata);
+  bool handle_tab = false;
+  switch (event->type) {
+    case MOUSEMOVE: {
+      handle_tab = true;
+      break;
+    }
+    case LEFTMOUSE:
+    handle_tab = event->val == KM_PRESS;
+      if (event->val == KM_RELEASE) {
+        WM_event_remove_ui_handler(&CTX_wm_window(C)->runtime->modalhandlers,
+                                   handler_region_category_tab_drag,
+                                   handler_region_category_tab_drag_remove,
+                                   drag_data,
+                                   true);
+        handler_region_category_tab_drag_remove(C, drag_data);
+      }
+      break;
+  }
+
+  if (handle_tab) {
+    int xy[2] = {drag_data->xy_init[0], event->mval[1]};
+    if (PanelCategoryDyn *pc_dyn = panel_categories_find_mouse_over(drag_data->region, xy)) {
+      panel_category_active_set(drag_data->region, pc_dyn->idname);
+      return WM_UI_HANDLER_BREAK;
+    }
+  }
+  return WM_UI_HANDLER_CONTINUE;
+}
+
 int handler_panel_region(bContext *C,
                          const wmEvent *event,
                          ARegion *region,
@@ -2697,6 +2746,17 @@ int handler_panel_region(bContext *C,
         const bool too_narrow = BLI_rcti_size_x(&region->winrct) <=
                                 int(std::ceil(UI_PANEL_CATEGORY_MIN_WIDTH * UI_SCALE_FAC /
                                               aspect));
+
+        PanelCategoryDragData *drag_data = MEM_new<PanelCategoryDragData>(__func__);
+        drag_data->pc_dyn = pc_dyn;
+        drag_data->region = region;
+        copy_v2_v2_int(drag_data->xy_init, event->mval);
+        WM_event_add_ui_handler(C,
+                                &CTX_wm_window(C)->runtime->modalhandlers,
+                                handler_region_category_tab_drag,
+                                handler_region_category_tab_drag_remove,
+                                drag_data,
+                                WM_HANDLER_BLOCKING);
         if (too_narrow) {
           /* Enlarge region. */
           const int new_width = region->runtime->type->prefsizex ?
