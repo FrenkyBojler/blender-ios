@@ -1414,10 +1414,38 @@ bool panel_should_show_background(const ARegion *region, const PanelType *panel_
 
 #define TABS_PADDING_BETWEEN_FACTOR 4.0f
 #define TABS_PADDING_TEXT_FACTOR 6.0f
+static void panel_region_width_set(ARegion *region, const float aspect, int unscaled_size);
+
+static void expand_collapse_category_tab(bContext &C, StringRef category, StringRef active)
+{
+  ARegion *region = CTX_wm_region(&C);
+  const float aspect = BLI_rctf_size_y(&region->v2d.cur) /
+                       (BLI_rcti_size_y(&region->v2d.mask) + 1);
+  const bool too_narrow = BLI_rcti_size_x(&region->winrct) <=
+                          int(std::ceil(UI_PANEL_CATEGORY_MIN_WIDTH * UI_SCALE_FAC / aspect));
+
+  if (!too_narrow && category == active) {
+    /* Minimize region. */
+    region->runtime->type->prefsizex = int(float(BLI_rcti_size_x(&region->winrct) + 1) /
+                                           UI_SCALE_FAC * aspect);
+    panel_region_width_set(region, aspect, UI_PANEL_CATEGORY_MIN_WIDTH);
+    WM_event_add_notifier(&C, NC_SCREEN | NA_EDITED, nullptr);
+  }
+  else if (too_narrow) {
+    /* Enlarge region. */
+    const int new_width = region->runtime->type->prefsizex ? region->runtime->type->prefsizex :
+                                                             250;
+    panel_region_width_set(region, aspect, new_width);
+    WM_event_add_notifier(&C, NC_SCREEN | NA_EDITED, nullptr);
+  }
+  ED_region_tag_redraw(region);
+  /* Reset scroll to the top (#38348). */
+  view2d_offset(&region->v2d, -1.0f, 1.0f);
+}
 
 void panel_category_tabs_draw_all(const bContext *C,
                                   ARegion *region,
-                                  const char * /* category_id_active */)
+                                  const char *category_id_active)
 {
   const bool is_left = RGN_ALIGN_ENUM_FROM_MASK(region->alignment) != RGN_ALIGN_RIGHT;
   View2D *v2d = &region->v2d;
@@ -1559,7 +1587,13 @@ void panel_category_tabs_draw_all(const bContext *C,
       button->text_direction = compact ? TextDirection::Default :
                                          (is_left ? TextDirection::Up : TextDirection::Down);
     }
-    button->flag |= ui::BUT_DRAG_LOCK;
+    button->flag |= ui::BUT_DRAG_LOCK_PROP;
+    button_func_set(button,
+                    [category = std::string(category_id),
+                     active = std::string(category_id_active)](bContext &C) -> void {
+                      expand_collapse_category_tab(C, category, active);
+                    });
+    BLI_rcti_rctf_copy(&pc_dyn.rect, &button->rect);
   }
   int2 co = block_layout_resolve(block);
   const int max_scroll = std::max(-co.y, 0);
@@ -1585,21 +1619,21 @@ static int panel_category_show_active_tab(ARegion *region, const int mval[2])
 
   BLI_assert(BKE_regiontype_uses_category_tabs(region->runtime->type));
 
-  const View2D *v2d = &region->v2d;
+  int i = 0;
   for (PanelCategoryDyn &pc_dyn : region->runtime->panels_category) {
     const bool is_active = STREQ(pc_dyn.idname, region->runtime->category);
     if (!is_active) {
+      i++;
       continue;
     }
-    const rcti *rct = &pc_dyn.rect;
-    region->category_scroll = v2d->mask.ymax - (rct->ymax - region->category_scroll);
-
-    if (pc_dyn.next) {
-      const PanelCategoryDyn *pc_dyn_next = static_cast<PanelCategoryDyn *>(pc_dyn.next);
-      const int tab_v_pad = rct->ymin - pc_dyn_next->rect.ymax;
-      region->category_scroll -= tab_v_pad;
-    }
     break;
+  }
+  const View2D *v2d = &region->v2d;
+  if (Block *block = region->runtime->block_name_map.lookup_as("panel_category_tabs")) {
+    if (i < block->buttons_ptrs.size() - 2) {
+      Button &button = *block->buttons_ptrs[i + 1];
+      region->category_scroll = -(button.rect.ymax - region->category_scroll - v2d->mask.ymax);
+    }
   }
   ED_region_tag_redraw(region);
   return WM_UI_HANDLER_BREAK;
@@ -2389,19 +2423,6 @@ const char *panel_category_active_get(ARegion *region, bool set_fallback)
   return nullptr;
 }
 
-static PanelCategoryDyn *panel_categories_find_mouse_over(ARegion *region, const wmEvent *event)
-{
-  BLI_assert(BKE_regiontype_uses_category_tabs(region->runtime->type));
-
-  for (PanelCategoryDyn &ptd : region->runtime->panels_category) {
-    if (BLI_rcti_isect_pt(&ptd.rect, event->mval[0], event->mval[1])) {
-      return &ptd;
-    }
-  }
-
-  return nullptr;
-}
-
 void panel_category_add(ARegion *region, const char *name, int icon)
 {
   PanelCategoryDyn *pc_dyn = MEM_new<PanelCategoryDyn>(__func__);
@@ -2475,34 +2496,6 @@ static int handle_panel_category_cycling(const wmEvent *event,
   return WM_UI_HANDLER_CONTINUE;
 }
 
-static ARegion *WM_panel_category_tooltip_init(
-    bContext *C, ARegion *region, int * /*r_pass*/, double * /*pass_delay*/, bool *r_exit_on_event)
-{
-  *r_exit_on_event = true;
-
-  BLI_assert(BKE_regiontype_uses_category_tabs(region->runtime->type));
-
-  bScreen *screen = CTX_wm_screen(C);
-  const int mouse_x = screen->tool_tip->event_xy[0];
-  const int mouse_y = screen->tool_tip->event_xy[1];
-  PanelCategoryDyn *tab = nullptr;
-  for (PanelCategoryDyn &ptd : region->runtime->panels_category) {
-    if (BLI_rcti_isect_pt(&ptd.rect, mouse_x - region->winrct.xmin, mouse_y - region->winrct.ymin))
-    {
-      tab = &ptd;
-      break;
-    }
-  }
-
-  if (tab) {
-    const int x = region->winrct.xmin + tab->rect.xmin;
-    const int y = region->winrct.ymin + tab->rect.ymin;
-    return ui::tooltip_create_from_panel_category(C, TIP_(tab->idname), x, y);
-  }
-
-  return nullptr;
-}
-
 static void panel_region_width_set(ARegion *region, const float aspect, int unscaled_size)
 {
   const float size_new = unscaled_size / aspect;
@@ -2540,69 +2533,13 @@ int handler_panel_region(bContext *C,
 
   /* Handle category tabs. */
   if (panel_category_tabs_is_visible(region)) {
-    if (event->type == LEFTMOUSE && event->val == KM_PRESS) {
-      PanelCategoryDyn *pc_dyn = panel_categories_find_mouse_over(region, event);
-      if (pc_dyn) {
-        const bool already_active = STREQ(pc_dyn->idname,
-                                          panel_category_active_get(region, false));
-        panel_category_active_set(region, pc_dyn->idname);
-
-        const float aspect = BLI_rctf_size_y(&region->v2d.cur) /
-                             (BLI_rcti_size_y(&region->v2d.mask) + 1);
-        const bool too_narrow = BLI_rcti_size_x(&region->winrct) <=
-                                int(std::ceil(UI_PANEL_CATEGORY_MIN_WIDTH * UI_SCALE_FAC /
-                                              aspect));
-        if (too_narrow) {
-          /* Enlarge region. */
-          const int new_width = region->runtime->type->prefsizex ?
-                                    region->runtime->type->prefsizex :
-                                    250;
-          panel_region_width_set(region, aspect, new_width);
-          WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, nullptr);
-        }
-        else if (already_active) {
-          /* Minimize region. */
-          region->runtime->type->prefsizex = int(float(BLI_rcti_size_x(&region->winrct) + 1) /
-                                                 UI_SCALE_FAC * aspect);
-          panel_region_width_set(region, aspect, UI_PANEL_CATEGORY_MIN_WIDTH);
-          WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, nullptr);
-        }
-
-        ED_region_tag_redraw(region);
-
-        /* Reset scroll to the top (#38348). */
-        view2d_offset(&region->v2d, -1.0f, 1.0f);
-
-        retval = WM_UI_HANDLER_BREAK;
-      }
-    }
-    else if (((event->type == EVT_TABKEY) && (event->modifier & KM_CTRL)) ||
-             ELEM(event->type, WHEELUPMOUSE, WHEELDOWNMOUSE))
+    if (((event->type == EVT_TABKEY) && (event->modifier & KM_CTRL)) ||
+        ELEM(event->type, WHEELUPMOUSE, WHEELDOWNMOUSE))
     {
-      /* Cycle tabs. */
-      WM_tooltip_clear(C, CTX_wm_window(C));
       retval = handle_panel_category_cycling(event, region, active_but);
     }
-    if (event->type == EVT_PADPERIOD) {
-      WM_tooltip_clear(C, CTX_wm_window(C));
+    if (event->type == EVT_PERIODKEY) {
       retval = panel_category_show_active_tab(region, event->xy);
-    }
-    else if (event->type == MOUSEMOVE && U.flag & USER_TOOLTIPS &&
-             U.uiflag2 & USER_UIFLAG2_PANEL_TABS_COMPACT)
-    {
-      PanelCategoryDyn *pc_dyn = panel_categories_find_mouse_over(region, event);
-      if (pc_dyn) {
-        WM_tooltip_timer_init_ex(
-            C, CTX_wm_window(C), CTX_wm_area(C), region, WM_panel_category_tooltip_init, 0.0f);
-      }
-      else {
-        WM_tooltip_clear(C, CTX_wm_window(C));
-      }
-    }
-    else if ((event->type == RIGHTMOUSE) && panel_categories_find_mouse_over(region, event)) {
-      BLI_assert(retval == WM_UI_HANDLER_CONTINUE);
-      retval = WM_UI_HANDLER_BREAK;
-      popup_context_menu_for_panel(C, region, nullptr);
     }
   }
 
