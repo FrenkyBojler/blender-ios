@@ -2538,7 +2538,7 @@ int handler_panel_region(bContext *C,
     {
       retval = handle_panel_category_cycling(event, region, active_but);
     }
-    if (event->type == EVT_PERIODKEY) {
+    if (event->type == EVT_PADPERIOD) {
       retval = panel_category_show_active_tab(region, event->xy);
     }
   }
