@@ -544,7 +544,7 @@ void main()
      * Note that we are limited to mono-chromatic alpha blending here
      * because of the blend equation and the limit of 1 color target
      * when using custom color blending. */
-    revealColor = float4(0.0f, 0.0f, 0.0f, frag_color.a);
+    revealColor = float4(gp_mask_subtract * frag_color.a, 0.0f, 0.0f, frag_color.a);
 
     if (frag_color.a < 0.001f) {
       gpu_discard_fragment();

@@ -965,6 +965,18 @@ static void rna_def_grease_pencil_layer_mask(BlenderRNA *brna)
   RNA_def_property_ui_icon(prop, ICON_SELECT_INTERSECT, 1);
   RNA_def_property_ui_text(prop, "Invert", "Invert mask");
   RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_grease_pencil_update");
+
+  prop = RNA_def_property(srna, "use_strokes", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_negative_sdna(prop, nullptr, "flag", GP_LAYER_MASK_NO_STROKE);
+  RNA_def_property_ui_icon(prop, ICON_GP_MASK_STROKE_OFF, 1);
+  RNA_def_property_ui_text(prop, "Strokes", "Use strokes");
+  RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_grease_pencil_update");
+
+  prop = RNA_def_property(srna, "use_fills", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_negative_sdna(prop, nullptr, "flag", GP_LAYER_MASK_NO_FILL);
+  RNA_def_property_ui_icon(prop, ICON_GP_MASK_FILL_OFF, 1);
+  RNA_def_property_ui_text(prop, "Fills", "Use fills");
+  RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_grease_pencil_update");
 }
 
 static void rna_def_grease_pencil_layer_masks(BlenderRNA *brna, PropertyRNA *cprop)

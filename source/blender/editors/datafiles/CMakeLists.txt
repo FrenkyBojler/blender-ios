@@ -417,6 +417,10 @@ if(WITH_BLENDER)
       gp_draw_stroke
       gp_draw_fill
       gp_draw_both
+      gp_mask_stroke_off
+      gp_mask_stroke_on
+      gp_mask_fill_off
+      gp_mask_fill_on
       gp_multiframe_editing
       gp_only_selected
       gp_select_between_strokes

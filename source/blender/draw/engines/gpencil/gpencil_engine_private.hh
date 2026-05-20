@@ -81,13 +81,21 @@ struct tVfx {
 struct tLayer {
   /** Single linked-list. */
   struct tLayer *next;
-  /** Geometry pass (draw all strokes). */
-  ::std::unique_ptr<PassSimple> geom_ps;
+  /** Geometry pass for strokes and fills. */
+  ::std::unique_ptr<PassSimple> geom_complete_ps;
+  /** Geometry pass for strokes (only for masks). */
+  ::std::unique_ptr<PassSimple> geom_stroke_ps;
+  /** Geometry pass for fills (only for masks). */
+  ::std::unique_ptr<PassSimple> geom_fill_ps;
+  /** Geometry pass for subtracting strokes (only for masks). */
+  ::std::unique_ptr<PassSimple> geom_subtract_ps;
   /** Blend pass to composite onto the target buffer (blends modes). NULL if not needed. */
   ::std::unique_ptr<PassSimple> blend_ps;
   /** Layer id of the mask. */
   BLI_bitmap *mask_bits;
   BLI_bitmap *mask_invert_bits;
+  BLI_bitmap *mask_no_stroke_bits;
+  BLI_bitmap *mask_no_fill_bits;
   /** Index in the layer list. Used as id for masking. */
   int layer_id;
   /** True if this pass is part of the onion skinning. */

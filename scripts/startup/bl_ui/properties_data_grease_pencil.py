@@ -34,6 +34,8 @@ class GREASE_PENCIL_UL_masks(UIList):
         row = layout.row(align=True)
         row.prop(mask, "name", text="", emboss=False, icon_value=icon)
         row.prop(mask, "invert", text="", emboss=False)
+        row.prop(mask, "use_strokes", text="", emboss=False)
+        row.prop(mask, "use_fills", text="", emboss=False)
         row.prop(mask, "hide", text="", emboss=False)
 
 

@@ -97,6 +97,8 @@ ENUM_OPERATORS(GreasePencilLayerFramesMapStorageFlag)
 enum GreasePencilLayerMaskFlag : uint16_t {
   GP_LAYER_MASK_HIDE = (1 << 0),
   GP_LAYER_MASK_INVERT = (1 << 1),
+  GP_LAYER_MASK_NO_STROKE = (1 << 2),
+  GP_LAYER_MASK_NO_FILL = (1 << 3),
 };
 ENUM_OPERATORS(GreasePencilLayerMaskFlag)
 

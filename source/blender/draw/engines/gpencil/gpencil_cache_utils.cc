@@ -341,6 +341,8 @@ tLayer *grease_pencil_layer_cache_add(Instance *inst,
   tgp_layer->is_onion = onion_id != 0;
   tgp_layer->mask_bits = nullptr;
   tgp_layer->mask_invert_bits = nullptr;
+  tgp_layer->mask_no_stroke_bits = nullptr;
+  tgp_layer->mask_no_fill_bits = nullptr;
   tgp_layer->blend_ps = nullptr;
 
   /* Masking: Go through mask list and extract valid masks in a bitmap. */
@@ -351,7 +353,14 @@ tLayer *grease_pencil_layer_cache_add(Instance *inst,
     tgp_layer->mask_bits = static_cast<BLI_bitmap *>(BLI_memblock_alloc(inst->gp_maskbit_pool));
     tgp_layer->mask_invert_bits = static_cast<BLI_bitmap *>(
         BLI_memblock_alloc(inst->gp_maskbit_pool));
+    tgp_layer->mask_no_stroke_bits = static_cast<BLI_bitmap *>(
+        BLI_memblock_alloc(inst->gp_maskbit_pool));
+    tgp_layer->mask_no_fill_bits = static_cast<BLI_bitmap *>(
+        BLI_memblock_alloc(inst->gp_maskbit_pool));
+
     BLI_bitmap_set_all(tgp_layer->mask_bits, false, GP_MAX_MASKBITS);
+    BLI_bitmap_set_all(tgp_layer->mask_no_stroke_bits, false, GP_MAX_MASKBITS);
+    BLI_bitmap_set_all(tgp_layer->mask_no_fill_bits, false, GP_MAX_MASKBITS);
 
     for (GreasePencilLayerMask &mask : layer.masks) {
       if (mask.flag & GP_LAYER_MASK_HIDE) {
@@ -368,8 +377,13 @@ tLayer *grease_pencil_layer_cache_add(Instance *inst,
       const int index = *grease_pencil.get_layer_index(mask_layer);
       if (index < GP_MAX_MASKBITS) {
         const bool invert = (mask.flag & GP_LAYER_MASK_INVERT) != 0;
+        const bool no_stroke = (mask.flag & GP_LAYER_MASK_NO_STROKE) != 0;
+        const bool no_fill = (mask.flag & GP_LAYER_MASK_NO_FILL) != 0;
+
         BLI_BITMAP_SET(tgp_layer->mask_bits, index, true);
         BLI_BITMAP_SET(tgp_layer->mask_invert_bits, index, invert);
+        BLI_BITMAP_SET(tgp_layer->mask_no_stroke_bits, index, no_stroke);
+        BLI_BITMAP_SET(tgp_layer->mask_no_fill_bits, index, no_fill);
         valid_mask = true;
       }
     }
@@ -434,45 +448,61 @@ tLayer *grease_pencil_layer_cache_add(Instance *inst,
     inst->use_layer_fb = true;
   }
 
-  /* Geometry pass */
+  /* Geometry passes */
   {
-    if (tgp_layer->geom_ps == nullptr) {
-      tgp_layer->geom_ps = std::make_unique<PassSimple>("GPencil Layer");
+    if (tgp_layer->geom_complete_ps == nullptr) {
+      tgp_layer->geom_complete_ps = std::make_unique<PassSimple>("GPencil Layer");
+    }
+    if (tgp_layer->geom_stroke_ps == nullptr) {
+      tgp_layer->geom_stroke_ps = std::make_unique<PassSimple>("GPencil Layer Mask Strokes");
+    }
+    if (tgp_layer->geom_fill_ps == nullptr) {
+      tgp_layer->geom_fill_ps = std::make_unique<PassSimple>("GPencil Layer Mask Fills");
+    }
+    if (tgp_layer->geom_subtract_ps == nullptr) {
+      tgp_layer->geom_subtract_ps = std::make_unique<PassSimple>("GPencil Layer Mask Subtract");
     }
 
-    PassSimple &pass = *tgp_layer->geom_ps;
+    Array<PassSimple*> passes(4, nullptr);
 
-    gpu::Texture **depth_tex = (is_in_front) ? &inst->dummy_depth : &inst->scene_depth_tx;
-    gpu::Texture **mask_tex = (is_masked) ? &inst->mask_tx : &inst->dummy_tx;
+    passes[0] = tgp_layer->geom_complete_ps.get();
+    passes[1] = tgp_layer->geom_stroke_ps.get();
+    passes[2] = tgp_layer->geom_fill_ps.get();
+    passes[3] = tgp_layer->geom_subtract_ps.get();
 
-    DRWState state = DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_BLEND_ALPHA_PREMUL;
-    /* For 2D mode, we render all strokes with uniform depth (increasing with stroke id). */
-    state |= tgp_ob->is_drawmode3d ? DRW_STATE_DEPTH_LESS_EQUAL : DRW_STATE_DEPTH_GREATER;
-    /* Always write stencil. Only used as optimization for blending. */
-    state |= DRW_STATE_WRITE_STENCIL | DRW_STATE_STENCIL_ALWAYS;
+    for (int i = 0; i < 4; i++) {
+      gpu::Texture **depth_tex = (is_in_front) ? &inst->dummy_depth : &inst->scene_depth_tx;
+      gpu::Texture **mask_tex = (i == 0 && is_masked) ? &inst->mask_tx : &inst->dummy_tx;
 
-    pass.state_set(state);
-    pass.shader_set(ShaderCache::get().geometry.get());
-    pass.bind_texture("gp_scene_depth_tx", depth_tex);
-    pass.bind_texture("gp_mask_tx", mask_tex);
-    pass.push_constant("gp_normal", tgp_ob->plane_normal);
-    pass.push_constant("gp_stroke_order3d", tgp_ob->is_drawmode3d);
-    pass.push_constant("gp_vertex_color_opacity", vert_col_opacity);
+      DRWState state = DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_BLEND_ALPHA_PREMUL;
+      /* For 2D mode, we render all strokes with uniform depth (increasing with stroke id). */
+      state |= tgp_ob->is_drawmode3d ? DRW_STATE_DEPTH_LESS_EQUAL : DRW_STATE_DEPTH_GREATER;
+      /* Always write stencil. Only used as optimization for blending. */
+      state |= DRW_STATE_WRITE_STENCIL | DRW_STATE_STENCIL_ALWAYS;
 
-    pass.bind_texture("gp_fill_tx", inst->dummy_tx);
-    pass.bind_texture("gp_stroke_tx", inst->dummy_tx);
+      passes[i]->state_set(state);
+      passes[i]->shader_set(ShaderCache::get().geometry.get());
+      passes[i]->bind_texture("gp_scene_depth_tx", depth_tex);
+      passes[i]->bind_texture("gp_mask_tx", mask_tex);
+      passes[i]->push_constant("gp_normal", tgp_ob->plane_normal);
+      passes[i]->push_constant("gp_stroke_order3d", tgp_ob->is_drawmode3d);
+      passes[i]->push_constant("gp_vertex_color_opacity", vert_col_opacity);
 
-    /* If random color type, need color by layer. */
-    float4 gpl_color;
-    copy_v4_v4(gpl_color, layer_tint);
-    if (inst->v3d_color_type == V3D_SHADING_RANDOM_COLOR) {
-      grease_pencil_layer_random_color_get(ob, layer, gpl_color);
-      gpl_color[3] = 1.0f;
+      passes[i]->bind_texture("gp_stroke_tx", inst->dummy_tx);
+      passes[i]->bind_texture("gp_fill_tx", inst->dummy_tx);
+
+      /* If random color type, need color by layer. */
+      float4 gpl_color;
+      copy_v4_v4(gpl_color, layer_tint);
+      if (inst->v3d_color_type == V3D_SHADING_RANDOM_COLOR) {
+        grease_pencil_layer_random_color_get(ob, layer, gpl_color);
+        gpl_color[3] = 1.0f;
+      }
+      passes[i]->push_constant("gp_layer_tint", gpl_color);
+
+      passes[i]->push_constant("gp_layer_opacity", layer_alpha);
+      passes[i]->state_stencil(0xFF, 0xFF, 0xFF);
     }
-    pass.push_constant("gp_layer_tint", gpl_color);
-
-    pass.push_constant("gp_layer_opacity", layer_alpha);
-    pass.state_stencil(0xFF, 0xFF, 0xFF);
   }
 
   return tgp_layer;

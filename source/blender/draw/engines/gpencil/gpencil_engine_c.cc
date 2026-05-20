@@ -367,38 +367,41 @@ tObject *Instance::object_sync_do(Object *ob, ResourceHandleRange res_handle)
   gpu::Texture *tex_fill = this->dummy_tx;
   gpu::Texture *tex_stroke = this->dummy_tx;
 
-  gpu::Batch *iter_geom = nullptr;
-  PassSimple *last_pass = nullptr;
-  int vfirst = 0;
-  int vcount = 0;
+  /* States for passes: complete, stroke, fill, subtract. */
+  Array<gpu::Batch*> iters_geom(4, nullptr);
 
-  const auto drawcall_flush = [&](PassSimple &pass) {
+  Array<int> vfirsts(4, 0);
+  Array<int> vcounts(4, 0);
+
+  Array<PassSimple*> last_passes(4, nullptr);
+
+  const auto drawcall_flush = [&](PassSimple &pass, int index) {
 #if !DISABLE_BATCHING
-    if (iter_geom != nullptr) {
-      pass.draw(iter_geom, 1, vcount, vfirst, res_handle);
+    if (iters_geom[index] != nullptr) {
+      pass.draw(iters_geom[index], 1, vcounts[index], vfirsts[index], res_handle);
     }
 #endif
-    iter_geom = nullptr;
-    vfirst = -1;
-    vcount = 0;
+    iters_geom[index] = nullptr;
+    vfirsts[index] = -1;
+    vcounts[index] = 0;
   };
 
   const auto drawcall_add =
-      [&](PassSimple &pass, gpu::Batch *draw_geom, const int v_first, const int v_count) {
+      [&](PassSimple &pass, int index, gpu::Batch *draw_geom, const int v_first, const int v_count) {
 #if DISABLE_BATCHING
-        pass.draw(iter_geom, 1, vcount, vfirst, res_handle);
+        pass.draw(draw_geom, 1, v_count, v_first, res_handle);
         return;
 #endif
-        int last = vfirst + vcount;
+        int last = vfirsts[index] + vcounts[index];
         /* Interrupt draw-call grouping if the sequence is not consecutive. */
-        if ((draw_geom != iter_geom) || (v_first - last > 0)) {
-          drawcall_flush(pass);
+        if ((draw_geom != iters_geom[index]) || (v_first - last > 0)) {
+          drawcall_flush(pass, index);
         }
-        iter_geom = draw_geom;
-        if (vfirst == -1) {
-          vfirst = v_first;
+        iters_geom[index] = draw_geom;
+        if (vfirsts[index] == -1) {
+          vfirsts[index] = v_first;
         }
-        vcount = v_first + v_count - vfirst;
+        vcounts[index] = v_first + v_count - vfirsts[index];
       };
 
   int t_offset = 0;
@@ -458,14 +461,25 @@ tObject *Instance::object_sync_do(Object *ob, ResourceHandleRange res_handle)
       continue;
     }
 
-    if (last_pass) {
-      drawcall_flush(*last_pass);
+    for (int i = 0; i < 4; i++) {
+      if (last_passes[i]) {
+        drawcall_flush(*last_passes[i], i);
+      }
     }
 
     tLayer *tgp_layer = grease_pencil_layer_cache_add(
         this, ob, layer, info.onion_id, is_layer_used_as_mask, tgp_ob);
-    PassSimple &pass = *tgp_layer->geom_ps;
-    last_pass = &pass;
+
+    Array<PassSimple*> passes(4, nullptr);
+
+    passes[0] = tgp_layer->geom_complete_ps.get();
+    passes[1] = tgp_layer->geom_stroke_ps.get();
+    passes[2] = tgp_layer->geom_fill_ps.get();
+    passes[3] = tgp_layer->geom_subtract_ps.get();
+
+    for (int i = 0; i < 4; i++) {
+      last_passes[i] = passes[i];
+    }
 
     const bool use_lights = this->use_lighting &&
                             ((layer.base.flag & GP_LAYER_TREE_NODE_USE_LIGHTS) != 0) &&
@@ -477,14 +491,19 @@ tObject *Instance::object_sync_do(Object *ob, ResourceHandleRange res_handle)
     gpu::UniformBuf *ubo_mat;
     gpencil_material_resources_get(matpool, 0, nullptr, nullptr, &ubo_mat);
 
-    pass.bind_ubo("gp_lights", lights_ubo);
-    pass.bind_ubo("gp_materials", ubo_mat);
-    pass.bind_texture("gp_fill_tx", tex_fill);
-    pass.bind_texture("gp_stroke_tx", tex_stroke);
-    pass.push_constant("gp_material_offset", mat_ofs);
-    /* Since we don't use the sbuffer in GPv3, this is always 0. */
-    pass.push_constant("gp_stroke_index_offset", 0.0f);
-    pass.push_constant("viewport_size", float2(draw_ctx->viewport_size_get()));
+    for (int i = 0; i < 4; i++) {
+      if (passes[i]) {
+        passes[i]->bind_ubo("gp_lights", lights_ubo);
+        passes[i]->bind_ubo("gp_materials", ubo_mat);
+        passes[i]->bind_texture("gp_fill_tx", tex_fill);
+        passes[i]->bind_texture("gp_stroke_tx", tex_stroke);
+        passes[i]->push_constant("gp_material_offset", mat_ofs);
+        /* Since we don't use the sbuffer in GPv3, this is always 0. */
+        passes[i]->push_constant("gp_stroke_index_offset", 0.0f);
+        passes[i]->push_constant("viewport_size", float2(draw_ctx->viewport_size_get()));
+        passes[i]->push_constant("gp_mask_subtract", i != 3 ? 0.0f : 1.0f);
+      }
+    };
 
     const VArray<int> stroke_materials = *attributes.lookup_or_default<int>(
         "material_index", bke::AttrDomain::Curve, 0);
@@ -575,36 +594,45 @@ tObject *Instance::object_sync_do(Object *ob, ResourceHandleRange res_handle)
                                     (new_tex_stroke && (new_tex_stroke != tex_stroke));
 
       if (resource_changed) {
-        drawcall_flush(pass);
-
-        if (new_ubo_mat != ubo_mat) {
-          pass.bind_ubo("gp_materials", new_ubo_mat);
-          ubo_mat = new_ubo_mat;
+        for (int i = 0; i < 4; i++) {
+          if (passes[i]) {
+            drawcall_flush(*passes[i], i);
+      
+            if (new_ubo_mat != ubo_mat) {
+              passes[i]->bind_ubo("gp_materials", new_ubo_mat);
+            }
+            if (new_tex_fill) {
+              passes[i]->bind_texture("gp_fill_tx", new_tex_fill);
+            }
+            if (new_tex_stroke) {
+              passes[i]->bind_texture("gp_stroke_tx", new_tex_stroke);
+            }
+          }
         }
-        if (new_tex_fill) {
-          pass.bind_texture("gp_fill_tx", new_tex_fill);
-          tex_fill = new_tex_fill;
-        }
-        if (new_tex_stroke) {
-          pass.bind_texture("gp_stroke_tx", new_tex_stroke);
-          tex_stroke = new_tex_stroke;
-        }
+        ubo_mat = new_ubo_mat;
+        tex_fill = new_tex_fill;
+        tex_stroke = new_tex_stroke;
       }
 
       gpu::Batch *geom = DRW_cache_grease_pencil_get(this->scene, ob);
-      if (iter_geom != geom) {
-        drawcall_flush(pass);
 
-        gpu::VertBuf *position_tx = DRW_cache_grease_pencil_position_buffer_get(this->scene, ob);
-        gpu::VertBuf *color_tx = DRW_cache_grease_pencil_color_buffer_get(this->scene, ob);
-        pass.bind_texture("gp_pos_tx", position_tx);
-        pass.bind_texture("gp_col_tx", color_tx);
+      for (int i = 0; i < 4; i++) {
+        if (passes[i] && (iters_geom[i] != geom)) {
+          drawcall_flush(*passes[i], 1);
+          gpu::VertBuf *position_tx = DRW_cache_grease_pencil_position_buffer_get(this->scene, ob);
+          gpu::VertBuf *color_tx = DRW_cache_grease_pencil_color_buffer_get(this->scene, ob);
+          passes[i]->bind_texture("gp_pos_tx", position_tx);
+          passes[i]->bind_texture("gp_col_tx", color_tx);
+        }
       }
 
       if (show_fill) {
         const int v_first = t_offset * 3;
         const int v_count = num_triangles_per_fill[fill_index] * 3;
-        drawcall_add(pass, geom, v_first, v_count);
+        drawcall_add(*passes[0], 0, geom, v_first, v_count);
+        if (passes[2]) {
+          drawcall_add(*passes[2], 2, geom, v_first, v_count);
+        }
       }
 
       if (active_filled) {
@@ -614,15 +642,23 @@ tObject *Instance::object_sync_do(Object *ob, ResourceHandleRange res_handle)
       if (show_stroke) {
         const int v_first = t_offset * 3;
         const int v_count = num_vertices_per_curve[curve_i] * 2 * 3;
-        drawcall_add(pass, geom, v_first, v_count);
+        drawcall_add(*passes[0], 0, geom, v_first, v_count);
+        if (passes[1]) {
+          drawcall_add(*passes[1], 1, geom, v_first, v_count);
+        }
+        if (passes[3]) {
+          drawcall_add(*passes[3], 3, geom, v_first, v_count);
+        }
       }
 
       t_offset += num_vertices_per_curve[curve_i] * 2;
     });
   }
 
-  if (last_pass) {
-    drawcall_flush(*last_pass);
+  for (int i = 0; i < 4; i++) {
+    if (last_passes[i]) {
+      drawcall_flush(*last_passes[i], i);
+    }
   }
 
   return tgp_ob;
@@ -796,7 +832,31 @@ void Instance::draw_mask(View &view, tObject *ob, tLayer *layer)
       continue;
     }
 
-    manager->submit(*mask_layer->geom_ps, view);
+    const bool no_stroke = BLI_BITMAP_TEST_BOOL(layer->mask_no_stroke_bits, i);
+    const bool no_fill = BLI_BITMAP_TEST_BOOL(layer->mask_no_fill_bits, i);
+
+    if (no_stroke && no_fill) {
+      continue;
+    }
+
+    if (!no_stroke && !no_fill) {
+      if (mask_layer->geom_complete_ps) {
+        manager->submit(*mask_layer->geom_complete_ps, view);
+      }
+    }
+    else if (no_stroke) {
+      if (mask_layer->geom_fill_ps) {
+        manager->submit(*mask_layer->geom_fill_ps, view);
+      }
+      if (mask_layer->geom_subtract_ps) {
+        manager->submit(*mask_layer->geom_subtract_ps, view);
+      }
+    }
+    else if (no_fill) {
+      if (mask_layer->geom_stroke_ps) {
+        manager->submit(*mask_layer->geom_stroke_ps, view);
+      }
+    }
   }
 
   if (!inverted) {
@@ -837,7 +897,7 @@ void Instance::draw_object(View &view, tObject *ob)
       GPU_framebuffer_bind(fb_object);
     }
 
-    manager->submit(*layer->geom_ps, view);
+    manager->submit(*layer->geom_complete_ps, view);
 
     if (layer->blend_ps) {
       GPU_framebuffer_bind(fb_object);
