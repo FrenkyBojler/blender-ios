@@ -333,7 +333,7 @@ static int find_unlocked_unmuted_channel(const Editing *ed, int channel_index)
 
   while (channel_index < seq::MAX_CHANNELS) {
     SeqTimelineChannel *channel = seq::channel_get_by_index(channels, channel_index);
-    if (!seq::channel_is_muted(channel) && !seq::channel_is_locked(channel)) {
+    if (!channel->is_muted() && !channel->is_locked()) {
       break;
     }
     channel_index++;
@@ -1253,7 +1253,7 @@ static void sequencer_add_movie_strips_single_file(bContext *C,
   BLI_path_abs(filepath_abs, BKE_main_blendfile_path(bmain));
 
   char colorspace[/*MAX_COLORSPACE_NAME*/ 64] = "\0";
-  MovieReader *probe_anim = openanim_noload(filepath_abs, IB_byte_data, 0, true, colorspace);
+  MovieReader *probe_anim = openanim_noload(filepath_abs, ImBufFlags::Zero, 0, true, colorspace);
   const int video_count = MOV_get_video_stream_count(probe_anim);
   const int sound_count = load_sound ? BKE_sound_stream_count(bmain, filepath_abs) : 0;
 
