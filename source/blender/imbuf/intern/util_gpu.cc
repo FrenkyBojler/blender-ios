@@ -352,8 +352,12 @@ void IMB_update_gpu_texture_sub(gpu::Texture *tex,
   }
 }
 
-gpu::Texture *IMB_create_gpu_texture(
-    const char *name, ImBuf *ibuf, bool use_high_bitdepth, bool use_premult, const bool limit_size)
+gpu::Texture *IMB_create_gpu_texture(const char *name,
+                                     ImBuf *ibuf,
+                                     const bool use_high_bitdepth,
+                                     const bool use_premult,
+                                     const bool limit_size,
+                                     const bool limit_mipmap)
 {
   gpu::Texture *tex = nullptr;
   int size[2] = {ibuf->x, ibuf->y};
@@ -402,7 +406,7 @@ gpu::Texture *IMB_create_gpu_texture(
         tex = GPU_texture_create_compressed_2d(name,
                                                ibuf->x,
                                                ibuf->y,
-                                               mip_count,
+                                               limit_mipmap ? 1 : mip_count,
                                                compressed_format,
                                                GPU_TEXTURE_USAGE_GENERAL,
                                                compressed_data);
@@ -429,13 +433,18 @@ gpu::Texture *IMB_create_gpu_texture(
 
   /* Create Texture. Specify read usage to allow both shader and host reads, the latter is needed
    * by the GPU compositor. */
-  const eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_SHADER_WRITE |
-                                 GPU_TEXTURE_USAGE_HOST_READ;
-  tex = GPU_texture_create_2d(name, UNPACK2(size), 9999, tex_format, usage, nullptr);
+  const eGPUTextureUsage usage = limit_mipmap ?
+                                     GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_HOST_READ :
+                                     GPU_TEXTURE_USAGE_SHADER_READ |
+                                         GPU_TEXTURE_USAGE_SHADER_WRITE |
+                                         GPU_TEXTURE_USAGE_HOST_READ;
+  tex = GPU_texture_create_2d(
+      name, UNPACK2(size), limit_mipmap ? 1 : 9999, tex_format, usage, nullptr);
   if (tex == nullptr) {
     size[0] = max_ii(1, size[0] / 2);
     size[1] = max_ii(1, size[1] / 2);
-    tex = GPU_texture_create_2d(name, UNPACK2(size), 9999, tex_format, usage, nullptr);
+    tex = GPU_texture_create_2d(
+        name, UNPACK2(size), limit_mipmap ? 1 : 9999, tex_format, usage, nullptr);
     do_rescale = true;
   }
   BLI_assert(tex != nullptr);
