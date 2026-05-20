@@ -120,11 +120,7 @@ static void fmodifier_reorder(bContext *C, Panel *panel, int new_index)
   /* Move the FModifier in the list. */
   BLI_listbase_link_move(modifiers, fcm, new_index - current_index);
 
-  for (FModifier &fcm : *modifiers) {
-    if (get_fmodifier_typeinfo(fcm.type)->requires_flag & FMI_REQUIRES_ORIGINAL_DATA) {
-      SET_FLAG_FROM_TEST(fcm.flag, &fcm != modifiers->first, FMODIFIER_FLAG_DISABLED);
-    }
-  }
+  BKE_fmodifier_ensure_flag(modifiers);
 
   ED_undo_push(C, "Reorder F-Curve Modifier");
 

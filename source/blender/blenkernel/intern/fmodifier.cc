@@ -1188,7 +1188,6 @@ FModifier *add_fmodifier(ListBaseT<FModifier> *modifiers, int type, FCurve *owne
     return nullptr;
   }
 
-  const bool is_first_modifier = BLI_listbase_is_empty(modifiers);
   /* add modifier itself */
   fcm = MEM_new<FModifier>("F-Curve Modifier");
   fcm->type = eFModifier_Types(type);
@@ -1197,13 +1196,7 @@ FModifier *add_fmodifier(ListBaseT<FModifier> *modifiers, int type, FCurve *owne
   fcm->influence = 1.0f;
   BLI_addtail(modifiers, fcm);
 
-  /* Special checks for whether modifier can be added. */
-  if (!is_first_modifier && (fmi->requires_flag & FMI_REQUIRES_ORIGINAL_DATA)) {
-    /* Modifiers requiring original data can only be first in the stack, disable modifier
-     * otherwise.
-     */
-    fcm->flag |= FMODIFIER_FLAG_DISABLED;
-  }
+  BKE_fmodifier_ensure_flag(modifiers);
 
   /* Set modifier name and make sure it is unique. */
   BKE_fmodifier_name_set(fcm, "");
@@ -1316,13 +1309,7 @@ bool remove_fmodifier(ListBaseT<FModifier> *modifiers, FModifier *fcm)
       BKE_fcurve_handles_recalc(*update_fcu);
     }
 
-    if (FModifier *fcm_first = static_cast<FModifier *>(modifiers->first)) {
-      const FModifierTypeInfo *fmi_first = get_fmodifier_typeinfo(fcm_first->type);
-      if (fmi_first->requires_flag & FMI_REQUIRES_ORIGINAL_DATA) {
-        /* Modifier is first in stack, enable it.  */
-        fcm_first->flag &= ~FMODIFIER_FLAG_DISABLED;
-      }
-    }
+    BKE_fmodifier_ensure_flag(modifiers);
     return true;
   }
 
