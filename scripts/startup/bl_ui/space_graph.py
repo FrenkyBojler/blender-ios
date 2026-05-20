@@ -109,9 +109,6 @@ class GRAPH_HT_header(Header):
             panel="GRAPH_PT_proportional_edit",
         )
 
-        row = layout.row()
-        row.prop(st, "show_gizmo", icon='GIZMO', text="")
-
 
 class GRAPH_HT_playback_controls(Header):
     bl_space_type = 'GRAPH_EDITOR'
@@ -252,6 +249,9 @@ class GRAPH_MT_view(Menu):
         layout.operator("anim.previewrange_set")
         layout.operator("anim.previewrange_clear")
         layout.operator("graph.previewrange_set")
+        layout.separator()
+
+        layout.prop(st, "show_gizmo")
         layout.separator()
 
         # Add this to show key-binding (reverse action in dope-sheet).
