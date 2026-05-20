@@ -264,7 +264,6 @@ static TreeElement *outliner_drop_insert_collection_find(bContext *C,
   /* Master collection doesn't support relative sibling placement for collections,
    * but allows it for objects in custom sort mode. */
   if (collection->flag & COLLECTION_IS_MASTER) {
-    /* Check if we're dragging an object in custom sort mode. */
     SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
     const bool is_custom_sort = (space_outliner->sort_method == SO_SORT_CUSTOM);
     const bool is_object_row = is_object_element(te);
