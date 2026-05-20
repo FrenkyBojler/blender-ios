@@ -366,7 +366,7 @@ static void autotrack_context_init_tracks_for_clip(AutoTrackContext *context, in
   MovieClip *clip = autotrack_clip->clip;
   const MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(&clip->tracking);
 
-  const int num_clip_tracks = tracking_object->tracks.size();
+  const int num_clip_tracks = BLI_listbase_count(&tracking_object->tracks);
   if (num_clip_tracks == 0) {
     return;
   }

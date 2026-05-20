@@ -2231,7 +2231,7 @@ static bool is_auto_smooth_node_tree(const bNodeTree &group)
   {
     return false;
   }
-  if (group.links.size() != 9) {
+  if (BLI_listbase_count(&group.links) != 9) {
     return false;
   }
 

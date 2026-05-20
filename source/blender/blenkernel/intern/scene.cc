@@ -2494,7 +2494,7 @@ bool BKE_scene_validate_setscene(Main *bmain, Scene *sce)
   if (sce->set == nullptr) {
     return true;
   }
-  totscene = bmain->scenes.size();
+  totscene = BLI_listbase_count(&bmain->scenes);
 
   for (a = 0, sce_iter = sce; sce_iter->set; sce_iter = sce_iter->set, a++) {
     /* more iterations than scenes means we have a cycle */

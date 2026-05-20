@@ -851,11 +851,13 @@ void BKE_collection_new_name_get(Collection *collection_parent, char r_name[MAX_
     BLI_strncpy_utf8(r_name, DATA_("Collection"), name_maxncpy);
   }
   else if (collection_parent->flag & COLLECTION_IS_MASTER) {
-    BLI_snprintf_utf8(
-        r_name, name_maxncpy, DATA_("Collection %d"), collection_parent->children.size() + 1);
+    BLI_snprintf_utf8(r_name,
+                      name_maxncpy,
+                      DATA_("Collection %d"),
+                      BLI_listbase_count(&collection_parent->children) + 1);
   }
   else {
-    const int number = collection_parent->children.size() + 1;
+    const int number = BLI_listbase_count(&collection_parent->children) + 1;
     const int digits = integer_digits_i(number);
     const size_t name_part_maxncpy = name_maxncpy - (1 + digits);
     const size_t name_part_len = BLI_strncpy_utf8_rlen(
@@ -1219,7 +1221,7 @@ static void collection_gobject_assert_internal_consistency(Collection *collectio
 static CollectionObjectMap *collection_gobject_hash_alloc(const Collection *collection)
 {
   auto *gobject_hash = MEM_new<CollectionObjectMap>(__func__);
-  gobject_hash->reserve(collection->gobject.size());
+  gobject_hash->reserve(BLI_listbase_count(&collection->gobject));
   return gobject_hash;
 }
 
@@ -1578,7 +1580,7 @@ CollectionExport *BKE_collection_exporter_add(Collection *collection, char *idna
   data->flag |= IO_HANDLER_PANEL_OPEN;
 
   BLI_addtail(&collection->exporters, data);
-  collection->active_exporter_index = collection->exporters.size() - 1;
+  collection->active_exporter_index = BLI_listbase_count(&collection->exporters) - 1;
 
   return data;
 }

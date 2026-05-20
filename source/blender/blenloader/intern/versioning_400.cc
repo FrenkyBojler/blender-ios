@@ -729,8 +729,8 @@ static void versioning_convert_node_tree_socket_lists_to_interface(bNodeTree *nt
 {
   bNodeTreeInterface &tree_interface = ntree->tree_interface;
 
-  const int num_inputs = ntree->inputs_legacy.size();
-  const int num_outputs = ntree->outputs_legacy.size();
+  const int num_inputs = BLI_listbase_count(&ntree->inputs_legacy);
+  const int num_outputs = BLI_listbase_count(&ntree->outputs_legacy);
   tree_interface.root_panel.items_num = num_inputs + num_outputs;
   tree_interface.root_panel.items_array = MEM_new_array_uninitialized<bNodeTreeInterfaceItem *>(
       size_t(tree_interface.root_panel.items_num), __func__);

@@ -136,7 +136,7 @@ struct Key {
 
   ID *from = nullptr;
 
-  /** (totkey == key->block.size()). */
+  /** (totkey == BLI_listbase_count(&key->block)). */
   int totkey = 0;
   ShapekeyContainerFlag flag = {};
   /** Absolute or relative shape key. */

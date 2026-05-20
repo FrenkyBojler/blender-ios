@@ -2350,7 +2350,7 @@ static float evaluate_fcurve_ex(const FCurve *fcu, float evaltime, float cvalue)
 {
   /* Evaluate modifiers which modify time to evaluate the base curve at. */
   FModifiersStackStorage storage;
-  storage.modifier_count = fcu->modifiers.size();
+  storage.modifier_count = BLI_listbase_count(&fcu->modifiers);
   storage.size_per_modifier = evaluate_fmodifiers_storage_size_per_modifier(&fcu->modifiers);
   storage.buffer = alloca(storage.modifier_count * storage.size_per_modifier);
 

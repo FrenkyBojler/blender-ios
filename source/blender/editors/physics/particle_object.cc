@@ -1115,7 +1115,7 @@ static bool copy_particle_systems_to_object(const bContext *C,
   static_cast<ParticleSystem *>( \
       (single_psys_from ? single_psys_from : ob_from->particlesystem.first))
 #define PSYS_FROM_NEXT(cur) (single_psys_from ? nullptr : (cur)->next)
-  totpsys = single_psys_from ? 1 : ob_from->particlesystem.size();
+  totpsys = single_psys_from ? 1 : BLI_listbase_count(&ob_from->particlesystem);
 
   tmp_psys = MEM_new_array_uninitialized<ParticleSystem *>(totpsys,
                                                            "temporary particle system array");

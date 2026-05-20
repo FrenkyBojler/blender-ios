@@ -159,7 +159,7 @@ static int rna_XrActionMapBinding_component_paths_length(PointerRNA *ptr)
 {
 #  ifdef WITH_XR_OPENXR
   XrActionMapBinding *amb = (XrActionMapBinding *)ptr->data;
-  return amb->component_paths.size();
+  return BLI_listbase_count(&amb->component_paths);
 #  else
   UNUSED_VARS(ptr);
   return 0;
@@ -342,7 +342,7 @@ static int rna_XrActionMapItem_user_paths_length(PointerRNA *ptr)
 {
 #  ifdef WITH_XR_OPENXR
   XrActionMapItem *ami = (XrActionMapItem *)ptr->data;
-  return ami->user_paths.size();
+  return BLI_listbase_count(&ami->user_paths);
 #  else
   UNUSED_VARS(ptr);
   return 0;
@@ -536,7 +536,7 @@ static int rna_XrActionMapItem_bindings_length(PointerRNA *ptr)
 {
 #  ifdef WITH_XR_OPENXR
   XrActionMapItem *ami = (XrActionMapItem *)ptr->data;
-  return ami->bindings.size();
+  return BLI_listbase_count(&ami->bindings);
 #  else
   UNUSED_VARS(ptr);
   return 0;
@@ -633,7 +633,7 @@ static int rna_XrActionMap_items_length(PointerRNA *ptr)
 {
 #  ifdef WITH_XR_OPENXR
   XrActionMap *actionmap = (XrActionMap *)ptr->data;
-  return actionmap->items.size();
+  return BLI_listbase_count(&actionmap->items);
 #  else
   UNUSED_VARS(ptr);
   return 0;
@@ -814,8 +814,8 @@ static bool rna_XrSessionState_action_binding_create(bContext *C,
 {
 #  ifdef WITH_XR_OPENXR
   wmWindowManager *wm = CTX_wm_manager(C);
-  const int count_user_paths = ami->user_paths.size();
-  const int count_component_paths = amb->component_paths.size();
+  const int count_user_paths = BLI_listbase_count(&ami->user_paths);
+  const int count_component_paths = BLI_listbase_count(&amb->component_paths);
   if (count_user_paths < 1 || (count_user_paths != count_component_paths)) {
     return false;
   }

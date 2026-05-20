@@ -171,7 +171,7 @@ static void set_constraint_nth_target(bConstraint *con,
   int targets_num, i;
 
   if (BKE_constraint_targets_get(con, &targets)) {
-    targets_num = targets.size();
+    targets_num = BLI_listbase_count(&targets);
 
     if (index < 0) {
       if (abs(index) < targets_num) {

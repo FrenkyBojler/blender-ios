@@ -983,7 +983,7 @@ static wmOperatorStatus shape_key_apply_to_basis_exec(bContext *C, wmOperator *o
   MutableSpan<float3> positions = mesh.vert_positions_for_write();
 
   int locked_count = 0;
-  Array<bool> keys_to_process(key->block.size(), false);
+  Array<bool> keys_to_process(BLI_listbase_count(&key->block), false);
   for (const auto [i, kb] : key->block.enumerate()) {
     if (!shape_key_is_selected(*ob, kb, i)) {
       continue;

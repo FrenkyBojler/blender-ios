@@ -189,7 +189,7 @@ const char *OBJLegacyCurve::get_curve_name() const
 
 int OBJLegacyCurve::total_splines() const
 {
-  return export_curve_->nurb.size();
+  return BLI_listbase_count(&export_curve_->nurb);
 }
 
 const float4x4 &OBJLegacyCurve::object_transform() const

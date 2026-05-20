@@ -1824,7 +1824,7 @@ static bool sequencer_add_images(bContext *C, wmOperator *op, seq::LoadData &loa
   for (ImageFrameRange &range : ranges) {
     /* Populate `load_data` with data from `range`. */
     load_data.image.count = use_placeholders ? range.max_framenr - range.offset + 1 :
-                                               range.frames.size();
+                                               BLI_listbase_count(&range.frames);
     STRNCPY(load_data.path, range.filepath);
     BLI_path_split_file_part(load_data.path, load_data.name, sizeof(load_data.name));
 

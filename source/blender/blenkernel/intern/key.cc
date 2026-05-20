@@ -1327,7 +1327,7 @@ KeyBlock *BKE_keyblock_add(Key *key, const char *name)
   BLI_addtail(&key->block, kb);
   kb->type = KEY_LINEAR;
 
-  const int tot = key->block.size();
+  const int tot = BLI_listbase_count(&key->block);
   if (name) {
     STRNCPY_UTF8(kb->name, name);
   }
@@ -1873,7 +1873,7 @@ std::optional<Array<bool>> BKE_keyblock_get_dependent_keys(const Key *key, const
     return std::nullopt;
   }
 
-  const int count = key->block.size();
+  const int count = BLI_listbase_count(&key->block);
 
   if (index < 0 || index >= count) {
     return std::nullopt;

@@ -201,7 +201,7 @@ void activate_geometry_node(Main &bmain,
 
 Object *parse_object_only(const ViewerPath &viewer_path)
 {
-  if (viewer_path.path.size() != 1) {
+  if (BLI_listbase_count(&viewer_path.path) != 1) {
     return nullptr;
   }
   const ViewerPathElem *elem = static_cast<ViewerPathElem *>(viewer_path.path.first);

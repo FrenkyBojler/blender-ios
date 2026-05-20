@@ -339,7 +339,7 @@ void GPU_uniform_attr_list_free(GPUUniformAttrList *set)
 void gpu_node_graph_finalize_uniform_attrs(GPUNodeGraph *graph)
 {
   GPUUniformAttrList *attrs = &graph->uniform_attrs;
-  BLI_assert(attrs->count == attrs->list.size());
+  BLI_assert(attrs->count == BLI_listbase_count(&attrs->list));
 
   /* Sort the attributes by name to ensure a stable order. */
   BLI_listbase_sort(&attrs->list, uniform_attr_sort_cmp);

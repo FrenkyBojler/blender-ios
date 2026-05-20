@@ -212,7 +212,7 @@ static wmOperatorStatus weight_sample_invoke(bContext *C, wmOperator *op, const 
       Brush *brush = BKE_paint_brush(&ts->wpaint->paint);
       const int vgroup_active = mesh->vertex_group_active_index - 1;
       float vgroup_weight = BKE_defvert_find_weight(&dvert[v_idx_best], vgroup_active);
-      const int defbase_tot = mesh->vertex_group_names.size();
+      const int defbase_tot = BLI_listbase_count(&mesh->vertex_group_names);
       bool use_lock_relative = ts->wpaint_lock_relative;
       bool *defbase_locked = nullptr, *defbase_unlocked = nullptr;
 
@@ -331,7 +331,7 @@ static wmOperatorStatus weight_sample_group_invoke(bContext *C,
   }
 
   const bool use_vert_sel = (mesh->editflag & ME_EDIT_PAINT_VERT_SEL) != 0;
-  Array<bool> groups(mesh->vertex_group_names.size(), false);
+  Array<bool> groups(BLI_listbase_count(&mesh->vertex_group_names), false);
 
   bool found = false;
 
@@ -850,7 +850,7 @@ static wmOperatorStatus paint_weight_gradient_exec(bContext *C, wmOperator *op)
   }
 
   if (scene->toolsettings->auto_normalize) {
-    const int vgroup_num = mesh->vertex_group_names.size();
+    const int vgroup_num = BLI_listbase_count(&mesh->vertex_group_names);
     bool *lock_flags = BKE_object_defgroup_lock_flags_get(ob, vgroup_num);
     if (!lock_flags) {
       lock_flags = MEM_new_array_uninitialized<bool>(vgroup_num, "lock_flags");

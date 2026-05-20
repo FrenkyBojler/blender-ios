@@ -2045,7 +2045,8 @@ static void execute_realize_mesh_tasks(const RealizeInstancesOptions &options,
   const Mesh &first_mesh = *first_task.mesh_info->mesh;
   BKE_mesh_copy_parameters_for_eval(dst_mesh, &first_mesh);
 
-  BLI_assert(dst_mesh->vertex_group_names.size() == first_mesh.vertex_group_names.size());
+  BLI_assert(BLI_listbase_count(&dst_mesh->vertex_group_names) ==
+             BLI_listbase_count(&first_mesh.vertex_group_names));
   copy_vertex_group_names(
       *dst_mesh, ordered_attributes, all_meshes_info.order.as_span().drop_front(1));
   dst_mesh->vertex_group_active_index = first_mesh.vertex_group_active_index;
