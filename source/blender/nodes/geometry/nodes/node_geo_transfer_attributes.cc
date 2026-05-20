@@ -25,7 +25,9 @@ static void node_declare(NodeDeclarationBuilder &b)
 
   b.add_input<decl::Geometry>("Target"_ustr);
   b.add_output<decl::Geometry>("Target"_ustr).align_with_previous().propagate_all();
-  b.add_output<decl::Bool>("Success"_ustr);
+  b.add_output<decl::String>("Names"_ustr)
+      .structure_type(StructureType::List)
+      .description("Attribute names that have been transferred excluding internal attributes");
   {
     auto &p = b.add_panel("Target IDs"_ustr).default_closed(true);
     Vector<BaseSocketDeclarationBuilder *> sockets;
@@ -93,7 +95,7 @@ static bool should_transfer(const Span<StringPattern> patterns,
   return matches;
 }
 
-static bool transfer_attributes(
+static void transfer_attributes(
     const Span<StringPattern> patterns,
     const bool ignore_names,
     const bke::AttributeAccessor &src_attributes,
@@ -103,7 +105,8 @@ static bool transfer_attributes(
     FunctionRef<fn::FieldContext &(ResourceScope &scope, const bke::AttrDomain domain)>
         create_src_context,
     FunctionRef<fn::FieldContext &(ResourceScope &scope, const bke::AttrDomain domain)>
-        create_dst_context)
+        create_dst_context,
+    VectorSet<std::string> &r_transferred_names)
 {
   struct AttrItem {
     StringRef name;
@@ -169,7 +172,6 @@ static bool transfer_attributes(
     ids.default_mask = ids.gather_mask.complement(IndexMask(dst_size), scope.allocator());
   }
 
-  int transferred_num = 0;
   for (const AttrItem &item : items) {
     const bke::GAttributeReader src_attr = src_attributes.lookup(item.name);
     const CommonVArrayInfo info = src_attr.varray.common_info();
@@ -200,7 +202,7 @@ static bool transfer_attributes(
           if (dst_attributes.add_override(
                   item.name, item.domain, item.type, bke::AttributeInitValue({type, info.data})))
           {
-            transferred_num++;
+            r_transferred_names.add(item.name);
             continue;
           }
         }
@@ -216,7 +218,7 @@ static bool transfer_attributes(
                 item.type,
                 bke::AttributeInitShared(info.data, *src_attr.sharing_info)))
         {
-          transferred_num++;
+          r_transferred_names.add(item.name);
           continue;
         }
       }
@@ -233,7 +235,7 @@ static bool transfer_attributes(
           BLI_assert(dst_attr);
           array_utils::copy(src_attr.varray.slice(copy_slice), dst_attr.span.slice(copy_slice));
           dst_attr.finish();
-          transferred_num++;
+          r_transferred_names.add(item.name);
           continue;
         }
         /* Create a new array for the correct domain and type, copy the transferred values and
@@ -251,7 +253,7 @@ static bool transfer_attributes(
         if (dst_attributes.add_override(
                 item.name, item.domain, item.type, bke::AttributeInitMoveArray(dst_data)))
         {
-          transferred_num++;
+          r_transferred_names.add(item.name);
           continue;
         }
         /* Transfer failed. */
@@ -270,7 +272,7 @@ static bool transfer_attributes(
       if (dst_attributes.add(
               item.name, item.domain, item.type, bke::AttributeInitMoveArray(dst_data)))
       {
-        transferred_num++;
+        r_transferred_names.add(item.name);
         continue;
       }
       /* Transfer failed. */
@@ -287,7 +289,7 @@ static bool transfer_attributes(
         if (dst_attributes.add_override(
                 item.name, item.domain, item.type, bke::AttributeInitValue({type, info.data})))
         {
-          transferred_num++;
+          r_transferred_names.add(item.name);
           continue;
         }
       }
@@ -298,7 +300,7 @@ static bool transfer_attributes(
         BLI_assert(dst_attr);
         bke::attribute_math::gather(*src_attr, ids.src_by_dst_index, dst_attr.span);
         dst_attr.finish();
-        transferred_num++;
+        r_transferred_names.add(item.name);
         continue;
       }
       /* Create a new array for the attribute. */
@@ -308,7 +310,7 @@ static bool transfer_attributes(
       if (dst_attributes.add_override(
               item.name, item.domain, item.type, bke::AttributeInitMoveArray(dst_data)))
       {
-        transferred_num++;
+        r_transferred_names.add(item.name);
         continue;
       }
       /* Transfer failed. */
@@ -324,7 +326,7 @@ static bool transfer_attributes(
       BLI_assert(dst_attr);
       bke::attribute_math::gather(*src_attr, ids.src_by_dst_index, ids.gather_mask, dst_attr.span);
       dst_attr.finish();
-      transferred_num++;
+      r_transferred_names.add(item.name);
       continue;
     }
     if (!old_dst_meta) {
@@ -336,7 +338,7 @@ static bool transfer_attributes(
       if (dst_attributes.add(
               item.name, item.domain, item.type, bke::AttributeInitMoveArray(dst_data)))
       {
-        transferred_num++;
+        r_transferred_names.add(item.name);
         continue;
       }
       /* Transfer failed. */
@@ -357,15 +359,13 @@ static bool transfer_attributes(
     if (dst_attributes.add_override(
             item.name, item.domain, item.type, bke::AttributeInitMoveArray(dst_data)))
     {
-      transferred_num++;
+      r_transferred_names.add(item.name);
       continue;
     }
     /* Transfer failed. */
     type.destruct_n(dst_data, dst_size);
     MEM_delete_void(dst_data);
   }
-
-  return transferred_num > 0;
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
@@ -420,7 +420,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  bool success = false;
+  VectorSet<std::string> transferred_names;
   for (const bke::GeometryComponent::Type type : {bke::GeometryComponent::Type::Mesh,
                                                   bke::GeometryComponent::Type::PointCloud,
                                                   bke::GeometryComponent::Type::Curve,
@@ -436,20 +436,20 @@ static void node_geo_exec(GeoNodeExecParams params)
     GeometryComponent &dst_component = dst_geo.get_component_for_write(type);
     const bke::AttributeAccessor src_attributes = *src_component.attributes();
     bke::MutableAttributeAccessor dst_attributes = *dst_component.attributes_for_write();
-    success = success |
-              transfer_attributes(
-                  patterns,
-                  ignore_names,
-                  src_attributes,
-                  dst_attributes,
-                  src_id_fields,
-                  dst_id_fields,
-                  [&](ResourceScope &scope, const bke::AttrDomain domain) -> fn::FieldContext & {
-                    return scope.construct<bke::GeometryFieldContext>(src_component, domain);
-                  },
-                  [&](ResourceScope &scope, const bke::AttrDomain domain) -> fn::FieldContext & {
-                    return scope.construct<bke::GeometryFieldContext>(dst_component, domain);
-                  });
+    transfer_attributes(
+        patterns,
+        ignore_names,
+        src_attributes,
+        dst_attributes,
+        src_id_fields,
+        dst_id_fields,
+        [&](ResourceScope &scope, const bke::AttrDomain domain) -> fn::FieldContext & {
+          return scope.construct<bke::GeometryFieldContext>(src_component, domain);
+        },
+        [&](ResourceScope &scope, const bke::AttrDomain domain) -> fn::FieldContext & {
+          return scope.construct<bke::GeometryFieldContext>(dst_component, domain);
+        },
+        transferred_names);
   }
 
   if (src_geo.has_grease_pencil() && dst_geo.has_grease_pencil()) {
@@ -475,27 +475,29 @@ static void node_geo_exec(GeoNodeExecParams params)
       bke::CurvesGeometry &dst_curves = dst_drawing->strokes_for_write();
       const bke::AttributeAccessor src_attributes = src_curves.attributes();
       bke::MutableAttributeAccessor dst_attributes = dst_curves.attributes_for_write();
-      success = success |
-                transfer_attributes(
-                    patterns,
-                    ignore_names,
-                    src_attributes,
-                    dst_attributes,
-                    src_id_fields,
-                    dst_id_fields,
-                    [&](ResourceScope &scope, const bke::AttrDomain domain) -> fn::FieldContext & {
-                      return scope.construct<bke::GreasePencilLayerFieldContext>(
-                          src_grease_pencil, domain, layer_i);
-                    },
-                    [&](ResourceScope &scope, const bke::AttrDomain domain) -> fn::FieldContext & {
-                      return scope.construct<bke::GreasePencilLayerFieldContext>(
-                          dst_grease_pencil, domain, layer_i);
-                    });
+      transfer_attributes(
+          patterns,
+          ignore_names,
+          src_attributes,
+          dst_attributes,
+          src_id_fields,
+          dst_id_fields,
+          [&](ResourceScope &scope, const bke::AttrDomain domain) -> fn::FieldContext & {
+            return scope.construct<bke::GreasePencilLayerFieldContext>(
+                src_grease_pencil, domain, layer_i);
+          },
+          [&](ResourceScope &scope, const bke::AttrDomain domain) -> fn::FieldContext & {
+            return scope.construct<bke::GreasePencilLayerFieldContext>(
+                dst_grease_pencil, domain, layer_i);
+          },
+          transferred_names);
     }
   }
 
+  transferred_names.remove_if([&](const StringRef name) { return name.startswith("."); });
+
   params.set_output("Target"_ustr, std::move(dst_geo));
-  params.set_output("Success"_ustr, success);
+  params.set_output("Names"_ustr, GList::from_container(transferred_names.extract_vector()));
 }
 
 static void node_register()
