@@ -261,9 +261,7 @@ struct SpaceGraph {
   float cursorVal = 0;
   /** Pivot point for transforms. */
   int around = 0;
-
-  eGraphEdit_Gizmo_Flag gizmo_flag = {};
-  char _pad[3] = {};
+  char _pad[4] = {};
 
   SpaceGraph_Runtime runtime;
 };

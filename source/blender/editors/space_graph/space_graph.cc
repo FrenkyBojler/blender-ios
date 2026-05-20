@@ -344,7 +344,7 @@ static void graph_main_region_draw(const bContext *C, ARegion *region)
   /* reset view matrix */
   ui::view2d_view_restore(C);
 
-  if ((sipo->gizmo_flag & SIPO_GIZMO_HIDE) == 0) {
+  if ((sipo->flag & SIPO_GIZMO_HIDE) == 0) {
     WM_gizmomap_draw(region->runtime->gizmo_map, C, WM_GIZMOMAP_DRAWSTEP_2D);
   }
 

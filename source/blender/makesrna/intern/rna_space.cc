@@ -7376,7 +7376,7 @@ static void rna_def_space_graph(BlenderRNA *brna)
 
   /* Gizmo Toggle. */
   prop = RNA_def_property(srna, "show_gizmo", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_negative_sdna(prop, nullptr, "gizmo_flag", SIPO_GIZMO_HIDE);
+  RNA_def_property_boolean_negative_sdna(prop, nullptr, "flag", SIPO_GIZMO_HIDE);
   RNA_def_property_ui_text(prop, "Show Gizmo", "Show gizmos of all types");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_GRAPH, nullptr);
 }

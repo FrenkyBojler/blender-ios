@@ -310,6 +310,8 @@ enum eGraphEdit_Flag : int {
   /* show markers region */
   SIPO_SHOW_MARKERS = (1 << 16),
   SIPO_NO_DRAW_EXTRAPOLATION = (1 << 17),
+  /* don't show gizmos */
+  SIPO_GIZMO_HIDE = (1 << 18),
 };
 ENUM_OPERATORS(eGraphEdit_Flag)
 
@@ -335,11 +337,6 @@ enum eGraphEdit_Runtime_Flag : char {
   SIPO_RUNTIME_FLAG_TWEAK_HANDLES_RIGHT = (1 << 3),
 };
 ENUM_OPERATORS(eGraphEdit_Runtime_Flag)
-
-enum eGraphEdit_Gizmo_Flag : char {
-  SIPO_GIZMO_HIDE = (1 << 0),
-};
-ENUM_OPERATORS(eGraphEdit_Gizmo_Flag)
 
 /** \} */
 
