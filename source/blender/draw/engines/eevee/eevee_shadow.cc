@@ -224,7 +224,7 @@ void ShadowTileMapPool::end_sync(ShadowModule &module)
 
 void ShadowPunctual::release_excess_tilemaps(const Light &light)
 {
-  int tilemaps_needed = light_local_tilemap_count(light);
+  int tilemaps_needed = light.local_tilemap_count();
   if (tilemaps_.size() <= tilemaps_needed) {
     return;
   }
@@ -240,7 +240,7 @@ void ShadowPunctual::end_sync(Light &light)
   float4x4 object_to_world = light.object_to_world;
 
   /* Acquire missing tile-maps. */
-  int tilemaps_needed = light_local_tilemap_count(light);
+  int tilemaps_needed = light.local_tilemap_count();
   while (tilemaps_.size() < tilemaps_needed) {
     tilemaps_.append(tilemap_pool.acquire());
   }
@@ -893,6 +893,8 @@ void ShadowModule::end_sync()
         sub.bind_ssbo("tilemaps_clip_buf", tilemap_pool.tilemaps_clip);
         sub.bind_ssbo("casters_id_buf", curr_casters_);
         sub.bind_ssbo("bounds_buf", &manager.bounds_buf.current());
+        /* Bind again using a writable binding. */
+        sub.bind_ssbo("light_buf_write", inst_.lights.culling_light_buf_);
         sub.push_constant("resource_len", int(curr_casters_.size()));
         sub.bind_resources(inst_.lights);
         sub.dispatch(int3(
@@ -1090,6 +1092,8 @@ void ShadowModule::end_sync()
         sub.bind_image("tilemaps_img", tilemap_pool.tilemap_tx);
         sub.bind_ssbo("tilemaps_buf", tilemap_pool.tilemaps_data);
         sub.bind_resources(inst_.lights);
+        /* Bind again using a writable binding. */
+        sub.bind_ssbo("light_buf_write", inst_.lights.culling_light_buf_);
         sub.dispatch(int3(1));
         sub.barrier(GPU_BARRIER_TEXTURE_FETCH);
       }
