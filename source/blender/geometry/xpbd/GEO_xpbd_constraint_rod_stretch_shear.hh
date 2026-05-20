@@ -110,7 +110,7 @@ class RodStretchAndShearConstraintSet
                                   const OffsetIndices<int> points_by_curve,
                                   const Span<float> rest_lengths,
                                   const Span<float> compliances,
-                                  const float error_threshold,
+                                  const float error_scale,
                                   MutableSpan<float3> lambdas_pos,
                                   MutableSpan<float3> lambdas_rot)
       : TemplatedConstraintSet<RodStretchAndShearConstraintSet>(curves_range.size(), {geo_i}),
@@ -120,7 +120,7 @@ class RodStretchAndShearConstraintSet
         lambdas_pos_(lambdas_pos),
         lambdas_rot_(lambdas_rot),
         compliances_(compliances),
-        error_scale_(1.0f / std::max(math::square(error_threshold), 1e-12f))
+        error_scale_(error_scale)
   {
   }
 

@@ -1805,7 +1805,7 @@ class XpbdSolverStep {
               points_by_curve,
               constraint_usage.rest_lengths,
               constraint_usage.compliances.get_span_for_range(chunk.points_range),
-              constraint.error_threshold,
+              error_scale_from_threshold(constraint.error_threshold),
               constraint_usage.lambdas_pos,
               constraint_usage.lambdas_rot));
     }
@@ -1916,7 +1916,7 @@ class XpbdSolverStep {
               points_by_curve,
               constraint_usage.rest_bend_rotations,
               constraint_usage.compliances.get_span_for_range(chunk.points_range),
-              constraint.error_threshold,
+              error_scale_from_threshold(constraint.error_threshold),
               constraint_usage.lambdas));
     }
   }
@@ -1976,7 +1976,7 @@ class XpbdSolverStep {
             edges,
             constraint_usage.rest_lengths,
             constraint_usage.compliances,
-            constraint.error_threshold,
+            error_scale_from_threshold(constraint.error_threshold),
             constraint_usage.lambdas);
         xpbd::ConstraintColoring coloring = constraint_set.color_constraints(tls.mask_memory);
         geo_data.static_constraints.append({&constraint_set, std::move(coloring)});
@@ -2049,7 +2049,7 @@ class XpbdSolverStep {
             cross_edges,
             cross_edge_rest_lengths,
             cross_edge_compliances,
-            constraint.error_threshold,
+            error_scale_from_threshold(constraint.error_threshold),
             constraint_usage.lambdas);
         xpbd::ConstraintColoring coloring = constraint_set.color_constraints(tls.mask_memory);
         geo_data.static_constraints.append({&constraint_set, std::move(coloring)});
@@ -2326,7 +2326,7 @@ class XpbdSolverStep {
           constraint_usage.points.slice(pin_range),
           constraint_usage.current_positions.slice(pin_range),
           constraint_usage.compliances.slice(pin_range),
-          constraint.error_threshold,
+          error_scale_from_threshold(constraint.error_threshold),
           constraint_usage.lambdas.slice(pin_range)));
     }
   }
@@ -2481,7 +2481,7 @@ class XpbdSolverStep {
           constraint_usage.points.slice(pin_range),
           constraint_usage.current_rotations.slice(pin_range),
           constraint_usage.compliances.slice(pin_range),
-          constraint.error_threshold,
+          error_scale_from_threshold(constraint.error_threshold),
           constraint_usage.lambdas.slice(pin_range)));
     }
   }
