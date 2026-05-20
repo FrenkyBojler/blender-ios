@@ -38,7 +38,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Bool>("Keep"_ustr)
       .default_value(true)
       .hide_value()
-      .description("A field or list representing the values to keep in the output list")
+      .description("A field or list representing the values that will not be removed")
       .structure_type(StructureType::Dynamic);
 }
 
