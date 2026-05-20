@@ -1437,21 +1437,54 @@ void panel_category_tabs_draw_all(const bContext *C,
   /* Padding between tabs. */
   const int tab_v_pad = round_fl_to_int(TABS_PADDING_BETWEEN_FACTOR * dpi_fac * zoom);
 
-  Block *block = block_begin(C, region, "panel_category_tabs", EmbossType::Emboss);
-  block_layout(block,
-               LayoutDirection::Vertical,
-               LayoutType::Panel,
-               is_left ? v2d->mask.xmin : (v2d->mask.xmax - category_tabs_width),
-               v2d->mask.ymax,
-               category_tabs_width + 3,
-               0,
-               tab_v_pad,
-               ui::style_get_dpi());
+  /* Draw background. */
+  uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", gpu::VertAttrType::SFLOAT_32_32);
+  immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
+  /* Primary theme colors. */
+  uchar theme_col_back[4];
+  /* Draw the background. */
+  uchar theme_col_tab_bg[4];
+  theme::get_color_4ubv(TH_TAB_BACK, theme_col_tab_bg);
+  theme::get_color_4ubv(TH_BACK, theme_col_back);
+  bool is_alpha = (region->overlap && (theme_col_back[3] != 255));
+  if (is_alpha) {
+    GPU_blend(GPU_BLEND_ALPHA);
+    immUniformColor4ubv(theme_col_tab_bg);
+  }
+  else {
+    immUniformColor3ubv(theme_col_tab_bg);
+  }
+  if (is_left) {
+    immRectf(
+        pos, v2d->mask.xmin, v2d->mask.ymin, v2d->mask.xmin + category_tabs_width, v2d->mask.ymax);
+  }
+  else {
+    immRectf(pos,
+             v2d->mask.xmax - category_tabs_width,
+             v2d->mask.ymin,
+             v2d->mask.xmax + 1,
+             v2d->mask.ymax);
+  }
+  if (is_alpha) {
+    GPU_blend(GPU_BLEND_NONE);
+  }
+  immUnbindProgram();
 
   /* Same for all tabs. */
   /* Intentionally don't scale by 'px'. */
   const int rct_xmin = is_left ? v2d->mask.xmin + 3 : (v2d->mask.xmax - category_tabs_width);
   const int rct_xmax = is_left ? v2d->mask.xmin + category_tabs_width : (v2d->mask.xmax - 3);
+
+  Block *block = block_begin(C, region, "panel_category_tabs", EmbossType::Emboss);
+  block_layout(block,
+               LayoutDirection::Vertical,
+               LayoutType::VerticalBar,
+               rct_xmin,
+               v2d->mask.ymax,
+               category_tabs_width + 3,
+               0,
+               tab_v_pad,
+               ui::style_get_dpi());
 
   const bool compact = U.uiflag2 & USER_UIFLAG2_PANEL_TABS_COMPACT;
 
