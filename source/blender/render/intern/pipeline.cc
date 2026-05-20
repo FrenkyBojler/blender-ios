@@ -201,6 +201,8 @@ static void stats_update(void * /*arg*/, RenderStats *rs)
   static Mutex mutex;
   std::scoped_lock lock(mutex);
 
+  /* Only print render process to stdout when blender is running headless, because the same
+   * progress string will be displayed on the UI. */
   const bool show_info = G.background && CLOG_CHECK(&LOG, CLG_LEVEL_INFO);
   if (show_info) {
     CLOG_INFO(&LOG, "Fra: %d | %s", rs->cfra, rs->infostr);
