@@ -157,10 +157,10 @@ static int node_shader_gpu_tex_noise(GPUMaterial *mat,
 
 static void node_shader_update_tex_noise(bNodeTree *ntree, bNode *node)
 {
-  bNodeSocket *sockVector = bke::node_find_socket(*node, SOCK_IN, "Vector");
-  bNodeSocket *sockW = bke::node_find_socket(*node, SOCK_IN, "W");
-  bNodeSocket *inOffsetSock = bke::node_find_socket(*node, SOCK_IN, "Offset");
-  bNodeSocket *inGainSock = bke::node_find_socket(*node, SOCK_IN, "Gain");
+  bNodeSocket *sockVector = bke::node_find_socket(*node, SOCK_IN, "Vector"_ustr);
+  bNodeSocket *sockW = bke::node_find_socket(*node, SOCK_IN, "W"_ustr);
+  bNodeSocket *inOffsetSock = bke::node_find_socket(*node, SOCK_IN, "Offset"_ustr);
+  bNodeSocket *inGainSock = bke::node_find_socket(*node, SOCK_IN, "Gain"_ustr);
 
   const NodeTexNoise &storage = node_storage(*node);
   bke::node_set_socket_availability(*ntree, *sockVector, storage.dimensions != 1);
@@ -508,7 +508,7 @@ void register_node_type_sh_tex_noise()
   ntype.updatefunc = file_ns::node_shader_update_tex_noise;
   ntype.build_multi_function = file_ns::sh_node_noise_build_multi_function;
   ntype.materialx_fn = file_ns::node_shader_materialx;
-  bke::node_type_size(ntype, 145, 140, NODE_DEFAULT_MAX_WIDTH);
+  ntype.default_width = bke::NodeWidth::_160;
 
   bke::node_register_type(ntype);
 }

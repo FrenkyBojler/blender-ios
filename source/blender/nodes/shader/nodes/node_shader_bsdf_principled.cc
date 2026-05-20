@@ -417,11 +417,11 @@ static void node_shader_update_principled(bNodeTree *ntree, bNode *node)
   const int sss_method = node->custom2;
 
   bke::node_set_socket_availability(*ntree,
-                                    *bke::node_find_socket(*node, SOCK_IN, "Subsurface IOR"),
+                                    *bke::node_find_socket(*node, SOCK_IN, "Subsurface IOR"_ustr),
                                     sss_method == SHD_SUBSURFACE_RANDOM_WALK_SKIN);
   bke::node_set_socket_availability(
       *ntree,
-      *bke::node_find_socket(*node, SOCK_IN, "Subsurface Anisotropy"),
+      *bke::node_find_socket(*node, SOCK_IN, "Subsurface Anisotropy"_ustr),
       sss_method != SHD_SUBSURFACE_BURLEY);
 }
 
@@ -761,7 +761,7 @@ void register_node_type_sh_bsdf_principled()
   ntype.declare = file_ns::node_declare;
   ntype.gather_link_search_ops = search_link_ops_for_shader_bsdf_node;
   ntype.add_ui_poll = object_shader_nodes_poll;
-  bke::node_type_size_preset(ntype, bke::eNodeSizePreset::Large);
+  ntype.default_width = bke::NodeWidth::_240;
   ntype.initfunc = file_ns::node_shader_init_principled;
   ntype.gpu_fn = file_ns::node_shader_gpu_bsdf_principled;
   ntype.updatefunc = file_ns::node_shader_update_principled;
