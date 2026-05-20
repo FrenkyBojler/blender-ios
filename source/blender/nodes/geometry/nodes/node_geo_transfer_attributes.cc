@@ -71,28 +71,26 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Bool>("Ignore Names"_ustr).default_value(false);
 }
 
-static bool name_matches_any_pattern(const Span<StringPattern> patterns, const StringRef name)
-{
-  for (const StringPattern &pattern : patterns) {
-    if (pattern.match(name)) {
-      return true;
-    }
-  }
-  return false;
-}
-
 static bool should_transfer(const Span<StringPattern> patterns,
                             const StringRef name,
-                            const bool ignore_names)
+                            const bool ignore_names,
+                            MutableSpan<bool> r_found_attribute_using_pattern)
 {
   if (ELEM(name, ".corner_vert", ".corner_edge", ".edge_verts")) {
     return false;
   }
-  const bool matches = name_matches_any_pattern(patterns, name);
-  if (ignore_names) {
-    return !matches;
+  bool match_found = false;
+  for (const int pattern_i : patterns.index_range()) {
+    const StringPattern &pattern = patterns[pattern_i];
+    if (pattern.match(name)) {
+      match_found = true;
+      r_found_attribute_using_pattern[pattern_i] = true;
+    }
   }
-  return matches;
+  if (ignore_names) {
+    return !match_found;
+  }
+  return match_found;
 }
 
 static void transfer_attributes(
@@ -106,7 +104,8 @@ static void transfer_attributes(
         create_src_context,
     FunctionRef<fn::FieldContext &(ResourceScope &scope, const bke::AttrDomain domain)>
         create_dst_context,
-    VectorSet<std::string> &r_transferred_names)
+    VectorSet<std::string> &r_transferred_names,
+    MutableSpan<bool> r_found_attribute_using_pattern)
 {
   struct AttrItem {
     StringRef name;
@@ -122,7 +121,7 @@ static void transfer_attributes(
   Map<bke::AttrDomain, IDs> ids_by_domain;
   Vector<AttrItem> items;
   src_attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
-    if (should_transfer(patterns, iter.name, ignore_names)) {
+    if (should_transfer(patterns, iter.name, ignore_names, r_found_attribute_using_pattern)) {
       items.append({iter.name, iter.domain, iter.data_type});
       ids_by_domain.lookup_or_add_default(iter.domain);
     }
@@ -421,6 +420,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
 
   VectorSet<std::string> transferred_names;
+  Array<bool> found_attribute_using_pattern(patterns.size(), false);
   for (const bke::GeometryComponent::Type type : {bke::GeometryComponent::Type::Mesh,
                                                   bke::GeometryComponent::Type::PointCloud,
                                                   bke::GeometryComponent::Type::Curve,
@@ -449,7 +449,8 @@ static void node_geo_exec(GeoNodeExecParams params)
         [&](ResourceScope &scope, const bke::AttrDomain domain) -> fn::FieldContext & {
           return scope.construct<bke::GeometryFieldContext>(dst_component, domain);
         },
-        transferred_names);
+        transferred_names,
+        found_attribute_using_pattern);
   }
 
   if (src_geo.has_grease_pencil() && dst_geo.has_grease_pencil()) {
@@ -490,11 +491,23 @@ static void node_geo_exec(GeoNodeExecParams params)
             return scope.construct<bke::GreasePencilLayerFieldContext>(
                 dst_grease_pencil, domain, layer_i);
           },
-          transferred_names);
+          transferred_names,
+          found_attribute_using_pattern);
     }
   }
 
   transferred_names.remove_if([&](const StringRef name) { return name.startswith("."); });
+
+  if (!ignore_names) {
+    for (const int pattern_i : patterns.index_range()) {
+      if (!found_attribute_using_pattern[pattern_i]) {
+        params.error_message_add(NodeWarningType::Info,
+                                 fmt::format("{}: \"{}\"",
+                                             TIP_("No attribute found found for"),
+                                             patterns[pattern_i].full_pattern()));
+      }
+    }
+  }
 
   params.set_output("Target"_ustr, std::move(dst_geo));
   params.set_output("Names"_ustr, GList::from_container(transferred_names.extract_vector()));
