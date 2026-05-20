@@ -1197,7 +1197,7 @@ eOLDrawState tree_element_active_state_get(const TreeViewContext &tvc,
   return OL_DRAWSEL_NONE;
 }
 
-eOLDrawState tree_element_shapekey_state_get(const Object &ob, const TreeElement *te)
+static eOLDrawState tree_element_shapekey_state_get(const Object &ob, const TreeElement *te)
 {
   if (ob.shapenr == te->index + 1) {
     return OL_DRAWSEL_NORMAL;
