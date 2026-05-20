@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 Alpha (b'396b6a98e9f6')\n"
+"Project-Id-Version: Blender 5.2.0 Alpha (b'bc0a0ff2c0ce')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-05-04 07:43+0000\n"
+"POT-Creation-Date: 2026-05-18 11:20+0000\n"
 "PO-Revision-Date: 2026-02-14 01:12+0000\n"
 "Last-Translator: Timo Hoetmer <timo@timohoetmer.nl>\n"
 "Language-Team: Dutch <https://translate.blender.org/projects/blender-ui/ui/nl/>\n"
@@ -1501,10 +1501,6 @@ msgstr "Toon de assets momenteel beschikbaar in deze Blender sessie"
 
 msgid "Essentials"
 msgstr "Essenties"
-
-
-msgid "Show the basic building blocks and utilities coming with Blender"
-msgstr "Toon de basis-bouwblokken en utilities die met Blender komen"
 
 
 msgid "Custom"
@@ -5751,18 +5747,6 @@ msgid "Dots"
 msgstr "Stippen"
 
 
-msgid "Show/Hide"
-msgstr "Toon/Verberg"
-
-
-msgid "Names"
-msgstr "Namen"
-
-
-msgid "Import"
-msgstr "Importeren"
-
-
 msgid "Mirror"
 msgstr "Spiegel"
 
@@ -5795,12 +5779,20 @@ msgid "Relations"
 msgstr "Relaties"
 
 
+msgid "Import"
+msgstr "Importeren"
+
+
 msgid "Rigid Body"
 msgstr "Star Lichaam"
 
 
 msgid "Quick Effects"
 msgstr "Snelle Effecten"
+
+
+msgid "Show/Hide"
+msgstr "Toon/Verberg"
 
 
 msgid "Convert"
@@ -5811,12 +5803,16 @@ msgid "Hooks"
 msgstr "Haken"
 
 
-msgid "Layout"
-msgstr "Indeling"
-
-
 msgid "Clear Transform"
 msgstr "Maak Transformatie Leeg"
+
+
+msgid "Names"
+msgstr "Namen"
+
+
+msgid "Layout"
+msgstr "Indeling"
 
 
 msgctxt "MovieClip"
@@ -6690,6 +6686,10 @@ msgstr "Collectie Index"
 msgctxt "Operator"
 msgid "Add Bone"
 msgstr "Voeg Bot Toe"
+
+
+msgid "Search"
+msgstr "Zoeken"
 
 
 msgctxt "Operator"
@@ -10329,10 +10329,6 @@ msgstr "Foutmelding"
 msgctxt "Color"
 msgid "Light"
 msgstr "Licht"
-
-
-msgid "Search"
-msgstr "Zoeken"
 
 
 msgctxt "WindowManager"

@@ -181,6 +181,7 @@ ShaderGroups ShaderModule::static_shaders_load(const ShaderGroups request_bits,
                                        LIGHT_CULLING_SORT,
                                        LIGHT_CULLING_TILE,
                                        LIGHT_CULLING_ZBIN,
+                                       LIGHT_SHAPE_DISPLAY,
                                        LIGHT_SHADOW_SETUP};
     request(LIGHT_CULLING_SHADERS, AS_SPAN(shader_list));
   }
@@ -449,6 +450,8 @@ const char *ShaderModule::static_shader_create_info_name_get(eShaderType shader_
       return "eevee_light_culling_tile";
     case LIGHT_CULLING_ZBIN:
       return "eevee_light_culling_zbin";
+    case LIGHT_SHAPE_DISPLAY:
+      return "eevee_light_shape_display";
     case LIGHT_SHADOW_SETUP:
       return "eevee_light_shadow_setup";
     case RAY_DENOISE_SPATIAL:
@@ -702,12 +705,22 @@ static SlotAllocator add_pipeline_create_info(gpu::shader::ShaderCreateInfo &inf
     case MAT_GEOM_WORLD:
       switch (pipeline_type) {
         case MAT_PIPE_VOLUME_MATERIAL:
-          pipeline_info_name = "eevee_surf_volume";
+          pipeline_info_name = "eevee_surf_volume_infos_";
           info.name_ += "_world_volume";
+          info.define("MAT_VOLUME");
+          /* Until every vertex shader are ported, we need to bridge the gap here by defining the
+           * pipeline. */
+          info.fragment_source("eevee_surf_volume.bsl.hh");
+          info.fragment_function("eevee_surf_volume");
           break;
         default:
-          pipeline_info_name = "eevee_surf_world";
+          pipeline_info_name = "eevee_surf_world_infos_";
           info.name_ += "_world";
+          info.define("closure_to_rgba", "closure_to_rgba_world");
+          /* Until every vertex shader are ported, we need to bridge the gap here by defining the
+           * pipeline. */
+          info.fragment_source("eevee_surf_world.bsl.hh");
+          info.fragment_function("eevee_surf_world");
           break;
       }
       break;
@@ -715,31 +728,74 @@ static SlotAllocator add_pipeline_create_info(gpu::shader::ShaderCreateInfo &inf
       switch (pipeline_type) {
         case MAT_PIPE_PREPASS_FORWARD_VELOCITY:
         case MAT_PIPE_PREPASS_DEFERRED_VELOCITY:
-          pipeline_info_name = "eevee_surf_depth";
+          pipeline_info_name = "eevee_surf_depth_infos_";
           additional_info_name = "eevee_velocity_geom";
           info.name_ += "_depth_velocity";
+          info.compilation_constant(gpu::shader::Type::bool_t, "use_velocity", true);
+          info.define("MAT_DEPTH");
+          info.define("closure_to_rgba", "closure_to_rgba_depth");
+          /* Until every vertex shader are ported, we need to bridge the gap here by defining the
+           * pipeline. */
+          info.fragment_source("eevee_surf_depth.bsl.hh");
+          info.fragment_function("eevee_surf_depth");
           break;
         case MAT_PIPE_PREPASS_OVERLAP:
         case MAT_PIPE_PREPASS_FORWARD:
         case MAT_PIPE_PREPASS_DEFERRED:
-          pipeline_info_name = "eevee_surf_depth";
+          pipeline_info_name = "eevee_surf_depth_infos_";
           info.name_ += "_depth";
+          info.compilation_constant(gpu::shader::Type::bool_t, "use_velocity", false);
+          info.define("MAT_DEPTH");
+          info.define("closure_to_rgba", "closure_to_rgba_depth");
+          /* Until every vertex shader are ported, we need to bridge the gap here by defining the
+           * pipeline. */
+          info.fragment_source("eevee_surf_depth.bsl.hh");
+          info.fragment_function("eevee_surf_depth");
           break;
         case MAT_PIPE_PREPASS_PLANAR:
-          pipeline_info_name = "eevee_surf_depth";
+          pipeline_info_name = "eevee_surf_depth_infos_";
           additional_info_name = "eevee_clip_plane";
           info.name_ += "_depth_clip";
+          info.compilation_constant(gpu::shader::Type::bool_t, "use_velocity", false);
+          info.define("MAT_DEPTH");
+          info.define("closure_to_rgba", "closure_to_rgba_depth");
+          /* Until every vertex shader are ported, we need to bridge the gap here by defining the
+           * pipeline. */
+          info.fragment_source("eevee_surf_depth.bsl.hh");
+          info.fragment_function("eevee_surf_depth");
           break;
         case MAT_PIPE_SHADOW:
-          pipeline_info_name = "eevee_surf_shadow_atomic";
+          pipeline_info_name = "eevee_surf_shadow_infos_";
+          info.name_ += "_shadow";
+          info.define("DRW_VIEW_LEN", STRINGIFY(SHADOW_VIEW_MAX));
+          info.define("MAT_SHADOW");
+          info.define("closure_to_rgba", "closure_to_rgba_shadow");
+          /* TODO(fclem): Should go to the vertex shader entry point. */
+          info.builtins(BuiltinBits::VIEWPORT_INDEX);
+          /* Until every vertex shader are ported, we need to bridge the gap here by defining the
+           * pipeline. */
+          info.fragment_source("eevee_surf_shadow.bsl.hh");
+          info.fragment_function("eevee_surf_shadow");
+          info.additional_info("eevee_shadow_iface_info");
+          info.additional_info("eevee_GeomShadow");
           break;
         case MAT_PIPE_VOLUME_OCCUPANCY:
-          pipeline_info_name = "eevee_surf_occupancy";
+          pipeline_info_name = "eevee_surf_occupancy_infos_";
           info.name_ += "_occupancy";
+          info.define("MAT_OCCUPANCY");
+          /* Until every vertex shader are ported, we need to bridge the gap here by defining the
+           * pipeline. */
+          info.fragment_source("eevee_surf_occupancy.bsl.hh");
+          info.fragment_function("eevee_surf_occupancy");
           break;
         case MAT_PIPE_VOLUME_MATERIAL:
-          pipeline_info_name = "eevee_surf_volume";
+          pipeline_info_name = "eevee_surf_volume_infos_";
           info.name_ += "_volume";
+          info.define("MAT_VOLUME");
+          /* Until every vertex shader are ported, we need to bridge the gap here by defining the
+           * pipeline. */
+          info.fragment_source("eevee_surf_volume.bsl.hh");
+          info.fragment_function("eevee_surf_volume");
           break;
         case MAT_PIPE_CAPTURE:
           pipeline_info_name = "eevee_surf_capture_infos_";
@@ -1009,24 +1065,15 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
   if ((pipeline_type == MAT_PIPE_FORWARD) ||
       GPU_material_flag_get(gpumat, GPU_MATFLAG_SHADER_TO_RGBA))
   {
-    switch (closure_bin_count) {
-      case 0:
-        /* Define nothing. This will in turn define SKIP_LIGHT_EVAL. */
-        break;
-      /* These need to be separated since the strings need to be static. */
-      case 1:
-        info.define("LIGHT_CLOSURE_EVAL_COUNT", "1");
-        break;
-      case 2:
-        info.define("LIGHT_CLOSURE_EVAL_COUNT", "2");
-        break;
-      case 3:
-        info.define("LIGHT_CLOSURE_EVAL_COUNT", "3");
-        break;
-      default:
-        BLI_assert_unreachable();
-        break;
-    }
+    const int transmit_eval_count = (closure_bits &
+                                     (CLOSURE_REFRACTION | CLOSURE_TRANSLUCENT | CLOSURE_SSS)) ?
+                                        1 :
+                                        0;
+
+    info.compilation_constant(
+        gpu::shader::Type::int_t, "light_closure_eval_count_reflect", closure_bin_count);
+    info.compilation_constant(
+        gpu::shader::Type::int_t, "light_closure_eval_count_transmit", transmit_eval_count);
   }
 
   if (GPU_material_flag_get(gpumat, GPU_MATFLAG_BARYCENTRIC)) {
