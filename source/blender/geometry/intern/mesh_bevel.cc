@@ -3175,6 +3175,151 @@ static EdgeHalf *find_other_end_edge_half(const BevelState &state,
 }
 
 /**
+ * Helper function to return the next Beveled EdgeHalf along a path.
+ *
+ * \param toward_bv: Whether the direction to travel points toward or away from the BevVert
+ * connected to the current EdgeHalf.
+ * \param r_bv: The BevVert connected to the EdgeHalf -- updated if we're traveling to the other
+ * EdgeHalf of an original edge.
+ *
+ * \note This only returns the most parallel edge if it's the most parallel by
+ * at least 10 degrees. This is a somewhat arbitrary choice, but it makes sure that consistent
+ * orientation paths only continue in obvious ways.
+ */
+static EdgeHalf *next_edgehalf_bev(const BevelState &state,
+                                   EdgeHalf *start_edge,
+                                   bool toward_bv,
+                                   BevVert **r_bv)
+{
+  /* Case 1: The next EdgeHalf is the other side of the original edge. */
+  if (!toward_bv) {
+    return find_other_end_edge_half(state, start_edge, r_bv);
+  }
+
+  /* Case 2: The next EdgeHalf is across a BevVert from the current EdgeHalf. */
+  if ((*r_bv)->selcount == 1) {
+    return nullptr; /* No other edges to go to. */
+  }
+
+  if ((*r_bv)->selcount == 2) {
+    EdgeHalf *new_edge = start_edge;
+    do {
+      new_edge = new_edge->next;
+    } while (!new_edge->is_bev);
+    return new_edge;
+  }
+
+  const int2 start_e_verts = state.emesh.edge_verts(start_edge->e);
+  const float3 v1_co = state.emesh.vert_position(start_e_verts[0]);
+  const float3 v2_co = state.emesh.vert_position(start_e_verts[1]);
+
+  float3 dir_start_edge;
+  if (start_e_verts[0] == (*r_bv)->v) {
+    dir_start_edge = math::normalize(v1_co - v2_co);
+  }
+  else {
+    dir_start_edge = math::normalize(v2_co - v1_co);
+  }
+
+  EdgeHalf *new_edge = start_edge->next;
+  float second_best_dot = 0.0f, best_dot = 0.0f;
+  EdgeHalf *next_edge = nullptr;
+  while (new_edge != start_edge) {
+    if (!new_edge->is_bev) {
+      new_edge = new_edge->next;
+      continue;
+    }
+
+    const int2 new_e_verts = state.emesh.edge_verts(new_edge->e);
+    const float3 nv1_co = state.emesh.vert_position(new_e_verts[0]);
+    const float3 nv2_co = state.emesh.vert_position(new_e_verts[1]);
+
+    float3 dir_new_edge;
+    if (new_e_verts[1] == (*r_bv)->v) {
+      dir_new_edge = math::normalize(nv1_co - nv2_co);
+    }
+    else {
+      dir_new_edge = math::normalize(nv2_co - nv1_co);
+    }
+
+    float new_dot = math::dot(dir_new_edge, dir_start_edge);
+    if (new_dot > best_dot) {
+      second_best_dot = best_dot;
+      best_dot = new_dot;
+      next_edge = new_edge;
+    }
+    else if (new_dot > second_best_dot) {
+      second_best_dot = new_dot;
+    }
+
+    new_edge = new_edge->next;
+  }
+
+  if ((next_edge != nullptr) && std::abs(best_dot - second_best_dot) <= geom::BEVEL_SMALL_ANG_DOT)
+  {
+    return nullptr;
+  }
+  return next_edge;
+}
+
+/**
+ * Starting along any beveled edge, travel along the chain / cycle of beveled edges including that
+ * edge, marking consistent profile orientations along the way. Orientations are marked by setting
+ * whether the BoundVert that contains each profile's information is the side of the profile's
+ * start or not.
+ * Ported from BMesh's #regularize_profile_orientation.
+ */
+static void regularize_profile_orientation(const BevelState &state, int edge_index)
+{
+  const int2 ev = state.emesh.edge_verts(edge_index);
+  BevVert *start_bv = state.vert_hash.lookup_default(ev[0], nullptr);
+  if (!start_bv) {
+    start_bv = state.vert_hash.lookup_default(ev[1], nullptr);
+  }
+  if (!start_bv) {
+    return;
+  }
+  EdgeHalf *start_edgehalf = find_edge_half_for_edge(start_bv, edge_index);
+  if (!start_edgehalf || !start_edgehalf->is_bev || start_edgehalf->visited_rpo) {
+    return;
+  }
+
+  /* Pick a BoundVert on one side of the profile to use for the starting side. Use the one highest
+   * on the Z axis because even any rule is better than an arbitrary decision. */
+  bool right_highest = start_edgehalf->leftv->nv.co[2] < start_edgehalf->rightv->nv.co[2];
+  start_edgehalf->leftv->is_profile_start = right_highest;
+  start_edgehalf->visited_rpo = true;
+
+  /* First loop starts in the away from BevVert direction and the second starts toward it. */
+  for (int i = 0; i < 2; i++) {
+    EdgeHalf *edgehalf = start_edgehalf;
+    BevVert *bv = start_bv;
+    bool toward_bv = (i == 0);
+    edgehalf = next_edgehalf_bev(state, edgehalf, toward_bv, &bv);
+
+    /* Keep traveling until there is no unvisited beveled edgehalf to visit next. */
+    while (edgehalf && !edgehalf->visited_rpo) {
+      /* Mark the correct BoundVert as the start of the newly visited profile.
+       * The direction relative to the BevVert switches every step, so also switch
+       * the orientation every step. */
+      if (i == 0) {
+        edgehalf->leftv->is_profile_start = toward_bv ^ right_highest;
+      }
+      else {
+        /* The opposite side as the first direction because we're moving the other way. */
+        edgehalf->leftv->is_profile_start = (!toward_bv) ^ right_highest;
+      }
+
+      /* The next jump will in the opposite direction relative to the BevVert. */
+      toward_bv = !toward_bv;
+
+      edgehalf->visited_rpo = true;
+      edgehalf = next_edgehalf_bev(state, edgehalf, toward_bv, &bv);
+    }
+  }
+}
+
+/**
  * Adjust the offsets for a single cycle or chain.
  * Sets up and solves a linear least squares problem that tries to minimize
  * the squared differences of lengths at each end of an edge, and (with smaller weight)
@@ -4095,8 +4240,15 @@ static void calculate_vm_profiles(BevelState &state, BevVert *bv, VMesh *vm)
     if (!bndv->profile.special_params) {
       set_profile_params(state, bv, bndv);
     }
-    /* TODO: handle miter/reversed flags for BEVEL_PROFILE_CUSTOM. */
-    calculate_profile(state, bndv, false, false);
+    bool miter_profile = false;
+    bool reverse_profile = false;
+    if (!state.params.custom_profile_samples.is_empty()) {
+      /* Use the miter profile spacing struct if the default is filled with the custom profile. */
+      miter_profile = (bndv->is_arc_start || bndv->is_patch_start);
+      /* Don't bother reversing the profile if it's a miter profile. */
+      reverse_profile = !bndv->is_profile_start && !miter_profile;
+    }
+    calculate_profile(state, bndv, reverse_profile, miter_profile);
   } while ((bndv = bndv->next) != vm->boundstart);
 }
 
@@ -8043,6 +8195,12 @@ std::optional<Mesh *> mesh_bevel(const Mesh &src_mesh,
   /* Phase 2: adjust offsets for even-width bevels, then rebuild boundaries. */
   if (state.offset_adjust) {
     construct::adjust_offsets(state);
+  }
+
+  /* Maintain consistent orientations for the asymmetrical custom profiles. */
+  if (!params.custom_profile_samples.is_empty() && params.affect_type != BevelAffect::Vertices) {
+    state.selection.foreach_index(
+        [&](const int e) { construct::regularize_profile_orientation(state, e); });
   }
 
 #ifdef DEBUG_TIME
