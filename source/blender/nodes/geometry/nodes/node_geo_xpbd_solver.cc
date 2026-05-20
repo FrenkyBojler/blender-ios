@@ -374,9 +374,6 @@ struct GeometryData {
 
   Vector<ConstraintWithColoring> static_constraints;
 
-  /* Total residual error after constraint solve. */
-  float residual_error_squared;
-
   GeometryData(const bke::MutableAttributeAccessor attributes) : attributes(attributes) {}
 };
 
@@ -544,9 +541,6 @@ struct ChunkData {
 
   ExternalFaceContacts external_face_contacts;
   ExternalEdgeContacts external_edge_contacts;
-
-  /* Total squared residual error. */
-  float error_squared;
 };
 
 struct ConstraintsInfo {
