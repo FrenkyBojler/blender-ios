@@ -518,13 +518,6 @@ ccl_device_inline void integrator_state_move(KernelGlobals kg,
   integrator_state_copy_only(kg, to_state, state);
 
   INTEGRATOR_STATE_WRITE(state, path, queued_kernel) = 0;
-
-#  ifdef __MNEE__
-  if (INTEGRATOR_STATE(to_state, path, mnee) & PATH_MNEE_SAMPLED) {
-    const IntegratorShadowState slot = INTEGRATOR_STATE(to_state, path, mnee_shadow_state);
-    integrator_state_write_mnee_shadow_owner(slot, to_state);
-  }
-#  endif
 }
 
 ccl_device_inline void integrator_shadow_state_copy_only(KernelGlobals kg,
@@ -593,15 +586,6 @@ ccl_device_inline void integrator_shadow_state_move(KernelGlobals kg,
   integrator_shadow_state_copy_only(kg, to_state, state);
 
   INTEGRATOR_STATE_WRITE(state, shadow_path, queued_kernel) = 0;
-
-#  ifdef __MNEE__
-  if (INTEGRATOR_STATE(to_state, shadow_path, queued_kernel) ==
-      DEVICE_KERNEL_INTEGRATOR_SHADOW_PATH_MNEE_PENDING)
-  {
-    const IntegratorState main_state = integrator_state_read_mnee_shadow_owner(to_state);
-    INTEGRATOR_STATE_WRITE(main_state, path, mnee_shadow_state) = (int)to_state;
-  }
-#  endif
 }
 
 #endif
