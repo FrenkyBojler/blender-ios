@@ -53,6 +53,13 @@ static inline float2 hypot_fast(const float2 &a, const float2 &b)
   }
 }
 
+/* Is row N of matrix all approximately integers? */
+static inline bool is_int(const float3x3 &m, int n)
+{
+  return compare_ff(m[0][n], rintf(m[0][n]), 1e-6) && compare_ff(m[1][n], rintf(m[1][n]), 1e-6) &&
+         compare_ff(m[2][n], rintf(m[2][n]), 1e-1);
+}
+
 /* Data passed to the cpu and gpu implementations */
 struct RealizeOnDomainOperation::Options {
   Interpolation interpolation;
@@ -108,13 +115,19 @@ void RealizeOnDomainOperation::execute()
   float2 wh = hypot_fast(options.transformation[0].xy(), options.transformation[1].xy());
 
   /* select faster interpolation if possible */
-  /* Todo: nearest will work for interpolating samplers if wh=1 and transform is all integers */
-  if (options.interpolation == Interpolation::Anisotropic) {
-    /* All filters that reduce to bilinear when wh=1 can do this */
-    if (wh[0] < 1.1f && wh[1] < 1.1f)
-      options.interpolation = Interpolation::Bilinear;
+  if ((options.interpolation == Interpolation::Bilinear ||
+       options.interpolation == Interpolation::Anisotropic) &&
+      wh[0] < 1.1f && wh[1] < 1.1f && is_int(options.transformation, 0) &&
+      is_int(options.transformation, 1))
+  {
+    options.interpolation = Interpolation::Nearest;
   }
-  /* Todo: Box when wh=2 can reduce to bilinear if all the transform is integers */
+  else if (options.interpolation == Interpolation::Anisotropic &&
+           (wh[0] < 1.1f || (wh[0] < 2.1f && is_int(options.transformation, 0))) &&
+           (wh[1] < 1.1f || (wh[1] < 2.1f && is_int(options.transformation, 1))))
+  {
+    options.interpolation = Interpolation::Bilinear;
+  }
 
   /* Transform from pixel centers rather than pixel corners */
   options.transformation *= math::from_location<float3x3>(float2(0.5f));
@@ -248,7 +261,6 @@ static void realize_on_domain(const Result &input,
                               const Extension &extension_mode_y,
                               const float3x3 &transformation)
 {
-  const RealizationOptions realization_options = input.get_realization_options();
   const float2x2 jacobian(transformation);
   parallel_for(output.domain().data_size, [&](const int2 texel) {
     const float2 coordinates = math::transform_point(transformation, float2(texel));
