@@ -80,7 +80,7 @@ Texture *GLTexturePool::acquire_texture_impl(int3 extent,
   int64_t match_index = -1;
   for (uint64_t i : pool_.index_range()) {
     const AllocationHandle &handle = pool_[i];
-    if (handle.texture->format_ != compatible_format /* || handle.texture->type_ != type */) {
+    if (handle.texture->format_ != compatible_format) {
       continue;
     }
     if (int3(handle.texture->w_, handle.texture->h_, handle.texture->d_) != extent) {
