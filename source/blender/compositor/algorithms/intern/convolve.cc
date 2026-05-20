@@ -134,22 +134,28 @@ void convolve(Context &context,
     fftwf_destroy_plan(backward_plan);
   });
 
-  /* Download GPU results to CPU for GPU contexts. */
-  Result input_cpu = context.use_gpu() ? input.download_to_cpu() : input;
-  Result kernel_cpu = context.use_gpu() ? kernel.download_to_cpu() : kernel;
+  Result convolve_input = context.create_result(input.type());
+  Result convolve_kernel = context.create_result(input.type());
 
-  BLI_SCOPED_DEFER([&]() {
-    if (context.use_gpu()) {
-      input_cpu.release();
-      kernel_cpu.release();
-    }
-  });
+  if (context.use_gpu()) {
+    Result input_cpu = input.download_to_cpu();
+    convolve_input.share_data(input_cpu);
+    input_cpu.release();
+
+    Result kernel_cpu = kernel.download_to_cpu();
+    convolve_kernel.share_data(kernel_cpu);
+    kernel_cpu.release();
+  }
+  else {
+    convolve_input.share_data(input);
+    convolve_kernel.share_data(kernel);
+  }
 
   /* Zero pad the image to the required spatial domain size, storing each channel in planar
    * format for better cache locality, that is, RRRR...GGGG...BBBB...AAAA. */
   threading::memory_bandwidth_bound_task(spatial_pixels_count * sizeof(float), [&]() {
     parallel_for(spatial_size, [&](const int2 texel) {
-      const Color pixel_color = input_cpu.load_pixel_zero<Color>(texel);
+      const Color pixel_color = convolve_input.load_pixel_zero<Color>(texel);
       for (const int channel : IndexRange(input_channels_count)) {
         float *buffer = image_spatial_domain_channels[channel];
         const int64_t index = texel.y * int64_t(spatial_size.x) + texel.x;
@@ -174,8 +180,8 @@ void convolve(Context &context,
                                     mod_i(centered_texel.y, spatial_size.y));
 
     const float4 kernel_value = is_color_kernel ?
-                                    float4(kernel_cpu.load_pixel_zero<Color>(wrapped_texel)) :
-                                    float4(kernel_cpu.load_pixel_zero<float>(wrapped_texel));
+                                    float4(convolve_kernel.load_pixel_zero<Color>(wrapped_texel)) :
+                                    float4(convolve_kernel.load_pixel_zero<float>(wrapped_texel));
     for (const int channel : IndexRange(kernel_channels_count)) {
       float *buffer = kernel_spatial_domain_channels[channel];
       buffer[texel.x + texel.y * int64_t(spatial_size.x)] = kernel_value[channel];
