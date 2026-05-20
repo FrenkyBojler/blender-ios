@@ -2596,10 +2596,10 @@ UnitConverterFn BKE_unit_converter_get(const void *usys_pt,
   const double bias = unit->bias;
 
   if (direction == UnitConvertDirection::UNIT_TO_RAW) {
-    return [scalar, bias](double value) { return (value + bias) * scalar; };
+    return [scalar, bias](const double value) { return (value + bias) * scalar; };
   }
 
-  return [scalar, bias](double value) { return value / scalar - bias; };
+  return [scalar, bias](const double value) { return value / scalar - bias; };
 }
 
 }  // namespace blender

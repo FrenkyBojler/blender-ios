@@ -37,13 +37,10 @@ class AnimDrawTest : public bke::BlenderGTestBase {
 
     IDProperty *time_prop = bke::idprop::create("time", 1.0f).release();
     IDP_ui_data_ensure(time_prop)->rna_subtype = PROP_TIME;
-    IDProperty *temp_prop = bke::idprop::create("temp", 1.0f).release();
-    IDP_ui_data_ensure(temp_prop)->rna_subtype = PROP_TEMPERATURE;
     IDProperty *mass_prop = bke::idprop::create("mass", 1.0f).release();
     IDP_ui_data_ensure(mass_prop)->rna_subtype = PROP_MASS;
 
     IDP_AddToGroup(object->id.properties, time_prop);
-    IDP_AddToGroup(object->id.properties, temp_prop);
     IDP_AddToGroup(object->id.properties, mass_prop);
   }
 
@@ -184,37 +181,6 @@ TEST_F(AnimDrawTest, anim_unit_mapping_get_factor_not_normalizing)
     test_unit_scalar(4 /* ms */, 1.0f / 0.001f, 0.001f);
     test_unit_scalar(5 /* us */, 1.0f / 0.000001f, 0.000001f);
     test_unit_scalar(0xFF /* Adaptive */, 1.0f, 1.0f);
-  }
-
-  { /* Temperature */
-    BKE_fcurve_rnapath_set(*fcurve, "[\"temp\"]");
-
-    const auto test_temperature = [&](int unit_system,
-                                      int unit_idx,
-                                      float expected_scalar,
-                                      float expected_restore_scalar,
-                                      float expected_offset) {
-      scene.unit.system = unit_system;
-      scene.unit.temperature_unit = unit_idx;
-
-      float offset = 0.0f;
-      const float display_factor = ANIM_unit_mapping_get_factor(
-          &scene, &this->object->id, fcurve, 0, &offset);
-      EXPECT_FLOAT_EQ(expected_scalar, display_factor);
-      EXPECT_FLOAT_EQ(expected_offset, offset);
-
-      const float restore_factor = ANIM_unit_mapping_get_factor(
-          &scene, &this->object->id, fcurve, ANIM_UNITCONV_RESTORE, nullptr);
-      EXPECT_FLOAT_EQ(expected_restore_scalar, restore_factor);
-    };
-
-    /* Metric */
-    test_temperature(USER_UNIT_METRIC, 0 /* K */, 1.0f, 1.0f, 0.0f);
-    test_temperature(USER_UNIT_METRIC, 1 /* C */, 1.0f, 1.0f, -273.15f);
-
-    /* Imperial */
-    test_temperature(USER_UNIT_IMPERIAL, 0 /* K */, 1.0f, 1.0f, 0.0f);
-    test_temperature(USER_UNIT_IMPERIAL, 1 /* F */, 1.8f, 0.5555556f, -255.3722f);
   }
 
   BKE_fcurve_free(fcurve);

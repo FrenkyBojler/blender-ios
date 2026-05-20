@@ -49,8 +49,6 @@
 
 #include "SEQ_time.hh"
 
-#include <utility>
-
 namespace blender {
 
 /* *************************************************** */
@@ -660,21 +658,18 @@ float ANIM_unit_mapping_get_factor(Scene *scene, ID *id, FCurve *fcu, short flag
 
   const PropertyUnit prop_unit = PropertyUnit(RNA_SUBTYPE_UNIT(RNA_property_subtype(prop)));
 
-  /* Get affine coefficients for the selected unit: y = linear * x + offset.
+  /* Get the scale factor for the selected unit.
    * Fallback to the base unit when adaptive is selected. */
-  const auto user_unit_linear_get = [&](const int unit_type,
-                                        const int user_unit) -> std::pair<double, double> {
+  const auto user_unit_scaler_get = [&](const int unit_type, const int user_unit) -> double {
     const void *usys;
     int len;
     BKE_unit_system_get(scene->unit.system, unit_type, &usys, &len);
     if (usys == nullptr || len == 0) {
-      return {1.0, 0.0};
+      return 1.0;
     }
 
-    int preferred_unit = user_unit;
-    if (user_unit == USER_UNIT_ADAPTIVE) {
-      preferred_unit = BKE_unit_base_get(usys);
-    }
+    const int preferred_unit = (user_unit == USER_UNIT_ADAPTIVE) ? BKE_unit_base_get(usys) :
+                                                                   user_unit;
 
     const UnitConverterFn converter = BKE_unit_converter_get(
         usys, preferred_unit, UnitConvertDirection::UNIT_TO_RAW);
@@ -682,7 +677,7 @@ float ANIM_unit_mapping_get_factor(Scene *scene, ID *id, FCurve *fcu, short flag
     const double y0 = converter(0.0);
     /* Linear + Offset */
     const double y1 = converter(1.0);
-    return {y1 - y0, y0};
+    return y1 - y0;
   };
 
   double unit_scaler = 1.0;
@@ -702,7 +697,7 @@ float ANIM_unit_mapping_get_factor(Scene *scene, ID *id, FCurve *fcu, short flag
      * Assumption: BKE_unit_value_scale() is linear and zero maps to zero for these
      * unit types, so the scaled value can be used as a scaler factor. */
     case PROP_UNIT_LENGTH: {
-      unit_scaler = user_unit_linear_get(b_unit, scene->unit.length_unit).first;
+      unit_scaler = user_unit_scaler_get(b_unit, scene->unit.length_unit);
       const double scene_scale = BKE_unit_value_scale(scene->unit, b_unit, 1.0);
       if (scene_scale != 0.0) {
         unit_scaler /= scene_scale;
@@ -710,7 +705,7 @@ float ANIM_unit_mapping_get_factor(Scene *scene, ID *id, FCurve *fcu, short flag
       break;
     }
     case PROP_UNIT_MASS: {
-      unit_scaler = user_unit_linear_get(b_unit, scene->unit.mass_unit).first;
+      unit_scaler = user_unit_scaler_get(b_unit, scene->unit.mass_unit);
       const double scene_scale = BKE_unit_value_scale(scene->unit, b_unit, 1.0);
       if (scene_scale != 0.0) {
         unit_scaler /= scene_scale;
@@ -719,17 +714,8 @@ float ANIM_unit_mapping_get_factor(Scene *scene, ID *id, FCurve *fcu, short flag
     }
     /* Units not supported by BKE_unit_value_scale(). */
     case PROP_UNIT_TIME:
-      unit_scaler = user_unit_linear_get(b_unit, scene->unit.time_unit).first;
+      unit_scaler = user_unit_scaler_get(b_unit, scene->unit.time_unit);
       break;
-    case PROP_UNIT_TEMPERATURE: {
-      const std::pair<double, double> coeffs = user_unit_linear_get(b_unit,
-                                                                    scene->unit.temperature_unit);
-      unit_scaler = coeffs.first;
-      if (r_offset) {
-        *r_offset = -float(coeffs.second);
-      }
-      break;
-    }
     default:
       /* Other units are not scaled. */
       break;
