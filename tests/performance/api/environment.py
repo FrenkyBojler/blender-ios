@@ -414,3 +414,21 @@ class TestEnvironment:
             title = ''
         self._title_cache[git_hash] = title
         return title
+
+    def resolve_device(self, device_str: str) -> tuple[str, str]:
+        """Resolve a device string to a device_id and gpu_backend pair."""
+        machine = self.get_machine(need_gpus=True)
+        device_id = device_str
+        gpu_backend = 'default'
+
+        for device in machine.devices:
+            if device.id == device_str or device.type == device_str:
+                device_id = device.id
+                gpu_backend = {
+                    'VULKAN': 'vulkan',
+                    'METAL': 'metal',
+                    'OPENGL': 'opengl'
+                }.get(device.type, 'default')
+                break
+
+        return device_id, gpu_backend

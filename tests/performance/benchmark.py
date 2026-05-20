@@ -366,25 +366,6 @@ def cmd_run(env: api.TestEnvironment, argv: list, update_only: bool):
     sys.exit(exit_code)
 
 
-def _resolve_device(env: api.TestEnvironment, device_str: str):
-    """Resolve a device string to a device_id and gpu_backend pair."""
-    machine = env.get_machine(need_gpus=True)
-    device_id = device_str
-    gpu_backend = 'default'
-
-    for device in machine.devices:
-        if device.id == device_str or device.type == device_str:
-            device_id = device.id
-            gpu_backend = {
-                'VULKAN': 'vulkan',
-                'METAL': 'metal',
-                'OPENGL': 'opengl'
-            }.get(device.type, 'default')
-            break
-
-    return device_id, gpu_backend
-
-
 def cmd_bisect(env: api.TestEnvironment, argv: list):
     import datetime
     from api.bisect import passes_threshold, test_commit as _test_commit
@@ -430,7 +411,7 @@ def cmd_bisect(env: api.TestEnvironment, argv: list):
         sys.stderr.write(f'Error: test not found: {args.category}/{args.test}\n')
         sys.exit(1)
 
-    device_id, gpu_backend = _resolve_device(env, args.device)
+    device_id, gpu_backend = env.resolve_device(args.device)
     threshold = args.threshold
     count = args.count
 
