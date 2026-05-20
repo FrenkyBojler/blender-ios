@@ -158,9 +158,11 @@ class Bisect:
                 self.first_bad = commit_hash
                 max_index = mid_index
             else:
-                min_index, max_index = self._forward_scan(mid_index + 1, max_index, all_commits, progress)
-                if min_index is None:
+                _, new_max = self._forward_scan(mid_index + 1, max_index, all_commits, progress)
+                if new_max is None:
                     break
+                max_index = new_max
+                self._update_progress(progress, min_index, max_index)
                 continue
 
             self._update_progress(progress, min_index, max_index)
