@@ -35,7 +35,11 @@ static void node_declare(NodeDeclarationBuilder &b)
       .dependent_field({1})
       .structure_type(StructureType::List)
       .align_with_previous();
-  b.add_input<decl::Bool>("Keep"_ustr).hide_value().structure_type(StructureType::Dynamic);
+  b.add_input<decl::Bool>("Keep"_ustr)
+      .default_value(true)
+      .hide_value()
+      .description("A field or list representing the values to keep in the output list")
+      .structure_type(StructureType::Dynamic);
 }
 
 static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
