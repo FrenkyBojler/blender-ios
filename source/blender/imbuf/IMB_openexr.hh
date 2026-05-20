@@ -32,6 +32,8 @@ ExrHandle *IMB_exr_get_handle(bool write_multipart = false);
  * The number of channels is determined by channelnames.size() with
  * each character a channel name.
  * Layer and pass name, view name and colorspace are all optional.
+ *
+ * Used only for writing files.
  */
 void IMB_exr_add_channels(ExrHandle *handle,
                           StringRefNull layerpassname,
