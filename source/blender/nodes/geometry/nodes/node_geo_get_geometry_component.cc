@@ -14,9 +14,14 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.allow_any_socket_order();
 
   b.add_input<decl::Geometry>("Geometry"_ustr);
-  b.add_output<decl::Geometry>("Geometry"_ustr).align_with_previous();
+  b.add_output<decl::Geometry>("Geometry"_ustr)
+      .align_with_previous()
+      .description("The input geometry with optionally the selected component removed");
   b.add_output<decl::Geometry>("Component"_ustr);
-  b.add_output<decl::Bool>("Exists"_ustr);
+  b.add_output<decl::Bool>("Exists"_ustr)
+      .description(
+          "Whether the geometry had a component of the type. This does not check if the component "
+          "is empty");
   b.add_input<decl::Menu>("Type"_ustr)
       .static_items(rna_enum_geometry_component_type_items)
       .optional_label();
@@ -70,7 +75,7 @@ static void node_register()
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
-  bke::node_type_size(ntype, 180, 100, NODE_DEFAULT_MAX_WIDTH);
+  ntype.default_width = bke::NodeWidth::_180;
   bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
