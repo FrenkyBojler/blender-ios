@@ -164,6 +164,8 @@ void convolve(Context &context,
     });
   });
 
+  convolve_input.release();
+
   /* Use doubles to sum the kernel since floats are not stable with threaded summation. We always
    * use a double4 even for float kernels for generality, in that case, only the first component
    * is initialized. */
@@ -188,6 +190,8 @@ void convolve(Context &context,
     }
     sum_by_thread.local() += double4(kernel_value);
   });
+
+  convolve_kernel.release();
 
   /* The computed kernel is not normalized and should be normalized, but instead of normalizing the
    * kernel during computation, we normalize it in the frequency domain when convolving the kernel

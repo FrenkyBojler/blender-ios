@@ -118,8 +118,7 @@ class Operation {
   virtual void log_data();
 
   /* Add a new result with the given type to the results_ map identified by the given output
-   * identifier. This should be called during operation construction for all outputs. The provided
-   * result shouldn't be allocated or initialized, this will happen later during execution. */
+   * identifier. This should be called during operation construction for all outputs. */
   void populate_result(StringRef identifier, ResultType type);
 
   /* Declare the descriptor of the input identified by the given identifier to be the given
