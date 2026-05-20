@@ -1,1 +1,2 @@
 Referenced by issue #158838, EEVEE: Performance regression Linux/AMD in shader balls
+Referenced by commit f1b7919bccbdcba3026ca1f435c0a745490ebf37, EEVEE: Shadow: Move shared variable to Resource Table
