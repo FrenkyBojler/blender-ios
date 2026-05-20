@@ -717,7 +717,7 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     }
   }
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 32)) {
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 34)) {
     FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
       if (ntree->type == NTREE_COMPOSIT) {
         versioning_replace_legacy_compositor_switch_node(ntree);
