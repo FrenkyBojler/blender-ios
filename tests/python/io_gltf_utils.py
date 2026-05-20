@@ -13,12 +13,20 @@ from enum import IntEnum
 sys.path.append(str(pathlib.Path(__file__).parent.absolute()))
 
 
-def is_simple_compare(json_):
+def is_meshopt_compare(json_):
     """Check if we need to avoid full comparison of the data"""
     if 'extensionsUsed' in json_:
         if 'KHR_meshopt_compression' in json_['extensionsUsed']:
             return True
         if 'EXT_meshopt_compression' in json_['extensionsUsed']:
+            return True
+    return False
+
+
+def is_draco_compare(json_):
+    """Check if we need to avoid full comparison of the data"""
+    if 'extensionsUsed' in json_:
+        if 'KHR_draco_mesh_compression' in json_['extensionsUsed']:
             return True
     return False
 
@@ -35,35 +43,6 @@ def gltf_generate_descr(output_datafile: pathlib.Path) -> str:
     # we need to override generator field to avoid test failures
     gltf.json['asset']['generator'] = "glTF-Blender-IO Test Suite"
 
-    def avoid_compressed_buffer_values(val):
-        for buffer_view in val.get('bufferViews', []):
-            if 'extensions' in buffer_view:
-                # Avoid comparing data when meshopt compression is used, as it can lead to
-                # small differences that are not relevant.
-                if 'KHR_meshopt_compression' in buffer_view['extensions']:
-                    buffer_view['extensions']['KHR_meshopt_compression']['byteLength'] = "N/A"
-                    buffer_view['extensions']['KHR_meshopt_compression']['byteOffset'] = "N/A"
-                elif 'EXT_meshopt_compression' in buffer_view['extensions']:
-
-                    buffer_view['extensions']['EXT_meshopt_compression']['byteLength'] = "N/A"
-                    buffer_view['extensions']['EXT_meshopt_compression']['byteOffset'] = "N/A"
-
-        for buffer in val.get('buffers', []):
-            if buffer.get('uri') is not None:
-                # This is the buffer of compressed data, so avoid comparing the length
-                buffer['byteLength'] = "N/A"
-
-    def remove_TRS_from_json(json_):
-        """Remove translation, rotation and scale values from json
-        when meshopt compression is used, as it can lead to small differences that are not relevant."""
-        for node in json_.get('nodes', []):
-            if 'translation' in node:
-                del node['translation']
-            if 'rotation' in node:
-                del node['rotation']
-            if 'scale' in node:
-                del node['scale']
-
     def round_floats(o):
         if isinstance(o, float):
             # round to avoid precision issues
@@ -77,12 +56,25 @@ def gltf_generate_descr(output_datafile: pathlib.Path) -> str:
             return [round_floats(x) for x in o]
         return o
 
-    if is_simple_compare(gltf.json):
+    if is_meshopt_compare(gltf.json):
         # Avoid comparing data when meshopt compression is used, as it can lead to
         # small differences that are not relevant.
-        remove_TRS_from_json(gltf.json)
-        avoid_compressed_buffer_values(gltf.json)
-        text += json.dumps(round_floats(gltf.json), indent=2, ensure_ascii=False)
+        # Simple comparison : check the extensions, and that there are 2 buffers
+        for extension_used in sorted(gltf.json['extensionsUsed']):
+            text += extension_used + "\n"
+        for idx, buffer in enumerate(gltf.json.get('buffers', [])):
+            text += f"buffer {idx} with extension fallback {
+                buffer.get(
+                    'extensions', {}).get(
+                    'KHR_meshopt_compression', {}).get(
+                    'fallback', False)}\n"
+
+    elif is_draco_compare(gltf.json):
+        # Avoid comparing data when draco compression is used, as it can lead to
+        # small differences that are not relevant.
+        # Simple comparison : check the extensions
+        for extension_used in gltf.json['extensionsUsed']:
+            text += extension_used + "\n"
     else:
         text += json.dumps(round_floats(gltf.json), indent=2, ensure_ascii=False)
     for accessor in gltf.accessors_data:
@@ -118,7 +110,7 @@ class glTFDataExtractor:
             self.json = glTFDataExtractor.load_json(content)
 
             # Let's ignore buffers and binary data when the file has meshopt compression
-            if is_simple_compare(self.json):
+            if is_meshopt_compare(self.json) or is_draco_compare(self.json):
                 return
 
             # Get buffers
