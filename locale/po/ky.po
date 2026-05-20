@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 Alpha (b'396b6a98e9f6')\n"
+"Project-Id-Version: Blender 5.2.0 Alpha (b'bc0a0ff2c0ce')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-05-04 07:43+0000\n"
+"POT-Creation-Date: 2026-05-18 11:20+0000\n"
 "PO-Revision-Date: 2025-07-23 15:20+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Kyrgyz <https://translate.blender.org/projects/blender-ui/ui/ky/>\n"
@@ -1298,20 +1298,20 @@ msgid "Mask Layers"
 msgstr "Маска каттары"
 
 
-msgid "Import"
-msgstr "Импорттоо"
-
-
 msgid "Mirror"
 msgstr "Чагылтуу"
 
 
-msgid "UV"
-msgstr "UV"
+msgid "Import"
+msgstr "Импорттоо"
 
 
 msgid "Apply"
 msgstr "Колдонуу"
+
+
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Tracking"
@@ -1634,6 +1634,10 @@ msgstr "Каналдарды ташуу"
 
 msgid "Move"
 msgstr "Ташуу"
+
+
+msgid "Search"
+msgstr "Издөө"
 
 
 msgctxt "Operator"
@@ -2887,10 +2891,6 @@ msgstr "Империялык"
 
 msgid "Radians"
 msgstr "Радиандар"
-
-
-msgid "Search"
-msgstr "Издөө"
 
 
 msgctxt "WindowManager"

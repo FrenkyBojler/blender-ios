@@ -33,7 +33,7 @@ RealizeOnDomainOperation::RealizeOnDomainOperation(Context &context,
   InputDescriptor input_descriptor;
   input_descriptor.type = type;
   this->declare_input_descriptor(input_descriptor);
-  this->populate_result(context.create_result(type));
+  this->populate_result(type);
 }
 
 /* Fast approximation of (hypot(a.x, b.x), hypot(a.y, b.y))
