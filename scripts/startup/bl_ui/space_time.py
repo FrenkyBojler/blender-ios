@@ -160,6 +160,8 @@ class TIME_MT_view(Menu):
         layout.prop(scene, "show_keys_from_selected_only")
         layout.prop(st.dopesheet, "show_only_errors")
         layout.separator()
+        layout.prop(st, "show_gizmo")
+        layout.separator()
         layout.menu("DOPESHEET_MT_cache")
         layout.separator()
         layout.menu("INFO_MT_area")

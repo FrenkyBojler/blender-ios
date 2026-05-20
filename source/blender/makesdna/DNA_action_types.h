@@ -523,6 +523,12 @@ enum eSAction_Flag : short {
 };
 ENUM_OPERATORS(eSAction_Flag);
 
+enum eSAction_Gizmo_Flag : char {
+  /* don't show gizmos */
+  SACTION_GIZMO_HIDE = (1 << 0),
+};
+ENUM_OPERATORS(eSAction_Gizmo_Flag);
+
 /** #SpaceAction_Runtime.flag */
 enum eSAction_Runtime_Flag : char {
   /** Temporary flag to force channel selections to be synced with main */
@@ -1194,7 +1200,9 @@ struct SpaceAction {
   /* Snapping now lives on the Scene. */
   DNA_DEPRECATED char autosnap = 0;
   eTimeline_Cache_Flag cache_display = {};
-  char _pad1[6] = {};
+
+  eSAction_Gizmo_Flag gizmo_flag = {};
+  char _pad1[5] = {};
 
   SpaceActionOverlays overlays;
 

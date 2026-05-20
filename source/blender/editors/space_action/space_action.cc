@@ -291,7 +291,9 @@ static void action_main_region_draw(const bContext *C, ARegion *region)
   ui::view2d_view_restore(C);
 
   /* gizmos */
-  WM_gizmomap_draw(region->runtime->gizmo_map, C, WM_GIZMOMAP_DRAWSTEP_2D);
+  if ((saction->gizmo_flag & SACTION_GIZMO_HIDE) == 0) {
+    WM_gizmomap_draw(region->runtime->gizmo_map, C, WM_GIZMOMAP_DRAWSTEP_2D);
+  }
 
   /* scrubbing region */
   const int fps = round_db_to_int(scene->frames_per_second());

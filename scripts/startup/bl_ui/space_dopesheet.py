@@ -483,6 +483,9 @@ class DOPESHEET_MT_view(Menu):
         props.value = 'GRAPH_EDITOR'
         layout.separator()
 
+        layout.prop(st, "show_gizmo")
+        layout.separator()
+
         layout.menu("DOPESHEET_MT_cache")
         layout.separator()
 
