@@ -82,7 +82,7 @@ void wm_staggered_eval_register(WindowRuntime &runtime,
                                 const Bounds<int> range,
                                 EvalCallback callback)
 {
-  StaggeredEvaluationData &eval_data = runtime.staggered_eval;
+  StaggeredEvalData &eval_data = runtime.staggered_eval;
   for (StaggeredEvalTarget &eval_id : eval_data.targets) {
     if (eval_id.id_uid == id.session_uid && eval_id.component_name == component_name) {
       /* ID already in objects to evaluate. */
@@ -91,6 +91,7 @@ void wm_staggered_eval_register(WindowRuntime &runtime,
       return;
     }
   }
+
   eval_data.targets.append(
       {id.session_uid, GS(id.name), std::string(component_name), range, callback});
 
@@ -102,11 +103,11 @@ void wm_staggered_eval_register(WindowRuntime &runtime,
 
 void wm_staggered_eval_prepare(Main &bmain, wmWindow &window)
 {
-  StaggeredEvaluationData &eval_data = window.runtime->staggered_eval;
+  StaggeredEvalData &eval_data = window.runtime->staggered_eval;
   Vector<ID *> ids;
   Vector<int> invalid_id_indices;
   for (const int i : eval_data.targets.index_range()) {
-    bke::StaggeredEvalTarget &off_frame_id = eval_data.targets[i];
+    StaggeredEvalTarget &off_frame_id = eval_data.targets[i];
     /* Searching here means computationally this scales linear with the amount of `id_type` in the
      * file. This is not ideal performance wise, but doing it this way means we can react to the
      * object being deleted solely in this function without having to call a deregister function
@@ -144,7 +145,7 @@ void wm_staggered_eval_prepare(Main &bmain, wmWindow &window)
   }
 }
 
-static int get_next_frame(StaggeredEvaluationData &eval_data,
+static int get_next_frame(StaggeredEvalData &eval_data,
                           const Bounds<int> eval_range,
                           const int current_frame)
 {
@@ -176,7 +177,7 @@ static int get_next_frame(StaggeredEvaluationData &eval_data,
 
 bool wm_staggered_eval_next_frame(WindowRuntime &runtime, const int current_frame)
 {
-  StaggeredEvaluationData &eval_data = runtime.staggered_eval;
+  StaggeredEvalData &eval_data = runtime.staggered_eval;
   if (eval_data.depsgraph == nullptr) {
     /* Call `wm_staggered_eval_prepare` before. */
     BLI_assert_unreachable();
@@ -185,7 +186,7 @@ bool wm_staggered_eval_next_frame(WindowRuntime &runtime, const int current_fram
 
   Bounds<int> eval_range = {};
   for (const int i : eval_data.targets.index_range()) {
-    bke::StaggeredEvalTarget &off_frame_id = eval_data.targets[i];
+    StaggeredEvalTarget &off_frame_id = eval_data.targets[i];
     /* `wm_staggered_eval_prepare` has to be called before. */
     BLI_assert(off_frame_id.id != nullptr);
     eval_range = bounds::merge(eval_range, off_frame_id.range);
@@ -200,7 +201,7 @@ bool wm_staggered_eval_next_frame(WindowRuntime &runtime, const int current_fram
 
   Vector<int> finished_indices;
   for (const int i : eval_data.targets.index_range()) {
-    bke::StaggeredEvalTarget &off_frame_id = eval_data.targets[i];
+    StaggeredEvalTarget &off_frame_id = eval_data.targets[i];
     ID *eval_id = DEG_get_evaluated_id(eval_data.depsgraph, off_frame_id.id);
     /* The callback shall return true when the evaluation has completed. */
     if (off_frame_id.callback(*off_frame_id.id, *eval_id, off_frame_id.component_name, eval_frame))

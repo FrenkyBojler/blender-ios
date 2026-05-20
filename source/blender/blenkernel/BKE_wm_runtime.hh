@@ -149,7 +149,7 @@ struct StaggeredEvalTarget {
   ID *id;
 };
 
-struct StaggeredEvaluationData {
+struct StaggeredEvalData {
   /**
    * A dependency graph used for evaluating the motion path objects of the current scene.
    * This depsgraph is a minimal version that only includes the motion path objects.
@@ -224,7 +224,7 @@ struct WindowRuntime {
   /** Private runtime info to show text in the status bar. */
   void *cursor_keymap_status = nullptr;
 
-  StaggeredEvaluationData staggered_eval;
+  StaggeredEvalData staggered_eval;
 
   WindowRuntime() = default;
   ~WindowRuntime();

@@ -1294,7 +1294,11 @@ static void motion_paths_recalc(bContext *C,
     if (!ob->mpath) {
       continue;
     }
-    animviz_tag_for_motion_path_eval(*window, *ob);
+    Bounds<int> frame_range = {ob->mpath->start_frame, ob->mpath->end_frame};
+    if (range == ANIMVIZ_CALC_RANGE_CHANGED) {
+      frame_range = animviz_get_affected_edit_range(*ob, BKE_scene_frame_get(scene));
+    }
+    animviz_tag_for_motion_path_eval(*window, *ob, frame_range);
   }
 }
 

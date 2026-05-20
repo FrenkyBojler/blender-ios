@@ -154,7 +154,11 @@ void ED_pose_recalculate_paths(bContext *C, Scene *scene, Object *ob, eAnimvizCa
     if (!bone || !ANIM_bone_in_visible_collection(arm, bone)) {
       continue;
     }
-    animviz_tag_for_motion_path_eval(*window, *ob, pchan);
+    Bounds<int> frame_range = {pchan.mpath->start_frame, pchan.mpath->end_frame};
+    if (range == ANIMVIZ_CALC_RANGE_CHANGED) {
+      frame_range = animviz_get_affected_edit_range(*ob, pchan, BKE_scene_frame_get(scene));
+    }
+    animviz_tag_for_motion_path_eval(*window, *ob, pchan, frame_range);
   }
 }
 

@@ -10,6 +10,7 @@
 
 #include "BKE_nla.hh"
 
+#include "BLI_bounds_types.hh"
 #include "BLI_enum_flags.hh"
 #include "BLI_sys_types.h"
 
@@ -1264,7 +1265,9 @@ enum eAnimvizCalcRange : uint8_t {
   /** Update motion paths at the current frame only. */
   ANIMVIZ_CALC_RANGE_CURRENT_FRAME,
 
-  /** Try to limit updates to a close neighborhood of the current frame. */
+  /** Try to limit updates to a close neighborhood of the current frame. This is only valid if the
+   * change is on a key. Changing e.g. an FCurve modifier can alter the whole FCurve regardless of
+   * key positions. In such cases use ANIMVIZ_CALC_RANGE_FULL. */
   ANIMVIZ_CALC_RANGE_CHANGED,
 
   /** Update an entire range of the motion paths. */
@@ -1279,10 +1282,24 @@ Depsgraph *animviz_depsgraph_build(Main *bmain,
                                    ViewLayer *view_layer,
                                    Span<MPathTarget *> targets);
 
-void animviz_tag_for_motion_path_eval(wmWindow &window, Object &object);
+/**
+ * Returns the frame range affected by a key edit at the given frame.
+ *
+ * \param modified_frame is in global space. Offsetting into strips is handled by this function.
+ *
+ * \returns the range affected. For keys on subframes, the integer values are rounded away from
+ * `modified_frame` to ensure they are always included.
+ */
+Bounds<int> animviz_get_affected_edit_range(const Object &object, const float modified_frame);
+Bounds<int> animviz_get_affected_edit_range(const Object &object,
+                                            const bPoseChannel &pose_bone,
+                                            const float modified_frame);
+
+void animviz_tag_for_motion_path_eval(wmWindow &window, Object &object, Bounds<int> range);
 void animviz_tag_for_motion_path_eval(wmWindow &window,
                                       Object &armature_object,
-                                      bPoseChannel &pose_bone);
+                                      bPoseChannel &pose_bone,
+                                      Bounds<int> range);
 
 /**
  * Evaluated the given `depsgraph` for all targets.

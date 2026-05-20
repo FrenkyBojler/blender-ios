@@ -24,6 +24,7 @@
 
 #include "BKE_action.hh"
 #include "BKE_anim_data.hh"
+#include "BKE_fcurve.hh"
 #include "BKE_main.hh"
 #include "BKE_scene.hh"
 #include "BKE_wm_runtime.hh"
@@ -516,7 +517,72 @@ static bool update_callback_pose_bone(ID &orig_id,
   return are_all_verts_evaluated(*mpath);
 }
 
-void animviz_tag_for_motion_path_eval(wmWindow &window, Object &object)
+/**
+ * Returns which parts of the FCurve would be affected by a change at the given frame.
+ */
+static Bounds<int> get_affected_range(const FCurve &fcurve, const float frame)
+{
+  if (!fcurve.bezt) {
+    return {int(frame), int(frame) + 1};
+  }
+
+  bool is_on_key;
+  const int index = BKE_fcurve_bezt_binarysearch_index(
+      fcurve.bezt, frame, fcurve.totvert, &is_on_key);
+
+  const int index_distance = fcurve.auto_smoothing == FCURVE_SMOOTH_NONE ? 2 : 4;
+
+  if (is_on_key) {
+    const BezTriple &lower_bound = fcurve.bezt[max_ii(index - index_distance, 0)];
+    const BezTriple &upper_bound = fcurve.bezt[min_ii(index + index_distance, fcurve.totvert - 1)];
+    return {int(lower_bound.vec[1][0]), int(upper_bound.vec[1][0])};
+  }
+
+  const BezTriple &lower_bound = fcurve.bezt[max_ii(index - 1 - index_distance, 0)];
+  const BezTriple &upper_bound = fcurve.bezt[min_ii(index + index_distance, fcurve.totvert - 1)];
+  return {int(lower_bound.vec[1][0]), int(upper_bound.vec[1][0])};
+}
+
+Bounds<int> animviz_get_affected_edit_range(const Object &object, const float modified_frame)
+{
+  Bounds<int> bounds = {int(modified_frame), int(modified_frame) + 1};
+  if (!object.adt || !object.adt->action || object.adt->slot_handle == animrig::Slot::unassigned) {
+    return bounds;
+  }
+
+  for (FCurve *fcu : animrig::fcurves_for_assigned_action(object.adt)) {
+    if (!fcu->bezt) {
+      continue;
+    }
+    bounds = bounds::merge(bounds, get_affected_range(*fcu, modified_frame));
+  }
+
+  return bounds;
+}
+
+Bounds<int> animviz_get_affected_edit_range(const Object &object,
+                                            const bPoseChannel &pose_bone,
+                                            const float modified_frame)
+{
+  Bounds<int> bounds = {int(modified_frame), int(modified_frame) + 1};
+  if (!object.adt || !object.adt->action || object.adt->slot_handle == animrig::Slot::unassigned) {
+    return bounds;
+  }
+
+  for (FCurve *fcu : animrig::fcurves_for_assigned_action(object.adt)) {
+    if (!fcu->bezt) {
+      continue;
+    }
+    if (!animrig::fcurve_matches_collection_path(*fcu, "pose.bones[", pose_bone.name)) {
+      continue;
+    }
+    bounds = bounds::merge(bounds, get_affected_range(*fcu, modified_frame));
+  }
+
+  return bounds;
+}
+
+void animviz_tag_for_motion_path_eval(wmWindow &window, Object &object, Bounds<int> range)
 {
   BLI_assert(window.runtime != nullptr);
   bMotionPath *mpath = object.mpath;
@@ -527,13 +593,17 @@ void animviz_tag_for_motion_path_eval(wmWindow &window, Object &object)
   for (int i = 0; i < mpath->length; i++) {
     mpath->points[i].flag &= ~MOTIONPATH_VERT_EVALUATED;
   }
-  bke::wm_staggered_eval_register(
-      *window.runtime, object.id, "", {mpath->start_frame, mpath->end_frame}, update_callback);
+  if (range.is_empty()) {
+    range = {mpath->start_frame, mpath->end_frame};
+  }
+
+  bke::wm_staggered_eval_register(*window.runtime, object.id, "", range, update_callback);
 }
 
 void animviz_tag_for_motion_path_eval(wmWindow &window,
                                       Object &armature_object,
-                                      bPoseChannel &pose_bone)
+                                      bPoseChannel &pose_bone,
+                                      Bounds<int> range)
 {
   bMotionPath *mpath = pose_bone.mpath;
   if (!mpath) {
@@ -543,11 +613,12 @@ void animviz_tag_for_motion_path_eval(wmWindow &window,
   for (int i = 0; i < mpath->length; i++) {
     mpath->points[i].flag &= ~MOTIONPATH_VERT_EVALUATED;
   }
-  bke::wm_staggered_eval_register(*window.runtime,
-                                  armature_object.id,
-                                  pose_bone.name,
-                                  {mpath->start_frame, mpath->end_frame},
-                                  update_callback_pose_bone);
+  if (range.is_empty()) {
+    range = {mpath->start_frame, mpath->end_frame};
+  }
+
+  bke::wm_staggered_eval_register(
+      *window.runtime, armature_object.id, pose_bone.name, range, update_callback_pose_bone);
 }
 
 void animviz_calc_motionpaths(Depsgraph *depsgraph,
