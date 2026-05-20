@@ -1189,7 +1189,7 @@ static ShaderNode *add_node(Scene *scene,
     raycast_add_output_attribute_sockets(raycast, b_node);
     node = raycast;
   }
-  else if (b_node.is_type("ShaderNodeSceneTime"_ustr)) {
+  else if (b_node.is_type("GeometryNodeInputSceneTime"_ustr)) {
     node = graph->create_node<SceneTimeNode>();
   }
 

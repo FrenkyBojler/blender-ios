@@ -10269,7 +10269,6 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("ShaderNode", "ShaderNodeRGB");
   define("ShaderNode", "ShaderNodeRGBCurve", def_rgb_curve);
   define("ShaderNode", "ShaderNodeRGBToBW");
-  define("ShaderNode", "ShaderNodeSceneTime");
   define("ShaderNode", "ShaderNodeScript", def_sh_script);
   define("ShaderNode", "ShaderNodeSeparateColor", def_sh_combsep_color);
   define("ShaderNode", "ShaderNodeSeparateXYZ");
@@ -10379,7 +10378,6 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("CompositorNode", "CompositorNodeRLayers", def_cmp_render_layers);
   define("CompositorNode", "CompositorNodeRotate");
   define("CompositorNode", "CompositorNodeScale");
-  define("CompositorNode", "CompositorNodeSceneTime");
   define("CompositorNode", "CompositorNodeSeparateColor", def_cmp_combsep_color);
   define("CompositorNode", "CompositorNodeSetAlpha");
   define("CompositorNode", "CompositorNodeMaskToSDF");
