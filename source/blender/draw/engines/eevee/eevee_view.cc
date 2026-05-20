@@ -85,7 +85,7 @@ void ShadingView::render()
   inst_.shadows.set_view(render_view_, extent_);
   inst_.volume.set_view(main_view_);
   inst_.uniform_data.data.push_update();
-  /* Need to be set early for planar probe renderding (if using raycast node) and raycast nodes in
+  /* Need to be set early for planar probe rendering (if using ray-cast node) and ray-cast nodes in
    * deferred / forward pipelines. */
   inst_.raytracing.thickness_parameters_setup(render_view_.winmat(), extent_);
   inst_.uniform_data.raytrace.push_update();
@@ -168,6 +168,8 @@ void ShadingView::render()
 
   inst_.pipelines.forward.render(
       render_view_, rbufs.depth_tx, prepass_fb_, transparent_fb_, combined_fb_, extent_);
+
+  inst_.lights.shape_display_draw(render_view_, combined_fb_);
 
   inst_.lights.debug_draw(render_view_, combined_fb_);
   inst_.hiz_buffer.debug_draw(render_view_, combined_fb_);
