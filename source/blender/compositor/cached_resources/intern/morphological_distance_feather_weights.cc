@@ -52,10 +52,11 @@ MorphologicalDistanceFeatherWeights::MorphologicalDistanceFeatherWeights(Context
 
   if (context.use_gpu()) {
     Result weights_gpu = weights_cpu.upload_to_gpu(false);
-    Result falloffs_gpu = falloffs_cpu.upload_to_gpu(false);
     this->weights.share_data(weights_gpu);
-    this->falloffs.share_data(falloffs_gpu);
     weights_gpu.release();
+
+    Result falloffs_gpu = falloffs_cpu.upload_to_gpu(false);
+    this->falloffs.share_data(falloffs_gpu);
     falloffs_gpu.release();
   }
   else {
@@ -75,19 +76,19 @@ MorphologicalDistanceFeatherWeights::~MorphologicalDistanceFeatherWeights()
 
 Result MorphologicalDistanceFeatherWeights::compute_weights(Context &context, int radius)
 {
-  Result weights = context.create_result(ResultType::Float);
+  Result weights_cpu = context.create_result(ResultType::Float);
 
   /* The size of filter is double the radius plus 1, but since the filter is symmetric, we only
    * compute half of it and no doubling happens. We add 1 to make sure the filter size is always
    * odd and there is a center weight. */
   const int size = radius + 1;
-  weights.allocate_texture(Domain(int2(size, 1)), false, ResultStorageType::CPU);
+  weights_cpu.allocate_texture(Domain(int2(size, 1)), false, ResultStorageType::CPU);
 
   float sum = 0.0f;
 
   /* First, compute the center weight. */
   const float center_weight = math::filter_kernel_value(math::FilterKernel::Gauss, 0.0f);
-  weights.store_pixel(int2(0, 0), center_weight);
+  weights_cpu.store_pixel(int2(0, 0), center_weight);
   sum += center_weight;
 
   /* Second, compute the other weights in the positive direction, making sure to add double the
@@ -96,17 +97,17 @@ Result MorphologicalDistanceFeatherWeights::compute_weights(Context &context, in
   const float scale = radius > 0.0f ? 1.0f / radius : 0.0f;
   for (const int i : IndexRange(size).drop_front(1)) {
     const float weight = math::filter_kernel_value(math::FilterKernel::Gauss, i * scale);
-    weights.store_pixel(int2(i, 0), weight);
+    weights_cpu.store_pixel(int2(i, 0), weight);
     sum += weight * 2.0f;
   }
 
   /* Finally, normalize the weights. */
   for (const int i : IndexRange(size)) {
     const int2 texel = int2(i, 0);
-    weights.store_pixel(texel, weights.load_pixel<float>(texel) / sum);
+    weights_cpu.store_pixel(texel, weights_cpu.load_pixel<float>(texel) / sum);
   }
 
-  return weights;
+  return weights_cpu;
 }
 
 /* Computes a falloff that is equal to 1 at an input of zero and decrease to zero at an input of 1,
@@ -138,22 +139,22 @@ Result MorphologicalDistanceFeatherWeights::compute_distance_falloffs(Context &c
                                                                       int type,
                                                                       int radius)
 {
-  Result falloffs = context.create_result(ResultType::Float);
+  Result falloffs_cpu = context.create_result(ResultType::Float);
 
   /* The size of the distance falloffs is double the radius plus 1, but since the falloffs are
    * symmetric, we only compute half of them and no doubling happens. We add 1 to make sure the
    * falloffs size is always odd and there is a center falloff. */
   const int size = radius + 1;
-  falloffs.allocate_texture(Domain(int2(size, 1)), false, ResultStorageType::CPU);
+  falloffs_cpu.allocate_texture(Domain(int2(size, 1)), false, ResultStorageType::CPU);
 
   /* Compute the distance falloffs in the positive direction only, because the falloffs are
    * symmetric. */
   const float scale = radius > 0.0f ? 1.0f / radius : 0.0f;
   for (const int i : IndexRange(size)) {
-    falloffs.store_pixel(int2(i, 0), compute_distance_falloff(type, i * scale));
+    falloffs_cpu.store_pixel(int2(i, 0), compute_distance_falloff(type, i * scale));
   }
 
-  return falloffs;
+  return falloffs_cpu;
 }
 
 /* --------------------------------------------------------------------
