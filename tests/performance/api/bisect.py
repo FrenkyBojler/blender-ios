@@ -4,6 +4,7 @@
 
 import datetime
 from collections.abc import Callable
+from dataclasses import dataclass
 
 from .environment import TestEnvironment
 from .test import Test
@@ -105,3 +106,102 @@ def test_commit(
     status = 'PASS' if good else 'FAIL'
     on_progress([commit_hash, date_str(commit_ts), title, f'{avg:.4f}', status])
     return avg, 'pass' if good else 'fail'
+
+
+@dataclass
+class _SearchBounds:
+    min_index: int
+    max_index: int
+    last_good: str | None
+    first_bad: str | None
+
+
+def binary_search(
+    commits: list[tuple[str, int]],
+    min_index: int,
+    max_index: int,
+    last_good: str | None,
+    first_bad: str | None,
+    commit_status: dict[str, str],
+    test_commit: Callable[..., tuple[float | None, str]],
+) -> tuple[str | None, str | None]:
+    """
+    Binary search to find the first failing commit.
+
+    When a commit errors on build or run, a forward scan finds the next testable commit.
+
+    Args:
+        commits: List of ``(commit_hash, unix_timestamp)`` tuples to search.
+        min_index: Lower bound (inclusive) for the search range.
+        max_index: Upper bound (exclusive) for the search range.
+        last_good: Commit hash of the last known passing commit (or None).
+        first_bad: Commit hash of the first known failing commit (or None).
+        commit_status: Map of previously tested commit hashes to ``'pass'`` or ``'fail'``.
+        test_commit: Callable ``(commit_hash, commit_ts) -> (value, status)`` that tests a commit.
+
+    Returns:
+        Tuple ``(last_good, first_bad)`` with the updated bounds after the search.
+    """
+    bounds = _SearchBounds(min_index, max_index, last_good, first_bad)
+
+    while bounds.min_index < bounds.max_index:
+        mid = (bounds.min_index + bounds.max_index) // 2
+        commit_hash, commit_ts = commits[mid]
+
+        if commit_hash in commit_status:
+            if commit_status[commit_hash] == 'pass':
+                bounds.min_index = mid + 1
+            else:
+                bounds.max_index = mid
+            continue
+
+        _, status = test_commit(commit_hash, commit_ts)
+
+        if status == 'pass':
+            commit_status[commit_hash] = 'pass'
+            bounds.last_good = commit_hash
+            bounds.min_index = mid + 1
+        elif status == 'fail':
+            commit_status[commit_hash] = 'fail'
+            bounds.first_bad = commit_hash
+            bounds.max_index = mid
+        else:
+            found, bounds = _forward_scan(
+                commits, mid + 1, commit_status, test_commit, bounds)
+            if not found:
+                break
+
+    return bounds.last_good, bounds.first_bad
+
+
+def _forward_scan(
+    commits: list[tuple[str, int]],
+    start_index: int,
+    commit_status: dict[str, str],
+    test_commit: Callable[..., tuple[float | None, str]],
+    bounds: _SearchBounds,
+) -> tuple[bool, _SearchBounds]:
+    """Scan forward from start_index for a testable commit.
+
+    Returns (found, bounds) where bounds are updated if a testable commit was found.
+    """
+    for scan_index in range(start_index, bounds.max_index):
+        scan_hash, scan_ts = commits[scan_index]
+        if scan_hash in commit_status:
+            if commit_status[scan_hash] == 'fail':
+                bounds.first_bad = scan_hash
+                bounds.max_index = scan_index
+                return True, bounds
+            continue
+        _, status = test_commit(scan_hash, scan_ts)
+        if status == 'pass':
+            commit_status[scan_hash] = 'pass'
+            bounds.last_good = scan_hash
+            bounds.min_index = scan_index + 1
+            return True, bounds
+        elif status == 'fail':
+            commit_status[scan_hash] = 'fail'
+            bounds.first_bad = scan_hash
+            bounds.max_index = scan_index
+            return True, bounds
+    return False, bounds

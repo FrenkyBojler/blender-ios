@@ -368,7 +368,7 @@ def cmd_run(env: api.TestEnvironment, argv: list, update_only: bool):
 
 def cmd_bisect(env: api.TestEnvironment, argv: list):
     import datetime
-    from api.bisect import passes_threshold, test_commit as _test_commit
+    from api.bisect import binary_search, passes_threshold, test_commit as _test_commit
     SECONDS_PER_DAY = 86400
 
     parser = argparse.ArgumentParser(prog='benchmark.py bisect')
@@ -499,69 +499,8 @@ def cmd_bisect(env: api.TestEnvironment, argv: list):
     max_index = commit_index[first_bad]
     min_index = commit_index[last_good] + 1 if last_good else 0
 
-    def _binary_search(commits, min_index, max_index):
-        """
-        Binary search to find the first failing commit.
-
-        When a commit errors on build or run, _forward_scan finds the next testable commit to continue the search."""
-        nonlocal current_remaining, last_good, first_bad
-
-        def _forward_scan(start_index):
-            """
-            Scan forward from start_index for a testable commit.
-            Returns True if bounds were updated, False if no testable commit was found.
-            """
-            nonlocal min_index, max_index, current_remaining, last_good, first_bad
-            for scan_index in range(start_index, max_index):
-                scan_hash, scan_ts = commits[scan_index]
-                if scan_hash in commit_status:
-                    if commit_status[scan_hash] == 'fail':
-                        first_bad = scan_hash
-                        max_index = scan_index
-                        return True
-                    continue
-                current_remaining = max_index - min_index
-                _, status = test_commit(scan_hash, scan_ts)
-                if status == 'pass':
-                    commit_status[scan_hash] = 'pass'
-                    last_good = scan_hash
-                    min_index = scan_index + 1
-                    return True
-                elif status == 'fail':
-                    commit_status[scan_hash] = 'fail'
-                    first_bad = scan_hash
-                    max_index = scan_index
-                    return True
-            return False
-
-        while min_index < max_index:
-            mid = (min_index + max_index) // 2
-            commit_hash, commit_ts = commits[mid]
-
-            if commit_hash in commit_status:
-                if commit_status[commit_hash] == 'pass':
-                    min_index = mid + 1
-                else:
-                    max_index = mid
-                continue
-
-            current_remaining = max_index - min_index
-            _, status = test_commit(commit_hash, commit_ts)
-
-            if status == 'pass':
-                commit_status[commit_hash] = 'pass'
-                last_good = commit_hash
-                min_index = mid + 1
-            elif status == 'fail':
-                commit_status[commit_hash] = 'fail'
-                first_bad = commit_hash
-                max_index = mid
-            else:
-                if not _forward_scan(mid + 1):
-                    # All remaining commits untestable, stop searching.
-                    break
-
-    _binary_search(all_commits, min_index, max_index)
+    last_good, first_bad = binary_search(all_commits, min_index, max_index,
+                                         last_good, first_bad, commit_status, test_commit)
 
     title = env.commit_title(first_bad)
     print(f'\nRegression introduced by commit {first_bad}: {title}')
