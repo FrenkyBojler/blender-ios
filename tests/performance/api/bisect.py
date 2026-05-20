@@ -101,10 +101,14 @@ class Bisect:
                     continue
                 if attempts >= 3:
                     break
+                if commit_hash in self.commit_status:
+                    break
+
                 attempts += 1
                 _, status = self.test_commit_cb(commit_hash, commit_ts)
                 if status in {'build_error', 'no_output', 'run_error', 'skip'}:
                     continue
+
                 if status == 'pass':
                     self.last_good = commit_hash
                     self.commit_status[commit_hash] = 'pass'
