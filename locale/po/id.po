@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 Alpha (b'396b6a98e9f6')\n"
+"Project-Id-Version: Blender 5.2.0 Alpha (b'bc0a0ff2c0ce')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-05-04 07:43+0000\n"
+"POT-Creation-Date: 2026-05-18 11:20+0000\n"
 "PO-Revision-Date: 2025-12-23 20:36+0000\n"
 "Last-Translator: \"Adriel Y.\" <mixnblend@users.noreply.translate.blender.org>\n"
 "Language-Team: Indonesian <https://translate.blender.org/projects/blender-ui/ui/id/>\n"
@@ -1873,10 +1873,6 @@ msgstr "Menampilkan aset yang sekarang tersedia di sesi Blender ini"
 
 msgid "Essentials"
 msgstr "Hal-hal Penting"
-
-
-msgid "Show the basic building blocks and utilities coming with Blender"
-msgstr "Menampilkan blok pembangunan sederhana dan utilitas yang ada bersamaan dengan Blender"
 
 
 msgid "Custom"
@@ -15640,60 +15636,40 @@ msgid "Use Material Mask"
 msgstr "Gunakan Masker Bahan"
 
 
-msgid "Metaball"
-msgstr "Metabola"
-
-
-msgid "Names"
-msgstr "Nama"
-
-
-msgid "Math"
-msgstr "Matematika"
-
-
-msgid "Utilities"
-msgstr "Utilitas"
+msgid "Mirror"
+msgstr "Cermin"
 
 
 msgid "Snap"
 msgstr "Jepret"
 
 
-msgid "Sample"
-msgstr "Sampel"
-
-
-msgid "Gizmo"
-msgstr "Gizmo"
-
-
-msgid "Instances"
-msgstr "Contoh-contoh"
-
-
-msgid "Import"
-msgstr "Impor"
-
-
-msgid "Mirror"
-msgstr "Cermin"
+msgid "Math"
+msgstr "Matematika"
 
 
 msgid "Navigation"
 msgstr "Navigasi"
 
 
-msgid "UV"
-msgstr "UV"
+msgid "Utilities"
+msgstr "Utilitas"
 
 
 msgid "Select Linked"
 msgstr "Seleksi yang Terhubung"
 
 
+msgid "Sample"
+msgstr "Sampel"
+
+
 msgid "Assign Material"
 msgstr "Tugaskan Bahan"
+
+
+msgid "Metaball"
+msgstr "Metabola"
 
 
 msgid "Light"
@@ -15704,8 +15680,20 @@ msgid "Light Probe"
 msgstr "Probe Cahaya"
 
 
+msgid "Gizmo"
+msgstr "Gizmo"
+
+
+msgid "Instances"
+msgstr "Contoh-contoh"
+
+
 msgid "Add Image"
 msgstr "Tambah Gambar"
+
+
+msgid "Import"
+msgstr "Impor"
 
 
 msgid "Apply"
@@ -15720,8 +15708,20 @@ msgid "Asset"
 msgstr "Aset"
 
 
+msgid "UV"
+msgstr "UV"
+
+
 msgid "Hooks"
 msgstr "Kait"
+
+
+msgid "Names"
+msgstr "Nama"
+
+
+msgid "Merge"
+msgstr "Menggabungkan"
 
 
 msgid "Layout"
@@ -15730,10 +15730,6 @@ msgstr "Tata Letak"
 
 msgid "Tracking"
 msgstr "Pelacakan"
-
-
-msgid "Merge"
-msgstr "Menggabungkan"
 
 
 msgid "Animals"
@@ -18864,10 +18860,6 @@ msgid "Node Output"
 msgstr "Keluaran Node"
 
 
-msgid "Node Instance Hash"
-msgstr "Hash Contoh Node"
-
-
 msgid "Tooltip"
 msgstr "Alat"
 
@@ -19578,6 +19570,10 @@ msgstr "Tambah koleksi tulang baru"
 msgctxt "Operator"
 msgid "Delete Selected Bone(s)"
 msgstr "Hapus Titik"
+
+
+msgid "Search"
+msgstr "Cari"
 
 
 msgctxt "Operator"
@@ -28028,10 +28024,6 @@ msgid "Activation event for gizmos that support drag motion"
 msgstr "Acara aktivasi untuk gizmo-gizmo yang mendukung gerakan seret"
 
 
-msgid "Search"
-msgstr "Cari"
-
-
 msgid ""
 "Hold Alt to use the active tool when the gizmo would normally be required\n"
 "Incompatible with the input preference \"Emulate 3 Button Mouse\" when the \"Alt\" key is used"
@@ -32287,14 +32279,6 @@ msgid "No selected F-Curves to paste into"
 msgstr "Hapus"
 
 
-msgid "Property is not editable"
-msgstr "Properti tidak dapat diubah"
-
-
-msgid "Property is not editable: %s"
-msgstr "Properti tidak dapat diubah: %s"
-
-
 msgid "Position:"
 msgstr "Posisi:"
 
@@ -33846,8 +33830,8 @@ msgid "Accessibility"
 msgstr "Aksesibilitas"
 
 
-msgid "Snap to Surface"
-msgstr "Jepit ke Permukaan"
+msgid "Surface UV"
+msgstr "UV Permukaan"
 
 
 msgid "Surface Normal"
@@ -33858,16 +33842,16 @@ msgid "Surface Rest Position"
 msgstr "Posisi Istirahat Permukaan"
 
 
+msgid "Snap to Surface"
+msgstr "Jepit ke Permukaan"
+
+
 msgid "Surface UV Coordinate"
 msgstr "Koordinasi UV Permukaan"
 
 
 msgid "Scale of the hair tie instance"
 msgstr "Skala contoh ikat rambut"
-
-
-msgid "Surface UV"
-msgstr "UV Permukaan"
 
 
 msgid "Surface Geometry"

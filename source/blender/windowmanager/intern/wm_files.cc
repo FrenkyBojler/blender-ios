@@ -1895,8 +1895,8 @@ static ImBuf *blend_file_thumb_from_screenshot(bContext *C, BlendThumbnail **r_t
       IMB_scale(ibuf, thumb_size_2x.x, thumb_size_2x.y, IMBScaleFilter::Box, false);
 
       /* Thumbnail inside blend should be 128x128. */
-      ImBuf *thumb_ibuf = IMB_dupImBuf(ibuf);
-      IMB_scale(thumb_ibuf, thumb_size.x, thumb_size.y, IMBScaleFilter::Box, false);
+      ImBuf *thumb_ibuf = IMB_scale_into_new(
+          ibuf, thumb_size.x, thumb_size.y, IMBScaleFilter::Box, false);
 
       BlendThumbnail *thumb = BKE_main_thumbnail_from_imbuf(nullptr, thumb_ibuf);
       IMB_freeImBuf(thumb_ibuf);
@@ -1972,7 +1972,7 @@ static ImBuf *blend_file_thumb_from_camera(const bContext *C,
                                                  scene->camera,
                                                  PREVIEW_RENDER_LARGE_HEIGHT * 2,
                                                  PREVIEW_RENDER_LARGE_HEIGHT * 2,
-                                                 IB_byte_data,
+                                                 ImBufFlags::ByteData,
                                                  (v3d) ? V3D_OFSDRAW_OVERRIDE_SCENE_SETTINGS :
                                                          V3D_OFSDRAW_NONE,
                                                  R_ALPHAPREMUL,
@@ -1989,7 +1989,7 @@ static ImBuf *blend_file_thumb_from_camera(const bContext *C,
                                           region,
                                           PREVIEW_RENDER_LARGE_HEIGHT * 2,
                                           PREVIEW_RENDER_LARGE_HEIGHT * 2,
-                                          IB_byte_data,
+                                          ImBufFlags::ByteData,
                                           R_ALPHAPREMUL,
                                           nullptr,
                                           true,
@@ -2011,8 +2011,6 @@ static ImBuf *blend_file_thumb_from_camera(const bContext *C,
 
   if (ibuf) {
     /* Dirty oversampling. */
-    ImBuf *thumb_ibuf;
-    thumb_ibuf = IMB_dupImBuf(ibuf);
 
     /* Save metadata for quick access. */
     char version_str[10];
@@ -2021,7 +2019,8 @@ static ImBuf *blend_file_thumb_from_camera(const bContext *C,
     IMB_metadata_set_field(ibuf->metadata, "Thumb::Blender::Version", version_str);
 
     /* BLEN_THUMB_SIZE is size of thumbnail inside blend file: 128x128. */
-    IMB_scale(thumb_ibuf, BLEN_THUMB_SIZE, BLEN_THUMB_SIZE, IMBScaleFilter::Box, false);
+    ImBuf *thumb_ibuf = IMB_scale_into_new(
+        ibuf, BLEN_THUMB_SIZE, BLEN_THUMB_SIZE, IMBScaleFilter::Box, false);
     thumb = BKE_main_thumbnail_from_imbuf(nullptr, thumb_ibuf);
     IMB_freeImBuf(thumb_ibuf);
     /* Thumbnail saved to file-system should be 256x256. */
@@ -2311,12 +2310,16 @@ static bool wm_autosave_write_try(Main *bmain, wmWindowManager *wm)
    * check can be removed once the performance regressions have been solved. */
   if (ED_undosys_stack_memfile_get_if_active(wm->runtime->undo_stack) != nullptr) {
     const bool success = WM_autosave_write(wm, bmain, &wm->runtime->reports);
-    WM_report_banner_show(wm, nullptr);
+    if (!success) {
+      WM_report_banner_show(wm, nullptr);
+    }
     return success;
   }
   if ((U.uiflag & USER_GLOBALUNDO) == 0) {
     const bool success = WM_autosave_write(wm, bmain, &wm->runtime->reports);
-    WM_report_banner_show(wm, nullptr);
+    if (!success) {
+      WM_report_banner_show(wm, nullptr);
+    }
     return success;
   }
   /* Can't auto-save with MemFile right now, try again later. */
