@@ -2956,8 +2956,8 @@ static void rna_def_userdef_theme_space_view3d(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Major Grid Lines", "");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
-  prop = RNA_def_property(srna, "grid_axis_offset", PROP_FLOAT, PROP_NONE);
-  RNA_def_property_float_sdna(prop, nullptr, "grid_axis_offset");
+  prop = RNA_def_property(srna, "grid_axis_brightness", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, nullptr, "grid_axis_brightness");
   RNA_def_property_float_default(prop, 0.46);
   RNA_def_property_ui_text(prop, "Grid Axis Brightness", "Brightness of the grid axis lines");
   RNA_def_property_range(prop, 0.0f, 1.0f);
