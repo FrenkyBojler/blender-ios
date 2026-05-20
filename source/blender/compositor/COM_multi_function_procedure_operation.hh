@@ -45,7 +45,7 @@ class MultiFunctionProcedureOperation : public PixelOperation {
    * them. */
   Map<const bNodeSocket *, mf::Variable *> output_to_variable_map_;
   /* A map that associates implicit inputs to the variables that were created for them. */
-  Map<ImplicitInput, mf::Variable *> implicit_input_to_variable_map_;
+  Map<ImplicitInputType, mf::Variable *> implicit_input_to_variable_map_;
   /* A vector that stores the intermediate variables that were implicitly created for the procedure
    * but are not associated with a node output. Those variables are for such multi-functions like
    * constant inputs and implicit conversion. */
@@ -57,9 +57,6 @@ class MultiFunctionProcedureOperation : public PixelOperation {
    * output results for each of the parameters in the procedure. Note that parameters have no
    * identifiers and are identified solely by their order. */
   Vector<std::string> parameter_identifiers_;
-  /* True if the operation operates on single values, that is, all of its inputs and outputs are
-   * single values. */
-  const bool is_single_value_;
 
  public:
   /* Build a multi-function procedure as well as an executor for it from the given pixel compile
