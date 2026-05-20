@@ -2454,6 +2454,7 @@ class XpbdSolverStep {
 
       this->parallel_for_each_chunk(1, [&](const int chunk_i) {
         float chunk_error_squared;
+        int chunk_error_count;
         int solver_refs_i = 0;
         for (const int substep_i : IndexRange(substeps_)) {
           const SubstepInterval substep(
@@ -2465,9 +2466,10 @@ class XpbdSolverStep {
 
           const Span<xpbd::GeometryRef> solver_refs = geometries_.solver_refs[solver_refs_i];
           xpbd::ConstraintSetParams solve_params{solver_refs, sub_delta_time_};
-          xpbd::GaussSeidelUpdater updater{solver_refs, chunk_error_squared};
+          xpbd::GaussSeidelUpdater updater{solver_refs, chunk_error_squared, chunk_error_count};
           for ([[maybe_unused]] const int iter_i : IndexRange(constraint_iterations_)) {
             chunk_error_squared = 0.0f;
+            chunk_error_count = 0;
             this->simulate__position_solve__single_iteration__chunk(
                 chunk_i, solve_params, updater);
           }
@@ -2478,7 +2480,9 @@ class XpbdSolverStep {
         }
         this->simulate__ensure_final_data_in_outputs__chunk(chunk_i);
 
-        total_error_squared_tls.local() += chunk_error_squared;
+        if (chunk_error_count) {
+          total_error_squared_tls.local() += chunk_error_squared / chunk_error_count;
+        }
       });
 
       for (const float error_squared : total_error_squared_tls) {
@@ -2694,9 +2698,11 @@ class XpbdSolverStep {
     const Span<xpbd::GeometryRef> solver_refs = geometries_.solver_refs[solver_refs_i];
     xpbd::ConstraintSetParams solve_params{solver_refs, sub_delta_time_};
     threading::EnumerableThreadSpecific<float> total_error_squared_tls(0.0f);
+    threading::EnumerableThreadSpecific<int> total_error_count_tls(0);
 
     this->parallel_for_each_chunk(1, [&](const int chunk_i) {
-      xpbd::GaussSeidelUpdater updater{solver_refs, total_error_squared_tls.local()};
+      xpbd::GaussSeidelUpdater updater{
+          solver_refs, total_error_squared_tls.local(), total_error_count_tls.local()};
       this->simulate__position_solve__single_iteration__chunk(chunk_i, solve_params, updater);
     });
 
@@ -2707,16 +2713,24 @@ class XpbdSolverStep {
           const IndexMask &mask = constraint.coloring.colors[color_i];
           threading::parallel_for(mask.index_range(), 512, [&](const IndexRange range) {
             const IndexMask sliced_mask = mask.slice(range);
-            xpbd::GaussSeidelUpdater updater{solver_refs, total_error_squared_tls.local()};
+            xpbd::GaussSeidelUpdater updater{
+                solver_refs, total_error_squared_tls.local(), total_error_count_tls.local()};
             constraint.constraint->solve_sequential(solve_params, updater, sliced_mask);
           });
         }
       }
     }
 
-    r_total_error_squared = 0.0f;
-    for (const float error_squared : total_error_squared_tls) {
-      r_total_error_squared += error_squared;
+    int total_error_count = 0;
+    for (const int error_count : total_error_count_tls) {
+      total_error_count += error_count;
+    }
+    if (total_error_count) {
+      r_total_error_squared = 0.0f;
+      for (const float error_squared : total_error_squared_tls) {
+        r_total_error_squared += error_squared;
+      }
+      r_total_error_squared /= total_error_count;
     }
   }
 

@@ -22,10 +22,15 @@ class GaussSeidelUpdater {
  private:
   Span<GeometryRef> geometry_refs_;
   float &total_error_squared_ref_;
+  int &total_error_count_ref_;
 
  public:
-  GaussSeidelUpdater(Span<GeometryRef> geometry_refs, float &total_error_squared_ref)
-      : geometry_refs_(geometry_refs), total_error_squared_ref_(total_error_squared_ref)
+  GaussSeidelUpdater(Span<GeometryRef> geometry_refs,
+                     float &total_error_squared_ref,
+                     int &total_error_count_ref)
+      : geometry_refs_(geometry_refs),
+        total_error_squared_ref_(total_error_squared_ref),
+        total_error_count_ref_(total_error_count_ref)
   {
   }
 
@@ -43,6 +48,7 @@ class GaussSeidelUpdater {
     /* TODO Geometry index is ignored for now for simplicity. We could record a separate error for
      * each geometry. */
     total_error_squared_ref_ += error_squared;
+    ++total_error_count_ref_;
   }
 };
 
