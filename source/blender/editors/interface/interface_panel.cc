@@ -355,7 +355,7 @@ bool panel_list_matches_data(ARegion *region,
     data_link = nullptr;
   }
   else {
-    data_len = data->count();
+    data_len = BLI_listbase_count(data);
     data_link = static_cast<Link *>(data->first);
   }
 
