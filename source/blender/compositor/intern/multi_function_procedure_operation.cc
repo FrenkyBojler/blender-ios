@@ -45,13 +45,14 @@
 
 namespace blender::compositor {
 
-MultiFunctionProcedureOperation::MultiFunctionProcedureOperation(Context &context,
-                                                                 PixelCompileUnit &compile_unit,
-                                                                 const Schedule &schedule,
-                                                                 const bool is_single_value)
-    : PixelOperation(context, compile_unit, schedule),
-      procedure_builder_(procedure_),
-      is_single_value_(is_single_value)
+MultiFunctionProcedureOperation::MultiFunctionProcedureOperation(
+    Context &context,
+    PixelCompileUnit &compile_unit,
+    const Schedule &schedule,
+    const bool is_single_value,
+    const ComputeContext &compute_context)
+    : PixelOperation(context, compile_unit, schedule, compute_context, is_single_value),
+      procedure_builder_(procedure_)
 {
   this->build_procedure();
   procedure_executor_ = std::make_unique<mf::ProcedureExecutor>(procedure_);
@@ -179,7 +180,7 @@ Vector<mf::Variable *> MultiFunctionProcedureOperation::get_input_variables(
     const bNodeSocket *output = get_output_linked_to_input(*input);
     if (!output) {
       const InputDescriptor input_descriptor = input_descriptor_from_input_socket(input);
-      if (input_descriptor.implicit_input == ImplicitInput::None) {
+      if (!input_descriptor.implicit_input.has_value()) {
         /* No implicit input, so get a constant variable that holds the socket value. */
         input_variables.append(this->get_constant_input_variable(*input));
       }
@@ -344,7 +345,7 @@ mf::Variable *MultiFunctionProcedureOperation::get_implicit_input_variable(
     const bNodeSocket &input)
 {
   const InputDescriptor input_descriptor = input_descriptor_from_input_socket(&input);
-  const ImplicitInput implicit_input = input_descriptor.implicit_input;
+  const ImplicitInputType implicit_input = input_descriptor.implicit_input.value();
 
   /* An input was already declared for that implicit input, so no need to declare it again and we
    * just return its variable. */
@@ -433,9 +434,10 @@ mf::Variable *MultiFunctionProcedureOperation::get_multi_function_input_variable
 void MultiFunctionProcedureOperation::assign_output_variables(const bNode &node,
                                                               Vector<mf::Variable *> &variables)
 {
-  const bool is_node_preview_needed = this->get_node_previews() != nullptr;
-  const bNodeSocket *preview_output = is_node_preview_needed ? find_preview_output_socket(node) :
-                                                               nullptr;
+  const bool should_log_outputs = this->context().nodes_evaluation_log() && is_single_value_;
+  const bNodeSocket *preview_output = needs_node_previews_ && !is_single_value_ ?
+                                          find_preview_output_socket(node) :
+                                          nullptr;
 
   int available_outputs_index = 0;
   for (const bNodeSocket *output : node.output_sockets()) {
@@ -461,7 +463,11 @@ void MultiFunctionProcedureOperation::assign_output_variables(const bNode &node,
       preview_outputs_.add(output);
     }
 
-    if (is_operation_output || is_preview_output) {
+    if (should_log_outputs) {
+      logged_outputs_.add(output);
+    }
+
+    if (is_operation_output || is_preview_output || should_log_outputs) {
       this->populate_operation_result(*output, output_variable);
     }
 

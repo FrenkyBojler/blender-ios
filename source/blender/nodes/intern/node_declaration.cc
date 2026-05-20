@@ -675,6 +675,9 @@ BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::default_input_type(
     const NodeDefaultInputType value)
 {
   decl_base_->default_input_type = value;
+  if (value != NodeDefaultInputType::NODE_DEFAULT_INPUT_VALUE) {
+    this->hide_value();
+  }
   return *this;
 }
 
@@ -920,6 +923,56 @@ BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::usage_by_menu(
   return *this;
 }
 
+BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::usage_by_bool(
+    const UString bool_input_identifier, const bool value)
+{
+  this->make_available([bool_input_identifier, value](bNode &node) {
+    bNodeSocket &bool_socket = *bke::node_find_socket(node, SOCK_IN, bool_input_identifier);
+    const SocketDeclaration &socket_declaration = *bool_socket.runtime->declaration;
+    socket_declaration.make_available(node);
+    bool_socket.default_value_typed<bNodeSocketValueBoolean>()->value = value;
+  });
+  this->usage_inference(
+      [bool_input_identifier,
+       value](const socket_usage_inference::SocketUsageParams &params) -> std::optional<bool> {
+        if (params.socket.is_input()) {
+          if (std::optional<bool> any_output_used = params.any_output_is_used()) {
+            if (!*any_output_used) {
+              /* If no output is used, none of the inputs is used either. */
+              return false;
+            }
+          }
+          else {
+            /* It's not known if any output is used yet. This function will be called again once
+             * new information about output usages is available. */
+            return std::nullopt;
+          }
+        }
+        const bool might_be_value = params.bool_input_may_be(bool_input_identifier, value);
+        const bNodeSocket &bool_socket = *bke::node_find_socket(
+            params.node, SOCK_IN, bool_input_identifier);
+        const SocketDeclaration &bool_socket_declaration = *bool_socket.runtime->declaration;
+        if (!bool_socket_declaration.usage_inference_fn) {
+          return might_be_value;
+        }
+        const std::optional<bool> bool_might_be_used =
+            (*bool_socket_declaration.usage_inference_fn)(params);
+        if (!bool_might_be_used.has_value()) {
+          return might_be_value;
+        }
+        return *bool_might_be_used && might_be_value;
+      });
+  return *this;
+}
+
+BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::usage_by_panel_toggle()
+{
+  if (const SocketDeclaration *panel_toggle_decl = decl_base_->parent->panel_input_decl()) {
+    this->usage_by_bool(panel_toggle_decl->identifier, true);
+  }
+  return *this;
+}
+
 BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::align_with_previous(const bool value)
 {
   decl_base_->align_with_previous_socket = value;
@@ -1122,6 +1175,8 @@ std::optional<ImplicitInputValueFn> get_implicit_input_value_fn(const NodeDefaul
       return std::make_optional(implicit_field_inputs::handle_left);
     case NODE_DEFAULT_INPUT_HANDLE_RIGHT_FIELD:
       return std::make_optional(implicit_field_inputs::handle_right);
+    case NODE_DEFAULT_INPUT_SCENE_FRAME:
+      return std::nullopt;
   }
   return std::nullopt;
 }
@@ -1133,6 +1188,8 @@ bool socket_type_supports_default_input_type(const bke::bNodeSocketType &socket_
   switch (input_type) {
     case NODE_DEFAULT_INPUT_VALUE:
       return true;
+    case NODE_DEFAULT_INPUT_SCENE_FRAME:
+      return ELEM(stype, SOCK_FLOAT, SOCK_INT);
     case NODE_DEFAULT_INPUT_ID_INDEX_FIELD:
     case NODE_DEFAULT_INPUT_INDEX_FIELD:
       return stype == SOCK_INT;
