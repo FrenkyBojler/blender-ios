@@ -1675,9 +1675,8 @@ static ui::Block *wm_block_dialog_create(bContext *C, ARegion *region, void *use
     const float button_center_y = small ? 2.0f : 3.1f;
 
     /* Needs to resolve layout in case the popup gets widen. */
-    ui::block_layout_resolve(block);
-    const int bounds_offset[2] = {int(button_center_x * layout.width()),
-                                  int(button_center_y * UI_UNIT_X)};
+    int2 co = ui::block_layout_resolve(block);
+    const int bounds_offset[2] = {int(button_center_x * co.x), int(button_center_y * UI_UNIT_X)};
     block_bounds_set_popup(block, padding, bounds_offset);
   }
   else if (data->position == WM_POPUP_POSITION_CENTER) {
