@@ -107,7 +107,10 @@ static void node_declare(NodeDeclarationBuilder &b)
     auto &solver_panel = b.add_panel("Solver"_ustr).default_closed(true);
     solver_panel.add_input<decl::Int>("Substeps"_ustr).default_value(10).min(1);
     solver_panel.add_input<decl::Int>("Constraint Iterations"_ustr).default_value(1).min(1);
-    solver_panel.add_output<decl::Float>("Quality"_ustr).subtype(PROP_PERCENTAGE);
+    solver_panel.add_output<decl::Float>("Residual Error"_ustr)
+        .description(
+            "Average remaining relative error, values smaller than one are below the constraint "
+            "threshold.");
   }
   {
     auto &p = b.add_panel("Interpolation Range"_ustr).default_closed(true);
@@ -3401,8 +3404,7 @@ static void node_geo_exec(GeoNodeExecParams params)
                       simulation_to_world);
   step.do_step();
 
-  const float quality = 100.0f / std::max(step.result().total_residual_error, 1.0f);
-  params.set_output("Quality"_ustr, quality);
+  params.set_output("Residual Error"_ustr, step.result().total_residual_error);
   for (const std::pair<NodeWarningType, std::string> &warning : step.warnings()) {
     params.error_message_add(warning.first, warning.second);
   }
