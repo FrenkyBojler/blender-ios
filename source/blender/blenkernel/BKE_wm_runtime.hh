@@ -137,7 +137,8 @@ struct StaggeredEvalTarget {
    * code. Doing so means we have to search for the `ID*`. */
   uint32_t id_uid;
   ID_Type id_type = ID_OB;
-  /* Storing the index to a bone or other component.  */
+  /* Storing the name for a component of the ID. This is passed to the `callback`, but not used for
+   * evaluation.  */
   std::string component_name;
   /* The range to evaluate for this ID. */
   Bounds<int> range;
@@ -155,6 +156,7 @@ struct StaggeredEvaluationData {
    */
   struct Depsgraph *depsgraph = nullptr;
   Vector<StaggeredEvalTarget> targets = {};
+  /** Range of frames already evaluated. */
   Bounds<int> range = {};
 };
 
@@ -222,14 +224,7 @@ struct WindowRuntime {
   /** Private runtime info to show text in the status bar. */
   void *cursor_keymap_status = nullptr;
 
-  /**
-   * A dependency graph used for evaluating the motion path objects of the current scene.
-   * This depsgraph is a minimal version that only includes the motion path objects.
-   * It is evaluated at most once per main loop until all required data has been generated.
-   */
-  struct Depsgraph *staggered_depsgraph = nullptr;
-  Vector<StaggeredEvalTarget> staggered_eval_targets = {};
-  Bounds<int> evaluated_range = {};
+  StaggeredEvaluationData staggered_eval;
 
   WindowRuntime() = default;
   ~WindowRuntime();

@@ -173,7 +173,7 @@ template<typename T> bool DEG_is_evaluated(const T *id)
 bool DEG_is_fully_evaluated(const Depsgraph *depsgraph);
 
 /**
- *
+ * Returns true if the given depsgraph is tagged for a relations rebuild.
  */
 bool DEG_needs_update_relations(const Depsgraph *depsgraph);
 

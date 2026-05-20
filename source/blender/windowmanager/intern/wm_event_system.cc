@@ -551,7 +551,7 @@ static void wm_evaluate_depsgraph_staggered(bContext *C)
   Main *bmain = CTX_data_main(C);
   for (wmWindow &win : wm->windows) {
     bke::WindowRuntime &runtime = *win.runtime;
-    if (runtime.staggered_eval_targets.is_empty()) {
+    if (runtime.staggered_eval.targets.is_empty()) {
       continue;
     }
 
