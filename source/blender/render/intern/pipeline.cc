@@ -190,7 +190,7 @@ static bool default_break(void * /*arg*/)
   return G.is_break == true;
 }
 
-static void stats_background(void * /*arg*/, RenderStats *rs)
+static void stats_update(void * /*arg*/, RenderStats *rs)
 {
   if (rs->infostr == nullptr) {
     return;
@@ -201,7 +201,7 @@ static void stats_background(void * /*arg*/, RenderStats *rs)
   static Mutex mutex;
   std::scoped_lock lock(mutex);
 
-  const bool show_info = CLOG_CHECK(&LOG, CLG_LEVEL_INFO);
+  const bool show_info = G.background && CLOG_CHECK(&LOG, CLG_LEVEL_INFO);
   if (show_info) {
     CLOG_INFO(&LOG, "Fra: %d | %s", rs->cfra, rs->infostr);
     /* Flush stdout to be sure python callbacks are printing stuff after blender. */
@@ -215,21 +215,6 @@ static void stats_background(void * /*arg*/, RenderStats *rs)
   if (show_info) {
     fflush(stdout);
   }
-}
-
-static void stats_callback_only(void * /*arg*/, RenderStats *rs)
-{
-  if (rs->infostr == nullptr) {
-    return;
-  }
-
-  /* Compositor calls this from multiple threads, mutex lock to ensure we don't
-   * get garbled output. */
-  static Mutex mutex;
-  std::scoped_lock lock(mutex);
-
-  /* Same as `stats_background` but we don't print any logs to stdout. */
-  BKE_callback_exec_string(G_MAIN, rs->infostr, BKE_CB_EVT_RENDER_STATS);
 }
 
 void RE_ReferenceRenderResult(RenderResult *rr)
@@ -956,12 +941,7 @@ void RE_display_init(Render *re)
   re->display->current_scene_update_cb = current_scene_nothing;
   re->display->progress_cb = float_nothing;
   re->display->test_break_cb = default_break;
-  if (G.background) {
-    re->display->stats_draw_cb = stats_background;
-  }
-  else {
-    re->display->stats_draw_cb = stats_callback_only;
-  }
+  re->display->stats_draw_cb = stats_update;
 }
 
 void RE_display_ensure_gpu_context(Render *re)
