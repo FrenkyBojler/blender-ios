@@ -1,0 +1,1 @@
+Referenced by issue #158590, Vulkan Validation Error: A data race in a compute shader and no sufficient synchronization between vkCmdDrawIndexedIndirect.
