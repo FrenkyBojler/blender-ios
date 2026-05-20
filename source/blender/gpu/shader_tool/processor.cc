@@ -194,6 +194,7 @@ SourceProcessor::Result SourceProcessor::convert_bsl(metadata::Source external_s
   lower_aggregate_initializers(parser);
   lower_array_initializations(parser);
   lower_scope_resolution_operators(parser);
+  lower_structured_bindings(parser);
   /* Lower references. */
   lower_reference_arguments(parser);
   lower_reference_variables(parser);
@@ -205,6 +206,7 @@ SourceProcessor::Result SourceProcessor::convert_bsl(metadata::Source external_s
   /* GLSL syntax compatibility.
    * TODO(fclem): Remove. */
   lower_argument_qualifiers(parser);
+  lower_gather_component(parser);
 
   /* Cleanup to make output more human readable and smaller for runtime. */
   cleanup_whitespace(parser);
@@ -344,6 +346,10 @@ void SourceProcessor::parse_defines(Parser &parser)
 {
   parser().foreach_match<true>("#A", [&](const vector<Token> &tokens) {
     if (tokens[1].str() == "define") {
+      if (tokens[1].next().str().starts_with("LIGHT_STACK_SIZE_")) {
+        /* WORKAROUND: Avoid warning caused by EEVEE macro setup. */
+        return;
+      }
       metadata_.create_infos_defines.emplace_back(tokens[1].next().scope().str_with_whitespace());
     }
     if (tokens[1].str() == "undef") {
@@ -472,6 +478,7 @@ static std::string_view str_view_exclusive(Token tok)
 
 void SourceProcessor::parse_includes(Parser &parser)
 {
+  const string filename = filepath_.substr(filepath_.find_last_of('/') + 1);
   parser().foreach_match<true>("#A\"", [&](const vector<Token> &tokens) {
     if (tokens[1].str() != "include") {
       return;
@@ -504,6 +511,9 @@ void SourceProcessor::parse_includes(Parser &parser)
       dependency_name = dependency_name.substr(6);
     }
 
+    if (dependency_name == filename) {
+      report_error(tokens[2], "Recursive include");
+    }
     metadata_.dependencies.emplace_back(dependency_name);
   });
 }
@@ -1166,7 +1176,7 @@ void SourceProcessor::lint_reserved_tokens(Parser &parser)
   };
 
   parser().foreach_token(Word, [&](Token tok) {
-    if (reserved_symbols.find(string(tok.str())) != reserved_symbols.end()) {
+    if (reserved_symbols.contains(string(tok.str()))) {
       string err = string(tok.str()) + " is a reserved token";
       report_error(tok, err.c_str());
     }
@@ -1327,7 +1337,7 @@ void SourceProcessor::lower_aggregate_initializers(Parser &parser)
       if (t[0].prev() == Struct) {
         return;
       }
-      if (builtin_types.find(string(t[0].str())) != builtin_types.end()) {
+      if (builtin_types.contains(string(t[0].str()))) {
         report_error(t[0],
                      "Aggregate is error prone for built-in vector and matrix types, use "
                      "constructors instead");
@@ -1654,9 +1664,9 @@ void SourceProcessor::lower_reference_variables(Parser &parser)
       assignment.foreach_token(ParOpen, [&](const Token token) {
         string_view fn_name = token.prev().str();
         if ((fn_name != "specialization_constant_get") && (fn_name != "push_constant_get") &&
-            (fn_name != "interface_get") && (fn_name != "attribute_get") &&
-            (fn_name != "buffer_get") && (fn_name != "srt_access") && (fn_name != "sampler_get") &&
-            (fn_name != "image_get"))
+            (fn_name != "interface_get") && (fn_name != "resource_table_get") &&
+            (fn_name != "attribute_get") && (fn_name != "buffer_get") &&
+            (fn_name != "srt_access") && (fn_name != "sampler_get") && (fn_name != "image_get"))
         {
           report_error(token, "Reference definitions cannot contain function calls.");
         }
@@ -1744,6 +1754,23 @@ void SourceProcessor::lower_argument_qualifiers(Parser &parser)
       parser.replace(toks[0], "_ref(");
       parser.insert_after(toks[1], ",");
       parser.insert_after(toks[2], ")");
+    }
+  });
+  parser.apply_mutations();
+}
+
+void SourceProcessor::lower_gather_component(Parser &parser)
+{
+  parser().foreach_match("A(..)", [&](const Tokens &toks) {
+    if (toks[0].scope().type() == ScopeType::Preprocessor) {
+      /* Don't mutate the actual implementation. */
+      return;
+    }
+    Token component = toks.back().prev();
+    /* Assume that if there is a number at the end of argument list, it is the component id. */
+    if (toks[0].str() == "textureGather" && component == Number && component.prev() == Comma) {
+      parser.insert_after(toks[0], string(component.str()));
+      parser.erase(component.prev(), component);
     }
   });
   parser.apply_mutations();

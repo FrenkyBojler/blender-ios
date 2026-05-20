@@ -295,11 +295,10 @@ class BaseCryptoMatteOperation : public NodeOperation {
     }
 
     if (matte_output.should_compute()) {
-      matte_output.steal_data(matte);
+      matte_output.share_data(matte);
     }
-    else {
-      matte.release();
-    }
+
+    matte.release();
   }
 
   /* Computes the pick result, which is a special human-viewable image that the user can pick
@@ -801,7 +800,7 @@ class CryptoMatteOperation : public BaseCryptoMatteOperation {
        * instead. */
       Result layer_result = this->context().create_result(pass_result.type(),
                                                           pass_result.precision());
-      layer_result.wrap_external(pass_result);
+      layer_result.share_data(pass_result);
 
       layers.append(layer_result);
     }
@@ -915,7 +914,7 @@ static void node_register()
   ntype.enum_name_legacy = "CRYPTOMATTE_V2";
   ntype.nclass = NODE_CLASS_MATTE;
   ntype.declare = node_declare;
-  bke::node_type_size(ntype, 240, 100, 700);
+  ntype.default_width = bke::NodeWidth::_240;
   ntype.initfunc = node_init;
   ntype.initfunc_api = node_init_api;
   ntype.get_extra_info = node_extra_info;
@@ -1012,7 +1011,7 @@ class LegacyCryptoMatteOperation : public BaseCryptoMatteOperation {
       /* The layers will be released by the caller, so return a wrapper around the input result
        * instead. */
       Result layer_result = this->context().create_result(input.type(), input.precision());
-      layer_result.wrap_external(input);
+      layer_result.share_data(input);
 
       layers.append(layer_result);
     }

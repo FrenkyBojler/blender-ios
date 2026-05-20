@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 Alpha (b'b1f67602e773')\n"
+"Project-Id-Version: Blender 5.2.0 Alpha (b'bc0a0ff2c0ce')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-04-13 10:20+0000\n"
+"POT-Creation-Date: 2026-05-18 11:20+0000\n"
 "PO-Revision-Date: 2025-07-23 14:56+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Serbian (Latin script) <https://translate.blender.org/projects/blender-ui/ui/sr_Latn/>\n"
@@ -8498,48 +8498,12 @@ msgid "Material slot name"
 msgstr "Naziv slota materijala"
 
 
-msgid "Math"
-msgstr "Matematika"
-
-
-msgid "Merge"
-msgstr "Sjedini"
-
-
-msgid "Show/Hide"
-msgstr "Prikaži/sakrij"
-
-
-msgid "Special Characters"
-msgstr "Specijalni znaci"
-
-
-msgid "Metaball"
-msgstr "Meta lopta"
-
-
-msgid "Names"
-msgstr "Imena"
-
-
-msgid "Bone Roll"
-msgstr "Rolna kostiju"
+msgid "Mirror"
+msgstr "Ogledalo"
 
 
 msgid "Snap"
 msgstr "Lepljenje"
-
-
-msgid "Import"
-msgstr "Uvoz"
-
-
-msgid "UV"
-msgstr "UV"
-
-
-msgid "Mirror"
-msgstr "Ogledalo"
 
 
 msgid "UV Mapping"
@@ -8548,6 +8512,10 @@ msgstr "UV Mapiranje"
 
 msgid "Local View"
 msgstr "Lokalni pogled"
+
+
+msgid "Math"
+msgstr "Matematika"
 
 
 msgid "Navigation"
@@ -8562,12 +8530,20 @@ msgid "Select Linked"
 msgstr "Izaberi povezano"
 
 
+msgid "Metaball"
+msgstr "Meta lopta"
+
+
 msgid "Light"
 msgstr "Svetlost"
 
 
 msgid "Relations"
 msgstr "Odnosi"
+
+
+msgid "Import"
+msgstr "Uvoz"
 
 
 msgid "Rigid Body"
@@ -8586,16 +8562,16 @@ msgid "Quick Effects"
 msgstr "Brzi efekti"
 
 
-msgid "Keying"
-msgstr "Zbirka tastera"
+msgid "Show/Hide"
+msgstr "Prikaži/sakrij"
+
+
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Hooks"
 msgstr "Udice"
-
-
-msgid "Tracking"
-msgstr "Praćenje"
 
 
 msgid "Clear Transform"
@@ -8608,6 +8584,10 @@ msgstr "U međuvremenu"
 
 msgid "Propagate"
 msgstr "Prenesi"
+
+
+msgid "Names"
+msgstr "Imena"
 
 
 msgid "Toggle Bone Options"
@@ -8624,6 +8604,26 @@ msgstr "Onemogući opcije kostiju"
 
 msgid "Mesh Select Mode"
 msgstr "Mod izbora mreže"
+
+
+msgid "Merge"
+msgstr "Sjedini"
+
+
+msgid "Special Characters"
+msgstr "Specijalni znaci"
+
+
+msgid "Bone Roll"
+msgstr "Rolna kostiju"
+
+
+msgid "Keying"
+msgstr "Zbirka tastera"
+
+
+msgid "Tracking"
+msgstr "Praćenje"
 
 
 msgid "Basic"
@@ -11247,11 +11247,6 @@ msgstr "Uvoz BVH"
 
 
 msgctxt "Operator"
-msgid "Import SVG"
-msgstr "Uvoz SVG"
-
-
-msgctxt "Operator"
 msgid "Import FBX"
 msgstr "Izvoz FBX"
 
@@ -11991,6 +11986,10 @@ msgid "Add Bone"
 msgstr "Dodaj kost"
 
 
+msgid "Axes"
+msgstr "Ose"
+
+
 msgid "Name of the newly created bone"
 msgstr "Ime novoformirane kosti"
 
@@ -12040,6 +12039,10 @@ msgstr "Dupliraj izabranu kost/i"
 
 msgid "Move"
 msgstr "Pomeri"
+
+
+msgid "Search"
+msgstr "Pretraga"
 
 
 msgctxt "Operator"
@@ -18189,10 +18192,6 @@ msgid "Average Islands Scale"
 msgstr "Prosečna veličina ostrva"
 
 
-msgid "Axis Direction"
-msgstr "Smer osa"
-
-
 msgctxt "Operator"
 msgid "Cube Projection"
 msgstr "Kubična projekcija"
@@ -20164,10 +20163,6 @@ msgstr "Ograniči veličinu teksture radi uštede memorije grafičke kartice"
 
 msgid "Device"
 msgstr "Uređaj"
-
-
-msgid "2D Texture"
-msgstr "2D tekstura"
 
 
 msgid "Ambient Color"
@@ -22344,10 +22339,6 @@ msgid "Operator Properties"
 msgstr "Osobine operatora"
 
 
-msgid "Search"
-msgstr "Pretraga"
-
-
 msgctxt "WindowManager"
 msgid "Window"
 msgstr "Prozor"
@@ -22723,10 +22714,6 @@ msgstr "Dodaj ograničenja kosti"
 
 msgid "Shapes"
 msgstr "Oblici"
-
-
-msgid "Axes"
-msgstr "Ose"
 
 
 msgctxt "Operator"
@@ -23996,10 +23983,6 @@ msgstr "Modifikator vrednosti F-krive"
 
 msgid "Nothing selected"
 msgstr "Ništa nije izabrano"
-
-
-msgid "Pin"
-msgstr "Zakači"
 
 
 msgctxt "Operator"

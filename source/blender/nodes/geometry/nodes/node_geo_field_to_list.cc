@@ -33,6 +33,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description("The number of elements in the list");
 
   const bNode *node = b.node_or_null();
+  const bNodeTree *tree = b.tree_or_null();
   if (!node) {
     return;
   }
@@ -46,7 +47,9 @@ static void node_declare(NodeDeclarationBuilder &b)
     const std::string output_identifier = ItemsAccessor::output_socket_identifier_for_item(item);
     const UString name(item.name);
 
-    b.add_input(type, name, UString(input_identifier)).supports_field();
+    b.add_input(type, name, UString(input_identifier))
+        .supports_field()
+        .socket_name_ptr(&tree->id, *ItemsAccessor::item_srna, &item, "name");
     b.add_output(type, name, UString(output_identifier))
         .structure_type(StructureType::List)
         .align_with_previous()
@@ -75,9 +78,6 @@ static void node_layout_ex(ui::Layout &layout, bContext *C, PointerRNA *ptr)
 
 static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
 {
-  if (!U.experimental.use_geometry_nodes_lists) {
-    return;
-  }
   const eNodeSocketDatatype data_type = eNodeSocketDatatype(params.other_socket().type);
   if (params.in_out() == SOCK_IN) {
     if (params.node_tree().typeinfo->validate_link(data_type, SOCK_INT)) {
@@ -86,20 +86,24 @@ static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
         params.update_and_connect_available_socket(node, "Count"_ustr);
       });
     }
-    params.add_item(IFACE_("Field"), [data_type](LinkSearchOpParams &params) {
-      bNode &node = params.add_node("GeometryNodeFieldToList"_ustr);
-      socket_items::add_item_with_socket_type_and_name<ItemsAccessor>(
-          params.node_tree, node, data_type, params.socket.name);
-      params.update_and_connect_available_socket(node, UString(params.socket.name));
-    });
+    if (ItemsAccessor::supports_socket_type(data_type, NTREE_GEOMETRY)) {
+      params.add_item(IFACE_("Field"), [data_type](LinkSearchOpParams &params) {
+        bNode &node = params.add_node("GeometryNodeFieldToList"_ustr);
+        socket_items::add_item_with_socket_type_and_name<ItemsAccessor>(
+            params.node_tree, node, data_type, params.socket.name);
+        params.update_and_connect_available_socket(node, UString(params.socket.name));
+      });
+    }
   }
   else {
-    params.add_item(IFACE_("List"), [data_type](LinkSearchOpParams &params) {
-      bNode &node = params.add_node("GeometryNodeFieldToList"_ustr);
-      socket_items::add_item_with_socket_type_and_name<ItemsAccessor>(
-          params.node_tree, node, data_type, params.socket.name);
-      params.update_and_connect_available_socket(node, UString(params.socket.name));
-    });
+    if (ItemsAccessor::supports_socket_type(data_type, NTREE_GEOMETRY)) {
+      params.add_item(IFACE_("List"), [data_type](LinkSearchOpParams &params) {
+        bNode &node = params.add_node("GeometryNodeFieldToList"_ustr);
+        socket_items::add_item_with_socket_type_and_name<ItemsAccessor>(
+            params.node_tree, node, data_type, params.socket.name);
+        params.update_and_connect_available_socket(node, UString(params.socket.name));
+      });
+    }
   }
 }
 
@@ -131,18 +135,18 @@ static void node_geo_exec(GeoNodeExecParams params)
     fields.append(params.extract_input<fn::GField>(UString(identifier)));
   }
 
-  Vector<ListPtr> lists(required_items.size());
+  Vector<GListPtr> lists(required_items.size());
   for (const int i : required_items.index_range()) {
     const int item_i = required_items[i];
     const auto type = eNodeSocketDatatype(items[item_i].socket_type);
     const CPPType &cpp_type = *bke::socket_type_to_geo_nodes_base_cpp_type(type);
-    lists[i] = List::create(cpp_type, List::ArrayData::ForUninitialized(cpp_type, count), count);
+    lists[i] = GList::create(cpp_type, GList::ArrayData::ForUninitialized(cpp_type, count), count);
   }
 
   Array<GMutableSpan> list_values(lists.size());
   for (const int i : lists.index_range()) {
     list_values[i] = {lists[i]->cpp_type(),
-                      const_cast<void *>(std::get<List::ArrayData>(lists[i]->data()).data),
+                      const_cast<void *>(std::get<GList::ArrayData>(lists[i]->data()).data),
                       count};
   }
 
@@ -150,7 +154,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   fn::FieldEvaluator evaluator{context, count};
   for (const int i : fields.index_range()) {
     GMutableSpan values(lists[i]->cpp_type(),
-                        const_cast<void *>(std::get<List::ArrayData>(lists[i]->data()).data),
+                        const_cast<void *>(std::get<GList::ArrayData>(lists[i]->data()).data),
                         count);
     evaluator.add_with_destination(std::move(fields[i]), values);
   }

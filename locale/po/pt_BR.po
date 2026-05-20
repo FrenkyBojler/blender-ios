@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 Alpha (b'b1f67602e773')\n"
+"Project-Id-Version: Blender 5.2.0 Alpha (b'bc0a0ff2c0ce')\n"
 "Report-Msgid-Bugs-To: Leandro Paganelli <leandrobp@fastmail.com>\n"
-"POT-Creation-Date: 2026-04-13 10:20+0000\n"
+"POT-Creation-Date: 2026-05-18 11:20+0000\n"
 "PO-Revision-Date: 2026-04-13 10:12+0000\n"
 "Last-Translator: Gilberto Rodrigues <gilbertorodrigues@outlook.com>\n"
 "Language-Team: Portuguese (Brazil) <https://translate.blender.org/projects/blender-ui/ui/pt_BR/>\n"
@@ -1675,10 +1675,6 @@ msgstr "Mostrar os itens atualmente disponíveis nesta sessão do Blender"
 
 msgid "Essentials"
 msgstr "Essenciais"
-
-
-msgid "Show the basic building blocks and utilities coming with Blender"
-msgstr "Mostre os blocos de construção básicos e utilidades que vêm com o Blender"
 
 
 msgid "Custom"
@@ -12079,10 +12075,6 @@ msgid "When this is disabled, lock alpha while painting"
 msgstr "Caso esta opção esteja desabilitada, impede modificações do alfa durante a pintura."
 
 
-msgid "Cavity Mask"
-msgstr "Máscara de cavidade"
-
-
 msgid "Use Cursor Overlay"
 msgstr "Usar sobreposição de cursor"
 
@@ -21200,68 +21192,12 @@ msgid "Material slot name"
 msgstr "Nome do compartimento do material."
 
 
-msgid "Face Data"
-msgstr "Dados das faces"
-
-
-msgid "Math"
-msgstr "Matemática"
-
-
-msgid "Clean Up"
-msgstr "Limpeza"
-
-
-msgid "Merge"
-msgstr "Fundir"
-
-
-msgid "Show/Hide"
-msgstr "Mostrar ou ocultar"
-
-
-msgid "Special Characters"
-msgstr "Caracteres especiais"
-
-
-msgid "Metaball"
-msgstr "Meta-esfera"
-
-
-msgid "Names"
-msgstr "Nomes"
-
-
-msgid "Bone Roll"
-msgstr "Rolagem dos ossos"
-
-
-msgid "Instances"
-msgstr "Instâncias"
-
-
-msgid "Pivot Point"
-msgstr "Pontos de pivô"
+msgid "Mirror"
+msgstr "Espelhar"
 
 
 msgid "Snap"
 msgstr "Atrair"
-
-
-msgid "Import"
-msgstr "Importar"
-
-
-msgid "Proportional Editing Falloff"
-msgstr "Tipo de decaimento para edição proporcional"
-
-
-msgid "UV"
-msgstr "UV"
-
-
-msgid "Mirror"
-msgstr "Espelhar"
 
 
 msgid "UV Mapping"
@@ -21274,6 +21210,10 @@ msgstr "Visão local"
 
 msgid "Viewpoint"
 msgstr "Ponto de visualização"
+
+
+msgid "Math"
+msgstr "Matemática"
 
 
 msgid "Navigation"
@@ -21312,12 +21252,20 @@ msgid "Select Loops"
 msgstr "Selecionar anéis"
 
 
+msgid "Metaball"
+msgstr "Meta-esfera"
+
+
 msgid "Light"
 msgstr "Luz"
 
 
 msgid "Light Probe"
 msgstr "Sonda de Luz"
+
+
+msgid "Instances"
+msgstr "Instâncias"
 
 
 msgid "Add Image"
@@ -21328,8 +21276,8 @@ msgid "Relations"
 msgstr "Relações"
 
 
-msgid "Layout"
-msgstr "Organizar"
+msgid "Import"
+msgstr "Importar"
 
 
 msgid "Rigid Body"
@@ -21348,6 +21296,14 @@ msgid "Quick Effects"
 msgstr "Efeitos instantâneos"
 
 
+msgid "Show/Hide"
+msgstr "Mostrar ou ocultar"
+
+
+msgid "Clean Up"
+msgstr "Limpeza"
+
+
 msgid "Make Single User"
 msgstr "Tornar usuário único"
 
@@ -21356,16 +21312,12 @@ msgid "Convert"
 msgstr "Converter"
 
 
-msgid "Keying"
-msgstr "Inserção de chaves"
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Hooks"
 msgstr "Ganchos"
-
-
-msgid "Tracking"
-msgstr "Rastreamento"
 
 
 msgid "Random Mask"
@@ -21384,6 +21336,10 @@ msgid "Propagate"
 msgstr "Propagar"
 
 
+msgid "Names"
+msgstr "Nomes"
+
+
 msgid "Toggle Bone Options"
 msgstr "Alternar opções de ossos"
 
@@ -21398,6 +21354,42 @@ msgstr "Desabilitar as opções de ossos"
 
 msgid "Mesh Select Mode"
 msgstr "Modo de seleção de malhas"
+
+
+msgid "Face Data"
+msgstr "Dados das faces"
+
+
+msgid "Merge"
+msgstr "Fundir"
+
+
+msgid "Layout"
+msgstr "Organizar"
+
+
+msgid "Special Characters"
+msgstr "Caracteres especiais"
+
+
+msgid "Bone Roll"
+msgstr "Rolagem dos ossos"
+
+
+msgid "Keying"
+msgstr "Inserção de chaves"
+
+
+msgid "Tracking"
+msgstr "Rastreamento"
+
+
+msgid "Pivot Point"
+msgstr "Pontos de pivô"
+
+
+msgid "Proportional Editing Falloff"
+msgstr "Tipo de decaimento para edição proporcional"
 
 
 msgid "Basic"
@@ -21647,6 +21639,10 @@ msgstr "Sobre"
 
 msgid "Quick Setup"
 msgstr "Configuração Rápida"
+
+
+msgid "Cavity Mask"
+msgstr "Máscara de cavidade"
 
 
 msgid "Mesh Edge"
@@ -28008,14 +28004,6 @@ msgid "Collection of Node Sockets"
 msgstr "Coleção de conectores de nós."
 
 
-msgid "Node Instance Hash"
-msgstr "Chave de aferição de instâncias de nós"
-
-
-msgid "Hash table containing node instance data"
-msgstr "Chave de aferição contendo dados de instâncias de nós."
-
-
 msgid "Socket Template"
 msgstr "Modelo de conector"
 
@@ -28641,11 +28629,6 @@ msgstr "Importar BVH"
 
 msgid "Load a SVG file"
 msgstr "Carrega um arquivo de gráficos vetoriais escalonáveis (.svg)."
-
-
-msgctxt "Operator"
-msgid "Import SVG"
-msgstr "Importar SVG"
 
 
 msgid "Load a FBX file"
@@ -29781,12 +29764,12 @@ msgid "Flip times of selected keyframes using the current frame as the mirror li
 msgstr "Vira os tempos dos quadros-chave selecionados usando o quadro atual como linha de espelhamento."
 
 
-msgid "Flip values of selected keyframes (i.e. negative values become positive, and vice versa)"
-msgstr "Vira os valores dos quadros-chave selecionados (por exemplo, os valores negativos tornam-se positivos, e vice-versa)."
-
-
 msgid "Flip times of selected keyframes using the first selected marker as the reference point"
 msgstr "Vira os tempos dos quadros-chave selecionados usando o primeiro marcador selecionado como ponto de referência."
+
+
+msgid "Flip values of selected keyframes (i.e. negative values become positive, and vice versa)"
+msgstr "Vira os valores dos quadros-chave selecionados (por exemplo, os valores negativos tornam-se positivos, e vice-versa)."
 
 
 msgctxt "Operator"
@@ -30600,6 +30583,10 @@ msgid "Add Bone"
 msgstr "Adicionar osso"
 
 
+msgid "Axes"
+msgstr "Eixos"
+
+
 msgid "Name of the newly created bone"
 msgstr "Nome do osso recentemente criado"
 
@@ -30719,6 +30706,10 @@ msgstr "Duplicar os ossos selecionados"
 
 msgid "Move"
 msgstr "Mover"
+
+
+msgid "Search"
+msgstr "Pesquisar"
 
 
 msgctxt "Operator"
@@ -34560,12 +34551,12 @@ msgid "Next Keyframe"
 msgstr "Próximo quadro-chave"
 
 
-msgid "Flip values of selected keyframes using the cursor value (Y/Horizontal component) as the mirror line"
-msgstr "Inverte os valores dos quadros-chave selecionados usando o valor do cursor (componente Horizontal / Y) como a linha de espelhamento."
-
-
 msgid "Flip times of selected keyframes, effectively reversing the order they appear in"
 msgstr "Vira os tempos dos quadros-chave selecionados, efetivamente revertendo a ordem na qual eles aparecem."
+
+
+msgid "Flip values of selected keyframes using the cursor value (Y/Horizontal component) as the mirror line"
+msgstr "Inverte os valores dos quadros-chave selecionados usando o valor do cursor (componente Horizontal / Y) como a linha de espelhamento."
 
 
 msgctxt "Operator"
@@ -43361,11 +43352,6 @@ msgid "Move selected area edges"
 msgstr "Move as arestas da área selecionada."
 
 
-msgctxt "Operator"
-msgid "Area Options"
-msgstr "Opções para as áreas"
-
-
 msgid "Operations for splitting and merging"
 msgstr "Mostra as operações disponíveis para divisão e fusão das áreas dos editores."
 
@@ -45532,14 +45518,6 @@ msgstr "Escalonar as ilhas por uma média"
 
 msgid "Average the size of separate UV islands, based on their area in 3D space"
 msgstr "Escalona as ilhas para uma média das faces UV separadas, com base em sua área no espaço 3D."
-
-
-msgid "Copy mirror UV coordinates on the X axis based on a mirrored mesh"
-msgstr "Copia as coordenadas de espelhamento de UV no eixo X com base em uma malha espelhada."
-
-
-msgid "Axis Direction"
-msgstr "Direção do eixo"
 
 
 msgid "Tolerance for finding vertex duplicates"
@@ -50739,14 +50717,6 @@ msgstr "Limita o tamanho de textura para poupar memória gráfica."
 
 msgid "Device"
 msgstr "Dispositivo"
-
-
-msgid "Method used for displaying images on the screen"
-msgstr "Método usado para mostrar imagens na tela."
-
-
-msgid "2D Texture"
-msgstr "Textura 2D"
 
 
 msgid "Legacy Compute Device Type"
@@ -58530,10 +58500,6 @@ msgid "Session State"
 msgstr "Estado da Sessão"
 
 
-msgid "Search"
-msgstr "Pesquisar"
-
-
 msgctxt "WindowManager"
 msgid "Window"
 msgstr "Janela"
@@ -59375,10 +59341,6 @@ msgstr "Deslocamento do pivô"
 
 msgid "Shapes"
 msgstr "Formatos"
-
-
-msgid "Axes"
-msgstr "Eixos"
 
 
 msgid "Control Rotation"
@@ -62729,6 +62691,10 @@ msgid "Edge-rings are not connected"
 msgstr "Anéis de arestas não estão conectados."
 
 
+msgid "Anisotropic"
+msgstr "Anisotrópico"
+
+
 msgid "NLA Strip Controls"
 msgstr "Controles das faixas de animação não linear"
 
@@ -63177,10 +63143,6 @@ msgstr "%s: %s"
 
 msgid "Non-Keyboard Shortcut"
 msgstr "Atalhos não relacionados ao teclado"
-
-
-msgid "Pin"
-msgstr "Afixar"
 
 
 msgid "Only keyboard shortcuts can be edited that way, please use User Preferences otherwise"
@@ -66627,10 +66589,6 @@ msgid "Unable to create socket"
 msgstr "Não é possível de criar conector"
 
 
-msgid "Anisotropic"
-msgstr "Anisotrópico"
-
-
 msgid "Same input/output direction of sockets"
 msgstr "Mesma direção de entrada ou saída de conectores."
 
@@ -67346,10 +67304,6 @@ msgstr "Nenhuma visualização ativa encontrada na cena \"%s\""
 
 msgid "%s: no Combined pass found in the render layer '%s'"
 msgstr "%s: Nenhum passo combinado foi encontrado dentro da camada de renderização '%s'"
-
-
-msgid "%s: failed to allocate clip buffer '%s'"
-msgstr "%s: falha ao alocar o buffer de corte '%s'"
 
 
 msgid "%s: incorrect dimensions for partial copy '%s'"
