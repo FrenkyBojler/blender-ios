@@ -117,6 +117,7 @@ const FlatBundleTypePtr &RodStretchShearBundle::get_bundle_type()
     add_filter(b);
     b.add<decl::Float>("rest_length"_ustr).min(0.0f).supports_field();
     b.add<decl::Float>("compliance"_ustr).default_value(1e-4f).min(0.0f);
+    b.add<decl::Float>("error_threshold"_ustr).default_value(1e-3f).min(1e-5f).max(1.0f);
     b.add<decl::String>("lambda_position_attribute"_ustr);
     b.add<decl::String>("lambda_rotation_attribute"_ustr);
     const FlatBundleTypePtr bundle_type = b.build();

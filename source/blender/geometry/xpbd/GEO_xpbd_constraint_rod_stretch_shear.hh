@@ -17,6 +17,7 @@ struct RodStretchAndShearConstraintResult {
   float3 offset0 = float3(0.0f);
   float3 offset1 = float3(0.0f);
   math::Quaternion offset_rot = math::Quaternion(0.0f, 0.0f, 0.0f, 0.0f);
+  float residual_error_squared = 0.0f;
 };
 
 inline RodStretchAndShearConstraintResult evaluate_rod_stretch_and_shear_constraint(
@@ -56,6 +57,9 @@ inline RodStretchAndShearConstraintResult evaluate_rod_stretch_and_shear_constra
   const float3 residual_pos = p_diff - forward_rest;
   const float3 residual_rot = p_diff - forward;
 
+  const float error_squared = math::length_squared(
+      residual_pos + compliance_term * (lambda_pos_prev + lambda_rot_prev));
+
   /* Based on "Position and Orientation Based Cosserat Rods" (Kugelstadt, Schömer, 2016). */
   const float weight_sum = inv_m0 + inv_m1 + 4.0f * inv_lumped_inertia * pow2f(rest_length);
   const float weight_sum_rot = inv_m0 + inv_m1 + 4.0f * inv_lumped_inertia * pow2f(p_len);
@@ -71,6 +75,7 @@ inline RodStretchAndShearConstraintResult evaluate_rod_stretch_and_shear_constra
   result.offset1 = delta_lambda_pos * inv_m1;
   result.offset_rot = math::Quaternion(0.0f, -delta_lambda_rot * inv_lumped_inertia * p_len) *
                       rot * math::Quaternion(0, 0, 0, -1);
+  result.residual_error_squared = error_squared;
   return result;
 }
 
@@ -94,6 +99,9 @@ class RodStretchAndShearConstraintSet
   /** Indexed by `point_i - first_point_i_in_constraint_set`. */
   Span<float> compliances_;
 
+  /* Threshold value for scaling the total residual error. */
+  float error_threshold_squared_;
+
  public:
   static constexpr StringRefNull debug_name = "Rod Stretch and Shear";
 
@@ -102,6 +110,7 @@ class RodStretchAndShearConstraintSet
                                   const OffsetIndices<int> points_by_curve,
                                   const Span<float> rest_lengths,
                                   const Span<float> compliances,
+                                  const float error_threshold_squared,
                                   MutableSpan<float3> lambdas_pos,
                                   MutableSpan<float3> lambdas_rot)
       : TemplatedConstraintSet<RodStretchAndShearConstraintSet>(curves_range.size(), {geo_i}),
@@ -110,7 +119,8 @@ class RodStretchAndShearConstraintSet
         rest_lengths_(rest_lengths),
         lambdas_pos_(lambdas_pos),
         lambdas_rot_(lambdas_rot),
-        compliances_(compliances)
+        compliances_(compliances),
+        error_threshold_squared_(error_threshold_squared)
   {
   }
 
@@ -131,6 +141,7 @@ class RodStretchAndShearConstraintSet
     const IndexRange points = points_by_curve_[curve_i];
     const int geo_i = affected_geo_indices_[0];
     const int first_point_i_in_constraint_set = points_by_curve_[curves_range_.first()].first();
+    const float error_scale = 1.0f / std::max(error_threshold_squared_, 1e-12f);
 
     /* Could try implementing bilateral interleaving ordering for better stability. */
     for (const int point_i0 : points.drop_back(1)) {
@@ -152,6 +163,7 @@ class RodStretchAndShearConstraintSet
       updater.update_position(geo_i, point_i0, result.offset0);
       updater.update_position(geo_i, point_i1, result.offset1);
       updater.update_rotation(geo_i, point_i0, result.offset_rot);
+      updater.add_residual_error(geo_i, result.residual_error_squared * error_scale);
     }
   }
 

@@ -21,9 +21,13 @@ inline math::Quaternion apply_rotation_offset(math::Quaternion rotation, float4 
 class GaussSeidelUpdater {
  private:
   Span<GeometryRef> geometry_refs_;
+  float &total_error_squared_ref_;
 
  public:
-  GaussSeidelUpdater(Span<GeometryRef> geometry_refs) : geometry_refs_(geometry_refs) {}
+  GaussSeidelUpdater(Span<GeometryRef> geometry_refs, float &total_error_squared_ref)
+      : geometry_refs_(geometry_refs), total_error_squared_ref_(total_error_squared_ref)
+  {
+  }
 
   void update_position(const int geo_i, const int point_i, const float3 &offset)
   {
@@ -33,6 +37,12 @@ class GaussSeidelUpdater {
   {
     math::Quaternion &rotation = geometry_refs_[geo_i].rotations[point_i];
     rotation = apply_rotation_offset(rotation, float4(offset));
+  }
+  void add_residual_error(const int /*geo_i*/, const float error_squared)
+  {
+    /* TODO Geometry index is ignored for now for simplicity. We could record a separate error for
+     * each geometry. */
+    total_error_squared_ref_ += error_squared;
   }
 };
 

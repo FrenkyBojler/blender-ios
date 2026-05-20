@@ -107,6 +107,7 @@ static void node_declare(NodeDeclarationBuilder &b)
     auto &solver_panel = b.add_panel("Solver"_ustr).default_closed(true);
     solver_panel.add_input<decl::Int>("Substeps"_ustr).default_value(10).min(1);
     solver_panel.add_input<decl::Int>("Constraint Iterations"_ustr).default_value(1).min(1);
+    solver_panel.add_output<decl::Float>("Quality"_ustr).subtype(PROP_PERCENTAGE);
   }
   {
     auto &p = b.add_panel("Interpolation Range"_ustr).default_closed(true);
@@ -149,6 +150,7 @@ struct DampingConstraintUsage {
 
 struct RodStretchShearConstraint {
   std::string path;
+  float error_threshold;
   std::string lambda_pos_attr;
   std::string lambda_rot_attr;
 };
@@ -158,6 +160,7 @@ struct RodStretchShearConstraintUsage {
   bool is_valid = false;
   VArraySpan<float> rest_lengths;
   VArrayRangeSpans<float> compliances;
+  float error_threshold;
   MutableSpan<float3> lambdas_pos;
   MutableSpan<float3> lambdas_rot;
 };
@@ -362,6 +365,9 @@ struct GeometryData {
 
   Vector<ConstraintWithColoring> static_constraints;
 
+  /* Total residual error after constraint solve. */
+  float residual_error_squared;
+
   GeometryData(const bke::MutableAttributeAccessor attributes) : attributes(attributes) {}
 };
 
@@ -527,6 +533,9 @@ struct ChunkData {
 
   ExternalFaceContacts external_face_contacts;
   ExternalEdgeContacts external_edge_contacts;
+
+  /* Total squared residual error. */
+  float error_squared;
 };
 
 struct ConstraintsInfo {
@@ -543,6 +552,15 @@ struct ConstraintsInfo {
 };
 
 class XpbdSolverStep {
+ public:
+  struct Result {
+    /* Average relative residual error of all constraints. The average absolute error of a specific
+     * constraint type is scaled by a threshold value, anything below the threshold is considered
+     * "solved". This allows combining constraint residuals of different types into a single value.
+     */
+    float total_residual_error;
+  };
+
  private:
   struct TLS {
     ResourceScope scope;
@@ -576,6 +594,7 @@ class XpbdSolverStep {
 
   Mutex field_evaluators_mutex_;
 
+  Result result_;
   Mutex warnings_mutex_;
   VectorSet<std::pair<NodeWarningType, std::string>> warnings_;
 
@@ -630,7 +649,7 @@ class XpbdSolverStep {
       this->create_chunk_constraints__pin_rotations(tls, chunk_i);
     });
 
-    this->do_simulation();
+    result_ = this->do_simulation();
 
     this->write_back__pin_positions();
     this->write_back__rod_stretch_shear();
@@ -639,6 +658,11 @@ class XpbdSolverStep {
     this->write_back_geometries_to_world();
 
     this->write_back__contacts();
+  }
+
+  const Result &result() const
+  {
+    return result_;
   }
 
   Span<std::pair<NodeWarningType, std::string>> warnings() const
@@ -1682,6 +1706,7 @@ class XpbdSolverStep {
       const Bundle &bundle = **world_.lookup_path_ptr<BundlePtr>(path);
       RodStretchShearConstraint constraint;
       constraint.path = path;
+      constraint.error_threshold = bundle.lookup<float>("error_threshold"_ustr).value_or(1e-3f);
       constraint.lambda_pos_attr =
           bundle.lookup<std::string>("lambda_position_attribute"_ustr).value_or("");
       constraint.lambda_rot_attr =
@@ -1727,6 +1752,7 @@ class XpbdSolverStep {
                 geo_data.domain,
                 0.0f));
         constraint_usage.rest_lengths = std::move(rest_lengths);
+        constraint_usage.error_threshold = constraint.error_threshold;
         constraint_usage.is_valid = true;
 
         constraint_usage.lambdas_pos = tls.allocator.allocate_array<float3>(geo_data.size);
@@ -1758,6 +1784,7 @@ class XpbdSolverStep {
               points_by_curve,
               constraint_usage.rest_lengths,
               constraint_usage.compliances.get_span_for_range(chunk.points_range),
+              math::square(constraint_usage.error_threshold),
               constraint_usage.lambdas_pos,
               constraint_usage.lambdas_rot));
     }
@@ -2417,12 +2444,16 @@ class XpbdSolverStep {
     }
   }
 
-  void do_simulation()
+  Result do_simulation()
   {
     this->prepare_solver_geometry_refs();
+    float total_error_squared = 0.0f;
 
     if (this->support_chunk_simulation()) {
+      threading::EnumerableThreadSpecific<float> total_error_squared_tls(0.0f);
+
       this->parallel_for_each_chunk(1, [&](const int chunk_i) {
+        float chunk_error_squared;
         int solver_refs_i = 0;
         for (const int substep_i : IndexRange(substeps_)) {
           const SubstepInterval substep(
@@ -2434,8 +2465,9 @@ class XpbdSolverStep {
 
           const Span<xpbd::GeometryRef> solver_refs = geometries_.solver_refs[solver_refs_i];
           xpbd::ConstraintSetParams solve_params{solver_refs, sub_delta_time_};
-          xpbd::GaussSeidelUpdater updater{solver_refs};
+          xpbd::GaussSeidelUpdater updater{solver_refs, chunk_error_squared};
           for ([[maybe_unused]] const int iter_i : IndexRange(constraint_iterations_)) {
+            chunk_error_squared = 0.0f;
             this->simulate__position_solve__single_iteration__chunk(
                 chunk_i, solve_params, updater);
           }
@@ -2445,7 +2477,13 @@ class XpbdSolverStep {
           solver_refs_i = 1 - solver_refs_i;
         }
         this->simulate__ensure_final_data_in_outputs__chunk(chunk_i);
+
+        total_error_squared_tls.local() += chunk_error_squared;
       });
+
+      for (const float error_squared : total_error_squared_tls) {
+        total_error_squared += error_squared;
+      }
     }
     else {
       int solver_refs_i = 0;
@@ -2459,7 +2497,7 @@ class XpbdSolverStep {
         this->simulate__gather_dynamic_constraints(substep, solver_refs_i);
         this->simulate__reset_forces();
         for ([[maybe_unused]] const int iter_i : IndexRange(constraint_iterations_)) {
-          this->simulate__position_solve__single_iteration(solver_refs_i);
+          this->simulate__position_solve__single_iteration(solver_refs_i, total_error_squared);
         }
         this->parallel_for_each_chunk(16, [&](const int chunk_i) {
           this->simulate__update_velocities__chunk(chunk_i, solver_refs_i);
@@ -2471,6 +2509,8 @@ class XpbdSolverStep {
         solver_refs_i = 1 - solver_refs_i;
       }
     }
+
+    return Result{math::sqrt(total_error_squared)};
   }
 
   bool support_chunk_simulation() const
@@ -2648,13 +2688,15 @@ class XpbdSolverStep {
     }
   }
 
-  void simulate__position_solve__single_iteration(const int solver_refs_i)
+  void simulate__position_solve__single_iteration(const int solver_refs_i,
+                                                  float &r_total_error_squared)
   {
     const Span<xpbd::GeometryRef> solver_refs = geometries_.solver_refs[solver_refs_i];
     xpbd::ConstraintSetParams solve_params{solver_refs, sub_delta_time_};
-    xpbd::GaussSeidelUpdater updater{solver_refs};
+    threading::EnumerableThreadSpecific<float> total_error_squared_tls(0.0f);
 
     this->parallel_for_each_chunk(1, [&](const int chunk_i) {
+      xpbd::GaussSeidelUpdater updater{solver_refs, total_error_squared_tls.local()};
       this->simulate__position_solve__single_iteration__chunk(chunk_i, solve_params, updater);
     });
 
@@ -2665,10 +2707,16 @@ class XpbdSolverStep {
           const IndexMask &mask = constraint.coloring.colors[color_i];
           threading::parallel_for(mask.index_range(), 512, [&](const IndexRange range) {
             const IndexMask sliced_mask = mask.slice(range);
+            xpbd::GaussSeidelUpdater updater{solver_refs, total_error_squared_tls.local()};
             constraint.constraint->solve_sequential(solve_params, updater, sliced_mask);
           });
         }
       }
+    }
+
+    r_total_error_squared = 0.0f;
+    for (const float error_squared : total_error_squared_tls) {
+      r_total_error_squared += error_squared;
     }
   }
 
@@ -3337,6 +3385,8 @@ static void node_geo_exec(GeoNodeExecParams params)
                       simulation_to_world);
   step.do_step();
 
+  const float quality = 100.0f / std::max(step.result().total_residual_error, 1.0f);
+  params.set_output("Quality"_ustr, quality);
   for (const std::pair<NodeWarningType, std::string> &warning : step.warnings()) {
     params.error_message_add(warning.first, warning.second);
   }
