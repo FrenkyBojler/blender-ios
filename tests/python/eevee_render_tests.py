@@ -281,8 +281,8 @@ def main():
     report.set_fail_threshold(4.0 / 255.0)
 
     test_dir_name = Path(args.testdir).name
-    if gpu_vendor == "NVIDIA":
-        # References are supposed to be generated on Nvidia. Tighten the threshold for this platform.
+    if gpu_vendor == "NVIDIA" and args.gpu_backend == "opengl":
+        # References are supposed to be generated on OpenGL Nvidia. Tighten the threshold for this platform.
         report.set_fail_percent(0.04)
         report.set_fail_threshold(2.0 / 255.0)
     elif test_dir_name.startswith('camera'):
