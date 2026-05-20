@@ -1319,11 +1319,6 @@ void animviz_tag_for_motion_path_eval(wmWindow &window,
  * This can have big performance implications.
  */
 void animviz_calc_motionpaths(Depsgraph *depsgraph,
-                              Main *bmain,
-                              Scene *scene,
-                              MutableSpan<MPathTarget *> targets,
-                              eAnimvizCalcRange range);
-void animviz_calc_motionpaths(Depsgraph *depsgraph,
                               MutableSpan<MPathTarget> targets,
                               Bounds<int> frame_range);
 
@@ -1338,16 +1333,9 @@ void animviz_motionpath_compute_range(Object *ob, Scene *scene);
 
 /**
  * Populate the given vector with MPathTarget elements for the given object.
- * Will look for pose bones as well. `animviz_free_motionpath_targets` needs to be called
- * to free the memory allocated in this function.
+ * Will look for pose bones as well.
  */
 void animviz_build_motionpath_targets(Object *ob, Vector<MPathTarget> &r_targets);
-
-/**
- * Free the elements of the vector populated with `animviz_build_motionpath_targets`.
- * After this function the Vector will have a length of 0.
- */
-void animviz_free_motionpath_targets(Vector<MPathTarget *> &targets);
 
 /** \} */
 
