@@ -180,6 +180,13 @@ bool BKE_scene_validate_setscene(Main *bmain, Scene *sce);
  * remapping. This the time value used by animation, modifiers and physics
  * evaluation. */
 float BKE_scene_ctime_get(const Scene *scene);
+
+/**
+ * Return the frame number converted into time in seconds, using the scene's fps.
+ * Also specify if time remapping should be considered or not.
+ */
+float BKE_frame_to_seconds_get(const Scene *scene, float frame, bool use_time_stretch);
+
 /**
  * Convert integer frame number to fractional frame number taking into account
  * sub-frames and time remapping.

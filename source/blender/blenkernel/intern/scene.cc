@@ -2522,6 +2522,14 @@ float BKE_scene_frame_to_ctime(const Scene *scene, const int frame)
   return ctime;
 }
 
+float BKE_frame_to_seconds_get(const Scene *scene, const float frame, const bool use_time_stretch)
+{
+  const float seconds = frame / scene->frames_per_second();
+  const float frame_len = scene->r.framelen > 0 ? scene->r.framelen : 1.0;
+
+  return use_time_stretch ? seconds / frame_len : seconds;
+}
+
 float BKE_scene_frame_get(const Scene *scene)
 {
   return scene->r.cfra + scene->r.subframe;

@@ -623,7 +623,7 @@ class USERPREF_PT_animation_timeline(AnimationPanel, CenterAlignMixIn, Panel):
         col = layout.column()
         col.prop(view, "view2d_grid_spacing_min", text="Minimum Grid Spacing")
         col.prop(view, "timecode_style")
-        col.prop(view, "scene_relative_timecode")
+        col.prop(view, "use_scene_relative_timecode")
         col.prop(view, "view_frame_type")
         if view.view_frame_type == 'SECONDS':
             col.prop(view, "view_frame_seconds")
