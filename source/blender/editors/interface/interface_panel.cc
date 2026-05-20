@@ -2695,7 +2695,7 @@ static int handler_region_category_tab_drag(bContext *C, const wmEvent *event, v
       break;
     }
     case LEFTMOUSE:
-    handle_tab = event->val == KM_PRESS;
+      handle_tab = event->val == KM_PRESS;
       if (event->val == KM_RELEASE) {
         WM_event_remove_ui_handler(&CTX_wm_window(C)->runtime->modalhandlers,
                                    handler_region_category_tab_drag,
@@ -2706,6 +2706,9 @@ static int handler_region_category_tab_drag(bContext *C, const wmEvent *event, v
         return WM_UI_HANDLER_BREAK;
       }
       break;
+    default: {
+      break;
+    }
   }
 
   if (handle_tab) {
