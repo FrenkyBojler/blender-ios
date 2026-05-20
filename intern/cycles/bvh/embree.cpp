@@ -85,6 +85,17 @@ static bool rtc_progress_func(void *user_ptr, const double n)
   return !progress->get_cancel();
 }
 
+/* A work-around for Embree GPU builder that crashes on specific configuration of visibility flags
+ * and instancing. Apply to both CPU and GPU to keep behavior consistent to help with potential
+ * platform-specific visibility behavior. See #158123. */
+static uint get_visibility_for_tracing(const Object *object)
+{
+  /* Set the MSB to workaround the crash in Embree GPU. The bit is essentially ignored during
+   * rendering as none of the ray visibility flags (even with shadow linking shift applied)
+   * collides with it. */
+  return object->visibility_for_tracing() | (1U << 31U);
+}
+
 BVHEmbree::BVHEmbree(const BVHParams &params_,
                      const vector<Geometry *> &geometry_,
                      const vector<Object *> &objects_)
@@ -231,7 +242,7 @@ void BVHEmbree::add_object(Object *ob, const int i)
   }
   else if (geom->is_hair()) {
     Hair *hair = static_cast<Hair *>(geom);
-    if (hair->num_curves() > 0) {
+    if (hair->is_traceable()) {
       add_curves(ob, hair, i);
     }
   }
@@ -286,7 +297,7 @@ void BVHEmbree::add_instance(Object *ob, const int i)
 #  endif
   );
 
-  rtcSetGeometryMask(geom_id, ob->visibility_for_tracing());
+  rtcSetGeometryMask(geom_id, get_visibility_for_tracing(ob));
   rtcSetGeometryEnableFilterFunctionFromArguments(geom_id, true);
 
   rtcCommitGeometry(geom_id);
@@ -359,7 +370,7 @@ void BVHEmbree::add_triangles(const Object *ob, const Mesh *mesh, const int i)
   set_tri_vertex_buffer(geom_id, mesh, false);
 
   rtcSetGeometryUserData(geom_id, (void *)prim_offset);
-  rtcSetGeometryMask(geom_id, ob->visibility_for_tracing());
+  rtcSetGeometryMask(geom_id, get_visibility_for_tracing(ob));
   rtcSetGeometryEnableFilterFunctionFromArguments(geom_id, true);
 
   rtcCommitGeometry(geom_id);
@@ -459,22 +470,34 @@ void pack_motion_verts(const size_t num_curves,
                        const Hair *hair,
                        const T *verts,
                        const float *curve_radius,
-                       float4 *rtc_verts)
+                       float4 *rtc_verts,
+                       CurveShapeType curve_shape)
 {
   for (size_t j = 0; j < num_curves; ++j) {
     const Hair::Curve c = hair->get_curve(j);
     int fk = c.first_key;
-    int k = 1;
-    for (; k < c.num_keys + 1; ++k, ++fk) {
-      rtc_verts[k].x = verts[fk].x;
-      rtc_verts[k].y = verts[fk].y;
-      rtc_verts[k].z = verts[fk].z;
-      rtc_verts[k].w = curve_radius[fk];
+
+    if (curve_shape == CURVE_THICK_LINEAR) {
+      for (int k = 0; k < c.num_keys; ++k, ++fk) {
+        rtc_verts[k].x = verts[fk].x;
+        rtc_verts[k].y = verts[fk].y;
+        rtc_verts[k].z = verts[fk].z;
+        rtc_verts[k].w = curve_radius[fk];
+      }
+      rtc_verts += c.num_keys;
     }
-    /* Duplicate Embree's Catmull-Rom spline CVs at the start and end of each curve. */
-    rtc_verts[0] = rtc_verts[1];
-    rtc_verts[k] = rtc_verts[k - 1];
-    rtc_verts += c.num_keys + 2;
+    else {
+      for (int k = 1; k < c.num_keys + 1; ++k, ++fk) {
+        rtc_verts[k].x = verts[fk].x;
+        rtc_verts[k].y = verts[fk].y;
+        rtc_verts[k].z = verts[fk].z;
+        rtc_verts[k].w = curve_radius[fk];
+      }
+      /* Duplicate Embree's Catmull-Rom spline CVs at the start and end of each curve. */
+      rtc_verts[0] = rtc_verts[1];
+      rtc_verts[c.num_keys + 1] = rtc_verts[c.num_keys];
+      rtc_verts += c.num_keys + 2;
+    }
   }
 }
 
@@ -537,12 +560,14 @@ void BVHEmbree::set_curve_vertex_buffer(RTCGeometry geom_id, const Hair *hair, c
       const size_t num_curves = hair->num_curves();
       if (t == t_mid || attr_mP == nullptr) {
         const float3 *verts = hair->get_curve_keys().data();
-        pack_motion_verts<float3>(num_curves, hair, verts, curve_radius, rtc_verts);
+        pack_motion_verts<float3>(
+            num_curves, hair, verts, curve_radius, rtc_verts, hair->curve_shape);
       }
       else {
         const int t_ = (t > t_mid) ? (t - 1) : t;
         const float4 *verts = &attr_mP->data_float4()[t_ * num_keys];
-        pack_motion_verts<float4>(num_curves, hair, verts, curve_radius, rtc_verts);
+        pack_motion_verts<float4>(
+            num_curves, hair, verts, curve_radius, rtc_verts, hair->curve_shape);
       }
     }
 
@@ -649,7 +674,7 @@ void BVHEmbree::add_points(const Object *ob, const PointCloud *pointcloud, const
   set_point_vertex_buffer(geom_id, pointcloud, false);
 
   rtcSetGeometryUserData(geom_id, (void *)prim_offset);
-  rtcSetGeometryMask(geom_id, ob->visibility_for_tracing());
+  rtcSetGeometryMask(geom_id, get_visibility_for_tracing(ob));
   rtcSetGeometryEnableFilterFunctionFromArguments(geom_id, true);
 
   rtcCommitGeometry(geom_id);
@@ -681,7 +706,9 @@ void BVHEmbree::add_curves(const Object *ob, const Hair *hair, const int i)
     num_segments += c.num_segments();
   }
 
-  const enum RTCGeometryType type = (hair->curve_shape == CURVE_RIBBON ?
+  const enum RTCGeometryType type = (hair->curve_shape == CURVE_THICK_LINEAR ?
+                                         RTC_GEOMETRY_TYPE_ROUND_LINEAR_CURVE :
+                                     hair->curve_shape == CURVE_RIBBON ?
                                          RTC_GEOMETRY_TYPE_FLAT_CATMULL_ROM_CURVE :
                                          RTC_GEOMETRY_TYPE_ROUND_CATMULL_ROM_CURVE);
 
@@ -711,8 +738,10 @@ void BVHEmbree::add_curves(const Object *ob, const Hair *hair, const int i)
     const Hair::Curve c = hair->get_curve(j);
     for (size_t k = 0; k < c.num_segments(); ++k) {
       rtc_indices[rtc_index] = c.first_key + k;
-      /* Room for extra CVs at Catmull-Rom splines. */
-      rtc_indices[rtc_index] += j * 2;
+      if (hair->curve_shape != CURVE_THICK_LINEAR) {
+        /* Room for extra CVs at Catmull-Rom splines. */
+        rtc_indices[rtc_index] += j * 2;
+      }
 
       ++rtc_index;
     }
@@ -724,7 +753,7 @@ void BVHEmbree::add_curves(const Object *ob, const Hair *hair, const int i)
   set_curve_vertex_buffer(geom_id, hair, false);
 
   rtcSetGeometryUserData(geom_id, (void *)prim_offset);
-  rtcSetGeometryMask(geom_id, ob->visibility_for_tracing());
+  rtcSetGeometryMask(geom_id, get_visibility_for_tracing(ob));
   rtcSetGeometryEnableFilterFunctionFromArguments(geom_id, true);
 
   rtcCommitGeometry(geom_id);
@@ -753,7 +782,7 @@ void BVHEmbree::refit(Progress &progress)
       }
       else if (geom->is_hair()) {
         Hair *hair = static_cast<Hair *>(geom);
-        if (hair->num_curves() > 0) {
+        if (hair->is_traceable()) {
           RTCGeometry geom = rtcGetGeometry(scene, geom_id + 1);
           set_curve_vertex_buffer(geom, hair, true);
           rtcSetGeometryUserData(geom, (void *)hair->curve_segment_offset);

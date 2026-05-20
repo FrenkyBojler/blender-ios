@@ -7,11 +7,11 @@
  * by the next pass to trace the rays.
  */
 
-#include "infos/eevee_tracing_info.hh"
+#include "infos/eevee_tracing_infos.hh"
 
 COMPUTE_SHADER_CREATE_INFO(eevee_ray_generate)
 
-#include "eevee_gbuffer_lib.glsl"
+#include "eevee_gbuffer_read_lib.glsl"
 #include "eevee_ray_generate_lib.glsl"
 #include "eevee_sampling_lib.glsl"
 #include "gpu_shader_codegen_lib.glsl"
@@ -22,12 +22,10 @@ void main()
   uint2 tile_coord = unpackUvec2x16(tiles_coord_buf[gl_WorkGroupID.x]);
   int2 texel = int2(gl_LocalInvocationID.xy + tile_coord * tile_size);
 
-  int2 texel_fullres = texel * uniform_buf.raytrace.resolution_scale +
-                       uniform_buf.raytrace.resolution_bias;
+  int2 texel_fullres = texel * raytrace_buf.trace_pixel_scale + raytrace_buf.trace_pixel_offset;
 
-  uint gbuf_header = texelFetch(gbuf_header_tx, int3(texel_fullres, 0), 0).r;
-  ClosureUndetermined closure = gbuffer_read_bin(
-      gbuf_header, gbuf_closure_tx, gbuf_normal_tx, texel_fullres, closure_index);
+  gbuffer::Header gbuf_header = gbuffer::read_header(texel_fullres);
+  ClosureUndetermined closure = gbuffer::read_bin(texel_fullres, closure_index);
 
   if (closure.type == CLOSURE_NONE_ID) {
     imageStore(out_ray_data_img, texel, float4(0.0f));
@@ -40,7 +38,7 @@ void main()
   float2 noise = utility_tx_fetch(utility_tx, float2(texel), UTIL_BLUE_NOISE_LAYER).rg;
   noise = fract(noise + sampling_rng_2D_get(SAMPLING_RAYTRACE_U));
 
-  float thickness = gbuffer_read_thickness(gbuf_header, gbuf_normal_tx, texel_fullres);
+  Thickness thickness = gbuffer::read_thickness(gbuf_header, texel_fullres);
 
   BsdfSample samp = ray_generate_direction(noise.xy, closure, V, thickness);
 

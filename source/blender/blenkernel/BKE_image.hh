@@ -7,20 +7,32 @@
  * \ingroup bke
  */
 
+#include "DNA_listBase.h"
+
 #include "BLI_compiler_attrs.h"
 #include "BLI_mutex.hh"
 
+#include "IMB_imbuf_enums.h"
+
 #include <cstdint>
+#include <limits>
 #include <optional>
 
-namespace blender::gpu {
+namespace blender {
+namespace gpu {
 class Texture;
-}  // namespace blender::gpu
+}  // namespace gpu
+
+namespace ocio {
+class ColorSpace;
+}  // namespace ocio
+using ColorSpace = ocio::ColorSpace;
 
 struct rcti;
 struct Depsgraph;
 struct ID;
 struct ImBuf;
+struct ImBufCache;
 struct MovieReader;
 struct Image;
 struct ImageFormatData;
@@ -28,7 +40,6 @@ struct ImagePool;
 struct ImageTile;
 struct ImbFormatOptions;
 struct Library;
-struct ListBase;
 struct Main;
 struct Object;
 struct PartialUpdateRegister;
@@ -38,31 +49,51 @@ struct RenderSlot;
 struct ReportList;
 struct Scene;
 struct StampData;
+enum eImbFileType : int8_t;
 
 #define IMA_MAX_SPACE 64
 #define IMA_UDIM_MAX 2000
 
-namespace blender::bke {
+/* Image gpu runtime defaults */
+constexpr int IMAGE_GPU_FRAME_NONE = std::numeric_limits<int>::max();
+constexpr int IMAGE_GPU_PASS_NONE = std::numeric_limits<short>::max();
+constexpr int IMAGE_GPU_LAYER_NONE = std::numeric_limits<short>::max();
+constexpr int IMAGE_GPU_VIEW_NONE = std::numeric_limits<short>::max();
+
+namespace bke {
 
 struct ImageRuntime {
   /* Mutex used to guarantee thread-safe access to the cached ImBuf of the corresponding image ID.
    */
   Mutex cache_mutex;
 
+  ImBufCache *cache = nullptr;
+
+  /* The 2 is for the left/right stereo eyes. */
+  gpu::Texture *gputexture[/*TEXTARGET_COUNT*/ 3][2] = {};
+
+  /* GPU texture flag. */
+  int gpuframenr = IMAGE_GPU_FRAME_NONE;
+  short gpuflag = 0;
+  short gpu_pass = IMAGE_GPU_PASS_NONE;
+  short gpu_layer = IMAGE_GPU_LAYER_NONE;
+  short gpu_view = IMAGE_GPU_VIEW_NONE;
+
+  int lastused = 0;
+
   /** Register containing partial updates. */
   PartialUpdateRegister *partial_update_register = nullptr;
-  /** Partial update user for GPUTextures stored inside the Image. */
+  /** Partial update user for gpu::Textures stored inside the Image. */
   PartialUpdateUser *partial_update_user = nullptr;
 
   /* The image's current update count. See deg::set_id_update_count for more information. */
   uint64_t update_count = 0;
 
-  /* Compositor viewer might be translated, and that translation will be stored in this runtime
-   * vector by the compositor so that the editor draw code can draw the image translated. */
-  float backdrop_offset[2] = {};
+  float view_offset[2] = {};
+  float view_zoom = 1.0f;
 };
 
-}  // namespace blender::bke
+}  // namespace bke
 
 void BKE_image_free_packedfiles(Image *image);
 void BKE_image_free_views(Image *image);
@@ -113,10 +144,7 @@ void BKE_stamp_data_free(StampData *stamp_data);
 void BKE_image_stamp_buf(Scene *scene,
                          Object *camera,
                          const StampData *stamp_data_template,
-                         unsigned char *rect,
-                         float *rectf,
-                         int width,
-                         int height);
+                         ImBuf *ibuf);
 bool BKE_imbuf_alpha_test(ImBuf *ibuf);
 bool BKE_imbuf_write_stamp(const Scene *scene,
                            const RenderResult *rr,
@@ -140,12 +168,12 @@ bool BKE_imbuf_write_as(ImBuf *ibuf,
  * Used by sequencer too.
  */
 MovieReader *openanim(const char *filepath,
-                      int ibuf_flags,
+                      ImBufFlags ibuf_flags,
                       int streamindex,
                       bool keep_original_colorspace,
                       char colorspace[IMA_MAX_SPACE]);
 MovieReader *openanim_noload(const char *filepath,
-                             int flags,
+                             ImBufFlags flags,
                              int streamindex,
                              bool keep_original_colorspace,
                              char colorspace[IMA_MAX_SPACE]);
@@ -184,6 +212,13 @@ bool BKE_image_has_ibuf(Image *ima, ImageUser *iuser);
  * References the result, #BKE_image_release_ibuf should be used to de-reference.
  */
 ImBuf *BKE_image_acquire_ibuf(Image *ima, ImageUser *iuser, void **r_lock);
+
+/**
+ * Identical to BKE_image_acquire_ibuf but assumes the caller will use the GPU data of the image
+ * buffer if it exists without the need to make it available on the host. This essentially skips
+ * GPU data reading to the host and is thus more performant.
+ */
+ImBuf *BKE_image_acquire_ibuf_gpu(Image *ima, ImageUser *iuser, void **r_lock);
 
 /**
  * Return image buffer for given image, user, pass, and view.
@@ -396,6 +431,15 @@ void BKE_image_packfiles(ReportList *reports, Image *ima, const char *basepath);
 void BKE_image_packfiles_from_mem(ReportList *reports, Image *ima, char *data, size_t data_len);
 
 /**
+ * High-level pack function.
+ *
+ * Packs image data, handling dirty state and raw data input.
+ * Does nothing if image is already packed and not dirty (unless data is provided).
+ */
+void BKE_image_packfile_ensure(
+    Main *bmain, Image *image, ReportList *reports, const char *data, int data_len);
+
+/**
  * Prints memory statistics for images.
  */
 void BKE_image_print_memlist(Main *bmain);
@@ -411,14 +455,14 @@ void BKE_image_merge(Main *bmain, Image *dest, Image *source);
 bool BKE_image_scale(Image *image, int width, int height, ImageUser *iuser);
 
 /**
- * Check if texture has alpha `planes == 32 || planes == 16`.
+ * Check if image might contain alpha.
  */
 bool BKE_image_has_alpha(Image *image);
 
 /**
- * Check if texture has GPU texture code.
+ * Check if image has an associated GPU texture.
  */
-bool BKE_image_has_opengl_texture(Image *ima);
+bool BKE_image_has_gpu_texture(Image *ima);
 
 /**
  * Get tile index for tiled images.
@@ -437,7 +481,7 @@ int BKE_image_get_tile_label(const Image *ima,
  * \param tiles: may be filled even if the result ultimately is false!
  */
 bool BKE_image_get_tile_info(char *filepath,
-                             ListBase *tiles,
+                             ListBaseT<LinkData> *tiles,
                              int *r_tile_start,
                              int *r_tile_range);
 
@@ -546,7 +590,7 @@ bool BKE_image_is_animated(Image *image);
  * Checks whether the image consists of multiple buffers.
  */
 bool BKE_image_has_multiple_ibufs(Image *image);
-void BKE_image_file_format_set(Image *image, int ftype, const ImbFormatOptions *options);
+void BKE_image_file_format_set(Image *image, eImbFileType ftype, const ImbFormatOptions *options);
 bool BKE_image_has_loaded_ibuf(Image *image);
 /**
  * References the result, #BKE_image_release_ibuf is to be called to de-reference.
@@ -567,7 +611,7 @@ ImBuf *BKE_image_get_first_ibuf(Image *image);
 /**
  * Not to be use directly.
  */
-blender::gpu::Texture *BKE_image_create_gpu_texture_from_ibuf(Image *image, ImBuf *ibuf);
+gpu::Texture *BKE_image_create_gpu_texture_from_ibuf(Image *image, ImBuf *ibuf);
 
 /**
  * Ensure that the cached GPU texture inside the image matches the pass, layer, and view of the
@@ -584,7 +628,7 @@ blender::gpu::Texture *BKE_image_create_gpu_texture_from_ibuf(Image *image, ImBu
 void BKE_image_ensure_gpu_texture(Image *image, ImageUser *iuser);
 
 /**
- * Get the #blender::gpu::Texture for a given `Image`.
+ * Get the #gpu::Texture for a given `Image`.
  *
  *
  *
@@ -597,20 +641,27 @@ void BKE_image_ensure_gpu_texture(Image *image, ImageUser *iuser);
  * calling BKE_image_ensure_gpu_texture. This is a workaround until image can support a more
  * complete caching system.
  */
-blender::gpu::Texture *BKE_image_get_gpu_texture(Image *image, ImageUser *iuser);
+gpu::Texture *BKE_image_get_gpu_texture(Image *image, ImageUser *iuser);
 
 /*
  * Like BKE_image_get_gpu_texture, but can also get render or compositing result.
  */
-blender::gpu::Texture *BKE_image_get_gpu_viewer_texture(Image *image, ImageUser *iuser);
+gpu::Texture *BKE_image_get_gpu_viewer_texture(Image *image, ImageUser *iuser);
+
+/*
+ * Like BKE_image_get_gpu_viewer_texture, but the image buffer is provided explicitly.
+ */
+gpu::Texture *BKE_image_get_gpu_viewer_texture(Image *image,
+                                               ImageUser *iuser,
+                                               ImBuf *image_buffer);
 
 /*
  * Like BKE_image_get_gpu_texture, but can also return array and tile mapping texture for UDIM
  * tiles as used in material shaders.
  */
 struct ImageGPUTextures {
-  blender::gpu::Texture **texture;
-  blender::gpu::Texture **tile_mapping;
+  gpu::Texture **texture;
+  gpu::Texture **tile_mapping;
 };
 
 ImageGPUTextures BKE_image_get_gpu_material_texture(Image *image,
@@ -623,7 +674,7 @@ ImageGPUTextures BKE_image_get_gpu_material_texture_try(Image *image,
                                                         const bool use_tile_mapping);
 
 /**
- * Is the alpha of the `blender::gpu::Texture` for a given image/ibuf premultiplied.
+ * Is the alpha of the `gpu::Texture` for a given image/ibuf premultiplied.
  */
 bool BKE_image_has_gpu_texture_premultiplied_alpha(Image *image, ImBuf *ibuf);
 
@@ -634,8 +685,8 @@ bool BKE_image_has_gpu_texture_premultiplied_alpha(Image *image, ImBuf *ibuf);
 void BKE_image_update_gputexture(Image *ima, ImageUser *iuser, int x, int y, int w, int h);
 
 /**
- * Mark areas on the #blender::gpu::Texture that needs to be updated. The areas are marked in
- * chunks. The next time the #blender::gpu::Texture is used these tiles will be refreshes. This
+ * Mark areas on the #gpu::Texture that needs to be updated. The areas are marked in
+ * chunks. The next time the #gpu::Texture is used these tiles will be refreshes. This
  * saves time when writing to the same place multiple times This happens for during foreground
  * rendering.
  */
@@ -661,8 +712,6 @@ bool BKE_image_clear_renderslot(Image *ima, ImageUser *iuser, int slot);
 
 /* --- image_partial_update.cc --- */
 /** Image partial updates. */
-struct PartialUpdateUser;
-
 /**
  * \brief Create a new PartialUpdateUser. An Object that contains data to use partial updates.
  */
@@ -683,3 +732,5 @@ void BKE_image_partial_update_mark_region(Image *image,
                                           const rcti *updated_region);
 /** \brief Mark the whole image to be updated. */
 void BKE_image_partial_update_mark_full_update(Image *image);
+
+}  // namespace blender

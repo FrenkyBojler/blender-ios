@@ -5,9 +5,8 @@
 #pragma once
 
 #include "eevee_bxdf_lib.glsl"
-#include "eevee_thickness_lib.glsl"
-#include "gpu_shader_math_matrix_lib.glsl"
-#include "gpu_shader_math_vector_lib.glsl"
+#include "eevee_ltc_lut_lib.bsl.hh"
+#include "gpu_shader_ray_lib.glsl"
 
 /* -------------------------------------------------------------------- */
 /** \name Oren Nayar BSDF
@@ -71,19 +70,14 @@ LightProbeRay bxdf_oren_nayar_lightprobe(float3 N)
   return probe;
 }
 
-#ifdef EEVEE_UTILITY_TX
-
 ClosureLight bxdf_oren_nayar_light(ClosureUndetermined cl)
 {
   ClosureLight light;
   /* TODO(fclem): LTC fit. */
-  light.ltc_mat = float4(
-      1.0f, 0.0f, 0.0f, 1.0f); /* No transform, just plain cosine distribution. */
+  light.ltc_mat = eevee::lut::ltc::identity(); /* No transform, just plain cosine distribution. */
   light.N = cl.N;
   light.type = LIGHT_DIFFUSE;
   return light;
 }
-
-#endif
 
 /** \} */
