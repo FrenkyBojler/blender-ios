@@ -89,12 +89,11 @@ void FileOutput::add_view(const char *view_name, const Result &data)
   BLI_addtail(&render_result_->views, render_view);
   STRNCPY_UTF8(render_view->name, view_name);
 
+  /* NOTE: Don't use #ImColorMode::BW_A yet as it's untested in this context.
+   * Support may be added in the future. */
   ImColorMode color_mode = ImColorMode::RGBA;
   if (data.channels_count() == 1) {
     color_mode = ImColorMode::BW;
-  }
-  else if (data.channels_count() == 2) {
-    color_mode = ImColorMode::BW_A;
   }
   else if (data.channels_count() == 3) {
     color_mode = ImColorMode::RGB;
@@ -134,12 +133,11 @@ void FileOutput::add_pass(const char *pass_name,
   render_pass->recty = data.domain().data_size.y;
   render_pass->channels = data.channels_count();
 
+  /* NOTE: Don't use #ImColorMode::BW_A because 2 channel input is likely to be XY vector pass,
+   * where grey-scale + alpha isn't desirable. */
   ImColorMode color_mode = ImColorMode::RGBA;
   if (render_pass->channels == 1) {
     color_mode = ImColorMode::BW;
-  }
-  else if (render_pass->channels == 2) {
-    color_mode = ImColorMode::BW_A;
   }
   else if (render_pass->channels == 3) {
     color_mode = ImColorMode::RGB;
