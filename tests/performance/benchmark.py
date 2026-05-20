@@ -473,7 +473,7 @@ def cmd_bisect(env: api.TestEnvironment, argv: list):
                 break
             attempts += 1
             _, status = test_commit(commit_hash, commit_ts)
-            if status == 'build_error':
+            if status in {'build_error', 'no_output', 'run_error', 'skip'}:
                 continue
             if status == 'pass':
                 last_good = commit_hash
