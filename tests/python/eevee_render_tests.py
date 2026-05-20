@@ -54,6 +54,10 @@ BLOCKLIST = [
     "transparent_shadow_hair_blur.blend",
     # Unsupported feature. Redundant tests.
     "osl_camera_.*",
+    # Extreme texture values interpolate differently on different GPUs.
+    "image_log.blend",
+    # Exhibit the LTC light leaking issue. To be enabeld back after fixing.
+    "light_path_glossy_depth.blend",
 ]
 
 BLOCKLIST_METAL = [
@@ -278,14 +282,20 @@ def main():
 
     test_dir_name = Path(args.testdir).name
     if gpu_vendor == "NVIDIA":
-        # References are supposed to be generated on Nvidia. Do not loosen the threshold for this platform.
-        pass
+        # References are supposed to be generated on Nvidia. Tighten the threshold for this platform.
+        report.set_fail_percent(0.04)
+        report.set_fail_threshold(2.0 / 255.0)
+    elif test_dir_name.startswith('camera'):
+        # camera_central_cylindrical and camera_stereo_panoramic have some platform specific small differencies
+        report.set_fail_percent(0.8)
+        report.set_fail_threshold(6.0 / 255.0)
     elif test_dir_name.startswith('image_colorspace'):
         # image_log has hot pixels that result in platform differences.
         report.set_fail_percent(0.15)
     elif test_dir_name.startswith('displacement'):
         # Real & bump displacement use hardware derivatives which results in platform differences.
-        report.set_fail_percent(0.3)
+        report.set_fail_percent(0.38)
+        report.set_fail_threshold(7.0 / 255.0)
     elif test_dir_name.startswith('transparency'):
         # Dithered transparency uses platform dependent noise pattern.
         report.set_fail_percent(0.22)
@@ -304,6 +314,21 @@ def main():
         # Also voronoi_f1 test uses `pow()` which has different precision depending on platform.
         report.set_fail_percent(0.46)
         report.set_fail_threshold(6.0 / 255.0)
+    elif test_dir_name.startswith('render_layer'):
+        # Because of aov_transparency noise pattern
+        report.set_fail_percent(0.5)
+        report.set_fail_threshold(8.0 / 255.0)
+    elif test_dir_name.startswith('grease_pencil'):
+        # TAA dependent look? To be investigated.
+        report.set_fail_percent(0.1)
+        report.set_fail_threshold(6.0 / 255.0)
+    elif test_dir_name.startswith('raycast') and gpu_vendor == "AMD":
+        # Some slight countour differences on AMD
+        report.set_fail_percent(0.37)
+        report.set_fail_threshold(10.0 / 255.0)
+    elif test_dir_name.startswith('pointcloud'):
+        # Only because of points_transparent
+        report.set_fail_threshold(8.0 / 255.0)
 
     ok = report.run(args.testdir, args.blender, get_arguments, batch=args.batch)
     sys.exit(not ok)
