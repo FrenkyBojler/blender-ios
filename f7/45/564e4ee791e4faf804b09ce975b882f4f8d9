@@ -1,2 +1,3 @@
 Referenced by commit 512f631af64, Fix T43826: Sculpt grab anchored fails
 Referenced by issue #126155, UILayout template_palette is restricted to a Paint Mode only
+Referenced by pull request #158788, Fix #126155: Misleading UILayout.template_palette docs
