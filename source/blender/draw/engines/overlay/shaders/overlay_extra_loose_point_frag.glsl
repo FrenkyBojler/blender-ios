@@ -2,7 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "infos/overlay_extra_info.hh"
+#include "infos/overlay_extra_infos.hh"
 
 FRAGMENT_SHADER_CREATE_INFO(overlay_extra_loose_point_base)
 
@@ -13,7 +13,7 @@ void main()
 
   float fac = dist * dist * 4.0f;
   /* Non linear blend. */
-  float4 col1 = sqrt(colorEditMeshMiddle);
+  float4 col1 = sqrt(theme.colors.edit_mesh_middle);
   float4 col2 = sqrt(final_color);
   frag_color = mix(col1, col2, 0.45f + fac * 0.65f);
   frag_color *= frag_color;

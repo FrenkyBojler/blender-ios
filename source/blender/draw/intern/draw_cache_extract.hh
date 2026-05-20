@@ -9,9 +9,9 @@
 #pragma once
 
 #include "BLI_array.hh"
+#include "BLI_enum_flags.hh"
 #include "BLI_map.hh"
 #include "BLI_math_matrix_types.hh"
-#include "BLI_utildefines.h"
 
 #include "DNA_view3d_enums.h"
 
@@ -21,17 +21,19 @@
 
 #include "draw_attributes.hh"
 
-namespace blender::gpu {
+namespace blender {
+
+namespace gpu {
 class Batch;
 class IndexBuf;
-}  // namespace blender::gpu
+}  // namespace gpu
 struct Mesh;
 struct Object;
 struct Scene;
 struct TaskGraph;
 struct ToolSettings;
 
-namespace blender::draw {
+namespace draw {
 
 struct MeshRenderData;
 struct DRWSubdivCache;
@@ -109,6 +111,7 @@ enum class VBOType : int8_t {
   Attr15,
   AttrViewer,
   VertexNormal,
+  PaintOverlayFlag,
 };
 
 /**
@@ -126,6 +129,8 @@ enum class IBOType : int8_t {
   FaceDots,
   LinesPaintMask,
   LinesAdjacency,
+  UVTris,
+  AllUVLines,
   UVLines,
   EditUVTris,
   EditUVLines,
@@ -177,19 +182,21 @@ struct MeshBatchList {
   /* Individual edges with face normals. */
   gpu::Batch *wire_edges;
   /* Loops around faces. no edges between selected faces */
-  gpu::Batch *wire_loops;
-  /* Same as wire_loops but only has uvs. */
+  gpu::Batch *paint_overlay_wire_loops;
+  gpu::Batch *wire_loops_all_uvs;
   gpu::Batch *wire_loops_uvs;
   gpu::Batch *wire_loops_edituvs;
   gpu::Batch *sculpt_overlays;
   gpu::Batch *surface_viewer_attribute;
+  gpu::Batch *paint_overlay_verts;
+  gpu::Batch *paint_overlay_surface;
 };
 
 #define MBC_BATCH_LEN (sizeof(MeshBatchList) / sizeof(void *))
 
 #define MBC_BATCH_INDEX(batch) (offsetof(MeshBatchList, batch) / sizeof(void *))
 
-enum DRWBatchFlag {
+enum DRWBatchFlag : uint64_t {
   MBC_SURFACE = (1u << MBC_BATCH_INDEX(surface)),
   MBC_SURFACE_WEIGHTS = (1u << MBC_BATCH_INDEX(surface_weights)),
   MBC_EDIT_TRIANGLES = (1u << MBC_BATCH_INDEX(edit_triangles)),
@@ -216,22 +223,27 @@ enum DRWBatchFlag {
   MBC_LOOSE_EDGES = (1u << MBC_BATCH_INDEX(loose_edges)),
   MBC_EDGE_DETECTION = (1u << MBC_BATCH_INDEX(edge_detection)),
   MBC_WIRE_EDGES = (1u << MBC_BATCH_INDEX(wire_edges)),
-  MBC_WIRE_LOOPS = (1u << MBC_BATCH_INDEX(wire_loops)),
+  MBC_PAINT_OVERLAY_WIRE_LOOPS = (1u << MBC_BATCH_INDEX(paint_overlay_wire_loops)),
+  MBC_WIRE_LOOPS_ALL_UVS = (1u << MBC_BATCH_INDEX(wire_loops_all_uvs)),
   MBC_WIRE_LOOPS_UVS = (1u << MBC_BATCH_INDEX(wire_loops_uvs)),
   MBC_WIRE_LOOPS_EDITUVS = (1u << MBC_BATCH_INDEX(wire_loops_edituvs)),
   MBC_SCULPT_OVERLAYS = (1u << MBC_BATCH_INDEX(sculpt_overlays)),
   MBC_VIEWER_ATTRIBUTE_OVERLAY = (1u << MBC_BATCH_INDEX(surface_viewer_attribute)),
-  MBC_SURFACE_PER_MAT = (1u << MBC_BATCH_LEN),
+  MBC_PAINT_OVERLAY_VERTS = (uint64_t(1u) << MBC_BATCH_INDEX(paint_overlay_verts)),
+  MBC_PAINT_OVERLAY_SURFACE = (uint64_t(1u) << MBC_BATCH_INDEX(paint_overlay_surface)),
+  MBC_SURFACE_PER_MAT = (uint64_t(1u) << MBC_BATCH_LEN),
 };
-ENUM_OPERATORS(DRWBatchFlag, MBC_SURFACE_PER_MAT);
+ENUM_OPERATORS(DRWBatchFlag);
 
-BLI_STATIC_ASSERT(MBC_BATCH_LEN < 32, "Number of batches exceeded the limit of bit fields");
+BLI_STATIC_ASSERT(MBC_BATCH_LEN < 64, "Number of batches exceeded the limit of bit fields");
 
 struct MeshExtractLooseGeom {
   /** Indices of all vertices not used by edges in the #Mesh or #BMesh. */
-  Array<int> verts;
+  IndexMask verts;
   /** Indices of all edges not used by faces in the #Mesh or #BMesh. */
-  Array<int> edges;
+  IndexMask edges;
+  /** Used for BMesh which does not cache loose geometry index masks. */
+  std::unique_ptr<LinearAllocator<>> allocator;
 };
 
 struct SortedFaceData {
@@ -295,28 +307,26 @@ struct MeshBatchCache {
 
   DRW_MeshCDMask cd_used, cd_needed, cd_used_over_time;
 
-  DRW_Attributes attr_used, attr_needed, attr_used_over_time;
+  VectorSet<std::string> attr_used, attr_needed, attr_used_over_time;
 
   int lastmatch;
 
   /* Valid only if edge_detection is up to date. */
   bool is_manifold;
 
+  bool no_loose_wire;
+
   /* Total areas for drawing UV Stretching. Contains the summed area in mesh
    * space (`tot_area`) and the summed area in uv space (`tot_uvarea`).
    *
    * Only valid after `DRW_mesh_batch_cache_create_requested` has been called. */
   float tot_area, tot_uv_area;
-
-  bool no_loose_wire;
-
-  eV3DShadingColorType color_type;
 };
 
 #define MBC_EDITUV \
   (MBC_EDITUV_FACES_STRETCH_AREA | MBC_EDITUV_FACES_STRETCH_ANGLE | MBC_EDITUV_FACES | \
    MBC_EDITUV_EDGES | MBC_EDITUV_VERTS | MBC_EDITUV_FACEDOTS | MBC_UV_FACES | \
-   MBC_WIRE_LOOPS_UVS | MBC_WIRE_LOOPS_EDITUVS)
+   MBC_WIRE_LOOPS_ALL_UVS | MBC_WIRE_LOOPS_UVS | MBC_WIRE_LOOPS_EDITUVS)
 
 void mesh_buffer_cache_create_requested(TaskGraph &task_graph,
                                         const Scene &scene,
@@ -339,4 +349,5 @@ void mesh_buffer_cache_create_requested_subdiv(MeshBatchCache &cache,
                                                DRWSubdivCache &subdiv_cache,
                                                MeshRenderData &mr);
 
-}  // namespace blender::draw
+}  // namespace draw
+}  // namespace blender

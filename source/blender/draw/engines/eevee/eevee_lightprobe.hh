@@ -17,10 +17,15 @@
 
 #include "DNA_world_types.h"
 
+#include "draw_view.hh"
+
 #include "eevee_defines.hh"
+#include "eevee_lightprobe_shared.hh"
 #include "eevee_sync.hh"
 
 namespace blender::eevee {
+
+using namespace draw;
 
 class Instance;
 class VolumeProbeModule;
@@ -226,19 +231,19 @@ class LightProbeModule {
 
  public:
   LightProbeModule(Instance &inst);
-  ~LightProbeModule(){};
+  ~LightProbeModule() {};
 
   void init();
 
   void begin_sync();
-  void sync_probe(const Object *ob, ObjectHandle &handle);
-  void sync_world(const ::World *world, bool has_update);
+  void sync_probe(const ObjectRef &ob_ref);
+  void sync_world(const blender::World *world, bool has_update);
   void end_sync();
 
  private:
-  void sync_sphere(const Object *ob, ObjectHandle &handle);
-  void sync_volume(const Object *ob, ObjectHandle &handle);
-  void sync_planar(const Object *ob, ObjectHandle &handle);
+  void sync_sphere(const ObjectRef &ob_ref);
+  void sync_volume(const ObjectRef &ob_ref);
+  void sync_planar(const ObjectRef &ob_ref);
 
   /** Get the number of atlas layers needed to store light probe spheres. */
   int sphere_layer_count() const;

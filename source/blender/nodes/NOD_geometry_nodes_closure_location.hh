@@ -5,15 +5,17 @@
 #pragma once
 
 #include <cstdint>
-#include <mutex>
 
 #include "BLI_compute_context.hh"
+#include "BLI_mutex.hh"
 #include "BLI_vector.hh"
+
+namespace blender {
 
 struct bNodeTree;
 struct bNode;
 
-namespace blender::nodes {
+namespace nodes {
 
 struct ClosureEvalLocation {
   uint32_t orig_node_tree_session_uid;
@@ -29,11 +31,14 @@ struct ClosureSourceLocation {
   const bNodeTree *tree;
   int closure_output_node_id;
   ComputeContextHash compute_context_hash;
+  /** Optional actual compute context. If it is set, its hash should be the same as above. */
+  const ComputeContext *compute_context = nullptr;
 };
 
 struct ClosureEvalLog {
-  std::mutex mutex;
+  Mutex mutex;
   Vector<ClosureEvalLocation> evaluations;
 };
 
-}  // namespace blender::nodes
+}  // namespace nodes
+}  // namespace blender

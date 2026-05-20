@@ -4,6 +4,8 @@
 
 #include "gpu_shader_common_math.glsl"
 #include "gpu_shader_math_fast_lib.glsl"
+#include "gpu_shader_math_vector_safe_lib.glsl"
+#include "gpu_shader_utildefines_lib.glsl"
 
 float3 tint_from_color(float3 color)
 {
@@ -27,6 +29,15 @@ float ior_from_F0(float F0)
   return (-f - 1.0f) / (f - 1.0f);
 }
 
+/* Given the transmittance through a slab at normal incidence, compute the transmittance at a
+ * certain incident angle, based on Beer-Lambert law. */
+float3 slab_transmittance_at_angle(float3 color, float cos_theta_i, float ior)
+{
+  const float inv_cos_theta_t = ior * inversesqrt(square(ior) - (1.0f - square(cos_theta_i)));
+  return pow(color, float3(inv_cos_theta_t));
+}
+
+[[node]]
 void node_bsdf_principled(float4 base_color,
                           float metallic,
                           float roughness,
@@ -59,7 +70,7 @@ void node_bsdf_principled(float4 base_color,
                           float thin_film_thickness,
                           float thin_film_ior,
                           const float do_multiscatter,
-                          out Closure result)
+                          Closure &result)
 {
   /* Match cycles. */
   metallic = saturate(metallic);
@@ -105,13 +116,23 @@ void node_bsdf_principled(float4 base_color,
   /* First layer: Sheen */
   float3 sheen_data_color = float3(0.0f);
   if (sheen_weight > 0.0f) {
+    float sheen_NV = NV;
+#ifdef MAT_CLEARCOAT
+    if (coat_weight > 0.0f) {
+      float3 sheen_N = safe_normalize(mix(N, CN, saturate(coat_weight)));
+      sheen_NV = dot(sheen_N, V);
+    }
+#endif
+
     /* TODO: Maybe sheen_weight should be specular. */
-    float3 sheen_color = sheen_weight * sheen_tint.rgb * principled_sheen(NV, sheen_roughness);
+    float3 sheen_color = sheen_weight * sheen_tint.rgb *
+                         principled_sheen(sheen_NV, sheen_roughness);
     sheen_data_color = weight * sheen_color;
     /* Attenuate lower layers */
     weight *= max((1.0f - math_reduce_max(sheen_color)), 0.0f);
   }
 
+#ifdef MAT_CLEARCOAT
   /* Second layer: Coat */
   if (coat_weight > 0.0f) {
     float coat_NV = dot(CN, V);
@@ -128,16 +149,17 @@ void node_bsdf_principled(float4 base_color,
     weight *= max((1.0f - reflectance * coat_weight), 0.0f);
 
     if (!all(equal(coat_tint.rgb, float3(1.0f)))) {
-      float coat_neta = 1.0f / coat_ior;
-      float NT = sqrt_fast(1.0f - coat_neta * coat_neta * (1 - NV * NV));
       /* Tint lower layers. */
-      coat_tint.rgb = mix(
-          float3(1.0f), pow(coat_tint.rgb, float3(1.0f / NT)), saturate(coat_weight));
+      const float3 tint = slab_transmittance_at_angle(coat_tint.rgb, NV, coat_ior);
+      coat_tint.rgb = mix(float3(1.0f), tint, saturate(coat_weight));
     }
   }
   else {
     coat_tint.rgb = float3(1.0f);
   }
+#else
+  coat_tint.rgb = float3(1.0f);
+#endif
 
   /* Emission component.
    * Attenuated by sheen and coat.
@@ -162,6 +184,7 @@ void node_bsdf_principled(float4 base_color,
     weight *= max((1.0f - metallic), 0.0f);
   }
 
+#ifdef MAT_REFRACTION
   /* Transmission component */
   if (transmission_weight > 0.0f) {
     float3 F0 = float3(F0_from_ior(ior)) * reflection_tint;
@@ -190,6 +213,7 @@ void node_bsdf_principled(float4 base_color,
     /* Attenuate lower layers */
     weight *= max((1.0f - transmission_weight), 0.0f);
   }
+#endif
 
   /* Specular component */
   if (true) {
@@ -222,6 +246,7 @@ void node_bsdf_principled(float4 base_color,
     weight *= max((1.0f - math_reduce_max(reflectance)), 0.0f);
   }
 
+#ifdef MAT_SUBSURFACE
   /* Subsurface component */
   if (subsurface_weight > 0.0f) {
     ClosureSubsurface sss_data;
@@ -239,7 +264,9 @@ void node_bsdf_principled(float4 base_color,
     /* Attenuate lower layers */
     weight *= max((1.0f - subsurface_weight), 0.0f);
   }
+#endif
 
+#ifdef MAT_DIFFUSE
   /* Diffuse component */
   if (true) {
     ClosureDiffuse diffuse_data;
@@ -251,6 +278,7 @@ void node_bsdf_principled(float4 base_color,
     diffuse_data.weight = 1.0f;
     closure_eval(diffuse_data);
   }
+#endif
 
   result = Closure(0);
 }

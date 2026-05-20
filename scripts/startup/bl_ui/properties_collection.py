@@ -62,6 +62,21 @@ class COLLECTION_PT_viewlayer_flags(CollectionButtonsPanel, Panel):
         col.prop(vlc, "indirect_only", toggle=False)
 
 
+class COLLECTION_PT_importer(CollectionButtonsPanel, Panel):
+    bl_label = "Importer"
+
+    @classmethod
+    def poll(cls, context):
+        prefs = context.preferences
+        return prefs.experimental.use_collection_importer
+
+    def draw(self, context):
+        del context
+        layout = self.layout
+
+        layout.template_collection_importer()
+
+
 class COLLECTION_PT_exporters(CollectionButtonsPanel, Panel):
     bl_label = "Exporters"
 
@@ -133,9 +148,11 @@ class COLLECTION_PT_collection_custom_props(CollectionButtonsPanel, PropertyPane
 classes = (
     COLLECTION_MT_context_menu_instance_offset,
     COLLECTION_PT_collection_flags,
+    COLLECTION_PT_viewlayer_flags,
     COLLECTION_PT_instancing,
     COLLECTION_PT_lineart_collection,
     COLLECTION_PT_collection_custom_props,
+    COLLECTION_PT_importer,
     COLLECTION_PT_exporters,
 )
 

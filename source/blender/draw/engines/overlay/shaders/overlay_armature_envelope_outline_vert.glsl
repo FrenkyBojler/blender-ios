@@ -2,7 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "infos/overlay_armature_info.hh"
+#include "infos/overlay_armature_infos.hh"
 
 VERTEX_SHADER_CREATE_INFO(overlay_armature_envelope_outline)
 
@@ -13,17 +13,17 @@ VERTEX_SHADER_CREATE_INFO(overlay_armature_envelope_outline)
 /* project to screen space */
 float2 proj(float4 pos)
 {
-  return (0.5f * (pos.xy / pos.w) + 0.5f) * sizeViewport;
+  return (0.5f * (pos.xy / pos.w) + 0.5f) * uniform_buf.size_viewport;
 }
 
-float2 compute_dir(float2 v0, float2 v1, float2 v2)
+float2 compute_dir(float2 v0, float2 /*v1*/, float2 v2)
 {
   float2 dir = normalize(v2 - v0);
   dir = float2(dir.y, -dir.x);
   return dir;
 }
 
-float3x3 compute_mat(float4 sphere, float3 bone_vec, out float z_ofs)
+float3x3 compute_mat(float4 sphere, float3 bone_vec, float &z_ofs)
 {
   bool is_persp = (drw_view().winmat[3][3] == 0.0f);
   float3 cam_ray = (is_persp) ? sphere.xyz - drw_view().viewinv[3].xyz :
@@ -148,7 +148,7 @@ void main()
   float2 ofs_dir = compute_dir(ss0, ss1, ss2);
 
   /* Offset away from the center to avoid overlap with solid shape. */
-  gl_Position.xy += ofs_dir * sizeViewportInv * gl_Position.w;
+  gl_Position.xy += ofs_dir * uniform_buf.size_viewport_inv * gl_Position.w;
 
   edge_start = edge_pos = proj(gl_Position);
 

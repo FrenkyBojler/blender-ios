@@ -2,7 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "infos/overlay_extra_info.hh"
+#include "infos/overlay_extra_infos.hh"
 
 FRAGMENT_SHADER_CREATE_INFO(overlay_particle_dot_base)
 
@@ -15,7 +15,7 @@ void main()
   float dist = length(uv);
 
   if (dist > 0.5f) {
-    discard;
+    gpu_discard_fragment();
     return;
   }
   /* Nice sphere falloff. */

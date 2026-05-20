@@ -2,7 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "infos/eevee_lookdev_info.hh"
+#include "infos/eevee_lookdev_infos.hh"
 
 FRAGMENT_SHADER_CREATE_INFO(eevee_lookdev_display)
 
@@ -13,7 +13,7 @@ void main()
 
   float distance_from_center = distance(uv_coord.xy, float2(0.5f));
   if (distance_from_center > 0.5f) {
-    discard;
+    gpu_discard_fragment();
     return;
   }
   float smooth_size = texel_size.x * 1.5f;

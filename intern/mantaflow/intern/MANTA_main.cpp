@@ -37,12 +37,15 @@ using std::ofstream;
 using std::ostringstream;
 using std::to_string;
 
+namespace blender {
+
 atomic<int> MANTA::solverID(0);
 int MANTA::with_debug(0);
 
 MANTA::MANTA(int *res, FluidModifierData *fmd)
     : mCurrentID(++solverID), mMaxRes(fmd->domain->maxres)
 {
+  using namespace blender;
   if (with_debug) {
     cout << "FLUID: " << mCurrentID << " with res(" << res[0] << ", " << res[1] << ", " << res[2]
          << ")" << endl;
@@ -1143,8 +1146,7 @@ string MANTA::getRealValue(const string &varName)
   it = mRNAMap.find(varName);
 
   if (it == mRNAMap.end()) {
-    cerr << "Fluid Error -- variable " << varName << " not found in RNA map " << it->second
-         << endl;
+    cerr << "Fluid Error -- variable " << varName << " not found in RNA map" << endl;
     return "";
   }
 
@@ -2029,6 +2031,7 @@ static PyObject *callPythonFunction(string varName, string functionName, bool is
 
   var = PyObject_GetAttrString(manta_main_module, varName.c_str());
   if (!var) {
+    PyErr_Clear();
     PyGILState_Release(gilstate);
     return nullptr;
   }
@@ -2037,12 +2040,17 @@ static PyObject *callPythonFunction(string varName, string functionName, bool is
 
   Py_DECREF(var);
   if (!func) {
+    PyErr_Clear();
     PyGILState_Release(gilstate);
     return nullptr;
   }
 
   if (!isAttribute) {
     returnedValue = PyObject_CallObject(func, nullptr);
+    if (returnedValue == nullptr) {
+      /* Print any unexpected errors, also clear them. */
+      PyErr_Print();
+    }
     Py_DECREF(func);
   }
 
@@ -2442,3 +2450,5 @@ string MANTA::getFile(
   BLI_path_frame(targetFile, sizeof(targetFile), framenr, 0);
   return targetFile;
 }
+
+}  // namespace blender

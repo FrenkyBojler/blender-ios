@@ -2,7 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "infos/overlay_armature_info.hh"
+#include "infos/overlay_armature_infos.hh"
 
 VERTEX_SHADER_CREATE_INFO(overlay_armature_shape_wire)
 
@@ -106,7 +106,7 @@ void do_vertex(const uint strip_index,
 void geometry_main(VertOut geom_in[2],
                    uint out_vertex_id,
                    uint out_primitive_id,
-                   uint out_invocation_id)
+                   uint /*out_invocation_id*/)
 {
   /* Clip line against near plane to avoid deformed lines. */
   float4 pos0 = geom_in[0].gpu_position;
@@ -131,9 +131,9 @@ void geometry_main(VertOut geom_in[2],
   screen_space_pos[0] = pos0.xy / pos0.w;
   screen_space_pos[1] = pos1.xy / pos1.w;
 
-  /* `sizeEdge` is defined as the distance from the center to the outer edge. As such to get the
-   total width it needs to be doubled. */
-  wire_width = geom_in[0].wire_width * (sizeEdge * 2);
+  /* `theme.sizes.edge` is defined as the distance from the center to the outer edge.
+   * As such to get the total width it needs to be doubled. */
+  wire_width = geom_in[0].wire_width * (theme.sizes.edge * 2);
   float half_size = max(wire_width / 2.0f, 0.5f);
 
   if (do_smooth_wire) {
@@ -141,9 +141,9 @@ void geometry_main(VertOut geom_in[2],
     half_size += 0.5f;
   }
 
-  float2 line = (screen_space_pos[0] - screen_space_pos[1]) * sizeViewport;
+  float2 line = (screen_space_pos[0] - screen_space_pos[1]) * uniform_buf.size_viewport;
   float2 line_norm = normalize(float2(line[1], -line[0]));
-  float2 edge_ofs = (half_size * line_norm) * sizeViewportInv;
+  float2 edge_ofs = (half_size * line_norm) * uniform_buf.size_viewport_inv;
 
   float4 final_color = geom_in[0].final_color;
   do_vertex(0,
@@ -192,22 +192,22 @@ void main()
   constexpr uint input_primitive_vertex_count = 2u;
 #endif
   /* Triangle list primitive. */
-  constexpr uint ouput_primitive_vertex_count = 3u;
-  constexpr uint ouput_primitive_count = 2u;
-  constexpr uint ouput_invocation_count = 1u;
-  constexpr uint output_vertex_count_per_invocation = ouput_primitive_count *
-                                                      ouput_primitive_vertex_count;
+  constexpr uint output_primitive_vertex_count = 3u;
+  constexpr uint output_primitive_count = 2u;
+  constexpr uint output_invocation_count = 1u;
+  constexpr uint output_vertex_count_per_invocation = output_primitive_count *
+                                                      output_primitive_vertex_count;
   constexpr uint output_vertex_count_per_input_primitive = output_vertex_count_per_invocation *
-                                                           ouput_invocation_count;
+                                                           output_invocation_count;
 
   uint in_primitive_id = uint(gl_VertexID) / output_vertex_count_per_input_primitive;
   uint in_primitive_first_vertex = in_primitive_id * input_primitive_vertex_count;
 
-  uint out_vertex_id = uint(gl_VertexID) % ouput_primitive_vertex_count;
-  uint out_primitive_id = (uint(gl_VertexID) / ouput_primitive_vertex_count) %
-                          ouput_primitive_count;
+  uint out_vertex_id = uint(gl_VertexID) % output_primitive_vertex_count;
+  uint out_primitive_id = (uint(gl_VertexID) / output_primitive_vertex_count) %
+                          output_primitive_count;
   uint out_invocation_id = (uint(gl_VertexID) / output_vertex_count_per_invocation) %
-                           ouput_invocation_count;
+                           output_invocation_count;
 
   float4x4 inst_obmat = data_buf[gl_InstanceID];
   float4x4 inst_matrix = inst_obmat;

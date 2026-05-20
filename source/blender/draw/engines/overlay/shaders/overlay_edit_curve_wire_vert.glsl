@@ -2,7 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "infos/overlay_edit_mode_info.hh"
+#include "infos/overlay_edit_mode_infos.hh"
 
 VERTEX_SHADER_CREATE_INFO(overlay_edit_curve_wire)
 
@@ -23,7 +23,10 @@ void main()
   float3 world_pos = drw_point_object_to_world(final_pos);
   gl_Position = drw_point_world_to_homogenous(world_pos);
 
-  final_color = colorWireEdit;
+  edge_start = edge_pos = ((gl_Position.xy / gl_Position.w) * 0.5f + 0.5f) *
+                          uniform_buf.size_viewport;
+
+  final_color = theme.colors.wire_edit;
 
   view_clipping_distances(world_pos);
 }

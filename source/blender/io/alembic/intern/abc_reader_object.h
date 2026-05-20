@@ -16,18 +16,20 @@
 #include <string>
 #include <vector>
 
+namespace blender {
+
 struct CacheFile;
 struct Main;
 struct Mesh;
 struct Object;
 
-namespace blender::bke {
+namespace bke {
 struct GeometrySet;
 }
 
 using Alembic::AbcCoreAbstract::chrono_t;
 
-namespace blender::io::alembic {
+namespace io::alembic {
 
 struct ImportSettings {
   bool blender_archive_version_prior_44 = false;
@@ -41,7 +43,7 @@ struct ImportSettings {
   bool is_sequence = false;
   bool set_frame_range = false;
 
-  /* Min and max frame detected from  file sequences. */
+  /* Min and max frame detected from file sequences. */
   int sequence_min_frame = 0;
   int sequence_max_frame = 1;
 
@@ -65,6 +67,20 @@ template<typename Schema> static bool has_animations(Schema &schema, ImportSetti
   return settings->is_sequence || !schema.isConstant();
 }
 
+struct AbcReadGeometryParams {
+  std::string velocity_name;
+  int read_flag = 0;
+  float velocity_scale = 1.0f;
+};
+
+struct AbcReaderConstructorArgs {
+  const Alembic::Abc::IObject &object;
+  ImportSettings &settings;
+};
+
+AbcReaderConstructorArgs create_reader_constructor_args(const Alembic::Abc::IObject &object,
+                                                        ImportSettings &settings);
+
 class AbcObjectReader {
  protected:
   std::string m_name;
@@ -73,14 +89,13 @@ class AbcObjectReader {
   Object *m_object;
   Alembic::Abc::IObject m_iobject;
 
-  /* XXX - TODO(kevindietrich) : this references stack memory... */
+  /* XXX - This used to reference stack memory for MeshSequenceCache scenarios. That has been
+   * addressed but ownership of these settings should be made more apparent to prevent similar
+   * issues in the future. */
   ImportSettings *m_settings;
   /* This is initialized from the ImportSettings above on construction. It will need to be removed
    * once we fix the stack memory reference situation. */
   bool m_is_reading_a_file_sequence = false;
-
-  chrono_t m_min_time;
-  chrono_t m_max_time;
 
   /* Use reference counting since the same reader may be used by multiple
    * modifiers and/or constraints. */
@@ -91,7 +106,8 @@ class AbcObjectReader {
  public:
   AbcObjectReader *parent_reader;
 
-  explicit AbcObjectReader(const Alembic::Abc::IObject &object, ImportSettings &settings);
+ public:
+  explicit AbcObjectReader(const AbcReaderConstructorArgs &args);
 
   virtual ~AbcObjectReader() = default;
 
@@ -134,9 +150,7 @@ class AbcObjectReader {
 
   virtual void read_geometry(bke::GeometrySet &geometry_set,
                              const Alembic::Abc::ISampleSelector &sample_sel,
-                             int read_flag,
-                             const char *velocity_name,
-                             float velocity_scale,
+                             const AbcReadGeometryParams &read_params,
                              const char **r_err_str);
 
   virtual bool topology_changed(const Mesh *existing_mesh,
@@ -146,9 +160,7 @@ class AbcObjectReader {
   void setupObjectTransform(chrono_t time);
 
   void addCacheModifier();
-
-  chrono_t minTime() const;
-  chrono_t maxTime() const;
+  void readVisibility();
 
   int refcount() const;
   void incref();
@@ -163,4 +175,5 @@ class AbcObjectReader {
 
 Imath::M44d get_matrix(const Alembic::AbcGeom::IXformSchema &schema, chrono_t time);
 
-}  // namespace blender::io::alembic
+}  // namespace io::alembic
+}  // namespace blender

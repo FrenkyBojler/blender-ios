@@ -2,7 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "infos/overlay_armature_info.hh"
+#include "infos/overlay_armature_infos.hh"
 
 FRAGMENT_SHADER_CREATE_INFO(overlay_armature_shape_solid)
 
@@ -14,7 +14,7 @@ void main()
    * but needed for view clarity in X-ray mode and support
    * for inverted bone matrices. */
   if ((inverted == 1) == gl_FrontFacing) {
-    discard;
+    gpu_discard_fragment();
     return;
   }
   frag_color = float4(final_color.rgb, alpha);

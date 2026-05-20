@@ -11,7 +11,7 @@
  * in-focus and defocus regions.
  */
 
-#include "infos/eevee_depth_of_field_info.hh"
+#include "infos/eevee_depth_of_field_infos.hh"
 
 COMPUTE_SHADER_CREATE_INFO(eevee_depth_of_field_resolve)
 
@@ -20,15 +20,15 @@ COMPUTE_SHADER_CREATE_INFO(eevee_depth_of_field_resolve)
 /* Workarounds for Metal/AMD issue where atomicMax lead to incorrect results.
  * See #123052 */
 #if defined(GPU_METAL)
+shared float array_of_values[gl_WorkGroupSize.x * gl_WorkGroupSize.y];
 #  define threadgroup_size (gl_WorkGroupSize.x * gl_WorkGroupSize.y)
-shared float array_of_values[threadgroup_size];
 
 /* Only works for 2D thread-groups where the size is a power of 2. */
 float parallelMax(const float value)
 {
   uint thread_id = gl_LocalInvocationIndex;
   array_of_values[thread_id] = value;
-  threadgroup_barrier(mem_flags::mem_threadgroup);
+  barrier();
 
   for (uint i = threadgroup_size; i > 0; i >>= 1) {
     uint half_width = i >> 1;
@@ -36,7 +36,7 @@ float parallelMax(const float value)
       array_of_values[thread_id] = max(array_of_values[thread_id],
                                        array_of_values[thread_id + half_width]);
     }
-    threadgroup_barrier(mem_flags::mem_threadgroup);
+    barrier();
   }
 
   return array_of_values[0];
@@ -56,7 +56,8 @@ float dof_slight_focus_coc_tile_get(float2 frag_coord)
   for (int i = 0; i < 4; i++) {
     float2 sample_uv = (frag_coord + quad_offsets[i] * 2.0f * dof_max_slight_focus_radius) /
                        float2(textureSize(color_tx, 0));
-    float coc = dof_coc_from_depth(dof_buf, sample_uv, textureLod(depth_tx, sample_uv, 0.0f).r);
+    float depth = reverse_z::read(textureLod(depth_tx, sample_uv, 0.0f).r);
+    float coc = dof_coc_from_depth(dof_buf, sample_uv, depth);
     coc = clamp(coc, -dof_buf.coc_abs_max, dof_buf.coc_abs_max);
     if (abs(coc) < dof_max_slight_focus_radius) {
       local_abs_max = max(local_abs_max, abs(coc));
@@ -115,9 +116,9 @@ float3 dof_neighborhood_clamp(float2 frag_coord, float3 color, float center_coc,
   /* Progressively apply the clamp to avoid harsh transition. Also mask by weight. */
   float fac = saturate(square(max(0.0f, abs(center_coc) - 0.5f)) * 4.0f) * weight;
   /* Clamp in YCoCg space to avoid too much color drift. */
-  color = colorspace_YCoCg_from_scene_linear(color);
+  color = colorspace::YCoCg_from_scene_linear(color);
   color = mix(color, clamp(color, neighbor_min, neighbor_max), fac);
-  color = colorspace_scene_linear_from_YCoCg(color);
+  color = colorspace::scene_linear_from_YCoCg(color);
   return color;
 }
 
@@ -142,7 +143,8 @@ void main()
   }
 
   if (prediction.do_focus) {
-    float center_coc = (dof_coc_from_depth(dof_buf, uv, textureLod(depth_tx, uv, 0.0f).r));
+    float depth = reverse_z::read(textureLod(depth_tx, uv, 0.0f).r);
+    float center_coc = (dof_coc_from_depth(dof_buf, uv, depth));
     prediction.do_focus = abs(center_coc) <= 0.5f;
   }
 
@@ -206,7 +208,7 @@ void main()
   }
 
   if (!no_focus_pass && prediction.do_focus) {
-    layer_color = colorspace_safe_color(textureLod(color_tx, uv, 0.0f));
+    layer_color = colorspace::safe_color(textureLod(color_tx, uv, 0.0f));
     layer_weight = 1.0f;
     if (do_debug_color) {
       layer_color.rgb *= focus_color;

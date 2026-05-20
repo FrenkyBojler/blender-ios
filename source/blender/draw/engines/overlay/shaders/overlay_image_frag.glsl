@@ -2,7 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "infos/overlay_extra_info.hh"
+#include "infos/overlay_edit_mode_infos.hh"
+#include "infos/overlay_extra_infos.hh"
 
 FRAGMENT_SHADER_CREATE_INFO(overlay_image_base)
 
@@ -21,7 +22,7 @@ void main()
     /* Arbitrary discard anything below 5% opacity.
      * Note that this could be exposed to the User. */
     if (tex_color.a < 0.05f) {
-      discard;
+      gpu_discard_fragment();
     }
     else {
       frag_color.a = 1.0f;

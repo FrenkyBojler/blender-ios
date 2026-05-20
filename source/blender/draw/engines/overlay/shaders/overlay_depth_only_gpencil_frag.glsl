@@ -2,7 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "infos/overlay_edit_mode_info.hh"
+#include "infos/overlay_edit_mode_infos.hh"
 
 FRAGMENT_SHADER_CREATE_INFO(overlay_depth_gpencil)
 
@@ -20,16 +20,18 @@ float3 ray_plane_intersection(float3 ray_ori, float3 ray_dir, float4 plane)
 
 void main()
 {
-  if (gpencil_stroke_round_cap_mask(gp_interp_flat.sspos.xy,
-                                    gp_interp_flat.sspos.zw,
-                                    gp_interp_flat.aspect,
-                                    gp_interp_noperspective.thickness.x,
-                                    gp_interp_noperspective.hardness) < 0.001f)
+  if (gpencil_stroke_segment_mask(gp_interp_flat.sspos_1.xy,
+                                  gp_interp_flat.sspos_2.xy,
+                                  gp_interp_flat.sspos_0,
+                                  gp_interp_flat.sspos_3,
+                                  gp_interp_noperspective.thickness.x,
+                                  gp_interp_noperspective.hardness,
+                                  gp_interp_noperspective.thickness.zw) < 0.001f)
   {
 #ifndef SELECT_ENABLE
     /* We cannot discard the fragment in selection mode. Otherwise we would break pipeline
      * correctness (no discard if early depth test enforced). */
-    discard;
+    gpu_discard_fragment();
 #endif
     return;
   }
@@ -40,7 +42,7 @@ void main()
   if (!gp_stroke_order3d) {
     /* Stroke order 2D. Project to gp_depth_plane. */
     bool is_persp = drw_view().winmat[3][3] == 0.0f;
-    float2 uvs = float2(gl_FragCoord.xy) * sizeViewportInv;
+    float2 uvs = float2(gl_FragCoord.xy) * uniform_buf.size_viewport_inv;
     float3 pos_ndc = float3(uvs, gl_FragCoord.z) * 2.0f - 1.0f;
     float4 pos_world = drw_view().viewinv * (drw_view().wininv * float4(pos_ndc, 1.0f));
     float3 pos = pos_world.xyz / pos_world.w;

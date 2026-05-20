@@ -102,9 +102,22 @@ class DebugFlags {
     bool use_async_pso_creation = true;
 
     /* Whether to use per-component motion interpolation.
-     * TODO: Enable by default when "multi step velocity motion blur" fail is fixed.
      */
-    bool use_metalrt_pcmi = false;
+    bool use_metalrt_pcmi = true;
+  };
+
+  /* Descriptor of Texture Cache feature-set to be used. */
+  struct TextureCache {
+    TextureCache();
+
+    /* Reset flags to their defaults. */
+    void reset();
+
+    /* Enable texture cache eviction. */
+    bool use_eviction = true;
+
+    /* Preserve unused image cache tile memory in megabytes. */
+    int preserve_unused = 0;
   };
 
   /* Get instance of debug flags registry. */
@@ -131,6 +144,9 @@ class DebugFlags {
 
   /* Requested Metal flags. */
   Metal metal;
+
+  /* Requested Texture Cache flags. */
+  TextureCache texture_cache;
 
  private:
   DebugFlags() = default;

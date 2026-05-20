@@ -33,27 +33,30 @@ PyDoc_STRVAR(
     "they will be included in the adjacency iterator (i.e, the adjacent\n"
     "iterator will only stop on \"valid\" edges).\n"
     "\n"
-    ".. method:: __init__(restrict_to_selection=True, restrict_to_unvisited=True,"
-    "                     begin=None, orientation=True)\n"
-    "            __init__(brother)\n"
+    ".. method:: __init__(*args)\n"
+    "\n"
+    "   Accepted call signatures:\n"
+    "\n"
+    "   - ``__init__(restrict_to_selection=True, restrict_to_unvisited=True, begin=None, "
+    "orientation=True)``\n"
+    "   - ``__init__(brother)``\n"
     "\n"
     "   Builds a Chaining Iterator from the first ViewEdge used for\n"
     "   iteration and its orientation or by using the copy constructor.\n"
     "\n"
-    "   :arg restrict_to_selection: Indicates whether to force the chaining\n"
+    "   :param restrict_to_selection: Indicates whether to force the chaining\n"
     "      to stay within the set of selected ViewEdges or not.\n"
     "   :type restrict_to_selection: bool\n"
-    "   :arg restrict_to_unvisited: Indicates whether a ViewEdge that has\n"
+    "   :param restrict_to_unvisited: Indicates whether a ViewEdge that has\n"
     "      already been chained must be ignored ot not.\n"
     "   :type restrict_to_unvisited: bool\n"
-    "   :arg begin: The ViewEdge from which to start the chain.\n"
+    "   :param begin: The ViewEdge from which to start the chain.\n"
     "   :type begin: :class:`ViewEdge` | None\n"
-    "   :arg orientation: The direction to follow to explore the graph. If\n"
+    "   :param orientation: The direction to follow to explore the graph. If\n"
     "      true, the direction indicated by the first ViewEdge is used.\n"
     "   :type orientation: bool\n"
-    "   :arg brother: \n"
-    "   :type brother: ChainingIterator");
-
+    "   :param brother: \n"
+    "   :type brother: ChainingIterator\n");
 static int check_begin(PyObject *obj, void *v)
 {
   if (obj != nullptr && obj != Py_None && !BPy_ViewEdge_Check(obj)) {
@@ -116,8 +119,7 @@ PyDoc_STRVAR(
     "\n"
     "   Initializes the iterator context. This method is called each\n"
     "   time a new chain is started. It can be used to reset some\n"
-    "   history information that you might want to keep.");
-
+    "   history information that you might want to keep.\n");
 static PyObject *ChainingIterator_init(BPy_ChainingIterator *self)
 {
   if (typeid(*(self->c_it)) == typeid(ChainingIterator)) {
@@ -137,13 +139,12 @@ PyDoc_STRVAR(
     "   the one that will be followed next. Returns the next ViewEdge to\n"
     "   follow or None when the end of the chain is reached.\n"
     "\n"
-    "   :arg it: The iterator over the ViewEdges adjacent to the end vertex\n"
+    "   :param it: The iterator over the ViewEdges adjacent to the end vertex\n"
     "      of the current ViewEdge. The adjacency iterator reflects the\n"
     "      restriction rules by only iterating over the valid ViewEdges.\n"
     "   :type it: :class:`AdjacencyIterator`\n"
     "   :return: Returns the next ViewEdge to follow, or None if chaining ends.\n"
-    "   :rtype: :class:`ViewEdge` | None");
-
+    "   :rtype: :class:`ViewEdge` | None\n");
 static PyObject *ChainingIterator_traverse(BPy_ChainingIterator *self,
                                            PyObject *args,
                                            PyObject *kwds)
@@ -200,8 +201,7 @@ PyDoc_STRVAR(
     ChainingIterator_object_doc,
     "The ViewEdge object currently pointed by this iterator.\n"
     "\n"
-    ":type: :class:`ViewEdge`");
-
+    ":type: :class:`ViewEdge`\n");
 static PyObject *ChainingIterator_object_get(BPy_ChainingIterator *self, void * /*closure*/)
 {
   if (self->c_it->isEnd()) {
@@ -221,8 +221,7 @@ PyDoc_STRVAR(
     ChainingIterator_next_vertex_doc,
     "The ViewVertex that is the next crossing.\n"
     "\n"
-    ":type: :class:`ViewVertex`");
-
+    ":type: :class:`ViewVertex`\n");
 static PyObject *ChainingIterator_next_vertex_get(BPy_ChainingIterator *self, void * /*closure*/)
 {
   ViewVertex *v = self->c_it->getVertex();
@@ -238,8 +237,7 @@ PyDoc_STRVAR(
     ChainingIterator_is_incrementing_doc,
     "True if the current iteration is an incrementation.\n"
     "\n"
-    ":type: bool");
-
+    ":type: bool\n");
 static PyObject *ChainingIterator_is_incrementing_get(BPy_ChainingIterator *self,
                                                       void * /*closure*/)
 {

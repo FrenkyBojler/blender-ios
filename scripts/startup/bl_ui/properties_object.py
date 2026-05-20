@@ -9,7 +9,7 @@ from bl_ui.properties_animviz import (
 import bpy
 from bpy.types import Panel, Menu
 from rna_prop_ui import PropertyPanel
-from .space_properties import PropertiesAnimationMixin
+from bl_ui.space_properties import PropertiesAnimationMixin
 
 
 class ObjectButtonsPanel:
@@ -108,6 +108,27 @@ class OBJECT_PT_delta_transform(ObjectButtonsPanel, Panel):
         col.prop(ob, "delta_scale", text="Scale")
 
 
+class OBJECT_PT_parent_inverse_transform(ObjectButtonsPanel, Panel):
+    bl_label = "Parent Inverse Transform"
+    bl_parent_id = "OBJECT_PT_transform"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    @classmethod
+    def poll(cls, context):
+        ob = context.object
+        return ob and ob.parent
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+
+        ob = context.object
+        layout.template_matrix(ob, "matrix_parent_inverse")
+
+        props = layout.operator("object.parent_clear", text="Clear Parent Inverse Transform")
+        props.type = 'CLEAR_INVERSE'
+
+
 class OBJECT_PT_relations(ObjectButtonsPanel, Panel):
     bl_label = "Relations"
     bl_options = {'DEFAULT_CLOSED'}
@@ -182,7 +203,10 @@ class OBJECT_PT_collections(ObjectButtonsPanel, Panel):
             col.context_pointer_set("collection", collection)
 
             row = col.box().row()
-            row.prop(collection, "name", text="")
+            icon = 'OUTLINER_COLLECTION'
+            if collection.color_tag != 'NONE':
+                icon = 'COLLECTION_' + collection.color_tag
+            row.prop(collection, "name", text="", icon=icon)
             row.operator("object.collection_remove", text="", icon='X', emboss=False)
             row.menu("COLLECTION_MT_context_menu", icon='DOWNARROW_HLT', text="")
 
@@ -310,7 +334,7 @@ class OBJECT_PT_lineart(ObjectButtonsPanel, Panel):
     @classmethod
     def poll(cls, context):
         ob = context.object
-        return (ob.type in {'MESH', 'FONT', 'CURVE', 'SURFACE'})
+        return (ob.type in {'MESH', 'FONT', 'CURVE', 'SURFACE', 'CURVES'})
 
     def draw(self, context):
         layout = self.layout
@@ -379,7 +403,7 @@ class OBJECT_PT_visibility(ObjectButtonsPanel, Panel):
     bl_options = {'DEFAULT_CLOSED'}
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE_NEXT',
+        'BLENDER_EEVEE',
         'BLENDER_WORKBENCH',
     }
 
@@ -394,13 +418,16 @@ class OBJECT_PT_visibility(ObjectButtonsPanel, Panel):
         layout = self.layout
         ob = context.object
 
-        layout.prop(ob, "hide_select", text="Selectable", toggle=False, invert_checkbox=True)
+        col = layout.column()
+        col.prop(ob, "hide_select", text="Selectable", toggle=False, invert_checkbox=True)
+        col.prop(ob, "hide_surface_pick", text="Surface Picking", toggle=False, invert_checkbox=True)
+        layout.separator()
 
         col = layout.column(heading="Show In")
         col.prop(ob, "hide_viewport", text="Viewports", toggle=False, invert_checkbox=True)
         col.prop(ob, "hide_render", text="Renders", toggle=False, invert_checkbox=True)
 
-        if context.engine == 'BLENDER_EEVEE_NEXT':
+        if context.engine == 'BLENDER_EEVEE':
             if ob.type in {'MESH', 'CURVE', 'SURFACE', 'META', 'FONT', 'CURVES', 'POINTCLOUD', 'VOLUME'}:
                 layout.separator()
                 col = layout.column(heading="Ray Visibility")
@@ -410,6 +437,7 @@ class OBJECT_PT_visibility(ObjectButtonsPanel, Panel):
             if ob.type in {'LIGHT'}:
                 layout.separator()
                 col = layout.column(heading="Ray Visibility")
+                col.prop(ob, "visible_camera", text="Camera", toggle=False)
                 col.prop(ob, "visible_diffuse", text="Diffuse", toggle=False)
                 col.prop(ob, "visible_glossy", text="Glossy", toggle=False)
                 col.prop(ob, "visible_transmission", text="Transmission", toggle=False)
@@ -454,7 +482,7 @@ class OBJECT_PT_shading(ObjectButtonsPanel, Panel):
 
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE_NEXT',
+        'BLENDER_EEVEE',
     }
 
     @classmethod
@@ -564,7 +592,7 @@ class OBJECT_PT_shadow_terminator(ObjectButtonsPanel, Panel):
     bl_parent_id = "OBJECT_PT_shading"
     bl_context = "object"
     COMPAT_ENGINES = {
-        'BLENDER_EEVEE_NEXT',
+        'BLENDER_EEVEE',
         'CYCLES',
     }
 
@@ -579,12 +607,12 @@ class OBJECT_PT_shadow_terminator(ObjectButtonsPanel, Panel):
         flow = layout.grid_flow(row_major=False, columns=0, even_columns=True, even_rows=False, align=True)
 
         ob = context.object
-        if context.engine == 'BLENDER_EEVEE_NEXT':
+        if context.engine == 'BLENDER_EEVEE':
             flow.prop(ob, "shadow_terminator_normal_offset", text="Normal Offset")
 
         flow.prop(ob, "shadow_terminator_geometry_offset", text="Geometry Offset")
 
-        if context.engine != 'BLENDER_EEVEE_NEXT':
+        if context.engine != 'BLENDER_EEVEE':
             flow.prop(ob, "shadow_terminator_shading_offset", text="Shading Offset")
 
 
@@ -605,6 +633,7 @@ classes = (
     OBJECT_PT_context_object,
     OBJECT_PT_transform,
     OBJECT_PT_delta_transform,
+    OBJECT_PT_parent_inverse_transform,
     OBJECT_PT_relations,
     COLLECTION_MT_context_menu,
     OBJECT_PT_collections,

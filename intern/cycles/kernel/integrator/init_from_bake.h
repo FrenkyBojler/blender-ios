@@ -130,7 +130,7 @@ ccl_device bool integrator_init_from_bake(KernelGlobals kg,
   int prim = __float_as_uint(primitive[2]);
   if (prim == -1) {
     /* Accumulate transparency for empty pixels. */
-    film_write_transparent(kg, state, 0, 1.0f, buffer);
+    film_write_transparent(kg, 0, 1.0f, buffer);
     return true;
   }
 
@@ -190,7 +190,7 @@ ccl_device bool integrator_init_from_bake(KernelGlobals kg,
   int shader;
   triangle_point_normal(kg, object, prim, u, v, &P, &Ng, &shader);
 
-  const int object_flag = kernel_data_fetch(object_flag, object);
+  const uint object_flag = kernel_data_fetch(object_flag, object);
   if (!(object_flag & SD_OBJECT_TRANSFORM_APPLIED)) {
     const Transform tfm = object_fetch_transform(kg, object, OBJECT_TRANSFORM);
     P = transform_point_auto(&tfm, P);
@@ -211,11 +211,13 @@ ccl_device bool integrator_init_from_bake(KernelGlobals kg,
     integrator_state_write_ray(state, &ray);
 
     /* Setup next kernel to execute. */
-    integrator_path_init(kg, state, DEVICE_KERNEL_INTEGRATOR_SHADE_BACKGROUND);
+    integrator_path_init(state, DEVICE_KERNEL_INTEGRATOR_SHADE_BACKGROUND);
   }
   else {
     /* Surface baking. */
-    float3 N = (shader & SHADER_SMOOTH_NORMAL) ? triangle_smooth_normal(kg, Ng, prim, u, v) : Ng;
+    float3 N = (shader & SHADER_SMOOTH_NORMAL) ?
+                   triangle_smooth_normal(kg, Ng, object, object_flag, prim, u, v) :
+                   Ng;
 
     if (!(object_flag & SD_OBJECT_TRANSFORM_APPLIED)) {
       const Transform itfm = object_fetch_transform(kg, object, OBJECT_INVERSE_TRANSFORM);

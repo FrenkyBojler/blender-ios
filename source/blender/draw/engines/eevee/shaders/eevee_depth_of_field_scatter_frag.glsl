@@ -9,12 +9,13 @@
  * invocations and overdraw.
  */
 
-#include "infos/eevee_depth_of_field_info.hh"
+#include "infos/eevee_depth_of_field_infos.hh"
 
 FRAGMENT_SHADER_CREATE_INFO(eevee_depth_of_field_scatter)
 
 #include "eevee_depth_of_field_lib.glsl"
-#include "gpu_shader_math_vector_lib.glsl"
+#include "gpu_shader_math_vector_reduce_lib.glsl"
+#include "gpu_shader_math_vector_safe_lib.glsl"
 
 #define linearstep(p0, p1, v) (clamp(((v) - (p0)) / abs((p1) - (p0)), 0.0f, 1.0f))
 
@@ -44,7 +45,7 @@ void main()
   shapes = saturate(1.0f - linearstep(-0.8f, 0.8f, shapes));
   /* Outside of bokeh shape. Try to avoid overloading ROPs. */
   if (reduce_max(shapes) == 0.0f) {
-    discard;
+    gpu_discard_fragment();
     return;
   }
 

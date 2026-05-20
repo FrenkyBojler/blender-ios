@@ -2,7 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "infos/overlay_outline_info.hh"
+#include "infos/overlay_outline_infos.hh"
 
 VERTEX_SHADER_CREATE_INFO(overlay_outline_prepass_gpencil)
 
@@ -18,13 +18,13 @@ uint outline_colorid_get()
   bool is_active = flag_test(ob_flag, OBJECT_ACTIVE);
 
   if (is_transform) {
-    return 0u; /* colorTransform */
+    return 0u; /* theme.colors.transform */
   }
   else if (is_active) {
-    return 3u; /* colorActive */
+    return 3u; /* theme.colors.active */
   }
   else {
-    return 1u; /* colorSelect */
+    return 1u; /* theme.colors.object_select */
   }
 
   return 0u;
@@ -38,13 +38,17 @@ void main()
   float unused_strength;
   float2 unused_uv;
 
-  gl_Position = gpencil_vertex(float4(sizeViewport, sizeViewportInv),
+  gl_Position = gpencil_vertex(float4(uniform_buf.size_viewport, uniform_buf.size_viewport_inv),
                                world_pos,
                                unused_N,
                                unused_color,
                                unused_strength,
                                unused_uv,
-                               gp_interp_flat.sspos,
+                               gp_interp_flat.sspos_0,
+                               gp_interp_flat.sspos_1,
+                               gp_interp_flat.sspos_2,
+                               gp_interp_flat.sspos_3,
+                               gp_interp_flat.point_length,
                                gp_interp_flat.aspect,
                                gp_interp_noperspective.thickness,
                                gp_interp_noperspective.hardness);

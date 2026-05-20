@@ -53,24 +53,24 @@ class Origins : Overlay {
 
     const Object *ob = ob_ref.object;
     const bool is_library = ID_REAL_USERS(&ob->id) > 1 || ID_IS_LINKED(ob);
-    BKE_view_layer_synced_ensure(state.scene, (ViewLayer *)state.view_layer);
+    BKE_view_layer_synced_ensure(
+        *DEG_get_bmain(state.depsgraph), state.scene, const_cast<ViewLayer *>(state.view_layer));
     const float4 location = float4(ob->object_to_world().location(), 0.0f);
 
     if (ob == BKE_view_layer_active_object_get(state.view_layer)) {
       select_buf_.select_append(res.select_id(ob_ref));
-      point_buf_.append(VertexData{location, res.theme_settings.color_active});
+      point_buf_.append(VertexData{location, res.theme.colors.active_object});
     }
     else if (ob->base_flag & BASE_SELECTED) {
       select_buf_.select_append(res.select_id(ob_ref));
       point_buf_.append(VertexData{location,
-                                   is_library ? res.theme_settings.color_library_select :
-                                                res.theme_settings.color_select});
+                                   is_library ? res.theme.colors.library_select :
+                                                res.theme.colors.object_select});
     }
     else if (state.v3d_flag & V3D_DRAW_CENTERS) {
       select_buf_.select_append(res.select_id(ob_ref));
-      point_buf_.append(VertexData{location,
-                                   is_library ? res.theme_settings.color_library :
-                                                res.theme_settings.color_deselect});
+      point_buf_.append(
+          VertexData{location, is_library ? res.theme.colors.library : res.theme.colors.deselect});
     }
   }
 
