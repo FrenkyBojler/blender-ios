@@ -57,8 +57,8 @@ inline RodStretchAndShearConstraintResult evaluate_rod_stretch_and_shear_constra
   const float3 residual_pos = p_diff - forward_rest;
   const float3 residual_rot = p_diff - forward;
 
-  const float error_squared = math::length_squared(
-      residual_pos + compliance_term * (lambda_pos_prev + lambda_rot_prev));
+  const float error_squared = math::length_squared(residual_pos +
+                                                   compliance_term * lambda_pos_prev);
 
   /* Based on "Position and Orientation Based Cosserat Rods" (Kugelstadt, Schömer, 2016). */
   const float weight_sum = inv_m0 + inv_m1 + 4.0f * inv_lumped_inertia * pow2f(rest_length);
