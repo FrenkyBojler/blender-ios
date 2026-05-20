@@ -261,9 +261,17 @@ static TreeElement *outliner_drop_insert_collection_find(bContext *C,
 
   Collection *collection = outliner_collection_from_tree_element(collection_te);
 
-  /* Master collection doesn't support relative sibling placement in this context. */
+  /* Master collection doesn't support relative sibling placement for collections,
+   * but allows it for objects in custom sort mode. */
   if (collection->flag & COLLECTION_IS_MASTER) {
-    *r_insert_type = TE_INSERT_INTO;
+    /* Check if we're dragging an object in custom sort mode. */
+    SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
+    const bool is_custom_sort = (space_outliner->sort_method == SO_SORT_CUSTOM);
+    const bool is_object_row = is_object_element(te);
+
+    if (!is_custom_sort || !is_object_row) {
+      *r_insert_type = TE_INSERT_INTO;
+    }
   }
 
   return te;
@@ -1207,6 +1215,12 @@ static bool collection_drop_init(bContext *C, wmDrag *drag, const int xy[2], Col
   ID *id = drag_id->id;
   if (!(id && ELEM(GS(id->name), ID_GR, ID_OB))) {
     return false;
+  }
+
+  if (GS(id->name) == ID_OB) {
+    if (te_hovered == collection_te || collection_te->subtree.first == te_hovered) {
+      insert_type = TE_INSERT_INTO;
+    }
   }
 
   if (outliner_is_collection_dragged_into_itself(te_hovered, id)) {
