@@ -22,24 +22,25 @@ namespace blender::nodes::node_geo_filter_list_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.use_custom_socket_order();
-  b.allow_any_socket_order();
-  b.add_default_layout();
   const bNode *node = b.node_or_null();
   if (!node) {
     return;
   }
   const auto type = eNodeSocketDatatype(node->custom1);
   b.add_input(type, "List"_ustr).structure_type(StructureType::List).hide_value();
-  b.add_output(type, "List"_ustr)
-      .dependent_field({1})
-      .structure_type(StructureType::List)
-      .align_with_previous();
-  b.add_input<decl::Bool>("Keep"_ustr)
+  b.add_input<decl::Bool>("Selection"_ustr)
       .default_value(true)
       .hide_value()
       .description("A field or list representing the values that will not be removed")
       .structure_type(StructureType::Dynamic);
+  b.add_output(type, "Selection"_ustr)
+      .dependent_field({1})
+      .structure_type(StructureType::List)
+      .align_with_previous();
+  b.add_output(type, "Inverted"_ustr)
+      .dependent_field({1})
+      .structure_type(StructureType::List)
+      .align_with_previous();
 }
 
 static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
@@ -64,12 +65,13 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
   const eNodeSocketDatatype socket_type = eNodeSocketDatatype(params.other_socket().type);
   if (params.in_out() == SOCK_IN) {
     if (params.node_tree().typeinfo->validate_link(socket_type, SOCK_BOOLEAN)) {
-      params.add_item(IFACE_("Keep"), SocketSearchOp{"Keep"_ustr, SOCK_BOOLEAN});
+      params.add_item(IFACE_("Selection"), SocketSearchOp{"Selection"_ustr, SOCK_BOOLEAN});
     }
     params.add_item(IFACE_("List"), SocketSearchOp{"List"_ustr, socket_type});
   }
   else {
-    params.add_item(IFACE_("Value"), SocketSearchOp{"Value"_ustr, socket_type});
+    params.add_item(IFACE_("Selection"), SocketSearchOp{"Selection"_ustr, socket_type});
+    params.add_item(IFACE_("Inverted"), SocketSearchOp{"Inverted"_ustr, socket_type});
   }
 }
 
@@ -95,21 +97,38 @@ static void node_rna(StructRNA *srna)
       });
 }
 
-static GListPtr filter_list(const GList &list, const IndexMask &mask)
+static GListPtr filter_list(const GListPtr &list, const IndexMask &mask)
 {
-  const CPPType &list_type = list.cpp_type();
+  if (mask.size() == list->size()) {
+    return list;
+  }
+  const CPPType &list_type = list->cpp_type();
   return std::visit(
       [&]<typename T>(const T &src_data) {
         if constexpr (std::is_same_v<T, GList::ArrayData>) {
           GArray<> dst_data(list_type, mask.size(), NoInitialization());
-          array_utils::gather(GSpan(list_type, src_data.data, list.size()), mask, dst_data);
+          array_utils::gather(GSpan(list_type, src_data.data, list->size()), mask, dst_data);
           return GList::from_garray(std::move(dst_data));
         }
         else if constexpr (std::is_same_v<T, GList::SingleData>) {
           return GList::create(list_type, src_data, mask.size());
         }
       },
-      list.data());
+      list->data());
+}
+
+static void output_lists(GeoNodeExecParams &params,
+                         const GListPtr &list,
+                         const IndexMask &selection)
+{
+  if (params.output_is_required("Selection"_ustr)) {
+    params.set_output("Selection"_ustr, filter_list(list, selection));
+  }
+  if (params.output_is_required("Inverted"_ustr)) {
+    IndexMaskMemory memory;
+    const IndexMask inverted = selection.complement(IndexRange(list->size()), memory);
+    params.set_output("Inverted"_ustr, filter_list(list, inverted));
+  }
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
@@ -119,13 +138,13 @@ static void node_geo_exec(GeoNodeExecParams params)
     params.set_default_remaining_outputs();
     return;
   }
-  auto filter_value = params.extract_input<bke::SocketValueVariant>("Keep"_ustr);
+  auto filter_value = params.extract_input<bke::SocketValueVariant>("Selection"_ustr);
   if (filter_value.is_single()) {
     if (filter_value.get<bool>()) {
-      params.set_output("List"_ustr, std::move(list));
+      output_lists(params, list, IndexMask(list->size()));
     }
     else {
-      params.set_default_remaining_outputs();
+      output_lists(params, list, {});
     }
   }
   else if (filter_value.is_context_dependent_field()) {
@@ -133,26 +152,25 @@ static void node_geo_exec(GeoNodeExecParams params)
     fn::FieldEvaluator field_evaluator(field_context, list->size());
     field_evaluator.add(filter_value.extract<Field<bool>>());
     field_evaluator.evaluate();
-    const IndexMask mask = field_evaluator.get_evaluated_as_mask(0);
-    GListPtr filtered_list = filter_list(*list, mask);
-    params.set_output("List"_ustr, std::move(filtered_list));
+    output_lists(params, list, field_evaluator.get_evaluated_as_mask(0));
   }
   else if (filter_value.is_list()) {
     const GListPtr keep_list = filter_value.get<GListPtr>();
     const VArray<bool> values = keep_list->varray().typed<bool>();
     if (values.size() < list->size()) {
-      params.error_message_add(NodeWarningType::Error, "\"Keep\" list is too small");
+      params.error_message_add(NodeWarningType::Error, "\"Selection\" list is too small");
       params.set_default_remaining_outputs();
       return;
     }
     IndexMaskMemory memory;
-    const IndexMask mask = IndexMask::from_bools(values, memory);
-    GListPtr filtered_list = filter_list(*list, mask);
-    params.set_output("List"_ustr, std::move(filtered_list));
+    output_lists(params, list, IndexMask::from_bools(values, memory));
   }
   else {
-    params.error_message_add(NodeWarningType::Warning, "\"Keep\" input must be a field or a list");
-    params.set_output("List"_ustr, std::move(list));
+    params.error_message_add(NodeWarningType::Warning,
+                             "\"Selection\" input must be a field or a list");
+    params.set_output("Selection"_ustr, std::move(list));
+    params.set_output("Inverted"_ustr, GList::from_garray(GArray<>(list->cpp_type(), 0)));
+    params.set_default_remaining_outputs();
   }
 }
 
