@@ -411,8 +411,6 @@ def cmd_bisect(env: api.TestEnvironment, argv: list):
         sys.exit(1)
 
     device_id, gpu_backend = env.resolve_device(args.device)
-    threshold = args.threshold
-    count = args.count
 
     print(f"Device: {args.device}")
     print(f"Category: {args.category}")
@@ -435,8 +433,8 @@ def cmd_bisect(env: api.TestEnvironment, argv: list):
 
     def test_commit_wrapper(commit_hash, commit_ts):
         return api.Bisect.test_commit(
-            env, test, device_id, gpu_backend, count, args.attribute,
-            args.success, threshold, tested,
+            env, test, device_id, gpu_backend, args.count, args.attribute,
+            args.success, args.threshold, tested,
             print_status, commit_hash, commit_ts)
 
     # Phase 1: Daily scan
