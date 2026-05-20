@@ -27,9 +27,9 @@ struct GeomWorld {
   [[legacy_info]] ShaderCreateInfo eevee_geom_iface_info;
 };
 
-[[vertex]] void geom_world([[resource_table]] const GeomWorld & /*srt*/,
-                           [[vertex_id]] const int vert_id,
-                           [[position]] float4 &out_position)
+[[vertex]] [[clip_control]] void geom_world([[resource_table]] const GeomWorld & /*srt*/,
+                                            [[vertex_id]] const int vert_id,
+                                            [[position]] float4 &out_position)
 {
   auto &resource_iface = interface_get(draw_resource_id_varying, drw_ResourceID_iface);
   /* (W)Intel drivers require all varying iface to be written to inside the Vertex shader. */

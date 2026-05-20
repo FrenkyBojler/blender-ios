@@ -33,15 +33,16 @@ struct GeomMeshVertIn {
   [[attribute(1)]] float3 nor;
 };
 
-[[vertex]] void geom_mesh([[resource_table]] const PipelineConstants &pipe,
-                          [[resource_table]] const GeomMesh & /*srt*/,
-                          [[resource_table, condition(is_shadow_pipe)]] const GeomShadow &shadow,
-                          [[in]] const GeomMeshVertIn &vert_in,
-                          [[instance_id]] const int /*inst_id*/,     /* Used by model_lib. */
-                          [[base_instance]] const int /*base_inst*/, /* Used by model_lib. */
-                          [[vertex_id]] const int vert_id,
-                          [[position]] float4 &out_position,
-                          [[viewport_index]] int &out_viewport)
+[[vertex]] [[clip_control]] void geom_mesh(
+    [[resource_table]] const PipelineConstants &pipe,
+    [[resource_table]] const GeomMesh & /*srt*/,
+    [[resource_table, condition(is_shadow_pipe)]] const GeomShadow &shadow,
+    [[in]] const GeomMeshVertIn &vert_in,
+    [[instance_id]] const int /*inst_id*/,     /* Used by model_lib. */
+    [[base_instance]] const int /*base_inst*/, /* Used by model_lib. */
+    [[vertex_id]] const int vert_id,
+    [[position]] float4 &out_position,
+    [[viewport_index]] int &out_viewport)
 {
   DRW_VIEW_FROM_RESOURCE_ID;
 

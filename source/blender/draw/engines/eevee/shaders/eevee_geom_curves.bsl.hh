@@ -39,14 +39,15 @@ struct GeomCurve {
   [[legacy_info]] ShaderCreateInfo eevee_geom_curves_iface_info;
 };
 
-[[vertex]] void geom_curves([[resource_table]] const PipelineConstants &pipe,
-                            [[resource_table]] const GeomCurve & /*srt*/,
-                            [[resource_table, condition(is_shadow_pipe)]] GeomShadow &shadow,
-                            [[instance_id]] const int /*inst_id*/,     /* Used by model_lib. */
-                            [[base_instance]] const int /*base_inst*/, /* Used by model_lib. */
-                            [[vertex_id]] const int vert_id,
-                            [[position]] float4 &out_position,
-                            [[viewport_index]] int &out_viewport)
+[[vertex]] [[clip_control]] void geom_curves(
+    [[resource_table]] const PipelineConstants &pipe,
+    [[resource_table]] const GeomCurve & /*srt*/,
+    [[resource_table, condition(is_shadow_pipe)]] GeomShadow &shadow,
+    [[instance_id]] const int /*inst_id*/,     /* Used by model_lib. */
+    [[base_instance]] const int /*base_inst*/, /* Used by model_lib. */
+    [[vertex_id]] const int vert_id,
+    [[position]] float4 &out_position,
+    [[viewport_index]] int &out_viewport)
 {
   DRW_VIEW_FROM_RESOURCE_ID;
 

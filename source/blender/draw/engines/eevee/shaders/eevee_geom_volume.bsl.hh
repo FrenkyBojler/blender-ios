@@ -30,11 +30,12 @@ struct GeomVolumeIn {
   [[attribute(0)]] float3 pos;
 };
 
-[[vertex]] void geom_volume([[resource_table]] const GeomVolume & /*srt*/,
-                            [[in]] const GeomVolumeIn &vert_in,
-                            [[instance_id]] const int /*inst_id*/,     /* Used by model_lib. */
-                            [[base_instance]] const int /*base_inst*/, /* Used by model_lib. */
-                            [[position]] float4 &out_position)
+[[vertex]] [[clip_control]] void geom_volume(
+    [[resource_table]] const GeomVolume & /*srt*/,
+    [[in]] const GeomVolumeIn &vert_in,
+    [[instance_id]] const int /*inst_id*/,     /* Used by model_lib. */
+    [[base_instance]] const int /*base_inst*/, /* Used by model_lib. */
+    [[position]] float4 &out_position)
 {
   DRW_VIEW_FROM_RESOURCE_ID;
 
