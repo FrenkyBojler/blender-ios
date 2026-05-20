@@ -4,7 +4,6 @@
 
 import datetime
 from collections.abc import Callable
-from dataclasses import dataclass
 
 from .environment import TestEnvironment
 from .test import Test
@@ -28,210 +27,254 @@ def passes_threshold(value: float, success: str, threshold: float) -> bool:
     return False
 
 
-def test_commit(
-    env: TestEnvironment,
-    test: Test,
-    device_id: str,
-    gpu_backend: str,
-    count: int,
-    attribute: str,
-    success: str,
-    threshold: float,
-    tested: set[str],
-    on_progress: Callable[..., None],
-    commit_hash: str,
-    commit_ts: int,
-) -> tuple[float | None, str]:
-    """Build, benchmark, and evaluate a single commit.
-
-    Builds the given git hash, runs the test ``count`` times, averages the
-    results, and checks whether the value passes the threshold.
-
-    Args:
-        env: TestEnvironment for git/build operations.
-        test: Test object to run.
-        device_id: Device identifier string.
-        gpu_backend: GPU backend string.
-        count: Number of benchmark runs per commit.
-        attribute: Name of the performance attribute to extract from output.
-        success: Comparison direction ('greater_than' or 'less_than').
-        threshold: Pass/fail threshold value.
-        tested: Mutable set tracking already-tested commit hashes.
-        on_progress: Callable ``(row_values, end)`` for printing table rows.
-        commit_hash: Commit hash to test.
-        commit_ts: Unix timestamp of the commit.
-
-    Returns:
-        Tuple ``(value, status)`` where status is one of
-        ``'skip'``, ``'build_error'``, ``'no_output'``, ``'run_error``, ``'pass'`` or ``'fail'``.
-        value can be None when status is ``'skip'``, ``'build_error'``, ``'no_output'``, ``'run_error'``.
-    """
-    # During the weekends it can happen that a day doesn't have any commit. In that case a commit
-    # can be selected that has already been performed.
-    if commit_hash in tested:
-        return None, 'skip'
-    tested.add(commit_hash)
-
-    title = env.commit_title(commit_hash)[:70]
-    on_progress([commit_hash, date_str(commit_ts), title, '', 'building'], end='\r')
-
-    install_dir = env.install_dir
-    ok = env.build(commit_hash, install_dir)
-    if not ok:
-        on_progress([commit_hash, date_str(commit_ts), title, 'error', 'FAIL (build)'])
-        return None, 'build_error'
-
-    env.set_blender_executable(install_dir, {})
-
-    values: list[float] = []
-    try:
-        for run_idx in range(count):
-            run_status = 'running' if count == 1 else f'run [{run_idx + 1}/{count}]'
-            on_progress([commit_hash, date_str(commit_ts), title, '', run_status], end='\r')
-            output = test.run(env, device_id, gpu_backend)
-            if not output or attribute not in output:
-                env.set_default_blender_executable()
-                on_progress([commit_hash, date_str(commit_ts), title, 'error', 'run'])
-                return None, 'no_output'
-            values.append(output[attribute])
-    except Exception as e:
-        env.set_default_blender_executable()
-        on_progress([commit_hash, date_str(commit_ts), title, 'error', str(e)[:30]])
-        return None, 'run_error'
-
-    env.set_default_blender_executable()
-    avg = sum(values) / len(values)
-
-    good = passes_threshold(avg, success, threshold)
-    status = 'PASS' if good else 'FAIL'
-    on_progress([commit_hash, date_str(commit_ts), title, f'{avg:.4f}', status])
-    return avg, 'pass' if good else 'fail'
-
-
-@dataclass
-class _SearchBounds:
-    min_index: int
-    max_index: int
-    last_good: str | None
-    first_bad: str | None
-
-
 class BisectProgress:
-    """Tracks the current search window during a binary search."""
+    """Tracks the current search window during bisecting."""
 
-    def __init__(self, min_index: int, max_index: int) -> None:
-        self.min_index = min_index
-        self.max_index = max_index
+    def __init__(self) -> None:
+        self.min_index = 0
+        self.max_index = 0
 
     @property
     def remaining(self) -> int:
         return self.max_index - self.min_index
 
 
-def binary_search(
-    commits: list[tuple[str, int]],
-    min_index: int,
-    max_index: int,
-    last_good: str | None,
-    first_bad: str | None,
-    commit_status: dict[str, str],
-    test_commit: Callable[..., tuple[float | None, str]],
-    progress: BisectProgress | None = None,
-) -> tuple[str | None, str | None]:
+class Bisect:
     """
-    Binary search to find the first failing commit.
+    Bisect over a commit range.
 
-    When a commit errors on build or run, a forward scan finds the next testable commit.
-
-    Args:
-        commits: List of ``(commit_hash, unix_timestamp)`` tuples to search.
-        min_index: Lower bound (inclusive) for the search range.
-        max_index: Upper bound (exclusive) for the search range.
-        last_good: Commit hash of the last known passing commit (or None).
-        first_bad: Commit hash of the first known failing commit (or None).
-        commit_status: Map of previously tested commit hashes to ``'pass'`` or ``'fail'``.
-        test_commit: Callable ``(commit_hash, commit_ts) -> (value, status)`` that tests a commit.
-        progress: Optional ``BisectProgress`` updated as the search bounds change.
-
-    Returns:
-        Tuple ``(last_good, first_bad)`` with the updated bounds after the search.
     """
-    bounds = _SearchBounds(min_index, max_index, last_good, first_bad)
 
-    while bounds.min_index < bounds.max_index:
-        mid = (bounds.min_index + bounds.max_index) // 2
-        commit_hash, commit_ts = commits[mid]
+    def __init__(
+        self,
+        env: TestEnvironment,
+        test_commit: Callable[..., tuple[float | None, str]],
+        start_ts: int,
+        end_ts: int,
+    ) -> None:
+        self.env = env
+        self.test_commit = test_commit
+        self.start_ts = start_ts
+        self.end_ts = end_ts
+        self.commit_status: dict[str, str] = {}
+        self.last_good: str | None = None
+        self.first_bad: str | None = None
 
-        if commit_hash in commit_status:
-            if commit_status[commit_hash] == 'pass':
-                bounds.min_index = mid + 1
-            else:
-                bounds.max_index = mid
-            if progress:
-                progress.min_index = bounds.min_index
-                progress.max_index = bounds.max_index
-            continue
+    def run(
+        self,
+        progress: BisectProgress | None,
+    ) -> None:
+        self._run_per_day(progress)
+        if self.first_bad is not None:
+            self._run_single_day(progress)
 
-        _, status = test_commit(commit_hash, commit_ts)
+    def _run_per_day(
+        self,
+        progress: BisectProgress | None,
+    ) -> None:
+        """
+        Walks day-by-day trying up to three commits per day to quickly locate the good/bad commit.
+        """
+        SECONDS_PER_DAY = 86400
 
-        if status == 'pass':
-            commit_status[commit_hash] = 'pass'
-            bounds.last_good = commit_hash
-            bounds.min_index = mid + 1
-        elif status == 'fail':
-            commit_status[commit_hash] = 'fail'
-            bounds.first_bad = commit_hash
-            bounds.max_index = mid
-        else:
-            found, bounds = _forward_scan(
-                commits, mid + 1, commit_status, test_commit, bounds, progress)
-            if not found:
+        day_windows: list[list[tuple[str, int]]] = []
+        day_ts = self.start_ts
+        while day_ts < self.end_ts:
+            next_day_ts = day_ts + SECONDS_PER_DAY
+            day_windows.append(self.env.commits_in_window(day_ts, next_day_ts))
+            day_ts = next_day_ts
+
+        total_commits = sum(len(w) for w in day_windows)
+        self._update_progress(progress, 0, total_commits)
+
+        day_index = 0
+        consumed = 0
+        last_tested = None
+        while day_index < len(day_windows):
+            day_commits = day_windows[day_index]
+            self._update_progress(progress, consumed, total_commits)
+            consumed += len(day_commits)
+
+            attempts = 0
+            for commit_hash, commit_ts in day_commits:
+                if commit_hash == last_tested:
+                    continue
+                if attempts >= 3:
+                    break
+                attempts += 1
+                _, status = self.test_commit(commit_hash, commit_ts)
+                if status in {'build_error', 'no_output', 'run_error', 'skip'}:
+                    continue
+                if status == 'pass':
+                    self.last_good = commit_hash
+                    self.commit_status[commit_hash] = 'pass'
+                else:
+                    self.first_bad = commit_hash
+                    self.commit_status[commit_hash] = 'fail'
+                last_tested = commit_hash
                 break
+
+            if self.first_bad:
+                break
+            day_index += 1
+
+    def _run_single_day(
+        self,
+        progress: BisectProgress | None,
+    ) -> None:
+        """
+        Narrows down to the exact commit with a binary search.
+        """
+        all_commits = self.env.commits_in_window(self.start_ts, self.end_ts)
+        commit_index = {commit_hash: index for index, (commit_hash, _) in enumerate(all_commits)}
+        max_index = commit_index[self.first_bad]
+        min_index = commit_index[self.last_good] + 1 if self.last_good else 0
+        self._update_progress(progress, min_index, max_index)
+
+        while min_index < max_index:
+            mid_index = (min_index + max_index) // 2
+            commit_hash, commit_ts = all_commits[mid_index]
+
+            if commit_hash in self.commit_status:
+                if self.commit_status[commit_hash] == 'pass':
+                    min_index = mid_index + 1
+                else:
+                    max_index = mid_index
+                self._update_progress(progress, min_index, max_index)
+                continue
+
+            _, status = self.test_commit(commit_hash, commit_ts)
+
+            if status == 'pass':
+                self.commit_status[commit_hash] = 'pass'
+                self.last_good = commit_hash
+                min_index = mid_index + 1
+            elif status == 'fail':
+                self.commit_status[commit_hash] = 'fail'
+                self.first_bad = commit_hash
+                max_index = mid_index
+            else:
+                min_index, max_index = self._forward_scan(mid_index + 1, max_index, all_commits, progress)
+                if min_index is None:
+                    break
+                continue
+
+            self._update_progress(progress, min_index, max_index)
+
+    def _forward_scan(
+        self,
+        start_index: int,
+        max_index: int,
+        commits: list[tuple[str, int]],
+        progress: BisectProgress | None,
+    ) -> tuple[int | None, int | None]:
+        for scan_index in range(start_index, max_index):
+            scan_hash, scan_ts = commits[scan_index]
+            if scan_hash in self.commit_status:
+                if self.commit_status[scan_hash] == 'fail':
+                    self.first_bad = scan_hash
+                    self._update_progress(progress, start_index, scan_index)
+                    return start_index, scan_index
+                continue
+            _, status = self.test_commit(scan_hash, scan_ts)
+            if status == 'pass':
+                self.commit_status[scan_hash] = 'pass'
+                self.last_good = scan_hash
+                self._update_progress(progress, scan_index + 1, max_index)
+                return scan_index + 1, max_index
+            elif status == 'fail':
+                self.commit_status[scan_hash] = 'fail'
+                self.first_bad = scan_hash
+                self._update_progress(progress, start_index, scan_index)
+                return start_index, scan_index
+        return None, None
+
+    @staticmethod
+    def test_commit(
+        env: TestEnvironment,
+        test: Test,
+        device_id: str,
+        gpu_backend: str,
+        count: int,
+        attribute: str,
+        success: str,
+        threshold: float,
+        tested: set[str],
+        on_progress: Callable[..., None],
+        commit_hash: str,
+        commit_ts: int,
+    ) -> tuple[float | None, str]:
+        """Build, benchmark, and evaluate a single commit.
+
+        Builds the given git hash, runs the test ``count`` times, averages the
+        results, and checks whether the value passes the threshold.
+
+        Args:
+            env: TestEnvironment for git/build operations.
+            test: Test object to run.
+            device_id: Device identifier string.
+            gpu_backend: GPU backend string.
+            count: Number of benchmark runs per commit.
+            attribute: Name of the performance attribute to extract from output.
+            success: Comparison direction ('greater_than' or 'less_than').
+            threshold: Pass/fail threshold value.
+            tested: Mutable set tracking already-tested commit hashes.
+            on_progress: Callable ``(row_values, end)`` for printing table rows.
+            commit_hash: Commit hash to test.
+            commit_ts: Unix timestamp of the commit.
+
+        Returns:
+            Tuple ``(value, status)`` where status is one of
+            ``'skip'``, ``'build_error'``, ``'no_output'``, ``'run_error``, ``'pass'`` or ``'fail'``.
+            value can be None when status is ``'skip'``, ``'build_error'``, ``'no_output'``, ``'run_error'``.
+        """
+        # During the weekends it can happen that a day doesn't have any commit. In that case a commit
+        # can be selected that has already been performed.
+        if commit_hash in tested:
+            return None, 'skip'
+        tested.add(commit_hash)
+
+        title = env.commit_title(commit_hash)[:70]
+        on_progress([commit_hash, date_str(commit_ts), title, '', 'building'], end='\r')
+
+        install_dir = env.install_dir
+        ok = env.build(commit_hash, install_dir)
+        if not ok:
+            on_progress([commit_hash, date_str(commit_ts), title, 'error', 'FAIL (build)'])
+            return None, 'build_error'
+
+        env.set_blender_executable(install_dir, {})
+
+        values: list[float] = []
+        try:
+            for run_idx in range(count):
+                run_status = 'running' if count == 1 else f'run [{run_idx + 1}/{count}]'
+                on_progress([commit_hash, date_str(commit_ts), title, '', run_status], end='\r')
+                output = test.run(env, device_id, gpu_backend)
+                if not output or attribute not in output:
+                    env.set_default_blender_executable()
+                    on_progress([commit_hash, date_str(commit_ts), title, 'error', 'run'])
+                    return None, 'no_output'
+                values.append(output[attribute])
+        except Exception as e:
+            env.set_default_blender_executable()
+            on_progress([commit_hash, date_str(commit_ts), title, 'error', str(e)[:30]])
+            return None, 'run_error'
+
+        env.set_default_blender_executable()
+        avg = sum(values) / len(values)
+
+        good = passes_threshold(avg, success, threshold)
+        status = 'PASS' if good else 'FAIL'
+        on_progress([commit_hash, date_str(commit_ts), title, f'{avg:.4f}', status])
+        return avg, 'pass' if good else 'fail'
+
+    @staticmethod
+    def _update_progress(
+        progress: BisectProgress | None,
+        min_index: int,
+        max_index: int,
+    ) -> None:
         if progress:
-            progress.min_index = bounds.min_index
-            progress.max_index = bounds.max_index
-
-    return bounds.last_good, bounds.first_bad
-
-
-def _forward_scan(
-    commits: list[tuple[str, int]],
-    start_index: int,
-    commit_status: dict[str, str],
-    test_commit: Callable[..., tuple[float | None, str]],
-    bounds: _SearchBounds,
-    progress: BisectProgress | None = None,
-) -> tuple[bool, _SearchBounds]:
-    """Scan forward from start_index for a testable commit.
-
-    Returns (found, bounds) where bounds are updated if a testable commit was found.
-    """
-    for scan_index in range(start_index, bounds.max_index):
-        scan_hash, scan_ts = commits[scan_index]
-        if scan_hash in commit_status:
-            if commit_status[scan_hash] == 'fail':
-                bounds.first_bad = scan_hash
-                bounds.max_index = scan_index
-                if progress:
-                    progress.min_index = bounds.min_index
-                    progress.max_index = bounds.max_index
-                return True, bounds
-            continue
-        _, status = test_commit(scan_hash, scan_ts)
-        if status == 'pass':
-            commit_status[scan_hash] = 'pass'
-            bounds.last_good = scan_hash
-            bounds.min_index = scan_index + 1
-            if progress:
-                progress.min_index = bounds.min_index
-                progress.max_index = bounds.max_index
-            return True, bounds
-        elif status == 'fail':
-            commit_status[scan_hash] = 'fail'
-            bounds.first_bad = scan_hash
-            bounds.max_index = scan_index
-            if progress:
-                progress.min_index = bounds.min_index
-                progress.max_index = bounds.max_index
-            return True, bounds
-    return False, bounds
+            progress.min_index = min_index
+            progress.max_index = max_index

@@ -369,7 +369,6 @@ def cmd_run(env: api.TestEnvironment, argv: list, update_only: bool):
 
 def cmd_bisect(env: api.TestEnvironment, argv: list):
     import datetime
-    from api.bisect import BisectProgress, binary_search, passes_threshold, test_commit as _test_commit
     SECONDS_PER_DAY = 86400
 
     parser = argparse.ArgumentParser(prog='benchmark.py bisect')
@@ -435,8 +434,8 @@ def cmd_bisect(env: api.TestEnvironment, argv: list):
     def print_status(row_values, end='\n'):
         table.print_row([str(progress.remaining)] + row_values, end=end)
 
-    def test_commit(commit_hash, commit_ts):
-        return _test_commit(
+    def test_commit_wrapper(commit_hash, commit_ts):
+        return api.Bisect.test_commit(
             env, test, device_id, gpu_backend, count, args.attribute,
             args.success, threshold, tested,
             print_status, commit_hash, commit_ts)
@@ -445,73 +444,16 @@ def cmd_bisect(env: api.TestEnvironment, argv: list):
     start_ts = int(start_dt.timestamp())
     end_ts = int(end_dt.timestamp()) + SECONDS_PER_DAY
 
-    last_good = None
-    first_bad = None
-    last_tested = None
-    commit_status = {}
+    progress = api.bisect.BisectProgress()
+    bisect = api.bisect.Bisect(env, test_commit_wrapper, start_ts, end_ts)
+    bisect.run(progress=progress)
 
-    # Pre-compute all day windows for remaining-count tracking
-    day_windows: list[list[tuple[str, int]]] = []
-    day_ts = start_ts
-    while day_ts < end_ts:
-        next_day_ts = day_ts + SECONDS_PER_DAY
-        day_windows.append(env.commits_in_window(day_ts, next_day_ts))
-        day_ts = next_day_ts
-
-    total_commits = sum(len(w) for w in day_windows)
-    progress = BisectProgress(0, total_commits)
-
-    day_index = 0
-    consumed = 0
-    while day_index < len(day_windows):
-        day_commits = day_windows[day_index]
-        progress.min_index = consumed
-        consumed += len(day_commits)
-
-        attempts = 0
-        for commit_hash, commit_ts in day_commits:
-            if commit_hash == last_tested:
-                continue
-            if attempts >= 3:
-                break
-            attempts += 1
-            _, status = test_commit(commit_hash, commit_ts)
-            if status in {'build_error', 'no_output', 'run_error', 'skip'}:
-                continue
-            if status == 'pass':
-                last_good = commit_hash
-                commit_status[commit_hash] = 'pass'
-            else:
-                first_bad = commit_hash
-                commit_status[commit_hash] = 'fail'
-            last_tested = commit_hash
-            break
-
-        if first_bad:
-            break
-        day_index += 1
-
-    if first_bad is None:
+    if bisect.first_bad is None:
         print('\nNo regression found in the given date range.')
         return
 
-    # Phase 2: Binary search between last_good and first_bad
-    all_commits = env.commits_in_window(start_ts, end_ts)
-
-    commit_index = {commit_hash: index for index, (commit_hash, _) in enumerate(all_commits)}
-    max_index = commit_index[first_bad]
-    min_index = commit_index[last_good] + 1 if last_good else 0
-
-    progress.min_index = min_index
-    progress.max_index = max_index
-
-    last_good, first_bad = binary_search(
-        all_commits, min_index, max_index,
-        last_good, first_bad, commit_status, test_commit,
-        progress=progress)
-
-    title = env.commit_title(first_bad)
-    print(f'\nRegression introduced by commit {first_bad}: {title}')
+    title = env.commit_title(bisect.first_bad)
+    print(f'\nRegression introduced by commit {bisect.first_bad}: {title}')
 
 
 def cmd_graph(argv: list):
