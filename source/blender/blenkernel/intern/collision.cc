@@ -1294,7 +1294,7 @@ Object **BKE_collision_objects_create(Depsgraph *depsgraph,
     return nullptr;
   }
 
-  int maxnum = BLI_listbase_count(relations);
+  int maxnum = relations->count();
   int num = 0;
   Object **objects = MEM_new_array_zeroed<Object *>(maxnum, __func__);
 

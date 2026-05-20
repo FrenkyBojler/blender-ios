@@ -417,7 +417,7 @@ static void move_vertex_group_names_to_object_data(Main *bmain)
       ListBaseT<bDeformGroup> *new_defbase = BKE_object_defgroup_list_mutable(&object);
 
       /* Choose the longest vertex group name list among all linked duplicates. */
-      if (BLI_listbase_count(&object.defbase) < BLI_listbase_count(new_defbase)) {
+      if (BLI_listbase_count(&object.defbase) < new_defbase->count()) {
         object.defbase.free_no_destruct();
       }
       else {

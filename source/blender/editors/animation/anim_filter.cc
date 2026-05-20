@@ -3666,7 +3666,7 @@ static Base **animdata_filter_ds_sorted_bases(bAnimContext *ac,
   /* Create an array with space for all the bases, but only containing the usable ones */
   BKE_view_layer_synced_ensure(*ac->bmain, scene, view_layer);
   ListBaseT<Base> *object_bases = BKE_view_layer_object_bases_get(view_layer);
-  size_t tot_bases = BLI_listbase_count(object_bases);
+  size_t tot_bases = object_bases->count();
   size_t num_bases = 0;
 
   Base **sorted_bases = MEM_new_array_zeroed<Base *>(tot_bases, "Dopesheet Usable Sorted Bases");

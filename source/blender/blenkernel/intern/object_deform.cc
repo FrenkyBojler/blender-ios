@@ -450,7 +450,7 @@ int *BKE_object_defgroup_index_map_create(Object *ob_src, Object *ob_dst, int *r
   }
 
   bDeformGroup *dg_src;
-  *r_map_len = BLI_listbase_count(src_defbase);
+  *r_map_len = src_defbase->count();
   int *vgroup_index_map = MEM_new_array_uninitialized<int>(size_t(*r_map_len),
                                                            "defgroup index map create");
   bool is_vgroup_remap_needed = false;

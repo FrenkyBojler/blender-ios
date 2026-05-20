@@ -1219,7 +1219,7 @@ int64_t MainAllIDsIterator::size() const
     if (!lb_ids) {
       continue;
     }
-    size += BLI_listbase_count(lb_ids);
+    size += lb_ids->count();
   }
   return size;
 }

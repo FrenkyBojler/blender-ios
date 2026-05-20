@@ -395,7 +395,7 @@ static void rna_Cache_active_point_cache_index_range(
   PTCacheID pid = BKE_ptcache_id_find(ob, scene, cache);
 
   if (pid.cache) {
-    *max = max_ii(0, BLI_listbase_count(pid.ptcaches) - 1);
+    *max = max_ii(0, pid.ptcaches->count() - 1);
   }
 }
 

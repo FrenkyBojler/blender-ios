@@ -1121,7 +1121,7 @@ static int rna_XrSessionState_actionmaps_length(PointerRNA *ptr)
 #  ifdef WITH_XR_OPENXR
   wmXrData *xr = rna_XrSession_wm_xr_data_get(ptr);
   ListBaseT<XrActionMap> *lb = WM_xr_actionmaps_get(xr->runtime);
-  return BLI_listbase_count(lb);
+  return lb->count();
 #  else
   UNUSED_VARS(ptr);
   return 0;

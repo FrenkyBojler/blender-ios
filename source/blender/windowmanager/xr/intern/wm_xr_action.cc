@@ -79,7 +79,7 @@ static wmXrAction *action_create(const char *action_name,
   action->name = BLI_strdup(action_name);
   action->type = type;
 
-  const uint count = uint(BLI_listbase_count(user_paths));
+  const uint count = uint(user_paths->count());
   action->count_subaction_paths = count;
 
   action->subaction_paths = MEM_new_array_uninitialized<char *>(count, "XrAction_SubactionPaths");
@@ -241,7 +241,7 @@ bool WM_xr_action_create(wmXrData *xr,
                                      action_flag,
                                      haptic_flag);
 
-  const uint count = uint(BLI_listbase_count(user_paths));
+  const uint count = uint(user_paths->count());
 
   char **subaction_paths = MEM_new_array_zeroed<char *>(count, "XrAction_SubactionPathPointers");
 
@@ -335,8 +335,8 @@ bool WM_xr_action_binding_create(wmXrData *xr,
                                  const eXrAxisFlag *axis_flags,
                                  const wmXrPose *poses)
 {
-  const uint count = uint(BLI_listbase_count(user_paths));
-  BLI_assert(count == uint(BLI_listbase_count(component_paths)));
+  const uint count = uint(user_paths->count());
+  BLI_assert(count == uint(component_paths->count()));
 
   GHOST_XrActionBindingInfo *binding_infos = MEM_new_array_zeroed<GHOST_XrActionBindingInfo>(
       count, "XrActionBinding_Infos");
