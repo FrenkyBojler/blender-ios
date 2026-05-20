@@ -299,6 +299,11 @@ def main():
     elif test_dir_name.startswith('light_linking'):
         # Noise difference in transparent materials (mostly shadow_link_transparency) and volume
         report.set_fail_threshold(8.0 / 255.0)
+    elif test_dir_name.startswith('texture'):
+        # Texture sampling and noise function different per platform.
+        # Also voronoi_f1 test uses `pow()` which has different precision depending on platform.
+        report.set_fail_percent(0.46)
+        report.set_fail_threshold(6.0 / 255.0)
 
     ok = report.run(args.testdir, args.blender, get_arguments, batch=args.batch)
     sys.exit(not ok)
