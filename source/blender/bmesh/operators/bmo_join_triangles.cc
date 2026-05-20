@@ -27,6 +27,8 @@
 
 #include "intern/bmesh_operators_private.hh" /* own include */
 
+namespace blender {
+
 /**
  *  Used to keep track of our math for the error values and ensure it's not getting out of control.
  */
@@ -165,7 +167,7 @@ struct JoinEdgesState {
  *
  * A quad that is concave has higher error.
  *
- * \param v1,v2,v3,v4: The four corner coordinates of the quad.
+ * \param v1, v2, v3, v4: The four corner coordinates of the quad.
  * \return The computed error associated with the quad.
  */
 static float quad_calc_error(const float v1[3],
@@ -372,6 +374,14 @@ static DelimitData bm_edge_delmimit_data_from_op(BMesh *bm, BMOperator *op)
   {
     delimit_data.cdata_len += 1;
   }
+  delimit_data.cdata[delimit_data.cdata_len].cd_offset = -1;
+  if (BMO_slot_bool_get(op->slots_in, "cmp_vcols") &&
+      bm_edge_delimit_cdata(
+          &bm->ldata, CD_PROP_COLOR, &delimit_data.cdata[delimit_data.cdata_len]))
+  {
+    delimit_data.cdata_len += 1;
+  }
+
   return delimit_data;
 }
 
@@ -480,11 +490,9 @@ struct JoinEdgesNeighborInfo {
  * of a freshly merged quad might be seen as a neighbor of _both_ the quad edges it touches,
  * (depending on the triangulation), and might get double the improvement it deserves.
  *
- * \param merge_edges: the array to add the merge edges to
- * \param shared_loops: the array to add the shared loops to
- * \param count: the number of items currently in each array.
- * \param e: The new merge edge to add to the array, if it's not a duplicate.
- * \param l: The new shared loop to add to the array, if the edge isn't a duplicate
+ * \param neighbor_info: the collection of neighbor items to add to.
+ * \param e: The new merge edge to add, if it's not a duplicate.
+ * \param l: The new shared loop to add, if the edge isn't a duplicate.
  */
 static void add_without_duplicates(JoinEdgesNeighborInfo &neighbor_info, BMEdge *e, BMLoop *l)
 {
@@ -507,11 +515,9 @@ static void add_without_duplicates(JoinEdgesNeighborInfo &neighbor_info, BMEdge 
 }
 
 /**
- * Add the neighboring edges of a given loop to the `merge_edges` and `shared_loops` arrays.
+ * Add the neighboring edges of a given loop to the `neighbor_info` collection.
  *
- * \param merge_edges: the array of mergable edges to add to.
- * \param shared_loops: the array to shared loops to add to.
- * \param count: the number of items currently in each array.
+ * \param neighbor_info: the collection of neighbor items to add to.
  * \param l_in_quad: The loop to add the neighboring edges of, if they check out.
  */
 static void add_neighbors(JoinEdgesNeighborInfo &neighbor_info, BMLoop *l_in_quad)
@@ -873,19 +879,19 @@ static void reprioritize_face_neighbors(JoinEdgesState &s, BMFace *f, float f_er
 {
   BLI_assert(f->len == 4);
 
-  /* Identify any mergable edges of any neighbor triangles that face us.
+  /* Identify any mergeable edges of any neighbor triangles that face us.
    * - Some of our four edges... might not be manifold.
    * - Some of our neighbor faces... might not be triangles.
-   * - Some of our neighbor triangles... might have other non-manifold (un-mergable) edges.
+   * - Some of our neighbor triangles... might have other non-manifold (unmergeable) edges.
    * - Some of our neighbor triangles' manifold edges... might have non-triangle neighbors.
-   * Therefore, there can be have up to eight mergable edges, although there are often fewer. */
+   * Therefore, there can be have up to eight mergeable edges, although there are often fewer. */
   JoinEdgesNeighborInfo neighbor_info = {};
 
   /* Get the four loops around the face. */
   BMLoop *l_quad[4];
   BM_face_as_array_loop_quad(f, l_quad);
 
-  /* Add the mergable neighbors for each of those loops. */
+  /* Add the mergeable neighbors for each of those loops. */
   for (int i = 0; i < ARRAY_SIZE(l_quad); i++) {
     add_neighbors(neighbor_info, l_quad[i]);
   }
@@ -936,7 +942,7 @@ static BMFace *bm_faces_join_pair_by_edge(BMesh *bm,
   BMLoop *l_a = e->l;
   BMLoop *l_b = e->l->radial_next;
 
-  /* If previous face merges have created quads, which now make this edge un-mergable,
+  /* If previous face merges have created quads, which now make this edge unmergeable,
    * then skip it and move on. This happens frequently and that's ok.
    * It's much easier and more efficient to just skip these edges when we encounter them,
    * than it is to try to search the heap for them and remove them preemptively. */
@@ -980,7 +986,7 @@ void bmo_join_triangles_exec(BMesh *bm, BMOperator *op)
   s.edge_queue = BLI_heap_new();
   s.select_tris_only = BMO_slot_bool_get(op->slots_in, "deselect_joined");
   if (s.use_topo_influence) {
-    s.edge_queue_nodes = MEM_malloc_arrayN<HeapNode *>(bm->totedge, __func__);
+    s.edge_queue_nodes = MEM_new_array_uninitialized<HeapNode *>(bm->totedge, __func__);
   }
 
 #ifdef USE_JOIN_TRIANGLE_INTERACTIVE_TESTING
@@ -1126,9 +1132,11 @@ void bmo_join_triangles_exec(BMesh *bm, BMOperator *op)
   /* Clean up. */
   BLI_heap_free(s.edge_queue, nullptr);
   if (s.use_topo_influence) {
-    MEM_freeN(s.edge_queue_nodes);
+    MEM_delete(s.edge_queue_nodes);
   }
 
   /* Return the selection results. */
   BMO_slot_buffer_from_enabled_flag(bm, op, op->slots_out, "faces.out", BM_FACE, FACE_OUT);
 }
+
+}  // namespace blender

@@ -6,7 +6,7 @@
  * Gather pass: Convolve foreground and background parts in separate passes.
  *
  * Using the min&max CoC tile buffer, we select the best appropriate method to blur the scene
- *color. A fast gather path is taken if there is not many CoC variation inside the tile.
+ * color. A fast gather path is taken if there is not many CoC variation inside the tile.
  *
  * We sample using an octaweb sampling pattern. We randomize the kernel center and each ring
  * rotation to ensure maximum coverage.
@@ -15,7 +15,7 @@
  * - Color * Weight, Weight, Occlusion 'CoC' Depth (mean and variance)
  */
 
-#include "infos/eevee_depth_of_field_info.hh"
+#include "infos/eevee_depth_of_field_infos.hh"
 
 COMPUTE_SHADER_CREATE_INFO(eevee_depth_of_field_gather)
 

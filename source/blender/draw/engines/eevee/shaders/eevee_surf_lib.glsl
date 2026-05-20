@@ -4,16 +4,18 @@
 
 #pragma once
 
-#include "infos/eevee_material_info.hh"
+#include "infos/eevee_geom_infos.hh"
+
+#include "infos/eevee_uniform_infos.hh"
 
 SHADER_LIBRARY_CREATE_INFO(eevee_geom_mesh)
+SHADER_LIBRARY_CREATE_INFO(eevee_global_ubo)
 
-#include "draw_model_lib.glsl"
-#include "eevee_nodetree_lib.glsl"
-#include "eevee_sampling_lib.glsl"
+#include "draw_view_lib.glsl"
+#include "eevee_surf_common.bsl.hh"
 #include "gpu_shader_codegen_lib.glsl"
 #include "gpu_shader_math_base_lib.glsl"
-#include "gpu_shader_math_vector_lib.glsl"
+#include "gpu_shader_math_vector_safe_lib.glsl"
 
 #if defined(USE_BARYCENTRICS) && defined(GPU_FRAGMENT_SHADER) && defined(MAT_GEOM_MESH)
 float3 barycentric_distances_get()
@@ -57,7 +59,7 @@ void init_globals_curves()
 #endif
 }
 
-void init_globals()
+void init_globals(bool front_face)
 {
   /* Default values. */
   g_data.P = interp.P;
@@ -72,22 +74,20 @@ void init_globals()
 #elif defined(MAT_CAPTURE)
   g_data.ray_type = RAY_TYPE_DIFFUSE;
 #else
-  if (uniform_buf.pipeline.is_sphere_probe) {
-    g_data.ray_type = RAY_TYPE_GLOSSY;
-  }
-  else {
-    g_data.ray_type = RAY_TYPE_CAMERA;
-  }
+  g_data.ray_type = pipeline_buf.ray_type;
 #endif
   g_data.ray_depth = 0.0f;
   g_data.ray_length = distance(g_data.P, drw_view_position());
   g_data.barycentric_coords = float2(0.0f);
   g_data.barycentric_dists = float3(0.0f);
 
+  g_data.N = (front_face) ? g_data.N : -g_data.N;
+  g_data.Ni = (front_face) ? g_data.Ni : -g_data.Ni;
 #ifdef GPU_FRAGMENT_SHADER
-  g_data.N = (FrontFacing) ? g_data.N : -g_data.N;
-  g_data.Ni = (FrontFacing) ? g_data.Ni : -g_data.Ni;
   g_data.Ng = safe_normalize(cross(gpu_dfdx(g_data.P), gpu_dfdy(g_data.P)));
+  if (pipeline_buf.is_main_view_inverted) {
+    g_data.Ng = -g_data.Ng;
+  }
 #endif
 
 #if defined(MAT_GEOM_MESH)
@@ -103,22 +103,8 @@ void init_interface()
 #ifdef GPU_VERTEX_SHADER
   interp.P = float3(0.0f);
   interp.N = float3(0.0f);
-  drw_ResourceID_iface.resource_index = drw_resource_id_raw();
+  drw_ResourceID_iface.resource_id = drw_resource_id_raw();
 #endif
-}
-
-#if defined(GPU_VERTEX_SHADER) && defined(MAT_SHADOW)
-void shadow_viewport_layer_set(int view_id, int lod)
-{
-#  ifdef SHADOW_UPDATE_ATOMIC_RASTER
-  shadow_iface.shadow_view_id = view_id;
-#  else
-  /* We still render to a layered frame-buffer in the case of Metal + Tile Based Renderer.
-   * Since it needs correct depth buffering, each view needs to not overlap each others.
-   * It doesn't matter much for other platform, so we use that as a way to pass the view id. */
-  gpu_Layer = view_id;
-#  endif
-  gpu_ViewportIndex = lod;
 }
 
 float3 shadow_position_vector_get(float3 view_position, ShadowRenderView view)
@@ -141,15 +127,3 @@ float3 shadow_clip_vector_get(float3 view_position, float clip_distance_inv)
   /* Punctual shadow case. */
   return view_position * clip_distance_inv;
 }
-#endif
-
-#if defined(GPU_FRAGMENT_SHADER) && defined(MAT_SHADOW)
-int shadow_view_id_get()
-{
-#  ifdef SHADOW_UPDATE_ATOMIC_RASTER
-  return shadow_iface.shadow_view_id;
-#  else
-  return gpu_Layer;
-#  endif
-}
-#endif

@@ -4,182 +4,29 @@
 
 #pragma once
 
-#include "infos/eevee_common_info.hh"
+#include "infos/eevee_common_infos.hh"
+#include "infos/eevee_raycast_infos.hh"
+#include "infos/eevee_uniform_infos.hh"
 
 SHADER_LIBRARY_CREATE_INFO(eevee_global_ubo)
 SHADER_LIBRARY_CREATE_INFO(eevee_utility_texture)
+SHADER_LIBRARY_CREATE_INFO(eevee_hiz_data)
 
+#include "draw_intersect_lib.glsl"
 #include "draw_model_lib.glsl"
 #include "draw_object_infos_lib.glsl"
 #include "draw_view_lib.glsl"
+#include "eevee_bxdf_lut_lib.bsl.hh"
+#include "eevee_nodetree_closures_lib.glsl"
+#include "eevee_ray_trace_screen_lib.glsl"
 #include "eevee_renderpass_lib.glsl"
+#include "eevee_sampling_lib.glsl"
+#include "eevee_utility_tx_lib.glsl"
 #include "gpu_shader_codegen_lib.glsl"
 #include "gpu_shader_math_base_lib.glsl"
-#include "gpu_shader_math_vector_lib.glsl"
+#include "gpu_shader_math_safe_lib.glsl"
+#include "gpu_shader_math_vector_reduce_lib.glsl"
 #include "gpu_shader_utildefines_lib.glsl"
-
-struct MeshVertex {
-  int _pad; /* TODO(fclem): Add explicit attribute loading for mesh. */
-  METAL_CONSTRUCTOR_1(MeshVertex, int, _pad)
-};
-
-struct PointCloudPoint {
-  int _pad; /* TODO(fclem): Add explicit attribute loading for mesh. */
-  METAL_CONSTRUCTOR_1(PointCloudPoint, int, _pad)
-};
-
-struct CurvesPoint {
-  int curve_id;
-  int point_id;
-  int curve_segment;
-
-  METAL_CONSTRUCTOR_3(CurvesPoint, int, curve_id, int, point_id, int, curve_segment)
-};
-
-struct WorldPoint {
-  int _pad;
-  METAL_CONSTRUCTOR_1(WorldPoint, int, _pad)
-};
-
-struct VolumePoint {
-  int _pad; /* TODO(fclem): Add explicit attribute loading for volumes. */
-  METAL_CONSTRUCTOR_1(VolumePoint, int, _pad)
-};
-
-struct GPencilPoint {
-  int _pad;
-  METAL_CONSTRUCTOR_1(GPencilPoint, int, _pad)
-};
-
-packed_float3 g_emission;
-packed_float3 g_transmittance;
-float g_holdout;
-
-packed_float3 g_volume_scattering;
-float g_volume_anisotropy;
-packed_float3 g_volume_absorption;
-
-/* The Closure type is never used. Use float as dummy type. */
-#define Closure float
-#define CLOSURE_DEFAULT 0.0f
-
-/* Maximum number of picked closure. */
-#ifndef CLOSURE_BIN_COUNT
-#  define CLOSURE_BIN_COUNT 1
-#endif
-/* Sampled closure parameters. */
-ClosureUndetermined g_closure_bins[CLOSURE_BIN_COUNT];
-/* Random number per sampled closure type. */
-float g_closure_rand[CLOSURE_BIN_COUNT];
-
-ClosureUndetermined g_closure_get(uchar i)
-{
-  switch (i) {
-    case 0:
-      return g_closure_bins[0];
-#if CLOSURE_BIN_COUNT > 1
-    case 1:
-      return g_closure_bins[1];
-#endif
-#if CLOSURE_BIN_COUNT > 2
-    case 2:
-      return g_closure_bins[2];
-#endif
-  }
-  /* TODO: this should be unreachable, better to have an assert. */
-  ClosureUndetermined cl_empty;
-  return cl_empty;
-}
-
-ClosureUndetermined g_closure_get_resolved(uchar i, float weight_fac)
-{
-  ClosureUndetermined cl = g_closure_get(i);
-  cl.color *= cl.weight * weight_fac;
-  return cl;
-}
-
-ClosureType closure_type_get(ClosureDiffuse cl)
-{
-  return CLOSURE_BSDF_DIFFUSE_ID;
-}
-
-ClosureType closure_type_get(ClosureTranslucent cl)
-{
-  return CLOSURE_BSDF_TRANSLUCENT_ID;
-}
-
-ClosureType closure_type_get(ClosureReflection cl)
-{
-  return CLOSURE_BSDF_MICROFACET_GGX_REFLECTION_ID;
-}
-
-ClosureType closure_type_get(ClosureRefraction cl)
-{
-  return CLOSURE_BSDF_MICROFACET_GGX_REFRACTION_ID;
-}
-
-ClosureType closure_type_get(ClosureSubsurface cl)
-{
-  return CLOSURE_BSSRDF_BURLEY_ID;
-}
-
-/**
- * Returns true if the closure is to be selected based on the input weight.
- */
-bool closure_select_check(float weight, inout float total_weight, inout float r)
-{
-  if (weight < 1e-5f) {
-    return false;
-  }
-  total_weight += weight;
-  float x = weight / total_weight;
-  bool chosen = (r < x);
-  /* Assuming that if r is in the interval [0,x] or [x,1], it's still uniformly distributed within
-   * that interval, so remapping to [0,1] again to explore this space of probability. */
-  r = (chosen) ? (r / x) : ((r - x) / (1.0f - x));
-  return chosen;
-}
-
-/**
- * Assign `candidate` to `destination` based on a random value and the respective weights.
- */
-void closure_select(inout ClosureUndetermined destination,
-                    inout float random,
-                    ClosureUndetermined candidate)
-{
-  float candidate_color_weight = average(abs(candidate.color));
-  if (closure_select_check(candidate.weight * candidate_color_weight, destination.weight, random))
-  {
-    float total_weight = destination.weight;
-    destination = candidate;
-    destination.color /= candidate_color_weight;
-    destination.weight = total_weight;
-  }
-}
-
-void closure_weights_reset(float closure_rand)
-{
-  g_closure_rand[0] = closure_rand;
-  g_closure_bins[0].weight = 0.0f;
-#if CLOSURE_BIN_COUNT > 1
-  g_closure_rand[1] = closure_rand;
-  g_closure_bins[1].weight = 0.0f;
-#endif
-#if CLOSURE_BIN_COUNT > 2
-  g_closure_rand[2] = closure_rand;
-  g_closure_bins[2].weight = 0.0f;
-#endif
-
-  g_volume_scattering = float3(0.0f);
-  g_volume_anisotropy = 0.0f;
-  g_volume_absorption = float3(0.0f);
-
-  g_emission = float3(0.0f);
-  g_transmittance = float3(0.0f);
-  g_volume_scattering = float3(0.0f);
-  g_volume_absorption = float3(0.0f);
-  g_holdout = 0.0f;
-}
 
 #define closure_base_copy(cl, in_cl) \
   cl.weight = in_cl.weight; \
@@ -309,7 +156,7 @@ Closure closure_eval(ClosureVolumeAbsorption volume_absorption)
   return Closure(0);
 }
 
-Closure closure_eval(ClosureHair hair)
+Closure closure_eval(ClosureHair /*hair*/)
 {
   /* TODO */
   return Closure(0);
@@ -373,74 +220,115 @@ Closure closure_eval(ClosureDiffuse diffuse,
 }
 
 /* NOP since we are sampling closures. */
-Closure closure_add(Closure cl1, Closure cl2)
+Closure closure_add(Closure /*cl1*/, Closure /*cl2*/)
 {
   return Closure(0);
 }
-Closure closure_mix(Closure cl1, Closure cl2, float fac)
+Closure closure_mix(Closure /*cl1*/, Closure /*cl2*/, float /*fac*/)
 {
   return Closure(0);
 }
 
-float ambient_occlusion_eval(float3 normal,
-                             float max_distance,
-                             const float inverted,
-                             const float sample_count)
+float ambient_occlusion_eval([[maybe_unused]] float3 normal,
+                             [[maybe_unused]] float max_distance,
+                             [[maybe_unused]] const float inverted,
+                             [[maybe_unused]] const float sample_count)
 {
-  /* Avoid multi-line pre-processor conditionals.
-   * Some drivers don't handle them correctly. */
-  // clang-format off
-#if defined(GPU_FRAGMENT_SHADER) && defined(MAT_AMBIENT_OCCLUSION) && !defined(MAT_DEPTH) && !defined(MAT_SHADOW)
-  // clang-format on
-#  if 0 /* TODO(fclem): Finish inverted horizon scan. */
-  /* TODO(fclem): Replace eevee_ambient_occlusion_lib by eevee_horizon_scan_eval_lib when this is
-   * finished. */
+#if defined(GPU_FRAGMENT_SHADER) && defined(MAT_AMBIENT_OCCLUSION) && !defined(MAT_DEPTH) && \
+    !defined(MAT_SHADOW)
   float3 vP = drw_point_world_to_view(g_data.P);
   float3 vN = drw_normal_world_to_view(normal);
 
   int2 texel = int2(gl_FragCoord.xy);
-  float2 noise;
-  noise.x = interlieved_gradient_noise(float2(texel), 3.0f, 0.0f);
-  noise.y = utility_tx_fetch(utility_tx, float2(texel), UTIL_BLUE_NOISE_LAYER).r;
-  noise = fract(noise + sampling_rng_2D_get(SAMPLING_AO_U));
+  float4 noise = utility_tx_fetch(utility_tx, float2(texel), UTIL_BLUE_NOISE_LAYER);
+  noise = fract(noise + sampling_rng_3D_get(SAMPLING_AO_U).xyzx);
 
-  ClosureOcclusion occlusion;
-  occlusion.N = (inverted != 0.0f) ? -vN : vN;
+  float result = eevee::fast_gi::eval<float>(raytrace_buf.fast_gi_thickness,
+                                             hiz_tx,
+                                             hiz_tx /* Dummy. */,
+                                             hiz_tx /* Dummy. */,
+                                             vP,
+                                             vN,
+                                             noise,
+                                             uniform_buf.ao.pixel_size,
+                                             max_distance,
+                                             uniform_buf.ao.angle_bias,
+                                             2,
+                                             int(sample_count / 2.0f),
+                                             inverted != 0.0f,
+                                             true);
 
-  HorizonScanContext ctx;
-  ctx.occlusion = occlusion;
-
-  horizon_scan_eval(vP,
-                    ctx,
-                    noise,
-                    uniform_buf.ao.pixel_size,
-                    max_distance,
-                    uniform_buf.ao.thickness_near,
-                    uniform_buf.ao.thickness_far,
-                    uniform_buf.ao.angle_bias,
-                    2,
-                    10,
-                    inverted != 0.0f,
-                    true);
-
-  return saturate(ctx.occlusion_result.r);
-#  else
-  float3 vP = drw_point_world_to_view(g_data.P);
-  int2 texel = int2(gl_FragCoord.xy);
-  OcclusionData data = ambient_occlusion_search(
-      vP, hiz_tx, texel, max_distance, inverted, sample_count);
-
-  float3 V = drw_world_incident_vector(g_data.P);
-  float3 N = normal;
-  float3 Ng = g_data.Ng;
-
-  float unused_error, visibility;
-  float3 unused;
-  ambient_occlusion_eval(data, texel, V, N, Ng, inverted, visibility, unused_error, unused);
-  return visibility;
-#  endif
+  return saturate(result);
 #else
   return 1.0f;
+#endif
+}
+
+void raycast_eval([[maybe_unused]] float3 position,
+                  float3 direction,
+                  float max_distance,
+                  [[maybe_unused]] bool self_only,
+                  bool &is_hit,
+                  bool &self_hit,
+                  float &hit_distance,
+                  float3 &hit_position,
+                  float3 &hit_normal)
+{
+  is_hit = false;
+  self_hit = false;
+  hit_distance = max_distance;
+  hit_position = float3(0.0f);
+  hit_normal = float3(0.0f);
+
+  direction = normalize(direction);
+
+#if defined(MAT_RAYCAST)
+  float3 ws_start = position;
+  float3 ws_end = position + direction * max_distance;
+  if (!clip_ray(
+          ws_start, ws_end, direction, max_distance, drw_view_culling().frustum_planes.planes))
+  {
+    return;
+  }
+
+  {
+    /* Offset the start to prevent wrong intersection due to depth precision. */
+    float3 vs_start = drw_point_world_to_view(ws_start);
+    float start_depth = drw_depth_view_to_screen(vs_start.z);
+    float offset_depth = uintBitsToFloat(floatBitsToUint(start_depth) + 2);
+    float offset_delta = abs(drw_depth_screen_to_view(offset_depth) - vs_start.z);
+    ws_start += direction * offset_delta;
+  }
+
+  float noise_offset = sampling_rng_1D_get(SAMPLING_RAYTRACE_W);
+  float jitter = interleaved_gradient_noise(gl_FragCoord.xy, 1.0f, noise_offset);
+  float thickness_noise_offset = sampling_rng_1D_get(SAMPLING_RAYTRACE_X);
+  float thickness_jitter =
+      interleaved_gradient_noise(gl_FragCoord.xy, 1.0f, thickness_noise_offset) * 0.5f + 0.5f;
+  float thickness = raytrace_buf.thickness * thickness_jitter;
+
+  float2 hit_uv = float2(0.0f);
+  uint self_id = drw_resource_id() & 0xFFFF;
+
+  float result = raytrace_screen_2(drw_point_world_to_view(ws_start),
+                                   drw_point_world_to_view(ws_end),
+                                   drw_normal_world_to_view(direction),
+                                   hiz_tx,
+                                   raytrace_buf,
+                                   64,
+                                   jitter,
+                                   object_id_tx,
+                                   self_only ? self_id : 0,
+                                   hit_uv);
+  if (result >= 0.0f) {
+    is_hit = true;
+    hit_position = ws_start + direction * result;
+    hit_distance = distance(position, hit_position);
+    hit_normal = normalize(texture(prepass_normal_tx, hit_uv).xyz * 2.0f - 1.0f);
+    int2 hit_texel = int2(hit_uv * float2(textureSize(object_id_tx, 0)));
+    uint hit_id = texelFetch(object_id_tx, hit_texel, 0).x;
+    self_hit = self_only || (hit_id == self_id);
+  }
 #endif
 }
 
@@ -452,27 +340,52 @@ float nodetree_thickness();
 float4 closure_to_rgba(Closure cl);
 #endif
 
-/* Simplified form of F_eta(eta, 1.0). */
-float F0_from_ior(float eta)
+/**
+ * Used for packing.
+ * This is the reflection coefficient also denoted r.
+ * https://en.wikipedia.org/wiki/Fresnel_equations#Complex_amplitude_reflection_and_transmission_coefficients
+ */
+float f0_from_ior(float eta)
 {
-  float A = (eta - 1.0f) / (eta + 1.0f);
-  return A * A;
+  return (eta - 1.0f) / (eta + 1.0f);
 }
 
-/* Return the fresnel color from a precomputed LUT value (from brdf_lut). */
-float3 F_brdf_single_scatter(float3 f0, float3 f90, float2 lut)
+/**
+ * Simplified form of F_eta(eta, 1.0).
+ * This is the power reflection coefficient also denoted R.
+ * https://en.wikipedia.org/wiki/Fresnel_equations#Complex_amplitude_reflection_and_transmission_coefficients
+ */
+float F0_from_ior(float eta)
 {
-  return f0 * lut.x + f90 * lut.y;
+  return square(f0_from_ior(eta));
 }
+float F0_from_f0(float f0)
+{
+  return square(f0);
+}
+
+/**
+ * Return the fresnel color from a precomputed LUT value.
+ */
+template<typename T> float3 F_brdf_single_scatter(float3 f0, float3 f90, T lut)
+{
+  return f0 * lut.scale + f90 * lut.bias;
+}
+template float3 F_brdf_single_scatter<eevee::lut::GGXBrdfData>(float3,
+                                                               float3,
+                                                               eevee::lut::GGXBrdfData);
+template float3 F_brdf_single_scatter<eevee::lut::GGXBsdfData>(float3,
+                                                               float3,
+                                                               eevee::lut::GGXBsdfData);
 
 /* Multi-scattering brdf approximation from
  * "A Multiple-Scattering Microfacet Model for Real-Time Image-based Lighting"
  * https://jcgt.org/published/0008/01/03/paper.pdf by Carmelo J. Fdez-Agüera. */
-float3 F_brdf_multi_scatter(float3 f0, float3 f90, float2 lut)
+template<typename T> float3 F_brdf_multi_scatter(float3 f0, float3 f90, T lut)
 {
   float3 FssEss = F_brdf_single_scatter(f0, f90, lut);
 
-  float Ess = lut.x + lut.y;
+  float Ess = lut.scale + lut.bias;
   float Ems = 1.0f - Ess;
   float3 Favg = f0 + (f90 - f0) / 21.0f;
 
@@ -485,36 +398,31 @@ float3 F_brdf_multi_scatter(float3 f0, float3 f90, float2 lut)
    * "Practical multiple scattering compensation for microfacet model". */
   return FssEss / (1.0f - Ems * Favg);
 }
-
-float2 brdf_lut(float cos_theta, float roughness)
-{
-#ifdef EEVEE_UTILITY_TX
-  return utility_tx_sample_lut(utility_tx, cos_theta, roughness, UTIL_BSDF_LAYER).rg;
-#else
-  return float2(1.0f, 0.0f);
-#endif
-}
+template float3 F_brdf_multi_scatter<eevee::lut::GGXBrdfData>(float3,
+                                                              float3,
+                                                              eevee::lut::GGXBrdfData);
+template float3 F_brdf_multi_scatter<eevee::lut::GGXBsdfData>(float3,
+                                                              float3,
+                                                              eevee::lut::GGXBsdfData);
 
 void brdf_f82_tint_lut(float3 F0,
                        float3 F82,
                        float cos_theta,
                        float roughness,
                        bool do_multiscatter,
-                       out float3 reflectance)
+                       float3 &reflectance)
 {
-#ifdef EEVEE_UTILITY_TX
-  float3 split_sum = utility_tx_sample_lut(utility_tx, cos_theta, roughness, UTIL_BSDF_LAYER).rgb;
-#else
-  float3 split_sum = float3(1.0f, 0.0f, 0.0f);
-#endif
+  auto &utility_tx = sampler_get(eevee_utility_texture, utility_tx);
+  eevee::lut::GGXBrdfData lut = eevee::lut::GGXBrdfData::sample_utility_tx(
+      utility_tx, cos_theta, roughness);
 
-  reflectance = do_multiscatter ? F_brdf_multi_scatter(F0, float3(1.0f), split_sum.xy) :
-                                  F_brdf_single_scatter(F0, float3(1.0f), split_sum.xy);
+  reflectance = do_multiscatter ? F_brdf_multi_scatter(F0, float3(1.0f), lut) :
+                                  F_brdf_single_scatter(F0, float3(1.0f), lut);
 
   /* Precompute the F82 term factor for the Fresnel model.
    * In the classic F82 model, the F82 input directly determines the value of the Fresnel
-   * model at ~82°, similar to F0 and F90.
-   * With F82-Tint, on the other hand, the value at 82° is the value of the classic Schlick
+   * model at ~82 degrees, similar to F0 and F90.
+   * With F82-Tint, on the other hand, the value at 82 degrees is the value of the classic Schlick
    * model multiplied by the tint input.
    * Therefore, the factor follows by setting `F82Tint(cosI) = FSchlick(cosI) - b*cosI*(1-cosI)^6`
    * and `F82Tint(acos(1/7)) = FSchlick(acos(1/7)) * f82_tint` and solving for `b`. */
@@ -523,30 +431,7 @@ void brdf_f82_tint_lut(float3 F0,
   constexpr float f6 = (f * f) * (f * f) * (f * f);
   float3 F_schlick = mix(F0, float3(1.0f), f5);
   float3 b = F_schlick * (7.0f / f6) * (1.0f - F82);
-  reflectance -= b * split_sum.z;
-}
-
-/* Return texture coordinates to sample BSDF LUT. */
-float3 lut_coords_bsdf(float cos_theta, float roughness, float ior)
-{
-  /* IOR is the sine of the critical angle. */
-  float critical_cos = sqrt(1.0f - ior * ior);
-
-  float3 coords;
-  coords.x = square(ior);
-  coords.y = cos_theta;
-  coords.y -= critical_cos;
-  coords.y /= (coords.y > 0.0f) ? (1.0f - critical_cos) : critical_cos;
-  coords.y = coords.y * 0.5f + 0.5f;
-  coords.z = roughness;
-
-  return saturate(coords);
-}
-
-/* Return texture coordinates to sample Surface LUT. */
-float3 lut_coords_btdf(float cos_theta, float roughness, float ior)
-{
-  return float3(sqrt((ior - 1.0f) / (ior + 1.0f)), sqrt(1.0f - cos_theta), roughness);
+  reflectance -= b * lut.metal_bias;
 }
 
 /* Computes the reflectance and transmittance based on the tint (`f0`, `f90`, `transmission_tint`)
@@ -558,56 +443,56 @@ void bsdf_lut(float3 F0,
               float roughness,
               float ior,
               bool do_multiscatter,
-              out float3 reflectance,
-              out float3 transmittance)
+              float3 &reflectance,
+              float3 &transmittance)
 {
-#ifdef EEVEE_UTILITY_TX
+  auto &utility_tx = sampler_get(eevee_utility_texture, utility_tx);
   if (ior == 1.0f) {
     reflectance = float3(0.0f);
     transmittance = transmission_tint;
     return;
   }
 
-  float2 split_sum;
-  float transmission_factor;
+  /* TODO(not_mark): strip namespaces on BSL port. */
+  eevee::lut::GGXBsdfData lut;
+
+  const float f0 = f0_from_ior(ior);
 
   if (ior > 1.0f) {
-    split_sum = brdf_lut(cos_theta, roughness);
-    float3 coords = lut_coords_btdf(cos_theta, roughness, ior);
-    transmission_factor = utility_tx_sample_bsdf_lut(utility_tx, coords.xy, coords.z).a;
     /* Gradually increase `f90` from 0 to 1 when IOR is in the range of [1.0f, 1.33f], to avoid
      * harsh transition at `IOR == 1`. */
     if (all(equal(F90, float3(1.0f)))) {
-      F90 = float3(saturate(2.33f / 0.33f * (ior - 1.0f) / (ior + 1.0f)));
+      F90 = float3(saturate(2.33f / 0.33f * f0));
     }
+
+    eevee::lut::GGXBrdfData brdf_lut = eevee::lut::GGXBrdfData::sample_utility_tx(
+        utility_tx, cos_theta, roughness);
+    eevee::lut::GGXBtdfGt1Data btdf_lut = eevee::lut::GGXBtdfGt1Data::sample_utility_tx(
+        utility_tx, cos_theta, roughness, f0);
+
+    lut.scale = brdf_lut.scale;
+    lut.bias = brdf_lut.bias;
+    lut.transmission_factor = btdf_lut.transmission_factor;
   }
   else {
-    float3 coords = lut_coords_bsdf(cos_theta, roughness, ior);
-    float3 bsdf = utility_tx_sample_bsdf_lut(utility_tx, coords.xy, coords.z).rgb;
-    split_sum = bsdf.rg;
-    transmission_factor = bsdf.b;
+    lut = eevee::lut::GGXBsdfData::sample_utility_tx(utility_tx, cos_theta, roughness, ior);
   }
 
-  reflectance = F_brdf_single_scatter(F0, F90, split_sum);
-  transmittance = (float3(1.0f) - F0) * transmission_factor * transmission_tint;
+  reflectance = F_brdf_single_scatter(F0, F90, lut);
+  transmittance = (float3(1.0f) - F0) * lut.transmission_factor * transmission_tint;
 
   if (do_multiscatter) {
-    float real_F0 = F0_from_ior(ior);
-    float Ess = real_F0 * split_sum.x + split_sum.y + (1.0f - real_F0) * transmission_factor;
-    float Ems = 1.0f - Ess;
+    const float real_F0 = F0_from_f0(f0);
+    const float Ess = real_F0 * lut.scale + lut.bias + (1.0f - real_F0) * lut.transmission_factor;
+    const float Ems = 1.0f - Ess;
     /* Assume that the transmissive tint makes up most of the overall color if it's not zero. */
-    float3 Favg = all(equal(transmission_tint, float3(0.0f))) ? F0 + (F90 - F0) / 21.0f :
-                                                                transmission_tint;
+    const float3 Favg = all(equal(transmission_tint, float3(0.0f))) ? F0 + (F90 - F0) / 21.0f :
+                                                                      transmission_tint;
 
     float3 scale = 1.0f / (1.0f - Ems * Favg);
     reflectance *= scale;
     transmittance *= scale;
   }
-#else
-  reflectance = float3(0.0f);
-  transmittance = float3(0.0f);
-#endif
-  return;
 }
 
 /* Computes the reflectance and transmittance based on the BSDF LUT. */
@@ -770,7 +655,7 @@ float texture_lod_bias_get()
  */
 float derivative_scale_get()
 {
-  return 1.0 / float(uniform_buf.film.scaling_factor);
+  return 1.0f / float(uniform_buf.film.scaling_factor);
 }
 
 /** \} */
@@ -823,7 +708,7 @@ float4 attr_load_color_post(float4 attr)
  *
  * \{ */
 
-float4 attr_load_uniform(float4 attr, const uint attr_hash)
+float4 attr_load_uniform(float4 /*attr*/, const uint attr_hash)
 {
   return drw_object_attribute(attr_hash);
 }

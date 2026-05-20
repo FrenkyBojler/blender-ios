@@ -10,9 +10,7 @@
 
 #include "GHOST_Context.hh"
 
-extern "C" {
-#include "SDL.h"
-}
+#include <SDL3/SDL.h>
 
 #ifndef GHOST_OPENGL_SDL_CONTEXT_FLAGS
 #  ifdef WITH_GPU_DEBUG
@@ -44,11 +42,17 @@ class GHOST_ContextSDL : public GHOST_Context {
    */
   ~GHOST_ContextSDL() override;
 
+  /** \copydoc #GHOST_IContext::swapBuffersAcquire */
+  GHOST_TSuccess swapBufferAcquire() override
+  {
+    return GHOST_kSuccess;
+  }
+
   /**
    * Swaps front and back buffers of a window.
    * \return A boolean success indicator.
    */
-  GHOST_TSuccess swapBuffers() override;
+  GHOST_TSuccess swapBufferRelease() override;
 
   /**
    * Activates the drawing context of this window.

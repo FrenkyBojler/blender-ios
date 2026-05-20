@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "draw_object_infos_info.hh"
+#include "draw_object_infos_infos.hh"
 
 #ifdef GPU_LIBRARY_SHADER
 #  define CURVES_SHADER
@@ -17,9 +17,9 @@ SHADER_LIBRARY_CREATE_INFO(draw_curves)
 #include "draw_curves_lib.glsl"
 #include "draw_model_lib.glsl"
 #include "draw_object_infos_lib.glsl"
-#include "eevee_nodetree_lib.glsl"
+#include "eevee_geom_types_lib.glsl"
 #include "gpu_shader_codegen_lib.glsl"
-#include "gpu_shader_math_matrix_lib.glsl"
+
 #include "gpu_shader_math_vector_lib.glsl"
 
 /* -------------------------------------------------------------------- */
@@ -47,28 +47,28 @@ int curves_attribute_element_id(CurvesPoint point, int index)
   return point.curve_id;
 }
 
-float4 attr_load_tangent(CurvesPoint point, samplerBuffer cd_buf, int index)
+float4 attr_load_tangent(CurvesPoint /*point*/, samplerBuffer /*cd_buf*/, int /*index*/)
 {
   /* Not supported for the moment. */
   return float4(0.0f, 0.0f, 0.0f, 1.0f);
 }
-float3 attr_load_uv(CurvesPoint point, samplerBuffer cd_buf, int index)
+float3 attr_load_uv(CurvesPoint point, samplerBuffer cd_buf, int /*index*/)
 {
   return texelFetch(cd_buf, point.curve_id).rgb;
 }
-float4 attr_load_color(CurvesPoint point, samplerBuffer cd_buf, int index)
+float4 attr_load_color(CurvesPoint point, samplerBuffer cd_buf, int /*index*/)
 {
   return texelFetch(cd_buf, point.curve_id).rgba;
 }
-float4 attr_load_vec4(CurvesPoint point, samplerBuffer cd_buf, int index)
+float4 attr_load_float4(CurvesPoint point, samplerBuffer cd_buf, int index)
 {
   return texelFetch(cd_buf, curves_attribute_element_id(point, index)).rgba;
 }
-float3 attr_load_vec3(CurvesPoint point, samplerBuffer cd_buf, int index)
+float3 attr_load_float3(CurvesPoint point, samplerBuffer cd_buf, int index)
 {
   return texelFetch(cd_buf, curves_attribute_element_id(point, index)).rgb;
 }
-float2 attr_load_vec2(CurvesPoint point, samplerBuffer cd_buf, int index)
+float2 attr_load_float2(CurvesPoint point, samplerBuffer cd_buf, int index)
 {
   return texelFetch(cd_buf, curves_attribute_element_id(point, index)).rg;
 }

@@ -40,8 +40,8 @@
 #include "DRW_gpu_wrapper.hh"
 #include "GPU_batch_utils.hh"
 
-#include "eevee_shader_shared.hh"
 #include "eevee_sync.hh"
+#include "eevee_volume_shared.hh"
 
 namespace blender::eevee {
 
@@ -167,7 +167,9 @@ class VolumeModule {
 
   void end_sync();
 
-  /* Render material properties. */
+  void set_view(View &main_view);
+
+  /* Render material properties. Needs to be called after `set_view`. */
   void draw_prepass(View &main_view);
   /* Compute scattering and integration. */
   void draw_compute(View &main_view, int2 extent);
