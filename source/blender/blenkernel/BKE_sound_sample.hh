@@ -121,4 +121,46 @@ class bSoundFrequencySampler {
   std::optional<Array<float>> compute_fft(int start_sample) const;
 };
 
+/**
+ * DWT-based transient energy sampler. Uses Daubechies-4 wavelets for sample-accurate onset
+ * detection without the time-smearing inherent in STFT approaches.
+ */
+class bSoundTransientSampler {
+ public:
+  struct Key {
+    int window_size;
+    std::optional<int> channel;
+
+    uint64_t hash() const
+    {
+      return get_default_hash(this->window_size, this->channel.value_or(-1));
+    }
+
+    friend bool operator==(const Key &a, const Key &b) = default;
+  };
+
+ private:
+  struct WindowCache {
+    mutable CacheMutex mutex;
+    mutable std::optional<float> transient_energy;
+  };
+
+  AUD_Sound sound_;
+  Key key_;
+  int samples_per_second_;
+  int window_cache_stride_;
+  Array<WindowCache> window_caches_;
+
+ public:
+  bSoundTransientSampler(AUD_Sound sound, const Key &key);
+
+  static const bSoundTransientSampler *get_cached(const bSound &sound, const Key &key);
+
+  float sample(float time) const;
+
+ private:
+  std::optional<float> ensure_window_cache(int window_i) const;
+  std::optional<float> compute_dwt(int start_sample) const;
+};
+
 }  // namespace blender::bke

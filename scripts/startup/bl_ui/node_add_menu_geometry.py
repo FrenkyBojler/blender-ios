@@ -701,6 +701,7 @@ class NODE_MT_gn_utilities_sound_base(node_add_menu.NodeMenu):
     def draw(self, context):
         layout = self.layout
         self.node_operator(layout, "GeometryNodeSampleSoundFrequencies")
+        self.node_operator(layout, "GeometryNodeSampleSoundTransient")
 
 
 class NODE_MT_gn_texture_base(node_add_menu.NodeMenu):
