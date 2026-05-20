@@ -106,12 +106,17 @@ struct ErrorsForType {
 
   friend bool operator==(const ErrorsForType &a, const ErrorsForType &b) = default;
 };
-using OperatorRegisterErrors = Map<std::string, ErrorsForType>;
 
-static OperatorRegisterErrors &get_registration_errors()
+struct RegistrationData {
+  using Errors = Map<std::string, ErrorsForType>;
+  Errors errors_by_idname;
+  asset::AssetItemTree asset_tree;
+};
+
+static RegistrationData &get_registration_data()
 {
-  static Map<std::string, ErrorsForType> errors_by_idname;
-  return errors_by_idname;
+  static RegistrationData data;
+  return data;
 }
 
 /**
@@ -134,12 +139,12 @@ struct OperatorTypeData : public wmOperatorType::TypeData {
   };
   std::variant<AssetWeakReference, LocalRef> group_ref;
 
-  std::array<int64_t, 2> hash;
+  UniqueHash hash;
 
   static std::optional<OperatorTypeData> from_asset(const AssetRepresentation &asset,
-                                                    OperatorRegisterErrors &errors);
+                                                    RegistrationData::Errors &errors);
   static std::optional<OperatorTypeData> from_group(const bNodeTree &group,
-                                                    OperatorRegisterErrors &errors);
+                                                    RegistrationData::Errors &errors);
 
  private:
   /** Should be called after any data changes. */
@@ -179,12 +184,11 @@ void OperatorTypeData::ensure_hash()
   bke::idprop::hash(*this->asset_meta_data_properties, hash_state);
   static_assert(sizeof(this->hash) == sizeof(XXH128_hash_t));
   const XXH128_hash_t xxh3_hash = XXH3_128bits_digest(hash_state);
-  this->hash[0] = xxh3_hash.low64;
-  this->hash[1] = xxh3_hash.high64;
+  this->hash = {xxh3_hash.low64, xxh3_hash.high64};
 }
 
 static std::optional<std::string> operator_idname_get(const StringRefNull custom_idname,
-                                                      OperatorRegisterErrors *errors)
+                                                      RegistrationData::Errors *errors)
 {
   ReportList reports;
   BKE_reports_init(&reports, RPT_STORE | RPT_PRINT_HANDLED_BY_OWNER);
@@ -223,7 +227,7 @@ static std::optional<std::string> operator_idname_for_asset(const AssetRepresent
 }
 
 std::optional<OperatorTypeData> OperatorTypeData::from_asset(
-    const asset_system::AssetRepresentation &asset, OperatorRegisterErrors &errors)
+    const asset_system::AssetRepresentation &asset, RegistrationData::Errors &errors)
 {
   const std::optional<StringRefNull> custom_idname = custom_idname_for_asset(asset);
   if (!custom_idname) {
@@ -297,7 +301,7 @@ static std::optional<std::string> operator_idname_for_group(const bNodeTree &gro
 }
 
 std::optional<OperatorTypeData> OperatorTypeData::from_group(const bNodeTree &group,
-                                                             OperatorRegisterErrors &errors)
+                                                             RegistrationData::Errors &errors)
 {
   const std::optional<StringRefNull> custom_idname = custom_idname_for_group(group);
   if (!custom_idname) {
@@ -1495,7 +1499,7 @@ static void register_node_tool(wmOperatorType *ot,
 void ui_template_node_operator_registration_errors(ui::Layout &layout,
                                                    const StringRefNull idname_py)
 {
-  const OperatorRegisterErrors &errors = get_registration_errors();
+  const RegistrationData::Errors &errors = get_registration_data().errors_by_idname;
   const ErrorsForType *errors_for_type = errors.lookup_ptr(idname_py);
   if (!errors_for_type) {
     return;
@@ -1513,10 +1517,20 @@ void ui_template_node_operator_registration_errors(ui::Layout &layout,
   }
 }
 
-static Vector<std::unique_ptr<OperatorTypeData>> get_node_tools_type_data(
-    const bContext &C, Main &bmain, OperatorRegisterErrors &errors)
+struct GetIDName {
+  StringRefNull operator()(const std::unique_ptr<OperatorTypeData> &value) const
+  {
+    return value->idname;
+  }
+};
+
+using OperatorsToRegister = CustomIDVectorSet<std::unique_ptr<OperatorTypeData>, GetIDName>;
+
+static OperatorsToRegister get_node_tools_type_data(const bContext &C,
+                                                    Main &bmain,
+                                                    RegistrationData::Errors &errors)
 {
-  Vector<std::unique_ptr<OperatorTypeData>> all_types;
+  OperatorsToRegister all_types;
   for (bNodeTree &ntree : bmain.nodetrees) {
     if (ID_IS_ASSET(&ntree.id)) {
       continue;
@@ -1531,7 +1545,9 @@ static Vector<std::unique_ptr<OperatorTypeData>> get_node_tools_type_data(
     if (!type_data) {
       continue;
     }
-    all_types.append(std::make_unique<OperatorTypeData>(std::move(*type_data)));
+    if (!all_types.add(std::make_unique<OperatorTypeData>(std::move(*type_data)))) {
+      errors.lookup_or_add_default_as(type_data->custom_idname).duplicate_count++;
+    }
   }
 
   const AssetLibraryReference library_ref = asset_system::all_library_reference();
@@ -1564,7 +1580,9 @@ static Vector<std::unique_ptr<OperatorTypeData>> get_node_tools_type_data(
       if (!type_data) {
         return true;
       }
-      all_types.append(std::make_unique<OperatorTypeData>(std::move(*type_data)));
+      if (!all_types.add(std::make_unique<OperatorTypeData>(std::move(*type_data)))) {
+        errors.lookup_or_add_default_as(type_data->custom_idname).duplicate_count++;
+      }
       return true;
     });
   }
@@ -1572,49 +1590,128 @@ static Vector<std::unique_ptr<OperatorTypeData>> get_node_tools_type_data(
   return all_types;
 }
 
+static asset::AssetItemTree build_catalog_tree(const bContext &C)
+{
+  asset::AssetFilterSettings type_filter{};
+  type_filter.id_types = FILTER_ID_NT;
+  auto meta_data_filter = [&](const AssetMetaData &meta_data) {
+    const IDProperty *tree_type = BKE_asset_metadata_idprop_find(&meta_data, "type");
+    if (tree_type == nullptr || IDP_int_get(tree_type) != NTREE_GEOMETRY) {
+      return false;
+    }
+    return true;
+  };
+  const AssetLibraryReference library = asset_system::all_library_reference();
+  asset_system::all_library_reload_catalogs_if_dirty();
+  return asset::build_filtered_all_catalog_tree(library, C, type_filter, meta_data_filter);
+}
+
+static void show_error_reports(const bContext &C, RegistrationData::Errors errors)
+{
+  wmWindowManager &wm = *CTX_wm_manager(&C);
+  RegistrationData &registration_data = get_registration_data();
+  if (errors == registration_data.errors_by_idname) {
+    /* Don't display the same errors twice. That can be very noisy since this operator registration
+     * process runs so often. */
+    return;
+  }
+  ReportList *reports = CTX_wm_reports(&C);
+  for (const RegistrationData::Errors::Item &item : errors.items()) {
+    if (item.value.is_builtin_operator) {
+      BKE_reportf(reports,
+                  RPT_ERROR,
+                  "Error registering node tool \"%s\", operator is already registered",
+                  item.key.c_str());
+    }
+    if (item.value.duplicate_count != 0) {
+      BKE_reportf(reports,
+                  RPT_ERROR,
+                  "Error registering node tool \"%s\", %d duplicate(s)",
+                  item.key.c_str(),
+                  item.value.duplicate_count);
+    }
+    if (item.value.invalid_metadata) {
+      BKE_reportf(
+          reports,
+          RPT_ERROR,
+          "Node tool \"%s\" asset has invalid metadata. Asset meta-data may be out of date",
+          item.key.c_str());
+    }
+    for (const std::string &error : item.value.idname_validation_errors) {
+      BKE_reportf(reports,
+                  RPT_ERROR,
+                  "Error registering node tool \"%s\", %s",
+                  item.key.c_str(),
+                  error.c_str());
+    }
+    for (const std::string &error : item.value.invalid_input_metadata_errors) {
+      BKE_reportf(reports,
+                  RPT_ERROR,
+                  "Error registering node tool \"%s\". Invalid metadata for input \"%s\". "
+                  "Asset meta-data may be out of date",
+                  item.key.c_str(),
+                  error.c_str());
+    }
+  }
+  registration_data.errors_by_idname = std::move(errors);
+  WM_report_banner_show(&wm, nullptr);
+}
+
 void register_node_group_operators(const bContext &C)
 {
   wmWindowManager &wm = *CTX_wm_manager(&C);
   Main &bmain = *CTX_data_main(&C);
+  RegistrationData &registration_data = get_registration_data();
 
-  OperatorRegisterErrors &errors = get_registration_errors();
-  OperatorRegisterErrors last_errors = errors;
-  errors.clear();
+  RegistrationData::Errors errors;
 
-  Vector<std::unique_ptr<OperatorTypeData>> node_tool_types = get_node_tools_type_data(
-      C, bmain, errors);
+  OperatorsToRegister types_to_register = get_node_tools_type_data(C, bmain, errors);
 
-  Vector<std::unique_ptr<OperatorTypeData>> types_to_register;
-  Set<StringRefNull> handled_types;
-  Set<wmOperatorType *> types_to_remove;
-  for (std::unique_ptr<OperatorTypeData> &type : node_tool_types) {
-    if (!handled_types.add_as(type->idname)) {
-      errors.lookup_or_add_default_as(type->custom_idname).duplicate_count++;
-      continue;
-    }
-    if (wmOperatorType *ot = WM_operatortype_find(type->idname.c_str(), true)) {
+  /* Remove node tools that conflict with builtin operators. */
+  types_to_register.remove_if([&](auto item) {
+    if (wmOperatorType *ot = WM_operatortype_find(item.key.c_str(), true)) {
       if ((ot->flag & OPTYPE_NODE_TOOL) == 0) {
-        errors.lookup_or_add_default(type->custom_idname).is_builtin_operator = true;
-        continue;
+        errors.lookup_or_add_default(item.value.custom_idname).is_builtin_operator = true;
+        return true;
       }
-      const OperatorTypeData &type_data = static_cast<const OperatorTypeData &>(*ot->custom_data);
-      if (type_data.hash == type->hash) {
-        continue;
-      }
-      types_to_remove.add(ot);
     }
-    types_to_register.append(std::move(type));
-  }
+    return false;
+  });
 
-  /* Also remove old operators for now-unused identifier names. */
+  Set<wmOperatorType *> types_to_remove;
+
+  /* Remove old operators for now-unused identifier names. */
   for (wmOperatorType *ot : WM_operatortypes_registered_get()) {
     if ((ot->flag & OPTYPE_NODE_TOOL) == 0) {
       continue;
     }
-    if (handled_types.contains(ot->idname)) {
+    if (types_to_register.contains_as(ot->idname)) {
       continue;
     }
     types_to_remove.add(ot);
+  }
+
+  /* Remove operators that are already registered and haven't changed. */
+  types_to_register.remove_if([&](auto item) {
+    if (wmOperatorType *ot = WM_operatortype_find(item.key.c_str(), true)) {
+      const OperatorTypeData &type_data = static_cast<const OperatorTypeData &>(*ot->custom_data);
+      if (type_data.hash == item.value->hash) {
+        return true;
+      }
+    }
+  });
+
+  /* Remove changed operators so they can be re-registered. */
+  for (const std::unique_ptr<OperatorTypeData> &type : types_to_register) {
+    if (wmOperatorType *ot = WM_operatortype_find(type->idname.c_str(), true)) {
+      types_to_remove.add_new(ot);
+    }
+  }
+
+  show_error_reports(C, std::move(errors));
+
+  if (types_to_remove.is_empty() && types_to_register.is_empty()) {
+    return;
   }
 
   if (!types_to_remove.is_empty()) {
@@ -1633,7 +1730,8 @@ void register_node_group_operators(const bContext &C)
     }
   }
 
-  for (std::unique_ptr<OperatorTypeData> &type : types_to_register) {
+  Vector<std::unique_ptr<OperatorTypeData>> vector = types_to_register.extract_vector();
+  for (std::unique_ptr<OperatorTypeData> &type : vector) {
     WM_operatortype_append_ptr(
         [](wmOperatorType *ot, void *user_data) {
           register_node_tool(ot, *static_cast<std::unique_ptr<OperatorTypeData> *>(user_data));
@@ -1641,49 +1739,7 @@ void register_node_group_operators(const bContext &C)
         &type);
   }
 
-  /* Don't display the same errors twice. That can be very noisy since this operator registration
-   * process runs so often. */
-  if (last_errors != errors) {
-    ReportList *reports = CTX_wm_reports(&C);
-    for (const OperatorRegisterErrors::Item &item : errors.items()) {
-      if (item.value.is_builtin_operator) {
-        BKE_reportf(reports,
-                    RPT_ERROR,
-                    "Error registering node tool \"%s\", operator is already registered",
-                    item.key.c_str());
-      }
-      if (item.value.duplicate_count != 0) {
-        BKE_reportf(reports,
-                    RPT_ERROR,
-                    "Error registering node tool \"%s\", %d duplicate(s)",
-                    item.key.c_str(),
-                    item.value.duplicate_count);
-      }
-      if (item.value.invalid_metadata) {
-        BKE_reportf(
-            reports,
-            RPT_ERROR,
-            "Node tool \"%s\" asset has invalid metadata. Asset meta-data may be out of date",
-            item.key.c_str());
-      }
-      for (const std::string &error : item.value.idname_validation_errors) {
-        BKE_reportf(reports,
-                    RPT_ERROR,
-                    "Error registering node tool \"%s\", %s",
-                    item.key.c_str(),
-                    error.c_str());
-      }
-      for (const std::string &error : item.value.invalid_input_metadata_errors) {
-        BKE_reportf(reports,
-                    RPT_ERROR,
-                    "Error registering node tool \"%s\". Invalid metadata for input \"%s\". "
-                    "Asset meta-data may be out of date",
-                    item.key.c_str(),
-                    error.c_str());
-      }
-    }
-    WM_report_banner_show(&wm, nullptr);
-  }
+  registration_data.asset_tree = build_catalog_tree(C);
 }
 
 /** \} */
@@ -1763,138 +1819,14 @@ GeometryNodeAssetTraitFlag asset_flag_for_context(const Object &active_object)
   return asset_flag_for_context(ObjectType(active_object.type), eObjectMode(active_object.mode));
 }
 
-static asset::AssetItemTree *get_static_item_tree(const ObjectType type, const eObjectMode mode)
-{
-  switch (type) {
-    case OB_MESH: {
-      switch (mode) {
-        case OB_MODE_OBJECT: {
-          static asset::AssetItemTree tree;
-          return &tree;
-        }
-        case OB_MODE_EDIT: {
-          static asset::AssetItemTree tree;
-          return &tree;
-        }
-        case OB_MODE_SCULPT: {
-          static asset::AssetItemTree tree;
-          return &tree;
-        }
-        default:
-          return nullptr;
-      }
-    }
-    case OB_CURVES: {
-      switch (mode) {
-        case OB_MODE_OBJECT: {
-          static asset::AssetItemTree tree;
-          return &tree;
-        }
-        case OB_MODE_EDIT: {
-          static asset::AssetItemTree tree;
-          return &tree;
-        }
-        case OB_MODE_SCULPT_CURVES: {
-          static asset::AssetItemTree tree;
-          return &tree;
-        }
-        default:
-          return nullptr;
-      }
-    }
-    case OB_POINTCLOUD: {
-      switch (mode) {
-        case OB_MODE_OBJECT: {
-          static asset::AssetItemTree tree;
-          return &tree;
-        }
-        case OB_MODE_EDIT: {
-          static asset::AssetItemTree tree;
-          return &tree;
-        }
-        default:
-          return nullptr;
-      }
-    }
-    case OB_GREASE_PENCIL: {
-      switch (mode) {
-        case OB_MODE_OBJECT: {
-          static asset::AssetItemTree tree;
-          return &tree;
-        }
-        case OB_MODE_EDIT: {
-          static asset::AssetItemTree tree;
-          return &tree;
-        }
-        case OB_MODE_SCULPT_GREASE_PENCIL: {
-          static asset::AssetItemTree tree;
-          return &tree;
-        }
-        case OB_MODE_PAINT_GREASE_PENCIL: {
-          static asset::AssetItemTree tree;
-          return &tree;
-        }
-        default:
-          return nullptr;
-      }
-    }
-    default:
-      return nullptr;
-  }
-}
-
-static asset::AssetItemTree *get_static_item_tree(const Object &active_object)
-{
-  return get_static_item_tree(ObjectType(active_object.type), eObjectMode(active_object.mode));
-}
-
-void clear_operator_asset_trees()
-{
-  for (const ObjectType type : {OB_MESH, OB_CURVES, OB_POINTCLOUD, OB_GREASE_PENCIL}) {
-    for (const eObjectMode mode : {OB_MODE_OBJECT,
-                                   OB_MODE_EDIT,
-                                   OB_MODE_SCULPT,
-                                   OB_MODE_SCULPT_CURVES,
-                                   OB_MODE_SCULPT_GREASE_PENCIL,
-                                   OB_MODE_PAINT_GREASE_PENCIL})
-    {
-      if (asset::AssetItemTree *tree = get_static_item_tree(type, mode)) {
-        tree->dirty = true;
-      }
-    }
-  }
-}
-
-static asset::AssetItemTree build_catalog_tree(const bContext &C, const Object &active_object)
-{
-  asset::AssetFilterSettings type_filter{};
-  type_filter.id_types = FILTER_ID_NT;
-  const GeometryNodeAssetTraitFlag flag = asset_flag_for_context(active_object);
-  auto meta_data_filter = [&](const AssetMetaData &meta_data) {
-    const IDProperty *tree_type = BKE_asset_metadata_idprop_find(&meta_data, "type");
-    if (tree_type == nullptr || IDP_int_get(tree_type) != NTREE_GEOMETRY) {
-      return false;
-    }
-    const IDProperty *traits_flag = BKE_asset_metadata_idprop_find(
-        &meta_data, "geometry_node_asset_traits_flag");
-    if (traits_flag == nullptr || (IDP_int_get(traits_flag) & flag) != flag) {
-      return false;
-    }
-    return true;
-  };
-  const AssetLibraryReference library = asset_system::all_library_reference();
-  asset_system::all_library_reload_catalogs_if_dirty();
-  return asset::build_filtered_all_catalog_tree(library, C, type_filter, meta_data_filter);
-}
-
 /**
  * Avoid adding a separate root catalog when the assets have already been added to one of the
  * builtin menus. The need to define the builtin menu labels here is non-ideal. We don't have
  * any UI introspection that can do this though.
  */
-static Set<std::string> get_builtin_menus(const ObjectType object_type, const eObjectMode mode)
+static Set<StringRef> get_builtin_menus(const ObjectType object_type, const eObjectMode mode)
 {
-  Set<std::string> menus;
+  Set<StringRef> menus;
   switch (object_type) {
     case OB_CURVES:
       menus.add_new("View");
@@ -2002,17 +1934,14 @@ static void catalog_assets_draw(const bContext *C, Menu *menu)
   if (!active_object) {
     return;
   }
-  asset::AssetItemTree *tree = get_static_item_tree(*active_object);
-  if (!tree) {
-    return;
-  }
+  const asset::AssetItemTree &tree = get_registration_data().asset_tree;
   const std::optional<StringRefNull> menu_path = CTX_data_string_get(C, "asset_catalog_path");
   if (!menu_path) {
     return;
   }
-  const Span<asset_system::AssetRepresentation *> assets = tree->assets_per_path.lookup(
+  const Span<asset_system::AssetRepresentation *> assets = tree.assets_per_path.lookup(
       menu_path->data());
-  const asset_system::AssetCatalogTreeItem *catalog_item = tree->catalogs.find_item(
+  const asset_system::AssetCatalogTreeItem *catalog_item = tree.catalogs.find_item(
       menu_path->data());
   BLI_assert(catalog_item != nullptr);
 
@@ -2023,6 +1952,13 @@ static void catalog_assets_draw(const bContext *C, Menu *menu)
     const std::optional<std::string> operator_idname = operator_idname_for_asset(*asset);
     if (!operator_idname) {
       missing_tool_idname_error(layout, asset->get_name());
+      continue;
+    }
+    const wmOperatorType *ot = WM_operatortype_find(operator_idname->c_str(), false);
+    if (!ot) {
+      continue;
+    }
+    if (!ot->poll(const_cast<bContext *>(C))) {
       continue;
     }
     if (add_separator) {
@@ -2036,8 +1972,8 @@ static void catalog_assets_draw(const bContext *C, Menu *menu)
                                      UI_ITEM_NONE);
   }
 
-  const Set<std::string> builtin_menus = get_builtin_menus(ObjectType(active_object->type),
-                                                           eObjectMode(active_object->mode));
+  const Set<StringRef> builtin_menus = get_builtin_menus(ObjectType(active_object->type),
+                                                         eObjectMode(active_object->mode));
 
   asset_system::AssetLibrary *all_library = asset::list::library_get_once_available(
       asset_system::all_library_reference());
@@ -2071,19 +2007,17 @@ MenuType node_group_operator_assets_menu()
 static bool unassigned_local_poll(const bContext &C)
 {
   Main &bmain = *CTX_data_main(&C);
-  const Object *active_object = CTX_data_active_object(&C);
-  if (!active_object) {
-    return false;
-  }
-  const GeometryNodeAssetTraitFlag flag = asset_flag_for_context(*active_object);
   for (const bNodeTree &group : bmain.nodetrees) {
     /* Assets are displayed in other menus, and non-local data-blocks aren't added to this menu. */
     if (group.id.library_weak_reference || group.id.asset_data) {
       continue;
     }
-    if (!group.geometry_node_asset_traits ||
-        (group.geometry_node_asset_traits->flag & flag) != flag)
-    {
+    const std::optional<std::string> operator_idname = operator_idname_for_group(group);
+    const wmOperatorType *ot = WM_operatortype_find(operator_idname->c_str(), false);
+    if (!ot) {
+      continue;
+    }
+    if (!ot->poll(&const_cast<bContext &>(C))) {
       continue;
     }
     return true;
@@ -2091,21 +2025,50 @@ static bool unassigned_local_poll(const bContext &C)
   return false;
 }
 
+static bool catalog_path_contains_assets(const bContext &C,
+                                         const asset_system::AssetCatalogTreeItem &item)
+{
+  const asset::AssetItemTree &tree = get_registration_data().asset_tree;
+
+  bool found_asset = false;
+  item.foreach_item([&](const asset_system::AssetCatalogTreeItem &item) {
+    const Span<asset_system::AssetRepresentation *> assets = tree.assets_per_path.lookup(
+        item.catalog_path().c_str());
+    for (const asset_system::AssetRepresentation *asset : assets) {
+      const std::optional<std::string> operator_idname = operator_idname_for_asset(*asset);
+      if (!operator_idname) {
+        found_asset = true;
+        return;
+      }
+      const wmOperatorType *ot = WM_operatortype_find(operator_idname->c_str(), false);
+      if (!ot) {
+        continue;
+      }
+      if (!ot->poll(&const_cast<bContext &>(C))) {
+        continue;
+      }
+      found_asset = true;
+      return;
+    }
+  });
+  return found_asset;
+}
+
 static void catalog_assets_draw_unassigned(const bContext *C, Menu *menu)
 {
-  const Object *active_object = CTX_data_active_object(C);
-  if (!active_object) {
-    return;
-  }
-  asset::AssetItemTree *tree = get_static_item_tree(*active_object);
-  if (!tree) {
-    return;
-  }
+  const asset::AssetItemTree &tree = get_registration_data().asset_tree;
   ui::Layout &layout = *menu->layout;
-  for (const asset_system::AssetRepresentation *asset : tree->unassigned_assets) {
+  for (const asset_system::AssetRepresentation *asset : tree.unassigned_assets) {
     const std::optional<std::string> operator_idname = operator_idname_for_asset(*asset);
     if (!operator_idname) {
       missing_tool_idname_error(layout, asset->get_name());
+      continue;
+    }
+    const wmOperatorType *ot = WM_operatortype_find(operator_idname->c_str(), false);
+    if (!ot) {
+      continue;
+    }
+    if (!ot->poll(const_cast<bContext *>(C))) {
       continue;
     }
     layout.op(*operator_idname,
@@ -2115,24 +2078,24 @@ static void catalog_assets_draw_unassigned(const bContext *C, Menu *menu)
               UI_ITEM_NONE);
   }
 
-  const GeometryNodeAssetTraitFlag flag = asset_flag_for_context(*active_object);
-
   bool first = true;
-  bool add_separator = !tree->unassigned_assets.is_empty();
+  bool add_separator = !tree.unassigned_assets.is_empty();
   Main &bmain = *CTX_data_main(C);
   for (const bNodeTree &group : bmain.nodetrees) {
     /* Assets are displayed in other menus, and non-local data-blocks aren't added to this menu. */
     if (group.id.library_weak_reference || group.id.asset_data) {
       continue;
     }
-    if (!group.geometry_node_asset_traits ||
-        (group.geometry_node_asset_traits->flag & flag) != flag)
-    {
-      continue;
-    }
     const std::optional<std::string> operator_idname = operator_idname_for_group(group);
     if (!operator_idname) {
       missing_tool_idname_error(layout, BKE_id_name(group.id));
+      continue;
+    }
+    const wmOperatorType *ot = WM_operatortype_find(operator_idname->c_str(), false);
+    if (!ot) {
+      continue;
+    }
+    if (!ot->poll(const_cast<bContext *>(C))) {
       continue;
     }
     if (add_separator) {
@@ -2170,21 +2133,12 @@ void ui_template_node_operator_asset_menu_items(ui::Layout &layout,
                                                 const bContext &C,
                                                 const StringRef catalog_path)
 {
-  const Object *active_object = CTX_data_active_object(&C);
-  if (!active_object) {
-    return;
-  }
-  asset::AssetItemTree *tree = get_static_item_tree(*active_object);
-  if (!tree) {
-    return;
-  }
-  const asset_system::AssetCatalogTreeItem *item = tree->catalogs.find_item(catalog_path);
+  const asset::AssetItemTree &tree = get_registration_data().asset_tree;
+  const asset_system::AssetCatalogTreeItem *item = tree.catalogs.find_item(catalog_path);
   if (!item) {
     return;
   }
-  asset_system::AssetLibrary *all_library = asset::list::library_get_once_available(
-      asset_system::all_library_reference());
-  if (!all_library) {
+  if (!catalog_path_contains_assets(C, *item)) {
     return;
   }
   ui::Layout &col = layout.column(false);
@@ -2198,24 +2152,21 @@ void ui_template_node_operator_asset_root_items(ui::Layout &layout, const bConte
   if (!active_object) {
     return;
   }
-  asset::AssetItemTree *tree = get_static_item_tree(*active_object);
-  if (!tree) {
-    return;
-  }
-  if (tree->dirty) {
-    *tree = build_catalog_tree(C, *active_object);
-  }
+  const asset::AssetItemTree &tree = get_registration_data().asset_tree;
+  const Set<StringRef> builtin_menus = get_builtin_menus(ObjectType(active_object->type),
+                                                         eObjectMode(active_object->mode));
 
-  const Set<std::string> builtin_menus = get_builtin_menus(ObjectType(active_object->type),
-                                                           eObjectMode(active_object->mode));
-
-  tree->catalogs.foreach_root_item([&](const asset_system::AssetCatalogTreeItem &item) {
-    if (!builtin_menus.contains_as(item.catalog_path().str())) {
-      asset::draw_menu_for_catalog(item, "GEO_MT_node_operator_catalog_assets", layout);
+  tree.catalogs.foreach_root_item([&](const asset_system::AssetCatalogTreeItem &item) {
+    if (builtin_menus.contains_as(item.catalog_path().str())) {
+      return;
     }
+    if (!catalog_path_contains_assets(C, item)) {
+      return;
+    }
+    asset::draw_menu_for_catalog(item, "GEO_MT_node_operator_catalog_assets", layout);
   });
 
-  if (!tree->unassigned_assets.is_empty() || unassigned_local_poll(C)) {
+  if (!tree.unassigned_assets.is_empty() || unassigned_local_poll(C)) {
     layout.menu("GEO_MT_node_operator_unassigned", "", ICON_FILE_HIDDEN);
   }
 }
