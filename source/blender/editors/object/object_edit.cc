@@ -16,6 +16,7 @@
 #include "BLI_path_utils.hh"
 #include "MEM_guardedalloc.h"
 
+#include "BLI_bounds.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_rotation.h"
 #include "BLI_string.h"
@@ -1271,24 +1272,12 @@ void OBJECT_OT_forcefield_toggle(wmOperatorType *ot)
 /** \name Calculate Motion Paths Operator
  * \{ */
 
-static bool has_object_motion_paths(Object *ob)
-{
-  return (ob->avs.path_bakeflag & MOTIONPATH_BAKE_HAS_PATHS) != 0;
-}
-
-static bool has_pose_motion_paths(Object *ob)
-{
-  return ob->pose && (ob->pose->avs.path_bakeflag & MOTIONPATH_BAKE_HAS_PATHS) != 0;
-}
-
-static void motion_paths_recalc(bContext *C,
-                                Scene *scene,
-                                const eAnimvizCalcRange range,
-                                const Span<Object *> objects)
+static void recalculate_paths_staggered(bContext *C,
+                                        Scene *scene,
+                                        const eAnimvizCalcRange range,
+                                        const Span<Object *> objects)
 {
   BLI_assert(C != nullptr);
-  Main *bmain = CTX_data_main(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
   wmWindow *window = CTX_wm_window(C);
   for (Object *ob : objects) {
     if (!ob->mpath) {
@@ -1302,26 +1291,53 @@ static void motion_paths_recalc(bContext *C,
   }
 }
 
-void motion_paths_recalc_selected(bContext *C, Scene *scene, const eAnimvizCalcRange range)
+static void recalculate_paths_immediate(bContext *C,
+                                        const eAnimvizCalcRange range,
+                                        const Span<Object *> objects)
+{
+  Scene *scene = CTX_data_scene(C);
+  Vector<MPathTarget> targets;
+  Bounds<int> frame_range = {INT_MAX, INT_MIN};
+  for (Object *ob : objects) {
+    if (!ob->mpath) {
+      continue;
+    }
+    Bounds<int> ob_frame_range = {ob->mpath->start_frame, ob->mpath->end_frame};
+    if (range == ANIMVIZ_CALC_RANGE_CHANGED) {
+      ob_frame_range = animviz_get_affected_edit_range(*ob, BKE_scene_frame_get(scene));
+    }
+    frame_range = bounds::merge(frame_range, ob_frame_range);
+    MPathTarget t;
+    t.ob = ob;
+    t.mpath = ob->mpath;
+    targets.append(t);
+  }
+
+  Depsgraph *dg = animviz_depsgraph_build(
+      CTX_data_main(C), scene, CTX_data_view_layer(C), targets);
+
+  if (!frame_range.is_empty()) {
+    animviz_calc_motionpaths(dg, targets, frame_range);
+  }
+  DEG_graph_free(dg);
+}
+
+void motion_paths_recalc_selected(bContext *C,
+                                  Scene *scene,
+                                  const eAnimvizCalcRange range,
+                                  const bool staggered)
 {
   Vector<Object *> selected_objects;
   CTX_DATA_BEGIN (C, Object *, ob, selected_editable_objects) {
     selected_objects.append(ob);
   }
   CTX_DATA_END;
-
-  motion_paths_recalc(C, scene, range, selected_objects);
-}
-
-void motion_paths_recalc_visible(bContext *C, Scene *scene, const eAnimvizCalcRange range)
-{
-  Vector<Object *> visible_objects;
-  CTX_DATA_BEGIN (C, Object *, ob, visible_objects) {
-    visible_objects.append(ob);
+  if (staggered) {
+    recalculate_paths_staggered(C, scene, range, selected_objects);
   }
-  CTX_DATA_END;
-
-  motion_paths_recalc(C, scene, range, visible_objects);
+  else {
+    recalculate_paths_immediate(C, range, selected_objects);
+  }
 }
 
 /* show popup to determine settings */
@@ -1369,7 +1385,8 @@ static wmOperatorStatus object_calculate_paths_exec(bContext *C, wmOperator *op)
   CTX_DATA_END;
 
   /* calculate the paths for objects that have them (and are tagged to get refreshed) */
-  motion_paths_recalc_selected(C, scene, ANIMVIZ_CALC_RANGE_FULL);
+  motion_paths_recalc_selected(
+      C, scene, ANIMVIZ_CALC_RANGE_FULL, RNA_boolean_get(op->ptr, "staggered"));
 
   /* notifiers for updates */
   WM_event_add_notifier(C, NC_OBJECT | ND_DRAW_ANIMVIZ, nullptr);
@@ -1408,6 +1425,11 @@ void OBJECT_OT_paths_calculate(wmOperatorType *ot)
                MOTIONPATH_RANGE_SCENE,
                "Computation Range",
                "");
+  RNA_def_boolean(ot->srna,
+                  "staggered",
+                  false,
+                  "Staggered Evaluation",
+                  "Calculate the motion path over time so the UI does not freeze");
 }
 
 /** \} */
@@ -1441,7 +1463,8 @@ static wmOperatorStatus object_update_paths_exec(bContext *C, wmOperator *op)
   CTX_DATA_END;
 
   /* calculate the paths for objects that have them (and are tagged to get refreshed) */
-  motion_paths_recalc_selected(C, scene, ANIMVIZ_CALC_RANGE_FULL);
+  motion_paths_recalc_selected(
+      C, scene, ANIMVIZ_CALC_RANGE_FULL, RNA_boolean_get(op->ptr, "staggered"));
 
   /* notifiers for updates */
   WM_event_add_notifier(C, NC_OBJECT | ND_DRAW_ANIMVIZ, nullptr);
@@ -1465,6 +1488,12 @@ void OBJECT_OT_paths_update(wmOperatorType *ot)
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  RNA_def_boolean(ot->srna,
+                  "staggered",
+                  false,
+                  "Staggered Evaluation",
+                  "Calculate the motion path over time so the UI does not freeze");
 }
 
 /** \} */
@@ -1477,8 +1506,25 @@ static bool object_update_all_paths_poll(bContext * /*C*/)
 {
   return true;
 }
+static void motion_paths_recalc_visible(bContext *C,
+                                        Scene *scene,
+                                        const eAnimvizCalcRange range,
+                                        const bool staggered)
+{
+  Vector<Object *> visible_objects;
+  CTX_DATA_BEGIN (C, Object *, ob, visible_objects) {
+    visible_objects.append(ob);
+  }
+  CTX_DATA_END;
+  if (staggered) {
+    recalculate_paths_staggered(C, scene, range, visible_objects);
+  }
+  else {
+    recalculate_paths_immediate(C, range, visible_objects);
+  }
+}
 
-static wmOperatorStatus object_update_all_paths_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus object_update_all_paths_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
 
@@ -1486,7 +1532,8 @@ static wmOperatorStatus object_update_all_paths_exec(bContext *C, wmOperator * /
     return OPERATOR_CANCELLED;
   }
 
-  motion_paths_recalc_visible(C, scene, ANIMVIZ_CALC_RANGE_FULL);
+  motion_paths_recalc_visible(
+      C, scene, ANIMVIZ_CALC_RANGE_FULL, RNA_boolean_get(op->ptr, "staggered"));
 
   WM_event_add_notifier(C, NC_OBJECT | ND_POSE | ND_TRANSFORM, nullptr);
 
@@ -1506,6 +1553,12 @@ void OBJECT_OT_paths_update_visible(wmOperatorType *ot)
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  RNA_def_boolean(ot->srna,
+                  "staggered",
+                  false,
+                  "Staggered Evaluation",
+                  "Calculate the motion path over time so the UI does not freeze");
 }
 
 /** \} */

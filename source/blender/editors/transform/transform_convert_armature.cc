@@ -1757,7 +1757,7 @@ static void special_aftertrans_update__pose(bContext *C, TransInfo *t)
     for (Object *ob : motionpath_updates) {
       const eAnimvizCalcRange range = canceled ? ANIMVIZ_CALC_RANGE_CURRENT_FRAME :
                                                  ANIMVIZ_CALC_RANGE_CHANGED;
-      ED_pose_recalculate_paths(C, t->scene, ob, range);
+      ED_pose_recalculate_paths(C, ob, range, true);
     }
   }
 }

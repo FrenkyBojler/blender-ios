@@ -7,6 +7,7 @@
  * Pose Mode API's and Operators for Pose Mode armatures.
  */
 
+#include "BLI_bounds.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
 #include "BLI_string_utf8.h"
@@ -137,15 +138,11 @@ bool ED_object_posemode_exit(bContext *C, Object *ob)
 /* ********************************************** */
 /* Motion Paths */
 
-void ED_pose_recalculate_paths(bContext *C, Scene *scene, Object *ob, eAnimvizCalcRange range)
+static void recalculate_paths_staggered(bContext *C, Object *ob, const eAnimvizCalcRange range)
 {
-  /* Transform doesn't always have context available to do update. */
-  if (C == nullptr) {
-    return;
-  }
-
   bArmature *arm = id_cast<bArmature *>(ob->data);
   wmWindow *window = CTX_wm_window(C);
+  Scene *scene = CTX_data_scene(C);
   for (bPoseChannel &pchan : ob->pose->chanbase) {
     if (!pchan.mpath) {
       continue;
@@ -159,6 +156,55 @@ void ED_pose_recalculate_paths(bContext *C, Scene *scene, Object *ob, eAnimvizCa
       frame_range = animviz_get_affected_edit_range(*ob, pchan, BKE_scene_frame_get(scene));
     }
     animviz_tag_for_motion_path_eval(*window, *ob, pchan, frame_range);
+  }
+}
+
+static void recalculate_paths_immediate(bContext *C, Object *ob, const eAnimvizCalcRange range)
+{
+  bArmature *arm = id_cast<bArmature *>(ob->data);
+  Scene *scene = CTX_data_scene(C);
+  Vector<MPathTarget> targets;
+  animviz_build_motionpath_targets(ob, targets);
+
+  Bounds<int> frame_range = {INT_MAX, INT_MIN};
+  for (bPoseChannel &pchan : ob->pose->chanbase) {
+    if (!pchan.mpath) {
+      continue;
+    }
+    Bone *bone = pchan.bone_get(*ob);
+    if (!bone || !ANIM_bone_in_visible_collection(arm, bone)) {
+      continue;
+    }
+    Bounds<int> bone_frame_range = {pchan.mpath->start_frame, pchan.mpath->end_frame};
+    if (range == ANIMVIZ_CALC_RANGE_CHANGED) {
+      bone_frame_range = animviz_get_affected_edit_range(*ob, pchan, BKE_scene_frame_get(scene));
+    }
+    frame_range = bounds::merge(frame_range, bone_frame_range);
+  }
+
+  Depsgraph *dg = animviz_depsgraph_build(
+      CTX_data_main(C), scene, CTX_data_view_layer(C), targets);
+  if (!frame_range.is_empty()) {
+    animviz_calc_motionpaths(dg, targets, frame_range);
+  }
+  DEG_graph_free(dg);
+}
+
+void ED_pose_recalculate_paths(bContext *C,
+                               Object *ob,
+                               const eAnimvizCalcRange range,
+                               const bool staggered)
+{
+  /* Transform doesn't always have context available to do update. */
+  if (C == nullptr) {
+    return;
+  }
+
+  if (staggered) {
+    recalculate_paths_staggered(C, ob, range);
+  }
+  else {
+    recalculate_paths_immediate(C, ob, range);
   }
 }
 
@@ -227,7 +273,7 @@ static wmOperatorStatus pose_calculate_paths_exec(bContext *C, wmOperator *op)
 
   /* Calculate the bones that now have motion-paths. */
   /* TODO: only make for the selected bones? */
-  ED_pose_recalculate_paths(C, scene, ob, ANIMVIZ_CALC_RANGE_FULL);
+  ED_pose_recalculate_paths(C, ob, ANIMVIZ_CALC_RANGE_FULL, RNA_boolean_get(op->ptr, "staggered"));
 
 #ifdef DEBUG_TIME
   TIMEIT_END(recalc_pose_paths);
@@ -274,6 +320,12 @@ void POSE_OT_paths_calculate(wmOperatorType *ot)
                MOTIONPATH_BAKE_HEADS,
                "Bake Location",
                "Which point on the bones is used when calculating paths");
+
+  RNA_def_boolean(ot->srna,
+                  "staggered",
+                  false,
+                  "Staggered Evaluation",
+                  "Calculate the motion path over time so the UI does not freeze");
 }
 
 /* --------- */
@@ -306,7 +358,8 @@ static wmOperatorStatus pose_update_paths_exec(bContext *C, wmOperator *op)
 
   /* Calculate the bones that now have motion-paths. */
   /* TODO: only make for the selected bones? */
-  ED_pose_recalculate_paths(C, scene, ob, ANIMVIZ_CALC_RANGE_FULL);
+  const bool staggered = RNA_boolean_get(op->ptr, "staggered");
+  ED_pose_recalculate_paths(C, ob, ANIMVIZ_CALC_RANGE_FULL, staggered);
 
   /* notifiers for updates */
   WM_event_add_notifier(C, NC_OBJECT | ND_DRAW_ANIMVIZ, ob);
@@ -327,6 +380,12 @@ void POSE_OT_paths_update(wmOperatorType *ot)
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  RNA_def_boolean(ot->srna,
+                  "staggered",
+                  false,
+                  "Staggered Evaluation",
+                  "Calculate the motion path over time so the UI does not freeze");
 }
 
 /* --------- */

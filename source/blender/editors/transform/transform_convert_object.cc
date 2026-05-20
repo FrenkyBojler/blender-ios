@@ -977,7 +977,7 @@ static void special_aftertrans_update__object(bContext *C, TransInfo *t)
     /* Update motion paths once for all transformed objects. */
     const eAnimvizCalcRange range = canceled ? ANIMVIZ_CALC_RANGE_CURRENT_FRAME :
                                                ANIMVIZ_CALC_RANGE_CHANGED;
-    object::motion_paths_recalc_selected(C, t->scene, range);
+    object::motion_paths_recalc_selected(C, t->scene, range, true);
   }
 
   clear_trans_object_base_flags(t);

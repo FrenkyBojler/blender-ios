@@ -51,6 +51,8 @@ struct bDopeSheet;
 struct FCurve;
 struct FModifier;
 struct bAction;
+struct AnimKeylist;
+struct bMotionPath;
 
 namespace ui {
 struct Block;
@@ -59,7 +61,16 @@ struct Block;
 struct PointerRNA;
 struct PropertyRNA;
 
-struct MPathTarget;
+/* Motion path needing to be baked (target). */
+struct MPathTarget {
+  bMotionPath *mpath = nullptr; /* Motion path in question. */
+
+  AnimKeylist *keylist = nullptr; /* Temp, to know where the keyframes are. */
+
+  /* Original (Source Objects) */
+  Object *ob = nullptr;          /* Source Object */
+  bPoseChannel *pchan = nullptr; /* Source pose-channel (if applicable). */
+};
 
 namespace animrig {
 class Action;
@@ -1280,7 +1291,7 @@ enum eAnimvizCalcRange : uint8_t {
 Depsgraph *animviz_depsgraph_build(Main *bmain,
                                    Scene *scene,
                                    ViewLayer *view_layer,
-                                   Span<MPathTarget *> targets);
+                                   Span<MPathTarget> targets);
 
 /**
  * Returns the frame range affected by a key edit at the given frame.
@@ -1312,6 +1323,9 @@ void animviz_calc_motionpaths(Depsgraph *depsgraph,
                               Scene *scene,
                               MutableSpan<MPathTarget *> targets,
                               eAnimvizCalcRange range);
+void animviz_calc_motionpaths(Depsgraph *depsgraph,
+                              MutableSpan<MPathTarget> targets,
+                              Bounds<int> frame_range);
 
 /**
  * Update motion path computation range (in `ob.avs` or `armature.avs`) from user choice in
@@ -1327,7 +1341,7 @@ void animviz_motionpath_compute_range(Object *ob, Scene *scene);
  * Will look for pose bones as well. `animviz_free_motionpath_targets` needs to be called
  * to free the memory allocated in this function.
  */
-void animviz_build_motionpath_targets(Object *ob, Vector<MPathTarget *> &r_targets);
+void animviz_build_motionpath_targets(Object *ob, Vector<MPathTarget> &r_targets);
 
 /**
  * Free the elements of the vector populated with `animviz_build_motionpath_targets`.

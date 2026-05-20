@@ -271,12 +271,13 @@ bool ED_object_posemode_enter_ex(Main *bmain, Object *ob);
 bool ED_object_posemode_enter(bContext *C, Object *ob);
 
 /**
+ * Update the motion paths of all bones of the object.
  * For the object with pose/action: update paths for those that have got them
  * This should selectively update paths that exist...
  *
  * To be called from various tools that do incremental updates.
  */
-void ED_pose_recalculate_paths(bContext *C, Scene *scene, Object *ob, eAnimvizCalcRange range);
+void ED_pose_recalculate_paths(bContext *C, Object *ob, eAnimvizCalcRange range, bool staggered);
 
 /* `pose_select.cc` */
 
