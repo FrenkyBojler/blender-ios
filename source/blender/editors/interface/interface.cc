@@ -957,6 +957,8 @@ static void but_update_old_active_from_new(Button *oldbut, Button *but)
   oldbut->iconadd = but->iconadd;
   oldbut->alignnr = but->alignnr;
 
+  oldbut->text_direction = but->text_direction;
+
   /* typically the same pointers, but not on undo/redo */
   /* XXX some menu buttons store button itself in but->poin. Ugly */
   if (oldbut->poin != reinterpret_cast<char *>(oldbut)) {
