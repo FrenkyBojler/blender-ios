@@ -41,6 +41,11 @@ OSL_CLOSURE_STRUCT_BEGIN(Translucent, translucent)
   OSL_CLOSURE_STRUCT_MEMBER(Translucent, VECTOR, packed_float3, N, nullptr)
 OSL_CLOSURE_STRUCT_END(Translucent, translucent)
 
+OSL_CLOSURE_STRUCT_BEGIN(TranslucentBSDF, translucent_bsdf)
+  OSL_CLOSURE_STRUCT_MEMBER(TranslucentBSDF, VECTOR, packed_float3, N, nullptr)
+  OSL_CLOSURE_STRUCT_MEMBER(TranslucentBSDF, VECTOR, packed_float3, albedo, NULL)
+OSL_CLOSURE_STRUCT_END(TranslucentBSDF, translucent_bsdf)
+
 OSL_CLOSURE_STRUCT_BEGIN(Reflection, reflection)
   OSL_CLOSURE_STRUCT_MEMBER(Reflection, VECTOR, packed_float3, N, nullptr)
 OSL_CLOSURE_STRUCT_END(Reflection, reflection)
@@ -52,6 +57,9 @@ OSL_CLOSURE_STRUCT_END(Refraction, refraction)
 
 OSL_CLOSURE_STRUCT_BEGIN(Transparent, transparent)
 OSL_CLOSURE_STRUCT_END(Transparent, transparent)
+
+OSL_CLOSURE_STRUCT_BEGIN(TransparentBSDF, transparent_bsdf)
+OSL_CLOSURE_STRUCT_END(TransparentBSDF, transparent_bsdf)
 
 OSL_CLOSURE_STRUCT_BEGIN(RayPortalBSDF, ray_portal_bsdf)
   OSL_CLOSURE_STRUCT_MEMBER(RayPortalBSDF, VECTOR, packed_float3, position, nullptr)
@@ -270,6 +278,12 @@ OSL_CLOSURE_STRUCT_END(VolumeDraine, draine)
 
 OSL_CLOSURE_STRUCT_BEGIN(VolumeRayleigh, rayleigh)
 OSL_CLOSURE_STRUCT_END(VolumeRayleigh, rayleigh)
+
+OSL_CLOSURE_STRUCT_BEGIN(AnisotropicVDF, anisotropic_vdf)
+  OSL_CLOSURE_STRUCT_MEMBER(AnisotropicVDF, COLOR, packed_float3, albedo, nullptr)
+  OSL_CLOSURE_STRUCT_MEMBER(AnisotropicVDF, COLOR, packed_float3, extinction, nullptr)
+  OSL_CLOSURE_STRUCT_MEMBER(AnisotropicVDF, FLOAT, float, anisotropy, nullptr)
+OSL_CLOSURE_STRUCT_END(AnisotropicVDF, anisotropic_vdf)
 
 #undef OSL_CLOSURE_STRUCT_BEGIN
 #undef OSL_CLOSURE_STRUCT_END

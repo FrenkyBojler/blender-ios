@@ -25,13 +25,14 @@
 #include "BLF_api.hh"
 
 #include "BLI_array_utils.hh"
+#include "BLI_enum_flags.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_geom.h"
+#include "BLI_set.hh"
 #include "BLI_span.hh"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
 #include "BLI_timecode.h"
-#include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
 
@@ -64,7 +65,7 @@
 
 #include "GPU_capabilities.hh"
 
-ENUM_OPERATORS(eUserpref_StatusBar_Flag, STATUSBAR_SHOW_VERSION)
+namespace blender {
 
 struct SceneStats {
   uint64_t totvert, totvertsel, totvertsculpt;
@@ -75,7 +76,8 @@ struct SceneStats {
   uint64_t totlamp, totlampsel;
   uint64_t tottri, tottrisel;
   uint64_t totgplayer, totgpframe, totgpstroke;
-  uint64_t totpoints;
+  uint64_t totpoints, totpointsel;
+  uint64_t totcurves, totcurvesel;
 };
 
 struct SceneStatsFmt {
@@ -92,7 +94,10 @@ struct SceneStatsFmt {
   char totgplayer[BLI_STR_FORMAT_UINT64_GROUPED_SIZE],
       totgpframe[BLI_STR_FORMAT_UINT64_GROUPED_SIZE];
   char totgpstroke[BLI_STR_FORMAT_UINT64_GROUPED_SIZE];
-  char totpoints[BLI_STR_FORMAT_UINT64_GROUPED_SIZE];
+  char totpoints[BLI_STR_FORMAT_UINT64_GROUPED_SIZE],
+      totpointsel[BLI_STR_FORMAT_UINT64_GROUPED_SIZE];
+  char totcurves[BLI_STR_FORMAT_UINT64_GROUPED_SIZE],
+      totcurvesel[BLI_STR_FORMAT_UINT64_GROUPED_SIZE];
 };
 
 static bool stats_mesheval(const Mesh *mesh_eval, bool is_selected, SceneStats *stats)
@@ -154,7 +159,7 @@ static bool stats_mesheval(const Mesh *mesh_eval, bool is_selected, SceneStats *
 static void stats_object(Object *ob,
                          const View3D *v3d_local,
                          SceneStats *stats,
-                         GSet *objects_gset)
+                         Set<const Mesh *> &objects_gset)
 {
   if ((ob->base_flag & BASE_ENABLED_AND_VISIBLE_IN_DEFAULT_VIEWPORT) == 0) {
     return;
@@ -175,7 +180,7 @@ static void stats_object(Object *ob,
     case OB_MESH: {
       /* we assume evaluated mesh is already built, this strictly does stats now. */
       const Mesh *mesh_eval = BKE_object_get_evaluated_mesh_no_subsurf(ob);
-      if (!BLI_gset_add(objects_gset, (void *)mesh_eval)) {
+      if (!objects_gset.add(mesh_eval)) {
         break;
       }
       stats_mesheval(mesh_eval, is_selected, stats);
@@ -192,18 +197,18 @@ static void stats_object(Object *ob,
         break;
       }
 
-      const GreasePencil *grease_pencil = static_cast<GreasePencil *>(ob->data);
+      const GreasePencil *grease_pencil = id_cast<GreasePencil *>(ob->data);
 
       for (const GreasePencilDrawingBase *drawing_base : grease_pencil->drawings()) {
         const GreasePencilDrawing *drawing = reinterpret_cast<const GreasePencilDrawing *>(
             drawing_base);
-        const blender::bke::CurvesGeometry &curves = drawing->wrap().strokes();
+        const bke::CurvesGeometry &curves = drawing->wrap().strokes();
 
         stats->totpoints += curves.points_num();
         stats->totgpstroke += curves.curves_num();
       }
 
-      for (const blender::bke::greasepencil::Layer *layer : grease_pencil->layers()) {
+      for (const bke::greasepencil::Layer *layer : grease_pencil->layers()) {
         stats->totgpframe += layer->frames().size();
       }
 
@@ -211,8 +216,7 @@ static void stats_object(Object *ob,
       break;
     }
     case OB_CURVES: {
-      using namespace blender;
-      const Curves &curves_id = *static_cast<Curves *>(ob->data);
+      const Curves &curves_id = *id_cast<Curves *>(ob->data);
       const bke::CurvesGeometry &curves = curves_id.geometry.wrap();
       stats->totpoints += curves.points_num();
       break;
@@ -221,6 +225,8 @@ static void stats_object(Object *ob,
     case OB_VOLUME: {
       break;
     }
+    default:
+      break;
   }
 }
 
@@ -242,29 +248,29 @@ static void stats_object_edit(Object *obedit, SceneStats *stats)
   }
   else if (obedit->type == OB_ARMATURE) {
     /* Armature Edit */
-    bArmature *arm = static_cast<bArmature *>(obedit->data);
+    bArmature *arm = id_cast<bArmature *>(obedit->data);
 
-    LISTBASE_FOREACH (EditBone *, ebo, arm->edbo) {
+    for (EditBone &ebo : *arm->edbo) {
       stats->totbone++;
 
-      if ((ebo->flag & BONE_CONNECTED) && ebo->parent) {
+      if ((ebo.flag & BONE_CONNECTED) && ebo.parent) {
         stats->totvert--;
       }
 
-      if (ebo->flag & BONE_TIPSEL) {
+      if (ebo.flag & BONE_TIPSEL) {
         stats->totvertsel++;
       }
-      if (ebo->flag & BONE_ROOTSEL) {
+      if (ebo.flag & BONE_ROOTSEL) {
         stats->totvertsel++;
       }
 
-      if (ebo->flag & BONE_SELECTED) {
+      if (ebo.flag & BONE_SELECTED) {
         stats->totbonesel++;
       }
 
       /* if this is a connected child and its parent is being moved, remove our root */
-      if ((ebo->flag & BONE_CONNECTED) && (ebo->flag & BONE_ROOTSEL) && ebo->parent &&
-          (ebo->parent->flag & BONE_TIPSEL))
+      if ((ebo.flag & BONE_CONNECTED) && (ebo.flag & BONE_ROOTSEL) && ebo.parent &&
+          (ebo.parent->flag & BONE_TIPSEL))
       {
         stats->totvertsel--;
       }
@@ -274,57 +280,62 @@ static void stats_object_edit(Object *obedit, SceneStats *stats)
   }
   else if (ELEM(obedit->type, OB_CURVES_LEGACY, OB_SURF)) { /* OB_FONT has no cu->editnurb */
     /* Curve Edit */
-    Curve *cu = static_cast<Curve *>(obedit->data);
+    Curve *cu = id_cast<Curve *>(obedit->data);
     BezTriple *bezt;
     BPoint *bp;
     int a;
-    ListBase *nurbs = BKE_curve_editNurbs_get(cu);
+    ListBaseT<Nurb> *nurbs = BKE_curve_editNurbs_get(cu);
 
-    LISTBASE_FOREACH (Nurb *, nu, nurbs) {
-      if (nu->type == CU_BEZIER) {
-        bezt = nu->bezt;
-        a = nu->pntsu;
+    for (Nurb &nu : *nurbs) {
+      int selection_count = stats->totpointsel;
+      if (nu.type == CU_BEZIER) {
+        bezt = nu.bezt;
+        a = nu.pntsu;
         while (a--) {
-          stats->totvert += 3;
+          stats->totpoints += 3;
           if (bezt->f1 & SELECT) {
-            stats->totvertsel++;
+            stats->totpointsel++;
           }
           if (bezt->f2 & SELECT) {
-            stats->totvertsel++;
+            stats->totpointsel++;
           }
           if (bezt->f3 & SELECT) {
-            stats->totvertsel++;
+            stats->totpointsel++;
           }
           bezt++;
         }
+        selection_count = (stats->totpointsel - selection_count) == (nu.pntsu * 3);
       }
       else {
-        bp = nu->bp;
-        a = nu->pntsu * nu->pntsv;
+        bp = nu.bp;
+        a = nu.pntsu * nu.pntsv;
         while (a--) {
-          stats->totvert++;
+          stats->totpoints++;
           if (bp->f1 & SELECT) {
-            stats->totvertsel++;
+            stats->totpointsel++;
           }
           bp++;
         }
+        selection_count = (stats->totpointsel - selection_count) == (nu.pntsu * nu.pntsv);
       }
+      stats->totcurves++;
+      stats->totcurvesel += selection_count;
     }
   }
   else if (obedit->type == OB_MBALL) {
     /* MetaBall Edit */
-    MetaBall *mball = static_cast<MetaBall *>(obedit->data);
+    MetaBall *mball = id_cast<MetaBall *>(obedit->data);
 
-    LISTBASE_FOREACH (MetaElem *, ml, mball->editelems) {
+    for (MetaElem &ml : *mball->editelems) {
       stats->totvert++;
-      if (ml->flag & SELECT) {
+      if (ml.flag & SELECT) {
         stats->totvertsel++;
       }
     }
   }
   else if (obedit->type == OB_LATTICE) {
     /* Lattice Edit */
-    Lattice *lt = static_cast<Lattice *>(obedit->data);
+    Lattice *lt = id_cast<Lattice *>(obedit->data);
     Lattice *editlatt = lt->editlatt->latt;
     BPoint *bp;
     int a;
@@ -341,17 +352,50 @@ static void stats_object_edit(Object *obedit, SceneStats *stats)
     }
   }
   else if (obedit->type == OB_CURVES) {
-    using namespace blender;
-    const Curves &curves_id = *static_cast<Curves *>(obedit->data);
+    const Curves &curves_id = *id_cast<Curves *>(obedit->data);
     const bke::CurvesGeometry &curves = curves_id.geometry.wrap();
-    const VArray<bool> selection = *curves.attributes().lookup_or_default<bool>(
-        ".selection", bke::AttrDomain::Point, true);
-    stats->totvertsel += array_utils::count_booleans(selection);
+    if (const bke::AttributeReader selection = curves.attributes().lookup<bool>(".selection")) {
+      const OffsetIndices points_by_curve = curves.points_by_curve();
+      struct SelectionCounts {
+        int point;
+        int curve;
+      };
+      const SelectionCounts counts = threading::parallel_reduce(
+          points_by_curve.index_range(),
+          2048,
+          SelectionCounts{0, 0},
+          [&](const IndexRange range, SelectionCounts value) {
+            for (const int curve : range) {
+              if (selection.domain == bke::AttrDomain::Point) {
+                const int selected_points = array_utils::count_booleans(*selection,
+                                                                        points_by_curve[curve]);
+                value.point += selected_points;
+                value.curve += (selected_points > 0);
+              }
+              else {
+                const bool selected = selection.varray[curve];
+                value.point += selected ? points_by_curve[curve].size() : 0;
+                value.curve += selected;
+              }
+            }
+            return value;
+          },
+          [&](const SelectionCounts &a, const SelectionCounts &b) {
+            return SelectionCounts{a.point + b.point, a.curve + b.curve};
+          });
+      stats->totpointsel += counts.point;
+      stats->totcurvesel += counts.curve;
+    }
+    else {
+      stats->totpointsel += curves.points_num();
+      stats->totcurvesel += curves.curves_num();
+    }
+
     stats->totpoints += curves.points_num();
+    stats->totcurves += curves.curves_num();
   }
   else if (obedit->type == OB_POINTCLOUD) {
-    using namespace blender;
-    PointCloud &pointcloud = *static_cast<PointCloud *>(obedit->data);
+    PointCloud &pointcloud = *id_cast<PointCloud *>(obedit->data);
     const VArray<bool> selection = *pointcloud.attributes().lookup_or_default<bool>(
         ".selection", bke::AttrDomain::Point, true);
     stats->totvertsel = array_utils::count_booleans(selection);
@@ -362,12 +406,12 @@ static void stats_object_edit(Object *obedit, SceneStats *stats)
 static void stats_object_pose(const Object *ob, SceneStats *stats)
 {
   if (ob->pose) {
-    bArmature *arm = static_cast<bArmature *>(ob->data);
+    bArmature *arm = id_cast<bArmature *>(ob->data);
 
-    LISTBASE_FOREACH (bPoseChannel *, pchan, &ob->pose->chanbase) {
+    for (bPoseChannel &pchan : ob->pose->chanbase) {
       stats->totbone++;
-      if (pchan->bone && (pchan->bone->flag & BONE_SELECTED)) {
-        if (BKE_pose_is_bonecoll_visible(arm, pchan)) {
+      if ((pchan.flag & POSE_SELECTED)) {
+        if (BKE_pose_is_bonecoll_visible(arm, &pchan)) {
           stats->totbonesel++;
         }
       }
@@ -378,40 +422,40 @@ static void stats_object_pose(const Object *ob, SceneStats *stats)
 static bool stats_is_object_dynamic_topology_sculpt(const Object *ob)
 {
   BLI_assert(ob->mode & OB_MODE_SCULPT);
-  return (ob->sculpt && ob->sculpt->bm);
+  return (ob->runtime->sculpt_session && ob->runtime->sculpt_session->bm);
 }
 
 static void stats_object_sculpt(const Object *ob, SceneStats *stats)
 {
   switch (ob->type) {
     case OB_MESH: {
-      const SculptSession *ss = ob->sculpt;
-      const blender::bke::pbvh::Tree *pbvh = blender::bke::object::pbvh_get(*ob);
+      const SculptSession *ss = ob->runtime->sculpt_session;
+      const bke::pbvh::Tree *pbvh = bke::object::pbvh_get(*ob);
       if (ss == nullptr || pbvh == nullptr) {
         return;
       }
 
       switch (pbvh->type()) {
-        case blender::bke::pbvh::Type::Mesh: {
-          const Mesh &mesh = *static_cast<const Mesh *>(ob->data);
+        case bke::pbvh::Type::Mesh: {
+          const Mesh &mesh = *id_cast<const Mesh *>(ob->data);
           stats->totvertsculpt = mesh.verts_num;
           stats->totfacesculpt = mesh.faces_num;
           break;
         }
-        case blender::bke::pbvh::Type::BMesh:
-          stats->totvertsculpt = ob->sculpt->bm->totvert;
-          stats->tottri = ob->sculpt->bm->totface;
+        case bke::pbvh::Type::BMesh:
+          stats->totvertsculpt = ob->runtime->sculpt_session->bm->totvert;
+          stats->tottri = ob->runtime->sculpt_session->bm->totface;
           break;
-        case blender::bke::pbvh::Type::Grids:
-          stats->totvertsculpt = BKE_pbvh_get_grid_num_verts(*ob);
-          stats->totfacesculpt = BKE_pbvh_get_grid_num_faces(*ob);
+        case bke::pbvh::Type::Grids:
+          stats->totvertsculpt = BKE_sculpt_get_grid_num_verts(*ob);
+          stats->totfacesculpt = BKE_sculpt_get_grid_num_faces(*ob);
           break;
       }
       break;
     }
     case OB_CURVES: {
-      const Curves &curves_id = *static_cast<Curves *>(ob->data);
-      const blender::bke::CurvesGeometry &curves = curves_id.geometry.wrap();
+      const Curves &curves_id = *id_cast<Curves *>(ob->data);
+      const bke::CurvesGeometry &curves = curves_id.geometry.wrap();
       stats->totvertsculpt += curves.points_num();
       break;
     }
@@ -421,13 +465,14 @@ static void stats_object_sculpt(const Object *ob, SceneStats *stats)
 }
 
 /* Statistics displayed in info header. Called regularly on scene changes. */
-static void stats_update(Depsgraph *depsgraph,
+static void stats_update(const Main *bmain,
+                         Depsgraph *depsgraph,
                          const Scene *scene,
                          ViewLayer *view_layer,
                          View3D *v3d_local,
                          SceneStats *stats)
 {
-  BKE_view_layer_synced_ensure(scene, view_layer);
+  BKE_view_layer_synced_ensure(*bmain, scene, view_layer);
   const Object *ob = BKE_view_layer_active_object_get(view_layer);
   const Object *obedit = BKE_view_layer_edit_object_get(view_layer);
 
@@ -435,7 +480,7 @@ static void stats_update(Depsgraph *depsgraph,
 
   if (obedit && (ob->type != OB_GREASE_PENCIL)) {
     /* Edit Mode. */
-    FOREACH_OBJECT_BEGIN (scene, view_layer, ob_iter) {
+    FOREACH_OBJECT_BEGIN (bmain, scene, view_layer, ob_iter) {
       if (ob_iter->base_flag & BASE_ENABLED_AND_VISIBLE_IN_DEFAULT_VIEWPORT) {
         if (ob_iter->mode & OB_MODE_EDIT) {
           stats_object_edit(ob_iter, stats);
@@ -455,7 +500,7 @@ static void stats_update(Depsgraph *depsgraph,
   }
   else if (ob && (ob->mode & OB_MODE_POSE)) {
     /* Pose Mode. */
-    FOREACH_OBJECT_BEGIN (scene, view_layer, ob_iter) {
+    FOREACH_OBJECT_BEGIN (bmain, scene, view_layer, ob_iter) {
       if (ob_iter->base_flag & BASE_ENABLED_AND_VISIBLE_IN_DEFAULT_VIEWPORT) {
         if (ob_iter->mode & OB_MODE_POSE) {
           stats_object_pose(ob_iter, stats);
@@ -478,7 +523,7 @@ static void stats_update(Depsgraph *depsgraph,
   }
   else {
     /* Objects. */
-    GSet *objects_gset = BLI_gset_new(BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp, __func__);
+    Set<const Mesh *> objects_gset;
     DEGObjectIterSettings deg_iter_settings{};
     deg_iter_settings.depsgraph = depsgraph;
     deg_iter_settings.flags = DEG_OBJECT_ITER_FOR_RENDER_ENGINE_FLAGS;
@@ -486,23 +531,22 @@ static void stats_update(Depsgraph *depsgraph,
       stats_object(ob_iter, v3d_local, stats, objects_gset);
     }
     DEG_OBJECT_ITER_END;
-    BLI_gset_free(objects_gset, nullptr);
   }
 }
 
 void ED_info_stats_clear(wmWindowManager *wm, ViewLayer *view_layer)
 {
-  MEM_SAFE_FREE(view_layer->stats);
+  MEM_SAFE_DELETE(view_layer->stats);
 
-  LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
-    ViewLayer *view_layer_test = WM_window_get_active_view_layer(win);
+  for (wmWindow &win : wm->windows) {
+    ViewLayer *view_layer_test = WM_window_get_active_view_layer(&win);
     if (view_layer != view_layer_test) {
       continue;
     }
-    const bScreen *screen = WM_window_get_active_screen(win);
-    LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
-      if (area->spacetype == SPACE_VIEW3D) {
-        View3D *v3d = (View3D *)area->spacedata.first;
+    const bScreen *screen = WM_window_get_active_screen(&win);
+    for (ScrArea &area : screen->areabase) {
+      if (area.spacetype == SPACE_VIEW3D) {
+        View3D *v3d = static_cast<View3D *>(area.spacedata.first);
         if (v3d->localvd) {
           ED_view3d_local_stats_free(v3d);
         }
@@ -513,7 +557,7 @@ void ED_info_stats_clear(wmWindowManager *wm, ViewLayer *view_layer)
 
 void ED_view3d_local_stats_free(View3D *v3d)
 {
-  MEM_SAFE_FREE(v3d->runtime.local_stats);
+  MEM_SAFE_DELETE(v3d->runtime.local_stats);
 }
 
 static bool format_stats(
@@ -523,13 +567,13 @@ static bool format_stats(
   SceneStats **stats_p = (v3d_local) ? &v3d_local->runtime.local_stats : &view_layer->stats;
   if (*stats_p == nullptr) {
     /* Don't access dependency graph if interface is marked as locked. */
-    wmWindowManager *wm = (wmWindowManager *)bmain->wm.first;
+    wmWindowManager *wm = static_cast<wmWindowManager *>(bmain->wm.first);
     if (wm->runtime->is_interface_locked) {
       return false;
     }
     Depsgraph *depsgraph = BKE_scene_ensure_depsgraph(bmain, scene, view_layer);
-    *stats_p = MEM_mallocN<SceneStats>(__func__);
-    stats_update(depsgraph, scene, view_layer, v3d_local, *stats_p);
+    *stats_p = MEM_new_uninitialized<SceneStats>(__func__);
+    stats_update(bmain, depsgraph, scene, view_layer, v3d_local, *stats_p);
   }
 
   SceneStats *stats = *stats_p;
@@ -565,6 +609,9 @@ static bool format_stats(
   SCENE_STATS_FMT_INT(totgpstroke);
 
   SCENE_STATS_FMT_INT(totpoints);
+  SCENE_STATS_FMT_INT(totpointsel);
+  SCENE_STATS_FMT_INT(totcurves);
+  SCENE_STATS_FMT_INT(totcurvesel);
 
 #undef SCENE_STATS_FMT_INT
   return true;
@@ -573,25 +620,26 @@ static bool format_stats(
 static void get_stats_string(char *info,
                              int len,
                              size_t *ofs,
+                             const Main &bmain,
                              const Scene *scene,
                              ViewLayer *view_layer,
                              SceneStatsFmt *stats_fmt)
 {
-  BKE_view_layer_synced_ensure(scene, view_layer);
+  BKE_view_layer_synced_ensure(bmain, scene, view_layer);
   Object *ob = BKE_view_layer_active_object_get(view_layer);
-  eObjectMode object_mode = ob ? (eObjectMode)ob->mode : OB_MODE_OBJECT;
+  eObjectMode object_mode = ob ? eObjectMode(ob->mode) : OB_MODE_OBJECT;
   LayerCollection *layer_collection = BKE_view_layer_active_collection_get(view_layer);
   std::string text;
 
   if (object_mode == OB_MODE_OBJECT) {
-    text = UI_icon_as_string(ICON_GROUP);
+    text = ui::icon_as_string(ICON_GROUP);
     text += BKE_collection_ui_name_get(layer_collection->collection);
     text += "  ";
     *ofs += BLI_snprintf_utf8_rlen(info + *ofs, len - *ofs, text.c_str());
   }
 
   if (ob) {
-    text = UI_icon_as_string(ICON_OBJECT_DATA);
+    text = ui::icon_as_string(ICON_OBJECT_DATA);
     text += ob->id.name + 2;
     text += " ";
     *ofs += BLI_snprintf_utf8_rlen(info + *ofs, len - *ofs, text.c_str());
@@ -623,25 +671,25 @@ static void get_stats_string(char *info,
     }
 
     if (ob->type == OB_MESH) {
-      text = UI_icon_as_string(ICON_VERTEXSEL);
+      text = ui::icon_as_string(ICON_VERTEXSEL);
       text += stats_fmt->totvertsel;
       text += "/";
       text += stats_fmt->totvert;
       text += "  ";
 
-      text += UI_icon_as_string(ICON_EDGESEL);
+      text += ui::icon_as_string(ICON_EDGESEL);
       text += stats_fmt->totedgesel;
       text += "/";
       text += stats_fmt->totedge;
       text += "  ";
 
-      text += UI_icon_as_string(ICON_FACESEL);
+      text += ui::icon_as_string(ICON_FACESEL);
       text += stats_fmt->totfacesel;
       text += "/";
       text += stats_fmt->totface;
       text += "  ";
 
-      text += UI_icon_as_string(ICON_MARKER);
+      text += ui::icon_as_string(ICON_MARKER);
       text += stats_fmt->tottri;
       text += "  ";
 
@@ -672,7 +720,7 @@ static void get_stats_string(char *info,
                                      stats_fmt->totpoints);
     }
     else {
-      text = UI_icon_as_string(ICON_VERTEXSEL);
+      text = ui::icon_as_string(ICON_VERTEXSEL);
       text += stats_fmt->totvertsel;
       text += "/";
       text += stats_fmt->totvert;
@@ -698,26 +746,26 @@ static void get_stats_string(char *info,
                                      stats_fmt->tottri);
     }
     else {
-      text = UI_icon_as_string(ICON_VERTEXSEL);
+      text = ui::icon_as_string(ICON_VERTEXSEL);
       text += stats_fmt->totvertsculpt;
       text += " ";
-      text += UI_icon_as_string(ICON_FACESEL);
+      text += ui::icon_as_string(ICON_FACESEL);
       text += stats_fmt->totfacesculpt;
       text += " ";
       *ofs += BLI_snprintf_utf8_rlen(info + *ofs, len - *ofs, text.c_str());
     }
   }
   else {
-    text = UI_icon_as_string(ICON_VERTEXSEL);
+    text = ui::icon_as_string(ICON_VERTEXSEL);
     text += stats_fmt->totvert;
     text += "  ";
-    text += UI_icon_as_string(ICON_EDGESEL);
+    text += ui::icon_as_string(ICON_EDGESEL);
     text += stats_fmt->totedge;
     text += "  ";
-    text += UI_icon_as_string(ICON_FACESEL);
+    text += ui::icon_as_string(ICON_FACESEL);
     text += stats_fmt->totface;
     text += "  ";
-    text += UI_icon_as_string(ICON_MARKER);
+    text += ui::icon_as_string(ICON_MARKER);
     text += stats_fmt->tottri;
     text += "  ";
     *ofs += BLI_snprintf_utf8_rlen(info + *ofs, len - *ofs, text.c_str());
@@ -731,7 +779,7 @@ const char *ED_info_statusbar_string_ex(Main *bmain,
 {
   char formatted_mem[BLI_STR_FORMAT_INT64_BYTE_UNIT_SIZE];
   size_t ofs = 0;
-  static char info[256];
+  static char info[384];
   int len = sizeof(info);
 
   info[0] = '\0';
@@ -740,7 +788,7 @@ const char *ED_info_statusbar_string_ex(Main *bmain,
   if (statusbar_flag & STATUSBAR_SHOW_STATS) {
     SceneStatsFmt stats_fmt;
     if (format_stats(bmain, scene, view_layer, nullptr, &stats_fmt)) {
-      get_stats_string(info + ofs, len, &ofs, scene, view_layer, &stats_fmt);
+      get_stats_string(info + ofs, len, &ofs, *bmain, scene, view_layer, &stats_fmt);
     }
   }
 
@@ -774,7 +822,7 @@ const char *ED_info_statusbar_string_ex(Main *bmain,
     }
     uintptr_t mem_in_use = MEM_get_memory_in_use();
     BLI_str_format_byte_unit(formatted_mem, mem_in_use, false);
-    ofs += BLI_snprintf_utf8_rlen(info + ofs, len, IFACE_("Memory: %s"), formatted_mem);
+    ofs += BLI_snprintf_utf8_rlen(info + ofs, len - ofs, IFACE_("Memory: %s"), formatted_mem);
   }
 
   /* GPU VRAM status. */
@@ -852,9 +900,9 @@ void ED_info_draw_stats(
     return;
   }
 
-  BKE_view_layer_synced_ensure(scene, view_layer);
+  BKE_view_layer_synced_ensure(*bmain, scene, view_layer);
   Object *ob = BKE_view_layer_active_object_get(view_layer);
-  eObjectMode object_mode = ob ? (eObjectMode)ob->mode : OB_MODE_OBJECT;
+  eObjectMode object_mode = ob ? eObjectMode(ob->mode) : OB_MODE_OBJECT;
   const int font_id = BLF_default();
 
   /* Translated labels for each stat row. */
@@ -871,6 +919,7 @@ void ED_info_draw_stats(
     STROKES,
     POINTS,
     LIGHTS,
+    CURVES,
     MAX_LABELS_COUNT
   };
   char labels[MAX_LABELS_COUNT][64];
@@ -887,6 +936,7 @@ void ED_info_draw_stats(
   STRNCPY_UTF8(labels[STROKES], IFACE_("Strokes"));
   STRNCPY_UTF8(labels[POINTS], IFACE_("Points"));
   STRNCPY_UTF8(labels[LIGHTS], IFACE_("Lights"));
+  STRNCPY_UTF8(labels[CURVES], IFACE_("Curves"));
 
   int longest_label = 0;
   for (int i = 0; i < MAX_LABELS_COUNT; ++i) {
@@ -937,11 +987,12 @@ void ED_info_draw_stats(
       stats_row(col1, labels[JOINTS], col2, stats_fmt.totvertsel, stats_fmt.totvert, y, height);
       stats_row(col1, labels[BONES], col2, stats_fmt.totbonesel, stats_fmt.totbone, y, height);
     }
-    else if (ob->type == OB_CURVES) {
-      stats_row(col1, labels[VERTS], col2, stats_fmt.totvertsel, stats_fmt.totpoints, y, height);
-    }
     else if (ob->type == OB_POINTCLOUD) {
       stats_row(col1, labels[POINTS], col2, stats_fmt.totvertsel, stats_fmt.totpoints, y, height);
+    }
+    else if (ELEM(ob->type, OB_CURVES_LEGACY, OB_SURF, OB_CURVES)) {
+      stats_row(col1, labels[POINTS], col2, stats_fmt.totpointsel, stats_fmt.totpoints, y, height);
+      stats_row(col1, labels[CURVES], col2, stats_fmt.totcurvesel, stats_fmt.totcurves, y, height);
     }
     else if (ob->type != OB_FONT) {
       stats_row(col1, labels[VERTS], col2, stats_fmt.totvertsel, stats_fmt.totvert, y, height);
@@ -974,3 +1025,5 @@ void ED_info_draw_stats(
     stats_row(col1, labels[TRIS], col2, stats_fmt.tottrisel, stats_fmt.tottri, y, height);
   }
 }
+
+}  // namespace blender

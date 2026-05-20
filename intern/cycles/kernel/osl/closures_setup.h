@@ -87,15 +87,8 @@ ccl_device void osl_closure_diffuse_setup(KernelGlobals kg,
     return;
   }
 
-  ccl_private DiffuseBsdf *bsdf = (ccl_private DiffuseBsdf *)bsdf_alloc(
-      sd, sizeof(DiffuseBsdf), rgb_to_spectrum(weight));
-  if (!bsdf) {
-    return;
-  }
-
-  bsdf->N = safe_normalize_fallback(closure->N, sd->N);
-
-  sd->flag |= bsdf_diffuse_setup(bsdf);
+  const float3 N = safe_normalize_fallback(closure->N, sd->N);
+  bsdf_diffuse_setup(sd, N, rgb_to_spectrum(weight));
 }
 
 /* Deprecated form, will be removed in OSL 2.0. */
@@ -110,16 +103,9 @@ ccl_device void osl_closure_oren_nayar_setup(KernelGlobals kg,
     return;
   }
 
-  ccl_private OrenNayarBsdf *bsdf = (ccl_private OrenNayarBsdf *)bsdf_alloc(
-      sd, sizeof(OrenNayarBsdf), rgb_to_spectrum(weight));
-  if (!bsdf) {
-    return;
-  }
-
-  bsdf->N = safe_normalize_fallback(closure->N, sd->N);
-  bsdf->roughness = closure->roughness;
-
-  sd->flag |= bsdf_oren_nayar_setup(sd, bsdf, rgb_to_spectrum(weight));
+  const float3 N = safe_normalize_fallback(closure->N, sd->N);
+  const Spectrum color = rgb_to_spectrum(weight);
+  bsdf_oren_nayar_setup(sd, N, color, closure->roughness, color);
 }
 
 ccl_device void osl_closure_oren_nayar_diffuse_bsdf_setup(
@@ -134,16 +120,10 @@ ccl_device void osl_closure_oren_nayar_diffuse_bsdf_setup(
     return;
   }
 
-  ccl_private OrenNayarBsdf *bsdf = (ccl_private OrenNayarBsdf *)bsdf_alloc(
-      sd, sizeof(OrenNayarBsdf), rgb_to_spectrum(weight * closure->albedo));
-  if (!bsdf) {
-    return;
-  }
-
-  bsdf->N = safe_normalize_fallback(closure->N, sd->N);
-  bsdf->roughness = closure->roughness;
-
-  sd->flag |= bsdf_oren_nayar_setup(sd, bsdf, rgb_to_spectrum(closure->albedo));
+  const float3 N = safe_normalize_fallback(closure->N, sd->N);
+  const Spectrum closure_weight = rgb_to_spectrum(weight * closure->albedo);
+  const Spectrum color = rgb_to_spectrum(closure->albedo);
+  bsdf_oren_nayar_setup(sd, N, closure_weight, closure->roughness, color);
 }
 
 ccl_device void osl_closure_burley_diffuse_bsdf_setup(
@@ -180,15 +160,24 @@ ccl_device void osl_closure_translucent_setup(KernelGlobals kg,
     return;
   }
 
-  ccl_private DiffuseBsdf *bsdf = (ccl_private DiffuseBsdf *)bsdf_alloc(
-      sd, sizeof(DiffuseBsdf), rgb_to_spectrum(weight));
-  if (!bsdf) {
+  const float3 N = safe_normalize_fallback(closure->N, sd->N);
+  bsdf_translucent_setup(sd, N, rgb_to_spectrum(weight));
+}
+
+ccl_device void osl_closure_translucent_bsdf_setup(
+    KernelGlobals kg,
+    ccl_private ShaderData *sd,
+    const uint32_t path_flag,
+    const float3 weight,
+    const ccl_private TranslucentBSDFClosure *closure,
+    float3 * /*layer_albedo*/)
+{
+  if (osl_closure_skip(kg, path_flag, LABEL_DIFFUSE)) {
     return;
   }
 
-  bsdf->N = safe_normalize_fallback(closure->N, sd->N);
-
-  sd->flag |= bsdf_translucent_setup(bsdf);
+  const float3 N = safe_normalize_fallback(closure->N, sd->N);
+  bsdf_translucent_setup(sd, N, rgb_to_spectrum(weight * closure->albedo));
 }
 
 ccl_device void osl_closure_reflection_setup(KernelGlobals kg,
@@ -244,6 +233,17 @@ ccl_device void osl_closure_transparent_setup(KernelGlobals /*kg*/,
                                               const float3 weight,
                                               const ccl_private TransparentClosure * /*closure*/,
                                               float3 * /*layer_albedo*/)
+{
+  bsdf_transparent_setup(sd, rgb_to_spectrum(weight), path_flag);
+}
+
+ccl_device void osl_closure_transparent_bsdf_setup(
+    KernelGlobals /*kg*/,
+    ccl_private ShaderData *sd,
+    const uint32_t path_flag,
+    const float3 weight,
+    const ccl_private TransparentBSDFClosure * /*closure*/,
+    float3 * /*layer_albedo*/)
 {
   bsdf_transparent_setup(sd, rgb_to_spectrum(weight), path_flag);
 }
@@ -968,6 +968,9 @@ ccl_device void osl_closure_bssrdf_setup(KernelGlobals /*kg*/,
   else if (closure->method == make_string("random_walk_skin", 3096325052680726300ull)) {
     type = CLOSURE_BSSRDF_RANDOM_WALK_SKIN_ID;
   }
+  else if (closure->method == make_string("random_walk_legacy", 3162086485308246001ull)) {
+    type = CLOSURE_BSSRDF_RANDOM_WALK_LEGACY_ID;
+  }
   else {
     return;
   }
@@ -1254,6 +1257,31 @@ ccl_device void osl_closure_rayleigh_setup(KernelGlobals /*kg*/,
   }
 
   sd->flag |= volume_rayleigh_setup(volume);
+}
+
+ccl_device void osl_closure_anisotropic_vdf_setup(KernelGlobals kg,
+                                                  ccl_private ShaderData *sd,
+                                                  const uint32_t /*path_flag*/,
+                                                  float3 weight,
+                                                  const ccl_private AnisotropicVDFClosure *closure,
+                                                  float3 * /*layer_albedo*/)
+{
+  if (!(sd->flag & SD_IS_VOLUME_SHADER_EVAL)) {
+    return;
+  }
+
+  weight *= object_volume_density(kg, sd->object) * closure->extinction;
+  volume_extinction_setup(sd, rgb_to_spectrum(weight));
+
+  ccl_private HenyeyGreensteinVolume *volume = (ccl_private HenyeyGreensteinVolume *)bsdf_alloc(
+      sd, sizeof(HenyeyGreensteinVolume), rgb_to_spectrum(weight * closure->albedo));
+  if (!volume) {
+    return;
+  }
+
+  volume->g = closure->anisotropy;
+
+  sd->flag |= volume_henyey_greenstein_setup(volume);
 }
 
 CCL_NAMESPACE_END
