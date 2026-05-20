@@ -86,7 +86,7 @@ template<typename T> struct ListBaseT : public ListBase {
   /**
    * Number of items in the list. Note that this requires iterating over the whole list.
    */
-  int size() const
+  int count() const
   {
     int count = 0;
     for ([[maybe_unused]] const T &item : *this) {
