@@ -45,7 +45,8 @@ static PyTypeObject BlenderAppCbType;
 
 #define RENDER_STATS_ARG \
   "Accepts one argument: " \
-  "the render stats (render/saving time plus in background mode frame/used [peak] memory)."
+  "the render progress as a string contianing current frame, current sample, render time and " \
+  "saving time."
 #define PYDOC_RENDER_STATS_TYPE "\n\n:type: list[Callable[[str], None]]"
 
 #define DEPSGRAPH_UPDATE_ARG \
@@ -110,10 +111,7 @@ static PyStructSequence_Field app_cb_info_fields[] = {
     {"render_write",
      "on writing a render frame (directly after the frame is written). " RENDER_ARG
          PYDOC_RENDER_TYPE},
-    {"render_stats",
-     "on printing render statistics. Accepts one argument: the render stats (render/saving time "
-     "plus in background mode frame/used [peak] memory)." RENDER_STATS_ARG
-         PYDOC_RENDER_STATS_TYPE},
+    {"render_stats", "on printing render statistics." RENDER_STATS_ARG PYDOC_RENDER_STATS_TYPE},
     {"render_init", "on initialization of a render job. " RENDER_ARG PYDOC_RENDER_TYPE},
     {"render_complete", "on completion of render job. " RENDER_ARG PYDOC_RENDER_TYPE},
     {"render_cancel", "on canceling a render job. " RENDER_ARG PYDOC_RENDER_TYPE},
