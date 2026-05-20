@@ -302,7 +302,7 @@ class OUTLINER_MT_collection(Menu):
 
         layout.separator()
 
-        OUTLINER_MT_context_menu.draw_common_operators(layout)
+        OUTLINER_MT_context_menu.draw_common_operators(space, layout)
 
 
 class OUTLINER_MT_collection_new(Menu):
@@ -320,7 +320,7 @@ class OUTLINER_MT_collection_new(Menu):
 
         layout.separator()
 
-        OUTLINER_MT_context_menu.draw_common_operators(layout)
+        OUTLINER_MT_context_menu.draw_common_operators(context.space_data, layout)
 
 
 class OUTLINER_MT_object(Menu):
@@ -359,7 +359,7 @@ class OUTLINER_MT_object(Menu):
 
         layout.separator()
 
-        OUTLINER_MT_context_menu.draw_common_operators(layout)
+        OUTLINER_MT_context_menu.draw_common_operators(space, layout)
 
 
 class OUTLINER_MT_asset(Menu):
