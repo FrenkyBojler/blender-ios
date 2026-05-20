@@ -50,8 +50,8 @@ class GaussSeidelUpdater {
   }
   void add_residual_error(const int /*geo_i*/, const float error_squared)
   {
-    /* TODO Geometry index is ignored for now for simplicity. We could record a separate error for
-     * each geometry. */
+    /* Geometry index is ignored for now for simplicity. We could record a separate error for each
+     * geometry. */
     total_error_squared_ += error_squared;
     ++total_error_count_;
   }
