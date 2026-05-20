@@ -10,8 +10,12 @@
 #  include "draw_view_infos.hh"
 #  include "eevee_common_infos.hh"
 #  include "eevee_debug_shared.hh"
+#  include "eevee_lightprobe_infos.hh"
 #  include "eevee_lightprobe_shared.hh"
+#  include "eevee_uniform_infos.hh"
+#endif
 
+#ifdef GLSL_CPP_STUBS
 #  define SPHERE_PROBE
 #endif
 
@@ -65,54 +69,11 @@ BUILTINS(BuiltinBits::CLIP_CONTROL)
 DO_STATIC_COMPILATION()
 GPU_SHADER_CREATE_END()
 
-GPU_SHADER_INTERFACE_INFO(eevee_display_lightprobe_volume_iface)
-SMOOTH(float2, lP)
-FLAT(int3, cell)
-GPU_SHADER_INTERFACE_END()
-
-GPU_SHADER_CREATE_INFO(eevee_display_lightprobe_volume)
-TYPEDEF_SOURCE("eevee_defines.hh")
-TYPEDEF_SOURCE("eevee_lightprobe_shared.hh")
-ADDITIONAL_INFO(draw_view)
-VERTEX_SOURCE("eevee_display_lightprobe_volume_vert.glsl")
-VERTEX_OUT(eevee_display_lightprobe_volume_iface)
-FRAGMENT_SOURCE("eevee_display_lightprobe_volume_frag.glsl")
-FRAGMENT_OUT(0, float4, out_color)
-PUSH_CONSTANT(float, sphere_radius)
-PUSH_CONSTANT(int3, grid_resolution)
-PUSH_CONSTANT(float4x4, grid_to_world)
-PUSH_CONSTANT(float4x4, world_to_grid)
-PUSH_CONSTANT(bool, display_validity)
-SAMPLER(0, sampler3D, irradiance_a_tx)
-SAMPLER(1, sampler3D, irradiance_b_tx)
-SAMPLER(2, sampler3D, irradiance_c_tx)
-SAMPLER(3, sampler3D, irradiance_d_tx)
-SAMPLER(4, sampler3D, validity_tx)
-BUILTINS(BuiltinBits::CLIP_CONTROL)
-DO_STATIC_COMPILATION()
-GPU_SHADER_CREATE_END()
-
 /** \} */
 
 /* -------------------------------------------------------------------- */
 /** \name Baking
  * \{ */
-
-GPU_SHADER_CREATE_INFO(eevee_surfel_light)
-DEFINE("LIGHT_ITER_FORCE_NO_CULLING")
-DEFINE_VALUE("LIGHT_CLOSURE_EVAL_COUNT", "1")
-LOCAL_GROUP_SIZE(SURFEL_GROUP_SIZE)
-TYPEDEF_SOURCE("eevee_defines.hh")
-TYPEDEF_SOURCE("eevee_lightprobe_shared.hh")
-ADDITIONAL_INFO(draw_view)
-ADDITIONAL_INFO(eevee_global_ubo)
-ADDITIONAL_INFO(eevee_utility_texture)
-ADDITIONAL_INFO(eevee_surfel_common)
-ADDITIONAL_INFO(eevee_light_data)
-ADDITIONAL_INFO(eevee_shadow_data)
-COMPUTE_SOURCE("eevee_surfel_light_comp.glsl")
-DO_STATIC_COMPILATION()
-GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(eevee_surfel_cluster_build)
 LOCAL_GROUP_SIZE(SURFEL_GROUP_SIZE)
@@ -123,31 +84,6 @@ ADDITIONAL_INFO(eevee_surfel_common)
 ADDITIONAL_INFO(draw_view)
 IMAGE(0, SINT_32, read_write, iimage3DAtomic, cluster_list_img)
 COMPUTE_SOURCE("eevee_surfel_cluster_build_comp.glsl")
-DO_STATIC_COMPILATION()
-GPU_SHADER_CREATE_END()
-
-GPU_SHADER_CREATE_INFO(eevee_surfel_list_build)
-LOCAL_GROUP_SIZE(SURFEL_GROUP_SIZE)
-BUILTINS(BuiltinBits::TEXTURE_ATOMIC)
-TYPEDEF_SOURCE("eevee_defines.hh")
-TYPEDEF_SOURCE("eevee_lightprobe_shared.hh")
-ADDITIONAL_INFO(eevee_surfel_common)
-ADDITIONAL_INFO(draw_view)
-STORAGE_BUF(0, read_write, int, list_start_buf[])
-STORAGE_BUF(6, read_write, SurfelListInfoData, list_info_buf)
-COMPUTE_SOURCE("eevee_surfel_list_build_comp.glsl")
-DO_STATIC_COMPILATION()
-GPU_SHADER_CREATE_END()
-
-GPU_SHADER_CREATE_INFO(eevee_surfel_list_sort)
-LOCAL_GROUP_SIZE(SURFEL_LIST_GROUP_SIZE)
-TYPEDEF_SOURCE("eevee_defines.hh")
-TYPEDEF_SOURCE("eevee_lightprobe_shared.hh")
-ADDITIONAL_INFO(eevee_surfel_common)
-ADDITIONAL_INFO(draw_view)
-STORAGE_BUF(0, read_write, int, list_start_buf[])
-STORAGE_BUF(6, read, SurfelListInfoData, list_info_buf)
-COMPUTE_SOURCE("eevee_surfel_list_sort_comp.glsl")
 DO_STATIC_COMPILATION()
 GPU_SHADER_CREATE_END()
 

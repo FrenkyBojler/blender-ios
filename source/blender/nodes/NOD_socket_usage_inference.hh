@@ -15,11 +15,13 @@
 #include "NOD_socket_usage_inference_fwd.hh"
 #include "NOD_socket_value_inference.hh"
 
+namespace blender {
+
 struct bNodeTree;
 struct bNodeSocket;
 struct IDProperty;
 
-namespace blender::nodes::socket_usage_inference {
+namespace nodes::socket_usage_inference {
 
 class SocketUsageInferencerImpl;
 
@@ -30,7 +32,7 @@ class SocketUsageInferencer {
  private:
   SocketUsageInferencerImpl &impl_;
 
-  friend class InputSocketUsageParams;
+  friend class SocketUsageParams;
 
  public:
   SocketUsageInferencer(const bNodeTree &tree,
@@ -51,7 +53,7 @@ class SocketUsageInferencer {
   void mark_top_level_node_outputs_as_used();
 };
 
-class InputSocketUsageParams {
+class SocketUsageParams {
  private:
   SocketUsageInferencer &inferencer_;
   const ComputeContext *compute_context_ = nullptr;
@@ -61,17 +63,17 @@ class InputSocketUsageParams {
   const bNode &node;
   const bNodeSocket &socket;
 
-  InputSocketUsageParams(SocketUsageInferencer &inferencer,
-                         const ComputeContext *compute_context,
-                         const bNodeTree &tree,
-                         const bNode &node,
-                         const bNodeSocket &socket);
+  SocketUsageParams(SocketUsageInferencer &inferencer,
+                    const ComputeContext *compute_context,
+                    const bNodeTree &tree,
+                    const bNode &node,
+                    const bNodeSocket &socket);
 
   /**
    * Get an the statically known input value for the given socket identifier. The value may be
    * unknown, in which case null is returned.
    */
-  InferenceValue get_input(StringRef identifier) const;
+  InferenceValue get_input(UString identifier) const;
 
   /**
    * Returns true if any output is known to be used or false if no output is used. std::nullopt is
@@ -83,7 +85,8 @@ class InputSocketUsageParams {
   /**
    * Utility for the case when the socket depends on a specific menu input to have a certain value.
    */
-  bool menu_input_may_be(StringRef identifier, int enum_value) const;
+  bool menu_input_may_be(UString identifier, int enum_value) const;
+  bool bool_input_may_be(UString identifier, bool bool_value) const;
 };
 
 /**
@@ -121,10 +124,12 @@ void infer_group_interface_inputs_usage(const bNodeTree &group,
  * Same as above, but automatically retrieves the input values from the given properties.
  * This is used with the geometry nodes modifier and node tools.
  */
-void infer_group_interface_usage(
+void infer_group_interface_inputs_usage(
     const bNodeTree &group,
-    const IDProperty *properties,
+    const PointerRNA &properties_ptr,
     MutableSpan<SocketUsage> r_input_usages,
     std::optional<MutableSpan<SocketUsage>> r_output_usages = std::nullopt);
 
-}  // namespace blender::nodes::socket_usage_inference
+}  // namespace nodes::socket_usage_inference
+
+}  // namespace blender
