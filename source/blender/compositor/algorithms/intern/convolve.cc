@@ -135,7 +135,7 @@ void convolve(Context &context,
   });
 
   Result convolve_input = context.create_result(input.type());
-  Result convolve_kernel = context.create_result(input.type());
+  Result convolve_kernel = context.create_result(kernel.type());
 
   if (context.use_gpu()) {
     Result input_cpu = input.download_to_cpu();
