@@ -1574,6 +1574,15 @@ elseif(WIN32)
   )
 
   windows_install_shared_manifest(
+    FILES ${LIBDIR}/meshoptimizer/bin/meshoptimizer.dll
+    RELEASE
+  )
+  windows_install_shared_manifest(
+    FILES ${LIBDIR}/meshoptimizer/bin/meshoptimizer_d.dll
+    DEBUG
+  )
+
+  windows_install_shared_manifest(
     FILES
       ${LIBDIR}/openal/lib/OpenAL32.dll
     ALL
