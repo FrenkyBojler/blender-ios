@@ -2466,12 +2466,12 @@ class XpbdSolverStep {
 
           const Span<xpbd::GeometryRef> solver_refs = geometries_.solver_refs[solver_refs_i];
           xpbd::ConstraintSetParams solve_params{solver_refs, sub_delta_time_};
-          xpbd::GaussSeidelUpdater updater{solver_refs, chunk_error_squared, chunk_error_count};
           for ([[maybe_unused]] const int iter_i : IndexRange(constraint_iterations_)) {
-            chunk_error_squared = 0.0f;
-            chunk_error_count = 0;
+            xpbd::GaussSeidelUpdater updater{solver_refs};
             this->simulate__position_solve__single_iteration__chunk(
                 chunk_i, solve_params, updater);
+            chunk_error_squared = updater.total_error_squared();
+            chunk_error_count = updater.total_error_count();
           }
 
           this->simulate__update_velocities__chunk(chunk_i, solver_refs_i);
@@ -2701,9 +2701,10 @@ class XpbdSolverStep {
     threading::EnumerableThreadSpecific<int> total_error_count_tls(0);
 
     this->parallel_for_each_chunk(1, [&](const int chunk_i) {
-      xpbd::GaussSeidelUpdater updater{
-          solver_refs, total_error_squared_tls.local(), total_error_count_tls.local()};
+      xpbd::GaussSeidelUpdater updater{solver_refs};
       this->simulate__position_solve__single_iteration__chunk(chunk_i, solve_params, updater);
+      total_error_squared_tls.local() += updater.total_error_squared();
+      total_error_count_tls.local() += updater.total_error_count();
     });
 
     for (const int data_key_i : geometries_.data_keys.index_range()) {
@@ -2713,9 +2714,10 @@ class XpbdSolverStep {
           const IndexMask &mask = constraint.coloring.colors[color_i];
           threading::parallel_for(mask.index_range(), 512, [&](const IndexRange range) {
             const IndexMask sliced_mask = mask.slice(range);
-            xpbd::GaussSeidelUpdater updater{
-                solver_refs, total_error_squared_tls.local(), total_error_count_tls.local()};
+            xpbd::GaussSeidelUpdater updater{solver_refs};
             constraint.constraint->solve_sequential(solve_params, updater, sliced_mask);
+            total_error_squared_tls.local() += updater.total_error_squared();
+            total_error_count_tls.local() += updater.total_error_count();
           });
         }
       }
