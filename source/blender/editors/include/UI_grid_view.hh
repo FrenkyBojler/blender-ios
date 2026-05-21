@@ -130,7 +130,7 @@ class AbstractGridView : public AbstractView {
   AbstractViewItem *navigate_up(AbstractViewItem *from) override;
   AbstractViewItem *navigate_down(AbstractViewItem *from) override;
 
-  void scroll_active_into_view() override;
+  void scroll_active_into_view(bContext *C) override;
 
  protected:
   virtual void build_items() = 0;

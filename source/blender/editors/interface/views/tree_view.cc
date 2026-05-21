@@ -490,7 +490,7 @@ void AbstractTreeView::scroll(ViewScrollDirection direction)
   *scroll_value_ += ((direction == ViewScrollDirection::UP) ? -1 : 1);
 }
 
-void AbstractTreeView::scroll_active_into_view()
+void AbstractTreeView::scroll_active_into_view(bContext */*C*/)
 {
   int index = 0;
   const std::optional<int> visible_row_count = tot_visible_row_count();
@@ -982,7 +982,7 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
 
   if (tree_view.scroll_active_into_view_on_draw_) {
     /* Don't scroll the list when active item is already in view. */
-    tree_view.scroll_active_into_view();
+    tree_view.scroll_active_into_view(nullptr);
   }
 
   const int first_visible_index = tree_view.scroll_value_ ? *tree_view.scroll_value_ : 0;

@@ -3039,7 +3039,7 @@ static wmOperatorStatus ui_view_item_navigate_invoke(bContext *C,
 
   if (next_item) {
     view_item_click_select(*C, next_item, *view, false, false, false);
-    view->scroll_active_into_view();
+    view->scroll_active_into_view(C);
   }
   ED_region_tag_redraw(&region);
   return OPERATOR_FINISHED;

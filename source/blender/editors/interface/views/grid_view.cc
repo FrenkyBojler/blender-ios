@@ -24,6 +24,7 @@
 #include "UI_interface_layout.hh"
 #include "UI_view2d.hh"
 #include "interface_intern.hh"
+#include "UI_interface_c.hh"
 
 #include "UI_grid_view.hh"
 
@@ -220,7 +221,18 @@ AbstractViewItem *AbstractGridView::navigate_down(AbstractViewItem *from)
   return next_item ? next_item : from;
 }
 
-void AbstractGridView::scroll_active_into_view() {}
+void AbstractGridView::scroll_active_into_view(bContext *C)
+{
+  this->foreach_filtered_item([&](AbstractViewItem &item) {
+    if (item.is_active()) {
+      Button *but = reinterpret_cast<Button *>(item.view_item_button());
+      ARegion *region = CTX_wm_region(C);
+      if (but && region) {
+        but_ensure_in_view(C, region, but);
+      }
+    }
+  });
+}
 
 GridViewStyle::GridViewStyle(int width, int height) : tile_width(width), tile_height(height) {}
 
