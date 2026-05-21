@@ -92,7 +92,6 @@ TEST_F(TransformableTest, transformable_get_values)
   EXPECT_EQ(pose_bone->rotmode, ROT_MODE_QUAT);
   EXPECT_EQ(transformable.get_rotation_mode(), pose_bone->rotmode);
   EXPECT_EQ(rotation_values.size(), 4);
-  Rotation rotation = transformable.get_rotation();
 }
 
 TEST_F(TransformableTest, transformable_rotation)
@@ -108,7 +107,7 @@ TEST_F(TransformableTest, transformable_rotation)
   pose_bone->rotmode = ROT_MODE_XYZ;
   pose_bone->eul[0] = 3.14;
   transformable.set_rotation(rotation);
-  /* Event though the rotation is a quaternion, setting it to the transformable which is a bone
+  /* Even though the rotation is a quaternion, setting it to the transformable which is a bone
    * with xyz euler still works. The rotation is converted to the correct mode of the
    * transformable. */
   expected = {0, 0, 0};
