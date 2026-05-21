@@ -128,8 +128,6 @@ def test_open_editor_types():
     variants = editor_variants()
     count = len(variants)
 
-    cols = math.ceil(math.sqrt(count))
-    rows = math.ceil(count / cols)
 
     # Build a grid with at least `count` areas, yielding after each split
     yield from ui.build_grid(screen, count)

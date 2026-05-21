@@ -231,7 +231,7 @@ def build_grid(screen, target_count):
     Dynamically construct a visible grid of areas.
     """
     while len(screen.areas) < target_count:
-
+        prev_count = len(screen.areas)
         area = largest_area(screen)
         direction = (
             'VERTICAL'
@@ -241,3 +241,5 @@ def build_grid(screen, target_count):
 
         split_area(area, direction, 0.5)
         yield
+        if len(screen.areas) == prev_count:
+            raise Exception(f"Area split did not increase area count (stuck at {prev_count}). ")
