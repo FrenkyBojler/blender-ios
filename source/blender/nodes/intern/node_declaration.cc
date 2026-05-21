@@ -144,7 +144,7 @@ Span<SocketDeclaration *> NodeDeclaration::sockets(eNodeSocketInOut in_out) cons
   return outputs;
 }
 
-namespace anonymous_attribute_lifetime {
+namespace reference_lifetimes {
 
 std::ostream &operator<<(std::ostream &stream, const RelationsInNode &relations)
 {
@@ -172,7 +172,7 @@ std::ostream &operator<<(std::ostream &stream, const RelationsInNode &relations)
   return stream;
 }
 
-}  // namespace anonymous_attribute_lifetime
+}  // namespace reference_lifetimes
 
 static void assert_valid_panels_recursive(const NodeDeclaration &node_decl,
                                           const Span<const ItemDeclaration *> items,

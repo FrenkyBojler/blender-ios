@@ -62,7 +62,7 @@ struct StructureTypeInterface {
                          const StructureTypeInterface &b) = default;
 };
 
-namespace anonymous_attribute_lifetime {
+namespace reference_lifetimes {
 
 /**
  * Attributes can be propagated from an input geometry to an output geometry.
@@ -116,8 +116,8 @@ struct RelationsInNode {
 
 std::ostream &operator<<(std::ostream &stream, const RelationsInNode &relations);
 
-}  // namespace anonymous_attribute_lifetime
-namespace aal = anonymous_attribute_lifetime;
+}  // namespace reference_lifetimes
+namespace aal = reference_lifetimes;
 
 /** Socket or panel declaration. */
 class ItemDeclaration {
