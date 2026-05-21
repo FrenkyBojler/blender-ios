@@ -328,8 +328,7 @@ void ShadowPass::sync(SceneResources &resources)
   if (!enabled_) {
     return;
   }
-  use_raytracing_ = U.experimental.use_workbench_raytraced_shadows && GPU_ray_query_support() &&
-                    GPU_stencil_export_support();
+  use_raytracing_ = U.experimental.use_workbench_raytraced_shadows && GPU_ray_query_support();
 
 #if DEBUG_SHADOW_VOLUME
   DRWState state = DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_ADD_FULL;
@@ -349,6 +348,7 @@ void ShadowPass::sync(SceneResources &resources)
     raytrace_ps_.init();
     raytrace_ps_.state_set(DRW_STATE_DEPTH_ALWAYS | DRW_STATE_STENCIL_ALWAYS |
                            DRW_STATE_WRITE_STENCIL);
+    raytrace_ps_.state_stencil(0xFF, 0xFF, 0xFF);
     raytrace_ps_.shader_set(ShaderCache::get().shadow_raytrace.get());
     raytrace_ps_.bind_texture("depth_tx", &resources.depth_tx);
     raytrace_ps_.bind_ubo("pass_data", pass_data_);

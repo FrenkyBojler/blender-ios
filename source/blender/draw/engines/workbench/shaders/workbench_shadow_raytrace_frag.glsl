@@ -27,5 +27,9 @@ void main()
   bool is_light_occluded = rayQueryGetIntersectionTypeEXT(query, true) !=
                            gl_RayQueryCommittedIntersectionNoneEXT;
 
-  gl_FragStencilRefARB = is_light_occluded ? 0x01 : 0x00;
+  if (!is_light_occluded) {
+    /* Writing the stencil means the fragment is in shadow. */
+    gpu_discard_fragment();
+    return;
+  }
 }
