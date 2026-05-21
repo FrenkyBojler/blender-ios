@@ -3048,9 +3048,9 @@ static wmOperatorStatus ui_view_item_navigate_invoke(bContext *C,
 
 static void UI_OT_view_item_navigate(wmOperatorType *ot)
 {
-  ot->name = "Navigate Tree View";
+  ot->name = "View Navigate";
   ot->idname = "UI_OT_view_item_navigate";
-  ot->description = "Navigate view item";
+  ot->description = "Walk and select view items in given direction";
 
   ot->invoke = ui_view_item_navigate_invoke;
   ot->poll = view_focused_poll;
@@ -3058,10 +3058,18 @@ static void UI_OT_view_item_navigate(wmOperatorType *ot)
   ot->flag = OPTYPE_INTERNAL;
 
   static const EnumPropertyItem direction_enum_items[] = {
-      {int(Direction::UP), "UP", 0, "Up", "Select element above the active"},
-      {int(Direction::Down), "DOWN", 0, "Down", "Select element below the active"},
-      {int(Direction::LEFT), "LEFT", 0, "Left", "Collapse active"},
-      {int(Direction::RIGHT), "RIGHT", 0, "Right", "Uncollapse active"},
+      {int(Direction::UP), "UP", 0, "Up", "Select item above the active"},
+      {int(Direction::Down), "DOWN", 0, "Down", "Select item below the active"},
+      {int(Direction::LEFT),
+       "LEFT",
+       0,
+       "Left",
+       "Collapse or walk towards left of the active item"},
+      {int(Direction::RIGHT),
+       "RIGHT",
+       0,
+       "Right",
+       "Uncollapse or walk towards right of the active item"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -3070,7 +3078,7 @@ static void UI_OT_view_item_navigate(wmOperatorType *ot)
                direction_enum_items,
                0,
                "Navigation Direction",
-               "Select in the direction.");
+               "Direction in which to navigate and select next element.");
 }
 /** \} */
 

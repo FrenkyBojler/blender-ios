@@ -162,7 +162,7 @@ AbstractViewItem *AbstractGridView::navigate_left(AbstractViewItem *from)
   AbstractViewItem *next_item = nullptr;
   bool found_active = false;
   this->foreach_filtered_item([&](AbstractViewItem &item) {
-    found_active |= &item == from;
+    found_active |= (&item == from);
     if (!found_active) {
       next_item = &item;
     }
@@ -181,7 +181,7 @@ AbstractViewItem *AbstractGridView::navigate_right(AbstractViewItem *from)
       next_item = &item;
       found_active = false;
     }
-    found_active = &item == from;
+    found_active = (&item == from);
   });
 
   return next_item ? next_item : from;
@@ -189,7 +189,7 @@ AbstractViewItem *AbstractGridView::navigate_right(AbstractViewItem *from)
 
 AbstractViewItem *AbstractGridView::navigate_up(AbstractViewItem *from)
 {
-  std::optional<int> from_index = find_filtered_item_index(
+  const std::optional<int> from_index = find_filtered_item_index(
       dynamic_cast<const AbstractGridViewItem &>(*from));
 
   const int next_item_index = std::clamp(
@@ -208,7 +208,7 @@ AbstractViewItem *AbstractGridView::navigate_up(AbstractViewItem *from)
 
 AbstractViewItem *AbstractGridView::navigate_down(AbstractViewItem *from)
 {
-  std::optional<int> from_index = find_filtered_item_index(
+  const std::optional<int> from_index = find_filtered_item_index(
       dynamic_cast<const AbstractGridViewItem &>(*from));
 
   const int next_item_index = std::clamp(
