@@ -5882,21 +5882,6 @@ static bool overlap_tri_tri_uv_test(const float t1[3][2],
   return false;
 }
 
-enum eUVSelectOverlapMode {
-  UV_SELECT_OVERLAP_FACE = 0,
-  UV_SELECT_OVERLAP_ISLAND = 1,
-};
-
-static EnumPropertyItem prop_select_overlap_mode_items[] = {
-    {UV_SELECT_OVERLAP_FACE, "FACE", 0, "Face", "Select only overlapping faces"},
-    {UV_SELECT_OVERLAP_ISLAND,
-     "ISLAND",
-     0,
-     "Island",
-     "Select the entire UV island for overlapping faces"},
-    {0},
-};
-
 static wmOperatorStatus uv_select_overlap(bContext *C, const bool extend, const bool select_island)
 {
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
@@ -6193,17 +6178,11 @@ static wmOperatorStatus uv_select_overlap(bContext *C, const bool extend, const 
 
 static wmOperatorStatus uv_select_overlap_exec(bContext *C, wmOperator *op)
 {
-  PropertyRNA *prop_mode = RNA_struct_find_property(op->ptr, "mode");
-  if (!RNA_property_is_set(op->ptr, prop_mode)) {
-    ToolSettings *ts = CTX_data_tool_settings(C);
-    const bool use_select_linked = ED_uvedit_select_island_check(ts);
-    RNA_property_enum_set(
-        op->ptr, prop_mode, use_select_linked ? UV_SELECT_OVERLAP_ISLAND : UV_SELECT_OVERLAP_FACE);
-  }
+  ToolSettings *ts = CTX_data_tool_settings(C);
+  const bool use_select_linked = ED_uvedit_select_island_check(ts);
 
   bool extend = RNA_boolean_get(op->ptr, "extend");
-  const eUVSelectOverlapMode mode = eUVSelectOverlapMode(RNA_enum_get(op->ptr, "mode"));
-  return uv_select_overlap(C, extend, mode == UV_SELECT_OVERLAP_ISLAND);
+  return uv_select_overlap(C, extend, use_select_linked);
 }
 
 void UV_OT_select_overlap(wmOperatorType *ot)
@@ -6219,8 +6198,6 @@ void UV_OT_select_overlap(wmOperatorType *ot)
   ot->poll = ED_operator_uvedit;
 
   /* properties */
-  ot->prop = RNA_def_enum(
-      ot->srna, "mode", prop_select_overlap_mode_items, UV_SELECT_OVERLAP_FACE, "Mode", "");
   RNA_def_boolean(ot->srna,
                   "extend",
                   false,
