@@ -3011,9 +3011,9 @@ static bool ui_tree_view_focused_poll(bContext *C)
   return false;
 }
 
-static wmOperatorStatus ui_view_item_active_focus_invoke(bContext *C,
-                                                         wmOperator * /*op*/,
-                                                         const wmEvent * /*event*/)
+static wmOperatorStatus ui_view_item_focus_invoke(bContext *C,
+                                                  wmOperator * /*op*/,
+                                                  const wmEvent * /*event*/)
 {
   ARegion *region = CTX_wm_region(C);
   AbstractView *view = get_view_focused(C);
@@ -3029,13 +3029,13 @@ static wmOperatorStatus ui_view_item_active_focus_invoke(bContext *C,
   return OPERATOR_FINISHED;
 }
 
-static void UI_OT_view_item_active_focus(wmOperatorType *ot)
+static void UI_OT_view_item_focus(wmOperatorType *ot)
 {
   ot->name = "Focus Active Item";
-  ot->idname = "UI_OT_view_item_active_focus";
-  ot->description = "Focus active list item";
+  ot->idname = "UI_OT_view_item_focus";
+  ot->description = "Bring active item into focus by scrolling the view";
 
-  ot->invoke = ui_view_item_active_focus_invoke;
+  ot->invoke = ui_view_item_focus_invoke;
   ot->poll = ui_tree_view_focused_poll;
 
   ot->flag = OPTYPE_INTERNAL;
@@ -3144,7 +3144,7 @@ void operatortypes_ui()
   WM_operatortype_append(UI_OT_view_item_rename);
   WM_operatortype_append(UI_OT_view_item_select);
   WM_operatortype_append(UI_OT_view_item_delete);
-  WM_operatortype_append(UI_OT_view_item_active_focus);
+  WM_operatortype_append(UI_OT_view_item_focus);
 
   WM_operatortype_append(UI_OT_override_add_button);
   WM_operatortype_append(UI_OT_override_remove_button);
