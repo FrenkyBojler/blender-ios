@@ -731,14 +731,7 @@ short calc_orientation_from_type_ex(const Main &bmain,
         else if ((ob->mode & OB_MODE_SCULPT) && ob->runtime->sculpt_session &&
                  scene->toolsettings->sculpt->transform_mode == SCULPT_TRANSFORM_MODE_PIVOT)
         {
-          float correction_mat[3][3];
-          float pivot_local_mat[3][3];
-          float pivot_world_mat[3][3];
-          quat_to_mat3(pivot_local_mat, ob->runtime->sculpt_session->pivot_rot);
-          axis_angle_to_mat3_single(correction_mat, 'Z', M_PI);
-          mul_m3_m3m3(pivot_local_mat, pivot_local_mat, correction_mat);
-          mul_m3_m4m3(pivot_world_mat, ob->object_to_world().ptr(), pivot_local_mat);
-          transform_orientations_create_from_axis(r_mat, UNPACK3(pivot_world_mat));
+          quat_to_mat3(r_mat, ob->runtime->sculpt_session->pivot_rot);
         }
         else {
           transform_orientations_create_from_axis(r_mat, UNPACK3(ob->object_to_world().ptr()));
