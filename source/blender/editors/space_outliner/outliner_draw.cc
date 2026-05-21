@@ -2925,7 +2925,7 @@ TreeElementIcon tree_element_get_icon(TreeStoreElem *tselem, TreeElement *te)
         data.icon = ICON_SHADERFX;
         break;
       case TSE_SHAPE_KEY_BLOCK:
-      case TSE_SHAPE_KEY_BLOCK_BASE:
+      case TSE_SHAPE_KEY_BASE:
         data.icon = ICON_SHAPEKEY_DATA;
         break;
       default:

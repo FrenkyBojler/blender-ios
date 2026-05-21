@@ -67,6 +67,9 @@ std::unique_ptr<TreeElementID> TreeElementID::create_from_id(TreeElement &legacy
       return std::make_unique<TreeElementIDObject>(legacy_te, (Object &)id);
     case ID_AC:
       return std::make_unique<TreeElementIDAction>(legacy_te, (bAction &)id);
+    case ID_KE:
+      /* Shape Key is handled separately, see #TreeElementShapeKeyBase. */
+      return nullptr;
     case ID_MA:
     case ID_LT:
     case ID_LA:

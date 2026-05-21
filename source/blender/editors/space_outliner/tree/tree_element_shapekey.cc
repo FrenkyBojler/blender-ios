@@ -22,7 +22,7 @@ namespace blender::ed::outliner {
 TreeElementShapeKeyBase::TreeElementShapeKeyBase(TreeElement &legacy_te, Key &key)
     : AbstractTreeElement(legacy_te), key_(key)
 {
-  BLI_assert(legacy_te.store_elem->type == TSE_SHAPE_KEY_BLOCK_BASE);
+  BLI_assert(legacy_te.store_elem->type == TSE_SHAPE_KEY_BASE);
   legacy_te.name = key_.id.name + 2;
 }
 

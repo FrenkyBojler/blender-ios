@@ -208,8 +208,9 @@ std::unique_ptr<AbstractTreeElement> AbstractTreeElement::create_from_type(const
     case TSE_SHAPE_KEY_BLOCK:
       return std::make_unique<TreeElementShapeKey>(legacy_te,
                                                    *static_cast<KeyBlock *>(create_data));
-    case TSE_SHAPE_KEY_BLOCK_BASE:
-      return std::make_unique<TreeElementShapeKeyBase>(legacy_te, *reinterpret_cast<Key *>(owner_id));
+    case TSE_SHAPE_KEY_BASE:
+      return std::make_unique<TreeElementShapeKeyBase>(legacy_te,
+                                                       *reinterpret_cast<Key *>(owner_id));
     default:
       break;
   }

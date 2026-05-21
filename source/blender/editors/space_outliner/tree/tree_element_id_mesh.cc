@@ -34,7 +34,7 @@ void TreeElementIDMesh::expand_key() const
               reinterpret_cast<ID *>(mesh_.key),
               nullptr,
               &legacy_te_,
-              TSE_SHAPE_KEY_BLOCK_BASE,
+              TSE_SHAPE_KEY_BASE,
               0);
 }
 
