@@ -3469,8 +3469,11 @@ static void node_geo_exec(GeoNodeExecParams params)
   step.do_step();
 
   if (!solver_path.empty()) {
-    world.add_path_override(Bundle::combine_path({solver_path, "residual_error"}),
-                            step.result().total_residual_error);
+    BundlePtr solver_data_ptr = Bundle::create();
+    Bundle &solver_data = solver_data_ptr.ensure_mutable_inplace();
+    solver_data.add_path(Bundle::type_item_name.string(), std::string(XPBDSolverDataBundle::name));
+    solver_data.add_path("residual_error", step.result().total_residual_error);
+    world.add_path_override(solver_path, std::move(solver_data_ptr));
   }
   for (const std::pair<NodeWarningType, std::string> &warning : step.warnings()) {
     params.error_message_add(warning.first, warning.second);
