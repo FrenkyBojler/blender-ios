@@ -173,6 +173,15 @@ void HydraSceneIndex::populate(Depsgraph *depsgraph, View3D *view3d)
                                   (object->data && object->data->recalc != 0);
     const bool updated_transform = (object->id.recalc & ID_RECALC_TRANSFORM) != 0;
 
+    /* Remove outdated geometry emitted by this object. */
+    if (updated_geometry && !data.dupli_object_current) {
+      if (const EmittedObject *prev = emitted_objects_.lookup_ptr(object)) {
+        for (const EmittedGeometryKey &k : prev->geometry_keys) {
+          emitted_geometry_.remove(k);
+        }
+      }
+    }
+
     if (!data.dupli_object_current && !updated_geometry) {
       if (EmittedObject *cached = emitted_objects_.lookup_ptr(object)) {
         if (!updated_transform) {
