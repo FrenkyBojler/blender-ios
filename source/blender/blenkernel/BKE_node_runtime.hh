@@ -41,7 +41,7 @@ struct GeometryNodesLazyFunctionGraphInfo;
 struct StructureTypeInterface;
 namespace reference_lifetimes {
 }
-namespace aal = reference_lifetimes;
+namespace rl = reference_lifetimes;
 namespace gizmos {
 struct TreeGizmoPropagation;
 }

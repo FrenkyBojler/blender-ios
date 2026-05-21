@@ -58,7 +58,7 @@ void NodeDeclarationBuilder::build_remaining_anonymous_attribute_relations()
 
   for (BaseSocketDeclarationBuilder *socket_builder : input_socket_builders_) {
     if (socket_builder->field_on_all_) {
-      aal::RelationsInNode &relations = this->get_anonymous_attribute_relations();
+      rl::RelationsInNode &relations = this->get_anonymous_attribute_relations();
       const int reference_input = socket_builder->decl_base_->index;
       for (const int data_input : data_inputs) {
         relations.use_relations.append({reference_input, data_input});
@@ -67,14 +67,14 @@ void NodeDeclarationBuilder::build_remaining_anonymous_attribute_relations()
   }
   for (BaseSocketDeclarationBuilder *socket_builder : output_socket_builders_) {
     if (socket_builder->field_on_all_) {
-      aal::RelationsInNode &relations = this->get_anonymous_attribute_relations();
+      rl::RelationsInNode &relations = this->get_anonymous_attribute_relations();
       const int reference_output = socket_builder->decl_base_->index;
       for (const int data_output : data_outputs) {
         relations.available_relations.append({reference_output, data_output});
       }
     }
     if (socket_builder->reference_pass_all_) {
-      aal::RelationsInNode &relations = this->get_anonymous_attribute_relations();
+      rl::RelationsInNode &relations = this->get_anonymous_attribute_relations();
       const int reference_output = socket_builder->decl_base_->index;
       for (const int input_i : declaration_.inputs.index_range()) {
         SocketDeclaration &input_socket_decl = *declaration_.inputs[input_i];
@@ -86,7 +86,7 @@ void NodeDeclarationBuilder::build_remaining_anonymous_attribute_relations()
       }
     }
     if (socket_builder->propagate_from_all_) {
-      aal::RelationsInNode &relations = this->get_anonymous_attribute_relations();
+      rl::RelationsInNode &relations = this->get_anonymous_attribute_relations();
       const int data_output = socket_builder->decl_base_->index;
       for (const int data_input : data_inputs) {
         relations.data_propagations.append({data_input, data_output});
@@ -585,9 +585,9 @@ BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::reference_pass(
     const Span<int> input_indices)
 {
   BLI_assert(this->is_output());
-  aal::RelationsInNode &relations = node_decl_builder_->get_anonymous_attribute_relations();
+  rl::RelationsInNode &relations = node_decl_builder_->get_anonymous_attribute_relations();
   for (const int from_input : input_indices) {
-    aal::ReferencePropagation relation;
+    rl::ReferencePropagation relation;
     relation.from_input = from_input;
     relation.to_output = decl_base_->index;
     relations.reference_propagations.append(relation);
@@ -597,11 +597,11 @@ BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::reference_pass(
 
 BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::field_on(const Span<int> indices)
 {
-  aal::RelationsInNode &relations = node_decl_builder_->get_anonymous_attribute_relations();
+  rl::RelationsInNode &relations = node_decl_builder_->get_anonymous_attribute_relations();
   if (this->is_input()) {
     this->supports_field();
     for (const int input_index : indices) {
-      aal::UseRelation relation;
+      rl::UseRelation relation;
       relation.reference_input = decl_base_->index;
       relation.data_input = input_index;
       relations.use_relations.append(relation);
@@ -610,7 +610,7 @@ BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::field_on(const Span<
   else {
     this->field_source();
     for (const int output_index : indices) {
-      aal::AvailableRelation relation;
+      rl::AvailableRelation relation;
       relation.reference_output = decl_base_->index;
       relation.data_output = output_index;
       relations.available_relations.append(relation);

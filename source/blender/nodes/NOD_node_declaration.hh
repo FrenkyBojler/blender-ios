@@ -117,7 +117,9 @@ struct RelationsInNode {
 std::ostream &operator<<(std::ostream &stream, const RelationsInNode &relations);
 
 }  // namespace reference_lifetimes
-namespace aal = reference_lifetimes;
+
+/* Common alias for this namespace. */
+namespace rl = reference_lifetimes;
 
 /** Socket or panel declaration. */
 class ItemDeclaration {
@@ -612,7 +614,7 @@ class NodeDeclaration {
   Vector<SocketDeclaration *> inputs;
   Vector<SocketDeclaration *> outputs;
   Vector<PanelDeclaration *> panels;
-  std::unique_ptr<aal::RelationsInNode> anonymous_attribute_relations_;
+  std::unique_ptr<rl::RelationsInNode> anonymous_attribute_relations_;
 
   /** Leave the sockets in place, even if they don't match the declaration. Used for dynamic
    * declarations when the information used to build the declaration is missing, but might become
@@ -640,7 +642,7 @@ class NodeDeclaration {
   bool matches(const bNode &node) const;
   Span<SocketDeclaration *> sockets(eNodeSocketInOut in_out) const;
 
-  const aal::RelationsInNode *anonymous_attribute_relations() const
+  const rl::RelationsInNode *anonymous_attribute_relations() const
   {
     return anonymous_attribute_relations_.get();
   }
@@ -694,10 +696,10 @@ class NodeDeclarationBuilder : public DeclarationListBuilder {
   void use_custom_socket_order(bool enable = true);
   void allow_any_socket_order(bool enable = true);
 
-  aal::RelationsInNode &get_anonymous_attribute_relations()
+  rl::RelationsInNode &get_anonymous_attribute_relations()
   {
     if (!declaration_.anonymous_attribute_relations_) {
-      declaration_.anonymous_attribute_relations_ = std::make_unique<aal::RelationsInNode>();
+      declaration_.anonymous_attribute_relations_ = std::make_unique<rl::RelationsInNode>();
     }
     return *declaration_.anonymous_attribute_relations_;
   }
