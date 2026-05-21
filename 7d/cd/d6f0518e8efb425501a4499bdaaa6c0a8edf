@@ -4,3 +4,4 @@ Referenced by issue #156423, Color Fill in Sculpt Mode crashes when Topology Aut
 Referenced by issue #156955, Node tools menu cannot find tools marked as assets anymore
 Referenced by issue #157233, Geometry Nodes: Crash when enabling "Input Attribute Toggle" on string socket
 Referenced by issue #158225, Crash in a presence of a pointer to a scene in 5.2 Alpha
+Referenced by issue #158871, "New Asset Catalog" grayed out in "Current File" library
