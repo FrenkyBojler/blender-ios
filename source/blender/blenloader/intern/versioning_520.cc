@@ -727,6 +727,12 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 35)) {
+    for (Object &object : bmain->objects) {
+      object.parent_bone_head_tail_factor = 1.0;
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 36)) {
     for (Brush &brush : bmain->brushes) {
       if (brush.gpencil_settings != nullptr) {
         brush.gpencil_settings->fill_gap_factor = 0.4f;
