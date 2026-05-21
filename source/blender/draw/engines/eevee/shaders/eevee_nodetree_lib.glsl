@@ -284,8 +284,8 @@ void raycast_eval([[maybe_unused]] float3 position,
 
 #if defined(MAT_RAYCAST)
   if (!pipeline_buf.can_raycast) {
-    /* On prepass for raycast visibile objects and on planar probes rendering in general.
-     * We use a push constant to avoid compiling more shader variants. */
+    /* We can't raycast on prepass for raycast visibile objects.
+     * We use a UBO property to avoid compiling more shader variants. */
     return;
   }
 
