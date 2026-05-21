@@ -1333,42 +1333,43 @@ def brush_settings_advanced(layout, context, settings, brush, popover=False):
 
     mode = UnifiedPaintPanel.get_brush_mode(context)
 
+    container = layout
     # In the popover we want to combine advanced brush settings with non-advanced brush settings.
     if popover:
         brush_settings(layout, context, brush, popover=True)
         layout.separator()
-        layout.label(text="Advanced")
+        header, panel = layout.panel("advanced_panel", default_closed=False)
+        header.label(text="Advanced")
+        container = panel
+        if panel is None:
+            return
 
     if mode == 'SCULPT':
-        layout.prop(brush, "sculpt_brush_type")
-        layout.separator()
+        container.prop(brush, "sculpt_brush_type")
 
         capabilities = brush.sculpt_capabilities
         if capabilities.has_accumulate:
-            layout.prop(brush, "use_accumulate")
+            container.prop(brush, "use_accumulate")
 
-        layout.prop(brush, "use_frontface", text="Front Faces Only")
-
-        layout.separator()
+        container.prop(brush, "use_frontface", text="Front Faces Only")
 
         # sculpt plane settings
         if capabilities.has_sculpt_plane:
-            layout.prop(brush, "sculpt_plane")
+            container.prop(brush, "sculpt_plane")
             if brush.sculpt_brush_type != 'PLANE':
-                col = layout.column(heading="Original", align=True)
+                col = container.column(heading="Original", align=True)
                 col.prop(brush, "use_original_normal", text="Normal")
                 col.prop(brush, "use_original_plane", text="Plane")
 
-        draw_auto_masking_panel(layout, brush)
+        draw_auto_masking_panel(container, brush)
 
         if capabilities.has_color:
-            layout.separator()
-            draw_color_jitter_panel(layout, context, brush)
+            draw_color_jitter_panel(container, context, brush)
 
     elif mode == 'SCULPT_GREASE_PENCIL':
         gp_settings = brush.gpencil_settings
 
-        col = layout.column(heading="Affect", align=True)
+        col = container.column(heading="Affect", align=True)
         col.prop(gp_settings, "use_edit_position", text="Position")
         col.prop(gp_settings, "use_edit_strength", text="Strength", text_ctxt=i18n_contexts.id_gpencil)
         col.prop(gp_settings, "use_edit_thickness", text="Thickness")
@@ -1376,68 +1377,62 @@ def brush_settings_advanced(layout, context, settings, brush, popover=False):
 
     # 3D and 2D Texture Paint.
     elif mode in {'PAINT_TEXTURE', 'PAINT_2D'}:
-        layout.prop(brush, "image_brush_type")
-        layout.separator()
+        container.prop(brush, "image_brush_type")
 
         capabilities = brush.image_paint_capabilities
         use_accumulate = capabilities.has_accumulate
 
         if mode == 'PAINT_2D':
-            layout.prop(brush, "use_paint_antialiasing")
+            container.prop(brush, "use_paint_antialiasing")
         else:
-            layout.prop(brush, "use_alpha")
+            container.prop(brush, "use_alpha")
 
         if capabilities.has_accumulate:
-            layout.prop(brush, "use_accumulate")
+            container.prop(brush, "use_accumulate")
 
         # Tool specific settings
         if brush.image_brush_type == 'SOFTEN':
-            layout.separator()
-            layout.row().prop(brush, "direction", expand=True)
-            layout.prop(brush, "sharp_threshold")
+            container.row().prop(brush, "direction", expand=True)
+            container.prop(brush, "sharp_threshold")
             if mode == 'PAINT_2D':
-                layout.prop(brush, "blur_kernel_radius")
-            layout.prop(brush, "blur_mode")
+                container.prop(brush, "blur_kernel_radius")
+            container.prop(brush, "blur_mode")
 
         elif brush.image_brush_type == 'MASK':
-            layout.prop(brush, "weight", text="Mask Value", slider=True)
+            container.prop(brush, "weight", text="Mask Value", slider=True)
 
         elif brush.image_brush_type == 'CLONE':
             if mode == 'PAINT_2D':
-                layout.prop(settings, "clone_image", text="Image")
-                layout.prop(settings, "clone_alpha", text="Alpha")
+                container.prop(settings, "clone_image", text="Image")
+                container.prop(settings, "clone_alpha", text="Alpha")
 
-        layout.separator()
-        draw_color_jitter_panel(layout, context, brush)
+        draw_color_jitter_panel(container, context, brush)
 
     # Vertex Paint #
     elif mode == 'PAINT_VERTEX':
-        layout.prop(brush, "vertex_brush_type")
-        layout.separator()
+        container.prop(brush, "vertex_brush_type")
 
-        layout.prop(brush, "use_alpha")
+        container.prop(brush, "use_alpha")
         # TODO: Make this a "Capability"
         if brush.vertex_brush_type != 'SMEAR':
-            layout.prop(brush, "use_accumulate")
+            container.prop(brush, "use_accumulate")
 
-        layout.prop(brush, "use_frontface", text="Front Faces Only")
-        layout.separator()
-        draw_color_jitter_panel(layout, context, brush)
+        container.prop(brush, "use_frontface", text="Front Faces Only")
+        draw_color_jitter_panel(container, context, brush)
 
     # Weight Paint
     elif mode == 'PAINT_WEIGHT':
-        layout.prop(brush, "weight_brush_type")
-        layout.separator()
+        container.prop(brush, "weight_brush_type")
 
         # TODO: Make this a "Capability"
         if brush.weight_brush_type != 'SMEAR':
-            layout.prop(brush, "use_accumulate")
+            container.prop(brush, "use_accumulate")
 
-        layout.prop(brush, "use_frontface", text="Front Faces Only")
+        container.prop(brush, "use_frontface", text="Front Faces Only")
 
     # Sculpt Curves
     elif mode == 'SCULPT_CURVES':
-        layout.prop(brush, "curves_sculpt_brush_type")
+        container.prop(brush, "curves_sculpt_brush_type")
 
 
 def draw_auto_masking_panel(layout, brush):
