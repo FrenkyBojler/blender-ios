@@ -145,34 +145,37 @@ static std::optional<int> find_filtered_item_index(const AbstractGridViewItem &i
 AbstractViewItem *AbstractGridView::find_active_or_visible_item() const
 {
   AbstractViewItem *active_item = nullptr;
-  this->foreach_item([&](AbstractViewItem &item) {
+  AbstractViewItem *first_visible_item = nullptr;
+  this->foreach_filtered_item([&](AbstractViewItem &item) {
     if (item.is_active()) {
       active_item = &item;
     }
+    if (!first_visible_item) {
+      first_visible_item = &item;
+    }
   });
-  return active_item;
+  return active_item ? active_item : first_visible_item;
 }
 
 AbstractViewItem *AbstractGridView::navigate_left(AbstractViewItem *from)
 {
   AbstractViewItem *next_item = nullptr;
   bool found_active = false;
-  this->foreach_item([&](AbstractViewItem &item) {
+  this->foreach_filtered_item([&](AbstractViewItem &item) {
     found_active |= &item == from;
     if (!found_active) {
       next_item = &item;
     }
   });
-  printf("next item: %s\n",
-         next_item ? next_item->debug_name().value_or("empty").c_str() : "none");
-  return next_item ? next_item : from;
+
+  return found_active ? next_item : from;
 }
 
 AbstractViewItem *AbstractGridView::navigate_right(AbstractViewItem *from)
 {
   AbstractViewItem *next_item = nullptr;
   bool found_active = false;
-  this->foreach_item([&](AbstractViewItem &item) {
+  this->foreach_filtered_item([&](AbstractViewItem &item) {
     if (found_active) {
       /* Store the element next to the active. */
       next_item = &item;
@@ -180,44 +183,44 @@ AbstractViewItem *AbstractGridView::navigate_right(AbstractViewItem *from)
     }
     found_active = &item == from;
   });
-  printf("next item: %s\n",
-         next_item ? next_item->debug_name().value_or("empty").c_str() : "none");
+
   return next_item ? next_item : from;
 }
 
 AbstractViewItem *AbstractGridView::navigate_up(AbstractViewItem *from)
 {
-  std::optional<int> next_item_idx = find_filtered_item_index(
+  std::optional<int> from_index = find_filtered_item_index(
       dynamic_cast<const AbstractGridViewItem &>(*from));
-  *next_item_idx = std::clamp(*next_item_idx - cols_per_row_, 0, get_item_count_filtered() - 1);
+
+  const int next_item_index = std::clamp(*from_index - cols_per_row_, 0, get_item_count_filtered() - 1);
+
+  int i = 0;
   AbstractViewItem *next_item = nullptr;
-  if (next_item_idx) {
-    int i = 0;
     this->foreach_filtered_item([&](AbstractViewItem &item) {
-      if (i == *next_item_idx) {
+      if (i == next_item_index) {
         next_item = &item;
       }
       i++;
     });
-  }
   return next_item ? next_item : from;
 }
 
 AbstractViewItem *AbstractGridView::navigate_down(AbstractViewItem *from)
 {
-  std::optional<int> next_item_idx = find_filtered_item_index(
+  std::optional<int> from_index = find_filtered_item_index(
       dynamic_cast<const AbstractGridViewItem &>(*from));
-  *next_item_idx = std::clamp(*next_item_idx + cols_per_row_, 0, get_item_count_filtered() - 1);
+
+  const int next_item_index = std::clamp(*from_index + cols_per_row_, 0, get_item_count_filtered() - 1);
+
+  int i = 0;
   AbstractViewItem *next_item = nullptr;
-  if (next_item_idx) {
-    int i = 0;
     this->foreach_filtered_item([&](AbstractViewItem &item) {
-      if (i == *next_item_idx) {
+      if (i == next_item_index) {
         next_item = &item;
       }
       i++;
     });
-  }
+
   return next_item ? next_item : from;
 }
 
