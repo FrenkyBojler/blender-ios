@@ -124,7 +124,7 @@ static wmOperatorStatus edbm_space_edge_loops_evenly_exec(bContext *C, wmOperato
   return changed_multi ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
 }
 
-static void edbm_space_ui(bContext * /*C*/, wmOperator *op)
+static void edbm_space_edge_loops_evenly_ui(bContext * /*C*/, wmOperator *op)
 {
   /* A custom UI function is needed to draw the axis locks (X/Y/Z) as a row of toggle buttons. */
   ui::Layout &layout = *op->layout;
@@ -153,7 +153,7 @@ void MESH_OT_space_edge_loops_evenly(wmOperatorType *ot)
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
-  ot->ui = edbm_space_ui;
+  ot->ui = edbm_space_edge_loops_evenly_ui;
 
   RNA_def_float_factor(
       ot->srna, "factor", 1.0f, 0.0f, 1.0f, "Factor", "Force of the tool", 0.0f, 1.0f);
