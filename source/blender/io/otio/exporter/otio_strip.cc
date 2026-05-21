@@ -28,13 +28,13 @@ using namespace opentimelineio::OPENTIMELINEIO_VERSION_NS;
 
 void StripExporter::add_gap_if_necessary()
 {
-  int space_between = _strip->start - last_strip_end - 1;
+  int space_between = _strip->left_handle() - last_strip_end - 1;
   if (space_between > 0) {
     auto gap_duration = RationalTime(space_between, _scene->frames_per_second());
     auto gap = SerializableObject::Retainer<Gap>(new Gap(gap_duration));
     _track->append_child(gap);
   }
-  last_strip_end = _strip->start + (_strip->len - (_strip->startofs + _strip->endofs));
+  last_strip_end = _strip->right_handle(_scene);
 }
 
 void StripExporter::add_gap_if_necessary(SerializableObject::Retainer<Track> &track,
@@ -62,31 +62,41 @@ static void get_media_filepath(const Strip *strip, char *filepath_out)
   BLI_path_join(filepath_out, FILE_MAX, strip->data->dirpath, strip->data->stripdata->filename);
 }
 
-static TimeRange get_media_available_range(const Strip *strip, const float media_fps)
+static int get_strip_duration(const Strip *strip, const Scene *scene)
 {
-  return TimeRange(otio::RationalTime(0, media_fps), otio::RationalTime(strip->len, media_fps));
+  return strip->right_handle(scene) - strip->left_handle();
 }
 
-static TimeRange get_strip_source_range(const Strip *strip, const float media_fps)
+static TimeRange get_media_available_range(const Strip *strip,
+                                           const Scene *scene,
+                                           const float media_fps)
+{
+  int media_length = (strip->type == STRIP_TYPE_IMAGE) ? get_strip_duration(strip, scene) :
+                                                         strip->len;
+  return TimeRange(otio::RationalTime(0, media_fps), otio::RationalTime(media_length, media_fps));
+}
+
+static TimeRange get_strip_source_range(const Strip *strip,
+                                        const Scene *scene,
+                                        const float media_fps)
 {
   /* The strips could be moved left of the timeline start and could have -ve `strip->start`. Most
    * NLE's doesn't have the concept of moving a strip left of the timeline. */
   int left_offset = max_ii(0, -strip->start);
-  int strip_duration_frames = strip->len - (strip->startofs + left_offset + strip->endofs);
 
   return TimeRange(RationalTime(strip->startofs + left_offset, media_fps),
-                   RationalTime(strip_duration_frames, media_fps));
+                   RationalTime(get_strip_duration(strip, scene) - left_offset, media_fps));
 }
 
-static SerializableObject::Retainer<ExternalReference> create_external_reference(Strip *strip,
-                                                                                 float media_fps)
+static SerializableObject::Retainer<ExternalReference> create_external_reference(
+    const Strip *strip, const Scene *scene, float media_fps)
 {
   char media_filename[FILE_MAX];
   char media_filepath[FILE_MAX];
   get_media_filename(strip, media_filename);
   get_media_filepath(strip, media_filepath);
 
-  TimeRange media_available_range = get_media_available_range(strip, media_fps);
+  TimeRange media_available_range = get_media_available_range(strip, scene, media_fps);
 
   auto external_reference = SerializableObject::Retainer<ExternalReference>(
       new ExternalReference(media_filepath, media_available_range));
@@ -104,9 +114,9 @@ void MovieStripExporter::export_strip()
 
   float media_fps = _scene->frames_per_second();
 
-  TimeRange strip_source_range = get_strip_source_range(_strip, media_fps);
+  TimeRange strip_source_range = get_strip_source_range(_strip, _scene, media_fps);
   SerializableObject::Retainer<ExternalReference> external_reference = create_external_reference(
-      _strip, media_fps);
+      _strip, _scene, media_fps);
 
   auto clip = otio::SerializableObject::Retainer<otio::Clip>(
       new Clip(_strip->name, external_reference, strip_source_range));
@@ -120,14 +130,33 @@ void SoundStripExporter::export_strip()
 
   float media_fps = _scene->frames_per_second();
 
-  TimeRange strip_source_range = get_strip_source_range(_strip, media_fps);
+  TimeRange strip_source_range = get_strip_source_range(_strip, _scene, media_fps);
   SerializableObject::Retainer<ExternalReference> external_reference = create_external_reference(
-      _strip, media_fps);
+      _strip, _scene, media_fps);
 
   auto clip = otio::SerializableObject::Retainer<otio::Clip>(
       new Clip(_strip->name, external_reference, strip_source_range));
 
   _track->append_child(clip);
+}
+
+void ImageStripExporter::export_strip()
+{
+  add_gap_if_necessary();
+
+  bool is_single_image = _strip->flag & SEQ_SINGLE_FRAME_CONTENT;
+  float media_fps = _scene->frames_per_second();
+
+  if (is_single_image) {
+    TimeRange strip_source_range = get_strip_source_range(_strip, _scene, media_fps);
+    SerializableObject::Retainer<ExternalReference> external_reference = create_external_reference(
+        _strip, _scene, media_fps);
+
+    auto clip = otio::SerializableObject::Retainer<otio::Clip>(
+        new Clip(_strip->name, external_reference, strip_source_range));
+
+    _track->append_child(clip);
+  }
 }
 
 }  // namespace blender::io::otio

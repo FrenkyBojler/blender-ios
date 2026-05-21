@@ -93,6 +93,10 @@ wmOperatorStatus otio_export_exec(bContext *C, const blender::OTIOExportParams *
           strip_exporter = new SoundStripExporter(strip, scene, track, last_strip_end);
           break;
 
+        case STRIP_TYPE_IMAGE:
+          strip_exporter = new ImageStripExporter(strip, scene, track, last_strip_end);
+          break;
+
         default:
           break;
       }

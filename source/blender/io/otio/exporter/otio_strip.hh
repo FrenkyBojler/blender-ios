@@ -70,5 +70,16 @@ class SoundStripExporter : public StripExporter {
   void export_strip() override;
 };
 
+class ImageStripExporter : public StripExporter {
+ public:
+  ImageStripExporter(Strip *strip,
+                     Scene *scene,
+                     SerializableObject::Retainer<Track> &track,
+                     int last_strip_end = 0)
+      : StripExporter(strip, scene, track, last_strip_end) {};
+
+  void export_strip() override;
+};
+
 }  // namespace io::otio
 }  // namespace blender
