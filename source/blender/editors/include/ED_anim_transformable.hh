@@ -78,8 +78,8 @@ class AnimTransformable {
   /* The struct wrapped by the AnimTransformable. For possible types see `Type`. */
   void *data_;
 
-  /* This is the path from the owner ID to the struct that the AnimTransformable represents. Has to be
-   * created in the constructor. For structs that are an ID this is an empty string. */
+  /* This is the path from the owner ID to the struct that the AnimTransformable represents. Has to
+   * be created in the constructor. For structs that are an ID this is an empty string. */
   std::string rna_path_from_id_;
 
   /* We are assuming here that the ground truth of transforms is store in separate loc rot scale
