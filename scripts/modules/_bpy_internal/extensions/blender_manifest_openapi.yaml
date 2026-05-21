@@ -1,0 +1,182 @@
+openapi: 3.1.0
+info:
+  title: Blender Extension Manifest
+  description: |
+    Schema for `blender_manifest.toml`, the metadata file required by Blender
+    extensions. See: https://docs.blender.org/manual/en/dev/advanced/extensions/getting_started.html
+  version: "1.0.0"
+
+paths: {}
+
+components:
+  schemas:
+    BlenderManifest:
+      type: object
+      description: Root manifest object serialized as `blender_manifest.toml`.
+      additionalProperties: false
+      properties:
+        "schema_version":
+          type: string
+          description: Internal version of the manifest file format. Currently `1.0.0`.
+          default: "1.0.0"
+        "id":
+          type: string
+          description: Unique identifier for the extension (snake_case recommended).
+          pattern: "^[A-Za-z_][A-Za-z0-9_]*$"
+          minLength: 1
+        "version":
+          type: string
+          description: Version of the extension. Must follow semantic versioning.
+        "name":
+          type: string
+          description: Complete, human-readable name of the extension.
+          minLength: 1
+        "tagline":
+          type: string
+          description: |
+            One-line short description, up to 64 characters. Cannot end with
+            punctuation.
+          minLength: 1
+          maxLength: 64
+          pattern: "[^.!?,;:]$"
+        "maintainer":
+          type: string
+          description: Maintainer of the extension (name and optional contact).
+          minLength: 1
+        "type":
+          type: string
+          description: Extension type.
+          enum:
+            - add-on
+            - theme
+            - asset-library
+        "website":
+          type: string
+          format: uri
+          description: Optional link to documentation, support, source files, etc.
+        "tags":
+          type: array
+          description: |
+            Optional tag list defined by Blender. See:
+            https://docs.blender.org/manual/en/dev/advanced/extensions/tags.html
+          items:
+            type: string
+            minLength: 1
+          uniqueItems: true
+        "blender_version_min":
+          type: string
+          description: Minimum supported Blender version. Use at least `4.2.0`.
+        "blender_version_max":
+          type: string
+          description: |
+            Blender version that the extension does NOT support; earlier
+            versions are supported.
+        "license":
+          type: array
+          description: |
+            List of licenses. Use SPDX license identifiers prefixed with
+            `SPDX:`. See https://spdx.org/licenses/
+          items:
+            type: string
+            pattern: "^SPDX:.+$"
+            minLength: 1
+          minItems: 1
+        "copyright":
+          type: array
+          description: |
+            Optional, required by some licenses. Each entry must be
+            `"Year Name"` or `"Year-Year Name"`.
+          items:
+            type: string
+            pattern: "^[0-9]{4}(-[0-9]{4})? .+$"
+          minItems: 1
+        "platforms":
+          type: array
+          description: |
+            List of supported platforms. If omitted, the extension is
+            available on all operating systems. Known values:
+            `windows-x64`, `windows-arm64`, `macos-x64`, `macos-arm64`,
+            `linux-x64`.
+          items:
+            type: string
+            minLength: 1
+          uniqueItems: true
+          minItems: 1
+        "wheels":
+          type: array
+          description: List of relative file-paths to bundled Python wheels.
+          items:
+            type: string
+            pattern: "\\.whl$"
+            minLength: 1
+          minItems: 1
+        "permissions":
+          $ref: "#/components/schemas/Permissions"
+        "build":
+          $ref: "#/components/schemas/Build"
+      required:
+        - schema_version
+        - id
+        - version
+        - name
+        - tagline
+        - maintainer
+        - type
+        - blender_version_min
+        - license
+
+    Permissions:
+      type: object
+      description: |
+        Resources the add-on requires. Each value is a short single-sentence
+        explanation, up to 64 characters, with no trailing punctuation.
+      additionalProperties: false
+      properties:
+        "network":
+          type: string
+          minLength: 1
+          maxLength: 64
+          pattern: "[^.!?,;:]$"
+        "files":
+          type: string
+          minLength: 1
+          maxLength: 64
+          pattern: "[^.!?,;:]$"
+        "clipboard":
+          type: string
+          minLength: 1
+          maxLength: 64
+          pattern: "[^.!?,;:]$"
+        "camera":
+          type: string
+          minLength: 1
+          maxLength: 64
+          pattern: "[^.!?,;:]$"
+        "microphone":
+          type: string
+          minLength: 1
+          maxLength: 64
+          pattern: "[^.!?,;:]$"
+
+    Build:
+      type: object
+      description: Advanced build settings used by `blender --command extension build`.
+      additionalProperties: false
+      properties:
+        "paths":
+          type: array
+          description: |
+            File paths (relative to the manifest) to include when building
+            the package.
+          items:
+            type: string
+            minLength: 1
+          minItems: 1
+        "paths_exclude_pattern":
+          type: array
+          description: |
+            File-path patterns to exclude when building the package.
+            Pattern matching is compatible with gitignore.
+          items:
+            type: string
+            minLength: 1

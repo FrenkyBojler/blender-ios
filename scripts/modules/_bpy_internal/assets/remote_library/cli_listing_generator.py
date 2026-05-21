@@ -22,6 +22,8 @@ from typing import Any
 
 import cattrs.preconf.json
 
+from _bpy_internal.extensions import blender_manifest_openapi as manifest_models
+
 from . import hashing, listing_asset_catalogs, listing_common, json_parsing
 from . import cli_listing_generator_asset_finder as asset_finder
 from . import cli_listing_generator_pagination as pagination
@@ -40,7 +42,8 @@ DEFAULT_METADATA = api_models.AssetLibraryMeta(
 
 logger = logging.getLogger(__name__)
 
-_converter = cattrs.preconf.json.JsonConverter(omit_if_default=True)
+_converter_json = cattrs.preconf.json.JsonConverter(omit_if_default=True)
+_converter_toml = cattrs.preconf.tomllib.TomllibConverter(omit_if_default=False)
 
 
 @dataclasses.dataclass
@@ -58,11 +61,10 @@ def cli_main(arguments_raw: argparse.Namespace) -> None:
     # Parse CLI arguments.
     arguments = _parse_cli_args(arguments_raw)
 
-    # Read the top-level meta file first. If this already exists, an attempt
-    # at parsing & upgrading it is performed. Better to do this (and stop on
-    # errors) before diving into the assets themselves.
+    # Ensure there is a blender_manifest.toml file.
+    manifest_path = arguments.repository / "blender_manifest.toml"
     meta_json_path = arguments.repository / listing_common.ASSET_TOP_METADATA_FILENAME
-    toplevel_meta = _toplevel_meta_read(meta_json_path)
+    toplevel_meta = _toplevel_files_ensure(manifest_path, meta_json_path)
 
     # Find all .blend files.
     filepaths: list[Path] = []
@@ -106,6 +108,30 @@ def cli_main(arguments_raw: argparse.Namespace) -> None:
     _save_json(toplevel_meta, meta_json_path)
 
 
+def _toplevel_files_ensure(manifest_path: Path, meta_json_path: Path) -> api_models.AssetLibraryMeta:
+    """Ensure that the top-level files exist and are consistent."""
+
+    if not manifest_path.exists() and meta_json_path.exists():
+        # Backward compatibility: generate a manifest file from the meta JSON file.
+        # Normally this is done in reverse: generating the JSON from the manifest.
+        meta = _toplevel_meta_read(meta_json_path)
+        manifest = manifest_models.BlenderManifest(
+            id="unique-extension-id",
+            version="1.0.0",
+            name=meta.name,
+            tagline="Library Tagline",
+            maintainer=f"{meta.contact.name} <{meta.contact.email}>",
+            website=meta.contact.url,
+            type=manifest_models.Type.asset_library,
+            blender_version_min="5.2",
+            license=["SPDX:CC-BY-SA-4.0"],
+        )
+        _save_toml(manifest, manifest_path)
+        return meta
+
+    manifest = _manifest_read(manifest_path)
+
+
 def _toplevel_meta_read(meta_json_path: Path) -> api_models.AssetLibraryMeta:
     try:
         metadata = _toplevel_metadata(meta_json_path)
@@ -114,6 +140,10 @@ def _toplevel_meta_read(meta_json_path: Path) -> api_models.AssetLibraryMeta:
         logger.error(msg.format(meta_json_path, ex))
         raise SystemExit(1) from None
     return metadata
+
+
+def _manifest_read(manifest_path: Path) -> manifest_models.BlenderManifest:
+
 
 
 def _sort_assets(assets: list[api_models.AssetV1]) -> None:
@@ -190,13 +220,31 @@ def _write_json_files(
 
 
 def _save_json(model: Any, json_path: Path) -> None:
-    as_json = _converter.dumps(model, indent=2)
+    as_json: str = _converter_json.dumps(model, indent=2)
+    _save_to_file(as_json, json_path)
 
-    json_path.parent.mkdir(exist_ok=True, parents=True)
 
-    logger.info("Writing %s", json_path)
-    with json_path.open("wt") as json_file:
-        json_file.write(as_json)
+def _save_toml(model: Any, toml_path: Path) -> None:
+    as_toml: bytes = _converter_toml.dumps(model, indent=2)
+    _save_to_file(as_toml, toml_path)
+
+
+def _save_to_file(payload: bytes|str, path: Path) -> None:
+    """Save the payload to the path.
+
+    The parent directory structure is created if necessary.
+    """
+
+    path.parent.mkdir(exist_ok=True, parents=True)
+
+    logger.info("Writing %s", path)
+    match payload:
+        case bytes():
+            path.write_bytes(payload)
+        case str():
+            path.write_text(payload)
+        case _:  # pyright: ignore[reportUnnecessaryComparison]
+            raise TypeError(f"expecting bytes|str but got {payload!r}")  # pyright: ignore[reportUnreachable]
 
 
 def _toplevel_metadata(json_path: Path) -> api_models.AssetLibraryMeta:

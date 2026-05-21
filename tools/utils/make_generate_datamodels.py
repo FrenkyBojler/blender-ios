@@ -38,12 +38,13 @@ import time
 # `.gitattributes`.
 YAML_PATHS = [
     "scripts/modules/_bpy_internal/assets/remote_library/blender_asset_library_openapi.yaml",
+    "scripts/modules/_bpy_internal/extensions/blender_manifest_openapi.yaml",
 ]
 
 # Packages to install in the virtualenv. These are only necessary to run this
 # generator. The generated code does not depend on these.
 REQUIREMENTS = [
-    "datamodel-code-generator ~= 0.53.0",
+    "datamodel-code-generator ~= 0.57.0",
     "PyYAML ~= 6.0.2",
     "docformatter ~= 1.7.8",
 ]
@@ -78,8 +79,12 @@ COMMON_ARGS = [
     # generator is idempotent.
     "--disable-timestamp",
 
+    # Include OpenAPI descriptions as docstrings in the generated Python code.
     "--use-inline-field-description",
     "--use-schema-description",
+
+    # Use 'default' values in the OpenAPI.
+    "--use-default",
 ]
 
 
