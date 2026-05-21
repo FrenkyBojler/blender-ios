@@ -1486,7 +1486,7 @@ static void std_node_socket_interface_draw(ID *id,
 
   const bke::bNodeSocketType *typeinfo = interface_socket->socket_typeinfo();
   BLI_assert(typeinfo != nullptr);
-  eNodeSocketDatatype type = eNodeSocketDatatype(typeinfo->type);
+  eNodeSocketDatatype type = typeinfo->type;
 
   ui::Layout *col = &layout->column(false);
 
@@ -1575,7 +1575,7 @@ static void std_node_socket_interface_draw(ID *id,
 
   const bNodeTree *node_tree = reinterpret_cast<const bNodeTree *>(id);
   if (interface_socket->flag & NODE_INTERFACE_SOCKET_INPUT && node_tree->type == NTREE_GEOMETRY) {
-    if (ELEM(type, SOCK_INT, SOCK_VECTOR, SOCK_MATRIX)) {
+    if (ELEM(type, SOCK_INT, SOCK_FLOAT, SOCK_VECTOR, SOCK_MATRIX)) {
       col->prop(&ptr, "default_input", DEFAULT_FLAGS, std::nullopt, ICON_NONE);
     }
   }
@@ -2242,7 +2242,7 @@ static bool node_link_is_field_link(const SpaceNode &snode, const bNodeLink &lin
   if (!link.fromsock) {
     return false;
   }
-  if (!nodes::socket_type_supports_fields(eNodeSocketDatatype(link.fromsock->type))) {
+  if (!nodes::socket_type_supports_fields(link.fromsock->type)) {
     /* Normally, StructureType::Dynamic would result in dashed links. We override that for socket
      * types we know currently can't be used as fields. */
     return false;
