@@ -435,7 +435,7 @@ std::string ShaderCreateInfo::check_error() const
   }
 
   /* Check same bind-points usage. */
-  Set<int> images, samplers, ubos, ssbos;
+  Set<int> images, samplers, ubos, ssbos, ass;
 
   auto register_resource = [&](const Resource &res) -> bool {
     switch (res.bind_type) {
@@ -447,6 +447,8 @@ std::string ShaderCreateInfo::check_error() const
         return samplers.add(res.slot);
       case Resource::BindType::IMAGE:
         return images.add(res.slot);
+      case Resource::BindType::ACCELERATION_STRUCTURE:
+        return ass.add(res.slot);
       default:
         return false;
     }
@@ -466,6 +468,9 @@ std::string ShaderCreateInfo::check_error() const
           break;
         case Resource::BindType::IMAGE:
           error += "Image " + res.image.name;
+          break;
+        case Resource::BindType::ACCELERATION_STRUCTURE:
+          error += "Acceleration Structure " + res.acceleration_structure.name;
           break;
         default:
           error += "Unknown Type";

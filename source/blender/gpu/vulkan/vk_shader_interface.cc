@@ -229,7 +229,8 @@ void VKShaderInterface::populate_resource_bindings(InitContext &ctx)
   all_resources.extend(info.batch_resources_);
   all_resources.extend(info.geometry_resources_);
 
-  int32_t input_tot_len = attr_len_ + ubo_len_ + uniform_len_ + ssbo_len_ + constant_len_;
+  int32_t input_tot_len = attr_len_ + ubo_len_ + uniform_len_ + ssbo_len_ + constant_len_ +
+                          tlas_len_;
   const uint32_t resources_len = input_tot_len;
 
   init_descriptor_set_layout_info(
