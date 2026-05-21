@@ -98,7 +98,7 @@ TEST_F(TransformableTest, transformable_rotation)
 {
   AnimTransformable transformable(*armature_object, *pose_bone);
   Rotation rotation = transformable.get_rotation();
-  /* The rotation is always returned in the mode of the transformable. */
+  /* The rotation is always returned in the mode of the Transformable. */
   EXPECT_EQ(rotation.mode, transformable.get_rotation_mode());
   EXPECT_EQ(rotation.mode, ROT_MODE_QUAT);
   Array<float> expected = {1, 0, 0, 0};
@@ -107,9 +107,9 @@ TEST_F(TransformableTest, transformable_rotation)
   pose_bone->rotmode = ROT_MODE_XYZ;
   pose_bone->eul[0] = 3.14;
   transformable.set_rotation(rotation);
-  /* Even though the rotation is a quaternion, setting it to the transformable which is a bone
+  /* Even though the rotation is a quaternion, setting it to the Transformable that is a bone
    * with xyz euler still works. The rotation is converted to the correct mode of the
-   * transformable. */
+   * Transformable. */
   expected = {0, 0, 0};
   EXPECT_NEAR_SPAN(expected.as_span(), Span<float>(pose_bone->eul, 3), 0.001);
 }

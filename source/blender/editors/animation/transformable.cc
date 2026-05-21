@@ -275,10 +275,9 @@ std::string AnimTransformable::rna_path_to_property(const PropertyType prop_type
     case PropertyType::LOCATION:
       property_name = "location";
       break;
-    case PropertyType::ROTATION: {
+    case PropertyType::ROTATION:
       property_name = animrig::get_rotation_mode_path(*rotation_mode_);
       break;
-    }
     case PropertyType::SCALE:
       property_name = "scale";
       break;
