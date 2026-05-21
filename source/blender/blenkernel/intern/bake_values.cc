@@ -135,7 +135,7 @@ class RuntimeToBakeValue {
   }
 
  private:
-  /** Evaluate fields on the preciding geometry if necessary. */
+  /** Evaluate fields on the preceding geometry if necessary. */
   void top_level_fields_to_attributes()
   {
     GeometrySet *prev_geo = nullptr;
@@ -464,6 +464,9 @@ class RuntimeToBakeValue {
 
   bool is_bakeable_single_value_type(const CPPType &type) const
   {
+    if (CPPType::get<std::string>() == type) {
+      return true;
+    }
     return cpp_type_to_custom_data_type(type).has_value();
   }
 };
