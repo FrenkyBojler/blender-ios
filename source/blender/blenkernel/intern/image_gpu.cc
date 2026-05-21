@@ -144,20 +144,18 @@ static int compare_packtile(const void *a, const void *b)
   return tile_a->pack_score < tile_b->pack_score;
 }
 
-static gpu::Texture *gpu_texture_create_tile_array(Image *ima, ImBuf *main_ibuf)
+static gpu::Texture *gpu_texture_create_tile_array(Image &ima, ImBuf *main_ibuf)
 {
-  BLI_assert(ima);
-
   int arraywidth = 0, arrayheight = 0;
   ListBaseT<FixedSizeBoxPack> boxes = {nullptr};
 
   bool all_grayscale = true;
 
-  for (ImageTile &tile : ima->tiles) {
+  for (ImageTile &tile : ima.tiles) {
     ImageUser iuser;
     BKE_imageuser_default(&iuser);
     iuser.tile = tile.tile_number;
-    ImBuf *ibuf = BKE_image_acquire_ibuf(ima, &iuser, nullptr);
+    ImBuf *ibuf = BKE_image_acquire_ibuf(&ima, &iuser, nullptr);
 
     if (ibuf) {
       PackTile *packtile = MEM_new_zeroed<PackTile>(__func__);
@@ -177,7 +175,7 @@ static gpu::Texture *gpu_texture_create_tile_array(Image *ima, ImBuf *main_ibuf)
       float w = packtile->boxpack.w, h = packtile->boxpack.h;
       packtile->pack_score = max_ff(w, h) / min_ff(w, h) * w * h;
 
-      BKE_image_release_ibuf(ima, ibuf, nullptr);
+      BKE_image_release_ibuf(&ima, ibuf, nullptr);
       BLI_addtail(&boxes, packtile);
       if (ibuf->color_mode != ImColorMode::BW) {
         all_grayscale = false;
@@ -213,10 +211,10 @@ static gpu::Texture *gpu_texture_create_tile_array(Image *ima, ImBuf *main_ibuf)
     arraylayers++;
   }
 
-  const bool use_high_bitdepth = (ima->flag & IMA_HIGH_BITDEPTH);
+  const bool use_high_bitdepth = (ima.flag & IMA_HIGH_BITDEPTH);
   const bool use_grayscale = all_grayscale;
   /* Create Texture without content. */
-  gpu::Texture *tex = IMB_touch_gpu_texture(ima->id.name + 2,
+  gpu::Texture *tex = IMB_touch_gpu_texture(ima.id.name + 2,
                                             main_ibuf,
                                             arraywidth,
                                             arrayheight,
@@ -225,7 +223,7 @@ static gpu::Texture *gpu_texture_create_tile_array(Image *ima, ImBuf *main_ibuf)
                                             use_grayscale);
 
   /* Upload each tile one by one. */
-  for (ImageTile &tile : ima->tiles) {
+  for (ImageTile &tile : ima.tiles) {
     const ImageTile_Runtime *tile_runtime = &tile.runtime;
     const int tilelayer = tile_runtime->tilearray_layer;
     const int *tileoffset = tile_runtime->tilearray_offset;
@@ -238,10 +236,10 @@ static gpu::Texture *gpu_texture_create_tile_array(Image *ima, ImBuf *main_ibuf)
     ImageUser iuser;
     BKE_imageuser_default(&iuser);
     iuser.tile = tile.tile_number;
-    ImBuf *ibuf = BKE_image_acquire_ibuf(ima, &iuser, nullptr);
+    ImBuf *ibuf = BKE_image_acquire_ibuf(&ima, &iuser, nullptr);
 
     if (ibuf) {
-      const bool store_premultiplied = BKE_image_has_gpu_texture_premultiplied_alpha(ima, ibuf);
+      const bool store_premultiplied = BKE_image_has_gpu_texture_premultiplied_alpha(&ima, ibuf);
       IMB_update_gpu_texture_sub(tex,
                                  ibuf,
                                  UNPACK2(tileoffset),
@@ -252,12 +250,12 @@ static gpu::Texture *gpu_texture_create_tile_array(Image *ima, ImBuf *main_ibuf)
                                  store_premultiplied);
     }
 
-    BKE_image_release_ibuf(ima, ibuf, nullptr);
+    BKE_image_release_ibuf(&ima, ibuf, nullptr);
   }
 
   GPU_texture_update_mipmap_chain(tex);
   GPU_texture_mipmap_mode(tex, true, true);
-  ima->runtime->gpuflag |= IMA_GPU_MIPMAP_COMPLETE;
+  ima.runtime->gpuflag |= IMA_GPU_MIPMAP_COMPLETE;
 
   return tex;
 }
@@ -480,7 +478,7 @@ static ImageGPUTextures image_get_gpu_texture(Image *ima,
 
   if (textarget == TEXTARGET_2D_ARRAY) {
     /* For materials, array and tile mapping in case there are UDIM tiles. */
-    *result.texture = gpu_texture_create_tile_array(ima, ibuf);
+    *result.texture = gpu_texture_create_tile_array(*ima, ibuf);
     *result.tile_mapping = gpu_texture_create_tile_mapping(ima, iuser ? iuser->multiview_eye : 0);
   }
   else {
