@@ -892,6 +892,7 @@ class _defs_edit_mesh:
             props = tool.operator_properties("mesh.spin")
             layout.prop(props, "steps")
             layout.prop(props, "dupli")
+            layout.prop(props, "use_auto_merge")
             props = tool.gizmo_group_properties("MESH_GGT_spin")
             row = layout.row(align=True)
             row.prop(props, "axis", expand=True)
@@ -913,6 +914,10 @@ class _defs_edit_mesh:
             layout.prop(props, "use_individual")
             layout.prop(props, "use_even_offset")
             layout.prop(props, "use_relative_offset")
+            layout.prop(props, "use_boundary")
+            layout.prop(props, "use_edge_rail")
+            layout.prop(props, "use_interpolate")
+            layout.prop(props, "use_select_inset")
 
         return dict(
             idname="builtin.inset_faces",
@@ -1081,6 +1086,8 @@ class _defs_edit_mesh:
             props = tool.operator_properties("mesh.loopcut_slide")
             props_macro = props.MESH_OT_loopcut
             layout.prop(props_macro, "number_cuts")
+            layout.prop(props_macro, "smoothness")
+            layout.prop(props_macro, "falloff")
             props_macro = props.TRANSFORM_OT_edge_slide
             layout.prop(props_macro, "correct_uv")
 
@@ -1095,12 +1102,22 @@ class _defs_edit_mesh:
 
     @ToolDef.from_fn
     def offset_edge_loops_slide():
+
+        def draw_settings(_context, layout, tool):
+            props = tool.operator_properties("mesh.offset_edge_loops_slide")
+            props_macro = props.MESH_OT_offset_edge_loops
+            layout.prop(props_macro, "use_cap_endpoint")
+            props_macro = props.TRANSFORM_OT_edge_slide
+            layout.prop(props_macro, "correct_uv")
+
+
         return dict(
             idname="builtin.offset_edge_loop_cut",
             label="Offset Edge Loop Cut",
             icon="ops.mesh.offset_edge_loops_slide",
             widget=None,
             keymap=(),
+            draw_settings=draw_settings,
         )
 
     @ToolDef.from_fn
