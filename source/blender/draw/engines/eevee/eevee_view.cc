@@ -415,9 +415,9 @@ void CaptureView::render_probes()
                          GPU_ATTACHMENT_TEXTURE_LAYER(inst_.gbuffer.closure_tx.layer_view(0), 0),
                          GPU_ATTACHMENT_TEXTURE_LAYER(inst_.gbuffer.closure_tx.layer_view(1), 0));
 
-      /* Alpha stores transmittance. So start at 1. */
-      // TODO: Clear from gbuffer.bind ?
+      /* TODO: Clear from gbuffer.bind ? */
       GPU_framebuffer_bind(combined_fb_);
+      /* Alpha stores transmittance. So start at 1. */
       GPU_framebuffer_clear_color(combined_fb_, {0.0, 0.0, 0.0, 1.0});
       inst_.pipelines.probe.render(view, prepass_fb, combined_fb_, gbuffer_fb_, extent);
     }
