@@ -80,7 +80,6 @@ set(SRC_GLSL_COMP
 )
 
 set(SRC_GLSL_LIB
-  eevee_ambient_occlusion_lib.glsl
   eevee_attributes_curves_lib.glsl
   eevee_attributes_mesh_lib.glsl
   eevee_attributes_pointcloud_lib.glsl
