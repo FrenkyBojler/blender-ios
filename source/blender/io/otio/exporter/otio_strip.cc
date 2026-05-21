@@ -8,6 +8,7 @@
 
 #include <cstring>
 
+#include "BLI_math_base.h"
 #include "BLI_path_utils.hh"
 
 #include "DNA_scene_types.h"
@@ -68,8 +69,12 @@ static TimeRange get_media_available_range(const Strip *strip, const float media
 
 static TimeRange get_strip_source_range(const Strip *strip, const float media_fps)
 {
-  int strip_duration_frames = strip->len - (strip->startofs + strip->endofs);
-  return TimeRange(RationalTime(strip->startofs, media_fps),
+  /* The strips could be moved left of the timeline start and could have -ve `strip->start`. Most
+   * NLE's doesn't have the concept of moving a strip left of the timeline. */
+  int left_offset = max_ii(0, -strip->start);
+  int strip_duration_frames = strip->len - (strip->startofs + left_offset + strip->endofs);
+
+  return TimeRange(RationalTime(strip->startofs + left_offset, media_fps),
                    RationalTime(strip_duration_frames, media_fps));
 }
 
