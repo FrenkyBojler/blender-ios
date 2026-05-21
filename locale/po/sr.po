@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 Alpha (b'a0888131c6dd')\n"
+"Project-Id-Version: Blender 5.2.0 Alpha (b'bc0a0ff2c0ce')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-04-06 09:15+0000\n"
+"POT-Creation-Date: 2026-05-18 11:20+0000\n"
 "PO-Revision-Date: 2025-07-23 15:10+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Serbian <https://translate.blender.org/projects/blender-ui/ui/sr/>\n"
@@ -8486,16 +8486,16 @@ msgid "Dots"
 msgstr "Туфне"
 
 
+msgid "Placement"
+msgstr "Локација"
+
+
 msgid "Material slot in an object"
 msgstr "Слот материјала у објекту"
 
 
 msgid "Material slot name"
 msgstr "Назив слота материјала"
-
-
-msgid "Math"
-msgstr "Математика"
 
 
 msgid "Mirror"
@@ -8514,6 +8514,10 @@ msgid "Local View"
 msgstr "Локални поглед"
 
 
+msgid "Math"
+msgstr "Математика"
+
+
 msgid "Navigation"
 msgstr "Навигација"
 
@@ -8530,10 +8534,6 @@ msgid "Metaball"
 msgstr "Мета лопта"
 
 
-msgid "Import"
-msgstr "Увоз"
-
-
 msgid "Light"
 msgstr "Светлост"
 
@@ -8542,12 +8542,12 @@ msgid "Relations"
 msgstr "Односи"
 
 
+msgid "Import"
+msgstr "Увоз"
+
+
 msgid "Rigid Body"
 msgstr "Круто тело"
-
-
-msgid "UV"
-msgstr "UV"
 
 
 msgid "Apply"
@@ -8564,6 +8564,10 @@ msgstr "Брзи ефекти"
 
 msgid "Show/Hide"
 msgstr "Прикажи/сакриј"
+
+
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Hooks"
@@ -8610,12 +8614,12 @@ msgid "Special Characters"
 msgstr "Специјални знаци"
 
 
-msgid "Keying"
-msgstr "Збирка тастера"
-
-
 msgid "Bone Roll"
 msgstr "Ролна костију"
+
+
+msgid "Keying"
+msgstr "Збирка тастера"
 
 
 msgid "Tracking"
@@ -11243,11 +11247,6 @@ msgstr "Увоз BVH"
 
 
 msgctxt "Operator"
-msgid "Import SVG"
-msgstr "Увоз SVG"
-
-
-msgctxt "Operator"
 msgid "Import FBX"
 msgstr "Извоз FBX"
 
@@ -11987,6 +11986,10 @@ msgid "Add Bone"
 msgstr "Додај кост"
 
 
+msgid "Axes"
+msgstr "Осе"
+
+
 msgid "Name of the newly created bone"
 msgstr "Име новоформиране кости"
 
@@ -12036,6 +12039,10 @@ msgstr "Дуплирај изабрану кост/и"
 
 msgid "Move"
 msgstr "Помери"
+
+
+msgid "Search"
+msgstr "Претрага"
 
 
 msgctxt "Operator"
@@ -12352,10 +12359,6 @@ msgstr "Детектуј могућности"
 
 msgid "Automatically detect features and place markers to track"
 msgstr "Самостално детектуј могућност и постави маркер на стазу"
-
-
-msgid "Placement"
-msgstr "Локација"
 
 
 msgid "Placement for detected features"
@@ -18189,10 +18192,6 @@ msgid "Average Islands Scale"
 msgstr "Просечна величина острва"
 
 
-msgid "Axis Direction"
-msgstr "Смер оса"
-
-
 msgctxt "Operator"
 msgid "Cube Projection"
 msgstr "Кубична пројекција"
@@ -20164,10 +20163,6 @@ msgstr "Ограничи величину текстуре ради уштеде
 
 msgid "Device"
 msgstr "Уређај"
-
-
-msgid "2D Texture"
-msgstr "2D текстура"
 
 
 msgid "Ambient Color"
@@ -22344,10 +22339,6 @@ msgid "Operator Properties"
 msgstr "Особине оператора"
 
 
-msgid "Search"
-msgstr "Претрага"
-
-
 msgctxt "WindowManager"
 msgid "Window"
 msgstr "Прозор"
@@ -22723,10 +22714,6 @@ msgstr "Додај ограничења кости"
 
 msgid "Shapes"
 msgstr "Облици"
-
-
-msgid "Axes"
-msgstr "Осе"
 
 
 msgctxt "Operator"
@@ -23996,10 +23983,6 @@ msgstr "Модификатор вредности F-криве"
 
 msgid "Nothing selected"
 msgstr "Ништа није изабрано"
-
-
-msgid "Pin"
-msgstr "Закачи"
 
 
 msgctxt "Operator"

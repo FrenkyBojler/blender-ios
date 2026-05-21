@@ -235,6 +235,16 @@ class WaveFunction : public mf::MultiFunction {
       });
     }
   }
+
+  void hash_unique(UniqueHashBytes &hash) const override
+  {
+    static constexpr int8_t id = 0;
+    hash.add(&id);
+    hash.add(wave_type_);
+    hash.add(bands_direction_);
+    hash.add(rings_direction_);
+    hash.add(wave_profile_);
+  }
 };
 
 static void sh_node_wave_tex_build_multi_function(NodeMultiFunctionBuilder &builder)
@@ -343,21 +353,21 @@ void register_node_type_sh_tex_wave()
 
   static bke::bNodeType ntype;
 
-  common_node_type_base(&ntype, "ShaderNodeTexWave", SH_NODE_TEX_WAVE);
+  common_node_type_base(&ntype, "ShaderNodeTexWave"_ustr, SH_NODE_TEX_WAVE);
   ntype.ui_name = "Wave Texture";
   ntype.ui_description = "Generate procedural bands or rings with noise";
   ntype.enum_name_legacy = "TEX_WAVE";
   ntype.nclass = NODE_CLASS_TEXTURE;
   ntype.declare = file_ns::sh_node_tex_wave_declare;
   ntype.draw_buttons = file_ns::node_shader_buts_tex_wave;
-  bke::node_type_size_preset(ntype, bke::eNodeSizePreset::Middle);
+  ntype.default_width = bke::NodeWidth::_160;
   ntype.initfunc = file_ns::node_shader_init_tex_wave;
   bke::node_type_storage(
       ntype, "NodeTexWave", node_free_standard_storage, node_copy_standard_storage);
   ntype.gpu_fn = file_ns::node_shader_gpu_tex_wave;
   ntype.build_multi_function = file_ns::sh_node_wave_tex_build_multi_function;
   ntype.materialx_fn = file_ns::node_shader_materialx;
-  bke::node_type_size(ntype, 160, 140, NODE_DEFAULT_MAX_WIDTH);
+  ntype.default_width = bke::NodeWidth::_160;
 
   bke::node_register_type(ntype);
 }

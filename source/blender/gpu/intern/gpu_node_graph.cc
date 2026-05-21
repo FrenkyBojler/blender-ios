@@ -15,11 +15,15 @@
 
 #include "DNA_node_types.h"
 
+#include "BLI_assert.h"
 #include "BLI_ghash.h"
 #include "BLI_listbase.h"
 #include "BLI_stack.hh"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
+
+#include "BKE_node.hh"
+#include "BKE_node_runtime.hh"
 
 #include "GPU_texture.hh"
 #include "GPU_vertex_format.hh"
@@ -226,10 +230,7 @@ static GPUNodeLink *gpu_uniformbuffer_link(GPUMaterial *mat,
   GPUNodeLink *link = GPU_uniform(stack->vec);
 
   if (in_out == SOCK_IN) {
-    GPU_link(mat,
-             gpu_uniform_set_function_from_type(eNodeSocketDatatype(socket->type)),
-             link,
-             &stack->link);
+    GPU_link(mat, gpu_uniform_set_function_from_type(socket->type), link, &stack->link);
   }
 
   return link;
@@ -1113,6 +1114,35 @@ void gpu_node_graph_optimize(GPUNodeGraph *graph)
   }
 
   /* TODO: Consider performing other node graph optimizations here. */
+}
+
+GPUNodeStack &GPU_node_get_input(const bNode &node,
+                                 GPUNodeStack inputs[],
+                                 const StringRef identifier)
+{
+  const bNodeSocket *input = node.input_by_identifier(UString(identifier));
+  BLI_assert(input);
+  return inputs[input->index()];
+}
+
+GPUNodeStack &GPU_node_get_output(const bNode &node,
+                                  GPUNodeStack outputs[],
+                                  const StringRef identifier)
+{
+  const bNodeSocket *output = node.output_by_identifier(UString(identifier));
+  BLI_assert(output);
+  return outputs[output->index()];
+}
+
+GPUNodeLink *GPU_node_get_input_link(const bNode &node,
+                                     GPUNodeStack inputs[],
+                                     const StringRef identifier)
+{
+  GPUNodeStack &input = GPU_node_get_input(node, inputs, identifier);
+  if (input.link) {
+    return input.link;
+  }
+  return GPU_uniform(input.vec);
 }
 
 }  // namespace blender

@@ -72,7 +72,7 @@ void ShadingView::sync()
 
   main_view_.sync(viewmat, winmat);
 
-  inst_.uniform_data.data.pipeline.is_main_view_inverted = main_view_.is_inverted();
+  inst_.uniform_data.pipeline.is_main_view_inverted = main_view_.is_inverted();
 }
 
 void ShadingView::render()
@@ -82,6 +82,13 @@ void ShadingView::render()
   }
 
   update_view();
+  inst_.shadows.set_view(render_view_, extent_);
+  inst_.volume.set_view(main_view_);
+  inst_.uniform_data.data.push_update();
+  /* Need to be set early for planar probe rendering (if using ray-cast node) and ray-cast nodes in
+   * deferred / forward pipelines. */
+  inst_.raytracing.thickness_parameters_setup(render_view_.winmat(), extent_);
+  inst_.uniform_data.raytrace.push_update();
 
   GPU_debug_group_begin(name_);
 
@@ -162,6 +169,8 @@ void ShadingView::render()
   inst_.pipelines.forward.render(
       render_view_, rbufs.depth_tx, prepass_fb_, transparent_fb_, combined_fb_, extent_);
 
+  inst_.lights.shape_display_draw(render_view_, combined_fb_);
+
   inst_.lights.debug_draw(render_view_, combined_fb_);
   inst_.hiz_buffer.debug_draw(render_view_, combined_fb_);
   inst_.shadows.debug_draw(render_view_, combined_fb_);
@@ -183,7 +192,7 @@ gpu::Texture *ShadingView::render_postfx(gpu::Texture *input_tx)
   if (!inst_.depth_of_field.postfx_enabled() && !inst_.motion_blur.postfx_enabled()) {
     return input_tx;
   }
-  postfx_tx_.acquire(extent_, gpu::TextureFormat::SFLOAT_16_16_16_16);
+  postfx_tx_.acquire_2d(extent_, gpu::TextureFormat::SFLOAT_16_16_16_16);
 
   /* Fix a sync bug on AMD + Mesa when volume + motion blur create artifacts
    * except if there is a clear event between them. */
@@ -298,7 +307,7 @@ void CaptureView::render_world()
   if (update_info->do_render) {
     auto render_cubemap = [&](RayPipelineType ray_type) {
       if (assign_if_different(inst_.pipelines.data.ray_type, ray_type)) {
-        inst_.uniform_data.push_update();
+        inst_.uniform_data.pipeline.push_update();
       }
 
       for (int face : IndexRange(6)) {
@@ -339,7 +348,7 @@ void CaptureView::render_world()
   }
 
   if (assign_if_different(inst_.pipelines.data.ray_type, RAY_TYPE_CAMERA)) {
-    inst_.uniform_data.push_update();
+    inst_.uniform_data.pipeline.push_update();
   }
 
   GPU_debug_group_end();
@@ -349,12 +358,24 @@ void CaptureView::render_probes()
 {
   Framebuffer prepass_fb;
   View view = {"Capture.View"};
+
+  /* Any 90 degree FOV view will do it. */
+  float4x4 win_m4 = math::projection::perspective(-0.1f, 0.1f, -0.1f, 0.1f, 0.1f, 10.0f);
+  /* Check if uniform_data needs to be updated. */
+  int prev_extent = 0;
+
   while (const auto update_info = inst_.sphere_probes.probe_update_info_pop()) {
     GPU_debug_group_begin("Probe.Capture");
 
-    if (assign_if_different(inst_.pipelines.data.ray_type, RAY_TYPE_GLOSSY)) {
-      inst_.uniform_data.push_update();
+    if (assign_if_different(inst_.pipelines.data.ray_type, RAY_TYPE_GLOSSY) ||
+        prev_extent != update_info->cube_target_extent)
+    {
+      /* Set correct thickness for raycast node in probe pipelines. */
+      inst_.raytracing.thickness_parameters_setup(win_m4, int2(update_info->cube_target_extent));
+      inst_.uniform_data.raytrace.push_update();
     }
+
+    prev_extent = update_info->cube_target_extent;
 
     int2 extent = int2(update_info->cube_target_extent);
     RenderBuffers &rbufs = inst_.render_buffers;
@@ -389,6 +410,10 @@ void CaptureView::render_probes()
                                                       update_info->clipping_distances.y);
       view.sync(view_m4, win_m4);
 
+      inst_.shadows.set_view(view, extent);
+      inst_.volume.set_view(view);
+      inst_.uniform_data.data.push_update();
+
       combined_fb_.ensure(GPU_ATTACHMENT_TEXTURE(inst_.render_buffers.depth_tx),
                           GPU_ATTACHMENT_TEXTURE_CUBEFACE(inst_.sphere_probes.cubemap_tx_, face));
 
@@ -413,7 +438,7 @@ void CaptureView::render_probes()
   }
 
   if (assign_if_different(inst_.pipelines.data.ray_type, RAY_TYPE_CAMERA)) {
-    inst_.uniform_data.push_update();
+    inst_.uniform_data.pipeline.push_update();
   }
 }
 

@@ -193,11 +193,11 @@ class SocketValueInferencerImpl {
         return;
       }
       default: {
-        if (node->is_type("NodeEnableOutput")) {
+        if (node->is_type("NodeEnableOutput"_ustr)) {
           this->value_task__output__enable_output(socket);
           return;
         }
-        if (node->is_type("NodeImplicitConversion")) {
+        if (node->is_type("NodeImplicitConversion"_ustr)) {
           this->value_task__output__implicit_conversion_node(socket);
           return;
         }
@@ -782,7 +782,7 @@ class SocketValueInferencerImpl {
       return;
     }
     if (const SocketDeclaration *socket_decl = socket.socket->runtime->declaration) {
-      if (socket_decl->input_field_type == InputSocketFieldType::Implicit) {
+      if (socket_decl->default_input_type != NODE_DEFAULT_INPUT_VALUE) {
         /* Implicit fields inputs don't have a single static value. */
         all_socket_values_.add_new(socket, InferenceValue::Unknown());
         return;

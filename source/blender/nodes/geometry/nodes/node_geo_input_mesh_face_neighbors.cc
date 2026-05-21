@@ -85,15 +85,10 @@ class FaceNeighborCountFieldInput final : public bke::MeshFieldInput {
     return construct_neighbor_count_varray(mesh, domain);
   }
 
-  uint64_t hash() const override
+  void hash_unique(UniqueHashBytes &hash, fn::FieldHashDeep & /*deep_hash_cache*/) const override
   {
-    /* Some random constant hash. */
-    return 823543774;
-  }
-
-  bool is_equal_to(const fn::FieldInput &other) const override
-  {
-    return dynamic_cast<const FaceNeighborCountFieldInput *>(&other) != nullptr;
+    static constexpr int8_t id = 0;
+    hash.add(&id);
   }
 
   std::optional<AttrDomain> preferred_domain(const Mesh & /*mesh*/) const override
@@ -123,15 +118,10 @@ class FaceVertexCountFieldInput final : public bke::MeshFieldInput {
     return construct_vertex_count_varray(mesh, domain);
   }
 
-  uint64_t hash() const override
+  void hash_unique(UniqueHashBytes &hash, fn::FieldHashDeep & /*deep_hash_cache*/) const override
   {
-    /* Some random constant hash. */
-    return 236235463634;
-  }
-
-  bool is_equal_to(const fn::FieldInput &other) const override
-  {
-    return dynamic_cast<const FaceVertexCountFieldInput *>(&other) != nullptr;
+    static constexpr int8_t id = 0;
+    hash.add(&id);
   }
 
   std::optional<AttrDomain> preferred_domain(const Mesh & /*mesh*/) const override
@@ -150,7 +140,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
   geo_node_type_base(
-      &ntype, "GeometryNodeInputMeshFaceNeighbors", GEO_NODE_INPUT_MESH_FACE_NEIGHBORS);
+      &ntype, "GeometryNodeInputMeshFaceNeighbors"_ustr, GEO_NODE_INPUT_MESH_FACE_NEIGHBORS);
   ntype.ui_name = "Face Neighbors";
   ntype.ui_description = "Retrieve topology information relating to each face of a mesh";
   ntype.enum_name_legacy = "MESH_FACE_NEIGHBORS";

@@ -288,6 +288,16 @@ class BrickFunction : public mf::MultiFunction {
       }
     });
   }
+
+  void hash_unique(UniqueHashBytes &hash) const override
+  {
+    static constexpr int8_t id = 0;
+    hash.add(&id);
+    hash.add(offset_);
+    hash.add(offset_freq_);
+    hash.add(squash_);
+    hash.add(squash_freq_);
+  }
 };
 
 static void sh_node_brick_build_multi_function(NodeMultiFunctionBuilder &builder)
@@ -307,20 +317,20 @@ void register_node_type_sh_tex_brick()
 
   static bke::bNodeType ntype;
 
-  common_node_type_base(&ntype, "ShaderNodeTexBrick", SH_NODE_TEX_BRICK);
+  common_node_type_base(&ntype, "ShaderNodeTexBrick"_ustr, SH_NODE_TEX_BRICK);
   ntype.ui_name = "Brick Texture";
   ntype.ui_description = "Generate a procedural texture producing bricks";
   ntype.enum_name_legacy = "TEX_BRICK";
   ntype.nclass = NODE_CLASS_TEXTURE;
   ntype.declare = file_ns::sh_node_tex_brick_declare;
   ntype.draw_buttons = file_ns::node_shader_buts_tex_brick;
-  bke::node_type_size_preset(ntype, bke::eNodeSizePreset::Middle);
+  ntype.default_width = bke::NodeWidth::_160;
   ntype.initfunc = file_ns::node_shader_init_tex_brick;
   bke::node_type_storage(
       ntype, "NodeTexBrick", node_free_standard_storage, node_copy_standard_storage);
   ntype.gpu_fn = file_ns::node_shader_gpu_tex_brick;
   ntype.build_multi_function = file_ns::sh_node_brick_build_multi_function;
-  bke::node_type_size(ntype, 165, 140, NODE_DEFAULT_MAX_WIDTH);
+  ntype.default_width = bke::NodeWidth::_180;
 
   bke::node_register_type(ntype);
 }

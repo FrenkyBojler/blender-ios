@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 Alpha (b'a0888131c6dd')\n"
+"Project-Id-Version: Blender 5.2.0 Alpha (b'bc0a0ff2c0ce')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-04-06 09:15+0000\n"
+"POT-Creation-Date: 2026-05-18 11:20+0000\n"
 "PO-Revision-Date: 2025-07-23 14:53+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Arabic <https://translate.blender.org/projects/blender-ui/ui/ar/>\n"
@@ -8937,10 +8937,6 @@ msgid "When this is disabled, lock alpha while painting"
 msgstr " ﻢﺳﺮﻟﺍ ﺪﻨﻋ ﺎﻔﻟﻻ﻿ﺍ ﻞﻔﻗﺍ ,ﻞﻴﻄﻌﺘﻟﺍ ﺪﻨﻋ"
 
 
-msgid "Cavity Mask"
-msgstr "ﻒﻳﻮﺠﺘﻟﺍ ﻉﺎﻨﻗ"
-
-
 msgid "Use Cursor Overlay"
 msgstr "ﺮﺷﺆﻤﻟﺍ ءﺎﻄﻏ ﻡﺪﺨﺘﺳﺇ"
 
@@ -15648,6 +15644,10 @@ msgid "Dots"
 msgstr "ﺕﺎﺨﻄﻟ"
 
 
+msgid "Placement"
+msgstr "ﻊﺿﻮﻟﺍ"
+
+
 msgid "Material slot in an object"
 msgstr "ﻦﺋﺎﻛ ﻲﻓ ﺔﻣﺎﺧ ﺔﺤﺘﻓ"
 
@@ -15660,10 +15660,6 @@ msgid "Material slot name"
 msgstr "ﺔﻣﺎﺨﻟﺍ ﺔﺤﺘﻓ ﻢﺳﺇ"
 
 
-msgid "Math"
-msgstr "ﺏﺎﺴﺣ"
-
-
 msgid "Mirror"
 msgstr "ﻞﺛﺎﻣ"
 
@@ -15674,6 +15670,10 @@ msgstr "ﻱﺫﺎﺣ"
 
 msgid "UV Mapping"
 msgstr "UV ءﺎﺴﻛﺇ"
+
+
+msgid "Math"
+msgstr "ﺏﺎﺴﺣ"
 
 
 msgid "Navigation"
@@ -15708,10 +15708,6 @@ msgid "Metaball"
 msgstr "ﺔﻠﻋﺎﻔﺘﻣ ﺓﺮﻛ"
 
 
-msgid "Import"
-msgstr "ﺩﺭﻮﺘﺳﺇ"
-
-
 msgid "Light"
 msgstr "ءﻮﺿ"
 
@@ -15720,12 +15716,12 @@ msgid "Relations"
 msgstr "ﺕﺎﻗﻼ﻿ﻌﻟﺍ"
 
 
+msgid "Import"
+msgstr "ﺩﺭﻮﺘﺳﺇ"
+
+
 msgid "Rigid Body"
 msgstr "ﻞﻋﺎﻔﺘﻣ ﻢﺴﺟ"
-
-
-msgid "UV"
-msgstr "ﺭﻭﺎﺤﻣ"
 
 
 msgid "Apply"
@@ -15742,6 +15738,10 @@ msgstr "ﺔﻌﻳﺮﺳ ﺕﺍﺮﻴﺛﺄﺗ"
 
 msgid "Make Single User"
 msgstr "ﻡﺪﺨﺘﺴﻤﻟﺍ ﺪﻴﺣﻭ ﻪﻠﻌﺟﺍ"
+
+
+msgid "UV"
+msgstr "ﺭﻭﺎﺤﻣ"
 
 
 msgid "Hooks"
@@ -15776,12 +15776,12 @@ msgid "Special Characters"
 msgstr "ﺔﺻﺎﺧ ﻑﺮﺣﺃ"
 
 
-msgid "Keying"
-msgstr "ﺺﺤﻔﻟﺍ"
-
-
 msgid "Bone Roll"
 msgstr "ﺔﻤﻈﻌﻟﺍ ءﺍﻮﺘﻟﺍ"
+
+
+msgid "Keying"
+msgstr "ﺺﺤﻔﻟﺍ"
 
 
 msgid "Tracking"
@@ -15967,6 +15967,10 @@ msgstr "ﺔﻜﺒﺷ"
 
 msgid "Operator Presets"
 msgstr "ﻞﻣﺎﻌﻠﻟ ﺔﻘﺒﺴﻣ ﺕﺍﺩﺍﺪﻋﺇ"
+
+
+msgid "Cavity Mask"
+msgstr "ﻒﻳﻮﺠﺘﻟﺍ ﻉﺎﻨﻗ"
 
 
 msgid "Mesh Edge"
@@ -20459,6 +20463,10 @@ msgid "Add Bone"
 msgstr "ﺔﻤﻈﻋ ﻒﺿﺍ"
 
 
+msgid "Axes"
+msgstr "ﺭﻭﺎﺤﻣ"
+
+
 msgctxt "Operator"
 msgid "Recalculate Roll"
 msgstr "ﻥﻼ﻿ﻴﻤﻟﺍ ﺏﺎﺴﺣ ﺪﻋﺍ"
@@ -20513,6 +20521,10 @@ msgstr "ﺓﺭﺎﺘﺨﻤﻟﺍ ﻡﺎﻈﻌﻟﺍ ﺭﺮﻛ"
 
 msgid "Make copies of the selected bones within the same armature"
 msgstr "ﻞﻜﻴﻬﻟﺍ ﺲﻔﻧ ﻦﻤﺿ ﺓﺭﺎﺘﺨﻤﻟﺍ ﻡﺎﻈﻌﻟﺍ ﺦﺴﻧ ﻞﻌﺟﺍ"
+
+
+msgid "Search"
+msgstr "ﺚﺤﺑﺇ"
 
 
 msgctxt "Operator"
@@ -20839,10 +20851,6 @@ msgstr "ﺓﺭﺎﺘﺨﻤﻟﺍ ﺕﺍﺭﺎﺴﻤﻟﺍ ﻑﺬﺣﺍ"
 
 msgid "Minimal distance accepted between two features"
 msgstr "ﻦﻴﺗﺰﻴﻣ ﻦﻴﺑ ﺔﻟﻮﺒﻘﻤﻟﺍ ﺎﻴﻧﺪﻟﺍ ﺔﻓﺎﺴﻤﻟﺍ"
-
-
-msgid "Placement"
-msgstr "ﻊﺿﻮﻟﺍ"
 
 
 msgid "Placement for detected features"
@@ -25892,11 +25900,6 @@ msgstr "ﺔﻘﻄﻨﻤﻟﺍ ﻑﺍﻮﺣ ﻙﺮّﺣ"
 
 
 msgctxt "Operator"
-msgid "Area Options"
-msgstr "ﺔﻘﻄﻨﻤﻟﺍ ﺕﺍﺭﺎﻴﺧ"
-
-
-msgctxt "Operator"
 msgid "Split Area"
 msgstr "ﺔﻘﻄﻨﻤﻟﺍ ﻞﺼﻓﺍ"
 
@@ -29646,10 +29649,6 @@ msgid "Limit the texture size to save graphics memory"
 msgstr " ﺔﻳﺭﻮﺼﻟﺍ ﺓﺮﻛﺍﺬﻟﺍ ﻆﻔﺤﻟ ﺞﻴﺴﻨﻟﺍ ﻢﺠﺣ ﺩﺪﺣ"
 
 
-msgid "2D Texture"
-msgstr "ﻲﺋﺎﻨﺛ ﺞﻴﺴﻧ"
-
-
 msgid "Ambient Color"
 msgstr "ﺔﻃﺎﺣﻻ﻿ﺍ ﻥﻮﻟ"
 
@@ -33029,10 +33028,6 @@ msgid "Operator Properties"
 msgstr "ﻞﻣﺎﻌﻟﺍ ﺹﺍﻮﺧ"
 
 
-msgid "Search"
-msgstr "ﺚﺤﺑﺇ"
-
-
 msgctxt "WindowManager"
 msgid "Window"
 msgstr "ﺓﺬﻓﺎﻨﻟﺍ"
@@ -33533,10 +33528,6 @@ msgstr "ﺭﻮﺤﻤﻟﺍ ﺔﺣﺍﺯﺇ"
 
 msgid "Shapes"
 msgstr "ﻝﺎﻜﺷﻷ﻿ﺍ"
-
-
-msgid "Axes"
-msgstr "ﺭﻭﺎﺤﻣ"
 
 
 msgid "Control Rotation"
@@ -35058,6 +35049,10 @@ msgid "Could not connect vertices"
 msgstr "ﺔﻠﺼﺘﻤﻟﺍ UV ـﻟﺍ ﻂﻘﻧ ﻦﻣ ﻞﺴﻠﺴﺗ ﺮﺘﺧﺇ"
 
 
+msgid "Anisotropic"
+msgstr "ﺱﺎﻜﻌﻧﻹ﻿ﺍ ﻞﻜﺸﺗ"
+
+
 msgid "No active object"
 msgstr "ﻝﺎﻌﻔﻟﺍ ﻦﺋﺎﻜﻟﺍ ﻞﻴﻟﺩ"
 
@@ -35223,10 +35218,6 @@ msgstr "ﻲﻧﺎﻴﺒﻟﺍ ﻰﻨﺤﻨﻤﻟﺍ ﻰﻠﻋ ﻝﺎﻌﻓ ﺭ�
 
 msgid "Nothing selected"
 msgstr "ﺭﺎﺘﺨﻣ ءﻲﺷ ﻻ﻿"
-
-
-msgid "Pin"
-msgstr "ﺖﺒّﺛ"
 
 
 msgctxt "Operator"
@@ -36510,10 +36501,6 @@ msgstr "ﻒﻠﻤﻟﺍ ﺢﺘﻓ ﻰﻠﻋ ﺭﺩﺎﻗ ﺮﻴﻏ"
 
 msgid "Unable to create socket"
 msgstr "ﺔﺤﺘﻓ ءﺎﺸﻧﺇ ﻰﻠﻋ ﺭﺩﺎﻗ ﺮﻴﻏ"
-
-
-msgid "Anisotropic"
-msgstr "ﺱﺎﻜﻌﻧﻹ﻿ﺍ ﻞﻜﺸﺗ"
 
 
 msgid "Unable to locate link in node tree"
