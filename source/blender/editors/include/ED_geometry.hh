@@ -87,7 +87,7 @@ MenuType node_group_operator_assets_menu_unassigned();
 
 void ui_template_node_operator_asset_menu_items(ui::Layout &layout,
                                                 const bContext &C,
-                                                StringRef catalog_path);
+                                                StringRef path);
 void ui_template_node_operator_asset_root_items(ui::Layout &layout, const bContext &C);
 
 }  // namespace ed::geometry

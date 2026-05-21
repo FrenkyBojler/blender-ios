@@ -9,6 +9,7 @@
 #include "BLI_array_utils.hh"
 #include "BLI_index_mask.hh"
 #include "BLI_listbase.h"
+#include "BLI_path_utils.hh"
 #include "BLI_rect.h"
 #include "BLI_string_utf8.h"
 
@@ -81,7 +82,6 @@
 
 #include "AS_asset_catalog.hh"
 #include "AS_asset_catalog_path.hh"
-#include "AS_asset_catalog_tree.hh"
 #include "AS_asset_library.hh"
 #include "AS_asset_representation.hh"
 
@@ -109,8 +109,9 @@ struct ErrorsForType {
 
 struct RegistrationData {
   using Errors = Map<std::string, ErrorsForType>;
+  using Types = MultiValueMap<std::string, wmOperatorType *>;
   Errors errors_by_idname;
-  asset::AssetItemTree asset_tree;
+  Types types_by_menu_path;
 };
 
 static RegistrationData &get_registration_data()
@@ -217,15 +218,6 @@ static std::optional<StringRefNull> custom_idname_for_asset(const AssetRepresent
   return IDP_string_get(id_property);
 }
 
-static std::optional<std::string> operator_idname_for_asset(const AssetRepresentation &asset)
-{
-  const std::optional<StringRefNull> custom_idname = custom_idname_for_asset(asset);
-  if (!custom_idname) {
-    return std::nullopt;
-  }
-  return operator_idname_get(*custom_idname, nullptr);
-}
-
 std::optional<OperatorTypeData> OperatorTypeData::from_asset(
     const asset_system::AssetRepresentation &asset, RegistrationData::Errors &errors)
 {
@@ -289,15 +281,6 @@ static std::optional<StringRefNull> custom_idname_for_group(const bNodeTree &gro
     return std::nullopt;
   }
   return StringRefNull(idname);
-}
-
-static std::optional<std::string> operator_idname_for_group(const bNodeTree &group)
-{
-  const char *idname = group.geometry_node_asset_traits->node_tool_idname;
-  if (!idname) {
-    return std::nullopt;
-  }
-  return operator_idname_get(idname, nullptr);
 }
 
 std::optional<OperatorTypeData> OperatorTypeData::from_group(const bNodeTree &group,
@@ -1590,22 +1573,6 @@ static OperatorsToRegister get_node_tools_type_data(const bContext &C,
   return all_types;
 }
 
-static asset::AssetItemTree build_catalog_tree(const bContext &C)
-{
-  asset::AssetFilterSettings type_filter{};
-  type_filter.id_types = FILTER_ID_NT;
-  auto meta_data_filter = [&](const AssetMetaData &meta_data) {
-    const IDProperty *tree_type = BKE_asset_metadata_idprop_find(&meta_data, "type");
-    if (tree_type == nullptr || IDP_int_get(tree_type) != NTREE_GEOMETRY) {
-      return false;
-    }
-    return true;
-  };
-  const AssetLibraryReference library = asset_system::all_library_reference();
-  asset_system::all_library_reload_catalogs_if_dirty();
-  return asset::build_filtered_all_catalog_tree(library, C, type_filter, meta_data_filter);
-}
-
 static void show_error_reports(const bContext &C, RegistrationData::Errors errors)
 {
   wmWindowManager &wm = *CTX_wm_manager(&C);
@@ -1668,10 +1635,10 @@ void register_node_group_operators(const bContext &C)
   OperatorsToRegister types_to_register = get_node_tools_type_data(C, bmain, errors);
 
   /* Remove node tools that conflict with builtin operators. */
-  types_to_register.remove_if([&](auto item) {
-    if (wmOperatorType *ot = WM_operatortype_find(item.key.c_str(), true)) {
+  types_to_register.remove_if([&](const std::unique_ptr<OperatorTypeData> &item) {
+    if (wmOperatorType *ot = WM_operatortype_find(item->idname.c_str(), true)) {
       if ((ot->flag & OPTYPE_NODE_TOOL) == 0) {
-        errors.lookup_or_add_default(item.value.custom_idname).is_builtin_operator = true;
+        errors.lookup_or_add_default(item->custom_idname).is_builtin_operator = true;
         return true;
       }
     }
@@ -1692,13 +1659,14 @@ void register_node_group_operators(const bContext &C)
   }
 
   /* Remove operators that are already registered and haven't changed. */
-  types_to_register.remove_if([&](auto item) {
-    if (wmOperatorType *ot = WM_operatortype_find(item.key.c_str(), true)) {
-      const OperatorTypeData &type_data = static_cast<const OperatorTypeData &>(*ot->custom_data);
-      if (type_data.hash == item.value->hash) {
+  types_to_register.remove_if([&](const std::unique_ptr<OperatorTypeData> &item) {
+    if (wmOperatorType *ot = WM_operatortype_find(item->idname.c_str(), true)) {
+      const auto &type_data = static_cast<const OperatorTypeData &>(*ot->custom_data);
+      if (type_data.hash == item->hash) {
         return true;
       }
     }
+    return false;
   });
 
   /* Remove changed operators so they can be re-registered. */
@@ -1718,7 +1686,7 @@ void register_node_group_operators(const bContext &C)
     WM_operator_stack_clear(&wm, types_to_remove);
     WM_operator_handlers_clear(&wm, types_to_remove);
     for (wmOperatorType *ot : types_to_remove) {
-      OperatorTypeData &type_data = static_cast<OperatorTypeData &>(*ot->custom_data);
+      auto &type_data = static_cast<OperatorTypeData &>(*ot->custom_data);
 
       for (StructRNA *srna : type_data.generated_structs) {
         /* Avoids warning when freeing the #StructRNA. */
@@ -1739,7 +1707,31 @@ void register_node_group_operators(const bContext &C)
         &type);
   }
 
-  registration_data.asset_tree = build_catalog_tree(C);
+  registration_data.types_by_menu_path.clear();
+  const asset_system::AssetLibrary *all_library = asset::list::library_get_once_available(
+      asset_system::all_library_reference());
+  for (wmOperatorType *ot : WM_operatortypes_registered_get()) {
+    if ((ot->flag & OPTYPE_NODE_TOOL) == 0) {
+      continue;
+    }
+    const auto &type_data = static_cast<OperatorTypeData &>(*ot->custom_data);
+    const auto *asset_ref = std::get_if<AssetWeakReference>(&type_data.group_ref);
+    if (!asset_ref) {
+      registration_data.types_by_menu_path.add("", ot);
+      continue;
+    }
+    const asset_system::AssetRepresentation *asset = ed::asset::find_asset_from_weak_ref(
+        C, *asset_ref, nullptr);
+    BLI_assert(asset != nullptr);
+    const bUUID catalog_id = asset->get_metadata().catalog_id;
+    const asset_system::AssetCatalog *catalog = all_library->catalog_service().find_catalog(
+        catalog_id);
+    if (!catalog) {
+      registration_data.types_by_menu_path.add("", ot);
+      continue;
+    }
+    registration_data.types_by_menu_path.add(catalog->path.str(), ot);
+  }
 }
 
 /** \} */
@@ -1922,75 +1914,50 @@ static Set<StringRef> get_builtin_menus(const ObjectType object_type, const eObj
   return menus;
 }
 
-static void missing_tool_idname_error(ui::Layout &layout, const StringRef name)
-{
-  layout.label(fmt::format(fmt::runtime(TIP_("Missing node tool identifier ({})")), name),
-               ICON_NONE);
-}
-
 static void catalog_assets_draw(const bContext *C, Menu *menu)
 {
   const Object *active_object = CTX_data_active_object(C);
   if (!active_object) {
     return;
   }
-  const asset::AssetItemTree &tree = get_registration_data().asset_tree;
+  const RegistrationData::Types &types = get_registration_data().types_by_menu_path;
   const std::optional<StringRefNull> menu_path = CTX_data_string_get(C, "asset_catalog_path");
   if (!menu_path) {
     return;
   }
-  const Span<asset_system::AssetRepresentation *> assets = tree.assets_per_path.lookup(
-      menu_path->data());
-  const asset_system::AssetCatalogTreeItem *catalog_item = tree.catalogs.find_item(
-      menu_path->data());
-  BLI_assert(catalog_item != nullptr);
 
   ui::Layout &layout = *menu->layout;
   bool add_separator = true;
 
-  for (const asset_system::AssetRepresentation *asset : assets) {
-    const std::optional<std::string> operator_idname = operator_idname_for_asset(*asset);
-    if (!operator_idname) {
-      missing_tool_idname_error(layout, asset->get_name());
-      continue;
-    }
-    const wmOperatorType *ot = WM_operatortype_find(operator_idname->c_str(), false);
-    if (!ot) {
-      continue;
-    }
-    if (!ot->poll(const_cast<bContext *>(C))) {
+  for (wmOperatorType *ot : types.lookup_as(*menu_path)) {
+    if (!WM_operator_poll(const_cast<bContext *>(C), ot)) {
       continue;
     }
     if (add_separator) {
       layout.separator();
       add_separator = false;
     }
-    PointerRNA props_ptr = layout.op(*operator_idname,
-                                     IFACE_(asset->get_name()),
-                                     ICON_NONE,
-                                     wm::OpCallContext::InvokeRegionWin,
-                                     UI_ITEM_NONE);
+    layout.op(ot, std::nullopt, ICON_NONE, wm::OpCallContext::InvokeRegionWin, UI_ITEM_NONE);
   }
 
   const Set<StringRef> builtin_menus = get_builtin_menus(ObjectType(active_object->type),
                                                          eObjectMode(active_object->mode));
 
-  asset_system::AssetLibrary *all_library = asset::list::library_get_once_available(
-      asset_system::all_library_reference());
-  if (!all_library) {
-    return;
-  }
-
-  catalog_item->foreach_child([&](const asset_system::AssetCatalogTreeItem &item) {
-    if (builtin_menus.contains_as(item.catalog_path().str())) {
-      return;
+  for (const StringRef path : types.keys()) {
+    if (builtin_menus.contains(path)) {
+      continue;
+    }
+    if (!path.startswith(*menu_path)) {
+      continue;
     }
     if (add_separator) {
       layout.separator();
       add_separator = false;
     }
-    asset::draw_menu_for_catalog(item, "GEO_MT_node_operator_catalog_assets", layout);
-  });
+    const StringRef name = path.drop_known_prefix(*menu_path);
+    layout.context_string_set("asset_catalog_path", path);
+    layout.menu("GEO_MT_node_operator_catalog_assets", IFACE_(name), ICON_NONE);
+  }
 }
 
 MenuType node_group_operator_assets_menu()
@@ -2004,98 +1971,35 @@ MenuType node_group_operator_assets_menu()
   return type;
 }
 
-static bool unassigned_local_poll(const bContext &C)
+static bool catalog_path_contains_assets(const bContext &C, const StringRef menu_path)
 {
-  Main &bmain = *CTX_data_main(&C);
-  for (const bNodeTree &group : bmain.nodetrees) {
-    /* Assets are displayed in other menus, and non-local data-blocks aren't added to this menu. */
-    if (group.id.library_weak_reference || group.id.asset_data) {
-      continue;
-    }
-    const std::optional<std::string> operator_idname = operator_idname_for_group(group);
-    const wmOperatorType *ot = WM_operatortype_find(operator_idname->c_str(), false);
-    if (!ot) {
-      continue;
-    }
-    if (!ot->poll(&const_cast<bContext &>(C))) {
-      continue;
-    }
-    return true;
-  }
-  return false;
-}
-
-static bool catalog_path_contains_assets(const bContext &C,
-                                         const asset_system::AssetCatalogTreeItem &item)
-{
-  const asset::AssetItemTree &tree = get_registration_data().asset_tree;
-
-  bool found_asset = false;
-  item.foreach_item([&](const asset_system::AssetCatalogTreeItem &item) {
-    const Span<asset_system::AssetRepresentation *> assets = tree.assets_per_path.lookup(
-        item.catalog_path().c_str());
-    for (const asset_system::AssetRepresentation *asset : assets) {
-      const std::optional<std::string> operator_idname = operator_idname_for_asset(*asset);
-      if (!operator_idname) {
-        found_asset = true;
-        return;
-      }
-      const wmOperatorType *ot = WM_operatortype_find(operator_idname->c_str(), false);
-      if (!ot) {
-        continue;
-      }
-      if (!ot->poll(&const_cast<bContext &>(C))) {
-        continue;
-      }
-      found_asset = true;
-      return;
-    }
+  const RegistrationData::Types &tree = get_registration_data().types_by_menu_path;
+  return std::ranges::any_of(tree.lookup(menu_path), [&](wmOperatorType *ot) {
+    return WM_operator_poll(&const_cast<bContext &>(C), ot);
   });
-  return found_asset;
 }
 
 static void catalog_assets_draw_unassigned(const bContext *C, Menu *menu)
 {
-  const asset::AssetItemTree &tree = get_registration_data().asset_tree;
+  const RegistrationData::Types &tree = get_registration_data().types_by_menu_path;
   ui::Layout &layout = *menu->layout;
-  for (const asset_system::AssetRepresentation *asset : tree.unassigned_assets) {
-    const std::optional<std::string> operator_idname = operator_idname_for_asset(*asset);
-    if (!operator_idname) {
-      missing_tool_idname_error(layout, asset->get_name());
+  bool add_separator = false;
+  for (wmOperatorType *ot : tree.lookup("")) {
+    const auto &type_data = static_cast<const OperatorTypeData &>(*ot->custom_data);
+    if (!std::holds_alternative<AssetWeakReference>(type_data.group_ref)) {
       continue;
     }
-    const wmOperatorType *ot = WM_operatortype_find(operator_idname->c_str(), false);
-    if (!ot) {
+    if (!WM_operator_poll(const_cast<bContext *>(C), ot)) {
       continue;
     }
-    if (!ot->poll(const_cast<bContext *>(C))) {
-      continue;
-    }
-    layout.op(*operator_idname,
-              IFACE_(asset->get_name()),
-              ICON_NONE,
-              wm::OpCallContext::InvokeRegionWin,
-              UI_ITEM_NONE);
+    layout.op(ot, std::nullopt, ICON_NONE, wm::OpCallContext::InvokeRegionWin, UI_ITEM_NONE);
+    add_separator = true;
   }
 
   bool first = true;
-  bool add_separator = !tree.unassigned_assets.is_empty();
-  Main &bmain = *CTX_data_main(C);
-  for (const bNodeTree &group : bmain.nodetrees) {
-    /* Assets are displayed in other menus, and non-local data-blocks aren't added to this menu. */
-    if (group.id.library_weak_reference || group.id.asset_data) {
-      continue;
-    }
-    const std::optional<std::string> operator_idname = operator_idname_for_group(group);
-    if (!operator_idname) {
-      missing_tool_idname_error(layout, BKE_id_name(group.id));
-      continue;
-    }
-    const wmOperatorType *ot = WM_operatortype_find(operator_idname->c_str(), false);
-    if (!ot) {
-      continue;
-    }
-    if (!ot->poll(const_cast<bContext *>(C))) {
+  for (wmOperatorType *ot : tree.lookup("")) {
+    const auto &type_data = static_cast<const OperatorTypeData &>(*ot->custom_data);
+    if (!std::holds_alternative<OperatorTypeData::LocalRef>(type_data.group_ref)) {
       continue;
     }
     if (add_separator) {
@@ -2106,11 +2010,7 @@ static void catalog_assets_draw_unassigned(const bContext *C, Menu *menu)
       layout.label(IFACE_("Non-Assets"), ICON_NONE);
       first = false;
     }
-    layout.op(*operator_idname,
-              BKE_id_name(group.id),
-              ICON_NONE,
-              wm::OpCallContext::InvokeRegionWin,
-              UI_ITEM_NONE);
+    layout.op(ot, std::nullopt, ICON_NONE, wm::OpCallContext::InvokeRegionWin, UI_ITEM_NONE);
   }
 }
 
@@ -2131,18 +2031,13 @@ MenuType node_group_operator_assets_menu_unassigned()
 
 void ui_template_node_operator_asset_menu_items(ui::Layout &layout,
                                                 const bContext &C,
-                                                const StringRef catalog_path)
+                                                const StringRef path)
 {
-  const asset::AssetItemTree &tree = get_registration_data().asset_tree;
-  const asset_system::AssetCatalogTreeItem *item = tree.catalogs.find_item(catalog_path);
-  if (!item) {
-    return;
-  }
-  if (!catalog_path_contains_assets(C, *item)) {
+  if (!catalog_path_contains_assets(C, path)) {
     return;
   }
   ui::Layout &col = layout.column(false);
-  col.context_string_set("asset_catalog_path", item->catalog_path().str());
+  col.context_string_set("asset_catalog_path", path);
   col.menu_contents("GEO_MT_node_operator_catalog_assets");
 }
 
@@ -2152,21 +2047,25 @@ void ui_template_node_operator_asset_root_items(ui::Layout &layout, const bConte
   if (!active_object) {
     return;
   }
-  const asset::AssetItemTree &tree = get_registration_data().asset_tree;
+  const RegistrationData::Types &tree = get_registration_data().types_by_menu_path;
   const Set<StringRef> builtin_menus = get_builtin_menus(ObjectType(active_object->type),
                                                          eObjectMode(active_object->mode));
-
-  tree.catalogs.foreach_root_item([&](const asset_system::AssetCatalogTreeItem &item) {
-    if (builtin_menus.contains_as(item.catalog_path().str())) {
-      return;
+  for (const StringRef path : tree.keys()) {
+    if (path.is_empty()) {
+      continue;
     }
-    if (!catalog_path_contains_assets(C, item)) {
-      return;
+    if (builtin_menus.contains(path)) {
+      continue;
     }
-    asset::draw_menu_for_catalog(item, "GEO_MT_node_operator_catalog_assets", layout);
-  });
+    if (!catalog_path_contains_assets(C, path)) {
+      continue;
+    }
+    const StringRef name = path.substr(0, path.find_first_of(SEP_STR));
+    layout.context_string_set("asset_catalog_path", path);
+    layout.menu("GEO_MT_node_operator_catalog_assets", IFACE_(name), ICON_NONE);
+  }
 
-  if (!tree.unassigned_assets.is_empty() || unassigned_local_poll(C)) {
+  if (!tree.lookup("").is_empty()) {
     layout.menu("GEO_MT_node_operator_unassigned", "", ICON_FILE_HIDDEN);
   }
 }
