@@ -176,6 +176,7 @@ class VKRenderGraph : public NonCopyable {
   }
   ADD_NODE(VKBeginQueryNode)
   ADD_NODE(VKBeginRenderingNode)
+  ADD_NODE(VKBuildAccelerationStructureNode)
   ADD_NODE(VKEndQueryNode)
   ADD_NODE(VKEndRenderingNode)
   ADD_NODE(VKClearAttachmentsNode)

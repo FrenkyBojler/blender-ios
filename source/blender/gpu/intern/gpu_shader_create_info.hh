@@ -172,6 +172,10 @@ namespace blender {
 #  define STORAGE_BUF_FREQ(slot, qualifiers, type_name, name, freq) \
     .storage_buf(slot, Qualifier::qualifiers, STRINGIFY(type_name), #name, Frequency::freq)
 
+#  define ACCELERATION_STRUCTURE(slot, name) .acceleration_structure(slot, #name)
+#  define ACCELERATION_STRUCTURE_FREQ(slot, name, freq) \
+    .acceleration_structure(slot, #name, Frequency::freq)
+
 #  define SAMPLER(slot, type, name) .sampler(slot, ImageType::type, #name)
 #  define SAMPLER_FREQ(slot, type, name, freq) \
     .sampler(slot, ImageType::type, #name, Frequency::freq)
@@ -278,6 +282,9 @@ namespace blender {
 #  define STORAGE_BUF(slot, qualifiers, type_name, name) extern _##qualifiers type_name name;
 #  define STORAGE_BUF_FREQ(slot, qualifiers, type_name, name, freq) \
     extern _##qualifiers type_name name;
+
+#  define ACCELERATION_STRUCTURE(slot, name) extern const void *name;
+#  define ACCELERATION_STRUCTURE_FREQ(slot, name, freq) extern const void *name;
 
 #  define SAMPLER(slot, type, name) type name;
 #  define SAMPLER_FREQ(slot, type, name, freq) type name;
@@ -489,6 +496,9 @@ enum class BuiltinBits {
   /* On metal, tag the shader to use argument buffer to overcome the 16 sampler limit. */
   USE_SAMPLER_ARG_BUFFER = (1 << 20),
 
+  /* Selective enablement of ray queries. Ray queries are not supported on RenderDoc. */
+  RAY_QUERY = (1 << 21),
+
   /* WORKAROUND: Used to disable viewport index programatically. */
   NO_VIEWPORT_INDEX = (1 << 16),
   /* Disable our own GPU shader preprocessor optimizer in case we can't ensure the
@@ -498,6 +508,7 @@ enum class BuiltinBits {
    * (e.g. using [[host_shared]]). This is needed for struct that are not parsed or are
    * not yet supported by the host_shared check (false negative). */
   NO_BUFFER_TYPE_LINTING = (1 << 27),
+
   /* Not a builtin but a flag we use to tag shaders that use the debug features. */
   USE_PRINTF = (1 << 28),
   USE_DEBUG_DRAW = (1 << 29),
@@ -961,12 +972,17 @@ struct ShaderCreateInfo {
     ResourceString name;
   };
 
+  struct AccelerationStructure {
+    StringRefNull name;
+  };
+
   struct Resource {
     enum BindType {
       UNIFORM_BUFFER = 0,
       STORAGE_BUFFER,
       SAMPLER,
       IMAGE,
+      ACCELERATION_STRUCTURE,
     };
 
     /* Name of the create info that declared this resource. */
@@ -979,6 +995,7 @@ struct ShaderCreateInfo {
       Image image;
       UniformBuf uniformbuf;
       StorageBuf storagebuf;
+      AccelerationStructure acceleration_structure;
     };
 
     Resource(const ShaderCreateInfo &info, BindType type, int _slot, ConditionFn cond)
@@ -1011,6 +1028,9 @@ struct ShaderCreateInfo {
           TEST_EQUAL(*this, b, image.type);
           TEST_EQUAL(*this, b, image.qualifiers);
           TEST_EQUAL(*this, b, image.name);
+          break;
+        case ACCELERATION_STRUCTURE:
+          TEST_EQUAL(*this, b, storagebuf.name);
           break;
       }
       return true;
@@ -1350,6 +1370,18 @@ struct ShaderCreateInfo {
     return *static_cast<Self *>(this);
   }
 
+  Self &acceleration_structure(int slot,
+                               StringRefNull name,
+                               Frequency freq = Frequency::PASS,
+                               ConditionFn cond = nullptr)
+  {
+    Resource res(*this, Resource::BindType::ACCELERATION_STRUCTURE, slot, cond);
+    res.acceleration_structure.name = name;
+    resources_get_(freq).append(res);
+    interface_names_size_ += name.size() + 1;
+    return *(Self *)this;
+  }
+
   Self &image(int slot,
               TextureFormat format,
               Qualifier qualifiers,
@@ -1646,6 +1678,10 @@ struct ShaderCreateInfo {
           break;
         case Resource::BindType::IMAGE:
           stream << "IMAGE(" << res.slot << ", " << res.image.name << ")" << std::endl;
+          break;
+        case Resource::BindType::ACCELERATION_STRUCTURE:
+          stream << "ACCELERATION_STRUCTURE(" << res.slot << ", "
+                 << res.acceleration_structure.name << ")" << std::endl;
           break;
       }
     };

@@ -37,7 +37,12 @@ class VKVertexBuffer : public VertBuf {
     return buffer_.vk_handle();
   }
 
-  VkDeviceAddress device_address_get() const
+  inline bool has_device_address() const
+  {
+    return buffer_.has_device_address();
+  }
+
+  inline VkDeviceAddress device_address_get() const
   {
     return buffer_.device_address_get();
   }
@@ -75,6 +80,10 @@ class VKVertexBuffer : public VertBuf {
 BLI_INLINE VKVertexBuffer *unwrap(VertBuf *vertex_buffer)
 {
   return static_cast<VKVertexBuffer *>(vertex_buffer);
+}
+BLI_INLINE VKVertexBuffer &unwrap(VertBuf &vertex_buffer)
+{
+  return static_cast<VKVertexBuffer &>(vertex_buffer);
 }
 
 }  // namespace blender::gpu

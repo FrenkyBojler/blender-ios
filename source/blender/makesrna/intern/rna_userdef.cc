@@ -7708,6 +7708,10 @@ static void rna_def_userdef_experimental(BlenderRNA *brna)
   RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
   RNA_def_property_update(prop, 0, "rna_userdef_use_geometry_nodes_hair_dynamics_update");
 
+  prop = RNA_def_property(srna, "use_workbench_raytraced_shadows", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_ui_text(
+      prop, "Workbench Shadows", "Enable raytraced workbench shadows on supported platforms");
+
   prop = RNA_def_property(srna, "use_extensions_debug", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_ui_text(
       prop,

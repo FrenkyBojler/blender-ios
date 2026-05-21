@@ -11,6 +11,7 @@
 #include "nodes/vk_begin_query_node.hh"
 #include "nodes/vk_begin_rendering_node.hh"
 #include "nodes/vk_blit_image_node.hh"
+#include "nodes/vk_build_acceleration_structure_node.hh"
 #include "nodes/vk_clear_attachments_node.hh"
 #include "nodes/vk_clear_color_image_node.hh"
 #include "nodes/vk_clear_depth_stencil_image_node.hh"
@@ -59,6 +60,7 @@ struct VKRenderGraphStorage {
   Vector<VKDrawIndexedIndirectNode::Data, 1024> draw_indexed_indirect;
   Vector<VKDrawIndirectNode::Data, 1024> draw_indirect;
   Vector<uint8_t> push_constants;
+  Vector<VKBuildAccelerationStructureNode::Data, 1024> build_acceleration_structure;
 
   void reset()
   {
@@ -73,6 +75,7 @@ struct VKRenderGraphStorage {
     draw_indexed_indirect.clear_and_shrink();
     draw_indirect.clear_and_shrink();
     push_constants.clear();
+    build_acceleration_structure.clear_and_shrink();
   }
 };
 
@@ -163,6 +166,8 @@ struct VKRenderGraphNode {
         return VKBeginQueryNode::pipeline_stage;
       case VKNodeType::BEGIN_RENDERING:
         return VKBeginRenderingNode::pipeline_stage;
+      case VKNodeType::BUILD_ACCELERATION_STRUCTURE:
+        return VKBuildAccelerationStructureNode::pipeline_stage;
       case VKNodeType::CLEAR_ATTACHMENTS:
         return VKClearAttachmentsNode::pipeline_stage;
       case VKNodeType::CLEAR_COLOR_IMAGE:
@@ -244,6 +249,9 @@ struct VKRenderGraphNode {
 
         BUILD_COMMANDS(VKNodeType::BEGIN_QUERY, VKBeginQueryNode, begin_query)
         BUILD_COMMANDS_STORAGE(VKNodeType::BEGIN_RENDERING, VKBeginRenderingNode, begin_rendering)
+        BUILD_COMMANDS_STORAGE(VKNodeType::BUILD_ACCELERATION_STRUCTURE,
+                               VKBuildAccelerationStructureNode,
+                               build_acceleration_structure)
         BUILD_COMMANDS_STORAGE(
             VKNodeType::CLEAR_ATTACHMENTS, VKClearAttachmentsNode, clear_attachments)
         BUILD_COMMANDS(VKNodeType::CLEAR_COLOR_IMAGE, VKClearColorImageNode, clear_color_image)
@@ -291,11 +299,13 @@ struct VKRenderGraphNode {
   }
 
       FREE_DATA(VKNodeType::UPDATE_BUFFER, VKUpdateBufferNode, update_buffer)
+
 #undef FREE_DATA
 
       case VKNodeType::UNUSED:
       case VKNodeType::BEGIN_QUERY:
       case VKNodeType::BEGIN_RENDERING:
+      case VKNodeType::BUILD_ACCELERATION_STRUCTURE:
       case VKNodeType::CLEAR_ATTACHMENTS:
       case VKNodeType::CLEAR_COLOR_IMAGE:
       case VKNodeType::CLEAR_DEPTH_STENCIL_IMAGE:

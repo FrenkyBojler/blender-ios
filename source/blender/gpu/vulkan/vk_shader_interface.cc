@@ -24,6 +24,8 @@ static VKBindType to_bind_type(shader::ShaderCreateInfo::Resource::BindType bind
       return VKBindType::SAMPLER;
     case shader::ShaderCreateInfo::Resource::BindType::IMAGE:
       return VKBindType::IMAGE;
+    case shader::ShaderCreateInfo::Resource::BindType::ACCELERATION_STRUCTURE:
+      return VKBindType::ACCELERATION_STRUCTURE;
   }
   BLI_assert_unreachable();
   return VKBindType::UNIFORM_BUFFER;
@@ -39,6 +41,7 @@ void VKShaderInterface::compute_resource_counts(InitContext &ctx)
   constant_len_ = info.specialization_constants_.size();
   ssbo_len_ = 0;
   ubo_len_ = 0;
+  tlas_len_ = 0;
 
   Vector<ShaderCreateInfo::Resource> all_resources;
   all_resources.extend(info.pass_resources_);
@@ -56,6 +59,9 @@ void VKShaderInterface::compute_resource_counts(InitContext &ctx)
         break;
       case ShaderCreateInfo::Resource::BindType::STORAGE_BUFFER:
         ssbo_len_++;
+        break;
+      case ShaderCreateInfo::Resource::BindType::ACCELERATION_STRUCTURE:
+        tlas_len_++;
         break;
     }
   }
@@ -79,7 +85,8 @@ void VKShaderInterface::compute_resource_counts(InitContext &ctx)
   }
   names_size += info.subpass_inputs_.size() * SUBPASS_FALLBACK_NAME_LEN;
 
-  int32_t input_tot_len = attr_len_ + ubo_len_ + uniform_len_ + ssbo_len_ + constant_len_;
+  int32_t input_tot_len = attr_len_ + ubo_len_ + uniform_len_ + ssbo_len_ + constant_len_ +
+                          tlas_len_;
   inputs_ = MEM_new_array_zeroed<ShaderInput>(input_tot_len, __func__);
   ctx.input_ptr = inputs_;
 
@@ -173,6 +180,15 @@ void VKShaderInterface::populate_shader_inputs(InitContext &ctx)
     }
     else {
       BLI_assert_msg(0, "Resource type is not supported for Geometry frequency");
+    }
+  }
+
+  /* Acceleration structures */
+  for (const ShaderCreateInfo::Resource &res : all_resources) {
+    if (res.bind_type == ShaderCreateInfo::Resource::BindType::ACCELERATION_STRUCTURE) {
+      copy_input_name(input, res.acceleration_structure.name, name_buffer_, name_buffer_offset);
+      input->location = input->binding = res.slot;
+      input++;
     }
   }
 
@@ -362,6 +378,10 @@ void VKShaderInterface::descriptor_set_location_update(
       case shader::ShaderCreateInfo::Resource::BindType::SAMPLER:
         vk_access_flags |= VK_ACCESS_SHADER_READ_BIT;
         break;
+
+      case shader::ShaderCreateInfo::Resource::BindType::ACCELERATION_STRUCTURE:
+        vk_access_flags |= VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR;
+        break;
     };
   }
   else if (bind_type == VKBindType::UNIFORM_BUFFER) {
@@ -430,6 +450,8 @@ const ShaderInput *VKShaderInterface::shader_input_get(
       return texture_get(binding);
     case shader::ShaderCreateInfo::Resource::BindType::STORAGE_BUFFER:
       return ssbo_get(binding);
+    case shader::ShaderCreateInfo::Resource::BindType::ACCELERATION_STRUCTURE:
+      return tlas_get(binding);
     case shader::ShaderCreateInfo::Resource::BindType::UNIFORM_BUFFER:
       return ubo_get(binding);
   }
