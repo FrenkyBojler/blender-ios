@@ -11,51 +11,51 @@
 #include "DNA_grease_pencil_types.h"
 
 #include "NOD_geometry_nodes_bundle.hh"
+#include "NOD_geometry_nodes_closure.hh"
 #include "NOD_geometry_nodes_list.hh"
 
 namespace blender::bke::socket_value_visitor {
 
-class RecursiveEditVisitor {
-  const EditVisitors &visitors_;
+class RecursiveVisitor {
+  const VisitParams &params_;
 
  public:
-  RecursiveEditVisitor(const EditVisitors &visitors) : visitors_(visitors) {}
+  RecursiveVisitor(const VisitParams &visitors) : params_(visitors) {}
 
-  bool needs_edit_SocketValueVariant(const SocketValueVariant &value)
+  bool check_SocketValueVariant(const SocketValueVariant &value)
   {
-    if (visitors_.needs_edit_SocketValueVariant) {
-      if (visitors_.needs_edit_SocketValueVariant(value)) {
+    if (params_.check_SocketValueVariant) {
+      if (params_.check_SocketValueVariant(value)) {
         return true;
       }
     }
     if (value.is_single()) {
       const GPointer value_ptr = value.get_single_ptr();
-      if (this->needs_edit_GPointer(value_ptr)) {
+      if (this->check_GPointer(value_ptr)) {
         return true;
       }
     }
     else if (value.is_field()) {
       const fn::GField field = value.get<fn::GField>();
-      if (this->needs_edit_GField(field)) {
+      if (this->check_GField(field)) {
         return true;
       }
     }
     else if (value.is_list()) {
       const nodes::GListPtr list = value.get<nodes::GListPtr>();
       if (list) {
-        if (this->needs_edit_GList(*list)) {
+        if (this->check_GList(*list)) {
           return true;
         }
       }
     }
-    // TODO
     return false;
   }
 
   void edit_SocketValueVariant(SocketValueVariant &value)
   {
-    if (visitors_.edit_SocketValueVariant) {
-      visitors_.edit_SocketValueVariant(value);
+    if (params_.edit_SocketValueVariant) {
+      params_.edit_SocketValueVariant(value);
     }
     if (value.is_single()) {
       GMutablePointer value_ptr = value.get_single_ptr();
@@ -76,19 +76,27 @@ class RecursiveEditVisitor {
       value.set(std::move(list));
       return;
     }
-    // TODO
   }
 
-  bool needs_edit_GPointer(const GPointer value_ptr)
+  bool check_GPointer(const GPointer value_ptr)
   {
     const CPPType &type = *value_ptr.type();
     if (type.is<GeometrySet>()) {
-      return this->needs_edit_GeometrySet(*value_ptr.get<GeometrySet>());
+      return this->check_GeometrySet(*value_ptr.get<GeometrySet>());
     }
     if (type.is<nodes::BundlePtr>()) {
       const nodes::BundlePtr &bundle_ptr = *value_ptr.get<nodes::BundlePtr>();
       if (bundle_ptr) {
-        return this->needs_edit_Bundle(*bundle_ptr);
+        return this->check_Bundle(*bundle_ptr);
+      }
+      return false;
+    }
+    if (type.is<nodes::ClosurePtr>()) {
+      if (params_.check_non_editable) {
+        const nodes::ClosurePtr &closure_ptr = *value_ptr.get<nodes::ClosurePtr>();
+        if (closure_ptr) {
+          return this->check_Closure(*closure_ptr);
+        }
       }
       return false;
     }
@@ -110,14 +118,16 @@ class RecursiveEditVisitor {
       }
       return;
     }
-
-    // TODO
+    if (type.is<nodes::ClosurePtr>()) {
+      /* Can't edit closures. */
+      return;
+    }
   }
 
-  bool needs_edit_GeometrySet(const GeometrySet &geometry_set)
+  bool check_GeometrySet(const GeometrySet &geometry_set)
   {
-    if (visitors_.needs_edit_GeometrySet) {
-      if (visitors_.needs_edit_GeometrySet(geometry_set)) {
+    if (params_.check_GeometrySet) {
+      if (params_.check_GeometrySet(geometry_set)) {
         return true;
       }
     }
@@ -133,12 +143,12 @@ class RecursiveEditVisitor {
         continue;
       }
       const GeometryComponent &component = *geometry_set.get_component(type);
-      if (this->needs_edit_GeometryComponent(component)) {
+      if (this->check_GeometryComponent(component)) {
         return true;
       }
     }
     if (geometry_set.has_bundle()) {
-      if (this->needs_edit_Bundle(*geometry_set.bundle())) {
+      if (this->check_Bundle(*geometry_set.bundle())) {
         return true;
       }
     }
@@ -147,11 +157,11 @@ class RecursiveEditVisitor {
 
   void edit_GeometrySet(GeometrySet &geometry_set)
   {
-    if (visitors_.edit_GeometrySet) {
-      visitors_.edit_GeometrySet(geometry_set);
+    if (params_.edit_GeometrySet) {
+      params_.edit_GeometrySet(geometry_set);
     }
     if (geometry_set.has_bundle()) {
-      if (this->needs_edit_Bundle(*geometry_set.bundle())) {
+      if (this->check_Bundle(*geometry_set.bundle())) {
         this->edit_Bundle(geometry_set.bundle_for_write());
       }
     }
@@ -168,7 +178,7 @@ class RecursiveEditVisitor {
       }
       {
         const GeometryComponent &component = *geometry_set.get_component(type);
-        if (!this->needs_edit_GeometryComponent(component)) {
+        if (!this->check_GeometryComponent(component)) {
           continue;
         }
       }
@@ -177,10 +187,10 @@ class RecursiveEditVisitor {
     }
   }
 
-  bool needs_edit_GeometryComponent(const GeometryComponent &component)
+  bool check_GeometryComponent(const GeometryComponent &component)
   {
     if (const std::optional<bke::AttributeAccessor> attributes = component.attributes()) {
-      if (this->needs_edit_AttributeAccessor(*attributes)) {
+      if (this->check_AttributeAccessor(*attributes)) {
         return true;
       }
     }
@@ -189,7 +199,7 @@ class RecursiveEditVisitor {
           component);
       if (const Instances *instances = instance_component.get()) {
         for (const InstanceReference &reference : instances->references()) {
-          if (this->needs_edit_InstanceReference(reference)) {
+          if (this->check_InstanceReference(reference)) {
             return true;
           }
         }
@@ -200,7 +210,7 @@ class RecursiveEditVisitor {
           static_cast<const GreasePencilComponent &>(component);
       if (const GreasePencil *grease_pencil = grease_pencil_component.get()) {
         for (const greasepencil::Layer *layer : grease_pencil->layers()) {
-          if (this->needs_edit_Layer(*grease_pencil, *layer)) {
+          if (this->check_Layer(*grease_pencil, *layer)) {
             return true;
           }
         }
@@ -234,10 +244,10 @@ class RecursiveEditVisitor {
     }
   }
 
-  bool needs_edit_AttributeAccessor(const bke::AttributeAccessor &accessor)
+  bool check_AttributeAccessor(const bke::AttributeAccessor &accessor)
   {
-    if (visitors_.needs_edit_AttributeAccessor) {
-      if (visitors_.needs_edit_AttributeAccessor(accessor)) {
+    if (params_.check_AttributeAccessor) {
+      if (params_.check_AttributeAccessor(accessor)) {
         return true;
       }
     }
@@ -246,16 +256,16 @@ class RecursiveEditVisitor {
 
   void edit_AttributeAccessor(bke::MutableAttributeAccessor &accessor)
   {
-    if (visitors_.edit_AttributeAccessor) {
-      visitors_.edit_AttributeAccessor(accessor);
+    if (params_.edit_AttributeAccessor) {
+      params_.edit_AttributeAccessor(accessor);
     }
   }
 
-  bool needs_edit_Layer(const GreasePencil &grease_pencil, const greasepencil::Layer &layer)
+  bool check_Layer(const GreasePencil &grease_pencil, const greasepencil::Layer &layer)
   {
     if (const greasepencil::Drawing *drawing = grease_pencil.get_eval_drawing(layer)) {
       const CurvesGeometry &curves = drawing->strokes();
-      if (this->needs_edit_AttributeAccessor(curves.attributes())) {
+      if (this->check_AttributeAccessor(curves.attributes())) {
         return true;
       }
     }
@@ -271,10 +281,18 @@ class RecursiveEditVisitor {
     }
   }
 
-  bool needs_edit_InstanceReference(const bke::InstanceReference &reference)
+  bool check_InstanceReference(const bke::InstanceReference &reference)
   {
     if (reference.type() == bke::InstanceReference::Type::GeometrySet) {
-      if (this->needs_edit_GeometrySet(reference.geometry_set())) {
+      if (this->check_GeometrySet(reference.geometry_set())) {
+        return true;
+      }
+      return false;
+    }
+    if (params_.check_non_geometry_instance_references) {
+      GeometrySet geometry_set;
+      reference.to_geometry_set(geometry_set);
+      if (this->check_GeometrySet(geometry_set)) {
         return true;
       }
     }
@@ -288,12 +306,12 @@ class RecursiveEditVisitor {
     }
   }
 
-  bool needs_edit_Bundle(const nodes::Bundle &bundle)
+  bool check_Bundle(const nodes::Bundle &bundle)
   {
     for (const auto &item : bundle.items()) {
       if (const auto *socket_value = std::get_if<nodes::BundleItemSocketValue>(&item.value.value))
       {
-        if (this->needs_edit_SocketValueVariant(socket_value->value)) {
+        if (this->check_SocketValueVariant(socket_value->value)) {
           return true;
         }
       }
@@ -310,10 +328,25 @@ class RecursiveEditVisitor {
     }
   }
 
-  bool needs_edit_GField(const fn::GField &field)
+  bool check_Closure(const nodes::Closure &closure)
   {
-    if (visitors_.needs_edit_GField) {
-      if (visitors_.needs_edit_GField(field)) {
+    for (const SocketValueVariant *value : closure.captured_values()) {
+      if (this->check_SocketValueVariant(*value)) {
+        return true;
+      }
+    }
+    for (const SocketValueVariant &default_value : closure.default_input_values()) {
+      if (this->check_SocketValueVariant(default_value)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  bool check_GField(const fn::GField &field)
+  {
+    if (params_.check_GField) {
+      if (params_.check_GField(field)) {
         return true;
       }
     }
@@ -322,19 +355,19 @@ class RecursiveEditVisitor {
 
   void edit_GField(fn::GField &field)
   {
-    if (visitors_.edit_GField) {
-      visitors_.edit_GField(field);
+    if (params_.edit_GField) {
+      params_.edit_GField(field);
     }
   }
 
-  bool needs_edit_GList(const nodes::GList &list)
+  bool check_GList(const nodes::GList &list)
   {
     const CPPType &type = list.cpp_type();
     if (type.is<SocketValueVariant>()) {
       bool need_edit = false;
       list.typed<SocketValueVariant>().foreach([&](const SocketValueVariant &value_variant) {
         if (!need_edit) {
-          need_edit = this->needs_edit_SocketValueVariant(value_variant);
+          need_edit = this->check_SocketValueVariant(value_variant);
         }
       });
       return need_edit;
@@ -353,16 +386,22 @@ class RecursiveEditVisitor {
   }
 };
 
-void edit_recursive(SocketValueVariant &value, const EditVisitors &visitors)
+void edit_recursive(SocketValueVariant &value, const VisitParams &params)
 {
-  RecursiveEditVisitor edit_visitor{visitors};
-  edit_visitor.edit_SocketValueVariant(value);
+  RecursiveVisitor visitor{params};
+  visitor.edit_SocketValueVariant(value);
 }
 
-void edit_recursive(GeometrySet &value, const EditVisitors &visitors)
+void edit_recursive(GeometrySet &value, const VisitParams &params)
 {
-  RecursiveEditVisitor edit_visitor{visitors};
-  edit_visitor.edit_GeometrySet(value);
+  RecursiveVisitor visitor{params};
+  visitor.edit_GeometrySet(value);
+}
+
+void check_recursive(const SocketValueVariant &value, const VisitParams &params)
+{
+  RecursiveVisitor visitor{params};
+  visitor.check_SocketValueVariant(value);
 }
 
 }  // namespace blender::bke::socket_value_visitor

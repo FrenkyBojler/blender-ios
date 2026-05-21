@@ -499,16 +499,17 @@ static void store_output_attributes(bke::GeometrySet &geometry,
 
 static void remove_anonymous_attributes(bke::GeometrySet &geometry)
 {
-  bke::socket_value_visitor::EditVisitors edit_visitors;
-  auto needs_edit_AttributeAccessor = [](const bke::AttributeAccessor &attributes) {
-    return attributes.has_anonymous();
+  using namespace bke::socket_value_visitor;
+  VisitParams params;
+  auto check_AttributeAccessor = [](const bke::AttributeAccessor &attributes) {
+    return VisitParams::needs_edit(attributes.has_anonymous());
   };
   auto edit_AttributeAccessor = [](bke::MutableAttributeAccessor &attributes) {
     attributes.remove_anonymous();
   };
-  edit_visitors.needs_edit_AttributeAccessor = needs_edit_AttributeAccessor;
-  edit_visitors.edit_AttributeAccessor = edit_AttributeAccessor;
-  bke::socket_value_visitor::edit_recursive(geometry, edit_visitors);
+  params.check_AttributeAccessor = check_AttributeAccessor;
+  params.edit_AttributeAccessor = edit_AttributeAccessor;
+  edit_recursive(geometry, params);
 }
 
 bke::GeometrySet execute_geometry_nodes_on_geometry(const bNodeTree &btree,
