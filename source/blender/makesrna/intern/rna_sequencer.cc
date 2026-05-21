@@ -3844,14 +3844,14 @@ static void rna_def_solid_color(StructRNA *srna)
 
   prop = RNA_def_property(srna, "width", PROP_FLOAT, PROP_PERCENTAGE);
   RNA_def_property_float_sdna(prop, nullptr, "width");
-  RNA_def_property_range(prop, 0.0f, 100.0f);
+  RNA_def_property_range(prop, 0.0f, 200.0f);
   RNA_def_property_ui_range(prop, 0.0f, 100.0f, 1.0f, 1);
   RNA_def_property_ui_text(prop, "Width", "Width of the color strip as percentage of screen width");
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
 
   prop = RNA_def_property(srna, "height", PROP_FLOAT, PROP_PERCENTAGE);
   RNA_def_property_float_sdna(prop, nullptr, "height");
-  RNA_def_property_range(prop, 0.0f, 100.0f);
+  RNA_def_property_range(prop, 0.0f, 200.0f);
   RNA_def_property_ui_range(prop, 0.0f, 100.0f, 1.0f, 1);
   RNA_def_property_ui_text(
       prop, "Height", "Height of the color strip as percentage of screen height");

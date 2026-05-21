@@ -52,11 +52,11 @@ static ImBuf *do_solid_color(const RenderData *context,
 {
   const SolidColorVars *cv = static_cast<const SolidColorVars *>(strip->effectdata);
 
-  const int width = std::max(1,
+  const int width = std::max(0,
                              (cv->flag & SEQ_COLOR_USE_ABSOLUTE_WIDTH) ?
                                  cv->width_abs :
                                  int(cv->width / 100.0f * context->rectx));
-  const int height = std::max(1,
+  const int height = std::max(0,
                               (cv->flag & SEQ_COLOR_USE_ABSOLUTE_HEIGHT) ?
                                   cv->height_abs :
                                   int(cv->height / 100.0f * context->recty));
