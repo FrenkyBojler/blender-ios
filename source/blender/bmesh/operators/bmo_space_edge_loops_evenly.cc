@@ -31,7 +31,7 @@
 namespace blender {
 
 /** Used as a threshold to decide if all vertices are at the same position. */
-constexpr float STACKED_THRESHOLD = 1e-6f;
+constexpr float DUPLICATE_POSITION_THRESHOLD = 1e-6f;
 /** Epsilon to prevent zero division. */
 constexpr float SPACE_EPSILON = 1e-8f;
 
@@ -148,17 +148,17 @@ static std::optional<SpaceChainData> walk_edges(BMEdge *start_edge, Set<BMEdge *
   }
 
   /* Skip chains where all vertices are at the same location. */
-  bool all_stacked = true;
+  bool all_duplicate = true;
   for (const int i : chain_data.verts.index_range().drop_back(1)) {
     if (math::distance_squared(float3(chain_data.verts[i]->co),
                                float3(chain_data.verts[i + 1]->co)) >
-        math::square(STACKED_THRESHOLD))
+        math::square(DUPLICATE_POSITION_THRESHOLD))
     {
-      all_stacked = false;
+      all_duplicate = false;
       break;
     }
   }
-  if (all_stacked) {
+  if (all_duplicate) {
     return std::nullopt;
   }
   /* Close the ring, ensuring the closing vertex is *not* a junction. */
