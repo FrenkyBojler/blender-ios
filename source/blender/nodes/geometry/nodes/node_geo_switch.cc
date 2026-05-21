@@ -161,12 +161,12 @@ class LazyFunctionForSwitchNode : public LazyFunction {
   {
     SocketValueVariant condition_variant = params.get_input<SocketValueVariant>(0);
     if (!condition_variant.is_context_dependent_field()) {
-      this->execute_single(*condition_variant.get().get<bool>(), params);
+      this->execute_single(condition_variant.ensure_type<bool>(), params);
       return;
     }
 
     if (can_be_field_) {
-      this->execute_field(*condition_variant.get().get<Field<bool>>(), params);
+      this->execute_field(condition_variant.ensure_type<Field<bool>>(), params);
       return;
     }
 
@@ -178,7 +178,7 @@ class LazyFunctionForSwitchNode : public LazyFunction {
           {node_id_, {NodeWarningType::Error, N_("Type cannot be switched by a field")}});
     }
 
-    this->execute_single(*condition_variant.get().get<bool>(), params);
+    this->execute_single(condition_variant.ensure_type<bool>(), params);
   }
 
   static constexpr int false_input_index = 1;
@@ -216,15 +216,15 @@ class LazyFunctionForSwitchNode : public LazyFunction {
 
     const MultiFunction &switch_multi_function = this->get_switch_multi_function();
 
-    GField false_field = std::move(*false_value_variant->get().get<GField>());
-    GField true_field = std::move(*true_value_variant->get().get<GField>());
+    GField false_field = std::move(false_value_variant->ensure_type<GField>());
+    GField true_field = std::move(true_value_variant->ensure_type<GField>());
 
     GField output_field{FieldOperation::from(
         switch_multi_function,
         {std::move(condition), std::move(false_field), std::move(true_field)})};
 
     void *output_ptr = params.get_output_data_ptr(0);
-    new (output_ptr) SocketValueVariant(std::move(output_field));
+    new (output_ptr) SocketValueVariant(SocketValueVariant::From(std::move(output_field)));
     params.output_set(0);
   }
 

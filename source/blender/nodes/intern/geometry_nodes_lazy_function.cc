@@ -286,10 +286,11 @@ class LazyFunctionForGeometryNode : public LazyFunction {
     std::string socket_inspection_name = make_anonymous_attribute_socket_inspection_string(socket);
 
     void *r_value = params.get_output_data_ptr(lf_index);
-    new (r_value) SocketValueVariant(SocketValueVariant::from(
+    SocketValueVariant::ConstructIn(
+        r_value,
         GField::from_input<AttributeFieldInput>(std::move(attribute_name),
                                                 *socket.typeinfo->base_cpp_type,
-                                                std::move(socket_inspection_name))));
+                                                std::move(socket_inspection_name)));
     params.output_set(lf_index);
   }
 
@@ -488,7 +489,7 @@ static void execute_multi_function_on_value_variant__field(
     if (output_values[i] == nullptr) {
       continue;
     }
-    *output_values[i] = bke::SocketValueVariant::from(GField{operation, i});
+    *output_values[i] = bke::SocketValueVariant::From(GField{operation, i});
   }
 }
 
@@ -966,7 +967,7 @@ class LazyFunctionForGizmoNode : public LazyFunction {
       edit_data.gizmo_edit_hints_ = std::make_unique<bke::GizmoEditHints>();
       edit_data.gizmo_edit_hints_->gizmo_transforms.add(
           {user_data.compute_context->hash(), bnode_.identifier}, float4x4::identity());
-      params.set_output(0, SocketValueVariant::from(std::move(geometry)));
+      params.set_output(0, SocketValueVariant::From(std::move(geometry)));
     }
 
     /* Request all inputs so that their values can be logged. */
@@ -1412,7 +1413,7 @@ class LazyFunctionForExtractingReferenceSet : public lf::LazyFunction {
                             GeometryNodesReferenceSet &r_references) const
   {
     if (value_variant.is_context_dependent_field()) {
-      const GField &field = *value_variant.get().get<GField>();
+      const GField &field = *value_variant.get_if<GField>();
       this->gather__field(field, r_references);
     }
     if (value_variant.is_single()) {

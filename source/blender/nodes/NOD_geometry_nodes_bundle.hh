@@ -167,7 +167,7 @@ inline std::optional<T> BundleItemValue::as_socket_value(
 {
   if (const std::optional<bke::SocketValueVariant> value = this->as_socket_value(dst_socket_type))
   {
-    return value->get<T>();
+    return *value->get_if<T>();
   }
   return std::nullopt;
 }

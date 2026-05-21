@@ -90,7 +90,7 @@ void execute_multi_function_on_value_variant__list(const MultiFunction &fn,
   for (const int i : input_values.index_range()) {
     SocketValueVariant &input_variant = *input_values[i];
     if (input_variant.is_list()) {
-      if (GListPtr list = *input_variant.get().get<nodes::GListPtr>()) {
+      if (GListPtr list = *input_variant.get_if<nodes::GListPtr>()) {
         max_size = std::max(max_size, list->size());
       }
     }
@@ -111,7 +111,7 @@ void execute_multi_function_on_value_variant__list(const MultiFunction &fn,
       params.add_readonly_single_input(GPointer(cpp_type, value));
     }
     else if (input_variant.is_list()) {
-      GListPtr list_ptr = std::move(*input_variant.get().get<GListPtr>());
+      GListPtr list_ptr = std::move(*input_variant.get_if<GListPtr>());
       if (!list_ptr || list_ptr->size() == 0) {
         params.add_readonly_single_input(GPointer(cpp_type, cpp_type.default_value()));
         continue;
@@ -120,7 +120,7 @@ void execute_multi_function_on_value_variant__list(const MultiFunction &fn,
       add_list_to_params(params, param_type, *input_lists[i]);
     }
     else if (input_variant.is_context_dependent_field()) {
-      fn::GField field = std::move(*input_variant.get().get<fn::GField>());
+      fn::GField field = std::move(*input_variant.get_if<fn::GField>());
       input_lists[i] = evaluate_field_to_list(std::move(field), max_size);
       add_list_to_params(params, param_type, *input_lists[i]);
     }
@@ -141,7 +141,7 @@ void execute_multi_function_on_value_variant__list(const MultiFunction &fn,
     GArray array(cpp_type, max_size, NoInitialization{});
 
     params.add_uninitialized_single_output(GMutableSpan(cpp_type, array.data(), max_size));
-    output_variant.set(GList::from_garray(std::move(array)));
+    output_variant.emplace<GListPtr>(GList::from_garray(std::move(array)));
   }
   fn.call(mask, params, context);
 }
