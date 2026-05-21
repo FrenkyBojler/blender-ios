@@ -43,7 +43,6 @@ set(SRC_GLSL_FRAG
   eevee_hiz_debug_frag.glsl
   eevee_lookdev_display_frag.glsl
   eevee_occupancy_convert_frag.glsl
-  eevee_transparency_resolve_frag.glsl
 )
 
 set(SRC_GLSL_COMP
@@ -110,7 +109,6 @@ set(SRC_GLSL_LIB
   eevee_renderpass_lib.glsl
   eevee_sampling_lib.glsl
   eevee_subsurface_lib.glsl
-  # eevee_transparency_lib.glsl # Require Fragment shader include
 )
 
 set(SRC_BSL

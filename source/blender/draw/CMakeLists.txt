@@ -326,7 +326,6 @@ set(GLSL_SRC
   engines/eevee/shaders/infos/eevee_deferred_infos.hh
   engines/eevee/shaders/infos/eevee_depth_of_field_infos.hh
   engines/eevee/shaders/infos/eevee_film_infos.hh
-  engines/eevee/shaders/infos/eevee_forward_infos.hh
   engines/eevee/shaders/infos/eevee_fullscreen_infos.hh
   engines/eevee/shaders/infos/eevee_geom_infos.hh
   engines/eevee/shaders/infos/eevee_hiz_infos.hh
@@ -427,6 +426,7 @@ set(GLSL_SRC
   engines/eevee/shaders/eevee_film_pass_convert_comp.glsl
   engines/eevee/shaders/eevee_filter_lib.glsl
   engines/eevee/shaders/eevee_forward_lib.glsl
+  engines/eevee/shaders/eevee_forward_resolve.bsl.hh
   engines/eevee/shaders/eevee_fullscreen_vert.glsl
   engines/eevee/shaders/eevee_gbuffer_lib.glsl
   engines/eevee/shaders/eevee_gbuffer_read_lib.glsl
@@ -526,8 +526,7 @@ set(GLSL_SRC
   engines/eevee/shaders/eevee_surfel_list.bsl.hh
   engines/eevee/shaders/eevee_surfel_ray_comp.glsl
   engines/eevee/shaders/eevee_thickness_lib.bsl.hh
-  engines/eevee/shaders/eevee_transparency_lib.glsl
-  engines/eevee/shaders/eevee_transparency_resolve_frag.glsl
+  engines/eevee/shaders/eevee_transparency.bsl.hh
   engines/eevee/shaders/eevee_utility_tx_lib.glsl
   engines/eevee/shaders/eevee_velocity.bsl.hh
   engines/eevee/shaders/eevee_volume.bsl.hh

@@ -19,7 +19,7 @@ FRAGMENT_SHADER_CREATE_INFO(eevee_geom_iface_info)
 #include "eevee_nodetree_frag_lib.glsl"
 #include "eevee_sampling_lib.glsl"
 #include "eevee_surf_common.bsl.hh"
-#include "eevee_transparency_lib.glsl"
+#include "eevee_transparency.bsl.hh"
 #include "eevee_velocity.bsl.hh"
 
 float4 closure_to_rgba_depth(Closure /*cl*/)
@@ -73,7 +73,7 @@ void surf_depth([[resource_table]] PipelineConstants &pipe,
     nodetree_surface(0.0f);
 
     float noise_offset = sampling_rng_1D_get(SAMPLING_TRANSPARENCY);
-    float threshold = transparency_hashed_alpha_threshold(
+    float threshold = hashed_transparency::alpha_threshold(
         pipeline_buf.alpha_hash_scale, noise_offset, g_data.P);
 
     float transparency = average(g_transmittance);
