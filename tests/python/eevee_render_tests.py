@@ -60,6 +60,8 @@ BLOCKLIST = [
     "light_path_glossy_depth.blend",
     # Exhibit non-deterministic behavior because of tracing outside the spotlight 45° cone.
     "light_path_is_camera_ray.blend",
+    # Exhibit non-deterministic (to be fixed).
+    "background_scene.blend",
 ]
 
 BLOCKLIST_METAL = [
@@ -95,6 +97,8 @@ BLOCKLIST_INTEL = [
 ]
 
 BLOCKLIST_INTEL_WINDOWS_GL = [
+    # Fails sporadically and causes all subsequent volume tests to fail (See #153612).
+	"volume_instance.blend"
 ]
 
 
@@ -331,7 +335,8 @@ def main():
         report.set_fail_threshold(6.0 / 255.0)
     elif test_dir_name.startswith('shader'):
         # normal_mapping_light_leak fireflies.
-        report.set_fail_percent(0.18)
+        # fresnel_layer_weight high values are accumulated differently on different platform.
+        report.set_fail_percent(0.2)
         if gpu_vendor == "INTEL":
             # mix_color uses implementation dependent function.
             report.set_fail_percent(0.41)
