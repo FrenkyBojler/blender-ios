@@ -48,7 +48,7 @@ asset_system::AssetCatalog &library_ensure_catalogs_in_path(
     library_ensure_catalog(library, parent / component_name);
     parent = parent / component_name;
   });
-  return *library.catalog_service().find_catalog_by_path(path.cleanup());
+  return *library.catalog_service().find_catalog_by_path(path);
 }
 
 AssetLibraryReference user_library_to_library_ref(const bUserAssetLibrary &user_library)
