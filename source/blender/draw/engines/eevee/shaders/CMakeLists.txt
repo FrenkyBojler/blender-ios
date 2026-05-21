@@ -107,7 +107,6 @@ set(SRC_GLSL_LIB
   eevee_ray_generate_lib.glsl
   eevee_renderpass_lib.glsl
   eevee_sampling_lib.glsl
-  eevee_subsurface_lib.glsl
 )
 
 set(SRC_BSL

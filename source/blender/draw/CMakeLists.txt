@@ -508,7 +508,7 @@ set(GLSL_SRC
   engines/eevee/shaders/eevee_shadow_tilemap_lib.bsl.hh
   engines/eevee/shaders/eevee_shadow_visibility.bsl.hh
   engines/eevee/shaders/eevee_spherical_harmonics.bsl.hh
-  engines/eevee/shaders/eevee_subsurface_lib.glsl
+  engines/eevee/shaders/eevee_subsurface_lib.bsl.hh
   engines/eevee/shaders/eevee_subsurface.bsl.hh
   engines/eevee/shaders/eevee_surf_capture.bsl.hh
   engines/eevee/shaders/eevee_surf_deferred.bsl.hh
@@ -526,7 +526,7 @@ set(GLSL_SRC
   engines/eevee/shaders/eevee_surfel_ray_comp.glsl
   engines/eevee/shaders/eevee_thickness_lib.bsl.hh
   engines/eevee/shaders/eevee_transparency.bsl.hh
-  engines/eevee/shaders/eevee_utility_tx_lib.glsl
+  engines/eevee/shaders/eevee_utility_tx.bsl.hh
   engines/eevee/shaders/eevee_velocity.bsl.hh
   engines/eevee/shaders/eevee_volume.bsl.hh
   engines/eevee/shaders/eevee_volume_lib.bsl.hh
