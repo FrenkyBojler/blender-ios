@@ -143,7 +143,7 @@ def _toplevel_meta_read(meta_json_path: Path) -> api_models.AssetLibraryMeta:
 
 
 def _manifest_read(manifest_path: Path) -> manifest_models.BlenderManifest:
-
+    raise NotImplementedError()
 
 
 def _sort_assets(assets: list[api_models.AssetV1]) -> None:
