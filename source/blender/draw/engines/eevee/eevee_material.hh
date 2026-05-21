@@ -307,8 +307,8 @@ struct ShaderKey {
  * \{ */
 
 struct MaterialPass {
-  GPUMaterial *gpumat;
-  PassMain::Sub *sub_pass;
+  GPUMaterial *gpumat = nullptr;
+  PassMain::Sub *sub_pass = nullptr;
 };
 
 struct Material {
@@ -316,15 +316,20 @@ struct Material {
   bool has_transparent_shadows;
   bool has_surface;
   bool has_volume;
+  bool use_scene_time;
   MaterialPass shadow;
   MaterialPass shading;
   MaterialPass prepass;
-  MaterialPass overlap_masking;
   MaterialPass capture;
   MaterialPass lightprobe_sphere_prepass;
   MaterialPass lightprobe_sphere_shading;
   MaterialPass planar_probe_prepass;
   MaterialPass planar_probe_shading;
+  /* These pipelines need a sub-pass per object/instance, so the returned sub_pass for these are
+   * always null and the sub-pass creation is handled directly by the SyncModule.
+   * Note that this also applies to the shading MaterialPass in the case of alpha-blended
+   * materials. */
+  MaterialPass overlap_masking;
   MaterialPass volume_occupancy;
   MaterialPass volume_material;
 };
@@ -346,6 +351,10 @@ class MaterialModule {
   int64_t queued_shaders_count = 0;
   int64_t queued_textures_count = 0;
   int64_t queued_optimize_shaders_count = 0;
+
+  bool material_time_changed = true;
+  float material_frame = 0;
+  float material_time = 0;
 
  private:
   Instance &inst_;
@@ -372,12 +381,15 @@ class MaterialModule {
   /**
    * Returned Material references are valid until the next call to this function or material_get().
    */
-  MaterialArray &material_array_get(Object *ob, bool has_motion);
+  MaterialArray &material_array_get(const ObjectHandle &ob_handle, bool has_motion);
   /**
    * Returned Material references are valid until the next call to this function or
    * material_array_get().
    */
-  Material &material_get(Object *ob, bool has_motion, int mat_nr, eMaterialGeometry geometry_type);
+  Material material_get(const ObjectHandle &ob_handle,
+                        bool has_motion,
+                        int mat_nr,
+                        eMaterialGeometry geometry_type);
 
   /* Request default materials and return DEFAULT_MATERIALS if they are compiled. */
   ShaderGroups default_materials_load_async()
@@ -390,7 +402,7 @@ class MaterialModule {
   }
 
  private:
-  Material &material_sync(Object *ob,
+  Material &material_sync(const ObjectHandle &ob_handle,
                           blender::Material *blender_mat,
                           eMaterialGeometry geometry_type,
                           bool has_motion);

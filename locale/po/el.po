@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 Alpha (b'227100a72567')\n"
+"Project-Id-Version: Blender 5.2.0 Alpha (b'bc0a0ff2c0ce')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-03-30 09:56+0000\n"
+"POT-Creation-Date: 2026-05-18 11:20+0000\n"
 "PO-Revision-Date: 2025-07-23 15:19+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Greek <https://translate.blender.org/projects/blender-ui/ui/el/>\n"
@@ -523,16 +523,12 @@ msgid "Screen"
 msgstr "Οθόνη"
 
 
-msgid "Snap"
-msgstr "Προσκόλληση"
-
-
-msgid "Import"
-msgstr "Εισαγωγή"
-
-
 msgid "Mirror"
 msgstr "Καθρέφτισμα"
+
+
+msgid "Snap"
+msgstr "Προσκόλληση"
 
 
 msgid "Select Linked"
@@ -545,6 +541,10 @@ msgstr "Μετα-σφαίρα"
 
 msgid "Light"
 msgstr "Φως"
+
+
+msgid "Import"
+msgstr "Εισαγωγή"
 
 
 msgid "Rigid Body"

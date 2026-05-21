@@ -44,13 +44,14 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeSetGeometryBundle");
+  geo_node_type_base(&ntype, "GeometryNodeSetGeometryBundle"_ustr);
   ntype.ui_name = "Set Geometry Bundle";
   ntype.ui_description = "Set the bundle of a geometry";
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
   ntype.gather_link_search_ops = node_gather_link_searches;
+  ntype.default_width = bke::NodeWidth::_160;
   bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)

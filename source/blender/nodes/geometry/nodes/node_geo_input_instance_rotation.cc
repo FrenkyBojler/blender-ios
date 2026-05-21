@@ -31,14 +31,10 @@ class InstanceRotationFieldInput final : public bke::InstancesFieldInput {
         [transforms](const int i) { return math::to_quaternion(math::normalize(transforms[i])); });
   }
 
-  uint64_t hash() const override
+  void hash_unique(UniqueHashBytes &hash, fn::FieldHashDeep & /*deep_hash_cache*/) const override
   {
-    return 22374372;
-  }
-
-  bool is_equal_to(const fn::FieldInput &other) const override
-  {
-    return dynamic_cast<const InstanceRotationFieldInput *>(&other) != nullptr;
+    static constexpr int8_t id = 0;
+    hash.add(&id);
   }
 };
 
@@ -52,7 +48,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
   geo_node_type_base(
-      &ntype, "GeometryNodeInputInstanceRotation", GEO_NODE_INPUT_INSTANCE_ROTATION);
+      &ntype, "GeometryNodeInputInstanceRotation"_ustr, GEO_NODE_INPUT_INSTANCE_ROTATION);
   ntype.ui_name = "Instance Rotation";
   ntype.ui_description = "Retrieve the rotation of each instance in the geometry";
   ntype.enum_name_legacy = "INPUT_INSTANCE_ROTATION";

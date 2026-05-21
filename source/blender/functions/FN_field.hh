@@ -182,7 +182,7 @@ class GField {
   uint64_t hash() const;
 
   /**
-   * Get a typed reference to this field. Not that #Field<T> happens to be identical to #GField on
+   * Get a typed reference to this field. Note that #Field<T> happens to be identical to #GField on
    * a bit-level. So this is just a cast.
    */
   template<typename T> const Field<T> &typed() const;
@@ -193,6 +193,7 @@ class GField {
 template<typename T> class Field {
  public:
   using base_type = T;
+  using generic_type = GField;
 
  private:
   /**
@@ -224,6 +225,7 @@ template<typename T> class Field {
   template<typename InputT, typename... Args> static Field from_input(Args &&...args);
   template<typename InputT> const InputT *get_input_if() const;
   uint64_t hash() const;
+  static Field from_non_owning_ref(const Field &field);
 };
 
 /**
@@ -259,6 +261,7 @@ class GFieldRef {
   template<typename T> GFieldRef(const Field<T> &field);
   explicit GFieldRef(const FieldInput &field_input);
   explicit GFieldRef(const FieldOperation &field_multi_fn, int output_i = 0);
+  explicit GFieldRef(Variant variant);
 
   /** Get access to the underlying #Variant. */
   const Variant &variant() const;
@@ -267,6 +270,8 @@ class GFieldRef {
   const CPPType &cpp_type() const;
   const FieldInputsPtr &field_inputs() const;
   uint64_t hash() const;
+
+  static GFieldRef from_constant(const CPPType &type, const void *value);
 };
 
 /**
@@ -280,6 +285,25 @@ class FieldContext {
   virtual GVArray get_varray_for_input(const FieldInput &field_input,
                                        const IndexMask &mask,
                                        ResourceScope &scope) const;
+};
+
+/**
+ * "Deep" hashing for fields that considers the operation and inputs semantically, rather than
+ * just the shallow data (i.e. memory address) of the field data, like the default "hash()"
+ * implementation. Because common field reuse would give this potentially exponential cost, this
+ * struct caches the hashes of intermediate fields.
+ */
+struct FieldHashDeep {
+  Map<GFieldRef, UniqueHash> cache;
+  UniqueHash ensure(const GFieldRef &field);
+  UniqueHash lookup(const GFieldRef &field) const
+  {
+    return this->cache.lookup(field);
+  }
+  bool contains(const GFieldRef &field) const
+  {
+    return this->cache.contains(field);
+  }
 };
 
 /**
@@ -316,7 +340,7 @@ class FieldInput : public ImplicitSharingMixin {
 
  public:
   FieldInput(const CPPType &type, std::string debug_name = "");
-  ~FieldInput();
+  ~FieldInput() override;
 
   StringRefNull debug_name() const;
   virtual std::string socket_inspection_name() const;
@@ -325,8 +349,8 @@ class FieldInput : public ImplicitSharingMixin {
 
   const FieldInputsPtr &field_inputs() const;
 
-  virtual uint64_t hash() const;
-  virtual bool is_equal_to(const FieldInput &other) const;
+  uint64_t hash() const;
+  virtual void hash_unique(UniqueHashBytes &hash, FieldHashDeep &deep_hash_cache) const;
 
   /**
    * If this #FieldInput depends on other fields, this function should be overridden.
@@ -400,8 +424,10 @@ class IndexFieldInput final : public FieldInput {
                                  const IndexMask &mask,
                                  ResourceScope &scope) const final;
 
-  uint64_t hash() const override;
-  bool is_equal_to(const fn::FieldInput &other) const override;
+  void hash_unique(UniqueHashBytes &hash, FieldHashDeep &deep_hash_cache) const override;
+
+  /** Cached index field to avoid allocating a new one every time. */
+  static const Field<int> &get_field();
 };
 
 /* -------------------------------------------------------------------- */
@@ -433,6 +459,11 @@ inline bool GField::TrivialInlineConstant::cpp_type_supported(const CPPType &typ
 inline GField GField::from_non_owning_constant(const CPPType &type, const void *value)
 {
   return GField(ConstantRef{&type, value});
+}
+
+template<typename T> inline Field<T> Field<T>::from_non_owning_ref(const Field &field)
+{
+  return GField::from_non_owning_ref(field).template typed<T>();
 }
 
 template<typename InputT, typename... Args> inline GField GField::from_input(Args &&...args)
@@ -487,6 +518,9 @@ inline const CPPType &GField::cpp_type() const
         else if constexpr (is_same_any_v<T, ConstantRef, TrivialInlineConstant, OwnedConstant>) {
           return *v.type;
         }
+        else {
+          BLI_assert_unreachable_static_t(T);
+        }
       },
       this->variant_);
 }
@@ -512,16 +546,6 @@ template<typename T> inline uint64_t Field<T>::hash() const
 inline const CPPType &FieldInput::cpp_type() const
 {
   return *this->type_;
-}
-
-inline uint64_t FieldInput::hash() const
-{
-  return get_default_hash(this);
-}
-
-inline bool FieldInput::is_equal_to(const FieldInput &other) const
-{
-  return this == &other;
 }
 
 inline const FieldInputsPtr &FieldOperation::field_inputs() const
@@ -609,6 +633,13 @@ inline GFieldRef::GFieldRef(const FieldOperation &field_multi_fn, int output_i)
 {
 }
 
+inline GFieldRef::GFieldRef(Variant variant) : variant_(std::move(variant)) {}
+
+inline GFieldRef GFieldRef::from_constant(const CPPType &type, const void *value)
+{
+  return GFieldRef(Value{&type, value});
+}
+
 template<typename T>
 inline GFieldRef::GFieldRef(const Field<T> &field) : GFieldRef(static_cast<const GField &>(field))
 {
@@ -632,13 +663,16 @@ inline const CPPType &GFieldRef::cpp_type() const
         else if constexpr (std::is_same_v<T, MultiFn>) {
           return v.node->output_cpp_type(v.output_i);
         }
+        else {
+          BLI_assert_unreachable_static_t(T);
+        }
       },
       variant_);
 }
 
 inline bool operator==(const FieldInput &a, const FieldInput &b)
 {
-  return a.is_equal_to(b);
+  return &a == &b;
 }
 
 inline const mf::MultiFunction &FieldOperation::multi_function() const

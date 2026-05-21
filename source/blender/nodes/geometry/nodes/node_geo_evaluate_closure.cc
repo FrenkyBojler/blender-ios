@@ -6,6 +6,7 @@
 #include "UI_resources.hh"
 
 #include "NOD_geo_closure.hh"
+#include "NOD_geometry_nodes_closure_signature.hh"
 #include "NOD_socket_items_blend.hh"
 #include "NOD_socket_items_ops.hh"
 #include "NOD_socket_items_ui.hh"
@@ -30,40 +31,55 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.use_custom_socket_order();
   b.allow_any_socket_order();
 
-  b.add_input<decl::Closure>("Closure"_ustr);
+  b.add_input<decl::Closure>("Closure"_ustr).create_signature([](const bNode &node) {
+    const auto &storage = node_storage(node);
+    return nodes::ClosureSignature::from_evaluate_closure_node(
+        node, storage.flag & NODE_EVALUATE_CLOSURE_FLAG_DEFINE_SIGNATURE);
+  });
 
   const bNode *node = b.node_or_null();
+  const bNodeTree *tree = b.tree_or_null();
   auto &panel = b.add_panel("Interface"_ustr);
   if (node) {
     const auto &storage = node_storage(*node);
     for (const int i : IndexRange(storage.output_items.items_num)) {
       const NodeEvaluateClosureOutputItem &item = storage.output_items.items[i];
-      const eNodeSocketDatatype socket_type = eNodeSocketDatatype(item.socket_type);
+      const eNodeSocketDatatype socket_type = item.socket_type;
       const UString identifier(
           EvaluateClosureOutputItemsAccessor::socket_identifier_for_item(item));
       auto &decl = panel.add_output(socket_type, UString(item.name), identifier);
-      if (item.structure_type != NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO) {
+      decl.socket_name_ptr(
+          &tree->id, *EvaluateClosureOutputItemsAccessor::item_srna, &item, "name");
+      if (item.structure_type != NodeSocketInterfaceStructureType::Auto) {
         decl.structure_type(StructureType(item.structure_type));
       }
       else {
         decl.structure_type(StructureType::Dynamic);
       }
     }
-    panel.add_output<decl::Extend>(""_ustr, "__extend__"_ustr);
+    panel.add_output<decl::Extend>(""_ustr, "__extend__"_ustr)
+        .custom_draw(
+            socket_items::ui::draw_extend_socket_fn<EvaluateClosureOutputItemsAccessor>());
     for (const int i : IndexRange(storage.input_items.items_num)) {
       const NodeEvaluateClosureInputItem &item = storage.input_items.items[i];
-      const eNodeSocketDatatype socket_type = eNodeSocketDatatype(item.socket_type);
+      const eNodeSocketDatatype socket_type = item.socket_type;
       const UString identifier(
           EvaluateClosureInputItemsAccessor::socket_identifier_for_item(item));
       auto &decl = panel.add_input(socket_type, UString(item.name), identifier);
-      if (item.structure_type != NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO) {
+      decl.socket_name_ptr(
+          &tree->id, *EvaluateClosureInputItemsAccessor::item_srna, &item, "name");
+      if (socket_type_supports_fields(socket_type)) {
+        decl.supports_field();
+      }
+      if (item.structure_type != NodeSocketInterfaceStructureType::Auto) {
         decl.structure_type(StructureType(item.structure_type));
       }
       else {
         decl.structure_type(StructureType::Dynamic);
       }
     }
-    panel.add_input<decl::Extend>(""_ustr, "__extend__"_ustr);
+    panel.add_input<decl::Extend>(""_ustr, "__extend__"_ustr)
+        .custom_draw(socket_items::ui::draw_extend_socket_fn<EvaluateClosureInputItemsAccessor>());
   }
 }
 
@@ -159,7 +175,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
   const bNodeSocket &other_socket = params.other_socket();
   if (other_socket.in_out == SOCK_IN) {
     params.add_item(IFACE_("Item"), [](LinkSearchOpParams &params) {
-      bNode &node = params.add_node("NodeEvaluateClosure");
+      bNode &node = params.add_node("NodeEvaluateClosure"_ustr);
       const auto *item =
           socket_items::add_item_with_socket_type_and_name<EvaluateClosureOutputItemsAccessor>(
               params.node_tree, node, params.socket.typeinfo->type, params.socket.name);
@@ -169,7 +185,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
   }
   if (other_socket.type == SOCK_CLOSURE) {
     params.add_item(IFACE_("Closure"), [](LinkSearchOpParams &params) {
-      bNode &node = params.add_node("NodeEvaluateClosure");
+      bNode &node = params.add_node("NodeEvaluateClosure"_ustr);
       params.connect_available_socket(node, "Closure"_ustr);
 
       SpaceNode &snode = *CTX_wm_space_node(&params.C);
@@ -182,7 +198,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
     params.add_item(
         IFACE_("Item"),
         [](LinkSearchOpParams &params) {
-          bNode &node = params.add_node("NodeEvaluateClosure");
+          bNode &node = params.add_node("NodeEvaluateClosure"_ustr);
           const auto *item =
               socket_items::add_item_with_socket_type_and_name<EvaluateClosureInputItemsAccessor>(
                   params.node_tree, node, params.socket.typeinfo->type, params.socket.name);
@@ -216,7 +232,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  sh_geo_node_type_base(&ntype, "NodeEvaluateClosure", NODE_EVALUATE_CLOSURE);
+  sh_geo_node_type_base(&ntype, "NodeEvaluateClosure"_ustr, NODE_EVALUATE_CLOSURE);
   ntype.ui_name = "Evaluate Closure";
   ntype.ui_description = "Execute a given closure";
   ntype.nclass = NODE_CLASS_CONVERTER;
@@ -266,7 +282,7 @@ const bNodeSocket *evaluate_closure_node_internally_linked_input(const bNodeSock
 {
   const bNode &node = output_socket.owner_node();
   const bNodeTree &tree = node.owner_tree();
-  BLI_assert(node.is_type("NodeEvaluateClosure"));
+  BLI_assert(node.is_type("NodeEvaluateClosure"_ustr));
   const auto &storage = *static_cast<const NodeEvaluateClosure *>(node.storage);
   if (output_socket.index() >= storage.output_items.items_num) {
     return nullptr;
@@ -279,8 +295,7 @@ const bNodeSocket *evaluate_closure_node_internally_linked_input(const bNodeSock
     const StringRef input_key = input_item.name;
     if (output_key == input_key) {
       if (!tree.typeinfo->validate_link ||
-          tree.typeinfo->validate_link(eNodeSocketDatatype(input_item.socket_type),
-                                       eNodeSocketDatatype(output_item.socket_type)))
+          tree.typeinfo->validate_link(input_item.socket_type, output_item.socket_type))
       {
         return &node.input_socket(i + 1);
       }

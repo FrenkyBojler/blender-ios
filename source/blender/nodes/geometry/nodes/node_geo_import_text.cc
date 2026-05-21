@@ -28,7 +28,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 class LoadTextCache : public memory_cache::CachedValue {
  public:
   std::string text;
-  Vector<geo_eval_log::NodeWarning> warnings;
+  Vector<eval_log::NodeWarning> warnings;
 
   void count_memory(MemoryCounter &counter) const override
   {
@@ -67,7 +67,7 @@ static void node_geo_exec(GeoNodeExecParams params)
         return cached_value;
       });
 
-  for (const geo_eval_log::NodeWarning &warning : cached_value->warnings) {
+  for (const eval_log::NodeWarning &warning : cached_value->warnings) {
     params.error_message_add(warning.type, warning.message);
   }
 
@@ -78,7 +78,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeImportText");
+  geo_node_type_base(&ntype, "GeometryNodeImportText"_ustr);
   ntype.ui_name = "Import Text";
   ntype.ui_description = "Import a string from a text file";
   ntype.nclass = NODE_CLASS_INPUT;

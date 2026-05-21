@@ -124,9 +124,10 @@ class Stabilize2DOperation : public NodeOperation {
         return Interpolation::Nearest;
       case CMP_NODE_INTERPOLATION_BILINEAR:
         return Interpolation::Bilinear;
-      case CMP_NODE_INTERPOLATION_ANISOTROPIC:
       case CMP_NODE_INTERPOLATION_BICUBIC:
         return Interpolation::Bicubic;
+      case CMP_NODE_INTERPOLATION_ANISOTROPIC:
+        return Interpolation::Anisotropic;
     }
 
     return Interpolation::Nearest;
@@ -184,7 +185,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, "CompositorNodeStabilize", CMP_NODE_STABILIZE2D);
+  cmp_node_type_base(&ntype, "CompositorNodeStabilize"_ustr, CMP_NODE_STABILIZE2D);
   ntype.ui_name = "Stabilize 2D";
   ntype.ui_description = "Stabilize footage using 2D stabilization motion tracking settings";
   ntype.enum_name_legacy = "STABILIZE2D";

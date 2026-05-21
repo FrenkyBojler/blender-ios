@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 Alpha (b'227100a72567')\n"
+"Project-Id-Version: Blender 5.2.0 Alpha (b'bc0a0ff2c0ce')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-03-30 09:56+0000\n"
+"POT-Creation-Date: 2026-05-18 11:20+0000\n"
 "PO-Revision-Date: 2026-03-19 19:12+0000\n"
 "Last-Translator: Tamás Máté <royalpython132@gmail.com>\n"
 "Language-Team: Hungarian <https://translate.blender.org/projects/blender-ui/ui/hu/>\n"
@@ -397,10 +397,6 @@ msgstr "Közép"
 
 msgid "Bottom"
 msgstr "Alulnézet"
-
-
-msgid "Show Hotkey List"
-msgstr "Gyorsbillentyűk listája mutatása"
 
 
 msgid "Action"
@@ -1242,6 +1238,15 @@ msgid "Material"
 msgstr "Anyag"
 
 
+msgid "Threshold"
+msgstr "Küszöbszint"
+
+
+msgctxt "Operator"
+msgid "Poly"
+msgstr "Vonallánc"
+
+
 msgid "All"
 msgstr "Mind"
 
@@ -1252,10 +1257,6 @@ msgstr "Pontosság"
 
 msgid "Simplify"
 msgstr "Egyszerűsítés"
-
-
-msgid "Threshold"
-msgstr "Küszöbszint"
 
 
 msgid "Iterations"
@@ -6609,18 +6610,6 @@ msgid "Use Material Mask"
 msgstr "Anyagmaszk használata"
 
 
-msgid "Show/Hide"
-msgstr "Mutat/Rejt"
-
-
-msgid "Clean Up"
-msgstr "Tisztítás"
-
-
-msgid "Import"
-msgstr "Importálás"
-
-
 msgid "Mirror"
 msgstr "Tükrözés"
 
@@ -6637,10 +6626,6 @@ msgid "Align View"
 msgstr "Nézet igazítása"
 
 
-msgid "UV"
-msgstr "UV"
-
-
 msgid "Metaball"
 msgstr "Meta test"
 
@@ -6651,6 +6636,10 @@ msgstr "Fényforrás"
 
 msgid "Relations"
 msgstr "Kapcsolatok"
+
+
+msgid "Import"
+msgstr "Importálás"
 
 
 msgid "Rigid Body"
@@ -6665,16 +6654,28 @@ msgid "Track"
 msgstr "Nyom"
 
 
+msgid "Show/Hide"
+msgstr "Mutat/Rejt"
+
+
+msgid "Clean Up"
+msgstr "Tisztítás"
+
+
+msgid "UV"
+msgstr "UV"
+
+
+msgid "Merge"
+msgstr "Összefésülés"
+
+
 msgid "Keying"
 msgstr "Kulcsozás"
 
 
 msgid "Tracking"
 msgstr "Követés"
-
-
-msgid "Merge"
-msgstr "Összefésülés"
 
 
 msgctxt "MovieClip"
@@ -9449,11 +9450,6 @@ msgid "Load a SVG file"
 msgstr "Egy SVG fájl megnyitása"
 
 
-msgctxt "Operator"
-msgid "Import SVG"
-msgstr "SVG importálása"
-
-
 msgid "Load a FBX file"
 msgstr "FBX fájl betöltése"
 
@@ -9627,6 +9623,11 @@ msgstr "Generált"
 msgctxt "Operator"
 msgid "Select All"
 msgstr "Minden kijelölése"
+
+
+msgctxt "Operator"
+msgid "Select by Type"
+msgstr "Kijelölés típus alapján"
 
 
 msgctxt "Operator"
@@ -11104,11 +11105,6 @@ msgid "Change selection of all visible objects in scene"
 msgstr "A jelenet összes látjató objektuma kijelölésének megváltoztatása (váltókapcsoló)"
 
 
-msgctxt "Operator"
-msgid "Select by Type"
-msgstr "Kijelölés típus alapján"
-
-
 msgid "Select all visible objects that are of a type"
 msgstr "Valamennyi azonos típusú látható objektum kijelölése"
 
@@ -11823,11 +11819,6 @@ msgstr "Kiválasztott területek egyesítése új ablakban"
 msgctxt "Operator"
 msgid "Move Area Edges"
 msgstr "Terület széleinek mozgatása"
-
-
-msgctxt "Operator"
-msgid "Area Options"
-msgstr "Terület beállításai"
 
 
 msgctxt "Operator"
@@ -13502,14 +13493,6 @@ msgstr "GL textúra limit"
 
 msgid "Limit the texture size to save graphics memory"
 msgstr "Textúra méretének korlátozása, hogy grafikus memóriát spóroljon"
-
-
-msgid "Method used for displaying images on the screen"
-msgstr "A képeknek a képernyőn történő megjelenítésének módja"
-
-
-msgid "2D Texture"
-msgstr "2D Textúra"
 
 
 msgid "Ambient Color"
@@ -15363,11 +15346,6 @@ msgstr "Alap vastagság"
 
 msgid "Image Border"
 msgstr "Képkeret"
-
-
-msgctxt "Operator"
-msgid "Poly"
-msgstr "Vonallánc"
 
 
 msgid "Parent:"

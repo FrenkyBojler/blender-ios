@@ -124,11 +124,8 @@ static void create_duplicate_index_attribute(bke::MutableAttributeAccessor attri
 {
   SpanAttributeWriter<int> duplicate_indices = attributes.lookup_or_add_for_write_only_span<int>(
       *attribute_outputs.duplicate_index, output_domain);
-  for (const int i : IndexRange(selection.size())) {
-    MutableSpan<int> indices = duplicate_indices.span.slice(offsets[i]);
-    for (const int i : indices.index_range()) {
-      indices[i] = i;
-    }
+  for (const int i : selection.index_range()) {
+    array_utils::fill_index_range(duplicate_indices.span.slice(offsets[i]));
   }
   duplicate_indices.finish();
 }
@@ -1290,7 +1287,7 @@ static void node_rna(StructRNA *srna)
 static void node_register()
 {
   static bke::bNodeType ntype;
-  geo_node_type_base(&ntype, "GeometryNodeDuplicateElements", GEO_NODE_DUPLICATE_ELEMENTS);
+  geo_node_type_base(&ntype, "GeometryNodeDuplicateElements"_ustr, GEO_NODE_DUPLICATE_ELEMENTS);
   ntype.ui_name = "Duplicate Elements";
   ntype.ui_description = "Generate an arbitrary number copies of each selected input element";
   ntype.enum_name_legacy = "DUPLICATE_ELEMENTS";

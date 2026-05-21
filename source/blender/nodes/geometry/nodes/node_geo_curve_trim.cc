@@ -95,7 +95,7 @@ class SocketSearchOp {
   GeometryNodeCurveSampleMode mode;
   void operator()(LinkSearchOpParams &params)
   {
-    bNode &node = params.add_node("GeometryNodeTrimCurve");
+    bNode &node = params.add_node("GeometryNodeTrimCurve"_ustr);
     node_storage(node).mode = mode;
     params.update_and_connect_available_socket(node, socket_name);
   }
@@ -109,9 +109,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
   search_link_ops_for_declarations(params, declaration.inputs.as_span().take_front(1));
 
   if (params.in_out() == SOCK_IN) {
-    if (params.node_tree().typeinfo->validate_link(eNodeSocketDatatype(params.other_socket().type),
-                                                   SOCK_FLOAT))
-    {
+    if (params.node_tree().typeinfo->validate_link(params.other_socket().type, SOCK_FLOAT)) {
       params.add_item(IFACE_("Start (Factor)"),
                       SocketSearchOp{"Start"_ustr, GEO_NODE_CURVE_SAMPLE_FACTOR});
       params.add_item(IFACE_("End (Factor)"),
@@ -266,7 +264,7 @@ static void node_rna(StructRNA *srna)
 static void node_register()
 {
   static bke::bNodeType ntype;
-  geo_node_type_base(&ntype, "GeometryNodeTrimCurve", GEO_NODE_TRIM_CURVE);
+  geo_node_type_base(&ntype, "GeometryNodeTrimCurve"_ustr, GEO_NODE_TRIM_CURVE);
   ntype.ui_name = "Trim Curve";
   ntype.ui_description = "Shorten curves by removing portions at the start or end";
   ntype.enum_name_legacy = "TRIM_CURVE";

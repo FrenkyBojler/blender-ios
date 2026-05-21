@@ -79,7 +79,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeSeparateComponents", GEO_NODE_SEPARATE_COMPONENTS);
+  geo_node_type_base(&ntype, "GeometryNodeSeparateComponents"_ustr, GEO_NODE_SEPARATE_COMPONENTS);
   ntype.ui_name = "Separate Components";
   ntype.ui_description =
       "Split a geometry into a separate output for each type of data in the geometry";
@@ -87,6 +87,7 @@ static void node_register()
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
+  ntype.default_width = bke::NodeWidth::_160;
   bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)

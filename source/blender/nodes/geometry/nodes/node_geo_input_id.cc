@@ -15,14 +15,14 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  params.set_output("ID"_ustr, Field<int>::from_input<bke::IDAttributeFieldInput>());
+  params.set_output("ID"_ustr, bke::IDAttributeFieldInput::get_field());
 }
 
 static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeInputID", GEO_NODE_INPUT_ID);
+  geo_node_type_base(&ntype, "GeometryNodeInputID"_ustr, GEO_NODE_INPUT_ID);
   ntype.ui_name = "ID";
   ntype.ui_description =
       "Retrieve a stable random identifier value from the \"id\" attribute on the point domain, "

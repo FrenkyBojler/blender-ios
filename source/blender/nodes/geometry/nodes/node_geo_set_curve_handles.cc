@@ -216,15 +216,16 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeSetCurveHandlePositions", GEO_NODE_SET_CURVE_HANDLES);
+  geo_node_type_base(
+      &ntype, "GeometryNodeSetCurveHandlePositions"_ustr, GEO_NODE_SET_CURVE_HANDLES);
   ntype.ui_name = "Set Handle Positions";
   ntype.ui_description = "Set the positions for the handles of Bézier curves";
   ntype.enum_name_legacy = "SET_CURVE_HANDLES";
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
-  ntype.minwidth = 100.0f;
   ntype.initfunc = node_init;
+  ntype.default_width = bke::NodeWidth::_160;
   bke::node_type_storage(ntype,
                          "NodeGeometrySetCurveHandlePositions",
                          node_free_standard_storage,
