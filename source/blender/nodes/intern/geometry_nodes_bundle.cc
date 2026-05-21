@@ -28,7 +28,7 @@ void BundleSignature::set_auto_structure_types()
 {
   for (const BundleSignature::Item &item : this->items) {
     const_cast<BundleSignature::Item &>(item).structure_type =
-        NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO;
+        NodeSocketInterfaceStructureType::Auto;
   }
 }
 
@@ -352,11 +352,11 @@ NodeSocketInterfaceStructureType get_structure_type_for_bundle_signature(
     const NodeSocketInterfaceStructureType stored_structure_type,
     const bool allow_auto_structure_type)
 {
-  if (stored_structure_type != NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO) {
+  if (stored_structure_type != NodeSocketInterfaceStructureType::Auto) {
     return stored_structure_type;
   }
   if (allow_auto_structure_type) {
-    return NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO;
+    return NodeSocketInterfaceStructureType::Auto;
   }
   return NodeSocketInterfaceStructureType(socket.runtime->inferred_structure_type);
 }
@@ -380,9 +380,7 @@ BundleSignature BundleSignature::from_combine_bundle_node(const bNode &node,
     if (const bke::bNodeSocketType *stype = bke::node_socket_type_find_static(item.socket_type)) {
       const NodeSocketInterfaceStructureType structure_type =
           get_structure_type_for_bundle_signature(
-              socket,
-              NodeSocketInterfaceStructureType(item.structure_type),
-              allow_auto_structure_type);
+              socket, item.structure_type, allow_auto_structure_type);
       signature.items.add({item.name, stype, structure_type});
     }
   }
@@ -401,9 +399,7 @@ BundleSignature BundleSignature::from_separate_bundle_node(const bNode &node,
     if (const bke::bNodeSocketType *stype = bke::node_socket_type_find_static(item.socket_type)) {
       const NodeSocketInterfaceStructureType structure_type =
           get_structure_type_for_bundle_signature(
-              socket,
-              NodeSocketInterfaceStructureType(item.structure_type),
-              allow_auto_structure_type);
+              socket, item.structure_type, allow_auto_structure_type);
       signature.items.add({item.name, stype, structure_type});
     }
   }
@@ -432,7 +428,7 @@ std::optional<BundleSignature> LinkedBundleSignatures::get_merged_signature() co
         }
         if (existing_item.structure_type != item.structure_type) {
           const_cast<BundleSignature::Item &>(existing_item).structure_type =
-              NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_DYNAMIC;
+              NodeSocketInterfaceStructureType::Dynamic;
         }
       }
     }
@@ -443,22 +439,22 @@ std::optional<BundleSignature> LinkedBundleSignatures::get_merged_signature() co
 static void foreach_nested_bundle_item_recursive(
     const Bundle &bundle,
     const FunctionRef<void(Span<UString>, const BundleItemValue &value)> fn,
-    Vector<UString> &path)
+    Vector<UString> &r_path)
 {
   for (const auto &child_item : bundle.items()) {
-    path.append(child_item.key);
-    BLI_SCOPED_DEFER([&]() { path.pop_last(); });
+    r_path.append(child_item.key);
+    BLI_SCOPED_DEFER([&]() { r_path.pop_last(); });
 
     if (const BundlePtr *child_bundle_ptr = child_item.value.as_pointer<BundlePtr>()) {
       if (*child_bundle_ptr) {
         const Bundle &child_bundle = **child_bundle_ptr;
         if (!child_bundle.type().has_value()) {
-          foreach_nested_bundle_item_recursive(child_bundle, fn, path);
+          foreach_nested_bundle_item_recursive(child_bundle, fn, r_path);
           continue;
         }
       }
     }
-    fn(path, child_item.value);
+    fn(r_path, child_item.value);
   }
 }
 
@@ -469,18 +465,17 @@ void foreach_nested_bundle_item(
   foreach_nested_bundle_item_recursive(bundle, fn, path);
 }
 
-Vector<std::string> gather_bundle_paths_by_bundle_type(const Bundle &bundle,
-                                                       const StringRef type_filter)
+Vector<std::string> gather_bundle_paths_by_bundle_type(
+    const Bundle &bundle, const FunctionRef<bool(StringRef type)> type_filter_fn)
 {
   Vector<std::string> paths;
-  if (type_filter.is_empty()) {
-    return paths;
-  }
   foreach_nested_bundle_item(bundle, [&](const Span<UString> path, const BundleItemValue &value) {
     if (const BundlePtr *child_bundle_ptr = value.as_pointer<BundlePtr>()) {
       if (*child_bundle_ptr) {
-        if ((*child_bundle_ptr)->type() == type_filter) {
-          paths.append(Bundle::combine_path(path));
+        if (const std::optional<StringRef> type = (*child_bundle_ptr)->type()) {
+          if (type_filter_fn(*type)) {
+            paths.append(Bundle::combine_path(path));
+          }
         }
       }
     }

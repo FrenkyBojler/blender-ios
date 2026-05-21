@@ -362,8 +362,7 @@ static bool object_modifier_remove(
     }
   }
 
-  if (ELEM(md->type, eModifierType_Softbody, eModifierType_Cloth) &&
-      BLI_listbase_is_empty(&ob->particlesystem))
+  if (ELEM(md->type, eModifierType_Softbody, eModifierType_Cloth) && ob->particlesystem.is_empty())
   {
     ob->mode &= ~OB_MODE_PARTICLE_EDIT;
   }
@@ -500,7 +499,7 @@ bool modifier_move_to_index(ReportList *reports,
 {
   BLI_assert(md != nullptr);
 
-  if (index < 0 || index >= BLI_listbase_count(&ob->modifiers)) {
+  if (index < 0 || index >= ob->modifiers.count()) {
     BKE_report(reports, error_type, "Cannot move modifier beyond the end of the stack");
     return false;
   }
@@ -569,12 +568,12 @@ void modifier_link(bContext *C, Object *ob_dst, Object *ob_src)
   DEG_relations_tag_update(bmain);
 }
 
-bool modifier_copy_to_object(Main *bmain,
-                             const Scene *scene,
-                             const Object *ob_src,
-                             const ModifierData *md,
-                             Object *ob_dst,
-                             ReportList *reports)
+ModifierData *modifier_copy_to_object(Main *bmain,
+                                      const Scene *scene,
+                                      const Object *ob_src,
+                                      const ModifierData *md,
+                                      Object *ob_dst,
+                                      ReportList *reports)
 {
   const ModifierTypeInfo *mti = BKE_modifier_get_info(ModifierType(md->type));
 
@@ -587,7 +586,7 @@ bool modifier_copy_to_object(Main *bmain,
                 "Object '%s' does not support %s modifiers",
                 ob_dst->id.name + 2,
                 RPT_(mti->name));
-    return false;
+    return nullptr;
   }
 
   if (mti->flags & eModifierTypeFlag_Single) {
@@ -596,23 +595,24 @@ bool modifier_copy_to_object(Main *bmain,
                   RPT_WARNING,
                   "Modifier can only be added once to object '%s'",
                   ob_dst->id.name + 2);
-      return false;
+      return nullptr;
     }
   }
 
-  if (!BKE_object_copy_modifier(bmain, scene, ob_dst, ob_src, md)) {
+  ModifierData *md_dst = BKE_object_copy_modifier(bmain, scene, ob_dst, ob_src, md);
+  if (!md_dst) {
     BKE_reportf(reports,
                 RPT_ERROR,
                 "Copying modifier '%s' to object '%s' failed",
                 md->name,
                 ob_dst->id.name + 2);
-    return false;
+    return nullptr;
   }
 
   WM_main_add_notifier(NC_OBJECT | ND_MODIFIER | NA_ADDED, ob_dst);
   DEG_id_tag_update(&ob_dst->id, ID_RECALC_GEOMETRY | ID_RECALC_ANIMATION);
   DEG_relations_tag_update(bmain);
-  return true;
+  return md_dst;
 }
 
 bool convert_psys_to_mesh(ReportList * /*reports*/,
@@ -1988,7 +1988,7 @@ static wmOperatorStatus modifier_apply_exec_ex(bContext *C,
   RNA_string_get(op->ptr, "modifier", name);
 
   const bool do_report = RNA_boolean_get(op->ptr, "report");
-  const int reports_len = do_report ? BLI_listbase_count(&op->reports->list) : 0;
+  const int reports_len = do_report ? op->reports->list.count() : 0;
 
   const bool do_single_user = (apply_as == MODIFIER_APPLY_DATA) ?
                                   RNA_boolean_get(op->ptr, "single_user") :
@@ -2049,7 +2049,7 @@ static wmOperatorStatus modifier_apply_exec_ex(bContext *C,
   if (do_report) {
     /* Only add this report if the operator didn't cause another one. The purpose here is
      * to alert that something happened, and the previous report will do that anyway. */
-    if (BLI_listbase_count(&op->reports->list) == reports_len) {
+    if (op->reports->list.count() == reports_len) {
       BKE_reportf(op->reports, RPT_INFO, "Applied modifier: %s", name);
     }
   }
@@ -2375,7 +2375,9 @@ static wmOperatorStatus modifier_copy_to_selected_exec(bContext *C, wmOperator *
     if (!ID_IS_EDITABLE(ob)) {
       continue;
     }
-    if (modifier_copy_to_object(bmain, scene, obact, md, ob, op->reports)) {
+    ModifierData *md_dst = modifier_copy_to_object(bmain, scene, obact, md, ob, op->reports);
+    if (md_dst) {
+      BKE_object_modifier_set_active(ob, md_dst);
       WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER | NA_ADDED, ob);
       num_copied++;
     }
@@ -2485,8 +2487,13 @@ static wmOperatorStatus object_modifiers_copy_exec(bContext *C, wmOperator *op)
       continue;
     }
     for (const ModifierData &md : active_object->modifiers) {
-      if (modifier_copy_to_object(bmain, scene, active_object, &md, object, op->reports)) {
+      ModifierData *md_dst = modifier_copy_to_object(
+          bmain, scene, active_object, &md, object, op->reports);
+      if (md_dst) {
         WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER | NA_ADDED, object);
+        if (md.flag & eModifierFlag_Active) {
+          BKE_object_modifier_set_active(object, md_dst);
+        }
       }
     }
   }
@@ -2510,7 +2517,7 @@ static bool modifiers_copy_to_selected_poll(bContext *C)
   if (!BKE_object_supports_modifiers(active_object)) {
     return false;
   }
-  if (BLI_listbase_is_empty(&active_object->modifiers)) {
+  if (active_object->modifiers.is_empty()) {
     CTX_wm_operator_poll_msg_set(C, "Active object has no modifiers");
     return false;
   }

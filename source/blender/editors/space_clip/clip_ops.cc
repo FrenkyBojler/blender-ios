@@ -148,7 +148,7 @@ static void sclip_zoom_set_factor_exec(bContext *C, const wmEvent *event, float 
     mpos = location;
   }
 
-  sclip_zoom_set_factor(C, factor, mpos, mpos ? (U.uiflag & USER_ZOOM_TO_MOUSEPOS) : false);
+  sclip_zoom_set_factor(C, factor, mpos, mpos ? (U.uiflag & USER_ZOOM_TO_MOUSEPOS) != 0 : false);
 
   ED_region_tag_redraw(region);
 }
@@ -1377,7 +1377,8 @@ static void proxy_task_func(TaskPool *__restrict pool, void *task_data)
 
     ibuf = IMB_load_image_from_memory(mem,
                                       size,
-                                      IB_byte_data | IB_multilayer | IB_alphamode_detect,
+                                      ImBufFlags::ByteData | ImBufFlags::MultiLayer |
+                                          ImBufFlags::AlphaDetect,
                                       "proxy frame",
                                       nullptr,
                                       data->clip->colorspace_settings.name);

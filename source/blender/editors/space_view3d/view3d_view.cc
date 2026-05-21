@@ -533,26 +533,31 @@ static std::optional<eV3DSelectObjectFilter> view3d_select_filter_from_mode_lock
   if (v3d->flag2 & V3D_HIDE_OVERLAYS) {
     return std::nullopt;
   }
-  if ((v3d->overlay.flag & V3D_OVERLAY_BONE_SELECT) == 0) {
-    return std::nullopt;
-  }
 
-  /* NOTE: don't use #BKE_object_pose_armature_get it doesn't check for weight-paint mode
-   * when dealing using the deforming armature (breaking selection outside weight paint mode). */
-  const Object *obpose = OBPOSE_FROM_OBACT(obact);
-  if (obpose == nullptr) {
-    const Object *obweight = OBWEIGHTPAINT_FROM_OBACT(obact);
-    if (obweight) {
-      /* Only use Armature pose selection, when connected armature is in pose mode. */
-      const Object *ob_armature = BKE_modifiers_is_deformed_by_armature(
-          const_cast<Object *>(obweight));
-      if (ob_armature && ob_armature->mode == OB_MODE_POSE) {
+  /* NOTE: don't use #BKE_object_pose_armature_get as it doesn't check for weight-paint mode
+   * when using the deforming armature (breaking selection outside weight paint mode). */
+  if (const Object *obpose = OBPOSE_FROM_OBACT(obact)) {
+    if (obpose->mode == OB_MODE_POSE) {
+      /* This check only makes sense in pose-mode,
+       * where this "X-ray" options gives pose-bones a priority over other objects.
+       *
+       * Must not be used in weight-paint mode as it prevents pose
+       * selection *unless* X-ray is enabled. see: #158045. */
+      if ((v3d->overlay.flag & V3D_OVERLAY_BONE_SELECT) == 0) {
+        return std::nullopt;
+      }
+      return VIEW3D_SELECT_FILTER_OBJECT_MODE_LOCK_SAME_TYPE;
+    }
+  }
+  else if (const Object *obweight = OBWEIGHTPAINT_ALL_FROM_OBACT(obact)) {
+    /* Only use Armature pose selection, when connected armature is in pose mode. */
+    if (const Object *ob_armature = BKE_modifiers_is_deformed_by_armature(
+            const_cast<Object *>(obweight)))
+    {
+      if (ob_armature->mode == OB_MODE_POSE) {
         return VIEW3D_SELECT_FILTER_WPAINT_POSE_MODE_LOCK;
       }
     }
-  }
-  if (obpose && obpose->mode == OB_MODE_POSE) {
-    return VIEW3D_SELECT_FILTER_OBJECT_MODE_LOCK_SAME_TYPE;
   }
 
   /* No pose override. */

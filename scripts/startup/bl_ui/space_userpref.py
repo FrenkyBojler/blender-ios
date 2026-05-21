@@ -619,11 +619,8 @@ class USERPREF_PT_animation_timeline(AnimationPanel, CenterAlignMixIn, Panel):
     def draw_centered(self, context, layout):
         prefs = context.preferences
         view = prefs.view
-        edit = prefs.edit
 
         col = layout.column()
-        col.prop(edit, "use_negative_frames")
-
         col.prop(view, "view2d_grid_spacing_min", text="Minimum Grid Spacing")
         col.prop(view, "timecode_style")
         col.prop(view, "view_frame_type")
@@ -674,6 +671,22 @@ class USERPREF_PT_animation_fcurves(AnimationPanel, CenterAlignMixIn, Panel):
         flow.prop(edit, "use_fcurve_high_quality_drawing")
 
 
+class USERPREF_PT_animation_timeline_advanced(AnimationPanel, CenterAlignMixIn, Panel):
+    bl_label = "Advanced"
+    bl_options = {'DEFAULT_CLOSED'}
+    bl_parent_id = 'USERPREF_PT_animation_timeline'
+
+    def draw_centered(self, context, layout):
+        prefs = context.preferences
+        edit = prefs.edit
+
+        layout.prop(edit, "use_negative_frames")
+        row = layout.row(align=False)
+        row.active = edit.use_negative_frames
+        row.alignment = 'RIGHT'
+        row.label(icon="ERROR", text="Negative frames can cause issues with audio playback and exporters.")
+
+
 # -----------------------------------------------------------------------------
 # System Panels
 
@@ -693,8 +706,8 @@ class USERPREF_PT_system_sound(SystemPanel, CenterAlignMixIn, Panel):
 
         layout.prop(system, "audio_device", expand=False)
 
-        sub = layout.grid_flow(row_major=False, columns=0, even_columns=False, even_rows=False, align=False)
-        sub.active = system.audio_device not in {'NONE', 'None'}
+        sub = layout.column()
+        sub.active = system.audio_device not in {'SOUND_NONE', 'NONE', 'None', ''}
         sub.prop(system, "audio_channels", text="Channels")
         sub.prop(system, "audio_mixing_buffer", text="Mixing Buffer")
         sub.prop(system, "audio_sample_rate", text="Sample Rate")
@@ -3085,7 +3098,6 @@ class USERPREF_PT_experimental_new_features(ExperimentalPanel, Panel):
                  ("blender/blender/projects/10", "Pipeline, Assets & IO Project Page")),
                 ({"property": "use_shader_node_previews"}, ("blender/blender/issues/110353", "#110353")),
                 ({"property": "use_geometry_bundle"}, ("blender/blender/issues/150574", "#150574")),
-                ({"property": "use_remote_asset_libraries"}, ("blender/blender/issues/134495", "#134495")),
                 ({"property": "use_collection_importer"}, ("blender/blender/issues/132171", "#132171")),
                 ({"property": "use_geometry_nodes_hair_dynamics"}, ("blender/blender/issues/141609", "#141609")),
             ),
@@ -3168,6 +3180,7 @@ classes = (
     USERPREF_PT_animation_timeline,
     USERPREF_PT_animation_keyframes,
     USERPREF_PT_animation_fcurves,
+    USERPREF_PT_animation_timeline_advanced,
 
     USERPREF_PT_system_cycles_devices,
     USERPREF_PT_system_display_graphics,

@@ -667,7 +667,7 @@ static bool do_pose_tag_select_op_exec(MutableSpan<Base *> bases, const eSelectO
 
     bool changed = false;
     for (bPoseChannel &pchan : ob_iter->pose->chanbase) {
-      Bone *bone = pchan.bone;
+      Bone *bone = pchan.bone_get(*ob_iter);
       if ((bone->flag & BONE_UNSELECTABLE) == 0) {
         const bool is_select = pchan.flag & POSE_SELECTED;
         const bool is_inside = pchan.runtime.flag & POSE_RUNTIME_IN_SELECTION_AREA;
@@ -1803,7 +1803,7 @@ static bool object_mouse_select_menu(bContext *C,
   }
   if (base_count == 1) {
     Base *base = (static_cast<BaseRefWithDepth *>(base_ref_list.first))->base;
-    BLI_freelistN(&base_ref_list);
+    base_ref_list.free_no_destruct();
     *r_basact = base;
     return false;
   }
@@ -1841,7 +1841,7 @@ static bool object_mouse_select_menu(bContext *C,
   WM_operator_name_call_ptr(C, ot, wm::OpCallContext::InvokeDefault, &ptr, nullptr);
   WM_operator_properties_free(&ptr);
 
-  BLI_freelistN(&base_ref_list);
+  base_ref_list.free_no_destruct();
   return true;
 }
 
@@ -2014,7 +2014,7 @@ static bool bone_mouse_select_menu(bContext *C,
       const uint hit_bone = (select_id & ~BONESEL_ANY) >> 16;
       bPoseChannel *pchan = static_cast<bPoseChannel *>(
           BLI_findlink(&bone_base->object->pose->chanbase, hit_bone));
-      if (pchan && !(pchan->bone->flag & BONE_UNSELECTABLE)) {
+      if (pchan && !(pchan->bone_get(*bone_base->object)->flag & BONE_UNSELECTABLE)) {
         bone_ptr = pchan;
       }
     }
@@ -2042,7 +2042,7 @@ static bool bone_mouse_select_menu(bContext *C,
     return false;
   }
   if (bone_count == 1) {
-    BLI_freelistN(&bone_ref_list);
+    bone_ref_list.free_no_destruct();
     return false;
   }
 
@@ -2089,7 +2089,7 @@ static bool bone_mouse_select_menu(bContext *C,
   WM_operator_name_call_ptr(C, ot, wm::OpCallContext::InvokeDefault, &ptr, nullptr);
   WM_operator_properties_free(&ptr);
 
-  BLI_freelistN(&bone_ref_list);
+  bone_ref_list.free_no_destruct();
   return true;
 }
 

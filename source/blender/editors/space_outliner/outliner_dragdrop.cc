@@ -122,7 +122,7 @@ static TreeElement *outliner_drop_insert_find(bContext *C,
   float view_mval[2];
 
   /* Empty tree, e.g. while filtered. */
-  if (BLI_listbase_is_empty(&space_outliner->runtime->tree)) {
+  if (space_outliner->runtime->tree.is_empty()) {
     return nullptr;
   }
 
@@ -140,11 +140,9 @@ static TreeElement *outliner_drop_insert_find(bContext *C,
     const float margin = UI_UNIT_Y * (1.0f / 4);
 
     if (view_mval[1] < (te_hovered->ys + margin)) {
-      if (TSELEM_OPEN(TREESTORE(te_hovered), space_outliner) &&
-          !BLI_listbase_is_empty(&te_hovered->subtree))
-      {
+      if (TSELEM_OPEN(TREESTORE(te_hovered), space_outliner) && !te_hovered->subtree.is_empty()) {
         /* inserting after a open item means we insert into it, but as first child */
-        if (BLI_listbase_is_empty(&te_hovered->subtree)) {
+        if (te_hovered->subtree.is_empty()) {
           *r_insert_type = TE_INSERT_INTO;
           return te_hovered;
         }
@@ -1015,15 +1013,17 @@ static void datastack_drop_copy(bContext *C, StackDropData *drop_data)
   Object *ob_dst = id_cast<Object *>(tselem->id);
 
   switch (drop_data->drag_tselem->type) {
-    case TSE_MODIFIER:
-      object::modifier_copy_to_object(
+    case TSE_MODIFIER: {
+      ModifierData *md_dst = object::modifier_copy_to_object(
           bmain,
           CTX_data_scene(C),
           drop_data->ob_parent,
           static_cast<const ModifierData *>(drop_data->drag_directdata),
           ob_dst,
           CTX_wm_reports(C));
+      BKE_object_modifier_set_active(ob_dst, md_dst);
       break;
+    }
     case TSE_CONSTRAINT:
       if (tselem->type == TSE_POSE_CHANNEL) {
         object::constraint_copy_for_pose(
@@ -1598,7 +1598,7 @@ static wmOperatorStatus outliner_item_drag_drop_invoke(bContext *C,
       WM_drag_add_local_ID(drag, id, &parent->id);
     }
 
-    BLI_freelistN(&selected.selected_array);
+    selected.selected_array.free_no_destruct();
   }
   else {
     /* Add single ID. */

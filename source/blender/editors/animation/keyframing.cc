@@ -732,7 +732,8 @@ static bool can_delete_fcurve(FCurve *fcu, Object *ob)
       if (BLI_str_quoted_substr(fcu->rna_path, "pose.bones[", bone_name, sizeof(bone_name))) {
         pchan = BKE_pose_channel_find_name(ob->pose, bone_name);
         /* Delete if bone is selected. */
-        if ((pchan) && (pchan->bone)) {
+        if ((pchan) && (pchan->bone_get(*ob))) {
+          /* TODO(Sybren): use bone_is_selected() to avoid treating invisible bone as selected. */
           if (pchan->flag & POSE_SELECTED) {
             can_delete = true;
           }
@@ -966,11 +967,11 @@ static bool can_delete_key(FCurve *fcu, Object *ob, ReportList *reports)
     pchan = BKE_pose_channel_find_name(ob->pose, bone_name);
 
     /* skip if bone is not selected */
-    if ((pchan) && (pchan->bone)) {
+    if ((pchan) && (pchan->bone_get(*ob))) {
       bArmature *arm = id_cast<bArmature *>(ob->data);
 
       /* Only selected bones should be affected. */
-      if (!animrig::bone_is_selected(arm, pchan)) {
+      if (!animrig::bone_is_selected(arm, {pchan, pchan->bone_get(*ob)})) {
         return false;
       }
     }

@@ -578,19 +578,20 @@ static void tree_element_posechannel_activate(bContext *C,
     }
   }
 
+  Bone *bone = pchan->bone_get(*ob);
   if ((set == OL_SETSEL_EXTEND) && (pchan->flag & POSE_SELECTED)) {
     animrig::bone_deselect(pchan);
   }
   else {
-    if (animrig::bone_is_visible(arm, pchan)) {
+    if (animrig::bone_is_visible(arm, {pchan, bone})) {
       animrig::bone_select(pchan);
     }
-    arm->act_bone = pchan->bone;
+    arm->act_bone = bone;
   }
 
   if (recursive) {
     /* Recursive select/deselect */
-    do_outliner_bone_select_recursive(arm, pchan->bone, (pchan->flag & POSE_SELECTED) != 0);
+    do_outliner_bone_select_recursive(arm, bone, (pchan->flag & POSE_SELECTED) != 0);
   }
 
   WM_event_add_notifier(C, NC_OBJECT | ND_BONE_ACTIVE, ob);
@@ -2176,7 +2177,7 @@ static TreeElement *outliner_walk_right(SpaceOutliner *space_outliner,
   TreeStoreElem *tselem = TREESTORE(te);
 
   /* Only walk down a level if the element is open and not toggling expand */
-  if (!toggle_all && TSELEM_OPEN(tselem, space_outliner) && !BLI_listbase_is_empty(&te->subtree)) {
+  if (!toggle_all && TSELEM_OPEN(tselem, space_outliner) && !te->subtree.is_empty()) {
     te = static_cast<TreeElement *>(te->subtree.first);
   }
   else {
