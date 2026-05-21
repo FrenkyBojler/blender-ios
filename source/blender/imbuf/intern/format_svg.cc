@@ -19,7 +19,7 @@
 namespace blender {
 
 ImBuf *imb_load_filepath_thumbnail_svg(const char *filepath,
-                                       const int /*flags*/,
+                                       const ImBufFlags /*flags*/,
                                        const size_t max_thumb_size,
                                        ImFileColorSpace & /*r_colorspace*/,
                                        size_t *r_width,
@@ -43,7 +43,7 @@ ImBuf *imb_load_filepath_thumbnail_svg(const char *filepath,
   const float scale = float(max_thumb_size) / std::max(width, height);
   const int dest_w = std::max(int(width * scale), 1);
   const int dest_h = std::max(int(height * scale), 1);
-  ImBuf *ibuf = IMB_allocImBuf(dest_w, dest_h, 32, IB_byte_data);
+  ImBuf *ibuf = IMB_allocImBuf(dest_w, dest_h, ImBufFlags::ByteData);
 
   picture->scale(scale);
 
@@ -51,7 +51,7 @@ ImBuf *imb_load_filepath_thumbnail_svg(const char *filepath,
 
     /* Create a canvas that will draw to our bitmap. */
     tvg::SwCanvas *canvas = tvg::SwCanvas::gen();
-    uint32_t *bitmap_rgba_uint32 = reinterpret_cast<uint32_t *>(ibuf->byte_buffer.data);
+    uint32_t *bitmap_rgba_uint32 = reinterpret_cast<uint32_t *>(ibuf->byte_data_for_write());
     canvas->target(bitmap_rgba_uint32, dest_w, dest_w, dest_h, tvg::ColorSpace::ABGR8888S);
 
     /* Add the SVG image to the canvas. */
