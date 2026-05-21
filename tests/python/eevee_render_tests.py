@@ -296,7 +296,7 @@ def main():
         report.set_fail_percent(0.049)
         report.set_fail_threshold(2.0 / 255.0)
     elif test_dir_name.startswith('camera'):
-        # camera_central_cylindrical and camera_stereo_panoramic have some platform specific small differencies
+        # camera_central_cylindrical and camera_stereo_panoramic have some platform specific small differences
         report.set_fail_percent(0.8)
         report.set_fail_threshold(6.0 / 255.0)
     elif test_dir_name.startswith('image_colorspace'):
@@ -315,6 +315,10 @@ def main():
         report.set_fail_threshold(8.0 / 255.0)
         if args.gpu_backend == "metal":
             report.set_fail_percent(0.33)
+    elif test_dir_name.startswith('hair'):
+        # hair_close_up has differences of line rasterization on linux.
+        if gpu_vendor == "INTEL":
+            report.set_fail_percent(0.13)
     elif test_dir_name.startswith('principled_bsdf'):
         # principled_bsdf_thinfilm_metallic has some weird behavior in reflection of
         # black surfaces. to be investigated
