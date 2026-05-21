@@ -3993,7 +3993,7 @@ struct GeometryNodesLazyFunctionBuilder {
     if (socket_decl == nullptr) {
       return false;
     }
-    if (socket_decl->input_field_type != InputSocketFieldType::Implicit) {
+    if (socket_decl->default_input_type == NODE_DEFAULT_INPUT_VALUE) {
       return false;
     }
     lf::LazyFunction *lazy_function = nullptr;
