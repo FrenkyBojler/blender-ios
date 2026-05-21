@@ -2677,13 +2677,13 @@ struct PanelCategoryDragData {
   int xy_init[2];
 };
 
-static void handler_region_category_tab_drag_remove(bContext * /*C*/, void *userdata)
+static void handler_panel_category_drag_activate_remove(bContext * /*C*/, void *userdata)
 {
   PanelCategoryDragData *drag_data = static_cast<PanelCategoryDragData *>(userdata);
   MEM_delete(drag_data);
 }
 
-static int handler_region_category_tab_drag(bContext *C, const wmEvent *event, void *userdata)
+static int handler_panel_category_drag_activate(bContext *C, const wmEvent *event, void *userdata)
 {
   PanelCategoryDragData *drag_data = static_cast<PanelCategoryDragData *>(userdata);
 
@@ -2693,18 +2693,19 @@ static int handler_region_category_tab_drag(bContext *C, const wmEvent *event, v
       find_category_tab = true;
       break;
     }
-    case LEFTMOUSE:
+    case LEFTMOUSE: {
       find_category_tab = event->val == KM_PRESS;
       if (event->val == KM_RELEASE) {
         WM_event_remove_ui_handler(&CTX_wm_window(C)->runtime->modalhandlers,
-                                   handler_region_category_tab_drag,
-                                   handler_region_category_tab_drag_remove,
+                                   handler_panel_category_drag_activate,
+                                   handler_panel_category_drag_activate_remove,
                                    drag_data,
                                    true);
-        handler_region_category_tab_drag_remove(C, drag_data);
+        handler_panel_category_drag_activate_remove(C, drag_data);
         return WM_UI_HANDLER_BREAK;
       }
       break;
+    }
     default: {
       break;
     }
@@ -2756,8 +2757,8 @@ int handler_panel_region(bContext *C,
         copy_v2_v2_int(drag_data->xy_init, event->xy);
         WM_event_add_ui_handler(C,
                                 &CTX_wm_window(C)->runtime->modalhandlers,
-                                handler_region_category_tab_drag,
-                                handler_region_category_tab_drag_remove,
+                                handler_panel_category_drag_activate,
+                                handler_panel_category_drag_activate_remove,
                                 drag_data,
                                 WM_HANDLER_BLOCKING);
         if (too_narrow) {
