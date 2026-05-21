@@ -1502,7 +1502,7 @@ void panel_category_tabs_draw_all(const bContext *C,
   Layout &layout = block_layout(block,
                                 LayoutDirection::Vertical,
                                 LayoutType::VerticalBar,
-                                rct_xmin + (is_left ? -1 : 1),
+                                rct_xmin + std::round((is_left ? -1 : 1) * zoom),
                                 v2d->mask.ymax,
                                 category_tabs_width,
                                 0,
@@ -1521,7 +1521,6 @@ void panel_category_tabs_draw_all(const bContext *C,
   fontscale(&fstyle_points, aspect);
   BLF_size(fontid, fstyle_points * UI_SCALE_FAC);
 
-  /* Calculate tab rectangle for each panel. */
   PointerRNA ptr = RNA_pointer_create_discrete(
       reinterpret_cast<ID *>(CTX_wm_screen(C)), RNA_Region, region);
   PropertyRNA *prop = RNA_struct_find_property(&ptr, "active_panel_category");
@@ -1533,6 +1532,7 @@ void panel_category_tabs_draw_all(const bContext *C,
     const int category_width = round_fl_to_int(
         compact ? 10.5 * UI_SCALE_FAC * zoom :
                   BLF_width(fontid, category_id_draw, BLF_DRAW_STR_DUMMY_MAX));
+
     /* Round width to upper even number. */
     const int w = (rct_xmax - rct_xmin) + ((rct_xmax - rct_xmin) & 1);
     const int h = category_width + tab_v_pad_text * 2;
@@ -1598,12 +1598,16 @@ void panel_category_tabs_draw_all(const bContext *C,
   block->aspect = aspect;
 
   block_translate(block, 0, region->category_scroll);
-  for (Button &button : block->buttons()) {
-    if (!is_alpha) {
+
+  /* Align buttons the panel content when region overlap is disabled. */
+  if (!is_alpha) {
+    for (Button &button : block->buttons()) {
       button.drawflag |= is_left ? BUT_ALIGN_RIGHT : BUT_ALIGN_LEFT;
     }
   }
+
   block_draw(C, block);
+
   /* Avoid buttons being to region aligned on redraws. */
   for (Button &button : block->buttons()) {
     button.drawflag &= ~BUT_ALIGN_ALL;

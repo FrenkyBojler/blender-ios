@@ -1734,16 +1734,10 @@ struct uiDragToggleHandle {
 
   int xy_init[2];
   int xy_last[2];
-
-  PropertyRNA *prop;
 };
 
-static bool drag_toggle_set_xy_xy(bContext *C,
-                                  ARegion *region,
-                                  const int pushed_state,
-                                  const int xy_src[2],
-                                  const int xy_dst[2],
-                                  PropertyRNA *prop)
+static bool drag_toggle_set_xy_xy(
+    bContext *C, ARegion *region, const int pushed_state, const int xy_src[2], const int xy_dst[2])
 {
   /* popups such as layers won't re-evaluate on redraw */
   const bool do_check = (region->regiontype == RGN_TYPE_TEMPORARY);
@@ -1759,9 +1753,6 @@ static bool drag_toggle_set_xy_xy(bContext *C,
     for (Button &but : block.buttons()) {
       /* NOTE: ctrl is always true here because (at least for now)
        * we always want to consider text control in this case, even when not embossed. */
-      if (prop != nullptr && but.rnaprop != prop) {
-        continue;
-      }
       if (!button_is_interactive(&but, true)) {
         continue;
       }
@@ -1845,8 +1836,7 @@ static void drag_toggle_set(bContext *C, uiDragToggleHandle *drag_info, const in
   xy[1] = (drag_info->xy_lock[1] == false) ? xy_input[1] : drag_info->xy_last[1];
 
   /* touch all buttons between last mouse coord and this one */
-  do_draw = drag_toggle_set_xy_xy(
-      C, region, drag_info->pushed_state, drag_info->xy_last, xy, drag_info->prop);
+  do_draw = drag_toggle_set_xy_xy(C, region, drag_info->pushed_state, drag_info->xy_last, xy);
 
   if (do_draw) {
     ED_region_tag_redraw(region);
