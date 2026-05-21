@@ -4801,8 +4801,6 @@ std::optional<CursorGeometryInfo> cursor_geometry_info_update(Depsgraph &depsgra
 
   /* Cursor is not over the mesh, return default values. */
   if (!srd.hit) {
-    out.location = float3(0.0f);
-    out.normal = float3(0.0f);
     ss.clear_active_elements(true);
     return std::nullopt;
   }
