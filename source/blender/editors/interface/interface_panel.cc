@@ -2594,12 +2594,13 @@ int handler_panel_region(bContext *C,
           /* Reset scroll to the top (#38348). */
           view2d_offset(&region->v2d, -1.0f, 1.0f);
         }
-        /* Do not break event, let click drag activate panel category. */
+        /* Do not break event, let click drag activate panel categories. */
       }
     }
     else if (((event->type == EVT_TABKEY) && (event->modifier & KM_CTRL)) ||
              ELEM(event->type, WHEELUPMOUSE, WHEELDOWNMOUSE))
     {
+      /* Cycle tabs. */
       WM_tooltip_clear(C, CTX_wm_window(C));
       retval = handle_panel_category_cycling(event, region, active_but);
     }
@@ -2607,7 +2608,8 @@ int handler_panel_region(bContext *C,
       WM_tooltip_clear(C, CTX_wm_window(C));
       retval = panel_category_show_active_tab(region, event->xy);
     }
-    if ((event->type == RIGHTMOUSE) && panel_categories_is_mouse_over(region, event)) {
+    else if ((event->type == RIGHTMOUSE) && panel_categories_is_mouse_over(region, event)) {
+      BLI_assert(retval == WM_UI_HANDLER_CONTINUE);
       retval = WM_UI_HANDLER_BREAK;
       WM_tooltip_clear(C, CTX_wm_window(C));
       popup_context_menu_for_panel(C, region, nullptr);
