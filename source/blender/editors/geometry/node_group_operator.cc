@@ -9,7 +9,6 @@
 #include "BLI_array_utils.hh"
 #include "BLI_index_mask.hh"
 #include "BLI_listbase.h"
-#include "BLI_path_utils.hh"
 #include "BLI_rect.h"
 #include "BLI_string_utf8.h"
 
@@ -146,7 +145,7 @@ struct OperatorTypeData : public wmOperatorType::TypeData {
   };
   std::variant<AssetWeakReference, LocalRef> group_ref;
 
-  UniqueHash hash;
+  std::array<int64_t, 2> hash;
 
   static std::optional<OperatorTypeData> from_asset(const AssetRepresentation &asset,
                                                     RegistrationData::Errors &errors);
@@ -194,7 +193,8 @@ void OperatorTypeData::ensure_hash()
   bke::idprop::hash(*this->asset_meta_data_properties, hash_state);
   static_assert(sizeof(this->hash) == sizeof(XXH128_hash_t));
   const XXH128_hash_t xxh3_hash = XXH3_128bits_digest(hash_state);
-  this->hash = {xxh3_hash.low64, xxh3_hash.high64};
+  this->hash[0] = xxh3_hash.low64;
+  this->hash[1] = xxh3_hash.high64;
 }
 
 static std::optional<std::string> operator_idname_get(const StringRefNull custom_idname,
@@ -1526,7 +1526,7 @@ static const RegistrationData::TypeTreeItem *find_tree_node(
     const Span<std::unique_ptr<RegistrationData::TypeTreeItem>> nodes, StringRef path)
 {
   BLI_assert(!path.is_empty());
-  const int64_t sep = path.find_first_of(SEP_STR);
+  const int64_t sep = path.find_first_of('/');
   if (sep == StringRef::not_found) {
     return find_tree_child(nodes, path);
   }
@@ -1555,7 +1555,7 @@ static void tree_add_type(Vector<std::unique_ptr<RegistrationData::TypeTreeItem>
                           wmOperatorType *ot)
 {
   BLI_assert(!path.is_empty());
-  const int64_t sep = path.find_first_of(SEP_STR);
+  const int64_t sep = path.find_first_of('/');
   if (sep == StringRef::not_found) {
     RegistrationData::TypeTreeItem &child = ensure_child(nodes, path);
     child.types.append(ot);
