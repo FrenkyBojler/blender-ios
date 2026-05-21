@@ -8,8 +8,15 @@
 
 #include <cstdarg>
 
+<<<<<<< HEAD
 #include "BLI_math_matrix_c.hh"
 #include "BLI_sys_types.hh"
+=======
+#include "BLI_math_euler.hh"
+#include "BLI_math_euler_types.hh"
+#include "BLI_math_matrix.h"
+#include "BLI_sys_types.h"
+>>>>>>> 400f66cfe9f (Migrate sculpt to geoemetry functions)
 
 #include "BLT_translation.hh"
 
@@ -31,6 +38,11 @@
 #include "ED_sculpt.hh"
 
 #include "GEO_join_geometries.hh"
+#include "GEO_mesh_primitive_cuboid.hh"
+#include "GEO_mesh_primitive_cylinder_cone.hh"
+#include "GEO_mesh_primitive_ico_sphere.hh"
+#include "GEO_mesh_primitive_uv_sphere.hh"
+#include "GEO_transform.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
@@ -149,6 +161,26 @@ static void make_prim_finish_sculpt(bContext *C, Object *ob, BMesh *bm)
   BKE_mesh_nomain_to_mesh(result, object_mesh, ob);
 
   BKE_sculptsession_free_pbvh(*ob);
+  DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+  WM_event_add_notifier(C, NC_GEOM | ND_DATA, object_mesh);
+}
+
+static void make_prim_finish_geometry(bContext *C, Object *ob, Mesh *primitive_mesh)
+{
+  Mesh *object_mesh = id_cast<Mesh *>(ob->data);
+
+  init_facesets(object_mesh, primitive_mesh);
+
+  bke::GeometrySet joined = geometry::join_geometries(
+      {bke::GeometrySet::from_mesh(object_mesh, bke::GeometryOwnershipType::ReadOnly),
+       bke::GeometrySet::from_mesh(primitive_mesh, bke::GeometryOwnershipType::ReadOnly)},
+      {});
+
+  Mesh *result = joined.get_component_for_write<bke::MeshComponent>().release();
+
+  BKE_id_free(CTX_data_main(C), primitive_mesh);
+  BKE_mesh_nomain_to_mesh(result, object_mesh, ob);
+
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_GEOM | ND_DATA, object_mesh);
 }
@@ -308,17 +340,34 @@ static wmOperatorStatus add_primitive_cube_exec(bContext *C, wmOperator *op)
                           local_view_bits,
                           &creation_data);
 
-  if (!make_prim_from_bmo_args(C,
-                               op,
-                               obedit,
-                               &creation_data,
-                               calc_uvs,
-                               "create_cube matrix=%m4 size=%f calc_uvs=%b",
-                               creation_data.mat,
-                               RNA_float_get(op->ptr, "size"),
-                               calc_uvs))
-  {
-    return OPERATOR_CANCELLED;
+  if (creation_data.original_mode == CTX_MODE_SCULPT) {
+    const float size = RNA_float_get(op->ptr, "size");
+
+    Mesh *primitive = geometry::create_cuboid_mesh(float3(size, size, size), 2, 2, 2);
+    geometry::transform_mesh(
+        *primitive, loc, math::to_quaternion(math::EulerXYZ(rot[0], rot[1], rot[2])), scale);
+
+    /* TODO: calc_uv's */
+    make_prim_finish_geometry(C, obedit, primitive);
+  }
+  else {
+    BMEditMesh *em = BKE_editmesh_from_object(obedit);
+
+    if (calc_uvs) {
+      ED_mesh_uv_ensure(id_cast<Mesh *>(obedit->data), nullptr);
+    }
+
+    if (!EDBM_op_call_and_selectf(em,
+                                  op,
+                                  "verts.out",
+                                  false,
+                                  "create_cube matrix=%m4 size=%f calc_uvs=%b",
+                                  creation_data.mat,
+                                  RNA_float_get(op->ptr, "size"),
+                                  calc_uvs))
+    {
+      return OPERATOR_CANCELLED;
+    }
   }
 
   /* BMESH_TODO make plane side this: M_SQRT2 - plane (diameter of 1.41 makes it unit size) */
@@ -447,23 +496,50 @@ static wmOperatorStatus add_primitive_cylinder_exec(bContext *C, wmOperator *op)
                           local_view_bits,
                           &creation_data);
 
-  if (!make_prim_from_bmo_args(C,
-                               op,
-                               obedit,
-                               &creation_data,
-                               calc_uvs,
-                               "create_cone segments=%i radius1=%f radius2=%f cap_ends=%b "
-                               "cap_tris=%b depth=%f matrix=%m4 calc_uvs=%b",
-                               RNA_int_get(op->ptr, "vertices"),
-                               RNA_float_get(op->ptr, "radius"),
-                               RNA_float_get(op->ptr, "radius"),
-                               cap_end,
-                               cap_tri,
-                               RNA_float_get(op->ptr, "depth"),
-                               creation_data.mat,
-                               calc_uvs))
-  {
-    return OPERATOR_CANCELLED;
+  if (creation_data.original_mode == CTX_MODE_SCULPT) {
+    const float radius = RNA_float_get(op->ptr, "radius");
+    geometry::ConeAttributeOutputs attributes{};
+
+    const int fill_segments = 1;
+    const int side_segments = 1;
+    Mesh *primitive = geometry::create_cylinder_or_cone_mesh(radius,
+                                                             radius,
+                                                             RNA_float_get(op->ptr, "depth"),
+                                                             RNA_int_get(op->ptr, "vertices"),
+                                                             side_segments,
+                                                             fill_segments,
+                                                             geometry::ConeFillType::NGon,
+                                                             attributes);
+    geometry::transform_mesh(
+        *primitive, loc, math::to_quaternion(math::EulerXYZ(rot[0], rot[1], rot[2])), scale);
+
+    /* TODO: calc_uvs */
+    make_prim_finish_geometry(C, obedit, primitive);
+  }
+  else {
+    BMEditMesh *em = BKE_editmesh_from_object(obedit);
+
+    if (calc_uvs) {
+      ED_mesh_uv_ensure(id_cast<Mesh *>(obedit->data), nullptr);
+    }
+
+    if (!EDBM_op_call_and_selectf(em,
+                                  op,
+                                  "verts.out",
+                                  false,
+                                  "create_cone segments=%i radius1=%f radius2=%f cap_ends=%b "
+                                  "cap_tris=%b depth=%f matrix=%m4 calc_uvs=%b",
+                                  RNA_int_get(op->ptr, "vertices"),
+                                  RNA_float_get(op->ptr, "radius"),
+                                  RNA_float_get(op->ptr, "radius"),
+                                  cap_end,
+                                  cap_tri,
+                                  RNA_float_get(op->ptr, "depth"),
+                                  creation_data.mat,
+                                  calc_uvs))
+    {
+      return OPERATOR_CANCELLED;
+    }
   }
 
   make_prim_finish(C, obedit, &creation_data, enter_editmode);
@@ -520,23 +596,49 @@ static wmOperatorStatus add_primitive_cone_exec(bContext *C, wmOperator *op)
                           local_view_bits,
                           &creation_data);
 
-  if (!make_prim_from_bmo_args(C,
-                               op,
-                               obedit,
-                               &creation_data,
-                               calc_uvs,
-                               "create_cone segments=%i radius1=%f radius2=%f cap_ends=%b "
-                               "cap_tris=%b depth=%f matrix=%m4 calc_uvs=%b",
-                               RNA_int_get(op->ptr, "vertices"),
-                               RNA_float_get(op->ptr, "radius1"),
-                               RNA_float_get(op->ptr, "radius2"),
-                               cap_end,
-                               cap_tri,
-                               RNA_float_get(op->ptr, "depth"),
-                               creation_data.mat,
-                               calc_uvs))
-  {
-    return OPERATOR_CANCELLED;
+  if (creation_data.original_mode == CTX_MODE_SCULPT) {
+    geometry::ConeAttributeOutputs attributes{};
+
+    const int fill_segments = 1;
+    const int side_segments = 1;
+    Mesh *primitive = geometry::create_cylinder_or_cone_mesh(RNA_float_get(op->ptr, "radius2"),
+                                                             RNA_float_get(op->ptr, "radius1"),
+                                                             RNA_float_get(op->ptr, "depth"),
+                                                             RNA_int_get(op->ptr, "vertices"),
+                                                             side_segments,
+                                                             fill_segments,
+                                                             geometry::ConeFillType::NGon,
+                                                             attributes);
+    geometry::transform_mesh(
+        *primitive, loc, math::to_quaternion(math::EulerXYZ(rot[0], rot[1], rot[2])), scale);
+
+    /* TODO: calc_uv's */
+    make_prim_finish_geometry(C, obedit, primitive);
+  }
+  else {
+    BMEditMesh *em = BKE_editmesh_from_object(obedit);
+
+    if (calc_uvs) {
+      ED_mesh_uv_ensure(id_cast<Mesh *>(obedit->data), nullptr);
+    }
+
+    if (!EDBM_op_call_and_selectf(em,
+                                  op,
+                                  "verts.out",
+                                  false,
+                                  "create_cone segments=%i radius1=%f radius2=%f cap_ends=%b "
+                                  "cap_tris=%b depth=%f matrix=%m4 calc_uvs=%b",
+                                  RNA_int_get(op->ptr, "vertices"),
+                                  RNA_float_get(op->ptr, "radius1"),
+                                  RNA_float_get(op->ptr, "radius2"),
+                                  cap_end,
+                                  cap_tri,
+                                  RNA_float_get(op->ptr, "depth"),
+                                  creation_data.mat,
+                                  calc_uvs))
+    {
+      return OPERATOR_CANCELLED;
+    }
   }
 
   make_prim_finish(C, obedit, &creation_data, enter_editmode);
@@ -724,20 +826,38 @@ static wmOperatorStatus add_primitive_uvsphere_exec(bContext *C, wmOperator *op)
                           local_view_bits,
                           &creation_data);
 
-  if (!make_prim_from_bmo_args(
-          C,
-          op,
-          obedit,
-          &creation_data,
-          calc_uvs,
-          "create_uvsphere u_segments=%i v_segments=%i radius=%f matrix=%m4 calc_uvs=%b",
-          RNA_int_get(op->ptr, "segments"),
-          RNA_int_get(op->ptr, "ring_count"),
-          RNA_float_get(op->ptr, "radius"),
-          creation_data.mat,
-          calc_uvs))
-  {
-    return OPERATOR_CANCELLED;
+  if (creation_data.original_mode == CTX_MODE_SCULPT) {
+    Mesh *primitive = geometry::create_uv_sphere_mesh(RNA_float_get(op->ptr, "radius"),
+                                                      RNA_int_get(op->ptr, "segments"),
+                                                      RNA_int_get(op->ptr, "ring_count"),
+                                                      {});
+    geometry::transform_mesh(
+        *primitive, loc, math::to_quaternion(math::EulerXYZ(rot[0], rot[1], rot[2])), scale);
+
+    /* TODO: calc_uv's */
+    make_prim_finish_geometry(C, obedit, primitive);
+  }
+  else {
+    BMEditMesh *em = BKE_editmesh_from_object(obedit);
+
+    if (calc_uvs) {
+      ED_mesh_uv_ensure(id_cast<Mesh *>(obedit->data), nullptr);
+    }
+
+    if (!EDBM_op_call_and_selectf(
+            em,
+            op,
+            "verts.out",
+            false,
+            "create_uvsphere u_segments=%i v_segments=%i radius=%f matrix=%m4 calc_uvs=%b",
+            RNA_int_get(op->ptr, "segments"),
+            RNA_int_get(op->ptr, "ring_count"),
+            RNA_float_get(op->ptr, "radius"),
+            creation_data.mat,
+            calc_uvs))
+    {
+      return OPERATOR_CANCELLED;
+    }
   }
 
   make_prim_finish(C, obedit, &creation_data, enter_editmode);
@@ -791,18 +911,35 @@ static wmOperatorStatus add_primitive_icosphere_exec(bContext *C, wmOperator *op
                           local_view_bits,
                           &creation_data);
 
-  if (!make_prim_from_bmo_args(C,
-                               op,
-                               obedit,
-                               &creation_data,
-                               calc_uvs,
-                               "create_icosphere subdivisions=%i radius=%f matrix=%m4 calc_uvs=%b",
-                               RNA_int_get(op->ptr, "subdivisions"),
-                               RNA_float_get(op->ptr, "radius"),
-                               creation_data.mat,
-                               calc_uvs))
-  {
-    return OPERATOR_CANCELLED;
+  if (creation_data.original_mode == CTX_MODE_SCULPT) {
+    Mesh *primitive = geometry::create_ico_sphere_mesh(
+        RNA_int_get(op->ptr, "subdivisions"), RNA_float_get(op->ptr, "radius"), {});
+    geometry::transform_mesh(
+        *primitive, loc, math::to_quaternion(math::EulerXYZ(rot[0], rot[1], rot[2])), scale);
+
+    /* TODO: calc_uv's */
+    make_prim_finish_geometry(C, obedit, primitive);
+  }
+  else {
+    BMEditMesh *em = BKE_editmesh_from_object(obedit);
+
+    if (calc_uvs) {
+      ED_mesh_uv_ensure(id_cast<Mesh *>(obedit->data), nullptr);
+    }
+
+    if (!EDBM_op_call_and_selectf(
+            em,
+            op,
+            "verts.out",
+            false,
+            "create_icosphere subdivisions=%i radius=%f matrix=%m4 calc_uvs=%b",
+            RNA_int_get(op->ptr, "subdivisions"),
+            RNA_float_get(op->ptr, "radius"),
+            creation_data.mat,
+            calc_uvs))
+    {
+      return OPERATOR_CANCELLED;
+    }
   }
 
   make_prim_finish(C, obedit, &creation_data, enter_editmode);

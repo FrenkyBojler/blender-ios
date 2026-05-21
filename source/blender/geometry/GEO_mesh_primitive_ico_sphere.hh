@@ -21,10 +21,9 @@ namespace geometry {
 
 Bounds<float3> calculate_bounds_ico_sphere(const float radius, const int subdivisions);
 
-
 Mesh *create_ico_sphere_mesh(const int subdivisions,
-                                      const float radius,
-                                      const std::optional<std::string> &uv_map_id);
+                             const float radius,
+                             const std::optional<std::string> &uv_map_id);
 
 }  // namespace geometry
 }  // namespace blender
