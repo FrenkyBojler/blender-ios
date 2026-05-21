@@ -153,13 +153,22 @@ PyDoc_STRVAR(
     pygpu_platform_devices_list_doc,
     ".. function:: devices_list()\n"
     "\n"
-    "   Get all available GPU devices for the active backend.\n"
+    "   Get all available GPU devices.\n"
+    "\n"
+    "   .. note:: This function is only supported when using the Vulkan backend.\n"
+    "      An error is raised for other backends.\n"
     "\n"
     "   :return: List of tuples (index, identifier, name) for each device.\n"
     "   :rtype: list of tuple[int, str, str]\n");
 static PyObject *pygpu_platform_devices_list(PyObject * /*self*/)
 {
   BPYGPU_IS_INIT_OR_ERROR_OBJ;
+
+  if (GPU_backend_get_type() != GPU_BACKEND_VULKAN) {
+    PyErr_SetString(PyExc_RuntimeError,
+                    "gpu.platform.devices_list() is only supported with the Vulkan backend");
+    return nullptr;
+  }
 
   Span<GPUDevice> devices = GPU_platform_devices_list();
   PyObject *list = PyList_New(devices.size());
