@@ -730,6 +730,7 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     for (Brush &brush : bmain->brushes) {
       if (brush.gpencil_settings != nullptr) {
         brush.gpencil_settings->fill_gap_factor = 0.4f;
+        brush.gpencil_settings->fill_detection_mode = GP_FILL_DETECTION_MODE_EXTERNAL;
       }
     }
   }

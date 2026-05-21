@@ -679,6 +679,7 @@ std::optional<bke::CurvesGeometry> delaunay_fill_strokes(const ViewContext &view
                                                          const Span<DrawingInfo> src_drawings,
                                                          bool invert,
                                                          std::optional<float> opacity_threshold,
+                                                         int8_t detection_mode,
                                                          float gap_factor,
                                                          const GroupedSpan<float2> &fill_points);
 

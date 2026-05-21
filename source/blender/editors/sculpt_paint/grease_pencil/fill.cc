@@ -1369,6 +1369,41 @@ static void add_weights_for_tri(const Span<int3> tri_adjacency,
   }
 }
 
+/* Start from one triangle and expand outwards. Will return false if not contained. */
+static bool flood_fill_triangles(const Span<int3> tri_adjacency,
+                                 const Span<int3> tri_edges,
+                                 const Span<bool> is_source_edge,
+                                 const int start_tri_index,
+                                 MutableSpan<bool> r_tri_to_fill)
+{
+  std::queue<int> tris_to_check;
+  tris_to_check.push(start_tri_index);
+
+  while (!tris_to_check.empty()) {
+    const int tri_index = tris_to_check.front();
+    r_tri_to_fill[tri_index] = true;
+    tris_to_check.pop();
+
+    for (const int j : IndexRange(3)) {
+      const int next_tri = tri_adjacency[tri_index][j];
+      const int edge_index = tri_edges[tri_index][j];
+
+      if (is_source_edge[edge_index]) {
+        continue;
+      }
+      if (next_tri == NULL_INDEX) {
+        return false;
+      }
+
+      if (!r_tri_to_fill[next_tri]) {
+        tris_to_check.push(next_tri);
+      }
+    }
+  }
+
+  return true;
+}
+
 static meshintersect::CDT_input<double> get_input_from_drawings(
     const Span<DrawingInfo> src_drawings,
     const Object &object,
@@ -1629,6 +1664,7 @@ std::optional<bke::CurvesGeometry> delaunay_fill_strokes(
     const Span<DrawingInfo> src_drawings,
     const bool invert,
     const std::optional<float> opacity_threshold,
+    const int8_t detection_mode,
     const float gap_factor,
     const GroupedSpan<float2> &fill_points)
 {
@@ -1720,10 +1756,7 @@ std::optional<bke::CurvesGeometry> delaunay_fill_strokes(
     first_tri_index = get_first_boundary_tri();
   }
 
-  /* When the `gap_factor` is used, automatically segmentate the geometry until all triangles have
-   * full or close to full weight. the `gap_factor` is the factor that a triangle can be within and
-   * be considered full. */
-  if (gap_factor > 0.0f) {
+  if ((detection_mode == GP_FILL_DETECTION_MODE_ALL) && gap_factor > 0.0f) {
     add_weights_for_tri(tri_adjacency.as_span(),
                         tri_edges.as_span(),
                         edge_weights.as_span(),
@@ -1734,6 +1767,8 @@ std::optional<bke::CurvesGeometry> delaunay_fill_strokes(
                         tri_hint_index.as_mutable_span(),
                         tri_weights.as_mutable_span());
 
+    /* Create segmentation of the geometry until all triangles have full or nearly full weights.
+     * the `gap_factor` is the factor that a triangle can be within and be considered full. */
     Set<int> not_full_tris;
     for (const int tri_index : result.face.index_range()) {
       if (tri_weights[tri_index] < tri_max_weight[tri_index] * gap_factor) {
@@ -1781,7 +1816,9 @@ std::optional<bke::CurvesGeometry> delaunay_fill_strokes(
       });
     }
   }
-  else {
+  else if (detection_mode == GP_FILL_DETECTION_MODE_EXTERNAL ||
+           ((detection_mode == GP_FILL_DETECTION_MODE_ALL) && gap_factor <= 0.0f))
+  {
     int hint_tri_index = get_first_boundary_tri();
     add_weights_for_tri(tri_adjacency.as_span(),
                         tri_edges.as_span(),
@@ -1796,38 +1833,47 @@ std::optional<bke::CurvesGeometry> delaunay_fill_strokes(
     hint_index++;
   }
 
-  if (!invert) {
-    /* Add the mouse fill again to make sure it as highest priority. */
-    add_weights_for_tri(tri_adjacency.as_span(),
-                        tri_edges.as_span(),
-                        edge_weights.as_span(),
-                        tri_max_weight.as_span(),
-                        is_source_edge.as_span(),
-                        first_tri_index,
-                        hint_index,
-                        tri_hint_index.as_mutable_span(),
-                        tri_weights.as_mutable_span());
-  }
-
   Array<bool> tri_to_fill(result.face.size(), false);
 
-  if (invert) {
-    threading::parallel_for(result.face.index_range(), 512, [&](const IndexRange range) {
-      for (const int64_t tri_index : range) {
-        if (tri_hint_index[tri_index] != 0) {
-          tri_to_fill[tri_index] = true;
-        }
-      }
-    });
+  if (detection_mode == GP_FILL_DETECTION_MODE_NONE) {
+    if (!flood_fill_triangles(tri_adjacency.as_span(),
+                              tri_edges.as_span(),
+                              is_source_edge.as_span(),
+                              first_tri_index,
+                              tri_to_fill.as_mutable_span()))
+    {
+      return std::nullopt;
+    }
   }
   else {
-    threading::parallel_for(result.face.index_range(), 512, [&](const IndexRange range) {
-      for (const int64_t tri_index : range) {
-        if (tri_hint_index[tri_index] == hint_index) {
-          tri_to_fill[tri_index] = true;
+    if (invert) {
+      threading::parallel_for(result.face.index_range(), 512, [&](const IndexRange range) {
+        for (const int64_t tri_index : range) {
+          if (tri_hint_index[tri_index] != 0) {
+            tri_to_fill[tri_index] = true;
+          }
         }
-      }
-    });
+      });
+    }
+    else {
+      /* Add the mouse fill again to make sure it as highest priority. */
+      add_weights_for_tri(tri_adjacency.as_span(),
+                          tri_edges.as_span(),
+                          edge_weights.as_span(),
+                          tri_max_weight.as_span(),
+                          is_source_edge.as_span(),
+                          first_tri_index,
+                          hint_index,
+                          tri_hint_index.as_mutable_span(),
+                          tri_weights.as_mutable_span());
+      threading::parallel_for(result.face.index_range(), 512, [&](const IndexRange range) {
+        for (const int64_t tri_index : range) {
+          if (tri_hint_index[tri_index] == hint_index) {
+            tri_to_fill[tri_index] = true;
+          }
+        }
+      });
+    }
   }
 
   const std::optional<EdgeCurves> edge_curves = create_connected_edges_from_fill(

@@ -121,10 +121,17 @@ enum eGP_FillLayerModes : short {
   GP_FILL_GPLMODE_BELOW = 5,
 };
 
-/* BrushGpencilSettings->fill_method */
+/* BrushGpencilSettings->fill_solver */
 enum eGP_FillSolver {
   GP_FILL_SOLVER_DELAUNAY = 0,
   GP_FILL_SOLVER_PIXEL = 1,
+};
+
+/* BrushGpencilSettings->fill_detection_mode */
+enum eGP_FillDetectionMode {
+  GP_FILL_DETECTION_MODE_NONE = 0,
+  GP_FILL_DETECTION_MODE_EXTERNAL = 1,
+  GP_FILL_DETECTION_MODE_ALL = 2,
 };
 
 /* BrushGpencilSettings->gp_eraser_mode */

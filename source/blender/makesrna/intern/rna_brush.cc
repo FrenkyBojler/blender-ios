@@ -375,6 +375,16 @@ static EnumPropertyItem rna_enum_gpencil_fill_solver_items[] = {
     {GP_FILL_SOLVER_PIXEL, "PIXEL", 0, "Pixel", "Use pixel based flooding to create fills"},
     {0, nullptr, 0, nullptr, nullptr}};
 
+static EnumPropertyItem rna_enum_gpencil_fill_detection_mode_items[] = {
+    {GP_FILL_DETECTION_MODE_NONE, "NONE", 0, "None", "Flood thought all gaps without stopping"},
+    {GP_FILL_DETECTION_MODE_EXTERNAL,
+     "EXTERNAL",
+     0,
+     "External",
+     "Only stop at gaps which lead to empty space"},
+    {GP_FILL_DETECTION_MODE_ALL, "ALL", 0, "All", "Stop at any gap detected"},
+    {0, nullptr, 0, nullptr, nullptr}};
+
 static EnumPropertyItem rna_enum_gpencil_brush_modes_items[] = {
     {GP_BRUSH_MODE_ACTIVE, "ACTIVE", 0, "Active", "Use current mode"},
     {GP_BRUSH_MODE_MATERIAL, "MATERIAL", 0, "Material", "Use always material mode"},
@@ -1940,7 +1950,15 @@ static void rna_def_gpencil_options(BlenderRNA *brna)
   prop = RNA_def_property(srna, "fill_solver", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "fill_solver");
   RNA_def_property_enum_items(prop, rna_enum_gpencil_fill_solver_items);
-  RNA_def_property_ui_text(prop, "Fill Method", "Method used for when filling");
+  RNA_def_property_ui_text(prop, "Fill Solver", "Method used for when filling");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_update(prop, 0, "rna_BrushGpencilSettings_update");
+
+  prop = RNA_def_property(srna, "fill_detection_mode", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "fill_detection_mode");
+  RNA_def_property_enum_items(prop, rna_enum_gpencil_fill_detection_mode_items);
+  RNA_def_property_ui_text(
+      prop, "Detection Mode", "Mode used to detected gaps in the fill geometry");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_update(prop, 0, "rna_BrushGpencilSettings_update");
 
