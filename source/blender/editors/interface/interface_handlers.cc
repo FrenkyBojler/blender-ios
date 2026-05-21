@@ -1753,6 +1753,7 @@ static bool drag_toggle_set_xy_xy(
     for (Button &but : block.buttons()) {
       /* NOTE: ctrl is always true here because (at least for now)
        * we always want to consider text control in this case, even when not embossed. */
+
       if (!button_is_interactive(&but, true)) {
         continue;
       }

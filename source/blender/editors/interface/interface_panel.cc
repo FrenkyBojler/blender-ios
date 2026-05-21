@@ -1416,7 +1416,7 @@ bool panel_should_show_background(const ARegion *region, const PanelType *panel_
 #define TABS_PADDING_TEXT_FACTOR 6.0f
 static void panel_region_width_set(ARegion *region, const float aspect, int unscaled_size);
 
-static void expand_collapse_category_tab(bContext &C, StringRef category, StringRef active)
+static void expand_panel_on_category_tab_change(bContext &C, StringRef category, StringRef active)
 {
   ARegion *region = CTX_wm_region(&C);
   if (category == active) {
@@ -1477,6 +1477,7 @@ void panel_category_tabs_draw_all(const bContext *C,
   else {
     immUniformColor3ubv(theme_col_tab_bg);
   }
+
   if (is_left) {
     immRectf(
         pos, v2d->mask.xmin, v2d->mask.ymin, v2d->mask.xmin + category_tabs_width, v2d->mask.ymax);
@@ -1488,9 +1489,11 @@ void panel_category_tabs_draw_all(const bContext *C,
              v2d->mask.xmax + 1,
              v2d->mask.ymax);
   }
+
   if (is_alpha) {
     GPU_blend(GPU_BLEND_NONE);
   }
+
   immUnbindProgram();
 
   /* Same for all tabs. */
@@ -1586,9 +1589,8 @@ void panel_category_tabs_draw_all(const bContext *C,
     button_func_set(button,
                     [category = std::string(category_id),
                      active = std::string(category_id_active)](bContext &C) -> void {
-                      expand_collapse_category_tab(C, category, active);
+                      expand_panel_on_category_tab_change(C, category, active);
                     });
-    BLI_rcti_rctf_copy(&pc_dyn.rect, &button->rect);
   }
   int2 co = block_layout_resolve(block);
   const int max_scroll = std::max(-co.y, 0);
@@ -1608,7 +1610,7 @@ void panel_category_tabs_draw_all(const bContext *C,
 
   block_draw(C, block);
 
-  /* Avoid buttons being to region aligned on redraws. */
+  /* Avoid buttons being aligned to the region on redraws. */
   for (Button &button : block->buttons()) {
     button.drawflag &= ~BUT_ALIGN_ALL;
   }
@@ -2447,6 +2449,8 @@ void panel_category_clear_all(ARegion *region)
   BLI_freelistN(&region->runtime->panels_category);
 }
 
+static bool panel_categories_is_mouse_over(ARegion *region, const wmEvent *event);
+
 static int handle_panel_category_cycling(const wmEvent *event,
                                          ARegion *region,
                                          const Button *active_but)
@@ -2454,12 +2458,7 @@ static int handle_panel_category_cycling(const wmEvent *event,
   BLI_assert(BKE_regiontype_uses_category_tabs(region->runtime->type));
 
   const bool is_mousewheel = ELEM(event->type, WHEELUPMOUSE, WHEELDOWNMOUSE);
-  const bool inside_tabregion =
-      ((RGN_ALIGN_ENUM_FROM_MASK(region->alignment) != RGN_ALIGN_RIGHT) ?
-           (event->mval[0] <
-            (static_cast<PanelCategoryDyn *>(region->runtime->panels_category.first))->rect.xmax) :
-           (event->mval[0] >
-            (static_cast<PanelCategoryDyn *>(region->runtime->panels_category.first))->rect.xmin));
+  const bool inside_tabregion = panel_categories_is_mouse_over(region, event);
 
   /* If mouse is inside non-tab region, ctrl key is required. */
   if (is_mousewheel && (event->modifier & KM_CTRL) == 0 && !inside_tabregion) {
@@ -2542,10 +2541,7 @@ static bool panel_categories_is_mouse_over(ARegion *region, const wmEvent *event
   if (Block *block = region->runtime->block_name_map.lookup_as("panel_category_tabs")) {
     rect.ymin = block->buttons_ptrs.last()->rect.ymax;
   }
-  if (BLI_rcti_isect_pt(&rect, event->mval[0], event->mval[1])) {
-    return true;
-  }
-  return false;
+  return BLI_rcti_isect_pt(&rect, event->mval[0], event->mval[1]);
 }
 
 int handler_panel_region(bContext *C,
@@ -2570,13 +2566,13 @@ int handler_panel_region(bContext *C,
         panel_categories_is_mouse_over(region, event))
     {
       const Button *active_button = region_find_active_but(region);
+      /* Expand/collapse panels when clicking the active category button. */
       if (active_button && active_button->flag & UI_SELECT) {
         const float aspect = BLI_rctf_size_y(&region->v2d.cur) /
                              (BLI_rcti_size_y(&region->v2d.mask) + 1);
         const bool too_narrow = BLI_rcti_size_x(&region->winrct) <=
                                 int(std::ceil(UI_PANEL_CATEGORY_MIN_WIDTH * UI_SCALE_FAC /
                                               aspect));
-
         if (too_narrow) {
           /* Enlarge region. */
           const int new_width = region->runtime->type->prefsizex ?
@@ -2598,16 +2594,16 @@ int handler_panel_region(bContext *C,
           /* Reset scroll to the top (#38348). */
           view2d_offset(&region->v2d, -1.0f, 1.0f);
         }
-        /* Do not break event, let drag activate panels. */
+        /* Do not break event, let click drag activate panel category. */
       }
     }
-    if (((event->type == EVT_TABKEY) && (event->modifier & KM_CTRL)) ||
-        ELEM(event->type, WHEELUPMOUSE, WHEELDOWNMOUSE))
+    else if (((event->type == EVT_TABKEY) && (event->modifier & KM_CTRL)) ||
+             ELEM(event->type, WHEELUPMOUSE, WHEELDOWNMOUSE))
     {
       WM_tooltip_clear(C, CTX_wm_window(C));
       retval = handle_panel_category_cycling(event, region, active_but);
     }
-    if (event->type == EVT_PADPERIOD) {
+    else if (event->type == EVT_PADPERIOD) {
       WM_tooltip_clear(C, CTX_wm_window(C));
       retval = panel_category_show_active_tab(region, event->xy);
     }
@@ -2631,8 +2627,8 @@ int handler_panel_region(bContext *C,
     if (panel == nullptr || panel->type == nullptr) {
       continue;
     }
-    /* We can't expand or collapse panels without headers, they would disappear. Layout panels
-     * can be expanded and collapsed though. */
+    /* We can't expand or collapse panels without headers, they would disappear. Layout panels can
+     * be expanded and collapsed though. */
     const bool has_panel_header = !(panel->type->flag & PANEL_TYPE_NO_HEADER);
 
     int mx = event->xy[0];
