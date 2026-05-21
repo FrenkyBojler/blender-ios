@@ -10,19 +10,16 @@
 
 CCL_NAMESPACE_BEGIN
 
-# if defined(WITH_CYCLES_DEBUG)
-# define SANITY_IS_VALID(object) \
-    kernel_assert(is_valid(object)) 
+#if defined(WITH_CYCLES_DEBUG)
+#  define kernel_sanity_check(object) kernel_assert(is_valid(object))
 
-# define SANITY_IS_VALID_PDF(pdf) \
-    kernel_assert(is_valid_pdf(pdf))
+#  define kernel_sanity_check_PDF(pdf) kernel_assert(is_valid_pdf(pdf))
 
-# define SANITY_IS_VALID_RND(rnd) \
-    kernel_assert(is_valid_rnd(rnd))
-#else 
-# define SANITY_IS_VALID(object)
-# define SANITY_IS_VALID_PDF(pdf)
-# define SANITY_IS_VALID_RND(pdf)
-# endif 
+#  define kernel_sanity_check_RND(rnd) kernel_assert(is_valid_rnd(rnd))
+#else
+#  define kernel_sanity_check(object)
+#  define kernel_sanity_check_PDF(pdf)
+#  define kernel_sanity_check_RND(pdf)
+#endif
 
 CCL_NAMESPACE_END

@@ -5,8 +5,8 @@
 #pragma once
 
 #if !defined(__KERNEL_METAL__)
-#  include <cstdlib>
 #  include <cmath>
+#  include <cstdlib>
 #endif
 
 /* Standard Integer Types */
@@ -81,23 +81,26 @@ ccl_device_inline bool is_power_of_two(const size_t x)
   return (x & (x - 1)) == 0;
 }
 
-ccl_device_inline bool is_valid(const float a){
+ccl_device_inline bool is_valid(const float a)
+{
   bool valid = true;
   valid &= std::isfinite(a);
-#if defined(WITH_CYCLES_SANITY_CHECKS_RANGE_CHECKS)
+#if defined(WITH_CYCLES_DEBUG_SANITY_RANGE_CHECKS)
   valid &= a > -SANITY_FLT_LARGE && a < SANITY_FLT_LARGE;
 #endif
   return valid;
 }
 
-ccl_device_inline bool is_valid_rnd(const float a){
+ccl_device_inline bool is_valid_rnd(const float a)
+{
   return a >= 0.f && a < 1.f;
 }
 
-ccl_device_inline bool is_valid_pdf(const float a){
+ccl_device_inline bool is_valid_pdf(const float a)
+{
   bool valid = true;
   valid &= a >= 0.f;
-#if defined(WITH_CYCLES_SANITY_CHECKS_RANGE_CHECKS)
+#if defined(WITH_CYCLES_DEBUG_SANITY_RANGE_CHECKS)
   valid &= a < SANITY_FLT_LARGE;
 #endif
   return valid;

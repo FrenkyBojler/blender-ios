@@ -136,6 +136,6 @@
 #    define printf(...) metal::os_log_default.log_debug(__VA_ARGS__)
 #  endif
 
-#ifdef WITH_CYCLES_SANITY_CHECKS_RANGE_CHECKS
+#ifdef WITH_CYCLES_DEBUG_SANITY_RANGE_CHECKS
 #   define SANITY_FLT_LARGE 1.844E18f
 #endif

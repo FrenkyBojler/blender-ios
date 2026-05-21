@@ -13,8 +13,8 @@
 
 CCL_NAMESPACE_BEGIN
 
-
-static inline bool is_valid(openpgl::cpp::PathSegment*&){
+static inline bool is_valid(openpgl::cpp::PathSegment *&)
+{
   return true;
 }
 

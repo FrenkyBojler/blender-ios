@@ -1494,8 +1494,8 @@ ccl_device void volume_integrate_step_scattering(
   result.indirect_throughput *= safe_divide(sigma_n, prob_n);
   vstate.transmittance *= prob_n;
 
-  SANITY_IS_VALID(result);
-  SANITY_IS_VALID(vstate);
+  kernel_sanity_check(result);
+  kernel_sanity_check(vstate);
 }
 
 /* Evaluate coefficients at the equiangular scatter position, and update the direct throughput. */
@@ -1533,8 +1533,8 @@ ccl_device_inline void volume_equiangular_direct_scatter(
     /* Scattering coefficient is zero at the sampled position. */
     result.direct_scatter = false;
   }
-  SANITY_IS_VALID(result);
-  SANITY_IS_VALID(vstate);
+  kernel_sanity_check(result);
+  kernel_sanity_check(vstate);
 }
 
 /* Multiple Importance Sampling between equiangular sampling and distance sampling.
@@ -1634,7 +1634,7 @@ ccl_device_inline void volume_integrate_state_init(KernelGlobals kg,
 #  ifdef __DENOISING_FEATURES__
   vstate.albedo = zero_spectrum();
 #  endif
-  SANITY_IS_VALID(vstate);
+  kernel_sanity_check(vstate);
 }
 
 ccl_device_inline void volume_integrate_result_init(
@@ -1659,7 +1659,7 @@ ccl_device_inline void volume_integrate_result_init(
 #  if defined(__PATH_GUIDING__)
   result.direct_sample_method = vstate.direct_sample_method;
 #  endif
-  SANITY_IS_VALID(result);
+  kernel_sanity_check(result);
 }
 
 /* Compute guided volume scatter probability and the majorant scale needed for achieving the
@@ -1753,8 +1753,8 @@ ccl_device_forceinline void volume_integrate_homogeneous(KernelGlobals kg,
   if ((INTEGRATOR_STATE(state, path, flag) & PATH_RAY_TERMINATE) || is_zero(coeff.sigma_s)) {
     /* Attenuation only. */
     result.indirect_throughput *= transmittance;
-    SANITY_IS_VALID(vstate);
-    SANITY_IS_VALID(result);
+    kernel_sanity_check(vstate);
+    kernel_sanity_check(result);
     return;
   }
 
@@ -1800,8 +1800,8 @@ ccl_device_forceinline void volume_integrate_homogeneous(KernelGlobals kg,
 
   /* Direct scatter. */
   if (vstate.direct_sample_method == VOLUME_SAMPLE_NONE) {
-    SANITY_IS_VALID(vstate);
-    SANITY_IS_VALID(result);
+    kernel_sanity_check(vstate);
+    kernel_sanity_check(result);
     return;
   }
 
@@ -1832,8 +1832,8 @@ ccl_device_forceinline void volume_integrate_homogeneous(KernelGlobals kg,
                                 channel_pdf);
     }
   }
-  SANITY_IS_VALID(result);
-  SANITY_IS_VALID(vstate);
+  kernel_sanity_check(result);
+  kernel_sanity_check(vstate);
 }
 
 /* heterogeneous volume distance sampling: integrate stepping through the
@@ -1882,8 +1882,8 @@ ccl_device_forceinline void volume_integrate_heterogeneous(
 
   volume_distance_sampling_finalize(kg, state, ray, sd, vstate, result, reservoir);
   volume_equiangular_direct_scatter(kg, state, ray, sd, vstate, result);
-  SANITY_IS_VALID(vstate);
-  SANITY_IS_VALID(result);
+  kernel_sanity_check(vstate);
+  kernel_sanity_check(result);
 }
 
 /* Path tracing: sample point on light using equiangular sampling. */
@@ -2006,7 +2006,7 @@ ccl_device void volume_integrate_null_scattering(KernelGlobals kg,
   if (INTEGRATOR_STATE(state, path, bounce) == 0) {
     INTEGRATOR_STATE_WRITE(state, path, optical_depth) += vstate.optical_depth;
   }
-  SANITY_IS_VALID(result);
+  kernel_sanity_check(result);
 }
 
 /* -------------------------------------------------------------------- */
@@ -2233,8 +2233,8 @@ ccl_device bool volume_sample_indirect_scatter_ray_marching(
       }
 
       volume_shader_copy_phases(&result.indirect_phases, sd);
-      SANITY_IS_VALID(vstate);
-      SANITY_IS_VALID(result);
+      kernel_sanity_check(vstate);
+      kernel_sanity_check(result);
       return true;
     }
   }
@@ -2249,8 +2249,8 @@ ccl_device bool volume_sample_indirect_scatter_ray_marching(
     /* Remap rscatter so we can reuse it and keep thing stratified. */
     vstate.rscatter = 1.0f - (1.0f - vstate.rscatter) / sample_transmittance;
   }
-  SANITY_IS_VALID(vstate);
-  SANITY_IS_VALID(result);
+  kernel_sanity_check(vstate);
+  kernel_sanity_check(result);
   return false;
 }
 
@@ -2320,8 +2320,8 @@ ccl_device_forceinline void volume_ray_marching_step_scattering(
       }
     }
   }
-  SANITY_IS_VALID(vstate);
-  SANITY_IS_VALID(result);
+  kernel_sanity_check(vstate);
+  kernel_sanity_check(result);
 }
 
 /* heterogeneous volume distance sampling: integrate stepping through the
@@ -2439,7 +2439,7 @@ ccl_device_forceinline void volume_integrate_ray_marching(
         kg, state, accum_albedo, result.indirect_scatter, render_buffer);
   }
 #  endif /* __DENOISING_FEATURES__ */
-  SANITY_IS_VALID(result);
+  kernel_sanity_check(result);
 }
 
 /** \} */
@@ -2594,7 +2594,7 @@ ccl_device_forceinline void integrate_volume_direct_light(
     INTEGRATOR_STATE(shadow_state, shadow_path, guiding_mis_weight) = 0.0f;
   }
 #  endif
-  SANITY_IS_VALID(shadow_state);
+  kernel_sanity_check(shadow_state);
   integrator_state_copy_volume_stack_to_shadow(kg, shadow_state, state);
 }
 
@@ -2849,7 +2849,7 @@ volume_integrate_event(KernelGlobals kg,
     INTEGRATOR_STATE_WRITE(state, guiding, use_volume_guiding) = false;
   }
 #  endif
-  SANITY_IS_VALID(result);
+  kernel_sanity_check(result);
   return VOLUME_PATH_ATTENUATED;
 }
 
