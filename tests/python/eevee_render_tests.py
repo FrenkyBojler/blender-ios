@@ -78,6 +78,7 @@ BLOCKLIST_METAL = [
     "shutter_moving_camera_center.blend",
     "shutter_moving_camera_end.blend",
     "shutter_moving_camera_start.blend",
+    "points_motion.blend",
 ]
 
 BLOCKLIST_VULKAN = [
@@ -321,6 +322,12 @@ def main():
         # Also voronoi_f1 test uses `pow()` which has different precision depending on platform.
         report.set_fail_percent(0.46)
         report.set_fail_threshold(6.0 / 255.0)
+    elif test_dir_name.startswith('shader'):
+        # normal_mapping_light_leak fireflies.
+        report.set_fail_percent(0.18)
+        if gpu_vendor == "INTEL":
+            # mix_color uses implementation dependent function.
+            report.set_fail_percent(0.41)
     elif test_dir_name.startswith('render_layer'):
         # Because of aov_transparency noise pattern
         report.set_fail_percent(0.5)
@@ -330,7 +337,7 @@ def main():
         report.set_fail_percent(0.1)
         report.set_fail_threshold(6.0 / 255.0)
     elif test_dir_name.startswith('raycast') and gpu_vendor == "AMD":
-        # Some slight countour differences on AMD
+        # Some slight contour differences on AMD
         report.set_fail_percent(0.37)
         report.set_fail_threshold(10.0 / 255.0)
     elif test_dir_name.startswith('pointcloud'):
