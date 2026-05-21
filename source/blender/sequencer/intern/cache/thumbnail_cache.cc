@@ -231,6 +231,15 @@ static void scale_to_thumbnail_size(ImBuf *ibuf)
   if (ibuf == nullptr) {
     return;
   }
+
+  /* We only need byte thumbnails. */
+  if (ibuf->float_data()) {
+    if (ibuf->byte_data() == nullptr) {
+      IMB_byte_from_float(ibuf);
+    }
+    IMB_free_float_pixels(ibuf);
+  }
+
   int width = ibuf->x;
   int height = ibuf->y;
   image_size_to_thumb_size(width, height);
@@ -363,7 +372,7 @@ void ThumbGenerationJob::run_fn(void *customdata, wmJobWorkerStatus *worker_stat
             cur_anim_path = request.file_path;
             cur_stream = request.stream_index;
             cur_anim = MOV_open_file(
-                cur_anim_path.c_str(), IB_byte_data, cur_stream, true, nullptr);
+                cur_anim_path.c_str(), ImBufFlags::Zero, cur_stream, true, nullptr);
             cur_proxy_size = IMB_PROXY_NONE;
             if (cur_anim != nullptr) {
               /* Find the lowest proxy resolution available.

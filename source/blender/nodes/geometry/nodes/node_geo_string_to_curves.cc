@@ -281,14 +281,14 @@ static std::optional<TextLayout> get_text_layout(GeoNodeExecParams &params)
   cu.smallcaps_scale = 0.75f;
   cu.wordspace = 1.0f;
   /* Set values from inputs */
-  cu.spacemode = align_x;
-  cu.align_y = align_y;
+  cu.spacemode = eCurveSpaceMode(align_x);
+  cu.align_y = eCurveAlignY(align_y);
   cu.fsize = font_size;
   cu.spacing = char_spacing;
   cu.wordspace = word_spacing;
   cu.linedist = line_spacing;
   cu.vfont = vfont;
-  cu.overflow = overflow;
+  cu.overflow = eCurveOverflow(overflow);
   cu.tb = MEM_new_array<TextBox>(MAXTEXTBOX, __func__);
   cu.tb->w = textbox_w;
   cu.tb->h = textbox_h;
@@ -525,7 +525,7 @@ static void node_register()
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.initfunc = node_init;
-  bke::node_type_size(ntype, 190, 120, 700);
+  ntype.default_width = bke::NodeWidth::_200;
   bke::node_type_storage(
       ntype, "NodeGeometryStringToCurves", node_free_standard_storage, node_copy_standard_storage);
   bke::node_register_type(ntype);

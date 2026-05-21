@@ -110,7 +110,7 @@ static void palette_free_data(ID *id)
 {
   Palette *palette = id_cast<Palette *>(id);
 
-  BLI_freelistN(&palette->colors);
+  palette->colors.free_no_destruct();
 }
 
 static void palette_foreach_working_space_color(ID *id,
@@ -218,7 +218,7 @@ static void paint_curve_blend_write(BlendWriter *writer, ID *id, const void *id_
 static void paint_curve_blend_read_data(BlendDataReader *reader, ID *id)
 {
   PaintCurve *pc = id_cast<PaintCurve *>(id);
-  BLO_read_struct_array(reader, PaintCurvePoint, pc->tot_points, &pc->points);
+  BLO_read_array_and_validate_size(reader, &pc->points, &pc->tot_points);
 }
 
 IDTypeInfo IDType_ID_PC = {
@@ -252,7 +252,7 @@ IDTypeInfo IDType_ID_PC = {
     .lib_override_apply_post = nullptr,
 };
 
-static ePaintOverlayControlFlags overlay_flags = ePaintOverlayControlFlags(0);
+static ePaintOverlayControlFlags overlay_flags = ePaintOverlayControlFlags{};
 
 void BKE_paint_invalidate_overlay_tex(const Main &bmain,
                                       Scene *scene,
@@ -1303,7 +1303,7 @@ void BKE_palette_color_remove(Palette *palette, PaletteColor *color)
 
   BLI_remlink(&palette->colors, color);
 
-  if (palette->active_color < 0 && !BLI_listbase_is_empty(&palette->colors)) {
+  if (palette->active_color < 0 && !palette->colors.is_empty()) {
     palette->active_color = 0;
   }
 
@@ -1312,7 +1312,7 @@ void BKE_palette_color_remove(Palette *palette, PaletteColor *color)
 
 void BKE_palette_clear(Palette *palette)
 {
-  BLI_freelistN(&palette->colors);
+  palette->colors.free_no_destruct();
   palette->active_color = 0;
 }
 
@@ -1342,7 +1342,7 @@ PaletteColor *BKE_palette_color_add(Palette *palette)
 
 bool BKE_palette_is_empty(const Palette *palette)
 {
-  return BLI_listbase_is_empty(&palette->colors);
+  return palette->colors.is_empty();
 }
 
 bool BKE_paint_select_face_test(const Object *ob)
@@ -1392,7 +1392,7 @@ void BKE_paint_cavity_curve_preset(Paint *paint, int preset)
   }
   cumap = paint->cavity_curve;
   cumap->flag &= ~CUMA_EXTEND_EXTRAPOLATE;
-  cumap->preset = preset;
+  cumap->preset = eCurveMappingPreset(preset);
 
   cuma = cumap->cm;
   BKE_curvemap_reset(cuma, &cumap->clipr, cumap->preset, CurveMapSlopeType::Positive);

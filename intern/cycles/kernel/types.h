@@ -339,11 +339,6 @@ enum PassType {
   PASS_TRANSMISSION_COLOR,
   /* No Scatter color since it's tricky to define what it would even mean. */
   PASS_MIST,
-  PASS_DENOISING_ALBEDO,
-  PASS_DENOISING_SPECULAR_ALBEDO,
-  PASS_DENOISING_NORMAL,
-  PASS_DENOISING_ROUGHNESS,
-  PASS_DENOISING_DEPTH,
   PASS_RENDER_TIME,
 
   /* PASS_SHADOW_CATCHER accumulates contribution of shadow catcher object which is not affected by
@@ -374,10 +369,19 @@ enum PassType {
   PASS_VOLUME_MAJORANT_SAMPLE_COUNT,
   PASS_CATEGORY_DATA_END = 63,
 
+  /* Denoising passes */
+  PASS_DENOISING_ALBEDO,
+  PASS_DENOISING_SPECULAR_ALBEDO,
+  PASS_DENOISING_NORMAL,
+  PASS_DENOISING_ROUGHNESS,
+  PASS_DENOISING_DEPTH,
+  PASS_DENOISING_BACKWARD_MOTION,
+  PASS_CATEGORY_DENOISING_END = 95,
+
   PASS_BAKE_PRIMITIVE,
   PASS_BAKE_SEED,
   PASS_BAKE_DIFFERENTIAL,
-  PASS_CATEGORY_BAKE_END = 95,
+  PASS_CATEGORY_BAKE_END = 127,
 
   PASS_DENOISING_PREVIOUS,
 
@@ -398,6 +402,13 @@ struct BsdfEval {
   Spectrum diffuse;
   Spectrum glossy;
   Spectrum sum;
+};
+
+enum DenoisingPassFlag {
+  /* Whether to follow reflections for the denoising passes. */
+  DENOISING_PASS_FOLLOW_REFLECTIONS = (1 << 0),
+  /* Whether to use roughness-based weighting for the albedo or split by the BSDF type. */
+  DENOISING_PASS_USE_ALBEDO_ROUGHNESS_WEIGHTING = (1 << 1),
 };
 
 /* Closure Filter */
@@ -1305,6 +1316,11 @@ struct KernelLightLinkSet {
   uint light_tree_root;
 };
 
+struct KernelSceneTime {
+  float time;
+  float frame;
+};
+
 struct ccl_align(16) KernelData {
   /* Features and limits. */
   uint kernel_features;
@@ -1317,6 +1333,7 @@ struct ccl_align(16) KernelData {
   KernelBake bake;
   KernelTables tables;
   KernelLightLinkSet light_link_sets[LIGHT_LINK_SET_MAX];
+  KernelSceneTime scene_time;
 
   /* Potentially specialized data members. */
 #define KERNEL_STRUCT_BEGIN(name, parent) name parent;
@@ -1657,7 +1674,6 @@ enum ShaderEvalResult {
   /* Cache miss means shader evaluation can not be used. */
   SHADER_EVAL_CACHE_MISS = 2,
 };
-
 /* Pre-computed sample table sizes for the tabulated Sobol sampler.
  *
  * NOTE: min and max samples *must* be a power of two, and patterns

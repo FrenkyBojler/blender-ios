@@ -26,10 +26,7 @@ namespace blender {
 
 /* #AssetWeakReference -------------------------------------------- */
 
-AssetWeakReference::AssetWeakReference()
-    : asset_library_type(0), asset_library_identifier(nullptr), relative_asset_identifier(nullptr)
-{
-}
+AssetWeakReference::AssetWeakReference() = default;
 
 AssetWeakReference::AssetWeakReference(const AssetWeakReference &other)
     : asset_library_type(other.asset_library_type),
@@ -43,7 +40,7 @@ AssetWeakReference::AssetWeakReference(AssetWeakReference &&other)
       asset_library_identifier(other.asset_library_identifier),
       relative_asset_identifier(other.relative_asset_identifier)
 {
-  other.asset_library_type = 0; /* Not a valid type. */
+  other.asset_library_type = eAssetLibraryType{}; /* Not a valid type. */
   other.asset_library_identifier = nullptr;
   other.relative_asset_identifier = nullptr;
 }
@@ -133,7 +130,7 @@ void BKE_asset_catalog_path_list_free(ListBaseT<AssetCatalogPathLink> &catalog_p
     MEM_delete(catalog_path.path);
     BLI_freelinkN(&catalog_path_list, &catalog_path);
   }
-  BLI_assert(BLI_listbase_is_empty(&catalog_path_list));
+  BLI_assert(catalog_path_list.is_empty());
 }
 
 ListBaseT<AssetCatalogPathLink> BKE_asset_catalog_path_list_duplicate(

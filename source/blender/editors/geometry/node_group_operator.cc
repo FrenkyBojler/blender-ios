@@ -127,13 +127,14 @@ struct OperatorTypeData : public wmOperatorType::TypeData {
 
   std::unique_ptr<IDProperty, bke::idprop::IDPropertyDeleter> asset_meta_data_properties;
   Vector<StructRNA *> generated_structs;
+  Vector<Array<EnumPropertyItem, 0>> enum_item_storage;
 
   struct LocalRef {
     uint32_t session_uid;
   };
   std::variant<AssetWeakReference, LocalRef> group_ref;
 
-  std::array<int64_t, 2> hash;
+  UniqueHash hash;
 
   static std::optional<OperatorTypeData> from_asset(const AssetRepresentation &asset,
                                                     OperatorRegisterErrors &errors);
@@ -173,13 +174,15 @@ void OperatorTypeData::ensure_hash()
         else if constexpr (std::is_same_v<T, LocalRef>) {
           XXH3_128bits_update(hash_state, &value.session_uid, sizeof(value.session_uid));
         }
+        else {
+          BLI_assert_unreachable_static_t(T);
+        }
       },
       this->group_ref);
   bke::idprop::hash(*this->asset_meta_data_properties, hash_state);
   static_assert(sizeof(this->hash) == sizeof(XXH128_hash_t));
   const XXH128_hash_t xxh3_hash = XXH3_128bits_digest(hash_state);
-  this->hash[0] = xxh3_hash.low64;
-  this->hash[1] = xxh3_hash.high64;
+  this->hash = {xxh3_hash.low64, xxh3_hash.high64};
 }
 
 static std::optional<std::string> operator_idname_get(const StringRefNull custom_idname,
@@ -349,7 +352,9 @@ static const bNodeTree *get_asset_or_local_node_group(const bContext &C,
           }
           return id_cast<const bNodeTree *>(asset::asset_local_id_ensure_imported(bmain, *asset));
         }
-        return nullptr;
+        else {
+          BLI_assert_unreachable_static_t(T);
+        }
       },
       type_data.group_ref);
 }
@@ -727,7 +732,10 @@ static void store_result_geometry(const bContext &C,
       if (inserted_new_keyframe) {
         WM_event_add_notifier(&C, NC_GPENCIL | NA_EDITED, nullptr);
       }
+      break;
     }
+    default:
+      break;
   }
 }
 
@@ -1112,35 +1120,31 @@ static bool run_node_group_poll(bContext *C, wmOperatorType *ot)
   return true;
 }
 
-static const EnumPropertyItem *enum_input_items_fn(bContext * /*C*/,
-                                                   PointerRNA *ptr,
-                                                   PropertyRNA *prop,
-                                                   bool *r_free)
+static Array<EnumPropertyItem, 0> get_input_enum_items(const IDProperty &input_idprop)
 {
-  const wmOperator *op = ptr->data_as<wmOperator>();
-  const OperatorTypeData &type_data = *static_cast<const OperatorTypeData *>(op->customdata);
-  const IDProperty &inputs_props = *IDP_GetPropertyFromGroup(
-      type_data.asset_meta_data_properties.get(), "inputs");
-  const IDProperty &input_idprop = *IDP_GetPropertyFromGroup(&inputs_props,
-                                                             RNA_property_identifier(prop));
-
   const IDProperty *items_idprop = IDP_GetPropertyFromGroup(&input_idprop, "items");
   if (!items_idprop || items_idprop->type != IDP_GROUP) {
-    return rna_enum_dummy_NULL_items;
+    return {rna_enum_dummy_NULL_items[0]};
   }
 
-  int totitem = 0;
-  EnumPropertyItem *items = nullptr;
-  for (IDProperty &item_idprop : items_idprop->data.group) {
-    EnumPropertyItem item;
-    item.identifier = item_idprop.name;
-    item.name = IDP_group_lookup_string(item_idprop, "name").value_or("").c_str();
-    item.description = IDP_group_lookup_string(item_idprop, "description").value_or("").c_str();
-    item.value = std::stoi(item_idprop.name);
-    RNA_enum_item_add(&items, &totitem, &item);
+  if (!items_idprop->data.children_map || items_idprop->data.children_map->children.is_empty()) {
+    return {rna_enum_dummy_NULL_items[0]};
   }
 
-  *r_free = true;
+  const int items_num = items_idprop->data.children_map->children.size();
+  Array<EnumPropertyItem, 0> items(items_num + 1);
+  for (const auto [i, item_idprop] : items_idprop->data.group.enumerate()) {
+    items[i] = EnumPropertyItem{
+        .value = IDP_group_lookup_int(item_idprop, "value").value_or(0),
+        .identifier = item_idprop.name,
+        .icon = ICON_NONE,
+        .name = item_idprop.name,
+        .description = IDP_group_lookup_string(item_idprop, "description").value_or("").c_str(),
+    };
+  }
+
+  items.last() = {0, nullptr, 0, nullptr, nullptr};
+
   return items;
 }
 
@@ -1185,9 +1189,8 @@ static void make_common_value_props(StructRNA &srna)
 }
 
 static StructRNA *get_input_socket_struct_rna(IDProperty &input_idprop,
-                                              Vector<StructRNA *> &r_generated)
+                                              OperatorTypeData &type_data)
 {
-
   const StringRefNull identifier = input_idprop.name;
   const std::optional<int> type = IDP_group_lookup_int(input_idprop, "type");
   if (!type) {
@@ -1196,7 +1199,7 @@ static StructRNA *get_input_socket_struct_rna(IDProperty &input_idprop,
   StructRNA *srna = RNA_def_struct_ptr(
       &RNA_blender_rna_get(), identifier.c_str(), RNA_PropertyGroup);
   BLI_assert(!RNA_struct_in_public_namespace(srna));
-  r_generated.append(srna);
+  type_data.generated_structs.append(srna);
   // RNA_def_struct_path_func_runtime(srna, rna_NodesModifierPropertyInput_path);
   const StringRefNull name = IDP_group_lookup_string(input_idprop, "name").value_or(identifier);
   const StringRefNull description =
@@ -1330,9 +1333,21 @@ static StructRNA *get_input_socket_struct_rna(IDProperty &input_idprop,
       break;
     }
     case SOCK_MENU: {
-      PropertyRNA *prop = RNA_def_enum(
-          srna, "value", rna_enum_dummy_NULL_items, 0, name.c_str(), description.c_str());
-      RNA_def_enum_funcs(prop, enum_input_items_fn);
+      type_data.enum_item_storage.append_as(get_input_enum_items(input_idprop));
+      int default_value = IDP_group_lookup_int(input_idprop, "default_value").value_or(0);
+      if (std::ranges::none_of(
+              type_data.enum_item_storage.last(),
+              [&](const EnumPropertyItem &item) { return item.value == default_value; }))
+      {
+        /* Default value must be used by one of the enum items. */
+        default_value = 0;
+      }
+      RNA_def_enum(srna,
+                   "value",
+                   type_data.enum_item_storage.last().data(),
+                   IDP_group_lookup_int(input_idprop, "default_value").value_or(0),
+                   name.c_str(),
+                   description.c_str());
       make_common_value_props(*srna);
       break;
     }
@@ -1343,13 +1358,12 @@ static StructRNA *get_input_socket_struct_rna(IDProperty &input_idprop,
   return srna;
 }
 
-static StructRNA *create_inputs_srna(const IDProperty &properties,
-                                     Vector<StructRNA *> &r_generated)
+static StructRNA *create_inputs_srna(const IDProperty &properties, OperatorTypeData &type_data)
 {
   StructRNA *srna = RNA_def_struct_ptr(
       &RNA_blender_rna_get(), "GeometryNodesInterfaceInputs", RNA_PropertyGroup);
   BLI_assert(!RNA_struct_in_public_namespace(srna));
-  r_generated.append(srna);
+  type_data.generated_structs.append(srna);
 
   const IDProperty &inputs_props = *IDP_GetPropertyFromGroup(&properties, "inputs");
 
@@ -1357,7 +1371,7 @@ static StructRNA *create_inputs_srna(const IDProperty &properties,
     if (input_idprop.type != IDP_GROUP) {
       continue;
     }
-    StructRNA *input_srna = get_input_socket_struct_rna(input_idprop, r_generated);
+    StructRNA *input_srna = get_input_socket_struct_rna(input_idprop, type_data);
     if (!input_srna) {
       continue;
     }
@@ -1410,8 +1424,7 @@ static void register_node_tool(wmOperatorType *ot,
     ot->flag |= OPTYPE_DEPENDS_ON_CURSOR;
   }
 
-  StructRNA *inputs_srna = create_inputs_srna(*type_data.asset_meta_data_properties,
-                                              type_data.generated_structs);
+  StructRNA *inputs_srna = create_inputs_srna(*type_data.asset_meta_data_properties, type_data);
   RNA_def_pointer_runtime(ot->srna, "inputs", inputs_srna, "Inputs", "Settings for input sockets");
   if (StructRNA *panels_srna = create_panels_srna(*type_data.asset_meta_data_properties,
                                                   type_data.generated_structs))
@@ -1883,9 +1896,9 @@ static asset::AssetItemTree build_catalog_tree(const bContext &C, const Object &
  * builtin menus. The need to define the builtin menu labels here is non-ideal. We don't have
  * any UI introspection that can do this though.
  */
-static Set<std::string> get_builtin_menus(const ObjectType object_type, const eObjectMode mode)
+static Set<StringRef> get_builtin_menus(const ObjectType object_type, const eObjectMode mode)
 {
-  Set<std::string> menus;
+  Set<StringRef> menus;
   switch (object_type) {
     case OB_CURVES:
       menus.add_new("View");
@@ -2027,8 +2040,8 @@ static void catalog_assets_draw(const bContext *C, Menu *menu)
                                      UI_ITEM_NONE);
   }
 
-  const Set<std::string> builtin_menus = get_builtin_menus(ObjectType(active_object->type),
-                                                           eObjectMode(active_object->mode));
+  const Set<StringRef> builtin_menus = get_builtin_menus(ObjectType(active_object->type),
+                                                         eObjectMode(active_object->mode));
 
   asset_system::AssetLibrary *all_library = asset::list::library_get_once_available(
       asset_system::all_library_reference());
@@ -2197,8 +2210,8 @@ void ui_template_node_operator_asset_root_items(ui::Layout &layout, const bConte
     *tree = build_catalog_tree(C, *active_object);
   }
 
-  const Set<std::string> builtin_menus = get_builtin_menus(ObjectType(active_object->type),
-                                                           eObjectMode(active_object->mode));
+  const Set<StringRef> builtin_menus = get_builtin_menus(ObjectType(active_object->type),
+                                                         eObjectMode(active_object->mode));
 
   tree->catalogs.foreach_root_item([&](const asset_system::AssetCatalogTreeItem &item) {
     if (!builtin_menus.contains_as(item.catalog_path().str())) {

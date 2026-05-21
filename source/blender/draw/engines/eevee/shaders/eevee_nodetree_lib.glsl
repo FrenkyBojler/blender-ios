@@ -234,58 +234,31 @@ float ambient_occlusion_eval([[maybe_unused]] float3 normal,
                              [[maybe_unused]] const float inverted,
                              [[maybe_unused]] const float sample_count)
 {
-  /* Avoid multi-line pre-processor conditionals.
-   * Some drivers don't handle them correctly. */
-  // clang-format off
-#if defined(GPU_FRAGMENT_SHADER) && defined(MAT_AMBIENT_OCCLUSION) && !defined(MAT_DEPTH) && !defined(MAT_SHADOW)
-  // clang-format on
-#  if 0 /* TODO(fclem): Finish inverted horizon scan. */
-  /* TODO(fclem): Replace eevee_ambient_occlusion_lib by eevee_fast_gi when this is
-   * finished. */
+#if defined(GPU_FRAGMENT_SHADER) && defined(MAT_AMBIENT_OCCLUSION) && !defined(MAT_DEPTH) && \
+    !defined(MAT_SHADOW)
   float3 vP = drw_point_world_to_view(g_data.P);
   float3 vN = drw_normal_world_to_view(normal);
 
   int2 texel = int2(gl_FragCoord.xy);
-  float2 noise;
-  noise.x = interleaved_gradient_noise(float2(texel), 3.0f, 0.0f);
-  noise.y = utility_tx_fetch(utility_tx, float2(texel), UTIL_BLUE_NOISE_LAYER).r;
-  noise = fract(noise + sampling_rng_2D_get(SAMPLING_AO_U));
+  float4 noise = utility_tx_fetch(utility_tx, float2(texel), UTIL_BLUE_NOISE_LAYER);
+  noise = fract(noise + sampling_rng_3D_get(SAMPLING_AO_U).xyzx);
 
-  ClosureOcclusion occlusion;
-  occlusion.N = (inverted != 0.0f) ? -vN : vN;
+  float result = eevee::fast_gi::eval<float>(raytrace_buf.fast_gi_thickness,
+                                             hiz_tx,
+                                             hiz_tx /* Dummy. */,
+                                             hiz_tx /* Dummy. */,
+                                             vP,
+                                             vN,
+                                             noise,
+                                             uniform_buf.ao.pixel_size,
+                                             max_distance,
+                                             uniform_buf.ao.angle_bias,
+                                             2,
+                                             int(sample_count / 2.0f),
+                                             inverted != 0.0f,
+                                             true);
 
-  HorizonScanContext ctx;
-  ctx.occlusion = occlusion;
-
-  horizon_scan_eval(vP,
-                    ctx,
-                    noise,
-                    uniform_buf.ao.pixel_size,
-                    max_distance,
-                    uniform_buf.ao.thickness_near,
-                    uniform_buf.ao.thickness_far,
-                    uniform_buf.ao.angle_bias,
-                    2,
-                    10,
-                    inverted != 0.0f,
-                    true);
-
-  return saturate(ctx.occlusion_result.r);
-#  else
-  float3 vP = drw_point_world_to_view(g_data.P);
-  int2 texel = int2(gl_FragCoord.xy);
-  OcclusionData data = ambient_occlusion_search(
-      vP, hiz_tx, texel, max_distance, inverted, sample_count);
-
-  float3 V = drw_world_incident_vector(g_data.P);
-  float3 N = normal;
-  float3 Ng = g_data.Ng;
-
-  float unused_error, visibility;
-  float3 unused;
-  ambient_occlusion_eval(data, texel, V, N, Ng, inverted, visibility, unused_error, unused);
-  return visibility;
-#  endif
+  return saturate(result);
 #else
   return 1.0f;
 #endif
@@ -332,16 +305,16 @@ void raycast_eval([[maybe_unused]] float3 position,
   float thickness_noise_offset = sampling_rng_1D_get(SAMPLING_RAYTRACE_X);
   float thickness_jitter =
       interleaved_gradient_noise(gl_FragCoord.xy, 1.0f, thickness_noise_offset) * 0.5f + 0.5f;
-  float thickness = uniform_buf.raytrace.thickness * thickness_jitter;
+  float thickness = raytrace_buf.thickness * thickness_jitter;
 
   float2 hit_uv = float2(0.0f);
-  uint self_id = drw_resource_id() & 0xFFFF;
+  uint self_id = drw_resource_id() & uint(0xFFFF);
 
   float result = raytrace_screen_2(drw_point_world_to_view(ws_start),
                                    drw_point_world_to_view(ws_end),
                                    drw_normal_world_to_view(direction),
                                    hiz_tx,
-                                   thickness,
+                                   raytrace_buf,
                                    64,
                                    jitter,
                                    object_id_tx,
@@ -540,10 +513,6 @@ float2 bsdf_lut(float cos_theta, float roughness, float ior, bool do_multiscatte
   return float2(reflectance.r, transmittance.r);
 }
 
-#ifdef GPU_VERTEX_SHADER
-#  define closure_to_rgba(a) float4(0.0f)
-#endif
-
 /* -------------------------------------------------------------------- */
 /** \name Fragment Displacement
  *
@@ -738,6 +707,12 @@ float4 attr_load_color_post(float4 attr)
 float4 attr_load_uniform(float4 /*attr*/, const uint attr_hash)
 {
   return drw_object_attribute(attr_hash);
+}
+
+void scene_time_uniforms(float &seconds, float &frame)
+{
+  seconds = uniform_buf.scene.time;
+  frame = uniform_buf.scene.frame;
 }
 
 /** \} */

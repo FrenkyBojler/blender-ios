@@ -33,6 +33,7 @@
 #include "BLT_translation.hh"
 
 #include "BKE_anim_data.hh"
+#include "BKE_armature.hh"
 #include "BKE_context.hh"
 #include "BKE_fcurve.hh"
 #include "BKE_idtype.hh"
@@ -544,7 +545,7 @@ static wmOperatorStatus override_add_button_exec(bContext *C, wmOperator *op)
   bool created;
   const bool all = RNA_boolean_get(op->ptr, "all");
 
-  const short operation = LIBOVERRIDE_OP_REPLACE;
+  const eID_OverrideLib_Op operation = LIBOVERRIDE_OP_REPLACE;
 
   /* try to reset the nominated setting to its default value */
   context_active_but_prop_get(C, &ptr, &prop, &index);
@@ -649,7 +650,7 @@ static wmOperatorStatus override_remove_button_exec(bContext *C, wmOperator *op)
     }
     BKE_lib_override_library_property_operation_delete(oprop, opop);
     RNA_property_copy(bmain, &ptr, &src, prop, index);
-    if (BLI_listbase_is_empty(&oprop->operations)) {
+    if (oprop->operations.is_empty()) {
       BKE_lib_override_library_property_delete(id->override_library, oprop);
     }
   }
@@ -974,10 +975,10 @@ static void override_idtemplate_menu()
 #define NOT_RNA_NULL(assignment) ((assignment).data != nullptr)
 
 /**
- * Construct a PointerRNA that points to pchan->bone.
+ * Construct a PointerRNA that points to pchan->bone_get(*armature).
  *
- * Pose bones are owned by an Object, whereas `pchan->bone` is owned by the Armature, so this
- * doesn't just remap the pointer's `data` field, but also its `owner_id`.
+ * Pose bones are owned by an Object, whereas `pchan->bone_get(*armature)` is owned by the
+ * Armature, so this doesn't just remap the pointer's `data` field, but also its `owner_id`.
  */
 static PointerRNA rnapointer_pchan_to_bone(const PointerRNA &pchan_ptr)
 {
@@ -985,11 +986,12 @@ static PointerRNA rnapointer_pchan_to_bone(const PointerRNA &pchan_ptr)
 
   BLI_assert(GS(pchan_ptr.owner_id->name) == ID_OB);
   Object *object = reinterpret_cast<Object *>(pchan_ptr.owner_id);
+  BKE_pose_ensure_bone_indices(*object);
 
   BLI_assert(GS(object->data->name) == ID_AR);
   bArmature *armature = id_cast<bArmature *>(object->data);
 
-  return RNA_pointer_create_discrete(&armature->id, RNA_Bone, pchan->bone);
+  return RNA_pointer_create_discrete(&armature->id, RNA_Bone, pchan->bone_get(*object));
 }
 
 static void context_selected_bones_via_pose(bContext *C, Vector<PointerRNA> *r_lb)
@@ -2785,19 +2787,21 @@ static void UI_OT_view_scroll(wmOperatorType *ot)
 
 static bool view_item_rename_poll(bContext *C)
 {
-  if (get_view_focused(C) == nullptr) {
+  const AbstractView *view = get_view_focused(C);
+  if (view == nullptr) {
     return false;
   }
 
   const ARegion *region = CTX_wm_region(C);
-  const AbstractViewItem *active_item = region_views_find_active_item(region);
+  const AbstractViewItem *active_item = region_views_find_active_item(region, view);
   return active_item != nullptr && view_item_can_rename(*active_item);
 }
 
 static wmOperatorStatus view_item_rename_exec(bContext *C, wmOperator * /*op*/)
 {
   ARegion *region = CTX_wm_region(C);
-  AbstractViewItem *active_item = region_views_find_active_item(region);
+  const AbstractView *view = get_view_focused(C);
+  AbstractViewItem *active_item = region_views_find_active_item(region, view);
 
   view_item_begin_rename(*active_item);
   ED_region_tag_redraw(region);

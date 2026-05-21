@@ -1233,12 +1233,12 @@ struct SVMNodeRaycast {
   SVMInputFloat distance;
   float bump_filter_width;
   uint8_t only_local;
+  uint16_t num_attributes;
   SVMStackOffset is_hit_offset;
   SVMStackOffset is_self_hit_offset;
   SVMStackOffset hit_distance_offset;
   SVMStackOffset hit_position_offset;
   SVMStackOffset hit_normal_offset;
-  uint8_t _pad[2];
 };
 static_assert(alignof(SVMNodeRaycast) <= alignof(uint));
 static_assert(sizeof(SVMNodeRaycast) % sizeof(uint) == 0);
@@ -1294,5 +1294,14 @@ struct SVMNodeMinMax {
 };
 static_assert(alignof(SVMNodeMinMax) <= alignof(uint));
 static_assert(sizeof(SVMNodeMinMax) % sizeof(uint) == 0);
+
+/* NODE_SCENE_TIME */
+struct SVMNodeSceneTime {
+  SVMStackOffset seconds_out;
+  SVMStackOffset frame_out;
+  uint8_t _pad[2];
+};
+static_assert(alignof(SVMNodeSceneTime) <= alignof(uint));
+static_assert(sizeof(SVMNodeSceneTime) % sizeof(uint) == 0);
 
 CCL_NAMESPACE_END
