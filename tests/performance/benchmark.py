@@ -64,7 +64,7 @@ def print_row(table: api.MarkdownTable, entries: list, end='\n') -> None:
     # For time series, revision is printed first.
     row.append(entries[0].revision)
     row.append(entries[0].category)
-    row.append(entries[0].device_type)
+    row.append(api.sanitize_device_id(entries[0].device_id))
     row.append(entries[0].test)
 
     for entry in entries:
@@ -135,7 +135,7 @@ def run_entry(env: api.TestEnvironment,
     testname = entry.test
     testcategory = entry.category
     device_type = entry.device_type
-    device_id = entry.device_id
+    device_id, _ = env.resolve_device(entry.device_id)
     gpu_backend = {
         'VULKAN': 'vulkan',
         'METAL': 'metal',

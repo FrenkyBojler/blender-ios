@@ -148,6 +148,34 @@ static PyObject *pygpu_platform_backend_type_get(PyObject * /*self*/)
   return PyUnicode_FromString(backend);
 }
 
+PyDoc_STRVAR(
+    /* Wrap. */
+    pygpu_platform_devices_list_doc,
+    ".. function:: devices_list()\n"
+    "\n"
+    "   Get all available GPU devices for the active backend.\n"
+    "\n"
+    "   :return: List of tuples (index, identifier, name) for each device.\n"
+    "   :rtype: list of tuple[int, str, str]\n");
+static PyObject *pygpu_platform_devices_list(PyObject * /*self*/)
+{
+  BPYGPU_IS_INIT_OR_ERROR_OBJ;
+
+  Span<GPUDevice> devices = GPU_platform_devices_list();
+  PyObject *list = PyList_New(devices.size());
+  for (int i = 0; i < devices.size(); i++) {
+    const GPUDevice &dev = devices[i];
+    PyObject *item = PyTuple_Pack(3,
+                                  PyLong_FromLong(dev.index),
+                                  PyUnicode_FromString(dev.identifier.c_str()),
+                                  PyUnicode_FromString(dev.name.c_str()));
+    PyList_SET_ITEM(list, i, item);
+  }
+  /* Sort by index (first tuple element) for deterministic ordering. */
+  PyList_Sort(list);
+  return list;
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -185,6 +213,10 @@ static PyMethodDef pygpu_platform__tp_methods[] = {
      reinterpret_cast<PyCFunction>(pygpu_platform_backend_type_get),
      METH_NOARGS,
      pygpu_platform_backend_type_get_doc},
+    {"devices_list",
+     reinterpret_cast<PyCFunction>(pygpu_platform_devices_list),
+     METH_NOARGS,
+     pygpu_platform_devices_list_doc},
     {nullptr, nullptr, 0, nullptr},
 };
 

@@ -111,9 +111,16 @@ class GreasePencilTest(api.Test):
     def use_background(self):
         return False
 
-    def run(self, env, _device_id, gpu_backend):
+    def run(self, env, device_id, gpu_backend):
         args = {}
-        _, log = env.run_in_blender(_run, args, ['--gpu-backend', gpu_backend, self.filepath], foreground=True)
+
+        blender_args = ['--gpu-backend', gpu_backend]
+        if gpu_backend == 'vulkan' and '_' in device_id:
+            device_index = device_id.split('_')[1]
+            blender_args += ['--gpu-device', device_index]
+        blender_args.append(self.filepath)
+        
+        _, log = env.run_in_blender(_run, args, blender_args, foreground=True)
         for line in log:
             if line.startswith(LOG_KEY):
                 result_str = line[len(LOG_KEY):]
