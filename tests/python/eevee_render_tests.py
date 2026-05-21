@@ -75,15 +75,11 @@ BLOCKLIST_METAL = [
     "osl_camera_advanced.blend",
     # Blocked due to volume occupancy being broken
     "texture_coordinate_object.blend",
-    # Blocked due to camera motion blur being broken
-    "rolling_shutter.blend",
-    "shutter_moving_camera_center.blend",
-    "shutter_moving_camera_end.blend",
-    "shutter_moving_camera_start.blend",
-    "points_motion.blend",
 ]
 
 BLOCKLIST_VULKAN = [
+    # Blocked due to UB in the background pixels (to be fixed).
+    "lightprobe_planar.blend",
     # Blocked due to texture interpolation differences (to be investigated).
     "principled_blackbody.blend",
     # Blocked due to difference in indirect light (AMD linux) (to be investigated).
