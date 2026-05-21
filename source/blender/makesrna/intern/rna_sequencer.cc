@@ -3872,13 +3872,13 @@ static void rna_def_solid_color(StructRNA *srna)
   prop = RNA_def_property(srna, "use_absolute_width", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", SEQ_COLOR_USE_ABSOLUTE_WIDTH);
   RNA_def_property_ui_text(
-      prop, "Absolute Width", "Use absolute pixel width instead of percentage of screen");
+      prop, "Absolute Width", "Define width using pixel values instead of relative scaling based on render width");
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
 
   prop = RNA_def_property(srna, "use_absolute_height", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", SEQ_COLOR_USE_ABSOLUTE_HEIGHT);
   RNA_def_property_ui_text(
-      prop, "Absolute Height", "Use absolute pixel height instead of percentage of screen");
+      prop, "Absolute Height", "Define height using pixel values instead of relative scaling based on render height");
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
 }
 
