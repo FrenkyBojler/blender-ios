@@ -446,7 +446,7 @@ class ExtendableMesh {
   {
     return new_face_kinds_;
   }
-  MutableSpan<NewFaceKind> new_face_kinds_mutable()
+  MutableSpan<NewFaceKind> new_face_kinds()
   {
     return new_face_kinds_.as_mutable_span();
   }
@@ -8154,7 +8154,7 @@ std::optional<Mesh *> mesh_bevel(const Mesh &src_mesh,
     const int faces_before = state.emesh.new_faces_num();
     construct::build_vmesh(state, bv);
     const int faces_after = state.emesh.new_faces_num();
-    MutableSpan<NewFaceKind> kinds = state.emesh.new_face_kinds_mutable();
+    MutableSpan<NewFaceKind> kinds = state.emesh.new_face_kinds();
     for (int nf = faces_before; nf < faces_after; nf++) {
       kinds[nf] = NewFaceKind::VertexFace;
     }
