@@ -19,7 +19,7 @@
 
 #pragma once
 
-#ifdef WITH_TRACY_CLIENT
+#ifdef WITH_TRACY
 #  include <tracy/Tracy.hpp>
 
 /** Frame markers. */

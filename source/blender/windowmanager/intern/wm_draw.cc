@@ -1638,7 +1638,7 @@ void WM_paint_cursor_tag_redraw(wmWindow *win, ARegion * /*region*/)
   }
 }
 
-#ifdef WITH_TRACY_CLIENT
+#ifdef WITH_TRACY
 static const char *draw_update_frame_name = "Window Drawing";
 #endif
 
