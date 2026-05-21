@@ -67,47 +67,47 @@ namespace anonymous_attribute_lifetime {
 /**
  * Attributes can be propagated from an input geometry to an output geometry.
  */
-struct PropagateRelation {
-  int from_geometry_input;
-  int to_geometry_output;
+struct DataPropagation {
+  int from_input;
+  int to_output;
 
-  friend bool operator==(const PropagateRelation &a, const PropagateRelation &b) = default;
+  friend bool operator==(const DataPropagation &a, const DataPropagation &b) = default;
 };
 
 /**
  * References to attributes can be propagated from an input field to an output field.
  */
-struct ReferenceRelation {
-  int from_field_input;
-  int to_field_output;
+struct ReferencePropagation {
+  int from_input;
+  int to_output;
 
-  friend bool operator==(const ReferenceRelation &a, const ReferenceRelation &b) = default;
+  friend bool operator==(const ReferencePropagation &a, const ReferencePropagation &b) = default;
 };
 
 /**
  * An input field is evaluated on an input geometry.
  */
-struct EvalRelation {
-  int field_input;
-  int geometry_input;
+struct UseRelation {
+  int reference_input;
+  int data_input;
 
-  friend bool operator==(const EvalRelation &a, const EvalRelation &b) = default;
+  friend bool operator==(const UseRelation &a, const UseRelation &b) = default;
 };
 
 /**
  * An output field is available on an output geometry.
  */
 struct AvailableRelation {
-  int field_output;
-  int geometry_output;
+  int reference_output;
+  int data_output;
 
   friend bool operator==(const AvailableRelation &a, const AvailableRelation &b) = default;
 };
 
 struct RelationsInNode {
-  Vector<PropagateRelation> propagate_relations;
-  Vector<ReferenceRelation> reference_relations;
-  Vector<EvalRelation> eval_relations;
+  Vector<DataPropagation> data_propagations;
+  Vector<ReferencePropagation> reference_propagations;
+  Vector<UseRelation> use_relations;
   Vector<AvailableRelation> available_relations;
   Vector<int> available_on_none;
 
