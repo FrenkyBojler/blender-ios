@@ -4438,10 +4438,10 @@ class VIEW3D_MT_pose_context_menu(Menu):
 
         layout.separator()
 
-        layout.operator("pose.paths_calculate", text="Calculate Motion Paths")
+        layout.operator("pose.paths_calculate", text="Calculate Motion Paths").staggered = True
         layout.operator("pose.paths_clear", text="Clear Motion Paths")
-        layout.operator("pose.paths_update", text="Update Armature Motion Paths")
-        layout.operator("object.paths_update_visible", text="Update All Motion Paths")
+        layout.operator("pose.paths_update", text="Update Armature Motion Paths").staggered = True
+        layout.operator("object.paths_update_visible", text="Update All Motion Paths").staggered = True
 
         layout.separator()
 
