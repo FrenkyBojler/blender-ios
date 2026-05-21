@@ -3548,6 +3548,10 @@ static wmOperatorStatus uv_from_view_exec(bContext *C, wmOperator *op)
     Span<float3> vert_positions = BKE_editmesh_vert_coords_when_deformed(
         depsgraph, em, scene_eval, obedit_eval, vert_positions_storage);
 
+    if (!vert_positions.is_empty()) {
+      BM_mesh_elem_index_ensure(em->bm, BM_VERT);
+    }
+
     if (use_orthographic) {
       uv_map_rotation_matrix_ex(rotmat, rv3d, obedit, 90.0f, 0.0f, 1.0f, objects_pos_offset);
 
@@ -3558,11 +3562,10 @@ static wmOperatorStatus uv_from_view_exec(bContext *C, wmOperator *op)
 
         BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
           float *luv = BM_ELEM_CD_GET_FLOAT_P(l, cd_loop_uv_offset);
-          int vert_index = BM_elem_index_get(l->v);
-          float *vert_co = !vert_positions.is_empty() ?
-                               const_cast<float *>(&vert_positions[vert_index].x) :
-                               l->v->co;
-          BKE_uvproject_from_view_ortho(luv, vert_co, rotmat);
+          const float *v_co = vert_positions.is_empty() ?
+                                  l->v->co :
+                                  &vert_positions[BM_elem_index_get(l->v)].x;
+          BKE_uvproject_from_view_ortho(luv, v_co, rotmat);
         }
         changed = true;
       }
@@ -3583,11 +3586,10 @@ static wmOperatorStatus uv_from_view_exec(bContext *C, wmOperator *op)
 
           BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
             float *luv = BM_ELEM_CD_GET_FLOAT_P(l, cd_loop_uv_offset);
-            int vert_index = BM_elem_index_get(l->v);
-            float *vert_co = !vert_positions.is_empty() ?
-                                 const_cast<float *>(&vert_positions[vert_index].x) :
-                                 l->v->co;
-            BKE_uvproject_from_camera(luv, vert_co, uci);
+            const float *v_co = vert_positions.is_empty() ?
+                                    l->v->co :
+                                    &vert_positions[BM_elem_index_get(l->v)].x;
+            BKE_uvproject_from_camera(luv, v_co, uci);
           }
           changed = true;
         }
@@ -3605,11 +3607,10 @@ static wmOperatorStatus uv_from_view_exec(bContext *C, wmOperator *op)
 
         BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
           float *luv = BM_ELEM_CD_GET_FLOAT_P(l, cd_loop_uv_offset);
-          int vert_index = BM_elem_index_get(l->v);
-          float *vert_co = !vert_positions.is_empty() ?
-                               const_cast<float *>(&vert_positions[vert_index].x) :
-                               l->v->co;
-          BKE_uvproject_from_view(luv, vert_co, rv3d->persmat, rotmat, region->winx, region->winy);
+          const float *v_co = vert_positions.is_empty() ?
+                                  l->v->co :
+                                  &vert_positions[BM_elem_index_get(l->v)].x;
+          BKE_uvproject_from_view(luv, v_co, rv3d->persmat, rotmat, region->winx, region->winy);
         }
         changed = true;
       }
