@@ -169,7 +169,7 @@ void mesh_cursor_update_and_init(PaintCursorContext &pcontext)
   vert_random_access_ensure(*vc.obact);
   pcontext.prev_active_vert_index = ss.active_vert_index();
   if (!paint_runtime.stroke_active) {
-    std::optional<CursorGeometryInfo> gi = cursor_geometry_info_update(
+    const std::optional<CursorGeometryInfo> gi = cursor_geometry_info_update(
         *pcontext.depsgraph,
         *pcontext.paint,
         pcontext.sd,
@@ -179,13 +179,9 @@ void mesh_cursor_update_and_init(PaintCursorContext &pcontext)
         (pcontext.brush->falloff_shape == PAINT_FALLOFF_SHAPE_SPHERE));
 
     pcontext.is_cursor_over_mesh = gi.has_value();
-    if (gi) {
-      pcontext.location = gi->location;
-      pcontext.normal = gi->normal;
-    }
-    else {
-      pcontext.location = pcontext.normal = float3(0, 0, 0);
-    }
+    const CursorGeometryInfo info = gi.value_or(CursorGeometryInfo{});
+    pcontext.location = info.location;
+    pcontext.normal = info.normal;
   }
   else {
     pcontext.is_cursor_over_mesh = paint_runtime.last_hit;

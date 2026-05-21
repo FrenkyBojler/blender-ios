@@ -759,7 +759,7 @@ static void initialize_cursor_info(bContext &C,
   const float mval_fl[2] = {float(mval[0]), float(mval[1])};
 
   TrimOperation *trim_operation = reinterpret_cast<TrimOperation *>(gesture_data.operation);
-  std::optional<CursorGeometryInfo> cgi = cursor_geometry_info_update(&C, mval_fl, false);
+  const std::optional<CursorGeometryInfo> cgi = cursor_geometry_info_update(&C, mval_fl, false);
 
   trim_operation->initial_hit = cgi.has_value();
   if (trim_operation->initial_hit) {

@@ -542,8 +542,8 @@ struct ActiveElementInfo {
 std::optional<ActiveElementInfo> active_element_info_get(ViewContext &vc, const float2 &mval);
 
 struct CursorGeometryInfo {
-  float3 location;
-  float3 normal;
+  float3 location = float3(0);
+  float3 normal = float3(0);
 };
 
 /**
