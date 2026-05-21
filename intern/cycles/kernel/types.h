@@ -1775,7 +1775,8 @@ enum DeviceKernel : int {
 };
 
 enum {
-  DEVICE_KERNEL_INTEGRATOR_NUM = DEVICE_KERNEL_INTEGRATOR_MEGAKERNEL + 1,
+  /* Megakernel is the first kernel not used by GPU integrator. */
+  DEVICE_GPU_KERNEL_INTEGRATOR_NUM = DEVICE_KERNEL_INTEGRATOR_MEGAKERNEL,
 };
 
 CCL_NAMESPACE_END

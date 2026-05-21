@@ -418,7 +418,7 @@ DeviceKernel PathTraceWorkGPU::get_most_queued_kernel() const
   int max_num_queued = 0;
   DeviceKernel kernel = DEVICE_KERNEL_NUM;
 
-  for (int i = 0; i < DEVICE_KERNEL_INTEGRATOR_NUM; i++) {
+  for (int i = 0; i < DEVICE_GPU_KERNEL_INTEGRATOR_NUM; i++) {
     /* SHADOW_PATH_MNEE_PENDING is a sentinel marker on shadow slots holding an MNEE precompute
      * payload; there is no kernel to dispatch for it. The slot transitions to a real shadow
      * kernel (or terminates) when integrator_shade_surface runs on the main path. */
@@ -462,7 +462,7 @@ bool PathTraceWorkGPU::enqueue_path_iteration()
   const IntegratorQueueCounter *queue_counter = integrator_queue_counter_.data();
 
   int num_active_paths = 0;
-  for (int i = 0; i < DEVICE_KERNEL_INTEGRATOR_NUM; i++) {
+  for (int i = 0; i < DEVICE_GPU_KERNEL_INTEGRATOR_NUM; i++) {
     num_active_paths += queue_counter->num_queued[i];
   }
 
@@ -952,7 +952,7 @@ int PathTraceWorkGPU::num_active_main_paths_paths()
   IntegratorQueueCounter *queue_counter = integrator_queue_counter_.data();
 
   int num_paths = 0;
-  for (int i = 0; i < DEVICE_KERNEL_INTEGRATOR_NUM; i++) {
+  for (int i = 0; i < DEVICE_GPU_KERNEL_INTEGRATOR_NUM; i++) {
     DCHECK_GE(queue_counter->num_queued[i], 0)
         << "Invalid number of queued states for kernel "
         << device_kernel_as_string(static_cast<DeviceKernel>(i));
