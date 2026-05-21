@@ -114,6 +114,10 @@ class SocketValueVariant {
   bool is_volume_grid() const;
   bool is_context_dependent_field() const;
 
+  /** Also see GeomtrySet::ensure_owns_direct_data. */
+  void ensure_owns_direct_data();
+  bool owns_direct_data() const;
+
   void count_memory(MemoryCounter &memory) const;
 
  private:

@@ -284,7 +284,7 @@ class RuntimeToBakeValue {
   [[nodiscard]] bool runtime_to_bake__SocketValueVariant(SocketValueVariant &value_variant)
   {
     if (value_variant.is_context_dependent_field()) {
-      const fn::GField field = value_variant.get<fn::GField>();
+      const fn::GField &field = *value_variant.get_if<fn::GField>();
       if (const auto *attribute_field = field.get_input_if<AttributeFieldInput>()) {
         if (const std::string *new_name = referenced_anonymous_attributes_.lookup_ptr(
                 attribute_field->attribute_name()))

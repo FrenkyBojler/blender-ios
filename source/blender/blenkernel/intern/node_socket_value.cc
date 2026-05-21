@@ -409,4 +409,48 @@ bool SocketValueVariant::is_context_dependent_field() const
   return field->depends_on_input();
 }
 
+void SocketValueVariant::ensure_owns_direct_data()
+{
+  if (this->owns_direct_data()) {
+    return;
+  }
+  if (this->get().is_type<nodes::BundlePtr>()) {
+    if (nodes::BundlePtr &bundle_ptr = value_.get<nodes::BundlePtr>()) {
+      bundle_ptr.ensure_mutable_inplace();
+      nodes::Bundle &bundle = const_cast<nodes::Bundle &>(*bundle_ptr);
+      bundle.ensure_owns_direct_data();
+    }
+  }
+  if (this->is_list()) {
+    if (nodes::GListPtr &list_ptr = value_.get<nodes::GListPtr>()) {
+      auto &list = list_ptr.get_for_write();
+      list.ensure_owns_direct_data();
+    }
+  }
+  if (this->get().is_type<GeometrySet>()) {
+    GeometrySet &geometry = value_.get<GeometrySet>();
+    geometry.ensure_owns_direct_data();
+  }
+  BLI_assert(this->owns_direct_data());
+}
+
+bool SocketValueVariant::owns_direct_data() const
+{
+  if (this->get().is_type<nodes::BundlePtr>()) {
+    if (const nodes::BundlePtr &bundle_ptr = value_.get<nodes::BundlePtr>()) {
+      return bundle_ptr->owns_direct_data();
+    }
+  }
+  if (this->is_list()) {
+    if (const nodes::GListPtr &list_ptr = value_.get<nodes::GListPtr>()) {
+      return list_ptr->owns_direct_data();
+    }
+  }
+  if (this->get().is_type<GeometrySet>()) {
+    const GeometrySet &geometry = value_.get<GeometrySet>();
+    return geometry.owns_direct_data();
+  }
+  return false;
+}
+
 }  // namespace blender::bke
