@@ -713,7 +713,7 @@ Enable Ahead-Of-Time compilation for Cycles oneAPI device"
   # `ocloc compile --help`.
   # If you have completed optimization work and now want to enable AoT for new Intel devices,
   # update the optimization status in OneapiDevice::architecture_information.
-  set(CYCLES_ONEAPI_INTEL_BINARIES_ARCH dg2 mtl arl-h bmg lnl ptl CACHE STRING "\
+  set(CYCLES_ONEAPI_INTEL_BINARIES_ARCH bmg CACHE STRING "\
 oneAPI Intel GPU architectures to build binaries for"
   )
   set(CYCLES_ONEAPI_SYCL_TARGETS spir64 spir64_gen CACHE STRING "\
