@@ -25,7 +25,7 @@
 #  include <tracy/Tracy.hpp>
 
 #  define BLI_PROFILE_STABLE_IDENTIFIER(variable_name, text) \
-static const char *variable_name = text
+    static const char *variable_name = text
 
 /** Frame markers. */
 #  define BLI_PROFILE_FRAME_MARK FrameMark
