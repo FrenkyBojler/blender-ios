@@ -34,6 +34,7 @@ bool execute_multi_function_on_value_variant__volume_grid(
   Array<bke::VolumeTreeAccessToken> input_tree_tokens(inputs_num);
 
   for (const int i : input_values.index_range()) {
+    const CPPType &type = fn.param_type(i).data_type().single_type();
     bke::SocketValueVariant &input_value = *input_values[i];
     if (input_value.is_volume_grid()) {
       input_grids[i] = input_value.extract<bke::volume_grid::GVolumeGrid>();
@@ -44,7 +45,7 @@ bool execute_multi_function_on_value_variant__volume_grid(
       inputs[i] = &*input_fields[i];
     }
     else {
-      input_value.convert_to_single();
+      input_value.ensure_type(type);
       inputs[i] = input_value.get();
     }
   }
@@ -63,7 +64,8 @@ bool execute_multi_function_on_value_variant__volume_grid(
   auto &success = std::get<EvalResult::Success>(result.result);
   for (const int i : output_values.index_range()) {
     if (output_usages[i]) {
-      output_values[i]->set(bke::GVolumeGrid(std::move(success.output_grids[i])));
+      output_values[i]->emplace<bke::GVolumeGrid>(
+          bke::GVolumeGrid(std::move(success.output_grids[i])));
     }
   }
 

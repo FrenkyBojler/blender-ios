@@ -117,7 +117,7 @@ static bke::SocketValueVariant init_socket_cpp_value(const GeoNodesCallData *cal
       const auto type = GeometryNodesInputType(RNA_enum_get(input_props_ptr, "type"));
       if (type == GeometryNodesInputType::Value) {
         const float value = RNA_float_get(input_props_ptr, "value");
-        return bke::SocketValueVariant(value);
+        return bke::SocketValueVariant::From(value);
       }
       if (type == GeometryNodesInputType::Attribute) {
         if (std::optional<bke::SocketValueVariant> value = load_attribute_field_input<float>(
@@ -133,7 +133,7 @@ static bke::SocketValueVariant init_socket_cpp_value(const GeoNodesCallData *cal
       if (type == GeometryNodesInputType::Value) {
         float3 value;
         RNA_float_get_array(input_props_ptr, "value", value);
-        return bke::SocketValueVariant(value);
+        return bke::SocketValueVariant::From(value);
       }
       if (type == GeometryNodesInputType::Attribute) {
         if (std::optional<bke::SocketValueVariant> value = load_attribute_field_input<float3>(
@@ -149,7 +149,7 @@ static bke::SocketValueVariant init_socket_cpp_value(const GeoNodesCallData *cal
       if (type == GeometryNodesInputType::Value) {
         ColorGeometry4f value;
         RNA_float_get_array(input_props_ptr, "value", value);
-        return bke::SocketValueVariant(value);
+        return bke::SocketValueVariant::From(value);
       }
       if (type == GeometryNodesInputType::Attribute) {
         if (std::optional<bke::SocketValueVariant> value =
@@ -164,7 +164,7 @@ static bke::SocketValueVariant init_socket_cpp_value(const GeoNodesCallData *cal
       const auto type = GeometryNodesInputType(RNA_enum_get(input_props_ptr, "type"));
       if (type == GeometryNodesInputType::Value) {
         const bool value = RNA_boolean_get(input_props_ptr, "value");
-        return bke::SocketValueVariant(value);
+        return bke::SocketValueVariant::From(value);
       }
       if (type == GeometryNodesInputType::Attribute) {
         if (std::optional<bke::SocketValueVariant> value = load_attribute_field_input<bool>(
@@ -184,7 +184,7 @@ static bke::SocketValueVariant init_socket_cpp_value(const GeoNodesCallData *cal
       const auto type = GeometryNodesInputType(RNA_enum_get(input_props_ptr, "type"));
       if (type == GeometryNodesInputType::Value) {
         const int value = RNA_int_get(input_props_ptr, "value");
-        return bke::SocketValueVariant(value);
+        return bke::SocketValueVariant::From(value);
       }
       if (type == GeometryNodesInputType::Attribute) {
         if (std::optional<bke::SocketValueVariant> value = load_attribute_field_input<int>(
@@ -201,7 +201,7 @@ static bke::SocketValueVariant init_socket_cpp_value(const GeoNodesCallData *cal
         float3 value_euler;
         RNA_float_get_array(input_props_ptr, "value", value_euler);
         math::Quaternion value_rotation = math::to_quaternion(math::EulerXYZ(value_euler));
-        return bke::SocketValueVariant(value_rotation);
+        return bke::SocketValueVariant::From(value_rotation);
       }
       if (type == GeometryNodesInputType::Attribute) {
         if (std::optional<bke::SocketValueVariant> value =
@@ -224,7 +224,7 @@ static bke::SocketValueVariant init_socket_cpp_value(const GeoNodesCallData *cal
       const auto type = GeometryNodesInputType(RNA_enum_get(input_props_ptr, "type"));
       if (type == GeometryNodesInputType::Value) {
         const std::string value = RNA_string_get(input_props_ptr, "value");
-        return bke::SocketValueVariant(value);
+        return bke::SocketValueVariant::From(value);
       }
       break;
     }
@@ -355,7 +355,7 @@ static MultiValueMap<bke::AttrDomain, OutputAttributeInfo> find_output_attribute
 
     const int index = socket->index();
     bke::SocketValueVariant &value_variant = *output_values[index].get<bke::SocketValueVariant>();
-    const fn::GField field = value_variant.get<fn::GField>();
+    const fn::GField &field = value_variant.ensure_type<fn::GField>();
 
     const bNodeTreeInterfaceSocket *interface_socket = tree.interface_outputs()[index];
     const bke::AttrDomain domain = bke::AttrDomain(interface_socket->attribute_domain);
@@ -542,8 +542,8 @@ bke::GeometrySet execute_geometry_nodes_on_geometry(const bNodeTree &btree,
     const bke::bNodeSocketType *typeinfo = interface_socket.socket_typeinfo();
     const eNodeSocketDatatype socket_type = typeinfo ? typeinfo->type : SOCK_CUSTOM;
     if (socket_type == SOCK_GEOMETRY && i == 0) {
-      bke::SocketValueVariant &value = scope.construct<bke::SocketValueVariant>();
-      value.set(std::move(input_geometry));
+      bke::SocketValueVariant &value = scope.construct<bke::SocketValueVariant>(
+          bke::SocketValueVariant::From(bke::GeometrySet()));
       param_inputs[function.inputs.main[0]] = &value;
       continue;
     }

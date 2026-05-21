@@ -192,7 +192,7 @@ static void mix_socket_values_same_type(bke::SocketValueVariant &a,
   }
   else if (a.is_list() && b.is_list()) {
     nodes::GListPtr a_list_ptr = a.extract<nodes::GListPtr>();
-    const nodes::GListPtr b_list = b.get<nodes::GListPtr>();
+    const nodes::GListPtr b_list = *b.get_if<nodes::GListPtr>();
     if (a_list_ptr->cpp_type() != b_list->cpp_type()) {
       /* Lists with the same socket type can still have different CPPTypes, e.g. for fields and
        * grids and single values. For now just don't try to support those combinations. */
@@ -219,14 +219,9 @@ void mix_socket_values(bke::SocketValueVariant &a,
                        const bke::SocketValueVariant &b,
                        const float factor)
 {
-  std::optional<bke::SocketValueVariant> b_converted = nodes::implicitly_convert_socket_value(
-      *bke::node_socket_type_find_static(b.socket_type(), 0),
-      b,
-      *bke::node_socket_type_find_static(a.socket_type(), 0));
-  if (!b_converted) {
-    return;
-  }
-  mix_socket_values_same_type(a, *b_converted, factor);
+  bke::SocketValueVariant b_converted = b;
+  b_converted.ensure_type(*a.get().type());
+  mix_socket_values_same_type(a, b_converted, factor);
 }
 
 static void mix_bundle_items(nodes::BundleItemValue &a,

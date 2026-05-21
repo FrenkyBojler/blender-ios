@@ -909,8 +909,7 @@ void LazyFunctionForReduceForeachGeometryElement::handle_main_items_and_geometry
       mask.foreach_index([&](const int i, const int pos) {
         const int lf_param_index = pos * body_main_outputs_num + item_i;
         SocketValueVariant &value_variant = params.get_input<SocketValueVariant>(lf_param_index);
-        value_variant.convert_to_single();
-        const void *value = value_variant.get_single_ptr_raw();
+        const void *value = value_variant.ensure_type(*base_cpp_type);
         base_cpp_type->copy_construct(value, attribute.span[i]);
       });
 
@@ -1132,7 +1131,7 @@ void LazyFunctionForReduceForeachGeometryElement::handle_generation_items_group(
         const AttrDomain capture_domain = AttrDomain(item.domain);
         const int field_param_i = body_i * body_main_outputs_num +
                                   parent_.indices_.generation.lf_inner[item_i];
-        GField field = params.get_input<SocketValueVariant>(field_param_i).get<GField>();
+        GField field = params.get_input<SocketValueVariant>(field_param_i).ensure_type<GField>();
 
         if (capture_domain == AttrDomain::Instance) {
           if (geometry.has_instances()) {

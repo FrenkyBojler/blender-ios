@@ -295,7 +295,7 @@ class RuntimeToBakeValue {
       }
       else {
         /* Only attribute fields can be baked. Other fields are discarded. */
-        value_variant.convert_to_single();
+        value_variant.ensure_type(field.cpp_type());
       }
       return true;
     }
@@ -815,10 +815,7 @@ Vector<SocketValueVariant> BakeValues::to_runtime_values(const Span<OutputKey> k
     }
     output_value = item->value;
     bake_to_runtime_op.bake_to_runtime(output_value, item->name.value_or(""));
-    if (!output_value.valid_for_socket(key.type)) {
-      output_value = *stype->geometry_nodes_default_value;
-      continue;
-    }
+    output_value.ensure_type(*stype->base_cpp_type);
   }
   return output_values;
 }

@@ -234,8 +234,7 @@ static void node_geo_exec(GeoNodeExecParams params)
       params.set_default_remaining_outputs();
       return;
     }
-    index.convert_to_single();
-    const int index_int = index.get<int>();
+    const int index_int = index.ensure_type<int>();
     if (!IndexRange(list->size()).contains(index_int)) {
       params.error_message_add(NodeWarningType::Error, "Index out of range");
       params.set_default_remaining_outputs();

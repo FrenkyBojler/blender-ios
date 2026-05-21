@@ -110,13 +110,14 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
 
   auto background_variant = params.extract_input<bke::SocketValueVariant>("Background"_ustr);
-  background_variant.convert_to_single();
+  background_variant.ensure_type(*grid->cpp_type());
   const GPointer background = background_variant.get();
 
   const bool update_inactive = params.get_input<bool>("Update Inactive"_ustr);
 
   bke::VolumeTreeAccessToken tree_token;
   openvdb::GridBase &grid_base = grid.get_for_write().grid_for_write(tree_token);
+
   bke::volume_grid::set_grid_background(grid_base, background);
 
   if (update_inactive) {
