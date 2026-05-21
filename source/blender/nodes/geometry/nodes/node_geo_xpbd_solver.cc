@@ -60,9 +60,32 @@ constexpr StringRefNull radius = "radius";
 
 }  // namespace attribute_names
 
+class XPBDSolverDataBundle {
+ public:
+  static constexpr StringRefNull name = "Blender.XPBDSolverData";
+  static const FlatBundleTypePtr &get_bundle_type();
+};
+
+const FlatBundleTypePtr &XPBDSolverDataBundle::get_bundle_type()
+{
+  static const FlatBundleTypePtr bundle_type = []() {
+    FlatBundleTypeBuilder b(XPBDSolverDataBundle::name);
+    b.add<decl::Float>("residual_error"_ustr)
+        .min(0.0f)
+        .description(
+            "Average remaining relative error, values smaller than one are below the constraint "
+            "threshold.");
+    const FlatBundleTypePtr bundle_type = b.build();
+    BundleTypeRegistry::register_type(bundle_type);
+    return bundle_type;
+  }();
+  return bundle_type;
+}
+
 static NestedBundleTypePtr make_world_type()
 {
   Vector<std::shared_ptr<const FlatBundleType>> types;
+  types.append(XPBDSolverDataBundle::get_bundle_type());
   types.append(DampingBundle::get_bundle_type());
   types.append(InfinitePlaneColliderBundle::get_bundle_type());
   types.append(ColliderBundle::get_bundle_type());
@@ -107,10 +130,9 @@ static void node_declare(NodeDeclarationBuilder &b)
     auto &solver_panel = b.add_panel("Solver"_ustr).default_closed(true);
     solver_panel.add_input<decl::Int>("Substeps"_ustr).default_value(10).min(1);
     solver_panel.add_input<decl::Int>("Constraint Iterations"_ustr).default_value(1).min(1);
-    solver_panel.add_output<decl::Float>("Residual Error"_ustr)
-        .description(
-            "Average remaining relative error, values smaller than one are below the constraint "
-            "threshold.");
+    solver_panel.add_input<decl::String>("Solver Path"_ustr)
+        .default_value("")
+        .description("Optional output path in the world bundle for solver data");
   }
   {
     auto &p = b.add_panel("Interpolation Range"_ustr).default_closed(true);
@@ -3434,6 +3456,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   const float4x4 simulation_to_world = params.extract_input<float4x4>("Simulation to World"_ustr);
   const float interpolation_begin = params.extract_input<float>("Begin"_ustr);
   const float interpolation_end = params.extract_input<float>("End"_ustr);
+  const std::string solver_path = params.extract_input<std::string>("Solver Path"_ustr);
 
   XpbdSolverStep step(world,
                       delta_time,
@@ -3445,7 +3468,10 @@ static void node_geo_exec(GeoNodeExecParams params)
                       simulation_to_world);
   step.do_step();
 
-  params.set_output("Residual Error"_ustr, step.result().total_residual_error);
+  if (!solver_path.empty()) {
+    world.add_path_override(Bundle::combine_path({solver_path, "residual_error"}),
+                            step.result().total_residual_error);
+  }
   for (const std::pair<NodeWarningType, std::string> &warning : step.warnings()) {
     params.error_message_add(warning.first, warning.second);
   }
