@@ -136,8 +136,6 @@ def run_entry(env: api.TestEnvironment,
     testcategory = entry.category
     device_type = entry.device_type
     device_id = entry.device_id
-    if '_' in entry.device_id:
-        device_id, _ = env.resolve_device(entry.device_id)
 
     gpu_backend = {
         'VULKAN': 'vulkan',

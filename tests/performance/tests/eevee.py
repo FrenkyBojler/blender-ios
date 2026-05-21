@@ -146,8 +146,10 @@ else:
 
             blender_args = ['--gpu-backend', gpu_backend]
             if gpu_backend == 'vulkan' and '_' in device_id:
-                device_index = device_id.split('_')[1]
-                blender_args += ['--gpu-device', device_index]
+                device_index = int(device_id.split('_')[1])
+                # Only specify --gpu-device for non-zero indices. Older builds could not support it.
+                if device_index > 0:
+                    blender_args += ['--gpu-device', str(device_index)]
             blender_args.append(self.filepath)
             
             _, log = env.run_in_blender(_run, args, blender_args, foreground=True)
