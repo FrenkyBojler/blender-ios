@@ -999,7 +999,7 @@ if((WITH_CYCLES OR WITH_GPU_RENDER_TESTS) AND TEST_SRC_DIR_EXISTS)
             --device ${_cycles_device}
             --osl "${_cycles_osl_test_type}"
           )
-          if(NOT ("${_cycles_device_lower}" STREQUAL "cpu"))
+          if(NOT ("${_cycles_device_lower}" STREQUAL "cpu") AND TEST ${_cycles_test_name})
             set_tests_properties(${_cycles_test_name} PROPERTIES RUN_SERIAL TRUE)
           endif()
         endif()
@@ -1014,7 +1014,7 @@ if((WITH_CYCLES OR WITH_GPU_RENDER_TESTS) AND TEST_SRC_DIR_EXISTS)
             --device ${_cycles_device}
             --osl "all"
           )
-          if(NOT ("${_cycles_device_lower}" STREQUAL "cpu"))
+          if(NOT ("${_cycles_device_lower}" STREQUAL "cpu") AND TEST ${_cycles_test_name}_osl)
             set_tests_properties(${_cycles_test_name}_osl PROPERTIES RUN_SERIAL TRUE)
           endif()
         endif()
@@ -1671,63 +1671,16 @@ endif()
 # ------------------------------------------------------------------------------
 
 if(WITH_UI_TESTS)
-  # This could be generated with:
-  # `"${TEST_PYTHON_EXE}" "${CMAKE_CURRENT_LIST_DIR}/ui_simulate/run.py" --list-tests`
-  # list explicitly so changes bisecting/updated are sure to re-run CMake.
-  set(_ui_tests
-    test_sculpt.asset_shelf_brush_selection
-    test_sculpt.face_set_expand
-    test_sculpt.face_set_gestures
-    test_sculpt.hide_gestures
-    test_sculpt.mask_expand_and_invert
-    test_sculpt.mask_gestures
-    test_sculpt.trim_gestures
-    test_sculpt.primitive_tool_add
-    test_tools.sculpt_mode_toolbar
-    test_undo.compositor_make_group
-    test_undo.text_editor_edit_mode_mix
-    test_undo.text_editor_simple
-    test_undo.view3d_edit_mode_multi_window
-    test_undo.view3d_font_edit_mode_simple
-    test_undo.view3d_mesh_edit_separate
-    test_undo.view3d_mesh_particle_edit_mode_simple
-    test_undo.view3d_multi_mode_multi_window
-    test_undo.view3d_multi_mode_select
-    test_undo.view3d_sculpt_dyntopo_and_edit
-    test_undo.view3d_sculpt_dyntopo_simple
-    test_undo.view3d_sculpt_dyntopo_stroke_toggle
-    test_undo.view3d_sculpt_with_memfile_step
-    test_undo.view3d_sculpt_trim
-    test_undo.view3d_simple
-    test_undo.view3d_texture_paint_complex
-    test_undo.view3d_texture_paint_simple
-    test_workspace.sanity_check_general
-    test_workspace.sanity_check_2d_animation
-    test_workspace.sanity_check_sculpting
-    test_workspace.sanity_check_storyboarding
-    test_workspace.sanity_check_vfx
-    test_workspace.sanity_check_video_editing
-    test_fullscreen.wm_toggle_fullscreen
-    test_fullscreen.wm_toggle_stacked_fullscreen_file_browser
-    test_fullscreen.wm_toggle_stacked_fullscreens
-    test_quick_effects.add_quick_fur
-    test_quick_effects.add_quick_smoke
-    test_quick_effects.add_quick_liquid
-    test_quick_effects.add_quick_explode
-    test_render.interactive_rendering_cycles
-    test_render.interactive_rendering_eevee
-    test_render.animation_rendering_and_player
-  )
-  foreach(ui_test ${_ui_tests})
+  # DEBUG: register only the Cycles interactive UI test, repeated 100 times.
+  foreach(i RANGE 1 100)
     add_blender_test_ui(
-      "${ui_test}"
+      "test_render.interactive_rendering_cycles_${i}"
       --enable-event-simulate
       --python "${CMAKE_CURRENT_LIST_DIR}/ui_simulate/run_blender_setup.py"
       --
-      --tests "${ui_test}"
+      --tests "test_render.interactive_rendering_cycles"
     )
   endforeach()
-  unset(_ui_tests)
 endif()
 
 

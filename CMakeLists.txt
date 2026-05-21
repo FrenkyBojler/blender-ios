@@ -2427,6 +2427,22 @@ endif()
 
 include(build_files/cmake/testing.cmake)
 
+# DEBUG: Restrict ctest to the Cycles interactive UI test (registered 100 times).
+# Override add_test so only that one test is registered, regardless of where it is added.
+function(add_test)
+  set(_args ${ARGV})
+  if("NAME" IN_LIST _args)
+    list(FIND _args "NAME" _i)
+    math(EXPR _i "${_i} + 1")
+    list(GET _args ${_i} _name)
+  else()
+    list(GET _args 0 _name)
+  endif()
+  if(_name MATCHES "^ui_opengl_test_render\\.interactive_rendering_cycles_")
+    _add_test(${ARGV})
+  endif()
+endfunction()
+
 # -----------------------------------------------------------------------------
 # Add Sub-Directories
 

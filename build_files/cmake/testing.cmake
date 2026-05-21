@@ -43,7 +43,9 @@ function(blender_test_set_envvars testname envvar_list)
     list(APPEND envvar_list "LLVM_PROFILE_FILE=${COMPILER_CODE_COVERAGE_DATA_DIR}/raw/blender_%p.profraw")
   endif()
   # Can only be called once per test to define its custom environment variables.
-  set_tests_properties(${testname} PROPERTIES ENVIRONMENT "${envvar_list}")
+  if(TEST ${testname})
+    set_tests_properties(${testname} PROPERTIES ENVIRONMENT "${envvar_list}")
+  endif()
 endfunction()
 
 function(blender_src_gtest_ex)
