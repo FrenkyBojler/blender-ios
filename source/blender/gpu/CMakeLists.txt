@@ -95,9 +95,11 @@ set(SRC
   intern/gpu_shader_dependency.cc
   intern/gpu_shader_interface.cc
   intern/gpu_shader_log.cc
+  intern/gpu_shader_preprocessor.cc
   intern/gpu_state.cc
   intern/gpu_storage_buffer.cc
   intern/gpu_texture.cc
+  intern/gpu_texture_mipmap.cc
   intern/gpu_texture_pool.cc
   intern/gpu_uniform_buffer.cc
   intern/gpu_vertex_buffer.cc
@@ -106,7 +108,22 @@ set(SRC
   intern/gpu_viewport.cc
   intern/gpu_worker.cc
 
-  shader_tool/parser.cc
+  shader_tool/attribute.cc
+  shader_tool/enum.cc
+  shader_tool/flow_control.cc
+  shader_tool/function.cc
+  shader_tool/grammar.cc
+  shader_tool/intermediate.cc
+  shader_tool/metadata.cc
+  shader_tool/namespace.cc
+  shader_tool/processor.cc
+  shader_tool/resource_table.cc
+  shader_tool/string.cc
+  shader_tool/struct.cc
+  shader_tool/template.cc
+  shader_tool/union.cc
+
+  shader_tool/lexit/lexit.cc
 
   GPU_attribute_convert.hh
   GPU_batch.hh
@@ -163,12 +180,16 @@ set(SRC
   intern/gpu_shader_create_info.hh
   intern/gpu_shader_create_info_pipeline.hh
   intern/gpu_shader_create_info_private.hh
+  intern/gpu_shader_dead_code_elimination.hh
   intern/gpu_shader_dependency_private.hh
   intern/gpu_shader_interface.hh
   intern/gpu_shader_metadata_private.hh
   intern/gpu_shader_private.hh
+  intern/gpu_shader_srd_cpp.hh
+  intern/gpu_shader_srd_info.hh
   intern/gpu_state_private.hh
   intern/gpu_storage_buffer_private.hh
+  intern/gpu_texture_pool_private.hh
   intern/gpu_texture_private.hh
   intern/gpu_uniform_buffer_private.hh
   intern/gpu_vertex_format_private.hh
@@ -198,6 +219,7 @@ set(OPENGL_SRC
   opengl/gl_state.cc
   opengl/gl_storage_buffer.cc
   opengl/gl_texture.cc
+  opengl/gl_texture_pool.cc
   opengl/gl_uniform_buffer.cc
   opengl/gl_vertex_array.cc
   opengl/gl_vertex_buffer.cc
@@ -218,6 +240,7 @@ set(OPENGL_SRC
   opengl/gl_state.hh
   opengl/gl_storage_buffer.hh
   opengl/gl_texture.hh
+  opengl/gl_texture_pool.hh
   opengl/gl_uniform_buffer.hh
   opengl/gl_vertex_array.hh
   opengl/gl_vertex_buffer.hh
@@ -227,6 +250,7 @@ set(VULKAN_SRC
   vulkan/vk_backend.cc
   vulkan/vk_batch.cc
   vulkan/vk_buffer.cc
+  vulkan/vk_buffer_pool.cc
   vulkan/vk_common.cc
   vulkan/vk_context.cc
   vulkan/vk_data_conversion.cc
@@ -268,6 +292,7 @@ set(VULKAN_SRC
   vulkan/vk_storage_buffer.cc
   vulkan/vk_streaming_buffer.cc
   vulkan/vk_texture.cc
+  vulkan/vk_texture_pool.cc
   vulkan/vk_to_string.cc
   vulkan/vk_uniform_buffer.cc
   vulkan/vk_vertex_attribute_object.cc
@@ -276,6 +301,7 @@ set(VULKAN_SRC
   vulkan/vk_backend.hh
   vulkan/vk_batch.hh
   vulkan/vk_buffer.hh
+  vulkan/vk_buffer_pool.hh
   vulkan/vk_common.hh
   vulkan/vk_context.hh
   vulkan/vk_data_conversion.hh
@@ -344,6 +370,7 @@ set(VULKAN_SRC
   vulkan/vk_storage_buffer.hh
   vulkan/vk_streaming_buffer.hh
   vulkan/vk_texture.hh
+  vulkan/vk_texture_pool.hh
   vulkan/vk_to_string.hh
   vulkan/vk_uniform_buffer.hh
   vulkan/vk_vertex_attribute_object.hh
@@ -370,6 +397,7 @@ set(METAL_SRC
   metal/mtl_state.mm
   metal/mtl_storage_buffer.mm
   metal/mtl_texture.mm
+  metal/mtl_texture_pool.mm
   metal/mtl_texture_util.mm
   metal/mtl_uniform_buffer.mm
   metal/mtl_vertex_buffer.mm
@@ -398,6 +426,7 @@ set(METAL_SRC
   metal/mtl_state.hh
   metal/mtl_storage_buffer.hh
   metal/mtl_texture.hh
+  metal/mtl_texture_pool.hh
   metal/mtl_uniform_buffer.hh
   metal/mtl_vertex_buffer.hh
 )
@@ -412,21 +441,17 @@ set(LIB
   PRIVATE bf::intern::atomic
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
-  PRIVATE bf::extern::fmtlib
   PRIVATE bf::nodes
-  PRIVATE bf::dependencies::optional::opencolorio
+  PRIVATE bf::dependencies::opencolorio
 )
 
 # Select Backend source based on availability
 if(WITH_OPENGL_BACKEND)
-  list(APPEND INC_SYS
-    ${Epoxy_INCLUDE_DIRS}
-  )
   list(APPEND SRC
     ${OPENGL_SRC}
   )
   list(APPEND LIB
-    ${Epoxy_LIBRARIES}
+    PRIVATE bf::dependencies::epoxy
   )
   add_definitions(-DWITH_OPENGL_BACKEND)
 endif()
@@ -437,25 +462,14 @@ endif()
 
 
 if(WITH_VULKAN_BACKEND)
-  list(APPEND INC
-    ../../../extern/vulkan_memory_allocator
-  )
-  list(APPEND INC_SYS
-    ${VULKAN_INCLUDE_DIRS}
-  )
-
-  list(APPEND INC_SYS
-    ${SHADERC_INCLUDE_DIRS}
-  )
   list(APPEND SRC
     ${VULKAN_SRC}
   )
-
   list(APPEND LIB
-    ${VULKAN_LIBRARIES}
-    ${SHADERC_LIBRARIES}
-    extern_vulkan_memory_allocator
+    PRIVATE bf::extern::vulkan_memory_allocator
     PRIVATE bf::extern::xxhash
+    PRIVATE bf::dependencies::optional::vulkan
+    PRIVATE bf::dependencies::optional::shaderc
   )
 
   add_definitions(-DWITH_VULKAN_BACKEND)
@@ -463,7 +477,6 @@ endif()
 
 set(GLSL_SRC
   GPU_shader_shared.hh
-  GPU_xr_defines.hh
 
   shaders/infos/gpu_clip_planes_infos.hh
   shaders/infos/gpu_index_load_infos.hh
@@ -478,7 +491,6 @@ set(GLSL_SRC
   shaders/infos/gpu_shader_2D_image_rect_color_infos.hh
   shaders/infos/gpu_shader_2D_image_shuffle_color_infos.hh
   shaders/infos/gpu_shader_2D_node_socket_infos.hh
-  shaders/infos/gpu_shader_2D_nodelink_infos.hh
   shaders/infos/gpu_shader_2D_point_uniform_size_uniform_color_aa_infos.hh
   shaders/infos/gpu_shader_2D_point_uniform_size_uniform_color_outline_aa_infos.hh
   shaders/infos/gpu_shader_2D_point_varying_size_varying_color_infos.hh
@@ -500,7 +512,6 @@ set(GLSL_SRC
   shaders/infos/gpu_shader_sequencer_infos.hh
   shaders/infos/gpu_shader_simple_lighting_infos.hh
   shaders/infos/gpu_shader_text_infos.hh
-  shaders/infos/gpu_shader_xr_raycast_infos.hh
   shaders/infos/gpu_srgb_to_framebuffer_space_infos.hh
 
   shaders/gpu_shader_depth_only_frag.glsl
@@ -512,14 +523,12 @@ set(GLSL_SRC
   shaders/gpu_shader_2D_vert.glsl
   shaders/gpu_shader_2D_area_borders_vert.glsl
   shaders/gpu_shader_2D_area_borders_frag.glsl
-  shaders/gpu_shader_2D_widget_base_vert.glsl
-  shaders/gpu_shader_2D_widget_base_frag.glsl
+  shaders/gpu_shader_2D_widget_base.bsl.hh
   shaders/gpu_shader_2D_widget_shadow_vert.glsl
   shaders/gpu_shader_2D_widget_shadow_frag.glsl
   shaders/gpu_shader_2D_node_socket_frag.glsl
   shaders/gpu_shader_2D_node_socket_vert.glsl
-  shaders/gpu_shader_2D_nodelink_frag.glsl
-  shaders/gpu_shader_2D_nodelink_vert.glsl
+  shaders/gpu_shader_2D_nodelink.bsl.hh
   shaders/gpu_shader_2D_line_dashed_frag.glsl
   shaders/gpu_shader_2D_image_vert.glsl
   shaders/gpu_shader_2D_image_rect_vert.glsl
@@ -542,6 +551,7 @@ set(GLSL_SRC
   shaders/gpu_shader_3D_smooth_color_vert.glsl
   shaders/gpu_shader_3D_smooth_color_frag.glsl
   shaders/gpu_shader_3D_clipped_uniform_color_vert.glsl
+  shaders/gpu_shader_2D_update_mipmaps.bsl.hh
 
   shaders/gpu_shader_point_uniform_color_aa_frag.glsl
   shaders/gpu_shader_point_uniform_color_outline_aa_frag.glsl
@@ -555,7 +565,6 @@ set(GLSL_SRC
 
   shaders/gpu_shader_text_vert.glsl
   shaders/gpu_shader_text_frag.glsl
-  shaders/gpu_shader_xr_raycast_vert.glsl
   shaders/gpu_shader_keyframe_shape_vert.glsl
   shaders/gpu_shader_keyframe_shape_frag.glsl
 
@@ -619,11 +628,15 @@ set(GLSL_SRC
   shaders/common/gpu_shader_shared_exponent_lib.glsl
   shaders/common/gpu_shader_smaa_lib.glsl
   shaders/common/gpu_shader_test_lib.glsl
+  shaders/common/gpu_shader_tiled_image_lookup_lib.glsl
   shaders/common/gpu_shader_utildefines_lib.glsl
 
   shaders/material/gpu_shader_material_add_shader.glsl
+  shaders/material/gpu_shader_material_align_rotation_to_vector.glsl
+  shaders/material/gpu_shader_material_axes_to_rotation.glsl
   shaders/material/gpu_shader_material_ambient_occlusion.glsl
   shaders/material/gpu_shader_material_attribute.glsl
+  shaders/material/gpu_shader_material_axis_angle_to_rotation.glsl
   shaders/material/gpu_shader_material_background.glsl
   shaders/material/gpu_shader_material_bevel.glsl
   shaders/material/gpu_shader_material_wavelength.glsl
@@ -638,6 +651,7 @@ set(GLSL_SRC
   shaders/material/gpu_shader_material_displacement.glsl
   shaders/material/gpu_shader_material_eevee_specular.glsl
   shaders/material/gpu_shader_material_emission.glsl
+  shaders/material/gpu_shader_material_euler_to_rotation.glsl
   shaders/material/gpu_shader_material_fractal_noise.glsl
   shaders/material/gpu_shader_material_fractal_voronoi.glsl
   shaders/material/gpu_shader_material_fresnel.glsl
@@ -649,7 +663,9 @@ set(GLSL_SRC
   shaders/material/gpu_shader_material_hair.glsl
   shaders/material/gpu_shader_material_holdout.glsl
   shaders/material/gpu_shader_material_hue_sat_val.glsl
+  shaders/material/gpu_shader_material_implicit_defaults.glsl
   shaders/material/gpu_shader_material_invert.glsl
+  shaders/material/gpu_shader_material_invert_rotation.glsl
   shaders/material/gpu_shader_material_layer_weight.glsl
   shaders/material/gpu_shader_material_light_falloff.glsl
   shaders/material/gpu_shader_material_light_path.glsl
@@ -668,12 +684,19 @@ set(GLSL_SRC
   shaders/material/gpu_shader_material_particle_info.glsl
   shaders/material/gpu_shader_material_point_info.glsl
   shaders/material/gpu_shader_material_principled.glsl
+  shaders/material/gpu_shader_material_quaternion_to_rotation.glsl
+  shaders/material/gpu_shader_material_raycast.glsl
   shaders/material/gpu_shader_material_ray_portal.glsl
   shaders/material/gpu_shader_material_refraction.glsl
   shaders/material/gpu_shader_material_repeat_zone.glsl
   shaders/material/gpu_shader_material_rgb_to_bw.glsl
   shaders/material/gpu_shader_material_radial_tiling.glsl
   shaders/material/gpu_shader_material_radial_tiling_shared.glsl
+  shaders/material/gpu_shader_material_rotate_rotation.glsl
+  shaders/material/gpu_shader_material_rotate_vector.glsl
+  shaders/material/gpu_shader_material_rotation_to_axis_angle.glsl
+  shaders/material/gpu_shader_material_rotation_to_euler.glsl
+  shaders/material/gpu_shader_material_rotation_to_quaternion.glsl
   shaders/material/gpu_shader_material_separate_color.glsl
   shaders/material/gpu_shader_material_separate_xyz.glsl
   shaders/material/gpu_shader_material_set.glsl
@@ -710,7 +733,6 @@ set(GLSL_SRC
   shaders/material/gpu_shader_material_volume_coefficients.glsl
   shaders/material/gpu_shader_material_voronoi.glsl
   shaders/material/gpu_shader_material_wireframe.glsl
-  shaders/material/gpu_shader_material_world_normals.glsl
 
   shaders/gpu_shader_gpencil_stroke_vert.glsl
   shaders/gpu_shader_gpencil_stroke_frag.glsl
@@ -732,7 +754,7 @@ set(GLSL_SRC
   GPU_shader_shared_utils.hh
 )
 
-set(GLSL_SRC_TEST
+set(GLSL_TEST_SRC
   shaders/infos/gpu_shader_test_infos.hh
 
   tests/shaders/gpu_math_test.glsl
@@ -792,14 +814,14 @@ set(VULKAN_BACKEND_GLSL_SRC
 
 if(WITH_GTESTS)
   if(WITH_GPU_BACKEND_TESTS)
-    list(APPEND GLSL_SRC ${GLSL_SRC_TEST})
+    list(APPEND GLSL_SRC ${GLSL_TEST_SRC})
   endif()
 endif()
 
 if(WITH_METAL_BACKEND)
   list(APPEND GLSL_SRC ${MTL_BACKEND_GLSL_SRC})
 
-  set(MSL_C)
+  set(MSL_C "")
   foreach(MSL_FILE ${MSL_SRC})
     data_to_c_simple(${MSL_FILE} MSL_C)
   endforeach()
@@ -809,12 +831,24 @@ if(WITH_VULKAN_BACKEND)
   list(APPEND GLSL_SRC ${VULKAN_BACKEND_GLSL_SRC})
 endif()
 
-set(GLSL_C)
+set(GLSL_INC
+  .
+
+  intern
+  shaders
+  shaders/common
+  shaders/infos
+  shaders/material
+
+  vulkan/shaders
+)
+
+set(GLSL_C "")
 foreach(GLSL_FILE ${GLSL_SRC})
-  glsl_to_c(${GLSL_FILE} GLSL_C)
+  glsl_to_c(${GLSL_FILE} GLSL_C GLSL_INC)
 endforeach()
 
-set(SHADER_C)
+set(SHADER_C "")
 list(APPEND SHADER_C ${GLSL_C})
 if(WITH_METAL_BACKEND)
   list(APPEND SHADER_C ${MSL_C})
@@ -833,6 +867,7 @@ set(GLSL_INFOS_CONTENT "")
 foreach(GLSL_FILE ${GLSL_SRC})
   get_filename_component(GLSL_FILE_NAME ${GLSL_FILE} NAME)
   string(REPLACE "." "_" GLSL_FILE_NAME_UNDERSCORES ${GLSL_FILE_NAME})
+  string(APPEND GLSL_FILE_NAME_UNDERSCORES "_tmp")
   string(APPEND GLSL_SOURCE_CONTENT "SHADER_SOURCE\(${GLSL_FILE_NAME_UNDERSCORES}, \"${GLSL_FILE_NAME}\", \"${GLSL_FILE}\"\)\n")
   string(APPEND GLSL_METADATA_CONTENT "#include \"${GLSL_FILE}.hh\"\n")
   string(APPEND GLSL_INFOS_CONTENT "#include \"${GLSL_FILE}.info\"\n")
@@ -874,10 +909,6 @@ target_link_libraries(bf_gpu PUBLIC
   bf_imbuf_opencolorio_shaders
 )
 
-if(WITH_OPENGL_BACKEND AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
-  target_link_libraries(bf_gpu PUBLIC rt)
-endif()
-
 # If `execinfo.h` exists on a *BSD system then also link in `libexecinfo`.
 # Needed for `backtrace` / `backtrace_symbols` (GNU extensions)
 # brought in by `blenlib/intern/system.cc`.
@@ -900,8 +931,8 @@ endif()
 
 
 if(WITH_GTESTS)
-  set(TEST_SRC)
-  set(TEST_INC)
+  set(TEST_SRC "")
+  set(TEST_INC "")
   set(TEST_LIB
     bf_intern_ghost
     bf_imbuf
@@ -923,6 +954,7 @@ if(WITH_GTESTS)
       tests/state_blend_test.cc
       tests/storage_buffer_test.cc
       tests/texture_test.cc
+      tests/texture_view_test.cc
       tests/vertex_buffer_test.cc
     )
   endif()

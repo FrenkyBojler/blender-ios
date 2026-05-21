@@ -23,9 +23,11 @@
 #include "eevee_subsurface.hh"
 #include "eevee_uniform_shared.hh"
 
+namespace blender {
+
 struct Camera;
 
-namespace blender::eevee {
+namespace eevee {
 
 class Instance;
 struct RayTraceBuffer;
@@ -127,11 +129,29 @@ class ShadowPipeline {
  public:
   ShadowPipeline(Instance &inst) : inst_(inst) {};
 
-  PassMain::Sub *surface_material_add(::Material *material, GPUMaterial *gpumat);
+  PassMain::Sub *surface_material_add(blender::Material *material, GPUMaterial *gpumat);
 
   void sync();
 
   void render(View &view);
+};
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Prepass
+ *
+ * Helper class for handling prepasses in Forward and Deferred pipelines.
+ * \{ */
+
+class Prepass : public PassMain {
+  PassMain::Sub *prepass_subpasses[2 /*double sided*/][2 /*moving*/][2 /*write id*/] = {
+      {{nullptr}}};
+
+ public:
+  Prepass(const char *name) : PassMain(name) {};
+  void setup_subpasses(DRWState common_state);
+  PassMain::Sub *add(blender::Material *blender_mat, GPUMaterial *gpumat, bool has_motion);
 };
 
 /** \} */
@@ -146,15 +166,18 @@ class ForwardPipeline {
  private:
   Instance &inst_;
 
-  PassMain prepass_ps_ = {"Prepass"};
-  PassMain::Sub *prepass_single_sided_static_ps_ = nullptr;
-  PassMain::Sub *prepass_single_sided_moving_ps_ = nullptr;
-  PassMain::Sub *prepass_double_sided_static_ps_ = nullptr;
-  PassMain::Sub *prepass_double_sided_moving_ps_ = nullptr;
+  Prepass prepass_ps_ = {"Prepass"};
 
   PassMain opaque_ps_ = {"Shading"};
-  PassMain::Sub *opaque_single_sided_ps_ = nullptr;
-  PassMain::Sub *opaque_double_sided_ps_ = nullptr;
+  PassMain::Sub *opaque_subpasses_[2 /*Raycast*/][2 /*Double-Sided*/] = {{nullptr}};
+
+  PassMain::Sub *get_opaque_subpass(blender::Material *blender_mat, GPUMaterial *gpumat)
+  {
+    const bool has_raycast = GPU_material_flag_get(gpumat, GPU_MATFLAG_RAYCAST);
+    const bool double_sided = !(blender_mat->blend_flag & MA_BL_CULL_BACKFACE);
+
+    return opaque_subpasses_[has_raycast][double_sided];
+  }
 
   PassSortable transparent_ps_ = {"Forward.Transparent"};
   float3 camera_forward_;
@@ -187,15 +210,19 @@ class ForwardPipeline {
   void sync();
   void end_sync();
 
-  PassMain::Sub *prepass_opaque_add(::Material *blender_mat, GPUMaterial *gpumat, bool has_motion);
-  PassMain::Sub *material_opaque_add(::Material *blender_mat, GPUMaterial *gpumat);
+  PassMain::Sub *prepass_opaque_add(blender::Material *blender_mat,
+                                    GPUMaterial *gpumat,
+                                    bool has_motion);
+  PassMain::Sub *material_opaque_add(const Object *ob,
+                                     blender::Material *blender_mat,
+                                     GPUMaterial *gpumat);
 
-  PassMain::Sub *prepass_transparent_add(const Object *ob,
-                                         ::Material *blender_mat,
-                                         GPUMaterial *gpumat);
-  PassMain::Sub *material_transparent_add(const Object *ob,
-                                          ::Material *blender_mat,
-                                          GPUMaterial *gpumat);
+  void transparent_add(const Object *ob,
+                       const float3 &ob_location,
+                       blender::Material *blender_mat,
+                       GPUMaterial *gpumat,
+                       PassMain::Sub *&r_prepass_subpass,
+                       PassMain::Sub *&r_material_subpass);
 
   bool use_colored_transparency() const;
 
@@ -214,19 +241,20 @@ class ForwardPipeline {
  * \{ */
 
 struct DeferredLayerBase {
-  PassMain prepass_ps_ = {"Prepass"};
-  PassMain::Sub *prepass_single_sided_static_ps_ = nullptr;
-  PassMain::Sub *prepass_single_sided_moving_ps_ = nullptr;
-  PassMain::Sub *prepass_double_sided_static_ps_ = nullptr;
-  PassMain::Sub *prepass_double_sided_moving_ps_ = nullptr;
+  Prepass prepass_ps_ = {"Prepass"};
 
   PassMain gbuffer_ps_ = {"Shading"};
-  /* Shaders that use the ClosureToRGBA node needs to be rendered first.
-   * Consider they hybrid forward and deferred. */
-  PassMain::Sub *gbuffer_single_sided_hybrid_ps_ = nullptr;
-  PassMain::Sub *gbuffer_double_sided_hybrid_ps_ = nullptr;
-  PassMain::Sub *gbuffer_single_sided_ps_ = nullptr;
-  PassMain::Sub *gbuffer_double_sided_ps_ = nullptr;
+  PassMain::Sub *gbuffer_subpasses_[2 /*Hybrid*/][2 /*Raycast*/][2 /*Double-Sided*/] = {
+      {{nullptr}}};
+
+  PassMain::Sub *get_gbuffer_subpass(blender::Material *blender_mat, GPUMaterial *gpumat)
+  {
+    const bool has_shader_to_rgba = GPU_material_flag_get(gpumat, GPU_MATFLAG_SHADER_TO_RGBA);
+    const bool has_raycast = GPU_material_flag_get(gpumat, GPU_MATFLAG_RAYCAST);
+    const bool double_sided = !(blender_mat->blend_flag & MA_BL_CULL_BACKFACE);
+
+    return gbuffer_subpasses_[has_shader_to_rgba][has_raycast][double_sided];
+  }
 
   gpu::Texture *radiance_behind_tx_ = nullptr;
 
@@ -234,6 +262,8 @@ struct DeferredLayerBase {
   eClosureBits closure_bits_ = CLOSURE_NONE;
   /* Maximum closure count considering all material in this pass. */
   int closure_count_ = 0;
+  /* True if this is a planar probe deferred layer. To be set before sync. */
+  bool is_probe_ = false;
 
   /* Stencil values used during the deferred pipeline. */
   enum class StencilBits : uint8_t {
@@ -355,8 +385,8 @@ class DeferredLayer : DeferredLayerBase {
   void begin_sync();
   void end_sync(bool is_first_pass, bool is_last_pass, bool next_layer_has_transmission);
 
-  PassMain::Sub *prepass_add(::Material *blender_mat, GPUMaterial *gpumat, bool has_motion);
-  PassMain::Sub *material_add(::Material *blender_mat, GPUMaterial *gpumat);
+  PassMain::Sub *prepass_add(blender::Material *blender_mat, GPUMaterial *gpumat, bool has_motion);
+  PassMain::Sub *material_add(blender::Material *blender_mat, GPUMaterial *gpumat);
 
   bool is_empty() const
   {
@@ -375,8 +405,7 @@ class DeferredLayer : DeferredLayerBase {
   static bool do_split_direct_indirect_radiance(const Instance &inst);
 
   /* Returns the radiance buffer to feed the next layer. */
-  gpu::Texture *render(View &main_view,
-                       View &render_view,
+  gpu::Texture *render(View &render_view,
                        Framebuffer &prepass_fb,
                        Framebuffer &combined_fb,
                        Framebuffer &gbuffer_fb,
@@ -404,8 +433,8 @@ class DeferredPipeline {
   void begin_sync();
   void end_sync();
 
-  PassMain::Sub *prepass_add(::Material *blender_mat, GPUMaterial *gpumat, bool has_motion);
-  PassMain::Sub *material_add(::Material *blender_mat, GPUMaterial *gpumat);
+  PassMain::Sub *prepass_add(blender::Material *blender_mat, GPUMaterial *gpumat, bool has_motion);
+  PassMain::Sub *material_add(blender::Material *blender_mat, GPUMaterial *gpumat);
 
   void render(View &main_view,
               View &render_view,
@@ -463,7 +492,7 @@ struct VolumeObjectBounds {
   /* Combined bounds in Z. Allow tighter integration bounds. */
   std::optional<Bounds<float>> z_range;
 
-  VolumeObjectBounds(const Camera &camera, Object *ob);
+  VolumeObjectBounds(const Camera &camera, const ObjectHandle &ob_handle, int instance_index);
 };
 
 /**
@@ -496,10 +525,10 @@ class VolumeLayer {
   }
 
   PassMain::Sub *occupancy_add(const Object *ob,
-                               const ::Material *blender_mat,
+                               const blender::Material *blender_mat,
                                GPUMaterial *gpumat);
   PassMain::Sub *material_add(const Object *ob,
-                              const ::Material *blender_mat,
+                              const blender::Material *blender_mat,
                               GPUMaterial *gpumat);
 
   /* Return true if the given bounds overlaps any of the contained object in this layer. */
@@ -529,11 +558,7 @@ class VolumePipeline {
   void sync();
   void render(View &view, Texture &occupancy_tx);
 
-  /**
-   * Returns correct volume layer for a given object and add the object to the layer.
-   * Returns nullptr if the object is not visible at all.
-   */
-  VolumeLayer *register_and_get_layer(Object *ob);
+  VolumeLayer *register_and_get_layer(const VolumeObjectBounds &object_bounds);
 
   std::optional<Bounds<float>> object_integration_range() const;
 
@@ -583,13 +608,14 @@ class DeferredProbePipeline {
     float4 data(0.0f);
     dummy_black.ensure_2d(
         gpu::TextureFormat::SFLOAT_16_16_16_16, int2(1), GPU_TEXTURE_USAGE_SHADER_READ, data);
+    opaque_layer_.is_probe_ = true;
   }
 
   void begin_sync();
   void end_sync();
 
-  PassMain::Sub *prepass_add(::Material *blender_mat, GPUMaterial *gpumat);
-  PassMain::Sub *material_add(::Material *blender_mat, GPUMaterial *gpumat);
+  PassMain::Sub *prepass_add(blender::Material *blender_mat, GPUMaterial *gpumat);
+  PassMain::Sub *material_add(blender::Material *blender_mat, GPUMaterial *gpumat);
 
   void render(View &view,
               Framebuffer &prepass_fb,
@@ -637,16 +663,18 @@ class PlanarProbePipeline : DeferredLayerBase {
     float4 data(0.0f);
     dummy_black_.ensure_2d(
         gpu::TextureFormat::SFLOAT_16_16_16_16, int2(1), GPU_TEXTURE_USAGE_SHADER_READ, data);
+    is_probe_ = true;
   };
 
   void begin_sync();
   void end_sync();
 
-  PassMain::Sub *prepass_add(::Material *blender_mat, GPUMaterial *gpumat);
-  PassMain::Sub *material_add(::Material *blender_mat, GPUMaterial *gpumat);
+  PassMain::Sub *prepass_add(blender::Material *blender_mat, GPUMaterial *gpumat);
+  PassMain::Sub *material_add(blender::Material *blender_mat, GPUMaterial *gpumat);
 
   void render(View &view,
               gpu::Texture *depth_layer_tx,
+              Framebuffer &prepass_fb,
               Framebuffer &gbuffer,
               Framebuffer &combined_fb,
               int2 extent);
@@ -668,7 +696,7 @@ class CapturePipeline {
  public:
   CapturePipeline(Instance &inst) : inst_(inst) {};
 
-  PassMain::Sub *surface_material_add(::Material *blender_mat, GPUMaterial *gpumat);
+  PassMain::Sub *surface_material_add(blender::Material *blender_mat, GPUMaterial *gpumat);
 
   void sync();
   void render(View &view);
@@ -689,7 +717,7 @@ class UtilityTexture : public Texture {
 
   static constexpr int lut_size = UTIL_TEX_SIZE;
   static constexpr int lut_size_sqr = lut_size * lut_size;
-  static constexpr int layer_count = UTIL_BTDF_LAYER + UTIL_BTDF_LAYER_COUNT;
+  static constexpr int layer_count = UTIL_BSDF_LAYER + UTIL_BSDF_LAYER_COUNT;
 
  public:
   UtilityTexture()
@@ -723,7 +751,7 @@ class UtilityTexture : public Texture {
       memcpy(layer.data, lut::ltc_mat_ggx, sizeof(layer));
     }
     {
-      Layer &layer = data[UTIL_BSDF_LAYER];
+      Layer &layer = data[UTIL_BRDF_LAYER];
       for (auto x : IndexRange(lut_size)) {
         for (auto y : IndexRange(lut_size)) {
           layer.data[y][x][0] = lut::brdf_ggx[y][x][0];
@@ -735,7 +763,7 @@ class UtilityTexture : public Texture {
     }
     {
       for (auto layer_id : IndexRange(16)) {
-        Layer &layer = data[UTIL_BTDF_LAYER + layer_id];
+        Layer &layer = data[UTIL_BSDF_LAYER + layer_id];
         for (auto x : IndexRange(lut_size)) {
           for (auto y : IndexRange(lut_size)) {
             layer.data[y][x][0] = lut::bsdf_ggx[layer_id][y][x][0];
@@ -776,6 +804,8 @@ class PipelineModule {
   UtilityTexture utility_tx;
   PipelineInfoData &data;
 
+  bool has_raycast = false;
+
   PipelineModule(Instance &inst, PipelineInfoData &data)
       : background(inst),
         world(inst),
@@ -799,6 +829,8 @@ class PipelineModule {
     shadow.sync();
     volume.sync();
     capture.sync();
+
+    has_raycast = false;
   }
 
   void end_sync()
@@ -809,12 +841,16 @@ class PipelineModule {
     forward.end_sync();
   }
 
-  PassMain::Sub *material_add(Object * /*ob*/ /* TODO remove. */,
-                              ::Material *blender_mat,
+  PassMain::Sub *material_add(Object *ob,
+                              blender::Material *blender_mat,
                               GPUMaterial *gpumat,
                               eMaterialPipeline pipeline_type,
                               eMaterialProbe probe_capture)
   {
+    if (GPU_material_flag_get(gpumat, GPU_MATFLAG_RAYCAST)) {
+      has_raycast = true;
+    }
+
     if (probe_capture == MAT_PROBE_REFLECTION) {
       switch (pipeline_type) {
         case MAT_PIPE_PREPASS_DEFERRED:
@@ -855,7 +891,7 @@ class PipelineModule {
       case MAT_PIPE_DEFERRED:
         return deferred.material_add(blender_mat, gpumat);
       case MAT_PIPE_FORWARD:
-        return forward.material_opaque_add(blender_mat, gpumat);
+        return forward.material_opaque_add(ob, blender_mat, gpumat);
       case MAT_PIPE_SHADOW:
         return shadow.surface_material_add(blender_mat, gpumat);
       case MAT_PIPE_CAPTURE:
@@ -877,4 +913,5 @@ class PipelineModule {
 
 /** \} */
 
-}  // namespace blender::eevee
+}  // namespace eevee
+}  // namespace blender

@@ -4,7 +4,6 @@
 
 #include "infos/eevee_geom_infos.hh"
 #include "infos/eevee_nodetree_infos.hh"
-#include "infos/eevee_surf_shadow_infos.hh"
 
 VERTEX_SHADER_CREATE_INFO(eevee_nodetree)
 VERTEX_SHADER_CREATE_INFO(eevee_clip_plane)
@@ -14,7 +13,7 @@ VERTEX_SHADER_CREATE_INFO(eevee_geom_pointcloud)
 #include "draw_pointcloud_lib.glsl"
 #include "eevee_attributes_pointcloud_lib.glsl"
 #include "eevee_nodetree_vert_lib.glsl"
-#include "eevee_reverse_z_lib.glsl"
+#include "eevee_reverse_z_lib.bsl.hh"
 #include "eevee_surf_lib.glsl"
 #include "eevee_velocity_lib.glsl"
 
@@ -22,14 +21,31 @@ void main()
 {
   DRW_VIEW_FROM_RESOURCE_ID;
 #ifdef MAT_SHADOW
-  shadow_viewport_layer_set(int(drw_view_id), int(render_view_buf[drw_view_id].viewport_index));
+  {
+    auto &shadow_iface = interface_get(eevee_shadow_iface_info, shadow_iface);
+    auto &render_view_buf = buffer_get(eevee::GeomShadow, render_view_buf);
+
+    shadow_iface.shadow_view_id = int(drw_view_id);
+    gpu_ViewportIndex = int(render_view_buf[drw_view_id].viewport_index);
+  }
 #endif
 
   init_interface();
 
-  pointcloud_interp_flat.id = pointcloud_get_point_id();
-  pointcloud_get_pos_and_radius(pointcloud_interp.position, pointcloud_interp.radius);
-  pointcloud_get_pos_and_nor(interp.P, interp.N);
+  const eObjectInfoFlag ob_flag = buffer_get(draw_object_infos, drw_infos)[drw_resource_id()].flag;
+
+  const pointcloud::Point ls_pt = pointcloud::point_get(uint(gl_VertexID));
+  const pointcloud::Point ws_pt = pointcloud::object_to_world(ls_pt, drw_modelmat());
+  const pointcloud::ShapePoint pt = pointcloud::shape_point_get(
+      ws_pt, drw_world_incident_vector(ws_pt.P), drw_view_up(), ob_flag);
+
+  pointcloud_interp_flat.id = ws_pt.point_id;
+  pointcloud_interp.position = ws_pt.P;
+  pointcloud_interp.radius = ws_pt.radius;
+
+  interp.P = pt.P;
+  interp.N = pt.N;
+
 #ifdef MAT_SHADOW
   /* Since point clouds always face the view, camera and shadow orientation don't match.
    * Apply a bias to avoid self-shadow issues. */
@@ -37,19 +53,22 @@ void main()
 #endif
 
 #ifdef MAT_VELOCITY
-  float3 lP = drw_point_world_to_object(pointcloud_interp.position);
-  float3 prv, nxt;
-  velocity_local_pos_get(lP, pointcloud_interp_flat.id, prv, nxt);
-  /* FIXME(fclem): Evaluating before displacement avoid displacement being treated as motion but
-   * ignores motion from animated displacement. Supporting animated displacement motion vectors
-   * would require evaluating the nodetree multiple time with different nodetree UBOs evaluated at
-   * different times, but also with different attributes (maybe we could assume static attribute at
-   * least). */
-  velocity_vertex(prv, lP, nxt, motion.prev, motion.next);
+  {
+    auto &motion = interface_get(eevee_velocity_geom, motion);
+    float3 lP = drw_point_world_to_object(pointcloud_interp.position);
+    float3 prv, nxt;
+    velocity_local_pos_get(lP, pointcloud_interp_flat.id, prv, nxt, drw_resource_id());
+    /* FIXME(fclem): Evaluating before displacement avoid displacement being treated as motion but
+     * ignores motion from animated displacement. Supporting animated displacement motion vectors
+     * would require evaluating the nodetree multiple time with different nodetree UBOs evaluated
+     * at different times, but also with different attributes (maybe we could assume static
+     * attribute at least). */
+    velocity_vertex(prv, lP, nxt, motion.prev, motion.next, drw_resource_id(), drw_modelmat());
+  }
 #endif
 
-  init_globals();
-  attrib_load(PointCloudPoint(0));
+  init_globals(true);
+  attrib_load(PointCloudPoint{ws_pt.point_id});
 
   interp.P += nodetree_displacement();
 
@@ -58,10 +77,15 @@ void main()
 #endif
 
 #ifdef MAT_SHADOW
-  float3 vs_P = drw_point_world_to_view(interp.P);
-  ShadowRenderView view = render_view_buf[drw_view_id];
-  shadow_clip.position = shadow_position_vector_get(vs_P, view);
-  shadow_clip.vector = shadow_clip_vector_get(vs_P, view.clip_distance_inv);
+  {
+    auto &shadow_clip = interface_get(eevee_shadow_iface_info, shadow_clip);
+    auto &render_view_buf = buffer_get(eevee::GeomShadow, render_view_buf);
+
+    float3 vs_P = drw_point_world_to_view(interp.P);
+    ShadowRenderView view = render_view_buf[drw_view_id];
+    shadow_clip.position = shadow_position_vector_get(vs_P, view);
+    shadow_clip.vector = shadow_clip_vector_get(vs_P, view.clip_distance_inv);
+  }
 #endif
 
   gl_Position = reverse_z::transform(drw_point_world_to_homogenous(interp.P));

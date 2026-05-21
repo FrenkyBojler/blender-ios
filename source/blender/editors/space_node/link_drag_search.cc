@@ -6,6 +6,7 @@
 #include "AS_asset_representation.hh"
 
 #include "BLI_listbase.h"
+#include "BLI_string_utf8.h"
 
 #include "DNA_space_types.h"
 
@@ -31,12 +32,19 @@
 
 #include "ED_asset.hh"
 #include "ED_node.hh"
+#include "ED_screen.hh"
+
+#include "RNA_access.hh"
+#include "RNA_define.hh"
+#include "RNA_prototypes.hh"
 
 #include "node_intern.hh"
 
-using blender::nodes::SocketLinkOperation;
+namespace blender {
 
-namespace blender::ed::space_node {
+using nodes::SocketLinkOperation;
+
+namespace ed::space_node {
 
 struct LinkDragSearchStorage {
   bNode &from_node;
@@ -68,7 +76,7 @@ static void link_drag_search_listen_fn(const wmRegionListenerParams *params, voi
 
 static void add_reroute_node_fn(nodes::LinkSearchOpParams &params)
 {
-  bNode &reroute = params.add_node("NodeReroute");
+  bNode &reroute = params.add_node("NodeReroute"_ustr);
   if (params.socket.in_out == SOCK_IN) {
     bke::node_add_link(params.node_tree,
                        reroute,
@@ -89,14 +97,10 @@ static void add_group_input_node_fn(nodes::LinkSearchOpParams &params)
 {
   /* Add a group input based on the connected socket, and add a new group input node. */
   bNodeTreeInterfaceSocket *socket_iface = bke::node_interface::add_interface_socket_from_node(
-      params.node_tree,
-      params.node,
-      params.socket,
-      params.socket.typeinfo->idname,
-      params.socket.name);
+      params.node_tree, params.node, params.socket, params.socket.name);
   params.node_tree.tree_interface.active_item_set(&socket_iface->item);
 
-  bNode &group_input = params.add_node("NodeGroupInput");
+  bNode &group_input = params.add_node("NodeGroupInput"_ustr);
 
   /* This is necessary to create the new sockets in the other input nodes. */
   BKE_main_ensure_invariants(*CTX_data_main(&params.C), params.node_tree.id);
@@ -105,7 +109,7 @@ static void add_group_input_node_fn(nodes::LinkSearchOpParams &params)
   for (bNode *node : params.node_tree.all_nodes()) {
     if (node->is_group_input()) {
       bNodeSocket *new_group_input_socket = bke::node_find_socket(
-          *node, SOCK_OUT, socket_iface->identifier);
+          *node, SOCK_OUT, UString(socket_iface->identifier));
       if (new_group_input_socket) {
         new_group_input_socket->flag |= SOCK_HIDDEN;
       }
@@ -113,11 +117,12 @@ static void add_group_input_node_fn(nodes::LinkSearchOpParams &params)
   }
 
   /* Hide all existing inputs in the new group input node, to only display the new one. */
-  LISTBASE_FOREACH (bNodeSocket *, socket, &group_input.outputs) {
-    socket->flag |= SOCK_HIDDEN;
+  for (bNodeSocket &socket : group_input.outputs) {
+    socket.flag |= SOCK_HIDDEN;
   }
 
-  bNodeSocket *socket = bke::node_find_socket(group_input, SOCK_OUT, socket_iface->identifier);
+  bNodeSocket *socket = bke::node_find_socket(
+      group_input, SOCK_OUT, UString(socket_iface->identifier));
   if (socket) {
     /* Unhide the socket for the new input in the new node and make a connection to it. */
     socket->flag &= ~SOCK_HIDDEN;
@@ -136,13 +141,14 @@ static void add_existing_group_input_fn(nodes::LinkSearchOpParams &params,
   SET_FLAG_FROM_TEST(flag, in_out & SOCK_IN, NODE_INTERFACE_SOCKET_INPUT);
   SET_FLAG_FROM_TEST(flag, in_out & SOCK_OUT, NODE_INTERFACE_SOCKET_OUTPUT);
 
-  bNode &group_input = params.add_node("NodeGroupInput");
+  bNode &group_input = params.add_node("NodeGroupInput"_ustr);
 
-  LISTBASE_FOREACH (bNodeSocket *, socket, &group_input.outputs) {
-    socket->flag |= SOCK_HIDDEN;
+  for (bNodeSocket &socket : group_input.outputs) {
+    socket.flag |= SOCK_HIDDEN;
   }
 
-  bNodeSocket *socket = bke::node_find_socket(group_input, SOCK_OUT, interface_socket.identifier);
+  bNodeSocket *socket = bke::node_find_socket(
+      group_input, SOCK_OUT, UString(interface_socket.identifier));
   if (socket != nullptr) {
     socket->flag &= ~SOCK_HIDDEN;
     bke::node_add_link(params.node_tree, group_input, *socket, params.node, params.socket);
@@ -168,21 +174,28 @@ static void search_link_ops_for_asset_metadata(const bNodeTree &node_tree,
   const bke::bNodeTreeType &node_tree_type = *node_tree.typeinfo;
   const eNodeSocketInOut in_out = socket.in_out == SOCK_OUT ? SOCK_IN : SOCK_OUT;
 
-  const IDProperty *sockets = BKE_asset_metadata_idprop_find(
-      &asset_data, in_out == SOCK_IN ? "inputs" : "outputs");
+  const IDProperty *properties = BKE_asset_metadata_idprop_find(&asset_data, "properties");
+  if (!properties || properties->type != IDP_GROUP) {
+    return;
+  }
+  const IDProperty *sockets = IDP_GetPropertyFromGroup(properties,
+                                                       in_out == SOCK_IN ? "inputs" : "outputs");
+  if (!sockets || sockets->type != IDP_GROUP) {
+    return;
+  }
 
   int weight = -1;
   Set<StringRef> socket_names;
-  LISTBASE_FOREACH (IDProperty *, socket_property, &sockets->data.group) {
-    if (socket_property->type != IDP_STRING) {
+  for (IDProperty &socket_property : sockets->data.group) {
+    if (socket_property.type != IDP_STRING) {
       continue;
     }
-    const char *socket_idname = IDP_string_get(socket_property);
+    const char *socket_idname = IDP_string_get(&socket_property);
     const bke::bNodeSocketType *socket_type = bke::node_socket_type_find(socket_idname);
     if (socket_type == nullptr) {
       continue;
     }
-    eNodeSocketDatatype from = eNodeSocketDatatype(socket.type);
+    eNodeSocketDatatype from = socket.type;
     eNodeSocketDatatype to = socket_type->type;
     if (socket.in_out == SOCK_OUT) {
       std::swap(from, to);
@@ -190,17 +203,17 @@ static void search_link_ops_for_asset_metadata(const bNodeTree &node_tree,
     if (node_tree_type.validate_link && !node_tree_type.validate_link(from, to)) {
       continue;
     }
-    if (!socket_names.add(socket_property->name)) {
+    if (!socket_names.add(socket_property.name)) {
       /* See comment in #search_link_ops_for_declarations. */
       continue;
     }
 
     const StringRef asset_name = asset.get_name();
-    const StringRef socket_name = socket_property->name;
+    const StringRef socket_name = socket_property.name;
 
     search_link_ops.append(
         {asset_name + " " + UI_MENU_ARROW_SEP + socket_name,
-         [&asset, socket_property, in_out](nodes::LinkSearchOpParams &params) {
+         [&asset, &socket_property, in_out](nodes::LinkSearchOpParams &params) {
            Main &bmain = *CTX_data_main(&params.C);
 
            bNodeTree *group = reinterpret_cast<bNodeTree *>(
@@ -221,7 +234,7 @@ static void search_link_ops_for_asset_metadata(const bNodeTree &node_tree,
            nodes::update_node_declaration_and_sockets(params.node_tree, node);
 
            bNodeSocket *new_node_socket = bke::node_find_enabled_socket(
-               node, in_out, socket_property->name);
+               node, in_out, socket_property.name);
            if (new_node_socket != nullptr) {
              /* Rely on the way #node_add_link switches in/out if necessary. */
              bke::node_add_link(
@@ -415,8 +428,7 @@ static void link_drag_search_exec_fn(bContext *C, void *arg1, void *arg2)
   /* Start translation operator with the new node. */
   wmOperatorType *ot = WM_operatortype_find("NODE_OT_translate_attach_remove_on_cancel", true);
   BLI_assert(ot);
-  PointerRNA ptr;
-  WM_operator_properties_create_ptr(&ptr, ot);
+  PointerRNA ptr = WM_operator_properties_create_ptr(ot);
   WM_operator_name_call_ptr(C, ot, wm::OpCallContext::InvokeDefault, &ptr, nullptr);
   WM_operator_properties_free(&ptr);
 }
@@ -429,7 +441,7 @@ static void link_drag_search_free_fn(void *arg)
 
 static ui::Block *create_search_popup_block(bContext *C, ARegion *region, void *arg_op)
 {
-  LinkDragSearchStorage &storage = *(LinkDragSearchStorage *)arg_op;
+  LinkDragSearchStorage &storage = *static_cast<LinkDragSearchStorage *>(arg_op);
 
   ui::Block *block = block_begin(C, region, "_popup", ui::EmbossType::Emboss);
   block_flag_enable(block, ui::BLOCK_LOOP | ui::BLOCK_MOVEMOUSE_QUIT | ui::BLOCK_SEARCH_MENU);
@@ -484,4 +496,102 @@ void invoke_node_link_drag_add_menu(bContext &C,
   popup_block_invoke_ex(&C, create_search_popup_block, storage, nullptr, false);
 }
 
-}  // namespace blender::ed::space_node
+static bool link_drag_operation_test_poll(bContext *C)
+{
+  if (!ED_operator_node_editable(C)) {
+    return false;
+  }
+  PointerRNA socket_ptr = CTX_data_pointer_get_type(C, "socket", RNA_NodeSocket);
+  if (!socket_ptr.data) {
+    return false;
+  }
+  return true;
+}
+
+static wmOperatorStatus link_drag_operation_test_exec(bContext *C, wmOperator *op)
+{
+  SpaceNode &snode = *CTX_wm_space_node(C);
+  if (!snode.edittree) {
+    return OPERATOR_CANCELLED;
+  }
+  bNodeTree &ntree = *snode.edittree;
+  PointerRNA socket_ptr = CTX_data_pointer_get_type(C, "socket", RNA_NodeSocket);
+  if (!socket_ptr.data) {
+    return OPERATOR_CANCELLED;
+  }
+  bNodeSocket &socket = *socket_ptr.data_as<bNodeSocket>();
+
+  Vector<SocketLinkOperation> search_link_ops;
+  gather_socket_link_operations(*C, ntree, socket, search_link_ops);
+
+  if (RNA_boolean_get(op->ptr, "find_link_operations")) {
+    IDProperty *idprops = IDP_EnsureProperties(&ntree.id);
+    IDProperty *idp_link_ops_array = IDP_NewIDPArray("link_operation_names");
+    IDP_ResizeIDPArray(idp_link_ops_array, search_link_ops.size());
+    for (const int i : search_link_ops.index_range()) {
+      const SocketLinkOperation &link_op = search_link_ops[i];
+      IDProperty *idp_link_op_name = IDP_NewString(link_op.name.c_str(), "name");
+      IDP_SetIndexArray(idp_link_ops_array, i, idp_link_op_name);
+      /* IDP_SetIndexArray makes a shallow copy. */
+      MEM_delete(idp_link_op_name);
+    }
+    IDP_ReplaceInGroup(idprops, idp_link_ops_array);
+    return OPERATOR_FINISHED;
+  }
+
+  const int link_op_index = RNA_int_get(op->ptr, "link_operation_index");
+  if (!search_link_ops.index_range().contains(link_op_index)) {
+    BKE_report(op->reports, RPT_ERROR_INVALID_INPUT, "Link operation index out of range");
+    return OPERATOR_CANCELLED;
+  }
+
+  const SocketLinkOperation &link_op = search_link_ops[link_op_index];
+  Vector<bNode *> added_nodes;
+  nodes::LinkSearchOpParams params{*C, ntree, socket.owner_node(), socket, added_nodes};
+  link_op.fn(params);
+  // const std::string msg = fmt::format(
+  //     "Link operation \"{}\" added {} nodes", link_op.name, added_nodes.size());
+  // BKE_report(op->reports, RPT_INFO, msg.c_str());
+
+  /* Select only added nodes. */
+  for (bNode &node : ntree.nodes) {
+    bke::node_set_selected(node, false);
+  }
+  for (bNode *node : added_nodes) {
+    bke::node_set_selected(*node, true);
+  }
+
+  return OPERATOR_FINISHED;
+}
+
+void NODE_OT_link_drag_operation_test(wmOperatorType *ot)
+{
+  ot->name = "Link Drag Operation Test";
+  ot->idname = "NODE_OT_link_drag_operation_test";
+  ot->description = "Run a node link-drag operation for testing";
+
+  ot->poll = link_drag_operation_test_poll;
+  ot->exec = link_drag_operation_test_exec;
+
+  ot->flag = OPTYPE_INTERNAL;
+
+  RNA_def_boolean(ot->srna,
+                  "find_link_operations",
+                  false,
+                  "Find Link Operations",
+                  "Write link operation names for the context socket the \"link_operation_names\" "
+                  "property of the node tree");
+  RNA_def_int(ot->srna,
+              "link_operation_index",
+              -1,
+              -1,
+              INT_MAX,
+              "Link Operation Index",
+              "Link operation to execute on the context socket",
+              0,
+              INT_MAX);
+}
+
+}  // namespace ed::space_node
+
+}  // namespace blender
