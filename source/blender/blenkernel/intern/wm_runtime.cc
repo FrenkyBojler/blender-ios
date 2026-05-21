@@ -204,7 +204,11 @@ bool wm_staggered_eval_next_frame(WindowRuntime &runtime, const int current_fram
     StaggeredEvalTarget &off_frame_id = eval_data.targets[i];
     ID *eval_id = DEG_get_evaluated_id(eval_data.depsgraph, off_frame_id.id);
     /* The callback shall return true when the evaluation has completed. */
-    if (off_frame_id.callback(*off_frame_id.id, *eval_id, off_frame_id.component_name, eval_frame))
+    if (off_frame_id.callback(*eval_data.depsgraph,
+                              *off_frame_id.id,
+                              *eval_id,
+                              off_frame_id.component_name,
+                              eval_frame))
     {
       finished_indices.append(i);
     }

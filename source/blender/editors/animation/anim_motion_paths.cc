@@ -110,6 +110,19 @@ void animviz_build_motionpath_targets(Object *ob, Vector<MPathTarget> &r_targets
 
 /* ........ */
 
+static void transform_mpath_point_to_active_camera(Depsgraph &depsgraph, bMotionPathVert &mpv)
+{
+  Scene *scene = DEG_get_input_scene(&depsgraph);
+  if (!scene->camera) {
+    return;
+  }
+  Object *cam_eval = DEG_get_evaluated(&depsgraph, scene->camera);
+  /* Convert point to camera space. */
+  const float3 co_camera_space = math::transform_point(cam_eval->world_to_object(),
+                                                       float3(mpv.co));
+  copy_v3_v3(mpv.co, co_camera_space);
+}
+
 /* Perform baking for the targets on the current frame. */
 static void motionpath_bake_target(MPathTarget &target, const int cframe, Depsgraph *depsgraph)
 {
@@ -152,12 +165,8 @@ static void motionpath_bake_target(MPathTarget &target, const int cframe, Depsgr
     copy_v3_v3(mpv->co, ob_eval->object_to_world().location());
   }
 
-  Scene *scene = DEG_get_input_scene(depsgraph);
-  if (mpath->flag & MOTIONPATH_FLAG_BAKE_CAMERA && scene->camera) {
-    Object *cam_eval = DEG_get_evaluated(depsgraph, scene->camera);
-    /* Convert point to camera space. */
-    float3 co_camera_space = math::transform_point(cam_eval->world_to_object(), float3(mpv->co));
-    copy_v3_v3(mpv->co, co_camera_space);
+  if (mpath->flag & MOTIONPATH_FLAG_BAKE_CAMERA) {
+    transform_mpath_point_to_active_camera(*depsgraph, *mpv);
   }
 
   /* Tag if it's a keyframe. */
@@ -252,10 +261,8 @@ static bool are_all_verts_evaluated(bMotionPath &mpath)
   return true;
 }
 
-static bool update_callback(ID &orig_id,
-                            ID &eval_id,
-                            const StringRef /* component_name */,
-                            const int frame)
+static bool update_callback(
+    Depsgraph &dg, ID &orig_id, ID &eval_id, const StringRef /* component_name */, const int frame)
 {
   Object *ob = id_cast<Object *>(&orig_id);
   Object *ob_eval = id_cast<Object *>(&eval_id);
@@ -276,6 +283,10 @@ static bool update_callback(ID &orig_id,
 
   /* World-space object location. */
   copy_v3_v3(mpv.co, ob_eval->object_to_world().location());
+  if (mpath->flag & MOTIONPATH_FLAG_BAKE_CAMERA) {
+    transform_mpath_point_to_active_camera(dg, mpv);
+  }
+
   mpv.flag |= MOTIONPATH_VERT_EVALUATED;
 
   if (animrig::id_frame_has_keyframe(&ob->id, frame)) {
@@ -291,10 +302,8 @@ static bool update_callback(ID &orig_id,
   return are_all_verts_evaluated(*mpath);
 }
 
-static bool update_callback_pose_bone(ID &orig_id,
-                                      ID &eval_id,
-                                      const StringRef component_name,
-                                      const int frame)
+static bool update_callback_pose_bone(
+    Depsgraph &dg, ID &orig_id, ID &eval_id, const StringRef component_name, const int frame)
 {
   Object *ob = id_cast<Object *>(&orig_id);
   Object *ob_eval = id_cast<Object *>(&eval_id);
@@ -326,6 +335,10 @@ static bool update_callback_pose_bone(ID &orig_id,
 
   /* Result must be in world-space. */
   mul_m4_v3(ob_eval->object_to_world().ptr(), mpv.co);
+  if (mpath->flag & MOTIONPATH_FLAG_BAKE_CAMERA) {
+    transform_mpath_point_to_active_camera(dg, mpv);
+  }
+
   mpv.flag |= MOTIONPATH_VERT_EVALUATED;
   if (animrig::bone_frame_has_keyframe(*ob, pose_bone->name, frame)) {
     mpv.flag |= MOTIONPATH_VERT_KEY;

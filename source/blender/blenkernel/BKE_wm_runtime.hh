@@ -30,6 +30,7 @@ struct wmDrag;
 struct wmPaintCursor;
 struct WindowDrawCB;
 struct Main;
+struct Depsgraph;
 
 namespace bke {
 
@@ -129,8 +130,8 @@ struct WindowManagerRuntime {
   ~WindowManagerRuntime();
 };
 
-using EvalCallback =
-    FunctionRef<bool(ID &orig_id, ID &evaluated_id, StringRef component_name, int frame)>;
+using EvalCallback = FunctionRef<bool(
+    Depsgraph &dg, ID &orig_id, ID &evaluated_id, StringRef component_name, int frame)>;
 
 struct StaggeredEvalTarget {
   /* Storing the session uid instead of a pointer so we can react to deletions in the evaluation
@@ -224,6 +225,7 @@ struct WindowRuntime {
   /** Private runtime info to show text in the status bar. */
   void *cursor_keymap_status = nullptr;
 
+  /* Storage for staggered depsgraph evaluation. See `wm_staggered_eval_register`. */
   StaggeredEvalData staggered_eval;
 
   WindowRuntime() = default;
