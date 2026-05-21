@@ -4,3 +4,4 @@ Referenced by issue #134784, Regression: Object 'bounds' & 'wire' behavior chang
 Referenced by issue #134808, Blender Crash using Grease Pencil Interpolation
 Referenced by issue #148608, With Overlay-Next, opaque "in front" images hide edit mode geometry
 Referenced by issue #147721, Window freezes when in edit mode
+Referenced by issue #140614, Edit bone selection cycling order dictated by creation order instead of users viewpoint
