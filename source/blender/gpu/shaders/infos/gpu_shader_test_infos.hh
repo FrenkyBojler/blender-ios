@@ -223,6 +223,7 @@ GPU_SHADER_CREATE_END()
 /* Runtime create info. */
 GPU_SHADER_CREATE_INFO(gpu_framebuffer_layer_viewport_test)
 FRAGMENT_OUT(0, int2, out_value)
+GPU_SHADER_CREATE_END()
 
 /* Ray tracing */
 GPU_SHADER_CREATE_INFO(gpu_ray_query_test)

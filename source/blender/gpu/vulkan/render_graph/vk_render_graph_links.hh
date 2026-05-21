@@ -74,6 +74,8 @@ struct VKRenderGraphImage : public VKRenderGraphResource {
   VKSubImageRange subimage;
 };
 
+struct VKRenderGraphAccelerationStructure : public VKRenderGraphResource {};
+
 struct VKRenderGraphLinks {
   /**
    * VKRenderGraphNode.links.buffers contains indices to #VKRenderGraphLinks.buffers.
@@ -89,10 +91,14 @@ struct VKRenderGraphLinks {
    */
   Vector<VKRenderGraphImage> images;
 
+  // TODO
+  Vector<VKRenderGraphAccelerationStructure> acceleration_structures;
+
   void clear()
   {
     buffers.clear();
     images.clear();
+    acceleration_structures.clear();
   }
 };
 

@@ -52,18 +52,18 @@ class VKBuildAccelerationStructureNode
    * Extract read/write resource dependencies from `create_info` and add them to `node_links`.
    */
   void build_links(VKResourceStateTracker &resources,
-                   VKRenderGraphNodeLinks &node_links,
+                   VKRenderGraphLinks &links,
                    const CreateInfo &create_info) override
   {
     for (VkBuffer vk_buffer : create_info.src_buffers) {
       BLI_assert(vk_buffer != VK_NULL_HANDLE);
       ResourceWithStamp src_buffer = resources.get_buffer(vk_buffer);
-      node_links.inputs.append({src_buffer, VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR});
+      links.buffers.append({src_buffer, VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR});
     }
 
     ResourceWithStamp dst_acceleration_structure = resources.get_buffer_and_increase_stamp(
         create_info.dst_acceleration_structure);
-    node_links.outputs.append(
+    links.acceleration_structures.append(
         {dst_acceleration_structure, VK_ACCESS_2_ACCELERATION_STRUCTURE_WRITE_BIT_KHR});
   }
 
@@ -72,6 +72,7 @@ class VKBuildAccelerationStructureNode
    */
   void build_commands(VKCommandBufferInterface &command_buffer,
                       Data &data,
+                      Span<uint8_t> /*storage_push_constants*/,
                       VKBoundPipelines & /*r_bound_pipelines*/) override
   {
     data.vk_acceleration_structure_build_geometry_info.geometryCount = uint32_t(

@@ -159,7 +159,7 @@ bool VKTopLevelAS::build()
   /* TODO: only use udpate_render_graph for buffers < 64Kb. */
   BLI_assert(instances_buffer_size < 65536);
   if (instances_buffer_size != 0) {
-    void *copy_of_data = MEM_mallocN(instances_buffer_size, __func__);
+    void *copy_of_data = MEM_new_uninitialized(instances_buffer_size, __func__);
     memcpy(copy_of_data, instances_.data(), instances_buffer_size);
     instances_buffer_.update_render_graph(context, copy_of_data);
   }

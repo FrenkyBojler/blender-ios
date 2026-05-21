@@ -186,9 +186,10 @@ void VKShaderInterface::populate_shader_inputs(InitContext &ctx)
   /* Acceleration structures */
   for (const ShaderCreateInfo::Resource &res : all_resources) {
     if (res.bind_type == ShaderCreateInfo::Resource::BindType::ACCELERATION_STRUCTURE) {
-      copy_input_name(input, res.acceleration_structure.name, name_buffer_, name_buffer_offset);
-      input->location = input->binding = res.slot;
-      input++;
+      copy_input_name(
+          ctx.input_ptr, res.acceleration_structure.name, name_buffer_, ctx.name_buffer_offset);
+      ctx.input_ptr->location = ctx.input_ptr->binding = res.slot;
+      ctx.input_ptr++;
     }
   }
 

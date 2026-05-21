@@ -5,6 +5,7 @@
 
 #include "BLI_assert.h"
 
+using namespace blender;
 using namespace blender::gpu;
 
 TopLevelAS *GPU_ray_tracing_tlas_alloc(const char *name)
