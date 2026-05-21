@@ -133,8 +133,8 @@ static void strip_convert_transform_animation(const Strip *strip,
   }
 
   /* Hardcoded legacy bit-flags which has been removed. */
-  const uint32_t use_transform_flag = (1 << 16);
-  const uint32_t use_crop_flag = (1 << 17);
+  const eStripFlag use_transform_flag = eStripFlag(1 << 16);
+  const eStripFlag use_crop_flag = eStripFlag(1 << 17);
 
   /* Convert offset animation, but only if crop is not used. */
   if ((strip->flag & use_transform_flag) != 0 && (strip->flag & use_crop_flag) == 0) {
@@ -161,10 +161,10 @@ static void strip_convert_transform_crop(const Scene *scene,
                                          const eSpaceSeq_Proxy_RenderSize render_size)
 {
   if (strip->data->transform == nullptr) {
-    strip->data->transform = MEM_new_for_free<StripTransform>(__func__);
+    strip->data->transform = MEM_new<StripTransform>(__func__);
   }
   if (strip->data->crop == nullptr) {
-    strip->data->crop = MEM_new_for_free<StripCrop>(__func__);
+    strip->data->crop = MEM_new<StripCrop>(__func__);
   }
 
   StripCrop *c = strip->data->crop;
@@ -174,9 +174,9 @@ static void strip_convert_transform_crop(const Scene *scene,
   int image_size_x = scene->r.xsch;
   int image_size_y = scene->r.ysch;
 
-  /* Hard-coded legacy bit-flags which has been removed. */
-  const uint32_t use_transform_flag = (1 << 16);
-  const uint32_t use_crop_flag = (1 << 17);
+  /* Hard-coded legacy bit-flags which have been removed. */
+  const eStripFlag use_transform_flag = eStripFlag(1 << 16);
+  const eStripFlag use_crop_flag = eStripFlag(1 << 17);
 
   const StripElem *s_elem = strip->data->stripdata;
   if (s_elem != nullptr) {
@@ -255,10 +255,10 @@ static void strip_convert_transform_crop(const Scene *scene,
 
   path = BLI_sprintfN("sequence_editor.sequences_all[\"%s\"].transform.offset_x", name_esc);
   strip_convert_transform_animation(strip, scene, path, image_size_x, scene->r.xsch);
-  MEM_freeN(path);
+  MEM_delete(path);
   path = BLI_sprintfN("sequence_editor.sequences_all[\"%s\"].transform.offset_y", name_esc);
   strip_convert_transform_animation(strip, scene, path, image_size_y, scene->r.ysch);
-  MEM_freeN(path);
+  MEM_delete(path);
 
   strip->flag &= ~use_transform_flag;
   strip->flag &= ~use_crop_flag;
@@ -332,22 +332,22 @@ static void strip_convert_transform_crop_2(const Scene *scene,
   BLI_str_escape(name_esc, strip->name + 2, sizeof(name_esc));
   path = BLI_sprintfN("sequence_editor.sequences_all[\"%s\"].transform.scale_x", name_esc);
   strip_convert_transform_animation_2(scene, path, scale_to_fit_factor);
-  MEM_freeN(path);
+  MEM_delete(path);
   path = BLI_sprintfN("sequence_editor.sequences_all[\"%s\"].transform.scale_y", name_esc);
   strip_convert_transform_animation_2(scene, path, scale_to_fit_factor);
-  MEM_freeN(path);
+  MEM_delete(path);
   path = BLI_sprintfN("sequence_editor.sequences_all[\"%s\"].crop.min_x", name_esc);
   strip_convert_transform_animation_2(scene, path, 1 / scale_to_fit_factor);
-  MEM_freeN(path);
+  MEM_delete(path);
   path = BLI_sprintfN("sequence_editor.sequences_all[\"%s\"].crop.max_x", name_esc);
   strip_convert_transform_animation_2(scene, path, 1 / scale_to_fit_factor);
-  MEM_freeN(path);
+  MEM_delete(path);
   path = BLI_sprintfN("sequence_editor.sequences_all[\"%s\"].crop.min_y", name_esc);
   strip_convert_transform_animation_2(scene, path, 1 / scale_to_fit_factor);
-  MEM_freeN(path);
+  MEM_delete(path);
   path = BLI_sprintfN("sequence_editor.sequences_all[\"%s\"].crop.max_x", name_esc);
   strip_convert_transform_animation_2(scene, path, 1 / scale_to_fit_factor);
-  MEM_freeN(path);
+  MEM_delete(path);
 }
 
 static void strip_convert_transform_crop_lb_2(const Scene *scene,
@@ -407,7 +407,7 @@ static void version_node_socket_duplicate(bNodeTree *ntree,
   for (bNodeLink &link : ntree->links.items_mutable()) {
     if (link.tonode->type_legacy == node_type) {
       bNode *node = link.tonode;
-      bNodeSocket *dest_socket = bke::node_find_socket(*node, SOCK_IN, new_name);
+      bNodeSocket *dest_socket = bke::node_find_socket(*node, SOCK_IN, UString(new_name));
       BLI_assert(dest_socket);
       if (STREQ(link.tosock->name, old_name)) {
         bke::node_add_link(*ntree, *link.fromnode, *link.fromsock, *node, *dest_socket);
@@ -418,13 +418,13 @@ static void version_node_socket_duplicate(bNodeTree *ntree,
   /* Duplicate the default value from the old socket and assign it to the new socket. */
   for (bNode &node : ntree->nodes) {
     if (node.type_legacy == node_type) {
-      bNodeSocket *source_socket = bke::node_find_socket(node, SOCK_IN, old_name);
-      bNodeSocket *dest_socket = bke::node_find_socket(node, SOCK_IN, new_name);
+      bNodeSocket *source_socket = bke::node_find_socket(node, SOCK_IN, UString(old_name));
+      bNodeSocket *dest_socket = bke::node_find_socket(node, SOCK_IN, UString(new_name));
       BLI_assert(source_socket && dest_socket);
       if (dest_socket->default_value) {
-        MEM_freeN(dest_socket->default_value);
+        MEM_delete_void(dest_socket->default_value);
       }
-      dest_socket->default_value = MEM_dupallocN(source_socket->default_value);
+      dest_socket->default_value = MEM_dupalloc_void(source_socket->default_value);
     }
   }
 }
@@ -715,10 +715,8 @@ static void panels_remove_x_closed_flag_recursive(Panel *panel)
 static void do_versions_point_attributes(CustomData *pdata)
 {
   /* Change to generic named float/float3 attributes. */
-  enum {
-    CD_LOCATION = 43,
-    CD_RADIUS = 44,
-  };
+  constexpr eCustomDataType CD_LOCATION = eCustomDataType(43);
+  constexpr eCustomDataType CD_RADIUS = eCustomDataType(44);
 
   for (int i = 0; i < pdata->totlayer; i++) {
     CustomDataLayer *layer = &pdata->layers[i];
@@ -1298,7 +1296,8 @@ void blo_do_versions_290(FileData *fd, Library * /*lib*/, Main *bmain)
       for (Mesh &mesh : bmain->meshes) {
         /* The previous flags used to store mesh symmetry in edit-mode match the new ones that are
          * used in #Mesh.symmetry. */
-        mesh.symmetry = mesh.editflag & (ME_SYMMETRY_X | ME_SYMMETRY_Y | ME_SYMMETRY_Z);
+        mesh.symmetry = eMeshSymmetryType(int(mesh.editflag) &
+                                          (ME_SYMMETRY_X | ME_SYMMETRY_Y | ME_SYMMETRY_Z));
       }
     }
 
@@ -1497,7 +1496,7 @@ void blo_do_versions_290(FileData *fd, Library * /*lib*/, Main *bmain)
       for (ModifierData &md : ob.modifiers) {
         if (md.type == eModifierType_Nodes) {
           NodesModifierData *nmd = reinterpret_cast<NodesModifierData *>(&md);
-          IDProperty *nmd_properties = nmd->settings.properties;
+          IDProperty *nmd_properties = nmd->settings_legacy.properties;
 
           BLI_assert(nmd_properties->type == IDP_GROUP);
           for (IDProperty &nmd_socket_idprop : nmd_properties->data.group) {
@@ -1535,12 +1534,14 @@ void blo_do_versions_290(FileData *fd, Library * /*lib*/, Main *bmain)
         if (scene.nodetree) {
           for (bNode &node : scene.nodetree->nodes) {
             if (node.type_legacy == CMP_NODE_CRYPTOMATTE_LEGACY) {
-              NodeCryptomatte *storage = static_cast<NodeCryptomatte *>(node.storage);
-              char *matte_id = storage->matte_id;
-              if ((matte_id == nullptr) || (storage->matte_id[0] == '\0')) {
-                continue;
+              if (version_node_ensure_storage_or_invalidate(node)) {
+                NodeCryptomatte *storage = static_cast<NodeCryptomatte *>(node.storage);
+                char *matte_id = storage->matte_id;
+                if ((matte_id == nullptr) || (storage->matte_id[0] == '\0')) {
+                  continue;
+                }
+                BKE_cryptomatte_matte_id_to_entries(storage, storage->matte_id);
               }
-              BKE_cryptomatte_matte_id_to_entries(storage, storage->matte_id);
             }
           }
         }
@@ -1553,8 +1554,10 @@ void blo_do_versions_290(FileData *fd, Library * /*lib*/, Main *bmain)
         for (SpaceLink &sl : area.spacedata) {
           if (sl.spacetype == SPACE_SEQ) {
             SpaceSeq *sseq = reinterpret_cast<SpaceSeq *>(&sl);
-            sseq->flag |= (SEQ_SHOW_OVERLAY | SEQ_TIMELINE_SHOW_STRIP_NAME |
-                           SEQ_TIMELINE_SHOW_STRIP_SOURCE | SEQ_TIMELINE_SHOW_STRIP_DURATION);
+            sseq->flag |= SEQ_SHOW_OVERLAY;
+            sseq->timeline_overlay.flag |= SEQ_TIMELINE_SHOW_STRIP_NAME |
+                                           SEQ_TIMELINE_SHOW_STRIP_SOURCE |
+                                           SEQ_TIMELINE_SHOW_STRIP_DURATION;
           }
         }
       }
@@ -1615,7 +1618,7 @@ void blo_do_versions_290(FileData *fd, Library * /*lib*/, Main *bmain)
           if (node.type_legacy != CMP_NODE_SETALPHA) {
             continue;
           }
-          NodeSetAlpha *storage = MEM_new_for_free<NodeSetAlpha>("NodeSetAlpha");
+          NodeSetAlpha *storage = MEM_new<NodeSetAlpha>("NodeSetAlpha");
           storage->mode = CMP_NODE_SETALPHA_MODE_REPLACE_ALPHA;
           node.storage = storage;
         }
@@ -1685,7 +1688,7 @@ void blo_do_versions_290(FileData *fd, Library * /*lib*/, Main *bmain)
       }
       for (bNode &node : ntree->nodes) {
         if (node.type_legacy == GEO_NODE_OBJECT_INFO && node.storage == nullptr) {
-          NodeGeometryObjectInfo *data = MEM_new_for_free<NodeGeometryObjectInfo>(__func__);
+          NodeGeometryObjectInfo *data = MEM_new<NodeGeometryObjectInfo>(__func__);
           data->transform_space = GEO_NODE_TRANSFORM_SPACE_RELATIVE;
           node.storage = data;
         }
@@ -1721,8 +1724,10 @@ void blo_do_versions_290(FileData *fd, Library * /*lib*/, Main *bmain)
       if (ntree->type == NTREE_SHADER) {
         for (bNode &node : ntree->nodes) {
           if (node.type_legacy == SH_NODE_TEX_SKY && node.storage) {
-            NodeTexSky *tex = static_cast<NodeTexSky *>(node.storage);
-            tex->altitude *= 1000.0f;
+            if (version_node_ensure_storage_or_invalidate(node)) {
+              NodeTexSky *tex = static_cast<NodeTexSky *>(node.storage);
+              tex->altitude *= 1000.0f;
+            }
           }
         }
       }
@@ -1889,7 +1894,7 @@ void blo_do_versions_290(FileData *fd, Library * /*lib*/, Main *bmain)
 
       for (Nurb &nu : *nurbs) {
         if (nu.flag & CU_2D) {
-          nu.flag &= ~CU_2D;
+          nu.flag &= ~eNurbFlag(CU_2D);
         }
         else {
           is_2d = false;

@@ -67,7 +67,7 @@ static PyObject *Freestyle_getCurrentScene(PyObject * /*self*/)
     return nullptr;
   }
   blender::PointerRNA ptr_scene = RNA_pointer_create_discrete(
-      &scene->id, &blender::RNA_Scene, scene);
+      &scene->id, blender::RNA_Scene, scene);
   return pyrna_struct_CreatePyObject(&ptr_scene);
 }
 
@@ -142,13 +142,13 @@ PyDoc_STRVAR(
     "\n"
     "   Blend two colors according to a ramp blend type.\n"
     "\n"
-    "   :arg type: Ramp blend type.\n"
+    "   :param type: Ramp blend type.\n"
     "   :type type: int\n"
-    "   :arg color1: 1st color.\n"
+    "   :param color1: 1st color.\n"
     "   :type color1: :class:`mathutils.Vector` | tuple[float, float, float] | list[float]\n"
-    "   :arg fac: Blend factor.\n"
+    "   :param fac: Blend factor.\n"
     "   :type fac: float\n"
-    "   :arg color2: 1st color.\n"
+    "   :param color2: 1st color.\n"
     "   :type color2: :class:`mathutils.Vector` | tuple[float, float, float] | list[float]\n"
     "   :return: Blended color in RGB format.\n"
     "   :rtype: :class:`mathutils.Vector`\n");
@@ -196,9 +196,9 @@ PyDoc_STRVAR(
     "\n"
     "   Evaluate a color ramp at a point in the interval 0 to 1.\n"
     "\n"
-    "   :arg ramp: Color ramp object.\n"
+    "   :param ramp: Color ramp object.\n"
     "   :type ramp: :class:`bpy.types.ColorRamp`\n"
-    "   :arg in: Value in the interval 0 to 1.\n"
+    "   :param in: Value in the interval 0 to 1.\n"
     "   :type in: float\n"
     "   :return: color in RGBA format.\n"
     "   :rtype: :class:`mathutils.Vector`\n");
@@ -211,7 +211,7 @@ static PyObject *Freestyle_evaluateColorRamp(PyObject * /*self*/, PyObject *args
   if (!PyArg_ParseTuple(args, "O!f", &blender::pyrna_struct_Type, &py_srna, &in)) {
     return nullptr;
   }
-  if (!RNA_struct_is_a(py_srna->ptr->type, &blender::RNA_ColorRamp)) {
+  if (!RNA_struct_is_a(py_srna->ptr->type, blender::RNA_ColorRamp)) {
     PyErr_SetString(PyExc_TypeError, "1st argument is not a ColorRamp object");
     return nullptr;
   }
@@ -232,11 +232,11 @@ PyDoc_STRVAR(
     "\n"
     "   Evaluate a curve mapping at a point in the interval 0 to 1.\n"
     "\n"
-    "   :arg cumap: Curve mapping object.\n"
+    "   :param cumap: Curve mapping object.\n"
     "   :type cumap: :class:`bpy.types.CurveMapping`\n"
-    "   :arg cur: Index of the curve to be used (0 <= cur <= 3).\n"
+    "   :param cur: Index of the curve to be used (0 <= cur <= 3).\n"
     "   :type cur: int\n"
-    "   :arg value: Input value in the interval 0 to 1.\n"
+    "   :param value: Input value in the interval 0 to 1.\n"
     "   :type value: float\n"
     "   :return: Mapped output value.\n"
     "   :rtype: float\n");
@@ -250,7 +250,7 @@ static PyObject *Freestyle_evaluateCurveMappingF(PyObject * /*self*/, PyObject *
   if (!PyArg_ParseTuple(args, "O!if", &blender::pyrna_struct_Type, &py_srna, &cur, &value)) {
     return nullptr;
   }
-  if (!RNA_struct_is_a(py_srna->ptr->type, &blender::RNA_CurveMapping)) {
+  if (!RNA_struct_is_a(py_srna->ptr->type, blender::RNA_CurveMapping)) {
     PyErr_SetString(PyExc_TypeError, "1st argument is not a CurveMapping object");
     return nullptr;
   }

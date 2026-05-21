@@ -109,6 +109,7 @@ static void mesh_bisect_interactive_calc(bContext *C,
 
 static wmOperatorStatus mesh_bisect_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
+  const Main *bmain = CTX_data_main(C);
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   int valid_objects = 0;
@@ -122,7 +123,7 @@ static wmOperatorStatus mesh_bisect_invoke(bContext *C, wmOperator *op, const wm
   }
 
   const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C));
+      *bmain, scene, view_layer, CTX_wm_view3d(C));
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
 
@@ -152,11 +153,11 @@ static wmOperatorStatus mesh_bisect_invoke(bContext *C, wmOperator *op, const wm
     wmGesture *gesture = static_cast<wmGesture *>(op->customdata);
     BisectData *opdata;
 
-    opdata = MEM_mallocN<BisectData>("inset_operator_data");
+    opdata = MEM_new_uninitialized<BisectData>("inset_operator_data");
     gesture->user_data.data = opdata;
 
     opdata->backup_len = objects.size();
-    opdata->backup = MEM_calloc_arrayN<BisectData::BisectDataBackup>(objects.size(), __func__);
+    opdata->backup = MEM_new_array_zeroed<BisectData::BisectDataBackup>(objects.size(), __func__);
 
     /* Store the mesh backups. */
     for (const int ob_index : objects.index_range()) {
@@ -189,7 +190,7 @@ static void edbm_bisect_exit(BisectData *opdata)
       EDBM_redo_state_free(&opdata->backup[ob_index].mesh_backup);
     }
   }
-  MEM_freeN(opdata->backup);
+  MEM_delete(opdata->backup);
 }
 
 static wmOperatorStatus mesh_bisect_modal(bContext *C, wmOperator *op, const wmEvent *event)
@@ -230,6 +231,7 @@ static wmOperatorStatus mesh_bisect_modal(bContext *C, wmOperator *op, const wmE
 
 static wmOperatorStatus mesh_bisect_exec(bContext *C, wmOperator *op)
 {
+  const Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
 
   /* both can be nullptr, fallbacks values are used */
@@ -291,7 +293,7 @@ static wmOperatorStatus mesh_bisect_exec(bContext *C, wmOperator *op)
   /* -------------------------------------------------------------------- */
 
   const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      CTX_data_scene(C), CTX_data_view_layer(C), CTX_wm_view3d(C));
+      *bmain, scene, CTX_data_view_layer(C), CTX_wm_view3d(C));
 
   for (const int ob_index : objects.index_range()) {
     Object *obedit = objects[ob_index];
@@ -689,7 +691,7 @@ static void gizmo_mesh_bisect_setup(const bContext *C, wmGizmoGroup *gzgroup)
     return;
   }
 
-  GizmoGroup *ggd = MEM_callocN<GizmoGroup>(__func__);
+  GizmoGroup *ggd = MEM_new_zeroed<GizmoGroup>(__func__);
   gzgroup->customdata = ggd;
 
   const wmGizmoType *gzt_arrow = WM_gizmotype_find("GIZMO_GT_arrow_3d", true);

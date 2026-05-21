@@ -44,7 +44,7 @@ static void init_data(ModifierData *md)
   fmd->domain = nullptr;
   fmd->flow = nullptr;
   fmd->effector = nullptr;
-  fmd->type = 0;
+  fmd->type = FluidModifierType{};
   fmd->time = -1;
 }
 
@@ -216,7 +216,7 @@ static void foreach_tex_link(ModifierData *md, Object *ob, TexWalkFunc walk, voi
   FluidModifierData *fmd = reinterpret_cast<FluidModifierData *>(md);
 
   if (fmd->type == MOD_FLUID_TYPE_FLOW && fmd->flow) {
-    PointerRNA ptr = RNA_pointer_create_discrete(&ob->id, &RNA_FluidFlowSettings, fmd->flow);
+    PointerRNA ptr = RNA_pointer_create_discrete(&ob->id, RNA_FluidFlowSettings, fmd->flow);
     PropertyRNA *prop = RNA_struct_find_property(&ptr, "noise_texture");
 
     walk(user_data, ob, md, &ptr, prop);

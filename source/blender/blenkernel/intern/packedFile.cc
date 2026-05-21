@@ -7,6 +7,7 @@
  */
 
 #include <algorithm>
+#include <cstddef>
 #include <cstdio>
 #include <fcntl.h>
 #include <sys/stat.h>
@@ -184,7 +185,7 @@ void BKE_packedfile_free(PackedFile *pf)
     BLI_assert(pf->sharing_info != nullptr);
 
     pf->sharing_info->remove_user_and_delete_if_last();
-    MEM_freeN(pf);
+    MEM_delete(pf);
   }
   else {
     printf("%s: Trying to free a nullptr pointer\n", __func__);
@@ -198,7 +199,7 @@ PackedFile *BKE_packedfile_duplicate(const PackedFile *pf_src)
 
   PackedFile *pf_dst;
 
-  pf_dst = static_cast<PackedFile *>(MEM_dupallocN(pf_src));
+  pf_dst = MEM_dupalloc(pf_src);
   pf_dst->sharing_info->add_user();
 
   return pf_dst;
@@ -214,7 +215,7 @@ PackedFile *BKE_packedfile_new_from_memory(const void *mem,
     sharing_info = implicit_sharing::info_for_mem_free(const_cast<void *>(mem));
   }
 
-  PackedFile *pf = MEM_new_for_free<PackedFile>("PackedFile");
+  PackedFile *pf = MEM_new<PackedFile>("PackedFile");
   pf->data = mem;
   pf->size = memlen;
   pf->sharing_info = sharing_info;
@@ -257,14 +258,14 @@ PackedFile *BKE_packedfile_new(ReportList *reports, const char *filepath_rel, co
     BKE_reportf(reports, RPT_ERROR, "Unable to pack files over 2gb, source path '%s'", filepath);
   }
   else {
-    /* #MEM_mallocN complains about `MEM_mallocN(0, "...")`,
+    /* #MEM_new_uninitialized complains about `MEM_new_uninitialized(0, "...")`,
      * a single allocation is harmless and doesn't cause any complications. */
-    void *data = MEM_mallocN(std::max(file_size, size_t(1)), "packFile");
+    void *data = MEM_new_uninitialized(std::max(file_size, size_t(1)), "packFile");
     if (BLI_read(file, data, file_size) == file_size) {
       pf = BKE_packedfile_new_from_memory(data, file_size);
     }
     else {
-      MEM_freeN(data);
+      MEM_delete_void(data);
     }
   }
 
@@ -653,7 +654,7 @@ int BKE_packedfile_unpack_vfont(Main *bmain,
       BKE_packedfile_free(vfont->packedfile);
       vfont->packedfile = nullptr;
       STRNCPY(vfont->filepath, new_file_path);
-      MEM_freeN(new_file_path);
+      MEM_delete(new_file_path);
     }
   }
 
@@ -672,7 +673,7 @@ int BKE_packedfile_unpack_sound(Main *bmain,
         bmain, reports, id_cast<ID *>(sound), sound->filepath, sound->packedfile, how);
     if (new_file_path != nullptr) {
       STRNCPY(sound->filepath, new_file_path);
-      MEM_freeN(new_file_path);
+      MEM_delete(new_file_path);
 
       BKE_packedfile_free(sound->packedfile);
       sound->packedfile = nullptr;
@@ -721,14 +722,14 @@ int BKE_packedfile_unpack_image(Main *bmain,
             BKE_image_ensure_tile_token(ima->filepath, sizeof(ima->filepath));
           }
         }
-        MEM_freeN(new_file_path);
+        MEM_delete(new_file_path);
       }
       else {
         ret_value = RET_ERROR;
       }
 
       BLI_remlink(&ima->packedfiles, imapf);
-      MEM_freeN(imapf);
+      MEM_delete(imapf);
     }
   }
 
@@ -751,7 +752,7 @@ int BKE_packedfile_unpack_volume(Main *bmain,
         bmain, reports, id_cast<ID *>(volume), volume->filepath, volume->packedfile, how);
     if (new_file_path != nullptr) {
       STRNCPY(volume->filepath, new_file_path);
-      MEM_freeN(new_file_path);
+      MEM_delete(new_file_path);
 
       BKE_packedfile_free(volume->packedfile);
       volume->packedfile = nullptr;
@@ -790,7 +791,7 @@ int BKE_packedfile_unpack_all_libraries(Main *bmain, ReportList *reports)
         BKE_packedfile_free(lib->packedfile);
         lib->packedfile = nullptr;
 
-        MEM_freeN(newname);
+        MEM_delete(newname);
       }
     }
   }
@@ -970,7 +971,7 @@ void BKE_packedfile_blend_write(BlendWriter *writer, const PackedFile *pf)
     return;
   }
   BLO_write_shared(writer, pf->data, pf->size, pf->sharing_info, [&]() {
-    BLO_write_raw(writer, pf->size, pf->data);
+    writer->write_raw(pf->size, pf->data);
   });
   writer->write_struct(pf);
 }
@@ -985,7 +986,8 @@ void BKE_packedfile_blend_read(BlendDataReader *reader, PackedFile **pf_p, Strin
   /* NOTE: this is endianness-sensitive. */
   /* NOTE: there is no way to handle endianness switch here. */
   pf->sharing_info = BLO_read_shared(reader, &pf->data, [&]() {
-    BLO_read_data_address(reader, &pf->data);
+    BLO_read_array_and_validate_size(
+        reader, reinterpret_cast<std::byte **>(const_cast<void **>(&pf->data)), &pf->size);
     /* Do not create an implicit sharing if read data pointer is `nullptr`. */
     return pf->data ? implicit_sharing::info_for_mem_free(const_cast<void *>(pf->data)) : nullptr;
   });
@@ -997,7 +999,7 @@ void BKE_packedfile_blend_read(BlendDataReader *reader, PackedFile **pf_p, Strin
               __func__,
               filepath.c_str());
     BLI_assert(pf->sharing_info == nullptr);
-    MEM_SAFE_FREE(*pf_p);
+    MEM_SAFE_DELETE(*pf_p);
   }
 }
 

@@ -165,7 +165,7 @@ static PointerRNA rna_PaintSurface_active_get(PointerRNA *ptr)
 
   for (; surface; surface = surface->next) {
     if (id == canvas->active_sur) {
-      return RNA_pointer_create_with_parent(*ptr, &RNA_DynamicPaintSurface, surface);
+      return RNA_pointer_create_with_parent(*ptr, RNA_DynamicPaintSurface, surface);
     }
     id++;
   }
@@ -359,9 +359,7 @@ static void rna_def_canvas_surface(BlenderRNA *brna)
   /* Displace-map file format. */
   static const EnumPropertyItem prop_dynamicpaint_image_fileformat[] = {
       {MOD_DPAINT_IMGFORMAT_PNG, "PNG", 0, "PNG", ""},
-#  ifdef WITH_IMAGE_OPENEXR
       {MOD_DPAINT_IMGFORMAT_OPENEXR, "OPENEXR", 0, "OpenEXR", ""},
-#  endif
       {0, nullptr, 0, nullptr, nullptr},
   };
 

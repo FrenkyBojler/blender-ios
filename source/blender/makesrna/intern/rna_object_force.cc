@@ -728,11 +728,11 @@ static void rna_FieldSettings_type_set(PointerRNA *ptr, int value)
 {
   PartDeflect *part_deflect = static_cast<PartDeflect *>(ptr->data);
 
-  part_deflect->forcefield = value;
+  part_deflect->forcefield = ePFieldType(value);
 
   if (!particle_id_check(ptr)) {
     Object *ob = id_cast<Object *>(ptr->owner_id);
-    ob->pd->forcefield = value;
+    ob->pd->forcefield = ePFieldType(value);
     if (ELEM(value, PFIELD_WIND, PFIELD_VORTEX)) {
       ob->empty_drawtype = OB_SINGLE_ARROW;
     }
@@ -1897,7 +1897,7 @@ static void rna_def_softbody(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Friction", "General media friction for point movements");
   RNA_def_property_update(prop, 0, "rna_softbody_update");
 
-  prop = RNA_def_property(srna, "mass", PROP_FLOAT, PROP_UNIT_MASS);
+  prop = RNA_def_property(srna, "mass", PROP_FLOAT, PROP_MASS);
   RNA_def_property_float_sdna(prop, nullptr, "nodemass");
   RNA_def_property_range(prop, 0.0f, 50000.0f);
   RNA_def_property_ui_text(prop, "Mass", "General Mass value");

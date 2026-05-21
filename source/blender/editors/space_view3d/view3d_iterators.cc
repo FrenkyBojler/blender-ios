@@ -136,12 +136,12 @@ static bool view3d_project_segment_to_screen_with_content_clip_planes(
     }
 
     /* Both too near, ignore. */
-    if ((status_a & V3D_PROJ_TEST_CLIP_NEAR) && (status_b & V3D_PROJ_TEST_CLIP_NEAR)) {
+    if (status_a == V3D_PROJ_RET_CLIP_NEAR && status_b == V3D_PROJ_RET_CLIP_NEAR) {
       return false;
     }
 
     /* Both too far, ignore. */
-    if ((status_a & V3D_PROJ_TEST_CLIP_FAR) && (status_b & V3D_PROJ_TEST_CLIP_FAR)) {
+    if (status_a == V3D_PROJ_RET_CLIP_FAR && status_b == V3D_PROJ_RET_CLIP_FAR) {
       return false;
     }
 
@@ -867,7 +867,7 @@ void pose_foreachScreenBone(const ViewContext *vc,
   }
 
   for (bPoseChannel &pchan : pose->chanbase) {
-    if (!animrig::bone_is_visible(arm_eval, &pchan)) {
+    if (!animrig::bone_is_visible(arm_eval, {&pchan, pchan.bone_get(*vc->obact)})) {
       continue;
     }
 

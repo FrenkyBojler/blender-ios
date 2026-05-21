@@ -50,9 +50,10 @@ bool BlenderSync::BKE_object_is_modified(blender::Object &b_ob)
     return true;
   }
 
-  /* object level material links */
+  /* Object level material links. Note the geometry material slot array may not match
+   * the object matbits array, so we need to guard against out of bounds. */
   for (const int i : blender::IndexRange(BKE_object_material_count_eval(&b_ob))) {
-    if (b_ob.matbits[i] != 0) {
+    if (i < b_ob.totcol && b_ob.matbits && b_ob.matbits[i] != 0) {
       return true;
     }
   }
@@ -92,6 +93,7 @@ bool BlenderSync::object_can_have_geometry(blender::Object &b_ob)
     case blender::OB_CURVES:
     case blender::OB_POINTCLOUD:
     case blender::OB_VOLUME:
+      /* TODO(weizhen): OB_LAMP */
       return true;
     default:
       return false;
@@ -118,8 +120,7 @@ void BlenderSync::sync_object_motion_init(blender::Object &b_parent,
 {
   /* Initialize motion blur for object, detecting if it's enabled and creating motion
    * steps array if so. */
-  array<Transform> motion;
-  object->set_motion(motion);
+  array<Transform> motion = object->get_motion();
 
   Geometry *geom = object->get_geometry();
   if (!geom) {
@@ -154,6 +155,9 @@ void BlenderSync::sync_object_motion_init(blender::Object &b_parent,
       motion_times.insert(object->motion_time(step));
     }
   }
+  else {
+    object->set_motion(motion);
+  }
 }
 
 Object *BlenderSync::sync_object(blender::ViewLayer &b_view_layer,
@@ -174,7 +178,7 @@ Object *BlenderSync::sync_object(blender::ViewLayer &b_view_layer,
   BObjectInfo b_ob_info{
       &b_ob, b_real_object, object_get_data(b_ob, use_adaptive_subdiv), use_adaptive_subdiv};
   const bool motion = motion_time != 0.0f;
-  /*const*/ Transform tfm = get_transform(b_ob.object_to_world());
+  const Transform tfm = get_transform(b_ob.object_to_world());
   const int *persistent_id = nullptr;
   if (is_instance) {
     persistent_id = b_deg_iter_data.dupli_object_current->persistent_id;
@@ -203,8 +207,9 @@ Object *BlenderSync::sync_object(blender::ViewLayer &b_view_layer,
   /* Visibility flags for both parent and child. */
   blender::PointerRNA b_ob_rna_ptr = RNA_id_pointer_create(&b_ob.id);
   blender::PointerRNA cobject = RNA_pointer_get(&b_ob_rna_ptr, "cycles");
+  /* Note base_parent is null for objects from the background scene. */
   const blender::Base *base_parent = BKE_view_layer_base_find(&b_view_layer, b_parent);
-  const bool use_holdout = ((base_parent->flag & blender::BASE_HOLDOUT) != 0) ||
+  const bool use_holdout = (base_parent && (base_parent->flag & blender::BASE_HOLDOUT) != 0) ||
                            ((b_parent->visibility_flag & blender::OB_HOLDOUT) != 0);
   uint visibility = object_ray_visibility(b_ob) & PATH_RAY_ALL_VISIBILITY;
 
@@ -220,7 +225,7 @@ Object *BlenderSync::sync_object(blender::ViewLayer &b_view_layer,
 #endif
 
   /* Clear camera visibility for indirect only objects. */
-  const bool use_indirect_only = !use_holdout &&
+  const bool use_indirect_only = !use_holdout && base_parent &&
                                  ((base_parent->flag & blender::BASE_INDIRECT_ONLY) != 0);
   if (use_indirect_only) {
     visibility &= ~PATH_RAY_CAMERA;
@@ -247,9 +252,7 @@ Object *BlenderSync::sync_object(blender::ViewLayer &b_view_layer,
       /* Set transform at matching motion time step. */
       const int time_index = object->motion_step(motion_time);
       if (time_index >= 0) {
-        array<Transform> motion = object->get_motion();
-        motion[time_index] = tfm;
-        object->set_motion(motion);
+        object->set_motion_tfm(tfm, time_index);
       }
 
       /* mesh deformation */
@@ -264,7 +267,7 @@ Object *BlenderSync::sync_object(blender::ViewLayer &b_view_layer,
 
   /* test if we need to sync */
   bool object_updated = object_map.add_or_update(&object, &b_ob.id, &b_parent->id, key) ||
-                        (tfm != object->get_tfm());
+                        !object->tfm_equals(tfm);
 
   /* mesh sync */
   Geometry *geometry = sync_geometry(
@@ -374,9 +377,6 @@ Object *BlenderSync::sync_object(blender::ViewLayer &b_view_layer,
   return object;
 }
 
-extern "C" blender::DupliObject *rna_hack_DepsgraphObjectInstance_dupli_object_get(
-    blender::PointerRNA *ptr);
-
 static float4 lookup_instance_property(blender::Object &ob,
                                        blender::DEGObjectIterData &b_deg_iter_data,
                                        const string &name,
@@ -444,9 +444,13 @@ bool BlenderSync::sync_object_attributes(blender::Object &b_ob,
         changed = true;
         attributes.push_back(new_param);
       }
-      else if (!(param->get<float4>() == value)) {
-        changed = true;
-        *param = new_param;
+      else {
+        /* Cannot use param->get<float4>, ParamValue storage is not guaranteed to be aligned. */
+        const float *param_data = static_cast<const float *>(param->data());
+        if (make_float4(param_data[0], param_data[1], param_data[2], param_data[3]) != value) {
+          changed = true;
+          *param = new_param;
+        }
       }
     }
   }
@@ -495,7 +499,7 @@ void BlenderSync::sync_objects(blender::Depsgraph &b_depsgraph,
 
   blender::ViewLayer &b_view_layer = *DEG_get_evaluated_view_layer(&b_depsgraph);
 
-  BKE_view_layer_synced_ensure(b_scene, &b_view_layer);
+  BKE_view_layer_synced_ensure(*b_data, b_scene, &b_view_layer);
 
   blender::DEGObjectIterSettings deg_iter_settings{};
   deg_iter_settings.depsgraph = &b_depsgraph;
@@ -582,19 +586,15 @@ void BlenderSync::sync_objects(blender::Depsgraph &b_depsgraph,
   }
 }
 
-void BlenderSync::sync_motion(blender::RenderData &b_render,
-                              blender::Depsgraph &b_depsgraph,
-                              blender::bScreen *b_screen,
-                              blender::View3D *b_v3d,
-                              blender::RegionView3D *b_rv3d,
-                              const int width,
-                              const int height,
-                              void **python_thread_state)
+void BlenderSync::sync_objects_and_motion(blender::RenderData &b_render,
+                                          blender::Depsgraph &b_depsgraph,
+                                          blender::bScreen *b_screen,
+                                          blender::View3D *b_v3d,
+                                          blender::RegionView3D *b_rv3d,
+                                          const int width,
+                                          const int height,
+                                          void **python_thread_state)
 {
-  if (scene->need_motion() == Scene::MOTION_NONE) {
-    return;
-  }
-
   /* get camera object here to deal with camera switch */
   blender::Object *b_cam = get_camera_object(b_v3d, b_rv3d);
 
@@ -602,7 +602,7 @@ void BlenderSync::sync_motion(blender::RenderData &b_render,
   const float subframe_center = b_scene->r.subframe;
   float frame_center_delta = 0.0f;
 
-  if (scene->need_motion() != Scene::MOTION_PASS &&
+  if (scene->need_motion() == Scene::MOTION_BLUR &&
       scene->camera->get_motion_position() != MOTION_POSITION_CENTER)
   {
     const float shuttertime = scene->camera->get_shuttertime();
@@ -623,7 +623,20 @@ void BlenderSync::sync_motion(blender::RenderData &b_render,
     if (b_cam) {
       sync_camera_motion(b_render, b_cam, width, height, 0.0f);
     }
-    sync_objects(b_depsgraph, b_screen, b_v3d);
+  }
+
+  sync_objects(b_depsgraph, b_screen, b_v3d);
+
+  /* In the viewport, only motion between previous frame and current frame is of interest, which is
+   * kept updated separately. */
+  if (b_v3d) {
+    assert(scene->need_motion() == Scene::MOTION_NONE ||
+           scene->need_motion() == Scene::MOTION_PASS_INTERACTIVE);
+    return;
+  }
+
+  if (scene->need_motion() == Scene::MOTION_NONE) {
+    return;
   }
 
   /* Insert motion times from camera. Motion times from other objects

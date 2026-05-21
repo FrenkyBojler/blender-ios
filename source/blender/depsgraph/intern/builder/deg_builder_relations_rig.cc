@@ -73,7 +73,7 @@ void DepsgraphRelationBuilder::build_ik_pose(Object *object,
    * one Init IK node per armature, this link has quite high risk of spurious dependency cycles.
    */
   const bool is_itasc = (object->pose->iksolver == IKSOLVER_ITASC);
-  PointerRNA con_ptr = RNA_pointer_create_discrete(&object->id, &RNA_Constraint, con);
+  PointerRNA con_ptr = RNA_pointer_create_discrete(&object->id, RNA_Constraint, con);
   if (is_itasc || cache_->isAnyPropertyAnimated(&con_ptr)) {
     add_relation(pchan_local_key, init_ik_key, "IK Constraint -> Init IK Tree");
   }
@@ -438,11 +438,12 @@ void DepsgraphRelationBuilder::build_rig(Object *object)
       add_relation(bone_done_key, bone_segments_key, "Done -> B-Bone Segments");
       /* B-Bone shape depends on final position of handle bones. */
       bPoseChannel *prev, *next;
-      BKE_pchan_bbone_handles_get(&pchan, &prev, &next);
+      Bone *pchan_bone = pchan.bone_get(*object);
+      BKE_pchan_bbone_handles_get({&pchan, pchan_bone}, &prev, &next);
       if (prev) {
         OperationCode opcode = OperationCode::BONE_DONE;
         /* Inheriting parent roll requires access to prev handle's B-Bone properties. */
-        if ((pchan.bone->bbone_flag & BBONE_ADD_PARENT_END_ROLL) != 0 &&
+        if ((pchan_bone->bbone_flag & BBONE_ADD_PARENT_END_ROLL) != 0 &&
             check_pchan_has_bbone_segments(object, prev))
         {
           opcode = OperationCode::BONE_SEGMENTS;

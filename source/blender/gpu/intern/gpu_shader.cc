@@ -137,7 +137,8 @@ static void standard_defines(Vector<StringRefNull> &sources)
   /* Version and specialization constants needs to be first.
    * Exact values will be added by implementation. */
   sources.append("version");
-  sources.append("/* specialization_constants */");
+  /* Specialization constants will be inserted here. */
+  sources.append("\n");
   /* Define to identify code usage in shading language. */
   sources.append("#define GPU_SHADER\n");
   /* some useful defines to detect GPU type */
@@ -236,7 +237,7 @@ std::string GPU_shader_preprocess_source(StringRefNull original,
     return original;
   }
   gpu::shader::SourceProcessor processor(original, "python_shader.glsl", shader::Language::GLSL);
-  auto [processed_str, metadata] = processor.convert();
+  auto [processed_str, metadata, error] = processor.convert();
 
   for (auto builtin : metadata.builtins) {
     info.builtins(gpu::shader::convert_builtin_bit(builtin));
@@ -262,11 +263,17 @@ gpu::Shader *GPU_shader_create_from_info_python(const GPUShaderCreateInfo *_info
         {"gpu_shader_python_typedef_lib.glsl", {}, "\n" + info.typedef_source_generated});
   }
   else {
-    /* Add emtpy source to avoid warning and importing the placeholder file. */
+    /* Add empty source to avoid warning and importing the placeholder file. */
     info.generated_sources.append({"gpu_shader_python_typedef_lib.glsl", {}, "\n"});
   }
 
+#ifdef __APPLE__
+  /* See usage for more info. */
+  info.define("WITH_MATRIX_EQ_OPERATORS");
+#endif
+
   info.builtins_ |= BuiltinBits::NO_BUFFER_TYPE_LINTING;
+  info.builtins_ |= BuiltinBits::NO_PREPROCESSOR;
 
   auto preprocess_source = [&](const std::string &input_src) {
     std::string processed_str;
@@ -684,6 +691,12 @@ void GPU_shader_uniform_mat4(gpu::Shader *sh, const char *name, const float data
   GPU_shader_uniform_float_ex(sh, loc, 16, 1, reinterpret_cast<const float *>(data));
 }
 
+void GPU_shader_uniform_mat3(gpu::Shader *sh, const char *name, const float data[3][3])
+{
+  const int loc = GPU_shader_get_uniform(sh, name);
+  GPU_shader_uniform_float_ex(sh, loc, 9, 1, reinterpret_cast<const float *>(data));
+}
+
 void GPU_shader_uniform_mat3_as_mat4(gpu::Shader *sh, const char *name, const float data[3][3])
 {
   float matrix[4][4];
@@ -782,11 +795,16 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &orig_info, bool 
     start_time = Clock::now();
   }
 
-  CLOG_INFO(&LOG, "Compiling Shader \"%s\"", orig_info.name_.c_str());
+  CLOG_DEBUG(&LOG, "Compiling Shader \"%s\"", orig_info.name_.c_str());
 
   Shader *shader = GPUBackend::get()->shader_alloc(orig_info.name_.c_str());
 
   ShaderCreateInfo specialized_info = orig_info;
+
+  /* WORKAROUND: For BSL shaders, allow to disable costly builtins programatically. */
+  if (bool(specialized_info.builtins_ & BuiltinBits::NO_VIEWPORT_INDEX)) {
+    specialized_info.builtins_ &= ~BuiltinBits::VIEWPORT_INDEX;
+  }
 
   if (!specialized_info.compilation_constants_.is_empty()) {
     auto predicate = [&](const ShaderCreateInfo::Resource &res) {
@@ -811,7 +829,7 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &orig_info, bool 
   const std::string error = specialized_info.check_error();
   if (!error.empty()) {
     std::cerr << error << "\n";
-    BLI_assert(false);
+    return nullptr;
   }
 
   const shader::ShaderCreateInfo &info = shader->patch_create_info(specialized_info);
@@ -825,6 +843,8 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &orig_info, bool 
   for (const shader::ShaderCreateInfo::FragOut &frag_out : info.fragment_outputs_) {
     shader->fragment_output_bits |= 1u << frag_out.index;
   }
+
+  shader->skip_preprocessor = bool(specialized_info.builtins_ & BuiltinBits::NO_PREPROCESSOR);
 
   std::string defines = shader->defines_declare(info);
   std::string resources = shader->resources_declare(info);
@@ -858,7 +878,6 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &orig_info, bool 
 
     Vector<StringRefNull> sources;
     standard_defines(sources);
-    sources.append("#define GPU_VERTEX_SHADER\n");
     if (!info.geometry_source_.is_empty()) {
       sources.append("#define USE_GEOMETRY_SHADER\n");
     }
@@ -883,7 +902,6 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &orig_info, bool 
 
     Vector<StringRefNull> sources;
     standard_defines(sources);
-    sources.append("#define GPU_FRAGMENT_SHADER\n");
     if (!info.geometry_source_.is_empty()) {
       sources.append("#define USE_GEOMETRY_SHADER\n");
     }
@@ -932,7 +950,6 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &orig_info, bool 
 
     Vector<StringRefNull> sources;
     standard_defines(sources);
-    sources.append("#define GPU_COMPUTE_SHADER\n");
     sources.append(defines);
     sources.append(layout);
     sources.append(resources);

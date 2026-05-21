@@ -40,8 +40,6 @@ struct View3D;
 namespace ed::transform {
 
 struct SnapObjectContext {
-  Scene *scene;
-
   struct SnapCache {
     virtual ~SnapCache() = default;
   };
@@ -227,6 +225,10 @@ eSnapMode snapArmature(SnapObjectContext *sctx,
                        const Object *ob_eval,
                        const float4x4 &obmat,
                        bool is_object_active);
+
+/* `transform_snap_object_lattice.cc` */
+
+eSnapMode snapLattice(SnapObjectContext *sctx, const Object *ob_eval, const float4x4 &obmat);
 
 /* `transform_snap_object_camera.cc` */
 

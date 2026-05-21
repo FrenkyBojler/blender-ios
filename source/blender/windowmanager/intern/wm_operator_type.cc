@@ -99,6 +99,8 @@ wmOperatorType *WM_operatortype_find(const char *idname, bool quiet)
   return nullptr;
 }
 
+/** \} */
+
 /* -------------------------------------------------------------------- */
 /** \name Operator Type Append
  * \{ */
@@ -109,7 +111,7 @@ static wmOperatorType *wm_operatortype_append__begin()
 
   BLI_assert(ot_prop_basic_count == -1);
 
-  ot->srna = RNA_def_struct_ptr(&RNA_blender_rna_get(), "", &RNA_OperatorProperties);
+  ot->srna = RNA_def_struct_ptr(&RNA_blender_rna_get(), "", RNA_OperatorProperties);
   RNA_def_struct_property_tags(ot->srna, rna_enum_operator_property_tag_items);
   /* Set the default i18n context now, so that opfunc can redefine it if needed! */
   RNA_def_struct_translation_context(ot->srna, BLT_I18NCONTEXT_OPERATOR_DEFAULT);
@@ -161,6 +163,10 @@ void WM_operatortype_append_ptr(void (*opfunc)(wmOperatorType *, void *), void *
 }
 
 /** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Operator Type Removal & Property Search
+ * \{ */
 
 void WM_operatortype_remove_ptr(wmOperatorType *ot)
 {
@@ -216,7 +222,7 @@ static void operatortype_ghash_free_cb(wmOperatorType *ot)
 
   if (ot->rna_ext.srna) {
     /* A Python operator, allocates its own string. */
-    MEM_freeN(ot->idname);
+    MEM_delete(ot->idname);
   }
 
   MEM_delete(ot);
@@ -301,7 +307,7 @@ struct MacroData {
 static void wm_macro_start(wmOperator *op)
 {
   if (op->customdata == nullptr) {
-    op->customdata = MEM_callocN<MacroData>("MacroData");
+    op->customdata = MEM_new_zeroed<MacroData>("MacroData");
   }
 }
 
@@ -319,7 +325,7 @@ static wmOperatorStatus wm_macro_end(wmOperator *op, wmOperatorStatus retval)
   /* If modal is ending, free custom data. */
   if (retval & (OPERATOR_FINISHED | OPERATOR_CANCELLED)) {
     if (md) {
-      MEM_freeN(md);
+      MEM_delete(md);
       op->customdata = nullptr;
     }
   }
@@ -331,7 +337,7 @@ static wmOperatorStatus wm_macro_end(wmOperator *op, wmOperatorStatus retval)
 static wmOperatorStatus wm_macro_exec(bContext *C, wmOperator *op)
 {
   wmOperatorStatus retval = OPERATOR_FINISHED;
-  const int op_inherited_flag = op->flag & (OP_IS_REPEAT | OP_IS_REPEAT_LAST);
+  const eOperator_Flag op_inherited_flag = op->flag & (OP_IS_REPEAT | OP_IS_REPEAT_LAST);
 
   wm_macro_start(op);
 
@@ -365,7 +371,7 @@ static wmOperatorStatus wm_macro_invoke_internal(bContext *C,
                                                  wmOperator *opm)
 {
   wmOperatorStatus retval = OPERATOR_FINISHED;
-  const int op_inherited_flag = op->flag & (OP_IS_REPEAT | OP_IS_REPEAT_LAST);
+  const eOperator_Flag op_inherited_flag = op->flag & (OP_IS_REPEAT | OP_IS_REPEAT_LAST);
 
   /* Start from operator received as argument. */
   for (; opm; opm = opm->next) {
@@ -496,7 +502,7 @@ wmOperatorType *WM_operatortype_append_macro(const char *idname,
   }
 
   ot = MEM_new<wmOperatorType>(__func__);
-  ot->srna = RNA_def_struct_ptr(&RNA_blender_rna_get(), "", &RNA_OperatorProperties);
+  ot->srna = RNA_def_struct_ptr(&RNA_blender_rna_get(), "", RNA_OperatorProperties);
 
   ot->idname = idname;
   ot->name = name;
@@ -533,7 +539,7 @@ void WM_operatortype_append_macro_ptr(void (*opfunc)(wmOperatorType *ot, void *u
   wmOperatorType *ot;
 
   ot = MEM_new<wmOperatorType>(__func__);
-  ot->srna = RNA_def_struct_ptr(&RNA_blender_rna_get(), "", &RNA_OperatorProperties);
+  ot->srna = RNA_def_struct_ptr(&RNA_blender_rna_get(), "", RNA_OperatorProperties);
 
   ot->flag = OPTYPE_MACRO;
   ot->exec = wm_macro_exec;
@@ -560,7 +566,7 @@ void WM_operatortype_append_macro_ptr(void (*opfunc)(wmOperatorType *ot, void *u
 
 wmOperatorTypeMacro *WM_operatortype_macro_define(wmOperatorType *ot, const char *idname)
 {
-  wmOperatorTypeMacro *otmacro = MEM_new_for_free<wmOperatorTypeMacro>("wmOperatorTypeMacro");
+  wmOperatorTypeMacro *otmacro = MEM_new<wmOperatorTypeMacro>("wmOperatorTypeMacro");
 
   STRNCPY(otmacro->idname, idname);
 

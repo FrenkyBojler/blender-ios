@@ -130,6 +130,10 @@ struct UndoType {
   void (*step_encode_init)(bContext *C, UndoStep *us);
 
   bool (*step_encode)(bContext *C, Main *bmain, UndoStep *us);
+
+  /**
+   * \param is_final: whether the step being decoded is the target undo step being restored.
+   */
   void (*step_decode)(bContext *C, Main *bmain, UndoStep *us, eUndoStepDir dir, bool is_final);
 
   /**
@@ -139,6 +143,18 @@ struct UndoType {
    */
   void (*step_free)(UndoStep *us);
 
+  /**
+   * This callback ensures data-block (ID) references are valid before use.
+   *
+   * Some undo systems need to reference data-blocks, however these pointers are not stable and
+   * may have changed when restoring the undo-step (when the data-block creation was undone, then
+   * redone, for example)
+   *
+   * To support this use case, this callback supports a generic method of ensuring data-block
+   * pointers are valid before use.
+   *
+   * \see #UndoRefID for implementation details.
+   */
   void (*step_foreach_ID_ref)(UndoStep *us,
                               UndoTypeForEachIDRefFn foreach_ID_ref_fn,
                               void *user_data);
@@ -191,6 +207,10 @@ void BKE_undosys_stack_clear(UndoStack *ustack);
 void BKE_undosys_stack_clear_active(UndoStack *ustack);
 /* name optional */
 bool BKE_undosys_stack_has_undo(const UndoStack *ustack, const char *name);
+/**
+ * Returns true if there is a redo step from the stack's active step.
+ */
+bool BKE_undosys_stack_has_redo(const UndoStack *ustack);
 void BKE_undosys_stack_init_from_main(UndoStack *ustack, Main *bmain);
 /* Called after #BKE_undosys_stack_init_from_main. */
 void BKE_undosys_stack_init_from_context(UndoStack *ustack, bContext *C);
@@ -202,7 +222,7 @@ UndoStep *BKE_undosys_stack_init_or_active_with_type(UndoStack *ustack, const Un
  */
 void BKE_undosys_stack_limit_steps_and_memory(UndoStack *ustack, int steps, size_t memory_limit);
 #define BKE_undosys_stack_limit_steps_and_memory_defaults(ustack) \
-  BKE_undosys_stack_limit_steps_and_memory(ustack, U.undosteps, (size_t)U.undomemory * 1024 * 1024)
+  BKE_undosys_stack_limit_steps_and_memory(ustack, U.undosteps, size_t(U.undomemory) * 1024 * 1024)
 
 void BKE_undosys_stack_group_begin(UndoStack *ustack);
 void BKE_undosys_stack_group_end(UndoStack *ustack);

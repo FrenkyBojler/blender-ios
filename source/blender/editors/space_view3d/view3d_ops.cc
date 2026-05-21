@@ -103,7 +103,7 @@ static wmOperatorStatus view3d_copybuffer_exec(bContext *C, wmOperator *op)
 
   char filepath[FILE_MAX];
   view3d_copybuffer_filepath_get(filepath, sizeof(filepath));
-  copybuffer.write(filepath, *op->reports);
+  copybuffer.write_as_copypaste_buffer(filepath, *op->reports);
 
   BKE_reportf(op->reports, RPT_INFO, "Copied %d selected object(s)", num_copied);
 
@@ -134,7 +134,7 @@ static wmOperatorStatus view3d_pastebuffer_exec(bContext *C, wmOperator *op)
   int flag = 0;
 
   if (RNA_boolean_get(op->ptr, "autoselect")) {
-    flag |= FILE_AUTOSELECT | BLO_LIBLINK_APPEND_SET_OB_ACTIVE_CLIPBOARD;
+    flag |= FILE_AUTOSELECT | int(BLO_LIBLINK_APPEND_SET_OB_ACTIVE_CLIPBOARD);
   }
   if (RNA_boolean_get(op->ptr, "active_collection")) {
     flag |= FILE_ACTIVE_COLLECTION;

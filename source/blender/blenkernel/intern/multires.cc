@@ -130,7 +130,7 @@ Array<float3> BKE_multires_create_deformed_base_mesh_vert_coords(Depsgraph *deps
   object_for_eval.runtime = &runtime;
 
   object_for_eval.data = object->data;
-  object_for_eval.sculpt = nullptr;
+  object_for_eval.runtime->sculpt_session = nullptr;
 
   const bool use_render = (DEG_get_mode(depsgraph) == DAG_EVAL_RENDER);
   ModifierEvalContext mesh_eval_context = {depsgraph, &object_for_eval, ModifierApplyFlag(0)};
@@ -272,7 +272,7 @@ void multires_mark_as_modified(Depsgraph *depsgraph,
 
 void multires_flush_sculpt_updates(Object *object)
 {
-  if (object == nullptr || object->sculpt == nullptr) {
+  if (object == nullptr || object->runtime->sculpt_session == nullptr) {
     return;
   }
   const bke::pbvh::Tree *pbvh = bke::object::pbvh_get(*object);
@@ -280,10 +280,8 @@ void multires_flush_sculpt_updates(Object *object)
     return;
   }
 
-  SculptSession *sculpt_session = object->sculpt;
-  if (pbvh->type() != bke::pbvh::Type::Grids || !sculpt_session->multires.active ||
-      sculpt_session->multires.modifier == nullptr)
-  {
+  SculptSession *sculpt_session = object->runtime->sculpt_session;
+  if (pbvh->type() != bke::pbvh::Type::Grids || sculpt_session->multires_modifier == nullptr) {
     return;
   }
 
@@ -321,7 +319,7 @@ void multires_flush_sculpt_updates(Object *object)
   }
 
   multiresModifier_reshapeFromCCG(
-      sculpt_session->multires.modifier->totlvl, mesh, sculpt_session->subdiv_ccg);
+      sculpt_session->multires_modifier->totlvl, mesh, sculpt_session->subdiv_ccg);
 
   subdiv_ccg->dirty.coords = false;
   subdiv_ccg->dirty.hidden = false;
@@ -331,7 +329,7 @@ void multires_force_sculpt_rebuild(Object *object)
 {
   multires_flush_sculpt_updates(object);
 
-  if (object == nullptr || object->sculpt == nullptr) {
+  if (object == nullptr || object->runtime->sculpt_session == nullptr) {
     return;
   }
 
@@ -450,7 +448,7 @@ static void multires_grid_paint_mask_downsample(GridPaintMask *gpm, const int le
 {
   if (level < gpm->level) {
     const int gridsize = CCG_grid_size(level);
-    float *data = MEM_calloc_arrayN<float>(size_t(square_i(gridsize)), __func__);
+    float *data = MEM_new_array_zeroed<float>(size_t(square_i(gridsize)), __func__);
 
     for (int y = 0; y < gridsize; y++) {
       for (int x = 0; x < gridsize; x++) {
@@ -458,7 +456,7 @@ static void multires_grid_paint_mask_downsample(GridPaintMask *gpm, const int le
       }
     }
 
-    MEM_freeN(gpm->data);
+    MEM_delete(gpm->data);
     gpm->data = data;
     gpm->level = level;
   }
@@ -491,7 +489,7 @@ static void multires_del_higher(MultiresModifierData *mmd, Object *ob, const int
           MDisps *mdisp = &mdisps[corner];
           const int totdisp = multires_grid_tot[lvl];
 
-          float (*disps)[3] = MEM_calloc_arrayN<float[3]>(totdisp, "multires disps");
+          float (*disps)[3] = MEM_new_array_zeroed<float[3]>(totdisp, "multires disps");
 
           if (mdisp->disps != nullptr) {
             float (*ndisps)[3] = disps;
@@ -500,11 +498,11 @@ static void multires_del_higher(MultiresModifierData *mmd, Object *ob, const int
             multires_copy_grid(ndisps, hdisps, nsize, hsize);
             if (mdisp->hidden) {
               BLI_bitmap *gh = multires_mdisps_downsample_hidden(mdisp->hidden, mdisp->level, lvl);
-              MEM_freeN(mdisp->hidden);
+              MEM_delete(mdisp->hidden);
               mdisp->hidden = gh;
             }
 
-            MEM_freeN(mdisp->disps);
+            MEM_delete(mdisp->disps);
           }
 
           mdisp->disps = disps;
@@ -553,7 +551,7 @@ void multires_stitch_grids(Object *ob)
   if (ob == nullptr) {
     return;
   }
-  SculptSession *sculpt_session = ob->sculpt;
+  SculptSession *sculpt_session = ob->runtime->sculpt_session;
   if (sculpt_session == nullptr) {
     return;
   }
@@ -756,7 +754,7 @@ void multires_topology_changed(Mesh *mesh)
     if (!mdisp->totdisp || !mdisp->disps) {
       if (grid) {
         mdisp->totdisp = grid;
-        mdisp->disps = MEM_calloc_arrayN<float[3]>(mdisp->totdisp, "mdisp topology");
+        mdisp->disps = MEM_new_array_zeroed<float[3]>(mdisp->totdisp, "mdisp topology");
       }
 
       continue;
@@ -783,7 +781,7 @@ void multires_ensure_external_read(Mesh *mesh, const int top_level)
 
   for (int i = 0; i < totloop; ++i) {
     if (mdisps[i].level != top_level) {
-      MEM_SAFE_FREE(mdisps[i].disps);
+      MEM_SAFE_DELETE(mdisps[i].disps);
     }
 
     /* NOTE: CustomData_external_read will take care of allocation of displacement vectors if
