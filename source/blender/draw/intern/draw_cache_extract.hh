@@ -293,6 +293,7 @@ struct MeshBatchCache {
 
   DRWBatchFlag batch_requested;
   DRWBatchFlag batch_ready;
+  /* TODO: This should be a DRWBatchFlag? */
   bool surface_blas_requested;
   bool surface_blas_ready;
 

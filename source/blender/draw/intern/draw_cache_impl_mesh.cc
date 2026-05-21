@@ -83,9 +83,9 @@ static void discard_buffers(MeshBatchCache &cache,
     if (buffer_ptrs.contains(batch.elem)) {
       return true;
     }
-    if (std::any_of(batch.verts, batch.verts + ARRAY_SIZE(batch.verts), [&](gpu::VertBuf *vbo) {
-          return vbo && buffer_ptrs.contains(vbo);
-        }))
+    if (std::any_of(batch.verts,
+                    batch.verts + ARRAY_SIZE(batch.verts),
+                    [&](gpu::VertBuf *vbo) { return vbo && buffer_ptrs.contains(vbo); }))
     {
       return true;
     }
@@ -1087,7 +1087,7 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
   bool cd_uv_update = false;
 
   /* Early out */
-  if (cache.batch_requested == 0) {
+  if (cache.batch_requested == 0 && !cache.surface_blas_requested) {
     return;
   }
 
@@ -1211,7 +1211,7 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
   }
 
   /* Second chance to early out */
-  if ((batch_requested & ~cache.batch_ready) == 0) {
+  if ((batch_requested & ~cache.batch_ready) == 0 && !cache.surface_blas_requested) {
     return;
   }
 
@@ -1768,6 +1768,14 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
   }
 
   cache.batch_ready |= batch_requested;
+
+  if (cache.surface_blas_requested && !cache.surface_blas_ready) {
+    cache.surface_blas->add_geometry(*cache.final.buff.ibos.lookup(IBOType::Tris),
+                                     *cache.final.buff.vbos.lookup(VBOType::Position));
+    cache.surface_blas->build();
+    cache.surface_blas_ready = true;
+  }
+  cache.surface_blas_requested = false;
 }
 
 /** \} */
