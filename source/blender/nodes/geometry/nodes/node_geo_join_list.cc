@@ -134,7 +134,8 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
 
   if (all_single && first_value != nullptr) {
-    GList::SingleData joined_data = GList::SingleData::ForValue(GPointer(*common_type, first_value));
+    GList::SingleData joined_data = GList::SingleData::ForValue(
+        GPointer(*common_type, first_value));
     GListPtr joined_list = GList::create(*common_type, std::move(joined_data), total_size);
     params.set_output("List"_ustr, std::move(joined_list));
     return;

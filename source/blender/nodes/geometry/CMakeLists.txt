@@ -177,7 +177,6 @@ set(SRC
   nodes/node_geo_join_bundle.cc
   nodes/node_geo_join_geometry.cc
   nodes/node_geo_join_list.cc
-  nodes/node_geo_list_find.cc
   nodes/node_geo_list_get_item.cc
   nodes/node_geo_list_length.cc
   nodes/node_geo_list_reverse.cc

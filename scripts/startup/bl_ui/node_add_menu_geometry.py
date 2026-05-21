@@ -860,7 +860,6 @@ class NODE_MT_gn_utilities_list_base(node_add_menu.NodeMenu):
         layout = self.layout
         self.node_operator(layout, "GeometryNodeJoinList")
         self.node_operator(layout, "GeometryNodeList")
-        self.node_operator(layout, "GeometryNodeListFind")
         self.node_operator(layout, "GeometryNodeFieldToList")
         self.node_operator(layout, "GeometryNodeFilterList")
         self.node_operator(layout, "GeometryNodeListGetItem")
