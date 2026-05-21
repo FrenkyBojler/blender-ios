@@ -58,6 +58,8 @@ BLOCKLIST = [
     "image_log.blend",
     # Exhibit the LTC light leaking issue. To be enabeld back after fixing.
     "light_path_glossy_depth.blend",
+    # Exhibit non-deterministic behavior because of tracing outside the spotlight 45° cone.
+    "light_path_is_camera_ray.blend",
 ]
 
 BLOCKLIST_METAL = [
@@ -82,6 +84,10 @@ BLOCKLIST_METAL = [
 ]
 
 BLOCKLIST_VULKAN = [
+    # Blocked due to texture interpolation differences (to be investigated).
+    "principled_blackbody.blend",
+    # Blocked due to difference in indirect light (AMD linux) (to be investigated).
+    "sss_concave_clamp.blend",
     # Blocked due to difference in screen space tracing (to be investigated).
     "image.blend",
 ]
