@@ -1316,6 +1316,7 @@ void OneapiDevice::get_adjusted_global_and_local_sizes(SyclQueue *queue,
     case DEVICE_KERNEL_INTEGRATOR_INTERSECT_SUBSURFACE:
     case DEVICE_KERNEL_INTEGRATOR_INTERSECT_VOLUME_STACK:
     case DEVICE_KERNEL_INTEGRATOR_INTERSECT_DEDICATED_LIGHT:
+    case DEVICE_KERNEL_INTEGRATOR_INTERSECT_MNEE:
       preferred_work_group_size = preferred_work_group_size_intersect;
       break;
 

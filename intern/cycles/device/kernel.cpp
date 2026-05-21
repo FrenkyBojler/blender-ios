@@ -57,6 +57,10 @@ const char *device_kernel_as_string(DeviceKernel kernel)
       return "integrator_intersect_volume_stack";
     case DEVICE_KERNEL_INTEGRATOR_INTERSECT_DEDICATED_LIGHT:
       return "integrator_intersect_dedicated_light";
+    case DEVICE_KERNEL_INTEGRATOR_INTERSECT_MNEE:
+      return "integrator_intersect_mnee";
+    case DEVICE_KERNEL_INTEGRATOR_SHADOW_PATH_MNEE_PENDING:
+      return "integrator_shadow_path_mnee_pending";
     case DEVICE_KERNEL_INTEGRATOR_SHADE_BACKGROUND:
       return "integrator_shade_background";
     case DEVICE_KERNEL_INTEGRATOR_SHADE_LIGHT_NEE:

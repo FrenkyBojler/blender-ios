@@ -427,6 +427,9 @@ bool oneapi_enqueue_kernel(KernelContext *kernel_context,
                       oneapi_kernel_integrator_intersect_dedicated_light);
           break;
         }
+        case DEVICE_KERNEL_INTEGRATOR_INTERSECT_MNEE: {
+          break;
+        }
         case DEVICE_KERNEL_INTEGRATOR_SHADE_BACKGROUND: {
           oneapi_call(
               kg, cgh, global_size, local_size, args, oneapi_kernel_integrator_shade_background);
@@ -732,6 +735,7 @@ bool oneapi_enqueue_kernel(KernelContext *kernel_context,
         /* Unsupported kernels */
         case DEVICE_KERNEL_NUM:
         case DEVICE_KERNEL_INTEGRATOR_MEGAKERNEL:
+        case DEVICE_KERNEL_INTEGRATOR_SHADOW_PATH_MNEE_PENDING:
           kernel_assert(0);
           break;
       }
