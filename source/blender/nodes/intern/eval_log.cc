@@ -402,7 +402,7 @@ void NodeTreeLogger::log_value(const bNode &node, const bNodeSocket &socket, con
     }
     else {
       value_variant.convert_to_single();
-      const GPointer value = value_variant.get_single_ptr();
+      const GPointer value = value_variant.get();
       if (value.type()->is<std::string>()) {
         const std::string &string = *value.get<std::string>();
         store_logged_value(this->allocator->construct<StringLog>(string, *this->allocator));
@@ -437,8 +437,8 @@ const bke::GeometrySet *ViewerNodeLog::main_geometry() const
         return;
       }
 #endif
-      if (item.value.is_single() && item.value.get_single_ptr().is_type<bke::GeometrySet>()) {
-        main_geometry_cache_ = *item.value.get_single_ptr().get<bke::GeometrySet>();
+      if (item.value.is_single() && item.value.get().is_type<bke::GeometrySet>()) {
+        main_geometry_cache_ = *item.value.get().get<bke::GeometrySet>();
         return;
       }
     }

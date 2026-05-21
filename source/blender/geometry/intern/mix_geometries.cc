@@ -165,8 +165,8 @@ static void mix_socket_values_same_type(bke::SocketValueVariant &a,
 {
   BLI_assert(a.socket_type() == b.socket_type());
   if (a.is_single() && b.is_single()) {
-    GMutablePointer a_ptr = a.get_single_ptr();
-    const GPointer b_ptr = b.get_single_ptr();
+    GMutablePointer a_ptr = a.get();
+    const GPointer b_ptr = b.get();
     if (!a_ptr || !b_ptr) {
       return;
     }

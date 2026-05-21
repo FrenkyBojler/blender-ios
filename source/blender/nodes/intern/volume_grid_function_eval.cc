@@ -45,7 +45,7 @@ bool execute_multi_function_on_value_variant__volume_grid(
     }
     else {
       input_value.convert_to_single();
-      inputs[i] = input_value.get_single_ptr();
+      inputs[i] = input_value.get();
     }
   }
 

@@ -647,7 +647,7 @@ Vector<InferenceValue> get_geometry_nodes_input_inference_values(const bNodeTree
     if (!value.is_single()) {
       continue;
     }
-    const GPointer single_value = value.get_single_ptr();
+    const GPointer single_value = value.get();
     BLI_assert(single_value.type() == stype->base_cpp_type);
     inference_values[input_i] = InferenceValue::from_primitive(single_value.get());
   }

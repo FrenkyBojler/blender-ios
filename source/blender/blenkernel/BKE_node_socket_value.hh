@@ -137,14 +137,14 @@ template<typename T>
 inline SocketValueVariant &SocketValueVariant::ConstructIn(void *ptr, T &&value)
 {
   SocketValueVariant *value_variant = new (ptr) SocketValueVariant();
-  value_variant->emplace(std::forward<T>(value));
+  value_variant->emplace<std::decay_t<T>>(std::forward<T>(value));
   return *value_variant;
 }
 
 template<typename T> inline SocketValueVariant SocketValueVariant::From(T &&value)
 {
   SocketValueVariant value_variant;
-  value_variant.emplace(std::forward<T>(value));
+  value_variant.emplace<std::decay_t<T>>(std::forward<T>(value));
   return value_variant;
 }
 
@@ -165,16 +165,16 @@ template<typename T> T *SocketValueVariant::try_convert()
   const Info &info = value_.extra_info();
   const CPPType &requested_type = CPPType::get<T>();
   if (info.type == requested_type) {
-    return reinterpret_cast<T &>(value_.get<StorageT>());
+    return &reinterpret_cast<T &>(value_.get<StorageT>());
   }
   if (info.is_interpretable_as(requested_type, value_)) {
-    return reinterpret_cast<T &>(value_.get<StorageT>());
+    return &reinterpret_cast<T &>(value_.get<StorageT>());
   }
   if (!info.convert_to(requested_type, value_)) {
     return nullptr;
   }
   BLI_assert(value_.extra_info().is_interpretable_as(requested_type, value_));
-  return reinterpret_cast<T &>(value_.get<StorageT>());
+  return &reinterpret_cast<T &>(value_.get<StorageT>());
 }
 
 void *SocketValueVariant::try_convert(const CPPType &type)

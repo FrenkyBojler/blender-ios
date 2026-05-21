@@ -142,7 +142,7 @@ class RuntimeToBakeValue {
     for (const int value_i : root_values_.index_range()) {
       BakeValues::InputValue &input_value = root_values_[value_i];
       if (input_value.value.is_single()) {
-        const GMutablePointer value_ptr = input_value.value.get_single_ptr();
+        const GMutablePointer value_ptr = input_value.value.get();
         if (value_ptr.is_type<GeometrySet>()) {
           prev_geo = value_ptr.get<GeometrySet>();
           continue;
@@ -151,7 +151,7 @@ class RuntimeToBakeValue {
       if (prev_geo && input_value.field_domain.has_value() &&
           input_value.value.is_context_dependent_field())
       {
-        const fn::GField field = input_value.value.get<fn::GField>();
+        const fn::GField &field = input_value.value.ensure_type<fn::GField>();
         if (field.get_input_if<AttributeFieldInput>()) {
           continue;
         }
@@ -174,7 +174,8 @@ class RuntimeToBakeValue {
         }
         if (any_success) {
           /* Replace the field with the one that was just captured. */
-          input_value.value.set(AttributeFieldInput::from(attribute_name, field.cpp_type()));
+          input_value.value.emplace<fn::GField>(
+              AttributeFieldInput::from(attribute_name, field.cpp_type()));
         }
       }
     }
@@ -188,7 +189,7 @@ class RuntimeToBakeValue {
   void scan__SocketValueVariant(const SocketValueVariant &value_variant)
   {
     if (value_variant.is_context_dependent_field()) {
-      const fn::GField field = value_variant.get<fn::GField>();
+      const fn::GField &field = *value_variant.get_if<fn::GField>();
       if (const auto *attribute_field = field.get_input_if<AttributeFieldInput>()) {
         const StringRef attribute_name = attribute_field->attribute_name();
         if (attribute_name_is_anonymous(attribute_name)) {
@@ -199,12 +200,12 @@ class RuntimeToBakeValue {
       return;
     }
     if (value_variant.is_single()) {
-      const GPointer value_ptr = value_variant.get_single_ptr();
+      const GPointer value_ptr = value_variant.get();
       this->scan__GPointer(value_ptr);
       return;
     }
     if (value_variant.is_list()) {
-      const nodes::GListPtr list_ptr = value_variant.get<nodes::GListPtr>();
+      const nodes::GListPtr &list_ptr = *value_variant.get_if<nodes::GListPtr>();
       if (list_ptr) {
         this->scan__List(*list_ptr);
       }
@@ -288,7 +289,8 @@ class RuntimeToBakeValue {
         if (const std::string *new_name = referenced_anonymous_attributes_.lookup_ptr(
                 attribute_field->attribute_name()))
         {
-          value_variant.set(AttributeFieldInput::from(*new_name, field.cpp_type()));
+          value_variant.emplace<fn::GField>(
+              AttributeFieldInput::from(*new_name, field.cpp_type()));
         }
       }
       else {
@@ -298,7 +300,7 @@ class RuntimeToBakeValue {
       return true;
     }
     if (value_variant.is_single()) {
-      GMutablePointer value_ptr = value_variant.get_single_ptr();
+      GMutablePointer value_ptr = value_variant.get();
       return this->runtime_to_bake__GMutablePointer(value_ptr);
     }
     if (value_variant.is_list()) {
@@ -309,7 +311,7 @@ class RuntimeToBakeValue {
           return false;
         }
       }
-      value_variant.set(std::move(list_ptr));
+      value_variant.emplace<nodes::GListPtr>(std::move(list_ptr));
       return true;
     }
     if (value_variant.is_volume_grid()) {
@@ -503,12 +505,12 @@ class BakeToRuntimeValue {
   void scan__SocketValueVariant(const SocketValueVariant &value_variant)
   {
     if (value_variant.is_single()) {
-      const GPointer value_ptr = value_variant.get_single_ptr();
+      const GPointer value_ptr = value_variant.get();
       this->scan__GPointer(value_ptr);
       return;
     }
     if (value_variant.is_list()) {
-      const nodes::GListPtr list_ptr = value_variant.get<nodes::GListPtr>();
+      const nodes::GListPtr &list_ptr = *value_variant.get_if<nodes::GListPtr>();
       if (list_ptr) {
         const nodes::GList &list = *list_ptr;
         this->scan__GList(list);
@@ -599,7 +601,7 @@ class BakeToRuntimeValue {
   void bake_to_runtime__SocketValueVariant(SocketValueVariant &value_variant, const StringRef name)
   {
     if (value_variant.is_context_dependent_field()) {
-      const fn::GField field = value_variant.get<fn::GField>();
+      const fn::GField &field = *value_variant.get_if<fn::GField>();
       std::string socket_inspection = nodes::make_anonymous_attribute_socket_inspection_string(
           TIP_("Bake"), name);
       if (const auto *attribute_field = field.get_input_if<AttributeFieldInput>()) {
@@ -607,9 +609,10 @@ class BakeToRuntimeValue {
         if (bake_attribute_name.startswith(anonymous_bake_attribute_prefix)) {
           std::string anonymous_attribute_name = this->get_anonymous_attribute_name(
               bake_attribute_name);
-          value_variant.set(AttributeFieldInput::from(std::move(anonymous_attribute_name),
-                                                      attribute_field->cpp_type(),
-                                                      std::move(socket_inspection)));
+          value_variant.emplace<fn::GField>(
+              AttributeFieldInput::from(std::move(anonymous_attribute_name),
+                                        attribute_field->cpp_type(),
+                                        std::move(socket_inspection)));
         }
       }
       else if (const auto *attribute_field = field.get_input_if<DeferredTypeAttributeFieldInput>())
@@ -621,7 +624,7 @@ class BakeToRuntimeValue {
           {
             std::string anonymous_attribute_name = this->get_anonymous_attribute_name(
                 bake_attribute_name);
-            value_variant.set(AttributeFieldInput::from(
+            value_variant.emplace<fn::GField>(AttributeFieldInput::from(
                 std::move(anonymous_attribute_name), *cpp_type, std::move(socket_inspection)));
           }
         }
@@ -629,7 +632,7 @@ class BakeToRuntimeValue {
       return;
     }
     if (value_variant.is_single()) {
-      GMutablePointer value_ptr = value_variant.get_single_ptr();
+      GMutablePointer value_ptr = value_variant.get();
       this->bake_to_runtime__GMutablePointer(value_ptr);
       return;
     }
@@ -639,7 +642,7 @@ class BakeToRuntimeValue {
         nodes::GList &list = list_ptr.get_for_write();
         this->bake_to_runtime__GList(list);
       }
-      value_variant.set(std::move(list_ptr));
+      value_variant.emplace<nodes::GListPtr>(std::move(list_ptr));
     }
   }
 
