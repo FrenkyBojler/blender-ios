@@ -100,7 +100,13 @@ class DepsgraphRelationBuilder : public DepsgraphBuilder {
                          int flags = 0);
 
   template<typename KeyType>
+    requires(!std::is_same_v<KeyType, TimeSourceKey>)
   Relation *add_node_handle_relation(const KeyType &key_from,
+                                     const DepsNodeHandle *handle,
+                                     const char *description,
+                                     int flags = 0);
+
+  Relation *add_node_handle_relation(const TimeSourceKey &key_from,
                                      const DepsNodeHandle *handle,
                                      const char *description,
                                      int flags = 0);
@@ -170,10 +176,6 @@ class DepsgraphRelationBuilder : public DepsgraphBuilder {
                                             ComponentKey &adt_key,
                                             OperationNode *operation_from,
                                             FCurve *fcu);
-  virtual void build_animdata_curves_targets(ID *id,
-                                             ComponentKey &adt_key,
-                                             OperationNode *operation_from,
-                                             ListBaseT<FCurve> *curves);
   virtual void build_animdata_action_targets(ID *id,
                                              int32_t slot_handle,
                                              ComponentKey &adt_key,

@@ -124,7 +124,7 @@ static PyObject *Color_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 PyDoc_STRVAR(
     /* Wrap. */
     Color_from_scene_linear_to_srgb_doc,
-    ".. function:: from_scene_linear_to_srgb()\n"
+    ".. method:: from_scene_linear_to_srgb()\n"
     "\n"
     "   Convert from scene linear to sRGB color space.\n"
     "\n"
@@ -140,7 +140,7 @@ static PyObject *Color_from_scene_linear_to_srgb(ColorObject *self)
 PyDoc_STRVAR(
     /* Wrap. */
     Color_from_srgb_to_scene_linear_doc,
-    ".. function:: from_srgb_to_scene_linear()\n"
+    ".. method:: from_srgb_to_scene_linear()\n"
     "\n"
     "   Convert from sRGB to scene linear color space.\n"
     "\n"
@@ -156,7 +156,7 @@ static PyObject *Color_from_srgb_to_scene_linear(ColorObject *self)
 PyDoc_STRVAR(
     /* Wrap. */
     Color_from_scene_linear_to_xyz_d65_doc,
-    ".. function:: from_scene_linear_to_xyz_d65()\n"
+    ".. method:: from_scene_linear_to_xyz_d65()\n"
     "\n"
     "   Convert from scene linear to CIE XYZ (Illuminant D65) color space.\n"
     "\n"
@@ -172,7 +172,7 @@ static PyObject *Color_from_scene_linear_to_xyz_d65(ColorObject *self)
 PyDoc_STRVAR(
     /* Wrap. */
     Color_from_xyz_d65_to_scene_linear_doc,
-    ".. function:: from_xyz_d65_to_scene_linear()\n"
+    ".. method:: from_xyz_d65_to_scene_linear()\n"
     "\n"
     "   Convert from CIE XYZ (Illuminant D65) to scene linear color space.\n"
     "\n"
@@ -188,7 +188,7 @@ static PyObject *Color_from_xyz_d65_to_scene_linear(ColorObject *self)
 PyDoc_STRVAR(
     /* Wrap. */
     Color_from_scene_linear_to_aces_doc,
-    ".. function:: from_scene_linear_to_aces()\n"
+    ".. method:: from_scene_linear_to_aces()\n"
     "\n"
     "   Convert from scene linear to ACES2065-1 linear color space.\n"
     "\n"
@@ -204,7 +204,7 @@ static PyObject *Color_from_scene_linear_to_aces(ColorObject *self)
 PyDoc_STRVAR(
     /* Wrap. */
     Color_from_aces_to_scene_linear_doc,
-    ".. function:: from_aces_to_scene_linear()\n"
+    ".. method:: from_aces_to_scene_linear()\n"
     "\n"
     "   Convert from ACES2065-1 linear to scene linear color space.\n"
     "\n"
@@ -220,7 +220,7 @@ static PyObject *Color_from_aces_to_scene_linear(ColorObject *self)
 PyDoc_STRVAR(
     /* Wrap. */
     Color_from_scene_linear_to_acescg_doc,
-    ".. function:: from_scene_linear_to_acescg()\n"
+    ".. method:: from_scene_linear_to_acescg()\n"
     "\n"
     "   Convert from scene linear to ACEScg linear color space.\n"
     "\n"
@@ -236,7 +236,7 @@ static PyObject *Color_from_scene_linear_to_acescg(ColorObject *self)
 PyDoc_STRVAR(
     /* Wrap. */
     Color_from_acescg_to_scene_linear_doc,
-    ".. function:: from_acescg_to_scene_linear()\n"
+    ".. method:: from_acescg_to_scene_linear()\n"
     "\n"
     "   Convert from ACEScg linear to scene linear color space.\n"
     "\n"
@@ -252,7 +252,7 @@ static PyObject *Color_from_acescg_to_scene_linear(ColorObject *self)
 PyDoc_STRVAR(
     /* Wrap. */
     Color_from_scene_linear_to_rec709_linear_doc,
-    ".. function:: from_scene_linear_to_rec709_linear()\n"
+    ".. method:: from_scene_linear_to_rec709_linear()\n"
     "\n"
     "   Convert from scene linear to Rec.709 linear color space.\n"
     "\n"
@@ -268,7 +268,7 @@ static PyObject *Color_from_scene_linear_to_rec709_linear(ColorObject *self)
 PyDoc_STRVAR(
     /* Wrap. */
     Color_from_rec709_linear_to_scene_linear_doc,
-    ".. function:: from_rec709_linear_to_scene_linear()\n"
+    ".. method:: from_rec709_linear_to_scene_linear()\n"
     "\n"
     "   Convert from Rec.709 linear color space to scene linear color space.\n"
     "\n"
@@ -284,7 +284,7 @@ static PyObject *Color_from_rec709_linear_to_scene_linear(ColorObject *self)
 PyDoc_STRVAR(
     /* Wrap. */
     Color_from_scene_linear_to_rec2020_linear_doc,
-    ".. function:: from_scene_linear_to_rec2020_linear()\n"
+    ".. method:: from_scene_linear_to_rec2020_linear()\n"
     "\n"
     "   Convert from scene linear to Rec.2020 linear color space.\n"
     "\n"
@@ -300,7 +300,7 @@ static PyObject *Color_from_scene_linear_to_rec2020_linear(ColorObject *self)
 PyDoc_STRVAR(
     /* Wrap. */
     Color_from_rec2020_linear_to_scene_linear_doc,
-    ".. function:: from_rec2020_linear_to_scene_linear()\n"
+    ".. method:: from_rec2020_linear_to_scene_linear()\n"
     "\n"
     "   Convert from Rec.2020 linear color space to scene linear color space.\n"
     "\n"
@@ -324,7 +324,7 @@ static PyObject *Color_from_rec2020_linear_to_scene_linear(ColorObject *self)
 PyDoc_STRVAR(
     /* Wrap. */
     Color_copy_doc,
-    ".. function:: copy()\n"
+    ".. method:: copy()\n"
     "\n"
     "   Returns a copy of this color.\n"
     "\n"
@@ -523,10 +523,6 @@ static Py_ssize_t Color_len(ColorObject * /*self*/)
 /** Sequence accessor (get): `x = object[i]`. */
 static PyObject *Color_item(ColorObject *self, Py_ssize_t i)
 {
-  if (i < 0) {
-    i = COLOR_SIZE - i;
-  }
-
   if (i < 0 || i >= COLOR_SIZE) {
     PyErr_SetString(PyExc_IndexError,
                     "color[item]: "
@@ -558,10 +554,6 @@ static int Color_ass_item(ColorObject *self, Py_ssize_t i, PyObject *value)
     return -1;
   }
 
-  if (i < 0) {
-    i = COLOR_SIZE - i;
-  }
-
   if (i < 0 || i >= COLOR_SIZE) {
     PyErr_SetString(PyExc_IndexError,
                     "color[item] = x: "
@@ -578,63 +570,57 @@ static int Color_ass_item(ColorObject *self, Py_ssize_t i, PyObject *value)
   return 0;
 }
 
-/** Sequence slice accessor (get): `x = object[i:j]`. */
-static PyObject *Color_slice(ColorObject *self, int begin, int end)
+/** Sequence slice accessor (get): `x = object[i:j]` / `object[i:j:step]`. */
+static PyObject *Color_slice(ColorObject *self,
+                             Py_ssize_t start,
+                             Py_ssize_t step,
+                             Py_ssize_t slice_length)
 {
-  PyObject *tuple;
-  int count;
-
   if (BaseMath_ReadCallback(self) == -1) {
     return nullptr;
   }
 
-  CLAMP(begin, 0, COLOR_SIZE);
-  if (end < 0) {
-    end = (COLOR_SIZE + 1) + end;
+  PyObject *tuple = PyTuple_New(slice_length);
+  Py_ssize_t index = start;
+  for (Py_ssize_t i = 0; i < slice_length; i++, index += step) {
+    BLI_assert(index >= 0 && index < COLOR_SIZE);
+    PyTuple_SET_ITEM(tuple, i, PyFloat_FromDouble(self->col[index]));
   }
-  CLAMP(end, 0, COLOR_SIZE);
-  begin = std::min(begin, end);
-
-  tuple = PyTuple_New(end - begin);
-  for (count = begin; count < end; count++) {
-    PyTuple_SET_ITEM(tuple, count - begin, PyFloat_FromDouble(self->col[count]));
-  }
-
   return tuple;
 }
 
-/** Sequence slice accessor (set): `object[i:j] = x`. */
-static int Color_ass_slice(ColorObject *self, int begin, int end, PyObject *seq)
+/**
+ * Sequence slice accessor (set): `object[i:j] = x` / `object[i:j:step] = x`.
+ * Length of `seq` must equal `slice_length`
+ * (Python list semantics: extended slice assignment cannot resize).
+ */
+static int Color_ass_slice(
+    ColorObject *self, Py_ssize_t start, Py_ssize_t step, Py_ssize_t slice_length, PyObject *seq)
 {
-  int i, size;
   float col[COLOR_SIZE];
 
-  if (BaseMath_ReadCallback_ForWrite(self) == -1) {
-    return -1;
+  /* Subset writes merge into existing values, so sync the source first. */
+  if (mathutils_slice_is_subset(start, step, slice_length, COLOR_SIZE)) {
+    if (BaseMath_ReadCallback_ForWrite(self) == -1) {
+      return -1;
+    }
+  }
+  else {
+    if (BaseMath_Prepare_ForWrite(self) == -1) {
+      return -1;
+    }
   }
 
-  CLAMP(begin, 0, COLOR_SIZE);
-  if (end < 0) {
-    end = (COLOR_SIZE + 1) + end;
-  }
-  CLAMP(end, 0, COLOR_SIZE);
-  begin = std::min(begin, end);
-
-  if ((size = mathutils_array_parse(col, 0, COLOR_SIZE, seq, "mathutils.Color[begin:end] = []")) ==
-      -1)
+  if (mathutils_array_parse(
+          col, slice_length, slice_length, seq, "mathutils.Color[slice] = seq") == -1)
   {
     return -1;
   }
 
-  if (size != (end - begin)) {
-    PyErr_SetString(PyExc_ValueError,
-                    "color[begin:end] = []: "
-                    "size mismatch in slice assignment");
-    return -1;
-  }
-
-  for (i = 0; i < COLOR_SIZE; i++) {
-    self->col[begin + i] = col[i];
+  Py_ssize_t index = start;
+  for (Py_ssize_t i = 0; i < slice_length; i++, index += step) {
+    BLI_assert(index >= 0 && index < COLOR_SIZE);
+    self->col[index] = col[i];
   }
 
   (void)BaseMath_WriteCallback(self);
@@ -656,21 +642,13 @@ static PyObject *Color_subscript(ColorObject *self, PyObject *item)
     return Color_item(self, i);
   }
   if (PySlice_Check(item)) {
-    Py_ssize_t start, stop, step, slicelength;
+    Py_ssize_t start, stop, step, slice_length;
 
-    if (PySlice_GetIndicesEx(item, COLOR_SIZE, &start, &stop, &step, &slicelength) < 0) {
+    if (PySlice_GetIndicesEx(item, COLOR_SIZE, &start, &stop, &step, &slice_length) < 0) {
       return nullptr;
     }
 
-    if (slicelength <= 0) {
-      return PyTuple_New(0);
-    }
-    if (step == 1) {
-      return Color_slice(self, start, stop);
-    }
-
-    PyErr_SetString(PyExc_IndexError, "slice steps not supported with color");
-    return nullptr;
+    return Color_slice(self, start, step, slice_length);
   }
 
   PyErr_Format(
@@ -692,18 +670,13 @@ static int Color_ass_subscript(ColorObject *self, PyObject *item, PyObject *valu
     return Color_ass_item(self, i, value);
   }
   if (PySlice_Check(item)) {
-    Py_ssize_t start, stop, step, slicelength;
+    Py_ssize_t start, stop, step, slice_length;
 
-    if (PySlice_GetIndicesEx(item, COLOR_SIZE, &start, &stop, &step, &slicelength) < 0) {
+    if (PySlice_GetIndicesEx(item, COLOR_SIZE, &start, &stop, &step, &slice_length) < 0) {
       return -1;
     }
 
-    if (step == 1) {
-      return Color_ass_slice(self, start, stop, value);
-    }
-
-    PyErr_SetString(PyExc_IndexError, "slice steps not supported with color");
-    return -1;
+    return Color_ass_slice(self, start, step, slice_length, value);
   }
 
   PyErr_Format(
@@ -1371,10 +1344,11 @@ PyDoc_STRVAR(
     "   This object gives access to Colors in Blender.\n"
     "\n"
     "   Most colors returned by Blender APIs are in scene linear color space, as defined by "
-    "   the OpenColorIO configuration. The notable exception is user interface theming colors, "
-    "   which are in sRGB color space.\n"
+    "the OpenColorIO configuration. The notable exception is user interface theming colors, "
+    "which are in sRGB color space.\n"
     "\n"
-    "   :arg rgb: (red, green, blue) color values where (0, 0, 0) is black & (1, 1, 1) is white.\n"
+    "   :param rgb: (red, green, blue) color values "
+    "where (0, 0, 0) is black & (1, 1, 1) is white.\n"
     "   :type rgb: Sequence[float]\n");
 PyTypeObject color_Type = {
     /*ob_base*/ PyVarObject_HEAD_INIT(nullptr, 0)

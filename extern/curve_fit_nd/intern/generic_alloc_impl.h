@@ -88,7 +88,7 @@
 #  endif
 #endif
 
-#ifdef __GNUC__
+#if defined(__GNUC__) || defined(__clang__)
 #  define MAYBE_UNUSED __attribute__((unused))
 #else
 #  define MAYBE_UNUSED
@@ -123,6 +123,7 @@ struct TPOOL_STRUCT {
 	(((1 << 16) - sizeof(struct TPoolChunk)) / sizeof(TPOOL_ALLOC_TYPE))
 
 
+/* -------------------------------------------------------------------- */
 /** \name Internal Memory Management
  * \{ */
 

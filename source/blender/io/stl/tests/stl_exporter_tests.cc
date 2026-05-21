@@ -25,10 +25,10 @@ static std::string read_temp_file_in_string(const std::string &file_path)
 {
   std::string res;
   size_t buffer_len;
-  void *buffer = BLI_file_read_text_as_mem(file_path.c_str(), 0, &buffer_len);
+  char *buffer = BLI_file_read_text_as_mem(file_path.c_str(), 0, &buffer_len);
   if (buffer != nullptr) {
-    res.assign(static_cast<const char *>(buffer), buffer_len);
-    MEM_freeN(buffer);
+    res.assign(buffer, buffer_len);
+    MEM_delete(buffer);
   }
   return res;
 }
@@ -70,8 +70,7 @@ class STLExportTest : public BlendfileLoadingBaseTest {
    * Export the given blend file with the given parameters and
    * test to see if it matches a golden file (ignoring any difference in Blender version number).
    * \param blendfile: input, relative to "tests" directory.
-   * \param golden_obj: expected output, relative to "tests" directory.
-   * \param params: the parameters to be used for export.
+   * \param golden_stl: expected output, relative to "tests" directory.
    */
   void compare_to_golden(const std::string &blendfile, const std::string &golden_stl)
   {

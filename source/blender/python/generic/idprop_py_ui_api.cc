@@ -26,23 +26,14 @@
 
 #define USE_STRING_COERCE
 
-#ifdef USE_STRING_COERCE
-#  include "py_capi_utils.hh"
-#endif
 #include "py_capi_rna.hh"
+#include "py_capi_utils.hh"
 
 namespace blender {
 
 /* -------------------------------------------------------------------- */
 /** \name UI Data Update
  * \{ */
-
-static bool args_contain_key(PyObject *kwargs, const char *name)
-{
-  /* When a function gets called without any kwargs, */
-  /* Python just passes nullptr instead. #PyDict_GetItemString() is not null-safe, though. */
-  return kwargs && PyDict_GetItemString(kwargs, name) != nullptr;
-}
 
 /**
  * \return False when parsing fails, in which case caller should return nullptr.
@@ -142,7 +133,7 @@ static IDPropertyUIDataEnumItem *idprop_enum_items_from_py(PyObject *seq_fast, i
   PyObject **seq_fast_items = PySequence_Fast_ITEMS(seq_fast);
   int i;
 
-  items = MEM_new_array_for_free<IDPropertyUIDataEnumItem>(seq_len, __func__);
+  items = MEM_new_array<IDPropertyUIDataEnumItem>(seq_len, __func__);
   r_items_num = seq_len;
 
   for (i = 0; i < seq_len; i++) {
@@ -155,7 +146,7 @@ static IDPropertyUIDataEnumItem *idprop_enum_items_from_py(PyObject *seq_fast, i
       items[i].identifier = nullptr;
     }
     else {
-      MEM_freeN(items);
+      MEM_delete(items);
       PyErr_SetString(PyExc_TypeError,
                       "expected a tuple containing "
                       "(identifier, name, description) and optionally an "
@@ -182,12 +173,12 @@ static bool idprop_ui_data_update_int_default(IDProperty *idprop,
     }
 
     Py_ssize_t len = PySequence_Size(default_value);
-    int *new_default_array = MEM_malloc_arrayN<int>(size_t(len), __func__);
+    int *new_default_array = MEM_new_array_uninitialized<int>(size_t(len), __func__);
     if (PyC_AsArray(
             new_default_array, sizeof(int), default_value, len, &PyLong_Type, "ui_data_update") ==
         -1)
     {
-      MEM_freeN(new_default_array);
+      MEM_delete(new_default_array);
       return false;
     }
 
@@ -218,10 +209,11 @@ static bool idprop_ui_data_update_int(IDProperty *idprop, PyObject *args, PyObje
 {
   const char *rna_subtype = nullptr;
   const char *description = nullptr;
-  int min, max, soft_min, soft_max, step;
+  std::optional<int> min, max, soft_min, soft_max, step;
   PyObject *default_value = nullptr;
   PyObject *items = nullptr;
-  const char *kwlist[] = {
+
+  static const char *_keywords[] = {
       "min",
       "max",
       "soft_min",
@@ -233,19 +225,38 @@ static bool idprop_ui_data_update_int(IDProperty *idprop, PyObject *args, PyObje
       "description",
       nullptr,
   };
-  if (!PyArg_ParseTupleAndKeywords(args,
-                                   kwargs,
-                                   "|$iiiiiOOzz:update",
-                                   const_cast<char **>(kwlist),
-                                   &min,
-                                   &max,
-                                   &soft_min,
-                                   &soft_max,
-                                   &step,
-                                   &default_value,
-                                   &items,
-                                   &rna_subtype,
-                                   &description))
+  static _PyArg_Parser _parser = {
+      "|$" /* Optional keyword only arguments. */
+      "O&" /* `min` */
+      "O&" /* `max` */
+      "O&" /* `soft_min` */
+      "O&" /* `soft_max` */
+      "O&" /* `step` */
+      "O"  /* `default` */
+      "O"  /* `items` */
+      "z"  /* `subtype` */
+      "z"  /* `description` */
+      ":update",
+      _keywords,
+      nullptr,
+  };
+  if (!_PyArg_ParseTupleAndKeywordsFast(args,
+                                        kwargs,
+                                        &_parser,
+                                        PyC_ParseOptionalInt,
+                                        &min,
+                                        PyC_ParseOptionalInt,
+                                        &max,
+                                        PyC_ParseOptionalInt,
+                                        &soft_min,
+                                        PyC_ParseOptionalInt,
+                                        &soft_max,
+                                        PyC_ParseOptionalInt,
+                                        &step,
+                                        &default_value,
+                                        &items,
+                                        &rna_subtype,
+                                        &description))
   {
     return false;
   }
@@ -259,28 +270,28 @@ static bool idprop_ui_data_update_int(IDProperty *idprop, PyObject *args, PyObje
     return false;
   }
 
-  if (args_contain_key(kwargs, "min")) {
-    ui_data.min = min;
+  if (min) {
+    ui_data.min = *min;
     ui_data.soft_min = std::max(ui_data.soft_min, ui_data.min);
     ui_data.max = std::max(ui_data.min, ui_data.max);
   }
-  if (args_contain_key(kwargs, "max")) {
-    ui_data.max = max;
+  if (max) {
+    ui_data.max = *max;
     ui_data.soft_max = std::min(ui_data.soft_max, ui_data.max);
     ui_data.min = std::min(ui_data.min, ui_data.max);
   }
-  if (args_contain_key(kwargs, "soft_min")) {
-    ui_data.soft_min = soft_min;
+  if (soft_min) {
+    ui_data.soft_min = *soft_min;
     ui_data.soft_min = std::max(ui_data.soft_min, ui_data.min);
     ui_data.soft_max = std::max(ui_data.soft_min, ui_data.soft_max);
   }
-  if (args_contain_key(kwargs, "soft_max")) {
-    ui_data.soft_max = soft_max;
+  if (soft_max) {
+    ui_data.soft_max = *soft_max;
     ui_data.soft_max = std::min(ui_data.soft_max, ui_data.max);
     ui_data.soft_min = std::min(ui_data.soft_min, ui_data.soft_max);
   }
-  if (args_contain_key(kwargs, "step")) {
-    ui_data.step = step;
+  if (step) {
+    ui_data.step = *step;
   }
 
   if (!ELEM(default_value, nullptr, Py_None)) {
@@ -348,7 +359,7 @@ static bool idprop_ui_data_update_bool_default(IDProperty *idprop,
     }
 
     Py_ssize_t len = PySequence_Size(default_value);
-    int8_t *new_default_array = MEM_malloc_arrayN<int8_t>(size_t(len), __func__);
+    int8_t *new_default_array = MEM_new_array_uninitialized<int8_t>(size_t(len), __func__);
     if (PyC_AsArray(new_default_array,
                     sizeof(int8_t),
                     default_value,
@@ -356,7 +367,7 @@ static bool idprop_ui_data_update_bool_default(IDProperty *idprop,
                     &PyBool_Type,
                     "ui_data_update") == -1)
     {
-      MEM_freeN(new_default_array);
+      MEM_delete(new_default_array);
       return false;
     }
 
@@ -438,7 +449,7 @@ static bool idprop_ui_data_update_float_default(IDProperty *idprop,
     }
 
     Py_ssize_t len = PySequence_Size(default_value);
-    double *new_default_array = MEM_malloc_arrayN<double>(size_t(len), __func__);
+    double *new_default_array = MEM_new_array_uninitialized<double>(size_t(len), __func__);
     if (PyC_AsArray(new_default_array,
                     sizeof(double),
                     default_value,
@@ -446,7 +457,7 @@ static bool idprop_ui_data_update_float_default(IDProperty *idprop,
                     &PyFloat_Type,
                     "ui_data_update") == -1)
     {
-      MEM_freeN(new_default_array);
+      MEM_delete(new_default_array);
       return false;
     }
 
@@ -477,32 +488,55 @@ static bool idprop_ui_data_update_float(IDProperty *idprop, PyObject *args, PyOb
 {
   const char *rna_subtype = nullptr;
   const char *description = nullptr;
-  int precision;
-  double min, max, soft_min, soft_max, step;
+  std::optional<int> precision;
+  std::optional<double> min, max, soft_min, soft_max, step;
   PyObject *default_value = nullptr;
-  const char *kwlist[] = {"min",
-                          "max",
-                          "soft_min",
-                          "soft_max",
-                          "step",
-                          "precision",
-                          "default",
-                          "subtype",
-                          "description",
-                          nullptr};
-  if (!PyArg_ParseTupleAndKeywords(args,
-                                   kwargs,
-                                   "|$dddddiOzz:update",
-                                   const_cast<char **>(kwlist),
-                                   &min,
-                                   &max,
-                                   &soft_min,
-                                   &soft_max,
-                                   &step,
-                                   &precision,
-                                   &default_value,
-                                   &rna_subtype,
-                                   &description))
+
+  static const char *_keywords[] = {
+      "min",
+      "max",
+      "soft_min",
+      "soft_max",
+      "step",
+      "precision",
+      "default",
+      "subtype",
+      "description",
+      nullptr,
+  };
+  static _PyArg_Parser _parser = {
+      "|$" /* Optional keyword only arguments. */
+      "O&" /* `min` */
+      "O&" /* `max` */
+      "O&" /* `soft_min` */
+      "O&" /* `soft_max` */
+      "O&" /* `step` */
+      "O&" /* `precision` */
+      "O"  /* `default` */
+      "z"  /* `subtype` */
+      "z"  /* `description` */
+      ":update",
+      _keywords,
+      nullptr,
+  };
+  if (!_PyArg_ParseTupleAndKeywordsFast(args,
+                                        kwargs,
+                                        &_parser,
+                                        PyC_ParseOptionalDouble,
+                                        &min,
+                                        PyC_ParseOptionalDouble,
+                                        &max,
+                                        PyC_ParseOptionalDouble,
+                                        &soft_min,
+                                        PyC_ParseOptionalDouble,
+                                        &soft_max,
+                                        PyC_ParseOptionalDouble,
+                                        &step,
+                                        PyC_ParseOptionalInt,
+                                        &precision,
+                                        &default_value,
+                                        &rna_subtype,
+                                        &description))
   {
     return false;
   }
@@ -516,31 +550,31 @@ static bool idprop_ui_data_update_float(IDProperty *idprop, PyObject *args, PyOb
     return false;
   }
 
-  if (args_contain_key(kwargs, "min")) {
-    ui_data.min = min;
+  if (min) {
+    ui_data.min = *min;
     ui_data.soft_min = std::max(ui_data.soft_min, ui_data.min);
     ui_data.max = std::max(ui_data.min, ui_data.max);
   }
-  if (args_contain_key(kwargs, "max")) {
-    ui_data.max = max;
+  if (max) {
+    ui_data.max = *max;
     ui_data.soft_max = std::min(ui_data.soft_max, ui_data.max);
     ui_data.min = std::min(ui_data.min, ui_data.max);
   }
-  if (args_contain_key(kwargs, "soft_min")) {
-    ui_data.soft_min = soft_min;
+  if (soft_min) {
+    ui_data.soft_min = *soft_min;
     ui_data.soft_min = std::max(ui_data.soft_min, ui_data.min);
     ui_data.soft_max = std::max(ui_data.soft_min, ui_data.soft_max);
   }
-  if (args_contain_key(kwargs, "soft_max")) {
-    ui_data.soft_max = soft_max;
+  if (soft_max) {
+    ui_data.soft_max = *soft_max;
     ui_data.soft_max = std::min(ui_data.soft_max, ui_data.max);
     ui_data.soft_min = std::min(ui_data.soft_min, ui_data.soft_max);
   }
-  if (args_contain_key(kwargs, "step")) {
-    ui_data.step = float(step);
+  if (step) {
+    ui_data.step = float(*step);
   }
-  if (args_contain_key(kwargs, "precision")) {
-    ui_data.precision = precision;
+  if (precision) {
+    ui_data.precision = *precision;
   }
 
   if (!ELEM(default_value, nullptr, Py_None)) {
@@ -962,12 +996,18 @@ static PyObject *BPy_IDPropertyUIManager_update_from(BPy_IDPropertyUIManager *se
     return nullptr;
   }
 
+  IDProperty *src_prop = ui_manager_src->property;
+  if ((property->type != src_prop->type) || property->subtype != src_prop->subtype) {
+    PyErr_SetString(PyExc_TypeError, "Properties type does not match.");
+    return nullptr;
+  }
+
   if (property->ui_data != nullptr) {
     IDP_ui_data_free(property);
   }
 
   if (ui_manager_src->property && ui_manager_src->property->ui_data) {
-    property->ui_data = IDP_ui_data_copy(ui_manager_src->property);
+    property->ui_data = IDP_ui_data_copy(src_prop);
   }
 
   Py_RETURN_NONE;

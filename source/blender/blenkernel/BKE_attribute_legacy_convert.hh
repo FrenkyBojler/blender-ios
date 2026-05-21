@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include "BLI_vector.hh"
+
 #include "DNA_attribute_types.h"
 
 #include "BKE_attribute.h"
@@ -23,7 +25,7 @@ struct Mesh;
 namespace bke {
 
 const CPPType *custom_data_type_to_cpp_type(eCustomDataType type);
-eCustomDataType cpp_type_to_custom_data_type(const CPPType &type);
+std::optional<eCustomDataType> cpp_type_to_custom_data_type(const CPPType &type);
 
 /**
  * Convert a custom data type to an attribute type. May return `std::nullopt` if the custom data
@@ -36,13 +38,6 @@ std::optional<AttrType> custom_data_type_to_attr_type(eCustomDataType data_type)
  * Convert an attribute type to a legacy custom data type.
  */
 std::optional<eCustomDataType> attr_type_to_custom_data_type(AttrType attr_type);
-
-/**
- * Move attributes from the #AttributeStorage to the mesh's #CustomData structs. Used for forward
- * compatibility: converting newer files written with #AttributeStorage while #CustomData is still
- * used at runtime.
- */
-void mesh_convert_storage_to_customdata(Mesh &mesh);
 
 /**
  * Move generic attributes from #CustomData to #AttributeStorage (not including non-generic layer
@@ -61,6 +56,8 @@ void grease_pencil_convert_customdata_to_storage(GreasePencil &grease_pencil);
 
 /** Abstraction for copying #CustomData layers and #AttributeStorage attributes. */
 class LegacyMeshInterpolator {
+  Vector<GVArraySpan> attrs_src_;
+  Vector<GMutableSpan> attrs_dst_;
 
   const CustomData &cd_src_;
   CustomData &cd_dst_;

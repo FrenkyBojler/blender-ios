@@ -283,7 +283,7 @@ void BLI_freelinkN(ListBase *listbase, void *vlink)
   }
 
   BLI_remlink(listbase, link);
-  MEM_freeN(link);
+  MEM_delete(link);
 }
 
 /**
@@ -508,7 +508,7 @@ void BLI_freelistN(ListBase *listbase)
   link = static_cast<Link *>(listbase->first);
   while (link) {
     next = link->next;
-    MEM_freeN(link);
+    MEM_delete(link);
     link = next;
   }
 
@@ -840,7 +840,7 @@ void BLI_duplicatelist(ListBase *dst, const ListBase *src)
   dst->first = dst->last = nullptr;
 
   while (src_link) {
-    dst_link = static_cast<Link *>(MEM_dupallocN(src_link));
+    dst_link = MEM_dupalloc(src_link);
     BLI_addtail(dst, dst_link);
 
     src_link = src_link->next;
@@ -903,7 +903,7 @@ bool BLI_listbase_validate(ListBase *lb)
     return false;
   }
 
-  /* Walk the list in bot directions to ensure all next & prev pointers are valid and consistent.
+  /* Walk the list in both directions to ensure all next & prev pointers are valid and consistent.
    */
   LISTBASE_FOREACH (Link *, lb_link, lb) {
     if (lb_link == lb->first) {
@@ -942,7 +942,7 @@ LinkData *BLI_genericNodeN(void *data)
   }
 
   /* create new link, and make it hold the given data */
-  ld = MEM_callocN<LinkData>(__func__);
+  ld = MEM_new_zeroed<LinkData>(__func__);
   ld->data = data;
 
   return ld;

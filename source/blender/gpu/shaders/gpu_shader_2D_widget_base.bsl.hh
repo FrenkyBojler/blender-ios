@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
-#pragma create_info
 
 #include "gpu_shader_compat.hh"
 
@@ -254,7 +253,7 @@ struct Resources {
   [[push_constant, condition(instanced)]] const float4 parameters_inst[MAX_PARAM * MAX_INSTANCE];
   [[push_constant, condition(!instanced)]] const float4 parameters[MAX_PARAM];
 
-  /* Unpack widget data passed as raw array of float4 through push constnats. */
+  /** Unpack widget data passed as raw array of float4 through push constants. */
   Widget get_widget(int index)
   {
     /* Hopefully, all of these move instructions are optimized out. */

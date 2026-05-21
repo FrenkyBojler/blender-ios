@@ -130,20 +130,7 @@ static void rna_Image_save(Image *image,
 static void rna_Image_pack(
     Image *image, Main *bmain, bContext *C, ReportList *reports, const char *data, int data_len)
 {
-  BKE_image_free_packedfiles(image);
-
-  if (data) {
-    char *data_dup = MEM_malloc_arrayN<char>(size_t(data_len), __func__);
-    memcpy(data_dup, data, size_t(data_len));
-    BKE_image_packfiles_from_mem(reports, image, data_dup, size_t(data_len));
-  }
-  else if (BKE_image_is_dirty(image)) {
-    BKE_image_memorypack(image);
-  }
-  else {
-    BKE_image_packfiles(reports, image, ID_BLEND_PATH(bmain, &image->id));
-  }
-
+  BKE_image_packfile_ensure(bmain, image, reports, data, data_len);
   WM_event_add_notifier(C, NC_IMAGE | NA_EDITED, image);
 }
 
@@ -183,7 +170,7 @@ static void rna_Image_update(Image *image, ReportList *reports)
     return;
   }
 
-  if (ibuf->byte_buffer.data) {
+  if (ibuf->byte_data()) {
     IMB_byte_from_float(ibuf);
   }
 
@@ -398,7 +385,7 @@ void RNA_api_image(StructRNA *srna)
               INT_MAX);
   /* return value */
   parm = RNA_def_int(
-      func, "error", 0, -INT_MAX, INT_MAX, "Error", "OpenGL error value", -INT_MAX, INT_MAX);
+      func, "error", 0, INT_MIN, INT_MAX, "Error", "OpenGL error value", INT_MIN, INT_MAX);
   RNA_def_function_return(func, parm);
 
   func = RNA_def_function(srna, "gl_load", "rna_Image_gl_load");
@@ -430,7 +417,7 @@ void RNA_api_image(StructRNA *srna)
               INT_MAX);
   /* return value */
   parm = RNA_def_int(
-      func, "error", 0, -INT_MAX, INT_MAX, "Error", "OpenGL error value", -INT_MAX, INT_MAX);
+      func, "error", 0, INT_MIN, INT_MAX, "Error", "OpenGL error value", INT_MIN, INT_MAX);
   RNA_def_function_return(func, parm);
 
   func = RNA_def_function(srna, "gl_free", "rna_Image_gl_free");

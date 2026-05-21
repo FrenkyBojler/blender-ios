@@ -446,10 +446,12 @@ static void node_join(BVHTree *tree, BVHNode *node)
   }
 }
 
+/** \} */
+
 #ifdef USE_PRINT_TREE
 
 /* -------------------------------------------------------------------- */
-/** \name * Debug and Information Functions
+/** \name Debug and Information Functions
  * \{ */
 
 static void bvhtree_print_tree(BVHTree *tree, BVHNode *node, int depth)
@@ -548,6 +550,10 @@ static void bvhtree_verify(BVHTree *tree)
          tree->branch_num + tree->leaf_num);
 }
 #endif /* USE_VERIFY_TREE */
+
+/* -------------------------------------------------------------------- */
+/** \name Implicit Tree Construction
+ * \{ */
 
 /* Helper data and structures to build a min-leaf generalized implicit tree
  * This code can be easily reduced
@@ -855,7 +861,7 @@ BVHTree *BLI_bvhtree_new(int maxsize, float epsilon, char tree_type, char axis)
 
   BLI_assert(tree_type >= 2 && tree_type <= MAX_TREETYPE);
 
-  BVHTree *tree = MEM_callocN<BVHTree>(__func__);
+  BVHTree *tree = MEM_new_zeroed<BVHTree>(__func__);
 
   /* tree epsilon must be >= FLT_EPSILON
    * so that tangent rays can still hit a bounding volume..
@@ -898,10 +904,10 @@ BVHTree *BLI_bvhtree_new(int maxsize, float epsilon, char tree_type, char axis)
     /* Allocate arrays */
     numnodes = maxsize + implicit_needed_branches(tree_type, maxsize) + tree_type;
 
-    tree->nodes = MEM_calloc_arrayN<BVHNode *>(size_t(numnodes), "BVHNodes");
-    tree->nodebv = MEM_calloc_arrayN<float>(axis * size_t(numnodes), "BVHNodeBV");
-    tree->nodechild = MEM_calloc_arrayN<BVHNode *>(tree_type * size_t(numnodes), "BVHNodeBV");
-    tree->nodearray = MEM_calloc_arrayN<BVHNode>(size_t(numnodes), "BVHNodeArray");
+    tree->nodes = MEM_new_array_zeroed<BVHNode *>(size_t(numnodes), "BVHNodes");
+    tree->nodebv = MEM_new_array_zeroed<float>(axis * size_t(numnodes), "BVHNodeBV");
+    tree->nodechild = MEM_new_array_zeroed<BVHNode *>(tree_type * size_t(numnodes), "BVHNodeBV");
+    tree->nodearray = MEM_new_array_zeroed<BVHNode>(size_t(numnodes), "BVHNodeArray");
 
     if (UNLIKELY((!tree->nodes) || (!tree->nodebv) || (!tree->nodechild) || (!tree->nodearray))) {
       goto fail;
@@ -923,11 +929,11 @@ fail:
 void BLI_bvhtree_free(BVHTree *tree)
 {
   if (tree) {
-    MEM_SAFE_FREE(tree->nodes);
-    MEM_SAFE_FREE(tree->nodearray);
-    MEM_SAFE_FREE(tree->nodebv);
-    MEM_SAFE_FREE(tree->nodechild);
-    MEM_freeN(tree);
+    MEM_SAFE_DELETE(tree->nodes);
+    MEM_SAFE_DELETE(tree->nodearray);
+    MEM_SAFE_DELETE(tree->nodebv);
+    MEM_SAFE_DELETE(tree->nodechild);
+    MEM_delete(tree);
   }
 }
 
@@ -979,7 +985,7 @@ void BLI_bvhtree_insert(BVHTree *tree, int index, const float co[3], int numpoin
 
   /* insert should only possible as long as tree->branch_num is 0 */
   BLI_assert(tree->branch_num <= 0);
-  BLI_assert((size_t)tree->leaf_num < MEM_allocN_len(tree->nodes) / sizeof(*(tree->nodes)));
+  BLI_assert(size_t(tree->leaf_num) < MEM_allocN_len(tree->nodes) / sizeof(*(tree->nodes)));
 
   node = tree->nodes[tree->leaf_num] = &(tree->nodearray[tree->leaf_num]);
   tree->leaf_num++;
@@ -1404,7 +1410,7 @@ BVHTreeOverlap *BLI_bvhtree_overlap_ex(
       total += BLI_stack_count(data[j].overlap);
     }
 
-    to = overlap = MEM_malloc_arrayN<BVHTreeOverlap>(total, "BVHTreeOverlap");
+    to = overlap = MEM_new_array_uninitialized<BVHTreeOverlap>(total, "BVHTreeOverlap");
 
     for (j = 0; j < thread_num; j++) {
       uint count = uint(BLI_stack_count(data[j].overlap));
@@ -1508,7 +1514,7 @@ int *BLI_bvhtree_intersect_plane(const BVHTree *tree, float plane[4], uint *r_in
 
     total = BLI_stack_count(data.intersect);
     if (total) {
-      intersect = MEM_malloc_arrayN<int>(total, __func__);
+      intersect = MEM_new_array_uninitialized<int>(total, __func__);
       BLI_stack_pop_n(data.intersect, intersect, uint(total));
     }
     BLI_stack_free(data.intersect);

@@ -30,6 +30,7 @@ struct Main;
 struct Object;
 struct Scene;
 struct bNodeTree;
+struct VFont;
 
 /* Graph Building -------------------------------- */
 
@@ -49,11 +50,8 @@ void DEG_graph_build_for_render_pipeline(Depsgraph *graph);
 
 /**
  * Builds minimal dependency graph for compositor preview.
- *
- * Note that compositor editor might have pinned node tree, which is different from scene's node
- * tree.
  */
-void DEG_graph_build_for_compositor_preview(Depsgraph *graph, bNodeTree *nodetree);
+void DEG_graph_build_for_compositor_preview(Depsgraph *graph);
 
 /**
  * Builds the minimal dependency graph needed for evaluation of all IDs within the Collection.
@@ -91,6 +89,8 @@ enum eDepsSceneComponentType {
   DEG_SCENE_COMP_ANIMATION,
   /* Sequencer Component (Scene Only). */
   DEG_SCENE_COMP_SEQUENCER,
+  /* Compositor Component. */
+  DEG_SCENE_COMP_COMPOSITOR,
 };
 
 enum eDepsObjectComponentType {
@@ -152,6 +152,7 @@ void DEG_add_object_cache_relation(DepsNodeHandle *handle,
                                    CacheFile *cache_file,
                                    eDepsObjectComponentType component,
                                    const char *description);
+void DEG_add_vfont_relation(DepsNodeHandle *handle, VFont *vfont, const char *description);
 /**
  * Adds relation from #DEG_OPCODE_GENERIC_DATABLOCK_UPDATE of a given ID.
  * Is used for such entities as textures and images.
@@ -175,6 +176,8 @@ void DEG_add_object_pointcache_relation(DepsNodeHandle *node_handle,
                                         Object *object,
                                         eDepsObjectComponentType component,
                                         const char *description);
+
+void DEG_add_time_source_relation(DepsNodeHandle *node_handle, const char *description);
 
 void DEG_add_special_eval_flag(DepsNodeHandle *handle, ID *id, uint32_t flag);
 void DEG_add_customdata_mask(DepsNodeHandle *handle,

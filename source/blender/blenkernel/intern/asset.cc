@@ -49,7 +49,9 @@ AssetMetaData::AssetMetaData(const AssetMetaData &other)
       properties(nullptr),
       catalog_id(other.catalog_id),
       active_tag(other.active_tag),
-      tot_tags(other.tot_tags)
+      tot_tags(other.tot_tags),
+      flag(other.flag),
+      preferred_import_method(other.preferred_import_method)
 {
   if (other.properties) {
     properties = IDP_CopyProperty(other.properties);
@@ -74,7 +76,10 @@ AssetMetaData::AssetMetaData(AssetMetaData &&other)
       copyright(std::exchange(other.copyright, nullptr)),
       license(std::exchange(other.license, nullptr)),
       active_tag(other.active_tag),
-      tot_tags(other.tot_tags)
+      tot_tags(other.tot_tags),
+      flag(other.flag),
+      preferred_import_method(other.preferred_import_method)
+
 {
   STRNCPY(catalog_simple_name, other.catalog_simple_name);
   tags = other.tags;
@@ -86,16 +91,16 @@ AssetMetaData::~AssetMetaData()
   if (properties) {
     IDP_FreeProperty(properties);
   }
-  MEM_SAFE_FREE(author);
-  MEM_SAFE_FREE(description);
-  MEM_SAFE_FREE(copyright);
-  MEM_SAFE_FREE(license);
+  MEM_SAFE_DELETE(author);
+  MEM_SAFE_DELETE(description);
+  MEM_SAFE_DELETE(copyright);
+  MEM_SAFE_DELETE(license);
   BLI_freelistN(&tags);
 }
 
 static AssetTag *asset_metadata_tag_add(AssetMetaData *asset_data, const char *const name)
 {
-  AssetTag *tag = MEM_new_for_free<AssetTag>(__func__);
+  AssetTag *tag = MEM_new<AssetTag>(__func__);
   STRNCPY_UTF8(tag->name, name);
 
   BLI_addtail(&asset_data->tags, tag);
@@ -201,10 +206,10 @@ void BKE_asset_metadata_write(BlendWriter *writer, AssetMetaData *asset_data)
     IDP_BlendWrite(writer, asset_data->properties);
   }
 
-  BLO_write_string(writer, asset_data->author);
-  BLO_write_string(writer, asset_data->description);
-  BLO_write_string(writer, asset_data->copyright);
-  BLO_write_string(writer, asset_data->license);
+  writer->write_string(asset_data->author);
+  writer->write_string(asset_data->description);
+  writer->write_string(asset_data->copyright);
+  writer->write_string(asset_data->license);
 
   for (AssetTag &tag : asset_data->tags) {
     writer->write_struct(&tag);

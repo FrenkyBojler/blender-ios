@@ -86,7 +86,8 @@ static void compute_vertex_mask__armature_mode(const MDeformVert *dvert,
 
   for (bDeformGroup &def : mesh->vertex_group_names) {
     bPoseChannel *pchan = BKE_pose_channel_find_name(armature_ob->pose, def.name);
-    bool bone_for_group_exists = pchan && pchan->bone && (pchan->flag & POSE_SELECTED);
+    const bool bone_for_group_exists = pchan && pchan->bone_get(*armature_ob) &&
+                                       (pchan->flag & POSE_SELECTED);
     selected_bone_uses_group.append(bone_for_group_exists);
   }
   const int64_t total_size = selected_bone_uses_group.size();
@@ -315,6 +316,7 @@ static void copy_masked_verts_to_new_mesh(const Mesh &src_mesh,
                                           Mesh &dst_mesh,
                                           Span<int> vertex_map)
 {
+  bke::LegacyMeshInterpolator vert_interp(src_mesh, dst_mesh, bke::AttrDomain::Point);
   BLI_assert(src_mesh.verts_num == vertex_map.size());
   for (const int i_src : vertex_map.index_range()) {
     const int i_dst = vertex_map[i_src];
@@ -322,7 +324,7 @@ static void copy_masked_verts_to_new_mesh(const Mesh &src_mesh,
       continue;
     }
 
-    CustomData_copy_data(&src_mesh.vert_data, &dst_mesh.vert_data, i_src, i_dst, 1);
+    vert_interp.copy(i_src, i_dst, 1);
   }
 }
 

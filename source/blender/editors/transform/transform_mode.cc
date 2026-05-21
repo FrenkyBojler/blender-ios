@@ -1251,7 +1251,8 @@ void transform_mode_default_modal_orientation_set(TransInfo *t, int type)
     rv3d = static_cast<RegionView3D *>(t->region->regiondata);
   }
 
-  t->orient[O_DEFAULT].type = calc_orientation_from_type_ex(t->scene,
+  t->orient[O_DEFAULT].type = calc_orientation_from_type_ex(*t->bmain,
+                                                            t->scene,
                                                             t->view_layer,
                                                             v3d,
                                                             rv3d,
@@ -1276,7 +1277,7 @@ void transform_mode_rotation_axis_get(const TransInfo *t, float3 &r_axis)
     r_axis = t->spacemtx[t->orient_axis];
     /* For unconstrained rotation in the 3D viewport, flip the axis so the rotation direction
      * matches the mouse movement in view space. */
-    if ((t->flag & T_MODAL) && (t->mode == TFM_ROTATION) && (t->con.mode & CON_APPLY) == 0 &&
+    if ((t->mode == TFM_ROTATION) && (t->con.mode & CON_APPLY) == 0 &&
         (t->spacetype == SPACE_VIEW3D))
     {
       r_axis = -r_axis;

@@ -49,8 +49,8 @@ static inline Language language_from_filename(const std::string &filename)
  */
 class SourceProcessor {
  public:
-  using report_callback = parser::report_callback;
-  using Parser = parser::IntermediateForm;
+  using ErrorHandler = parser::ErrorHandler;
+  using Parser = parser::IntermediateForm<parser::FullLexer, parser::FullParser>;
   using Scope = parser::Scope;
   using Token = parser::Token;
   using Tokens = std::vector<parser::Token>;
@@ -62,8 +62,6 @@ class SourceProcessor {
   static constexpr const char *linted_struct_suffix = "_host_shared_";
   static constexpr const char *uniform_struct_suffix = "uniform_";
 
-#define ERROR_TOK(token) (token).line_number(), (token).char_number(), (token).line_str()
-
  private:
   const std::string source_;
   const std::string filepath_;
@@ -71,15 +69,22 @@ class SourceProcessor {
 
   Language language_;
 
-  report_callback report_error_;
+  parser::ErrorHandler error_handler = {
+      .default_filename = filepath_.substr(filepath_.find_last_of('/') + 1)};
+
+  void report_error(Token tok, const std::string &message)
+  {
+    error_handler.report(tok, message);
+  }
+
+  void report_error(int row, int column, const std::string &line, const std::string &message)
+  {
+    error_handler.report(row, column, line, message);
+  }
 
  public:
-  SourceProcessor(
-      const std::string &source,
-      const std::string &filepath,
-      Language language,
-      report_callback report_error = [](int, int, std::string, const char *) {})
-      : source_(source), filepath_(filepath), language_(language), report_error_(report_error)
+  SourceProcessor(const std::string &source, const std::string &filepath, Language language)
+      : source_(source), filepath_(filepath), language_(language)
   {
   }
 
@@ -88,14 +93,22 @@ class SourceProcessor {
     std::string source;
     /* Parsed metadata. */
     metadata::Source metadata;
+
+    std::optional<parser::ErrorHandler::Error> error;
   };
 
   /* Convert to intermediate language. Also outputs metadata.
    * symbols_set is the set of namespace symbols from external files / dependencies. */
-  Result convert(std::vector<metadata::Symbol> symbols_set = {});
+  Result convert(metadata::Source external_sources_symbols = {});
 
   /* Lightweight parsing. Only Source::dependencies and Source::symbol_table are populated. */
   metadata::Source parse_include_and_symbols();
+
+  /* Return the input string with comments removed. */
+  std::string remove_comments()
+  {
+    return remove_comments(source_);
+  }
 
   /* String hash are outputted inside GLSL and needs to fit 32 bits. */
   static uint32_t hash_string(const std::string &str)
@@ -106,18 +119,20 @@ class SourceProcessor {
   }
 
  private:
+  Result convert_glsl();
+  Result convert_msl();
+  Result convert_bsl(metadata::Source external_sources_symbols);
+
   /* --- Cleanup --- */
 
-  /* Remove single and multiline comments to avoid this complexity during parsing. */
+  /** Remove single and multi-line comments to avoid this complexity during parsing. */
   std::string remove_comments(const std::string &str);
   /* Lower preprocessor directives containing `GPU_SHADER`.
    * Avoid processing code that is not destined to be shader code and could contain unsupported
    * syntax. */
   std::string disabled_code_mutation(const std::string &str);
   /* Remove trailing white spaces. */
-  void cleanup_whitespace(Parser &parser);
-  /* Remove trailing white spaces. Version without Parser. */
-  std::string cleanup_whitespace(const std::string &str);
+  template<typename ParserT> void cleanup_whitespace(ParserT &parser);
   /* Successive mutations can introduce a lot of unneeded line directives. */
   void cleanup_line_directives(Parser &parser);
   /* Successive mutations can introduce a lot of unneeded blank lines. */
@@ -137,7 +152,7 @@ class SourceProcessor {
   void parse_includes(Parser &parser);
   /* Parse special pragma. */
   void parse_pragma_runtime_generated(Parser &parser);
-  /* Populate metadata::functions for runtime nodetree compilation. */
+  /** Populate metadata::functions for runtime node-tree compilation. */
   void parse_library_functions(Parser &parser);
   /* Populate metadata::builtins by scanning source for keywords. Can trigger false positive.
    * This is mostly legacy path as most builtin should be explicitly defined inside the BSL entry
@@ -165,14 +180,20 @@ class SourceProcessor {
 
   /* --- Lowering --- */
 
+  /* Remove `maybe_unused` attribute. */
+  void lower_maybe_unused(Parser &parser);
+  /* Lower parameters that have no name (invalid in GLSL). */
+  void lower_namesless_parameters(Parser &parser);
   /**
-   * Given our codestyle, we don't need the disambiguation.
+   * Given our code-style, we don't need the disambiguation.
    * Example: `x.template foo<int>()` > `x.foo<int>()`
    */
   void lower_template_dependent_names(Parser &parser);
   /* Lower template definition and instantiation by doing simple copy paste + argument
    * substitution. */
   void lower_templates(Parser &parser);
+  void lower_template_calls(Parser &parser);
+  void lower_template_specialization(Parser &parser);
   /* Ensures pragma once is present in headers to comply to our include semantic. */
   void lint_pragma_once(Parser &parser, const std::string &filename);
   /* Unroll loops by copy pasting content. */
@@ -184,18 +205,18 @@ class SourceProcessor {
   /**
    * Needs to run before namespace mutation so that `using` have more precedence.
    * Otherwise the following would fail.
-   *  ```cpp
-   *  namespace B {
-   *  int test(int a) {}
-   *  }
+   * \code{.cc}
+   * namespace B {
+   * int test(int a) {}
+   * }
    *
-   *  namespace A {
-   *  int test(int a) {}
-   *  int func(int a) {
-   *    using B::test;
-   *    return test(a); // Should reference B::test and not A::test
-   *  }
-   *  ```
+   * namespace A {
+   * int test(int a) {}
+   * int func(int a) {
+   *   using B::test;
+   *   return test(a); // Should reference B::test and not A::test
+   * }
+   * \endcode
    */
   void lower_using(Parser &parser);
   /* Example: `A::B` --> `A_B` */
@@ -206,6 +227,9 @@ class SourceProcessor {
   /* Support for BLI swizzle syntax.
    * Examples `a.xy()` --> `a.xy`. */
   void lower_swizzle_methods(Parser &parser);
+  /* Support for binary literals.
+   * Examples `0b1001` --> `0x9`. */
+  void lower_binary_literals(Parser &parser);
   /* Change printf calls to "recursive" call to implementation functions.
    * This allows to emulate the variadic arguments of printf. */
   void lower_printf(Parser &parser);
@@ -229,6 +253,8 @@ class SourceProcessor {
   void lower_empty_struct(Parser &parser);
   /* Transform `a.fn(b)` into `fn(a, b)`. */
   void lower_method_calls(Parser &parser);
+  /* Transform `auto [a, b] = fn()` into `S _tmp = fn(); a = _tmp.A; b = _tmp.B;`. */
+  void lower_structured_bindings(Parser &parser);
   /* Parse, convert to create infos, and erase declaration. */
   void lower_pipeline_definition(Parser &parser, const std::string &filename);
   /* Remove `[vertex|fragment|compute]` function attribute and add appropriate guards. */
@@ -306,6 +332,8 @@ class SourceProcessor {
   void lower_reference_arguments(Parser &parser);
   /* Example: `out float var[2]` > `_ref(float, var)[2]` */
   void lower_argument_qualifiers(Parser &parser);
+  /* Example: `textureGather(t,c,1)` > `textureGather1(t,c)` */
+  void lower_gather_component(Parser &parser);
 
   /* --- Legacy passes for GLSL --- */
 
@@ -323,8 +351,47 @@ class SourceProcessor {
    * Return the fallback value in any case of non-literal value, or failed conversion. */
   int static_array_size(const Scope &array, int fallback_value);
 
+  /* Process struct declaration and instantiate it in this file. */
+  void process_template_struct(metadata::TemplateDefinition &template_def,
+                               SourceProcessor::Parser &parser);
+  /* Process templated function (or class method) declaration and instantiate it in this file. */
+  void process_template_function(metadata::TemplateDefinition &template_def,
+                                 SourceProcessor::Parser &parser,
+                                 /* If method, the end token of the template inside the struct. */
+                                 const Token method_end);
+
+  void lower_pre_template(Parser &parser);
+
+  void lower_template_instantiation(
+      Parser &parser,
+      /* If method, the end token of the template inside the struct. */
+      const Token method_end,
+      const Token &inst_start,
+      const Scope &inst_args,
+      const metadata::TemplateDefinition template_def,
+      const Token &symbol_name,
+      const std::vector<std::string> &arg_list,
+      const std::string &fn_decl,
+      const bool all_template_args_in_function_signature);
+
+  metadata::TemplateDefinition parse_template_definition(SourceProcessor::Parser &parser,
+                                                         Token template_tok,
+                                                         bool is_method,
+                                                         Scope ns_scope,
+                                                         const std::string &filepath);
+
+  void parse_namespace_symbols(SourceProcessor::Parser &parser,
+                               Scope ns,
+                               metadata::Source &metadata,
+                               const std::string &filepath);
+
+  std::string template_full_specified_name(metadata::TemplateDefinition &template_def);
+
  public:
-  /* Remove trailing whitespaces. */
+  /* Check for existence of preprocessor pragma in file. */
+  static bool has_pragma(Parser &parser, std::string_view pragma_str);
+
+  /** Remove trailing white-spaces. */
   static std::string strip_whitespace(const std::string &str);
 
   /* Example: `VertOut<float, 1>` > `VertOutTfloatT1` */
@@ -334,11 +401,12 @@ class SourceProcessor {
   static std::string get_create_info_placeholder(const std::string &name);
 
   /* Make a scope only active based on the given condition using `#if` preprocessor directives.
-   * Processor contained return statements by returning 0 if scope is disabled. */
+   * Processor contained return statements by returning 0 if scope is disabled.
+   * fn_type can be invalid token if scope is not a function scope. */
   static void guarded_scope_mutation(Parser &parser,
                                      Scope scope,
                                      const std::string &condition,
-                                     Token fn_type = Token::invalid());
+                                     Token fn_type);
 
   /* Return `#line 1 filename\n`. */
   static std::string line_directive_prefix(const std::string &filename);

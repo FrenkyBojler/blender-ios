@@ -22,6 +22,8 @@
 #include "BKE_curve.hh"
 #include "BKE_object.hh"
 
+#include "CLG_log.h"
+
 namespace blender {
 
 using Alembic::AbcGeom::FloatArraySamplePtr;
@@ -36,11 +38,11 @@ using Alembic::AbcGeom::IObject;
 
 namespace io::alembic {
 
-AbcNurbsReader::AbcNurbsReader(const IObject &object, ImportSettings &settings)
-    : AbcObjectReader(object, settings)
+static CLG_LogRef LOG = {"io.alembic"};
+
+AbcNurbsReader::AbcNurbsReader(const AbcReaderConstructorArgs &args) : AbcObjectReader(args)
 {
   getNurbsPatches(m_iobject);
-  get_min_max_time(m_iobject, m_schemas[0].first, m_min_time, m_max_time);
 }
 
 bool AbcNurbsReader::valid() const
@@ -89,7 +91,7 @@ static bool set_knots(const FloatArraySamplePtr &knots, float *&nu_knots)
 
   /* Skip first and last knots, as they are used for padding. */
   const size_t num_knots = knots->size() - 2;
-  nu_knots = MEM_calloc_arrayN<float>(num_knots, "abc_setsplineknotsu");
+  nu_knots = MEM_new_array_zeroed<float>(num_knots, "abc_setsplineknotsu");
 
   for (size_t i = 0; i < num_knots; i++) {
     nu_knots[i] = (*knots)[i + 1];
@@ -106,7 +108,7 @@ void AbcNurbsReader::readObjectData(Main *bmain, const Alembic::Abc::ISampleSele
   std::vector<std::pair<INuPatchSchema, IObject>>::iterator it;
 
   for (it = m_schemas.begin(); it != m_schemas.end(); ++it) {
-    Nurb *nu = MEM_new_for_free<Nurb>("abc_getnurb");
+    Nurb *nu = MEM_new<Nurb>("abc_getnurb");
     nu->flag = CU_SMOOTH;
     nu->type = CU_NURBS;
     nu->resolu = cu->resolu;
@@ -118,11 +120,12 @@ void AbcNurbsReader::readObjectData(Main *bmain, const Alembic::Abc::ISampleSele
       smp = schema.getValue(sample_sel);
     }
     catch (Alembic::Util::Exception &ex) {
-      printf("Alembic: error reading nurbs sample for '%s/%s' at time %f: %s\n",
-             m_iobject.getFullName().c_str(),
-             schema.getName().c_str(),
-             sample_sel.getRequestedTime(),
-             ex.what());
+      CLOG_WARN(&LOG,
+                "Error reading nurbs sample for '%s/%s' at time %f: %s",
+                m_iobject.getFullName().c_str(),
+                schema.getName().c_str(),
+                sample_sel.getRequestedTime(),
+                ex.what());
       return;
     }
 
@@ -137,16 +140,17 @@ void AbcNurbsReader::readObjectData(Main *bmain, const Alembic::Abc::ISampleSele
     const FloatArraySamplePtr weights = smp.getPositionWeights();
 
     const size_t num_points = positions->size();
+    const bool has_weights = weights && weights->size() >= num_points;
 
-    nu->bp = MEM_calloc_arrayN<BPoint>(num_points, "abc_setsplinetype");
+    nu->bp = MEM_new_array_zeroed<BPoint>(num_points, "abc_setsplinetype");
 
     BPoint *bp = nu->bp;
     float posw_in = 1.0f;
 
-    for (int i = 0; i < num_points; i++, bp++) {
+    for (size_t i = 0; i < num_points; i++, bp++) {
       const Imath::V3f &pos_in = (*positions)[i];
 
-      if (weights) {
+      if (has_weights) {
         posw_in = (*weights)[i];
       }
 
