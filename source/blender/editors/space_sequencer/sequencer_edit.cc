@@ -4107,42 +4107,49 @@ static wmOperatorStatus sequencer_strip_transform_fit_exec(bContext *C, wmOperat
         SolidColorVars *cv = static_cast<SolidColorVars *>(strip.effectdata);
         const int scene_w = scene->r.xsch;
         const int scene_h = scene->r.ysch;
-        const int cur_w = (cv->flag & SEQ_COLOR_USE_ABSOLUTE_WIDTH) ?
-                              cv->width_abs :
-                              int(cv->width / 100.0f * scene_w);
-        const int cur_h = (cv->flag & SEQ_COLOR_USE_ABSOLUTE_HEIGHT) ?
-                              cv->height_abs :
-                              int(cv->height / 100.0f * scene_h);
-        if (cur_w > 0 && cur_h > 0) {
-          int new_w, new_h;
-          switch (fit_method) {
-            case SEQ_SCALE_TO_FIT: {
-              const float scale = std::min(float(scene_w) / cur_w, float(scene_h) / cur_h);
-              new_w = int(cur_w * scale);
-              new_h = int(cur_h * scale);
-              break;
-            }
-            case SEQ_SCALE_TO_FILL: {
-              const float scale = std::max(float(scene_w) / cur_w, float(scene_h) / cur_h);
-              new_w = int(cur_w * scale);
-              new_h = int(cur_h * scale);
-              break;
-            }
-            case SEQ_STRETCH_TO_FILL:
-              new_w = scene_w;
-              new_h = scene_h;
-              break;
-            case SEQ_USE_ORIGINAL_SIZE:
-              strip.data->transform->scale_x = 1.0f;
-              strip.data->transform->scale_y = 1.0f;
-              seq::relations_invalidate_cache(scene, &strip);
-              continue;
+        const int cur_w = std::max(1, (cv->flag & SEQ_COLOR_USE_ABSOLUTE_WIDTH) ?
+                                          cv->width_abs :
+                                          int(cv->width / 100.0f * scene_w));
+        const int cur_h = std::max(1, (cv->flag & SEQ_COLOR_USE_ABSOLUTE_HEIGHT) ?
+                                          cv->height_abs :
+                                          int(cv->height / 100.0f * scene_h));
+        int new_w, new_h;
+        switch (fit_method) {
+          case SEQ_SCALE_TO_FIT: {
+            const float scale = std::min(float(scene_w) / cur_w, float(scene_h) / cur_h);
+            new_w = int(cur_w * scale);
+            new_h = int(cur_h * scale);
+            break;
           }
-          cv->flag |= SEQ_COLOR_USE_ABSOLUTE_WIDTH | SEQ_COLOR_USE_ABSOLUTE_HEIGHT;
-          cv->width_abs = new_w;
-          cv->height_abs = new_h;
-          seq::relations_invalidate_cache(scene, &strip);
+          case SEQ_SCALE_TO_FILL: {
+            const float scale = std::max(float(scene_w) / cur_w, float(scene_h) / cur_h);
+            new_w = int(cur_w * scale);
+            new_h = int(cur_h * scale);
+            break;
+          }
+          case SEQ_STRETCH_TO_FILL:
+            new_w = scene_w;
+            new_h = scene_h;
+            break;
+          case SEQ_USE_ORIGINAL_SIZE:
+            strip.data->transform->scale_x = 1.0f;
+            strip.data->transform->scale_y = 1.0f;
+            seq::relations_invalidate_cache(scene, &strip);
+            continue;
         }
+        if (cv->flag & SEQ_COLOR_USE_ABSOLUTE_WIDTH) {
+          cv->width_abs = new_w;
+        }
+        else {
+          cv->width = float(new_w) / scene_w * 100.0f;
+        }
+        if (cv->flag & SEQ_COLOR_USE_ABSOLUTE_HEIGHT) {
+          cv->height_abs = new_h;
+        }
+        else {
+          cv->height = float(new_h) / scene_h * 100.0f;
+        }
+        seq::relations_invalidate_cache(scene, &strip);
         continue;
       }
 
