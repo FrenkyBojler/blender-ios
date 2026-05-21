@@ -60,13 +60,13 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeSetGreasePencilSoftness");
+  geo_node_type_base(&ntype, "GeometryNodeSetGreasePencilSoftness"_ustr);
   ntype.ui_name = "Set Grease Pencil Softness";
   ntype.ui_description = "Set softness attribute on Grease Pencil geometry";
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
-  bke::node_type_size(ntype, 180, 120, NODE_DEFAULT_MAX_WIDTH);
+  ntype.default_width = bke::NodeWidth::_180;
   bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)

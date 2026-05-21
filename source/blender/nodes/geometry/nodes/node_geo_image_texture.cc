@@ -429,7 +429,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeImageTexture", GEO_NODE_IMAGE_TEXTURE);
+  geo_node_type_base(&ntype, "GeometryNodeImageTexture"_ustr, GEO_NODE_IMAGE_TEXTURE);
   ntype.ui_name = "Image Texture";
   ntype.ui_description = "Sample values from an image texture";
   ntype.enum_name_legacy = "IMAGE_TEXTURE";
@@ -439,7 +439,7 @@ static void node_register()
   ntype.initfunc = node_init;
   bke::node_type_storage(
       ntype, "NodeGeometryImageTexture", node_free_standard_storage, node_copy_standard_storage);
-  bke::node_type_size_preset(ntype, bke::eNodeSizePreset::Large);
+  ntype.default_width = bke::NodeWidth::_240;
   ntype.geometry_node_execute = node_geo_exec;
 
   bke::node_register_type(ntype);

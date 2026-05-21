@@ -8,7 +8,7 @@
 
 COMPUTE_SHADER_CREATE_INFO(eevee_lightprobe_sphere_remap)
 
-#include "eevee_colorspace_lib.glsl"
+#include "eevee_colorspace_lib.bsl.hh"
 #include "eevee_lightprobe_sphere_mapping_lib.glsl"
 #include "eevee_spherical_harmonics.bsl.hh"
 
@@ -113,13 +113,13 @@ void main()
   }
 
   float sun_threshold = uniform_buf.clamp.sun_threshold;
-  float3 radiance_clamped = colorspace_brightness_clamp_max(radiance, sun_threshold);
+  float3 radiance_clamped = colorspace::brightness_clamp_max(radiance, sun_threshold);
   float3 radiance_sun = radiance - radiance_clamped;
   radiance = radiance_clamped;
 
   if (do_remap_mip0 && !any(greaterThanEqual(local_texel, int2(write_coord.extent)))) {
     float clamp_indirect = uniform_buf.clamp.surface_indirect;
-    float3 out_radiance = colorspace_brightness_clamp_max(radiance, clamp_indirect);
+    float3 out_radiance = colorspace::brightness_clamp_max(radiance, clamp_indirect);
 
     int3 texel = int3(local_texel + write_coord.offset, write_coord.layer);
     imageStore(atlas_img, texel, float4(out_radiance, 1.0f));
@@ -133,6 +133,9 @@ void main()
     /* OpenGL/Intel drivers have known issues where it isn't able to compile barriers inside for
      * loops. Unroll is needed as driver might decide to not unroll in shaders with more
      * complexity. */
+    /* Vulkan validation layers detects a data race on `local_radiance[local_index] +=
+     * local_radiance[local_index + stride]`. This is a false positive. Even when doing a manual
+     * unroll or make the variable `shared coherent` doesn't work around it. */
     for (uint i = 0; i < 10; i++) [[unroll]] {
       barrier();
       uint stride = group_size >> (i + 1u);
@@ -155,6 +158,9 @@ void main()
     /* OpenGL/Intel drivers have known issues where it isn't able to compile barriers inside for
      * loops. Unroll is needed as driver might decide to not unroll in shaders with more
      * complexity. */
+    /* Vulkan validation layers detects a data race on `local_direction[local_index] +=
+     * local_direction[local_index + stride]`. This is a false positive. Even when doing a manual
+     * unroll or make the variable `shared coherent` doesn't work around it. */
     for (uint i = 0; i < 10; i++) [[unroll]] {
       barrier();
       uint stride = group_size >> (i + 1u);
@@ -176,6 +182,9 @@ void main()
     /* OpenGL/Intel drivers have known issues where it isn't able to compile barriers inside for
      * loops. Unroll is needed as driver might decide to not unroll in shaders with more
      * complexity. */
+    /* Vulkan validation layers detects a data race on `local_radiance[local_index] +=
+     * local_radiance[local_index + stride]`. This is a false positive. Even when doing a manual
+     * unroll or make the variable `shared coherent` doesn't work around it. */
     for (uint i = 0; i < 10; i++) [[unroll]] {
       barrier();
       uint stride = group_size >> (i + 1u);

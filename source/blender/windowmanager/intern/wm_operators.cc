@@ -78,6 +78,7 @@
 #include "GPU_matrix.hh"
 #include "GPU_state.hh"
 
+#include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
 
 #include "ED_fileselect.hh"
@@ -2681,8 +2682,7 @@ static void radial_control_set_tex(RadialControl *rc)
         GPU_texture_filter_mode(rc->texture, true);
         GPU_texture_swizzle_set(rc->texture, "111r");
 
-        MEM_delete(ibuf->float_buffer.data);
-        MEM_delete(ibuf);
+        IMB_freeImBuf(ibuf);
       }
       break;
     default:
@@ -4228,6 +4228,7 @@ void wm_operatortypes_register()
   WM_operatortype_append(WM_OT_read_history);
   WM_operatortype_append(WM_OT_read_homefile);
   WM_operatortype_append(WM_OT_read_factory_settings);
+  WM_operatortype_append(WM_OT_save_auto_save);
   WM_operatortype_append(WM_OT_save_homefile);
   WM_operatortype_append(WM_OT_save_userpref);
   WM_operatortype_append(WM_OT_read_userpref);

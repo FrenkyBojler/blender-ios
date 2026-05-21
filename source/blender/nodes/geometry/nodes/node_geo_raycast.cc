@@ -111,7 +111,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
   if (type && *type != CD_PROP_STRING) {
     /* The input and output sockets have the same name. */
     params.add_item(IFACE_("Attribute"), [type](LinkSearchOpParams &params) {
-      bNode &node = params.add_node("GeometryNodeRaycast");
+      bNode &node = params.add_node("GeometryNodeRaycast"_ustr);
       node_storage(node).data_type = *type;
       params.update_and_connect_available_socket(node, "Attribute"_ustr);
     });
@@ -226,6 +226,13 @@ class RaycastFunction : public mf::MultiFunction {
                     params.uninitialized_single_output_if_required<float3>(4, "Hit Position"),
                     params.uninitialized_single_output_if_required<float3>(5, "Hit Normal"),
                     params.uninitialized_single_output_if_required<float>(6, "Distance"));
+  }
+
+  void hash_unique(UniqueHashBytes &hash) const override
+  {
+    static constexpr int8_t id = 0;
+    hash.add(&id);
+    hash.add(target_.get_mesh());
   }
 };
 
@@ -379,14 +386,14 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeRaycast", GEO_NODE_RAYCAST);
+  geo_node_type_base(&ntype, "GeometryNodeRaycast"_ustr, GEO_NODE_RAYCAST);
   ntype.ui_name = "Raycast";
   ntype.ui_description =
       "Cast rays from the context geometry onto a target geometry, and retrieve information from "
       "each hit point";
   ntype.enum_name_legacy = "RAYCAST";
   ntype.nclass = NODE_CLASS_GEOMETRY;
-  bke::node_type_size_preset(ntype, bke::eNodeSizePreset::Middle);
+  ntype.default_width = bke::NodeWidth::_160;
   ntype.initfunc = node_init;
   bke::node_type_storage(
       ntype, "NodeGeometryRaycast", node_free_standard_storage, node_copy_standard_storage);

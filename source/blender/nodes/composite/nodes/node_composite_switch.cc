@@ -51,13 +51,12 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, "CompositorNodeSwitch", CMP_NODE_SWITCH);
+  cmp_node_type_base(&ntype, "CompositorNodeSwitch"_ustr, CMP_NODE_SWITCH);
   ntype.ui_name = "Switch";
   ntype.ui_description = "Switch between two images using a checkbox";
   ntype.enum_name_legacy = "SWITCH";
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = node_declare;
-  bke::node_type_size_preset(ntype, bke::eNodeSizePreset::Default);
   ntype.get_compositor_operation = get_compositor_operation;
 
   bke::node_register_type(ntype);

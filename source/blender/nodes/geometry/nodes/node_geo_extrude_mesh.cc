@@ -537,12 +537,8 @@ static GroupedSpan<int> build_vert_to_edge_map(const Span<int2> edges,
 
   Array<int> masked_edge_to_edge(edge_mask.size());
   edge_mask.to_indices<int>(masked_edge_to_edge);
-
-  threading::parallel_for(r_indices.index_range(), 4096, [&](const IndexRange range) {
-    for (const int i : range) {
-      r_indices[i] = masked_edge_to_edge[r_indices[i]];
-    }
-  });
+  array_utils::gather(
+      masked_edge_to_edge.as_span(), r_indices.as_span(), r_indices.as_mutable_span());
 
   return {r_offsets.as_span(), r_indices.as_span()};
 }
@@ -1554,7 +1550,7 @@ static void node_rna(StructRNA *srna)
 static void node_register()
 {
   static bke::bNodeType ntype;
-  geo_node_type_base(&ntype, "GeometryNodeExtrudeMesh", GEO_NODE_EXTRUDE_MESH);
+  geo_node_type_base(&ntype, "GeometryNodeExtrudeMesh"_ustr, GEO_NODE_EXTRUDE_MESH);
   ntype.ui_name = "Extrude Mesh";
   ntype.ui_description =
       "Generate new vertices, edges, or faces from selected elements and move them based on an "

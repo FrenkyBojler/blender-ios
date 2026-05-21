@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 Alpha (b'227100a72567')\n"
+"Project-Id-Version: Blender 5.2.0 Alpha (b'bc0a0ff2c0ce')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-03-30 09:56+0000\n"
+"POT-Creation-Date: 2026-05-18 11:20+0000\n"
 "PO-Revision-Date: 2025-07-23 15:10+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Serbian <https://translate.blender.org/projects/blender-ui/ui/sr/>\n"
@@ -1497,6 +1497,15 @@ msgid "Vertex Color"
 msgstr "Боја темена"
 
 
+msgid "Threshold"
+msgstr "Праг"
+
+
+msgctxt "Operator"
+msgid "Poly"
+msgstr "Полигон"
+
+
 msgid "All"
 msgstr "Све"
 
@@ -1507,10 +1516,6 @@ msgstr "Прецизност"
 
 msgid "Simplify"
 msgstr "Поједностављивање"
-
-
-msgid "Threshold"
-msgstr "Праг"
 
 
 msgid "Input Samples"
@@ -8481,6 +8486,10 @@ msgid "Dots"
 msgstr "Туфне"
 
 
+msgid "Placement"
+msgstr "Локација"
+
+
 msgid "Material slot in an object"
 msgstr "Слот материјала у објекту"
 
@@ -8489,32 +8498,12 @@ msgid "Material slot name"
 msgstr "Назив слота материјала"
 
 
-msgid "Math"
-msgstr "Математика"
-
-
-msgid "Names"
-msgstr "Имена"
-
-
-msgid "Bone Roll"
-msgstr "Ролна костију"
-
-
-msgid "Show/Hide"
-msgstr "Прикажи/сакриј"
+msgid "Mirror"
+msgstr "Огледало"
 
 
 msgid "Snap"
 msgstr "Лепљење"
-
-
-msgid "Import"
-msgstr "Увоз"
-
-
-msgid "Mirror"
-msgstr "Огледало"
 
 
 msgid "UV Mapping"
@@ -8525,16 +8514,16 @@ msgid "Local View"
 msgstr "Локални поглед"
 
 
+msgid "Math"
+msgstr "Математика"
+
+
 msgid "Navigation"
 msgstr "Навигација"
 
 
 msgid "Align View"
 msgstr "Поравнај поглед"
-
-
-msgid "UV"
-msgstr "UV"
 
 
 msgid "Select Linked"
@@ -8553,6 +8542,10 @@ msgid "Relations"
 msgstr "Односи"
 
 
+msgid "Import"
+msgstr "Увоз"
+
+
 msgid "Rigid Body"
 msgstr "Круто тело"
 
@@ -8567,6 +8560,14 @@ msgstr "Стаза"
 
 msgid "Quick Effects"
 msgstr "Брзи ефекти"
+
+
+msgid "Show/Hide"
+msgstr "Прикажи/сакриј"
+
+
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Hooks"
@@ -8585,12 +8586,8 @@ msgid "Propagate"
 msgstr "Пренеси"
 
 
-msgid "Keying"
-msgstr "Збирка тастера"
-
-
-msgid "Tracking"
-msgstr "Праћење"
+msgid "Names"
+msgstr "Имена"
 
 
 msgid "Toggle Bone Options"
@@ -8615,6 +8612,18 @@ msgstr "Сједини"
 
 msgid "Special Characters"
 msgstr "Специјални знаци"
+
+
+msgid "Bone Roll"
+msgstr "Ролна костију"
+
+
+msgid "Keying"
+msgstr "Збирка тастера"
+
+
+msgid "Tracking"
+msgstr "Праћење"
 
 
 msgid "Basic"
@@ -11238,11 +11247,6 @@ msgstr "Увоз BVH"
 
 
 msgctxt "Operator"
-msgid "Import SVG"
-msgstr "Увоз SVG"
-
-
-msgctxt "Operator"
 msgid "Import FBX"
 msgstr "Извоз FBX"
 
@@ -11982,6 +11986,10 @@ msgid "Add Bone"
 msgstr "Додај кост"
 
 
+msgid "Axes"
+msgstr "Осе"
+
+
 msgid "Name of the newly created bone"
 msgstr "Име новоформиране кости"
 
@@ -12031,6 +12039,10 @@ msgstr "Дуплирај изабрану кост/и"
 
 msgid "Move"
 msgstr "Помери"
+
+
+msgid "Search"
+msgstr "Претрага"
 
 
 msgctxt "Operator"
@@ -12347,10 +12359,6 @@ msgstr "Детектуј могућности"
 
 msgid "Automatically detect features and place markers to track"
 msgstr "Самостално детектуј могућност и постави маркер на стазу"
-
-
-msgid "Placement"
-msgstr "Локација"
 
 
 msgid "Placement for detected features"
@@ -18184,10 +18192,6 @@ msgid "Average Islands Scale"
 msgstr "Просечна величина острва"
 
 
-msgid "Axis Direction"
-msgstr "Смер оса"
-
-
 msgctxt "Operator"
 msgid "Cube Projection"
 msgstr "Кубична пројекција"
@@ -20159,10 +20163,6 @@ msgstr "Ограничи величину текстуре ради уштеде
 
 msgid "Device"
 msgstr "Уређај"
-
-
-msgid "2D Texture"
-msgstr "2D текстура"
 
 
 msgid "Ambient Color"
@@ -22339,10 +22339,6 @@ msgid "Operator Properties"
 msgstr "Особине оператора"
 
 
-msgid "Search"
-msgstr "Претрага"
-
-
 msgctxt "WindowManager"
 msgid "Window"
 msgstr "Прозор"
@@ -22720,10 +22716,6 @@ msgid "Shapes"
 msgstr "Облици"
 
 
-msgid "Axes"
-msgstr "Осе"
-
-
 msgctxt "Operator"
 msgid "Add Image"
 msgstr "Додај слику"
@@ -22780,11 +22772,6 @@ msgstr "Курсор на избор"
 msgctxt "Operator"
 msgid "Cursor to Grid"
 msgstr "Курсор на вођице"
-
-
-msgctxt "Operator"
-msgid "Poly"
-msgstr "Полигон"
 
 
 msgid "Data Source:"
@@ -23996,10 +23983,6 @@ msgstr "Модификатор вредности F-криве"
 
 msgid "Nothing selected"
 msgstr "Ништа није изабрано"
-
-
-msgid "Pin"
-msgstr "Закачи"
 
 
 msgctxt "Operator"

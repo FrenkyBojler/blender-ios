@@ -117,8 +117,10 @@ static bool composite_node_tree_socket_type_valid(bke::bNodeTreeType * /*ntreety
                                                                SOCK_RGBA,
                                                                SOCK_MATRIX,
                                                                SOCK_MENU,
+                                                               SOCK_ROTATION,
                                                                SOCK_STRING,
-                                                               SOCK_OBJECT);
+                                                               SOCK_OBJECT,
+                                                               SOCK_FONT);
 }
 
 /**
@@ -140,6 +142,21 @@ static bool composite_validate_link(eNodeSocketDatatype from_type, eNodeSocketDa
     return true;
   }
 
+  if (ELEM(from_type, SOCK_FLOAT, SOCK_VECTOR) && to_type == SOCK_ROTATION) {
+    return true;
+  }
+
+  if (from_type == SOCK_MATRIX && to_type == SOCK_ROTATION) {
+    return true;
+  }
+  if (from_type == SOCK_ROTATION && to_type == SOCK_MATRIX) {
+    return true;
+  }
+
+  if (from_type == SOCK_ROTATION && to_type == SOCK_VECTOR) {
+    return true;
+  }
+
   return from_type == to_type;
 }
 
@@ -151,7 +168,7 @@ void register_node_tree_type_cmp()
 
   tt->type = NTREE_COMPOSIT;
   tt->idname = "CompositorNodeTree"_ustr;
-  tt->group_idname = "CompositorNodeGroup";
+  tt->group_idname = "CompositorNodeGroup"_ustr;
   tt->ui_name = N_("Compositor");
   tt->ui_icon = ICON_NODE_COMPOSITING;
   tt->ui_description = N_("Create effects and post-process renders, images, and the 3D Viewport");

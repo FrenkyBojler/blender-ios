@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 Alpha (b'227100a72567')\n"
+"Project-Id-Version: Blender 5.2.0 Alpha (b'bc0a0ff2c0ce')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-03-30 09:56+0000\n"
+"POT-Creation-Date: 2026-05-18 11:20+0000\n"
 "PO-Revision-Date: 2025-12-01 09:17+0000\n"
 "Last-Translator: Matt Mitacek <mattmitacek@gmail.com>\n"
 "Language-Team: Czech <https://translate.blender.org/projects/blender-ui/ui/cs/>\n"
@@ -1530,10 +1530,6 @@ msgstr "Zobrazit objekty dostupné v této relaci Blenderu"
 
 msgid "Essentials"
 msgstr "Nezbytnosti"
-
-
-msgid "Show the basic building blocks and utilities coming with Blender"
-msgstr "Zobrazit základní součásti a služby dostupné v Blenderu"
 
 
 msgid "Custom"
@@ -3343,6 +3339,10 @@ msgid "Vertex Color"
 msgstr "Vertex barva"
 
 
+msgid "Threshold"
+msgstr "Práh"
+
+
 msgid "Curve Jitter"
 msgstr "Chvění křivky"
 
@@ -3373,6 +3373,11 @@ msgstr "Pevnost křivky"
 
 msgid "Curve used for the strength"
 msgstr "Křivka použitá pro pevnost"
+
+
+msgctxt "Operator"
+msgid "Poly"
+msgstr "Přehrát"
 
 
 msgid "Eraser Mode"
@@ -3457,10 +3462,6 @@ msgstr "Zjednodušit"
 
 msgid "Number of simplify steps (large values reduce fill accuracy)"
 msgstr "Počet kroků zjednodušení (velké hodnoty snižují přesnost výplně)"
-
-
-msgid "Threshold"
-msgstr "Práh"
 
 
 msgid "Threshold to consider color transparent for filling"
@@ -13818,6 +13819,10 @@ msgid "UV Factor"
 msgstr "UV Faktor"
 
 
+msgid "Placement"
+msgstr "Umístění"
+
+
 msgid "Material slot in an object"
 msgstr "Přivlastnit"
 
@@ -13830,52 +13835,12 @@ msgid "Material slot name"
 msgstr "Název okénka materiálu"
 
 
-msgid "Math"
-msgstr "Matematika"
-
-
-msgid "Names"
-msgstr "Názvy"
-
-
-msgid "Utilities"
-msgstr "Nástroje"
-
-
-msgid "Bone Roll"
-msgstr "Kost"
-
-
-msgid "Show/Hide"
-msgstr "Zobrazit/skrýt"
-
-
-msgid "Clean Up"
-msgstr "Vyčistit"
-
-
-msgid "Pivot Point"
-msgstr "Bod pro pivot"
+msgid "Mirror"
+msgstr "Zrcadlit"
 
 
 msgid "Snap"
 msgstr "Přichytit"
-
-
-msgid "Proportional Editing Falloff"
-msgstr "Způsob útlumu"
-
-
-msgid "Instances"
-msgstr "Instance"
-
-
-msgid "Import"
-msgstr "Importovat"
-
-
-msgid "Mirror"
-msgstr "Zrcadlit"
 
 
 msgid "UV Mapping"
@@ -13886,12 +13851,20 @@ msgid "Local View"
 msgstr "Lokální pohled"
 
 
+msgid "Math"
+msgstr "Matematika"
+
+
 msgid "Navigation"
 msgstr "Navigace"
 
 
 msgid "Align View"
 msgstr "Zarovnat pohled"
+
+
+msgid "Utilities"
+msgstr "Nástroje"
 
 
 msgid "Select Linked"
@@ -13910,8 +13883,16 @@ msgid "Light"
 msgstr "Světlo"
 
 
+msgid "Instances"
+msgstr "Instance"
+
+
 msgid "Relations"
 msgstr "Vztahy"
+
+
+msgid "Import"
+msgstr "Importovat"
 
 
 msgid "Rigid Body"
@@ -13930,16 +13911,20 @@ msgid "Quick Effects"
 msgstr "Rychlé Efekty"
 
 
+msgid "Show/Hide"
+msgstr "Zobrazit/skrýt"
+
+
+msgid "Clean Up"
+msgstr "Vyčistit"
+
+
 msgid "Make Single User"
 msgstr "Přivlastnit"
 
 
 msgid "Hooks"
 msgstr "Háky"
-
-
-msgid "Layout"
-msgstr "Rozložení"
 
 
 msgid "Clear Transform"
@@ -13950,12 +13935,8 @@ msgid "Propagate"
 msgstr "Vložit"
 
 
-msgid "Keying"
-msgstr "Klíčovací sestava"
-
-
-msgid "Tracking"
-msgstr "Sledování"
+msgid "Names"
+msgstr "Názvy"
 
 
 msgid "Mesh Select Mode"
@@ -13970,8 +13951,32 @@ msgid "Merge"
 msgstr "Sloučit"
 
 
+msgid "Layout"
+msgstr "Rozložení"
+
+
 msgid "Special Characters"
 msgstr "Speciální Znaky"
+
+
+msgid "Bone Roll"
+msgstr "Kost"
+
+
+msgid "Keying"
+msgstr "Klíčovací sestava"
+
+
+msgid "Tracking"
+msgstr "Sledování"
+
+
+msgid "Pivot Point"
+msgstr "Bod pro pivot"
+
+
+msgid "Proportional Editing Falloff"
+msgstr "Způsob útlumu"
 
 
 msgid "Basic"
@@ -17940,11 +17945,6 @@ msgstr "Skrýt skryté soubory"
 
 
 msgctxt "Operator"
-msgid "Import SVG"
-msgstr "Importovat"
-
-
-msgctxt "Operator"
 msgid "Import FBX"
 msgstr "Importovat FBX"
 
@@ -18635,11 +18635,11 @@ msgid "Flip times of selected keyframes using the current frame as the mirror li
 msgstr "Převede označené hrany na plošky a označí nové vertexy"
 
 
-msgid "Flip values of selected keyframes (i.e. negative values become positive, and vice versa)"
+msgid "Flip times of selected keyframes using the first selected marker as the reference point"
 msgstr "Převede označené hrany na plošky a označí nové vertexy"
 
 
-msgid "Flip times of selected keyframes using the first selected marker as the reference point"
+msgid "Flip values of selected keyframes (i.e. negative values become positive, and vice versa)"
 msgstr "Převede označené hrany na plošky a označí nové vertexy"
 
 
@@ -18785,6 +18785,11 @@ msgstr "Y Max"
 
 msgid "Y Min"
 msgstr "Y Min"
+
+
+msgctxt "Operator"
+msgid "Select by Type"
+msgstr "Vybrat podle Typu"
 
 
 msgctxt "Operator"
@@ -19244,6 +19249,10 @@ msgid "Add Bone"
 msgstr "Přidat opičku"
 
 
+msgid "Axes"
+msgstr "Osy"
+
+
 msgid "Name of the newly created bone"
 msgstr "Název pro nově vytvořenou kost"
 
@@ -19318,6 +19327,10 @@ msgstr "Přesunout"
 
 msgid "Move selected items"
 msgstr "Přesunout vybrané objekty"
+
+
+msgid "Search"
+msgstr "Hledat"
 
 
 msgctxt "Operator"
@@ -19810,10 +19823,6 @@ msgstr "Vybrat podle vzoru"
 
 msgid "Automatically detect features and place markers to track"
 msgstr "Automatické sloučení vrcholů posuntých na to samé umístění"
-
-
-msgid "Placement"
-msgstr "Umístění"
 
 
 msgid "Placement for detected features"
@@ -21898,11 +21907,11 @@ msgid "Next Keyframe"
 msgstr "Další klíč"
 
 
-msgid "Flip values of selected keyframes using the cursor value (Y/Horizontal component) as the mirror line"
+msgid "Flip times of selected keyframes, effectively reversing the order they appear in"
 msgstr "Převede označené hrany na plošky a označí nové vertexy"
 
 
-msgid "Flip times of selected keyframes, effectively reversing the order they appear in"
+msgid "Flip values of selected keyframes using the cursor value (Y/Horizontal component) as the mirror line"
 msgstr "Převede označené hrany na plošky a označí nové vertexy"
 
 
@@ -23553,11 +23562,6 @@ msgstr "Trojúhleníkové plošky"
 
 msgid "Triangulate selected faces"
 msgstr "Posune vybrané předměty"
-
-
-msgctxt "Operator"
-msgid "Select Boundary Loop"
-msgstr "Vybrat podle typu"
 
 
 msgid "Select boundary edges around the selected faces"
@@ -25390,11 +25394,6 @@ msgstr "Zruší nastavení pro změnu měřítka objektu"
 
 msgid "Change selection of all visible objects in scene"
 msgstr "Změní výběr všech viditelných objektů ve scéně"
-
-
-msgctxt "Operator"
-msgid "Select by Type"
-msgstr "Vybrat podle Typu"
 
 
 msgid "Select all visible objects that are of a type"
@@ -27276,11 +27275,6 @@ msgstr "Přichytávání"
 
 
 msgctxt "Operator"
-msgid "Area Options"
-msgstr "Nastavení oblasti"
-
-
-msgctxt "Operator"
 msgid "Split Area"
 msgstr "Rozdělit oblast"
 
@@ -28787,10 +28781,6 @@ msgstr "Průměrná hodnota"
 msgctxt "Operator"
 msgid "Copy Mirrored UV Coords"
 msgstr "Kopírovat Zrcadlené UV Souřadnice"
-
-
-msgid "Axis Direction"
-msgstr "Odznačit spojené"
 
 
 msgctxt "Operator"
@@ -30361,14 +30351,6 @@ msgid "Restrict"
 msgstr "Omezit"
 
 
-msgid "Active Tool"
-msgstr "Aktivní nástroj"
-
-
-msgid "View Lock"
-msgstr "Zámek zobrazení"
-
-
 msgid "Shadow Settings"
 msgstr "Nastavení Stínů"
 
@@ -30415,6 +30397,14 @@ msgstr "Stereoskopie"
 
 msgid "Auto-Masking"
 msgstr "Auto-Maska"
+
+
+msgid "Active Tool"
+msgstr "Aktivní nástroj"
+
+
+msgid "View Lock"
+msgstr "Zámek zobrazení"
 
 
 msgid "Chain Scaling"
@@ -32395,14 +32385,6 @@ msgstr "GL Omezení Textury"
 
 msgid "Device"
 msgstr "Zařízení"
-
-
-msgid "Image Display Method"
-msgstr "Metoda zobrazení obrázku"
-
-
-msgid "2D Texture"
-msgstr "2D Textura"
 
 
 msgid "Ambient Color"
@@ -35207,6 +35189,10 @@ msgid "Outline Width"
 msgstr "Šířka obrysu"
 
 
+msgid "Line Spacing"
+msgstr "Rozestup Řádků"
+
+
 msgid "Sequence strip creating a wipe transition"
 msgstr "Přidat vazbu aktivní kosti"
 
@@ -36763,10 +36749,6 @@ msgid "Operator Properties"
 msgstr "Generátory"
 
 
-msgid "Search"
-msgstr "Hledat"
-
-
 msgid "Navigate"
 msgstr "Navigovat"
 
@@ -37350,10 +37332,6 @@ msgid "Shapes"
 msgstr "Tvary"
 
 
-msgid "Axes"
-msgstr "Osy"
-
-
 msgid "Display Size X"
 msgstr "Velikost Zobrazení X"
 
@@ -37401,10 +37379,6 @@ msgstr "Rozestup Symbolů"
 
 msgid "Word Spacing"
 msgstr "Rozestup Slov"
-
-
-msgid "Line Spacing"
-msgstr "Rozestup Řádků"
 
 
 msgid "Offset X"
@@ -37519,11 +37493,6 @@ msgstr "Kurzor na Světový Původ"
 msgctxt "Operator"
 msgid "Cursor to Grid"
 msgstr "Kurzor k mřížce"
-
-
-msgctxt "Operator"
-msgid "Poly"
-msgstr "Přehrát"
 
 
 msgctxt "Operator"
@@ -40554,10 +40523,6 @@ msgid "Failed to set value"
 msgstr "Nastavení hodnoty se nezdařilo"
 
 
-msgid "Pin"
-msgstr "Připnout"
-
-
 msgctxt "Operator"
 msgid "Open File Externally"
 msgstr "Otevřít Soubor Externě"
@@ -40907,10 +40872,6 @@ msgstr "Procházet Soubory v Mezipaměti k připojení"
 
 msgid "Browse Workspace to be linked"
 msgstr "Procházet Pracovní Prostředí k připojení"
-
-
-msgid "Browse LightProbe to be linked"
-msgstr "Procházet Světelnou Sondu k připojení"
 
 
 msgid "Browse Point Cloud Data to be linked"

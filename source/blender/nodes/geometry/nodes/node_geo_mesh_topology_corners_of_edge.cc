@@ -126,6 +126,15 @@ class CornersOfEdgeInput final : public bke::MeshFieldInput {
     return VArray<int>::from_container(std::move(corner_of_edge));
   }
 
+  void hash_unique(UniqueHashBytes &hash, fn::FieldHashDeep &deep_hash_cache) const override
+  {
+    static constexpr int8_t id = 0;
+    hash.add(&id);
+    hash.add(deep_hash_cache.ensure(edge_index_));
+    hash.add(deep_hash_cache.ensure(sort_index_));
+    hash.add(deep_hash_cache.ensure(sort_weight_));
+  }
+
   void foreach_recursive_field(FunctionRef<void(const GField &)> fn) const override
   {
     fn(edge_index_);
@@ -155,14 +164,10 @@ class CornersOfEdgeCountInput final : public bke::MeshFieldInput {
     return VArray<int>::from_container(std::move(counts));
   }
 
-  uint64_t hash() const final
+  void hash_unique(UniqueHashBytes &hash, fn::FieldHashDeep & /*deep_hash_cache*/) const override
   {
-    return 2345897985577;
-  }
-
-  bool is_equal_to(const fn::FieldInput &other) const final
-  {
-    return dynamic_cast<const CornersOfEdgeCountInput *>(&other) != nullptr;
+    static constexpr int8_t id = 0;
+    hash.add(&id);
   }
 
   std::optional<AttrDomain> preferred_domain(const Mesh & /*mesh*/) const final
@@ -192,7 +197,8 @@ static void node_geo_exec(GeoNodeExecParams params)
 static void node_register()
 {
   static bke::bNodeType ntype;
-  geo_node_type_base(&ntype, "GeometryNodeCornersOfEdge", GEO_NODE_MESH_TOPOLOGY_CORNERS_OF_EDGE);
+  geo_node_type_base(
+      &ntype, "GeometryNodeCornersOfEdge"_ustr, GEO_NODE_MESH_TOPOLOGY_CORNERS_OF_EDGE);
   ntype.ui_name = "Corners of Edge";
   ntype.ui_description = "Retrieve face corners connected to edges";
   ntype.enum_name_legacy = "CORNERS_OF_EDGE";

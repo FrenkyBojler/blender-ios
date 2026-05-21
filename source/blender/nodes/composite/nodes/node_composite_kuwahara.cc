@@ -833,7 +833,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, "CompositorNodeKuwahara", CMP_NODE_KUWAHARA);
+  cmp_node_type_base(&ntype, "CompositorNodeKuwahara"_ustr, CMP_NODE_KUWAHARA);
   ntype.ui_name = "Kuwahara";
   ntype.ui_description =
       "Apply smoothing filter that preserves edges, for stylized and painterly effects";
@@ -844,7 +844,7 @@ static void node_register()
   bke::node_type_storage(
       ntype, "NodeKuwaharaData", node_free_standard_storage, node_copy_standard_storage);
   ntype.get_compositor_operation = get_compositor_operation;
-  bke::node_type_size(ntype, 150, 140, NODE_DEFAULT_MAX_WIDTH);
+  ntype.default_width = bke::NodeWidth::_160;
 
   bke::node_register_type(ntype);
 }

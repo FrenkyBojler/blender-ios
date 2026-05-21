@@ -130,6 +130,9 @@ static void node_declare(NodeDeclarationBuilder &b)
                               SOCK_MASK,
                               SOCK_SOUND));
     input.structure_type(value_structure_type);
+    if (ntree->type == NTREE_COMPOSIT) {
+      input.compositor_realization_mode(CompositorInputRealizationMode::None);
+    }
   }
 
   auto &output = b.add_output(data_type, "Output"_ustr);
@@ -213,7 +216,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 {
   if (params.in_out() == SOCK_OUT) {
     params.add_item(IFACE_("Output"), [](LinkSearchOpParams &params) {
-      bNode &node = params.add_node("GeometryNodeIndexSwitch");
+      bNode &node = params.add_node("GeometryNodeIndexSwitch"_ustr);
       node_storage(node).data_type = params.socket.type;
       params.update_and_connect_available_socket(node, "Output"_ustr);
     });
@@ -222,7 +225,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
     const eNodeSocketDatatype other_type = eNodeSocketDatatype(params.other_socket().type);
     if (params.node_tree().typeinfo->validate_link(other_type, SOCK_INT)) {
       params.add_item(IFACE_("Index"), [](LinkSearchOpParams &params) {
-        bNode &node = params.add_node("GeometryNodeIndexSwitch");
+        bNode &node = params.add_node("GeometryNodeIndexSwitch"_ustr);
         params.update_and_connect_available_socket(node, "Index"_ustr);
       });
     }
@@ -509,7 +512,7 @@ static void register_node()
 {
   static bke::bNodeType ntype;
 
-  geo_cmp_node_type_base(&ntype, "GeometryNodeIndexSwitch", GEO_NODE_INDEX_SWITCH);
+  geo_cmp_node_type_base(&ntype, "GeometryNodeIndexSwitch"_ustr, GEO_NODE_INDEX_SWITCH);
   ntype.ui_name = "Index Switch";
   ntype.ui_description = "Choose between an arbitrary number of values with an index";
   ntype.enum_name_legacy = "INDEX_SWITCH";
