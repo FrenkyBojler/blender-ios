@@ -523,7 +523,7 @@ set(GLSL_SRC
   engines/eevee/shaders/eevee_surfel_cluster_build_comp.glsl
   engines/eevee/shaders/eevee_surfel_light.bsl.hh
   engines/eevee/shaders/eevee_surfel_list.bsl.hh
-  engines/eevee/shaders/eevee_surfel_ray_comp.glsl
+  engines/eevee/shaders/eevee_surfel_ray.bsl.hh
   engines/eevee/shaders/eevee_thickness_lib.bsl.hh
   engines/eevee/shaders/eevee_transparency.bsl.hh
   engines/eevee/shaders/eevee_utility_tx.bsl.hh

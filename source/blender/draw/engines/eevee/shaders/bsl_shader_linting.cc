@@ -63,6 +63,7 @@
 #include "eevee_surf_world.bsl.hh"                   /* IWYU pragma: export */
 #include "eevee_surfel_light.bsl.hh"                 /* IWYU pragma: export */
 #include "eevee_surfel_list.bsl.hh"                  /* IWYU pragma: export */
+#include "eevee_surfel_ray.bsl.hh"                   /* IWYU pragma: export */
 #include "eevee_thickness_lib.bsl.hh"                /* IWYU pragma: export */
 #include "eevee_transparency.bsl.hh"                 /* IWYU pragma: export */
 #include "eevee_velocity.bsl.hh"                     /* IWYU pragma: export */
