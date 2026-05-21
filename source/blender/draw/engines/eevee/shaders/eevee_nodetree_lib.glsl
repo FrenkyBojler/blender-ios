@@ -513,10 +513,6 @@ float2 bsdf_lut(float cos_theta, float roughness, float ior, bool do_multiscatte
   return float2(reflectance.r, transmittance.r);
 }
 
-#ifdef GPU_VERTEX_SHADER
-#  define closure_to_rgba(a) float4(0.0f)
-#endif
-
 /* -------------------------------------------------------------------- */
 /** \name Fragment Displacement
  *
@@ -711,6 +707,12 @@ float4 attr_load_color_post(float4 attr)
 float4 attr_load_uniform(float4 /*attr*/, const uint attr_hash)
 {
   return drw_object_attribute(attr_hash);
+}
+
+void scene_time_uniforms(float &seconds, float &frame)
+{
+  seconds = uniform_buf.scene.time;
+  frame = uniform_buf.scene.frame;
 }
 
 /** \} */
