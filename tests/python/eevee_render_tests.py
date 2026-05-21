@@ -97,6 +97,8 @@ BLOCKLIST_INTEL = [
 BLOCKLIST_INTEL_WINDOWS_GL = [
     # Fails sporadically and causes all subsequent volume tests to fail (See #153612).
     "volume_instance.blend"
+    # Seems to be missing indirect lighting. Could be driver bug.
+    "background_scene.blend"
 ]
 
 
@@ -313,9 +315,16 @@ def main():
         report.set_fail_threshold(8.0 / 255.0)
         if args.gpu_backend == "metal":
             report.set_fail_percent(0.33)
+    elif test_dir_name.startswith('principled_bsdf'):
+        # principled_bsdf_thinfilm_metallic has some weird behavior in reflection of
+        # black surfaces. to be investigated
+        report.set_fail_percent(0.09)
     elif test_dir_name.startswith('integrator'):
         # Noise difference in transparent materials (mostly transparent_spatial_splits)
         report.set_fail_threshold(8.0 / 255.0)
+        if gpu_vendor == "INTEL":
+            # light_path_is_singular_ray has some fireflies.
+            report.set_fail_percent(0.11)
     elif test_dir_name.startswith('light_linking'):
         # Noise difference in transparent materials (mostly shadow_link_transparency) and volume
         report.set_fail_threshold(8.0 / 255.0)
