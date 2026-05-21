@@ -127,7 +127,7 @@ static std::optional<SpaceChainData> walk_edges(BMEdge *start_edge, Set<BMEdge *
       }
       v_curr = v_next;
       visited_verts.add(v_curr);
-      list.append(v_curr);
+      result.append(v_curr);
       r_visited.add(e_next);
     }
   };
