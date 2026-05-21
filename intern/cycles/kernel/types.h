@@ -255,9 +255,6 @@ enum PathRayMNEE {
   PATH_MNEE_VALID = (1U << 0U),
   PATH_MNEE_RECEIVER_ANCESTOR = (1U << 1U),
   PATH_MNEE_CULL_LIGHT_CONNECTION = (1U << 2U),
-
-  /* MNEE path was successfully sampled in intersect_mnee. */
-  PATH_MNEE_SAMPLED = (1U << 3U),
 };
 
 /* Configure ray visibility bits for rays and objects respectively,
