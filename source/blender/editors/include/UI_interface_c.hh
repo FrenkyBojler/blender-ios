@@ -350,7 +350,7 @@ enum ButtonFlag {
   BUT_NODE_LINK = 1 << 10,
   BUT_NODE_ACTIVE = 1 << 11,
   BUT_DRAG_LOCK = 1 << 12,
-  BUT_DRAG_LOCK_PROP = BUT_DRAG_LOCK | 1 << 21,
+  BUT_DRAG_LOCK_X = BUT_DRAG_LOCK | 1 << 21,
 
   /** Grayed out and un-editable. */
   BUT_DISABLED = 1 << 13,
