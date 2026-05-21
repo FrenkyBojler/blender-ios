@@ -18,7 +18,8 @@ bool HIPDeviceKernels::load_kernel(HIPDevice *device,
     return true;
   }
 
-  if (!device_kernel_has_gpu_function(kernel)) {
+  /* No mega-kernel used for GPU. */
+  if (kernel == DEVICE_KERNEL_INTEGRATOR_MEGAKERNEL) {
     return false;
   }
 
@@ -61,9 +62,9 @@ void HIPDeviceKernels::load_raytrace(HIPDevice *device, hipModule_t hip_module)
   load_kernel(device, hip_module, DEVICE_KERNEL_INTEGRATOR_INTERSECT_SUBSURFACE);
   load_kernel(device, hip_module, DEVICE_KERNEL_INTEGRATOR_INTERSECT_VOLUME_STACK);
   load_kernel(device, hip_module, DEVICE_KERNEL_INTEGRATOR_INTERSECT_DEDICATED_LIGHT);
-  load_kernel(device, hip_module, DEVICE_KERNEL_INTEGRATOR_INTERSECT_MNEE);
 
   load_kernel(device, hip_module, DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE_RAYTRACE);
+  load_kernel(device, hip_module, DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE_MNEE);
 }
 
 const HIPDeviceKernel &HIPDeviceKernels::get(DeviceKernel kernel) const
