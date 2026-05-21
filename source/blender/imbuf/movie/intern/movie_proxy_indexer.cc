@@ -123,6 +123,7 @@ struct proxy_output_ctx {
   SwsContext *sws_ctx;
   AVFrame *frame;
   int cfra;
+  AVRational output_timebase;
   IMB_Proxy_Size proxy_size;
   int orig_height;
   MovieReader *anim;
@@ -187,10 +188,11 @@ static proxy_output_ctx *alloc_proxy_output_ffmpeg(MovieReader *anim,
 
   rv->c->sample_aspect_ratio = rv->st->sample_aspect_ratio = st->sample_aspect_ratio;
 
-  rv->c->time_base.den = 25;
-  rv->c->time_base.num = 1;
-  rv->st->time_base = rv->c->time_base;
-  rv->st->avg_frame_rate = av_inv_q(rv->c->time_base);
+  /* Use same output timebase as input. */
+  rv->output_timebase = st->time_base;
+  rv->c->time_base = st->time_base;
+  rv->st->time_base = st->time_base;
+  rv->st->avg_frame_rate = st->avg_frame_rate;
 
   /* This range matches #eFFMpegCrf. `crf_range_min` corresponds to lowest quality,
    * `crf_range_max` to highest quality. */
@@ -308,11 +310,15 @@ static proxy_output_ctx *alloc_proxy_output_ffmpeg(MovieReader *anim,
   return rv;
 }
 
-static void add_to_proxy_output_ffmpeg(proxy_output_ctx *ctx, AVFrame *frame)
+static void add_to_proxy_output_ffmpeg(proxy_output_ctx *ctx,
+                                       AVFrame *frame,
+                                       AVRational input_timebase)
 {
   if (!ctx) {
     return;
   }
+
+  const int64_t src_pts = frame ? frame->pts : AV_NOPTS_VALUE;
 
   if (ctx->sws_ctx && frame &&
       (frame->data[0] || frame->data[1] || frame->data[2] || frame->data[3]))
@@ -323,7 +329,13 @@ static void add_to_proxy_output_ffmpeg(proxy_output_ctx *ctx, AVFrame *frame)
   frame = ctx->sws_ctx ? (frame ? ctx->frame : nullptr) : frame;
 
   if (frame) {
-    frame->pts = ctx->cfra++;
+    if (src_pts != AV_NOPTS_VALUE) {
+      frame->pts = av_rescale_q(src_pts, input_timebase, ctx->output_timebase);
+    }
+    else {
+      frame->pts = ctx->cfra;
+    }
+    ctx->cfra++;
   }
 
   int ret = avcodec_send_frame(ctx->c, frame);
@@ -391,7 +403,7 @@ static void free_proxy_output_ffmpeg(proxy_output_ctx *ctx, int rollback)
 
   if (!rollback) {
     /* Flush the remaining packets. */
-    add_to_proxy_output_ffmpeg(ctx, nullptr);
+    add_to_proxy_output_ffmpeg(ctx, nullptr, {1, 1});
   }
 
   av_write_trailer(ctx->of);
@@ -575,7 +587,7 @@ static void proxy_builder_finish(MovieProxyBuilder *context, const bool stop)
 static void proxy_builder_proc_decoded_frame(MovieProxyBuilder *context, AVFrame *in_frame)
 {
   for (int i = 0; i < context->num_proxy_sizes; i++) {
-    add_to_proxy_output_ffmpeg(context->proxy_ctx[i], in_frame);
+    add_to_proxy_output_ffmpeg(context->proxy_ctx[i], in_frame, context->iStream->time_base);
   }
 }
 
