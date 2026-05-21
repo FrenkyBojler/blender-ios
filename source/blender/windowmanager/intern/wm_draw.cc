@@ -1196,30 +1196,28 @@ static void wm_draw_window_onscreen(bContext *C, wmWindow *win, int view)
   wm_draw_callbacks(win);
   wmWindowViewport(win);
 
-  if (U.experimental.use_toast_notifications) {
-    /* Draw toast notifications oldest to newest. */
-    for (ARegion &region : screen->regionbase.items_reversed_mutable()) {
-      if (region.regiontype != RGN_TYPE_NOTIFICATION) {
-        continue;
-      }
-      if (region.flag & RGN_FLAG_HIDDEN) {
-        /* Expired so remove. */
-        wmWindow *win = CTX_wm_window(C);
-        if (win) {
-          wm_draw_region_clear(win, &region);
-        }
-        ED_region_exit(C, &region);
-        BKE_area_region_free(nullptr, &region);
-        BLI_freelinkN(&screen->regionbase, &region);
-        continue;
-      }
-
-      GPU_viewport(region.winrct.xmin, region.winrct.ymin, region.winx, region.winy);
-      wmOrtho2_region_pixelspace(&region);
-      region.runtime->type->draw_overlay(C, &region);
+  /* Draw toast notifications oldest to newest. */
+  for (ARegion &region : screen->regionbase.items_reversed_mutable()) {
+    if (region.regiontype != RGN_TYPE_NOTIFICATION) {
+      continue;
     }
-    wmWindowViewport(win);
+    if (region.flag & RGN_FLAG_HIDDEN) {
+      /* Expired so remove. */
+      wmWindow *win = CTX_wm_window(C);
+      if (win) {
+        wm_draw_region_clear(win, &region);
+      }
+      ED_region_exit(C, &region);
+      BKE_area_region_free(nullptr, &region);
+      BLI_freelinkN(&screen->regionbase, &region);
+      continue;
+    }
+
+    GPU_viewport(region.winrct.xmin, region.winrct.ymin, region.winx, region.winy);
+    wmOrtho2_region_pixelspace(&region);
+    region.runtime->type->draw_overlay(C, &region);
   }
+  wmWindowViewport(win);
 
   /* Blend in floating regions (menus). */
   for (ARegion &region : screen->regionbase) {

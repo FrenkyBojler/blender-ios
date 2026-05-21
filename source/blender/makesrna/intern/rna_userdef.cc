@@ -5123,8 +5123,35 @@ static void rna_def_userdef_view(BlenderRNA *brna)
       prop, "Developer Extras", "Display advanced settings and tools for developers");
   RNA_def_property_update(prop, 0, "rna_userdef_update");
 
+  static const EnumPropertyItem notification_position_items[] = {
+      {int(eUserpref_NotificationPosition::Right),
+       "RIGHT",
+       0,
+       "Right",
+       "Align toast notifications to the right"},
+      {int(eUserpref_NotificationPosition::Left),
+       "LEFT",
+       0,
+       "Left",
+       "Align toast notifications to the left"},
+      {int(eUserpref_NotificationPosition::Center),
+       "CENTER",
+       0,
+       "Center",
+       "Center-align toast notifications"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  prop = RNA_def_property(srna, "notification_position", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, notification_position_items);
+  RNA_def_property_enum_sdna(prop, nullptr, "notification_position");
+  RNA_def_property_enum_default(prop, int(eUserpref_NotificationPosition::Right));
+  RNA_def_property_ui_text(
+      prop, "Notification Position", "Position of toast notifications relative to the window");
+  RNA_def_property_update(prop, 0, "rna_userdef_update");
+
   prop = RNA_def_property(srna, "notification_seconds", PROP_FLOAT, PROP_TIME);
-  RNA_def_property_range(prop, 0.0f, 30.0f);
+  RNA_def_property_range(prop, 1.0f, 30.0f);
   RNA_def_property_ui_range(prop, 2.0f, 20.0f, 100.0f, 1);
   RNA_def_property_ui_text(
       prop, "Notification Duration", "Minimum time in seconds to display notifications");
@@ -7714,9 +7741,6 @@ static void rna_def_userdef_experimental(BlenderRNA *brna)
       prop, "Geometry Nodes Hair Dynamics", "Enable hair dynamics simulation in geometry nodes");
   RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
   RNA_def_property_update(prop, 0, "rna_userdef_use_geometry_nodes_hair_dynamics_update");
-
-  prop = RNA_def_property(srna, "use_toast_notifications", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_ui_text(prop, "Toast Notifications", "Enable toast notifications");
 
   prop = RNA_def_property(srna, "use_extensions_debug", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_ui_text(

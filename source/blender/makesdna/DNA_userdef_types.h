@@ -185,6 +185,13 @@ enum eUserpref_UI_Flag2 : char {
 };
 ENUM_OPERATORS(eUserpref_UI_Flag2)
 
+/** #UserDef.notification_position */
+enum class eUserpref_NotificationPosition : int8_t {
+  Right = 0,
+  Left = 1,
+  Center = 2,
+};
+
 /** #UserDef.gpu_flag */
 enum eUserpref_GPU_Flag : char {
   USER_GPU_FLAG_UNUSED_0 = (1 << 0), /* Unused. To be removed. */
@@ -855,8 +862,7 @@ struct UserDef_Experimental {
   char use_remote_asset_libraries = 0;
   char use_collection_importer = 0;
   char use_geometry_nodes_hair_dynamics = 0;
-  char use_toast_notifications = 0;
-  char _pad[1] = {};
+  char _pad[2] = {};
 };
 
 #define USER_EXPERIMENTAL_TEST(userdef, member) (((userdef)->experimental).member)
@@ -967,6 +973,8 @@ struct UserDef {
   char time_format = 0;
 
   float notification_seconds = 2.0f;
+  eUserpref_NotificationPosition notification_position = eUserpref_NotificationPosition::Right;
+  char _pad8[7] = {};
 
   /* Experimental flag for app-templates to make changes to behavior
    * which are outside the scope of typical preferences. */

@@ -1767,7 +1767,7 @@ void blo_do_versions_userdef(UserDef *userdef)
     }
   }
 
-  if (!USER_VERSION_ATLEAST(502, 100)) {
+  if (userdef->notification_seconds == 0.0f) {
     userdef->notification_seconds = U_default.notification_seconds;
   }
 

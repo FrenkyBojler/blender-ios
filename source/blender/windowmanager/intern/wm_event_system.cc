@@ -4375,13 +4375,11 @@ void wm_event_do_handlers(bContext *C)
         }
 #endif
 
-        if (U.experimental.use_toast_notifications) {
-          for (ARegion &region : screen->regionbase) {
-            if ((region.regiontype == RGN_TYPE_NOTIFICATION) &&
-                BLI_rcti_isect_pt_v(&region.winrct, event->xy))
-            {
-              ui::notification::event_handler(C, &region, event);
-            }
+        for (ARegion &region : screen->regionbase) {
+          if ((region.regiontype == RGN_TYPE_NOTIFICATION) &&
+              BLI_rcti_isect_pt_v(&region.winrct, event->xy))
+          {
+            ui::notification::event_handler(C, &region, event);
           }
         }
 

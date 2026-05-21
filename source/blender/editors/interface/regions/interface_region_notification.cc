@@ -173,7 +173,17 @@ static void notification_region_layout_fn(const bContext *C, ARegion *region)
 
   wmWindow *win = CTX_wm_window(C);
 
-  int pos_x = (win->sizex - (MARGIN * UI_SCALE_FAC / 2)) - width;
+  int pos_x;
+  if (U.notification_position == eUserpref_NotificationPosition::Left) {
+    pos_x = (MARGIN * UI_SCALE_FAC / 2);
+  }
+  else if (U.notification_position == eUserpref_NotificationPosition::Center) {
+    pos_x = (win->sizex / 2) - (width / 2);
+  }
+  else {
+    pos_x = (win->sizex - (MARGIN * UI_SCALE_FAC / 2)) - width;
+  }
+
   const int initial_y = data->initial_y;
 
   region->winrct.xmin = pos_x;

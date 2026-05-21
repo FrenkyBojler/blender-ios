@@ -247,10 +247,10 @@ class USERPREF_PT_interface_display(InterfacePanel, CenterAlignMixIn, Panel):
         col.prop(prefs, "use_recent_searches", text="Sort by Most Recent")
         col.prop(prefs, "show_hidden_ids", text="Show Hidden")
 
-        if prefs.experimental.use_toast_notifications:
-            col.separator()
-            row = col.row()
-            col.prop(view, "notification_seconds", text="Notification Duration")
+        col.separator()
+        row = col.row()
+        row.prop(view, "notification_position", expand=True, text="Notifications")
+        col.prop(view, "notification_seconds", text="Duration")
 
 
 class USERPREF_PT_interface_text(InterfacePanel, CenterAlignMixIn, Panel):
@@ -3106,7 +3106,6 @@ class USERPREF_PT_experimental_new_features(ExperimentalPanel, Panel):
                 ({"property": "use_remote_asset_libraries"}, ("blender/blender/issues/134495", "#134495")),
                 ({"property": "use_collection_importer"}, ("blender/blender/issues/132171", "#132171")),
                 ({"property": "use_geometry_nodes_hair_dynamics"}, ("blender/blender/issues/141609", "#141609")),
-                ({"property": "use_toast_notifications"}, ("blender/blender/pulls/149609", "#149609")),
             ),
         )
 
