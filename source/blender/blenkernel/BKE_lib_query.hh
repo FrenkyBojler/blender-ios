@@ -26,6 +26,8 @@
 
 #include <array>
 
+namespace blender {
+
 struct IDTypeInfo;
 struct LibraryForeachIDData;
 struct Main;
@@ -114,15 +116,17 @@ enum LibraryForeachIDCallbackFlag {
   /** This ID is used as library override's reference by its owner. */
   IDWALK_CB_OVERRIDE_LIBRARY_REFERENCE = (1 << 16),
 
+  /** This ID is used as library override's hierarchy root by its owner. */
+  IDWALK_CB_OVERRIDE_LIBRARY_HIERARCHY_ROOT = (1 << 17),
+
   /** This ID pointer is not overridable. */
-  IDWALK_CB_OVERRIDE_LIBRARY_NOT_OVERRIDABLE = (1 << 17),
+  IDWALK_CB_OVERRIDE_LIBRARY_NOT_OVERRIDABLE = (1 << 18),
 
   /** This ID pointer is expected to be overridden by default, in liboverride hierarchy context. */
-  IDWALK_CB_OVERRIDE_LIBRARY_HIERARCHY_DEFAULT = (1 << 18),
+  IDWALK_CB_OVERRIDE_LIBRARY_HIERARCHY_DEFAULT = (1 << 19),
 
   /** This ID pointer is runtime data and it should not affect the ID.deep_hash computation. */
-  IDWALK_CB_HASH_IGNORE = (1 << 19),
-
+  IDWALK_CB_HASH_IGNORE = (1 << 20),
 };
 ENUM_OPERATORS(LibraryForeachIDCallbackFlag);
 
@@ -321,7 +325,7 @@ void BKE_lib_query_idpropertiesForeachIDLink_callback(IDProperty *id_prop, void 
  */
 void BKE_library_foreach_ID_link(Main *bmain,
                                  ID *id,
-                                 blender::FunctionRef<LibraryIDLinkCallback> callback,
+                                 FunctionRef<LibraryIDLinkCallback> callback,
                                  void *user_data,
                                  LibraryForeachIDFlag flag);
 
@@ -358,8 +362,8 @@ void BKE_library_foreach_subdata_id(
     Main *bmain,
     ID *owner_id,
     ID *self_id,
-    blender::FunctionRef<void(LibraryForeachIDData *data)> subdata_foreach_id,
-    blender::FunctionRef<LibraryIDLinkCallback> callback,
+    FunctionRef<void(LibraryForeachIDData *data)> subdata_foreach_id,
+    FunctionRef<LibraryIDLinkCallback> callback,
     void *user_data,
     const LibraryForeachIDFlag flag);
 
@@ -432,7 +436,7 @@ struct LibQueryUnusedIDsData {
    * Allows for more complex handling of which IDs should be deleted, on top of the basic
    * local/linked choices.
    */
-  blender::FunctionRef<bool(ID *id)> filter_fn = nullptr;
+  FunctionRef<bool(ID *id)> filter_fn = nullptr;
 
   /**
    * Amount of detected as unused data-blocks, per type and total as the last value of the array
@@ -468,15 +472,7 @@ struct LibQueryUnusedIDsData {
  * Valid usages here are defined as ref-counting usages, which are not towards embedded or
  * loop-back data.
  *
- * \param r_num_total: A zero-initialized array of #INDEX_ID_MAX integers. Number of IDs detected
- * as unused from given parameters, per ID type in the matching index, and as total in
- * #INDEX_ID_NULL item.
- * \param r_num_local: A zero-initialized array of #INDEX_ID_MAX integers. Number of local IDs
- * detected as unused from given parameters (but assuming \a do_local_ids is true), per ID type in
- * the matching index, and as total in #INDEX_ID_NULL item.
- * \param r_num_linked: A zero-initialized array of #INDEX_ID_MAX integers. Number of linked IDs
- * detected as unused from given parameters (but assuming \a do_linked_ids is true), per ID type in
- * the matching index, and as total in #INDEX_ID_NULL item.
+ * \param parameters: Input options and return values.
  */
 void BKE_lib_query_unused_ids_amounts(Main *bmain, LibQueryUnusedIDsData &parameters);
 /**
@@ -491,9 +487,6 @@ void BKE_lib_query_unused_ids_amounts(Main *bmain, LibQueryUnusedIDsData &parame
  * loop-back data.
  *
  * \param tag: the ID tag to use to mark the ID as unused. Should never be `0`.
- * \param r_num_tagged_total: A zero-initialized array of #INDEX_ID_MAX integers. Number of IDs
- * tagged as unused from given parameters, per ID type in the matching index, and as total in
- * #INDEX_ID_NULL item.
  */
 void BKE_lib_query_unused_ids_tag(Main *bmain, int tag, LibQueryUnusedIDsData &parameters);
 
@@ -516,3 +509,5 @@ void BKE_library_unused_linked_data_set_tag(Main *bmain, bool do_init_tag);
  * since they are only used by other data-blocks that will also be made fully local.
  */
 void BKE_library_indirectly_used_data_tag_clear(Main *bmain);
+
+}  // namespace blender

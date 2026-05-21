@@ -4,36 +4,28 @@
 
 #pragma once
 
-#include <cstdint>
-
 #include "BLI_bounds_types.hh"
-#include "BLI_enum_flags.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_string_ref.hh"
 
 #include "DNA_scene_types.h"
-
 #include "DNA_sequence_types.h"
+
 #include "GPU_shader.hh"
+
+#include "BKE_compute_context_cache.hh"
 
 #include "COM_domain.hh"
 #include "COM_meta_data.hh"
-#include "COM_profiler.hh"
 #include "COM_render_context.hh"
 #include "COM_result.hh"
 #include "COM_static_cache_manager.hh"
 
-namespace blender::compositor {
+namespace blender::nodes::eval_log {
+class NodesEvalLog;
+}  // namespace blender::nodes::eval_log
 
-/* Enumerates the possible outputs that the compositor can compute. */
-enum class OutputTypes : uint8_t {
-  None = 0,
-  Composite = 1 << 0,
-  Viewer = 1 << 1,
-  FileOutput = 1 << 2,
-  Previews = 1 << 3,
-};
-ENUM_OPERATORS(OutputTypes)
+namespace blender::compositor {
 
 /* ------------------------------------------------------------------------------------------------
  * Context
@@ -55,40 +47,20 @@ class Context {
   /* Get the compositing scene. */
   virtual const Scene &get_scene() const = 0;
 
-  /* Get the node tree used for compositing. */
-  virtual const bNodeTree &get_node_tree() const = 0;
-
-  /* Returns all output types that should be computed. */
-  virtual OutputTypes needed_outputs() const = 0;
-
-  /* Returns the domain that the inputs and outputs of the context will be in. Note that the inputs
-   * might be larger than this domain, and relevant input operations need to crop the inputs to
-   * match this domain by calling the get_input_region method. Also note that the context might
-   * require the output to be returned as is without being constrained by this domain by returning
-   * false in the use_context_bounds_for_input_output method. */
+  /* Returns the domain that the inputs and outputs of the context will be in. */
   virtual Domain get_compositing_domain() const = 0;
 
-  /* Write the result of the compositor. */
-  virtual void write_output(const Result &result) = 0;
-
   /* Write the result of the compositor viewer. */
-  virtual void write_viewer(const Result &result) = 0;
-
-  /* Get the result where the given input is stored. */
-  virtual Result get_input(StringRef name) = 0;
+  virtual void write_viewer(Result &viewer_result) = 0;
 
   /* True if the compositor should use GPU acceleration. */
   virtual bool use_gpu() const = 0;
 
-  /* Get the rectangular region representing the area of the input that should be read from the
-   * get_input and get_pass methods. In the base case, the input region covers the entirety of the
-   * input. In other cases, the input region might be a subset of the input. */
-  virtual Bounds<int2> get_input_region() const;
-
   /* Get the strip that the compositing modifier is applied to. */
   virtual const Strip *get_strip() const;
 
-  /* Get the result where the given pass is stored. */
+  /* Get the pass with the given name in the given view layer and scene. Freeing the pass is the
+   * caller's responsibility. */
   virtual Result get_pass(const Scene *scene, int view_layer, const char *name);
 
   /* Get the render settings for compositing. This could be different from scene->r render settings
@@ -107,15 +79,9 @@ class Context {
    * appropriate place, which can be directly in the UI or just logged to the output stream. */
   virtual void set_info_message(StringRef message) const;
 
-  /* True if the compositor should treat viewers as composite outputs because it has no concept of
-   * or support for viewers. */
-  virtual bool treat_viewer_as_compositor_output() const;
-
-  /* True if the compositor inputs/outputs should be in the compositing domain. */
-  virtual bool use_compositing_domain_for_input_output() const
-  {
-    return true;
-  }
+  /* True if the compositor should treat viewer nodes as group output nodes because it has no
+   * concept of or support for viewers. */
+  virtual bool treat_viewer_as_group_output() const;
 
   /* Populates the given meta data from the render stamp information of the given render pass. */
   virtual void populate_meta_data_for_pass(const Scene *scene,
@@ -128,9 +94,9 @@ class Context {
    * render pipeline. */
   virtual RenderContext *render_context() const;
 
-  /* Get a pointer to the profiler of this context. It might be null if the compositor context does
-   * not support profiling. */
-  virtual Profiler *profiler() const;
+  /* Returns a pointer to a nodes evaluation log of the context, this can be nullptr for context
+   * that does not support logging. */
+  virtual nodes::eval_log::NodesEvalLog *nodes_evaluation_log() const;
 
   /* Gets called after the evaluation of each compositor operation. See overrides for possible
    * uses. */

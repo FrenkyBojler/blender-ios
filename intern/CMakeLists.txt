@@ -2,7 +2,6 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-# add_subdirectory(atomic)  # header only
 add_subdirectory(atomic)
 add_subdirectory(clog)
 add_subdirectory(ghost)
@@ -70,4 +69,12 @@ if(UNIX AND NOT APPLE)
   if(WITH_GHOST_WAYLAND AND WITH_GHOST_WAYLAND_DYNLOAD)
     add_subdirectory(wayland_dynload)
   endif()
+endif()
+
+if(WITH_DRACO)
+  add_subdirectory(draco_bridge)
+endif()
+
+if (WITH_MESHOPTIMIZER)
+  add_subdirectory(meshoptimizer_bridge)
 endif()

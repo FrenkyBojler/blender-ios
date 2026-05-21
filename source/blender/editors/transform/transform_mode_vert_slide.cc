@@ -283,7 +283,9 @@ static eRedrawFlag handleEventVertSlide(TransInfo *t, const wmEvent *event)
             /* Update the slide direction for every selected object. */
             FOREACH_TRANS_DATA_CONTAINER (t, tc) {
               VertSlideData *sld = static_cast<VertSlideData *>(tc->custom.mode.data);
-              sld->update_active_edges(t, tc, dir_unit);
+              if (sld) {
+                sld->update_active_edges(t, tc, dir_unit);
+              }
             }
             if (slp->op) {
               if (PropertyRNA *prop = RNA_struct_find_property(slp->op->ptr, "direction")) {
@@ -337,7 +339,7 @@ static void drawVertSlide(TransInfo *t)
       GPU_line_width(line_size);
 
       const uint shdr_pos = GPU_vertformat_attr_add(
-          immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
+          immVertexFormat(), "pos", gpu::VertAttrType::SFLOAT_32_32_32);
 
       immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
       immUniformThemeColorShadeAlpha(TH_EDGE_SELECT, 80, alpha_shade);
@@ -401,7 +403,7 @@ static void drawVertSlide(TransInfo *t)
         GPU_line_width(1.0f);
 
         const uint shdr_pos_2d = GPU_vertformat_attr_add(
-            immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
+            immVertexFormat(), "pos", gpu::VertAttrType::SFLOAT_32_32);
 
         immBindBuiltinProgram(GPU_SHADER_3D_LINE_DASHED_UNIFORM_COLOR);
 

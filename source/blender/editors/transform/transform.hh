@@ -16,10 +16,15 @@
 #include "ED_transform.hh"
 #include "ED_view3d.hh"
 
+#include "DNA_curve_enums.h"
 #include "DNA_listBase.h"
 #include "DNA_windowmanager_enums.h"
 
 #include "DEG_depsgraph.hh"
+
+namespace blender {
+
+struct Depsgraph;
 
 /* -------------------------------------------------------------------- */
 /** \name Macros/
@@ -60,7 +65,6 @@
 
 struct ARegion;
 struct bConstraint;
-struct Depsgraph;
 struct NumInput;
 struct Object;
 struct RNG;
@@ -83,7 +87,7 @@ struct wmTimer;
 /** \name Enums and Flags
  * \{ */
 
-namespace blender::ed::transform {
+namespace ed::transform {
 
 struct TransSnap;
 struct TransConvertTypeInfo;
@@ -498,8 +502,8 @@ struct TransData2D {
  * Also to unset temporary flags.
  */
 struct TransDataCurveHandleFlags {
-  uint8_t ih1, ih2;
-  uint8_t *h1, *h2;
+  eBezTriple_Handle ih1, ih2;
+  eBezTriple_Handle *h1, *h2;
 };
 
 struct TransData : public TransDataBasic {
@@ -522,6 +526,8 @@ struct TransData : public TransDataBasic {
   /** If set, copy of Object or #bPoseChannel protection. */
   short protectflag;
 };
+
+/** \} */
 
 /* -------------------------------------------------------------------- */
 /** \name Transform Types
@@ -553,7 +559,7 @@ struct TransSnap {
   /** To this point (in global-space). */
   float snap_target[3];
   float snapNormal[3];
-  ListBase points;
+  ListBaseT<TransSnapPoint> points;
   TransSnapPoint *selectedPoint;
   double last;
   void (*snap_target_fn)(TransInfo *, float *);
@@ -950,6 +956,7 @@ struct TransInfo {
   ScrArea *area;
   ARegion *region;
   Depsgraph *depsgraph;
+  Main *bmain;
   Scene *scene;
   ViewLayer *view_layer;
   ToolSettings *settings;
@@ -1148,4 +1155,5 @@ std::optional<float3> mouse_delta_to_world_dir(const TransInfo *t, const float2 
 
 /** \} */
 
-}  // namespace blender::ed::transform
+}  // namespace ed::transform
+}  // namespace blender

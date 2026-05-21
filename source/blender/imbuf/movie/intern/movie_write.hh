@@ -29,13 +29,17 @@ extern "C" {
 #  include <libavutil/opt.h>
 #  include <libavutil/rational.h>
 #  include <libavutil/samplefmt.h>
+#  include <libavutil/spherical.h>
+#  include <libavutil/stereo3d.h>
 
 #  include "ffmpeg_compat.h"
 }
 
 #  ifdef WITH_AUDASPACE
-#    include <AUD_Types.h>
+#    include "BKE_sound_types.hh"
 #  endif
+
+namespace blender {
 
 struct Scene;
 struct ReportList;
@@ -81,7 +85,7 @@ struct MovieWriter {
   StampData *stamp_data = nullptr;
 
 #  ifdef WITH_AUDASPACE
-  AUD_Device *audio_mixdown_device = nullptr;
+  AUD_Device audio_mixdown_device;
 #  endif
 };
 
@@ -102,5 +106,7 @@ AVStream *alloc_audio_stream(MovieWriter *context,
                              int error_size,
                              ReportList *reports);
 void write_audio_frames(MovieWriter *context, double to_pts);
+
+}  // namespace blender
 
 #endif /* WITH_FFMPEG */

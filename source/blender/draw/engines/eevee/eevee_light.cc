@@ -14,7 +14,6 @@
 
 #include "eevee_light.hh"
 
-#include "DNA_defaults.h"
 #include "DNA_light_types.h"
 #include "DNA_sdna_type_ids.hh"
 
@@ -58,7 +57,7 @@ static eLightType to_light_type(short blender_light_type,
 void Light::sync(ShadowModule &shadows,
                  float4x4 object_to_world,
                  char visibility_flag,
-                 const ::Light *la,
+                 const blender::Light *la,
                  const LightLinking *light_linking /* = nullptr */,
                  float threshold)
 {
@@ -104,6 +103,7 @@ void Light::sync(ShadowModule &shadows,
   this->lod_min = shadow_lod_min_get(la);
   this->filter_radius = la->shadow_filter_radius;
   this->shadow_jitter = (la->mode & LA_SHADOW_JITTER) != 0;
+  this->visible_camera = (visibility_flag & OB_HIDE_CAMERA) == 0;
 
   if (la->mode & LA_SHADOW) {
     shadow_ensure(shadows);
@@ -125,7 +125,7 @@ void Light::sync(ShadowModule &shadows,
   this->initialized = true;
 }
 
-float Light::shadow_lod_min_get(const ::Light *la)
+float Light::shadow_lod_min_get(const blender::Light *la)
 {
   /* Property is in mm. Convert to unit. */
   float max_res_unit = la->shadow_maximum_resolution;
@@ -158,7 +158,9 @@ void Light::shadow_ensure(ShadowModule &shadows)
   }
 }
 
-float Light::attenuation_radius_get(const ::Light *la, float light_threshold, float light_power)
+float Light::attenuation_radius_get(const blender::Light *la,
+                                    float light_threshold,
+                                    float light_power)
 {
   if (la->mode & LA_CUSTOM_ATTENUATION) {
     return la->att_dist;
@@ -169,7 +171,7 @@ float Light::attenuation_radius_get(const ::Light *la, float light_threshold, fl
   return sqrtf(light_power / light_threshold);
 }
 
-void Light::shape_parameters_set(const ::Light *la,
+void Light::shape_parameters_set(const blender::Light *la,
                                  const float3 &scale,
                                  const float3 &z_axis,
                                  const float threshold,
@@ -338,7 +340,7 @@ float Light::point_radiance_get()
 
 void Light::debug_draw()
 {
-  drw_debug_sphere(transform_location(this->object_to_world),
+  drw_debug_sphere(this->object_to_world.location(),
                    this->local().local.influence_radius_max,
                    float4(0.8f, 0.3f, 0.0f, 1.0f));
 }
@@ -361,8 +363,7 @@ void LightModule::add_world_sun_light(const ObjectKey &key, bool use_diffuse, bo
 {
   /* Create a placeholder light to be fed by the GPU after sunlight extraction.
    * Sunlight is disabled if power is zero. */
-  ::Light la = blender::dna::shallow_copy(
-      *(const ::Light *)DNA_default_table[dna::sdna_struct_id_get<::Light>()]);
+  blender::Light la = {};
   la.type = LA_SUN;
   /* Set on the GPU. */
   la.r = la.g = la.b = -1.0f; /* Tag as world sun light. */
@@ -376,6 +377,7 @@ void LightModule::add_world_sun_light(const ObjectKey &key, bool use_diffuse, bo
   int visibility_flag = 0;
   SET_FLAG_FROM_TEST(visibility_flag, !use_diffuse, OB_HIDE_DIFFUSE);
   SET_FLAG_FROM_TEST(visibility_flag, !use_glossy, OB_HIDE_GLOSSY);
+  visibility_flag |= OB_HIDE_CAMERA;
 
   Light &light = light_map_.lookup_or_add_default(key);
   light.used = true;
@@ -421,9 +423,9 @@ void LightModule::begin_sync()
   }
 }
 
-void LightModule::sync_light(const Object *ob, ObjectHandle &handle)
+void LightModule::sync_light(const ObjectRef &ob_ref)
 {
-  const ::Light &la = DRW_object_get_data_for_drawing<const ::Light>(*ob);
+  const blender::Light &la = DRW_object_get_data_for_drawing<const blender::Light>(*ob_ref.object);
   if (use_scene_lights_ == false) {
     return;
   }
@@ -434,15 +436,15 @@ void LightModule::sync_light(const Object *ob, ObjectHandle &handle)
     }
   }
 
-  Light &light = light_map_.lookup_or_add_default(handle.object_key);
+  Light &light = light_map_.lookup_or_add_default(ObjectKey(ob_ref));
   light.used = true;
-  if (handle.recalc != 0 || !light.initialized) {
+  if (inst_.get_recalc_flags(ob_ref) != 0 || !light.initialized) {
     light.initialized = true;
     light.sync(inst_.shadows,
-               ob->object_to_world(),
-               ob->visibility_flag,
+               ob_ref.object_to_world(),
+               ob_ref.object->visibility_flag,
                &la,
-               ob->light_linking,
+               ob_ref.light_linking(),
                light_threshold_);
   }
   sun_lights_len_ += int(is_sun_light(light.type));
@@ -535,7 +537,25 @@ void LightModule::end_sync()
 
   culling_pass_sync();
   update_pass_sync();
+  shape_display_pass_sync();
   debug_pass_sync();
+}
+
+void LightModule::shape_display_pass_sync()
+{
+  shape_display_ps_.init();
+
+  if (lights_len_ == 0) {
+    return;
+  }
+
+  shape_display_ps_.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_ADD |
+                              DRW_STATE_CLIP_CONTROL_UNIT_RANGE | inst_.film.depth.test_state);
+  shape_display_ps_.shader_set(inst_.shaders.static_shader_get(LIGHT_SHAPE_DISPLAY));
+  shape_display_ps_.bind_resources(inst_.uniform_data);
+  shape_display_ps_.bind_resources(inst_.volume.result);
+  shape_display_ps_.bind_resources(inst_.lights);
+  shape_display_ps_.draw_procedural(GPU_PRIM_TRIS, 1, lights_len_ * 6);
 }
 
 void LightModule::culling_pass_sync()
@@ -652,6 +672,12 @@ void LightModule::debug_draw(View &view, gpu::FrameBuffer *view_fb)
     GPU_framebuffer_bind(view_fb);
     inst_.manager->submit(debug_draw_ps_, view);
   }
+}
+
+void LightModule::shape_display_draw(View &view, gpu::FrameBuffer *view_fb)
+{
+  GPU_framebuffer_bind(view_fb);
+  inst_.manager->submit(shape_display_ps_, view);
 }
 
 /** \} */
