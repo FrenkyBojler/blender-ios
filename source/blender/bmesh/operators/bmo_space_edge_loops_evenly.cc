@@ -51,10 +51,12 @@ struct SpaceChainData {
 struct SpaceMeasurements {
   /** 3D coordinates of the vertices. */
   Array<float3> positions;
-  /** Cumulative distances along the chain. */
+  /**
+   * Cumulative vertex distances along the chain.
+   * For cyclic chains, this array has a length of "positions.size() + 1" to store
+   * the total chain distance at the end, so values don't need to be wrapped.
+   */
   Array<float> knot_distances;
-  /** The total length of the chain. */
-  float total_length;
 };
 
 /**
@@ -213,7 +215,6 @@ static SpaceMeasurements measure_chain(const SpaceChainData &chain)
   length_parameterize::accumulate_lengths<float3>(
       measure.positions, chain.is_closed, measure.knot_distances.as_mutable_span().drop_front(1));
 
-  measure.total_length = measure.knot_distances.last();
   return measure;
 }
 
@@ -223,7 +224,6 @@ static SpaceMeasurements measure_chain(const SpaceChainData &chain)
 static void calculate_splines_axis(Span<float> distances,
                                    Span<float> coords,
                                    const bool is_closed,
-                                   const float total_length,
                                    Vector<SplineCoeffs> &r_coeffs)
 {
   const int verts_num = coords.size();
@@ -234,9 +234,7 @@ static void calculate_splines_axis(Span<float> distances,
   Array<float> segment_length(num_segments);
 
   for (const int i : IndexRange(num_segments)) {
-    segment_length[i] = (is_closed && i == verts_num - 1) ?
-                            total_length - distances[verts_num - 1] :
-                            distances[i + 1] - distances[i];
+    segment_length[i] = distances[i + 1] - distances[i];
     if (!(segment_length[i] > 0.0f)) {
       segment_length[i] = SPACE_EPSILON;
     }
@@ -255,13 +253,13 @@ static void calculate_splines_axis(Span<float> distances,
     Array<float> upper_diag(verts_num);
     Array<float> rhs(verts_num);
     for (const int i : IndexRange(verts_num)) {
-      const int v_prev = math::mod_periodic(i - 1, verts_num);
-      const int v_next = math::mod_periodic(i + 1, verts_num);
-      lower_diag[i] = segment_length[v_prev];
-      diag[i] = 2.0f * (segment_length[v_prev] + segment_length[i]);
+      const int i_prev = math::mod_periodic(i - 1, verts_num);
+      const int i_next = math::mod_periodic(i + 1, verts_num);
+      lower_diag[i] = segment_length[i_prev];
+      diag[i] = 2.0f * (segment_length[i_prev] + segment_length[i]);
       upper_diag[i] = segment_length[i];
-      rhs[i] = 3.0f * (((coords[v_next] - coords[i]) / segment_length[i]) -
-                       ((coords[i] - coords[v_prev]) / segment_length[v_prev]));
+      rhs[i] = 3.0f * (((coords[i_next] - coords[i]) / segment_length[i]) -
+                       ((coords[i] - coords[i_prev]) / segment_length[i_prev]));
     }
     BLI_tridiagonal_solve_cyclic(
         lower_diag.data(), diag.data(), upper_diag.data(), rhs.data(), c_vals.data(), verts_num);
@@ -293,13 +291,13 @@ static void calculate_splines_axis(Span<float> distances,
 
   /* Build polynomial coefficients for each segment. */
   for (const int i : IndexRange(num_segments)) {
-    const int v_next = is_closed ? math::mod_periodic(i + 1, verts_num) : i + 1;
+    const int i_next = is_closed ? math::mod_periodic(i + 1, verts_num) : i + 1;
 
     const float coeff_a = coords[i];
-    const float coeff_b = ((coords[v_next] - coords[i]) / segment_length[i]) -
-                          (segment_length[i] * (c_vals[v_next] + 2.0f * c_vals[i])) / 3.0f;
+    const float coeff_b = ((coords[i_next] - coords[i]) / segment_length[i]) -
+                          (segment_length[i] * (c_vals[i_next] + 2.0f * c_vals[i])) / 3.0f;
     const float coeff_c = c_vals[i];
-    const float coeff_d = (c_vals[v_next] - c_vals[i]) / (3.0f * segment_length[i]);
+    const float coeff_d = (c_vals[i_next] - c_vals[i]) / (3.0f * segment_length[i]);
     r_coeffs.append({coeff_a, coeff_b, coeff_c, coeff_d, distances[i]});
   }
 }
@@ -376,12 +374,9 @@ void bmo_space_edge_loops_evenly_exec(BMesh *bm, BMOperator *op)
       Vector<SplineCoeffs> coeffs_x;
       Vector<SplineCoeffs> coeffs_y;
       Vector<SplineCoeffs> coeffs_z;
-      calculate_splines_axis(
-          measure.knot_distances, coords_x, chain.is_closed, measure.total_length, coeffs_x);
-      calculate_splines_axis(
-          measure.knot_distances, coords_y, chain.is_closed, measure.total_length, coeffs_y);
-      calculate_splines_axis(
-          measure.knot_distances, coords_z, chain.is_closed, measure.total_length, coeffs_z);
+      calculate_splines_axis(measure.knot_distances, coords_x, chain.is_closed, coeffs_x);
+      calculate_splines_axis(measure.knot_distances, coords_y, chain.is_closed, coeffs_y);
+      calculate_splines_axis(measure.knot_distances, coords_z, chain.is_closed, coeffs_z);
 
       for (const int i : IndexRange(verts_num)) {
         const int seg = sample_indices[i];
