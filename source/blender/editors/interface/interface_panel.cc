@@ -1495,6 +1495,9 @@ void panel_category_tabs_draw_all(const bContext *C,
   }
 
   immUnbindProgram();
+  /* If the area is too small to show panels, then don't show any tabs as active. */
+  const bool too_narrow = BLI_rcti_size_x(&region->winrct) <=
+                          int(UI_PANEL_CATEGORY_MIN_WIDTH * UI_SCALE_FAC / aspect);
 
   /* Same for all tabs. */
   /* Intentionally don't scale by 'px'. */
@@ -1601,14 +1604,25 @@ void panel_category_tabs_draw_all(const bContext *C,
 
   block_translate(block, 0, region->category_scroll);
 
+  Button *selected_button = nullptr;
   /* Align buttons the panel content when region overlap is disabled. */
-  if (!is_alpha) {
-    for (Button &button : block->buttons()) {
+  for (Button &button : block->buttons()) {
+    if (!is_alpha) {
       button.drawflag |= is_left ? BUT_ALIGN_RIGHT : BUT_ALIGN_LEFT;
     }
+    if (button.flag & UI_SELECT) {
+      selected_button = &button;
+    }
+  }
+  if (selected_button && too_narrow) {
+    selected_button->flag &= ~UI_SELECT;
   }
 
   block_draw(C, block);
+
+  if (selected_button) {
+    selected_button->flag |= UI_SELECT;
+  }
 
   /* Avoid buttons being aligned to the region on redraws. */
   for (Button &button : block->buttons()) {
