@@ -27,6 +27,7 @@
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
 #include "BLI_math_vector_types.hh"
+#include "BLI_profile.hh"
 #include "BLI_rect.h"
 #include "BLI_utildefines.h"
 
@@ -1233,6 +1234,7 @@ static void wm_draw_window_onscreen(bContext *C, wmWindow *win, int view)
 
 static void wm_draw_window(bContext *C, wmWindow *win)
 {
+  BLI_PROFILE_ZONE_SCOPED;
   GPU_context_begin_frame(static_cast<GPUContext *>(win->runtime->gpuctx));
 
   bScreen *screen = WM_window_get_active_screen(win);
@@ -1636,8 +1638,14 @@ void WM_paint_cursor_tag_redraw(wmWindow *win, ARegion * /*region*/)
   }
 }
 
+#ifdef WITH_TRACY_CLIENT
+static const char *draw_update_frame_name = "Window Drawing";
+#endif
+
 void wm_draw_update(bContext *C)
 {
+  BLI_PROFILE_ZONE_SCOPED;
+
   Main *bmain = CTX_data_main(C);
   wmWindowManager *wm = CTX_wm_manager(C);
   const bool rna_disallow_writes = true;
@@ -1673,6 +1681,7 @@ void wm_draw_update(bContext *C)
     CTX_wm_window_set(C, &win);
 
     if (wm_draw_update_test_window(bmain, C, &win)) {
+      BLI_PROFILE_FRAME_MARK_START(draw_update_frame_name);
       /* Sets context window+screen. */
       wm_window_make_drawable(wm, &win);
       wm_window_swap_buffer_acquire(&win);
@@ -1684,6 +1693,7 @@ void wm_draw_update(bContext *C)
       wm_draw_update_clear_window(C, &win);
 
       wm_window_swap_buffer_release(&win);
+      BLI_PROFILE_FRAME_MARK_END(draw_update_frame_name);
     }
   }
 

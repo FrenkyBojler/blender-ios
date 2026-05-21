@@ -1475,6 +1475,10 @@ if(WITH_COMPILER_CODE_COVERAGE)
   endif()
 endif()
 
+if(WITH_TRACY)
+  add_definitions(-DTRACY_ENABLE)
+endif()
+
 if(NOT CMAKE_BUILD_TYPE STREQUAL "Release")
   if(WITH_COMPILER_ASAN)
     if(NOT APPLE)

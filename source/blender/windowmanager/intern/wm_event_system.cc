@@ -33,6 +33,7 @@
 #include "BLI_ghash.h"
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
+#include "BLI_profile.hh"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
 #include "BLI_timer.h"
@@ -593,6 +594,7 @@ static bool notifier_refreshes_node_group_operators(const wmNotifier &note)
 
 void wm_event_do_notifiers(bContext *C)
 {
+  BLI_PROFILE_ZONE_SCOPED;
   /* Ensure inside render boundary. */
   GPU_render_begin();
 
@@ -1947,6 +1949,8 @@ wmOperatorStatus WM_operator_name_call_ptr(bContext *C,
                                            PointerRNA *properties,
                                            const wmEvent *event)
 {
+  BLI_PROFILE_ZONE_SCOPED;
+  BLI_PROFILE_ZONE_SET_NAME_FMT("%s", ot->idname);
   BLI_assert(ot == WM_operatortype_find(ot->idname, true));
   return wm_operator_call_internal(C, ot, properties, nullptr, context, false, event);
 }
@@ -2662,6 +2666,8 @@ static eHandlerActionFlag wm_handler_operator_call(bContext *C,
        * nothing to do in this case. */
     }
     else if (ot->modal) {
+      BLI_PROFILE_ZONE_SCOPED;
+      BLI_PROFILE_ZONE_SET_NAME_FMT("%s", ot->idname);
       /* We set context to where modal handler came from. */
       wmWindowManager *wm = CTX_wm_manager(C);
       wmWindow *win = CTX_wm_window(C);
@@ -4210,6 +4216,7 @@ static eHandlerActionFlag wm_event_do_handlers_area_regions(bContext *C,
 
 void wm_event_do_handlers(bContext *C)
 {
+  BLI_PROFILE_ZONE_SCOPED;
   wmWindowManager *wm = CTX_wm_manager(C);
   BLI_assert(ED_undo_is_state_valid(C));
 
