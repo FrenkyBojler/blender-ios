@@ -1271,6 +1271,8 @@ class VIEW3D_MT_transform_base:
         layout.operator("transform.tosphere", text="To Sphere")
         if context.mode == 'EDIT_MESH':
             layout.operator("mesh.circularize", text="To Circle")
+            layout.operator("mesh.flatten", text="Flatten")
+            layout.operator("mesh.space_edge_loops_evenly", text="Space Edge Loops Evenly")
         layout.operator("transform.shear", text="Shear")
         layout.operator("transform.bend", text="Bend")
         layout.operator("transform.push_pull", text="Push/Pull")
@@ -5631,6 +5633,7 @@ class VIEW3D_MT_edit_armature(Menu):
             layout.operator("armature.extrude_forked")
 
         layout.operator("armature.duplicate_move")
+        layout.operator("armature.duplicate_rename")
         layout.operator("armature.fill")
 
         layout.separator()

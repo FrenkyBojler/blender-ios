@@ -67,6 +67,8 @@ static inline void geometry_volume_call(PassMain::Sub *pass,
   }
 }
 
+/** \} */
+
 /* -------------------------------------------------------------------- */
 /** \name Common Helpers
  * \{ */
@@ -89,6 +91,10 @@ void SyncModule::sync_volume_passes(const ObjectHandle &ob_handle,
                                     const Material &material,
                                     FunctionRef<void(const MaterialPass &, int)> sync_cb)
 {
+  if (material.volume_occupancy.gpumat == nullptr || material.volume_material.gpumat == nullptr) {
+    return;
+  }
+
   blender::Material *blender_mat = GPU_material_get_material(material.volume_material.gpumat);
 
   for (int instance : IndexRange(ob_handle.instances_count())) {
@@ -147,6 +153,10 @@ void SyncModule::sync_common(const ObjectHandle &ob_handle,
   bool is_alpha_blend = false;
   bool has_transparent_shadows = false;
   float inflate_bounds = 0.0f;
+  bool use_scene_time = false;
+
+  bool time_changed = inst_.materials.material_time_changed;
+
   for (const Material *material : materials) {
     has_volume |= material->has_volume;
     if (material->has_volume && !material->has_surface) {
@@ -155,6 +165,7 @@ void SyncModule::sync_common(const ObjectHandle &ob_handle,
 
     is_alpha_blend |= material->is_alpha_blend_transparent;
     has_transparent_shadows |= material->has_transparent_shadows;
+    use_scene_time |= material->use_scene_time;
 
     GPUMaterial *gpu_material = material->shading.gpumat;
     blender::Material *bl_material = GPU_material_get_material(gpu_material);
@@ -168,7 +179,8 @@ void SyncModule::sync_common(const ObjectHandle &ob_handle,
 
   inst_.cryptomatte.sync_object(ob_handle);
 
-  inst_.shadows.sync_object(ob_handle, is_alpha_blend, has_transparent_shadows);
+  inst_.shadows.sync_object(
+      ob_handle, is_alpha_blend, has_transparent_shadows, use_scene_time && time_changed);
 
   if (has_volume) {
     inst_.volume.object_sync(ob_handle);
@@ -180,8 +192,6 @@ void SyncModule::sync_common(const ObjectHandle &ob_handle,
 
   inst_.manager->extract_object_attributes(ob_handle.res_handle, ob_handle, gpu_materials);
 }
-
-/** \} */
 
 /** \} */
 

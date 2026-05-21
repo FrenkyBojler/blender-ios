@@ -265,9 +265,7 @@ struct Resources {
 
 [[compute, local_size(CULLING_SELECT_GROUP_SIZE)]]
 void shadow_setup_main([[resource_table]] Resources &srt,
-                       [[global_invocation_id]] const uint3 global_id,
-                       [[local_invocation_id]] const uint3 local_id,
-                       [[local_invocation_index]] const uint local_index)
+                       [[global_invocation_id]] const uint3 global_id)
 {
 
   uint l_idx = global_id.x;
@@ -342,7 +340,7 @@ void shadow_setup_main([[resource_table]] Resources &srt,
       }
     }
 
-    int tilemap_count = light_local_tilemap_count(light);
+    int tilemap_count = light.local_tilemap_count();
     for (int i = 0; i < tilemap_count; i++) {
       srt.cubeface_sync(
           light.tilemap_index + i, light.object_to_world, eCubeFace(i), position_on_light);

@@ -424,6 +424,10 @@ void MetalDevice::refresh_source_and_kernels_md5(MetalPipelineType pso_type)
   if (use_metalrt) {
     md5.append(string_printf("metalrt_features=%d", kernel_features & METALRT_FEATURE_MASK));
   }
+  if (pso_type != PSO_GENERIC) {
+    /* Include kernel_features since it's specialized but missed by the constant_values loop. */
+    md5.append(string_printf("kernel_features=%u", launch_params->data.kernel_features));
+  }
   kernels_md5[pso_type] = md5.get_hex();
 }
 
@@ -753,6 +757,11 @@ void MetalDevice::mem_move_to_host(device_memory & /*mem*/)
 
 void MetalDevice::mem_copy_from(
     device_memory & /*mem*/, const size_t /*y*/, size_t /*w*/, const size_t /*h*/, size_t /*elem*/)
+{
+  /* No need to copy - Apple Silicon has Unified Memory Architecture. */
+}
+
+void MetalDevice::mem_or_from_device(device_memory & /*mem*/)
 {
   /* No need to copy - Apple Silicon has Unified Memory Architecture. */
 }

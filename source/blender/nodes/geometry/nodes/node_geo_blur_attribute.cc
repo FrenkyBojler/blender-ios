@@ -73,7 +73,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
   search_link_ops_for_declarations(params, declaration.inputs);
 
   const std::optional<eCustomDataType> new_node_type = bke::socket_type_to_custom_data_type(
-      eNodeSocketDatatype(params.other_socket().type));
+      params.other_socket().type);
   if (!new_node_type.has_value()) {
     return;
   }
@@ -427,20 +427,13 @@ class BlurAttributeFieldInput final : public bke::GeometryFieldInput {
     fn(value_field_);
   }
 
-  uint64_t hash() const override
+  void hash_unique(UniqueHashBytes &hash, fn::FieldHashDeep &deep_hash_cache) const override
   {
-    return get_default_hash(iterations_, weight_field_, value_field_);
-  }
-
-  bool is_equal_to(const fn::FieldInput &other) const override
-  {
-    if (const BlurAttributeFieldInput *other_blur = dynamic_cast<const BlurAttributeFieldInput *>(
-            &other))
-    {
-      return weight_field_ == other_blur->weight_field_ &&
-             value_field_ == other_blur->value_field_ && iterations_ == other_blur->iterations_;
-    }
-    return false;
+    static constexpr int8_t id = 0;
+    hash.add(&id);
+    hash.add(deep_hash_cache.ensure(weight_field_));
+    hash.add(deep_hash_cache.ensure(value_field_));
+    hash.add(iterations_);
   }
 
   std::optional<AttrDomain> preferred_domain(const GeometryComponent &component) const override

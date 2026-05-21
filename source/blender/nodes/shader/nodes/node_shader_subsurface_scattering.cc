@@ -17,6 +17,9 @@ namespace nodes::node_shader_subsurface_scattering_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
+  const bNodeTree *ntree = b.tree_or_null();
+  const bool is_gpu_internal = ntree && (ntree->flag & NTREE_IS_GPU_SHADER_INTERNAL);
+
   b.add_input<decl::Color>("Color"_ustr).default_value({0.8f, 0.8f, 0.8f, 1.0f});
   b.add_input<decl::Float>("Scale"_ustr)
       .default_value(0.05f)
@@ -49,7 +52,7 @@ static void node_declare(NodeDeclarationBuilder &b)
           "direction, and negative values scatter more backwards. "
           "For example, skin has been measured to have an anisotropy of 0.8");
   b.add_input<decl::Vector>("Normal"_ustr).hide_value();
-  b.add_input<decl::Float>("Weight"_ustr).available(false);
+  b.add_input<decl::Float>("Weight"_ustr).available(is_gpu_internal);
   b.add_output<decl::Shader>("BSSRDF"_ustr);
 }
 
@@ -144,7 +147,7 @@ void register_node_type_sh_subsurface_scattering()
   ntype.gather_link_search_ops = search_link_ops_for_shader_bsdf_node;
   ntype.add_ui_poll = object_shader_nodes_poll;
   ntype.draw_buttons = file_ns::node_shader_buts_subsurface;
-  bke::node_type_size_preset(ntype, bke::eNodeSizePreset::Middle);
+  ntype.default_width = bke::NodeWidth::_160;
   ntype.initfunc = file_ns::node_shader_init_subsurface_scattering;
   ntype.gpu_fn = file_ns::node_shader_gpu_subsurface_scattering;
   ntype.updatefunc = file_ns::node_shader_update_subsurface_scattering;

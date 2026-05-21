@@ -1937,6 +1937,9 @@ FCurve &Channelbag::fcurve_clone(const FCurve &old_fcurve,
   if (new_fcurve) {
     MEM_delete(new_fcurve->bezt);
     new_fcurve->bezt = MEM_dupalloc(old_fcurve.bezt);
+    MEM_delete(new_fcurve->fpt);
+    new_fcurve->fpt = MEM_dupalloc(old_fcurve.fpt);
+    new_fcurve->totvert = old_fcurve.totvert;
   }
   else {
     new_fcurve = BKE_fcurve_copy(&old_fcurve);
@@ -2407,9 +2410,8 @@ void Channelbag::channel_group_move_to_index(bActionGroup &group, const int to_g
       this->group_array, this->group_array_num, group_index, group_index + 1, to_group_index);
   this->restore_channel_group_invariants();
 
-  /* Move the fcurves that were part of `group` (as recorded in
-   *`pre_move_group`) to their new positions (now in `group`) so that they're
-   * part of `group` again. */
+  /* Move the fcurves that were part of `group` (as recorded in `pre_move_group`)
+   * to their new positions (now in `group`) so that they're part of `group` again. */
   array_shift_range(this->fcurve_array,
                     this->fcurve_array_num,
                     pre_move_group.fcurve_range_start,

@@ -1643,6 +1643,9 @@ static void region_rect_recursive(
   else if (region->regiontype == RGN_TYPE_FOOTER) {
     prefsizey = ED_area_footersize();
   }
+  else if (region->regiontype == RGN_TYPE_SCRUBBING) {
+    prefsizey = 0.9f * ED_area_footersize();
+  }
   else if (region->regiontype == RGN_TYPE_ASSET_SHELF) {
     prefsizey = region->sizey > 1 ? (UI_SCALE_FAC * (region->sizey + 0.5f)) :
                                     asset::shelf::region_prefsizey();
@@ -2685,7 +2688,7 @@ static void region_align_info_to_area_for_headers(const RegionTypeAlignInfo *reg
   if (header_alignment_sync != -1) {
     ARegion *region = region_by_type[RGN_TYPE_HEADER];
     if (region != nullptr) {
-      region->alignment = RGN_ALIGN_ENUM_FROM_MASK(header_alignment_sync) |
+      region->alignment = RGN_ALIGN_ENUM_FROM_MASK(eRegion_Alignment(header_alignment_sync)) |
                           RGN_ALIGN_FLAG_FROM_MASK(region->alignment);
     }
   }
@@ -2693,7 +2696,7 @@ static void region_align_info_to_area_for_headers(const RegionTypeAlignInfo *reg
   if (tool_header_alignment_sync != -1) {
     ARegion *region = region_by_type[RGN_TYPE_TOOL_HEADER];
     if (region != nullptr) {
-      region->alignment = RGN_ALIGN_ENUM_FROM_MASK(tool_header_alignment_sync) |
+      region->alignment = RGN_ALIGN_ENUM_FROM_MASK(eRegion_Alignment(tool_header_alignment_sync)) |
                           RGN_ALIGN_FLAG_FROM_MASK(region->alignment);
     }
   }
@@ -2701,7 +2704,7 @@ static void region_align_info_to_area_for_headers(const RegionTypeAlignInfo *reg
   if (footer_alignment_sync != -1) {
     ARegion *region = region_by_type[RGN_TYPE_FOOTER];
     if (region != nullptr) {
-      region->alignment = RGN_ALIGN_ENUM_FROM_MASK(footer_alignment_sync) |
+      region->alignment = RGN_ALIGN_ENUM_FROM_MASK(eRegion_Alignment(footer_alignment_sync)) |
                           RGN_ALIGN_FLAG_FROM_MASK(region->alignment);
     }
   }
@@ -3273,7 +3276,7 @@ static const char *region_panels_collect_categories(ARegion *region,
     PanelType *pt = static_cast<PanelType *>(pt_link->link);
     if (pt->category[0]) {
       if (!ui::panel_category_find(region, pt->category)) {
-        ui::panel_category_add(region, pt->category);
+        ui::panel_category_add(region, pt->category, pt->icon);
       }
     }
   }

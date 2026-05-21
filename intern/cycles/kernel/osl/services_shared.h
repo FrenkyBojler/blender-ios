@@ -854,6 +854,23 @@ ccl_device bool osl_shared_environment(KernelGlobals kg,
   return false;
 }
 
+/* Scene Attributes */
+
+ccl_device_inline bool osl_shared_get_scene_attribute(KernelGlobals kg,
+                                                      DeviceString name,
+                                                      const TypeDesc type,
+                                                      bool derivatives,
+                                                      ccl_private void *val)
+{
+  if (name == DeviceStrings::u_scene_time) {
+    return set_attribute(kernel_data.scene_time.time, type, derivatives, val);
+  }
+  if (name == DeviceStrings::u_scene_frame) {
+    return set_attribute(kernel_data.scene_time.frame, type, derivatives, val);
+  }
+  return false;
+}
+
 /* Object Attribute Retrieval */
 
 template<typename T>
@@ -1002,7 +1019,7 @@ ccl_device_inline bool osl_shared_get_background_attribute(KernelGlobals kg,
     return set_attribute(ndc, type, derivatives, val);
   }
 
-  return false;
+  return osl_shared_get_scene_attribute(kg, name, type, derivatives, val);
 }
 
 /* Object Standard Attributes */
@@ -1179,7 +1196,7 @@ ccl_device_inline bool osl_shared_get_object_standard_attribute(KernelGlobals kg
     if (sd->type & PRIMITIVE_TRIANGLE) {
       const AttributeDescriptor desc = find_attribute(
           kg, sd->object, sd->prim, ATTR_STD_NORMAL_UNDISPLACED);
-      if (desc.offset != ATTR_STD_NOT_FOUND) {
+      if (is_attribute_found(desc)) {
         return osl_shared_get_object_attribute(kg, sd, desc, type, derivatives, val);
       }
       const float3 f = triangle_smooth_normal_unnormalized_object_space(kg, sd);
@@ -1229,7 +1246,7 @@ ccl_device_inline bool osl_shared_get_camera_attribute(KernelGlobals kg,
   if (name == DeviceStrings::u_focal_distance) {
     return set_attribute(kernel_data.cam.focaldistance, type, derivatives, val);
   }
-  return false;
+  return osl_shared_get_scene_attribute(kg, name, type, derivatives, val);
 }
 
 CCL_NAMESPACE_END
