@@ -1110,7 +1110,6 @@ class _defs_edit_mesh:
             props_macro = props.TRANSFORM_OT_edge_slide
             layout.prop(props_macro, "correct_uv")
 
-
         return dict(
             idname="builtin.offset_edge_loop_cut",
             label="Offset Edge Loop Cut",
