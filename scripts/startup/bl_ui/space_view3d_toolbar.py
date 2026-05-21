@@ -2332,8 +2332,8 @@ class VIEW3D_PT_tools_grease_pencil_v3_brush_gap_closure(View3DPanel, Panel):
                 row = col.row(align=True)
                 row.prop(gp_settings, "use_collide_strokes")
         else:
-            col.prop(gp_settings, "fill_detection_mode")
-            if gp_settings.fill_detection_mode == 'ALL':
+            col.prop(gp_settings, "fill_internal_gaps")
+            if gp_settings.fill_internal_gaps:
                 col.prop(gp_settings, "fill_gap_factor", text="Detection Factor")
 
 

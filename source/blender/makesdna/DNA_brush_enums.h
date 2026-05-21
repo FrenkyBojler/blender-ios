@@ -57,6 +57,8 @@ enum eGPDbrush_Flag : int {
   GP_BRUSH_ACTIVE_LAYER_ONLY = (1 << 20),
   /* Automatically remove fill guides created with fill tool. */
   GP_BRUSH_FILL_AUTO_REMOVE_FILL_GUIDES = (1 << 21),
+  /* Fill Tool create internal gaps. */
+  GP_BRUSH_FILL_INTERNAL_GAPS = (1 << 22),
 };
 ENUM_OPERATORS(eGPDbrush_Flag)
 
@@ -125,13 +127,6 @@ enum eGP_FillLayerModes : short {
 enum eGP_FillSolver {
   GP_FILL_SOLVER_DELAUNAY = 0,
   GP_FILL_SOLVER_PIXEL = 1,
-};
-
-/* BrushGpencilSettings->fill_detection_mode */
-enum eGP_FillDetectionMode {
-  GP_FILL_DETECTION_MODE_NONE = 0,
-  GP_FILL_DETECTION_MODE_EXTERNAL = 1,
-  GP_FILL_DETECTION_MODE_ALL = 2,
 };
 
 /* BrushGpencilSettings->gp_eraser_mode */
