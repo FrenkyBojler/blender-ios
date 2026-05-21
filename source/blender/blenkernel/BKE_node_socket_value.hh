@@ -25,20 +25,20 @@ using SocketValueVariantAny = Any<SocketValueVariantTypeInfo, 32, 16>;
 
 struct SocketValueVariantTypeInfo {
   const CPPType &type;
-  void (*convert_to)(const CPPType &dst_type, SocketValueVariantAny &value);
+  bool (*convert_to)(const CPPType &dst_type, SocketValueVariantAny &value);
   bool (*is_interpretable_as)(const CPPType &dst_type, const SocketValueVariantAny &value);
 
   template<typename T> static SocketValueVariantTypeInfo get()
   {
     return SocketValueVariantTypeInfo{
         .type = *CPPType::get_pre_register<T>(),
-        .convert_to = convert_to_fn<T>,
+        .convert_to = try_convert_fn<T>,
         .is_interpretable_as = is_interpretable_as_fn<T>,
     };
   }
 
   template<typename T>
-  static void convert_to_fn(const CPPType &dst_type, SocketValueVariantAny &value);
+  static bool try_convert_fn(const CPPType &dst_type, SocketValueVariantAny &value);
 
   template<typename T>
   static bool is_interpretable_as_fn(const CPPType &dst_type, const SocketValueVariantAny &value);
@@ -86,6 +86,9 @@ class SocketValueVariant {
   template<typename T> static SocketValueVariant From(T &&value);
 
   template<typename T, typename... Args> T &emplace(Args &&...args);
+
+  template<typename T> T *try_convert();
+  void *try_convert(const CPPType &type);
 
   template<typename T> T &ensure_type();
   void *ensure_type(const CPPType &type);
@@ -142,11 +145,11 @@ template<typename T, typename... Args> inline T &SocketValueVariant::emplace(Arg
   return reinterpret_cast<T &>(value);
 }
 
-template<typename T> inline T &SocketValueVariant::ensure_type()
+template<typename T> T *SocketValueVariant::try_convert()
 {
   using StorageT = to_storage_type<T>;
   if (!value_.has_value()) {
-    return this->init_default<T>();
+    return nullptr;
   }
   const Info &info = value_.extra_info();
   const CPPType &requested_type = CPPType::get<T>();
@@ -156,21 +159,41 @@ template<typename T> inline T &SocketValueVariant::ensure_type()
   if (info.is_interpretable_as(requested_type, value_)) {
     return reinterpret_cast<T &>(value_.get<StorageT>());
   }
-  info.convert_to(requested_type, value_);
+  if (!info.convert_to(requested_type, value_)) {
+    return nullptr;
+  }
   BLI_assert(value_.extra_info().is_interpretable_as(requested_type, value_));
   return reinterpret_cast<T &>(value_.get<StorageT>());
 }
 
-inline void *SocketValueVariant::ensure_type(const CPPType &type)
+void *SocketValueVariant::try_convert(const CPPType &type)
 {
   if (!value_.has_value()) {
-    return this->init_default(type);
+    return nullptr;
   }
   const Info &info = value_.extra_info();
   if (info.type == type) {
     return value_.get();
   }
-  info.convert_to(type, value_);
+  if (!info.convert_to(type, value_)) {
+    return nullptr;
+  }
+  return value_.get();
+}
+
+template<typename T> inline T &SocketValueVariant::ensure_type()
+{
+  if (!this->try_convert<T>()) {
+    return this->init_default<T>();
+  }
+  return *this->get_if<T>();
+}
+
+inline void *SocketValueVariant::ensure_type(const CPPType &type)
+{
+  if (!this->try_convert(type)) {
+    return this->init_default(type);
+  }
   return value_.get();
 }
 

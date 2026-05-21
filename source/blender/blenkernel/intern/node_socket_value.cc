@@ -29,11 +29,11 @@ using volume_grid::GVolumeGrid;
 namespace detail {
 
 template<typename CurrentT>
-void SocketValueVariantTypeInfo::convert_to_fn(const CPPType &dst_type,
-                                               SocketValueVariantAny &value)
+bool SocketValueVariantTypeInfo::try_convert_fn(const CPPType &dst_type,
+                                                SocketValueVariantAny &value)
 {
   if (CPPType::get<CurrentT>() == dst_type) {
-    return;
+    return true;
   }
   static const DataTypeConversions &conversions = get_implicit_type_conversions();
   if constexpr (std::is_same_v<CurrentT, GField>) {
@@ -42,32 +42,29 @@ void SocketValueVariantTypeInfo::convert_to_fn(const CPPType &dst_type,
     if (dst_type.generic_type && dst_type.generic_type->is<GField>()) {
       if (src_base_type == *dst_type.base_type) {
         /* Nothing to do.*/
-        return;
+        return true;
       }
       const ConversionFunctions *fns = conversions.get_conversion_functions(src_base_type,
                                                                             *dst_type.base_type);
       if (!fns) {
-        SocketValueVariant::init_default(dst_type, value);
-        return;
+        return false;
       }
       if (const void *src_single_value = src_field.get_if_constant()) {
         if (!fns->convert_single_to_initialized) {
-          SocketValueVariant::init_default(dst_type, value);
-          return;
+          return false;
         }
         BUFFER_FOR_CPP_TYPE_VALUE(*dst_type.base_type, dst_single_value);
         fns->convert_single_to_initialized(src_single_value, dst_single_value);
         value.emplace<GField>(GField::from_constant(*dst_type.base_type, dst_single_value));
         dst_type.base_type->destruct(dst_single_value);
-        return;
+        return true;
       }
       if (!fns->multi_function) {
-        SocketValueVariant::init_default(dst_type, value);
-        return;
+        return false;
       }
       fn::FieldOperationPtr op = fn::FieldOperation::from(*fns->multi_function, {src_field});
       value.emplace<GField>(GField(std::move(op), 0));
-      return;
+      return true;
     }
 
     if (src_base_type == dst_type) {
@@ -76,37 +73,35 @@ void SocketValueVariantTypeInfo::convert_to_fn(const CPPType &dst_type,
       void *dst_value = SocketValueVariant::allocate(dst_type, value);
       dst_type.move_construct(tmp_buffer, dst_value);
       dst_type.destruct(tmp_buffer);
-      return;
+      return true;
     }
     const ConversionFunctions *fns = conversions.get_conversion_functions(src_base_type, dst_type);
     if (!fns || !fns->convert_single_to_initialized) {
-      SocketValueVariant::init_default(dst_type, value);
-      return;
+      return false;
     }
     BUFFER_FOR_CPP_TYPE_VALUE(src_base_type, src_single_value);
     fn::evaluate_constant_field(src_field, src_single_value);
     void *dst_value = SocketValueVariant::allocate(dst_type, value);
     fns->convert_single_to_uninitialized(src_single_value, dst_value);
     src_base_type.destruct(src_single_value);
-    return;
+    return true;
   }
   else if constexpr (std::is_same_v<CurrentT, GListPtr>) {
     GListPtr &src_list = value.get<GListPtr>();
     if (dst_type.generic_type && dst_type.generic_type->is<GListPtr>()) {
       if (!src_list) {
         /* Nothing to do. */
-        return;
+        return true;
       }
       const CPPType &src_base_type = src_list->cpp_type();
       if (src_base_type == *dst_type.base_type) {
         /* Nothing to do. */
-        return;
+        return true;
       }
       const ConversionFunctions *fns = conversions.get_conversion_functions(src_base_type,
                                                                             *dst_type.base_type);
       if (!fns || !fns->multi_function || !fns->convert_single_to_uninitialized) {
-        SocketValueVariant::init_default(dst_type, value);
-        return;
+        return false;
       }
       const int64_t size = src_list->size();
       const std::variant<GSpan, GPointer> src_values = src_list->values();
@@ -119,18 +114,17 @@ void SocketValueVariantTypeInfo::convert_to_fn(const CPPType &dst_type,
         mf::ContextBuilder context;
         fns->multi_function->call_auto(mask, params, context);
         src_list = GList::from_garray(std::move(dst_values));
-        return;
+        return true;
       }
       if (const auto *src_single_value = std::get_if<GPointer>(&src_values)) {
         BUFFER_FOR_CPP_TYPE_VALUE(*dst_type.base_type, dst_single_value);
         fns->convert_single_to_uninitialized(src_single_value->get(), dst_single_value);
         src_list = GList::from_single({*dst_type.base_type, dst_single_value}, size);
         dst_type.base_type->destruct(dst_single_value);
-        return;
+        return true;
       }
     }
-    SocketValueVariant::init_default(dst_type, value);
-    return;
+    return false;
   }
 #ifdef WITH_OPENVDB
   else if constexpr (std::is_same_v<CurrentT, GVolumeGrid>) {
@@ -138,23 +132,21 @@ void SocketValueVariantTypeInfo::convert_to_fn(const CPPType &dst_type,
     if (dst_type.generic_type && dst_type.generic_type->is<GVolumeGrid>()) {
       if (!src_grid) {
         /* Nothing to do. */
-        return;
+        return true;
       }
       const CPPType *src_base_type = src_grid->cpp_type();
       if (!src_base_type) {
         /* Unknown type. */
-        SocketValueVariant::init_default(dst_type, value);
-        return;
+        return false;
       }
       if (src_base_type == dst_type.base_type) {
         /* Nothing to do. */
-        return;
+        return true;
       }
       const ConversionFunctions *fns = conversions.get_conversion_functions(*src_base_type,
                                                                             *dst_type.base_type);
       if (!fns || !fns->multi_function) {
-        SocketValueVariant::init_default(dst_type, value);
-        return;
+        return false;
       }
       VolumeTreeAccessToken tree_token;
       const openvdb::GridBase &src_grid_base = src_grid->grid(tree_token);
@@ -162,21 +154,18 @@ void SocketValueVariantTypeInfo::convert_to_fn(const CPPType &dst_type,
       EvalResult conversion_result = evaluate_multi_function_on_grid(
           *fns->multi_function, {&src_grid_base}, {true});
       if (std::holds_alternative<EvalResult::Failure>(conversion_result.result)) {
-        SocketValueVariant::init_default(dst_type, value);
-        return;
+        return false;
       }
       src_grid = GVolumeGrid(
           std::move(std::get<EvalResult::Success>(conversion_result.result).output_grids[0]));
-      return;
+      return true;
     }
-    SocketValueVariant::init_default(dst_type, value);
-    return;
+    return false;
   }
 #endif
   else if constexpr (std::is_same_v<CurrentT, GList>) {
     // TODO
-    SocketValueVariant::init_default(dst_type, value);
-    return;
+    return false;
   }
   else {
     /* The stored value is a single value. */
@@ -184,31 +173,29 @@ void SocketValueVariantTypeInfo::convert_to_fn(const CPPType &dst_type,
     if (dst_type.is<GField>()) {
       GField field = GField::from_constant(CPPType::get<CurrentT>(), value.get());
       value.emplace<GField>(std::move(field));
-      return;
+      return true;
     }
     if (dst_type.generic_type && dst_type.generic_type->is<GField>()) {
       if (dst_type.base_type->is<CurrentT>()) {
         GField field = GField::from_constant(CPPType::get<CurrentT>(), value.get());
         value.emplace<GField>(std::move(field));
-        return;
+        return true;
       }
       const ConversionFunctions *fns = conversions.get_conversion_functions(
           CPPType::get<CurrentT>(), *dst_type.base_type);
       if (!fns || !fns->convert_single_to_initialized) {
-        SocketValueVariant::init_default(dst_type, value);
-        return;
+        return false;
       }
       BUFFER_FOR_CPP_TYPE_VALUE(*dst_type.base_type, tmp_buffer);
       fns->convert_single_to_initialized(value.get(), tmp_buffer);
       value.emplace<GField>(GField::from_constant(*dst_type.base_type, tmp_buffer));
       dst_type.base_type->destruct(tmp_buffer);
-      return;
+      return true;
     }
     const ConversionFunctions *fns = conversions.get_conversion_functions(CPPType::get<CurrentT>(),
                                                                           dst_type);
     if (!fns || !fns->convert_single_to_uninitialized) {
-      SocketValueVariant::init_default(dst_type, value);
-      return;
+      return false;
     }
     BUFFER_FOR_CPP_TYPE_VALUE(dst_type, tmp_buffer);
     fns->convert_single_to_uninitialized(value.get(), tmp_buffer);
@@ -216,6 +203,7 @@ void SocketValueVariantTypeInfo::convert_to_fn(const CPPType &dst_type,
     dst_type.move_construct(tmp_buffer, dst_value);
     dst_type.destruct(tmp_buffer);
   }
+  return false;
 }
 
 template<typename CurrentT>
@@ -279,8 +267,8 @@ bool SocketValueVariantTypeInfo::is_interpretable_as_fn(const CPPType &dst_type,
 }
 
 #define DEFINE_TYPE(TYPE) \
-  template void SocketValueVariantTypeInfo::convert_to_fn<TYPE>(const CPPType &dst_type, \
-                                                                SocketValueVariantAny &value); \
+  template bool SocketValueVariantTypeInfo::try_convert_fn<TYPE>(const CPPType &dst_type, \
+                                                                 SocketValueVariantAny &value); \
   template bool SocketValueVariantTypeInfo::is_interpretable_as_fn<TYPE>( \
       const CPPType &dst_type, const SocketValueVariantAny &value);
 
