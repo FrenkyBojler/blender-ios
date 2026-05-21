@@ -534,11 +534,10 @@ struct Strip {
    */
   void handles_set(const Scene *scene, int left_frame, int right_frame);
   /**
-   * Test if strip intersects with timeline frame.
+   * Test if this strip intersects with timeline frame.
    * \note This checks if strip would be rendered at this frame. For rendering it is assumed, that
    * timeline frame has width of 1 frame and therefore ends at timeline_frame + 1
    *
-   * \param strip: Strip to be checked
    * \param timeline_frame: absolute frame position
    * \return true if strip intersects with timeline frame.
    */
@@ -570,10 +569,21 @@ struct MetaStack {
 };
 
 struct SeqTimelineChannel {
-  struct SeqTimelineChannel *next = nullptr, *prev = nullptr;
+  SeqTimelineChannel *next = nullptr, *prev = nullptr;
   char name[64] = "";
   int index = 0;
   eSeqChannelFlag flag = SEQ_CHANNEL_NONE;
+
+#ifdef __cplusplus
+  bool is_locked() const
+  {
+    return (this->flag & SEQ_CHANNEL_LOCK) != 0;
+  }
+  bool is_muted() const
+  {
+    return (this->flag & SEQ_CHANNEL_LOCK) != 0;
+  }
+#endif
 };
 
 struct StripConnection {
@@ -842,7 +852,7 @@ struct TextVars {
   char text_legacy[512] = "";
 
   /** UI textbox state. */
-  TextboxState textbox_state = {};
+  TextboxState textbox_state;
 };
 
 #define STRIP_FONT_NOT_LOADED -2

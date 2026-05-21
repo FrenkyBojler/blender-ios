@@ -115,9 +115,15 @@ static void filelist_readjob_remote_asset_library_index_read(
       }
 
       /* Atomically test and reset the new pages flag. */
-      if (request.new_pages_available.exchange(false) || !request.is_downloading) {
+      if (request.new_pages_available.exchange(false)) {
         /* New pages available or loading ended. Done waiting. */
         return true;
+      }
+
+      if (!request.is_downloading) {
+        /* Nothing is downloading any more, so it doesn't make sense for the caller to continue
+         * looping. */
+        return false;
       }
 
       /* Busy waiting for new files, with some sleeping to avoid wasting a lot of CPU
@@ -247,7 +253,7 @@ static bUserAssetLibrary *lookup_remote_library(const FileListReadJob *job_param
 {
   bUserAssetLibrary *library = BKE_preferences_asset_library_find_index(
       &U, job_params->filelist->asset_library_ref->custom_library_index);
-  if (!library && !(library->flag & ASSET_LIBRARY_USE_REMOTE_URL)) {
+  if (!library || !(library->flag & ASSET_LIBRARY_USE_REMOTE_URL)) {
     return nullptr;
   }
 
