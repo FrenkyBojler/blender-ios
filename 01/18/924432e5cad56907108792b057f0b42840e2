@@ -4,3 +4,4 @@ Referenced by issue #157233, Geometry Nodes: Crash when enabling "Input Attribut
 Referenced by issue #157474, Blender crash when using undo while editing pose
 Referenced by issue #157813, EEVEE: Blender crashes when disabling Camera Ray Visibility on an object that uses Volume material
 Referenced by issue #158255, Blender 5.1.1 - Cast Shadow issue with node-based lights using textures in Emission Color
+Referenced by issue #158871, "New Asset Catalog" grayed out in "Current File" library
