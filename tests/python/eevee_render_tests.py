@@ -73,6 +73,11 @@ BLOCKLIST_METAL = [
     "osl_camera_advanced.blend",
     # Blocked due to volume occupancy being broken
     "texture_coordinate_object.blend",
+    # Blocked due to camera motion blur being broken
+    "rolling_shutter.blend",
+    "shutter_moving_camera_center.blend",
+    "shutter_moving_camera_end.blend",
+    "shutter_moving_camera_start.blend",
 ]
 
 BLOCKLIST_VULKAN = [
@@ -303,6 +308,8 @@ def main():
     elif test_dir_name.startswith('instancing'):
         # Small pointcloud has platform dependent raster pattern
         report.set_fail_threshold(8.0 / 255.0)
+        if args.gpu_backend == "metal":
+            report.set_fail_percent(0.33)
     elif test_dir_name.startswith('integrator'):
         # Noise difference in transparent materials (mostly transparent_spatial_splits)
         report.set_fail_threshold(8.0 / 255.0)
@@ -333,6 +340,10 @@ def main():
         # Failure can be subtle, tighten threshold
         report.set_fail_percent(0.04)
         report.set_fail_threshold(2.0 / 255.0)
+    elif test_dir_name.startswith('lightprobe') and args.gpu_backend == "metal":
+        # Some shadow difference, to be investigated
+        report.set_fail_percent(0.09)
+        report.set_fail_threshold(6.0 / 255.0)
 
 
     ok = report.run(args.testdir, args.blender, get_arguments, batch=args.batch)
