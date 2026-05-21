@@ -832,7 +832,8 @@ class NODE_PT_active_node_generic(Panel):
             icon='PRESET',
             text="",
         )
-
+        col.prop(node, "width", text="Width")
+        col.prop(node, "location_absolute", text="Location")
         col = layout.column()
         col.prop(node, "show_options")
         col.prop(node, "mute")
