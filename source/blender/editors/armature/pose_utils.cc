@@ -307,6 +307,41 @@ static void get_pose_bones_for_slide(bContext *C, ListBaseT<SlideSubject> &slide
   }
 }
 
+static void get_objects_for_slide(bContext *C, ListBaseT<SlideSubject> &slider_data)
+{
+  CTX_DATA_BEGIN (C, Object *, ob, selected_objects) {
+    PointerRNA object_ptr = RNA_pointer_create_discrete(&ob->id, RNA_Object, &ob);
+
+    Vector<FCurve *> curves;
+    const eAction_TransformFlags transFlags = get_item_transform_flags_and_fcurves(
+        ob->id, object_ptr, curves);
+
+    if (!transFlags) {
+      return;
+    }
+
+    SlideSubject *slide_subject = MEM_new<SlideSubject>("TransformableFCurveLink");
+    BLI_addtail(&slider_data, slide_subject);
+    slide_subject->fcurves = curves;
+
+    ed::AnimTransformable *transformable = MEM_new<ed::AnimTransformable>("transformable_object",
+                                                                          *ob);
+    slide_subject->transformable = transformable;
+
+    /* Set pchan's transform flags. */
+    slide_subject->transform_flag = transFlags;
+
+    slide_subject->old_loc = transformable->get_property(
+        ed::AnimTransformable::PropertyType::LOCATION);
+    slide_subject->old_rot = transformable->get_rotation();
+    slide_subject->old_scale = transformable->get_property(
+        ed::AnimTransformable::PropertyType::SCALE);
+
+    slide_subject->ptr = object_ptr;
+  }
+  CTX_DATA_END;
+}
+
 void slide_subjects_get(bContext *C, ListBaseT<SlideSubject> *r_transformable_list)
 {
   BLI_assert(r_transformable_list != nullptr);
@@ -314,6 +349,9 @@ void slide_subjects_get(bContext *C, ListBaseT<SlideSubject> *r_transformable_li
   switch (mode) {
     case CTX_MODE_POSE:
       get_pose_bones_for_slide(C, *r_transformable_list);
+      break;
+    case CTX_MODE_OBJECT:
+      get_objects_for_slide(C, *r_transformable_list);
       break;
 
     default:
@@ -347,6 +385,7 @@ void slide_subjects_free(ListBaseT<SlideSubject> *slide_subjects)
 void slide_subjects_refresh(bContext *C, ID *id)
 {
   DEG_id_tag_update(id, ID_RECALC_GEOMETRY);
+  DEG_id_tag_update(id, ID_RECALC_TRANSFORM);
   switch (GS(id->name)) {
     case ID_OB:
       WM_event_add_notifier(C, NC_OBJECT | ND_POSE, id_cast<Object *>(id));
@@ -393,26 +432,56 @@ void slide_subjects_reset(ListBaseT<SlideSubject> *slide_subjects)
   }
 }
 
+static void add_resolved_rna_paths(const PointerRNA &ptr,
+                                   const Span<PropertySnapshot> properties,
+                                   Vector<RNAPath> &paths)
+{
+  for (const PropertySnapshot &snapshot : properties) {
+    paths.append({RNA_property_identifier(snapshot.property)});
+  }
+}
+
 void slide_subjects_autokey(bContext *C,
                             Scene *scene,
                             const ListBaseT<SlideSubject> *slide_subjects,
                             const float cframe)
 {
-  /* Insert keyframes as necessary if auto-key-framing.
-   * TODO: don't use a keyingset here. Just use the keyframing code directly. */
-  KeyingSet *ks = animrig::get_keyingset_for_autokeying(scene, ANIM_KS_WHOLE_CHARACTER_ID);
-  Vector<PointerRNA> sources;
-
+  /* Insert keyframes as necessary if auto-key-framing. */
   for (SlideSubject &slide_subject : *slide_subjects) {
     PointerRNA &ptr = slide_subject.ptr;
     if (!animrig::autokeyframe_cfra_can_key(scene, slide_subject.ptr.owner_id)) {
       continue;
     }
-    animrig::relative_keyingset_add_source(sources, ptr.owner_id, ptr.type, ptr.data);
-  }
 
-  /* insert keyframes for all relevant bones in one go */
-  animrig::apply_keyingset(C, &sources, ks, animrig::ModifyKeyMode::INSERT, cframe);
+    Vector<RNAPath> paths;
+    paths.append({"location"});
+    paths.append(
+        {animrig::get_rotation_mode_path(slide_subject.transformable->get_rotation_mode())});
+    paths.append({"scale"});
+    for (const PropertySnapshot &snapshot : slide_subject.additional_properties) {
+      paths.append({RNA_property_identifier(snapshot.property)});
+    }
+    for (const PropertySnapshot &snapshot : slide_subject.properties) {
+      paths.append({RNA_property_identifier(snapshot.property)});
+    }
+    for (const PropertySnapshot &snapshot : slide_subject.system_properties) {
+      paths.append({RNA_property_identifier(snapshot.property)});
+    }
+
+    switch (slide_subject.transformable->type()) {
+      case ed::AnimTransformable::Type::POSE_BONE:
+        animrig::autokeyframe_pose_channel(C,
+                                           scene,
+                                           id_cast<Object *>(ptr.owner_id),
+                                           static_cast<bPoseChannel *>(ptr.data),
+                                           paths,
+                                           false);
+        break;
+      case ed::AnimTransformable::Type::OBJECT:
+        animrig::autokeyframe_object(C, scene, id_cast<Object *>(ptr.owner_id), paths);
+        break;
+    }
+  }
 
   for (SlideSubject &slide_subject : *slide_subjects) {
     ID *owner_id = slide_subject.transformable->owner_id();
@@ -420,13 +489,11 @@ void slide_subjects_autokey(bContext *C,
       continue;
     }
     Object *ob = id_cast<Object *>(owner_id);
-    if (!ob->pose) {
-      continue;
-    }
-    if (ob->pose->avs.path_bakeflag & MOTIONPATH_BAKE_HAS_PATHS) {
+    if (ob->pose && (ob->pose->avs.path_bakeflag & MOTIONPATH_BAKE_HAS_PATHS)) {
       /* TODO(sergey): Should ensure we can use more narrow update range here. */
       ED_pose_recalculate_paths(C, scene, ob, ANIMVIZ_CALC_RANGE_FULL);
     }
+    /* TODO recalculate object paths. */
   }
 }
 
