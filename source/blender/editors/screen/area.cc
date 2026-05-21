@@ -2981,7 +2981,7 @@ int ED_area_header_switchbutton(const bContext *C, ui::Block *block, int yco)
   bScreen *screen = CTX_wm_screen(C);
   int xco = 0.4 * U.widget_unit;
 
-	  xco += 1.6 * U.widget_unit;
+  xco += 1.6 * U.widget_unit;
 
   block_emboss_set(block, ui::EmbossType::None);
 
