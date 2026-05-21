@@ -168,6 +168,7 @@ AbstractViewItem *AbstractTreeView::navigate_right(AbstractViewItem *from)
 {
   AbstractTreeViewItem *active_item = dynamic_cast<AbstractTreeViewItem *>(from);
   if (!active_item->is_collapsible() || active_item->is_collapsed()) {
+    active_item->set_collapsed(false);
     return active_item;
   }
   return active_item->get_child();
@@ -186,7 +187,7 @@ AbstractViewItem *AbstractTreeView::navigate_up(AbstractViewItem *from)
         }
       },
       AbstractTreeView::IterOptions::SkipCollapsed | AbstractTreeView::IterOptions::SkipFiltered);
-  return next_item ? next_item : from;
+  return found_active ? next_item : from;
 }
 
 AbstractViewItem *AbstractTreeView::navigate_down(AbstractViewItem *from)
@@ -775,10 +776,12 @@ AbstractTreeViewItem *AbstractTreeViewItem::get_parent()
 
 AbstractTreeViewItem *AbstractTreeViewItem::get_child()
 {
-  if (children_.is_empty()) {
-    return nullptr;
+  for (const auto &child : children_) {
+    if (child->is_filtered_visible()) {
+      return child.get();
+    }
   }
-  return children_.first().get();
+  return nullptr;
 }
 
 bool AbstractTreeViewItem::set_state_active()
