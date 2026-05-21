@@ -10,8 +10,10 @@
  * the macros are evaluated to no-op.
  *
  * Important considerations:
- * - Any named arguments should have a stable `const char *` - this may mean declaring extern
- *   constants in some files to ensure the pointer matches.
+ * - Any named arguments should have a stable pointer to ensure Tracy associates names correctly.
+ *   \see BLI_PROFILE_STABLE_IDENTIFIER
+ * - Any macro that takes a (text, size) pair should *not* include the size including the null
+ *   terminator (i.e. should be equivalent to strlen(text))
  *
  * \see Tracy.hpp for a full list of supported macros
  * \see https://github.com/wolfpld/tracy/releases/latest/download/tracy.pdf
@@ -21,6 +23,9 @@
 
 #ifdef WITH_TRACY
 #  include <tracy/Tracy.hpp>
+
+#  define BLI_PROFILE_STABLE_IDENTIFIER(variable_name, text) \
+static const char *variable_name = text
 
 /** Frame markers. */
 #  define BLI_PROFILE_FRAME_MARK FrameMark
@@ -69,6 +74,8 @@
 #  define BLI_PROFILE_ZONE_ADD_VALUE_Z(variable_name, value) ZoneValueV(variable_name, value)
 
 #else
+
+#  define BLI_PROFILE_STABLE_IDENTIFIER(variable_name, text)
 
 #  define BLI_PROFILE_FRAME_MARK
 #  define BLI_PROFILE_FRAME_MARK_START(name)

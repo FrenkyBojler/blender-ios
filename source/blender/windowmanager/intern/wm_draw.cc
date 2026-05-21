@@ -1638,10 +1638,6 @@ void WM_paint_cursor_tag_redraw(wmWindow *win, ARegion * /*region*/)
   }
 }
 
-#ifdef WITH_TRACY
-static const char *draw_update_frame_name = "Window Drawing";
-#endif
-
 void wm_draw_update(bContext *C)
 {
   BLI_PROFILE_ZONE_SCOPED;
@@ -1681,7 +1677,8 @@ void wm_draw_update(bContext *C)
     CTX_wm_window_set(C, &win);
 
     if (wm_draw_update_test_window(bmain, C, &win)) {
-      BLI_PROFILE_FRAME_MARK_START(draw_update_frame_name);
+      BLI_PROFILE_STABLE_IDENTIFIER(window_drawing, "Window Drawing");
+      BLI_PROFILE_FRAME_MARK_START(window_drawing);
       /* Sets context window+screen. */
       wm_window_make_drawable(wm, &win);
       wm_window_swap_buffer_acquire(&win);
@@ -1693,7 +1690,7 @@ void wm_draw_update(bContext *C)
       wm_draw_update_clear_window(C, &win);
 
       wm_window_swap_buffer_release(&win);
-      BLI_PROFILE_FRAME_MARK_END(draw_update_frame_name);
+      BLI_PROFILE_FRAME_MARK_END(window_drawing);
     }
   }
 
