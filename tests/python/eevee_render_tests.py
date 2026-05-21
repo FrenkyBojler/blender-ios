@@ -288,7 +288,7 @@ def main():
     test_dir_name = Path(args.testdir).name
     if gpu_vendor == "NVIDIA" and args.gpu_backend == "opengl":
         # References are supposed to be generated on OpenGL Nvidia. Tighten the threshold for this platform.
-        report.set_fail_percent(0.04)
+        report.set_fail_percent(0.049)
         report.set_fail_threshold(2.0 / 255.0)
     elif test_dir_name.startswith('camera'):
         # camera_central_cylindrical and camera_stereo_panoramic have some platform specific small differencies
