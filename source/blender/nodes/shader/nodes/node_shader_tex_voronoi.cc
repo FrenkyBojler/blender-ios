@@ -25,11 +25,17 @@ NODE_STORAGE_FUNCS(NodeTexVoronoi)
 static void sh_node_tex_voronoi_declare(NodeDeclarationBuilder &b)
 {
   b.is_function_node();
+
   const int dimensions = b.node_or_null() ? node_storage(*b.node_or_null()).dimensions : 3;
-  b.add_input<decl::Vector>("Vector"_ustr)
-      .hide_value()
-      .implicit_field(NODE_DEFAULT_INPUT_POSITION_FIELD)
-      .available(dimensions != 1);
+  const bool is_compositor = b.tree_or_null() && b.tree_or_null()->type == NTREE_COMPOSIT;
+  auto &vector_declaration = b.add_input<decl::Vector>("Vector"_ustr).available(dimensions != 1);
+  if (is_compositor) {
+    vector_declaration.default_input_type(NODE_DEFAULT_INPUT_UNIFORM_IMAGE_COORDINATES);
+  }
+  else {
+    vector_declaration.implicit_field(NODE_DEFAULT_INPUT_POSITION_FIELD);
+  }
+
   b.add_input<decl::Float>("W"_ustr)
       .min(-1000.0f)
       .max(1000.0f)
@@ -38,7 +44,6 @@ static void sh_node_tex_voronoi_declare(NodeDeclarationBuilder &b)
         /* Default to 1 instead of 4, because it is much faster. */
         node_storage(node).dimensions = 1;
       });
-
   b.add_input<decl::Float>("Scale"_ustr).min(-1000.0f).max(1000.0f).default_value(5.0f);
 
   const eNodeVoronoi_Type feature = eNodeVoronoi_Type(

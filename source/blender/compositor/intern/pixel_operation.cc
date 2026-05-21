@@ -104,7 +104,8 @@ void PixelOperation::log_data()
         continue;
       }
 
-      if (!input_socket->is_logically_linked()) {
+      const InputDescriptor input_descriptor = input_descriptor_from_input_socket(input_socket);
+      if (!input_socket->is_logically_linked() && !input_descriptor.implicit_input.has_value()) {
         continue;
       }
 

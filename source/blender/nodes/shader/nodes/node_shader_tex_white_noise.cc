@@ -22,11 +22,18 @@ static void sh_node_tex_white_noise_declare(NodeDeclarationBuilder &b)
   b.is_function_node();
 
   const int dimensions = b.node_or_null() ? b.node_or_null()->custom1 : 3;
-  b.add_input<decl::Vector>("Vector"_ustr)
-      .min(-10000.0f)
-      .max(10000.0f)
-      .implicit_field(NODE_DEFAULT_INPUT_POSITION_FIELD)
-      .available(dimensions != 1);
+  const bool is_compositor = b.tree_or_null() && b.tree_or_null()->type == NTREE_COMPOSIT;
+  auto &vector_declaration = b.add_input<decl::Vector>("Vector"_ustr)
+                                 .min(-10000.0f)
+                                 .max(10000.0f)
+                                 .available(dimensions != 1);
+  if (is_compositor) {
+    vector_declaration.default_input_type(NODE_DEFAULT_INPUT_UNIFORM_IMAGE_COORDINATES);
+  }
+  else {
+    vector_declaration.implicit_field(NODE_DEFAULT_INPUT_POSITION_FIELD);
+  }
+
   b.add_input<decl::Float>("W"_ustr)
       .min(-10000.0f)
       .max(10000.0f)
