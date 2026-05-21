@@ -51,31 +51,35 @@ wmOperatorStatus otio_export_exec(bContext *C, const blender::OTIOExportParams *
   auto timeline = SerializableObject::Retainer<Timeline>(new Timeline(scene->id.name));
   auto main_stack = SerializableObject::Retainer<Stack>(new Stack());
 
-  /* Separate video and audio channels. */
+  /* Separate video and audio channels.
+   * Use negative channel number as key in std::map to store the sound strips.
+   */
   auto compare_strip_start = [](const Strip *a, const Strip *b) { return a->start < b->start; };
-  std::map<int, std::set<Strip *, decltype(compare_strip_start)>> video_channels;
-  std::map<int, std::set<Strip *, decltype(compare_strip_start)>> audio_channels;
+  std::map<int, std::set<Strip *, decltype(compare_strip_start)>> channels;
 
   for (Strip &strip : *seqbase) {
     if (ELEM(strip.type, STRIP_TYPE_SOUND)) {
-      audio_channels[strip.channel].insert(&strip);
+      channels[-strip.channel].insert(&strip);
     }
     else {
-      video_channels[strip.channel].insert(&strip);
+      channels[strip.channel].insert(&strip);
     }
   }
 
-  /* First add video (visual) tracks in the stack. */
-  for (auto [original_channel, strips] : video_channels) {
+  /* Iterate through the channels and strips to create OTIO timeine. */
+  for (auto [original_channel, strips] : channels) {
+
+    const std::string track_type = original_channel < 0 ? Track::Kind::audio : Track::Kind::video;
 
     auto track_source_range = otio::TimeRange(
         RationalTime(0, scene->frames_per_second()),
         RationalTime(scene->r.efra, scene->frames_per_second()));
 
     auto track = SerializableObject::Retainer<Track>(
-        new Track("", track_source_range, Track::Kind::video));
+        new Track("", track_source_range, track_type));
 
     int last_strip_end = 0;
+
     /* Append all the strips of this channel in the track. */
     for (Strip *strip : strips) {
       StripExporter *strip_exporter = nullptr;
@@ -83,6 +87,10 @@ wmOperatorStatus otio_export_exec(bContext *C, const blender::OTIOExportParams *
       switch (strip->type) {
         case STRIP_TYPE_MOVIE:
           strip_exporter = new MovieStripExporter(strip, scene, track, last_strip_end);
+          break;
+
+        case STRIP_TYPE_SOUND:
+          strip_exporter = new SoundStripExporter(strip, scene, track, last_strip_end);
           break;
 
         default:
@@ -95,37 +103,6 @@ wmOperatorStatus otio_export_exec(bContext *C, const blender::OTIOExportParams *
 
         delete strip_exporter;
       }
-    }
-    StripExporter::add_gap_if_necessary(
-        track, last_strip_end, scene->r.efra, scene->frames_per_second());
-
-    main_stack->append_child(track);
-  }
-
-  /* Now add audio tracks in the stack. */
-  for (auto [original_channel, strips] : audio_channels) {
-
-    auto track_source_range = otio::TimeRange(
-        RationalTime(0, scene->frames_per_second()),
-        RationalTime(scene->r.efra, scene->frames_per_second()));
-
-    auto track = SerializableObject::Retainer<Track>(
-        new Track("", track_source_range, Track::Kind::audio));
-
-    int last_strip_end = 0;
-    /* Append all the strips of this channel in the track. */
-    for (Strip *strip : strips) {
-      if (strip->type != STRIP_TYPE_SOUND) {
-        continue;
-      }
-
-      SoundStripExporter *sound_strip_exporter = new SoundStripExporter(
-          strip, scene, track, last_strip_end);
-
-      sound_strip_exporter->export_strip();
-      last_strip_end = sound_strip_exporter->last_strip_end;
-
-      delete sound_strip_exporter;
     }
     StripExporter::add_gap_if_necessary(
         track, last_strip_end, scene->r.efra, scene->frames_per_second());
