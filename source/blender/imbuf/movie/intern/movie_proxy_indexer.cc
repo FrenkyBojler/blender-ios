@@ -64,16 +64,16 @@ static int proxy_size_to_array_index(IMB_Proxy_Size pr_size)
   }
 }
 
-static void get_proxy_dir(const MovieReader *anim, char *index_dir, size_t index_dir_maxncpy)
+static void get_proxy_dir(const MovieReader *anim, char *proxy_dir, size_t proxy_dir_maxncpy)
 {
   if (!anim->proxy_dir[0]) {
     char filename[FILE_MAXFILE];
     char dirname[FILE_MAXDIR];
     BLI_path_split_dir_file(anim->filepath, dirname, sizeof(dirname), filename, sizeof(filename));
-    BLI_path_join(index_dir, index_dir_maxncpy, dirname, "BL_proxy", filename);
+    BLI_path_join(proxy_dir, proxy_dir_maxncpy, dirname, "BL_proxy", filename);
   }
   else {
-    BLI_strncpy(index_dir, anim->proxy_dir, index_dir_maxncpy);
+    BLI_strncpy(proxy_dir, anim->proxy_dir, proxy_dir_maxncpy);
   }
 }
 
@@ -82,7 +82,7 @@ static bool get_proxy_filepath(const MovieReader *anim,
                                char *filepath,
                                bool temp)
 {
-  char index_dir[FILE_MAXDIR];
+  char proxy_dir[FILE_MAXDIR];
   int i = proxy_size_to_array_index(preview_size);
 
   BLI_assert(i >= 0);
@@ -99,13 +99,13 @@ static bool get_proxy_filepath(const MovieReader *anim,
 
   SNPRINTF(proxy_name, name, int(proxy_fac[i] * 100), stream_suffix, anim->suffix);
 
-  get_proxy_dir(anim, index_dir, sizeof(index_dir));
+  get_proxy_dir(anim, proxy_dir, sizeof(proxy_dir));
 
-  if (BLI_path_ncmp(anim->filepath, index_dir, FILE_MAXDIR) == 0) {
+  if (BLI_path_ncmp(anim->filepath, proxy_dir, FILE_MAXDIR) == 0) {
     return false;
   }
 
-  BLI_path_join(filepath, FILE_MAXFILE + FILE_MAXDIR, index_dir, proxy_name);
+  BLI_path_join(filepath, FILE_MAXFILE + FILE_MAXDIR, proxy_dir, proxy_name);
   return true;
 }
 
@@ -443,17 +443,17 @@ struct MovieProxyBuilder {
   bool building_cancelled;
 };
 
-static MovieProxyBuilder *index_ffmpeg_create_context(MovieReader *anim,
-                                                      int proxy_sizes_in_use,
-                                                      int quality,
-                                                      bool build_only_on_bad_performance)
+static MovieProxyBuilder *proxy_builder_create(MovieReader *anim,
+                                               int proxy_sizes_in_use,
+                                               int quality,
+                                               bool build_only_on_bad_performance)
 {
   /* Never build proxies for un-seekable single frame files. */
   if (anim->never_seek_decode_one_frame) {
     return nullptr;
   }
 
-  MovieProxyBuilder *context = MEM_new_zeroed<MovieProxyBuilder>("FFmpeg index builder context");
+  MovieProxyBuilder *context = MEM_new_zeroed<MovieProxyBuilder>(__func__);
   int num_proxy_sizes = IMB_PROXY_MAX_SLOT;
   int i, streamcount;
 
@@ -556,7 +556,7 @@ static MovieProxyBuilder *index_ffmpeg_create_context(MovieReader *anim,
   return context;
 }
 
-static void index_rebuild_ffmpeg_finish(MovieProxyBuilder *context, const bool stop)
+static void proxy_builder_finish(MovieProxyBuilder *context, const bool stop)
 {
   const bool do_rollback = stop || context->building_cancelled;
 
@@ -572,17 +572,17 @@ static void index_rebuild_ffmpeg_finish(MovieProxyBuilder *context, const bool s
   MEM_delete(context);
 }
 
-static void index_rebuild_ffmpeg_proc_decoded_frame(MovieProxyBuilder *context, AVFrame *in_frame)
+static void proxy_builder_proc_decoded_frame(MovieProxyBuilder *context, AVFrame *in_frame)
 {
   for (int i = 0; i < context->num_proxy_sizes; i++) {
     add_to_proxy_output_ffmpeg(context->proxy_ctx[i], in_frame);
   }
 }
 
-static int index_rebuild_ffmpeg(MovieProxyBuilder *context,
-                                const bool *stop,
-                                bool *do_update,
-                                const blender::FunctionRef<void(float progress)> set_progress_fn)
+static int proxy_builder_process(MovieProxyBuilder *context,
+                                 const bool *stop,
+                                 bool *do_update,
+                                 const FunctionRef<void(float progress)> set_progress_fn)
 {
   AVFrame *in_frame = av_frame_alloc();
   AVPacket *next_packet = av_packet_alloc();
@@ -621,7 +621,7 @@ static int index_rebuild_ffmpeg(MovieProxyBuilder *context,
           break;
         }
 
-        index_rebuild_ffmpeg_proc_decoded_frame(context, in_frame);
+        proxy_builder_proc_decoded_frame(context, in_frame);
       }
     }
     av_packet_unref(next_packet);
@@ -648,7 +648,7 @@ static int index_rebuild_ffmpeg(MovieProxyBuilder *context,
         CLOG_ERROR(&LOG, "Error flushing proxy frame: %s", error_str);
         break;
       }
-      index_rebuild_ffmpeg_proc_decoded_frame(context, in_frame);
+      proxy_builder_proc_decoded_frame(context, in_frame);
     }
   }
 
@@ -659,8 +659,7 @@ static int index_rebuild_ffmpeg(MovieProxyBuilder *context,
 }
 
 /* Get number of frames, that can be decoded in specified time period. */
-static int indexer_performance_get_decode_rate(MovieProxyBuilder *context,
-                                               const double time_period)
+static int performance_get_decode_rate(MovieProxyBuilder *context, const double time_period)
 {
   AVFrame *in_frame = av_frame_alloc();
   AVPacket *packet = av_packet_alloc();
@@ -710,7 +709,7 @@ static int indexer_performance_get_decode_rate(MovieProxyBuilder *context,
 /* Read up to 10k movie packets and return max GOP size detected.
  * Number of packets is arbitrary. It should be as large as possible, but processed within
  * reasonable time period, so detected GOP size is as close to real as possible. */
-static int indexer_performance_get_max_gop_size(MovieProxyBuilder *context)
+static int performance_get_max_gop_size(MovieProxyBuilder *context)
 {
   AVPacket *packet = av_packet_alloc();
 
@@ -751,18 +750,18 @@ static int indexer_performance_get_max_gop_size(MovieProxyBuilder *context)
  * Since proxies use GOP size of 10 frames, skip building if detected GOP size is less or
  * equal.
  */
-static bool indexer_need_to_build_proxy(MovieProxyBuilder *context)
+static bool need_to_build_proxy(MovieProxyBuilder *context)
 {
   if (!context->build_only_on_bad_performance) {
     return true;
   }
 
   /* Make sure, that file is not cold read. */
-  indexer_performance_get_decode_rate(context, 0.1);
+  performance_get_decode_rate(context, 0.1);
   /* Get decode rate per 100ms. This is arbitrary, but seems to be good baseline cadence of
    * seeking. */
-  const int decode_rate = indexer_performance_get_decode_rate(context, 0.1);
-  const int max_gop_size = indexer_performance_get_max_gop_size(context);
+  const int decode_rate = performance_get_decode_rate(context, 0.1);
+  const int max_gop_size = performance_get_max_gop_size(context);
 
   if (max_gop_size <= 10 || max_gop_size < decode_rate) {
     CLOG_INFO_NOCHECK(&LOG,
@@ -832,7 +831,7 @@ MovieProxyBuilder *MOV_proxy_builder_start(MovieReader *anim,
   MovieProxyBuilder *context = nullptr;
 #ifdef WITH_FFMPEG
   if (anim->state == MovieReader::State::Valid) {
-    context = index_ffmpeg_create_context(
+    context = proxy_builder_create(
         anim, proxy_sizes_to_build, quality, build_only_on_bad_performance);
   }
 #else
@@ -849,12 +848,12 @@ void MOV_proxy_builder_process(MovieProxyBuilder *context,
                                const bool *stop,
                                /* NOLINTNEXTLINE: readability-non-const-parameter. */
                                bool *do_update,
-                               const blender::FunctionRef<void(float progress)> set_progress_fn)
+                               const FunctionRef<void(float progress)> set_progress_fn)
 {
 #ifdef WITH_FFMPEG
   if (context != nullptr) {
-    if (indexer_need_to_build_proxy(context)) {
-      index_rebuild_ffmpeg(context, stop, do_update, set_progress_fn);
+    if (need_to_build_proxy(context)) {
+      proxy_builder_process(context, stop, do_update, set_progress_fn);
     }
   }
 #endif
@@ -865,7 +864,7 @@ void MOV_proxy_builder_finish(MovieProxyBuilder *context, const bool stop)
 {
 #ifdef WITH_FFMPEG
   if (context != nullptr) {
-    index_rebuild_ffmpeg_finish(context, stop);
+    proxy_builder_finish(context, stop);
   }
 #endif
   /* static defined at top of the file */
