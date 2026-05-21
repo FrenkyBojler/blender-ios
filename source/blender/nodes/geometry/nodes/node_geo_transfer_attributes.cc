@@ -25,7 +25,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
   b.add_input<decl::Geometry>("Target"_ustr);
   b.add_output<decl::Geometry>("Target"_ustr).align_with_previous().propagate_all();
-  b.add_output<decl::String>("Names"_ustr)
+  b.add_output<decl::String>("Transferred Names"_ustr)
       .structure_type(StructureType::List)
       .description("Attribute names that have been transferred excluding internal attributes");
   {
@@ -64,7 +64,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .static_items(string_pattern_mode_items)
       .default_value(StringPatternMode::Wildcard)
       .optional_label();
-  b.add_input<decl::String>("Names"_ustr)
+  b.add_input<decl::String>("Attribute Names"_ustr)
       .optional_label()
       .structure_type(StructureType::List)
       .description(
@@ -376,7 +376,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   GeometrySet src_geo = params.extract_input<GeometrySet>("Source"_ustr);
   const StringPatternMode pattern_mode = params.extract_input<StringPatternMode>(
       "Pattern Mode"_ustr);
-  const GListPtr attribute_patterns_list = params.extract_input<GListPtr>("Names"_ustr);
+  const GListPtr attribute_patterns_list = params.extract_input<GListPtr>("Attribute Names"_ustr);
   const bool exclude_names = params.extract_input<bool>("Exclude Names"_ustr);
 
   Map<bke::AttrDomain, Field<int>> dst_id_fields = {
@@ -418,7 +418,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   if (patterns.is_empty()) {
     params.set_output("Target"_ustr, std::move(dst_geo));
-    params.set_output("Success"_ustr, !has_error);
+    params.set_output("Transferred Names"_ustr, GList::from_container(Array<std::string>()));
     return;
   }
 
@@ -503,17 +503,23 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   if (!exclude_names) {
     for (const int pattern_i : patterns.index_range()) {
-      if (!found_attribute_using_pattern[pattern_i]) {
-        params.error_message_add(NodeWarningType::Info,
-                                 fmt::format("{} \"{}\"",
-                                             TIP_("No attribute found matching"),
-                                             patterns[pattern_i].full_pattern()));
+      const StringRef full_pattern = patterns[pattern_i].full_pattern();
+      if (full_pattern.is_empty()) {
+        continue;
       }
+      if (found_attribute_using_pattern[pattern_i]) {
+        continue;
+      }
+      params.error_message_add(NodeWarningType::Info,
+                               fmt::format("{} \"{}\"",
+                                           TIP_("No attribute found matching"),
+                                           patterns[pattern_i].full_pattern()));
     }
   }
 
   params.set_output("Target"_ustr, std::move(dst_geo));
-  params.set_output("Names"_ustr, GList::from_container(transferred_names.extract_vector()));
+  params.set_output("Transferred Names"_ustr,
+                    GList::from_container(transferred_names.extract_vector()));
 }
 
 static void node_register()
