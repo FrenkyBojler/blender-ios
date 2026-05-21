@@ -1640,6 +1640,7 @@ static int panel_category_show_active_tab(ARegion *region, const int mval[2])
   }
   const View2D *v2d = &region->v2d;
   if (Block *block = region->runtime->block_name_map.lookup_as("panel_category_tabs")) {
+    /* First and last button are padding buttons. */
     if (i < block->buttons_ptrs.size() - 2) {
       Button &button = *block->buttons_ptrs[i + 1];
       region->category_scroll = -(button.rect.ymax - region->category_scroll - v2d->mask.ymax);
@@ -2449,7 +2450,34 @@ void panel_category_clear_all(ARegion *region)
   BLI_freelistN(&region->runtime->panels_category);
 }
 
-static bool panel_categories_is_mouse_over(ARegion *region, const wmEvent *event);
+static bool panel_categories_tab_is_mouse_over(ARegion *region, const wmEvent *event)
+{
+  BLI_assert(BKE_regiontype_uses_category_tabs(region->runtime->type));
+
+  const float aspect = BLI_rctf_size_y(&region->v2d.cur) /
+                       (BLI_rcti_size_y(&region->v2d.mask) + 1);
+  const float zoom = 1.0f / aspect;
+  const int category_tabs_width = round_fl_to_int(UI_PANEL_CATEGORY_MARGIN_WIDTH * zoom);
+  const bool is_left = RGN_ALIGN_ENUM_FROM_MASK(region->alignment) != RGN_ALIGN_RIGHT;
+
+  View2D *v2d = &region->v2d;
+  int ymin = region->v2d.mask.ymin;
+  if (region->overlap) {
+    if (Block *block = region->runtime->block_name_map.lookup_as("panel_category_tabs");
+        block && !block->buttons_ptrs.is_empty())
+    {
+      ymin = std::max(ymin, int(block->buttons_ptrs.last()->rect.ymax));
+    }
+  }
+  rcti rect = {
+      .xmin = is_left ? v2d->mask.xmin + 3 : (v2d->mask.xmax - category_tabs_width),
+      .xmax = is_left ? v2d->mask.xmin + category_tabs_width : (v2d->mask.xmax - 3),
+      .ymin = ymin,
+      .ymax = region->v2d.mask.ymax,
+  };
+
+  return BLI_rcti_isect_pt(&rect, event->mval[0], event->mval[1]);
+}
 
 static int handle_panel_category_cycling(const wmEvent *event,
                                          ARegion *region,
@@ -2458,7 +2486,7 @@ static int handle_panel_category_cycling(const wmEvent *event,
   BLI_assert(BKE_regiontype_uses_category_tabs(region->runtime->type));
 
   const bool is_mousewheel = ELEM(event->type, WHEELUPMOUSE, WHEELDOWNMOUSE);
-  const bool inside_tabregion = panel_categories_is_mouse_over(region, event);
+  const bool inside_tabregion = panel_categories_tab_is_mouse_over(region, event);
 
   /* If mouse is inside non-tab region, ctrl key is required. */
   if (is_mousewheel && (event->modifier & KM_CTRL) == 0 && !inside_tabregion) {
@@ -2522,28 +2550,6 @@ static void panel_region_width_set(ARegion *region, const float aspect, int unsc
   view2d_curRect_validate(&region->v2d);
 }
 
-static bool panel_categories_is_mouse_over(ARegion *region, const wmEvent *event)
-{
-  BLI_assert(BKE_regiontype_uses_category_tabs(region->runtime->type));
-
-  const float aspect = BLI_rctf_size_y(&region->v2d.cur) /
-                       (BLI_rcti_size_y(&region->v2d.mask) + 1);
-  const float zoom = 1.0f / aspect;
-  const int category_tabs_width = round_fl_to_int(UI_PANEL_CATEGORY_MARGIN_WIDTH * zoom);
-  const bool is_left = RGN_ALIGN_ENUM_FROM_MASK(region->alignment) != RGN_ALIGN_RIGHT;
-
-  View2D *v2d = &region->v2d;
-  rcti rect;
-  rect.ymin = rect.ymax = region->v2d.mask.ymax;
-  rect.xmin = is_left ? v2d->mask.xmin + 3 : (v2d->mask.xmax - category_tabs_width);
-  rect.xmax = is_left ? v2d->mask.xmin + category_tabs_width : (v2d->mask.xmax - 3);
-
-  if (Block *block = region->runtime->block_name_map.lookup_as("panel_category_tabs")) {
-    rect.ymin = block->buttons_ptrs.last()->rect.ymax;
-  }
-  return BLI_rcti_isect_pt(&rect, event->mval[0], event->mval[1]);
-}
-
 int handler_panel_region(bContext *C,
                          const wmEvent *event,
                          ARegion *region,
@@ -2563,7 +2569,7 @@ int handler_panel_region(bContext *C,
   /* Handle category tabs. */
   if (panel_category_tabs_is_visible(region)) {
     if (event->type == LEFTMOUSE && event->val == KM_PRESS &&
-        panel_categories_is_mouse_over(region, event))
+        panel_categories_tab_is_mouse_over(region, event))
     {
       const Button *active_button = region_find_active_but(region);
       /* Expand/collapse panels when clicking the active category button. */
@@ -2608,7 +2614,7 @@ int handler_panel_region(bContext *C,
       WM_tooltip_clear(C, CTX_wm_window(C));
       retval = panel_category_show_active_tab(region, event->xy);
     }
-    else if ((event->type == RIGHTMOUSE) && panel_categories_is_mouse_over(region, event)) {
+    else if ((event->type == RIGHTMOUSE) && panel_categories_tab_is_mouse_over(region, event)) {
       BLI_assert(retval == WM_UI_HANDLER_CONTINUE);
       retval = WM_UI_HANDLER_BREAK;
       WM_tooltip_clear(C, CTX_wm_window(C));
