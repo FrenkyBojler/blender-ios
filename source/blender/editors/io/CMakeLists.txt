@@ -8,6 +8,7 @@ set(INC
   ../../io/common
   ../../io/fbx
   ../../io/grease_pencil
+  ../../io/otio
   ../../io/ply
   ../../io/stl
   ../../io/usd
@@ -28,7 +29,7 @@ set(SRC
   io_grease_pencil.cc
   io_obj.cc
   io_ops.cc
-  io_otio.cc
+  io_otio_ops.cc
   io_ply_ops.cc
   io_stl_ops.cc
   io_usd.cc
@@ -41,7 +42,7 @@ set(SRC
   io_grease_pencil.hh
   io_obj.hh
   io_ops.hh
-  io_otio.hh
+  io_otio_ops.hh
   io_ply_ops.hh
   io_stl_ops.hh
   io_usd.hh
@@ -113,7 +114,7 @@ endif()
 
 if(WITH_OTIO)
   list(APPEND LIB
-    PRIVATE "$ENV{HOME}/opentimelineio/lib/libopentimelineio.a"
+    bf_io_otio
   )
   add_definitions(-DWITH_OTIO)
 endif()

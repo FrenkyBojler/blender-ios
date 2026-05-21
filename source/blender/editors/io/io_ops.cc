@@ -18,11 +18,14 @@
 #  include "io_fbx_ops.hh"
 #endif
 
+#ifdef WITH_OTIO
+#  include "io_otio_ops.hh"
+#endif
+
 #include "io_cache.hh"
 #include "io_drop_import_file.hh"
 #include "io_grease_pencil.hh"
 #include "io_obj.hh"
-#include "io_otio.hh"
 #include "io_ply_ops.hh"
 #include "io_stl_ops.hh"
 
