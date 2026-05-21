@@ -220,8 +220,8 @@ static SpaceMeasurements measure_chain(const SpaceChainData &chain)
 /**
  * Compute cubic spline coefficients for one coordinate axis.
  */
-static void calculate_splines_axis(const Span<float> distances,
-                                   const Span<float> coords,
+static void calculate_splines_axis(Span<float> distances,
+                                   Span<float> coords,
                                    const bool is_closed,
                                    const float total_length,
                                    Vector<SplineCoeffs> &r_coeffs)
@@ -305,7 +305,7 @@ static void calculate_splines_axis(const Span<float> distances,
 }
 
 /** Return the index of the spline segment that contains target_distance. */
-static int calc_spline_segment(const Span<float> knot_distances, const float target_distance)
+static int calc_spline_segment(Span<float> knot_distances, const float target_distance)
 {
   const int segment_index = binary_search::last_if(
       knot_distances, [&](const float value) { return value <= target_distance; });
@@ -313,10 +313,10 @@ static int calc_spline_segment(const Span<float> knot_distances, const float tar
 }
 
 /** Evaluates the cubic spline at target_distance. */
-static float3 evaluate_cubic(const Span<float> tknots,
-                             const Span<SplineCoeffs> coeffs_x,
-                             const Span<SplineCoeffs> coeffs_y,
-                             const Span<SplineCoeffs> coeffs_z,
+static float3 evaluate_cubic(Span<float> tknots,
+                             Span<SplineCoeffs> coeffs_x,
+                             Span<SplineCoeffs> coeffs_y,
+                             Span<SplineCoeffs> coeffs_z,
                              const float target_distance)
 {
   const int segment = calc_spline_segment(tknots, target_distance);
