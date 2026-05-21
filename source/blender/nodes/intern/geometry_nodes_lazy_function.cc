@@ -286,10 +286,10 @@ class LazyFunctionForGeometryNode : public LazyFunction {
     std::string socket_inspection_name = make_anonymous_attribute_socket_inspection_string(socket);
 
     void *r_value = params.get_output_data_ptr(lf_index);
-    new (r_value) SocketValueVariant(
+    new (r_value) SocketValueVariant(SocketValueVariant::from(
         GField::from_input<AttributeFieldInput>(std::move(attribute_name),
                                                 *socket.typeinfo->base_cpp_type,
-                                                std::move(socket_inspection_name)));
+                                                std::move(socket_inspection_name))));
     params.output_set(lf_index);
   }
 
@@ -442,10 +442,9 @@ static void execute_multi_function_on_value_variant__single(
 
   for (const int i : input_values.index_range()) {
     SocketValueVariant &input_variant = *input_values[i];
-    input_variant.convert_to_single();
-    const void *value = input_variant.get_single_ptr_raw();
     const mf::ParamType param_type = fn.param_type(params.next_param_index());
     const CPPType &cpp_type = param_type.data_type().single_type();
+    const void *value = input_variant.ensure_type(cpp_type);
     params.add_readonly_single_input(GPointer{cpp_type, value});
   }
   for (const int i : output_values.index_range()) {
@@ -489,7 +488,7 @@ static void execute_multi_function_on_value_variant__field(
     if (output_values[i] == nullptr) {
       continue;
     }
-    *output_values[i] = bke::SocketValueVariant(GField{operation, i});
+    *output_values[i] = bke::SocketValueVariant::from(GField{operation, i});
   }
 }
 
@@ -967,7 +966,7 @@ class LazyFunctionForGizmoNode : public LazyFunction {
       edit_data.gizmo_edit_hints_ = std::make_unique<bke::GizmoEditHints>();
       edit_data.gizmo_edit_hints_->gizmo_transforms.add(
           {user_data.compute_context->hash(), bnode_.identifier}, float4x4::identity());
-      params.set_output(0, SocketValueVariant(std::move(geometry)));
+      params.set_output(0, SocketValueVariant::from(std::move(geometry)));
     }
 
     /* Request all inputs so that their values can be logged. */
@@ -1362,18 +1361,16 @@ class LazyFunctionForIndexSwitchSocketUsage : public lf::LazyFunction {
   void execute_impl(lf::Params &params, const lf::Context & /*context*/) const override
   {
     const SocketValueVariant &index_variant = params.get_input<SocketValueVariant>(0);
-    if (index_variant.get().is_type<fn::GField>()) {
-      const fn::GField &field = *index_variant.get_if<fn::GField>();
-      if (field.depends_on_input()) {
-        for (const int i : outputs_.index_range()) {
-          params.set_output(i, true);
-        }
-        return;
+    if (index_variant.is_context_dependent_field()) {
+      for (const int i : outputs_.index_range()) {
+        params.set_output(i, true);
       }
     }
-    const int value = *index_variant.get().get<int>();
-    for (const int i : outputs_.index_range()) {
-      params.set_output(i, i == value);
+    else {
+      const int value = *index_variant.get().get<int>();
+      for (const int i : outputs_.index_range()) {
+        params.set_output(i, i == value);
+      }
     }
   }
 };
@@ -1414,14 +1411,12 @@ class LazyFunctionForExtractingReferenceSet : public lf::LazyFunction {
   void gather__socket_value(const SocketValueVariant &value_variant,
                             GeometryNodesReferenceSet &r_references) const
   {
-    const GPointer value = value_variant.get();
-    if (value.is_type<fn::GField>()) {
+    if (value_variant.is_context_dependent_field()) {
       const GField &field = *value_variant.get().get<GField>();
-      if (field.depends_on_input()) {
-        this->gather__field(field, r_references);
-      }
+      this->gather__field(field, r_references);
     }
     if (value_variant.is_single()) {
+      const GPointer value = value_variant.get();
       if (value.is_type<BundlePtr>()) {
         const BundlePtr &bundle = *value.get<BundlePtr>();
         this->gather__bundle(bundle, r_references);

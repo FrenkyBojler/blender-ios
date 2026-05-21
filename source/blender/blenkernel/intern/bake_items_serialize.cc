@@ -1668,24 +1668,24 @@ static void serialize_socket_value_variant(const SocketValueVariant &value_varia
                                            DictionaryValue &r_io_item)
 {
   if (value_variant.is_single()) {
-    const GPointer single_value = value_variant.get_single_ptr();
+    const GPointer single_value = value_variant.get();
     serialize_single_value(single_value, blob_writer, blob_sharing, r_io_item);
     return;
   }
   if (value_variant.is_context_dependent_field()) {
-    const fn::GField field = value_variant.get<fn::GField>();
+    const fn::GField &field = *value_variant.get_if<fn::GField>();
     serialize_field(field, blob_writer, blob_sharing, r_io_item);
     return;
   }
 #ifdef WITH_OPENVDB
   if (value_variant.is_volume_grid()) {
-    const volume_grid::GVolumeGrid volume_grid = value_variant.get<volume_grid::GVolumeGrid>();
+    const auto &volume_grid = *value_variant.get_if<volume_grid::GVolumeGrid>();
     serialize_volume_grid(volume_grid, blob_writer, blob_sharing, r_io_item);
     return;
   }
 #endif
   if (value_variant.is_list()) {
-    const nodes::GListPtr list = value_variant.get<nodes::GListPtr>();
+    const nodes::GListPtr &list = *value_variant.get_if<nodes::GListPtr>();
     serialize_list(list, blob_writer, blob_sharing, r_io_item);
     return;
   }
@@ -1872,18 +1872,13 @@ static std::optional<SocketValueVariant> deserialize_bake_item(const DictionaryV
   const std::optional<eCustomDataType> data_type = get_data_type_from_io_name(*state_item_type);
   if (data_type) {
     const CPPType &cpp_type = *custom_data_type_to_cpp_type(*data_type);
-    const std::optional<eNodeSocketDatatype> socket_type = custom_data_type_to_socket_type(
-        *data_type);
-    if (!socket_type) {
-      return {};
-    }
     BUFFER_FOR_CPP_TYPE_VALUE(cpp_type, buffer);
     if (!deserialize_primitive_value(**io_data, *data_type, buffer)) {
       return {};
     }
     BLI_SCOPED_DEFER([&]() { cpp_type.destruct(buffer); });
     SocketValueVariant value;
-    cpp_type.copy_construct(buffer, value.allocate_single(*socket_type));
+    cpp_type.copy_construct(buffer, value.allocate_single(cpp_type));
     return value;
   }
   return {};
