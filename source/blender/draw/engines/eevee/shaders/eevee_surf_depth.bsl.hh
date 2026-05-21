@@ -20,7 +20,7 @@ FRAGMENT_SHADER_CREATE_INFO(eevee_geom_iface_info)
 #include "eevee_sampling_lib.glsl"
 #include "eevee_surf_common.bsl.hh"
 #include "eevee_transparency_lib.glsl"
-#include "eevee_velocity_lib.glsl"
+#include "eevee_velocity.bsl.hh"
 
 float4 closure_to_rgba_depth(Closure /*cl*/)
 {
@@ -97,9 +97,9 @@ void surf_depth([[resource_table]] PipelineConstants &pipe,
   if constexpr (with_velocity) {
     if (pipe.use_velocity) [[static_branch]] {
       const auto &motion = interface_get(eevee_velocity_geom, motion);
-      frag_out.velocity = velocity_surface(
+      frag_out.velocity = velocity::surface_velocity(
           interp.P + motion.prev, interp.P, interp.P + motion.next);
-      frag_out.velocity = velocity_pack(frag_out.velocity);
+      frag_out.velocity = velocity::pack(frag_out.velocity);
     }
   }
 

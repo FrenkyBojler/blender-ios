@@ -78,7 +78,6 @@ set(SRC_GLSL_COMP
   eevee_ray_tile_compact_comp.glsl
   eevee_surfel_cluster_build_comp.glsl
   eevee_surfel_ray_comp.glsl
-  eevee_vertex_copy_comp.glsl
 )
 
 set(SRC_GLSL_LIB
@@ -112,7 +111,6 @@ set(SRC_GLSL_LIB
   eevee_sampling_lib.glsl
   eevee_subsurface_lib.glsl
   # eevee_transparency_lib.glsl # Require Fragment shader include
-  # eevee_velocity_lib.glsl # Has dependency on draw_model_lib that is hard to resolve
 )
 
 set(SRC_BSL
