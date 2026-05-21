@@ -27,19 +27,13 @@ bool cmp_node_poll_default(const bke::bNodeType * /*ntype*/,
   return true;
 }
 
-void cmp_node_update_default(bNodeTree * /*ntree*/, bNode *node)
-{
-  node->runtime->need_exec = 1;
-}
-
 void cmp_node_type_base(bke::bNodeType *ntype,
-                        std::string idname,
+                        UString idname,
                         const std::optional<int16_t> legacy_type)
 {
   bke::node_type_base(*ntype, idname, legacy_type);
 
   ntype->poll = cmp_node_poll_default;
-  ntype->updatefunc = cmp_node_update_default;
   ntype->insert_link = node_insert_link_default;
   ntype->gather_link_search_ops = nodes::search_link_ops_for_basic_node;
 }

@@ -30,7 +30,7 @@ namespace blender::ui {
 static void strip_modifier_panel_id(void *smd_link, char *r_name)
 {
   StripModifierData *smd = reinterpret_cast<StripModifierData *>(smd_link);
-  seq::modifier_type_panel_id(eStripModifierType(smd->type), r_name);
+  seq::modifier_type_panel_id(smd->type, r_name);
 }
 
 void template_strip_modifiers(Layout * /*layout*/, bContext *C)
@@ -60,7 +60,7 @@ void template_strip_modifiers(Layout * /*layout*/, bContext *C)
 
       /* Create custom data RNA pointer. */
       PointerRNA *md_ptr = MEM_new<PointerRNA>(__func__);
-      *md_ptr = RNA_pointer_create_discrete(&sequencer_scene->id, &RNA_StripModifier, &smd);
+      *md_ptr = RNA_pointer_create_discrete(&sequencer_scene->id, RNA_StripModifier, &smd);
 
       panel_add_instanced(C, region, &region->panels, panel_idname, md_ptr);
     }
@@ -82,7 +82,7 @@ void template_strip_modifiers(Layout * /*layout*/, bContext *C)
       }
 
       PointerRNA *md_ptr = MEM_new<PointerRNA>(__func__);
-      *md_ptr = RNA_pointer_create_discrete(&sequencer_scene->id, &RNA_StripModifier, &smd);
+      *md_ptr = RNA_pointer_create_discrete(&sequencer_scene->id, RNA_StripModifier, &smd);
       panel_custom_data_set(panel, md_ptr);
 
       panel = panel->next;

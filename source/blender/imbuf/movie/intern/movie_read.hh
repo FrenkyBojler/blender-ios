@@ -35,7 +35,7 @@ struct MovieIndex;
 
 struct MovieReader {
   enum class State { Uninitialized, Failed, Valid };
-  int ib_flags = 0;
+  ImBufFlags ib_flags = ImBufFlags::Zero;
   State state = State::Uninitialized;
   int cur_position = 0; /* index  0 = 1e,  1 = 2e, enz. */
   int duration_in_frames = 0;
@@ -47,7 +47,7 @@ struct MovieReader {
   int video_rotation = 0;
 
   /* for number */
-  char filepath[1024] = {};
+  char filepath[/*FILE_MAX*/ 1024] = {};
 
   int streamindex = 0;
 

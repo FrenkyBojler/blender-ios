@@ -24,6 +24,7 @@ struct CurveCache;
 struct ID;
 struct Mesh;
 struct PoseBackup;
+struct SculptSession;
 
 namespace bke {
 
@@ -124,6 +125,12 @@ struct ObjectRuntime {
   PoseBackup *pose_backup = nullptr;
 
   /**
+   * Value of bArmature::runtime::bones_generation_count at the moment that the
+   * bPoseChannel::runtime::bone_index values were determined.
+   */
+  uint64_t pose_bones_generation_count = 0;
+
+  /**
    * This is a curve representation of corresponding object.
    * It created when Python calls `object.to_curve()`.
    */
@@ -141,6 +148,10 @@ struct ObjectRuntime {
   uint64_t last_update_transform = 0;
   uint64_t last_update_geometry = 0;
   uint64_t last_update_shading = 0;
+
+  /* Runtime data used by mesh painting modes (Sculpt, Vertex, Weight). */
+  /* TODO: Rename the struct and the variable to better indicate its wider usage */
+  SculptSession *sculpt_session = nullptr;
 };
 
 }  // namespace bke

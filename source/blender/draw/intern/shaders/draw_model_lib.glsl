@@ -31,7 +31,7 @@ uint drw_resource_id_raw()
   return id;
 
 #elif (defined(GPU_FRAGMENT_SHADER) || defined(GPU_LIBRARY_SHADER)) && defined(RESOURCE_ID_VARYING)
-  return drw_ResourceID_iface.resource_index;
+  return drw_ResourceID_iface.resource_id;
 #endif
   return 0;
 }
@@ -54,11 +54,13 @@ uint drw_custom_id()
 
 float4x4 drw_modelmat()
 {
-  return drw_matrix_buf[drw_resource_id()].model;
+  const auto &matrix_buf = buffer_get(draw_modelmat_common, drw_matrix_buf);
+  return matrix_buf[drw_resource_id()].model;
 }
 float4x4 drw_modelinv()
 {
-  return drw_matrix_buf[drw_resource_id()].model_inverse;
+  const auto &matrix_buf = buffer_get(draw_modelmat_common, drw_matrix_buf);
+  return matrix_buf[drw_resource_id()].model_inverse;
 }
 
 /**

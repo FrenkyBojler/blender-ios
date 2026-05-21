@@ -148,7 +148,7 @@ static void sclip_zoom_set_factor_exec(bContext *C, const wmEvent *event, float 
     mpos = location;
   }
 
-  sclip_zoom_set_factor(C, factor, mpos, mpos ? (U.uiflag & USER_ZOOM_TO_MOUSEPOS) : false);
+  sclip_zoom_set_factor(C, factor, mpos, mpos ? (U.uiflag & USER_ZOOM_TO_MOUSEPOS) != 0 : false);
 
   ED_region_tag_redraw(region);
 }
@@ -383,7 +383,7 @@ static void view_pan_init(bContext *C, wmOperator *op, const wmEvent *event)
   SpaceClip *sc = CTX_wm_space_clip(C);
   ViewPanData *vpd;
 
-  op->customdata = vpd = MEM_callocN<ViewPanData>("ClipViewPanData");
+  op->customdata = vpd = MEM_new_zeroed<ViewPanData>("ClipViewPanData");
 
   /* Grab will be set when running from gizmo. */
   vpd->own_cursor = WM_cursor_modal_is_set_ok(win);
@@ -422,7 +422,7 @@ static void view_pan_exit(bContext *C, wmOperator *op, bool cancel)
   if (vpd->own_cursor) {
     WM_cursor_modal_restore(CTX_wm_window(C));
   }
-  MEM_freeN(vpd);
+  MEM_delete(vpd);
 }
 
 static wmOperatorStatus view_pan_exec(bContext *C, wmOperator *op)
@@ -563,7 +563,7 @@ static void view_zoom_init(bContext *C, wmOperator *op, const wmEvent *event)
   ARegion *region = CTX_wm_region(C);
   ViewZoomData *vpd;
 
-  op->customdata = vpd = MEM_callocN<ViewZoomData>("ClipViewZoomData");
+  op->customdata = vpd = MEM_new_zeroed<ViewZoomData>("ClipViewZoomData");
 
   /* Grab will be set when running from gizmo. */
   vpd->own_cursor = WM_cursor_modal_is_set_ok(win);
@@ -604,7 +604,7 @@ static void view_zoom_exit(bContext *C, wmOperator *op, bool cancel)
   if (vpd->own_cursor) {
     WM_cursor_modal_restore(CTX_wm_window(C));
   }
-  MEM_freeN(vpd);
+  MEM_delete(vpd);
 }
 
 static wmOperatorStatus view_zoom_exec(bContext *C, wmOperator *op)
@@ -1199,8 +1199,7 @@ struct ProxyJob {
 static void proxy_freejob(void *pjv)
 {
   ProxyJob *pj = static_cast<ProxyJob *>(pjv);
-
-  MEM_freeN(pj);
+  MEM_delete(pj);
 }
 
 static int proxy_bitflag_to_array(int size_flag, int build_sizes[4], int undistort)
@@ -1239,7 +1238,7 @@ static void do_movie_proxy(void *pjv,
                            int /*build_count*/,
                            const int *build_undistort_sizes,
                            int build_undistort_count,
-                           bool *stop,
+                           const bool *stop,
                            bool *do_update,
                            float *progress)
 {
@@ -1345,11 +1344,11 @@ static uchar *proxy_thread_next_frame(ProxyQueue *queue,
       return nullptr;
     }
 
-    mem = MEM_calloc_arrayN<uchar>(size, "movieclip proxy memory file");
+    mem = MEM_new_array_zeroed<uchar>(size, "movieclip proxy memory file");
 
     if (BLI_read(file, mem, size) != size) {
       close(file);
-      MEM_freeN(mem);
+      MEM_delete(mem);
       return nullptr;
     }
 
@@ -1378,7 +1377,8 @@ static void proxy_task_func(TaskPool *__restrict pool, void *task_data)
 
     ibuf = IMB_load_image_from_memory(mem,
                                       size,
-                                      IB_byte_data | IB_multilayer | IB_alphamode_detect,
+                                      ImBufFlags::ByteData | ImBufFlags::MultiLayer |
+                                          ImBufFlags::AlphaDetect,
                                       "proxy frame",
                                       nullptr,
                                       data->clip->colorspace_settings.name);
@@ -1396,7 +1396,7 @@ static void proxy_task_func(TaskPool *__restrict pool, void *task_data)
 
     IMB_freeImBuf(ibuf);
 
-    MEM_freeN(mem);
+    MEM_delete(mem);
   }
 }
 
@@ -1432,7 +1432,7 @@ static void do_sequence_proxy(void *pjv,
   queue.progress = progress;
 
   TaskPool *task_pool = BLI_task_pool_create(&queue, TASK_PRIORITY_LOW);
-  handles = MEM_calloc_arrayN<ProxyThread>(tot_thread, "proxy threaded handles");
+  handles = MEM_new_array_zeroed<ProxyThread>(tot_thread, "proxy threaded handles");
   for (int i = 0; i < tot_thread; i++) {
     ProxyThread *handle = &handles[i];
 
@@ -1461,7 +1461,7 @@ static void do_sequence_proxy(void *pjv,
     }
   }
 
-  MEM_freeN(handles);
+  MEM_delete(handles);
 }
 
 static void proxy_startjob(void *pjv, wmJobWorkerStatus *worker_status)
@@ -1510,6 +1510,7 @@ static void proxy_endjob(void *pjv)
 
   if (pj->proxy_builder) {
     MOV_proxy_builder_finish(pj->proxy_builder, pj->stop);
+    pj->proxy_builder = nullptr;
   }
 
   if (pj->clip->source == MCLIP_SRC_MOVIE) {
@@ -1544,7 +1545,7 @@ static wmOperatorStatus clip_rebuild_proxy_exec(bContext *C, wmOperator * /*op*/
                        WM_JOB_PROGRESS,
                        WM_JOB_TYPE_CLIP_BUILD_PROXY);
 
-  pj = MEM_callocN<ProxyJob>("proxy rebuild job");
+  pj = MEM_new<ProxyJob>("proxy rebuild job");
   pj->scene = scene;
   pj->main = CTX_data_main(C);
   pj->clip = clip;
@@ -1596,7 +1597,7 @@ void CLIP_OT_rebuild_proxy(wmOperatorType *ot)
 static wmOperatorStatus mode_set_exec(bContext *C, wmOperator *op)
 {
   SpaceClip *sc = CTX_wm_space_clip(C);
-  int mode = RNA_enum_get(op->ptr, "mode");
+  const eSpaceClip_Mode mode = eSpaceClip_Mode(RNA_enum_get(op->ptr, "mode"));
 
   sc->mode = mode;
 

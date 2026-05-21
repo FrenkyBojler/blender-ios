@@ -33,6 +33,8 @@ struct Scene;
 struct bGPDlayer;
 struct rcti;
 
+enum TrackingTrackFlag : int;
+
 /* --------------------------------------------------------------------
  * Common types and constants.
  */
@@ -196,14 +198,18 @@ MovieTrackingTrack **BKE_tracking_selected_tracks_in_active_object(MovieTracking
  * \param area: which part of marker should be selected.
  * \param flag: flag to be set for areas.
  */
-void BKE_tracking_track_flag_set(MovieTrackingTrack *track, eTrackArea area, int flag);
+void BKE_tracking_track_flag_set(MovieTrackingTrack *track,
+                                 eTrackArea area,
+                                 TrackingTrackFlag flag);
 /**
  * Clear flag from all specified track's areas.
  *
  * \param area: which part of marker should be selected.
  * \param flag: flag to be cleared for areas.
  */
-void BKE_tracking_track_flag_clear(MovieTrackingTrack *track, eTrackArea area, int flag);
+void BKE_tracking_track_flag_clear(MovieTrackingTrack *track,
+                                   eTrackArea area,
+                                   TrackingTrackFlag flag);
 
 /**
  * Check whether track has got marker at specified frame.
@@ -514,19 +520,6 @@ ImBuf *BKE_tracking_distort_frame(MovieTracking *tracking,
                                   int calibration_width,
                                   int calibration_height,
                                   float overscan);
-
-/* Given the size of an image that will be distorted/undistorted by the given tracking, compute the
- * number of pixels that the image will grow/shrink by in each of the four bounds of the image as a
- * result of the distortion/undistortion. The deltas for the bounds are positive for expansion and
- * negative for shrinking. */
-void BKE_tracking_distortion_bounds_deltas(MovieDistortion *distortion,
-                                           const int size[2],
-                                           const int calibration_size[2],
-                                           const bool undistort,
-                                           int *r_right,
-                                           int *r_left,
-                                           int *r_bottom,
-                                           int *r_top);
 
 /* --------------------------------------------------------------------
  * Image sampling.

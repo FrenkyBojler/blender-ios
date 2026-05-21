@@ -259,7 +259,7 @@ static void rna_RigidBodyOb_type_set(PointerRNA *ptr, int value)
 {
   RigidBodyOb *rbo = static_cast<RigidBodyOb *>(ptr->data);
 
-  rbo->type = value;
+  rbo->type = eRigidBodyOb_Type(value);
   rbo->flag |= RBO_FLAG_NEEDS_VALIDATE;
 }
 
@@ -267,7 +267,7 @@ static void rna_RigidBodyOb_shape_set(PointerRNA *ptr, int value)
 {
   RigidBodyOb *rbo = static_cast<RigidBodyOb *>(ptr->data);
 
-  rbo->shape = value;
+  rbo->shape = eRigidBody_Shape(value);
   rbo->flag |= RBO_FLAG_NEEDS_VALIDATE;
 }
 
@@ -454,7 +454,7 @@ static void rna_RigidBodyCon_type_set(PointerRNA *ptr, int value)
 {
   RigidBodyCon *rbc = static_cast<RigidBodyCon *>(ptr->data);
 
-  rbc->type = value;
+  rbc->type = eRigidBodyCon_Type(value);
   rbc->flag |= RBC_FLAG_NEEDS_VALIDATE;
 }
 
@@ -462,7 +462,7 @@ static void rna_RigidBodyCon_spring_type_set(PointerRNA *ptr, int value)
 {
   RigidBodyCon *rbc = static_cast<RigidBodyCon *>(ptr->data);
 
-  rbc->spring_type = value;
+  rbc->spring_type = eRigidBodyCon_SpringType(value);
   rbc->flag |= RBC_FLAG_NEEDS_VALIDATE;
 }
 
@@ -867,7 +867,7 @@ static void rna_RigidBodyWorld_convex_sweep_test(RigidBodyWorld *rbw,
 static PointerRNA rna_RigidBodyWorld_PointCache_get(PointerRNA *ptr)
 {
   RigidBodyWorld *rbw = static_cast<RigidBodyWorld *>(ptr->data);
-  return RNA_pointer_create_with_parent(*ptr, &RNA_PointCache, rbw->shared->pointcache);
+  return RNA_pointer_create_with_parent(*ptr, RNA_PointCache, rbw->shared->pointcache);
 }
 
 }  // namespace blender
@@ -1096,7 +1096,7 @@ static void rna_def_rigidbody_object(BlenderRNA *brna)
   RNA_def_property_update(prop, NC_OBJECT | ND_POINTCACHE, "rna_RigidBodyOb_reset");
 
   /* Physics Parameters */
-  prop = RNA_def_property(srna, "mass", PROP_FLOAT, PROP_UNIT_MASS);
+  prop = RNA_def_property(srna, "mass", PROP_FLOAT, PROP_MASS);
   RNA_def_property_float_sdna(prop, nullptr, "mass");
   RNA_def_property_range(prop, 0.001f, FLT_MAX); /* range must always be positive (and non-zero) */
   RNA_def_property_float_default(prop, 1.0f);

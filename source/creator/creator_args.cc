@@ -9,8 +9,10 @@
 #ifndef WITH_PYTHON_MODULE
 
 #  include <cerrno>
+#  include <cstdint>
 #  include <cstdlib>
 #  include <cstring>
+#  include <limits>
 
 #  include "MEM_guardedalloc.h"
 
@@ -92,14 +94,15 @@ namespace blender {
  * so it's preferable that known arguments are documented.
  */
 struct BuildDefs {
+  bool apple;
   bool win32;
   bool with_cycles;
   bool with_ffmpeg;
   bool with_freestyle;
   bool with_libmv;
-  bool with_opencolorio;
   bool with_opengl_backend;
   bool with_renderdoc;
+  bool with_input_ndof;
   bool with_vulkan_backend;
   bool with_xr_openxr;
 };
@@ -116,6 +119,9 @@ static void build_defs_init(BuildDefs *build_defs, bool force_all)
 
   memset(build_defs, 0x0, sizeof(*build_defs));
 
+#  ifdef __APPLE__
+  build_defs->apple = true;
+#  endif
 #  ifdef WIN32
   build_defs->win32 = true;
 #  endif
@@ -134,11 +140,11 @@ static void build_defs_init(BuildDefs *build_defs, bool force_all)
 #  ifdef WITH_OPENGL_BACKEND
   build_defs->with_opengl_backend = true;
 #  endif
-#  ifdef WITH_OPENCOLORIO
-  build_defs->with_opencolorio = true;
-#  endif
 #  ifdef WITH_RENDERDOC
   build_defs->with_renderdoc = true;
+#  endif
+#  ifdef WITH_INPUT_NDOF
+  build_defs->with_input_ndof = true;
 #  endif
 #  ifdef WITH_VULKAN_BACKEND
   build_defs->with_vulkan_backend = true;
@@ -335,7 +341,7 @@ static int *parse_int_relative_clamp_n(
     }
   }
 
-  int *values = MEM_malloc_arrayN<int>(size_t(len), __func__);
+  int *values = MEM_new_array_uninitialized<int>(size_t(len), __func__);
   int i = 0;
   while (true) {
     const char *str_end = strchr(str, sep);
@@ -363,7 +369,7 @@ static int *parse_int_relative_clamp_n(
   return values;
 
 fail:
-  MEM_freeN(values);
+  MEM_delete(values);
   return nullptr;
 }
 
@@ -391,7 +397,7 @@ static int (*parse_int_range_relative_clamp_n(const char *str,
     }
   }
 
-  int (*values)[2] = MEM_malloc_arrayN<int[2]>(size_t(len), __func__);
+  int (*values)[2] = MEM_new_array_uninitialized<int[2]>(size_t(len), __func__);
   int i = 0;
   while (true) {
     const char *str_end_range;
@@ -428,7 +434,7 @@ static int (*parse_int_range_relative_clamp_n(const char *str,
   return values;
 
 fail:
-  MEM_freeN(values);
+  MEM_delete(values);
   return nullptr;
 }
 
@@ -448,7 +454,7 @@ fail:
 #  ifdef WIN32
 static char **argv_duplicate(const char **argv, int argc)
 {
-  char **argv_copy = MEM_malloc_arrayN<char *>(size_t(argc), __func__);
+  char **argv_copy = MEM_new_array_uninitialized<char *>(size_t(argc), __func__);
   for (int i = 0; i < argc; i++) {
     argv_copy[i] = BLI_strdup(argv[i]);
   }
@@ -458,9 +464,9 @@ static char **argv_duplicate(const char **argv, int argc)
 static void argv_free(char **argv, int argc)
 {
   for (int i = 0; i < argc; i++) {
-    MEM_freeN(argv[i]);
+    MEM_delete(argv[i]);
   }
-  MEM_freeN(argv);
+  MEM_delete(argv);
 }
 #  endif /* !WIN32 */
 
@@ -481,7 +487,7 @@ static bool main_arg_deferred_is_set()
 static void main_arg_deferred_setup(BA_ArgCallback func, int argc, const char **argv, void *data)
 {
   BLI_assert(app_state.main_arg_deferred == nullptr);
-  BA_ArgCallback_Deferred *d = MEM_callocN<BA_ArgCallback_Deferred>(__func__);
+  BA_ArgCallback_Deferred *d = MEM_new_zeroed<BA_ArgCallback_Deferred>(__func__);
   d->func = func;
   d->argc = argc;
   d->argv = argv;
@@ -500,7 +506,7 @@ void main_arg_deferred_free()
 #  ifdef WIN32
   argv_free(const_cast<char **>(d->argv), d->argc);
 #  endif
-  MEM_freeN(d);
+  MEM_delete(d);
 }
 
 static void main_arg_deferred_exit_code_set(int exit_code)
@@ -720,6 +726,7 @@ static void print_help(bArgs *ba, bool all)
   BLI_args_print_arg_doc(ba, "--python-console");
   BLI_args_print_arg_doc(ba, "--python-exit-code");
   BLI_args_print_arg_doc(ba, "--python-use-system-env");
+  BLI_args_print_arg_doc(ba, "--python-use-user-env");
   BLI_args_print_arg_doc(ba, "--addons");
 
   PRINT("\n");
@@ -767,6 +774,9 @@ static void print_help(bArgs *ba, bool all)
   BLI_args_print_arg_doc(ba, "--debug-gpu-shader-debug-info");
   BLI_args_print_arg_doc(ba, "--debug-gpu-scope-capture");
   BLI_args_print_arg_doc(ba, "--debug-gpu-shader-source");
+  BLI_args_print_arg_doc(ba, "--debug-gpu-shader-no-preprocessor");
+  BLI_args_print_arg_doc(ba, "--debug-gpu-shader-no-dce");
+  BLI_args_print_arg_doc(ba, "--debug-gpu-no-texture-pool");
   if (defs.with_renderdoc) {
     BLI_args_print_arg_doc(ba, "--debug-gpu-renderdoc");
   }
@@ -796,6 +806,8 @@ static void print_help(bArgs *ba, bool all)
   PRINT("\n");
   PRINT("GPU Options:\n");
   BLI_args_print_arg_doc(ba, "--gpu-backend");
+  BLI_args_print_arg_doc(ba, "--gpu-device");
+  BLI_args_print_arg_doc(ba, "--gpu-device-no-fallback");
   BLI_args_print_arg_doc(ba, "--gpu-vsync");
   if (defs.with_opengl_backend) {
     BLI_args_print_arg_doc(ba, "--gpu-compilation-subprocesses");
@@ -887,11 +899,18 @@ static void print_help(bArgs *ba, bool all)
   PRINT(
       "  $BLENDER_CUSTOM_SPLASH_BANNER Full path to an image to overlay on the splash screen.\n");
 
-  if (defs.with_opencolorio) {
+  PRINT(
+      "  $BLENDER_OCIO              Path to override the OpenColorIO configuration file.\n"
+      "                             If not set, the 'OCIO' environment variable is used.\n");
+
+  /* Non `BLENDER_` prefixed, conventions from 3rd party libraries or the operating system. */
+
+  if ((!defs.win32 && !defs.apple && defs.with_input_ndof) || all) {
     PRINT(
-        "  $BLENDER_OCIO              Path to override the OpenColorIO configuration file.\n"
-        "                             If not set, the 'OCIO' environment variable is used.\n");
+        "  $SPNAV_SOCKET              The socket path to connect to the 3D-mouse daemon "
+        "(Unix only).\n");
   }
+
   if (defs.win32 || all) {
     PRINT("  $TEMP                      Store temporary files here (MS-Windows).\n");
   }
@@ -1410,13 +1429,16 @@ static const char arg_handle_debug_mode_generic_set_doc_depsgraph_pretty[] =
     "Enable colors for dependency graph debug messages.";
 static const char arg_handle_debug_mode_generic_set_doc_depsgraph_uid[] =
     "\n\t"
-    "Verify validness of session-wide identifiers assigned to ID data-blocks.";
+    "Verify validity of session-wide identifiers assigned to ID data-blocks.";
 static const char arg_handle_debug_mode_generic_set_doc_gpu_force_workarounds[] =
     "\n\t"
     "Enable workarounds for typical GPU issues and disable all GPU extensions.";
 static const char arg_handle_debug_mode_generic_set_doc_gpu_force_vulkan_local_read[] =
     "\n\t"
     "Force Vulkan dynamic rendering local read when supported by device.";
+static const char arg_handle_debug_mode_generic_set_doc_gpu_device_no_fallback[] =
+    "\n\t"
+    "Fail instead of falling back when '--gpu-device' does not match a usable Vulkan device.";
 
 static int arg_handle_debug_mode_generic_set(int /*argc*/, const char ** /*argv*/, void *data)
 {
@@ -1532,7 +1554,7 @@ static int arg_handle_debug_gpu_compile_shaders_set(int /*argc*/,
 
 static const char arg_handle_debug_gpu_scope_capture_set_doc[] =
     "\n"
-    "\tCapture the GPU commands issued inside the give scope name.";
+    "\tCapture the GPU commands issued inside the given scope name.";
 static int arg_handle_debug_gpu_scope_capture_set(int argc, const char **argv, void * /*data*/)
 {
   if (argc > 1) {
@@ -1546,7 +1568,7 @@ static int arg_handle_debug_gpu_scope_capture_set(int argc, const char **argv, v
 static const char arg_handle_debug_gpu_shader_source_doc[] =
     "\n"
     "\tSave the compiled GPU shader source code for the given shader name.\n"
-    "\tThe given name can contain leading or trailing wildcard \"*\" to match multiple shaders."
+    "\tThe given name can contain leading or trailing wildcard \"*\" to match multiple shaders.\n"
     "\tFiles are saved in the current working directory inside a directory named \"Shaders\".";
 static int arg_handle_debug_gpu_shader_source(int argc, const char **argv, void * /*data*/)
 {
@@ -1555,6 +1577,40 @@ static int arg_handle_debug_gpu_shader_source(int argc, const char **argv, void 
     return 1;
   }
   fprintf(stderr, "\nError: you must specify a shader name to capture.\n");
+  return 0;
+}
+
+static const char arg_handle_debug_gpu_shader_no_preprocessor_doc[] =
+    "\n"
+    "\tSkip preprocessor pass and rely on driver or shader compiler preprocessor instead.\n"
+    "\tAlso disable dead code elimination.";
+static int arg_handle_debug_gpu_shader_no_preprocessor(int /*argc*/,
+                                                       const char ** /*argv*/,
+                                                       void * /*data*/)
+{
+  G.debug |= G_DEBUG_GPU_SHADER_NO_PREPROCESSOR;
+  return 0;
+}
+
+static const char arg_handle_debug_gpu_shader_no_dce_doc[] =
+    "\n"
+    "\tSkip dead code elimination pass.";
+static int arg_handle_debug_gpu_shader_no_dce(int /*argc*/,
+                                              const char ** /*argv*/,
+                                              void * /*data*/)
+{
+  G.debug |= G_DEBUG_GPU_SHADER_NO_DCE;
+  return 0;
+}
+
+static const char arg_handle_debug_gpu_no_texture_pool_set_doc[] =
+    "\n"
+    "\tDisable memory aliasing optimizations in the GPU texture pool.";
+static int arg_handle_debug_gpu_no_texture_pool_set(int /* argc */,
+                                                    const char ** /* argv */,
+                                                    void * /*data*/)
+{
+  G.debug |= G_DEBUG_GPU_NO_TEXTURE_POOL;
   return 0;
 }
 
@@ -1648,6 +1704,110 @@ static int arg_handle_gpu_backend_set(int argc, const char **argv, void * /*data
 
   GPU_backend_type_selection_set_override(gpu_backend);
 
+  return 1;
+}
+
+static void arg_handle_gpu_device_exit(const int exit_code)
+{
+  /* `BKE_blender_atexit` expects `BKE_appdir_init` to have been called.
+   * `--gpu-device` is parsed in the environment pass, before the usual appdir initialization. */
+  BKE_appdir_init();
+  BKE_blender_atexit();
+  exit(exit_code);
+  BLI_assert_unreachable();
+}
+
+static const char arg_handle_gpu_device_set_doc[] =
+    "<device>\n"
+    "\tSelect a specific GPU device, overriding the GPU device from user preferences for this\n"
+    "\trun only. Accepted forms:\n"
+    "\n"
+    "\t* '<vendor-hex>/<device-hex>/<index-hex>' (matches the identifier used in user\n"
+    "\t  preferences, with vendor PCI ID, device PCI ID and enumeration index all hex-encoded).\n"
+    "\t* '<index>' (no slashes) picks the Nth supported device by enumeration order, decimal.\n"
+    "\t* 'help' prints supported Vulkan devices and exits.\n"
+    "\n"
+    "\tOnly used with the Vulkan backend. Other backends print a warning and ignore this option.\n"
+    "\tIf the requested Vulkan device is unavailable, Blender falls back to the saved GPU\n"
+    "\tpreference unless '--gpu-device-no-fallback' is also set.";
+static int arg_handle_gpu_device_set(int argc, const char **argv, void * /*data*/)
+{
+  const char *arg_id = "--gpu-device";
+  if (argc < 2) {
+    fprintf(stderr, "\nError: GPU device specifier must follow '%s'.\n", arg_id);
+    arg_handle_gpu_device_exit(EXIT_FAILURE);
+  }
+
+  const char *spec = argv[1];
+  if (STREQ(spec, "help")) {
+    printf("Blender GPU Device Listing (Vulkan):\n");
+    printf("Pass an Index or Device-ID to '--gpu-device'.\n");
+#  ifdef WITH_VULKAN_BACKEND
+    GPU_vulkan_supported_devices_print(stdout);
+#  else
+    printf("  (Vulkan backend not built)\n");
+#  endif
+    arg_handle_gpu_device_exit(EXIT_SUCCESS);
+  }
+
+  int device_index = 0;
+  uint32_t device_vendor_id = 0;
+  uint32_t device_device_id = 0;
+
+  if (strchr(spec, '/') == nullptr) {
+    const char *err_msg = nullptr;
+    if (!parse_int_strict_range(spec, nullptr, 0, INT_MAX, &device_index, &err_msg)) {
+      fprintf(stderr,
+              "\nError: %s '%s %s', expected '<index>' (a non-negative integer) "
+              "or '<vendor-hex>/<device-hex>/<index-hex>'.\n",
+              err_msg,
+              arg_id,
+              spec);
+      arg_handle_gpu_device_exit(EXIT_FAILURE);
+    }
+    device_vendor_id = uint32_t(-1);
+    device_device_id = uint32_t(-1);
+  }
+  else {
+    const char *p1 = strchr(spec, '/');
+    const char *p2 = strchr(p1 + 1, '/');
+    if (p2 == nullptr) {
+      fprintf(stderr,
+              "\nError: unrecognized '%s %s', expected "
+              "'<vendor-hex>/<device-hex>/<index-hex>', '<index>' or 'help'.\n",
+              arg_id,
+              spec);
+      arg_handle_gpu_device_exit(EXIT_FAILURE);
+    }
+
+    char *end = nullptr;
+    errno = 0;
+    const unsigned long vendor_id = strtoul(spec, &end, 16);
+    const bool vendor_ok = (errno == 0) && (end == p1) && (end != spec) &&
+                           (vendor_id <= std::numeric_limits<uint32_t>::max());
+    errno = 0;
+    const unsigned long device_id = strtoul(p1 + 1, &end, 16);
+    const bool device_ok = (errno == 0) && (end == p2) && (end != p1 + 1) &&
+                           (device_id <= std::numeric_limits<uint32_t>::max());
+    errno = 0;
+    const unsigned long index = strtoul(p2 + 1, &end, 16);
+    const bool index_ok = (errno == 0) && (*end == '\0') && (end != p2 + 1) && (index <= INT_MAX);
+
+    if (!vendor_ok || !device_ok || !index_ok) {
+      fprintf(stderr,
+              "\nError: failed to parse '%s %s', "
+              "expected '<vendor-hex>/<device-hex>/<index-hex>'.\n",
+              arg_id,
+              spec);
+      arg_handle_gpu_device_exit(EXIT_FAILURE);
+    }
+
+    device_vendor_id = uint32_t(vendor_id);
+    device_device_id = uint32_t(device_id);
+    device_index = int(index);
+  }
+
+  GPU_backend_preferred_device_set_override(device_index, device_vendor_id, device_device_id);
   return 1;
 }
 
@@ -1753,7 +1913,7 @@ static int arg_handle_app_template(int argc, const char **argv, void * /*data*/)
 
 static const char arg_handle_factory_startup_set_doc[] =
     "\n\t"
-    "Skip reading the '" BLENDER_STARTUP_FILE "' in the users home directory.";
+    "Skip reading the '" BLENDER_STARTUP_FILE "' in the user's home directory.";
 static int arg_handle_factory_startup_set(int /*argc*/, const char ** /*argv*/, void * /*data*/)
 {
   G.factory_startup = true;
@@ -1949,7 +2109,7 @@ static bool arg_handle_extension_registration(const bool do_register, const bool
   bool result = WM_platform_associate_set(do_register, all_users, &error_msg);
   if (error_msg) {
     fprintf(stderr, "Error: %s\n", error_msg);
-    MEM_freeN(error_msg);
+    MEM_delete(error_msg);
   }
   return result;
 #  endif
@@ -2228,7 +2388,7 @@ static int arg_handle_image_type_set(int argc, const char **argv, void *data)
 static const char arg_handle_threads_set_doc[] =
     "<threads>\n"
     "\tUse amount of <threads> for rendering and other operations\n"
-    "\t[1-" STRINGIFY(BLENDER_MAX_THREADS) "], 0 to use the systems processor count.";
+    "\t[1-" STRINGIFY(BLENDER_MAX_THREADS) "], 0 to use the system's processor count.";
 static int arg_handle_threads_set(int argc, const char **argv, void * /*data*/)
 {
   const char *arg_id = "-t / --threads";
@@ -2372,7 +2532,7 @@ static int arg_handle_render_frame(int argc, const char **argv, void *data)
       }
       RE_SetReports(re, nullptr);
       BKE_reports_free(&reports);
-      MEM_freeN(frame_range_arr);
+      MEM_delete(frame_range_arr);
       return 1;
     }
     fprintf(stderr, "\nError: frame number must follow '%s'.\n", arg_id);
@@ -2602,7 +2762,10 @@ static int arg_handle_python_text_run(int argc, const char **argv, void *data)
 
 static const char arg_handle_python_expr_run_doc[] =
     "<expression>\n"
-    "\tRun the given expression as a Python script.";
+    "\tRun the given expression as a Python script.\n"
+    "\n"
+    "\tThe expression may be a complete multi-line script;\n"
+    "\tyou are limited only by the platform's maximum argument length.";
 static int arg_handle_python_expr_run(int argc, const char **argv, void *data)
 {
   bContext *C = static_cast<bContext *>(data);
@@ -2674,15 +2837,29 @@ static int arg_handle_python_exit_code_set(int argc, const char **argv, void * /
 }
 
 static const char arg_handle_python_use_system_env_set_doc[] =
-    "\n\t"
-    "Allow Python to use system environment variables such as 'PYTHONPATH' and the user "
-    "site-packages directory.";
+    "\n"
+    "\tAllow Python to use system environment variables such as 'PYTHONPATH'.\n"
+    "\tThis also enables user environment, see: '--python-use-user-env'.";
 static int arg_handle_python_use_system_env_set(int /*argc*/,
                                                 const char ** /*argv*/,
                                                 void * /*data*/)
 {
 #  ifdef WITH_PYTHON
   BPY_python_use_system_env();
+#  endif
+  return 0;
+}
+
+static const char arg_handle_python_use_user_env_set_doc[] =
+    "\n"
+    "\tAllow Python to use user's site-packages directory.\n"
+    "\tThis disables full isolation for the Python environment.";
+static int arg_handle_python_use_user_env_set(int /*argc*/,
+                                              const char ** /*argv*/,
+                                              void * /*data*/)
+{
+#  ifdef WITH_PYTHON
+  BPY_python_use_user_env();
 #  endif
   return 0;
 }
@@ -2866,6 +3043,8 @@ void main_args_setup(bContext *C, bArgs *ba, bool all)
   BLI_args_pass_set(ba, ARG_PASS_ENVIRONMENT);
   BLI_args_add(
       ba, nullptr, "--python-use-system-env", CB(arg_handle_python_use_system_env_set), nullptr);
+  BLI_args_add(
+      ba, nullptr, "--python-use-user-env", CB(arg_handle_python_use_user_env_set), nullptr);
 
   /* Note that we could add used environment variables too. */
   BLI_args_add(
@@ -2894,6 +3073,12 @@ void main_args_setup(bContext *C, bArgs *ba, bool all)
   /* GPU backend selection should be part of #ARG_PASS_ENVIRONMENT for correct GPU context
    * selection for animation player. */
   BLI_args_add(ba, nullptr, "--gpu-backend", CB_ALL(arg_handle_gpu_backend_set), nullptr);
+  BLI_args_add(ba, nullptr, "--gpu-device", CB(arg_handle_gpu_device_set), nullptr);
+  BLI_args_add(ba,
+               nullptr,
+               "--gpu-device-no-fallback",
+               CB_EX(arg_handle_debug_mode_generic_set, gpu_device_no_fallback),
+               reinterpret_cast<void *>(G_DEBUG_GPU_DEVICE_NO_FALLBACK));
   BLI_args_add(ba, nullptr, "--gpu-vsync", CB(arg_handle_gpu_vsync_set), nullptr);
   if (defs.with_opengl_backend) {
     BLI_args_add(ba,
@@ -3047,11 +3232,23 @@ void main_args_setup(bContext *C, bArgs *ba, bool all)
                nullptr);
   BLI_args_add(ba,
                nullptr,
+               "--debug-gpu-no-texture-pool",
+               CB(arg_handle_debug_gpu_no_texture_pool_set),
+               nullptr);
+  BLI_args_add(ba,
+               nullptr,
                "--debug-gpu-scope-capture",
                CB(arg_handle_debug_gpu_scope_capture_set),
                nullptr);
   BLI_args_add(
       ba, nullptr, "--debug-gpu-shader-source", CB(arg_handle_debug_gpu_shader_source), nullptr);
+  BLI_args_add(ba,
+               nullptr,
+               "--debug-gpu-shader-no-preprocessor",
+               CB(arg_handle_debug_gpu_shader_no_preprocessor),
+               nullptr);
+  BLI_args_add(
+      ba, nullptr, "--debug-gpu-shader-no-dce", CB(arg_handle_debug_gpu_shader_no_dce), nullptr);
   if (defs.with_renderdoc) {
     BLI_args_add(
         ba, nullptr, "--debug-gpu-renderdoc", CB(arg_handle_debug_gpu_renderdoc_set), nullptr);
@@ -3120,7 +3317,7 @@ void main_args_setup(bContext *C, bArgs *ba, bool all)
   BLI_args_add(ba, nullptr, "--verbose", CB(arg_handle_verbosity_set), nullptr);
 
   BLI_args_add(ba, nullptr, "--app-template", CB(arg_handle_app_template), nullptr);
-  BLI_args_add(ba, nullptr, "--factory-startup", CB(arg_handle_factory_startup_set), nullptr);
+  BLI_args_add(ba, "-X", "--factory-startup", CB(arg_handle_factory_startup_set), nullptr);
   BLI_args_add(
       ba, nullptr, "--enable-event-simulate", CB(arg_handle_enable_event_simulate), nullptr);
 

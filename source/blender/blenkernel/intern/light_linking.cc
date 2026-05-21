@@ -32,7 +32,7 @@ namespace blender {
 void BKE_light_linking_ensure(Object *object)
 {
   if (object->light_linking == nullptr) {
-    object->light_linking = MEM_new_for_free<LightLinking>(__func__);
+    object->light_linking = MEM_new<LightLinking>(__func__);
   }
 }
 
@@ -40,13 +40,38 @@ void BKE_light_linking_copy(Object *object_dst, const Object *object_src, const 
 {
   BLI_assert(ELEM(object_dst->light_linking, nullptr, object_src->light_linking));
   if (object_src->light_linking) {
-    object_dst->light_linking = MEM_dupallocN<LightLinking>(__func__,
-                                                            *(object_src->light_linking));
+    object_dst->light_linking = MEM_new<LightLinking>(__func__, *(object_src->light_linking));
     if ((copy_flags & LIB_ID_CREATE_NO_USER_REFCOUNT) == 0) {
       id_us_plus(id_cast<ID *>(object_dst->light_linking->receiver_collection));
       id_us_plus(id_cast<ID *>(object_dst->light_linking->blocker_collection));
     }
   }
+}
+
+void BKE_light_linking_copy_collection(Main *bmain,
+                                       Object &object_dst,
+                                       const Object &object_src,
+                                       const LightLinkingType link_type)
+{
+  Collection *receiver_collection = BKE_light_linking_collection_get(&object_src, link_type);
+  BKE_light_linking_collection_assign(bmain, &object_dst, receiver_collection, link_type);
+
+  DEG_id_tag_update(&object_dst.id, ID_RECALC_SYNC_TO_EVAL | ID_RECALC_SHADING);
+  DEG_relations_tag_update(bmain);
+}
+
+void BKE_light_linking_copy_receiver_collection(Main *bmain,
+                                                Object &object_dst,
+                                                const Object &object_src)
+{
+  BKE_light_linking_copy_collection(bmain, object_dst, object_src, LIGHT_LINKING_RECEIVER);
+}
+
+void BKE_light_linking_copy_blocker_collection(Main *bmain,
+                                               Object &object_dst,
+                                               const Object &object_src)
+{
+  BKE_light_linking_copy_collection(bmain, object_dst, object_src, LIGHT_LINKING_BLOCKER);
 }
 
 void BKE_light_linking_delete(Object *object, const int delete_flags)
@@ -56,7 +81,7 @@ void BKE_light_linking_delete(Object *object, const int delete_flags)
       id_us_min(id_cast<ID *>(object->light_linking->receiver_collection));
       id_us_min(id_cast<ID *>(object->light_linking->blocker_collection));
     }
-    MEM_SAFE_FREE(object->light_linking);
+    MEM_SAFE_DELETE(object->light_linking);
   }
 }
 
@@ -506,7 +531,8 @@ void BKE_light_linking_link_receiver_to_emitter(Main *bmain,
   BKE_light_linking_add_receiver_to_collection(bmain, collection, &receiver->id, link_state);
 }
 
-void BKE_light_linking_select_receivers_of_emitter(Scene *scene,
+void BKE_light_linking_select_receivers_of_emitter(const Main &bmain,
+                                                   Scene *scene,
                                                    ViewLayer *view_layer,
                                                    Object *emitter,
                                                    const LightLinkingType link_type)
@@ -516,7 +542,7 @@ void BKE_light_linking_select_receivers_of_emitter(Scene *scene,
     return;
   }
 
-  BKE_view_layer_synced_ensure(scene, view_layer);
+  BKE_view_layer_synced_ensure(bmain, scene, view_layer);
 
   /* Deselect all currently selected objects in the view layer, but keep the emitter selected.
    * This is because the operation is called from the emitter being active, and it will be

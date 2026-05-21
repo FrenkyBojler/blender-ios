@@ -35,6 +35,8 @@
 #define BLI_STR_UTF8_U_DIAERESIS "\xc3\x9c"
 /** u00F6: `ö`. */
 #define BLI_STR_UTF8_O_DIAERESIS "\xc3\xb6"
+/** u2007: ` ` FIGURE SPACE (numeric width space) */
+#define BLI_STR_UTF8_FIGURE_SPACE "\xe2\x80\x87"
 /** u2014: `—` */
 #define BLI_STR_UTF8_EM_DASH "\xe2\x80\x94"
 /** u2022: `•` */

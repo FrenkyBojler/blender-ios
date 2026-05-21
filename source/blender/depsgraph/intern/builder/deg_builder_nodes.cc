@@ -137,7 +137,7 @@ DepsgraphNodeBuilder::~DepsgraphNodeBuilder()
   for (IDInfo &id_info : id_info_hash_.values()) {
     if (id_info.id_cow != nullptr) {
       deg_free_eval_copy_datablock(id_info.id_cow);
-      MEM_freeN(id_info.id_cow);
+      MEM_delete(id_info.id_cow);
     }
   }
 }
@@ -386,7 +386,7 @@ void DepsgraphNodeBuilder::begin_build()
       }
       else {
         /* This ID has not been expanded yet. Don't reuse it like already expanded IDs. */
-        MEM_SAFE_FREE(id_node->id_cow);
+        MEM_SAFE_DELETE(id_node->id_cow);
       }
     }
     id_info.previously_visible_components_mask = id_node->visible_components_mask;
@@ -653,10 +653,12 @@ void DepsgraphNodeBuilder::build_id(ID *id, const bool force_be_visible)
     case ID_PA:
       build_particle_settings(id_cast<ParticleSettings *>(id));
       break;
+    case ID_VF:
+      build_vfont((VFont *)id);
+      break;
 
     case ID_LI:
     case ID_SCR:
-    case ID_VF:
     case ID_BR:
     case ID_WM:
     case ID_PAL:
@@ -1445,7 +1447,7 @@ void DepsgraphNodeBuilder::build_driver_id_property(const PointerRNA &target_pro
   }
   const char *prop_identifier = RNA_property_identifier(prop);
   /* Custom properties of bones are placed in their components to improve granularity. */
-  if (RNA_struct_is_a(ptr.type, &RNA_PoseBone)) {
+  if (RNA_struct_is_a(ptr.type, RNA_PoseBone)) {
     const bPoseChannel *pchan = static_cast<const bPoseChannel *>(ptr.data);
     ensure_operation_node(ptr.owner_id,
                           NodeType::BONE,
@@ -1659,6 +1661,8 @@ void DepsgraphNodeBuilder::build_particle_systems(Object *object, bool is_object
         if (part->instance_collection != nullptr) {
           build_collection(nullptr, part->instance_collection);
         }
+        break;
+      default:
         break;
     }
   }
@@ -2332,8 +2336,6 @@ void DepsgraphNodeBuilder::build_vfont(VFont *vfont)
   build_parameters(&vfont->id);
   build_idproperties(vfont->id.properties);
   build_idproperties(vfont->id.system_properties);
-  add_operation_node(
-      &vfont->id, NodeType::GENERIC_DATABLOCK, OperationCode::GENERIC_DATABLOCK_UPDATE);
 }
 
 static bool strip_node_build_cb(Strip *strip, void *user_data)
@@ -2348,11 +2350,19 @@ static bool strip_node_build_cb(Strip *strip, void *user_data)
     nb->build_scene_parameters(strip->scene);
   }
   if (strip->type == STRIP_TYPE_SCENE && strip->scene != nullptr) {
+    BLI_assert(strip->scene_view_layer_name != nullptr);
     if (strip->flag & SEQ_SCENE_STRIPS) {
       nb->build_scene_sequencer(strip->scene);
     }
-    ViewLayer *sequence_view_layer = BKE_view_layer_default_render(strip->scene);
-    nb->build_scene_speakers(strip->scene, sequence_view_layer);
+    ViewLayer *strip_view_layer = BKE_view_layer_find(strip->scene, strip->scene_view_layer_name);
+    nb->build_scene_speakers(strip->scene, strip_view_layer);
+  }
+
+  if (strip->type == STRIP_TYPE_COMPOSITOR && strip->effectdata) {
+    CompositorEffectVars *comp_data = static_cast<CompositorEffectVars *>(strip->effectdata);
+    if (comp_data->node_group) {
+      nb->build_nodetree(comp_data->node_group);
+    }
   }
   for (StripModifierData &modifier : strip->modifiers) {
     if (modifier.type != eSeqModifierType_Compositor) {
@@ -2413,7 +2423,7 @@ void DepsgraphNodeBuilder::build_scene_audio(Scene *scene)
 
 void DepsgraphNodeBuilder::build_scene_speakers(Scene *scene, ViewLayer *view_layer)
 {
-  BKE_view_layer_synced_ensure(scene, view_layer);
+  BKE_view_layer_synced_ensure(*bmain_, scene, view_layer);
   for (Base &base : *BKE_view_layer_object_bases_get(view_layer)) {
     Object *object = base.object;
     if (object->type != OB_SPEAKER || !need_pull_base_into_graph(&base)) {

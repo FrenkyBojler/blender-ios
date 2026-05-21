@@ -42,6 +42,18 @@ struct [[host_shared]] ShadowSceneData {
   float film_pixel_radius;
   /* Global switch for jittered shadows. */
   bool32_t use_jitter;
+  /* Output atomic counter instead of depth. */
+  bool32_t use_debug_cost;
+  int _pad0;
+  int _pad1;
+  int _pad2;
+};
+
+struct [[host_shared]] SceneData {
+  float time;
+  float frame;
+  uint _pad0;
+  uint _pad1;
 };
 
 /* Light Clamping. */
@@ -51,9 +63,9 @@ struct [[host_shared]] ClampData {
   float surface_indirect;
   float volume_direct;
   float volume_indirect;
-  float _pad0;
-  float _pad1;
-  float _pad2;
+  float direct_scale;
+  float indirect_scale;
+  int _pad0;
 };
 
 /* Emulation of the light path node. */
@@ -89,12 +101,10 @@ struct [[host_shared]] UniformData {
   struct ClampData clamp;
   struct FilmData film;
   struct HiZData hiz;
-  struct RayTraceData raytrace;
   struct RenderBuffersInfoData render_pass;
   struct ShadowSceneData shadow;
-  struct SubsurfaceData subsurface;
   struct VolumesInfoData volumes;
-  struct PipelineInfoData pipeline;
+  struct SceneData scene;
 };
 
 /**

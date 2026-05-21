@@ -17,6 +17,8 @@
 
 #include "NOD_shader.h"
 
+#include "IMB_colormanagement.hh"
+
 #include "GPU_material.hh"
 
 #include "draw_cache.hh"
@@ -37,17 +39,16 @@ LookdevWorld::LookdevWorld()
 
   using namespace bke;
 
-  world->nodetree = node_tree_add_tree_embedded(
-      nullptr, &world->id, "Lookdev World Nodetree", ntreeType_Shader->idname);
-
   bNodeTree &ntree = *world->nodetree;
+  /* Note: We can rename directly safely because #world is not part of any bmain. */
+  BLI_strncpy(ntree.id.name + 2, "Lookdev World Nodetree", MAX_NAME - 2);
 
   bNode &coordinate = *node_add_static_node(nullptr, ntree, SH_NODE_TEX_COORD);
-  bNodeSocket &generated_sock = *node_find_socket(coordinate, SOCK_OUT, "Generated");
+  bNodeSocket &generated_sock = *node_find_socket(coordinate, SOCK_OUT, "Generated"_ustr);
 
   bNode &transform = *node_add_static_node(nullptr, ntree, SH_NODE_VECT_TRANSFORM);
-  bNodeSocket &transform_in = *node_find_socket(transform, SOCK_IN, "Vector");
-  bNodeSocket &transform_out = *node_find_socket(transform, SOCK_OUT, "Vector");
+  bNodeSocket &transform_in = *node_find_socket(transform, SOCK_IN, "Vector"_ustr);
+  bNodeSocket &transform_out = *node_find_socket(transform, SOCK_OUT, "Vector"_ustr);
   NodeShaderVectTransform &nodeprop = *static_cast<NodeShaderVectTransform *>(transform.storage);
   nodeprop.convert_from = SHD_VECT_TRANSFORM_SPACE_WORLD;
   xform_socket_ = &nodeprop.convert_to;
@@ -57,7 +58,7 @@ LookdevWorld::LookdevWorld()
   /* Flip Y axis because of compatibility axis flipping inside the vector transform node. */
   bNode &flip_y_mul = *node_add_static_node(nullptr, ntree, SH_NODE_VECTOR_MATH);
   flip_y_mul.custom1 = NODE_VECTOR_MATH_MULTIPLY;
-  auto &flip_y_value_out = *node_find_socket(flip_y_mul, SOCK_OUT, "Vector");
+  auto &flip_y_value_out = *node_find_socket(flip_y_mul, SOCK_OUT, "Vector"_ustr);
   auto &flip_y_value_in0 = *static_cast<bNodeSocket *>(BLI_findlink(&flip_y_mul.inputs, 0));
   auto &flip_y_value_in1 = *static_cast<bNodeSocket *>(BLI_findlink(&flip_y_mul.inputs, 1));
   flip_y_socket_ = static_cast<bNodeSocketValueVector *>(flip_y_value_in1.default_value);
@@ -69,9 +70,9 @@ LookdevWorld::LookdevWorld()
 
   bNode &rotate_x = *node_add_static_node(nullptr, ntree, SH_NODE_VECTOR_ROTATE);
   rotate_x.custom1 = NODE_VECTOR_ROTATE_TYPE_AXIS_X;
-  auto &rotate_x_vector_in = *node_find_socket(rotate_x, SOCK_IN, "Vector");
-  auto &rotate_x_vector_angle = *node_find_socket(rotate_x, SOCK_IN, "Angle");
-  auto &rotate_x_out = *node_find_socket(rotate_x, SOCK_OUT, "Vector");
+  auto &rotate_x_vector_in = *node_find_socket(rotate_x, SOCK_IN, "Vector"_ustr);
+  auto &rotate_x_vector_angle = *node_find_socket(rotate_x, SOCK_IN, "Angle"_ustr);
+  auto &rotate_x_out = *node_find_socket(rotate_x, SOCK_OUT, "Vector"_ustr);
   rotation_x_socket_ =
       &static_cast<bNodeSocketValueFloat *>(rotate_x_vector_angle.default_value)->value;
 
@@ -79,9 +80,9 @@ LookdevWorld::LookdevWorld()
 
   bNode &rotate_z = *node_add_static_node(nullptr, ntree, SH_NODE_VECTOR_ROTATE);
   rotate_z.custom1 = NODE_VECTOR_ROTATE_TYPE_AXIS_Z;
-  auto &rotate_z_vector_in = *node_find_socket(rotate_z, SOCK_IN, "Vector");
-  auto &rotate_z_vector_angle = *node_find_socket(rotate_z, SOCK_IN, "Angle");
-  auto &rotate_z_out = *node_find_socket(rotate_z, SOCK_OUT, "Vector");
+  auto &rotate_z_vector_in = *node_find_socket(rotate_z, SOCK_IN, "Vector"_ustr);
+  auto &rotate_z_vector_angle = *node_find_socket(rotate_z, SOCK_IN, "Angle"_ustr);
+  auto &rotate_z_out = *node_find_socket(rotate_z, SOCK_OUT, "Vector"_ustr);
   angle_socket_ = static_cast<bNodeSocketValueFloat *>(rotate_z_vector_angle.default_value);
 
   node_add_link(ntree, rotate_x, rotate_x_out, rotate_z, rotate_z_vector_in);
@@ -89,14 +90,14 @@ LookdevWorld::LookdevWorld()
   /* Discard the previous processing if we are rendering light probes. */
 
   bNode &light_path = *node_add_static_node(nullptr, ntree, SH_NODE_LIGHT_PATH);
-  bNodeSocket &is_camera_out = *node_find_socket(light_path, SOCK_OUT, "Is Camera Ray");
+  bNodeSocket &is_camera_out = *node_find_socket(light_path, SOCK_OUT, "Is Camera Ray"_ustr);
 
   bNode &path_mix = *node_add_static_node(nullptr, ntree, SH_NODE_MIX);
   NodeShaderMix &path_mix_data = *static_cast<NodeShaderMix *>(path_mix.storage);
   path_mix_data.data_type = SOCK_VECTOR;
   path_mix_data.factor_mode = NODE_MIX_MODE_UNIFORM;
   path_mix_data.clamp_factor = false;
-  auto &path_mix_out = *node_find_socket(path_mix, SOCK_OUT, "Result_Vector");
+  auto &path_mix_out = *node_find_socket(path_mix, SOCK_OUT, "Result_Vector"_ustr);
   auto &path_mix_fac = *static_cast<bNodeSocket *>(BLI_findlink(&path_mix.inputs, 0));
   auto &path_mix_in0 = *static_cast<bNodeSocket *>(BLI_findlink(&path_mix.inputs, 4));
   auto &path_mix_in1 = *static_cast<bNodeSocket *>(BLI_findlink(&path_mix.inputs, 5));
@@ -108,21 +109,21 @@ LookdevWorld::LookdevWorld()
   bNode &environment = *node_add_static_node(nullptr, ntree, SH_NODE_TEX_ENVIRONMENT);
   environment_node_ = &environment;
   NodeTexImage *environment_storage = static_cast<NodeTexImage *>(environment.storage);
-  auto &environment_vector_in = *node_find_socket(environment, SOCK_IN, "Vector");
-  auto &environment_out = *node_find_socket(environment, SOCK_OUT, "Color");
+  auto &environment_vector_in = *node_find_socket(environment, SOCK_IN, "Vector"_ustr);
+  auto &environment_out = *node_find_socket(environment, SOCK_OUT, "Color"_ustr);
 
   node_add_link(ntree, path_mix, path_mix_out, environment, environment_vector_in);
 
   bNode &background = *node_add_static_node(nullptr, ntree, SH_NODE_BACKGROUND);
-  auto &background_out = *node_find_socket(background, SOCK_OUT, "Background");
-  auto &background_color_in = *node_find_socket(background, SOCK_IN, "Color");
+  auto &background_out = *node_find_socket(background, SOCK_OUT, "Background"_ustr);
+  auto &background_color_in = *node_find_socket(background, SOCK_IN, "Color"_ustr);
   intensity_socket_ = static_cast<bNodeSocketValueFloat *>(
-      node_find_socket(background, SOCK_IN, "Strength")->default_value);
+      node_find_socket(background, SOCK_IN, "Strength"_ustr)->default_value);
 
   node_add_link(ntree, environment, environment_out, background, background_color_in);
 
   bNode &output = *node_add_static_node(nullptr, ntree, SH_NODE_OUTPUT_WORLD);
-  auto &output_in = *node_find_socket(output, SOCK_IN, "Surface");
+  auto &output_in = *node_find_socket(output, SOCK_IN, "Surface"_ustr);
 
   node_add_link(ntree, background, background_out, output, output_in);
   node_set_active(ntree, output);
@@ -409,7 +410,7 @@ void LookdevModule::sync_pass(PassSimple &pass,
   GPUMaterial *gpumat = inst_.shaders.material_shader_get(
       mat, mat->nodetree, MAT_PIPE_FORWARD, MAT_GEOM_MESH, false, inst_.materials.default_surface);
   pass.state_set(state);
-  pass.material_set(*inst_.manager, gpumat);
+  pass.material_set(*inst_.manager, gpumat, false, inst_.anisotropic_filtering);
   pass.bind_texture(RBUFS_UTILITY_TEX_SLOT, inst_.pipelines.utility_tx);
   pass.bind_resources(inst_.uniform_data);
   pass.bind_resources(inst_.lights);
@@ -419,6 +420,7 @@ void LookdevModule::sync_pass(PassSimple &pass,
   pass.bind_resources(inst_.hiz_buffer.front);
   pass.bind_resources(inst_.volume_probes);
   pass.bind_resources(inst_.sphere_probes);
+  pass.bind_resources(inst_.planar_probes);
   pass.draw(geom, res_handle, 0);
 }
 
@@ -451,7 +453,7 @@ void LookdevModule::draw(View &view)
   inst_.sphere_probes.set_view(view);
 
   if (assign_if_different(inst_.pipelines.data.use_monochromatic_transmittance, bool32_t(true))) {
-    inst_.uniform_data.push_update();
+    inst_.uniform_data.pipeline.push_update();
   }
 
   for (Sphere &sphere : spheres_) {
@@ -462,7 +464,7 @@ void LookdevModule::draw(View &view)
 
 void LookdevModule::rotate_world()
 {
-  if (!inst_.is_viewport()) {
+  if (!inst_.is_viewport() || !inst_.use_studio_light()) {
     return;
   }
 
@@ -606,10 +608,15 @@ void LookdevModule::rotate_world_probe_data(
 /** \name Parameters
  * \{ */
 
-LookdevParameters::LookdevParameters() = default;
+LookdevParameters::LookdevParameters()
+{
+  working_space = IMB_colormanagement_working_space_get();
+}
 
 LookdevParameters::LookdevParameters(const blender::View3D *v3d)
 {
+  working_space = IMB_colormanagement_working_space_get();
+
   if (v3d == nullptr) {
     return;
   }
@@ -629,9 +636,10 @@ LookdevParameters::LookdevParameters(const blender::View3D *v3d)
 
 bool LookdevParameters::operator==(const LookdevParameters &other) const
 {
-  return hdri == other.hdri && background_opacity == other.background_opacity &&
-         blur == other.blur && intensity == other.intensity &&
-         show_scene_world == other.show_scene_world && camera_space == other.camera_space;
+  return hdri == other.hdri && working_space == other.working_space &&
+         background_opacity == other.background_opacity && blur == other.blur &&
+         intensity == other.intensity && show_scene_world == other.show_scene_world &&
+         camera_space == other.camera_space;
 }
 
 bool LookdevParameters::operator!=(const LookdevParameters &other) const

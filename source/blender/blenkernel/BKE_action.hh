@@ -12,6 +12,8 @@
 #include "BLI_function_ref.hh"
 #include "BLI_span.hh"
 
+#include "BKE_pose.hh"
+
 namespace blender {
 
 struct BlendDataReader;
@@ -61,23 +63,13 @@ bAction *BKE_action_add(Main *bmain, const char name[]);
 /* Action Groups API ----------------- */
 
 /**
- * Get the active action-group for an Action.
- *
- * \note This function supports both legacy and layered Actions.
- */
-bActionGroup *get_active_actiongroup(bAction *act) ATTR_WARN_UNUSED_RESULT;
-
-/**
- * Make the given Action-Group the active one.
- *
- * \note This function supports both legacy and layered Actions.
- */
-void set_active_action_group(bAction *act, bActionGroup *agrp, short select);
-
-/**
  * Sync colors used for action/bone group with theme settings.
+ * This has to be called when the color theme index on the group changes so the actual color can be
+ * copied from the theme.
+ *
+ * \note Only meaningful on objects since for bones the group color is defined by the bone color.
  */
-void action_group_colors_sync(bActionGroup *grp, const bActionGroup *ref_grp);
+void action_group_colors_sync(bActionGroup *grp);
 
 /**
  * Set colors used on this action group.
@@ -90,16 +82,9 @@ void action_group_colors_set(bActionGroup *grp, const BoneColor *color);
  * If `pchan->color` is set to a non-default color, that is used. Otherwise the
  * armature bone color is used.
  *
- * Note that if `pchan->bone` is `nullptr`, this function silently does nothing.
+ * Note that if the posechan's armature bone is nullptr, this function silently does nothing.
  */
-void action_group_colors_set_from_posebone(bActionGroup *grp, const bPoseChannel *pchan);
-
-/**
- * Clear all 'temp' flags on all groups.
- *
- * \note This function supports both legacy and layered Actions.
- */
-void action_groups_clear_tempflags(bAction *act);
+void action_group_colors_set_from_posebone(bActionGroup *grp, bke::PChanBoneConst pchanbone);
 
 /* Pose API ----------------- */
 
@@ -236,7 +221,7 @@ bool BKE_pose_channels_is_valid(const bPose *pose) ATTR_WARN_UNUSED_RESULT;
  * Checks for IK constraint, Spline IK, and also for Follow-Path constraint.
  * can do more constraints flags later. pose should be entirely OK.
  */
-void BKE_pose_update_constraint_flags(bPose *pose) ATTR_NONNULL(1);
+void BKE_pose_update_constraint_flags(Object &pose_ob);
 
 /**
  * Tag constraint flags for update.
@@ -318,7 +303,7 @@ bool BKE_pose_copy_result(bPose *to, bPose *from);
 /**
  * Zero the pose transforms for the entire pose or only for selected bones.
  */
-void BKE_pose_rest(bPose *pose, bool selected_bones_only);
+void BKE_pose_rest(Object &pose_ob, bool selected_bones_only);
 
 /**
  * Tag pose for recalculation. Also tag all related data to be recalculated.

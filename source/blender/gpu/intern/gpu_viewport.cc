@@ -108,7 +108,7 @@ bool GPU_viewport_do_update(GPUViewport *viewport)
 
 GPUViewport *GPU_viewport_create()
 {
-  GPUViewport *viewport = MEM_new_for_free<GPUViewport>("GPUViewport");
+  GPUViewport *viewport = MEM_new<GPUViewport>("GPUViewport");
   viewport->do_color_management = false;
   viewport->size[0] = viewport->size[1] = -1;
   viewport->active_view = 0;
@@ -179,8 +179,8 @@ static void gpu_viewport_textures_create(GPUViewport *viewport)
                                                usage | GPU_TEXTURE_USAGE_HOST_READ |
                                                    GPU_TEXTURE_USAGE_FORMAT_VIEW,
                                                nullptr);
-    const int depth_clear = 0;
-    GPU_texture_clear(viewport->depth_tx, GPU_DATA_UINT_24_8_DEPRECATED, &depth_clear);
+    const float depth_clear = 0.0f;
+    GPU_texture_clear(viewport->depth_tx, GPU_DATA_FLOAT, &depth_clear);
   }
 
   if (!viewport->depth_tx || !viewport->color_render_tx[0] || !viewport->color_overlay_tx[0]) {
@@ -638,7 +638,7 @@ void GPU_viewport_free(GPUViewport *viewport)
   BKE_color_managed_view_settings_free(&viewport->view_settings);
   gpu_viewport_batch_free(viewport);
 
-  MEM_freeN(viewport);
+  MEM_delete(viewport);
 }
 
 }  // namespace blender

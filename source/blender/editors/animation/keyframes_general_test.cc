@@ -12,6 +12,7 @@
 
 #include "BKE_armature.hh"
 #include "BKE_fcurve.hh"
+#include "BKE_gtest_base.hh"
 #include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
@@ -93,12 +94,14 @@ FCurvePtr fake_fcurve_in_buffer(const char *rna_path,
 struct keyframes_paste : public testing::Test {
   static void SetUpTestSuite()
   {
+    bke::gtest_setup();
     ANIM_fcurves_copybuf_reset();
   }
 
   static void TearDownTestSuite()
   {
     ANIM_fcurves_copybuf_free();
+    bke::gtest_teardown();
   }
 };
 
@@ -520,11 +523,9 @@ TEST_F(keyframes_paste, pastebuf_match_path_property)
   ID *arm_ob_id;
 
   { /* Set up an armature, to test matching on property names. */
-    BKE_idtype_init();
-
     bArmature *armature = BKE_armature_add(bmain, "Armature");
     for (const auto &bone_name : {"hand.L", "hand.R", "middle"}) {
-      Bone *bone = MEM_new_for_free<Bone>(__func__);
+      Bone *bone = MEM_new<Bone>(__func__);
       STRNCPY_UTF8(bone->name, bone_name);
       BLI_addtail(&armature->bonebase, bone);
     }

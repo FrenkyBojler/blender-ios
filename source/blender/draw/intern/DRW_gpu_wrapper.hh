@@ -287,11 +287,12 @@ class UniformArrayBuffer : public detail::UniformCommon<T, len, false> {
   UniformArrayBuffer(const char *name = nullptr) : detail::UniformCommon<T, len, false>(name)
   {
     /* TODO(@fclem): We should map memory instead. */
-    this->data_ = static_cast<T *>(MEM_mallocN_aligned(len * sizeof(T), 16, this->name_));
+    this->data_ = static_cast<T *>(
+        MEM_new_uninitialized_aligned(len * sizeof(T), 16, this->name_));
   }
   ~UniformArrayBuffer()
   {
-    MEM_freeN(static_cast<void *>(this->data_));
+    MEM_delete(this->data_);
   }
 };
 
@@ -334,13 +335,12 @@ class StorageArrayBuffer : public detail::StorageCommon<T, len, device_only> {
   StorageArrayBuffer(const char *name = nullptr) : detail::StorageCommon<T, len, device_only>(name)
   {
     /* TODO(@fclem): We should map memory instead. */
-    this->data_ = static_cast<T *>(MEM_mallocN_aligned(len * sizeof(T), 16, this->name_));
+    this->data_ = static_cast<T *>(
+        MEM_new_uninitialized_aligned(len * sizeof(T), 16, this->name_));
   }
   ~StorageArrayBuffer()
   {
-    /* NOTE: T is not always trivial (e.g. can be #eevee::VelocityIndex), so cannot use
-     * `MEM_freeN` directly on it, without casting it to `void *`. */
-    MEM_freeN(static_cast<void *>(this->data_));
+    MEM_delete(this->data_);
   }
 
   /* Resize to \a new_size elements. */
@@ -348,12 +348,13 @@ class StorageArrayBuffer : public detail::StorageCommon<T, len, device_only> {
   {
     BLI_assert(new_size > 0);
     if (new_size != this->len_) {
-      /* Manual realloc since MEM_reallocN_aligned does not exists. */
-      T *new_data_ = static_cast<T *>(MEM_mallocN_aligned(new_size * sizeof(T), 16, this->name_));
+      /* Manual realloc since MEM_realloc_uninitialized_aligned does not exists. */
+      T *new_data_ = static_cast<T *>(
+          MEM_new_uninitialized_aligned(new_size * sizeof(T), 16, this->name_));
       memcpy(reinterpret_cast<void *>(new_data_),
              this->data_,
              min_uu(this->len_, new_size) * sizeof(T));
-      MEM_freeN(static_cast<void *>(this->data_));
+      MEM_delete(this->data_);
       this->data_ = new_data_;
       GPU_storagebuf_free(this->ssbo_);
 
@@ -951,7 +952,7 @@ class Texture : NonCopyable {
 
   /**
    * Returns a buffer containing the texture data for the specified miplvl.
-   * The memory block needs to be manually freed by MEM_freeN().
+   * The memory block needs to be manually freed by MEM_delete().
    */
   template<typename T> T *read(eGPUDataFormat format, int miplvl = 0)
   {
@@ -1070,7 +1071,7 @@ class TextureFromPool : public Texture, NonMovable {
   gpu::TexturePool *pool_ = nullptr;
 
  public:
-  TextureFromPool(const char *name = "gpu::Texture") : Texture(name) {};
+  TextureFromPool(const char *name = "draw::TextureFromPool") : Texture(name) {};
 
   /* On destructor, textures after `::retain()` may need to be released. */
   ~TextureFromPool()
@@ -1078,22 +1079,91 @@ class TextureFromPool : public Texture, NonMovable {
     release();
   }
 
-  /* Always use `::release()` or `::retain()` after rendering with a texture. */
-  bool acquire(int2 extent,
-               gpu::TextureFormat format,
-               eGPUTextureUsage usage = GPU_TEXTURE_USAGE_GENERAL)
+  /**
+   * Acquire a texture with the correct properties from the pool.
+   * Always use `::release()` or `::retain()` after rendering with this texture.
+   */
+  bool acquire_1d(int extent,
+                  gpu::TextureFormat format,
+                  eGPUTextureUsage usage = GPU_TEXTURE_USAGE_GENERAL,
+                  int mip_len = 1)
   {
-    if (tx_ == nullptr) {
-      pool_ = &gpu::TexturePool::get();
-      tx_ = pool_->acquire_texture(extent, format, usage);
-      if (G.debug & G_DEBUG_GPU) {
-        debug_clear();
-      }
-      return true;
-    }
+    return acquire_impl(extent, 0, 0, mip_len, format, usage, false, false);
+  }
 
-    pool_->offset_users_count(tx_, 1);
-    return false;
+  /**
+   * Acquire a texture with the correct properties from the pool.
+   * Always use `::release()` or `::retain()` after rendering with this texture.
+   */
+  bool acquire_1d_array(int extent,
+                        int layers,
+                        gpu::TextureFormat format,
+                        eGPUTextureUsage usage = GPU_TEXTURE_USAGE_GENERAL,
+                        int mip_len = 1)
+  {
+    return acquire_impl(extent, layers, 0, mip_len, format, usage, true, false);
+  }
+
+  /**
+   * Acquire a texture with the correct properties from the pool.
+   * Always use `::release()` or `::retain()` after rendering with this texture.
+   */
+  bool acquire_2d(int2 extent,
+                  gpu::TextureFormat format,
+                  eGPUTextureUsage usage = GPU_TEXTURE_USAGE_GENERAL,
+                  int mip_len = 1)
+  {
+    return acquire_impl(extent.x, extent.y, 0, mip_len, format, usage, false, false);
+  }
+
+  /**
+   * Acquire a texture with the correct properties from the pool.
+   * Always use `::release()` or `::retain()` after rendering with this texture.
+   */
+  bool acquire_2d_array(int2 extent,
+                        int layers,
+                        gpu::TextureFormat format,
+                        eGPUTextureUsage usage = GPU_TEXTURE_USAGE_GENERAL,
+                        int mip_len = 1)
+  {
+    return acquire_impl(extent.x, extent.y, layers, mip_len, format, usage, true, false);
+  }
+
+  /**
+   * Acquire a texture with the correct properties from the pool.
+   * Always use `::release()` or `::retain()` after rendering with this texture.
+   */
+  bool acquire_3d(int3 extent,
+                  gpu::TextureFormat format,
+                  eGPUTextureUsage usage = GPU_TEXTURE_USAGE_GENERAL,
+                  int mip_len = 1)
+  {
+    return acquire_impl(extent.x, extent.y, extent.z, mip_len, format, usage, false, false);
+  }
+
+  /**
+   * Acquire a texture with the correct properties from the pool.
+   * Always use `::release()` or `::retain()` after rendering with this texture.
+   */
+  bool acquire_cube(int extent,
+                    gpu::TextureFormat format,
+                    eGPUTextureUsage usage = GPU_TEXTURE_USAGE_GENERAL,
+                    int mip_len = 1)
+  {
+    return acquire_impl(extent, 0, 0, mip_len, format, usage, false, true);
+  }
+
+  /**
+   * Acquire a texture with the correct properties from the pool.
+   * Always use `::release()` or `::retain()` after rendering with this texture.
+   */
+  bool acquire_cube_array(int extent,
+                          int layers,
+                          gpu::TextureFormat format,
+                          eGPUTextureUsage usage = GPU_TEXTURE_USAGE_GENERAL,
+                          int mip_len = 1)
+  {
+    return acquire_impl(extent, layers, 0, mip_len, format, usage, true, true);
   }
 
   /* Invalidate the acquired texture for this frame. Multiple releases can be done safely. */
@@ -1102,6 +1172,7 @@ class TextureFromPool : public Texture, NonMovable {
     if (tx_ == nullptr) {
       return;
     }
+    free_texture_views();
     pool_->release_texture(tx_);
     tx_ = nullptr;
     pool_ = nullptr;
@@ -1137,9 +1208,64 @@ class TextureFromPool : public Texture, NonMovable {
   bool ensure_cube(int, int, gpu::TextureFormat, eGPUTextureUsage, const float *) = delete;
   void filter_mode(bool) = delete;
   void free() = delete;
-  gpu::Texture *mip_view(int) = delete;
-  gpu::Texture *layer_view(int) = delete;
-  gpu::Texture *stencil_view() = delete;
+
+ private:
+  /* Underlying `acquire_*` forwards to the texture pool. */
+  bool acquire_impl(int w,
+                    int h,
+                    int d,
+                    int mip_len,
+                    gpu::TextureFormat format,
+                    eGPUTextureUsage usage,
+                    bool layered,
+                    bool cubemap)
+  {
+    if (tx_ != nullptr) {
+      if (GPU_texture_width(tx_) != w || GPU_texture_height(tx_) != h ||
+          GPU_texture_depth(tx_) != d)
+      {
+        release();
+      }
+      else {
+        pool_->offset_users_count(tx_, 1);
+        return false;
+      }
+    }
+
+    pool_ = &gpu::TexturePool::get();
+
+    if (h == 0) {
+      tx_ = pool_->acquire_texture_1d(w, mip_len, format, usage, name_);
+    }
+    else if (cubemap) {
+      if (layered) {
+        tx_ = pool_->acquire_texture_cube_array(w, h, mip_len, format, usage, name_);
+      }
+      else {
+        tx_ = pool_->acquire_texture_cube(w, mip_len, format, usage, name_);
+      }
+    }
+    else if (d == 0) {
+      if (layered) {
+        tx_ = pool_->acquire_texture_1d_array(w, h, mip_len, format, usage, name_);
+      }
+      else {
+        tx_ = pool_->acquire_texture_2d({w, h}, mip_len, format, usage, name_);
+      }
+    }
+    else if (layered) {
+      tx_ = pool_->acquire_texture_2d_array({w, h}, d, mip_len, format, usage, name_);
+    }
+    else {
+      tx_ = pool_->acquire_texture_3d({w, h, d}, mip_len, format, usage, name_);
+    }
+
+    if (G.debug & G_DEBUG_GPU) {
+      debug_clear();
+    }
+
+    return true;
+  }
 };
 
 class TextureRef : public Texture {
@@ -1260,7 +1386,7 @@ class Framebuffer : NonCopyable {
 
   void clear_color(float4 color)
   {
-    GPU_framebuffer_clear_color(fb_, color);
+    GPU_framebuffer_clear_color(fb_, double4(color));
   }
 
   Framebuffer &operator=(Framebuffer &&a)

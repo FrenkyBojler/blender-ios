@@ -35,6 +35,7 @@
 
 #  include "BKE_cloth.hh"
 #  include "BKE_context.hh"
+#  include "BKE_particle.h"
 
 #  include "BLT_translation.hh"
 
@@ -387,7 +388,7 @@ static PointerRNA rna_ClothSettings_rest_shape_key_get(PointerRNA *ptr)
   Object *ob = id_cast<Object *>(ptr->owner_id);
   ClothSimSettings *sim = static_cast<ClothSimSettings *>(ptr->data);
 
-  return rna_object_shapekey_index_get(static_cast<ID *>(ob->data), sim->shapekey_rest);
+  return rna_object_shapekey_index_get(ob->data, sim->shapekey_rest);
 }
 
 static void rna_ClothSettings_rest_shape_key_set(PointerRNA *ptr,
@@ -397,8 +398,7 @@ static void rna_ClothSettings_rest_shape_key_set(PointerRNA *ptr,
   Object *ob = id_cast<Object *>(ptr->owner_id);
   ClothSimSettings *sim = static_cast<ClothSimSettings *>(ptr->data);
 
-  sim->shapekey_rest = rna_object_shapekey_index_set(
-      static_cast<ID *>(ob->data), value, sim->shapekey_rest);
+  sim->shapekey_rest = rna_object_shapekey_index_set(ob->data, value, sim->shapekey_rest);
 }
 
 static void rna_ClothSettings_gravity_get(PointerRNA *ptr, float *values)
@@ -421,27 +421,61 @@ static void rna_ClothSettings_gravity_set(PointerRNA *ptr, const float *values)
 
 static std::optional<std::string> rna_ClothSettings_path(const PointerRNA *ptr)
 {
+  const ClothSimSettings *settings = static_cast<ClothSimSettings *>(ptr->data);
   const Object *ob = id_cast<Object *>(ptr->owner_id);
-  const ModifierData *md = BKE_modifiers_findby_type(ob, eModifierType_Cloth);
 
+  /* ClothSettings can be used in the Cloth modifier... */
+  const ModifierData *md = BKE_modifiers_findby_type(ob, eModifierType_Cloth);
   if (md) {
-    char name_esc[sizeof(md->name) * 2];
-    BLI_str_escape(name_esc, md->name, sizeof(name_esc));
-    return fmt::format("modifiers[\"{}\"].settings", name_esc);
+    const ClothModifierData *clmd = reinterpret_cast<const ClothModifierData *>(md);
+    if (clmd->sim_parms == settings) {
+      char name_esc[sizeof(md->name) * 2];
+      BLI_str_escape(name_esc, md->name, sizeof(name_esc));
+      return fmt::format("modifiers[\"{}\"].settings", name_esc);
+    }
   }
+  /* ... but also in Hair dynamics. */
+  for (ParticleSystem &psys : ob->particlesystem) {
+    if (!psys.clmd) {
+      continue;
+    }
+    if (psys.clmd->sim_parms == settings) {
+      char name_esc[sizeof(psys.name) * 2];
+      BLI_str_escape(name_esc, psys.name, sizeof(name_esc));
+      return fmt::format("particle_systems[\"{}\"].cloth.settings", name_esc);
+    }
+  }
+
   return std::nullopt;
 }
 
 static std::optional<std::string> rna_ClothCollisionSettings_path(const PointerRNA *ptr)
 {
+  const ClothCollSettings *settings = static_cast<ClothCollSettings *>(ptr->data);
   const Object *ob = id_cast<Object *>(ptr->owner_id);
-  const ModifierData *md = BKE_modifiers_findby_type(ob, eModifierType_Cloth);
 
+  /* ClothCollisionSettings can be used in the Cloth modifier... */
+  const ModifierData *md = BKE_modifiers_findby_type(ob, eModifierType_Cloth);
   if (md) {
-    char name_esc[sizeof(md->name) * 2];
-    BLI_str_escape(name_esc, md->name, sizeof(name_esc));
-    return fmt::format("modifiers[\"{}\"].collision_settings", name_esc);
+    const ClothModifierData *clmd = reinterpret_cast<const ClothModifierData *>(md);
+    if (clmd->coll_parms == settings) {
+      char name_esc[sizeof(md->name) * 2];
+      BLI_str_escape(name_esc, md->name, sizeof(name_esc));
+      return fmt::format("modifiers[\"{}\"].collision_settings", name_esc);
+    }
   }
+  /* ... but also in Hair dynamics. */
+  for (ParticleSystem &psys : ob->particlesystem) {
+    if (!psys.clmd) {
+      continue;
+    }
+    if (psys.clmd->coll_parms == settings) {
+      char name_esc[sizeof(psys.name) * 2];
+      BLI_str_escape(name_esc, psys.name, sizeof(name_esc));
+      return fmt::format("particle_systems[\"{}\"].cloth.collision_settings", name_esc);
+    }
+  }
+
   return std::nullopt;
 }
 
@@ -620,7 +654,7 @@ static void rna_def_cloth_sim_settings(BlenderRNA *brna)
 
   /* mass */
 
-  prop = RNA_def_property(srna, "mass", PROP_FLOAT, PROP_UNIT_MASS);
+  prop = RNA_def_property(srna, "mass", PROP_FLOAT, PROP_MASS);
   RNA_def_property_range(prop, 0.0f, FLT_MAX);
   RNA_def_property_ui_text(prop, "Vertex Mass", "The mass of each vertex on the cloth material");
   RNA_def_property_update(prop, 0, "rna_cloth_update");

@@ -492,7 +492,7 @@ void rna_collection_search_update_fn(
         name = RNA_property_string_get_alloc(
             &itemptr, data->item_search_prop, name_buf, sizeof(name_buf), nullptr);
       }
-      else if (itemptr.type == &RNA_ActionSlot) {
+      else if (itemptr.type == RNA_ActionSlot) {
         /* FIXME: This special case is fairly annoying.
          *
          * `item_search_prop` now allows to specify another string property than the default RNA
@@ -526,11 +526,21 @@ void rna_collection_search_update_fn(
         cis->has_sep_char = has_sep_char;
         items_list.append(std::move(cis));
         if (name != name_buf) {
-          MEM_freeN(name);
+          MEM_delete(name);
         }
       }
     }
     RNA_PROP_END;
+
+    /* Sort alphabetically (matches other search layouts). */
+    std::ranges::sort(
+        items_list,
+        [](const std::unique_ptr<CollItemSearch> &a, const std::unique_ptr<CollItemSearch> &b) {
+          return BLI_strcasecmp_natural(a->name.c_str(), b->name.c_str()) < 0;
+        });
+    for (const int i : items_list.index_range()) {
+      items_list[i]->index = i;
+    }
   }
   else {
     BLI_assert(RNA_property_type(data->target_prop) == PROP_STRING);
@@ -566,9 +576,8 @@ void rna_collection_search_update_fn(
                                });
 
     if (search_flag & PROP_STRING_SEARCH_SORT) {
-      std::sort(
-          items_list.begin(),
-          items_list.end(),
+      std::ranges::sort(
+          items_list,
           [](const std::unique_ptr<CollItemSearch> &a, const std::unique_ptr<CollItemSearch> &b) {
             return BLI_strcasecmp_natural(a->name.c_str(), b->name.c_str()) < 0;
           });
@@ -769,7 +778,7 @@ std::optional<std::string> button_online_manual_id_from_active(const bContext *C
 
 /* -------------------------------------------------------------------- */
 
-static rctf ui_but_rect_to_view(const Button *but, const ARegion *region, const View2D *v2d)
+static rctf but_rect_to_view(const Button *but, const ARegion *region, const View2D *v2d)
 {
   rctf region_rect;
   block_to_region_rctf(region, but->block, &region_rect, &but->rect);
@@ -787,7 +796,7 @@ static rctf ui_but_rect_to_view(const Button *but, const ARegion *region, const 
  *
  * \return true if anything changed.
  */
-static bool ui_view2d_cur_ensure_rect_in_view(View2D *v2d, const rctf *rect)
+static bool view2d_cur_ensure_rect_in_view(View2D *v2d, const rctf *rect)
 {
   const float rect_width = BLI_rctf_size_x(rect);
   const float rect_height = BLI_rctf_size_y(rect);
@@ -837,12 +846,12 @@ void but_ensure_in_view(const bContext *C, ARegion *region, const Button *but)
     return;
   }
 
-  rctf rect = ui_but_rect_to_view(but, region, v2d);
+  rctf rect = but_rect_to_view(but, region, v2d);
 
   const int margin = UI_UNIT_X * 0.5f;
   BLI_rctf_pad(&rect, margin, margin);
 
-  const bool changed = ui_view2d_cur_ensure_rect_in_view(v2d, &rect);
+  const bool changed = view2d_cur_ensure_rect_in_view(v2d, &rect);
   if (changed) {
     view2d_curRect_changed(C, v2d);
     ED_region_tag_redraw_no_rebuild(region);
@@ -876,7 +885,7 @@ struct ButStoreElem {
 
 ButStore *butstore_create(Block *block)
 {
-  ButStore *bs_handle = MEM_callocN<ButStore>(__func__);
+  ButStore *bs_handle = MEM_new_zeroed<ButStore>(__func__);
 
   bs_handle->block = block;
   BLI_addtail(&block->butstore, bs_handle);
@@ -888,7 +897,7 @@ void butstore_free(Block *block, ButStore *bs_handle)
 {
   /* NOTE(@ideasman42): Workaround for button store being moved into new block,
    * which then can't use the previous buttons state
-   * (#ui_but_update_from_old_block fails to find a match),
+   * (#but_update_from_old_block fails to find a match),
    * keeping the active button in the old block holding a reference
    * to the button-state in the new block: see #49034.
    *
@@ -902,7 +911,7 @@ void butstore_free(Block *block, ButStore *bs_handle)
   BLI_assert(BLI_findindex(&block->butstore, bs_handle) != -1);
   BLI_remlink(&block->butstore, bs_handle);
 
-  MEM_freeN(bs_handle);
+  MEM_delete(bs_handle);
 }
 
 bool butstore_is_valid(ButStore *bs_handle)
@@ -925,7 +934,7 @@ bool butstore_is_registered(Block *block, Button *but)
 
 void butstore_register(ButStore *bs_handle, Button **but_p)
 {
-  ButStoreElem *bs_elem = MEM_callocN<ButStoreElem>(__func__);
+  ButStoreElem *bs_elem = MEM_new_zeroed<ButStoreElem>(__func__);
   BLI_assert(*but_p);
   bs_elem->but_p = but_p;
 
@@ -937,7 +946,7 @@ void butstore_unregister(ButStore *bs_handle, Button **but_p)
   for (ButStoreElem &bs_elem : bs_handle->items.items_mutable()) {
     if (bs_elem.but_p == but_p) {
       BLI_remlink(&bs_handle->items, &bs_elem);
-      MEM_freeN(&bs_elem);
+      MEM_delete(&bs_elem);
     }
   }
 

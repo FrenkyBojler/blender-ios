@@ -290,11 +290,13 @@ static void draw_keylist_block_standard(const DrawKeylistUIData *ctx,
                                         const ActKeyColumn *ab,
                                         float ypos)
 {
+  /* The bar needs to be an odd number of pixels high for proper alignment. */
+  const int height = int(0.45f * (ctx->icon_size)) * 2 - 1;
   rctf box;
   box.xmin = ab->cfra;
   box.xmax = ab->next->cfra;
-  box.ymin = ypos - ctx->half_icon_size;
-  box.ymax = ypos + ctx->half_icon_size;
+  box.ymin = round(ypos - (float(height) * 0.5f));
+  box.ymax = box.ymin + height;
 
   ui::draw_roundbox_4fv(&box, true, 3.0f, (ab->block.sel) ? ctx->sel_color : ctx->unsel_color);
 }
@@ -587,7 +589,7 @@ struct ChannelDrawList {
 
 ChannelDrawList *ED_channel_draw_list_create()
 {
-  return MEM_callocN<ChannelDrawList>(__func__);
+  return MEM_new_zeroed<ChannelDrawList>(__func__);
 }
 
 static void channel_list_build_keylists(ChannelDrawList *channel_list, float2 range)
@@ -688,7 +690,7 @@ void ED_channel_list_free(ChannelDrawList *channel_list)
     ED_keylist_free(elem.keylist);
   }
   BLI_freelistN(&channel_list->channels);
-  MEM_freeN(channel_list);
+  MEM_delete(channel_list);
 }
 
 static ChannelListElement *channel_list_add_element(ChannelDrawList *channel_list,
@@ -697,7 +699,7 @@ static ChannelListElement *channel_list_add_element(ChannelDrawList *channel_lis
                                                     float yscale_fac,
                                                     eSAction_Flag saction_flag)
 {
-  ChannelListElement *draw_elem = MEM_callocN<ChannelListElement>(__func__);
+  ChannelListElement *draw_elem = MEM_new_zeroed<ChannelListElement>(__func__);
   BLI_addtail(&channel_list->channels, draw_elem);
   draw_elem->type = elem_type;
   draw_elem->keylist = ED_keylist_create();

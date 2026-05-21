@@ -58,11 +58,11 @@ set(WITH_BLENDER_THUMBNAILER OFF CACHE BOOL "" FORCE)
 # so the sequencer can be used properly from Python, see: #125007.
 set(WITH_AUDASPACE           ON  CACHE BOOL "" FORCE)
 
-# Disable audio, its possible some developers may want this but for now disable
+# Disable audio, it's possible some developers may want this but for now disable
 # so the Python module doesn't hold the audio device and loads quickly.
 set(WITH_JACK                OFF CACHE BOOL "" FORCE)
 set(WITH_OPENAL              OFF CACHE BOOL "" FORCE)
-set(WITH_SDL                 OFF CACHE BOOL "" FORCE)
+set(WITH_SDL_AUDIO           OFF CACHE BOOL "" FORCE)
 if(UNIX AND NOT APPLE)
   set(WITH_PULSEAUDIO          OFF CACHE BOOL "" FORCE)
 endif()

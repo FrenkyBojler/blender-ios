@@ -27,6 +27,7 @@
 #include "CLG_log.h"
 
 #include <fmt/format.h>
+#include <fmt/ranges.h>
 
 namespace blender {
 
@@ -513,6 +514,10 @@ void VKShader::init(const shader::ShaderCreateInfo &info, bool /*is_codegen_only
   interface = vk_interface;
   is_static_shader_ = info.do_static_compilation_;
   is_compute_shader_ = !info.compute_source_.is_empty() || !info.compute_source_generated.empty();
+  max_input_attachment_index_ = 0;
+  for (const ShaderCreateInfo::SubpassIn &input : info.subpass_inputs_) {
+    max_input_attachment_index_ = max_uu(max_input_attachment_index_, uint32_t(input.index));
+  }
 }
 
 VKShader::~VKShader()
@@ -619,7 +624,7 @@ bool VKShader::finalize(const shader::ShaderCreateInfo *info)
   return finalize_post(info->pipelines_.as_span());
 }
 
-bool VKShader::finalize_post(Span<PipelineState> pipelines)
+bool VKShader::finalize_post(Span<PipelineState> pipeline_states)
 {
   bool result = finalize_shader_module(vertex_module, "vertex") &&
                 finalize_shader_module(geometry_module, "geometry") &&
@@ -637,7 +642,7 @@ bool VKShader::finalize_post(Span<PipelineState> pipelines)
     ensure_and_get_compute_pipeline(*constants);
   }
   else {
-    result &= ensure_graphics_pipelines(pipelines);
+    result &= ensure_graphics_pipelines(pipeline_states);
   }
 
   return result;
@@ -652,7 +657,7 @@ bool VKShader::finalize_shader_module(VKShaderModule &shader_module, const char 
   if (bool(shader_module.compilation_result.GetNumWarnings() +
            shader_module.compilation_result.GetNumErrors()))
   {
-    print_log({shader_module.combined_sources},
+    print_log({shader_module.original_sources},
               shader_module.compilation_result.GetErrorMessage().c_str(),
               stage_name,
               bool(shader_module.compilation_result.GetNumErrors()),
@@ -661,6 +666,7 @@ bool VKShader::finalize_shader_module(VKShaderModule &shader_module, const char 
 
   std::string full_name = std::string(name) + "_" + stage_name;
   shader_module.finalize(full_name.c_str());
+  shader_module.original_sources.clear();
   shader_module.combined_sources.clear();
   shader_module.sources_hash.clear();
   shader_module.compilation_result = {};
@@ -722,9 +728,9 @@ bool VKShader::finalize_descriptor_set_layouts(VKDevice &vk_device,
 
 void VKShader::bind(const shader::SpecializationConstants *constants_state)
 {
-  VKContext *ctx = VKContext::get();
+  VKContext *context = VKContext::get();
   /* Copy constants state. */
-  ctx->specialization_constants_set(constants_state);
+  context->specialization_constants_set(constants_state);
 
   /* Intentionally empty. Binding of the pipeline are done just before drawing/dispatching.
    * See #VKPipeline.update_and_bind */
@@ -749,7 +755,7 @@ std::string VKShader::resources_declare(const shader::ShaderCreateInfo &info) co
 
   ss << "\n#line " << __LINE__ << " \"" << __FILE__ << "\"\n";
 
-  ss << "\n/* Specialization Constants (pass-through). */\n";
+  /* Specialization Constants (pass-through). */
   uint constant_id = 0;
   for (const SpecializationConstant &sc : info.specialization_constants_) {
     ss << "layout (constant_id=" << constant_id++ << ") const ";
@@ -775,7 +781,7 @@ std::string VKShader::resources_declare(const shader::ShaderCreateInfo &info) co
     }
   }
 
-  ss << "\n/* Compilation Constants (pass-through). */\n";
+  /* Compilation Constants (pass-through). */
   for (const CompilationConstant &sc : info.compilation_constants_) {
     ss << "const ";
     switch (sc.type) {
@@ -831,11 +837,11 @@ std::string VKShader::resources_declare(const shader::ShaderCreateInfo &info) co
   const VKPushConstants::StorageType push_constants_storage =
       push_constants_layout.storage_type_get();
   if (push_constants_storage != VKPushConstants::StorageType::NONE) {
-    ss << "\n/* Push Constants. */\n";
+    /* Push Constants. */
     if (push_constants_storage == VKPushConstants::StorageType::PUSH_CONSTANTS) {
       ss << "layout(push_constant, std430) uniform constants\n";
     }
-    else if (push_constants_storage == VKPushConstants::StorageType::UNIFORM_BUFFER) {
+    else if (push_constants_storage == VKPushConstants::StorageType::BUFFER) {
       ss << "layout(binding = " << push_constants_layout.descriptor_set_location_get()
          << ", std140) uniform constants\n";
     }
@@ -859,12 +865,12 @@ std::string VKShader::vertex_interface_declare(const shader::ShaderCreateInfo &i
   std::stringstream ss;
   std::string post_main;
 
-  ss << "\n/* Inputs. */\n";
+  /* Inputs. */
   for (const ShaderCreateInfo::VertIn &attr : info.vertex_inputs_) {
     ss << "layout(location = " << attr.index << ") ";
     ss << "in " << to_string(attr.type) << " " << attr.name << ";\n";
   }
-  ss << "\n/* Interfaces. */\n";
+  /* Interfaces. */
   int location = 0;
   for (const StageInterfaceInfo *iface : info.vertex_out_interfaces_) {
     print_interface(ss, "out", *iface, location);
@@ -959,7 +965,7 @@ std::string VKShader::fragment_interface_declare(const shader::ShaderCreateInfo 
   std::string pre_main;
   const VKExtensions &extensions = VKBackend::get().device.extensions_get();
 
-  ss << "\n/* Interfaces. */\n";
+  /* Interfaces. */
   const Span<StageInterfaceInfo *> in_interfaces = info.geometry_source_.is_empty() ?
                                                        info.vertex_out_interfaces_ :
                                                        info.geometry_out_interfaces_;
@@ -990,7 +996,7 @@ std::string VKShader::fragment_interface_declare(const shader::ShaderCreateInfo 
     ss << "layout(" << to_string(info.depth_write_) << ") out float gl_FragDepth;\n";
   }
 
-  ss << "\n/* Sub-pass Inputs. */\n";
+  /* Sub-pass Inputs. */
   const VKShaderInterface &interface = interface_get();
   const bool use_local_read = extensions.dynamic_rendering_local_read;
 
@@ -1073,7 +1079,7 @@ std::string VKShader::fragment_interface_declare(const shader::ShaderCreateInfo 
     }
   }
 
-  ss << "\n/* Outputs. */\n";
+  /* Outputs. */
   for (const ShaderCreateInfo::FragOut &output : info.fragment_outputs_) {
     const int location = output.index;
     ss << "layout(location = " << location;
@@ -1105,7 +1111,7 @@ std::string VKShader::geometry_interface_declare(const shader::ShaderCreateInfo 
   int invocations = info.geometry_layout_.invocations;
 
   std::stringstream ss;
-  ss << "\n/* Geometry Layout. */\n";
+  /* Geometry Layout. */
   ss << "layout(" << to_string(info.geometry_layout_.primitive_in);
   if (invocations != -1) {
     ss << ", invocations = " << invocations;
@@ -1141,7 +1147,7 @@ std::string VKShader::geometry_layout_declare(const shader::ShaderCreateInfo &in
 {
   std::stringstream ss;
 
-  ss << "\n/* Interfaces. */\n";
+  /* Interfaces. */
   int location = 0;
   for (const StageInterfaceInfo *iface : info.vertex_out_interfaces_) {
     bool has_matching_output_iface = find_interface_by_name(info.geometry_out_interfaces_,
@@ -1168,7 +1174,7 @@ std::string VKShader::geometry_layout_declare(const shader::ShaderCreateInfo &in
 std::string VKShader::compute_layout_declare(const shader::ShaderCreateInfo &info) const
 {
   std::stringstream ss;
-  ss << "\n/* Compute Layout. */\n";
+  /* Compute Layout. */
   ss << "layout(";
   ss << "  local_size_x = " << info.compute_layout_.local_size_x;
   ss << ", local_size_y = " << info.compute_layout_.local_size_y;
@@ -1229,9 +1235,9 @@ std::string VKShader::workaround_geometry_shader_source_create(
 
   ss << "void main()\n";
   ss << "{\n";
-  for (auto i : IndexRange(3)) {
-    for (StageInterfaceInfo *iface : info_modified.vertex_out_interfaces_) {
-      for (auto &inout : iface->inouts) {
+  for (int i : IndexRange(3)) {
+    for (const StageInterfaceInfo *iface : info_modified.vertex_out_interfaces_) {
+      for (const StageInterfaceInfo::InOut &inout : iface->inouts) {
         ss << "  " << iface->instance_name << "_out." << inout.name;
         ss << " = " << iface->instance_name << "_in[" << i << "]." << inout.name << ";\n";
       }
@@ -1335,6 +1341,7 @@ bool VKShader::ensure_graphics_pipelines(Span<shader::PipelineState> pipeline_st
     graphics_info.shaders.has_depth = pipeline_state.depth_format_ != TextureTargetFormat::Invalid;
     graphics_info.shaders.has_stencil = pipeline_state.stencil_format_ !=
                                         TextureTargetFormat::Invalid;
+    graphics_info.shaders.max_input_attachment_index = max_input_attachment_index_;
 
     /* Disable pipeline features that are dynamic to increase cache hits. */
     if (extensions.extended_dynamic_state) {
@@ -1406,6 +1413,7 @@ VkPipeline VKShader::ensure_and_get_graphics_pipeline(
   graphics_info.shaders.specialization_constants.extend(constants_state.values);
   graphics_info.shaders.has_depth = depth_attachment_format != VK_FORMAT_UNDEFINED;
   graphics_info.shaders.has_stencil = stencil_attachment_format != VK_FORMAT_UNDEFINED;
+  graphics_info.shaders.max_input_attachment_index = max_input_attachment_index_;
   /* Cleanup state to increase cache hits. */
   if (!graphics_info.shaders.has_stencil || state_manager.state.stencil_test == GPU_STENCIL_NONE) {
     graphics_info.shaders.state.stencil_test = GPU_STENCIL_NONE;

@@ -64,27 +64,27 @@ ClosureUndetermined g_closure_get_resolved(uchar i, float weight_fac)
   return cl;
 }
 
-ClosureType closure_type_get(ClosureDiffuse cl)
+ClosureType closure_type_get(ClosureDiffuse /*cl*/)
 {
   return CLOSURE_BSDF_DIFFUSE_ID;
 }
 
-ClosureType closure_type_get(ClosureTranslucent cl)
+ClosureType closure_type_get(ClosureTranslucent /*cl*/)
 {
   return CLOSURE_BSDF_TRANSLUCENT_ID;
 }
 
-ClosureType closure_type_get(ClosureReflection cl)
+ClosureType closure_type_get(ClosureReflection /*cl*/)
 {
   return CLOSURE_BSDF_MICROFACET_GGX_REFLECTION_ID;
 }
 
-ClosureType closure_type_get(ClosureRefraction cl)
+ClosureType closure_type_get(ClosureRefraction /*cl*/)
 {
   return CLOSURE_BSDF_MICROFACET_GGX_REFRACTION_ID;
 }
 
-ClosureType closure_type_get(ClosureSubsurface cl)
+ClosureType closure_type_get(ClosureSubsurface /*cl*/)
 {
   return CLOSURE_BSSRDF_BURLEY_ID;
 }
@@ -124,14 +124,23 @@ void closure_select(ClosureUndetermined &destination, float &random, ClosureUnde
 void closure_weights_reset(float closure_rand)
 {
   g_closure_rand[0] = closure_rand;
+  g_closure_bins[0].color = float3(0.0f);
   g_closure_bins[0].weight = 0.0f;
+  g_closure_bins[0].N = float3(0.0f);
+  g_closure_bins[0].type = CLOSURE_NONE_ID;
 #if CLOSURE_BIN_COUNT > 1
   g_closure_rand[1] = closure_rand;
+  g_closure_bins[1].color = float3(0.0f);
   g_closure_bins[1].weight = 0.0f;
+  g_closure_bins[1].N = float3(0.0f);
+  g_closure_bins[1].type = CLOSURE_NONE_ID;
 #endif
 #if CLOSURE_BIN_COUNT > 2
   g_closure_rand[2] = closure_rand;
+  g_closure_bins[2].color = float3(0.0f);
   g_closure_bins[2].weight = 0.0f;
+  g_closure_bins[2].N = float3(0.0f);
+  g_closure_bins[2].type = CLOSURE_NONE_ID;
 #endif
 
   g_volume_scattering = float3(0.0f);
