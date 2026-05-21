@@ -107,6 +107,8 @@ struct ReferenceLifetimesInfo {
 
 bool analyse_reference_lifetimes(bNodeTree &tree);
 
+/** The socket type is a has a general container that can contain anything. */
+bool can_contain_anything(eNodeSocketDatatype socket_type);
 /** The socket type allows storing references to data stored elsewhere. */
 bool can_contain_reference(eNodeSocketDatatype socket_type);
 /** The socket type allows storing data that may be referenced elsewhere. */

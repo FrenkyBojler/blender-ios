@@ -15,6 +15,7 @@
 #include "BKE_node.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_node_socket_value.hh"
+#include "BKE_node_tree_reference_lifetimes.hh"
 
 #include "RNA_access.hh"
 
@@ -39,19 +40,18 @@ void build_node_declaration(const bke::bNodeType &typeinfo,
 
 void NodeDeclarationBuilder::build_remaining_anonymous_attribute_relations()
 {
-  auto is_data_socket_decl = [](const SocketDeclaration *socket_decl) {
-    return ELEM(socket_decl->socket_type, SOCK_GEOMETRY, SOCK_BUNDLE, SOCK_CLOSURE);
-  };
+  using bke::node_tree_reference_lifetimes::can_contain_anything;
+  using bke::node_tree_reference_lifetimes::can_contain_referenced_data;
 
   Vector<int> data_inputs;
   for (const int i : declaration_.inputs.index_range()) {
-    if (is_data_socket_decl(declaration_.inputs[i])) {
+    if (can_contain_referenced_data(declaration_.inputs[i]->socket_type)) {
       data_inputs.append(i);
     }
   }
   Vector<int> data_outputs;
   for (const int i : declaration_.outputs.index_range()) {
-    if (is_data_socket_decl(declaration_.outputs[i])) {
+    if (can_contain_referenced_data(declaration_.outputs[i]->socket_type)) {
       data_outputs.append(i);
     }
   }
@@ -79,7 +79,7 @@ void NodeDeclarationBuilder::build_remaining_anonymous_attribute_relations()
       for (const int input_i : declaration_.inputs.index_range()) {
         SocketDeclaration &input_socket_decl = *declaration_.inputs[input_i];
         if (ELEM(input_socket_decl.structure_type, StructureType::Field, StructureType::Dynamic) ||
-            ELEM(input_socket_decl.socket_type, SOCK_BUNDLE, SOCK_CLOSURE))
+            can_contain_anything(input_socket_decl.socket_type))
         {
           relations.reference_relations.append({input_i, field_output});
         }
