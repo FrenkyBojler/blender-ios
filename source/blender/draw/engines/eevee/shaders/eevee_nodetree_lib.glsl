@@ -308,7 +308,7 @@ void raycast_eval([[maybe_unused]] float3 position,
   float thickness = raytrace_buf.thickness * thickness_jitter;
 
   float2 hit_uv = float2(0.0f);
-  uint self_id = drw_resource_id() & 0xFFFF;
+  uint self_id = drw_resource_id() & uint(0xFFFF);
 
   float result = raytrace_screen_2(drw_point_world_to_view(ws_start),
                                    drw_point_world_to_view(ws_end),
@@ -512,10 +512,6 @@ float2 bsdf_lut(float cos_theta, float roughness, float ior, bool do_multiscatte
            transmittance);
   return float2(reflectance.r, transmittance.r);
 }
-
-#ifdef GPU_VERTEX_SHADER
-#  define closure_to_rgba(a) float4(0.0f)
-#endif
 
 /* -------------------------------------------------------------------- */
 /** \name Fragment Displacement
