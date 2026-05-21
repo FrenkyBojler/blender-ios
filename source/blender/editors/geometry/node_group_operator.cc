@@ -1525,13 +1525,14 @@ static RegistrationData::TypeTreeItem *find_tree_child(
 static const RegistrationData::TypeTreeItem *find_tree_node(
     const Span<std::unique_ptr<RegistrationData::TypeTreeItem>> nodes, StringRef path)
 {
-  if (path.is_empty()) {
-    return nullptr;
+  BLI_assert(!path.is_empty());
+  const int64_t sep = path.find_first_of(SEP_STR);
+  if (sep == StringRef::not_found) {
+    return find_tree_child(nodes, path);
   }
-  const size_t sep = path.find_first_of(SEP_STR);
   const RegistrationData::TypeTreeItem *child = find_tree_child(nodes, path.substr(0, sep));
-  if (!child || sep == StringRef::not_found) {
-    return child;
+  if (!child) {
+    return nullptr;
   }
   return find_tree_node(child->children, path.substr(sep + 1));
 }
@@ -1554,12 +1555,13 @@ static void tree_add_type(Vector<std::unique_ptr<RegistrationData::TypeTreeItem>
                           wmOperatorType *ot)
 {
   BLI_assert(!path.is_empty());
-  const size_t sep = path.find_first_of(SEP_STR);
-  RegistrationData::TypeTreeItem &child = ensure_child(nodes, path.substr(0, sep));
+  const int64_t sep = path.find_first_of(SEP_STR);
   if (sep == StringRef::not_found) {
+    RegistrationData::TypeTreeItem &child = ensure_child(nodes, path);
     child.types.append(ot);
     return;
   }
+  RegistrationData::TypeTreeItem &child = ensure_child(nodes, path.substr(0, sep));
   tree_add_type(child.children, path.substr(sep + 1), ot);
 }
 
