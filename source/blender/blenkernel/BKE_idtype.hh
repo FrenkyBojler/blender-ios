@@ -421,6 +421,8 @@ short BKE_idtype_idcode_from_name(const char *idtype_name);
  *
  * Particularly useful when the ID type name is written as ID type identifier for I/O or cache
  * files.
+ *
+ * \return 0 when \a idtype_name is not a valid ID type name.
  */
 short BKE_idtype_idcode_from_name_case_insensitive(const char *idtype_name);
 

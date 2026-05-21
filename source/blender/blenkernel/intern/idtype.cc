@@ -284,7 +284,6 @@ short BKE_idtype_idcode_from_name(const char *idtype_name)
 short BKE_idtype_idcode_from_name_case_insensitive(const char *idtype_name)
 {
   const IDTypeInfo *id_type = idtype_get_info_from_name_case_insensitive(idtype_name);
-  BLI_assert(id_type);
   return id_type != nullptr ? id_type->id_code : 0;
 }
 
