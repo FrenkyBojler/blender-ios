@@ -677,7 +677,14 @@ void GLFence::wait()
   if (gl_sync_ == nullptr) {
     return;
   }
-  glWaitSync(gl_sync_, 0, GL_TIMEOUT_IGNORED);
+  /* Block the CPU until the GPU has completed all commands up to and including the fence
+   * signal. glWaitSync only inserts a server-side stall in the current context's command
+   * stream, which is not sufficient when the caller needs to know the GPU is actually done
+   * (for example before mapping a buffer or destroying the context). */
+  GLenum result;
+  do {
+    result = glClientWaitSync(gl_sync_, GL_SYNC_FLUSH_COMMANDS_BIT, GLuint64(1000000000));
+  } while (result == GL_TIMEOUT_EXPIRED);
   signalled_ = false;
 }
 /** \} */

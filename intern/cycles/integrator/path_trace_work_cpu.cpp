@@ -199,6 +199,11 @@ void PathTraceWorkCPU::copy_to_display(PathTraceDisplay *display,
                                        PassMode pass_mode,
                                        const int num_samples)
 {
+  const PassAccessor::PassAccessInfo pass_access_info = get_display_pass_access_info(pass_mode);
+  if (pass_access_info.type == PASS_NONE) {
+    return;
+  }
+
   half4 *rgba_half = display->map_texture_buffer();
   if (!rgba_half) {
     /* TODO(sergey): Look into using copy_to_display() if mapping failed. Might be needed for
@@ -207,11 +212,6 @@ void PathTraceWorkCPU::copy_to_display(PathTraceDisplay *display,
   }
 
   const KernelFilm &kfilm = device_scene_->data.film;
-
-  const PassAccessor::PassAccessInfo pass_access_info = get_display_pass_access_info(pass_mode);
-  if (pass_access_info.type == PASS_NONE) {
-    return;
-  }
 
   const BufferParams &effective_buffer_params = (pass_mode == PassMode::DENOISED) ?
                                                     effective_denoised_buffer_params_ :
