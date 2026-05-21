@@ -2508,13 +2508,18 @@ class XpbdSolverStep {
     }
   }
 
+  struct ResidualErrorTLS {
+    float total_error_squared = 0.0f;
+    int total_error_count = 0;
+  };
+
   Result do_simulation()
   {
     this->prepare_solver_geometry_refs();
-    float total_error_squared = 0.0f;
+    float average_error_squared = 0.0f;
 
     if (this->support_chunk_simulation()) {
-      threading::EnumerableThreadSpecific<float> total_error_squared_tls(0.0f);
+      threading::EnumerableThreadSpecific<ResidualErrorTLS> error_tls;
 
       this->parallel_for_each_chunk(1, [&](const int chunk_i) {
         float chunk_error_squared;
@@ -2545,12 +2550,19 @@ class XpbdSolverStep {
         this->simulate__ensure_final_data_in_outputs__chunk(chunk_i);
 
         if (chunk_error_count) {
-          total_error_squared_tls.local() += chunk_error_squared / chunk_error_count;
+          error_tls.local().total_error_squared += chunk_error_squared;
+          error_tls.local().total_error_count += chunk_error_count;
         }
       });
 
-      for (const float error_squared : total_error_squared_tls) {
-        total_error_squared += error_squared;
+      float total_error_squared = 0.0f;
+      int total_error_count = 0;
+      for (const ResidualErrorTLS &error : error_tls) {
+        total_error_squared += error.total_error_squared;
+        total_error_count += error.total_error_count;
+      }
+      if (total_error_count) {
+        average_error_squared = total_error_squared / total_error_count;
       }
     }
     else {
@@ -2565,7 +2577,7 @@ class XpbdSolverStep {
         this->simulate__gather_dynamic_constraints(substep, solver_refs_i);
         this->simulate__reset_forces();
         for ([[maybe_unused]] const int iter_i : IndexRange(constraint_iterations_)) {
-          this->simulate__position_solve__single_iteration(solver_refs_i, total_error_squared);
+          this->simulate__position_solve__single_iteration(solver_refs_i, average_error_squared);
         }
         this->parallel_for_each_chunk(16, [&](const int chunk_i) {
           this->simulate__update_velocities__chunk(chunk_i, solver_refs_i);
@@ -2578,7 +2590,7 @@ class XpbdSolverStep {
       }
     }
 
-    return Result{math::sqrt(total_error_squared)};
+    return Result{math::sqrt(average_error_squared)};
   }
 
   bool support_chunk_simulation() const
@@ -2757,18 +2769,17 @@ class XpbdSolverStep {
   }
 
   void simulate__position_solve__single_iteration(const int solver_refs_i,
-                                                  float &r_total_error_squared)
+                                                  float &r_average_error_squared)
   {
     const Span<xpbd::GeometryRef> solver_refs = geometries_.solver_refs[solver_refs_i];
     xpbd::ConstraintSetParams solve_params{solver_refs, sub_delta_time_};
-    threading::EnumerableThreadSpecific<float> total_error_squared_tls(0.0f);
-    threading::EnumerableThreadSpecific<int> total_error_count_tls(0);
+    threading::EnumerableThreadSpecific<ResidualErrorTLS> error_tls;
 
     this->parallel_for_each_chunk(1, [&](const int chunk_i) {
       xpbd::GaussSeidelUpdater updater{solver_refs};
       this->simulate__position_solve__single_iteration__chunk(chunk_i, solve_params, updater);
-      total_error_squared_tls.local() += updater.total_error_squared();
-      total_error_count_tls.local() += updater.total_error_count();
+      error_tls.local().total_error_squared += updater.total_error_squared();
+      error_tls.local().total_error_count += updater.total_error_count();
     });
 
     for (const int data_key_i : geometries_.data_keys.index_range()) {
@@ -2780,23 +2791,21 @@ class XpbdSolverStep {
             const IndexMask sliced_mask = mask.slice(range);
             xpbd::GaussSeidelUpdater updater{solver_refs};
             constraint.constraint->solve_sequential(solve_params, updater, sliced_mask);
-            total_error_squared_tls.local() += updater.total_error_squared();
-            total_error_count_tls.local() += updater.total_error_count();
+            error_tls.local().total_error_squared += updater.total_error_squared();
+            error_tls.local().total_error_count += updater.total_error_count();
           });
         }
       }
     }
 
+    float total_error_squared = 0.0f;
     int total_error_count = 0;
-    for (const int error_count : total_error_count_tls) {
-      total_error_count += error_count;
+    for (const ResidualErrorTLS &error : error_tls) {
+      total_error_squared += error.total_error_squared;
+      total_error_count += error.total_error_count;
     }
     if (total_error_count) {
-      r_total_error_squared = 0.0f;
-      for (const float error_squared : total_error_squared_tls) {
-        r_total_error_squared += error_squared;
-      }
-      r_total_error_squared /= total_error_count;
+      r_average_error_squared = total_error_squared / total_error_count;
     }
   }
 
