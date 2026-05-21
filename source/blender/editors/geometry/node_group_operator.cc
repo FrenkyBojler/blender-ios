@@ -108,10 +108,16 @@ struct ErrorsForType {
 };
 
 struct RegistrationData {
+  struct TypeTreeItem {
+    std::string name;
+    Vector<wmOperatorType *> types;
+    Vector<std::unique_ptr<TypeTreeItem>> children;
+  };
   using Errors = Map<std::string, ErrorsForType>;
-  using Types = MultiValueMap<std::string, wmOperatorType *>;
+  Vector<wmOperatorType *> local_types;
+  Vector<wmOperatorType *> unassigned_types;
+  Vector<std::unique_ptr<TypeTreeItem>> menu_path_tree_roots;
   Errors errors_by_idname;
-  Types types_by_menu_path;
 };
 
 static RegistrationData &get_registration_data()
@@ -1505,6 +1511,58 @@ void ui_template_node_operator_registration_errors(ui::Layout &layout,
   }
 }
 
+static RegistrationData::TypeTreeItem *find_tree_child(
+    const Span<std::unique_ptr<RegistrationData::TypeTreeItem>> children, const StringRef name)
+{
+  for (const std::unique_ptr<RegistrationData::TypeTreeItem> &child : children) {
+    if (child->name == name) {
+      return child.get();
+    }
+  }
+  return nullptr;
+}
+
+static const RegistrationData::TypeTreeItem *find_tree_node(
+    const Span<std::unique_ptr<RegistrationData::TypeTreeItem>> nodes, StringRef path)
+{
+  if (path.is_empty()) {
+    return nullptr;
+  }
+  const size_t sep = path.find_first_of(SEP_STR);
+  const RegistrationData::TypeTreeItem *child = find_tree_child(nodes, path.substr(0, sep));
+  if (!child || sep == StringRef::not_found) {
+    return child;
+  }
+  return find_tree_node(child->children, path.substr(sep + 1));
+}
+
+static RegistrationData::TypeTreeItem &ensure_child(
+    Vector<std::unique_ptr<RegistrationData::TypeTreeItem>> &children, const StringRef name)
+{
+  if (RegistrationData::TypeTreeItem *existing = find_tree_child(children, name)) {
+    return *existing;
+  }
+  auto new_item = std::make_unique<RegistrationData::TypeTreeItem>();
+  new_item->name = name;
+  RegistrationData::TypeTreeItem &ref = *new_item;
+  children.append(std::move(new_item));
+  return ref;
+}
+
+static void tree_add_type(Vector<std::unique_ptr<RegistrationData::TypeTreeItem>> &nodes,
+                          StringRef path,
+                          wmOperatorType *ot)
+{
+  BLI_assert(!path.is_empty());
+  const size_t sep = path.find_first_of(SEP_STR);
+  RegistrationData::TypeTreeItem &child = ensure_child(nodes, path.substr(0, sep));
+  if (sep == StringRef::not_found) {
+    child.types.append(ot);
+    return;
+  }
+  tree_add_type(child.children, path.substr(sep + 1), ot);
+}
+
 struct GetIDName {
   StringRefNull operator()(const std::unique_ptr<OperatorTypeData> &value) const
   {
@@ -1712,7 +1770,9 @@ void register_node_group_operators(const bContext &C)
         &type);
   }
 
-  registration_data.types_by_menu_path.clear();
+  registration_data.local_types.clear();
+  registration_data.unassigned_types.clear();
+  registration_data.menu_path_tree_roots.clear();
   const asset_system::AssetLibrary *all_library = asset::list::library_get_once_available(
       asset_system::all_library_reference());
   for (wmOperatorType *ot : WM_operatortypes_registered_get()) {
@@ -1722,7 +1782,7 @@ void register_node_group_operators(const bContext &C)
     const auto &type_data = static_cast<OperatorTypeData &>(*ot->custom_data);
     const auto *asset_ref = std::get_if<AssetWeakReference>(&type_data.group_ref);
     if (!asset_ref) {
-      registration_data.types_by_menu_path.add("", ot);
+      registration_data.local_types.append(ot);
       continue;
     }
     const asset_system::AssetRepresentation *asset = ed::asset::find_asset_from_weak_ref(
@@ -1732,10 +1792,10 @@ void register_node_group_operators(const bContext &C)
     const asset_system::AssetCatalog *catalog = all_library->catalog_service().find_catalog(
         catalog_id);
     if (!catalog) {
-      registration_data.types_by_menu_path.add("", ot);
+      registration_data.unassigned_types.append(ot);
       continue;
     }
-    registration_data.types_by_menu_path.add(catalog->path.str(), ot);
+    tree_add_type(registration_data.menu_path_tree_roots, catalog->path.str(), ot);
   }
 }
 
@@ -1919,22 +1979,44 @@ static Set<StringRef> get_builtin_menus(const ObjectType object_type, const eObj
   return menus;
 }
 
+static bool menu_operators_poll(const bContext &C, const RegistrationData::TypeTreeItem &node)
+{
+  if (std::ranges::any_of(node.types, [&](wmOperatorType *ot) {
+        return WM_operator_poll(&const_cast<bContext &>(C), ot);
+      }))
+  {
+    return true;
+  }
+  if (std::ranges::any_of(node.children,
+                          [&](const std::unique_ptr<RegistrationData::TypeTreeItem> &child) {
+                            return menu_operators_poll(C, *child);
+                          }))
+  {
+    return true;
+  }
+  return false;
+}
+
 static void catalog_assets_draw(const bContext *C, Menu *menu)
 {
   const Object *active_object = CTX_data_active_object(C);
   if (!active_object) {
     return;
   }
-  const RegistrationData::Types &types = get_registration_data().types_by_menu_path;
-  const std::optional<StringRefNull> menu_path = CTX_data_string_get(C, "asset_catalog_path");
-  if (!menu_path) {
+  const std::optional<StringRefNull> path = CTX_data_string_get(C, "asset_catalog_path");
+  if (!path) {
+    return;
+  }
+  const RegistrationData &data = get_registration_data();
+  const RegistrationData::TypeTreeItem *node = find_tree_node(data.menu_path_tree_roots, *path);
+  if (!node) {
     return;
   }
 
   ui::Layout &layout = *menu->layout;
   bool add_separator = true;
 
-  for (wmOperatorType *ot : types.lookup_as(*menu_path)) {
+  for (wmOperatorType *ot : node->types) {
     if (!WM_operator_poll(const_cast<bContext *>(C), ot)) {
       continue;
     }
@@ -1948,20 +2030,20 @@ static void catalog_assets_draw(const bContext *C, Menu *menu)
   const Set<StringRef> builtin_menus = get_builtin_menus(ObjectType(active_object->type),
                                                          eObjectMode(active_object->mode));
 
-  for (const StringRef path : types.keys()) {
-    if (builtin_menus.contains(path)) {
+  for (const std::unique_ptr<RegistrationData::TypeTreeItem> &child : node->children) {
+    if (!menu_operators_poll(*C, *child)) {
       continue;
     }
-    if (!path.startswith(*menu_path)) {
+    const std::string child_path = fmt::format("{}/{}", *path, child->name);
+    if (builtin_menus.contains_as(child_path)) {
       continue;
     }
     if (add_separator) {
       layout.separator();
       add_separator = false;
     }
-    const StringRef name = path.drop_known_prefix(*menu_path);
-    layout.context_string_set("asset_catalog_path", path);
-    layout.menu("GEO_MT_node_operator_catalog_assets", IFACE_(name), ICON_NONE);
+    layout.context_string_set("asset_catalog_path", child_path);
+    layout.menu("GEO_MT_node_operator_catalog_assets", IFACE_(child->name), ICON_NONE);
   }
 }
 
@@ -1976,24 +2058,12 @@ MenuType node_group_operator_assets_menu()
   return type;
 }
 
-static bool catalog_path_contains_assets(const bContext &C, const StringRef menu_path)
-{
-  const RegistrationData::Types &tree = get_registration_data().types_by_menu_path;
-  return std::ranges::any_of(tree.lookup(menu_path), [&](wmOperatorType *ot) {
-    return WM_operator_poll(&const_cast<bContext &>(C), ot);
-  });
-}
-
 static void catalog_assets_draw_unassigned(const bContext *C, Menu *menu)
 {
-  const RegistrationData::Types &tree = get_registration_data().types_by_menu_path;
+  const RegistrationData &data = get_registration_data();
   ui::Layout &layout = *menu->layout;
   bool add_separator = false;
-  for (wmOperatorType *ot : tree.lookup("")) {
-    const auto &type_data = static_cast<const OperatorTypeData &>(*ot->custom_data);
-    if (!std::holds_alternative<AssetWeakReference>(type_data.group_ref)) {
-      continue;
-    }
+  for (wmOperatorType *ot : data.unassigned_types) {
     if (!WM_operator_poll(const_cast<bContext *>(C), ot)) {
       continue;
     }
@@ -2002,9 +2072,8 @@ static void catalog_assets_draw_unassigned(const bContext *C, Menu *menu)
   }
 
   bool first = true;
-  for (wmOperatorType *ot : tree.lookup("")) {
-    const auto &type_data = static_cast<const OperatorTypeData &>(*ot->custom_data);
-    if (!std::holds_alternative<OperatorTypeData::LocalRef>(type_data.group_ref)) {
+  for (wmOperatorType *ot : data.local_types) {
+    if (!WM_operator_poll(const_cast<bContext *>(C), ot)) {
       continue;
     }
     if (add_separator) {
@@ -2038,7 +2107,12 @@ void ui_template_node_operator_asset_menu_items(ui::Layout &layout,
                                                 const bContext &C,
                                                 const StringRef path)
 {
-  if (!catalog_path_contains_assets(C, path)) {
+  const RegistrationData &data = get_registration_data();
+  const RegistrationData::TypeTreeItem *node = find_tree_node(data.menu_path_tree_roots, path);
+  if (!node) {
+    return;
+  }
+  if (!menu_operators_poll(C, *node)) {
     return;
   }
   ui::Layout &col = layout.column(false);
@@ -2052,25 +2126,21 @@ void ui_template_node_operator_asset_root_items(ui::Layout &layout, const bConte
   if (!active_object) {
     return;
   }
-  const RegistrationData::Types &tree = get_registration_data().types_by_menu_path;
+  const RegistrationData &data = get_registration_data();
   const Set<StringRef> builtin_menus = get_builtin_menus(ObjectType(active_object->type),
                                                          eObjectMode(active_object->mode));
-  for (const StringRef path : tree.keys()) {
-    if (path.is_empty()) {
+  for (const std::unique_ptr<RegistrationData::TypeTreeItem> &root : data.menu_path_tree_roots) {
+    if (builtin_menus.contains_as(root->name)) {
       continue;
     }
-    if (builtin_menus.contains(path)) {
+    if (!menu_operators_poll(C, *root)) {
       continue;
     }
-    if (!catalog_path_contains_assets(C, path)) {
-      continue;
-    }
-    const StringRef name = path.substr(0, path.find_first_of(SEP_STR));
-    layout.context_string_set("asset_catalog_path", path);
-    layout.menu("GEO_MT_node_operator_catalog_assets", IFACE_(name), ICON_NONE);
+    layout.context_string_set("asset_catalog_path", root->name);
+    layout.menu("GEO_MT_node_operator_catalog_assets", IFACE_(root->name), ICON_NONE);
   }
 
-  if (!tree.lookup("").is_empty()) {
+  if (!data.unassigned_types.is_empty() || !data.local_types.is_empty()) {
     layout.menu("GEO_MT_node_operator_unassigned", "", ICON_FILE_HIDDEN);
   }
 }
