@@ -1594,6 +1594,11 @@ void panel_category_tabs_draw_all(const bContext *C,
                      active = std::string(category_id_active)](bContext &C) -> void {
                       expand_panel_on_category_tab_change(C, category, active);
                     });
+    button_func_pushed_state_set(
+        button,
+        [category = std::string(category_id),
+         active = std::string(category_id_active),
+         too_narrow](const Button &) -> bool { return category == active && !too_narrow; });
   }
   int2 co = block_layout_resolve(block);
   const int max_scroll = std::max(-co.y, 0);
@@ -1604,25 +1609,14 @@ void panel_category_tabs_draw_all(const bContext *C,
 
   block_translate(block, 0, region->category_scroll);
 
-  Button *selected_button = nullptr;
   /* Align buttons the panel content when region overlap is disabled. */
-  for (Button &button : block->buttons()) {
-    if (!is_alpha) {
+  if (!is_alpha) {
+    for (Button &button : block->buttons()) {
       button.drawflag |= is_left ? BUT_ALIGN_RIGHT : BUT_ALIGN_LEFT;
     }
-    if (button.flag & UI_SELECT) {
-      selected_button = &button;
-    }
-  }
-  if (selected_button && too_narrow) {
-    selected_button->flag &= ~UI_SELECT;
   }
 
   block_draw(C, block);
-
-  if (selected_button) {
-    selected_button->flag |= UI_SELECT;
-  }
 
   /* Avoid buttons being aligned to the region on redraws. */
   for (Button &button : block->buttons()) {
@@ -2587,7 +2581,10 @@ int handler_panel_region(bContext *C,
     {
       const Button *active_button = region_find_active_but(region);
       /* Expand/collapse panels when clicking the active category button. */
-      if (active_button && active_button->flag & UI_SELECT) {
+      PointerRNA ptr = RNA_pointer_create_discrete(
+          reinterpret_cast<ID *>(CTX_wm_screen(C)), RNA_Region, region);
+      const int val = RNA_enum_get(&ptr, "active_panel_category");
+      if (active_button && active_button->hardmax == val) {
         const float aspect = BLI_rctf_size_y(&region->v2d.cur) /
                              (BLI_rcti_size_y(&region->v2d.mask) + 1);
         const bool too_narrow = BLI_rcti_size_x(&region->winrct) <=
