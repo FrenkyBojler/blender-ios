@@ -100,6 +100,7 @@ enum eTreeStoreElemType : short {
   TSE_LINKED_NODE_TREE = 49,
   TSE_ACTION_SLOT = 50,
   TSE_SHAPE_KEY_BLOCK = 51,
+  TSE_SHAPE_KEY_BLOCK_BASE = 52,
 };
 
 /** Check whether given #TreeStoreElem should have a real ID in #TreeStoreElem.id member. */

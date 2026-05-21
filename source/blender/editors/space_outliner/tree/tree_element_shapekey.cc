@@ -20,9 +20,9 @@
 namespace blender::ed::outliner {
 
 TreeElementShapeKeyBase::TreeElementShapeKeyBase(TreeElement &legacy_te, Key &key)
-    : TreeElementID(legacy_te, key.id), key_(key)
+    : AbstractTreeElement(legacy_te), key_(key)
 {
-  BLI_assert(legacy_te.store_elem->type == TSE_SOME_ID);
+  BLI_assert(legacy_te.store_elem->type == TSE_SHAPE_KEY_BLOCK_BASE);
   legacy_te.name = key_.id.name + 2;
 }
 

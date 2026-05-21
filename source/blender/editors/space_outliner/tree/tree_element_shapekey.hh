@@ -17,7 +17,7 @@ namespace blender {
 
 namespace ed::outliner {
 
-class TreeElementShapeKeyBase final : public TreeElementID {
+class TreeElementShapeKeyBase final : public AbstractTreeElement {
   Key &key_;
 
  public:
