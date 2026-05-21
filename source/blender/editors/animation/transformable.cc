@@ -478,8 +478,13 @@ void AnimTransformable::blend_rotation_to(const Rotation &target,
       for (const int i : IndexRange(4)) {
         result[i] = *((*rotations_array)[i]);
       }
-      /* Should this use spherical blending? */
-      blend_linear(result, compatible_rotation.values, factor, axis_flag);
+      interpolate_axis_angle(result[0],
+                             &result[1],
+                             compatible_rotation.values[0],
+                             &compatible_rotation.values[1],
+                             factor,
+                             &result[0],
+                             &result[1]);
       break;
     }
     default: {
