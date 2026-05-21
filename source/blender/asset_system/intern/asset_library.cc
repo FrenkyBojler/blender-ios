@@ -466,8 +466,6 @@ bool AssetLibrary::is_read_only() const
 Vector<AssetLibraryReference> all_valid_asset_library_refs()
 {
   Vector<AssetLibraryReference> result;
-
-  /* Include the bundled essentials. */
   {
     AssetLibraryReference library_ref{};
     library_ref.custom_library_index = -1;
@@ -475,8 +473,8 @@ Vector<AssetLibraryReference> all_valid_asset_library_refs()
     result.append(library_ref);
   }
 
-  /* Include the online essentials. */
-  {
+  const bool include_remote_libraries = USER_EXPERIMENTAL_TEST(&U, use_remote_asset_libraries);
+  if (include_remote_libraries) {
     AssetLibraryReference library_ref{};
     library_ref.custom_library_index = -1;
     library_ref.type = ASSET_LIBRARY_ONLINE_ESSENTIALS;
@@ -484,7 +482,7 @@ Vector<AssetLibraryReference> all_valid_asset_library_refs()
   }
 
   for (const auto [i, asset_library] : U.asset_libraries.enumerate()) {
-    if (!BKE_preferences_asset_library_is_valid(&asset_library, true)) {
+    if (!BKE_preferences_asset_library_is_valid(&U, &asset_library, true)) {
       continue;
     }
     AssetLibraryReference library_ref{};

@@ -39,12 +39,14 @@ class ASSETSHELF_PT_filter(Panel):
     def draw(self, context):
         layout = self.layout
         prefs = context.preferences
+        use_remote_asset_libraries = prefs.experimental.use_remote_asset_libraries
 
         # Filter option stored in the Preferences.
-        col = layout.column()
-        col.use_property_split = True
-        col.use_property_decorate = False
-        col.prop(prefs.view, "asset_access", text="Access")
+        if use_remote_asset_libraries:
+            col = layout.column()
+            col.use_property_split = True
+            col.use_property_decorate = False
+            col.prop(prefs.view, "asset_access", text="Access")
 
 
 classes = (

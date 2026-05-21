@@ -630,6 +630,7 @@ class ASSETBROWSER_PT_filter(asset_utils.AssetBrowserPanel, Panel):
         params = space.params
         experimental = context.preferences.experimental
         use_extended_browser = experimental.use_extended_asset_browser
+        use_remote_asset_libraries = experimental.use_remote_asset_libraries
 
         if params.use_filter_blendid:
             col = layout.column(align=True)
@@ -644,10 +645,11 @@ class ASSETBROWSER_PT_filter(asset_utils.AssetBrowserPanel, Panel):
                     row.label(icon=filter_id.bl_rna.properties[identifier].icon)
                     row.prop(filter_id, identifier, toggle=False)
 
-        col = layout.column()
-        col.use_property_split = True
-        col.use_property_decorate = False
-        col.prop(params, "asset_access", text="Access")
+        if use_remote_asset_libraries:
+            col = layout.column()
+            col.use_property_split = True
+            col.use_property_decorate = False
+            col.prop(params, "asset_access", text="Access")
 
 
 class AssetBrowserMenu:

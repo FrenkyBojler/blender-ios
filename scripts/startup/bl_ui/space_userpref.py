@@ -2802,7 +2802,10 @@ class USERPREF_PT_file_paths_asset_libraries(AssetsPanel, Panel):
         )
 
         col = row.column(align=True)
-        col.operator_menu_enum("preferences.asset_library_add", "type", text="", icon='ADD')
+        if context.preferences.experimental.use_remote_asset_libraries:
+            col.operator_menu_enum("preferences.asset_library_add", "type", text="", icon='ADD')
+        else:
+            col.operator("preferences.asset_library_add", text="", icon='ADD').type = 'LOCAL'
         props = col.operator("preferences.asset_library_remove", text="", icon='REMOVE')
         props.index = active_library_index
 
@@ -2817,9 +2820,11 @@ class USERPREF_PT_file_paths_asset_libraries(AssetsPanel, Panel):
         layout.separator()
 
         if active_library.use_remote_url:
-            row = layout.row()
-            row.alert = active_library.remote_url == ""
-            row.prop(active_library, "remote_url", text="", icon='INTERNET', placeholder="Repository URL")
+            use_remote_libraries = context.preferences.experimental.use_remote_asset_libraries
+            if use_remote_libraries:
+                row = layout.row()
+                row.alert = active_library.remote_url == ""
+                row.prop(active_library, "remote_url", text="", icon='INTERNET', placeholder="Repository URL")
 
             layout.prop(active_library, "import_method", text="Import Method")
         else:
@@ -2843,6 +2848,22 @@ class USERPREF_UL_asset_libraries(UIList):
 
         row.prop(asset_library, "enabled", text="", emboss=False,
                  icon='CHECKBOX_HLT' if asset_library.enabled else 'CHECKBOX_DEHLT')
+
+    def filter_items(self, context, data, property):
+        asset_libraries = getattr(data, property)
+
+        # Determine the bitflags for remote & non-remote asset libraries.
+        use_remote_libs = context.preferences.experimental.use_remote_asset_libraries
+        flag_remote = self.bitflag_filter_item if use_remote_libs else self.bitflag_item_never_show
+        flag_nonremote = self.bitflag_filter_item
+
+        # Construct arrays of flags & indices.
+        flags = [
+            flag_remote if asset_library.use_remote_url else flag_nonremote
+            for asset_library in asset_libraries]
+        indices = list(range(len(asset_libraries)))
+
+        return flags, indices
 
 
 # -----------------------------------------------------------------------------
@@ -3077,6 +3098,7 @@ class USERPREF_PT_experimental_new_features(ExperimentalPanel, Panel):
                  ("blender/blender/projects/10", "Pipeline, Assets & IO Project Page")),
                 ({"property": "use_shader_node_previews"}, ("blender/blender/issues/110353", "#110353")),
                 ({"property": "use_geometry_bundle"}, ("blender/blender/issues/150574", "#150574")),
+                ({"property": "use_remote_asset_libraries"}, ("blender/blender/issues/134495", "#134495")),
                 ({"property": "use_collection_importer"}, ("blender/blender/issues/132171", "#132171")),
                 ({"property": "use_geometry_nodes_hair_dynamics"}, ("blender/blender/issues/141609", "#141609")),
             ),

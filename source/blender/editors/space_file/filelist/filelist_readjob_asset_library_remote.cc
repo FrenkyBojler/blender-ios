@@ -225,6 +225,9 @@ static void filelist_remote_asset_library_update_loading_flags(RemoteLibraryRequ
 void remote_asset_library_request(FileListReadJob *job_params,
                                   const asset_system::RemoteLibraryDefinitionRef &library)
 {
+  if (!USER_EXPERIMENTAL_TEST(&U, use_remote_asset_libraries)) {
+    return;
+  }
   if ((G.f & G_FLAG_INTERNET_ALLOW) == 0) {
     return;
   }
