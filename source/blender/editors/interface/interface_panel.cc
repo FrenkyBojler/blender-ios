@@ -1500,7 +1500,7 @@ void panel_category_tabs_draw_all(const bContext *C,
   /* Intentionally don't scale by 'px'. */
   const int rct_xmin = is_left ? v2d->mask.xmin + 3 : (v2d->mask.xmax - category_tabs_width);
   const int rct_xmax = is_left ? v2d->mask.xmin + category_tabs_width : (v2d->mask.xmax - 3);
-
+  /* NOTE: This block will is created in window coordinates. */
   Block *block = block_begin(C, region, "panel_category_tabs", EmbossType::Emboss);
   Layout &layout = block_layout(block,
                                 LayoutDirection::Vertical,
