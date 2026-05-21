@@ -520,7 +520,7 @@ set(GLSL_SRC
   engines/eevee/shaders/eevee_surf_shadow.bsl.hh
   engines/eevee/shaders/eevee_surf_volume.bsl.hh
   engines/eevee/shaders/eevee_surf_world.bsl.hh
-  engines/eevee/shaders/eevee_surfel_cluster_build_comp.glsl
+  engines/eevee/shaders/eevee_surfel_cluster.bsl.hh
   engines/eevee/shaders/eevee_surfel_light.bsl.hh
   engines/eevee/shaders/eevee_surfel_list.bsl.hh
   engines/eevee/shaders/eevee_surfel_ray.bsl.hh

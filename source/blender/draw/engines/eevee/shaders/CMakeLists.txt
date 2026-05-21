@@ -75,7 +75,6 @@ set(SRC_GLSL_COMP
   eevee_ray_generate_comp.glsl
   eevee_ray_tile_classify_comp.glsl
   eevee_ray_tile_compact_comp.glsl
-  eevee_surfel_cluster_build_comp.glsl
 )
 
 set(SRC_GLSL_LIB
