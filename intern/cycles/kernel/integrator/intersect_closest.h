@@ -147,11 +147,11 @@ ccl_device_forceinline void integrator_split_shadow_catcher(
   const int shader = intersection_get_shader(kg, isect);
   const int flags = kernel_data_fetch(shaders, shader).flags;
   const bool use_caustics = kernel_data.integrator.use_caustics &&
-                            (object_flags & SD_OBJECT_CAUSTICS_RECEIVER);
+                            (object_flags & SD_OBJECT_CAUSTICS);
   const bool use_raytrace_kernel = (flags & SD_HAS_RAYTRACE);
 
   if (use_caustics) {
-    integrator_path_init(state, DEVICE_KERNEL_INTEGRATOR_INTERSECT_MNEE);
+    integrator_path_init_sorted(kg, state, DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE_MNEE, shader);
   }
   else if (use_raytrace_kernel) {
     integrator_path_init_sorted(
@@ -176,11 +176,12 @@ ccl_device_forceinline void integrator_intersect_next_kernel_after_shadow_catche
   const int flags = kernel_data_fetch(shaders, shader).flags;
   const uint object_flags = intersection_get_object_flags(kg, &isect);
   const bool use_caustics = kernel_data.integrator.use_caustics &&
-                            (object_flags & SD_OBJECT_CAUSTICS_RECEIVER);
+                            (object_flags & SD_OBJECT_CAUSTICS);
   const bool use_raytrace_kernel = (flags & SD_HAS_RAYTRACE);
 
   if (use_caustics) {
-    integrator_path_next(state, current_kernel, DEVICE_KERNEL_INTEGRATOR_INTERSECT_MNEE);
+    integrator_path_next_sorted(
+        kg, state, current_kernel, DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE_MNEE, shader);
   }
   else if (use_raytrace_kernel) {
     integrator_path_next_sorted(
@@ -260,10 +261,11 @@ ccl_device_forceinline void integrator_intersect_next_kernel(
       if (!integrator_intersect_terminate(kg, state, flags)) {
         const uint object_flags = intersection_get_object_flags(kg, isect);
         const bool use_caustics = kernel_data.integrator.use_caustics &&
-                                  (object_flags & SD_OBJECT_CAUSTICS_RECEIVER);
+                                  (object_flags & SD_OBJECT_CAUSTICS);
         const bool use_raytrace_kernel = (flags & SD_HAS_RAYTRACE);
         if (use_caustics) {
-          integrator_path_next(state, current_kernel, DEVICE_KERNEL_INTEGRATOR_INTERSECT_MNEE);
+          integrator_path_next_sorted(
+              kg, state, current_kernel, DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE_MNEE, shader);
         }
         else if (use_raytrace_kernel) {
           integrator_path_next_sorted(
@@ -318,11 +320,12 @@ ccl_device_forceinline void integrator_intersect_next_kernel_after_volume(
     const int flags = kernel_data_fetch(shaders, shader).flags;
     const uint object_flags = intersection_get_object_flags(kg, isect);
     const bool use_caustics = kernel_data.integrator.use_caustics &&
-                              (object_flags & SD_OBJECT_CAUSTICS_RECEIVER);
+                              (object_flags & SD_OBJECT_CAUSTICS);
     const bool use_raytrace_kernel = (flags & SD_HAS_RAYTRACE);
 
     if (use_caustics) {
-      integrator_path_next(state, current_kernel, DEVICE_KERNEL_INTEGRATOR_INTERSECT_MNEE);
+      integrator_path_next_sorted(
+          kg, state, current_kernel, DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE_MNEE, shader);
     }
     else if (use_raytrace_kernel) {
       integrator_path_next_sorted(

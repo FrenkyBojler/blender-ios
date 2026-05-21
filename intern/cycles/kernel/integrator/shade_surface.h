@@ -370,19 +370,9 @@ ccl_device
         if (!is_transmission && (sd->object_flag & SD_OBJECT_CAUSTICS_RECEIVER)) {
           ShaderDataCausticsStorage emission_sd_storage;
           ccl_private ShaderData *emission_sd = AS_SHADER_DATA(&emission_sd_storage);
-          float3 receiver_wo;
-          Spectrum throughput;
 
-          ShaderEvalResult result = kernel_path_mnee_sample(kg,
-                                                            state,
-                                                            sd,
-                                                            emission_sd,
-                                                            rng_state,
-                                                            &ls,
-                                                            &throughput,
-                                                            &receiver_wo,
-                                                            mnee_vertex_count);
-          bsdf_eval_init(&bsdf_eval, throughput);
+          ShaderEvalResult result = kernel_path_mnee_sample(
+              kg, state, sd, emission_sd, rng_state, &ls, &bsdf_eval, mnee_vertex_count);
           if (result == SHADER_EVAL_CACHE_MISS) {
             return SHADER_EVAL_CACHE_MISS;
           }
