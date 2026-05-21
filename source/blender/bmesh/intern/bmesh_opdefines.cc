@@ -2831,7 +2831,7 @@ static BMO_FlagSet bmo_enum_space_edge_loops_evenly_interpolation_method[] = {
  *
  * Space the vertices in a regular distribution on the loop.
  */
-static BMOpDefine bmo_space_def = {
+static BMOpDefine bmo_space_edge_loops_evenly_def = {
     /*opname*/ "space_edge_loops_evenly",
     /*slot_types_in*/
     {
@@ -2980,7 +2980,7 @@ const BMOpDefine *bmo_opdefines[] = {
     &bmo_subdivide_edges_def,
     &bmo_subdivide_edgering_def,
     &bmo_bisect_plane_def,
-    &bmo_space_def,
+    &bmo_space_edge_loops_evenly_def,
     &bmo_symmetrize_def,
     &bmo_transform_def,
     &bmo_translate_def,
