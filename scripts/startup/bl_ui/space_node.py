@@ -836,6 +836,7 @@ class NODE_PT_active_node_generic(Panel):
         col = layout.column()
         col.prop(node, "show_options")
         col.prop(node, "mute")
+        col.prop(node, "location_absolute", text="Location")
 
         if tree.type in ('GEOMETRY', 'COMPOSITING'):
             layout.prop(node, "warning_propagation", text="Propagate")
