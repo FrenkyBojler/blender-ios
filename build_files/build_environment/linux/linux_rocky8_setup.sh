@@ -144,6 +144,7 @@ PACKAGES_FOR_LIBS=(
     libstdc++-static
 
     # Required by: `external_ssl` (build dependencies).
+    perl-core
     perl-IPC-Cmd
     perl-Pod-Html
 
