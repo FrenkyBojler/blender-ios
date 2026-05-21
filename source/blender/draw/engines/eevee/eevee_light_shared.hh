@@ -136,8 +136,8 @@ struct [[host_shared]] LightAreaData {
 
   /** Number of allocated tilemap for this local light. */
   int tilemaps_count; /* Leaked from LightLocalCommon because of alignment. */
-  float _pad0;
-  float _pad1;
+  float spread_half_angle;
+  float spread_mix_fac;
   float _pad2;
 
   /** Shape size. */

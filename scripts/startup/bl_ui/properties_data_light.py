@@ -193,6 +193,7 @@ class DATA_PT_EEVEE_light_shadow(DataButtonsPanel, Panel):
 
         col = layout.column()
         col.prop(light, "shadow_filter_radius", text="Filter")
+        col.prop(light, "spread")
 
         sub = col.column(align=True)
         row = sub.row(align=True)

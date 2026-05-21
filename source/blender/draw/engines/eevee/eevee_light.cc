@@ -235,6 +235,9 @@ void Light::shape_parameters_set(const blender::Light *la,
     l_area.size = max(float2(0.003f), l_area.size);
     /* For volume point lighting. */
     l_area.local.shape_radius = max(0.001f, length(l_area.size) / 2.0f);
+    /* Spread angle. */
+    l_area.spread_half_angle = la->area_spread / 2.0f;
+    l_area.spread_mix_fac = la->area_spread / M_PI;
   }
   else if (is_point_light(this->type)) {
     LightSpotData &l_spot = this->spot();

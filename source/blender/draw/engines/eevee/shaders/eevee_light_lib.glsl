@@ -11,9 +11,14 @@
 /* Attenuation cutoff needs to be the same in the shadow loop and the light eval loop. */
 #define LIGHT_ATTENUATION_THRESHOLD 1e-6f
 
-/* ---------------------------------------------------------------------- */
-/** \name Light Functions
- * \{ */
+float3 light_world_to_local_direction(LightData light, float3 L)
+{
+  return transform_direction_transposed(light.object_to_world, L);
+}
+float3 light_world_to_local_point(LightData light, float3 point)
+{
+  return transform_point_inversed(light.object_to_world, point);
+}
 
 struct LightVector {
   /* World space light vector. From the shading point to the light center. Normalized. */
@@ -66,14 +71,195 @@ LightVector light_shape_vector_get(LightData light, const bool is_directional, f
   return light_vector_get(light, is_directional, P);
 }
 
-float3 light_world_to_local_direction(LightData light, float3 L)
+namespace eevee::light {
+
+/**
+ * Approximate the ratio of the area of intersection of two spherical caps divided by the area of
+ * the smallest cap.
+ */
+float light_cone_cone_ratio(float cone_angle_1, float cone_angle_2, float angle_between_axes)
 {
-  return transform_direction_transposed(light.object_to_world, L);
+  /* From "Ambient Aperture Lighting" by Chris Oat
+   * Slide 15.
+   * Simplified since we divide by the solid angle of the smallest cone. */
+  return smoothstep(
+      cone_angle_1 + cone_angle_2, abs(cone_angle_1 - cone_angle_2), abs(angle_between_axes));
 }
-float3 light_world_to_local_point(LightData light, float3 point)
+
+float linearstep(float edge0, float edge1, float x)
 {
-  return transform_point_inversed(light.object_to_world, point);
+  return saturate((x - edge0) / (edge1 - edge0));
 }
+
+float ratio_cone_cone(float cone_angle_1, float cone_angle_2, float angle_between_axes)
+{
+  return light_cone_cone_ratio(cone_angle_1, cone_angle_2, angle_between_axes);
+}
+
+float area_cone(float cone_angle)
+{
+  return M_TAU * (1.0 - cos(cone_angle));
+}
+
+float area_lune(float lune_angle)
+{
+  return linearstep(0.0, M_TAU, abs(lune_angle));
+}
+
+float area_cone_cone(float cone_angle_1, float cone_angle_2, float angle_between_axes)
+{
+  return ratio_cone_cone(cone_angle_1, cone_angle_2, angle_between_axes) *
+         area_cone(min(cone_angle_1, cone_angle_2));
+}
+
+float area_cone_hemisphere(float cone_angle, float angle_between_axes)
+{
+  float r = abs(cone_angle);
+  float d = abs(angle_between_axes);
+  d = clamp(d, M_PI_2 - r + 0.0001, M_PI_2 + r - 0.0001);
+  return -2.0 * acos(cos(d) / sin(r)) - 2.0 * acos(-cos(d) * cos(r) / (sin(d) * sin(r))) * cos(r) +
+         M_TAU;
+}
+
+float light_cone_lune_area(float spread_half_angle, float edge_angle_1, float edge_angle_2)
+{
+  float angle_hemi1 = edge_angle_1 + M_PI_2;
+  float angle_hemi2 = edge_angle_2 - M_PI_2;
+  float ratio_hemi1_cone_isect = area_cone_hemisphere(spread_half_angle, angle_hemi1) /
+                                 min(area_cone_hemisphere(M_PI_2, angle_hemi1),
+                                     area_cone(spread_half_angle));
+  float ratio_hemi2_cone_isect = area_cone_hemisphere(spread_half_angle, angle_hemi2) /
+                                 min(area_cone_hemisphere(M_PI_2, angle_hemi2),
+                                     area_cone(spread_half_angle));
+  return min(ratio_hemi1_cone_isect, ratio_hemi2_cone_isect);
+}
+
+float light_lune_cone_ratio(float spread_half_angle, float edge_angle_1, float edge_angle_2)
+{
+  return light_cone_lune_area(spread_half_angle, edge_angle_1, edge_angle_2);
+}
+
+/* https://www.shadertoy.com/view/4dVcR1 */
+
+float2 msign(float2 x)
+{
+  return float2((x.x < 0.0) ? -1.0 : 1.0, (x.y < 0.0) ? -1.0 : 1.0);
+}
+
+float2 sdEllipseNearestPoint(float2 p, float2 ab)
+{
+  float2 p_sign = msign(p);
+  // symmetry
+  p = abs(p);
+
+  // find root with Newton solver
+  float2 q = ab * (p - ab);
+
+  float w = (q.x < q.y) ? 1.570796327 : 0.0;
+  for (int i = 0; i < 4; i++) {
+    float2 cs = float2(cos(w), sin(w));
+    float2 u = ab * float2(cs.x, cs.y);
+    float2 v = ab * float2(-cs.y, cs.x);
+    w = w + dot(p - u, v) / (dot(p - u, u) + dot(v, v));
+  }
+
+  return ab * float2(cos(w), sin(w)) * p_sign;
+}
+
+float2 sdEllipseFarthestPoint(float2 p, float2 ab)
+{
+  float2 p_sign = msign(p);
+  // symmetry
+  p = abs(p);
+
+  // find root with Newton solver
+  float2 q = ab * (p + ab);
+
+  float w = 3.1415 + ((q.x < q.y) ? 1.570796327 : 0.0);
+  for (int i = 0; i < 4; i++) {
+    float2 cs = float2(cos(w), sin(w));
+    float2 u = ab * float2(cs.x, cs.y);
+    float2 v = ab * float2(-cs.y, cs.x);
+    w = w + dot(p - u, v) / (dot(p - u, u) + dot(v, v));
+  }
+
+  return ab * float2(cos(w), sin(w)) * p_sign;
+}
+
+/* from Real-Time Area Lighting: a Journey from Research to Production
+ * Stephen Hill and Eric Heitz */
+float3 light_edge_integral_vec(float3 v1, float3 v2)
+{
+  float x = dot(v1, v2);
+  float y = abs(x);
+
+  float a = 0.8543985 + (0.4965155 + 0.0145206 * y) * y;
+  float b = 3.4175940 + (4.1616724 + y) * y;
+  float v = a / b;
+
+  float theta_sintheta = (x > 0.0) ? v : 0.5 * inversesqrt(max(1.0 - x * x, 1e-7)) - v;
+
+  return cross(v1, v2) * theta_sintheta;
+}
+
+float light_spread_angle_attenuation(LightData light, LightVector lv)
+{
+  LightAreaData area_light = light.area();
+
+  float3 lL = light_world_to_local_direction(light, lv.L * lv.dist);
+  float distance_to_plane = abs(lL.z);
+  float2 area_size = area_light.size;
+
+  if (light.type == LIGHT_RECT) {
+    float3 corners[4];
+    corners[0] = float3(area_size.x, -area_size.y, 0.0);
+    corners[1] = float3(area_size.x, area_size.y, 0.0);
+    corners[2] = -corners[0];
+    corners[3] = -corners[1];
+
+    corners[0] = normalize((corners[0] + lL) * float3(10.0f, 10.0f, 1.0f));
+    corners[1] = normalize((corners[1] + lL) * float3(10.0f, 10.0f, 1.0f));
+    corners[2] = normalize((corners[2] + lL) * float3(10.0f, 10.0f, 1.0f));
+    corners[3] = normalize((corners[3] + lL) * float3(10.0f, 10.0f, 1.0f));
+
+    float3 avg_dir;
+    avg_dir = light_edge_integral_vec(corners[0], corners[1]);
+    avg_dir += light_edge_integral_vec(corners[1], corners[2]);
+    avg_dir += light_edge_integral_vec(corners[2], corners[3]);
+    avg_dir += light_edge_integral_vec(corners[3], corners[0]);
+
+    float form_factor = length(avg_dir);
+    float avg_dir_z = (avg_dir / form_factor).z;
+
+    float half_light_angle = acos(1.0 - form_factor);
+
+    return light_cone_cone_ratio(area_light.spread_half_angle, half_light_angle, acos(avg_dir_z));
+  }
+
+  float r1 = distance(sdEllipseNearestPoint(lL.xy, area_size), lL.xy);
+  float r2 = distance(sdEllipseFarthestPoint(lL.xy, area_size), lL.xy);
+
+  bool inside_ellipse = length_squared(lL.xy / area_size) < 1.0;
+  if (inside_ellipse) {
+    /* Signed distance. */
+    r1 = -r1;
+  }
+
+  /* TODO(fclem): Port fast_atanf from cycles. */
+  float angle_1 = atan(r1, distance_to_plane);
+  float angle_2 = atan(r2, distance_to_plane);
+
+  float half_light_angle = abs(angle_1 - angle_2) / 2.0;
+  float elevation_angle = (angle_1 + angle_2) / 2.0;
+
+  return light_cone_cone_ratio(area_light.spread_half_angle, half_light_angle, elevation_angle);
+}
+
+}  // namespace eevee::light
+
+/* ---------------------------------------------------------------------- */
+/** \name Light Functions
+ * \{ */
 
 /* From Frostbite PBR Course
  * Distance based attenuation
@@ -94,16 +280,17 @@ float light_spot_attenuation(LightData light, float3 L)
   return (lL.z > 0.0f) ? spotmask : 0.0f;
 }
 
-float light_attenuation_common(LightData light, const bool is_directional, float3 L)
+float light_attenuation_common(LightData light, const bool is_directional, LightVector lv)
 {
   if (is_directional) {
     return 1.0f;
   }
   if (is_spot_light(light.type)) {
-    return light_spot_attenuation(light, L);
+    return light_spot_attenuation(light, lv.L);
   }
   if (is_area_light(light.type)) {
-    return float(dot(L, light.z_axis()) > 0.0f);
+    return float(dot(lv.L, light.z_axis()) > 0.0f) *
+           eevee::light::light_spread_angle_attenuation(light, lv);
   }
   return 1.0f;
 }
@@ -141,7 +328,7 @@ float light_attenuation_facing(
 
 float light_attenuation_surface(LightData light, const bool is_directional, LightVector lv)
 {
-  float result = light_attenuation_common(light, is_directional, lv.L);
+  float result = light_attenuation_common(light, is_directional, lv);
   if (!is_directional) {
     result *= light_influence_attenuation(lv.dist,
                                           light.local().local.influence_radius_invsqr_surface);
@@ -151,7 +338,7 @@ float light_attenuation_surface(LightData light, const bool is_directional, Ligh
 
 float light_attenuation_volume(LightData light, const bool is_directional, LightVector lv)
 {
-  float result = light_attenuation_common(light, is_directional, lv.L);
+  float result = light_attenuation_common(light, is_directional, lv);
   if (!is_directional) {
     result *= light_influence_attenuation(lv.dist,
                                           light.local().local.influence_radius_invsqr_volume);
@@ -214,7 +401,7 @@ LightVertices light_shape_corners(LightData light, LightVector lv)
     vertices.v[2] = -vertices.v[0];
     vertices.v[3] = -vertices.v[1];
 
-    float3 L = lv.L * lv.dist;
+    float3 L = mix(light.z_axis(), lv.L * lv.dist, area.spread_mix_fac);
     vertices.v[0] += L;
     vertices.v[1] += L;
     vertices.v[2] += L;
@@ -247,6 +434,9 @@ LightVertices light_shape_corners(LightData light, LightVector lv)
     vertices.v[2] = -vertices.v[0];
 
     float3 L = lv.L * lv.dist;
+    if (is_area_light(light.type)) {
+      L = mix(light.z_axis(), L, light.area().spread_mix_fac);
+    }
     vertices.v[0] += L;
     vertices.v[1] += L;
     vertices.v[2] += L;
