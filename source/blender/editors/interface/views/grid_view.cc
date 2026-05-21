@@ -21,10 +21,10 @@
 
 #include "RNA_access.hh"
 
+#include "UI_interface_c.hh"
 #include "UI_interface_layout.hh"
 #include "UI_view2d.hh"
 #include "interface_intern.hh"
-#include "UI_interface_c.hh"
 
 #include "UI_grid_view.hh"
 
@@ -192,16 +192,17 @@ AbstractViewItem *AbstractGridView::navigate_up(AbstractViewItem *from)
   std::optional<int> from_index = find_filtered_item_index(
       dynamic_cast<const AbstractGridViewItem &>(*from));
 
-  const int next_item_index = std::clamp(*from_index - cols_per_row_, 0, get_item_count_filtered() - 1);
+  const int next_item_index = std::clamp(
+      *from_index - cols_per_row_, 0, get_item_count_filtered() - 1);
 
   int i = 0;
   AbstractViewItem *next_item = nullptr;
-    this->foreach_filtered_item([&](AbstractViewItem &item) {
-      if (i == next_item_index) {
-        next_item = &item;
-      }
-      i++;
-    });
+  this->foreach_filtered_item([&](AbstractViewItem &item) {
+    if (i == next_item_index) {
+      next_item = &item;
+    }
+    i++;
+  });
   return next_item ? next_item : from;
 }
 
@@ -210,16 +211,17 @@ AbstractViewItem *AbstractGridView::navigate_down(AbstractViewItem *from)
   std::optional<int> from_index = find_filtered_item_index(
       dynamic_cast<const AbstractGridViewItem &>(*from));
 
-  const int next_item_index = std::clamp(*from_index + cols_per_row_, 0, get_item_count_filtered() - 1);
+  const int next_item_index = std::clamp(
+      *from_index + cols_per_row_, 0, get_item_count_filtered() - 1);
 
   int i = 0;
   AbstractViewItem *next_item = nullptr;
-    this->foreach_filtered_item([&](AbstractViewItem &item) {
-      if (i == next_item_index) {
-        next_item = &item;
-      }
-      i++;
-    });
+  this->foreach_filtered_item([&](AbstractViewItem &item) {
+    if (i == next_item_index) {
+      next_item = &item;
+    }
+    i++;
+  });
 
   return next_item ? next_item : from;
 }

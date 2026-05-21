@@ -491,7 +491,7 @@ void AbstractTreeView::scroll(ViewScrollDirection direction)
   *scroll_value_ += ((direction == ViewScrollDirection::UP) ? -1 : 1);
 }
 
-void AbstractTreeView::scroll_active_into_view(bContext */*C*/)
+void AbstractTreeView::scroll_active_into_view(bContext * /*C*/)
 {
   int index = 0;
   const std::optional<int> visible_row_count = tot_visible_row_count();
