@@ -402,10 +402,10 @@ tObject *Instance::object_sync_do(Object *ob, ResourceHandleRange res_handle)
       };
 
   int t_offset = 0;
-  /* Note that we loop over all the drawings (including the onion skinned ones) to make sure we
-   * match the offsets of the batch cache. */
+  /* Loop over drawings using the same do_onion_skinning value that was used to build the batch
+   * cache, to ensure the vertex offsets match. */
   const Vector<DrawingInfo> drawings = retrieve_visible_drawings(
-      *this->scene, grease_pencil, true);
+      *this->scene, grease_pencil, do_onion);
   const Span<const Layer *> layers = grease_pencil.layers();
   for (const DrawingInfo info : drawings) {
     const Layer &layer = *layers[info.layer_index];

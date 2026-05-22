@@ -24,6 +24,7 @@
 
 #include "DNA_grease_pencil_types.h"
 #include "DNA_material_types.h"
+#include "DNA_view3d_types.h"
 
 #include "DRW_engine.hh"
 #include "DRW_render.hh"
@@ -98,6 +99,8 @@ struct GreasePencilBatchCache {
   bool is_dirty;
   /** Last cached frame. */
   int cache_frame;
+  /** Whether the geom VBO was built with onion skinning drawings. */
+  bool do_onion_skinning;
 };
 
 /* -------------------------------------------------------------------- */
@@ -1277,6 +1280,21 @@ static Array<float> get_radii_lengths(const Span<float> lengths,
   return radii_lengths;
 }
 
+bool DRW_cache_grease_pencil_do_onion_skinning()
+{
+  const DRWContext *draw_ctx = DRW_context_get();
+  if (draw_ctx->v3d == nullptr) {
+    return false;
+  }
+  if ((draw_ctx->v3d->flag2 & V3D_HIDE_OVERLAYS) != 0) {
+    return false;
+  }
+  if ((draw_ctx->v3d->gp_flag & V3D_GP_SHOW_ONION_SKIN) == 0) {
+    return false;
+  }
+  return !draw_ctx->is_playback();
+}
+
 static void grease_pencil_geom_batch_ensure(Object &object,
                                             const GreasePencil &grease_pencil,
                                             const Scene &scene)
@@ -1285,17 +1303,28 @@ static void grease_pencil_geom_batch_ensure(Object &object,
   BLI_assert(grease_pencil.runtime != nullptr);
   GreasePencilBatchCache *cache = grease_pencil.runtime->batch_cache;
 
+  const bool do_onion_skinning = DRW_cache_grease_pencil_do_onion_skinning();
   if (cache->vbo != nullptr) {
-    return;
+    if (cache->do_onion_skinning == do_onion_skinning) {
+      return;
+    }
+    /* Onion skinning state changed: discard geom buffers and rebuild. */
+    GPU_BATCH_DISCARD_SAFE(cache->geom_batch);
+    GPU_VERTBUF_DISCARD_SAFE(cache->vbo);
+    GPU_VERTBUF_DISCARD_SAFE(cache->vbo_col);
+    GPU_INDEXBUF_DISCARD_SAFE(cache->ibo);
+    GPU_BATCH_DISCARD_SAFE(cache->lines_batch);
   }
 
   /* Should be discarded together. */
   BLI_assert(cache->vbo == nullptr && cache->ibo == nullptr);
   BLI_assert(cache->geom_batch == nullptr);
 
+  cache->do_onion_skinning = do_onion_skinning;
+
   /* Get the visible drawings. */
   const Vector<ed::greasepencil::DrawingInfo> drawings =
-      ed::greasepencil::retrieve_visible_drawings(scene, grease_pencil, true);
+      ed::greasepencil::retrieve_visible_drawings(scene, grease_pencil, do_onion_skinning);
 
   /* First, count how many vertices and triangles are needed for the whole object. Also record the
    * offsets into the curves for the vertices. */
@@ -1781,9 +1810,9 @@ static void grease_pencil_wire_batch_ensure(Object &object,
   grease_pencil_geom_batch_ensure(object, grease_pencil, scene);
   uint32_t max_index = GPU_vertbuf_get_vertex_len(cache->vbo);
 
-  /* Get the visible drawings. */
+  /* Get the visible drawings, matching the do_onion_skinning state of the geom VBO. */
   const Vector<ed::greasepencil::DrawingInfo> drawings =
-      ed::greasepencil::retrieve_visible_drawings(scene, grease_pencil, true);
+      ed::greasepencil::retrieve_visible_drawings(scene, grease_pencil, cache->do_onion_skinning);
 
   Vector<int> index_start_per_curve;
   Vector<bool> cyclic_per_curve;

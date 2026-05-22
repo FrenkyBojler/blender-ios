@@ -330,7 +330,9 @@ class GreasePencil : Overlay {
     }
 
     int t_offset = 0;
-    const Vector<DrawingInfo> drawings = retrieve_visible_drawings(*scene, grease_pencil, true);
+    /* Match the do_onion_skinning state of the geom VBO built by the gpencil engine. */
+    const Vector<DrawingInfo> drawings = retrieve_visible_drawings(
+        *scene, grease_pencil, draw::DRW_cache_grease_pencil_do_onion_skinning());
     for (const DrawingInfo info : drawings) {
 
       gpu::VertBuf *position_tx = draw::DRW_cache_grease_pencil_position_buffer_get(scene, ob);
