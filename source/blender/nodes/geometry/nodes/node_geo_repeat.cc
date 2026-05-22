@@ -96,6 +96,7 @@ static void node_declare(NodeDeclarationBuilder &b)
         b.add_output(socket_type, name, identifier)
             .align_with_previous()
             .propagate_all({input_decl.index()})
+            .inferred_structure_type({input_decl.index()})
             .structure_type(StructureType::Dynamic);
       }
     }
@@ -191,6 +192,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       b.add_output(socket_type, name, identifier)
           .align_with_previous()
           .propagate_all({input_decl.index()})
+          .inferred_structure_type({input_decl.index()})
           .structure_type(StructureType::Dynamic);
     }
   }
