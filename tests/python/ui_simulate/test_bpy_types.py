@@ -32,8 +32,8 @@ def _test_operator():
         bl_idname = "test.operator"
         bl_category = 'Test Operator'
 
-        def exec(self, context):
-            return 'FINISHED'
+        def execute(self, context):
+            return {'FINISHED'}
 
     return TEST_PT_operator
 
