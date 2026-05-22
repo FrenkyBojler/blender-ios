@@ -331,13 +331,14 @@ static ArmatureDeformParams get_armature_deform_params(
   deform_params.pose_channels = {ob_arm.pose->chanbase};
   deform_params.use_dverts = try_use_dverts && dverts_supported && (deformflag & ARM_DEF_VGROUP);
   if (deform_params.use_dverts) {
-    const int defbase_len = BLI_listbase_count(defbase);
+    const int defbase_len = defbase->count();
     deform_params.pose_channel_by_vertex_group.reinitialize(defbase_len);
     /* TODO(sergey): Some considerations here:
      *
      * - Check whether keeping this consistent across frames gives speedup.
      */
 
+    BKE_pose_ensure_bone_indices(ob_arm);
     for (const auto [i, dg] : (defbase)->enumerate()) {
       bPoseChannel *pchan = BKE_pose_channel_find_name(ob_arm.pose, dg.name);
       /* Exclude non-deforming bones. */

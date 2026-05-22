@@ -321,6 +321,7 @@ void ForwardPipeline::sync()
       opaque_ps_.bind_resources(inst_.hiz_buffer.front);
       opaque_ps_.bind_resources(inst_.volume_probes);
       opaque_ps_.bind_resources(inst_.sphere_probes);
+      opaque_ps_.bind_resources(inst_.planar_probes);
     }
 
     const DRWState state = DRW_STATE_WRITE_COLOR | DRW_STATE_CLIP_CONTROL_UNIT_RANGE |
@@ -361,6 +362,7 @@ void ForwardPipeline::sync()
     sub.bind_resources(inst_.hiz_buffer.front);
     sub.bind_resources(inst_.volume_probes);
     sub.bind_resources(inst_.sphere_probes);
+    sub.bind_resources(inst_.planar_probes);
   }
   {
     gpu::Shader *sh = inst_.shaders.static_shader_get(TRANSPARENCY_RESOLVE);
@@ -486,17 +488,17 @@ void ForwardPipeline::TransparencyBuffer::acquire(int2 extent, bool use_colored_
   eGPUTextureUsage usage = GPU_TEXTURE_USAGE_ATTACHMENT | GPU_TEXTURE_USAGE_SHADER_READ;
 
   if (!use_colored_transparency) {
-    r_channel_tx.acquire(extent, gpu::TextureFormat::SFLOAT_16_16_16_16, usage);
+    r_channel_tx.acquire_2d(extent, gpu::TextureFormat::SFLOAT_16_16_16_16, usage);
     /* Dummy texture for validation. Will not be sampled or attached. */
-    g_channel_tx.acquire(int2(1), gpu::TextureFormat::UNORM_8_8_8_8);
-    b_channel_tx.acquire(int2(1), gpu::TextureFormat::UNORM_8_8_8_8);
-    a_channel_tx.acquire(int2(1), gpu::TextureFormat::UNORM_8_8_8_8);
+    g_channel_tx.acquire_2d(int2(1), gpu::TextureFormat::UNORM_8_8_8_8);
+    b_channel_tx.acquire_2d(int2(1), gpu::TextureFormat::UNORM_8_8_8_8);
+    a_channel_tx.acquire_2d(int2(1), gpu::TextureFormat::UNORM_8_8_8_8);
   }
   else {
-    r_channel_tx.acquire(extent, gpu::TextureFormat::SFLOAT_16_16, usage);
-    g_channel_tx.acquire(extent, gpu::TextureFormat::SFLOAT_16_16, usage);
-    b_channel_tx.acquire(extent, gpu::TextureFormat::SFLOAT_16_16, usage);
-    a_channel_tx.acquire(extent, gpu::TextureFormat::UNORM_8_8, usage);
+    r_channel_tx.acquire_2d(extent, gpu::TextureFormat::SFLOAT_16_16, usage);
+    g_channel_tx.acquire_2d(extent, gpu::TextureFormat::SFLOAT_16_16, usage);
+    b_channel_tx.acquire_2d(extent, gpu::TextureFormat::SFLOAT_16_16, usage);
+    a_channel_tx.acquire_2d(extent, gpu::TextureFormat::UNORM_8_8, usage);
   }
 }
 
@@ -537,7 +539,7 @@ void ForwardPipeline::render(View &view,
   inst_.hiz_buffer.set_dirty();
   inst_.hiz_buffer.update();
 
-  inst_.shadows.set_view(view, extent);
+  inst_.shadows.render(view, extent);
   inst_.volume_probes.set_view(view);
   inst_.sphere_probes.set_view(view);
 
@@ -617,15 +619,7 @@ void DeferredLayerBase::gbuffer_pass_sync(Instance &inst)
   gbuffer_ps_.bind_resources(inst.uniform_data);
   gbuffer_ps_.bind_resources(inst.sampling);
   gbuffer_ps_.bind_resources(inst.hiz_buffer.front);
-  gbuffer_ps_.bind_resources(inst.hiz_buffer.front);
   gbuffer_ps_.bind_resources(inst.cryptomatte);
-
-  /* Bind light resources for the NPR materials that gets rendered first.
-   * Non-NPR shaders will override these resource bindings. */
-  gbuffer_ps_.bind_resources(inst.lights);
-  gbuffer_ps_.bind_resources(inst.shadows);
-  gbuffer_ps_.bind_resources(inst.sphere_probes);
-  gbuffer_ps_.bind_resources(inst.volume_probes);
 
   DRWState state = DRW_STATE_WRITE_COLOR | DRW_STATE_DEPTH_EQUAL | DRW_STATE_WRITE_STENCIL |
                    DRW_STATE_CLIP_CONTROL_UNIT_RANGE | DRW_STATE_STENCIL_ALWAYS;
@@ -643,6 +637,16 @@ void DeferredLayerBase::gbuffer_pass_sync(Instance &inst)
         pass = &gbuffer_ps_.sub(subpass_names[hybrid][raycast][double_sided]);
         pass->state_set(double_sided ? state : (state | DRW_STATE_CULL_BACK));
         if (hybrid) {
+          pass->bind_resources(inst.lights);
+          pass->bind_resources(inst.shadows);
+          pass->bind_resources(inst.sphere_probes);
+          pass->bind_resources(inst.volume_probes);
+          if (is_probe_) {
+            pass->bind_resources(inst.planar_probes.dummy_resources);
+          }
+          else {
+            pass->bind_resources(inst.planar_probes);
+          }
           pass->bind_texture(HIZ_PREVIOUS_LAYER_TEX_SLOT, &inst.hiz_buffer.back.ref_tx_);
           pass->bind_texture(RADIANCE_PREVIOUS_LAYER_TEX_SLOT, &radiance_behind_tx_);
         }
@@ -983,15 +987,15 @@ gpu::Texture *DeferredLayer::render(View &render_view,
 
   inst_.volume_probes.set_view(render_view);
   inst_.sphere_probes.set_view(render_view);
-  inst_.shadows.set_view(render_view, extent);
+  inst_.shadows.render(render_view, extent);
 
   inst_.gbuffer.bind(gbuffer_fb);
   inst_.manager->submit(gbuffer_ps_, render_view);
 
   for (int i = 0; i < ARRAY_SIZE(direct_radiance_txs_); i++) {
-    direct_radiance_txs_[i].acquire((closure_count_ > i) ? extent : int2(1),
-                                    gpu::TextureFormat::DEFERRED_RADIANCE_FORMAT,
-                                    usage_rw);
+    direct_radiance_txs_[i].acquire_2d((closure_count_ > i) ? extent : int2(1),
+                                       gpu::TextureFormat::DEFERRED_RADIANCE_FORMAT,
+                                       usage_rw);
   }
 
   if (use_raytracing_) {
@@ -1467,7 +1471,7 @@ void DeferredProbePipeline::render(View &view,
   inst_.hiz_buffer.update();
 
   inst_.lights.set_view(view, extent);
-  inst_.shadows.set_view(view, extent);
+  inst_.shadows.render(view, extent);
   inst_.volume_probes.set_view(view);
   inst_.sphere_probes.set_view(view);
 
@@ -1513,7 +1517,7 @@ void PlanarProbePipeline::end_sync()
   if (!prepass_ps_.is_empty()) {
     PassSimple &pass = eval_light_ps_;
     pass.init();
-    pass.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_ADD_FULL);
+    pass.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_DEPTH_GREATER);
     pass.shader_set(inst_.shaders.static_shader_get(DEFERRED_PLANAR_EVAL));
     pass.bind_texture(RBUFS_UTILITY_TEX_SLOT, inst_.pipelines.utility_tx);
     pass.bind_resources(inst_.uniform_data);
@@ -1564,7 +1568,7 @@ void PlanarProbePipeline::render(View &view,
   radiance_behind_tx_ = dummy_black_;
 
   inst_.pipelines.data.ray_type = RAY_TYPE_GLOSSY;
-  inst_.uniform_data.push_update();
+  inst_.uniform_data.pipeline.push_update();
 
   GPU_framebuffer_bind(prepass_fb);
   GPU_framebuffer_clear_depth(prepass_fb, inst_.film.depth.clear_value);
@@ -1576,18 +1580,18 @@ void PlanarProbePipeline::render(View &view,
   inst_.hiz_buffer.update();
 
   inst_.lights.set_view(view, extent);
-  inst_.shadows.set_view(view, extent);
+  inst_.shadows.render(view, extent);
   inst_.volume_probes.set_view(view);
   inst_.sphere_probes.set_view(view);
 
-  inst_.gbuffer.bind(gbuffer_fb);
+  inst_.gbuffer.bind(gbuffer_fb, true);
   inst_.manager->submit(gbuffer_ps_, view);
 
   GPU_framebuffer_bind(combined_fb);
   inst_.manager->submit(eval_light_ps_, view);
 
   inst_.pipelines.data.ray_type = RAY_TYPE_CAMERA;
-  inst_.uniform_data.push_update();
+  inst_.uniform_data.pipeline.push_update();
 
   GPU_debug_group_end();
 }
