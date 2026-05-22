@@ -460,6 +460,7 @@ ccl_device_inline void microfacet_ggx_preserve_energy(KernelGlobals kg,
     E_avg = lookup_table_read_2D(kg, rough, z, avg_ofs, 16, 16);
   }
   else {
+    /* TODO(OpenPBR): use add LUT for CLOSURE_BSDF_MICROFACET_GGX_REFRACTION_ID`. */
     kernel_assert(false);
     E = 1.0f;
     E_avg = 1.0f;
