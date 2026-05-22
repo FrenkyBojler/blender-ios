@@ -144,7 +144,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Bool>("Selection"_ustr)
       .default_value(true)
       .hide_value()
-      .field_on_all()
+      .evaluated_geometry_field()
       .description("Selection on the iteration domain");
 
   if (output_storage) {
@@ -158,7 +158,7 @@ static void node_declare(NodeDeclarationBuilder &b)
           .socket_name_ptr(
               &tree->id, *ForeachGeometryElementInputItemsAccessor::item_srna, &item, "name")
           .description("Field that is evaluated on the iteration domain")
-          .field_on_all();
+          .evaluated_geometry_field();
       b.add_output(socket_type, name, identifier)
           .align_with_previous()
           .description("Evaluated field value for the current element");

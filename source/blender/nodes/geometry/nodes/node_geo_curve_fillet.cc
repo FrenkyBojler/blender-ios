@@ -42,7 +42,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .max(FLT_MAX)
       .subtype(PropertySubType::PROP_DISTANCE)
       .default_value(0.25f)
-      .field_on_all();
+      .evaluated_geometry_field();
   b.add_input<decl::Bool>("Limit Radius"_ustr)
       .description("Limit the maximum value of the radius in order to avoid overlapping fillets");
   b.add_input<decl::Menu>("Mode"_ustr)
@@ -53,7 +53,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .default_value(1)
       .min(1)
       .max(1000)
-      .field_on_all()
+      .evaluated_geometry_field()
       .usage_by_single_menu(GEO_NODE_CURVE_FILLET_POLY);
 }
 

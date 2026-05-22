@@ -23,7 +23,10 @@ static void node_declare(NodeDeclarationBuilder &b)
       .supported_type({GeometryComponent::Type::PointCloud, GeometryComponent::Type::Mesh})
       .description("Point cloud or mesh to merge points of");
   b.add_output<decl::Geometry>("Geometry"_ustr).propagate_all().align_with_previous();
-  b.add_input<decl::Bool>("Selection"_ustr).default_value(true).hide_value().field_on_all();
+  b.add_input<decl::Bool>("Selection"_ustr)
+      .default_value(true)
+      .hide_value()
+      .evaluated_geometry_field();
   b.add_input<decl::Int>("Merge ID"_ustr)
       .hide_value()
       .implicit_field_on_all(NODE_DEFAULT_INPUT_INDEX_FIELD)

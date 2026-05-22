@@ -32,11 +32,11 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description("Mesh whose UV map is used");
   if (node != nullptr) {
     const eCustomDataType data_type = eCustomDataType(node->custom1);
-    b.add_input(data_type, "Value"_ustr).hide_value().field_on_all();
+    b.add_input(data_type, "Value"_ustr).hide_value().evaluated_geometry_field();
   }
   b.add_input<decl::Vector>("UV Map"_ustr, "Source UV Map"_ustr)
       .hide_value()
-      .field_on_all()
+      .evaluated_geometry_field()
       .description("The mesh UV map to sample. Should not have overlapping faces");
   b.add_input<decl::Vector>("Sample UV"_ustr)
       .description("The coordinates to sample within the UV map")

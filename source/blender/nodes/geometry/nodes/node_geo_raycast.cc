@@ -51,7 +51,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   if (node != nullptr) {
     const eCustomDataType data_type = eCustomDataType(node_storage(*node).data_type);
     /* TODO: Field interfacing depends on the offset of the next declarations! */
-    b.add_input(data_type, "Attribute"_ustr).hide_value().field_on_all();
+    b.add_input(data_type, "Attribute"_ustr).hide_value().evaluated_geometry_field();
   }
   b.add_input<decl::Menu>("Interpolation"_ustr)
       .static_items(interpolation_items)

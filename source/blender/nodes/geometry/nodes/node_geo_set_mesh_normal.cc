@@ -36,8 +36,8 @@ static void node_declare(NodeDeclarationBuilder &b)
     switch (Mode(node->custom1)) {
       case Mode::Sharpness:
         b.add_input<decl::Bool>("Remove Custom"_ustr).default_value(true);
-        b.add_input<decl::Bool>("Edge Sharpness"_ustr).field_on_all();
-        b.add_input<decl::Bool>("Face Sharpness"_ustr).field_on_all();
+        b.add_input<decl::Bool>("Edge Sharpness"_ustr).evaluated_geometry_field();
+        b.add_input<decl::Bool>("Face Sharpness"_ustr).evaluated_geometry_field();
         break;
       case Mode::Free:
       case Mode::CornerFanSpace:

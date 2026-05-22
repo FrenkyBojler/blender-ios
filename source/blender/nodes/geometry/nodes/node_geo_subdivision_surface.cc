@@ -37,13 +37,13 @@ static void node_declare(NodeDeclarationBuilder &b)
       .min(0.0f)
       .max(1.0f)
       .subtype(PROP_FACTOR)
-      .field_on_all();
+      .evaluated_geometry_field();
   b.add_input<decl::Float>("Vertex Crease"_ustr)
       .default_value(0.0f)
       .min(0.0f)
       .max(1.0f)
       .subtype(PROP_FACTOR)
-      .field_on_all();
+      .evaluated_geometry_field();
   b.add_input<decl::Bool>("Limit Surface"_ustr)
       .default_value(true)
       .description(

@@ -31,11 +31,11 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description("Mesh to find the closest surface point on");
   if (node != nullptr) {
     const eCustomDataType data_type = eCustomDataType(node->custom1);
-    b.add_input(data_type, "Value"_ustr).hide_value().field_on_all();
+    b.add_input(data_type, "Value"_ustr).hide_value().evaluated_geometry_field();
   }
   b.add_input<decl::Int>("Group ID"_ustr)
       .hide_value()
-      .field_on_all()
+      .evaluated_geometry_field()
       .description(
           "Splits the faces of the input mesh into groups which can be sampled individually");
   b.add_input<decl::Vector>("Sample Position"_ustr)

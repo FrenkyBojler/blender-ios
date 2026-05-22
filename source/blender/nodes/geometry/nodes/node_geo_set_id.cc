@@ -13,7 +13,10 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Geometry>("Geometry"_ustr)
       .description("Geometry to update the ID attribute on");
   b.add_output<decl::Geometry>("Geometry"_ustr).propagate_all().align_with_previous();
-  b.add_input<decl::Bool>("Selection"_ustr).default_value(true).hide_value().field_on_all();
+  b.add_input<decl::Bool>("Selection"_ustr)
+      .default_value(true)
+      .hide_value()
+      .evaluated_geometry_field();
   b.add_input<decl::Int>("ID"_ustr).implicit_field_on_all(NODE_DEFAULT_INPUT_INDEX_FIELD);
 }
 

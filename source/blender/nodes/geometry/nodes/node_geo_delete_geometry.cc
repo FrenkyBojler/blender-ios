@@ -28,7 +28,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Bool>("Selection"_ustr)
       .default_value(true)
       .hide_value()
-      .field_on_all()
+      .evaluated_geometry_field()
       .description("The parts of the geometry to be deleted");
 }
 

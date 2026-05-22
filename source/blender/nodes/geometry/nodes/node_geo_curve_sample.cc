@@ -31,7 +31,9 @@ static void node_declare(NodeDeclarationBuilder &b)
 
   if (const bNode *node = b.node_or_null()) {
     const NodeGeometryCurveSample &storage = node_storage(*node);
-    b.add_input(eCustomDataType(storage.data_type), "Value"_ustr).hide_value().field_on_all();
+    b.add_input(eCustomDataType(storage.data_type), "Value"_ustr)
+        .hide_value()
+        .evaluated_geometry_field();
   }
 
   auto &factor = b.add_input<decl::Float>("Factor"_ustr)

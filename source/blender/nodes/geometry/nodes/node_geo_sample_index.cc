@@ -29,7 +29,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description("Geometry to sample a value on");
   if (node != nullptr) {
     const eCustomDataType data_type = eCustomDataType(node_storage(*node).data_type);
-    b.add_input(data_type, "Value"_ustr).hide_value().field_on_all();
+    b.add_input(data_type, "Value"_ustr).hide_value().evaluated_geometry_field();
   }
   b.add_input<decl::Int>("Index"_ustr)
       .description("Which element to retrieve a value from on the geometry")

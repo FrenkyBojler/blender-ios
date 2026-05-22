@@ -98,14 +98,6 @@ void NodeDeclarationBuilder::build_remaining_anonymous_attribute_relations()
 void NodeDeclarationBuilder::finalize()
 {
   this->build_remaining_anonymous_attribute_relations();
-  if (is_function_node_) {
-    for (SocketDeclaration *socket_decl : declaration_.inputs) {
-      socket_decl->structure_type = StructureType::Dynamic;
-    }
-    for (SocketDeclaration *socket_decl : declaration_.outputs) {
-      socket_decl->structure_type = StructureType::Dynamic;
-    }
-  }
 #ifndef NDEBUG
   declaration_.assert_valid();
 #endif
@@ -670,15 +662,45 @@ BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::default_input_type(
   return *this;
 }
 
-BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::field_on_all()
+BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::evaluated_geometry_field(
+    std::optional<Span<int>> geometry_input_indices)
 {
-  if (this->is_input()) {
+  BLI_assert(this->is_input());
+  if (geometry_input_indices.has_value()) {
+    rl::RelationsInNode &relations = node_decl_builder_->get_reference_lifetime_relations();
+    for (const int index : *geometry_input_indices) {
+      rl::UseRelation relation;
+      relation.data_input = index;
+      relation.reference_input = decl_base_->index;
+      relations.use_relations.append(relation);
+    }
+  }
+  else {
+    /* The corresponding relations are build after all socket declarations are known. */
     input_reference_used_on_all_data_ = true;
   }
-  if (this->is_output()) {
+  decl_base_->structure_type = StructureType::Field;
+  return *this;
+}
+
+BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::anonymous_attribute_output(
+    std::optional<Span<int>> geometry_output_indices)
+{
+  BLI_assert(this->is_output());
+  if (geometry_output_indices.has_value()) {
+    rl::RelationsInNode &relations = node_decl_builder_->get_reference_lifetime_relations();
+    for (const int index : *geometry_output_indices) {
+      rl::AvailableRelation relation;
+      relation.data_output = index;
+      relation.reference_output = decl_base_->index;
+      relations.available_relations.append(relation);
+    }
+  }
+  else {
+    /* The corresponding relations are build after all socket declarations are known. */
     output_reference_available_on_all_data_ = true;
   }
-  this->structure_type(StructureType::Field);
+  decl_base_->structure_type = StructureType::Field;
   return *this;
 }
 

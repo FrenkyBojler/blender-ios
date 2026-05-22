@@ -27,18 +27,18 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Bool>("Selection"_ustr)
       .default_value(true)
       .hide_value()
-      .field_on_all()
+      .evaluated_geometry_field()
       .description("Which top-level instances to realize");
   b.add_input<decl::Bool>("Realize All"_ustr)
       .default_value(true)
-      .field_on_all()
+      .evaluated_geometry_field()
       .description(
           "Realize all levels of nested instances for a top-level instances. Overrides the value "
           "of the Depth input");
   b.add_input<decl::Int>("Depth"_ustr)
       .default_value(0)
       .min(0)
-      .field_on_all()
+      .evaluated_geometry_field()
       .description("Number of levels of nested instances to realize for each top-level instance");
 }
 

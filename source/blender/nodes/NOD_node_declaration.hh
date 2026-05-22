@@ -325,13 +325,17 @@ class BaseSocketDeclarationBuilder {
   BaseSocketDeclarationBuilder &default_input_type(NodeDefaultInputType value);
 
   /**
-   * For inputs this means that the input field is evaluated on all geometry inputs. For outputs
-   * it means that this contains an anonymous attribute reference that is available on all geometry
-   * outputs. This sockets value does not have to be output manually in the node. It's done
-   * automatically by #LazyFunctionForGeometryNode. This allows outputting this field even if the
-   * geometry output does not have to be computed.
+   * Declares that this input is or contains a field that is evaluated on some geometry in this
+   * node.
    */
-  BaseSocketDeclarationBuilder &field_on_all();
+  BaseSocketDeclarationBuilder &evaluated_geometry_field(
+      std::optional<Span<int>> geometry_input_indices = std::nullopt);
+  /**
+   * Declares that this socket outputs an attribute field referencing an anonymous attribute that
+   * exists on an output geometry of the node.
+   */
+  BaseSocketDeclarationBuilder &anonymous_attribute_output(
+      std::optional<Span<int>> geometry_output_indices = std::nullopt);
 
   /** The input supports a field and is a field by default when nothing is connected. */
   BaseSocketDeclarationBuilder &implicit_field(NodeDefaultInputType default_input);
@@ -773,6 +777,7 @@ inline typename DeclType::Builder &DeclarationListBuilder::add_socket(UString na
   socket_decl.socket_type = DeclType::static_socket_type;
 
   if (this->node_decl_builder.is_function_node_) {
+    socket_decl.structure_type = StructureType::Dynamic;
     if (in_out == SOCK_OUT) {
       socket_decl_builder.dependent_field();
     }

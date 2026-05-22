@@ -51,10 +51,10 @@ static void node_declare(NodeDeclarationBuilder &b)
           "Maximum amount of close guide curves that are taken into account for interpolation");
   b.add_output<decl::Geometry>("Curves"_ustr).propagate_all();
   b.add_output<decl::Int>("Closest Index"_ustr)
-      .field_on_all()
+      .anonymous_attribute_output()
       .description("Index of the closest guide curve for each generated curve");
   b.add_output<decl::Float>("Closest Weight"_ustr)
-      .field_on_all()
+      .anonymous_attribute_output()
       .description("Weight of the closest guide curve for each generated curve");
 }
 

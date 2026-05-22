@@ -29,7 +29,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description("Geometry to find the closest point on");
   b.add_input<decl::Int>("Group ID"_ustr)
       .hide_value()
-      .field_on_all()
+      .evaluated_geometry_field()
       .description(
           "Splits the elements of the input geometry into groups which can be sampled "
           "individually");

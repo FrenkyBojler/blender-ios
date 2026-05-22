@@ -19,7 +19,10 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Geometry>("Points"_ustr)
       .supported_type(GeometryComponent::Type::PointCloud)
       .description("Points that are converted to vertices in a mesh");
-  b.add_input<decl::Bool>("Selection"_ustr).default_value(true).field_on_all().hide_value();
+  b.add_input<decl::Bool>("Selection"_ustr)
+      .default_value(true)
+      .evaluated_geometry_field()
+      .hide_value();
   b.add_output<decl::Geometry>("Mesh"_ustr).propagate_all();
 }
 

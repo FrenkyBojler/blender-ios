@@ -51,7 +51,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description(
           "Curves to fill. All curves are treated as cyclic and projected to the XY plane");
   b.add_input<decl::Int>("Group ID"_ustr)
-      .field_on_all()
+      .evaluated_geometry_field()
       .hide_value()
       .description(
           "An index used to group curves together. Filling is done separately for each group");

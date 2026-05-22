@@ -49,12 +49,15 @@ static void node_declare(NodeDeclarationBuilder &b)
       .supported_type(GeometryComponent::Type::Mesh)
       .description("Geometry to scale elements of");
   b.add_output<decl::Geometry>("Geometry"_ustr).propagate_all().align_with_previous();
-  b.add_input<decl::Bool>("Selection"_ustr).default_value(true).hide_value().field_on_all();
+  b.add_input<decl::Bool>("Selection"_ustr)
+      .default_value(true)
+      .hide_value()
+      .evaluated_geometry_field();
 
   b.add_input<decl::Float>("Scale"_ustr, "Scale"_ustr)
       .default_value(1.0f)
       .min(0.0f)
-      .field_on_all();
+      .evaluated_geometry_field();
   b.add_input<decl::Vector>("Center"_ustr)
       .subtype(PROP_TRANSLATION)
       .implicit_field_on_all(NODE_DEFAULT_INPUT_POSITION_FIELD)
@@ -67,7 +70,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .optional_label();
   b.add_input<decl::Vector>("Axis"_ustr)
       .default_value({1.0f, 0.0f, 0.0f})
-      .field_on_all()
+      .evaluated_geometry_field()
       .description("Direction in which to scale the element")
       .usage_by_single_menu(GEO_NODE_SCALE_ELEMENTS_SINGLE_AXIS);
 };
