@@ -369,8 +369,7 @@ Material &MaterialModule::material_sync(const ObjectHandle &ob_handle,
     }
     else {
       if (!hide_on_camera) {
-        mat.prepass = material_pass_get(
-            ob, blender_mat, prepass_pipe, geometry_type, MAT_PROBE_NONE);
+        mat.prepass = material_pass_get(ob, blender_mat, prepass_pipe, geometry_type);
       }
 
       mat.shading = material_pass_get(ob, blender_mat, surface_pipe, geometry_type);
