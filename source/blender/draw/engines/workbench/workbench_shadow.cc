@@ -321,6 +321,11 @@ void ShadowPass::init(const SceneState &scene_state, SceneResources &resources)
   resources.world_buf.shadow_focus = 1.0f - focus * (1.0f - resources.world_buf.shadow_shift);
   resources.world_buf.shadow_mul = scene_state.shading.shadow_intensity;
   resources.world_buf.shadow_add = 1.0f - resources.world_buf.shadow_mul;
+
+  use_raytracing_ = U.experimental.use_workbench_raytraced_shadows && GPU_ray_query_support();
+  if (use_raytracing_ && (!shadow_as_ || scene_state.updated)) {
+    shadow_as_ = gpu::TopLevelASPtr(GPU_ray_tracing_tlas_alloc("WorkbenchShadowTLAS"));
+  }
 }
 
 void ShadowPass::sync(SceneResources &resources)
@@ -328,7 +333,6 @@ void ShadowPass::sync(SceneResources &resources)
   if (!enabled_) {
     return;
   }
-  use_raytracing_ = U.experimental.use_workbench_raytraced_shadows && GPU_ray_query_support();
 
 #if DEBUG_SHADOW_VOLUME
   DRWState state = DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_ADD_FULL;
@@ -341,10 +345,6 @@ void ShadowPass::sync(SceneResources &resources)
 #endif
 
   if (use_raytracing_) {
-    // TODO: we should keep and update previous instance, but that requires local state tracking.
-    // For prototyping we recreate the shadow tlas every draw.
-    shadow_as_ = gpu::TopLevelASPtr(GPU_ray_tracing_tlas_alloc("WorkbenchShadowTLAS"));
-
     raytrace_ps_.init();
     raytrace_ps_.state_set(DRW_STATE_DEPTH_ALWAYS | DRW_STATE_STENCIL_ALWAYS |
                            DRW_STATE_WRITE_STENCIL);
@@ -404,9 +404,10 @@ void ShadowPass::object_sync(SceneState &scene_state,
 
   Object *ob = ob_ref.object;
   if (use_raytracing_) {
-    blender::gpu::BottomLevelAS *blas = DRW_cache_object_surface_blas_get(ob);
-    if (blas != nullptr) {
-      shadow_as_->add_instance(*blas, ob->runtime->object_to_world);
+    if (scene_state.updated) {
+      if (blender::gpu::BottomLevelAS *blas = DRW_cache_object_surface_blas_get(ob)) {
+        shadow_as_->add_instance(*blas, ob->runtime->object_to_world);
+      }
     }
     return;
   }
