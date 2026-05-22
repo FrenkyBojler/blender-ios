@@ -11,6 +11,7 @@
 #include "AS_asset_library.hh"
 #include "AS_remote_library.hh"
 
+#include "BLI_assert.h"
 #include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
 #include "BLI_set.hh"
@@ -60,6 +61,27 @@ static void filelist_readjob_remote_asset_library_index_read(
     }
 
     const char *group_name = BKE_idtype_idcode_to_name(entry.idcode);
+
+    /* TODO: mark file entries for already-existing assets, based on
+     * `entry.online_info.file_status`. */
+
+    switch (entry.online_info.file_status) {
+      case asset_system::AssetFileStatus::NOT_ON_DISK:
+        /* Don't print, it'll get noisy. */
+        break;
+      case asset_system::AssetFileStatus::MATCH:
+        printf("Asset %s %20s: \033[92mMATCH\033[0m\n", group_name, entry.datablock_info.name);
+        break;
+      case asset_system::AssetFileStatus::NO_MATCH:
+        printf("Asset %s %20s: \033[38;5;214mNO_MATCH\033[0m\n",
+               group_name,
+               entry.datablock_info.name);
+        break;
+      case asset_system::AssetFileStatus::UNSET:
+        printf("Asset %s %20s: UNSET\n", group_name, entry.datablock_info.name);
+        BLI_assert_unreachable();
+        break;
+    }
 
     /* Skip assets that are already listed with the downloaded assets. */
     const StringRefNull asset_file = entry.online_info.asset_file();

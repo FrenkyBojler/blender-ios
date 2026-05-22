@@ -73,6 +73,15 @@ struct RemoteListingFileEntry : NonCopyable {
   std::string local_path;
   asset_system::URLWithHash download_url;
   int64_t size_in_bytes;
+
+  /**
+   * Status of the file on disk, compared to the information in the fields above.
+   *
+   * \see asset_system::OnlineAssetInfo::file_status for the per-asset status that may be more
+   * convenient to use.
+   *
+   * \see blender::ed::asset::index::FileStatuschecker. */
+  std::optional<asset_system::AssetFileStatus> file_status;
 };
 
 using RemoteListingEntryProcessFn = FunctionRef<bool(RemoteListingAssetEntry &)>;
