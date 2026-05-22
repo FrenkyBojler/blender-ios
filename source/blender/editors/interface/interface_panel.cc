@@ -1600,7 +1600,7 @@ void panel_category_tabs_draw_all(const bContext *C,
          active = std::string(category_id_active),
          too_narrow](const Button &) -> bool { return category == active && !too_narrow; });
   }
-  int2 co = block_layout_resolve(block);
+  const int2 co = block_layout_resolve(block);
   const int max_scroll = std::max(-co.y, 0);
   const int scroll = std::clamp(region->category_scroll, 0, max_scroll);
   region->category_scroll = scroll;
@@ -1647,10 +1647,10 @@ static int panel_category_show_active_tab(ARegion *region, const int mval[2])
     break;
   }
   const View2D *v2d = &region->v2d;
-  if (Block *block = region->runtime->block_name_map.lookup_as("panel_category_tabs")) {
+  if (const Block *block = region->runtime->block_name_map.lookup_as("panel_category_tabs")) {
     /* First and last button are padding buttons. */
     if (i < block->buttons_ptrs.size() - 2) {
-      Button &button = *block->buttons_ptrs[i + 1];
+      const Button &button = *block->buttons_ptrs[i + 1];
       region->category_scroll = -(button.rect.ymax - region->category_scroll - v2d->mask.ymax);
     }
   }
@@ -2468,16 +2468,16 @@ static bool panel_categories_tab_is_mouse_over(ARegion *region, const wmEvent *e
   const int category_tabs_width = round_fl_to_int(UI_PANEL_CATEGORY_MARGIN_WIDTH * zoom);
   const bool is_left = RGN_ALIGN_ENUM_FROM_MASK(region->alignment) != RGN_ALIGN_RIGHT;
 
-  View2D *v2d = &region->v2d;
-  int ymin = region->v2d.mask.ymin;
+  const View2D *v2d = &region->v2d;
+  int ymin = region->overlap ? region->v2d.mask.ymax : region->v2d.mask.ymin;
   if (region->overlap) {
-    if (Block *block = region->runtime->block_name_map.lookup_as("panel_category_tabs");
+    if (const Block *block = region->runtime->block_name_map.lookup_as("panel_category_tabs");
         block && !block->buttons_ptrs.is_empty())
     {
       ymin = std::max(ymin, int(block->buttons_ptrs.last()->rect.ymax));
     }
   }
-  rcti rect = {
+  const rcti rect = {
       .xmin = is_left ? v2d->mask.xmin + 3 : (v2d->mask.xmax - category_tabs_width),
       .xmax = is_left ? v2d->mask.xmin + category_tabs_width : (v2d->mask.xmax - 3),
       .ymin = ymin,
