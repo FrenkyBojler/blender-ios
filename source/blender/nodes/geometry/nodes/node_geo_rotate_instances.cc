@@ -19,7 +19,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Geometry>("Instances"_ustr)
       .only_instances()
       .description("Instances to rotate individually");
-  b.add_output<decl::Geometry>("Instances"_ustr).propagate_all().align_with_previous();
+  b.add_output<decl::Geometry>("Instances"_ustr).propagate_all_geo().align_with_previous();
   b.add_input<decl::Bool>("Selection"_ustr)
       .default_value(true)
       .hide_value()

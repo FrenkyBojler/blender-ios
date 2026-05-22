@@ -32,7 +32,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.allow_any_socket_order();
   b.add_default_layout();
   b.add_input<decl::Geometry>("Geometry"_ustr).description("Geometry to sort the elements of");
-  b.add_output<decl::Geometry>("Geometry"_ustr).propagate_all().align_with_previous();
+  b.add_output<decl::Geometry>("Geometry"_ustr).propagate_all_geo().align_with_previous();
   b.add_input<decl::Bool>("Selection"_ustr)
       .default_value(true)
       .evaluated_geometry_field()

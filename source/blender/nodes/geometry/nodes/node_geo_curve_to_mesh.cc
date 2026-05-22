@@ -35,7 +35,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Bool>("Fill Caps"_ustr)
       .description(
           "If the profile spline is cyclic, fill the ends of the generated mesh with N-gons");
-  b.add_output<decl::Geometry>("Mesh"_ustr).propagate_all();
+  b.add_output<decl::Geometry>("Mesh"_ustr).propagate_all_geo();
 }
 
 static Mesh *curve_to_mesh(const bke::CurvesGeometry &curves,

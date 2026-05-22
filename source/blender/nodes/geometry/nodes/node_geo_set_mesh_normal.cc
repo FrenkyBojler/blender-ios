@@ -31,7 +31,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Geometry>("Mesh"_ustr)
       .supported_type(GeometryComponent::Type::Mesh)
       .description("Mesh to set the custom normals on");
-  b.add_output<decl::Geometry>("Mesh"_ustr).propagate_all().align_with_previous();
+  b.add_output<decl::Geometry>("Mesh"_ustr).propagate_all_geo().align_with_previous();
   if (const bNode *node = b.node_or_null()) {
     switch (Mode(node->custom1)) {
       case Mode::Sharpness:

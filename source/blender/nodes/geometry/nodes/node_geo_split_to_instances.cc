@@ -36,7 +36,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .hide_value();
   b.add_input<decl::Int>("Group ID"_ustr).evaluated_geometry_field().hide_value();
   b.add_output<decl::Geometry>("Instances"_ustr)
-      .propagate_all()
+      .propagate_all_geo()
       .description("All geometry groups as separate instances");
   b.add_output<decl::Int>("Group ID"_ustr)
       .anonymous_attribute_output()

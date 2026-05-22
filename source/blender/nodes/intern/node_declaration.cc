@@ -92,6 +92,15 @@ void NodeDeclarationBuilder::build_remaining_anonymous_attribute_relations()
         relations.data_propagations.append({data_input, data_output});
       }
     }
+    if (socket_builder->propagate_all_input_data_from_geometry_) {
+      rl::RelationsInNode &relations = this->get_reference_lifetime_relations();
+      const int data_output = socket_builder->decl_base_->index;
+      for (const int i : declaration_.inputs.index_range()) {
+        if (declaration_.inputs[i]->socket_type == SOCK_GEOMETRY) {
+          relations.data_propagations.append({i, data_output});
+        }
+      }
+    }
   }
 }
 
@@ -577,6 +586,13 @@ BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::propagate_all()
    * known. */
   propagate_all_input_references_ = true;
   propagate_all_input_data_ = true;
+  return *this;
+}
+
+BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::propagate_all_geo()
+{
+  /* The relations are build after all sockets are known. */
+  propagate_all_input_data_from_geometry_ = true;
   return *this;
 }
 

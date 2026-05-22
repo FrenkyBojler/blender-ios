@@ -55,7 +55,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       b.add_input<decl::Bool>("Self Intersection"_ustr).make_available(make_mesh_arr);
   auto &hole_tolerant =
       b.add_input<decl::Bool>("Hole Tolerant"_ustr).make_available(make_mesh_arr);
-  b.add_output<decl::Geometry>("Mesh"_ustr).propagate_all();
+  b.add_output<decl::Geometry>("Mesh"_ustr).propagate_all_geo();
   auto &output_edges = b.add_output<decl::Bool>("Intersecting Edges"_ustr)
                            .anonymous_attribute_output()
                            .make_available(make_mesh_arr);

@@ -23,7 +23,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .default_value(true)
       .evaluated_geometry_field()
       .hide_value();
-  b.add_output<decl::Geometry>("Mesh"_ustr).propagate_all();
+  b.add_output<decl::Geometry>("Mesh"_ustr).propagate_all_geo();
 }
 
 /* One improvement would be to move the attribute arrays directly to the mesh when possible. */

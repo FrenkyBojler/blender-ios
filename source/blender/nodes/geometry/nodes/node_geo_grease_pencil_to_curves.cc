@@ -27,7 +27,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Bool>("Layers as Instances"_ustr)
       .default_value(true)
       .description("Create a separate curve instance for every layer");
-  b.add_output<decl::Geometry>("Curves"_ustr).propagate_all();
+  b.add_output<decl::Geometry>("Curves"_ustr).propagate_all_geo();
 }
 
 static void node_geo_exec(GeoNodeExecParams params)

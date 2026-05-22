@@ -41,7 +41,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description(
           "Geometry to evaluate the given fields and store the resulting attributes on. All "
           "geometry types except volumes are supported");
-  b.add_output<decl::Geometry>("Geometry"_ustr).propagate_all().align_with_previous();
+  b.add_output<decl::Geometry>("Geometry"_ustr).propagate_all_geo().align_with_previous();
   b.add_input<decl::Bool>("Selection"_ustr)
       .default_value(true)
       .hide_value()

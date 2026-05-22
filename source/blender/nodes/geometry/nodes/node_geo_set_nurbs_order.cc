@@ -21,7 +21,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Geometry>("Curves"_ustr)
       .supported_type({GeometryComponent::Type::Curve, GeometryComponent::Type::GreasePencil})
       .description("Curves to change the order of");
-  b.add_output<decl::Geometry>("Curves"_ustr).propagate_all().align_with_previous();
+  b.add_output<decl::Geometry>("Curves"_ustr).propagate_all_geo().align_with_previous();
   b.add_input<decl::Bool>("Selection"_ustr)
       .default_value(true)
       .hide_value()

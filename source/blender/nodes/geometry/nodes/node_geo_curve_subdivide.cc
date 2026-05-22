@@ -19,7 +19,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Geometry>("Curve"_ustr)
       .supported_type({GeometryComponent::Type::Curve, GeometryComponent::Type::GreasePencil})
       .description("Curves to subdivide");
-  b.add_output<decl::Geometry>("Curve"_ustr).propagate_all().align_with_previous();
+  b.add_output<decl::Geometry>("Curve"_ustr).propagate_all_geo().align_with_previous();
   b.add_input<decl::Int>("Cuts"_ustr)
       .default_value(1)
       .min(0)

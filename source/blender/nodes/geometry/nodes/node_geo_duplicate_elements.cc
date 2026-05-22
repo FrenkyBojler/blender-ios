@@ -47,7 +47,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .translation_context(BLT_I18NCONTEXT_COUNTABLE);
 
   b.add_output<decl::Geometry>("Geometry"_ustr)
-      .propagate_all()
+      .propagate_all_geo()
       .description("The duplicated geometry, not including the original geometry");
   b.add_output<decl::Int>("Duplicate Index"_ustr)
       .anonymous_attribute_output()

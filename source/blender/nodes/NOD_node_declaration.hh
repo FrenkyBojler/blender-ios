@@ -285,6 +285,7 @@ class BaseSocketDeclarationBuilder {
    * added. */
   bool propagate_all_input_references_ = false;
   bool propagate_all_input_data_ = false;
+  bool propagate_all_input_data_from_geometry_ = false;
   bool input_reference_used_on_all_data_ = false;
   bool output_reference_available_on_all_data_ = false;
 
@@ -351,6 +352,8 @@ class BaseSocketDeclarationBuilder {
    */
   BaseSocketDeclarationBuilder &propagate_all();
   BaseSocketDeclarationBuilder &propagate_all(Span<int> input_indices);
+  /** Filters the set of inputs that is propagated from to only geometry sockets. */
+  BaseSocketDeclarationBuilder &propagate_all_geo();
 
   BaseSocketDeclarationBuilder &compositor_realization_mode(CompositorInputRealizationMode value);
 

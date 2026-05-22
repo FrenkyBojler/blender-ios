@@ -47,7 +47,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .evaluated_geometry_field({0})
       .description("Scale of the instances");
 
-  b.add_output<decl::Geometry>("Instances"_ustr).propagate_all();
+  b.add_output<decl::Geometry>("Instances"_ustr).propagate_all_geo();
 }
 
 static std::unique_ptr<bke::Instances> add_instances_from_component(
