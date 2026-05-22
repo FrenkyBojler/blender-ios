@@ -179,6 +179,8 @@ struct SceneState {
   bool reset_taa_next_sample = false;
   bool render_finished = false;
 
+  bool updated = false;
+
   /* Used when material_type == eMaterialType::SINGLE */
   Material material_override = Material(float3(1.0f));
   /* When r == -1.0 the shader uses the vertex color */
