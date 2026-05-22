@@ -1732,6 +1732,18 @@ void DepsgraphNodeBuilder::build_empty_object(Object *object)
   OperationNode *op_node;
   Scene *scene_cow = get_cow_datablock(scene_);
   Object *object_cow = get_cow_datablock(object);
+
+  const bool has_modifiers = !BLI_listbase_is_empty(&object->modifiers);
+  if (!has_modifiers) {
+    if (deg_eval_copy_is_expanded(&object_cow->id)) {
+      /* The empty might have had modifiers previously, so it might still have cached evaluated
+       * geometry. Usually this would be freed by #BKE_object_eval_uber_data during the next
+       * evaluation. However, since the geometry evaluation is fully skipped, we need to free the
+       * data here already. */
+      BKE_object_free_derived_caches(object_cow);
+    }
+    return;
+  }
   /* Entry operation, takes care of initialization, and some other
    * relations which needs to be run prior actual geometry evaluation. */
   op_node = add_operation_node(&object->id, NodeType::GEOMETRY, OperationCode::GEOMETRY_EVAL_INIT);
