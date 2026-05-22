@@ -34,7 +34,7 @@ static void node_declare(NodeDeclarationBuilder &b)
           "Splits the elements of the input geometry into groups which can be sampled "
           "individually");
   b.add_input<decl::Vector>("Sample Position"_ustr, "Source Position"_ustr)
-      .implicit_field(NODE_DEFAULT_INPUT_POSITION_FIELD);
+      .default_input_type(NODE_DEFAULT_INPUT_POSITION_FIELD);
   b.add_input<decl::Int>("Sample Group ID"_ustr)
       .hide_value()
       .structure_type(StructureType::Field)

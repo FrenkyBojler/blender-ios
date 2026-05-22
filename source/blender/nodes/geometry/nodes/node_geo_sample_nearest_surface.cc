@@ -39,7 +39,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description(
           "Splits the faces of the input mesh into groups which can be sampled individually");
   b.add_input<decl::Vector>("Sample Position"_ustr)
-      .implicit_field(NODE_DEFAULT_INPUT_POSITION_FIELD)
+      .default_input_type(NODE_DEFAULT_INPUT_POSITION_FIELD)
       .structure_type(StructureType::Dynamic);
   b.add_input<decl::Int>("Sample Group ID"_ustr)
       .hide_value()

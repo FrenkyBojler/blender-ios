@@ -11,7 +11,7 @@ namespace blender::nodes::node_geo_offset_point_in_curve_cc {
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Int>("Point Index"_ustr)
-      .implicit_field(NODE_DEFAULT_INPUT_INDEX_FIELD)
+      .default_input_type(NODE_DEFAULT_INPUT_INDEX_FIELD)
       .description("The index of the control point to evaluate. Defaults to the current index")
       .structure_type(StructureType::Field);
   b.add_input<decl::Int>("Offset"_ustr)

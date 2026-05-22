@@ -62,7 +62,8 @@ static void node_declare(NodeDeclarationBuilder &b)
       .supported_type({GeometryComponent::Type::Mesh, GeometryComponent::Type::PointCloud})
       .description("Mesh or point cloud to find the nearest point on");
   b.add_input<decl::Vector>("Sample Position"_ustr)
-      .implicit_field(NODE_DEFAULT_INPUT_POSITION_FIELD);
+      .default_input_type(NODE_DEFAULT_INPUT_POSITION_FIELD)
+      .structure_type(StructureType::Dynamic);
   b.add_output<decl::Int>("Index"_ustr).dependent_field({1});
 }
 

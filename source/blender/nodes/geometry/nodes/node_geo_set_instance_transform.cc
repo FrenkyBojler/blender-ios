@@ -20,7 +20,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .evaluated_geometry_field();
   b.add_input<decl::Matrix>("Transform"_ustr)
       .evaluated_geometry_field()
-      .implicit_field(NODE_DEFAULT_INPUT_INSTANCE_TRANSFORM_FIELD)
+      .default_input_type(NODE_DEFAULT_INPUT_INSTANCE_TRANSFORM_FIELD)
       .structure_type(StructureType::Field);
 }
 

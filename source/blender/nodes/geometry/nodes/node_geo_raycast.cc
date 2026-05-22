@@ -59,7 +59,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description("Mapping from the target geometry to hit points");
 
   const int source_position = b.add_input<decl::Vector>("Source Position"_ustr)
-                                  .implicit_field(NODE_DEFAULT_INPUT_POSITION_FIELD)
+                                  .default_input_type(NODE_DEFAULT_INPUT_POSITION_FIELD)
                                   .structure_type(StructureType::Dynamic)
                                   .index();
   const int ray_direction = b.add_input<decl::Vector>("Ray Direction"_ustr)

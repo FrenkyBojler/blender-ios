@@ -704,22 +704,12 @@ BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::anonymous_attribute_
   return *this;
 }
 
-BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::implicit_field(
-    const NodeDefaultInputType default_input_type)
-{
-  BLI_assert(this->is_input());
-  this->hide_value();
-  this->structure_type(StructureType::Dynamic);
-  decl_base_->default_input_type = default_input_type;
-  return *this;
-}
-
 BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::implicit_field_on_all(
     const NodeDefaultInputType default_input_type)
 {
   BLI_assert(this->is_input());
   input_reference_used_on_all_data_ = true;
-  this->implicit_field(default_input_type);
+  this->default_input_type(default_input_type);
   this->structure_type(StructureType::Field);
   return *this;
 }
@@ -728,7 +718,7 @@ BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::implicit_field_on(
     const NodeDefaultInputType default_input_type, const Span<int> input_indices)
 {
   this->field_on(input_indices);
-  this->implicit_field(default_input_type);
+  this->default_input_type(default_input_type);
   this->structure_type(StructureType::Field);
   return *this;
 }

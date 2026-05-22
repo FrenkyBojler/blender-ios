@@ -24,7 +24,7 @@ static void sh_node_tex_gradient_declare(NodeDeclarationBuilder &b)
   b.is_function_node();
   b.add_input<decl::Vector>("Vector"_ustr)
       .hide_value()
-      .implicit_field(NODE_DEFAULT_INPUT_POSITION_FIELD);
+      .default_input_type(NODE_DEFAULT_INPUT_POSITION_FIELD);
   b.add_output<decl::Color>("Color"_ustr).no_muted_links();
   b.add_output<decl::Float>("Factor"_ustr, "Fac"_ustr).no_muted_links();
 }

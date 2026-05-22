@@ -39,7 +39,7 @@ static void node_declare(NodeDeclarationBuilder &b)
     sockets.append(&p.add_input<decl::Int>("Target Instance ID"_ustr));
 
     for (BaseSocketDeclarationBuilder *socket : sockets) {
-      socket->implicit_field(NODE_DEFAULT_INPUT_INDEX_FIELD);
+      socket->default_input_type(NODE_DEFAULT_INPUT_INDEX_FIELD);
       socket->structure_type(StructureType::Field);
     }
   }
@@ -55,7 +55,7 @@ static void node_declare(NodeDeclarationBuilder &b)
     sockets.append(&p.add_input<decl::Int>("Source Instance ID"_ustr));
 
     for (BaseSocketDeclarationBuilder *socket : sockets) {
-      socket->implicit_field(NODE_DEFAULT_INPUT_INDEX_FIELD);
+      socket->default_input_type(NODE_DEFAULT_INPUT_INDEX_FIELD);
       socket->structure_type(StructureType::Field);
     }
   }
