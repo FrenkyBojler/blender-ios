@@ -12,6 +12,8 @@ void main()
     return;
   }
 
+  /* TODO: Skip ray query when dot(N, -pass_data.light_direction_ws) < 0. */
+
   const float3 P = drw_point_screen_to_world(float3(screen_uv, depth));
   rayQueryEXT query;
   rayQueryInitializeEXT(query,
