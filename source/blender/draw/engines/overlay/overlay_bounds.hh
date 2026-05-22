@@ -70,7 +70,7 @@ class Bounds : Overlay {
     const bool has_bounds = !ELEM(ob->type, OB_LAMP, OB_CAMERA, OB_SPEAKER, OB_LIGHTPROBE) &&
                             (ob->type != OB_MBALL || BKE_mball_is_basis(ob)) &&
                             (ob->type != OB_EMPTY ||
-                             (!ob->runtime->geometry_set_eval &&
+                             (!ob->runtime->geometry_set_eval ||
                               !ob->runtime->geometry_set_eval->is_empty()));
     const bool show_extras = !from_dupli && state.show_extras();
 
