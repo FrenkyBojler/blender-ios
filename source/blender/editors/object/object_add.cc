@@ -3540,6 +3540,13 @@ static void mesh_data_to_grease_pencil(const Mesh &mesh_eval,
     bke::SpanAttributeWriter<bool> hide_stroke = attributes.lookup_or_add_for_write_span<bool>(
         "hide_stroke", bke::AttrDomain::Curve, bke::AttributeInitValue(true));
     hide_stroke.finish();
+
+    bke::gather_attributes(mesh_eval.attributes(),
+                           bke::AttrDomain::Point,
+                           bke::AttrDomain::Point,
+                           bke::attribute_filter_from_skip_ref({"position", "radius"}),
+                           corner_verts,
+                           attributes);
   }
 
   Mesh *mesh_copied = BKE_mesh_copy_for_eval(mesh_eval);
