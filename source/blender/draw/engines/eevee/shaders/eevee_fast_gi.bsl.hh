@@ -36,7 +36,7 @@ VERTEX_SHADER_CREATE_INFO(draw_view)
 #include "eevee_reverse_z_lib.bsl.hh"
 #include "eevee_sampling_lib.glsl"
 #include "eevee_spherical_harmonics.bsl.hh"
-#include "eevee_utility_tx_lib.glsl"
+#include "eevee_utility_tx.bsl.hh"
 #include "gpu_shader_math_matrix_transform_lib.glsl"
 #include "gpu_shader_math_vector_compare_lib.glsl"
 #include "gpu_shader_math_vector_lib.glsl"
@@ -588,7 +588,6 @@ struct Setup {
 [[compute, local_size(RAYTRACE_GROUP_SIZE, RAYTRACE_GROUP_SIZE)]]
 void setup([[global_invocation_id]] const uint3 global_id,
            [[local_invocation_id]] const uint3 local_id,
-           [[local_invocation_index]] const uint local_index,
            [[resource_table]] Setup &srt)
 {
   int2 texel = int2(global_id.xy);

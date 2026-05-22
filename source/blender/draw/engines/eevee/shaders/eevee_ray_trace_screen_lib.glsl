@@ -52,7 +52,6 @@ struct ScreenTraceHitData {
  *                     artifact when steps are too large.
  * \param roughness: Determine how lower depth mipmaps are used to make the tracing faster. Lower
  *                   roughness will use lower mipmaps.
- * \param discard_backface: If true, ray-trace will return false if we hit a surface from behind.
  * \param allow_self_intersection: If false, ray-trace will return false if the ray is not covering
  *                                 at least one pixel.
  * \param ray: View-space ray. Direction pre-multiplied by maximum length.
@@ -144,8 +143,6 @@ ScreenTraceHitData raytrace_screen(RayTraceData rt_data,
   return result;
 }
 
-#ifdef PLANAR_PROBES
-
 ScreenTraceHitData raytrace_planar(RayTraceData rt_data,
                                    sampler2DArrayDepth planar_depth_tx,
                                    PlanarProbeData planar,
@@ -206,8 +203,6 @@ ScreenTraceHitData raytrace_planar(RayTraceData rt_data,
   return result;
 }
 
-#endif
-
 /* Modify the ray origin before tracing it. We must do this because ray origin is implicitly
  * reconstructed from gbuffer depth which we cannot modify. */
 Ray raytrace_thickness_ray_amend(Ray ray, ClosureUndetermined cl, float3 V, Thickness thickness)
@@ -221,6 +216,7 @@ Ray raytrace_thickness_ray_amend(Ray ray, ClosureUndetermined cl, float3 V, Thic
     case CLOSURE_BSDF_DIFFUSE_ID:
     case CLOSURE_BSDF_MICROFACET_GGX_REFLECTION_ID:
     case CLOSURE_BSSRDF_BURLEY_ID:
+    case CLOSURE_BSDF_THIN_GLASS_TRANSMISSION_ID:
       break;
   }
   return ray;
