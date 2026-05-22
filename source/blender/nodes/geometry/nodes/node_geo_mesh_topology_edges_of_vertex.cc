@@ -30,7 +30,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .field_source_reference_all()
       .description("An edge connected to the face, chosen by the sort index");
   b.add_output<decl::Int>("Total"_ustr)
-      .field_source()
+      .structure_type(StructureType::Field)
       .reference_pass({0})
       .description("The number of edges connected to each vertex");
 }

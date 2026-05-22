@@ -30,7 +30,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description(
           "A corner of the input edge in its face's winding order, chosen by the sort index");
   b.add_output<decl::Int>("Total"_ustr)
-      .field_source()
+      .structure_type(StructureType::Field)
       .reference_pass({0})
       .description("The number of faces or corners connected to each edge");
 }

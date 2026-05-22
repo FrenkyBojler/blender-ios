@@ -24,7 +24,7 @@ static void node_declare(NodeDeclarationBuilder &b)
           "considered planar");
   b.add_output<decl::Bool>("Planar"_ustr)
       .translation_context(BLT_I18NCONTEXT_ID_NODETREE)
-      .field_source();
+      .structure_type(StructureType::Field);
 }
 
 class PlanarFieldInput final : public bke::MeshFieldInput {

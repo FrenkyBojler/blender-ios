@@ -333,9 +333,6 @@ class BaseSocketDeclarationBuilder {
    */
   BaseSocketDeclarationBuilder &field_on_all();
 
-  /** The output is always a field, regardless of any inputs. */
-  BaseSocketDeclarationBuilder &field_source();
-
   /** The input supports a field and is a field by default when nothing is connected. */
   BaseSocketDeclarationBuilder &implicit_field(NodeDefaultInputType default_input);
 

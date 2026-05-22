@@ -592,7 +592,6 @@ BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::field_on(const Span<
 {
   rl::RelationsInNode &relations = node_decl_builder_->get_reference_lifetime_relations();
   if (this->is_input()) {
-    this->structure_type(StructureType::Field);
     for (const int input_index : indices) {
       rl::UseRelation relation;
       relation.reference_input = decl_base_->index;
@@ -601,7 +600,6 @@ BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::field_on(const Span<
     }
   }
   else {
-    this->field_source();
     for (const int output_index : indices) {
       rl::AvailableRelation relation;
       relation.reference_output = decl_base_->index;
@@ -675,20 +673,11 @@ BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::default_input_type(
 BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::field_on_all()
 {
   if (this->is_input()) {
-    this->structure_type(StructureType::Field);
     input_reference_used_on_all_data_ = true;
   }
   if (this->is_output()) {
-    this->field_source();
     output_reference_available_on_all_data_ = true;
   }
-  this->structure_type(StructureType::Field);
-  return *this;
-}
-
-BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::field_source()
-{
-  BLI_assert(this->is_output());
   this->structure_type(StructureType::Field);
   return *this;
 }
@@ -733,7 +722,7 @@ BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::dependent_field()
 
 BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::field_source_reference_all()
 {
-  this->field_source();
+  this->structure_type(StructureType::Field);
   this->reference_pass_all();
   return *this;
 }
