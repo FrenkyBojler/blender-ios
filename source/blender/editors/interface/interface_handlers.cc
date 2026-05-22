@@ -1134,7 +1134,7 @@ static void apply_but_funcs_after(bContext *C)
 {
   /* Copy to avoid recursive calls. */
   ListBaseT<AfterFunc> funcs = UIAfterFuncs;
-  BLI_listbase_clear(&UIAfterFuncs);
+  UIAfterFuncs.clear_no_delete();
 
   for (AfterFunc &afterf : funcs.items_mutable()) {
     AfterFunc after = afterf; /* Copy to avoid memory leak on exit(). */
@@ -3269,11 +3269,44 @@ static void textedit_set_cursor_pos(Button *but, const ARegion *region, const fl
   const float aspect = but->block->aspect;
 
   float startx = but->rect.xmin;
+  float endx = but->rect.xmax;
   float starty_dummy = 0.0f;
   std::string password_str;
   /* treat 'str_last' as null terminator for str, no need to modify in-place */
   const char *str = but->editstr, *str_last;
 
+  /* Compute padding in block space. */
+  bool right_aligned = !(but->drawflag & BUT_TEXT_LEFT) && but->drawflag & BUT_TEXT_RIGHT;
+
+  if (ELEM(but->type, ButtonType::Text, ButtonType::SearchMenu)) {
+    if (but->flag & UI_HAS_ICON) {
+      startx += UI_ICON_SIZE / aspect;
+    }
+  }
+  if (!(but->drawflag & BUT_NO_TEXT_PADDING)) {
+    if (right_aligned) {
+      startx += U.pixelsize / aspect;
+      endx -= UI_TEXT_MARGIN_X * U.widget_unit / aspect;
+    }
+    else {
+      startx += UI_TEXT_MARGIN_X * U.widget_unit / aspect;
+      endx -= U.pixelsize / aspect;
+    }
+  }
+  else if (right_aligned) {
+    endx -= U.pixelsize / aspect;
+  }
+  else {
+    startx += U.pixelsize / aspect;
+  }
+
+  if (right_aligned) {
+    int width = BLF_width(fstyle.uifont_id, str + but->ofs, strlen(str + but->ofs));
+    const float align_x_ofs = endx - startx - width;
+    startx += max_ff(0.0f, align_x_ofs);
+  }
+
+  /* Transform startx to screen space. */
   block_to_window_fl(region, but->block, &startx, &starty_dummy);
 
   fontscale(&fstyle.points, aspect);
@@ -3281,16 +3314,6 @@ static void textedit_set_cursor_pos(Button *but, const ARegion *region, const fl
   fontstyle_set(&fstyle);
 
   button_text_password_hide(password_str, but, false);
-
-  if (ELEM(but->type, ButtonType::Text, ButtonType::SearchMenu)) {
-    if (but->flag & UI_HAS_ICON) {
-      startx += UI_ICON_SIZE / aspect;
-    }
-  }
-  startx -= U.pixelsize / aspect;
-  if (!(but->drawflag & BUT_NO_TEXT_PADDING)) {
-    startx += UI_TEXT_MARGIN_X * U.widget_unit / aspect;
-  }
 
   /* mouse dragged outside the widget to the left */
   if (xy.x < startx) {
@@ -4043,9 +4066,16 @@ static int do_but_textedit(
        * (selects all text, no cursor pos) */
       if (ELEM(event->val, KM_PRESS, KM_DBL_CLICK)) {
         if (is_press_in_button) {
-          textedit_set_cursor_pos(but, data->region, float2(event->xy));
-          but->selsta = but->selend = but->pos;
-          text_edit.sel_pos_init = but->pos;
+          /* Extend text selection when holding shift. */
+          if (event->modifier & KM_SHIFT) {
+            text_edit.sel_pos_init = but->pos == but->selsta ? but->selend : but->selsta;
+            textedit_set_cursor_select(but, data, float2(event->xy));
+          }
+          else {
+            textedit_set_cursor_pos(but, data->region, float2(event->xy));
+            but->selsta = but->selend = but->pos;
+            text_edit.sel_pos_init = but->pos;
+          }
 
           button_activate_state(C, but, BUTTON_STATE_TEXT_SELECTING);
           retval = WM_UI_HANDLER_BREAK;
@@ -4838,7 +4868,7 @@ static ButtonExtraOpIcon *but_extra_operator_icon_mouse_over_get(Button *but,
                                                                  ARegion *region,
                                                                  const wmEvent *event)
 {
-  if (BLI_listbase_is_empty(&but->extra_op_icons)) {
+  if (but->extra_op_icons.is_empty()) {
     return nullptr;
   }
 
@@ -5296,7 +5326,7 @@ static int do_but_TEXTBOX(bContext *C,
       scroll_rect.ymin += textbox_grip_height() / block->aspect;
 
       rctf grip_rect = rect;
-      grip_rect.xmin = grip_rect.xmax - button_text_padding(textbox);
+      grip_rect.xmin = grip_rect.xmax - button_text_padding(textbox) - (2.0f / block->aspect);
       grip_rect.ymax = grip_rect.ymin + textbox_grip_height() / block->aspect;
 
       /* Update mouse cursor on mouse move. */
@@ -10678,10 +10708,10 @@ static int handle_uilist_event(bContext *C, const wmEvent *event, ARegion *regio
 /* Handle mouse hover for Views and UiList rows. */
 static int handle_viewlist_items_hover(const wmEvent *event, ARegion *region)
 {
-  const bool has_list = !BLI_listbase_is_empty(&region->ui_lists);
+  const bool has_list = !region->ui_lists.is_empty();
   const bool has_view = [&]() {
     for (Block &block : region->runtime->uiblocks) {
-      if (!BLI_listbase_is_empty(&block.views)) {
+      if (!block.views.is_empty()) {
         return true;
       }
     }
@@ -12601,7 +12631,7 @@ static int region_handler(bContext *C, const wmEvent *event, void * /*userdata*/
   ARegion *region = CTX_wm_region(C);
   int retval = WM_UI_HANDLER_CONTINUE;
 
-  if (region == nullptr || BLI_listbase_is_empty(&region->runtime->uiblocks)) {
+  if (region == nullptr || region->runtime->uiblocks.is_empty()) {
     return retval;
   }
 

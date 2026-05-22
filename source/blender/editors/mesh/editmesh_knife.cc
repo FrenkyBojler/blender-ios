@@ -1508,7 +1508,7 @@ static BMElem *bm_elem_from_knife_vert(KnifeVert *kfv, KnifeEdge **r_kfe)
 
   /* face? */
   if (ele_test == nullptr) {
-    if (BLI_listbase_is_single(&kfe->faces)) {
+    if (kfe->faces.is_single()) {
       ele_test = static_cast<BMElem *>((static_cast<LinkData *>(kfe->faces.first))->data);
     }
   }
@@ -1541,7 +1541,7 @@ static ListBaseT<LinkData> *knife_empty_list(KnifeTool_OpData *kcd)
 
   list = static_cast<ListBaseT<LinkData> *>(
       BLI_memarena_alloc(kcd->arena, sizeof(ListBaseT<LinkData>)));
-  BLI_listbase_clear(list);
+  list->clear_no_delete();
   return list;
 }
 
@@ -2067,7 +2067,7 @@ static void knife_make_face_cuts(KnifeTool_OpData *kcd,
                                  ListBaseT<LinkData> *kfedges)
 {
   KnifeEdge *kfe;
-  int edge_array_len = BLI_listbase_count(kfedges);
+  int edge_array_len = kfedges->count();
   int i;
 
   blender::Array<BMEdge *, BM_DEFAULT_TOPOLOGY_STACK_SIZE> edge_array_buf(edge_array_len);
@@ -4912,7 +4912,7 @@ void EDBM_mesh_knife(
 
     for (Object *ob : kcd->objects) {
       /* Defer freeing data until the BVH tree is finished with, see: #point_is_visible and
-       * the doc-string for #knifetool_finish_single_post. */
+       * the docstring for #knifetool_finish_single_post. */
       knifetool_finish_single_post(kcd, ob);
     }
 

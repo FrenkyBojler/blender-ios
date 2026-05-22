@@ -91,6 +91,7 @@ int gwl_window_scale_buffer_size_to(const GWL_WindowScaleParams &scale_params,
 enum class GWL_CurrentDesktopType {
   Other = 0,
   Gnome,
+  KDE,
 };
 
 #ifdef WITH_GHOST_WAYLAND_DYNLOAD
@@ -256,7 +257,7 @@ class GHOST_SystemWayland : public GHOST_System {
    * Return a separate WAYLAND local timer manager to #GHOST_System::getTimerManager
    * Manipulation & access must lock with #GHOST_WaylandSystem::server_mutex.
    *
-   * See #GWL_Display::key_repeat_timer_manager doc-string for details on why this is needed.
+   * See #GWL_Display::key_repeat_timer_manager docstring for details on why this is needed.
    */
   GHOST_TimerManager *key_repeat_timer_manager();
 

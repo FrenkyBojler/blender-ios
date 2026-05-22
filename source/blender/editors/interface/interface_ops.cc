@@ -33,6 +33,7 @@
 #include "BLT_translation.hh"
 
 #include "BKE_anim_data.hh"
+#include "BKE_armature.hh"
 #include "BKE_context.hh"
 #include "BKE_fcurve.hh"
 #include "BKE_idtype.hh"
@@ -649,7 +650,7 @@ static wmOperatorStatus override_remove_button_exec(bContext *C, wmOperator *op)
     }
     BKE_lib_override_library_property_operation_delete(oprop, opop);
     RNA_property_copy(bmain, &ptr, &src, prop, index);
-    if (BLI_listbase_is_empty(&oprop->operations)) {
+    if (oprop->operations.is_empty()) {
       BKE_lib_override_library_property_delete(id->override_library, oprop);
     }
   }
@@ -985,6 +986,7 @@ static PointerRNA rnapointer_pchan_to_bone(const PointerRNA &pchan_ptr)
 
   BLI_assert(GS(pchan_ptr.owner_id->name) == ID_OB);
   Object *object = reinterpret_cast<Object *>(pchan_ptr.owner_id);
+  BKE_pose_ensure_bone_indices(*object);
 
   BLI_assert(GS(object->data->name) == ID_AR);
   bArmature *armature = id_cast<bArmature *>(object->data);

@@ -21,7 +21,7 @@ SHADER_LIBRARY_CREATE_INFO(eevee_hiz_data)
 #include "eevee_ray_trace_screen_lib.glsl"
 #include "eevee_renderpass_lib.glsl"
 #include "eevee_sampling_lib.glsl"
-#include "eevee_utility_tx_lib.glsl"
+#include "eevee_utility_tx.bsl.hh"
 #include "gpu_shader_codegen_lib.glsl"
 #include "gpu_shader_math_base_lib.glsl"
 #include "gpu_shader_math_safe_lib.glsl"
@@ -308,7 +308,7 @@ void raycast_eval([[maybe_unused]] float3 position,
   float thickness = raytrace_buf.thickness * thickness_jitter;
 
   float2 hit_uv = float2(0.0f);
-  uint self_id = drw_resource_id() & 0xFFFF;
+  uint self_id = drw_resource_id() & uint(0xFFFF);
 
   float result = raytrace_screen_2(drw_point_world_to_view(ws_start),
                                    drw_point_world_to_view(ws_end),
@@ -513,10 +513,6 @@ float2 bsdf_lut(float cos_theta, float roughness, float ior, bool do_multiscatte
   return float2(reflectance.r, transmittance.r);
 }
 
-#ifdef GPU_VERTEX_SHADER
-#  define closure_to_rgba(a) float4(0.0f)
-#endif
-
 /* -------------------------------------------------------------------- */
 /** \name Fragment Displacement
  *
@@ -711,6 +707,12 @@ float4 attr_load_color_post(float4 attr)
 float4 attr_load_uniform(float4 /*attr*/, const uint attr_hash)
 {
   return drw_object_attribute(attr_hash);
+}
+
+void scene_time_uniforms(float &seconds, float &frame)
+{
+  seconds = uniform_buf.scene.time;
+  frame = uniform_buf.scene.frame;
 }
 
 /** \} */
