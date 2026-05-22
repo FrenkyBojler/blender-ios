@@ -1958,7 +1958,7 @@ static bool modifier_apply_poll(bContext *C)
                                            context_active_object(C);
   ModifierData *md = static_cast<ModifierData *>(ptr.data); /* May be nullptr. */
   if (ob->type == OB_EMPTY) {
-    CTX_wm_operator_poll_msg_set(C, "Modifiers cannot be applied on empty object");
+    CTX_wm_operator_poll_msg_set(C, "Modifiers cannot be applied on empty object type");
     return false;
   }
 
