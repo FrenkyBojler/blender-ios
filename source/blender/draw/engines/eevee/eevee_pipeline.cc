@@ -277,7 +277,10 @@ void Prepass::init(DRWState extra_state,
           PassMain::Sub *&setup_sub =
               setup_subs_[hide_from_raycast][double_sided][moving][write_id];
           if ((hide_from_raycast && write_id) || (!supports_motion_vectors && moving)) {
-            /* Never needed. */
+            /* Never needed.
+             * Object IDs are only used for checking raycast self-hits.
+             * If the pipeline doesn't support motion vectors, Prepass::add should always be called
+             * with has_motion == false. */
             sub = nullptr;
             setup_sub = nullptr;
             continue;
