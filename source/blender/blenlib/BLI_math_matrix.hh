@@ -1661,6 +1661,20 @@ VecBase<T, 3> transform_direction(const MatBase<T, 4, 4> &mat, const VecBase<T, 
   return mat.template view<3, 3>() * direction;
 }
 
+template<typename T>
+VecBase<T, 3> transform_direction_transposed(const MatBase<T, 3, 3> &mat,
+                                             const VecBase<T, 3> &direction)
+{
+  return transpose(mat) * direction;
+}
+
+template<typename T>
+VecBase<T, 3> transform_direction_transposed(const MatBase<T, 4, 4> &mat,
+                                             const VecBase<T, 3> &direction)
+{
+  return transpose(MatBase<T, 3, 3>(mat)) * direction;
+}
+
 template<typename T, int N, int NumRow>
 VecBase<T, N> project_point(const MatBase<T, N + 1, NumRow> &mat, const VecBase<T, N> &point)
 {
