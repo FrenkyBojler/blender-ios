@@ -1665,14 +1665,26 @@ template<typename T>
 VecBase<T, 3> transform_direction_transposed(const MatBase<T, 3, 3> &mat,
                                              const VecBase<T, 3> &direction)
 {
-  return transpose(mat) * direction;
+  const T x = direction[0];
+  const T y = direction[1];
+  const T z = direction[2];
+
+  return {x * mat[0][0] + y * mat[0][1] + z * mat[0][2],
+          x * mat[1][0] + y * mat[1][1] + z * mat[1][2],
+          x * mat[2][0] + y * mat[2][1] + z * mat[2][2]};
 }
 
 template<typename T>
 VecBase<T, 3> transform_direction_transposed(const MatBase<T, 4, 4> &mat,
                                              const VecBase<T, 3> &direction)
 {
-  return transpose(MatBase<T, 3, 3>(mat)) * direction;
+  const T x = direction[0];
+  const T y = direction[1];
+  const T z = direction[2];
+
+  return {x * mat[0][0] + y * mat[0][1] + z * mat[0][2],
+          x * mat[1][0] + y * mat[1][1] + z * mat[1][2],
+          x * mat[2][0] + y * mat[2][1] + z * mat[2][2]};
 }
 
 template<typename T, int N, int NumRow>
