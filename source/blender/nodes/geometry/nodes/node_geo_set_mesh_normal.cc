@@ -44,8 +44,7 @@ static void node_declare(NodeDeclarationBuilder &b)
         b.add_input<decl::Vector>("Custom Normal"_ustr)
             .subtype(PROP_XYZ)
             .evaluated_geometry_field()
-            .default_input_type(NODE_DEFAULT_INPUT_NORMAL_FIELD)
-            .hide_value();
+            .default_input_type(NODE_DEFAULT_INPUT_NORMAL_FIELD);
         break;
     }
   }
