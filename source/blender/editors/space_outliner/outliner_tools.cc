@@ -72,6 +72,7 @@
 #include "ED_screen.hh"
 #include "ED_sequencer.hh"
 #include "ED_undo.hh"
+#include "ED_util.hh"
 
 #include "WM_api.hh"
 #include "WM_message.hh"
@@ -2814,16 +2815,16 @@ static wmOperatorStatus outliner_pack_data_exec(bContext *C, wmOperator *op)
   SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
   int count = 0;
 
-  tree_iterator::all_open(*space_outliner, [&](TreeElement *te) {
-    TreeStoreElem *tselem = TREESTORE(te);
-    if (tselem->flag & TSE_SELECTED) {
-      if (tselem->type == TSE_SOME_ID && GS(tselem->id->name) == ID_IM) {
-        Image *image = reinterpret_cast<Image *>(tselem->id);
+  Vector<PointerRNA> selected_idptrs = ED_operator_get_ids_from_context_as_vec(C);
+  for (PointerRNA &idptr : selected_idptrs)
+  {
+    ID *id = static_cast<ID *>(idptr.data);
+      if (GS(id->name) == ID_IM) {
+        Image *image = reinterpret_cast<Image *>(id);
         BKE_image_packfile_ensure(bmain, image, op->reports, nullptr, 0);
         count += BKE_image_has_packedfile(image);
       }
-    }
-  });
+  }
 
   if (count > 0) {
     BKE_reportf(op->reports, RPT_INFO, "Packed %d images into the .blend file", count);
