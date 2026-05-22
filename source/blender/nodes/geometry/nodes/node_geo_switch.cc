@@ -42,9 +42,6 @@ static void node_declare(NodeDeclarationBuilder &b)
   auto &output_decl = b.add_output(socket_type, "Output"_ustr);
 
   if (socket_type_supports_attributes(socket_type) && node_tree->type == NTREE_GEOMETRY) {
-    switch_decl.supports_field();
-    false_decl.supports_field();
-    true_decl.supports_field();
     output_decl.dependent_field().reference_pass_all();
   }
   if (bke::node_tree_reference_lifetimes::can_contain_referenced_data(socket_type)) {

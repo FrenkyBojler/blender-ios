@@ -39,7 +39,6 @@ static void node_declare(NodeDeclarationBuilder &b)
       .field_on_all()
       .description("The mesh UV map to sample. Should not have overlapping faces");
   b.add_input<decl::Vector>("Sample UV"_ustr)
-      .supports_field()
       .description("The coordinates to sample within the UV map")
       .structure_type(StructureType::Dynamic);
 

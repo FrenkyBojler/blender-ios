@@ -55,12 +55,12 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
   b.allow_any_socket_order();
-  b.add_input<decl::Vector>("UV"_ustr).hide_value().supports_field();
+  b.add_input<decl::Vector>("UV"_ustr).hide_value().structure_type(StructureType::Field);
   b.add_output<decl::Vector>("UV"_ustr).field_source_reference_all().align_with_previous();
   b.add_input<decl::Bool>("Selection"_ustr)
       .default_value(true)
       .hide_value()
-      .supports_field()
+      .structure_type(StructureType::Field)
       .description("Faces to consider when packing islands");
   b.add_input<decl::Float>("Margin"_ustr)
       .default_value(0.001f)

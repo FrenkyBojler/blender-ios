@@ -17,11 +17,11 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description("The face to retrieve data from. Defaults to the face from the context")
       .structure_type(StructureType::Field);
   b.add_input<decl::Float>("Weights"_ustr)
-      .supports_field()
+      .structure_type(StructureType::Field)
       .hide_value()
       .description("Values used to sort the face's corners. Uses indices by default");
   b.add_input<decl::Int>("Sort Index"_ustr)
-      .supports_field()
+      .structure_type(StructureType::Field)
       .description("Which of the sorted corners to output. Negative indexing is supported");
   b.add_output<decl::Int>("Corner Index"_ustr)
       .field_source_reference_all()

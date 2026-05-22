@@ -36,7 +36,8 @@ static EnumPropertyItem method_items[] = {
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Menu>("Method"_ustr).static_items(method_items).optional_label();
-  b.add_input<decl::Vector>("UV"_ustr).dimensions(2).subtype(PROP_XYZ).supports_field();
+  b.add_input<decl::Vector>("UV"_ustr).dimensions(2).subtype(PROP_XYZ).structure_type(
+      StructureType::Field);
   b.add_output<decl::Vector>("Tangent"_ustr).field_source_reference_all();
 }
 

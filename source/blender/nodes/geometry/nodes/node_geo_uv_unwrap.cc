@@ -39,11 +39,11 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Bool>("Selection"_ustr)
       .default_value(true)
       .hide_value()
-      .supports_field()
+      .structure_type(StructureType::Field)
       .description("Faces to participate in the unwrap operation");
   b.add_input<decl::Bool>("Seam"_ustr)
       .hide_value()
-      .supports_field()
+      .structure_type(StructureType::Field)
       .description("Edges to mark where the mesh is \"cut\" for the purposes of unwrapping");
   b.add_input<decl::Float>("Margin"_ustr)
       .default_value(0.001f)

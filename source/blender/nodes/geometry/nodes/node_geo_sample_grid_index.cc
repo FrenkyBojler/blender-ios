@@ -30,9 +30,9 @@ static void node_declare(NodeDeclarationBuilder &b)
   const eNodeSocketDatatype data_type = eNodeSocketDatatype(node->custom1);
 
   b.add_input(data_type, "Grid"_ustr).hide_value().structure_type(StructureType::Grid);
-  b.add_input<decl::Int>("X"_ustr).supports_field().structure_type(StructureType::Dynamic);
-  b.add_input<decl::Int>("Y"_ustr).supports_field().structure_type(StructureType::Dynamic);
-  b.add_input<decl::Int>("Z"_ustr).supports_field().structure_type(StructureType::Dynamic);
+  b.add_input<decl::Int>("X"_ustr).structure_type(StructureType::Dynamic);
+  b.add_input<decl::Int>("Y"_ustr).structure_type(StructureType::Dynamic);
+  b.add_input<decl::Int>("Z"_ustr).structure_type(StructureType::Dynamic);
 
   b.add_output(data_type, "Value"_ustr).dependent_field({1, 2, 3});
 }

@@ -29,12 +29,12 @@ static void node_declare(NodeDeclarationBuilder &b)
   if (node != nullptr) {
     const eCustomDataType data_type = eCustomDataType(node->custom1);
     b.add_input(data_type, "Value"_ustr)
-        .supports_field()
+        .structure_type(StructureType::Field)
         .description("The values the standard deviation and variance will be calculated from");
   }
 
   b.add_input<decl::Int>("Group ID"_ustr, "Group Index"_ustr)
-      .supports_field()
+      .structure_type(StructureType::Field)
       .hide_value()
       .description("An index used to group values together for multiple separate operations");
 

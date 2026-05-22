@@ -108,7 +108,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   auto &index =
       b.add_input<decl::Int>("Index"_ustr).min(0).max(std::max<int>(0, items.size() - 1));
   if (supports_fields) {
-    index.supports_field().structure_type(index_structure_type);
+    index.structure_type(index_structure_type);
   }
 
   for (const int i : items.index_range()) {
@@ -116,9 +116,6 @@ static void node_declare(NodeDeclarationBuilder &b)
     auto &input = b.add_input(data_type, UString(std::to_string(i)), UString(identifier));
     input.custom_draw(
         [index = i](CustomSocketDrawParams &params) { draw_item_socket(params, index); });
-    if (supports_fields) {
-      input.supports_field();
-    }
     /* Labels are ugly in combination with data-block pickers and are usually disabled. */
     input.optional_label(ELEM(data_type,
                               SOCK_OBJECT,

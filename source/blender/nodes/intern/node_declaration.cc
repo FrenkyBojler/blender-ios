@@ -538,13 +538,6 @@ const nodes::SocketDeclaration *PanelDeclaration::panel_input_decl() const
   return nullptr;
 }
 
-BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::supports_field()
-{
-  BLI_assert(this->is_input());
-  this->structure_type(StructureType::Field);
-  return *this;
-}
-
 BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::dependent_field(
     const Span<int> input_dependencies)
 {
@@ -599,7 +592,7 @@ BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::field_on(const Span<
 {
   rl::RelationsInNode &relations = node_decl_builder_->get_reference_lifetime_relations();
   if (this->is_input()) {
-    this->supports_field();
+    this->structure_type(StructureType::Field);
     for (const int input_index : indices) {
       rl::UseRelation relation;
       relation.reference_input = decl_base_->index;
@@ -682,7 +675,7 @@ BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::default_input_type(
 BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::field_on_all()
 {
   if (this->is_input()) {
-    this->supports_field();
+    this->structure_type(StructureType::Field);
     input_reference_used_on_all_data_ = true;
   }
   if (this->is_output()) {

@@ -18,7 +18,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .default_value(0.01f)
       .min(0.0f)
       .subtype(PROP_DISTANCE)
-      .supports_field()
+      .structure_type(StructureType::Field)
       .description(
           "The distance a point can be from the surface before the face is no longer "
           "considered planar");

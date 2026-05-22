@@ -37,7 +37,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .implicit_field(NODE_DEFAULT_INPUT_POSITION_FIELD);
   b.add_input<decl::Int>("Sample Group ID"_ustr)
       .hide_value()
-      .supports_field()
+      .structure_type(StructureType::Field)
       .structure_type(StructureType::Dynamic);
   b.add_output<decl::Vector>("Position"_ustr).dependent_field({2, 3}).reference_pass_all();
   b.add_output<decl::Float>("Distance"_ustr).dependent_field({2, 3}).reference_pass_all();

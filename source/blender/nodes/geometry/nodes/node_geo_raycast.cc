@@ -64,14 +64,12 @@ static void node_declare(NodeDeclarationBuilder &b)
                                   .index();
   const int ray_direction = b.add_input<decl::Vector>("Ray Direction"_ustr)
                                 .default_value({0.0f, 0.0f, -1.0f})
-                                .supports_field()
                                 .structure_type(StructureType::Dynamic)
                                 .index();
   const int ray_length = b.add_input<decl::Float>("Ray Length"_ustr)
                              .default_value(100.0f)
                              .min(0.0f)
                              .subtype(PROP_DISTANCE)
-                             .supports_field()
                              .structure_type(StructureType::Dynamic)
                              .index();
 

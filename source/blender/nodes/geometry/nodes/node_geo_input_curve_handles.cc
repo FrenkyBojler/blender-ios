@@ -12,7 +12,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Bool>("Relative"_ustr)
       .default_value(false)
-      .supports_field()
+      .structure_type(StructureType::Field)
       .description(
           "Output the handle positions relative to the corresponding control point "
           "instead of in the local space of the geometry");

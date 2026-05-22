@@ -16,7 +16,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Vector>("Position"_ustr)
       .implicit_field(NODE_DEFAULT_INPUT_POSITION_FIELD)
       .structure_type(StructureType::Field);
-  b.add_input<decl::Int>("Group ID"_ustr).supports_field().hide_value();
+  b.add_input<decl::Int>("Group ID"_ustr).structure_type(StructureType::Field).hide_value();
 
   b.add_output<decl::Int>("Index"_ustr)
       .field_source_reference_all()

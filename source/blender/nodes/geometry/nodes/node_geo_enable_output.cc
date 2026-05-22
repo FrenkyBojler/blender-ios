@@ -42,7 +42,6 @@ static void node_declare(NodeDeclarationBuilder &b)
   auto &output_value = b.add_output(data_type, "Value"_ustr).align_with_previous();
 
   if (socket_type_supports_attributes(data_type)) {
-    input_value.supports_field();
     output_value.dependent_field().reference_pass_all();
   }
 

@@ -38,7 +38,10 @@ static void node_declare(NodeDeclarationBuilder &b)
 
   if (node != nullptr) {
     const eCustomDataType data_type = eCustomDataType(node->custom1);
-    b.add_input(data_type, "Value"_ustr).supports_field().hide_value().is_default_link_socket();
+    b.add_input(data_type, "Value"_ustr)
+        .structure_type(StructureType::Field)
+        .hide_value()
+        .is_default_link_socket();
     b.add_output(data_type, "Value"_ustr).field_source_reference_all().align_with_previous();
   }
   b.add_input<decl::Int>("Iterations"_ustr)
@@ -50,7 +53,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .subtype(PROP_FACTOR)
       .min(0.0f)
       .max(1.0f)
-      .supports_field()
+      .structure_type(StructureType::Field)
       .description("Relative mix weight of neighboring elements");
 }
 

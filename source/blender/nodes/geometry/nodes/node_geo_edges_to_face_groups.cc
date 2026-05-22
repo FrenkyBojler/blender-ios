@@ -17,7 +17,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Bool>("Boundary Edges"_ustr)
       .default_value(true)
       .hide_value()
-      .supports_field()
+      .structure_type(StructureType::Field)
       .description("Edges used to split faces into separate groups");
   b.add_output<decl::Int>("Face Group ID"_ustr)
       .field_source_reference_all()

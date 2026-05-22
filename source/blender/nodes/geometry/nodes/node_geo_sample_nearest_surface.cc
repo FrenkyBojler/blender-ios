@@ -43,7 +43,6 @@ static void node_declare(NodeDeclarationBuilder &b)
       .structure_type(StructureType::Dynamic);
   b.add_input<decl::Int>("Sample Group ID"_ustr)
       .hide_value()
-      .supports_field()
       .structure_type(StructureType::Dynamic);
 
   if (node != nullptr) {

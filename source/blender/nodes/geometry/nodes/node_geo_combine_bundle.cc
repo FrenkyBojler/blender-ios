@@ -52,8 +52,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       const UString identifier(CombineBundleItemsAccessor::socket_identifier_for_item(item));
       auto &decl = b.add_input(socket_type, name, identifier)
                        .socket_name_ptr(
-                           &tree->id, *CombineBundleItemsAccessor::item_srna, &item, "name")
-                       .supports_field();
+                           &tree->id, *CombineBundleItemsAccessor::item_srna, &item, "name");
       if (item.structure_type != NodeSocketInterfaceStructureType::Auto) {
         decl.structure_type(StructureType(item.structure_type));
       }

@@ -94,7 +94,6 @@ static void node_declare(NodeDeclarationBuilder &b)
                                    &tree->id, *RepeatItemsAccessor::item_srna, &item, "name");
         auto &output_decl = b.add_output(socket_type, name, identifier).align_with_previous();
         if (socket_type_supports_attributes(socket_type)) {
-          input_decl.supports_field();
           output_decl.dependent_field({input_decl.index()});
         }
         input_decl.structure_type(StructureType::Dynamic);
@@ -191,7 +190,6 @@ static void node_declare(NodeDeclarationBuilder &b)
                                  &tree->id, *RepeatItemsAccessor::item_srna, &item, "name");
       auto &output_decl = b.add_output(socket_type, name, identifier).align_with_previous();
       if (socket_type_supports_attributes(socket_type)) {
-        input_decl.supports_field();
         output_decl.dependent_field({input_decl.index()});
       }
       input_decl.structure_type(StructureType::Dynamic);

@@ -324,9 +324,6 @@ class BaseSocketDeclarationBuilder {
 
   BaseSocketDeclarationBuilder &default_input_type(NodeDefaultInputType value);
 
-  /** The input socket allows passing in a field. */
-  BaseSocketDeclarationBuilder &supports_field();
-
   /**
    * For inputs this means that the input field is evaluated on all geometry inputs. For outputs
    * it means that this contains an anonymous attribute reference that is available on all geometry
@@ -779,10 +776,7 @@ inline typename DeclType::Builder &DeclarationListBuilder::add_socket(UString na
   socket_decl.socket_type = DeclType::static_socket_type;
 
   if (this->node_decl_builder.is_function_node_) {
-    if (in_out == SOCK_IN) {
-      socket_decl_builder.supports_field();
-    }
-    else {
+    if (in_out == SOCK_OUT) {
       socket_decl_builder.dependent_field();
     }
   }

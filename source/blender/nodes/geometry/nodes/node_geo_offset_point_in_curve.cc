@@ -15,7 +15,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description("The index of the control point to evaluate. Defaults to the current index")
       .structure_type(StructureType::Field);
   b.add_input<decl::Int>("Offset"_ustr)
-      .supports_field()
+      .structure_type(StructureType::Field)
       .description("The number of control points along the curve to traverse");
   b.add_output<decl::Bool>("Is Valid Offset"_ustr)
       .field_source_reference_all()

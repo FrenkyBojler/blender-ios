@@ -84,9 +84,6 @@ static void node_declare(nodes::NodeDeclarationBuilder &b)
   b.add_default_layout();
 
   auto &menu = b.add_input<decl::Menu>("Menu"_ustr);
-  if (supports_fields) {
-    menu.supports_field();
-  }
   menu.default_value(MenuValue(storage.enum_definition.items().is_empty() ?
                                    0 :
                                    storage.enum_definition.items().first().identifier));
@@ -101,9 +98,6 @@ static void node_declare(nodes::NodeDeclarationBuilder &b)
                           &ntree->id, *MenuSwitchItemsAccessor::item_srna, &enum_item, "name")
                       .compositor_realization_mode(CompositorInputRealizationMode::None)
                       .description("Becomes the output value if it is chosen by the menu input");
-    if (supports_fields) {
-      input.supports_field();
-    }
     /* Labels are ugly in combination with data-block pickers and are usually disabled. */
     input.optional_label(ELEM(data_type,
                               SOCK_OBJECT,

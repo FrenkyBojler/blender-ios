@@ -32,7 +32,6 @@ static void node_declare(NodeDeclarationBuilder &b)
     b.add_input(data_type, "Value"_ustr).hide_value().field_on_all();
   }
   b.add_input<decl::Int>("Index"_ustr)
-      .supports_field()
       .description("Which element to retrieve a value from on the geometry")
       .structure_type(StructureType::Dynamic);
 

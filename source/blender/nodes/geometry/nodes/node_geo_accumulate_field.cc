@@ -47,11 +47,12 @@ static void node_declare(NodeDeclarationBuilder &b)
         BLI_assert_unreachable();
         break;
     }
-    value_declaration->supports_field().description("The values to be accumulated");
+    value_declaration->structure_type(StructureType::Field)
+        .description("The values to be accumulated");
   }
 
   b.add_input<decl::Int>("Group ID"_ustr, "Group Index"_ustr)
-      .supports_field()
+      .structure_type(StructureType::Field)
       .hide_value()
       .description("An index used to group values together for multiple separate accumulations");
 

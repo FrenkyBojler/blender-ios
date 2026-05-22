@@ -309,7 +309,7 @@ static void node_declare(NodeDeclarationBuilder &b)
     auto &output_decl = b.add_output(socket_type, name, identifier).align_with_previous();
     if (socket_type_supports_attributes(socket_type)) {
       /* If it's below a geometry input it may be a field evaluated on that geometry. */
-      input_decl.supports_field().structure_type(StructureType::Dynamic);
+      input_decl.structure_type(StructureType::Dynamic);
       output_decl.dependent_field({input_decl.index()});
     }
     if (socket_type == SOCK_BUNDLE) {
@@ -644,7 +644,7 @@ static void node_declare(NodeDeclarationBuilder &b)
     auto &output_decl = b.add_output(socket_type, name, identifier).align_with_previous();
     if (socket_type_supports_attributes(socket_type)) {
       /* If it's below a geometry input it may be a field evaluated on that geometry. */
-      input_decl.supports_field().structure_type(StructureType::Dynamic);
+      input_decl.structure_type(StructureType::Dynamic);
       output_decl.dependent_field({input_decl.index()});
     }
     if (socket_type == SOCK_BUNDLE) {
