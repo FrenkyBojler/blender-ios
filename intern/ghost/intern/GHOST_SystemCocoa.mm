@@ -871,7 +871,7 @@ uint32_t GHOST_SystemCocoa::getCursorPreferredLogicalSize() const
       if (!(scale > 0.0f)) {
         scale = 1.0f;
       }
-      return uint32_t(default_size * scale + 0.5f);
+      return lround(default_size * scale);
     }
   }();
   return size;
