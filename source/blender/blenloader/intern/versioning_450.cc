@@ -4989,7 +4989,7 @@ static void version_convert_sculpt_planar_brushes(Main *bmain)
 
 static void node_interface_single_value_to_structure_type(bNodeTreeInterfaceItem &item)
 {
-  if (item.item_type == eNodeTreeInterfaceItemType::NodeTreeInterfaceItemType::Socket) {
+  if (item.item_type == NodeTreeInterfaceItemType::Socket) {
     auto &socket = reinterpret_cast<bNodeTreeInterfaceSocket &>(item);
     if (socket.flag & NODE_INTERFACE_SOCKET_SINGLE_VALUE_ONLY_LEGACY) {
       socket.structure_type = NodeSocketInterfaceStructureType::Single;

@@ -1342,7 +1342,7 @@ static void hide_unselected_sockets(bNode *node,
                                     bNodeTreeInterfaceItem *item,
                                     bool panels_with_header_unselected)
 {
-  switch (eNodeTreeInterfaceItemType(item->item_type)) {
+  switch (item->item_type) {
     case NodeTreeInterfaceItemType::Socket: {
       auto *socket = reinterpret_cast<bNodeTreeInterfaceSocket *>(item);
       if (socket->flag & NODE_INTERFACE_SOCKET_INPUT &&
@@ -1415,7 +1415,7 @@ static wmOperatorStatus node_add_group_input_node_invoke(bContext *C,
 
 static bool contains_any_selected_input(const bNodeTreeInterfaceItem &item, bool parent_selected)
 {
-  switch (eNodeTreeInterfaceItemType(item.item_type)) {
+  switch (item.item_type) {
     case NodeTreeInterfaceItemType::Socket: {
       const auto &socket = reinterpret_cast<const bNodeTreeInterfaceSocket &>(item);
       return socket.flag & NODE_INTERFACE_SOCKET_INPUT &&

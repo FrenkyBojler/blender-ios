@@ -1055,7 +1055,7 @@ static bool tree_interface_item_can_set_prop(const bNodeTreeInterfaceItem &item,
   const bool is_generic_prop = STR_ELEM(
       prop_id, "socket_type", "description", "optional_label", "hide_value", "hide_in_modifier");
 
-  switch (eNodeTreeInterfaceItemType(item.item_type)) {
+  switch (item.item_type) {
     case NodeTreeInterfaceItemType::Socket: {
       const auto &sock = reinterpret_cast<const bNodeTreeInterfaceSocket &>(item);
       if ((sock.flag & NODE_INTERFACE_SOCKET_SELECT) == 0) {

@@ -331,7 +331,7 @@ class NodeTreeInterfaceView : public AbstractTreeView {
       if (item == skip_item) {
         continue;
       }
-      switch (eNodeTreeInterfaceItemType(item->item_type)) {
+      switch (item->item_type) {
         case NodeTreeInterfaceItemType::Socket: {
           bNodeTreeInterfaceSocket *socket = node_interface::get_item_as<bNodeTreeInterfaceSocket>(
               item);
@@ -407,7 +407,7 @@ void gather_drag_items_recursive(bNodeTreeInterfacePanel &panel,
     }
 
     bool is_selected = false;
-    switch (eNodeTreeInterfaceItemType(item->item_type)) {
+    switch (item->item_type) {
       case NodeTreeInterfaceItemType::Panel: {
         bNodeTreeInterfacePanel *panel = node_interface::get_item_as<bNodeTreeInterfacePanel>(
             item);
