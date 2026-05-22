@@ -188,7 +188,9 @@ static proxy_output_ctx *alloc_proxy_output_ffmpeg(MovieReader *anim,
 
   rv->c->sample_aspect_ratio = rv->st->sample_aspect_ratio = st->sample_aspect_ratio;
 
-  /* Use same output timebase as input. */
+  /* Use same output timebase as input: we seek within the proxy file
+   * using exact same frame numbers as if it was original file. So we want to
+   * match original framerate, plus any variable frames in the source file. */
   rv->output_timebase = st->time_base;
   rv->c->time_base = st->time_base;
   rv->st->time_base = st->time_base;
