@@ -133,17 +133,10 @@ static void node_declare(NodeDeclarationBuilder &b)
     }
   }
 
-  auto &output = b.add_output(data_type, "Output"_ustr);
-  if (supports_fields) {
-    output.dependent_field().reference_pass_all();
-  }
-  if (bke::node_tree_reference_lifetimes::can_contain_referenced_data(data_type)) {
-    output.propagate_all();
-  }
-  if (bke::node_tree_reference_lifetimes::can_contain_reference(data_type)) {
-    output.reference_pass_all();
-  }
-  output.structure_type(value_structure_type);
+  b.add_output(data_type, "Output"_ustr)
+      .propagate_all()
+      .inferred_structure_type()
+      .structure_type(value_structure_type);
 
   b.add_input<decl::Extend>(""_ustr, "__extend__"_ustr)
       .custom_draw(socket_items::ui::draw_extend_socket_fn<IndexSwitchItemsAccessor>());

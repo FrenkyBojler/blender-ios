@@ -20,7 +20,8 @@ static void node_declare(NodeDeclarationBuilder &b)
       .structure_type(StructureType::Field)
       .description("Edges used to split faces into separate groups");
   b.add_output<decl::Int>("Face Group ID"_ustr)
-      .field_source_reference_all()
+      .structure_type(StructureType::Field)
+      .propagate_references()
       .description("Index of the face group inside each boundary edge region");
 }
 

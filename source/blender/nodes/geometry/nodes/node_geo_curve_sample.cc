@@ -56,19 +56,29 @@ static void node_declare(NodeDeclarationBuilder &b)
                     .make_available(
                         [](bNode &node) { node_storage(node).use_all_curves = false; });
 
+  const std::array<int, 3> dynamic_inputs = {factor.index(), length.index(), index.index()};
+
   if (const bNode *node = b.node_or_null()) {
     const NodeGeometryCurveSample &storage = node_storage(*node);
     const GeometryNodeCurveSampleMode mode = GeometryNodeCurveSampleMode(storage.mode);
-    b.add_output(eCustomDataType(storage.data_type), "Value"_ustr).dependent_field({2, 3, 4});
+    b.add_output(eCustomDataType(storage.data_type), "Value"_ustr)
+        .propagate_references(dynamic_inputs)
+        .inferred_structure_type(dynamic_inputs);
 
     factor.available(mode == GEO_NODE_CURVE_SAMPLE_FACTOR);
     length.available(mode == GEO_NODE_CURVE_SAMPLE_LENGTH);
     index.available(!storage.use_all_curves);
   }
 
-  b.add_output<decl::Vector>("Position"_ustr).dependent_field({2, 3, 4});
-  b.add_output<decl::Vector>("Tangent"_ustr).dependent_field({2, 3, 4});
-  b.add_output<decl::Vector>("Normal"_ustr).dependent_field({2, 3, 4});
+  b.add_output<decl::Vector>("Position"_ustr)
+      .propagate_references(dynamic_inputs)
+      .inferred_structure_type(dynamic_inputs);
+  b.add_output<decl::Vector>("Tangent"_ustr)
+      .propagate_references(dynamic_inputs)
+      .inferred_structure_type(dynamic_inputs);
+  b.add_output<decl::Vector>("Normal"_ustr)
+      .propagate_references(dynamic_inputs)
+      .inferred_structure_type(dynamic_inputs);
 }
 
 static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)

@@ -15,11 +15,13 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description("The corner to retrieve data from. Defaults to the corner from the context")
       .structure_type(StructureType::Field);
   b.add_output<decl::Int>("Next Edge Index"_ustr)
-      .field_source_reference_all()
+      .structure_type(StructureType::Field)
+      .propagate_references()
       .description(
           "The edge after the corner in the face, in the direction of increasing indices");
   b.add_output<decl::Int>("Previous Edge Index"_ustr)
-      .field_source_reference_all()
+      .structure_type(StructureType::Field)
+      .propagate_references()
       .description(
           "The edge before the corner in the face, in the direction of decreasing indices");
 }

@@ -54,8 +54,6 @@ static void node_declare(nodes::NodeDeclarationBuilder &b)
   }
   const NodeMenuSwitch &storage = node_storage(*node);
   const eNodeSocketDatatype data_type = storage.data_type;
-  const bool supports_fields = socket_type_supports_fields(data_type) &&
-                               ntree->type == NTREE_GEOMETRY;
 
   StructureType value_structure_type = StructureType::Dynamic;
   StructureType menu_structure_type = value_structure_type;
@@ -69,17 +67,10 @@ static void node_declare(nodes::NodeDeclarationBuilder &b)
     menu_structure_type = StructureType::Single;
   }
 
-  auto &output = b.add_output(data_type, "Output"_ustr);
-  if (supports_fields) {
-    output.dependent_field().reference_pass_all();
-  }
-  if (bke::node_tree_reference_lifetimes::can_contain_referenced_data(data_type)) {
-    output.propagate_all();
-  }
-  if (bke::node_tree_reference_lifetimes::can_contain_reference(data_type)) {
-    output.reference_pass_all();
-  }
-  output.structure_type(value_structure_type);
+  b.add_output(data_type, "Output"_ustr)
+      .propagate_all()
+      .inferred_structure_type()
+      .structure_type(value_structure_type);
 
   b.add_default_layout();
 
@@ -110,13 +101,11 @@ static void node_declare(nodes::NodeDeclarationBuilder &b)
                               SOCK_MASK,
                               SOCK_SOUND));
     input.structure_type(value_structure_type);
-    auto &item_output = b.add_output<decl::Bool>(name, identifier)
-                            .align_with_previous()
-                            .description("True if this item is chosen by the menu input");
-    if (supports_fields) {
-      item_output.dependent_field({menu.index()});
-      item_output.structure_type(menu_structure_type);
-    }
+    b.add_output<decl::Bool>(name, identifier)
+        .align_with_previous()
+        .description("True if this item is chosen by the menu input")
+        .inferred_structure_type({menu.index()})
+        .propagate_references({menu.index()});
   }
 
   b.add_input<decl::Extend>(""_ustr, "__extend__"_ustr)

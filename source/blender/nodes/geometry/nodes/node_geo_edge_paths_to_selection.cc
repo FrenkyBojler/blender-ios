@@ -20,7 +20,9 @@ static void node_declare(NodeDeclarationBuilder &b)
       .default_value(-1)
       .hide_value()
       .structure_type(StructureType::Field);
-  b.add_output<decl::Bool>("Selection"_ustr).field_source_reference_all();
+  b.add_output<decl::Bool>("Selection"_ustr)
+      .structure_type(StructureType::Field)
+      .propagate_references();
 }
 
 static void edge_paths_to_selection(const Mesh &src_mesh,

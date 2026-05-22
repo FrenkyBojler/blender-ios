@@ -27,11 +27,12 @@ static void node_declare(NodeDeclarationBuilder &b)
       .structure_type(StructureType::Field)
       .description("Which of the sorted edges to output. Negative indexing is supported");
   b.add_output<decl::Int>("Edge Index"_ustr)
-      .field_source_reference_all()
+      .structure_type(StructureType::Field)
+      .propagate_references()
       .description("An edge connected to the face, chosen by the sort index");
   b.add_output<decl::Int>("Total"_ustr)
       .structure_type(StructureType::Field)
-      .reference_pass({0})
+      .propagate_references({0})
       .description("The number of edges connected to each vertex");
 }
 

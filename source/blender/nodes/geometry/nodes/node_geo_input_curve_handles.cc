@@ -16,8 +16,12 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description(
           "Output the handle positions relative to the corresponding control point "
           "instead of in the local space of the geometry");
-  b.add_output<decl::Vector>("Left"_ustr).field_source_reference_all();
-  b.add_output<decl::Vector>("Right"_ustr).field_source_reference_all();
+  b.add_output<decl::Vector>("Left"_ustr)
+      .structure_type(StructureType::Field)
+      .propagate_references();
+  b.add_output<decl::Vector>("Right"_ustr)
+      .structure_type(StructureType::Field)
+      .propagate_references();
 }
 
 class HandlePositionFieldInput final : public bke::GeometryFieldInput {

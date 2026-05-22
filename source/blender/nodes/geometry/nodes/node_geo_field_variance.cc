@@ -41,10 +41,12 @@ static void node_declare(NodeDeclarationBuilder &b)
   if (node != nullptr) {
     const eCustomDataType data_type = eCustomDataType(node->custom1);
     b.add_output(data_type, "Standard Deviation"_ustr)
-        .field_source_reference_all()
+        .structure_type(StructureType::Field)
+        .propagate_references()
         .description("The square root of the variance for each group");
     b.add_output(data_type, "Variance"_ustr)
-        .field_source_reference_all()
+        .structure_type(StructureType::Field)
+        .propagate_references()
         .description("The expected squared deviation from the mean for each group");
   }
 }

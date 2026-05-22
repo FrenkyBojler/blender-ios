@@ -42,7 +42,10 @@ static void node_declare(NodeDeclarationBuilder &b)
         .structure_type(StructureType::Field)
         .hide_value()
         .is_default_link_socket();
-    b.add_output(data_type, "Value"_ustr).field_source_reference_all().align_with_previous();
+    b.add_output(data_type, "Value"_ustr)
+        .structure_type(StructureType::Field)
+        .propagate_references()
+        .align_with_previous();
   }
   b.add_input<decl::Int>("Iterations"_ustr)
       .default_value(1)

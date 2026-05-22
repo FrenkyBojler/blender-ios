@@ -24,7 +24,10 @@ static void node_declare(NodeDeclarationBuilder &b)
   if (node != nullptr) {
     const eCustomDataType data_type = eCustomDataType(node->custom2);
     b.add_input(data_type, "Value"_ustr).hide_value().structure_type(StructureType::Field);
-    b.add_output(data_type, "Value"_ustr).field_source_reference_all().align_with_previous();
+    b.add_output(data_type, "Value"_ustr)
+        .structure_type(StructureType::Field)
+        .propagate_references()
+        .align_with_previous();
   }
   b.add_input<decl::Int>("Index"_ustr).min(0).structure_type(StructureType::Field);
 }

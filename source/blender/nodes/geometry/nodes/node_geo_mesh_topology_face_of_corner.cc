@@ -15,10 +15,12 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description("The corner to retrieve data from. Defaults to the corner from the context")
       .structure_type(StructureType::Field);
   b.add_output<decl::Int>("Face Index"_ustr)
-      .field_source_reference_all()
+      .structure_type(StructureType::Field)
+      .propagate_references()
       .description("The index of the face the corner is a part of");
   b.add_output<decl::Int>("Index in Face"_ustr)
-      .field_source_reference_all()
+      .structure_type(StructureType::Field)
+      .propagate_references()
       .description("The index of the corner starting from the first corner in the face");
 }
 

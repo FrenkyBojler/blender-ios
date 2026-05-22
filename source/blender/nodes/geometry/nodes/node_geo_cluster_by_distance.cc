@@ -27,7 +27,9 @@ static void node_declare(NodeDeclarationBuilder &b)
       .structure_type(StructureType::Field);
   b.add_input<decl::Float>("Distance"_ustr).default_value(0.001f).min(0.0f).subtype(PROP_DISTANCE);
 
-  b.add_output<decl::Int>("Cluster ID"_ustr).field_source_reference_all();
+  b.add_output<decl::Int>("Cluster ID"_ustr)
+      .structure_type(StructureType::Field)
+      .propagate_references();
 }
 
 constexpr int NO_CLUSTER_VALUE = -1;

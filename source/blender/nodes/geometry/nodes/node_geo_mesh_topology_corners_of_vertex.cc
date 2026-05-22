@@ -24,11 +24,12 @@ static void node_declare(NodeDeclarationBuilder &b)
       .structure_type(StructureType::Field)
       .description("Which of the sorted corners to output. Negative indexing is supported");
   b.add_output<decl::Int>("Corner Index"_ustr)
-      .field_source_reference_all()
+      .structure_type(StructureType::Field)
+      .propagate_references()
       .description("A corner connected to the face, chosen by the sort index");
   b.add_output<decl::Int>("Total"_ustr)
       .structure_type(StructureType::Field)
-      .reference_pass({0})
+      .propagate_references({0})
       .description("The number of faces or corners connected to each vertex");
 }
 

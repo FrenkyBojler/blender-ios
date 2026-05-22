@@ -29,10 +29,10 @@ static void node_declare(NodeDeclarationBuilder &b)
       .structure_type(StructureType::Field);
   b.add_output<decl::Int>("Next Vertex Index"_ustr)
       .structure_type(StructureType::Field)
-      .reference_pass_all();
+      .propagate_references();
   b.add_output<decl::Float>("Total Cost"_ustr)
       .structure_type(StructureType::Field)
-      .reference_pass_all();
+      .propagate_references();
 }
 
 using VertPriority = std::pair<float, int>;

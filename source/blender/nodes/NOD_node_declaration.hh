@@ -337,32 +337,20 @@ class BaseSocketDeclarationBuilder {
   BaseSocketDeclarationBuilder &anonymous_attribute_output();
   BaseSocketDeclarationBuilder &anonymous_attribute_output(Span<int> geometry_output_indices);
 
-  /** The output is a field if any of the inputs are a field. */
-  BaseSocketDeclarationBuilder &dependent_field();
+  /** The output has a dynamic structure type which is automatically inferred from inputs. */
+  BaseSocketDeclarationBuilder &inferred_structure_type();
+  BaseSocketDeclarationBuilder &inferred_structure_type(Span<int> input_indices);
 
-  /** The output is a field if any of the inputs with indices in the given list is a field. */
-  BaseSocketDeclarationBuilder &dependent_field(Span<int> input_dependencies);
-
-  /**
-   * For outputs that combine all input fields into a new field. The output is a field even if none
-   * of the inputs is a field.
-   */
-  BaseSocketDeclarationBuilder &field_source_reference_all();
+  /** The node passes references to data (anonymous attributes) from inputs to this output. */
+  BaseSocketDeclarationBuilder &propagate_references();
+  BaseSocketDeclarationBuilder &propagate_references(Span<int> input_indices);
 
   /**
-   * For outputs that combine a subset of input fields into a new field.
+   * The node passes data and references from inputs this output. Since data like a geometry can
+   * also indirectly contain fields, those are simply implied here.
    */
-  BaseSocketDeclarationBuilder &reference_pass(Span<int> input_indices);
-
-  /**
-   * For outputs that combine all input fields into a new field.
-   */
-  BaseSocketDeclarationBuilder &reference_pass_all();
-
-  /** Attributes from the all geometry inputs can be propagated. */
   BaseSocketDeclarationBuilder &propagate_all();
-  /** Instance attributes from all geometry inputs can be propagated. */
-  BaseSocketDeclarationBuilder &propagate_all_instance_attributes();
+  BaseSocketDeclarationBuilder &propagate_all(Span<int> input_indices);
 
   BaseSocketDeclarationBuilder &compositor_realization_mode(CompositorInputRealizationMode value);
 
@@ -766,7 +754,8 @@ inline typename DeclType::Builder &DeclarationListBuilder::add_socket(UString na
   if (this->node_decl_builder.is_function_node_) {
     socket_decl.structure_type = StructureType::Dynamic;
     if (in_out == SOCK_OUT) {
-      socket_decl_builder.dependent_field();
+      socket_decl_builder.propagate_references();
+      socket_decl_builder.inferred_structure_type();
     }
   }
 

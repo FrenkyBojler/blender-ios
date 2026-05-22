@@ -73,16 +73,26 @@ static void node_declare(NodeDeclarationBuilder &b)
                              .structure_type(StructureType::Dynamic)
                              .index();
 
-  const Vector<int> field_dependencys({source_position, ray_direction, ray_length});
+  const Vector<int> dynamic_inputs({source_position, ray_direction, ray_length});
 
-  b.add_output<decl::Bool>("Is Hit"_ustr).dependent_field(field_dependencys);
-  b.add_output<decl::Vector>("Hit Position"_ustr).dependent_field(field_dependencys);
-  b.add_output<decl::Vector>("Hit Normal"_ustr).dependent_field(field_dependencys);
-  b.add_output<decl::Float>("Hit Distance"_ustr).dependent_field(field_dependencys);
+  b.add_output<decl::Bool>("Is Hit"_ustr)
+      .inferred_structure_type(dynamic_inputs)
+      .propagate_references(dynamic_inputs);
+  b.add_output<decl::Vector>("Hit Position"_ustr)
+      .inferred_structure_type(dynamic_inputs)
+      .propagate_references(dynamic_inputs);
+  b.add_output<decl::Vector>("Hit Normal"_ustr)
+      .inferred_structure_type(dynamic_inputs)
+      .propagate_references(dynamic_inputs);
+  b.add_output<decl::Float>("Hit Distance"_ustr)
+      .inferred_structure_type(dynamic_inputs)
+      .propagate_references(dynamic_inputs);
 
   if (node != nullptr) {
     const eCustomDataType data_type = eCustomDataType(node_storage(*node).data_type);
-    b.add_output(data_type, "Attribute"_ustr).dependent_field(field_dependencys);
+    b.add_output(data_type, "Attribute"_ustr)
+        .inferred_structure_type(dynamic_inputs)
+        .propagate_references(dynamic_inputs);
   }
 }
 

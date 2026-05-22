@@ -59,14 +59,17 @@ static void node_declare(NodeDeclarationBuilder &b)
   if (node != nullptr) {
     const eCustomDataType data_type = eCustomDataType(node_storage(*node).data_type);
     b.add_output(data_type, "Leading"_ustr)
-        .field_source_reference_all()
+        .structure_type(StructureType::Field)
+        .propagate_references()
         .description(
             "The running total of values in the corresponding group, starting at the first value");
     b.add_output(data_type, "Trailing"_ustr)
-        .field_source_reference_all()
+        .structure_type(StructureType::Field)
+        .propagate_references()
         .description("The running total of values in the corresponding group, starting at zero");
     b.add_output(data_type, "Total"_ustr)
-        .field_source_reference_all()
+        .structure_type(StructureType::Field)
+        .propagate_references()
         .description("The total of all of the values in the corresponding group");
   }
 }

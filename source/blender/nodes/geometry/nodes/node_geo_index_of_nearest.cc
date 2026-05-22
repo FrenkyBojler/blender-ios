@@ -19,9 +19,12 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Int>("Group ID"_ustr).structure_type(StructureType::Field).hide_value();
 
   b.add_output<decl::Int>("Index"_ustr)
-      .field_source_reference_all()
+      .structure_type(StructureType::Field)
+      .propagate_references()
       .description("Index of nearest element");
-  b.add_output<decl::Bool>("Has Neighbor"_ustr).field_source_reference_all();
+  b.add_output<decl::Bool>("Has Neighbor"_ustr)
+      .structure_type(StructureType::Field)
+      .propagate_references();
 }
 
 static KDTree<float3> *build_kdtree(const Span<float3> positions, const IndexMask &mask)

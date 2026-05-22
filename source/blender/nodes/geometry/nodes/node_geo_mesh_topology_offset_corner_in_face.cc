@@ -20,7 +20,8 @@ static void node_declare(NodeDeclarationBuilder &b)
           "The number of corners to move around the face before finding the result, "
           "circling around the start of the face if necessary");
   b.add_output<decl::Int>("Corner Index"_ustr)
-      .field_source_reference_all()
+      .structure_type(StructureType::Field)
+      .propagate_references()
       .description("The index of the offset corner");
 }
 

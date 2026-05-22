@@ -64,8 +64,10 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Bool>("No Flip"_ustr)
       .usage_by_single_menu(GEO_NODE_UV_UNWRAP_METHOD_MINIMUM_STRETCH)
       .description("Prevents flipping UVs");
-  b.add_output<decl::Vector>("UV"_ustr).field_source_reference_all().description(
-      "UV coordinates between 0 and 1 for each face corner in the selected faces");
+  b.add_output<decl::Vector>("UV"_ustr)
+      .structure_type(StructureType::Field)
+      .propagate_references()
+      .description("UV coordinates between 0 and 1 for each face corner in the selected faces");
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)

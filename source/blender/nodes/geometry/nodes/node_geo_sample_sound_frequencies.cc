@@ -60,7 +60,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.allow_any_socket_order();
 
   b.add_output<decl::Float>("Amplitude"_ustr)
-      .reference_pass_all()
+      .propagate_references()
       .description("Sum of amplitudes of the frequencies in the given range")
       .structure_type(StructureType::Dynamic);
   b.add_input<decl::Sound>("Sound"_ustr).optional_label().description("Sound to sample");

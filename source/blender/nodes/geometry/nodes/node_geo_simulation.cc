@@ -306,12 +306,10 @@ static void node_declare(NodeDeclarationBuilder &b)
     auto &input_decl = b.add_input(socket_type, name, identifier)
                            .socket_name_ptr(
                                &node_tree->id, *SimulationItemsAccessor::item_srna, &item, "name");
-    auto &output_decl = b.add_output(socket_type, name, identifier).align_with_previous();
-    if (socket_type_supports_attributes(socket_type)) {
-      /* If it's below a geometry input it may be a field evaluated on that geometry. */
-      input_decl.structure_type(StructureType::Dynamic);
-      output_decl.dependent_field({input_decl.index()});
-    }
+    auto &output_decl = b.add_output(socket_type, name, identifier)
+                            .align_with_previous()
+                            .propagate_all({input_decl.index()})
+                            .structure_type(StructureType::Dynamic);
     if (socket_type == SOCK_BUNDLE) {
       dynamic_cast<decl::BundleBuilder &>(output_decl)
           .pass_through_input_index(input_decl.index());
@@ -641,12 +639,10 @@ static void node_declare(NodeDeclarationBuilder &b)
     auto &input_decl = b.add_input(socket_type, name, identifier)
                            .socket_name_ptr(
                                &tree->id, *SimulationItemsAccessor::item_srna, &item, "name");
-    auto &output_decl = b.add_output(socket_type, name, identifier).align_with_previous();
-    if (socket_type_supports_attributes(socket_type)) {
-      /* If it's below a geometry input it may be a field evaluated on that geometry. */
-      input_decl.structure_type(StructureType::Dynamic);
-      output_decl.dependent_field({input_decl.index()});
-    }
+    auto &output_decl = b.add_output(socket_type, name, identifier)
+                            .align_with_previous()
+                            .propagate_all({input_decl.index()})
+                            .structure_type(StructureType::Dynamic);
     if (socket_type == SOCK_BUNDLE) {
       dynamic_cast<decl::BundleBuilder &>(output_decl)
           .pass_through_input_index(input_decl.index());

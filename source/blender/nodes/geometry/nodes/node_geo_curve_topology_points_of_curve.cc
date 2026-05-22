@@ -24,11 +24,12 @@ static void node_declare(NodeDeclarationBuilder &b)
       .structure_type(StructureType::Field)
       .description("Which of the sorted points to output. Negative indexing is supported");
   b.add_output<decl::Int>("Point Index"_ustr)
-      .field_source_reference_all()
+      .structure_type(StructureType::Field)
+      .propagate_references()
       .description("A point of the curve, chosen by the sort index");
   b.add_output<decl::Int>("Total"_ustr)
       .structure_type(StructureType::Field)
-      .reference_pass({0})
+      .propagate_references({0})
       .description("The number of points in the curve");
 }
 

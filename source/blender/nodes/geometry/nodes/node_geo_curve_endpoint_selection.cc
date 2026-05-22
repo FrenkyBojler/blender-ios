@@ -23,7 +23,8 @@ static void node_declare(NodeDeclarationBuilder &b)
       .structure_type(StructureType::Field)
       .description("The amount of points to select from the end of each spline");
   b.add_output<decl::Bool>("Selection"_ustr)
-      .field_source_reference_all()
+      .structure_type(StructureType::Field)
+      .propagate_references()
       .description("The selection from the start and end of the splines based on the input sizes");
 }
 
