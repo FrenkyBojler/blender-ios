@@ -2812,18 +2812,16 @@ void OUTLINER_OT_delete(wmOperatorType *ot)
 static wmOperatorStatus outliner_pack_data_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
-  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
+  Vector<PointerRNA> selected_idptrs = ED_operator_get_ids_from_context_as_vec(C);
   int count = 0;
 
-  Vector<PointerRNA> selected_idptrs = ED_operator_get_ids_from_context_as_vec(C);
-  for (PointerRNA &idptr : selected_idptrs)
-  {
+  for (PointerRNA &idptr : selected_idptrs) {
     ID *id = static_cast<ID *>(idptr.data);
-      if (GS(id->name) == ID_IM) {
-        Image *image = reinterpret_cast<Image *>(id);
-        BKE_image_packfile_ensure(bmain, image, op->reports, nullptr, 0);
-        count += BKE_image_has_packedfile(image);
-      }
+    if (GS(id->name) == ID_IM) {
+      Image *image = reinterpret_cast<Image *>(id);
+      BKE_image_packfile_ensure(bmain, image, op->reports, nullptr, 0);
+      count += BKE_image_has_packedfile(image);
+    }
   }
 
   if (count > 0) {
