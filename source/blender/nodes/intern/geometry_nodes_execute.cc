@@ -31,7 +31,6 @@
 #include "BKE_node_enum.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_node_socket_value.hh"
-#include "BKE_node_socket_value_iter.hh"
 
 #include "FN_lazy_function_execute.hh"
 
@@ -497,21 +496,6 @@ static void store_output_attributes(bke::GeometrySet &geometry,
   });
 }
 
-static void remove_anonymous_attributes(bke::GeometrySet &geometry)
-{
-  using namespace bke::socket_value_visitor;
-  VisitParams params;
-  auto check_AttributeAccessor = [](const bke::AttributeAccessor &attributes) {
-    return VisitParams::needs_edit(attributes.has_anonymous());
-  };
-  auto edit_AttributeAccessor = [](bke::MutableAttributeAccessor &attributes) {
-    attributes.remove_anonymous();
-  };
-  params.check_AttributeAccessor = check_AttributeAccessor;
-  params.edit_AttributeAccessor = edit_AttributeAccessor;
-  edit_recursive(geometry, params);
-}
-
 bke::GeometrySet execute_geometry_nodes_on_geometry(const bNodeTree &btree,
                                                     const PointerRNA &properties_ptr,
                                                     const ComputeContext &base_compute_context,
@@ -624,10 +608,6 @@ bke::GeometrySet execute_geometry_nodes_on_geometry(const bNodeTree &btree,
      * unnecessary copy can be avoided. See #GeometryOwnershipType::Editable. */
     output_geometry.bundle_for_write().ensure_owns_direct_data();
   }
-
-  /* Need to remove anonymous attributes because their lifetimes can't be tracked outside of
-   * Geometry Nodes currently. */
-  remove_anonymous_attributes(output_geometry);
 
   return output_geometry;
 }
