@@ -449,6 +449,7 @@ class ShadowPass {
                    ObjectRef &ob_ref,
                    ResourceHandleRange handle,
                    const bool has_transp_mat);
+  void end_sync();
   void draw(Manager &manager,
             View &view,
             SceneResources &resources,

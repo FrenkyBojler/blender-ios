@@ -129,6 +129,7 @@ class Instance : public DrawEngine {
   void end_sync() final
   {
     resources_.material_buf.push_update();
+    shadow_ps_.end_sync();
   }
 
   Material get_material(ObjectRef ob_ref, eV3DShadingColorType color_type, int slot = 0)

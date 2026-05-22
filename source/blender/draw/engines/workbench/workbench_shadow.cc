@@ -452,6 +452,13 @@ void ShadowPass::object_sync(SceneState &scene_state,
   get_pass_ptr(fail_type, is_manifold, false)->draw_expand(geom_shadow, prim, tri_len, 1, handle);
 }
 
+void ShadowPass::end_sync()
+{
+  if (use_raytracing_) {
+    shadow_as_->build();
+  }
+}
+
 void ShadowPass::draw(Manager &manager,
                       View &view,
                       SceneResources &resources,
@@ -463,8 +470,6 @@ void ShadowPass::draw(Manager &manager,
   }
 
   if (use_raytracing_) {
-    // TODO: should be moved to end sync....
-    shadow_as_->build();
     fb_.ensure(GPU_ATTACHMENT_TEXTURE(&depth_stencil_tx));
     fb_.bind();
     manager.submit(raytrace_ps_, view);
