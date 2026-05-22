@@ -843,38 +843,29 @@ GHOST_TSuccess GHOST_SystemCocoa::getCursorPosition(int32_t &x, int32_t &y) cons
   return GHOST_kSuccess;
 }
 
+/* Private CoreGraphicsSPI used to read the Accessibility cursor scale factor.
+ * Available since macOS 10.7, but not in the public headers. */
+extern "C" {
+typedef int CGSConnectionID;
+CGSConnectionID CGSMainConnectionID(void);
+CGError CGSGetCursorScale(CGSConnectionID connection, CGFloat *scale);
+}
+
 uint32_t GHOST_SystemCocoa::getCursorPreferredLogicalSize() const
 {
   /* Apply the Accessibility pointer-size scale (1.0 .. 4.0) to a default base size.
    *
-   * NOTE:
-   * - Take care, for hardware cursors this is already applied on-top of the cursor bitmap,
-   *   there doesn't seem to be a way to express that the cursor data is pre-scaled.
-   *   Therefor, a larger cursor will work but look blurry.
-   *   Only use this for software cursors.
-   * - This is only checked once to avoid potential overhead
-   *   of many preference reads at run-time.
-   *   As this is the logical size (independent of resolution / DPI),
-   *   it seems an acceptable limitation to check the size once.
-   * - `CGSGetCursorScale` could be used as a faster alternative,
-   *   although it depends on a private API, in practice it may be OK
-   *   but avoiding for now to prevent possible breakage,
-   *   see: !158679 for alternative patch.
-   */
-  static const uint32_t size = []() -> uint32_t {
-    @autoreleasepool {
-      /* The value 21 is macOS's documented default. */
-      const float default_size = 21.0f;
-      NSUserDefaults *ua = [[[NSUserDefaults alloc] initWithSuiteName:@"com.apple.universalaccess"]
-          autorelease];
-      float scale = [ua floatForKey:@"mouseDriverCursorSize"];
-      if (!(scale > 0.0f)) {
-        scale = 1.0f;
-      }
-      return lround(default_size * scale);
-    }
-  }();
-  return size;
+   * Take care, for hardware cursors this is already applied on-top of the cursor bitmap,
+   * there doesn't seem to be a way to express that the cursor data is pre-scaled.
+   * Therefor, a larger cursor will work but look blurry.
+   * Only use this for software cursors. */
+  const CGFloat default_size = 21.0;
+
+  CGFloat scale = 1.0;
+  if (CGSGetCursorScale(CGSMainConnectionID(), &scale) != kCGErrorSuccess || !(scale > 0.0)) {
+    scale = 1.0;
+  }
+  return lround(default_size * scale);
 }
 
 /**
