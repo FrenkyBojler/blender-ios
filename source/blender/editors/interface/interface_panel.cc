@@ -303,7 +303,7 @@ static void panel_delete(ARegion *region, ListBaseT<Panel> *panels, Panel *panel
   for (Panel &child : panel->children.items_mutable()) {
     panel_delete(region, &panel->children, &child);
   }
-  BLI_freelistN(&panel->children);
+  panel->children.free_no_destruct();
 
   BLI_remlink(panels, panel);
   BKE_panel_free(panel);
@@ -666,7 +666,7 @@ static bool panel_type_context_poll(ARegion *region,
                                     const PanelType *panel_type,
                                     const char *context)
 {
-  if (!BLI_listbase_is_empty(&region->runtime->panels_category)) {
+  if (!region->runtime->panels_category.is_empty()) {
     return STREQ(panel_type->category, panel_category_active_get(region, false));
   }
 
@@ -2267,7 +2267,7 @@ static void handle_panel_header(const bContext *C,
   if (ELEM(event_type, EVT_RETKEY, EVT_PADENTER, EVT_AKEY) || mx < expansion_area_xmax) {
     if (ctrl && !is_subpanel) {
       /* For parent panels, collapse all other panels or toggle children. */
-      if (panel_is_closed(panel) || BLI_listbase_is_empty(&panel->children)) {
+      if (panel_is_closed(panel) || panel->children.is_empty()) {
         panels_collapse_all(region, panel);
 
         /* Reset the view - we don't want to display a view without content. */
@@ -2455,7 +2455,7 @@ void panel_category_add(ARegion *region, const char *name, int icon)
 
 void panel_category_clear_all(ARegion *region)
 {
-  BLI_freelistN(&region->runtime->panels_category);
+  region->runtime->panels_category.free_no_destruct();
 }
 
 static bool panel_categories_tab_is_mouse_over(ARegion *region, const wmEvent *event)
