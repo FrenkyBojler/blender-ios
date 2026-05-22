@@ -3544,7 +3544,7 @@ static void mesh_data_to_grease_pencil(const Mesh &mesh_eval,
     bke::gather_attributes(mesh_eval.attributes(),
                            bke::AttrDomain::Point,
                            bke::AttrDomain::Point,
-                           bke::attribute_filter_from_skip_ref({"position", "radius"}),
+                           bke::attribute_filter_from_skip_ref({"position"}),
                            corner_verts,
                            attributes);
   }
