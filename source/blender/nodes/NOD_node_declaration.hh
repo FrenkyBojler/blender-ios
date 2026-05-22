@@ -337,9 +337,6 @@ class BaseSocketDeclarationBuilder {
   BaseSocketDeclarationBuilder &anonymous_attribute_output(
       std::optional<Span<int>> geometry_output_indices = std::nullopt);
 
-  /** The input is an implicit field that is evaluated on all geometry inputs. */
-  BaseSocketDeclarationBuilder &implicit_field_on_all(NodeDefaultInputType default_input);
-
   /** The input is evaluated on a subset of the geometry inputs. */
   BaseSocketDeclarationBuilder &implicit_field_on(NodeDefaultInputType default_input,
                                                   Span<int> input_indices);

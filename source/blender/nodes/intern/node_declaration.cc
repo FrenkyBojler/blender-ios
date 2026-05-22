@@ -704,16 +704,6 @@ BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::anonymous_attribute_
   return *this;
 }
 
-BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::implicit_field_on_all(
-    const NodeDefaultInputType default_input_type)
-{
-  BLI_assert(this->is_input());
-  input_reference_used_on_all_data_ = true;
-  this->default_input_type(default_input_type);
-  this->structure_type(StructureType::Field);
-  return *this;
-}
-
 BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::implicit_field_on(
     const NodeDefaultInputType default_input_type, const Span<int> input_indices)
 {

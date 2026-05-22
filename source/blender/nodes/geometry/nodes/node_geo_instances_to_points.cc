@@ -23,7 +23,8 @@ static void node_declare(NodeDeclarationBuilder &b)
       .hide_value()
       .evaluated_geometry_field();
   b.add_input<decl::Vector>("Position"_ustr)
-      .implicit_field_on_all(NODE_DEFAULT_INPUT_POSITION_FIELD);
+      .evaluated_geometry_field()
+      .default_input_type(NODE_DEFAULT_INPUT_POSITION_FIELD);
   b.add_input<decl::Float>("Radius"_ustr)
       .default_value(0.05f)
       .min(0.0f)

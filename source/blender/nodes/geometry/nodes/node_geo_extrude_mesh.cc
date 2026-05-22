@@ -46,7 +46,8 @@ static void node_declare(NodeDeclarationBuilder &b)
       .hide_value();
   b.add_input<decl::Vector>("Offset"_ustr)
       .subtype(PROP_TRANSLATION)
-      .implicit_field_on_all(NODE_DEFAULT_INPUT_NORMAL_FIELD)
+      .default_input_type(NODE_DEFAULT_INPUT_NORMAL_FIELD)
+      .evaluated_geometry_field()
       .hide_value();
   b.add_input<decl::Float>("Offset Scale"_ustr).default_value(1.0f).evaluated_geometry_field();
   auto &individual = b.add_input<decl::Bool>("Individual"_ustr)

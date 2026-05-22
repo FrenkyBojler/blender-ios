@@ -60,7 +60,8 @@ static void node_declare(NodeDeclarationBuilder &b)
       .evaluated_geometry_field();
   b.add_input<decl::Vector>("Center"_ustr)
       .subtype(PROP_TRANSLATION)
-      .implicit_field_on_all(NODE_DEFAULT_INPUT_POSITION_FIELD)
+      .evaluated_geometry_field()
+      .default_input_type(NODE_DEFAULT_INPUT_POSITION_FIELD)
       .description(
           "Origin of the scaling for each element. If multiple elements are connected, their "
           "center is averaged");

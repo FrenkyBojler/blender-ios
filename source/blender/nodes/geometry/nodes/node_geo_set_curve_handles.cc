@@ -39,12 +39,12 @@ static void node_declare(NodeDeclarationBuilder &b)
       .default_value(true)
       .hide_value()
       .evaluated_geometry_field();
-  auto &position = b.add_input<decl::Vector>("Position"_ustr);
+  auto &position = b.add_input<decl::Vector>("Position"_ustr).evaluated_geometry_field();
   if (node) {
     const NodeGeometrySetCurveHandlePositions &storage = node_storage(*node);
-    position.implicit_field_on_all(storage.mode == GEO_NODE_CURVE_HANDLE_LEFT ?
-                                       NODE_DEFAULT_INPUT_HANDLE_LEFT_FIELD :
-                                       NODE_DEFAULT_INPUT_HANDLE_RIGHT_FIELD);
+    position.default_input_type(storage.mode == GEO_NODE_CURVE_HANDLE_LEFT ?
+                                    NODE_DEFAULT_INPUT_HANDLE_LEFT_FIELD :
+                                    NODE_DEFAULT_INPUT_HANDLE_RIGHT_FIELD);
   }
   b.add_input<decl::Vector>("Offset"_ustr)
       .default_value(float3(0.0f, 0.0f, 0.0f))

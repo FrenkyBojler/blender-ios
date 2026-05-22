@@ -29,7 +29,8 @@ static void node_declare(NodeDeclarationBuilder &b)
       .evaluated_geometry_field();
   b.add_input<decl::Int>("Merge ID"_ustr)
       .hide_value()
-      .implicit_field_on_all(NODE_DEFAULT_INPUT_INDEX_FIELD)
+      .evaluated_geometry_field()
+      .default_input_type(NODE_DEFAULT_INPUT_INDEX_FIELD)
       .description("ID of group of the points to merge");
 }
 

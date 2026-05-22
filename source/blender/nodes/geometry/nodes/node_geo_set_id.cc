@@ -17,7 +17,8 @@ static void node_declare(NodeDeclarationBuilder &b)
       .default_value(true)
       .hide_value()
       .evaluated_geometry_field();
-  b.add_input<decl::Int>("ID"_ustr).implicit_field_on_all(NODE_DEFAULT_INPUT_INDEX_FIELD);
+  b.add_input<decl::Int>("ID"_ustr).evaluated_geometry_field().default_input_type(
+      NODE_DEFAULT_INPUT_INDEX_FIELD);
 }
 
 static void set_id_in_component(GeometryComponent &component,

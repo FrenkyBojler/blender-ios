@@ -21,7 +21,8 @@ static void node_declare(NodeDeclarationBuilder &b)
       .hide_value()
       .structure_type(StructureType::Field);
   b.add_input<decl::Vector>("Position"_ustr)
-      .implicit_field_on_all(NODE_DEFAULT_INPUT_POSITION_FIELD);
+      .default_input_type(NODE_DEFAULT_INPUT_POSITION_FIELD)
+      .structure_type(StructureType::Field);
   b.add_input<decl::Float>("Distance"_ustr).default_value(0.001f).min(0.0f).subtype(PROP_DISTANCE);
 
   b.add_output<decl::Int>("Cluster ID"_ustr).field_source_reference_all();
