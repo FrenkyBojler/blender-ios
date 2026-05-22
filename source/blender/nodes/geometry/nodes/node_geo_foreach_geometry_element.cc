@@ -272,7 +272,7 @@ static void node_declare(NodeDeclarationBuilder &b)
               "Attribute value that will be stored for the current element on the main geometry");
       b.add_output(socket_type, name, identifier)
           .align_with_previous()
-          .field_on({0})
+          .anonymous_attribute_output({0})
           .description("Attribute on the geometry above");
     }
     b.add_input<decl::Extend>(""_ustr, "__extend__main"_ustr)
@@ -312,8 +312,8 @@ static void node_declare(NodeDeclarationBuilder &b)
       else {
         if (previous_output_geometry_index > 0) {
           input_decl.description("Field that will be stored as attribute on the geometry above");
-          input_decl.field_on({previous_input_geometry_index});
-          output_decl.field_on({previous_output_geometry_index});
+          input_decl.evaluated_geometry_field({previous_input_geometry_index});
+          output_decl.anonymous_attribute_output({previous_output_geometry_index});
         }
         output_decl.description("Attribute on the geometry above");
       }

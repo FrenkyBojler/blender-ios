@@ -30,7 +30,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Float>("Scale"_ustr)
       .default_value(1.0f)
       .min(0.0f)
-      .field_on({0})
+      .evaluated_geometry_field({0})
       .description("Scale of the profile at each point");
   b.add_input<decl::Bool>("Fill Caps"_ustr)
       .description(

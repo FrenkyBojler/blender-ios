@@ -328,17 +328,14 @@ class BaseSocketDeclarationBuilder {
    * Declares that this input is or contains a field that is evaluated on some geometry in this
    * node.
    */
-  BaseSocketDeclarationBuilder &evaluated_geometry_field(
-      std::optional<Span<int>> geometry_input_indices = std::nullopt);
+  BaseSocketDeclarationBuilder &evaluated_geometry_field();
+  BaseSocketDeclarationBuilder &evaluated_geometry_field(Span<int> geometry_input_indices);
   /**
    * Declares that this socket outputs an attribute field referencing an anonymous attribute that
    * exists on an output geometry of the node.
    */
-  BaseSocketDeclarationBuilder &anonymous_attribute_output(
-      std::optional<Span<int>> geometry_output_indices = std::nullopt);
-
-  /** For inputs that are evaluated or available on a subset of the geometry sockets. */
-  BaseSocketDeclarationBuilder &field_on(Span<int> indices);
+  BaseSocketDeclarationBuilder &anonymous_attribute_output();
+  BaseSocketDeclarationBuilder &anonymous_attribute_output(Span<int> geometry_output_indices);
 
   /** The output is a field if any of the inputs are a field. */
   BaseSocketDeclarationBuilder &dependent_field();

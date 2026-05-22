@@ -25,11 +25,11 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Geometry>("Guide Curves"_ustr)
       .description("Base curves that new curves are interpolated between");
   b.add_input<decl::Vector>("Guide Up"_ustr)
-      .field_on({0})
+      .evaluated_geometry_field({0})
       .hide_value()
       .description("Optional up vector that is typically a surface normal");
   b.add_input<decl::Int>("Guide Group ID"_ustr)
-      .field_on({0})
+      .evaluated_geometry_field({0})
       .hide_value()
       .description(
           "Splits guides into separate groups. New curves interpolate existing curves "
@@ -37,11 +37,11 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Geometry>("Points"_ustr)
       .description("First control point positions for new interpolated curves");
   b.add_input<decl::Vector>("Point Up"_ustr)
-      .field_on({3})
+      .evaluated_geometry_field({3})
       .hide_value()
       .description("Optional up vector that is typically a surface normal");
   b.add_input<decl::Int>("Point Group ID"_ustr)
-      .field_on({3})
+      .evaluated_geometry_field({3})
       .hide_value()
       .description("The curve group to interpolate in");
   b.add_input<decl::Int>("Max Neighbors"_ustr)
