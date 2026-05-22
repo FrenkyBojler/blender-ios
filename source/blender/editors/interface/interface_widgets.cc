@@ -2363,11 +2363,12 @@ static void widget_draw_vertical_text(const uiFontStyle *fstyle,
   float height;
   BLF_width_and_height(
       fstyle->uifont_id, but->drawstr.c_str(), but->drawstr.size(), &width, &height);
-  float xoff = ((BLI_rcti_size_x(rect) - height) / 2.0f) * (down ? 1.0f : -1.0f);
-  int yoff = (BLI_rcti_size_y(rect) - width) / 2 * (down ? 1 : -1);
+  height = BLF_ascender(fstyle->uifont_id) + BLF_descender(fstyle->uifont_id);
+  int xofs = ceil(0.5f * (BLI_rcti_size_x(rect) - height)) * (down ? 1 : -1);
+  int yofs = (BLI_rcti_size_y(rect) - width) / 2 * (down ? 1 : -1);
   BLF_position(fstyle->uifont_id,
-               (down ? rect->xmin : rect->xmax) + xoff,
-               (down ? rect->ymax : rect->ymin) - yoff,
+               (down ? rect->xmin : rect->xmax) + xofs,
+               (down ? rect->ymax : rect->ymin) - yofs,
                0.0f);
   BLF_draw(fstyle->uifont_id, but->drawstr.c_str(), but->drawstr.size());
 
