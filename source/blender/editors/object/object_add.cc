@@ -2484,6 +2484,25 @@ static wmOperatorStatus object_delete_exec(bContext *C, wmOperator *op)
 
   BKE_main_id_tag_all(bmain, ID_TAG_DOIT, false);
 
+  /* Cancel light probe baking when deleting a volumetric light probe. */
+  bool has_volume_lightprobe = false;
+  CTX_DATA_BEGIN (C, Object *, ob, selected_objects) {
+    if (ob->type == OB_LIGHTPROBE &&
+        id_cast<LightProbe *>(ob->data)->type == LIGHTPROBE_TYPE_VOLUME)
+    {
+      has_volume_lightprobe = true;
+      break;
+    }
+  }
+  CTX_DATA_END;
+
+  if (has_volume_lightprobe && WM_jobs_test(wm, scene, WM_JOB_TYPE_LIGHT_BAKE)) {
+    WM_jobs_stop_type(wm, scene, WM_JOB_TYPE_LIGHT_BAKE);
+    BKE_report(op->reports,
+               RPT_WARNING,
+               "Light probe baking canceled because a volume light probe was deleted");
+  }
+
   CTX_DATA_BEGIN (C, Object *, ob, selected_objects) {
     if (ob->id.tag & ID_TAG_INDIRECT) {
       /* Can this case ever happen? */
@@ -4393,7 +4412,7 @@ static wmOperatorStatus object_convert_exec(bContext *C, wmOperator *op)
       Object *ob = base->object;
 
       /* The way object type conversion works currently (enforcing conversion of *all* objects
-       * using converted object-data, even some un-selected/hidden/another scene ones,
+       * using converted object-data, even some un-selected/hidden/another scene ones),
        * sounds totally bad to me.
        * However, changing this is more design than bug-fix, not to mention convoluted code below,
        * so that will be for later.
@@ -5321,7 +5340,7 @@ static bool object_update_shapes_poll(bContext *C)
 
   Object *ob = CTX_data_active_object(C);
   const Key *key = BKE_key_from_object(ob);
-  if (!key || BLI_listbase_is_empty(&key->block)) {
+  if (!key || key->block.is_empty()) {
     return false;
   }
   return true;
