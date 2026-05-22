@@ -74,8 +74,6 @@ struct VKRenderGraphImage : public VKRenderGraphResource {
   VKSubImageRange subimage;
 };
 
-struct VKRenderGraphAccelerationStructure : public VKRenderGraphResource {};
-
 struct VKRenderGraphLinks {
   /**
    * VKRenderGraphNode.links.buffers contains indices to #VKRenderGraphLinks.buffers.
