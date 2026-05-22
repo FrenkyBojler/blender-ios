@@ -4379,7 +4379,7 @@ std::optional<std::string> RNA_property_string_path_filter(const bContext *C,
   return sprop->path_filter(C, ptr, rna_prop);
 }
 
-TextboxState *RNA_property_string_get_textbox_state(PointerRNA *ptr, PropertyRNA *prop)
+TextboxState *RNA_property_string_multiline_textbox_state_get(PointerRNA *ptr, PropertyRNA *prop)
 {
   BLI_assert(RNA_property_string_is_multiline(ptr, prop));
 
