@@ -599,7 +599,7 @@ KernelTileDescriptor ImageCache::load_tile(Device &device,
 
   if (ok) {
     /* Mark image for deferred GPU update, after pixels have been loaded to all devices. */
-    if (!device.has_unified_memory()) {
+    if (!device.has_unified_image_memory()) {
       const thread_scoped_lock device_lock(device_mutex);
       if (for_cpu_cache_miss) {
         if (device.info.type == DEVICE_MULTI) {
