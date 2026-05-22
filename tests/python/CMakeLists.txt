@@ -1231,6 +1231,7 @@ add_blender_test(
 
 if(TEST_SRC_DIR_EXISTS)
   set(geo_node_tests
+    assets
     attributes
     closure
     curve_primitives
