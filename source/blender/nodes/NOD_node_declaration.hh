@@ -62,52 +62,52 @@ struct StructureTypeInterface {
                          const StructureTypeInterface &b) = default;
 };
 
-namespace anonymous_attribute_lifetime {
+namespace reference_lifetimes {
 
 /**
  * Attributes can be propagated from an input geometry to an output geometry.
  */
-struct PropagateRelation {
-  int from_geometry_input;
-  int to_geometry_output;
+struct DataPropagation {
+  int from_input;
+  int to_output;
 
-  friend bool operator==(const PropagateRelation &a, const PropagateRelation &b) = default;
+  friend bool operator==(const DataPropagation &a, const DataPropagation &b) = default;
 };
 
 /**
  * References to attributes can be propagated from an input field to an output field.
  */
-struct ReferenceRelation {
-  int from_field_input;
-  int to_field_output;
+struct ReferencePropagation {
+  int from_input;
+  int to_output;
 
-  friend bool operator==(const ReferenceRelation &a, const ReferenceRelation &b) = default;
+  friend bool operator==(const ReferencePropagation &a, const ReferencePropagation &b) = default;
 };
 
 /**
  * An input field is evaluated on an input geometry.
  */
-struct EvalRelation {
-  int field_input;
-  int geometry_input;
+struct UseRelation {
+  int reference_input;
+  int data_input;
 
-  friend bool operator==(const EvalRelation &a, const EvalRelation &b) = default;
+  friend bool operator==(const UseRelation &a, const UseRelation &b) = default;
 };
 
 /**
  * An output field is available on an output geometry.
  */
 struct AvailableRelation {
-  int field_output;
-  int geometry_output;
+  int reference_output;
+  int data_output;
 
   friend bool operator==(const AvailableRelation &a, const AvailableRelation &b) = default;
 };
 
 struct RelationsInNode {
-  Vector<PropagateRelation> propagate_relations;
-  Vector<ReferenceRelation> reference_relations;
-  Vector<EvalRelation> eval_relations;
+  Vector<DataPropagation> data_propagations;
+  Vector<ReferencePropagation> reference_propagations;
+  Vector<UseRelation> use_relations;
   Vector<AvailableRelation> available_relations;
   Vector<int> available_on_none;
 
@@ -116,8 +116,10 @@ struct RelationsInNode {
 
 std::ostream &operator<<(std::ostream &stream, const RelationsInNode &relations);
 
-}  // namespace anonymous_attribute_lifetime
-namespace aal = anonymous_attribute_lifetime;
+}  // namespace reference_lifetimes
+
+/* Common alias for this namespace. */
+namespace rl = reference_lifetimes;
 
 /** Socket or panel declaration. */
 class ItemDeclaration {
@@ -276,11 +278,15 @@ class PanelDeclarationBuilder;
 
 class BaseSocketDeclarationBuilder {
  protected:
-  bool reference_pass_all_ = false;
-  bool field_on_all_ = false;
-  bool propagate_from_all_ = false;
   NodeDeclarationBuilder *node_decl_builder_ = nullptr;
   SocketDeclaration *decl_base_ = nullptr;
+
+  /* Variables which are used to add additional data to the declaration after all sockets have been
+   * added. */
+  bool propagate_all_input_references_ = false;
+  bool propagate_all_input_data_ = false;
+  bool input_reference_used_on_all_data_ = false;
+  bool output_reference_available_on_all_data_ = false;
 
   friend class NodeDeclarationBuilder;
   friend class DeclarationListBuilder;
@@ -612,7 +618,7 @@ class NodeDeclaration {
   Vector<SocketDeclaration *> inputs;
   Vector<SocketDeclaration *> outputs;
   Vector<PanelDeclaration *> panels;
-  std::unique_ptr<aal::RelationsInNode> anonymous_attribute_relations_;
+  std::unique_ptr<rl::RelationsInNode> reference_lifetime_relations_;
 
   /** Leave the sockets in place, even if they don't match the declaration. Used for dynamic
    * declarations when the information used to build the declaration is missing, but might become
@@ -640,9 +646,9 @@ class NodeDeclaration {
   bool matches(const bNode &node) const;
   Span<SocketDeclaration *> sockets(eNodeSocketInOut in_out) const;
 
-  const aal::RelationsInNode *anonymous_attribute_relations() const
+  const rl::RelationsInNode *reference_lifetime_relations() const
   {
-    return anonymous_attribute_relations_.get();
+    return reference_lifetime_relations_.get();
   }
 
   MEM_CXX_CLASS_ALLOC_FUNCS("NodeDeclaration")
@@ -694,12 +700,12 @@ class NodeDeclarationBuilder : public DeclarationListBuilder {
   void use_custom_socket_order(bool enable = true);
   void allow_any_socket_order(bool enable = true);
 
-  aal::RelationsInNode &get_anonymous_attribute_relations()
+  rl::RelationsInNode &get_reference_lifetime_relations()
   {
-    if (!declaration_.anonymous_attribute_relations_) {
-      declaration_.anonymous_attribute_relations_ = std::make_unique<aal::RelationsInNode>();
+    if (!declaration_.reference_lifetime_relations_) {
+      declaration_.reference_lifetime_relations_ = std::make_unique<rl::RelationsInNode>();
     }
-    return *declaration_.anonymous_attribute_relations_;
+    return *declaration_.reference_lifetime_relations_;
   }
 
   NodeDeclaration &declaration()
