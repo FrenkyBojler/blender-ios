@@ -411,7 +411,6 @@ static void do_paint_pixels(const Depsgraph &depsgraph,
             tls.distances.resize(range.size());
             calc_brush_distances(
                 ss, tls.pixel_positions, eBrushFalloffShape(brush.falloff_shape), tls.distances);
-            filter_distances_with_radius(cache.radius, tls.distances, factors);
             apply_hardness_to_distances(cache, tls.distances);
             calc_brush_strength_factors(cache, brush, tls.distances, factors);
             calc_brush_texture_factors(ss, brush, tls.pixel_positions, factors);

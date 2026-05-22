@@ -1202,7 +1202,6 @@ static void do_wpaint_brush_blur(const Depsgraph &depsgraph,
       const MutableSpan<float> distances = tls.distances;
       calc_brush_distances(
           ss, vert_positions, verts, eBrushFalloffShape(brush.falloff_shape), distances);
-      filter_distances_with_radius(cache.radius, distances, factors);
       calc_brush_strength_factors(cache, brush, distances, factors);
 
       for (const int i : verts.index_range()) {
@@ -1319,7 +1318,6 @@ static void do_wpaint_brush_smear(const Depsgraph &depsgraph,
       const MutableSpan<float> distances = tls.distances;
       calc_brush_distances(
           ss, vert_positions, verts, eBrushFalloffShape(brush.falloff_shape), distances);
-      filter_distances_with_radius(cache.radius, distances, factors);
       calc_brush_strength_factors(cache, brush, distances, factors);
 
       for (const int i : verts.index_range()) {
@@ -1435,7 +1433,6 @@ static void do_wpaint_brush_draw(const Depsgraph &depsgraph,
       const MutableSpan<float> distances = tls.distances;
       calc_brush_distances(
           ss, vert_positions, verts, eBrushFalloffShape(brush.falloff_shape), distances);
-      filter_distances_with_radius(cache.radius, distances, factors);
       calc_brush_strength_factors(cache, brush, distances, factors);
 
       for (const int i : verts.index_range()) {
@@ -1522,7 +1519,6 @@ static float calculate_average_weight(const Depsgraph &depsgraph,
           const MutableSpan<float> distances = tls.distances;
           calc_brush_distances(
               ss, vert_positions, verts, eBrushFalloffShape(brush.falloff_shape), distances);
-          filter_distances_with_radius(cache.radius, distances, factors);
           calc_brush_strength_factors(cache, brush, distances, factors);
 
           for (const int i : verts.index_range()) {

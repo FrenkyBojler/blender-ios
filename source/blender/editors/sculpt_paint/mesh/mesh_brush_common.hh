@@ -323,7 +323,15 @@ void calc_brush_distances_squared(const SculptSession &ss,
                                   eBrushFalloffShape falloff_shape,
                                   MutableSpan<float> r_distances);
 
-/** Set the factor to zero for all distances greater than the radius. */
+/**
+ * Set the factor to zero for all distances greater than the radius.
+ *
+ * \note Typically, this is handled by the call to `calc_brush_strength_factors` or
+ * `BKE_brush_calc_curve_factors`. In cases where the factors `Span` is not used for calculating
+ * the final scaled values (e.g. finding verts within a certain radius) or using a different radius
+ * value other than the one stored in `StrokeCache` (e.g. if filtering a normalized distance), this
+ * method may be needed.
+ */
 void filter_distances_with_radius(float radius, Span<float> distances, MutableSpan<float> factors);
 
 /**

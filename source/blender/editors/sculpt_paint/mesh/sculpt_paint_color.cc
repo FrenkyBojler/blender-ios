@@ -290,7 +290,6 @@ static void do_color_smooth_task(const Depsgraph &depsgraph,
   const MutableSpan<float> distances = tls.distances;
   calc_brush_distances(
       ss, vert_positions, verts, eBrushFalloffShape(brush.falloff_shape), distances);
-  filter_distances_with_radius(cache.radius, distances, factors);
   apply_hardness_to_distances(cache, distances);
   calc_brush_strength_factors(cache, brush, distances, factors);
 
@@ -391,7 +390,6 @@ static void do_paint_brush_task(const Depsgraph &depsgraph,
         ss, vert_positions, verts, eBrushFalloffShape(brush.falloff_shape), distances);
     radius = cache.radius;
   }
-  filter_distances_with_radius(radius, distances, factors);
   apply_hardness_to_distances(radius, cache.hardness, distances);
   BKE_brush_calc_curve_factors(eBrushCurvePreset(brush.curve_distance_falloff_preset),
                                brush.curve_distance_falloff,
@@ -717,7 +715,6 @@ static void do_smear_brush_task(const Depsgraph &depsgraph,
   const MutableSpan<float> distances = tls.distances;
   calc_brush_distances(
       ss, vert_positions, verts, eBrushFalloffShape(brush.falloff_shape), distances);
-  filter_distances_with_radius(cache.radius, distances, factors);
   apply_hardness_to_distances(cache, distances);
   calc_brush_strength_factors(cache, brush, distances, factors);
 

@@ -6916,7 +6916,6 @@ void calc_factors_common_mesh_indexed(const Depsgraph &depsgraph,
 
   calc_brush_distances(
       ss, vert_positions, verts, eBrushFalloffShape(brush.falloff_shape), distances);
-  filter_distances_with_radius(cache.radius, distances, factors);
   apply_hardness_to_distances(cache, distances);
   calc_brush_strength_factors(cache, brush, distances, factors);
 
@@ -6951,7 +6950,6 @@ void calc_factors_common_mesh(const Depsgraph &depsgraph,
   r_distances.resize(verts.size());
   const MutableSpan<float> distances = r_distances;
   calc_brush_distances(ss, positions, eBrushFalloffShape(brush.falloff_shape), distances);
-  filter_distances_with_radius(cache.radius, distances, factors);
   apply_hardness_to_distances(cache, distances);
   calc_brush_strength_factors(cache, brush, distances, factors);
 
@@ -6985,7 +6983,6 @@ void calc_factors_common_grids(const Depsgraph &depsgraph,
   r_distances.resize(positions.size());
   const MutableSpan<float> distances = r_distances;
   calc_brush_distances(ss, positions, eBrushFalloffShape(brush.falloff_shape), distances);
-  filter_distances_with_radius(cache.radius, distances, factors);
   apply_hardness_to_distances(cache, distances);
   calc_brush_strength_factors(cache, brush, distances, factors);
 
@@ -7018,7 +7015,6 @@ void calc_factors_common_bmesh(const Depsgraph &depsgraph,
   r_distances.resize(verts.size());
   const MutableSpan<float> distances = r_distances;
   calc_brush_distances(ss, positions, eBrushFalloffShape(brush.falloff_shape), distances);
-  filter_distances_with_radius(cache.radius, distances, factors);
   apply_hardness_to_distances(cache, distances);
   calc_brush_strength_factors(cache, brush, distances, factors);
 
@@ -7054,7 +7050,6 @@ void calc_factors_common_from_orig_data_mesh(const Depsgraph &depsgraph,
   r_distances.resize(verts.size());
   const MutableSpan<float> distances = r_distances;
   calc_brush_distances(ss, positions, eBrushFalloffShape(brush.falloff_shape), distances);
-  filter_distances_with_radius(cache.radius, distances, factors);
   apply_hardness_to_distances(cache, distances);
   calc_brush_strength_factors(cache, brush, distances, factors);
 
@@ -7089,7 +7084,6 @@ void calc_factors_common_from_orig_data_grids(const Depsgraph &depsgraph,
   r_distances.resize(positions.size());
   const MutableSpan<float> distances = r_distances;
   calc_brush_distances(ss, positions, eBrushFalloffShape(brush.falloff_shape), distances);
-  filter_distances_with_radius(cache.radius, distances, factors);
   apply_hardness_to_distances(cache, distances);
   calc_brush_strength_factors(cache, brush, distances, factors);
 
@@ -7123,7 +7117,6 @@ void calc_factors_common_from_orig_data_bmesh(const Depsgraph &depsgraph,
   r_distances.resize(verts.size());
   const MutableSpan<float> distances = r_distances;
   calc_brush_distances(ss, positions, eBrushFalloffShape(brush.falloff_shape), distances);
-  filter_distances_with_radius(cache.radius, distances, factors);
   apply_hardness_to_distances(cache, distances);
   calc_brush_strength_factors(cache, brush, distances, factors);
 

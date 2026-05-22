@@ -162,7 +162,6 @@ static void sample_node_surface_mesh(const Depsgraph &depsgraph,
   tls.distances.resize(verts.size());
   const MutableSpan<float> distances = tls.distances;
   calc_brush_distances(ss, positions, eBrushFalloffShape(brush.falloff_shape), distances);
-  filter_distances_with_radius(radius, distances, factors);
   apply_hardness_to_distances(radius, cache.hardness, distances);
   BKE_brush_calc_curve_factors(eBrushCurvePreset(brush.curve_distance_falloff_preset),
                                brush.curve_distance_falloff,
@@ -208,7 +207,6 @@ static void sample_node_surface_grids(const Depsgraph &depsgraph,
   tls.distances.resize(positions.size());
   const MutableSpan<float> distances = tls.distances;
   calc_brush_distances(ss, positions, eBrushFalloffShape(brush.falloff_shape), distances);
-  filter_distances_with_radius(radius, distances, factors);
   apply_hardness_to_distances(radius, cache.hardness, distances);
   BKE_brush_calc_curve_factors(eBrushCurvePreset(brush.curve_distance_falloff_preset),
                                brush.curve_distance_falloff,
@@ -257,7 +255,6 @@ static void sample_node_surface_bmesh(const Depsgraph &depsgraph,
   tls.distances.resize(verts.size());
   const MutableSpan<float> distances = tls.distances;
   calc_brush_distances(ss, positions, eBrushFalloffShape(brush.falloff_shape), distances);
-  filter_distances_with_radius(radius, distances, factors);
   apply_hardness_to_distances(radius, cache.hardness, distances);
   BKE_brush_calc_curve_factors(eBrushCurvePreset(brush.curve_distance_falloff_preset),
                                brush.curve_distance_falloff,
@@ -402,11 +399,9 @@ static void calc_faces(const Depsgraph &depsgraph,
   }
 
   calc_distances(local_positions, distances);
+  apply_hardness_to_distances(cache, distances);
   /* TODO: Using the radius for the filter here is probably too high, but due to the Y-axis
    * deformation, a simple value of 1.0 isn't correct. */
-  filter_distances_with_radius(cache.radius, distances, factors);
-
-  apply_hardness_to_distances(cache, distances);
   calc_brush_strength_factors(cache, brush, distances, factors);
 
   tls.translations.resize(verts.size());
@@ -464,11 +459,9 @@ static void calc_grids(const Depsgraph &depsgraph,
   }
 
   calc_distances(local_positions, distances);
+  apply_hardness_to_distances(cache, distances);
   /* TODO: Using the radius for the filter here is probably too high, but due to the Y-axis
    * deformation, a simple value of 1.0 isn't correct. */
-  filter_distances_with_radius(cache.radius, distances, factors);
-
-  apply_hardness_to_distances(cache, distances);
   calc_brush_strength_factors(cache, brush, distances, factors);
 
   tls.translations.resize(positions.size());
@@ -525,11 +518,9 @@ static void calc_bmesh(const Depsgraph &depsgraph,
   }
 
   calc_distances(local_positions, distances);
+  apply_hardness_to_distances(cache, distances);
   /* TODO: Using the radius for the filter here is probably too high, but due to the Y-axis
    * deformation, a simple value of 1.0 isn't correct. */
-  filter_distances_with_radius(cache.radius, distances, factors);
-
-  apply_hardness_to_distances(cache, distances);
   calc_brush_strength_factors(cache, brush, distances, factors);
 
   tls.translations.resize(verts.size());

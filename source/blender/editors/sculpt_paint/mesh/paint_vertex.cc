@@ -1131,7 +1131,6 @@ static void do_vpaint_brush_blur_loops(const Depsgraph &depsgraph,
         const MutableSpan<float> distances = tls.distances;
         calc_brush_distances(
             ss, vert_positions, verts, eBrushFalloffShape(brush.falloff_shape), distances);
-        filter_distances_with_radius(cache.radius, distances, factors);
         calc_brush_strength_factors(cache, brush, distances, factors);
 
         for (const int i : verts.index_range()) {
@@ -1292,7 +1291,6 @@ static void do_vpaint_brush_blur_verts(const Depsgraph &depsgraph,
         const MutableSpan<float> distances = tls.distances;
         calc_brush_distances(
             ss, vert_positions, verts, eBrushFalloffShape(brush.falloff_shape), distances);
-        filter_distances_with_radius(cache.radius, distances, factors);
         calc_brush_strength_factors(cache, brush, distances, factors);
 
         for (const int i : verts.index_range()) {
@@ -1452,7 +1450,6 @@ static void do_vpaint_brush_smear(const Depsgraph &depsgraph,
         const MutableSpan<float> distances = tls.distances;
         calc_brush_distances(
             ss, vert_positions, verts, eBrushFalloffShape(brush.falloff_shape), distances);
-        filter_distances_with_radius(cache.radius, distances, factors);
         calc_brush_strength_factors(cache, brush, distances, factors);
 
         for (const int i : verts.index_range()) {
@@ -1638,7 +1635,6 @@ static void calculate_average_color(VPaintData &vpd,
           const MutableSpan<float> distances = tls.distances;
           calc_brush_distances(
               ss, vert_positions, verts, eBrushFalloffShape(brush.falloff_shape), distances);
-          filter_distances_with_radius(cache.radius, distances, factors);
           calc_brush_strength_factors(cache, brush, distances, factors);
 
           for (const int i : verts.index_range()) {
@@ -1791,7 +1787,6 @@ static void vpaint_do_draw(const Depsgraph &depsgraph,
         const MutableSpan<float> distances = tls.distances;
         calc_brush_distances(
             ss, vert_positions, verts, eBrushFalloffShape(brush.falloff_shape), distances);
-        filter_distances_with_radius(cache.radius, distances, factors);
         calc_brush_strength_factors(cache, brush, distances, factors);
 
         for (const int i : verts.index_range()) {

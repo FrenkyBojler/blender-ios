@@ -93,7 +93,6 @@ BLI_NOINLINE static void do_surface_smooth_brush_mesh(const Depsgraph &depsgraph
         const MutableSpan<float> distances = tls.distances;
         calc_brush_distances(
             ss, position_data.eval, verts, eBrushFalloffShape(brush.falloff_shape), distances);
-        filter_distances_with_radius(cache.radius, distances, factors);
         apply_hardness_to_distances(cache, distances);
         calc_brush_strength_factors(cache, brush, distances, factors);
 
@@ -221,7 +220,6 @@ BLI_NOINLINE static void do_surface_smooth_brush_grids(
         tls.distances.resize(positions.size());
         const MutableSpan<float> distances = tls.distances;
         calc_brush_distances(ss, positions, eBrushFalloffShape(brush.falloff_shape), distances);
-        filter_distances_with_radius(cache.radius, distances, factors);
         apply_hardness_to_distances(cache, distances);
         calc_brush_strength_factors(cache, brush, distances, factors);
 
@@ -333,7 +331,6 @@ BLI_NOINLINE static void do_surface_smooth_brush_bmesh(
         tls.distances.resize(positions.size());
         const MutableSpan<float> distances = tls.distances;
         calc_brush_distances(ss, positions, eBrushFalloffShape(brush.falloff_shape), distances);
-        filter_distances_with_radius(cache.radius, distances, factors);
         apply_hardness_to_distances(cache, distances);
         calc_brush_strength_factors(cache, brush, distances, factors);
 
