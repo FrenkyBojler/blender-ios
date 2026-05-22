@@ -24,11 +24,6 @@ class RecursiveVisitor {
 
   bool check_SocketValueVariant(const SocketValueVariant &value)
   {
-    if (params_.check_SocketValueVariant) {
-      if (params_.check_SocketValueVariant(value)) {
-        return true;
-      }
-    }
     if (value.is_single()) {
       const GPointer value_ptr = value.get_single_ptr();
       if (this->check_GPointer(value_ptr)) {
@@ -54,22 +49,19 @@ class RecursiveVisitor {
 
   void edit_SocketValueVariant(SocketValueVariant &value)
   {
-    if (params_.edit_SocketValueVariant) {
-      params_.edit_SocketValueVariant(value);
-    }
     if (value.is_single()) {
       GMutablePointer value_ptr = value.get_single_ptr();
       this->edit_GPointer(value_ptr);
       return;
     }
     if (value.is_field()) {
-      fn::GField field = value.get<fn::GField>();
+      fn::GField field = value.extract<fn::GField>();
       this->edit_GField(field);
       value.set(std::move(field));
       return;
     }
     if (value.is_list()) {
-      nodes::GListPtr list = value.get<nodes::GListPtr>();
+      nodes::GListPtr list = value.extract<nodes::GListPtr>();
       if (list) {
         this->edit_GList(list.get_for_write());
       }
@@ -126,11 +118,6 @@ class RecursiveVisitor {
 
   bool check_GeometrySet(const GeometrySet &geometry_set)
   {
-    if (params_.check_GeometrySet) {
-      if (params_.check_GeometrySet(geometry_set)) {
-        return true;
-      }
-    }
     for (const GeometryComponent::Type type : {GeometryComponent::Type::Mesh,
                                                GeometryComponent::Type::PointCloud,
                                                GeometryComponent::Type::Instance,
@@ -157,9 +144,6 @@ class RecursiveVisitor {
 
   void edit_GeometrySet(GeometrySet &geometry_set)
   {
-    if (params_.edit_GeometrySet) {
-      params_.edit_GeometrySet(geometry_set);
-    }
     if (geometry_set.has_bundle()) {
       if (this->check_Bundle(*geometry_set.bundle())) {
         this->edit_Bundle(geometry_set.bundle_for_write());
@@ -289,7 +273,7 @@ class RecursiveVisitor {
       }
       return false;
     }
-    if (params_.check_non_geometry_instance_references) {
+    if (!params_.ignore_non_geometry_instances) {
       GeometrySet geometry_set;
       reference.to_geometry_set(geometry_set);
       if (this->check_GeometrySet(geometry_set)) {
@@ -390,6 +374,15 @@ class RecursiveVisitor {
       });
       return need_edit;
     }
+    if (type.is<nodes::ClosurePtr>()) {
+      bool need_edit = false;
+      list.typed<nodes::ClosurePtr>().foreach([&](const nodes::ClosurePtr &closure_ptr) {
+        if (!need_edit) {
+          need_edit = this->check_Closure(*closure_ptr);
+        }
+      });
+      return need_edit;
+    }
     return false;
   }
 
@@ -399,6 +392,17 @@ class RecursiveVisitor {
     if (type.is<SocketValueVariant>()) {
       list.typed<SocketValueVariant>().foreach_for_write([&](SocketValueVariant &value_variant) {
         this->edit_SocketValueVariant(value_variant);
+      });
+    }
+    else if (type.is<GeometrySet>()) {
+      list.typed<GeometrySet>().foreach_for_write(
+          [&](GeometrySet &geometry) { this->edit_GeometrySet(geometry); });
+    }
+    else if (type.is<nodes::BundlePtr>()) {
+      list.typed<nodes::BundlePtr>().foreach_for_write([&](nodes::BundlePtr &bundle_ptr) {
+        if (bundle_ptr) {
+          this->edit_Bundle(bundle_ptr.ensure_mutable_inplace());
+        }
       });
     }
   }
@@ -420,6 +424,12 @@ void check_recursive(const SocketValueVariant &value, const VisitParams &params)
 {
   RecursiveVisitor visitor{params};
   visitor.check_SocketValueVariant(value);
+}
+
+void check_recursive(const GeometrySet &value, const VisitParams &params)
+{
+  RecursiveVisitor visitor{params};
+  visitor.check_GeometrySet(value);
 }
 
 }  // namespace blender::bke::socket_value_visitor

@@ -1416,7 +1416,7 @@ class LazyFunctionForExtractingReferenceSet : public lf::LazyFunction {
     };
     VisitParams visit_params;
     visit_params.check_non_editable = true;
-    visit_params.check_non_geometry_instance_references = true;
+    visit_params.ignore_non_geometry_instances = true;
     visit_params.check_GField = scan_field;
     check_recursive(*value_variant, visit_params);
 

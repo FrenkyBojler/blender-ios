@@ -130,7 +130,6 @@ class RuntimeToBakeValue {
         return VisitParams::continue_check(true);
       };
       VisitParams visit_params;
-      visit_params.check_non_geometry_instance_references = true;
       visit_params.check_GField = scan_field;
       for (const BakeValues::InputValue &input_value : root_values_) {
         check_recursive(input_value.value, visit_params);

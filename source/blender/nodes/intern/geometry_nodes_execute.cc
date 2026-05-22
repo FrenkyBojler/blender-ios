@@ -608,7 +608,6 @@ bke::GeometrySet execute_geometry_nodes_on_geometry(const bNodeTree &btree,
      * unnecessary copy can be avoided. See #GeometryOwnershipType::Editable. */
     output_geometry.bundle_for_write().ensure_owns_direct_data();
   }
-
   return output_geometry;
 }
 
