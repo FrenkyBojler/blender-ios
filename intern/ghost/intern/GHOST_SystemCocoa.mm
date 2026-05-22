@@ -863,8 +863,7 @@ uint32_t GHOST_SystemCocoa::getCursorPreferredLogicalSize() const
    */
   static const uint32_t size = []() -> uint32_t {
     @autoreleasepool {
-      /* NOTE: the value 21 seems arbitrary,
-       * we could consider using 24 which seems standard across systems. */
+      /* The value 21 is macOS's documented default. */
       const float default_size = 21.0f;
       NSUserDefaults *ua = [[[NSUserDefaults alloc] initWithSuiteName:@"com.apple.universalaccess"]
           autorelease];
