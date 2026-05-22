@@ -372,6 +372,24 @@ class RecursiveVisitor {
       });
       return need_edit;
     }
+    if (type.is<GeometrySet>()) {
+      bool need_edit = false;
+      list.typed<GeometrySet>().foreach([&](const GeometrySet &geometry) {
+        if (!need_edit) {
+          need_edit = this->check_GeometrySet(geometry);
+        }
+      });
+      return need_edit;
+    }
+    if (type.is<nodes::BundlePtr>()) {
+      bool need_edit = false;
+      list.typed<nodes::BundlePtr>().foreach([&](const nodes::BundlePtr &bundle_ptr) {
+        if (!need_edit) {
+          need_edit = this->check_Bundle(*bundle_ptr);
+        }
+      });
+      return need_edit;
+    }
     return false;
   }
 
