@@ -63,7 +63,7 @@ const EnumPropertyItem rna_enum_property_type_items[] = {
   {PROP_FILENAME, "FILE_NAME", 0, "File Name", ""}, \
   {PROP_BYTESTRING, "BYTE_STRING", 0, "Byte String", ""}, \
   {PROP_PASSWORD, "PASSWORD", 0, "Password", "A string that is displayed hidden ('********')"}, \
-  {PROP_MULTILINE, "MULTILINE", 0, "Multi-Line String", "A string with multi-line support"}
+  {PROP_MULTILINE, "MULTILINE", 0, "Multi Line", "A string with multi-line support"}
 
 
 #define RNA_ENUM_PROPERTY_SUBTYPE_NUMBER_ITEMS \

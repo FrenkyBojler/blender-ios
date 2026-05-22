@@ -4381,7 +4381,7 @@ std::optional<std::string> RNA_property_string_path_filter(const bContext *C,
 
 TextboxState *RNA_property_string_get_textbox_state(PointerRNA *ptr, PropertyRNA *prop)
 {
-  BLI_assert(RNA_property_string_is_multiline(prop));
+  BLI_assert(RNA_property_string_is_multiline(ptr, prop));
 
   PropertyRNAOrID prop_rna_or_id;
   rna_property_rna_or_id_get(prop, ptr, &prop_rna_or_id);
@@ -4416,10 +4416,20 @@ TextboxState *RNA_property_string_get_textbox_state(PointerRNA *ptr, PropertyRNA
   return ui_data_string->textbox_state;
 }
 
-bool RNA_property_string_is_multiline(PropertyRNA *prop)
+bool RNA_property_string_is_multiline(PointerRNA *ptr, PropertyRNA *prop)
 {
-  return ((prop->flag & PROP_IDPROPERTY) || (prop->magic != RNA_MAGIC)) &&
-         (RNA_property_type(prop) == PROP_STRING) && (prop->subtype & PROP_MULTILINE);
+  if (!((RNA_property_type(prop) == PROP_STRING) && (prop->subtype == PROP_MULTILINE))) {
+    return false;
+  }
+  if (!RNA_struct_system_idprops_check(ptr->type)) {
+    CLOG_ERROR(&LOG,
+               "\"%s.%s\" multi-line string properties requires an owning struct with system id "
+               "properties.",
+               RNA_struct_identifier(ptr->type),
+               RNA_property_identifier(prop));
+    return false;
+  }
+  return true;
 }
 
 static int property_enum_get(PointerRNA *ptr, PropertyRNAOrID &prop_rna_or_id)

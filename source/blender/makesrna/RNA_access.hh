@@ -582,8 +582,15 @@ char *RNA_property_string_get_default_alloc(PointerRNA *ptr,
  */
 int RNA_property_string_default_length(PointerRNA *ptr, PropertyRNA *prop);
 
-TextboxState *RNA_property_string_get_textbox_state(PointerRNA *ptr, PropertyRNA *prop);
-bool RNA_property_string_is_multiline(PropertyRNA *prop);
+/**
+ * Returns the persistent #TextboxState for the multi-line string property.
+ */
+TextboxState *RNA_property_string_multiline_textbox_state_get(PointerRNA *ptr, PropertyRNA *prop);
+/**
+ * Checks if the property is a multi-line string property, this requires the owning ptr to allow
+ * system ID properties.
+ */
+bool RNA_property_string_is_multiline(PointerRNA *ptr, PropertyRNA *prop);
 
 int RNA_property_enum_get(PointerRNA *ptr, PropertyRNA *prop);
 void RNA_property_enum_set(PointerRNA *ptr, PropertyRNA *prop, int value);

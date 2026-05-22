@@ -143,8 +143,9 @@ static void rna_uiItemTextBox(Layout *layout,
     layout->textbox_with_state(ptr, propname, state_ptr->data_as<TextboxState>(), placeholder_opt);
     return;
   }
-  if (RNA_property_string_is_multiline(prop)) {
-    layout->textbox_with_state(ptr, propname, RNA_property_string_get_textbox_state(ptr, prop));
+  if (RNA_property_string_is_multiline(ptr, prop)) {
+    layout->textbox_with_state(
+        ptr, propname, RNA_property_string_multiline_textbox_state_get(ptr, prop));
   }
   else {
     layout->textbox(C, ptr, propname, placeholder_opt);

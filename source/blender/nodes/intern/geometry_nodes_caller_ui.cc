@@ -617,7 +617,8 @@ static void draw_property_for_socket(DrawGroupInputsContext &ctx,
       }
       else {
         PropertyRNA *prop_value = RNA_struct_find_property(socket_props_ptr, "value");
-        add_blank_spacer = !(prop_value && RNA_property_string_is_multiline(prop_value));
+        add_blank_spacer = !(prop_value &&
+                             RNA_property_string_is_multiline(socket_props_ptr, prop_value));
         row.prop(socket_props_ptr, "value", UI_ITEM_NONE, name, ICON_NONE);
       }
       break;

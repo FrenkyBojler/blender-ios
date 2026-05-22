@@ -1651,7 +1651,7 @@ static void rna_def_node_socket_string(BlenderRNA *brna,
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeSocketStandard_value_update");
   RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
 
-  if (subtype != PROP_FILEPATH) {
+  if (subtype == PROP_MULTILINE) {
     prop = RNA_def_property(srna, "textbox_state", PROP_POINTER, PROP_NONE);
     RNA_def_property_struct_type(prop, "TextboxState");
     RNA_def_property_pointer_sdna(prop, nullptr, "textbox_state");

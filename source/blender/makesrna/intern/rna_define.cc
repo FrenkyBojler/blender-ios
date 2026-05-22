@@ -1160,7 +1160,6 @@ PropertyRNA *RNA_def_property(StructOrFunctionRNA *cont_,
 #ifndef RNA_RUNTIME
   PropertyDefRNA *dprop = nullptr;
   {
-
     const char *error = nullptr;
 
     if (!RNA_validate_identifier(identifier, true, &error)) {
@@ -4550,9 +4549,10 @@ FunctionRNA *RNA_def_function(StructRNA *srna, const char *identifier, const cha
 {
   FunctionRNA *func;
 
-  if (std::find_if(srna->functions.begin(), srna->functions.end(), [&](const auto &func) {
-        return STREQ(func->identifier, identifier);
-      }) != srna->functions.end())
+  if (std::find_if(srna->functions.begin(),
+                   srna->functions.end(),
+                   [&](const auto &func) { return STREQ(func->identifier, identifier); }) !=
+      srna->functions.end())
   {
     CLOG_ERROR(&LOG, "%s.%s already defined.", srna->identifier, identifier);
     return nullptr;

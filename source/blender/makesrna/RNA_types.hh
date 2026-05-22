@@ -243,7 +243,9 @@ enum PropertySubType {
   /* 5 was used by "PROP_TRANSLATE" sub-type, which is now a flag. */
   /** A string which should not be displayed in UI. */
   PROP_PASSWORD = 6,
-  /** A string with multiline support (for ID properties only). */
+  /**
+   * A string with multiline support, for runtime properties.
+   */
   PROP_MULTILINE = 50,
 
   /* numbers */
@@ -491,7 +493,6 @@ enum PropertyFlag {
 
   /** Use full geometry depsgraph evaluation when this property changes. */
   PROP_FORCE_GEOMETRY_EVAL = (1 << 3),
-
 };
 ENUM_OPERATORS(PropertyFlag)
 
