@@ -276,7 +276,7 @@ struct CrossEdgeLengthConstraintUsage {
   xpbd::ConstraintColoring coloring;
 };
 
-  float error_threshold;
+float error_threshold;
 struct StaticMeshInfo {
   const Mesh *mesh;
   bke::BVHTreeFromMesh corner_tris_bvh;
