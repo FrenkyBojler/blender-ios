@@ -2474,7 +2474,7 @@ static bool panel_categories_tab_is_mouse_over(ARegion *region, const wmEvent *e
     if (const Block *block = region->runtime->block_name_map.lookup_as("panel_category_tabs");
         block && !block->buttons_ptrs.is_empty())
     {
-      ymin = std::max(ymin, int(block->buttons_ptrs.last()->rect.ymax));
+      ymin = std::max(region->v2d.mask.ymin, int(block->buttons_ptrs.last()->rect.ymin));
     }
   }
   const rcti rect = {
