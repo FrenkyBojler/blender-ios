@@ -437,6 +437,24 @@ void do_versions_after_linking_520(FileData *fd, Main *bmain)
    */
 }
 
+static void version_solid_color_width_height_defaults(Main &bmain)
+{
+  for (Scene &scene : bmain.scenes) {
+    Editing *ed = seq::editing_get(&scene);
+    if (ed == nullptr) {
+      continue;
+    }
+    seq::foreach_strip(&ed->seqbase, [&](Strip *strip) {
+      if (strip->type == STRIP_TYPE_COLOR && strip->effectdata != nullptr) {
+        SolidColorVars *data = static_cast<SolidColorVars *>(strip->effectdata);
+        data->width = 100.0f;
+        data->height = 100.0f;
+      }
+      return true;
+    });
+  }
+}
+
 void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
 {
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 1)) {
@@ -724,6 +742,12 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
       }
     }
     FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 35)) {
+    /* Solid color strips gained width/height controls. Default to 100% so existing
+     * strips continue to fill the frame as before. */
+    version_solid_color_width_height_defaults(*bmain);
   }
 
   /**
