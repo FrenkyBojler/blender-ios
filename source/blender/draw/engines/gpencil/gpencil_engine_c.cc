@@ -403,9 +403,10 @@ tObject *Instance::object_sync_do(Object *ob, ResourceHandleRange res_handle)
 
   int t_offset = 0;
   /* Loop over drawings using the same do_onion_skinning value that was used to build the batch
-   * cache, to ensure the vertex offsets match. */
+   * cache, to ensure the vertex offsets match. Per-object do_onion (e.g. active-object-only) is
+   * handled at render time via hide_onion, not here. */
   const Vector<DrawingInfo> drawings = retrieve_visible_drawings(
-      *this->scene, grease_pencil, do_onion);
+      *this->scene, grease_pencil, DRW_cache_grease_pencil_do_onion_skinning());
   const Span<const Layer *> layers = grease_pencil.layers();
   for (const DrawingInfo info : drawings) {
     const Layer &layer = *layers[info.layer_index];

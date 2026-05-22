@@ -1283,6 +1283,12 @@ static Array<float> get_radii_lengths(const Span<float> lengths,
 bool DRW_cache_grease_pencil_do_onion_skinning()
 {
   const DRWContext *draw_ctx = DRW_context_get();
+  /* Multi-frame editing relies on do_onion_skinning=true to assign non-zero onion_ids to selected
+   * frames. Without it, selected frames get onion_id=0 (treated as current), bypassing hide_onion
+   * filtering in the engine during playback or object mode. */
+  if ((draw_ctx->scene->toolsettings->gpencil_flags & GP_USE_MULTI_FRAME_EDITING) != 0) {
+    return true;
+  }
   if (draw_ctx->v3d == nullptr) {
     return false;
   }
