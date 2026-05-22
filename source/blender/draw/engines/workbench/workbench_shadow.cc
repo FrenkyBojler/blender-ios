@@ -406,7 +406,9 @@ void ShadowPass::object_sync(SceneState &scene_state,
   if (use_raytracing_) {
     if (scene_state.updated) {
       if (blender::gpu::BottomLevelAS *blas = DRW_cache_object_surface_blas_get(ob)) {
-        shadow_as_->add_instance(*blas, ob->runtime->object_to_world);
+        for (int i : IndexRange(ob_ref.instances_count())) {
+          shadow_as_->add_instance(*blas, ob_ref.object_to_world(i));
+        }
       }
     }
     return;
