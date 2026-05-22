@@ -190,14 +190,14 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodePointsToVolume", GEO_NODE_POINTS_TO_VOLUME);
+  geo_node_type_base(&ntype, "GeometryNodePointsToVolume"_ustr, GEO_NODE_POINTS_TO_VOLUME);
   ntype.ui_name = "Points to Volume";
   ntype.ui_description = "Generate a fog volume sphere around every point";
   ntype.enum_name_legacy = "POINTS_TO_VOLUME";
   ntype.nclass = NODE_CLASS_GEOMETRY;
   bke::node_type_storage(
       ntype, "NodeGeometryPointsToVolume", node_free_standard_storage, node_copy_standard_storage);
-  bke::node_type_size(ntype, 170, 120, 700);
+  ntype.default_width = bke::NodeWidth::_180;
   ntype.initfunc = node_init;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;

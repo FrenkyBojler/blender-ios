@@ -49,6 +49,7 @@
 
 #include "MEM_alloc_string_storage.hh"
 #include "MEM_guardedalloc.h"
+#include "MEM_safe_multiply.h"
 
 #include "BLI_endian_defines.h"
 #include "BLI_fileops.h"
@@ -172,7 +173,7 @@ namespace blender {
  *
  * \note Still a weak point is the new-address function, that doesn't solve reading from
  * multiple files at the same time.
- * (added remark: oh, i thought that was solved? will look at that... (ton).
+ * (added remark: oh, i thought that was solved? will look at that... (ton)).
  */
 
 /**
@@ -423,7 +424,7 @@ void blo_split_main(Main *bmain, const bool do_split_packed_ids)
   bmain->split_mains = std::make_shared<VectorSet<Main *>>();
   bmain->split_mains->add_new(bmain);
 
-  if (BLI_listbase_is_empty(&bmain->libraries)) {
+  if (bmain->libraries.is_empty()) {
     return;
   }
 
@@ -819,6 +820,26 @@ static const IDHash *blo_bhead_id_deep_hash(const FileData *fd, const BHead *bhe
       POINTER_OFFSET(bhead, sizeof(*bhead) + fd->id_deep_hash_offset));
 }
 
+const char *blo_bhead_library_filepath(const FileData *fd, const BHead *bhead)
+{
+  BLI_assert(blo_bhead_is_id(bhead) && (bhead->code & 0xFFFF) == ID_LI);
+  if (fd->library_filepath_offset < 0) {
+    return nullptr;
+  }
+  return reinterpret_cast<const char *>(
+      POINTER_OFFSET(bhead, sizeof(*bhead) + fd->library_filepath_offset));
+}
+
+LibraryFlag blo_bhead_library_flag(const FileData *fd, const BHead *bhead)
+{
+  BLI_assert(blo_bhead_is_id(bhead) && (bhead->code & 0xFFFF) == ID_LI);
+  if (fd->library_flag_offset < 0) {
+    return LibraryFlag(0);
+  }
+  return LibraryFlag(*reinterpret_cast<const uint16_t *>(
+      POINTER_OFFSET(bhead, sizeof(*bhead) + fd->library_flag_offset)));
+}
+
 static void read_blender_header(FileData *fd)
 {
   const BlenderHeaderVariant header_variant = BLO_readfile_blender_header_decode(fd->file);
@@ -890,6 +911,11 @@ static bool read_file_dna(FileData *fd, const char **r_error_message)
             fd->filesdna, "ID", "short", "flag");
         fd->id_deep_hash_offset = DNA_struct_member_offset_by_name_with_alias(
             fd->filesdna, "ID", "IDHash", "deep_hash");
+
+        fd->library_filepath_offset = DNA_struct_member_offset_by_name_with_alias(
+            fd->filesdna, "Library", "char", "filepath[]");
+        fd->library_flag_offset = DNA_struct_member_offset_by_name_with_alias(
+            fd->filesdna, "Library", "ushort", "flag");
 
         fd->filesubversion = subversion;
 
@@ -1331,7 +1357,7 @@ void blo_filedata_free(FileData *fd)
 {
   /* Free all BHeadN data blocks */
 #ifdef NDEBUG
-  BLI_freelistN(&fd->bhead_list);
+  fd->bhead_list.free_no_destruct();
 #else
   /* Sanity check we're not keeping memory we don't need. */
   for (BHeadN &new_bhead : fd->bhead_list.items_mutable()) {
@@ -1983,7 +2009,7 @@ static void direct_link_id_override_property(BlendDataReader *reader,
 {
   BLO_read_string(reader, &op->rna_path);
 
-  op->tag = 0; /* Runtime only. */
+  op->tag = {}; /* Runtime only. */
 
   BLO_read_struct_list(reader, IDOverrideLibraryPropertyOperation, &op->operations);
 
@@ -1991,7 +2017,7 @@ static void direct_link_id_override_property(BlendDataReader *reader,
     BLO_read_string(reader, &opop.subitem_reference_name);
     BLO_read_string(reader, &opop.subitem_local_name);
 
-    opop.tag = 0; /* Runtime only. */
+    opop.tag = {}; /* Runtime only. */
   }
 }
 
@@ -2376,7 +2402,7 @@ static bool scene_validate_setscene__liblink(Scene *sce, const int totscene)
 static void lib_link_scenes_check_set(Main *bmain)
 {
 #ifdef USE_SETSCENE_CHECK
-  const int totscene = BLI_listbase_count(&bmain->scenes);
+  const int totscene = bmain->scenes.count();
   for (Scene &sce : bmain->scenes) {
     if (sce.flag & SCE_READFILE_LIBLINK_NEED_SETSCENE_CHECK) {
       sce.flag &= ~SCE_READFILE_LIBLINK_NEED_SETSCENE_CHECK;
@@ -2895,7 +2921,7 @@ static void read_undo_reuse_noundo_local_ids(FileData *fd)
     }
 
     ListBaseT<ID> *new_lb = which_libbase(new_bmain, id_type->id_code);
-    BLI_assert(BLI_listbase_is_empty(new_lb));
+    BLI_assert(new_lb->is_empty());
     BLI_movelisttolist(new_lb, lbarray[i]);
 
     /* Update mappings accordingly. */
@@ -4448,7 +4474,11 @@ BlendFileData *blo_read_file_internal(FileData *fd, const char *filepath)
         }
         FOREACH_MAIN_ID_END;
 #endif
-        BKE_id_delete(bfd->main, &lib);
+        BKE_id_delete(
+            bfd->main,
+            &lib,
+            {.extra_remapping_flags = (ID_REMAP_FORCE_UI_POINTERS | ID_REMAP_SKIP_USER_REFCOUNT |
+                                       ID_REMAP_SKIP_UPDATE_TAGGING | ID_REMAP_SKIP_USER_CLEAR)});
       }
     }
 
@@ -5061,8 +5091,13 @@ static int expand_cb(LibraryIDLinkCallbackData *cb_data)
 
   /* Expand process can be re-entrant or have other complex interactions that will not work well
    * with loop-back pointers. Further more, processing such data should not be needed here anyway.
+   *
+   * The exception are root liboverride pointers - when linking a data from a liboverride
+   * hierarchy, it is mandatory to get the whole hierarchy in.
    */
-  if (cb_data->cb_flag & (IDWALK_CB_LOOPBACK)) {
+  if ((cb_data->cb_flag & IDWALK_CB_LOOPBACK) &&
+      !(cb_data->cb_flag & IDWALK_CB_OVERRIDE_LIBRARY_HIERARCHY_ROOT))
+  {
     return IDWALK_RET_NOP;
   }
 
@@ -5839,25 +5874,96 @@ static void *blo_verify_data_address(FileData *fd,
   return new_address;
 }
 
-void *BLO_read_get_new_data_address(BlendDataReader *reader, const void *old_address)
+void *blo_read_raw_address_impl(BlendDataReader *reader, const void *old_address)
 {
   return newdataadr(reader->fd, old_address);
 }
 
-void *BLO_read_get_new_data_address_no_us(BlendDataReader *reader,
-                                          const void *old_address,
-                                          const size_t expected_size)
+void *blo_read_struct_impl(BlendDataReader *reader,
+                           const void *old_address,
+                           const size_t expected_size)
+{
+  void *new_address = newdataadr(reader->fd, old_address);
+  return blo_verify_data_address(reader->fd, new_address, old_address, expected_size);
+}
+
+void *blo_read_struct_no_us_impl(BlendDataReader *reader,
+                                 const void *old_address,
+                                 const size_t expected_size)
 {
   void *new_address = newdataadr_no_us(reader->fd, old_address);
   return blo_verify_data_address(reader->fd, new_address, old_address, expected_size);
 }
 
-void *BLO_read_struct_array_with_size(BlendDataReader *reader,
-                                      const void *old_address,
-                                      const size_t expected_size)
+static void *blo_check_data_address_nonnull(FileData *fd,
+                                            const void *old_address,
+                                            void *new_address)
 {
-  void *new_address = newdataadr(reader->fd, old_address);
-  return blo_verify_data_address(reader->fd, new_address, old_address, expected_size);
+  if (old_address != nullptr && new_address == nullptr) {
+    blo_readfile_invalidate(fd,
+                            (*fd->bmain->split_mains)[fd->bmain->split_mains->size() - 1],
+                            "Corrupt .blend file, missing required data block.");
+  }
+  return new_address;
+}
+
+void *blo_read_struct_nonnull_impl(BlendDataReader *reader,
+                                   const void *old_address,
+                                   const size_t expected_size)
+{
+  void *new_address = blo_read_struct_impl(reader, old_address, expected_size);
+  return blo_check_data_address_nonnull(reader->fd, old_address, new_address);
+}
+
+void *blo_read_struct_no_us_nonnull_impl(BlendDataReader *reader,
+                                         const void *old_address,
+                                         const size_t expected_size)
+{
+  void *new_address = blo_read_struct_no_us_impl(reader, old_address, expected_size);
+  return blo_check_data_address_nonnull(reader->fd, old_address, new_address);
+}
+
+bool blo_read_array_impl(BlendDataReader *reader,
+                         const int64_t array_size,
+                         const int elems,
+                         const size_t elem_size,
+                         void **ptr_p)
+{
+  int64_t total_elems;
+  if (elems == 1) {
+    total_elems = array_size;
+  }
+  else if (!MEM_size_safe_multiply(array_size, int64_t(elems), &total_elems)) {
+    total_elems = -1;
+  }
+  if (total_elems < 0) {
+    blo_readfile_invalidate(
+        reader->fd,
+        (*reader->fd->bmain->split_mains)[reader->fd->bmain->split_mains->size() - 1],
+        "Corrupt .blend file, array size integer overflow or invalid.");
+    *ptr_p = nullptr;
+    return false;
+  }
+
+  void *new_address = newdataadr(reader->fd, *ptr_p);
+  if (new_address == nullptr) {
+    *ptr_p = nullptr;
+    return total_elems == 0;
+  }
+  if (elem_size > 0) {
+    const int64_t max_array_size = int64_t(MEM_allocN_len(new_address) / elem_size);
+    if (total_elems > max_array_size) {
+      blo_readfile_invalidate(
+          reader->fd,
+          (*reader->fd->bmain->split_mains)[reader->fd->bmain->split_mains->size() - 1],
+          "Corrupt .blend file, array size exceeds allocated size.");
+      *ptr_p = nullptr;
+      return false;
+    }
+  }
+  BLI_assert((reader->fd->flags & FD_FLAGS_SWITCH_ENDIAN) == 0);
+  *ptr_p = new_address;
+  return true;
 }
 
 void *BLO_read_struct_by_name_array(BlendDataReader *reader,
@@ -5869,7 +5975,7 @@ void *BLO_read_struct_by_name_array(BlendDataReader *reader,
   BLI_assert(STREQ(DNA_struct_identifier(const_cast<SDNA *>(reader->fd->memsdna), struct_index),
                    struct_name));
   const size_t struct_size = size_t(DNA_struct_size(reader->fd->memsdna, struct_index));
-  return BLO_read_struct_array_with_size(reader, old_address, struct_size * items_num);
+  return blo_read_struct_impl(reader, old_address, struct_size * items_num);
 }
 
 ID *BLO_read_get_new_id_address(BlendLibReader *reader,
@@ -5898,12 +6004,11 @@ void BLO_read_struct_list_with_size(BlendDataReader *reader,
     return;
   }
 
-  list->first = BLO_read_struct_array_with_size(reader, list->first, expected_elem_size);
+  list->first = blo_read_struct_impl(reader, list->first, expected_elem_size);
   Link *ln = static_cast<Link *>(list->first);
   Link *prev = nullptr;
   while (ln) {
-    ln->next = static_cast<Link *>(
-        BLO_read_struct_array_with_size(reader, ln->next, expected_elem_size));
+    ln->next = static_cast<Link *>(blo_read_struct_impl(reader, ln->next, expected_elem_size));
     ln->prev = prev;
     prev = ln;
     ln = ln->next;
@@ -5911,67 +6016,9 @@ void BLO_read_struct_list_with_size(BlendDataReader *reader,
   list->last = prev;
 }
 
-void BLO_read_char_array(BlendDataReader *reader, const int64_t array_size, char **ptr_p)
-{
-  *ptr_p = reinterpret_cast<char *>(BLO_read_struct_array_with_size(
-      reader, *(reinterpret_cast<void **>(ptr_p)), sizeof(char) * array_size));
-}
-
-void BLO_read_uint8_array(BlendDataReader *reader, const int64_t array_size, uint8_t **ptr_p)
-{
-  *ptr_p = reinterpret_cast<uint8_t *>(BLO_read_struct_array_with_size(
-      reader, *(reinterpret_cast<void **>(ptr_p)), sizeof(uint8_t) * array_size));
-}
-
-void BLO_read_int8_array(BlendDataReader *reader, const int64_t array_size, int8_t **ptr_p)
-{
-  *ptr_p = reinterpret_cast<int8_t *>(BLO_read_struct_array_with_size(
-      reader, *(reinterpret_cast<void **>(ptr_p)), sizeof(int8_t) * array_size));
-}
-
-void BLO_read_int16_array(BlendDataReader *reader, const int64_t array_size, int16_t **ptr_p)
-{
-  *ptr_p = reinterpret_cast<int16_t *>(BLO_read_struct_array_with_size(
-      reader, *(reinterpret_cast<void **>(ptr_p)), sizeof(int16_t) * array_size));
-  BLI_assert((reader->fd->flags & FD_FLAGS_SWITCH_ENDIAN) == 0);
-}
-
-void BLO_read_int32_array(BlendDataReader *reader, const int64_t array_size, int32_t **ptr_p)
-{
-  *ptr_p = reinterpret_cast<int32_t *>(BLO_read_struct_array_with_size(
-      reader, *(reinterpret_cast<void **>(ptr_p)), sizeof(int32_t) * array_size));
-  BLI_assert((reader->fd->flags & FD_FLAGS_SWITCH_ENDIAN) == 0);
-}
-
-void BLO_read_uint32_array(BlendDataReader *reader, const int64_t array_size, uint32_t **ptr_p)
-{
-  *ptr_p = reinterpret_cast<uint32_t *>(BLO_read_struct_array_with_size(
-      reader, *(reinterpret_cast<void **>(ptr_p)), sizeof(uint32_t) * array_size));
-  BLI_assert((reader->fd->flags & FD_FLAGS_SWITCH_ENDIAN) == 0);
-}
-
-void BLO_read_float_array(BlendDataReader *reader, const int64_t array_size, float **ptr_p)
-{
-  *ptr_p = reinterpret_cast<float *>(BLO_read_struct_array_with_size(
-      reader, *(reinterpret_cast<void **>(ptr_p)), sizeof(float) * array_size));
-  BLI_assert((reader->fd->flags & FD_FLAGS_SWITCH_ENDIAN) == 0);
-}
-
-void BLO_read_float3_array(BlendDataReader *reader, const int64_t array_size, float **ptr_p)
-{
-  BLO_read_float_array(reader, array_size * 3, ptr_p);
-}
-
-void BLO_read_double_array(BlendDataReader *reader, const int64_t array_size, double **ptr_p)
-{
-  *ptr_p = reinterpret_cast<double *>(BLO_read_struct_array_with_size(
-      reader, *(reinterpret_cast<void **>(ptr_p)), sizeof(double) * array_size));
-  BLI_assert((reader->fd->flags & FD_FLAGS_SWITCH_ENDIAN) == 0);
-}
-
 void BLO_read_string(BlendDataReader *reader, char **ptr_p)
 {
-  BLO_read_data_address(reader, ptr_p);
+  BLO_read_raw_address(reader, ptr_p);
 
 #ifndef NDEBUG
   const char *str = *ptr_p;
@@ -6021,20 +6068,41 @@ static void convert_pointer_array_32_to_64(BlendDataReader * /*reader*/,
   }
 }
 
-void BLO_read_pointer_array(BlendDataReader *reader, const int64_t array_size, void **ptr_p)
+bool blo_read_pointer_array_impl(BlendDataReader *reader, const int64_t array_size, void **ptr_p)
 {
   FileData *fd = reader->fd;
 
-  void *orig_array = newdataadr(fd, *ptr_p);
-  if (orig_array == nullptr) {
+  if (array_size < 0) {
+    blo_readfile_invalidate(
+        fd,
+        (*fd->bmain->split_mains)[fd->bmain->split_mains->size() - 1],
+        "Corrupt .blend file, pointer array size integer overflow or invalid.");
     *ptr_p = nullptr;
-    return;
+    return false;
   }
 
-  int file_pointer_size = fd->filesdna->pointer_size;
-  int current_pointer_size = fd->memsdna->pointer_size;
+  void *orig_array = newdataadr(fd, *ptr_p);
+  if (orig_array == nullptr) {
+    /* See comment in #blo_read_array_impl. */
+    *ptr_p = nullptr;
+    return array_size == 0;
+  }
+
+  const int file_pointer_size = fd->filesdna->pointer_size;
+  const int current_pointer_size = fd->memsdna->pointer_size;
+
+  const int64_t max_array_size = int64_t(MEM_allocN_len(orig_array)) / file_pointer_size;
+  if (array_size > max_array_size) {
+    blo_readfile_invalidate(fd,
+                            (*fd->bmain->split_mains)[fd->bmain->split_mains->size() - 1],
+                            "Corrupt .blend file, pointer array size exceeds allocated size.");
+    *ptr_p = nullptr;
+    return false;
+  }
 
   void *final_array = nullptr;
+
+  BLI_assert((reader->fd->flags & FD_FLAGS_SWITCH_ENDIAN) == 0);
 
   if (file_pointer_size == current_pointer_size) {
     /* No pointer conversion necessary. */
@@ -6063,6 +6131,7 @@ void BLO_read_pointer_array(BlendDataReader *reader, const int64_t array_size, v
   }
 
   *ptr_p = final_array;
+  return true;
 }
 
 ImplicitSharingInfoAndData blo_read_shared_impl(

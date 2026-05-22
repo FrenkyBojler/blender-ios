@@ -114,7 +114,7 @@ class MaskOperation : public NodeOperation {
         false);
 
     Result &output_mask = this->get_result("Mask");
-    output_mask.wrap_external(cached_mask);
+    output_mask.share_data(cached_mask);
   }
 
   Domain compute_domain() override
@@ -195,7 +195,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, "CompositorNodeMask", CMP_NODE_MASK);
+  cmp_node_type_base(&ntype, "CompositorNodeMask"_ustr, CMP_NODE_MASK);
   ntype.ui_name = "Mask";
   ntype.ui_description = "Input mask from a mask data-block, created in the image editor";
   ntype.enum_name_legacy = "MASK";

@@ -64,6 +64,7 @@
 #include "kernel/svm/normal.h"
 #include "kernel/svm/radial_tiling.h"
 #include "kernel/svm/ramp.h"
+#include "kernel/svm/scene_time.h"
 #include "kernel/svm/sepcomb_color.h"
 #include "kernel/svm/sepcomb_vector.h"
 #include "kernel/svm/sky.h"
@@ -560,8 +561,10 @@ ccl_device void svm_eval_nodes(KernelGlobals kg,
           kg, state, sd, stack, svm_node_get<SVMNodeAmbientOcclusion>(kg, &offset));
       break;
       SVM_CASE(NODE_RAYCAST)
-      svm_node_raycast<node_feature_mask>(
-          kg, state, sd, stack, svm_node_get<SVMNodeRaycast>(kg, &offset));
+      {
+        const ccl_global auto &node = svm_node_get<SVMNodeRaycast>(kg, &offset);
+        offset = svm_node_raycast<node_feature_mask>(kg, state, sd, stack, node, offset);
+      }
       break;
 #endif
       SVM_CASE(NODE_AOV_START)
@@ -595,6 +598,9 @@ ccl_device void svm_eval_nodes(KernelGlobals kg,
       SVM_CASE(NODE_MIX_VECTOR_NON_UNIFORM)
       svm_node_mix_vector_non_uniform(stack,
                                       svm_node_get<SVMNodeMixVectorNonUniform>(kg, &offset));
+      break;
+      SVM_CASE(NODE_SCENE_TIME)
+      svm_node_scene_time(kg, stack, svm_node_get<SVMNodeSceneTime>(kg, &offset));
       break;
       default:
         kernel_assert(!"Unknown node type was passed to the SVM machine");

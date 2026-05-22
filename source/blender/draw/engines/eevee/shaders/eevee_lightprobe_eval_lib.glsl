@@ -11,7 +11,7 @@
 #include "eevee_lightprobe_volume_eval_lib.glsl"
 #include "eevee_sampling_lib.glsl"
 #include "eevee_spherical_harmonics.bsl.hh"
-#include "eevee_subsurface_lib.glsl"
+#include "eevee_subsurface_lib.bsl.hh"
 #include "gpu_shader_codegen_lib.glsl"
 #include "gpu_shader_math_base_lib.glsl"
 
@@ -78,16 +78,15 @@ float3 lightprobe_spherical_sample_normalized_with_parallax(LightProbeSample sam
   return normalization_factor * lightprobe_spheres_sample(L, lod, probe.atlas_coord).rgb;
 }
 
-float pdf_to_lod(float inv_pdf)
+float3 lightprobe_eval_direction(LightProbeSample samp,
+                                 float3 P,
+                                 float3 L,
+                                 float perceptual_roughness)
 {
-  float blur_pdf = saturate((2.0f * M_PI) * inv_pdf);
-  return blur_pdf * 2.0f;
-}
-
-float3 lightprobe_eval_direction(LightProbeSample samp, float3 P, float3 L, float inv_pdf)
-{
-  float3 radiance_sh = lightprobe_spherical_sample_normalized_with_parallax(
-      samp, P, L, pdf_to_lod(inv_pdf));
+  /* Avoid over-blurring diffuse. */
+  perceptual_roughness = min(0.6f, perceptual_roughness);
+  float lod = sphere_probe_roughness_to_lod(perceptual_roughness);
+  float3 radiance_sh = lightprobe_spherical_sample_normalized_with_parallax(samp, P, L, lod);
   return radiance_sh;
 }
 

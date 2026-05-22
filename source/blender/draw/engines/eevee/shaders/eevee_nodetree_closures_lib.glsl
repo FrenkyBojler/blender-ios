@@ -89,6 +89,11 @@ ClosureType closure_type_get(ClosureSubsurface /*cl*/)
   return CLOSURE_BSSRDF_BURLEY_ID;
 }
 
+ClosureType closure_type_get(ClosureThinRefraction /*cl*/)
+{
+  return CLOSURE_BSDF_THIN_GLASS_TRANSMISSION_ID;
+}
+
 /**
  * Returns true if the closure is to be selected based on the input weight.
  */
@@ -124,17 +129,23 @@ void closure_select(ClosureUndetermined &destination, float &random, ClosureUnde
 void closure_weights_reset(float closure_rand)
 {
   g_closure_rand[0] = closure_rand;
-  g_closure_bins[0].type = CLOSURE_NONE_ID;
+  g_closure_bins[0].color = float3(0.0f);
   g_closure_bins[0].weight = 0.0f;
+  g_closure_bins[0].N = float3(0.0f);
+  g_closure_bins[0].type = CLOSURE_NONE_ID;
 #if CLOSURE_BIN_COUNT > 1
   g_closure_rand[1] = closure_rand;
-  g_closure_bins[1].type = CLOSURE_NONE_ID;
+  g_closure_bins[1].color = float3(0.0f);
   g_closure_bins[1].weight = 0.0f;
+  g_closure_bins[1].N = float3(0.0f);
+  g_closure_bins[1].type = CLOSURE_NONE_ID;
 #endif
 #if CLOSURE_BIN_COUNT > 2
   g_closure_rand[2] = closure_rand;
-  g_closure_bins[2].type = CLOSURE_NONE_ID;
+  g_closure_bins[2].color = float3(0.0f);
   g_closure_bins[2].weight = 0.0f;
+  g_closure_bins[2].N = float3(0.0f);
+  g_closure_bins[2].type = CLOSURE_NONE_ID;
 #endif
 
   g_volume_scattering = float3(0.0f);

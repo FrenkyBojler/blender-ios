@@ -383,7 +383,7 @@ void scene_minimize_unused_view_layers(const Depsgraph *depsgraph,
 void scene_remove_all_bases(Scene *scene_cow)
 {
   for (ViewLayer &view_layer : scene_cow->view_layers) {
-    BLI_freelistN(&view_layer.object_bases);
+    view_layer.object_bases.free_no_destruct();
   }
 }
 
@@ -696,8 +696,6 @@ void update_id_after_copy(const Depsgraph *depsgraph,
       object_cow->runtime->data_orig = object_cow->data;
       if (object_cow->type == OB_ARMATURE) {
         const bArmature *armature_orig = id_cast<bArmature *>(object_orig->data);
-        bArmature *armature_cow = id_cast<bArmature *>(object_cow->data);
-        BKE_pose_remap_bone_pointers(armature_cow, object_cow->pose);
         if (armature_orig->edbo == nullptr) {
           update_pose_orig_pointers(object_orig->pose, object_cow->pose);
         }

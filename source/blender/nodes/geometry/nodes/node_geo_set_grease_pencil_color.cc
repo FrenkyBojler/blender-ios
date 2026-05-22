@@ -121,7 +121,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeSetGreasePencilColor");
+  geo_node_type_base(&ntype, "GeometryNodeSetGreasePencilColor"_ustr);
   ntype.ui_name = "Set Grease Pencil Color";
   ntype.ui_description = "Set color and opacity attributes on Grease Pencil geometry";
   ntype.nclass = NODE_CLASS_GEOMETRY;
@@ -129,7 +129,7 @@ static void node_register()
   ntype.declare = node_declare;
   ntype.initfunc = node_init;
   ntype.draw_buttons = node_layout;
-  bke::node_type_size(ntype, 170, 120, NODE_DEFAULT_MAX_WIDTH);
+  ntype.default_width = bke::NodeWidth::_180;
   bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);

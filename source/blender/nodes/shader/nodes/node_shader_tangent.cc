@@ -103,14 +103,14 @@ void register_node_type_sh_tangent()
 
   static bke::bNodeType ntype;
 
-  sh_node_type_base(&ntype, "ShaderNodeTangent", SH_NODE_TANGENT);
+  sh_node_type_base(&ntype, "ShaderNodeTangent"_ustr, SH_NODE_TANGENT);
   ntype.ui_name = "Tangent";
   ntype.ui_description = "Generate a tangent direction for the Anisotropic BSDF";
   ntype.enum_name_legacy = "TANGENT";
   ntype.nclass = NODE_CLASS_INPUT;
   ntype.declare = file_ns::node_declare;
   ntype.draw_buttons = file_ns::node_shader_buts_tangent;
-  bke::node_type_size_preset(ntype, bke::eNodeSizePreset::Middle);
+  ntype.default_width = bke::NodeWidth::_160;
   ntype.initfunc = file_ns::node_shader_init_tangent;
   ntype.gpu_fn = file_ns::node_shader_gpu_tangent;
   bke::node_type_storage(

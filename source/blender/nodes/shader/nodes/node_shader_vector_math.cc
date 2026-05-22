@@ -97,11 +97,11 @@ static void node_shader_buts_vect_math(ui::Layout &layout, bContext * /*C*/, Poi
 
 static void vector_math_input_defaults(bNode &node, const NodeVectorMathOperation mode)
 {
-  bNodeSocket *socket_2 = bke::node_find_socket(node, SOCK_IN, "Vector_001");
+  bNodeSocket *socket_2 = bke::node_find_socket(node, SOCK_IN, "Vector_001"_ustr);
   BLI_assert(socket_2 != nullptr);
   bNodeSocketValueVector *in_vector_2 = socket_2->default_value_typed<bNodeSocketValueVector>();
 
-  bNodeSocket *socket_3 = bke::node_find_socket(node, SOCK_IN, "Vector_002");
+  bNodeSocket *socket_3 = bke::node_find_socket(node, SOCK_IN, "Vector_002"_ustr);
   BLI_assert(socket_3 != nullptr);
   bNodeSocketValueVector *in_vector_3 = socket_3->default_value_typed<bNodeSocketValueVector>();
 
@@ -136,7 +136,7 @@ class SocketSearchOp {
   NodeVectorMathOperation mode = NODE_VECTOR_MATH_ADD;
   void operator()(LinkSearchOpParams &params)
   {
-    bNode &node = params.add_node("ShaderNodeVectorMath");
+    bNode &node = params.add_node("ShaderNodeVectorMath"_ustr);
     node.custom1 = mode;
     vector_math_input_defaults(node, mode);
     params.update_and_connect_available_socket(node, socket_name);
@@ -145,9 +145,7 @@ class SocketSearchOp {
 
 static void sh_node_vector_math_gather_link_searches(GatherLinkSearchOpParams &params)
 {
-  if (!params.node_tree().typeinfo->validate_link(eNodeSocketDatatype(params.other_socket().type),
-                                                  SOCK_VECTOR))
-  {
+  if (!params.node_tree().typeinfo->validate_link(params.other_socket().type, SOCK_VECTOR)) {
     return;
   }
 
@@ -264,10 +262,10 @@ static void node_shader_update_vector_math(bNodeTree *ntree, bNode *node)
 {
   bNodeSocket *sockB = static_cast<bNodeSocket *>(BLI_findlink(&node->inputs, 1));
   bNodeSocket *sockC = static_cast<bNodeSocket *>(BLI_findlink(&node->inputs, 2));
-  bNodeSocket *sockScale = bke::node_find_socket(*node, SOCK_IN, "Scale");
+  bNodeSocket *sockScale = bke::node_find_socket(*node, SOCK_IN, "Scale"_ustr);
 
-  bNodeSocket *sockVector = bke::node_find_socket(*node, SOCK_OUT, "Vector");
-  bNodeSocket *sockValue = bke::node_find_socket(*node, SOCK_OUT, "Value");
+  bNodeSocket *sockVector = bke::node_find_socket(*node, SOCK_OUT, "Vector"_ustr);
+  bNodeSocket *sockValue = bke::node_find_socket(*node, SOCK_OUT, "Value"_ustr);
 
   bke::node_set_socket_availability(*ntree,
                                     *sockB,
@@ -564,7 +562,7 @@ void register_node_type_sh_vect_math()
 
   static bke::bNodeType ntype;
 
-  common_node_type_base(&ntype, "ShaderNodeVectorMath", SH_NODE_VECTOR_MATH);
+  common_node_type_base(&ntype, "ShaderNodeVectorMath"_ustr, SH_NODE_VECTOR_MATH);
   ntype.ui_name = "Vector Math";
   ntype.ui_description = "Perform vector math operation";
   ntype.enum_name_legacy = "VECT_MATH";

@@ -175,7 +175,9 @@ static void node_declare(NodeDeclarationBuilder &b)
         .default_value(0.0f)
         .min(0.0f)
         .subtype(PROP_DISTANCE)
-        .usage_by_menu("Overflow"_ustr, GEO_NODE_STRING_TO_CURVES_MODE_SCALE_TO_FIT);
+        .usage_by_menu("Overflow"_ustr,
+                       {GEO_NODE_STRING_TO_CURVES_MODE_SCALE_TO_FIT,
+                        GEO_NODE_STRING_TO_CURVES_MODE_TRUNCATE});
   }
 }
 
@@ -279,14 +281,14 @@ static std::optional<TextLayout> get_text_layout(GeoNodeExecParams &params)
   cu.smallcaps_scale = 0.75f;
   cu.wordspace = 1.0f;
   /* Set values from inputs */
-  cu.spacemode = align_x;
-  cu.align_y = align_y;
+  cu.spacemode = eCurveSpaceMode(align_x);
+  cu.align_y = eCurveAlignY(align_y);
   cu.fsize = font_size;
   cu.spacing = char_spacing;
   cu.wordspace = word_spacing;
   cu.linedist = line_spacing;
   cu.vfont = vfont;
-  cu.overflow = overflow;
+  cu.overflow = eCurveOverflow(overflow);
   cu.tb = MEM_new_array<TextBox>(MAXTEXTBOX, __func__);
   cu.tb->w = textbox_w;
   cu.tb->h = textbox_h;
@@ -513,7 +515,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeStringToCurves", GEO_NODE_STRING_TO_CURVES);
+  geo_node_type_base(&ntype, "GeometryNodeStringToCurves"_ustr, GEO_NODE_STRING_TO_CURVES);
   ntype.ui_name = "String to Curves";
   ntype.ui_description =
       "Generate a paragraph of text with a specific font, using a curve instance to store each "
@@ -523,7 +525,7 @@ static void node_register()
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.initfunc = node_init;
-  bke::node_type_size(ntype, 190, 120, 700);
+  ntype.default_width = bke::NodeWidth::_200;
   bke::node_type_storage(
       ntype, "NodeGeometryStringToCurves", node_free_standard_storage, node_copy_standard_storage);
   bke::node_register_type(ntype);

@@ -17,7 +17,7 @@ SHADER_LIBRARY_CREATE_INFO(eevee_film)
 #include "eevee_colorspace_lib.bsl.hh"
 #include "eevee_cryptomatte_lib.glsl"
 #include "eevee_reverse_z_lib.bsl.hh"
-#include "eevee_velocity_lib.glsl"
+#include "eevee_velocity.bsl.hh"
 #include "gpu_shader_math_safe_lib.glsl"
 #include "gpu_shader_math_vector_lib.glsl"
 
@@ -38,7 +38,7 @@ float4 film_texelfetch_as_YCoCg_opacity(sampler2D tx, int2 texel)
   /* Convert transmittance to opacity. */
   color.a = saturate(1.0f - color.a);
   /* Transform to YCoCg for accumulation. */
-  color.rgb = colorspace_YCoCg_from_scene_linear(color.rgb);
+  color.rgb = colorspace::YCoCg_from_scene_linear(color.rgb);
   return color;
 }
 
@@ -263,7 +263,7 @@ float2 film_pixel_history_motion_vector(int2 texel_sample)
     }
   }
 
-  float4 vector = velocity_resolve(vector_tx, nearest_texel, min_depth);
+  float4 vector = eevee::velocity::resolve(vector_tx, nearest_texel, min_depth);
 
   /* Transform to pixel space. */
   vector.xy *= float2(uniform_buf.film.extent);
@@ -506,7 +506,7 @@ void film_store_combined(
     // dst.weight = film_weight_load(texel_combined);
 
     color_dst = film_sample_catmull_rom(in_combined_tx, history_texel);
-    color_dst.rgb = colorspace_YCoCg_from_scene_linear(color_dst.rgb);
+    color_dst.rgb = colorspace::YCoCg_from_scene_linear(color_dst.rgb);
 
     /* Get local color bounding box of source neighborhood. */
     float4 min_color, max_color;
@@ -524,7 +524,7 @@ void film_store_combined(
   else {
     /* Everything is static. Use render accumulation. */
     color_dst = texelFetch(in_combined_tx, dst.texel, 0);
-    color_dst.rgb = colorspace_YCoCg_from_scene_linear(color_dst.rgb);
+    color_dst.rgb = colorspace::YCoCg_from_scene_linear(color_dst.rgb);
 
     /* Luma weighted blend to avoid flickering. */
     weight_dst = film_luma_weight(color_dst.x) * dst.weight;
@@ -534,7 +534,7 @@ void film_store_combined(
   color = color_dst * weight_dst + color_src * weight_src;
   color /= weight_src + weight_dst;
 
-  color.rgb = colorspace_scene_linear_from_YCoCg(color.rgb);
+  color.rgb = colorspace::scene_linear_from_YCoCg(color.rgb);
 
   /* Fix alpha not accumulating to 1 because of float imprecision. */
   if (color.a > 0.995f) {
@@ -703,7 +703,7 @@ void film_process_data(int2 texel_film, float4 &out_color, float &out_depth)
     /* Using film weight as distance to the pixel. So the check is inverted. */
     if (film_sample.weight > film_distance) {
       float depth = reverse_z::read(texelFetch(depth_tx, film_sample.texel, 0).x);
-      float4 vector = velocity_resolve(vector_tx, film_sample.texel, depth);
+      float4 vector = eevee::velocity::resolve(vector_tx, film_sample.texel, depth);
       /* Transform to pixel space, matching Cycles format. */
       vector *= float4(float2(uniform_buf.film.render_extent),
                        float2(uniform_buf.film.render_extent));

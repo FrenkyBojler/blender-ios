@@ -360,7 +360,7 @@ static void rna_Cache_idname_change(Main * /*bmain*/, Scene * /*scene*/, Pointer
       STRNCPY(cache->prev_name, cache->name);
     }
 
-    BLI_freelistN(&pidlist);
+    pidlist.free_no_destruct();
   }
 }
 
@@ -395,7 +395,7 @@ static void rna_Cache_active_point_cache_index_range(
   PTCacheID pid = BKE_ptcache_id_find(ob, scene, cache);
 
   if (pid.cache) {
-    *max = max_ii(0, BLI_listbase_count(pid.ptcaches) - 1);
+    *max = max_ii(0, pid.ptcaches->count() - 1);
   }
 }
 
@@ -728,11 +728,11 @@ static void rna_FieldSettings_type_set(PointerRNA *ptr, int value)
 {
   PartDeflect *part_deflect = static_cast<PartDeflect *>(ptr->data);
 
-  part_deflect->forcefield = value;
+  part_deflect->forcefield = ePFieldType(value);
 
   if (!particle_id_check(ptr)) {
     Object *ob = id_cast<Object *>(ptr->owner_id);
-    ob->pd->forcefield = value;
+    ob->pd->forcefield = ePFieldType(value);
     if (ELEM(value, PFIELD_WIND, PFIELD_VORTEX)) {
       ob->empty_drawtype = OB_SINGLE_ARROW;
     }

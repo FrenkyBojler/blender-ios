@@ -217,12 +217,12 @@ class ForwardPipeline {
                                      blender::Material *blender_mat,
                                      GPUMaterial *gpumat);
 
-  PassMain::Sub *prepass_transparent_add(const Object *ob,
-                                         blender::Material *blender_mat,
-                                         GPUMaterial *gpumat);
-  PassMain::Sub *material_transparent_add(const Object *ob,
-                                          blender::Material *blender_mat,
-                                          GPUMaterial *gpumat);
+  void transparent_add(const Object *ob,
+                       const float3 &ob_location,
+                       blender::Material *blender_mat,
+                       GPUMaterial *gpumat,
+                       PassMain::Sub *&r_prepass_subpass,
+                       PassMain::Sub *&r_material_subpass);
 
   bool use_colored_transparency() const;
 
@@ -262,6 +262,8 @@ struct DeferredLayerBase {
   eClosureBits closure_bits_ = CLOSURE_NONE;
   /* Maximum closure count considering all material in this pass. */
   int closure_count_ = 0;
+  /* True if this is a planar probe deferred layer. To be set before sync. */
+  bool is_probe_ = false;
 
   /* Stencil values used during the deferred pipeline. */
   enum class StencilBits : uint8_t {
@@ -306,8 +308,7 @@ struct DeferredLayerBase {
      * For now, allocate a custom normal layer for each Closure. */
     int count = to_gbuffer_bin_count(closure_bits_);
     /* Count the additional information layer needed by some closures. */
-    count += count_bits_i(closure_bits_ &
-                          (CLOSURE_SSS | CLOSURE_TRANSLUCENT | CLOSURE_REFRACTION));
+    count += count_bits_i(closure_bits_ & CLOSURE_TRANSMISSION);
     return count;
   }
 
@@ -403,8 +404,7 @@ class DeferredLayer : DeferredLayerBase {
   static bool do_split_direct_indirect_radiance(const Instance &inst);
 
   /* Returns the radiance buffer to feed the next layer. */
-  gpu::Texture *render(View &main_view,
-                       View &render_view,
+  gpu::Texture *render(View &render_view,
                        Framebuffer &prepass_fb,
                        Framebuffer &combined_fb,
                        Framebuffer &gbuffer_fb,
@@ -491,7 +491,7 @@ struct VolumeObjectBounds {
   /* Combined bounds in Z. Allow tighter integration bounds. */
   std::optional<Bounds<float>> z_range;
 
-  VolumeObjectBounds(const Camera &camera, Object *ob);
+  VolumeObjectBounds(const Camera &camera, const ObjectHandle &ob_handle, int instance_index);
 };
 
 /**
@@ -557,11 +557,7 @@ class VolumePipeline {
   void sync();
   void render(View &view, Texture &occupancy_tx);
 
-  /**
-   * Returns correct volume layer for a given object and add the object to the layer.
-   * Returns nullptr if the object is not visible at all.
-   */
-  VolumeLayer *register_and_get_layer(Object *ob);
+  VolumeLayer *register_and_get_layer(const VolumeObjectBounds &object_bounds);
 
   std::optional<Bounds<float>> object_integration_range() const;
 
@@ -611,6 +607,7 @@ class DeferredProbePipeline {
     float4 data(0.0f);
     dummy_black.ensure_2d(
         gpu::TextureFormat::SFLOAT_16_16_16_16, int2(1), GPU_TEXTURE_USAGE_SHADER_READ, data);
+    opaque_layer_.is_probe_ = true;
   }
 
   void begin_sync();
@@ -665,6 +662,7 @@ class PlanarProbePipeline : DeferredLayerBase {
     float4 data(0.0f);
     dummy_black_.ensure_2d(
         gpu::TextureFormat::SFLOAT_16_16_16_16, int2(1), GPU_TEXTURE_USAGE_SHADER_READ, data);
+    is_probe_ = true;
   };
 
   void begin_sync();
@@ -718,7 +716,7 @@ class UtilityTexture : public Texture {
 
   static constexpr int lut_size = UTIL_TEX_SIZE;
   static constexpr int lut_size_sqr = lut_size * lut_size;
-  static constexpr int layer_count = UTIL_BTDF_LAYER + UTIL_BTDF_LAYER_COUNT;
+  static constexpr int layer_count = UTIL_BSDF_LAYER + UTIL_BSDF_LAYER_COUNT;
 
  public:
   UtilityTexture()
@@ -752,7 +750,7 @@ class UtilityTexture : public Texture {
       memcpy(layer.data, lut::ltc_mat_ggx, sizeof(layer));
     }
     {
-      Layer &layer = data[UTIL_BSDF_LAYER];
+      Layer &layer = data[UTIL_BRDF_LAYER];
       for (auto x : IndexRange(lut_size)) {
         for (auto y : IndexRange(lut_size)) {
           layer.data[y][x][0] = lut::brdf_ggx[y][x][0];
@@ -764,7 +762,7 @@ class UtilityTexture : public Texture {
     }
     {
       for (auto layer_id : IndexRange(16)) {
-        Layer &layer = data[UTIL_BTDF_LAYER + layer_id];
+        Layer &layer = data[UTIL_BSDF_LAYER + layer_id];
         for (auto x : IndexRange(lut_size)) {
           for (auto y : IndexRange(lut_size)) {
             layer.data[y][x][0] = lut::bsdf_ggx[layer_id][y][x][0];

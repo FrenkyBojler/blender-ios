@@ -213,11 +213,10 @@ class KeyingOperation : public NodeOperation {
       }
 
       if (output_matte.should_compute()) {
-        output_matte.steal_data(feathered_matte);
+        output_matte.share_data(feathered_matte);
       }
-      else {
-        feathered_matte.release();
-      }
+
+      feathered_matte.release();
     }
     else {
       tweaked_matte.release();
@@ -231,8 +230,8 @@ class KeyingOperation : public NodeOperation {
      * since it is now returned as the output. */
     const float blur_size = this->get_preprocess_blur_size();
     if (blur_size == 0.0f) {
-      Result output = get_input("Image");
-      output.increment_reference_count();
+      Result output = this->context().create_result(ResultType::Color);
+      output.share_data(this->get_input("Image"));
       return output;
     }
 
@@ -492,8 +491,8 @@ class KeyingOperation : public NodeOperation {
         core_matte.get_single_value_default<float>() == 0.0f &&
         garbage_matte.get_single_value_default<float>() == 0.0f)
     {
-      Result output_matte = input_matte;
-      input_matte.increment_reference_count();
+      Result output_matte = this->context().create_result(ResultType::Float);
+      output_matte.share_data(input_matte);
       return output_matte;
     }
 
@@ -653,8 +652,8 @@ class KeyingOperation : public NodeOperation {
      * input because the caller will release it after the call, and we want to extend its life
      * since it is now returned as the output. */
     if (blur_size == 0.0f) {
-      Result output_matte = input_matte;
-      input_matte.increment_reference_count();
+      Result output_matte = this->context().create_result(ResultType::Float);
+      output_matte.share_data(input_matte);
       return output_matte;
     }
 
@@ -677,8 +676,8 @@ class KeyingOperation : public NodeOperation {
      * the input because the caller will release it after the call, and we want to extend its life
      * since it is now returned as the output. */
     if (distance == 0) {
-      Result output_matte = input_matte;
-      input_matte.increment_reference_count();
+      Result output_matte = this->context().create_result(ResultType::Float);
+      output_matte.share_data(input_matte);
       return output_matte;
     }
 
@@ -700,8 +699,8 @@ class KeyingOperation : public NodeOperation {
      * the input because the caller will release it after the call, and we want to extend its life
      * since it is now returned as the output. */
     if (distance == 0) {
-      Result output_matte = input_matte;
-      input_matte.increment_reference_count();
+      Result output_matte = this->context().create_result(ResultType::Float);
+      output_matte.share_data(input_matte);
       return output_matte;
     }
 
@@ -819,7 +818,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, "CompositorNodeKeying", CMP_NODE_KEYING);
+  cmp_node_type_base(&ntype, "CompositorNodeKeying"_ustr, CMP_NODE_KEYING);
   ntype.ui_name = "Keying";
   ntype.ui_description =
       "Perform both chroma keying (to remove the backdrop) and despill (to correct color cast "
@@ -831,7 +830,7 @@ static void node_register()
   bke::node_type_storage(
       ntype, "NodeKeyingData", node_free_standard_storage, node_copy_standard_storage);
   ntype.get_compositor_operation = get_compositor_operation;
-  bke::node_type_size(ntype, 155, 140, NODE_DEFAULT_MAX_WIDTH);
+  ntype.default_width = bke::NodeWidth::_160;
 
   bke::node_register_type(ntype);
 }

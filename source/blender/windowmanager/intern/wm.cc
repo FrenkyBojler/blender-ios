@@ -195,7 +195,7 @@ static void window_manager_blend_read_data(BlendDataReader *reader, ID *id)
 
   wm->xr.runtime = nullptr;
 
-  wm->init_flag = 0;
+  wm->init_flag = eWM_InitFlag{};
   wm->op_undo_depth = 0;
   wm->extensions_updates = WM_EXTENSIONS_UPDATE_UNSET;
   wm->extensions_blocked = 0;
@@ -476,7 +476,7 @@ void WM_check(bContext *C)
     CTX_wm_manager_set(C, wm);
   }
 
-  if (wm == nullptr || BLI_listbase_is_empty(&wm->windows)) {
+  if (wm == nullptr || wm->windows.is_empty()) {
     return;
   }
 
@@ -514,7 +514,7 @@ void wm_clear_default_size(bContext *C)
     CTX_wm_manager_set(C, wm);
   }
 
-  if (wm == nullptr || BLI_listbase_is_empty(&wm->windows)) {
+  if (wm == nullptr || wm->windows.is_empty()) {
     return;
   }
 

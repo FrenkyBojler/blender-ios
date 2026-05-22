@@ -33,9 +33,9 @@ static void node_declare(NodeDeclarationBuilder &b)
       .reference_pass_all();
   if (node != nullptr) {
     const NodeGetBundleItem &storage = node_storage(*node);
-    const eNodeSocketDatatype socket_type = eNodeSocketDatatype(storage.socket_type);
-    auto &decl = b.add_output(socket_type, "Item"_ustr);
-    if (storage.structure_type == NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO) {
+    const eNodeSocketDatatype socket_type = storage.socket_type;
+    auto &decl = b.add_output(socket_type, "Item"_ustr).propagate_all().reference_pass_all();
+    if (storage.structure_type == NodeSocketInterfaceStructureType::Auto) {
       decl.structure_type(StructureType::Dynamic);
     }
     else {
@@ -166,7 +166,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "NodeGetBundleItem");
+  geo_node_type_base(&ntype, "NodeGetBundleItem"_ustr);
   ntype.ui_name = "Get Bundle Item";
   ntype.ui_description = "Retrieve a bundle item by path.";
   ntype.nclass = NODE_CLASS_CONVERTER;
