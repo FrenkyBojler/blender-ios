@@ -3846,7 +3846,8 @@ static void rna_def_solid_color(StructRNA *srna)
   RNA_def_property_float_sdna(prop, nullptr, "width");
   RNA_def_property_range(prop, 0.0f, 200.0f);
   RNA_def_property_ui_range(prop, 0.0f, 100.0f, 1.0f, 1);
-  RNA_def_property_ui_text(prop, "Width", "Width of the color strip as percentage of screen width");
+  RNA_def_property_ui_text(
+      prop, "Width", "Width of the color strip as percentage of screen width");
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
 
   prop = RNA_def_property(srna, "height", PROP_FLOAT, PROP_PERCENTAGE);
@@ -3872,13 +3873,17 @@ static void rna_def_solid_color(StructRNA *srna)
   prop = RNA_def_property(srna, "use_absolute_width", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", SEQ_COLOR_USE_ABSOLUTE_WIDTH);
   RNA_def_property_ui_text(
-      prop, "Absolute Width", "Define width using pixel values instead of relative scaling based on render width");
+      prop,
+      "Absolute Width",
+      "Define width using pixel values instead of relative scaling based on render width");
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
 
   prop = RNA_def_property(srna, "use_absolute_height", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", SEQ_COLOR_USE_ABSOLUTE_HEIGHT);
   RNA_def_property_ui_text(
-      prop, "Absolute Height", "Define height using pixel values instead of relative scaling based on render height");
+      prop,
+      "Absolute Height",
+      "Define height using pixel values instead of relative scaling based on render height");
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
 }
 

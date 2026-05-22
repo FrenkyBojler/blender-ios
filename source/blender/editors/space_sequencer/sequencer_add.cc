@@ -2217,8 +2217,24 @@ void SEQUENCER_OT_effect_strip_add(wmOperatorType *ot)
                              1.0f);
   RNA_def_property_subtype(prop, PROP_COLOR_GAMMA);
   /* Only used when strip is of the Color type. */
-  RNA_def_int(ot->srna, "width", 0, 1, SHRT_MAX, "Width", "Width of the color strip in pixels", 1, SHRT_MAX);
-  RNA_def_int(ot->srna, "height", 0, 1, SHRT_MAX, "Height", "Height of the color strip in pixels", 1, SHRT_MAX);
+  RNA_def_int(ot->srna,
+              "width",
+              0,
+              1,
+              SHRT_MAX,
+              "Width",
+              "Width of the color strip in pixels",
+              1,
+              SHRT_MAX);
+  RNA_def_int(ot->srna,
+              "height",
+              0,
+              1,
+              SHRT_MAX,
+              "Height",
+              "Height of the color strip in pixels",
+              1,
+              SHRT_MAX);
 }
 
 /** \} */
