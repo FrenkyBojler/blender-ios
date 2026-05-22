@@ -30,7 +30,8 @@ static void node_declare(NodeDeclarationBuilder &b)
           "Choose instances from the \"Instance\" input at each point instead of instancing the "
           "entire geometry");
   b.add_input<decl::Int>("Instance Index"_ustr)
-      .implicit_field_on(NODE_DEFAULT_INPUT_ID_INDEX_FIELD, {0})
+      .evaluated_geometry_field(Span<int>{0})
+      .default_input_type(NODE_DEFAULT_INPUT_ID_INDEX_FIELD)
       .description(
           "Index of the instance used for each point. This is only used when Pick Instances "
           "is on. By default the point index is used");
