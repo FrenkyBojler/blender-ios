@@ -30,7 +30,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .min(0.0f)
       .subtype(PROP_DISTANCE)
       .evaluated_geometry_field();
-  b.add_output<decl::Geometry>("Points"_ustr).propagate_all_geo();
+  b.add_output<decl::Geometry>("Points"_ustr).propagate_all_geometry();
 }
 
 static void convert_instances_to_points(GeometrySet &geometry_set,

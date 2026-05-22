@@ -43,7 +43,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .min(0.0f)
       .subtype(PROP_DISTANCE)
       .evaluated_geometry_field();
-  b.add_output<decl::Geometry>("Points"_ustr).propagate_all_geo();
+  b.add_output<decl::Geometry>("Points"_ustr).propagate_all_geometry();
 }
 
 static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)

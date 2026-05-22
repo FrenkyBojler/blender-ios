@@ -64,7 +64,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .default_value(GEO_NODE_CURVE_FILL_RULE_EVEN_ODD)
       .optional_label()
       .description("Rule used to determine which regions are inside or outside");
-  b.add_output<decl::Geometry>("Mesh"_ustr).propagate_all_geo();
+  b.add_output<decl::Geometry>("Mesh"_ustr).propagate_all_geometry();
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)

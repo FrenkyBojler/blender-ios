@@ -26,7 +26,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .default_value(-1)
       .hide_value()
       .evaluated_geometry_field();
-  b.add_output<decl::Geometry>("Curves"_ustr).propagate_all_geo();
+  b.add_output<decl::Geometry>("Curves"_ustr).propagate_all_geometry();
 }
 
 static Curves *edge_paths_to_curves_convert(const Mesh &mesh,

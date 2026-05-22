@@ -17,7 +17,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Geometry>("Points"_ustr)
       .supported_type(GeometryComponent::Type::PointCloud)
       .description("Points to set the radius of");
-  b.add_output<decl::Geometry>("Points"_ustr).propagate_all_geo().align_with_previous();
+  b.add_output<decl::Geometry>("Points"_ustr).propagate_all_geometry().align_with_previous();
   b.add_input<decl::Bool>("Selection"_ustr)
       .default_value(true)
       .hide_value()

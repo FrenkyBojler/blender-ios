@@ -29,7 +29,7 @@ static void node_declare(NodeDeclarationBuilder &b)
                        GeometryComponent::Type::Curve,
                        GeometryComponent::Type::GreasePencil});
   b.add_output<decl::Geometry>("Geometry"_ustr)
-      .propagate_all_geo()
+      .propagate_all_geometry()
       .align_with_previous()
       .description("Geometry to assign a material to");
   b.add_input<decl::Bool>("Selection"_ustr)

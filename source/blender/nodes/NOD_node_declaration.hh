@@ -353,7 +353,7 @@ class BaseSocketDeclarationBuilder {
   BaseSocketDeclarationBuilder &propagate_all();
   BaseSocketDeclarationBuilder &propagate_all(Span<int> input_indices);
   /** Filters the set of inputs that is propagated from to only geometry sockets. */
-  BaseSocketDeclarationBuilder &propagate_all_geo();
+  BaseSocketDeclarationBuilder &propagate_all_geometry();
 
   BaseSocketDeclarationBuilder &compositor_realization_mode(CompositorInputRealizationMode value);
 

@@ -12,7 +12,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.allow_any_socket_order();
   b.add_input<decl::Geometry>("Geometry"_ustr)
       .description("Geometry to update the ID attribute on");
-  b.add_output<decl::Geometry>("Geometry"_ustr).propagate_all_geo().align_with_previous();
+  b.add_output<decl::Geometry>("Geometry"_ustr).propagate_all_geometry().align_with_previous();
   b.add_input<decl::Bool>("Selection"_ustr)
       .default_value(true)
       .hide_value()

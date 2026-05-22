@@ -64,7 +64,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .supported_type(GeometryComponent::Type::Mesh)
       .is_default_link_socket()
       .description("Mesh to triangulate");
-  b.add_output<decl::Geometry>("Mesh"_ustr).propagate_all_geo().align_with_previous();
+  b.add_output<decl::Geometry>("Mesh"_ustr).propagate_all_geometry().align_with_previous();
   b.add_input<decl::Bool>("Selection"_ustr)
       .default_value(true)
       .evaluated_geometry_field()

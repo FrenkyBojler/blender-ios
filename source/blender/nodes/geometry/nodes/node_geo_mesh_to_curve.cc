@@ -30,7 +30,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .default_value(true)
       .hide_value()
       .evaluated_geometry_field();
-  b.add_output<decl::Geometry>("Curve"_ustr).propagate_all_geo();
+  b.add_output<decl::Geometry>("Curve"_ustr).propagate_all_geometry();
 }
 
 static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)

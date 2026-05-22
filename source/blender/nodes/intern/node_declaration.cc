@@ -589,7 +589,7 @@ BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::propagate_all()
   return *this;
 }
 
-BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::propagate_all_geo()
+BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::propagate_all_geometry()
 {
   /* The relations are build after all sockets are known. */
   propagate_all_input_data_from_geometry_ = true;

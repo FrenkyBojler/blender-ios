@@ -54,7 +54,7 @@ static void node_declare(NodeDeclarationBuilder &b)
                          .make_available([](bNode &node) {
                            node_storage(node).mode = GEO_NODE_EXTRUDE_MESH_FACES;
                          });
-  b.add_output<decl::Geometry>("Mesh"_ustr).propagate_all_geo();
+  b.add_output<decl::Geometry>("Mesh"_ustr).propagate_all_geometry();
   b.add_output<decl::Bool>("Top"_ustr)
       .anonymous_attribute_output()
       .translation_context(BLT_I18NCONTEXT_ID_NODETREE);

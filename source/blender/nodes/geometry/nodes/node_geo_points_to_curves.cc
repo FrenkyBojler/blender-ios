@@ -37,7 +37,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .hide_value()
       .description("Determines the order of points in each curve");
 
-  b.add_output<decl::Geometry>("Curves"_ustr).propagate_all_geo();
+  b.add_output<decl::Geometry>("Curves"_ustr).propagate_all_geometry();
 }
 
 static void grouped_sort(const OffsetIndices<int> offsets,

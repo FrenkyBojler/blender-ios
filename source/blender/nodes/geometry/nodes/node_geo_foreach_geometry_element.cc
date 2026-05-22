@@ -135,7 +135,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description(
           "Single-element geometry for the current iteration. Note that it can be quite "
           "inefficient to split up large geometries into many small geometries")
-      .propagate_all_geo()
+      .propagate_all_geometry()
       .available(output_storage && AttrDomain(output_storage->domain) != AttrDomain::Corner);
 
   b.add_input<decl::Geometry>("Geometry"_ustr)

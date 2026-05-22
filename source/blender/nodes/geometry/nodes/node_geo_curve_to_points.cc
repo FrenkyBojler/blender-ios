@@ -47,7 +47,7 @@ static void node_declare(NodeDeclarationBuilder &b)
                      .make_available([](bNode &node) {
                        node_storage(node).mode = GEO_NODE_CURVE_RESAMPLE_LENGTH;
                      });
-  b.add_output<decl::Geometry>("Points"_ustr).propagate_all_geo();
+  b.add_output<decl::Geometry>("Points"_ustr).propagate_all_geometry();
   b.add_output<decl::Vector>("Tangent"_ustr).anonymous_attribute_output();
   b.add_output<decl::Vector>("Normal"_ustr).anonymous_attribute_output();
   b.add_output<decl::Rotation>("Rotation"_ustr).anonymous_attribute_output();

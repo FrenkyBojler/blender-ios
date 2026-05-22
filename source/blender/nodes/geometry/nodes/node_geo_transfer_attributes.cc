@@ -24,7 +24,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.allow_any_socket_order();
 
   b.add_input<decl::Geometry>("Target"_ustr);
-  b.add_output<decl::Geometry>("Target"_ustr).align_with_previous().propagate_all_geo();
+  b.add_output<decl::Geometry>("Target"_ustr).align_with_previous().propagate_all_geometry();
   b.add_output<decl::String>("Transferred Names"_ustr)
       .structure_type(StructureType::List)
       .description("Attribute names that have been transferred excluding internal attributes");

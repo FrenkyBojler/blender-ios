@@ -19,7 +19,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .supported_type({GeometryComponent::Type::Curve, GeometryComponent::Type::GreasePencil})
       .description("Curves to change the resolution of");
   b.add_output<decl::Geometry>("Curve"_ustr, "Geometry"_ustr)
-      .propagate_all_geo()
+      .propagate_all_geometry()
       .align_with_previous();
   b.add_input<decl::Bool>("Selection"_ustr)
       .default_value(true)

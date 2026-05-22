@@ -34,7 +34,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   const bNode *node = b.node_or_null();
 
   b.add_output<decl::Bundle>("Bundle"_ustr)
-      .propagate_all_geo()
+      .propagate_all_geometry()
       .structure_type(StructureType::Single);
 
   if (tree && node) {
