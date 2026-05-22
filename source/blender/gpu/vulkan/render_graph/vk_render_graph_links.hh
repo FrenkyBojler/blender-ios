@@ -91,14 +91,10 @@ struct VKRenderGraphLinks {
    */
   Vector<VKRenderGraphImage> images;
 
-  // TODO
-  Vector<VKRenderGraphAccelerationStructure> acceleration_structures;
-
   void clear()
   {
     buffers.clear();
     images.clear();
-    acceleration_structures.clear();
   }
 };
 

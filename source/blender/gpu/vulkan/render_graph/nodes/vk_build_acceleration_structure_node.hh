@@ -63,7 +63,7 @@ class VKBuildAccelerationStructureNode
 
     ResourceWithStamp dst_acceleration_structure = resources.get_buffer_and_increase_stamp(
         create_info.dst_acceleration_structure);
-    links.acceleration_structures.append(
+    links.buffers.append(
         {dst_acceleration_structure, VK_ACCESS_2_ACCELERATION_STRUCTURE_WRITE_BIT_KHR});
   }
 
