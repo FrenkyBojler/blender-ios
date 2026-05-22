@@ -1761,7 +1761,7 @@ static bool drag_toggle_set_xy_xy(bContext *C,
       if (!button_is_interactive(&but, true)) {
         continue;
       }
-      /* Needs to mach fixed lock direction. */
+      /* Needs to match fixed lock direction. */
       if (((but.flag & BUT_DRAG_LOCK_X) == BUT_DRAG_LOCK_X) && !drag_lock[0]) {
         continue;
       }

@@ -185,7 +185,7 @@ enum {
 /** The maximum number of items a radial menu (pie menu) can contain. */
 #define PIE_MAX_ITEMS 8
 
-enum class TextDirection : char {
+enum class TextDirection : int8_t {
   Default, /* Horizontal. */
   Down,
   Up,

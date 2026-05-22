@@ -1503,7 +1503,7 @@ void panel_category_tabs_draw_all(const bContext *C,
   /* Intentionally don't scale by 'px'. */
   const int rct_xmin = is_left ? v2d->mask.xmin + 3 : (v2d->mask.xmax - category_tabs_width);
   const int rct_xmax = is_left ? v2d->mask.xmin + category_tabs_width : (v2d->mask.xmax - 3);
-  /* NOTE: This block will is created in window coordinates. */
+  /* NOTE: This block is created in window coordinates. */
   Block *block = block_begin(C, region, "panel_category_tabs", EmbossType::Emboss);
   Layout &layout = block_layout(block,
                                 LayoutDirection::Vertical,
@@ -1583,11 +1583,11 @@ void panel_category_tabs_draw_all(const bContext *C,
     button->flag |= ui::BUT_DRAG_LOCK_X;
     button_func_quick_tooltip_set(
         button, [category = std::string(category_id)](const blender::ui::Button * /*but*/) {
-          return category;
+          return TIP_(category);
         });
     button_func_tooltip_custom_set_cpp(
         *button, [category = std::string(category_id)](bContext & /*C*/, ui::TooltipData &data) {
-          tooltip_text_field_add(data, category, "", ui::TIP_STYLE_NORMAL, ui::TIP_LC_NORMAL);
+          tooltip_text_field_add(data, TIP_(category), {}, TIP_STYLE_HEADER, TIP_LC_VALUE, false);
         });
     button_func_set(button,
                     [category = std::string(category_id),
