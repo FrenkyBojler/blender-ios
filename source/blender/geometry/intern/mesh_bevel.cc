@@ -25,6 +25,7 @@
 
 #include "BKE_attribute.hh"
 #include "BKE_attribute_filters.hh"
+#include "BKE_attribute_math.hh"
 
 #include "BKE_mesh.hh"
 #include "BKE_mesh_mapping.hh"
@@ -7763,25 +7764,27 @@ static std::optional<Mesh *> build_output_mesh(const BevelState &state,
   Array<int> src_edge_map(src_mesh.edges_num, -1);
   index_mask::build_reverse_map(src_survive_edges, src_edge_map.as_mutable_span());
 
+  /* Count surviving corners: only corners in surviving original faces are kept. */
+  const Span<float3> src_positions = src_mesh.vert_positions();
+  const Span<int2> src_edges = src_mesh.edges();
+  const OffsetIndices<int> src_faces = src_mesh.faces();
+  const Span<int> src_corner_verts = src_mesh.corner_verts();
+  const Span<int> src_corner_edges = src_mesh.corner_edges();
+
   const int n_surv_verts = src_survive_verts.size();
   const int n_surv_edges = src_survive_edges.size();
   const int n_surv_faces = src_survive_faces.size();
-
-  /* Count surviving corners: only corners in surviving original faces are kept. */
-  int n_surv_corners = 0;
-  const OffsetIndices<int> src_faces = src_mesh.faces();
-  src_survive_faces.foreach_index(
-      [&](const int f) { n_surv_corners += int(src_faces[f].size()); });
+  const int n_surv_corners = offset_indices::sum_group_sizes(src_faces, src_survive_faces);
 
   const Span<float3> new_positions = emesh.new_vert_positions();
   const Span<int2> new_edge_data = emesh.new_edges();
   const Span<int> new_face_offs = emesh.new_face_offsets(); /* size = new_faces_num + 1 */
-  const Span<int> new_cv = emesh.new_corner_verts();
-  const Span<int> new_ce = emesh.new_corner_edges();
+  const Span<int> new_corner_verts = emesh.new_corner_verts();
+  const Span<int> new_corner_edges = emesh.new_corner_edges();
   const int n_new_verts = int(new_positions.size());
   const int n_new_edges = int(new_edge_data.size());
   const int n_new_faces = emesh.new_faces_num();
-  const int n_new_corners = int(new_cv.size());
+  const int n_new_corners = int(new_corner_verts.size());
 
   Mesh *dst = BKE_mesh_new_nomain(n_surv_verts + n_new_verts,
                                   n_surv_edges + n_new_edges,
@@ -7794,11 +7797,6 @@ static std::optional<Mesh *> build_output_mesh(const BevelState &state,
   MutableSpan<int> dst_face_offsets = dst->face_offsets_for_write();
   MutableSpan<int> dst_corner_verts = dst->corner_verts_for_write();
   MutableSpan<int> dst_corner_edges = dst->corner_edges_for_write();
-
-  const Span<float3> src_positions = src_mesh.vert_positions();
-  const Span<int2> src_edges = src_mesh.edges();
-  const Span<int> src_corner_verts = src_mesh.corner_verts();
-  const Span<int> src_corner_edges = src_mesh.corner_edges();
 
   /* Maps any combined (original + new) vertex index to the destination index. */
   auto mixed_vert_map = [&](const int v) -> int {
@@ -7815,26 +7813,22 @@ static std::optional<Mesh *> build_output_mesh(const BevelState &state,
     return n_surv_edges + (e - src_mesh.edges_num);
   };
 
-  /* 1. Surviving original vert positions. */
+  /* Surviving original vert positions and new positions. */
   array_utils::gather(
       src_positions, src_survive_verts, dst_positions.take_front(src_survive_verts.size()));
-
-  /* 2. New vert positions. */
   dst_positions.take_back(new_positions.size()).copy_from(new_positions);
 
-  /* 3. Surviving original edges (vertex pairs remapped to destination indices). */
+  /* Surviving original edges (vertex pairs remapped to destination indices) and new edges. */
   src_survive_edges.foreach_index([&](const int64_t src_e, const int64_t dst_e) {
     dst_edges[dst_e][0] = src_vert_map[src_edges[src_e][0]];
     dst_edges[dst_e][1] = src_vert_map[src_edges[src_e][1]];
   });
-
-  /* 4. New edges. */
   for (const int ne : IndexRange(n_new_edges)) {
     dst_edges[n_surv_edges + ne][0] = mixed_vert_map(new_edge_data[ne][0]);
     dst_edges[n_surv_edges + ne][1] = mixed_vert_map(new_edge_data[ne][1]);
   }
 
-  /* 5. Face offsets. */
+  /* Face offsets. */
   offset_indices::gather_selected_offsets(
       src_faces, src_survive_faces, dst_face_offsets.take_front(src_survive_faces.size() + 1));
   for (const int nf : IndexRange(n_new_faces)) {
@@ -7845,7 +7839,7 @@ static std::optional<Mesh *> build_output_mesh(const BevelState &state,
 
   const OffsetIndices<int> dst_faces(dst_face_offsets);
 
-  /* 6. Corner data. */
+  /* Corner data. */
   src_survive_faces.foreach_index(
       [&](const int64_t src_f, const int64_t dst_f) {
         const IndexRange src_face = src_faces[src_f];
@@ -7857,165 +7851,150 @@ static std::optional<Mesh *> build_output_mesh(const BevelState &state,
       },
       exec_mode::grain_size(512));
   for (const int nc : IndexRange(n_new_corners)) {
-    dst_corner_verts[n_surv_corners + nc] = mixed_vert_map(new_cv[nc]);
-    dst_corner_edges[n_surv_corners + nc] = mixed_edge_map(new_ce[nc]);
+    dst_corner_verts[n_surv_corners + nc] = mixed_vert_map(new_corner_verts[nc]);
+    dst_corner_edges[n_surv_corners + nc] = mixed_edge_map(new_corner_edges[nc]);
   }
-
-  /* 7. Attribute propagation via the modern Attribute API.
-   *
-   * For each element domain, build a flat src-index array of size dst_count where entry i
-   * holds the source element index whose attributes should be copied to dst element i.
-   * - Surviving original elements map directly (src_v → dst_v from the survival mask).
-   * - New elements use their recorded representative (example) index; -1 falls back to 0.
-   * Then a single gather_attributes() call handles all attribute types for that domain.
-   * Built-in geometry attributes (position, edge verts, corner_vert/edge) are excluded by the
-   * attribute filter because they were already written explicitly in steps 1-6 above. */
 
   const bke::AttributeAccessor src_attrs = src_mesh.attributes();
   bke::MutableAttributeAccessor dst_attrs = dst->attributes_for_write();
+  const VectorSet<StringRefNull> uv_names = src_mesh.uv_map_names();
 
-  /* Skip attributes that encode topology already written with correct remapped indices in
-   * steps 1-6 above. UV values are written separately afterwards. */
-  Set<StringRef> skip_names{"position", ".edge_verts", ".corner_vert", ".corner_edge"};
-  for (const StringRef uv_map : src_mesh.uv_map_names()) {
-    skip_names.add(uv_map);
-  }
-  const auto geom_filter = bke::attribute_filter_with_skip_ref(attribute_filter, skip_names);
+  const Span<int> vert_src_by_dst = emesh.new_vert_examples();
+  const IndexMask verts_new_with_src = array_utils::indices_non_negative(
+      vert_src_by_dst.index_range(), vert_src_by_dst, memory);
+  const IndexMask verts_new_no_src = verts_new_with_src.complement(vert_src_by_dst.index_range(),
+                                                                   memory);
 
-  /* 7a. Point domain (verts): surviving originals then new verts. */
-  {
-    Array<int> src_by_dst(n_surv_verts + n_new_verts, 0);
-    src_survive_verts.to_indices<int>(
-        src_by_dst.as_mutable_span().take_front(src_survive_verts.size()));
-    const Span<int> new_vert_exs = emesh.new_vert_examples();
-    for (const int ni : IndexRange(n_new_verts)) {
-      const int ex = new_vert_exs[ni];
-      src_by_dst[n_surv_verts + ni] = (ex >= 0) ? ex : 0;
+  const Span<int> edge_src_by_dst = emesh.new_edge_examples();
+  const IndexMask edges_new_with_src = array_utils::indices_non_negative(
+      edge_src_by_dst.index_range(), edge_src_by_dst, memory);
+  const IndexMask edges_new_no_src = edges_new_with_src.complement(edge_src_by_dst.index_range(),
+                                                                   memory);
+
+  const Span<int> face_src_by_dst = emesh.new_face_examples();
+  const IndexMask faces_new_with_src = array_utils::indices_non_negative(
+      face_src_by_dst.index_range(), face_src_by_dst, memory);
+  const IndexMask face_new_no_src = faces_new_with_src.complement(face_src_by_dst.index_range(),
+                                                                  memory);
+
+  const Span<int> corner_src_by_dst = emesh.new_corner_examples();
+  const IndexMask corners_new_with_src = array_utils::indices_non_negative(
+      corner_src_by_dst.index_range(), corner_src_by_dst, memory);
+  const IndexMask corners_new_no_src = corners_new_with_src.complement(
+      corner_src_by_dst.index_range(), memory);
+
+  src_attrs.foreach_attribute([&](const bke::AttributeIter &iter) {
+    if (iter.data_type == bke::AttrType::String) {
+      return;
     }
-    bke::gather_attributes(src_attrs,
-                           bke::AttrDomain::Point,
-                           bke::AttrDomain::Point,
-                           geom_filter,
-                           src_by_dst,
-                           dst_attrs);
-  }
+    if (ELEM(iter.name, "position", ".edge_verts", ".corner_vert", ".corner_edge")) {
+      return;
+    }
+    if (uv_names.contains(iter.name)) {
+      return;
+    }
+    if (attribute_filter.allow_skip(iter.name)) {
+      return;
+    }
+    const GVArray src = *iter.get();
+    const CPPType &type = src.type();
+    const CommonVArrayInfo src_info = src.common_info();
+    if (src_info.type == CommonVArrayInfo::Type::Single) {
+      const GPointer value(src.type(), src_info.data);
+      dst_attrs.add(iter.name, iter.domain, iter.data_type, bke::AttributeInitValue(value));
+      return;
+    }
+    bke::GSpanAttributeWriter dst = dst_attrs.lookup_or_add_for_write_only_span(
+        iter.name, iter.domain, iter.data_type);
+    switch (iter.domain) {
+      case bke::AttrDomain::Point: {
+        GMutableSpan surv_values = dst.span.take_front(n_surv_verts);
+        GMutableSpan new_values = dst.span.take_back(n_new_verts);
+        array_utils::gather(src, src_survive_verts, surv_values);
+        bke::attribute_math::gather(src, vert_src_by_dst, verts_new_with_src, new_values);
+        type.fill_assign_indices(type.default_value(), new_values.data(), verts_new_no_src);
+        break;
+      }
+      case bke::AttrDomain::Edge: {
+        GMutableSpan surv_values = dst.span.take_front(n_surv_edges);
+        GMutableSpan new_values = dst.span.take_back(n_new_edges);
+        array_utils::gather(src, src_survive_edges, surv_values);
+        bke::attribute_math::gather(src, edge_src_by_dst, edges_new_with_src, new_values);
+        type.fill_assign_indices(type.default_value(), new_values.data(), edges_new_no_src);
+        break;
+      }
+      case bke::AttrDomain::Face: {
+        GMutableSpan surv_values = dst.span.take_front(n_surv_faces);
+        GMutableSpan new_values = dst.span.take_back(n_new_faces);
+        array_utils::gather(src, src_survive_faces, surv_values);
+        bke::attribute_math::gather(src, face_src_by_dst, faces_new_with_src, new_values);
+        type.fill_assign_indices(type.default_value(), new_values.data(), face_new_no_src);
+        break;
+      }
+      case bke::AttrDomain::Corner: {
+        const GVArraySpan src_span(src);
+        GMutableSpan surv_values = dst.span.take_front(n_surv_corners);
+        GMutableSpan new_values = dst.span.take_back(n_new_corners);
+        bke::attribute_math::gather_group_to_group(
+            src_faces, dst_faces, src_survive_faces, src_span, surv_values);
+        bke::attribute_math::gather(src_span, corner_src_by_dst, corners_new_with_src, new_values);
+        type.fill_assign_indices(type.default_value(), new_values.data(), corners_new_no_src);
+        break;
+      }
+      default:
+        BLI_assert_unreachable();
+        break;
+    }
 
-  /* 7b. Edge domain: surviving original edges then new edges. */
+    dst.finish();
+  });
+
+  /* Apply per-edge seam/sharp overrides, matching BMesh's post-copy fixup
+   * that undoes seam/smooth on corner segments where those flags are not contiguous.
+   * Only apply if the attribute already exists (created by gather_attributes above). */
+
+  if (bke::SpanAttributeWriter<bool> seam_writer = dst_attrs.lookup_for_write_span<bool>(
+          "uv_seam"))
   {
-    Array<int> src_by_dst(n_surv_edges + n_new_edges, 0);
-    src_survive_edges.to_indices<int>(
-        src_by_dst.as_mutable_span().take_front(src_survive_edges.size()));
-    const Span<int> new_edge_exs = emesh.new_edge_examples();
+    MutableSpan<bool> seam_span = seam_writer.span;
     for (const int ni : IndexRange(n_new_edges)) {
-      const int ex = new_edge_exs[ni];
-      src_by_dst[n_surv_edges + ni] = (ex >= 0) ? ex : 0;
-    }
-    bke::gather_attributes(src_attrs,
-                           bke::AttrDomain::Edge,
-                           bke::AttrDomain::Edge,
-                           geom_filter,
-                           src_by_dst,
-                           dst_attrs);
-
-    /* Apply per-edge seam/sharp overrides, matching BMesh's post-copy fixup
-     * that undoes seam/smooth on corner segments where those flags are not contiguous.
-     * Only apply if the attribute already exists (created by gather_attributes above). */
-    {
-      bke::MutableAttributeAccessor mut_attrs = dst->attributes_for_write();
-      bke::SpanAttributeWriter<bool> seam_writer = mut_attrs.lookup_for_write_span<bool>(
-          "uv_seam");
-      if (seam_writer) {
-        MutableSpan<bool> seam_span = seam_writer.span;
-        for (const int ni : IndexRange(n_new_edges)) {
-          const int8_t ov = emesh.new_edge_seam_overrides()[ni];
-          if (ov >= 0) {
-            seam_span[n_surv_edges + ni] = (ov == 1);
-          }
-        }
-        seam_writer.finish();
-      }
-      bke::SpanAttributeWriter<bool> sharp_writer = mut_attrs.lookup_for_write_span<bool>(
-          "sharp_edge");
-      if (sharp_writer) {
-        MutableSpan<bool> sharp_span = sharp_writer.span;
-        for (const int ni : IndexRange(n_new_edges)) {
-          const int8_t ov = emesh.new_edge_sharp_overrides()[ni];
-          if (ov >= 0) {
-            sharp_span[n_surv_edges + ni] = (ov == 1);
-          }
-        }
-        sharp_writer.finish();
+      const int8_t ov = emesh.new_edge_seam_overrides()[ni];
+      if (ov >= 0) {
+        seam_span[n_surv_edges + ni] = (ov == 1);
       }
     }
+    seam_writer.finish();
   }
 
-  /* 7c. Face domain: surviving original faces then new faces. */
+  if (bke::SpanAttributeWriter<bool> sharp_writer = dst_attrs.lookup_for_write_span<bool>(
+          "sharp_edge"))
   {
-    Array<int> src_by_dst(n_surv_faces + n_new_faces, 0);
-    src_survive_faces.to_indices<int>(
-        src_by_dst.as_mutable_span().take_front(src_survive_faces.size()));
-    const Span<int> new_face_exs = emesh.new_face_examples();
-    for (const int nf : IndexRange(n_new_faces)) {
-      const int ex = new_face_exs[nf];
-      src_by_dst[n_surv_faces + nf] = (ex >= 0) ? ex : 0;
-    }
-    bke::gather_attributes(src_attrs,
-                           bke::AttrDomain::Face,
-                           bke::AttrDomain::Face,
-                           geom_filter,
-                           src_by_dst,
-                           dst_attrs);
-  }
-
-  /* 7d. Corner domain: surviving original corners (from surviving faces) then new corners.
-   *
-   * Surviving corners are mapped to themselves via src_by_dst[0..n_surv_corners-1].
-   * For new corners we write UV values that were precomputed by
-   * uv::fill_new_corner_uvs / uv::merge_uvs (all other corner attributes stay at default). */
-  {
-    Array<int> src_by_dst(n_surv_corners + n_new_corners, 0);
-    src_survive_faces.foreach_index(
-        [&](const int64_t src_f, const int64_t dst_f) {
-          const IndexRange src_face = src_faces[src_f];
-          const IndexRange dst_face = dst_faces[dst_f];
-          array_utils::fill_index_range(src_by_dst.as_mutable_span().slice(dst_face),
-                                        int(src_face.first()));
-        },
-        exec_mode::grain_size(1024));
-    bke::gather_attributes(src_attrs,
-                           bke::AttrDomain::Corner,
-                           bke::AttrDomain::Corner,
-                           geom_filter,
-                           src_by_dst,
-                           dst_attrs);
-    bke::fill_attribute_range_default(dst_attrs,
-                                      bke::AttrDomain::Corner,
-                                      geom_filter,
-                                      IndexRange(n_surv_corners, n_new_corners));
-
-    /* Write precomputed UV values for new corners into the output mesh. */
-    const int uv_maps_num = int(state.uv_layer_info.uv_maps.size());
-    if (uv_maps_num > 0) {
-      bke::MutableAttributeAccessor out_attrs = dst->attributes_for_write();
-
-      for (const int i : IndexRange(uv_maps_num)) {
-        const StringRef name = state.uv_layer_info.uv_maps[i].name;
-        const VArraySpan src_uvs = *src_attrs.lookup<float2>(name, bke::AttrDomain::Corner);
-        bke::SpanAttributeWriter dst_uvs = out_attrs.lookup_or_add_for_write_only_span<float2>(
-            name, bke::AttrDomain::Corner);
-        if (!dst_uvs) {
-          continue;
-        }
-
-        array_utils::gather(
-            src_uvs, src_by_dst.as_span(), dst_uvs.span.take_front(n_surv_corners));
-        array_utils::copy(emesh.new_corner_uvs(i), dst_uvs.span.take_back(n_new_corners));
-        dst_uvs.finish();
+    MutableSpan<bool> sharp_span = sharp_writer.span;
+    for (const int ni : IndexRange(n_new_edges)) {
+      const int8_t ov = emesh.new_edge_sharp_overrides()[ni];
+      if (ov >= 0) {
+        sharp_span[n_surv_edges + ni] = (ov == 1);
       }
     }
+    sharp_writer.finish();
   }
 
-  /* 8. Write #BevelAttributeOutputs fields into the output mesh.
+  /* Write precomputed UV values for new corners into the output mesh. */
+  for (const int i : state.uv_layer_info.uv_maps.index_range()) {
+    const StringRef name = state.uv_layer_info.uv_maps[i].name;
+    const VArraySpan src_uvs = *src_attrs.lookup<float2>(name, bke::AttrDomain::Corner);
+    bke::SpanAttributeWriter dst_uvs = dst_attrs.lookup_or_add_for_write_only_span<float2>(
+        name, bke::AttrDomain::Corner);
+    if (!dst_uvs) {
+      continue;
+    }
+    bke::attribute_math::gather_group_to_group(
+        src_faces, dst_faces, src_survive_faces, src_uvs, dst_uvs.span.take_front(n_surv_corners));
+    array_utils::copy(emesh.new_corner_uvs(i), dst_uvs.span.take_back(n_new_corners));
+    dst_uvs.finish();
+  }
+
+  /* Write #BevelAttributeOutputs fields into the output mesh.
    *
    * Each output is guarded by the optional attribute ID: if the GN output socket is not
    * connected, `get_output_anonymous_attribute_id_if_needed` returns `std::nullopt` and no
