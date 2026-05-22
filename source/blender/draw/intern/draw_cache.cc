@@ -213,6 +213,8 @@ gpu::Batch *DRW_cache_mesh_surface_get(Object *ob)
 gpu::BottomLevelAS *DRW_cache_mesh_surface_blas_get(Object *ob)
 {
   BLI_assert(ob->type == OB_MESH);
+  /* Ensure the surface VBOs/IBOs are requested, since BLAS relies on them. */
+  DRW_cache_mesh_surface_get(ob);
   return DRW_mesh_batch_cache_get_surface_blas(DRW_object_get_data_for_drawing<Mesh>(*ob));
 }
 
