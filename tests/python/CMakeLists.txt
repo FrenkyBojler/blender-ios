@@ -1237,6 +1237,7 @@ if(TEST_SRC_DIR_EXISTS)
     curves
     curves/interpolate_curves
     empty_object
+    essentials
     foreach_geometry_element_zone
     geometry
     grease_pencil
