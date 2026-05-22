@@ -140,8 +140,8 @@ static ReadingResult<RemoteListingAssetEntry> listing_entry_from_asset_dictionar
   /* 'type': data-block type, must match the #IDTypeInfo.name of the given type. required string.
    */
   if (const std::optional<StringRefNull> idtype_name = dictionary.lookup_str("id_type")) {
-    listing_entry.idcode = BKE_idtype_idcode_from_name_case_insensitive(idtype_name->c_str());
-    if (!BKE_idtype_idcode_is_valid(listing_entry.idcode)) {
+    const char *normalized_name = BKE_idtype_name_normalize(idtype_name->c_str());
+    if (!normalized_name) {
       /* This could actually be a new asset type that's not supported by this Blender. Just
        * silently ignore it and continue. */
       CLOG_DEBUG(&LOG,
@@ -150,6 +150,7 @@ static ReadingResult<RemoteListingAssetEntry> listing_entry_from_asset_dictionar
                  idtype_name->c_str());
       return ReadingResult<RemoteListingAssetEntry>::Success(RemoteListingAssetEntry{});
     }
+    listing_entry.idcode = BKE_idtype_idcode_from_name(normalized_name);
   }
   else {
     return ReadingResult<RemoteListingAssetEntry>::Failure(
