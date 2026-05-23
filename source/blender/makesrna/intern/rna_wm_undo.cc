@@ -16,15 +16,9 @@
 
 extern StructRNA RNA_UndoStep;
 
-static UndoStack *get_undo_stack(PointerRNA *ptr)
-{
-  wmWindowManager *wm = static_cast<wmWindowManager *>(ptr->data);
-  return wm->undo_stack;
-}
-
 static int rna_UndoStack_steps_length(PointerRNA *ptr)
 {
-  UndoStack *ustack = get_undo_stack(ptr);
+  UndoStack *ustack = static_cast<wmWindowManager *>(ptr->data);
   return BLI_listbase_count(&ustack->steps);
 }
 
@@ -36,13 +30,13 @@ static PointerRNA rna_UndoStack_steps_get(CollectionPropertyIterator *iter)
 
 static void rna_UndoStack_steps_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
-  UndoStack *ustack = get_undo_stack(ptr);
+  UndoStack *ustack = static_cast<wmWindowManager *>(ptr->data);
   rna_iterator_listbase_begin(iter, ptr, &ustack->steps, nullptr);
 }
 
 static int rna_UndoStack_active_index_get(PointerRNA *ptr)
 {
-  UndoStack *ustack = get_undo_stack(ptr);
+  UndoStack *ustack = static_cast<wmWindowManager *>(ptr->data);
   int index = 0;
   LISTBASE_FOREACH_INDEX (UndoStep *, us, &ustack->steps, index) {
     if (us == ustack->step_active) {
@@ -107,7 +101,6 @@ void RNA_def_undo(BlenderRNA *brna)
                               "rna_UndoStep_name_get",
                               "rna_UndoStep_name_length",
                               nullptr);
-  RNA_def_property_clear_flag(prop, PROP_EDITABLE | PROP_ANIMATABLE);
   RNA_def_property_ui_text(prop, "Name", "Label of the undo step");
 
   prop = RNA_def_property(srna, "type", PROP_STRING, PROP_NONE);
@@ -116,7 +109,6 @@ void RNA_def_undo(BlenderRNA *brna)
                               "rna_UndoStep_type_name_get",
                               "rna_UndoStep_type_name_length",
                               nullptr);
-  RNA_def_property_clear_flag(prop, PROP_EDITABLE | PROP_ANIMATABLE);
   RNA_def_property_ui_text(prop, "Type", "Type name of the undo step");
 
   prop = RNA_def_property(srna, "skip", PROP_BOOLEAN, PROP_NONE);
@@ -124,17 +116,15 @@ void RNA_def_undo(BlenderRNA *brna)
   RNA_def_property_boolean_funcs(prop,
                               "rna_UndoStep_skip_get",
                               nullptr);
-  RNA_def_property_clear_flag(prop, PROP_EDITABLE | PROP_ANIMATABLE);
   RNA_def_property_ui_text(prop, 
                           "Skip", 
-                          "If true, this step should not be shown to the user for undo/redo selection.");
+                          "If true, this step should not be shown to the user for undo/redo selection");
 
   /*
    * UndoStack
    */
   srna = RNA_def_struct(brna, "UndoStack", nullptr);
   RNA_def_struct_ui_text(srna, "Undo Stack", "Read-only access to the undo stack");
-  RNA_def_struct_flag(srna, STRUCT_NO_DATABLOCK_IDPROPERTIES);
 
   prop = RNA_def_property(srna, "steps", PROP_COLLECTION, PROP_NONE);
   RNA_def_property_struct_type(prop, "UndoStep");
