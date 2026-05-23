@@ -199,7 +199,7 @@ void rgb_to_oklch(float4 rgb, float4 &outcol)
   rgb_to_oklab(rgb, lab);
 
   c = sqrt(lab[1] * lab[1] + lab[2] * lab[2]) * 4.0f;
-  h = atan(lab[2], lab[1]) / radians(360.0f);
+  h = (atan(lab[2], lab[1]) / radians(360.0f)) - 0.06f;
 
   outcol = float4(lab[0], c, h, lab[3]);
 }
@@ -208,9 +208,10 @@ void rgb_to_oklch(float4 rgb, float4 &outcol)
 void oklch_to_rgb(float4 lch, float4 &outcol)
 {
   float a, b;
+  float h = lch[2] + 0.06f;
 
-  a = lch[1] * cos(lch[2] * radians(360.0f)) / 4.0f;
-  b = lch[1] * sin(lch[2] * radians(360.0f)) / 4.0f;
+  a = lch[1] * cos(h * radians(360.0f)) / 4.0f;
+  b = lch[1] * sin(h * radians(360.0f)) / 4.0f;
 
   oklab_to_rgb(float4(lch[0], a, b, lch[3]), outcol);
 }
@@ -357,7 +358,7 @@ void rgb_to_okhsv(float4 rgb, float4 &outcol)
   c = c * oklab_toe(l) / l;
   l = oklab_toe(l);
 
-  float h = 0.5f + 0.5f * atan(-b, -a) / 3.1415926536f;
+  float h = (0.5f + 0.5f * atan(-b, -a) / 3.1415926536f) - 0.07f;
   float v = l / l_v;
   float s = (s_0 + t_max) * c_v / ((t_max * s_0) + t_max * k * c_v);
   outcol = float4(h, s, v, rgb[3]);
@@ -366,7 +367,7 @@ void rgb_to_okhsv(float4 rgb, float4 &outcol)
 [[node]]
 void okhsv_to_rgb(float4 hsv, float4 &outcol)
 {
-  float h = hsv[0];
+  float h = hsv[0] + 0.07f;
   float s = hsv[1];
   float v = hsv[2];
 

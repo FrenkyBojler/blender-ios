@@ -83,9 +83,10 @@ void oklab_to_rgb(float l, float a, float b, float *r_r, float *r_g, float *r_b)
 
 void oklch_to_rgb(float l, float c, float h, float *r_r, float *r_g, float *r_b)
 {
+  // Shift the hue slightly to match more closely to HSV
+  h += 0.06f;
   float a = c * cos(h * 6.2831853072f) / 4.0f;
   float b = c * sin(h * 6.2831853072f) / 4.0f;
-
   oklab_to_rgb(l, a, b, r_r, r_g, r_b);
 }
 
@@ -195,6 +196,7 @@ float oklab_toe_inverse(float x)
 
 void okhsv_to_rgb(float h, float s, float v, float *r_r, float *r_g, float *r_b)
 {
+  h += 0.07f;
   float a_ = cosf(2.f * 3.1415926536f * h);
   float b_ = sinf(2.f * 3.1415926536f * h);
 
@@ -608,10 +610,9 @@ void rgb_to_oklch(float r, float g, float b, float *r_l, float *r_c, float *r_h)
 {
   float lab_l, lab_a, lab_b;
   rgb_to_oklab(r, g, b, &lab_l, &lab_a, &lab_b);
-
   *r_l = lab_l;
   *r_c = sqrt(lab_a * lab_a + lab_b * lab_b) * 4.0f;
-  *r_h = atan2(lab_b, lab_a) / 6.2831853072f;
+  *r_h = (atan2(lab_b, lab_a) / 6.2831853072f) - 0.06f;
 }
 
 void rgb_to_okhsv(float r, float g, float b, float *r_h, float *r_s, float *r_v)
@@ -648,7 +649,7 @@ void rgb_to_okhsv(float r, float g, float b, float *r_h, float *r_s, float *r_v)
   c = c * oklab_toe(l) / l;
   l = oklab_toe(l);
 
-  *r_h = 0.5f + 0.5f * atan2f(-lab_b, -lab_a) / 3.1415926536f;
+  *r_h = (0.5f + 0.5f * atan2f(-lab_b, -lab_a) / 3.1415926536f) - 0.07f;
   *r_v = l / l_v;
   *r_s = (s_0 + t_max) * c_v / ((t_max * s_0) + t_max * k * c_v);
 }
