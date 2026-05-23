@@ -1112,6 +1112,8 @@ static intptr_t wm_operator_register_active_id(const wmWindowManager *wm)
 
 bool WM_operator_poll(bContext *C, wmOperatorType *ot)
 {
+  BLI_PROFILE_ZONE_SCOPED_N("Operator Call (poll)");
+  BLI_PROFILE_ZONE_SET_NAME_FMT("Op: %s", ot->idname);
 
   for (wmOperatorTypeMacro &otmacro : ot->macro) {
     wmOperatorType *ot_macro = WM_operatortype_find(otmacro.idname, false);
@@ -1657,6 +1659,8 @@ static wmOperatorStatus wm_operator_invoke(bContext *C,
   }
 
   if (WM_operator_poll(C, ot)) {
+    BLI_PROFILE_ZONE_SCOPED_N("Operator Call (exec/invoke)");
+    BLI_PROFILE_ZONE_SET_NAME_FMT("Op: %s", ot->idname);
     wmWindowManager *wm = CTX_wm_manager(C);
     const intptr_t undo_id_prev = wm_operator_undo_active_id(wm);
     const intptr_t register_id_prev = wm_operator_register_active_id(wm);
@@ -1949,8 +1953,6 @@ wmOperatorStatus WM_operator_name_call_ptr(bContext *C,
                                            PointerRNA *properties,
                                            const wmEvent *event)
 {
-  BLI_PROFILE_ZONE_SCOPED;
-  BLI_PROFILE_ZONE_SET_NAME_FMT("%s", ot->idname);
   BLI_assert(ot == WM_operatortype_find(ot->idname, true));
   return wm_operator_call_internal(C, ot, properties, nullptr, context, false, event);
 }
@@ -2666,8 +2668,8 @@ static eHandlerActionFlag wm_handler_operator_call(bContext *C,
        * nothing to do in this case. */
     }
     else if (ot->modal) {
-      BLI_PROFILE_ZONE_SCOPED;
-      BLI_PROFILE_ZONE_SET_NAME_FMT("%s", ot->idname);
+      BLI_PROFILE_ZONE_SCOPED_N("Operator Call (modal)");
+      BLI_PROFILE_ZONE_SET_NAME_FMT("Op: %s", ot->idname);
       /* We set context to where modal handler came from. */
       wmWindowManager *wm = CTX_wm_manager(C);
       wmWindow *win = CTX_wm_window(C);
