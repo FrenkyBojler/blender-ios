@@ -117,8 +117,10 @@ bke::CurvesGeometry remove_points_and_split(const bke::CurvesGeometry &curves,
           "fill_id"))
   {
     IndexMaskMemory memory;
+    /* Get all the curves that where split off of the original geometry. */
     const IndexMask non_original_curves = IndexMask::from_predicate(
         dst_to_src_curve.index_range(), memory, [&](const int64_t dst_curve_index) {
+          /* Don't make non-filled curves into filled. */
           if (dst_fill_ids.span[dst_curve_index] == 0) {
             return false;
           }
