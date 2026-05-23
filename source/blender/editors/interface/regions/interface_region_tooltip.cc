@@ -304,18 +304,17 @@ static void tooltip_region_draw_cb(const bContext * /*C*/, ARegion *region)
 
       GPU_blend((field->image->premultiplied) ? GPU_BLEND_ALPHA_PREMULT : GPU_BLEND_ALPHA);
 
-      IMMDrawPixelsTexState state = immDrawPixelsTexSetup(GPU_SHADER_3D_IMAGE_COLOR);
-      immDrawPixels(&state,
-                    bbox.xmin,
-                    bbox.ymax,
-                    field->image->ibuf->x,
-                    field->image->ibuf->y,
-                    gpu::TextureFormat::UNORM_8_8_8_8,
-                    true,
-                    field->image->ibuf->byte_data(),
-                    float(field->image->width) / float(field->image->ibuf->x),
-                    float(field->image->height) / float(field->image->ibuf->y),
-                    (field->image->text_color) ? main_color : nullptr);
+      PixelBitmapDrawer drawer(GPU_SHADER_3D_IMAGE_COLOR);
+      drawer.draw(bbox.xmin,
+                  bbox.ymax,
+                  field->image->ibuf->x,
+                  field->image->ibuf->y,
+                  gpu::TextureFormat::UNORM_8_8_8_8,
+                  true,
+                  field->image->ibuf->byte_data(),
+                  float(field->image->width) / float(field->image->ibuf->x),
+                  float(field->image->height) / float(field->image->ibuf->y),
+                  (field->image->text_color) ? main_color : nullptr);
 
       if (field->image->border) {
         GPU_blend(GPU_BLEND_ALPHA);
@@ -1844,7 +1843,7 @@ static void tooltip_from_image(Image &ima, TooltipData &data)
   if (BKE_image_has_anim(&ima)) {
     MovieReader *anim = static_cast<ImageAnim *>(ima.anims.first)->anim;
     if (anim) {
-      int duration = MOV_get_duration_frames(anim, IMB_TC_RECORD_RUN);
+      int duration = MOV_get_duration_frames(anim);
       tooltip_text_field_add(data,
                              fmt::format(fmt::runtime(TIP_("Frames: {}")), duration),
                              {},
@@ -1905,12 +1904,12 @@ static void tooltip_from_clip(MovieClip &clip, TooltipData &data)
         TIP_STYLE_NORMAL,
         TIP_LC_NORMAL);
 
-    tooltip_text_field_add(data,
-                           fmt::format(fmt::runtime(TIP_("Frames: {}")),
-                                       MOV_get_duration_frames(anim, IMB_TC_RECORD_RUN)),
-                           {},
-                           TIP_STYLE_NORMAL,
-                           TIP_LC_NORMAL);
+    tooltip_text_field_add(
+        data,
+        fmt::format(fmt::runtime(TIP_("Frames: {}")), MOV_get_duration_frames(anim)),
+        {},
+        TIP_STYLE_NORMAL,
+        TIP_LC_NORMAL);
 
     ImBuf *ibuf = MOV_decode_preview_frame(anim);
 

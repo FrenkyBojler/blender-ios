@@ -1,5 +1,5 @@
 /* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
- * SPDX-FileCopyrightText: 2003-2024 Blender Authors
+ * SPDX-FileCopyrightText: 2003-2026 Blender Authors
  * SPDX-FileCopyrightText: 2005-2006 Peter Schlaile <peter [at] schlaile [dot] de>
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
@@ -634,7 +634,11 @@ static ImBuf *input_preprocess(const RenderData *context,
                                                   context->recty,
                                                   image_scale_factor,
                                                   preview_scale_factor);
-    ModifierApplyContext mod_context(*context, *state, *strip, matrix, timeline_frame, ibuf);
+    float3x3 matrix_comp = calc_strip_transform_matrix(
+        scene, strip, 0, 0, 0, 0, image_scale_factor, preview_scale_factor);
+    matrix_comp = math::invert(matrix_comp);
+    ModifierApplyContext mod_context(
+        *context, *state, *strip, matrix, matrix_comp, timeline_frame, ibuf);
     modifier_apply_stack(mod_context);
     modifier_translation = mod_context.result_translation;
   }
@@ -816,16 +820,7 @@ void convert_multilayer_ibuf(ImBuf *ibuf)
   if (ibuf->float_data() != nullptr && ibuf->channels != 4) {
     float *dst = MEM_new_array_uninitialized<float>(4 * size_t(ibuf->x) * size_t(ibuf->y),
                                                     __func__);
-    IMB_buffer_float_from_float_threaded(dst,
-                                         ibuf->float_data(),
-                                         ibuf->channels,
-                                         IB_PROFILE_LINEAR_RGB,
-                                         IB_PROFILE_LINEAR_RGB,
-                                         false,
-                                         ibuf->x,
-                                         ibuf->y,
-                                         ibuf->x,
-                                         ibuf->x);
+    IMB_buffer_float_rgba_from_float(dst, ibuf->float_data(), ibuf->channels, ibuf->x, ibuf->y);
     ibuf->assign_float_data(dst);
     ibuf->channels = 4;
   }
@@ -1011,17 +1006,7 @@ static ImBuf *seq_render_movie_strip_custom_file_proxy(const RenderData *context
 
   int frameno = round_fl_to_int(give_frame_index(context->scene, strip, timeline_frame)) +
                 strip->anim_startofs;
-  return MOV_decode_frame(proxy->anim, frameno, IMB_TC_NONE, IMB_PROXY_NONE);
-}
-
-static IMB_Timecode_Type seq_render_movie_strip_timecode_get(Strip *strip)
-{
-  bool use_timecodes = (strip->flag & SEQ_USE_PROXY) != 0;
-  if (!use_timecodes) {
-    return IMB_TC_NONE;
-  }
-  return IMB_Timecode_Type(strip->data->proxy ? IMB_Timecode_Type(strip->data->proxy->tc) :
-                                                IMB_TC_NONE);
+  return MOV_decode_frame(proxy->anim, frameno, IMB_PROXY_NONE);
 }
 
 /**
@@ -1046,10 +1031,7 @@ static ImBuf *seq_render_movie_strip_view(const RenderData *context,
       ibuf = seq_render_movie_strip_custom_file_proxy(context, strip, timeline_frame);
     }
     else {
-      ibuf = MOV_decode_frame(reader,
-                              frame_index + strip->anim_startofs,
-                              seq_render_movie_strip_timecode_get(strip),
-                              psize);
+      ibuf = MOV_decode_frame(reader, frame_index + strip->anim_startofs, psize);
     }
 
     if (ibuf != nullptr) {
@@ -1059,10 +1041,7 @@ static ImBuf *seq_render_movie_strip_view(const RenderData *context,
 
   /* Fetching for requested proxy size failed, try fetching the original instead. */
   if (ibuf == nullptr) {
-    ibuf = MOV_decode_frame(reader,
-                            frame_index + strip->anim_startofs,
-                            seq_render_movie_strip_timecode_get(strip),
-                            IMB_PROXY_NONE);
+    ibuf = MOV_decode_frame(reader, frame_index + strip->anim_startofs, IMB_PROXY_NONE);
   }
   if (ibuf == nullptr) {
     return nullptr;
@@ -1612,7 +1591,7 @@ static ImBuf *do_render_strip_seqbase(const RenderData *context,
 
   seqbase = get_seqbase_from_strip(strip, &channels, &offset);
 
-  if (seqbase && !BLI_listbase_is_empty(seqbase)) {
+  if (seqbase && !seqbase->is_empty()) {
 
     frame_index += offset;
 
@@ -1958,8 +1937,8 @@ ImBuf *render_give_ibuf(const RenderData *context, float timeline_frame, int cha
     return nullptr;
   }
 
-  if ((chanshown < 0) && !BLI_listbase_is_empty(&ed->metastack)) {
-    int count = BLI_listbase_count(&ed->metastack);
+  if ((chanshown < 0) && !ed->metastack.is_empty()) {
+    int count = ed->metastack.count();
     count = max_ii(count + chanshown, 0);
     MetaStack *ms = static_cast<MetaStack *>(BLI_findlink(&ed->metastack, count));
     seqbasep = &ms->old_strip->seqbase;
@@ -2049,7 +2028,7 @@ ImBuf *render_give_ibuf_direct(const RenderData *context, float timeline_frame, 
 bool render_is_muted(const ListBaseT<SeqTimelineChannel> *channels, const Strip *strip)
 {
   SeqTimelineChannel *channel = channel_get_by_index(channels, strip->channel);
-  return strip->flag & SEQ_MUTE || channel_is_muted(channel);
+  return strip->flag & SEQ_MUTE || channel->is_muted();
 }
 
 /** \} */
