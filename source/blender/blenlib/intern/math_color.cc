@@ -228,6 +228,10 @@ void okhsv_to_rgb(float h, float s, float v, float *r_r, float *r_g, float *r_b)
   c = c * scale_l;
 
   oklab_to_rgb(l, c * a_, c * b_, r_r, r_g, r_b);
+
+  *r_r = srgb_to_linearrgb(*r_r);
+  *r_g = srgb_to_linearrgb(*r_g);
+  *r_b = srgb_to_linearrgb(*r_b);
 }
 
 void rgb_to_yuv(float r, float g, float b, float *r_y, float *r_u, float *r_v, int colorspace)
@@ -617,6 +621,10 @@ void rgb_to_oklch(float r, float g, float b, float *r_l, float *r_c, float *r_h)
 
 void rgb_to_okhsv(float r, float g, float b, float *r_h, float *r_s, float *r_v)
 {
+  r = linearrgb_to_srgb(r);
+  g = linearrgb_to_srgb(g);
+  b = linearrgb_to_srgb(b);
+
   float lab_l, lab_a, lab_b;
   rgb_to_oklab(r, g, b, &lab_l, &lab_a, &lab_b);
 

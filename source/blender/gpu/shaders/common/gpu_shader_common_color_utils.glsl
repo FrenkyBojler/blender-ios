@@ -6,6 +6,41 @@
 
 #include "gpu_shader_compat.hh"
 
+float linear_rgb_to_srgb(float color)
+{
+  if (color < 0.0031308f) {
+    return (color < 0.0f) ? 0.0f : color * 12.92f;
+  }
+
+  return 1.055f * pow(color, 1.0f / 2.4f) - 0.055f;
+}
+
+float3 linear_rgb_to_srgb(float3 color)
+{
+  return float3(
+      linear_rgb_to_srgb(color.r), linear_rgb_to_srgb(color.g), linear_rgb_to_srgb(color.b));
+}
+
+float srgb_to_linear_rgb(float color)
+{
+  if (color < 0.04045f) {
+    return (color < 0.0f) ? 0.0f : color * (1.0f / 12.92f);
+  }
+
+  return pow((color + 0.055f) * (1.0f / 1.055f), 2.4f);
+}
+
+float3 srgb_to_linear_rgb(float3 color)
+{
+  return float3(
+      srgb_to_linear_rgb(color.r), srgb_to_linear_rgb(color.g), srgb_to_linear_rgb(color.b));
+}
+
+float get_luminance(float3 color, float3 luminance_coefficients)
+{
+  return dot(color, luminance_coefficients);
+}
+
 [[node]]
 void rgb_to_hsv(float4 rgb, float4 &outcol)
 {
@@ -323,6 +358,10 @@ float oklab_toe_inverse(float x)
 [[node]]
 void rgb_to_okhsv(float4 rgb, float4 &outcol)
 {
+  rgb.x = linear_rgb_to_srgb(rgb.x);
+  rgb.y = linear_rgb_to_srgb(rgb.y);
+  rgb.z = linear_rgb_to_srgb(rgb.z);
+
   float4 lab;
   rgb_to_oklab(rgb, lab);
   float l = lab[0];
@@ -403,6 +442,9 @@ void okhsv_to_rgb(float4 hsv, float4 &outcol)
   c = c * scale_l;
 
   oklab_to_rgb(float4(l, c * a_, c * b_, hsv[3]), outcol);
+  outcol.x = srgb_to_linear_rgb(outcol.x);
+  outcol.y = srgb_to_linear_rgb(outcol.y);
+  outcol.z = srgb_to_linear_rgb(outcol.z);
 }
 
 /* ** YCCA to RGBA ** */
@@ -521,39 +563,4 @@ void color_alpha_unpremultiply(float4 color, float4 &result)
   else {
     result = float4(color.rgb / color.a, color.a);
   }
-}
-
-float linear_rgb_to_srgb(float color)
-{
-  if (color < 0.0031308f) {
-    return (color < 0.0f) ? 0.0f : color * 12.92f;
-  }
-
-  return 1.055f * pow(color, 1.0f / 2.4f) - 0.055f;
-}
-
-float3 linear_rgb_to_srgb(float3 color)
-{
-  return float3(
-      linear_rgb_to_srgb(color.r), linear_rgb_to_srgb(color.g), linear_rgb_to_srgb(color.b));
-}
-
-float srgb_to_linear_rgb(float color)
-{
-  if (color < 0.04045f) {
-    return (color < 0.0f) ? 0.0f : color * (1.0f / 12.92f);
-  }
-
-  return pow((color + 0.055f) * (1.0f / 1.055f), 2.4f);
-}
-
-float3 srgb_to_linear_rgb(float3 color)
-{
-  return float3(
-      srgb_to_linear_rgb(color.r), srgb_to_linear_rgb(color.g), srgb_to_linear_rgb(color.b));
-}
-
-float get_luminance(float3 color, float3 luminance_coefficients)
-{
-  return dot(color, luminance_coefficients);
 }
