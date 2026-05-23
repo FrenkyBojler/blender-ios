@@ -361,7 +361,7 @@ class STRIP_PT_effect_text_style(StripButtonsPanel, Panel):
         row.prop(strip, "use_italic", text="", icon='ITALIC')
 
         col.prop(strip, "font_size")
-        row = col.row(align=False)
+        row = col.row()
         if strip.use_absolute_line_spacing:
             row.prop(strip, "abs_space_line", text="Line Spacing")
         else:
