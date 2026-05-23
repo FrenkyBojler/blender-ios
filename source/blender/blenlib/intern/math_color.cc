@@ -611,7 +611,7 @@ void rgb_to_oklch(float r, float g, float b, float *r_l, float *r_c, float *r_h)
 
   *r_l = lab_l;
   *r_c = sqrt(lab_a * lab_a + lab_b * lab_b) * 4.0f;
-  *r_h = atan2(lab_b, lab_a);
+  *r_h = atan2(lab_b, lab_a) / 6.2831853072f;
 }
 
 void rgb_to_okhsv(float r, float g, float b, float *r_h, float *r_s, float *r_v)
