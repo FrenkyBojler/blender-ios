@@ -76,9 +76,9 @@ enum class Category : uint32_t {
 
 #else
 
-#  define BLI_PROFILE_FRAME_MARK
-#  define BLI_PROFILE_FRAME_MARK_START(name)
-#  define BLI_PROFILE_FRAME_MARK_END(name)
+#  define PROFILE_FRAME_MARK
+#  define PROFILE_FRAME_MARK_START(name)
+#  define PROFILE_FRAME_MARK_END(name)
 
 #  define PROFILE_SCOPE
 #  define PROFILE_SCOPE_WITH_NAME(name)
