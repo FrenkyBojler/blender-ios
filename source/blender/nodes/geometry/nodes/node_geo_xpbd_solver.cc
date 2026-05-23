@@ -14,7 +14,6 @@
 #include "BKE_pointcloud.hh"
 
 #include "BLI_math_geom.h"
-#include "BLI_ordered_edge.hh"
 #include "BLI_stack.hh"
 #include "BLI_virtual_array_range_spans.hh"
 
@@ -87,7 +86,7 @@ static NestedBundleTypePtr make_world_type()
   Vector<std::shared_ptr<const FlatBundleType>> types;
   types.append(XPBDSolverDataBundle::get_bundle_type());
   types.append(DampingBundle::get_bundle_type());
-  types.append(ColliderBundle::get_bundle_type());
+  types.append(MeshColliderBundle::get_bundle_type());
   types.append(CollisionContactsBundle::get_bundle_type());
   types.append(RodStretchShearBundle::get_bundle_type());
   types.append(RodBendTwistBundle::get_bundle_type());
@@ -110,7 +109,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   static NestedBundleTypePtr world_type = make_world_type();
   b.add_input<decl::Bundle>("World"_ustr)
       .bundle_type(world_type)
-      .field_on_all()
+      .evaluated_geometry_field()
       .structure_type(StructureType::Single)
       .description("World state that is updated by the solver");
   b.add_output<decl::Bundle>("World"_ustr).pass_through_input_index(0).align_with_previous();
@@ -823,7 +822,7 @@ class XpbdSolverStep {
 
   void gather_from_world__mesh_colliders()
   {
-    const Span<std::string> paths = nested_bundle_paths_.lookup_as(ColliderBundle::name);
+    const Span<std::string> paths = nested_bundle_paths_.lookup_as(MeshColliderBundle::name);
     for (const StringRef path : paths) {
       const BundlePtr *bundle_ptr = world_.lookup_path_ptr<BundlePtr>(path);
       if (!bundle_ptr || !*bundle_ptr) {
