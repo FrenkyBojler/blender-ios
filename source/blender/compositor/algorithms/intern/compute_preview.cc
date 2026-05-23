@@ -35,7 +35,7 @@ static void compute_preview_cpu(Context &context, const Result &input, ImBuf *ou
 
   Result input_as_color = context.create_result(ResultType::Color);
   if (input.type() == ResultType::Color) {
-    input_as_color = input;
+    input_as_color.share_data(input);
   }
   else {
     input_as_color.allocate_texture(input.domain());
@@ -61,9 +61,7 @@ static void compute_preview_cpu(Context &context, const Result &input, ImBuf *ou
     }
   });
 
-  if (input.type() != ResultType::Color) {
-    input_as_color.release();
-  }
+  input_as_color.release();
 }
 
 static void compute_preview_gpu(Context &context, const Result &input_result, ImBuf *output)
@@ -131,7 +129,7 @@ static int2 compute_preview_size(int2 size)
 ImBuf *compute_preview(Context &context, const Result &input)
 {
   const int2 preview_size = compute_preview_size(input.domain().data_size);
-  ImBuf *image_buffer = IMB_allocImBuf(UNPACK2(preview_size), IB_byte_data);
+  ImBuf *image_buffer = IMB_allocImBuf(UNPACK2(preview_size), ImBufFlags::ByteData);
   if (context.use_gpu()) {
     compute_preview_gpu(context, input, image_buffer);
   }
