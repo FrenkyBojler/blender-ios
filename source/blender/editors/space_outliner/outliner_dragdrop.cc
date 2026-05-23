@@ -1215,7 +1215,7 @@ static bool collection_drop_init(bContext *C, wmDrag *drag, const int xy[2], Col
   }
 
   if (GS(id->name) == ID_OB) {
-    if (te_hovered == collection_te || collection_te->subtree.first == te_hovered) {
+    if (te_hovered == collection_te) {
       insert_type = TE_INSERT_INTO;
     }
   }
