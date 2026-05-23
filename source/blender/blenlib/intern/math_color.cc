@@ -602,6 +602,41 @@ void rgb_to_okhsv(float r, float g, float b, float *r_h, float *r_s, float *r_v)
   *r_s = (s_0 + t_max) * c_v / ((t_max * s_0) + t_max * k * c_v);
 }
 
+void okhsv_to_rgb(float h, float s, float v, float *r_r, float *r_g, float *r_b)
+{
+	float a_ = cosf(2.f * 3.1415926536f * h);
+	float b_ = sinf(2.f * 3.1415926536f * h);
+
+  float l_cusp, c_cusp;
+  oklab_find_cusp(a_, b_, &l_cusp, &c_cusp);
+  float s_max = c_cusp / l_cusp;
+  float t_max = c_cusp / (1 - l_cusp);
+  float s_0 = 0.5f;
+  float k = 1 - s_0 / s_max;
+
+  float l_v = 1 - s * s_0 / (s_0 + t_max - t_max * k * s);
+	float c_v = s * t_max * s_0 / (s_0 + t_max - t_max * k * s);
+
+  float l = v * l_v;
+  float c = v * c_v;
+
+  float l_vt = oklab_toe_inverse(l_v);
+  float c_vt = c_v * l_vt / l_v;
+
+  float l_new = oklab_toe_inverse(l);
+  c = c * l_new / l;
+  l = l_new;
+
+  float r_scale, g_scale, b_scale;
+  oklab_to_rgb(l_vt, a_ * c_vt, b_ * c_vt, &r_scale, &g_scale, &b_scale);
+  float scale_l = cbrtf(1.0f / fmax(fmax(r_scale, g_scale), fmax(b_scale, 0.0f)));
+
+  l = l * scale_l;
+  c = c * scale_l;
+
+  oklab_to_rgb(l, c * a_, c * b_, r_r, r_g, r_b);
+}
+
 void hsv_clamp_v(float hsv[3], float v_max)
 {
   if (UNLIKELY(hsv[0] < 0.0f || hsv[0] > 1.0f)) {
