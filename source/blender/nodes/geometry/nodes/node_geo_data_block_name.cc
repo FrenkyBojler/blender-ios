@@ -53,33 +53,27 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   switch (data_type) {
     case SOCK_OBJECT: {
-      Object *data_block = params.extract_input<Object *>("Data Block"_ustr);
-      id = &data_block->id;
+      id = &params.extract_input<Object *>("Data Block"_ustr)->id;
       break;
     }
     case SOCK_IMAGE: {
-      Image *data_block = params.extract_input<Image *>("Data Block"_ustr);
-      id = &data_block->id;
+      id = &params.extract_input<Image *>("Data Block"_ustr)->id;
       break;
     }
     case SOCK_COLLECTION: {
-      Collection *data_block = params.extract_input<Collection *>("Data Block"_ustr);
-      id = &data_block->id;
+      id = &params.extract_input<Collection *>("Data Block"_ustr)->id;
       break;
     }
     case SOCK_MATERIAL: {
-      Material *data_block = params.extract_input<Material *>("Data Block"_ustr);
-      id = &data_block->id;
+      id = &params.extract_input<Material *>("Data Block"_ustr)->id;
       break;
     }
     case SOCK_FONT: {
-      VFont *data_block = params.extract_input<VFont *>("Data Block"_ustr);
-      id = &data_block->id;
+      id = &params.extract_input<VFont *>("Data Block"_ustr)->id;
       break;
     }
     case SOCK_SOUND: {
-      bSound *data_block = params.extract_input<bSound *>("Data Block"_ustr);
-      id = &data_block->id;
+      id = &params.extract_input<bSound *>("Data Block"_ustr)->id;
       break;
     }
     default:
@@ -119,11 +113,16 @@ static void node_rna(StructRNA *srna)
       SOCK_OBJECT,
       [](bContext * /*C*/, PointerRNA * /*ptr*/, PropertyRNA * /*prop*/, bool *r_free) {
         *r_free = true;
-        return enum_items_filter(
-            rna_enum_node_socket_data_type_items, [](const EnumPropertyItem &item) -> bool {
-              return ELEM(
-                  item.value, SOCK_OBJECT, SOCK_IMAGE, SOCK_COLLECTION, SOCK_MATERIAL, SOCK_FONT, SOCK_SOUND);
-            });
+        return enum_items_filter(rna_enum_node_socket_data_type_items,
+                                 [](const EnumPropertyItem &item) -> bool {
+                                   return ELEM(item.value,
+                                               SOCK_OBJECT,
+                                               SOCK_IMAGE,
+                                               SOCK_COLLECTION,
+                                               SOCK_MATERIAL,
+                                               SOCK_FONT,
+                                               SOCK_SOUND);
+                                 });
       });
 }
 
