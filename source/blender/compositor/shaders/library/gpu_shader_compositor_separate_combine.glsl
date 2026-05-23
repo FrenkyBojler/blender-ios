@@ -76,7 +76,7 @@ void node_composite_separate_hsla(float4 color, float &h, float &s, float &l, fl
   a = hsla.a;
 }
 
-/* ** Combine/Separate LAB using OKLAB ** */
+/* ** Combine/Separate LAB using Oklab ** */
 
 [[node]]
 void node_composite_combine_oklab(float l, float a, float b, float alpha, float4 &color)
@@ -95,7 +95,7 @@ void node_composite_separate_oklab(float4 color, float &l, float &a, float &b, f
   alpha = lab.a;
 }
 
-/* ** Combine/Separate LCH using OKLAB ** */
+/* ** Combine/Separate LCH using Oklab ** */
 
 [[node]]
 void node_composite_combine_oklch(float l, float c, float h, float alpha, float4 &color)
@@ -112,6 +112,25 @@ void node_composite_separate_oklch(float4 color, float &l, float &c, float &h, f
   c = lch.y;
   h = lch.z;
   alpha = lch.a;
+}
+
+/* ** Combine/Separate HSV using Oklab ** */
+
+[[node]]
+void node_composite_combine_okhsv(float h, float s, float v, float alpha, float4 &color)
+{
+  okhsv_to_rgb(float4(h, s, v, alpha), color);
+}
+
+[[node]]
+void node_composite_separate_okhsv(float4 color, float &h, float &s, float &v, float &alpha)
+{
+  float4 hsv;
+  rgb_to_okhsv(color, hsv);
+  h = hsv.x;
+  s = hsv.y;
+  v = hsv.z;
+  alpha = hsv.a;
 }
 
 /* ** Combine/Separate YCCA ** */

@@ -41,6 +41,7 @@ static void node_declare(NodeDeclarationBuilder &b)
             return IFACE_("Red");
           case CMP_NODE_COMBSEP_COLOR_HSV:
           case CMP_NODE_COMBSEP_COLOR_HSL:
+          case CMP_NODE_COMBSEP_COLOR_OKHSV:
             return IFACE_("Hue");
           case CMP_NODE_COMBSEP_COLOR_OKLAB:
           case CMP_NODE_COMBSEP_COLOR_OKLCH:
@@ -62,6 +63,7 @@ static void node_declare(NodeDeclarationBuilder &b)
             return IFACE_("Green");
           case CMP_NODE_COMBSEP_COLOR_HSV:
           case CMP_NODE_COMBSEP_COLOR_HSL:
+          case CMP_NODE_COMBSEP_COLOR_OKHSV:
             return IFACE_("Saturation");
           case CMP_NODE_COMBSEP_COLOR_OKLAB:
             return IFACE_("a");
@@ -84,6 +86,7 @@ static void node_declare(NodeDeclarationBuilder &b)
           default:
             return IFACE_("Blue");
           case CMP_NODE_COMBSEP_COLOR_HSV:
+          case CMP_NODE_COMBSEP_COLOR_OKHSV:
             return CTX_IFACE_(BLT_I18NCONTEXT_COLOR, "Value");
           case CMP_NODE_COMBSEP_COLOR_HSL:
             return IFACE_("Lightness");
@@ -124,6 +127,8 @@ static int node_gpu_material(GPUMaterial *material,
       return GPU_stack_link(material, node, "node_composite_combine_oklab", inputs, outputs);
     case CMP_NODE_COMBSEP_COLOR_OKLCH:
       return GPU_stack_link(material, node, "node_composite_combine_oklch", inputs, outputs);
+    case CMP_NODE_COMBSEP_COLOR_OKHSV:
+      return GPU_stack_link(material, node, "node_composite_combine_okhsv", inputs, outputs);
     case CMP_NODE_COMBSEP_COLOR_YUV:
       return GPU_stack_link(
           material, node, "node_composite_combine_yuva_itu_709", inputs, outputs);
@@ -176,7 +181,7 @@ static void node_build_multi_function(nodes::NodeMultiFunctionBuilder &builder)
       mf::build::exec_presets::Materialized());
 
   static auto oklab_function = mf::build::SI4_SO<float, float, float, float, Color>(
-      "Combine Color OkLAB",
+      "Combine Color Oklab",
       [](const float l, const float a, const float b, const float alpha) -> Color {
         Color result;
         oklab_to_rgb(l, a, b, &result.r, &result.g, &result.b);
@@ -186,10 +191,20 @@ static void node_build_multi_function(nodes::NodeMultiFunctionBuilder &builder)
       mf::build::exec_presets::AllSpanOrSingle());
 
   static auto oklch_function = mf::build::SI4_SO<float, float, float, float, Color>(
-      "Combine Color OkLCH",
+      "Combine Color Oklch",
       [](const float l, const float c, const float h, const float alpha) -> Color {
         Color result;
         oklch_to_rgb(l, c, h, &result.r, &result.g, &result.b);
+        result.a = alpha;
+        return result;
+      },
+      mf::build::exec_presets::AllSpanOrSingle());
+
+  static auto okhsv_function = mf::build::SI4_SO<float, float, float, float, Color>(
+      "Combine Color Okhsv",
+      [](const float h, const float s, const float v, const float alpha) -> Color {
+        Color result;
+        okhsv_to_rgb(h, s, v, &result.r, &result.g, &result.b);
         result.a = alpha;
         return result;
       },
@@ -268,6 +283,9 @@ static void node_build_multi_function(nodes::NodeMultiFunctionBuilder &builder)
       break;
     case CMP_NODE_COMBSEP_COLOR_OKLCH:
       builder.set_matching_fn(oklch_function);
+      break;
+    case CMP_NODE_COMBSEP_COLOR_OKHSV:
+      builder.set_matching_fn(okhsv_function);
       break;
     case CMP_NODE_COMBSEP_COLOR_YUV:
       builder.set_matching_fn(yuva_function);

@@ -544,7 +544,7 @@ void oklab_find_cusp(float a, float b, float *r_l, float*r_c)
 	float s_cusp = oklab_compute_max_saturation(a, b);
   float r_at_max, g_at_max, b_at_max;
 	oklab_to_rgb(1, s_cusp * a, s_cusp * b, &r_at_max, &g_at_max, &b_at_max);
-	*r_l = cbrtf(1.f / fmaxf(fmaxf(r_at_max, g_at_max), b_at_max));
+	*r_l = cbrtf(1.0f / fmaxf(fmaxf(r_at_max, g_at_max), b_at_max));
 	*r_c = *r_l * s_cusp;
 }
 
@@ -552,7 +552,7 @@ float oklab_toe(float x)
 {
 	constexpr float k_1 = 0.206f;
 	constexpr float k_2 = 0.03f;
-	constexpr float k_3 = (1.f + k_1) / (1.f + k_2);
+	constexpr float k_3 = (1.0f + k_1) / (1.0f + k_2);
 	return 0.5f * (k_3 * x - k_1 + sqrtf((k_3 * x - k_1) * (k_3 * x - k_1) + 4 * k_2 * k_3 * x));
 }
 
@@ -560,18 +560,18 @@ float oklab_toe_inverse(float x)
 {
 	constexpr float k_1 = 0.206f;
 	constexpr float k_2 = 0.03f;
-	constexpr float k_3 = (1.f + k_1) / (1.f + k_2);
+	constexpr float k_3 = (1.0f + k_1) / (1.0f + k_2);
 	return (x * x + k_1 * x) / (k_3 * (x + k_2));
 }
 
 void rgb_to_okhsv(float r, float g, float b, float *r_h, float *r_s, float *r_v)
 {
-  float l, a, b;
-  rgb_to_oklab(r, g, b, &l, &a, &b);
+  float lab_l, lab_a, lab_b;
+  rgb_to_oklab(r, g, b, &lab_l, &lab_a, &lab_b);
 
-  float c = sqrtf(a * a + b * b);
-  float a_ = a / c;
-  float b_ = b / c;
+  float c = sqrtf(lab_a * lab_a + lab_b * lab_b);
+  float a_ = lab_a / c;
+  float b_ = lab_b / c;
 
   float l_cusp, c_cusp;
   oklab_find_cusp(a_, b_, &l_cusp, &c_cusp);
@@ -580,6 +580,7 @@ void rgb_to_okhsv(float r, float g, float b, float *r_h, float *r_s, float *r_v)
   float s_0 = 0.5f;
   float k = 1 - s_0 / s_max;
 
+  float l = lab_l;
   float t = t_max / (c + l * t_max);
   float l_v = t * l;
   float c_v = t * c;
@@ -597,7 +598,7 @@ void rgb_to_okhsv(float r, float g, float b, float *r_h, float *r_s, float *r_v)
   c = c * oklab_toe(l) / l;
   l = oklab_toe(l);
 
-  *r_h = 0.5f + 0.5f * atan2f(-b, -a) / 3.1415926536f;
+  *r_h = 0.5f + 0.5f * atan2f(-lab_b, -lab_a) / 3.1415926536f;
   *r_v = l / l_v;
   *r_s = (s_0 + t_max) * c_v / ((t_max * s_0) + t_max * k * c_v);
 }
