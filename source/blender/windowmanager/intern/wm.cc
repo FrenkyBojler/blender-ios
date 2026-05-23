@@ -596,7 +596,8 @@ void wm_close_and_free(bContext *C, wmWindowManager *wm)
 
 void WM_main(bContext *C)
 {
-  BLI_PROFILE_ZONE_SCOPED;
+  PROFILE_SCOPE;
+  PROFILE_SCOPE_SET_CATEGORY(Category::Core);
   /* Single refresh before handling events.
    * This ensures we don't run operators before the depsgraph has been evaluated. */
   wm_event_do_refresh_wm_and_depsgraph(C);
@@ -615,7 +616,7 @@ void WM_main(bContext *C)
     /* Execute cached changes draw. */
     wm_draw_update(C);
 
-    BLI_PROFILE_FRAME_MARK;
+    PROFILE_FRAME_MARK;
   }
 }
 

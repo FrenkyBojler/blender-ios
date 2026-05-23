@@ -594,7 +594,8 @@ static bool notifier_refreshes_node_group_operators(const wmNotifier &note)
 
 void wm_event_do_notifiers(bContext *C)
 {
-  BLI_PROFILE_ZONE_SCOPED;
+  PROFILE_SCOPE;
+  PROFILE_SCOPE_SET_CATEGORY(Category::Core);
   /* Ensure inside render boundary. */
   GPU_render_begin();
 
@@ -1112,8 +1113,8 @@ static intptr_t wm_operator_register_active_id(const wmWindowManager *wm)
 
 bool WM_operator_poll(bContext *C, wmOperatorType *ot)
 {
-  BLI_PROFILE_ZONE_SCOPED_N("Operator Call (poll)");
-  BLI_PROFILE_ZONE_SET_NAME_FMT("Op: %s", ot->idname);
+  PROFILE_SCOPE_WITH_NAME("Operator Call (poll)");
+  PROFILE_SCOPE_SET_DYNAMIC_NAME("Op: %s", ot->idname);
 
   for (wmOperatorTypeMacro &otmacro : ot->macro) {
     wmOperatorType *ot_macro = WM_operatortype_find(otmacro.idname, false);
@@ -1659,8 +1660,8 @@ static wmOperatorStatus wm_operator_invoke(bContext *C,
   }
 
   if (WM_operator_poll(C, ot)) {
-    BLI_PROFILE_ZONE_SCOPED_N("Operator Call (exec/invoke)");
-    BLI_PROFILE_ZONE_SET_NAME_FMT("Op: %s", ot->idname);
+    PROFILE_SCOPE_WITH_NAME("Operator Call (exec/invoke)");
+    PROFILE_SCOPE_SET_DYNAMIC_NAME("Op: %s", ot->idname);
     wmWindowManager *wm = CTX_wm_manager(C);
     const intptr_t undo_id_prev = wm_operator_undo_active_id(wm);
     const intptr_t register_id_prev = wm_operator_register_active_id(wm);
@@ -2668,8 +2669,8 @@ static eHandlerActionFlag wm_handler_operator_call(bContext *C,
        * nothing to do in this case. */
     }
     else if (ot->modal) {
-      BLI_PROFILE_ZONE_SCOPED_N("Operator Call (modal)");
-      BLI_PROFILE_ZONE_SET_NAME_FMT("Op: %s", ot->idname);
+      PROFILE_SCOPE_WITH_NAME("Operator Call (modal)");
+      PROFILE_SCOPE_SET_DYNAMIC_NAME("Op: %s", ot->idname);
       /* We set context to where modal handler came from. */
       wmWindowManager *wm = CTX_wm_manager(C);
       wmWindow *win = CTX_wm_window(C);
@@ -4218,7 +4219,8 @@ static eHandlerActionFlag wm_event_do_handlers_area_regions(bContext *C,
 
 void wm_event_do_handlers(bContext *C)
 {
-  BLI_PROFILE_ZONE_SCOPED;
+  PROFILE_SCOPE;
+  PROFILE_SCOPE_SET_CATEGORY(Category::Core);
   wmWindowManager *wm = CTX_wm_manager(C);
   BLI_assert(ED_undo_is_state_valid(C));
 
