@@ -113,22 +113,23 @@ bke::CurvesGeometry remove_points_and_split(const bke::CurvesGeometry &curves,
   dst_curves.update_curve_types();
   dst_curves.remove_attributes_based_on_types();
 
-  bke::SpanAttributeWriter<int> dst_fill_ids = dst_attributes.lookup_or_add_for_write_span<int>(
-      "fill_id", bke::AttrDomain::Curve);
+  if (bke::SpanAttributeWriter<int> dst_fill_ids = dst_attributes.lookup_for_write_span<int>(
+          "fill_id"))
+  {
+    IndexMaskMemory memory;
+    const IndexMask non_original_curves = IndexMask::from_predicate(
+        dst_to_src_curve.index_range(), memory, [&](const int64_t dst_curve_index) {
+          if (dst_fill_ids.span[dst_curve_index] == 0) {
+            return false;
+          }
+          const int src_curve_index = dst_to_src_curve[dst_curve_index];
+          return src_to_dst_curve[src_curve_index].first() != dst_curve_index;
+        });
+    bke::greasepencil::gather_next_available_fill_ids(
+        dst_fill_ids.span.varray(), non_original_curves, dst_fill_ids.span);
 
-  IndexMaskMemory memory;
-  const IndexMask non_original_curves = IndexMask::from_predicate(
-      dst_to_src_curve.index_range(), memory, [&](const int64_t dst_curve_index) {
-        if (dst_fill_ids.span[dst_curve_index] == 0) {
-          return false;
-        }
-        const int src_curve_index = dst_to_src_curve[dst_curve_index];
-        return src_to_dst_curve[src_curve_index].first() != dst_curve_index;
-      });
-  bke::greasepencil::gather_next_available_fill_ids(
-      dst_fill_ids.span.varray(), non_original_curves, dst_fill_ids.span);
-
-  dst_fill_ids.finish();
+    dst_fill_ids.finish();
+  }
 
   if (curves.nurbs_has_custom_knots()) {
     bke::curves::nurbs::update_custom_knot_modes(
