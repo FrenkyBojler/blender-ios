@@ -30,7 +30,6 @@ enum class Category : uint32_t {
   Unused_2 = 0x8884D8,
 };
 
-
 #ifdef WITH_TRACY
 #  include <tracy/Tracy.hpp>
 
