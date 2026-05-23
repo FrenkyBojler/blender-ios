@@ -23,6 +23,7 @@ namespace blender::nodes::node_geo_data_block_name_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
+  b.is_function_node();
   const bNode *node = b.node_or_null();
   if (node) {
     const eNodeSocketDatatype data_type = eNodeSocketDatatype(node->custom1);
@@ -76,6 +77,11 @@ static void node_geo_exec(GeoNodeExecParams params)
       id = &data_block->id;
       break;
     }
+    case SOCK_SOUND: {
+      bSound *data_block = params.extract_input<bSound *>("Data Block"_ustr);
+      id = &data_block->id;
+      break;
+    }
     default:
       break;
   }
@@ -116,7 +122,7 @@ static void node_rna(StructRNA *srna)
         return enum_items_filter(
             rna_enum_node_socket_data_type_items, [](const EnumPropertyItem &item) -> bool {
               return ELEM(
-                  item.value, SOCK_OBJECT, SOCK_IMAGE, SOCK_COLLECTION, SOCK_MATERIAL, SOCK_FONT);
+                  item.value, SOCK_OBJECT, SOCK_IMAGE, SOCK_COLLECTION, SOCK_MATERIAL, SOCK_FONT, SOCK_SOUND);
             });
       });
 }
