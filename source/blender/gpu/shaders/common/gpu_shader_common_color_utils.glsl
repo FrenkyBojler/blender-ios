@@ -159,19 +159,17 @@ void rgb_to_oklab(float4 rgb, float4 &outcol)
   float l, m, s;
 
   l = 0.4122214708f * rgb[0] + 0.5363325363f * rgb[1] + 0.0514459929f * rgb[2];
-	m = 0.2119034982f * rgb[0] + 0.6806995451f * rgb[1] + 0.1073969566f * rgb[2];
-	s = 0.0883024619f * rgb[0] + 0.2817188376f * rgb[1] + 0.6299787005f * rgb[2];
+  m = 0.2119034982f * rgb[0] + 0.6806995451f * rgb[1] + 0.1073969566f * rgb[2];
+  s = 0.0883024619f * rgb[0] + 0.2817188376f * rgb[1] + 0.6299787005f * rgb[2];
 
-  l = pow(l, 1.0f/3.0f);
-  m = pow(m, 1.0f/3.0f);
-  s = pow(s, 1.0f/3.0f);
+  l = pow(l, 1.0f / 3.0f);
+  m = pow(m, 1.0f / 3.0f);
+  s = pow(s, 1.0f / 3.0f);
 
-  outcol = float4(
-    0.2104542553f * l + 0.7936177850f * m - 0.0040720468f * s,
-    1.9779984951f * l - 2.4285922050f * m + 0.4505937099f * s,
-    0.0259040371f * l + 0.7827717662f * m - 0.8086757660f * s,
-    rgb[3]
-  );
+  outcol = float4(0.2104542553f * l + 0.7936177850f * m - 0.0040720468f * s,
+                  1.9779984951f * l - 2.4285922050f * m + 0.4505937099f * s,
+                  0.0259040371f * l + 0.7827717662f * m - 0.8086757660f * s,
+                  rgb[3]);
 }
 
 [[node]]
@@ -187,12 +185,10 @@ void oklab_to_rgb(float4 lab, float4 &outcol)
   m = m * m * m;
   s = s * s * s;
 
-  outcol = float4(
-    +4.0767416621f * l - 3.3077115913f * m + 0.2309699292f * s,
-    -1.2684380046f * l + 2.6097574011f * m - 0.3413193965f * s,
-    -0.0041960863f * l - 0.7034186147f * m + 1.7076147010f * s,
-    lab[3]
-  );
+  outcol = float4(+4.0767416621f * l - 3.3077115913f * m + 0.2309699292f * s,
+                  -1.2684380046f * l + 2.6097574011f * m - 0.3413193965f * s,
+                  -0.0041960863f * l - 0.7034186147f * m + 1.7076147010f * s,
+                  lab[3]);
 }
 
 [[node]]
@@ -221,91 +217,106 @@ void oklch_to_rgb(float4 lch, float4 &outcol)
 
 float oklab_compute_max_saturation(float a, float b)
 {
-    // Max saturation will be when one of r, g or b goes below zero.
+  // Max saturation will be when one of r, g or b goes below zero.
 
-    // Select different coefficients depending on which component goes below zero first
-    float k0, k1, k2, k3, k4, wl, wm, ws;
+  // Select different coefficients depending on which component goes below zero first
+  float k0, k1, k2, k3, k4, wl, wm, ws;
 
-    if (-1.88170328f * a - 0.80936493f * b > 1)
-    {
-        // Red component
-        k0 = +1.19086277f; k1 = +1.76576728f; k2 = +0.59662641f; k3 = +0.75515197f; k4 = +0.56771245f;
-        wl = +4.0767416621f; wm = -3.3077115913f; ws = +0.2309699292f;
-    }
-    else if (1.81444104f * a - 1.19445276f * b > 1)
-    {
-        // Green component
-        k0 = +0.73956515f; k1 = -0.45954404f; k2 = +0.08285427f; k3 = +0.12541070f; k4 = +0.14503204f;
-        wl = -1.2684380046f; wm = +2.6097574011f; ws = -0.3413193965f;
-    }
-    else
-    {
-        // Blue component
-        k0 = +1.35733652f; k1 = -0.00915799f; k2 = -1.15130210f; k3 = -0.50559606f; k4 = +0.00692167f;
-        wl = -0.0041960863f; wm = -0.7034186147f; ws = +1.7076147010f;
-    }
+  if (-1.88170328f * a - 0.80936493f * b > 1) {
+    // Red component
+    k0 = +1.19086277f;
+    k1 = +1.76576728f;
+    k2 = +0.59662641f;
+    k3 = +0.75515197f;
+    k4 = +0.56771245f;
+    wl = +4.0767416621f;
+    wm = -3.3077115913f;
+    ws = +0.2309699292f;
+  }
+  else if (1.81444104f * a - 1.19445276f * b > 1) {
+    // Green component
+    k0 = +0.73956515f;
+    k1 = -0.45954404f;
+    k2 = +0.08285427f;
+    k3 = +0.12541070f;
+    k4 = +0.14503204f;
+    wl = -1.2684380046f;
+    wm = +2.6097574011f;
+    ws = -0.3413193965f;
+  }
+  else {
+    // Blue component
+    k0 = +1.35733652f;
+    k1 = -0.00915799f;
+    k2 = -1.15130210f;
+    k3 = -0.50559606f;
+    k4 = +0.00692167f;
+    wl = -0.0041960863f;
+    wm = -0.7034186147f;
+    ws = +1.7076147010f;
+  }
 
-    // Approximate max saturation using a polynomial:
-    float S = k0 + k1 * a + k2 * b + k3 * a * a + k4 * a * b;
+  // Approximate max saturation using a polynomial:
+  float S = k0 + k1 * a + k2 * b + k3 * a * a + k4 * a * b;
 
-    // Do one step Halley's method to get closer
-    // this gives an error less than 10e6, except for some blue hues where the dS/dh is close to infinite
-    // this should be sufficient for most applications, otherwise do two/three steps
+  // Do one step Halley's method to get closer
+  // this gives an error less than 10e6, except for some blue hues where the dS/dh is close to
+  // infinite this should be sufficient for most applications, otherwise do two/three steps
 
-    float k_l = +0.3963377774f * a + 0.2158037573f * b;
-    float k_m = -0.1055613458f * a - 0.0638541728f * b;
-    float k_s = -0.0894841775f * a - 1.2914855480f * b;
+  float k_l = +0.3963377774f * a + 0.2158037573f * b;
+  float k_m = -0.1055613458f * a - 0.0638541728f * b;
+  float k_s = -0.0894841775f * a - 1.2914855480f * b;
 
-    {
-        float l_ = 1.f + S * k_l;
-        float m_ = 1.f + S * k_m;
-        float s_ = 1.f + S * k_s;
+  {
+    float l_ = 1.f + S * k_l;
+    float m_ = 1.f + S * k_m;
+    float s_ = 1.f + S * k_s;
 
-        float l = l_ * l_ * l_;
-        float m = m_ * m_ * m_;
-        float s = s_ * s_ * s_;
+    float l = l_ * l_ * l_;
+    float m = m_ * m_ * m_;
+    float s = s_ * s_ * s_;
 
-        float l_dS = 3.f * k_l * l_ * l_;
-        float m_dS = 3.f * k_m * m_ * m_;
-        float s_dS = 3.f * k_s * s_ * s_;
+    float l_dS = 3.f * k_l * l_ * l_;
+    float m_dS = 3.f * k_m * m_ * m_;
+    float s_dS = 3.f * k_s * s_ * s_;
 
-        float l_dS2 = 6.f * k_l * k_l * l_;
-        float m_dS2 = 6.f * k_m * k_m * m_;
-        float s_dS2 = 6.f * k_s * k_s * s_;
+    float l_dS2 = 6.f * k_l * k_l * l_;
+    float m_dS2 = 6.f * k_m * k_m * m_;
+    float s_dS2 = 6.f * k_s * k_s * s_;
 
-        float f  = wl * l     + wm * m     + ws * s;
-        float f1 = wl * l_dS  + wm * m_dS  + ws * s_dS;
-        float f2 = wl * l_dS2 + wm * m_dS2 + ws * s_dS2;
+    float f = wl * l + wm * m + ws * s;
+    float f1 = wl * l_dS + wm * m_dS + ws * s_dS;
+    float f2 = wl * l_dS2 + wm * m_dS2 + ws * s_dS2;
 
-        S = S - f * f1 / (f1*f1 - 0.5f * f * f2);
-    }
+    S = S - f * f1 / (f1 * f1 - 0.5f * f * f2);
+  }
 
-    return S;
+  return S;
 }
 
 void oklab_find_cusp(float a, float b, float &l, float &c)
 {
-	float s_cusp = oklab_compute_max_saturation(a, b);
+  float s_cusp = oklab_compute_max_saturation(a, b);
   float4 rgb_at_max;
-	oklab_to_rgb(float4(1.0f, s_cusp * a, s_cusp * b, 1.0f), rgb_at_max);
-	l = pow(1.0f / max(max(rgb_at_max.x, rgb_at_max.y), rgb_at_max.z), 1.0f/3.0f);
-	c = l * s_cusp;
+  oklab_to_rgb(float4(1.0f, s_cusp * a, s_cusp * b, 1.0f), rgb_at_max);
+  l = pow(1.0f / max(max(rgb_at_max.x, rgb_at_max.y), rgb_at_max.z), 1.0f / 3.0f);
+  c = l * s_cusp;
 }
 
 float oklab_toe(float x)
 {
-	const float k_1 = 0.206f;
-	const float k_2 = 0.03f;
-	const float k_3 = (1.0f + k_1) / (1.0f + k_2);
-	return 0.5f * (k_3 * x - k_1 + sqrt((k_3 * x - k_1) * (k_3 * x - k_1) + 4 * k_2 * k_3 * x));
+  const float k_1 = 0.206f;
+  const float k_2 = 0.03f;
+  const float k_3 = (1.0f + k_1) / (1.0f + k_2);
+  return 0.5f * (k_3 * x - k_1 + sqrt((k_3 * x - k_1) * (k_3 * x - k_1) + 4 * k_2 * k_3 * x));
 }
 
 float oklab_toe_inverse(float x)
 {
-	const float k_1 = 0.206f;
-	const float k_2 = 0.03f;
-	const float k_3 = (1.0f + k_1) / (1.0f + k_2);
-	return (x * x + k_1 * x) / (k_3 * (x + k_2));
+  const float k_1 = 0.206f;
+  const float k_2 = 0.03f;
+  const float k_3 = (1.0f + k_1) / (1.0f + k_2);
+  return (x * x + k_1 * x) / (k_3 * (x + k_2));
 }
 
 [[node]]
@@ -337,7 +348,8 @@ void rgb_to_okhsv(float4 rgb, float4 &outcol)
 
   float4 rgb_scale;
   oklab_to_rgb(float4(l_vt, a_ * c_vt, b_ * c_vt, rgb[3]), rgb_scale);
-  float scale_l = pow(1.0f / max(max(rgb_scale.x, rgb_scale.y), max(rgb_scale.z, 0.0f)), 1.0f/3.0f);
+  float scale_l = pow(1.0f / max(max(rgb_scale.x, rgb_scale.y), max(rgb_scale.z, 0.0f)),
+                      1.0f / 3.0f);
 
   l = l / scale_l;
   c = c / scale_l;
@@ -358,8 +370,8 @@ void okhsv_to_rgb(float4 hsv, float4 &outcol)
   float s = hsv[1];
   float v = hsv[2];
 
-	float a_ = cos(2.f * 3.1415926536f * h);
-	float b_ = sin(2.f * 3.1415926536f * h);
+  float a_ = cos(2.f * 3.1415926536f * h);
+  float b_ = sin(2.f * 3.1415926536f * h);
 
   float l_cusp, c_cusp;
   oklab_find_cusp(a_, b_, l_cusp, c_cusp);
@@ -369,7 +381,7 @@ void okhsv_to_rgb(float4 hsv, float4 &outcol)
   float k = 1 - s_0 / s_max;
 
   float l_v = 1 - s * s_0 / (s_0 + t_max - t_max * k * s);
-	float c_v = s * t_max * s_0 / (s_0 + t_max - t_max * k * s);
+  float c_v = s * t_max * s_0 / (s_0 + t_max - t_max * k * s);
 
   float l = v * l_v;
   float c = v * c_v;
@@ -383,7 +395,8 @@ void okhsv_to_rgb(float4 hsv, float4 &outcol)
 
   float4 rgb_scale;
   oklab_to_rgb(float4(l_vt, a_ * c_vt, b_ * c_vt, hsv[3]), rgb_scale);
-  float scale_l = pow(1.0f / max(max(rgb_scale.x, rgb_scale.y), max(rgb_scale.z, 0.0f)), 1.0f/3.0f);
+  float scale_l = pow(1.0f / max(max(rgb_scale.x, rgb_scale.y), max(rgb_scale.z, 0.0f)),
+                      1.0f / 3.0f);
 
   l = l * scale_l;
   c = c * scale_l;
