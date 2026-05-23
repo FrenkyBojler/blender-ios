@@ -32,13 +32,14 @@
 
 #include "UI_interface_layout.hh"
 #include "UI_view2d.hh"
+#include "UI_tree_view.hh"
+#include "UI_interface.hh"
 
 #include "WM_api.hh"
 
 #include "interface_intern.hh"
 
 namespace blender::ui {
-
 /**
  * The validated data that was passed to #template_uilist (typically through Python).
  * Populated through #template_uilist_data_retrieve().
@@ -86,6 +87,85 @@ struct TemplateListVisualInfo {
   int start_idx;    /* Index of first item to display. */
   int end_idx;      /* Index of last item to display + 1. */
 };
+
+namespace py_tree_view {
+
+struct TreeViewData {
+  const bContext *C;
+  uiList *ui_list;
+  TemplateListLayoutDrawData *layout_data;
+  TemplateListInputData *input_data;
+  TemplateListItems *items;
+};
+
+class PyTreeView : public ui::AbstractTreeView {
+  TreeViewData ui_data_;
+
+public:
+  PyTreeView(const bContext *C, uiList *ui_list, TemplateListLayoutDrawData *layout_data, TemplateListInputData *input_data, TemplateListItems *items)
+      : ui_data_{C, ui_list, layout_data, input_data, items}
+  {
+  }
+  void build_tree() override;
+};
+
+
+class PyTreeViewItem : public ui::AbstractTreeViewItem {
+  TreeViewData *ui_data_;
+  _uilist_item &item_;
+  int index_;
+public:
+  PyTreeViewItem(TreeViewData *ui_data, _uilist_item &item, int index) : ui_data_(ui_data), item_(item), index_(index) {}
+
+  std::optional<bool> should_be_active() const override
+  {
+    printf("Comparing %d with %d\n", index_, ui_data_->items->active_item_idx);
+    return index_ == ui_data_->items->active_item_idx;
+  }
+
+  void on_activate(bContext &C) override
+  {
+    printf(&ui_data_->input_data->active_dataptr != nullptr ? "Active dataptr\n" : "No active dataptr\n");
+    printf(&ui_data_->input_data->dataptr != nullptr ? "dataptr\n" : "No dataptr\n");
+    printf("Name: %s\n", RNA_property_identifier(ui_data_->input_data->activeprop));
+    //RNA_property_int_set(&ui_data_->input_data->active_dataptr, ui_data_->input_data->activeprop, item_.org_idx);
+  }
+
+  void build_row(ui::Layout &row) override
+  {
+    TemplateListLayoutDrawData *layout_data = ui_data_->layout_data;
+    TemplateListInputData *input_data = ui_data_->input_data;
+    TemplateListItems *items = ui_data_->items;
+
+    int icon = icon_from_rnaptr(ui_data_->C, &item_.item, ICON_NONE, false);
+    if (icon == ICON_DOT) {
+      icon = ICON_NONE;
+    }
+
+    layout_data->draw_item(ui_data_->ui_list,
+                           ui_data_->C,
+                           row,
+                           &input_data->dataptr,
+                           &item_.item,
+                           icon,
+                           &input_data->active_dataptr,
+                           RNA_property_identifier(input_data->activeprop),
+                           item_.org_idx,
+                           item_.flt_flag);
+  }
+};
+
+
+void PyTreeView::build_tree()
+{
+  int index = 0;
+  for (_uilist_item &items : ui_data_.items->item_vec) {
+    this->add_tree_item<PyTreeViewItem>(&ui_data_, items, index);
+    index++;
+  }
+}
+
+} // namespace py_tree_view
 
 static void uilist_draw_item_default(uiList *ui_list,
                                      const bContext * /*C*/,
@@ -1030,7 +1110,10 @@ void template_uilist(Layout *layout,
   layout_data.rows = rows;
   layout_data.maxrows = maxrows;
 
-  template_uilist_layout_draw(C, ui_list, *layout, &input_data, &items, &layout_data, flags);
+  //template_uilist_layout_draw(C, ui_list, *layout, &input_data, &items, &layout_data, flags);
+	ui::AbstractTreeView *tree_view = block_add_view(*layout->block(), listtype_name, std::make_unique<py_tree_view::PyTreeView>(C, ui_list, &layout_data, &input_data, &items));
+  tree_view->set_default_rows(4);
+  ui::TreeViewBuilder::build_tree_view(*C, *tree_view, *layout);
 }
 
 /* -------------------------------------------------------------------- */
