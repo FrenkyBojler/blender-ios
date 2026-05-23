@@ -402,6 +402,39 @@ static void versioning_replace_legacy_compositor_switch_node(bNodeTree *node_tre
   }
 }
 
+static void do_version_set_grease_pencil_colors_options_to_inputs(bNodeTree &ntree, bNode &node)
+{
+  if (blender::bke::node_find_socket(node, SOCK_IN, "Mode"_ustr)) {
+    return;
+  }
+  bNodeSocket &socket = version_node_add_socket(ntree, node, SOCK_IN, "NodeSocketMenu", "Mode");
+  socket.default_value_typed<bNodeSocketValueMenu>()->value = node.custom1;
+}
+
+static void do_version_set_grease_pencil_depth_options_to_inputs(bNodeTree &ntree, bNode &node)
+{
+  if (blender::bke::node_find_socket(node, SOCK_IN, "Depth Order"_ustr)) {
+    return;
+  }
+  bNodeSocket &socket = version_node_add_socket(ntree, node, SOCK_IN, "NodeSocketMenu", "Depth Order");
+  socket.default_value_typed<bNodeSocketValueMenu>()->value = node.custom1;
+}
+
+static void do_version_merge_layers_options_to_inputs(bNodeTree &ntree, bNode &node)
+{
+  if (!version_node_ensure_storage_or_invalidate(node)) {
+    return;
+  }
+
+  auto &storage = *reinterpret_cast<NodeGeometryMergeLayers *>(node.storage);
+
+  if (blender::bke::node_find_socket(node, SOCK_IN, "Mode"_ustr)) {
+    return;
+  }
+  bNodeSocket &socket = version_node_add_socket(ntree, node, SOCK_IN, "NodeSocketMenu", "Mode");
+  socket.default_value_typed<bNodeSocketValueMenu>()->value = storage.mode;
+}
+
 void do_versions_after_linking_520(FileData *fd, Main *bmain)
 {
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 2)) {
@@ -432,6 +465,11 @@ void do_versions_after_linking_520(FileData *fd, Main *bmain)
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 36)) {
     /* Shift animation data to accommodate the new thin wall input. */
     version_node_socket_index_animdata(bmain, NTREE_SHADER, SH_NODE_BSDF_PRINCIPLED, 5, 1, 31);
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 37)) {
+    version_node_socket_index_animdata(
+        bmain, NTREE_GEOMETRY, "GeometryNodeSetGreasePencilColor", 1, 1, 6);
   }
 
   /**
@@ -737,6 +775,22 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     }
   }
 
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 37)) {
+    FOREACH_NODETREE_BEGIN (bmain, node_tree, id_owner) {
+      for (bNode &node : node_tree->nodes) {
+        if (STREQ(node.idname, "GeometryNodeSetGreasePencilColor")) {
+          do_version_set_grease_pencil_colors_options_to_inputs(*node_tree, node);
+        }
+        if (STREQ(node.idname, "GeometryNodeSetGreasePencilDepth")) {
+          do_version_set_grease_pencil_depth_options_to_inputs(*node_tree, node);
+        }
+        if (STREQ(node.idname, "GeometryNodeMergeLayers")) {
+          do_version_merge_layers_options_to_inputs(*node_tree, node);
+        }
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a MAIN_VERSION_FILE_ATLEAST check.
