@@ -8,6 +8,7 @@
 #include "BKE_curves.hh"
 #include "BKE_curves_utils.hh"
 #include "BKE_deform.hh"
+#include "BKE_grease_pencil_fills.hh"
 
 #include "GEO_curves_remove_and_split.hh"
 
@@ -33,6 +34,7 @@ bke::CurvesGeometry remove_points_and_split(const bke::CurvesGeometry &curves,
   Vector<int> dst_curve_counts;
   Vector<int> dst_to_src_curve;
   Vector<bool> dst_cyclic;
+  Array<Vector<int>> src_to_dst_curve(curves.curves_num());
 
   for (const int curve_i : curves.curves_range()) {
     const IndexRange points = points_by_curve[curve_i];
@@ -71,6 +73,7 @@ bke::CurvesGeometry remove_points_and_split(const bke::CurvesGeometry &curves,
         count += first_range.size();
       }
 
+      src_to_dst_curve[curve_i].append(dst_to_src_curve.size());
       dst_curve_counts.append(count);
       dst_to_src_curve.append(curve_i);
       dst_cyclic.append(is_cyclic);
@@ -109,6 +112,23 @@ bke::CurvesGeometry remove_points_and_split(const bke::CurvesGeometry &curves,
 
   dst_curves.update_curve_types();
   dst_curves.remove_attributes_based_on_types();
+
+  bke::SpanAttributeWriter<int> dst_fill_ids = dst_attributes.lookup_or_add_for_write_span<int>(
+      "fill_id", bke::AttrDomain::Curve);
+
+  IndexMaskMemory memory;
+  const IndexMask non_original_curves = IndexMask::from_predicate(
+      dst_to_src_curve.index_range(), memory, [&](const int64_t dst_curve_index) {
+        if (dst_fill_ids.span[dst_curve_index] == 0) {
+          return false;
+        }
+        const int src_curve_index = dst_to_src_curve[dst_curve_index];
+        return src_to_dst_curve[src_curve_index].first() != dst_curve_index;
+      });
+  bke::greasepencil::gather_next_available_fill_ids(
+      dst_fill_ids.span.varray(), non_original_curves, dst_fill_ids.span);
+
+  dst_fill_ids.finish();
 
   if (curves.nurbs_has_custom_knots()) {
     bke::curves::nurbs::update_custom_knot_modes(
