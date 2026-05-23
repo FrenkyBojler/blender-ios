@@ -197,6 +197,8 @@ NodeType nodeTypeFromObjectComponent(eDepsObjectComponentType component_type)
       return NodeType::SHADING;
     case DEG_OB_COMP_CACHE:
       return NodeType::CACHE;
+    case DEG_OB_COMP_NAME:
+      return NodeType::ID_REF;
   }
   return NodeType::UNDEFINED;
 }

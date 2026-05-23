@@ -4,6 +4,8 @@
 
 #include "BKE_lib_id.hh"
 
+#include "DEG_depsgraph_query.hh"
+
 #include "DNA_collection_types.h"
 #include "DNA_material_types.h"
 #include "DNA_sound_types.h"
@@ -84,6 +86,11 @@ static void node_geo_exec(GeoNodeExecParams params)
     params.set_default_remaining_outputs();
     return;
   }
+  //add_object_relation();
+  //const Object *object = params.self_object();
+ //DEG_add_object_relation(ctx->node, &object, DEG_OB_COMP_NAME, "Nodes Modifier");
+ // DEG_is_evaluated_id(id);
+ // DEG_get_original_id(id);
 
   params.set_output<std::string>("Name"_ustr, BKE_id_name(*id));
 
