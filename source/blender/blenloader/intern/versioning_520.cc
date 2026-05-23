@@ -749,17 +749,13 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     FOREACH_NODETREE_END;
   }
 
-
-
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 35)) {
     for (Object &object : bmain->objects) {
       object.parent_bone_head_tail_factor = 1.0;
     }
   }
 
-    if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 36)) {
-    /* Solid color strips gained width/height controls. Default to 100% so existing
-     * strips continue to fill the frame as before. */
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 36)) {
     version_solid_color_width_height_defaults(*bmain);
   }
 

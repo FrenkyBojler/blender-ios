@@ -230,13 +230,13 @@ class STRIP_PT_effect(StripButtonsPanel, Panel):
             layout.template_color_picker(strip, "color", value_slider=True, cubic=True)
             layout.prop(strip, "color", text="")
             col = layout.column(align=True)
-            row = col.row(align=False)
+            row = col.row()
             if strip.use_absolute_width:
                 row.prop(strip, "width_abs", text="Width")
             else:
                 row.prop(strip, "width", text="Width")
             row.prop(strip, "use_absolute_width", text="", icon='FIXED_SIZE')
-            row = col.row(align=False)
+            row = col.row()
             if strip.use_absolute_height:
                 row.prop(strip, "height_abs", text="Height")
             else:
