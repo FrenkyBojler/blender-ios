@@ -150,7 +150,7 @@ enum eSpaceOutliner_Flag : short {
   /* SO_NEWSELECTED = (1 << 1), */        /* UNUSED */
   SO_FLAG_UNUSED_1 = (1 << 2),            /* cleared */
   /* SO_HIDE_KEYINGSETINFO = (1 << 3), */ /* UNUSED */
-  SO_SKIP_SORT_ALPHA = (1 << 4),
+  SO_FLAG_UNUSED_4 = (1 << 4),            /* cleared */
   SO_SYNC_SELECT = (1 << 5),
   SO_MODE_COLUMN = (1 << 6),
   SO_SCROLL_TO_ACTIVE = (1 << 7),
