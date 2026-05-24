@@ -96,6 +96,7 @@ struct EdgeSlideParams {
   bool use_even;
   bool flipped;
   bool update_status_bar;
+  bool use_clone;
 };
 
 /**
@@ -394,14 +395,24 @@ static EdgeSlideData *createEdgeSlideVerts(TransInfo *t,
   return sld;
 }
 
-static void freeEdgeSlideVerts(TransInfo * /*t*/,
-                               TransDataContainer * /*tc*/,
+static void freeEdgeSlideVerts(TransInfo *t,
+                               TransDataContainer *tc,
                                TransCustomData *custom_data)
 {
   EdgeSlideData *sld = static_cast<EdgeSlideData *>(custom_data->data);
 
   if (sld == nullptr) {
     return;
+  }
+
+  EdgeSlideParams *slp = static_cast<EdgeSlideParams *>(t->custom.mode.data);
+  if (slp && slp->use_clone && t->state == TRANS_CANCEL) {
+    BMEditMesh *em = BKE_editmesh_from_object(tc->obedit);
+    BMesh *bm = em->bm;
+
+    for (TransDataEdgeSlideVert &sv : sld->sv) {
+      BM_vert_kill(bm, static_cast<BMVert *>(sv.td->extra));
+    }
   }
 
   MEM_delete(sld);
@@ -880,7 +891,8 @@ static void initEdgeSlide_ex(TransInfo *t,
                              bool use_double_side,
                              bool use_even,
                              bool flipped,
-                             bool use_clamp)
+                             bool use_clamp,
+                             bool use_clone)
 {
   EdgeSlideData *sld;
   bool ok = false;
@@ -898,6 +910,7 @@ static void initEdgeSlide_ex(TransInfo *t,
     }
     slp->perc = 0.0f;
     slp->update_status_bar = true;
+    slp->use_clone = use_clone;
 
     if (!use_clamp) {
       t->flag |= T_ALT_TRANSFORM;
@@ -913,6 +926,55 @@ static void initEdgeSlide_ex(TransInfo *t,
       tc->custom.mode.data = sld;
       tc->custom.mode.free_cb = freeEdgeSlideVerts;
       ok = true;
+    }
+  }
+
+  /* Cloning flag for edge slide. */ 
+  if (use_clone && ok) {
+    FOREACH_TRANS_DATA_CONTAINER (t, tc) {
+      EdgeSlideData *sld = static_cast<EdgeSlideData *>(tc->custom.mode.data);
+      if (sld) {
+        // duplicate bmesh verts
+        BMEditMesh *em = BKE_editmesh_from_object(tc->obedit);
+        BMesh *bm = em->bm;
+
+        Map<BMVert *, BMVert *> vert_map;
+        vert_map.reserve(sld->sv.size());
+
+        for (TransDataEdgeSlideVert &sv : sld->sv) {
+          BMVert *v = static_cast<BMVert *>(sv.td->extra);
+          BMVert *v_clone = BM_vert_create(bm, v->co, v, BM_CREATE_NOP);
+          vert_map.add(v, v_clone);
+
+          BM_elem_flag_disable(v, BM_ELEM_SELECT);
+          BM_elem_flag_enable(v_clone, BM_ELEM_SELECT);
+
+          // transform clones, not originals
+          sv.td->loc = v_clone->co;
+          sv.td->extra = v_clone;
+        }
+
+        // recreate edges
+        BMIter iter;
+        BMEdge *e;
+        BM_ITER_MESH (e, &iter, bm, BM_EDGES_OF_MESH) {
+          if (BM_elem_flag_test(e, BM_ELEM_SELECT)) {
+            BMVert *v1 = vert_map.lookup_default(e->v1, nullptr);
+            BMVert *v2 = vert_map.lookup_default(e->v2, nullptr);
+
+            if (v1 && v2) {
+              BM_edge_create(bm, v1, v2, e, BM_CREATE_NOP);
+            }
+          }
+        }
+        
+        vert_map.foreach_item([&](BMVert *v_orig, BMVert *v_clone) {
+          BM_edge_create(bm, v_orig, v_clone, nullptr, BM_CREATE_NOP);
+        });
+
+        EDBM_selectmode_flush(em);
+        bm->elem_index_dirty |= BM_VERT | BM_EDGE;
+      }
     }
   }
 
@@ -941,6 +1003,7 @@ static void initEdgeSlide(TransInfo *t, wmOperator *op)
   bool use_even = false;
   bool flipped = false;
   bool use_clamp = true;
+  bool use_clone = true; // need to set to false later on
   if (op) {
     PropertyRNA *prop;
     /* The following properties could be unset when transitioning from this
@@ -954,8 +1017,10 @@ static void initEdgeSlide(TransInfo *t, wmOperator *op)
     flipped = (prop) ? RNA_property_boolean_get(op->ptr, prop) : false;
     prop = RNA_struct_find_property(op->ptr, "use_clamp");
     use_clamp = (prop) ? RNA_property_boolean_get(op->ptr, prop) : true;
+    prop = RNA_struct_find_property(op->ptr, "use_clone");
+    use_clone = (prop) ? RNA_property_boolean_get(op->ptr, prop) : true; // need to set to false later on
   }
-  initEdgeSlide_ex(t, op, use_double_side, use_even, flipped, use_clamp);
+  initEdgeSlide_ex(t, op, use_double_side, use_even, flipped, use_clamp, use_clone);
 }
 
 /** \} */
