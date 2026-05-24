@@ -34,6 +34,8 @@
 #include "DRW_pbvh.hh"
 #include "DRW_render.hh"
 
+#include "BKE_subdiv_eval.hh"
+#include "BLI_enumerable_thread_specific.hh"
 #include "attribute_convert.hh"
 #include "bmesh.hh"
 
@@ -68,6 +70,7 @@ struct OrigMeshData {
   StringRef default_color;
   StringRef active_uv_map;
   StringRef default_uv_map;
+  std::optional<int> active_uv_map_index;
   int face_set_default;
   int face_set_seed;
   bke::AttributeAccessor attributes;
@@ -80,6 +83,12 @@ struct OrigMeshData {
         face_set_seed(mesh.face_sets_color_seed),
         attributes(mesh.attributes())
   {
+    VectorSet<StringRefNull> uv_map_names = mesh.uv_map_names();
+    for (const int i : uv_map_names.index_range()) {
+      if (uv_map_names[i] == active_uv_map) {
+        active_uv_map_index = i;
+      }
+    }
   }
 };
 
@@ -946,6 +955,66 @@ BLI_NOINLINE static void fill_face_sets_grids(const Object &object,
   }
 }
 
+BLI_INLINE void rotate_grid_to_quad(
+    const int corner, const float grid_u, const float grid_v, float *r_quad_u, float *r_quad_v)
+{
+  if (corner == 0) {
+    *r_quad_u = 0.5f - grid_v * 0.5f;
+    *r_quad_v = 0.5f - grid_u * 0.5f;
+  }
+  else if (corner == 1) {
+    *r_quad_u = 0.5f + grid_u * 0.5f;
+    *r_quad_v = 0.5f - grid_v * 0.5f;
+  }
+  else if (corner == 2) {
+    *r_quad_u = 0.5f + grid_v * 0.5f;
+    *r_quad_v = 0.5f + grid_u * 0.5f;
+  }
+  else {
+    BLI_assert(corner == 3);
+    *r_quad_u = 0.5f - grid_u * 0.5f;
+    *r_quad_v = 0.5f + grid_v * 0.5f;
+  }
+}
+
+static void calc_node_uvs(const SubdivCCG &subdiv_ccg,
+                          const int uv_map_index,
+                          const bke::pbvh::GridsNode &node,
+                          Vector<float2> &result)
+{
+  const int grid_size = subdiv_ccg.grid_size;
+  const int grid_area = subdiv_ccg.grid_area;
+
+  result.resize(node.grids().size() * subdiv_ccg.grid_area);
+
+  const Span<int> face_ptex_offset = bke::subdiv::face_ptex_offset_get(subdiv_ccg.subdiv);
+  const float grid_size_1_inv = 1.0f / (grid_size - 1);
+  for (const int i : node.grids().index_range()) {
+    const int grid = node.grids()[i];
+    const int face_index = subdiv_ccg.grid_to_face_map[grid];
+    const IndexRange face = subdiv_ccg.faces[face_index];
+    const int ptex_face_index = face_ptex_offset[face_index];
+    if (face.size() == 4) {
+      const int corner = grid - face.start();
+      for (int y = 0; y < grid_size; y++) {
+        const float grid_v = y * grid_size_1_inv;
+        for (int x = 0; x < grid_size; x++) {
+          const float grid_u = x * grid_size_1_inv;
+          float u;
+          float v;
+          rotate_grid_to_quad(corner, grid_u, grid_v, &u, &v);
+          const int element = i * grid_area + CCG_grid_xy_to_index(grid_size, x, y);
+          bke::subdiv::eval_face_varying(
+              subdiv_ccg.subdiv, uv_map_index, ptex_face_index, u, v, result[element]);
+        }
+      }
+    }
+    else {
+      BLI_assert(0);
+    }
+  }
+}
+
 BLI_NOINLINE static void fill_uvs_grids(const Object &object,
                                         const OrigMeshData &orig_mesh_data,
                                         const BitSpan use_flat_layout,
@@ -955,50 +1024,27 @@ BLI_NOINLINE static void fill_uvs_grids(const Object &object,
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   const Span<bke::pbvh::GridsNode> nodes = pbvh.nodes<bke::pbvh::GridsNode>();
   const SubdivCCG &subdiv_ccg = *object.runtime->sculpt_session->subdiv_ccg;
-  const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
-  const Span<float2> uvs = subdiv_ccg.uvs;
   ensure_vbos_allocated_grids(
       object,
       attribute_format(orig_mesh_data, orig_mesh_data.active_uv_map, bke::AttrType::Float2),
       use_flat_layout,
       node_mask,
       vbos);
-  if (!uvs.is_empty()) {
-    node_mask.foreach_index(
-        [&](const int i) {
-          float2 *data = vbos[i]->data<float2>().data();
-          if (use_flat_layout[i]) {
-            const int grid_size_1 = key.grid_size - 1;
-            for (const int grid : nodes[i].grids()) {
-              const Span<float2> grid_uvs = uvs.slice(bke::ccg::grid_range(key, grid));
-              for (int y = 0; y < grid_size_1; y++) {
-                for (int x = 0; x < grid_size_1; x++) {
-                  *data = grid_uvs[CCG_grid_xy_to_index(key.grid_size, x, y)];
-                  data++;
-                  *data = grid_uvs[CCG_grid_xy_to_index(key.grid_size, x + 1, y)];
-                  data++;
-                  *data = grid_uvs[CCG_grid_xy_to_index(key.grid_size, x + 1, y + 1)];
-                  data++;
-                  *data = grid_uvs[CCG_grid_xy_to_index(key.grid_size, x, y + 1)];
-                  data++;
-                }
-              }
-            }
-          }
-          else {
-            for (const int grid : nodes[i].grids()) {
-              const Span<float2> grid_uvs = uvs.slice(bke::ccg::grid_range(key, grid));
-              std::copy_n(grid_uvs.data(), grid_uvs.size(), data);
-              data += grid_uvs.size();
-            }
-          }
-        },
-        exec_mode::grain_size(1));
-  }
-  else {
-    node_mask.foreach_index([&](const int i) { vbos[i]->data<float>().fill(0.0f); },
-                            exec_mode::grain_size(64));
-  }
+  threading::EnumerableThreadSpecific<Vector<float2>> all_tls;
+  BLI_assert(orig_mesh_data.active_uv_map_index.has_value());
+  node_mask.foreach_index(
+      [&](const int i) {
+        float2 *data = vbos[i]->data<float2>().data();
+        BLI_assert(!use_flat_layout[i]);
+        Vector<float2> &tls = all_tls.local();
+        calc_node_uvs(subdiv_ccg, *orig_mesh_data.active_uv_map_index, nodes[i], tls);
+        BLI_assert(tls.size() == vbos[i]->data<float2>().size());
+        for ([[maybe_unused]] const int i : nodes[i].grids().index_range()) {
+          std::copy_n(tls.data(), tls.size(), data);
+          data += tls.size();
+        }
+      },
+      exec_mode::grain_size(1));
 }
 
 BLI_NOINLINE static void update_positions_bmesh(const Object &object,
@@ -1525,6 +1571,8 @@ static BitVector<> calc_use_flat_layout(const Object &object, const OrigMeshData
       const Span<bke::pbvh::GridsNode> nodes = pbvh.nodes<bke::pbvh::GridsNode>();
       const bke::AttributeAccessor attributes = orig_mesh_data.attributes;
       const VArraySpan sharp_faces = *attributes.lookup<bool>("sharp_face", bke::AttrDomain::Face);
+      return BitVector<>(nodes.size(), false);
+#if 0
       if (sharp_faces.is_empty()) {
         return BitVector<>(nodes.size(), false);
       }
@@ -1546,6 +1594,7 @@ static BitVector<> calc_use_flat_layout(const Object &object, const OrigMeshData
         }
       });
       return BitVector<>(use_flat_layout);
+#endif
     }
     case bke::pbvh::Type::BMesh:
       return {};
@@ -1667,7 +1716,8 @@ static gpu::IndexBufPtr create_lines_index_grids(const CCGKey &key,
 
   MutableSpan<uint2> data = GPU_indexbuf_get_data(&builder).cast<uint2>();
   /* The buffer might contain hidden elements which are not initialized but still accounted. We
-   * don't count them to skip from allocation, so must fill that gaps by 0 to hide redundant edges.
+   * don't count them to skip from allocation, so must fill that gaps by 0 to hide redundant
+   * edges.
    */
   data.fill(uint2(0));
 
@@ -1909,9 +1959,9 @@ Span<gpu::IndexBufPtr> DrawCacheImpl::ensure_tri_indices(const Object &object,
     }
     case bke::pbvh::Type::Grids: {
       /* Unlike the other geometry types, multires grids use indexed vertex buffers because when
-       * there are no flat faces, vertices can be shared between neighboring quads. This results in
-       * a 4x decrease in the amount of data uploaded. Theoretically it also means freeing VBOs
-       * because of visibility changes is unnecessary.
+       * there are no flat faces, vertices can be shared between neighboring quads. This results
+       * in a 4x decrease in the amount of data uploaded. Theoretically it also means freeing
+       * VBOs because of visibility changes is unnecessary.
        *
        * TODO: With the "flat layout" and no hidden faces, the index buffers are unnecessary, we
        * should avoid creating them in that case. */
@@ -1963,8 +2013,8 @@ Span<gpu::Batch *> DrawCacheImpl::ensure_tris_batches(const Object &object,
     this->ensure_attribute_data(object, orig_mesh_data, attr, nodes_to_update);
   }
 
-  /* Collect VBO spans in a different loop because #ensure_attribute_data invalidates the allocated
-   * arrays when its map is changed. */
+  /* Collect VBO spans in a different loop because #ensure_attribute_data invalidates the
+   * allocated arrays when its map is changed. */
   Vector<Span<gpu::VertBufPtr>> attr_vbos;
   for (const AttributeRequest &attr : request.attributes) {
     if (const AttributeData *attr_data = attribute_vbos_.lookup_ptr(attr)) {

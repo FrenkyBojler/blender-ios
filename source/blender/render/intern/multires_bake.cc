@@ -1679,7 +1679,6 @@ static std::unique_ptr<SubdivCCG> create_subdiv_ccg(const Mesh &mesh,
   settings.resolution = (1 << multires_modifier.totlvl) + 1;
   settings.need_normal = true;
   settings.need_mask = false;
-  settings.need_uv = false;
 
   return BKE_subdiv_to_ccg(*subdiv, settings, mesh);
 }

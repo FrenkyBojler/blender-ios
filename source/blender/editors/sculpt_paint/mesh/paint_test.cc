@@ -68,7 +68,6 @@ class GridsBVHTest : public BlenderGTestBase {
     subdiv_to_ccg_settings.resolution = 3;
     subdiv_to_ccg_settings.need_normal = true;
     subdiv_to_ccg_settings.need_mask = false;
-    subdiv_to_ccg_settings.need_uv = false;
     subdiv_ccg = BKE_subdiv_to_ccg(*subdiv, subdiv_to_ccg_settings, *cube_mesh, nullptr);
   }
 
