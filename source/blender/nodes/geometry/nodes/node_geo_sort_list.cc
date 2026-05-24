@@ -1,12 +1,11 @@
-/* SPDX-FileCopyrightText: 2025 Blender Authors
+/* SPDX-FileCopyrightText: 2026 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
-
-#include "BKE_node_socket_value.hh"
 
 #include "BLI_sort.hh"
 
 #include "NOD_geometry_nodes_list.hh"
+#include "NOD_geometry_nodes_values.hh"
 #include "NOD_rna_define.hh"
 #include "NOD_socket.hh"
 #include "NOD_socket_search_link.hh"
@@ -19,7 +18,7 @@
 #include "list_function_eval.hh"
 #include "node_geometry_util.hh"
 
-namespace blender::nodes::node_geo_list_sort_cc {
+namespace blender::nodes::node_geo_sort_list_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
@@ -28,22 +27,27 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.allow_any_socket_order();
   b.add_default_layout();
 
-  if (node != nullptr) {
-    const eNodeSocketDatatype type = eNodeSocketDatatype(node->custom1);
-    b.add_input(type, "List"_ustr).structure_type(StructureType::List).hide_value();
-    b.add_output(type, "List"_ustr).structure_type(StructureType::List).align_with_previous();
+  if (!node) {
+    return;
   }
+
+  const auto type = eNodeSocketDatatype(node->custom1);
+  b.add_input(type, "List"_ustr).structure_type(StructureType::List).hide_value();
+  b.add_output(type, "List"_ustr)
+      .propagate_all({0})
+      .structure_type(StructureType::List)
+      .align_with_previous();
 
   b.add_input<decl::Float>("Weights"_ustr)
       .default_value(0.0f)
       .hide_value()
       .structure_type(StructureType::Dynamic)
-      .description("Weights determining the sorted order (can be a single value, list, or field)");
+      .description("A field or list of values that will determine the sorted order");
 }
 
 static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout.prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "socket_type", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 class SocketSearchOp {
@@ -52,7 +56,7 @@ class SocketSearchOp {
   eNodeSocketDatatype socket_type;
   void operator()(LinkSearchOpParams &params)
   {
-    bNode &node = params.add_node("GeometryNodeListSort"_ustr);
+    bNode &node = params.add_node("GeometryNodeSortList"_ustr);
     node.custom1 = socket_type;
     params.update_and_connect_available_socket(node, socket_name);
   }
@@ -125,15 +129,15 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
   else {
+    params.error_message_add(NodeWarningType::Warning,
+                             "\"Weights\" input must be a field or a list");
     params.set_output("List"_ustr, std::move(list));
     return;
   }
 
   Array<float> weights(list_size);
   const VArray<float> weights_varray = weights_list->varray().typed<float>();
-  for (int i = 0; i < list_size; i++) {
-    weights[i] = weights_varray[i];
-  }
+  weights_varray.materialize(weights.as_mutable_span());
 
   Array<int> indices(list_size);
   for (int i : indices.index_range()) {
@@ -179,24 +183,27 @@ static void node_rna(StructRNA *srna)
 {
   RNA_def_node_enum(
       srna,
-      "data_type",
-      "Data Type",
+      "socket_type",
+      "Socket Type",
       "",
       rna_enum_node_socket_data_type_items,
       NOD_inline_enum_accessors(custom1),
-      SOCK_GEOMETRY,
-      [](bContext * /*C*/, PointerRNA * /*ptr*/, PropertyRNA * /*prop*/, bool *r_free) {
+      SOCK_FLOAT,
+      [](bContext * /*C*/, PointerRNA *ptr, PropertyRNA * /*prop*/, bool *r_free) {
         *r_free = true;
+        const bNodeTree &ntree = *reinterpret_cast<bNodeTree *>(ptr->owner_id);
+        bke::bNodeTreeType *ntree_type = ntree.typeinfo;
         return enum_items_filter(
-            rna_enum_node_socket_data_type_items, [](const EnumPropertyItem &item) -> bool {
-              return socket_type_supports_fields(eNodeSocketDatatype(item.value));
+            rna_enum_node_socket_data_type_items, [&](const EnumPropertyItem &item) -> bool {
+              bke::bNodeSocketType *socket_type = bke::node_socket_type_find_static(item.value);
+              return ntree_type->valid_socket_type(ntree_type, socket_type);
             });
       });
 }
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
   geo_node_type_base(&ntype, "GeometryNodeSortList"_ustr);
   ntype.ui_name = "Sort List";
   ntype.ui_description = "Sort a list based on weights";
@@ -205,9 +212,9 @@ static void node_register()
   ntype.declare = node_declare;
   ntype.draw_buttons = node_layout;
   ntype.gather_link_search_ops = node_gather_link_searches;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
   node_rna(ntype.rna_ext.srna);
 }
 NOD_REGISTER_NODE(node_register)
 
-}  // namespace blender::nodes::node_geo_list_sort_cc
+}  // namespace blender::nodes::node_geo_sort_list_cc

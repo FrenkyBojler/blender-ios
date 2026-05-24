@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2025 Blender Authors
+/* SPDX-FileCopyrightText: 2026 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -19,16 +19,20 @@ namespace blender::nodes::node_geo_reverse_list_cc {
 static void node_declare(NodeDeclarationBuilder &b)
 {
   const bNode *node = b.node_or_null();
-  if (node == nullptr) {
-    return;
-  }
   b.use_custom_socket_order();
   b.allow_any_socket_order();
   b.add_default_layout();
 
+  if (!node) {
+    return;
+  }
+
   const auto type = eNodeSocketDatatype(node->custom1);
   b.add_input(type, "List"_ustr).structure_type(StructureType::List).hide_value();
-  b.add_output(type, "List"_ustr).structure_type(StructureType::List).align_with_previous();
+  b.add_output(type, "List"_ustr)
+      .propagate_all({0})
+      .structure_type(StructureType::List)
+      .align_with_previous();
 }
 
 static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
@@ -123,7 +127,7 @@ static void node_rna(StructRNA *srna)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
   geo_node_type_base(&ntype, "GeometryNodeReverseList"_ustr);
   ntype.ui_name = "Reverse List";
   ntype.ui_description = "Reverse the order of elements in a list";
@@ -132,7 +136,7 @@ static void node_register()
   ntype.declare = node_declare;
   ntype.draw_buttons = node_layout;
   ntype.gather_link_search_ops = node_gather_link_searches;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
   node_rna(ntype.rna_ext.srna);
 }
 NOD_REGISTER_NODE(node_register)

@@ -178,7 +178,6 @@ set(SRC
   nodes/node_geo_join_geometry.cc
   nodes/node_geo_list_get_item.cc
   nodes/node_geo_list_length.cc
-  nodes/node_geo_list_sort.cc
   nodes/node_geo_material_replace.cc
   nodes/node_geo_material_selection.cc
   nodes/node_geo_menu_switch.cc
@@ -269,6 +268,7 @@ set(SRC
   nodes/node_geo_set_spline_resolution.cc
   nodes/node_geo_simulation.cc
   nodes/node_geo_sort_elements.cc
+  nodes/node_geo_sort_list.cc
   nodes/node_geo_split_to_instances.cc
   nodes/node_geo_store_bundle_item.cc
   nodes/node_geo_store_named_attribute.cc
