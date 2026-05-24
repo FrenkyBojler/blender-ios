@@ -1039,10 +1039,7 @@ BLI_NOINLINE static void fill_uvs_grids(const Object &object,
         Vector<float2> &tls = all_tls.local();
         calc_node_uvs(subdiv_ccg, *orig_mesh_data.active_uv_map_index, nodes[i], tls);
         BLI_assert(tls.size() == vbos[i]->data<float2>().size());
-        for ([[maybe_unused]] const int i : nodes[i].grids().index_range()) {
-          std::copy_n(tls.data(), tls.size(), data);
-          data += tls.size();
-        }
+        std::copy_n(tls.data(), tls.size(), data);
       },
       exec_mode::grain_size(1));
 }
@@ -1572,6 +1569,7 @@ static BitVector<> calc_use_flat_layout(const Object &object, const OrigMeshData
       const bke::AttributeAccessor attributes = orig_mesh_data.attributes;
       const VArraySpan sharp_faces = *attributes.lookup<bool>("sharp_face", bke::AttrDomain::Face);
       return BitVector<>(nodes.size(), false);
+      /* TODO: Figure out how to disable this if rendering UVs */
 #if 0
       if (sharp_faces.is_empty()) {
         return BitVector<>(nodes.size(), false);
