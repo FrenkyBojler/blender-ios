@@ -63,6 +63,11 @@ static void node_declare(NodeDeclarationBuilder &b)
       .evaluated_geometry_field();
 }
 
+static void node_init(bNodeTree * /*tree*/, bNode *node)
+{
+  node->custom1 = int(Mode::Stroke);
+}
+
 static void node_geo_exec(GeoNodeExecParams params)
 {
   const auto mode = params.get_input<Mode>("Mode"_ustr);
@@ -121,6 +126,7 @@ static void node_register()
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
+  ntype.initfunc = node_init;
   ntype.default_width = bke::NodeWidth::_180;
   bke::node_register_type(ntype);
 }

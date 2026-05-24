@@ -61,9 +61,8 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  auto *data = MEM_new<NodeGeometryMergeLayers>(__func__);
-  data->mode = int8_t(MergeLayerMode::ByName);
-  node->storage = data;
+  /* Still used for forward compatibility. */
+  node->storage = MEM_new<NodeGeometryMergeLayers>(__func__);
 }
 
 static GreasePencil *merge_by_name(const GreasePencil &src_grease_pencil,
@@ -192,8 +191,6 @@ static void node_register()
   bke::node_type_storage(
       ntype, "NodeGeometryMergeLayers", node_free_standard_storage, node_copy_standard_storage);
   bke::node_register_type(ntype);
-
-  node_rna(ntype.rna_ext.srna);
 }
 NOD_REGISTER_NODE(node_register)
 

@@ -37,6 +37,11 @@ static void node_declare(NodeDeclarationBuilder &b)
       .optional_label();
 }
 
+static void node_init(bNodeTree * /*tree*/, bNode *node)
+{
+  node->custom1 = 0;
+}
+
 static void node_geo_exec(GeoNodeExecParams params)
 {
   const int16_t depth_order = int16_t(params.get_input<Mode>("Depth Order"_ustr));
@@ -63,6 +68,7 @@ static void node_register()
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
+  ntype.initfunc = node_init;
   ntype.default_width = bke::NodeWidth::_180;
   bke::node_register_type(ntype);
 }
