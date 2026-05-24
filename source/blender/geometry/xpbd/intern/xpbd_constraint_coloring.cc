@@ -2,8 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BLI_timeit.hh"
-
 #include "BLI_enumerable_thread_specific.hh"
 #include "BLI_multi_value_map.hh"
 #include "BLI_set.hh"
