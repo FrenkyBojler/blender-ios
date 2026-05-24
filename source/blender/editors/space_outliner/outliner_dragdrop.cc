@@ -1487,6 +1487,11 @@ static wmOperatorStatus collection_drop_invoke(bContext *C,
         BKE_collection_move(bmain, data.to, from, relative, relative_after, collection);
       }
     }
+
+    if (from) {
+      DEG_id_tag_update(&from->id,
+                        ID_RECALC_SYNC_TO_EVAL | ID_RECALC_GEOMETRY | ID_RECALC_HIERARCHY);
+    }
   }
 
   if (is_custom_sort_move) {
