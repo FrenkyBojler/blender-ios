@@ -167,13 +167,8 @@ static void subdiv_ccg_eval_regular_grid(Subdiv &subdiv,
         float u, v;
         rotate_grid_to_quad(corner, grid_u, grid_v, &u, &v);
         const int element = range[CCG_grid_xy_to_index(grid_size, x, y)];
-        subdiv_ccg_eval_grid_element(subdiv,
-                                     subdiv_ccg,
-                                     mask_evaluator,
-                                     ptex_face_index,
-                                     u,
-                                     v,
-                                     element);
+        subdiv_ccg_eval_grid_element(
+            subdiv, subdiv_ccg, mask_evaluator, ptex_face_index, u, v, element);
       }
     }
   }
@@ -198,13 +193,8 @@ static void subdiv_ccg_eval_special_grid(Subdiv &subdiv,
       for (int x = 0; x < grid_size; x++) {
         const float v = 1.0f - (x * grid_size_1_inv);
         const int element = range[CCG_grid_xy_to_index(grid_size, x, y)];
-        subdiv_ccg_eval_grid_element(subdiv,
-                                     subdiv_ccg,
-                                     mask_evaluator,
-                                     ptex_face_index,
-                                     u,
-                                     v,
-                                     element);
+        subdiv_ccg_eval_grid_element(
+            subdiv, subdiv_ccg, mask_evaluator, ptex_face_index, u, v, element);
       }
     }
   }
