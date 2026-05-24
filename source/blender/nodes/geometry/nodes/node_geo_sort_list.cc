@@ -23,13 +23,14 @@ namespace blender::nodes::node_geo_sort_list_cc {
 static void node_declare(NodeDeclarationBuilder &b)
 {
   const bNode *node = b.node_or_null();
-  b.use_custom_socket_order();
-  b.allow_any_socket_order();
-  b.add_default_layout();
 
   if (!node) {
     return;
   }
+
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
+  b.add_default_layout();
 
   const auto type = eNodeSocketDatatype(node->custom1);
   b.add_input(type, "List"_ustr).structure_type(StructureType::List).hide_value();
@@ -209,8 +210,8 @@ static void node_register()
   ntype.ui_description = "Sort a list based on weights";
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.geometry_node_execute = node_geo_exec;
-  ntype.declare = node_declare;
   ntype.draw_buttons = node_layout;
+  ntype.declare = node_declare;
   ntype.gather_link_search_ops = node_gather_link_searches;
   bke::node_register_type(ntype);
   node_rna(ntype.rna_ext.srna);
