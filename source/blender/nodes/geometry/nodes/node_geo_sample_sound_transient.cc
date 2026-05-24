@@ -33,33 +33,29 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.allow_any_socket_order();
 
   b.add_output<decl::Float>("Energy"_ustr)
-      .reference_pass_all()
+      .propagate_references()
       .description("Wavelet detail-coefficient energy at the given time")
       .structure_type(StructureType::Dynamic);
   b.add_output<decl::Bool>("Is Beat"_ustr)
-      .reference_pass_all()
+      .propagate_references()
       .description("True when the transient energy exceeds the threshold")
       .structure_type(StructureType::Dynamic);
   b.add_input<decl::Sound>("Sound"_ustr).optional_label().description("Sound to analyze");
   b.add_input<decl::Float>("Time"_ustr)
       .subtype(PROP_TIME_ABSOLUTE)
-      .supports_field()
       .structure_type(StructureType::Dynamic)
       .description("Time in seconds of the sound to sample at");
   b.add_input<decl::Float>("Threshold"_ustr)
       .default_value(0.5f)
       .min(0.0f)
-      .supports_field()
       .structure_type(StructureType::Dynamic)
       .description("Energy level above which a beat is detected");
   b.add_input<decl::Bool>("All Channels"_ustr)
       .default_value(true)
-      .supports_field()
       .structure_type(StructureType::Dynamic)
       .description("Mix all channels before analyzing (e.g. stereo to mono)");
   b.add_input<decl::Int>("Channel"_ustr)
       .min(0)
-      .supports_field()
       .structure_type(StructureType::Dynamic)
       .description("The channel to analyze unless 'All Channels' is checked");
 
