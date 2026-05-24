@@ -178,6 +178,7 @@ set(SRC
   nodes/node_geo_join_geometry.cc
   nodes/node_geo_list_get_item.cc
   nodes/node_geo_list_length.cc
+  nodes/node_geo_list_sort.cc
   nodes/node_geo_material_replace.cc
   nodes/node_geo_material_selection.cc
   nodes/node_geo_menu_switch.cc
@@ -221,6 +222,7 @@ set(SRC
   nodes/node_geo_remove_attribute.cc
   nodes/node_geo_rename_attribute.cc
   nodes/node_geo_repeat.cc
+  nodes/node_geo_reverse_list.cc
   nodes/node_geo_rotate_instances.cc
   nodes/node_geo_sample_grid.cc
   nodes/node_geo_sample_grid_index.cc
