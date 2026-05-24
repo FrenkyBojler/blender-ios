@@ -416,7 +416,8 @@ static void do_version_set_grease_pencil_depth_options_to_inputs(bNodeTree &ntre
   if (blender::bke::node_find_socket(node, SOCK_IN, "Depth Order"_ustr)) {
     return;
   }
-  bNodeSocket &socket = version_node_add_socket(ntree, node, SOCK_IN, "NodeSocketMenu", "Depth Order");
+  bNodeSocket &socket = version_node_add_socket(
+      ntree, node, SOCK_IN, "NodeSocketMenu", "Depth Order");
   socket.default_value_typed<bNodeSocketValueMenu>()->value = node.custom1;
 }
 
