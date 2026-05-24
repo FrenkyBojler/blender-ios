@@ -54,9 +54,9 @@ static void node_declare(NodeDeclarationBuilder &b)
       .evaluated_geometry_field();
   b.add_input<decl::Menu>("Mode"_ustr).static_items(mode_items).optional_label();
   b.add_input<decl::Int>("Group ID"_ustr)
-                       .hide_value()
-                       .evaluated_geometry_field()
-                       .usage_by_single_menu(int(MergeLayerMode::ByID));
+      .hide_value()
+      .evaluated_geometry_field()
+      .usage_by_single_menu(int(MergeLayerMode::ByID));
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
@@ -154,7 +154,6 @@ static void merge_layers(GeometrySet &geometry,
 static void node_geo_exec(GeoNodeExecParams params)
 {
   GeometrySet main_geometry = params.extract_input<GeometrySet>("Grease Pencil"_ustr);
-  const bNode &node = params.node();
   const NodeAttributeFilter attribute_filter = params.get_attribute_filter("Grease Pencil"_ustr);
 
   geometry::foreach_real_geometry(main_geometry, [&](GeometrySet &geometry) {
