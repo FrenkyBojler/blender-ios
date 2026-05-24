@@ -182,7 +182,9 @@ class DrawCacheImpl : public DrawCache {
    */
   void free_nodes_with_changed_topology(const bke::pbvh::Tree &pbvh);
 
-  BitSpan ensure_use_flat_layout(const Object &object, const OrigMeshData &orig_mesh_data);
+  BitSpan ensure_use_flat_layout(const Object &object,
+                                 const ViewportRequest &request,
+                                 const OrigMeshData &orig_mesh_data);
 
   Span<gpu::VertBufPtr> ensure_attribute_data(const Object &object,
                                               const OrigMeshData &orig_mesh_data,
@@ -1543,7 +1545,9 @@ static Array<int> calc_material_indices(const Object &object, const OrigMeshData
   return {};
 }
 
-static BitVector<> calc_use_flat_layout(const Object &object, const OrigMeshData &orig_mesh_data)
+static BitVector<> calc_use_flat_layout(const Object &object,
+                                        const ViewportRequest &request,
+                                        const OrigMeshData &orig_mesh_data)
 {
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   switch (pbvh.type()) {
@@ -1556,10 +1560,18 @@ static BitVector<> calc_use_flat_layout(const Object &object, const OrigMeshData
       const bke::AttributeAccessor attributes = orig_mesh_data.attributes;
       const VArraySpan sharp_faces = *attributes.lookup<bool>("sharp_face", bke::AttrDomain::Face);
       return BitVector<>(nodes.size(), false);
-      /* TODO: Figure out how to disable this if rendering UVs */
-#if 0
       if (sharp_faces.is_empty()) {
         return BitVector<>(nodes.size(), false);
+      }
+
+      /* When rendering UVs, we cannot use a flat layout */
+      for (const AttributeRequest &attr : request.attributes) {
+        if (std::holds_alternative<CustomRequest>(attr)) {
+          const CustomRequest custom = std::get<CustomRequest>(attr);
+          if (custom == CustomRequest::UV) {
+            return BitVector<>(nodes.size(), false);
+          }
+        }
       }
 
       const SubdivCCG &subdiv_ccg = *object.runtime->sculpt_session->subdiv_ccg;
@@ -1579,7 +1591,6 @@ static BitVector<> calc_use_flat_layout(const Object &object, const OrigMeshData
         }
       });
       return BitVector<>(use_flat_layout);
-#endif
     }
     case bke::pbvh::Type::BMesh:
       return {};
@@ -1775,11 +1786,12 @@ Span<gpu::IndexBufPtr> DrawCacheImpl::ensure_lines_indices(const Object &object,
 }
 
 BitSpan DrawCacheImpl::ensure_use_flat_layout(const Object &object,
+                                              const ViewportRequest &request,
                                               const OrigMeshData &orig_mesh_data)
 {
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   if (use_flat_layout_.size() != pbvh.nodes_num()) {
-    use_flat_layout_ = calc_use_flat_layout(object, orig_mesh_data);
+    use_flat_layout_ = calc_use_flat_layout(object, request, orig_mesh_data);
   }
   return use_flat_layout_;
 }
@@ -1987,7 +1999,7 @@ Span<gpu::Batch *> DrawCacheImpl::ensure_tris_batches(const Object &object,
   const OrigMeshData orig_mesh_data{*id_cast<const Mesh *>(object_orig.data)};
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
 
-  this->ensure_use_flat_layout(object, orig_mesh_data);
+  this->ensure_use_flat_layout(object, request, orig_mesh_data);
   this->free_nodes_with_changed_topology(pbvh);
 
   const Span<gpu::IndexBufPtr> ibos = this->ensure_tri_indices(
@@ -2033,7 +2045,7 @@ Span<gpu::Batch *> DrawCacheImpl::ensure_lines_batches(const Object &object,
   const OrigMeshData orig_mesh_data(*id_cast<const Mesh *>(object_orig.data));
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
 
-  this->ensure_use_flat_layout(object, orig_mesh_data);
+  this->ensure_use_flat_layout(object, request, orig_mesh_data);
   this->free_nodes_with_changed_topology(pbvh);
 
   const Span<gpu::VertBufPtr> position = this->ensure_attribute_data(
