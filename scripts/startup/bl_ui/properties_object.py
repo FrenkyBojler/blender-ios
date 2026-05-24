@@ -147,6 +147,7 @@ class OBJECT_PT_relations(ObjectButtonsPanel, Panel):
         parent = ob.parent
         if parent and ob.parent_type == 'BONE' and parent.type == 'ARMATURE':
             sub.prop_search(ob, "parent_bone", parent.data, "bones")
+            sub.prop(ob, "parent_bone_head_tail_factor", text="Head/Tail")
         elif ob.parent_type == 'VERTEX':
             col.prop(ob, "parent_vertices", text="Parent Vertex", index=0)
             sub.prop(ob, "use_parent_final_indices")
@@ -437,6 +438,7 @@ class OBJECT_PT_visibility(ObjectButtonsPanel, Panel):
             if ob.type in {'LIGHT'}:
                 layout.separator()
                 col = layout.column(heading="Ray Visibility")
+                col.prop(ob, "visible_camera", text="Camera", toggle=False)
                 col.prop(ob, "visible_diffuse", text="Diffuse", toggle=False)
                 col.prop(ob, "visible_glossy", text="Glossy", toggle=False)
                 col.prop(ob, "visible_transmission", text="Transmission", toggle=False)

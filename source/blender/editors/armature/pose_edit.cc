@@ -173,7 +173,7 @@ void ED_pose_recalculate_paths(bContext *C, Scene *scene, Object *ob, eAnimvizCa
     free_depsgraph = true;
   }
 
-  animviz_calc_motionpaths(depsgraph, bmain, scene, targets, range, !free_depsgraph);
+  animviz_calc_motionpaths(depsgraph, bmain, scene, targets, range);
 
 #ifdef DEBUG_TIME
   TIMEIT_END(pose_path_calc);
@@ -505,7 +505,7 @@ static wmOperatorStatus pose_flip_names_exec(bContext *C, wmOperator *op)
 
     ED_armature_bones_flip_names(bmain, arm, &bones_names, do_strip_numbers);
 
-    BLI_freelistN(&bones_names);
+    bones_names.free_no_destruct();
 
     /* Since we renamed stuff... */
     DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);

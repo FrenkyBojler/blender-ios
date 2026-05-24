@@ -94,6 +94,7 @@ void main()
         break;
       case CLOSURE_BSDF_MICROFACET_GGX_REFLECTION_ID:
       case CLOSURE_BSDF_MICROFACET_GGX_REFRACTION_ID:
+      case CLOSURE_BSDF_THIN_GLASS_TRANSMISSION_ID:
         specular_color += cl.color;
         specular_direct += closure_direct_light;
         specular_indirect += closure_indirect_light;
@@ -119,6 +120,8 @@ void main()
     /* Output unmodified radiance for indirect lighting. */
     float3 out_radiance = imageLoad(radiance_feedback_img, texel).rgb;
     out_radiance += out_direct + out_indirect;
+    /* Prevent NaNs from propagating. */
+    out_radiance = any(isnan(out_radiance)) ? float3(0.0f) : out_radiance;
     imageStore(radiance_feedback_img, texel, float4(out_radiance, 0.0f));
   }
 
