@@ -752,24 +752,27 @@ void OUTLINER_OT_collection_duplicate(wmOperatorType *ot)
 static wmOperatorStatus collection_link_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
-  Collection *active_collection = CTX_data_layer_collection(C)->collection;
+  Scene *scene_to = static_cast<Scene *>(
+      BLI_findlink(&bmain->scenes, RNA_enum_get(op->ptr, "scene")));
   SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
 
+  if (scene_to == nullptr) {
+    BKE_report(op->reports, RPT_ERROR, "Could not find scene");
+    return OPERATOR_CANCELLED;
+  }
+
+  if (!ID_IS_EDITABLE(scene_to) || ID_IS_OVERRIDE_LIBRARY(scene_to)) {
+    BKE_report(op->reports, RPT_ERROR, "Cannot link collections into a linked/override scene");
+    return OPERATOR_CANCELLED;
+  }
+
+  Collection *master_collection = scene_to->master_collection;
+
   CollectionEditData data{};
-  data.scene = scene;
+  data.scene = scene_to;
   data.space_outliner = space_outliner;
   data.is_liboverride_allowed = false; /* No linking of non-root collections. */
   data.is_liboverride_hierarchy_root_allowed = true;
-
-  if ((!ID_IS_EDITABLE(active_collection) || ID_IS_OVERRIDE_LIBRARY(active_collection)) ||
-      ((active_collection->flag & COLLECTION_IS_MASTER) &&
-       (!ID_IS_EDITABLE(scene) || ID_IS_OVERRIDE_LIBRARY(scene))))
-  {
-    BKE_report(
-        op->reports, RPT_ERROR, "Cannot add a collection to a linked/override collection/scene");
-    return OPERATOR_CANCELLED;
-  }
 
   /* We first walk over and find the Collections we actually want to link (ignoring duplicates). */
   outliner_tree_traverse(space_outliner,
@@ -781,11 +784,11 @@ static wmOperatorStatus collection_link_exec(bContext *C, wmOperator *op)
 
   /* Effectively link the collections. */
   for (Collection *collection : data.collections_to_edit) {
-    BKE_collection_child_add(bmain, active_collection, collection);
+    BKE_collection_child_add(bmain, master_collection, collection);
     id_fake_user_clear(&collection->id);
   }
 
-  DEG_id_tag_update(&active_collection->id, ID_RECALC_SYNC_TO_EVAL);
+  DEG_id_tag_update(&master_collection->id, ID_RECALC_HIERARCHY);
   DEG_relations_tag_update(bmain);
 
   WM_main_add_notifier(NC_SCENE | ND_LAYER, nullptr);
@@ -795,17 +798,26 @@ static wmOperatorStatus collection_link_exec(bContext *C, wmOperator *op)
 
 void OUTLINER_OT_collection_link(wmOperatorType *ot)
 {
+  PropertyRNA *prop;
+
   /* identifiers */
-  ot->name = "Link Collection";
+  ot->name = "Link to Scene";
   ot->idname = "OUTLINER_OT_collection_link";
-  ot->description = "Link selected collections to active scene";
+  ot->description = "Link selected collections to another scene";
 
   /* API callbacks. */
+  ot->invoke = WM_enum_search_invoke;
   ot->exec = collection_link_exec;
-  ot->poll = collection_edit_in_active_scene_poll;
+  ot->poll = ED_outliner_collections_editor_poll;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  /* properties */
+  prop = RNA_def_enum(ot->srna, "scene", rna_enum_dummy_NULL_items, 0, "Scene", "");
+  RNA_def_enum_funcs(prop, RNA_scene_local_itemf);
+  RNA_def_property_flag(prop, PROP_ENUM_NO_TRANSLATE);
+  ot->prop = prop;
 }
 
 /** \} */

@@ -271,8 +271,15 @@ class OUTLINER_MT_collection(Menu):
 
         layout.operator("outliner.collection_instance", text="Instance to Scene")
 
-        if space.display_mode != 'VIEW_LAYER':
-            layout.operator("outliner.collection_link", text="Link to Scene")
+        operator_context_default = layout.operator_context
+        if len(bpy.data.scenes) > 10:
+            layout.operator_context = 'INVOKE_REGION_WIN'
+            layout.operator("outliner.collection_link", text="Link to Scene...")
+        else:
+            layout.operator_context = 'EXEC_REGION_WIN'
+            layout.operator_menu_enum("outliner.collection_link", "scene", text="Link to Scene")
+        layout.operator_context = operator_context_default
+
         layout.operator("outliner.id_operation", text="Unlink").type = 'UNLINK'
 
         layout.separator()
