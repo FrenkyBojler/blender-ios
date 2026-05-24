@@ -135,18 +135,13 @@ static void foreach_isolated_edges_set_imp(const int total_verts,
 
   IndexMaskMemory memory;
   Array<IndexMask> chunk_partition(chunks_num * chunks_num);
-  {
-    // SCOPED_TIMER(AT);
   IndexMask::from_groups<int>(
       edges.index_range(),
       memory,
       [&](const int edge_i) { return chunk_to_index(edges[edge_i] / chunk_size); },
       chunk_partition);
-  }
 
   /* Diagonal is free to process. */
-  {
-    // SCOPED_TIMER(AT);
   threading::parallel_for(
       IndexRange(chunks_num),
       grain_size,
@@ -157,13 +152,12 @@ static void foreach_isolated_edges_set_imp(const int total_verts,
       },
       threading::individual_task_sizes(
           [&](const int i) { return chunk_partition[chunk_to_index(int2(i))].size(); }));
-  }
 
   Array<bool> chunk_processed(chunks_num * chunks_num, false);
   for (const int i : IndexRange(chunks_num)) {
     chunk_processed[chunk_to_index(int2(i))] = true;
   }
-  
+
   for (const int i : chunk_processed.index_range()) {
     chunk_processed[i] |= chunk_partition[i].is_empty();
   }
@@ -181,8 +175,6 @@ static void foreach_isolated_edges_set_imp(const int total_verts,
   for ([[maybe_unused]] const int pass_i : IndexRange(chunks_num)) {
     Vector<int2> chunks_for_pass;
     Array<bool> to_process = chunk_processed;
-    {
-      // SCOPED_TIMER(AT);
     for ([[maybe_unused]] const int chunk_i : IndexRange(chunks_num - 1)) {
       const int index_to_process = to_process.as_span().first_index_try(false);
       if (index_to_process == -1) {
@@ -197,13 +189,10 @@ static void foreach_isolated_edges_set_imp(const int total_verts,
       fill_col(to_process, true, chunk.x);
       fill_col(to_process, true, chunk.y);
     }
-    }
-    
+
     if (chunks_for_pass.is_empty()) {
       break;
     }
-
-    // printf("to_process: %d;\n", to_process.size());
 
     BLI_assert([&]() {
       VectorSet<int> axes;
@@ -246,18 +235,6 @@ static void foreach_isolated_edges_set_imp(const int total_verts,
       return true;
     }()));
 
-    // {
-    //   printf("[");
-    //   for (const int2 chunk_a : chunks_for_pass) {
-    //     const int2 chunk_b = {chunk_a.y, chunk_a.x};
-    //     const int total = chunk_partition[chunk_to_index(chunk_a)].size() + chunk_partition[chunk_to_index(chunk_b)].size();
-    //     printf("%d, ", total);
-    //   }
-    //   printf("];\n");
-    // }
-
-    {
-      // SCOPED_TIMER(AT);
     threading::parallel_for(
         chunks_for_pass.index_range(),
         grain_size,
@@ -275,12 +252,12 @@ static void foreach_isolated_edges_set_imp(const int total_verts,
           return chunk_partition[chunk_to_index(chunk_a)].size() +
                  chunk_partition[chunk_to_index(chunk_b)].size();
         }));
-    }
 
     for (const int2 chunk_a : chunks_for_pass) {
       const int2 chunk_b = {chunk_a.y, chunk_a.x};
       BLI_assert(!chunk_processed[chunk_to_index(chunk_a)]);
-      BLI_assert(!chunk_processed[chunk_to_index(chunk_b)] || chunk_partition[chunk_to_index(chunk_b)].is_empty());
+      BLI_assert(!chunk_processed[chunk_to_index(chunk_b)] ||
+                 chunk_partition[chunk_to_index(chunk_b)].is_empty());
 
       chunk_processed[chunk_to_index(chunk_a)] = true;
       chunk_processed[chunk_to_index(chunk_b)] = true;
@@ -288,7 +265,6 @@ static void foreach_isolated_edges_set_imp(const int total_verts,
   }
 
   BLI_assert(!chunk_processed.as_span().contains(false));
-  // printf("\n");
 }
 
 static void foreach_isolated_edges_set(const int total_verts,
@@ -296,9 +272,11 @@ static void foreach_isolated_edges_set(const int total_verts,
                                        const int grain_size,
                                        const auto &func)
 {
-  std::atomic<int> edge_count{0};
+  [[maybe_unused]] std::atomic<int> edge_count{0};
   foreach_isolated_edges_set_imp(total_verts, edges, grain_size, [&](const IndexMask &mask) {
+#ifndef NDEBUG
     edge_count += mask.size();
+#endif
     func(mask);
   });
   BLI_assert(edge_count == edges.size());
@@ -328,66 +306,59 @@ static bool is_valid_binary_coloring(const int total_verts,
 ConstraintColoring color_constraints__binary(const Span<int2> edges, IndexMaskMemory &memory)
 {
   ConstraintColoring coloring;
-  {
-    SCOPED_TIMER("new color_constraints__binary");
+  const Span<int> verts = edges.cast<int>();
+  const int max_vert_index = max_element_of<int>(verts, 2048, [&](const int i) { return i; });
+  const int total_verts = verts[max_vert_index] + 1;
 
-    const Span<int> verts = edges.cast<int>();
-    const int max_vert_index = max_element_of<int>(verts, 2048, [&](const int i) { return i; });
-    const int total_verts = verts[max_vert_index] + 1;
+  Array<int> offsets;
+  Array<int> indices;
+  const GroupedSpan<int> vert_to_edges = bke::mesh::build_vert_to_edge_map(
+      edges, total_verts, offsets, indices);
 
-    Array<int> offsets;
-    Array<int> indices;
-    const GroupedSpan<int> vert_to_edges = bke::mesh::build_vert_to_edge_map(
-        edges, total_verts, offsets, indices);
+  Array<int> colors(edges.size(), 0);
 
-    Array<int> colors(edges.size(), 0);
+  threading::EnumerableThreadSpecific<int> colors_num;
 
-    threading::EnumerableThreadSpecific<int> colors_num;
+  foreach_isolated_edges_set(total_verts, edges, 1000, [&](const IndexMask &edges_mask) {
+    Vector<bool, 16> color_is_used;
+    int &max_colors = colors_num.local();
 
-    foreach_isolated_edges_set(total_verts, edges, 1000, [&](const IndexMask &edges_mask) {
-      Vector<bool, 16> color_is_used;
-      int &max_colors = colors_num.local();
-
-      edges_mask.foreach_index([&](const int edge_i) {
-        color_is_used.as_mutable_span().fill(false);
-        for (const int vert : {edges[edge_i][0], edges[edge_i][1]}) {
-          for (const int other_edge_i : vert_to_edges[vert]) {
-            if (edge_i == other_edge_i) {
-              continue;
-            }
-            color_is_used.resize(std::max<int>(color_is_used.size(), colors[other_edge_i] + 1),
-                                 false);
-            color_is_used[colors[other_edge_i]] = true;
+    edges_mask.foreach_index([&](const int edge_i) {
+      color_is_used.as_mutable_span().fill(false);
+      for (const int vert : {edges[edge_i][0], edges[edge_i][1]}) {
+        for (const int other_edge_i : vert_to_edges[vert]) {
+          if (edge_i == other_edge_i) {
+            continue;
           }
+          color_is_used.resize(std::max<int>(color_is_used.size(), colors[other_edge_i] + 1),
+                               false);
+          color_is_used[colors[other_edge_i]] = true;
         }
-        const int best_color = color_is_used.as_span().first_index_try(false);
+      }
+      const int best_color = color_is_used.as_span().first_index_try(false);
 
-        if (best_color == -1) {
-          max_colors = std::max<int>(max_colors, color_is_used.size() + 1);
-          colors[edge_i] = color_is_used.size();
-        }
-        else {
-          max_colors = std::max<int>(max_colors, color_is_used.size());
-          colors[edge_i] = best_color;
-        }
-      });
+      if (best_color == -1) {
+        max_colors = std::max<int>(max_colors, color_is_used.size() + 1);
+        colors[edge_i] = color_is_used.size();
+      }
+      else {
+        max_colors = std::max<int>(max_colors, color_is_used.size());
+        colors[edge_i] = best_color;
+      }
     });
+  });
 
-    int colors_num_value = 0;
-    for (const int value : colors_num) {
-      colors_num_value = std::max(value, colors_num_value);
-    }
-
-    coloring.colors.reinitialize(colors_num_value + 1);
-    IndexMask::from_groups<int>(
-        edges.index_range(), memory, [&](const int i) { return colors[i]; }, coloring.colors);
-
-    BLI_assert(is_valid_binary_coloring(total_verts, edges, coloring.colors));
+  int colors_num_value = 0;
+  for (const int value : colors_num) {
+    colors_num_value = std::max(value, colors_num_value);
   }
 
-  printf("result colors: %d;\n", int(coloring.colors.size()));
+  coloring.colors.reinitialize(colors_num_value);
+  IndexMask::from_groups<int>(
+      edges.index_range(), memory, [&](const int i) { return colors[i]; }, coloring.colors);
+
   coloring.colors.remove_if([](const IndexMask &value) { return value.is_empty(); });
-  printf("clean result colors: %d;\n", int(coloring.colors.size()));
+  BLI_assert(is_valid_binary_coloring(total_verts, edges, coloring.colors));
 
   return coloring;
 }
