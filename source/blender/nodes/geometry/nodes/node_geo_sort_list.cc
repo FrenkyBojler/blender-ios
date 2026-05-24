@@ -2,6 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BLI_array_utils.hh"
 #include "BLI_sort.hh"
 
 #include "NOD_geometry_nodes_list.hh"
@@ -92,7 +93,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   const int list_size = list->size();
 
-  if (list_size == 0) {
+  if (list_size <= 1) {
     params.set_output("List"_ustr, std::move(list));
     return;
   }
@@ -112,11 +113,16 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
   else if (weights_variant.is_list()) {
     weights_list = weights_variant.get<GListPtr>();
+    const int weights_list_size = weights_list->size();
     if (!weights_list) {
       params.set_output("List"_ustr, std::move(list));
       return;
     }
-    if (weights_list->size() != list_size) {
+    if (weights_list_size <= 1) {
+      params.set_output("List"_ustr, std::move(list));
+      return;
+    }
+    if (weights_list_size != list_size) {
       params.error_message_add(
           NodeWarningType::Error,
           "List and Weights must have the same length (List: " + std::to_string(list_size) +
@@ -141,20 +147,16 @@ static void node_geo_exec(GeoNodeExecParams params)
   weights_varray.materialize(weights.as_mutable_span());
 
   Array<int> indices(list_size);
-  for (int i : indices.index_range()) {
-    indices[i] = i;
-  }
+  array_utils::fill_index_range<int>(indices.as_mutable_span());
 
-  const auto comparator = [&](const int index_a, const int index_b) {
+  parallel_sort(indices.begin(), indices.end(), [&](const int index_a, const int index_b) {
     const float weight_a = weights[index_a];
     const float weight_b = weights[index_b];
     if (UNLIKELY(weight_a == weight_b)) {
       return index_a < index_b;
     }
     return weight_a < weight_b;
-  };
-
-  parallel_sort(indices.begin(), indices.end(), comparator);
+  });
 
   const CPPType &type = list->cpp_type();
   const GList::DataVariant &list_data = list->data();
@@ -170,10 +172,10 @@ static void node_geo_exec(GeoNodeExecParams params)
     const GSpan src_span(type, array_data->data, list_size);
     GMutableSpan dst_span = sorted_array_data.span_for_write(type, list_size);
 
-    for (const int i : indices.index_range()) {
-      const int src_index = indices[i];
-      type.copy_construct(src_span[src_index], dst_span[i]);
-    }
+    type.to_static_type<int, float, bool, float3, ColorGeometry4f, std::string, float4x4>(
+        [&]<typename T>() {
+          array_utils::gather(src_span.typed<T>(), indices.as_span(), dst_span.typed<T>());
+        });
   }
 
   GListPtr sorted_list = GList::create(type, std::move(sorted_array_data), list_size);
