@@ -469,7 +469,7 @@ void do_versions_after_linking_520(FileData *fd, Main *bmain)
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 37)) {
     version_node_socket_index_animdata(
-        bmain, NTREE_GEOMETRY, "GeometryNodeSetGreasePencilColor", 1, 1, 6);
+        bmain, NTREE_GEOMETRY, "GeometryNodeSetGreasePencilColor", 5, 1, 6);
   }
 
   /**
