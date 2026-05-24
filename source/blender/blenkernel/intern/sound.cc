@@ -2555,6 +2555,36 @@ static constexpr float DB4_HI[8] = {
     -0.010597401784997f,
 };
 
+static int max_dwt_level_for_window_size(const int window_size)
+{
+  int size = window_size;
+  int levels = 0;
+  while (size >= 16) {
+    size /= 2;
+    levels++;
+  }
+  return std::max(levels, 1);
+}
+
+static int band_to_level(const TransientBand band, const int max_level)
+{
+  switch (band) {
+    case TransientBand::High:
+      return 1;
+    case TransientBand::HighMid:
+      return std::clamp(2, 1, max_level);
+    case TransientBand::Mid:
+      return std::clamp((max_level + 1) / 2, 1, max_level);
+    case TransientBand::LowMid:
+      return std::clamp(max_level - 1, 1, max_level);
+    case TransientBand::Low:
+      return max_level;
+    case TransientBand::FullRange:
+      return 0;
+  }
+  return 1;
+}
+
 /** Single-level DWT decomposition into approximation (low) and detail (high) coefficients.
  * Periodic boundary extension is used because audio frames are inherently
  * periodic within the analysis window. */
@@ -2574,23 +2604,6 @@ static void db4_decompose(const Span<float> signal,
       hi_val += DB4_HI[k] * s;
     }
     low[i] = lo_val;
-    high[i] = hi_val;
-  }
-}
-
-/** Only compute detail (high-pass) coefficients when the approximation
- * is not needed, avoiding the low-pass multiply-accumulate. */
-static void db4_detail_only(const Span<float> signal, MutableSpan<float> high)
-{
-  const int n = int(signal.size());
-  const int half_size = n / 2;
-  const float *sig = signal.data();
-  for (const int i : IndexRange(half_size)) {
-    float hi_val = 0.0f;
-    const int base = 2 * i;
-    for (int k = 0; k < 8; k++) {
-      hi_val += DB4_HI[k] * sig[(base + k) % n];
-    }
     high[i] = hi_val;
   }
 }
@@ -2689,13 +2702,38 @@ std::optional<float> bSoundTransientSampler::compute_dwt(const int start_sample)
     return std::nullopt;
   }
 
-  /* Only the high-pass (detail) coefficients carry transient information;
-   * skip the low-pass computation entirely. */
-  const int half_size = key_.window_size / 2;
-  Array<float> high(half_size);
-  db4_detail_only(buffer_opt->as_span(), high);
+  const int max_level = max_dwt_level_for_window_size(key_.window_size);
+  const int target_level = band_to_level(key_.band, max_level);
+  const bool full_range = key_.band == TransientBand::FullRange;
+  const int levels_to_compute = full_range ? max_level : target_level;
 
-  return db4_transient_energy(high);
+  Array<float> low_a(key_.window_size / 2);
+  Array<float> low_b(key_.window_size / 2);
+  Array<float> high(key_.window_size / 2);
+
+  Span<float> signal = buffer_opt->as_span();
+  float energy = 0.0f;
+  for (const int level : IndexRange(1, levels_to_compute)) {
+    if (signal.size() < 16) {
+      break;
+    }
+
+    const int half_size = int(signal.size()) / 2;
+    MutableSpan<float> low_buffer = low_a.as_mutable_span();
+    if (level % 2 == 0) {
+      low_buffer = low_b.as_mutable_span();
+    }
+    MutableSpan<float> low = low_buffer.take_front(half_size);
+    MutableSpan<float> detail = high.as_mutable_span().take_front(half_size);
+    db4_decompose(signal, low, detail);
+
+    if (full_range || level == target_level) {
+      energy += db4_transient_energy(detail);
+    }
+    signal = low;
+  }
+
+  return energy;
 #else
   UNUSED_VARS(start_sample);
   return 0.0f;

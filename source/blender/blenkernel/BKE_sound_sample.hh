@@ -121,19 +121,29 @@ class bSoundFrequencySampler {
   std::optional<Array<float>> compute_fft(int start_sample) const;
 };
 
+enum class TransientBand {
+  FullRange,
+  High,
+  HighMid,
+  Mid,
+  LowMid,
+  Low,
+};
+
 /**
- * DWT-based transient energy sampler. Uses Daubechies-4 wavelets for sample-accurate onset
- * detection without the time-smearing inherent in STFT approaches.
+ * DWT-based transient energy sampler. Uses Daubechies-4 wavelets to measure sharp changes in the
+ * signal with a different time/frequency tradeoff than STFT analysis.
  */
 class bSoundTransientSampler {
  public:
   struct Key {
+    TransientBand band = TransientBand::FullRange;
     int window_size;
     std::optional<int> channel;
 
     uint64_t hash() const
     {
-      return get_default_hash(this->window_size, this->channel.value_or(-1));
+      return get_default_hash(this->band, this->window_size, this->channel.value_or(-1));
     }
 
     friend bool operator==(const Key &a, const Key &b) = default;
