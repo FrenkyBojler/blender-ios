@@ -751,6 +751,13 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
         }
       }
     }
+
+    for (Collection &collection : bmain->collections) {
+      int i = 0;
+      for (CollectionObject &cob : collection.gobject) {
+        cob.sort_index = i++;
+      }
+    }
   }
 
   /**

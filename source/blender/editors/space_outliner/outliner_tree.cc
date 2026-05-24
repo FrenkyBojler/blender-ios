@@ -524,7 +524,7 @@ static void outliner_sort_custom_assign_missing_sort_indices(ListBaseT<TreeEleme
     Object *ob = reinterpret_cast<Object *>(TREESTORE(&te)->id);
     CollectionObject *cob = BKE_collection_object_find_in(collection, ob);
     if (cob != nullptr) {
-      if (!has_missing_indices || cob->sort_index < 0) {
+      if (cob->sort_index < 0) {
         cob->sort_index = next_index++;
       }
     }
