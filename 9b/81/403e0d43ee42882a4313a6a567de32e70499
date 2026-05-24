@@ -1,2 +1,3 @@
 Referenced by pull request #156003, WIP: Benchmark: Bisecting performance regressions
 Referenced by issue #158838, EEVEE: Performance regression Linux/AMD in shader balls
+Referenced by commit c93198d62c6282423bc0b61730d338cc2f79adbc, Fix: Swap functionality not implemented for Typed Bundle node operator
