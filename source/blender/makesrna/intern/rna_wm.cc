@@ -1582,7 +1582,7 @@ static PointerRNA rna_WindowManager_xr_session_state_get(PointerRNA *ptr)
 static PointerRNA rna_WindowManager_undo_stack_get(PointerRNA *ptr)
 {
   wmWindowManager *wm = static_cast<wmWindowManager *>(ptr->data);
-  return RNA_pointer_create_with_parent(*ptr, &RNA_UndoStack, wm->runtime->undo_stack);
+  return RNA_pointer_create_with_parent(*ptr, RNA_UndoStack, wm->runtime->undo_stack);
 }
 
 #  ifdef WITH_PYTHON

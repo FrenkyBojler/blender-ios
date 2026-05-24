@@ -10,40 +10,34 @@
 #include "RNA_enum_types.hh"
 #include "RNA_types.hh"
 
-#include "rna_internal.hh" 
+#include "rna_internal.hh"
+
+namespace blender {
 
 #ifdef RNA_RUNTIME
 
-extern StructRNA RNA_UndoStep;
-
 static int rna_UndoStack_steps_length(PointerRNA *ptr)
 {
-  UndoStack *ustack = static_cast<wmWindowManager *>(ptr->data);
+  UndoStack *ustack = static_cast<UndoStack *>(ptr->data);
   return BLI_listbase_count(&ustack->steps);
 }
 
 static PointerRNA rna_UndoStack_steps_get(CollectionPropertyIterator *iter)
 {
   UndoStep *us = static_cast<UndoStep *>(rna_iterator_listbase_get(iter));
-  return RNA_pointer_create_with_parent(iter->parent, &RNA_UndoStep, us);
+  return RNA_pointer_create_with_parent(iter->parent, RNA_UndoStep, us);
 }
 
 static void rna_UndoStack_steps_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
-  UndoStack *ustack = static_cast<wmWindowManager *>(ptr->data);
+  UndoStack *ustack = static_cast<UndoStack *>(ptr->data);
   rna_iterator_listbase_begin(iter, ptr, &ustack->steps, nullptr);
 }
 
 static int rna_UndoStack_active_index_get(PointerRNA *ptr)
 {
-  UndoStack *ustack = static_cast<wmWindowManager *>(ptr->data);
-  int index = 0;
-  LISTBASE_FOREACH_INDEX (UndoStep *, us, &ustack->steps, index) {
-    if (us == ustack->step_active) {
-      return index;
-    }
-  }
-  return -1;
+  UndoStack *ustack = static_cast<UndoStack *>(ptr->data);
+  return BLI_findindex(&ustack->steps, ustack->step_active);
 }
 
 static void rna_UndoStep_name_get(PointerRNA *ptr, char *value)
@@ -81,16 +75,13 @@ static bool rna_UndoStep_skip_get(PointerRNA *ptr)
   return us ? us->skip : false;
 }
 
-#endif // RNA_RUNTIME
+#else /* !RNA_RUNTIME */
 
 void RNA_def_undo(BlenderRNA *brna)
 {
   StructRNA *srna;
   PropertyRNA *prop;
 
-  /*
-   * UndoStep
-   */
   srna = RNA_def_struct(brna, "UndoStep", nullptr);
   RNA_def_struct_ui_text(srna, "Undo Step", "A single step in the undo history");
   RNA_def_struct_flag(srna, STRUCT_NO_DATABLOCK_IDPROPERTIES);
@@ -98,31 +89,27 @@ void RNA_def_undo(BlenderRNA *brna)
   prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_string_funcs(prop,
-                              "rna_UndoStep_name_get",
-                              "rna_UndoStep_name_length",
-                              nullptr);
+                                "rna_UndoStep_name_get",
+                                "rna_UndoStep_name_length",
+                                nullptr);
   RNA_def_property_ui_text(prop, "Name", "Label of the undo step");
 
   prop = RNA_def_property(srna, "type", PROP_STRING, PROP_NONE);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_string_funcs(prop,
-                              "rna_UndoStep_type_name_get",
-                              "rna_UndoStep_type_name_length",
-                              nullptr);
+                                "rna_UndoStep_type_name_get",
+                                "rna_UndoStep_type_name_length",
+                                nullptr);
   RNA_def_property_ui_text(prop, "Type", "Type name of the undo step");
 
   prop = RNA_def_property(srna, "skip", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-  RNA_def_property_boolean_funcs(prop,
-                              "rna_UndoStep_skip_get",
-                              nullptr);
-  RNA_def_property_ui_text(prop, 
-                          "Skip", 
-                          "If true, this step should not be shown to the user for undo/redo selection");
+  RNA_def_property_boolean_funcs(prop, "rna_UndoStep_skip_get", nullptr);
+  RNA_def_property_ui_text(prop,
+                           "Skip",
+                           "If true, this step should not be shown to the user for undo/redo "
+                           "selection");
 
-  /*
-   * UndoStack
-   */
   srna = RNA_def_struct(brna, "UndoStack", nullptr);
   RNA_def_struct_ui_text(srna, "Undo Stack", "Read-only access to the undo stack");
 
@@ -142,3 +129,7 @@ void RNA_def_undo(BlenderRNA *brna)
   RNA_def_property_int_funcs(prop, "rna_UndoStack_active_index_get", nullptr, nullptr);
   RNA_def_property_ui_text(prop, "Active Index", "Index of currently active undo step");
 }
+
+#endif /* RNA_RUNTIME */
+
+}  // namespace blender
