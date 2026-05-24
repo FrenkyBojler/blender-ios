@@ -1185,6 +1185,8 @@ void OBJECT_OT_simulation_nodes_cache_calculate_to_frame(wmOperatorType *ot)
   ot->modal = simulate_to_frame_modal;
   ot->poll = simulate_to_frame_poll;
 
+  ot->flag = OPTYPE_UNDO;
+
   RNA_def_boolean(ot->srna,
                   "selected",
                   false,
@@ -1203,6 +1205,8 @@ void OBJECT_OT_simulation_nodes_cache_bake(wmOperatorType *ot)
   ot->modal = bake_simulation_modal;
   ot->poll = bake_simulation_poll;
 
+  ot->flag = OPTYPE_UNDO;
+
   RNA_def_boolean(ot->srna, "selected", false, "Selected", "Bake cache on all selected objects");
 }
 
@@ -1214,6 +1218,8 @@ void OBJECT_OT_simulation_nodes_cache_delete(wmOperatorType *ot)
 
   ot->exec = delete_baked_simulation_exec;
   ot->poll = ED_operator_object_active;
+
+  ot->flag = OPTYPE_UNDO;
 
   RNA_def_boolean(ot->srna, "selected", false, "Selected", "Delete cache on all selected objects");
 }
@@ -1242,6 +1248,8 @@ void OBJECT_OT_geometry_node_bake_single(wmOperatorType *ot)
   ot->exec = bake_single_node_exec;
   ot->modal = bake_single_node_modal;
 
+  ot->flag = OPTYPE_UNDO;
+
   single_bake_operator_props(ot);
 }
 
@@ -1252,6 +1260,8 @@ void OBJECT_OT_geometry_node_bake_delete_single(wmOperatorType *ot)
   ot->idname = "OBJECT_OT_geometry_node_bake_delete_single";
 
   ot->exec = delete_single_bake_exec;
+
+  ot->flag = OPTYPE_UNDO;
 
   single_bake_operator_props(ot);
 }
@@ -1264,6 +1274,9 @@ void OBJECT_OT_geometry_node_bake_pack_single(wmOperatorType *ot)
 
   ot->exec = pack_single_bake_exec;
 
+  /* TODO: Should we do undo step manually to actually undo changes with files? */
+  ot->flag = OPTYPE_UNDO;
+
   single_bake_operator_props(ot);
 }
 
@@ -1275,6 +1288,8 @@ void OBJECT_OT_geometry_node_bake_unpack_single(wmOperatorType *ot)
 
   ot->exec = unpack_single_bake_exec;
   ot->invoke = unpack_single_bake_invoke;
+
+  ot->flag = OPTYPE_UNDO;
 
   single_bake_operator_props(ot);
 
