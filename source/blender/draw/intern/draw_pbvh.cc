@@ -9,6 +9,7 @@
  * Embeds GPU meshes inside of bke::pbvh::Tree nodes, used by mesh sculpt mode.
  */
 
+#include "BLI_enumerable_thread_specific.hh"
 #include "BLI_map.hh"
 #include "BLI_math_geom.h"
 #include "BLI_math_vector_types.hh"
@@ -25,6 +26,7 @@
 #include "BKE_paint.hh"
 #include "BKE_paint_bvh.hh"
 #include "BKE_subdiv_ccg.hh"
+#include "BKE_subdiv_eval.hh"
 
 #include "DEG_depsgraph_query.hh"
 
@@ -34,8 +36,6 @@
 #include "DRW_pbvh.hh"
 #include "DRW_render.hh"
 
-#include "BKE_subdiv_eval.hh"
-#include "BLI_enumerable_thread_specific.hh"
 #include "attribute_convert.hh"
 #include "bmesh.hh"
 
@@ -955,28 +955,6 @@ BLI_NOINLINE static void fill_face_sets_grids(const Object &object,
   }
 }
 
-BLI_INLINE void rotate_grid_to_quad(
-    const int corner, const float grid_u, const float grid_v, float *r_quad_u, float *r_quad_v)
-{
-  if (corner == 0) {
-    *r_quad_u = 0.5f - grid_v * 0.5f;
-    *r_quad_v = 0.5f - grid_u * 0.5f;
-  }
-  else if (corner == 1) {
-    *r_quad_u = 0.5f + grid_u * 0.5f;
-    *r_quad_v = 0.5f - grid_v * 0.5f;
-  }
-  else if (corner == 2) {
-    *r_quad_u = 0.5f + grid_v * 0.5f;
-    *r_quad_v = 0.5f + grid_u * 0.5f;
-  }
-  else {
-    BLI_assert(corner == 3);
-    *r_quad_u = 0.5f - grid_u * 0.5f;
-    *r_quad_v = 0.5f + grid_v * 0.5f;
-  }
-}
-
 static void calc_node_uvs(const SubdivCCG &subdiv_ccg,
                           const int uv_map_index,
                           const bke::pbvh::GridsNode &node,
@@ -1002,7 +980,7 @@ static void calc_node_uvs(const SubdivCCG &subdiv_ccg,
           const float grid_u = x * grid_size_1_inv;
           float u;
           float v;
-          rotate_grid_to_quad(corner, grid_u, grid_v, &u, &v);
+          bke::subdiv::rotate_grid_to_quad(corner, grid_u, grid_v, &u, &v);
           const int element = i * grid_area + CCG_grid_xy_to_index(grid_size, x, y);
           bke::subdiv::eval_face_varying(
               subdiv_ccg.subdiv, uv_map_index, ptex_face_index, u, v, result[element]);
@@ -1723,8 +1701,7 @@ static gpu::IndexBufPtr create_lines_index_grids(const CCGKey &key,
 
   MutableSpan<uint2> data = GPU_indexbuf_get_data(&builder).cast<uint2>();
   /* The buffer might contain hidden elements which are not initialized but still accounted. We
-   * don't count them to skip from allocation, so must fill that gaps by 0 to hide redundant
-   * edges.
+   * don't count them to skip from allocation, so must fill that gaps by 0 to hide redundant edges.
    */
   data.fill(uint2(0));
 
@@ -1966,9 +1943,9 @@ Span<gpu::IndexBufPtr> DrawCacheImpl::ensure_tri_indices(const Object &object,
     }
     case bke::pbvh::Type::Grids: {
       /* Unlike the other geometry types, multires grids use indexed vertex buffers because when
-       * there are no flat faces, vertices can be shared between neighboring quads. This results
-       * in a 4x decrease in the amount of data uploaded. Theoretically it also means freeing
-       * VBOs because of visibility changes is unnecessary.
+       * there are no flat faces, vertices can be shared between neighboring quads. This results in
+       * a 4x decrease in the amount of data uploaded. Theoretically it also means freeing VBOs
+       * because of visibility changes is unnecessary.
        *
        * TODO: With the "flat layout" and no hidden faces, the index buffers are unnecessary, we
        * should avoid creating them in that case. */
@@ -2020,8 +1997,8 @@ Span<gpu::Batch *> DrawCacheImpl::ensure_tris_batches(const Object &object,
     this->ensure_attribute_data(object, orig_mesh_data, attr, nodes_to_update);
   }
 
-  /* Collect VBO spans in a different loop because #ensure_attribute_data invalidates the
-   * allocated arrays when its map is changed. */
+  /* Collect VBO spans in a different loop because #ensure_attribute_data invalidates the allocated
+   * arrays when its map is changed. */
   Vector<Span<gpu::VertBufPtr>> attr_vbos;
   for (const AttributeRequest &attr : request.attributes) {
     if (const AttributeData *attr_data = attribute_vbos_.lookup_ptr(attr)) {
