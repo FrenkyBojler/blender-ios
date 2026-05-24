@@ -392,16 +392,6 @@ std::unique_ptr<SubdivCCG> BKE_subdiv_to_ccg(Subdiv &subdiv,
     BLI_assert(subdiv.topology_refiner);
     subdiv_ccg_alloc_elements(*subdiv_ccg, subdiv, settings);
     subdiv_ccg_init_faces_neighborhood(*subdiv_ccg);
-
-    const StringRefNull active_uv_map_name = coarse_mesh.active_uv_map_name();
-    VectorSet<StringRefNull> uv_map_names = coarse_mesh.uv_map_names();
-    std::optional<int> active_uv_map_index = std::nullopt;
-    for (const int i : uv_map_names.index_range()) {
-      if (uv_map_names[i] == active_uv_map_name) {
-        active_uv_map_index = i;
-      }
-    }
-
     if (!subdiv_ccg_evaluate_grids(*subdiv_ccg, subdiv, mask_evaluator)) {
       stats_end(&subdiv.stats, SUBDIV_STATS_SUBDIV_TO_CCG);
       return nullptr;

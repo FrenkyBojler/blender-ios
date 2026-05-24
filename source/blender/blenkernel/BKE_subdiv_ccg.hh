@@ -68,7 +68,6 @@ struct SubdivToCCGSettings {
   /** Denotes which extra layers to be added to CCG elements. */
   bool need_normal;
   bool need_mask;
-  bool need_uv;
 };
 
 struct SubdivCCGCoord {
@@ -153,8 +152,6 @@ struct SubdivCCG : NonCopyable {
   Array<float3> normals;
   /** Optional mask values with the same indexing as #positions. */
   Array<float> masks;
-  /** Optional uv values with the same indexing as #positions. */
-  Array<float2> uvs;
 
   /** Faces from which grids are emitted. Owned by base mesh. */
   OffsetIndices<int> faces;
