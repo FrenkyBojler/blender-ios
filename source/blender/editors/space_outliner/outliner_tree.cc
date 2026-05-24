@@ -1374,6 +1374,10 @@ void outliner_build_tree(Main *mainvar,
     case SO_SORT_TYPE:
       outliner_sort_type(&space_outliner->runtime->tree);
       break;
+
+    default:
+      BLI_assert_unreachable();
+      break;
   }
 
   outliner_filter_tree(*mainvar, space_outliner, scene, view_layer);
