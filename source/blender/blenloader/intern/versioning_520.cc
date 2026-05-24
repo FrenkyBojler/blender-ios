@@ -663,10 +663,7 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     for (Camera &cam : bmain->cameras) {
       /* Convert old `dtx` char to the new `composition_guide_flags` short. */
       const short old = short(cam.composition_guide_flags) & 0xFF;
-
-      /* All bits were shifted up by 1; bit 0 is now COMPOSITION_GUIDES_ENABLED, set by default. */
-      cam.composition_guide_flags = eCompositionGuideFlags((old << 1) |
-                                                           COMPOSITION_GUIDES_ENABLED);
+      cam.composition_guide_flags = eCompositionGuideFlags(old);
     }
   }
   /**

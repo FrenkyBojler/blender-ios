@@ -226,12 +226,12 @@ class SEQUENCER_PT_preview_overlay(Panel):
         col.prop(overlay_settings, "show_image_outline")
         col.prop(ed, "show_overlay_frame", text="Frame Overlay")
         col.prop(overlay_settings, "show_metadata", text="Metadata")
-        col.prop(overlay_settings, "show_composition_guides", text="Composition Guides")
+        col.prop(overlay_settings, "show_annotation", text="Annotations")
 
         col = split.column()
         col.prop(overlay_settings, "show_cursor")
         col.prop(overlay_settings, "show_safe_areas", text="Safe Areas")
-        col.prop(overlay_settings, "show_annotation", text="Annotations")
+        col.prop(overlay_settings, "show_composition_guides", text="Composition Guides")
 
 
 class SEQUENCER_PT_sequencer_overlay(Panel):

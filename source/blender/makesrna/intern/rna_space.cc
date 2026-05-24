@@ -27,6 +27,7 @@
 #include "BLI_sys_types.h"
 
 #include "DNA_action_types.h"
+#include "DNA_camera_types.h"
 #include "DNA_layer_types.h"
 #include "DNA_mask_types.h"
 #include "DNA_object_types.h"
@@ -6505,12 +6506,6 @@ static void rna_def_space_sequencer_preview_overlay(BlenderRNA *brna)
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SEQUENCER, nullptr);
 
   /* Composition Guides */
-  prop = RNA_def_property(srna, "show_composition_guides", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(
-      prop, nullptr, "preview_overlay.composition_guide_flags", COMPOSITION_GUIDES_ENABLED);
-  RNA_def_property_ui_text(prop, "Center", "Display composition guides");
-  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SEQUENCER, nullptr);
-
   prop = RNA_def_property(srna, "show_composition_center", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(
       prop, nullptr, "preview_overlay.composition_guide_flags", COMPOSITION_GUIDES_CENTER);
@@ -6586,6 +6581,12 @@ static void rna_def_space_sequencer_preview_overlay(BlenderRNA *brna)
   prop = RNA_def_property(srna, "show_cursor", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "preview_overlay.flag", SEQ_PREVIEW_SHOW_2D_CURSOR);
   RNA_def_property_ui_text(prop, "2D Cursor", "");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SEQUENCER, nullptr);
+
+  prop = RNA_def_property(srna, "show_composition_guides", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(
+      prop, nullptr, "preview_overlay.flag", SEQ_PREVIEW_SHOW_COMPOSITION_GUIDES);
+  RNA_def_property_ui_text(prop, "Composition Guides", "Show composition guides");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SEQUENCER, nullptr);
 }
 

@@ -471,18 +471,11 @@ class DATA_PT_camera_display_composition_guides(CameraButtonsPanel, Panel):
         'BLENDER_WORKBENCH',
     }
 
-    def draw_header(self, context):
-        cam = context.camera
-        self.layout.prop(cam, "show_composition_guides", text="")
-
     def draw(self, context):
         self.draw_panel(self.layout, context.camera)
 
     @classmethod
     def draw_panel(cls, layout, item):
-        if not item.show_composition_guides:
-            layout.enabled = False
-
         layout.use_property_split = True
 
         layout.prop(item, "show_composition_thirds")

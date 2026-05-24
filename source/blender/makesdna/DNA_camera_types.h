@@ -49,15 +49,14 @@ enum eCamera_CustomMode : int {
 
 /* Composition Guides */
 enum eCompositionGuideFlags : short {
-  COMPOSITION_GUIDES_ENABLED = (1 << 0),
-  COMPOSITION_GUIDES_CENTER = (1 << 1),
-  COMPOSITION_GUIDES_CENTER_DIAG = (1 << 2),
-  COMPOSITION_GUIDES_THIRDS = (1 << 3),
-  COMPOSITION_GUIDES_GOLDEN = (1 << 4),
-  COMPOSITION_GUIDES_GOLDEN_TRI_A = (1 << 5),
-  COMPOSITION_GUIDES_GOLDEN_TRI_B = (1 << 6),
-  COMPOSITION_GUIDES_HARMONY_TRI_A = (1 << 7),
-  COMPOSITION_GUIDES_HARMONY_TRI_B = (1 << 8),
+  COMPOSITION_GUIDES_CENTER = (1 << 0),
+  COMPOSITION_GUIDES_CENTER_DIAG = (1 << 1),
+  COMPOSITION_GUIDES_THIRDS = (1 << 2),
+  COMPOSITION_GUIDES_GOLDEN = (1 << 3),
+  COMPOSITION_GUIDES_GOLDEN_TRI_A = (1 << 4),
+  COMPOSITION_GUIDES_GOLDEN_TRI_B = (1 << 5),
+  COMPOSITION_GUIDES_HARMONY_TRI_A = (1 << 6),
+  COMPOSITION_GUIDES_HARMONY_TRI_B = (1 << 7),
 };
 ENUM_OPERATORS(eCompositionGuideFlags)
 
@@ -212,7 +211,7 @@ struct Camera {
   eCamera_Type type = {};
   char _pad0[1] = {};
   /** Composition Guide Flags. */
-  eCompositionGuideFlags composition_guide_flags = COMPOSITION_GUIDES_ENABLED;
+  eCompositionGuideFlags composition_guide_flags = {};
   eCamera_Flag flag = CAM_SHOWPASSEPARTOUT;
   char _pad1[2] = {};
   float passepartalpha = 0.5f;
