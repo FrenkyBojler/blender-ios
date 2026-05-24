@@ -91,9 +91,9 @@ static void node_geo_exec(GeoNodeExecParams params)
     GList::ArrayData reversed_data = GList::ArrayData::ForUninitialized(type, list_size);
     GMutableSpan dst_span = reversed_data.span_for_write(type, list_size);
 
-    for (int i = 0; i < list_size; i++) {
-      type.copy_construct(src_span[list_size - 1 - i], dst_span[i]);
-    }
+    type.to_static_type<int, std::string, ....>([&]<typename T>() {
+      std::reverse_copy(src.typed<T>().begin(), src.typed<T>().end(), dst.typed<T>().begin());
+    });
 
     GListPtr reversed_list = GList::create(type, std::move(reversed_data), list_size);
     params.set_output("List"_ustr, std::move(reversed_list));
