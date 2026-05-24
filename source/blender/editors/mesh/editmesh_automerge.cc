@@ -12,6 +12,7 @@
  */
 
 #include "BKE_editmesh.hh"
+#include "BKE_key.hh"
 
 #include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
@@ -43,6 +44,10 @@ static bool edbm_automerge_impl(Object *obedit,
                                 const bool use_connected,
                                 const bool use_centroid)
 {
+  if (BKE_keyblock_from_object(obedit)) {
+    return false;
+  }
+
   BMEditMesh *em = BKE_editmesh_from_object(obedit);
   BMesh *bm = em->bm;
   int totvert_prev = bm->totvert;
@@ -106,6 +111,10 @@ bool EDBM_automerge_and_split(Object *obedit,
                               const char hflag,
                               const float dist)
 {
+  if (BKE_keyblock_from_object(obedit)) {
+    return false;
+  }
+
   bool ok = false;
 
   BMEditMesh *em = BKE_editmesh_from_object(obedit);
