@@ -135,13 +135,18 @@ static void foreach_isolated_edges_set_imp(const int total_verts,
 
   IndexMaskMemory memory;
   Array<IndexMask> chunk_partition(chunks_num * chunks_num);
+  {
+    // SCOPED_TIMER(AT);
   IndexMask::from_groups<int>(
       edges.index_range(),
       memory,
       [&](const int edge_i) { return chunk_to_index(edges[edge_i] / chunk_size); },
       chunk_partition);
+  }
 
   /* Diagonal is free to process. */
+  {
+    // SCOPED_TIMER(AT);
   threading::parallel_for(
       IndexRange(chunks_num),
       grain_size,
@@ -152,10 +157,15 @@ static void foreach_isolated_edges_set_imp(const int total_verts,
       },
       threading::individual_task_sizes(
           [&](const int i) { return chunk_partition[chunk_to_index(int2(i))].size(); }));
+  }
 
   Array<bool> chunk_processed(chunks_num * chunks_num, false);
   for (const int i : IndexRange(chunks_num)) {
     chunk_processed[chunk_to_index(int2(i))] = true;
+  }
+  
+  for (const int i : chunk_processed.index_range()) {
+    chunk_processed[i] |= chunk_partition[i].is_empty();
   }
 
   const auto fill_row = [&](MutableSpan<bool> values, const bool value, const int index) {
@@ -171,6 +181,8 @@ static void foreach_isolated_edges_set_imp(const int total_verts,
   for ([[maybe_unused]] const int pass_i : IndexRange(chunks_num)) {
     Vector<int2> chunks_for_pass;
     Array<bool> to_process = chunk_processed;
+    {
+      // SCOPED_TIMER(AT);
     for ([[maybe_unused]] const int chunk_i : IndexRange(chunks_num - 1)) {
       const int index_to_process = to_process.as_span().first_index_try(false);
       if (index_to_process == -1) {
@@ -184,6 +196,11 @@ static void foreach_isolated_edges_set_imp(const int total_verts,
 
       fill_col(to_process, true, chunk.x);
       fill_col(to_process, true, chunk.y);
+    }
+    }
+    
+    if (chunks_for_pass.is_empty()) {
+      break;
     }
 
     // printf("to_process: %d;\n", to_process.size());
@@ -229,6 +246,18 @@ static void foreach_isolated_edges_set_imp(const int total_verts,
       return true;
     }()));
 
+    // {
+    //   printf("[");
+    //   for (const int2 chunk_a : chunks_for_pass) {
+    //     const int2 chunk_b = {chunk_a.y, chunk_a.x};
+    //     const int total = chunk_partition[chunk_to_index(chunk_a)].size() + chunk_partition[chunk_to_index(chunk_b)].size();
+    //     printf("%d, ", total);
+    //   }
+    //   printf("];\n");
+    // }
+
+    {
+      // SCOPED_TIMER(AT);
     threading::parallel_for(
         chunks_for_pass.index_range(),
         grain_size,
@@ -246,11 +275,12 @@ static void foreach_isolated_edges_set_imp(const int total_verts,
           return chunk_partition[chunk_to_index(chunk_a)].size() +
                  chunk_partition[chunk_to_index(chunk_b)].size();
         }));
+    }
 
     for (const int2 chunk_a : chunks_for_pass) {
       const int2 chunk_b = {chunk_a.y, chunk_a.x};
       BLI_assert(!chunk_processed[chunk_to_index(chunk_a)]);
-      BLI_assert(!chunk_processed[chunk_to_index(chunk_b)]);
+      BLI_assert(!chunk_processed[chunk_to_index(chunk_b)] || chunk_partition[chunk_to_index(chunk_b)].is_empty());
 
       chunk_processed[chunk_to_index(chunk_a)] = true;
       chunk_processed[chunk_to_index(chunk_b)] = true;
