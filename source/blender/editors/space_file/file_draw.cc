@@ -1007,9 +1007,10 @@ static void file_draw_indicator_icons(const FileList *files,
     }
     else if (file->asset && file->asset->file_status() == asset_system::AssetFileStatus::NO_MATCH)
     {
+      /* This on-disk asset no longer matches the asset listing it was downloaded from. */
       ui::icon_draw_ex(icon_x,
                        icon_y,
-                       ICON_ERROR,
+                       ICON_WARNING_LARGE,
                        1.0f / UI_SCALE_FAC,
                        0.6f,
                        0.0f,
