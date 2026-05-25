@@ -107,7 +107,7 @@ class PROJECT_PT_save_project(Panel):
 
 
 # -------------------------------------------------------------
-# Navigation Bar.
+# Navigation bar.
 
 class PROJECT_PT_navigation_bar(Panel):
     bl_label = "Project Navigation"
@@ -230,7 +230,7 @@ class PROJECT_PT_main_unset(Panel, CenterAlignMixIn):
 
 
 # -------------------------------------------------------------
-# Register
+# Register.
 
 # This conditional is awkward: it means the user has to restart Blender after
 # enabling the experimental feature to actually get access to the UI.

@@ -57,6 +57,7 @@ class ProjectLoadException(Exception):
 
 
 # -------------------------------------------------------------
+# Internal utilities.
 
 def save_project(project, report=None):
     """
@@ -276,6 +277,7 @@ def blend_file_is_in_valid_project(blend_file_path):
 
 
 # -------------------------------------------------------------
+# Operators.
 
 class PROJECT_OT_NewProject(Operator):
     """Create a new project"""
@@ -500,7 +502,7 @@ def on_exit(is_user_exit):
 
 
 # -----------------------------------------------------------------------------
-# Register
+# Register.
 
 classes = (
     PROJECT_OT_NewProject,
