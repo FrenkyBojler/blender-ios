@@ -18,13 +18,13 @@ static void sh_node_tex_checker_declare(NodeDeclarationBuilder &b)
   b.is_function_node();
 
   const bool is_compositor = b.tree_or_null() && b.tree_or_null()->type == NTREE_COMPOSIT;
-  auto &vector_declaration = b.add_input<decl::Vector>("Vector"_ustr).min(-10000.0f).max(10000.0f);
-  if (is_compositor) {
-    vector_declaration.default_input_type(NODE_DEFAULT_INPUT_UNIFORM_IMAGE_COORDINATES);
-  }
-  else {
-    vector_declaration.default_input_type(NODE_DEFAULT_INPUT_POSITION_FIELD);
-  }
+  const NodeDefaultInputType default_input_type =
+      is_compositor ? NODE_DEFAULT_INPUT_UNIFORM_IMAGE_COORDINATES :
+                      NODE_DEFAULT_INPUT_POSITION_FIELD;
+  b.add_input<decl::Vector>("Vector"_ustr)
+      .min(-10000.0f)
+      .max(10000.0f)
+      .default_input_type(default_input_type);
 
   b.add_input<decl::Color>("Color1"_ustr)
       .default_value({0.8f, 0.8f, 0.8f, 1.0f})

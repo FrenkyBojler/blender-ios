@@ -26,13 +26,10 @@ static void sh_node_tex_wave_declare(NodeDeclarationBuilder &b)
   b.is_function_node();
 
   const bool is_compositor = b.tree_or_null() && b.tree_or_null()->type == NTREE_COMPOSIT;
-  auto &vector_declaration = b.add_input<decl::Vector>("Vector"_ustr);
-  if (is_compositor) {
-    vector_declaration.default_input_type(NODE_DEFAULT_INPUT_UNIFORM_IMAGE_COORDINATES);
-  }
-  else {
-    vector_declaration.default_input_type(NODE_DEFAULT_INPUT_POSITION_FIELD);
-  }
+  const NodeDefaultInputType default_input_type =
+      is_compositor ? NODE_DEFAULT_INPUT_UNIFORM_IMAGE_COORDINATES :
+                      NODE_DEFAULT_INPUT_POSITION_FIELD;
+  b.add_input<decl::Vector>("Vector"_ustr).default_input_type(default_input_type);
 
   b.add_input<decl::Float>("Scale"_ustr)
       .min(-1000.0f)
