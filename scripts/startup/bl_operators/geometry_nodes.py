@@ -172,7 +172,7 @@ def create_wrapper_group(operator, modifier, old_group):
             input_node = group.nodes.new("GeometryNodeInputNamedAttribute")
             input_nodes.append(input_node)
             input_node.data_type = socket_idname_to_attribute_type(input_socket.bl_socket_idname)
-            attribute_name = modifier.properties.inputs[identifier].attribute_name
+            attribute_name = prop.attribute_name
             input_node.inputs["Name"].default_value = attribute_name
             output_socket = get_enabled_socket_with_name(input_node.outputs, "Attribute")
             group.links.new(output_socket, group_node_input)
