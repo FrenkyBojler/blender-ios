@@ -1448,7 +1448,6 @@ void panel_category_tabs_draw_all(const bContext *C,
   const uiFontStyle *fstyle = &style->widget;
   fontstyle_set(fstyle);
   const int fontid = fstyle->uifont_id;
-
   const float aspect = BLI_rctf_size_y(&region->v2d.cur) /
                        (BLI_rcti_size_y(&region->v2d.mask) + 1);
   const float zoom = 1.0f / aspect;
@@ -1530,8 +1529,7 @@ void panel_category_tabs_draw_all(const bContext *C,
   PointerRNA ptr = RNA_pointer_create_discrete(
       reinterpret_cast<ID *>(CTX_wm_screen(C)), RNA_Region, region);
   PropertyRNA *prop = RNA_struct_find_property(&ptr, "active_panel_category");
-  int n = 0;
-  for (PanelCategoryDyn &pc_dyn : region->runtime->panels_category) {
+  for (auto [i, pc_dyn] : region->runtime->panels_category.enumerate()) {
     Button *button = nullptr;
     const char *category_id = pc_dyn.idname;
     const char *category_id_draw = IFACE_(category_id);
@@ -1545,7 +1543,7 @@ void panel_category_tabs_draw_all(const bContext *C,
 
     if (compact && pc_dyn.icon != ICON_NONE) {
       button = uiDefIconButR_prop(
-          block, ButtonType::Tab, pc_dyn.icon, 0, 0, w, h, &ptr, prop, -1, 0, n++, nullptr);
+          block, ButtonType::Tab, pc_dyn.icon, 0, 0, w, h, &ptr, prop, -1, 0, i, nullptr);
     }
     else {
       std::string title = category_id_draw;
@@ -1576,7 +1574,7 @@ void panel_category_tabs_draw_all(const bContext *C,
         }
       }
       button = uiDefIconTextButR_prop(
-          block, ButtonType::Tab, ICON_NONE, title, 0, 0, w, h, &ptr, prop, -1, 0, n++, nullptr);
+          block, ButtonType::Tab, ICON_NONE, title, 0, 0, w, h, &ptr, prop, -1, 0, i, nullptr);
       button->text_direction = compact ? TextDirection::Default :
                                          (is_left ? TextDirection::Up : TextDirection::Down);
     }
@@ -1637,22 +1635,22 @@ static int panel_category_show_active_tab(ARegion *region, const int mval[2])
 
   BLI_assert(BKE_regiontype_uses_category_tabs(region->runtime->type));
 
-  int i = 0;
-  for (PanelCategoryDyn &pc_dyn : region->runtime->panels_category) {
+  const View2D *v2d = &region->v2d;
+  const Block *block = region->runtime->block_name_map.lookup_as("panel_category_tabs");
+  if (!block) {
+    return WM_UI_HANDLER_BREAK;
+  }
+  for (auto [i, pc_dyn] : region->runtime->panels_category.enumerate()) {
     const bool is_active = STREQ(pc_dyn.idname, region->runtime->category);
     if (!is_active) {
-      i++;
       continue;
     }
-    break;
-  }
-  const View2D *v2d = &region->v2d;
-  if (const Block *block = region->runtime->block_name_map.lookup_as("panel_category_tabs")) {
-    /* First and last button are padding buttons. */
+    /* First and last buttons are padding buttons. */
     if (i < block->buttons_ptrs.size() - 2) {
       const Button &button = *block->buttons_ptrs[i + 1];
       region->category_scroll = -(button.rect.ymax - region->category_scroll - v2d->mask.ymax);
     }
+    break;
   }
   ED_region_tag_redraw(region);
   return WM_UI_HANDLER_BREAK;
