@@ -1183,8 +1183,8 @@ static bool collection_drop_init(bContext *C, wmDrag *drag, const int xy[2], Col
     return false;
   }
 
-  TreeElement *collection_te = outliner_data_from_tree_element_and_parents(is_collection_element,
-                                                                           te_hovered);
+  const TreeElement *collection_te = outliner_data_from_tree_element_and_parents(
+      is_collection_element, te_hovered);
   Collection *to_collection = collection_te ?
                                   outliner_collection_from_tree_element(collection_te) :
                                   nullptr;
