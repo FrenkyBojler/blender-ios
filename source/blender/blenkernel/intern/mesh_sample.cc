@@ -120,8 +120,10 @@ void sample_corner_attribute(const Span<int3> corner_tris,
 
   const CPPType &type = src.type();
   attribute_math::to_static_type(type, [&]<typename T>() {
-    sample_corner_attribute<T>(
-        corner_tris, tri_indices, bary_coords, src.typed<T>(), mask, dst.typed<T>());
+    if constexpr (!std::is_same_v<T, std::string>) {
+      sample_corner_attribute<T>(
+          corner_tris, tri_indices, bary_coords, src.typed<T>(), mask, dst.typed<T>());
+    }
   });
 }
 

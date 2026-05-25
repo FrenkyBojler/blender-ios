@@ -1878,7 +1878,7 @@ static std::optional<SocketValueVariant> deserialize_bake_item(const DictionaryV
     const CPPType &cpp_type = *custom_data_type_to_cpp_type(*data_type);
     const std::optional<eNodeSocketDatatype> socket_type = custom_data_type_to_socket_type(
         *data_type);
-    if (!socket_type) {
+    if (!socket_type || *socket_type == SOCK_STRING) {
       return {};
     }
     BUFFER_FOR_CPP_TYPE_VALUE(cpp_type, buffer);

@@ -5780,6 +5780,8 @@ std::optional<eNodeSocketDatatype> custom_data_type_to_socket_type(eCustomDataTy
       return SOCK_ROTATION;
     case CD_PROP_FLOAT4X4:
       return SOCK_MATRIX;
+    case CD_PROP_STRING:
+      return SOCK_STRING;
     default:
       return std::nullopt;
   }

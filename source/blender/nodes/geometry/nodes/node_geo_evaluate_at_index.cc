@@ -49,7 +49,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
   const bke::bNodeType &node_type = params.node_type();
   const std::optional<eCustomDataType> type = bke::socket_type_to_custom_data_type(
       params.other_socket().type);
-  if (type && *type != CD_PROP_STRING) {
+  if (type) {
     params.add_item(IFACE_("Value"), [node_type, type](LinkSearchOpParams &params) {
       bNode &node = params.add_node(node_type);
       node.custom2 = *type;
@@ -90,14 +90,29 @@ static void node_rna(StructRNA *srna)
                     NOD_inline_enum_accessors(custom1),
                     int(AttrDomain::Point));
 
-  RNA_def_node_enum(srna,
-                    "data_type",
-                    "Data Type",
-                    "",
-                    rna_enum_attribute_type_items,
-                    NOD_inline_enum_accessors(custom2),
-                    CD_PROP_FLOAT,
-                    enums::attribute_type_type_with_socket_fn);
+  RNA_def_node_enum(
+      srna,
+      "data_type",
+      "Data Type",
+      "",
+      rna_enum_attribute_type_items,
+      NOD_inline_enum_accessors(custom2),
+      CD_PROP_FLOAT,
+      [](bContext * /*C*/, PointerRNA * /*ptr*/, PropertyRNA * /*prop*/, bool *r_free) {
+        *r_free = true;
+        return enum_items_filter(rna_enum_attribute_type_items,
+                                 [](const EnumPropertyItem &item) -> bool {
+                                   return ELEM(item.value,
+                                               CD_PROP_FLOAT,
+                                               CD_PROP_INT32,
+                                               CD_PROP_FLOAT3,
+                                               CD_PROP_BOOL,
+                                               CD_PROP_COLOR,
+                                               CD_PROP_QUATERNION,
+                                               CD_PROP_FLOAT4X4,
+                                               CD_PROP_STRING);
+                                 });
+      });
 }
 
 static void node_register()
