@@ -550,7 +550,7 @@ class TOPBAR_MT_edit(Menu):
         layout.separator()
 
         layout.operator("screen.userpref_show", text="Preferences...", icon='PREFERENCES')
-        if bpy.context.preferences.experimental.use_blender_projects:
+        if context.preferences.experimental.use_blender_projects:
             layout.operator("screen.project_setup_show", text="Project Setup...", icon='PROJECT')
 
 

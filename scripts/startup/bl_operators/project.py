@@ -2,6 +2,11 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
+__all__ = (
+    "register",
+    "unregister",
+)
+
 import os
 import logging
 from dataclasses import dataclass
@@ -22,7 +27,10 @@ PROJECT_CONFIG = "project.toml"
 
 PROJECT_DEFAULT_NAME = "Untitled Project"
 
+
 # -------------------------------------------------------------
+# TOML Schema
+#
 # Types that define the schema for reading/writing project config TOML files.
 
 
@@ -100,7 +108,9 @@ def structure_int_float_str(obj: int | float | str, cl: type) -> int | float | s
 
 
 # -------------------------------------------------------------
-# Custom exception types, for anticipated errors that should be reported to the
+# Exceptions
+#
+# Custom exception types for anticipated errors that should be reported to the
 # user.
 
 class ProjectSaveException(Exception):
@@ -112,6 +122,7 @@ class ProjectLoadException(Exception):
 
 
 # -------------------------------------------------------------
+# Internal Utilities
 
 def save_project(project, report=None):
     """
@@ -334,6 +345,7 @@ def blend_file_is_in_valid_project(blend_file_path):
 
 
 # -------------------------------------------------------------
+# Operators
 
 class PROJECT_OT_NewProject(Operator):
     """Create a new project"""
@@ -573,6 +585,8 @@ class PROJECT_OT_MoveVariable(Operator):
 
 
 # -------------------------------------------------------------
+# Handler Callbacks
+#
 # Auto-loading / clearing of projects when loading/saving blend files or
 # exiting.
 
@@ -621,10 +635,14 @@ def on_blend_save(blend_path):
 
     # In case we're saving the blend to disk for the first time or to a new
     # location, load the project there (if any).
-    try:
-        find_and_load_project_for_blend_path(bpy.context, blend_path)
-    except ProjectLoadException:
-        log_project_load_error(blend_path)
+    #
+    # The equality check here is to prevent loading projects from the copy
+    # location when doing "Save Copy...".
+    if blend_path == bpy.data.filepath:
+        try:
+            find_and_load_project_for_blend_path(bpy.context, blend_path)
+        except ProjectLoadException:
+            log_project_load_error(blend_path)
 
 
 @bpy.app.handlers.persistent

@@ -14,7 +14,7 @@ MAIN_SECTION_NAME = "General"
 
 
 # -------------------------------------------------------------
-# Header.
+# Header
 
 class PROJECT_HT_header(Header):
     bl_space_type = 'PROJECT'
@@ -89,7 +89,9 @@ class PROJECT_MT_add_variable(Menu):
 
 
 # -------------------------------------------------------------
-# Execution area (shown when header is hidden).
+# Execution Area
+#
+# Shown when header is hidden.
 
 class PROJECT_PT_save_project(Panel):
     bl_label = "Save Project"
@@ -120,7 +122,7 @@ class PROJECT_PT_save_project(Panel):
 
 
 # -------------------------------------------------------------
-# Navigation Bar.
+# Navigation Bar
 
 class PROJECT_PT_navigation_bar(Panel):
     bl_label = "Project Navigation"
@@ -156,7 +158,7 @@ class PROJECT_PT_navigation_bar(Panel):
 
 
 # -------------------------------------------------------------
-# Main Area.
+# Main Area
 
 class PROJECT_PT_main(Panel, CenterAlignMixIn):
     bl_label = "Project"
