@@ -28,7 +28,7 @@ PROJECT_DEFAULT_NAME = "Untitled Project"
 
 
 # -------------------------------------------------------------
-# On-Disk Schema
+# TOML Schema
 #
 # Types that define the schema for reading/writing project config TOML files.
 
