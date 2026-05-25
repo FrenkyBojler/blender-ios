@@ -138,6 +138,7 @@ void VKCommandBuilder::groups_extract_barriers(VKRenderGraph &render_graph,
           VKResourceBarrierState &state = resource.barrier_state;
           if (link.vk_access_flags & VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT) {
             state.vk_access |= VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+            state.vk_pipeline_stages |= VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
           }
           if (link.vk_access_flags & VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT) {
             state.vk_access |= VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
