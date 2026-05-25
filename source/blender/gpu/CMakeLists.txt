@@ -185,8 +185,6 @@ set(SRC
   intern/gpu_shader_interface.hh
   intern/gpu_shader_metadata_private.hh
   intern/gpu_shader_private.hh
-  intern/gpu_shader_srd_cpp.hh
-  intern/gpu_shader_srd_info.hh
   intern/gpu_state_private.hh
   intern/gpu_storage_buffer_private.hh
   intern/gpu_texture_pool_private.hh
@@ -250,6 +248,7 @@ set(VULKAN_SRC
   vulkan/vk_backend.cc
   vulkan/vk_batch.cc
   vulkan/vk_buffer.cc
+  vulkan/vk_buffer_pool.cc
   vulkan/vk_common.cc
   vulkan/vk_context.cc
   vulkan/vk_data_conversion.cc
@@ -300,6 +299,7 @@ set(VULKAN_SRC
   vulkan/vk_backend.hh
   vulkan/vk_batch.hh
   vulkan/vk_buffer.hh
+  vulkan/vk_buffer_pool.hh
   vulkan/vk_common.hh
   vulkan/vk_context.hh
   vulkan/vk_data_conversion.hh
@@ -695,6 +695,7 @@ set(GLSL_SRC
   shaders/material/gpu_shader_material_rotation_to_axis_angle.glsl
   shaders/material/gpu_shader_material_rotation_to_euler.glsl
   shaders/material/gpu_shader_material_rotation_to_quaternion.glsl
+  shaders/material/gpu_shader_material_scene_time.glsl
   shaders/material/gpu_shader_material_separate_color.glsl
   shaders/material/gpu_shader_material_separate_xyz.glsl
   shaders/material/gpu_shader_material_set.glsl

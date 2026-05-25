@@ -12,7 +12,8 @@
 
 #pragma once
 
-#include "infos/eevee_tracing_infos.hh"
+#include "infos/eevee_common_infos.hh"
+#include "infos/eevee_sampling_infos.hh"
 
 SHADER_LIBRARY_CREATE_INFO(eevee_gbuffer_data)
 SHADER_LIBRARY_CREATE_INFO(eevee_global_ubo)
@@ -125,6 +126,7 @@ void transmission_thickness_amend_closure(ClosureUndetermined &cl, float3 &V, Th
     case CLOSURE_BSDF_TRANSLUCENT_ID:
     case CLOSURE_BSDF_MICROFACET_GGX_REFLECTION_ID:
     case CLOSURE_BSSRDF_BURLEY_ID:
+    case CLOSURE_BSDF_THIN_GLASS_TRANSMISSION_ID:
       break;
   }
 }
@@ -350,7 +352,8 @@ void spatial_main([[resource_table]] DenoiseSpatial &srt,
     /* The reference is wrong.
      * The ratio estimator is `pdf_local / pdf_ray` instead of `bsdf_local / pdf_ray`. */
     float pdf = closure_evaluate_pdf(closure, ray_direction, V, thickness);
-    float weight = pdf * ray_pdf_inv;
+    /* Avoid the weight exploding and summing to infinity. */
+    float weight = min(1e30f, pdf * ray_pdf_inv);
 
     float3 log_radiance = colorspace::log_from_scene_linear(ray_radiance.rgb);
 

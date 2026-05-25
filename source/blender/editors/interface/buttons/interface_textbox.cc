@@ -78,15 +78,15 @@ void textbox_textedit_set_cursor_pos(ButtonTextBox *textbox,
                                      const float2 xy)
 {
 
-  /* Don't include grip bounds when selecting text with the mouse.*/
+  /* Don't include grip bounds when selecting text with the mouse. */
   float2 start = {textbox->rect.xmin, textbox->rect.ymin};
   float2 end = {textbox->rect.xmax, textbox->rect.ymax};
 
   block_to_window_fl(region, textbox->block, &start.x, &start.y);
   block_to_window_fl(region, textbox->block, &end.x, &end.y);
 
-  start.y += textbox_padding_bottom() / textbox->block->aspect;
-  end.y -= textbox_padding_top() / textbox->block->aspect;
+  start.y += textbox_vertical_padding() / textbox->block->aspect;
+  end.y -= textbox_vertical_padding() / textbox->block->aspect;
 
   const Vector<StringRef> lines = textbox_wrap_lines(textbox);
   uiFontStyle fstyle = style_get()->widget;
@@ -304,14 +304,10 @@ void ButtonTextBox::line_scroll_set(int line_scroll)
   this->state->scroll = this->line_scroll();
 }
 
-float textbox_padding_top()
+float textbox_vertical_padding()
 {
-  return U.pixelsize + 2.0f * UI_SCALE_FAC;
-}
-
-float textbox_padding_bottom()
-{
-  return textbox_grip_height() + 0.25f * UI_SCALE_FAC;
+  /* Allow aligning text buttons with single line text-box buttons. */
+  return float(UI_UNIT_Y - fontstyle_height_max(UI_FSTYLE_WIDGET)) / 2.0f;
 }
 
 TextboxState *textbox_ensure_state(ARegion *region, StringRefNull idname)
@@ -336,7 +332,7 @@ int ButtonTextBox::line_scroll() const
 
 int ButtonTextBox::visible_lines() const
 {
-  return std::max<int>(this->state->visible_lines, 3);
+  return std::max<int>(this->state->visible_lines, textbox_minimum_visible_lines);
 }
 
 }  // namespace blender::ui
