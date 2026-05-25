@@ -104,12 +104,12 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   params.set_output<std::string>("Library Name"_ustr, BKE_id_name(lib->id));
 }*/
-
+/*
 static std::string data_blocks_are_equal(const ID *a)
 {
   std::string b = "";
   return b;
-}
+}*/
 
 template<typename Fn>
 static auto to_static_data_block_type(const eNodeSocketDatatype socket_type, Fn &&fn)
@@ -140,9 +140,22 @@ static const mf::MultiFunction *get_multi_function(const bNode &node)
     static auto fn = mf::build::SI1_SO2<T *, std::string, std::string>(
         "Data Block Name",
         [](const T *data_block, std::string &name, std::string &library_name) {
-          name = "";
-          library_name = "";
-          // data_blocks_are_equal(id_cast<const ID *>(a));
+          if (data_block == nullptr) {
+            name = "";
+            library_name = "";
+            return;
+          }
+
+          const ID *id = id_cast<const ID *>(data_block);
+
+          name = BKE_id_name(*id);
+
+          if (id->lib != nullptr) {
+            library_name = BKE_id_name(id->lib->id);
+          }
+          else {
+            library_name = "";
+          }
         },
         mf::build::exec_presets::Simple{});
     return &fn;
