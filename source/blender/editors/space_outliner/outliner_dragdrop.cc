@@ -1240,6 +1240,11 @@ static bool collection_drop_init(bContext *C, wmDrag *drag, const int xy[2], Col
     if (space_outliner->sort_method != SO_SORT_CUSTOM) {
       insert_type = TE_INSERT_INTO;
     }
+    else if (te_hovered && is_object_element(te_hovered)) {
+      if (insert_type == TE_INSERT_INTO) {
+        insert_type = TE_INSERT_BEFORE;
+      }
+    }
   }
   else {
     if (id == &to_collection->id) {
