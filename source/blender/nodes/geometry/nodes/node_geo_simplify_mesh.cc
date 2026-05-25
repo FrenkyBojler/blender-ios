@@ -27,31 +27,78 @@ static void node_declare(NodeDeclarationBuilder &b)
       .is_default_link_socket()
       .description("Mesh to simplify");
   b.add_output<decl::Geometry>("Mesh"_ustr).propagate_all().align_with_previous();
-  b.add_input<decl::Float>("Error"_ustr).default_value(0.001f).subtype(PROP_FACTOR);
-  b.add_input<decl::Bool>("Selection"_ustr).default_value(true).field_on_all().hide_value();
+  b.add_input<decl::Int>("Target"_ustr).default_value(100).min(1);
+  b.add_input<decl::Float>("Error"_ustr).default_value(0.1f);
+  b.add_input<decl::Bool>("Selection"_ustr)
+      .default_value(true)
+      .evaluated_geometry_field()
+      .hide_value();
+  b.add_input<decl::Bool>("Lock Vertex"_ustr)
+      .default_value(false)
+      .evaluated_geometry_field()
+      .hide_value();
+  b.add_input<decl::Bool>("Regularize"_ustr);
+  b.add_input<decl::Bool>("Permissive"_ustr);
+  b.add_output<decl::Bool>("Absolute Error"_ustr);
 }
 
 static Mesh *simplify_mesh(const Mesh &src_mesh,
                            const bke::AttributeFilter &attribute_filter,
-                           const float error)
+                           const int target_index_count,
+                           const float error,
+                           const Field<bool> &lock_vertex_field,
+                           const bool regularize,
+                           const bool permissive,
+                           const bool absolute_error)
 {
   const Span<int3> corner_tris = src_mesh.corner_tris();
   Array<int3> vert_tris(corner_tris.size());
   bke::mesh::vert_tris_from_corner_tris(src_mesh.corner_verts(), corner_tris, vert_tris);
   const Span<int> src_indices = vert_tris.as_span().cast<int>();
 
+  bke::MeshFieldContext context(src_mesh, bke::AttrDomain::Point);
+  fn::FieldEvaluator evaluator{context, src_mesh.verts_num};
+  evaluator.add(lock_vertex_field);
+  evaluator.evaluate();
+  const IndexMask locked_vertices = evaluator.get_evaluated_as_mask(0);
+  if (locked_vertices.size() == src_mesh.verts_num) {
+    return BKE_mesh_copy_for_eval(src_mesh);
+  }
+
+  Array<uchar> vertex_lock;
+  if (!locked_vertices.is_empty()) {
+    vertex_lock = Array<uchar>(src_mesh.verts_num, 0);
+    index_mask::masked_fill<uchar>(vertex_lock, meshopt_SimplifyVertex_Lock, locked_vertices);
+  }
+
+  int options = 0;
+  if (regularize) {
+    options |= meshopt_SimplifyRegularize;
+  }
+  if (permissive) {
+    options |= meshopt_SimplifyPermissive;
+  }
+  if (absolute_error) {
+    options |= meshopt_SimplifyErrorAbsolute;
+  }
+
   Array<int> dst_vertices(src_indices.size());
-  const int dst_indices_num = meshopt_simplify(dst_vertices.data(),
-                                               src_indices.data(),
-                                               src_indices.size(),
-                                               src_mesh.vert_positions().cast<float>().data(),
-                                               src_mesh.verts_num,
-                                               sizeof(float3),
-                                               3,
-                                               error,
-                                               0,
-                                               nullptr);
-  std::cout << dst_indices_num << std::endl;
+  const int dst_indices_num = meshopt_simplifyWithAttributes(
+      dst_vertices.data(),
+      src_indices.data(),
+      src_indices.size(),
+      src_mesh.vert_positions().cast<float>().data(),
+      src_mesh.verts_num,
+      sizeof(float3),
+      nullptr,
+      0,
+      nullptr,
+      0,
+      vertex_lock.is_empty() ? nullptr : vertex_lock.data(),
+      target_index_count,
+      error,
+      options,
+      nullptr);
 
   Mesh *dst_mesh = bke::mesh_new_no_attributes(
       src_mesh.verts_num, 0, dst_indices_num / 3, dst_indices_num);
@@ -76,7 +123,12 @@ static void node_geo_exec(GeoNodeExecParams params)
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Mesh"_ustr);
   Field<bool> selection_field = params.extract_input<Field<bool>>("Selection"_ustr);
   const AttributeFilter &attribute_filter = params.get_attribute_filter("Mesh"_ustr);
+  const int target_index_count = params.extract_input<int>("Target"_ustr);
   const float error = params.extract_input<float>("Error"_ustr);
+  const Field<bool> lock_vertex_field = params.extract_input<Field<bool>>("Lock Vertex"_ustr);
+  const bool regularize = params.extract_input<bool>("Regularize"_ustr);
+  const bool permissive = params.extract_input<bool>("Permissive"_ustr);
+  const bool absolute_error = params.extract_input<bool>("Absolute Error"_ustr);
 
   geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry_set) {
     const Mesh *src_mesh = geometry_set.get_mesh();
@@ -93,7 +145,14 @@ static void node_geo_exec(GeoNodeExecParams params)
       return;
     }
 
-    Mesh *mesh = simplify_mesh(*src_mesh, attribute_filter, error);
+    Mesh *mesh = simplify_mesh(*src_mesh,
+                               attribute_filter,
+                               target_index_count,
+                               error,
+                               lock_vertex_field,
+                               regularize,
+                               permissive,
+                               absolute_error);
     if (!mesh) {
       return;
     }
