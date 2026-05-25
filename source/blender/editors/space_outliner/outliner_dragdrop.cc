@@ -1500,7 +1500,7 @@ static wmOperatorStatus collection_drop_invoke(bContext *C,
 
     TreeStoreElem *drop_tselem = TREESTORE(data.te);
     if (drop_tselem && drop_tselem->type == TSE_SOME_ID && data.te->idcode == ID_OB) {
-      Object *relative_ob = (Object *)drop_tselem->id;
+      Object *relative_ob = reinterpret_cast<Object *>(drop_tselem->id);
       CollectionObject *rel_cob = BKE_collection_object_find_in(data.to, relative_ob);
       const int found_index = cobs.as_span().first_index_try(rel_cob);
       if (found_index != -1) {
