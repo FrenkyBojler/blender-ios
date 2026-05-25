@@ -642,8 +642,11 @@ GVArray EvaluateAtIndexInput::get_varray_for_context(const bke::GeometryFieldCon
   const IndexMask valid_mask = array_utils::indices_in_range(
       mask, indices, values.index_range(), memory);
   bke::attribute_math::gather(values, indices, valid_mask, dst_array);
-  dst_array.type().copy_assign_indices(
-      values.type().default_value(), dst_array.data(), valid_mask.complement(mask, memory));
+  if (valid_mask.size() != mask.size()) {
+    const void *default_value = values.type().default_value();
+    const IndexMask invalid_mask = valid_mask.complement(mask, memory);
+    dst_array.type().fill_assign_indices(default_value, dst_array.data(), invalid_mask);
+  }
   return GVArray::from_garray(std::move(dst_array));
 }
 
