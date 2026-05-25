@@ -48,6 +48,12 @@ namespace blender::ed::transform {
 struct EdgeSlideData {
   Array<TransDataEdgeSlideVert> sv;
 
+  struct CloneNeighborData {
+    BMVert *v;
+    Vector<BMVert *> neighbors[2];
+  };
+  Vector<CloneNeighborData> clone_neighbor_data;
+
   int mval_start[2], mval_end[2];
   int curr_sv_index;
 
@@ -411,7 +417,9 @@ static void freeEdgeSlideVerts(TransInfo *t,
     BMesh *bm = em->bm;
 
     for (TransDataEdgeSlideVert &sv : sld->sv) {
-      BM_vert_kill(bm, static_cast<BMVert *>(sv.td->extra));
+      if (sv.td->extra) {
+        BM_vert_kill(bm, static_cast<BMVert *>(sv.td->extra));
+      }
     }
   }
 
@@ -934,27 +942,61 @@ static void initEdgeSlide_ex(TransInfo *t,
     FOREACH_TRANS_DATA_CONTAINER (t, tc) {
       EdgeSlideData *sld = static_cast<EdgeSlideData *>(tc->custom.mode.data);
       if (sld) {
-        // duplicate bmesh verts
         BMEditMesh *em = BKE_editmesh_from_object(tc->obedit);
         BMesh *bm = em->bm;
 
-        Map<BMVert *, BMVert *> vert_map;
-        vert_map.reserve(sld->sv.size());
-
         for (TransDataEdgeSlideVert &sv : sld->sv) {
+          /* duplicate bmesh verts */
           BMVert *v = static_cast<BMVert *>(sv.td->extra);
           BMVert *v_clone = BM_vert_create(bm, v->co, v, BM_CREATE_NOP);
-          vert_map.add(v, v_clone);
 
+          /* Find neighbor vertices for each side of cloned vertex to create face topology in the correct direction at edge slide confirmation. */
+          EdgeSlideData::CloneNeighborData neighbor_data;
+          neighbor_data.v = v;
+          
+          const float3 dir0 = !math::is_zero(sv.dir_side[0]) ? math::normalize(sv.dir_side[0]) : float3(0);
+          const float3 dir1 = !math::is_zero(sv.dir_side[1]) ? math::normalize(sv.dir_side[1]) : float3(0);
+          BMEdge *ne;
+          BMIter ne_iter;
+
+          BM_ITER_ELEM (ne, &ne_iter, v, BM_EDGES_OF_VERT) {
+            if (BM_elem_flag_test(ne, BM_ELEM_SELECT)) {
+              continue;
+            }
+
+            BMVert *other = BM_edge_other_vert(ne, v);
+            const float3 edge_dir = math::normalize(float3(other->co) - float3(v->co));
+            const float dot0 = math::dot(edge_dir, dir0);
+            const float dot1 = math::dot(edge_dir, dir1);
+            
+            if (dot0 > 0.0f && dot0 >= dot1) {
+              neighbor_data.neighbors[0].append(other);
+            }
+            else if (dot1 > 0.0f && dot1 > dot0) {
+              neighbor_data.neighbors[1].append(other);
+            }
+          }
+          
+          sld->clone_neighbor_data.append(neighbor_data);
+
+          /* transform clones, not originals */
           BM_elem_flag_disable(v, BM_ELEM_SELECT);
           BM_elem_flag_enable(v_clone, BM_ELEM_SELECT);
 
-          // transform clones, not originals
           sv.td->loc = v_clone->co;
           sv.td->extra = v_clone;
         }
 
-        // recreate edges
+        Map<BMVert *, BMVert *> vert_map;
+        vert_map.reserve(sld->sv.size());
+
+        for (int i = 0; i < int(sld->sv.size()); i++) {
+          BMVert *v_orig = sld->clone_neighbor_data[i].v;
+          BMVert *v_clone = static_cast<BMVert *>(sld->sv[i].td->extra);
+          vert_map.add(v_orig, v_clone);
+        }
+
+        /* recreate edges */
         BMIter iter;
         BMEdge *e;
         BM_ITER_MESH (e, &iter, bm, BM_EDGES_OF_MESH) {
@@ -967,13 +1009,12 @@ static void initEdgeSlide_ex(TransInfo *t,
             }
           }
         }
-        
         vert_map.foreach_item([&](BMVert *v_orig, BMVert *v_clone) {
           BM_edge_create(bm, v_orig, v_clone, nullptr, BM_CREATE_NOP);
         });
 
         EDBM_selectmode_flush(em);
-        bm->elem_index_dirty |= BM_VERT | BM_EDGE;
+        bm->elem_index_dirty |= BM_VERT | BM_EDGE | BM_FACE;
       }
     }
   }
