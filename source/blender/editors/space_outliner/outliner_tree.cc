@@ -270,6 +270,10 @@ TreeElement *AbstractTreeDisplay::add_element(ListBaseT<TreeElement> *lb,
 
   if (type == TSE_SOME_ID) {
     /* Real ID, ensure we do not get non-outliner ID types here... */
+    if (owner_id && GS(owner_id->name) == ID_KE) {
+      /* Shape Key isn't treated as ID in outliner, see #TreeElementShapeKeyBase. */
+      type = TSE_SHAPE_KEY_BASE;
+    }
     BLI_assert(TREESTORE_ID_TYPE(owner_id));
   }
 
