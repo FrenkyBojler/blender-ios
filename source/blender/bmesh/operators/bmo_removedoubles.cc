@@ -22,9 +22,6 @@
 #include "BLI_utildefines_stack.h"
 
 #include "BKE_customdata.hh"
-#include "BKE_deform.hh"
-
-#include "DNA_meshdata_types.h"
 
 #include "bmesh.hh"
 #include "intern/bmesh_operators_private.hh"
@@ -184,61 +181,6 @@ finally: {
 }
 
 /**
- * Average all vertex group weight values of merged vertices.
- *
- * This function takes a destination vertex and all source vertices being merged into it.
- * It collects their vertex group weights, adds them together for matching groups,
- * and then divides by the total number of vertices to get an average.
- * The averaged weights are then written back into the destination vertex.
- */
-static void average_vertex_group_weights_for_cluster(BMesh *bm,
-                                                     BMVert *v_dst,
-                                                     const blender::Vector<BMVert *> &srcs)
-{
-  const int cd_dvert = CustomData_get_offset(&bm->vdata, CD_MDEFORMVERT);
-  if (cd_dvert < 0) {
-    return;
-  }
-
-  MDeformVert *dv_dst = static_cast<MDeformVert *>(BM_ELEM_CD_GET_VOID_P(v_dst, cd_dvert));
-
-  blender::Map<int, float> weight_sums;
-
-  auto accumulate_weights = [&weight_sums](const MDeformVert *dv) {
-    if (!dv || dv->totweight == 0) {
-      return;
-    }
-    for (int i = 0; i < dv->totweight; i++) {
-      weight_sums.lookup_or_add(dv->dw[i].def_nr, 0.0f) += dv->dw[i].weight;
-    }
-  };
-
-  accumulate_weights(dv_dst);
-  for (BMVert *v_src : srcs) {
-    MDeformVert *dv_src = static_cast<MDeformVert *>(BM_ELEM_CD_GET_VOID_P(v_src, cd_dvert));
-    accumulate_weights(dv_src);
-  }
-
-  const float inv_count = 1.0f / float(1 + srcs.size());
-
-  for (const auto item : weight_sums.items()) {
-    const int def_nr = item.key;
-    const float avg = item.value * inv_count;
-
-    if (avg > 0.0f) {
-      MDeformWeight *dw = BKE_defvert_ensure_index(dv_dst, def_nr);
-      dw->weight = avg;
-    }
-    else {
-      MDeformWeight *dw = BKE_defvert_find_index(dv_dst, def_nr);
-      if (dw) {
-        BKE_defvert_remove_group(dv_dst, dw);
-      }
-    }
-  }
-}
-
-/**
  * \note with 'targetmap', multiple 'keys' are currently supported,
  * though no callers should be using.
  * (because slot maps currently use GHash without the GHASH_FLAG_ALLOW_DUPES flag set)
@@ -252,12 +194,7 @@ void bmo_weld_verts_exec(BMesh *bm, BMOperator *op)
   BMFace *f;
   BMOpSlot *slot_targetmap = BMO_slot_get(op->slots_in, "targetmap");
   const bool use_centroid = BMO_slot_bool_get(op->slots_in, "use_centroid");
-
-  bool average_vdata = false;
-  if (BMO_slot_exists(op->slots_in, "average_vdata")) {
-    average_vdata = BMO_slot_bool_get(op->slots_in, "average_vdata");
-  }
-  average_vdata = average_vdata || use_centroid;
+  const bool average_vdata = BMO_slot_bool_get(op->slots_in, "average_vdata") || use_centroid;
 
   /* Maintain selection history. */
   const bool has_selected = !bm->selected.is_empty();
@@ -266,6 +203,8 @@ void bmo_weld_verts_exec(BMesh *bm, BMOperator *op)
 
   /* Used when use_centroid is true. */
   MultiValueMap<BMVert *, BMVert *> clusters;
+  /* Used when average_vdata is true. */
+  MultiValueMap<BMVert *, BMVert *> groups_data;
 
   /* Mark merge verts for deletion. */
   BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
@@ -285,8 +224,13 @@ void bmo_weld_verts_exec(BMesh *bm, BMOperator *op)
     }
 
     /* Group vertices by their survivor. */
-    if (use_centroid && LIKELY(v_dst != v)) {
-      clusters.add(v_dst, v);
+    if (LIKELY(v_dst != v)) {
+      if (use_centroid) {
+        clusters.add(v_dst, v);
+      }
+      if (average_vdata) {
+        groups_data.add(v_dst, v);
+      }
     }
   }
 
@@ -310,17 +254,19 @@ void bmo_weld_verts_exec(BMesh *bm, BMOperator *op)
     }
   }
 
-  if (groups_data) {
-    GHashIterator gh_iter2;
-    GHASH_ITER (gh_iter2, groups_data) {
-      BMVert *v_dst = static_cast<BMVert *>(BLI_ghashIterator_getKey(&gh_iter2));
-      blender::Vector<BMVert *> *grp = static_cast<blender::Vector<BMVert *> *>(
-          BLI_ghashIterator_getValue(&gh_iter2));
-      average_vertex_group_weights_for_cluster(bm, v_dst, *grp);
-      MEM_delete(grp);
+  if (average_vdata) {
+    for (const auto &item : groups_data.items()) {
+      BMVert *v_dst = item.key;
+      Span<BMVert *> merged_verts = item.value;
+
+      Array<const void *> src_blocks(merged_verts.size() + 1);
+      src_blocks[0] = v_dst->head.data;
+      for (const int i : merged_verts.index_range()) {
+        src_blocks[i + 1] = merged_verts[i]->head.data;
+      }
+      CustomData_bmesh_interp(
+          &bm->vdata, src_blocks.data(), nullptr, src_blocks.size(), v_dst->head.data);
     }
-    BLI_ghash_free(groups_data, nullptr, nullptr);
-    groups_data = nullptr;
   }
 
   /* Check if any faces are getting their own corners merged
@@ -535,38 +481,22 @@ void bmo_pointmerge_exec(BMesh *bm, BMOperator *op)
 
   slot_targetmap = BMO_slot_get(weldop.slots_in, "targetmap");
 
-  BMVert *explicit_snap = nullptr;
-  if (BMO_slot_exists(op->slots_in, "vert_snap")) {
-    explicit_snap = static_cast<BMVert *>(
-        BMO_slot_buffer_get_single(BMO_slot_get(op->slots_in, "vert_snap")));
-  }
+  vert_snap = static_cast<BMVert *>(
+      BMO_slot_buffer_get_single(BMO_slot_get(op->slots_in, "vert_snap")));
 
-  if (explicit_snap) {
-    vert_snap = explicit_snap;
-    copy_v3_v3(vert_snap->co, vec);
-    BMO_ITER (v, &siter, op->slots_in, "verts", BM_VERT) {
-      if (v != vert_snap) {
-        BMO_slot_map_elem_insert(&weldop, slot_targetmap, v, vert_snap);
-      }
+  const bool is_explicit_snap = vert_snap != nullptr;
+
+  BMO_ITER (v, &siter, op->slots_in, "verts", BM_VERT) {
+    if (!vert_snap) {
+      vert_snap = v;
     }
-  }
-  else {
-    BMO_ITER (v, &siter, op->slots_in, "verts", BM_VERT) {
-      if (!vert_snap) {
-        vert_snap = v;
-      }
-      else {
-        BMO_slot_map_elem_insert(&weldop, slot_targetmap, v, vert_snap);
-      }
+    else if (v != vert_snap) {
+      BMO_slot_map_elem_insert(&weldop, slot_targetmap, v, vert_snap);
     }
   }
 
-  if (!explicit_snap) {
+  if (!is_explicit_snap) {
     BMO_slot_bool_set(weldop.slots_in, "average_vdata", true);
-  }
-  else if (BMO_slot_exists(op->slots_in, "average_vdata")) {
-    const bool avg = BMO_slot_bool_get(op->slots_in, "average_vdata");
-    BMO_slot_bool_set(weldop.slots_in, "average_vdata", avg);
   }
 
   BMO_op_exec(bm, &weldop);
