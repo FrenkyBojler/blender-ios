@@ -145,7 +145,7 @@ struct OperatorTypeData : public wmOperatorType::TypeData {
   };
   std::variant<AssetWeakReference, LocalRef> group_ref;
 
-  std::array<int64_t, 2> hash;
+  UniqueHash hash;
 
   static std::optional<OperatorTypeData> from_asset(const AssetRepresentation &asset,
                                                     RegistrationData::Errors &errors);
@@ -193,8 +193,7 @@ void OperatorTypeData::ensure_hash()
   bke::idprop::hash(*this->asset_meta_data_properties, hash_state);
   static_assert(sizeof(this->hash) == sizeof(XXH128_hash_t));
   const XXH128_hash_t xxh3_hash = XXH3_128bits_digest(hash_state);
-  this->hash[0] = xxh3_hash.low64;
-  this->hash[1] = xxh3_hash.high64;
+  this->hash = {xxh3_hash.low64, xxh3_hash.high64};
 }
 
 static std::optional<std::string> operator_idname_get(const StringRefNull custom_idname,
