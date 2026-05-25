@@ -31,6 +31,7 @@
 #include "BKE_object.hh"
 #include "BKE_report.hh"
 #include "BKE_screen.hh"
+#include "BKE_workspace.hh"
 
 #include "BLT_translation.hh"
 
@@ -629,14 +630,27 @@ static wmOperatorStatus collection_importer_import_exec(bContext *C, wmOperator 
    * has already occurred. Should we drop the existing library and then allow it to be created anew
    * below? */
 
+  wmWindowManager *wm = CTX_wm_manager(C);
+
   Main *temp_main = BKE_main_new();
   bContext *temp_C = CTX_create();
-  CTX_data_main_set(temp_C, temp_main);
-  CTX_wm_manager_set(temp_C, CTX_wm_manager(C));
-  CTX_wm_window_set(temp_C, CTX_wm_window(C));
 
+  /* TODO: This should go elsewhere if we keep the temporary window design. */
+  wmWindow *temp_win = MEM_new<wmWindow>("window");
+  temp_win->winid = 1000; /* Placeholder */
+  temp_win->parent = nullptr;
+  temp_win->workspace_hook = BKE_workspace_instance_hook_create(bmain, temp_win->winid);
+  temp_win->runtime = MEM_new<bke::WindowRuntime>(__func__);
+  temp_win->scene = nullptr; /* Scene must be null during the import operator call. */
+
+  CTX_data_main_set(temp_C, temp_main);
+  CTX_wm_manager_set(temp_C, wm);
+  CTX_wm_window_set(temp_C, temp_win);
+
+  wm->op_undo_depth++;
   wmOperatorStatus op_result = WM_operator_name_call_ptr(
       temp_C, ot, wm::OpCallContext::ExecDefault, &properties, nullptr);
+  wm->op_undo_depth--;
 
   if (op_result == OPERATOR_FINISHED) {
     /* Create a real library to encapsulate our external archive library.
@@ -656,7 +670,6 @@ static wmOperatorStatus collection_importer_import_exec(bContext *C, wmOperator 
 
     MainMergeReport r;
     BKE_main_merge_as_library(bmain, &temp_main, external_lib, r);
-    CTX_free(temp_C);
 
     /* Temporarily remove the importer to allow collection edits. */
     collection->importer = nullptr;
@@ -681,8 +694,13 @@ static wmOperatorStatus collection_importer_import_exec(bContext *C, wmOperator 
   }
   else {
     BKE_main_free(temp_main);
-    CTX_free(temp_C);
   }
+
+  BKE_workspace_instance_hook_free(bmain, temp_win->workspace_hook);
+  MEM_delete(temp_win->runtime);
+  MEM_delete(temp_win);
+
+  CTX_free(temp_C);
 
   /* Free the "last used" properties that were set from the collection import and restore the
    * original "last used" properties. */
