@@ -6,6 +6,10 @@
 #include "BLI_string_utf8.h"
 #include "BLI_vector.hh"
 
+#include "BKE_node_runtime.hh"
+
+#include "NOD_socket_search_link.hh"
+
 #include "node_function_util.hh"
 
 namespace blender::nodes::node_fn_string_case_cc {
@@ -60,6 +64,34 @@ static std::string apply_string_case(const std::string &s, const Case mode)
   return std::string(out.data());
 }
 
+static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
+{
+  if (!params.node_tree().typeinfo->validate_link(params.other_socket().type, SOCK_STRING)) {
+    return;
+  }
+
+  if (params.in_out() == SOCK_IN) {
+    for (const EnumPropertyItem *item = case_items; item->identifier != nullptr; item++) {
+      if (item->name != nullptr && item->identifier[0] != '\0') {
+        const int value = item->value;
+        params.add_item(IFACE_(item->name), [value](LinkSearchOpParams &params) {
+          bNode &node = params.add_node("FunctionNodeStringCase"_ustr);
+          bke::node_find_socket(node, SOCK_IN, "Case"_ustr)
+              ->default_value_typed<bNodeSocketValueMenu>()
+              ->value = value;
+          params.update_and_connect_available_socket(node, "String"_ustr);
+        });
+      }
+    }
+  }
+  else {
+    params.add_item(IFACE_("String"), [](LinkSearchOpParams &params) {
+      bNode &node = params.add_node("FunctionNodeStringCase"_ustr);
+      params.update_and_connect_available_socket(node, "String"_ustr);
+    });
+  }
+}
+
 static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
 {
   static auto fn = mf::build::SI2_SO<std::string, MenuValue, std::string>(
@@ -78,6 +110,7 @@ static void node_register()
   ntype.ui_description = "Convert the case of a string";
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = node_declare;
+  ntype.gather_link_search_ops = node_gather_link_search_ops;
   ntype.build_multi_function = node_build_multi_function;
   bke::node_register_type(ntype);
 }
