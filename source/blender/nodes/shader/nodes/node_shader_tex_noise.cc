@@ -27,9 +27,14 @@ static void sh_node_tex_noise_declare(NodeDeclarationBuilder &b)
   b.is_function_node();
 
   const int dimensions = b.node_or_null() ? node_storage(*b.node_or_null()).dimensions : 3;
+  const bool is_compositor = b.tree_or_null() && b.tree_or_null()->type == NTREE_COMPOSIT;
+  const NodeDefaultInputType default_input_type =
+      is_compositor ? NODE_DEFAULT_INPUT_UNIFORM_IMAGE_COORDINATES :
+                      NODE_DEFAULT_INPUT_POSITION_FIELD;
   b.add_input<decl::Vector>("Vector"_ustr)
-      .implicit_field(NODE_DEFAULT_INPUT_POSITION_FIELD)
+      .default_input_type(default_input_type)
       .available(dimensions != 1);
+
   b.add_input<decl::Float>("W"_ustr)
       .min(-1000.0f)
       .max(1000.0f)
@@ -69,7 +74,8 @@ static void sh_node_tex_noise_declare(NodeDeclarationBuilder &b)
           "corresponds to larger scale for higher octaves");
 
   const eNodeNoiseTexture_Type noise_type = eNodeNoiseTexture_Type(
-      b.node_or_null() ? node_storage(*b.node_or_null()).type : SHD_NOISE_FBM);
+      b.node_or_null() ? eNodeNoiseTexture_Type(node_storage(*b.node_or_null()).type) :
+                         SHD_NOISE_FBM);
   b.add_input<decl::Float>("Offset"_ustr)
       .min(-1000.0f)
       .max(1000.0f)
