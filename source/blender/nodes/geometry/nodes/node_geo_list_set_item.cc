@@ -46,7 +46,8 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Int>("Index"_ustr)
       .default_value(0)
       .structure_type(StructureType::Dynamic)
-      .description("Indices of the values to replace. Can be a single value or list of indices.");
+      .description(
+          "Indices of the values to replace. Can be a single value, field, or list of indices.");
 }
 
 static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
@@ -116,6 +117,18 @@ static void node_geo_exec(GeoNodeExecParams params)
     index = std::clamp(index, 0, list_size - 1);
     indices.append(index);
   }
+  else if (index_variant.is_context_dependent_field()) {
+    const GListPtr index_list = evaluate_field_to_list(index_variant.extract<GField>(), list_size);
+    const VArray<int> index_varray = index_list->varray().typed<int>();
+    for (int i = 0; i < index_list->size(); i++) {
+      int index = index_varray[i];
+      if (index < 0) {
+        index = list_size + index;
+      }
+      index = std::clamp(index, 0, list_size - 1);
+      indices.append(index);
+    }
+  }
   else if (index_variant.is_list()) {
     GListPtr index_list = index_variant.get<GListPtr>();
     if (!index_list) {
@@ -148,13 +161,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   GListPtr value_list;
   if (value_variant.is_context_dependent_field()) {
-    GField field = value_variant.extract<GField>();
-    value_list = evaluate_field_to_list(std::move(field), list_size);
-    if (!value_list) {
-      params.error_message_add(NodeWarningType::Error, "Failed to evaluate value field");
-      params.set_output("List"_ustr, std::move(list));
-      return;
-    }
+    value_list = evaluate_field_to_list(value_variant.extract<GField>(), list->size());
   }
   else if (value_variant.is_list()) {
     value_list = value_variant.get<GListPtr>();
@@ -188,7 +195,6 @@ static void node_geo_exec(GeoNodeExecParams params)
   /* Use a visited bitset to avoid double-destruction when indices contains duplicates. */
   BitVector<> visited(list_size, false);
   for (const int index : indices) {
-    /* Skip if this index has already been processed to avoid double-destruction. */
     if (visited[index]) {
       continue;
     }
@@ -228,8 +234,7 @@ static void node_register()
   static bke::bNodeType ntype;
   geo_node_type_base(&ntype, "GeometryNodeListSetItem"_ustr);
   ntype.ui_name = "Set List Item";
-  ntype.ui_description =
-      "Replace values at specific indices in a list (supports field inputs and multiple indices)";
+  ntype.ui_description = "Replace values at specific indices in a list";
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
