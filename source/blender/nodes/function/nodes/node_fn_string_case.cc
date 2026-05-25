@@ -12,23 +12,11 @@ namespace blender::nodes::node_fn_string_case_cc {
 enum class Case {
   Uppercase = 0,
   Lowercase = 1,
-  TitleCase = 2,
-  Capitalize = 3,
 };
 
 static const EnumPropertyItem case_items[] = {
     {int(Case::Uppercase), "UPPERCASE", 0, "Uppercase", "Convert all characters to uppercase"},
     {int(Case::Lowercase), "LOWERCASE", 0, "Lowercase", "Convert all characters to lowercase"},
-    {int(Case::TitleCase),
-     "TITLE_CASE",
-     0,
-     "Title Case",
-     "Capitalize the first letter of each word"},
-    {int(Case::Capitalize),
-     "CAPITALIZE",
-     0,
-     "Capitalize",
-     "Capitalize only the first character of the string, leaving the rest unchanged"},
     {},
 };
 
@@ -65,53 +53,34 @@ static std::string apply_string_case(const std::string &s, const Case mode)
       case Case::Lowercase:
         utf32[i] = BLI_str_utf32_char_to_lower(c);
         break;
-      case Case::TitleCase: {
-        if (std::isspace(c)) {
-          word_start = true;
-        }
-        else if (word_start) {
-          utf32[i] = BLI_str_utf32_char_to_upper(c);
-          word_start = false;
-        }
-        else {
-          utf32[i] = BLI_str_utf32_char_to_lower(c);
-        }
-        break;
-      }
-      case Case::Capitalize:
-        if (i == 0) {
-          utf32[i] = BLI_str_utf32_char_to_upper(c);
-        }
-        break;
     }
+
+    std::vector<char> out(len_chars * 4 + 1);
+    BLI_str_utf32_as_utf8(out.data(), utf32.data(), out.size());
+    return std::string(out.data());
   }
 
-  std::vector<char> out(len_chars * 4 + 1);
-  BLI_str_utf32_as_utf8(out.data(), utf32.data(), out.size());
-  return std::string(out.data());
-}
+  static void node_build_multi_function(NodeMultiFunctionBuilder & builder)
+  {
+    static auto fn = mf::build::SI2_SO<std::string, MenuValue, std::string>(
+        "String Case", [](const std::string &s, MenuValue mode) -> std::string {
+          return apply_string_case(s, Case(mode.value));
+        });
+    builder.set_matching_fn(&fn);
+  }
 
-static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
-{
-  static auto fn = mf::build::SI2_SO<std::string, MenuValue, std::string>(
-      "String Case", [](const std::string &s, MenuValue mode) -> std::string {
-        return apply_string_case(s, Case(mode.value));
-      });
-  builder.set_matching_fn(&fn);
-}
+  static void node_register()
+  {
+    static bke::bNodeType ntype;
 
-static void node_register()
-{
-  static bke::bNodeType ntype;
-
-  fn_cmp_node_type_base(&ntype, "FunctionNodeStringCase"_ustr);
-  ntype.ui_name = "String Case";
-  ntype.ui_description = "Convert the case of a string";
-  ntype.nclass = NODE_CLASS_CONVERTER;
-  ntype.declare = node_declare;
-  ntype.build_multi_function = node_build_multi_function;
-  bke::node_register_type(ntype);
-}
-NOD_REGISTER_NODE(node_register)
+    fn_cmp_node_type_base(&ntype, "FunctionNodeStringCase"_ustr);
+    ntype.ui_name = "String Case";
+    ntype.ui_description = "Convert the case of a string";
+    ntype.nclass = NODE_CLASS_CONVERTER;
+    ntype.declare = node_declare;
+    ntype.build_multi_function = node_build_multi_function;
+    bke::node_register_type(ntype);
+  }
+  NOD_REGISTER_NODE(node_register)
 
 }  // namespace blender::nodes::node_fn_string_case_cc
