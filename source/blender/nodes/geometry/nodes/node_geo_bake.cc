@@ -684,38 +684,46 @@ void draw_bake_button_row(const BakeDrawContext &ctx, ui::Layout &layout, const 
   }
 }
 
-void draw_common_bake_settings(bContext *C, BakeDrawContext &ctx, ui::Layout &layout)
+void draw_common_bake_settings(const Main &bmain,
+                               PointerRNA &modifier_ptr,
+                               PointerRNA &bake_rna,
+                               const bool is_baked,
+                               const NodesModifierBakeTarget bake_target,
+                               ui::Layout &layout)
 {
   layout.use_property_split_set(true);
   layout.use_property_decorate_set(false);
 
+  const Object &object = *id_cast<Object *>(bake_rna.owner_id);
+  const auto &nmd = *modifier_ptr.data_as<NodesModifierData>();
+  const auto &bake = *bake_rna.data_as<NodesModifierBake>();
+
   ui::Layout &settings_col = layout.column(false);
-  settings_col.active_set(!ctx.is_baked);
+  settings_col.active_set(!is_baked);
   {
     ui::Layout &col = settings_col.column(true);
-    col.prop(&ctx.bake_rna, "bake_target", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    col.prop(&bake_rna, "bake_target", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     ui::Layout &subcol = col.column(true);
-    subcol.active_set(ctx.bake_target == NODES_MODIFIER_BAKE_TARGET_DISK);
-    subcol.prop(&ctx.bake_rna, "use_custom_path", UI_ITEM_NONE, IFACE_("Custom Path"), ICON_NONE);
+    subcol.active_set(bake_target == NODES_MODIFIER_BAKE_TARGET_DISK);
+    subcol.prop(&bake_rna, "use_custom_path", UI_ITEM_NONE, IFACE_("Custom Path"), ICON_NONE);
     ui::Layout &subsubcol = subcol.column(true);
-    const bool use_custom_path = ctx.bake->flag & NODES_MODIFIER_BAKE_CUSTOM_PATH;
+    const bool use_custom_path = bake.flag & NODES_MODIFIER_BAKE_CUSTOM_PATH;
     subsubcol.active_set(use_custom_path);
-    Main *bmain = CTX_data_main(C);
-    auto bake_path = bke::bake::get_node_bake_path(*bmain, *ctx.object, *ctx.nmd, ctx.bake->id);
+    std::optional<bke::bake::BakePath> bake_path = bke::bake::get_node_bake_path(
+        bmain, object, nmd, bake.id);
 
     char placeholder_path[FILE_MAX] = "";
-    if (StringRef(ctx.bake->directory).is_empty() &&
-        !(ctx.bake->flag & NODES_MODIFIER_BAKE_CUSTOM_PATH) && bake_path.has_value() &&
-        bake_path->bake_dir.has_value())
+    if (StringRef(bake.directory).is_empty() && !(bake.flag & NODES_MODIFIER_BAKE_CUSTOM_PATH) &&
+        bake_path.has_value() && bake_path->bake_dir.has_value())
     {
       STRNCPY(placeholder_path, bake_path->bake_dir->c_str());
-      if (BLI_path_is_rel(ctx.nmd->bake_directory)) {
-        BLI_path_rel(placeholder_path, BKE_main_blendfile_path(bmain));
+      if (BLI_path_is_rel(nmd.bake_directory)) {
+        BLI_path_rel(placeholder_path, BKE_main_blendfile_path(&bmain));
       }
     }
 
-    subsubcol.prop(&ctx.bake_rna,
-                   RNA_struct_find_property(&ctx.bake_rna, "directory"),
+    subsubcol.prop(&bake_rna,
+                   RNA_struct_find_property(&bake_rna, "directory"),
                    -1,
                    0,
                    UI_ITEM_NONE,
@@ -725,16 +733,25 @@ void draw_common_bake_settings(bContext *C, BakeDrawContext &ctx, ui::Layout &la
   }
   {
     ui::Layout &col = settings_col.column(true);
-    col.prop(&ctx.bake_rna,
+    col.prop(&bake_rna,
              "use_custom_simulation_frame_range",
              UI_ITEM_NONE,
              IFACE_("Custom Range"),
              ICON_NONE);
     ui::Layout &subcol = col.column(true);
-    subcol.active_set(ctx.bake->flag & NODES_MODIFIER_BAKE_CUSTOM_SIMULATION_FRAME_RANGE);
-    subcol.prop(&ctx.bake_rna, "frame_start", UI_ITEM_NONE, IFACE_("Start"), ICON_NONE);
-    subcol.prop(&ctx.bake_rna, "frame_end", UI_ITEM_NONE, IFACE_("End"), ICON_NONE);
+    subcol.active_set(bake.flag & NODES_MODIFIER_BAKE_CUSTOM_SIMULATION_FRAME_RANGE);
+    subcol.prop(&bake_rna, "frame_start", UI_ITEM_NONE, IFACE_("Start"), ICON_NONE);
+    subcol.prop(&bake_rna, "frame_end", UI_ITEM_NONE, IFACE_("End"), ICON_NONE);
   }
+}
+
+void draw_common_bake_settings(bContext *C, BakeDrawContext &ctx, ui::Layout &layout)
+{
+  const Main &bmain = *CTX_data_main(C);
+  PointerRNA nmd_ptr = RNA_pointer_create_discrete(&const_cast<ID &>(ctx.object->id),
+                                                   RNA_NodesModifier,
+                                                   const_cast<NodesModifierData *>(ctx.nmd));
+  draw_common_bake_settings(bmain, nmd_ptr, ctx.bake_rna, ctx.is_baked, *ctx.bake_target, layout);
 }
 
 static void draw_bake_data_block_list_item(uiList * /*ui_list*/,

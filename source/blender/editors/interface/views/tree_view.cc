@@ -1294,9 +1294,9 @@ void BasicTreeViewItem::build_row(Layout &row)
   this->add_label(row);
 }
 
-void BasicTreeViewItem::add_label(Layout &layout, StringRefNull label_override)
+void BasicTreeViewItem::add_label(Layout &layout, StringRef label_override)
 {
-  const StringRefNull label = label_override.is_empty() ? StringRefNull(label_) : label_override;
+  const StringRef label = label_override.is_empty() ? StringRefNull(label_) : label_override;
   layout.label(label, icon);
 }
 

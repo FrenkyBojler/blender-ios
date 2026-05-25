@@ -488,6 +488,11 @@ static void node_group_declare_panel_recursive(
             panel_b, node, group, structure_type_by_socket, io_panel, false);
         break;
       }
+      case NodeTreeInterfaceItemType::Bake: {
+        const auto &io_bake = node_interface::get_item_as<bNodeTreeInterfacePanel>(*item);
+        // TODO Add custom layout to group node declaration
+        break;
+      }
     }
   }
 
@@ -997,6 +1002,9 @@ static void group_input_declare(NodeDeclarationBuilder &b)
       case NodeTreeInterfaceItemType::Panel: {
         break;
       }
+      case NodeTreeInterfaceItemType::Bake: {
+        break;
+      }
     }
     return true;
   });
@@ -1021,6 +1029,9 @@ static void group_output_declare(NodeDeclarationBuilder &b)
         break;
       }
       case NodeTreeInterfaceItemType::Panel: {
+        break;
+      }
+      case NodeTreeInterfaceItemType::Bake: {
         break;
       }
     }

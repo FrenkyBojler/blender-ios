@@ -36,6 +36,7 @@ struct BlendDataReader;
 enum class NodeTreeInterfaceItemType : char {
   Panel = 0,
   Socket = 1,
+  Bake = 2,
 };
 
 /** Describes a socket and all necessary details for a node declaration. */
@@ -273,6 +274,23 @@ struct bNodeTreeInterfacePanel {
 #endif
 };
 
+enum NodeTreeInterfaceBakeFlag : int {
+  /* Whether the item is selected in the node group interface tree view. */
+  NODE_INTERFACE_BAKE_SELECT = 1 << 0,
+};
+ENUM_OPERATORS(NodeTreeInterfaceBakeFlag);
+
+struct bNodeTreeInterfaceBake {
+  bNodeTreeInterfaceItem item;
+  /** Identifier of the nested bake that should be exposed (#bNestedNodeRef::id). */
+  int bake_id;
+  NodeTreeInterfaceBakeFlag flag = {};
+  /** User-provided name for the bake like "Simulation" or "Final Geometry" */
+  char *name;
+  /** User-provided description. */
+  char *description;
+};
+
 struct bNodeTreeInterface {
   bNodeTreeInterfacePanel root_panel;
 
@@ -390,6 +408,16 @@ struct bNodeTreeInterface {
                                      StringRef description,
                                      NodeTreeInterfacePanelFlag flag,
                                      bNodeTreeInterfacePanel *parent);
+
+  /**
+   * Add a new panel at the end of the items list.
+   * \param parent: Panel in which the new panel is added as a child. If parent is null the new
+   * panel is made a child of the root panel.
+   */
+  bNodeTreeInterfaceBake *add_bake(StringRef name,
+                                   StringRef description,
+                                   NodeTreeInterfaceBakeFlag flag,
+                                   bNodeTreeInterfacePanel *parent);
   /**
    * Insert a new panel.
    * \param parent: Panel in which the new panel is added as a child. If parent is null the new

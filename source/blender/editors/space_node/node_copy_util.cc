@@ -683,6 +683,11 @@ NodeTreeInterfaceMapping map_group_node_interface(const NodeSetInterfaceParams &
       case NodeTreeInterfaceItemType::Socket: {
         const auto *io_socket = reinterpret_cast<const bNodeTreeInterfaceSocket *>(io_item);
         map_socket(result, params, group_node, *io_socket);
+        break;
+      }
+      case NodeTreeInterfaceItemType::Bake: {
+        // TODO ????
+        break;
       }
     }
   }

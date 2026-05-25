@@ -43,6 +43,7 @@ using node_interface::bNodeTreeInterfaceItemReference;
 
 class NodePanelViewItem;
 class NodeSocketViewItem;
+class NodeBakeViewItem;
 class NodeTreeInterfaceView;
 
 class NodeTreeInterfaceDragController : public AbstractViewItemDragController {
@@ -64,6 +65,18 @@ class NodeSocketDropTarget : public TreeViewItemDropTarget {
 
  public:
   explicit NodeSocketDropTarget(NodeSocketViewItem &item, bNodeTreeInterfaceSocket &socket);
+
+  bool can_drop(const wmDrag &drag, const char **r_disabled_hint) const override;
+  std::string drop_tooltip(const DragInfo &drag_info) const override;
+  bool on_drop(bContext * /*C*/, const DragInfo &drag_info) const override;
+};
+
+class NodeBakeDropTarget : public TreeViewItemDropTarget {
+ private:
+  bNodeTreeInterfaceBake &bake_;
+
+ public:
+  explicit NodeBakeDropTarget(NodeBakeViewItem &item, bNodeTreeInterfaceBake &bake);
 
   bool can_drop(const wmDrag &drag, const char **r_disabled_hint) const override;
   std::string drop_tooltip(const DragInfo &drag_info) const override;
@@ -118,7 +131,7 @@ class NodeSocketViewItem : public BasicTreeViewItem {
       input_socket_layout.label("", ICON_BLANK1);
     }
 
-    this->add_label(row, IFACE_(label_.c_str()));
+    this->add_label(row, IFACE_(label_));
 
     Layout &output_socket_layout = row.row(true);
     if (socket_.flag & NODE_INTERFACE_SOCKET_OUTPUT) {
@@ -218,7 +231,7 @@ class NodePanelViewItem : public BasicTreeViewItem {
       template_node_socket(&toggle_layout, /*C*/ nullptr, toggle_->socket_color());
     }
 
-    this->add_label(row, IFACE_(label_.c_str()));
+    this->add_label(row, IFACE_(label_));
 
     Layout &sub = row.row(true);
     sub.use_property_decorate_set(false);
@@ -295,6 +308,91 @@ class NodePanelViewItem : public BasicTreeViewItem {
   std::unique_ptr<TreeViewItemDropTarget> create_drop_target() override;
 };
 
+class NodeBakeViewItem : public BasicTreeViewItem {
+ private:
+  bNodeTree &nodetree_;
+  bNodeTreeInterfaceBake &bake_;
+
+ public:
+  NodeBakeViewItem(bNodeTree &nodetree,
+                   bNodeTreeInterface &interface,
+                   bNodeTreeInterfaceBake &bake)
+      : BasicTreeViewItem(bake.name, ICON_NONE), nodetree_(nodetree), bake_(bake)
+  {
+    set_is_active_fn([interface, &bake]() { return interface.active_item() == &bake.item; });
+    set_on_activate_fn([&interface](bContext & /*C*/, BasicTreeViewItem &new_active) {
+      NodeBakeViewItem &self = static_cast<NodeBakeViewItem &>(new_active);
+      interface.active_item_set(&self.bake_.item, false);
+    });
+  }
+
+  void build_row(Layout &row) override
+  {
+    if (ID_IS_LINKED(&nodetree_)) {
+      row.enabled_set(false);
+    }
+
+    this->add_label(row, IFACE_(label_));
+
+    Layout &sub = row.row(true);
+    sub.use_property_decorate_set(false);
+  }
+
+  std::optional<bool> should_be_selected() const override
+  {
+    return bake_.flag & NODE_INTERFACE_BAKE_SELECT;
+  }
+
+  void set_selected(const bool select) override
+  {
+    AbstractViewItem::set_selected(select);
+    SET_FLAG_FROM_TEST(bake_.flag, select, NODE_INTERFACE_BAKE_SELECT);
+  }
+
+ protected:
+  bool matches(const AbstractViewItem &other) const override
+  {
+    const NodeBakeViewItem *other_item = dynamic_cast<const NodeBakeViewItem *>(&other);
+    if (other_item == nullptr) {
+      return false;
+    }
+
+    return &bake_ == &other_item->bake_;
+  }
+
+  bool supports_renaming() const override
+  {
+    return !ID_IS_LINKED(&nodetree_);
+  }
+
+  bool rename(const bContext &C, const StringRefNull new_name) override
+  {
+    PointerRNA panel_ptr = RNA_pointer_create_discrete(
+        &nodetree_.id, RNA_NodeTreeInterfacePanel, &bake_);
+    PropertyRNA *name_prop = RNA_struct_find_property(&panel_ptr, "name");
+    RNA_property_string_set(&panel_ptr, name_prop, new_name.c_str());
+    RNA_property_update(const_cast<bContext *>(&C), &panel_ptr, name_prop);
+    return true;
+  }
+
+  StringRef get_rename_string() const override
+  {
+    return bake_.name;
+  }
+
+  void delete_item(bContext *C) override
+  {
+    Main *bmain = CTX_data_main(C);
+    nodetree_.tree_interface.remove_item(bake_.item);
+    BKE_main_ensure_invariants(*bmain, nodetree_.id);
+    WM_main_add_notifier(NC_NODE | NA_EDITED, &nodetree_);
+    ED_undo_grouped_push(C, "Delete Node Interface Item");
+  }
+
+  std::unique_ptr<AbstractViewItemDragController> create_drag_controller() const override;
+  std::unique_ptr<TreeViewItemDropTarget> create_drop_target() override;
+};
+
 class NodeTreeInterfaceView : public AbstractTreeView {
  private:
   bNodeTree &nodetree_;
@@ -352,6 +450,11 @@ class NodeTreeInterfaceView : public AbstractTreeView {
               *panel, panel_item, reinterpret_cast<const bNodeTreeInterfaceItem *>(skip_item));
           break;
         }
+        case NodeTreeInterfaceItemType::Bake: {
+          auto *bake = node_interface::get_item_as<bNodeTreeInterfaceBake>(item);
+          parent_item.add_tree_item<NodeBakeViewItem>(nodetree_, interface_, *bake);
+          break;
+        }
       }
     }
   }
@@ -369,6 +472,20 @@ std::unique_ptr<AbstractViewItemDragController> NodeSocketViewItem::create_drag_
 std::unique_ptr<TreeViewItemDropTarget> NodeSocketViewItem::create_drop_target()
 {
   return std::make_unique<NodeSocketDropTarget>(*this, socket_);
+}
+
+std::unique_ptr<AbstractViewItemDragController> NodeBakeViewItem::create_drag_controller() const
+{
+  if (!ID_IS_EDITABLE(&nodetree_.id)) {
+    return nullptr;
+  }
+  return std::make_unique<NodeTreeInterfaceDragController>(
+      static_cast<NodeTreeInterfaceView &>(this->get_tree_view()), nodetree_);
+}
+
+std::unique_ptr<TreeViewItemDropTarget> NodeBakeViewItem::create_drop_target()
+{
+  return std::make_unique<NodeBakeDropTarget>(*this, bake_);
 }
 
 std::unique_ptr<AbstractViewItemDragController> NodePanelViewItem::create_drag_controller() const
@@ -409,16 +526,19 @@ void gather_drag_items_recursive(bNodeTreeInterfacePanel &panel,
     bool is_selected = false;
     switch (item->item_type) {
       case NodeTreeInterfaceItemType::Panel: {
-        bNodeTreeInterfacePanel *panel = node_interface::get_item_as<bNodeTreeInterfacePanel>(
-            item);
+        auto *panel = reinterpret_cast<bNodeTreeInterfacePanel *>(item);
         is_selected = (panel->flag & NODE_INTERFACE_PANEL_SELECT);
         gather_drag_items_recursive(*panel, r_items, is_selected);
         break;
       }
       case NodeTreeInterfaceItemType::Socket: {
-        bNodeTreeInterfaceSocket *socket = node_interface::get_item_as<bNodeTreeInterfaceSocket>(
-            item);
+        auto *socket = reinterpret_cast<bNodeTreeInterfaceSocket *>(item);
         is_selected = (socket->flag & NODE_INTERFACE_SOCKET_SELECT);
+        break;
+      }
+      case NodeTreeInterfaceItemType::Bake: {
+        auto *bake = reinterpret_cast<bNodeTreeInterfaceBake *>(item);
+        is_selected = (bake->flag & NODE_INTERFACE_BAKE_SELECT);
         break;
       }
     }
@@ -595,6 +715,42 @@ bool NodePanelDropTarget::on_drop(bContext *C, const DragInfo &drag_info) const
   bNodeTree &nodetree = get_view<NodeTreeInterfaceView>().nodetree();
   return on_drop_interface_items(C, drag_info, nodetree, panel_.item);
 }
+
+NodeBakeDropTarget::NodeBakeDropTarget(NodeBakeViewItem &item, bNodeTreeInterfaceBake &bake)
+    : TreeViewItemDropTarget(item, DropBehavior::Reorder), bake_(bake)
+{
+}
+
+bool NodeBakeDropTarget::can_drop(const wmDrag &drag, const char ** /*r_disabled_hint*/) const
+{
+  if (drag.type != WM_DRAG_NODE_TREE_INTERFACE) {
+    return false;
+  }
+  if (is_dragging_parent_panel(drag, bake_.item)) {
+    return false;
+  }
+  return true;
+}
+
+std::string NodeBakeDropTarget::drop_tooltip(const DragInfo &drag_info) const
+{
+  switch (drag_info.drop_location) {
+    case DropLocation::Into:
+      return "";
+    case DropLocation::Before:
+      return TIP_("Insert before bake");
+    case DropLocation::After:
+      return TIP_("Insert after bake");
+  }
+  return "";
+}
+
+bool NodeBakeDropTarget::on_drop(bContext *C, const DragInfo &drag_info) const
+{
+  bNodeTree &nodetree = this->get_view<NodeTreeInterfaceView>().nodetree();
+  return on_drop_interface_items(C, drag_info, nodetree, bake_.item);
+}
+
 }  // namespace
 }  // namespace nodes
 
@@ -606,7 +762,7 @@ void template_tree_interface(Layout *layout, const bContext *C, PointerRNA *ptr)
   if (!RNA_struct_is_a(ptr->type, RNA_NodeTreeInterface)) {
     return;
   }
-  bNodeTree &nodetree = *reinterpret_cast<bNodeTree *>(ptr->owner_id);
+  bNodeTree &nodetree = *id_cast<bNodeTree *>(ptr->owner_id);
   bNodeTreeInterface &interface = *static_cast<bNodeTreeInterface *>(ptr->data);
 
   Block *block = layout->block();

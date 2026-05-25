@@ -15,6 +15,7 @@ struct bContext;
 struct PointerRNA;
 struct bNodeTreeInterfacePanel;
 struct bNodeTreeInterfaceSocket;
+struct bNodeTreeInterfaceBake;
 
 namespace ui {
 struct Layout;
@@ -32,7 +33,8 @@ void draw_interface_panel_as_panel(
     FunctionRef<void(ui::Layout &,
                      const bNodeTreeInterfaceSocket &,
                      PointerRNA *,
-                     const std::optional<StringRef>)> fn_draw_property_for_socket);
+                     const std::optional<StringRef>)> fn_draw_property_for_socket,
+    FunctionRef<void(ui::Layout &, const bNodeTreeInterfaceBake &)> fn_draw_bake);
 
 void draw_interface_panel_content(
     const bContext &C,
@@ -45,6 +47,7 @@ void draw_interface_panel_content(
                      const bNodeTreeInterfaceSocket &,
                      PointerRNA *,
                      const std::optional<StringRef>)> fn_draw_property_for_socket,
+    FunctionRef<void(ui::Layout &, const bNodeTreeInterfaceBake &)> fn_draw_bake,
     bool skip_first = false,
     std::optional<StringRef> parent_name = std::nullopt);
 }  // namespace nodes

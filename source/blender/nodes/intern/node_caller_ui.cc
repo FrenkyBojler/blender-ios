@@ -81,7 +81,8 @@ void draw_interface_panel_as_panel(
     FunctionRef<void(ui::Layout &,
                      const bNodeTreeInterfaceSocket &,
                      PointerRNA *,
-                     const std::optional<StringRef>)> fn_draw_property_for_socket)
+                     const std::optional<StringRef>)> fn_draw_property_for_socket,
+    FunctionRef<void(ui::Layout &, const bNodeTreeInterfaceBake &)> fn_draw_bake)
 {
   if (!interface_panel_has_socket(interface_panel, fn_input_is_visible)) {
     return;
@@ -124,6 +125,7 @@ void draw_interface_panel_as_panel(
                                  fn_input_is_visible,
                                  fn_input_is_active,
                                  fn_draw_property_for_socket,
+                                 fn_draw_bake,
                                  skip_first,
                                  panel_name);
   }
@@ -140,6 +142,7 @@ void draw_interface_panel_content(
                      const bNodeTreeInterfaceSocket &,
                      PointerRNA *,
                      const std::optional<StringRef>)> fn_draw_property_for_socket,
+    FunctionRef<void(ui::Layout &, const bNodeTreeInterfaceBake &)> fn_draw_bake,
     const bool skip_first,
     const std::optional<StringRef> parent_name)
 {
@@ -154,7 +157,8 @@ void draw_interface_panel_content(
                                       sub_interface_panel,
                                       fn_input_is_visible,
                                       fn_input_is_active,
-                                      fn_draw_property_for_socket);
+                                      fn_draw_property_for_socket,
+                                      fn_draw_bake);
         break;
       }
       case NodeTreeInterfaceItemType::Socket: {
@@ -167,6 +171,11 @@ void draw_interface_panel_content(
             fn_draw_property_for_socket(layout, interface_socket, &socket_props_ptr, parent_name);
           }
         }
+        break;
+      }
+      case NodeTreeInterfaceItemType::Bake: {
+        const auto &io_bake = *reinterpret_cast<const bNodeTreeInterfaceBake *>(item);
+        fn_draw_bake(layout, io_bake);
         break;
       }
     }

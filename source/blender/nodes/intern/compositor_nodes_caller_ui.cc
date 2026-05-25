@@ -180,7 +180,8 @@ static void draw_interface_root_panel_content(DrawGroupInputsContext &ctx,
                 PointerRNA *socket_props_ptr,
                 const std::optional<StringRef> parent_name) {
               draw_property_for_socket(ctx, layout, socket, socket_props_ptr, parent_name);
-            });
+            },
+            {});
         break;
       }
       case NodeTreeInterfaceItemType::Socket: {
@@ -204,6 +205,9 @@ static void draw_interface_root_panel_content(DrawGroupInputsContext &ctx,
                 ctx, layout, interface_socket, &socket_props_ptr, std::nullopt);
           }
         }
+        break;
+      }
+      case NodeTreeInterfaceItemType::Bake: {
         break;
       }
     }

@@ -72,42 +72,61 @@ void node_tree_interface_draw(bContext &C, ui::Layout &layout, bNodeTree &tree)
   layout.use_property_split_set(true);
   layout.use_property_decorate_set(false);
 
-  if (active_item->item_type == NodeTreeInterfaceItemType::Socket) {
-    bNodeTreeInterfaceSocket *socket = reinterpret_cast<bNodeTreeInterfaceSocket *>(active_item);
-    const bke::bNodeSocketType *stype = socket->socket_typeinfo();
-    layout.prop(&active_item_ptr, "socket_type", UI_ITEM_NONE, IFACE_("Type"), ICON_NONE);
-    layout.prop(&active_item_ptr, "description", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    if (tree.type == NTREE_GEOMETRY) {
-      if (nodes::socket_type_supports_attributes(stype->type)) {
-        if (socket->flag & NODE_INTERFACE_SOCKET_OUTPUT) {
-          layout.prop(&active_item_ptr, "attribute_domain", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  switch (active_item->item_type) {
+    case NodeTreeInterfaceItemType::Socket: {
+      auto *socket = reinterpret_cast<bNodeTreeInterfaceSocket *>(active_item);
+      const bke::bNodeSocketType *stype = socket->socket_typeinfo();
+      layout.prop(&active_item_ptr, "socket_type", UI_ITEM_NONE, IFACE_("Type"), ICON_NONE);
+      layout.prop(&active_item_ptr, "description", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      if (tree.type == NTREE_GEOMETRY) {
+        if (nodes::socket_type_supports_attributes(stype->type)) {
+          if (socket->flag & NODE_INTERFACE_SOCKET_OUTPUT) {
+            layout.prop(
+                &active_item_ptr, "attribute_domain", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+          }
+          layout.prop(
+              &active_item_ptr, "default_attribute_name", UI_ITEM_NONE, std::nullopt, ICON_NONE);
         }
-        layout.prop(
-            &active_item_ptr, "default_attribute_name", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       }
+      if (stype->interface_draw) {
+        stype->interface_draw(&tree.id, socket, &C, &layout);
+      }
+      break;
     }
-    if (stype->interface_draw) {
-      stype->interface_draw(&tree.id, socket, &C, &layout);
-    }
-  }
-  if (active_item->item_type == NodeTreeInterfaceItemType::Panel) {
-    bNodeTreeInterfacePanel *panel_item = reinterpret_cast<bNodeTreeInterfacePanel *>(active_item);
-    layout.prop(&active_item_ptr, "description", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    layout.prop(
-        &active_item_ptr, "default_closed", UI_ITEM_NONE, IFACE_("Closed by Default"), ICON_NONE);
+    case NodeTreeInterfaceItemType::Panel: {
+      auto *panel_item = reinterpret_cast<bNodeTreeInterfacePanel *>(active_item);
+      layout.prop(&active_item_ptr, "description", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      layout.prop(&active_item_ptr,
+                  "default_closed",
+                  UI_ITEM_NONE,
+                  IFACE_("Closed by Default"),
+                  ICON_NONE);
 
-    if (bNodeTreeInterfaceSocket *panel_toggle_socket = panel_item->header_toggle_socket()) {
-      if (ui::Layout *panel = layout.panel(&C, "panel_toggle", false, IFACE_("Panel Toggle"))) {
-        PointerRNA panel_toggle_socket_ptr = RNA_pointer_create_discrete(
-            &tree.id, RNA_NodeTreeInterfaceSocket, panel_toggle_socket);
-        panel->prop(
-            &panel_toggle_socket_ptr, "default_value", UI_ITEM_NONE, IFACE_("Default"), ICON_NONE);
-        ui::Layout &col = panel->column(false);
-        col.prop(
-            &panel_toggle_socket_ptr, "hide_in_modifier", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-        col.prop(
-            &panel_toggle_socket_ptr, "structure_type", UI_ITEM_NONE, IFACE_("Shape"), ICON_NONE);
+      if (bNodeTreeInterfaceSocket *panel_toggle_socket = panel_item->header_toggle_socket()) {
+        if (ui::Layout *panel = layout.panel(&C, "panel_toggle", false, IFACE_("Panel Toggle"))) {
+          PointerRNA panel_toggle_socket_ptr = RNA_pointer_create_discrete(
+              &tree.id, RNA_NodeTreeInterfaceSocket, panel_toggle_socket);
+          panel->prop(&panel_toggle_socket_ptr,
+                      "default_value",
+                      UI_ITEM_NONE,
+                      IFACE_("Default"),
+                      ICON_NONE);
+          ui::Layout &col = panel->column(false);
+          col.prop(
+              &panel_toggle_socket_ptr, "hide_in_modifier", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+          col.prop(&panel_toggle_socket_ptr,
+                   "structure_type",
+                   UI_ITEM_NONE,
+                   IFACE_("Shape"),
+                   ICON_NONE);
+        }
       }
+      break;
+    }
+    case NodeTreeInterfaceItemType::Bake: {
+      layout.prop(&active_item_ptr, "bake_id", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      layout.prop(&active_item_ptr, "description", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      break;
     }
   }
 }

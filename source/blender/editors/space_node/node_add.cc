@@ -1365,6 +1365,9 @@ static void hide_unselected_sockets(bNode *node,
       }
       break;
     }
+    case NodeTreeInterfaceItemType::Bake: {
+      break;
+    }
   }
 }
 
@@ -1431,6 +1434,10 @@ static bool contains_any_selected_input(const bNodeTreeInterfaceItem &item, bool
           return true;
         }
       }
+      return false;
+    }
+    case NodeTreeInterfaceItemType::Bake: {
+      return false;
     }
   }
   return false;

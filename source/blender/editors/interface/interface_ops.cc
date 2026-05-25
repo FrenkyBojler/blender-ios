@@ -1083,6 +1083,10 @@ static bool tree_interface_item_can_set_prop(const bNodeTreeInterfaceItem &item,
       const auto &panel = reinterpret_cast<const bNodeTreeInterfacePanel &>(item);
       return panel.flag & NODE_INTERFACE_PANEL_SELECT;
     }
+    case NodeTreeInterfaceItemType::Bake: {
+      const auto &bake = reinterpret_cast<const bNodeTreeInterfaceBake &>(item);
+      return bake.flag & NODE_INTERFACE_BAKE_SELECT;
+    }
   }
   return false;
 }

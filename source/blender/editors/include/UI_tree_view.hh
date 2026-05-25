@@ -395,7 +395,7 @@ class BasicTreeViewItem : public AbstractTreeViewItem {
   explicit BasicTreeViewItem(StringRef label, BIFIconID icon = ICON_NONE);
 
   void build_row(Layout &row) override;
-  void add_label(Layout &layout, StringRefNull label_override = "");
+  void add_label(Layout &layout, StringRef label_override = "");
   void set_on_activate_fn(ActivateFn fn);
   /**
    * Set a custom callback to check if this item should be active.

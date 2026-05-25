@@ -5,6 +5,7 @@
 #include <fmt/format.h>
 #include <sstream>
 
+#include "BKE_bake_geometry_nodes_modifier.hh"
 #include "BKE_compute_contexts.hh"
 #include "BKE_context.hh"
 #include "BKE_global.hh"
@@ -31,6 +32,7 @@
 #include "MOD_nodes.hh"
 #include "NOD_caller_ui.hh"
 #include "NOD_eval_log.hh"
+#include "NOD_geo_bake.hh"
 #include "NOD_geometry.hh"
 #include "NOD_geometry_nodes_caller_ui.hh"
 #include "NOD_geometry_nodes_srna.hh"
@@ -865,6 +867,32 @@ static void draw_manage_panel(const bContext *C,
   }
 }
 
+static void draw_bake_ui(const bContext &C,
+                         ui::Layout &layout,
+                         PointerRNA &modifier_ptr,
+                         const bNodeTreeInterfaceBake &bake)
+{
+  Main &bmain = *CTX_data_main(&C);
+  const Object &object = *id_cast<Object *>(modifier_ptr.owner_id);
+  const NodesModifierData &nmd = *modifier_ptr.data_as<NodesModifierData>();
+  const NodesModifierBake *bake_data = nmd.find_bake(bake.bake_id);
+  if (!bake_data) {
+    layout.label(IFACE_("Bake not found"), ICON_ERROR);
+    return;
+  }
+  const NodesModifierBakeTarget bake_target = *bke::bake::get_node_bake_target(
+      object, nmd, bake_data->id);
+  PointerRNA bake_ptr = RNA_pointer_create_with_parent(
+      modifier_ptr, RNA_NodesModifierBake, const_cast<NodesModifierBake *>(bake_data));
+
+  draw_common_bake_settings(bmain, modifier_ptr, bake_ptr, false, bake_target, layout);
+
+  if (bake_target == NODES_MODIFIER_BAKE_TARGET_INHERIT) {
+    layout.prop(&modifier_ptr, "bake_target", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    layout.prop(&modifier_ptr, "bake_directory", UI_ITEM_NONE, IFACE_("Bake Path"), ICON_NONE);
+  }
+}
+
 void draw_geometry_nodes_modifier_ui(const bContext &C,
                                      PointerRNA *modifier_ptr,
                                      ui::Layout &layout)
@@ -925,6 +953,9 @@ void draw_geometry_nodes_modifier_ui(const bContext &C,
             PointerRNA *socket_props_ptr,
             const std::optional<StringRef> parent_name) {
           draw_property_for_socket(ctx, layout, socket, socket_props_ptr, parent_name);
+        },
+        [&](ui::Layout &layout, const bNodeTreeInterfaceBake &bake) {
+          draw_bake_ui(C, layout, *modifier_ptr, bake);
         });
   }
 
@@ -999,7 +1030,8 @@ void draw_geometry_nodes_operator_redo_ui(const bContext &C,
           PointerRNA *socket_props_ptr,
           const std::optional<StringRef> parent_name) {
         draw_property_for_socket(ctx, layout, socket, socket_props_ptr, parent_name);
-      });
+      },
+      {});
 }
 
 }  // namespace blender::nodes

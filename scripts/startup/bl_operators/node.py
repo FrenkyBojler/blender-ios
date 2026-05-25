@@ -1111,6 +1111,7 @@ class NODE_OT_interface_item_new(NodeInterfaceOperator, Operator):
             ('INPUT', "Input", ""),
             ('OUTPUT', "Output", ""),
             ('PANEL', "Panel", ""),
+            ('BAKE', "Bake", ""),
         ),
         default='INPUT',
     )
@@ -1148,6 +1149,8 @@ class NODE_OT_interface_item_new(NodeInterfaceOperator, Operator):
             item = interface.new_socket("Socket", socket_type=self.find_valid_socket_type(tree), in_out='OUTPUT')
         elif self.item_type == 'PANEL':
             item = interface.new_panel("Panel")
+        elif self.item_type == 'BAKE':
+            item = interface.new_bake("Bake")
         else:
             return {'CANCELLED'}
 

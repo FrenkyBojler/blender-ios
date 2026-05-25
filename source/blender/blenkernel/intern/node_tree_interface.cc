@@ -676,9 +676,8 @@ static void item_copy(bNodeTreeInterfaceItem &dst,
 {
   switch (dst.item_type) {
     case NodeTreeInterfaceItemType::Socket: {
-      bNodeTreeInterfaceSocket &dst_socket = reinterpret_cast<bNodeTreeInterfaceSocket &>(dst);
-      const bNodeTreeInterfaceSocket &src_socket =
-          reinterpret_cast<const bNodeTreeInterfaceSocket &>(src);
+      auto &dst_socket = reinterpret_cast<bNodeTreeInterfaceSocket &>(dst);
+      const auto &src_socket = reinterpret_cast<const bNodeTreeInterfaceSocket &>(src);
       BLI_assert(src_socket.socket_type != nullptr);
 
       dst_socket.name = BLI_strdup_null(src_socket.name);
@@ -696,15 +695,22 @@ static void item_copy(bNodeTreeInterfaceItem &dst,
       break;
     }
     case NodeTreeInterfaceItemType::Panel: {
-      bNodeTreeInterfacePanel &dst_panel = reinterpret_cast<bNodeTreeInterfacePanel &>(dst);
-      const bNodeTreeInterfacePanel &src_panel = reinterpret_cast<const bNodeTreeInterfacePanel &>(
-          src);
+      auto &dst_panel = reinterpret_cast<bNodeTreeInterfacePanel &>(dst);
+      const auto &src_panel = reinterpret_cast<const bNodeTreeInterfacePanel &>(src);
 
       dst_panel.name = BLI_strdup_null(src_panel.name);
       dst_panel.description = BLI_strdup_null(src_panel.description);
       dst_panel.identifier = generate_uid ? generate_uid() : src_panel.identifier;
 
       panel_init(dst_panel, src_panel.items(), flag, generate_uid);
+      break;
+    }
+    case NodeTreeInterfaceItemType::Bake: {
+      auto &dst_bake = reinterpret_cast<bNodeTreeInterfaceBake &>(dst);
+      const auto &src_bake = reinterpret_cast<const bNodeTreeInterfaceBake &>(src);
+      dst_bake.bake_id = src_bake.bake_id;
+      dst_bake.name = BLI_strdup_null(src_bake.name);
+      dst_bake.description = BLI_strdup_null(src_bake.description);
       break;
     }
   }
@@ -737,6 +743,12 @@ static void item_free(bNodeTreeInterfaceItem &item, const bool do_id_user)
       panel.clear(do_id_user);
       MEM_SAFE_DELETE(panel.name);
       MEM_SAFE_DELETE(panel.description);
+      break;
+    }
+    case NodeTreeInterfaceItemType::Bake: {
+      auto &bake = reinterpret_cast<bNodeTreeInterfaceBake &>(item);
+      MEM_SAFE_DELETE(bake.name);
+      MEM_SAFE_DELETE(bake.description);
       break;
     }
   }
@@ -773,6 +785,12 @@ static void item_write_data(BlendWriter *writer, bNodeTreeInterfaceItem &item)
       }
       break;
     }
+    case NodeTreeInterfaceItemType::Bake: {
+      bNodeTreeInterfaceBake &bake = reinterpret_cast<bNodeTreeInterfaceBake &>(item);
+      writer->write_string(bake.name);
+      writer->write_string(bake.description);
+      break;
+    }
   }
 }
 
@@ -791,6 +809,10 @@ void item_write_struct(BlendWriter *writer, bNodeTreeInterfaceItem &item)
     }
     case NodeTreeInterfaceItemType::Panel: {
       writer->write_struct_cast<bNodeTreeInterfacePanel>(&item);
+      break;
+    }
+    case NodeTreeInterfaceItemType::Bake: {
+      writer->write_struct_cast<bNodeTreeInterfaceBake>(&item);
       break;
     }
   }
@@ -846,6 +868,12 @@ static void item_read_data(BlendDataReader *reader, bNodeTreeInterfaceItem &item
       }
       break;
     }
+    case NodeTreeInterfaceItemType::Bake: {
+      bNodeTreeInterfaceBake &bake = reinterpret_cast<bNodeTreeInterfaceBake &>(item);
+      BLO_read_string(reader, &bake.name);
+      BLO_read_string(reader, &bake.description);
+      break;
+    }
   }
 }
 
@@ -870,6 +898,9 @@ static void item_foreach_id(LibraryForeachIDData *data, bNodeTreeInterfaceItem &
       }
       break;
     }
+    case NodeTreeInterfaceItemType::Bake: {
+      break;
+    }
   }
 }
 
@@ -883,6 +914,9 @@ static Span<bNodeTreeInterfaceItem *> item_children(bNodeTreeInterfaceItem &item
     case NodeTreeInterfaceItemType::Panel: {
       bNodeTreeInterfacePanel &panel = reinterpret_cast<bNodeTreeInterfacePanel &>(item);
       return panel.items();
+    }
+    case NodeTreeInterfaceItemType::Bake: {
+      return {};
     }
   }
   return {};
@@ -1821,6 +1855,22 @@ static bNodeTreeInterfacePanel *make_panel(const int uid,
   return new_panel;
 }
 
+static bNodeTreeInterfaceBake *make_bake(const StringRef name,
+                                         const StringRef description,
+                                         const NodeTreeInterfaceBakeFlag flag)
+{
+  BLI_assert(!name.is_empty());
+
+  bNodeTreeInterfaceBake *new_panel = MEM_new<bNodeTreeInterfaceBake>(__func__);
+  new_panel->item.item_type = NodeTreeInterfaceItemType::Bake;
+  new_panel->name = BLI_strdupn(name.data(), name.size());
+  new_panel->description = description.is_empty() ?
+                               nullptr :
+                               BLI_strdupn(description.data(), description.size());
+  new_panel->flag = flag;
+  return new_panel;
+}
+
 void item_reference_free(bNodeTreeInterfaceItemReference *item_reference)
 {
   if (item_reference == nullptr) {
@@ -1904,15 +1954,18 @@ void bNodeTreeInterfaceItem::set_selected(const bool select)
 {
   switch (this->item_type) {
     case NodeTreeInterfaceItemType::Panel: {
-      bNodeTreeInterfacePanel *panel =
-          blender::bke::node_interface::get_item_as<bNodeTreeInterfacePanel>(this);
+      auto *panel = blender::bke::node_interface::get_item_as<bNodeTreeInterfacePanel>(this);
       SET_FLAG_FROM_TEST(panel->flag, select, NODE_INTERFACE_PANEL_SELECT);
       break;
     }
     case NodeTreeInterfaceItemType::Socket: {
-      bNodeTreeInterfaceSocket *socket =
-          blender::bke::node_interface::get_item_as<bNodeTreeInterfaceSocket>(this);
+      auto *socket = blender::bke::node_interface::get_item_as<bNodeTreeInterfaceSocket>(this);
       SET_FLAG_FROM_TEST(socket->flag, select, NODE_INTERFACE_SOCKET_SELECT);
+      break;
+    }
+    case NodeTreeInterfaceItemType::Bake: {
+      auto *bake = blender::bke::node_interface::get_item_as<bNodeTreeInterfaceBake>(this);
+      SET_FLAG_FROM_TEST(bake->flag, select, NODE_INTERFACE_BAKE_SELECT);
       break;
     }
   }
@@ -1997,6 +2050,25 @@ bNodeTreeInterfacePanel *bNodeTreeInterface::add_panel(const StringRef name,
   BLI_assert(this->find_item(parent->item));
 
   bNodeTreeInterfacePanel *new_panel = make_panel(this->next_uid++, name, description, flag);
+  if (new_panel) {
+    parent->add_item(new_panel->item);
+  }
+
+  this->tag_items_changed();
+  return new_panel;
+}
+
+bNodeTreeInterfaceBake *bNodeTreeInterface::add_bake(const StringRef name,
+                                                     const StringRef description,
+                                                     const NodeTreeInterfaceBakeFlag flag,
+                                                     bNodeTreeInterfacePanel *parent)
+{
+  if (parent == nullptr) {
+    parent = &root_panel;
+  }
+  BLI_assert(this->find_item(parent->item));
+
+  bNodeTreeInterfaceBake *new_panel = make_bake(name, description, flag);
   if (new_panel) {
     parent->add_item(new_panel->item);
   }

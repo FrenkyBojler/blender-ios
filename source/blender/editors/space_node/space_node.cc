@@ -326,7 +326,7 @@ std::optional<nodes::FoundNestedNodeID> find_nested_node_id_in_root(
       found.is_in_closure = true;
     }
   }
-  std::reverse(node_ids.begin(), node_ids.end());
+  std::ranges::reverse(node_ids);
   node_ids.append(node_id);
   const bNestedNodeRef *nested_node_ref = root_tree.nested_node_ref_from_node_id_path(node_ids);
   if (nested_node_ref == nullptr) {

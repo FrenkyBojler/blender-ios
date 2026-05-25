@@ -159,11 +159,14 @@ static StructRNA *rna_NodeTreeInterfaceItem_refine(PointerRNA *ptr)
       }
       return RNA_NodeTreeInterfaceSocket;
     }
-    case NodeTreeInterfaceItemType::Panel:
+    case NodeTreeInterfaceItemType::Panel: {
       return RNA_NodeTreeInterfacePanel;
-    default:
-      return RNA_NodeTreeInterfaceItem;
+    }
+    case NodeTreeInterfaceItemType::Bake: {
+      return RNA_NodeTreeInterfaceBake;
+    }
   }
+  return RNA_NodeTreeInterfaceItem;
 }
 
 static std::optional<std::string> rna_NodeTreeInterfaceItem_path(const PointerRNA *ptr)
@@ -782,6 +785,29 @@ static bNodeTreeInterfacePanel *rna_NodeTreeInterfaceItems_new_panel(ID *id,
   return panel;
 }
 
+static bNodeTreeInterfaceBake *rna_NodeTreeInterfaceItems_new_bake(ID *id,
+                                                                   bNodeTreeInterface *interface,
+                                                                   Main *bmain,
+                                                                   ReportList *reports,
+                                                                   const char *name,
+                                                                   const char *description)
+{
+  NodeTreeInterfaceBakeFlag flag = NodeTreeInterfaceBakeFlag(0);
+
+  bNodeTreeInterfaceBake *panel = interface->add_bake(
+      name ? name : "", description ? description : "", flag, nullptr);
+
+  if (panel == nullptr) {
+    BKE_report(reports, RPT_ERROR, "Unable to create bake");
+    return nullptr;
+  }
+
+  bNodeTree *ntree = reinterpret_cast<bNodeTree *>(id);
+  BKE_main_ensure_invariants(*bmain, ntree->id);
+  WM_main_add_notifier(NC_NODE | NA_EDITED, ntree);
+  return panel;
+}
+
 static bNodeTreeInterfaceItem *rna_NodeTreeInterfaceItems_copy_to_parent(
     ID *id,
     bNodeTreeInterface *interface,
@@ -1145,6 +1171,14 @@ static bool rna_NodeTreeInterface_items_lookup_string(PointerRNA *ptr,
         }
         break;
       }
+      case NodeTreeInterfaceItemType::Bake: {
+        auto *bake = reinterpret_cast<bNodeTreeInterfaceBake *>(item);
+        if (STREQ(bake->name, key)) {
+          rna_pointer_create_with_ancestors(*ptr, RNA_NodeTreeInterfaceBake, bake, *r_ptr);
+          return true;
+        }
+        break;
+      }
     }
   }
   return false;
@@ -1179,6 +1213,39 @@ int RNA_node_tree_interface_socket_menu_default(PointerRNA *ptr, PropertyRNA * /
     return 0;
   }
   return data->enum_items->items.first().identifier;
+}
+
+static const EnumPropertyItem *rna_NodeTreeInterfaceBake_bake_id_itemf(bContext * /*C*/,
+                                                                       PointerRNA *ptr,
+                                                                       PropertyRNA * /*prop*/,
+                                                                       bool *r_free)
+{
+  const bNodeTree &ntree = *id_cast<const bNodeTree *>(ptr->owner_id);
+
+  *r_free = true;
+  EnumPropertyItem *items = nullptr;
+  int count = 0;
+  for (const bNestedNodeRef &nested_node_ref : ntree.nested_node_refs_span()) {
+    const int id = nested_node_ref.id;
+    const bNode *node = ntree.find_nested_node(id);
+    if (!node) {
+      continue;
+    }
+    if (node->is_type("GeometryNodeBake"_ustr) ||
+        node->is_type("GeometryNodeSimulationOutput"_ustr))
+    {
+      EnumPropertyItem item{
+          .value = id,
+          .identifier = BLI_strdup(std::to_string(id).c_str()),  // TODO WHO CAN OWN THE STRING???
+          .icon = ICON_NONE,
+          .name = node->label_or_name().c_str(),
+          .description = "",
+      };
+      RNA_enum_item_add(&items, &count, &item);
+    }
+  }
+  RNA_enum_item_end(&items, &count);
+  return items;
 }
 
 }  // namespace blender
@@ -1477,6 +1544,45 @@ static void rna_def_node_interface_panel(BlenderRNA *brna)
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 }
 
+static void rna_def_node_interface_bake(BlenderRNA *brna)
+{
+  StructRNA *srna;
+  PropertyRNA *prop;
+
+  srna = RNA_def_struct(brna, "NodeTreeInterfaceBake", "NodeTreeInterfaceItem");
+  RNA_def_struct_ui_text(srna, "Node Tree Interface Item", "Declaration of a node panel");
+  RNA_def_struct_sdna(srna, "bNodeTreeInterfaceBake");
+
+  prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
+  RNA_def_property_ui_text(prop, "Name", "Bake name");
+  RNA_def_struct_name_property(srna, prop);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeTreeInterfaceItem_update");
+
+  prop = RNA_def_property(srna, "description", PROP_STRING, PROP_NONE);
+  RNA_def_property_string_sdna(prop, nullptr, "description");
+  RNA_def_property_ui_text(prop, "Description", "Bake description");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeTreeInterfaceItem_update");
+
+  // prop = RNA_def_property(srna, "default_closed", PROP_BOOLEAN, PROP_NONE);
+  // RNA_def_property_boolean_sdna(prop, nullptr, "flag", NODE_INTERFACE_BAKE_DEFAULT_CLOSED);
+  // RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  // RNA_def_property_ui_text(prop, "Default Closed", "Panel is closed by default on new nodes");
+  // RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeTreeInterfaceItem_update");
+
+  prop = RNA_def_property(srna, "select", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", NODE_INTERFACE_BAKE_SELECT);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_ui_text(prop, "Select", "Panel is selected in the interface");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeTreeInterfaceItem_update");
+
+  prop = RNA_def_property(srna, "bake_id", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, rna_enum_dummy_DEFAULT_items);
+  RNA_def_property_ui_text(
+      prop, "Bake ID", "Unique identifier for this panel within this node tree");
+  RNA_def_property_enum_funcs(prop, nullptr, nullptr, "rna_NodeTreeInterfaceBake_bake_id_itemf");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeTreeInterfaceItem_update");
+}
+
 static void rna_def_node_tree_interface_items_api(StructRNA *srna)
 {
   PropertyRNA *prop;
@@ -1539,6 +1645,16 @@ static void rna_def_node_tree_interface_items_api(StructRNA *srna)
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   /* return value */
   parm = RNA_def_pointer(func, "item", "NodeTreeInterfacePanel", "Panel", "New panel");
+  RNA_def_function_return(func, parm);
+
+  func = RNA_def_function(srna, "new_bake", "rna_NodeTreeInterfaceItems_new_bake");
+  RNA_def_function_ui_description(func, "Add a new bake to the interface");
+  RNA_def_function_flag(func, FUNC_USE_SELF_ID | FUNC_USE_MAIN | FUNC_USE_REPORTS);
+  parm = RNA_def_string(func, "name", nullptr, 0, "Name", "Name of the new bake");
+  RNA_def_string(func, "description", nullptr, 0, "Description", "Description of the bake");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+  /* return value */
+  parm = RNA_def_pointer(func, "item", "NodeTreeInterfaceBake", "Bake", "New bake");
   RNA_def_function_return(func, parm);
 
   func = RNA_def_function(srna, "copy", "rna_NodeTreeInterfaceItems_copy");
@@ -1635,6 +1751,7 @@ void RNA_def_node_tree_interface(BlenderRNA *brna)
   rna_def_node_interface_item(brna);
   rna_def_node_interface_socket(brna);
   rna_def_node_interface_panel(brna);
+  rna_def_node_interface_bake(brna);
   rna_def_node_tree_interface(brna);
 
   rna_def_node_socket_interface_subtypes(brna);

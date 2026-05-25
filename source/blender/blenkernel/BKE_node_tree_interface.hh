@@ -69,6 +69,10 @@ template<typename T> static bool item_is_type(const bNodeTreeInterfaceItem &item
       match |= std::is_same_v<T, bNodeTreeInterfacePanel>;
       break;
     }
+    case NodeTreeInterfaceItemType::Bake: {
+      match |= std::is_same_v<T, bNodeTreeInterfaceBake>;
+      break;
+    }
   }
   return match;
 }
