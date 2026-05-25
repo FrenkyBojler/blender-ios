@@ -235,8 +235,8 @@ void AbstractGridView::scroll_active_into_view(bContext *C)
       ARegion *region = CTX_wm_region(C);
 
       if (but) {
-       but_ensure_in_view(C, region, but);
-       return;
+        but_ensure_in_view(C, region, but);
+        return;
       }
 
       View2D &v2d = region->v2d;
