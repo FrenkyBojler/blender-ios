@@ -224,6 +224,19 @@ class AssetRepresentation : NonCopyable, NonMovable {
   AssetFileStatus file_status() const;
   /** Set the file status for on-disk assets. No-op for online-only assets. */
   void file_status_set(AssetFileStatus status);
+  /**
+   * Store the remote listing's online info on an on-disk asset so it can be re-downloaded.
+   * Replaces any previously set online info.
+   */
+  void set_online_info(OnlineAssetInfo info);
+
+  /**
+   * Return whether this asset requires (re-)downloading before it can be used.
+   *
+   * True for online-only assets (#is_online()) and for on-disk assets whose files no longer match
+   * the remote listing (e.g. #AssetFileStatus::NO_MATCH).
+   */
+  bool needs_download() const;
 
   AssetLibrary &owner_asset_library() const;
 };

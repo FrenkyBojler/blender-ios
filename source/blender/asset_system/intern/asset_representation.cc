@@ -92,7 +92,9 @@ void AssetRepresentation::ensure_previewable(const bContext &C, ReportList *repo
     return;
   }
 
-  if (extern_asset.online_info_) {
+  /* Only use the remote thumbnail when there is no asset file on disk. Otherwise use the on-disk
+   * file. */
+  if (this->is_online()) {
     if (!extern_asset.online_info_->preview_url) {
       return;
     }
@@ -185,15 +187,17 @@ std::string AssetRepresentation::full_library_path() const
 
 Span<OnlineAssetFile> AssetRepresentation::online_asset_files() const
 {
-  if (!this->is_online()) {
+  const ExternalAsset *extern_asset = std::get_if<ExternalAsset>(&asset_);
+  if (!extern_asset || !extern_asset->online_info_) {
     return {};
   }
-  return std::get<ExternalAsset>(asset_).online_info_->files;
+  return extern_asset->online_info_->files;
 }
 
 std::optional<int64_t> AssetRepresentation::online_asset_files_combined_size_in_bytes() const
 {
-  if (!this->is_online()) {
+  const ExternalAsset *extern_asset = std::get_if<ExternalAsset>(&asset_);
+  if (!extern_asset || !extern_asset->online_info_) {
     return {};
   }
   int64_t size = 0;
@@ -231,10 +235,12 @@ std::optional<StringRefNull> AssetRepresentation::online_asset_preview_hash() co
 
 void AssetRepresentation::online_asset_mark_downloaded()
 {
-  if (!this->is_online()) {
+  ExternalAsset *extern_asset = std::get_if<ExternalAsset>(&asset_);
+  if (!extern_asset || !extern_asset->online_info_) {
     return;
   }
-  std::get<ExternalAsset>(asset_).online_info_ = nullptr;
+  /* TODO: maybe the online_info_ can stay, and just needs its file status re-checked? */
+  extern_asset->online_info_ = nullptr;
 }
 
 std::optional<eAssetImportMethod> AssetRepresentation::get_import_method() const
@@ -271,10 +277,12 @@ bool AssetRepresentation::is_local_id() const
 
 bool AssetRepresentation::is_online() const
 {
-  if (const ExternalAsset *extern_asset = std::get_if<ExternalAsset>(&asset_)) {
-    return extern_asset->online_info_ != nullptr;
+  const ExternalAsset *extern_asset = std::get_if<ExternalAsset>(&asset_);
+  if (!extern_asset || !extern_asset->online_info_) {
+    return false;
   }
-  return false;
+  /* An asset is considered 'online' if there is no file on disk for it. */
+  return extern_asset->online_info_->file_status == AssetFileStatus::NOT_ON_DISK;
 }
 
 bool AssetRepresentation::is_potentially_editable_asset_blend() const
@@ -299,6 +307,15 @@ AssetFileStatus AssetRepresentation::file_status() const
   return extern_asset->file_status_;
 }
 
+void AssetRepresentation::set_online_info(OnlineAssetInfo info)
+{
+  ExternalAsset *extern_asset = std::get_if<ExternalAsset>(&asset_);
+  if (!extern_asset) {
+    return;
+  }
+  extern_asset->online_info_ = std::make_unique<OnlineAssetInfo>(std::move(info));
+}
+
 void AssetRepresentation::file_status_set(const AssetFileStatus status)
 {
   ExternalAsset *extern_asset = std::get_if<ExternalAsset>(&asset_);
@@ -306,6 +323,11 @@ void AssetRepresentation::file_status_set(const AssetFileStatus status)
     return;
   }
   extern_asset->file_status_ = status;
+}
+
+bool AssetRepresentation::needs_download() const
+{
+  return this->is_online() || this->file_status() == AssetFileStatus::NO_MATCH;
 }
 
 AssetLibrary &AssetRepresentation::owner_asset_library() const

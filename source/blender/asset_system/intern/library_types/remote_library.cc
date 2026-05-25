@@ -757,8 +757,8 @@ void remote_library_request_asset_download(const bContext &C,
     return;
   }
 
-  if (!asset.is_online()) {
-    BKE_report(reports, RPT_ERROR, "This is not an online asset and thus cannot be downloaded");
+  if (!asset.needs_download()) {
+    BKE_report(reports, RPT_ERROR, "This asset does not require downloading");
     return;
   }
 
