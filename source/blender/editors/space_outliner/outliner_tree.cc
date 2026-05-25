@@ -712,12 +712,6 @@ static void outliner_sort_custom(ListBaseT<TreeElement> *lb)
         tp->idcode = te.idcode;
         tp->id = tselem->id;
 
-        if (!ELEM(tselem->type, TSE_SOME_ID, TSE_DEFGROUP)) {
-          tp->idcode = 0; /* Don't sort this. */
-        }
-        if (ELEM(tselem->type, TSE_ID_BASE, TSE_DEFGROUP)) {
-          tp->idcode = 1; /* Do sort this. */
-        }
         tp++;
       }
 
@@ -776,13 +770,6 @@ static void outliner_sort_type(ListBaseT<TreeElement> *lb)
         tp->idcode = te.idcode;
         tp->id = tselem->id;
 
-        if (!ELEM(tselem->type, TSE_SOME_ID, TSE_DEFGROUP, TSE_BONE, TSE_EBONE, TSE_POSE_CHANNEL))
-        {
-          tp->idcode = 0; /* Don't sort this. */
-        }
-        if (ELEM(tselem->type, TSE_ID_BASE, TSE_DEFGROUP, TSE_BONE, TSE_EBONE, TSE_POSE_CHANNEL)) {
-          tp->idcode = 1; /* Do sort this. */
-        }
         tp++;
       }
 
