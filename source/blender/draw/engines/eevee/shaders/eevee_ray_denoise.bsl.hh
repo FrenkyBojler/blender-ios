@@ -12,7 +12,8 @@
 
 #pragma once
 
-#include "infos/eevee_tracing_infos.hh"
+#include "infos/eevee_common_infos.hh"
+#include "infos/eevee_sampling_infos.hh"
 
 SHADER_LIBRARY_CREATE_INFO(eevee_gbuffer_data)
 SHADER_LIBRARY_CREATE_INFO(eevee_global_ubo)
@@ -125,6 +126,7 @@ void transmission_thickness_amend_closure(ClosureUndetermined &cl, float3 &V, Th
     case CLOSURE_BSDF_TRANSLUCENT_ID:
     case CLOSURE_BSDF_MICROFACET_GGX_REFLECTION_ID:
     case CLOSURE_BSSRDF_BURLEY_ID:
+    case CLOSURE_BSDF_THIN_GLASS_TRANSMISSION_ID:
       break;
   }
 }

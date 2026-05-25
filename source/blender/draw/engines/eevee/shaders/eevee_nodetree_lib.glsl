@@ -5,7 +5,6 @@
 #pragma once
 
 #include "infos/eevee_common_infos.hh"
-#include "infos/eevee_raycast_infos.hh"
 #include "infos/eevee_uniform_infos.hh"
 
 SHADER_LIBRARY_CREATE_INFO(eevee_global_ubo)
@@ -21,7 +20,7 @@ SHADER_LIBRARY_CREATE_INFO(eevee_hiz_data)
 #include "eevee_ray_trace_screen_lib.glsl"
 #include "eevee_renderpass_lib.glsl"
 #include "eevee_sampling_lib.glsl"
-#include "eevee_utility_tx_lib.glsl"
+#include "eevee_utility_tx.bsl.hh"
 #include "gpu_shader_codegen_lib.glsl"
 #include "gpu_shader_math_base_lib.glsl"
 #include "gpu_shader_math_safe_lib.glsl"
@@ -125,6 +124,16 @@ Closure closure_eval(ClosureRefraction refraction)
   closure_base_copy(cl, refraction);
   cl.data.r = refraction.roughness;
   cl.data.g = refraction.ior;
+  /* Transmission Closures are always in first bin. */
+  closure_select(g_closure_bins[0], g_closure_rand[0], cl);
+  return Closure(0);
+}
+
+Closure closure_eval(ClosureThinRefraction refraction)
+{
+  ClosureUndetermined cl;
+  closure_base_copy(cl, refraction);
+  cl.data.r = refraction.roughness;
   /* Transmission Closures are always in first bin. */
   closure_select(g_closure_bins[0], g_closure_rand[0], cl);
   return Closure(0);
@@ -283,6 +292,12 @@ void raycast_eval([[maybe_unused]] float3 position,
   direction = normalize(direction);
 
 #if defined(MAT_RAYCAST)
+  if (!pipeline_buf.can_raycast) {
+    /* We can't raycast on prepass for raycast visibile objects.
+     * We use a UBO property to avoid compiling more shader variants. */
+    return;
+  }
+
   float3 ws_start = position;
   float3 ws_end = position + direction * max_distance;
   if (!clip_ray(
@@ -313,7 +328,7 @@ void raycast_eval([[maybe_unused]] float3 position,
   float result = raytrace_screen_2(drw_point_world_to_view(ws_start),
                                    drw_point_world_to_view(ws_end),
                                    drw_normal_world_to_view(direction),
-                                   hiz_tx,
+                                   raycast_depth_tx,
                                    raytrace_buf,
                                    64,
                                    jitter,
