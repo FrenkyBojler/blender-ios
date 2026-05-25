@@ -1395,7 +1395,8 @@ TEST_P(VKRenderGraphTestScheduler, begin_draw_storage_end_begin_draw_end)
       log[0]);
   EXPECT_EQ(
       "pipeline_barrier(src_stage_mask=VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT, "
-      "dst_stage_mask=VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT" +
+      "dst_stage_mask=VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT, "
+      "VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT" +
           endl() +
           " - image_barrier(src_access_mask=VK_ACCESS_COLOR_ATTACHMENT_READ_BIT, "
           "VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, "
@@ -1427,7 +1428,9 @@ TEST_P(VKRenderGraphTestScheduler, begin_draw_storage_end_begin_draw_end)
   EXPECT_EQ("draw(vertex_count=4, instance_count=1, first_vertex=0, first_instance=0)", log[6]);
   EXPECT_EQ("end_rendering()", log[7]);
   EXPECT_EQ(
-      "pipeline_barrier(src_stage_mask=VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT, "
+      "pipeline_barrier(src_stage_mask=VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, "
+      "VK_PIPELINE_STAGE_VERTEX_SHADER_BIT, VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT, "
+      "VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, "
       "dst_stage_mask=VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT" +
           endl() +
           " - image_barrier(src_access_mask=VK_ACCESS_SHADER_READ_BIT, "
@@ -1588,14 +1591,12 @@ TEST_P(VKRenderGraphTestScheduler, begin_draw_storage_end_begin_draw_end_subreso
   /* Storage access transition: color_attachment_layout -> GENERAL, merged with access sync. */
   EXPECT_EQ(
       "pipeline_barrier(src_stage_mask=VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT, "
-      "VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, "
-      "dst_stage_mask=VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT, "
-      "VK_PIPELINE_STAGE_ALL_COMMANDS_BIT" +
+      "dst_stage_mask=VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT, "
+      "VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT" +
           endl() +
-          " - image_barrier(src_access_mask=VK_ACCESS_TRANSFER_WRITE_BIT, "
+          " - image_barrier(src_access_mask=VK_ACCESS_COLOR_ATTACHMENT_READ_BIT, "
+          "VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, "
           "dst_access_mask=VK_ACCESS_SHADER_READ_BIT, VK_ACCESS_SHADER_WRITE_BIT, "
-          "VK_ACCESS_COLOR_ATTACHMENT_READ_BIT, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, "
-          "VK_ACCESS_TRANSFER_READ_BIT, VK_ACCESS_TRANSFER_WRITE_BIT, "
           "old_layout=" +
           color_attachment_layout_str() +
           ", "
@@ -1623,29 +1624,49 @@ TEST_P(VKRenderGraphTestScheduler, begin_draw_storage_end_begin_draw_end_subreso
   EXPECT_EQ("draw(vertex_count=4, instance_count=1, first_vertex=0, first_instance=0)", log[6]);
   EXPECT_EQ("end_rendering()", log[7]);
   /* Suspend barrier from image_tracker.end(). Reverts GENERAL -> default layout. */
-  EXPECT_EQ(
-      "pipeline_barrier(src_stage_mask=VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, "
-      "dst_stage_mask=VK_PIPELINE_STAGE_ALL_COMMANDS_BIT" +
-          endl() +
-          " - image_barrier(src_access_mask=VK_ACCESS_SHADER_READ_BIT, "
-          "VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_COLOR_ATTACHMENT_READ_BIT, "
-          "VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_TRANSFER_READ_BIT, "
-          "VK_ACCESS_TRANSFER_WRITE_BIT, "
-          "dst_access_mask=VK_ACCESS_SHADER_READ_BIT, "
-          "VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_COLOR_ATTACHMENT_READ_BIT, "
-          "VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_TRANSFER_READ_BIT, "
-          "VK_ACCESS_TRANSFER_WRITE_BIT, "
-          "old_layout=VK_IMAGE_LAYOUT_GENERAL, "
-          "new_layout=" +
-          color_attachment_layout_str() + ", image=0x1, subresource_range=" + endl() +
-          "    aspect_mask=VK_IMAGE_ASPECT_COLOR_BIT, base_mip_level=0, level_count=4294967295, "
-          "base_array_layer=0, layer_count=4294967295  )" +
-          endl() + ")",
-      log[8]);
+  if (std::get<0>(GetParam())) {
+    EXPECT_EQ(
+        "pipeline_barrier(src_stage_mask=VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, "
+        "VK_PIPELINE_STAGE_VERTEX_SHADER_BIT, VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT, "
+        "VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, "
+        "dst_stage_mask=VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT" +
+            endl() +
+            " - image_barrier(src_access_mask=VK_ACCESS_SHADER_READ_BIT, "
+            "VK_ACCESS_SHADER_WRITE_BIT, "
+            "dst_access_mask=VK_ACCESS_SHADER_READ_BIT, VK_ACCESS_SHADER_WRITE_BIT, "
+            "old_layout=VK_IMAGE_LAYOUT_GENERAL, "
+            "new_layout=" +
+            color_attachment_layout_str() + ", image=0x1, subresource_range=" + endl() +
+            "    aspect_mask=VK_IMAGE_ASPECT_COLOR_BIT, base_mip_level=0, level_count=4294967295, "
+            "base_array_layer=0, layer_count=4294967295  )" +
+            endl() + ")",
+        log[8]);
+  }
+  else {
+    EXPECT_EQ(
+        "pipeline_barrier(src_stage_mask=VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, "
+        "VK_PIPELINE_STAGE_VERTEX_SHADER_BIT, VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT, "
+        "VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, "
+        "dst_stage_mask=VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT" +
+            endl() +
+            " - image_barrier(src_access_mask=VK_ACCESS_SHADER_READ_BIT, "
+            "VK_ACCESS_SHADER_WRITE_BIT, "
+            "dst_access_mask=VK_ACCESS_COLOR_ATTACHMENT_READ_BIT, "
+            "VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, "
+            "old_layout=VK_IMAGE_LAYOUT_GENERAL, "
+            "new_layout=" +
+            color_attachment_layout_str() + ", image=0x1, subresource_range=" + endl() +
+            "    aspect_mask=VK_IMAGE_ASPECT_COLOR_BIT, base_mip_level=0, level_count=4294967295, "
+            "base_array_layer=0, layer_count=4294967295  )" +
+            endl() + ")",
+        log[8]);
+  }
   /* Transition between scopes: same-layout access-sync barrier. Must use the default layout
    * as oldLayout (not GENERAL) to match the actual image layout after suspend. */
   EXPECT_EQ(
-      "pipeline_barrier(src_stage_mask=VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT, "
+      "pipeline_barrier(src_stage_mask=VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, "
+      "VK_PIPELINE_STAGE_VERTEX_SHADER_BIT, VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT, "
+      "VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, "
       "dst_stage_mask=VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT" +
           endl() +
           " - image_barrier(src_access_mask=VK_ACCESS_SHADER_READ_BIT, "
