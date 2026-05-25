@@ -17,6 +17,7 @@
 #include "opentimelineio/clip.h"
 #include "opentimelineio/externalReference.h"
 #include "opentimelineio/gap.h"
+#include "opentimelineio/imageSequenceReference.h"
 #include "opentimelineio/serializableObject.h"
 #include "opentimelineio/track.h"
 
@@ -71,8 +72,11 @@ static TimeRange get_media_available_range(const Strip *strip,
                                            const Scene *scene,
                                            const float media_fps)
 {
-  int media_length = (strip->type == STRIP_TYPE_IMAGE) ? get_strip_duration(strip, scene) :
-                                                         strip->len;
+  int media_length = strip->len;
+  if (strip->type == STRIP_TYPE_IMAGE && strip->flag | SEQ_SINGLE_FRAME_CONTENT) {
+    media_length = get_strip_duration(strip, scene);
+  }
+
   return TimeRange(otio::RationalTime(0, media_fps), otio::RationalTime(media_length, media_fps));
 }
 
@@ -104,6 +108,32 @@ static SerializableObject::Retainer<ExternalReference> create_external_reference
   external_reference->set_name(media_filename);
 
   return external_reference;
+}
+
+static SerializableObject::Retainer<ImageSequenceReference> create_image_sequence_reference(
+    const Strip *strip,
+    const Scene *scene,
+    const char *target_url_base,
+    const char *name_prefix,
+    const char *name_suffix,
+    int start_frame_nr,
+    int frame_step,
+    int fps,
+    int num_digits)
+{
+  TimeRange media_available_range = get_media_available_range(strip, scene, fps);
+  auto img_seq_ref = SerializableObject::Retainer<ImageSequenceReference>(
+      new ImageSequenceReference(target_url_base,
+                                 name_prefix,
+                                 name_suffix,
+                                 start_frame_nr,
+                                 frame_step,
+                                 fps,
+                                 num_digits,
+                                 ImageSequenceReference::MissingFramePolicy::error,
+                                 media_available_range));
+
+  return img_seq_ref;
 }
 
 /***** Handle Export for each strip type. *****/
@@ -143,7 +173,6 @@ void SoundStripExporter::export_strip()
 void ImageStripExporter::export_strip()
 {
   add_gap_if_necessary();
-
   bool is_single_image = _strip->flag & SEQ_SINGLE_FRAME_CONTENT;
   float media_fps = _scene->frames_per_second();
 
@@ -154,6 +183,66 @@ void ImageStripExporter::export_strip()
 
     auto clip = otio::SerializableObject::Retainer<otio::Clip>(
         new Clip(_strip->name, external_reference, strip_source_range));
+
+    _track->append_child(clip);
+  }
+  else {
+    /* Image Sequence. */
+    if (!_strip->data || !_strip->data->stripdata) {
+      return;
+    }
+
+    StripElem *se = _strip->data->stripdata;
+    size_t img_count = MEM_allocN_len(se) / sizeof(*se);
+
+    int start_frame_nr, num_digits;
+    if (!BLI_path_frame_get(se->filename, &start_frame_nr, &num_digits)) {
+      num_digits = 0;
+    }
+    if (num_digits == 0) {
+      return;
+    }
+
+    const char *target_url_base = _strip->data->dirpath;
+    const char *name_suffix = BLI_path_extension(se->filename);
+    const char *curr = name_suffix;
+    char name_prefix[FILE_MAX];
+
+    /* Copy the name prefix. */
+    for (int i = 0; i < num_digits; ++i, curr--) {
+    };
+    char *np = name_prefix;
+    char *copy_p = se->filename;
+    while (copy_p != curr) {
+      *np = *copy_p;
+      np++;
+      copy_p++;
+    }
+    *np = '\0';
+
+    int frame_step = 1;
+    if (img_count > 1) {
+      int second_frame_nr, second_num_digits;
+      BLI_path_frame_get((++se)->filename, &second_frame_nr, &second_num_digits);
+      frame_step = second_frame_nr - start_frame_nr;
+    }
+
+    add_gap_if_necessary();
+
+    SerializableObject::Retainer<ImageSequenceReference> img_seq_ref =
+        create_image_sequence_reference(_strip,
+                                        _scene,
+                                        target_url_base,
+                                        name_prefix,
+                                        name_suffix,
+                                        start_frame_nr,
+                                        frame_step,
+                                        _scene->frames_per_second(),
+                                        num_digits);
+    TimeRange source_range = get_strip_source_range(_strip, _scene, _scene->frames_per_second());
+
+    auto clip = SerializableObject::Retainer<Clip>(
+        new Clip(_strip->name, img_seq_ref, source_range));
 
     _track->append_child(clip);
   }
