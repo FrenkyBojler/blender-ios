@@ -66,7 +66,7 @@ void resources_free()
 
 void style_init_default()
 {
-  BLI_freelistN(&U.uistyles);
+  U.uistyles.free_no_destruct();
   /* gets automatically re-allocated */
   style_init();
 }
@@ -119,6 +119,9 @@ const uchar *get_color_ptr(bTheme *btheme, int spacetype, int colorid)
           break;
         case TH_SUCCESS:
           cp = btheme->tui.wcol_state.success;
+          break;
+        case TH_LINK:
+          cp = btheme->tui.link;
           break;
       }
     }
@@ -336,6 +339,9 @@ const uchar *get_color_ptr(bTheme *btheme, int spacetype, int colorid)
 
         case TH_GRID:
           cp = ts->grid;
+          break;
+        case TH_GRID_MAJOR:
+          cp = ts->grid_major;
           break;
         case TH_TIME_SCRUB_BACKGROUND:
           cp = btheme->regions.scrubbing.back;
@@ -1115,7 +1121,7 @@ const uchar *get_color_ptr(bTheme *btheme, int spacetype, int colorid)
     }
   }
 
-  return (const uchar *)cp;
+  return static_cast<const uchar *>(cp);
 }
 
 void init_default()
@@ -1124,12 +1130,12 @@ void init_default()
   bTheme *btheme = static_cast<bTheme *>(
       BLI_findstring(&U.themes, U_theme_default.name, offsetof(bTheme, name)));
   if (btheme == nullptr) {
-    btheme = MEM_callocN<bTheme>(__func__);
+    btheme = MEM_new_zeroed<bTheme>(__func__);
     STRNCPY_UTF8(btheme->name, U_theme_default.name);
     BLI_addhead(&U.themes, btheme);
   }
 
-  /* Must be first, see `U.themes` doc-string. */
+  /* Must be first, see `U.themes` docstring. */
   BLI_listbase_rotate_first(&U.themes, btheme);
 
   theme_set(0, 0); /* make sure the global used in this file is set */
@@ -1606,5 +1612,4 @@ void make_axis_color(const uchar col[3], const char axis, uchar r_col[3])
 /** \} */
 
 }  // namespace theme
-
 }  // namespace blender::ui

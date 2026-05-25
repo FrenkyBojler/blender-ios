@@ -9,6 +9,8 @@
 #include "BLI_listbase.h"
 #include "BLI_utildefines.h"
 
+#include "BLT_translation.hh"
+
 #include "DNA_scene_types.h"
 
 #include "DEG_depsgraph.hh"
@@ -42,7 +44,7 @@ static wmOperatorStatus strip_modifier_add_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_sequencer_scene(C);
   Strip *strip = seq::select_active_get(scene);
-  int type = RNA_enum_get(op->ptr, "type");
+  eStripModifierType type = eStripModifierType(RNA_enum_get(op->ptr, "type"));
 
   StripModifierData *smd = seq::modifier_new(strip, nullptr, type);
   seq::modifier_persistent_uid_init(*strip, *smd);
@@ -91,6 +93,7 @@ void SEQUENCER_OT_strip_modifier_add(wmOperatorType *ot)
   /* properties */
   prop = RNA_def_enum(ot->srna, "type", rna_enum_dummy_NULL_items, 0, "Type", "");
   RNA_def_enum_funcs(prop, filter_modifiers_by_sequence_type_itemf);
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_SEQUENCE);
   ot->prop = prop;
 }
 
@@ -114,8 +117,7 @@ static wmOperatorStatus strip_modifier_remove_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  BLI_remlink(&strip->modifiers, smd);
-  seq::modifier_free(smd);
+  seq::modifier_remove(strip, smd);
 
   if (ELEM(strip->type, STRIP_TYPE_SOUND)) {
     DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS | ID_RECALC_AUDIO);
@@ -251,6 +253,15 @@ static wmOperatorStatus strip_modifier_copy_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
+  std::string modifier_name = RNA_string_get(op->ptr, "modifier");
+  StripModifierData *src_smd = nullptr;
+  if (!modifier_name.empty()) {
+    src_smd = seq::modifier_find_by_name(active_strip, modifier_name.c_str());
+    if (!src_smd) {
+      return OPERATOR_CANCELLED;
+    }
+  }
+
   int isSound = ELEM(active_strip->type, STRIP_TYPE_SOUND);
 
   VectorSet<Strip *> selected = selected_strips_from_context(C);
@@ -275,13 +286,24 @@ static wmOperatorStatus strip_modifier_copy_exec(bContext *C, wmOperator *op)
           seq::modifier_free(smd);
           smd = smd_tmp;
         }
-        BLI_listbase_clear(&strip_iter->modifiers);
+        strip_iter->modifiers.clear_no_delete();
       }
     }
 
-    LISTBASE_FOREACH (StripModifierData *, smd, &active_strip->modifiers) {
-      StripModifierData *smd_new = seq::modifier_copy(*strip_iter, smd);
+    if (src_smd) {
+      StripModifierData *smd_new = seq::modifier_copy(*strip_iter, src_smd, 0);
       seq::modifier_persistent_uid_init(*strip_iter, *smd_new);
+      seq::modifier_set_active(strip_iter, smd_new);
+    }
+    else {
+      for (StripModifierData &smd : active_strip->modifiers) {
+        StripModifierData *smd_new = seq::modifier_copy(*strip_iter, &smd, 0);
+        seq::modifier_persistent_uid_init(*strip_iter, *smd_new);
+        /* When appending to an existing stack, ensure at most one is active. */
+        if ((type == SEQ_MODIFIER_COPY_APPEND) && (smd.flag & STRIP_MODIFIER_FLAG_ACTIVE) != 0) {
+          seq::modifier_set_active(strip_iter, smd_new);
+        }
+      }
     }
   }
 
@@ -299,6 +321,7 @@ static wmOperatorStatus strip_modifier_copy_exec(bContext *C, wmOperator *op)
 
 void SEQUENCER_OT_strip_modifier_copy(wmOperatorType *ot)
 {
+  PropertyRNA *prop;
   static const EnumPropertyItem type_items[] = {
       {SEQ_MODIFIER_COPY_REPLACE, "REPLACE", 0, "Replace", "Replace modifiers in destination"},
       {SEQ_MODIFIER_COPY_APPEND,
@@ -324,6 +347,72 @@ void SEQUENCER_OT_strip_modifier_copy(wmOperatorType *ot)
 
   /* properties */
   ot->prop = RNA_def_enum(ot->srna, "type", type_items, SEQ_MODIFIER_COPY_REPLACE, "Type", "");
+  prop = RNA_def_string(ot->srna,
+                        "modifier",
+                        nullptr,
+                        MAX_NAME,
+                        "Modifier",
+                        "Name of the modifier to copy. If empty, copy all modifiers");
+  RNA_def_property_flag(prop, PROP_HIDDEN);
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Duplicate Strip Modifier
+ * \{ */
+
+static wmOperatorStatus strip_modifier_duplicate_exec(bContext *C, wmOperator *op)
+{
+  Scene *sequencer_scene = CTX_data_sequencer_scene(C);
+  Strip *active_strip = seq::select_active_get(sequencer_scene);
+  if (!active_strip || active_strip->modifiers.is_empty()) {
+    return OPERATOR_CANCELLED;
+  }
+
+  std::string modifier_name = RNA_string_get(op->ptr, "modifier");
+  StripModifierData *smd = [&]() {
+    if (modifier_name.empty()) {
+      /* Use the active modifier. */
+      return seq::modifier_get_active(active_strip);
+    }
+    return seq::modifier_find_by_name(active_strip, modifier_name.c_str());
+  }();
+
+  if (!smd) {
+    return OPERATOR_CANCELLED;
+  }
+
+  StripModifierData *smd_new = seq::modifier_copy(*active_strip, smd, 0);
+  seq::modifier_persistent_uid_init(*active_strip, *smd_new);
+  seq::modifier_set_active(active_strip, smd_new);
+
+  seq::relations_invalidate_cache(sequencer_scene, active_strip);
+
+  WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, sequencer_scene);
+
+  return OPERATOR_FINISHED;
+}
+
+void SEQUENCER_OT_strip_modifier_duplicate(wmOperatorType *ot)
+{
+  ot->name = "Duplicate Modifier";
+  ot->idname = "SEQUENCER_OT_strip_modifier_duplicate";
+  ot->description = "Duplicate (active) modifier of the active strip";
+
+  ot->exec = strip_modifier_duplicate_exec;
+  ot->poll = sequencer_strip_editable_poll;
+
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  ot->prop = RNA_def_string(
+      ot->srna,
+      "modifier",
+      nullptr,
+      MAX_NAME,
+      "Modifier",
+      "Name of the modifier to duplicate. If empty duplicate the active modifier");
+  RNA_def_property_flag(ot->prop, PROP_HIDDEN);
 }
 
 /** \} */
@@ -346,7 +435,8 @@ static wmOperatorStatus strip_modifier_equalizer_redefine_exec(bContext *C, wmOp
     return OPERATOR_CANCELLED;
   }
 
-  seq::sound_equalizermodifier_set_graphs((SoundEqualizerModifierData *)smd, number);
+  seq::sound_equalizermodifier_set_graphs(reinterpret_cast<SoundEqualizerModifierData *>(smd),
+                                          number);
 
   seq::relations_invalidate_cache(scene, strip);
   WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);

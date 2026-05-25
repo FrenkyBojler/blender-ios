@@ -15,7 +15,7 @@ namespace blender::eevee {
 #endif
 
 /** These are just to make more sense of G.debug_value's values. Reserved range is 1-30. */
-enum eDebugMode : uint32_t {
+enum [[host_shared]] eDebugMode : uint32_t {
   DEBUG_NONE = 0u,
   /**
    * Gradient showing light evaluation hot-spots.
@@ -53,6 +53,10 @@ enum eDebugMode : uint32_t {
    * Show random color for each tile. Verify distribution and LOD transitions.
    */
   DEBUG_SHADOW_TILEMAP_RANDOM_COLOR = 13u,
+  /**
+   * Show random color for each tile. Verify distribution and LOD transitions.
+   */
+  DEBUG_SHADOW_ATOMIC_COST = 17u,
   /**
    * Show storage cost of each pixel in the gbuffer.
    */

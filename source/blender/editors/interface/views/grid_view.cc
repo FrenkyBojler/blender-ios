@@ -21,6 +21,7 @@
 
 #include "RNA_access.hh"
 
+#include "UI_interface_c.hh"
 #include "UI_interface_layout.hh"
 #include "UI_view2d.hh"
 #include "interface_intern.hh"
@@ -123,6 +124,121 @@ void AbstractGridView::set_tile_size(int tile_width, int tile_height)
   style_.tile_height = tile_height;
 }
 
+static std::optional<int> find_filtered_item_index(const AbstractGridViewItem &item)
+{
+  BLI_assert(item.is_filtered_visible());
+
+  const AbstractGridView &view = item.get_view();
+  std::optional<int> index;
+
+  int i = 0;
+  view.foreach_filtered_item([&](AbstractGridViewItem &iter_item) {
+    if (&item == &iter_item) {
+      index = i;
+    }
+    i++;
+  });
+
+  return index;
+}
+
+AbstractViewItem *AbstractGridView::find_active_or_visible_item() const
+{
+  AbstractViewItem *active_item = nullptr;
+  AbstractViewItem *first_visible_item = nullptr;
+  this->foreach_filtered_item([&](AbstractViewItem &item) {
+    if (item.is_active()) {
+      active_item = &item;
+    }
+    if (!first_visible_item) {
+      first_visible_item = &item;
+    }
+  });
+  return active_item ? active_item : first_visible_item;
+}
+
+AbstractViewItem *AbstractGridView::navigate_left(AbstractViewItem *from)
+{
+  AbstractViewItem *next_item = nullptr;
+  bool found_active = false;
+  this->foreach_filtered_item([&](AbstractViewItem &item) {
+    found_active |= (&item == from);
+    if (!found_active) {
+      next_item = &item;
+    }
+  });
+
+  return found_active ? next_item : from;
+}
+
+AbstractViewItem *AbstractGridView::navigate_right(AbstractViewItem *from)
+{
+  AbstractViewItem *next_item = nullptr;
+  bool found_active = false;
+  this->foreach_filtered_item([&](AbstractViewItem &item) {
+    if (found_active) {
+      /* Store the element next to the active. */
+      next_item = &item;
+      found_active = false;
+    }
+    found_active = (&item == from);
+  });
+
+  return next_item ? next_item : from;
+}
+
+AbstractViewItem *AbstractGridView::navigate_up(AbstractViewItem *from)
+{
+  const std::optional<int> from_index = find_filtered_item_index(
+      dynamic_cast<const AbstractGridViewItem &>(*from));
+
+  const int next_item_index = std::clamp(
+      *from_index - cols_per_row_, 0, get_item_count_filtered() - 1);
+
+  int i = 0;
+  AbstractViewItem *next_item = nullptr;
+  this->foreach_filtered_item([&](AbstractViewItem &item) {
+    if (i == next_item_index) {
+      next_item = &item;
+    }
+    i++;
+  });
+  return next_item ? next_item : from;
+}
+
+AbstractViewItem *AbstractGridView::navigate_down(AbstractViewItem *from)
+{
+  const std::optional<int> from_index = find_filtered_item_index(
+      dynamic_cast<const AbstractGridViewItem &>(*from));
+
+  const int next_item_index = std::clamp(
+      *from_index + cols_per_row_, 0, get_item_count_filtered() - 1);
+
+  int i = 0;
+  AbstractViewItem *next_item = nullptr;
+  this->foreach_filtered_item([&](AbstractViewItem &item) {
+    if (i == next_item_index) {
+      next_item = &item;
+    }
+    i++;
+  });
+
+  return next_item ? next_item : from;
+}
+
+void AbstractGridView::scroll_active_into_view(bContext *C)
+{
+  this->foreach_filtered_item([&](AbstractViewItem &item) {
+    if (item.is_active()) {
+      Button *but = reinterpret_cast<Button *>(item.view_item_button());
+      ARegion *region = CTX_wm_region(C);
+      if (but && region) {
+        but_ensure_in_view(C, region, but);
+      }
+    }
+  });
+}
+
 GridViewStyle::GridViewStyle(int width, int height) : tile_width(width), tile_height(height) {}
 
 /* ---------------------------------------------------------------------- */
@@ -138,17 +254,17 @@ bool AbstractGridViewItem::matches(const AbstractViewItem &other) const
 void AbstractGridViewItem::add_grid_tile_button(Block &block)
 {
   const GridViewStyle &style = this->get_view().get_style();
-  view_item_but_ = (ButtonViewItem *)uiDefBut(&block,
-                                              ButtonType::ViewItem,
-                                              "",
-                                              0,
-                                              0,
-                                              style.tile_width,
-                                              style.tile_height,
-                                              nullptr,
-                                              0,
-                                              0,
-                                              "");
+  view_item_but_ = static_cast<ButtonViewItem *>(uiDefBut(&block,
+                                                          ButtonType::ViewItem,
+                                                          "",
+                                                          0,
+                                                          0,
+                                                          style.tile_width,
+                                                          style.tile_height,
+                                                          nullptr,
+                                                          0,
+                                                          0,
+                                                          ""));
 
   view_item_but_->view_item = this;
 }
@@ -233,24 +349,6 @@ BuildOnlyVisibleButtonsHelper::BuildOnlyVisibleButtonsHelper(
   if (v2d.flag & V2D_IS_INIT && grid_view.get_item_count_filtered()) {
     visible_items_range_ = this->get_visible_range(v2d, force_visible_item);
   }
-}
-
-static std::optional<int> find_filtered_item_index(const AbstractGridViewItem &item)
-{
-  BLI_assert(item.is_filtered_visible());
-
-  const AbstractGridView &view = item.get_view();
-  std::optional<int> index;
-
-  int i = 0;
-  view.foreach_filtered_item([&](AbstractGridViewItem &iter_item) {
-    if (&item == &iter_item) {
-      index = i;
-    }
-    i++;
-  });
-
-  return index;
 }
 
 IndexRange BuildOnlyVisibleButtonsHelper::get_visible_range(
@@ -355,9 +453,7 @@ class GridViewLayoutBuilder {
  public:
   GridViewLayoutBuilder(Layout &layout);
 
-  void build_from_view(const bContext &C,
-                       const AbstractGridView &grid_view,
-                       const View2D &v2d) const;
+  void build_from_view(const bContext &C, AbstractGridView &grid_view, const View2D &v2d) const;
 
  private:
   void build_grid_tile(const bContext &C, Layout &grid_layout, AbstractGridViewItem &item) const;
@@ -379,7 +475,7 @@ void GridViewLayoutBuilder::build_grid_tile(const bContext &C,
 }
 
 void GridViewLayoutBuilder::build_from_view(const bContext &C,
-                                            const AbstractGridView &grid_view,
+                                            AbstractGridView &grid_view,
                                             const View2D &v2d) const
 {
   Layout &parent_layout = this->current_layout();
@@ -394,6 +490,7 @@ void GridViewLayoutBuilder::build_from_view(const bContext &C,
                                        parent_layout.ui_units_x() * UI_UNIT_X :
                                        parent_layout.width();
   const int cols_per_row = std::max(guessed_layout_width / style.tile_width, 1);
+  grid_view.cols_per_row_ = cols_per_row;
 
   const AbstractGridViewItem *search_highlight_item = dynamic_cast<const AbstractGridViewItem *>(
       grid_view.search_highlight_item());

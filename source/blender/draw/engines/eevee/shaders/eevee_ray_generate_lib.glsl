@@ -9,22 +9,25 @@
  */
 
 #include "eevee_bxdf_sampling_lib.glsl"
-#include "eevee_ray_types_lib.glsl"
+#include "eevee_ray_types_lib.bsl.hh"
 #include "eevee_sampling_lib.glsl"
-#include "eevee_thickness_lib.glsl"
+#include "eevee_thickness_lib.bsl.hh"
 #include "gpu_shader_codegen_lib.glsl"
 
 #include "gpu_shader_math_matrix_construct_lib.glsl"
 
 /* Returns view-space ray. */
-BsdfSample ray_generate_direction(float2 noise, ClosureUndetermined cl, float3 V, float thickness)
+BsdfSample ray_generate_direction(float2 noise,
+                                  ClosureUndetermined cl,
+                                  float3 V,
+                                  Thickness thickness)
 {
   float3 random_point_on_cylinder = sample_cylinder(noise);
   /* Bias the rays so we never get really high energy rays almost parallel to the surface. */
   constexpr float rng_bias = 0.08f;
   /* When modeling object thickness as a sphere, the outgoing rays are distributed uniformly
    * over the sphere. We don't want the RAY_BIAS in this case. */
-  if (cl.type != CLOSURE_BSDF_TRANSLUCENT_ID || thickness <= 0.0f) {
+  if (cl.type != CLOSURE_BSDF_TRANSLUCENT_ID || thickness.mode() == ThicknessMode::Slab) {
     random_point_on_cylinder.x = 1.0f - random_point_on_cylinder.x * (1.0f - rng_bias);
   }
 
@@ -33,6 +36,7 @@ BsdfSample ray_generate_direction(float2 noise, ClosureUndetermined cl, float3 V
       bxdf_ggx_context_amend_transmission(cl, V, thickness);
       break;
     case CLOSURE_BSDF_MICROFACET_GGX_REFLECTION_ID:
+    case CLOSURE_BSDF_THIN_GLASS_TRANSMISSION_ID:
     case CLOSURE_BSDF_TRANSLUCENT_ID:
     case CLOSURE_BSSRDF_BURLEY_ID:
     case CLOSURE_BSDF_DIFFUSE_ID:
@@ -69,6 +73,14 @@ BsdfSample ray_generate_direction(float2 noise, ClosureUndetermined cl, float3 V
                                         to_closure_refraction(cl).ior,
                                         thickness,
                                         true);
+      break;
+    }
+    case CLOSURE_BSDF_THIN_GLASS_TRANSMISSION_ID: {
+      samp = bxdf_ggx_sample_reflection(random_point_on_cylinder,
+                                        V * tangent_to_world,
+                                        square(to_closure_thin_refraction(cl).roughness),
+                                        true);
+      samp.direction.z = -samp.direction.z;
       break;
     }
     case CLOSURE_NONE_ID:
