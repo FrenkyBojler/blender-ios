@@ -9,6 +9,7 @@
 #pragma once
 
 #include "BKE_camera.h"
+#include "BKE_image_gpu.hh"
 #include "BKE_tracking.hh"
 #include "BLI_math_color.h"
 #include "BLI_math_rotation.h"
