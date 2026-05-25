@@ -141,7 +141,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   if (!pchan) {
     params.set_default_remaining_outputs();
     if (!params.output_is_required("Exists"_ustr)) {
-      params.error_message_add(NodeWarningType::Error, TIP_("Bone not found"));
+      params.error_message_add(NodeWarningType::Error, TIP_("Bone \"{}\" not found"));
     }
     return;
   }
