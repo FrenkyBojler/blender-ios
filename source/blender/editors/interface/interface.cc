@@ -1524,7 +1524,7 @@ static std::optional<std::string> but_event_property_operator_string(const bCont
              def_but_rna__panel_type,
              def_but_rna__menu_type))
     {
-      prop_enum_value = int(but->hardmin);
+      prop_enum_value = but->retval;
       ptr = &but_parent->rnapoin;
       prop = but_parent->rnaprop;
       prop_enum_value_ok = true;
@@ -2416,7 +2416,7 @@ int button_is_pushed_ex(Button *but, double *value)
       case ButtonType::IconToggle:
       case ButtonType::Checkbox:
         UI_GET_BUT_VALUE_INIT(but, *value);
-        if (*value != double(but->hardmin)) {
+        if (int(*value) != but->retval) {
           is_push = true;
         }
         break;
@@ -4733,7 +4733,6 @@ static void def_but_rna__menu(bContext *C, Layout *layout, void *but_p)
                                     UI_UNIT_Y,
                                     &handle->retvalue,
                                     description_static);
-        button_retval_set(item_but, B_NOP);
       }
       else {
         item_but = uiDefButV(block,
@@ -4744,17 +4743,15 @@ static void def_but_rna__menu(bContext *C, Layout *layout, void *but_p)
                              UI_UNIT_X * 5,
                              UI_UNIT_X,
                              &handle->retvalue,
-                             item->value,
+                             0.0,
                              0.0,
                              description_static);
-        button_retval_set(item_but, B_NOP);
       }
       if (item->value == current_value) {
         item_but->flag |= UI_SELECT_DRAW;
       }
 
-      /* "hardmin" is used to store the value of the enum item. */
-      item_but->hardmin = float(item->value);
+      button_retval_set(item_but, item->value);
 
       if (use_enum_copy_description) {
         if (item->description && item->description[0]) {
