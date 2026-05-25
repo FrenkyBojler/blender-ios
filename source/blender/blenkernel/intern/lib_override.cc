@@ -3842,11 +3842,11 @@ static int lib_override_sort_libraries_func(LibraryIDLinkCallbackData *cb_data)
 
   /* Archive libraries, used to store packed data, should not be processed here, as conceptually
    * they are the same thing as the source/real library when it comes to dependency. And they can
-   * easily lead to fake cyclic dependencies, as packed IDs that depend on each other may end up
-   * in different archived libraries.
+   * easily lead to fake cyclic dependencies, as packed IDs that depend on each other may end up in
+   * different archived libraries.
    *
-   * Bottom line being, only consider 'real' libraries for dependencies here, the archive ones
-   * only add noise and artifacts, and do not need to be processed. */
+   * Bottom line being, only consider 'real' libraries for dependencies here, the archive ones only
+   * add noise and artifacts, and do not need to be processed. */
   auto get_real_library = [](ID *id) -> Library * {
     if (!ID_IS_LINKED(id)) {
       return nullptr;
