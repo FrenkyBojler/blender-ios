@@ -963,46 +963,49 @@ static void calc_node_uvs(const SubdivCCG &subdiv_ccg,
                           const bke::pbvh::GridsNode &node,
                           Vector<float2> &result)
 {
+  const Span<int> grids = node.grids();
   const int grid_size = subdiv_ccg.grid_size;
   const int grid_area = subdiv_ccg.grid_area;
 
-  result.resize(node.grids().size() * subdiv_ccg.grid_area);
+  result.resize(grids.size() * subdiv_ccg.grid_area);
 
   const Span<int> face_ptex_offset = bke::subdiv::face_ptex_offset_get(subdiv_ccg.subdiv);
   const float grid_size_1_inv = 1.0f / (grid_size - 1);
-  for (const int i : node.grids().index_range()) {
-    const int grid = node.grids()[i];
-    const int face_index = subdiv_ccg.grid_to_face_map[grid];
-    const IndexRange face = subdiv_ccg.faces[face_index];
-    const int corner = grid - face.start();
-    if (face.size() == 4) {
-      const int ptex_face_index = face_ptex_offset[face_index];
-      for (int y = 0; y < grid_size; y++) {
-        const float grid_v = y * grid_size_1_inv;
-        for (int x = 0; x < grid_size; x++) {
-          const float grid_u = x * grid_size_1_inv;
-          float u;
-          float v;
-          bke::subdiv::rotate_grid_to_quad(corner, grid_u, grid_v, &u, &v);
-          const int element = i * grid_area + CCG_grid_xy_to_index(grid_size, x, y);
-          bke::subdiv::eval_face_varying(
-              subdiv_ccg.subdiv, uv_map_index, ptex_face_index, u, v, result[element]);
+  threading::parallel_for(grids.index_range(), 1024, [&](const IndexRange range) {
+    for (const int i : range) {
+      const int grid = grids[i];
+      const int face_index = subdiv_ccg.grid_to_face_map[grid];
+      const IndexRange face = subdiv_ccg.faces[face_index];
+      const int corner = grid - face.start();
+      if (face.size() == 4) {
+        const int ptex_face_index = face_ptex_offset[face_index];
+        for (int y = 0; y < grid_size; y++) {
+          const float grid_v = y * grid_size_1_inv;
+          for (int x = 0; x < grid_size; x++) {
+            const float grid_u = x * grid_size_1_inv;
+            float u;
+            float v;
+            bke::subdiv::rotate_grid_to_quad(corner, grid_u, grid_v, &u, &v);
+            const int element = i * grid_area + CCG_grid_xy_to_index(grid_size, x, y);
+            bke::subdiv::eval_face_varying(
+                subdiv_ccg.subdiv, uv_map_index, ptex_face_index, u, v, result[element]);
+          }
+        }
+      }
+      else {
+        const int ptex_face_index = face_ptex_offset[face_index] + corner;
+        for (int y = 0; y < grid_size; y++) {
+          const float u = 1.0f - (y * grid_size_1_inv);
+          for (int x = 0; x < grid_size; x++) {
+            const float v = 1.0f - (x * grid_size_1_inv);
+            const int element = i * grid_area + CCG_grid_xy_to_index(grid_size, x, y);
+            bke::subdiv::eval_face_varying(
+                subdiv_ccg.subdiv, uv_map_index, ptex_face_index, u, v, result[element]);
+          }
         }
       }
     }
-    else {
-      const int ptex_face_index = face_ptex_offset[face_index] + corner;
-      for (int y = 0; y < grid_size; y++) {
-        const float u = 1.0f - (y * grid_size_1_inv);
-        for (int x = 0; x < grid_size; x++) {
-          const float v = 1.0f - (x * grid_size_1_inv);
-          const int element = i * grid_area + CCG_grid_xy_to_index(grid_size, x, y);
-          bke::subdiv::eval_face_varying(
-              subdiv_ccg.subdiv, uv_map_index, ptex_face_index, u, v, result[element]);
-        }
-      }
-    }
-  }
+  });
 }
 
 BLI_NOINLINE static void fill_uvs_grids(const Object &object,
