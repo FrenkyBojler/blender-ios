@@ -697,7 +697,7 @@ static bool ed_preview_draw_rect(
 
   RE_AcquireResultImageViews(re, &rres);
 
-  if (!BLI_listbase_is_empty(&rres.views)) {
+  if (!rres.views.is_empty()) {
     /* material preview only needs monoscopy (view 0) */
     rv = RE_RenderViewGetById(&rres, 0);
   }
@@ -920,7 +920,7 @@ static void object_preview_render(const PreviewImage *prv_img,
                                                       DEG_get_evaluated(depsgraph, scene->camera),
                                                       prv_img->w[icon_size],
                                                       prv_img->h[icon_size],
-                                                      IB_byte_data,
+                                                      ImBufFlags::ByteData,
                                                       V3D_OFSDRAW_OVERRIDE_SCENE_SETTINGS,
                                                       R_ALPHAPREMUL,
                                                       nullptr,
@@ -1038,7 +1038,7 @@ static void action_preview_render(const PreviewImage *prv_img,
                                                       camera_eval,
                                                       prv_img->w[icon_size],
                                                       prv_img->h[icon_size],
-                                                      IB_byte_data,
+                                                      ImBufFlags::ByteData,
                                                       V3D_OFSDRAW_NONE,
                                                       R_ADDSKY,
                                                       nullptr,
@@ -1100,7 +1100,7 @@ static void scene_preview_render(const PreviewImage *prv_img,
                                                       camera_eval,
                                                       prv_img->w[icon_size],
                                                       prv_img->h[icon_size],
-                                                      IB_byte_data,
+                                                      ImBufFlags::ByteData,
                                                       V3D_OFSDRAW_NONE,
                                                       R_ADDSKY,
                                                       nullptr,

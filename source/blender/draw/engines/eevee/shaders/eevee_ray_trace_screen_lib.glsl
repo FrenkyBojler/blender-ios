@@ -52,7 +52,6 @@ struct ScreenTraceHitData {
  *                     artifact when steps are too large.
  * \param roughness: Determine how lower depth mipmaps are used to make the tracing faster. Lower
  *                   roughness will use lower mipmaps.
- * \param discard_backface: If true, ray-trace will return false if we hit a surface from behind.
  * \param allow_self_intersection: If false, ray-trace will return false if the ray is not covering
  *                                 at least one pixel.
  * \param ray: View-space ray. Direction pre-multiplied by maximum length.
@@ -217,6 +216,7 @@ Ray raytrace_thickness_ray_amend(Ray ray, ClosureUndetermined cl, float3 V, Thic
     case CLOSURE_BSDF_DIFFUSE_ID:
     case CLOSURE_BSDF_MICROFACET_GGX_REFLECTION_ID:
     case CLOSURE_BSSRDF_BURLEY_ID:
+    case CLOSURE_BSDF_THIN_GLASS_TRANSMISSION_ID:
       break;
   }
   return ray;
@@ -280,7 +280,7 @@ bool clip_ray(float3 &start,
 float raytrace_screen_2(const float3 vs_origin,
                         const float3 vs_end,
                         const float3 vs_direction,
-                        sampler2D hiz_tx,
+                        sampler2D depth_tx,
                         const RayTraceData rt_data,
                         const int max_steps,
                         const float jitter,
@@ -293,16 +293,8 @@ float raytrace_screen_2(const float3 vs_origin,
   start.xyz = drw_point_view_to_screen(vs_origin);
   end.xyz = drw_point_view_to_screen(vs_end);
 
-#if 0
-  /* TODO: This should be the correct code but it currently fails when rendering probes.
-   * (The values are always the ones from the main View) */
-  const float2 extent = float2(uniform_buf.film.render_extent);
-  const float2 hiz_uv_scale = uniform_buf.hiz.uv_scale;
-#else
   const float2 extent = float2(textureSize(ob_id_tx, 0).xy);
-  const float2 hiz_uv_scale = extent / float2(textureSize(hiz_tx, 0));
-#endif
-  const float2 hiz_texel_to_uv = (float2(1.0f) / extent) * hiz_uv_scale;
+  const float2 texel_to_uv = (float2(1.0f) / extent);
 
   const float2 total_pixel_delta = abs(start.xy - end.xy) * extent;
   /* Number of steps required to trace a fully contiguous line. */
@@ -336,9 +328,9 @@ float raytrace_screen_2(const float3 vs_origin,
      * - Fetch depth using both point and linear sampling.
      * - Use the furthest one for intersection check.
      * - Use the closest one for thickness check. */
-    const float2 gather_uv = round(texel) * hiz_texel_to_uv;
+    const float2 gather_uv = round(texel) * texel_to_uv;
     const float2 bilinear_coords = fract(texel - 0.5f);
-    const float4 depth4 = textureGather(hiz_tx, gather_uv);
+    const float4 depth4 = reverse_z::read(textureGather(depth_tx, gather_uv));
     const float hit_depth_point = mix(mix(depth4.w, depth4.z, bilinear_coords.x > 0.5f),
                                       mix(depth4.x, depth4.y, bilinear_coords.x > 0.5f),
                                       bilinear_coords.y > 0.5f);

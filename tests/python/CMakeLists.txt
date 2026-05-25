@@ -442,6 +442,7 @@ add_blender_test(
 add_blender_test(
   blendfile_autosave
   --python ${CMAKE_CURRENT_LIST_DIR}/bl_blendfile_autosave.py --
+  --src-test-dir ${TEST_SRC_DIR}/io_tests/blend_autosave/
   --output-dir ${TEST_OUT_DIR}/blendfile_autosave/
 )
 
@@ -715,6 +716,8 @@ endif()
 add_blender_test(
   bl_animation_armature
   --python ${CMAKE_CURRENT_LIST_DIR}/bl_animation_armature.py
+  --
+  --testdir "${TEST_SRC_DIR}/animation"
 )
 
 add_blender_test(
@@ -907,6 +910,7 @@ if((WITH_CYCLES OR WITH_GPU_RENDER_TESTS) AND TEST_SRC_DIR_EXISTS)
     shadow_catcher
     sss
     texture
+    transparency
   )
 
   set(workbench_tests
@@ -973,7 +977,7 @@ if((WITH_CYCLES OR WITH_GPU_RENDER_TESTS) AND TEST_SRC_DIR_EXISTS)
             "Supported devices are: ${_cycles_all_test_devices}")
       endif()
       string(TOLOWER "${_cycles_device}" _cycles_device_lower)
-      set(_cycles_render_tests bake;${render_tests};osl;image_mipmap)
+      set(_cycles_render_tests bake;bake_raytrace;${render_tests};osl;image_mipmap)
 
       set(_cycles_osl_test_type none)
       if(WITH_CYCLES_OSL)
@@ -1234,6 +1238,7 @@ if(TEST_SRC_DIR_EXISTS)
     curve_primitives
     curves
     curves/interpolate_curves
+    essentials
     foreach_geometry_element_zone
     geometry
     grease_pencil

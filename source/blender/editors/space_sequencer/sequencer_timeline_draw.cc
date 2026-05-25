@@ -638,7 +638,7 @@ static void drawmeta_contents(const TimelineDrawContext &ctx,
 
   ListBaseT<Strip> *meta_seqbase = get_seqbase_from_strip(strip_meta, &meta_channels, &offset);
 
-  if (!meta_seqbase || BLI_listbase_is_empty(meta_seqbase)) {
+  if (!meta_seqbase || meta_seqbase->is_empty()) {
     return;
   }
 
@@ -777,7 +777,13 @@ static void draw_seq_text_get_source(const Strip *strip, char *r_source, size_t 
     }
     case STRIP_TYPE_SOUND: {
       if (strip->sound != nullptr) {
-        BLI_strncpy_utf8(r_source, strip->sound->filepath, source_maxncpy);
+        if (strip->sound->packedfile != nullptr) {
+          /* The sound data has been packed, don't display the path. */
+          BLI_strncpy_utf8(r_source, "<Packed File>", source_maxncpy);
+        }
+        else {
+          BLI_strncpy_utf8(r_source, strip->sound->filepath, source_maxncpy);
+        }
       }
       break;
     }
@@ -1641,7 +1647,7 @@ static void draw_timeline_sfra_efra(const TimelineDrawContext &ctx)
   ctx.quads->draw();
 
   /* While in meta strip, draw a checkerboard overlay outside of frame range. */
-  if (ed && !BLI_listbase_is_empty(&ed->metastack)) {
+  if (ed && !ed->metastack.is_empty()) {
     const MetaStack *ms = static_cast<const MetaStack *>(ed->metastack.last);
 
     uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", gpu::VertAttrType::SFLOAT_32_32);
