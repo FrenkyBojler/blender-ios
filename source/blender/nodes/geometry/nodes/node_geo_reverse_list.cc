@@ -2,6 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BKE_attribute_math.hh"
+
 #include "NOD_geometry_nodes_list.hh"
 #include "NOD_rna_define.hh"
 #include "NOD_socket.hh"
@@ -91,18 +93,42 @@ static void node_geo_exec(GeoNodeExecParams params)
     GList::ArrayData reversed_data = GList::ArrayData::ForUninitialized(type, list_size);
     GMutableSpan dst_span = reversed_data.span_for_write(type, list_size);
 
-    type.to_static_type<int, float, bool, float3, ColorGeometry4f, std::string, float4x4>(
-        [&]<typename T>() {
-          std::reverse_copy(
-              src_span.typed<T>().begin(), src_span.typed<T>().end(), dst_span.typed<T>().begin());
-        });
-
-    GListPtr reversed_list = GList::create(type, std::move(reversed_data), list_size);
-    params.set_output("List"_ustr, std::move(reversed_list));
-    return;
+    type.to_static_type<float,
+                        float2,
+                        float3,
+                        float4,
+                        int,
+                        int2,
+                        bool,
+                        int8_t,
+                        short2,
+                        ColorGeometry4f,
+                        ColorGeometry4b,
+                        math::Quaternion,
+                        float4x4,
+                        nodes::MenuValue,
+                        std::string,
+                        nodes::BundlePtr,
+                        nodes::ClosurePtr,
+                        GeometrySet,
+                        Material,
+                        Object,
+                        Image,
+                        VFont,
+                        Scene,
+                        bSound>([&]<typename T>() {
+      std::reverse_copy(
+          src_span.typed<T>().begin(), src_span.typed<T>().end(), dst_span.typed<T>().begin());
+      array_utils::gather(src_span.typed<T>(), indices.as_span(), dst_span.typed<T>());
+    });
   }
 
-  params.set_default_remaining_outputs();
+  GListPtr reversed_list = GList::create(type, std::move(reversed_data), list_size);
+  params.set_output("List"_ustr, std::move(reversed_list));
+  return;
+}
+
+params.set_default_remaining_outputs();
 }
 
 static void node_rna(StructRNA *srna)

@@ -119,15 +119,15 @@ def socket_idname_to_attribute_type(idname):
 
 def modifier_attribute_name_get(modifier, identifier):
     try:
-        return modifier[identifier + "_attribute_name"]
-    except KeyError:
+        return getattr(getattr(modifier, identifier), "attribute_name")
+    except AttributeError:
         return None
 
 
 def modifier_input_use_attribute(modifier, identifier):
     try:
-        return modifier[identifier + "_use_attribute"] != 0
-    except KeyError:
+        return getattr(getattr(modifier, identifier), "use_attribute") != 0
+    except AttributeError:
         return False
 
 

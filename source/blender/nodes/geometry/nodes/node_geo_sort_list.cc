@@ -2,6 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BKE_attribute_math.hh"
+
 #include "BLI_array_utils.hh"
 #include "BLI_sort.hh"
 
@@ -172,10 +174,32 @@ static void node_geo_exec(GeoNodeExecParams params)
     const GSpan src_span(type, array_data->data, list_size);
     GMutableSpan dst_span = sorted_array_data.span_for_write(type, list_size);
 
-    type.to_static_type<int, float, bool, float3, ColorGeometry4f, std::string, float4x4>(
-        [&]<typename T>() {
-          array_utils::gather(src_span.typed<T>(), indices.as_span(), dst_span.typed<T>());
-        });
+    type.to_static_type<float,
+                        float2,
+                        float3,
+                        float4,
+                        int,
+                        int2,
+                        bool,
+                        int8_t,
+                        short2,
+                        ColorGeometry4f,
+                        ColorGeometry4b,
+                        math::Quaternion,
+                        float4x4,
+                        nodes::MenuValue,
+                        std::string,
+                        nodes::BundlePtr,
+                        nodes::ClosurePtr,
+                        GeometrySet,
+                        Material,
+                        Object,
+                        Image,
+                        VFont,
+                        Scene,
+                        bSound>(type, [&]<typename T>() {
+      array_utils::gather(src_span.typed<T>(), indices.as_span(), dst_span.typed<T>());
+    });
   }
 
   GListPtr sorted_list = GList::create(type, std::move(sorted_array_data), list_size);
