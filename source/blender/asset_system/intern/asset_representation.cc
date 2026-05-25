@@ -296,7 +296,7 @@ AssetFileStatus AssetRepresentation::file_status() const
   if (extern_asset->online_info_) {
     return extern_asset->online_info_->file_status;
   }
-  return extern_asset->file_status;
+  return extern_asset->file_status_;
 }
 
 void AssetRepresentation::file_status_set(const AssetFileStatus status)
@@ -305,7 +305,7 @@ void AssetRepresentation::file_status_set(const AssetFileStatus status)
   if (!extern_asset || extern_asset->online_info_) {
     return;
   }
-  extern_asset->file_status = status;
+  extern_asset->file_status_ = status;
 }
 
 AssetLibrary &AssetRepresentation::owner_asset_library() const

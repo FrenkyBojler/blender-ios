@@ -62,7 +62,7 @@ class AssetRepresentation : NonCopyable, NonMovable {
      * Only meaningful for assets from a remote library that have been checked against the listing.
      * For online-only assets (#online_info_ is set), the status is stored there instead.
      */
-    AssetFileStatus file_status = AssetFileStatus::UNSET;
+    AssetFileStatus file_status_ = AssetFileStatus::UNSET;
 
     /** Set if this is an online asset only. */
     std::unique_ptr<OnlineAssetInfo> online_info_;
