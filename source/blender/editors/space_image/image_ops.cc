@@ -1595,8 +1595,8 @@ static wmOperatorStatus image_open_invoke(bContext *C, wmOperator *op, const wmE
     path = ima->filepath;
   }
 
-  /* Shift+Click opens the file. Alt+Click opens the containing folder in the OS's browser */
-  if (event->modifier & (KM_SHIFT | KM_ALT)) {
+  /* Shift+Click opens the file. Ctrl+Click opens the containing folder in the OS's browser */
+  if (event->modifier & (KM_SHIFT | KM_CTRL)) {
     char filepath[FILE_MAX];
 
     if (image_open_abs_image_path_get(C, op, ima, filepath)) {
@@ -1605,7 +1605,7 @@ static wmOperatorStatus image_open_invoke(bContext *C, wmOperator *op, const wmE
         return OPERATOR_CANCELLED;
       }
 
-      if (event->modifier & KM_ALT) {
+      if (event->modifier & KM_CTRL) {
         char *lslash = const_cast<char *>(BLI_path_slash_rfind(filepath));
         if (lslash) {
           *lslash = '\0';
@@ -1702,7 +1702,7 @@ void IMAGE_OT_open(wmOperatorType *ot)
   /* identifiers */
   ot->name = "Open Image";
   ot->description =
-      "Open an image file browser, hold Shift to open the file, Alt to browse containing "
+      "Open an image file browser, hold Shift to open the file, Ctrl to browse containing "
       "directory";
   ot->idname = "IMAGE_OT_open";
 
@@ -1792,11 +1792,11 @@ static wmOperatorStatus image_file_browse_invoke(bContext *C, wmOperator *op, co
   STRNCPY(filepath, ima->filepath);
   BLI_path_abs(filepath, ID_BLEND_PATH(bmain, &ima->id));
 
-  /* Shift+Click to open the file, Alt+Click to browse a folder in the OS's browser. */
-  if (event->modifier & (KM_SHIFT | KM_ALT)) {
+  /* Shift+Click to open the file, Ctrl+Click to browse a folder in the OS's browser. */
+  if (event->modifier & (KM_SHIFT | KM_CTRL)) {
     wmOperatorType *ot = WM_operatortype_find("WM_OT_path_open", true);
 
-    if (event->modifier & KM_ALT) {
+    if (event->modifier & KM_CTRL) {
       char *lslash = const_cast<char *>(BLI_path_slash_rfind(filepath));
       if (lslash) {
         *lslash = '\0';
@@ -1837,7 +1837,7 @@ void IMAGE_OT_file_browse(wmOperatorType *ot)
   /* identifiers */
   ot->name = "Browse Image";
   ot->description =
-      "Open an image file browser, hold Shift to open the file, Alt to browse containing "
+      "Open an image file browser, hold Shift to open the file, Ctrl to browse containing "
       "directory";
   ot->idname = "IMAGE_OT_file_browse";
 
