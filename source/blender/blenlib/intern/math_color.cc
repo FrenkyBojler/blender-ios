@@ -356,6 +356,7 @@ void okhsl_to_rgb(float h, float s, float l, float *r_r, float *r_g, float *r_b)
     return;
   }
 
+  h += 0.07f;
   float a_ = cosf(2.0f * 3.1415926536f * h);
   float b_ = sinf(2.0f * 3.1415926536f * h);
   float L = oklab_toe_inverse(l);
@@ -805,8 +806,8 @@ void rgb_to_okhsv(float r, float g, float b, float *r_h, float *r_s, float *r_v)
   l = oklab_toe(l);
 
   *r_h = (0.5f + 0.5f * atan2f(-lab_b, -lab_a) / 3.1415926536f) - 0.07f;
-  *r_v = l / l_v;
   *r_s = (s_0 + t_max) * c_v / ((t_max * s_0) + t_max * k * c_v);
+  *r_v = l / l_v;
 }
 
 void rgb_to_okhsl(float r, float g, float b, float *r_h, float *r_s, float *r_l)
@@ -818,20 +819,19 @@ void rgb_to_okhsl(float r, float g, float b, float *r_h, float *r_s, float *r_l)
   float a_ = lab_a / c;
   float b_ = lab_b / c;
 
-  *r_h = 0.5f + 0.5f * atan2f(-lab_b, -lab_a) / 3.1415926536f;
-
   float c_0, c_mid, c_max;
   oklab_get_cs(lab_l, a_, b_, &c_0, &c_mid, &c_max);
 
   float mid = 0.8f;
   float mid_inv = 1.25f;
 
+  float s;
   if (c < c_mid) {
     float k_1 = mid * c_0;
     float k_2 = (1.f - k_1 / c_mid);
 
     float t = c / (k_1 + k_2 * c);
-    *r_s = t * mid;
+    s = t * mid;
   }
   else {
     float k_0 = c_mid;
@@ -839,9 +839,11 @@ void rgb_to_okhsl(float r, float g, float b, float *r_h, float *r_s, float *r_l)
     float k_2 = (1.f - (k_1) / (c_max - c_mid));
 
     float t = (c - k_0) / (k_1 + k_2 * (c - k_0));
-    *r_s = mid + (1.f - mid) * t;
+    s = mid + (1.f - mid) * t;
   }
 
+  *r_h = (0.5f + 0.5f * atan2f(-lab_b, -lab_a) / 3.1415926536f) - 0.07f;
+  *r_s = s;
   *r_l = oklab_toe(lab_l);
 }
 

@@ -528,8 +528,6 @@ void rgb_to_okhsl(float4 rgb, float4 &outcol)
   float a_ = lab_a / c;
   float b_ = lab_b / c;
 
-  float h = 0.5f + 0.5f * atan(-lab_b, -lab_a) / 3.1415926536f;
-
   float c_0, c_mid, c_max;
   oklab_get_cs(lab_l, a_, b_, c_0, c_mid, c_max);
 
@@ -553,6 +551,7 @@ void rgb_to_okhsl(float4 rgb, float4 &outcol)
     s = mid + (1.f - mid) * t;
   }
 
+  float h = (0.5f + 0.5f * atan(-lab_b, -lab_a) / 3.1415926536f) - 0.07f;
   float l = oklab_toe(lab_l);
   outcol = float4(h, s, l, rgb[3]);
 }
@@ -560,7 +559,7 @@ void rgb_to_okhsl(float4 rgb, float4 &outcol)
 [[node]]
 void okhsl_to_rgb(float4 hsl, float4 &outcol)
 {
-  float h = hsl[0];
+  float h = hsl[0] + 0.07f;
   float s = hsl[1];
   float l = hsl[2];
 
