@@ -649,9 +649,7 @@ static wmOperatorStatus collection_importer_import_exec(bContext *C, wmOperator 
     /* Create an external archive library to serve as the namespace for all IDs imported from the
      * external file. The library is marked as both an archive (it will never be written out as a
      * separate .blend) and external (it originates outside Blender). */
-    bool is_new = false;
-    Library *external_lib = bke::library::ensure_external_library(
-        *bmain, collection->id, *reference_lib, is_new);
+    Library *external_lib = bke::library::ensure_external_library(*bmain, *reference_lib);
 
     /* Tag everything so we can make local only the new datablock. */
     BKE_main_id_tag_all(bmain, ID_TAG_PRE_EXISTING, true);
@@ -662,16 +660,6 @@ static wmOperatorStatus collection_importer_import_exec(bContext *C, wmOperator 
 
     /* Temporarily remove the importer to allow collection edits. */
     collection->importer = nullptr;
-
-    // OLD - naive approach (has double instancing issues)
-    // ID *id_iter;
-    // FOREACH_MAIN_ID_BEGIN (bmain, id_iter) {
-    //  if (GS(id_iter->name) != ID_OB) {
-    //    continue;
-    //  }
-    //  BKE_collection_object_add(bmain, collection, id_cast<Object *>(id_iter));
-    // }
-    // FOREACH_MAIN_ID_END;
 
     ViewLayer *view_layer = CTX_data_view_layer(C);
     Scene *scene = CTX_data_scene(C);

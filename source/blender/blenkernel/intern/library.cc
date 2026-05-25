@@ -788,7 +788,7 @@ void bke::library::pack_linked_id_hierarchy(Main &bmain, ID &root_id)
 
 static Library *add_external_library(Main &bmain, Library &reference_library)
 {
-  BLI_assert((reference_library.flag & LIBRARY_FLAG_IS_EXTERNAL) == 0);
+  BLI_assert((reference_library.flag & LIBRARY_FLAG_IS_EXTERNAL) != 0);
   /* Cannot copy libraries using generic ID copying functions, so create the copy manually. */
   Library *external_library = BKE_id_new<Library>(&bmain, BKE_id_name(reference_library.id));
 
@@ -814,33 +814,12 @@ static Library *add_external_library(Main &bmain, Library &reference_library)
   return external_library;
 }
 
-Library *bke::library::ensure_external_library(Main &bmain,
-                                               ID &id,
-                                               Library &reference_library,
-                                               bool &is_new)
+Library *bke::library::ensure_external_library(Main &bmain, Library &reference_library)
 {
-  BLI_assert(ID_IS_LINKED(&id));
   BLI_assert(reference_library.flag & LIBRARY_FLAG_IS_EXTERNAL);
 
-  Library *archive_library = nullptr;
-  for (Library *lib_iter : reference_library.runtime->archived_libraries) {
-    BLI_assert((lib_iter->flag & LIBRARY_FLAG_IS_EXTERNAL) != 0);
-    BLI_assert(lib_iter->archive_parent_library != nullptr);
-    BLI_assert(lib_iter->archive_parent_library == &reference_library);
-    /* Check if current archive library already contains an ID of same type and name. */
-    if (BKE_main_namemap_contain_name(bmain, lib_iter, GS(id.name), BKE_id_name(id))) {
-      continue;
-    }
-    archive_library = lib_iter;
-    break;
-  }
-  if (!archive_library) {
-    archive_library = add_external_library(bmain, reference_library);
-    is_new = true;
-  }
-  else {
-    is_new = false;
-  }
+  Library *archive_library = add_external_library(bmain, reference_library);
+
   BLI_assert(reference_library.runtime->archived_libraries.contains(archive_library));
   return archive_library;
 }
