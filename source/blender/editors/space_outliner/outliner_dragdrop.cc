@@ -1394,6 +1394,7 @@ static wmOperatorStatus collection_drop_invoke(bContext *C,
 {
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
+  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
 
   if (event->custom != EVT_DATA_DRAGDROP) {
     return OPERATOR_CANCELLED;
@@ -1414,7 +1415,6 @@ static wmOperatorStatus collection_drop_invoke(bContext *C,
   bool relative_after = false;
 
   if (ELEM(data.insert_type, TE_INSERT_BEFORE, TE_INSERT_AFTER) && dragging_collection) {
-    SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
 
     relative = data.to;
     relative_after = (data.insert_type == TE_INSERT_AFTER);
@@ -1441,7 +1441,6 @@ static wmOperatorStatus collection_drop_invoke(bContext *C,
 
   /* Only use custom sort for objects, not for collections. Collections aren't in the
    * collection's gobject list and don't have sort_index values. */
-  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
   if (space_outliner->sort_method == SO_SORT_CUSTOM && !dragging_collection) {
     is_custom_sort_move = true;
     for (CollectionObject &cob : data.to->gobject) {
