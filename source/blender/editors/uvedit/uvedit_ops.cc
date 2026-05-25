@@ -2933,6 +2933,8 @@ void ED_operatortypes_uvedit()
   WM_operatortype_append(UV_OT_select_less);
   WM_operatortype_append(UV_OT_select_overlap);
   WM_operatortype_append(UV_OT_select_by_winding);
+  WM_operatortype_append(UV_OT_select_by_texel_density);
+
   WM_operatortype_append(UV_OT_select_mode);
   WM_operatortype_append(UV_OT_select_tile);
 

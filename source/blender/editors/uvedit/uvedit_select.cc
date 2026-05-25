@@ -39,6 +39,7 @@
 #include "BKE_context.hh"
 #include "BKE_customdata.hh"
 #include "BKE_editmesh.hh"
+#include "BKE_image.hh"
 #include "BKE_layer.hh"
 #include "BKE_material.hh"
 #include "BKE_mesh.hh"
@@ -6290,6 +6291,213 @@ void UV_OT_select_by_winding(wmOperatorType *ot)
                int(UVWinding::Negative),
                "Winding",
                "Select faces with positive or negative winding");
+  RNA_def_boolean(ot->srna,
+                  "extend",
+                  false,
+                  "Extend",
+                  "Extend selection rather than clearing the existing selection");
+}
+
+enum class UVTexelUnit {
+  Inch = 0,
+  Centimeter = 1,
+  Meter = 2,
+  Foot = 3,
+};
+
+enum class UVTexelDensityMode {
+  Equal = 0,
+  Less = 1,
+  Greater = 2,
+};
+
+static bool density_matches(const float face_density,
+                            const float target_density,
+                            const UVTexelDensityMode mode)
+{
+  switch (mode) {
+    case UVTexelDensityMode::Less:
+      return face_density < target_density;
+    case UVTexelDensityMode::Greater:
+      return face_density > target_density;
+    case UVTexelDensityMode::Equal:
+    default:
+      return fabsf(face_density - target_density) < FLT_EPSILON;
+  }
+};
+static wmOperatorStatus uv_select_by_texel_density_exec(bContext *C, wmOperator *op)
+{
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  const Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
+  const ToolSettings *ts = scene->toolsettings;
+  SpaceImage *sima = CTX_wm_space_image(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  float density = RNA_float_get(op->ptr, "density");
+  UVTexelUnit unit = (UVTexelUnit)RNA_enum_get(op->ptr, "unit");
+  UVTexelDensityMode mode = (UVTexelDensityMode)RNA_enum_get(op->ptr, "mode");
+  const bool use_select_linked = ED_uvedit_select_island_check(ts);
+  const bool extend = RNA_boolean_get(op->ptr, "extend");
+
+  Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
+      *bmain, scene, view_layer, nullptr);
+
+  if (objects.is_empty()) {
+    return OPERATOR_CANCELLED;
+  }
+
+  if (unit == UVTexelUnit::Inch) {
+    density /= 0.0254;
+  }
+  else if (unit == UVTexelUnit::Centimeter) {
+    density /= 0.01;
+  }
+  else if (unit == UVTexelUnit::Foot) {
+    density /= 0.3048;
+  }
+
+  int width = 1024;
+  int height = 1024;
+
+  if (sima && sima->image) {
+    ImageTile *tile = BKE_image_get_tile(sima->image, sima->iuser.tile);
+    if (tile) {
+      width = tile->gen_x;
+      height = tile->gen_y;
+    }
+  }
+
+  if (!extend) {
+    uv_select_all_perform_multi(scene, objects, SEL_DESELECT);
+  }
+  for (Object *obedit : objects) {
+    BMesh *bm = BKE_editmesh_from_object(obedit)->bm;
+
+    BM_mesh_elem_hflag_disable_all(bm, BM_FACE, BM_ELEM_TAG, false);
+
+    const BMUVOffsets offsets = BM_uv_map_offsets_get(bm);
+
+    bool changed = false;
+
+    if (use_select_linked) {
+      UvElementMap *element_map = BM_uv_element_map_create(bm, scene, true, false, true, true);
+      if (element_map == nullptr) {
+        continue;
+      }
+
+      for (int i = 0; i < element_map->total_islands; i++) {
+        UvElement *element = element_map->storage + element_map->island_indices[i];
+        float uv_area = 0.0f;
+        float object_area = 0.0f;
+
+        for (int j = 0; j < element_map->island_total_uvs[i]; j++) {
+          BMFace *efa = element[j].l->f;
+          object_area += BM_face_calc_area(efa);
+          uv_area += BM_face_calc_area_uv(efa, offsets.uv);
+        }
+
+        const float island_density = sqrtf((width * height * uv_area) / object_area) /
+                                     scene->unit.scale_length;
+        if (density_matches(island_density, density, mode)) {
+          for (int j = 0; j < element_map->island_total_uvs[i]; j++) {
+            BM_elem_flag_enable(element[j].l->f, BM_ELEM_TAG);
+            changed = true;
+          }
+        }
+      }
+
+      BM_uv_element_map_free(element_map);
+    }
+    else {
+      BMFace *efa;
+      BMIter iter;
+      BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
+        if (!uvedit_face_visible_test(scene, efa)) {
+          continue;
+        }
+        const float object_area = BM_face_calc_area(efa);
+        const float uv_area = BM_face_calc_area_uv(efa, offsets.uv);
+
+        const float face_density = sqrtf((width * height * uv_area) / object_area) /
+                                   scene->unit.scale_length;
+        if (density_matches(face_density, density, mode)) {
+          BM_elem_flag_enable(efa, BM_ELEM_TAG);
+          changed = true;
+        }
+      }
+    }
+
+    if (changed) {
+      uv_select_flush_from_tag_face(scene, obedit, true);
+
+      if (ts->uv_flag & UV_FLAG_SELECT_SYNC) {
+        ED_uvedit_select_sync_flush(ts, bm, true);
+      }
+      else {
+        ED_uvedit_selectmode_flush(scene, bm);
+      }
+
+      uv_select_tag_update_for_object(depsgraph, ts, obedit);
+    }
+  }
+
+  return OPERATOR_FINISHED;
+}
+
+void UV_OT_select_by_texel_density(wmOperatorType *ot)
+{
+  static const EnumPropertyItem mode_items[] = {
+      {int(UVTexelDensityMode::Equal),
+       "EQUAL",
+       0,
+       "Equal",
+       "Select faces with density equal to target"},
+      {int(UVTexelDensityMode::Less),
+       "LESS",
+       0,
+       "Less Than",
+       "Select faces with density less than target"},
+      {int(UVTexelDensityMode::Greater),
+       "GREATER",
+       0,
+       "Greater Than",
+       "Select faces with density greater than target"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  static const EnumPropertyItem unit_items[] = {
+      {int(UVTexelUnit::Inch), "UNIT_INCH", 0, "Pixel/Inch", ""},
+      {int(UVTexelUnit::Centimeter), "UNIT_CENTIMETER", 0, "Pixel/Centimeter", ""},
+      {int(UVTexelUnit::Meter), "UNIT_METER", 0, "Pixel/Meter", ""},
+      {int(UVTexelUnit::Foot), "UNIT_FOOT", 0, "Pixel/Foot", ""},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  /* identifiers */
+  ot->name = "Select by Texel Density";
+  ot->description = "Select UV faces by their texel density";
+  ot->idname = "UV_OT_select_by_texel_density";
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  /* API callbacks. */
+  ot->exec = uv_select_by_texel_density_exec;
+  ot->poll = ED_operator_uvedit;
+
+  /* properties */
+
+  RNA_def_float(ot->srna,
+                "density",
+                1024.0f,
+                0.0f,
+                FLT_MAX,
+                "Texel Density",
+                "Texel density to select",
+                0.0f,
+                FLT_MAX);
+  RNA_def_enum(ot->srna, "unit", unit_items, int(UVTexelUnit::Meter), "Unit", "Density unit");
+
+  RNA_def_enum(
+      ot->srna, "mode", mode_items, int(UVTexelDensityMode::Less), "Mode", "Selection mode");
   RNA_def_boolean(ot->srna,
                   "extend",
                   false,
