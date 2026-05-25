@@ -2989,11 +2989,16 @@ void button_convert_to_unit_alt_name(Button *but, char *str, size_t str_maxncpy)
 /**
  * \param float_precision: Override the button precision.
  */
-static void get_but_string_unit(
-    Button *but, char *str, int str_maxncpy, double value, bool pad, int float_precision)
+static void get_but_string_unit(Button *but,
+                                char *str,
+                                int str_maxncpy,
+                                double value,
+                                bool pad,
+                                int float_precision,
+                                bool do_suffix)
 {
   const UnitSettings *unit = but->block->unit;
-  const int unit_type = button_unit_type_get(but);
+  const int unit_type = RNA_SUBTYPE_UNIT_VALUE(button_unit_type_get(but));
   int precision;
 
   BLI_assert(unit->scale_length > 0.0f);
@@ -3017,9 +3022,10 @@ static void get_but_string_unit(
                            str_maxncpy,
                            get_but_scale_unit(but, value),
                            precision,
-                           RNA_SUBTYPE_UNIT_VALUE(unit_type),
+                           unit_type,
                            *unit,
-                           pad);
+                           pad,
+                           do_suffix);
 }
 
 static float get_but_step_unit(Button *but, float step_default)
@@ -3169,7 +3175,11 @@ void button_string_get_ex(Button *but,
       }
 
       if (button_is_unit(but)) {
-        get_but_string_unit(but, str, str_maxncpy, value, false, prec);
+        /* In case where the unit is adaptive, include the unit in the edit string. Otherwise the
+         * unit is added as a completion hint. */
+        const int unit_type = RNA_SUBTYPE_UNIT_VALUE(button_unit_type_get(but));
+        const bool do_suffix = BKE_unit_is_adaptive(*but->block->unit, unit_type);
+        get_but_string_unit(but, str, str_maxncpy, value, false, prec, do_suffix);
       }
       else if (subtype == PROP_FACTOR) {
         if (U.factor_display_type == USER_FACTOR_AS_FACTOR) {
@@ -4031,7 +4041,7 @@ static void but_build_drawstr_float(Button *but, double value)
   }
   else if (button_is_unit(but)) {
     char new_str[UI_MAX_DRAW_STR];
-    get_but_string_unit(but, new_str, sizeof(new_str), value, true, -1);
+    get_but_string_unit(but, new_str, sizeof(new_str), value, true, -1, true);
     but->drawstr = but->str + new_str;
   }
   else {
@@ -5706,6 +5716,16 @@ const char *button_placeholder_get(Button *but)
   }
 
   return placeholder;
+}
+
+void button_completion_set(Button &but, const StringRef completion_text)
+{
+  but.completion = completion_text;
+}
+
+StringRef button_completion_get(Button &but)
+{
+  return but.completion;
 }
 
 void button_clear_selection(Button *but)

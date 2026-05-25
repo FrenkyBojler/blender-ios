@@ -2371,6 +2371,7 @@ static void widget_draw_text(const uiFontStyle *fstyle,
   const char *drawstr_right = nullptr;
   bool use_right_only = false;
   const char *indeterminate_str = UI_VALUE_INDETERMINATE_CHAR;
+  StringRef completion = button_completion_get(*but);
 
 #ifdef WITH_INPUT_IME
   const wmIMEData *ime_data;
@@ -2395,6 +2396,7 @@ static void widget_draw_text(const uiFontStyle *fstyle,
     Button *but_edit = button_drag_multi_edit_get(but);
     if (but_edit) {
       drawstr = but_edit->editstr;
+      completion = button_completion_get(*but_edit);
       align = UI_STYLE_TEXT_LEFT;
     }
   }
@@ -2661,6 +2663,33 @@ static void widget_draw_text(const uiFontStyle *fstyle,
             BLF_draw(fstyle->uifont_id, "_", 2);
           }
         }
+      }
+
+      if (!completion.is_empty() && drawstr[0] != '\0') {
+        rcti text_bounds;
+        BLF_boundbox(fstyle->uifont_id, drawstr + but->ofs, drawlen, &text_bounds);
+
+        /* Draw completion with 33% opacity. */
+        uiFontStyle style = *fstyle;
+        style.shadow = 0;
+        uchar col[4];
+        copy_v4_v4_uchar(col, wcol->text);
+        col[3] *= 0.33f;
+
+        rcti completion_rect;
+        completion_rect.xmin = rect->xmin + text_bounds.xmax;
+        completion_rect.ymin = rect->ymin;
+        completion_rect.xmax = rect->xmax;
+        completion_rect.ymax = rect->ymax;
+        fontstyle_draw_ex(&style,
+                          &completion_rect,
+                          completion.data(),
+                          completion.size(),
+                          col,
+                          &params,
+                          nullptr,
+                          nullptr,
+                          nullptr);
       }
     }
   }

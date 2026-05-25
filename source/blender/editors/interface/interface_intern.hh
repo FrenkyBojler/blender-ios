@@ -217,6 +217,8 @@ struct Button : NonMovable {
 
   char *placeholder = nullptr;
 
+  std::string completion;
+
   /** Block relative coordinates. */
   rctf rect = {};
 
@@ -911,6 +913,8 @@ Button *button_drag_multi_edit_get(Button *but);
  * Get the hint that describes the expected value when empty.
  */
 const char *button_placeholder_get(Button *but);
+
+StringRef button_completion_get(Button &but);
 
 void def_but_icon(Button *but, int icon, int flag);
 /**

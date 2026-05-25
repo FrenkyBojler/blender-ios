@@ -56,6 +56,7 @@
 
 #include "IMB_colormanagement.hh"
 
+#include "ED_numinput.hh"
 #include "ED_screen.hh"
 #include "ED_undo.hh"
 
@@ -65,6 +66,8 @@
 #include "UI_string_search.hh"
 
 #include "BLF_api.hh"
+
+#include "BPY_extern_run.hh"
 
 #include "buttons/interface_textbox.hh"
 #include "interface_intern.hh"
@@ -3648,6 +3651,77 @@ const wmIMEData *button_ime_data_get(Button *but)
 }
 #endif /* WITH_INPUT_IME */
 
+static void button_text_completion(bContext *C, Button *but, HandleButtonData *data)
+{
+  /* Unit completion (hint) is only done for buttons with a unit or with a property of type
+   * PROP_PIXEL or PROP_PERCENTAGE. For everything else, we reset the completion to nullptr. */
+  if (!button_is_unit(but) &&
+      (but->rnaprop && !ELEM(RNA_property_subtype(but->rnaprop), PROP_PIXEL, PROP_PERCENTAGE)))
+  {
+    button_completion_set(*but, {});
+    return;
+  }
+
+  /* Set the completion  text (hint) to the unit that is used by this value. */
+  std::string name_short;
+  const int unit_type = RNA_SUBTYPE_UNIT_VALUE(button_unit_type_get(but));
+  if (unit_type != PROP_NONE) {
+    /* If the string contains the unit already, don't add it as a hint. */
+    if (BKE_unit_string_contains_unit(data->text_edit.edit_string, unit_type)) {
+      button_completion_set(*but, {});
+      return;
+    }
+
+    /* If the number we're entering is not valid, don't show the hint. */
+    double value;
+    if (!BPY_run_string_as_number(C, nullptr, data->text_edit.edit_string, nullptr, &value)) {
+      button_completion_set(*but, {});
+      return;
+    }
+
+    const void *usys;
+    int len;
+    UnitSettings &unit_settings = CTX_data_scene(C)->unit;
+    BKE_unit_system_get(unit_settings.system, unit_type, &usys, &len);
+    const int unit_index = BKE_unit_of_type_or_default(unit_settings, unit_type);
+    name_short = BKE_unit_display_name_short_get(usys, unit_index);
+  }
+  else if (but->rnaprop) {
+    /* Special handling for PROP_PIXEL and PROP_PERCENTAGE (because they are not treated as units
+     * unfortunatly). */
+    const PropertySubType subtype = RNA_property_subtype(but->rnaprop);
+    if (ELEM(subtype, PROP_PIXEL, PROP_PERCENTAGE)) {
+      switch (subtype) {
+        case PROP_PIXEL:
+          name_short = "px";
+          break;
+        case PROP_PERCENTAGE:
+          name_short = "%";
+        default:
+          break;
+      }
+
+      /* If the string contains the unit already, don't add it as a hint. */
+      std::string str = data->text_edit.edit_string;
+      if (str.find(name_short) != std::string::npos) {
+        button_completion_set(*but, {});
+        return;
+      }
+
+      /* If the number we're entering is not valid, don't show the hint. */
+      double value;
+      if (!BPY_run_string_as_number(C, nullptr, data->text_edit.edit_string, nullptr, &value)) {
+        button_completion_set(*but, {});
+        return;
+      }
+    }
+  }
+
+  /* Add a space before the short unit name. */
+  std::string text_completion = " " + name_short;
+  button_completion_set(*but, text_completion);
+}
+
 static void textedit_begin(bContext *C, Button *but, HandleButtonData *data)
 {
   TextEdit &text_edit = data->text_edit;
@@ -3769,6 +3843,8 @@ static void textedit_begin(bContext *C, Button *but, HandleButtonData *data)
   but->flag &= ~BUT_REDALERT;
 
   button_update(but);
+
+  button_text_completion(C, but, data);
 
   /* Make sure the edited button is in view. */
   if (data->searchbox) {
@@ -4399,6 +4475,8 @@ static int do_but_textedit(
     if ((skip_undo_push == false) && (text_edit.undo_stack_text != nullptr)) {
       textedit_undo_push(text_edit.undo_stack_text, text_edit.edit_string, but->pos);
     }
+
+    button_text_completion(C, but, data);
 
     /* only do live update when but flag request it (BUT_TEXTEDIT_UPDATE). */
     if (update && data->interactive) {
