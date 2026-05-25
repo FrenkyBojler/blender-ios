@@ -74,8 +74,9 @@ static void node_declare(NodeDeclarationBuilder &b)
 
   b.add_output<decl::Float>("Energy"_ustr)
       .propagate_references()
-      .description("Average wavelet detail energy at the given time in the selected band. "
-                   "Values scale with source loudness; louder audio produces larger values")
+      .description(
+          "Average wavelet detail energy at the given time in the selected band. "
+          "Values scale with source loudness; louder audio produces larger values")
       .structure_type(StructureType::Dynamic);
   b.add_output<decl::Bool>("Above Threshold"_ustr)
       .propagate_references()

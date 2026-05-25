@@ -2604,12 +2604,10 @@ static void db4_decompose(const Span<float> signal,
   const int safe_count = (n - 8) / 2 + 1; /* largest i where 2*i + 7 <= n-1 */
   for (int i = 0; i < safe_count; i++) {
     const float *s = sig + 2 * i;
-    low[i] = DB4_LO[0] * s[0] + DB4_LO[1] * s[1] + DB4_LO[2] * s[2] +
-             DB4_LO[3] * s[3] + DB4_LO[4] * s[4] + DB4_LO[5] * s[5] +
-             DB4_LO[6] * s[6] + DB4_LO[7] * s[7];
-    high[i] = DB4_HI[0] * s[0] + DB4_HI[1] * s[1] + DB4_HI[2] * s[2] +
-              DB4_HI[3] * s[3] + DB4_HI[4] * s[4] + DB4_HI[5] * s[5] +
-              DB4_HI[6] * s[6] + DB4_HI[7] * s[7];
+    low[i] = DB4_LO[0] * s[0] + DB4_LO[1] * s[1] + DB4_LO[2] * s[2] + DB4_LO[3] * s[3] +
+             DB4_LO[4] * s[4] + DB4_LO[5] * s[5] + DB4_LO[6] * s[6] + DB4_LO[7] * s[7];
+    high[i] = DB4_HI[0] * s[0] + DB4_HI[1] * s[1] + DB4_HI[2] * s[2] + DB4_HI[3] * s[3] +
+              DB4_HI[4] * s[4] + DB4_HI[5] * s[5] + DB4_HI[6] * s[6] + DB4_HI[7] * s[7];
   }
 
   /* Boundary samples: use bitmask instead of modulo since all window sizes are powers of 2. */
@@ -2682,8 +2680,7 @@ bSoundWaveletEnergySampler::bSoundWaveletEnergySampler(AUD_Sound sound, const Ke
   /* 87.5% overlap, matching the frequency sampler stride ratio. */
   window_cache_stride_ = key.window_size / 8;
   const int total_samples = int(double(info.length) * info.specs.samplerate);
-  const int window_caches_num = (total_samples + window_cache_stride_ - 1) /
-                                window_cache_stride_;
+  const int window_caches_num = (total_samples + window_cache_stride_ - 1) / window_cache_stride_;
   window_caches_.reinitialize(window_caches_num);
 #else
   UNUSED_VARS(sound, key);
