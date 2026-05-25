@@ -1482,6 +1482,14 @@ static void node_socket_tooltip_set(ui::Block &block,
       nullptr);
 }
 
+static void node_header_custom_tooltip(const bNodeTree &ntree, const bNode &node, ui::Button &but)
+{
+  button_func_tooltip_custom_set_cpp(but,
+                                     [&node, &ntree, &but](bContext &C, ui::TooltipData &data) {
+                                       build_node_tooltip(data, C, &but, ntree, node);
+                                     });
+}
+
 static const float virtual_node_socket_outline_color[4] = {0.5, 0.5, 0.5, 1.0};
 
 static void node_socket_outline_color_get(const bool selected,
@@ -2199,11 +2207,7 @@ static void node_add_error_message_button(const TreeDrawContext &tree_draw_ctx,
 
     ui::Button *but = add_error_message_button(
         block, rect, nodes::node_warning_type_icon(display_type), icon_offset);
-    button_func_quick_tooltip_set(
-        but,
-        [warnings = Array<nodes::eval_log::NodeWarning>(warnings)](const ui::Button * /*but*/) {
-          return node_errors_tooltip_fn(warnings);
-        });
+    node_header_custom_tooltip(ntree, node, *but);
     return;
   }
   if (ntree.type == NTREE_SHADER) {
@@ -2813,32 +2817,6 @@ static ColorTheme4f node_header_color_get(const bNodeTree &ntree,
   }
 
   return color_header;
-}
-
-static void node_header_custom_tooltip(const bNodeTree &ntree, const bNode &node, ui::Button &but)
-{
-  button_func_tooltip_custom_set_cpp(
-      but, [&node, &ntree](bContext & /*C*/, ui::TooltipData &data) {
-        const std::string description = node.typeinfo->ui_description_fn ?
-                                            TIP_(node.typeinfo->ui_description_fn(node)) :
-                                            TIP_(node.typeinfo->ui_description);
-        if (!description.empty()) {
-          tooltip_text_field_add(
-              data, std::move(description), "", ui::TIP_STYLE_NORMAL, ui::TIP_LC_NORMAL);
-        }
-        if (U.flag & USER_TOOLTIPS_PYTHON) {
-          PointerRNA nodeptr = RNA_pointer_create_discrete(
-              const_cast<ID *>(&ntree.id), RNA_Node, const_cast<bNode *>(&node));
-          tooltip_text_field_add(data,
-                                 fmt::format("Python: {}\n{}",
-                                             node.idname,
-                                             RNA_path_full_struct_py(&nodeptr).value_or("")),
-                                 "",
-                                 ui::TIP_STYLE_MONO,
-                                 ui::TIP_LC_DIMMED,
-                                 !description.empty());
-        }
-      });
 }
 
 static void node_draw_basis(const bContext &C,

@@ -663,6 +663,14 @@ void build_socket_tooltip(ui::TooltipData &tip_data,
                           const bNodeTree &tree,
                           const bNodeSocket &socket);
 
+/* node_tooltip.cc*/
+
+void build_node_tooltip(ui::TooltipData &tip_data,
+                        bContext &C,
+                        ui::Button *but,
+                        const bNodeTree &tree,
+                        const bNode &node);
+
 /** node_tree_interface_ui.cc */
 
 void node_tree_interface_panel_register(ARegionType *art);
