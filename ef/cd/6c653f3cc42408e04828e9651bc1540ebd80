@@ -1,1 +1,2 @@
 Referenced by issue #158992, Crash when opening another blend file with "Current File" outliner
+Referenced by pull request #159030, Fix #158992: Crash displaying linked shape keys in outliner
