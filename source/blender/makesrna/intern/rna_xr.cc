@@ -20,10 +20,17 @@
 
 #ifdef RNA_RUNTIME
 
+#  include "BLI_listbase.h"
 #  include "BLI_math_rotation.h"
 #  include "BLI_math_vector.h"
+#  include "BLI_string.h"
+
+#  include "BKE_context.hh"
+#  include "BKE_main.hh"
 
 #  include "WM_api.hh"
+
+namespace blender {
 
 /* -------------------------------------------------------------------- */
 
@@ -33,7 +40,7 @@ static wmXrData *rna_XrSession_wm_xr_data_get(PointerRNA *ptr)
   /* Callers could also get XrSessionState pointer through ptr->data, but prefer if we just
    * consistently pass wmXrData pointers to the WM_xr_xxx() API. */
 
-  BLI_assert(ELEM(ptr->type, &RNA_XrSessionSettings, &RNA_XrSessionState));
+  BLI_assert(ELEM(ptr->type, RNA_XrSessionSettings, RNA_XrSessionState));
 
   wmWindowManager *wm = (wmWindowManager *)ptr->owner_id;
   BLI_assert(wm && (GS(wm->id.name) == ID_WM));
@@ -49,7 +56,7 @@ static wmXrData *rna_XrSession_wm_xr_data_get(PointerRNA *ptr)
 static XrComponentPath *rna_XrComponentPath_new(XrActionMapBinding *amb, const char *path_str)
 {
 #  ifdef WITH_XR_OPENXR
-  XrComponentPath *component_path = MEM_callocN<XrComponentPath>(__func__);
+  XrComponentPath *component_path = MEM_new<XrComponentPath>(__func__);
   STRNCPY(component_path->path, path_str);
   BLI_addtail(&amb->component_paths, component_path);
   return component_path;
@@ -152,7 +159,7 @@ static int rna_XrActionMapBinding_component_paths_length(PointerRNA *ptr)
 {
 #  ifdef WITH_XR_OPENXR
   XrActionMapBinding *amb = (XrActionMapBinding *)ptr->data;
-  return BLI_listbase_count(&amb->component_paths);
+  return amb->component_paths.count();
 #  else
   UNUSED_VARS(ptr);
   return 0;
@@ -180,7 +187,7 @@ static void rna_XrActionMapBinding_axis0_region_set(PointerRNA *ptr, int value)
 #  ifdef WITH_XR_OPENXR
   XrActionMapBinding *amb = static_cast<XrActionMapBinding *>(ptr->data);
   amb->axis_flag &= ~(XR_AXIS0_POS | XR_AXIS0_NEG);
-  amb->axis_flag |= value;
+  amb->axis_flag |= eXrAxisFlag(value);
 #  else
   UNUSED_VARS(ptr, value);
 #  endif
@@ -207,7 +214,7 @@ static void rna_XrActionMapBinding_axis1_region_set(PointerRNA *ptr, int value)
 #  ifdef WITH_XR_OPENXR
   XrActionMapBinding *amb = static_cast<XrActionMapBinding *>(ptr->data);
   amb->axis_flag &= ~(XR_AXIS1_POS | XR_AXIS1_NEG);
-  amb->axis_flag |= value;
+  amb->axis_flag |= eXrAxisFlag(value);
 #  else
   UNUSED_VARS(ptr, value);
 #  endif
@@ -218,7 +225,7 @@ static void rna_XrActionMapBinding_name_update(Main *bmain, Scene * /*scene*/, P
 #  ifdef WITH_XR_OPENXR
   wmWindowManager *wm = static_cast<wmWindowManager *>(bmain->wm.first);
   if (wm && wm->xr.runtime) {
-    ListBase *actionmaps = WM_xr_actionmaps_get(wm->xr.runtime);
+    ListBaseT<XrActionMap> *actionmaps = WM_xr_actionmaps_get(wm->xr.runtime);
     short idx = WM_xr_actionmap_selected_index_get(wm->xr.runtime);
     XrActionMap *actionmap = static_cast<XrActionMap *>(BLI_findlink(actionmaps, idx));
     if (actionmap) {
@@ -238,7 +245,7 @@ static void rna_XrActionMapBinding_name_update(Main *bmain, Scene * /*scene*/, P
 static XrUserPath *rna_XrUserPath_new(XrActionMapItem *ami, const char *path_str)
 {
 #  ifdef WITH_XR_OPENXR
-  XrUserPath *user_path = MEM_callocN<XrUserPath>(__func__);
+  XrUserPath *user_path = MEM_new<XrUserPath>(__func__);
   STRNCPY(user_path->path, path_str);
   BLI_addtail(&ami->user_paths, user_path);
   return user_path;
@@ -335,7 +342,7 @@ static int rna_XrActionMapItem_user_paths_length(PointerRNA *ptr)
 {
 #  ifdef WITH_XR_OPENXR
   XrActionMapItem *ami = (XrActionMapItem *)ptr->data;
-  return BLI_listbase_count(&ami->user_paths);
+  return ami->user_paths.count();
 #  else
   UNUSED_VARS(ptr);
   return 0;
@@ -463,7 +470,7 @@ static void rna_XrActionMapItem_haptic_mode_set(PointerRNA *ptr, int value)
 #  ifdef WITH_XR_OPENXR
   XrActionMapItem *ami = static_cast<XrActionMapItem *>(ptr->data);
   ami->haptic_flag &= ~(XR_HAPTIC_PRESS | XR_HAPTIC_RELEASE | XR_HAPTIC_REPEAT);
-  ami->haptic_flag |= value;
+  ami->haptic_flag |= eXrHapticFlag(value);
 #  else
   UNUSED_VARS(ptr, value);
 #  endif
@@ -529,7 +536,7 @@ static int rna_XrActionMapItem_bindings_length(PointerRNA *ptr)
 {
 #  ifdef WITH_XR_OPENXR
   XrActionMapItem *ami = (XrActionMapItem *)ptr->data;
-  return BLI_listbase_count(&ami->bindings);
+  return ami->bindings.count();
 #  else
   UNUSED_VARS(ptr);
   return 0;
@@ -541,7 +548,7 @@ static void rna_XrActionMapItem_name_update(Main *bmain, Scene * /*scene*/, Poin
 #  ifdef WITH_XR_OPENXR
   wmWindowManager *wm = static_cast<wmWindowManager *>(bmain->wm.first);
   if (wm && wm->xr.runtime) {
-    ListBase *actionmaps = WM_xr_actionmaps_get(wm->xr.runtime);
+    ListBaseT<XrActionMap> *actionmaps = WM_xr_actionmaps_get(wm->xr.runtime);
     short idx = WM_xr_actionmap_selected_index_get(wm->xr.runtime);
     XrActionMap *actionmap = static_cast<XrActionMap *>(BLI_findlink(actionmaps, idx));
     if (actionmap) {
@@ -626,7 +633,7 @@ static int rna_XrActionMap_items_length(PointerRNA *ptr)
 {
 #  ifdef WITH_XR_OPENXR
   XrActionMap *actionmap = (XrActionMap *)ptr->data;
-  return BLI_listbase_count(&actionmap->items);
+  return actionmap->items.count();
 #  else
   UNUSED_VARS(ptr);
   return 0;
@@ -757,7 +764,7 @@ static bool rna_XrSessionState_action_create(bContext *C,
 {
 #  ifdef WITH_XR_OPENXR
   wmWindowManager *wm = CTX_wm_manager(C);
-  if (BLI_listbase_is_empty(&ami->user_paths)) {
+  if (ami->user_paths.is_empty()) {
     return false;
   }
 
@@ -807,8 +814,8 @@ static bool rna_XrSessionState_action_binding_create(bContext *C,
 {
 #  ifdef WITH_XR_OPENXR
   wmWindowManager *wm = CTX_wm_manager(C);
-  const int count_user_paths = BLI_listbase_count(&ami->user_paths);
-  const int count_component_paths = BLI_listbase_count(&amb->component_paths);
+  const int count_user_paths = ami->user_paths.count();
+  const int count_component_paths = amb->component_paths.count();
   if (count_user_paths < 1 || (count_user_paths != count_component_paths)) {
     return false;
   }
@@ -1085,11 +1092,24 @@ static void rna_XrSessionState_nav_scale_set(PointerRNA *ptr, float value)
 #  endif
 }
 
+static float rna_XrSessionState_viewer_scale_get(PointerRNA *ptr)
+{
+  float value;
+#  ifdef WITH_XR_OPENXR
+  const wmXrData *xr = rna_XrSession_wm_xr_data_get(ptr);
+  WM_xr_session_state_viewer_scale_get(xr, &value);
+#  else
+  UNUSED_VARS(ptr);
+  value = 1.0f;
+#  endif
+  return value;
+}
+
 static void rna_XrSessionState_actionmaps_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
 #  ifdef WITH_XR_OPENXR
   wmXrData *xr = rna_XrSession_wm_xr_data_get(ptr);
-  ListBase *lb = WM_xr_actionmaps_get(xr->runtime);
+  ListBaseT<XrActionMap> *lb = WM_xr_actionmaps_get(xr->runtime);
   rna_iterator_listbase_begin(iter, ptr, lb, nullptr);
 #  else
   UNUSED_VARS(iter, ptr);
@@ -1100,8 +1120,8 @@ static int rna_XrSessionState_actionmaps_length(PointerRNA *ptr)
 {
 #  ifdef WITH_XR_OPENXR
   wmXrData *xr = rna_XrSession_wm_xr_data_get(ptr);
-  ListBase *lb = WM_xr_actionmaps_get(xr->runtime);
-  return BLI_listbase_count(lb);
+  ListBaseT<XrActionMap> *lb = WM_xr_actionmaps_get(xr->runtime);
+  return lb->count();
 #  else
   UNUSED_VARS(ptr);
   return 0;
@@ -1345,7 +1365,11 @@ static bool rna_XrEventData_bimanual_get(PointerRNA *ptr)
 
 /** \} */
 
+}  // namespace blender
+
 #else /* RNA_RUNTIME */
+
+namespace blender {
 
 /* -------------------------------------------------------------------- */
 
@@ -1982,7 +2006,7 @@ static void rna_def_xr_session_settings(BlenderRNA *brna)
   RNA_def_property_update(prop, NC_WM | ND_XR_DATA_CHANGED, nullptr);
 
   prop = RNA_def_property(srna, "base_scale", PROP_FLOAT, PROP_NONE);
-  RNA_def_property_ui_text(prop, "Base Scale", "Uniform scale to apply to VR view");
+  RNA_def_property_ui_text(prop, "Base Scale", "Uniform base pose scale to apply to VR view");
   RNA_def_property_range(prop, 1e-6f, FLT_MAX);
   RNA_def_property_ui_range(prop, 0.001f, FLT_MAX, 10, 3);
   RNA_def_property_float_default(prop, 1.0f);
@@ -2049,6 +2073,16 @@ static void rna_def_xr_session_settings(BlenderRNA *brna)
   RNA_def_property_range(prop, 1e-6f, FLT_MAX);
   RNA_def_property_ui_range(prop, 0.001f, FLT_MAX, 0.5 * 100, 3);
   RNA_def_property_ui_text(prop, "Fly Speed", "Fly speed in meters per second");
+  RNA_def_property_update(prop, NC_WM | ND_XR_DATA_CHANGED, nullptr);
+
+  prop = RNA_def_property(srna, "view_scale", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_ui_text(
+      prop,
+      "View Scale",
+      "Scaling factor applied to the VR view for fine adjustements. "
+      "Modifying this value will keep the viewer at the same world relative position");
+  RNA_def_property_range(prop, 1e-6f, FLT_MAX);
+  RNA_def_property_ui_range(prop, 0.001f, 100.0f, 0.1f, 4);
   RNA_def_property_update(prop, NC_WM | ND_XR_DATA_CHANGED, nullptr);
 
   prop = RNA_def_property(srna, "use_positional_tracking", PROP_BOOLEAN, PROP_NONE);
@@ -2409,10 +2443,17 @@ static void rna_def_xr_session_state(BlenderRNA *brna)
   prop = RNA_def_property(srna, "navigation_scale", PROP_FLOAT, PROP_NONE);
   RNA_def_property_float_funcs(
       prop, "rna_XrSessionState_nav_scale_get", "rna_XrSessionState_nav_scale_set", nullptr);
-  RNA_def_property_ui_text(
-      prop,
-      "Navigation Scale",
-      "Additional scale multiplier to apply to base scale when determining viewer scale");
+  RNA_def_property_ui_text(prop,
+                           "Navigation Scale",
+                           "Navigation scale multiplier applied when determining viewer scale");
+
+  prop = RNA_def_property(srna, "viewer_scale", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_funcs(prop, "rna_XrSessionState_viewer_scale_get", nullptr, nullptr);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_ui_text(prop,
+                           "Viewer Scale",
+                           "Viewer XR scale factor, computed from the navigation scale, "
+                           "view scale session setting, and active scene unit scale");
 
   prop = RNA_def_property(srna, "actionmaps", PROP_COLLECTION, PROP_NONE);
   RNA_def_property_struct_type(prop, "XrActionMap");
@@ -2561,5 +2602,7 @@ void RNA_def_xr(BlenderRNA *brna)
 
   RNA_define_animate_sdna(true);
 }
+
+}  // namespace blender
 
 #endif /* RNA_RUNTIME */

@@ -14,35 +14,74 @@
 #include "BLI_math_vector.hh"
 #include "BLI_task.hh"
 
+#include "DNA_sequence_types.h"
+
 #include "IMB_imbuf.hh"
+
+namespace blender {
 
 struct bContext;
 struct ARegionType;
 struct ImBuf;
 struct Strip;
-struct uiLayout;
 struct Panel;
 struct PanelType;
 struct PointerRNA;
 
-namespace blender::seq {
+namespace ui {
+struct Layout;
+}  // namespace ui
+
+namespace seq {
 
 struct RenderData;
 struct SeqRenderState;
 
-/* `transform` is transformation from strip image local pixel coordinates
- * to the full render area pixel coordinates. This is used to sample
- * modifier masks (since masks are in full render area space). */
-void modifier_apply_stack(const RenderData *context,
-                          SeqRenderState *state,
-                          const Strip *strip,
-                          const float3x3 &transform,
-                          ImBuf *ibuf,
-                          int timeline_frame);
+struct ModifierApplyContext {
+  ModifierApplyContext(const RenderData &render_data,
+                       SeqRenderState &render_state,
+                       const Strip &strip,
+                       const float3x3 &transform,
+                       const float3x3 &transform_comp_result,
+                       const float timeline_frame,
+                       ImBuf *image)
+      : render_data(render_data),
+        render_state(render_state),
+        strip(strip),
+        transform(transform),
+        transform_comp_result(transform_comp_result),
+        timeline_frame(timeline_frame),
+        image(image)
+  {
+  }
+  const RenderData &render_data;
+  SeqRenderState &render_state;
+  const Strip &strip;
+
+  /* Transformation from strip image local pixel coordinates to the
+   * full render area pixel coordinates.This is used to sample
+   * modifier masks (since masks are in full render area space). */
+  const float3x3 transform;
+  /* Transformation to apply when sampling masks in compositor modifier. */
+  const float3x3 transform_comp_result;
+  /* Timeline frame at which the modifiers are being applied at. */
+  const float timeline_frame;
+  ImBuf *const image;
+
+  /* How much the resulting image should be translated, in pixels.
+   * Compositor modifier can have some nodes that translate the output
+   * image. */
+  float2 result_translation = float2(0, 0);
+};
+
+void modifier_apply_stack(ModifierApplyContext &context);
+
+ImBuf *modifier_render_mask_input(const ModifierApplyContext &context,
+                                  const StripModifierData &smd);
 
 bool modifier_persistent_uids_are_valid(const Strip &strip);
 
-void draw_mask_input_type_settings(const bContext *C, uiLayout *layout, PointerRNA *ptr);
+void draw_mask_input_type_settings(const bContext *C, ui::Layout &layout, PointerRNA *ptr);
 
 bool modifier_ui_poll(const bContext *C, PanelType *pt);
 
@@ -76,12 +115,12 @@ struct MaskSamplerNone {
 struct MaskSamplerDirectFloat {
   MaskSamplerDirectFloat(const ImBuf *mask) : mask(mask)
   {
-    BLI_assert(mask && mask->float_buffer.data);
+    BLI_assert(mask && mask->float_data());
   }
   void begin_row(int64_t y)
   {
     BLI_assert(y >= 0 && y < mask->y);
-    ptr = mask->float_buffer.data + y * mask->x * 4;
+    ptr = mask->float_data() + y * mask->x * 4;
   }
   void apply_mask(const float4 input, float4 &result)
   {
@@ -106,12 +145,12 @@ struct MaskSamplerDirectFloat {
 struct MaskSamplerDirectByte {
   MaskSamplerDirectByte(const ImBuf *mask) : mask(mask)
   {
-    BLI_assert(mask && mask->byte_buffer.data);
+    BLI_assert(mask && mask->byte_data());
   }
   void begin_row(int64_t y)
   {
     BLI_assert(y >= 0 && y < mask->y);
-    ptr = mask->byte_buffer.data + y * mask->x * 4;
+    ptr = mask->byte_data() + y * mask->x * 4;
   }
   void apply_mask(const float4 input, float4 &result)
   {
@@ -138,7 +177,7 @@ struct MaskSamplerTransformedFloat {
   MaskSamplerTransformedFloat(const ImBuf *mask, const float3x3 &transform)
       : mask(mask), transform(transform)
   {
-    BLI_assert(mask && mask->float_buffer.data);
+    BLI_assert(mask && mask->float_data());
     start_uv = transform.location().xy();
     add_x = transform.x_axis().xy();
     add_y = transform.y_axis().xy();
@@ -155,7 +194,7 @@ struct MaskSamplerTransformedFloat {
     float2 uv = this->cur_uv_row + this->cur_x * this->add_x - 0.5f;
     float4 m;
     math::interpolate_bilinear_border_fl(
-        this->mask->float_buffer.data, m, this->mask->x, this->mask->y, 4, uv.x, uv.y);
+        this->mask->float_data(), m, this->mask->x, this->mask->y, 4, uv.x, uv.y);
     result.x = math::interpolate(input.x, result.x, m.x);
     result.y = math::interpolate(input.y, result.y, m.y);
     result.z = math::interpolate(input.z, result.z, m.z);
@@ -166,7 +205,7 @@ struct MaskSamplerTransformedFloat {
     float2 uv = this->cur_uv_row + this->cur_x * this->add_x - 0.5f;
     float4 m;
     math::interpolate_bilinear_border_fl(
-        this->mask->float_buffer.data, m, this->mask->x, this->mask->y, 4, uv.x, uv.y);
+        this->mask->float_data(), m, this->mask->x, this->mask->y, 4, uv.x, uv.y);
     float r = min_fff(m.x, m.y, m.z);
     this->cur_x++;
     return r;
@@ -184,7 +223,7 @@ struct MaskSamplerTransformedByte {
   MaskSamplerTransformedByte(const ImBuf *mask, const float3x3 &transform)
       : mask(mask), transform(transform)
   {
-    BLI_assert(mask && mask->byte_buffer.data);
+    BLI_assert(mask && mask->byte_data());
     start_uv = transform.location().xy();
     add_x = transform.x_axis().xy();
     add_y = transform.y_axis().xy();
@@ -200,7 +239,7 @@ struct MaskSamplerTransformedByte {
   {
     float2 uv = this->cur_uv_row + this->cur_x * this->add_x - 0.5f;
     uchar4 mb = math::interpolate_bilinear_border_byte(
-        this->mask->byte_buffer.data, this->mask->x, this->mask->y, uv.x, uv.y);
+        this->mask->byte_data(), this->mask->x, this->mask->y, uv.x, uv.y);
     float3 m;
     rgb_uchar_to_float(m, mb);
     result.x = math::interpolate(input.x, result.x, m.x);
@@ -212,7 +251,7 @@ struct MaskSamplerTransformedByte {
   {
     float2 uv = this->cur_uv_row + this->cur_x * this->add_x - 0.5f;
     uchar4 m = math::interpolate_bilinear_border_byte(
-        this->mask->byte_buffer.data, this->mask->x, this->mask->y, uv.x, uv.y);
+        this->mask->byte_data(), this->mask->x, this->mask->y, uv.x, uv.y);
     float r = float(min_iii(m.x, m.y, m.z)) * (1.0f / 255.0f);
     this->cur_x++;
     return r;
@@ -251,11 +290,11 @@ void apply_modifier_op(T &op, ImBuf *ibuf, const ImBuf *mask, const float3x3 &ma
   const bool direct_mask_sampling = mask == nullptr || (mask->x == ibuf->x && mask->y == ibuf->y &&
                                                         math::is_identity(mask_transform));
   const int image_x = ibuf->x;
+  uchar *image_byte = ibuf->byte_data_for_write();
+  float *image_float = ibuf->float_data_for_write();
   threading::parallel_for(IndexRange(ibuf->y), 16, [&](IndexRange y_range) {
-    uchar *image_byte = ibuf->byte_buffer.data;
-    float *image_float = ibuf->float_buffer.data;
-    const uchar *mask_byte = mask ? mask->byte_buffer.data : nullptr;
-    const float *mask_float = mask ? mask->float_buffer.data : nullptr;
+    const uchar *mask_byte = mask ? mask->byte_data() : nullptr;
+    const float *mask_float = mask ? mask->float_data() : nullptr;
 
     /* Instantiate the needed processing function based on image/mask
      * data types. */
@@ -314,4 +353,5 @@ void apply_modifier_op(T &op, ImBuf *ibuf, const ImBuf *mask, const float3x3 &ma
   });
 }
 
-}  // namespace blender::seq
+}  // namespace seq
+}  // namespace blender

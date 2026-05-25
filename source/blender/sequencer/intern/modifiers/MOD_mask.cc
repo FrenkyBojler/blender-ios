@@ -16,12 +16,12 @@
 
 #include "SEQ_modifier.hh"
 #include "SEQ_render.hh"
-#include "SEQ_transform.hh"
 
 #include "UI_interface.hh"
 #include "UI_interface_layout.hh"
 
 #include "modifier.hh"
+#include "render.hh"
 
 namespace blender::seq {
 
@@ -41,7 +41,7 @@ struct MaskApplyOp {
           image[3] = uchar(image[3] * m);
         }
         else if constexpr (std::is_same_v<ImageT, float>) {
-          /* Float buffers are premultiplied, so need to premul color as well to make it
+          /* Float buffers are pre-multiplied, so need to pre-multiply color as well to make it
            * easy to alpha-over masked strip. */
           float4 pix(image);
           pix *= m;
@@ -53,29 +53,28 @@ struct MaskApplyOp {
   }
 };
 
-static void maskmodifier_apply(const RenderData * /* render_data */,
-                               const Strip * /*strip*/,
-                               const float transform[3][3],
-                               StripModifierData * /*smd*/,
-                               ImBuf *ibuf,
-                               ImBuf *mask)
+static void maskmodifier_apply(ModifierApplyContext &context, StripModifierData *smd)
 {
-  if (mask == nullptr || (mask->byte_buffer.data == nullptr && mask->float_buffer.data == nullptr))
-  {
-    return;
+  ImBuf *mask = modifier_render_mask_input(context, *smd);
+  if (mask != nullptr && (mask->byte_data() != nullptr || mask->float_data() != nullptr)) {
+    ensure_ibuf_is_sequencer_space(context.render_data.scene, context.image, false);
+
+    MaskApplyOp op;
+    apply_modifier_op(op, context.image, mask, context.transform);
+
+    /* Image has gained transparency. */
+    context.image->color_mode = ImColorMode::RGBA;
   }
 
-  MaskApplyOp op;
-  apply_modifier_op(op, ibuf, mask, float3x3(transform));
-
-  /* Image has gained transparency. */
-  ibuf->planes = R_IMF_PLANES_RGBA;
+  if (mask != nullptr) {
+    IMB_freeImBuf(mask);
+  }
 }
 
 static void maskmodifier_panel_draw(const bContext *C, Panel *panel)
 {
-  uiLayout *layout = panel->layout;
-  PointerRNA *ptr = UI_panel_custom_data_get(panel);
+  ui::Layout &layout = *panel->layout;
+  PointerRNA *ptr = ui::panel_custom_data_get(panel);
 
   draw_mask_input_type_settings(C, layout, ptr);
 }

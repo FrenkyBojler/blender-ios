@@ -3,16 +3,9 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 __all__ = (
-    "add_closure_zone",
-    "add_color_mix_node",
-    "add_foreach_geometry_element_zone",
-    "add_node_type",
-    "add_node_type_with_outputs",
-    "add_node_type_with_searchable_enum",
-    "add_node_type_with_searchable_enum_socket",
-    "add_repeat_zone",
-    "add_simulation_zone",
-    "draw_node_group_add_menu",
+    "set_math_node_default_props",
+    "set_int_math_node_default_props",
+    "set_vector_math_node_defaults"
 )
 
 import bpy
@@ -23,88 +16,67 @@ from bpy.app.translations import (
 )
 
 
-# NOTE: This is kept for compatibility's sake, as some scripts import node_add_menu.add_node_type.
-def add_node_type(layout, node_type, *, label=None, poll=None, search_weight=0.0, translate=True):
-    """Add a node type to a menu."""
-    return AddNodeMenu.node_operator(
-        layout,
-        node_type,
-        label=label,
-        poll=poll,
-        search_weight=search_weight,
-        translate=translate)
+def set_socket_default_value(settings, socket_identifier, socket_default_value):
+    prop = settings.add()
+    prop.name = "inputs[\"{:s}\"].default_value".format(socket_identifier)
+    prop.value = socket_default_value
+    return prop
 
 
-def add_node_type_with_searchable_enum(context, layout, node_idname, property_name, search_weight=0.0):
-    return AddNodeMenu.node_operator_with_searchable_enum(context, layout, node_idname, property_name, search_weight)
+def color_mix_node_defaults(enum_identifier, props):
+    if enum_identifier == 'MIX':
+        set_socket_default_value(props.settings, "Factor", "0.5")
 
 
-def add_node_type_with_searchable_enum_socket(
-        context,
-        layout,
-        node_idname,
-        socket_identifier,
-        enum_names,
-        search_weight=0.0):
-    return AddNodeMenu.node_operator_with_searchable_enum_socket(
-        context, layout, node_idname, socket_identifier, enum_names, search_weight)
+def set_math_node_default_props(enum_identifier, props):
+
+    if enum_identifier in ('MULTIPLY', 'POWER', 'MODULO', 'FLOORED_MODULO', 'ARCTAN2'):
+        set_socket_default_value(props.settings, "Value", "1.0")
+        set_socket_default_value(props.settings, "Value_001", "1.0")
+    elif enum_identifier == 'ADD':
+        set_socket_default_value(props.settings, "Value", "0.0")
+        set_socket_default_value(props.settings, "Value_001", "0.0")
+    elif enum_identifier == 'SUBTRACT':
+        # 1 - x operations are common for subtraction.
+        set_socket_default_value(props.settings, "Value", "1.0")
+        set_socket_default_value(props.settings, "Value_001", "0.0")
+    elif enum_identifier == 'MULTIPLY_ADD':
+        set_socket_default_value(props.settings, "Value_001", "1.0")
+        set_socket_default_value(props.settings, "Value_002", "0.0")
 
 
-def add_node_type_with_outputs(context, layout, node_type, subnames, *, label=None, search_weight=0.0):
-    return AddNodeMenu.node_operator_with_outputs(
-        context,
-        layout,
-        node_type,
-        subnames,
-        label=label,
-        search_weight=search_weight)
+def set_int_math_node_default_props(enum_identifier, props):
+    if enum_identifier in (
+        'MULTIPLY',
+        'DIVIDE',
+        'DIVIDE_ROUND',
+        'DIVIDE_FLOOR',
+        'DIVIDE_CEIL',
+        'FLOORED_MODULO',
+            'MODULO'):
+        set_socket_default_value(props.settings, "Value", "1")
+        set_socket_default_value(props.settings, "Value_001", "1")
+
+    elif enum_identifier == 'MULTIPLY_ADD':
+        set_socket_default_value(props.settings, "Value", "1")
+        set_socket_default_value(props.settings, "Value_001", "0")
 
 
-def add_color_mix_node(context, layout):
-    return AddNodeMenu.color_mix_node(context, layout)
-
-
-def add_empty_group(layout):
-    return AddNodeMenu.new_empty_group(layout)
-
-
-def draw_node_group_add_menu(context, layout):
-    """Add items to the layout used for interacting with node groups."""
-    return AddNodeMenu.draw_group_menu(context, layout)
-
-
-def add_simulation_zone(layout, label):
-    """Add simulation zone to a menu."""
-    props = layout.operator("node.add_simulation_zone", text=label, text_ctxt=i18n_contexts.default)
-    props.use_transform = True
-    return props
-
-
-def add_repeat_zone(layout, label):
-    props = layout.operator("node.add_repeat_zone", text=label, text_ctxt=i18n_contexts.default)
-    props.use_transform = True
-    return props
-
-
-def add_foreach_geometry_element_zone(layout, label):
-    props = layout.operator(
-        "node.add_foreach_geometry_element_zone",
-        text=label,
-        text_ctxt=i18n_contexts.default,
-    )
-    props.use_transform = True
-    return props
-
-
-def add_closure_zone(layout, label):
-    props = layout.operator(
-        "node.add_closure_zone", text=label, text_ctxt=i18n_contexts.default)
-    props.use_transform = True
-    return props
+def set_vector_math_node_defaults(enum_identifier, props):
+    if enum_identifier in ('MULTIPLY', 'DIVIDE', 'POWER', 'MODULO'):
+        set_socket_default_value(props.settings, "Vector", "(1.0, 1.0, 1.0)")
+        set_socket_default_value(props.settings, "Vector_001", "(1.0, 1.0, 1.0)")
+    elif enum_identifier == 'SUBTRACT':
+        # 1 - x operations are common for subtraction.
+        set_socket_default_value(props.settings, "Vector", "(1.0, 1.0, 1.0)")
+        set_socket_default_value(props.settings, "Vector_001", "(0.0, 0.0, 0.0)")
+    elif enum_identifier == 'MULTIPLY_ADD':
+        set_socket_default_value(props.settings, "Vector_001", "(1.0, 1.0, 1.0)")
+        set_socket_default_value(props.settings, "Vector_002", "(0.0, 0.0, 0.0)")
 
 
 class NodeMenu(Menu):
-    """A baseclass defining the shared methods for AddNodeMenu and SwapNodeMenu."""
+    """A base-class defining the shared methods for AddNodeMenu and SwapNodeMenu."""
     draw_assets: bool
     use_transform: bool
 
@@ -135,7 +107,8 @@ class NodeMenu(Menu):
                 text=label,
                 text_ctxt=translation_context,
                 translate=translate,
-                search_weight=search_weight)
+                search_weight=search_weight,
+            )
             props.type = node_type
 
             if hasattr(props, "use_transform"):
@@ -146,7 +119,14 @@ class NodeMenu(Menu):
         return None
 
     @classmethod
-    def node_operator_with_searchable_enum(cls, context, layout, node_idname, property_name, search_weight=0.0):
+    def node_operator_with_searchable_enum(
+            cls,
+            context,
+            layout,
+            node_idname,
+            property_name,
+            search_weight=0.0,
+            defaults_callback=None):
         """Similar to `node_operator`, but with extra entries based on a enum property while in search."""
         operators = []
         operators.append(cls.node_operator(layout, node_idname, search_weight=search_weight))
@@ -159,16 +139,17 @@ class NodeMenu(Menu):
                     layout,
                     node_idname,
                     label="{:s} \u25B8 {:s}".format(
-                        iface_(
-                            node_type.bl_rna.name),
-                        iface_(
-                            item.name,
-                            translation_context)),
+                        iface_(node_type.bl_rna.name),
+                        iface_(item.name, translation_context),
+                    ),
                     translate=False,
-                    search_weight=search_weight)
+                    search_weight=search_weight,
+                )
                 prop = props.settings.add()
                 prop.name = property_name
                 prop.value = repr(item.identifier)
+                if defaults_callback is not None:
+                    defaults_callback(item.identifier, props)
                 operators.append(props)
 
         for props in operators:
@@ -198,7 +179,8 @@ class NodeMenu(Menu):
                     node_idname,
                     label="{:s} \u25B8 {:s}".format(iface_(node_type.bl_rna.name), iface_(enum_name)),
                     translate=False,
-                    search_weight=search_weight)
+                    search_weight=search_weight,
+                )
                 prop = props.settings.add()
                 prop.name = "inputs[\"{:s}\"].default_value".format(bpy.utils.escape_identifier(socket_identifier))
                 prop.value = repr(enum_name)
@@ -211,11 +193,15 @@ class NodeMenu(Menu):
         return operators
 
     @classmethod
-    def node_operator_with_outputs(cls, context, layout, node_type, subnames, *, label=None, search_weight=0.0):
+    def node_operator_with_outputs(
+            cls, context, layout, node_type, subnames, *, label=None, poll=None, search_weight=0.0):
         """Similar to `node_operator`, but with extra entries based on a enum socket while in search."""
         bl_rna = bpy.types.Node.bl_rna_get_subclass(node_type)
         if not label:
             label = bl_rna.name if bl_rna else "Unknown"
+
+        if poll is not None and poll is False:
+            return None
 
         operators = []
         operators.append(cls.node_operator(layout, node_type, label=label, search_weight=search_weight))
@@ -234,12 +220,12 @@ class NodeMenu(Menu):
         return operators
 
     @classmethod
-    def color_mix_node(cls, context, layout):
+    def color_mix_node(cls, context, layout, search_weight=0.0):
         """The 'Mix Color' node, with its different blend modes available while in search."""
         label = iface_("Mix Color")
 
         operators = []
-        props = cls.node_operator(layout, "ShaderNodeMix", label=label, translate=False)
+        props = cls.node_operator(layout, "ShaderNodeMix", label=label, translate=False, search_weight=search_weight)
         ops = props.settings.add()
         ops.name = "data_type"
         ops.value = "'RGBA'"
@@ -253,16 +239,18 @@ class NodeMenu(Menu):
                     "ShaderNodeMix",
                     label="{:s} \u25B8 {:s}".format(
                         label,
-                        iface_(
-                            item.name,
-                            translation_context)),
-                    translate=False)
+                        iface_(item.name, translation_context),
+                    ),
+                    translate=False,
+                    search_weight=search_weight,
+                )
                 prop = props.settings.add()
                 prop.name = "data_type"
                 prop.value = "'RGBA'"
                 prop = props.settings.add()
                 prop.name = "blend_type"
                 prop.value = repr(item.identifier)
+                color_mix_node_defaults(item.identifier, props)
                 operators.append(props)
 
         for props in operators:
@@ -272,14 +260,23 @@ class NodeMenu(Menu):
         return operators
 
     @classmethod
+    def typed_bundle(cls, layout, label):
+        props = layout.operator("node.add_typed_bundle", text=label, text_ctxt=i18n_contexts.default)
+
+        if hasattr(props, "use_transform"):
+            props.use_transform = cls.use_transform
+
+        return props
+
+    @classmethod
     def new_empty_group(cls, layout):
-        """Group Node with a newly created empty group as its assigned nodetree."""
+        """Group Node with a newly created empty group as its assigned node-tree."""
         props = layout.operator(
             cls.new_empty_group_operator_id,
             text="New Group",
             text_ctxt=i18n_contexts.default,
-            icon='ADD')
-
+            icon='ADD',
+        )
         if hasattr(props, "use_transform"):
             props.use_transform = cls.use_transform
 
@@ -304,7 +301,7 @@ class NodeMenu(Menu):
             from nodeitems_builtins import node_tree_group_type
 
             prefs = bpy.context.preferences
-            show_hidden = prefs.filepaths.show_hidden_files_datablocks
+            show_hidden = prefs.show_hidden_ids
 
             groups = [
                 group for group in context.blend_data.node_groups
@@ -316,10 +313,12 @@ class NodeMenu(Menu):
                 layout.separator()
                 for group in groups:
                     search_weight = -1.0 if group.is_linked_packed else 0.0
-                    props = cls.node_operator(layout,
-                                              node_tree_group_type[group.bl_idname],
-                                              label=group.name,
-                                              search_weight=search_weight)
+                    props = cls.node_operator(
+                        layout,
+                        node_tree_group_type[group.bl_idname],
+                        label=group.name,
+                        search_weight=search_weight,
+                    )
                     ops = props.settings.add()
                     ops.name = "node_tree"
                     ops.value = "bpy.data.node_groups[{!r}]".format(group.name)
