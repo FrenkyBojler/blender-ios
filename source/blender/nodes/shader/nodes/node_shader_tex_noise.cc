@@ -43,6 +43,7 @@ static void sh_node_tex_noise_declare(NodeDeclarationBuilder &b)
         /* Default to 1 instead of 4, because it is much faster. */
         node_storage(node).dimensions = 1;
       });
+
   b.add_input<decl::Float>("Scale"_ustr)
       .min(-1000.0f)
       .max(1000.0f)
