@@ -389,7 +389,7 @@ class NODE_MT_gn_input_scene_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "GeometryNodeBoneInfo")
         self.node_operator(layout, "GeometryNodeCollectionChildren")
         self.node_operator(layout, "GeometryNodeCollectionInfo")
-        self.node_operator(layout, "GeometryNodeDataBlockName")
+        self.node_operator(layout, "FunctionNodeDataBlockName")
         self.node_operator(layout, "GeometryNodeImageInfo")
         self.node_operator(layout, "GeometryNodeIsViewport")
         if context.space_data.node_tree_sub_type == 'TOOL':
