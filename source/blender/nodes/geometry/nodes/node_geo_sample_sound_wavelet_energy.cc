@@ -302,7 +302,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
   geo_node_type_base(&ntype, "GeometryNodeSampleSoundWaveletEnergy"_ustr);
-  ntype.ui_name = "Sample Sound Wavelet Energy";
+  ntype.ui_name = "Sample Sound Wavelet";
   ntype.ui_description = "Sample wavelet detail energy in an approximate frequency band";
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = node_declare;
