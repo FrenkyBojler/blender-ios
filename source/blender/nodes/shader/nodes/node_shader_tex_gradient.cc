@@ -22,14 +22,16 @@ namespace nodes::node_shader_tex_gradient_cc {
 static void sh_node_tex_gradient_declare(NodeDeclarationBuilder &b)
 {
   b.is_function_node();
+
   const bool is_compositor = b.tree_or_null() && b.tree_or_null()->type == NTREE_COMPOSIT;
   auto &vector_declaration = b.add_input<decl::Vector>("Vector"_ustr);
   if (is_compositor) {
     vector_declaration.default_input_type(NODE_DEFAULT_INPUT_UNIFORM_IMAGE_COORDINATES);
   }
   else {
-    vector_declaration.implicit_field(NODE_DEFAULT_INPUT_POSITION_FIELD);
+    vector_declaration.default_input_type(NODE_DEFAULT_INPUT_POSITION_FIELD);
   }
+
   b.add_output<decl::Color>("Color"_ustr).no_muted_links();
   b.add_output<decl::Float>("Factor"_ustr, "Fac"_ustr).no_muted_links();
 }

@@ -35,7 +35,7 @@ static void sh_node_tex_gabor_declare(NodeDeclarationBuilder &b)
     vector_declaration.default_input_type(NODE_DEFAULT_INPUT_UNIFORM_IMAGE_COORDINATES);
   }
   else {
-    vector_declaration.implicit_field(NODE_DEFAULT_INPUT_POSITION_FIELD);
+    vector_declaration.default_input_type(NODE_DEFAULT_INPUT_POSITION_FIELD);
   }
 
   b.add_input<decl::Float>("Scale"_ustr)
