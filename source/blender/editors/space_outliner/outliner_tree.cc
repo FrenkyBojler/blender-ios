@@ -491,7 +491,7 @@ static bool treesort_custom(const tTreeSort &x1,
 static void outliner_sort_custom_assign_missing_sort_indices(
     ListBaseT<TreeElement> *lb,
     TreeElement *last_te,
-  const Map<const Object *, CollectionObject *> &collection_object_map)
+    const Map<const Object *, CollectionObject *> &collection_object_map)
 {
   Collection *collection = outliner_collection_from_tree_element(last_te->parent);
   if (collection == nullptr) {
@@ -720,7 +720,7 @@ static void outliner_sort_custom(ListBaseT<TreeElement> *lb)
         }
 
         auto treesort_custom_fn = [&collection_object_map](const tTreeSort &a,
-                                                            const tTreeSort &b) {
+                                                           const tTreeSort &b) {
           return treesort_custom(a, b, &collection_object_map);
         };
 
