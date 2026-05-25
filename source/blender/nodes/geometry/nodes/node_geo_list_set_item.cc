@@ -28,26 +28,25 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.allow_any_socket_order();
   b.add_default_layout();
 
-  if (node) {
-    const eNodeSocketDatatype type = eNodeSocketDatatype(node->custom1);
-    b.add_input(type, "List"_ustr).structure_type(StructureType::List).hide_value();
-    b.add_output(type, "List"_ustr)
-        .propagate_all({0})
-        .structure_type(StructureType::List)
-        .align_with_previous();
+  if (!node) {
+    return;
   }
+
+  const auto type = eNodeSocketDatatype(node->custom1);
+  b.add_input(type, "List"_ustr).structure_type(StructureType::List).hide_value();
+  b.add_output(type, "List"_ustr)
+      .propagate_all({0})
+      .structure_type(StructureType::List)
+      .align_with_previous();
+
+  b.add_input(type, "Value"_ustr)
+      .structure_type(StructureType::Dynamic)
+      .description("Can be a single value, field to be evaluated or list of values.");
 
   b.add_input<decl::Int>("Index"_ustr)
       .default_value(0)
       .structure_type(StructureType::Dynamic)
       .description("Indices of the values to replace. Can be a single value or list of indices.");
-
-  if (node) {
-    const eNodeSocketDatatype type = eNodeSocketDatatype(node->custom1);
-    b.add_input(type, "Value"_ustr)
-        .structure_type(StructureType::Dynamic)
-        .description("Can be a single value, field to be evaluated or list of values.");
-  }
 }
 
 static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
@@ -211,12 +210,15 @@ static void node_rna(StructRNA *srna)
       "",
       rna_enum_node_socket_data_type_items,
       NOD_inline_enum_accessors(custom1),
-      SOCK_GEOMETRY,
-      [](bContext * /*C*/, PointerRNA * /*ptr*/, PropertyRNA * /*prop*/, bool *r_free) {
+      SOCK_FLOAT,
+      [](bContext * /*C*/, PointerRNA *ptr, PropertyRNA * /*prop*/, bool *r_free) {
         *r_free = true;
+        const bNodeTree &ntree = *reinterpret_cast<bNodeTree *>(ptr->owner_id);
+        bke::bNodeTreeType *ntree_type = ntree.typeinfo;
         return enum_items_filter(
-            rna_enum_node_socket_data_type_items, [](const EnumPropertyItem &item) -> bool {
-              return socket_type_supports_fields(eNodeSocketDatatype(item.value));
+            rna_enum_node_socket_data_type_items, [&](const EnumPropertyItem &item) -> bool {
+              bke::bNodeSocketType *socket_type = bke::node_socket_type_find_static(item.value);
+              return ntree_type->valid_socket_type(ntree_type, socket_type);
             });
       });
 }
