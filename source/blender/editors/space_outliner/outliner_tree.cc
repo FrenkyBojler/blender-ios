@@ -505,6 +505,9 @@ static void outliner_sort_custom_assign_missing_sort_indices(ListBaseT<TreeEleme
 
   bool has_missing_indices = false;
   for (TreeElement &te : *lb) {
+    if (te.idcode != ID_OB) {
+      continue;
+    }
     Object *ob = reinterpret_cast<Object *>(TREESTORE(&te)->id);
     CollectionObject *cob = BKE_collection_object_find_in(collection, ob);
     if (cob != nullptr && cob->sort_index < 0) {
