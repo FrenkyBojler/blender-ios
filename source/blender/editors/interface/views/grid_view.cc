@@ -228,14 +228,45 @@ AbstractViewItem *AbstractGridView::navigate_down(AbstractViewItem *from)
 
 void AbstractGridView::scroll_active_into_view(bContext *C)
 {
+  int index = 0;
   this->foreach_filtered_item([&](AbstractViewItem &item) {
     if (item.is_active()) {
       Button *but = reinterpret_cast<Button *>(item.view_item_button());
       ARegion *region = CTX_wm_region(C);
-      if (but && region) {
-        but_ensure_in_view(C, region, but);
+
+      if (but) {
+       but_ensure_in_view(C, region, but);
+       return;
+      }
+
+      View2D &v2d = region->v2d;
+      int first_idx_in_view = 0;
+
+      const float scroll_ofs_y = std::abs(v2d.cur.ymax - v2d.tot.ymax);
+      if (!IS_EQF(scroll_ofs_y, 0)) {
+        const int scrolled_away_rows = int(scroll_ofs_y) / style_.tile_height - 1;
+        first_idx_in_view = scrolled_away_rows * cols_per_row_;
+      }
+
+      const int view_height = BLI_rcti_size_y(&v2d.mask);
+      const int count_rows_in_view = std::max(view_height / style_.tile_height, 1);
+      const int max_items_in_view = (count_rows_in_view + 1) * cols_per_row_;
+      const int last_idx_in_view = first_idx_in_view + max_items_in_view;
+
+      if (index < first_idx_in_view) {
+        const int target_row = index / cols_per_row_;
+        const int cur_height = BLI_rctf_size_y(&v2d.cur);
+        v2d.cur.ymax = v2d.tot.ymax - target_row * style_.tile_height;
+        v2d.cur.ymin = v2d.cur.ymax - cur_height;
+      }
+      else if (index >= last_idx_in_view) {
+        const int target_row = (index / cols_per_row_) + 1;
+        const int cur_height = BLI_rctf_size_y(&v2d.cur);
+        v2d.cur.ymin = v2d.tot.ymax - target_row * style_.tile_height;
+        v2d.cur.ymax = v2d.cur.ymin + cur_height;
       }
     }
+    index++;
   });
 }
 
