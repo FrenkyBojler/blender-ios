@@ -165,6 +165,7 @@ static Vector<bke::path_templates::Error> compute_image_path(const StringRefNull
                                                              const char *view,
                                                              const int frame_number,
                                                              const ImageFormatData &format,
+                                                             const Main &bmain,
                                                              const Scene &scene,
                                                              const bNode &node,
                                                              const bool is_animation_render,
@@ -176,7 +177,7 @@ static Vector<bke::path_templates::Error> compute_image_path(const StringRefNull
   BLI_path_append(base_path, FILE_MAX, full_file_name.c_str());
 
   bke::path_templates::VariableMap template_variables;
-  BKE_blender_project_read_callback(G_MAIN, [&](const bke::BlenderProject *project) {
+  BKE_blender_project_read_callback(&bmain, [&](const bke::BlenderProject *project) {
     BKE_add_template_variables_general(template_variables, &node.owner_tree().id, project);
   });
   BKE_add_template_variables_for_render_path(template_variables, scene);
@@ -243,6 +244,7 @@ static void output_path_layout(ui::Layout &layout,
                                const StringRefNull file_name_suffix,
                                const char *view,
                                const ImageFormatData &format,
+                               const Main &bmain,
                                const Scene &scene,
                                const bNode &node)
 {
@@ -254,6 +256,7 @@ static void output_path_layout(ui::Layout &layout,
                                                                             view,
                                                                             scene.r.cfra,
                                                                             format,
+                                                                            bmain,
                                                                             scene,
                                                                             node,
                                                                             false,
@@ -278,6 +281,7 @@ static void output_paths_layout(ui::Layout &layout,
   const NodeCompositorFileOutput &storage = node_storage(node);
   const StringRefNull directory = storage.directory;
   const std::string file_name = storage.file_name ? storage.file_name : "";
+  const Main &main = *CTX_data_main(context);
   const Scene &scene = *CTX_data_scene(context);
 
   if (bool(scene.r.scemode & R_MULTIVIEW) && format.views_format == R_IMF_VIEWS_MULTIVIEW) {
@@ -287,11 +291,12 @@ static void output_paths_layout(ui::Layout &layout,
       }
 
       output_path_layout(
-          layout, directory, file_name, file_name_suffix, view.name, format, scene, node);
+          layout, directory, file_name, file_name_suffix, view.name, format, main, scene, node);
     }
   }
   else {
-    output_path_layout(layout, directory, file_name, file_name_suffix, "", format, scene, node);
+    output_path_layout(
+        layout, directory, file_name, file_name_suffix, "", format, main, scene, node);
   }
 }
 
@@ -747,6 +752,7 @@ class FileOutputOperation : public NodeOperation {
         view,
         this->context().get_frame_number(),
         format,
+        this->context().get_main(),
         this->context().get_scene(),
         this->node(),
         this->is_animation_render(),
