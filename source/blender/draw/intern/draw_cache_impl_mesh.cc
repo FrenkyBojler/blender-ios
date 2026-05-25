@@ -199,7 +199,7 @@ static void mesh_cd_calc_used_gpu_layers(const Object &object,
   const VectorSet<StringRefNull> uv_map_names = mesh.uv_map_names();
   for (const int i : uv_map_names.index_range()) {
     if (uv_map_names[i] == default_name) {
-       default_index = i;
+      default_index = i;
     }
   }
 
@@ -251,8 +251,9 @@ static void mesh_cd_calc_used_gpu_layers(const Object &object,
           if (lookup_meta_data(mesh, default_name) == UV_METADATA) {
             r_cd_used->uv.add(default_name);
             /* TODO: These calls are a bit gross... */
-            const Material* mat = GPU_material_get_material(const_cast<GPUMaterial *>(gpumat));
-            const int mat_index = BKE_object_material_index_get(&const_cast<Object &>(object), mat);
+            const Material *mat = GPU_material_get_material(const_cast<GPUMaterial *>(gpumat));
+            const int mat_index = BKE_object_material_index_get(&const_cast<Object &>(object),
+                                                                mat);
             /* TODO: Check what this should default to... */
             r_mat_index_to_uv_index[mat_index] = default_index.value_or(0);
           }
@@ -267,7 +268,7 @@ static void mesh_cd_calc_used_gpu_layers(const Object &object,
       if (meta_data == UV_METADATA) {
         r_cd_used->uv.add(name);
         /* TODO: These calls are a bit gross... */
-        const Material* mat = GPU_material_get_material(const_cast<GPUMaterial *>(gpumat));
+        const Material *mat = GPU_material_get_material(const_cast<GPUMaterial *>(gpumat));
         const int mat_index = BKE_object_material_index_get(&const_cast<Object &>(object), mat);
         std::optional<int> uv_index;
         /* TODO: Maybe this call should be moved to the Mesh? */
@@ -767,9 +768,10 @@ void DRW_mesh_get_attributes(const Object &object,
                              const Span<const GPUMaterial *> materials,
                              VectorSet<std::string> *r_attrs,
                              DRW_MeshCDMask *r_cd_needed,
-                             Array<int>& r_mat_index_to_uv_index)
+                             Array<int> &r_mat_index_to_uv_index)
 {
-  mesh_cd_calc_used_gpu_layers(object, mesh, materials, r_attrs, r_cd_needed, r_mat_index_to_uv_index);
+  mesh_cd_calc_used_gpu_layers(
+      object, mesh, materials, r_attrs, r_cd_needed, r_mat_index_to_uv_index);
 }
 
 Span<gpu::Batch *> DRW_mesh_batch_cache_get_surface_shaded(

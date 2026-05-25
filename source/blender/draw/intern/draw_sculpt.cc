@@ -117,7 +117,8 @@ static Vector<SculptBatch> sculpt_batches_get_ex(const Object *ob,
     batches = draw_data.ensure_lines_batches(*ob, {{}, fast_mode, {}}, nodes_to_update);
   }
   else {
-    batches = draw_data.ensure_tris_batches(*ob, {attrs, fast_mode, mat_index_to_uv_index}, nodes_to_update);
+    batches = draw_data.ensure_tris_batches(
+        *ob, {attrs, fast_mode, mat_index_to_uv_index}, nodes_to_update);
   }
 
   const int max_material = std::max(0, BKE_object_material_count_eval(ob) - 1);
