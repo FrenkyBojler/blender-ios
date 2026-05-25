@@ -186,7 +186,7 @@ class AbstractTreeView : public AbstractView, public TreeViewItemContainer {
   /**
    * Scroll the view so the active item is visible.
    */
-  void scroll_active_into_view(bool scroll_active_to_center = false);
+  void scroll_active_into_view(bContext *C, bool scroll_active_to_center = false) override;
 
  protected:
   virtual void build_tree() = 0;
@@ -214,6 +214,11 @@ class AbstractTreeView : public AbstractView, public TreeViewItemContainer {
 
   int count_visible_descendants(const AbstractTreeViewItem &parent) const;
   void sort_inverted();
+  AbstractViewItem *find_active_or_visible_item() const override;
+  AbstractViewItem *navigate_left(AbstractViewItem *from) override;
+  AbstractViewItem *navigate_right(AbstractViewItem *from) override;
+  AbstractViewItem *navigate_up(AbstractViewItem *from) override;
+  AbstractViewItem *navigate_down(AbstractViewItem *from) override;
 };
 
 /** \} */
@@ -305,6 +310,9 @@ class AbstractTreeViewItem : public AbstractViewItem, public TreeViewItemContain
   bool is_collapsible() const;
 
   int count_parents() const;
+  AbstractTreeViewItem *get_parent();
+  /* Return first child view item. */
+  AbstractTreeViewItem *get_child();
 
   void on_filter() override;
   StringRefNull label() const;
