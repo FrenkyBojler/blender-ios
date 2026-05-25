@@ -1662,6 +1662,7 @@ static int foreach_libblock_link_finalize_cb(LibraryIDLinkCallbackData *cb_data)
 }
 
 void BKE_blendfile_link_append_instantiate_loose(BlendfileLinkAppendContext *lapp_context,
+                                                 Collection *active_collection,
                                                  ReportList *reports)
 {
   BLI_assert(ELEM(lapp_context->process_stage,
@@ -1700,7 +1701,7 @@ void BKE_blendfile_link_append_instantiate_loose(BlendfileLinkAppendContext *lap
 
   LooseDataInstantiateContext instantiate_context{};
   instantiate_context.lapp_context = lapp_context;
-  instantiate_context.active_collection = nullptr;
+  instantiate_context.active_collection = active_collection;
   loose_data_instantiate(&instantiate_context);
 }
 
@@ -1742,14 +1743,7 @@ void BKE_blendfile_link_append_instantiate_loose_from_bmain(Main *bmain,
     item->action = LINK_APPEND_ACT_COPY_LOCAL;
   }
 
-  LooseDataInstantiateContext instantiate_context{};
-  instantiate_context.lapp_context = &lapp_context;
-  instantiate_context.active_collection = active_collection;
-
-  loose_data_instantiate_obdata_preprocess(&instantiate_context);
-  loose_data_instantiate_collection_process(&instantiate_context);
-  loose_data_instantiate_object_process(&instantiate_context);
-  loose_data_instantiate_obdata_process(&instantiate_context);
+  BKE_blendfile_link_append_instantiate_loose(&lapp_context, active_collection, nullptr);
 
   BKE_main_id_tag_all(bmain, ID_TAG_DOIT, false);
 }

@@ -49,7 +49,7 @@ static void copybuffer_append(BlendfileLinkAppendContext *lapp_context,
   BKE_blendfile_append(lapp_context, reports);
 
   /* Instantiate loose data in the scene (e.g. add object to the active collection). */
-  BKE_blendfile_link_append_instantiate_loose(lapp_context, reports);
+  BKE_blendfile_link_append_instantiate_loose(lapp_context, nullptr, reports);
 
   BKE_blendfile_link_append_context_finalize(lapp_context);
 

@@ -362,6 +362,7 @@ void BKE_blendfile_append(BlendfileLinkAppendContext *lapp_context, ReportList *
  * Instantiate loose data in the scene (e.g. add object to the active collection).
  */
 void BKE_blendfile_link_append_instantiate_loose(BlendfileLinkAppendContext *lapp_context,
+                                                 Collection *active_collection,
                                                  ReportList *reports);
 
 /**

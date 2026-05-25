@@ -377,7 +377,7 @@ static wmOperatorStatus wm_link_append_exec(bContext *C, wmOperator *op)
   }
 
   /* Instantiate loose data in the scene (e.g. add object to the active collection). */
-  BKE_blendfile_link_append_instantiate_loose(lapp_context, op->reports);
+  BKE_blendfile_link_append_instantiate_loose(lapp_context, nullptr, op->reports);
 
   BKE_blendfile_link_append_context_finalize(lapp_context);
 
@@ -764,7 +764,7 @@ static ID *wm_file_link_append_datablock_ex(Main *bmain,
     BKE_blendfile_append(lapp_context, reports);
   }
 
-  BKE_blendfile_link_append_instantiate_loose(lapp_context, reports);
+  BKE_blendfile_link_append_instantiate_loose(lapp_context, nullptr, reports);
 
   BKE_blendfile_link_append_context_finalize(lapp_context);
 
