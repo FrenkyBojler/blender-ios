@@ -119,8 +119,8 @@ ENUM_OPERATORS(SoundTags);
 using bSoundFrequencySamplerMap =
     ConcurrentMap<bSoundFrequencySampler::Key, std::shared_ptr<bSoundFrequencySampler>>;
 
-using bSoundTransientSamplerMap =
-    ConcurrentMap<bSoundTransientSampler::Key, std::shared_ptr<bSoundTransientSampler>>;
+using bSoundWaveletEnergySamplerMap =
+    ConcurrentMap<bSoundWaveletEnergySampler::Key, std::shared_ptr<bSoundWaveletEnergySampler>>;
 
 struct SoundRuntime {
   AUD_Sound handle;
@@ -138,8 +138,8 @@ struct SoundRuntime {
 
   /** Caches frequency samplers for this sound. */
   bSoundFrequencySamplerMap samplers;
-  /** Caches transient samplers for this sound. */
-  bSoundTransientSamplerMap transient_samplers;
+  /** Caches wavelet energy samplers for this sound. */
+  bSoundWaveletEnergySamplerMap wavelet_energy_samplers;
 };
 
 }  // namespace bke
@@ -2256,16 +2256,15 @@ bSoundFrequencySampler::bSoundFrequencySampler(AUD_Sound sound, const Key &key)
 }
 
 /**
- * Read mono samples from a sound handle. Shared by FFT and DWT paths.
+ * Read a mono sample window from a sound handle. Used by both the FFT and wavelet paths.
  *
- * A warmup phase is needed because some decoders produce garbage for the first
- * few samples after a seek; reading (and discarding) extra data beforehand
- * avoids that.
+ * Read some extra samples before the requested range. This matches the frequency sampler
+ * behavior and avoids unreliable samples immediately after seeking in some decoders.
  */
-static std::optional<Array<float>> get_raw_audio_samples(AUD_Sound sound,
-                                                         const int start_sample,
-                                                         const int length,
-                                                         const std::optional<int> channel)
+static std::optional<Array<float>> read_sound_sample_window(AUD_Sound sound,
+                                                            const int start_sample,
+                                                            const int samples_num,
+                                                            const std::optional<int> channel)
 {
 #ifdef WITH_AUDASPACE
   const int warmup_samples = std::min(2000, start_sample);
@@ -2274,16 +2273,16 @@ static std::optional<Array<float>> get_raw_audio_samples(AUD_Sound sound,
   const aud::Specs specs = reader->getSpecs();
   const int channels_num = specs.channels;
 
-  Array<float> read_buffer_extra((length + warmup_samples) * channels_num);
+  Array<float> read_buffer_extra((samples_num + warmup_samples) * channels_num);
   bool is_end_of_stream = false;
-  int read_count = length + warmup_samples;
+  int read_count = samples_num + warmup_samples;
   reader->seek(std::max(start_sample - warmup_samples, 0));
   reader->read(read_count, is_end_of_stream, read_buffer_extra.data());
   const Span<float> read_buffer = read_buffer_extra.as_span().drop_front(warmup_samples *
                                                                          channels_num);
   const int read_length = read_buffer.size() / channels_num;
 
-  Array<float> buffer(length, 0.0f);
+  Array<float> buffer(samples_num, 0.0f);
   if (channel.has_value()) {
     const int ch = *channel;
     if (ch < 0 || ch >= channels_num) {
@@ -2306,7 +2305,7 @@ static std::optional<Array<float>> get_raw_audio_samples(AUD_Sound sound,
 
   return buffer;
 #else
-  UNUSED_VARS(sound, start_sample, length, channel);
+  UNUSED_VARS(sound, start_sample, samples_num, channel);
   return std::nullopt;
 #endif
 }
@@ -2318,16 +2317,18 @@ std::optional<Array<float>> bSoundFrequencySampler::compute_fft(const int start_
   const int frequencies_num = key_.fft_size / 2;
 
 #if defined(WITH_AUDASPACE) && defined(WITH_FFTW3)
-  std::optional<Array<float>> buffer_opt = get_raw_audio_samples(
+  /* Keep sample loading shared with the wavelet sampler. No behavior change is
+   * intended for the existing frequency sampler. */
+  std::optional<Array<float>> buffer_opt = read_sound_sample_window(
       sound_, start_sample, key_.fft_size, key_.channel);
   if (!buffer_opt.has_value()) {
     return std::nullopt;
   }
   Array<float> &buffer = *buffer_opt;
-  const int read_length = buffer.size();
+  const int samples_num = buffer.size();
 
   /* Apply window function which avoids spectral leakage (depending on the function). */
-  for (const int i : IndexRange(read_length)) {
+  for (const int i : IndexRange(samples_num)) {
     buffer[i] *= window_weights_.weights[i];
   }
 
@@ -2528,12 +2529,10 @@ std::optional<Span<float>> bSoundFrequencySampler::ensure_window_cache(int windo
 }
 
 /* -------------------------------------------------------------------- */
-/** \name bSoundTransientSampler
+/** \name bSoundWaveletEnergySampler
  * \{ */
 
-/* Daubechies-4 wavelet coefficients (8-tap, 4 vanishing moments).
- * db4 is a good trade-off between time and frequency localization for
- * percussive onset detection. */
+/* Daubechies-4 wavelet coefficients (8-tap, 4 vanishing moments). */
 static constexpr float DB4_LO[8] = {
     -0.010597401784997f,
     0.032883011666983f,
@@ -2566,28 +2565,27 @@ static int max_dwt_level_for_window_size(const int window_size)
   return std::max(levels, 1);
 }
 
-static int band_to_level(const TransientBand band, const int max_level)
+static int band_to_level(const WaveletBand band, const int max_level)
 {
   switch (band) {
-    case TransientBand::High:
+    case WaveletBand::High:
       return 1;
-    case TransientBand::HighMid:
+    case WaveletBand::HighMid:
       return std::clamp(2, 1, max_level);
-    case TransientBand::Mid:
+    case WaveletBand::Mid:
       return std::clamp((max_level + 1) / 2, 1, max_level);
-    case TransientBand::LowMid:
+    case WaveletBand::LowMid:
       return std::clamp(max_level - 1, 1, max_level);
-    case TransientBand::Low:
+    case WaveletBand::Low:
       return max_level;
-    case TransientBand::FullRange:
+    case WaveletBand::FullRange:
       return 0;
   }
   return 1;
 }
 
-/** Single-level DWT decomposition into approximation (low) and detail (high) coefficients.
- * Periodic boundary extension is used because audio frames are inherently
- * periodic within the analysis window. */
+/** Single-level DWT decomposition into approximation and detail coefficients.
+ * Periodic extension keeps the transform local to the current analysis window. */
 static void db4_decompose(const Span<float> signal,
                           MutableSpan<float> low,
                           MutableSpan<float> high)
@@ -2608,22 +2606,26 @@ static void db4_decompose(const Span<float> signal,
   }
 }
 
-static float db4_transient_energy(const Span<float> high)
+static float db4_detail_energy(const Span<float> detail)
 {
-  float energy = 0.0f;
-  for (const float h : high) {
-    energy += h * h;
+  if (detail.is_empty()) {
+    return 0.0f;
   }
-  return energy;
+
+  float energy = 0.0f;
+  for (const float value : detail) {
+    energy += value * value;
+  }
+  return energy / float(detail.size());
 }
 
-const bSoundTransientSampler *bSoundTransientSampler::get_cached(const bSound &sound,
-                                                                 const Key &key)
+const bSoundWaveletEnergySampler *bSoundWaveletEnergySampler::get_cached(const bSound &sound,
+                                                                         const Key &key)
 {
 #ifdef WITH_AUDASPACE
   {
-    bSoundTransientSamplerMap::ConstAccessor accessor;
-    if (sound.runtime->transient_samplers.lookup(accessor, key)) {
+    bSoundWaveletEnergySamplerMap::ConstAccessor accessor;
+    if (sound.runtime->wavelet_energy_samplers.lookup(accessor, key)) {
       return accessor->second.get();
     }
   }
@@ -2631,16 +2633,17 @@ const bSoundTransientSampler *bSoundTransientSampler::get_cached(const bSound &s
   if (!sound_handle) {
     return nullptr;
   }
-  bSoundTransientSamplerMap::MutableAccessor accessor;
-  if (sound.runtime->transient_samplers.add(accessor, key)) {
-    if (key.channel.has_value()) {
-      const SoundInfo info = sound_info_get(sound_handle);
-      const int channel = *key.channel;
-      if (channel < 0 || channel >= info.specs.channels) {
-        return nullptr;
-      }
+  if (key.channel.has_value()) {
+    const SoundInfo info = sound_info_get(sound_handle);
+    const int channel = *key.channel;
+    if (channel < 0 || channel >= info.specs.channels) {
+      return nullptr;
     }
-    accessor->second = std::make_shared<bSoundTransientSampler>(sound_handle, key);
+  }
+
+  bSoundWaveletEnergySamplerMap::MutableAccessor accessor;
+  if (sound.runtime->wavelet_energy_samplers.add(accessor, key)) {
+    accessor->second = std::make_shared<bSoundWaveletEnergySampler>(sound_handle, key);
   }
   return accessor->second.get();
 #else
@@ -2649,7 +2652,7 @@ const bSoundTransientSampler *bSoundTransientSampler::get_cached(const bSound &s
 #endif
 }
 
-bSoundTransientSampler::bSoundTransientSampler(AUD_Sound sound, const Key &key)
+bSoundWaveletEnergySampler::bSoundWaveletEnergySampler(AUD_Sound sound, const Key &key)
     : sound_(sound), key_(key)
 {
 #ifdef WITH_AUDASPACE
@@ -2666,7 +2669,7 @@ bSoundTransientSampler::bSoundTransientSampler(AUD_Sound sound, const Key &key)
 #endif
 }
 
-float bSoundTransientSampler::sample(const float time) const
+float bSoundWaveletEnergySampler::sample(const float time) const
 {
   /* Map time to fractional window index, centering the window on the query point. */
   const float i_float = std::max(
@@ -2680,23 +2683,24 @@ float bSoundTransientSampler::sample(const float time) const
   return math::interpolate(prev, next, t);
 }
 
-std::optional<float> bSoundTransientSampler::ensure_window_cache(int window_i) const
+std::optional<float> bSoundWaveletEnergySampler::ensure_window_cache(int window_i) const
 {
-  if (window_caches_.is_empty()) {
+  if (window_i < 0 || window_i >= int(window_caches_.size())) {
     return std::nullopt;
   }
-  window_i = std::clamp<int>(window_i, 0, window_caches_.size() - 1);
 
   const WindowCache &window = window_caches_[window_i];
-  window.mutex.ensure(
-      [&]() { window.transient_energy = this->compute_dwt(window_i * window_cache_stride_); });
-  return window.transient_energy;
+  window.mutex.ensure([&]() {
+    window.wavelet_energy = this->compute_wavelet_energy(window_i * window_cache_stride_);
+  });
+  return window.wavelet_energy;
 }
 
-std::optional<float> bSoundTransientSampler::compute_dwt(const int start_sample) const
+std::optional<float> bSoundWaveletEnergySampler::compute_wavelet_energy(
+    const int start_sample) const
 {
 #ifdef WITH_AUDASPACE
-  std::optional<Array<float>> buffer_opt = get_raw_audio_samples(
+  std::optional<Array<float>> buffer_opt = read_sound_sample_window(
       sound_, start_sample, key_.window_size, key_.channel);
   if (!buffer_opt.has_value()) {
     return std::nullopt;
@@ -2704,7 +2708,7 @@ std::optional<float> bSoundTransientSampler::compute_dwt(const int start_sample)
 
   const int max_level = max_dwt_level_for_window_size(key_.window_size);
   const int target_level = band_to_level(key_.band, max_level);
-  const bool full_range = key_.band == TransientBand::FullRange;
+  const bool full_range = key_.band == WaveletBand::FullRange;
   const int levels_to_compute = full_range ? max_level : target_level;
 
   Array<float> low_a(key_.window_size / 2);
@@ -2713,27 +2717,30 @@ std::optional<float> bSoundTransientSampler::compute_dwt(const int start_sample)
 
   Span<float> signal = buffer_opt->as_span();
   float energy = 0.0f;
+  int levels_added = 0;
   for (const int level : IndexRange(1, levels_to_compute)) {
     if (signal.size() < 16) {
       break;
     }
 
     const int half_size = int(signal.size()) / 2;
-    MutableSpan<float> low_buffer = low_a.as_mutable_span();
-    if (level % 2 == 0) {
-      low_buffer = low_b.as_mutable_span();
-    }
+    MutableSpan<float> low_buffer = (level % 2 == 0) ? low_b.as_mutable_span() :
+                                                       low_a.as_mutable_span();
     MutableSpan<float> low = low_buffer.take_front(half_size);
     MutableSpan<float> detail = high.as_mutable_span().take_front(half_size);
     db4_decompose(signal, low, detail);
 
     if (full_range || level == target_level) {
-      energy += db4_transient_energy(detail);
+      energy += db4_detail_energy(detail);
+      levels_added++;
     }
     signal = low;
   }
 
-  return energy;
+  if (levels_added == 0) {
+    return 0.0f;
+  }
+  return energy / float(levels_added);
 #else
   UNUSED_VARS(start_sample);
   return 0.0f;

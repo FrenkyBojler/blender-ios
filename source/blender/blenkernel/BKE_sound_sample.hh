@@ -121,7 +121,7 @@ class bSoundFrequencySampler {
   std::optional<Array<float>> compute_fft(int start_sample) const;
 };
 
-enum class TransientBand {
+enum class WaveletBand {
   FullRange,
   High,
   HighMid,
@@ -131,13 +131,13 @@ enum class TransientBand {
 };
 
 /**
- * DWT-based transient energy sampler. Uses Daubechies-4 wavelets to measure sharp changes in the
+ * Wavelet detail energy sampler. Uses Daubechies-4 wavelets to measure detail energy in the
  * signal with a different time/frequency tradeoff than STFT analysis.
  */
-class bSoundTransientSampler {
+class bSoundWaveletEnergySampler {
  public:
   struct Key {
-    TransientBand band = TransientBand::FullRange;
+    WaveletBand band = WaveletBand::FullRange;
     int window_size;
     std::optional<int> channel;
 
@@ -152,7 +152,7 @@ class bSoundTransientSampler {
  private:
   struct WindowCache {
     mutable CacheMutex mutex;
-    mutable std::optional<float> transient_energy;
+    mutable std::optional<float> wavelet_energy;
   };
 
   AUD_Sound sound_;
@@ -162,15 +162,15 @@ class bSoundTransientSampler {
   Array<WindowCache> window_caches_;
 
  public:
-  bSoundTransientSampler(AUD_Sound sound, const Key &key);
+  bSoundWaveletEnergySampler(AUD_Sound sound, const Key &key);
 
-  static const bSoundTransientSampler *get_cached(const bSound &sound, const Key &key);
+  static const bSoundWaveletEnergySampler *get_cached(const bSound &sound, const Key &key);
 
   float sample(float time) const;
 
  private:
   std::optional<float> ensure_window_cache(int window_i) const;
-  std::optional<float> compute_dwt(int start_sample) const;
+  std::optional<float> compute_wavelet_energy(int start_sample) const;
 };
 
 }  // namespace blender::bke

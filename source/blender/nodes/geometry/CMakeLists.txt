@@ -240,7 +240,7 @@ set(SRC
   nodes/node_geo_sample_nearest.cc
   nodes/node_geo_sample_nearest_surface.cc
   nodes/node_geo_sample_sound_frequencies.cc
-  nodes/node_geo_sample_sound_transient.cc
+  nodes/node_geo_sample_sound_wavelet_energy.cc
   nodes/node_geo_sample_uv_surface.cc
   nodes/node_geo_scale_elements.cc
   nodes/node_geo_scale_instances.cc
