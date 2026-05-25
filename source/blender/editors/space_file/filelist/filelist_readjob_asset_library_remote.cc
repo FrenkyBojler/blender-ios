@@ -9,12 +9,13 @@
 #include <thread>
 
 #include "AS_asset_library.hh"
+#include "AS_asset_representation.hh"
 #include "AS_remote_library.hh"
 
 #include "BLI_assert.h"
 #include "BLI_listbase.h"
+#include "BLI_map.hh"
 #include "BLI_path_utils.hh"
-#include "BLI_set.hh"
 #include "BLI_string.h"
 #include "BLI_string_utils.hh"
 
@@ -38,7 +39,7 @@ static void filelist_readjob_remote_asset_library_index_read(
     bool *stop,
     bool *do_update,
     float * /*progress*/,
-    const Set<StringRef> already_downloaded_asset_identifiers)
+    Map<StringRef, asset_system::AssetRepresentation *> &already_downloaded_assets)
 {
   using namespace ed::asset;
 
@@ -62,28 +63,8 @@ static void filelist_readjob_remote_asset_library_index_read(
 
     const char *group_name = BKE_idtype_idcode_to_name(entry.idcode);
 
-    /* TODO: mark file entries for already-existing assets, based on
-     * `entry.online_info.file_status`. */
-
-    switch (entry.online_info.file_status) {
-      case asset_system::AssetFileStatus::NOT_ON_DISK:
-        /* Don't print, it'll get noisy. */
-        break;
-      case asset_system::AssetFileStatus::MATCH:
-        printf("Asset %s %20s: \033[92mMATCH\033[0m\n", group_name, entry.datablock_info.name);
-        break;
-      case asset_system::AssetFileStatus::NO_MATCH:
-        printf("Asset %s %20s: \033[38;5;214mNO_MATCH\033[0m\n",
-               group_name,
-               entry.datablock_info.name);
-        break;
-      case asset_system::AssetFileStatus::UNSET:
-        printf("Asset %s %20s: UNSET\n", group_name, entry.datablock_info.name);
-        BLI_assert_unreachable();
-        break;
-    }
-
-    /* Skip assets that are already listed with the downloaded assets. */
+    /* For assets already on disk, stamp the listing's file status onto the existing
+     * AssetRepresentation so the UI can reflect whether it is up to date. */
     const StringRefNull asset_file = entry.online_info.asset_file();
     {
       BLI_assert(asset_file.endswith(".blend"));
@@ -97,7 +78,11 @@ static void filelist_readjob_remote_asset_library_index_read(
                       group_name,
                       SEP_STR,
                       entry.datablock_info.name);
-      if (already_downloaded_asset_identifiers.contains(asset_identifier)) {
+      if (asset_system::AssetRepresentation **existing = already_downloaded_assets.lookup_ptr(
+              StringRef(asset_identifier)))
+      {
+        (*existing)->set_file_status(entry.online_info.file_status);
+        *do_update = true;
         return true;
       }
     }
@@ -174,12 +159,12 @@ void remote_asset_library_load(FileListReadJob *job_params,
 {
   FileList *filelist = job_params->tmp_filelist; /* Use the thread-safe filelist queue. */
 
-  Set<StringRef> already_downloaded_asset_identifiers;
+  Map<StringRef, asset_system::AssetRepresentation *> already_downloaded_assets;
   /* Get assets that were downloaded already. */
   {
     job_params->on_asset_added =
-        [&already_downloaded_asset_identifiers](const asset_system::AssetRepresentation &asset) {
-          already_downloaded_asset_identifiers.add(asset.library_relative_identifier());
+        [&already_downloaded_assets](asset_system::AssetRepresentation &asset) {
+          already_downloaded_assets.add(asset.library_relative_identifier(), &asset);
         };
 
     float progress_on_disk = 0.0;
@@ -221,7 +206,7 @@ void remote_asset_library_load(FileListReadJob *job_params,
   }
 
   filelist_readjob_remote_asset_library_index_read(
-      job_params, request, stop, do_update, progress, already_downloaded_asset_identifiers);
+      job_params, request, stop, do_update, progress, already_downloaded_assets);
 }
 
 static void filelist_remote_asset_library_update_loading_flags(RemoteLibraryRequest &request,

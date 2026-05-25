@@ -24,6 +24,8 @@
 #include "DNA_ID_enums.h"
 #include "DNA_asset_types.h"
 
+#include "AS_remote_library.hh"
+
 namespace blender {
 
 struct AssetMetaData;
@@ -54,6 +56,13 @@ class AssetRepresentation : NonCopyable, NonMovable {
     int id_type = 0;
     std::unique_ptr<AssetMetaData> metadata_ = nullptr;
     PreviewImage *preview_ = nullptr;
+
+    /**
+     * Status of this asset's file(s) compared to the remote listing.
+     * Only meaningful for assets from a remote library that have been checked against the listing.
+     * For online-only assets (#online_info_ is set), the status is stored there instead.
+     */
+    AssetFileStatus file_status = AssetFileStatus::UNSET;
 
     /** Set if this is an online asset only. */
     std::unique_ptr<OnlineAssetInfo> online_info_;
@@ -205,6 +214,16 @@ class AssetRepresentation : NonCopyable, NonMovable {
    * `bke::asset_edit_id_is_editable(asset_id)` and `bke::asset_edit_id_is_writable(asset_id)`.
    */
   bool is_potentially_editable_asset_blend() const;
+
+  /**
+   * Status of this asset's on-disk file(s) compared to the remote listing.
+   * Returns #AssetFileStatus::UNSET if the asset has not been checked against a listing.
+   * For on-disk assets this reflects the status stamped after listing comparison.
+   * For online-only assets this reflects the status from #OnlineAssetInfo.
+   */
+  AssetFileStatus file_status() const;
+  /** Set the file status for on-disk assets. No-op for online-only assets. */
+  void set_file_status(AssetFileStatus status);
 
   AssetLibrary &owner_asset_library() const;
 };

@@ -51,6 +51,7 @@ AssetRepresentation::AssetRepresentation(StringRef relative_asset_path,
           id_type,
           std::move(metadata),
           nullptr,
+          AssetFileStatus::UNSET,
           std::make_unique<OnlineAssetInfo>(std::move(online_info))})
 {
 }
@@ -284,6 +285,27 @@ bool AssetRepresentation::is_potentially_editable_asset_blend() const
 
   std::string lib_path = this->full_library_path();
   return StringRef(lib_path).endswith(BLENDER_ASSET_FILE_SUFFIX);
+}
+
+AssetFileStatus AssetRepresentation::file_status() const
+{
+  const ExternalAsset *extern_asset = std::get_if<ExternalAsset>(&asset_);
+  if (!extern_asset) {
+    return AssetFileStatus::UNSET;
+  }
+  if (extern_asset->online_info_) {
+    return extern_asset->online_info_->file_status;
+  }
+  return extern_asset->file_status;
+}
+
+void AssetRepresentation::set_file_status(const AssetFileStatus status)
+{
+  ExternalAsset *extern_asset = std::get_if<ExternalAsset>(&asset_);
+  if (!extern_asset || extern_asset->online_info_) {
+    return;
+  }
+  extern_asset->file_status = status;
 }
 
 AssetLibrary &AssetRepresentation::owner_asset_library() const
