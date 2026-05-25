@@ -405,16 +405,15 @@ void okhsv_to_rgb(float4 hsv, float4 &outcol)
   oklab_to_rgb(float4(l, c * a_, c * b_, hsv[3]), outcol);
 }
 
-float oklab_find_gamut_intersection(float a, float b, float L1, float C1, float L0, float l_cusp, float c_cusp)
+float oklab_find_gamut_intersection(
+    float a, float b, float L1, float C1, float L0, float l_cusp, float c_cusp)
 {
-	float t;
-	if (((L1 - L0) * c_cusp - (l_cusp - L0) * C1) <= 0.f)
-	{
-		t = c_cusp * L0 / (C1 * l_cusp + c_cusp * (L0 - L1));
-	}
-	else
-	{
-		t = c_cusp * (L0 - 1.f) / (C1 * (l_cusp - 1.f) + c_cusp * (L0 - L1));
+  float t;
+  if (((L1 - L0) * c_cusp - (l_cusp - L0) * C1) <= 0.f) {
+    t = c_cusp * L0 / (C1 * l_cusp + c_cusp * (L0 - L1));
+  }
+  else {
+    t = c_cusp * (L0 - 1.f) / (C1 * (l_cusp - 1.f) + c_cusp * (L0 - L1));
 
     float dL = L1 - L0;
     float dC = C1;
@@ -474,40 +473,36 @@ float oklab_find_gamut_intersection(float a, float b, float L1, float C1, float 
       t_b = u_b >= 0.f ? t_b : 1e38;
 
       t += min(t_r, min(t_g, t_b));
-		}
-	}
+    }
+  }
 
-	return t;
+  return t;
 }
 
 static void oklab_get_st_mid(float a_, float b_, float &s_mid, float &t_mid)
 {
-	s_mid = 0.11516993f + 1.f / (
-		+7.44778970f + 4.15901240f * b_
-		+ a_ * (-2.19557347f + 1.75198401f * b_
-			+ a_ * (-2.13704948f - 10.02301043f * b_
-				+ a_ * (-4.24894561f + 5.38770819f * b_ + 4.69891013f * a_
-					)))
-		);
-	t_mid = 0.11239642f + 1.f / (
-		+1.61320320f - 0.68124379f * b_
-		+ a_ * (+0.40370612f + 0.90148123f * b_
-			+ a_ * (-0.27087943f + 0.61223990f * b_
-				+ a_ * (+0.00299215f - 0.45399568f * b_ - 0.14661872f * a_
-					)))
-		);
+  s_mid = 0.11516993f +
+          1.f / (+7.44778970f + 4.15901240f * b_ +
+                 a_ * (-2.19557347f + 1.75198401f * b_ +
+                       a_ * (-2.13704948f - 10.02301043f * b_ +
+                             a_ * (-4.24894561f + 5.38770819f * b_ + 4.69891013f * a_))));
+  t_mid = 0.11239642f +
+          1.f / (+1.61320320f - 0.68124379f * b_ +
+                 a_ * (+0.40370612f + 0.90148123f * b_ +
+                       a_ * (-0.27087943f + 0.61223990f * b_ +
+                             a_ * (+0.00299215f - 0.45399568f * b_ - 0.14661872f * a_))));
 }
 
 static void oklab_get_cs(float L, float a_, float b_, float &c_0, float &c_mid, float &c_max)
 {
   float l_cusp, c_cusp;
-	oklab_find_cusp(a_, b_, l_cusp, c_cusp);
+  oklab_find_cusp(a_, b_, l_cusp, c_cusp);
 
-	c_max = oklab_find_gamut_intersection(a_, b_, L, 1, L, l_cusp, c_cusp);
+  c_max = oklab_find_gamut_intersection(a_, b_, L, 1, L, l_cusp, c_cusp);
   float s_max = c_cusp / l_cusp;
   float t_max = c_cusp / (1 - l_cusp);
 
-	float k = c_max / min((L * s_max), (1 - L) * t_max);
+  float k = c_max / min((L * s_max), (1 - L) * t_max);
 
   float s_mid, t_mid;
   oklab_get_st_mid(a_, b_, s_mid, t_mid);
@@ -529,38 +524,36 @@ void rgb_to_okhsl(float4 rgb, float4 &outcol)
   float lab_a = lab[1];
   float lab_b = lab[2];
 
-	float c = sqrt(lab_a * lab_a + lab_b * lab_b);
+  float c = sqrt(lab_a * lab_a + lab_b * lab_b);
   float a_ = lab_a / c;
   float b_ = lab_b / c;
 
-	float h = 0.5f + 0.5f * atan(-lab_b, -lab_a) / 3.1415926536f;
+  float h = 0.5f + 0.5f * atan(-lab_b, -lab_a) / 3.1415926536f;
 
   float c_0, c_mid, c_max;
-	oklab_get_cs(lab_l, a_, b_, c_0, c_mid, c_max);
+  oklab_get_cs(lab_l, a_, b_, c_0, c_mid, c_max);
 
-	float mid = 0.8f;
-	float mid_inv = 1.25f;
+  float mid = 0.8f;
+  float mid_inv = 1.25f;
 
   float s;
-	if (c < c_mid)
-	{
-		float k_1 = mid * c_0;
-		float k_2 = (1.f - k_1 / c_mid);
+  if (c < c_mid) {
+    float k_1 = mid * c_0;
+    float k_2 = (1.f - k_1 / c_mid);
 
-		float t = c / (k_1 + k_2 * c);
-		s = t * mid;
-	}
-	else
-	{
-		float k_0 = c_mid;
-		float k_1 = (1.f - mid) * c_mid * c_mid * mid_inv * mid_inv / c_0;
-		float k_2 = (1.f - (k_1) / (c_max - c_mid));
+    float t = c / (k_1 + k_2 * c);
+    s = t * mid;
+  }
+  else {
+    float k_0 = c_mid;
+    float k_1 = (1.f - mid) * c_mid * c_mid * mid_inv * mid_inv / c_0;
+    float k_2 = (1.f - (k_1) / (c_max - c_mid));
 
-		float t = (c - k_0) / (k_1 + k_2 * (c - k_0));
-		s = mid + (1.f - mid) * t;
-	}
+    float t = (c - k_0) / (k_1 + k_2 * (c - k_0));
+    s = mid + (1.f - mid) * t;
+  }
 
-	float l = oklab_toe(lab_l);
+  float l = oklab_toe(lab_l);
   outcol = float4(h, s, l, rgb[3]);
 }
 
@@ -571,45 +564,41 @@ void okhsl_to_rgb(float4 hsl, float4 &outcol)
   float s = hsl[1];
   float l = hsl[2];
 
-	if (l == 1.0f)
-	{
-		outcol = float4(1.0f, 1.0f, 1.0f, hsl[3]);
+  if (l == 1.0f) {
+    outcol = float4(1.0f, 1.0f, 1.0f, hsl[3]);
     return;
-	}
+  }
 
-	else if (l == 0.0f)
-	{
-		outcol = float4(0.0f, 0.0f, 0.0f, hsl[3]);
+  else if (l == 0.0f) {
+    outcol = float4(0.0f, 0.0f, 0.0f, hsl[3]);
     return;
-	}
+  }
 
-	float a_ = cos(2.0f * 3.1415926536f * h);
-	float b_ = sin(2.0f * 3.1415926536f * h);
-	float L = oklab_toe_inverse(l);
+  float a_ = cos(2.0f * 3.1415926536f * h);
+  float b_ = sin(2.0f * 3.1415926536f * h);
+  float L = oklab_toe_inverse(l);
 
   float c_0, c_mid, c_max;
-	oklab_get_cs(L, a_, b_, c_0, c_mid, c_max);
+  oklab_get_cs(L, a_, b_, c_0, c_mid, c_max);
 
-	float mid = 0.8f;
-	float mid_inv = 1.25f;
+  float mid = 0.8f;
+  float mid_inv = 1.25f;
 
-	float C, t, k_0, k_1, k_2;
+  float C, t, k_0, k_1, k_2;
 
-	if (s < mid)
-	{
-		t = mid_inv * s;
-		k_1 = mid * c_0;
-		k_2 = (1.0f - k_1 / c_mid);
-		C = t * k_1 / (1.0f - k_2 * t);
-	}
-	else
-	{
-		t = (s - mid)/ (1 - mid);
-		k_0 = c_mid;
-		k_1 = (1.f - mid) * c_mid * c_mid * mid_inv * mid_inv / c_0;
-		k_2 = (1.f - (k_1) / (c_max - c_mid));
-		C = k_0 + t * k_1 / (1.f - k_2 * t);
-	}
+  if (s < mid) {
+    t = mid_inv * s;
+    k_1 = mid * c_0;
+    k_2 = (1.0f - k_1 / c_mid);
+    C = t * k_1 / (1.0f - k_2 * t);
+  }
+  else {
+    t = (s - mid) / (1 - mid);
+    k_0 = c_mid;
+    k_1 = (1.f - mid) * c_mid * c_mid * mid_inv * mid_inv / c_0;
+    k_2 = (1.f - (k_1) / (c_max - c_mid));
+    C = k_0 + t * k_1 / (1.f - k_2 * t);
+  }
 
   oklab_to_rgb(float4(L, C * a_, C * b_, hsl[3]), outcol);
 }
