@@ -130,15 +130,6 @@ def get_enabled_socket_with_name(sockets, name):
             return socket
     return None
 
-def get_menu_socket_enum_items(input) -> list[str]:
-    try:
-        input.value = "x" * 1000
-    except AttributeError as e:
-        string = str(e)
-        return string.split("not found in")[1].strip().strip("()").split(", ")
-
-    raise RuntimeError("Failed to extract enum items from menu socket")
-
 
 def create_wrapper_group(operator, modifier, old_group):
     wrapper_name = old_group.name + ".wrapper"
