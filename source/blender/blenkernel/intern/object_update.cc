@@ -98,7 +98,7 @@ void BKE_object_eval_constraints(Depsgraph *depsgraph, Scene *scene, Object *ob)
 
   /* evaluate constraints stack */
   /* TODO: split this into:
-   * - pre (i.e. BKE_constraints_make_evalob, per-constraint (i.e.
+   * - pre (i.e. BKE_constraints_make_evalob), per-constraint (i.e.
    * - inner body of BKE_constraints_solve),
    * - post (i.e. BKE_constraints_clear_evalob)
    *
@@ -180,6 +180,8 @@ void BKE_object_handle_data_update(Depsgraph *depsgraph, Scene *scene, Object *o
       break;
     case OB_GREASE_PENCIL:
       BKE_object_eval_grease_pencil(depsgraph, scene, ob);
+      break;
+    default:
       break;
   }
 
@@ -339,7 +341,7 @@ void BKE_object_eval_transform_all(Depsgraph *depsgraph, Scene *scene, Object *o
   if (object->parent != nullptr) {
     BKE_object_eval_parent(depsgraph, object);
   }
-  if (!BLI_listbase_is_empty(&object->constraints)) {
+  if (!object->constraints.is_empty()) {
     BKE_object_eval_constraints(depsgraph, scene, object);
   }
   BKE_object_eval_uber_transform(depsgraph, object);

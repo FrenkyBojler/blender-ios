@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 Alpha (b'45d5533d8e66')\n"
+"Project-Id-Version: Blender 5.2.0 Alpha (b'bc0a0ff2c0ce')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-03-16 11:01+0000\n"
+"POT-Creation-Date: 2026-05-18 11:20+0000\n"
 "PO-Revision-Date: 2025-07-23 14:53+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Arabic <https://translate.blender.org/projects/blender-ui/ui/ar/>\n"
@@ -2254,6 +2254,15 @@ msgid "Vertex Color"
 msgstr "ﺔﻄﻘﻨﻟﺍ ﻥﻮﻟ"
 
 
+msgid "Threshold"
+msgstr "ﺔﺒﺘﻌﻟﺍ"
+
+
+msgctxt "Operator"
+msgid "Poly"
+msgstr "ﺽﺮﻋﺍ"
+
+
 msgid "All"
 msgstr "ﻞﻜﻟﺍ"
 
@@ -2264,10 +2273,6 @@ msgstr "ﺔﻗﺪﻟﺍ"
 
 msgid "Simplify"
 msgstr "ﻂﺴﺑ"
-
-
-msgid "Threshold"
-msgstr "ﺔﺒﺘﻌﻟﺍ"
 
 
 msgid "Input Samples"
@@ -2300,6 +2305,10 @@ msgstr "ﺔﺒﻄﺷ"
 
 msgid "Fill"
 msgstr "ﺔﺌﺒﻌﺗ"
+
+
+msgid "Both"
+msgstr "ﺎﻤﻫﻼ﻿ﻛ"
 
 
 msgid "Background Image"
@@ -8926,10 +8935,6 @@ msgstr "ﺔﺷﺎﺸﻟﺍ ءﺎﻀﻓ ﻦﻣ ﻻ﻿ﺪﺑ ﺢﻄﺴﻟﺍ ﻪ�
 
 msgid "When this is disabled, lock alpha while painting"
 msgstr " ﻢﺳﺮﻟﺍ ﺪﻨﻋ ﺎﻔﻟﻻ﻿ﺍ ﻞﻔﻗﺍ ,ﻞﻴﻄﻌﺘﻟﺍ ﺪﻨﻋ"
-
-
-msgid "Cavity Mask"
-msgstr "ﻒﻳﻮﺠﺘﻟﺍ ﻉﺎﻨﻗ"
 
 
 msgid "Use Cursor Overlay"
@@ -15639,6 +15644,10 @@ msgid "Dots"
 msgstr "ﺕﺎﺨﻄﻟ"
 
 
+msgid "Placement"
+msgstr "ﻊﺿﻮﻟﺍ"
+
+
 msgid "Material slot in an object"
 msgstr "ﻦﺋﺎﻛ ﻲﻓ ﺔﻣﺎﺧ ﺔﺤﺘﻓ"
 
@@ -15651,88 +15660,20 @@ msgid "Material slot name"
 msgstr "ﺔﻣﺎﺨﻟﺍ ﺔﺤﺘﻓ ﻢﺳﺇ"
 
 
-msgid "Quick Effects"
-msgstr "ﺔﻌﻳﺮﺳ ﺕﺍﺮﻴﺛﺄﺗ"
-
-
-msgid "Math"
-msgstr "ﺏﺎﺴﺣ"
-
-
-msgid "UV"
-msgstr "ﺭﻭﺎﺤﻣ"
-
-
-msgid "Make Single User"
-msgstr "ﻡﺪﺨﺘﺴﻤﻟﺍ ﺪﻴﺣﻭ ﻪﻠﻌﺟﺍ"
-
-
-msgid "Hooks"
-msgstr "ﺕﺎﻓﺎﻄﺧ"
-
-
-msgid "In-Betweens"
-msgstr "ﻦﻴﺑ ﺎﻣ"
-
-
-msgid "Propagate"
-msgstr "ﻢﻤﻋ"
-
-
-msgid "Names"
-msgstr "ءﺎﻤﺳﺃ"
-
-
-msgid "Apply"
-msgstr "ﻖﺒﻃ"
-
-
-msgid "Face Data"
-msgstr "ﻪﺟﻮﻟﺍ ﺕﺎﻧﺎﻴﺑ"
-
-
-msgid "Merge"
-msgstr "ﺞﻣﺩﺇ"
-
-
-msgid "Special Characters"
-msgstr "ﺔﺻﺎﺧ ﻑﺮﺣﺃ"
-
-
-msgid "Layout"
-msgstr "ﻖﻴﺴﻨﺗ"
-
-
-msgid "Metaball"
-msgstr "ﺔﻠﻋﺎﻔﺘﻣ ﺓﺮﻛ"
-
-
-msgid "Bone Roll"
-msgstr "ﺔﻤﻈﻌﻟﺍ ءﺍﻮﺘﻟﺍ"
-
-
-msgid "Keying"
-msgstr "ﺺﺤﻔﻟﺍ"
-
-
-msgid "Tracking"
-msgstr "ﺔﻘﺣﻼ﻿ﻤﻟﺍ"
+msgid "Mirror"
+msgstr "ﻞﺛﺎﻣ"
 
 
 msgid "Snap"
 msgstr "ﻱﺫﺎﺣ"
 
 
-msgid "Proportional Editing Falloff"
-msgstr "ﻲﺒﺴﻨﻟﺍ ﺮﻳﺮﺤﺘﻟﺍ ﻲﺷﻼ﻿ﺗ"
-
-
-msgid "Mirror"
-msgstr "ﻞﺛﺎﻣ"
-
-
 msgid "UV Mapping"
 msgstr "UV ءﺎﺴﻛﺇ"
+
+
+msgid "Math"
+msgstr "ﺏﺎﺴﺣ"
 
 
 msgid "Navigation"
@@ -15763,6 +15704,10 @@ msgid "Select Linked"
 msgstr "ﺔﻄﺒﺗﺮﻤﻟﺍ ﺭﺎﺘﺧﺇ"
 
 
+msgid "Metaball"
+msgstr "ﺔﻠﻋﺎﻔﺘﻣ ﺓﺮﻛ"
+
+
 msgid "Light"
 msgstr "ءﻮﺿ"
 
@@ -15779,8 +15724,72 @@ msgid "Rigid Body"
 msgstr "ﻞﻋﺎﻔﺘﻣ ﻢﺴﺟ"
 
 
+msgid "Apply"
+msgstr "ﻖﺒﻃ"
+
+
 msgid "Track"
 msgstr "ﺐﻘّﻌﺗ"
+
+
+msgid "Quick Effects"
+msgstr "ﺔﻌﻳﺮﺳ ﺕﺍﺮﻴﺛﺄﺗ"
+
+
+msgid "Make Single User"
+msgstr "ﻡﺪﺨﺘﺴﻤﻟﺍ ﺪﻴﺣﻭ ﻪﻠﻌﺟﺍ"
+
+
+msgid "UV"
+msgstr "ﺭﻭﺎﺤﻣ"
+
+
+msgid "Hooks"
+msgstr "ﺕﺎﻓﺎﻄﺧ"
+
+
+msgid "In-Betweens"
+msgstr "ﻦﻴﺑ ﺎﻣ"
+
+
+msgid "Propagate"
+msgstr "ﻢﻤﻋ"
+
+
+msgid "Names"
+msgstr "ءﺎﻤﺳﺃ"
+
+
+msgid "Face Data"
+msgstr "ﻪﺟﻮﻟﺍ ﺕﺎﻧﺎﻴﺑ"
+
+
+msgid "Merge"
+msgstr "ﺞﻣﺩﺇ"
+
+
+msgid "Layout"
+msgstr "ﻖﻴﺴﻨﺗ"
+
+
+msgid "Special Characters"
+msgstr "ﺔﺻﺎﺧ ﻑﺮﺣﺃ"
+
+
+msgid "Bone Roll"
+msgstr "ﺔﻤﻈﻌﻟﺍ ءﺍﻮﺘﻟﺍ"
+
+
+msgid "Keying"
+msgstr "ﺺﺤﻔﻟﺍ"
+
+
+msgid "Tracking"
+msgstr "ﺔﻘﺣﻼ﻿ﻤﻟﺍ"
+
+
+msgid "Proportional Editing Falloff"
+msgstr "ﻲﺒﺴﻨﻟﺍ ﺮﻳﺮﺤﺘﻟﺍ ﻲﺷﻼ﻿ﺗ"
 
 
 msgctxt "MovieClip"
@@ -15958,6 +15967,10 @@ msgstr "ﺔﻜﺒﺷ"
 
 msgid "Operator Presets"
 msgstr "ﻞﻣﺎﻌﻠﻟ ﺔﻘﺒﺴﻣ ﺕﺍﺩﺍﺪﻋﺇ"
+
+
+msgid "Cavity Mask"
+msgstr "ﻒﻳﻮﺠﺘﻟﺍ ﻉﺎﻨﻗ"
 
 
 msgid "Mesh Edge"
@@ -20450,6 +20463,10 @@ msgid "Add Bone"
 msgstr "ﺔﻤﻈﻋ ﻒﺿﺍ"
 
 
+msgid "Axes"
+msgstr "ﺭﻭﺎﺤﻣ"
+
+
 msgctxt "Operator"
 msgid "Recalculate Roll"
 msgstr "ﻥﻼ﻿ﻴﻤﻟﺍ ﺏﺎﺴﺣ ﺪﻋﺍ"
@@ -20504,6 +20521,10 @@ msgstr "ﺓﺭﺎﺘﺨﻤﻟﺍ ﻡﺎﻈﻌﻟﺍ ﺭﺮﻛ"
 
 msgid "Make copies of the selected bones within the same armature"
 msgstr "ﻞﻜﻴﻬﻟﺍ ﺲﻔﻧ ﻦﻤﺿ ﺓﺭﺎﺘﺨﻤﻟﺍ ﻡﺎﻈﻌﻟﺍ ﺦﺴﻧ ﻞﻌﺟﺍ"
+
+
+msgid "Search"
+msgstr "ﺚﺤﺑﺇ"
 
 
 msgctxt "Operator"
@@ -20830,10 +20851,6 @@ msgstr "ﺓﺭﺎﺘﺨﻤﻟﺍ ﺕﺍﺭﺎﺴﻤﻟﺍ ﻑﺬﺣﺍ"
 
 msgid "Minimal distance accepted between two features"
 msgstr "ﻦﻴﺗﺰﻴﻣ ﻦﻴﺑ ﺔﻟﻮﺒﻘﻤﻟﺍ ﺎﻴﻧﺪﻟﺍ ﺔﻓﺎﺴﻤﻟﺍ"
-
-
-msgid "Placement"
-msgstr "ﻊﺿﻮﻟﺍ"
 
 
 msgid "Placement for detected features"
@@ -22121,10 +22138,6 @@ msgid "Flatten"
 msgstr "ﺢﻄّﺳ"
 
 
-msgid "Both"
-msgstr "ﺎﻤﻫﻼ﻿ﻛ"
-
-
 msgctxt "Operator"
 msgid "Euler Discontinuity Filter"
 msgstr "ﺮﻟﻮﻳ ﻉﺎﻄﻘﻧﺍ ﻲﻔﺼﻣ"
@@ -23266,10 +23279,6 @@ msgid "Merge selected vertices"
 msgstr "ﺓﺭﺎﺘﺨﻤﻟﺍ ﻂﻘﻨﻟﺍ ﺞﻣﺩﺍ"
 
 
-msgid "At First"
-msgstr "ﻝﻭﻷ﻿ﺍ ﻲﻓ"
-
-
 msgctxt "Operator"
 msgid "Offset Edge Loop"
 msgstr "ﺔﻓﺎﺤﻟﺍ ﻞﺴﻠﺴﺗ ﺡﺯﺍ"
@@ -23390,11 +23399,6 @@ msgstr "ﻪﺟﻭﻻ﻿ﺍ ﺚﻠّﺛ"
 
 msgid "Triangulate selected faces"
 msgstr "ﺓﺭﺎﺘﺨﻤﻟﺍ ﻪﺟﻭﻻ﻿ﺍ ﺚﻠّﺛ"
-
-
-msgctxt "Operator"
-msgid "Select Boundary Loop"
-msgstr "ﺔﻓﺎﺤﻟﺍ ﻞﺴﻠﺴﺗ ﺮﺘﺧﺍ"
 
 
 msgid "Sharp Edges"
@@ -24071,10 +24075,6 @@ msgstr "ﺓﺪﻳﺪﺟ ﺪﻘﻋ ﺓﺮﺠﺷ ﺊﺸﻧﺍ"
 
 msgid "Copy color to all selected nodes"
 msgstr "ﺓﺭﺎﺘﺨﻤﻟﺍ ﺪﻘﻌﻟﺍ ﻞﻜﻟ ﻥﻮﻠﻟﺍ ﺦﺴﻧﺍ"
-
-
-msgid "Overlay Mode"
-msgstr "ﺔﻴﻄﻐﺘﻟﺍ ﻊﺿﻭ"
 
 
 msgctxt "Operator"
@@ -25897,11 +25897,6 @@ msgstr "ﺓﺪﻳﺪﺟ ﺓﺬﻓﺎﻨﻛ ﺓﺭﺎﺘﺨﻤﻟﺍ ﻖﻃﺎﻨ
 msgctxt "Operator"
 msgid "Move Area Edges"
 msgstr "ﺔﻘﻄﻨﻤﻟﺍ ﻑﺍﻮﺣ ﻙﺮّﺣ"
-
-
-msgctxt "Operator"
-msgid "Area Options"
-msgstr "ﺔﻘﻄﻨﻤﻟﺍ ﺕﺍﺭﺎﻴﺧ"
 
 
 msgctxt "Operator"
@@ -29654,10 +29649,6 @@ msgid "Limit the texture size to save graphics memory"
 msgstr " ﺔﻳﺭﻮﺼﻟﺍ ﺓﺮﻛﺍﺬﻟﺍ ﻆﻔﺤﻟ ﺞﻴﺴﻨﻟﺍ ﻢﺠﺣ ﺩﺪﺣ"
 
 
-msgid "2D Texture"
-msgstr "ﻲﺋﺎﻨﺛ ﺞﻴﺴﻧ"
-
-
 msgid "Ambient Color"
 msgstr "ﺔﻃﺎﺣﻻ﻿ﺍ ﻥﻮﻟ"
 
@@ -31118,6 +31109,10 @@ msgid "Mask displayed and edited in this space"
 msgstr "ءﺎﻀﻔﻟﺍ ﺍﺬﻫ ﻲﻓ ﺭﺮﺤﻳ ﻭ ﻉﺎﻨﻘﻟﺍ ﺮﻬﻈﻳ"
 
 
+msgid "Overlay Mode"
+msgstr "ﺔﻴﻄﻐﺘﻟﺍ ﻊﺿﻭ"
+
+
 msgid "Alpha Channel"
 msgstr "ﺎﻔﻟﺍ ﺓﺎﻨﻗ"
 
@@ -31568,10 +31563,6 @@ msgstr "ﺕﻮﺻ"
 
 msgid "Use Default Fade"
 msgstr "ﻲﺿﺍﺮﺘﻓﻹ﻿ﺍ ﻝﺅﺎﻀﺘﻟﺍ ﻡﺪﺨﺘﺳﺍ"
-
-
-msgid "Use Linear Modifiers"
-msgstr "ﻡﺪﺨﺘﺴﻤﻟﺍ ﻞﺒﻗ ﻦﻣ ﻝﺪﻌﻣ"
 
 
 msgid "Representation of alpha information in the RGBA pixels"
@@ -33037,10 +33028,6 @@ msgid "Operator Properties"
 msgstr "ﻞﻣﺎﻌﻟﺍ ﺹﺍﻮﺧ"
 
 
-msgid "Search"
-msgstr "ﺚﺤﺑﺇ"
-
-
 msgctxt "WindowManager"
 msgid "Window"
 msgstr "ﺓﺬﻓﺎﻨﻟﺍ"
@@ -33366,6 +33353,10 @@ msgid "Report a Bug"
 msgstr "ﺄﻄﺧ ﻎﻴﻠﺒﺗ"
 
 
+msgid "Object Index"
+msgstr "ﻦﺋﺎﻜﻟﺍ ﺮﺷﺆﻣ"
+
+
 msgid "No output node"
 msgstr "ﺝﺮﺧ ﺓﺪﻘﻋ ﺪﺟﻮﺗ ﻻ﻿"
 
@@ -33539,10 +33530,6 @@ msgid "Shapes"
 msgstr "ﻝﺎﻜﺷﻷ﻿ﺍ"
 
 
-msgid "Axes"
-msgstr "ﺭﻭﺎﺤﻣ"
-
-
 msgid "Control Rotation"
 msgstr "ﻥﺍﺭﻭﺩ ﻢﻜﺤﺘﻟﺍ"
 
@@ -33645,11 +33632,6 @@ msgstr "ﺭﺎﺘﺨﻤﻟﺍ ﻰﻟﺇ ﺮﺷﺆﻤﻟﺍ"
 msgctxt "Operator"
 msgid "Cursor to Grid"
 msgstr "ﺔﻜﺒﺸﻟﺍ ﻰﻟﺇ ﺮﺷﺆﻤﻟﺍ"
-
-
-msgctxt "Operator"
-msgid "Poly"
-msgstr "ﺽﺮﻋﺍ"
 
 
 msgid "Data Source:"
@@ -35067,6 +35049,10 @@ msgid "Could not connect vertices"
 msgstr "ﺔﻠﺼﺘﻤﻟﺍ UV ـﻟﺍ ﻂﻘﻧ ﻦﻣ ﻞﺴﻠﺴﺗ ﺮﺘﺧﺇ"
 
 
+msgid "Anisotropic"
+msgstr "ﺱﺎﻜﻌﻧﻹ﻿ﺍ ﻞﻜﺸﺗ"
+
+
 msgid "No active object"
 msgstr "ﻝﺎﻌﻔﻟﺍ ﻦﺋﺎﻜﻟﺍ ﻞﻴﻟﺩ"
 
@@ -35232,10 +35218,6 @@ msgstr "ﻲﻧﺎﻴﺒﻟﺍ ﻰﻨﺤﻨﻤﻟﺍ ﻰﻠﻋ ﻝﺎﻌﻓ ﺭ�
 
 msgid "Nothing selected"
 msgstr "ﺭﺎﺘﺨﻣ ءﻲﺷ ﻻ﻿"
-
-
-msgid "Pin"
-msgstr "ﺖﺒّﺛ"
 
 
 msgctxt "Operator"
@@ -36521,10 +36503,6 @@ msgid "Unable to create socket"
 msgstr "ﺔﺤﺘﻓ ءﺎﺸﻧﺇ ﻰﻠﻋ ﺭﺩﺎﻗ ﺮﻴﻏ"
 
 
-msgid "Anisotropic"
-msgstr "ﺱﺎﻜﻌﻧﻹ﻿ﺍ ﻞﻜﺸﺗ"
-
-
 msgid "Unable to locate link in node tree"
 msgstr "ﺪﻘﻋ ﺓﺮﺠﺷ ﻲﻓ ﺪﻘﻋ ﻦﻴﺑ ﻂﺑﺍﺭ"
 
@@ -36787,10 +36765,6 @@ msgstr "2 ﻥﻮﻠﻟﺍ"
 
 msgid "Dot"
 msgstr "ﺔﻄﻘﻧ"
-
-
-msgid "Object Index"
-msgstr "ﻦﺋﺎﻜﻟﺍ ﺮﺷﺆﻣ"
 
 
 msgid "Color Fac"

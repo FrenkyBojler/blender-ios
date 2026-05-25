@@ -23,7 +23,7 @@
 #include "gpu_shader_math_vector_reduce_lib.glsl"
 #include "infos/eevee_common_infos.hh"
 
-#include "eevee_thickness_lib.glsl"
+#include "eevee_thickness_lib.bsl.hh"
 
 #include "gpu_shader_codegen_lib.glsl"
 #include "gpu_shader_math_vector_lib.glsl"
@@ -89,6 +89,8 @@ enum GBufferMode : uchar {
   GBUF_REFRACTION_COLORLESS = 1u | GBUF_TRANSMISSION_BIT,
   GBUF_TRANSLUCENT = 2u | GBUF_TRANSMISSION_BIT,
   GBUF_SUBSURFACE = 3u | GBUF_TRANSMISSION_BIT,
+  GBUF_THIN_REFRACTION = 4u | GBUF_TRANSMISSION_BIT,
+  GBUF_THIN_REFRACTION_COLORLESS = 5u | GBUF_TRANSMISSION_BIT,
 
   /** IMPORTANT: Needs to be less than 16 for correct packing in g-buffer header. */
 };
@@ -104,6 +106,8 @@ GBufferMode closure_type_to_mode(ClosureType type, bool is_grayscale)
       return is_grayscale ? GBUF_REFLECTION_COLORLESS : GBUF_REFLECTION;
     case CLOSURE_BSDF_MICROFACET_GGX_REFRACTION_ID:
       return is_grayscale ? GBUF_REFRACTION_COLORLESS : GBUF_REFRACTION;
+    case CLOSURE_BSDF_THIN_GLASS_TRANSMISSION_ID:
+      return is_grayscale ? GBUF_THIN_REFRACTION_COLORLESS : GBUF_THIN_REFRACTION;
     case CLOSURE_BSSRDF_BURLEY_ID:
       return GBUF_SUBSURFACE;
     default:
@@ -126,6 +130,9 @@ ClosureType mode_to_closure_type(uint mode)
     case GBUF_REFRACTION_COLORLESS:
     case GBUF_REFRACTION:
       return ClosureType(CLOSURE_BSDF_MICROFACET_GGX_REFRACTION_ID);
+    case GBUF_THIN_REFRACTION_COLORLESS:
+    case GBUF_THIN_REFRACTION:
+      return ClosureType(CLOSURE_BSDF_THIN_GLASS_TRANSMISSION_ID);
     default:
       return ClosureType(CLOSURE_NONE_ID);
   }
@@ -184,9 +191,9 @@ float thickness_pack(Thickness thickness)
    * distance and remap to it. Or tweak the hyperbole equality. */
   /* NOTE: Sign encodes the thickness mode. */
   /* Remap [0..+inf) to [0..1/2]. */
-  float thickness_packed = thickness.data / (1.0f + 2.0f * thickness.data);
+  float thickness_packed = thickness.value() / (1.0f + 2.0f * thickness.value());
   /* Mirror the negative from [0..1/2] to [1..1/2]. O is mapped to 0 for precision. */
-  return thickness.data < 0.0f ? 1.0f - thickness_packed : thickness_packed;
+  return thickness.mode() == ThicknessMode::Slab ? 1.0f - thickness_packed : thickness_packed;
 }
 
 Thickness thickness_unpack(float thickness_packed)
@@ -196,7 +203,8 @@ Thickness thickness_unpack(float thickness_packed)
   /* Remap [0..1/2] to [0..+inf). */
   thickness = thickness / (1.0f - 2.0f * thickness);
   /* Retrieve mode. */
-  return {.data = (thickness_packed > 0.5f ? -thickness : thickness)};
+  return (thickness_packed > 0.5f) ? Thickness::from(thickness, ThicknessMode::Slab) :
+                                     Thickness::from(thickness, ThicknessMode::Sphere);
 }
 
 /**
@@ -528,7 +536,7 @@ struct ClosurePacking {
   bool use_data1() const
   {
     return this->mode == GBUF_REFLECTION || this->mode == GBUF_REFRACTION ||
-           this->mode == GBUF_SUBSURFACE;
+           this->mode == GBUF_THIN_REFRACTION || this->mode == GBUF_SUBSURFACE;
   }
 
   bool is_empty() const
@@ -587,6 +595,18 @@ struct Refraction {
   }
 };
 
+struct ThinRefraction {
+  static void pack_additional(ClosurePacking &cl_packed, ClosureUndetermined cl)
+  {
+    cl_packed.data1 = float4(cl.data.x, 0.0f, 0.0f, 0.0f);
+  }
+
+  static void unpack_additional(ClosureUndetermined &cl, float4 data1)
+  {
+    cl.data.x = data1.x; /* Roughness. */
+  }
+};
+
 /* Special case where we can save 1 data layers per closure. */
 struct ReflectionColorless {
   static void pack_additional(ClosurePacking &cl_packed, ClosureUndetermined cl)
@@ -613,6 +633,20 @@ struct RefractionColorless {
     cl.color = cl.color.zzz;
     cl.data.x = data0.x; /* Roughness. */
     cl.data.y = gbuffer::ior_unpack(data0.y);
+  }
+};
+
+/* Special case where we can save 1 data layers per closure. */
+struct ThinRefractionColorless {
+  static void pack_additional(ClosurePacking &cl_packed, ClosureUndetermined cl)
+  {
+    cl_packed.data0 = float4(cl.data.x, 0.0f, cl_packed.data0.zw);
+  }
+
+  static void unpack_additional(ClosureUndetermined &cl, float4 data0)
+  {
+    cl.color = cl.color.zzz;
+    cl.data.x = data0.x; /* Roughness. */
   }
 };
 

@@ -8,26 +8,27 @@ FRAGMENT_SHADER_CREATE_INFO(gpencil_geometry)
 
 #include "draw_colormanagement_lib.glsl"
 #include "draw_grease_pencil_lib.glsl"
+#include "gpu_shader_common_color_utils.glsl"
+#include "gpu_shader_common_hash.glsl"
 #include "gpu_shader_math_vector_lib.glsl"
 
 float3 gpencil_lighting()
 {
   float3 light_accum = float3(0.0f);
   for (int i = 0; i < GPENCIL_LIGHT_BUFFER_LEN; i++) {
-    if (float3(gp_lights[i]._color).x == -1.0f) {
+    if (float3(gp_lights[i].light_color).x == -1.0f) {
       break;
     }
-    float3 L = gp_lights[i]._position - gp_interp.pos;
+    float3 L = gp_lights[i].position - gp_interp.pos;
     float vis = 1.0f;
-    gpLightType type = gpLightType(floatBitsToUint(gp_lights[i]._type));
+    gpLightType type = gp_lights[i].type;
     /* Spot Attenuation. */
     if (type == GP_LIGHT_TYPE_SPOT) {
-      float3x3 rot_scale = float3x3(gp_lights[i]._right, gp_lights[i]._up, gp_lights[i]._forward);
+      float3x3 rot_scale = float3x3(gp_lights[i].right, gp_lights[i].up, gp_lights[i].forward);
       float3 local_L = rot_scale * L;
       local_L /= abs(local_L.z);
       float ellipse = inversesqrt(length_squared(local_L));
-      vis *= smoothstep(
-          0.0f, 1.0f, (ellipse - gp_lights[i]._spot_size) / gp_lights[i]._spot_blend);
+      vis *= smoothstep(0.0f, 1.0f, (ellipse - gp_lights[i].spot_size) / gp_lights[i].spot_blend);
       /* Also mask +Z cone. */
       vis *= step(0.0f, local_L.z);
     }
@@ -37,7 +38,7 @@ float3 gpencil_lighting()
       vis /= L_len_sqr;
     }
     else {
-      L = gp_lights[i]._forward;
+      L = gp_lights[i].forward;
       L_len_sqr = 1.0f;
     }
     /* Lambertian falloff */
@@ -45,38 +46,36 @@ float3 gpencil_lighting()
       L /= sqrt(L_len_sqr);
       vis *= clamp(dot(gp_normal, L), 0.0f, 1.0f);
     }
-    light_accum += vis * gp_lights[i]._color;
+    light_accum += vis * gp_lights[i].light_color;
   }
   /* Clamp to avoid NaNs. */
   return clamp(light_accum, 0.0f, 1e10f);
 }
 
-float4 get_color(float2 uv, float dot_radius)
+/* dx and dy are only needed for dots and squares. */
+float4 get_color(float2 uv, float2 dx, float2 dy)
 {
   float4 col;
   if (flag_test(gp_interp_flat.mat_flag, GP_STROKE_TEXTURE_USE)) {
     bool premul = flag_test(gp_interp_flat.mat_flag, GP_STROKE_TEXTURE_PREMUL);
-    if (flag_test(gp_interp_flat.mat_flag, GP_STROKE_ALIGNMENT)) {
-      float lod = log2(dot_radius);
-      col = textureLod(gp_stroke_tx, uv, lod);
-      if (premul && !(col.a == 0.0f || col.a == 1.0f)) {
-        col.rgb = col.rgb / col.a;
-      }
-    }
-    else {
-      col = texture_read_as_linearrgb(gp_stroke_tx, premul, uv);
+    col = textureGrad(gp_stroke_tx, uv, dx, dy);
+    if (premul && !(col.a == 0.0f || col.a == 1.0f)) {
+      col.rgb = col.rgb / col.a;
     }
   }
   else if (flag_test(gp_interp_flat.mat_flag, GP_FILL_TEXTURE_USE)) {
     bool use_clip = flag_test(gp_interp_flat.mat_flag, GP_FILL_TEXTURE_CLIP);
     float2 uvs = (use_clip) ? clamp(uv, 0.0f, 1.0f) : uv;
     bool premul = flag_test(gp_interp_flat.mat_flag, GP_FILL_TEXTURE_PREMUL);
-    col = texture_read_as_linearrgb(gp_fill_tx, premul, uvs);
+    col = textureGrad(gp_fill_tx, uvs, dx, dy);
+    if (premul && !(col.a == 0.0f || col.a == 1.0f)) {
+      col.rgb = col.rgb / col.a;
+    }
   }
   else if (flag_test(gp_interp_flat.mat_flag, GP_FILL_GRADIENT_USE)) {
     bool radial = flag_test(gp_interp_flat.mat_flag, GP_FILL_GRADIENT_RADIAL);
     float fac = clamp(radial ? length(uv * 2.0f - 1.0f) : uv.x, 0.0f, 1.0f);
-    uint matid = gp_interp_flat.mat_flag >> GPENCIl_MATID_SHIFT;
+    uint matid = gp_interp_flat.mat_flag >> GPENCIL_MATID_SHIFT;
     col = mix(gp_materials[matid].fill_color, gp_materials[matid].fill_mix_color, fac);
   }
   else /* SOLID */ {
@@ -86,7 +85,7 @@ float4 get_color(float2 uv, float dot_radius)
 
   /* Composite all other colors on top of texture color.
    * Everything is pre-multiply by `col.a` to have the stencil effect. */
-  col = col * gp_interp.color_mul + col.a * gp_interp.color_add;
+  col = col * color_mul_fixed + col.a * gp_interp.color_add;
 
   col.rgb *= gpencil_lighting();
 
@@ -105,12 +104,116 @@ float4 get_color(float2 uv, float dot_radius)
   return col;
 }
 
-float2 rotate_uv(float2 uv, float2 x_axis)
+float2x2 calculate_rotation_matrix(float2 x_axis)
 {
   float2 y_axis = orthogonal(x_axis);
-  uv = transpose(float2x2(x_axis, y_axis)) * uv;
+  return transpose(float2x2(x_axis, y_axis));
+}
 
-  return uv;
+struct RandomParameters {
+  float random_size;
+  float random_strength;
+  float random_rotation;
+
+  float random_hue;
+  float random_saturation;
+  float random_value;
+
+  float random_noise_scale;
+};
+
+RandomParameters unpack_random(uint4 random_packed)
+{
+  float2 unpacked_x = unpackUnorm2x16(random_packed.x);
+  float2 unpacked_y = unpackUnorm2x16(random_packed.y);
+  float2 unpacked_z = unpackUnorm2x16(random_packed.z);
+  return {unpacked_x.x,
+          unpacked_x.y,
+          unpacked_y.x,
+          unpacked_y.y,
+          unpacked_z.x,
+          unpacked_z.y,
+          uintBitsToFloat(random_packed.w)};
+}
+
+float simple_noise(float x)
+{
+  int int_x = int(x);
+  float factor = smoothstep(0.0f, 1.0f, fract(x));
+  return mix(hash_uint_to_float(int_x), hash_uint_to_float(int_x + 1), factor);
+}
+
+float noise_level_2(float x)
+{
+  return (simple_noise(x) + simple_noise(x * 0.353953f)) * 0.5f;
+}
+
+float4 get_dot_color(float2 uv, int i, float2 dx, float2 dy)
+{
+  uint matid = gp_interp_flat.mat_flag >> GPENCIL_MATID_SHIFT;
+  RandomParameters Parameters = unpack_random(gp_materials[matid].random_packed);
+
+  float noise_x = float(i) * Parameters.random_noise_scale;
+
+  if (Parameters.random_rotation > 0.0f || Parameters.random_size > 0.0f) {
+    float rand_rot = noise_level_2(noise_x + 69637.532f);
+    rand_rot -= 0.5f;
+    rand_rot *= 2.0f;
+    rand_rot *= M_PI;
+    rand_rot *= Parameters.random_rotation;
+
+    float2x2 mat = calculate_rotation_matrix(float2(cos(rand_rot), sin(rand_rot)));
+
+    if (Parameters.random_size > 0.0f) {
+      float rand_siz = noise_level_2(noise_x + 18559.853f);
+      rand_siz *= Parameters.random_size;
+      rand_siz = 1.0f - rand_siz;
+
+      rand_siz = 1.0f / rand_siz;
+      mat[0] = mat[0] * rand_siz;
+      mat[1] = mat[1] * rand_siz;
+    }
+
+    uv -= 0.5f;
+    uv = mat * uv;
+    dx = mat * dx;
+    dy = mat * dy;
+    uv += 0.5f;
+  }
+
+  float4 col = get_color(uv, dx, dy);
+  if (Parameters.random_hue > 0.0f || Parameters.random_saturation > 0.0f ||
+      Parameters.random_value > 0.0f)
+  {
+    float4 col_hsva;
+    rgb_to_hsv(col, col_hsva);
+
+    float rand_hue = noise_level_2(noise_x + 97715.184f);
+    float rand_sat = noise_level_2(noise_x + 16430.953f);
+    float rand_val = noise_level_2(noise_x + 86191.195f);
+
+    col_hsva.x += (rand_hue - 0.5f) * Parameters.random_hue;
+    col_hsva.y *= 1.0f + (rand_sat * 2.0f - 1.0f) * Parameters.random_saturation;
+    col_hsva.z *= 1.0f - Parameters.random_value + rand_val * 2.0f * Parameters.random_value;
+
+    col_hsva.x = fract(col_hsva.x);
+    col_hsva.y = clamp(col_hsva.y, 0.0f, 1.0f);
+    col_hsva.z = clamp(col_hsva.z, 0.0f, 1.0f);
+
+    hsv_to_rgb(col_hsva, col);
+  }
+
+  if (Parameters.random_strength > 0.0f) {
+    float rand = noise_level_2(noise_x + 68916.135f);
+
+    rand -= 1.0f;
+    rand *= Parameters.random_strength;
+    rand += 1.0f;
+
+    col *= rand;
+  }
+
+  return col;
 }
 
 float4 alpha_over(float4 base, float4 over)
@@ -161,6 +264,11 @@ float point_i_to_local_t(float i, float4 p1, float4 p2)
       l = a * (exp_b + 1.0f) / (exp_b - 1.0f);
     }
 
+    /* Avoid division by zero. */
+    if (r1 <= 0.0f || l <= 0.0f || l == a) {
+      return 0.0f;
+    }
+
     float E = (l + a) / (l - a);
     float E_i = pow(E, (i / point_density - i_start) / 2.0f);
 
@@ -195,6 +303,11 @@ float local_t_to_point_i(float t, float4 p1, float4 p2)
       float b = 2.0f * log(a / r1 + 1.0f) / i_delta;
       float exp_b = exp(b);
       l = a * (exp_b + 1.0f) / (exp_b - 1.0f);
+    }
+
+    /* Avoid division by zero. */
+    if (r1 <= 0.0f || l <= 0.0f || l == a) {
+      return 0.0f;
     }
 
     float E = (l + a) / (l - a);
@@ -321,7 +434,10 @@ void main()
 
   if (flag_test(gp_interp_flat.mat_flag, GP_FILL))  // fill
   {
-    frag_color = get_color(gp_interp.uv, 0.0f);
+    float2 dx = gpu_dfdx(gp_interp.uv);
+    float2 dy = gpu_dfdy(gp_interp.uv);
+
+    frag_color = get_color(gp_interp.uv, dx, dy);
   }
   else {
     if (flag_test(gp_interp_flat.mat_flag, GP_STROKE_ALIGNMENT))  // dot and squares
@@ -355,6 +471,9 @@ void main()
         int lower = bounds.x;
         int upper = bounds.y;
 
+        float2 pre_dx = gpu_dfdx(view_coord);
+        float2 pre_dy = gpu_dfdy(view_coord);
+
         frag_color = float4(0.0f);
         /* Loop through backwards so we can break early. */
         for (int i = upper - 1; i >= lower; i--) {
@@ -363,9 +482,19 @@ void main()
           float4 pos = to_cam(P1 + (P2 - P1) * t);
 
           float2 uv = (view_coord - pos.xy) / pos.w;
-          uv = rotate_uv(uv, gp_interp_flat.aspect.zw);
+          float2 dx = pre_dx / pos.w;
+          float2 dy = pre_dy / pos.w;
 
-          frag_color = alpha_over(get_color(uv * 0.5f + 0.5f, pos.w), frag_color);
+          float2x2 mat = calculate_rotation_matrix(gp_interp_flat.aspect.zw);
+          uv = mat * uv;
+          dx = mat * dx;
+          dy = mat * dy;
+
+          uv = uv * 0.5f + 0.5f;
+          dx = dx * 0.5f;
+          dy = dy * 0.5f;
+
+          frag_color = alpha_over(get_dot_color(uv, i, dx, dy), frag_color);
 
           /* Break early if full opacity. */
           if (frag_color.w > 0.999f) {
@@ -374,11 +503,18 @@ void main()
         }
       }
       else {
-        frag_color = get_color(gp_interp.uv, gp_interp_flat.sspos_1.w);
+        int i = int(gp_interp_flat.point_length.x);
+        float2 dx = gpu_dfdx(gp_interp.uv);
+        float2 dy = gpu_dfdy(gp_interp.uv);
+
+        frag_color = get_dot_color(gp_interp.uv, i, dx, dy);
       }
     }
     else {  // line
-      frag_color = get_color(gp_interp.uv, 0.0f);
+      float2 dx = gpu_dfdx(gp_interp.uv);
+      float2 dy = gpu_dfdy(gp_interp.uv);
+
+      frag_color = get_color(gp_interp.uv, dx, dy);
       frag_color *= gpencil_stroke_mask(gp_interp_flat.sspos_1.xy,
                                         gp_interp_flat.sspos_2.xy,
                                         gp_interp_flat.sspos_0,

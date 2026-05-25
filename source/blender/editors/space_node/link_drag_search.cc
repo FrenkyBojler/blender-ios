@@ -76,7 +76,7 @@ static void link_drag_search_listen_fn(const wmRegionListenerParams *params, voi
 
 static void add_reroute_node_fn(nodes::LinkSearchOpParams &params)
 {
-  bNode &reroute = params.add_node("NodeReroute");
+  bNode &reroute = params.add_node("NodeReroute"_ustr);
   if (params.socket.in_out == SOCK_IN) {
     bke::node_add_link(params.node_tree,
                        reroute,
@@ -100,7 +100,7 @@ static void add_group_input_node_fn(nodes::LinkSearchOpParams &params)
       params.node_tree, params.node, params.socket, params.socket.name);
   params.node_tree.tree_interface.active_item_set(&socket_iface->item);
 
-  bNode &group_input = params.add_node("NodeGroupInput");
+  bNode &group_input = params.add_node("NodeGroupInput"_ustr);
 
   /* This is necessary to create the new sockets in the other input nodes. */
   BKE_main_ensure_invariants(*CTX_data_main(&params.C), params.node_tree.id);
@@ -109,7 +109,7 @@ static void add_group_input_node_fn(nodes::LinkSearchOpParams &params)
   for (bNode *node : params.node_tree.all_nodes()) {
     if (node->is_group_input()) {
       bNodeSocket *new_group_input_socket = bke::node_find_socket(
-          *node, SOCK_OUT, socket_iface->identifier);
+          *node, SOCK_OUT, UString(socket_iface->identifier));
       if (new_group_input_socket) {
         new_group_input_socket->flag |= SOCK_HIDDEN;
       }
@@ -121,7 +121,8 @@ static void add_group_input_node_fn(nodes::LinkSearchOpParams &params)
     socket.flag |= SOCK_HIDDEN;
   }
 
-  bNodeSocket *socket = bke::node_find_socket(group_input, SOCK_OUT, socket_iface->identifier);
+  bNodeSocket *socket = bke::node_find_socket(
+      group_input, SOCK_OUT, UString(socket_iface->identifier));
   if (socket) {
     /* Unhide the socket for the new input in the new node and make a connection to it. */
     socket->flag &= ~SOCK_HIDDEN;
@@ -140,13 +141,14 @@ static void add_existing_group_input_fn(nodes::LinkSearchOpParams &params,
   SET_FLAG_FROM_TEST(flag, in_out & SOCK_IN, NODE_INTERFACE_SOCKET_INPUT);
   SET_FLAG_FROM_TEST(flag, in_out & SOCK_OUT, NODE_INTERFACE_SOCKET_OUTPUT);
 
-  bNode &group_input = params.add_node("NodeGroupInput");
+  bNode &group_input = params.add_node("NodeGroupInput"_ustr);
 
   for (bNodeSocket &socket : group_input.outputs) {
     socket.flag |= SOCK_HIDDEN;
   }
 
-  bNodeSocket *socket = bke::node_find_socket(group_input, SOCK_OUT, interface_socket.identifier);
+  bNodeSocket *socket = bke::node_find_socket(
+      group_input, SOCK_OUT, UString(interface_socket.identifier));
   if (socket != nullptr) {
     socket->flag &= ~SOCK_HIDDEN;
     bke::node_add_link(params.node_tree, group_input, *socket, params.node, params.socket);
@@ -172,8 +174,15 @@ static void search_link_ops_for_asset_metadata(const bNodeTree &node_tree,
   const bke::bNodeTreeType &node_tree_type = *node_tree.typeinfo;
   const eNodeSocketInOut in_out = socket.in_out == SOCK_OUT ? SOCK_IN : SOCK_OUT;
 
-  const IDProperty *sockets = BKE_asset_metadata_idprop_find(
-      &asset_data, in_out == SOCK_IN ? "inputs" : "outputs");
+  const IDProperty *properties = BKE_asset_metadata_idprop_find(&asset_data, "properties");
+  if (!properties || properties->type != IDP_GROUP) {
+    return;
+  }
+  const IDProperty *sockets = IDP_GetPropertyFromGroup(properties,
+                                                       in_out == SOCK_IN ? "inputs" : "outputs");
+  if (!sockets || sockets->type != IDP_GROUP) {
+    return;
+  }
 
   int weight = -1;
   Set<StringRef> socket_names;
@@ -186,7 +195,7 @@ static void search_link_ops_for_asset_metadata(const bNodeTree &node_tree,
     if (socket_type == nullptr) {
       continue;
     }
-    eNodeSocketDatatype from = eNodeSocketDatatype(socket.type);
+    eNodeSocketDatatype from = socket.type;
     eNodeSocketDatatype to = socket_type->type;
     if (socket.in_out == SOCK_OUT) {
       std::swap(from, to);
@@ -295,7 +304,7 @@ static void gather_socket_link_operations(const bContext &C,
 
     int weight = -1;
     node_tree.tree_interface.foreach_item([&](const bNodeTreeInterfaceItem &item) {
-      if (item.item_type != NODE_INTERFACE_SOCKET) {
+      if (item.item_type != NodeTreeInterfaceItemType::Socket) {
         return true;
       }
       const bNodeTreeInterfaceSocket &interface_socket =

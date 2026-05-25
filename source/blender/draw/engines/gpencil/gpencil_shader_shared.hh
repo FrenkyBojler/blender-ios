@@ -31,6 +31,7 @@ enum [[host_shared]] gpMaterialFlag : uint32_t {
   GP_DOTS_PLACEMENT_MODE_COUNT = 0u,
   GP_DOTS_PLACEMENT_MODE_DENSITY = (1u << 16u),
   GP_DOTS_PLACEMENT_MODE_RADIUS = (1u << 17u),
+  GP_DOTS_USE_RANDOMIZATION = (1u << 18u),
 };
 
 enum [[host_shared]] gpLightType : uint32_t {
@@ -49,7 +50,6 @@ enum [[host_shared]] gpLightType : uint32_t {
 /* Avoid compiler funkiness with enum types not being strongly typed in C. */
 #ifndef GPU_SHADER
 #  define gpMaterialFlag uint
-#  define gpLightType uint
 #endif
 
 struct [[host_shared]] gpMaterial {
@@ -79,42 +79,22 @@ struct [[host_shared]] gpMaterial {
   /** NOTE(@fclem): Needs floatBitsToUint(). */
 #  define _flag packed2.w
 #endif
+  uint4 random_packed;
 };
 
 struct [[host_shared]] gpLight {
-#ifndef GPU_SHADER
-  float3 color;
-  gpLightType type;
-  float3 right;
+  packed_float3 light_color; /* Not using color because of macro in overlay_extra_wire_base.  */
+  enum gpLightType type;
+  packed_float3 right;
   float spot_size;
-  float3 up;
+  packed_float3 up;
   float spot_blend;
-  float3 forward;
+  packed_float3 forward;
   float _pad0;
-  float3 position;
+  packed_float3 position;
   float _pad1;
-#else
-  /* Some drivers are completely messing the alignment or the fetches here.
-   * We are forced to pack these into float4 otherwise we only get 0.0 as value. */
-  /* NOTE(@fclem): This was the case on MacOS OpenGL implementation.
-   * This might be fixed in newer APIs. */
-  float4 packed0;
-  float4 packed1;
-  float4 packed2;
-  float4 packed3;
-  float4 packed4;
-#  define _color packed0.xyz
-#  define _type packed0.w
-#  define _right packed1.xyz
-#  define _spot_size packed1.w
-#  define _up packed2.xyz
-#  define _spot_blend packed2.w
-#  define _forward packed3.xyz
-#  define _position packed4.xyz
-#endif
 };
 
 #ifndef GPU_SHADER
 #  undef gpMaterialFlag
-#  undef gpLightType
 #endif

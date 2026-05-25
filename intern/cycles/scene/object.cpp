@@ -19,6 +19,7 @@
 #include "scene/stats.h"
 #include "scene/volume.h"
 
+#include "util/hash.h"
 #include "util/log.h"
 #include "util/map.h"
 #include "util/murmurhash.h"
@@ -142,6 +143,13 @@ void Object::update_motion()
         motion.clear();
         return;
       }
+
+      if (have_motion && i == (motion.size() - 1)) {
+        /* Remove last motion when it is not actually set. */
+        motion.resize(motion.size() - 1);
+        return;
+      }
+
       /* Otherwise just copy center motion. */
       motion[i] = tfm;
     }
@@ -231,7 +239,7 @@ void Object::tag_update(Scene *scene)
     if (tfm_is_modified() || motion_is_modified()) {
       flag |= ObjectManager::TRANSFORM_MODIFIED;
       if (geometry->has_volume) {
-        scene->volume_manager->tag_update(this, flag);
+        scene->volume_manager->tag_update({this}, flag);
       }
     }
 
@@ -342,7 +350,7 @@ float Object::compute_volume_step_size(Progress &progress) const
 
     for (Attribute &attr : volume->attributes.attributes) {
       if (attr.element == ATTR_ELEMENT_VOXEL) {
-        ImageHandle &handle = attr.data_voxel();
+        ImageHandle &handle = attr.data_voxel_for_write();
         const ImageMetaData &metadata = handle.metadata(progress);
         if (metadata.nanovdb_byte_size == 0) {
           continue;
@@ -453,8 +461,12 @@ void Object::adjust_volume_tfm(Transform &tfm)
        * meshes. The proper solution would be to improve intersection in the kernel to support
        * robust handling of multiple overlapping faces or use an all-hit intersection similar to
        * shadows. */
-      const float3 offset = transform_direction(
-          &tfm, make_float3(hash_uint_to_float(hash_string(name.c_str())) * 0.001f));
+      const uint name_hash = hash_string(name.c_str());
+      const float3 offset = transform_direction(&tfm,
+                                                make_float3(hash_uint2_to_float(name_hash, 0),
+                                                            hash_uint2_to_float(name_hash, 1),
+                                                            hash_uint2_to_float(name_hash, 2)) *
+                                                    0.001f);
       transform_translate(tfm, offset);
     }
   }
@@ -490,6 +502,40 @@ ObjectManager::ObjectManager()
 }
 
 ObjectManager::~ObjectManager() = default;
+
+void ObjectManager::update_interactive_motion(Scene *scene)
+{
+  bool update = false;
+
+  parallel_for(blocked_range<size_t>(0, scene->objects.size(), 32),
+               [&](const blocked_range<size_t> &r) {
+                 for (size_t i = r.begin(); i != r.end(); i++) {
+                   Object *ob = scene->objects[i];
+
+                   const bool use_motion = ob->use_motion();
+
+                   array<Transform> motion = ob->get_motion();
+                   if (motion.empty()) {
+                     /* Can always store current matrix in motion array with a single element,
+                      * since that still causes 'use_motion()' to return false. */
+                     motion.resize(1);
+                   }
+                   motion[0] = ob->tfm;
+
+                   /* Trigger another update if there was motion compared to previous frame, so
+                    * that last movement does not stick around. */
+                   ob->set_motion(motion);
+
+                   if (use_motion && ob->motion_is_modified()) {
+                     update = true;
+                   }
+                 }
+               });
+
+  if (update) {
+    tag_update(scene, TRANSFORM_MODIFIED);
+  }
+}
 
 static float object_volume_density(const Transform &tfm, Geometry *geom)
 {
@@ -591,7 +637,9 @@ void ObjectManager::device_update_object_transform(UpdateObjectTransformState *s
     }
   }
 
-  if (state->need_motion == Scene::MOTION_PASS) {
+  if (state->need_motion == Scene::MOTION_PASS ||
+      state->need_motion == Scene::MOTION_PASS_INTERACTIVE)
+  {
     /* Clear motion array if there is no actual motion. */
     ob->update_motion();
 
@@ -640,7 +688,7 @@ void ObjectManager::device_update_object_transform(UpdateObjectTransformState *s
   kobject.dupli_generated[2] = ob->dupli_generated[2];
   kobject.dupli_uv[0] = ob->dupli_uv[0];
   kobject.dupli_uv[1] = ob->dupli_uv[1];
-  kobject.num_geom_steps = (geom->get_motion_steps() - 1) / 2;
+  kobject.num_geom_steps = geom->get_motion_steps();
   kobject.num_tfm_steps = ob->motion.size();
   kobject.numverts = object_num_motion_verts(geom);
   kobject.numprims = (geom->is_mesh() || geom->is_volume()) ?
@@ -747,7 +795,9 @@ void ObjectManager::device_update_transforms(DeviceScene *dscene, Scene *scene, 
   state.object_motion = nullptr;
   state.object_motion_pass = nullptr;
 
-  if (state.need_motion == Scene::MOTION_PASS) {
+  if (state.need_motion == Scene::MOTION_PASS ||
+      state.need_motion == Scene::MOTION_PASS_INTERACTIVE)
+  {
     state.object_motion_pass = dscene->object_motion_pass.alloc(OBJECT_MOTION_PASS_SIZE *
                                                                 scene->objects.size());
   }
@@ -796,7 +846,9 @@ void ObjectManager::device_update_transforms(DeviceScene *dscene, Scene *scene, 
   }
 
   dscene->objects.copy_to_device_if_modified();
-  if (state.need_motion == Scene::MOTION_PASS) {
+  if (state.need_motion == Scene::MOTION_PASS ||
+      state.need_motion == Scene::MOTION_PASS_INTERACTIVE)
+  {
     dscene->object_motion_pass.copy_to_device();
   }
   else if (state.need_motion == Scene::MOTION_BLUR) {
@@ -1087,7 +1139,8 @@ void ObjectManager::apply_static_transforms(DeviceScene *dscene, Scene *scene, P
   map<Geometry *, int> geometry_users;
   const Scene::MotionType need_motion = scene->need_motion();
   const bool motion_blur = need_motion == Scene::MOTION_BLUR;
-  const bool apply_to_motion = need_motion != Scene::MOTION_PASS;
+  const bool apply_to_motion = need_motion != Scene::MOTION_PASS &&
+                               need_motion != Scene::MOTION_PASS_INTERACTIVE;
   int i = 0;
 
   for (Object *object : scene->objects) {
@@ -1192,7 +1245,7 @@ string ObjectManager::get_cryptomatte_objects(Scene *scene)
 
   unordered_set<ustring> objects;
   for (Object *object : scene->objects) {
-    if (objects.count(object->name)) {
+    if (objects.contains(object->name)) {
       continue;
     }
     objects.insert(object->name);
@@ -1208,7 +1261,7 @@ string ObjectManager::get_cryptomatte_assets(Scene *scene)
   string manifest = "{";
   unordered_set<ustring> assets;
   for (Object *ob : scene->objects) {
-    if (assets.count(ob->asset_name)) {
+    if (assets.contains(ob->asset_name)) {
       continue;
     }
     assets.insert(ob->asset_name);

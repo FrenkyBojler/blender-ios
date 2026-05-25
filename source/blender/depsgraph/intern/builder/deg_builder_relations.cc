@@ -199,7 +199,7 @@ bool check_id_has_anim_component(ID *id)
   if (adt == nullptr) {
     return false;
   }
-  return (adt->action != nullptr) || !BLI_listbase_is_empty(&adt->nla_tracks);
+  return (adt->action != nullptr) || !adt->nla_tracks.is_empty();
 }
 
 bool check_id_has_driver_component(ID *id)
@@ -208,7 +208,7 @@ bool check_id_has_driver_component(ID *id)
   if (adt == nullptr) {
     return false;
   }
-  return !BLI_listbase_is_empty(&adt->drivers);
+  return !adt->drivers.is_empty();
 }
 
 OperationCode bone_target_opcode(ID *target,
@@ -313,6 +313,19 @@ bool DepsgraphRelationBuilder::has_node(const OperationKey &key) const
 bool DepsgraphRelationBuilder::has_node(const ComponentKey &key) const
 {
   return find_node(key) != nullptr;
+}
+
+Relation *DepsgraphRelationBuilder::add_node_handle_relation(const TimeSourceKey &key_from,
+                                                             const DepsNodeHandle *handle,
+                                                             const char *description,
+                                                             int flags)
+{
+  TimeSourceNode *time_from = get_node(key_from);
+  OperationNode *op_to = handle->node->get_entry_operation();
+  if (time_from != nullptr && op_to != nullptr) {
+    return add_time_relation(time_from, op_to, description, flags);
+  }
+  return nullptr;
 }
 
 void DepsgraphRelationBuilder::add_depends_on_transform_relation(const DepsNodeHandle *handle,
@@ -431,7 +444,7 @@ void DepsgraphRelationBuilder::add_particle_forcefield_relations(const Operation
   ListBaseT<EffectorRelation> *relations = build_effector_relations(graph_, eff->group);
 
   /* Make sure physics effects like wind are properly re-evaluating the modifier stack. */
-  if (!BLI_listbase_is_empty(relations)) {
+  if (!relations->is_empty()) {
     TimeSourceKey time_src_key;
     ComponentKey geometry_key(&object->id, NodeType::GEOMETRY);
     add_relation(
@@ -917,7 +930,7 @@ void DepsgraphRelationBuilder::build_object_layer_component_relations(Object *ob
 
 void DepsgraphRelationBuilder::build_object_modifiers(Object *object)
 {
-  if (BLI_listbase_is_empty(&object->modifiers)) {
+  if (object->modifiers.is_empty()) {
     return;
   }
 
@@ -1022,6 +1035,10 @@ void DepsgraphRelationBuilder::build_object_data(Object *object)
       break;
     case OB_SPEAKER:
       build_object_data_speaker(object);
+      break;
+    case OB_EMPTY:
+    case OB_GPENCIL_LEGACY:
+    case OB_TYPE_MAX:
       break;
   }
   Key *key = BKE_key_from_object(object);
@@ -1613,7 +1630,7 @@ void DepsgraphRelationBuilder::build_animdata_curves(ID *id)
   if (adt->action != nullptr) {
     build_action(adt->action);
   }
-  if (adt->action == nullptr && BLI_listbase_is_empty(&adt->nla_tracks)) {
+  if (adt->action == nullptr && adt->nla_tracks.is_empty()) {
     return;
   }
   /* Ensure evaluation order from entry to exit. */
@@ -1753,7 +1770,7 @@ void DepsgraphRelationBuilder::build_animdata_nlastrip_targets(ID *id,
 void DepsgraphRelationBuilder::build_animdata_drivers(ID *id)
 {
   AnimData *adt = BKE_animdata_from_id(id);
-  if (adt == nullptr || BLI_listbase_is_empty(&adt->drivers)) {
+  if (adt == nullptr || adt->drivers.is_empty()) {
     return;
   }
   ComponentKey adt_key(id, NodeType::ANIMATION);
@@ -2471,6 +2488,8 @@ void DepsgraphRelationBuilder::build_particle_systems(Object *object)
           }
         }
         break;
+      default:
+        break;
     }
   }
   /* Particle depends on the object transform, so that channel is to be ready
@@ -2630,13 +2649,13 @@ void DepsgraphRelationBuilder::build_object_data_geometry(Object *object)
   }
   /* Make sure uber update is the last in the dependencies.
    * Only do it here unless there are modifiers. This avoids transitive relations. */
-  if (BLI_listbase_is_empty(&object->modifiers)) {
+  if (object->modifiers.is_empty()) {
     OperationKey obdata_ubereval_key(
         &object->id, NodeType::GEOMETRY, OperationCode::GEOMETRY_EVAL);
     add_relation(geom_init_key, obdata_ubereval_key, "Object Geometry UberEval");
   }
   if (object->type == OB_MBALL) {
-    Object *mom = BKE_mball_basis_find(scene_, object);
+    Object *mom = BKE_mball_basis_find(*bmain_, scene_, object);
     ComponentKey mom_geom_key(&mom->id, NodeType::GEOMETRY);
     /* motherball - mom depends on children! */
     if (mom == object) {
@@ -3054,7 +3073,7 @@ void DepsgraphRelationBuilder::build_nodetree(bNodeTree *ntree)
       build_nodetree_socket(&socket);
     }
 
-    if (ntree->type == NTREE_SHADER && bnode->is_type("ShaderNodeAttribute")) {
+    if (ntree->type == NTREE_SHADER && bnode->is_type("ShaderNodeAttribute"_ustr)) {
       NodeShaderAttribute *attr = static_cast<NodeShaderAttribute *>(bnode->storage);
       if (attr->type == SHD_ATTRIBUTE_VIEW_LAYER && STREQ(attr->name, "frame_current")) {
         TimeSourceKey time_src_key;
@@ -3455,6 +3474,7 @@ static bool strip_build_prop_cb(Strip *strip, void *user_data)
     cd->has_audio_strips = true;
   }
   if (strip->type == STRIP_TYPE_SCENE && strip->scene != nullptr) {
+    BLI_assert(strip->scene_view_layer_name != nullptr);
     if (strip->flag & SEQ_SCENE_STRIPS) {
       cd->builder->build_scene_sequencer(strip->scene);
       ComponentKey sequence_scene_audio_key(&strip->scene->id, NodeType::AUDIO);
@@ -3464,8 +3484,8 @@ static bool strip_build_prop_cb(Strip *strip, void *user_data)
       cd->builder->add_relation(
           sequence_scene_key, cd->sequencer_key, "Sequence Scene -> Sequencer");
     }
-    ViewLayer *sequence_view_layer = BKE_view_layer_default_render(strip->scene);
-    cd->builder->build_scene_speakers(strip->scene, sequence_view_layer);
+    ViewLayer *strip_view_layer = BKE_view_layer_find(strip->scene, strip->scene_view_layer_name);
+    cd->builder->build_scene_speakers(strip->scene, strip_view_layer);
   }
   if (strip->type == STRIP_TYPE_COMPOSITOR && strip->effectdata) {
     const CompositorEffectVars *comp_data = static_cast<CompositorEffectVars *>(strip->effectdata);
@@ -3535,7 +3555,7 @@ void DepsgraphRelationBuilder::build_scene_audio(Scene *scene)
 
 void DepsgraphRelationBuilder::build_scene_speakers(Scene *scene, ViewLayer *view_layer)
 {
-  BKE_view_layer_synced_ensure(scene, view_layer);
+  BKE_view_layer_synced_ensure(*bmain_, scene, view_layer);
   for (Base &base : *BKE_view_layer_object_bases_get(view_layer)) {
     Object *object = base.object;
     if (object->type != OB_SPEAKER || !need_pull_base_into_graph(&base)) {

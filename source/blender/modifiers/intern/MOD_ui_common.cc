@@ -292,7 +292,7 @@ static void modifier_ops_extra_draw(bContext *C, ui::Layout *layout, void *md_v)
                     ICON_TRIA_DOWN,
                     wm::OpCallContext::InvokeDefault,
                     UI_ITEM_NONE);
-    RNA_int_set(&op_ptr, "index", BLI_listbase_count(&ob->modifiers) - 1);
+    RNA_int_set(&op_ptr, "index", ob->modifiers.count() - 1);
     row.enabled_set(md->next != nullptr);
   }
 
@@ -364,18 +364,18 @@ static void modifier_panel_header(const bContext *C, Panel *panel)
       sub = &row.row(true);
       ui::Block *block = sub->block();
       static int apply_on_spline_always_off_hack = 0;
-      ui::Button *but = uiDefIconButBitI(block,
-                                         ui::ButtonType::Toggle,
-                                         eModifierMode_ApplyOnSpline,
-                                         ICON_SURFACE_DATA,
-                                         0,
-                                         0,
-                                         UI_UNIT_X - 2,
-                                         UI_UNIT_Y,
-                                         &apply_on_spline_always_off_hack,
-                                         0.0,
-                                         0.0,
-                                         RPT_("Apply on Spline"));
+      ui::Button *but = uiDefIconButBit(block,
+                                        ui::ButtonType::Toggle,
+                                        eModifierMode_ApplyOnSpline,
+                                        ICON_SURFACE_DATA,
+                                        0,
+                                        0,
+                                        UI_UNIT_X - 2,
+                                        UI_UNIT_Y,
+                                        &apply_on_spline_always_off_hack,
+                                        0.0,
+                                        0.0,
+                                        RPT_("Apply on Spline"));
       button_disable(but,
                      "This modifier can only deform filled curve/surface, not the control points");
       buttons_number++;
@@ -387,18 +387,18 @@ static void modifier_panel_header(const bContext *C, Panel *panel)
       sub = &row.row(true);
       ui::Block *block = sub->block();
       static int apply_on_spline_always_on_hack = eModifierMode_ApplyOnSpline;
-      ui::Button *but = uiDefIconButBitI(block,
-                                         ui::ButtonType::Toggle,
-                                         eModifierMode_ApplyOnSpline,
-                                         ICON_SURFACE_DATA,
-                                         0,
-                                         0,
-                                         UI_UNIT_X - 2,
-                                         UI_UNIT_Y,
-                                         &apply_on_spline_always_on_hack,
-                                         0.0,
-                                         0.0,
-                                         RPT_("Apply on Spline"));
+      ui::Button *but = uiDefIconButBit(block,
+                                        ui::ButtonType::Toggle,
+                                        eModifierMode_ApplyOnSpline,
+                                        ICON_SURFACE_DATA,
+                                        0,
+                                        0,
+                                        UI_UNIT_X - 2,
+                                        UI_UNIT_Y,
+                                        &apply_on_spline_always_on_hack,
+                                        0.0,
+                                        0.0,
+                                        RPT_("Apply on Spline"));
       button_disable(but,
                      "This modifier can only deform control points, not the filled curve/surface");
       buttons_number++;

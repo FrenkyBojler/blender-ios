@@ -330,7 +330,7 @@ static void wm_software_cursor_draw_crosshair(const float system_scale, const in
    * are set by the operating-system, where the pixel information isn't easily available. */
 
   /* The cursor scaled by the "default" size. */
-  const float cursor_scale = float(WM_cursor_preferred_logical_size()) /
+  const float cursor_scale = float(WM_cursor_preferred_logical_size(false)) /
                              float(WM_CURSOR_DEFAULT_LOGICAL_SIZE);
   const float unit = max_ff(system_scale * cursor_scale, 1.0f);
   uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", gpu::VertAttrType::SFLOAT_32_32);
@@ -1110,6 +1110,16 @@ static void wm_draw_window_onscreen(bContext *C, wmWindow *win, int view)
 {
   wmWindowManager *wm = CTX_wm_manager(C);
   bScreen *screen = WM_window_get_active_screen(win);
+
+  /* Restore screen context after drawing. Especially important for when this is called for drawing
+   * to an offscreen buffer (see #WM_window_pixels_read_from_offscreen()) from operators or other
+   * handlers. */
+  ScrArea *restore_area = CTX_wm_area(C);
+  ARegion *restore_region = CTX_wm_region(C);
+  BLI_SCOPED_DEFER([&] {
+    CTX_wm_area_set(C, restore_area);
+    CTX_wm_region_set(C, restore_region);
+  });
 
   GPU_debug_group_begin("Window Redraw");
 
