@@ -2958,8 +2958,8 @@ static void widget_draw_text_icon(const uiFontStyle *fstyle,
   /* Textbox wraps content in lines, skip clipping text.  */
   if (but->type == ButtonType::TextBox) {
   }
-  /* Do not clip vertical text.  */
   else if (but->text_direction != TextDirection::Default) {
+    /* Do not clip vertical text.  */
   }
   else if (but->editstr && but->pos >= 0) {
     /* clip but->drawstr to fit in available space */

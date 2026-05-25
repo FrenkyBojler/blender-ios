@@ -1590,6 +1590,7 @@ void panel_category_tabs_draw_all(const bContext *C,
         button, [category = std::string(category_id)](const blender::ui::Button * /*but*/) {
           return TIP_(category);
         });
+    /* Avoid default enum button tooltip for `RNA_Region::active_panel_category`. */
     button_func_tooltip_custom_set_cpp(
         *button, [category = std::string(category_id)](bContext & /*C*/, ui::TooltipData &data) {
           tooltip_text_field_add(data, TIP_(category), {}, TIP_STYLE_HEADER, TIP_LC_VALUE, false);
