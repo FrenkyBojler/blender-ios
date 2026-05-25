@@ -113,6 +113,8 @@ def apply_variant(area, variant):
     import bpy
     with bpy.context.temp_override(area=area):
         area.type = variant["type"]
+    yield
+    with bpy.context.temp_override(area=area):
         space = area.spaces.active
         for key, value in variant["settings"].items():
             # ui_type is a property of Area, everything else is on the Space
@@ -142,7 +144,7 @@ def test_open_editor_types():
     for area, variant in zip(areas, variants):
         name = variant["name"]
         try:
-            apply_variant(area, variant)
+            yield from apply_variant(area, variant)
             yield  # Give Blender a tick to process the editor switch
 
             if len(area.regions) < 1:
