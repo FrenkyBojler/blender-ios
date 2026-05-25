@@ -110,6 +110,7 @@ static void compositor_job_start(void *compositor_job_data, wmJobWorkerStatus *w
   Scene *evaluated_scene = DEG_get_evaluated_scene(compositor_runtime.preview_depsgraph);
   if (!(evaluated_scene->r.scemode & R_MULTIVIEW)) {
     RE_compositor_execute(*compositor_job->render,
+                          *compositor_job->bmain,
                           *evaluated_scene,
                           evaluated_scene->r,
                           *compositor_job->evaluated_node_tree,
@@ -123,6 +124,7 @@ static void compositor_job_start(void *compositor_job_data, wmJobWorkerStatus *w
         continue;
       }
       RE_compositor_execute(*compositor_job->render,
+                            *compositor_job->bmain,
                             *evaluated_scene,
                             evaluated_scene->r,
                             *compositor_job->evaluated_node_tree,
@@ -139,9 +141,6 @@ static void compositor_job_complete(void *compositor_job_data)
 
   Scene *scene = compositor_job->scene;
   BKE_callback_exec_id(compositor_job->bmain, &scene->id, BKE_CB_EVT_COMPOSITE_POST);
-
-  bke::node_preview_merge_tree(
-      scene->compositing_node_group, compositor_job->evaluated_node_tree, true);
 
   Scene *evaluated_scene = DEG_get_evaluated_scene(scene->runtime->compositor.preview_depsgraph);
   scene->runtime->compositor.nodes_evaluation_log = std::move(
@@ -173,6 +172,10 @@ static void compositor_job_free(void *compositor_job_data)
 
 static bool is_compositing_possible(const Scene *scene)
 {
+  if (G.background) {
+    return false;
+  }
+
   if (G.is_rendering) {
     return false;
   }
@@ -189,7 +192,7 @@ static bool is_compositing_possible(const Scene *scene)
   /* The render size exceeds what can be allocated as a GPU texture. */
   int width, height;
   BKE_render_resolution(&scene->r, false, &width, &height);
-  if (!GPU_is_safe_texture_size(width, height)) {
+  if (width > 8192 || height > 8192) {
     WM_global_report(RPT_ERROR, "Render size too large for GPU, use CPU compositor instead");
     return false;
   }
