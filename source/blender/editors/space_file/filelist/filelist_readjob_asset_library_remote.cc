@@ -33,6 +33,11 @@ namespace blender {
 using RemoteLibraryLoadingStatus = asset_system::RemoteLibraryLoadingStatus;
 
 /* TODO handle \a progress. */
+/**
+ *\param already_downloaded_assets: Mapping from asset library-relative identifier to its
+ * AssetRepresentation. This function can update the AssetRepresentation based on the remote asset
+ * listing.
+ */
 static void filelist_readjob_remote_asset_library_index_read(
     FileListReadJob *job_params,
     RemoteLibraryRequest &request,
@@ -79,9 +84,9 @@ static void filelist_readjob_remote_asset_library_index_read(
                       SEP_STR,
                       entry.datablock_info.name);
       if (asset_system::AssetRepresentation **existing = already_downloaded_assets.lookup_ptr(
-              StringRef(asset_identifier)))
+              asset_identifier))
       {
-        (*existing)->set_file_status(entry.online_info.file_status);
+        (*existing)->file_status_set(entry.online_info.file_status);
         *do_update = true;
         return true;
       }
@@ -159,7 +164,9 @@ void remote_asset_library_load(FileListReadJob *job_params,
 {
   FileList *filelist = job_params->tmp_filelist; /* Use the thread-safe filelist queue. */
 
+  /* Mapping from asset library-relative identifier to its AssetRepresentation. */
   Map<StringRef, asset_system::AssetRepresentation *> already_downloaded_assets;
+
   /* Get assets that were downloaded already. */
   {
     job_params->on_asset_added =

@@ -223,7 +223,7 @@ class AssetRepresentation : NonCopyable, NonMovable {
    */
   AssetFileStatus file_status() const;
   /** Set the file status for on-disk assets. No-op for online-only assets. */
-  void set_file_status(AssetFileStatus status);
+  void file_status_set(AssetFileStatus status);
 
   AssetLibrary &owner_asset_library() const;
 };
