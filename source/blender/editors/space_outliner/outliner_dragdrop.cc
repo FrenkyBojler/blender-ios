@@ -1422,9 +1422,6 @@ static wmOperatorStatus collection_drop_invoke(bContext *C,
     TreeElement *parent_te = outliner_find_parent_element(
         &space_outliner->runtime->tree, nullptr, data.te);
     data.to = (parent_te) ? outliner_collection_from_tree_element(parent_te) : nullptr;
-    if (!data.to) {
-      return OPERATOR_CANCELLED;
-    }
   }
 
   if (!data.to) {
