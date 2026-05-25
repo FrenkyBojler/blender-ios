@@ -8,6 +8,7 @@
 
 #include "BKE_attribute.hh"
 #include "BKE_brush.hh"
+#include "BKE_camera.h"
 #include "BKE_colortools.hh"
 #include "BKE_context.hh"
 #include "BKE_curves_utils.hh"
@@ -18,6 +19,7 @@
 #include "BKE_paint.hh"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
+#include "BKE_screen.hh"
 
 #include "BLI_array_utils.hh"
 #include "BLI_bounds.hh"
@@ -27,6 +29,7 @@
 #include "BLI_vector_set.hh"
 
 #include "DNA_brush_types.h"
+#include "DNA_camera_types.h"
 #include "DNA_material_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
@@ -310,6 +313,164 @@ void DrawingPlacement::cache_viewport_depths(Depsgraph *depsgraph, ARegion *regi
   view3d->gp_flag = previous_gp_flag;
 }
 
+/* Improved stability version of `ED_view3d_win_to_vector` */
+static float3 View3D_win_to_vector(const ARegion *region, const float2 mval)
+{
+  RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
+
+  if (rv3d->is_persp) {
+    /* Mouse position in screen space at Z = -1. */
+    const float3 mval_screen = {
+        2.0f * (mval[0] / region->winx) - 1.0f, 2.0f * (mval[1] / region->winy) - 1.0f, -1.0f};
+    /* Position in view space by applying inverse screen space transform (winmat). */
+    const float3 mval_view = math::transform_point(math::invert(float4x4(rv3d->winmat)),
+                                                   mval_screen);
+    const float3 mval_world = math::transform_direction(float4x4(rv3d->viewinv), mval_view);
+    return math::normalize(mval_world);
+  }
+  else {
+    return -float3(rv3d->viewinv[2]);
+  }
+}
+
+/* Improved stability version of `ED_view3d_win_to_3d_on_plane` */
+static bool View3D_win_to_3d_on_plane(const ARegion *region,
+                                      const float4 plane,
+                                      const float2 mval,
+                                      const bool do_clip,
+                                      float3 &r_out)
+{
+  const RegionView3D *rv3d = static_cast<const RegionView3D *>(region->regiondata);
+  const bool ray_co_is_centered = rv3d->is_persp == false && rv3d->persp != RV3D_CAMOB;
+  const bool do_clip_ray_plane = do_clip && !ray_co_is_centered;
+  float3 ray_co;
+  ED_view3d_win_to_origin(region, mval, ray_co);
+  const float3 ray_no = View3D_win_to_vector(region, mval);
+  float lambda;
+  if (isect_ray_plane_v3(ray_co, ray_no, plane, &lambda, do_clip_ray_plane)) {
+    r_out = ray_co + ray_no * lambda;
+
+    /* Handle clipping with an orthographic view differently,
+     * check if the resulting point is behind the view instead of clipping the ray. */
+    if (do_clip && (do_clip_ray_plane == false)) {
+      /* The offset is unit length where over 1.0 is beyond the views clip-plane (near and far)
+       * as non-camera orthographic views only use far distance in both directions.
+       * Multiply `r_out` by `persmat` (with translation), and get it's Z value. */
+      const float z_offset = math::abs(dot_m4_v3_row_z(rv3d->persmat, r_out) +
+                                       rv3d->persmat[3][2]);
+      if (z_offset > 1.0f) {
+        return false;
+      }
+    }
+    return true;
+  }
+  return false;
+}
+
+/* Improved stability version of `ED_view3d_win_to_3d` */
+static float3 View3D_win_to_3d(const View3D *v3d,
+                               const ARegion *region,
+                               const float3 depth_pt,
+                               const float2 mval)
+{
+  RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
+
+  float3 ray_origin;
+  float3 ray_direction;
+  float lambda;
+
+  if (rv3d->is_persp) {
+    ray_origin = rv3d->viewinv[3];
+    ray_direction = View3D_win_to_vector(region, mval);
+
+    /* NOTE: we could use #isect_line_plane_v3()
+     * however we want the intersection to be in front of the view no matter what,
+     * so apply the unsigned factor instead. */
+    isect_ray_plane_v3_factor(ray_origin, ray_direction, depth_pt, rv3d->viewinv[2], &lambda);
+
+    lambda = math::abs(lambda);
+  }
+  else {
+    float dx = (2.0f * mval[0] / float(region->winx)) - 1.0f;
+    float dy = (2.0f * mval[1] / float(region->winy)) - 1.0f;
+
+    if (rv3d->persp == RV3D_CAMOB) {
+      /* ortho camera needs offset applied */
+      const Camera *cam = id_cast<const Camera *>(v3d->camera->data);
+      const int sensor_fit = BKE_camera_sensor_fit(cam->sensor_fit, region->winx, region->winy);
+      const float zoomfac = BKE_screen_view3d_zoom_to_fac(rv3d->camzoom) * 4.0f;
+      const float aspx = region->winx / float(region->winy);
+      const float aspy = region->winy / float(region->winx);
+      const float shiftx = cam->shiftx * 0.5f *
+                           (sensor_fit == CAMERA_SENSOR_FIT_HOR ? 1.0f : aspy);
+      const float shifty = cam->shifty * 0.5f *
+                           (sensor_fit == CAMERA_SENSOR_FIT_HOR ? aspx : 1.0f);
+
+      dx += (rv3d->camdx + shiftx) * zoomfac;
+      dy += (rv3d->camdy + shifty) * zoomfac;
+    }
+    ray_origin = (float3(rv3d->persinv[0]) * dx) + (float3(rv3d->persinv[1]) * dy) +
+                 float3(rv3d->viewinv[3]);
+
+    ray_direction = float3(rv3d->viewinv[2]);
+    lambda = ray_point_factor_v3(depth_pt, ray_origin, ray_direction);
+  }
+
+  return ray_origin + ray_direction * lambda;
+}
+
+/* Improved stability version of `ED_view3d_win_to_3d_with_shift` */
+static float3 View3D_win_to_3d_with_shift(const View3D *v3d,
+                                          const ARegion *region,
+                                          const float3 depth_pt,
+                                          const float2 mval)
+{
+  RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
+
+  float3 ray_origin;
+  float3 ray_direction;
+  float lambda;
+
+  if (rv3d->is_persp) {
+    ray_origin = rv3d->viewinv[3];
+    ray_direction = View3D_win_to_vector(region, mval);
+
+    /* NOTE: we could use #isect_line_plane_v3()
+     * however we want the intersection to be in front of the view no matter what,
+     * so apply the unsigned factor instead. */
+    isect_ray_plane_v3_factor(ray_origin, ray_direction, depth_pt, rv3d->viewinv[2], &lambda);
+
+    lambda = math::abs(lambda);
+  }
+  else {
+    float dx = (2.0f * mval[0] / float(region->winx)) - 1.0f;
+    float dy = (2.0f * mval[1] / float(region->winy)) - 1.0f;
+
+    if (rv3d->persp == RV3D_CAMOB) {
+      /* ortho camera needs offset applied */
+      const Camera *cam = id_cast<const Camera *>(v3d->camera->data);
+      const int sensor_fit = BKE_camera_sensor_fit(cam->sensor_fit, region->winx, region->winy);
+      const float zoomfac = BKE_screen_view3d_zoom_to_fac(rv3d->camzoom) * 4.0f;
+      const float aspx = region->winx / float(region->winy);
+      const float aspy = region->winy / float(region->winx);
+      const float shiftx = cam->shiftx * 0.5f *
+                           (sensor_fit == CAMERA_SENSOR_FIT_HOR ? 1.0f : aspy);
+      const float shifty = cam->shifty * 0.5f *
+                           (sensor_fit == CAMERA_SENSOR_FIT_HOR ? aspx : 1.0f);
+
+      dx += (rv3d->camdx + shiftx) * zoomfac;
+      dy += (rv3d->camdy + shifty) * zoomfac;
+    }
+    ray_origin = (float3(rv3d->persinv[0]) * dx) + (float3(rv3d->persinv[1]) * dy) +
+                 float3(rv3d->persinv[3]);
+
+    ray_direction = float3(rv3d->viewinv[2]);
+    lambda = ray_point_factor_v3(depth_pt, ray_origin, ray_direction);
+  }
+
+  return ray_origin + ray_direction * lambda;
+}
+
 std::optional<float3> DrawingPlacement::project_depth(const float2 co) const
 {
   std::optional<float> depth = get_depth(co);
@@ -319,8 +480,7 @@ std::optional<float3> DrawingPlacement::project_depth(const float2 co) const
 
   float3 proj_point;
   if (ED_view3d_depth_unproject_v3(region_, int2(co), *depth, proj_point)) {
-    float3 view_normal;
-    ED_view3d_win_to_vector(region_, co, view_normal);
+    const float3 view_normal = View3D_win_to_vector(region_, co);
     proj_point -= view_normal * surface_offset_;
     return proj_point;
   }
@@ -342,10 +502,8 @@ float3 DrawingPlacement::try_project_depth(const float2 co) const
     return *proj_point;
   }
 
-  float3 proj_point;
   /* Fall back to `View` placement. */
-  ED_view3d_win_to_3d(view3d_, region_, placement_loc_, co, proj_point);
-  return proj_point;
+  return View3D_win_to_3d(view3d_, region_, placement_loc_, co);
 }
 
 float3 DrawingPlacement::project(const float2 co, bool &r_clipped) const
@@ -358,10 +516,10 @@ float3 DrawingPlacement::project(const float2 co, bool &r_clipped) const
   }
   else {
     if (placement_plane_) {
-      r_clipped = !ED_view3d_win_to_3d_on_plane(region_, *placement_plane_, co, true, proj_point);
+      r_clipped = !View3D_win_to_3d_on_plane(region_, *placement_plane_, co, true, proj_point);
     }
     else {
-      ED_view3d_win_to_3d(view3d_, region_, placement_loc_, co, proj_point);
+      proj_point = View3D_win_to_3d(view3d_, region_, placement_loc_, co);
       r_clipped = false;
     }
   }
@@ -382,10 +540,10 @@ float3 DrawingPlacement::project_with_shift(const float2 co) const
   }
   else {
     if (placement_plane_) {
-      ED_view3d_win_to_3d_on_plane(region_, *placement_plane_, co, false, proj_point);
+      View3D_win_to_3d_on_plane(region_, *placement_plane_, co, false, proj_point);
     }
     else {
-      ED_view3d_win_to_3d_with_shift(view3d_, region_, placement_loc_, co, proj_point);
+      proj_point = View3D_win_to_3d_with_shift(view3d_, region_, placement_loc_, co);
     }
   }
   return math::transform_point(world_space_to_layer_space_, proj_point);
@@ -406,8 +564,7 @@ float3 DrawingPlacement::place(const float2 co, const float depth) const
   ED_view3d_unproject_v3(region_, co.x, co.y, depth, loc);
 
   if (depth_ == DrawingPlacementDepth::Surface) {
-    float3 view_normal;
-    ED_view3d_win_to_vector(region_, co, view_normal);
+    const float3 view_normal = View3D_win_to_vector(region_, co);
     loc -= view_normal * surface_offset_;
   }
 
