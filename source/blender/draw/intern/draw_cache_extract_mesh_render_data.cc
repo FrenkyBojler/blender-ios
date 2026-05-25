@@ -409,8 +409,7 @@ MeshRenderData mesh_render_data_create(Object &object,
 
   mr.use_hide = use_hide;
 
-  BMEditMesh *edit_mesh = BKE_editmesh_from_eval_object(object);
-  if (edit_mesh) {
+  if (BMEditMesh *edit_mesh = mesh.runtime->edit_mesh.get()) {
     const Mesh *eval_cage = DRW_object_get_editmesh_cage_for_drawing(object);
 
     mr.bm = edit_mesh->bm;

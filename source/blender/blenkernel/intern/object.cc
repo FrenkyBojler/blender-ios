@@ -4387,12 +4387,6 @@ const Mesh *BKE_object_get_pre_modified_mesh(const Object *object)
     }
     return reinterpret_cast<const Mesh *>(data_orig);
   }
-  /* Empty objects (which don't have original data) can have evaluated data that contains meshes
-   * (by having a geometry nodes modifier creating a mesh). In this case, there is no pre modified
-   * mesh so return `nullptr`.*/
-  if (object->id.orig_id && id_cast<const Object *>(object->id.orig_id)->type == OB_EMPTY) {
-    return nullptr;
-  }
   BLI_assert((object->id.tag & ID_TAG_COPIED_ON_EVAL) == 0);
   return id_cast<const Mesh *>(object->data);
 }
