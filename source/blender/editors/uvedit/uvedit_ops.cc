@@ -1082,12 +1082,13 @@ enum class UVTexelUnit {
 };
 static wmOperatorStatus uv_apply_texel_density_exec(bContext *C, wmOperator *op)
 {
+  const Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
   SpaceImage *sima = CTX_wm_space_image(C);
   ARegion *region = CTX_wm_region(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
-      scene, view_layer, nullptr);
+      *bmain, scene, view_layer, nullptr);
   UVTexelLock lock = (UVTexelLock)RNA_enum_get(op->ptr, "lock");
   bool use_active_object = RNA_boolean_get(op->ptr, "use_active_object");
   bool use_selected_uvs = RNA_boolean_get(op->ptr, "use_selected_uvs");
