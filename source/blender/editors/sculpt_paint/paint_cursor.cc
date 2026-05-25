@@ -209,7 +209,9 @@ static void load_tex_task_cb_ex(void *__restrict userdata,
       }
 
       if (mtex->brush_map_mode != MTEX_MAP_MODE_STENCIL && data->preserve_aspect) {
-        BKE_brush_apply_aspect_correction(&x, &y, mtex, pool);
+        const float2 aspect_correction = BKE_brush_get_aspect_correction(mtex, pool);
+        x *= aspect_correction[0];
+        y *= aspect_correction[1];
       }
 
       float avg;
@@ -268,8 +270,7 @@ static int load_tex(Paint *paint, Brush *br, ViewContext *vc, float zoom, bool c
                    (overlay_flags & PAINT_OVERLAY_INVALID_TEXTURE_SECONDARY));
   target = (primary) ? &primary_snap : &secondary_snap;
 
-  const bool preserve_aspect = (primary) ? (br->flag2 & BRUSH_PRESERVE_ASPECT_TEXTURE) :
-                                           (br->flag2 & BRUSH_PRESERVE_ASPECT_MASK);
+  const bool preserve_aspect = mtex->mapping_flags & MTEX_MAPPING_PRESERVE_ASPECT;
 
   refresh = !target->overlay_texture || (invalid != 0) ||
             !same_tex_snap(target, mtex, vc, col, zoom);

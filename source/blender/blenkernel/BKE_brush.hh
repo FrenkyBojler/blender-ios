@@ -136,6 +136,10 @@ float BKE_brush_curve_strength(const Brush *br, float p, float len);
  * or 3d world coordinates for 3D mapping.
  *
  * RGBA outputs straight alpha.
+ *
+ * \param aspect_correction: Optional pre-computed aspect ratio correction for `mtex`.
+ * If provided, skips the expensive per-vertex recomputation of #BKE_brush_get_aspect_correction.
+ * Pass nullptr to compute on-demand (used outside of stroke context).
  */
 float BKE_brush_sample_tex_3d(const Paint *paint,
                               const Brush *br,
@@ -143,16 +147,17 @@ float BKE_brush_sample_tex_3d(const Paint *paint,
                               const float3 &point,
                               float4 &rgba,
                               int thread,
-                              ImagePool *pool);
+                              ImagePool *pool,
+                              const float2 *aspect_correction = nullptr);
 float BKE_brush_sample_masktex(
     const Paint *paint, Brush *br, const float2 &point, int thread, ImagePool *pool);
 
 /**
- * Apply aspect ratio correction to texture sampling coordinates for image textures.
- * When the image is not square, scales `r_x` or `r_y` so the texture appears undistorted.
- * Does nothing when the MTex does not reference an IMAGE texture.
+ * Get aspect ratio correction factors for image textures.
+ * Returns a float2 with scale factors for x and y coordinates.
+ * When the image is not square, scales are computed to prevent texture distortion.
  */
-void BKE_brush_apply_aspect_correction(float *r_x, float *r_y, const MTex *mtex, ImagePool *pool);
+float2 BKE_brush_get_aspect_correction(const MTex *mtex, ImagePool *pool);
 
 /**
  * Get the mask texture for this given object mode.

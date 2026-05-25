@@ -938,30 +938,33 @@ const MTex *BKE_brush_color_texture_get(const Brush *brush, const eObjectMode ob
   return &brush->mtex;
 }
 
-/* Apply aspect ratio correction for image textures when BRUSH_PRESERVE_ASPECT_TEXTURE
- * or BRUSH_PRESERVE_ASPECT_MASK is set. Modifies tex coordinates to prevent rectangular
- * textures from being squashed. */
-void BKE_brush_apply_aspect_correction(float *r_x, float *r_y, const MTex *mtex, ImagePool *pool)
+/* Apply aspect ratio correction for image textures when MTEX_MAPPING_PRESERVE_ASPECT is set.
+ * Modifies tex coordinates to prevent rectangular textures from being squashed. */
+float2 BKE_brush_get_aspect_correction(const MTex *mtex, ImagePool *pool)
 {
   if (!mtex->tex || mtex->tex->type != TEX_IMAGE || !mtex->tex->ima) {
-    return;
+    return float2{1.0f, 1.0f};
   }
 
   ImBuf *ibuf = BKE_image_pool_acquire_ibuf(mtex->tex->ima, &mtex->tex->iuser, pool);
   if (!ibuf || ibuf->x <= 0 || ibuf->y <= 0) {
     BKE_image_pool_release_ibuf(mtex->tex->ima, ibuf, pool);
-    return;
+    return float2{1.0f, 1.0f};
   }
 
   const float aspect = float(ibuf->y) / float(ibuf->x);
+  float scale_x = 1.0f;
+  float scale_y = 1.0f;
+
   if (aspect < 1.0f) {
-    *r_y /= aspect; /* landscape: stretch Y */
+    scale_y /= aspect; /* Landscape: stretch Y */
   }
   else if (aspect > 1.0f) {
-    *r_x *= aspect; /* portrait: stretch X */
+    scale_x *= aspect; /* Portrait: stretch X */
   }
 
   BKE_image_pool_release_ibuf(mtex->tex->ima, ibuf, pool);
+  return {scale_x, scale_y};
 }
 
 float BKE_brush_sample_tex_3d(const Paint *paint,
@@ -970,7 +973,8 @@ float BKE_brush_sample_tex_3d(const Paint *paint,
                               const float3 &point,
                               float4 &rgba,
                               const int thread,
-                              ImagePool *pool)
+                              ImagePool *pool,
+                              const float2 *aspect_correction)
 {
   const bke::PaintRuntime *paint_runtime = paint->runtime;
   float intensity = 1.0;
@@ -1059,8 +1063,11 @@ float BKE_brush_sample_tex_3d(const Paint *paint,
       y = flen * sinf(angle);
     }
 
-    if (br->flag2 & BRUSH_PRESERVE_ASPECT_TEXTURE) {
-      BKE_brush_apply_aspect_correction(&x, &y, mtex, pool);
+    if (mtex->mapping_flags & MTEX_MAPPING_PRESERVE_ASPECT) {
+      const float2 correction = aspect_correction ? *aspect_correction :
+                                                    BKE_brush_get_aspect_correction(mtex, pool);
+      x *= correction[0];
+      y *= correction[1];
     }
 
     float3 co(x, y, 0.0f);
@@ -1175,8 +1182,10 @@ float BKE_brush_sample_masktex(
       y = flen * sinf(angle);
     }
 
-    if (br->flag2 & BRUSH_PRESERVE_ASPECT_MASK) {
-      BKE_brush_apply_aspect_correction(&x, &y, mtex, pool);
+    if (mtex->mapping_flags & MTEX_MAPPING_PRESERVE_ASPECT) {
+      const float2 correction = BKE_brush_get_aspect_correction(mtex, pool);
+      x *= correction[0];
+      y *= correction[1];
     }
 
     co[0] = x;
@@ -1718,11 +1727,11 @@ static bool brush_gen_texture(const Brush *br,
   }
 
   /* Compute aspect ratio correction for image textures.
-   * Only applied when BRUSH_PRESERVE_ASPECT flag is set to match painting behavior. */
+   * Only applied when MTEX_MAPPING_PRESERVE_ASPECT flag is set to match painting behavior. */
   float aspect_x = 1.0f, aspect_y = 1.0f;
-  eBrushFlags2 preserve_aspect_flag = use_secondary ? BRUSH_PRESERVE_ASPECT_MASK :
-                                                      BRUSH_PRESERVE_ASPECT_TEXTURE;
-  if ((br->flag2 & preserve_aspect_flag) && mtex->tex->type == TEX_IMAGE && mtex->tex->ima) {
+  if ((mtex->mapping_flags & MTEX_MAPPING_PRESERVE_ASPECT) && mtex->tex->type == TEX_IMAGE &&
+      mtex->tex->ima)
+  {
     ImBuf *ibuf = BKE_image_pool_acquire_ibuf(mtex->tex->ima, &mtex->tex->iuser, nullptr);
     if (ibuf && ibuf->x > 0 && ibuf->y > 0) {
       const float aspect = float(ibuf->y) / float(ibuf->x);

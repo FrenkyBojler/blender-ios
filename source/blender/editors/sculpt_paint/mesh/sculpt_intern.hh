@@ -354,6 +354,10 @@ struct StrokeCache {
    */
   bool accum = false;
 
+  /* Cached texture aspect ratio corrections to avoid expensive recomputation per-vertex. */
+  float2 aspect_correction_texture{1.0f, 1.0f};
+  float2 aspect_correction_mask{1.0f, 1.0f};
+
   /* Paint Brush. */
   struct {
     float flow = 0.0f;

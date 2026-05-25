@@ -1604,7 +1604,7 @@ def brush_texture_settings(layout, brush, sculpt):
     layout.prop(tex_slot, "scale")
 
     if brush.texture and brush.texture.type == 'IMAGE' and tex_slot.map_mode != 'STENCIL':
-        layout.prop(brush, "use_preserve_aspect_texture", text="Preserve Aspect")
+        layout.prop(tex_slot, "use_preserve_aspect", text="Preserve Aspect")
 
     if sculpt:
         # texture_sample_bias
@@ -1649,7 +1649,7 @@ def brush_mask_texture_settings(layout, brush):
     col.prop(mask_tex_slot, "scale")
 
     if brush.mask_texture and brush.mask_texture.type == 'IMAGE' and mask_tex_slot.map_mode != 'STENCIL':
-        col.prop(brush, "use_preserve_aspect_mask", text="Preserve Aspect")
+        col.prop(mask_tex_slot, "use_preserve_aspect", text="Preserve Aspect")
 
 
 def brush_basic_texpaint_settings(layout, context, brush, *, compact=False):

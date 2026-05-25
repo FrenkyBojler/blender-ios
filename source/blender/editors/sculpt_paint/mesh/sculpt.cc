@@ -2494,7 +2494,8 @@ void sculpt_apply_texture(const SculptSession &ss,
 
   if (mtex->brush_map_mode == MTEX_MAP_MODE_3D) {
     /* Get strength by feeding the vertex location directly into a texture. */
-    *r_value = BKE_brush_sample_tex_3d(cache.paint, &brush, mtex, point, r_rgba, 0, ss.tex_pool);
+    *r_value = BKE_brush_sample_tex_3d(
+        cache.paint, &brush, mtex, point, r_rgba, 0, ss.tex_pool, &cache.aspect_correction_mask);
   }
   else {
     /* If the active area is being applied for symmetry, flip it
@@ -2523,8 +2524,9 @@ void sculpt_apply_texture(const SculptSession &ss,
       x += mtex->ofs[0];
       y += mtex->ofs[1];
 
-      if (brush.flag2 & BRUSH_PRESERVE_ASPECT_TEXTURE) {
-        BKE_brush_apply_aspect_correction(&x, &y, mtex, ss.tex_pool);
+      if (mtex->mapping_flags & MTEX_MAPPING_PRESERVE_ASPECT) {
+        x *= cache.aspect_correction_mask[0];
+        y *= cache.aspect_correction_mask[1];
       }
 
       paint_get_tex_pixel(mtex, x, y, ss.tex_pool, thread_id, r_value, r_rgba);
@@ -5149,6 +5151,21 @@ static void brush_stroke_init(bContext *C, const wmOperator *op)
   }
 
   brush_init_tex(sd, ss);
+
+  if (brush) {
+    /* Color texture slot. */
+    const MTex *mtex_texture = BKE_brush_color_texture_get(brush, OB_MODE_SCULPT);
+    if (mtex_texture && (mtex_texture->mapping_flags & MTEX_MAPPING_PRESERVE_ASPECT)) {
+      ss.cache->aspect_correction_texture = BKE_brush_get_aspect_correction(mtex_texture,
+                                                                            ss.tex_pool);
+    }
+
+    /* Mask texture slot. */
+    const MTex *mtex_mask = BKE_brush_mask_texture_get(brush, OB_MODE_SCULPT);
+    if (mtex_mask && (mtex_mask->mapping_flags & MTEX_MAPPING_PRESERVE_ASPECT)) {
+      ss.cache->aspect_correction_mask = BKE_brush_get_aspect_correction(mtex_mask, ss.tex_pool);
+    }
+  }
 
   const bool needs_colors = brush_type_is_paint(brush->sculpt_brush_type) &&
                             !SCULPT_use_image_paint_brush(tool_settings->paint_mode, ob);
