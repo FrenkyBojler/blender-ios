@@ -74,14 +74,38 @@ float gpencil_stroke_segment_mask(float2 p1,
   bool both_round = miter_limit.x == MITER_LIMIT_TYPE_ROUND &&
                     miter_limit.y == MITER_LIMIT_TYPE_ROUND;
 
-  bool is_start = distance_squared(p0, p1) < 1e-6;
-  bool is_end = distance_squared(p2, p3) < 1e-6;
+  float2 line0 = p1 - p0;
+  float len_sq0 = length_squared(line0);
+
+  float2 line2 = p3 - p2;
+  float len_sq2 = length_squared(line2);
+
+  bool is_start = length_squared(p0) < 1e-6;
+  bool is_end = length_squared(p3) < 1e-6;
   bool both_ends = is_start && is_end;
+  bool is_single_dot = both_ends && length_squared(p2) < 1e-6;
 
   float2 pos1 = gl_FragCoord.xy - p1;
   float2 line1 = p2 - p1;
   float2 tan1 = orthogonal(line1);
   float len_sq1 = length_squared(line1);
+
+  if (is_single_dot && len_sq1 <= 0.0f) {
+    return 1.0f;
+  }
+
+  if (is_single_dot || ((both_ends || is_start) && len_sq1 <= 0.0f)) {
+    return gpencil_stroke_hardess_mask(length(pos1) / r1, hardfac);
+  }
+
+  if (len_sq1 <= 0.0f && !is_start) {
+    return 0.0f;
+  }
+
+  /* Skip the joint */
+  if (length_squared(pos1) < r1 * r1 && !is_start) {
+    return 0.0f;
+  }
 
   /* Calculate the factor along the main segment. */
   float t1 = dot(pos1, line1) / len_sq1;
@@ -94,11 +118,6 @@ float gpencil_stroke_segment_mask(float2 p1,
   float cos_theta = a / l;
 
   float joint = 1.0f;
-
-  /* Skip the joint */
-  if (length(pos1) < r1 && !is_start) {
-    return 0.0f;
-  }
 
   float x = t1 * l;
 
@@ -119,44 +138,41 @@ float gpencil_stroke_segment_mask(float2 p1,
 
     // radius = r1 + a * saturate(T);
     radius = r1 + a * T;
-  }
 
-  if (x < -cos_theta * r1) {
-    // if (x < 0.0f) {
-    //   radius = r1;
-    // }
-    // else {
-    radius = sqrt(r1 * r1 - x * x);
-    // }
-  }
+    if (x < -cos_theta * r1) {
+      // if (x < 0.0f) {
+      //   radius = r1;
+      // }
+      // else {
+      // radius = sqrt(r1 * r1 - x * x);
+      radius = r1;
+      // }
+    }
 
-  if (x > l - cos_theta * r2) {
-    // if (x > l) {
-    //   radius = r2;
-    // }
-    // else {
-    radius = sqrt(r2 * r2 - (x - l) * (x - l));
-    // }
+    if (x > l - cos_theta * r2) {
+      // if (x > l) {
+      //   radius = r2;
+      // }
+      // else {
+      // radius = sqrt(r2 * r2 - (x - l) * (x - l));
+      radius = r2;
+      // }
+    }
   }
 
   /* The distance factor squared to the main segment. This is clamped and will lead to round
    * corners. */
-  // float dist = length_squared(pos1 - clamped_t1 * line1);
-  float dist = length_squared(pos1 - t1 * line1);
+  float dist = length_squared(pos1 - clamped_t1 * line1);
+  // float dist = length_squared(pos1 - t1 * line1);
 
   if (both_round || both_ends) {
     dist = sqrt(dist) / radius;
     return gpencil_stroke_hardess_mask(dist, hardfac) * joint;
   }
 
-  float2 line0 = p1 - p0;
   float2 tan0 = orthogonal(line0);
-  float len_sq0 = length_squared(line0);
-
   float2 pos2 = gl_FragCoord.xy - p2;
-  float2 line2 = p3 - p2;
   float2 tan2 = orthogonal(line2);
-  float len_sq2 = length_squared(line2);
 
   /* Calculate the non-normalized factor along the other segments. */
   float t0 = dot(pos1, line0);
@@ -647,19 +663,19 @@ float4 gpencil_vertex(float4 viewport_res,
       out_sspos_2 = ss2;
     }
     else {
-      out_sspos_2 = out_sspos_1;
+      out_sspos_2 = float4(0.0f);
     }
     if (ma.x != -1) {
       out_sspos_0 = ss0;
     }
     else {
-      out_sspos_0 = out_sspos_1.xy;
+      out_sspos_0 = float2(0.0f);
     }
     if (ma3.x != -1) {
       out_sspos_3 = ss3;
     }
     else {
-      out_sspos_3 = out_sspos_2.xy;
+      out_sspos_3 = float2(0.0f);
     }
 
     /* Z is already given. */
@@ -719,7 +735,7 @@ float4 gpencil_vertex(float4 viewport_res,
       out_aspect.xy = 1.0f / out_aspect.xy;
 
       out_ndc.xy += (x * x_axis + y * y_axis) * viewport_res.zw * clamped_thickness;
-      out_sspos_0.xy = ss1.xy + x_axis * 0.5f;
+      // out_sspos_0.xy = ss1.xy + x_axis * 0.5f;
 
       out_thickness.x = (is_squares) ? 1e18f : (clamped_thickness / out_ndc.w);
       out_thickness.y = (is_squares) ? 1e18f : (thickness / out_ndc.w);
