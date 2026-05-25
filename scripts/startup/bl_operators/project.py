@@ -480,10 +480,14 @@ def on_blend_save(blend_path):
 
     # In case we're saving the blend to disk for the first time or to a new
     # location, load the project there (if any).
-    try:
-        find_and_load_project_for_blend_path(bpy.context, blend_path)
-    except ProjectLoadException:
-        log_project_load_error(blend_path)
+    #
+    # The equality check here is to prevent loading projects from the copy
+    # location when doing "Save Copy...".
+    if blend_path == bpy.data.filepath:
+        try:
+            find_and_load_project_for_blend_path(bpy.context, blend_path)
+        except ProjectLoadException:
+            log_project_load_error(blend_path)
 
 
 @bpy.app.handlers.persistent
