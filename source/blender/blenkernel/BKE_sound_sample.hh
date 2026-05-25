@@ -143,6 +143,8 @@ class bSoundWaveletEnergySampler {
 
     uint64_t hash() const
     {
+      /* -1 is used as a sentinel for "mix all channels". Callers guard against channel == -1
+       * before constructing a Key, so no hash collision can occur in practice. */
       return get_default_hash(this->band, this->window_size, this->channel.value_or(-1));
     }
 

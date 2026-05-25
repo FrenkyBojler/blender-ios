@@ -2278,9 +2278,10 @@ static std::optional<Array<float>> read_sound_sample_window(AUD_Sound sound,
   int read_count = samples_num + warmup_samples;
   reader->seek(std::max(start_sample - warmup_samples, 0));
   reader->read(read_count, is_end_of_stream, read_buffer_extra.data());
+  const int valid_frames_after_warmup = std::max(0, read_count - warmup_samples);
+  const int read_length = std::min(valid_frames_after_warmup, samples_num);
   const Span<float> read_buffer = read_buffer_extra.as_span().drop_front(warmup_samples *
                                                                          channels_num);
-  const int read_length = read_buffer.size() / channels_num;
 
   Array<float> buffer(samples_num, 0.0f);
   if (channel.has_value()) {
@@ -2585,7 +2586,10 @@ static int band_to_level(const WaveletBand band, const int max_level)
 }
 
 /** Single-level DWT decomposition into approximation and detail coefficients.
- * Periodic extension keeps the transform local to the current analysis window. */
+ * Periodic extension (circular indexing) is used deliberately rather than a taper or
+ * zero-padding. A taper would suppress energy near the window edges and reduce sensitivity
+ * to transients that fall there. The overlapping window stride already provides coverage,
+ * so boundary discontinuity artifacts are expected to be small in practice. */
 static void db4_decompose(const Span<float> signal,
                           MutableSpan<float> low,
                           MutableSpan<float> high)
@@ -2593,11 +2597,28 @@ static void db4_decompose(const Span<float> signal,
   const int n = int(signal.size());
   const int half_size = n / 2;
   const float *sig = signal.data();
-  for (const int i : IndexRange(half_size)) {
+
+  /* For all but the last few output samples the 8-tap filter fits entirely inside the
+   * buffer, so avoid the modulo entirely and let the compiler unroll the inner loop.
+   * Only the final (filter_len - 1) / 2 = 3 output samples need periodic extension. */
+  const int safe_count = (n - 8) / 2 + 1; /* largest i where 2*i + 7 <= n-1 */
+  for (int i = 0; i < safe_count; i++) {
+    const float *s = sig + 2 * i;
+    low[i] = DB4_LO[0] * s[0] + DB4_LO[1] * s[1] + DB4_LO[2] * s[2] +
+             DB4_LO[3] * s[3] + DB4_LO[4] * s[4] + DB4_LO[5] * s[5] +
+             DB4_LO[6] * s[6] + DB4_LO[7] * s[7];
+    high[i] = DB4_HI[0] * s[0] + DB4_HI[1] * s[1] + DB4_HI[2] * s[2] +
+              DB4_HI[3] * s[3] + DB4_HI[4] * s[4] + DB4_HI[5] * s[5] +
+              DB4_HI[6] * s[6] + DB4_HI[7] * s[7];
+  }
+
+  /* Boundary samples: use bitmask instead of modulo since all window sizes are powers of 2. */
+  const int mask = n - 1;
+  for (int i = safe_count; i < half_size; i++) {
     float lo_val = 0.0f, hi_val = 0.0f;
     const int base = 2 * i;
     for (int k = 0; k < 8; k++) {
-      const float s = sig[(base + k) % n];
+      const float s = sig[(base + k) & mask];
       lo_val += DB4_LO[k] * s;
       hi_val += DB4_HI[k] * s;
     }
@@ -2660,8 +2681,9 @@ bSoundWaveletEnergySampler::bSoundWaveletEnergySampler(AUD_Sound sound, const Ke
   samples_per_second_ = info.specs.samplerate;
   /* 87.5% overlap, matching the frequency sampler stride ratio. */
   window_cache_stride_ = key.window_size / 8;
-  const int window_caches_num = std::ceil(info.length * info.specs.samplerate /
-                                          window_cache_stride_);
+  const int total_samples = int(double(info.length) * info.specs.samplerate);
+  const int window_caches_num = (total_samples + window_cache_stride_ - 1) /
+                                window_cache_stride_;
   window_caches_.reinitialize(window_caches_num);
 #else
   UNUSED_VARS(sound, key);
@@ -2671,10 +2693,11 @@ bSoundWaveletEnergySampler::bSoundWaveletEnergySampler(AUD_Sound sound, const Ke
 
 float bSoundWaveletEnergySampler::sample(const float time) const
 {
-  /* Map time to fractional window index, centering the window on the query point. */
-  const float i_float = std::max(
-      0.0f, (time * samples_per_second_ - key_.window_size / 2) / window_cache_stride_);
-  const int i_pre = floorf(i_float);
+  /* Center the analysis window on the query time. Negative indices are out of range and
+   * ensure_window_cache() returns nullopt for them, producing zero energy. */
+  const float i_float = (time * samples_per_second_ - key_.window_size / 2.0f) /
+                        window_cache_stride_;
+  const int i_pre = int(floorf(i_float));
   const int i_post = i_pre + 1;
   const float t = fractf(i_float);
 

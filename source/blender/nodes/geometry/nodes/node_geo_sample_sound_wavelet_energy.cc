@@ -74,7 +74,8 @@ static void node_declare(NodeDeclarationBuilder &b)
 
   b.add_output<decl::Float>("Energy"_ustr)
       .propagate_references()
-      .description("Normalized wavelet detail energy at the given time in the selected band")
+      .description("Average wavelet detail energy at the given time in the selected band. "
+                   "Values scale with source loudness; louder audio produces larger values")
       .structure_type(StructureType::Dynamic);
   b.add_output<decl::Bool>("Above Threshold"_ustr)
       .propagate_references()
@@ -112,7 +113,8 @@ static void node_declare(NodeDeclarationBuilder &b)
         .optional_label()
         .description(
             "Number of samples per DWT window. Larger values capture lower-frequency detail "
-            "with less precise time localization");
+            "with less precise time localization. Changing window size also shifts which "
+            "frequency range each named band covers");
   }
 }
 
@@ -155,11 +157,12 @@ class SampleSoundWaveletEnergyFunction : public mf::MultiFunction {
 
     const std::optional<bool> all_channels_value = all_channels_varray.get_if_single();
     const std::optional<int> channel_value = channels.get_if_single();
-    const bool constant_channel = all_channels_value.has_value() &&
-                                  (*all_channels_value || channel_value.has_value());
+    /* True when every element uses the same sampler key, so one cache lookup covers all. */
+    const bool single_sampler_key = all_channels_value.has_value() &&
+                                    (*all_channels_value || channel_value.has_value());
 
     /* Fast path: every element samples the same channel, so one sampler lookup suffices. */
-    if (constant_channel) {
+    if (single_sampler_key) {
       bke::bSoundWaveletEnergySampler::Key key;
       key.band = band_;
       key.window_size = window_size_;
@@ -180,7 +183,7 @@ class SampleSoundWaveletEnergyFunction : public mf::MultiFunction {
     }
 
     /* Slow path: per-element channel varies. Bucket by channel to reuse samplers. */
-    constexpr int inline_channel_buckets_num = 6;
+    constexpr int inline_channel_buckets_num = 6; /* covers mono through 5.1 surround */
     std::array<Vector<int>, inline_channel_buckets_num> indices_by_channel;
     MultiValueMap<int, int> indices_with_different_channel;
     Vector<int> indices_with_all_channels;
@@ -236,14 +239,21 @@ static bke::WaveletBand node_band(const bNode &node)
 {
   switch (bke::WaveletBand(node.custom1)) {
     case bke::WaveletBand::FullRange:
+      return bke::WaveletBand::FullRange;
     case bke::WaveletBand::High:
+      return bke::WaveletBand::High;
     case bke::WaveletBand::HighMid:
+      return bke::WaveletBand::HighMid;
     case bke::WaveletBand::Mid:
+      return bke::WaveletBand::Mid;
     case bke::WaveletBand::LowMid:
+      return bke::WaveletBand::LowMid;
     case bke::WaveletBand::Low:
-      return bke::WaveletBand(node.custom1);
+      return bke::WaveletBand::Low;
+    default:
+      BLI_assert_unreachable();
+      return bke::WaveletBand::FullRange;
   }
-  return bke::WaveletBand::FullRange;
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
@@ -292,7 +302,9 @@ static void node_rna(StructRNA *srna)
   RNA_def_node_enum(srna,
                     "band",
                     "Band",
-                    "Approximate wavelet detail band used for wavelet energy sampling",
+                    "Approximate frequency band for wavelet detail energy. "
+                    "Bands depend on sample rate and window size and are not fixed instrument "
+                    "detectors",
                     band_items,
                     NOD_inline_enum_accessors(custom1),
                     int(bke::WaveletBand::FullRange));
