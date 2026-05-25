@@ -1466,9 +1466,6 @@ static wmOperatorStatus collection_drop_invoke(bContext *C,
       /* Move/link object into collection. */
       Object *object = id_cast<Object *>(drag_id.id);
 
-      const bool link_only = (event->modifier & KM_CTRL);
-      from = link_only ? nullptr : collection_parent_from_ID(drag_id.from_parent);
-
       if (from) {
         BKE_collection_object_move(bmain, scene, data.to, from, object);
       }
