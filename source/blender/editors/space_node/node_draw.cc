@@ -2129,24 +2129,6 @@ static nodes::NodeWarningType node_error_highest_priority(
   return highest_priority_type;
 }
 
-static std::string node_errors_tooltip_fn(const Span<nodes::eval_log::NodeWarning> warnings)
-{
-  std::string complete_string;
-
-  for (const nodes::eval_log::NodeWarning &warning : warnings.drop_back(1)) {
-    complete_string += warning.message;
-    /* Adding the period is not ideal for multi-line messages, but it is consistent
-     * with other tooltip implementations in Blender, so it is added here. */
-    complete_string += '.';
-    complete_string += '\n';
-  }
-
-  /* Let the tooltip system automatically add the last period. */
-  complete_string += warnings.last().message;
-
-  return complete_string;
-}
-
 #define NODE_HEADER_ICON_SIZE (0.8f * U.widget_unit)
 
 static ui::Button *add_error_message_button(ui::Block &block,
