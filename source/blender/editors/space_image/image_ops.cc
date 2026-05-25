@@ -1521,10 +1521,10 @@ static wmOperatorStatus image_open_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static bool image_open_path_for_os_open(bContext *C,
-                                        wmOperator *op,
-                                        Image *ima_hint,
-                                        char r_filepath[FILE_MAX])
+static bool image_open_abs_image_path_get(bContext *C,
+                                          wmOperator *op,
+                                          Image *ima_hint,
+                                          char r_filepath[FILE_MAX])
 {
   Main *bmain = CTX_data_main(C);
 
@@ -1599,7 +1599,7 @@ static wmOperatorStatus image_open_invoke(bContext *C, wmOperator *op, const wmE
   if (event->modifier & (KM_SHIFT | KM_ALT)) {
     char filepath[FILE_MAX];
 
-    if (image_open_path_for_os_open(C, op, ima, filepath)) {
+    if (image_open_abs_image_path_get(C, op, ima, filepath)) {
       wmOperatorType *ot = WM_operatortype_find("WM_OT_path_open", true);
       if (!ot) {
         return OPERATOR_CANCELLED;
@@ -1629,6 +1629,14 @@ static wmOperatorStatus image_open_invoke(bContext *C, wmOperator *op, const wmE
       WM_operator_name_call_ptr(C, ot, wm::OpCallContext::ExecDefault, &props_ptr, nullptr);
       WM_operator_properties_free(&props_ptr);
 
+      return OPERATOR_CANCELLED;
+    }
+    else if (ima && ima->source == IMA_SRC_VIEWER) {
+      BKE_reportf(op->reports, RPT_ERROR, "Render results cannot be opened externally");
+      return OPERATOR_CANCELLED;
+    }
+    else if (ima && ima->source == IMA_SRC_GENERATED) {
+      BKE_reportf(op->reports, RPT_ERROR, "Image has not been saved to disk yet");
       return OPERATOR_CANCELLED;
     }
   }
