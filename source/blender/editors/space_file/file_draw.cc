@@ -770,18 +770,17 @@ static void file_draw_preview(const FileDirEntry *file,
   const gpu::TextureFormat format = gpu::TextureFormat::UNORM_8_8_8_8;
   BLI_assert_msg(preview.channels == 4, "preview images are expected to be 4 channels");
 
-  IMMDrawPixelsTexState state = immDrawPixelsTexSetup(GPU_SHADER_3D_IMAGE_COLOR);
-  immDrawPixels(&state,
-                float(xmin),
-                float(ymin),
-                preview.width,
-                preview.height,
-                format,
-                true,
-                preview.buffer.data(),
-                scale,
-                scale,
-                document_img_col);
+  PixelBitmapDrawer drawer(GPU_SHADER_3D_IMAGE_COLOR);
+  drawer.draw(float(xmin),
+              float(ymin),
+              preview.width,
+              preview.height,
+              format,
+              true,
+              preview.buffer.data(),
+              scale,
+              scale,
+              document_img_col);
 
   const bool show_outline = (file->typeflag & (FILE_TYPE_IMAGE | FILE_TYPE_OBJECT_IO |
                                                FILE_TYPE_MOVIE | FILE_TYPE_BLENDER));
@@ -1044,7 +1043,7 @@ static void renamebutton_cb(bContext &C, StringRefNull oldname)
     /* Ensure we select and scroll to the renamed file.
      * This is done even if the rename fails as we want to make sure that the file we tried to
      * rename is still selected and in view. (it can move if something added files/folders to the
-     * directory while we were renaming.
+     * directory while we were renaming).
      */
     file_params_invoke_rename_postscroll(wm, win, sfile);
     /* to make sure we show what is on disk */

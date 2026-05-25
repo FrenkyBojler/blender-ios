@@ -185,8 +185,6 @@ set(SRC
   intern/gpu_shader_interface.hh
   intern/gpu_shader_metadata_private.hh
   intern/gpu_shader_private.hh
-  intern/gpu_shader_srd_cpp.hh
-  intern/gpu_shader_srd_info.hh
   intern/gpu_state_private.hh
   intern/gpu_storage_buffer_private.hh
   intern/gpu_texture_pool_private.hh
@@ -697,6 +695,7 @@ set(GLSL_SRC
   shaders/material/gpu_shader_material_rotation_to_axis_angle.glsl
   shaders/material/gpu_shader_material_rotation_to_euler.glsl
   shaders/material/gpu_shader_material_rotation_to_quaternion.glsl
+  shaders/material/gpu_shader_material_scene_time.glsl
   shaders/material/gpu_shader_material_separate_color.glsl
   shaders/material/gpu_shader_material_separate_xyz.glsl
   shaders/material/gpu_shader_material_set.glsl
