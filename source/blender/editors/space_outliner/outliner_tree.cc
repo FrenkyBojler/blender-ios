@@ -458,49 +458,49 @@ static bool treesort_alpha(const tTreeSort &x1, const tTreeSort &x2)
 /* Sort object entries in a parent collection by `CollectionObject.sort_index`,
  * using natural-name order only as a tie-breaker. Non-object entries are not
  * ordered here and keep their existing relative order. */
-static bool treesort_custom(const tTreeSort &x1, const tTreeSort &x2)
+static bool treesort_custom(const tTreeSort &x1,
+                            const tTreeSort &x2,
+                            const Map<const Object *, CollectionObject *> *collection_object_map)
 {
-  /* Only sort objects that are in a collection. */
+  /* Only sort objects that are in a collection. If no per-sort object map is
+   * available, fallback to alphabetical ordering. */
   if (x1.idcode != ID_OB || x2.idcode != ID_OB) {
     return false;
   }
 
-  if (!x1.id || !x2.id) {
-    return false;
-  }
-
-  TreeElement *parent = x1.te->parent;
-  if (!parent) {
-    return false;
-  }
-
-  Collection *col = outliner_collection_from_tree_element(parent);
-  if (!col) {
-    return false;
-  }
-
-  Object *ob1 = reinterpret_cast<Object *>(x1.id);
-  Object *ob2 = reinterpret_cast<Object *>(x2.id);
-
-  CollectionObject *cob1 = BKE_collection_object_find_in(col, ob1);
-  CollectionObject *cob2 = BKE_collection_object_find_in(col, ob2);
-
-  const int sort1 = cob1 ? (cob1->sort_index < 0 ? INT_MAX : cob1->sort_index) : INT_MAX;
-  const int sort2 = cob2 ? (cob2->sort_index < 0 ? INT_MAX : cob2->sort_index) : INT_MAX;
-
-  if (sort1 == sort2) {
+  if (collection_object_map == nullptr) {
     return treesort_alpha(x1, x2);
   }
 
-  return sort1 < sort2;
+  const Object *ob1 = reinterpret_cast<const Object *>(x1.id);
+  const Object *ob2 = reinterpret_cast<const Object *>(x2.id);
+
+  CollectionObject *cob1 = collection_object_map->lookup_default(ob1, nullptr);
+  CollectionObject *cob2 = collection_object_map->lookup_default(ob2, nullptr);
+
+  const int si1 = (cob1 != nullptr && cob1->sort_index >= 0) ? cob1->sort_index : INT_MAX;
+  const int si2 = (cob2 != nullptr && cob2->sort_index >= 0) ? cob2->sort_index : INT_MAX;
+
+  if (si1 == si2) {
+    return treesort_alpha(x1, x2);
+  }
+
+  return si1 < si2;
 }
 
-static void outliner_sort_custom_assign_missing_sort_indices(ListBaseT<TreeElement> *lb,
-                                                             TreeElement *last_te)
+static void outliner_sort_custom_assign_missing_sort_indices(
+    ListBaseT<TreeElement> *lb,
+    TreeElement *last_te,
+  const Map<const Object *, CollectionObject *> &collection_object_map)
 {
   Collection *collection = outliner_collection_from_tree_element(last_te->parent);
   if (collection == nullptr) {
     return;
+  }
+
+  int max_sort_index = -1;
+  for (CollectionObject &cob : collection->gobject) {
+    max_sort_index = std::max(max_sort_index, cob.sort_index);
   }
 
   bool has_missing_indices = false;
@@ -509,23 +509,18 @@ static void outliner_sort_custom_assign_missing_sort_indices(ListBaseT<TreeEleme
       continue;
     }
     Object *ob = reinterpret_cast<Object *>(TREESTORE(&te)->id);
-    CollectionObject *cob = BKE_collection_object_find_in(collection, ob);
+    CollectionObject *cob = collection_object_map.lookup_default(ob, nullptr);
     if (cob != nullptr && cob->sort_index < 0) {
       has_missing_indices = true;
       break;
     }
   }
 
-  int max_sort_index = -1;
-  for (CollectionObject &cob : collection->gobject) {
-    max_sort_index = std::max(max_sort_index, cob.sort_index);
-  }
-
   int next_index = has_missing_indices ? max_sort_index + 1 : 0;
 
   for (TreeElement &te : *lb) {
     Object *ob = reinterpret_cast<Object *>(TREESTORE(&te)->id);
-    CollectionObject *cob = BKE_collection_object_find_in(collection, ob);
+    CollectionObject *cob = collection_object_map.lookup_default(ob, nullptr);
     if (cob != nullptr) {
       if (cob->sort_index < 0) {
         cob->sort_index = next_index++;
@@ -698,48 +693,60 @@ static void outliner_sort_custom(ListBaseT<TreeElement> *lb)
     return;
   }
   TreeStoreElem *last_tselem = TREESTORE(last_te);
+  Map<const Object *, CollectionObject *> collection_object_map;
 
   /* Sorting rules: only object lists. */
   if ((last_tselem->type == TSE_SOME_ID) && (last_te->idcode == ID_OB)) {
     int totelem = lb->count();
 
     if (totelem > 1) {
-      Vector<tTreeSort> tear_vec(totelem);
-      tTreeSort *tear = tear_vec.data();
-      tTreeSort *tp = tear;
+      Collection *collection = outliner_collection_from_tree_element(last_te->parent);
+      if (collection != nullptr) {
+        for (CollectionObject &cob : collection->gobject) {
+          collection_object_map.add(cob.ob, &cob);
+        }
 
-      for (TreeElement &te : *lb) {
-        TreeStoreElem *tselem = TREESTORE(&te);
-        tp->te = &te;
-        tp->name = te.name;
-        tp->idcode = te.idcode;
-        tp->id = tselem->id;
+        Vector<tTreeSort> tear_vec(totelem);
+        tTreeSort *tear = tear_vec.data();
+        tTreeSort *tp = tear;
 
-        tp++;
-      }
+        for (TreeElement &te : *lb) {
+          TreeStoreElem *tselem = TREESTORE(&te);
+          tp->te = &te;
+          tp->name = te.name;
+          tp->idcode = te.idcode;
+          tp->id = tselem->id;
+          tp++;
+        }
 
-      if (tear->idcode == 1) {
-        std::sort(tear, tear + totelem, treesort_custom);
-      }
-      else {
-        int skip = 0;
-        for (tp = tear; skip < totelem; skip++, tp++) {
-          if (tp->idcode) {
-            break;
+        auto treesort_custom_fn = [&collection_object_map](const tTreeSort &a,
+                                                            const tTreeSort &b) {
+          return treesort_custom(a, b, &collection_object_map);
+        };
+
+        if (tear->idcode == 1) {
+          std::sort(tear, tear + totelem, treesort_custom_fn);
+        }
+        else {
+          int skip = 0;
+          for (tp = tear; skip < totelem; skip++, tp++) {
+            if (tp->idcode) {
+              break;
+            }
+          }
+          if (skip < totelem) {
+            std::stable_sort(tear + skip, tear + totelem, treesort_custom_fn);
           }
         }
-        if (skip < totelem) {
-          std::stable_sort(tear + skip, tear + totelem, treesort_custom);
+
+        lb->clear_no_delete();
+        tp = tear;
+        for (int i = 0; i < totelem; i++, tp++) {
+          BLI_addtail(lb, tp->te);
         }
       }
-
-      lb->clear_no_delete();
-      tp = tear;
-      for (int i = 0; i < totelem; i++, tp++) {
-        BLI_addtail(lb, tp->te);
-      }
     }
-    outliner_sort_custom_assign_missing_sort_indices(lb, last_te);
+    outliner_sort_custom_assign_missing_sort_indices(lb, last_te, collection_object_map);
   }
 
   for (TreeElement &te_iter : *lb) {
