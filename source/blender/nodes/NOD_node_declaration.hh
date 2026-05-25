@@ -278,11 +278,16 @@ class PanelDeclarationBuilder;
 
 class BaseSocketDeclarationBuilder {
  protected:
-  bool reference_pass_all_ = false;
-  bool field_on_all_ = false;
-  bool propagate_from_all_ = false;
   NodeDeclarationBuilder *node_decl_builder_ = nullptr;
   SocketDeclaration *decl_base_ = nullptr;
+
+  /* Variables which are used to add additional data to the declaration after all sockets have been
+   * added. */
+  bool propagate_all_input_references_ = false;
+  bool propagate_all_input_data_ = false;
+  bool propagate_all_input_data_from_geometry_ = false;
+  bool input_reference_used_on_all_data_ = false;
+  bool output_reference_available_on_all_data_ = false;
 
   friend class NodeDeclarationBuilder;
   friend class DeclarationListBuilder;
@@ -320,60 +325,35 @@ class BaseSocketDeclarationBuilder {
 
   BaseSocketDeclarationBuilder &default_input_type(NodeDefaultInputType value);
 
-  /** The input socket allows passing in a field. */
-  BaseSocketDeclarationBuilder &supports_field();
+  /**
+   * Declares that this input is or contains a field that is evaluated on some geometry in this
+   * node.
+   */
+  BaseSocketDeclarationBuilder &evaluated_geometry_field();
+  BaseSocketDeclarationBuilder &evaluated_geometry_field(Span<int> geometry_input_indices);
+  /**
+   * Declares that this socket outputs an attribute field referencing an anonymous attribute that
+   * exists on an output geometry of the node.
+   */
+  BaseSocketDeclarationBuilder &anonymous_attribute_output();
+  BaseSocketDeclarationBuilder &anonymous_attribute_output(Span<int> geometry_output_indices);
+
+  /** The output has a dynamic structure type which is automatically inferred from inputs. */
+  BaseSocketDeclarationBuilder &inferred_structure_type();
+  BaseSocketDeclarationBuilder &inferred_structure_type(Span<int> input_indices);
+
+  /** The node passes references to data (anonymous attributes) from inputs to this output. */
+  BaseSocketDeclarationBuilder &propagate_references();
+  BaseSocketDeclarationBuilder &propagate_references(Span<int> input_indices);
 
   /**
-   * For inputs this means that the input field is evaluated on all geometry inputs. For outputs
-   * it means that this contains an anonymous attribute reference that is available on all geometry
-   * outputs. This sockets value does not have to be output manually in the node. It's done
-   * automatically by #LazyFunctionForGeometryNode. This allows outputting this field even if the
-   * geometry output does not have to be computed.
+   * The node passes data and references from inputs this output. Since data like a geometry can
+   * also indirectly contain fields, those are simply implied here.
    */
-  BaseSocketDeclarationBuilder &field_on_all();
-
-  /** The output is always a field, regardless of any inputs. */
-  BaseSocketDeclarationBuilder &field_source();
-
-  /** The input supports a field and is a field by default when nothing is connected. */
-  BaseSocketDeclarationBuilder &implicit_field(NodeDefaultInputType default_input);
-
-  /** The input is an implicit field that is evaluated on all geometry inputs. */
-  BaseSocketDeclarationBuilder &implicit_field_on_all(NodeDefaultInputType default_input);
-
-  /** The input is evaluated on a subset of the geometry inputs. */
-  BaseSocketDeclarationBuilder &implicit_field_on(NodeDefaultInputType default_input,
-                                                  Span<int> input_indices);
-
-  /** For inputs that are evaluated or available on a subset of the geometry sockets. */
-  BaseSocketDeclarationBuilder &field_on(Span<int> indices);
-
-  /** The output is a field if any of the inputs are a field. */
-  BaseSocketDeclarationBuilder &dependent_field();
-
-  /** The output is a field if any of the inputs with indices in the given list is a field. */
-  BaseSocketDeclarationBuilder &dependent_field(Span<int> input_dependencies);
-
-  /**
-   * For outputs that combine all input fields into a new field. The output is a field even if none
-   * of the inputs is a field.
-   */
-  BaseSocketDeclarationBuilder &field_source_reference_all();
-
-  /**
-   * For outputs that combine a subset of input fields into a new field.
-   */
-  BaseSocketDeclarationBuilder &reference_pass(Span<int> input_indices);
-
-  /**
-   * For outputs that combine all input fields into a new field.
-   */
-  BaseSocketDeclarationBuilder &reference_pass_all();
-
-  /** Attributes from the all geometry inputs can be propagated. */
   BaseSocketDeclarationBuilder &propagate_all();
-  /** Instance attributes from all geometry inputs can be propagated. */
-  BaseSocketDeclarationBuilder &propagate_all_instance_attributes();
+  BaseSocketDeclarationBuilder &propagate_all(Span<int> input_indices);
+  /** Filters the set of inputs that is propagated from to only geometry sockets. */
+  BaseSocketDeclarationBuilder &propagate_all_geometry();
 
   BaseSocketDeclarationBuilder &compositor_realization_mode(CompositorInputRealizationMode value);
 
@@ -614,7 +594,7 @@ class NodeDeclaration {
   Vector<SocketDeclaration *> inputs;
   Vector<SocketDeclaration *> outputs;
   Vector<PanelDeclaration *> panels;
-  std::unique_ptr<rl::RelationsInNode> anonymous_attribute_relations_;
+  std::unique_ptr<rl::RelationsInNode> reference_lifetime_relations_;
 
   /** Leave the sockets in place, even if they don't match the declaration. Used for dynamic
    * declarations when the information used to build the declaration is missing, but might become
@@ -642,9 +622,9 @@ class NodeDeclaration {
   bool matches(const bNode &node) const;
   Span<SocketDeclaration *> sockets(eNodeSocketInOut in_out) const;
 
-  const rl::RelationsInNode *anonymous_attribute_relations() const
+  const rl::RelationsInNode *reference_lifetime_relations() const
   {
-    return anonymous_attribute_relations_.get();
+    return reference_lifetime_relations_.get();
   }
 
   MEM_CXX_CLASS_ALLOC_FUNCS("NodeDeclaration")
@@ -696,12 +676,12 @@ class NodeDeclarationBuilder : public DeclarationListBuilder {
   void use_custom_socket_order(bool enable = true);
   void allow_any_socket_order(bool enable = true);
 
-  rl::RelationsInNode &get_anonymous_attribute_relations()
+  rl::RelationsInNode &get_reference_lifetime_relations()
   {
-    if (!declaration_.anonymous_attribute_relations_) {
-      declaration_.anonymous_attribute_relations_ = std::make_unique<rl::RelationsInNode>();
+    if (!declaration_.reference_lifetime_relations_) {
+      declaration_.reference_lifetime_relations_ = std::make_unique<rl::RelationsInNode>();
     }
-    return *declaration_.anonymous_attribute_relations_;
+    return *declaration_.reference_lifetime_relations_;
   }
 
   NodeDeclaration &declaration()
@@ -775,11 +755,10 @@ inline typename DeclType::Builder &DeclarationListBuilder::add_socket(UString na
   socket_decl.socket_type = DeclType::static_socket_type;
 
   if (this->node_decl_builder.is_function_node_) {
-    if (in_out == SOCK_IN) {
-      socket_decl_builder.supports_field();
-    }
-    else {
-      socket_decl_builder.dependent_field();
+    socket_decl.structure_type = StructureType::Dynamic;
+    if (in_out == SOCK_OUT) {
+      socket_decl_builder.propagate_references();
+      socket_decl_builder.inferred_structure_type();
     }
   }
 
