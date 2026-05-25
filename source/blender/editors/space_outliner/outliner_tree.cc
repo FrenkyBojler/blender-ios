@@ -478,14 +478,14 @@ static bool treesort_custom(const tTreeSort &x1,
   CollectionObject *cob1 = collection_object_map->lookup_default(ob1, nullptr);
   CollectionObject *cob2 = collection_object_map->lookup_default(ob2, nullptr);
 
-  const int si1 = (cob1 != nullptr && cob1->sort_index >= 0) ? cob1->sort_index : INT_MAX;
-  const int si2 = (cob2 != nullptr && cob2->sort_index >= 0) ? cob2->sort_index : INT_MAX;
+  const int sort1 = (cob1 != nullptr && cob1->sort_index >= 0) ? cob1->sort_index : INT_MAX;
+  const int sort2 = (cob2 != nullptr && cob2->sort_index >= 0) ? cob2->sort_index : INT_MAX;
 
-  if (si1 == si2) {
+  if (sort1 == sort2) {
     return treesort_alpha(x1, x2);
   }
 
-  return si1 < si2;
+  return sort1 < sort2;
 }
 
 static void outliner_sort_custom_assign_missing_sort_indices(
