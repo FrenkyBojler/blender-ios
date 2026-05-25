@@ -1936,6 +1936,9 @@ static StructRNA *rna_NodesModifierProperties_refine(PointerRNA *ptr)
   if (!nmd->node_group || ID_MISSING(nmd->node_group)) {
     return RNA_NodesModifierPropertiesEmpty;
   }
+  if (!nmd->node_group->runtime->geometry_nodes_srna_data) {
+    return RNA_NodesModifierPropertiesEmpty;
+  }
   return nmd->node_group->runtime->geometry_nodes_srna_data->properties_struct;
 }
 
@@ -2154,7 +2157,7 @@ static std::optional<std::string> rna_NodesModifierBake_path(const PointerRNA *p
   }
   const int64_t idx = nmd_bake - bakes.begin();
 
-  return fmt::format("modifiers[\"{}\"].bakes[{}]", md->name, idx);
+  return fmt::format("modifiers[\"{}\"].bakes[{}]", BLI_str_escape(md->name), idx);
 }
 
 bool rna_GreasePencilModifier_material_poll(PointerRNA *ptr, PointerRNA value)
