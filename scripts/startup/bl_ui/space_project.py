@@ -14,7 +14,7 @@ MAIN_SECTION_NAME = "General"
 
 
 # -------------------------------------------------------------
-# Header.
+# Header
 
 class PROJECT_HT_header(Header):
     bl_space_type = 'PROJECT'
@@ -76,7 +76,9 @@ class PROJECT_MT_save_load(Menu):
 
 
 # -------------------------------------------------------------
-# Execution area (shown when header is hidden).
+# Execution Area
+#
+# Shown when header is hidden.
 
 class PROJECT_PT_save_project(Panel):
     bl_label = "Save Project"
@@ -107,7 +109,7 @@ class PROJECT_PT_save_project(Panel):
 
 
 # -------------------------------------------------------------
-# Navigation bar.
+# Navigation Bar
 
 class PROJECT_PT_navigation_bar(Panel):
     bl_label = "Project Navigation"
@@ -143,7 +145,7 @@ class PROJECT_PT_navigation_bar(Panel):
 
 
 # -------------------------------------------------------------
-# Main Area.
+# Main Area
 
 class PROJECT_PT_main(Panel, CenterAlignMixIn):
     bl_label = "Project"
@@ -230,7 +232,7 @@ class PROJECT_PT_main_unset(Panel, CenterAlignMixIn):
 
 
 # -------------------------------------------------------------
-# Register.
+# Register
 
 # This conditional is awkward: it means the user has to restart Blender after
 # enabling the experimental feature to actually get access to the UI.

@@ -2,6 +2,11 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
+__all__ = (
+    "register",
+    "unregister",
+)
+
 import os
 import logging
 from dataclasses import dataclass
@@ -21,7 +26,10 @@ PROJECT_CONFIG = "project.toml"
 
 PROJECT_DEFAULT_NAME = "Untitled Project"
 
+
 # -------------------------------------------------------------
+# On-Disk Schema
+#
 # Types that define the schema for reading/writing project config TOML files.
 
 
@@ -45,7 +53,9 @@ class ProjectConfig:
 
 
 # -------------------------------------------------------------
-# Custom exception types, for anticipated errors that should be reported to the
+# Exceptions
+#
+# Custom exception types for anticipated errors that should be reported to the
 # user.
 
 class ProjectSaveException(Exception):
@@ -57,7 +67,7 @@ class ProjectLoadException(Exception):
 
 
 # -------------------------------------------------------------
-# Internal utilities.
+# Internal Utilities
 
 def save_project(project, report=None):
     """
@@ -277,7 +287,7 @@ def blend_file_is_in_valid_project(blend_file_path):
 
 
 # -------------------------------------------------------------
-# Operators.
+# Operators
 
 class PROJECT_OT_NewProject(Operator):
     """Create a new project"""
@@ -432,6 +442,8 @@ class PROJECT_OT_OpenBlendInProject(Operator):
 
 
 # -------------------------------------------------------------
+# Handler Callbacks
+#
 # Auto-loading / clearing of projects when loading/saving blend files or
 # exiting.
 
@@ -506,7 +518,7 @@ def on_exit(is_user_exit):
 
 
 # -----------------------------------------------------------------------------
-# Register.
+# Register
 
 classes = (
     PROJECT_OT_NewProject,
