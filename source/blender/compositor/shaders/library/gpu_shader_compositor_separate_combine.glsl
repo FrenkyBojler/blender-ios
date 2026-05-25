@@ -133,6 +133,25 @@ void node_composite_separate_okhsv(float4 color, float &h, float &s, float &v, f
   alpha = hsv.a;
 }
 
+/* ** Combine/Separate HSL using Oklab ** */
+
+[[node]]
+void node_composite_combine_okhsl(float h, float s, float l, float alpha, float4 &color)
+{
+  okhsl_to_rgb(float4(h, s, l, alpha), color);
+}
+
+[[node]]
+void node_composite_separate_okhsl(float4 color, float &h, float &s, float &l, float &alpha)
+{
+  float4 hsl;
+  rgb_to_okhsl(color, hsl);
+  h = hsl.x;
+  s = hsl.y;
+  l = hsl.z;
+  alpha = hsl.a;
+}
+
 /* ** Combine/Separate YCCA ** */
 
 [[node]]
