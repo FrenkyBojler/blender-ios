@@ -15,6 +15,7 @@
 #include <fmt/format.h>
 
 #include "AS_asset_library.hh"
+#include "AS_asset_representation.hh"
 
 #include "DNA_listBase.h"
 #include "DNA_scene_types.h"
@@ -39,6 +40,7 @@
 #include "BKE_context.hh"
 #include "BKE_customdata.hh"
 #include "BKE_global.hh"
+#include "BKE_id_hash.hh"
 #include "BKE_idprop.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_remap.hh"
@@ -343,6 +345,11 @@ bool wmNotifierEqForQueue::operator()(const wmNotifier *a, const wmNotifier *b) 
 }
 }  // namespace bke
 
+void WM_event_handling_break(const bContext &C)
+{
+  CTX_wm_manager(&C)->runtime->break_events_handling = true;
+}
+
 static void wm_event_add_notifier_intern(wmWindowManager *wm,
                                          const wmWindow *win,
                                          uint type,
@@ -478,6 +485,7 @@ static bool wm_notifier_is_clear(const wmNotifier *note)
 
 void wm_event_do_depsgraph(bContext *C, bool is_after_open_file)
 {
+  const Main *bmain = CTX_data_main(C);
   wmWindowManager *wm = CTX_wm_manager(C);
   /* The whole idea of locked interface is to prevent viewport and whatever thread from
    * modifying the same data. Because of this, we can not perform dependency graph update. */
@@ -491,7 +499,7 @@ void wm_event_do_depsgraph(bContext *C, bool is_after_open_file)
     ViewLayer *view_layer = WM_window_get_active_view_layer(&win);
     const bScreen *screen = WM_window_get_active_screen(&win);
 
-    ED_view3d_screen_datamask(scene, view_layer, screen, &win_combine_v3d_datamask);
+    ED_view3d_screen_datamask(*bmain, scene, view_layer, screen, &win_combine_v3d_datamask);
   }
   /* Update all the dependency graphs of visible view layers. */
   for (wmWindow &win : wm->windows) {
@@ -631,11 +639,12 @@ void wm_event_do_notifiers(bContext *C)
           WM_window_title_refresh(wm, &win);
         }
         else if (note->data == ND_UNDO) {
-          ED_preview_restart_queue_work(C);
+          ED_preview_restart_work(C);
         }
       }
 
       if (notifier_refreshes_node_group_operators(*note)) {
+        ed::geometry::clear_operator_asset_trees();
         ed::geometry::register_node_group_operators(*C);
       }
 
@@ -793,6 +802,7 @@ void wm_event_do_notifiers(bContext *C)
           area_params.area = area;
           area_params.notifier = note;
           area_params.scene = scene;
+          area_params.bmain = CTX_data_main(C);
           ED_area_do_listen(&area_params);
           for (ARegion &region : area->regionbase) {
             wmRegionListenerParams region_params{};
@@ -1030,7 +1040,7 @@ void WM_ndof_deadzone_set(float deadzone)
 void WM_reports_from_reports_move(wmWindowManager *wm, ReportList *reports)
 {
   /* If the caller owns them, handle this. */
-  if (!reports || BLI_listbase_is_empty(&reports->list) || (reports->flag & RPT_OP_HOLD) != 0) {
+  if (!reports || reports->list.is_empty() || (reports->flag & RPT_OP_HOLD) != 0) {
     return;
   }
 
@@ -1046,7 +1056,7 @@ void WM_reports_from_reports_move(wmWindowManager *wm, ReportList *reports)
 
 void WM_global_report(eReportType type, const char *message)
 {
-  /* WARNING: in most cases #BKE_report should be used instead, see doc-string for details. */
+  /* WARNING: in most cases #BKE_report should be used instead, see docstring for details. */
   ReportList reports;
   BKE_reports_init(&reports, RPT_STORE | RPT_PRINT);
   BKE_report_print_level_set(&reports, RPT_WARNING);
@@ -1059,7 +1069,7 @@ void WM_global_report(eReportType type, const char *message)
 
 void WM_global_reportf(eReportType type, const char *format, ...)
 {
-  /* WARNING: in most cases #BKE_reportf should be used instead, see doc-string for details. */
+  /* WARNING: in most cases #BKE_reportf should be used instead, see docstring for details. */
 
   va_list args;
 
@@ -1131,9 +1141,9 @@ bool WM_operator_poll_or_report_error(bContext *C, wmOperatorType *ot, ReportLis
   CTX_wm_operator_poll_msg_clear(C);
   BKE_reportf(reports,
               RPT_ERROR,
-              "Invalid context: \"%s\", %s",
-              CTX_IFACE_(ot->translation_context, ot->name),
-              msg ? msg : IFACE_("poll failed"));
+              RPT_("Invalid context: \"%s\", %s"),
+              CTX_RPT_(ot->translation_context, ot->name),
+              msg ? RPT_(msg) : RPT_("poll failed"));
   if (msg_free) {
     MEM_delete(msg);
   }
@@ -1242,9 +1252,7 @@ static void wm_operator_reports(bContext *C,
                 pystring.c_str());
 
   /* Refresh Info Editor with reports immediately, even if op returned #OPERATOR_CANCELLED. */
-  if ((retval & (OPERATOR_FINISHED | OPERATOR_CANCELLED)) &&
-      !BLI_listbase_is_empty(&op->reports->list))
-  {
+  if ((retval & (OPERATOR_FINISHED | OPERATOR_CANCELLED)) && !op->reports->list.is_empty()) {
     WM_event_add_notifier(C, NC_SPACE | ND_SPACE_INFO_REPORT, nullptr);
   }
   /* If the caller owns them, handle this. */
@@ -1451,7 +1459,7 @@ wmOperatorStatus WM_operator_call_notest(bContext *C, wmOperator *op)
 
 wmOperatorStatus WM_operator_repeat(bContext *C, wmOperator *op)
 {
-  const int op_flag = OP_IS_REPEAT;
+  const eOperator_Flag op_flag = OP_IS_REPEAT;
   op->flag |= op_flag;
   const wmOperatorStatus ret = wm_operator_exec(C, op, true, true);
   op->flag &= ~op_flag;
@@ -1459,7 +1467,7 @@ wmOperatorStatus WM_operator_repeat(bContext *C, wmOperator *op)
 }
 wmOperatorStatus WM_operator_repeat_last(bContext *C, wmOperator *op)
 {
-  const int op_flag = OP_IS_REPEAT_LAST;
+  const eOperator_Flag op_flag = OP_IS_REPEAT_LAST;
   op->flag |= op_flag;
   const wmOperatorStatus ret = wm_operator_exec(C, op, true, true);
   op->flag &= ~op_flag;
@@ -1757,7 +1765,10 @@ static wmOperatorStatus wm_operator_invoke(bContext *C,
 
           /* Wrap only in X for header. */
           if (region && RGN_TYPE_IS_HEADER_ANY(region->regiontype)) {
-            wrap = WM_CURSOR_WRAP_X;
+            /* Disable cursor wrapping/continuous grab when scrubbing playhead in scrubbing region.
+             */
+            wrap = (region->regiontype != RGN_TYPE_SCRUBBING) ? WM_CURSOR_WRAP_X :
+                                                                WM_CURSOR_WRAP_NONE;
           }
 
           if (region && region->regiontype == RGN_TYPE_WINDOW &&
@@ -2013,7 +2024,7 @@ wmOperatorStatus WM_operator_call_py(bContext *C,
  *
  * Delay executing operators that depend on cursor location.
  *
- * See: #OPTYPE_DEPENDS_ON_CURSOR doc-string for more information.
+ * See: #OPTYPE_DEPENDS_ON_CURSOR docstring for more information.
  * \{ */
 
 struct OperatorWaitForInput {
@@ -2139,8 +2150,7 @@ void WM_operator_name_call_ptr_with_depends_on_cursor(bContext *C,
 
   {
     std::string header_text = fmt::format(
-        "{} {}",
-        IFACE_("Input pending "),
+        fmt::runtime(IFACE_("Input pending {}")),
         drawstr.is_empty() ? CTX_IFACE_(ot->translation_context, ot->name) : drawstr);
     if (area != nullptr) {
       ED_area_status_text(area, header_text.c_str());
@@ -2229,6 +2239,17 @@ static void wm_handler_op_context_get_if_valid(bContext *C,
         break;
       }
     }
+
+#ifdef WITH_XR_OPENXR
+    /* Special case for XR operators, which are executed in an XR-specific offscreen area. */
+    bContext *xr_context = WM_xr_session_context_get(&CTX_wm_manager(C)->xr);
+    if (xr_context != nullptr) {
+      ScrArea *xr_offscreen_area = CTX_wm_area(xr_context);
+      if (handler->context.area == xr_offscreen_area) {
+        area = xr_offscreen_area;
+      }
+    }
+#endif
 
     if (area == nullptr) {
       /* When changing screen layouts with running modal handlers (like render display), this
@@ -2682,7 +2703,7 @@ static eHandlerActionFlag wm_handler_operator_call(bContext *C,
         }
         else {
           /* Not very common, but modal operators may report before finishing. */
-          if (!BLI_listbase_is_empty(&op->reports->list)) {
+          if (!op->reports->list.is_empty()) {
             WM_event_add_notifier(C, NC_SPACE | ND_SPACE_INFO_REPORT, nullptr);
             WM_reports_from_reports_move(wm, op->reports);
           }
@@ -2904,10 +2925,10 @@ static eHandlerActionFlag wm_handler_fileselect_do(bContext *C,
 
           ED_fileselect_params_to_userdef(static_cast<SpaceFile *>(file_area->spacedata.first));
 
-          if (BLI_listbase_is_single(&file_area->spacedata)) {
+          if (file_area->spacedata.is_single()) {
             BLI_assert(root_win != &win);
 
-            wm_window_close(C, wm, &win);
+            wm_window_close_request(C, wm, &win);
 
             /* #wm_window_close() sets the context's window to null. */
             CTX_wm_window_set(C, root_win);
@@ -3535,6 +3556,16 @@ static eHandlerActionFlag wm_handlers_do_intern(bContext *C,
                   continue;
                 }
 
+                if (wmDragAsset *asset_data = WM_drag_get_asset_data(&drag, 0)) {
+                  if (asset_data->asset->is_online()) {
+                    BKE_reportf(CTX_wm_reports(C),
+                                RPT_ERROR,
+                                "Asset '%s' is still downloading",
+                                asset_data->asset->get_name().c_str());
+                    continue;
+                  }
+                }
+
                 if (drop.poll(C, &drag, event)) {
                   wm_drop_prepare(C, &drag, &drop);
 
@@ -3557,16 +3588,23 @@ static eHandlerActionFlag wm_handlers_do_intern(bContext *C,
 
                   action |= WM_HANDLER_BREAK;
 
+                  /* Some of the values will have been freed when freeing the window-manger. */
+                  const bool is_file_read = CTX_wm_window(C) == nullptr;
+
                   /* Free the drags. */
-                  WM_drag_free_list(lb);
+                  if (!is_file_read) {
+                    WM_drag_free_list(lb);
+                  }
                   WM_drag_free_list(&single_lb);
 
-                  wm_event_custom_clear(event);
+                  if (!is_file_read) {
+                    wm_event_custom_clear(event);
+                  }
 
                   wm_drop_end(C, &drag, &drop);
 
                   /* XXX file-read case. */
-                  if (CTX_wm_window(C) == nullptr) {
+                  if (is_file_read) {
                     return action;
                   }
 
@@ -3915,7 +3953,7 @@ static eHandlerActionFlag wm_event_drag_and_drop_test(wmWindowManager *wm,
 {
   bScreen *screen = WM_window_get_active_screen(win);
 
-  if (BLI_listbase_is_empty(&wm->runtime->drags)) {
+  if (wm->runtime->drags.is_empty()) {
     return WM_HANDLER_CONTINUE;
   }
 
@@ -4015,26 +4053,20 @@ static bool wm_event_xr_handler_matches_actiondata(const wmEventHandler_Op *op_h
   return (handler_op_type_match && handler_op_properties_match);
 }
 
-static void wm_event_handle_xrevent(bContext *C,
-                                    wmWindowManager *wm,
+static void wm_event_handle_xrevent(wmWindowManager *wm,
                                     wmWindow *win,
-                                    wmEvent *event)
+                                    wmEvent *event,
+                                    bContext *main_context)
 {
-  ScrArea *area = WM_xr_session_area_get(&wm->xr);
-  if (!area) {
-    return;
-  }
-  BLI_assert(area->spacetype == SPACE_VIEW3D && area->spacedata.first);
+  bContext *xr_context = WM_xr_session_context_ensure(&wm->xr, wm);
 
-  /* Find a valid region for XR operator execution and modal handling. */
-  ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
-  if (!region) {
-    return;
-  }
-  BLI_assert(WM_region_use_viewport(area, region)); /* For operators using GPU-based selection. */
+  ScrArea *xr_area = CTX_wm_area(xr_context);
+  ARegion *xr_region = CTX_wm_region(xr_context);
 
-  CTX_wm_area_set(C, area);
-  CTX_wm_region_set(C, region);
+  BLI_assert(xr_area && xr_area->spacetype == SPACE_VIEW3D && xr_area->spacedata.first);
+
+  /* For operators using GPU-based selection. */
+  BLI_assert(WM_region_use_viewport(xr_area, xr_region));
 
   ListBaseT<wmEventHandler> *modalhandlers = &win->runtime->modalhandlers;
 
@@ -4042,15 +4074,21 @@ static void wm_event_handle_xrevent(bContext *C,
   BLI_assert(event->customdata);
   wmXrActionData *actiondata = static_cast<wmXrActionData *>(event->customdata);
 
+  /* Check if the XR context scene matches the main Blender context scene to counter-act possible
+   * re-allocation on undo operator execution. */
+  const uint xr_ctx_scene_uid = CTX_data_scene(xr_context)->id.session_uid;
+  const uint main_ctx_scene_uid = CTX_data_scene(main_context)->id.session_uid;
+  const bool ctx_xr_main_scene_match = (xr_ctx_scene_uid == main_ctx_scene_uid);
+
   /* Only process XR operator handlers to prevent interferences with main window handlers.
-   * NOTE: This is a stripped-down XR specific version of #wm_handlers_do_intern. Changes made
+   * NOTE: This is a stripped-down XR-specific version of #wm_handlers_do_intern. Changes made
    *       in that function might also need to be reproduced here. */
   eHandlerActionFlag action = WM_HANDLER_CONTINUE;
   for (wmEventHandler &handler_base : *modalhandlers) {
     if (handler_base.type == WM_HANDLER_TYPE_OP) {
       BLI_assert((handler_base.flag & WM_HANDLER_DO_FREE) == 0);
 
-      if (handler_base.poll != nullptr && !handler_base.poll(win, area, region, event)) {
+      if (handler_base.poll != nullptr && !handler_base.poll(win, xr_area, xr_region, event)) {
         continue;
       }
 
@@ -4058,7 +4096,7 @@ static void wm_event_handle_xrevent(bContext *C,
       /* Only execute operator handler matching the XR action data carried by the event. */
       if (wm_event_xr_handler_matches_actiondata(op_handler, actiondata)) {
         action = wm_handler_operator_call(
-            C, modalhandlers, &handler_base, event, nullptr, nullptr);
+            xr_context, modalhandlers, &handler_base, event, nullptr, nullptr);
       }
 
       if (action & WM_HANDLER_BREAK) {
@@ -4067,7 +4105,7 @@ static void wm_event_handle_xrevent(bContext *C,
     }
   }
 
-  wm_event_handler_return_value_check(C, event, action);
+  wm_event_handler_return_value_check(xr_context, event, action);
 
   if ((action & WM_HANDLER_BREAK) == 0) {
     if (actiondata->ot->modal && event->val == KM_RELEASE) {
@@ -4080,7 +4118,7 @@ static void wm_event_handle_xrevent(bContext *C,
       if (actiondata->ot->invoke) {
         /* Invoke operator, either executing operator or transferring responsibility to window
          * modal handlers. */
-        wm_operator_invoke(C,
+        wm_operator_invoke(xr_context,
                            actiondata->ot,
                            event,
                            actiondata->op_properties ? &properties : nullptr,
@@ -4092,15 +4130,19 @@ static void wm_event_handle_xrevent(bContext *C,
         /* Execute operator. */
         wmOperator *op = wm_operator_create(
             wm, actiondata->ot, actiondata->op_properties ? &properties : nullptr, nullptr);
-        if ((WM_operator_call(C, op) & OPERATOR_HANDLED) == 0) {
+        if ((WM_operator_call(xr_context, op) & OPERATOR_HANDLED) == 0) {
           WM_operator_free(op);
         }
       }
     }
   }
 
-  CTX_wm_region_set(C, nullptr);
-  CTX_wm_area_set(C, nullptr);
+  /* The undo operator may have re-allocated the XR context Scene and Main data pointers.
+   * Prevent dangling pointers in the main Blender context by re-assigning them as needed. */
+  CTX_data_main_set(main_context, CTX_data_main(xr_context));
+  if (ctx_xr_main_scene_match) {
+    CTX_data_scene_set(main_context, CTX_data_scene(xr_context));
+  }
 }
 #endif /* WITH_XR_OPENXR */
 
@@ -4122,12 +4164,10 @@ static eHandlerActionFlag wm_event_do_region_handlers(bContext *C, wmEvent *even
   wm_region_mouse_co(C, event);
 
   const wmWindowManager *wm = CTX_wm_manager(C);
-  if (!BLI_listbase_is_empty(&wm->runtime->drags)) {
+  if (!wm->runtime->drags.is_empty()) {
     /* Does polls for drop regions and checks #uiButs. */
     /* Need to be here to make sure region context is true. */
-    if (ELEM(event->type, MOUSEMOVE, EVT_DROP) || ISKEYMODIFIER(event->type)) {
-      wm_drags_check_ops(C, event);
-    }
+    wm_drags_handle_events(C, event);
   }
 
   return wm_handlers_do(
@@ -4171,6 +4211,8 @@ void wm_event_do_handlers(bContext *C)
   wmWindowManager *wm = CTX_wm_manager(C);
   BLI_assert(ED_undo_is_state_valid(C));
 
+  wm->runtime->break_events_handling = false;
+
   /* Begin GPU render boundary - Certain event handlers require GPU usage. */
   GPU_render_begin();
 
@@ -4179,6 +4221,12 @@ void wm_event_do_handlers(bContext *C)
   WM_gizmoconfig_update(CTX_data_main(C));
 
   for (wmWindow &win : wm->windows) {
+    /* Do the check at the start of the next iteration, to avoid by-passing it in case the
+     * previous iteration has been early-terminated (using `continue;` e.g.). */
+    if (wm->runtime->break_events_handling) {
+      break;
+    }
+
     bScreen *screen = WM_window_get_active_screen(&win);
 
     /* Some safety checks - these should always be set! */
@@ -4192,6 +4240,12 @@ void wm_event_do_handlers(bContext *C)
 
     wmEvent *event;
     while ((event = static_cast<wmEvent *>(win.runtime->event_queue.first))) {
+      /* Do the check at the start of the next iteration, to avoid by-passing it in case the
+       * previous iteration has been early-terminated (using `continue;` e.g.). */
+      if (wm->runtime->break_events_handling) {
+        break;
+      }
+
       eHandlerActionFlag action = WM_HANDLER_CONTINUE;
 
       /* Force handling drag if a key is pressed even if the drag threshold has not been met.
@@ -4252,7 +4306,7 @@ void wm_event_do_handlers(bContext *C)
 
 #ifdef WITH_XR_OPENXR
       if (event->type == EVT_XR_ACTION) {
-        wm_event_handle_xrevent(C, wm, &win, event);
+        wm_event_handle_xrevent(wm, &win, event, C);
         BLI_remlink(&win.runtime->event_queue, event);
         wm_event_free_last_handled(&win, event);
         /* Skip mouse event handling below, which is unnecessary for XR events. */
@@ -5015,6 +5069,9 @@ bool WM_event_handler_region_v2d_mask_poll(const wmWindow * /*win*/,
                                            const ARegion *region,
                                            const wmEvent *event)
 {
+  if (wm_event_always_pass(event)) {
+    return true;
+  }
   rcti rect = region->v2d.mask;
   BLI_rcti_translate(&rect, region->winrct.xmin, region->winrct.ymin);
   return event_or_prev_in_rect(event, &rect);
@@ -5042,9 +5099,11 @@ bool WM_event_handler_region_marker_poll(const wmWindow *win,
     }
   }
 
+  /* FIXME: Ideally we should not have to use G_MAIN here, though practically this is probably fine
+   * for now. */
   const ListBaseT<TimeMarker> *markers = ED_scene_markers_get_from_area(
-      scene, WM_window_get_active_view_layer(win), area);
-  if (BLI_listbase_is_empty(markers)) {
+      *G_MAIN, scene, WM_window_get_active_view_layer(win), area);
+  if (markers->is_empty()) {
     return false;
   }
 
@@ -5064,9 +5123,11 @@ bool WM_event_handler_region_v2d_mask_no_marker_poll(const wmWindow *win,
     return false;
   }
   /* Casting away `const` is only needed for a non-constant return value. */
+  /* FIXME: Ideally we should not have to use G_MAIN here, though practically this is probably fine
+   * for now. */
   const ListBaseT<TimeMarker> *markers = ED_scene_markers_get_from_area(
-      WM_window_get_active_scene(win), WM_window_get_active_view_layer(win), area);
-  if (markers && !BLI_listbase_is_empty(markers)) {
+      *G_MAIN, WM_window_get_active_scene(win), WM_window_get_active_view_layer(win), area);
+  if (markers && !markers->is_empty()) {
     return !WM_event_handler_region_marker_poll(win, area, region, event);
   }
   return true;
@@ -5943,7 +6004,7 @@ static bool wm_event_is_same_key_press(const wmEvent &event_a, const wmEvent &ev
  */
 static bool wm_event_is_ignorable_key_press(const wmWindow *win, const wmEvent &event)
 {
-  if (BLI_listbase_is_empty(&win->runtime->event_queue)) {
+  if (win->runtime->event_queue.is_empty()) {
     /* If the queue is empty never ignore the event.
      * Empty queue at this point means that the events are handled fast enough, and there is no
      * reason to ignore anything. */
@@ -6721,6 +6782,7 @@ void WM_window_cursor_keymap_status_free(wmWindow *win)
 
 void WM_window_cursor_keymap_status_refresh(bContext *C, wmWindow *win)
 {
+  const Main *bmain = CTX_data_main(C);
   bScreen *screen = WM_window_get_active_screen(win);
   ScrArea *area_statusbar = WM_window_status_area_find(win, screen);
   if (area_statusbar == nullptr) {
@@ -6792,7 +6854,8 @@ void WM_window_cursor_keymap_status_refresh(bContext *C, wmWindow *win)
       WorkSpace *workspace = WM_window_get_active_workspace(win);
       bToolKey tkey{};
       tkey.space_type = area->spacetype;
-      tkey.mode = WM_toolsystem_mode_from_spacetype(scene, view_layer, area, area->spacetype);
+      tkey.mode = WM_toolsystem_mode_from_spacetype(
+          *bmain, scene, view_layer, area, area->spacetype);
       tref = WM_toolsystem_ref_find(workspace, &tkey);
     }
     wm_event_cursor_store(

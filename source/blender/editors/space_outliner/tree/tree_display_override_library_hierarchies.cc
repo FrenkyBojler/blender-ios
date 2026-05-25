@@ -49,7 +49,7 @@ ListBaseT<TreeElement> TreeDisplayOverrideLibraryHierarchies::build_tree(
     build_hierarchy_for_lib_or_main(source_data.bmain, *current_file_te);
 
     /* Add dummy child if there's nothing to display. */
-    if (BLI_listbase_is_empty(&current_file_te->subtree)) {
+    if (current_file_te->subtree.is_empty()) {
       TreeElement *dummy_te = AbstractTreeDisplay::add_element(&space_outliner_,
                                                                &current_file_te->subtree,
                                                                nullptr,
@@ -76,7 +76,7 @@ ListBaseT<TreeElement> TreeDisplayOverrideLibraryHierarchies::build_tree(
       continue;
     }
 
-    if (BLI_listbase_is_empty(&top_level_te.subtree)) {
+    if (top_level_te.subtree.is_empty()) {
       outliner_free_tree_element(&top_level_te, &tree);
     }
   }
@@ -289,7 +289,7 @@ static void foreach_natural_hierarchy_child(const MainIDRelations &id_relations,
        to_id_entry = to_id_entry->next)
   {
     /* An ID pointed to (used) by the ID to recurse into. */
-    ID &target_id = **to_id_entry->id_pointer.to;
+    ID &target_id = *to_id_entry->id_pointer.to;
 
     /* Don't walk up the hierarchy, e.g. ignore pointers to parent collections. */
     if (to_id_entry->usage_flag & IDWALK_CB_LOOPBACK) {

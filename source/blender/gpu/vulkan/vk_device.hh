@@ -102,7 +102,7 @@ struct VKExtensions {
   bool vertex_input_dynamic_state = false;
 
   /**
-   *Does the device support VK_EXT_host_image_copy
+   * Does the device support VK_EXT_host_image_copy
    */
   bool host_image_copy = false;
 
@@ -266,6 +266,10 @@ class VKDevice : public NonCopyable {
     /* Extension: VK_EXT_host_image_copy */
     PFN_vkCopyMemoryToImageEXT vkCopyMemoryToImage = nullptr;
     PFN_vkTransitionImageLayoutEXT vkTransitionImageLayout = nullptr;
+
+    /* Extension: VK_KHR_mainentance4 */
+    PFN_vkGetDeviceImageMemoryRequirements vkGetDeviceImageMemoryRequirements = nullptr;
+    PFN_vkGetDeviceBufferMemoryRequirements vkGetDeviceBufferMemoryRequirements = nullptr;
 
 #ifdef _WIN32
     /* Extension: VK_KHR_external_memory_win32 */
@@ -453,8 +457,7 @@ class VKDevice : public NonCopyable {
   Span<std::reference_wrapper<VKContext>> contexts_get() const;
 
   void memory_statistics_get(int *r_total_mem_kb, int *r_free_mem_kb) const;
-  static void debug_print(std::ostream &os, const VKDiscardPool &discard_pool);
-  void debug_print();
+  void debug_print() const;
 
   /** \} */
 

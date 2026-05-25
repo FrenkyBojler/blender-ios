@@ -53,7 +53,7 @@ struct EdRotState {
    */
   int2 f_pair;
 
-  BLI_STRUCT_EQUALITY_OPERATORS_2(EdRotState, v_pair, f_pair)
+  friend bool operator==(const EdRotState &a, const EdRotState &b) = default;
 
   uint64_t hash() const
   {
@@ -351,7 +351,7 @@ void BM_mesh_beautify_fill(BMesh *bm,
       Set<EdRotState> &e_state_set = edge_state_arr[i];
 
       /* add the new state into the set so we don't move into this state again
-       * NOTE: we could add the previous state too but this isn't essential)
+       * NOTE: we could add the previous state too but this isn't essential
        *       for avoiding eternal loops */
       EdRotState *e_state = static_cast<EdRotState *>(BLI_mempool_alloc(edge_state_pool));
       erot_state_current(e, e_state);

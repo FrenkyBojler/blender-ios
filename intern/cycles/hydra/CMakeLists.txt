@@ -101,6 +101,8 @@ target_compile_definitions(cycles_hydra
 
 target_link_libraries(cycles_hydra
   PUBLIC
+  bf::dependencies::openimageio
+  bf::dependencies::optional::tbb
   bf::dependencies::optional::usd
   bf::dependencies::optional::python
   PRIVATE
@@ -190,4 +192,14 @@ if(WITH_CYCLES_HYDRA_RENDER_DELEGATE)
   )
 
   delayed_install("${CMAKE_CURRENT_BINARY_DIR}/resources" "plugInfo.json" "${CYCLES_HYDRA_INSTALL_PATH}/${HdCyclesPluginName}/resources")
+
+  if(WITH_CYCLES_BLENDER)
+    get_filename_component(_addons_core_dir "${CYCLES_INSTALL_PATH}" DIRECTORY)
+    delayed_install(
+      "${CMAKE_CURRENT_SOURCE_DIR}/addon"
+      "__init__.py"
+      "${_addons_core_dir}/hydra_cycles"
+    )
+    unset(_addons_core_dir)
+  endif()
 endif()

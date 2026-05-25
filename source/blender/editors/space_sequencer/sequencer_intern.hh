@@ -17,6 +17,7 @@
 
 #include "DNA_listBase.h"
 #include "DNA_sequence_types.h"
+#include "DNA_windowmanager_enums.h"
 
 #include "RNA_access.hh"
 
@@ -30,22 +31,24 @@ namespace blender {
 
 struct ARegion;
 struct ARegionType;
-struct ColorManagedViewSettings;
+struct bContext;
 struct ColorManagedDisplaySettings;
+struct ColorManagedViewSettings;
+struct Editing;
+struct MenuType;
+struct rctf;
 struct Scene;
+struct ScrArea;
 struct SeqRetimingKey;
 struct SeqTimelineChannel;
-struct Strip;
 struct SpaceSeq;
+struct Strip;
 struct StripElem;
 struct View2D;
-struct bContext;
-struct rctf;
+struct wmEvent;
 struct wmKeyConfig;
 struct wmOperator;
 struct wmOperatorType;
-struct ScrArea;
-struct Editing;
 
 namespace ed::asset {
 struct AssetItemTree;
@@ -111,6 +114,7 @@ struct StripDrawContext {
   bool missing_media;
   bool is_connected;
   bool is_muted;
+  bool has_retiming;
 };
 
 struct TimelineDrawContext {
@@ -134,6 +138,7 @@ struct TimelineDrawContext {
 /* Returns value in frames (view-space), 5px for large strips, 1/4 of the strip for smaller. */
 float strip_handle_draw_size_get(const Scene *scene, const Strip *strip, float pixelx);
 void draw_timeline_seq(const bContext *C, const ARegion *region);
+void sequencer_scrubbing_region_draw(const bContext *C, ARegion *region);
 void draw_timeline_seq_display(const bContext *C, ARegion *region);
 
 /* `sequencer_preview_draw.cc` */
@@ -165,7 +170,7 @@ void draw_strip_thumbnails(const TimelineDrawContext &ctx,
                            StripsDrawBatch &strips_batch,
                            const Vector<StripDrawContext> &strips);
 
-/* sequencer_draw_channels.c */
+/* sequencer_channels_draw.cc */
 
 void draw_channels(const bContext *C, ARegion *region);
 void channel_draw_context_init(const bContext *C,
@@ -178,7 +183,7 @@ void slip_modal_keymap(wmKeyConfig *keyconf);
 VectorSet<Strip *> strip_effect_get_new_inputs(const Scene *scene,
                                                int num_inputs,
                                                bool ignore_active = false);
-StringRef effect_inputs_validate(const VectorSet<Strip *> &inputs, int num_inputs);
+const char *effect_inputs_validate(int have_inputs, int num_inputs);
 
 /* Operator helpers. */
 bool sequencer_edit_poll(bContext *C);
@@ -204,7 +209,8 @@ VectorSet<Strip *> all_strips_from_context(bContext *C);
 /* Externals. */
 
 extern const EnumPropertyItem sequencer_prop_effect_types[];
-extern const EnumPropertyItem prop_side_types[];
+extern const EnumPropertyItem prop_snap_side_types[];
+extern const EnumPropertyItem prop_split_side_types[];
 
 /* Operators. */
 
@@ -322,12 +328,13 @@ void sequencer_keymap(wmKeyConfig *keyconf);
 
 void sequencer_buttons_register(ARegionType *art);
 
-/* sequencer_modifiers.c */
+/* sequencer_modifier.cc */
 
 void SEQUENCER_OT_strip_modifier_add(wmOperatorType *ot);
 void SEQUENCER_OT_strip_modifier_remove(wmOperatorType *ot);
 void SEQUENCER_OT_strip_modifier_move(wmOperatorType *ot);
 void SEQUENCER_OT_strip_modifier_copy(wmOperatorType *ot);
+void SEQUENCER_OT_strip_modifier_duplicate(wmOperatorType *ot);
 void SEQUENCER_OT_strip_modifier_move_to_index(wmOperatorType *ot);
 void SEQUENCER_OT_strip_modifier_set_active(wmOperatorType *ot);
 void SEQUENCER_OT_strip_modifier_equalizer_redefine(wmOperatorType *ot);
@@ -336,6 +343,8 @@ void SEQUENCER_OT_strip_modifier_equalizer_redefine(wmOperatorType *ot);
 
 void SEQ_get_timeline_region_padding(const bContext *C, float *r_pad_top, float *r_pad_bottom);
 void SEQ_add_timeline_region_padding(const bContext *C, rctf *view_box);
+
+rctf SEQ_view_frame_fit(const SpaceSeq *sseq, const ARegion *region, rctf v2d_rect);
 
 void SEQUENCER_OT_sample(wmOperatorType *ot);
 void SEQUENCER_OT_view_all(wmOperatorType *ot);
@@ -414,7 +423,7 @@ void SEQUENCER_OT_text_cursor_set(wmOperatorType *ot);
 void SEQUENCER_OT_text_edit_copy(wmOperatorType *ot);
 void SEQUENCER_OT_text_edit_paste(wmOperatorType *ot);
 void SEQUENCER_OT_text_edit_cut(wmOperatorType *ot);
-int2 strip_text_cursor_offset_to_position(const seq::TextVarsRuntime *text, int cursor_offset);
+int2 strip_text_cursor_offset_to_position(const seq::TextVarsRuntime *runtime, int cursor_offset);
 IndexRange strip_text_selection_range_get(const TextVars *data);
 
 /* `sequencer_timeline_draw.cc` */
@@ -432,6 +441,8 @@ wmOperatorStatus sequencer_clipboard_paste_invoke(bContext *C,
 MenuType add_catalog_assets_menu_type();
 MenuType add_unassigned_assets_menu_type();
 MenuType add_scene_menu_type();
+
+void sequencer_strip_modifier_add_asset_register();
 
 }  // namespace ed::vse
 }  // namespace blender

@@ -86,7 +86,7 @@ namespace blender {
 /* Define a single unit.
  * When changing the format, please check that the PYGETTEXT_KEYWORDS regex
  * used to extract the unit names for translation still works
- * in scripts/modules/bl_i18n_utils/settings.py. */
+ * in scripts/modules/_bl_i18n_utils/settings.py. */
 struct bUnitDef {
   const char *name;
   /** Abused a bit for the display name. */
@@ -2131,11 +2131,11 @@ static bool unit_distribute_negatives(char *str, const int str_maxncpy)
 
     changed = true;
 
-    /* Add '(', shift the following characters to the right to make space. */
+    /* Add `(`, shift the following characters to the right to make space. */
     memmove(remaining_str + 1, remaining_str, remaining_str_maxncpy - 2);
     *remaining_str = '(';
 
-    /* Add the ')' before the next operation or at the end.
+    /* Add the `)` before the next operation or at the end.
      * Unary operators are skipped to allow `--` to be a supported prefix. */
     remaining_str = find_next_op(str, skip_unary_op(remaining_str + 1), remaining_str_maxncpy);
     remaining_str_maxncpy = str_maxncpy - int(remaining_str - str);
@@ -2220,6 +2220,7 @@ static int unit_scale_str(char *str,
 
     /* Add the addition sign, the bias, and the close parenthesis after the value. */
     int value_end_ofs = find_end_of_value_chars(str, str_maxncpy, prev_op_ofs + 2);
+    value_end_ofs = std::min(value_end_ofs, found_ofs);
     int len_bias_num = BLI_snprintf_rlen(str_tmp, TEMP_STR_SIZE, "+%.9g)", unit->bias);
     if (value_end_ofs + len_bias_num < str_maxncpy) {
       memmove(str + value_end_ofs + len_bias_num, str + value_end_ofs, len - value_end_ofs + 1);

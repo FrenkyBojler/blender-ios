@@ -19,7 +19,7 @@
 #include "DNA_pointcloud_types.h"
 
 #include "BLI_array_utils.hh"
-#include "BLI_color.hh"
+#include "BLI_color_types.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_span.hh"
 
@@ -62,6 +62,8 @@ const CPPType &attribute_type_to_cpp_type(const AttrType type)
       return CPPType::get<math::Quaternion>();
     case AttrType::String:
       return CPPType::get<MStringProperty>();
+    case AttrType::Float4:
+      return CPPType::get<float4>();
   }
   BLI_assert_unreachable();
   return CPPType::get<bool>();
@@ -77,6 +79,9 @@ AttrType cpp_type_to_attribute_type(const CPPType &type)
   }
   if (type.is<float3>()) {
     return AttrType::Float3;
+  }
+  if (type.is<float4>()) {
+    return AttrType::Float4;
   }
   if (type.is<int>()) {
     return AttrType::Int32;
@@ -121,6 +126,8 @@ const CPPType *custom_data_type_to_cpp_type(const eCustomDataType type)
       return &CPPType::get<float2>();
     case CD_PROP_FLOAT3:
       return &CPPType::get<float3>();
+    case CD_PROP_FLOAT4:
+      return &CPPType::get<float4>();
     case CD_PROP_INT32:
       return &CPPType::get<int>();
     case CD_PROP_INT32_2D:
@@ -146,7 +153,7 @@ const CPPType *custom_data_type_to_cpp_type(const eCustomDataType type)
   }
 }
 
-eCustomDataType cpp_type_to_custom_data_type(const CPPType &type)
+std::optional<eCustomDataType> cpp_type_to_custom_data_type(const CPPType &type)
 {
   if (type.is<float>()) {
     return CD_PROP_FLOAT;
@@ -156,6 +163,9 @@ eCustomDataType cpp_type_to_custom_data_type(const CPPType &type)
   }
   if (type.is<float3>()) {
     return CD_PROP_FLOAT3;
+  }
+  if (type.is<float4>()) {
+    return CD_PROP_FLOAT4;
   }
   if (type.is<int>()) {
     return CD_PROP_INT32;
@@ -187,8 +197,7 @@ eCustomDataType cpp_type_to_custom_data_type(const CPPType &type)
   if (type.is<MStringProperty>()) {
     return CD_PROP_STRING;
   }
-  BLI_assert_unreachable();
-  return CD_PROP_FLOAT;
+  return std::nullopt;
 }
 
 const char *no_procedural_access_message = N_(
@@ -242,17 +251,19 @@ static int attribute_data_type_complexity(const AttrType data_type)
       return 6;
     case AttrType::Float3:
       return 7;
-    case AttrType::ColorByte:
+    case AttrType::Float4:
       return 8;
-    case AttrType::Quaternion:
+    case AttrType::ColorByte:
       return 9;
-    case AttrType::ColorFloat:
+    case AttrType::Quaternion:
       return 10;
-    case AttrType::Float4x4:
+    case AttrType::ColorFloat:
       return 11;
+    case AttrType::Float4x4:
+      return 12;
 #if 0 /* These attribute types are not supported yet. */
     case AttrType::String:
-      return 12;
+      return 13;
 #endif
     default:
       /* Only accept "generic" custom data types used by the attribute system. */
@@ -379,11 +390,11 @@ static GAttributeReader adapt_domain_and_type_if_necessary(GAttributeReader attr
   return attribute;
 }
 
-GAttributeReader AttributeAccessor::lookup(const StringRef attribute_id,
+GAttributeReader AttributeAccessor::lookup(const StringRef name,
                                            const std::optional<AttrDomain> domain,
                                            const std::optional<AttrType> data_type) const
 {
-  return adapt_domain_and_type_if_necessary(this->lookup(attribute_id), domain, data_type, *this);
+  return adapt_domain_and_type_if_necessary(this->lookup(name), domain, data_type, *this);
 }
 
 GAttributeReader AttributeIter::get(std::optional<AttrDomain> domain,
@@ -393,12 +404,12 @@ GAttributeReader AttributeIter::get(std::optional<AttrDomain> domain,
   return adapt_domain_and_type_if_necessary(this->get(), domain, data_type, *accessor);
 }
 
-GAttributeReader AttributeAccessor::lookup_or_default(const StringRef attribute_id,
+GAttributeReader AttributeAccessor::lookup_or_default(const StringRef name,
                                                       const AttrDomain domain,
                                                       const AttrType data_type,
                                                       const void *default_value) const
 {
-  GAttributeReader attribute = this->lookup(attribute_id, domain, data_type);
+  GAttributeReader attribute = this->lookup(name, domain, data_type);
   if (attribute) {
     return attribute;
   }
@@ -410,19 +421,19 @@ GAttributeReader AttributeAccessor::lookup_or_default(const StringRef attribute_
   return {GVArray::from_single(type, domain_size, default_value), domain, nullptr};
 }
 
-Set<StringRefNull> AttributeAccessor::all_ids() const
+Set<StringRefNull> AttributeAccessor::all_names() const
 {
-  Set<StringRefNull> ids;
-  this->foreach_attribute([&](const AttributeIter &iter) { ids.add(iter.name); });
-  return ids;
+  Set<StringRefNull> names;
+  this->foreach_attribute([&](const AttributeIter &iter) { names.add(iter.name); });
+  return names;
 }
 
 void MutableAttributeAccessor::remove_anonymous()
 {
   Vector<std::string> anonymous_ids;
-  for (const StringRef id : this->all_ids()) {
-    if (attribute_name_is_anonymous(id)) {
-      anonymous_ids.append(id);
+  for (const StringRef name : this->all_names()) {
+    if (attribute_name_is_anonymous(name)) {
+      anonymous_ids.append(name);
     }
   }
 
@@ -444,19 +455,20 @@ struct FinishCallChecker {
   {
     if (!this->finish_called) {
       std::cerr << "Forgot to call `finish()` for '" << this->name << "'.\n";
+      BLI_assert_unreachable();
     }
   }
 };
 #endif
 
-GAttributeWriter MutableAttributeAccessor::lookup_for_write(const StringRef attribute_id)
+GAttributeWriter MutableAttributeAccessor::lookup_for_write(const StringRef name)
 {
-  GAttributeWriter attribute = fn_->lookup_for_write(owner_, attribute_id);
+  GAttributeWriter attribute = fn_->lookup_for_write(owner_, name);
   /* Check that the #finish method is called in debug builds. */
 #ifndef NDEBUG
   if (attribute) {
     auto checker = std::make_shared<FinishCallChecker>();
-    checker->name = attribute_id;
+    checker->name = name;
     checker->real_finish_fn = attribute.tag_modified_fn;
     attribute.tag_modified_fn = [checker]() {
       if (checker->real_finish_fn) {
@@ -469,9 +481,9 @@ GAttributeWriter MutableAttributeAccessor::lookup_for_write(const StringRef attr
   return attribute;
 }
 
-GSpanAttributeWriter MutableAttributeAccessor::lookup_for_write_span(const StringRef attribute_id)
+GSpanAttributeWriter MutableAttributeAccessor::lookup_for_write_span(const StringRef name)
 {
-  GAttributeWriter attribute = this->lookup_for_write(attribute_id);
+  GAttributeWriter attribute = this->lookup_for_write(name);
   if (attribute) {
     return GSpanAttributeWriter{std::move(attribute), true};
   }
@@ -479,32 +491,31 @@ GSpanAttributeWriter MutableAttributeAccessor::lookup_for_write_span(const Strin
 }
 
 GAttributeWriter MutableAttributeAccessor::lookup_or_add_for_write(
-    const StringRef attribute_id,
+    const StringRef name,
     const AttrDomain domain,
     const AttrType data_type,
     const AttributeInit &initializer)
 {
-  std::optional<AttributeMetaData> meta_data = this->lookup_meta_data(attribute_id);
+  std::optional<AttributeMetaData> meta_data = this->lookup_meta_data(name);
   if (meta_data.has_value()) {
     if (meta_data->domain == domain && meta_data->data_type == data_type) {
-      return this->lookup_for_write(attribute_id);
+      return this->lookup_for_write(name);
     }
     return {};
   }
-  if (this->add(attribute_id, domain, data_type, initializer)) {
-    return this->lookup_for_write(attribute_id);
+  if (this->add(name, domain, data_type, initializer)) {
+    return this->lookup_for_write(name);
   }
   return {};
 }
 
 GSpanAttributeWriter MutableAttributeAccessor::lookup_or_add_for_write_span(
-    const StringRef attribute_id,
+    const StringRef name,
     const AttrDomain domain,
     const AttrType data_type,
     const AttributeInit &initializer)
 {
-  GAttributeWriter attribute = this->lookup_or_add_for_write(
-      attribute_id, domain, data_type, initializer);
+  GAttributeWriter attribute = this->lookup_or_add_for_write(name, domain, data_type, initializer);
   if (attribute) {
     return GSpanAttributeWriter{std::move(attribute), true};
   }
@@ -512,51 +523,29 @@ GSpanAttributeWriter MutableAttributeAccessor::lookup_or_add_for_write_span(
 }
 
 GSpanAttributeWriter MutableAttributeAccessor::lookup_or_add_for_write_only_span(
-    const StringRef attribute_id, const AttrDomain domain, const AttrType data_type)
+    const StringRef name, const AttrDomain domain, const AttrType data_type)
 {
   GAttributeWriter attribute = this->lookup_or_add_for_write(
-      attribute_id, domain, data_type, AttributeInitConstruct());
+      name, domain, data_type, AttributeInitConstruct());
   if (attribute) {
     return GSpanAttributeWriter{std::move(attribute), false};
   }
   return {};
 }
 
-bool MutableAttributeAccessor::rename(const StringRef old_attribute_id,
-                                      const StringRef new_attribute_id)
+bool MutableAttributeAccessor::rename(const StringRef old_name,
+                                      const StringRef new_name,
+                                      const bool overwrite)
 {
-  if (old_attribute_id == new_attribute_id) {
-    return true;
-  }
-  if (this->contains(new_attribute_id)) {
-    return false;
-  }
-  const GAttributeReader old_attribute = this->lookup(old_attribute_id);
-  if (!old_attribute) {
-    return false;
-  }
-  const AttrType type = cpp_type_to_attribute_type(old_attribute.varray.type());
-  if (old_attribute.sharing_info != nullptr && old_attribute.varray.is_span()) {
-    if (!this->add(new_attribute_id,
-                   old_attribute.domain,
-                   type,
-                   AttributeInitShared{old_attribute.varray.get_internal_span().data(),
-                                       *old_attribute.sharing_info}))
-    {
-      return false;
-    }
-  }
-  else {
-    if (!this->add(new_attribute_id,
-                   old_attribute.domain,
-                   type,
-                   AttributeInitVArray{old_attribute.varray}))
-    {
-      return false;
-    }
-  }
-  this->remove(old_attribute_id);
-  return true;
+  Map<StringRef, StringRef> map;
+  map.add_new(old_name, new_name);
+  return fn_->rename(owner_, map, overwrite).is_empty();
+}
+
+Set<StringRef> MutableAttributeAccessor::rename(const Map<StringRef, StringRef> &map,
+                                                const bool overwrite)
+{
+  return fn_->rename(owner_, map, overwrite);
 }
 
 fn::GField AttributeValidator::validate_field_if_necessary(const fn::GField &field) const
@@ -877,8 +866,10 @@ void fill_attribute_range_default(MutableAttributeAccessor attributes,
     const CPPType &type = varray.type();
     const GPointer value = get_default_for_fill(attributes, type, iter.name);
     const CommonVArrayInfo info = varray.common_info();
-    if (type.is_equal(value.get(), info.data)) {
-      return;
+    if (info.type == CommonVArrayInfo::Type::Single) {
+      if (type.is_equal(value.get(), info.data)) {
+        return;
+      }
     }
     GSpanAttributeWriter attribute = attributes.lookup_for_write_span(iter.name);
     GMutableSpan data = attribute.span.slice(range);

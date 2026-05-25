@@ -286,7 +286,7 @@ static float isect_vert_calc_z(int vert_index,
   const double2 &vert_co = result.vert[vert_index];
 
   /* Find a face edge in the original edge info. */
-  for (const int orig_id : result.edge_orig[edge_index]) {
+  for (const uint32_t orig_id : result.edge_orig[edge_index]) {
     if (orig_id < result.face_edge_offset) {
       /* Standalone edge - skip. */
       continue;
@@ -341,7 +341,7 @@ static float isect_vert_calc_z(int vert_index,
 }
 
 /**
- * Scanfill-based triangulation (original algorithm).
+ * Scan-fill based triangulation (original algorithm).
  */
 static void displist_fill_scanfill(const ListBaseT<DispList> *dispbase,
                                    ListBaseT<DispList> *to,
@@ -492,9 +492,19 @@ static DispList *displist_fill_cdt_process_group(const CDTFillGroup &group,
   for (const int64_t p : group.poly_ranges.index_range()) {
     const PolyRange &poly = group.poly_ranges[p];
 
-    /* Build face indices: sequential vertex indices for this polygon. */
+    /* Build face indices: sequential vertex indices for this polygon. Hole contours have
+     * reversed winding (done during bevel list generation for correct surface normals).
+     *
+     * Fill indices in reverse order to restore consistent winding
+     * so the CDT winding number calculation produces correct results.
+     * Needed for correct non-zero filling but harmless for odd/even, see: #155733. */
     faces[p].resize(poly.count);
-    std::iota(faces[p].begin(), faces[p].end(), poly.start);
+    if (poly.dl->flag & DL_REVERSED) {
+      std::iota(faces[p].rbegin(), faces[p].rend(), poly.start);
+    }
+    else {
+      std::iota(faces[p].begin(), faces[p].end(), poly.start);
+    }
 
     /* Build vertex data. */
     for (int i = 0; i < poly.count; i++) {
@@ -581,8 +591,8 @@ static DispList *displist_fill_cdt_process_group(const CDTFillGroup &group,
   for (const Vector<int> &face : result.face) {
     BLI_assert(face.size() == 3);
     index[0] = face[0];
-    index[1] = flip_normal ? face[2] : face[1];
-    index[2] = flip_normal ? face[1] : face[2];
+    index[1] = flip_normal ? face[1] : face[2];
+    index[2] = flip_normal ? face[2] : face[1];
     index += 3;
   }
 
@@ -696,7 +706,7 @@ static void bevels_to_filledpoly(const Curve *cu, ListBaseT<DispList> *dispbase)
           dlnew->nr = dl.parts;
           dlnew->parts = 1;
           dlnew->type = DL_POLY;
-          dlnew->flag = DL_BACK_CURVE;
+          dlnew->flag = DL_BACK_CURVE | (dl.flag & DL_REVERSED);
           dlnew->col = dl.col;
           dlnew->charidx = dl.charidx;
 
@@ -715,7 +725,7 @@ static void bevels_to_filledpoly(const Curve *cu, ListBaseT<DispList> *dispbase)
           dlnew->nr = dl.parts;
           dlnew->parts = 1;
           dlnew->type = DL_POLY;
-          dlnew->flag = DL_FRONT_CURVE;
+          dlnew->flag = DL_FRONT_CURVE | (dl.flag & DL_REVERSED);
           dlnew->col = dl.col;
           dlnew->charidx = dl.charidx;
 
@@ -1461,7 +1471,7 @@ static bke::GeometrySet evaluate_curve_type_object(Depsgraph *depsgraph,
   ListBaseT<DispList> dlbev = BKE_curve_bevel_make(cu);
 
   /* no bevel or extrude, and no width correction? */
-  if (BLI_listbase_is_empty(&dlbev) && cu->offset == 1.0f) {
+  if (dlbev.is_empty() && cu->offset == 1.0f) {
     curve_to_displist(cu, deformed_nurbs, for_render, r_dispbase);
   }
   else {
@@ -1477,7 +1487,7 @@ static bke::GeometrySet evaluate_curve_type_object(Depsgraph *depsgraph,
       }
 
       /* exception handling; curve without bevel or extrude, with width correction */
-      if (BLI_listbase_is_empty(&dlbev)) {
+      if (dlbev.is_empty()) {
         DispList *dl = MEM_new_zeroed<DispList>("makeDispListbev");
         dl->verts = MEM_new_array_uninitialized<float>(3 * size_t(bl->nr), "dlverts");
         BLI_addtail(r_dispbase, dl);
@@ -1488,6 +1498,9 @@ static bke::GeometrySet evaluate_curve_type_object(Depsgraph *depsgraph,
         else {
           dl->type = DL_SEGM;
           dl->flag = (DL_FRONT_CURVE | DL_BACK_CURVE);
+        }
+        if (bl->reversed) {
+          dl->flag |= DL_REVERSED;
         }
 
         dl->parts = 1;
@@ -1541,6 +1554,9 @@ static bke::GeometrySet evaluate_curve_type_object(Depsgraph *depsgraph,
           }
           if ((bl->poly >= 0) && (steps > 2)) {
             dl->flag |= DL_CYCL_V;
+          }
+          if (bl->reversed) {
+            dl->flag |= DL_REVERSED;
           }
 
           dl->parts = steps;

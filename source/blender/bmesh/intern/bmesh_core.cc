@@ -500,7 +500,7 @@ BLI_INLINE BMFace *bm_face_create__internal(BMesh *bm)
   }
 
 #ifdef USE_BMESH_HOLES
-  BLI_listbase_clear(&f->loops);
+  f->loops.clear_no_delete();
 #else
   f->l_first = nullptr;
 #endif
@@ -941,8 +941,9 @@ void BM_face_edges_kill(BMesh *bm, BMFace *f)
     edges[i++] = l_iter->e;
   } while ((l_iter = l_iter->next) != l_first);
 
-  for (i = 0; i < f->len; i++) {
-    BM_edge_kill(bm, edges[i]);
+  /* Take care, the first iteration kills `f`. */
+  for (BMEdge *e : edges) {
+    BM_edge_kill(bm, e);
   }
 }
 
@@ -958,8 +959,9 @@ void BM_face_verts_kill(BMesh *bm, BMFace *f)
     verts[i++] = l_iter->v;
   } while ((l_iter = l_iter->next) != l_first);
 
-  for (i = 0; i < f->len; i++) {
-    BM_vert_kill(bm, verts[i]);
+  /* Take care, the first iteration kills `f`. */
+  for (BMVert *v : verts) {
+    BM_vert_kill(bm, v);
   }
 }
 
@@ -2237,9 +2239,8 @@ bool BM_vert_splice_check_double_face(BMVert *v_a, BMVert *v_b)
 
   for (const int side : IndexRange(2)) {
     if (loops_pair[side].size() > 1) {
-      std::sort(loops_pair[side].begin(), loops_pair[side].end(), [](BMLoop *a, BMLoop *b) {
-        return a->f->len < b->f->len;
-      });
+      std::ranges::sort(loops_pair[side],
+                        [](BMLoop *a, BMLoop *b) { return a->f->len < b->f->len; });
     }
   }
 

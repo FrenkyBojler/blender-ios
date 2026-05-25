@@ -1025,7 +1025,7 @@ static float fcm_smooth_frame(const FCurve *fcu,
   float total_weighted_value = 0.0f;
   float total_weight = 0.0f;
 
-  /* Define sampling window around the frame using the filder width. */
+  /* Define sampling window around the frame using the filter width. */
   const int start_frame = floorf(evaltime - filter_width);
   const int end_frame = ceilf(evaltime + filter_width);
 
@@ -1070,7 +1070,7 @@ static void fcm_smooth_evaluate(
    * The Gaussian function requires knowing the distance from a sample to its neighboring frames.
    * However, F-Curve modifiers work as continuous functions, so we cannot access discrete keyframe
    * positions. Instead, we sample each integer frame, then linearly interpolate to find the value
-   * at evaltime. This means that subframes won't contribute to the smoothing, but it is not
+   * at evaltime. This means that sub-frames won't contribute to the smoothing, but it is not
    * possible to know their positions.
    * The F-Curve is sampled using a fixed-size window of at least one frame, to prevent aliasing
    * that can occur when there is high frequency data (on sub-frames).
@@ -1200,7 +1200,7 @@ FModifier *add_fmodifier(ListBaseT<FModifier> *modifiers, int type, FCurve *owne
 
   /* add modifier itself */
   fcm = MEM_new<FModifier>("F-Curve Modifier");
-  fcm->type = type;
+  fcm->type = eFModifier_Types(type);
   fcm->ui_expand_flag = UI_PANEL_DATA_EXPAND_ROOT; /* Expand the main panel, not the sub-panels. */
   fcm->curve = owner_fcu;
   fcm->influence = 1.0f;
@@ -1210,7 +1210,7 @@ FModifier *add_fmodifier(ListBaseT<FModifier> *modifiers, int type, FCurve *owne
   BKE_fmodifier_name_set(fcm, "");
 
   /* tag modifier as "active" if no other modifiers exist in the stack yet */
-  if (BLI_listbase_is_single(modifiers)) {
+  if (modifiers->is_single()) {
     fcm->flag |= FMODIFIER_FLAG_ACTIVE;
   }
 
@@ -1266,7 +1266,7 @@ void copy_fmodifiers(ListBaseT<FModifier> *dst, const ListBaseT<FModifier> *src)
     return;
   }
 
-  BLI_listbase_clear(dst);
+  dst->clear_no_delete();
   BLI_duplicatelist(dst, src);
 
   for (fcm = static_cast<FModifier *>(dst->first), srcfcm = static_cast<FModifier *>(src->first);

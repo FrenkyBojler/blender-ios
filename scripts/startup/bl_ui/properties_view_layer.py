@@ -11,6 +11,12 @@ from rna_prop_ui import PropertyPanel
 class VIEWLAYER_UL_aov(UIList):
     @staticmethod
     def aov_icon(item):
+        """
+        :param item: AOV item to pick an icon for.
+        :type item: :class:`bpy.types.AOV`
+        :return: Icon identifier for *item*'s AOV type.
+        :rtype: str
+        """
         if not item.is_valid:
             return 'ERROR'
 
@@ -24,6 +30,7 @@ class VIEWLAYER_UL_aov(UIList):
             raise ValueError("Unrecognized AOV type: " + aov_type)
 
     def draw_item(self, _context, layout, _data, item, icon, _active_data, _active_propname):
+        del icon
         row = layout.row()
         split = row.split(factor=0.65)
         split.row().prop(item, "name", text="", icon=self.aov_icon(item), emboss=False)

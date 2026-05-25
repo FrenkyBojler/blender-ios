@@ -222,7 +222,7 @@ ccl_device_inline bool motion_triangle_custom_volume_intersect(const hiprtRay &r
   if (bvh_volume_anyhit_triangle_filter(
           kg, object, prim, payload->ray_self, payload->ray_visibility))
   {
-    return true;
+    return false;
   }
 
   Intersection isect;
@@ -346,7 +346,7 @@ ccl_device_inline bool shadow_intersection_filter(const hiprtRay &ray,
   KernelGlobals kg = nullptr;
   Intersection isect;
   set_intersect_point(hit, &isect);
-  return bvh_shadow_all_anyhit_filter<true, PRIMITIVE_ALL & ~PRIMITIVE_CURVE>(
+  return bvh_shadow_all_anyhit_filter<ISECT_TEST_ALL, PRIMITIVE_ALL & ~PRIMITIVE_CURVE>(
       kg, payload->state, *payload, payload->ray_self, payload->ray_visibility, isect);
 }
 
@@ -358,7 +358,7 @@ ccl_device_inline bool shadow_intersection_filter_curve(const hiprtRay &ray,
   KernelGlobals kg = nullptr;
   Intersection isect;
   set_intersect_point(hit, &isect);
-  return bvh_shadow_all_anyhit_filter<true, PRIMITIVE_CURVE>(
+  return bvh_shadow_all_anyhit_filter<ISECT_TEST_ALL, PRIMITIVE_CURVE>(
       kg, payload->state, *payload, payload->ray_self, payload->ray_visibility, isect);
 }
 
@@ -607,7 +607,7 @@ ccl_device_intersect bool scene_intersect_local(KernelGlobals kg,
 
   const uint object_flag = kernel_data_fetch(object_flag, local_object);
   if (!(object_flag & SD_OBJECT_TRANSFORM_APPLIED)) {
-#  if BVH_FEATURE(BVH_MOTION)
+#  ifdef __OBJECT_MOTION__
     bvh_instance_motion_push(kg, local_object, ray, &P, &dir, &idir);
 #  else
     bvh_instance_push(kg, local_object, ray, &P, &dir, &idir);

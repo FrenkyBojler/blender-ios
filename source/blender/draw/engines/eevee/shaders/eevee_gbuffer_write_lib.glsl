@@ -23,6 +23,7 @@
 #include "infos/eevee_common_infos.hh"
 
 #include "eevee_gbuffer_lib.glsl"
+#include "eevee_sampling_lib.glsl"
 
 /* Allows to reduce shader complexity and compilation time.
  * Prefer removing the defines to let the loading lib have all cases by default. */
@@ -41,6 +42,10 @@
 
 namespace gbuffer {
 
+/* -------------------------------------------------------------------- */
+/** \name G-buffer Write
+ * \{ */
+
 using ClosurePacking = gbuffer::ClosurePacking;
 using Header = gbuffer::Header;
 
@@ -58,23 +63,40 @@ ClosurePacking pack_closure(ClosureUndetermined cl)
   /* Some closures require additional packing. */
   switch (cl_packed.mode) {
 #ifdef GBUFFER_HAS_REFLECTION
-#  ifndef MAT_REFLECTION_COLORLESS
     case GBUF_REFLECTION:
+#  ifdef MAT_REFLECTION_COLORLESS
+      /* Material is colored, but the flag is set to colorless. */
+      assert(false);
+#  else
       gbuffer::Reflection::pack_additional(cl_packed, cl);
-      break;
 #  endif
+      break;
     case GBUF_REFLECTION_COLORLESS:
       gbuffer::ReflectionColorless::pack_additional(cl_packed, cl);
       break;
 #endif
 #ifdef GBUFFER_HAS_REFRACTION
-#  ifndef MAT_REFRACTION_COLORLESS
     case GBUF_REFRACTION:
+#  ifdef MAT_REFRACTION_COLORLESS
+      /* Material is colored, but the flag is set to colorless. */
+      assert(false);
+#  else
       gbuffer::Refraction::pack_additional(cl_packed, cl);
-      break;
 #  endif
+      break;
     case GBUF_REFRACTION_COLORLESS:
       gbuffer::RefractionColorless::pack_additional(cl_packed, cl);
+      break;
+    case GBUF_THIN_REFRACTION:
+#  ifdef MAT_REFRACTION_COLORLESS
+      /* Material is colored, but the flag is set to colorless. */
+      assert(false);
+#  else
+      gbuffer::ThinRefraction::pack_additional(cl_packed, cl);
+#  endif
+      break;
+    case GBUF_THIN_REFRACTION_COLORLESS:
+      gbuffer::ThinRefractionColorless::pack_additional(cl_packed, cl);
       break;
 #endif
 #ifdef GBUFFER_HAS_SUBSURFACE
@@ -97,6 +119,52 @@ struct Packed {
   uint object_id;
   UsedLayerFlag used_layers;
 };
+
+/* ROP writes round to nearest. */
+float3 closure_data_dither_round_to_nearest(float3 data, float3 noise)
+{
+  constexpr float quantization_step = 1.0f / 1023.0f;
+  return saturate(data + (noise - 0.5f) * quantization_step);
+}
+
+float4 closure_data_dither_round_to_nearest(float4 data, float3 noise)
+{
+  return float4(closure_data_dither_round_to_nearest(data.rgb, noise), data.a);
+}
+
+/* Image writes to UNORM flush toward zero. */
+float3 closure_data_dither_flush_to_zero(float3 data, float3 noise)
+{
+  constexpr float quantization_step = 1.0f / 1023.0f;
+  return saturate(data + noise * quantization_step);
+}
+
+float4 closure_data_dither_flush_to_zero(float4 data, float3 noise)
+{
+  return float4(closure_data_dither_flush_to_zero(data.rgb, noise), data.a);
+}
+
+float3 closure_dither_noise(float2 texel, uint layer_id, float3 offset)
+{
+  float seed = float(layer_id) * 3.0f;
+  return interleaved_gradient_noise(texel, float3(seed, seed + 1.0f, seed + 2.0f), offset);
+}
+
+float4 closure_data_layer_dither_round_to_nearest(float4 data,
+                                                  float2 texel,
+                                                  uint layer_id,
+                                                  float3 offset)
+{
+  return closure_data_dither_round_to_nearest(data, closure_dither_noise(texel, layer_id, offset));
+}
+
+float4 closure_data_layer_dither_flush_to_zero(float4 data,
+                                               float2 texel,
+                                               uint layer_id,
+                                               float3 offset)
+{
+  return closure_data_dither_flush_to_zero(data, closure_dither_noise(texel, layer_id, offset));
+}
 
 /* Transient data used during packing. */
 struct Packer {
@@ -263,13 +331,17 @@ struct InputClosures {
 };
 
 /**
-  * surface_N: Fallback normal is there is no closure.
-  * thickness: Additional object information if any closure needs it.
-  float thickness;
-  * use_object_id: True if surface uses a dedicated object id layer. Should only be turned on if
-  needed. */
-Packed pack(
-    InputClosures cl_data, float3 Ng, packed_float3 surface_N, float thickness, bool use_object_id)
+ * - cl_data       : general closure output data.
+ * - Ng            : geometric normal.
+ * - surface_N     : packed surface normal.
+ * - thickness     : object thickness, packed in additional information if a closure needs it.
+ * - use_object_id : if surface uses a dedicated object id layer. Should only be on if needed.
+ */
+Packed pack(InputClosures cl_data,
+            float3 Ng,
+            packed_float3 surface_N,
+            Thickness thickness,
+            bool use_object_id)
 {
   Packer packer;
   packer.header = Header::zero();
