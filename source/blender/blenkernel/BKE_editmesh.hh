@@ -102,6 +102,10 @@ BMEditMesh *BKE_editmesh_copy(BMEditMesh *em);
  * - Null check the result if we want to respect the evaluated result, see: #154739.
  */
 BMEditMesh *BKE_editmesh_from_object(Object *ob);
+/**
+ * \brief Return the original #BMEditMesh for a given evaluated object.
+ */
+BMEditMesh *BKE_editmesh_from_eval_object(Object &object);
 
 /**
  * Return whether the evaluated mesh is a "descendant" of the original mesh: whether it is a

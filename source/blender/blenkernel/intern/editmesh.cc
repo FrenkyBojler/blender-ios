@@ -61,6 +61,15 @@ BMEditMesh *BKE_editmesh_from_object(Object *ob)
   BLI_assert(ob->type == OB_MESH);
   return (id_cast<Mesh *>(ob->data))->runtime->edit_mesh.get();
 }
+BMEditMesh *BKE_editmesh_from_eval_object(Object &object)
+{
+  BLI_assert(object.type == OB_MESH);
+  if (const ID *data_orig = object.runtime->data_orig) {
+    BLI_assert((object.id.tag & ID_TAG_COPIED_ON_EVAL) != 0);
+    return id_cast<const Mesh *>(data_orig)->runtime->edit_mesh.get();
+  }
+  return nullptr;
+}
 
 bool BKE_editmesh_eval_orig_map_available(const Mesh &mesh_eval, const Mesh *mesh_orig)
 {
