@@ -1726,23 +1726,9 @@ static bool brush_gen_texture(const Brush *br,
     return false;
   }
 
-  /* Compute aspect ratio correction for image textures.
-   * Only applied when MTEX_MAPPING_PRESERVE_ASPECT flag is set to match painting behavior. */
-  float aspect_x = 1.0f, aspect_y = 1.0f;
-  if ((mtex->mapping_flags & MTEX_MAPPING_PRESERVE_ASPECT) && mtex->tex->type == TEX_IMAGE &&
-      mtex->tex->ima)
-  {
-    ImBuf *ibuf = BKE_image_pool_acquire_ibuf(mtex->tex->ima, &mtex->tex->iuser, nullptr);
-    if (ibuf && ibuf->x > 0 && ibuf->y > 0) {
-      const float aspect = float(ibuf->y) / float(ibuf->x);
-      if (aspect < 1.0f) {
-        aspect_y = 1.0f / aspect; /* landscape: stretch Y */
-      }
-      else if (aspect > 1.0f) {
-        aspect_x = aspect; /* portrait: stretch X */
-      }
-    }
-    BKE_image_pool_release_ibuf(mtex->tex->ima, ibuf, nullptr);
+  float2 aspect{1.0f, 1.0f};
+  if (mtex->mapping_flags & MTEX_MAPPING_PRESERVE_ASPECT) {
+    aspect = BKE_brush_get_aspect_correction(mtex, nullptr);
   }
 
   const float step = 2.0f / side;
@@ -1752,7 +1738,7 @@ static bool brush_gen_texture(const Brush *br,
   /* Do normalized canonical view coords for texture. */
   for (y = -1.0f, iy = 0; iy < side; iy++, y += step) {
     for (x = -1.0f, ix = 0; ix < side; ix++, x += step) {
-      const float co[3] = {x * aspect_x, y * aspect_y, 0.0f};
+      const float co[3] = {x * aspect[0], y * aspect[1], 0.0f};
 
       float intensity;
       float rgba_dummy[4];

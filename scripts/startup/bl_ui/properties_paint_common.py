@@ -550,7 +550,7 @@ class TextureMaskPanel(BrushPanel):
         col.prop(mask_tex_slot, "scale")
 
         if brush.mask_texture and brush.mask_texture.type == 'IMAGE' and mask_tex_slot.map_mode != 'STENCIL':
-            col.prop(brush, "use_preserve_aspect_mask", text="Preserve Aspect")
+            col.prop(mask_tex_slot, "use_preserve_aspect", text="Preserve Aspect")
 
 
 class StrokePanel(BrushPanel):
