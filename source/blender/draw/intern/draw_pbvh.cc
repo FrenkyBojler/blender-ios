@@ -57,7 +57,7 @@ namespace draw::pbvh {
 
 uint64_t ViewportRequest::hash() const
 {
-  return get_default_hash(attributes, use_coarse_grids);
+  return get_default_hash(attributes, use_coarse_grids, mat_index_to_uv_index);
 }
 
 /**
@@ -188,6 +188,7 @@ class DrawCacheImpl : public DrawCache {
 
   Span<gpu::VertBufPtr> ensure_attribute_data(const Object &object,
                                               const OrigMeshData &orig_mesh_data,
+                                              const Span<int> mat_index_to_uv_index,
                                               const AttributeRequest &attr,
                                               const IndexMask &node_mask);
 
@@ -1005,7 +1006,9 @@ static void calc_node_uvs(const SubdivCCG &subdiv_ccg,
 }
 
 BLI_NOINLINE static void fill_uvs_grids(const Object &object,
+                                        const Span<int> material_indices,
                                         const OrigMeshData &orig_mesh_data,
+                                        const Span<int> mat_index_to_uv_index,
                                         const BitSpan use_flat_layout,
                                         const IndexMask &node_mask,
                                         const MutableSpan<gpu::VertBufPtr> vbos)
@@ -1026,7 +1029,12 @@ BLI_NOINLINE static void fill_uvs_grids(const Object &object,
         float2 *data = vbos[i]->data<float2>().data();
         BLI_assert(!use_flat_layout[i]);
         Vector<float2> &tls = all_tls.local();
-        calc_node_uvs(subdiv_ccg, *orig_mesh_data.active_uv_map_index, nodes[i], tls);
+
+        const int uv_channel = mat_index_to_uv_index.is_empty() ?
+                                   *orig_mesh_data.active_uv_map_index :
+                                   mat_index_to_uv_index[material_indices[i]];
+
+        calc_node_uvs(subdiv_ccg, uv_channel, nodes[i], tls);
         BLI_assert(tls.size() == vbos[i]->data<float2>().size());
         std::copy_n(tls.data(), tls.size(), data);
       },
@@ -1804,6 +1812,7 @@ BLI_NOINLINE static void flush_vbo_data(const Span<gpu::VertBufPtr> vbos,
 
 Span<gpu::VertBufPtr> DrawCacheImpl::ensure_attribute_data(const Object &object,
                                                            const OrigMeshData &orig_mesh_data,
+                                                           const Span<int> mat_index_to_uv_index,
                                                            const AttributeRequest &attr,
                                                            const IndexMask &node_mask)
 {
@@ -1868,7 +1877,13 @@ Span<gpu::VertBufPtr> DrawCacheImpl::ensure_attribute_data(const Object &object,
             fill_face_sets_grids(object, orig_mesh_data, use_flat_layout_, mask, vbos);
             break;
           case CustomRequest::UV:
-            fill_uvs_grids(object, orig_mesh_data, use_flat_layout_, node_mask, vbos);
+            fill_uvs_grids(object,
+                           material_indices_,
+                           orig_mesh_data,
+                           mat_index_to_uv_index,
+                           use_flat_layout_,
+                           node_mask,
+                           vbos);
             break;
         }
       }
@@ -2006,7 +2021,8 @@ Span<gpu::Batch *> DrawCacheImpl::ensure_tris_batches(const Object &object,
       object, orig_mesh_data, nodes_to_update, request.use_coarse_grids);
 
   for (const AttributeRequest &attr : request.attributes) {
-    this->ensure_attribute_data(object, orig_mesh_data, attr, nodes_to_update);
+    this->ensure_attribute_data(
+        object, orig_mesh_data, request.mat_index_to_uv_index, attr, nodes_to_update);
   }
 
   /* Collect VBO spans in a different loop because #ensure_attribute_data invalidates the allocated
@@ -2049,7 +2065,7 @@ Span<gpu::Batch *> DrawCacheImpl::ensure_lines_batches(const Object &object,
   this->free_nodes_with_changed_topology(pbvh);
 
   const Span<gpu::VertBufPtr> position = this->ensure_attribute_data(
-      object, orig_mesh_data, CustomRequest::Position, nodes_to_update);
+      object, orig_mesh_data, {}, CustomRequest::Position, nodes_to_update);
   const Span<gpu::IndexBufPtr> lines = this->ensure_lines_indices(
       object, orig_mesh_data, nodes_to_update, request.use_coarse_grids);
 

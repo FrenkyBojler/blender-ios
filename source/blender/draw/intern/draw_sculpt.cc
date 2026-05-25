@@ -50,7 +50,8 @@ float3 SculptBatch::debug_color()
 
 static Vector<SculptBatch> sculpt_batches_get_ex(const Object *ob,
                                                  const bool use_wire,
-                                                 const Span<pbvh::AttributeRequest> attrs)
+                                                 const Span<pbvh::AttributeRequest> attrs,
+                                                 const Span<int> mat_index_to_uv_index)
 {
   /* pbvh::Tree should always exist for non-empty meshes, created by depsgraph eval. */
   bke::pbvh::Tree *pbvh = ob->runtime->sculpt_session ?
@@ -105,18 +106,19 @@ static Vector<SculptBatch> sculpt_batches_get_ex(const Object *ob,
                bke::pbvh::node_frustum_contain_aabb(node, draw_frustum_planes);
       });
 
+  /* Ensure the node to material index map is populated early so it can be used for multires
+   * information. */
+  const Span<int> material_indices = draw_data.ensure_material_indices(*ob);
   const IndexMask nodes_to_update = update_only_visible ? visible_nodes :
                                                           bke::pbvh::all_leaf_nodes(*pbvh, memory);
 
   Span<gpu::Batch *> batches;
   if (use_wire) {
-    batches = draw_data.ensure_lines_batches(*ob, {{}, fast_mode}, nodes_to_update);
+    batches = draw_data.ensure_lines_batches(*ob, {{}, fast_mode, {}}, nodes_to_update);
   }
   else {
-    batches = draw_data.ensure_tris_batches(*ob, {attrs, fast_mode}, nodes_to_update);
+    batches = draw_data.ensure_tris_batches(*ob, {attrs, fast_mode, mat_index_to_uv_index}, nodes_to_update);
   }
-
-  const Span<int> material_indices = draw_data.ensure_material_indices(*ob);
 
   const int max_material = std::max(0, BKE_object_material_count_eval(ob) - 1);
   Vector<SculptBatch> result_batches(visible_nodes.size());
@@ -166,7 +168,7 @@ Vector<SculptBatch> sculpt_batches_get(const Object *ob, SculptBatchFeature feat
     }
   }
 
-  return sculpt_batches_get_ex(ob, features & SCULPT_BATCH_WIREFRAME, attrs);
+  return sculpt_batches_get_ex(ob, features & SCULPT_BATCH_WIREFRAME, attrs, {});
 }
 
 Vector<SculptBatch> sculpt_batches_per_material_get(const Object *ob,
@@ -177,7 +179,8 @@ Vector<SculptBatch> sculpt_batches_per_material_get(const Object *ob,
 
   VectorSet<std::string> draw_attrs;
   DRW_MeshCDMask cd_needed;
-  DRW_mesh_get_attributes(*ob, mesh, materials, &draw_attrs, &cd_needed);
+  Array<int> mat_index_to_uv_index;
+  DRW_mesh_get_attributes(*ob, mesh, materials, &draw_attrs, &cd_needed, mat_index_to_uv_index);
 
   Vector<pbvh::AttributeRequest, 16> attrs;
 
@@ -192,7 +195,7 @@ Vector<SculptBatch> sculpt_batches_per_material_get(const Object *ob,
     attrs.append(pbvh::GenericRequest(name));
   }
 
-  return sculpt_batches_get_ex(ob, false, attrs);
+  return sculpt_batches_get_ex(ob, false, attrs, mat_index_to_uv_index);
 }
 
 }  // namespace blender::draw
