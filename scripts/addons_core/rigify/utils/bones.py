@@ -164,7 +164,7 @@ def copy_bone(obj: ArmatureObject, bone_name: str, assign_name='', *,
                          'bbone_easein', 'bbone_easeout',
                          'bbone_rollin', 'bbone_rollout',
                          'bbone_curveinx', 'bbone_curveinz', 'bbone_curveoutx', 'bbone_curveoutz',
-                         'bbone_scalein', 'bbone_scaleout']:
+                         'bbone_scalein', 'bbone_scaleout',]:
                 setattr(edit_bone_2, name, getattr(edit_bone_1, name))
 
         # Resize the bone after copy if requested
@@ -210,20 +210,20 @@ def copy_bone_properties(obj: ArmatureObject, bone_name_1: str, bone_name_2: str
         if widget:
             pose_bone_2.custom_shape = pose_bone_1.custom_shape
 
-        # Copy edit_bone / bone properties.
+        # Properties shared between PoseBone and Bone
         if bbone:
             bbone_shared_properties = [
                 'bbone_curveinx', 'bbone_curveinz',
                 'bbone_curveoutx', 'bbone_curveoutz',
                 'bbone_easein', 'bbone_easeout',
                 'bbone_rollin', 'bbone_rollout',
-                'bbone_scalein', 'bbone_scaleout'
+                'bbone_scalein', 'bbone_scaleout',
                 ]
 
             bbone_bone_properties = [
                 'bbone_segments', 'bbone_mapping_mode', 'use_endroll_as_inroll', 'use_scale_easing',
                 'bbone_x', 'bbone_z',
-                'bbone_custom_handle_start', 'bbone_custom_handle_end'
+                'bbone_custom_handle_start', 'bbone_custom_handle_end',
                 ]
             
             for name in bbone_shared_properties:
