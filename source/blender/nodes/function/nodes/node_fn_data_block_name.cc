@@ -34,7 +34,7 @@ static void node_declare(NodeDeclarationBuilder &b)
     b.add_input(data_type, "Data Block"_ustr).optional_label();
   }
   b.add_output<decl::String>("Name"_ustr);
-  b.add_output<decl::String>("Library Name"_ustr);
+  //  b.add_output<decl::String>("Library Name"_ustr);
 }
 
 static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
@@ -137,25 +137,15 @@ static const mf::MultiFunction *get_multi_function(const bNode &node)
   const eNodeSocketDatatype data_type = eNodeSocketDatatype(node.custom1);
 
   return to_static_data_block_type(data_type, [&]<typename T>() -> const mf::MultiFunction * {
-    static auto fn = mf::build::SI1_SO2<T *, std::string, std::string>(
+    static auto fn = mf::build::SI1_SO<T *, std::string>(
         "Data Block Name",
-        [](const T *data_block, std::string &name, std::string &library_name) {
+        [](const T *data_block) -> std::string {
           if (data_block == nullptr) {
-            name = "";
-            library_name = "";
-            return;
+            return std::string();
           }
 
           const ID *id = id_cast<const ID *>(data_block);
-
-          name = BKE_id_name(*id);
-
-          if (id->lib != nullptr) {
-            library_name = BKE_id_name(id->lib->id);
-          }
-          else {
-            library_name = "";
-          }
+          return BKE_id_name(*id);
         },
         mf::build::exec_presets::Simple{});
     return &fn;
