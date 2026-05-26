@@ -25,12 +25,6 @@
 
 #include "WM_types.hh"
 
-#include "BKE_anim_data.hh"
-#include "BKE_fcurve.hh"
-
-#include "ANIM_action.hh"
-#include "ANIM_action_iterators.hh"
-#include "ANIM_fcurve.hh"
 #include "ANIM_rna.hh"
 
 namespace blender {

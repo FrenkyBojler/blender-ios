@@ -45,7 +45,6 @@
 #include "ANIM_armature.hh"
 #include "ANIM_bone_collections.hh"
 #include "ANIM_keyframing.hh"
-#include "ANIM_rna.hh"
 
 #include "armature_intern.hh"
 
@@ -583,7 +582,7 @@ void POSE_OT_autoside_names(wmOperatorType *ot)
 
 /* ********************************************** */
 
-static wmOperatorStatus rotation_mode_convert_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus pose_bone_rotmode_exec(bContext *C, wmOperator *op)
 {
   BKE_report(op->reports,
              RPT_WARNING,
@@ -622,7 +621,7 @@ void POSE_OT_rotation_mode_set(wmOperatorType *ot)
 
   /* callbacks */
   ot->invoke = WM_menu_invoke;
-  ot->exec = rotation_mode_convert_exec;
+  ot->exec = pose_bone_rotmode_exec;
   ot->poll = ED_operator_posemode;
 
   /* flags */

@@ -287,7 +287,7 @@ const EnumPropertyItem rna_enum_object_axis_flip_items[] = {
 };
 
 }  // namespace blender
-// #define RNA_RUNTIME
+
 #ifdef RNA_RUNTIME
 
 #  include <algorithm>

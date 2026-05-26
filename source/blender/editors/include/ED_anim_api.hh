@@ -1317,7 +1317,7 @@ void animviz_free_motionpath_targets(Vector<MPathTarget *> &targets);
 /** \} */
 
 /**
- * A non owning storage buffer for FCurves where they are sorted by `array_index`.
+ * A non owning storage buffer for FCurves where they are sorted by `FCurve.array_index`.
  */
 class SortedFCurveBuffer {
   Vector<FCurve *> fcurves_;
