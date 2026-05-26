@@ -1771,7 +1771,7 @@ void RNA_api_asset_library_loading_status(StructRNA *srna)
                         "local_file_abspath",
                         nullptr,
                         0,
-                        "URL",
+                        "Local Path",
                         "The absolute path this file was downloaded to");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 
@@ -1800,7 +1800,7 @@ void RNA_api_asset_library_loading_status(StructRNA *srna)
                         "local_file_abspath",
                         nullptr,
                         0,
-                        "URL",
+                        "Local Path",
                         "The absolute path this file was supposed to be downloaded to");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 
