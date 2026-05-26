@@ -268,11 +268,15 @@ void console_cursor_region_xy_get(SpaceConsole *sc, const ARegion *region, int o
     return;
   }
 
+  /* TODO(@ideasman42): some of this logic should be moved to `textview`
+   * as this duplicates internals.
+   * Having to change the font size here is not ideal - although other users
+   * will have to overwrite the value anyway. */
   rcti draw_rect, draw_rect_outer;
   console_textview_draw_rect_calc(region, &draw_rect, &draw_rect_outer);
 
   const int lheight = sc->lheight * UI_SCALE_FAC;
-  /* Match textview_draw: `blf_mono_font` at `0.8 * lheight`. */
+  /* Match `textview_draw`: `blf_mono_font` at `0.8 * lheight`. */
   BLF_size(blf_mono_font, 0.8f * lheight);
   const int cwidth = int(BLF_fixed_width(blf_mono_font));
   const int columns = std::max((draw_rect.xmax - draw_rect.xmin) / std::max(cwidth, 1), 1);
