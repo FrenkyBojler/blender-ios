@@ -409,7 +409,10 @@ static wmOperatorStatus grease_pencil_sculpt_paint_invoke(bContext *C,
   OPERATOR_RETVAL_CHECK(retval);
 
   if (retval == OPERATOR_FINISHED) {
-    MEM_delete(stroke);
+    GreasePencilPaintStroke *stroke = static_cast<GreasePencilPaintStroke *>(op->customdata);
+    if (stroke) {
+      MEM_delete(stroke);
+    }
     return OPERATOR_FINISHED;
   }
 
@@ -426,6 +429,7 @@ static wmOperatorStatus grease_pencil_sculpt_paint_modal(bContext *C,
 
   if (ELEM(retval, OPERATOR_FINISHED, OPERATOR_CANCELLED)) {
     MEM_delete(stroke);
+    op->customdata = nullptr;
   }
 
   return retval;
@@ -930,7 +934,7 @@ static void grease_pencil_fill_extension_lines_from_circles(
   Array<float2> view_centers(max_kd_entries);
   Array<float> view_radii(max_kd_entries);
 
-  KDTree_2d *kdtree = kdtree_2d_new(max_kd_entries);
+  KDTree<float2> *kdtree = kdtree_new<float2>(max_kd_entries);
 
   /* Insert points for overlap tests. */
   for (const int point_i : circles_range.index_range()) {
@@ -943,13 +947,13 @@ static void grease_pencil_fill_extension_lines_from_circles(
     view_centers[kd_index] = center;
     view_radii[kd_index] = radius;
 
-    kdtree_2d_insert(kdtree, kd_index, center);
+    kdtree_insert<float2>(kdtree, kd_index, center);
   }
   for (const int i_point : feature_points_range.index_range()) {
     /* TODO Insert feature points into the KDTree. */
     UNUSED_VARS(i_point);
   }
-  kdtree_2d_balance(kdtree);
+  kdtree_balance<float2>(kdtree);
 
   struct {
     Vector<float3> starts;
@@ -994,7 +998,7 @@ static void grease_pencil_fill_extension_lines_from_circles(
     }
   }
 
-  kdtree_2d_free(kdtree);
+  kdtree_free<float2>(kdtree);
 
   /* Add new extension lines. */
   extension_data.lines.starts.extend(connection_lines.starts);
