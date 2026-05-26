@@ -482,6 +482,7 @@ void bmo_pointmerge_exec(BMesh *bm, BMOperator *op)
   BMO_ITER (v, &siter, op->slots_in, "verts", BM_VERT) {
     if (!vert_snap) {
       vert_snap = v;
+      copy_v3_v3(vert_snap->co, vec);
     }
     else if (v != vert_snap) {
       BMO_slot_map_elem_insert(&weldop, slot_targetmap, v, vert_snap);
@@ -493,7 +494,6 @@ void bmo_pointmerge_exec(BMesh *bm, BMOperator *op)
   }
 
   BMO_op_exec(bm, &weldop);
-  copy_v3_v3(vert_snap->co, vec);
   BMO_op_finish(bm, &weldop);
 }
 
