@@ -518,7 +518,7 @@ struct IDFilePathForeachData {
   /**
    * Python callback function for visiting each path.
    *
-   * `def visit_path_fn(owner_id: bpy.types.ID, path: str) -> str | None`
+   * `def visit_path_fn(owner_id: bpy.types.ID, path: str, meta: BlendDataPathMeta) -> str | None`
    *
    * If the function returns a string, the path is replaced with the return
    * value.
@@ -552,12 +552,6 @@ const EnumPropertyItem rna_enum_file_path_foreach_flag_items[] = {
      0,
      "Skip Packed",
      "Skip paths when their matching data is packed"},
-    {BKE_BPATH_FOREACH_PATH_RESOLVE_TOKEN,
-     "RESOLVE_TOKEN",
-     0,
-     "Resolve Token",
-     "Resolve tokens within a virtual filepath to a single, concrete, filepath. Currently only "
-     "used for UDIM tiles"},
     {BKE_BPATH_TRAVERSE_SKIP_WEAK_REFERENCES,
      "SKIP_WEAK_REFERENCES",
      0,
@@ -577,8 +571,86 @@ const EnumPropertyItem rna_enum_file_path_foreach_flag_items[] = {
      0,
      "Reload Edited",
      "Reload data when the path is edited"},
+    {BKE_BPATH_FOREACH_PATH_RESOLVE_TOKEN,
+     "RESOLVE_TOKEN",
+     0,
+     "Resolve Token",
+     "Resolve tokens within a virtual filepath to a single, concrete, filepath. Currently only "
+     "used for UDIM tiles"},
+    {BKE_BPATH_FOREACH_PATH_EXPAND_TOKENS,
+     "EXPAND_TOKENS",
+     0,
+     "Expand Tokens",
+     "Expand template tokens in virtual file paths and invoke the callback once for each "
+     "concrete file. Currently only used for UDIM tiles"},
+    {BKE_BPATH_FOREACH_PATH_EXPAND_SEQUENCES,
+     "EXPAND_SEQUENCES",
+     0,
+     "Expand Sequences",
+     "Expand image and volume sequences, invoking the callback once per file on disk"},
+    {BKE_BPATH_FOREACH_PATH_INCLUDE_TEXTURE_CACHES,
+     "INCLUDE_TEXTURE_CACHES",
+     0,
+     "Include Texture Caches",
+     "Visit the texture cache file paths associated with each image file path"},
     {0, nullptr, 0, nullptr, nullptr},
 };
+
+/* Metadata for path visited by `file_path_foreach.
+ *
+ * In the future it may be useful to extend this:
+ *  - Is the path intended to reference a directory or a file.
+ *  - Does the path support templates.
+ *  - Is the path referring to input or output (the render output, or file output nodes). */
+
+static PyTypeObject BPyFilePathMetaType;
+
+static PyStructSequence_Field bpy_file_path_meta_fields[] = {
+    {"type",
+     "Path type: ``'EXPANDED'`` for UDIM tiles and sequence frames, ``TEXTURE_CACHE'`` for "
+     "image texture cache paths, and ``REGULAR`` for all other paths."},
+    {nullptr},
+};
+
+static PyStructSequence_Desc bpy_file_path_meta_desc = {
+    /*name*/ "bpy.types.BlendDataPathMeta",
+    /*doc*/
+    "Metadata about a file path visited by :class:`bpy.types.BlendData.file_path_foreach`.",
+    /*fields*/ bpy_file_path_meta_fields,
+    /*n_in_sequence*/ ARRAY_SIZE(bpy_file_path_meta_fields) - 1,
+};
+
+static PyObject *make_file_path_meta(const eBPathPathType path_type)
+{
+  static bool type_initialized = false;
+  if (!type_initialized) {
+    PyStructSequence_InitType(&BPyFilePathMetaType, &bpy_file_path_meta_desc);
+    /* Prevent users from creating instances directly. */
+    BPyFilePathMetaType.tp_init = nullptr;
+    BPyFilePathMetaType.tp_new = nullptr;
+    type_initialized = true;
+  }
+
+  PyObject *meta = PyStructSequence_New(&BPyFilePathMetaType);
+  if (meta == nullptr) {
+    return nullptr;
+  }
+
+  PyObject *py_type = nullptr;
+  switch (path_type) {
+    case eBPathPathType::Expanded:
+      py_type = PyUnicode_FromString("EXPANDED");
+      break;
+    case eBPathPathType::TextureCache:
+      py_type = PyUnicode_FromString("TEXTURE_CACHE");
+      break;
+    case eBPathPathType::Regular:
+      py_type = PyUnicode_FromString("REGULAR");
+      break;
+  }
+  PyStructSequence_SET_ITEM(meta, 0, py_type);
+  return meta;
+}
 
 static bool foreach_id_file_path_foreach_callback(BPathForeachPathData *bpath_data,
                                                   char *path_dst,
@@ -604,14 +676,8 @@ static bool foreach_id_file_path_foreach_callback(BPathForeachPathData *bpath_da
   PyObject *py_owner_id = pyrna_struct_CreatePyObject(&id_ptr);
   /* args[1]: */
   PyObject *py_path_src = PyUnicode_FromString(path_src);
-  /* args[2]: currently-unused parameter for passing metadata of the path to the Python function.
-   * This is intended pass info like:
-   *  - Is the path intended to reference a directory or a file.
-   *  - Does the path support templates.
-   *  - Is the path referring to input or output (the render output, or file output nodes).
-   * Even though this is not implemented currently, the parameter is already added so that the
-   * eventual implementation is not an API-breaking change. */
-  PyObject *py_path_meta = Py_NewRef(Py_None);
+  /* args[2]: */
+  PyObject *py_path_meta = make_file_path_meta(bpath_data->path_type);
   PyTuple_SET_ITEMS(args, py_owner_id, py_path_src, py_path_meta);
 
   /* Call the Python callback function. */
@@ -673,9 +739,11 @@ PyDoc_STRVAR(
     ":class:`bpy.types.KeyingSetPath.id_type`.\n"
     "\n"
     "   :param visit_path_fn: function that takes three parameters: the data-block, a file path, "
-    "and a placeholder for future use. The function should return either ``None`` or a ``str``. "
-    "In the latter case, the visited file path will be replaced with the returned string.\n"
-    "   :type visit_path_fn: Callable[[:class:`bpy.types.ID`, str, Any], str|None]\n"
+    "and a :class:`bpy.types.BlendDataPathMeta` metadata object. "
+    "The function should return either ``None`` or a ``str``. In the latter case, the visited "
+    "file path will be replaced with the returned string.\n"
+    "   :type visit_path_fn: Callable[[:class:`bpy.types.ID`, str, "
+    ":class:`bpy.types.BlendDataPathMeta`], str|None]\n"
     "   :param subset: When given, only these data-blocks and their used file paths "
     "will be visited.\n"
     "   :type subset: set[str] | None\n"

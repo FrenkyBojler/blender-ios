@@ -78,8 +78,33 @@ enum eBPathForeachFlag {
    * \note Only used by Image #IDType currently.
    */
   BKE_BPATH_FOREACH_PATH_RELOAD_EDITED = (1 << 9),
+  /**
+   * Expand template tokens in virtual file paths to all matching concrete paths, invoking the
+   * callback once per expanded path. Currently only used for UDIM tiles. These paths can not
+   * be edited.
+   */
+  BKE_BPATH_FOREACH_PATH_EXPAND_TOKENS = (1 << 10),
+  /**
+   * Expand image sequences and similar multi-file resources to all individual file paths on disk,
+   * invoking the callback once per file. These paths can not be edited.
+   */
+  BKE_BPATH_FOREACH_PATH_EXPAND_SEQUENCES = (1 << 11),
+  /**
+   * Visit the texture cache file paths associated with each visited image path. These paths can
+   * not be edited.
+   */
+  BKE_BPATH_FOREACH_PATH_INCLUDE_TEXTURE_CACHES = (1 << 12),
 };
 ENUM_OPERATORS(eBPathForeachFlag)
+
+enum class eBPathPathType {
+  /** A regular path stored directly on the ID. May be edited by the callback. */
+  Regular = 0,
+  /** Expanded UDIM or sequence frame path. */
+  Expanded = 1,
+  /* Texture cache file path. */
+  TextureCache = 2,
+};
 
 struct BPathForeachPathData;
 
@@ -124,6 +149,11 @@ struct BPathForeachPathData {
    * IDTypeInfo callbacks are responsible to set this boolean if they modified one or more paths.
    */
   bool is_path_modified;
+
+  /**
+   * Type of path being visited, to distinguish regular paths from expanded ones.
+   */
+  eBPathPathType path_type;
 };
 
 /** Run `bpath_data.callback_function` on all paths contained in `id`. */
@@ -150,6 +180,13 @@ void BKE_bpath_foreach_path_main(BPathForeachPathData *bpath_data);
 bool BKE_bpath_foreach_path_fixed_process(BPathForeachPathData *bpath_data,
                                           char *path,
                                           size_t path_maxncpy);
+
+/**
+ * Run the callback on a read-only path, any edits will be discarded.
+ *
+ * \param path: A fixed, FILE_MAX-sized char buffer.
+ */
+void BKE_bpath_foreach_path_readonly_process(BPathForeachPathData *bpath_data, const char *path);
 
 /**
  * Run the callback on every existing file on disk matching a `<head><digits><tail>`
