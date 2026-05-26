@@ -317,15 +317,20 @@ void AssetRepresentation::online_info_set(OnlineAssetInfo info)
     return;
   }
   extern_asset->online_info_ = std::make_unique<OnlineAssetInfo>(std::move(info));
+  extern_asset->file_status_ = extern_asset->online_info_->file_status;
 }
 
 void AssetRepresentation::file_status_set(const AssetFileStatus status)
 {
   ExternalAsset *extern_asset = std::get_if<ExternalAsset>(&asset_);
-  if (!extern_asset || extern_asset->online_info_) {
+  if (!extern_asset) {
     return;
   }
   extern_asset->file_status_ = status;
+
+  if (extern_asset->online_info_) {
+    extern_asset->online_info_->file_status = status;
+  }
 }
 
 bool AssetRepresentation::needs_download() const
