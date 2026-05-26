@@ -202,14 +202,14 @@ def gitea_json_issue_events_filter(
     issue_events_url = f"{BASE_API_URL}/repos/{issue_fullname}/timeline"
     if date_start or date_end:
         query_params = {}
+        # Assume that if no timezone is provided, that it's UTC.
+        # Without this, dates passed in that *do* have a timezone aren't handled properly.
         if date_start:
             if date_start.tzinfo is None:
-                # Assume that if no timezone is provided, that it's UTC
                 date_start = date_start.replace(tzinfo=ZoneInfo("UTC"))
             query_params["since"] = f"{date_start.isoformat()}"
         if date_end:
             if date_end.tzinfo is None:
-                # Assume that if no timezone is provided, that it's UTC
                 date_end = date_end.replace(tzinfo=ZoneInfo("UTC"))
             query_params["before"] = f"{date_end.isoformat()}"
 
