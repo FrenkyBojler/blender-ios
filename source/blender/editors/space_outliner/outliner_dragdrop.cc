@@ -1178,9 +1178,7 @@ static bool collection_drop_init(bContext *C, wmDrag *drag, const int xy[2], Col
 
   const TreeElement *collection_te = outliner_data_from_tree_element_and_parents(
       is_collection_element, te);
-  Collection *to_collection = collection_te ?
-                                  outliner_collection_from_tree_element(collection_te) :
-                                  nullptr;
+  Collection *to_collection = outliner_collection_from_tree_element(collection_te);
 
   if (!to_collection) {
     return false;
