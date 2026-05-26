@@ -79,7 +79,10 @@ def release_service(storage_path: _Path) -> None:
     """Close a DiskFileHashService and release its resources.
 
     Since DiskFileHashService instances should not be shared across threads,
-    when your thread is done with the service, call this function.
+    when your thread is done with the service, call this function. This is
+    mandatory, as thread IDs can be reused; not releasing the service when
+    your thread is done with it can cause hard-to-diagnose corruptions when
+    the thread ID is reused by another thread.
 
     If your DFHS is only ever used from the main thread, it is not mandatory to
     release it, as that'll automatically happen when a new blend file loads or
