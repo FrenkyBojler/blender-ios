@@ -159,6 +159,7 @@ bool transform_mode_edge_seq_slide_use_restore_handle_selection(const TransInfo 
 
 extern TransModeInfo TransMode_edgeslide;
 void transform_mode_edge_slide_reproject_input(TransInfo *t);
+void transform_mode_edge_slide_clone_confirm(TransInfo *t);
 
 /* `transform_mode_gpopacity.cc` */
 

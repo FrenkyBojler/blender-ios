@@ -13,6 +13,8 @@
 #include "BLI_math_matrix.hh"
 #include "BLI_string_utf8.h"
 
+#include "DNA_mesh_types.h"
+
 #include "BKE_editmesh.hh"
 #include "BKE_editmesh_bvh.hh"
 #include "BKE_unit.hh"
@@ -104,6 +106,9 @@ struct EdgeSlideParams {
   bool update_status_bar;
   bool use_clone;
 };
+
+/* Forward declaration — defined after initEdgeSlide_ex; called from transform_convert_mesh.cc. */
+void transform_mode_edge_slide_clone_confirm(TransInfo *t);
 
 /**
  * Get the first valid TransDataContainer *.
@@ -585,6 +590,36 @@ static void drawEdgeSlide(TransInfo *t)
     }
     immEnd();
   }
+  else if (slp->use_clone) {
+    if (!sld->clone_neighbor_data.is_empty()) {
+      const int keep_side = (slp->perc >= 0.0f) ? 0 : 1;
+
+      /* Make sure keep side has at least one valid edge. */
+      int edge_count = 0;
+      for (const EdgeSlideData::CloneNeighborData &nd : sld->clone_neighbor_data) {
+        edge_count += int(nd.neighbors[keep_side].size());
+      }
+
+      if (edge_count > 0) {
+        GPU_line_width(line_size);
+        immUniformThemeColorShadeAlpha(TH_EDGE_SELECT, 80, -100);
+        immBegin(GPU_PRIM_LINES, edge_count * 2);
+
+        for (int i = 0; i < int(sld->clone_neighbor_data.size()); i++) {
+          BMVert *v_clone = static_cast<BMVert *>(sld->sv[i].td->extra);
+          const EdgeSlideData::CloneNeighborData &nd = sld->clone_neighbor_data[i];
+          
+          for (BMVert *nb : nd.neighbors[keep_side]) {
+            immVertex3fv(pos, v_clone->co);
+            immVertex3fv(pos, nb->co);
+          }
+        }
+        immEnd();
+      }
+    }
+
+
+  }
   else {
     /* Common case. */
     const int alpha_shade = -160;
@@ -892,6 +927,123 @@ static void edge_slide_transform_matrix_fn(TransInfo *t, float mat_xform[4][4])
 
   sub_v3_v3v3(delta, final_co, orig_co);
   add_v3_v3(mat_xform[3], delta);
+}
+
+void transform_mode_edge_slide_clone_confirm(TransInfo *t)
+{
+  EdgeSlideParams *slp = static_cast<EdgeSlideParams *>(t->custom.mode.data);
+  if (!slp || !slp->use_clone) {
+    return;
+  }
+
+  FOREACH_TRANS_DATA_CONTAINER (t, tc) {
+    EdgeSlideData *sld = static_cast<EdgeSlideData *>(tc->custom.mode.data);
+    if (!sld || sld->clone_neighbor_data.is_empty()) {
+      continue;
+    }
+
+    BMEditMesh *em = BKE_editmesh_from_object(tc->obedit);
+    BMesh *bm = em->bm;
+    const int keep_side = (t->values_final[0] >= 0.0f) ? 0 : 1;
+
+    /* Build orig to clone map. */
+    Map<BMVert *, BMVert *> orig_to_clone;
+    orig_to_clone.reserve(sld->sv.size());
+    for (int i = 0; i < int(sld->sv.size()); i++) {
+      orig_to_clone.add(sld->clone_neighbor_data[i].v,
+                        static_cast<BMVert *>(sld->sv[i].td->extra));
+    }
+
+    /* Tag keep-side neighbor verts so we can identify keep-side faces. */
+    BM_mesh_elem_hflag_disable_all(bm, BM_VERT, BM_ELEM_TAG, false);
+    for (const EdgeSlideData::CloneNeighborData &nd : sld->clone_neighbor_data) {
+      for (BMVert *nb : nd.neighbors[keep_side]) {
+        BM_elem_flag_enable(nb, BM_ELEM_TAG);
+      }
+    }
+
+    /* Separate keep-side face loops from each original vert. */
+    Map<BMVert *, BMVert *> orig_to_sep;
+    orig_to_sep.reserve(sld->clone_neighbor_data.size());
+
+    for (const EdgeSlideData::CloneNeighborData &nd : sld->clone_neighbor_data) {
+      BMVert *v_orig = nd.v;
+
+      Vector<BMLoop *> keep_loops;
+      BMFace *f;
+      BMIter f_iter;
+      BM_ITER_ELEM (f, &f_iter, v_orig, BM_FACES_OF_VERT) {
+        /* Accept faces that contain at least one tagged keep-side neighbor. */
+        bool has_keep_nb = false;
+        BMLoop *l;
+        BMIter l_iter;
+        BM_ITER_ELEM (l, &l_iter, f, BM_LOOPS_OF_FACE) {
+          if (BM_elem_flag_test(l->v, BM_ELEM_TAG)) {
+            has_keep_nb = true;
+            break;
+          }
+        }
+        if (!has_keep_nb) {
+          continue;
+        }
+        BM_ITER_ELEM (l, &l_iter, f, BM_LOOPS_OF_FACE) {
+          if (l->v == v_orig) {
+            keep_loops.append(l);
+            break;
+          }
+        }
+      }
+
+      if (keep_loops.is_empty()) {
+        continue;
+      }
+
+      BMVert *v_sep = BM_face_loop_separate_multi(bm, keep_loops.data(), keep_loops.size());
+      orig_to_sep.add(v_orig, v_sep);
+    }
+
+    /* Reposition separated verts to clone positions, then kill clone verts. */
+    for (const EdgeSlideData::CloneNeighborData &nd : sld->clone_neighbor_data) {
+      BMVert *v_orig = nd.v;
+      BMVert *v_clone = orig_to_clone.lookup(v_orig);
+      BMVert *v_sep = orig_to_sep.lookup_default(v_orig, nullptr);
+
+      if (v_sep) {
+        copy_v3_v3(v_sep->co, v_clone->co);
+      }
+      BM_vert_kill(bm, v_clone);
+    }
+
+    /* Create band faces. */
+    for (int i = 0; i < int(sld->clone_neighbor_data.size()); i++) {
+      BMVert *v_orig1 = sld->clone_neighbor_data[i].v;
+      BMVert *v_sep1 = orig_to_sep.lookup_default(v_orig1, nullptr);
+      if (!v_sep1) {
+        continue;
+      }
+      for (int j = i + 1; j < int(sld->clone_neighbor_data.size()); j++) {
+        BMVert *v_orig2 = sld->clone_neighbor_data[j].v;
+        if (!BM_edge_exists(v_orig1, v_orig2)) {
+          continue;
+        }
+        BMVert *v_sep2 = orig_to_sep.lookup_default(v_orig2, nullptr);
+        if (!v_sep2) {
+          continue;
+        }
+        BMVert *quad[4] = {v_orig1, v_sep1, v_sep2, v_orig2};
+        BM_face_create_verts(bm, quad, 4, nullptr, BM_CREATE_NOP, true);
+      }
+    }
+
+    BM_mesh_elem_hflag_disable_all(bm, BM_VERT, BM_ELEM_TAG, false);
+    EDBM_selectmode_flush(em);
+
+    EDBMUpdate_Params update_params{};
+    update_params.calc_looptris = true;
+    update_params.calc_normals = true;
+    update_params.is_destructive = true;
+    EDBM_update(id_cast<Mesh *>(tc->obedit->data), &update_params);
+  }
 }
 
 static void initEdgeSlide_ex(TransInfo *t,

@@ -38,6 +38,7 @@
 #include "transform_snap.hh"
 
 #include "transform_convert.hh"
+#include "transform_mode.hh"
 
 namespace blender::ed::transform {
 
@@ -2107,6 +2108,7 @@ static void special_aftertrans_update__mesh(bContext * /*C*/, TransInfo *t)
     FOREACH_TRANS_DATA_CONTAINER (t, tc) {
       mesh_customdatacorrect_apply(tc, true);
     }
+    transform_mode_edge_slide_clone_confirm(t);
   }
 
   if (use_automerge) {
