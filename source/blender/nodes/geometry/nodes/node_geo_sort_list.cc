@@ -4,9 +4,12 @@
 
 #include "BKE_attribute_math.hh"
 
-#include "BLI_array_utils.hh"
-#include "BLI_sort.hh"
+#include "BLI_index_mask.hh"
 
+#include "GEO_reorder.hh"
+
+#include "NOD_geometry_nodes_bundle.hh"
+#include "NOD_geometry_nodes_closure.hh"
 #include "NOD_geometry_nodes_list.hh"
 #include "NOD_geometry_nodes_values.hh"
 #include "NOD_rna_define.hh"
@@ -42,7 +45,17 @@ static void node_declare(NodeDeclarationBuilder &b)
       .structure_type(StructureType::List)
       .align_with_previous();
 
-  b.add_input<decl::Float>("Weights"_ustr)
+  b.add_input<decl::Bool>("Selection"_ustr)
+      .default_value(true)
+      .hide_value()
+      .structure_type(StructureType::Dynamic)
+      .description("Whether each element should participate in sorting");
+  b.add_input<decl::Int>("Group ID"_ustr)
+      .default_value(0)
+      .hide_value()
+      .structure_type(StructureType::Dynamic)
+      .description("Elements with the same Group ID are sorted together");
+  b.add_input<decl::Float>("Sort Weight"_ustr)
       .default_value(0.0f)
       .hide_value()
       .structure_type(StructureType::Dynamic)
@@ -71,13 +84,59 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
   const eNodeSocketDatatype socket_type = eNodeSocketDatatype(params.other_socket().type);
   if (params.in_out() == SOCK_IN) {
     if (params.node_tree().typeinfo->validate_link(socket_type, SOCK_FLOAT)) {
-      params.add_item(IFACE_("Weights"), SocketSearchOp{"Weights"_ustr, SOCK_FLOAT});
+      params.add_item(IFACE_("Sort Weight"), SocketSearchOp{"Sort Weight"_ustr, SOCK_FLOAT});
     }
     params.add_item(IFACE_("List"), SocketSearchOp{"List"_ustr, socket_type});
   }
   else {
     params.add_item(IFACE_("List"), SocketSearchOp{"List"_ustr, socket_type});
   }
+}
+
+static std::optional<Array<int>> sorted_indices_for_list(const int size,
+                                                         const VArray<bool> &selection,
+                                                         const VArray<int> &group_id,
+                                                         const VArray<float> &weight)
+{
+  if (size == 0) {
+    return std::nullopt;
+  }
+  IndexMaskMemory memory;
+  IndexMask mask;
+  if (selection.is_single()) {
+    if (!selection.get_internal_single()) {
+      return std::nullopt;
+    }
+    mask = IndexRange(size);
+  }
+  else {
+    mask = IndexMask::from_bools(selection, memory);
+  }
+  return geometry::sort_indices_by_weights(size, mask, group_id, weight);
+}
+
+template<typename T>
+static VArray<T> resolve_variant_to_varray(bke::SocketValueVariant &variant,
+                                           const int size,
+                                           const T default_val,
+                                           GListPtr &r_list)
+{
+  if (variant.is_context_dependent_field()) {
+    fn::GField field = variant.extract<fn::GField>();
+    r_list = evaluate_field_to_list(std::move(field), size);
+    if (r_list) {
+      return r_list->varray().typed<T>();
+    }
+    return VArray<T>::from_single(default_val, size);
+  }
+  if (variant.is_list()) {
+    r_list = variant.extract<GListPtr>();
+    if (r_list && int(r_list->size()) == size) {
+      return r_list->varray().typed<T>();
+    }
+    return VArray<T>::from_single(default_val, size);
+  }
+  return VArray<T>::from_single(variant.get<T>(), size);
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
@@ -100,65 +159,28 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
+  bke::SocketValueVariant selection_variant = params.extract_input<bke::SocketValueVariant>(
+      "Selection"_ustr);
+  bke::SocketValueVariant group_id_variant = params.extract_input<bke::SocketValueVariant>(
+      "Group ID"_ustr);
   bke::SocketValueVariant weights_variant = params.extract_input<bke::SocketValueVariant>(
-      "Weights"_ustr);
+      "Sort Weight"_ustr);
 
-  GListPtr weights_list;
-  if (weights_variant.is_context_dependent_field()) {
-    fn::GField field = weights_variant.extract<fn::GField>();
-    weights_list = evaluate_field_to_list(std::move(field), list_size);
-    if (!weights_list) {
-      params.error_message_add(NodeWarningType::Error, "Failed to evaluate weights field");
-      params.set_output("List"_ustr, std::move(list));
-      return;
-    }
-  }
-  else if (weights_variant.is_list()) {
-    weights_list = weights_variant.get<GListPtr>();
-    const int weights_list_size = weights_list->size();
-    if (!weights_list) {
-      params.set_output("List"_ustr, std::move(list));
-      return;
-    }
-    if (weights_list_size <= 1) {
-      params.set_output("List"_ustr, std::move(list));
-      return;
-    }
-    if (weights_list_size != list_size) {
-      params.error_message_add(
-          NodeWarningType::Error,
-          "List and Weights must have the same length (List: " + std::to_string(list_size) +
-              ", Weights: " + std::to_string(weights_list->size()) + ")");
-      params.set_default_remaining_outputs();
-      return;
-    }
-  }
-  else if (weights_variant.is_single()) {
+  GListPtr selection_list, group_id_list, weights_list;
+  const VArray<bool> selection = resolve_variant_to_varray<bool>(
+      selection_variant, list_size, true, selection_list);
+  const VArray<int> group_id = resolve_variant_to_varray<int>(
+      group_id_variant, list_size, 0, group_id_list);
+  const VArray<float> weights = resolve_variant_to_varray<float>(
+      weights_variant, list_size, 0.0f, weights_list);
+
+  const std::optional<Array<int>> sorted = sorted_indices_for_list(
+      list_size, selection, group_id, weights);
+
+  if (!sorted) {
     params.set_output("List"_ustr, std::move(list));
     return;
   }
-  else {
-    params.error_message_add(NodeWarningType::Warning,
-                             "\"Weights\" input must be a field or a list");
-    params.set_output("List"_ustr, std::move(list));
-    return;
-  }
-
-  Array<float> weights(list_size);
-  const VArray<float> weights_varray = weights_list->varray().typed<float>();
-  weights_varray.materialize(weights.as_mutable_span());
-
-  Array<int> indices(list_size);
-  array_utils::fill_index_range<int>(indices.as_mutable_span());
-
-  parallel_sort(indices.begin(), indices.end(), [&](const int index_a, const int index_b) {
-    const float weight_a = weights[index_a];
-    const float weight_b = weights[index_b];
-    if (UNLIKELY(weight_a == weight_b)) {
-      return index_a < index_b;
-    }
-    return weight_a < weight_b;
-  });
 
   const CPPType &type = list->cpp_type();
   const GList::DataVariant &list_data = list->data();
@@ -168,9 +190,8 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  GList::ArrayData sorted_array_data = GList::ArrayData::ForUninitialized(type, list_size);
-
   if (const auto *array_data = std::get_if<GList::ArrayData>(&list_data)) {
+    GList::ArrayData sorted_array_data = GList::ArrayData::ForUninitialized(type, list_size);
     const GSpan src_span(type, array_data->data, list_size);
     GMutableSpan dst_span = sorted_array_data.span_for_write(type, list_size);
 
@@ -189,8 +210,8 @@ static void node_geo_exec(GeoNodeExecParams params)
                         float4x4,
                         nodes::MenuValue,
                         std::string,
-                        nodes::BundlePtr *,
-                        nodes::ClosurePtr *,
+                        nodes::BundlePtr,
+                        nodes::ClosurePtr,
                         GeometrySet,
                         Material *,
                         Object *,
@@ -198,12 +219,15 @@ static void node_geo_exec(GeoNodeExecParams params)
                         VFont *,
                         Scene *,
                         bSound *>([&]<typename T>() {
-      array_utils::gather(src_span.typed<T>(), indices.as_span(), dst_span.typed<T>());
+      array_utils::gather(src_span.typed<T>(), sorted->as_span(), dst_span.typed<T>());
     });
+
+    GListPtr sorted_list = GList::create(type, std::move(sorted_array_data), list_size);
+    params.set_output("List"_ustr, std::move(sorted_list));
+    return;
   }
 
-  GListPtr sorted_list = GList::create(type, std::move(sorted_array_data), list_size);
-  params.set_output("List"_ustr, std::move(sorted_list));
+  params.set_default_remaining_outputs();
 }
 
 static void node_rna(StructRNA *srna)
