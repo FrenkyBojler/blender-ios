@@ -333,7 +333,7 @@ static int find_unlocked_unmuted_channel(const Editing *ed, int channel_index)
 
   while (channel_index < seq::MAX_CHANNELS) {
     SeqTimelineChannel *channel = seq::channel_get_by_index(channels, channel_index);
-    if (!seq::channel_is_muted(channel) && !seq::channel_is_locked(channel)) {
+    if (!channel->is_muted() && !channel->is_locked()) {
       break;
     }
     channel_index++;
@@ -1253,7 +1253,7 @@ static void sequencer_add_movie_strips_single_file(bContext *C,
   BLI_path_abs(filepath_abs, BKE_main_blendfile_path(bmain));
 
   char colorspace[/*MAX_COLORSPACE_NAME*/ 64] = "\0";
-  MovieReader *probe_anim = openanim_noload(filepath_abs, IB_byte_data, 0, true, colorspace);
+  MovieReader *probe_anim = openanim_noload(filepath_abs, ImBufFlags::Zero, 0, true, colorspace);
   const int video_count = MOV_get_video_stream_count(probe_anim);
   const int sound_count = load_sound ? BKE_sound_stream_count(bmain, filepath_abs) : 0;
 
@@ -1815,7 +1815,7 @@ static bool sequencer_add_images(bContext *C, wmOperator *op, seq::LoadData &loa
   const char *blendfile_path = BKE_main_blendfile_path(bmain);
   ListBaseT<ImageFrameRange> ranges = ED_image_filesel_detect_sequences(
       blendfile_path, blendfile_path, op, false);
-  if (BLI_listbase_is_empty(&ranges)) {
+  if (ranges.is_empty()) {
     sequencer_add_free(C, op);
     return false;
   }
@@ -1824,7 +1824,7 @@ static bool sequencer_add_images(bContext *C, wmOperator *op, seq::LoadData &loa
   for (ImageFrameRange &range : ranges) {
     /* Populate `load_data` with data from `range`. */
     load_data.image.count = use_placeholders ? range.max_framenr - range.offset + 1 :
-                                               BLI_listbase_count(&range.frames);
+                                               range.frames.count();
     STRNCPY(load_data.path, range.filepath);
     BLI_path_split_file_part(load_data.path, load_data.name, sizeof(load_data.name));
 
@@ -1843,9 +1843,9 @@ static bool sequencer_add_images(bContext *C, wmOperator *op, seq::LoadData &loa
     seq_load_apply_generic_options(C, op, strip);
     load_data.start_frame += seq::transform_single_image_check(strip) ? load_data.image.length :
                                                                         load_data.image.count;
-    BLI_freelistN(&range.frames);
+    range.frames.free_no_destruct();
   }
-  BLI_freelistN(&ranges);
+  ranges.free_no_destruct();
   return true;
 }
 
