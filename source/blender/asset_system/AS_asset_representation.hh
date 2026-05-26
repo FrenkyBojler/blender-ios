@@ -198,7 +198,13 @@ class AssetRepresentation : NonCopyable, NonMovable {
   ID *local_id() const;
   /** Returns if this asset is stored inside this current file, and as such fully editable. */
   bool is_local_id() const;
-  /** The asset is stored online, not on disk. */
+  /**
+   * The asset is purely stored online, there is no local file on disk for this.
+   *
+   * Regardless of what this function returns, there may be 'online info' (information from a
+   * remote asset listing) available, even when the file is on disk and this function returns
+   * `false`.
+   */
   bool is_online() const;
   /**
    * Returns whether the asset is stored in a probably-editable .asset.blend file.
