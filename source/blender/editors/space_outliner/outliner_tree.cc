@@ -798,7 +798,7 @@ static void outliner_sort_type(ListBaseT<TreeElement> *lb)
         }
       }
 
-      BLI_listbase_clear(lb);
+      lb->clear_no_delete();
       tp = tear;
       for (int i = 0; i < totelem; i++, tp++) {
         BLI_addtail(lb, tp->te);
