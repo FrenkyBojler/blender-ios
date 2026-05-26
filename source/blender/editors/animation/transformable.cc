@@ -130,6 +130,8 @@ Rotation Rotation::converted_to_mode(const eRotationModes mode,
       break;
   }
 
+  normalize_qt(quat);
+
   Rotation converted;
   converted.mode = mode;
   switch (mode) {
