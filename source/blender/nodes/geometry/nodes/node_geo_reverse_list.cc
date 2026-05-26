@@ -4,6 +4,8 @@
 
 #include "BKE_attribute_math.hh"
 
+#include "NOD_geometry_nodes_bundle.hh"
+#include "NOD_geometry_nodes_closure.hh"
 #include "NOD_geometry_nodes_list.hh"
 #include "NOD_rna_define.hh"
 #include "NOD_socket.hh"
@@ -108,8 +110,8 @@ static void node_geo_exec(GeoNodeExecParams params)
                         float4x4,
                         nodes::MenuValue,
                         std::string,
-                        nodes::BundlePtr *,
-                        nodes::ClosurePtr *,
+                        nodes::BundlePtr,
+                        nodes::ClosurePtr,
                         GeometrySet,
                         Material *,
                         Object *,
