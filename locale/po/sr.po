@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 Alpha (b'396b6a98e9f6')\n"
+"Project-Id-Version: Blender 5.2.0 Alpha (b'24a58e1403ac')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-05-04 07:43+0000\n"
+"POT-Creation-Date: 2026-05-25 07:25+0000\n"
 "PO-Revision-Date: 2025-07-23 15:10+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Serbian <https://translate.blender.org/projects/blender-ui/ui/sr/>\n"
@@ -621,6 +621,10 @@ msgstr "Активна кост"
 
 msgid "Description"
 msgstr "Опис"
+
+
+msgid "Link"
+msgstr "Веза"
 
 
 msgid "Custom"
@@ -4367,10 +4371,6 @@ msgstr "Филтрирај слике"
 
 msgid "Show image files"
 msgstr "Прикажи датотеке слика"
-
-
-msgid "Link"
-msgstr "Веза"
 
 
 msgid "Matrix"
@@ -8498,40 +8498,12 @@ msgid "Material slot name"
 msgstr "Назив слота материјала"
 
 
-msgid "Show/Hide"
-msgstr "Прикажи/сакриј"
-
-
-msgid "Special Characters"
-msgstr "Специјални знаци"
-
-
-msgid "Metaball"
-msgstr "Мета лопта"
-
-
-msgid "Names"
-msgstr "Имена"
-
-
-msgid "Math"
-msgstr "Математика"
-
-
-msgid "Bone Roll"
-msgstr "Ролна костију"
+msgid "Mirror"
+msgstr "Огледало"
 
 
 msgid "Snap"
 msgstr "Лепљење"
-
-
-msgid "Import"
-msgstr "Увоз"
-
-
-msgid "Mirror"
-msgstr "Огледало"
 
 
 msgid "UV Mapping"
@@ -8550,12 +8522,16 @@ msgid "Align View"
 msgstr "Поравнај поглед"
 
 
-msgid "UV"
-msgstr "UV"
+msgid "Math"
+msgstr "Математика"
 
 
 msgid "Select Linked"
 msgstr "Изабери повезано"
+
+
+msgid "Metaball"
+msgstr "Мета лопта"
 
 
 msgid "Light"
@@ -8582,8 +8558,20 @@ msgid "Quick Effects"
 msgstr "Брзи ефекти"
 
 
+msgid "Import"
+msgstr "Увоз"
+
+
+msgid "Show/Hide"
+msgstr "Прикажи/сакриј"
+
+
 msgid "Hooks"
 msgstr "Удице"
+
+
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Clear Transform"
@@ -8594,16 +8582,12 @@ msgid "In-Betweens"
 msgstr "У међувремену"
 
 
-msgid "Keying"
-msgstr "Збирка тастера"
-
-
 msgid "Propagate"
 msgstr "Пренеси"
 
 
-msgid "Tracking"
-msgstr "Праћење"
+msgid "Names"
+msgstr "Имена"
 
 
 msgid "Toggle Bone Options"
@@ -8624,6 +8608,22 @@ msgstr "Мод избора мреже"
 
 msgid "Merge"
 msgstr "Сједини"
+
+
+msgid "Special Characters"
+msgstr "Специјални знаци"
+
+
+msgid "Bone Roll"
+msgstr "Ролна костију"
+
+
+msgid "Keying"
+msgstr "Збирка тастера"
+
+
+msgid "Tracking"
+msgstr "Праћење"
 
 
 msgid "Basic"
@@ -10156,10 +10156,6 @@ msgstr "Број кадрова у остави"
 
 msgid "Lines"
 msgstr "Линије"
-
-
-msgid "Timecode"
-msgstr "Време"
 
 
 msgid "Average error of reconstruction"
@@ -11986,6 +11982,10 @@ msgid "Add Bone"
 msgstr "Додај кост"
 
 
+msgid "Axes"
+msgstr "Осе"
+
+
 msgid "Name of the newly created bone"
 msgstr "Име новоформиране кости"
 
@@ -12035,6 +12035,10 @@ msgstr "Дуплирај изабрану кост/и"
 
 msgid "Move"
 msgstr "Помери"
+
+
+msgid "Search"
+msgstr "Претрага"
 
 
 msgctxt "Operator"
@@ -13838,6 +13842,11 @@ msgstr "Скочи на претходни/наредни кључни када�
 
 msgid "Next Keyframe"
 msgstr "Следећи кључни кадар"
+
+
+msgctxt "Operator"
+msgid "Local View"
+msgstr "Локални поглед"
 
 
 msgctxt "Operator"
@@ -18505,11 +18514,6 @@ msgid "Interactively fly around the scene"
 msgstr "Интерактиван лет кроз сцену"
 
 
-msgctxt "Operator"
-msgid "Local View"
-msgstr "Локални поглед"
-
-
 msgid "Move the view"
 msgstr "Помери поглед"
 
@@ -22331,10 +22335,6 @@ msgid "Operator Properties"
 msgstr "Особине оператора"
 
 
-msgid "Search"
-msgstr "Претрага"
-
-
 msgctxt "WindowManager"
 msgid "Window"
 msgstr "Прозор"
@@ -22710,10 +22710,6 @@ msgstr "Додај ограничења кости"
 
 msgid "Shapes"
 msgstr "Облици"
-
-
-msgid "Axes"
-msgstr "Осе"
 
 
 msgctxt "Operator"
@@ -23830,6 +23826,11 @@ msgstr "Основа"
 
 msgid "Key %d"
 msgstr "Кључ %d"
+
+
+msgctxt "Key"
+msgid "Key"
+msgstr "Кључ"
 
 
 msgid "MaskLayer"
@@ -25020,11 +25021,6 @@ msgstr "Модификатор вредности F-криве"
 
 msgid "Image not packed"
 msgstr "Назив слике"
-
-
-msgctxt "Key"
-msgid "Key"
-msgstr "Кључ"
 
 
 msgid "unsupported font format"

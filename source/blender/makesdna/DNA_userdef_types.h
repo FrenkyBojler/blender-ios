@@ -183,7 +183,7 @@ enum eUserpref_UI_Flag2 : char {
   USER_REGION_OVERLAP = (1 << 1),
   USER_UIFLAG2_UNUSED_2 = (1 << 2),
   USER_UIFLAG2_UNUSED_3 = (1 << 3), /* dirty */
-  USER_UIFLAG2_SHOW_ONLINE_ASSETS = (1 << 4),
+  USER_UIFLAG2_UNUSED_4 = (1 << 4), /* Not cleared! */
   USER_UIFLAG2_PANEL_TABS_COMPACT = (1 << 5),
 };
 ENUM_OPERATORS(eUserpref_UI_Flag2)
@@ -650,12 +650,20 @@ struct bUserAssetLibrary {
    * (#ASSET_LIBRARY_USE_REMOTE_URL), this is the download cache directory, where already
    * downloaded assets will be placed. */
   char dirpath[/*FILE_MAX*/ 1024] = "";
-  /** Only for remote asset libraries (#ASSET_LIBRARY_USE_REMOTE_URL is set). */
+  /** Only for remote asset libraries (#ASSET_LIBRARY_USE_REMOTE_URL is set). Update using
+   * #BKE_preferences_remote_asset_library_url_set() only. */
   char remote_url[/*FILE_MAX*/ 1024];
 
   short import_method = ASSET_IMPORT_PACK;  /* eAssetImportMethod */
   short flag = ASSET_LIBRARY_RELATIVE_PATH; /* eAssetLibrary_Flag */
   char _pad0[4] = {};
+
+#ifdef __cplusplus
+  bool is_enabled() const
+  {
+    return (this->flag & ASSET_LIBRARY_DISABLED) == 0;
+  }
+#endif
 };
 
 enum eUserExtensionRepo_Flag : uint8_t {
@@ -848,7 +856,9 @@ struct UserDef_Experimental {
   char use_sculpt_texture_paint = 0;
   char use_shader_node_previews = 0;
   char use_geometry_bundle = 0;
-  char use_remote_asset_libraries = 0;
+  /* As a temporary exception to the above sanitation rules, this flag is always ON. The work to
+   * actually remove this flag is tracked in #158903. */
+  char use_remote_asset_libraries = 1;
   char use_collection_importer = 0;
   char use_geometry_nodes_hair_dynamics = 0;
   char _pad[2] = {};
@@ -939,7 +949,9 @@ struct UserDef {
   short versions = 1;
   short dbl_click_time = 350;
 
-  char _pad0[2] = {};
+  AssetAccess asset_access = AssetAccess::OnlineAndOffline;
+
+  char _pad0 = {};
 
   /** Space around each area. Inter-editor gap width. */
   char border_width = 2;
@@ -950,7 +962,7 @@ struct UserDef {
                              USER_NODE_AUTO_OFFSET | USER_GLOBALUNDO | USER_SHOW_GIZMO_NAVIGATE |
                              USER_SHOW_VIEWPORTNAME | USER_SHOW_FPS | USER_CONTINUOUS_MOUSE |
                              USER_SAVE_PROMPT;
-  eUserpref_UI_Flag2 uiflag2 = USER_REGION_OVERLAP | USER_UIFLAG2_SHOW_ONLINE_ASSETS;
+  eUserpref_UI_Flag2 uiflag2 = USER_REGION_OVERLAP;
   eUserpref_GPU_Flag gpu_flag = USER_GPU_FLAG_OVERLAY_SMOOTH_WIRE |
                                 USER_GPU_FLAG_SUBDIVISION_EVALUATION;
 
@@ -1165,7 +1177,8 @@ struct UserDef {
   /** Auto-keying mode. */
   eAutokey_Mode autokey_mode = eAutokey_Mode(AUTOKEY_MODE_NORMAL & ~AUTOKEY_ON);
   /** Flags for inserting keyframes. */
-  eKeying_Flag keying_flag = KEYING_FLAG_XYZ2RGB | AUTOKEY_FLAG_INSERTNEEDED;
+  eKeying_Flag keying_flag = KEYING_FLAG_XYZ2RGB | AUTOKEY_FLAG_INSERTNEEDED |
+                             AUTOKEY_FLAG_INSERTAVAILABLE;
   /** Flags for which channels to insert keys at. */
   eKeyInsertChannels key_insert_channels = USER_ANIM_KEY_CHANNEL_LOCATION |
                                            USER_ANIM_KEY_CHANNEL_ROTATION |

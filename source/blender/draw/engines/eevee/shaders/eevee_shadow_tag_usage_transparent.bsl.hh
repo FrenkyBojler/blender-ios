@@ -9,9 +9,8 @@
  */
 
 #pragma once
-#pragma create_info
 
-#include "infos/eevee_shadow_pipeline_infos.hh"
+#include "draw_view_infos.hh"
 
 COMPUTE_SHADER_CREATE_INFO(draw_modelmat)
 
@@ -33,7 +32,6 @@ struct VertOut {
 
 struct TagUsageTransparent {
   [[legacy_info]] ShaderCreateInfo draw_resource_id_varying;
-  [[legacy_info]] ShaderCreateInfo eevee_hiz_data;
   [[legacy_info]] ShaderCreateInfo draw_modelmat;
 
   [[storage(4, read)]] const ObjectBounds (&bounds_buf)[];
@@ -205,12 +203,13 @@ void tag_usage_vert([[resource_table]] TagUsageTransparent &srt,
 [[fragment]]
 void tag_usage_frag([[resource_table]] TagUsageTransparent &srt,
                     [[resource_table]] TagUsage &tag,
+                    [[resource_table]] const HiZ &hiz,
                     [[in]] const VertOut interp,
                     [[frag_coord]] const float4 frag_co)
 {
   float2 screen_uv = frag_co.xy / float2(srt.fb_resolution);
 
-  float opaque_depth = texelFetch(hiz_tx, int2(frag_co.xy), srt.fb_lod).r;
+  float opaque_depth = texelFetch(hiz.hiz_tx, int2(frag_co.xy), srt.fb_lod).r;
   float3 ws_opaque = drw_point_screen_to_world(float3(screen_uv, opaque_depth));
 
   float3 ws_near_plane = drw_point_screen_to_world(float3(screen_uv, 0.0f));
@@ -253,7 +252,18 @@ void tag_usage_frag([[resource_table]] TagUsageTransparent &srt,
     srt.step_bounding_sphere(vs_near_plane, vs_view_direction, t, t + step_size, P, step_radius);
     float3 vP = drw_point_world_to_view(P);
 
-    tag.tag_pixel(vP, P, frag_co.xy * exp2(float(srt.fb_lod)), ws_view_direction, step_radius, 0);
+    float2 pixel = frag_co.xy * exp2(float(srt.fb_lod));
+
+    [[resource_table]] LightRenderData &lrd = tag.light_data;
+
+    TagPixelCtx ctx = {
+        .P = P,
+        .V = drw_world_incident_vector(P),
+        .radius = step_radius,
+        .lod_bias = 0,
+    };
+
+    light::foreach_visible(lrd, pixel, vP.z, ctx, tag);
   }
 }
 

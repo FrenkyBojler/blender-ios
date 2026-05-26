@@ -73,7 +73,7 @@ CurvesGeometry::CurvesGeometry(const int point_num, const int curve_num)
   CustomData_reset(&this->point_data);
   CustomData_reset(&this->curve_data_legacy);
   new (&this->attribute_storage.wrap()) bke::AttributeStorage();
-  BLI_listbase_clear(&this->vertex_group_names);
+  this->vertex_group_names.clear_no_delete();
 
   this->attributes_for_write().add<float3>(
       "position", AttrDomain::Point, AttributeInitConstruct());
@@ -184,7 +184,7 @@ CurvesGeometry::CurvesGeometry(CurvesGeometry &&other)
   other.curve_num = 0;
 
   this->vertex_group_names = other.vertex_group_names;
-  BLI_listbase_clear(&other.vertex_group_names);
+  other.vertex_group_names.clear_no_delete();
 
   this->vertex_group_active_index = other.vertex_group_active_index;
   other.vertex_group_active_index = 0;
@@ -210,7 +210,7 @@ CurvesGeometry::~CurvesGeometry()
 {
   CustomData_free(&this->point_data);
   this->attribute_storage.wrap().~AttributeStorage();
-  BLI_freelistN(&this->vertex_group_names);
+  this->vertex_group_names.free_no_destruct();
   if (this->runtime) {
     implicit_sharing::free_shared_data(&this->curve_offsets,
                                        &this->runtime->curve_offsets_sharing_info);
@@ -1936,8 +1936,11 @@ void CurvesGeometry::blend_read(BlendDataReader &reader)
   if (this->curve_offsets) {
     this->runtime->curve_offsets_sharing_info = BLO_read_shared(
         &reader, &this->curve_offsets, [&]() {
-          BLO_read_int32_array(&reader, this->curve_num + 1, &this->curve_offsets);
-          return implicit_sharing::info_for_mem_free(this->curve_offsets);
+          if (!BLO_read_array(&reader, &this->curve_offsets, int64_t(this->curve_num) + 1)) {
+            this->curve_num = 0;
+          }
+          return this->curve_offsets ? implicit_sharing::info_for_mem_free(this->curve_offsets) :
+                                       nullptr;
         });
   }
 
@@ -1946,8 +1949,9 @@ void CurvesGeometry::blend_read(BlendDataReader &reader)
   if (this->custom_knot_num) {
     this->runtime->custom_knots_sharing_info = BLO_read_shared(
         &reader, &this->custom_knots, [&]() {
-          BLO_read_float_array(&reader, this->custom_knot_num, &this->custom_knots);
-          return implicit_sharing::info_for_mem_free(this->custom_knots);
+          BLO_read_array_and_validate_size(&reader, &this->custom_knots, &this->custom_knot_num);
+          return this->custom_knots ? implicit_sharing::info_for_mem_free(this->custom_knots) :
+                                      nullptr;
         });
   }
 

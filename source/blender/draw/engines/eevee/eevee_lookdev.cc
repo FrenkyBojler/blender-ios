@@ -420,6 +420,7 @@ void LookdevModule::sync_pass(PassSimple &pass,
   pass.bind_resources(inst_.hiz_buffer.front);
   pass.bind_resources(inst_.volume_probes);
   pass.bind_resources(inst_.sphere_probes);
+  pass.bind_resources(inst_.planar_probes);
   pass.draw(geom, res_handle, 0);
 }
 
@@ -452,7 +453,7 @@ void LookdevModule::draw(View &view)
   inst_.sphere_probes.set_view(view);
 
   if (assign_if_different(inst_.pipelines.data.use_monochromatic_transmittance, bool32_t(true))) {
-    inst_.uniform_data.push_update();
+    inst_.uniform_data.pipeline.push_update();
   }
 
   for (Sphere &sphere : spheres_) {

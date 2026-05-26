@@ -35,7 +35,6 @@ _blender_updates_listing: BlenderUpdatesListing = BlenderUpdatesListing()
 def download_available_updates_list() -> None:
     if _blender_updates_listing.downloader is None:
         _blender_updates_listing.downloader = UpdatesDownloader(
-            lambda x: None,  # on-update callback.
             on_download_done_callback,
             on_done_callback,
         )
@@ -95,10 +94,6 @@ class DownloadStatus(enum.Enum):
 
 class UpdatesDownloader:
 
-    # Called for download progress
-    type OnUpdateCallback = Callable[['UpdatesDownloader'], None]
-    _on_update_callback: OnUpdateCallback
-
     # Called when the entire queue is 'done':
     type OnDoneCallback = Callable[['UpdatesDownloader'], None]
     _on_done_callback: OnDoneCallback
@@ -127,16 +122,10 @@ class UpdatesDownloader:
 
     def __init__(
         self,
-        on_update_callback: OnUpdateCallback,
         on_download_done_callback: OnDownloadDoneCallback,
         on_done_callback: OnDoneCallback,
     ) -> None:
         """Create a downloader for checking the latest available updates.
-
-        :param on_update_callback: Called with one parameter (this
-            UpdatesDownloader) in short, regular intervals
-            (_DOWNLOAD_POLL_INTERVAL) while the download is ongoing, and once
-            just after the download is done.
 
         :param on_done_callback: called with one parameter (this
             UpdatesDownloader) whenever the downloader is "done".
@@ -146,14 +135,13 @@ class UpdatesDownloader:
             this function is still called.
 
         :param on_download_done_callback: called with one parameter (this
-            UpdatesDownloader) when at the list of latest releases has
+            UpdatesDownloader) when the list of latest releases has
             finished downloading and was put in its final location, ready to be
             picked up.
         """
 
-        self._on_done_callback = on_done_callback
-        self._on_update_callback = on_update_callback
         self._on_download_done_callback = on_download_done_callback
+        self._on_done_callback = on_done_callback
 
         self._status = DownloadStatus.IDLE
         self._error_message = ""
@@ -235,7 +223,7 @@ class UpdatesDownloader:
                 http_req_descr, local_file))
         self.report({'ERROR'}, "Resource download had an issue, download aborted")
         self.shutdown(DownloadStatus.FAILED)
-        bpy.types.WindowManager.blender_updates_status_failed_loading()
+        bpy.types.WindowManager.check_for_available_updates_status_failed_loading()
 
     def _queue_download(self, url: str, download_to_path: Path | str) -> Path:
         """Queue up this download, returning the path to which it will be downloaded."""
@@ -281,18 +269,20 @@ class UpdatesDownloader:
             self._temp_dir = None
 
         try:
-            if self._bg_downloader:
-                # Only report if this is actually triggering a shutdown. If that was
-                # already triggered somehow, don't bother.
-                if not self._bg_downloader.is_shutdown_requested:
-                    # It may be tempting to call self.report(...) here, and report on the
-                    # cancellation. However, this should be done by the caller, when they know
-                    # of the reason of the cancellation and thus can provide more info.
-                    num_pending = self._bg_downloader.num_pending_downloads
-                    if num_pending:
-                        logger.warning("Shutting down background downloader, %d downloads pending", num_pending)
+            if not self._bg_downloader:
+                return
 
-                self._bg_downloader.shutdown()
+            # Only report if this is actually triggering a shutdown. If that was
+            # already triggered somehow, don't bother.
+            if not self._bg_downloader.is_shutdown_requested:
+                # It may be tempting to call self.report(...) here, and report on the
+                # cancellation. However, this should be done by the caller, when they know
+                # of the reason of the cancellation and thus can provide more info.
+                num_pending = self._bg_downloader.num_pending_downloads
+                if num_pending:
+                    logger.warning("Shutting down background downloader, %d downloads pending", num_pending)
+
+            self._bg_downloader.shutdown()
         finally:
             # Regardless of whether the shutdown had some issues, the timer has
             # been unregistered, so there will be no more message handling, and
@@ -321,8 +311,6 @@ class UpdatesDownloader:
             else:
                 self._status = DownloadStatus.IDLE
 
-        self._on_update_callback(self)
-
         return self._DOWNLOAD_POLL_INTERVAL
 
     @property
@@ -333,10 +321,7 @@ class UpdatesDownloader:
     def error_message(self) -> str:
         return self._error_message
 
-    # Below here: CachingDownloadReporter functions:
-
     def download_starts(self, http_req_descr: http_dl.RequestDescription) -> None:
-        self.report({'INFO'}, "Download starting: {}".format(http_req_descr.url))
         logger.debug("Download starting: %s", http_req_descr)
 
     def already_downloaded(
@@ -344,8 +329,6 @@ class UpdatesDownloader:
         http_req_descr: http_dl.RequestDescription,
         local_file: Path,
     ) -> None:
-        logger.debug("Download unnecessary, file already downloaded: %s", http_req_descr.url)
-        # TODO: tell Blender this file is done.
         self._shutdown_if_done()
 
     def download_error(
@@ -360,12 +343,9 @@ class UpdatesDownloader:
     def download_progress(
         self,
         http_req_descr: http_dl.RequestDescription,
-        content_length_bytes: int,
-        downloaded_bytes: int,
+        progress: http_dl.DownloadProgress,
     ) -> None:
-        percentage = downloaded_bytes / content_length_bytes * 100
-        self.report({'INFO'}, "File download progress: {:.0f}%".format(percentage))
-        # logger.info("File download progress: %.0f%%", percentage)
+        pass
 
     def download_finished(
         self,
@@ -373,9 +353,5 @@ class UpdatesDownloader:
         local_file: Path,
     ) -> None:
         _blender_updates_listing.downloader = None
-
-        self.report({'INFO'}, "Download finished: {}".format(http_req_descr.url))
         logger.info("Download finished: %s", http_req_descr)
-
-        # TODO: tell Blender the download is done.
         self._shutdown_if_done()

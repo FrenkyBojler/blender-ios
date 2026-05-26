@@ -471,21 +471,21 @@ class SEQUENCER_MT_view(Menu):
             layout.separator()
             layout.menu("SEQUENCER_MT_proxy")
             layout.operator_context = 'INVOKE_DEFAULT'
-            layout.separator()
+
+        layout.separator()
+        layout.prop(st, "show_seconds")
 
         if is_sequencer_view:
-            layout.separator()
 
             layout.prop(st, "show_markers")
-            layout.prop(st, "show_seconds")
             layout.prop(st, "show_locked_time")
             layout.separator()
 
             layout.operator_context = 'INVOKE_DEFAULT'
             layout.menu("SEQUENCER_MT_navigation")
             layout.menu("SEQUENCER_MT_range")
-            layout.separator()
 
+        layout.separator()
         layout.operator("render.opengl", text="Render Still Preview", icon='RENDER_STILL').sequencer = True
         props = layout.operator("render.opengl", text="Render Sequence Preview", icon='RENDER_ANIMATION')
         props.animation = True
@@ -1518,7 +1518,6 @@ class SEQUENCER_MT_modifier_add(Menu):
             self.operator_modifier_add(layout, 'SOUND_EQUALIZER')
             self.operator_modifier_add(layout, 'PITCH')
             self.operator_modifier_add(layout, 'ECHO')
-
         else:
             self.operator_modifier_add(layout, 'BRIGHT_CONTRAST')
             self.operator_modifier_add(layout, 'COLOR_BALANCE')
@@ -1528,6 +1527,7 @@ class SEQUENCER_MT_modifier_add(Menu):
             self.operator_modifier_add(layout, 'MASK')
             self.operator_modifier_add(layout, 'TONEMAP')
             self.operator_modifier_add(layout, 'WHITE_BALANCE')
+            layout.menu_contents("SEQUENCER_MT_modifier_add_root_catalogs")
 
 
 class SequencerButtonsPanel:
@@ -1702,7 +1702,7 @@ class SEQUENCER_PT_proxy_settings(SequencerButtonsPanel, Panel):
 
 
 class SEQUENCER_PT_strip_proxy(SequencerButtonsPanel, Panel):
-    bl_label = "Strip Proxy & Timecode"
+    bl_label = "Strip Proxy"
     bl_category = "Proxy"
 
     @classmethod
@@ -1755,11 +1755,6 @@ class SEQUENCER_PT_strip_proxy(SequencerButtonsPanel, Panel):
 
             col = layout.column()
             col.prop(proxy, "quality", text="Quality")
-
-            if strip.type == 'MOVIE':
-                col = layout.column()
-
-                col.prop(proxy, "timecode", text="Timecode Index")
 
 
 class SEQUENCER_PT_preview(SequencerButtonsPanel_Output, Panel):

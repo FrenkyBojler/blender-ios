@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 Alpha (b'396b6a98e9f6')\n"
+"Project-Id-Version: Blender 5.2.0 Alpha (b'24a58e1403ac')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-05-04 07:43+0000\n"
+"POT-Creation-Date: 2026-05-25 07:25+0000\n"
 "PO-Revision-Date: 2025-12-01 09:17+0000\n"
 "Last-Translator: Matt Mitacek <mattmitacek@gmail.com>\n"
 "Language-Team: Czech <https://translate.blender.org/projects/blender-ui/ui/cs/>\n"
@@ -1447,6 +1447,18 @@ msgid "License"
 msgstr "Licence"
 
 
+msgid "Link"
+msgstr "Připojit"
+
+
+msgid "Append"
+msgstr "Připojit"
+
+
+msgid "Pack"
+msgstr "Zabalit"
+
+
 msgid "Tags"
 msgstr "Tagy"
 
@@ -1530,10 +1542,6 @@ msgstr "Zobrazit objekty dostupné v této relaci Blenderu"
 
 msgid "Essentials"
 msgstr "Nezbytnosti"
-
-
-msgid "Show the basic building blocks and utilities coming with Blender"
-msgstr "Zobrazit základní součásti a služby dostupné v Blenderu"
 
 
 msgid "Custom"
@@ -7672,18 +7680,6 @@ msgid "Show text files"
 msgstr "Ukáže textové soubory"
 
 
-msgid "Link"
-msgstr "Připojit"
-
-
-msgid "Append"
-msgstr "Připojit"
-
-
-msgid "Pack"
-msgstr "Zabalit"
-
-
 msgid "2D vector"
 msgstr "2D vektor"
 
@@ -10230,10 +10226,6 @@ msgstr "Snímková frekvence"
 
 msgid "Movie File"
 msgstr "Přidat action strip"
-
-
-msgid "Use Proxy / Timecode"
-msgstr "Editační mód"
 
 
 msgid "Proxy Custom Directory"
@@ -13839,60 +13831,12 @@ msgid "Material slot name"
 msgstr "Název okénka materiálu"
 
 
-msgid "Clean Up"
-msgstr "Vyčistit"
-
-
-msgid "Show/Hide"
-msgstr "Zobrazit/skrýt"
-
-
-msgid "Special Characters"
-msgstr "Speciální Znaky"
-
-
-msgid "Metaball"
-msgstr "Meta objekt"
-
-
-msgid "Names"
-msgstr "Názvy"
-
-
-msgid "Math"
-msgstr "Matematika"
-
-
-msgid "Bone Roll"
-msgstr "Kost"
-
-
-msgid "Utilities"
-msgstr "Nástroje"
-
-
-msgid "Pivot Point"
-msgstr "Bod pro pivot"
+msgid "Mirror"
+msgstr "Zrcadlit"
 
 
 msgid "Snap"
 msgstr "Přichytit"
-
-
-msgid "Proportional Editing Falloff"
-msgstr "Způsob útlumu"
-
-
-msgid "Instances"
-msgstr "Instance"
-
-
-msgid "Import"
-msgstr "Importovat"
-
-
-msgid "Mirror"
-msgstr "Zrcadlit"
 
 
 msgid "UV Mapping"
@@ -13911,12 +13855,24 @@ msgid "Align View"
 msgstr "Zarovnat pohled"
 
 
+msgid "Math"
+msgstr "Matematika"
+
+
 msgid "Select Linked"
 msgstr "Vybrat Propojené"
 
 
+msgid "Utilities"
+msgstr "Nástroje"
+
+
 msgid "Assign Material"
 msgstr "Přiřadit Materiál"
+
+
+msgid "Metaball"
+msgstr "Meta objekt"
 
 
 msgid "Light"
@@ -13931,6 +13887,10 @@ msgid "Rigid Body"
 msgstr "Tuhé Těleso"
 
 
+msgid "Instances"
+msgstr "Instance"
+
+
 msgid "Apply"
 msgstr "Použít"
 
@@ -13943,6 +13903,18 @@ msgid "Quick Effects"
 msgstr "Rychlé Efekty"
 
 
+msgid "Import"
+msgstr "Importovat"
+
+
+msgid "Show/Hide"
+msgstr "Zobrazit/skrýt"
+
+
+msgid "Clean Up"
+msgstr "Vyčistit"
+
+
 msgid "Make Single User"
 msgstr "Přivlastnit"
 
@@ -13951,24 +13923,16 @@ msgid "Hooks"
 msgstr "Háky"
 
 
-msgid "Layout"
-msgstr "Rozložení"
-
-
 msgid "Clear Transform"
 msgstr "Vyčistit transformaci"
-
-
-msgid "Keying"
-msgstr "Klíčovací sestava"
 
 
 msgid "Propagate"
 msgstr "Vložit"
 
 
-msgid "Tracking"
-msgstr "Sledování"
+msgid "Names"
+msgstr "Názvy"
 
 
 msgid "Mesh Select Mode"
@@ -13981,6 +13945,34 @@ msgstr "Data Ploch"
 
 msgid "Merge"
 msgstr "Sloučit"
+
+
+msgid "Special Characters"
+msgstr "Speciální Znaky"
+
+
+msgid "Layout"
+msgstr "Rozložení"
+
+
+msgid "Bone Roll"
+msgstr "Kost"
+
+
+msgid "Keying"
+msgstr "Klíčovací sestava"
+
+
+msgid "Tracking"
+msgstr "Sledování"
+
+
+msgid "Pivot Point"
+msgstr "Bod pro pivot"
+
+
+msgid "Proportional Editing Falloff"
+msgstr "Způsob útlumu"
 
 
 msgid "Basic"
@@ -16270,18 +16262,6 @@ msgstr "Normály směrem ven"
 
 msgid "Proxy parameters for a movie clip"
 msgstr "První frame animace"
-
-
-msgid "Rec Run"
-msgstr "Otevřít naposledy použité"
-
-
-msgid "Timecode"
-msgstr "Editační mód"
-
-
-msgid "Record Run No Gaps"
-msgstr "Volný"
 
 
 msgid "Movie Clip User"
@@ -18639,11 +18619,11 @@ msgid "Flip times of selected keyframes using the current frame as the mirror li
 msgstr "Převede označené hrany na plošky a označí nové vertexy"
 
 
-msgid "Flip values of selected keyframes (i.e. negative values become positive, and vice versa)"
+msgid "Flip times of selected keyframes using the first selected marker as the reference point"
 msgstr "Převede označené hrany na plošky a označí nové vertexy"
 
 
-msgid "Flip times of selected keyframes using the first selected marker as the reference point"
+msgid "Flip values of selected keyframes (i.e. negative values become positive, and vice versa)"
 msgstr "Převede označené hrany na plošky a označí nové vertexy"
 
 
@@ -19253,6 +19233,10 @@ msgid "Add Bone"
 msgstr "Přidat opičku"
 
 
+msgid "Axes"
+msgstr "Osy"
+
+
 msgid "Name of the newly created bone"
 msgstr "Název pro nově vytvořenou kost"
 
@@ -19327,6 +19311,10 @@ msgstr "Přesunout"
 
 msgid "Move selected items"
 msgstr "Přesunout vybrané objekty"
+
+
+msgid "Search"
+msgstr "Hledat"
 
 
 msgctxt "Operator"
@@ -20022,11 +20010,6 @@ msgstr "Alfa"
 msgctxt "Operator"
 msgid "Paste Tracks"
 msgstr "Vytvořit sledování"
-
-
-msgctxt "Operator"
-msgid "Rebuild Proxy and Timecode Indices"
-msgstr "Editační mód"
 
 
 msgid "Backwards"
@@ -21903,11 +21886,16 @@ msgid "Next Keyframe"
 msgstr "Další klíč"
 
 
-msgid "Flip values of selected keyframes using the cursor value (Y/Horizontal component) as the mirror line"
-msgstr "Převede označené hrany na plošky a označí nové vertexy"
+msgctxt "Operator"
+msgid "Local View"
+msgstr "Lokální pohled"
 
 
 msgid "Flip times of selected keyframes, effectively reversing the order they appear in"
+msgstr "Převede označené hrany na plošky a označí nové vertexy"
+
+
+msgid "Flip values of selected keyframes using the cursor value (Y/Horizontal component) as the mirror line"
 msgstr "Převede označené hrany na plošky a označí nové vertexy"
 
 
@@ -29266,11 +29254,6 @@ msgid "Interactively fly around the scene"
 msgstr "Insteraktivní přelet nad scénou"
 
 
-msgctxt "Operator"
-msgid "Local View"
-msgstr "Lokální pohled"
-
-
 msgid "Toggle display of selected object(s) separately and centered in view"
 msgstr "Přepíná celkové zobrazené scény a částečné zobrazení vybraného(-ých) objektu(-ů)"
 
@@ -30347,26 +30330,6 @@ msgid "Restrict"
 msgstr "Omezit"
 
 
-msgid "Active Tool"
-msgstr "Aktivní nástroj"
-
-
-msgid "View Lock"
-msgstr "Zámek zobrazení"
-
-
-msgid "Shadow Settings"
-msgstr "Nastavení Stínů"
-
-
-msgid "SSAO Settings"
-msgstr "Nastavení SSAO"
-
-
-msgid "Cavity"
-msgstr "Dutina"
-
-
 msgid "Overlays"
 msgstr "Překrytí"
 
@@ -30403,6 +30366,26 @@ msgid "Auto-Masking"
 msgstr "Auto-Maska"
 
 
+msgid "Active Tool"
+msgstr "Aktivní nástroj"
+
+
+msgid "View Lock"
+msgstr "Zámek zobrazení"
+
+
+msgid "Shadow Settings"
+msgstr "Nastavení Stínů"
+
+
+msgid "SSAO Settings"
+msgstr "Nastavení SSAO"
+
+
+msgid "Cavity"
+msgstr "Dutina"
+
+
 msgid "Chain Scaling"
 msgstr "Změna měřítka řetězu"
 
@@ -30437,10 +30420,6 @@ msgstr "Zobrazení klipu"
 
 msgid "Footage Settings"
 msgstr "Nastavení záběrů"
-
-
-msgid "Proxy/Timecode"
-msgstr "Proxy/Timecode"
 
 
 msgid "Stabilization"
@@ -35185,6 +35164,10 @@ msgid "Outline Width"
 msgstr "Šířka obrysu"
 
 
+msgid "Line Spacing"
+msgstr "Rozestup Řádků"
+
+
 msgid "Sequence strip creating a wipe transition"
 msgstr "Přidat vazbu aktivní kosti"
 
@@ -36741,10 +36724,6 @@ msgid "Operator Properties"
 msgstr "Generátory"
 
 
-msgid "Search"
-msgstr "Hledat"
-
-
 msgid "Navigate"
 msgstr "Navigovat"
 
@@ -37328,10 +37307,6 @@ msgid "Shapes"
 msgstr "Tvary"
 
 
-msgid "Axes"
-msgstr "Osy"
-
-
 msgid "Display Size X"
 msgstr "Velikost Zobrazení X"
 
@@ -37379,10 +37354,6 @@ msgstr "Rozestup Symbolů"
 
 msgid "Word Spacing"
 msgstr "Rozestup Slov"
-
-
-msgid "Line Spacing"
-msgstr "Rozestup Řádků"
 
 
 msgid "Offset X"
@@ -40227,6 +40198,11 @@ msgid "True Normal"
 msgstr "Dle normály"
 
 
+msgctxt "Key"
+msgid "Key"
+msgstr "Klíč"
+
+
 msgid "ParticleSettings"
 msgstr "NastaveníČástic"
 
@@ -40878,10 +40854,6 @@ msgid "Browse Workspace to be linked"
 msgstr "Procházet Pracovní Prostředí k připojení"
 
 
-msgid "Browse LightProbe to be linked"
-msgstr "Procházet Světelnou Sondu k připojení"
-
-
 msgid "Browse Point Cloud Data to be linked"
 msgstr "Procházet Data Bodového Mraku k připojení"
 
@@ -41168,6 +41140,10 @@ msgid "No vertex selected"
 msgstr "Nebyl vybrán žádný vrchol"
 
 
+msgid "No edges selected"
+msgstr "Nebyly vybrány žádné hrany"
+
+
 msgid "Could not find any selected edges that can be rotated"
 msgstr "Nebyly vybrány žádné hrany, které lze otočit"
 
@@ -41178,10 +41154,6 @@ msgstr "Žádný vybraný vrchol"
 
 msgid "Selection not supported in object mode"
 msgstr "Výběr není v objektovém režimu podporován"
-
-
-msgid "No edges selected"
-msgstr "Nebyly vybrány žádné hrany"
 
 
 msgid "No active vertex group"
@@ -42460,11 +42432,6 @@ msgstr "Automaticky vkládat klíče objektu a Action Ipo křivky"
 
 msgid "Image not packed"
 msgstr "Název obrázku"
-
-
-msgctxt "Key"
-msgid "Key"
-msgstr "Klíč"
 
 
 msgid "Geometry modifier '%s' could not be removed"

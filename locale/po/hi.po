@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 Alpha (b'396b6a98e9f6')\n"
+"Project-Id-Version: Blender 5.2.0 Alpha (b'24a58e1403ac')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-05-04 07:43+0000\n"
+"POT-Creation-Date: 2026-05-25 07:25+0000\n"
 "PO-Revision-Date: 2025-12-04 22:18+0000\n"
 "Last-Translator: Jackson Zheng <business.jackson.zheng@gmail.com>\n"
 "Language-Team: Hindi <https://translate.blender.org/projects/blender-ui/ui/hi/>\n"
@@ -370,6 +370,10 @@ msgstr "क्षेत्र चौड़ाई"
 
 msgid "X Position"
 msgstr "स्थिति x"
+
+
+msgid "Link"
+msgstr "संयुक्त"
 
 
 msgid "Brushes"
@@ -1459,10 +1463,6 @@ msgstr "छवि संचिकाएँ दिखाएँ"
 
 msgid "Filter Text"
 msgstr "निस्पादक पाठ"
-
-
-msgid "Link"
-msgstr "संयुक्त"
 
 
 msgid "End"
@@ -2586,36 +2586,16 @@ msgid "Placement"
 msgstr "नियोजन"
 
 
-msgid "Show/Hide"
-msgstr "छुपाएँ / दिखाएँ"
-
-
-msgid "Names"
-msgstr "नाम"
-
-
-msgid "Math"
-msgstr "गणित"
-
-
-msgid "Bone Roll"
-msgstr "हड्डी पंजी"
+msgid "Mirror"
+msgstr "दर्पण"
 
 
 msgid "Snap"
 msgstr "स्नैप"
 
 
-msgid "Import"
-msgstr "आयात करें"
-
-
-msgid "Mirror"
-msgstr "दर्पण"
-
-
-msgid "UV"
-msgstr "यूवी"
+msgid "Math"
+msgstr "गणित"
 
 
 msgid "Light"
@@ -2638,6 +2618,14 @@ msgid "Quick Effects"
 msgstr "त्वरित प्रभाव"
 
 
+msgid "Import"
+msgstr "आयात करें"
+
+
+msgid "Show/Hide"
+msgstr "छुपाएँ / दिखाएँ"
+
+
 msgid "Make Single User"
 msgstr "एकल प्रयोक्ता बनाएँ"
 
@@ -2646,8 +2634,12 @@ msgid "Hooks"
 msgstr "खूँटी"
 
 
-msgid "Keying"
-msgstr "कुंजीयन"
+msgid "UV"
+msgstr "यूवी"
+
+
+msgid "Names"
+msgstr "नाम"
 
 
 msgid "Toggle Bone Options"
@@ -2660,6 +2652,14 @@ msgstr "हड्डी विकल्प को सक्षम करें"
 
 msgid "Merge"
 msgstr "विलय करें"
+
+
+msgid "Bone Roll"
+msgstr "हड्डी पंजी"
+
+
+msgid "Keying"
+msgstr "कुंजीयन"
 
 
 msgid "Basic"
@@ -3325,8 +3325,16 @@ msgid "Paste Driver"
 msgstr "चिपकाएँ यंत्र-संवादी"
 
 
+msgid "Axes"
+msgstr "अक्ष"
+
+
 msgid "Move"
 msgstr "विचलन"
+
+
+msgid "Search"
+msgstr "खोज"
 
 
 msgctxt "Operator"
@@ -4953,10 +4961,6 @@ msgid "Relationship Lines"
 msgstr "संबंध रेखाएँ"
 
 
-msgid "Search"
-msgstr "खोज"
-
-
 msgctxt "WindowManager"
 msgid "Object Mode"
 msgstr "वस्तु रूप"
@@ -5160,10 +5164,6 @@ msgstr "पथ अनुप्राणित करें"
 
 msgid "Shapes"
 msgstr "आकृतियाँ"
-
-
-msgid "Axes"
-msgstr "अक्ष"
 
 
 msgctxt "Operator"
@@ -5668,6 +5668,11 @@ msgstr "आधार"
 
 msgid "Key %d"
 msgstr "कुंजी %d"
+
+
+msgctxt "Key"
+msgid "Key"
+msgstr "कुंजी"
 
 
 msgid "No new files have been packed"
@@ -6433,11 +6438,6 @@ msgstr "लेखन के लिए संचिका को नहीं ख
 
 msgid "Flame"
 msgstr "लौ"
-
-
-msgctxt "Key"
-msgid "Key"
-msgstr "कुंजी"
 
 
 msgid "Soften"
