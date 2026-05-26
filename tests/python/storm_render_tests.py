@@ -36,6 +36,8 @@ BLOCKLIST_HYDRA = [
     "overlapping_octrees.blend",
     # No number of sample support, so will not converge to gray as expected
     "white_noise_256spp.blend",
+    # Render is incorrect
+    "principled_bsdf_thin_glass.blend",
 ]
 
 BLOCKLIST_USD = [
@@ -50,6 +52,8 @@ BLOCKLIST_USD = [
     "overlapping_octrees.blend",
     # No number of sample support, so will not converge to gray as expected
     "white_noise_256spp.blend",
+    # Render is incorrect
+    "principled_bsdf_thin_glass.blend",
 ]
 
 # Metal support in Storm is no as good as OpenGL, though this needs to be
@@ -91,6 +95,8 @@ BLOCKLIST_OPENGL_INTEL_LINUX = [
     "hair_transmission.blend",
     "principled_bsdf_emission.blend",
     "principled_bsdf_sheen.blend",
+    # Rasterization differences in hair and point clouds.
+    "instance_types.blend",
 ]
 
 # Some Vulkan tests are broken for all vendors.

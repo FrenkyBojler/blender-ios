@@ -203,7 +203,7 @@ void VIEW3D_OT_vr_location_scouting_capture_review(wmOperatorType *ot);
 
 extern "C" const char *view3d_context_dir[]; /* doc access */
 
-/* view3d_widgets.c */
+/* view3d_gizmo_*.cc */
 
 void VIEW3D_GGT_light_spot(wmGizmoGroupType *gzgt);
 void VIEW3D_GGT_light_point(wmGizmoGroupType *gzgt);

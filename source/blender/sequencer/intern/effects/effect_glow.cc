@@ -147,8 +147,8 @@ static void do_glow_effect_byte(Strip *strip,
                                 float fac,
                                 int x,
                                 int y,
-                                uchar *rect1,
-                                uchar * /*rect2*/,
+                                const uchar *rect1,
+                                const uchar * /*rect2*/,
                                 uchar *out)
 {
   GlowVars *glow = static_cast<GlowVars *>(strip->effectdata);
@@ -169,17 +169,8 @@ static void do_glow_effect_byte(Strip *strip,
 
   threading::parallel_for(IndexRange(y), 64, [&](const IndexRange y_range) {
     size_t offset = y_range.first() * x;
-    IMB_buffer_byte_from_float(out + offset * 4,
-                               *(outbuf.data() + offset),
-                               4,
-                               0.0f,
-                               IB_PROFILE_SRGB,
-                               IB_PROFILE_SRGB,
-                               true,
-                               x,
-                               y_range.size(),
-                               x,
-                               x);
+    IMB_buffer_byte_from_float(
+        out + offset * 4, *(outbuf.data() + offset), 4, 0.0f, true, x, y_range.size(), x);
   });
 }
 
@@ -188,12 +179,12 @@ static void do_glow_effect_float(Strip *strip,
                                  float fac,
                                  int x,
                                  int y,
-                                 float *rect1,
-                                 float * /*rect2*/,
+                                 const float *rect1,
+                                 const float * /*rect2*/,
                                  float *out)
 {
   float4 *outbuf = reinterpret_cast<float4 *>(out);
-  float4 *inbuf = reinterpret_cast<float4 *>(rect1);
+  const float4 *inbuf = reinterpret_cast<const float4 *>(rect1);
   GlowVars *glow = static_cast<GlowVars *>(strip->effectdata);
 
   blur_isolate_highlights(
@@ -218,15 +209,15 @@ static ImBuf *do_glow_effect(const RenderData *context,
 
   int render_size = 100 * context->rectx / context->scene->r.xsch;
 
-  if (out->float_buffer.data) {
+  if (out->float_data()) {
     do_glow_effect_float(strip,
                          render_size,
                          fac,
                          context->rectx,
                          context->recty,
-                         ibuf1->float_buffer.data,
+                         ibuf1->float_data(),
                          nullptr,
-                         out->float_buffer.data);
+                         out->float_data_for_write());
   }
   else {
     do_glow_effect_byte(strip,
@@ -234,9 +225,9 @@ static ImBuf *do_glow_effect(const RenderData *context,
                         fac,
                         context->rectx,
                         context->recty,
-                        ibuf1->byte_buffer.data,
+                        ibuf1->byte_data(),
                         nullptr,
-                        out->byte_buffer.data);
+                        out->byte_data_for_write());
   }
 
   return out;

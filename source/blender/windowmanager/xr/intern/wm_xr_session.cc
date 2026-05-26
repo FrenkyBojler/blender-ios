@@ -57,7 +57,7 @@
 namespace blender {
 
 static wmSurface *g_xr_surface = nullptr;
-static CLG_LogRef LOG = {"xr"};
+static CLG_LogRef LOG = {"wm.xr"};
 
 /* -------------------------------------------------------------------- */
 
@@ -706,7 +706,7 @@ bool WM_xr_session_state_controller_grip_location_get(const wmXrData *xr,
                                                       float r_location[3])
 {
   if (!WM_xr_session_is_ready(xr) || !xr->runtime->session_state.is_view_data_set ||
-      (subaction_idx >= BLI_listbase_count(&xr->runtime->session_state.controllers)))
+      (subaction_idx >= xr->runtime->session_state.controllers.count()))
   {
     zero_v3(r_location);
     return false;
@@ -724,7 +724,7 @@ bool WM_xr_session_state_controller_grip_rotation_get(const wmXrData *xr,
                                                       float r_rotation[4])
 {
   if (!WM_xr_session_is_ready(xr) || !xr->runtime->session_state.is_view_data_set ||
-      (subaction_idx >= BLI_listbase_count(&xr->runtime->session_state.controllers)))
+      (subaction_idx >= xr->runtime->session_state.controllers.count()))
   {
     unit_qt(r_rotation);
     return false;
@@ -742,7 +742,7 @@ bool WM_xr_session_state_controller_aim_location_get(const wmXrData *xr,
                                                      float r_location[3])
 {
   if (!WM_xr_session_is_ready(xr) || !xr->runtime->session_state.is_view_data_set ||
-      (subaction_idx >= BLI_listbase_count(&xr->runtime->session_state.controllers)))
+      (subaction_idx >= xr->runtime->session_state.controllers.count()))
   {
     zero_v3(r_location);
     return false;
@@ -760,7 +760,7 @@ bool WM_xr_session_state_controller_aim_rotation_get(const wmXrData *xr,
                                                      float r_rotation[4])
 {
   if (!WM_xr_session_is_ready(xr) || !xr->runtime->session_state.is_view_data_set ||
-      (subaction_idx >= BLI_listbase_count(&xr->runtime->session_state.controllers)))
+      (subaction_idx >= xr->runtime->session_state.controllers.count()))
   {
     unit_qt(r_rotation);
     return false;
@@ -962,7 +962,7 @@ static void wm_xr_session_controller_data_update(const XrSessionSettings *settin
                                                  wmXrSessionState *state)
 {
   BLI_assert(grip_action->count_subaction_paths == aim_action->count_subaction_paths);
-  BLI_assert(grip_action->count_subaction_paths == BLI_listbase_count(&state->controllers));
+  BLI_assert(grip_action->count_subaction_paths == state->controllers.count());
 
   float view_ofs[3], base_mat[4][4], nav_mat[4][4];
 
@@ -1698,7 +1698,7 @@ bool wm_xr_session_surface_offscreen_ensure(wmXrSurfaceData *surface_data,
                                             const GHOST_XrDrawViewInfo *draw_view)
 {
   wmXrViewportPair *vp = nullptr;
-  if (draw_view->view_idx >= BLI_listbase_count(&surface_data->viewports)) {
+  if (draw_view->view_idx >= surface_data->viewports.count()) {
     vp = MEM_new_zeroed<wmXrViewportPair>(__func__);
     BLI_addtail(&surface_data->viewports, vp);
   }
@@ -1788,7 +1788,7 @@ static void wm_xr_session_surface_free_data(wmSurface *surface)
   }
 
   if (data->controller_art) {
-    BLI_freelistN(&data->controller_art->drawcalls);
+    data->controller_art->drawcalls.free_no_destruct();
     MEM_delete(data->controller_art);
   }
 

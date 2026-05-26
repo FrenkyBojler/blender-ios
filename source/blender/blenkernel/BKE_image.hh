@@ -12,6 +12,8 @@
 #include "BLI_compiler_attrs.h"
 #include "BLI_mutex.hh"
 
+#include "IMB_imbuf_enums.h"
+
 #include <cstdint>
 #include <limits>
 #include <optional>
@@ -30,6 +32,7 @@ struct rcti;
 struct Depsgraph;
 struct ID;
 struct ImBuf;
+struct ImBufCache;
 struct MovieReader;
 struct Image;
 struct ImageFormatData;
@@ -38,7 +41,6 @@ struct ImageTile;
 struct ImbFormatOptions;
 struct Library;
 struct Main;
-struct MovieCache;
 struct Object;
 struct PartialUpdateRegister;
 struct PartialUpdateUser;
@@ -47,6 +49,7 @@ struct RenderSlot;
 struct ReportList;
 struct Scene;
 struct StampData;
+enum eImbFileType : int8_t;
 
 #define IMA_MAX_SPACE 64
 #define IMA_UDIM_MAX 2000
@@ -64,7 +67,7 @@ struct ImageRuntime {
    */
   Mutex cache_mutex;
 
-  MovieCache *cache = nullptr;
+  ImBufCache *cache = nullptr;
 
   /* The 2 is for the left/right stereo eyes. */
   gpu::Texture *gputexture[/*TEXTARGET_COUNT*/ 3][2] = {};
@@ -85,9 +88,18 @@ struct ImageRuntime {
 
   /* The image's current update count. See deg::set_id_update_count for more information. */
   uint64_t update_count = 0;
+
+  float view_offset[2] = {};
+  float view_zoom = 1.0f;
 };
 
 }  // namespace bke
+/**
+ * Clear the autosave information.
+ *
+ * \note At minimum, this should be called anytime the `packedfiles` list would be written to.
+ */
+void BKE_image_clear_autosave(Image *image);
 
 void BKE_image_free_packedfiles(Image *image);
 void BKE_image_free_views(Image *image);
@@ -162,12 +174,12 @@ bool BKE_imbuf_write_as(ImBuf *ibuf,
  * Used by sequencer too.
  */
 MovieReader *openanim(const char *filepath,
-                      int ibuf_flags,
+                      ImBufFlags ibuf_flags,
                       int streamindex,
                       bool keep_original_colorspace,
                       char colorspace[IMA_MAX_SPACE]);
 MovieReader *openanim_noload(const char *filepath,
-                             int flags,
+                             ImBufFlags flags,
                              int streamindex,
                              bool keep_original_colorspace,
                              char colorspace[IMA_MAX_SPACE]);
@@ -434,6 +446,18 @@ void BKE_image_packfile_ensure(
     Main *bmain, Image *image, ReportList *reports, const char *data, int data_len);
 
 /**
+ * Populate the runtime cache for an image based on the autosave information.
+ */
+void BKE_image_populate_cache_from_autosave(Image *ima);
+
+/**
+ * Pack the current buffer data as part of the autosave process.
+ *
+ * \see BKE_image_memorypack
+ */
+bool BKE_image_autosave_memorypack(Image *ima);
+
+/**
  * Prints memory statistics for images.
  */
 void BKE_image_print_memlist(Main *bmain);
@@ -449,14 +473,14 @@ void BKE_image_merge(Main *bmain, Image *dest, Image *source);
 bool BKE_image_scale(Image *image, int width, int height, ImageUser *iuser);
 
 /**
- * Check if texture has alpha `planes == 32 || planes == 16`.
+ * Check if image might contain alpha.
  */
 bool BKE_image_has_alpha(Image *image);
 
 /**
- * Check if texture has GPU texture code.
+ * Check if image has an associated GPU texture.
  */
-bool BKE_image_has_opengl_texture(Image *ima);
+bool BKE_image_has_gpu_texture(Image *ima);
 
 /**
  * Get tile index for tiled images.
@@ -584,7 +608,7 @@ bool BKE_image_is_animated(Image *image);
  * Checks whether the image consists of multiple buffers.
  */
 bool BKE_image_has_multiple_ibufs(Image *image);
-void BKE_image_file_format_set(Image *image, int ftype, const ImbFormatOptions *options);
+void BKE_image_file_format_set(Image *image, eImbFileType ftype, const ImbFormatOptions *options);
 bool BKE_image_has_loaded_ibuf(Image *image);
 /**
  * References the result, #BKE_image_release_ibuf is to be called to de-reference.

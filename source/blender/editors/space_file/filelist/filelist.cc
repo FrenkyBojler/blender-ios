@@ -20,6 +20,7 @@
 #include "AS_asset_representation.hh"
 #include "AS_remote_library.hh"
 
+#include "DNA_space_enums.h"
 #include "MEM_guardedalloc.h"
 
 #include "BLF_api.hh"
@@ -101,16 +102,14 @@ static void remote_asset_library_refresh_online_assets_status(const FileList *fi
 void filelist_remote_asset_library_refresh_online_assets_status(
     const FileList *filelist, const blender::StringRef remote_url)
 {
-  if (!filelist->asset_library || !filelist->asset_library_ref) {
+  if (!filelist->asset_library) {
     return;
   }
   if (remote_url.is_empty()) {
     return;
   }
 
-  if ((filelist->asset_library_ref->type == ASSET_LIBRARY_ALL) ||
-      (filelist->asset_library->remote_url() == remote_url))
-  {
+  if (asset_system::contains_assets_from_remote_url(*filelist->asset_library, remote_url)) {
     remote_asset_library_refresh_online_assets_status(filelist);
   }
 }
@@ -470,9 +469,9 @@ static void filelist_direntryarr_free(FileDirEntryArr *array)
     entry_next = entry->next;
     filelist_entry_free(entry);
   }
-  BLI_listbase_clear(&array->entries);
+  array->entries.clear_no_delete();
 #else
-  BLI_assert(BLI_listbase_is_empty(&array->entries));
+  BLI_assert(array->entries.is_empty());
 #endif
   array->entries_num = FILEDIR_NBR_ENTRIES_UNSET;
   array->entries_filtered_num = FILEDIR_NBR_ENTRIES_UNSET;
@@ -503,7 +502,7 @@ static void filelist_intern_free(FileList *filelist)
   for (FileListInternEntry &entry : filelist_intern->entries.items_mutable()) {
     filelist_intern_entry_free(filelist, &entry);
   }
-  BLI_listbase_clear(&filelist_intern->entries);
+  filelist_intern->entries.clear_no_delete();
 
   MEM_SAFE_DELETE(filelist_intern->filtered);
 }
@@ -832,10 +831,10 @@ void filelist_cache_clear(FileListEntryCache *cache, size_t new_size)
   for (FileDirEntry &entry : cache->cached_entries.items_mutable()) {
     filelist_entry_free(&entry);
   }
-  BLI_listbase_clear(&cache->cached_entries);
+  cache->cached_entries.clear_no_delete();
 }
 
-FileList *filelist_new(short type)
+FileList *filelist_new(short type, const bool is_from_global_asset_list)
 {
   FileList *p = MEM_new<FileList>(__func__);
 
@@ -844,6 +843,9 @@ FileList *filelist_new(short type)
   p->selection_state = BLI_ghash_new(BLI_ghashutil_inthash_p, BLI_ghashutil_intcmp, __func__);
   p->filelist.entries_num = FILEDIR_NBR_ENTRIES_UNSET;
   filelist_settype(p, type);
+  if (is_from_global_asset_list) {
+    p->tags |= FILELIST_TAGS_FROM_GLOBAL_ASSET_LIST;
+  }
 
   return p;
 }
@@ -876,6 +878,9 @@ void filelist_settype(FileList *filelist, short type)
       break;
     case FILE_ASSET_LIBRARY_REMOTE:
       filelist_set_readjob_remote_asset_library(filelist);
+      break;
+    case FILE_ASSET_LIBRARY_ESSENTIALS:
+      filelist_set_readjob_essentials_asset_library(filelist);
       break;
     case FILE_ASSET_LIBRARY_ALL:
       filelist_set_readjob_all_asset_library(filelist);
