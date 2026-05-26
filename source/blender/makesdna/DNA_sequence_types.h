@@ -701,7 +701,6 @@ enum eEffectTextFlags : uint8_t {
   SEQ_TEXT_ITALIC = (1 << 3),
   SEQ_TEXT_OUTLINE = (1 << 4),
   SEQ_TEXT_USE_ABSOLUTE_LINE_SPACING = (1 << 5),
-
 };
 ENUM_OPERATORS(eEffectTextFlags);
 
