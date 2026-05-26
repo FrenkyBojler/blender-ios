@@ -776,7 +776,7 @@ void RNA_api_strip(StructRNA *srna)
   RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED);
   parm = RNA_def_boolean(
       func, "ignore_connections", false, "", "Don't propagate split to connected strips");
-      
+
   /* Return type. */
   parm = RNA_def_pointer(func, "sequence", "Strip", "", "Right side Strip");
   RNA_def_function_return(func, parm);
