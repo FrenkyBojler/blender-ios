@@ -239,8 +239,8 @@ void AssetRepresentation::online_asset_mark_downloaded()
   if (!extern_asset || !extern_asset->online_info_) {
     return;
   }
-  /* TODO: maybe the online_info_ can stay, and just needs its file status re-checked? */
-  extern_asset->online_info_ = nullptr;
+  /* TODO: ensure that the file status is actually checked, instead of just clearing it. */
+  extern_asset->online_info_->file_status = AssetFileStatus::UNSET;
 }
 
 std::optional<eAssetImportMethod> AssetRepresentation::get_import_method() const
