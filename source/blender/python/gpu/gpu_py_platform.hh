@@ -10,16 +10,15 @@
 
 #include <Python.h>
 
-#include <string>
-
 namespace blender {
 
 /* GPU Device Python object structure */
-typedef struct {
-  PyObject_HEAD int index;
-  std::string identifier;
-  std::string name;
-} BPyGPUDevice;
+struct BPyGPUDevice {
+  PyObject_HEAD
+  int index;
+  const char *identifier;
+  const char *name;
+};
 
 extern PyTypeObject BPyGPU_DeviceType;
 

@@ -31,31 +31,23 @@ static PyObject *pygpu_device_index_get(BPyGPUDevice *self, void * /*closure*/)
 
 static PyObject *pygpu_device_identifier_get(BPyGPUDevice *self, void * /*closure*/)
 {
-  return PyUnicode_FromString(self->identifier.c_str());
+  return PyUnicode_FromString(self->identifier);
 }
 
 static PyObject *pygpu_device_name_get(BPyGPUDevice *self, void * /*closure*/)
 {
-  return PyUnicode_FromString(self->name.c_str());
+  return PyUnicode_FromString(self->name);
 }
 
 /* Property descriptors */
 static PyGetSetDef pygpu_device_getseters[] = {
-    {"index",
-     reinterpret_cast<getter>(pygpu_device_index_get),
-     nullptr,
-     "Device index.",
-     nullptr},
+    {"index", reinterpret_cast<getter>(pygpu_device_index_get), nullptr, "Device index.", nullptr},
     {"identifier",
      reinterpret_cast<getter>(pygpu_device_identifier_get),
      nullptr,
      "Device identifier.",
      nullptr},
-    {"name",
-     reinterpret_cast<getter>(pygpu_device_name_get),
-     nullptr,
-     "Device name.",
-     nullptr},
+    {"name", reinterpret_cast<getter>(pygpu_device_name_get), nullptr, "Device name.", nullptr},
     {nullptr, nullptr, nullptr, nullptr, nullptr},
 };
 
@@ -64,8 +56,8 @@ static PyObject *pygpu_device__tp_repr(BPyGPUDevice *self)
 {
   return PyUnicode_FromFormat("<GPUDevice index=%d identifier=\"%s\" name=\"%s\">",
                               self->index,
-                              self->identifier.c_str(),
-                              self->name.c_str());
+                              self->identifier,
+                              self->name);
 }
 
 /** Rich comparison for GPUDevice types, compares by index. */
@@ -93,18 +85,17 @@ static PyObject *pygpu_device__tp_richcmp(BPyGPUDevice *self, PyObject *other, i
 }
 
 /* Type definition */
-PyDoc_STRVAR(
-    pygpu_device__tp_doc,
-    ".. class:: GPUDevice\n"
-    "\n"
-    "   Represents a GPU device.\n"
-    "\n"
-    "   :ivar int index: Device index.\n"
-    "   :vartype int: index\n"
-    "   :ivar str identifier: Device identifier.\n"
-    "   :vartype str: identifier\n"
-    "   :ivar str name: Device name.\n"
-    "   :vartype str: name\n");
+PyDoc_STRVAR(pygpu_device__tp_doc,
+             ".. class:: GPUDevice\n"
+             "\n"
+             "   Represents a GPU device.\n"
+             "\n"
+             "   :ivar int index: Device index.\n"
+             "   :vartype int: index\n"
+             "   :ivar str identifier: Device identifier.\n"
+             "   :vartype str: identifier\n"
+             "   :ivar str name: Device name.\n"
+             "   :vartype str: name\n");
 
 PyTypeObject BPyGPU_DeviceType = {
     /*ob_base*/ PyVarObject_HEAD_INIT(nullptr, 0)
@@ -160,8 +151,8 @@ PyTypeObject BPyGPU_DeviceType = {
 
 static BPyGPUDevice *pygpu_device_new(int index, const char *identifier, const char *name)
 {
-  BPyGPUDevice *self =
-      reinterpret_cast<BPyGPUDevice *>(BPyGPU_DeviceType.tp_alloc(&BPyGPU_DeviceType, 0));
+  BPyGPUDevice *self = reinterpret_cast<BPyGPUDevice *>(
+      BPyGPU_DeviceType.tp_alloc(&BPyGPU_DeviceType, 0));
   if (self != nullptr) {
     self->index = index;
     self->identifier = identifier;
