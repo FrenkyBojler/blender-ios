@@ -7,16 +7,21 @@
 
 #pragma once
 
-#include "infos/eevee_lightprobe_infos.hh"
+#include "infos/eevee_common_infos.hh"
+#include "infos/eevee_sampling_infos.hh"
 
-SHADER_LIBRARY_CREATE_INFO(eevee_lightprobe_data)
+SHADER_LIBRARY_CREATE_INFO(draw_view)
+SHADER_LIBRARY_CREATE_INFO(eevee_global_ubo)
+SHADER_LIBRARY_CREATE_INFO(eevee_hiz_data)
+SHADER_LIBRARY_CREATE_INFO(eevee_sampling_data)
 
 #include "draw_view_lib.glsl"
 #include "eevee_colorspace_lib.bsl.hh"
 #include "eevee_light_eval.bsl.hh"
-#include "eevee_light_lib.glsl"
+#include "eevee_light_lib.bsl.hh"
 #include "eevee_light_shared.hh"
-#include "eevee_lightprobe_volume_eval_lib.glsl"
+#include "eevee_lightprobe_volume.bsl.hh"
+#include "eevee_renderpass.bsl.hh"
 #include "eevee_shadow.bsl.hh"
 #include "eevee_volume_lib.bsl.hh"
 #include "eevee_volume_shared.hh"
@@ -91,28 +96,17 @@ float3 volume_shadow(
   return shadow;
 }
 
-float3 volume_lightprobe_eval(float3 P, float3 V, float s_anisotropy)
-{
-  SphericalHarmonicL1<float4> phase_sh = volume_phase_function_as_sh_L1(V, s_anisotropy);
-  SphericalHarmonicL1<float4> volume_radiance_sh = lightprobe_volume_sample(P);
-
-  float clamp_indirect = uniform_buf.clamp.volume_indirect;
-  volume_radiance_sh = spherical_harmonics::clamp_energy(volume_radiance_sh, clamp_indirect);
-
-  return spherical_harmonics::dot(volume_radiance_sh, phase_sh).xyz;
-}
-
 struct Scatter {
   [[compilation_constant]] const bool use_volume_light;
 
   [[legacy_info]] ShaderCreateInfo draw_view;
   [[legacy_info]] ShaderCreateInfo eevee_global_ubo;
   [[legacy_info]] ShaderCreateInfo eevee_hiz_data;
-  [[legacy_info]] ShaderCreateInfo eevee_lightprobe_data;
   [[legacy_info]] ShaderCreateInfo eevee_sampling_data;
 
   [[resource_table]] srt_t<LightRenderData> light_data;
   [[resource_table]] srt_t<ShadowRenderData> shadow_data;
+  [[resource_table]] srt_t<LightprobeVolumeRenderData> lightprobe_volume_data;
 
   [[sampler(0)]] sampler3D scattering_history_tx;
   [[sampler(1)]] sampler3D extinction_history_tx;
@@ -121,6 +115,19 @@ struct Scatter {
 
   [[image(5, write, UFLOAT_11_11_10)]] image3D out_scattering_img;
   [[image(6, write, UFLOAT_11_11_10)]] image3D out_extinction_img;
+
+  float3 volume_lightprobe_eval(float3 P, float3 V, float s_anisotropy)
+  {
+    [[resource_table]] const LightprobeVolumeRenderData &volume_data = lightprobe_volume_data;
+
+    SphericalHarmonicL1<float4> phase_sh = volume_phase_function_as_sh_L1(V, s_anisotropy);
+    SphericalHarmonicL1<float4> volume_radiance_sh = volume_data.sample_probe_no_bias(P);
+
+    float clamp_indirect = uniform_buf.clamp.volume_indirect;
+    volume_radiance_sh = spherical_harmonics::clamp_energy(volume_radiance_sh, clamp_indirect);
+
+    return spherical_harmonics::dot(volume_radiance_sh, phase_sh).xyz;
+  }
 };
 
 struct LightEvalCtx {
@@ -178,6 +185,7 @@ struct LightEvalCtx {
     radiance += light_eval_single(srd, light, false);
   }
 };
+
 }  // namespace eevee::volume
 
 namespace eevee::light {
@@ -239,7 +247,7 @@ void scatter_main([[resource_table]] Scatter &srt,
     }
   }
 
-  float3 indirect_radiance = volume_lightprobe_eval(P, V, s_anisotropy).xyz;
+  float3 indirect_radiance = srt.volume_lightprobe_eval(P, V, s_anisotropy).xyz;
 
   direct_radiance *= s_scattering;
   indirect_radiance *= s_scattering;
@@ -367,7 +375,6 @@ struct FragOut {
 struct Resolve {
   [[legacy_info]] ShaderCreateInfo draw_view;
   [[legacy_info]] ShaderCreateInfo eevee_global_ubo;
-  [[legacy_info]] ShaderCreateInfo eevee_render_pass_out;
   [[legacy_info]] ShaderCreateInfo eevee_hiz_data;
 };
 
@@ -382,6 +389,7 @@ void resolve_vert([[vertex_id]] const int vert_id, [[position]] float4 &out_posi
 [[fragment]]
 void resolve_frag([[resource_table]] const Resolve & /*srt*/,
                   [[resource_table]] const UnifiedVolumeData &volumes,
+                  [[resource_table]] RenderPassOutput &render_passes,
                   [[frag_coord]] const float4 frag_co,
                   [[out]] FragOut &out_frag)
 {
@@ -396,12 +404,8 @@ void resolve_frag([[resource_table]] const Resolve & /*srt*/,
   out_frag.radiance = float4(vol.scattering, 0.0f);
   out_frag.transmittance = float4(vol.transmittance, saturate(average(vol.transmittance)));
 
-  if (uniform_buf.render_pass.volume_light_id >= 0) {
-    auto &rp_color_img = image_get(eevee_render_pass_out, rp_color_img);
-    imageStoreFast(rp_color_img,
-                   int3(int2(frag_co.xy), uniform_buf.render_pass.volume_light_id),
-                   float4(vol.scattering, 1.0f));
-  }
+  render_passes.store_color(
+      int2(frag_co.xy), uniform_buf.render_pass.volume_light_id, float4(vol.scattering, 1.0f));
 }
 
 PipelineCompute scatter(scatter_main, Scatter{.use_volume_light = false});

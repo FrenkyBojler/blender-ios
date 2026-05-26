@@ -13,10 +13,11 @@
 #include "draw_model_lib.glsl"
 #include "eevee_colorspace_lib.bsl.hh"
 #include "eevee_light_eval.bsl.hh"
-#include "eevee_lightprobe_eval_lib.glsl"
+#include "eevee_lightprobe.bsl.hh"
+#include "eevee_lightprobe_plane.bsl.hh"
 #include "eevee_nodetree_closures_lib.glsl"
 #include "eevee_reverse_z_lib.bsl.hh"
-#include "eevee_subsurface_lib.glsl"
+#include "eevee_subsurface_lib.bsl.hh"
 #include "gpu_shader_codegen_lib.glsl"
 
 #ifdef GLSL_CPP_STUBS
@@ -42,7 +43,12 @@ void forward_lighting_eval(Thickness thickness,
                            float3 &radiance,
                            float3 &transmittance)
 {
-  [[resource_table]] auto &lights = resource_table_get(eevee::LightEvalIterator);
+  [[resource_table]] LightEvalIterator &lights = resource_table_get(eevee::LightEvalIterator);
+
+  /* clang-format off */ /* Multiline macro breaks error line counting. */
+  [[resource_table]] LightprobeRenderData &lightprobes = resource_table_get(eevee::LightprobeRenderData);
+  [[resource_table]] LightprobePlaneRenderData &lightprobe_planes = resource_table_get(eevee::LightprobePlaneRenderData);
+  /* clang-format on */
   [[resource_table]] LightEvalData &srt = lights.inner;
 
   float vPz = dot(drw_view_forward(), g_data.P) - dot(drw_view_forward(), drw_view_position());
@@ -75,9 +81,7 @@ void forward_lighting_eval(Thickness thickness,
 
   if (srt.light_closure_eval_count_transmit > 0) [[static_branch]] {
     ClosureUndetermined cl_transmit = g_closure_get(0);
-    if (cl_transmit.type == CLOSURE_BSDF_TRANSLUCENT_ID ||
-        cl_transmit.type == CLOSURE_BSDF_MICROFACET_GGX_REFRACTION_ID ||
-        cl_transmit.type == CLOSURE_BSSRDF_BURLEY_ID)
+    if (closure_has_transmission(cl_transmit.type) || cl_transmit.type == CLOSURE_BSSRDF_BURLEY_ID)
     {
       light::EvalCtx<true> ctx_tr = light::init_from_reflect_ctx(ctx);
       ctx_tr.stack.cl[0] = closure_light_new(cl_transmit, V, thickness);
@@ -101,7 +105,7 @@ void forward_lighting_eval(Thickness thickness,
     }
   }
 
-  LightProbeSample samp = lightprobe_load(frag_co, g_data.P, g_data.Ng, V);
+  LightProbeSample samp = lightprobes.load(frag_co, g_data.P, g_data.Ng, V);
 
   float clamp_indirect_sh = uniform_buf.clamp.surface_indirect;
   samp.volume_irradiance = spherical_harmonics::clamp_energy(samp.volume_irradiance,
@@ -121,24 +125,26 @@ void forward_lighting_eval(Thickness thickness,
     }
     average_N = safe_normalize(average_N);
 
-    const int planar_id = lightprobe_planar_select(g_data.P, average_N);
+    const int planar_id = lightprobe_planes.select_probe(g_data.P, average_N);
 
     if (planar_id == -1) {
       average_N = float3(0.0f);
     }
     else {
-      const auto &planar_buf = buffer_get(eevee_lightprobe_planar_data, probe_planar_buf);
-      float3 P_reflected = lightprobe_planar_parallax(
-          planar_buf[planar_id], g_data.P, average_N, V);
+      float3 P_reflected = lightprobe::plane::parallax(
+          lightprobe_planes.probe_planar_buf[planar_id], g_data.P, average_N, V);
 
       float2 ndc_P_reflected = drw_point_world_to_ndc(P_reflected).xy;
       /* Planar probes are rendered upside down. */
       ndc_P_reflected.y = -ndc_P_reflected.y;
       float2 texel = drw_ndc_to_screen(ndc_P_reflected);
 
-      planar_probe_radiance = textureLod(planar_radiance_tx, float3(texel, planar_id), 0.0).rgb;
+      planar_probe_radiance =
+          textureLod(lightprobe_planes.planar_radiance_tx, float3(texel, planar_id), 0.0).rgb;
       /* Discard background hits. */
-      if (textureLod(planar_depth_tx, float3(texel, planar_id), 0.0).r == reverse_z::read(1.0f)) {
+      if (textureLod(lightprobe_planes.planar_depth_tx, float3(texel, planar_id), 0.0).r ==
+          reverse_z::read(1.0f))
+      {
         average_N = float3(0.0f);
       }
     }
@@ -154,7 +160,7 @@ void forward_lighting_eval(Thickness thickness,
       ClosureUndetermined cl = g_closure_get_resolved(uchar(i), 1.0f);
       if (cl.weight > CLOSURE_WEIGHT_CUTOFF) {
         float3 direct_light = ctx.stack.cl[i].light_shadowed;
-        float3 indirect_light = lightprobe_eval(samp, cl, g_data.P, V, thickness);
+        float3 indirect_light = lightprobes.eval(samp, cl, g_data.P, V, thickness);
 
 #ifdef MAT_REFLECTION
         if (cl.type == CLOSURE_BSDF_MICROFACET_GGX_REFLECTION_ID) {
