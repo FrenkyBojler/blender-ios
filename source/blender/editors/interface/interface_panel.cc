@@ -1416,26 +1416,33 @@ bool panel_should_show_background(const ARegion *region, const PanelType *panel_
 #define TABS_PADDING_TEXT_FACTOR 6.0f
 static void panel_region_width_set(ARegion *region, const float aspect, int unscaled_size);
 
-static void expand_panel_on_category_tab_change(bContext &C, StringRef category, StringRef active)
+static void expand_panel_region(bContext &C, ARegion *region)
+{
+  const float aspect = BLI_rctf_size_y(&region->v2d.cur) /
+                       (BLI_rcti_size_y(&region->v2d.mask) + 1);
+  const bool too_narrow = BLI_rcti_size_x(&region->winrct) <=
+                          int(std::ceil(UI_PANEL_CATEGORY_MIN_WIDTH * UI_SCALE_FAC / aspect));
+  if (!too_narrow) {
+    return;
+  }
+  /* Enlarge region. */
+  const int new_width = region->runtime->type->prefsizex ? region->runtime->type->prefsizex : 250;
+  panel_region_width_set(region, aspect, new_width);
+  WM_event_add_notifier(&C, NC_SCREEN | NA_EDITED, nullptr);
+  ED_region_tag_redraw(region);
+  /* Reset scroll to the top (#38348). */
+  view2d_offset(&region->v2d, -1.0f, 1.0f);
+}
+
+static void expand_panel_region_on_category_change(bContext &C,
+                                                   StringRef category,
+                                                   StringRef active)
 {
   ARegion *region = CTX_wm_region(&C);
   if (category == active) {
     return;
   }
-  const float aspect = BLI_rctf_size_y(&region->v2d.cur) /
-                       (BLI_rcti_size_y(&region->v2d.mask) + 1);
-  const bool too_narrow = BLI_rcti_size_x(&region->winrct) <=
-                          int(std::ceil(UI_PANEL_CATEGORY_MIN_WIDTH * UI_SCALE_FAC / aspect));
-  if (too_narrow) {
-    /* Enlarge region. */
-    const int new_width = region->runtime->type->prefsizex ? region->runtime->type->prefsizex :
-                                                             250;
-    panel_region_width_set(region, aspect, new_width);
-    WM_event_add_notifier(&C, NC_SCREEN | NA_EDITED, nullptr);
-    ED_region_tag_redraw(region);
-    /* Reset scroll to the top (#38348). */
-    view2d_offset(&region->v2d, -1.0f, 1.0f);
-  }
+  expand_panel_region(C, region);
 }
 
 void panel_category_tabs_draw_all(const bContext *C,
@@ -1598,7 +1605,7 @@ void panel_category_tabs_draw_all(const bContext *C,
     button_func_set(button,
                     [category = std::string(category_id),
                      active = std::string(category_id_active)](bContext &C) -> void {
-                      expand_panel_on_category_tab_change(C, category, active);
+                      expand_panel_region_on_category_change(C, category, active);
                     });
     button_func_pushed_state_set(
         button,
@@ -2597,15 +2604,7 @@ int handler_panel_region(bContext *C,
                                 int(std::ceil(UI_PANEL_CATEGORY_MIN_WIDTH * UI_SCALE_FAC /
                                               aspect));
         if (too_narrow) {
-          /* Enlarge region. */
-          const int new_width = region->runtime->type->prefsizex ?
-                                    region->runtime->type->prefsizex :
-                                    250;
-          panel_region_width_set(region, aspect, new_width);
-          WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, nullptr);
-          ED_region_tag_redraw(region);
-          /* Reset scroll to the top (#38348). */
-          view2d_offset(&region->v2d, -1.0f, 1.0f);
+          expand_panel_region(*C, region);
         }
         else {
           /* Minimize region. */
