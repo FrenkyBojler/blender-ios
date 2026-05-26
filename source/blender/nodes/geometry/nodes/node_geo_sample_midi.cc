@@ -174,6 +174,8 @@ using NoteKey = uint16_t;
 
 struct MidiData {
   Map<NoteKey, Vector<NoteInterval>> intervals;
+  /* Sorted list of note-on times per key, used for "time since last hit". */
+  Map<NoteKey, Vector<float>> hit_times;
   bool valid = false;
 };
 
@@ -267,11 +269,13 @@ static MidiData load_midi_file(const std::string &path)
   for (const RawNoteEvent &ev : note_events) {
     const NoteKey key = NoteKey(ev.channel) << 8 | ev.note;
     if (ev.is_on) {
+      const float hit_time = ticks_to_seconds(ev.tick, tempo_changes, ticks_per_beat);
+      result.hit_times.lookup_or_add_default(key).append(hit_time);
       if (pending.contains(key)) {
         /* Retrigger without release: close the previous interval now. */
         const auto [start_tick, vel] = pending.lookup(key);
         const float start = ticks_to_seconds(start_tick, tempo_changes, ticks_per_beat);
-        const float end = ticks_to_seconds(ev.tick, tempo_changes, ticks_per_beat);
+        const float end = hit_time;
         if (end > start) {
           result.intervals.lookup_or_add_default(key).append({start, end, vel});
         }
@@ -355,6 +359,7 @@ class SampleMidiFunction : public mf::MultiFunction {
       builder.single_input<int>("Note");
       builder.single_output<bool>("Is Playing");
       builder.single_output<float>("Velocity");
+      builder.single_output<float>("Time Since Last Hit");
       return sig;
     }();
     this->set_signature(&signature);
@@ -367,42 +372,65 @@ class SampleMidiFunction : public mf::MultiFunction {
     const VArray<int> &notes = params.readonly_single_input<int>(2, "Note");
     MutableSpan<bool> is_playing = params.uninitialized_single_output<bool>(3, "Is Playing");
     MutableSpan<float> velocities = params.uninitialized_single_output<float>(4, "Velocity");
+    MutableSpan<float> time_since_hit = params.uninitialized_single_output<float>(
+        5, "Time Since Last Hit");
 
     mask.foreach_index([&](const int i) {
       const int channel = channels[i];
       const int note = notes[i];
+      const float time = times[i];
       if (channel < 0 || channel > 15 || note < 0 || note > 127) {
         is_playing[i] = false;
         velocities[i] = 0.0f;
+        time_since_hit[i] = time;
         return;
       }
       const NoteKey key = NoteKey(channel) << 8 | uint8_t(note);
+
+      /* --- Is Playing / Velocity --- */
       const Vector<NoteInterval> *ivs = midi_->intervals.lookup_ptr(key);
       if (!ivs || ivs->is_empty()) {
         is_playing[i] = false;
         velocities[i] = 0.0f;
-        return;
-      }
-      const float time = times[i];
-      /* Binary search for the last interval starting at or before `time`. */
-      int lo = 0, hi = int(ivs->size()) - 1, found = -1;
-      while (lo <= hi) {
-        const int mid = (lo + hi) / 2;
-        if ((*ivs)[mid].start <= time) {
-          found = mid;
-          lo = mid + 1;
-        }
-        else {
-          hi = mid - 1;
-        }
-      }
-      if (found >= 0 && time < (*ivs)[found].end) {
-        is_playing[i] = true;
-        velocities[i] = (*ivs)[found].velocity / 127.0f;
       }
       else {
-        is_playing[i] = false;
-        velocities[i] = 0.0f;
+        /* Binary search for the last interval starting at or before `time`. */
+        int lo = 0, hi = int(ivs->size()) - 1, found = -1;
+        while (lo <= hi) {
+          const int mid = (lo + hi) / 2;
+          if ((*ivs)[mid].start <= time) {
+            found = mid;
+            lo = mid + 1;
+          }
+          else {
+            hi = mid - 1;
+          }
+        }
+        if (found >= 0 && time < (*ivs)[found].end) {
+          is_playing[i] = true;
+          velocities[i] = (*ivs)[found].velocity / 127.0f;
+        }
+        else {
+          is_playing[i] = false;
+          velocities[i] = 0.0f;
+        }
+      }
+
+      /* --- Time Since Last Hit --- */
+      const Vector<float> *hits = midi_->hit_times.lookup_ptr(key);
+      if (!hits || hits->is_empty()) {
+        time_since_hit[i] = time;
+      }
+      else {
+        const float *it = std::upper_bound(hits->data(), hits->data() + hits->size(), time);
+        if (it == hits->data()) {
+          /* No hit before current time. */
+          time_since_hit[i] = time;
+        }
+        else {
+          --it;
+          time_since_hit[i] = time - *it;
+        }
       }
     });
   }
@@ -420,12 +448,16 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.allow_any_socket_order();
 
   b.add_output<decl::Bool>("Is Playing"_ustr)
+      .structure_type(StructureType::Field)
       .propagate_references()
-      .description("Whether the note is currently held at the given time")
-      .structure_type(StructureType::Dynamic);
+      .description("Whether the note is currently held at the given time");
   b.add_output<decl::Float>("Velocity"_ustr)
       .propagate_references()
       .description("Note velocity normalized to 0-1 (0 when not playing)")
+      .structure_type(StructureType::Dynamic);
+  b.add_output<decl::Float>("Time Since Last Hit"_ustr)
+      .propagate_references()
+      .description("Seconds since the last note-on event for this note")
       .structure_type(StructureType::Dynamic);
 
   b.add_input<decl::String>("File"_ustr)
@@ -475,12 +507,14 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   SocketValueVariant is_playing_out;
   SocketValueVariant velocity_out;
+  SocketValueVariant time_since_hit_out;
   std::string error_message;
-  if (!execute_multi_function_on_value_variant(std::move(fn),
-                                               {&times, &channels, &notes},
-                                               {&is_playing_out, &velocity_out},
-                                               params.user_data(),
-                                               error_message))
+  if (!execute_multi_function_on_value_variant(
+          std::move(fn),
+          {&times, &channels, &notes},
+          {&is_playing_out, &velocity_out, &time_since_hit_out},
+          params.user_data(),
+          error_message))
   {
     params.set_default_remaining_outputs();
     params.error_message_add(NodeWarningType::Error, std::move(error_message));
@@ -489,6 +523,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   params.set_output("Is Playing"_ustr, std::move(is_playing_out));
   params.set_output("Velocity"_ustr, std::move(velocity_out));
+  params.set_output("Time Since Last Hit"_ustr, std::move(time_since_hit_out));
 }
 
 static void node_register()
