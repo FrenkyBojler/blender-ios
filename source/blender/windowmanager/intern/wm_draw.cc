@@ -330,7 +330,7 @@ static void wm_software_cursor_draw_crosshair(const float system_scale, const in
    * are set by the operating-system, where the pixel information isn't easily available. */
 
   /* The cursor scaled by the "default" size. */
-  const float cursor_scale = float(WM_cursor_preferred_logical_size()) /
+  const float cursor_scale = float(WM_cursor_preferred_logical_size(false)) /
                              float(WM_CURSOR_DEFAULT_LOGICAL_SIZE);
   const float unit = max_ff(system_scale * cursor_scale, 1.0f);
   uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", gpu::VertAttrType::SFLOAT_32_32);
@@ -883,8 +883,8 @@ void wm_draw_region_blend(ARegion *region, int view, bool blend)
   rect_tex.xmax = 1.0f + halfx;
   rect_tex.ymax = 1.0f + halfy;
 
-  float alpha_easing = 1.0f - alpha;
-  alpha_easing = 1.0f - alpha_easing * alpha_easing;
+  /* Quadratic ease-out: 1 - (1 - alpha)^2 == alpha * (2 - alpha). */
+  float alpha_easing = alpha * (2.0f - alpha);
 
   /* Slide panels. */
   float ofs_x = BLI_rcti_size_x(&region->winrct) * (1.0f - alpha_easing);
@@ -912,7 +912,8 @@ void wm_draw_region_blend(ARegion *region, int view, bool blend)
       float(rect_geo.xmin), float(rect_geo.ymin), float(rect_geo.xmax), float(rect_geo.ymax)};
 
   if (blend) {
-    GPU_blend((alpha < 1.0f) ? GPU_BLEND_ALPHA : GPU_BLEND_ALPHA_PREMULT);
+    /* Regions drawn off-screen have pre-multiplied alpha. */
+    GPU_blend(GPU_BLEND_ALPHA_PREMULT);
   }
 
   /* Setup actual texture. */
@@ -930,7 +931,8 @@ void wm_draw_region_blend(ARegion *region, int view, bool blend)
 
   GPU_shader_uniform_float_ex(shader, rect_tex_loc, 4, 1, rectt);
   GPU_shader_uniform_float_ex(shader, rect_geo_loc, 4, 1, rectg);
-  GPU_shader_uniform_float_ex(shader, color_loc, 4, 1, float4{1, 1, 1, alpha});
+  GPU_shader_uniform_float_ex(
+      shader, color_loc, 4, 1, float4{alpha_easing, alpha_easing, alpha_easing, alpha_easing});
 
   gpu::Batch *quad = GPU_batch_preset_quad();
   GPU_batch_set_shader(quad, shader);
@@ -1108,6 +1110,16 @@ static void wm_draw_window_onscreen(bContext *C, wmWindow *win, int view)
 {
   wmWindowManager *wm = CTX_wm_manager(C);
   bScreen *screen = WM_window_get_active_screen(win);
+
+  /* Restore screen context after drawing. Especially important for when this is called for drawing
+   * to an offscreen buffer (see #WM_window_pixels_read_from_offscreen()) from operators or other
+   * handlers. */
+  ScrArea *restore_area = CTX_wm_area(C);
+  ARegion *restore_region = CTX_wm_region(C);
+  BLI_SCOPED_DEFER([&] {
+    CTX_wm_area_set(C, restore_area);
+    CTX_wm_region_set(C, restore_region);
+  });
 
   GPU_debug_group_begin("Window Redraw");
 
@@ -1677,8 +1689,20 @@ void wm_draw_update(bContext *C)
 
   CTX_wm_window_set(C, nullptr);
 
-  /* Draw non-windows (surfaces). */
+  /* Draw surfaces (non-windows, currently only used for XR). */
   wm_surfaces_iter(C, wm_draw_surface);
+
+  /* Restore GPU context to the last valid window if surface drawing cleared it, also restore DPI.
+   * This is required for GPU rendering code called before the next window redraw. Such as by
+   * events, handlers and notifiers (see #WM_main). */
+  if (wm->runtime->windrawable == nullptr && GPU_context_active_get() == nullptr) {
+    for (wmWindow &win : wm->windows.items_reversed()) {
+      if (win.runtime->ghostwin) {
+        wm_window_make_drawable(wm, &win);
+        break;
+      }
+    }
+  }
 
   GPU_render_end();
   GPU_context_main_unlock();

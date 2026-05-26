@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Beta (b'57dd016d99c8')\n"
+"Project-Id-Version: Blender 5.2.0 Alpha (b'24a58e1403ac')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-02-23 10:33+0000\n"
+"POT-Creation-Date: 2026-05-25 07:25+0000\n"
 "PO-Revision-Date: 2025-07-23 15:19+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Greek <https://translate.blender.org/projects/blender-ui/ui/el/>\n"
@@ -87,6 +87,14 @@ msgid "Active Bone"
 msgstr "Ενεργό Οστό"
 
 
+msgid "Link"
+msgstr "Σύνδεση"
+
+
+msgid "Append"
+msgstr "Συγχώνευση"
+
+
 msgid "Point"
 msgstr "Σημείο"
 
@@ -153,6 +161,10 @@ msgstr "Όλα"
 
 msgid "Fill"
 msgstr "Συμπλήρωμα"
+
+
+msgid "Both"
+msgstr "Both"
 
 
 msgid "Crop"
@@ -305,14 +317,6 @@ msgstr "Ντεγκραντέ"
 
 msgid "Save"
 msgstr "Αποθήκευση"
-
-
-msgid "Link"
-msgstr "Σύνδεση"
-
-
-msgid "Append"
-msgstr "Συγχώνευση"
 
 
 msgid "End"
@@ -519,6 +523,26 @@ msgid "Screen"
 msgstr "Οθόνη"
 
 
+msgid "Mirror"
+msgstr "Καθρέφτισμα"
+
+
+msgid "Snap"
+msgstr "Προσκόλληση"
+
+
+msgid "Select Linked"
+msgstr "Επιλογή Συνδεδεμένων"
+
+
+msgid "Metaball"
+msgstr "Μετα-σφαίρα"
+
+
+msgid "Light"
+msgstr "Φως"
+
+
 msgid "Rigid Body"
 msgstr "Rigid Body"
 
@@ -531,36 +555,16 @@ msgid "Track"
 msgstr "Ανίχνευση"
 
 
+msgid "Import"
+msgstr "Εισαγωγή"
+
+
 msgid "Make Single User"
 msgstr "Ορισμός Ενός Χρήστη"
 
 
 msgid "Merge"
 msgstr "Συγχώνευση"
-
-
-msgid "Metaball"
-msgstr "Μετα-σφαίρα"
-
-
-msgid "Snap"
-msgstr "Προσκόλληση"
-
-
-msgid "Mirror"
-msgstr "Καθρέφτισμα"
-
-
-msgid "Select Linked"
-msgstr "Επιλογή Συνδεδεμένων"
-
-
-msgid "Import"
-msgstr "Εισαγωγή"
-
-
-msgid "Light"
-msgstr "Φως"
 
 
 msgid "Cache"
@@ -731,10 +735,6 @@ msgstr "Διατήρηση Αρχικού"
 
 msgid "Open"
 msgstr "Άνοιγμα"
-
-
-msgid "Both"
-msgstr "Both"
 
 
 msgid "Next Keyframe"

@@ -25,6 +25,9 @@
 #include "BKE_customdata.hh"
 #include "BKE_data_transfer.h"
 #include "BKE_mesh_remap.hh"
+#include "BKE_node.hh"
+#include "BKE_node_runtime.hh"
+#include "BKE_node_tree_interface.hh"
 
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
@@ -34,7 +37,7 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
-#include "NOD_geometry_nodes_log.hh"
+#include "NOD_eval_log.hh"
 
 namespace blender {
 
@@ -874,6 +877,8 @@ static const EnumPropertyItem grease_pencil_build_time_mode_items[] = {
 
 #  include "MOD_nodes.hh"
 
+#  include "NOD_nodes_srna.hh"
+
 #  include "ED_object.hh"
 
 #  ifdef WITH_ALEMBIC
@@ -1293,7 +1298,6 @@ static void rna_fluid_set_type(Main *bmain, Scene *scene, PointerRNA *ptr)
       break;
     case MOD_FLUID_TYPE_FLOW:
     case MOD_FLUID_TYPE_EFFEC:
-    case 0:
     default:
       break;
   }
@@ -1407,10 +1411,10 @@ static void rna_BevelModifier_weight_attribute_visit_for_search(
   PointerRNA mesh_ptr = RNA_id_pointer_create(ob->data);
   PropertyRNA *attributes_prop = RNA_struct_find_property(&mesh_ptr, "attributes");
   RNA_PROP_BEGIN (&mesh_ptr, itemptr, attributes_prop) {
-    const CustomDataLayer *layer = static_cast<const CustomDataLayer *>(itemptr.data);
-    if (bke::allow_procedural_attribute_access(layer->name)) {
+    const StringRefNull name = rna_Attribute_name_get(itemptr);
+    if (bke::allow_procedural_attribute_access(name)) {
       StringPropertySearchVisitParams visit_params{};
-      visit_params.text = layer->name;
+      visit_params.text = name;
       visit_fn(visit_params);
     }
   }
@@ -1926,8 +1930,41 @@ static void rna_NodesModifier_node_group_update(Main *bmain, Scene *scene, Point
   MOD_nodes_update_interface(object, nmd);
 }
 
-static nodes::geo_eval_log::GeoTreeLog *get_nodes_modifier_log(const Object &object,
-                                                               NodesModifierData &nmd)
+static StructRNA *rna_NodesModifierProperties_refine(PointerRNA *ptr)
+{
+  auto *nmd = ptr->data_as<NodesModifierData>();
+  if (!nmd->node_group || ID_MISSING(nmd->node_group)) {
+    return RNA_NodesModifierPropertiesEmpty;
+  }
+  if (!nmd->node_group->runtime->geometry_nodes_srna_data) {
+    return RNA_NodesModifierPropertiesEmpty;
+  }
+  return nmd->node_group->runtime->geometry_nodes_srna_data->properties_struct;
+}
+
+static std::optional<std::string> rna_NodesModifierProperties_path(const PointerRNA *ptr)
+{
+  const auto *nmd = ptr->data_as<NodesModifierData>();
+  return fmt::format("modifiers[\"{}\"].properties", BLI_str_escape(nmd->modifier.name));
+}
+
+static IDProperty **rna_Modifier_idprops(PointerRNA *ptr)
+{
+  auto *md = ptr->data_as<ModifierData>();
+  return &md->system_properties;
+}
+
+static PointerRNA rna_NodesModifierProperties_get(PointerRNA *ptr)
+{
+  auto *nmd = ptr->data_as<NodesModifierData>();
+  if (!nmd->node_group) {
+    return PointerRNA_NULL;
+  }
+  return RNA_pointer_create_with_parent(*ptr, RNA_NodesModifierProperties, nmd);
+}
+
+static nodes::eval_log::NodeTreeLog *get_nodes_modifier_log(const Object &object,
+                                                            NodesModifierData &nmd)
 {
   if (!nmd.runtime->eval_log) {
     return nullptr;
@@ -1937,8 +1974,8 @@ static nodes::geo_eval_log::GeoTreeLog *get_nodes_modifier_log(const Object &obj
   return &nmd.runtime->eval_log->get_tree_log(modifier_context.hash());
 }
 
-static Span<nodes::geo_eval_log::NodeWarning> get_node_modifier_warnings(const Object &object,
-                                                                         NodesModifierData &nmd)
+static Span<nodes::eval_log::NodeWarning> get_node_modifier_warnings(const Object &object,
+                                                                     NodesModifierData &nmd)
 {
   if (auto *log = get_nodes_modifier_log(object, nmd)) {
     log->ensure_node_warnings(nmd);
@@ -1982,27 +2019,66 @@ static int rna_NodesModifier_node_warnings_length(PointerRNA *ptr)
 
 static void rna_NodesModifierWarning_message_get(PointerRNA *ptr, char *r_value)
 {
-  const auto *warning = static_cast<const nodes::geo_eval_log::NodeWarning *>(ptr->data);
+  const auto *warning = static_cast<const nodes::eval_log::NodeWarning *>(ptr->data);
   strcpy(r_value, warning->message.c_str());
 }
 
 static int rna_NodesModifierWarning_message_length(PointerRNA *ptr)
 {
-  const auto *warning = static_cast<const nodes::geo_eval_log::NodeWarning *>(ptr->data);
+  const auto *warning = static_cast<const nodes::eval_log::NodeWarning *>(ptr->data);
   return warning->message.size();
 }
 
 static int rna_NodesModifierWarning_type_get(PointerRNA *ptr)
 {
-  const auto *warning = static_cast<const nodes::geo_eval_log::NodeWarning *>(ptr->data);
+  const auto *warning = static_cast<const nodes::eval_log::NodeWarning *>(ptr->data);
   return int(warning->type);
 }
 
-static IDProperty **rna_NodesModifier_properties(PointerRNA *ptr)
+static bool rna_NodesModifier_is_input_visible(PointerRNA nmd_ptr,
+                                               ReportList *reports,
+                                               const char *identifier)
 {
-  NodesModifierData *nmd = static_cast<NodesModifierData *>(ptr->data);
-  NodesModifierSettings *settings = &nmd->settings;
-  return &settings->properties;
+  const Object &object = *id_cast<Object *>(nmd_ptr.owner_id);
+  const NodesModifierData *nmd = nmd_ptr.data_as<NodesModifierData>();
+  bNodeTree *ntree = nmd->node_group;
+  if (ntree == nullptr) {
+    return false;
+  }
+
+  nmd->runtime->usage_cache.ensure(object, *nmd);
+  const auto &input_usages = nmd->runtime->usage_cache.inputs;
+
+  const int index = ntree->interface_input_index_by_identifier(identifier);
+  if (index != -1) {
+    return input_usages[index].is_visible;
+  }
+
+  BKE_reportf(reports, RPT_ERROR, "Input '%s' not found", identifier);
+  return false;
+}
+
+static bool rna_NodesModifier_is_input_used(PointerRNA nmd_ptr,
+                                            ReportList *reports,
+                                            const char *identifier)
+{
+  const Object &object = *id_cast<Object *>(nmd_ptr.owner_id);
+  const NodesModifierData *nmd = nmd_ptr.data_as<NodesModifierData>();
+  bNodeTree *ntree = nmd->node_group;
+  if (ntree == nullptr) {
+    return false;
+  }
+
+  nmd->runtime->usage_cache.ensure(object, *nmd);
+  const auto &input_usages = nmd->runtime->usage_cache.inputs;
+
+  const int index = ntree->interface_input_index_by_identifier(identifier);
+  if (index != -1) {
+    return input_usages[index].is_used;
+  }
+
+  BKE_reportf(reports, RPT_ERROR, "Input '%s' not found", identifier);
+  return false;
 }
 
 static void rna_Lineart_start_level_set(PointerRNA *ptr, int value)
@@ -2061,6 +2137,27 @@ static StructRNA *rna_NodesModifierBake_data_block_typef(PointerRNA *ptr)
 {
   NodesModifierDataBlock *data_block = static_cast<NodesModifierDataBlock *>(ptr->data);
   return ID_code_to_RNA_type(data_block->id_type);
+}
+
+static std::optional<std::string> rna_NodesModifierBake_path(const PointerRNA *ptr)
+{
+  const std::optional<AncestorPointerRNA> ancestor = RNA_struct_search_closest_ancestor_by_type(
+      ptr, RNA_NodesModifier);
+  if (!ancestor) {
+    return std::nullopt;
+  }
+
+  const ModifierData *md = static_cast<ModifierData *>(ancestor->data);
+  BLI_assert(md->type == eModifierType_Nodes);
+  const NodesModifierData *nmd = reinterpret_cast<const NodesModifierData *>(md);
+  const NodesModifierBake *nmd_bake = ptr->data_as<NodesModifierBake>();
+  Span<NodesModifierBake> bakes = {nmd->bakes, nmd->bakes_num};
+  if (!bakes.contains_ptr(nmd_bake)) {
+    return std::nullopt;
+  }
+  const int64_t idx = nmd_bake - bakes.begin();
+
+  return fmt::format("modifiers[\"{}\"].bakes[{}]", BLI_str_escape(md->name), idx);
 }
 
 bool rna_GreasePencilModifier_material_poll(PointerRNA *ptr, PointerRNA value)
@@ -2269,7 +2366,7 @@ const EnumPropertyItem *grease_pencil_build_time_mode_filter(bContext * /*C*/,
 
   auto *md = static_cast<ModifierData *>(ptr->data);
   auto *mmd = reinterpret_cast<BuildGpencilModifierData *>(md);
-  const bool is_concurrent = (mmd->mode == MOD_GREASE_PENCIL_BUILD_MODE_CONCURRENT);
+  const bool is_concurrent = (mmd->mode == GP_BUILD_MODE_CONCURRENT);
 
   EnumPropertyItem *item_list = nullptr;
   int totitem = 0;
@@ -2368,7 +2465,7 @@ static void rna_GreasePencilTimeModifier_segments_begin(CollectionPropertyIterat
 static void rna_GreasePencilTimeModifier_start_frame_set(PointerRNA *ptr, int value)
 {
   auto *tmd = static_cast<GreasePencilTimeModifierData *>(ptr->data);
-  CLAMP(value, MINFRAME, MAXFRAME);
+  CLAMP(value, MINAFRAME, MAXFRAME);
   tmd->sfra = value;
 
   if (tmd->sfra >= tmd->efra) {
@@ -2379,7 +2476,7 @@ static void rna_GreasePencilTimeModifier_start_frame_set(PointerRNA *ptr, int va
 static void rna_GreasePencilTimeModifier_end_frame_set(PointerRNA *ptr, int value)
 {
   auto *tmd = static_cast<GreasePencilTimeModifierData *>(ptr->data);
-  CLAMP(value, MINFRAME, MAXFRAME);
+  CLAMP(value, MINAFRAME, MAXFRAME);
   tmd->efra = value;
 
   if (tmd->sfra >= tmd->efra) {
@@ -7923,6 +8020,7 @@ static void rna_def_modifier_nodes_bake(BlenderRNA *brna)
 
   srna = RNA_def_struct(brna, "NodesModifierBake", nullptr);
   RNA_def_struct_ui_text(srna, "Nodes Modifier Bake", "");
+  RNA_def_struct_path_func(srna, "rna_NodesModifierBake_path");
 
   prop = RNA_def_property(srna, "directory", PROP_STRING, PROP_DIRPATH);
   RNA_def_property_flag(prop, PROP_PATH_SUPPORTS_BLEND_RELATIVE);
@@ -8046,10 +8144,28 @@ static void rna_def_modifier_nodes_warning(BlenderRNA *brna)
   RNA_def_property_enum_funcs(prop, "rna_NodesModifierWarning_type_get", nullptr, nullptr);
 }
 
+static void rna_def_modifier_nodes_properties(BlenderRNA *brna)
+{
+  StructRNA *srna;
+
+  srna = RNA_def_struct(brna, "NodesModifierProperties", nullptr);
+  RNA_def_struct_ui_text(srna, "Geometry Nodes Modifier Properties", "");
+  RNA_def_struct_refine_func(srna, "rna_NodesModifierProperties_refine");
+  RNA_def_struct_system_idprops_func(srna, "rna_Modifier_idprops");
+  RNA_def_struct_path_func(srna, "rna_NodesModifierProperties_path");
+
+  srna = RNA_def_struct(brna, "NodesModifierPropertiesEmpty", nullptr);
+  RNA_def_struct_ui_text(srna, "Geometry Nodes Modifier Empty Properties", "");
+  RNA_def_struct_system_idprops_func(srna, "rna_Modifier_idprops");
+  RNA_def_struct_path_func(srna, "rna_NodesModifierProperties_path");
+}
+
 static void rna_def_modifier_nodes(BlenderRNA *brna)
 {
   StructRNA *srna;
   PropertyRNA *prop;
+  FunctionRNA *func;
+  PropertyRNA *parm;
 
   rna_def_modifier_nodes_data_block(brna);
 
@@ -8061,13 +8177,11 @@ static void rna_def_modifier_nodes(BlenderRNA *brna)
 
   rna_def_modifier_nodes_warning(brna);
 
+  rna_def_modifier_nodes_properties(brna);
+
   srna = RNA_def_struct(brna, "NodesModifier", "Modifier");
   RNA_def_struct_ui_text(srna, "Nodes Modifier", "");
   RNA_def_struct_sdna(srna, "NodesModifierData");
-  /* NOTE: `RNA_def_struct_idprops_func` should be removed once #132129 is implemented.
-   * Similar to the issue with Operator (for node tools), see #rna_def_operator. */
-  RNA_def_struct_idprops_func(srna, "rna_NodesModifier_properties");
-  RNA_def_struct_system_idprops_func(srna, "rna_NodesModifier_properties");
   RNA_def_struct_ui_icon(srna, ICON_GEOMETRY_NODES);
 
   RNA_define_lib_overridable(true);
@@ -8128,6 +8242,24 @@ static void rna_def_modifier_nodes(BlenderRNA *brna)
   RNA_def_property_override_flag(prop, PROPOVERRIDE_NO_COMPARISON);
   RNA_def_property_override_clear_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
 
+  func = RNA_def_function(srna, "is_input_visible", "rna_NodesModifier_is_input_visible");
+  RNA_def_function_flag(func, FUNC_SELF_AS_RNA | FUNC_USE_REPORTS);
+  RNA_def_function_ui_description(
+      func, "Check whether an input is currently visible based on modifier settings.");
+  parm = RNA_def_string(func, "identifier", "Identifier", 0, "", "The identifier of the input");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+  parm = RNA_def_boolean(func, "result", false, "Result", "");
+  RNA_def_function_return(func, parm);
+
+  func = RNA_def_function(srna, "is_input_used", "rna_NodesModifier_is_input_used");
+  RNA_def_function_flag(func, FUNC_SELF_AS_RNA | FUNC_USE_REPORTS);
+  RNA_def_function_ui_description(
+      func, "Check whether an input is currently used based on modifier settings.");
+  parm = RNA_def_string(func, "identifier", "Identifier", 0, "", "The identifier of the input");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+  parm = RNA_def_boolean(func, "result", false, "Result", "");
+  RNA_def_function_return(func, parm);
+
   rna_def_modifier_panel_open_prop(
       srna, "open_output_attributes_panel", NODES_MODIFIER_PANEL_OUTPUT_ATTRIBUTES);
   rna_def_modifier_panel_open_prop(srna, "open_manage_panel", NODES_MODIFIER_PANEL_MANAGE);
@@ -8137,6 +8269,12 @@ static void rna_def_modifier_nodes(BlenderRNA *brna)
   rna_def_modifier_panel_open_prop(
       srna, "open_bake_data_blocks_panel", NODES_MODIFIER_PANEL_BAKE_DATA_BLOCKS);
   rna_def_modifier_panel_open_prop(srna, "open_warnings_panel", NODES_MODIFIER_PANEL_WARNINGS);
+
+  prop = RNA_def_property(srna, "properties", PROP_POINTER, PROP_NONE);
+  RNA_def_property_struct_type(prop, "NodesModifierProperties");
+  RNA_def_property_ui_text(prop, "Properties", "");
+  RNA_def_property_pointer_funcs(
+      prop, "rna_NodesModifierProperties_get", nullptr, nullptr, nullptr);
 
   RNA_define_lib_overridable(false);
 }
@@ -9044,6 +9182,12 @@ static void rna_def_modifier_grease_pencil_lineart(BlenderRNA *brna)
   RNA_def_property_enum_items(prop, modifier_lineart_silhouette_filtering);
   RNA_def_property_ui_text(prop, "Silhouette Filtering", "Select contour or silhouette");
   RNA_def_property_update(prop, 0, "rna_Modifier_dependency_update");
+
+  prop = RNA_def_property(srna, "fill_strokes", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "fill_strokes", 0);
+  RNA_def_property_ui_text(
+      prop, "Fill Strokes", "Generate filled strokes instead of only outline");
+  RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
   prop = RNA_def_property(srna, "use_multiple_levels", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "use_multiple_levels", 0);
@@ -10570,7 +10714,8 @@ static void rna_def_modifier_grease_pencil_time(BlenderRNA *brna)
   RNA_def_property_int_sdna(prop, nullptr, "sfra");
   RNA_def_property_int_funcs(
       prop, nullptr, "rna_GreasePencilTimeModifier_start_frame_set", nullptr);
-  RNA_def_property_range(prop, MINFRAME, MAXFRAME);
+  RNA_def_property_range(prop, MINAFRAME, MAXFRAME);
+  RNA_def_property_ui_range(prop, MINFRAME, MAXFRAME, 1, 1);
   RNA_def_property_ui_text(prop, "Start Frame", "First frame of the range");
   RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
@@ -10578,7 +10723,8 @@ static void rna_def_modifier_grease_pencil_time(BlenderRNA *brna)
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_int_sdna(prop, nullptr, "efra");
   RNA_def_property_int_funcs(prop, nullptr, "rna_GreasePencilTimeModifier_end_frame_set", nullptr);
-  RNA_def_property_range(prop, MINFRAME, MAXFRAME);
+  RNA_def_property_range(prop, MINAFRAME, MAXFRAME);
+  RNA_def_property_ui_range(prop, MINFRAME, MAXFRAME, 1, 1);
   RNA_def_property_ui_text(prop, "End Frame", "Final frame of the range");
   RNA_def_property_update(prop, 0, "rna_Modifier_update");
 

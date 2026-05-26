@@ -61,7 +61,7 @@
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
 
-#include "NOD_geometry_nodes_log.hh"
+#include "NOD_eval_log.hh"
 
 #include "RNA_access.hh"
 #include "RNA_path.hh"
@@ -74,7 +74,6 @@ namespace blender {
 using bke::GeometrySet;
 using bke::InstanceReference;
 using bke::Instances;
-namespace geo_log = nodes::geo_eval_log;
 
 /* -------------------------------------------------------------------- */
 /** \name Internal Duplicate Context
@@ -214,7 +213,7 @@ static bool copy_dupli_context(DupliContext *r_ctx,
 
   if (r_ctx->level == MAX_DUPLI_RECUR - 1) {
     const StringRef object_name = ob ? ob->id.name + 2 : "";
-    const StringRef geometry_name = geometry ? geometry->name : "";
+    const StringRef geometry_name = geometry ? geometry->name() : "";
 
     if (geometry_name.is_empty() && !object_name.is_empty()) {
       std::cerr << fmt::format(
@@ -1341,7 +1340,10 @@ static void make_duplis_faces(const DupliContext *ctx)
 
   if (em != nullptr) {
     const int cd_loop_uv_offset = CustomData_get_offset_named(
-        &em->bm->ldata, CD_PROP_FLOAT2, mesh_eval->active_uv_map_name());
+        &em->bm->ldata,
+        CD_PROP_FLOAT2,
+        mesh_eval ? mesh_eval->active_uv_map_name().c_str() :
+                    CustomData_get_active_layer_name(&em->bm->ldata, CD_PROP_FLOAT2));
     FaceDupliData_EditMesh fdd{};
     fdd.params = fdd_params;
     fdd.em = em;
@@ -1451,7 +1453,7 @@ static void make_duplis_particle_system(const DupliContext *ctx, ParticleSystem 
 
       const ListBaseT<Base> dup_collection_objects = BKE_collection_object_cache_get(
           part->instance_collection);
-      if (BLI_listbase_is_empty(&dup_collection_objects)) {
+      if (dup_collection_objects.is_empty()) {
         return;
       }
 
@@ -1846,8 +1848,8 @@ void object_duplilist_preview(Depsgraph *depsgraph,
     if (!nmd_orig->runtime->eval_log) {
       continue;
     }
-    if (const geo_log::ViewerNodeLog *viewer_log =
-            geo_log::GeoNodesLog::find_viewer_node_log_for_path(*viewer_path))
+    if (const nodes::eval_log::ViewerNodeLog *viewer_log =
+            nodes::eval_log::NodesEvalLog::find_viewer_node_log_for_path(*viewer_path))
     {
       if (const bke::GeometrySet *viewer_geometry = viewer_log->main_geometry()) {
         ctx.preview_base_geometry = &*viewer_geometry;

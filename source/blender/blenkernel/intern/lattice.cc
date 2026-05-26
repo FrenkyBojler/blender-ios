@@ -94,7 +94,7 @@ static void lattice_free_data(ID *id)
 
   BKE_lattice_batch_cache_free(lattice);
 
-  BLI_freelistN(&lattice->vertex_group_names);
+  lattice->vertex_group_names.free_no_destruct();
 
   MEM_SAFE_DELETE(lattice->def);
   if (lattice->dvert) {
@@ -145,10 +145,14 @@ static void lattice_blend_write(BlendWriter *writer, ID *id, const void *id_addr
 static void lattice_blend_read_data(BlendDataReader *reader, ID *id)
 {
   Lattice *lt = id_cast<Lattice *>(id);
-  BLO_read_struct_array(reader, BPoint, lt->pntsu * lt->pntsv * lt->pntsw, &lt->def);
+  const int64_t points_num = int64_t(lt->pntsu) * lt->pntsv * lt->pntsw;
+  if (!BLO_read_array(reader, &lt->def, points_num)) {
+    lt->pntsu = lt->pntsv = lt->pntsw = 0;
+  }
 
-  BLO_read_struct_array(reader, MDeformVert, lt->pntsu * lt->pntsv * lt->pntsw, &lt->dvert);
-  BKE_defvert_blend_read(reader, lt->pntsu * lt->pntsv * lt->pntsw, lt->dvert);
+  if (BLO_read_array(reader, &lt->dvert, points_num)) {
+    BKE_defvert_blend_read(reader, lt->pntsu * lt->pntsv * lt->pntsw, lt->dvert);
+  }
   BLO_read_struct_list(reader, bDeformGroup, &lt->vertex_group_names);
 
   lt->editlatt = nullptr;

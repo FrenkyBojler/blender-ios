@@ -261,7 +261,7 @@ void constraintTransLim(const TransInfo *t, const TransDataContainer *tc, TransD
     float ctime = float(t->scene->r.cfra);
 
     /* Make a temporary bConstraintOb for using these limit constraints
-     * - They only care that cob->matrix is correctly set ;-).
+     * - They only care that cob->matrix is correctly set.
      * - Current space should be local.
      */
     unit_m4(cob.matrix);
@@ -338,7 +338,7 @@ void constraintTransLim(const TransInfo *t, const TransDataContainer *tc, TransD
         }
 
         /* Free targets list. */
-        BLI_freelistN(&targets);
+        targets.free_no_destruct();
       }
     }
 
@@ -350,8 +350,8 @@ void constraintTransLim(const TransInfo *t, const TransDataContainer *tc, TransD
 static void constraintob_from_transdata(bConstraintOb *cob, TransDataExtension *td_ext)
 {
   /* Make a temporary bConstraintOb for use by limit constraints
-   * - they only care that cob->matrix is correctly set ;-)
-   * - current space should be local
+   * - They only care that cob->matrix is correctly set.
+   * - Current space should be local
    */
   memset(cob, 0, sizeof(bConstraintOb));
   if (!td_ext) {
@@ -1251,7 +1251,8 @@ void transform_mode_default_modal_orientation_set(TransInfo *t, int type)
     rv3d = static_cast<RegionView3D *>(t->region->regiondata);
   }
 
-  t->orient[O_DEFAULT].type = calc_orientation_from_type_ex(t->scene,
+  t->orient[O_DEFAULT].type = calc_orientation_from_type_ex(*t->bmain,
+                                                            t->scene,
                                                             t->view_layer,
                                                             v3d,
                                                             rv3d,

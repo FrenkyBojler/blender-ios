@@ -289,6 +289,9 @@ class USERPREF_PT_interface_translation(InterfacePanel, CenterAlignMixIn, Panel)
         col.prop(view, "use_translate_reports", text="Reports")
         col.prop(view, "use_translate_new_dataname", text="New Data")
 
+        layout.prop(view, "date_format")
+        layout.prop(view, "time_format", text="Time")
+
 
 class USERPREF_PT_interface_accessibility(InterfacePanel, CenterAlignMixIn, Panel):
     bl_label = "Accessibility"
@@ -616,11 +619,8 @@ class USERPREF_PT_animation_timeline(AnimationPanel, CenterAlignMixIn, Panel):
     def draw_centered(self, context, layout):
         prefs = context.preferences
         view = prefs.view
-        edit = prefs.edit
 
         col = layout.column()
-        col.prop(edit, "use_negative_frames")
-
         col.prop(view, "view2d_grid_spacing_min", text="Minimum Grid Spacing")
         col.prop(view, "timecode_style")
         col.prop(view, "view_frame_type")
@@ -671,6 +671,22 @@ class USERPREF_PT_animation_fcurves(AnimationPanel, CenterAlignMixIn, Panel):
         flow.prop(edit, "use_fcurve_high_quality_drawing")
 
 
+class USERPREF_PT_animation_timeline_advanced(AnimationPanel, CenterAlignMixIn, Panel):
+    bl_label = "Advanced"
+    bl_options = {'DEFAULT_CLOSED'}
+    bl_parent_id = 'USERPREF_PT_animation_timeline'
+
+    def draw_centered(self, context, layout):
+        prefs = context.preferences
+        edit = prefs.edit
+
+        layout.prop(edit, "use_negative_frames")
+        row = layout.row(align=False)
+        row.active = edit.use_negative_frames
+        row.alignment = 'RIGHT'
+        row.label(icon="ERROR", text="Negative frames can cause issues with audio playback and exporters.")
+
+
 # -----------------------------------------------------------------------------
 # System Panels
 
@@ -690,8 +706,8 @@ class USERPREF_PT_system_sound(SystemPanel, CenterAlignMixIn, Panel):
 
         layout.prop(system, "audio_device", expand=False)
 
-        sub = layout.grid_flow(row_major=False, columns=0, even_columns=False, even_rows=False, align=False)
-        sub.active = system.audio_device not in {'NONE', 'None'}
+        sub = layout.column()
+        sub.active = system.audio_device not in {'SOUND_NONE', 'NONE', 'None', ''}
         sub.prop(system, "audio_channels", text="Channels")
         sub.prop(system, "audio_mixing_buffer", text="Mixing Buffer")
         sub.prop(system, "audio_sample_rate", text="Sample Rate")
@@ -858,6 +874,11 @@ class USERPREF_PT_system_memory(SystemPanel, CenterAlignMixIn, Panel):
             label = iface_("Threads") if system.shader_compilation_method == 'THREAD' else iface_("Subprocesses")
             col.prop(system, "gpu_shader_workers", text=label, translate=False)
 
+        layout.separator()
+
+        col = layout.column()
+        col.prop(system, "geometry_nodes_stack_limit")
+
 
 class USERPREF_PT_system_video_sequencer(SystemPanel, CenterAlignMixIn, Panel):
     bl_label = "Video Sequencer"
@@ -948,7 +969,6 @@ class USERPREF_PT_viewport_textures(ViewportPanel, CenterAlignMixIn, Panel):
         col.prop(system, "gl_texture_limit", text="Limit Size")
         col.prop(system, "anisotropic_filter")
         col.prop(system, "gl_clip_alpha", slider=True)
-        col.prop(system, "image_draw_method", text="Image Display Method")
 
 
 class USERPREF_PT_viewport_subdivision(ViewportPanel, CenterAlignMixIn, Panel):
@@ -1652,6 +1672,7 @@ class USERPREF_PT_file_paths_render(FilePathsPanel, Panel):
         paths = context.preferences.filepaths
 
         col = self.layout.column()
+        col.prop(paths, "texture_cache_directory", text="Texture Cache")
         col.prop(paths, "render_output_directory", text="Render Output")
         col.prop(paths, "render_cache_directory", text="Render Cache")
 
@@ -1804,6 +1825,8 @@ class USERPREF_PT_saveload_blend(SaveLoadPanel, CenterAlignMixIn, Panel):
 
         col = layout.column(heading="Save")
         col.prop(view, "use_save_prompt")
+
+        layout.prop(paths, "save_modified_images")
 
         col = layout.column()
         col.prop(paths, "save_version")
@@ -2757,7 +2780,9 @@ class USERPREF_PT_assets(AssetsPanel, Panel):
         row.operator("extensions.userpref_allow_online", text="Allow Online Access", icon='CHECKMARK')
 
 
-class USERPREF_PT_assets_asset_libraries(AssetsPanel, Panel):
+# The panel is not located in the file paths section anymore and should be renamed. The old name is only kept for
+# compatibility (add-ons extend it). Planned for removal in 6.0, see #153901.
+class USERPREF_PT_file_paths_asset_libraries(AssetsPanel, Panel):
     bl_label = "Asset Libraries"
 
     def draw(self, context):
@@ -2797,7 +2822,11 @@ class USERPREF_PT_assets_asset_libraries(AssetsPanel, Panel):
         if active_library.use_remote_url:
             use_remote_libraries = context.preferences.experimental.use_remote_asset_libraries
             if use_remote_libraries:
-                layout.prop(active_library, "remote_url")
+                row = layout.row()
+                row.alert = active_library.remote_url == ""
+                row.prop(active_library, "remote_url", text="", icon='INTERNET', placeholder="Repository URL")
+
+            layout.prop(active_library, "import_method", text="Import Method")
         else:
             layout.prop(active_library, "path")
             layout.prop(active_library, "import_method", text="Import Method")
@@ -2806,11 +2835,17 @@ class USERPREF_PT_assets_asset_libraries(AssetsPanel, Panel):
 
 class USERPREF_UL_asset_libraries(UIList):
     def draw_item(self, context, layout, _data, item, _icon, _active_data, _active_propname, _index):
+        del context
         asset_library = item
 
         icon = 'INTERNET' if asset_library.use_remote_url else 'DISK_DRIVE'
         row = layout.row(align=True)
         row.prop(asset_library, "name", text="", icon=icon, emboss=False)
+
+        if asset_library.enabled:
+            if asset_library.use_remote_url and asset_library.remote_url == "":
+                row.label(text="", icon='ERROR')
+
         row.prop(asset_library, "enabled", text="", emboss=False,
                  icon='CHECKBOX_HLT' if asset_library.enabled else 'CHECKBOX_DEHLT')
 
@@ -3062,9 +3097,9 @@ class USERPREF_PT_experimental_new_features(ExperimentalPanel, Panel):
                 ({"property": "use_extended_asset_browser"},
                  ("blender/blender/projects/10", "Pipeline, Assets & IO Project Page")),
                 ({"property": "use_shader_node_previews"}, ("blender/blender/issues/110353", "#110353")),
-                ({"property": "use_geometry_nodes_lists"}, ("blender/blender/issues/140918", "#140918")),
                 ({"property": "use_geometry_bundle"}, ("blender/blender/issues/150574", "#150574")),
-                ({"property": "use_remote_asset_libraries"}, ("blender/blender/issues/134495", "#134495")),
+                ({"property": "use_collection_importer"}, ("blender/blender/issues/132171", "#132171")),
+                ({"property": "use_geometry_nodes_hair_dynamics"}, ("blender/blender/issues/141609", "#141609")),
             ),
         )
 
@@ -3145,6 +3180,7 @@ classes = (
     USERPREF_PT_animation_timeline,
     USERPREF_PT_animation_keyframes,
     USERPREF_PT_animation_fcurves,
+    USERPREF_PT_animation_timeline_advanced,
 
     USERPREF_PT_system_cycles_devices,
     USERPREF_PT_system_display_graphics,
@@ -3198,7 +3234,7 @@ classes = (
     USERPREF_PT_addons,
 
     USERPREF_PT_assets,
-    USERPREF_PT_assets_asset_libraries,
+    USERPREF_PT_file_paths_asset_libraries,
 
     USERPREF_MT_extensions_active_repo,
     USERPREF_MT_extensions_active_repo_remove,

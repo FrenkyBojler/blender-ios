@@ -53,6 +53,14 @@ struct RemoteListingAssetEntry : NonCopyable {
   RemoteListingAssetEntry(RemoteListingAssetEntry &&);
   RemoteListingAssetEntry &operator=(RemoteListingAssetEntry &&);
   ~RemoteListingAssetEntry();
+
+  /**
+   * Empty entries are used to skip assets when the Blender version doesn't match.
+   */
+  bool is_empty() const
+  {
+    return idcode == 0;
+  }
 };
 
 /**
@@ -64,11 +72,7 @@ struct RemoteListingAssetEntry : NonCopyable {
 struct RemoteListingFileEntry : NonCopyable {
   std::string local_path;
   asset_system::URLWithHash download_url;
-
-  RemoteListingFileEntry() = default;
-  RemoteListingFileEntry(RemoteListingFileEntry &&);
-  RemoteListingFileEntry &operator=(RemoteListingFileEntry &&);
-  ~RemoteListingFileEntry() = default;
+  int64_t size_in_bytes;
 };
 
 using RemoteListingEntryProcessFn = FunctionRef<bool(RemoteListingAssetEntry &)>;

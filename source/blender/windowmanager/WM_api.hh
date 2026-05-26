@@ -404,7 +404,7 @@ enum eWindowAlignment {
 };
 
 /**
- * \param rect: Position & size of the window.
+ * \param rect_unscaled: Position & size of the window.
  * \param space_type: #SPACE_VIEW3D, #SPACE_INFO, ... (#eSpace_Type).
  * \param toplevel: Not a child owned by other windows. A peer of main window.
  * \param dialog: whether this should be made as a dialog-style window
@@ -607,10 +607,14 @@ void WM_cursor_warp(wmWindow *win, int x, int y);
 #define WM_CURSOR_DEFAULT_LOGICAL_SIZE 24
 
 /**
+ * \param hardware_cursor: True when this uses hardware cursor display,
+ * the hardware cursor is post-scaled on macOS (out of our control).
+ * When false, this is a software cursor and the logical size is always returned.
+ *
  * \return the preferred logical size for the cursor
  * (before DPI/Hi-DPI scaling is applied).
  */
-uint WM_cursor_preferred_logical_size();
+uint WM_cursor_preferred_logical_size(bool hardware_cursor);
 
 /* Handlers. */
 
@@ -798,6 +802,16 @@ void WM_event_add_mousemove(wmWindow *win);
 /* 3D mouse. */
 void WM_ndof_deadzone_set(float deadzone);
 #endif
+
+/**
+ * Mark the current event queue to break its current processing, and delay handling of remaining
+ * events to the next main event loop iteration in `WM_main()`.
+ *
+ * Used e.g. by undo/redo code to ensure that a redraw has been done before processing further
+ * events.
+ */
+void WM_event_handling_break(const bContext &C);
+
 /* Notifiers. */
 void WM_event_add_notifier_ex(wmWindowManager *wm,
                               const wmWindow *win,
@@ -815,7 +829,12 @@ void WM_main_remap_editor_id_reference(const bke::id::IDRemapper &mappings);
 
 /**
  * Show the report in the info header.
+ *
  * \param win: When NULL, a best-guess is used.
+ *
+ * \note This shows the most recently added report. In most cases, calls to this function should
+ * be guarded by a check to whether a report was actually added by a previous line to avoid showing
+ * the user outdated reports.
  */
 void WM_report_banner_show(wmWindowManager *wm, wmWindow *win) ATTR_NONNULL(1);
 /**
@@ -832,9 +851,9 @@ void WM_report_banners_cancel(Main *bmain);
  * given \a reports will be empty after calling this function. The \a reports #ReportList data
  * itself is not freed or cleared though, and remains fully usable after this call.
  *
- * \params reports The #ReportList from which to move reports to the WM one, may be `nullptr`.
- * \params wm the WindowManager to add given \a reports to. If `nullptr`, the first WM of current
- * #G_MAIN will be used.
+ * \param wm: the WindowManager to add given \a reports to.
+ * If `nullptr`, the first WM of current #G_MAIN will be used.
+ * \param reports: The #ReportList from which to move reports to the WM one, may be `nullptr`.
  */
 void WM_reports_from_reports_move(wmWindowManager *wm, ReportList *reports);
 
@@ -1483,7 +1502,7 @@ void WM_uilisttype_free();
  * The "full" list-ID is an internal name used for storing and identifying a list. It is built like
  * this:
  * `{uiListType.idname}_{list_id}`, whereby `list_id` is an optional parameter passed to
- * `ui::Layout.template_list()`. If it is not set, the full list-ID is just
+ * `ui::Layout.template_uilist()`. If it is not set, the full list-ID is just
  * `{uiListType.idname}_`.
  *
  * Note that whenever the Python API refers to the list-ID, it's the short, "non-full" one it
@@ -1751,7 +1770,7 @@ ID *WM_drag_get_local_ID_or_import_from_asset(const bContext *C, const wmDrag *d
 /**
  * \brief Free asset ID imported for canceled drop.
  *
- * If the asset was imported (linked/appended) using #WM_drag_get_local_ID_or_import_from_asset()`
+ * If the asset was imported (linked/appended) using #WM_drag_get_local_ID_or_import_from_asset
  * (typically via a #wmDropBox.copy() callback), we want the ID to be removed again if the drop
  * operator cancels.
  * This is for use as #wmDropBox.cancel() callback.
@@ -1856,6 +1875,11 @@ enum eWM_JobType {
   WM_JOB_TYPE_OBJECT_BAKE,
   WM_JOB_TYPE_FILESEL_READDIR,
   WM_JOB_TYPE_ASSET_LIBRARY_LOAD,
+  /** For the global asset list storage (#ED_asset_list.hh). Use a different job type from
+   * #WM_JOB_TYPE_ASSET_LIBRARY_LOAD (used by the asset browser) so the global storage loading can
+   * happen independently of the asset browser loading. They would block each other if the type was
+   * the same. */
+  WM_JOB_TYPE_ASSET_LIBRARY_GLOBAL_LISTING_LOAD,
   WM_JOB_TYPE_CLIP_BUILD_PROXY,
   WM_JOB_TYPE_CLIP_TRACK_MARKERS,
   WM_JOB_TYPE_CLIP_SOLVE_CAMERA,
@@ -1880,6 +1904,8 @@ enum eWM_JobType {
   WM_JOB_TYPE_CALCULATE_SIMULATION_NODES,
   WM_JOB_TYPE_BAKE_GEOMETRY_NODES,
   WM_JOB_TYPE_UV_PACK,
+  WM_JOB_TYPE_GENERATE_TEXTURE_CACHE,
+  WM_JOB_TYPE_SOUND_MIXDOWN,
   /* Add as needed, bake, seq proxy build
    * if having hard coded values is a problem. */
 };
@@ -2067,8 +2093,11 @@ int WM_main_playanim(int argc, const char **argv);
 bool write_crash_blend();
 
 bool WM_autosave_is_scheduled(wmWindowManager *wm);
-/** Flushes all changes from edit modes and stores the auto-save file. */
-void WM_autosave_write(wmWindowManager *wm, Main *bmain);
+/**
+ * Flushes all changes from edit modes and stores the auto-save file.
+ * \return success, false if the autosave file could not be written.
+ */
+bool WM_autosave_write(wmWindowManager *wm, Main *bmain, ReportList *reports);
 
 /**
  * Lock the interface for any communication.
@@ -2135,7 +2164,7 @@ bool WM_cursor_test_motion_and_update(const int mval[2]) ATTR_NONNULL(1) ATTR_WA
 /**
  * Return true if this event type is a candidate for being flagged as consecutive.
  *
- * See: #WM_EVENT_IS_CONSECUTIVE doc-string.
+ * See: #WM_EVENT_IS_CONSECUTIVE docstring.
  */
 bool WM_event_consecutive_gesture_test(const wmEvent *event);
 /**
@@ -2248,7 +2277,10 @@ bool WM_xr_session_exists(const wmXrData *xr);
  */
 bool WM_xr_session_is_ready(const wmXrData *xr);
 wmXrSessionState *WM_xr_session_state_handle_get(const wmXrData *xr);
-ScrArea *WM_xr_session_area_get(const wmXrData *xr);
+
+bContext *WM_xr_session_context_get(const wmXrData *xr);
+bContext *WM_xr_session_context_ensure(wmXrData *xr, const wmWindowManager *wm);
+
 void WM_xr_session_base_pose_reset(wmXrData *xr);
 bool WM_xr_session_state_viewer_pose_location_get(const wmXrData *xr, float r_location[3]);
 bool WM_xr_session_state_viewer_pose_rotation_get(const wmXrData *xr, float r_rotation[4]);
@@ -2273,6 +2305,7 @@ bool WM_xr_session_state_nav_rotation_get(const wmXrData *xr, float r_rotation[4
 void WM_xr_session_state_nav_rotation_set(wmXrData *xr, const float rotation[4]);
 bool WM_xr_session_state_nav_scale_get(const wmXrData *xr, float *r_scale);
 void WM_xr_session_state_nav_scale_set(wmXrData *xr, float scale);
+bool WM_xr_session_state_viewer_scale_get(const wmXrData *xr, float *r_scale);
 void WM_xr_session_state_navigation_reset(wmXrSessionState *state);
 void WM_xr_session_state_vignette_activate(wmXrData *xr);
 void WM_xr_session_state_vignette_update(wmXrSessionState *state);
