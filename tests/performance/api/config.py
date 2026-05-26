@@ -8,7 +8,7 @@ import pathlib
 
 from dataclasses import dataclass, field
 
-from .common import sanitize_device_id
+from .common import normalize_device_id
 from .test import TestCollection
 
 
@@ -97,7 +97,7 @@ class TestQueue:
             rows = {}
 
             for entry in entries:
-                key = (sanitize_device_id(entry.device_id), entry.category, entry.test)
+                key = (normalize_device_id(entry.device_id), entry.category, entry.test)
                 if key in rows:
                     rows[key].append(entry)
                 else:
@@ -106,13 +106,13 @@ class TestQueue:
             return [value for _, value in sorted(rows.items())]
 
     def find(self, revision: str, test: str, category: str, device_id: str) -> dict:
-        sanitized = sanitize_device_id(device_id)
+        sanitized = normalize_device_id(device_id)
         for entry in self.entries:
             if (
                 entry.revision == revision and
                 entry.test == test and
                 entry.category == category and
-                sanitize_device_id(entry.device_id) == sanitized
+                normalize_device_id(entry.device_id) == sanitized
             ):
                 return entry
 
@@ -210,7 +210,7 @@ class TestConfig:
         for device in machine.devices:
             for device_filter in device_filters:
                 if fnmatch.fnmatch(device.id, device_filter) or \
-                   fnmatch.fnmatch(sanitize_device_id(device.id), sanitize_device_id(device_filter)):
+                   fnmatch.fnmatch(normalize_device_id(device.id), normalize_device_id(device_filter)):
                     self.devices.append(device)
                     break
 

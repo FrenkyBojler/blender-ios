@@ -64,7 +64,7 @@ def print_row(table: api.MarkdownTable, entries: list, end='\n') -> None:
     # For time series, revision is printed first.
     row.append(entries[0].revision)
     row.append(entries[0].category)
-    row.append(api.sanitize_device_id(entries[0].device_id))
+    row.append(api.normalize_device_id(entries[0].device_id))
     row.append(entries[0].test)
 
     for entry in entries:

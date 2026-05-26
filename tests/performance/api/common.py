@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
-def sanitize_device_id(device_id: str) -> str:
+def normalize_device_id(device_id: str) -> str:
     """Normalize a device ID by adding _0 suffix when there is no index."""
     parts = device_id.rsplit('_', 1)
     if len(parts) == 1 or not parts[1].isdigit():
