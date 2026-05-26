@@ -1454,7 +1454,7 @@ static wmOperatorStatus collection_drop_invoke(bContext *C,
       if (from) {
         BKE_collection_object_move(bmain, scene, data.to, from, object);
       }
-      else if (!BKE_collection_has_object(data.to, object)) {
+      else {
         BKE_collection_object_add(bmain, data.to, object);
       }
 
