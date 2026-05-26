@@ -730,8 +730,10 @@ static bool text_insert(TextVars *data, const char *buf, const size_t buf_len)
 
   data->cursor_offset += 1;
 
-  text_effect_update_runtime(
-      *data, *data->runtime, data->runtime->font, data->runtime->image_size);
+  if (data->runtime->font >= 0) {
+    text_effect_update_runtime(
+        *data, *data->runtime, data->runtime->font, data->runtime->image_size);
+  }
   return true;
 }
 

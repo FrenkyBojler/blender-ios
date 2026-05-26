@@ -1249,10 +1249,6 @@ void blf_font_info_foreach_glyph(
     size_t str_len,
     FunctionRef<void(int index, size_t byte_offset, int byte_len, int advance_x)> callback)
 {
-  if (str == nullptr || str[0] == 0 || str_len == 0) {
-    return;
-  }
-
   GlyphCacheBLF *gc = blf_glyph_cache_acquire(font);
 
   size_t byte_offset = 0;
