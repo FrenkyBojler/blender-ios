@@ -4,14 +4,12 @@
 
 #pragma once
 
-#include "eevee_bxdf_lib.glsl"
-#include "eevee_closure_lib.glsl"
+#include "eevee_bxdf_types.bsl.hh"
 #include "eevee_light_iter.bsl.hh"
-#include "eevee_light_lib.glsl"
+#include "eevee_light_lib.bsl.hh"
 #include "eevee_shadow.bsl.hh"
 #include "eevee_shadow_tracing.bsl.hh"
 #include "eevee_thickness_lib.bsl.hh"
-#include "gpu_shader_codegen_lib.glsl"
 #include "gpu_shader_utildefines_lib.glsl"
 
 #if !defined(SRT_CONSTANT_light_closure_eval_count_reflect)
@@ -69,15 +67,20 @@ bool light_linking_affects_receiver(uint2 light_set_membership, uchar receiver_l
   return bitmask64_test(light_set_membership, receiver_light_set);
 }
 
-void eval_single_closure(
-    LightData light, LightVector lv, ClosureLight &cl, float3 V, float attenuation, float shadow)
+void eval_single_closure(LightData light,
+                         LightVector lv,
+                         LightVertices vertices,
+                         ClosureLight &cl,
+                         float3 V,
+                         float attenuation,
+                         float shadow)
 {
   attenuation *= power_get(light, cl.type);
   if (attenuation < 1e-30f) {
     return;
   }
   auto &util_tx = sampler_get(eevee_utility_texture, utility_tx);
-  float ltc_result = light_ltc(util_tx, light, cl.N, V, lv, cl.ltc_mat);
+  float ltc_result = light_ltc(util_tx, light, cl.N, V, lv, cl.ltc_mat, vertices);
   float3 out_radiance = light.color * ltc_result;
   float visibility = shadow * attenuation;
   cl.light_shadowed += visibility * out_radiance;
@@ -90,6 +93,7 @@ template<bool is_transmission> struct EvalCtx {
   float3 P;
   float3 Ng;
   float3 V;
+  float2 texel;
   Thickness thickness;
   uchar receiver_light_set;
   float terminator_normal_offset;
@@ -139,6 +143,7 @@ template<bool is_transmission> struct EvalCtx {
                            is_directional,
                            is_transmission,
                            is_translucent_with_thickness,
+                           texel,
                            thickness,
                            P,
                            Ng,
@@ -157,15 +162,19 @@ template<bool is_transmission> struct EvalCtx {
       attenuation *= M_1_PI;
     }
 
+    LightVertices light_shape_vertices = light_shape_corners(light, lv);
+
     for (uint i = 0u; i < 3; i++) [[unroll]] {
       if (is_transmission) [[static_branch]] {
         if (srt.light_closure_eval_count_transmit > i) [[static_branch]] {
-          eval_single_closure(light, lv, stack.cl[i], V, attenuation, shadow);
+          eval_single_closure(
+              light, lv, light_shape_vertices, stack.cl[i], V, attenuation, shadow);
         }
       }
       else {
         if (srt.light_closure_eval_count_reflect > i) [[static_branch]] {
-          eval_single_closure(light, lv, stack.cl[i], V, attenuation, shadow);
+          eval_single_closure(
+              light, lv, light_shape_vertices, stack.cl[i], V, attenuation, shadow);
         }
       }
     }
@@ -197,6 +206,7 @@ EvalCtx<true> init_from_reflect_ctx(EvalCtx<false> ctx)
   ctx_tr.P = ctx.P;
   ctx_tr.Ng = ctx.Ng;
   ctx_tr.V = ctx.V;
+  ctx_tr.texel = ctx.texel;
   ctx_tr.thickness = ctx.thickness;
   ctx_tr.receiver_light_set = ctx.receiver_light_set;
   ctx_tr.terminator_normal_offset = ctx.terminator_normal_offset;
@@ -210,19 +220,19 @@ struct LightEvalIterator {
   [[resource_table]] srt_t<LightEvalData> inner;
   [[resource_table]] srt_t<LightRenderData> light_data;
 
-  void eval_reflection(light::EvalCtx<false> &ctx, float2 pixel, float vPz)
+  void eval_reflection(light::EvalCtx<false> &ctx, float vPz)
   {
     [[resource_table]] LightEvalData &srt = inner;
     if (srt.light_closure_eval_count_reflect > 0) [[static_branch]] {
-      light::foreach_visible(light_data, pixel, vPz, ctx, srt);
+      light::foreach_visible(light_data, ctx.texel, vPz, ctx, srt);
     }
   }
 
-  void eval_transmission(light::EvalCtx<true> &ctx, float2 pixel, float vPz)
+  void eval_transmission(light::EvalCtx<true> &ctx, float vPz)
   {
     [[resource_table]] LightEvalData &srt = inner;
     if (srt.light_closure_eval_count_transmit > 0) [[static_branch]] {
-      light::foreach_visible(light_data, pixel, vPz, ctx, srt);
+      light::foreach_visible(light_data, ctx.texel, vPz, ctx, srt);
     }
   }
 };

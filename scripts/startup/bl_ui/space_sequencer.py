@@ -1520,7 +1520,6 @@ class SEQUENCER_MT_modifier_add(Menu):
             self.operator_modifier_add(layout, 'SOUND_EQUALIZER')
             self.operator_modifier_add(layout, 'PITCH')
             self.operator_modifier_add(layout, 'ECHO')
-
         else:
             self.operator_modifier_add(layout, 'BRIGHT_CONTRAST')
             self.operator_modifier_add(layout, 'COLOR_BALANCE')
@@ -1530,6 +1529,7 @@ class SEQUENCER_MT_modifier_add(Menu):
             self.operator_modifier_add(layout, 'MASK')
             self.operator_modifier_add(layout, 'TONEMAP')
             self.operator_modifier_add(layout, 'WHITE_BALANCE')
+            layout.menu_contents("SEQUENCER_MT_modifier_add_root_catalogs")
 
 
 class SequencerButtonsPanel:
@@ -1704,7 +1704,7 @@ class SEQUENCER_PT_proxy_settings(SequencerButtonsPanel, Panel):
 
 
 class SEQUENCER_PT_strip_proxy(SequencerButtonsPanel, Panel):
-    bl_label = "Strip Proxy & Timecode"
+    bl_label = "Strip Proxy"
     bl_category = "Proxy"
 
     @classmethod
@@ -1757,11 +1757,6 @@ class SEQUENCER_PT_strip_proxy(SequencerButtonsPanel, Panel):
 
             col = layout.column()
             col.prop(proxy, "quality", text="Quality")
-
-            if strip.type == 'MOVIE':
-                col = layout.column()
-
-                col.prop(proxy, "timecode", text="Timecode Index")
 
 
 class SEQUENCER_PT_preview(SequencerButtonsPanel_Output, Panel):

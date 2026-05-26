@@ -14,8 +14,8 @@ SHADER_LIBRARY_CREATE_INFO(eevee_global_ubo)
 
 #include "draw_math_geom_lib.glsl"
 #include "draw_view_lib.glsl"
-#include "eevee_light_lib.glsl"
-#include "eevee_sampling_lib.glsl"
+#include "eevee_light_lib.bsl.hh"
+#include "eevee_sampling_lib.bsl.hh"
 #include "eevee_shadow.bsl.hh"
 #include "eevee_thickness_lib.bsl.hh"
 #include "gpu_shader_math_base_lib.glsl"
@@ -356,7 +356,7 @@ float shadow_texel_radius_at_position(LightData light, const bool is_directional
   float scale = 1.0f;
   if (is_directional) {
     float3 lP = transform_direction_transposed(light.object_to_world, P);
-    lP -= light_position_get(light);
+    lP -= light.position();
     LightSunData sun = light.sun();
     if (light.type == LIGHT_SUN) {
       /* Simplification of `coverage_get(shadow_directional_level_fractional)`.
@@ -443,6 +443,7 @@ float shadow_eval([[resource_table]] ShadowRenderData &srd,
                   const bool is_directional,
                   const bool is_transmission,
                   bool is_translucent_with_thickness,
+                  float2 frag_co,
                   Thickness thickness, /* Only used if is_transmission is true. */
                   float3 P,
                   float3 Ng,
@@ -455,24 +456,24 @@ float shadow_eval([[resource_table]] ShadowRenderData &srd,
   /* Case of surfel light eval. */
   float3 random_shadow_3d = float3(0.5f);
   float2 random_pcf_2d = float2(0.0f);
-#if defined(EEVEE_SAMPLING_DATA) && !defined(GLSL_CPP_STUBS)
-  if (true) {
+
+  if (srd.shadow_random) [[static_branch]] {
+    [[resource_table]] const Sampling sampling = srd.sampling;
     auto &util_tx = sampler_get(eevee_utility_texture, utility_tx);
-    float3 blue_noise_3d = utility_tx_fetch(util_tx, UTIL_TEXEL, UTIL_BLUE_NOISE_LAYER).rgb;
-    random_shadow_3d = fract(blue_noise_3d + sampling_rng_3D_get(SAMPLING_SHADOW_U));
-    random_pcf_2d = fract(blue_noise_3d.xy + sampling_rng_2D_get(SAMPLING_SHADOW_X));
+    float3 blue_noise_3d = utility_tx_fetch(util_tx, frag_co, UTIL_BLUE_NOISE_LAYER).rgb;
+    random_shadow_3d = fract(blue_noise_3d + sampling.rng_3D_get(SAMPLING_SHADOW_U));
+    random_pcf_2d = fract(blue_noise_3d.xy + sampling.rng_2D_get(SAMPLING_SHADOW_X));
   }
-#endif
 
   float distance_to_shadow;
   /* Direction towards the shadow center (punctual) or direction (direction).
    * Not the same as the light vector if the shadow is jittered. */
   float3 L;
   if (is_directional) {
-    L = light_z_axis(light);
+    L = light.z_axis();
   }
   else {
-    L = light_position_get(light) + light.local().local.shadow_position - P;
+    L = light.position() + light.local().local.shadow_position - P;
     L = normalize_and_get_length(L, distance_to_shadow);
   }
 
