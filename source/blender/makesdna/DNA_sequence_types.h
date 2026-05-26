@@ -834,7 +834,7 @@ struct TextVars {
 
   eEffectTextAnchorX anchor_x = SEQ_TEXT_ANCHOR_X_LEFT;
   eEffectTextAnchorY anchor_y = SEQ_TEXT_ANCHOR_Y_TOP;
-  char _pad1[9] = {};
+  char _pad1[1] = {};
   seq::TextVarsRuntime *runtime = nullptr;
 
   /* Fixed size text buffer, only exists for forward/backward compatibility.
