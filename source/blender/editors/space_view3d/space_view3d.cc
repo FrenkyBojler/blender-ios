@@ -563,7 +563,7 @@ static std::optional<blender::int2> view3d_main_region_cursor_ime(wmWindow *win,
                                                                   ARegion *region)
 {
   /* Defer during viewport navigation (orbit, pan, zoom, fly, walk). */
-  RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
+  const RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
   if (rv3d->rflag & RV3D_NAVIGATING) {
     return std::nullopt;
   }
@@ -573,7 +573,7 @@ static std::optional<blender::int2> view3d_main_region_cursor_ime(wmWindow *win,
     return std::nullopt;
   }
   Object *ob = BKE_view_layer_active_object_get(view_layer);
-  if (!ob || ob->type != OB_FONT || ob->mode != OB_MODE_EDIT) {
+  if (!(ob && ob->type == OB_FONT && ob->mode == OB_MODE_EDIT)) {
     return std::nullopt;
   }
 

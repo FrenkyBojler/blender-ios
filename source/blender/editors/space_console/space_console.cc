@@ -227,7 +227,7 @@ static std::optional<blender::int2> console_main_region_cursor_ime(wmWindow * /*
     return std::nullopt;
   }
   std::optional<blender::int2> cursor_xy = console_cursor_region_xy_get(sc, region, cl->cursor);
-  if (cursor_xy != std::nullopt) {
+  if (cursor_xy) {
     /* The cursor may be scrolled out of view. */
     cursor_xy->x = std::clamp(cursor_xy->x, 0, BLI_rcti_size_x(&region->winrct));
     cursor_xy->y = std::clamp(cursor_xy->y, 0, BLI_rcti_size_y(&region->winrct));
