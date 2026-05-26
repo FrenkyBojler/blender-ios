@@ -261,7 +261,11 @@ static TreeElement *outliner_drop_insert_collection_find(bContext *C,
 
   /* We can't insert before/after master collection. */
   if (collection->flag & COLLECTION_IS_MASTER) {
-    *r_insert_type = TE_INSERT_INTO;
+    const bool is_object_row = is_object_element(te);
+
+    if (!is_object_row) {
+      *r_insert_type = TE_INSERT_INTO;
+    }
   }
 
   return te;
@@ -1201,12 +1205,6 @@ static bool collection_drop_init(bContext *C, wmDrag *drag, const int xy[2], Col
     return false;
   }
 
-  if (GS(id->name) == ID_OB) {
-    if (te == collection_te) {
-      insert_type = TE_INSERT_INTO;
-    }
-  }
-
   if (outliner_is_collection_dragged_into_itself(te, id)) {
     return false;
   }
@@ -1232,9 +1230,16 @@ static bool collection_drop_init(bContext *C, wmDrag *drag, const int xy[2], Col
         insert_type = TE_INSERT_BEFORE;
       }
     }
+
+    if (te == collection_te) {
+      insert_type = TE_INSERT_INTO;
+    }
   }
-  else {
-    if (id == &to_collection->id) {
+  else if (GS(id->name) == ID_GR) {
+    if (te != collection_te) {
+      insert_type = TE_INSERT_INTO;
+    }
+    else if (id == &to_collection->id) {
       return false;
     }
   }
@@ -1354,8 +1359,7 @@ static std::string collection_drop_tooltip(bContext *C,
 
       case TE_INSERT_INTO: {
         if (is_link) {
-          return target_is_object_row ? TIP_("Link to collection") :
-                                        TIP_("Link inside collection");
+          return TIP_("Link inside collection");
         }
 
         /* Check the type of the drag IDs to avoid the incorrect "Shift to parent"
