@@ -248,11 +248,10 @@ static void sequencer_draw_borders_overlay(const SpaceSeq &sseq,
 
   /* Draw Composition Guides */
   if (sseq.preview_overlay.flag & SEQ_PREVIEW_SHOW_COMPOSITION_GUIDES) {
-    ED_draw_composition_guides(
-        shdr_pos,
-        static_cast<eCompositionGuideFlags>(sseq.preview_overlay.composition_guide_flags),
-        &rect,
-        sseq.preview_overlay.composition_guide_color);
+    ED_draw_composition_guides(shdr_pos,
+                               sseq.preview_overlay.composition_guide_flags,
+                               &rect,
+                               sseq.preview_overlay.composition_guide_color);
   }
 
   immUnbindProgram();

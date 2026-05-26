@@ -14,7 +14,6 @@
 #include "DNA_brush_types.h"
 #include "DNA_camera_types.h"
 #include "DNA_curve_types.h"
-#include "DNA_genfile.h"
 #include "DNA_modifier_types.h"
 #include "DNA_node_tree_interface_types.h"
 #include "DNA_node_types.h"
@@ -658,12 +657,6 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
           }
         }
       }
-    }
-
-    for (Camera &cam : bmain->cameras) {
-      /* Convert old `dtx` char to the new `composition_guide_flags` short. */
-      const short old = short(cam.composition_guide_flags) & 0xFF;
-      cam.composition_guide_flags = eCompositionGuideFlags(old);
     }
   }
   /**

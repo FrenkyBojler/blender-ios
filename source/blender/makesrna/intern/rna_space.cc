@@ -6586,7 +6586,8 @@ static void rna_def_space_sequencer_preview_overlay(BlenderRNA *brna)
   prop = RNA_def_property(srna, "show_composition_guides", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(
       prop, nullptr, "preview_overlay.flag", SEQ_PREVIEW_SHOW_COMPOSITION_GUIDES);
-  RNA_def_property_ui_text(prop, "Composition Guides", "Show composition guides");
+  RNA_def_property_ui_text(
+      prop, "Composition Guides", "Display composition guides over the preview");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SEQUENCER, nullptr);
 }
 

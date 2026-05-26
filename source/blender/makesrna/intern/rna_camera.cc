@@ -912,7 +912,6 @@ void RNA_def_camera(BlenderRNA *brna)
 
   /* Composition Guides */
   prop = RNA_def_property(srna, "composition_guide_color", PROP_FLOAT, PROP_COLOR);
-  RNA_def_property_float_sdna(prop, nullptr, "composition_guide_color");
   RNA_def_property_ui_text(
       prop, "Composition Guide Color", "Color and alpha for compositional guide overlays");
   RNA_def_property_update(prop, NC_CAMERA | ND_DRAW_RENDER_VIEWPORT, nullptr);
