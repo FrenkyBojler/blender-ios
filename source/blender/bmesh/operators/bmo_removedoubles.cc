@@ -201,10 +201,8 @@ void bmo_weld_verts_exec(BMesh *bm, BMOperator *op)
   const bool use_targetmap_all = has_selected;
   Map<void *, void *> targetmap_all;
 
-  /* Used when use_centroid is true. */
+  /* Used when use_centroid or average_vdata is true. */
   MultiValueMap<BMVert *, BMVert *> clusters;
-  /* Used when average_vdata is true. */
-  MultiValueMap<BMVert *, BMVert *> groups_data;
 
   /* Mark merge verts for deletion. */
   BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
@@ -225,11 +223,8 @@ void bmo_weld_verts_exec(BMesh *bm, BMOperator *op)
 
     /* Group vertices by their survivor. */
     if (LIKELY(v_dst != v)) {
-      if (use_centroid) {
+      if (use_centroid || average_vdata) {
         clusters.add(v_dst, v);
-      }
-      if (average_vdata) {
-        groups_data.add(v_dst, v);
       }
     }
   }
@@ -255,7 +250,7 @@ void bmo_weld_verts_exec(BMesh *bm, BMOperator *op)
   }
 
   if (average_vdata) {
-    for (const auto &item : groups_data.items()) {
+    for (const auto &item : clusters.items()) {
       BMVert *v_dst = item.key;
       Span<BMVert *> merged_verts = item.value;
 
