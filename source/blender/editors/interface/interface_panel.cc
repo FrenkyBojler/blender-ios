@@ -1414,6 +1414,9 @@ bool panel_should_show_background(const ARegion *region, const PanelType *panel_
 
 #define TABS_PADDING_BETWEEN_FACTOR 4.0f
 #define TABS_PADDING_TEXT_FACTOR 6.0f
+
+static constexpr const char *panel_category_tabs_block_name = "panel_category_tabs";
+
 static void panel_region_width_set(ARegion *region, const float aspect, int unscaled_size);
 
 static void expand_panel_region(bContext &C, ARegion *region)
@@ -1518,7 +1521,7 @@ void panel_category_tabs_draw_all(const bContext *C,
   const int rct_xmax = is_left ? (v2d->mask.xmin + category_tabs_width) :
                                  (v2d->mask.xmax - std::round(2 * px * zoom));
   /* NOTE: This block is created in window coordinates. */
-  Block *block = block_begin(C, region, "panel_category_tabs", EmbossType::Emboss);
+  Block *block = block_begin(C, region, panel_category_tabs_block_name, EmbossType::Emboss);
   Layout &layout = block_layout(block,
                                 LayoutDirection::Vertical,
                                 LayoutType::VerticalBar,
@@ -1651,7 +1654,7 @@ static int panel_category_show_active_tab(ARegion *region, const int mval[2])
   BLI_assert(BKE_regiontype_uses_category_tabs(region->runtime->type));
 
   const View2D *v2d = &region->v2d;
-  const Block *block = region->runtime->block_name_map.lookup_as("panel_category_tabs");
+  const Block *block = region->runtime->block_name_map.lookup_as(panel_category_tabs_block_name);
   if (!block) {
     return WM_UI_HANDLER_BREAK;
   }
@@ -2484,7 +2487,8 @@ static bool panel_categories_tab_is_mouse_over(ARegion *region, const wmEvent *e
   const View2D *v2d = &region->v2d;
   int ymin = region->overlap ? region->v2d.mask.ymax : region->v2d.mask.ymin;
   if (region->overlap) {
-    if (const Block *block = region->runtime->block_name_map.lookup_as("panel_category_tabs");
+    if (const Block *block = region->runtime->block_name_map.lookup_as(
+            panel_category_tabs_block_name);
         block && !block->buttons_ptrs.is_empty())
     {
       ymin = std::max(region->v2d.mask.ymin, int(block->buttons_ptrs.last()->rect.ymin));
