@@ -46,7 +46,9 @@ Texture *TexturePoolImpl::acquire_texture_impl(int3 extent,
   int mip_len_max = 1 + floorf(log2f(max_iii(extent.x, extent.y, extent.z)));
   mip_len = min_ii(mip_len, mip_len_max);
 
-  /* Search pool for compatible available texture first. */
+  /* Search pool for compatible available texture first.
+   * gpu::Texture from TexturePool compatibility needs to be evaluated
+   * according to (at least) width, height, format, usage. */
   int64_t match_index = -1;
   for (uint64_t i : pool_.index_range()) {
     Texture *tex = pool_[i].texture;
@@ -57,7 +59,9 @@ Texture *TexturePoolImpl::acquire_texture_impl(int3 extent,
                                tex->height_get(),
                                tex->depth_get(),
                                tex->mip_count());
-    if (std::tie(format, type, UNPACK3(extent), mip_len) == tex_args) {
+    if (std::tie(format, type, UNPACK3(extent), mip_len) == tex_args &&
+        (tex->usage_get() & usage) == usage)
+    {
       match_index = i;
       break;
     }

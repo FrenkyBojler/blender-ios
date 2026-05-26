@@ -1221,8 +1221,11 @@ class TextureFromPool : public Texture, NonMovable {
                     bool cubemap)
   {
     if (tx_ != nullptr) {
+      /* gpu::Texture from TexturePool compatibility needs to be evaluated
+       * according to (at least) width, height, format, usage. */
       if (GPU_texture_width(tx_) != w || GPU_texture_height(tx_) != h ||
-          GPU_texture_depth(tx_) != d || GPU_texture_format(tx_) != format)
+          GPU_texture_depth(tx_) != d || GPU_texture_format(tx_) != format ||
+          (GPU_texture_usage(tx_) & usage) != usage)
       {
         release();
       }
