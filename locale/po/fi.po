@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 Alpha (b'a0888131c6dd')\n"
+"Project-Id-Version: Blender 5.2.0 Alpha (b'24a58e1403ac')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-04-06 09:15+0000\n"
+"POT-Creation-Date: 2026-05-25 07:25+0000\n"
 "PO-Revision-Date: 2026-04-06 09:16+0000\n"
 "Last-Translator: Leevi Oksanen <laavi.oksanen@gmail.com>\n"
 "Language-Team: Finnish <https://translate.blender.org/projects/blender-ui/ui/fi/>\n"
@@ -912,6 +912,10 @@ msgstr "Omistaja"
 
 msgid "Description"
 msgstr "Kuvaus"
+
+
+msgid "Default Import Method"
+msgstr "Oletustuontitapa"
 
 
 msgid "Tags"
@@ -7232,14 +7236,6 @@ msgid "ID Type"
 msgstr "ID-tyyppi"
 
 
-msgid "Math"
-msgstr "Matematiikka"
-
-
-msgid "Utilities"
-msgstr "Työkalut"
-
-
 msgid "UV Mapping"
 msgstr "UV-kartoittaminen"
 
@@ -7252,32 +7248,32 @@ msgid "Select Similar"
 msgstr "Valitse samankaltainen"
 
 
-msgid "Read"
-msgstr "Lue"
-
-
 msgid "Select All by Trait"
 msgstr "Valitse kaikki piirteen mukaan"
 
 
-msgid "Write"
-msgstr "Kirjoita"
+msgid "Math"
+msgstr "Matematiikka"
 
 
 msgid "Select Loops"
 msgstr "Valitse silmukat"
 
 
-msgid "Instances"
-msgstr "Instanssit"
+msgid "Utilities"
+msgstr "Työkalut"
 
 
 msgid "Metaball"
 msgstr "Metapallo"
 
 
-msgid "Import"
-msgstr "Tuo"
+msgid "Read"
+msgstr "Lue"
+
+
+msgid "Write"
+msgstr "Kirjoita"
 
 
 msgid "Light"
@@ -7292,12 +7288,16 @@ msgid "Add Image"
 msgstr "Lisää kuva"
 
 
-msgid "UV"
-msgstr "UV"
+msgid "Instances"
+msgstr "Instanssit"
 
 
 msgid "Track"
 msgstr "Raide"
+
+
+msgid "Import"
+msgstr "Tuo"
 
 
 msgid "Show/Hide"
@@ -7306,6 +7306,10 @@ msgstr "Näytä/Piilota"
 
 msgid "Hooks"
 msgstr "Koukut"
+
+
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Random Mask"
@@ -9457,6 +9461,14 @@ msgid "Only Channel"
 msgstr "Vain kanava"
 
 
+msgid "Axes"
+msgstr "Akselit"
+
+
+msgid "Search"
+msgstr "Etsi"
+
+
 msgid "Point 1"
 msgstr "Piste 1"
 
@@ -11393,10 +11405,6 @@ msgid "Display units in pairs (e.g. 1m 0cm)"
 msgstr "Näytä yksiköt pareina (esim. 1 m 0 cm)"
 
 
-msgid "Default Import Method"
-msgstr "Oletustuontitapa"
-
-
 msgctxt "File browser"
 msgid "Custom Directory"
 msgstr "Mukautettu Luettelo"
@@ -11715,10 +11723,6 @@ msgstr "Näytä valinta"
 
 msgid "Select Mouse"
 msgstr "Valitse hiiri"
-
-
-msgid "Search"
-msgstr "Etsi"
 
 
 msgid "Navigate"
@@ -12524,10 +12528,6 @@ msgstr "Navan Siirros"
 
 msgid "Shapes"
 msgstr "Muodot"
-
-
-msgid "Axes"
-msgstr "Akselit"
 
 
 msgid "Triangle A"
@@ -13641,6 +13641,11 @@ msgid "True Normal"
 msgstr "Todellinen normaali"
 
 
+msgctxt "Key"
+msgid "Key"
+msgstr "Avain"
+
+
 msgid "AOV"
 msgstr "AOV"
 
@@ -14184,12 +14189,12 @@ msgid "No vertex selected"
 msgstr "Ei valittua kärkeä"
 
 
-msgid "No selected vertex"
-msgstr "Ei valittuja kärkiä"
-
-
 msgid "No edges selected"
 msgstr "Ei valittuja reunoja"
+
+
+msgid "No selected vertex"
+msgstr "Ei valittuja kärkiä"
 
 
 msgid "No faces filled"
@@ -15123,11 +15128,6 @@ msgid "Image not packed"
 msgstr "Kuvaa ei ole pakattu"
 
 
-msgctxt "Key"
-msgid "Key"
-msgstr "Avain"
-
-
 msgid "Modify"
 msgstr "Muuta"
 
@@ -15480,6 +15480,10 @@ msgstr "Elämä"
 
 msgid "Start Position"
 msgstr "Aloitussijainti"
+
+
+msgid "Add Item"
+msgstr "Lisää esine"
 
 
 msgid "The size of the image"
@@ -15927,6 +15931,10 @@ msgid "Top"
 msgstr "Huippu"
 
 
+msgid "Inverted"
+msgstr "Käännetty"
+
+
 msgid "Main Geometry"
 msgstr "Päägeometria"
 
@@ -15965,10 +15973,6 @@ msgstr "Omistaa naapurin"
 
 msgid "Index of nearest element"
 msgstr "Lähimmän elementin indeksi"
-
-
-msgid "Add Item"
-msgstr "Lisää esine"
 
 
 msgid "The camera used for rendering the scene"
@@ -16194,10 +16198,6 @@ msgstr "Ruudukko 1"
 
 msgid "Grid 2"
 msgstr "Ruudukko 2"
-
-
-msgid "Inverted"
-msgstr "Käännetty"
 
 
 msgid "Skip"

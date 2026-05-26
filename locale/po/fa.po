@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 Alpha (b'a0888131c6dd')\n"
+"Project-Id-Version: Blender 5.2.0 Alpha (b'24a58e1403ac')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-04-06 09:15+0000\n"
+"POT-Creation-Date: 2026-05-25 07:25+0000\n"
 "PO-Revision-Date: 2025-11-19 06:24+0000\n"
 "Last-Translator: \"M. Amin Taheri\" <amintaheri2001@gmail.com>\n"
 "Language-Team: Persian <https://translate.blender.org/projects/blender-ui/ui/fa/>\n"
@@ -1138,6 +1138,18 @@ msgstr "ﺎﻨﻬﭘ"
 
 msgid "Area width"
 msgstr "ﻪﻘﻄﻨﻣ ﯼﺎﻨﻬﭘ"
+
+
+msgid "Link"
+msgstr "ﺪﻧﻮﯿﭘ"
+
+
+msgid "Append"
+msgstr "ﻥﺩﻭﺰﻓﺍ"
+
+
+msgid "Pack"
+msgstr "ﻪﺘﺴﺑ"
 
 
 msgid "Full Path"
@@ -2305,18 +2317,6 @@ msgid "Operator"
 msgstr "ﻞﻣﺎﻋ"
 
 
-msgid "Link"
-msgstr "ﺪﻧﻮﯿﭘ"
-
-
-msgid "Append"
-msgstr "ﻥﺩﻭﺰﻓﺍ"
-
-
-msgid "Pack"
-msgstr "ﻪﺘﺴﺑ"
-
-
 msgid "Matrix"
 msgstr "ﺲﯾﺮﺗﺎﻣ"
 
@@ -3082,16 +3082,12 @@ msgid "Mix"
 msgstr "ﻁﻮﻠﺨﻣ"
 
 
-msgid "Math"
-msgstr "ﯽﺿﺎﯾﺭ"
-
-
 msgid "Mirror"
 msgstr "ﻪﻨﯾﺁ"
 
 
-msgid "Import"
-msgstr "ﻥﺩﺮﮐ ﺩﺭﺍﻭ"
+msgid "Math"
+msgstr "ﯽﺿﺎﯾﺭ"
 
 
 msgid "Add Image"
@@ -3102,16 +3098,20 @@ msgid "Relations"
 msgstr "ﻂﺑﺍﻭﺭ"
 
 
-msgid "UV"
-msgstr "UV"
-
-
 msgid "Apply"
 msgstr "ﻝﺎﻤﻋﺍ"
 
 
+msgid "Import"
+msgstr "ﻥﺩﺮﮐ ﺩﺭﺍﻭ"
+
+
 msgid "Convert"
 msgstr "ﻞﯾﺪﺒﺗ"
+
+
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Layout"
@@ -3687,6 +3687,10 @@ msgstr "ﺭﻮﯾﺍﺭﺩ ﻑﺬﺣ"
 
 msgid "Flip Names"
 msgstr "ﺎﻫ‌ﻢﺳﺍ ﯼﺯﺎﺳ‌ﻪﻨﯾﺮﻗ"
+
+
+msgid "Search"
+msgstr "ﻮﺠﺘﺴﺟ"
 
 
 msgid "(undocumented operator)"
@@ -4668,10 +4672,6 @@ msgstr "ﺎﻄﺧ ﻡﺎﻐﯿﭘ"
 
 msgid "Use linear progression"
 msgstr "ﯽﻄﺧ ﺖﻓﺮﺸﯿﭘ ﺯﺍ ﻩﺩﺎﻔﺘﺳﺍ"
-
-
-msgid "Search"
-msgstr "ﻮﺠﺘﺴﺟ"
 
 
 msgctxt "WindowManager"

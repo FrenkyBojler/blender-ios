@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 Alpha (b'a0888131c6dd')\n"
+"Project-Id-Version: Blender 5.2.0 Alpha (b'24a58e1403ac')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-04-06 09:15+0000\n"
+"POT-Creation-Date: 2026-05-25 07:25+0000\n"
 "PO-Revision-Date: 2025-07-31 16:24+0000\n"
 "Last-Translator: leif larsen <linuxdk1978@gmail.com>\n"
 "Language-Team: Danish <https://translate.blender.org/projects/blender-ui/ui/da/>\n"
@@ -1610,10 +1610,6 @@ msgstr "Vis de aktiver, der i øjeblikket er tilgængelige i denne Blender-sessi
 
 msgid "Essentials"
 msgstr "Væsentlige"
-
-
-msgid "Show the basic building blocks and utilities coming with Blender"
-msgstr "Vis de grundlæggende byggeklodser og hjælpeprogrammer, der følger med Blender"
 
 
 msgid "Custom"
@@ -3501,10 +3497,6 @@ msgid "Blur"
 msgstr "Sløring"
 
 
-msgid "Occlusion"
-msgstr "Okklusion"
-
-
 msgid "Mirror Ball"
 msgstr "Splejlkugle"
 
@@ -3620,6 +3612,10 @@ msgstr "Nøgle"
 
 msgid "File"
 msgstr "Fil"
+
+
+msgid "Occlusion"
+msgstr "Okklusion"
 
 
 msgid "New"
@@ -3828,10 +3824,6 @@ msgstr "Skærmbillede"
 
 msgid "Continue"
 msgstr "Fortsæt"
-
-
-msgid "2D Texture"
-msgstr "2D struktur"
 
 
 msgid "Legacy Compute Device Type"

@@ -144,7 +144,7 @@ static StructRNA *create_outputs_srna(const bNodeTree &tree, GeneratedTreeSrnaDa
 
   for (const bNodeTreeInterfaceSocket *output : tree.interface_outputs()) {
     const bke::bNodeSocketType *socket_type = bke::node_socket_type_find(output->socket_type);
-    if (!nodes::socket_type_supports_attributes(eNodeSocketDatatype(socket_type->type))) {
+    if (!nodes::socket_type_supports_attributes(socket_type->type)) {
       continue;
     }
 
@@ -180,7 +180,7 @@ static StructRNA *create_panels_srna(const bNodeTree &tree, GeneratedTreeSrnaDat
 
   tree.ensure_interface_cache();
   for (const bNodeTreeInterfaceItem *item : tree.interface_items()) {
-    if (item->item_type != NODE_INTERFACE_PANEL) {
+    if (item->item_type != NodeTreeInterfaceItemType::Panel) {
       continue;
     }
     const auto &panel = *reinterpret_cast<const bNodeTreeInterfacePanel *>(item);
@@ -194,15 +194,6 @@ static StructRNA *create_panels_srna(const bNodeTree &tree, GeneratedTreeSrnaDat
   }
 
   return srna;
-}
-
-GeneratedTreeSrnaData::GeneratedTreeSrnaData()
-{
-  generated_rna = RNA_create_runtime();
-}
-GeneratedTreeSrnaData::~GeneratedTreeSrnaData()
-{
-  RNA_free(generated_rna);
 }
 
 std::shared_ptr<GeneratedTreeSrnaData> create_geometry_nodes_rna_for_modifier(

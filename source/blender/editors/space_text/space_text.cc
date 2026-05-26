@@ -42,7 +42,9 @@
 
 namespace blender {
 
-/* ******************** default callbacks for text space ***************** */
+/* -------------------------------------------------------------------- */
+/** \name Default Callbacks for Text Space
+ * \{ */
 
 static SpaceLink *text_create(const ScrArea * /*area*/, const Scene * /*scene*/)
 {
@@ -276,7 +278,11 @@ static int /*eContextResult*/ text_context(const bContext *C,
   return CTX_RESULT_MEMBER_NOT_FOUND;
 }
 
-/********************* main region ********************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Main Region
+ * \{ */
 
 /* Add handlers, stuff you only do once or on area/region changes. */
 static void text_main_region_init(wmWindowManager *wm, ARegion *region)
@@ -333,7 +339,11 @@ static void text_cursor(wmWindow *win, ScrArea *area, ARegion *region)
   WM_cursor_set(win, wmcursor);
 }
 
-/* ************* dropboxes ************* */
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Drop Boxes
+ * \{ */
 
 static bool text_drop_path_poll(bContext * /*C*/, wmDrag *drag, const wmEvent * /*event*/)
 {
@@ -388,9 +398,11 @@ static void text_dropboxes()
       lb, "TEXT_OT_insert", text_drop_string_poll, text_drop_string_copy, nullptr, nullptr);
 }
 
-/* ************* end drop *********** */
+/** \} */
 
-/****************** header region ******************/
+/* -------------------------------------------------------------------- */
+/** \name Header Region
+ * \{ */
 
 /* Add handlers, stuff you only do once or on area/region changes. */
 static void text_header_region_init(wmWindowManager * /*wm*/, ARegion *region)
@@ -403,7 +415,11 @@ static void text_header_region_draw(const bContext *C, ARegion *region)
   ED_region_header(C, region);
 }
 
-/****************** properties region ******************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Properties Region
+ * \{ */
 
 /* Add handlers, stuff you only do once or on area/region changes. */
 static void text_properties_region_init(wmWindowManager *wm, ARegion *region)
@@ -449,7 +465,11 @@ static void text_space_blend_write(BlendWriter *writer, SpaceLink *sl)
   writer->write_struct_cast<SpaceText>(sl);
 }
 
-/********************* registration ********************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Registration
+ * \{ */
 
 void ED_spacetype_text()
 {
@@ -527,5 +547,7 @@ void ED_spacetype_text()
   ED_text_format_register_pov();
   ED_text_format_register_pov_ini();
 }
+
+/** \} */
 
 }  // namespace blender

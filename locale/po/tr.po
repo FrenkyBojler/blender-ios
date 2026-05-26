@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 Alpha (b'a0888131c6dd')\n"
+"Project-Id-Version: Blender 5.2.0 Alpha (b'24a58e1403ac')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-04-06 09:15+0000\n"
+"POT-Creation-Date: 2026-05-25 07:25+0000\n"
 "PO-Revision-Date: 2025-07-23 15:31+0000\n"
 "Last-Translator: VertexSelection <amacsizk2021@gmail.com>\n"
 "Language-Team: Turkish <https://translate.blender.org/projects/blender-ui/ui/tr/>\n"
@@ -1638,6 +1638,30 @@ msgid "The type of license this asset is distributed under. An empty license nam
 msgstr "Bu varlığın dağıtıldığı lisans türü. Boş bir lisans adı, bunun lisanslama şartlarından muaf olduğu anlamına gelmez. Herhangi bir açıklamaya ihtiyaç duyulması halinde yazarla iletişime geçin."
 
 
+msgid "Default Import Method"
+msgstr "Varsayılan İçe Aktarma Yöntemi"
+
+
+msgid "Link"
+msgstr "Bağlantı"
+
+
+msgid "Import the assets as linked data-block"
+msgstr "Varlıkları bağlantılı veri bloğu olarak içe aktarın"
+
+
+msgid "Append"
+msgstr "İliştir"
+
+
+msgid "Append (Reuse Data)"
+msgstr "İliştir (Veriyi Yeniden Kullan)"
+
+
+msgid "Pack"
+msgstr "Ambalaj"
+
+
 msgid "Tags"
 msgstr "Etiketler"
 
@@ -1725,10 +1749,6 @@ msgstr "Bu Blender oturumunda şu anda mevcut olan varlıkları göster"
 
 msgid "Essentials"
 msgstr "Temel Bilgiler"
-
-
-msgid "Show the basic building blocks and utilities coming with Blender"
-msgstr "Blender ile birlikte gelen temel yapı taşlarını ve yardımcı programları göster"
 
 
 msgid "Custom"
@@ -5344,10 +5364,6 @@ msgid "Show Lasso"
 msgstr "Kemeri Göster"
 
 
-msgid "Do not display fill color while drawing the stroke"
-msgstr "Konturu çizerken dolgu rengini görüntülemeyin"
-
-
 msgid "Factor of Simplify using adaptive algorithm"
 msgstr "Uyarlanabilir algoritma kullanarak basitleştirme çarpanı"
 
@@ -6824,20 +6840,8 @@ msgid "AgX Base sRGB"
 msgstr "AgX Tabanlı sRGB"
 
 
-msgid "AgX Base Image Encoding for sRGB Display"
-msgstr "sRGB Ekran için AgX Tabanlı Görüntü Kodlaması"
-
-
-msgid "sRGB display space with Filmic view transform"
-msgstr "Filmic görünüm dönüşümü ile sRGB görüntüleme alanı"
-
-
 msgid "Khronos PBR Neutral sRGB"
 msgstr "Khronos PBR Nötr sRGB"
-
-
-msgid "Khronos PBR Neutral Image Encoding for sRGB Display"
-msgstr "sRGB Ekran için Khronos PBR Nötr Görüntü Kodlaması"
 
 
 msgid "Linear CIE-XYZ D65"
@@ -12191,30 +12195,6 @@ msgid "Determine how the asset will be imported"
 msgstr "Varlığın nasıl içe aktarılacağını belirleyin"
 
 
-msgid "Follow Preferences"
-msgstr "Tercihleri İzle"
-
-
-msgid "Link"
-msgstr "Bağlantı"
-
-
-msgid "Import the assets as linked data-block"
-msgstr "Varlıkları bağlantılı veri bloğu olarak içe aktarın"
-
-
-msgid "Append"
-msgstr "İliştir"
-
-
-msgid "Append (Reuse Data)"
-msgstr "İliştir (Veriyi Yeniden Kullan)"
-
-
-msgid "Pack"
-msgstr "Ambalaj"
-
-
 msgid "Float2 Attribute Value"
 msgstr "Float2 Nitelik Değeri"
 
@@ -15271,54 +15251,6 @@ msgid "Amount of smoothing to automatically apply to each stroke"
 msgstr "Her vuruşta otomatik olarak uygulanacak düzeltme miktarı"
 
 
-msgid "Propagation Steps"
-msgstr "Yayılma Adımları"
-
-
-msgid "Blur Steps"
-msgstr "Bulanıklaştırma Adımları"
-
-
-msgid "The number of times the cavity mask is blurred"
-msgstr "Kavite maskesinin bulanıklaştırıldığı zaman sayısı"
-
-
-msgid "Cavity Curve"
-msgstr "Boşluk eğrisi"
-
-
-msgid "Cavity Factor"
-msgstr "Çürük Faktörü"
-
-
-msgid "The contrast of the cavity mask"
-msgstr "Kavite maskesinin kontrastı"
-
-
-msgid "Area Normal Falloff"
-msgstr "Alan Normal Düşüş"
-
-
-msgid "Extend the angular range with a falloff gradient"
-msgstr "Düşüş gradyanı ile açısal aralığı genişletin"
-
-
-msgid "Area Normal Limit"
-msgstr "Alan Normal Sınırı"
-
-
-msgid "The range of angles that will be affected"
-msgstr "Etkilenecek açıların aralığı"
-
-
-msgid "View Normal Falloff"
-msgstr "Normal Düşüşü Görüntüle"
-
-
-msgid "View Normal Limit"
-msgstr "Normal Limiti Görüntüle"
-
-
 msgid "Brush blending mode"
 msgstr "Fırça karıştırma modu"
 
@@ -16598,58 +16530,6 @@ msgstr "Alfa'yı Etkile"
 
 msgid "When this is disabled, lock alpha while painting"
 msgstr "Bu devre dışı bırakıldığında, boyama sırasında alfa kilitlenir"
-
-
-msgid "Mesh Boundary Auto-Masking"
-msgstr "Mesh Sınırı Otomatik Maskeleme"
-
-
-msgid "Do not affect non manifold boundary edges"
-msgstr "Manifold olmayan sınır kenarlarını etkilemez"
-
-
-msgid "Face Sets Boundary Automasking"
-msgstr "Yüz Setleri Sınır Otomatik Maskeleme"
-
-
-msgid "Cavity Mask"
-msgstr "Çürük Maskesi"
-
-
-msgid "Do not affect vertices on peaks, based on the surface curvature"
-msgstr "Yüzey eğriliğine bağlı olarak tepe noktalarındaki köşeleri etkilemeyin"
-
-
-msgid "Inverted Cavity Mask"
-msgstr "Ters Kavite Maskesi"
-
-
-msgid "Do not affect vertices within crevices, based on the surface curvature"
-msgstr "Yüzey eğriliğine bağlı olarak çatlaklar içindeki köşeleri etkilemez"
-
-
-msgid "Custom Cavity Curve"
-msgstr "Özel Boşluk Eğrisi"
-
-
-msgid "Use custom curve"
-msgstr "Özel eğriyi kullan"
-
-
-msgid "Area Normal"
-msgstr "Alan Normal"
-
-
-msgid "Affect only vertices connected to the active vertex under the brush"
-msgstr "Sadece fırçanın altındaki etkin tepe noktasına bağlı tepe noktalarını etkiler"
-
-
-msgid "Affect only vertices with a normal that faces the viewer"
-msgstr "Yalnızca izleyiciye bakan normale sahip köşeleri etkiler"
-
-
-msgid "Occlusion"
-msgstr "Tıkanıklık"
 
 
 msgid "Collide with objects during the simulation"
@@ -19609,6 +19489,10 @@ msgid "Planar Probe"
 msgstr "Planar Prob"
 
 
+msgid "Parallax Radius"
+msgstr "Paralaks Yarıçapı"
+
+
 msgid "Spherical Probe"
 msgstr "Küresel Prob"
 
@@ -19623,10 +19507,6 @@ msgstr "Sonda etkisinin ne kadar hızlı azaldığını kontrol edin"
 
 msgid "Type of influence volume"
 msgstr "Etki hacmi türü"
-
-
-msgid "Parallax Radius"
-msgstr "Paralaks Yarıçapı"
 
 
 msgid "Lowest corner of the parallax bounding box"
@@ -20504,14 +20384,6 @@ msgstr "Klip nereden geliyor"
 
 msgid "Movie File"
 msgstr "Film Dosyası"
-
-
-msgid "Use Proxy / Timecode"
-msgstr "Proxy / Zaman Kodu Kullan"
-
-
-msgid "Use a preview proxy and/or timecode index for this clip"
-msgstr "Bu klip için bir önizleme proxy'si ve/veya zaman kodu dizini kullanın"
 
 
 msgid "Proxy Custom Directory"
@@ -28810,6 +28682,14 @@ msgid "Texture Pixel Size factor along the stroke"
 msgstr "Vuruş boyunca Doku Piksel Boyut faktörü"
 
 
+msgid "Placement"
+msgstr "Atama"
+
+
+msgid "Scale the noise frequency"
+msgstr "Gürültü frekansını ölçeklendirin"
+
+
 msgid "Show stroke fills of this material"
 msgstr "Bu materyalin kontur dolgularını göster"
 
@@ -28903,14 +28783,6 @@ msgid "Editor menu containing buttons"
 msgstr "Düğmeler içeren düzenleyici menüsü"
 
 
-msgid "Math"
-msgstr "Matematik"
-
-
-msgid "Utilities"
-msgstr "Kamu hizmetleri"
-
-
 msgid "Mirror"
 msgstr "Yansıtma"
 
@@ -28955,20 +28827,12 @@ msgid "Select Similar"
 msgstr "Benzerini Seç"
 
 
-msgid "Read"
-msgstr "Okumak"
-
-
 msgid "Select All by Trait"
 msgstr "Özelliğe Göre Tümünü Seç"
 
 
-msgid "Sample"
-msgstr "Örnek"
-
-
-msgid "Write"
-msgstr "Yazmak"
+msgid "Math"
+msgstr "Matematik"
 
 
 msgid "Select Linked"
@@ -28979,24 +28843,32 @@ msgid "Select Loops"
 msgstr "Döngüleri Seç"
 
 
-msgid "Primitives"
-msgstr "İlkel"
+msgid "Utilities"
+msgstr "Kamu hizmetleri"
 
 
 msgid "Assign Material"
 msgstr "Malzeme Atamak"
 
 
-msgid "Instances"
-msgstr "Örnekler"
-
-
 msgid "Metaball"
 msgstr "Metabol"
 
 
-msgid "Import"
-msgstr "İçe Aktar"
+msgid "Read"
+msgstr "Okumak"
+
+
+msgid "Sample"
+msgstr "Örnek"
+
+
+msgid "Write"
+msgstr "Yazmak"
+
+
+msgid "Primitives"
+msgstr "İlkel"
 
 
 msgid "Light"
@@ -29005,10 +28877,6 @@ msgstr "Işık"
 
 msgid "Light Probe"
 msgstr "Işık Sondası"
-
-
-msgid "Deprecated"
-msgstr "Kullanım dışı bırakıldı"
 
 
 msgid "Add Image"
@@ -29023,8 +28891,8 @@ msgid "Rigid Body"
 msgstr "Sert Gövde"
 
 
-msgid "UV"
-msgstr "UV"
+msgid "Instances"
+msgstr "Örnekler"
 
 
 msgid "Apply"
@@ -29037,6 +28905,10 @@ msgstr "İzlemek"
 
 msgid "Quick Effects"
 msgstr "Hızlı Etkiler"
+
+
+msgid "Import"
+msgstr "İçe Aktar"
 
 
 msgid "Show/Hide"
@@ -29067,12 +28939,20 @@ msgid "Hooks"
 msgstr "Kancalar"
 
 
+msgid "Deprecated"
+msgstr "Kullanım dışı bırakıldı"
+
+
 msgid "Vertex Group Locks"
 msgstr "Vertex Grup Kilitleri"
 
 
 msgid "Trim/Add"
 msgstr "Kırp/Ekle"
+
+
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Sculpt Set Pivot"
@@ -29139,10 +29019,6 @@ msgid "Merge"
 msgstr "Birleştir"
 
 
-msgid "Layout"
-msgstr "Yerleşim"
-
-
 msgid "Special Characters"
 msgstr "Özel Karakterler"
 
@@ -29151,16 +29027,20 @@ msgid "Kerning"
 msgstr "Harf aralığı"
 
 
+msgid "Layout"
+msgstr "Yerleşim"
+
+
+msgid "Bone Roll"
+msgstr "Kemik Rulosu"
+
+
 msgid "Adjust"
 msgstr "Ayarlamak"
 
 
 msgid "Keying"
 msgstr "Anahtarlama"
-
-
-msgid "Bone Roll"
-msgstr "Kemik Rulosu"
 
 
 msgid "Tracking"
@@ -29711,6 +29591,106 @@ msgstr "Hakkında"
 
 msgid "Quick Setup"
 msgstr "Hızlı Kurulum"
+
+
+msgid "Propagation Steps"
+msgstr "Yayılma Adımları"
+
+
+msgid "Blur Steps"
+msgstr "Bulanıklaştırma Adımları"
+
+
+msgid "The number of times the cavity mask is blurred"
+msgstr "Kavite maskesinin bulanıklaştırıldığı zaman sayısı"
+
+
+msgid "Cavity Curve"
+msgstr "Boşluk eğrisi"
+
+
+msgid "Cavity Factor"
+msgstr "Çürük Faktörü"
+
+
+msgid "The contrast of the cavity mask"
+msgstr "Kavite maskesinin kontrastı"
+
+
+msgid "Area Normal Falloff"
+msgstr "Alan Normal Düşüş"
+
+
+msgid "Extend the angular range with a falloff gradient"
+msgstr "Düşüş gradyanı ile açısal aralığı genişletin"
+
+
+msgid "Area Normal Limit"
+msgstr "Alan Normal Sınırı"
+
+
+msgid "The range of angles that will be affected"
+msgstr "Etkilenecek açıların aralığı"
+
+
+msgid "Mesh Boundary Auto-Masking"
+msgstr "Mesh Sınırı Otomatik Maskeleme"
+
+
+msgid "Do not affect non manifold boundary edges"
+msgstr "Manifold olmayan sınır kenarlarını etkilemez"
+
+
+msgid "Face Sets Boundary Automasking"
+msgstr "Yüz Setleri Sınır Otomatik Maskeleme"
+
+
+msgid "Cavity Mask"
+msgstr "Çürük Maskesi"
+
+
+msgid "Do not affect vertices on peaks, based on the surface curvature"
+msgstr "Yüzey eğriliğine bağlı olarak tepe noktalarındaki köşeleri etkilemeyin"
+
+
+msgid "Inverted Cavity Mask"
+msgstr "Ters Kavite Maskesi"
+
+
+msgid "Do not affect vertices within crevices, based on the surface curvature"
+msgstr "Yüzey eğriliğine bağlı olarak çatlaklar içindeki köşeleri etkilemez"
+
+
+msgid "Custom Cavity Curve"
+msgstr "Özel Boşluk Eğrisi"
+
+
+msgid "Use custom curve"
+msgstr "Özel eğriyi kullan"
+
+
+msgid "Area Normal"
+msgstr "Alan Normal"
+
+
+msgid "Affect only vertices connected to the active vertex under the brush"
+msgstr "Sadece fırçanın altındaki etkin tepe noktasına bağlı tepe noktalarını etkiler"
+
+
+msgid "Affect only vertices with a normal that faces the viewer"
+msgstr "Yalnızca izleyiciye bakan normale sahip köşeleri etkiler"
+
+
+msgid "Occlusion"
+msgstr "Tıkanıklık"
+
+
+msgid "View Normal Falloff"
+msgstr "Normal Düşüşü Görüntüle"
+
+
+msgid "View Normal Limit"
+msgstr "Normal Limiti Görüntüle"
 
 
 msgid "Mesh Edge"
@@ -33290,10 +33270,6 @@ msgid "Offset the noise along the strokes"
 msgstr "Darbeler boyunca oluşan gürültüyü telafi edin"
 
 
-msgid "Scale the noise frequency"
-msgstr "Gürültü frekansını ölçeklendirin"
-
-
 msgid "Where to perform randomization"
 msgstr "Rastgeleleştirmenin nerede yapılacağı"
 
@@ -36275,14 +36251,6 @@ msgid "Build proxy resolution 75% of the original footage dimension"
 msgstr "Orijinal görüntü boyutunun %75'i oranında proxy çözünürlüğü oluşturun"
 
 
-msgid "Rec Run"
-msgstr "Rekreasyon Koşusu"
-
-
-msgid "Build record run time code index"
-msgstr "Kayıt çalışma zamanı kod dizini oluşturun"
-
-
 msgid "Build proxy resolution 100% of the original undistorted footage dimension"
 msgstr "Orijinal bozulmamış görüntü boyutunun %100'ü oranında proxy çözünürlüğü oluşturun"
 
@@ -36305,18 +36273,6 @@ msgstr "Proxy dosyalarının depolanacağı konum"
 
 msgid "JPEG quality of proxy images"
 msgstr "Proxy görüntülerinin JPEG kalitesi"
-
-
-msgid "Timecode"
-msgstr "Zaman kodu"
-
-
-msgid "Record Run"
-msgstr "Rekor Koşusu"
-
-
-msgid "Record Run No Gaps"
-msgstr "Rekor Koşusu Boşluk Yok"
 
 
 msgid "Scopes for statistical view of a movie clip"
@@ -42508,10 +42464,6 @@ msgid "Attribute Domain"
 msgstr "Öznitelik Alanı"
 
 
-msgid "Attribute domain where the attribute is stored in the baked data"
-msgstr "Niteliğin pişmiş verilerde depolandığı nitelik alanı"
-
-
 msgid "Bake item is an attribute stored on a geometry"
 msgstr "Pişirme öğesi bir geometride depolanan bir niteliktir"
 
@@ -42538,14 +42490,6 @@ msgstr "Düğüm Girişleri"
 
 msgid "Collection of Node Sockets"
 msgstr "Düğüm Soketleri Koleksiyonu"
-
-
-msgid "Node Instance Hash"
-msgstr "Düğüm Örneği Karması"
-
-
-msgid "Hash table containing node instance data"
-msgstr "Düğüm örneği verilerini içeren karma tablo"
 
 
 msgid "Socket Template"
@@ -42968,6 +42912,10 @@ msgid "Panel description"
 msgstr "Panel açıklaması"
 
 
+msgid "Unique identifier for this panel within this node tree"
+msgstr "Bu düğüm ağacındaki bu panel için benzersiz tanımlayıcı"
+
+
 msgid "Items in the node panel"
 msgstr "Düğüm panelindeki öğeler"
 
@@ -42978,10 +42926,6 @@ msgstr "Panel adı"
 
 msgid "Persistent Identifier"
 msgstr "Kalıcı Tanımlayıcı"
-
-
-msgid "Unique identifier for this panel within this node tree"
-msgstr "Bu düğüm ağacındaki bu panel için benzersiz tanımlayıcı"
 
 
 msgid "Node Tree Interface Socket"
@@ -44040,11 +43984,6 @@ msgstr "BVH'yi İthalat"
 
 msgid "Load a SVG file"
 msgstr "Bir SVG dosyası yükleyin"
-
-
-msgctxt "Operator"
-msgid "Import SVG"
-msgstr "SVG'yi içe aktar"
 
 
 msgid "Load a FBX file"
@@ -46055,12 +45994,12 @@ msgid "By Times Over Current Frame"
 msgstr "Times Over Current Frame Tarafından"
 
 
-msgid "By Values Over Zero Value"
-msgstr "Sıfır Değerinin Üzerindeki Değerlere Göre"
-
-
 msgid "By Times Over First Selected Marker"
 msgstr "Times Over İlk Seçilen İşaretleyici Tarafından"
+
+
+msgid "By Values Over Zero Value"
+msgstr "Sıfır Değerinin Üzerindeki Değerlere Göre"
 
 
 msgctxt "Operator"
@@ -46255,6 +46194,11 @@ msgstr "Maksimum Y"
 
 msgid "Y Min"
 msgstr "Minimum Y"
+
+
+msgctxt "Operator"
+msgid "Select by Type"
+msgstr "Türüne Göre Seç"
 
 
 msgctxt "Operator"
@@ -47079,6 +47023,10 @@ msgid "Add a new bone located at the 3D cursor"
 msgstr "3B imlecin bulunduğu yerde yeni bir kemik ekle"
 
 
+msgid "Axes"
+msgstr "Baltalar"
+
+
 msgid "Name of the newly created bone"
 msgstr "Yeni oluşturulan kemiğin adı"
 
@@ -47290,6 +47238,10 @@ msgstr "Taşı"
 
 msgid "Move selected items"
 msgstr "Seçili öğeleri taşı"
+
+
+msgid "Search"
+msgstr "Aramak"
 
 
 msgctxt "Operator"
@@ -48339,10 +48291,6 @@ msgid "Minimal distance accepted between two features"
 msgstr "İki özellik arasında kabul edilen minimum mesafe"
 
 
-msgid "Placement"
-msgstr "Atama"
-
-
 msgid "Placement for detected features"
 msgstr "Algılanan özellikler için yerleştirme"
 
@@ -48661,15 +48609,6 @@ msgstr "Ön Yükleme Çerçeveleri"
 
 msgid "Prefetch frames from disk for faster playback/tracking"
 msgstr "Daha hızlı oynatma/izleme için diskten kareleri önceden alın"
-
-
-msgctxt "Operator"
-msgid "Rebuild Proxy and Timecode Indices"
-msgstr "Proxy ve Zaman Kodu Endekslerini Yeniden Oluştur"
-
-
-msgid "Rebuild all selected proxies and timecode indices in the background"
-msgstr "Arka planda seçili tüm proxy'leri ve zaman kodu dizinlerini yeniden oluştur"
 
 
 msgctxt "Operator"
@@ -53298,6 +53237,11 @@ msgstr "Örneklerin Anahtarları"
 
 
 msgctxt "Operator"
+msgid "Local View"
+msgstr "Yerel Görünüm"
+
+
+msgctxt "Operator"
 msgid "Match Slope"
 msgstr "Maç Eğimi"
 
@@ -53306,16 +53250,16 @@ msgid "Blend selected keys to the slope of neighboring ones"
 msgstr "Seçili anahtarları komşu anahtarların eğimine karıştırın"
 
 
-msgid "By Values Over Cursor Value"
-msgstr "İmleç Değeri Üzerindeki Değerlere Göre"
-
-
 msgid "By Times Over Zero Time"
 msgstr "Times Over Zero Time Tarafından"
 
 
 msgid "Flip times of selected keyframes, effectively reversing the order they appear in"
 msgstr "Seçili anahtar karelerin çevirme süreleri, bunların görüntülenme sırasını etkili bir şekilde tersine çevirir"
+
+
+msgid "By Values Over Cursor Value"
+msgstr "İmleç Değeri Üzerindeki Değerlere Göre"
 
 
 msgid "Paste keys with a value offset"
@@ -59885,14 +59829,6 @@ msgid "Collapse"
 msgstr "Yıkılmak"
 
 
-msgid "Remove an item from the index switch"
-msgstr "Bir öğeyi indeks anahtarından kaldır"
-
-
-msgid "Index to remove"
-msgstr "Kaldırılacak dizin"
-
-
 msgctxt "Operator"
 msgid "Insert Offset"
 msgstr "Insert Offset"
@@ -62451,11 +62387,6 @@ msgstr "Normal ölçek dönüşümünü temizlemeye ek olarak delta ölçeğini 
 
 msgid "Change selection of all visible objects in scene"
 msgstr "Sahnedeki tüm görünür nesnelerin seçimini değiştir"
-
-
-msgctxt "Operator"
-msgid "Select by Type"
-msgstr "Türüne Göre Seç"
 
 
 msgid "Select all visible objects that are of a type"
@@ -67012,11 +66943,6 @@ msgid "Snapping"
 msgstr "Çıtlama"
 
 
-msgctxt "Operator"
-msgid "Area Options"
-msgstr "Area Options"
-
-
 msgid "Operations for splitting and merging"
 msgstr "Bölme ve birleştirme işlemleri"
 
@@ -71113,10 +71039,6 @@ msgid "Copy Mirrored UV Coords"
 msgstr "Kopyalanmış Yansıtılmış UV Koordinatları"
 
 
-msgid "Axis Direction"
-msgstr "Eksen Yönü"
-
-
 msgid "Tolerance for finding vertex duplicates"
 msgstr "Tepe noktası kopyalarını bulma toleransı"
 
@@ -71622,26 +71544,12 @@ msgid "Reveal all hidden UV vertices"
 msgstr "Tüm gizli UV köşelerini ortaya çıkar"
 
 
-msgctxt "Operator"
-msgid "UV Rip"
-msgstr "UV yırtığı"
-
-
 msgid "Rip selected vertices or a selected region"
 msgstr "Seçili köşeleri veya seçili bölgeyi kopyala"
 
 
-msgctxt "Operator"
-msgid "UV Rip Move"
-msgstr "UV Rip Hareketi"
-
-
 msgid "Unstitch UVs and move the result"
 msgstr "UV'leri sökün ve sonucu taşıyın"
-
-
-msgid "UV Rip"
-msgstr "UV yırtığı"
 
 
 msgctxt "Operator"
@@ -72254,11 +72162,6 @@ msgstr "Merkez pozisyonunu yerleştirmeye başlayın"
 
 msgid "ICO Sphere"
 msgstr "ICO Küresi"
-
-
-msgctxt "Operator"
-msgid "Local View"
-msgstr "Yerel Görünüm"
 
 
 msgid "Toggle display of selected object(s) separately and centered in view"
@@ -75646,26 +75549,6 @@ msgid "Panel containing UI elements"
 msgstr "UI öğelerini içeren panel"
 
 
-msgid "Shadow Settings"
-msgstr "Gölge Ayarları"
-
-
-msgid "SSAO Settings"
-msgstr "SSAO Ayarları"
-
-
-msgid "Cavity"
-msgstr "Boşluk"
-
-
-msgid "glTF Material Variants"
-msgstr "glTF Malzeme Varyantları"
-
-
-msgid "Render Pass"
-msgstr "Render Geçişi"
-
-
 msgid "Compositor"
 msgstr "Dizgici"
 
@@ -75746,6 +75629,14 @@ msgid "Viewport Debug"
 msgstr "Görüş Alanı Hata Ayıklaması"
 
 
+msgid "glTF Variants"
+msgstr "glTF Çeşitleri"
+
+
+msgid "glTF Material Variants"
+msgstr "glTF Malzeme Varyantları"
+
+
 msgid "VR"
 msgstr "Sanal Gerçeklik"
 
@@ -75758,16 +75649,28 @@ msgid "Active Tool"
 msgstr "Etkin Araç"
 
 
-msgid "glTF Variants"
-msgstr "glTF Çeşitleri"
-
-
 msgid "View Lock"
 msgstr "Görünüm Kilidi"
 
 
 msgid "Selectability & Visibility"
 msgstr "Seçilebilirlik ve Görünürlük"
+
+
+msgid "Shadow Settings"
+msgstr "Gölge Ayarları"
+
+
+msgid "SSAO Settings"
+msgstr "SSAO Ayarları"
+
+
+msgid "Cavity"
+msgstr "Boşluk"
+
+
+msgid "Render Pass"
+msgstr "Render Geçişi"
 
 
 msgid "Chain Scaling"
@@ -75832,10 +75735,6 @@ msgstr "İşaretleyici Ekranı"
 
 msgid "Mask Display"
 msgstr "Maske Gösterimi"
-
-
-msgid "Proxy/Timecode"
-msgstr "Proxy/Zaman Kodu"
 
 
 msgid "Stabilization"
@@ -76593,10 +76492,6 @@ msgstr "Dalga formları"
 
 msgid "Sequencer Snapping"
 msgstr "Dizici Yakalama"
-
-
-msgid "Strip Proxy & Timecode"
-msgstr "Proxy ve Zaman Kodunu Kaldır"
 
 
 msgctxt "Operator"
@@ -79775,30 +79670,6 @@ msgstr "Cihaz"
 
 msgid "Auto detect best GPU for running Blender"
 msgstr "Blender'ı çalıştırmak için en iyi GPU'yu otomatik olarak algıla"
-
-
-msgid "Image Display Method"
-msgstr "Görüntü Görüntüleme Yöntemi"
-
-
-msgid "Method used for displaying images on the screen"
-msgstr "Ekranda görüntü görüntülemek için kullanılan yöntem"
-
-
-msgid "Automatically choose method based on GPU and image"
-msgstr "GPU ve görüntüye göre yöntemi otomatik olarak seçin"
-
-
-msgid "2D Texture"
-msgstr "2D Doku"
-
-
-msgid "Use CPU for display transform and display image with 2D texture"
-msgstr "Görüntü dönüşümü için CPU'yu kullanın ve görüntüyü 2D dokuyla görüntüleyin"
-
-
-msgid "GLSL"
-msgstr "GLSL"
 
 
 msgid "Is Microsoft Store Install"
@@ -85843,10 +85714,6 @@ msgid "Simulation Item"
 msgstr "Benzetim Ögesi"
 
 
-msgid "Attribute domain where the attribute is stored in the simulation state"
-msgstr "Özniteliğin simülasyon durumunda depolandığı öznitelik alanı"
-
-
 msgid "Soft body simulation settings for an object"
 msgstr "Bir nesne için yumuşak gövde simülasyon ayarları"
 
@@ -89009,10 +88876,6 @@ msgid "Convert input to float data"
 msgstr "Girişi kayan noktalı verilere dönüştür"
 
 
-msgid "Use a preview proxy and/or time-code index for this strip"
-msgstr "Bu şerit için bir önizleme proxy'si ve/veya zaman kodu dizini kullanın"
-
-
 msgid "Reverse Frames"
 msgstr "Ters Çerçeveler"
 
@@ -89227,6 +89090,10 @@ msgstr "Anahat Genişliği"
 
 msgid "Shadow Angle"
 msgstr "Gölge Açısı"
+
+
+msgid "Line Spacing"
+msgstr "Satır Aralığı"
 
 
 msgid "Text that will be displayed"
@@ -89794,10 +89661,6 @@ msgstr "Özel proxy dosyasının konumu"
 
 msgid "Quality of proxies to build"
 msgstr "Oluşturulacak proxy kalitesi"
-
-
-msgid "Method for reading the inputs timecode"
-msgstr "Giriş zaman kodunu okuma yöntemi"
 
 
 msgid "Overwrite existing proxy files when building"
@@ -92934,10 +92797,6 @@ msgid "Settings to define a reusable library for Asset Browsers to use"
 msgstr "Varlık Tarayıcılarının kullanması için yeniden kullanılabilir bir kitaplık tanımlamaya yönelik ayarlar"
 
 
-msgid "Default Import Method"
-msgstr "Varsayılan İçe Aktarma Yöntemi"
-
-
 msgid "Use relative path when linking assets from this asset library"
 msgstr "Bu varlık kitaplığından varlıkları bağlarken bağıl yolu kullan"
 
@@ -95168,10 +95027,6 @@ msgstr "Boşluk tuşu eylemi"
 
 msgid "Action when 'Space' is pressed"
 msgstr "'Boşluk' tuşuna basıldığında eylem"
-
-
-msgid "Search"
-msgstr "Aramak"
 
 
 msgid "Open the operator search popup"
@@ -98091,10 +97946,6 @@ msgid "Distribution Type"
 msgstr "Dağıtım Türü"
 
 
-msgid "Multiplier"
-msgstr "Çarpan"
-
-
 msgid "Dicing Rate Render"
 msgstr "Zar Atma Oranı Oluşturma"
 
@@ -98129,10 +97980,6 @@ msgstr "Pürüzlülük Eşiği"
 
 msgid "Surfaces"
 msgstr "Yüzeyler"
-
-
-msgid "Denoising Data"
-msgstr "Veri Gürültüsünü Azaltma"
 
 
 msgid "Indexes"
@@ -98207,6 +98054,10 @@ msgid "Use GPU"
 msgstr "GPU'yu kullan"
 
 
+msgid "Multiplier"
+msgstr "Çarpan"
+
+
 msgid "Curve Subdivisions"
 msgstr "Eğri Alt Bölümleri"
 
@@ -98221,6 +98072,10 @@ msgstr "Görünüm Alanı Sıçramaları"
 
 msgid "Render Bounces"
 msgstr "Render Sıçramaları"
+
+
+msgid "Denoising Data"
+msgstr "Veri Gürültüsünü Azaltma"
 
 
 msgid "Incompatible output node"
@@ -98284,11 +98139,6 @@ msgstr "Hareket Yakalama (.bvh)"
 
 msgid "Invalid target %r (must be 'ARMATURE' or 'OBJECT')"
 msgstr "Geçersiz hedef %r ('ARMATURE' veya 'OBJECT' olmalı)"
-
-
-msgctxt "Operator"
-msgid "Scalable Vector Graphics (.svg)"
-msgstr "Ölçeklenebilir Vektör Grafikleri (.svg)"
 
 
 msgid "Unable to parse XML, %s:%s for file %r"
@@ -100427,10 +100277,6 @@ msgid "Shapes"
 msgstr "Şekiller"
 
 
-msgid "Axes"
-msgstr "Baltalar"
-
-
 msgctxt "Operator"
 msgid "Remove Unused"
 msgstr "Kullanılmayanları Kaldır"
@@ -100633,10 +100479,6 @@ msgstr "Karakter Aralığı"
 
 msgid "Word Spacing"
 msgstr "Kelime Aralığı"
-
-
-msgid "Line Spacing"
-msgstr "Satır Aralığı"
 
 
 msgid "Offset X"
@@ -101204,10 +101046,6 @@ msgstr "Yüz Setleri Sınırı"
 
 msgid "Cavity (inverted)"
 msgstr "Kavite (ters)"
-
-
-msgid "Sculpt Curves"
-msgstr "Eğrileri şekillendir"
 
 
 msgid "Sample Bias"
@@ -102259,11 +102097,6 @@ msgstr "Bozulmamış Yapı:"
 
 
 msgctxt "Operator"
-msgid "Build Proxy / Timecode"
-msgstr "Proxy / Zaman Kodu Oluştur"
-
-
-msgctxt "Operator"
 msgid "Build Proxy"
 msgstr "Proxy Oluştur"
 
@@ -102401,10 +102234,6 @@ msgstr "Stabilizasyon için Raylar"
 
 msgid "Tracks for Location"
 msgstr "Konum için Parçalar"
-
-
-msgid "Timecode Index"
-msgstr "Zaman Kodu İndeksi"
 
 
 msgctxt "Operator"
@@ -102575,6 +102404,11 @@ msgstr "Ekstrapolasyon Modu"
 msgctxt "Operator"
 msgid "Snap"
 msgstr "Patlatmak"
+
+
+msgctxt "Operator"
+msgid "Jump to Selected"
+msgstr "Seçilenlere Git"
 
 
 msgctxt "Operator"
@@ -102915,11 +102749,6 @@ msgstr "Pürüzsüz (Gauss)"
 msgctxt "Operator"
 msgid "Smooth (Legacy)"
 msgstr "Pürüzsüz (Miras)"
-
-
-msgctxt "Operator"
-msgid "Jump to Selected"
-msgstr "Seçilenlere Git"
 
 
 msgctxt "Operator"
@@ -103431,11 +103260,6 @@ msgid "Backdrop Zoom Out"
 msgstr "Arkaplan Uzaklaştırma"
 
 
-msgctxt "Operator"
-msgid "Exit Group"
-msgstr "Çıkış Grubu"
-
-
 msgid "Slot {:d}"
 msgstr "Yuva {:d}"
 
@@ -103443,6 +103267,11 @@ msgstr "Yuva {:d}"
 msgctxt "Operator"
 msgid "Clear Viewer"
 msgstr "Net Görüntüleyici"
+
+
+msgctxt "Operator"
+msgid "Exit Group"
+msgstr "Çıkış Grubu"
 
 
 msgid "Types"
@@ -107339,6 +107168,11 @@ msgid "Key %d"
 msgstr "Anahtar %d"
 
 
+msgctxt "Key"
+msgid "Key"
+msgstr "Anahtar"
+
+
 msgid "AOV"
 msgstr "AOV"
 
@@ -108094,6 +107928,10 @@ msgstr "Kenar halkaları bağlı değil"
 
 msgid "color_index is invalid"
 msgstr "renk_indeksi geçersiz"
+
+
+msgid "Anisotropic"
+msgstr "Anizotropik"
 
 
 msgid "Error: Too many AOVs"
@@ -109147,10 +108985,6 @@ msgid "Non-Keyboard Shortcut"
 msgstr "Klavye Dışı Kısayol"
 
 
-msgid "Pin"
-msgstr "Pin"
-
-
 msgid "Shift Left Mouse"
 msgstr "Shift Left Mouse"
 
@@ -109771,10 +109605,6 @@ msgid "Browse Workspace to be linked"
 msgstr "Bağlantılanacak çalışma alanına göz at"
 
 
-msgid "Browse LightProbe to be linked"
-msgstr "Bağlanmak için LightProbe'a göz atın"
-
-
 msgid "Browse Curves Data to be linked"
 msgstr "Bağlanacak Eğri Verilerini Tara"
 
@@ -110335,6 +110165,10 @@ msgid "No vertex group among the selected vertices"
 msgstr "Seçilen köşeler arasında köşe grubu yok"
 
 
+msgid "No edges selected"
+msgstr "Hiçbir kenar seçilmediHiçbir kenar seçilmedi"
+
+
 msgid "Invalid selection order"
 msgstr "Geçersiz seçim sırası"
 
@@ -110361,10 +110195,6 @@ msgstr "Aktif ağın şekil anahtarları yok"
 
 msgid "Selection not supported in object mode"
 msgstr "Nesne modunda seçim desteklenmiyor"
-
-
-msgid "No edges selected"
-msgstr "Hiçbir kenar seçilmediHiçbir kenar seçilmedi"
 
 
 msgid "No faces filled"
@@ -112385,10 +112215,6 @@ msgid "PaintCurve"
 msgstr "Boya Eğrisi"
 
 
-msgid "Palette created"
-msgstr "Palet oluşturuldu"
-
-
 msgid "Sample color for %s"
 msgstr "%s için örnek renk"
 
@@ -112399,6 +112225,10 @@ msgstr "Fırça. Palet için örnekleme yapmak için Sol Tıklamayı kullanın"
 
 msgid "Palette. Use Left Click to sample more colors"
 msgstr "Palet. Daha fazla renk örneklemek için Sol Tıklamayı kullanın"
+
+
+msgid "Palette created"
+msgstr "Palet oluşturuldu"
 
 
 msgid "Compiled without sound support"
@@ -112451,14 +112281,6 @@ msgstr "Maskeler için uygulanmadı"
 
 msgid "Cannot activate a file selector dialog, one already open"
 msgstr "Bir dosya seçici iletişim kutusu etkinleştirilemiyor, zaten açık"
-
-
-msgid "Property is not editable"
-msgstr "Özellik düzenlenemez"
-
-
-msgid "Property is not editable: %s"
-msgstr "Özellik düzenlenemez: %s"
 
 
 msgid "Texture Field"
@@ -115057,10 +114879,6 @@ msgid "UV Vertex"
 msgstr "UV Tepe Noktası"
 
 
-msgid "Rip failed"
-msgstr "Kopyalama başarısız oldu"
-
-
 msgid "Pinned vertices can be selected in Vertex Mode only"
 msgstr "Sabitlenmiş köşeler yalnızca Köşe Modunda seçilebilir"
 
@@ -116031,11 +115849,6 @@ msgid "Failed to load image texture '%s'"
 msgstr "'%s' görüntü dokusu yüklenemedi"
 
 
-msgctxt "Key"
-msgid "Key"
-msgstr "Anahtar"
-
-
 msgid "ViewLayer '%s' does not contain object '%s'"
 msgstr "Görünüm Katmanı '%s', '%s' nesnesini içermiyor"
 
@@ -116182,10 +115995,6 @@ msgstr "Panel oluşturulamıyor"
 
 msgid "Unable to copy item"
 msgstr "Öğe kopyalanamıyor"
-
-
-msgid "Anisotropic"
-msgstr "Anizotropik"
 
 
 msgctxt "NodeTree"
@@ -117575,6 +117384,10 @@ msgid "Crease Edges"
 msgstr "Kenarları Kırın"
 
 
+msgid "Add Item"
+msgstr "Öğe Ekle"
+
+
 msgid "Not a compositor node tree"
 msgstr "Bir kompozitör düğüm ağacı değil"
 
@@ -117645,10 +117458,6 @@ msgstr "Cb"
 
 msgid "Cr"
 msgstr "Cr"
-
-
-msgid "Disabled, built without OpenColorIO"
-msgstr "Engelli, OpenColorIO olmadan oluşturuldu"
 
 
 msgid "Upper Left"
@@ -118593,6 +118402,10 @@ msgid "Top"
 msgstr "Tepe"
 
 
+msgid "Inverted"
+msgstr "Ters Çevrilmiş"
+
+
 msgid "Input Fields"
 msgstr "Giriş Alanları"
 
@@ -118623,6 +118436,10 @@ msgstr "Yukarıdaki geometrideki öznitelik"
 
 msgid "Result of joining generated geometries from each iteration"
 msgstr "Her yinelemeden üretilen geometrilerin birleştirilmesinin sonucu"
+
+
+msgid "Pattern Mode"
+msgstr "Desen Modu"
 
 
 msgid "Layers as Instances"
@@ -118691,10 +118508,6 @@ msgstr "Komşusu Var"
 
 msgid "Index of nearest element"
 msgstr "En yakın elemanın indeksi"
-
-
-msgid "Add Item"
-msgstr "Öğe Ekle"
 
 
 msgid "The camera used for rendering the scene"
@@ -119360,20 +119173,12 @@ msgid "Which top-level instances to realize"
 msgstr "Hangi üst düzey örneklerin gerçekleştirileceği"
 
 
-msgid "Only one * is supported in the pattern"
-msgstr "Desende yalnızca bir * destekleniyor"
-
-
 msgid "Cannot remove built-in attributes: {}"
 msgstr "Yerleşik öznitelikler kaldırılamıyor: {}"
 
 
 msgid "Attribute does not exist: \"{}\""
 msgstr "Öznitelik mevcut değil: \"{}\""
-
-
-msgid "Pattern Mode"
-msgstr "Desen Modu"
 
 
 msgid "How the attributes to remove are chosen"
@@ -119430,10 +119235,6 @@ msgstr "Izgara 1"
 
 msgid "Grid 2"
 msgstr "Izgara 2"
-
-
-msgid "Inverted"
-msgstr "Ters Çevrilmiş"
 
 
 msgid "The parts of the geometry that go into the first output"
@@ -119634,6 +119435,10 @@ msgstr "Tanımsız Düğüm Ağacı Türü"
 
 msgid " (Deprecated)"
 msgstr " (Kullanımdan kaldırıldı)"
+
+
+msgid "Only one * is supported in the pattern"
+msgstr "Desende yalnızca bir * destekleniyor"
 
 
 msgid "Not a shader node tree"
@@ -120378,10 +120183,6 @@ msgstr "\"%s\" sahnesinde etkin bir görünüm bulunamadı"
 
 msgid "%s: no Combined pass found in the render layer '%s'"
 msgstr "%s: '%s' render katmanında Birleşik geçiş bulunamadı"
-
-
-msgid "%s: failed to allocate clip buffer '%s'"
-msgstr "%s: '%s' klip arabelleği tahsis edilemedi"
 
 
 msgid "%s: incorrect dimensions for partial copy '%s'"
@@ -121545,278 +121346,6 @@ msgid "Ignore Sharpness"
 msgstr "Keskinliği Yoksay"
 
 
-msgid "Attach Hair Curves to Surface"
-msgstr "Saç Eğrilerini Yüzeye Takın"
-
-
-msgid "Attaches hair curves to a surface mesh"
-msgstr "Saç kıvrımlarını bir yüzey ağına bağlar"
-
-
-msgid "Align to Surface Normal"
-msgstr "Yüzey Normaline Hizala"
-
-
-msgid "Blend deformation along each curve from the root"
-msgstr "Kökten itibaren her eğri boyunca deformasyonu karıştırın"
-
-
-msgid "Sample Attachment UV"
-msgstr "Örnek Ek UV"
-
-
-msgid "Sample the surface UV map at the attachment point"
-msgstr "Ek noktasındaki yüzey UV haritasını örnekleyin"
-
-
-msgid "Snap the root of each curve to the closest surface point"
-msgstr "Her eğrinin kökünü en yakın yüzey noktasına sabitleyin"
-
-
-msgid "Surface Object to attach to (needs to have matching transforms)"
-msgstr "Bağlanılacak Yüzey Nesnesi (eşleşen dönüşümlere sahip olması gerekir)"
-
-
-msgid "Surface geometry to attach hair curves to"
-msgstr "Saç eğrilerini tutturmak için yüzey geometrisi"
-
-
-msgid "Surface Normal"
-msgstr "Yüzey Normal"
-
-
-msgid "Surface normal at the attachment point"
-msgstr "Bağlantı noktasındaki yüzey normali"
-
-
-msgid "Surface Rest Position"
-msgstr "Yüzey Dinlenme Pozisyonu"
-
-
-msgid "Set the surface mesh into its rest position before attachment"
-msgstr "Yüzey ağını, takmadan önce dinlenme pozisyonuna getirin"
-
-
-msgid "Surface UV Coordinate"
-msgstr "Yüzey UV Koordinatı"
-
-
-msgid "Surface UV coordinates at the attachment point"
-msgstr "Bağlantı noktasındaki yüzey UV koordinatları"
-
-
-msgid "Surface UV map used for attachment"
-msgstr "Ek için kullanılan yüzey UV haritası"
-
-
-msgid "Blend Hair Curves"
-msgstr "Harman Kıl Eğrileri"
-
-
-msgid "Blends shape between multiple hair curves in a certain radius"
-msgstr "Belirli bir yarıçaptaki birden fazla saç eğrisi arasında şekil harmanlar"
-
-
-msgid "Blend Neighbors"
-msgstr "Karışım Komşuları"
-
-
-msgid "Amount of neighbors used for blending"
-msgstr "Harmanlama için kullanılan komşu miktarı"
-
-
-msgid "Blend Radius"
-msgstr "Karışım Yarıçapı"
-
-
-msgid "Radius to select neighbors for blending"
-msgstr "Harmanlama için komşuları seçmek için yarıçap"
-
-
-msgid "Factor to blend overall effect"
-msgstr "Genel etkiyi harmanlama faktörü"
-
-
-msgid "Preserve Length"
-msgstr "Uzunluğu Koru"
-
-
-msgid "Preserve each curve's length during deformation"
-msgstr "Deformasyon sırasında her eğrinin uzunluğunu koru"
-
-
-msgid "Braid Hair Curves"
-msgstr "Kıl Eğrilerini Örgü Yap"
-
-
-msgid "Deforms existing hair curves into braids using guide curves"
-msgstr "Kılavuz eğrileri kullanarak mevcut saç eğrilerini örgülere dönüştürür"
-
-
-msgid "Percentage along each curve to blend deformation from the root"
-msgstr "Kökten gelen deformasyonu harmanlamak için her eğri boyunca yüzde"
-
-
-msgid "Existing Guide Map"
-msgstr "Mevcut Rehber Harita"
-
-
-msgid "Use the existing guide map attribute if available"
-msgstr "Mevcutsa mevcut rehber harita niteliğini kullanın"
-
-
-msgid "Factor of the maximum radius of the braids"
-msgstr "Örgülerin maksimum yarıçapının faktörü"
-
-
-msgid "Factor of the minimum radius of the braids"
-msgstr "Örgülerin minimum yarıçapının faktörü"
-
-
-msgid "Length of the flare at the end of the braid"
-msgstr "Örgünün sonundaki parlamanın uzunluğu"
-
-
-msgid "Flare Opening"
-msgstr "Parlama Açılışı"
-
-
-msgid "Opening radius of the flare at the tip of the braid"
-msgstr "Örgünün ucundaki genişlemenin açılma yarıçapı"
-
-
-msgid "Flare Parameter"
-msgstr "Parlama Parametresi"
-
-
-msgid "Parameter from 0 to 1 along the flare"
-msgstr "Parlama boyunca 0 ila 1 arasındaki parametre"
-
-
-msgid "Frequency factor of the braids"
-msgstr "Örgülerin frekans faktörü"
-
-
-msgid "Minimum distance between two guides for new guide map"
-msgstr "Yeni rehber harita için iki rehber arasındaki minimum mesafe"
-
-
-msgid "Guide Index"
-msgstr "Rehber Dizini"
-
-
-msgid "Guide index map that was used for the operation"
-msgstr "Operasyonda kullanılan rehber indeks haritası"
-
-
-msgid "Guide index map to be used. This input has priority"
-msgstr "Kullanılacak dizin haritasına rehberlik edin. Bu girdinin önceliği vardır"
-
-
-msgid "Guide Mask"
-msgstr "Rehber Maske"
-
-
-msgid "Hair Tie"
-msgstr "Saç Tokası"
-
-
-msgid "Geometry used for the hair tie instance (priority)"
-msgstr "Saç tokası örneği için kullanılan geometri (öncelik)"
-
-
-msgid "Object used for the hair tie instance"
-msgstr "Saç tokası örneği için kullanılan nesne"
-
-
-msgid "Hair Tie Scale"
-msgstr "Saç Tokası Ölçeği"
-
-
-msgid "Scale of the hair tie instance"
-msgstr "Saç tokası örneğinin ölçeği"
-
-
-msgid "Overall radius of the braids"
-msgstr "Örgülerin genel yarıçapı"
-
-
-msgid "Shape of the braid radius along each curve"
-msgstr "Her eğri boyunca örgünün yarıçapının şekli"
-
-
-msgid "Shape Asymmetry"
-msgstr "Şekil Asimetrisi"
-
-
-msgid "Asymmetry of the shape adjustment of the strand thickness"
-msgstr "Tel kalınlığının şekil ayarının asimetrisi"
-
-
-msgid "Strand Index"
-msgstr "Tel Dizini"
-
-
-msgid "Subdivision level applied before deformation"
-msgstr "Deformasyondan önce uygulanan alt bölüm seviyesi"
-
-
-msgid "Thickness of each strand of hair"
-msgstr "Her bir saç telinin kalınlığı"
-
-
-msgid "Shape adjustment of the strand thickness for the braids"
-msgstr "Örgüler için tel kalınlığının şekil ayarlaması"
-
-
-msgid "Clump Hair Curves"
-msgstr "Kıl Eğrilerini Kümele"
-
-
-msgid "Clumps together existing hair curves using guide curves"
-msgstr "Kılavuz eğrileri kullanarak mevcut saç eğrilerini bir araya toplar"
-
-
-msgid "Clump Offset"
-msgstr "Küme Ofseti"
-
-
-msgid "Offset of each clump in a random direction"
-msgstr "Her kümenin rastgele bir yöndeki ofseti"
-
-
-msgid "Distance Falloff"
-msgstr "Mesafe Düşüşü"
-
-
-msgid "Falloff distance for the clumping effect (0 means no falloff)"
-msgstr "Topaklanma etkisi için azalma mesafesi (0 azalma olmadığı anlamına gelir)"
-
-
-msgid "Distance Threshold"
-msgstr "Mesafe Eşiği"
-
-
-msgid "Distance threshold for the falloff around the guide"
-msgstr "Kılavuz etrafındaki düşüş için mesafe eşiği"
-
-
-msgid "Random seed for the operation"
-msgstr "İşlem için rastgele tohum"
-
-
-msgid "Shape of the influence along curves (0=constant, 0.5=linear)"
-msgstr "Eğriler boyunca etki şekli (0=sabit, 0,5=doğrusal)"
-
-
-msgid "Tip Spread"
-msgstr "Bahşiş Yayılımı"
-
-
-msgid "Distance of random spread at the curve tips"
-msgstr "Eğri uçlarındaki rastgele yayılma mesafesi"
-
-
 msgid "Create Guide Index Map"
 msgstr "Rehber Dizin Haritası Oluştur"
 
@@ -121827,6 +121356,14 @@ msgstr "Rehber harita oluşturma için eğrileri gruplamak üzere ID"
 
 msgid "Minimum distance between two guides"
 msgstr "İki kılavuz arasındaki minimum mesafe"
+
+
+msgid "Guide Index"
+msgstr "Rehber Dizini"
+
+
+msgid "Guide Mask"
+msgstr "Rehber Maske"
 
 
 msgid "Curl Hair Curves"
@@ -121841,6 +121378,22 @@ msgid "Curl Start"
 msgstr "Kıvrılma Başlangıcı"
 
 
+msgid "Percentage along each curve to blend deformation from the root"
+msgstr "Kökten gelen deformasyonu harmanlamak için her eğri boyunca yüzde"
+
+
+msgid "Existing Guide Map"
+msgstr "Mevcut Rehber Harita"
+
+
+msgid "Use the existing guide map attribute if available"
+msgstr "Mevcutsa mevcut rehber harita niteliğini kullanın"
+
+
+msgid "Factor to blend overall effect"
+msgstr "Genel etkiyi harmanlama faktörü"
+
+
 msgid "Factor for the radius at the curl end"
 msgstr "Kıvrılma ucundaki yarıçap faktörü"
 
@@ -121853,6 +121406,18 @@ msgid "Frequency factor of the curls"
 msgstr "Buklelerin frekans faktörü"
 
 
+msgid "Minimum distance between two guides for new guide map"
+msgstr "Yeni rehber harita için iki rehber arasındaki minimum mesafe"
+
+
+msgid "Guide index map that was used for the operation"
+msgstr "Operasyonda kullanılan rehber indeks haritası"
+
+
+msgid "Guide index map to be used. This input has priority"
+msgstr "Kullanılacak dizin haritasına rehberlik edin. Bu girdinin önceliği vardır"
+
+
 msgid "Overall radius of the curls"
 msgstr "Buklelerin genel yarıçapı"
 
@@ -121863,6 +121428,10 @@ msgstr "Eğri başına rastgele ofset miktarı"
 
 msgid "Random Seed for the operation"
 msgstr "İşlem için Rastgele Tohum"
+
+
+msgid "Subdivision level applied before deformation"
+msgstr "Deformasyondan önce uygulanan alt bölüm seviyesi"
 
 
 msgid "Curve Info"
@@ -121989,6 +121558,298 @@ msgid "Boolean selection of curve tip points"
 msgstr "Eğri uç noktalarının Boole seçimi"
 
 
+msgid "Generate Hair Curves"
+msgstr "Saç Eğrileri Oluştur"
+
+
+msgid "Generates new hair curves on a surface mesh"
+msgstr "Bir yüzey ağında yeni saç eğrileri oluşturur"
+
+
+msgid "Amount of control points of the generated hair curves"
+msgstr "Oluşturulan saç eğrilerinin kontrol noktalarının miktarı"
+
+
+msgid "Surface density of generated hair curves"
+msgstr "Oluşturulan saç eğrilerinin yüzey yoğunluğu"
+
+
+msgid "Density Mask"
+msgstr "Yoğunluk Maskesi"
+
+
+msgid "Factor applied on the density for curve distribution"
+msgstr "Eğri dağılımı için yoğunluğa uygulanan faktör"
+
+
+msgid "Use Poisson disk distribution method to keep a minimum distance"
+msgstr "En az mesafeyi korumak için Poisson disk dağıtım yöntemini kullanın"
+
+
+msgid "Length of the generated hair curves"
+msgstr "Oluşturulan saç eğrilerinin uzunluğu"
+
+
+msgid "Material of the generated hair curves"
+msgstr "Oluşturulan saç eğrilerinin malzemesi"
+
+
+msgid "Discard points based on a mask texture after distribution"
+msgstr "Dağıtımdan sonra maske dokusuna göre puanları atın"
+
+
+msgid "Random seed for the operation"
+msgstr "İşlem için rastgele tohum"
+
+
+msgid "Surface geometry for generation"
+msgstr "Üretim için yüzey geometrisi"
+
+
+msgid "Surface object for generation (needs matching transforms)"
+msgstr "Üretim için yüzey nesnesi (eşleşen dönüşümlere ihtiyaç duyar)"
+
+
+msgid "Surface Normal"
+msgstr "Yüzey Normal"
+
+
+msgid "Normal direction of the surface mesh at the attachment point"
+msgstr "Bağlantı noktasındaki yüzey ağının normal yönü"
+
+
+msgid "Surface Rest Position"
+msgstr "Yüzey Dinlenme Pozisyonu"
+
+
+msgid "Set the surface mesh into its rest position before attachment"
+msgstr "Yüzey ağını, takmadan önce dinlenme pozisyonuna getirin"
+
+
+msgid "Surface UV map used for attachment"
+msgstr "Ek için kullanılan yüzey UV haritası"
+
+
+msgid "Viewport Amount"
+msgstr "Görüntüleme Alanı Miktarı"
+
+
+msgid "Factor applied on the density for the viewport"
+msgstr "Görünüm alanı için yoğunluğa uygulanan faktör"
+
+
+msgid "Attach Hair Curves to Surface"
+msgstr "Saç Eğrilerini Yüzeye Takın"
+
+
+msgid "Attaches hair curves to a surface mesh"
+msgstr "Saç kıvrımlarını bir yüzey ağına bağlar"
+
+
+msgid "Align to Surface Normal"
+msgstr "Yüzey Normaline Hizala"
+
+
+msgid "Blend deformation along each curve from the root"
+msgstr "Kökten itibaren her eğri boyunca deformasyonu karıştırın"
+
+
+msgid "Sample Attachment UV"
+msgstr "Örnek Ek UV"
+
+
+msgid "Sample the surface UV map at the attachment point"
+msgstr "Ek noktasındaki yüzey UV haritasını örnekleyin"
+
+
+msgid "Snap the root of each curve to the closest surface point"
+msgstr "Her eğrinin kökünü en yakın yüzey noktasına sabitleyin"
+
+
+msgid "Surface Object to attach to (needs to have matching transforms)"
+msgstr "Bağlanılacak Yüzey Nesnesi (eşleşen dönüşümlere sahip olması gerekir)"
+
+
+msgid "Surface geometry to attach hair curves to"
+msgstr "Saç eğrilerini tutturmak için yüzey geometrisi"
+
+
+msgid "Surface normal at the attachment point"
+msgstr "Bağlantı noktasındaki yüzey normali"
+
+
+msgid "Surface UV Coordinate"
+msgstr "Yüzey UV Koordinatı"
+
+
+msgid "Surface UV coordinates at the attachment point"
+msgstr "Bağlantı noktasındaki yüzey UV koordinatları"
+
+
+msgid "Blend Hair Curves"
+msgstr "Harman Kıl Eğrileri"
+
+
+msgid "Blends shape between multiple hair curves in a certain radius"
+msgstr "Belirli bir yarıçaptaki birden fazla saç eğrisi arasında şekil harmanlar"
+
+
+msgid "Blend Neighbors"
+msgstr "Karışım Komşuları"
+
+
+msgid "Amount of neighbors used for blending"
+msgstr "Harmanlama için kullanılan komşu miktarı"
+
+
+msgid "Blend Radius"
+msgstr "Karışım Yarıçapı"
+
+
+msgid "Radius to select neighbors for blending"
+msgstr "Harmanlama için komşuları seçmek için yarıçap"
+
+
+msgid "Preserve Length"
+msgstr "Uzunluğu Koru"
+
+
+msgid "Preserve each curve's length during deformation"
+msgstr "Deformasyon sırasında her eğrinin uzunluğunu koru"
+
+
+msgid "Braid Hair Curves"
+msgstr "Kıl Eğrilerini Örgü Yap"
+
+
+msgid "Deforms existing hair curves into braids using guide curves"
+msgstr "Kılavuz eğrileri kullanarak mevcut saç eğrilerini örgülere dönüştürür"
+
+
+msgid "Factor of the maximum radius of the braids"
+msgstr "Örgülerin maksimum yarıçapının faktörü"
+
+
+msgid "Factor of the minimum radius of the braids"
+msgstr "Örgülerin minimum yarıçapının faktörü"
+
+
+msgid "Length of the flare at the end of the braid"
+msgstr "Örgünün sonundaki parlamanın uzunluğu"
+
+
+msgid "Flare Opening"
+msgstr "Parlama Açılışı"
+
+
+msgid "Opening radius of the flare at the tip of the braid"
+msgstr "Örgünün ucundaki genişlemenin açılma yarıçapı"
+
+
+msgid "Flare Parameter"
+msgstr "Parlama Parametresi"
+
+
+msgid "Parameter from 0 to 1 along the flare"
+msgstr "Parlama boyunca 0 ila 1 arasındaki parametre"
+
+
+msgid "Frequency factor of the braids"
+msgstr "Örgülerin frekans faktörü"
+
+
+msgid "Hair Tie"
+msgstr "Saç Tokası"
+
+
+msgid "Geometry used for the hair tie instance (priority)"
+msgstr "Saç tokası örneği için kullanılan geometri (öncelik)"
+
+
+msgid "Object used for the hair tie instance"
+msgstr "Saç tokası örneği için kullanılan nesne"
+
+
+msgid "Hair Tie Scale"
+msgstr "Saç Tokası Ölçeği"
+
+
+msgid "Scale of the hair tie instance"
+msgstr "Saç tokası örneğinin ölçeği"
+
+
+msgid "Overall radius of the braids"
+msgstr "Örgülerin genel yarıçapı"
+
+
+msgid "Shape of the braid radius along each curve"
+msgstr "Her eğri boyunca örgünün yarıçapının şekli"
+
+
+msgid "Shape Asymmetry"
+msgstr "Şekil Asimetrisi"
+
+
+msgid "Asymmetry of the shape adjustment of the strand thickness"
+msgstr "Tel kalınlığının şekil ayarının asimetrisi"
+
+
+msgid "Strand Index"
+msgstr "Tel Dizini"
+
+
+msgid "Thickness of each strand of hair"
+msgstr "Her bir saç telinin kalınlığı"
+
+
+msgid "Shape adjustment of the strand thickness for the braids"
+msgstr "Örgüler için tel kalınlığının şekil ayarlaması"
+
+
+msgid "Clump Hair Curves"
+msgstr "Kıl Eğrilerini Kümele"
+
+
+msgid "Clumps together existing hair curves using guide curves"
+msgstr "Kılavuz eğrileri kullanarak mevcut saç eğrilerini bir araya toplar"
+
+
+msgid "Clump Offset"
+msgstr "Küme Ofseti"
+
+
+msgid "Offset of each clump in a random direction"
+msgstr "Her kümenin rastgele bir yöndeki ofseti"
+
+
+msgid "Distance Falloff"
+msgstr "Mesafe Düşüşü"
+
+
+msgid "Falloff distance for the clumping effect (0 means no falloff)"
+msgstr "Topaklanma etkisi için azalma mesafesi (0 azalma olmadığı anlamına gelir)"
+
+
+msgid "Distance Threshold"
+msgstr "Mesafe Eşiği"
+
+
+msgid "Distance threshold for the falloff around the guide"
+msgstr "Kılavuz etrafındaki düşüş için mesafe eşiği"
+
+
+msgid "Shape of the influence along curves (0=constant, 0.5=linear)"
+msgstr "Eğriler boyunca etki şekli (0=sabit, 0,5=doğrusal)"
+
+
+msgid "Tip Spread"
+msgstr "Bahşiş Yayılımı"
+
+
+msgid "Distance of random spread at the curve tips"
+msgstr "Eğri uçlarındaki rastgele yayılma mesafesi"
+
+
 msgid "Displace Hair Curves"
 msgstr "Saç Eğrilerini Yerinden Çıkarın"
 
@@ -122061,10 +121922,6 @@ msgid "Offset of the curves to round the tip"
 msgstr "Ucu yuvarlatmak için eğrilerin ofseti"
 
 
-msgid "Viewport Amount"
-msgstr "Görüntüleme Alanı Miktarı"
-
-
 msgid "Percentage of amount used for the viewport"
 msgstr "Görünüm alanı için kullanılan miktarın yüzdesi"
 
@@ -122083,62 +121940,6 @@ msgstr "Deformasyon için genel mesafe faktörü"
 
 msgid "Vector by which each point was offset during deformation"
 msgstr "Deformasyon sırasında her noktanın kaydırıldığı vektör"
-
-
-msgid "Generate Hair Curves"
-msgstr "Saç Eğrileri Oluştur"
-
-
-msgid "Generates new hair curves on a surface mesh"
-msgstr "Bir yüzey ağında yeni saç eğrileri oluşturur"
-
-
-msgid "Amount of control points of the generated hair curves"
-msgstr "Oluşturulan saç eğrilerinin kontrol noktalarının miktarı"
-
-
-msgid "Surface density of generated hair curves"
-msgstr "Oluşturulan saç eğrilerinin yüzey yoğunluğu"
-
-
-msgid "Density Mask"
-msgstr "Yoğunluk Maskesi"
-
-
-msgid "Factor applied on the density for curve distribution"
-msgstr "Eğri dağılımı için yoğunluğa uygulanan faktör"
-
-
-msgid "Use Poisson disk distribution method to keep a minimum distance"
-msgstr "En az mesafeyi korumak için Poisson disk dağıtım yöntemini kullanın"
-
-
-msgid "Length of the generated hair curves"
-msgstr "Oluşturulan saç eğrilerinin uzunluğu"
-
-
-msgid "Material of the generated hair curves"
-msgstr "Oluşturulan saç eğrilerinin malzemesi"
-
-
-msgid "Discard points based on a mask texture after distribution"
-msgstr "Dağıtımdan sonra maske dokusuna göre puanları atın"
-
-
-msgid "Surface geometry for generation"
-msgstr "Üretim için yüzey geometrisi"
-
-
-msgid "Surface object for generation (needs matching transforms)"
-msgstr "Üretim için yüzey nesnesi (eşleşen dönüşümlere ihtiyaç duyar)"
-
-
-msgid "Normal direction of the surface mesh at the attachment point"
-msgstr "Bağlantı noktasındaki yüzey ağının normal yönü"
-
-
-msgid "Factor applied on the density for the viewport"
-msgstr "Görünüm alanı için yoğunluğa uygulanan faktör"
 
 
 msgid "Hair Attachment Info"
