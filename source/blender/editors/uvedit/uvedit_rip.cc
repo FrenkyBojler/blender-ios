@@ -800,7 +800,7 @@ static bool uv_rip_object(Scene *scene,
           is_all = false;
         }
       }
-      if (is_all && has_selected_edge_without_seam) {
+      if (is_all || has_selected_edge_without_seam) {
         BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
           UL(l)->is_select_all = true;
         }
@@ -1016,11 +1016,7 @@ void UV_OT_rip(wmOperatorType *ot)
   ed::transform::properties_register(ot, P_MIRROR_DUMMY);
 
   /* properties */
-  RNA_def_boolean(ot->srna,
-                  "only_seam",
-                  false,
-                  "Only Seam",
-                  "Only rip UVs connected to selected edges without a seam");
+
   RNA_def_float_vector(
       ot->srna,
       "location",
@@ -1032,6 +1028,7 @@ void UV_OT_rip(wmOperatorType *ot)
       "Mouse location in normalized coordinates, 0.0 to 1.0 is within the image bounds",
       -100.0f,
       100.0f);
+  RNA_def_boolean(ot->srna, "only_seam", false, "Only Seam", "Only rip UVs along seams");
 }
 
 /** \} */
