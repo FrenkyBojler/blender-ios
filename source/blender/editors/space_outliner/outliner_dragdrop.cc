@@ -1315,8 +1315,7 @@ static std::string collection_drop_tooltip(bContext *C,
     const bool target_is_object_row = is_object_element(te);
     const bool tooltip_link = (is_link && !same_level);
 
-    /* Tooltips now adapt to the hovered row. Whether
-     object or collection, and switch wording between Link and Move accordingly. */
+    /* Adapt the tooltip based on whether the hovered row is an object or collection. */
     const char *tooltip_before = tooltip_link ?
                                      (target_is_object_row ? TIP_("Link before object") :
                                                              TIP_("Link before collection")) :
