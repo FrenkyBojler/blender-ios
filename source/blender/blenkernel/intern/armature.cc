@@ -2928,6 +2928,8 @@ void BKE_pose_channels_clear_with_null_bone(Object *armature_ob, const bool do_i
   for (bPoseChannel &pchan : pose->chanbase.items_mutable()) {
     Bone *bone = pchan.bone_get(*armature_ob);
     if (bone == nullptr) {
+      /* If `do_id_user` is false, we are working with copy on write data in which case we should
+       * not be deleting any drivers of missing bones. See #158665.  */
       if (do_id_user) {
         BKE_animdata_drivers_remove_for_rna_struct(armature_ob->id, *RNA_PoseBone, &pchan);
       }

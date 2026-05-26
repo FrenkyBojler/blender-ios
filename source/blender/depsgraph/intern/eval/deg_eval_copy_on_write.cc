@@ -673,7 +673,7 @@ void update_animation_data_after_copy(const ID *id_orig, ID *id_cow)
   BLI_assert(anim_data_cow != nullptr);
   update_nla_tracks_orig_pointers(&anim_data_orig->nla_tracks, &anim_data_cow->nla_tracks);
   /* If the driver count on the evaluated ID is different, we will get a crash when trying to
-   * evaluate the drivers because it will read an FCurve out of Array bounds. */
+   * evaluate the drivers because it will read an FCurve out of Array bounds. See #158665. */
   BLI_assert(BLI_listbase_count(&anim_data_orig->drivers) ==
              BLI_listbase_count(&anim_data_cow->drivers));
 }
