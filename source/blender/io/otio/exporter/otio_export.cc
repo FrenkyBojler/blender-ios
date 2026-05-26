@@ -12,6 +12,7 @@
 #include "BKE_report.hh"
 
 #include "BLI_listbase_iterator.hh"
+#include "BLI_math_base.h"
 
 #include "DNA_listBase.h"
 #include "DNA_scene_types.h"
@@ -36,20 +37,16 @@ namespace io::otio {
 
 using namespace opentimelineio::OPENTIMELINEIO_VERSION_NS;
 
-wmOperatorStatus otio_export_exec(bContext *C, const blender::OTIOExportParams *export_params)
+static SerializableObject::Retainer<Stack> otio_export_recursive(
+    bContext *C,
+    const blender::OTIOExportParams *export_params,
+    ListBaseT<Strip> *strips,
+    int _last_strip_end,
+    int stack_end)
 {
-
   Scene *scene = CTX_data_sequencer_scene(C);
-  Editing *editing = seq::editing_get(scene);
-  ListBaseT<Strip> *seqbase = &editing->seqbase;
 
-  if (!scene || !editing) {
-    BKE_report(export_params->reports, RPT_ERROR, "No Sequencer Scene found");
-    return OPERATOR_CANCELLED;
-  }
-
-  auto timeline = SerializableObject::Retainer<Timeline>(new Timeline(scene->id.name));
-  auto main_stack = SerializableObject::Retainer<Stack>(new Stack());
+  auto stack = SerializableObject::Retainer<Stack>(new Stack());
 
   /* Separate video and audio channels.
    * Use negative channel number as key in std::map to store the sound strips.
@@ -57,7 +54,7 @@ wmOperatorStatus otio_export_exec(bContext *C, const blender::OTIOExportParams *
   auto compare_strip_start = [](const Strip *a, const Strip *b) { return a->start < b->start; };
   std::map<int, std::set<Strip *, decltype(compare_strip_start)>> channels;
 
-  for (Strip &strip : *seqbase) {
+  for (Strip &strip : *strips) {
     if (ELEM(strip.type, STRIP_TYPE_SOUND)) {
       channels[-strip.channel].insert(&strip);
     }
@@ -73,12 +70,12 @@ wmOperatorStatus otio_export_exec(bContext *C, const blender::OTIOExportParams *
 
     auto track_source_range = otio::TimeRange(
         RationalTime(0, scene->frames_per_second()),
-        RationalTime(scene->r.efra, scene->frames_per_second()));
+        RationalTime(stack_end - _last_strip_end, scene->frames_per_second()));
 
     auto track = SerializableObject::Retainer<Track>(
         new Track("", track_source_range, track_type));
 
-    int last_strip_end = 0;
+    int last_strip_end = _last_strip_end;
 
     /* Append all the strips of this channel in the track. */
     for (Strip *strip : strips) {
@@ -97,6 +94,21 @@ wmOperatorStatus otio_export_exec(bContext *C, const blender::OTIOExportParams *
           strip_exporter = new ImageStripExporter(strip, scene, track, last_strip_end);
           break;
 
+        case STRIP_TYPE_META: {
+          StripExporter::add_gap_if_necessary(
+              track, last_strip_end + 1, strip->left_handle() - 1, scene->frames_per_second());
+
+          SerializableObject::Retainer<Stack> meta_stack = otio_export_recursive(
+              C,
+              export_params,
+              &strip->seqbase,
+              strip->left_handle() - 1,
+              strip->right_handle(scene));
+
+          last_strip_end = strip->right_handle(scene);
+          track->append_child(meta_stack);
+        } break;
+
         default:
           break;
       }
@@ -109,10 +121,33 @@ wmOperatorStatus otio_export_exec(bContext *C, const blender::OTIOExportParams *
       }
     }
     StripExporter::add_gap_if_necessary(
-        track, last_strip_end, scene->r.efra, scene->frames_per_second());
+        track, last_strip_end + 1, stack_end, scene->frames_per_second());
 
-    main_stack->append_child(track);
+    stack->append_child(track);
   }
+  TimeRange source_range = TimeRange(
+      RationalTime(0, scene->frames_per_second()),
+      RationalTime(stack_end - _last_strip_end, scene->frames_per_second()));
+  stack->set_source_range(source_range);
+  return stack;
+}
+
+wmOperatorStatus otio_export_exec(bContext *C, const blender::OTIOExportParams *export_params)
+{
+
+  Scene *scene = CTX_data_sequencer_scene(C);
+  Editing *editing = seq::editing_get(scene);
+  ListBaseT<Strip> *seqbase = &editing->seqbase;
+
+  if (!scene || !editing) {
+    BKE_report(export_params->reports, RPT_ERROR, "No Sequencer Scene found");
+    return OPERATOR_CANCELLED;
+  }
+
+  auto timeline = SerializableObject::Retainer<Timeline>(
+      new Timeline(scene->id.name, RationalTime(0, scene->frames_per_second())));
+  SerializableObject::Retainer<Stack> main_stack = otio_export_recursive(
+      C, export_params, seqbase, 0, scene->r.efra);
 
   timeline->set_tracks(main_stack);
   timeline->to_json_file(export_params->filepath);

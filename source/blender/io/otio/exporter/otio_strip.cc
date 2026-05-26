@@ -39,11 +39,11 @@ void StripExporter::add_gap_if_necessary()
 }
 
 void StripExporter::add_gap_if_necessary(SerializableObject::Retainer<Track> &track,
-                                         int left_frame,
-                                         int right_frame,
+                                         int start_frame,
+                                         int end_frame,
                                          double scene_fps)
 {
-  int space_between = right_frame - left_frame - 1;
+  int space_between = end_frame - start_frame + 1;
   if (space_between > 0) {
     auto gap_duration = RationalTime(space_between, scene_fps);
     auto gap = SerializableObject::Retainer<Gap>(new Gap(gap_duration));

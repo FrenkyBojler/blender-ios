@@ -38,8 +38,8 @@ class StripExporter {
 
   void add_gap_if_necessary();
   static void add_gap_if_necessary(SerializableObject::Retainer<Track> &_track,
-                                   int left_frame,
-                                   int right_frame,
+                                   int start_frame,
+                                   int end_frame,
                                    double scene_fps);
 
  protected:
