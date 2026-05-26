@@ -706,7 +706,7 @@ static BMOpDefine bmo_weld_verts_def = {
         /* Merge vertices to their centroid position,
          * otherwise use the position of the target vertex. */
         {"use_centroid", BMO_OP_SLOT_BOOL},
-        /* Average vertex group weights of merged vertices. */
+        /* Averages custom data of merged vertices. */
         {"average_vdata", BMO_OP_SLOT_BOOL},
         {{'\0'}},
     },
