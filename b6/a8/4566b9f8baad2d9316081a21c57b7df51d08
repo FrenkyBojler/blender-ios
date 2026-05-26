@@ -1,2 +1,3 @@
 Referenced by issue #158665, Crash when editing armature by script
 Referenced by pull request #158793, Fix #158665: Crash when running python script to rename and create edit bones
+Referenced by commit d9804b5525b3eef4ee5929bcca4e04ce2d012e7f, Fix #158665: Crash when running python script to rename and create edit bones
