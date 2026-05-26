@@ -48,7 +48,8 @@ def get_service(storage_path: _Path) -> _DiskFileHashService:
     file or when it exits.
 
     NOTE: DiskFileHashService instances should _NOT_ be used by different
-    threads. Call `release_service(storage_path)` once the work is done.
+    threads. When this function is used from a thread other than the main
+    thread, it MUST use `release_service(storage_path)` once the work is done.
     """
     map_key = _map_key(storage_path)
 
@@ -117,9 +118,20 @@ def on_blender_exit() -> None:
 def _cleanup_all_services() -> None:
     """Close & delete all known services."""
 
+    current_thread_id = threading.current_thread().ident
+    if current_thread_id != threading.main_thread().ident:
+        raise RuntimeError("this function MUST be run from the main thread")
+
     with _services_mutex:
         while _services:
-            _, service = _services.popitem()
+            (_, thread_id), service = _services.popitem()
+
+            # DFHS instances created in a thread MUST be freed by that thread.
+            if thread_id != current_thread_id:
+                print(
+                    "WARNING: Disk File Hash Service was created on thread {:d} but not released by that thread".format(thread_id))
+                # Keep running, maybe it can still be freed from this thread, and then we don't leak instances.
+
             try:
                 service.close()
             except Exception:
