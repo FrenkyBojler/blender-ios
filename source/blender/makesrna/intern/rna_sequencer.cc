@@ -3929,7 +3929,7 @@ static void rna_def_text(StructRNA *srna)
   RNA_def_property_ui_text(prop, "Absolute Line Spacing", "Distance between lines in pixels");
   RNA_def_property_subtype(prop, PROP_PIXEL);
   RNA_def_property_range(prop, 0.0, 5000.0f);
-  RNA_def_property_ui_range(prop, 0.0f, 500.0f, 1.0f, 1);
+  RNA_def_property_ui_range(prop, 0.0f, 500.0f, 50.0f, 1);
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
 
   prop = RNA_def_property(srna, "use_absolute_line_spacing", PROP_BOOLEAN, PROP_NONE);
