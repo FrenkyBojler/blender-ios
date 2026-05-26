@@ -787,6 +787,7 @@ void draw_data_blocks(const bContext *C, ui::Layout &layout, PointerRNA &bake_rn
                         &data_blocks_ptr,
                         "active_index",
                         nullptr,
+                        false,
                         3,
                         5,
                         UILST_LAYOUT_DEFAULT,

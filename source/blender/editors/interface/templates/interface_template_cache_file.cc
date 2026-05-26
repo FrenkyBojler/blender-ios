@@ -116,6 +116,7 @@ void template_uilist_flags(Layout *layout, const bContext *C, PointerRNA *filept
                   fileptr,
                   "active_index",
                   "",
+                  false,
                   1,
                   5,
                   UILST_LAYOUT_DEFAULT,

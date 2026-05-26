@@ -430,6 +430,7 @@ static void panel_draw(const bContext *C, Panel *panel)
                   ptr,
                   "segment_active_index",
                   nullptr,
+                  false,
                   3,
                   10,
                   0,

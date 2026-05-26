@@ -49,6 +49,7 @@ struct TemplateListInputData {
   PointerRNA active_dataptr;
   PropertyRNA *activeprop;
   const char *item_dyntip_propname;
+  bool no_default_item_tip;
 
   /* Index as stored in the input property. I.e. the index before sorting. */
   int active_item_idx;
@@ -361,6 +362,7 @@ static bool template_uilist_data_retrieve(const StringRef listtype_name,
                                           PointerRNA *active_dataptr,
                                           const StringRefNull active_propname,
                                           const char *item_dyntip_propname,
+                                          bool no_default_item_tip,
                                           TemplateListInputData *r_input_data,
                                           uiListType **r_list_type)
 {
@@ -420,6 +422,7 @@ static bool template_uilist_data_retrieve(const StringRef listtype_name,
   r_input_data->active_item_idx = RNA_property_int_get(&r_input_data->active_dataptr,
                                                        r_input_data->activeprop);
   r_input_data->item_dyntip_propname = item_dyntip_propname;
+  r_input_data->no_default_item_tip = no_default_item_tip;
 
   return true;
 }
@@ -751,6 +754,10 @@ static void template_uilist_layout_draw(const bContext *C,
                                                "(Double click to rename)") :
                                           TIP_("Select List Item"));
 
+          if (input_data->no_default_item_tip) {
+            but->tip = "";
+          }
+
           if ((dyntip_data = uilist_item_use_dynamic_tooltip(itemptr,
                                                              input_data->item_dyntip_propname)))
           {
@@ -981,6 +988,7 @@ void template_uilist(Layout *layout,
                      PointerRNA *active_dataptr,
                      const StringRefNull active_propname,
                      const char *item_dyntip_propname,
+                     bool no_default_item_tip,
                      int rows,
                      int maxrows,
                      int layout_type,
@@ -995,6 +1003,7 @@ void template_uilist(Layout *layout,
                                      active_dataptr,
                                      active_propname,
                                      item_dyntip_propname,
+                                     no_default_item_tip,
                                      &input_data,
                                      &ui_list_type))
   {

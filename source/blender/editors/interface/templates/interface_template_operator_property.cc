@@ -503,6 +503,7 @@ void template_collection_exporters(Layout *layout, bContext *C)
                       &collection_ptr,
                       "active_exporter_index",
                       nullptr,
+                      false,
                       3,
                       5,
                       UILST_LAYOUT_DEFAULT,
