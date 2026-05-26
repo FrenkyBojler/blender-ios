@@ -20,13 +20,13 @@ namespace blender::nodes::node_fn_input_string_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.is_function_node();
   b.add_output<decl::String>("String"_ustr).custom_draw([](CustomSocketDrawParams &params) {
     params.layout.alignment_set(ui::LayoutAlign::Expand);
     params.layout.textbox_with_state(
         &params.node_ptr,
         "string",
-        RNA_pointer_get(&params.node_ptr, "textbox_state").data_as<TextboxState>());
+        RNA_pointer_get(&params.node_ptr, "textbox_state").data_as<TextboxState>(),
+        IFACE_("String"));
   });
 }
 
@@ -40,7 +40,9 @@ static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  node->storage = MEM_new<NodeInputString>(__func__);
+  NodeInputString *storage = MEM_new<NodeInputString>(__func__);
+  storage->textbox_state.visible_lines = 1;
+  node->storage = storage;
 }
 
 static void node_storage_free(bNode *node)
@@ -81,7 +83,7 @@ static void node_blend_read(bNodeTree & /*tree*/, bNode &node, BlendDataReader &
 
 static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 {
-  const eNodeSocketDatatype type = eNodeSocketDatatype(params.other_socket().type);
+  const eNodeSocketDatatype type = params.other_socket().type;
   if (type != SOCK_STRING) {
     return;
   }
@@ -106,7 +108,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  fn_node_type_base(&ntype, "FunctionNodeInputString"_ustr, FN_NODE_INPUT_STRING);
+  fn_cmp_node_type_base(&ntype, "FunctionNodeInputString"_ustr, FN_NODE_INPUT_STRING);
   ntype.ui_name = "String";
   ntype.ui_description = "Provide a string value that can be connected to other nodes in the tree";
   ntype.enum_name_legacy = "INPUT_STRING";

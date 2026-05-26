@@ -422,7 +422,7 @@ class Instance : public DrawEngine {
           mesh_pass.get_subpass(eGeometryType::CURVES, &texture).sub("Hair SubPass");
       pass.push_constant("emitter_object_id", int(emitter_handle.raw()));
       gpu::Batch *batch = hair_sub_pass_setup(pass, scene_state_.scene, ob_ref, psys, md);
-      pass.draw(batch, {handle}, material_index);
+      pass.draw(batch, {ResourceID(handle)}, material_index);
     });
   }
 
@@ -479,10 +479,10 @@ class Instance : public DrawEngine {
 
     GPUAttachment id_attachment = GPU_ATTACHMENT_NONE;
     if (scene_state_.draw_object_id) {
-      resources_.object_id_tx.acquire(resolution,
-                                      gpu::TextureFormat::UINT_16,
-                                      GPU_TEXTURE_USAGE_SHADER_READ |
-                                          GPU_TEXTURE_USAGE_ATTACHMENT);
+      resources_.object_id_tx.acquire_2d(resolution,
+                                         gpu::TextureFormat::UINT_16,
+                                         GPU_TEXTURE_USAGE_SHADER_READ |
+                                             GPU_TEXTURE_USAGE_ATTACHMENT);
       id_attachment = GPU_ATTACHMENT_TEXTURE(resources_.object_id_tx);
     }
     resources_.clear_fb.ensure(GPU_ATTACHMENT_TEXTURE(resources_.depth_tx),

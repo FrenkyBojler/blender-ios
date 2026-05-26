@@ -583,18 +583,11 @@ class NodeTreeMainUpdater {
     this->update_individual_nodes(ntree);
     this->update_internal_links(ntree);
     this->update_generic_callback(ntree);
-    this->remove_unused_previews_when_necessary(ntree);
     this->make_node_previews_dirty(ntree);
 
     this->propagate_runtime_flags(ntree);
     if (ELEM(ntree.type, NTREE_GEOMETRY, NTREE_COMPOSIT, NTREE_SHADER)) {
       if (this->propagate_enum_definitions(ntree)) {
-        result.interface_changed = true;
-      }
-    }
-
-    if (ntree.type == NTREE_GEOMETRY) {
-      if (node_field_inferencing::update_field_inferencing(ntree)) {
         result.interface_changed = true;
       }
     }
@@ -703,7 +696,7 @@ class NodeTreeMainUpdater {
           /* Should have been created when the node was registered. */
           BLI_assert(ntype.static_declaration != nullptr);
           if (ntype.static_declaration->is_context_dependent) {
-            nodes::update_node_declaration_and_sockets(ntree, *node);
+            nodes::update_node_declaration_and_sockets(ntree, *node, bmain_);
           }
         }
         else if (node->is_undefined()) {
@@ -921,17 +914,6 @@ class NodeTreeMainUpdater {
     ntree.typeinfo->update(&ntree);
   }
 
-  void remove_unused_previews_when_necessary(bNodeTree &ntree)
-  {
-    /* Don't trigger preview removal when only those flags are set. */
-    const uint32_t allowed_flags = NTREE_CHANGED_LINK | NTREE_CHANGED_SOCKET_PROPERTY |
-                                   NTREE_CHANGED_NODE_PROPERTY | NTREE_CHANGED_NODE_OUTPUT;
-    if ((ntree.runtime->changed_flag & allowed_flags) == ntree.runtime->changed_flag) {
-      return;
-    }
-    bke::node_preview_remove_unused(&ntree);
-  }
-
   void make_node_previews_dirty(bNodeTree &ntree)
   {
     ntree.runtime->previews_refresh_state++;
@@ -1007,8 +989,8 @@ class NodeTreeMainUpdater {
     }
   }
 
-  static int get_socket_shape(const bNodeSocket &socket,
-                              const bool use_inferred_structure_type = false)
+  static eNodeSocketDisplayShape get_socket_shape(const bNodeSocket &socket,
+                                                  const bool use_inferred_structure_type = false)
   {
     const SocketDeclaration *decl = socket.runtime->declaration;
     if (!decl) {
@@ -1067,7 +1049,7 @@ class NodeTreeMainUpdater {
             const NodeCombineBundleItem &item = storage.items[i];
             bNodeSocket &socket = node->input_socket(i);
             socket.display_shape = get_socket_shape(
-                socket, item.structure_type == NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO);
+                socket, item.structure_type == NodeSocketInterfaceStructureType::Auto);
           }
           break;
         }
@@ -1077,7 +1059,7 @@ class NodeTreeMainUpdater {
             const NodeSeparateBundleItem &item = storage.items[i];
             bNodeSocket &socket = node->output_socket(i);
             socket.display_shape = get_socket_shape(
-                socket, item.structure_type == NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO);
+                socket, item.structure_type == NodeSocketInterfaceStructureType::Auto);
           }
           break;
         }
@@ -1091,7 +1073,7 @@ class NodeTreeMainUpdater {
               const NodeClosureInputItem &item = storage.input_items.items[i];
               bNodeSocket &socket = node->output_socket(i);
               socket.display_shape = get_socket_shape(
-                  socket, item.structure_type == NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO);
+                  socket, item.structure_type == NodeSocketInterfaceStructureType::Auto);
             }
           }
           break;
@@ -1102,7 +1084,7 @@ class NodeTreeMainUpdater {
             const NodeClosureOutputItem &item = storage.output_items.items[i];
             bNodeSocket &socket = node->input_socket(i);
             socket.display_shape = get_socket_shape(
-                socket, item.structure_type == NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO);
+                socket, item.structure_type == NodeSocketInterfaceStructureType::Auto);
           }
           break;
         }
@@ -1112,13 +1094,13 @@ class NodeTreeMainUpdater {
             const NodeEvaluateClosureInputItem &item = storage.input_items.items[i];
             bNodeSocket &socket = node->input_socket(i + 1);
             socket.display_shape = get_socket_shape(
-                socket, item.structure_type == NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO);
+                socket, item.structure_type == NodeSocketInterfaceStructureType::Auto);
           }
           for (const int i : IndexRange(storage.output_items.items_num)) {
             const NodeEvaluateClosureOutputItem &item = storage.output_items.items[i];
             bNodeSocket &socket = node->output_socket(i);
             socket.display_shape = get_socket_shape(
-                socket, item.structure_type == NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO);
+                socket, item.structure_type == NodeSocketInterfaceStructureType::Auto);
           }
           break;
         }
@@ -1135,13 +1117,13 @@ class NodeTreeMainUpdater {
             bNodeSocket &socket = *node->output_by_identifier("Item"_ustr);
             const auto &storage = *static_cast<const NodeGetBundleItem *>(node->storage);
             socket.display_shape = get_socket_shape(
-                socket, storage.structure_type == NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO);
+                socket, storage.structure_type == NodeSocketInterfaceStructureType::Auto);
           }
           else if (node->is_type("NodeStoreBundleItem"_ustr)) {
             bNodeSocket &socket = *node->input_by_identifier("Item"_ustr);
             const auto &storage = *static_cast<const NodeStoreBundleItem *>(node->storage);
             socket.display_shape = get_socket_shape(
-                socket, storage.structure_type == NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO);
+                socket, storage.structure_type == NodeSocketInterfaceStructureType::Auto);
           }
           break;
         }
@@ -1508,8 +1490,8 @@ class NodeTreeMainUpdater {
         continue;
       }
       if (ntree.typeinfo->validate_link) {
-        const eNodeSocketDatatype from_type = eNodeSocketDatatype(link.fromsock->type);
-        const eNodeSocketDatatype to_type = eNodeSocketDatatype(link.tosock->type);
+        const eNodeSocketDatatype from_type = link.fromsock->type;
+        const eNodeSocketDatatype to_type = link.tosock->type;
         if (!ntree.typeinfo->validate_link(from_type, to_type)) {
           link.flag &= ~NODE_LINK_VALID;
           ntree.runtime->link_errors.add(
@@ -1875,12 +1857,16 @@ class NodeTreeMainUpdater {
         return true;
       }
       if (node.runtime->changed_flag != NTREE_CHANGED_NOTHING) {
-        const bool only_unused_internal_link_changed = !node.is_muted() &&
-                                                       node.runtime->changed_flag ==
-                                                           NTREE_CHANGED_INTERNAL_LINK;
-        const bool only_parent_changed = node.runtime->changed_flag == NTREE_CHANGED_PARENT;
-        const bool change_affects_output = !(only_unused_internal_link_changed ||
-                                             only_parent_changed);
+        bool change_affects_output = true;
+        if (!node.is_muted() && node.runtime->changed_flag == NTREE_CHANGED_INTERNAL_LINK) {
+          change_affects_output = false;
+        }
+        if (node.runtime->changed_flag == NTREE_CHANGED_PARENT) {
+          change_affects_output = false;
+        }
+        if (node.is_muted() && node.runtime->changed_flag == NTREE_CHANGED_NODE_PROPERTY) {
+          change_affects_output = false;
+        }
         if (change_affects_output) {
           return true;
         }
@@ -2086,7 +2072,7 @@ class NodeTreeMainUpdater {
     bool changed = false;
     ntree.ensure_interface_cache();
     for (bNodeTreeInterfaceItem *item : ntree.interface_items()) {
-      if (item->item_type != NODE_INTERFACE_PANEL) {
+      if (item->item_type != NodeTreeInterfaceItemType::Panel) {
         continue;
       }
       bNodeTreeInterfacePanel *panel = reinterpret_cast<bNodeTreeInterfacePanel *>(item);

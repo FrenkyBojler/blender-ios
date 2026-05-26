@@ -134,8 +134,6 @@ void *BKE_libblock_alloc_in_lib(Main *bmain,
 /**
  * Initialize an ID of given type, such that it has valid 'empty' data.
  * ID is assumed to be just calloc'ed.
- *
- * \params bmain The Main data-base containing the \a id to initialize. May be null.
  */
 void BKE_libblock_init_empty(ID *id) ATTR_NONNULL(1);
 
@@ -601,7 +599,7 @@ struct BKEIDDeleteOptions {
 
   /**
    * If `true`, do not validate and update liboverride hierarchy root pointers after deleting some
-   * IDs. Usefull e.g. for ID deletion within liboverride resync process and the like.
+   * IDs. Useful e.g. for ID deletion within liboverride resync process and the like.
    */
   bool prevent_liboverride_hierarchy_root_ensure = false;
 };

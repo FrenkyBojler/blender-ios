@@ -148,8 +148,7 @@ static void set_single_input_from_rna_value(PointerRNA *input_props_ptr,
         float3 value_euler;
         RNA_float_get_array(input_props_ptr, "value", value_euler);
         math::Quaternion value_rotation = math::to_quaternion(math::EulerXYZ(value_euler));
-        result.set_single_value(
-            float4(value_rotation.x, value_rotation.y, value_rotation.z, value_rotation.w));
+        result.set_single_value(value_rotation);
       }
       break;
     }
@@ -195,11 +194,18 @@ static void set_single_input_from_rna_value(PointerRNA *input_props_ptr,
       }
       break;
     }
+    case SOCK_FONT: {
+      const auto type = CompositorNodesInputType(RNA_enum_get(input_props_ptr, "type"));
+      if (type == CompositorNodesInputType::Value) {
+        VFont *value = RNA_pointer_get(input_props_ptr, "value").data_as<VFont>();
+        result.set_single_value(value);
+      }
+      break;
+    }
     case SOCK_IMAGE:
     case SOCK_COLLECTION:
     case SOCK_TEXTURE:
     case SOCK_MATERIAL:
-    case SOCK_FONT:
     case SOCK_SCENE:
     case SOCK_TEXT_ID:
     case SOCK_MASK:
@@ -233,7 +239,6 @@ class CompositorModifierContext : public CompositorContext {
 
   ImBuf *image_buffer_;
   compositor::Result mask_;
-  float3x3 mask_transform_;
   ImBuf *mask_buffer_ = nullptr;
   int timeline_frame_;
   bool owns_mask_ = false;
@@ -250,22 +255,19 @@ class CompositorModifierContext : public CompositorContext {
         mask_(*this, compositor::ResultType::Color, compositor::ResultPrecision::Full),
         timeline_frame_(mod_context.timeline_frame)
   {
-    /* Masks are in screen space, whereas modifier executes in strip space. */
-    mask_transform_ = math::invert(
-        image_transform_matrix_get(mod_context.render_data.scene, &mod_context.strip));
-
     PointerRNA ptr = RNA_pointer_create_discrete(
         &mod_context.render_data.scene->id, RNA_SequencerCompositorModifierData, modifier_data);
     properties_ptr_ = RNA_pointer_get(&ptr, "properties");
   }
 
-  ~CompositorModifierContext()
+  void free_resources()
   {
-    if (this->mask_buffer_ != nullptr) {
-      IMB_freeImBuf(this->mask_buffer_);
-    }
+    IMB_freeImBuf(this->mask_buffer_);
+    this->mask_buffer_ = nullptr;
+
     if (this->owns_mask_) {
       this->mask_.release();
+      this->owns_mask_ = false;
     }
   }
 
@@ -286,7 +288,7 @@ class CompositorModifierContext : public CompositorContext {
 
     if (realization_operation) {
       Result realize_input = this->create_result(ResultType::Color, viewer_result.precision());
-      realize_input.wrap_external(viewer_result);
+      realize_input.share_data(viewer_result);
       realization_operation->map_input_to_result(&realize_input);
       realization_operation->evaluate();
 
@@ -312,12 +314,13 @@ class CompositorModifierContext : public CompositorContext {
 
     const bNodeTree &node_group = *DEG_get_evaluated<bNodeTree>(render_data_.depsgraph,
                                                                 modifier_data_->node_group);
+    const bke::DataBlockComputeContext compute_context(nullptr, this->get_scene().id);
     NodeGroupOperation node_group_operation(*this,
                                             node_group,
                                             this->needed_outputs(),
-                                            nullptr,
                                             node_group.active_viewer_key,
-                                            bke::NODE_INSTANCE_KEY_BASE);
+                                            bke::NODE_INSTANCE_KEY_BASE,
+                                            compute_context);
     set_output_refcount(node_group, node_group_operation);
 
     node_group.ensure_topology_cache();
@@ -354,8 +357,8 @@ class CompositorModifierContext : public CompositorContext {
           if (this->mask_.is_allocated()) {
             input_result->set_type(this->mask_.type());
             input_result->set_precision(this->mask_.precision());
-            input_result->wrap_external(this->mask_);
-            input_result->set_transformation(this->mask_transform_);
+            input_result->share_data(this->mask_);
+            input_result->set_transformation(this->mod_context_.transform_comp_result);
           }
           else {
             input_result->allocate_invalid();
@@ -394,7 +397,6 @@ class CompositorModifierContext : public CompositorContext {
       this->mask_buffer_ = seq_render_strip(
           &context.render_data, &context.render_state, smd.mask_strip, timeline_frame);
       if (this->mask_buffer_ != nullptr) {
-        ensure_ibuf_is_linear_space(this->mask_buffer_, true);
         this->create_result_from_input(this->mask_, *this->mask_buffer_);
         this->owns_mask_ = true;
       }
@@ -418,15 +420,17 @@ class CompositorModifierContext : public CompositorContext {
 
       const int width = context.render_data.rectx;
       const int height = context.render_data.recty;
-      this->mask_ = this->cache_manager().cached_masks.get(*this,
-                                                           smd.mask_id,
-                                                           compositor::Domain(int2(width, height)),
-                                                           1.0f,
-                                                           true,
-                                                           frame_index,
-                                                           1,
-                                                           0.0f,
-                                                           seq_space_is_srgb);
+      this->mask_.set_type(compositor::ResultType::Float);
+      this->mask_.share_data(
+          this->cache_manager().cached_masks.get(*this,
+                                                 smd.mask_id,
+                                                 compositor::Domain(int2(width, height)),
+                                                 1.0f,
+                                                 true,
+                                                 frame_index,
+                                                 1,
+                                                 0.0f,
+                                                 seq_space_is_srgb));
       this->owns_mask_ = false;
     }
   }
@@ -448,21 +452,19 @@ static void compositor_modifier_apply(ModifierApplyContext &context,
     return;
   }
 
-  /* Note: compositor always operates in linear space, float pixels. */
-  ensure_ibuf_is_linear_space(context.image, true);
   CompositorCache &com_cache = context.render_data.scene->ed->runtime->ensure_compositor_cache();
   CompositorModifierContext com_mod_context(context, com_cache.get_cache_manager(), modifier_data);
 
-  const bool use_gpu = com_mod_context.use_gpu();
-  if (use_gpu) {
-    render_begin_gpu(context.render_data);
+  if (com_mod_context.use_gpu()) {
+    com_mod_context.set_gpu_supported(render_begin_gpu(context.render_data));
   }
 
   com_cache.recreate_if_needed(
       com_mod_context.use_gpu(), com_mod_context.get_precision(), context.render_data.gpu_context);
   com_mod_context.evaluate();
   com_mod_context.cache_manager().reset();
-  if (use_gpu) {
+  com_mod_context.free_resources();
+  if (com_mod_context.use_gpu()) {
     render_end_gpu(context.render_data);
   }
 
