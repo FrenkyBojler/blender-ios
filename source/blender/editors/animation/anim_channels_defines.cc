@@ -5643,6 +5643,7 @@ static void achannel_setting_flush_widget_cb(bContext *C, void *ale_npoin, void 
   /* Handle Ctrl+Click to 'Isolate'-toggle visibility of graph editor channels. */
   if (setting == ACHANNEL_SETTING_VISIBLE && (win->runtime->eventstate->modifier & KM_CTRL)) {
     anim_channels_toggle_isolate(ac, ale_setting);
+    return;
   }
 
   /* check if the setting is on... */
