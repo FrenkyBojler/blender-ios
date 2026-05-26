@@ -24,7 +24,7 @@
 #include "DNA_ID_enums.h"
 #include "DNA_asset_types.h"
 
-#include "AS_remote_library.hh"
+#include "AS_asset_file_status.hh"
 
 namespace blender {
 
