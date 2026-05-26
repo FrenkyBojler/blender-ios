@@ -48,69 +48,6 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
   node->custom1 = SOCK_OBJECT;
 }
 
-/* old
-static void node_geo_exec(GeoNodeExecParams params)
-{
-  const bNode &node = params.node();
-  const auto data_type = eNodeSocketDatatype(node.custom1);
-  ID *id = nullptr;
-
-  switch (data_type) {
-    case SOCK_OBJECT: {
-      id = &params.extract_input<Object *>("Data Block"_ustr)->id;
-      break;
-    }
-    case SOCK_IMAGE: {
-      id = &params.extract_input<Image *>("Data Block"_ustr)->id;
-      break;
-    }
-    case SOCK_COLLECTION: {
-      id = &params.extract_input<Collection *>("Data Block"_ustr)->id;
-      break;
-    }
-    case SOCK_MATERIAL: {
-      id = &params.extract_input<Material *>("Data Block"_ustr)->id;
-      break;
-    }
-    case SOCK_FONT: {
-      id = &params.extract_input<VFont *>("Data Block"_ustr)->id;
-      break;
-    }
-    case SOCK_SOUND: {
-      id = &params.extract_input<bSound *>("Data Block"_ustr)->id;
-      break;
-    }
-    default:
-      break;
-  }
-
-  if (id == nullptr) {
-    params.set_default_remaining_outputs();
-    return;
-  }
-
-  params.set_output<std::string>("Name"_ustr, BKE_id_name(*id));
-
-  if (!params.output_is_required("Library Name"_ustr)) {
-    params.set_default_remaining_outputs();
-    return;
-  }
-
-  Library *lib = id->lib;
-  if (lib == nullptr) {
-    params.set_default_remaining_outputs();
-    return;
-  }
-
-  params.set_output<std::string>("Library Name"_ustr, BKE_id_name(lib->id));
-}*/
-/*
-static std::string data_blocks_are_equal(const ID *a)
-{
-  std::string b = "";
-  return b;
-}*/
-
 template<typename Fn>
 static auto to_static_data_block_type(const eNodeSocketDatatype socket_type, Fn &&fn)
 {
