@@ -455,6 +455,48 @@ static wmOperatorStatus asset_library_refresh_exec(bContext *C, wmOperator * /*u
   return OPERATOR_FINISHED;
 }
 
+static wmOperatorStatus asset_library_refresh_invoke(bContext *C,
+                                                     wmOperator *op,
+                                                     const wmEvent *event)
+{
+  using namespace blender::asset_system;
+
+  if ((event->modifier & KM_SHIFT) == 0) {
+    /* On a normal click, a normal refresh is enough. */
+    return asset_library_refresh_exec(C, op);
+  }
+
+  /* Find the asset library, depending on where we were invoked from. */
+  AssetLibrary *asset_library;
+  if (ED_operator_asset_browsing_active(C)) {
+    asset_library = ED_fileselect_active_asset_library_get(CTX_wm_space_file(C));
+  }
+  else {
+    const AssetLibraryReference *library_ref = CTX_wm_asset_library_ref(C);
+    asset_library = ed::asset::list::library_get_once_available(*library_ref);
+  }
+  if (!asset_library) {
+    return OPERATOR_CANCELLED;
+  }
+
+  /* See if there is anything to download, and refuse to work otherwise. */
+  std::optional<RemoteLibraryDefinitionRef> remote_ref =
+      RemoteLibraryDefinitionRef::from_asset_library(*asset_library);
+  if (!remote_ref) {
+    BKE_report(
+        op->reports, RPT_ERROR, "This asset library does not have a remote listing to download");
+    return OPERATOR_CANCELLED;
+  }
+
+  /* Re-download the asset listing on shift-click. */
+  remote_library_request_download(*remote_ref);
+
+  /* Always end with a regular refresh, as a "forced refresh" like this should be an additional
+   * thing on top of regular refreshing (otherwise it would be weird to use the refresh button for
+   * this). */
+  return asset_library_refresh_exec(C, op);
+}
+
 static void ASSET_OT_library_refresh(wmOperatorType *ot)
 {
   /* identifiers */
@@ -463,6 +505,7 @@ static void ASSET_OT_library_refresh(wmOperatorType *ot)
   ot->idname = "ASSET_OT_library_refresh";
 
   /* API callbacks. */
+  ot->invoke = asset_library_refresh_invoke;
   ot->exec = asset_library_refresh_exec;
   ot->poll = asset_library_refresh_poll;
 }

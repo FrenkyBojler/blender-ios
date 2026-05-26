@@ -47,6 +47,8 @@
 #include "AS_asset_representation.hh"
 #include "AS_essentials_library.hh"
 #include "AS_remote_library.hh"
+
+#include "asset_library_service.hh"
 #include "remote_library.hh"
 
 static CLG_LogRef LOG = {"assets.remote_library"};
@@ -57,6 +59,30 @@ RemoteLibraryDefinitionRef::RemoteLibraryDefinitionRef(const bUserAssetLibrary &
     : remote_url(library_definition.remote_url), cache_dirpath(library_definition.dirpath)
 {
   BLI_assert((library_definition.flag & ASSET_LIBRARY_USE_REMOTE_URL) != 0);
+}
+
+std::optional<RemoteLibraryDefinitionRef> RemoteLibraryDefinitionRef::from_asset_library(
+    const AssetLibrary &asset_library)
+{
+  /* Special case for the on-disk essentials, as that's presented as the same asset library as
+   * online essentials in the UI. */
+  if (asset_library.library_type() == ASSET_LIBRARY_ESSENTIALS) {
+    const AssetLibraryReference online_essentials_ref = {ASSET_LIBRARY_ONLINE_ESSENTIALS};
+    const AssetLibrary *online_essentials = AssetLibraryService::get()->get_asset_library(
+        nullptr, online_essentials_ref);
+
+    BLI_assert(online_essentials);
+    BLI_assert(online_essentials->remote_url().has_value());
+
+    return RemoteLibraryDefinitionRef(online_essentials->remote_url().value(),
+                                      online_essentials->root_path());
+  }
+
+  std::optional<StringRefNull> remote_url = asset_library.remote_url();
+  if (!remote_url) {
+    return {};
+  }
+  return RemoteLibraryDefinitionRef(*remote_url, asset_library.root_path());
 }
 
 /* -------------------------------------------------------------------- */
@@ -591,7 +617,7 @@ void remote_library_request_download(const RemoteLibraryDefinitionRef &library_d
   }
 
   BLI_assert_msg(!is_online_essentials_url(library_definition.remote_url) ||
-                     library_definition.cache_dirpath == online_essentials_cache_directory_path(),
+                     is_online_essentials_dirpath(library_definition.cache_dirpath),
                  "The online essentials library must be downloaded to "
                  "online_essentials_cache_directory_path()");
 
