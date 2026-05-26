@@ -323,7 +323,6 @@ set(GLSL_SRC
   intern/shaders/subdiv_patch_eval_infos.hh
 
   engines/eevee/shaders/infos/eevee_common_infos.hh
-  engines/eevee/shaders/infos/eevee_depth_of_field_infos.hh
   engines/eevee/shaders/infos/eevee_geom_infos.hh
   engines/eevee/shaders/infos/eevee_nodetree_infos.hh
   engines/eevee/shaders/infos/eevee_sampling_infos.hh
@@ -383,24 +382,18 @@ set(GLSL_SRC
   engines/eevee/shaders/eevee_deferred_combine.bsl.hh
   engines/eevee/shaders/eevee_deferred_thickness_amend.bsl.hh
   engines/eevee/shaders/eevee_deferred_tile_classify.bsl.hh
-  engines/eevee/shaders/eevee_depth_of_field_accumulator_lib.glsl
-  engines/eevee/shaders/eevee_depth_of_field_bokeh_lut_comp.glsl
-  engines/eevee/shaders/eevee_depth_of_field_downsample_comp.glsl
-  engines/eevee/shaders/eevee_depth_of_field_filter_comp.glsl
-  engines/eevee/shaders/eevee_depth_of_field_gather_comp.glsl
-  engines/eevee/shaders/eevee_depth_of_field_hole_fill_comp.glsl
-  engines/eevee/shaders/eevee_depth_of_field_lib.glsl
-  engines/eevee/shaders/eevee_depth_of_field_reduce_comp.glsl
-  engines/eevee/shaders/eevee_depth_of_field_resolve_comp.glsl
-  engines/eevee/shaders/eevee_depth_of_field_scatter_frag.glsl
-  engines/eevee/shaders/eevee_depth_of_field_scatter_vert.glsl
-  engines/eevee/shaders/eevee_depth_of_field_setup_comp.glsl
-  engines/eevee/shaders/eevee_depth_of_field_stabilize_comp.glsl
-  engines/eevee/shaders/eevee_depth_of_field_tiles_dilate_comp.glsl
-  engines/eevee/shaders/eevee_depth_of_field_tiles_flatten_comp.glsl
+  engines/eevee/shaders/eevee_depth_of_field_accumulator.bsl.hh
+  engines/eevee/shaders/eevee_depth_of_field_bokeh_lut.bsl.hh
+  engines/eevee/shaders/eevee_depth_of_field_filter.bsl.hh
+  engines/eevee/shaders/eevee_depth_of_field_gather.bsl.hh
+  engines/eevee/shaders/eevee_depth_of_field_lib.bsl.hh
+  engines/eevee/shaders/eevee_depth_of_field_resolve.bsl.hh
+  engines/eevee/shaders/eevee_depth_of_field_scatter.bsl.hh
+  engines/eevee/shaders/eevee_depth_of_field_setup.bsl.hh
+  engines/eevee/shaders/eevee_depth_of_field_tiles.bsl.hh
   engines/eevee/shaders/eevee_film.bsl.hh
   engines/eevee/shaders/eevee_filter.bsl.hh
-  engines/eevee/shaders/eevee_forward_lib.glsl
+  engines/eevee/shaders/eevee_forward_lib.bsl.hh
   engines/eevee/shaders/eevee_forward_resolve.bsl.hh
   engines/eevee/shaders/eevee_gbuffer_types.bsl.hh
   engines/eevee/shaders/eevee_gbuffer_read.bsl.hh
@@ -408,7 +401,7 @@ set(GLSL_SRC
   engines/eevee/shaders/eevee_geom_curves.bsl.hh
   engines/eevee/shaders/eevee_geom_mesh.bsl.hh
   engines/eevee/shaders/eevee_geom_pointcloud.bsl.hh
-  engines/eevee/shaders/eevee_geom_types_lib.glsl
+  engines/eevee/shaders/eevee_geom_types_lib.bsl.hh
   engines/eevee/shaders/eevee_geom_volume.bsl.hh
   engines/eevee/shaders/eevee_geom_world.bsl.hh
   engines/eevee/shaders/eevee_hiz_update.bsl.hh
@@ -447,7 +440,7 @@ set(GLSL_SRC
   engines/eevee/shaders/eevee_ray_generate.bsl.hh
   engines/eevee/shaders/eevee_ray_tile.bsl.hh
   engines/eevee/shaders/eevee_ray_trace.bsl.hh
-  engines/eevee/shaders/eevee_ray_trace_screen_lib.glsl
+  engines/eevee/shaders/eevee_ray_trace_screen_lib.bsl.hh
   engines/eevee/shaders/eevee_ray_types_lib.bsl.hh
   engines/eevee/shaders/eevee_reverse_z_lib.bsl.hh
   engines/eevee/shaders/eevee_renderpass_clear.bsl.hh
