@@ -705,7 +705,7 @@ static bool filelist_file_preview_load_poll(const FileDirEntry *entry)
 void filelist_online_asset_preview_request(const bContext *C, FileDirEntry *entry)
 {
   BLI_assert(entry->asset);
-  BLI_assert(entry->asset->is_pure_online());
+  BLI_assert(entry->asset->is_online_only());
 
   if (entry->preview_icon_id) {
     return;
@@ -716,7 +716,7 @@ void filelist_online_asset_preview_request(const bContext *C, FileDirEntry *entr
   }
 
   /* Request online preview if needed. */
-  if (entry->asset->is_pure_online()) {
+  if (entry->asset->is_online_only()) {
     entry->asset->ensure_previewable(*C, CTX_wm_reports(C));
     entry->preview_icon_id = entry->asset->get_preview()->runtime->icon_id;
   }

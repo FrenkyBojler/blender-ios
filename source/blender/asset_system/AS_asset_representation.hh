@@ -74,7 +74,7 @@ class AssetRepresentation : NonCopyable, NonMovable {
      * locally. To distinguish between 'pure online' (so no file) and other cases, use the
      * file_status_ field above.
      *
-     * \see #AssetRepresentation::is_online()
+     * \see #AssetRepresentation::is_online_only()
      */
     std::unique_ptr<OnlineAssetInfo> online_info_;
   };
@@ -159,7 +159,7 @@ class AssetRepresentation : NonCopyable, NonMovable {
   std::string full_library_path() const;
 
   /**
-   * For online assets (see #is_online()), the files that make up this asset.
+   * For online assets (see #is_online_only()), the files that make up this asset.
    *
    * Will return an empty span if this is not an online asset.
    */
@@ -169,13 +169,14 @@ class AssetRepresentation : NonCopyable, NonMovable {
    */
   std::optional<int64_t> online_asset_files_combined_size_in_bytes() const;
   /**
-   * For online assets (see #is_online()), the URL the asset's preview should be requested from.
+   * For online assets (see #is_online_only()), the URL the asset's preview should be requested
+   * from.
    *
    * Will return an empty value if this is not an online asset.
    */
   std::optional<StringRefNull> online_asset_preview_url() const;
   /**
-   * For online assets (see #is_online()), the hash of the asset's preview.
+   * For online assets (see #is_online_only()), the hash of the asset's preview.
    *
    * Will return an empty value if this is not an online asset.
    */
@@ -218,7 +219,7 @@ class AssetRepresentation : NonCopyable, NonMovable {
    *
    * \see #file_status()
    */
-  bool is_pure_online() const;
+  bool is_online_only() const;
   /**
    * Returns whether the asset is stored in a probably-editable .asset.blend file.
    *
@@ -252,8 +253,8 @@ class AssetRepresentation : NonCopyable, NonMovable {
   /**
    * Return whether this asset requires (re-)downloading before it can be used.
    *
-   * True for online-only assets (#is_online()) and for on-disk assets whose files no longer match
-   * the remote listing (e.g. #AssetFileStatus::NO_MATCH).
+   * True for online-only assets (#is_online_only()) and for on-disk assets whose files no longer
+   * match the remote listing (e.g. #AssetFileStatus::NO_MATCH).
    */
   bool needs_download() const;
 
