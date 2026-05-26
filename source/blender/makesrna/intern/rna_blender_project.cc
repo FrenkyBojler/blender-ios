@@ -77,123 +77,155 @@ static void rna_ProjectVariable_update(Main * /*bmain*/, Scene * /*scene*/, Poin
 
 static int rna_ProjectVariable_type_get(PointerRNA *ptr)
 {
-  const ProjectVariable *var = static_cast<ProjectVariable *>(ptr->data);
-  return int(var->type);
+  int var_type;
+  with_blender_project_read_lock([&] {
+    const ProjectVariable *var = ptr->data_as<ProjectVariable>();
+    var_type = int(var->type);
+  });
+  return var_type;
 }
 
 static void rna_ProjectVariable_type_set(PointerRNA *ptr, int value)
 {
-  ProjectVariable *var = static_cast<ProjectVariable *>(ptr->data);
-
-  var->type = ProjectVarType(value);
+  with_blender_project_write_lock([&] {
+    ProjectVariable *var = ptr->data_as<ProjectVariable>();
+    var->type = ProjectVarType(value);
+  });
 }
 
 static void rna_ProjectVariable_name_get(PointerRNA *ptr, char *value)
 {
-  const ProjectVariable *var = static_cast<ProjectVariable *>(ptr->data);
-
-  strcpy(value, var->name.c_str());
+  with_blender_project_read_lock([&] {
+    const ProjectVariable *var = ptr->data_as<ProjectVariable>();
+    strcpy(value, var->name.c_str());
+  });
 }
 
 static int rna_ProjectVariable_name_length(PointerRNA *ptr)
 {
-  const ProjectVariable *var = static_cast<ProjectVariable *>(ptr->data);
-
-  return var->name.size();
+  int name_length;
+  with_blender_project_read_lock([&] {
+    const ProjectVariable *var = ptr->data_as<ProjectVariable>();
+    name_length = var->name.size();
+  });
+  return name_length;
 }
 
 static void rna_ProjectVariable_name_set(PointerRNA *ptr, const char *value)
 {
-  BlenderProject *project = ptr->parent().data_as<BlenderProject>();
-  BLI_assert(project != nullptr);
+  with_blender_project_write_lock([&] {
+    BlenderProject *project = ptr->parent().data_as<BlenderProject>();
+    BLI_assert(project != nullptr);
 
-  ProjectVariable *var = ptr->data_as<ProjectVariable>();
+    ProjectVariable *var = ptr->data_as<ProjectVariable>();
 
-  std::string new_name(value);
-  BKE_ensure_valid_variable_name(new_name);
+    std::string new_name(value);
+    BKE_ensure_valid_variable_name(new_name);
 
-  if (var->name == new_name) {
-    return;
-  }
-
-  auto check_name_is_used = [&](const StringRef name) -> bool {
-    for (const std::unique_ptr<ProjectVariable> &other_var : project->variables) {
-      if (other_var->name == name) {
-        return true;
-      }
+    if (var->name == new_name) {
+      return;
     }
-    return false;
-  };
 
-  var->name = BLI_uniquename_cb(check_name_is_used, '.', new_name);
+    auto check_name_is_used = [&](const StringRef name) -> bool {
+      for (const std::unique_ptr<ProjectVariable> &other_var : project->variables) {
+        if (other_var->name == name) {
+          return true;
+        }
+      }
+      return false;
+    };
+    var->name = BLI_uniquename_cb(check_name_is_used, '.', new_name);
+  });
 }
 
 static void rna_ProjectVariable_description_get(PointerRNA *ptr, char *value)
 {
-  const ProjectVariable *var = static_cast<ProjectVariable *>(ptr->data);
-
-  strcpy(value, var->description.c_str());
+  with_blender_project_read_lock([&] {
+    const ProjectVariable *var = ptr->data_as<ProjectVariable>();
+    strcpy(value, var->description.c_str());
+  });
 }
 
 static int rna_ProjectVariable_description_length(PointerRNA *ptr)
 {
-  const ProjectVariable *var = static_cast<ProjectVariable *>(ptr->data);
-
-  return var->description.size();
+  int description_length;
+  with_blender_project_read_lock([&] {
+    const ProjectVariable *var = ptr->data_as<ProjectVariable>();
+    description_length = var->description.size();
+  });
+  return description_length;
 }
 
 static void rna_ProjectVariable_description_set(PointerRNA *ptr, const char *value)
 {
-  ProjectVariable *var = static_cast<ProjectVariable *>(ptr->data);
-
-  var->description.clear();
-  var->description.append(value);
+  with_blender_project_write_lock([&] {
+    ProjectVariable *var = ptr->data_as<ProjectVariable>();
+    var->description.clear();
+    var->description.append(value);
+  });
 }
 
 static int rna_ProjectVariable_value_int_get(PointerRNA *ptr)
 {
-  const ProjectVariable *var = static_cast<ProjectVariable *>(ptr->data);
-  return var->value_int;
+  int value_int;
+  with_blender_project_read_lock([&] {
+    const ProjectVariable *var = ptr->data_as<ProjectVariable>();
+    value_int = var->value_int;
+  });
+  return value_int;
 }
 
 static void rna_ProjectVariable_value_int_set(PointerRNA *ptr, int value)
 {
-  ProjectVariable *var = static_cast<ProjectVariable *>(ptr->data);
-  var->value_int = value;
+  with_blender_project_write_lock([&] {
+    ProjectVariable *var = ptr->data_as<ProjectVariable>();
+    var->value_int = value;
+  });
 }
 
 static float rna_ProjectVariable_value_float_get(PointerRNA *ptr)
 {
-  const ProjectVariable *var = static_cast<ProjectVariable *>(ptr->data);
-  return var->value_float;
+  float value_float;
+  with_blender_project_read_lock([&] {
+    const ProjectVariable *var = ptr->data_as<ProjectVariable>();
+    value_float = var->value_float;
+  });
+  return value_float;
 }
 
 static void rna_ProjectVariable_value_float_set(PointerRNA *ptr, float value)
 {
-  ProjectVariable *var = static_cast<ProjectVariable *>(ptr->data);
-  var->value_float = value;
+  with_blender_project_write_lock([&] {
+    ProjectVariable *var = ptr->data_as<ProjectVariable>();
+    var->value_float = value;
+  });
 }
 
 static void rna_ProjectVariable_value_string_get(PointerRNA *ptr, char *value)
 {
-  const ProjectVariable *var = static_cast<ProjectVariable *>(ptr->data);
-
-  strcpy(value, var->value_string.c_str());
+  with_blender_project_read_lock([&] {
+    const ProjectVariable *var = ptr->data_as<ProjectVariable>();
+    strcpy(value, var->value_string.c_str());
+  });
 }
 
 static int rna_ProjectVariable_value_string_length(PointerRNA *ptr)
 {
-  const ProjectVariable *var = static_cast<ProjectVariable *>(ptr->data);
-
-  return var->value_string.size();
+  int string_length;
+  with_blender_project_read_lock([&] {
+    const ProjectVariable *var = ptr->data_as<ProjectVariable>();
+    string_length = var->value_string.size();
+  });
+  return string_length;
 }
 
 static void rna_ProjectVariable_value_string_set(PointerRNA *ptr, const char *value)
 {
-  ProjectVariable *var = static_cast<ProjectVariable *>(ptr->data);
-
-  var->value_string.clear();
-  var->value_string.append(value);
+  with_blender_project_write_lock([&] {
+    ProjectVariable *var = ptr->data_as<ProjectVariable>();
+    var->value_string.clear();
+    var->value_string.append(value);
+  });
 }
 
 /* --------------------------------------------------------- */
@@ -252,62 +284,79 @@ static int rna_BlenderProject_root_path_length(PointerRNA *ptr)
 
 static int rna_BlenderProject_active_variable_index_get(PointerRNA *ptr)
 {
-  const bke::BlenderProject *project = static_cast<bke::BlenderProject *>(ptr->data);
-
-  return project->active_variable_index;
+  int active_variable_index;
+  bke::with_blender_project_read_lock([&] {
+    const bke::BlenderProject *project = ptr->data_as<BlenderProject>();
+    active_variable_index = project->active_variable_index;
+  });
+  return active_variable_index;
 }
 
 static void rna_BlenderProject_active_variable_index_set(PointerRNA *ptr, int value)
 {
-  bke::BlenderProject *project = static_cast<bke::BlenderProject *>(ptr->data);
-
-  project->active_variable_index = value;
+  bke::with_blender_project_write_lock([&] {
+    bke::BlenderProject *project = ptr->data_as<BlenderProject>();
+    project->active_variable_index = value;
+  });
 }
 
 static void rna_BlenderProject_active_variable_index_range(
     PointerRNA *ptr, int *min, int *max, int * /*softmin*/, int * /*softmax*/)
 {
-  const bke::BlenderProject *project = static_cast<bke::BlenderProject *>(ptr->data);
-
-  *min = 0;
-  *max = project->variables.size() - 1;
+  bke::with_blender_project_read_lock([&] {
+    const bke::BlenderProject *project = ptr->data_as<BlenderProject>();
+    *min = 0;
+    *max = project->variables.size() - 1;
+  });
 }
 
 static void rna_iterator_BlenderProject_variables_begin(CollectionPropertyIterator *iter,
                                                         PointerRNA *ptr)
 {
-  bke::BlenderProject *project = static_cast<bke::BlenderProject *>(ptr->data);
-
-  rna_iterator_array_begin(iter,
-                           ptr,
-                           (void *)project->variables.begin(),
-                           sizeof(std::unique_ptr<ProjectVariable>),
-                           project->variables.size(),
-                           0,
-                           nullptr);
+  /* Note: we use a read lock here despite `rna_iterator_array_begin()` taking
+   * non-const pointers from the project, because in reality this is a read
+   * operation that doesn't modify any project data. */
+  bke::with_blender_project_read_lock([&] {
+    bke::BlenderProject *project = ptr->data_as<BlenderProject>();
+    rna_iterator_array_begin(iter,
+                             ptr,
+                             (void *)project->variables.begin(),
+                             sizeof(std::unique_ptr<ProjectVariable>),
+                             project->variables.size(),
+                             0,
+                             nullptr);
+  });
 }
 
 static int rna_iterator_BlenderProject_variables_length(PointerRNA *ptr)
 {
-  const bke::BlenderProject *project = static_cast<bke::BlenderProject *>(ptr->data);
-  return project->variables.size();
+  int variables_length;
+  bke::with_blender_project_read_lock([&] {
+    const bke::BlenderProject *project = static_cast<bke::BlenderProject *>(ptr->data);
+    variables_length = project->variables.size();
+  });
+  return variables_length;
 }
 
 static PointerRNA rna_iterator_BlenderProject_variables_get(CollectionPropertyIterator *iter)
 {
-  BLI_assert(iter->valid);
+  PointerRNA variable;
+  bke::with_blender_project_read_lock([&] {
+    BLI_assert(iter->valid);
 
-  ArrayIterator *internal = &iter->internal.array;
+    ArrayIterator *internal = &iter->internal.array;
 
-  std::unique_ptr<ProjectVariable> *var_ptr_ptr =
-      reinterpret_cast<std::unique_ptr<ProjectVariable> *>(internal->ptr);
+    std::unique_ptr<ProjectVariable> *var_ptr_ptr =
+        reinterpret_cast<std::unique_ptr<ProjectVariable> *>(internal->ptr);
 
-  ProjectVariable *var_ptr = var_ptr_ptr->get();
+    ProjectVariable *var_ptr = var_ptr_ptr->get();
 
-  return RNA_pointer_create_with_parent(iter->parent, RNA_ProjectVariable, var_ptr);
+    variable = RNA_pointer_create_with_parent(iter->parent, RNA_ProjectVariable, var_ptr);
+  });
+  return variable;
 }
 
-static PointerRNA rna_ProjectVariables_new(bke::BlenderProject *project,
+static PointerRNA rna_ProjectVariables_new(BlenderProject *project,
                                            ReportList *reports,
                                            const char *name,
                                            int type)
@@ -317,75 +366,81 @@ static PointerRNA rna_ProjectVariables_new(bke::BlenderProject *project,
     return {};
   }
 
-  auto check_name_is_used = [&](const StringRef name) -> bool {
-    for (const std::unique_ptr<ProjectVariable> &other_var : project->variables) {
-      if (other_var->name == name) {
-        return true;
+  PointerRNA variable;
+  bke::with_blender_project_write_lock([&] {
+    auto check_name_is_used = [&](const StringRef name) -> bool {
+      for (const std::unique_ptr<ProjectVariable> &other_var : project->variables) {
+        if (other_var->name == name) {
+          return true;
+        }
       }
-    }
-    return false;
-  };
-  std::string unique_name = BLI_uniquename_cb(check_name_is_used, '.', name);
+      return false;
+    };
+    std::string unique_name = BLI_uniquename_cb(check_name_is_used, '.', name);
 
-  ProjectVariable *new_var = project->new_variable();
-  new_var->name = unique_name;
-  new_var->description = std::string();
-  new_var->type = bke::ProjectVarType(type);
-  new_var->value_int = 0;
-  new_var->value_float = 0.0;
-  new_var->value_string = std::string();
+    ProjectVariable *new_var = project->new_variable();
+    new_var->name = unique_name;
+    new_var->description = std::string();
+    new_var->type = bke::ProjectVarType(type);
+    new_var->value_int = 0;
+    new_var->value_float = 0.0;
+    new_var->value_string = std::string();
 
-  project->active_variable_index = project->variables.size() - 1;
+    project->active_variable_index = project->variables.size() - 1;
 
+    variable = RNA_pointer_create_with_parent(
+        RNA_pointer_create_discrete(nullptr, RNA_BlenderProject, project),
+        RNA_ProjectVariable,
+        new_var);
+  });
   project_mark_dirty(project);
-
-  return RNA_pointer_create_with_parent(
-      RNA_pointer_create_discrete(nullptr, RNA_BlenderProject, project),
-      RNA_ProjectVariable,
-      new_var);
+  return variable;
 }
 
-void rna_ProjectVariables_remove(bke::BlenderProject *project,
+void rna_ProjectVariables_remove(BlenderProject *project,
                                  ReportList *reports,
                                  PointerRNA *variable_ptr)
 {
   BLI_assert(variable_ptr->type == RNA_ProjectVariable);
-  ProjectVariable *var = static_cast<ProjectVariable *>(variable_ptr->data);
 
-  const int removed_index = project->remove_variable(var);
+  bke::with_blender_project_write_lock([&] {
+    ProjectVariable *var = static_cast<ProjectVariable *>(variable_ptr->data);
 
-  if (removed_index == -1) {
-    BKE_reportf(reports, RPT_ERROR, "Variable not found in project variables.");
-    return;
-  }
+    const int removed_index = project->remove_variable(var);
 
-  if (project->active_variable_index > removed_index) {
-    project->active_variable_index -= 1;
-  }
+    if (removed_index == -1) {
+      BKE_reportf(reports, RPT_ERROR, "Variable not found in project variables.");
+      return;
+    }
 
-  project->active_variable_index = std::min(project->active_variable_index,
-                                            int(project->variables.size() - 1));
+    if (project->active_variable_index > removed_index) {
+      project->active_variable_index -= 1;
+    }
 
+    project->active_variable_index = std::min(project->active_variable_index,
+                                              int(project->variables.size() - 1));
+  });
   project_mark_dirty(project);
 }
 
-void rna_ProjectVariables_move(bke::BlenderProject *project,
+void rna_ProjectVariables_move(BlenderProject *project,
                                ReportList *reports,
                                int from_index,
                                int to_index)
 {
-  if (from_index >= project->variables.size()) {
-    BKE_reportf(reports, RPT_ERROR, "From index is out of bounds of the variable list.");
-    return;
-  }
+  bke::with_blender_project_write_lock([&] {
+    if (from_index >= project->variables.size()) {
+      BKE_reportf(reports, RPT_ERROR, "From index is out of bounds of the variable list.");
+      return;
+    }
 
-  if (to_index >= project->variables.size()) {
-    BKE_reportf(reports, RPT_ERROR, "To index is out of bounds of the variable list.");
-    return;
-  }
+    if (to_index >= project->variables.size()) {
+      BKE_reportf(reports, RPT_ERROR, "To index is out of bounds of the variable list.");
+      return;
+    }
 
-  project->move_variable(from_index, to_index);
-
+    project->move_variable(from_index, to_index);
+  });
   project_mark_dirty(project);
 }
 
