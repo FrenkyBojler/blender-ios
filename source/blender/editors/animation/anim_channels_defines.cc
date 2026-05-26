@@ -5547,7 +5547,7 @@ static bool anim_list_el_is_visibility_related_or_self(const bAnimListElem *targ
   }
 
   return false;
-};
+}
 
 static void anim_channels_toggle_isolate(bAnimContext &ac, bAnimListElem *ale_setting)
 {
