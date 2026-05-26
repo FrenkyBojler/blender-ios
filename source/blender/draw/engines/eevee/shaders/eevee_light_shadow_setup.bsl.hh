@@ -9,7 +9,7 @@
 SHADER_LIBRARY_CREATE_INFO(eevee_global_ubo)
 
 #include "eevee_light_shared.hh"
-#include "eevee_sampling_lib.glsl"
+#include "eevee_sampling_lib.bsl.hh"
 #include "eevee_shadow_shared.hh"
 #include "gpu_shader_math_fast_lib.glsl"
 #include "gpu_shader_math_matrix_construct_lib.glsl"
@@ -340,7 +340,7 @@ void shadow_setup_main([[resource_table]] Resources &srt,
       }
     }
 
-    int tilemap_count = light_local_tilemap_count(light);
+    int tilemap_count = light.local_tilemap_count();
     for (int i = 0; i < tilemap_count; i++) {
       srt.cubeface_sync(
           light.tilemap_index + i, light.object_to_world, eCubeFace(i), position_on_light);

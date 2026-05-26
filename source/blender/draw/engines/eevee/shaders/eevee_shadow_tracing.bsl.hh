@@ -14,8 +14,8 @@ SHADER_LIBRARY_CREATE_INFO(eevee_global_ubo)
 
 #include "draw_math_geom_lib.glsl"
 #include "draw_view_lib.glsl"
-#include "eevee_light_lib.glsl"
-#include "eevee_sampling_lib.glsl"
+#include "eevee_light_lib.bsl.hh"
+#include "eevee_sampling_lib.bsl.hh"
 #include "eevee_shadow.bsl.hh"
 #include "eevee_thickness_lib.bsl.hh"
 #include "gpu_shader_math_base_lib.glsl"
@@ -356,7 +356,7 @@ float shadow_texel_radius_at_position(LightData light, const bool is_directional
   float scale = 1.0f;
   if (is_directional) {
     float3 lP = transform_direction_transposed(light.object_to_world, P);
-    lP -= light_position_get(light);
+    lP -= light.position();
     LightSunData sun = light.sun();
     if (light.type == LIGHT_SUN) {
       /* Simplification of `coverage_get(shadow_directional_level_fractional)`.
@@ -469,10 +469,10 @@ float shadow_eval([[resource_table]] ShadowRenderData &srd,
    * Not the same as the light vector if the shadow is jittered. */
   float3 L;
   if (is_directional) {
-    L = light_z_axis(light);
+    L = light.z_axis();
   }
   else {
-    L = light_position_get(light) + light.local().local.shadow_position - P;
+    L = light.position() + light.local().local.shadow_position - P;
     L = normalize_and_get_length(L, distance_to_shadow);
   }
 

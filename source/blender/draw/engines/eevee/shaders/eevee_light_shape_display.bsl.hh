@@ -4,20 +4,18 @@
 
 #pragma once
 
-#include "draw_view_infos.hh"
-#include "infos/eevee_volume_resolved_infos.hh"
+#include "infos/eevee_common_infos.hh"
 
 FRAGMENT_SHADER_CREATE_INFO(draw_view)
 FRAGMENT_SHADER_CREATE_INFO(eevee_volume_lib)
 
 #include "draw_view_lib.glsl"
 #include "eevee_light_data.bsl.hh"
-#include "eevee_light_lib.glsl"
+#include "eevee_light_lib.bsl.hh"
 #include "eevee_reverse_z_lib.bsl.hh"
 #include "eevee_volume_lib.bsl.hh"
 #include "gpu_shader_math_base_lib.glsl"
 #include "gpu_shader_math_constants_lib.glsl"
-#include "gpu_shader_math_matrix_transform_lib.glsl"
 
 namespace eevee::light {
 
@@ -65,7 +63,7 @@ float3 shape_display_light_position_get(LightData light, float2 quad_pos)
   }
 
   float radius = light.local().local.shape_radius;
-  float3 center = light_position_get(light);
+  float3 center = light.position();
   float3 view_right = drw_view().viewinv[0].xyz;
   float3 view_up = drw_view().viewinv[1].xyz;
   float3 L = center - drw_view_position();
@@ -170,8 +168,7 @@ void shape_display_frag([[resource_table]] const ShapeDisplayResources & /*srt*/
     }
   }
   else {
-    if (is_area_light(light_type) && dot(drw_world_incident_vector(P), light_z_axis(light)) > 0.0f)
-    {
+    if (is_area_light(light_type) && dot(drw_world_incident_vector(P), light.z_axis()) > 0.0f) {
       gpu_discard_fragment();
       return;
     }
