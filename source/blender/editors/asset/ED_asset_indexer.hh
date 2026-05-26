@@ -80,7 +80,7 @@ struct RemoteListingFileEntry : NonCopyable {
    * \see asset_system::OnlineAssetInfo::file_status for the per-asset status that may be more
    * convenient to use.
    *
-   * \see blender::ed::asset::index::FileStatuschecker. */
+   * \see blender::ed::asset::index::FileStatusChecker. */
   std::optional<asset_system::AssetFileStatus> file_status;
 };
 

@@ -29,15 +29,15 @@ namespace blender::ed::asset::index {
  * Instances of this class manage their own Disk File Hash Service for efficiently computing file
  * hashes.
  */
-class FileStatuschecker {
+class FileStatusChecker {
  private:
   /** Absolute path to the cache directory for the remote asset library. */
   std::string library_root_path_;
   std::unique_ptr<asset_system::DiskFileHashService> dfhs_;
 
  public:
-  explicit FileStatuschecker(StringRefNull library_root_path);
-  ~FileStatuschecker() = default;
+  explicit FileStatusChecker(StringRefNull library_root_path);
+  ~FileStatusChecker() = default;
 
   /**
    * Determine the status of the file on disk.

@@ -20,7 +20,7 @@ namespace blender::ed::asset::index {
 
 constexpr const char *dfhs_filename_prefix = "_file_hashes";
 
-FileStatuschecker::FileStatuschecker(const StringRefNull library_root_path)
+FileStatusChecker::FileStatusChecker(const StringRefNull library_root_path)
     : library_root_path_(library_root_path)
 {
   char dfhs_path[PATH_MAX];
@@ -28,7 +28,7 @@ FileStatuschecker::FileStatuschecker(const StringRefNull library_root_path)
   this->dfhs_ = disk_file_hash_service_get(dfhs_path);
 }
 
-AssetFileStatus FileStatuschecker::file_status(RemoteListingFileEntry &file_to_check)
+AssetFileStatus FileStatusChecker::file_status(RemoteListingFileEntry &file_to_check)
 {
   const StringRefNull relative_file_path = file_to_check.local_path;
 
@@ -66,7 +66,7 @@ AssetFileStatus FileStatuschecker::file_status(RemoteListingFileEntry &file_to_c
                         is_match ? AssetFileStatus::MATCH : AssetFileStatus::NO_MATCH);
 }
 
-asset_system::AssetFileStatus FileStatuschecker::remember(
+asset_system::AssetFileStatus FileStatusChecker::remember(
     RemoteListingFileEntry &file_to_check, const asset_system::AssetFileStatus status)
 {
   file_to_check.file_status = status;

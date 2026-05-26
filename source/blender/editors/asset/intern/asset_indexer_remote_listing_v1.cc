@@ -302,7 +302,7 @@ static ReadingResult<> listing_entries_from_root(const StringRefNull listing_roo
   }
 
   /* Store whether asset files match their listing's hash or not. */
-  FileStatuschecker file_status_checker(listing_root_dirpath);
+  FileStatusChecker file_status_checker(listing_root_dirpath);
 
   /* Convert the assets into RemoteListingAssetEntry objects. */
   for (const std::shared_ptr<Value> &asset_element : assets->elements()) {
