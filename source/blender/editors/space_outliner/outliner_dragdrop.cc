@@ -259,10 +259,8 @@ static TreeElement *outliner_drop_insert_collection_find(bContext *C,
 
   Collection *collection = outliner_collection_from_tree_element(collection_te);
 
-  /* Master collection doesn't support relative sibling placement for collections,
-   * but allows it for objects in custom sort mode. */
+  /* We can't insert before/after master collection. */
   if (collection->flag & COLLECTION_IS_MASTER) {
-
     *r_insert_type = TE_INSERT_INTO;
   }
 
