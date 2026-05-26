@@ -14,6 +14,7 @@
 #include "BLI_function_ref.hh"
 #include "BLI_utility_mixins.hh"
 
+#include "AS_asset_file_status.hh"
 #include "AS_remote_library.hh"
 
 #include "ED_file_indexer.hh"
@@ -46,6 +47,9 @@ extern const FileIndexerType file_indexer_asset;
 struct RemoteListingAssetEntry : NonCopyable {
   BLODataBlockInfo datablock_info = {};
   short idcode = 0;
+
+  /** The status of the asset's on-disk file(s). */
+  asset_system::AssetFileStatus file_status = asset_system::AssetFileStatus::UNSET;
 
   asset_system::OnlineAssetInfo online_info;
 

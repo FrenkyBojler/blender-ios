@@ -326,7 +326,7 @@ static ReadingResult<> listing_entries_from_root(const StringRefNull listing_roo
       const StringRef asset_file = entry.online_info.asset_file();
       RemoteListingFileEntry *file_entry = path_to_file_info.lookup_ptr(asset_file);
       BLI_assert_msg(file_entry, "Assets without file info should have been filtered out by now");
-      entry.online_info.file_status = file_status_checker.file_status(*file_entry);
+      entry.file_status = file_status_checker.file_status(*file_entry);
     }
 
     if (!process_fn(entry)) {

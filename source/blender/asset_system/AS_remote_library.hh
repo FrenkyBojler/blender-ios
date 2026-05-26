@@ -89,11 +89,6 @@ struct OnlineAssetInfo {
    * should not be used as a shortcut when trying to obtain "the asset's files".
    */
   StringRefNull asset_file() const;
-
-  /**
-   * Reflects the status of the asset's on-disk files.
-   */
-  AssetFileStatus file_status = AssetFileStatus::UNSET;
 };
 
 class AssetRepresentation;
