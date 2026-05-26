@@ -80,7 +80,7 @@ def get_gpu_device_backend(args: dict) -> dict:
             return {'devices': []}
 
         try:
-            devices = gpu.platform.devices_list()
+            devices = gpu.platform.devices_get()
         except (AttributeError, RuntimeError):
             devices = []
 
