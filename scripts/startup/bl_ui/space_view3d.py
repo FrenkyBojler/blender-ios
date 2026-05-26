@@ -2857,6 +2857,7 @@ class VIEW3D_MT_object(Menu):
 
         layout.menu("VIEW3D_MT_object_animation")
         layout.menu("VIEW3D_MT_object_rigid_body")
+        layout.menu("VIEW3D_MT_pose_slide")
 
         layout.separator()
 
