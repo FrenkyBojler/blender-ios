@@ -201,7 +201,6 @@ const FlatBundleTypePtr &CustomWorldEffector::get_bundle_type()
 {
   static const FlatBundleTypePtr bundle_type = []() {
     FlatBundleTypeBuilder b(CustomWorldEffector::name);
-    add_filter(b);
     b.add<decl::String>("stage"_ustr);
     b.add<decl::Closure>("closure"_ustr);
     const FlatBundleTypePtr bundle_type = b.build();
