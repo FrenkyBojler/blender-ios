@@ -151,7 +151,7 @@ else:
                 if device_index > 0:
                     blender_args += ['--gpu-device', str(device_index)]
             blender_args.append(self.filepath)
-            
+
             _, log = env.run_in_blender(_run, args, blender_args, foreground=True)
             for line in log:
                 if line.startswith(LOG_KEY):
