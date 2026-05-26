@@ -1397,8 +1397,8 @@ static wmOperatorStatus collection_drop_invoke(bContext *C,
     return OPERATOR_CANCELLED;
   }
 
-  wmDragID *first_id = static_cast<wmDragID *>(drag->ids.first);
-  const bool dragging_collection = first_id && (GS(first_id->id->name) == ID_GR);
+  wmDragID *drag_id = static_cast<wmDragID *>(drag->ids.first);
+  const bool dragging_collection = (GS(drag_id->id->name) == ID_GR);
 
   Collection *relative = nullptr;
   bool relative_after = false;
