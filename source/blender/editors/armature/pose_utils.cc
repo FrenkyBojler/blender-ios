@@ -310,7 +310,7 @@ static void get_pose_bones_for_slide(bContext *C, ListBaseT<SlideSubject> &slide
 static void get_objects_for_slide(bContext *C, ListBaseT<SlideSubject> &slider_data)
 {
   CTX_DATA_BEGIN (C, Object *, ob, selected_objects) {
-    PointerRNA object_ptr = RNA_pointer_create_discrete(&ob->id, RNA_Object, &ob);
+    PointerRNA object_ptr = RNA_pointer_create_discrete(&ob->id, RNA_Object, ob);
 
     Vector<FCurve *> curves;
     const eAction_TransformFlags transFlags = get_item_transform_flags_and_fcurves(
@@ -336,8 +336,30 @@ static void get_objects_for_slide(bContext *C, ListBaseT<SlideSubject> &slider_d
     slide_subject->old_rot = transformable->get_rotation();
     slide_subject->old_scale = transformable->get_property(
         ed::AnimTransformable::PropertyType::SCALE);
-
     slide_subject->ptr = object_ptr;
+
+    if (transFlags & ACT_TRANS_PROP) {
+      if (ob->id.properties) {
+        for (const IDProperty &id_prop : ob->id.properties->data.group) {
+          if (ELEM(id_prop.type, IDP_STRING, IDP_ID, IDP_IDPARRAY)) {
+            continue;
+          }
+          char name_escaped[MAX_IDPROP_NAME * 2];
+          BLI_str_escape(name_escaped, id_prop.name, sizeof(name_escaped));
+          std::string property_name_with_brackets = fmt::format("[\"{}\"]", name_escaped);
+          store_property_snapshot(
+              object_ptr, property_name_with_brackets, slide_subject->properties);
+        }
+      }
+      if (ob->id.system_properties) {
+        for (const IDProperty &id_prop : ob->id.system_properties->data.group) {
+          if (ELEM(id_prop.type, IDP_STRING, IDP_ID, IDP_IDPARRAY)) {
+            continue;
+          }
+          store_property_snapshot(object_ptr, id_prop.name, slide_subject->system_properties);
+        }
+      }
+    }
   }
   CTX_DATA_END;
 }
@@ -432,19 +454,9 @@ void slide_subjects_reset(ListBaseT<SlideSubject> *slide_subjects)
   }
 }
 
-static void add_resolved_rna_paths(const PointerRNA &ptr,
-                                   const Span<PropertySnapshot> properties,
-                                   Vector<RNAPath> &paths)
-{
-  for (const PropertySnapshot &snapshot : properties) {
-    paths.append({RNA_property_identifier(snapshot.property)});
-  }
-}
-
 void slide_subjects_autokey(bContext *C,
                             Scene *scene,
-                            const ListBaseT<SlideSubject> *slide_subjects,
-                            const float cframe)
+                            const ListBaseT<SlideSubject> *slide_subjects)
 {
   /* Insert keyframes as necessary if auto-key-framing. */
   for (SlideSubject &slide_subject : *slide_subjects) {
@@ -462,7 +474,10 @@ void slide_subjects_autokey(bContext *C,
       paths.append({RNA_property_identifier(snapshot.property)});
     }
     for (const PropertySnapshot &snapshot : slide_subject.properties) {
-      paths.append({RNA_property_identifier(snapshot.property)});
+      char name_escaped[MAX_IDPROP_NAME * 2];
+      BLI_str_escape(
+          name_escaped, RNA_property_identifier(snapshot.property), sizeof(name_escaped));
+      paths.append({fmt::format("[\"{}\"]", name_escaped)});
     }
     for (const PropertySnapshot &snapshot : slide_subject.system_properties) {
       paths.append({RNA_property_identifier(snapshot.property)});
@@ -489,11 +504,13 @@ void slide_subjects_autokey(bContext *C,
       continue;
     }
     Object *ob = id_cast<Object *>(owner_id);
+    if (ob->mpath) {
+      /* TODO recalculate object paths. */
+    }
     if (ob->pose && (ob->pose->avs.path_bakeflag & MOTIONPATH_BAKE_HAS_PATHS)) {
       /* TODO(sergey): Should ensure we can use more narrow update range here. */
       ED_pose_recalculate_paths(C, scene, ob, ANIMVIZ_CALC_RANGE_FULL);
     }
-    /* TODO recalculate object paths. */
   }
 }
 

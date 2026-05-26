@@ -708,7 +708,7 @@ static void pose_slide_apply(bContext *C, tPoseSlideOp *pso)
 static void pose_slide_autoKeyframe(bContext *C, tPoseSlideOp *pso)
 {
   /* Wrapper around the generic call. */
-  slide_subjects_autokey(C, pso->scene, &pso->slide_subjects, float(pso->current_frame));
+  slide_subjects_autokey(C, pso->scene, &pso->slide_subjects);
 }
 
 /**
