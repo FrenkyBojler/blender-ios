@@ -318,7 +318,7 @@ static void get_objects_for_slide(bContext *C, ListBaseT<SlideSubject> &slider_d
         ob->id, object_ptr, curves);
 
     if (!transFlags) {
-      return;
+      continue;
     }
 
     SlideSubject *slide_subject = MEM_new<SlideSubject>("TransformableFCurveLink");
