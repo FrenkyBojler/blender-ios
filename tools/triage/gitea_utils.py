@@ -207,11 +207,11 @@ def gitea_json_issue_events_filter(
         if date_start:
             if date_start.tzinfo is None:
                 date_start = date_start.replace(tzinfo=ZoneInfo("UTC"))
-            query_params["since"] = f"{date_start.isoformat()}"
+            query_params["since"] = date_start.isoformat()
         if date_end:
             if date_end.tzinfo is None:
                 date_end = date_end.replace(tzinfo=ZoneInfo("UTC"))
-            query_params["before"] = f"{date_end.isoformat()}"
+            query_params["before"] = date_end.isoformat()
 
         encoded_query_params = urllib.parse.urlencode(query_params)
         issue_events_url = f"{issue_events_url}?{encoded_query_params}"
