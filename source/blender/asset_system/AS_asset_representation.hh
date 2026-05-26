@@ -228,7 +228,7 @@ class AssetRepresentation : NonCopyable, NonMovable {
    * Store the remote listing's online info on an on-disk asset so it can be re-downloaded.
    * Replaces any previously set online info.
    */
-  void set_online_info(OnlineAssetInfo info);
+  void online_info_set(OnlineAssetInfo info);
 
   /**
    * Return whether this asset requires (re-)downloading before it can be used.

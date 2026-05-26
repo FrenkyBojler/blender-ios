@@ -307,7 +307,7 @@ AssetFileStatus AssetRepresentation::file_status() const
   return extern_asset->file_status_;
 }
 
-void AssetRepresentation::set_online_info(OnlineAssetInfo info)
+void AssetRepresentation::online_info_set(OnlineAssetInfo info)
 {
   ExternalAsset *extern_asset = std::get_if<ExternalAsset>(&asset_);
   if (!extern_asset) {
