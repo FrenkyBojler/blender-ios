@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "infos/eevee_lightprobe_volume_infos.hh"
+#include "infos/eevee_common_infos.hh"
 
 SHADER_LIBRARY_CREATE_INFO(eevee_global_ubo)
 
@@ -79,10 +79,8 @@ struct LoadGrid {
 void load_grid([[resource_table]] const LoadGrid &srt,
                [[resource_table]] const LightprobeVolumeRenderData &lvd,
                [[resource_table]] AtlasStore &atlas,
-               [[global_invocation_id]] const uint3 global_id,
                [[work_group_id]] const uint3 group_id,
-               [[local_invocation_id]] const uint3 local_id,
-               [[local_invocation_index]] const uint local_index)
+               [[local_invocation_id]] const uint3 local_id)
 {
   int brick_index = lightprobe::volume::grid_brick_index_get(lvd.grids_infos_buf[srt.grid_index],
                                                              int3(group_id));
@@ -223,9 +221,7 @@ struct LoadWorld {
 void load_world([[resource_table]] const LoadWorld &srt,
                 [[resource_table]] const LightprobeVolumeRenderData &lvd,
                 [[resource_table]] AtlasStore &atlas,
-                [[global_invocation_id]] const uint3 global_id,
-                [[local_invocation_id]] const uint3 local_id,
-                [[local_invocation_index]] const uint local_index)
+                [[local_invocation_id]] const uint3 local_id)
 {
   int brick_index = lvd.grids_infos_buf[srt.grid_index].brick_offset;
 
