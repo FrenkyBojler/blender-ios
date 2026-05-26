@@ -185,7 +185,7 @@ static void init_text_effect(Strip *strip)
   data->text_size = 60.0f;
   data->space_line = 1.0f;
   data->abs_space_line = 60.0f;
-   /* Keep in sync with `data->text_size` at init. */
+  /* Keep in sync with `data->text_size` at init. */
 
   copy_v4_fl(data->color, 1.0f);
   data->shadow_color[3] = 0.7f;
@@ -934,8 +934,8 @@ static void apply_word_wrapping(const TextVars *data,
 
     if (character.do_wrap) {
       const int line_spacing = (data->flag & SEQ_TEXT_USE_ABSOLUTE_LINE_SPACING) ?
-                             data->abs_space_line :
-                             runtime->line_height * data->space_line;
+                                   data->abs_space_line :
+                                   runtime->line_height * data->space_line;
       runtime->lines.append(LineInfo());
       cur_pixel_pos.x = 0;
       cur_pixel_pos.y -= line_spacing;
@@ -1004,10 +1004,9 @@ static void calc_boundbox(const TextVars *data, TextVarsRuntime *runtime, const 
   /* `BLF_bounds_max()` is used, because some fonts have glyphs overlapping with lines above. */
   rctf glyph_bounds_max;
   BLF_bounds_max(runtime->font, &glyph_bounds_max);
-  const int line_spacing =
-    (data->flag & SEQ_TEXT_USE_ABSOLUTE_LINE_SPACING) ?
-        data->abs_space_line :
-        runtime->line_height * data->space_line;
+  const int line_spacing = (data->flag & SEQ_TEXT_USE_ABSOLUTE_LINE_SPACING) ?
+                               data->abs_space_line :
+                               runtime->line_height * data->space_line;
   const int text_height = (runtime->lines.size() - 1) * line_spacing +
                           math::ceil(BLI_rctf_size_y(&glyph_bounds_max));
 
@@ -1035,10 +1034,9 @@ static void apply_text_alignment(const TextVars *data,
   rctf glyph_bounds_max;
   BLF_bounds_max(runtime->font, &glyph_bounds_max);
   const int line_spacing = (data->flag & SEQ_TEXT_USE_ABSOLUTE_LINE_SPACING) ?
-                                  data->abs_space_line :
-                                  runtime->line_height * data->space_line;
-  const int box_height = (runtime->lines.size() - 1) *
-                             line_spacing +
+                               data->abs_space_line :
+                               runtime->line_height * data->space_line;
+  const int box_height = (runtime->lines.size() - 1) * line_spacing +
                          math::ceil(BLI_rctf_size_y(&glyph_bounds_max));
 
   const float2 image_center{data->loc[0] * image_size.x, data->loc[1] * image_size.y};

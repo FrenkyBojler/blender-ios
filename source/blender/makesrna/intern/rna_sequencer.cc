@@ -3935,7 +3935,9 @@ static void rna_def_text(StructRNA *srna)
   prop = RNA_def_property(srna, "use_absolute_line_spacing", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", SEQ_TEXT_USE_ABSOLUTE_LINE_SPACING);
   RNA_def_property_ui_text(
-      prop, "Absolute Line Spacing", "Define spacing using pixel values instead of relative scaling based on font size");
+      prop,
+      "Absolute Line Spacing",
+      "Define spacing using pixel values instead of relative scaling based on font size");
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
 
   prop = RNA_def_property(srna, "color", PROP_FLOAT, PROP_COLOR_GAMMA);
