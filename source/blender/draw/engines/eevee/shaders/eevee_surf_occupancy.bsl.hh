@@ -34,18 +34,18 @@
 #include "infos/eevee_geom_infos.hh"
 #include "infos/eevee_nodetree_infos.hh"
 
-FRAGMENT_SHADER_CREATE_INFO(eevee_geom_mesh)
+FRAGMENT_SHADER_CREATE_INFO(eevee_geom_iface_info)
 FRAGMENT_SHADER_CREATE_INFO(eevee_nodetree)
 
 #include "eevee_occupancy_lib.bsl.hh"
-#include "eevee_sampling_lib.glsl"
+#include "eevee_sampling_lib.bsl.hh"
 #include "eevee_volume_lib.bsl.hh"
 
 namespace eevee {
 
 struct SurfOccupancy {
   [[legacy_info]] ShaderCreateInfo eevee_global_ubo;
-  [[legacy_info]] ShaderCreateInfo eevee_sampling_data;
+  [[legacy_info]] ShaderCreateInfo eevee_geom_iface_info;
 
   [[image(VOLUME_HIT_DEPTH_SLOT, write, SFLOAT_32)]] image3D hit_depth_img;
   [[image(VOLUME_HIT_COUNT_SLOT, read_write, UINT_32)]] uimage2DAtomic hit_count_img;
@@ -57,12 +57,15 @@ struct SurfOccupancy {
 /* Note: All fragments need to be invoked even if we write to the depth buffer.
  * So not early fragment tests. */
 [[fragment]] [[texture_atomic]]
-void surf_occupancy([[resource_table]] SurfOccupancy &srt, [[frag_coord]] const float4 &frag_co)
+void surf_occupancy([[resource_table]] SurfOccupancy &srt,
+                    [[resource_table]] const Sampling &sampling,
+                    [[front_facing]] const bool front_facing,
+                    [[frag_coord]] const float4 frag_co)
 {
   int2 texel = int2(frag_co.xy);
   float vPz = dot(drw_view_forward(), interp.P) - dot(drw_view_forward(), drw_view_position());
 
-  float offset = sampling_rng_1D_get(SAMPLING_VOLUME_W);
+  float offset = sampling.rng_1D_get(SAMPLING_VOLUME_W);
   float jitter = volume_froxel_jitter(texel, offset) * uniform_buf.volumes.inv_tex_size.z;
   float volume_z = view_z_to_volume_z(vPz) + jitter;
 
@@ -83,7 +86,7 @@ void surf_occupancy([[resource_table]] SurfOccupancy &srt, [[frag_coord]] const 
     if (volume_z > 0.0f) {
       uint hit_id = imageAtomicAdd(srt.hit_count_img, texel, 1u);
       if (hit_id < VOLUME_HIT_DEPTH_MAX) {
-        float value = gl_FrontFacing ? volume_z : -volume_z;
+        float value = front_facing ? volume_z : -volume_z;
         imageStore(srt.hit_depth_img, int3(texel, int(hit_id)), float4(value));
       }
     }

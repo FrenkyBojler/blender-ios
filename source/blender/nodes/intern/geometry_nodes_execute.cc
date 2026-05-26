@@ -31,6 +31,7 @@
 #include "BKE_node_enum.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_node_socket_value.hh"
+#include "BKE_node_socket_value_iter.hh"
 
 #include "FN_lazy_function_execute.hh"
 
@@ -65,11 +66,10 @@ bool input_has_attribute_toggle(const bNodeTree &node_tree, const int socket_ind
   if (!typeinfo || !socket_type_has_attribute_toggle(typeinfo->type)) {
     return false;
   }
-
-  BLI_assert(node_tree.runtime->field_inferencing_interface);
-  const FieldInferencingInterface &field_interface =
-      *node_tree.runtime->field_inferencing_interface;
-  return field_interface.inputs[socket_index] != InputSocketFieldType::None;
+  BLI_assert(node_tree.runtime->structure_type_interface);
+  const StructureType structure_type =
+      node_tree.runtime->structure_type_interface->inputs[socket_index];
+  return ELEM(structure_type, StructureType::Field, StructureType::Dynamic);
 }
 
 template<typename T>
@@ -413,6 +413,22 @@ static Vector<OutputAttributeToStore> compute_attributes_to_store(
   return attributes_to_store;
 }
 
+static void remove_anonymous_attributes(bke::GeometrySet &geometry)
+{
+  using namespace bke::socket_value_visitor;
+  auto has_anonymous_attributes = [&](const bke::AttributeAccessor &attributes) {
+    return attributes.has_anonymous();
+  };
+  auto remove_anonymous_attributes = [&](bke::MutableAttributeAccessor &attributes) {
+    attributes.remove_anonymous();
+  };
+
+  VisitParams params;
+  params.check_AttributeAccessor = has_anonymous_attributes;
+  params.edit_AttributeAccessor = remove_anonymous_attributes;
+  edit_recursive(geometry, params);
+}
+
 static void store_computed_output_attributes(
     bke::GeometrySet &geometry, const Span<OutputAttributeToStore> attributes_to_store)
 {
@@ -609,6 +625,10 @@ bke::GeometrySet execute_geometry_nodes_on_geometry(const bNodeTree &btree,
      * unnecessary copy can be avoided. See #GeometryOwnershipType::Editable. */
     output_geometry.bundle_for_write().ensure_owns_direct_data();
   }
+
+  /* Remove anonymous attributes because their lifetimes can't be tracked reliably outside of
+   * Geometry Nodes. */
+  remove_anonymous_attributes(output_geometry);
   return output_geometry;
 }
 
