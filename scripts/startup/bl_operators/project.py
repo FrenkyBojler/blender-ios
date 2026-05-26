@@ -33,7 +33,6 @@ PROJECT_DEFAULT_NAME = "Untitled Project"
 #
 # Types that define the schema for reading/writing project config TOML files.
 
-
 class VariableType(Enum):
     INTEGER = 'INTEGER'
     FLOAT = 'FLOAT'
