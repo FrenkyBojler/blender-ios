@@ -1459,7 +1459,7 @@ void panel_category_tabs_draw_all(const bContext *C,
                        (BLI_rcti_size_y(&region->v2d.mask) + 1);
   const float zoom = 1.0f / aspect;
   const int px = U.pixelsize;
-  const int category_tabs_width = round_fl_to_int(UI_PANEL_CATEGORY_MARGIN_WIDTH * zoom);
+  const int category_tabs_width = std::round(UI_PANEL_CATEGORY_MARGIN_WIDTH * zoom);
   const float dpi_fac = UI_SCALE_FAC;
   /* Padding of tabs around text. */
   const int tab_v_pad_text = round_fl_to_int(TABS_PADDING_TEXT_FACTOR * dpi_fac * zoom) + 2 * px;
@@ -1513,15 +1513,16 @@ void panel_category_tabs_draw_all(const bContext *C,
                           int(UI_PANEL_CATEGORY_MIN_WIDTH * UI_SCALE_FAC / aspect);
 
   /* Same for all tabs. */
-  /* Intentionally don't scale by 'px'. */
-  const int rct_xmin = is_left ? v2d->mask.xmin + 3 : (v2d->mask.xmax - category_tabs_width);
-  const int rct_xmax = is_left ? v2d->mask.xmin + category_tabs_width : (v2d->mask.xmax - 3);
+  const int rct_xmin = is_left ? (v2d->mask.xmin + std::round(3 * px * zoom)) :
+                                 (v2d->mask.xmax - category_tabs_width + std::round(px));
+  const int rct_xmax = is_left ? (v2d->mask.xmin + category_tabs_width) :
+                                 (v2d->mask.xmax - std::round(2 * px * zoom));
   /* NOTE: This block is created in window coordinates. */
   Block *block = block_begin(C, region, "panel_category_tabs", EmbossType::Emboss);
   Layout &layout = block_layout(block,
                                 LayoutDirection::Vertical,
                                 LayoutType::VerticalBar,
-                                rct_xmin + std::round((is_left ? -1 : 1) * zoom),
+                                rct_xmin,
                                 v2d->mask.ymax,
                                 category_tabs_width,
                                 0,
@@ -1551,8 +1552,7 @@ void panel_category_tabs_draw_all(const bContext *C,
         compact ? 10.5 * UI_SCALE_FAC * zoom :
                   BLF_width(fontid, category_id_draw, BLF_DRAW_STR_DUMMY_MAX));
 
-    /* Round width to upper even number. */
-    const int w = (rct_xmax - rct_xmin) + ((rct_xmax - rct_xmin) & 1);
+    const int w = (rct_xmax - rct_xmin);
     const int h = category_width + tab_v_pad_text * 2;
 
     if (compact && pc_dyn.icon != ICON_NONE) {
