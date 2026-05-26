@@ -93,31 +93,36 @@ template<typename T> class DataBlockNameFunction : public mf::MultiFunction {
     MutableSpan<std::string> library_names =
         params.uninitialized_single_output_if_required<std::string>(2, "Library Name");
 
-    const bool socket_used = !library_names.is_empty();
-
     mask.foreach_index_optimized<int64_t>([&](const int64_t i) {
       const T *data_block = data_blocks[i];
 
       if (data_block == nullptr) {
         new (&names[i]) std::string("");
-        if (socket_used) {
-          new (&library_names[i]) std::string("");
-        }
         return;
       }
 
       const ID *id = id_cast<const ID *>(data_block);
       new (&names[i]) std::string(BKE_id_name(*id));
+    });
 
-      if (socket_used) {
+    if (!library_names.is_empty()) {
+      mask.foreach_index_optimized<int64_t>([&](const int64_t i) {
+        const T *data_block = data_blocks[i];
+
+        if (data_block == nullptr) {
+          new (&library_names[i]) std::string("");
+          return;
+        }
+
+        const ID *id = id_cast<const ID *>(data_block);
         if (id->lib == nullptr) {
           new (&library_names[i]) std::string("");
         }
         else {
           new (&library_names[i]) std::string(BKE_id_name(id->lib->id));
         }
-      }
-    });
+      });
+    }
   }
 };
 
