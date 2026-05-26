@@ -218,18 +218,18 @@ def copy_bone_properties(obj: ArmatureObject, bone_name_1: str, bone_name_2: str
                 'bbone_easein', 'bbone_easeout',
                 'bbone_rollin', 'bbone_rollout',
                 'bbone_scalein', 'bbone_scaleout',
-                ]
+            ]
 
             bbone_bone_properties = [
                 'bbone_segments', 'bbone_mapping_mode', 'use_endroll_as_inroll', 'use_scale_easing',
                 'bbone_x', 'bbone_z',
                 'bbone_custom_handle_start', 'bbone_custom_handle_end',
-                ]
-            
+            ]
+
             for name in bbone_shared_properties:
                 setattr(bone_2, name, getattr(bone_1, name))
                 setattr(pose_bone_2, name, getattr(pose_bone_1, name))
-                
+
             for name in bbone_bone_properties:
                 setattr(bone_2, name, getattr(bone_1, name))
 
@@ -328,7 +328,7 @@ def put_bone(obj: ArmatureObject, bone_name: str, pos: Optional[Vector], *,
 
 def disable_bbones(obj: ArmatureObject, bone_names: Iterable[str]):
     """Disables B-Bone segments on the specified bones."""
-    assert(obj.mode != 'EDIT')
+    assert (obj.mode != 'EDIT')
     for bone in bone_names:
         obj.data.bones[bone].bbone_segments = 1
 
@@ -691,7 +691,7 @@ def compute_chain_x_axis(obj: ArmatureObject, bone_names: list[str]):
     """
     eb = obj.data.edit_bones
 
-    assert(len(bone_names) > 1)
+    assert (len(bone_names) > 1)
     first_bone = eb[bone_names[0]]
     last_bone = eb[bone_names[-1]]
 
