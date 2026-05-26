@@ -1583,13 +1583,14 @@ struct ShaderCreateInfo {
 
   std::string resource_guard_defines(Span<CompilationConstant> constants) const;
 
-  void extend_predicate(Vector<Resource, 0> &resource_vector,
-                        ShaderCreateInfo::Resource res_copy,
-                        Span<ConditionFn> additional_conditions) const;
-  void assert_no_overlap(const ShaderCreateInfo &info,
-                         const bool test,
-                         const StringRefNull error) const;
-  void set_resource_slot(Resource &res, int &images, int &samplers, int &ubos, int &ssbos) const;
+  static void extend_predicate(Vector<Resource, 0> &resource_vector,
+                               ShaderCreateInfo::Resource res_copy,
+                               Span<ConditionFn> additional_conditions);
+  static void assert_no_overlap(const ShaderCreateInfo &info,
+                                const ShaderCreateInfo &dep,
+                                const bool test,
+                                const StringRefNull error);
+  static void set_resource_slot(Resource &res, int &images, int &samplers, int &ubos, int &ssbos);
   std::string check_error() const;
   bool is_vulkan_compatible() const;
 

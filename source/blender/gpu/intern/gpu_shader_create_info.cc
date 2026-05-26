@@ -145,155 +145,198 @@ void ShaderCreateInfo::finalize(const bool recursive)
   if (finalized_) {
     return;
   }
+
   finalized_ = true;
 
-  auto deps_merged = std::make_unique<Set<StringRefNull>>();
+  /* Define a stack frame to track the state of each node traversal. */
+  struct StackFrame {
+    ShaderCreateInfo *info;
+    size_t child_idx;
+    std::unique_ptr<Set<StringRefNull>> deps_merged;
+  };
 
+  std::vector<StackFrame> stack;
+  /* Initialize the root node frame */
+  stack.push_back({this, 0, std::make_unique<Set<StringRefNull>>()});
   validate_vertex_attributes();
 
-  for (const auto &additional_info : additional_infos_) {
+  while (!stack.empty()) {
+    /* Safely look up index and pointer to avoid referencing issues during vector resizing. */
+    const size_t top_idx = stack.size() - 1;
+    ShaderCreateInfo &node = *stack[top_idx].info;
+    const size_t child_idx = stack[top_idx].child_idx;
 
-    /* Fetch create info. */
-    const ShaderCreateInfo &info = *reinterpret_cast<const ShaderCreateInfo *>(
-        gpu_shader_create_info_get(additional_info.name.c_str()));
+    /*  Processing dependencies. */
+    if (child_idx < node.additional_infos_.size()) {
+      const auto &additional_info = node.additional_infos_[child_idx];
 
-    if (recursive) {
-      const_cast<ShaderCreateInfo &>(info).finalize(recursive);
-    }
-    else {
-      BLI_assert(info.finalized_);
-    }
+      /* Fetch create info. */
+      const ShaderCreateInfo &info_const = *reinterpret_cast<const ShaderCreateInfo *>(
+          gpu_shader_create_info_get(additional_info.name.c_str()));
+      /* We need to tag the info as finalized. */
+      ShaderCreateInfo &dep = const_cast<ShaderCreateInfo &>(info_const);
 
-    interface_names_size_ += info.interface_names_size_;
+      /* Recursive finalize is only supported at startup. We expect any runtime shader compilation
+       * to only finalize one level. */
+      BLI_assert(recursive || dep.finalized_);
 
-    /* NOTE: EEVEE Materials can result in nested includes. To avoid duplicate
-     * shader resources, we need to avoid inserting duplicates.
-     * TODO: Optimize create info preparation to include each individual "additional_info"
-     * only a single time. */
-    vertex_inputs_.extend_non_duplicates(info.vertex_inputs_);
-    fragment_outputs_.extend_non_duplicates(info.fragment_outputs_);
-    vertex_out_interfaces_.extend_non_duplicates(info.vertex_out_interfaces_);
-    geometry_out_interfaces_.extend_non_duplicates(info.geometry_out_interfaces_);
-    subpass_inputs_.extend_non_duplicates(info.subpass_inputs_);
-    specialization_constants_.extend_non_duplicates(info.specialization_constants_);
-    compilation_constants_.extend_non_duplicates(info.compilation_constants_);
+      if (!dep.finalized_) {
+        /* Emulate the recursive call: Prepare the dependency, push to stack,
+         * and defer merging until the dep is fully finalized. */
+        dep.finalized_ = true;
+        dep.validate_vertex_attributes();
+        stack.push_back({&dep, 0, std::make_unique<Set<StringRefNull>>()});
+        continue;
+      }
 
-    shared_variables_.extend(info.shared_variables_);
+      node.interface_names_size_ += dep.interface_names_size_;
 
-    validate_vertex_attributes(&info);
+      /* NOTE: EEVEE Materials can result in nested includes. To avoid duplicate
+       * shader resources, we need to avoid inserting duplicates.
+       * TODO: Optimize create info preparation to include each individual "additional_info"
+       * only a single time. */
+      node.vertex_inputs_.extend_non_duplicates(dep.vertex_inputs_);
+      node.fragment_outputs_.extend_non_duplicates(dep.fragment_outputs_);
+      node.vertex_out_interfaces_.extend_non_duplicates(dep.vertex_out_interfaces_);
+      node.geometry_out_interfaces_.extend_non_duplicates(dep.geometry_out_interfaces_);
+      node.subpass_inputs_.extend_non_duplicates(dep.subpass_inputs_);
+      node.specialization_constants_.extend_non_duplicates(dep.specialization_constants_);
+      node.compilation_constants_.extend_non_duplicates(dep.compilation_constants_);
 
-    /* Insert with duplicate check. */
-    push_constants_.extend_non_duplicates(info.push_constants_);
-    defines_.extend_non_duplicates(info.defines_);
-    typedef_sources_.extend_non_duplicates(info.typedef_sources_);
+      node.shared_variables_.extend(dep.shared_variables_);
 
-    for (const auto &res : info.pass_resources_) {
-      extend_predicate(pass_resources_, res, additional_info.conditions);
-    }
-    for (const auto &res : info.batch_resources_) {
-      extend_predicate(batch_resources_, res, additional_info.conditions);
-    }
-    for (const auto &res : info.geometry_resources_) {
-      extend_predicate(geometry_resources_, res, additional_info.conditions);
-    }
+      validate_vertex_attributes(&dep);
 
-    /* API-specific parameters.
-     * We will only copy API-specific parameters if they are otherwise unassigned. */
+      /* Insert with duplicate check. */
+      node.push_constants_.extend_non_duplicates(dep.push_constants_);
+      node.defines_.extend_non_duplicates(dep.defines_);
+      node.typedef_sources_.extend_non_duplicates(dep.typedef_sources_);
+
+      for (const auto &res : dep.pass_resources_) {
+        extend_predicate(node.pass_resources_, res, additional_info.conditions);
+      }
+      for (const auto &res : dep.batch_resources_) {
+        extend_predicate(node.batch_resources_, res, additional_info.conditions);
+      }
+      for (const auto &res : dep.geometry_resources_) {
+        extend_predicate(node.geometry_resources_, res, additional_info.conditions);
+      }
+
+      /* API-specific parameters.
+       * We will only copy API-specific parameters if they are otherwise unassigned. */
 #ifdef WITH_METAL_BACKEND
-    if (mtl_max_threads_per_threadgroup_ == 0) {
-      mtl_max_threads_per_threadgroup_ = info.mtl_max_threads_per_threadgroup_;
-    }
+      if (mtl_max_threads_per_threadgroup_ == 0) {
+        node.mtl_max_threads_per_threadgroup_ = dep.mtl_max_threads_per_threadgroup_;
+      }
 #endif
 
-    if (info.early_fragment_test_) {
-      early_fragment_test_ = true;
-      depth_write_ = DepthWrite::UNCHANGED;
-    }
-    /* Modify depth write if has been changed from default.
-     * `UNCHANGED` implies gl_FragDepth is not used at all. */
-    if (info.depth_write_ != DepthWrite::UNCHANGED) {
-      depth_write_ = info.depth_write_;
+      if (dep.early_fragment_test_) {
+        node.early_fragment_test_ = true;
+        node.depth_write_ = DepthWrite::UNCHANGED;
+      }
+      /* Modify depth write if has been changed from default.
+       * `UNCHANGED` implies gl_FragDepth is not used at all. */
+      if (dep.depth_write_ != DepthWrite::UNCHANGED) {
+        node.depth_write_ = dep.depth_write_;
+      }
+
+      /* Inherit builtin bits from additional info. */
+      node.builtins_ |= dep.builtins_;
+
+      /* TODO(fclem): We need to reintroduce this check before compiling.
+       * The issue is that the new SRT paradigm allows for conflicting resources if they are not
+       * defined at the same time (using compilation constants). */
+      // validate_merge(info);
+
+      if (!stack[top_idx].deps_merged->add(dep.name_)) {
+        assert_no_overlap(node, dep, false, "additional info already merged via another info");
+      }
+
+      if (dep.compute_layout_.local_size_x != -1) {
+        assert_no_overlap(
+            node, dep, compute_layout_.local_size_x == -1, "Compute layout already defined");
+        node.compute_layout_ = dep.compute_layout_;
+      }
+
+      if (!dep.vertex_source_.is_empty()) {
+        assert_no_overlap(node, dep, vertex_source_.is_empty(), "Vertex source already existing");
+        node.vertex_source_ = dep.vertex_source_;
+      }
+      if (!dep.geometry_source_.is_empty()) {
+        assert_no_overlap(
+            node, dep, geometry_source_.is_empty(), "Geometry source already existing");
+        node.geometry_source_ = dep.geometry_source_;
+        node.geometry_layout_ = dep.geometry_layout_;
+      }
+      if (!dep.fragment_source_.is_empty()) {
+        assert_no_overlap(
+            node, dep, fragment_source_.is_empty(), "Fragment source already existing");
+        node.fragment_source_ = dep.fragment_source_;
+      }
+      if (!dep.compute_source_.is_empty()) {
+        assert_no_overlap(
+            node, dep, compute_source_.is_empty(), "Compute source already existing");
+        node.compute_source_ = dep.compute_source_;
+      }
+
+      if (dep.vertex_entry_fn_ != "main") {
+        assert_no_overlap(
+            node, dep, vertex_entry_fn_ == "main", "Vertex function already existing");
+        node.vertex_entry_fn_ = dep.vertex_entry_fn_;
+      }
+      if (dep.geometry_entry_fn_ != "main") {
+        assert_no_overlap(
+            node, dep, geometry_entry_fn_ == "main", "Geometry function already existing");
+        node.geometry_entry_fn_ = dep.geometry_entry_fn_;
+      }
+      if (dep.fragment_entry_fn_ != "main") {
+        assert_no_overlap(
+            node, dep, fragment_entry_fn_ == "main", "Fragment function already existing");
+        node.fragment_entry_fn_ = dep.fragment_entry_fn_;
+      }
+      if (dep.compute_entry_fn_ != "main") {
+        assert_no_overlap(
+            node, dep, compute_entry_fn_ == "main", "Compute function already existing");
+        node.compute_entry_fn_ = dep.compute_entry_fn_;
+      }
+
+      /* Progress to the next dependency for this node. */
+      stack[top_idx].child_idx++;
+      continue;
     }
 
-    /* Inherit builtin bits from additional info. */
-    builtins_ |= info.builtins_;
+    /* Executed once all dependencies are processed  */
 
-    /* TODO(fclem): We need to reintroduce this check before compiling.
-     * The issue is that the new SRT paradigm allows for conflicting resources if they are not
-     * defined at the same time (using compilation constants). */
-    // validate_merge(info);
-
-    if (!deps_merged->add(info.name_)) {
-      assert_no_overlap(info, false, "additional info already merged via another info");
+    if (!geometry_source_.is_empty() && bool(builtins_ & BuiltinBits::LAYER)) {
+      std::cout
+          << name_
+          << ": Validation failed. BuiltinBits::LAYER shouldn't be used with geometry shaders."
+          << std::endl;
+      BLI_assert(0);
     }
 
-    if (info.compute_layout_.local_size_x != -1) {
-      assert_no_overlap(
-          info, compute_layout_.local_size_x == -1, "Compute layout already defined");
-      compute_layout_ = info.compute_layout_;
+    if (auto_resource_location_) {
+      int images = 0, samplers = 0, ubos = 0, ssbos = 0;
+
+      for (auto &res : batch_resources_) {
+        set_resource_slot(res, images, samplers, ubos, ssbos);
+      }
+      for (auto &res : pass_resources_) {
+        set_resource_slot(res, images, samplers, ubos, ssbos);
+      }
+      for (auto &res : geometry_resources_) {
+        set_resource_slot(res, images, samplers, ubos, ssbos);
+      }
     }
 
-    if (!info.vertex_source_.is_empty()) {
-      assert_no_overlap(info, vertex_source_.is_empty(), "Vertex source already existing");
-      vertex_source_ = info.vertex_source_;
-    }
-    if (!info.geometry_source_.is_empty()) {
-      assert_no_overlap(info, geometry_source_.is_empty(), "Geometry source already existing");
-      geometry_source_ = info.geometry_source_;
-      geometry_layout_ = info.geometry_layout_;
-    }
-    if (!info.fragment_source_.is_empty()) {
-      assert_no_overlap(info, fragment_source_.is_empty(), "Fragment source already existing");
-      fragment_source_ = info.fragment_source_;
-    }
-    if (!info.compute_source_.is_empty()) {
-      assert_no_overlap(info, compute_source_.is_empty(), "Compute source already existing");
-      compute_source_ = info.compute_source_;
-    }
-
-    if (info.vertex_entry_fn_ != "main") {
-      assert_no_overlap(info, vertex_entry_fn_ == "main", "Vertex function already existing");
-      vertex_entry_fn_ = info.vertex_entry_fn_;
-    }
-    if (info.geometry_entry_fn_ != "main") {
-      assert_no_overlap(info, geometry_entry_fn_ == "main", "Geometry function already existing");
-      geometry_entry_fn_ = info.geometry_entry_fn_;
-    }
-    if (info.fragment_entry_fn_ != "main") {
-      assert_no_overlap(info, fragment_entry_fn_ == "main", "Fragment function already existing");
-      fragment_entry_fn_ = info.fragment_entry_fn_;
-    }
-    if (info.compute_entry_fn_ != "main") {
-      assert_no_overlap(info, compute_entry_fn_ == "main", "Compute function already existing");
-      compute_entry_fn_ = info.compute_entry_fn_;
-    }
-  }
-
-  if (!geometry_source_.is_empty() && bool(builtins_ & BuiltinBits::LAYER)) {
-    std::cout << name_
-              << ": Validation failed. BuiltinBits::LAYER shouldn't be used with geometry shaders."
-              << std::endl;
-    BLI_assert(0);
-  }
-
-  if (auto_resource_location_) {
-    int images = 0, samplers = 0, ubos = 0, ssbos = 0;
-
-    for (auto &res : batch_resources_) {
-      set_resource_slot(res, images, samplers, ubos, ssbos);
-    }
-    for (auto &res : pass_resources_) {
-      set_resource_slot(res, images, samplers, ubos, ssbos);
-    }
-    for (auto &res : geometry_resources_) {
-      set_resource_slot(res, images, samplers, ubos, ssbos);
-    }
+    /* Info complete. Pop it off the stack. */
+    stack.pop_back();
   }
 }
 
 void ShaderCreateInfo::extend_predicate(Vector<Resource, 0> &resource_vector,
                                         ShaderCreateInfo::Resource res_copy,
-                                        Span<ConditionFn> additional_conditions) const
+                                        Span<ConditionFn> additional_conditions)
 {
   res_copy.conditions.extend(additional_conditions);
   /** IMPORTANT: We keep duplicates until we evaluate the conditions. */
@@ -301,18 +344,19 @@ void ShaderCreateInfo::extend_predicate(Vector<Resource, 0> &resource_vector,
 };
 
 void ShaderCreateInfo::assert_no_overlap(const ShaderCreateInfo &info,
+                                         const ShaderCreateInfo &dep,
                                          const bool test,
-                                         const StringRefNull error) const
+                                         const StringRefNull error)
 {
   if (!test) {
-    std::cout << name_ << ": Validation failed while merging " << info.name_ << " : ";
+    std::cout << info.name_ << ": Validation failed while merging " << dep.name_ << " : ";
     std::cout << error << std::endl;
     BLI_assert(0);
   }
 }
 
 void ShaderCreateInfo::set_resource_slot(
-    Resource &res, int &images, int &samplers, int &ubos, int &ssbos) const
+    Resource &res, int &images, int &samplers, int &ubos, int &ssbos)
 {
   switch (res.bind_type) {
     case Resource::BindType::UNIFORM_BUFFER:
