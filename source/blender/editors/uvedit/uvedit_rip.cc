@@ -733,14 +733,12 @@ static bool uv_rip_pairs_calc_center_and_direction(UVRipPairs *rip,
 /**
  * \return true when a change was made.
  */
-static bool uv_rip_object(
-
-    Scene *scene,
-    Object *obedit,
-    const float co[2],
-    const float aspect_y,
-    const bool only_seam,
-    ReportList *reports)
+static bool uv_rip_object(Scene *scene,
+                          Object *obedit,
+                          const float co[2],
+                          const float aspect_y,
+                          const bool only_seam,
+                          ReportList *reports)
 {
   const ToolSettings *ts = scene->toolsettings;
 
@@ -778,10 +776,15 @@ static bool uv_rip_object(
   BM_ITER_MESH (efa, &iter, em->bm, BM_FACES_OF_MESH) {
     if (BM_elem_flag_test(efa, BM_ELEM_TAG)) {
       bool is_all = true;
+      bool has_selected_edge_without_seam = false;
       BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
         if (uvedit_loop_vert_select_get(ts, bm, l)) {
           if (uvedit_loop_edge_select_get(ts, bm, l)) {
             UL(l)->is_select_edge = true;
+
+            if (only_seam && !BM_elem_flag_test(l->e, BM_ELEM_SEAM)) {
+              has_selected_edge_without_seam = true;
+            }
           }
           else if (!uvedit_loop_edge_select_get(ts, bm, l->prev)) {
             /* #bm_loop_uv_select_single_vert_validate validates below. */
@@ -797,7 +800,7 @@ static bool uv_rip_object(
           is_all = false;
         }
       }
-      if (is_all) {
+      if (is_all && has_selected_edge_without_seam) {
         BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
           UL(l)->is_select_all = true;
         }
@@ -817,57 +820,13 @@ static bool uv_rip_object(
     }
   }
 
-  if (only_seam) {
-    blender::VectorSet<BMVert *> seam_verts;
-    Vector<BMFace *> adjacent_faces;
-    BM_ITER_MESH (efa, &iter, em->bm, BM_FACES_OF_MESH) {
-      bool face_has_seam = false;
-      int selected_count = 0;
-      BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
-        if (BM_elem_flag_test(l->e, BM_ELEM_SEAM)) {
-          face_has_seam = true;
-          seam_verts.add(l->e->v1);
-          seam_verts.add(l->e->v2);
-        }
-        if (BM_elem_flag_test(l->e, BM_ELEM_SELECT)) {
-          selected_count++;
-        }
-      }
-      if (face_has_seam && selected_count <= 2) {
-        adjacent_faces.append(efa);
-        BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
-          BMLoop *l_radial = l->radial_next;
-          if (l_radial != l) {
-            adjacent_faces.append(l_radial->f);
-          }
-        }
-      }
-    }
-    for (BMFace *efa : adjacent_faces) {
-      bool all_selected = true;
-      BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
-        if (!BM_elem_flag_test(l->e, BM_ELEM_SELECT)) {
-          all_selected = false;
-          break;
-        }
-      }
-      if (!all_selected) {
-        BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
-          if (seam_verts.contains(l->v)) {
-            uvedit_loop_edge_select_set(ts, bm, l, false);
-            changed = true;
-          }
-        }
-      }
-    }
-  }
   /* Special case: if we have selected faces, isolate them.
    * This isn't a rip, however it's useful for users as a quick way
    * to detach the selection.
    *
    * We could also extract an edge loop from the boundary
    * however in practice it's not that useful, see #78751. */
-  else if (is_select_all_any) {
+  if (is_select_all_any) {
     BM_ITER_MESH (efa, &iter, em->bm, BM_FACES_OF_MESH) {
       BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
         if (!UL(l)->is_select_all) {
@@ -1057,6 +1016,11 @@ void UV_OT_rip(wmOperatorType *ot)
   ed::transform::properties_register(ot, P_MIRROR_DUMMY);
 
   /* properties */
+  RNA_def_boolean(ot->srna,
+                  "only_seam",
+                  false,
+                  "Only Seam",
+                  "Only rip UVs connected to selected edges without a seam");
   RNA_def_float_vector(
       ot->srna,
       "location",
@@ -1068,7 +1032,6 @@ void UV_OT_rip(wmOperatorType *ot)
       "Mouse location in normalized coordinates, 0.0 to 1.0 is within the image bounds",
       -100.0f,
       100.0f);
-  RNA_def_boolean(ot->srna, "only_seam", false, "Only seam", "Only rip seam border edges");
 }
 
 /** \} */
