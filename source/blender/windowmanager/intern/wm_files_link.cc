@@ -876,12 +876,7 @@ void WM_lib_reload(Library *lib, bContext *C, ReportList *reports)
 
   BKE_blendfile_library_relocate(lapp_context, reports, lib, true);
 
-  /* Only finalize if the process actually started, i.e. linked IDs were found.
-   * #BKE_blendfile_library_relocate returns early without advancing the process stage
-   * when no IDs belong to the library, which would cause a debug assert in finalize. */
-  if (lapp_context->process_stage != BlendfileLinkAppendContext::ProcessStage::Init) {
-    BKE_blendfile_link_append_context_finalize(lapp_context);
-  }
+  BKE_blendfile_link_append_context_finalize(lapp_context);
 
   BKE_blendfile_link_append_context_free(lapp_context);
 
@@ -1022,12 +1017,7 @@ static wmOperatorStatus wm_lib_relocate_exec_do(bContext *C, wmOperator *op, boo
 
   BKE_blendfile_library_relocate(lapp_context, op->reports, lib, do_reload);
 
-  /* Only finalize if the process actually started, i.e. linked IDs were found.
-   * #BKE_blendfile_library_relocate returns early without advancing the process stage
-   * when no IDs belong to the library, which would cause a debug assert in finalize. */
-  if (lapp_context->process_stage != BlendfileLinkAppendContext::ProcessStage::Init) {
-    BKE_blendfile_link_append_context_finalize(lapp_context);
-  }
+  BKE_blendfile_link_append_context_finalize(lapp_context);
 
   BKE_blendfile_link_append_context_free(lapp_context);
 

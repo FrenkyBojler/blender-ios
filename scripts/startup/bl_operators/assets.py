@@ -111,6 +111,8 @@ class BlendFileOpenerMixin:
             if bpy.path.abspath(lib.filepath) == abs_filepath
         ]
         for lib in libs_to_reload:
+            if not lib.users_id:
+                continue
             bpy.ops.wm.lib_reload(
                 library=lib.name,
                 filepath=abs_filepath,
