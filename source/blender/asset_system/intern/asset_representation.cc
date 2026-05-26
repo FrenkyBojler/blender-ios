@@ -94,7 +94,7 @@ void AssetRepresentation::ensure_previewable(const bContext &C, ReportList *repo
 
   /* Only use the remote thumbnail when there is no asset file on disk. Otherwise use the on-disk
    * file. */
-  if (this->is_online()) {
+  if (this->is_pure_online()) {
     if (!extern_asset.online_info_->preview_url) {
       return;
     }
@@ -209,7 +209,7 @@ std::optional<int64_t> AssetRepresentation::online_asset_files_combined_size_in_
 
 std::optional<StringRefNull> AssetRepresentation::online_asset_preview_url() const
 {
-  if (!this->is_online()) {
+  if (!this->is_pure_online()) {
     return {};
   }
   std::optional<URLWithHash> &url_with_hash =
@@ -222,7 +222,7 @@ std::optional<StringRefNull> AssetRepresentation::online_asset_preview_url() con
 
 std::optional<StringRefNull> AssetRepresentation::online_asset_preview_hash() const
 {
-  if (!this->is_online()) {
+  if (!this->is_pure_online()) {
     return {};
   }
   std::optional<URLWithHash> &url_with_hash =
@@ -277,7 +277,7 @@ bool AssetRepresentation::is_local_id() const
   return std::holds_alternative<ID *>(asset_);
 }
 
-bool AssetRepresentation::is_online() const
+bool AssetRepresentation::is_pure_online() const
 {
   const ExternalAsset *extern_asset = std::get_if<ExternalAsset>(&asset_);
   if (!extern_asset || !extern_asset->online_info_) {
@@ -332,7 +332,7 @@ void AssetRepresentation::file_status_set(const AssetFileStatus status)
 
 bool AssetRepresentation::needs_download() const
 {
-  return this->is_online() || this->file_status() == AssetFileStatus::NO_MATCH;
+  return this->is_pure_online() || this->file_status() == AssetFileStatus::NO_MATCH;
 }
 
 AssetLibrary &AssetRepresentation::owner_asset_library() const

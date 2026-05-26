@@ -61,10 +61,21 @@ class AssetRepresentation : NonCopyable, NonMovable {
      * Status of this asset's file(s) compared to the remote listing.
      * Only meaningful for assets from a remote library that have been checked against the listing.
      * For online-only assets (#online_info_ is set), the status is stored there instead.
+     *
+     * \see #AssetRepresentation::file_status()
+     * \see #AssetRepresentation::file_status_set()
      */
     AssetFileStatus file_status_ = AssetFileStatus::UNSET;
 
-    /** Set if this is an online asset only. */
+    /**
+     * Set if this is an online asset only.
+     *
+     * Note that this can also be set on online assets when their files have been downloaded
+     * locally. To distinguish between 'pure online' (so no file) and other cases, use the
+     * file_status_ field above.
+     *
+     * \see #AssetRepresentation::is_online()
+     */
     std::unique_ptr<OnlineAssetInfo> online_info_;
   };
   std::variant<ExternalAsset, ID *> asset_;
@@ -204,8 +215,10 @@ class AssetRepresentation : NonCopyable, NonMovable {
    * Regardless of what this function returns, there may be 'online info' (information from a
    * remote asset listing) available, even when the file is on disk and this function returns
    * `false`.
+   *
+   * \see #file_status()
    */
-  bool is_online() const;
+  bool is_pure_online() const;
   /**
    * Returns whether the asset is stored in a probably-editable .asset.blend file.
    *
