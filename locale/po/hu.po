@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 Alpha (b'396b6a98e9f6')\n"
+"Project-Id-Version: Blender 5.2.0 Alpha (b'24a58e1403ac')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-05-04 07:43+0000\n"
+"POT-Creation-Date: 2026-05-25 07:25+0000\n"
 "PO-Revision-Date: 2026-03-19 19:12+0000\n"
 "Last-Translator: Tamás Máté <royalpython132@gmail.com>\n"
 "Language-Team: Hungarian <https://translate.blender.org/projects/blender-ui/ui/hu/>\n"
@@ -669,6 +669,10 @@ msgstr "Copyright"
 
 msgid "Description"
 msgstr "Leírás"
+
+
+msgid "Link"
+msgstr "Linkelés"
 
 
 msgid "Full Path"
@@ -3512,10 +3516,6 @@ msgstr "Hangfájlok mutatása"
 
 msgid "Show text files"
 msgstr "Szövegfájlok mutatása"
-
-
-msgid "Link"
-msgstr "Linkelés"
 
 
 msgid "Matrix"
@@ -6610,22 +6610,6 @@ msgid "Use Material Mask"
 msgstr "Anyagmaszk használata"
 
 
-msgid "Clean Up"
-msgstr "Tisztítás"
-
-
-msgid "Show/Hide"
-msgstr "Mutat/Rejt"
-
-
-msgid "Metaball"
-msgstr "Meta test"
-
-
-msgid "Import"
-msgstr "Importálás"
-
-
 msgid "Mirror"
 msgstr "Tükrözés"
 
@@ -6642,8 +6626,8 @@ msgid "Align View"
 msgstr "Nézet igazítása"
 
 
-msgid "UV"
-msgstr "UV"
+msgid "Metaball"
+msgstr "Meta test"
 
 
 msgid "Light"
@@ -6666,16 +6650,32 @@ msgid "Track"
 msgstr "Nyom"
 
 
+msgid "Import"
+msgstr "Importálás"
+
+
+msgid "Show/Hide"
+msgstr "Mutat/Rejt"
+
+
+msgid "Clean Up"
+msgstr "Tisztítás"
+
+
+msgid "UV"
+msgstr "UV"
+
+
+msgid "Merge"
+msgstr "Összefésülés"
+
+
 msgid "Keying"
 msgstr "Kulcsozás"
 
 
 msgid "Tracking"
 msgstr "Követés"
-
-
-msgid "Merge"
-msgstr "Összefésülés"
 
 
 msgctxt "MovieClip"
@@ -10446,6 +10446,11 @@ msgstr "Ugrás az előző/következő kulcskockára"
 
 
 msgctxt "Operator"
+msgid "Local View"
+msgstr "Helyi nézet"
+
+
+msgctxt "Operator"
 msgid "Shear Keyframes"
 msgstr "Kulcs-képkockák tisztítása"
 
@@ -12453,11 +12458,6 @@ msgid "Fly Navigation"
 msgstr "Repülő navigáció"
 
 
-msgctxt "Operator"
-msgid "Local View"
-msgstr "Helyi nézet"
-
-
 msgid "Toggle display of selected object(s) separately and centered in view"
 msgstr "Csak a kijelölt objektum(ok) megjelenítése, a nézet közepére helyezve"
 
@@ -12784,12 +12784,12 @@ msgid "Detail Size"
 msgstr "Részlet mérete"
 
 
-msgid "Render Pass"
-msgstr "Render vezeték"
-
-
 msgid "Motion Tracking"
 msgstr "Mozgáskövetés"
+
+
+msgid "Render Pass"
+msgstr "Render vezeték"
 
 
 msgid "Chain Scaling"
@@ -16057,6 +16057,11 @@ msgid "Key %d"
 msgstr "Kulcs %d"
 
 
+msgctxt "Key"
+msgid "Key"
+msgstr "Kulcs"
+
+
 msgid "MaskLayer"
 msgstr "Maszk réteg"
 
@@ -16805,11 +16810,6 @@ msgstr "Kapcsolat"
 
 msgid "Image not packed"
 msgstr "Kép nincs csomagolva"
-
-
-msgctxt "Key"
-msgid "Key"
-msgstr "Kulcs"
 
 
 msgid "Modify"

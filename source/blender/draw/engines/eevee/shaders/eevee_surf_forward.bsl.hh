@@ -13,7 +13,7 @@
 #include "infos/eevee_nodetree_infos.hh"
 
 FRAGMENT_SHADER_CREATE_INFO(eevee_nodetree)
-FRAGMENT_SHADER_CREATE_INFO(eevee_geom_mesh)
+FRAGMENT_SHADER_CREATE_INFO(eevee_geom_iface_info)
 FRAGMENT_SHADER_CREATE_INFO(eevee_volume_lib)
 
 #include "draw_curves_lib.glsl" /* IWYU pragma: export. For nodetree functions. */
@@ -22,7 +22,7 @@ FRAGMENT_SHADER_CREATE_INFO(eevee_volume_lib)
 #include "eevee_nodetree_frag_lib.glsl"
 #include "eevee_reverse_z_lib.bsl.hh"
 #include "eevee_sampling_lib.glsl"
-#include "eevee_surf_lib.glsl"
+#include "eevee_surf_common.bsl.hh"
 #include "eevee_volume_lib.bsl.hh"
 
 /* Global thickness because it is needed for closure_to_rgba. */
@@ -30,28 +30,41 @@ Thickness g_thickness_forward;
 
 float4 closure_to_rgba_forward(Closure /*cl_unused*/)
 {
+  const float2 frag_co = gl_FragCoord.xy;
+
   float3 radiance, transmittance;
-  forward_lighting_eval(g_thickness_forward, radiance, transmittance);
+  eevee::forward_lighting_eval(g_thickness_forward, frag_co, radiance, transmittance);
 
   /* Reset for the next closure tree. */
-  float noise = utility_tx_fetch(utility_tx, gl_FragCoord.xy, UTIL_BLUE_NOISE_LAYER).r;
+  float noise = utility_tx_fetch(utility_tx, frag_co, UTIL_BLUE_NOISE_LAYER).r;
   float closure_rand = fract(noise + sampling_rng_1D_get(SAMPLING_CLOSURE));
   closure_weights_reset(closure_rand);
 
 #if defined(MAT_TRANSPARENT) && defined(MAT_SHADER_TO_RGBA)
-  float3 V = -drw_world_incident_vector(g_data.P);
-  LightProbeSample samp = lightprobe_load(gl_FragCoord.xy, g_data.P, g_data.Ng, V);
-  float3 radiance_behind = lightprobe_spherical_sample_normalized_with_parallax(
-      samp, g_data.P, V, 0.0);
+  { /* Limit resource guard to this scope. */
+    [[resource_table]] eevee::LightprobeRenderData &lightprobes = resource_table_get(
+        eevee::LightprobeRenderData);
+    [[resource_table]] eevee::LightprobeSphereRenderData &lp_spheres = lightprobes.spheres;
+
+    float3 V = -drw_world_incident_vector(g_data.P);
+    eevee::LightProbeSample samp = lightprobes.load(frag_co, g_data.P, g_data.Ng, V);
+    float3 radiance_behind = lp_spheres.spherical_sample_normalized_with_parallax(
+        samp, g_data.P, V, 0.0);
 
 #  ifndef MAT_FIRST_LAYER
-  int2 texel = int2(gl_FragCoord.xy);
-  if (texelFetchExtend(hiz_prev_tx, texel, 0).x != 1.0f) {
-    radiance_behind = texelFetch(previous_layer_radiance_tx, texel, 0).xyz;
-  }
+    { /* Limit resource guard to this scope. */
+      int2 texel = int2(frag_co);
+      const auto &prev_hiz_tx = sampler_get(eevee_hiz_prev_data, hiz_prev_tx);
+      const auto &prev_radiance_tx = sampler_get(eevee_previous_layer_radiance,
+                                                 previous_layer_radiance_tx);
+      if (texelFetchExtend(prev_hiz_tx, texel, 0).x != 1.0f) {
+        radiance_behind = texelFetch(prev_radiance_tx, texel, 0).xyz;
+      }
+    }
 #  endif
 
-  radiance += radiance_behind * saturate(transmittance);
+    radiance += radiance_behind * saturate(transmittance);
+  }
 #endif
 
   return float4(radiance, saturate(1.0f - average(transmittance)));
@@ -61,19 +74,15 @@ namespace eevee {
 
 struct SurfaceForward {
   [[legacy_info]] ShaderCreateInfo eevee_global_ubo;
-  [[legacy_info]] ShaderCreateInfo eevee_light_data;
-  [[legacy_info]] ShaderCreateInfo eevee_lightprobe_data;
   [[legacy_info]] ShaderCreateInfo eevee_utility_texture;
   [[legacy_info]] ShaderCreateInfo eevee_sampling_data;
-  [[legacy_info]] ShaderCreateInfo eevee_shadow_data;
   [[legacy_info]] ShaderCreateInfo eevee_hiz_data;
   [[legacy_info]] ShaderCreateInfo eevee_volume_lib;
+  [[legacy_info]] ShaderCreateInfo eevee_geom_iface_info;
 
   [[legacy_info]] ShaderCreateInfo draw_view_culling;
 
   /* Optionally added depending on the material. */
-  // [[legacy_info]] ShaderCreateInfo eevee_render_pass_out;
-  // [[legacy_info]] ShaderCreateInfo eevee_cryptomatte_out;
   // [[legacy_info]] ShaderCreateInfo eevee_hiz_prev_data;
   // [[legacy_info]] ShaderCreateInfo eevee_previous_layer_radiance;
 };
@@ -90,11 +99,16 @@ struct SurfaceForwardFragOut {
 /* Early fragment test is needed for render passes support for forward surfaces. */
 /* NOTE: This removes the possibility of using gl_FragDepth. */
 [[fragment]] [[early_fragment_tests]]
-void surf_forward([[resource_table]] SurfaceForward & /*srt*/,
+void surf_forward([[resource_table]] PipelineConstants & /*pipe*/,
+                  [[resource_table]] SurfaceForward & /*srt*/,
+                  [[resource_table]] LightEvalIterator & /*lights*/,
+                  [[resource_table]] LightprobeRenderData & /*lightprobes*/,
+                  [[resource_table]] LightprobePlaneRenderData & /*lightprobe_planes*/,
                   [[frag_coord]] const float4 frag_co,
-                  [[out]] SurfaceForwardFragOut &frag_out)
+                  [[out]] SurfaceForwardFragOut &frag_out,
+                  [[front_facing]] const bool front_face)
 {
-  init_globals();
+  init_globals(front_face);
 
   float noise = utility_tx_fetch(utility_tx, gl_FragCoord.xy, UTIL_BLUE_NOISE_LAYER).r;
   float closure_rand = fract(noise + sampling_rng_1D_get(SAMPLING_CLOSURE));
@@ -106,7 +120,7 @@ void surf_forward([[resource_table]] SurfaceForward & /*srt*/,
   nodetree_surface(closure_rand);
 
   float3 radiance, transmittance;
-  forward_lighting_eval(g_thickness_forward, radiance, transmittance);
+  eevee::forward_lighting_eval(g_thickness_forward, gl_FragCoord.xy, radiance, transmittance);
 
   /* Volumetric resolve and compositing. */
   float2 uvs = gl_FragCoord.xy * uniform_buf.volumes.main_view_extent_inv;
@@ -131,7 +145,7 @@ void surf_forward([[resource_table]] SurfaceForward & /*srt*/,
   /* There can be 2 frame-buffer layout for forward transparency:
    * - Combined RGB radiance with Monochromatic transmittance.
    * - Channel split RGB radiance & RGB transmittance + Dedicated average alpha with holdout. */
-  if (uniform_buf.pipeline.use_monochromatic_transmittance) {
+  if (pipeline_buf.use_monochromatic_transmittance) {
     frag_out.combined_r = float4(radiance.rgb, transmittance.r);
   }
   else {

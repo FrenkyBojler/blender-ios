@@ -27,12 +27,6 @@
 #  include <iostream>
 #endif
 
-#if defined(GPU_SHADER)
-#  include "gpu_shader_srd_cpp.hh"
-#else
-#  include "gpu_shader_srd_info.hh"
-#endif
-
 #if !defined(GPU_SHADER)
 namespace blender {
 #endif
@@ -489,6 +483,8 @@ enum class BuiltinBits {
   /* On metal, tag the shader to use argument buffer to overcome the 16 sampler limit. */
   USE_SAMPLER_ARG_BUFFER = (1 << 20),
 
+  /* WORKAROUND: Used to disable viewport index programatically. */
+  NO_VIEWPORT_INDEX = (1 << 16),
   /* Disable our own GPU shader preprocessor optimizer in case we can't ensure the
    * input is within spec. */
   NO_PREPROCESSOR = (1 << 27),
@@ -614,6 +610,7 @@ enum class Qualifier {
   write = (1 << 2),
   /** Shorthand version of combined flags. */
   read_write = read | write,
+  read_no_restrict = read | no_restrict,
   QUALIFIER_MAX = (write << 1) - 1,
 };
 ENUM_OPERATORS(Qualifier);
@@ -1114,6 +1111,12 @@ struct ShaderCreateInfo {
   ~ShaderCreateInfo() = default;
 
   using Self = ShaderCreateInfo;
+
+  /* WORKAROUND: Avoid unused expression warning. */
+  Self &noop()
+  {
+    return *this;
+  }
 
   /* -------------------------------------------------------------------- */
   /** \name Shaders in/outs (fixed function pipeline config)

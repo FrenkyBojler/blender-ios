@@ -346,6 +346,10 @@ void SourceProcessor::parse_defines(Parser &parser)
 {
   parser().foreach_match<true>("#A", [&](const vector<Token> &tokens) {
     if (tokens[1].str() == "define") {
+      if (tokens[1].next().str().starts_with("LIGHT_STACK_SIZE_")) {
+        /* WORKAROUND: Avoid warning caused by EEVEE macro setup. */
+        return;
+      }
       metadata_.create_infos_defines.emplace_back(tokens[1].next().scope().str_with_whitespace());
     }
     if (tokens[1].str() == "undef") {
@@ -474,6 +478,7 @@ static std::string_view str_view_exclusive(Token tok)
 
 void SourceProcessor::parse_includes(Parser &parser)
 {
+  const string filename = filepath_.substr(filepath_.find_last_of('/') + 1);
   parser().foreach_match<true>("#A\"", [&](const vector<Token> &tokens) {
     if (tokens[1].str() != "include") {
       return;
@@ -506,6 +511,9 @@ void SourceProcessor::parse_includes(Parser &parser)
       dependency_name = dependency_name.substr(6);
     }
 
+    if (dependency_name == filename) {
+      report_error(tokens[2], "Recursive include");
+    }
     metadata_.dependencies.emplace_back(dependency_name);
   });
 }
@@ -795,8 +803,16 @@ void SourceProcessor::parse_builtins(const string &str, const string &filename, 
  * Empty structs are useful for templating. */
 void SourceProcessor::lower_empty_struct(Parser &parser)
 {
-  parser().foreach_match(
-      "sA{};", [&](const vector<Token> &tokens) { parser.insert_after(tokens[2], "int _pad;"); });
+  parser().foreach_struct([&](Token, Scope, Token, Scope body) {
+    int decl_count = 0;
+    body.foreach_declaration(
+        [&](Scope, Token, Token, Scope, Token, Scope, Token) { decl_count += 1; });
+
+    if (decl_count == 0) {
+      parser.insert_before(body.back(), "int _pad;");
+    }
+  });
+
   parser.apply_mutations();
 }
 
@@ -1656,9 +1672,9 @@ void SourceProcessor::lower_reference_variables(Parser &parser)
       assignment.foreach_token(ParOpen, [&](const Token token) {
         string_view fn_name = token.prev().str();
         if ((fn_name != "specialization_constant_get") && (fn_name != "push_constant_get") &&
-            (fn_name != "interface_get") && (fn_name != "attribute_get") &&
-            (fn_name != "buffer_get") && (fn_name != "srt_access") && (fn_name != "sampler_get") &&
-            (fn_name != "image_get"))
+            (fn_name != "interface_get") && (fn_name != "resource_table_get") &&
+            (fn_name != "attribute_get") && (fn_name != "buffer_get") &&
+            (fn_name != "srt_access") && (fn_name != "sampler_get") && (fn_name != "image_get"))
         {
           report_error(token, "Reference definitions cannot contain function calls.");
         }

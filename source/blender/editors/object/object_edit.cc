@@ -356,6 +356,7 @@ static wmOperatorStatus object_hide_view_set_exec(bContext *C, wmOperator *op)
   const Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
+  const View3D *v3d = CTX_wm_view3d(C);
   const bool unselected = RNA_boolean_get(op->ptr, "unselected");
   bool changed = false;
   const bool confirm = op->flag & OP_IS_INVOKE;
@@ -364,7 +365,7 @@ static wmOperatorStatus object_hide_view_set_exec(bContext *C, wmOperator *op)
   /* Hide selected or unselected objects. */
   BKE_view_layer_synced_ensure(*bmain, scene, view_layer);
   for (Base &base : *BKE_view_layer_object_bases_get(view_layer)) {
-    if (!(base.flag & BASE_ENABLED_AND_VISIBLE_IN_DEFAULT_VIEWPORT)) {
+    if (!BKE_base_is_visible(v3d, &base)) {
       continue;
     }
 
@@ -807,7 +808,7 @@ bool editmode_exit_ex(Main *bmain, Scene *scene, Object *obedit, int flag)
         pid.cache->flag |= PTCACHE_OUTDATED;
       }
     }
-    BLI_freelistN(&pidlist);
+    pidlist.free_no_destruct();
 
     BKE_particlesystem_reset_all(obedit);
     BKE_ptcache_object_reset(scene, obedit, PTCACHE_RESET_OUTDATED);
@@ -1270,32 +1271,6 @@ void OBJECT_OT_forcefield_toggle(wmOperatorType *ot)
 /** \name Calculate Motion Paths Operator
  * \{ */
 
-void motion_paths_recalc_selected(bContext *C, Scene *scene, eAnimvizCalcRange range)
-{
-  ListBaseT<LinkData> selected_objects = {nullptr, nullptr};
-  CTX_DATA_BEGIN (C, Object *, ob, selected_editable_objects) {
-    BLI_addtail(&selected_objects, BLI_genericNodeN(ob));
-  }
-  CTX_DATA_END;
-
-  motion_paths_recalc(C, scene, range, &selected_objects);
-
-  BLI_freelistN(&selected_objects);
-}
-
-void motion_paths_recalc_visible(bContext *C, Scene *scene, eAnimvizCalcRange range)
-{
-  ListBaseT<LinkData> visible_objects = {nullptr, nullptr};
-  CTX_DATA_BEGIN (C, Object *, ob, visible_objects) {
-    BLI_addtail(&visible_objects, BLI_genericNodeN(ob));
-  }
-  CTX_DATA_END;
-
-  motion_paths_recalc(C, scene, range, &visible_objects);
-
-  BLI_freelistN(&visible_objects);
-}
-
 static bool has_object_motion_paths(Object *ob)
 {
   return (ob->avs.path_bakeflag & MOTIONPATH_BAKE_HAS_PATHS) != 0;
@@ -1306,23 +1281,17 @@ static bool has_pose_motion_paths(Object *ob)
   return ob->pose && (ob->pose->avs.path_bakeflag & MOTIONPATH_BAKE_HAS_PATHS) != 0;
 }
 
-void motion_paths_recalc(bContext *C,
-                         Scene *scene,
-                         eAnimvizCalcRange range,
-                         ListBaseT<LinkData> *ld_objects)
+static void motion_paths_recalc(bContext *C,
+                                Scene *scene,
+                                const eAnimvizCalcRange range,
+                                const Span<Object *> objects)
 {
-  /* Transform doesn't always have context available to do update. */
-  if (C == nullptr) {
-    return;
-  }
-
+  BLI_assert(C != nullptr);
   Main *bmain = CTX_data_main(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
 
   Vector<MPathTarget *> targets;
-  for (LinkData &link : *ld_objects) {
-    Object *ob = static_cast<Object *>(link.data);
-
+  for (Object *ob : objects) {
     /* set flag to force recalc, then grab path(s) from object */
     if (has_object_motion_paths(ob)) {
       ob->avs.recalc |= ANIMVIZ_RECALC_PATHS;
@@ -1350,15 +1319,13 @@ void motion_paths_recalc(bContext *C,
     free_depsgraph = true;
   }
 
-  animviz_calc_motionpaths(depsgraph, bmain, scene, targets, range, true);
+  animviz_calc_motionpaths(depsgraph, bmain, scene, targets, range);
   animviz_free_motionpath_targets(targets);
 
   if (range != ANIMVIZ_CALC_RANGE_CURRENT_FRAME) {
     /* Tag objects for copy-on-eval - so paths will draw/redraw
      * For currently frame only we update evaluated object directly. */
-    for (LinkData &link : *ld_objects) {
-      Object *ob = static_cast<Object *>(link.data);
-
+    for (Object *ob : objects) {
       if (has_object_motion_paths(ob) || has_pose_motion_paths(ob)) {
         DEG_id_tag_update(&ob->id, ID_RECALC_SYNC_TO_EVAL);
       }
@@ -1369,6 +1336,28 @@ void motion_paths_recalc(bContext *C,
   if (free_depsgraph) {
     DEG_graph_free(depsgraph);
   }
+}
+
+void motion_paths_recalc_selected(bContext *C, Scene *scene, const eAnimvizCalcRange range)
+{
+  Vector<Object *> selected_objects;
+  CTX_DATA_BEGIN (C, Object *, ob, selected_editable_objects) {
+    selected_objects.append(ob);
+  }
+  CTX_DATA_END;
+
+  motion_paths_recalc(C, scene, range, selected_objects);
+}
+
+void motion_paths_recalc_visible(bContext *C, Scene *scene, const eAnimvizCalcRange range)
+{
+  Vector<Object *> visible_objects;
+  CTX_DATA_BEGIN (C, Object *, ob, visible_objects) {
+    visible_objects.append(ob);
+  }
+  CTX_DATA_END;
+
+  motion_paths_recalc(C, scene, range, visible_objects);
 }
 
 /* show popup to determine settings */
@@ -2168,8 +2157,10 @@ static wmOperatorStatus object_mode_set_exec(bContext *C, wmOperator *op)
     if (WM_autosave_is_scheduled(wm)) {
       /* Note, this uses the global `ReportList` rather than the operator, as we do not want to
        * interpret this failure as a failure of switching modes. */
-      WM_autosave_write(wm, CTX_data_main(C), &wm->runtime->reports);
-      WM_report_banner_show(wm, CTX_wm_window(C));
+      const bool success = WM_autosave_write(wm, CTX_data_main(C), &wm->runtime->reports);
+      if (!success) {
+        WM_report_banner_show(wm, CTX_wm_window(C));
+      }
     }
   }
 
@@ -2284,7 +2275,7 @@ static wmOperatorStatus move_to_collection_exec(bContext *C, wmOperator *op)
     collection = BKE_collection_add(bmain, collection, new_collection_name);
   }
 
-  Object *single_object = BLI_listbase_is_single(&objects) ?
+  Object *single_object = objects.is_single() ?
                               static_cast<Object *>(
                                   (static_cast<LinkData *>(objects.first))->data) :
                               nullptr;
@@ -2297,7 +2288,7 @@ static wmOperatorStatus move_to_collection_exec(bContext *C, wmOperator *op)
                 "%s already in %s",
                 single_object->id.name + 2,
                 BKE_collection_ui_name_get(collection));
-    BLI_freelistN(&objects);
+    objects.free_no_destruct();
     return OPERATOR_CANCELLED;
   }
 
@@ -2311,7 +2302,7 @@ static wmOperatorStatus move_to_collection_exec(bContext *C, wmOperator *op)
       BKE_collection_object_add(bmain, collection, ob);
     }
   }
-  BLI_freelistN(&objects);
+  objects.free_no_destruct();
 
   if (is_link) {
     if (single_object != nullptr) {
@@ -2363,11 +2354,11 @@ static wmOperatorStatus move_to_collection_invoke(bContext *C,
                                                   const wmEvent * /*event*/)
 {
   ListBaseT<LinkData> objects = selected_objects_get(C);
-  if (BLI_listbase_is_empty(&objects)) {
+  if (objects.is_empty()) {
     BKE_report(op->reports, RPT_ERROR, "No objects selected");
     return OPERATOR_CANCELLED;
   }
-  BLI_freelistN(&objects);
+  objects.free_no_destruct();
   PropertyRNA *prop = RNA_struct_find_property(op->ptr, "collection_uid");
   bool is_move = STREQ(op->type->idname, "OBJECT_OT_move_to_collection");
   if (!RNA_property_is_set(op->ptr, prop)) {
@@ -2428,7 +2419,7 @@ static void move_to_collection_menu_draw(Menu *menu, Collection *collection, int
 
   for (CollectionChild &child : collection->children) {
     collection = child.collection;
-    if (BLI_listbase_is_empty(&collection->children)) {
+    if (collection->children.is_empty()) {
       op_ptr = layout.op(
           ot, BKE_collection_ui_name_get(collection), ui::icon_color_from_collection(collection));
       RNA_int_set(&op_ptr, "collection_uid", collection->id.session_uid);
