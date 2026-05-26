@@ -5,7 +5,6 @@
 #pragma once
 
 #include "infos/eevee_common_infos.hh"
-#include "infos/eevee_raycast_infos.hh"
 #include "infos/eevee_uniform_infos.hh"
 
 SHADER_LIBRARY_CREATE_INFO(eevee_global_ubo)
@@ -18,9 +17,9 @@ SHADER_LIBRARY_CREATE_INFO(eevee_hiz_data)
 #include "draw_view_lib.glsl"
 #include "eevee_bxdf_lut_lib.bsl.hh"
 #include "eevee_nodetree_closures_lib.glsl"
-#include "eevee_ray_trace_screen_lib.glsl"
-#include "eevee_renderpass_lib.glsl"
-#include "eevee_sampling_lib.glsl"
+#include "eevee_ray_trace_screen_lib.bsl.hh"
+#include "eevee_renderpass.bsl.hh"
+#include "eevee_sampling_lib.bsl.hh"
 #include "eevee_utility_tx.bsl.hh"
 #include "gpu_shader_codegen_lib.glsl"
 #include "gpu_shader_math_base_lib.glsl"

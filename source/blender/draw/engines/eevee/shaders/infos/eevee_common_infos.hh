@@ -6,20 +6,13 @@
 #  pragma once
 #  include "gpu_shader_compat.hh"
 
-#  include "draw_object_infos_infos.hh"
 #  include "draw_view_infos.hh"
-#  include "eevee_light_shared.hh"
-#  include "eevee_lightprobe_shared.hh"
-#  include "eevee_sampling_shared.hh"
-#  include "eevee_shadow_shared.hh"
 #  include "eevee_uniform_infos.hh"
-#  include "eevee_uniform_shared.hh"
 #endif
 
 #ifdef GLSL_CPP_STUBS
 #  define EEVEE_SAMPLING_DATA
 #  define MAT_CLIP_PLANE
-#  define MAT_RENDER_PASS_SUPPORT
 #  define MAT_TRANSPARENT
 #endif
 
@@ -63,16 +56,25 @@ SAMPLER(GBUF_CLOSURE_TEX_SLOT, sampler2DArray, gbuf_closure_tx)
 SAMPLER(GBUF_NORMAL_TEX_SLOT, sampler2DArray, gbuf_normal_tx)
 GPU_SHADER_CREATE_END()
 
-GPU_SHADER_CREATE_INFO(eevee_render_pass_out)
-DEFINE("MAT_RENDER_PASS_SUPPORT")
-ADDITIONAL_INFO(eevee_global_ubo)
-IMAGE_FREQ(RBUFS_COLOR_SLOT, SFLOAT_16_16_16_16, write, image2DArray, rp_color_img, PASS)
-IMAGE_FREQ(RBUFS_VALUE_SLOT, SFLOAT_16, write, image2DArray, rp_value_img, PASS)
-GPU_SHADER_CREATE_END()
-
 GPU_SHADER_CREATE_INFO(eevee_cryptomatte_out)
 STORAGE_BUF(CRYPTOMATTE_BUF_SLOT, read, float2, cryptomatte_object_buf[])
 IMAGE_FREQ(RBUFS_CRYPTOMATTE_SLOT, SFLOAT_32_32_32_32, write, image2D, rp_cryptomatte_img, PASS)
+GPU_SHADER_CREATE_END()
+
+GPU_SHADER_CREATE_INFO(eevee_raycast)
+DEFINE("MAT_RAYCAST")
+SAMPLER(RAYCAST_DEPTH_TEX_SLOT, sampler2D, raycast_depth_tx)
+SAMPLER(OBJECT_ID_TEX_SLOT, usampler2D, object_id_tx)
+SAMPLER(PREPASS_NORMAL_TEX_SLOT, sampler2D, prepass_normal_tx)
+GPU_SHADER_CREATE_END()
+
+/* Used for shaders that need the final accumulated volume transmittance and scattering. */
+GPU_SHADER_CREATE_INFO(eevee_volume_lib)
+TYPEDEF_SOURCE("eevee_defines.hh")
+ADDITIONAL_INFO(eevee_global_ubo)
+ADDITIONAL_INFO(draw_view)
+SAMPLER(VOLUME_SCATTERING_TEX_SLOT, sampler3D, volume_scattering_tx)
+SAMPLER(VOLUME_TRANSMITTANCE_TEX_SLOT, sampler3D, volume_transmittance_tx)
 GPU_SHADER_CREATE_END()
 
 /** \} */
