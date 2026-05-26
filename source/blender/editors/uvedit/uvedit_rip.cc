@@ -782,7 +782,7 @@ static bool uv_rip_object(Scene *scene,
           if (uvedit_loop_edge_select_get(ts, bm, l)) {
             UL(l)->is_select_edge = true;
 
-            if (only_seam && !BM_elem_flag_test(l->e, BM_ELEM_SEAM)) {
+            if (!BM_elem_flag_test(l->e, BM_ELEM_SEAM)) {
               has_selected_edge_without_seam = true;
             }
           }
@@ -800,7 +800,7 @@ static bool uv_rip_object(Scene *scene,
           is_all = false;
         }
       }
-      if (is_all || has_selected_edge_without_seam) {
+      if (is_all || (only_seam && has_selected_edge_without_seam)) {
         BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
           UL(l)->is_select_all = true;
         }
