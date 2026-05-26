@@ -1626,7 +1626,7 @@ static wmOperatorStatus rotation_mode_convert_exec(bContext *C, wmOperator *op)
       skipped_datablocks++;
       continue;
     }
-    int visited_actions = 0;
+    bool converted_actions = false;
     animrig::foreach_action_slot_use(
         *owner_id, [&](animrig::Action &action, const animrig::slot_handle_t slot_handle) {
           if (!BKE_id_is_editable(bmain, &action.id)) {
@@ -1641,20 +1641,20 @@ static wmOperatorStatus rotation_mode_convert_exec(bContext *C, wmOperator *op)
           if (bake) {
             bake_rotation_fcurves(channelbag_fcurve_map, transformable);
           }
-          convert_rotation_keys(bmain, transformable, channelbag_fcurve_map, mode);
+          converted_actions |= convert_rotation_keys(
+              bmain, transformable, channelbag_fcurve_map, mode);
           DEG_id_tag_update(&action.id, ID_RECALC_ANIMATION);
-          visited_actions++;
           return true;
         });
 
-    if (visited_actions == 0) {
+    if (converted_actions) {
+      transformable.set_rotation_mode(mode);
+    }
+    else {
       /* No animation, just convert the values. */
       ed::Rotation current_rotation = transformable.get_rotation();
       transformable.set_rotation_mode(mode);
       transformable.set_rotation(current_rotation.converted_to_mode(mode));
-    }
-    else {
-      transformable.set_rotation_mode(mode);
     }
 
     if (prev_id != owner_id) {

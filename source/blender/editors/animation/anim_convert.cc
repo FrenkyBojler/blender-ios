@@ -40,6 +40,11 @@ void SortedFCurveBuffer::insert_fcurve(FCurve &fcurve)
   fcurves_.insert(insert_index, &fcurve);
 }
 
+void SortedFCurveBuffer::clear()
+{
+  fcurves_.clear();
+}
+
 Span<FCurve *> SortedFCurveBuffer::fcurves() const
 {
   return fcurves_;
@@ -97,7 +102,11 @@ static Vector<std::pair<float, eRotationModes>> get_rotation_mode_ranges(const F
   for (const int i : IndexRange(fcurve.totvert)) {
     const BezTriple &key = fcurve.bezt[i];
     const eRotationModes key_rotation_mode = eRotationModes(key.vec[1][1]);
-    if (!changes.is_empty() && changes.last().second == key_rotation_mode) {
+    if (changes.is_empty()) {
+      changes.append({0, key_rotation_mode});
+      continue;
+    }
+    if (changes.last().second == key_rotation_mode) {
       continue;
     }
     changes.append({key.vec[1][0], key_rotation_mode});
@@ -114,7 +123,7 @@ static Vector<std::pair<float, eRotationModes>> get_rotation_mode_ranges(const F
  * \param insertion_buffer The FCurves relating to `to_mode`. Keyframes for the converted rotation
  * mode will be inserted here. None of the FCurves shall be a nullptr.
  * \param range Start and end frames to limit the range in which to convert and insert rotation
- * keys. Interpreted inclusive at the start and exclusive at the end and in FCurve space.
+ * keys. Interpreted inclusive at the start and exclusive at the end and in FCurve time.
  */
 static void convert_fcurves_rotation_mode(const Span<const FCurve *> evaluation_buffer,
                                           const Span<FCurve *> insertion_buffer,
@@ -229,31 +238,65 @@ static void convert_rotation_mode_range(Main &bmain,
   convert_fcurves_rotation_mode(
       evaluation_buffer, insertion_buffer, from_mode, to_mode, range, transformable);
 
+  /* TODO since this only works on a subset of the full range, we have to keep the read copy around
+   * for longer. */
   if (is_euler_to_euler) {
     /* Free the FCurves that have been duplicated beforehand. */
     for (FCurve *fcurve : evaluation_buffer) {
       BKE_fcurve_free(fcurve);
     }
   }
-  else {
-    /* When changing between euler, axis angle or quaternion the currently existing rotation
-     * FCurves need to be removed. */
-    for (FCurve *fcurve : evaluation_buffer) {
-      channelbag.fcurve_remove(*fcurve);
-    }
+}
+
+static void remove_rotation_fcurves(const ed::AnimTransformable &transformable,
+                                    RNAFCurveMap &fcu_map,
+                                    animrig::Channelbag &channelbag,
+                                    const eRotationModes rotation_mode)
+{
+  std::string rna_path = transformable.rna_path_to_rotation_mode(rotation_mode);
+  SortedFCurveBuffer *rotation_fcurves = fcu_map.lookup_ptr(rna_path);
+  if (!rotation_fcurves) {
+    return;
+  }
+  /* Remove the FCurves that target the now no longer used rotation modes. */
+  for (FCurve *fcurve : rotation_fcurves->fcurves()) {
+    channelbag.fcurve_remove(*fcurve);
+  }
+  rotation_fcurves->clear();
+}
+
+static void remove_unused_rotation_fcurves(const ed::AnimTransformable &transformable,
+                                           RNAFCurveMap &fcu_map,
+                                           animrig::Channelbag &channelbag)
+{
+  switch (transformable.get_rotation_mode()) {
+    case ROT_MODE_QUAT:
+      remove_rotation_fcurves(transformable, fcu_map, channelbag, ROT_MODE_EUL);
+      remove_rotation_fcurves(transformable, fcu_map, channelbag, ROT_MODE_AXISANGLE);
+      break;
+
+    case ROT_MODE_AXISANGLE:
+      remove_rotation_fcurves(transformable, fcu_map, channelbag, ROT_MODE_QUAT);
+      remove_rotation_fcurves(transformable, fcu_map, channelbag, ROT_MODE_EUL);
+      break;
+
+    default:
+      remove_rotation_fcurves(transformable, fcu_map, channelbag, ROT_MODE_QUAT);
+      remove_rotation_fcurves(transformable, fcu_map, channelbag, ROT_MODE_AXISANGLE);
+      break;
   }
 }
 
 bool convert_rotation_keys(Main *bmain,
                            const ed::AnimTransformable &transformable,
-                           const ChannelbagToFCurveMap &channelbag_fcurve_map,
+                           ChannelbagToFCurveMap &channelbag_fcurve_map,
                            const eRotationModes to_mode)
 {
   bool modified_keys = false;
 
   for (const auto &item : channelbag_fcurve_map.items()) {
     animrig::Channelbag *channelbag = item.key;
-    const RNAFCurveMap &fcu_map = item.value;
+    RNAFCurveMap &fcu_map = item.value;
     const std::string rotation_mode_path = fmt::format(
         "{}.{}", transformable.rna_path(), "rotation_mode");
     Vector<std::pair<float, eRotationModes>> rotation_mode_ranges;
@@ -286,6 +329,9 @@ bool convert_rotation_keys(Main *bmain,
           *bmain, *channelbag, *rotation_fcurves, from_mode, to_mode, range, transformable);
       modified_keys = true;
     }
+
+    remove_unused_rotation_fcurves(transformable, fcu_map, *channelbag);
+
     if (rotation_mode_fcurve && rotation_mode_fcurve->bezt) {
       for (const int i : IndexRange(rotation_mode_fcurve->totvert)) {
         rotation_mode_fcurve->bezt[i].vec[1][1] = to_mode;

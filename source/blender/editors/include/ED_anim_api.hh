@@ -1324,6 +1324,7 @@ class SortedFCurveBuffer {
 
  public:
   void insert_fcurve(FCurve &fcurve);
+  void clear();
   Span<FCurve *> fcurves() const;
   /**
    * Returns the FCurve with the given array index from the buffer or a nullptr if that index
@@ -1346,7 +1347,7 @@ using ChannelbagToFCurveMap = Map<animrig::Channelbag *, RNAFCurveMap>;
  */
 bool convert_rotation_keys(Main *bmain,
                            const ed::AnimTransformable &transformable,
-                           const ChannelbagToFCurveMap &fcurves_by_rna_path,
+                           ChannelbagToFCurveMap &fcurves_by_rna_path,
                            eRotationModes to_mode);
 
 /**

@@ -270,10 +270,10 @@ class ConvertRotationModeBones(ConvertRotationModeBase):
         """ When the rotation mode itself is keyed and changes during the animation,
         the conversion has to make sure the animation is preserved. """
         keyed_frames = [1, 6, 7, 11, 12, 21]
-        matrices_before_conversion = []
+        matrices_before_conversion: list[mathutils.Matrix] = []
         for frame in keyed_frames:
             bpy.context.scene.frame_set(frame)
-            matrices_before_conversion.append(self.bone_keyed_rotation_mode.matrix)
+            matrices_before_conversion.append(self.bone_keyed_rotation_mode.matrix.copy())
         self.bone_keyed_rotation_mode.convert_rotation_mode('QUATERNION')
 
         for i, frame in enumerate(keyed_frames):
@@ -286,7 +286,9 @@ class ConvertRotationModeBones(ConvertRotationModeBase):
     def test_convert_unkeyed_rotation(self):
         """ When converting the rotation mode on a bone that has no keys on its rotation channels,
          the function should just change the rotation mode while preserving the visual rotation. """
-        matrix_before: mathutils.Matrix = self.bone_no_rotation_keys.matrix
+        matrix_before: mathutils.Matrix = self.bone_no_rotation_keys.matrix.copy()
+        self.assertEqual(self.bone_no_rotation_keys.rotation_mode, 'QUATERNION')
+        # No animation for the rotation mode.
         self.assertFalse(
             _action_slot_has_rna_path(
                 self.action,
@@ -294,7 +296,7 @@ class ConvertRotationModeBones(ConvertRotationModeBase):
                 'pose.bones["bone_no_rotation_keys"].rotation_quaternion'))
         self.bone_no_rotation_keys.convert_rotation_mode('XYZ')
         bpy.context.evaluated_depsgraph_get()
-        matrix_after = self.bone_no_rotation_keys.matrix
+        matrix_after: mathutils.Matrix = self.bone_no_rotation_keys.matrix
         self._assert_almost_equal_rotation_matrix(matrix_before, matrix_after)
         self.assertFalse(
             _action_slot_has_rna_path(
