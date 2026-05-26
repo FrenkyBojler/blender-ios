@@ -22,6 +22,7 @@ namespace blender {
 struct IDProperty;
 struct ImBuf;
 struct MovieReader;
+struct Stereo3dFormat;
 struct MovieProxyBuilder;
 
 /**
@@ -135,6 +136,12 @@ void MOV_get_filename(const MovieReader *anim, char *filename, int filename_maxn
  * Metadata is only loaded for already initialized movies.
  */
 IDProperty *MOV_load_metadata(MovieReader *anim);
+
+/**
+ * Returns the stereo 3D format detected from file metadata, or nullptr if
+ * the movie file does not have stereoscopic metadata.
+ */
+const Stereo3dFormat *MOV_get_stereo3d_format(const MovieReader *anim);
 
 /**
  * Sets multi-view suffix to be used when building proxies for this movie.

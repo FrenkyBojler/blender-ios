@@ -72,6 +72,7 @@ void add_load_data_init(LoadData *load_data,
   }
   load_data->start_frame = start_frame;
   load_data->channel = channel;
+  load_data->use_stereo_metadata = true;
 }
 
 static void strip_add_generic_update(Scene *scene, Strip *strip)
@@ -465,6 +466,19 @@ Strip *add_movie_strip(Main *bmain, Scene *scene, ListBaseT<Strip> *seqbase, Loa
   if (load_data->stereo3d_format) {
     strip->stereo3d_format = MEM_new<Stereo3dFormat>("strip stereo3d format");
     *strip->stereo3d_format = *load_data->stereo3d_format;
+  }
+
+  /* Auto-detect stereo 3D format from file metadata if not explicitly set. */
+  if (load_data->stereo3d_format == nullptr && anim_arr[0] != nullptr &&
+      load_data->use_stereo_metadata)
+  {
+    const Stereo3dFormat *file_stereo3d = MOV_get_stereo3d_format(anim_arr[0]);
+    if (file_stereo3d != nullptr) {
+      strip->stereo3d_format = MEM_new<Stereo3dFormat>("strip stereo3d format");
+      *strip->stereo3d_format = *file_stereo3d;
+      strip->flag |= SEQ_USE_VIEWS;
+      strip->views_format = R_IMF_VIEWS_STEREO_3D;
+    }
   }
 
   BLI_SCOPED_DEFER([&]() {

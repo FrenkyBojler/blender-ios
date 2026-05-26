@@ -161,7 +161,8 @@ static bool sequencer_add_draw_check_fn(PointerRNA *ptr, PropertyRNA *prop, void
                    "move_strips",
                    "replace_sel",
                    "skip_locked_or_muted_channels",
-                   "use_sequence_detection");
+                   "use_sequence_detection",
+                   "use_stereo_metadata");
 }
 
 static void sequencer_add_ui(bContext * /*C*/, wmOperator *op)
@@ -207,6 +208,7 @@ static void sequencer_add_ui(bContext * /*C*/, wmOperator *op)
   /* Multiview template. */
   if (RNA_boolean_get(op->ptr, "show_multiview")) {
     uiTemplateImageFormatViews(&layout, &imf_ptr, op->ptr);
+    layout.prop(op->ptr, "use_stereo_metadata", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 }
 
@@ -602,6 +604,10 @@ static bool load_data_init_from_operator(seq::LoadData *load_data, bContext *C, 
       load_data->views_format = imf->views_format;
       load_data->stereo3d_format = &imf->stereo3d_format;
     }
+  }
+
+  if ((prop = RNA_struct_find_property(op->ptr, "use_stereo_metadata"))) {
+    load_data->use_stereo_metadata = RNA_property_boolean_get(op->ptr, prop);
   }
 
   if (region == nullptr) {
@@ -1475,6 +1481,7 @@ static wmOperatorStatus sequencer_add_movie_strip_invoke(bContext *C,
 
 void SEQUENCER_OT_movie_strip_add(wmOperatorType *ot)
 {
+  PropertyRNA *prop;
 
   /* Identifiers. */
   ot->name = "Add Movie Strip";
@@ -1509,6 +1516,12 @@ void SEQUENCER_OT_movie_strip_add(wmOperatorType *ot)
                   true,
                   "Set Scene Frame Rate",
                   "Set frame rate of the current scene to the frame rate of the movie");
+  prop = RNA_def_boolean(ot->srna,
+                         "use_stereo_metadata",
+                         true,
+                         "Use Stereo Metadata",
+                         "Detect and apply stereoscopic 3D metadata from the file automatically");
+  RNA_def_property_flag(prop, PROP_HIDDEN);
 }
 
 /** \} */
@@ -1932,6 +1945,7 @@ static wmOperatorStatus sequencer_add_image_strip_invoke(bContext *C,
 
 void SEQUENCER_OT_image_strip_add(wmOperatorType *ot)
 {
+  PropertyRNA *prop;
 
   /* Identifiers. */
   ot->name = "Add Image Strip";
@@ -1981,6 +1995,12 @@ void SEQUENCER_OT_image_strip_add(wmOperatorType *ot)
                   false,
                   "Use Placeholders",
                   "Reserve placeholder frames for missing frames of the image sequence");
+  prop = RNA_def_boolean(ot->srna,
+                         "use_stereo_metadata",
+                         true,
+                         "Use Stereo Metadata",
+                         "Detect and apply stereoscopic 3D metadata from the file automatically");
+  RNA_def_property_flag(prop, PROP_HIDDEN);
 }
 
 /** \} */

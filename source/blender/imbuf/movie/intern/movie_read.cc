@@ -157,6 +157,14 @@ IDProperty *MOV_load_metadata(MovieReader *anim)
   return anim->metadata;
 }
 
+const Stereo3dFormat *MOV_get_stereo3d_format(const MovieReader *anim)
+{
+  if (anim->stereo3d_format.display_mode != S3D_DISPLAY_ANAGLYPH) {
+    return &anim->stereo3d_format;
+  }
+  return nullptr;
+}
+
 static void probe_video_colorspace(MovieReader *anim, char r_colorspace_name[IM_MAX_SPACE])
 {
   /* Use default role as fallback (i.e. it is an unknown combination of colorspace and primaries)
