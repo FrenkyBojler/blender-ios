@@ -85,8 +85,8 @@ def get_gpu_device_backend(args: dict) -> dict:
             devices = []
 
         if devices:
-            for index, _identifier, name in devices:
-                result.append({'type': backend_type, 'name': name, 'index': index})
+            for device in devices:
+                result.append({'type': backend_type, 'name': device.name, 'index': device.index})
         else:
             result.append({'type': backend_type, 'name': gpu.platform.renderer_get()})
 

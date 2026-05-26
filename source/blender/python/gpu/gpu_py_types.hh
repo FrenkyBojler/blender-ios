@@ -9,6 +9,7 @@
 #pragma once
 
 #include "gpu_py_buffer.hh"  // IWYU pragma: export
+#include "gpu_py_platform.hh"  // IWYU pragma: export
 
 #include "gpu_py_batch.hh"          // IWYU pragma: export
 #include "gpu_py_compute.hh"        // IWYU pragma: export

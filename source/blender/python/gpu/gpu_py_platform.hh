@@ -10,7 +10,18 @@
 
 #include <Python.h>
 
+#include <string>
+
 namespace blender {
+
+/* GPU Device Python object structure */
+typedef struct {
+  PyObject_HEAD int index;
+  std::string identifier;
+  std::string name;
+} BPyGPUDevice;
+
+extern PyTypeObject BPyGPU_DeviceType;
 
 [[nodiscard]] PyObject *bpygpu_platform_init();
 
