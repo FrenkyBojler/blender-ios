@@ -2484,8 +2484,10 @@ static const EnumPropertyItem delete_type_items[] = {
 static wmOperatorStatus text_delete_exec(bContext *C, wmOperator *op)
 {
 #ifdef WITH_INPUT_IME
-  if (CTX_wm_window(C)->runtime->ime_data_is_composing) {
-    return OPERATOR_CANCELLED;
+  if (const wmWindow *win = CTX_wm_window(C)) {
+    if (win->runtime->ime_data_is_composing) {
+      return OPERATOR_CANCELLED;
+    }
   }
 #endif
 
@@ -3623,8 +3625,7 @@ static wmOperatorStatus text_insert_invoke(bContext *C, wmOperator *op, const wm
   } auto_close_select = {nullptr}, auto_close_select_backup = {nullptr};
 
 #ifdef WITH_INPUT_IME
-  {
-    wmWindow *win = CTX_wm_window(C);
+  if (const wmWindow *win = CTX_wm_window(C)) {
     if (event->type == WM_IME_COMPOSITE_EVENT) {
       const wmIMEData *ime_data = win->runtime->ime_data;
       if (ime_data && !ime_data->result.empty()) {
