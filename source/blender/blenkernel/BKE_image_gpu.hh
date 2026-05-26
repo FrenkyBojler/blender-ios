@@ -29,20 +29,6 @@ struct Main;
 gpu::Texture *BKE_image_create_gpu_texture_from_ibuf(Image *image, ImBuf *ibuf);
 
 /**
- * Ensure that the cached GPU texture inside the image matches the pass, layer, and view of the
- * given image user, if not, invalidate the cache such that the next call to the GPU texture
- * retrieval functions such as BKE_image_get_gpu_texture updates the cache with an image that
- * matches the give image user.
- *
- * This is provided as a separate function and not implemented as part of the GPU texture retrieval
- * functions because the current cache system only allows a single pass, layer, and stereo view to
- * be cached, so possible frequent cache invalidation can have performance implications,
- * and making invalidation explicit by calling this function will help make that clear and pave the
- * way for a more complete cache system in the future.
- */
-void BKE_image_ensure_gpu_texture(Image *image, ImageUser *iuser);
-
-/**
  * Get the #gpu::Texture for a given `Image`.
  *
  *
@@ -75,8 +61,21 @@ gpu::Texture *BKE_image_get_gpu_viewer_texture(Image *image,
  * tiles as used in material shaders.
  */
 struct ImageGPUTextures {
-  gpu::Texture **texture;
-  gpu::Texture **tile_mapping;
+  ImBuf *image_buffer = nullptr;
+  ImBuf *tile_mapping_buffer = nullptr;
+
+  ImageGPUTextures() = default;
+  ~ImageGPUTextures();
+  ImageGPUTextures(const ImageGPUTextures &other);
+  ImageGPUTextures &operator=(const ImageGPUTextures &other);
+
+  /* Get GPU texture pointers. */
+  gpu::Texture *texture() const;
+  gpu::Texture *tile_mapping() const;
+
+  /* Get pointers to GPU texture pointers for deferred loading. */
+  gpu::Texture **texture_slot() const;
+  gpu::Texture **tile_mapping_slot() const;
 };
 
 ImageGPUTextures BKE_image_get_gpu_material_texture(Image *image,
@@ -94,11 +93,24 @@ ImageGPUTextures BKE_image_get_gpu_material_texture_try(Image *image,
 bool BKE_image_has_gpu_texture_premultiplied_alpha(Image *image, ImBuf *ibuf);
 
 /**
+ * Put an externally created GPU texture in the image cache. Should not
+ * generally be used, currently needed for synthetic Image datablocks for
+ * studio lights.
+ */
+void BKE_image_assign_gpu_texture(Image *image, gpu::Texture *texture);
+
+/**
+ * Free the process global fallback image buffer.
+ */
+void BKE_image_free_gpu_fallback();
+
+/**
  * Check if image has an associated GPU texture.
  */
 bool BKE_image_has_gpu_texture(Image *ima);
 
 void BKE_image_free_gputextures(Image *ima);
+void BKE_image_free_gpu_udim_textures(Image *ima);
 void BKE_image_free_all_gputextures(Main *bmain);
 /**
  * Same as #BKE_image_free_all_gputextures but only free animated images.

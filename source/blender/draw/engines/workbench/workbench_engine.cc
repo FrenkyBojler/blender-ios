@@ -165,7 +165,7 @@ class Instance : public DrawEngine {
       return;
     }
 
-    const ObjectState object_state = ObjectState(this->draw_ctx, scene_state_, resources_, ob);
+    ObjectState object_state = ObjectState(this->draw_ctx, scene_state_, resources_, ob);
 
     bool is_object_data_visible = (DRW_object_visibility_in_active_context(ob) &
                                    OB_VISIBLE_SELF) &&
@@ -188,15 +188,17 @@ class Instance : public DrawEngine {
 
     ResourceHandleRange emitter_handle = {};
 
+    acquire_material_texture_imbuf(manager, object_state.image_paint_override);
+
     if (is_object_data_visible) {
       if (object_state.sculpt_pbvh) {
         ResourceHandleRange handle = manager.unique_handle_for_sculpt(ob_ref);
-        this->sculpt_sync(ob_ref, handle, object_state);
+        this->sculpt_sync(manager, ob_ref, handle, object_state);
         emitter_handle = handle;
       }
       else if (ob->type == OB_MESH) {
         ResourceHandleRange handle = manager.unique_handle(ob_ref);
-        this->mesh_sync(ob_ref, handle, object_state);
+        this->mesh_sync(manager, ob_ref, handle, object_state);
         emitter_handle = handle;
       }
       else if (ob->type == OB_POINTCLOUD) {
@@ -260,6 +262,13 @@ class Instance : public DrawEngine {
     }
   }
 
+  /* Keep image buffers alive until pass is submitted. */
+  static void acquire_material_texture_imbuf(Manager &manager, MaterialTexture &texture)
+  {
+    manager.acquire_imbuf(texture.gpu.image_buffer);
+    manager.acquire_imbuf(texture.gpu.tile_mapping_buffer);
+  }
+
   void draw_mesh(ObjectRef &ob_ref,
                  Material &material,
                  gpu::Batch *batch,
@@ -270,7 +279,7 @@ class Instance : public DrawEngine {
     resources_.material_buf.append(material);
     int material_index = resources_.material_buf.size() - 1;
 
-    if (show_missing_texture && (!texture || !texture->gpu.texture)) {
+    if (show_missing_texture && (!texture || !texture->gpu.texture())) {
       texture = &resources_.missing_texture;
     }
 
@@ -279,7 +288,10 @@ class Instance : public DrawEngine {
     });
   }
 
-  void mesh_sync(ObjectRef &ob_ref, ResourceHandleRange handle, const ObjectState &object_state)
+  void mesh_sync(Manager &manager,
+                 ObjectRef &ob_ref,
+                 ResourceHandleRange handle,
+                 const ObjectState &object_state)
   {
     bool has_transparent_material = false;
 
@@ -309,6 +321,7 @@ class Instance : public DrawEngine {
           if (object_state.color_type == V3D_SHADING_TEXTURE_COLOR) {
             texture = MaterialTexture(ob_ref.object, material_slot);
           }
+          acquire_material_texture_imbuf(manager, texture);
 
           this->draw_mesh(
               ob_ref, mat, batches[i], handle, &texture, object_state.show_missing_texture);
@@ -345,7 +358,10 @@ class Instance : public DrawEngine {
     }
   }
 
-  void sculpt_sync(ObjectRef &ob_ref, ResourceHandleRange handle, const ObjectState &object_state)
+  void sculpt_sync(Manager &manager,
+                   ObjectRef &ob_ref,
+                   ResourceHandleRange handle,
+                   const ObjectState &object_state)
   {
     SculptBatchFeature features = SCULPT_BATCH_DEFAULT;
     if (object_state.color_type == V3D_SHADING_VERTEX_COLOR) {
@@ -366,6 +382,7 @@ class Instance : public DrawEngine {
         if (object_state.color_type == V3D_SHADING_TEXTURE_COLOR) {
           texture = MaterialTexture(ob_ref.object, batch.material_slot);
         }
+        acquire_material_texture_imbuf(manager, texture);
 
         this->draw_mesh(
             ob_ref, mat, batch.batch, handle, &texture, object_state.show_missing_texture);
@@ -414,6 +431,7 @@ class Instance : public DrawEngine {
     if (object_state.color_type == V3D_SHADING_TEXTURE_COLOR) {
       texture = MaterialTexture(ob_ref.object, psys->part->omat - 1);
     }
+    acquire_material_texture_imbuf(manager, texture);
     resources_.material_buf.append(mat);
     int material_index = resources_.material_buf.size() - 1;
 

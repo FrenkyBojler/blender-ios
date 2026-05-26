@@ -1168,22 +1168,12 @@ inline void PassBase<T>::material_set(Manager &manager,
         sampler_state.enable_filtering_flag(anisotropic_filtering);
       }
 
-      if (*gputex.texture == nullptr) {
-        /* Texture not yet loaded. Register a reference inside the draw pass.
-         * The texture will be acquired once it is created. */
-        bind_texture(tex->sampler_name, gputex.texture, sampler_state);
-        if (gputex.tile_mapping) {
-          bind_texture(tex->tiled_mapping_name, gputex.tile_mapping, sampler_state);
-        }
-      }
-      else {
-        /* Texture is loaded. Acquire. */
-        manager.acquire_texture(*gputex.texture);
-        bind_texture(tex->sampler_name, *gputex.texture, sampler_state);
-        if (gputex.tile_mapping) {
-          manager.acquire_texture(*gputex.tile_mapping);
-          bind_texture(tex->tiled_mapping_name, *gputex.tile_mapping, sampler_state);
-        }
+      /* Bind a pointer to the texture slot, the texture may not have been loaded yet. */
+      bind_texture(tex->sampler_name, gputex.texture_slot(), sampler_state);
+      manager.acquire_imbuf(gputex.image_buffer);
+      if (gputex.tile_mapping_buffer) {
+        bind_texture(tex->tiled_mapping_name, gputex.tile_mapping_slot(), sampler_state);
+        manager.acquire_imbuf(gputex.tile_mapping_buffer);
       }
     }
     else if (tex->colorband) {

@@ -27,9 +27,9 @@ std::atomic<uint32_t> Manager::global_sync_counter_ = 1;
 
 Manager::~Manager()
 {
-  for (gpu::Texture *texture : acquired_textures) {
+  for (ImBuf *image_buffer : acquired_imbufs) {
     /* Decrease refcount and free if 0. */
-    GPU_texture_free(texture);
+    IMB_freeImBuf(image_buffer);
   }
 }
 
@@ -49,12 +49,12 @@ void Manager::begin_sync(Object *object_active)
 
   /* TODO: This means the reference is kept until further redraw or manager tear-down. Instead,
    * they should be released after each draw loop. But for now, mimics old DRW behavior. */
-  for (gpu::Texture *texture : acquired_textures) {
+  for (ImBuf *image_buffer : acquired_imbufs) {
     /* Decrease refcount and free if 0. */
-    GPU_texture_free(texture);
+    IMB_freeImBuf(image_buffer);
   }
 
-  acquired_textures.clear();
+  acquired_imbufs.clear();
   layer_attributes.clear();
 
 /* For some reason, if this uninitialized data pattern was enabled (ie release asserts enabled),

@@ -20,6 +20,8 @@
 
 #include "GPU_material.hh"
 
+#include "IMB_imbuf.hh"
+
 #include "draw_handle.hh"
 #include "draw_resource.hh"
 #include "draw_view.hh"
@@ -99,10 +101,10 @@ class Manager {
   LayerAttributeBuf layer_attributes_buf;
 
   /**
-   * List of textures coming from Image data-blocks.
+   * List of image buffers coming from Image data-blocks.
    * They need to be reference-counted in order to avoid being freed in another thread.
    */
-  Vector<gpu::Texture *> acquired_textures;
+  Vector<ImBuf *> acquired_imbufs;
 
  private:
   /** Number of sync done by managers. Used for fingerprint. */
@@ -283,13 +285,15 @@ class Manager {
   DataDebugOutput data_debug();
 
   /**
-   * Will acquire the texture using ref counting and release it after drawing. To be used for
-   * texture coming from blender Image.
+   * Will acquire the image buffer using ref counting and release it after drawing. To be used for
+   * image buffer coming from blender Image.
    */
-  void acquire_texture(gpu::Texture *texture)
+  void acquire_imbuf(ImBuf *image_buffer)
   {
-    GPU_texture_ref(texture);
-    acquired_textures.append(texture);
+    if (image_buffer) {
+      IMB_refImBuf(image_buffer);
+      acquired_imbufs.append(image_buffer);
+    }
   }
 
   /**

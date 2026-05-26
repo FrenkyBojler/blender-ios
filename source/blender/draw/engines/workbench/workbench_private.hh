@@ -260,7 +260,6 @@ struct SceneResources {
 
   CavityEffect cavity = {};
 
-  Texture missing_tx = "missing_tx";
   MaterialTexture missing_texture;
 
   Texture dummy_texture_tx = {"dummy_texture"};

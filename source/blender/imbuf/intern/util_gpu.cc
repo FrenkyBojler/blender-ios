@@ -6,6 +6,7 @@
  * \ingroup imbuf
  */
 
+#include "BLI_time.h"
 #include "BLI_utildefines.h"
 
 #include "MEM_guardedalloc.h"
@@ -355,7 +356,8 @@ void IMB_update_gpu_texture_sub(gpu::Texture *tex,
 gpu::Texture *IMB_create_gpu_texture(
     const char *name, ImBuf *ibuf, bool use_high_bitdepth, bool use_premult, const bool limit_size)
 {
-  gpu::Texture *tex = nullptr;
+  ibuf->gpu.lastused = BLI_time_now_seconds_i();
+
   int size[2] = {ibuf->x, ibuf->y};
   if (limit_size) {
     size[0] = GPU_texture_size_with_limit(ibuf->x);
@@ -372,6 +374,8 @@ gpu::Texture *IMB_create_gpu_texture(
       size[0] = int(ibuf->x * (float(size[1]) / ibuf->y));
     }
   }
+
+  gpu::Texture *tex = nullptr;
 
   if (ibuf->ftype == IMB_FTYPE_DDS) {
     gpu::TextureFormat compressed_format;
@@ -453,6 +457,33 @@ gpu::Texture *IMB_create_gpu_texture(
   return tex;
 }
 
+gpu::Texture *IMB_ensure_gpu_texture(
+    const char *name, ImBuf *ibuf, bool use_high_bitdepth, bool use_premult, bool limit_size)
+{
+  if (ibuf == nullptr) {
+    return nullptr;
+  }
+
+  if (ibuf->gpu.texture != nullptr) {
+    ibuf->gpu.lastused = BLI_time_now_seconds_i();
+    return ibuf->gpu.texture;
+  }
+
+  gpu::Texture *tex = IMB_create_gpu_texture(
+      name, ibuf, use_high_bitdepth, use_premult, limit_size);
+  if (tex == nullptr) {
+    return nullptr;
+  }
+
+  GPU_texture_extend_mode(tex, GPU_SAMPLER_EXTEND_MODE_REPEAT);
+  GPU_texture_update_mipmap_chain(tex);
+  GPU_texture_mipmap_mode(tex, true, true);
+
+  ibuf->gpu.texture = tex;
+  ibuf->gpu.flag |= IMB_GPU_MIPMAP_COMPLETE;
+  return tex;
+}
+
 gpu::TextureFormat IMB_gpu_get_texture_format(const ImBuf *ibuf,
                                               bool high_bitdepth,
                                               bool use_grayscale)
@@ -460,6 +491,17 @@ gpu::TextureFormat IMB_gpu_get_texture_format(const ImBuf *ibuf,
   gpu::TextureFormat gpu_texture_format;
   imb_gpu_get_format(ibuf, high_bitdepth, use_grayscale, &gpu_texture_format);
   return gpu_texture_format;
+}
+
+void IMB_free_gpu_textures(ImBuf *ibuf)
+{
+  if (!ibuf || !ibuf->gpu.texture) {
+    return;
+  }
+
+  GPU_texture_free(ibuf->gpu.texture);
+  ibuf->gpu.texture = nullptr;
+  ibuf->gpu.flag = ImBufGPUFlag(0);
 }
 
 void IMB_gpu_clamp_half_float(ImBuf *image_buffer)

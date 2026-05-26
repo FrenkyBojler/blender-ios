@@ -603,6 +603,12 @@ gpu::Texture *IMB_create_gpu_texture(const char *name,
                                      bool use_premult,
                                      const bool limit_size);
 
+/* Ensures a GPU texture exists for the given image buffer. If the texture already
+ * exists, lastused is updated for garbage collection. If the texture does not exist,
+ * #IMB_create_gpu_texture is called. */
+gpu::Texture *IMB_ensure_gpu_texture(
+    const char *name, ImBuf *ibuf, bool use_high_bitdepth, bool use_premult, bool limit_size);
+
 gpu::TextureFormat IMB_gpu_get_texture_format(const ImBuf *ibuf,
                                               bool high_bitdepth,
                                               bool use_grayscale);
