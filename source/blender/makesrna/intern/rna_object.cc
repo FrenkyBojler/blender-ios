@@ -340,12 +340,12 @@ const EnumPropertyItem rna_enum_object_axis_flip_items[] = {
 #  include "DEG_depsgraph_build.hh"
 
 #  include "ED_anim_api.hh"
+#  include "ED_anim_transformable.hh"
 #  include "ED_curve.hh"
 #  include "ED_lattice.hh"
 #  include "ED_mesh.hh"
 #  include "ED_object.hh"
 #  include "ED_particle.hh"
-#  include "ED_transformable.hh"
 
 #  include "DEG_depsgraph_query.hh"
 
@@ -1227,7 +1227,7 @@ static void rna_Object_convert_rotation_mode(
     return;
   }
 
-  animrig::Transformable transformable(*ob);
+  ed::AnimTransformable transformable(*ob);
   convert_to_rotation_mode(*C, transformable, eRotationModes(rotation_mode), bake);
 }
 

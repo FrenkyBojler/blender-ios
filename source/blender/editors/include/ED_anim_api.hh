@@ -55,6 +55,10 @@ namespace ui {
 struct Block;
 }
 
+namespace ed {
+class AnimTransformable;
+}
+
 struct PointerRNA;
 struct PropertyRNA;
 
@@ -64,7 +68,6 @@ namespace animrig {
 class Action;
 class Slot;
 class Channelbag;
-class Transformable;
 }  // namespace animrig
 
 /* ************************************************ */
@@ -1342,7 +1345,7 @@ using ChannelbagToFCurveMap = Map<animrig::Channelbag *, RNAFCurveMap>;
  * \returns true if any animation data was modified.
  */
 bool convert_rotation_keys(Main *bmain,
-                           const animrig::Transformable &transformable,
+                           const ed::AnimTransformable &transformable,
                            const ChannelbagToFCurveMap &fcurves_by_rna_path,
                            eRotationModes to_mode);
 
@@ -1357,7 +1360,7 @@ ChannelbagToFCurveMap build_rotation_fcurve_map(animrig::Action &action,
  * Bake all existing rotation fcurves that start with the given `base_rna_path`.
  */
 void bake_rotation_fcurves(const ChannelbagToFCurveMap &channelbag_fcurve_map,
-                           const animrig::Transformable &transformable);
+                           const ed::AnimTransformable &transformable);
 
 /**
  * A high level function that converts the given transformable and the animation on its rotation
@@ -1365,7 +1368,7 @@ void bake_rotation_fcurves(const ChannelbagToFCurveMap &channelbag_fcurve_map,
  * `convert_rotation_keys`, this tags the dependency graph for updates and sends WM notifiers.
  */
 void convert_to_rotation_mode(bContext &C,
-                              animrig::Transformable &transformable,
+                              ed::AnimTransformable &transformable,
                               eRotationModes to_mode,
                               bool bake);
 

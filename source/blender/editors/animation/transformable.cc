@@ -107,7 +107,8 @@ enum RotationModeIndices : uint8_t {
   ROT_IDX_MAX_ENUM,
 };
 
-Rotation Rotation::converted_to_mode(const eRotationModes mode) const
+Rotation Rotation::converted_to_mode(const eRotationModes mode,
+                                     const Rotation *reference_euler) const
 {
   if (mode == this->mode) {
     return *this;
@@ -143,10 +144,16 @@ Rotation Rotation::converted_to_mode(const eRotationModes mode) const
       break;
 
     default:
-      /* TODO (christoph): pass in a reference rotation for the conversion to euler. */
       BLI_assert(mode <= ROT_MODE_ZYX);
       converted.values.reinitialize(3);
-      quat_to_eulO(converted.values.data(), mode, quat);
+      if (reference_euler) {
+        BLI_assert(reference_euler->mode >= ROT_MODE_EUL);
+        quat_to_compatible_eulO(
+            converted.values.data(), reference_euler->values.data(), mode, quat);
+      }
+      else {
+        quat_to_eulO(converted.values.data(), mode, quat);
+      }
       break;
   }
   return converted;
@@ -247,12 +254,27 @@ AnimTransformable::AnimTransformable(Object &owner_id, bPoseChannel &pchan)
     : type_(AnimTransformable::Type::POSE_BONE),
       owner_id_(&owner_id.id),
       data_(&pchan),
+      fcurve_group_name_(pchan.name),
       location_({pchan.loc, 3}),
       rotation_mode_(&pchan.rotmode),
       scale_({pchan.scale, 3})
 {
   build_rotations_array(rotations_, pchan.eul, pchan.quat, pchan.rotAxis, &pchan.rotAngle);
   rna_path_from_id_ = get_pose_bone_rna_path(pchan);
+}
+
+AnimTransformable::AnimTransformable(Object &object)
+    : type_(AnimTransformable::Type::OBJECT),
+      owner_id_(&object.id),
+      data_(&object),
+      fcurve_group_name_("Object Transforms"),
+      location_({object.loc, 3}),
+      rotation_mode_(reinterpret_cast<eRotationModes *>(&object.rotmode)),
+      scale_({object.scale, 3})
+{
+  static_assert(std::is_same_v<short, decltype(object.rotmode)>);
+  build_rotations_array(rotations_, object.rot, object.quat, object.rotAxis, &object.rotAngle);
+  rna_path_from_id_ = "";
 }
 
 template<> bPoseChannel *AnimTransformable::data<bPoseChannel *>() const
@@ -282,6 +304,15 @@ std::string AnimTransformable::rna_path_to_property(const PropertyType prop_type
       property_name = "scale";
       break;
   }
+  if (rna_path_from_id_.empty()) {
+    return std::string(property_name);
+  }
+  return fmt::format("{}.{}", rna_path_from_id_, property_name);
+}
+
+std::string AnimTransformable::rna_path_to_rotation_mode(const eRotationModes rotation_mode) const
+{
+  StringRefNull property_name = animrig::get_rotation_mode_path(rotation_mode);
   if (rna_path_from_id_.empty()) {
     return std::string(property_name);
   }
@@ -425,6 +456,16 @@ Rotation AnimTransformable::get_rotation() const
   return rotation;
 }
 
+Rotation AnimTransformable::get_rotation_for_mode(const eRotationModes mode) const
+{
+  Rotation rotation;
+  rotation.mode = eRotationModes(mode);
+  const Array<float *> *rotations_array = get_rotation_array_from_mode(mode);
+  BLI_assert(rotations_array != nullptr);
+  rotation.values = copy_pointers_to_values(*rotations_array);
+  return rotation;
+}
+
 void AnimTransformable::set_rotation(const Rotation &rotation)
 {
   const TransformFloatPtrs *rotations_array = get_rotation_array_from_mode(*rotation_mode_);
@@ -446,6 +487,11 @@ void AnimTransformable::set_rotation(const Rotation &rotation)
 eRotationModes AnimTransformable::get_rotation_mode() const
 {
   return *rotation_mode_;
+}
+
+void AnimTransformable::set_rotation_mode(const eRotationModes mode)
+{
+  *rotation_mode_ = mode;
 }
 
 void AnimTransformable::blend_rotation_to(const Rotation &target,

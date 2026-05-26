@@ -23,7 +23,7 @@
 #include "WM_api.hh"
 
 #include "ED_anim_api.hh"
-#include "ED_transformable.hh"
+#include "ED_anim_transformable.hh"
 
 namespace blender {
 
@@ -121,11 +121,11 @@ static void convert_fcurves_rotation_mode(const Span<const FCurve *> evaluation_
                                           const eRotationModes from_mode,
                                           const eRotationModes to_mode,
                                           const float2 range,
-                                          const animrig::Transformable &transformable)
+                                          const ed::AnimTransformable &transformable)
 {
   /* Filling the array with the current values to have good base values in case not every array
    * index is keyed. */
-  animrig::Rotation rotation_values = transformable.get_rotation_for_mode(from_mode);
+  ed::Rotation rotation_values = transformable.get_rotation_for_mode(from_mode);
   animrig::KeyframeSettings settings;
   for (const FCurve *fcurve : evaluation_buffer) {
     if (!fcurve || !fcurve->bezt) {
@@ -141,7 +141,7 @@ static void convert_fcurves_rotation_mode(const Span<const FCurve *> evaluation_
   }
 
   /* Storing the previous rotation for euler angles larger than 180 degrees. */
-  animrig::Rotation previous_conversion = rotation_values.converted_to_mode(to_mode);
+  ed::Rotation previous_conversion = rotation_values.converted_to_mode(to_mode);
 
   Vector<int64_t> keyframe_ids = build_keyframe_ids(evaluation_buffer);
   for (const int64_t frame_id : keyframe_ids) {
@@ -159,8 +159,8 @@ static void convert_fcurves_rotation_mode(const Span<const FCurve *> evaluation_
       }
       rotation_values.values[fcurve->array_index] = evaluate_fcurve(fcurve, frame);
     }
-    animrig::Rotation converted_rotation = rotation_values.converted_to_mode(to_mode,
-                                                                             &previous_conversion);
+    ed::Rotation converted_rotation = rotation_values.converted_to_mode(to_mode,
+                                                                        &previous_conversion);
     for (int i : insertion_buffer.index_range()) {
       FCurve *fcurve = insertion_buffer[i];
       BLI_assert_msg(fcurve, "For insertion all FCurves are expected to be created before");
@@ -180,7 +180,7 @@ static void convert_rotation_mode_range(Main &bmain,
                                         const eRotationModes from_mode,
                                         const eRotationModes to_mode,
                                         const float2 range,
-                                        const animrig::Transformable &transformable)
+                                        const ed::AnimTransformable &transformable)
 {
   const int evaluation_buffer_count = from_mode > ROT_MODE_QUAT ? 3 : 4;
   const int insertion_buffer_count = to_mode > ROT_MODE_QUAT ? 3 : 4;
@@ -245,7 +245,7 @@ static void convert_rotation_mode_range(Main &bmain,
 }
 
 bool convert_rotation_keys(Main *bmain,
-                           const animrig::Transformable &transformable,
+                           const ed::AnimTransformable &transformable,
                            const ChannelbagToFCurveMap &channelbag_fcurve_map,
                            const eRotationModes to_mode)
 {
@@ -322,7 +322,7 @@ ChannelbagToFCurveMap build_rotation_fcurve_map(animrig::Action &action,
 }
 
 void bake_rotation_fcurves(const ChannelbagToFCurveMap &channelbag_fcurve_map,
-                           const animrig::Transformable &transformable)
+                           const ed::AnimTransformable &transformable)
 {
   /* Need to bake on all potential FCurves to cover. */
   const Array<eRotationModes> rotation_modes = {ROT_MODE_EUL, ROT_MODE_QUAT, ROT_MODE_AXISANGLE};
@@ -347,7 +347,7 @@ void bake_rotation_fcurves(const ChannelbagToFCurveMap &channelbag_fcurve_map,
 }
 
 void convert_to_rotation_mode(bContext &C,
-                              animrig::Transformable &transformable,
+                              ed::AnimTransformable &transformable,
                               const eRotationModes to_mode,
                               const bool bake)
 {
@@ -390,7 +390,7 @@ void convert_to_rotation_mode(bContext &C,
     WM_event_add_notifier(&C, NC_OBJECT | ND_POSE, id);
   }
   else {
-    animrig::Rotation rotation = transformable.get_rotation();
+    ed::Rotation rotation = transformable.get_rotation();
     transformable.set_rotation_mode(to_mode);
     transformable.set_rotation(rotation.converted_to_mode(to_mode));
   }

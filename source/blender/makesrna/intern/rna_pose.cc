@@ -94,9 +94,9 @@ const EnumPropertyItem rna_enum_color_sets_items[] = {
 #  include "DEG_depsgraph_build.hh"
 
 #  include "ED_anim_api.hh"
+#  include "ED_anim_transformable.hh"
 #  include "ED_armature.hh"
 #  include "ED_object.hh"
-#  include "ED_transformable.hh"
 
 #  include "WM_api.hh"
 
@@ -271,7 +271,7 @@ static void rna_PoseChannel_convert_rotation_mode(
   }
 
   Object *ob = id_cast<Object *>(id);
-  animrig::Transformable transformable(*ob, *pchan);
+  ed::AnimTransformable transformable(*ob, *pchan);
 
   convert_to_rotation_mode(*C, transformable, eRotationModes(rotation_mode), bake);
 }

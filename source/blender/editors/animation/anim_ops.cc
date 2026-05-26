@@ -45,13 +45,13 @@
 #include "WM_types.hh"
 
 #include "ED_anim_api.hh"
+#include "ED_anim_transformable.hh"
 #include "ED_keyframes_keylist.hh"
 #include "ED_markers.hh"
 #include "ED_screen.hh"
 #include "ED_sequencer.hh"
 #include "ED_space_graph.hh"
 #include "ED_time_scrub_ui.hh"
-#include "ED_transformable.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"
@@ -1577,9 +1577,9 @@ static void ANIM_OT_replace_action_new(wmOperatorType *ot)
 /** \name Convert
  * \{ */
 
-static Vector<animrig::Transformable> selected_transformables_from_context(bContext *C)
+static Vector<ed::AnimTransformable> selected_transformables_from_context(bContext *C)
 {
-  Vector<animrig::Transformable> transformables;
+  Vector<ed::AnimTransformable> transformables;
   Vector<PointerRNA> pointers;
   switch (CTX_data_mode_enum(C)) {
     case CTX_MODE_OBJECT: {
@@ -1617,7 +1617,7 @@ static wmOperatorStatus rotation_mode_convert_exec(bContext *C, wmOperator *op)
 
   Main *bmain = CTX_data_main(C);
 
-  for (animrig::Transformable &transformable : selected_transformables_from_context(C)) {
+  for (ed::AnimTransformable &transformable : selected_transformables_from_context(C)) {
     if (transformable.get_rotation_mode() == mode) {
       continue;
     }
@@ -1649,7 +1649,7 @@ static wmOperatorStatus rotation_mode_convert_exec(bContext *C, wmOperator *op)
 
     if (visited_actions == 0) {
       /* No animation, just convert the values. */
-      animrig::Rotation current_rotation = transformable.get_rotation();
+      ed::Rotation current_rotation = transformable.get_rotation();
       transformable.set_rotation_mode(mode);
       transformable.set_rotation(current_rotation.converted_to_mode(mode));
     }
