@@ -164,7 +164,7 @@ def copy_bone(obj: ArmatureObject, bone_name: str, assign_name='', *,
                          'bbone_easein', 'bbone_easeout',
                          'bbone_rollin', 'bbone_rollout',
                          'bbone_curveinx', 'bbone_curveinz', 'bbone_curveoutx', 'bbone_curveoutz',
-                         'bbone_scalein', 'bbone_scaleout',]:
+                         'bbone_scalein', 'bbone_scaleout']:
                 setattr(edit_bone_2, name, getattr(edit_bone_1, name))
 
         # Resize the bone after copy if requested
