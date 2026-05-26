@@ -1,3 +1,4 @@
 Referenced by issue #135923, Library Overrides break action constraints
 Referenced by issue #140614, Edit bone selection cycling order dictated by creation order instead of users viewpoint
 Referenced by issue #159102, Pose bone selection cycling order dictated by creation order instead of view distance
+Referenced by pull request #159103, Fix #159102: Pose bone selection cycling order wrong
