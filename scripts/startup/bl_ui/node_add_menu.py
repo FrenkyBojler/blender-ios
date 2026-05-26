@@ -304,14 +304,14 @@ class NodeMenu(Menu):
             show_hidden = prefs.show_hidden_ids
 
             groups = [
-                group for group in context.blend_data.node_groups
+                (i, group) for i, group in enumerate(context.blend_data.node_groups)
                 if (group.bl_idname == node_tree.bl_idname and
                     not group.contains_tree(node_tree) and
                     (show_hidden or not group.name.startswith('.')))
             ]
             if groups:
                 layout.separator()
-                for group in groups:
+                for i, group in groups:
                     search_weight = -1.0 if group.is_linked_packed else 0.0
                     props = cls.node_operator(
                         layout,
@@ -321,7 +321,7 @@ class NodeMenu(Menu):
                     )
                     ops = props.settings.add()
                     ops.name = "node_tree"
-                    ops.value = "bpy.data.node_groups[{!r}]".format(group.name)
+                    ops.value = "bpy.data.node_groups[{!r}]".format(i)
                     ops = props.settings.add()
                     ops.name = "width"
                     ops.value = repr(group.default_group_node_width)
