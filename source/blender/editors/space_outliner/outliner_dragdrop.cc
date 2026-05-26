@@ -262,11 +262,8 @@ static TreeElement *outliner_drop_insert_collection_find(bContext *C,
   /* Master collection doesn't support relative sibling placement for collections,
    * but allows it for objects in custom sort mode. */
   if (collection->flag & COLLECTION_IS_MASTER) {
-    const bool is_object_row = is_object_element(te);
 
-    if (!is_object_row) {
-      *r_insert_type = TE_INSERT_INTO;
-    }
+    *r_insert_type = TE_INSERT_INTO;
   }
 
   return te;
