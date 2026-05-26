@@ -39,6 +39,7 @@
 #include "ED_anim_transformable.hh"
 #include "ED_armature.hh"
 #include "ED_keyframing.hh"
+#include "ED_object.hh"
 
 #include "ANIM_action.hh"
 #include "ANIM_action_iterators.hh"
@@ -498,20 +499,17 @@ void slide_subjects_autokey(bContext *C,
     }
   }
 
+  Vector<Object *> objects;
   for (SlideSubject &slide_subject : *slide_subjects) {
     ID *owner_id = slide_subject.transformable->owner_id();
     if (GS(owner_id->name) != ID_OB) {
       continue;
     }
-    Object *ob = id_cast<Object *>(owner_id);
-    if (ob->mpath) {
-      /* TODO recalculate object paths. */
-    }
-    if (ob->pose && (ob->pose->avs.path_bakeflag & MOTIONPATH_BAKE_HAS_PATHS)) {
-      /* TODO(sergey): Should ensure we can use more narrow update range here. */
-      ED_pose_recalculate_paths(C, scene, ob, ANIMVIZ_CALC_RANGE_FULL);
-    }
+    objects.append(id_cast<Object *>(owner_id));
   }
+  /* This includes all motion paths for bones. Could be more fine grained in the future to avoid
+   * needless updates to data that was not changed. */
+  ed::object::motion_paths_recalc(C, scene, ANIMVIZ_CALC_RANGE_CHANGED, objects);
 }
 
 /* *********************************************** */
