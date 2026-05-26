@@ -1171,13 +1171,13 @@ static bool collection_drop_init(bContext *C, wmDrag *drag, const int xy[2], Col
 {
   /* Get collection to drop into. */
   TreeElementInsertType insert_type;
-  TreeElement *te_hovered = outliner_drop_insert_collection_find(C, xy, &insert_type);
-  if (!te_hovered) {
+  TreeElement *te = outliner_drop_insert_collection_find(C, xy, &insert_type);
+  if (!te) {
     return false;
   }
 
   const TreeElement *collection_te = outliner_data_from_tree_element_and_parents(
-      is_collection_element, te_hovered);
+      is_collection_element, te);
   Collection *to_collection = collection_te ?
                                   outliner_collection_from_tree_element(collection_te) :
                                   nullptr;
@@ -1208,12 +1208,12 @@ static bool collection_drop_init(bContext *C, wmDrag *drag, const int xy[2], Col
   }
 
   if (GS(id->name) == ID_OB) {
-    if (te_hovered == collection_te) {
+    if (te == collection_te) {
       insert_type = TE_INSERT_INTO;
     }
   }
 
-  if (outliner_is_collection_dragged_into_itself(te_hovered, id)) {
+  if (outliner_is_collection_dragged_into_itself(te, id)) {
     return false;
   }
 
@@ -1233,7 +1233,7 @@ static bool collection_drop_init(bContext *C, wmDrag *drag, const int xy[2], Col
     if (space_outliner->sort_method != SO_SORT_CUSTOM) {
       insert_type = TE_INSERT_INTO;
     }
-    else if (te_hovered && is_object_element(te_hovered)) {
+    else if (te && is_object_element(te)) {
       if (insert_type == TE_INSERT_INTO) {
         insert_type = TE_INSERT_BEFORE;
       }
@@ -1254,7 +1254,7 @@ static bool collection_drop_init(bContext *C, wmDrag *drag, const int xy[2], Col
 
   data->from = from_collection;
   data->to = to_collection;
-  data->te = te_hovered;
+  data->te = te;
   data->insert_type = insert_type;
 
   return true;
