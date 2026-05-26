@@ -15,4 +15,11 @@ namespace blender::geometry {
 bke::CurvesGeometry remove_points_and_split(const bke::CurvesGeometry &curves,
                                             const IndexMask &mask);
 
+/**
+ * Remove the points in the \a point_mask and split each curve at the points that are removed (if
+ * necessary). Will also split fills.
+ */
+bke::CurvesGeometry grease_pencil_remove_points_and_split(const bke::CurvesGeometry &curves,
+                                                          const IndexMask &mask);
+
 }  // namespace blender::geometry

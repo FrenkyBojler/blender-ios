@@ -34,7 +34,6 @@ bke::CurvesGeometry remove_points_and_split(const bke::CurvesGeometry &curves,
   Vector<int> dst_curve_counts;
   Vector<int> dst_to_src_curve;
   Vector<bool> dst_cyclic;
-  Array<Vector<int>> src_to_dst_curve(curves.curves_num());
 
   for (const int curve_i : curves.curves_range()) {
     const IndexRange points = points_by_curve[curve_i];
@@ -73,7 +72,6 @@ bke::CurvesGeometry remove_points_and_split(const bke::CurvesGeometry &curves,
         count += first_range.size();
       }
 
-      src_to_dst_curve[curve_i].append(dst_to_src_curve.size());
       dst_curve_counts.append(count);
       dst_to_src_curve.append(curve_i);
       dst_cyclic.append(is_cyclic);
@@ -113,9 +111,59 @@ bke::CurvesGeometry remove_points_and_split(const bke::CurvesGeometry &curves,
   dst_curves.update_curve_types();
   dst_curves.remove_attributes_based_on_types();
 
+  if (curves.nurbs_has_custom_knots()) {
+    bke::curves::nurbs::update_custom_knot_modes(
+        dst_curves.curves_range(), NURBS_KNOT_MODE_NORMAL, NURBS_KNOT_MODE_NORMAL, dst_curves);
+  }
+  return dst_curves;
+}
+
+bke::CurvesGeometry grease_pencil_remove_points_and_split(const bke::CurvesGeometry &curves,
+                                                          const IndexMask &mask)
+{
+  bke::CurvesGeometry dst_curves = remove_points_and_split(curves, mask);
+
+  bke::MutableAttributeAccessor dst_attributes = dst_curves.attributes_for_write();
+
   if (bke::SpanAttributeWriter<int> dst_fill_ids = dst_attributes.lookup_for_write_span<int>(
           "fill_id"))
   {
+    Array<bool> points_to_delete(curves.points_num());
+    mask.to_bools(points_to_delete.as_mutable_span());
+
+    const OffsetIndices<int> points_by_curve = curves.points_by_curve();
+    const VArray<bool> src_cyclic = curves.cyclic();
+
+    Array<Vector<int>> src_to_dst_curve(curves.curves_num());
+    Vector<int> dst_to_src_curve;
+
+    for (const int curve_i : curves.curves_range()) {
+      const IndexRange points = points_by_curve[curve_i];
+      const Span<bool> curve_points_to_delete = points_to_delete.as_span().slice(points);
+      const bool curve_cyclic = src_cyclic[curve_i];
+
+      /* Note, these ranges start at zero and needed to be shifted by `points.first()` */
+      const Vector<IndexRange> ranges_to_keep = array_utils::find_all_ranges(
+          curve_points_to_delete, false);
+
+      if (ranges_to_keep.is_empty()) {
+        continue;
+      }
+
+      const bool is_last_segment_selected = curve_cyclic && ranges_to_keep.first().first() == 0 &&
+                                            ranges_to_keep.last().last() == points.size() - 1;
+      const bool is_curve_self_joined = is_last_segment_selected && ranges_to_keep.size() != 1;
+
+      /* Skip the first range because it is joined to the end of the last range. */
+      const int num_dst_curves = ranges_to_keep.size() - int(is_curve_self_joined);
+
+      src_to_dst_curve[curve_i].resize(num_dst_curves);
+      array_utils::fill_index_range<int>(src_to_dst_curve[curve_i].as_mutable_span(),
+                                         dst_to_src_curve.size());
+
+      dst_to_src_curve.append_n_times(curve_i, num_dst_curves);
+    }
+
     IndexMaskMemory memory;
     /* Get all the curves that where split off of the original geometry. */
     const IndexMask non_original_curves = IndexMask::from_predicate(
@@ -133,10 +181,6 @@ bke::CurvesGeometry remove_points_and_split(const bke::CurvesGeometry &curves,
     dst_fill_ids.finish();
   }
 
-  if (curves.nurbs_has_custom_knots()) {
-    bke::curves::nurbs::update_custom_knot_modes(
-        dst_curves.curves_range(), NURBS_KNOT_MODE_NORMAL, NURBS_KNOT_MODE_NORMAL, dst_curves);
-  }
   return dst_curves;
 }
 
