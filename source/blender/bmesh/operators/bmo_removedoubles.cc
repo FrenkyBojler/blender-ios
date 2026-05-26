@@ -222,7 +222,7 @@ void bmo_weld_verts_exec(BMesh *bm, BMOperator *op)
     }
 
     /* Group vertices by their survivor. */
-    if ((use_centroid || average_vdata) && LIKELY(v_dst != v)) {
+    if (average_vdata && LIKELY(v_dst != v)) {
       clusters.add(v_dst, v);
     }
   }
