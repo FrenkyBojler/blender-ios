@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.0.0 Alpha (b'7089def6cbcb')\n"
+"Project-Id-Version: Blender 5.2.0 Alpha (b'24a58e1403ac')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-09-29 09:33+0000\n"
+"POT-Creation-Date: 2026-05-25 07:25+0000\n"
 "PO-Revision-Date: 2025-07-23 15:19+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Greek <https://translate.blender.org/projects/blender-ui/ui/el/>\n"
@@ -87,6 +87,14 @@ msgid "Active Bone"
 msgstr "Ενεργό Οστό"
 
 
+msgid "Link"
+msgstr "Σύνδεση"
+
+
+msgid "Append"
+msgstr "Συγχώνευση"
+
+
 msgid "Point"
 msgstr "Σημείο"
 
@@ -155,6 +163,10 @@ msgid "Fill"
 msgstr "Συμπλήρωμα"
 
 
+msgid "Both"
+msgstr "Both"
+
+
 msgid "Crop"
 msgstr "Περικοπή"
 
@@ -185,14 +197,6 @@ msgstr "Γάμμα"
 
 msgid "View"
 msgstr "View"
-
-
-msgid "Mix"
-msgstr "Μείξη"
-
-
-msgid "Screen"
-msgstr "Οθόνη"
 
 
 msgid "Near"
@@ -315,14 +319,6 @@ msgid "Save"
 msgstr "Αποθήκευση"
 
 
-msgid "Link"
-msgstr "Σύνδεση"
-
-
-msgid "Append"
-msgstr "Συγχώνευση"
-
-
 msgid "End"
 msgstr "Τέλος"
 
@@ -333,6 +329,18 @@ msgstr "Διαγραφή"
 
 msgid "Collision"
 msgstr "Σύγκρουση"
+
+
+msgid "Font"
+msgstr "Γραμματοσειρά"
+
+
+msgid "Text"
+msgstr "Κείμενο"
+
+
+msgid "Sound"
+msgstr "Ήχος"
 
 
 msgid "Border"
@@ -377,10 +385,6 @@ msgstr "Προεξοχή"
 
 msgid "Path"
 msgstr "Μονοπάτι"
-
-
-msgid "Font"
-msgstr "Γραμματοσειρά"
 
 
 msgid "Shear"
@@ -471,10 +475,6 @@ msgid "Lattice"
 msgstr "Πλέγμα"
 
 
-msgid "Sound"
-msgstr "Ήχος"
-
-
 msgid "Blend"
 msgstr "Ανάμιξη"
 
@@ -515,6 +515,14 @@ msgid "Keyboard"
 msgstr "Πληκτρολόγιο"
 
 
+msgid "Mix"
+msgstr "Μείξη"
+
+
+msgid "Screen"
+msgstr "Οθόνη"
+
+
 msgid "Mirror"
 msgstr "Καθρέφτισμα"
 
@@ -547,20 +555,16 @@ msgid "Track"
 msgstr "Ανίχνευση"
 
 
+msgid "Import"
+msgstr "Εισαγωγή"
+
+
 msgid "Make Single User"
 msgstr "Ορισμός Ενός Χρήστη"
 
 
 msgid "Merge"
 msgstr "Συγχώνευση"
-
-
-msgid "Text"
-msgstr "Κείμενο"
-
-
-msgid "Import"
-msgstr "Εισαγωγή"
 
 
 msgid "Cache"
@@ -733,10 +737,6 @@ msgid "Open"
 msgstr "Άνοιγμα"
 
 
-msgid "Both"
-msgstr "Both"
-
-
 msgid "Next Keyframe"
 msgstr "Επόμενο Καρέ με Κλειδί"
 
@@ -758,10 +758,6 @@ msgstr "Replace Image"
 msgctxt "Operator"
 msgid "Fill"
 msgstr "Συμπλήρωμα"
-
-
-msgid "Ring"
-msgstr "Ring"
 
 
 msgid "Merge selected vertices"
@@ -975,14 +971,6 @@ msgstr "Φακός"
 
 msgid "Meta"
 msgstr "Μετα"
-
-
-msgid "Alpha Under"
-msgstr "Υποκάλυψη βάσει διαφάνειας"
-
-
-msgid "Gamma Cross"
-msgstr "Μετάβαση Γάμμα"
 
 
 msgid "Stencil"
