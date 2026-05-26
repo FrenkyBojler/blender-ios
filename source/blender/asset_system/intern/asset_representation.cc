@@ -239,8 +239,10 @@ void AssetRepresentation::online_asset_mark_downloaded()
   if (!extern_asset || !extern_asset->online_info_) {
     return;
   }
-  /* TODO: ensure that the file status is actually checked, instead of just clearing it. */
-  extern_asset->online_info_->file_status = AssetFileStatus::UNSET;
+  /* Since it was just downloaded, let's assume the file matches the listed hash. If not, the
+   * next refresh will show the correct status.
+   * TODO: ensure that the file status is actually checked, instead of just making assumptions. */
+  extern_asset->online_info_->file_status = AssetFileStatus::MATCH;
 }
 
 std::optional<eAssetImportMethod> AssetRepresentation::get_import_method() const
@@ -282,6 +284,7 @@ bool AssetRepresentation::is_online() const
     return false;
   }
   /* An asset is considered 'online' if there is no file on disk for it. */
+  BLI_assert(extern_asset->online_info_->file_status != AssetFileStatus::UNSET);
   return extern_asset->online_info_->file_status == AssetFileStatus::NOT_ON_DISK;
 }
 
