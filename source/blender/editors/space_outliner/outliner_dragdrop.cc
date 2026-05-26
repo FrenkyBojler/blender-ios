@@ -1421,8 +1421,8 @@ static wmOperatorStatus collection_drop_invoke(bContext *C,
     TREESTORE(data.te)->flag &= ~TSE_CLOSED;
   }
 
-  blender::Vector<CollectionObject *> cobs;
-  blender::Vector<CollectionObject *> dragged_cobs;
+  Vector<CollectionObject *> cobs;
+  Vector<CollectionObject *> dragged_cobs;
   bool is_custom_sort_move = false;
 
   /* Only use custom sort for objects, not for collections. Collections aren't in the
