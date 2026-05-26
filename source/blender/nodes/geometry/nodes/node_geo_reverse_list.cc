@@ -108,27 +108,25 @@ static void node_geo_exec(GeoNodeExecParams params)
                         float4x4,
                         nodes::MenuValue,
                         std::string,
-                        nodes::BundlePtr,
-                        nodes::ClosurePtr,
+                        nodes::BundlePtr *,
+                        nodes::ClosurePtr *,
                         GeometrySet,
-                        Material,
-                        Object,
-                        Image,
-                        VFont,
-                        Scene,
-                        bSound>([&]<typename T>() {
+                        Material *,
+                        Object *,
+                        Image *,
+                        VFont *,
+                        Scene *,
+                        bSound *>([&]<typename T>() {
       std::reverse_copy(
           src_span.typed<T>().begin(), src_span.typed<T>().end(), dst_span.typed<T>().begin());
-      array_utils::gather(src_span.typed<T>(), indices.as_span(), dst_span.typed<T>());
     });
+
+    GListPtr reversed_list = GList::create(type, std::move(reversed_data), list_size);
+    params.set_output("List"_ustr, std::move(reversed_list));
+    return;
   }
 
-  GListPtr reversed_list = GList::create(type, std::move(reversed_data), list_size);
-  params.set_output("List"_ustr, std::move(reversed_list));
-  return;
-}
-
-params.set_default_remaining_outputs();
+  params.set_default_remaining_outputs();
 }
 
 static void node_rna(StructRNA *srna)

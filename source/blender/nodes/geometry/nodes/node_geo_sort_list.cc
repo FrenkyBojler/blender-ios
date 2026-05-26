@@ -189,15 +189,15 @@ static void node_geo_exec(GeoNodeExecParams params)
                         float4x4,
                         nodes::MenuValue,
                         std::string,
-                        nodes::BundlePtr,
-                        nodes::ClosurePtr,
+                        nodes::BundlePtr *,
+                        nodes::ClosurePtr *,
                         GeometrySet,
-                        Material,
-                        Object,
-                        Image,
-                        VFont,
-                        Scene,
-                        bSound>(type, [&]<typename T>() {
+                        Material *,
+                        Object *,
+                        Image *,
+                        VFont *,
+                        Scene *,
+                        bSound *>([&]<typename T>() {
       array_utils::gather(src_span.typed<T>(), indices.as_span(), dst_span.typed<T>());
     });
   }
