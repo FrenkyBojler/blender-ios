@@ -916,6 +916,9 @@ class SocketTooltipBuilder {
         this->build_tooltip_value_and_type_oneline(TIP_("Uniform Image Coordinates"),
                                                    TIP_("2D Float Vector"));
         break;
+      case NODE_DEFAULT_INPUT_SELF_OBJECT:
+        this->build_tooltip_value_and_type_oneline(TIP_("Self Object"), TIP_("Object"));
+        break;
     }
   }
 
