@@ -184,8 +184,7 @@ static void init_text_effect(Strip *strip)
   data->text_blf_id = -1;
   data->text_size = 60.0f;
   data->space_line = 1.0f;
-  data->abs_space_line = 60.0f;
-  /* Keep in sync with `data->text_size` at init. */
+  data->abs_space_line = 60.0f; /* Keep in sync with `data->text_size` at init. */
 
   copy_v4_fl(data->color, 1.0f);
   data->shadow_color[3] = 0.7f;
