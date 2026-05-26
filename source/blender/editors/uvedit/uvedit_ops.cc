@@ -652,6 +652,153 @@ struct UVAlignIslandBounds {
   int index;
 };
 
+/* -------------------------------------------------------------------- */
+/** \name Swap Islands Operator
+ * \{ */
+
+struct UVSwapIslandInfo {
+  Object *object;
+  UvElementMap *element_map;
+  BMUVOffsets offsets;
+  UvElement *island_start;
+  int island_len;
+};
+
+static wmOperatorStatus uv_swap_islands_exec(bContext *C, wmOperator *op)
+{
+  const Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+
+  Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
+      *bmain, scene, view_layer, nullptr);
+
+  Vector<UVSwapIslandInfo> selected_islands;
+
+  for (Object *obedit : objects) {
+    BMEditMesh *em = BKE_editmesh_from_object(obedit);
+    BMesh *bm = em->bm;
+
+    if (bm->totvertsel == 0) {
+      continue;
+    }
+
+    UvElementMap *element_map = BM_uv_element_map_create(bm, scene, true, false, true, true);
+    if (element_map == nullptr) {
+      continue;
+    }
+
+    const BMUVOffsets offsets = BM_uv_map_offsets_get(bm);
+
+    for (int i = 0; i < element_map->total_islands; i++) {
+      UvElement *element = element_map->storage + element_map->island_indices[i];
+      bool island_selected = false;
+
+      for (int j = 0; j < element_map->island_total_uvs[i]; j++) {
+        if (uvedit_uv_select_test(scene, bm, element[j].l, offsets)) {
+          island_selected = true;
+          break;
+        }
+      }
+
+      if (island_selected) {
+        UVSwapIslandInfo info;
+        info.object = obedit;
+        info.element_map = element_map;
+        info.offsets = offsets;
+        info.island_len = element_map->island_total_uvs[i];
+        info.island_start = element_map->storage + element_map->island_indices[i];
+        selected_islands.append(info);
+      }
+    }
+  }
+
+  if (selected_islands.size() != 2) {
+    Vector<UvElementMap *> maps_to_free;
+    for (const UVSwapIslandInfo &info : selected_islands) {
+      if (!maps_to_free.contains(info.element_map)) {
+        maps_to_free.append(info.element_map);
+      }
+    }
+    for (UvElementMap *map : maps_to_free) {
+      BM_uv_element_map_free(map);
+    }
+    BKE_report(op->reports, RPT_ERROR, "Exactly 2 UV islands must be selected for swap operation");
+    return OPERATOR_CANCELLED;
+  }
+
+  const UVSwapIslandInfo &island1_info = selected_islands[0];
+  const UVSwapIslandInfo &island2_info = selected_islands[1];
+
+  float2 island1_center = {0.0f, 0.0f};
+  float2 island2_center = {0.0f, 0.0f};
+
+  for (int j = 0; j < island1_info.island_len; j++) {
+    float *luv = BM_ELEM_CD_GET_FLOAT_P(island1_info.island_start[j].l, island1_info.offsets.uv);
+    island1_center.x += luv[0];
+    island1_center.y += luv[1];
+  }
+  island1_center.x /= island1_info.island_len;
+  island1_center.y /= island1_info.island_len;
+
+  for (int j = 0; j < island2_info.island_len; j++) {
+    float *luv = BM_ELEM_CD_GET_FLOAT_P(island2_info.island_start[j].l, island2_info.offsets.uv);
+    island2_center.x += luv[0];
+    island2_center.y += luv[1];
+  }
+  island2_center.x /= island2_info.island_len;
+  island2_center.y /= island2_info.island_len;
+
+  float2 offset = island2_center - island1_center;
+
+  for (int j = 0; j < island1_info.island_len; j++) {
+    float *luv = BM_ELEM_CD_GET_FLOAT_P(island1_info.island_start[j].l, island1_info.offsets.uv);
+    luv[0] += offset.x;
+    luv[1] += offset.y;
+  }
+
+  for (int j = 0; j < island2_info.island_len; j++) {
+    float *luv = BM_ELEM_CD_GET_FLOAT_P(island2_info.island_start[j].l, island2_info.offsets.uv);
+    luv[0] -= offset.x;
+    luv[1] -= offset.y;
+  }
+
+  SpaceImage *sima = CTX_wm_space_image(C);
+
+  Vector<UvElementMap *> maps_to_free;
+  for (const UVSwapIslandInfo &info : selected_islands) {
+    if (!maps_to_free.contains(info.element_map)) {
+      maps_to_free.append(info.element_map);
+    }
+  }
+  for (UvElementMap *map : maps_to_free) {
+    BM_uv_element_map_free(map);
+  }
+
+  for (const UVSwapIslandInfo &info : selected_islands) {
+    uvedit_live_unwrap_update(sima, scene, info.object);
+    DEG_id_tag_update(info.object->data, 0);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, info.object->data);
+  }
+
+  return OPERATOR_FINISHED;
+}
+
+static void UV_OT_swap_islands(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Swap Islands";
+  ot->description = "Swap the location of two selected UV islands";
+  ot->idname = "UV_OT_swap_islands";
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  /* API callbacks. */
+  ot->exec = uv_swap_islands_exec;
+  ot->poll = ED_operator_uvedit;
+}
+
+/** \} */
+
 /**
  * \param position: The position to begin placing islands on,
  * this is written to so multiple objects will placing non-overlapping islands.
@@ -2943,6 +3090,7 @@ void ED_operatortypes_uvedit()
 
   WM_operatortype_append(UV_OT_align);
   WM_operatortype_append(UV_OT_arrange_islands);
+  WM_operatortype_append(UV_OT_swap_islands);
 
   WM_operatortype_append(UV_OT_rip);
   WM_operatortype_append(UV_OT_stitch);
