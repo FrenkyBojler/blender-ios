@@ -259,13 +259,13 @@ int console_char_pick(SpaceConsole *sc, const ARegion *region, const int mval[2]
   return mval_pick_offset;
 }
 
-void console_cursor_region_xy_get(SpaceConsole *sc, const ARegion *region, int offset, int r_xy[2])
+std::optional<blender::int2> console_cursor_region_xy_get(const SpaceConsole *sc,
+                                                          const ARegion *region,
+                                                          const int offset)
 {
   const ConsoleLine *cl = static_cast<const ConsoleLine *>(sc->history.last);
   if (cl == nullptr) {
-    r_xy[0] = 0;
-    r_xy[1] = 0;
-    return;
+    return std::nullopt;
   }
 
   /* TODO(@ideasman42): some of this logic should be moved to `textview`
@@ -284,14 +284,17 @@ void console_cursor_region_xy_get(SpaceConsole *sc, const ARegion *region, int o
   int offl = 0, offc = 0;
   console_cursor_wrap_offset(sc->prompt, columns, &offl, &offc, nullptr);
   console_cursor_wrap_offset(cl->line, columns, &offl, &offc, cl->line + offset);
-  r_xy[0] = cwidth * offc;
-  r_xy[1] = -lheight * offl;
+  int2 xy = {
+      cwidth * offc,
+      -lheight * offl,
+  };
 
   console_cursor_wrap_offset(cl->line + offset, columns, &offl, &offc, nullptr);
-  r_xy[1] += lheight * offl;
+  xy[1] += lheight * offl;
 
-  r_xy[0] += draw_rect.xmin;
-  r_xy[1] += draw_rect.ymin;
+  xy[0] += draw_rect.xmin;
+  xy[1] += draw_rect.ymin;
+  return xy;
 }
 
 }  // namespace blender

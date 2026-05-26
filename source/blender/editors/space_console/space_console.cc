@@ -226,12 +226,13 @@ static std::optional<blender::int2> console_main_region_cursor_ime(wmWindow * /*
   if (cl == nullptr) {
     return std::nullopt;
   }
-  int cursor_xy[2];
-  console_cursor_region_xy_get(sc, region, cl->cursor, cursor_xy);
-  /* The cursor may be scrolled out of view. */
-  cursor_xy[0] = std::clamp(cursor_xy[0], 0, BLI_rcti_size_x(&region->winrct));
-  cursor_xy[1] = std::clamp(cursor_xy[1], 0, BLI_rcti_size_y(&region->winrct));
-  return blender::int2(cursor_xy[0], cursor_xy[1]);
+  std::optional<blender::int2> cursor_xy = console_cursor_region_xy_get(sc, region, cl->cursor);
+  if (cursor_xy != std::nullopt) {
+    /* The cursor may be scrolled out of view. */
+    cursor_xy->x = std::clamp(cursor_xy->x, 0, BLI_rcti_size_x(&region->winrct));
+    cursor_xy->y = std::clamp(cursor_xy->y, 0, BLI_rcti_size_y(&region->winrct));
+  }
+  return cursor_xy;
 }
 
 #endif
