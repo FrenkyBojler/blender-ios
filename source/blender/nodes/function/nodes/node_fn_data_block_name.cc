@@ -70,31 +70,63 @@ static auto to_static_data_block_type(const eNodeSocketDatatype socket_type, Fn 
   }
 }
 
+template<typename T> class DataBlockNameFunction : public mf::MultiFunction {
+ public:
+  DataBlockNameFunction()
+  {
+    static const mf::Signature signature = []() {
+      mf::Signature signature;
+      mf::SignatureBuilder builder{"Data Block Name", signature};
+
+      builder.single_input<T *>("Data Block");
+      builder.single_output<std::string>("Name");
+      builder.single_output<std::string>("Library Name", mf::ParamFlag::SupportsUnusedOutput);
+      return signature;
+    }();
+    this->set_signature(&signature);
+  }
+
+  void call(const IndexMask &mask, mf::Params params, mf::Context /*context*/) const override
+  {
+    const VArray<T *> &data_blocks = params.readonly_single_input<T *>(0, "Data Block");
+    MutableSpan<std::string> names = params.uninitialized_single_output<std::string>(1, "Name");
+    MutableSpan<std::string> library_names =
+        params.uninitialized_single_output_if_required<std::string>(2, "Library Name");
+
+    const bool socket_used = !library_names.is_empty();
+
+    mask.foreach_index_optimized<int64_t>([&](const int64_t i) {
+      const T *data_block = data_blocks[i];
+
+      if (data_block == nullptr) {
+        new (&names[i]) std::string("");
+        if (socket_used) {
+          new (&library_names[i]) std::string("");
+        }
+        return;
+      }
+
+      const ID *id = id_cast<const ID *>(data_block);
+      new (&names[i]) std::string(BKE_id_name(*id));
+
+      if (socket_used) {
+        if (id->lib == nullptr) {
+          new (&library_names[i]) std::string("");
+        }
+        else {
+          new (&library_names[i]) std::string(BKE_id_name(id->lib->id));
+        }
+      }
+    });
+  }
+};
+
 static const mf::MultiFunction *get_multi_function(const bNode &node)
 {
   const eNodeSocketDatatype data_type = eNodeSocketDatatype(node.custom1);
 
   return to_static_data_block_type(data_type, [&]<typename T>() -> const mf::MultiFunction * {
-    static auto fn = mf::build::SI1_SO2<T *, std::string, std::string>(
-        "Data Block Name",
-        [](const T *data_block, std::string &name, std::string &library_name) {
-          if (data_block == nullptr) {
-            new (&name) std::string("");
-            new (&library_name) std::string("");
-            return;
-          }
-
-          const ID *id = id_cast<const ID *>(data_block);
-          new (&name) std::string(BKE_id_name(*id));
-
-          if (id->lib == nullptr) {
-            new (&library_name) std::string("");
-          }
-          else {
-            new (&library_name) std::string(BKE_id_name(id->lib->id));
-          }
-        },
-        mf::build::exec_presets::Simple{});
+    static DataBlockNameFunction<T> fn;
     return &fn;
   });
 }
