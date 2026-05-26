@@ -657,7 +657,7 @@ static BMOpDefine bmo_pointmerge_def = {
         {"verts", BMO_OP_SLOT_ELEMENT_BUF, {BM_VERT}},
         /* Position to merge at. */
         {"merge_co", BMO_OP_SLOT_VEC},
-        /* Optional target vertex used as the merge destination */
+        /* Target vertex to merge into. */
         {"vert_snap", BMO_OP_SLOT_ELEMENT_BUF, {BM_VERT | BMO_OP_SLOT_SUBTYPE_ELEM_IS_SINGLE}},
         {{'\0'}},
     },
