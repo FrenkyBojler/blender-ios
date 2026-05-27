@@ -115,7 +115,7 @@ AssetLibrary *AssetLibraryService::get_asset_library(
         return this->get_preferences_remote_asset_library(*custom_library);
       }
 
-      std::string root_path = custom_library->dirpath;
+      std::string root_path = custom_library->normalized_dirpath;
       if (root_path.empty()) {
         return nullptr;
       }
@@ -184,12 +184,11 @@ AssetLibrary *AssetLibraryService::get_asset_library_on_disk(
     const bool load_catalogs,
     bUserAssetLibrary *preferences_library)
 {
-  const std::string normalized_root_path = utils::normalize_directory_path(root_path);
-
   /* Lock for the entire "lookup and if not found -> create and insert" scope, so no two threads do
    * this in parallel and interfere with each other. */
   std::scoped_lock lock{on_disk_libraries_mutex_};
 
+  const std::string normalized_root_path = utils::normalize_directory_path(root_path);
   if (OnDiskAssetLibrary *lib = this->lookup_on_disk_library(library_type, normalized_root_path)) {
     CLOG_DEBUG(&LOG, "get \"%s\" (cached)", normalized_root_path.c_str());
     if (load_catalogs) {
@@ -244,8 +243,11 @@ AssetLibrary *AssetLibraryService::get_asset_library_on_disk_custom(StringRef na
 AssetLibrary *AssetLibraryService::get_asset_library_on_disk_custom_preferences(
     bUserAssetLibrary *custom_library)
 {
-  return this->get_asset_library_on_disk(
-      ASSET_LIBRARY_CUSTOM, custom_library->name, custom_library->dirpath, true, custom_library);
+  return this->get_asset_library_on_disk(ASSET_LIBRARY_CUSTOM,
+                                         custom_library->name,
+                                         custom_library->normalized_dirpath,
+                                         true,
+                                         custom_library);
 }
 
 AssetLibrary *AssetLibraryService::get_asset_library_on_disk_builtin(eAssetLibraryType type,
@@ -430,7 +432,7 @@ std::string AssetLibraryService::resolve_asset_weak_reference_to_library_path(
       bUserAssetLibrary *custom_lib = find_custom_preferences_asset_library_from_asset_weak_ref(
           asset_reference);
       if (custom_lib) {
-        library_dirpath = custom_lib->dirpath;
+        library_dirpath = custom_lib->normalized_dirpath;
         break;
       }
 
@@ -623,11 +625,11 @@ std::string AssetLibraryService::root_path_from_library_ref(
 
   bUserAssetLibrary *custom_library = find_custom_asset_library_from_library_ref(
       library_reference);
-  if (!custom_library || !custom_library->dirpath[0]) {
+  if (!custom_library || !custom_library->normalized_dirpath[0]) {
     return "";
   }
 
-  return custom_library->dirpath;
+  return custom_library->normalized_dirpath;
 }
 
 void AssetLibraryService::allocate_service_instance()

@@ -713,6 +713,8 @@ static eFileIndexerResult read_index(const char *filename,
   BlendFile asset_file(filename);
   AssetIndexFile asset_index_file(library_index, asset_file);
 
+  printf("Tried to read index\n");
+
   if (!asset_index_file.exists()) {
     return FILE_INDEXER_NEEDS_UPDATE;
   }
@@ -784,6 +786,7 @@ static void *init_user_data(const char *root_directory, size_t root_directory_ma
       __func__, StringRef(root_directory, BLI_strnlen(root_directory, root_directory_maxncpy)));
   library_index->collect_preexisting_file_indices();
   library_index->remove_broken_index_files();
+  printf("initalized index with %s\n", root_directory);
   return library_index;
 }
 

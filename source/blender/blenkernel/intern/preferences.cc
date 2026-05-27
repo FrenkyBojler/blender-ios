@@ -10,6 +10,7 @@
 
 #include <cstring>
 
+#include "AS_asset_library.hh"
 #include "AS_essentials_library.hh"
 #include "AS_remote_library.hh"
 
@@ -76,6 +77,7 @@ bUserAssetLibrary *BKE_preferences_asset_library_add(UserDef *userdef,
     BKE_preferences_asset_library_name_set(userdef, library, name);
   }
   if (dirpath) {
+    STRNCPY(library->normalized_dirpath, AS_asset_library_normalize_path(dirpath).c_str());
     STRNCPY(library->dirpath, dirpath);
   }
 
@@ -102,9 +104,12 @@ void BKE_preferences_asset_library_name_set(UserDef *userdef,
 
 void BKE_preferences_asset_library_path_set(bUserAssetLibrary *library, const char *path)
 {
+  STRNCPY(library->normalized_dirpath, AS_asset_library_normalize_path(path).c_str());
   STRNCPY(library->dirpath, path);
-  if (BLI_is_file(library->dirpath)) {
+  if (BLI_is_file(library->normalized_dirpath)) {
+    // TODO: this might not work nicely
     BLI_path_parent_dir(library->dirpath);
+    BLI_path_parent_dir(library->normalized_dirpath);
   }
 }
 
@@ -124,7 +129,9 @@ bUserAssetLibrary *BKE_preferences_asset_library_containing_path(const UserDef *
                                                                  const char *path)
 {
   for (bUserAssetLibrary &asset_lib_pref : userdef->asset_libraries) {
-    if (asset_lib_pref.dirpath[0] && BLI_path_contains(asset_lib_pref.dirpath, path)) {
+    if (asset_lib_pref.normalized_dirpath[0] &&
+        BLI_path_contains(asset_lib_pref.normalized_dirpath, path))
+    {
       return &asset_lib_pref;
     }
   }
@@ -162,7 +169,7 @@ bool BKE_preferences_asset_library_is_valid(const UserDef *userdef,
   if (!library->dirpath[0]) {
     return false;
   }
-  if (check_directory_exists && !BLI_is_dir(library->dirpath)) {
+  if (check_directory_exists && !BLI_is_dir(library->normalized_dirpath)) {
     return false;
   }
 
@@ -184,6 +191,7 @@ void BKE_preferences_asset_library_default_add(UserDef *userdef)
   /* Add new "Default" library under '[doc_path]/Blender/Assets'. */
   BLI_path_join(
       library->dirpath, sizeof(library->dirpath), documents_path, N_("Blender"), N_("Assets"));
+  STRNCPY(library->normalized_dirpath, AS_asset_library_normalize_path(library->dirpath).c_str());
 }
 
 bUserAssetLibrary *BKE_preferences_remote_asset_library_add(UserDef *userdef,

@@ -124,7 +124,7 @@ static void rna_enum_add_custom_libraries(EnumPropertyItem **item,
         user_library.name,
         /* Use library path or URL as description, it's a nice hint for users. */
         (user_library.flag & ASSET_LIBRARY_USE_REMOTE_URL) ? user_library.remote_url :
-                                                             user_library.dirpath};
+                                                             user_library.normalized_dirpath};
     RNA_enum_item_add(item, totitem, &tmp);
   }
 

@@ -1801,6 +1801,7 @@ static void file_draw_invalid_asset_library_hint(const bContext *C,
   sy -= line_height * 2.2f;
 
   {
+    // TODO: handle this for project asset libraries.
     ui::icon_draw(sx, sy - UI_UNIT_Y, ICON_INFO);
 
     const char *suggestion = RPT_(

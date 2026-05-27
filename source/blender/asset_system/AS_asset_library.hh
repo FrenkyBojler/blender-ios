@@ -346,6 +346,9 @@ void AS_asset_libraries_exit();
 asset_system::AssetLibrary *AS_asset_library_load_from_directory(const char *name,
                                                                  const char *library_dirpath);
 
+// TODO: description
+std::string AS_asset_library_normalize_path(StringRef path);
+
 /** Return whether any loaded AssetLibrary has unsaved changes to its catalogs. */
 bool AS_asset_library_has_any_unsaved_catalogs();
 

@@ -68,6 +68,11 @@ AssetLibrary *AS_asset_library_load_from_directory(const char *name, const char 
   return lib;
 }
 
+std::string AS_asset_library_normalize_path(StringRef path)
+{
+  return utils::normalize_directory_path(path);
+}
+
 bool AS_asset_library_has_any_unsaved_catalogs()
 {
   AssetLibraryService *service = AssetLibraryService::get();
@@ -85,7 +90,7 @@ std::string AS_asset_library_find_suitable_root_path_from_path(const StringRefNu
   if (bUserAssetLibrary *preferences_lib = BKE_preferences_asset_library_containing_path(
           &U, input_path.c_str()))
   {
-    return preferences_lib->dirpath;
+    return preferences_lib->normalized_dirpath;
   }
 
   char buffer[FILE_MAXDIR];
