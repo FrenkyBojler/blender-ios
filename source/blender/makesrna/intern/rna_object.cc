@@ -1220,8 +1220,10 @@ static void rna_Object_rotation_mode_set(PointerRNA *ptr, int value)
   ob->rotmode = clamp_i(value, ROT_MODE_MIN, ROT_MODE_MAX);
 }
 
-static void rna_Object_convert_rotation_mode(
-    ID * /* id */, Object *ob, bContext *C, const short rotation_mode, const bool bake)
+static void rna_Object_convert_rotation_mode(Object *ob,
+                                             bContext *C,
+                                             const short rotation_mode,
+                                             const bool bake)
 {
   if (rotation_mode < ROT_MODE_MIN || rotation_mode > ROT_MODE_MAX) {
     return;
@@ -3217,7 +3219,7 @@ static void rna_def_object(BlenderRNA *brna)
       srna, "convert_rotation_mode", "rna_Object_convert_rotation_mode");
   RNA_def_function_ui_description(
       func, "Changes the rotation mode and converts all animation to match that new mode");
-  RNA_def_function_flag(func, FUNC_USE_CONTEXT | FUNC_USE_SELF_ID);
+  RNA_def_function_flag(func, FUNC_USE_CONTEXT);
   PropertyRNA *parm = RNA_def_enum(func,
                                    "rotation_mode",
                                    rna_enum_object_rotation_mode_items,
