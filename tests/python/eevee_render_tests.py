@@ -75,8 +75,6 @@ BLOCKLIST_METAL = [
     "image.blend",
     # Blocked due to subtle differences in DOF
     "osl_camera_advanced.blend",
-    # Blocked due to volume occupancy being broken
-    "texture_coordinate_object.blend",
 ]
 
 BLOCKLIST_VULKAN = [
