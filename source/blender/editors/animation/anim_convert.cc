@@ -60,35 +60,6 @@ FCurve *SortedFCurveBuffer::get_fcurve_by_array_index(const int array_index) con
   return nullptr;
 }
 
-static int compare_int(const void *a, const void *b)
-{
-  return *(static_cast<const int *>(a)) - *(static_cast<const int *>(b));
-}
-/*
- * Builds a sorted array of unique frames where at least one of the given FCurves has a key. This
- * uses int instead of float to avoid precision issues. The maximum subframe resolution is dicated
- * by BEZT_BINARYSEARCH_THRESH so this is used to convert to a unique integer.
- */
-static Vector<int64_t> build_keyframe_ids(const Span<const FCurve *> fcurves)
-{
-  Vector<int64_t> keyframe_ids;
-  Set<int64_t> existing_ids;
-  for (const FCurve *fcurve : fcurves) {
-    if (!fcurve || !fcurve->bezt) {
-      continue;
-    }
-    for (int i = 0; i < fcurve->totvert; i++) {
-      const int64_t value = int64_t(fcurve->bezt[i].vec[1][0] / BEZT_BINARYSEARCH_THRESH);
-      if (existing_ids.add(value)) {
-        keyframe_ids.append(value);
-      }
-    }
-  }
-  /* Keys have to be sorted to produce euler filtered results. */
-  qsort(keyframe_ids.data(), keyframe_ids.size(), sizeof(int64_t), compare_int);
-  return keyframe_ids;
-}
-
 /* Returns the ranges in which a rotation mode is active. Each entry denotes the starting point of
  * the range and it ends with the next entry. If the FCurve has any keys, there will be at least
  * one entry with the starting mode. */
@@ -115,6 +86,74 @@ static Vector<std::pair<float, eRotationModes>> get_rotation_mode_ranges(const F
 }
 
 /**
+ * Helper class to iterate all frames with keys on the given FCurves. Every frame is visited in
+ * ascending order only once.
+ */
+class KeyframeIterator {
+  Vector<const FCurve *> fcurves_;
+  Array<int> key_indices_;
+  Bounds<float> range_;
+
+ public:
+  /* `fcurves` is allowed to have nullptr entries. */
+  KeyframeIterator(Span<const FCurve *> fcurves, const Bounds<float> range) : range_(range)
+  {
+    for (const int i : fcurves.index_range()) {
+      if (!fcurves[i] || !fcurves[i]->bezt) {
+        continue;
+      }
+      fcurves_.append(fcurves[i]);
+    }
+
+    key_indices_.reinitialize(fcurves_.size());
+    bool frame_has_key;
+    for (const int i : fcurves_.index_range()) {
+      const FCurve *fcurve = fcurves_[i];
+      const int index = BKE_fcurve_bezt_binarysearch_index(
+          fcurve->bezt, range.min, fcurve->totvert, &frame_has_key);
+      key_indices_[i] = index;
+    }
+  }
+
+  float step()
+  {
+    float next_frame = FLT_MAX;
+    for (const int i : fcurves_.index_range()) {
+      const FCurve *fcurve = fcurves_[i];
+      if (key_indices_[i] > fcurve->totvert - 1) {
+        /* No more keys for that FCurve. */
+        continue;
+      }
+      const float key_frame = fcurve->bezt[key_indices_[i]].vec[1][0];
+      if (key_frame >= range_.max) {
+        continue;
+      }
+      if (key_frame < next_frame) {
+        next_frame = key_frame;
+      }
+    }
+
+    if (next_frame == FLT_MAX) {
+      /* No more keys to step in the range. */
+      return 0;
+    }
+
+    for (const int i : fcurves_.index_range()) {
+      const FCurve *fcurve = fcurves_[i];
+      if (key_indices_[i] > fcurve->totvert - 1) {
+        continue;
+      }
+      const float key_frame = fcurve->bezt[key_indices_[i]].vec[1][0];
+      if (key_frame <= next_frame) {
+        /* Advance all FCurves that have a key at that frame. */
+        key_indices_[i]++;
+      }
+    }
+    return next_frame;
+  }
+};
+
+/**
  * For all keyframes in the `evaluation_buffer` in the given range, insert values into
  * `insertion_buffer` that represent the same rotation but in the given rotation mode.
  *
@@ -129,7 +168,7 @@ static void convert_fcurves_rotation_mode(const Span<const FCurve *> evaluation_
                                           const Span<FCurve *> insertion_buffer,
                                           const eRotationModes from_mode,
                                           const eRotationModes to_mode,
-                                          const float2 range,
+                                          const Bounds<float> range,
                                           const ed::AnimTransformable &transformable)
 {
   /* Filling the array with the current values to have good base values in case not every array
@@ -152,15 +191,8 @@ static void convert_fcurves_rotation_mode(const Span<const FCurve *> evaluation_
   /* Storing the previous rotation for euler angles larger than 180 degrees. */
   ed::Rotation previous_conversion = rotation_values.converted_to_mode(to_mode);
 
-  Vector<int64_t> keyframe_ids = build_keyframe_ids(evaluation_buffer);
-  for (const int64_t frame_id : keyframe_ids) {
-    const float frame = frame_id * BEZT_BINARYSEARCH_THRESH;
-    if (frame < range[0]) {
-      continue;
-    }
-    if (frame >= range[1]) {
-      break;
-    }
+  KeyframeIterator key_iterator = KeyframeIterator(evaluation_buffer, range);
+  while (const float frame = key_iterator.step()) {
     /* Generate the current rotation values respecting missing FCurves. */
     for (const FCurve *fcurve : evaluation_buffer) {
       if (!fcurve) {
@@ -176,75 +208,6 @@ static void convert_fcurves_rotation_mode(const Span<const FCurve *> evaluation_
       insert_vert_fcurve(fcurve, {frame, converted_rotation.values[i]}, settings, INSERTKEY_FAST);
     }
     previous_conversion = converted_rotation;
-  }
-
-  for (FCurve *fcurve : insertion_buffer) {
-    BKE_fcurve_handles_recalc(*fcurve);
-  }
-}
-
-static void convert_rotation_mode_range(Main &bmain,
-                                        animrig::Channelbag &channelbag,
-                                        const SortedFCurveBuffer &fcurve_buffer,
-                                        const eRotationModes from_mode,
-                                        const eRotationModes to_mode,
-                                        const float2 range,
-                                        const ed::AnimTransformable &transformable)
-{
-  const int evaluation_buffer_count = from_mode > ROT_MODE_QUAT ? 3 : 4;
-  const int insertion_buffer_count = to_mode > ROT_MODE_QUAT ? 3 : 4;
-
-  Array<FCurve *> evaluation_buffer(evaluation_buffer_count);
-  Array<FCurve *> insertion_buffer(insertion_buffer_count);
-
-  const bool is_euler_to_euler = from_mode > ROT_MODE_QUAT && to_mode > ROT_MODE_QUAT;
-
-  const std::string to_mode_rna_path = transformable.rna_path_to_rotation_mode(to_mode);
-
-  if (is_euler_to_euler) {
-    /* Cannot use the FCurve directly from the channelbag. Modifying that while converting the
-     * rotation mode would influence the result. */
-    animrig::FCurveDescriptor descriptor = {
-        to_mode_rna_path, 0, PROP_FLOAT, PROP_EULER, transformable.fcurve_group_name()};
-    BLI_assert_msg(evaluation_buffer_count == insertion_buffer_count &&
-                       evaluation_buffer_count == 3,
-                   "Both rotation modes are euler so should have 3 elements.");
-    for (const int i : IndexRange(3)) {
-      descriptor.array_index = i;
-      insertion_buffer[i] = &channelbag.fcurve_ensure(&bmain, descriptor);
-      evaluation_buffer[i] = BKE_fcurve_copy(insertion_buffer[i]);
-    }
-  }
-  else {
-    for (const int i : IndexRange(evaluation_buffer_count)) {
-      evaluation_buffer[i] = fcurve_buffer.get_fcurve_by_array_index(i);
-    }
-    /* Is needed to get correct FCurve colors. */
-    PropertySubType prop_subtype = PROP_EULER;
-    if (to_mode == ROT_MODE_QUAT) {
-      prop_subtype = PROP_QUATERNION;
-    }
-    else if (to_mode == ROT_MODE_AXISANGLE) {
-      prop_subtype = PROP_AXISANGLE;
-    }
-    animrig::FCurveDescriptor descriptor = {
-        to_mode_rna_path, 0, PROP_FLOAT, prop_subtype, transformable.fcurve_group_name()};
-    for (const int i : IndexRange(insertion_buffer_count)) {
-      descriptor.array_index = i;
-      insertion_buffer[i] = &channelbag.fcurve_ensure(&bmain, descriptor);
-    }
-  }
-
-  convert_fcurves_rotation_mode(
-      evaluation_buffer, insertion_buffer, from_mode, to_mode, range, transformable);
-
-  /* TODO since this only works on a subset of the full range, we have to keep the read copy around
-   * for longer. */
-  if (is_euler_to_euler) {
-    /* Free the FCurves that have been duplicated beforehand. */
-    for (FCurve *fcurve : evaluation_buffer) {
-      BKE_fcurve_free(fcurve);
-    }
   }
 }
 
@@ -265,30 +228,83 @@ static void remove_rotation_fcurves(const ed::AnimTransformable &transformable,
   rotation_fcurves->clear();
 }
 
-static void remove_unused_rotation_fcurves(const ed::AnimTransformable &transformable,
-                                           RNAFCurveMap &fcu_map,
-                                           animrig::Channelbag &channelbag)
+static bool convert_rotation_mode_ranges(animrig::Channelbag &channelbag,
+                                         RNAFCurveMap &fcu_map,
+                                         const eRotationModes to_mode,
+                                         const Span<std::pair<float, eRotationModes>> ranges,
+                                         const ed::AnimTransformable &transformable)
 {
-  switch (transformable.get_rotation_mode()) {
-    case ROT_MODE_QUAT:
-      remove_rotation_fcurves(transformable, fcu_map, channelbag, ROT_MODE_EUL);
-      remove_rotation_fcurves(transformable, fcu_map, channelbag, ROT_MODE_AXISANGLE);
-      break;
+  const int insertion_buffer_count = to_mode > ROT_MODE_QUAT ? 3 : 4;
+  Array<FCurve *> insertion_buffer(insertion_buffer_count);
 
-    case ROT_MODE_AXISANGLE:
-      remove_rotation_fcurves(transformable, fcu_map, channelbag, ROT_MODE_QUAT);
-      remove_rotation_fcurves(transformable, fcu_map, channelbag, ROT_MODE_EUL);
-      break;
-
-    default:
-      remove_rotation_fcurves(transformable, fcu_map, channelbag, ROT_MODE_QUAT);
-      remove_rotation_fcurves(transformable, fcu_map, channelbag, ROT_MODE_AXISANGLE);
-      break;
+  for (const int i : insertion_buffer.index_range()) {
+    /* Is needed to get correct FCurve colors. */
+    PropertySubType prop_subtype = PROP_EULER;
+    if (to_mode == ROT_MODE_QUAT) {
+      prop_subtype = PROP_QUATERNION;
+    }
+    else if (to_mode == ROT_MODE_AXISANGLE) {
+      prop_subtype = PROP_AXISANGLE;
+    }
+    FCurve *fcurve = animrig::create_fcurve_for_channel(
+        {transformable.rna_path_to_rotation_mode(to_mode),
+         i,
+         PROP_FLOAT,
+         prop_subtype,
+         transformable.fcurve_group_name()});
+    insertion_buffer[i] = fcurve;
   }
+
+  bool modified_keys = false;
+  for (const int i : ranges.index_range()) {
+    const std::pair<float, eRotationModes> &rotation_mode_range = ranges[i];
+    const eRotationModes from_mode = rotation_mode_range.second;
+
+    const std::string from_mode_rna_path = transformable.rna_path_to_rotation_mode(from_mode);
+    const SortedFCurveBuffer *rotation_fcurves = fcu_map.lookup_ptr(from_mode_rna_path);
+    if (!rotation_fcurves) {
+      continue;
+    }
+
+    const int evaluation_buffer_count = from_mode > ROT_MODE_QUAT ? 3 : 4;
+    Array<FCurve *> evaluation_buffer(evaluation_buffer_count);
+    for (const int i : evaluation_buffer.index_range()) {
+      evaluation_buffer[i] = rotation_fcurves->get_fcurve_by_array_index(i);
+    }
+
+    Bounds<float> range(rotation_mode_range.first, FLT_MAX);
+    if (i + 1 < ranges.size()) {
+      range.max = ranges[i + 1].first;
+    }
+
+    convert_fcurves_rotation_mode(
+        evaluation_buffer, insertion_buffer, from_mode, to_mode, range, transformable);
+
+    modified_keys = true;
+  }
+
+  if (!modified_keys) {
+    for (FCurve *fcurve : insertion_buffer) {
+      BKE_fcurve_free(fcurve);
+    }
+    return false;
+  }
+
+  /* Remove all old rotation FCurves. */
+  remove_rotation_fcurves(transformable, fcu_map, channelbag, ROT_MODE_QUAT);
+  remove_rotation_fcurves(transformable, fcu_map, channelbag, ROT_MODE_EUL);
+  remove_rotation_fcurves(transformable, fcu_map, channelbag, ROT_MODE_AXISANGLE);
+
+  for (FCurve *fcurve : insertion_buffer) {
+    channelbag.fcurve_append(*fcurve);
+    bActionGroup &grp = channelbag.channel_group_ensure(transformable.fcurve_group_name());
+    channelbag.fcurve_assign_to_channel_group(*fcurve, grp);
+    BKE_fcurve_handles_recalc(*fcurve);
+  }
+  return true;
 }
 
-bool convert_rotation_keys(Main *bmain,
-                           const ed::AnimTransformable &transformable,
+bool convert_rotation_keys(const ed::AnimTransformable &transformable,
                            ChannelbagToFCurveMap &channelbag_fcurve_map,
                            const eRotationModes to_mode)
 {
@@ -313,24 +329,8 @@ bool convert_rotation_keys(Main *bmain,
       rotation_mode_ranges = {{0, transformable.get_rotation_mode()}};
     }
 
-    for (const int i : rotation_mode_ranges.index_range()) {
-      const std::pair<float, eRotationModes> &rotation_mode_range = rotation_mode_ranges[i];
-      const eRotationModes from_mode = rotation_mode_range.second;
-      const std::string from_mode_rna_path = transformable.rna_path_to_rotation_mode(from_mode);
-      const SortedFCurveBuffer *rotation_fcurves = fcu_map.lookup_ptr(from_mode_rna_path);
-      if (!rotation_fcurves) {
-        continue;
-      }
-      float2 range(rotation_mode_range.first, FLT_MAX);
-      if (i + 1 < rotation_mode_ranges.size()) {
-        range[1] = rotation_mode_ranges[i + 1].first;
-      }
-      convert_rotation_mode_range(
-          *bmain, *channelbag, *rotation_fcurves, from_mode, to_mode, range, transformable);
-      modified_keys = true;
-    }
-
-    remove_unused_rotation_fcurves(transformable, fcu_map, *channelbag);
+    modified_keys |= convert_rotation_mode_ranges(
+        *channelbag, fcu_map, to_mode, rotation_mode_ranges, transformable);
 
     if (rotation_mode_fcurve && rotation_mode_fcurve->bezt) {
       for (const int i : IndexRange(rotation_mode_fcurve->totvert)) {
@@ -339,6 +339,8 @@ bool convert_rotation_keys(Main *bmain,
       BKE_fcurve_handles_recalc(*rotation_mode_fcurve);
     }
   }
+
+  DEG_id_tag_update(transformable.owner_id(), ID_RECALC_ANIMATION);
 
   return modified_keys;
 }
@@ -422,8 +424,7 @@ void convert_to_rotation_mode(bContext &C,
         if (bake) {
           bake_rotation_fcurves(channelbag_fcurve_map, transformable);
         }
-        converted_actions |= convert_rotation_keys(
-            bmain, transformable, channelbag_fcurve_map, to_mode);
+        converted_actions |= convert_rotation_keys(transformable, channelbag_fcurve_map, to_mode);
         DEG_id_tag_update(&action.id, ID_RECALC_ANIMATION);
         return true;
       });

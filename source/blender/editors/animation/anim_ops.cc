@@ -1641,8 +1641,7 @@ static wmOperatorStatus rotation_mode_convert_exec(bContext *C, wmOperator *op)
           if (bake) {
             bake_rotation_fcurves(channelbag_fcurve_map, transformable);
           }
-          converted_actions |= convert_rotation_keys(
-              bmain, transformable, channelbag_fcurve_map, mode);
+          converted_actions |= convert_rotation_keys(transformable, channelbag_fcurve_map, mode);
           DEG_id_tag_update(&action.id, ID_RECALC_ANIMATION);
           return true;
         });
