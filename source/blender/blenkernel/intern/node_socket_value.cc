@@ -14,6 +14,7 @@
 
 #include "NOD_geometry_nodes_bundle.hh"
 #include "NOD_geometry_nodes_list.hh"
+#include "NOD_menu_value.hh"
 
 namespace blender::bke {
 
@@ -388,7 +389,32 @@ void *SocketValueVariant::allocate(const CPPType &type, detail::SocketValueVaria
 
 bool SocketValueVariant::is_single() const
 {
-  return this->get().type()->is_any<int, float>();
+  return this->get()
+      .type()
+      ->is_any<float,
+               float2,
+               float3,
+               float4,
+               int,
+               int2,
+               bool,
+               int8_t,
+               short2,
+               ColorGeometry4f,
+               ColorGeometry4b,
+               math::Quaternion,
+               float4x4,
+               nodes::MenuValue,
+               std::string,
+               nodes::BundlePtr,
+               nodes::ClosurePtr,
+               GeometrySet,
+               Material *,
+               Object *,
+               Image *,
+               VFont *,
+               Scene *,
+               bSound *>();
 }
 
 bool SocketValueVariant::is_list() const
