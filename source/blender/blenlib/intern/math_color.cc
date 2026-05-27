@@ -90,13 +90,13 @@ void oklch_to_rgb(float l, float c, float h, float *r_r, float *r_g, float *r_b)
 
 static float oklab_compute_max_saturation(float a, float b)
 {
-  // Max saturation will be when one of r, g or b goes below zero.
+  /* Max saturation will be when one of r, g or b goes below zero. */
 
-  // Select different coefficients depending on which component goes below zero first
+  /* Select different coefficients depending on which component goes below zero first. */
   float k0, k1, k2, k3, k4, wl, wm, ws;
 
   if (-1.88170328f * a - 0.80936493f * b > 1) {
-    // Red component
+    /* Red component. */
     k0 = +1.19086277f;
     k1 = +1.76576728f;
     k2 = +0.59662641f;
@@ -107,7 +107,7 @@ static float oklab_compute_max_saturation(float a, float b)
     ws = +0.2309699292f;
   }
   else if (1.81444104f * a - 1.19445276f * b > 1) {
-    // Green component
+    /* Green component. */
     k0 = +0.73956515f;
     k1 = -0.45954404f;
     k2 = +0.08285427f;
@@ -118,7 +118,7 @@ static float oklab_compute_max_saturation(float a, float b)
     ws = -0.3413193965f;
   }
   else {
-    // Blue component
+    /* Blue component. */
     k0 = +1.35733652f;
     k1 = -0.00915799f;
     k2 = -1.15130210f;
@@ -129,13 +129,12 @@ static float oklab_compute_max_saturation(float a, float b)
     ws = +1.7076147010f;
   }
 
-  // Approximate max saturation using a polynomial:
+  /* Approximate max saturation using a polynomial. */
   float S = k0 + k1 * a + k2 * b + k3 * a * a + k4 * a * b;
 
-  // Do one step Halley's method to get closer
-  // this gives an error less than 10e6, except for some blue hues where the dS/dh is close to
-  // infinite this should be sufficient for most applications, otherwise do two/three steps
-
+  /* Do one step Halley's method to get closer.
+   * this gives an error less than 10e6, except for some blue hues where the dS/dh is close to
+   * infinite this should be sufficient for most applications, otherwise do two/three steps. */
   float k_l = +0.3963377774f * a + 0.2158037573f * b;
   float k_m = -0.1055613458f * a - 0.0638541728f * b;
   float k_s = -0.0894841775f * a - 1.2914855480f * b;
@@ -248,7 +247,7 @@ static float oklab_find_gamut_intersection(
     float m_dt = dL + dC * k_m;
     float s_dt = dL + dC * k_s;
 
-    // If higher accuracy is required, 2 or 3 iterations of the following block can be used:
+    /* If higher accuracy is required, 2 or 3 iterations of the following block can be used. */
     {
       float L = L0 * (1.f - t) + t * L1;
       float C = t * C1;
