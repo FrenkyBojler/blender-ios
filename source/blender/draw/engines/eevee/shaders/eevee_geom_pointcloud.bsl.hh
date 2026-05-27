@@ -15,8 +15,9 @@ VERTEX_SHADER_CREATE_INFO(eevee_clip_plane)
 #include "eevee_attributes_pointcloud_lib.glsl"
 #include "eevee_nodetree_vert_lib.glsl"
 #include "eevee_reverse_z_lib.bsl.hh"
+#include "eevee_sampling_shared.hh" /* TODO(fclem): Remove. Needed becaused of fragment shader. */
 #include "eevee_surf_common.bsl.hh"
-#include "eevee_velocity_lib.glsl"
+#include "eevee_velocity.bsl.hh"
 
 namespace eevee {
 
@@ -37,6 +38,7 @@ struct GeomPointCloud {
 [[vertex]] [[clip_control]] void geom_pointcloud(
     [[resource_table]] const PipelineConstants &pipe,
     [[resource_table]] const GeomPointCloud & /*srt*/,
+    [[resource_table]] const Uniform &uni,
     [[resource_table, condition(is_shadow_pipe)]] GeomShadow &shadow,
     [[instance_id]] const int /*inst_id*/,     /* Used by model_lib. */
     [[base_instance]] const int /*base_inst*/, /* Used by model_lib. */
@@ -49,8 +51,10 @@ struct GeomPointCloud {
 
   auto &interp = interface_get(eevee_geom_iface_info, interp);
   auto &pointcloud_interp = interface_get(eevee_geom_pointcloud_iface_info, pointcloud_interp);
-  auto &pointcloud_interp_flat = interface_get(eevee_geom_pointcloud_iface_info,
-                                               pointcloud_interp_flat);
+
+  /* clang-format off */ /* Multiline macro breaks error line counting. */
+  auto &pointcloud_interp_flat = interface_get(eevee_geom_pointcloud_iface_info, pointcloud_interp_flat);
+  /* clang-format on */
 
   if (pipe.is_shadow_pipe) [[static_branch]] {
     auto &shadow_iface = interface_get(eevee_shadow_iface_info, shadow_iface);
@@ -63,7 +67,7 @@ struct GeomPointCloud {
 
   const eObjectInfoFlag ob_flag = buffer_get(draw_object_infos, drw_infos)[drw_resource_id()].flag;
 
-  const pointcloud::Point ls_pt = pointcloud::point_get(uint(gl_VertexID));
+  const pointcloud::Point ls_pt = pointcloud::point_get(uint(vert_id));
   const pointcloud::Point ws_pt = pointcloud::object_to_world(ls_pt, drw_modelmat());
   const pointcloud::ShapePoint pt = pointcloud::shape_point_get(
       ws_pt, drw_world_incident_vector(ws_pt.P), drw_view_up(), ob_flag);
@@ -82,19 +86,23 @@ struct GeomPointCloud {
   }
 
   if (pipe.use_velocity) [[static_branch]] {
-    auto &motion = interface_get(eevee_velocity_geom, motion);
+    /* clang-format off */ /* Multiline define messes up line index. */
+    [[resource_table]] const GeometryVelocity &geo_vel = resource_table_get(eevee::GeometryVelocity);
+    /* clang-format on */
+    auto &motion = interface_get(eevee_velocity_iface_info, motion);
     float3 lP = drw_point_world_to_object(pointcloud_interp.position);
     float3 prv, nxt;
-    velocity_local_pos_get(lP, pointcloud_interp_flat.id, prv, nxt, drw_resource_id());
+    geo_vel.local_position_deltas(lP, pointcloud_interp_flat.id, prv, nxt, drw_resource_id());
     /* FIXME(fclem): Evaluating before displacement avoid displacement being treated as motion but
      * ignores motion from animated displacement. Supporting animated displacement motion vectors
      * would require evaluating the nodetree multiple time with different nodetree UBOs evaluated
      * at different times, but also with different attributes (maybe we could assume static
      * attribute at least). */
-    velocity_vertex(prv, lP, nxt, motion.prev, motion.next, drw_resource_id(), drw_modelmat());
+    geo_vel.vertex_velocity(
+        prv, lP, nxt, motion.prev, motion.next, drw_resource_id(), drw_modelmat());
   }
 
-  init_globals(true);
+  init_globals(uni, true);
   attrib_load(PointCloudPoint{ws_pt.point_id});
 
   interp.P += nodetree_displacement();
