@@ -840,19 +840,12 @@ void ShaderGraph::apply_feature_overrides(Scene *scene)
         if (node->special_type == SHADER_SPECIAL_TYPE_CLOSURE &&
             CLOSURE_IS_PRINCIPLED(node->get_closure_type()))
         {
-          ShaderInput *subsurface = node->input("Subsurface Color");
-          if (subsurface) {
-            if (subsurface->link) {
-              disconnect(subsurface);
+          ShaderInput *subsurface_weight = node->input("Subsurface Weight");
+          if (subsurface_weight) {
+            if (subsurface_weight->link) {
+              disconnect(subsurface_weight);
             }
-            subsurface->set(make_float3(0.0f));
-          }
-          ShaderInput *subsurface_radius = node->input("Subsurface Radius");
-          if (subsurface_radius) {
-            if (subsurface_radius->link) {
-              disconnect(subsurface_radius);
-            }
-            subsurface_radius->set(make_float3(0.0f));
+            subsurface_weight->set(0.0f);
           }
         }
       }
