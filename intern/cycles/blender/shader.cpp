@@ -1863,13 +1863,18 @@ void BlenderSync::sync_world(blender::Depsgraph &b_depsgraph,
     if (b_world) {
       blender::PointerRNA world_rna_ptr = RNA_id_pointer_create(&b_world->id);
       blender::PointerRNA cvisibility = RNA_pointer_get(&world_rna_ptr, "cycles_visibility");
-      uint visibility = 0;
+      PathRayVisibility visibility = PATH_RAY_VISIBILITY_NONE;
 
-      visibility |= get_boolean(cvisibility, "camera") ? PATH_RAY_CAMERA : PathRayFlag(0);
-      visibility |= get_boolean(cvisibility, "diffuse") ? PATH_RAY_DIFFUSE : PathRayFlag(0);
-      visibility |= get_boolean(cvisibility, "glossy") ? PATH_RAY_GLOSSY : PathRayFlag(0);
-      visibility |= get_boolean(cvisibility, "transmission") ? PATH_RAY_TRANSMIT : PathRayFlag(0);
-      visibility |= get_boolean(cvisibility, "scatter") ? PATH_RAY_VOLUME_SCATTER : PathRayFlag(0);
+      visibility |= get_boolean(cvisibility, "camera") ? PATH_RAY_VISIBILITY_CAMERA :
+                                                         PATH_RAY_VISIBILITY_NONE;
+      visibility |= get_boolean(cvisibility, "diffuse") ? PATH_RAY_VISIBILITY_DIFFUSE :
+                                                          PATH_RAY_VISIBILITY_NONE;
+      visibility |= get_boolean(cvisibility, "glossy") ? PATH_RAY_VISIBILITY_GLOSSY :
+                                                         PATH_RAY_VISIBILITY_NONE;
+      visibility |= get_boolean(cvisibility, "transmission") ? PATH_RAY_VISIBILITY_TRANSMIT :
+                                                               PATH_RAY_VISIBILITY_NONE;
+      visibility |= get_boolean(cvisibility, "scatter") ? PATH_RAY_VISIBILITY_VOLUME_SCATTER :
+                                                          PATH_RAY_VISIBILITY_NONE;
 
       background->set_visibility(visibility);
     }
