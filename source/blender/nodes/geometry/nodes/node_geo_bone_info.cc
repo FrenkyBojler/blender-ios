@@ -46,7 +46,7 @@ static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 
 static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
 {
-  const eNodeSocketDatatype other_type = eNodeSocketDatatype(params.other_socket().type);
+  const eNodeSocketDatatype other_type = params.other_socket().type;
 
   if (params.in_out() == SOCK_OUT) {
     if (ELEM(other_type, SOCK_MATRIX, SOCK_ROTATION)) {
@@ -139,7 +139,8 @@ static void node_geo_exec(GeoNodeExecParams params)
   const bPoseChannel *pchan = BKE_pose_channel_find_name(object->pose, bone_name.c_str());
   if (!pchan) {
     params.set_default_remaining_outputs();
-    params.error_message_add(NodeWarningType::Error, TIP_("Bone not found"));
+    params.error_message_add(NodeWarningType::Error,
+                             fmt::format(fmt::runtime(TIP_("Bone \"{}\" not found")), bone_name));
     return;
   }
   const Bone *bone = pchan->bone_get(*object);

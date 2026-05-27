@@ -8,6 +8,7 @@
 
 #include "BKE_node_runtime.hh"
 
+#include "COM_algorithm_parallel_reduction.hh"
 #include "COM_ocio_color_space_conversion_shader.hh"
 #include "COM_realize_on_domain_operation.hh"
 #include "COM_utilities.hh"
@@ -70,12 +71,13 @@ void CompositorContext::create_result_from_input(compositor::Result &result, ImB
 
       /* Upload input image into a GPU texture. */
       gpu::TexturePool &pool = gpu::TexturePool::get();
-      gpu::Texture *input_tex = pool.acquire_texture(size,
-                                                     input_is_byte ?
-                                                         gpu::TextureFormat::UNORM_8_8_8_8 :
-                                                         gpu::TextureFormat::SFLOAT_32_32_32_32,
-                                                     GPU_TEXTURE_USAGE_SHADER_READ,
-                                                     "seq_comp_input");
+      gpu::Texture *input_tex = pool.acquire_texture_2d(size,
+                                                        1,
+                                                        input_is_byte ?
+                                                            gpu::TextureFormat::UNORM_8_8_8_8 :
+                                                            gpu::TextureFormat::SFLOAT_32_32_32_32,
+                                                        GPU_TEXTURE_USAGE_SHADER_READ,
+                                                        "seq_comp_input");
       if (input_tex) {
         if (input_is_byte) {
           GPU_texture_update(input_tex, GPU_DATA_UBYTE, input.byte_data());
@@ -128,7 +130,9 @@ void CompositorContext::write_output(const compositor::Result &result, ImBuf &im
   }
 
   if (result.is_single_value()) {
-    IMB_rectfill(&image, result.get_single_value<compositor::Color>());
+    compositor::Color color = result.get_single_value<compositor::Color>();
+    IMB_rectfill(&image, color);
+    image.color_mode = color.a < 1.0f ? ImColorMode::RGBA : ImColorMode::RGB;
     return;
   }
 
@@ -142,6 +146,9 @@ void CompositorContext::write_output(const compositor::Result &result, ImBuf &im
     image.x = output_size_x;
     image.y = output_size_y;
   }
+
+  compositor::Color min_color = compositor::minimum_color(*this, result);
+  image.color_mode = min_color.a < 1.0f ? ImColorMode::RGBA : ImColorMode::RGB;
 
   if (this->use_gpu()) {
     GPU_memory_barrier(GPU_BARRIER_TEXTURE_UPDATE);
