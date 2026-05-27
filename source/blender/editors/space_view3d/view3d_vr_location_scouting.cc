@@ -42,7 +42,7 @@ struct CaptureReviewData {
 
   /* Previous camera to restore on exit. */
   Object *prev_view3d_cam_ob;
-  char prev_view3d_persp;
+  eRegionView3D_Persp prev_view3d_persp;
 
   /* Fake camera object to set the View3D. */
   Object *cam_ob;

@@ -869,7 +869,7 @@ void WM_xr_session_state_viewfinder_reset(wmXrSessionState *state)
     ImBuf *ibuf = ui::svg_icon_bitmap(ICON_BLENDER, 256.0f, false);
     if (ibuf) {
       state->viewfinder.backside_logo_texture = IMB_create_gpu_texture(
-          "viewfinder_backside_logo", ibuf, false, true);
+          "viewfinder_backside_logo", ibuf, false, true, true);
       IMB_freeImBuf(ibuf);
     }
   }
