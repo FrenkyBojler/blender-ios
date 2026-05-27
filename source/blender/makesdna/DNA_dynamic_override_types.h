@@ -15,6 +15,7 @@ namespace blender {
 struct IDProperty;
 namespace bke {
 struct DynamicOverrideRuntime;
+struct DynamicOverrideRuleIDDataRuntime;
 }  // namespace bke
 
 /** Types of target filtering to select which data a given dynoverride rule applies to. */
@@ -81,6 +82,18 @@ struct DynamicOverrideRuleIDData {
 
   /** List of overridden properties (based on RNA paths). */
   ListBaseT<DynamicOverrideRuleProperty> properties = {nullptr, nullptr};
+
+  /**
+   * New overridden values for all properties above.
+   *
+   * \note: Uses automatic data layout matching the runtime-generated RNA Srna data stored in
+   * `runtime`.
+   */
+  IDProperty *new_values = nullptr;
+  /** Original values for all properties above, follow samw layout as in `new_values`. */
+  IDProperty *orig_values = nullptr;
+
+  bke::DynamicOverrideRuleIDDataRuntime *runtime = nullptr;
 };
 
 struct DynamicOverride {

@@ -44,6 +44,7 @@
 #include "BKE_lib_override.hh"
 #include "BKE_lib_remap.hh"
 #include "BKE_library.hh"
+#include "BKE_main_invariants.hh"
 #include "BKE_material.hh"
 #include "BKE_node.hh"
 #include "BKE_report.hh"
@@ -1057,6 +1058,8 @@ static wmOperatorStatus dynamic_override_add_button_exec(bContext *C, wmOperator
     BKE_reportf(op->reports, RPT_WARNING, "Failed to create the override rule property");
     return OPERATOR_CANCELLED;
   }
+
+  BKE_main_ensure_invariants(*bmain, scene->dynamic_override->id);
 
   /* Outliner e.g. has to be aware of this change. */
   // WM_main_add_notifier(NC_WM | ND_LIB_OVERRIDE_CHANGED, nullptr);

@@ -84,8 +84,8 @@ class SCENE_PT_scene_dynamic_override(SceneButtonsPanel, Panel):
             if isinstance(rule, bpy.types.DynamicOverrideRuleIDData):
                 for prop in rule.properties:
                     layout.label(text=f"\t\t{prop.rna_path}:")
-                    layout.prop(prop, "original_value")
-                    layout.prop(prop, "override_value")
+                    # layout.prop(prop, "original_value")
+                    layout.prop(rule.override_values, prop.property_identifier)
 
 
 class SCENE_PT_unit(SceneButtonsPanel, Panel):

@@ -2,11 +2,13 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BKE_lib_dynamic_override.hh"
 #include "BKE_main_invariants.hh"
 #include "BKE_node_tree_update.hh"
 
 #include "DEG_depsgraph.hh"
 
+#include "DNA_dynamic_override_types.h"
 #include "DNA_node_types.h"
 
 #include "WM_api.hh"
@@ -75,9 +77,26 @@ static void propagate_node_tree_changes(Main &bmain, const std::optional<Span<ID
   BKE_ntree_update(bmain, modified_trees, params);
 }
 
+static void propagate_dynamic_override_changes(Main &bmain,
+                                               const std::optional<Span<ID *>> modified_ids)
+{
+  std::optional<Vector<DynamicOverride *>> modified_dynamic_overrides;
+  if (modified_ids.has_value()) {
+    modified_dynamic_overrides.emplace();
+    for (ID *id : *modified_ids) {
+      if (GS(id->name) == ID_OV) {
+        modified_dynamic_overrides->append(id_cast<DynamicOverride *>(id));
+      }
+    }
+  }
+
+  bke::dynamic_override_update(bmain, modified_dynamic_overrides);
+}
+
 void BKE_main_ensure_invariants(Main &bmain, const std::optional<Span<ID *>> modified_ids)
 {
   propagate_node_tree_changes(bmain, modified_ids);
+  propagate_dynamic_override_changes(bmain, modified_ids);
 }
 
 void BKE_main_ensure_invariants(Main &bmain, ID &modified_id)

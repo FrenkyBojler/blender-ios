@@ -23,6 +23,7 @@ struct ID;
 struct Main;
 struct ReportList;
 struct RNAPath;
+struct StructRNA;
 struct Scene;
 struct ViewLayer;
 
@@ -44,6 +45,19 @@ DynamicOverrideRuleProperty *dynamic_override_rule_rna_property_add(DynamicOverr
 
 void dynamic_override_rule_property_remove(DynamicOverrideRule &rule,
                                            DynamicOverrideRuleProperty *existing_property);
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Invariants and runtime data updates.
+ * \{ */
+
+void dynamic_override_update(Main &bmain,
+                             std::optional<Span<DynamicOverride *>> modified_dynamic_overrides);
+
+/** Return the runtime RNA struct for the given rule. */
+StructRNA *dynamic_override_rule_get_runtime_properties_rna_struct(
+    DynamicOverrideRuleIDData &iddata_rule);
 
 /** \} */
 
