@@ -281,7 +281,9 @@ void VKTexture::read_sub(
                            * bit to improve the performance on AMD GPUs. */
                           VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT |
                               VMA_ALLOCATION_CREATE_MAPPED_BIT,
-                          0.2f);
+                          0.2f,
+                          false,
+                          "VKTexture::read_sub");
 
     render_graph::VKCopyImageToBufferNode::CreateInfo copy_image_to_buffer = {};
     render_graph::VKCopyImageToBufferNode::Data &node_data = copy_image_to_buffer.node_data;
@@ -469,7 +471,9 @@ void VKTexture::update_sub(int mip,
                           VMA_MEMORY_USAGE_AUTO_PREFER_HOST,
                           VMA_ALLOCATION_CREATE_MAPPED_BIT |
                               VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,
-                          0.4f);
+                          0.4f,
+                          false,
+                          "VKTexture::update_sub");
     vk_buffer = staging_buffer.vk_handle();
     /* Rows are sequentially stored, when unpack row length is 0, or equal to the extent width. In
      * other cases we unpack the rows to reduce the size of the staging buffer and data transfer.

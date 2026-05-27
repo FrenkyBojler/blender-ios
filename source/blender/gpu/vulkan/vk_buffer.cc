@@ -31,7 +31,8 @@ bool VKBuffer::create(size_t size_in_bytes,
                       VmaMemoryUsage vma_memory_usage,
                       VmaAllocationCreateFlags allocation_flags,
                       float priority,
-                      bool export_memory)
+                      bool export_memory,
+                      const char *debug_name)
 {
   BLI_assert(!is_allocated());
   BLI_assert(vk_buffer_ == VK_NULL_HANDLE);
@@ -91,6 +92,11 @@ bool VKBuffer::create(size_t size_in_bytes,
     vma_create_info.pool = device.vma_pools.external_memory_pixel_buffer.pool;
   }
 
+  if (debug_name && G.debug & G_DEBUG_GPU) {
+    vma_create_info.flags |= VMA_ALLOCATION_CREATE_USER_DATA_COPY_STRING_BIT;
+    vma_create_info.pUserData = (void *)debug_name;
+  }
+
   VkResult result = vmaCreateBuffer(
       allocator, &create_info, &vma_create_info, &vk_buffer_, &allocation_, nullptr);
   if (result != VK_SUCCESS) {
@@ -107,6 +113,10 @@ bool VKBuffer::create(size_t size_in_bytes,
         VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, nullptr, vk_buffer_};
     vk_device_address = vkGetBufferDeviceAddress(device.vk_handle(),
                                                  &vk_buffer_device_address_info);
+  }
+
+  if (debug_name) {
+    debug::object_label(vk_buffer_, debug_name);
   }
 
   /* Check if the memory is mappable. Although the Vulkan specs allow to map any memory that is

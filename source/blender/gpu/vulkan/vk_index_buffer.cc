@@ -121,9 +121,13 @@ void VKIndexBuffer::allocate()
                        VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
   }
 
-  buffer_.create(
-      size_get(), vk_buffer_usage, VMA_MEMORY_USAGE_AUTO, VmaAllocationCreateFlags(0), 0.8f);
-  debug::object_label(buffer_.vk_handle(), "IndexBuffer");
+  buffer_.create(size_get(),
+                 vk_buffer_usage,
+                 VMA_MEMORY_USAGE_AUTO,
+                 VmaAllocationCreateFlags(0),
+                 0.8f,
+                 false,
+                 "IndexBuffer");
 }
 
 const VKBuffer &VKIndexBuffer::buffer_get() const

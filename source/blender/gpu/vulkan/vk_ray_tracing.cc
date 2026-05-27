@@ -149,8 +149,9 @@ bool VKTopLevelAS::build()
             VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
         VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
         0,
-        0.8f);
-    debug::object_label(instances_buffer_.vk_handle(), name_get());
+        0.8f,
+        false,
+        name_get());
   }
 
   /* Update the instances buffer. */
@@ -225,9 +226,9 @@ bool VKTopLevelAS::build()
                  VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
                  0,
                  1.0f,
-                 false);
+                 false,
+                 name_get());
   BLI_assert(buffer_.is_allocated());
-  debug::object_label(buffer_.vk_handle(), name_get());
 
   VkAccelerationStructureCreateInfoKHR vk_acceleration_structure_create_info = {
       VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR,
@@ -268,10 +269,10 @@ bool VKTopLevelAS::build()
       VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
       VmaAllocationCreateFlags(0),
       1.0,
-      false);
+      false,
+      name_get());
   BLI_assert(device_scratch_space.is_allocated());
   BLI_assert(device_scratch_space.device_address_get());
-  debug::object_label(device_scratch_space.vk_handle(), name_get());
 
   build_geometry_infos.scratchData.deviceAddress = device_scratch_space.device_address_get();
   node_data.vk_acceleration_structure_build_geometry_info.scratchData.deviceAddress =
@@ -443,9 +444,9 @@ bool VKBottomLevelAS::build()
                  VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
                  0,
                  1.0f,
-                 false);
+                 false,
+                 name_get());
   BLI_assert(buffer_.is_allocated());
-  debug::object_label(buffer_.vk_handle(), name_get());
 
   VkAccelerationStructureCreateInfoKHR vk_acceleration_structure_create_info = {
       VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR,
@@ -483,10 +484,10 @@ bool VKBottomLevelAS::build()
       VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
       0,
       1.0,
-      false);
+      false,
+      name_get());
   BLI_assert(device_scratch_space.is_allocated());
   BLI_assert(device_scratch_space.device_address_get());
-  debug::object_label(device_scratch_space.vk_handle(), name_get());
 
   build_geometry_infos.scratchData.deviceAddress = device_scratch_space.device_address_get();
   node_data.vk_acceleration_structure_build_geometry_info.scratchData.deviceAddress =
