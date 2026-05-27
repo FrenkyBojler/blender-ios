@@ -437,6 +437,8 @@ static void deg_debug_graphviz_node(DotExportContext &ctx,
       break;
     case NodeType::NUM_TYPES:
       break;
+    case NodeType::ID_NAME:
+      break;
   }
 }
 

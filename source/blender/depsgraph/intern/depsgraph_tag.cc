@@ -221,7 +221,7 @@ void depsgraph_tag_to_component_opcode(const ID *id,
       break;
 
     case ID_RECALC_NAME_CHANGE:
-      //depsgraph_geometry_tag_to_component(id, component_type);
+      *component_type = NodeType::ID_NAME;
       break;
 
     case ID_RECALC_PROVISION_28:

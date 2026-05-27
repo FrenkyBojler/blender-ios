@@ -106,6 +106,8 @@ const char *nodeTypeAsString(NodeType type)
     /* Total number of meaningful node types. */
     case NodeType::NUM_TYPES:
       return "SpecialCase";
+    case NodeType::ID_NAME:
+      return "ID_NAME";
   }
   BLI_assert_msg(0, "Unhandled node type, should never happen.");
   return "UNKNOWN";
@@ -166,6 +168,7 @@ eDepsSceneComponentType nodeTypeToSceneComponent(NodeType type)
     case NodeType::CACHE:
     case NodeType::NTREE_OUTPUT:
     case NodeType::NTREE_GEOMETRY_PREPROCESS:
+    case NodeType::ID_NAME:
       return DEG_SCENE_COMP_PARAMETERS;
 
     case NodeType::VISIBILITY:
@@ -198,7 +201,7 @@ NodeType nodeTypeFromObjectComponent(eDepsObjectComponentType component_type)
     case DEG_OB_COMP_CACHE:
       return NodeType::CACHE;
     case DEG_OB_COMP_NAME:
-      return NodeType::ID_REF;
+      return NodeType::ID_NAME;
   }
   return NodeType::UNDEFINED;
 }
@@ -222,6 +225,8 @@ eDepsObjectComponentType nodeTypeToObjectComponent(NodeType type)
       return DEG_OB_COMP_SHADING;
     case NodeType::CACHE:
       return DEG_OB_COMP_CACHE;
+    case NodeType::ID_NAME:
+      return DEG_OB_COMP_NAME;
 
     case NodeType::OPERATION:
     case NodeType::TIMESOURCE:
