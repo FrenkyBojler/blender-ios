@@ -423,8 +423,6 @@ bool convert_rotation_keys(const ed::AnimTransformable &transformable,
     }
   }
 
-  DEG_id_tag_update(transformable.owner_id(), ID_RECALC_ANIMATION);
-
   return modified_keys;
 }
 
@@ -455,7 +453,7 @@ ChannelbagToFCurveMap build_rotation_fcurve_map(animrig::Action &action,
 void bake_rotation_fcurves(const ChannelbagToFCurveMap &channelbag_fcurve_map,
                            const ed::AnimTransformable &transformable)
 {
-  /* Need to bake on all potential FCurves to cover. */
+  /* Need to bake on all potential FCurves to cover for an animated rotation mode. */
   const Array<eRotationModes> rotation_modes = {ROT_MODE_EUL, ROT_MODE_QUAT, ROT_MODE_AXISANGLE};
   for (const eRotationModes rotation_mode : rotation_modes) {
     std::string rotation_rna_path = transformable.rna_path_to_rotation_mode(rotation_mode);
@@ -469,9 +467,9 @@ void bake_rotation_fcurves(const ChannelbagToFCurveMap &channelbag_fcurve_map,
         if (!fcurve || !fcurve->bezt) {
           continue;
         }
-        float2 range;
-        BKE_fcurve_calc_range(fcurve, &range[0], &range[1], false);
-        animrig::bake_fcurve(fcurve, int2(range), 1, animrig::BakeCurveRemove::ALL);
+        const int2 range = {int(fcurve->bezt[0].vec[1][0]),
+                            int(fcurve->bezt[fcurve->totvert - 1].vec[1][0])};
+        animrig::bake_fcurve(fcurve, range, 1, animrig::BakeCurveRemove::ALL);
       }
     }
   }
@@ -482,9 +480,6 @@ void convert_to_rotation_mode(bContext &C,
                               const eRotationModes to_mode,
                               const bool bake)
 {
-  if (transformable.get_rotation_mode() == to_mode) {
-    return;
-  }
   Main *bmain = CTX_data_main(&C);
   if (!BKE_id_is_editable(bmain, transformable.owner_id())) {
     return;

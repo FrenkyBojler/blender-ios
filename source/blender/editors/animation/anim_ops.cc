@@ -1618,9 +1618,8 @@ static wmOperatorStatus rotation_mode_convert_exec(bContext *C, wmOperator *op)
   Main *bmain = CTX_data_main(C);
 
   for (ed::AnimTransformable &transformable : selected_transformables_from_context(C)) {
-    if (transformable.get_rotation_mode() == mode) {
-      continue;
-    }
+    /* We cannot skip transformables based on their current rotation mode since that may be
+     * animated. So `transformable.get_rotation_mode() == mode -> continue` won't work.*/
     ID *owner_id = transformable.owner_id();
     if (!BKE_id_is_editable(bmain, owner_id)) {
       skipped_datablocks++;

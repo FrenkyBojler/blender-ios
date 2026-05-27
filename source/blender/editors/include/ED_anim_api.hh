@@ -1340,8 +1340,7 @@ using ChannelbagToFCurveMap = Map<animrig::Channelbag *, RNAFCurveMap>;
 
 /**
  * Convert any keyframe data for the given transformable to the given rotation mode.
- * This will respect an animated rotation mode and will convert from the correct mode based on that
- * animation.
+ * This will correctly react to an animated rotation mode.
  *
  * \returns true if any animation data was modified.
  */
@@ -1357,7 +1356,7 @@ ChannelbagToFCurveMap build_rotation_fcurve_map(animrig::Action &action,
                                                 animrig::slot_handle_t slot_handle);
 
 /**
- * Bake all existing rotation fcurves that start with the given `base_rna_path`.
+ * Bake all existing rotation fcurves for the given `transformable`.
  */
 void bake_rotation_fcurves(const ChannelbagToFCurveMap &channelbag_fcurve_map,
                            const ed::AnimTransformable &transformable);
