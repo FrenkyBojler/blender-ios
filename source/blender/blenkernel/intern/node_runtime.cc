@@ -669,6 +669,29 @@ bool bNodeTree::node_id_path_from_nested_node_ref(const int32_t nested_node_id,
   return group->node_id_path_from_nested_node_ref(ref->path.id_in_node, r_node_ids);
 }
 
+bool bNodeTree::node_path_from_nested_node_ref(
+    const int32_t nested_node_id, Vector<std::pair<const bNodeTree *, int32_t>> &r_path) const
+{
+  const bNestedNodeRef *ref = this->find_nested_node_ref(nested_node_id);
+  if (ref == nullptr) {
+    return false;
+  }
+  const int32_t node_id = ref->path.node_id;
+  const bNode *node = this->node_by_id(node_id);
+  if (node == nullptr) {
+    return false;
+  }
+  r_path.append({this, node_id});
+  if (!node->is_group()) {
+    return true;
+  }
+  const bNodeTree *group = reinterpret_cast<const bNodeTree *>(node->id);
+  if (group == nullptr) {
+    return false;
+  }
+  return group->node_path_from_nested_node_ref(ref->path.id_in_node, r_path);
+}
+
 const bNode *bNodeTree::find_nested_node(const int32_t nested_node_id,
                                          const bNodeTree **r_tree) const
 {

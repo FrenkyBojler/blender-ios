@@ -1253,6 +1253,61 @@ static const EnumPropertyItem *rna_NodeTreeInterfaceBake_bake_id_itemf(bContext 
   return items;
 }
 
+static void rna_NodeTreeInterfaceBake_bake_id_get(PointerRNA *ptr, char *value)
+{
+  const auto &bake = *ptr->data_as<bNodeTreeInterfaceBake>();
+  const std::string bake_id_str = std::to_string(bake.bake_id);
+  strcpy(value, bake_id_str.c_str());
+}
+
+static int rna_NodeTreeInterfaceBake_bake_id_length(PointerRNA *ptr)
+{
+  const auto &bake = *ptr->data_as<bNodeTreeInterfaceBake>();
+  const std::string bake_id_str = std::to_string(bake.bake_id);
+  return bake_id_str.size();
+}
+
+static void rna_NodeTreeInterfaceBake_bake_id_set(PointerRNA *ptr, const char *value)
+{
+  auto &bake = *ptr->data_as<bNodeTreeInterfaceBake>();
+  bake.bake_id = std::atoi(value);
+}
+
+static void rna_NodeTreeInterfaceBake_bake_id_visit_for_search(
+    const bContext * /*C*/,
+    PointerRNA *ptr,
+    PropertyRNA * /*prop*/,
+    const char * /*edit_text*/,
+    FunctionRef<void(StringPropertySearchVisitParams)> visit_fn)
+{
+  const bNodeTree &ntree = *id_cast<const bNodeTree *>(ptr->owner_id);
+  for (const bNestedNodeRef &nested_node_ref : ntree.nested_node_refs_span()) {
+    const int id = nested_node_ref.id;
+    const bNode *node = ntree.find_nested_node(id);
+    if (!node) {
+      continue;
+    }
+    if (!node->is_type("GeometryNodeBake"_ustr) &&
+        !node->is_type("GeometryNodeSimulationOutput"_ustr))
+    {
+      continue;
+    }
+    Vector<std::pair<const bNodeTree *, int32_t>> path;
+    if (!ntree.node_path_from_nested_node_ref(id, path)) {
+      continue;
+    }
+    StringPropertySearchVisitParams visit_params{};
+    visit_params.text = std::to_string(id);
+    std::string description;
+    for (const auto &[tree, node_id] : path) {
+      description += fmt::format(
+          "{}: {}\n", BKE_id_name(tree->id), tree->node_by_id(node_id)->label_or_name());
+    }
+    visit_params.info = description;
+    visit_fn(visit_params);
+  }
+}
+
 }  // namespace blender
 
 #else
@@ -1580,11 +1635,23 @@ static void rna_def_node_interface_bake(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Select", "Panel is selected in the interface");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeTreeInterfaceItem_update");
 
-  prop = RNA_def_property(srna, "bake_id", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_items(prop, rna_enum_dummy_DEFAULT_items);
+  // prop = RNA_def_property(srna, "bake_id", PROP_ENUM, PROP_NONE);
+  // RNA_def_property_enum_items(prop, rna_enum_dummy_DEFAULT_items);
+  // RNA_def_property_ui_text(
+  //     prop, "Bake ID", "Unique identifier for this panel within this node tree");
+  // RNA_def_property_enum_funcs(prop, nullptr, nullptr,
+  // "rna_NodeTreeInterfaceBake_bake_id_itemf"); RNA_def_property_update(prop, NC_NODE | NA_EDITED,
+  // "rna_NodeTreeInterfaceItem_update");
+  //
+  prop = RNA_def_property(srna, "bake_id", PROP_STRING, PROP_NONE);
   RNA_def_property_ui_text(
-      prop, "Bake ID", "Unique identifier for this panel within this node tree");
-  RNA_def_property_enum_funcs(prop, nullptr, nullptr, "rna_NodeTreeInterfaceBake_bake_id_itemf");
+      prop, "Bake ID", "Nested node tree identifier for the bake managed by this item");
+  RNA_def_property_string_funcs(prop,
+                                "rna_NodeTreeInterfaceBake_bake_id_get",
+                                "rna_NodeTreeInterfaceBake_bake_id_length",
+                                "rna_NodeTreeInterfaceBake_bake_id_set");
+  RNA_def_property_string_search_func(
+      prop, "rna_NodeTreeInterfaceBake_bake_id_visit_for_search", PROP_STRING_SEARCH_SUGGESTION);
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeTreeInterfaceItem_update");
 }
 

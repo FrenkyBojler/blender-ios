@@ -1974,6 +1974,8 @@ struct bNodeTree {
   const bNestedNodeRef *nested_node_ref_from_node_id_path(Span<int> node_ids) const;
   [[nodiscard]] bool node_id_path_from_nested_node_ref(const int32_t nested_node_id,
                                                        Vector<int32_t> &r_node_ids) const;
+  [[nodiscard]] bool node_path_from_nested_node_ref(
+      const int32_t nested_node_id, Vector<std::pair<const bNodeTree *, int32_t>> &r_path) const;
   const bNode *find_nested_node(int32_t nested_node_id, const bNodeTree **r_tree = nullptr) const;
 
   /**
