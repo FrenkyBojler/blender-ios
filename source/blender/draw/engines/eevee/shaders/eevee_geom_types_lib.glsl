@@ -7,34 +7,24 @@
 #include "gpu_shader_compat.hh"
 
 struct MeshVertex {
-  int _pad; /* TODO(fclem): Add explicit attribute loading for mesh. */
-  METAL_CONSTRUCTOR_1(MeshVertex, int, _pad)
+  float3 lP;
+  /* TODO(fclem): Add explicit attribute loading for mesh through vertex fetch. */
 };
 
 struct PointCloudPoint {
-  int _pad; /* TODO(fclem): Add explicit attribute loading for mesh. */
-  METAL_CONSTRUCTOR_1(PointCloudPoint, int, _pad)
+  int point_id;
 };
 
 struct CurvesPoint {
   int curve_id;
   int point_id;
   int curve_segment;
-
-  METAL_CONSTRUCTOR_3(CurvesPoint, int, curve_id, int, point_id, int, curve_segment)
 };
 
 struct WorldPoint {
-  int _pad;
-  METAL_CONSTRUCTOR_1(WorldPoint, int, _pad)
+  float3 lP;
 };
 
 struct VolumePoint {
-  int _pad; /* TODO(fclem): Add explicit attribute loading for volumes. */
-  METAL_CONSTRUCTOR_1(VolumePoint, int, _pad)
-};
-
-struct GPencilPoint {
-  int _pad;
-  METAL_CONSTRUCTOR_1(GPencilPoint, int, _pad)
+  float3 lP;
 };
