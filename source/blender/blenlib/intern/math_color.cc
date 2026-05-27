@@ -83,8 +83,8 @@ void oklab_to_rgb(float l, float a, float b, float *r_r, float *r_g, float *r_b)
 
 void oklch_to_rgb(float l, float c, float h, float *r_r, float *r_g, float *r_b)
 {
-  float a = c * cos(h * 6.2831853072f) / 4.0f;
-  float b = c * sin(h * 6.2831853072f) / 4.0f;
+  float a = c * cos(h * 6.2831853072f);
+  float b = c * sin(h * 6.2831853072f);
   oklab_to_rgb(l, a, b, r_r, r_g, r_b);
 }
 
@@ -762,7 +762,7 @@ void rgb_to_oklch(float r, float g, float b, float *r_l, float *r_c, float *r_h)
   float lab_l, lab_a, lab_b;
   rgb_to_oklab(r, g, b, &lab_l, &lab_a, &lab_b);
   *r_l = lab_l;
-  *r_c = sqrt(lab_a * lab_a + lab_b * lab_b) * 4.0f;
+  *r_c = sqrt(lab_a * lab_a + lab_b * lab_b);
   *r_h = atan2(lab_b, lab_a) / 6.2831853072f;
 }
 

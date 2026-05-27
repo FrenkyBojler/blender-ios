@@ -198,7 +198,7 @@ void rgb_to_oklch(float4 rgb, float4 &outcol)
   float4 lab;
   rgb_to_oklab(rgb, lab);
 
-  c = sqrt(lab[1] * lab[1] + lab[2] * lab[2]) * 4.0f;
+  c = sqrt(lab[1] * lab[1] + lab[2] * lab[2]);
   h = atan(lab[2], lab[1]) / radians(360.0f);
 
   outcol = float4(lab[0], c, h, lab[3]);
@@ -207,8 +207,8 @@ void rgb_to_oklch(float4 rgb, float4 &outcol)
 [[node]]
 void oklch_to_rgb(float4 lch, float4 &outcol)
 {
-  float a = lch[1] * cos(lch[2] * radians(360.0f)) / 4.0f;
-  float b = lch[1] * sin(lch[2] * radians(360.0f)) / 4.0f;
+  float a = lch[1] * cos(lch[2] * radians(360.0f));
+  float b = lch[1] * sin(lch[2] * radians(360.0f));
 
   oklab_to_rgb(float4(lch[0], a, b, lch[3]), outcol);
 }
