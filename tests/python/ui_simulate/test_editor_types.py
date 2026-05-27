@@ -17,7 +17,6 @@ def editor_variants():
     import bpy
 
     variants = []
-    area_type_prop = bpy.types.Area.bl_rna.properties["type"]
 
     variant_specs = {
         'NODE_EDITOR': (
@@ -47,7 +46,7 @@ def editor_variants():
         ),
     }
 
-    for item in area_type_prop.enum_items:
+    for item in bpy.types.Area.bl_rna.properties["type"].enum_items:
         area_type = item.identifier
 
         if area_type in UNSETTABLE_EDITOR_TYPES:
@@ -80,7 +79,7 @@ def editor_variants():
                 "settings": {prop_name: identifier},
             })
 
-    # Add hidden UV variant (ui_type goes on the area, not the space)
+    # The UV editor uses `area.ui_type`, not `space.xxx`. It's the only variant handled this way.
     variants.append({
         "name": "IMAGE:UV",
         "type": 'IMAGE_EDITOR',
@@ -155,8 +154,6 @@ def test_open_editor_types():
             part1_failures.append(f"{name}: exception during apply — {repr(ex)}")
             apply_failures.add(name)
 
-    # Two extra ticks to let all editors fully settle before validation
-    yield
     yield
 
     # Part 2: Validate all successfully opened variants
