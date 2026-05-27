@@ -1071,7 +1071,6 @@ void block_end_ex(const bContext *C,
                   const int xy[2] = nullptr,
                   int r_xy[2] = nullptr);
 void block_end(const bContext *C, Block *block);
-void block_end_xr(const bContext *C, Block *block);
 /**
  * Uses local copy of style, to scale things down, and allow widgets to change stuff.
  */

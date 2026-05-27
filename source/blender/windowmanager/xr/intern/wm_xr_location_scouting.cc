@@ -493,7 +493,7 @@ static ui::Block *wm_xr_viewfinder_ui_mode_tabs_block(const bContext *C,
     return state->viewfinder.active_mode == XR_VIEWFINDER_MODE_PLAYBACK;
   });
 
-  ui::block_end_xr(C, block);
+  ui::block_end(C, block);
 
   return block;
 }
@@ -512,7 +512,7 @@ static ui::Block *wm_xr_viewfinder_ui_settings_left_label_block(const bContext *
     layout.label(settings_left_side_label.c_str(), ICON_NONE);
   }
 
-  ui::block_end_xr(C, block);
+  ui::block_end(C, block);
 
   return block;
 }
@@ -566,7 +566,7 @@ static ui::Block *wm_xr_viewfinder_ui_settings_right_label_block(const bContext 
 
   layout.label(settings_right_side_label.c_str(), ICON_NONE);
 
-  ui::block_end_xr(C, block);
+  ui::block_end(C, block);
 
   return block;
 }
@@ -592,7 +592,7 @@ static ui::Block *wm_xr_viewfinder_ui_action_label_block(const bContext *C,
   RNA_property_enum_name(nullptr, &ptr, prop, active_action_idx, &active_action_label);
   layout.label(active_action_label, ICON_NONE);
 
-  ui::block_end_xr(C, block);
+  ui::block_end(C, block);
 
   return block;
 }
@@ -633,7 +633,7 @@ static ui::Block *wm_xr_viewfinder_ui_action_enum_block(const bContext *C,
         &ptr, "active_action_playback", ui::ITEM_R_EXPAND | ui::ITEM_R_ICON_ONLY, "", ICON_NONE);
   }
 
-  ui::block_end_xr(C, block);
+  ui::block_end(C, block);
 
   return block;
 }
@@ -650,7 +650,7 @@ static ui::Block *wm_xr_viewfinder_ui_missing_captures_label_block(const bContex
     layout.label("No shots captured yet.", ICON_NONE);
   }
 
-  ui::block_end_xr(C, block);
+  ui::block_end(C, block);
 
   return block;
 }

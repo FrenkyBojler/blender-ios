@@ -2205,21 +2205,6 @@ void block_end(const bContext *C, Block *block)
                nullptr);
 }
 
-void block_end_xr(const bContext *C, Block *block)
-{
-  wmWindow window = {};
-
-  block_end_ex(C,
-               CTX_data_main(C),
-               &window,
-               CTX_data_scene(C),
-               CTX_wm_region(C),
-               CTX_data_depsgraph_pointer(C),
-               block,
-               nullptr,
-               nullptr);
-}
-
 /* ************** BLOCK DRAWING FUNCTION ************* */
 
 void fontscale(float *points, float aspect)
