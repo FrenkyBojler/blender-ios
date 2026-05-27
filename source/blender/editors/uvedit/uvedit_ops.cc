@@ -663,6 +663,18 @@ struct UVSwapIslandInfo {
   UvElement *island_start;
   int island_len;
 };
+static void uv_swap_islands_free_maps(Vector<UVSwapIslandInfo> &islands)
+{
+  Vector<UvElementMap *> maps_to_free;
+  for (const UVSwapIslandInfo &info : islands) {
+    if (!maps_to_free.contains(info.element_map)) {
+      maps_to_free.append(info.element_map);
+    }
+  }
+  for (UvElementMap *map : maps_to_free) {
+    BM_uv_element_map_free(map);
+  }
+}
 
 static wmOperatorStatus uv_swap_islands_exec(bContext *C, wmOperator *op)
 {
@@ -714,69 +726,32 @@ static wmOperatorStatus uv_swap_islands_exec(bContext *C, wmOperator *op)
   }
 
   if (selected_islands.size() != 2) {
-    Vector<UvElementMap *> maps_to_free;
-    for (const UVSwapIslandInfo &info : selected_islands) {
-      if (!maps_to_free.contains(info.element_map)) {
-        maps_to_free.append(info.element_map);
-      }
-    }
-    for (UvElementMap *map : maps_to_free) {
-      BM_uv_element_map_free(map);
-    }
+    uv_swap_islands_free_maps(selected_islands);
     BKE_report(op->reports, RPT_ERROR, "Exactly 2 UV islands must be selected for swap operation");
     return OPERATOR_CANCELLED;
   }
 
-  const UVSwapIslandInfo &island1_info = selected_islands[0];
-  const UVSwapIslandInfo &island2_info = selected_islands[1];
-
-  float2 island1_center = {0.0f, 0.0f};
-  float2 island2_center = {0.0f, 0.0f};
-
-  for (int j = 0; j < island1_info.island_len; j++) {
-    float *luv = BM_ELEM_CD_GET_FLOAT_P(island1_info.island_start[j].l, island1_info.offsets.uv);
-    island1_center.x += luv[0];
-    island1_center.y += luv[1];
-  }
-  island1_center.x /= island1_info.island_len;
-  island1_center.y /= island1_info.island_len;
-
-  for (int j = 0; j < island2_info.island_len; j++) {
-    float *luv = BM_ELEM_CD_GET_FLOAT_P(island2_info.island_start[j].l, island2_info.offsets.uv);
-    island2_center.x += luv[0];
-    island2_center.y += luv[1];
-  }
-  island2_center.x /= island2_info.island_len;
-  island2_center.y /= island2_info.island_len;
-
-  float2 offset = island2_center - island1_center;
-
-  for (int j = 0; j < island1_info.island_len; j++) {
-    float *luv = BM_ELEM_CD_GET_FLOAT_P(island1_info.island_start[j].l, island1_info.offsets.uv);
-    luv[0] += offset.x;
-    luv[1] += offset.y;
-  }
-
-  for (int j = 0; j < island2_info.island_len; j++) {
-    float *luv = BM_ELEM_CD_GET_FLOAT_P(island2_info.island_start[j].l, island2_info.offsets.uv);
-    luv[0] -= offset.x;
-    luv[1] -= offset.y;
-  }
-
-  SpaceImage *sima = CTX_wm_space_image(C);
-
-  Vector<UvElementMap *> maps_to_free;
-  for (const UVSwapIslandInfo &info : selected_islands) {
-    if (!maps_to_free.contains(info.element_map)) {
-      maps_to_free.append(info.element_map);
+  Bounds<float2> island_bounds[2];
+  for (int i = 0; i < 2; i++) {
+    INIT_MINMAX2(island_bounds[i].min, island_bounds[i].max);
+    for (int j = 0; j < selected_islands[i].island_len; j++) {
+      float *luv = BM_ELEM_CD_GET_FLOAT_P(selected_islands[i].island_start[j].l,
+                                          selected_islands[i].offsets.uv);
+      minmax_v2v2_v2(island_bounds[i].min, island_bounds[i].max, luv);
     }
   }
-  for (UvElementMap *map : maps_to_free) {
-    BM_uv_element_map_free(map);
+
+  float2 island_offset = island_bounds[1].center() - island_bounds[0].center();
+  for (int i = 0; i < 2; i++) {
+    for (int j = 0; j < selected_islands[i].island_len; j++) {
+      float *luv = BM_ELEM_CD_GET_FLOAT_P(selected_islands[i].island_start[j].l,
+                                          selected_islands[i].offsets.uv);
+      add_v2_v2(luv, (i == 0) ? island_offset : -island_offset);
+    }
   }
 
+  uv_swap_islands_free_maps(selected_islands);
   for (const UVSwapIslandInfo &info : selected_islands) {
-    uvedit_live_unwrap_update(sima, scene, info.object);
     DEG_id_tag_update(info.object->data, 0);
     WM_event_add_notifier(C, NC_GEOM | ND_DATA, info.object->data);
   }
