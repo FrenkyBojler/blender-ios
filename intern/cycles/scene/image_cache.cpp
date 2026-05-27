@@ -939,8 +939,9 @@ void ImageCache::copy_to_device(DeviceScene &dscene, DeviceQueue &queue)
 
 void ImageCache::copy_images_to_device(const bool for_cpu_cache_miss)
 {
-  /* For CPU cache miss we skip deferred updates that were only meant for the GPU,
-   * to avoid repeated copies to the GPU. */
+  /* For CPU cache miss we skip deferred updates that were only meant for the GPU. CPU cache
+   * misses are resolved immediately for each tile, in every thread. So it would be inefficient
+   * to copy data to the GPU every time. */
   thread_scoped_lock device_lock(device_mutex);
   if (!for_cpu_cache_miss) {
     deferred_updates.merge(deferred_gpu_updates);
