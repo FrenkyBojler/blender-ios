@@ -2055,10 +2055,6 @@ void OBJECT_OT_origin_set(wmOperatorType *ot)
  */
 #define USE_FAKE_DEPTH_INIT
 
-/* -------------------------------------------------------------------- */
-/** \name Normals Modal Keymap
- * \{ */
-
 enum {
   TGT_MODAL_CONFIRM = 1,
   TGT_MODAL_CANCEL,
@@ -2641,7 +2637,7 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
                              xfd->precision_toggle_mval,
                              effective_mval);
 
-    if (depths && (uint(effective_mval[0]) < depths->w) && (uint(effective_mval[1]) < depths->h)) {
+    if (depths && ((effective_mval[0]) < depths->w) && ((effective_mval[1]) < depths->h)) {
       float depth_fl = 1.0f;
       ED_view3d_depth_read_cached(depths, effective_mval, 0, &depth_fl);
       float3 location_world;
@@ -2891,7 +2887,20 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
     Scene *scene = CTX_data_scene(C);
     /* Perform auto-keying for rotational changes for all objects. */
     for (XFormAxisItem &item : xfd->object_data) {
-      autokeyframe_object_rotation(C, scene, item.ob);
+      PointerRNA ptr = RNA_pointer_create_discrete(&item.ob->id, RNA_Object, &item.ob->id);
+      const char *rotation_property = "rotation_euler";
+      switch (item.ob->rotmode) {
+        case ROT_MODE_QUAT:
+          rotation_property = "rotation_quaternion";
+          break;
+        case ROT_MODE_AXISANGLE:
+          rotation_property = "rotation_axis_angle";
+          break;
+        default:
+          break;
+      }
+      PropertyRNA *prop = RNA_struct_find_property(&ptr, rotation_property);
+      animrig::autokeyframe_property(C, scene, &ptr, prop, -1, scene->r.cfra, true);
     }
 
     /* Clear WorkspaceStatus to return to basic state */
