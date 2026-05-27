@@ -475,7 +475,7 @@ float oklab_find_gamut_intersection(
   return t;
 }
 
-static void oklab_get_st_mid(float a_, float b_, float &s_mid, float &t_mid)
+void oklab_get_st_mid(float a_, float b_, float &s_mid, float &t_mid)
 {
   s_mid = 0.11516993f +
           1.0f / (+7.44778970f + 4.15901240f * b_ +
@@ -489,7 +489,7 @@ static void oklab_get_st_mid(float a_, float b_, float &s_mid, float &t_mid)
                              a_ * (+0.00299215f - 0.45399568f * b_ - 0.14661872f * a_))));
 }
 
-static void oklab_get_cs(float L, float a_, float b_, float &c_0, float &c_mid, float &c_max)
+void oklab_get_cs(float L, float a_, float b_, float &c_0, float &c_mid, float &c_max)
 {
   float l_cusp, c_cusp;
   oklab_find_cusp(a_, b_, l_cusp, c_cusp);
