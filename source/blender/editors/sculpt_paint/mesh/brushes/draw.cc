@@ -164,7 +164,7 @@ static void offset_positions(const Depsgraph &depsgraph,
   threading::EnumerableThreadSpecific<LocalData> all_tls;
 
   float4x4 mat;
-  SCULPT_cube_tip_init(sd, object, brush, mat.ptr());
+  ed::sculpt_paint::cube_tip_init(sd, object, brush, mat.ptr());
 
   switch (pbvh.type()) {
     case bke::pbvh::Type::Mesh: {
