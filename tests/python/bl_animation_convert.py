@@ -350,7 +350,7 @@ class ConvertRotationModeBones(ConvertRotationModeBase):
         self.assertEqual(len(fcurves), 3)
         self.bone_subframes.convert_rotation_mode('XZY')
         self.assertEqual(self.bone_subframes.rotation_mode, 'XZY')
-        # Have to get the new FCurves since the call will always replace the FCurves even if convertion Euler to Euler.
+        # Have to get the new FCurves since the call will always replace the FCurves even if conversion Euler to Euler.
         fcurves = _get_fcurves_with_rna_path(
             self.action,
             self.action_slot,

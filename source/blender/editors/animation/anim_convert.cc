@@ -511,8 +511,7 @@ void convert_to_rotation_mode(bContext &C,
     transformable.set_rotation_mode(to_mode);
     ID *id = transformable.owner_id();
     DEG_id_tag_update(id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_OBJECT | ND_TRANSFORM, id);
-    WM_event_add_notifier(&C, NC_OBJECT | ND_POSE, id);
+    WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_ADDED, nullptr);
   }
   else {
     ed::Rotation rotation = transformable.get_rotation();

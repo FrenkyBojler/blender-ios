@@ -1634,7 +1634,7 @@ static wmOperatorStatus rotation_mode_convert_exec(bContext *C, wmOperator *op)
           }
           if (!data_map.contains({&action, slot_handle})) {
             ChannelbagFCurveMap fcurve_map = build_rotation_fcurve_map(action, slot_handle);
-            data_map.add({&action, slot_handle}, fcurve_map);
+            data_map.add({&action, slot_handle}, std::move(fcurve_map));
           }
           ChannelbagFCurveMap &channelbag_fcurve_map = data_map.lookup({&action, slot_handle});
           if (bake) {

@@ -2520,6 +2520,9 @@ Vector<Channelbag *> channelbags_for_action_slot(Action &action, const slot_hand
         case animrig::Strip::Type::Keyframe: {
           animrig::StripKeyframeData &strip_data = strip->data<animrig::StripKeyframeData>(action);
           animrig::Channelbag *bag = strip_data.channelbag_for_slot(slot_handle);
+          if (!bag) {
+            continue;
+          }
           if (!visited_channelbags.add(bag)) {
             continue;
           }
