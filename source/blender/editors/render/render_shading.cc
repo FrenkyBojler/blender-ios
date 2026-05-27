@@ -456,14 +456,14 @@ static wmOperatorStatus material_slot_de_select(bContext *C, bool select)
                 if (bezt->hide == 0) {
                   changed = true;
                   if (select) {
-                    bezt->f1 |= SELECT;
-                    bezt->f2 |= SELECT;
-                    bezt->f3 |= SELECT;
+                    bezt->f1 |= BEZT_FLAG_SELECT;
+                    bezt->f2 |= BEZT_FLAG_SELECT;
+                    bezt->f3 |= BEZT_FLAG_SELECT;
                   }
                   else {
-                    bezt->f1 &= ~SELECT;
-                    bezt->f2 &= ~SELECT;
-                    bezt->f3 &= ~SELECT;
+                    bezt->f1 &= ~BEZT_FLAG_SELECT;
+                    bezt->f2 &= ~BEZT_FLAG_SELECT;
+                    bezt->f3 &= ~BEZT_FLAG_SELECT;
                   }
                 }
                 bezt++;
@@ -1748,7 +1748,7 @@ static wmOperatorStatus render_view_add_exec(bContext *C, wmOperator * /*op*/)
   Scene *scene = CTX_data_scene(C);
 
   BKE_scene_add_render_view(scene, nullptr);
-  scene->r.actview = BLI_listbase_count(&scene->r.views) - 1;
+  scene->r.actview = scene->r.views.count() - 1;
 
   WM_event_add_notifier(C, NC_SCENE | ND_RENDER_OPTIONS, scene);
 
@@ -2212,7 +2212,9 @@ static wmOperatorStatus freestyle_color_modifier_add_exec(bContext *C, wmOperato
     return OPERATOR_CANCELLED;
   }
 
-  if (BKE_linestyle_color_modifier_add(lineset->linestyle, nullptr, type) == nullptr) {
+  if (BKE_linestyle_color_modifier_add(
+          lineset->linestyle, nullptr, eLineStyleModifier_Type(type)) == nullptr)
+  {
     BKE_report(op->reports, RPT_ERROR, "Unknown line color modifier type");
     return OPERATOR_CANCELLED;
   }
@@ -2259,7 +2261,9 @@ static wmOperatorStatus freestyle_alpha_modifier_add_exec(bContext *C, wmOperato
     return OPERATOR_CANCELLED;
   }
 
-  if (BKE_linestyle_alpha_modifier_add(lineset->linestyle, nullptr, type) == nullptr) {
+  if (BKE_linestyle_alpha_modifier_add(
+          lineset->linestyle, nullptr, eLineStyleModifier_Type(type)) == nullptr)
+  {
     BKE_report(op->reports, RPT_ERROR, "Unknown alpha transparency modifier type");
     return OPERATOR_CANCELLED;
   }
@@ -2306,7 +2310,9 @@ static wmOperatorStatus freestyle_thickness_modifier_add_exec(bContext *C, wmOpe
     return OPERATOR_CANCELLED;
   }
 
-  if (BKE_linestyle_thickness_modifier_add(lineset->linestyle, nullptr, type) == nullptr) {
+  if (BKE_linestyle_thickness_modifier_add(
+          lineset->linestyle, nullptr, eLineStyleModifier_Type(type)) == nullptr)
+  {
     BKE_report(op->reports, RPT_ERROR, "Unknown line thickness modifier type");
     return OPERATOR_CANCELLED;
   }
@@ -2353,7 +2359,9 @@ static wmOperatorStatus freestyle_geometry_modifier_add_exec(bContext *C, wmOper
     return OPERATOR_CANCELLED;
   }
 
-  if (BKE_linestyle_geometry_modifier_add(lineset->linestyle, nullptr, type) == nullptr) {
+  if (BKE_linestyle_geometry_modifier_add(
+          lineset->linestyle, nullptr, eLineStyleModifier_Type(type)) == nullptr)
+  {
     BKE_report(op->reports, RPT_ERROR, "Unknown stroke geometry modifier type");
     return OPERATOR_CANCELLED;
   }
@@ -2789,7 +2797,7 @@ static wmOperatorStatus copy_material_exec(bContext *C, wmOperator *op)
 
   char filepath[FILE_MAX];
   material_copybuffer_filepath_get(filepath, sizeof(filepath));
-  copybuffer.write(filepath, *op->reports);
+  copybuffer.write_as_copypaste_buffer(filepath, *op->reports);
 
   /* We are all done! */
   BKE_report(op->reports, RPT_INFO, "Copied material to internal clipboard");

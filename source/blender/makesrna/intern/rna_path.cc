@@ -165,7 +165,7 @@ static char *rna_path_token_in_brackets(const char **path,
   char *buf = (len + 1 < fixedlen) ? fixedbuf :
                                      MEM_new_array_uninitialized<char>(size_t(len) + 1, __func__);
 
-  /* Copy string, taking into account escaped ']' */
+  /* Copy string, taking into account escaped `]`. */
   if (quoted) {
     BLI_str_unescape(buf, *path, len);
     /* +1 to step over the last quote. */
@@ -836,7 +836,6 @@ static char *rna_idp_path(PointerRNA *ptr,
   IDP_Chain link;
 
   const IDProperty *iter;
-  int i;
 
   BLI_assert(haystack->type == IDP_GROUP);
 
@@ -845,9 +844,7 @@ static char *rna_idp_path(PointerRNA *ptr,
   link.name = nullptr;
   link.index = -1;
 
-  for (i = 0, iter = static_cast<IDProperty *>(haystack->data.group.first); iter;
-       iter = iter->next, i++)
-  {
+  for (iter = static_cast<IDProperty *>(haystack->data.group.first); iter; iter = iter->next) {
     if (needle == iter) { /* found! */
       link.name = iter->name;
       link.index = -1;

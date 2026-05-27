@@ -7,7 +7,7 @@
 
 #include "BKE_action.hh"
 #include "BKE_anim_data.hh"
-#include "BKE_gtest_setup.hh"
+#include "BKE_gtest_base.hh"
 #include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
@@ -23,21 +23,11 @@
 
 namespace blender::animrig::nla::tests {
 
-class NLASlottedActionTest : public testing::Test {
+class NLASlottedActionTest : public bke::BlenderGTestBase {
  public:
   Main *bmain;
   Action *action;
   Object *cube;
-
-  static void SetUpTestSuite()
-  {
-    bke::gtest_setup();
-  }
-
-  static void TearDownTestSuite()
-  {
-    bke::gtest_teardown();
-  }
 
   void SetUp() override
   {
@@ -130,8 +120,8 @@ TEST_F(NLASlottedActionTest, assign_slot_to_multiple_strips)
   strip1->end = 327;
   ASSERT_TRUE(BKE_nlatrack_add_strip(track, strip1, false));
   ASSERT_TRUE(BKE_nlatrack_add_strip(track, strip2, false));
-  ASSERT_EQ(1, BLI_listbase_count(&adt->nla_tracks));
-  ASSERT_EQ(2, BLI_listbase_count(&track->strips));
+  ASSERT_EQ(1, adt->nla_tracks.count());
+  ASSERT_EQ(2, track->strips.count());
 
   nla::unassign_action(*strip1, cube->id);
   nla::unassign_action(*strip2, cube->id);
