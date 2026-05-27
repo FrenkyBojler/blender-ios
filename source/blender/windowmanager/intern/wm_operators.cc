@@ -9,6 +9,7 @@
  * as well as some generic operators and shared operator properties.
  */
 
+#include "UI_interface_c.hh"
 #include <algorithm>
 #include <cctype>
 #include <cerrno>
@@ -77,6 +78,7 @@
 #include "GPU_matrix.hh"
 #include "GPU_state.hh"
 
+#include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
 
 #include "ED_fileselect.hh"
@@ -415,7 +417,7 @@ static const char *wm_context_member_from_ptr(bContext *C, const PointerRNA *ptr
       }
     }
   }
-  BLI_freelistN(&lb);
+  lb.free_no_destruct();
 
   if (member_found) {
     *r_is_id = member_found_is_id;
@@ -939,7 +941,7 @@ bool WM_operator_last_properties_store(wmOperator *op)
   }
 
   if (op->properties) {
-    if (!BLI_listbase_is_empty(&op->properties->data.group)) {
+    if (!op->properties->data.group.is_empty()) {
       CLOG_DEBUG(WM_LOG_OPERATORS, "Storing properties for '%s'", op->type->idname);
     }
     op->type->last_properties = IDP_CopyProperty(op->properties);
@@ -1479,18 +1481,16 @@ struct wmOpPopUp {
 };
 
 /* Only invoked by OK button in popups created with #wm_block_dialog_create(). */
-static void dialog_exec_cb(bContext *C, void *arg1, void *arg2)
+static void dialog_exec_cb(bContext *C, wmOpPopUp *data, ui::Block *block)
 {
   wmOperator *op;
   {
     /* Execute will free the operator.
      * In this case, wm_operator_ui_popup_cancel won't run. */
-    wmOpPopUp *data = static_cast<wmOpPopUp *>(arg1);
     op = data->op;
     MEM_delete(data);
   }
 
-  ui::Block *block = static_cast<ui::Block *>(arg2);
   /* Explicitly set RETURN_OK flag, otherwise the menu might be canceled
    * in case WM_operator_call_ex exits/reloads the current file (#49199). */
 
@@ -1507,10 +1507,9 @@ static void dialog_exec_cb(bContext *C, void *arg1, void *arg2)
 static void wm_operator_ui_popup_cancel(bContext *C, void *user_data);
 
 /* Only invoked by Cancel button in popups created with #wm_block_dialog_create(). */
-static void dialog_cancel_cb(bContext *C, void *arg1, void *arg2)
+static void dialog_cancel_cb(bContext *C, wmOpPopUp *data, ui::Block *block)
 {
-  wm_operator_ui_popup_cancel(C, arg1);
-  ui::Block *block = static_cast<ui::Block *>(arg2);
+  wm_operator_ui_popup_cancel(C, data);
   popup_menu_retval_set(block, ui::RETURN_CANCEL, true);
   wmWindow *win = CTX_wm_window(C);
   popup_block_close(C, win, block);
@@ -1662,8 +1661,10 @@ static ui::Block *wm_block_dialog_create(bContext *C, ARegion *region, void *use
                              "");
     }
 
-    button_func_set(confirm_but, dialog_exec_cb, data, col_block);
-    button_func_set(cancel_but, dialog_cancel_cb, data, col_block);
+    button_func_set(confirm_but,
+                    [data, col_block](bContext &C) { dialog_exec_cb(&C, data, col_block); });
+    button_func_set(cancel_but,
+                    [data, col_block](bContext &C) { dialog_cancel_cb(&C, data, col_block); });
     button_flag_enable((data->cancel_default) ? cancel_but : confirm_but, ui::BUT_ACTIVE_DEFAULT);
   }
 
@@ -2676,13 +2677,12 @@ static void radial_control_set_tex(RadialControl *rc)
                                             1,
                                             gpu::TextureFormat::UNORM_8,
                                             GPU_TEXTURE_USAGE_SHADER_READ,
-                                            ibuf->float_buffer.data);
+                                            ibuf->float_data());
 
         GPU_texture_filter_mode(rc->texture, true);
         GPU_texture_swizzle_set(rc->texture, "111r");
 
-        MEM_delete(ibuf->float_buffer.data);
-        MEM_delete(ibuf);
+        IMB_freeImBuf(ibuf);
       }
       break;
     default:
@@ -3223,7 +3223,7 @@ static wmOperatorStatus radial_control_invoke(bContext *C, wmOperator *op, const
   /* Temporarily disable other paint cursors. */
   wmWindowManager *wm = CTX_wm_manager(C);
   rc->orig_paintcursors = wm->runtime->paintcursors;
-  BLI_listbase_clear(&wm->runtime->paintcursors);
+  wm->runtime->paintcursors.clear_no_delete();
 
   /* Add radial control paint cursor. */
   rc->cursor = WM_paint_cursor_activate(
@@ -4228,6 +4228,7 @@ void wm_operatortypes_register()
   WM_operatortype_append(WM_OT_read_history);
   WM_operatortype_append(WM_OT_read_homefile);
   WM_operatortype_append(WM_OT_read_factory_settings);
+  WM_operatortype_append(WM_OT_save_auto_save);
   WM_operatortype_append(WM_OT_save_homefile);
   WM_operatortype_append(WM_OT_save_userpref);
   WM_operatortype_append(WM_OT_read_userpref);
@@ -4557,8 +4558,14 @@ static const EnumPropertyItem *rna_id_itemf(bool *r_free,
         item_tmp.identifier = item_tmp.name = id->name + 2;
         item_tmp.value = i++;
 
+        const BIFIconID lib_state_icon = ui::icon_from_library(id);
+        /* Indicate library linking, override or asset state in icon. In enum menus that's the only
+         * way to tell apart linked IDs from their overridden versions. */
+        if (lib_state_icon != ICON_NONE) {
+          item_tmp.icon = lib_state_icon;
+        }
         /* Show collection color tag icons in menus. */
-        if (id_type == ID_GR) {
+        else if (id_type == ID_GR) {
           item_tmp.icon = ui::icon_color_from_collection(reinterpret_cast<Collection *>(id));
         }
 

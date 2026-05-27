@@ -241,7 +241,7 @@ void drawSnapping(TransInfo *t)
     GPU_depth_test(GPU_DEPTH_NONE);
 
     RegionView3D *rv3d = static_cast<RegionView3D *>(t->region->regiondata);
-    if (!BLI_listbase_is_empty(&t->tsnap.points)) {
+    if (!t->tsnap.points.is_empty()) {
       /* Draw snap points. */
 
       float size = 2.0f * ui::theme::get_value_f(TH_VERTEX_SIZE);
@@ -253,7 +253,7 @@ void drawSnapping(TransInfo *t)
 
       immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
-      if (!BLI_listbase_is_empty(&t->tsnap.points)) {
+      if (!t->tsnap.points.is_empty()) {
         for (TransSnapPoint &p : t->tsnap.points) {
           if (&p == t->tsnap.selectedPoint) {
             immUniformColor4ubv(selectedCol);
@@ -655,7 +655,8 @@ static bool bm_face_is_snap_target(BMFace *f, void * /*user_data*/)
   return true;
 }
 
-short *transform_snap_flag_from_spacetype_ptr(TransInfo *t, const PropertyRNA **r_prop = nullptr)
+eSnapFlag *transform_snap_flag_from_spacetype_ptr(TransInfo *t,
+                                                  const PropertyRNA **r_prop = nullptr)
 {
   ToolSettings *ts = t->settings;
   switch (t->spacetype) {
@@ -712,13 +713,13 @@ short *transform_snap_flag_from_spacetype_ptr(TransInfo *t, const PropertyRNA **
 
 static eSnapFlag snap_flag_from_spacetype(TransInfo *t)
 {
-  if (short *snap_flag = transform_snap_flag_from_spacetype_ptr(t)) {
-    return eSnapFlag(*snap_flag);
+  if (eSnapFlag *snap_flag = transform_snap_flag_from_spacetype_ptr(t)) {
+    return *snap_flag;
   }
 
   /* #SPACE_EMPTY.
    * It can happen when the operator is called via a handle in `bpy.app.handlers`. */
-  return eSnapFlag(0);
+  return eSnapFlag{};
 }
 
 static eSnapMode snap_mode_from_spacetype(TransInfo *t)
@@ -777,7 +778,7 @@ static eSnapTargetOP snap_target_select_from_spacetype_and_tool_settings(TransIn
   eSnapTargetOP target_operation = SCE_SNAP_TARGET_ALL;
 
   if (ELEM(t->spacetype, SPACE_VIEW3D, SPACE_IMAGE) && !(t->options & CTX_CAMERA)) {
-    BKE_view_layer_synced_ensure(t->scene, t->view_layer);
+    BKE_view_layer_synced_ensure(*t->bmain, t->scene, t->view_layer);
     Base *base_act = BKE_view_layer_active_base_get(t->view_layer);
     const int obedit_type = t->obedit_type;
     if (base_act && (base_act->object->mode & OB_MODE_PARTICLE_EDIT)) {
@@ -1039,7 +1040,7 @@ void initSnapping(TransInfo *t, wmOperator *op)
   }
   else if (t->spacetype == SPACE_SEQ) {
     if (t->tsnap.seq_context == nullptr) {
-      t->tsnap.seq_context = snap_sequencer_data_alloc(t);
+      t->tsnap.seq_context = snap_sequencer_data_build(t);
     }
   }
 
@@ -1098,7 +1099,7 @@ static void setSnappingCallback(TransInfo *t)
   }
   else if (t->spacetype == SPACE_IMAGE) {
     SpaceImage *sima = static_cast<SpaceImage *>(t->area->spacedata.first);
-    BKE_view_layer_synced_ensure(t->scene, t->view_layer);
+    BKE_view_layer_synced_ensure(*t->bmain, t->scene, t->view_layer);
     Object *obact = BKE_view_layer_active_object_get(t->view_layer);
 
     const bool is_uv_editor = sima->mode == SI_MODE_UV;
@@ -1212,7 +1213,7 @@ void removeSnapPoint(TransInfo *t)
     if (t->tsnap.selectedPoint) {
       BLI_freelinkN(&t->tsnap.points, t->tsnap.selectedPoint);
 
-      if (BLI_listbase_is_empty(&t->tsnap.points)) {
+      if (t->tsnap.points.is_empty()) {
         t->tsnap.status &= ~SNAP_MULTI_POINTS;
       }
 
@@ -1248,7 +1249,7 @@ void getSnapPoint(const TransInfo *t, float vec[3])
 static void snap_multipoints_free(TransInfo *t)
 {
   if (t->tsnap.status & SNAP_MULTI_POINTS) {
-    BLI_freelistN(&t->tsnap.points);
+    t->tsnap.points.free_no_destruct();
     t->tsnap.status &= ~SNAP_MULTI_POINTS;
     t->tsnap.selectedPoint = nullptr;
   }
@@ -1352,7 +1353,7 @@ static void snap_target_uv_fn(TransInfo *t, float * /*vec*/)
   if (t->tsnap.mode & SCE_SNAP_TO_VERTEX) {
     const Vector<Object *> objects =
         BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
-            t->scene, t->view_layer, nullptr);
+            *t->bmain, t->scene, t->view_layer, nullptr);
 
     float dist_sq = square_f(float(SNAP_MIN_DISTANCE));
     if (ED_uvedit_nearest_uv_multi(&t->region->v2d,
@@ -1658,7 +1659,7 @@ bool peelObjectsTransform(TransInfo *t,
                                               false,
                                               &depths_peel);
 
-  if (!BLI_listbase_is_empty(&depths_peel)) {
+  if (!depths_peel.is_empty()) {
     /* At the moment we only use the hits of the first object. */
     SnapObjectHitDepth *hit_min = static_cast<SnapObjectHitDepth *>(depths_peel.first);
     for (SnapObjectHitDepth *iter = hit_min->next; iter; iter = iter->next) {

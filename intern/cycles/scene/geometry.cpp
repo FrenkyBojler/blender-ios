@@ -173,6 +173,56 @@ GeometryManager::GeometryManager()
 
 GeometryManager::~GeometryManager() = default;
 
+void GeometryManager::update_interactive_motion(Scene *scene)
+{
+  bool update = false;
+
+  parallel_for(blocked_range<size_t>(0, scene->geometry.size(), 32),
+               [&](const blocked_range<size_t> &r) {
+                 for (size_t i = r.begin(); i != r.end(); i++) {
+                   Geometry *geom = scene->geometry[i];
+
+                   Attribute *attr_mP = geom->attributes.find(ATTR_STD_MOTION_VERTEX_POSITION);
+                   if (attr_mP) {
+                     if (geom->is_mesh()) {
+                       Mesh *mesh = static_cast<Mesh *>(geom);
+                       if (std::memcmp(mesh->get_verts().data(),
+                                       attr_mP->data_float3(),
+                                       sizeof(float3) * mesh->num_verts()) != 0)
+                       {
+                         mesh->copy_center_to_motion_step(0);
+                         attr_mP->modified = update = true;
+                       }
+                     }
+                     else if (geom->is_hair()) {
+                       Hair *hair = static_cast<Hair *>(geom);
+                       if (std::memcmp(hair->get_curve_keys().data(),
+                                       attr_mP->data_float3(),
+                                       sizeof(float3) * hair->num_keys()) != 0)
+                       {
+                         hair->copy_center_to_motion_step(0);
+                         attr_mP->modified = update = true;
+                       }
+                     }
+                     else if (geom->is_pointcloud()) {
+                       PointCloud *pointcloud = static_cast<PointCloud *>(geom);
+                       if (std::memcmp(pointcloud->get_points().data(),
+                                       attr_mP->data_float3(),
+                                       sizeof(float3) * pointcloud->num_points()) != 0)
+                       {
+                         pointcloud->copy_center_to_motion_step(0);
+                         attr_mP->modified = update = true;
+                       }
+                     }
+                   }
+                 }
+               });
+
+  if (update) {
+    tag_update(scene, TRANSFORM_MODIFIED);
+  }
+}
+
 void GeometryManager::update_osl_globals(Device *device, Scene *scene)
 {
 #ifdef WITH_OSL
@@ -451,14 +501,14 @@ void GeometryManager::device_update_preprocess(Device *device, Scene *scene, Pro
 
     if (geom->has_volume) {
       if (geom->is_modified()) {
-        scene->volume_manager->tag_update(geom);
+        scene->volume_manager->tag_update({geom});
       }
       if (!prev_has_volume) {
         scene->volume_manager->tag_update();
       }
     }
     else if (prev_has_volume) {
-      scene->volume_manager->tag_update(geom);
+      scene->volume_manager->tag_update({geom});
     }
 
     if (geom->is_hair()) {
@@ -495,15 +545,15 @@ void GeometryManager::device_update_preprocess(Device *device, Scene *scene, Pro
     }
   }
 
-  if (update_flags & (MESH_ADDED | MESH_REMOVED)) {
+  if (update_flags & (MESH_ADDED | MESH_REMOVED | MOTION_PASS_NEEDED)) {
     device_update_flags |= DEVICE_MESH_DATA_NEEDS_REALLOC;
   }
 
-  if (update_flags & (HAIR_ADDED | HAIR_REMOVED)) {
+  if (update_flags & (HAIR_ADDED | HAIR_REMOVED | MOTION_PASS_NEEDED)) {
     device_update_flags |= DEVICE_CURVE_DATA_NEEDS_REALLOC;
   }
 
-  if (update_flags & (POINT_ADDED | POINT_REMOVED)) {
+  if (update_flags & (POINT_ADDED | POINT_REMOVED | MOTION_PASS_NEEDED)) {
     device_update_flags |= DEVICE_POINT_DATA_NEEDS_REALLOC;
   }
 
@@ -758,8 +808,8 @@ void GeometryManager::device_update(Device *device,
     for (Geometry *geom : scene->geometry) {
       if (geom->is_hair()) {
         Hair *hair = static_cast<Hair *>(geom);
-        if ((geom->is_modified() && hair->need_shadow_transparency()) ||
-            hair->need_update_shadow_transparency())
+        if (hair->need_shadow_transparency() &&
+            (geom->is_modified() || hair->need_update_shadow_transparency()))
         {
           curve_need_update_shadow_transparency = true;
           break;
@@ -805,6 +855,8 @@ void GeometryManager::device_update(Device *device,
     }
 
     Mesh *mesh = static_cast<Mesh *>(geom);
+    /* Apply generated attribute if needed or remove if not needed */
+    mesh->update_generated(scene);
 
     if (num_tessellation && mesh->need_tesselation()) {
       {
@@ -833,8 +885,6 @@ void GeometryManager::device_update(Device *device,
       mesh->tessellate(subd_params);
     }
 
-    /* Apply generated attribute if needed or remove if not needed */
-    mesh->update_generated(scene);
     /* Apply tangents for generated and UVs (if any need them) or remove if not needed */
     mesh->update_tangents(scene, true);
     if (!mesh->has_true_displacement()) {
