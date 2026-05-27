@@ -3471,9 +3471,9 @@ void WM_window_IME_region_refresh(wmWindow *win, ScrArea *area, ARegion *region)
 
   const std::optional<blender::int2> pos = region->runtime->type->cursor_ime(win, area, region);
   if (pos) {
-    const bool complete = win->runtime->ime_data == nullptr;
+    /* `WM_window_IME_end` above always ends any session, so this is always a fresh begin. */
     WM_window_IME_begin(
-        win, region->winrct.xmin + pos->x, region->winrct.ymin + pos->y, 0, 0, complete);
+        win, region->winrct.xmin + pos->x, region->winrct.ymin + pos->y, 0, 0, true);
   }
 }
 #endif /* WITH_INPUT_IME */
