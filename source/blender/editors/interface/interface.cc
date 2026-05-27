@@ -4026,40 +4026,16 @@ Block *block_begin(const bContext *C,
   return block;
 }
 
+Block *block_begin(const bContext *C, ARegion *region, std::string name, EmbossType emboss)
+{
+  return block_begin(C, CTX_data_scene(C), CTX_wm_window(C), region, std::move(name), emboss);
+}
+
 Block *block_begin_xr(const bContext *C, std::string name, blender::ui::EmbossType emboss)
 {
-  Block *block = MEM_new<Block>(__func__);
-  block->active = true;
-  block->emboss = emboss;
-  block->evil_C = (void *)C; /* XXX */
+  Block *block = block_begin(C, nullptr, name, emboss);
 
-  const Scene *scene = CTX_data_scene(C);
-  if (scene) {
-    /* store display device name, don't lookup for transformations yet
-     * block could be used for non-color displays where looking up for transformation
-     * would slow down redraw, so only lookup for actual transform when it's indeed
-     * needed
-     */
-    STRNCPY_UTF8(block->display_device, scene->display_settings.display_device);
-
-    /* Copy to avoid crash when scene gets deleted with UI still open. */
-    UnitSettings *unit = MEM_new<UnitSettings>(__func__);
-    memcpy(unit, &scene->unit, sizeof(scene->unit));
-    block->unit = unit;
-  }
-  else {
-    STRNCPY_UTF8(block->display_device, IMB_colormanagement_display_get_default_name());
-  }
-
-  block->name = std::move(name);
-
-  /* Prevent reallocations on redraw, most of the time blocks layout will be the same. */
-  if (block->oldblock) {
-    block->buttons_ptrs.reserve(block->oldblock->buttons_ptrs.size());
-  }
-
-  /* Set window matrix and aspect for region and OpenGL state. */
-  /* Dummy window size for XR. */
+  /* XR doesn't have a window, set a dummy constant window size. */
   const blender::int2 win_size = {1600 * 2, 900 * 2};
   const rcti winrct = {0, win_size[0] - 1, 0, win_size[1] - 1};
 
@@ -4067,11 +4043,6 @@ Block *block_begin_xr(const bContext *C, std::string name, blender::ui::EmbossTy
   block->aspect = 2.0f / fabsf(win_size[0] * block->winmat[0][0]);
 
   return block;
-}
-
-Block *block_begin(const bContext *C, ARegion *region, std::string name, EmbossType emboss)
-{
-  return block_begin(C, CTX_data_scene(C), CTX_wm_window(C), region, std::move(name), emboss);
 }
 
 void block_add_dynamic_listener(Block *block,
