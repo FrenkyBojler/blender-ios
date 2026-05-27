@@ -112,13 +112,9 @@ static GeometryNodesInputType get_effective_input_type(PointerRNA *input_props_p
                                                        const bNodeTreeInterfaceSocket &io_socket)
 {
   const int input_index = ntree.interface_input_index(io_socket);
-  const bke::bNodeSocketType *typeinfo = io_socket.socket_typeinfo();
-  if (typeinfo && nodes::socket_type_has_attribute_toggle(typeinfo->type)) {
+  if (PropertyRNA *prop = RNA_struct_find_property(input_props_ptr, "type")) {
     if (nodes::input_has_attribute_toggle(ntree, input_index)) {
-      if (PropertyRNA *prop = RNA_struct_find_property(input_props_ptr, "type")) {
-        return GeometryNodesInputType(RNA_property_enum_get(input_props_ptr, prop));
-      }
-      return GeometryNodesInputType::Fallback;
+      return GeometryNodesInputType(RNA_property_enum_get(input_props_ptr, prop));
     }
     return GeometryNodesInputType::Value;
   }
