@@ -93,7 +93,7 @@ template<typename T> class DataBlockNameFunction : public mf::MultiFunction {
     MutableSpan<std::string> library_names =
         params.uninitialized_single_output_if_required<std::string>(2, "Library Name");
 
-    mask.foreach_index_optimized<int64_t>([&](const int64_t i) {
+    mask.foreach_index([&](const int64_t i) {
       const T *data_block = data_blocks[i];
 
       if (data_block == nullptr) {
@@ -106,7 +106,7 @@ template<typename T> class DataBlockNameFunction : public mf::MultiFunction {
     });
 
     if (!library_names.is_empty()) {
-      mask.foreach_index_optimized<int64_t>([&](const int64_t i) {
+      mask.foreach_index([&](const int64_t i) {
         const T *data_block = data_blocks[i];
 
         if (data_block == nullptr) {
