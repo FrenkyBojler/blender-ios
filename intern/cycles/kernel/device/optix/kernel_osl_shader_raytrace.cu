@@ -1,6 +1,8 @@
-/* SPDX-FileCopyrightText: 2021-2026 Blender Foundation
+/* SPDX-FileCopyrightText: 2011-2026 Blender Foundation
  *
  * SPDX-License-Identifier: Apache-2.0 */
+
+#define WITH_OSL
 
 #include "kernel/device/optix/compat.h"
 #include "kernel/device/optix/globals.h"
