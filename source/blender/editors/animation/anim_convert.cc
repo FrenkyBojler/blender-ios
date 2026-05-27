@@ -94,7 +94,7 @@ class KeyframeIterator {
   Array<int> key_indices_;
   Bounds<float> range_;
 
-  float get_next_frame()
+  float get_next_frame() const
   {
     float next_frame = FLT_MAX;
     for (const int i : fcurves_.index_range()) {
@@ -137,7 +137,7 @@ class KeyframeIterator {
     }
   }
 
-  bool can_advance()
+  bool can_advance() const
   {
     for (const int i : fcurves_.index_range()) {
       const FCurve *fcurve = fcurves_[i];
@@ -179,7 +179,7 @@ class KeyframeIterator {
    * Returns the frame of the current iteration step. If the iterator has completed it will always
    * return 0.
    */
-  float get_frame()
+  float get_frame() const
   {
     float next_frame = get_next_frame();
 
@@ -194,7 +194,7 @@ class KeyframeIterator {
    * Returns the keyframe settings of the current step. The first FCurve with a key at the current
    * frame is used for this.
    */
-  animrig::KeyframeSettings get_keyframe_settings()
+  animrig::KeyframeSettings get_keyframe_settings() const
   {
     /* Always return some reasonable defaults. */
     animrig::KeyframeSettings settings = {BEZT_KEYTYPE_KEYFRAME, HD_AUTO, BEZT_IPO_BEZ};
@@ -228,13 +228,16 @@ class KeyframeIterator {
  * mode will be inserted here. None of the FCurves shall be a nullptr.
  * \param range Start and end frames to limit the range in which to convert and insert rotation
  * keys. Interpreted inclusive at the start and exclusive at the end and in FCurve time.
+ * \param ensure_range_start_key if set to true a key will be set at `range.min` regardless of a
+ * key existing on that frame in the evaluation buffer.
  */
 static void convert_fcurves_rotation_mode(const Span<const FCurve *> evaluation_buffer,
                                           const Span<FCurve *> insertion_buffer,
                                           const eRotationModes from_mode,
                                           const eRotationModes to_mode,
                                           const Bounds<float> range,
-                                          const ed::AnimTransformable &transformable)
+                                          const ed::AnimTransformable &transformable,
+                                          const bool ensure_range_start_key)
 {
   /* Filling the array with the current values to have good base values in case not every array
    * index is keyed. */
@@ -244,9 +247,32 @@ static void convert_fcurves_rotation_mode(const Span<const FCurve *> evaluation_
   ed::Rotation previous_conversion = rotation_values.converted_to_mode(to_mode);
 
   KeyframeIterator key_iterator = KeyframeIterator(evaluation_buffer, range);
+  if (ensure_range_start_key && key_iterator.get_frame() > range.min) {
+    /* This case can happen if the rotation mode is keyed, but not any of the rotation channels. In
+     * that case the below loop would not insert a key into the range start which would result in a
+     * visual jump after the conversion. */
+    const float frame = range.min;
+    const animrig::KeyframeSettings settings = key_iterator.get_keyframe_settings();
+    /* Generate the current rotation values respecting missing FCurves. */
+    for (const FCurve *fcurve : evaluation_buffer) {
+      if (!fcurve) {
+        continue;
+      }
+      rotation_values.values[fcurve->array_index] = evaluate_fcurve(fcurve, frame);
+    }
+    ed::Rotation converted_rotation = rotation_values.converted_to_mode(to_mode,
+                                                                        &previous_conversion);
+    for (const int i : insertion_buffer.index_range()) {
+      FCurve *fcurve = insertion_buffer[i];
+      BLI_assert_msg(fcurve, "For insertion all FCurves are expected to be created before");
+      insert_vert_fcurve(fcurve, {frame, converted_rotation.values[i]}, settings, INSERTKEY_FAST);
+    }
+    previous_conversion = converted_rotation;
+  }
+
   while (key_iterator.can_advance()) {
     const float frame = key_iterator.get_frame();
-    animrig::KeyframeSettings settings = key_iterator.get_keyframe_settings();
+    const animrig::KeyframeSettings settings = key_iterator.get_keyframe_settings();
     key_iterator.advance();
     /* Generate the current rotation values respecting missing FCurves. */
     for (const FCurve *fcurve : evaluation_buffer) {
@@ -333,7 +359,7 @@ static bool convert_rotation_mode_ranges(animrig::Channelbag &channelbag,
     }
 
     convert_fcurves_rotation_mode(
-        evaluation_buffer, insertion_buffer, from_mode, to_mode, range, transformable);
+        evaluation_buffer, insertion_buffer, from_mode, to_mode, range, transformable, i > 0);
 
     modified_keys = true;
   }
@@ -373,7 +399,7 @@ bool convert_rotation_keys(const ed::AnimTransformable &transformable,
     Vector<std::pair<float, eRotationModes>> rotation_mode_ranges;
     FCurve *rotation_mode_fcurve = nullptr;
     if (const SortedFCurveBuffer *rotation_mode_buffer = fcu_map.lookup_ptr(rotation_mode_path)) {
-      BLI_assert(rotation_mode_buffer->fcurves().size() > 0);
+      BLI_assert(rotation_mode_buffer->fcurves().size() == 1);
       rotation_mode_fcurve = rotation_mode_buffer->fcurves()[0];
       rotation_mode_ranges = get_rotation_mode_ranges(*rotation_mode_fcurve);
     }
