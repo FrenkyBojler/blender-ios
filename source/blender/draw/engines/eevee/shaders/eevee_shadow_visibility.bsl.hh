@@ -10,7 +10,7 @@
 
 #pragma once
 
-#include "infos/eevee_common_infos.hh"
+#include "draw_object_infos_infos.hh"
 
 COMPUTE_SHADER_CREATE_INFO(draw_view)
 COMPUTE_SHADER_CREATE_INFO(draw_view_culling)
