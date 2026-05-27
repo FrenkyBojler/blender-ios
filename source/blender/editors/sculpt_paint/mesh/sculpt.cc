@@ -110,6 +110,10 @@ static CLG_LogRef LOG = {"sculpt"};
 
 namespace ed::sculpt_paint {
 
+/* -------------------------------------------------------------------- */
+/** \name Sculpt Brush Utilities
+ * \{ */
+
 /* TODO: This should be moved to either BKE_paint.hh or BKE_brush.hh */
 float object_space_radius_get(const ViewContext &vc,
                               const Paint &paint,
@@ -398,6 +402,77 @@ bool vert_has_unique_face_set(const OffsetIndices<int> faces,
   }
   BLI_assert_unreachable();
   return true;
+}
+
+bool coord_has_face_set(const OffsetIndices<int> faces,
+                        const Span<int> corner_verts,
+                        const GroupedSpan<int> vert_to_face_map,
+                        const Span<int> face_sets,
+                        const SubdivCCG &subdiv_ccg,
+                        const SubdivCCGCoord coord,
+                        const int face_set)
+{
+  if (face_sets.is_empty()) {
+    return face_set == face_set_none_id;
+  }
+
+  if (face_set == face_set_none_id) {
+    return false;
+  }
+
+  Set<int> allowed_face_sets;
+  allowed_face_sets.add(face_set);
+  return coord_has_any_face_set(
+      faces, corner_verts, vert_to_face_map, face_sets, subdiv_ccg, coord, allowed_face_sets);
+}
+
+bool coord_has_any_face_set(const OffsetIndices<int> faces,
+                            const Span<int> corner_verts,
+                            const GroupedSpan<int> vert_to_face_map,
+                            const Span<int> face_sets,
+                            const SubdivCCG &subdiv_ccg,
+                            const SubdivCCGCoord coord,
+                            const Set<int> &allowed_face_sets)
+{
+  if (face_sets.is_empty()) {
+    return allowed_face_sets.contains(face_set_none_id);
+  }
+
+  if (allowed_face_sets.is_empty()) {
+    return false;
+  }
+
+  int v1, v2;
+  const SubdivCCGAdjacencyType adjacency = BKE_subdiv_ccg_coarse_mesh_adjacency_info_get(
+      subdiv_ccg, coord, corner_verts, faces, v1, v2);
+  switch (adjacency) {
+    case SubdivCCGAdjacencyType::Vertex: {
+      for (const int face : vert_to_face_map[v1]) {
+        if (allowed_face_sets.contains(face_sets[face])) {
+          return true;
+        }
+      }
+      return false;
+    }
+    case SubdivCCGAdjacencyType::Edge:
+      for (const int face : vert_to_face_map[v1]) {
+        const Span<int> face_verts = corner_verts.slice(faces[face]);
+        if (!face_verts.contains(v2)) {
+          continue;
+        }
+        if (allowed_face_sets.contains(face_sets[face])) {
+          return true;
+        }
+      }
+      return false;
+    case SubdivCCGAdjacencyType::None: {
+      const int face = BKE_subdiv_ccg_grid_to_face_index(subdiv_ccg, coord.grid_index);
+      return allowed_face_sets.contains(face_sets[face]);
+    }
+  }
+
+  BLI_assert_unreachable();
+  return false;
 }
 
 bool vert_has_unique_face_set(const int /*face_set_offset*/, const BMVert & /*vert*/)
@@ -3340,7 +3415,7 @@ static void do_brush_action(const Depsgraph &depsgraph,
       if (brush.smooth_deform_type == BRUSH_SMOOTH_DEFORM_LAPLACIAN) {
         /* NOTE: The enhance brush needs to initialize its state on the first brush step. The
          * stroke strength can become 0 during the stroke, but it can not change sign (the sign is
-         * determined in the beginning of the stroke. So here it is important to not switch to
+         * determined in the beginning of the stroke). So here it is important to not switch to
          * enhance brush in the middle of the stroke. */
         if (ss.cache->initial_direction_flipped) {
           /* Invert mode, intensify details. */
@@ -3470,6 +3545,8 @@ static void do_brush_action(const Depsgraph &depsgraph,
       break;
     case SCULPT_BRUSH_TYPE_SCENE_PROJECT:
       brushes::do_scene_project_brush(depsgraph, sd, ob, node_mask);
+      break;
+    case SCULPT_BRUSH_TYPE_SIMPLIFY:
       break;
   }
 
@@ -7483,11 +7560,11 @@ void calc_brush_texture_factors(const SculptSession &ss,
 {
   BLI_assert(verts.size() == factors.size());
 
-  const int thread_id = BLI_task_parallel_thread_id(nullptr);
   const MTex *mtex = BKE_brush_mask_texture_get(&brush, OB_MODE_SCULPT);
   if (!mtex->tex) {
     return;
   }
+  const int thread_id = BLI_task_parallel_thread_id(nullptr);
 
   for (const int i : verts.index_range()) {
     if (factors[i] == 0.0f) {
@@ -7510,11 +7587,11 @@ void calc_brush_texture_factors(const SculptSession &ss,
 {
   BLI_assert(positions.size() == factors.size());
 
-  const int thread_id = BLI_task_parallel_thread_id(nullptr);
   const MTex *mtex = BKE_brush_mask_texture_get(&brush, OB_MODE_SCULPT);
   if (!mtex->tex) {
     return;
   }
+  const int thread_id = BLI_task_parallel_thread_id(nullptr);
 
   for (const int i : positions.index_range()) {
     if (factors[i] == 0.0f) {

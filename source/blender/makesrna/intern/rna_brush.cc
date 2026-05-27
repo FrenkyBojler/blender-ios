@@ -759,7 +759,7 @@ static void rna_TextureSlot_brush_angle_update(bContext *C, PointerRNA *ptr)
   Scene *scene = CTX_data_scene(C);
   MTex *mtex = static_cast<MTex *>(ptr->data);
   /* skip invalidation of overlay for stencil mode */
-  if (mtex->mapping != MTEX_MAP_MODE_STENCIL) {
+  if (mtex->brush_map_mode != MTEX_MAP_MODE_STENCIL) {
     ViewLayer *view_layer = CTX_data_view_layer(C);
     BKE_paint_invalidate_overlay_tex(*bmain, scene, view_layer, mtex->tex);
   }
@@ -4061,7 +4061,7 @@ static void rna_def_operator_stroke_element(BlenderRNA *brna)
   RNA_def_property_flag(prop, PROP_IDPROPERTY);
   RNA_def_property_ui_text(prop, "Is Stroke Start", "");
 
-  /* XXX: Tool (this will be for pressing a modifier key for a different brush,
+  /* XXX: Tool: this will be for pressing a modifier key for a different brush,
    *      e.g. switching to a Smooth brush in the middle of the stroke */
 
   /* XXX: i don't think blender currently supports the ability to properly do a remappable modifier
