@@ -1092,7 +1092,7 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
     ignore_shaders: BoolProperty(
         name="Ignore Shaders",
         default=False,
-        description="Replace all shaders with a simple gray shader"
+        description="Replace all shaders with a simple diffuse gray shader"
     )
     ignore_images: BoolProperty(
         name="Ignore Images",
