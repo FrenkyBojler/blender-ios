@@ -17,8 +17,6 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLF_api.hh"
-
 #include "GPU_immediate.hh"
 
 #include "UI_resources.hh"
@@ -141,6 +139,9 @@ static void console_textview_draw_cursor(TextViewContext *tvc, int cwidth, int c
   int pen[2];
   {
     const SpaceConsole *sc = static_cast<SpaceConsole *>(const_cast<void *>(tvc->arg1));
+    /* Cache the font metrics computed during draw, reused for IME cursor positioning. */
+    sc->runtime->cwidth_px = cwidth;
+    sc->runtime->lheight_px = tvc->lheight;
     const ConsoleLine *cl = static_cast<ConsoleLine *>(sc->history.last);
     int offl = 0, offc = 0;
 
@@ -268,17 +269,11 @@ std::optional<blender::int2> console_cursor_region_xy_get(const SpaceConsole *sc
     return std::nullopt;
   }
 
-  /* TODO(@ideasman42): some of this logic should be moved to `textview`
-   * as this duplicates internals.
-   * Having to change the font size here is not ideal - although other users
-   * will have to overwrite the value anyway. */
   rcti draw_rect, draw_rect_outer;
   console_textview_draw_rect_calc(region, &draw_rect, &draw_rect_outer);
 
-  const int lheight = sc->lheight * UI_SCALE_FAC;
-  /* Match `textview_draw`: `blf_mono_font` at `0.8 * lheight`. */
-  BLF_size(blf_mono_font, 0.8f * lheight);
-  const int cwidth = int(BLF_fixed_width(blf_mono_font));
+  const int lheight = sc->runtime->lheight_px;
+  const int cwidth = sc->runtime->cwidth_px;
   const int columns = std::max((draw_rect.xmax - draw_rect.xmin) / std::max(cwidth, 1), 1);
 
   int offl = 0, offc = 0;

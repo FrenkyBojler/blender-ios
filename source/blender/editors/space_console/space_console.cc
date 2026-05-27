@@ -50,6 +50,8 @@ static SpaceLink *console_create(const ScrArea * /*area*/, const Scene * /*scene
 
   sconsole->lheight = 14;
 
+  sconsole->runtime = MEM_new<SpaceConsole_Runtime>(__func__);
+
   /* header */
   region = BKE_area_region_new();
 
@@ -89,6 +91,8 @@ static void console_free(SpaceLink *sl)
   while (sc->history.first) {
     console_history_free(sc, static_cast<ConsoleLine *>(sc->history.first));
   }
+
+  MEM_delete(sc->runtime);
 }
 
 /* spacetype; init callback */
@@ -103,6 +107,9 @@ static SpaceLink *console_duplicate(SpaceLink *sl)
   /* TODO: duplicate?, then we also need to duplicate the py namespace. */
   sconsolen->scrollback.clear_no_delete();
   sconsolen->history.clear_no_delete();
+
+  /* Add its own runtime data. */
+  sconsolen->runtime = MEM_new<SpaceConsole_Runtime>(__func__);
 
   return reinterpret_cast<SpaceLink *>(sconsolen);
 }
@@ -222,6 +229,11 @@ static std::optional<rcti> console_main_region_cursor_ime(wmWindow * /*win*/,
     return std::nullopt;
   }
   SpaceConsole *sc = static_cast<SpaceConsole *>(area->spacedata.first);
+  /* Font metrics are cached during draw; zero means the region hasn't been drawn yet. */
+  const int lheight = sc->runtime->lheight_px;
+  if (lheight == 0) {
+    return std::nullopt;
+  }
   const ConsoleLine *cl = static_cast<const ConsoleLine *>(sc->history.last);
   if (cl == nullptr) {
     return std::nullopt;
@@ -232,7 +244,6 @@ static std::optional<rcti> console_main_region_cursor_ime(wmWindow * /*win*/,
   }
   /* Extend the caret position upward by the line height; the caller clamps to the region
    * bounds (the cursor may be scrolled out of view). */
-  const int lheight = sc->lheight * UI_SCALE_FAC;
   return rcti{xy->x, xy->x, xy->y, xy->y + lheight};
 }
 
@@ -343,6 +354,8 @@ static void console_main_region_listener(const wmRegionListenerParams *params)
 static void console_blend_read_data(BlendDataReader *reader, SpaceLink *sl)
 {
   SpaceConsole *sconsole = reinterpret_cast<SpaceConsole *>(sl);
+
+  sconsole->runtime = MEM_new<SpaceConsole_Runtime>(__func__);
 
   BLO_read_struct_list(reader, ConsoleLine, &sconsole->scrollback);
   BLO_read_struct_list(reader, ConsoleLine, &sconsole->history);
