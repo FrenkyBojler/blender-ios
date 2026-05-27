@@ -365,6 +365,8 @@ static bool convert_rotation_mode_ranges(animrig::Channelbag &channelbag,
   }
 
   if (!modified_keys) {
+    /* There were no rotation FCurves to read from. In that case don't insert the
+     * `insertion_buffer` FCurves into the channelbag. */
     for (FCurve *fcurve : insertion_buffer) {
       BKE_fcurve_free(fcurve);
     }
