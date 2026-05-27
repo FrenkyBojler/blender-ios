@@ -131,7 +131,7 @@ inline void remove_active_item(wmOperatorType *ot,
     PointerRNA node_ptr = get_active_node_to_operate_on(C, op, Accessor::node_idname);
     bNode &node = *static_cast<bNode *>(node_ptr.data);
     SocketItemsRef ref = Accessor::get_items_from_node(node);
-    if (*ref.items_num > 0) {
+    if (*ref.items_num > 0 && ref.active_index) {
       dna::array::remove_index(
           ref.items, ref.items_num, ref.active_index, *ref.active_index, Accessor::destruct_item);
       update_after_node_change(C, node_ptr);
