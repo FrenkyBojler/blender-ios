@@ -883,33 +883,7 @@ static void draw_bake_ui(const bContext &C,
   PointerRNA bake_ptr = RNA_pointer_create_with_parent(
       modifier_ptr, RNA_NodesModifierBake, const_cast<NodesModifierBake *>(bake_data));
 
-  std::optional<IndexRange> baked_range;
-  if (const bke::bake::ModifierCache *cache = nmd.runtime->cache.get()) {
-    std::lock_guard lock{cache->mutex};
-    if (const std::unique_ptr<bke::bake::BakeNodeCache> *node_cache_ptr =
-            cache->bake_cache_by_id.lookup_ptr(bake_data->id))
-    {
-      const bke::bake::BakeNodeCache &node_cache = **node_cache_ptr;
-      if (!node_cache.bake.frames.is_empty()) {
-        const int first_frame = node_cache.bake.frames.first()->frame.frame();
-        const int last_frame = node_cache.bake.frames.last()->frame.frame();
-        baked_range = IndexRange(first_frame, last_frame - first_frame + 1);
-      }
-    }
-    else if (const std::unique_ptr<bke::bake::SimulationNodeCache> *node_cache_ptr =
-                 cache->simulation_cache_by_id.lookup_ptr(bake_data->id))
-    {
-      const bke::bake::SimulationNodeCache &node_cache = **node_cache_ptr;
-      if (!node_cache.bake.frames.is_empty() &&
-          node_cache.cache_status == bke::bake::CacheStatus::Baked)
-      {
-        const int first_frame = node_cache.bake.frames.first()->frame.frame();
-        const int last_frame = node_cache.bake.frames.last()->frame.frame();
-        baked_range = IndexRange(first_frame, last_frame - first_frame + 1);
-      }
-    }
-  }
-
+  const std::optional<IndexRange> baked_range = get_bake_frame_range(nmd, bake_data->id);
   const bool is_baked = baked_range.has_value();
 
   const NodesModifierBakeTarget bake_target = bke::bake::get_node_bake_target(nmd, *bake_data);

@@ -506,6 +506,38 @@ NOD_REGISTER_NODE(node_register)
 
 namespace nodes {
 
+std::optional<IndexRange> get_bake_frame_range(const NodesModifierData &nmd, const int bake_id)
+{
+  if (!nmd.runtime->cache) {
+    return std::nullopt;
+  }
+  const bke::bake::ModifierCache &cache = *nmd.runtime->cache;
+  std::lock_guard lock{cache.mutex};
+  if (const std::unique_ptr<bke::bake::BakeNodeCache> *node_cache_ptr =
+          cache.bake_cache_by_id.lookup_ptr(bake_id))
+  {
+    const bke::bake::BakeNodeCache &node_cache = **node_cache_ptr;
+    if (!node_cache.bake.frames.is_empty()) {
+      const int first_frame = node_cache.bake.frames.first()->frame.frame();
+      const int last_frame = node_cache.bake.frames.last()->frame.frame();
+      return IndexRange(first_frame, last_frame - first_frame + 1);
+    }
+  }
+  else if (const std::unique_ptr<bke::bake::SimulationNodeCache> *node_cache_ptr =
+               cache.simulation_cache_by_id.lookup_ptr(bake_id))
+  {
+    const bke::bake::SimulationNodeCache &node_cache = **node_cache_ptr;
+    if (!node_cache.bake.frames.is_empty() &&
+        node_cache.cache_status == bke::bake::CacheStatus::Baked)
+    {
+      const int first_frame = node_cache.bake.frames.first()->frame.frame();
+      const int last_frame = node_cache.bake.frames.last()->frame.frame();
+      return IndexRange(first_frame, last_frame - first_frame + 1);
+    }
+  }
+  return std::nullopt;
+}
+
 bool get_bake_draw_context(const bContext *C, const bNode &node, BakeDrawContext &r_ctx)
 {
   BLI_assert(ELEM(node.type_legacy, GEO_NODE_BAKE, GEO_NODE_SIMULATION_OUTPUT));
