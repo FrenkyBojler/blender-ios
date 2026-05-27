@@ -106,8 +106,8 @@ static Vector<SculptBatch> sculpt_batches_get_ex(const Object *ob,
                bke::pbvh::node_frustum_contain_aabb(node, draw_frustum_planes);
       });
 
-  /* Ensure the node to material index map is populated early so it can be used for multires
-   * information. */
+  /* Ensure the node to material index map is populated early so it can be used to determine which
+   * UV map (FVar channel) needs to be used to correctly calculate multires UV data */
   const Span<int> material_indices = draw_data.ensure_material_indices(*ob);
   const IndexMask nodes_to_update = update_only_visible ? visible_nodes :
                                                           bke::pbvh::all_leaf_nodes(*pbvh, memory);

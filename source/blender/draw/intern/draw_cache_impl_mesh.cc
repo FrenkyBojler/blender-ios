@@ -194,14 +194,10 @@ static void mesh_cd_calc_used_gpu_layers(const Object &object,
   constexpr bke::AttributeMetaData UV_METADATA{bke::AttrDomain::Corner, bke::AttrType::Float2};
   const Mesh &me_final = editmesh_final_or_this(object, mesh);
 
-  std::optional<int> default_index;
-  const StringRef default_name = me_final.default_uv_map_name();
+  int default_index;
+  const StringRefNull default_name = me_final.default_uv_map_name();
   const VectorSet<StringRefNull> uv_map_names = mesh.uv_map_names();
-  for (const int i : uv_map_names.index_range()) {
-    if (uv_map_names[i] == default_name) {
-      default_index = i;
-    }
-  }
+  default_index = uv_map_names.index_of_try(default_name);
 
   const int ob_mat_count = BKE_object_material_count_eval(&object);
   r_mat_index_to_uv_index.reinitialize(ob_mat_count);
@@ -230,7 +226,6 @@ static void mesh_cd_calc_used_gpu_layers(const Object &object,
 
       if (gpu_attr.type == CD_TANGENT) {
         if (name.is_empty()) {
-          const StringRef default_name = me_final.default_uv_map_name();
           if (!default_name.is_empty()) {
             name = default_name;
           }
@@ -250,12 +245,10 @@ static void mesh_cd_calc_used_gpu_layers(const Object &object,
         if (!default_name.is_empty()) {
           if (lookup_meta_data(mesh, default_name) == UV_METADATA) {
             r_cd_used->uv.add(default_name);
-            /* TODO: These calls are a bit gross... */
-            const Material *mat = GPU_material_get_material(const_cast<GPUMaterial *>(gpumat));
+            const Material *mat = GPU_material_get_material(gpumat);
             const int mat_index = BKE_object_material_index_get(&const_cast<Object &>(object),
                                                                 mat);
-            /* TODO: Check what this should default to... */
-            r_mat_index_to_uv_index[mat_index] = default_index.value_or(0);
+            r_mat_index_to_uv_index[mat_index] = default_index;
           }
         }
         continue;
@@ -267,19 +260,11 @@ static void mesh_cd_calc_used_gpu_layers(const Object &object,
       }
       if (meta_data == UV_METADATA) {
         r_cd_used->uv.add(name);
-        /* TODO: These calls are a bit gross... */
-        const Material *mat = GPU_material_get_material(const_cast<GPUMaterial *>(gpumat));
+        const Material *mat = GPU_material_get_material(gpumat);
         const int mat_index = BKE_object_material_index_get(&const_cast<Object &>(object), mat);
-        std::optional<int> uv_index;
-        /* TODO: Maybe this call should be moved to the Mesh? */
-        for (const int i : uv_map_names.index_range()) {
-          if (uv_map_names[i] == name) {
-            uv_index = i;
-          }
-        }
+        const int uv_index = uv_map_names.index_of_try(StringRefNull(name));
 
-        /* TODO: Check what this should default to... */
-        r_mat_index_to_uv_index[mat_index] = uv_index.value_or(0);
+        r_mat_index_to_uv_index[mat_index] = uv_index;
         continue;
       }
       drw_attributes_add_request(r_attributes, name);
