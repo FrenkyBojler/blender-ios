@@ -351,7 +351,7 @@ static void object_clear_rot(Object *ob, const bool clear_delta)
         copy_v3_v3(ob->rot, eul);
       }
     }
-  } /* Duplicated in source/blender/editors/armature/editarmature.c */
+  } /* Duplicated in source/blender/editors/armature/armature_edit.cc */
   else {
     if (ob->rotmode == ROT_MODE_QUAT) {
       unit_qt(ob->quat);
@@ -438,7 +438,7 @@ static wmOperatorStatus object_clear_transform_generic_exec(bContext *C,
     BKE_scene_graph_evaluated_ensure(depsgraph, bmain);
     xcs = xform_skip_child_container_create();
     xform_skip_child_container_item_ensure_from_array(
-        xcs, scene, view_layer, objects.data(), objects.size());
+        xcs, *bmain, scene, view_layer, objects.data(), objects.size());
   }
   if (use_transform_data_origin) {
     BKE_scene_graph_evaluated_ensure(depsgraph, bmain);
@@ -2246,6 +2246,7 @@ static void object_apply_rotation(Object *ob, const float rmat[3][3])
   float loc[3];
   float rmat4[4][4];
   copy_m4_m3(rmat4, rmat);
+
   copy_v3_v3(size, ob->scale);
   copy_v3_v3(loc, ob->loc);
   BKE_object_apply_mat4(ob, rmat4, true, true);
@@ -2322,7 +2323,7 @@ static wmOperatorStatus object_transform_axis_target_invoke(bContext *C,
   }
 
 #ifdef USE_RENDER_OVERRIDE
-  int flag2_prev = vc.v3d->flag2;
+  eView3D_Flag2 flag2_prev = vc.v3d->flag2;
   vc.v3d->flag2 |= V3D_HIDE_OVERLAYS;
 #endif
 
@@ -2853,7 +2854,7 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
                 copy_v3_v3(xfd->prev.normal, normal);
                 xfd->prev.is_normal_valid = true;
               }
-            } /* End of original positioning logic */
+            }
           }
           else {
             for (XFormAxisItem &item : xfd->object_data) {
@@ -2925,10 +2926,10 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
 void OBJECT_OT_transform_axis_target(wmOperatorType *ot)
 {
   /* identifiers */
-  ot->name = "Track to Cursor";
+  ot->name = "Look at Surface";
   ot->description =
-      "Interactively point cameras and lights to a location. It can be used to point lights to "
-      "object normals, specular reflections, or shadow targets";
+      "Interactively point cameras and lights to the surface under the pointer (Ctrl to "
+      "translate)";
   ot->idname = "OBJECT_OT_transform_axis_target";
 
   /* API callbacks. */

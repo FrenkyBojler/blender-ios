@@ -173,6 +173,56 @@ GeometryManager::GeometryManager()
 
 GeometryManager::~GeometryManager() = default;
 
+void GeometryManager::update_interactive_motion(Scene *scene)
+{
+  bool update = false;
+
+  parallel_for(blocked_range<size_t>(0, scene->geometry.size(), 32),
+               [&](const blocked_range<size_t> &r) {
+                 for (size_t i = r.begin(); i != r.end(); i++) {
+                   Geometry *geom = scene->geometry[i];
+
+                   Attribute *attr_mP = geom->attributes.find(ATTR_STD_MOTION_VERTEX_POSITION);
+                   if (attr_mP) {
+                     if (geom->is_mesh()) {
+                       Mesh *mesh = static_cast<Mesh *>(geom);
+                       if (std::memcmp(mesh->get_verts().data(),
+                                       attr_mP->data_float3(),
+                                       sizeof(float3) * mesh->num_verts()) != 0)
+                       {
+                         mesh->copy_center_to_motion_step(0);
+                         attr_mP->modified = update = true;
+                       }
+                     }
+                     else if (geom->is_hair()) {
+                       Hair *hair = static_cast<Hair *>(geom);
+                       if (std::memcmp(hair->get_curve_keys().data(),
+                                       attr_mP->data_float3(),
+                                       sizeof(float3) * hair->num_keys()) != 0)
+                       {
+                         hair->copy_center_to_motion_step(0);
+                         attr_mP->modified = update = true;
+                       }
+                     }
+                     else if (geom->is_pointcloud()) {
+                       PointCloud *pointcloud = static_cast<PointCloud *>(geom);
+                       if (std::memcmp(pointcloud->get_points().data(),
+                                       attr_mP->data_float3(),
+                                       sizeof(float3) * pointcloud->num_points()) != 0)
+                       {
+                         pointcloud->copy_center_to_motion_step(0);
+                         attr_mP->modified = update = true;
+                       }
+                     }
+                   }
+                 }
+               });
+
+  if (update) {
+    tag_update(scene, TRANSFORM_MODIFIED);
+  }
+}
+
 void GeometryManager::update_osl_globals(Device *device, Scene *scene)
 {
 #ifdef WITH_OSL
@@ -451,14 +501,14 @@ void GeometryManager::device_update_preprocess(Device *device, Scene *scene, Pro
 
     if (geom->has_volume) {
       if (geom->is_modified()) {
-        scene->volume_manager->tag_update(geom);
+        scene->volume_manager->tag_update({geom});
       }
       if (!prev_has_volume) {
         scene->volume_manager->tag_update();
       }
     }
     else if (prev_has_volume) {
-      scene->volume_manager->tag_update(geom);
+      scene->volume_manager->tag_update({geom});
     }
 
     if (geom->is_hair()) {
@@ -495,15 +545,15 @@ void GeometryManager::device_update_preprocess(Device *device, Scene *scene, Pro
     }
   }
 
-  if (update_flags & (MESH_ADDED | MESH_REMOVED)) {
+  if (update_flags & (MESH_ADDED | MESH_REMOVED | MOTION_PASS_NEEDED)) {
     device_update_flags |= DEVICE_MESH_DATA_NEEDS_REALLOC;
   }
 
-  if (update_flags & (HAIR_ADDED | HAIR_REMOVED)) {
+  if (update_flags & (HAIR_ADDED | HAIR_REMOVED | MOTION_PASS_NEEDED)) {
     device_update_flags |= DEVICE_CURVE_DATA_NEEDS_REALLOC;
   }
 
-  if (update_flags & (POINT_ADDED | POINT_REMOVED)) {
+  if (update_flags & (POINT_ADDED | POINT_REMOVED | MOTION_PASS_NEEDED)) {
     device_update_flags |= DEVICE_POINT_DATA_NEEDS_REALLOC;
   }
 
@@ -620,9 +670,8 @@ void GeometryManager::device_update_displacement_images(Device *device,
                                                         Progress &progress)
 {
   progress.set_status("Updating Displacement Images");
-  TaskPool pool;
   ImageManager *image_manager = scene->image_manager.get();
-  set<int> bump_images;
+  set<const ImageSingle *> bump_images;
 #ifdef WITH_OSL
   bool has_osl_node = false;
 #endif
@@ -655,11 +704,8 @@ void GeometryManager::device_update_displacement_images(Device *device,
           }
 
           ImageSlotTextureNode *image_node = static_cast<ImageSlotTextureNode *>(node);
-          for (int i = 0; i < image_node->handle.num_svm_slots(); i++) {
-            const int slot = image_node->handle.svm_slot(i);
-            if (slot != -1) {
-              bump_images.insert(slot);
-            }
+          if (!image_node->handle.empty()) {
+            image_node->handle.add_to_set(bump_images);
           }
         }
       }
@@ -670,16 +716,11 @@ void GeometryManager::device_update_displacement_images(Device *device,
   /* If any OSL node is used for displacement, it may reference a texture. But it's
    * unknown which ones, so have to load them all. */
   if (has_osl_node) {
-    OSLShaderManager::osl_image_slots(device, image_manager, bump_images);
+    OSLShaderManager::osl_image_handles(device, image_manager, bump_images);
   }
 #endif
 
-  for (const int slot : bump_images) {
-    pool.push([image_manager, device, scene, slot, &progress] {
-      image_manager->device_update_slot(device, scene, slot, progress);
-    });
-  }
-  pool.wait_work();
+  image_manager->device_load_images(device, scene, progress, bump_images);
 }
 
 void GeometryManager::device_update_volume_images(Device *device, Scene *scene, Progress &progress)
@@ -687,7 +728,7 @@ void GeometryManager::device_update_volume_images(Device *device, Scene *scene, 
   progress.set_status("Updating Volume Images");
   TaskPool pool;
   ImageManager *image_manager = scene->image_manager.get();
-  set<int> volume_images;
+  set<const ImageSingle *> volume_images;
 
   for (Geometry *geom : scene->geometry) {
     if (!geom->is_modified()) {
@@ -700,19 +741,13 @@ void GeometryManager::device_update_volume_images(Device *device, Scene *scene, 
       }
 
       const ImageHandle &handle = attr.data_voxel();
-      const int slot = handle.svm_slot();
-      if (slot != -1) {
-        volume_images.insert(slot);
+      if (!handle.empty()) {
+        handle.add_to_set(volume_images);
       }
     }
   }
 
-  for (const int slot : volume_images) {
-    pool.push([image_manager, device, scene, slot, &progress] {
-      image_manager->device_update_slot(device, scene, slot, progress);
-    });
-  }
-  pool.wait_work();
+  image_manager->device_load_images(device, scene, progress, volume_images);
 }
 
 void GeometryManager::device_update(Device *device,
@@ -773,8 +808,8 @@ void GeometryManager::device_update(Device *device,
     for (Geometry *geom : scene->geometry) {
       if (geom->is_hair()) {
         Hair *hair = static_cast<Hair *>(geom);
-        if ((geom->is_modified() && hair->need_shadow_transparency()) ||
-            hair->need_update_shadow_transparency())
+        if (hair->need_shadow_transparency() &&
+            (geom->is_modified() || hair->need_update_shadow_transparency()))
         {
           curve_need_update_shadow_transparency = true;
           break;
@@ -820,6 +855,8 @@ void GeometryManager::device_update(Device *device,
     }
 
     Mesh *mesh = static_cast<Mesh *>(geom);
+    /* Apply generated attribute if needed or remove if not needed */
+    mesh->update_generated(scene);
 
     if (num_tessellation && mesh->need_tesselation()) {
       {
@@ -848,8 +885,6 @@ void GeometryManager::device_update(Device *device,
       mesh->tessellate(subd_params);
     }
 
-    /* Apply generated attribute if needed or remove if not needed */
-    mesh->update_generated(scene);
     /* Apply tangents for generated and UVs (if any need them) or remove if not needed */
     mesh->update_tangents(scene, true);
     if (!mesh->has_true_displacement()) {

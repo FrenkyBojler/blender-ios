@@ -152,8 +152,10 @@ void BVH2::pack_aligned_node(const int idx,
   assert(c1 < 0 || c1 < pack.nodes.size());
 
   int4 data[BVH_NODE_SIZE] = {
-      make_int4(
-          visibility0 & ~PATH_RAY_NODE_UNALIGNED, visibility1 & ~PATH_RAY_NODE_UNALIGNED, c0, c1),
+      make_int4(visibility0 & ~PATH_RAY_VISIBILITY_NODE_UNALIGNED,
+                visibility1 & ~PATH_RAY_VISIBILITY_NODE_UNALIGNED,
+                c0,
+                c1),
       make_int4(__float_as_int(b0.min.x),
                 __float_as_int(b1.min.x),
                 __float_as_int(b0.max.x),
@@ -203,8 +205,10 @@ void BVH2::pack_unaligned_node(const int idx,
   int4 data[BVH_UNALIGNED_NODE_SIZE];
   const Transform space0 = BVHUnaligned::compute_node_transform(b0, aligned_space0);
   const Transform space1 = BVHUnaligned::compute_node_transform(b1, aligned_space1);
-  data[0] = make_int4(
-      visibility0 | PATH_RAY_NODE_UNALIGNED, visibility1 | PATH_RAY_NODE_UNALIGNED, c0, c1);
+  data[0] = make_int4(visibility0 | PATH_RAY_VISIBILITY_NODE_UNALIGNED,
+                      visibility1 | PATH_RAY_VISIBILITY_NODE_UNALIGNED,
+                      c0,
+                      c1);
 
   data[1] = __float4_as_int4(space0.x);
   data[2] = __float4_as_int4(space0.y);
@@ -322,7 +326,7 @@ void BVH2::refit_node(const int idx, bool leaf, BoundBox &bbox, uint &visibility
     assert(idx + BVH_NODE_SIZE <= pack.nodes.size());
 
     const int4 *data = &pack.nodes[idx];
-    const bool is_unaligned = (data[0].x & PATH_RAY_NODE_UNALIGNED) != 0;
+    const bool is_unaligned = (data[0].x & PATH_RAY_VISIBILITY_NODE_UNALIGNED) != 0;
     const int c0 = data[0].z;
     const int c1 = data[0].w;
     /* refit inner node, set bbox from children */
@@ -381,7 +385,7 @@ void BVH2::refit_primitives(const int start, const int end, BoundBox &bbox, uint
           if (attr) {
             const size_t hair_size = hair->get_curve_keys().size();
             const size_t steps = hair->get_motion_steps() - 1;
-            float3 *key_steps = attr->data_float3();
+            const float3 *key_steps = attr->data_float3();
 
             for (size_t i = 0; i < steps; i++) {
               curve.bounds_grow(
@@ -407,7 +411,7 @@ void BVH2::refit_primitives(const int start, const int end, BoundBox &bbox, uint
           if (attr) {
             const size_t pointcloud_size = pointcloud->points.size();
             const size_t steps = pointcloud->get_motion_steps() - 1;
-            float3 *point_steps = attr->data_float3();
+            const float3 *point_steps = attr->data_float3();
 
             for (size_t i = 0; i < steps; i++) {
               point.bounds_grow(point_steps + i * pointcloud_size, radius, bbox);
@@ -431,7 +435,7 @@ void BVH2::refit_primitives(const int start, const int end, BoundBox &bbox, uint
           if (attr) {
             const size_t mesh_size = mesh->verts.size();
             const size_t steps = mesh->motion_steps - 1;
-            float3 *vert_steps = attr->data_float3();
+            const float3 *vert_steps = attr->data_float3();
 
             for (size_t i = 0; i < steps; i++) {
               triangle.bounds_grow(vert_steps + i * mesh_size, bbox);
@@ -545,7 +549,7 @@ void BVH2::pack_instances(size_t nodes_size, size_t leaf_nodes_size)
      * node offset for this object */
     const unordered_map<Geometry *, int>::iterator it = geometry_map.find(geom);
 
-    if (geometry_map.find(geom) != geometry_map.end()) {
+    if (geometry_map.contains(geom)) {
       const int noffset = it->second;
       pack.object_node[object_offset++] = noffset;
       continue;
@@ -591,7 +595,7 @@ void BVH2::pack_instances(size_t nodes_size, size_t leaf_nodes_size)
     if (bvh->pack.leaf_nodes.size()) {
       int4 *leaf_nodes_offset = bvh->pack.leaf_nodes.data();
       const size_t leaf_nodes_offset_size = bvh->pack.leaf_nodes.size();
-      for (size_t i = 0, j = 0; i < leaf_nodes_offset_size; i += BVH_NODE_LEAF_SIZE, j++) {
+      for (size_t i = 0; i < leaf_nodes_offset_size; i += BVH_NODE_LEAF_SIZE) {
         int4 data = leaf_nodes_offset[i];
         data.x += prim_offset;
         data.y += prim_offset;
@@ -610,7 +614,7 @@ void BVH2::pack_instances(size_t nodes_size, size_t leaf_nodes_size)
       for (size_t i = 0; i < bvh_nodes_size;) {
         size_t nsize;
         size_t nsize_bbox;
-        if (bvh_nodes[i].x & PATH_RAY_NODE_UNALIGNED) {
+        if (bvh_nodes[i].x & PATH_RAY_VISIBILITY_NODE_UNALIGNED) {
           nsize = BVH_UNALIGNED_NODE_SIZE;
           nsize_bbox = 0;
         }

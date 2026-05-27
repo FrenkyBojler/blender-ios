@@ -134,7 +134,7 @@ class AssetRepresentation : NonCopyable, NonMovable {
    * directory names may also end in `.blend`, resulting in an identifier like
    * `directory.blend/Objects/filename.blend/Actions/hand/wave.blend/Actions/hi.blend`.
    * Here the file is `directory.blend/Objects/filename.blend` and the asset is an Action named
-   * `hand/wave.blend/Actions/hi.blend`)
+   * `hand/wave.blend/Actions/hi.blend`.
    */
   std::string full_library_path() const;
 
@@ -144,6 +144,10 @@ class AssetRepresentation : NonCopyable, NonMovable {
    * Will return an empty span if this is not an online asset.
    */
   Span<OnlineAssetFile> online_asset_files() const;
+  /**
+   * Return the sum of sizes of all files associated with this asset, according to the listing.
+   */
+  std::optional<int64_t> online_asset_files_combined_size_in_bytes() const;
   /**
    * For online assets (see #is_online()), the URL the asset's preview should be requested from.
    *

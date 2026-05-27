@@ -12,6 +12,7 @@
 
 #include "BKE_global.hh"
 #include "BKE_object.hh"
+#include "BKE_scene.hh"
 
 #include "BLI_rect.h"
 #include "BLI_time.h"
@@ -85,20 +86,28 @@ void Instance::init()
 
     if (camera) {
       if (scene->r.mode & R_BORDER) {
-        rctf viewborder;
-        /* TODO(fclem) Might be better to get it from DRW. */
-        ED_view3d_calc_camera_border(scene, depsgraph, region, v3d, rv3d, false, &viewborder);
-        float viewborder_sizex = BLI_rctf_size_x(&viewborder);
-        float viewborder_sizey = BLI_rctf_size_y(&viewborder);
-        rect.xmin = floorf(viewborder.xmin + (scene->r.border.xmin * viewborder_sizex));
-        rect.ymin = floorf(viewborder.ymin + (scene->r.border.ymin * viewborder_sizey));
-        rect.xmax = floorf(viewborder.xmin + (scene->r.border.xmax * viewborder_sizex));
-        rect.ymax = floorf(viewborder.ymin + (scene->r.border.ymax * viewborder_sizey));
-        /* Clamp it to the viewport area. */
-        rect.xmin = max(rect.xmin, 0);
-        rect.ymin = max(rect.ymin, 0);
-        rect.xmax = min(rect.xmax, size.x);
-        rect.ymax = min(rect.ymax, size.y);
+        if (draw_ctx->is_viewport_image_render()) {
+          rect.xmin = scene->r.border.xmin * size[0];
+          rect.ymin = scene->r.border.ymin * size[1];
+          rect.xmax = scene->r.border.xmax * size[0];
+          rect.ymax = scene->r.border.ymax * size[1];
+        }
+        else {
+          rctf viewborder;
+          /* TODO(fclem) Might be better to get it from DRW. */
+          ED_view3d_calc_camera_border(scene, depsgraph, region, v3d, rv3d, false, &viewborder);
+          float viewborder_sizex = BLI_rctf_size_x(&viewborder);
+          float viewborder_sizey = BLI_rctf_size_y(&viewborder);
+          rect.xmin = floorf(viewborder.xmin + (scene->r.border.xmin * viewborder_sizex));
+          rect.ymin = floorf(viewborder.ymin + (scene->r.border.ymin * viewborder_sizey));
+          rect.xmax = floorf(viewborder.xmin + (scene->r.border.xmax * viewborder_sizex));
+          rect.ymax = floorf(viewborder.ymin + (scene->r.border.ymax * viewborder_sizey));
+          /* Clamp it to the viewport area. */
+          rect.xmin = max(rect.xmin, 0);
+          rect.ymin = max(rect.ymin, 0);
+          rect.xmax = min(rect.xmax, size.x);
+          rect.ymax = min(rect.ymax, size.y);
+        }
       }
     }
     else if (v3d->flag2 & V3D_RENDER_BORDER) {
@@ -187,10 +196,15 @@ void Instance::init(const int2 &output_res,
     if (is_navigating && scene->eevee.flag & SCE_EEVEE_SHADOW_JITTERED_VIEWPORT) {
       sampling.reset();
     }
+    if (is_playback) {
+      sampling.reset();
+    }
   }
   else {
     is_image_render = true;
   }
+
+  anisotropic_filtering = GPU_anisotropic_filtering_flags(scene->r.anisotropic_filter);
 
   sampling.init(scene);
   camera.init();
@@ -219,7 +233,7 @@ void Instance::init(const int2 &output_res,
   SET_FLAG_FROM_TEST(shader_request, needs_planar_probe_passes(), DEFERRED_PLANAR_SHADERS);
   SET_FLAG_FROM_TEST(shader_request, needs_lightprobe_sphere_passes(), DEFERRED_CAPTURE_SHADERS);
   SET_FLAG_FROM_TEST(shader_request, motion_blur.postfx_enabled(), MOTION_BLUR_SHADERS);
-  SET_FLAG_FROM_TEST(shader_request, raytracing.use_fast_gi(), HORIZON_SCAN_SHADERS);
+  SET_FLAG_FROM_TEST(shader_request, raytracing.use_fast_gi(), FAST_GI_SHADERS);
   SET_FLAG_FROM_TEST(shader_request, raytracing.use_raytracing(), RAYTRACING_SHADERS);
 
   loaded_shaders = ShaderGroups::NONE;
@@ -391,39 +405,32 @@ void Instance::object_sync(ObjectRef &ob_ref, Manager & /*manager*/)
     return;
   }
 
-  ObjectHandle &ob_handle = sync.sync_object(ob_ref);
-
   if (partsys_is_visible && ob != draw_ctx->object_edit) {
-    auto sync_hair =
-        [&](ObjectHandle hair_handle, ModifierData &md, ParticleSystem &particle_sys) {
-          ResourceHandleRange _res_handle = manager->resource_handle_for_psys(
-              ob_ref, ob->object_to_world());
-          sync.sync_curves(ob, hair_handle, ob_ref, _res_handle, &md, &particle_sys);
-        };
-    foreach_hair_particle_handle(*this, ob_ref, ob_handle, sync_hair);
+    auto sync_hair = [&](const HairParticleInfo &info) { sync.sync_curves(ob_ref, &info); };
+    foreach_hair_particle(*this, ob_ref, sync_hair);
   }
 
   if (object_is_visible) {
     switch (ob->type) {
       case OB_LAMP:
-        lights.sync_light(ob, ob_handle);
+        lights.sync_light(ob_ref);
         break;
       case OB_MESH:
-        if (!sync.sync_sculpt(ob, ob_handle, ob_ref)) {
-          sync.sync_mesh(ob, ob_handle, ob_ref);
+        if (!sync.sync_sculpt(ob_ref)) {
+          sync.sync_mesh(ob_ref);
         }
         break;
       case OB_POINTCLOUD:
-        sync.sync_pointcloud(ob, ob_handle, ob_ref);
+        sync.sync_pointcloud(ob_ref);
         break;
       case OB_VOLUME:
-        sync.sync_volume(ob, ob_handle, ob_ref);
+        sync.sync_volume(ob_ref);
         break;
       case OB_CURVES:
-        sync.sync_curves(ob, ob_handle, ob_ref);
+        sync.sync_curves(ob_ref);
         break;
       case OB_LIGHTPROBE:
-        light_probes.sync_probe(ob, ob_handle);
+        light_probes.sync_probe(ob_ref);
         break;
       default:
         break;
@@ -465,8 +472,6 @@ void Instance::end_sync()
   light_probes.end_sync();
   sphere_probes.end_sync();
   planar_probes.end_sync();
-
-  uniform_data.push_update();
 
   depsgraph_last_update_ = DEG_get_update_count(depsgraph);
 }
@@ -521,6 +526,7 @@ void Instance::render_sample()
 {
   if (sampling.finished_viewport()) {
     DRW_submission_start();
+    uniform_data.push_update();
     film.display();
     lookdev.display();
     DRW_submission_end();
@@ -548,6 +554,8 @@ void Instance::render_sample()
     DRW_submission_start();
 
     sampling.step();
+    film.update_sample_table();
+    uniform_data.push_update();
 
     capture_view.render_world();
     lookdev.rotate_world();
@@ -623,7 +631,7 @@ void Instance::render_read_result(RenderLayer *render_layer, const char *view_na
       RenderPass *vector_rp = RE_pass_find_by_name(
           render_layer, vector_pass_name.c_str(), view_name);
       if (vector_rp) {
-        memset(vector_rp->ibuf->float_buffer.data,
+        memset(vector_rp->ibuf->float_data_for_write(),
                0,
                sizeof(float) * 4 * vector_rp->rectx * vector_rp->recty);
       }
@@ -706,7 +714,7 @@ void Instance::draw_viewport()
 {
   if (skip_render_ || !is_loaded(needed_shaders)) {
     DefaultFramebufferList *dfbl = draw_ctx->viewport_framebuffer_list_get();
-    GPU_framebuffer_clear_color_depth(dfbl->default_fb, float4(0.0f), 1.0f);
+    GPU_framebuffer_clear_color_depth(dfbl->default_fb, double4(0.0), 1.0f);
     if (!is_loaded(needed_shaders & ~WORLD_SHADERS)) {
       info_append_i18n("Compiling EEVEE engine shaders");
       DRW_viewport_request_redraw();
@@ -908,6 +916,7 @@ void Instance::light_bake_irradiance(
     /* Sampling module needs to be initialized to computing lighting. */
     sampling.init(probe);
     sampling.step();
+    uniform_data.push_update();
 
     {
       /* Critical section. Potential gpu::Shader concurrent usage. */
