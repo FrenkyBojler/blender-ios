@@ -1976,10 +1976,10 @@ void OBJECT_OT_origin_set(wmOperatorType *ot)
 #define USE_FAKE_DEPTH_INIT
 
 enum {
-  AXIS_TARGET_MODAL_CONFIRM = 1,
-  AXIS_TARGET_MODAL_CANCEL = 2,
-  AXIS_TARGET_MODAL_TRANSLATE_ENABLE = 3,
-  AXIS_TARGET_MODAL_TRANSLATE_DISABLE = 4,
+  TGT_MODAL_CONFIRM = 1,
+  TGT_MODAL_CANCEL = 2,
+  TGT_MODAL_TRANSLATE_ENABLE = 3,
+  TGT_MODAL_TRANSLATE_DISABLE = 4,
 };
 
 struct XFormAxisItem {
@@ -2000,7 +2000,7 @@ struct XFormAxisData {
   ViewDepths *depths;
   struct {
     float depth;
-    float normal[3];
+    float3 normal;
     bool is_depth_valid;
     bool is_normal_valid;
   } prev;
@@ -2055,7 +2055,7 @@ static bool object_is_target_compat(const Object *ob)
   return false;
 }
 
-static void object_transform_axis_target_free_data(wmOperator *op)
+static void object_transform_axis_target_free_data(bContext * /*C*/, wmOperator *op)
 {
   XFormAxisData *xfd = static_cast<XFormAxisData *>(op->customdata);
 
@@ -2132,24 +2132,24 @@ static void object_transform_axis_target_update_status(bContext *C,
                                                        const XFormAxisData *xfd)
 {
   WorkspaceStatus status(C);
-  status.opmodal(IFACE_("Confirm"), op->type, AXIS_TARGET_MODAL_CONFIRM);
-  status.opmodal(IFACE_("Cancel"), op->type, AXIS_TARGET_MODAL_CANCEL);
+  status.opmodal(IFACE_("Confirm"), op->type, TGT_MODAL_CONFIRM);
+  status.opmodal(IFACE_("Cancel"), op->type, TGT_MODAL_CANCEL);
   status.opmodal(
-      IFACE_("Translate"), op->type, AXIS_TARGET_MODAL_TRANSLATE_ENABLE, xfd->is_translate);
+      IFACE_("Translate"), op->type, TGT_MODAL_TRANSLATE_ENABLE, xfd->is_translate);
 }
 
 void object_transform_axis_target_modal_keymap(wmKeyConfig *keyconf)
 {
   static const EnumPropertyItem modal_items[] = {
-      {AXIS_TARGET_MODAL_CONFIRM, "CONFIRM", 0, "Confirm", ""},
-      {AXIS_TARGET_MODAL_CANCEL, "CANCEL", 0, "Cancel", ""},
-      {AXIS_TARGET_MODAL_TRANSLATE_ENABLE, "TRANSLATE_ENABLE", 0, "Translate On", ""},
-      {AXIS_TARGET_MODAL_TRANSLATE_DISABLE, "TRANSLATE_DISABLE", 0, "Translate Off", ""},
+      {TGT_MODAL_CONFIRM, "CONFIRM", 0, "Confirm", ""},
+      {TGT_MODAL_CANCEL, "CANCEL", 0, "Cancel", ""},
+      {TGT_MODAL_TRANSLATE_ENABLE, "TRANSLATE_ENABLE", 0, "Translate On", ""},
+      {TGT_MODAL_TRANSLATE_DISABLE, "TRANSLATE_DISABLE", 0, "Translate Off", ""},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
   wmKeyMap *keymap = WM_modalkeymap_ensure(
-      keyconf, "Transform Axis Target Modal Map", modal_items);
+      keyconf, "Object Target Modal Map", modal_items);
   WM_modalkeymap_assign(keymap, "OBJECT_OT_transform_axis_target");
 }
 
@@ -2163,7 +2163,7 @@ static void object_transform_axis_target_cancel(bContext *C, wmOperator *op)
   }
 
   ED_workspace_status_text(C, nullptr);
-  object_transform_axis_target_free_data(op);
+  object_transform_axis_target_free_data(C, op);
 }
 
 static wmOperatorStatus object_transform_axis_target_invoke(bContext *C,
@@ -2258,15 +2258,15 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
   /* Handle modal keymap events. */
   if (event->type == EVT_MODAL_MAP) {
     switch (event->val) {
-      case AXIS_TARGET_MODAL_CONFIRM: {
+      case TGT_MODAL_CONFIRM: {
         status = OPERATOR_FINISHED;
         break;
       }
-      case AXIS_TARGET_MODAL_CANCEL: {
+      case TGT_MODAL_CANCEL: {
         status = OPERATOR_CANCELLED;
         break;
       }
-      case AXIS_TARGET_MODAL_TRANSLATE_ENABLE: {
+      case TGT_MODAL_TRANSLATE_ENABLE: {
         if (!is_translate) {
           is_translate = true;
           is_translate_init = true;
@@ -2274,7 +2274,7 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
         }
         break;
       }
-      case AXIS_TARGET_MODAL_TRANSLATE_DISABLE: {
+      case TGT_MODAL_TRANSLATE_DISABLE: {
         if (is_translate) {
           is_translate = false;
           update = true;
@@ -2452,7 +2452,7 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
       autokeyframe_object_rotation(C, scene, item.ob);
     }
     ED_workspace_status_text(C, nullptr);
-    object_transform_axis_target_free_data(op);
+    object_transform_axis_target_free_data(C, op);
   }
   else if (status & OPERATOR_CANCELLED) {
     object_transform_axis_target_cancel(C, op);
@@ -2465,7 +2465,7 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
     for (XFormAxisItem &item : xfd->object_data) {
       autokeyframe_object_rotation(C, scene, item.ob);
     }
-    object_transform_axis_target_free_data(op);
+    object_transform_axis_target_free_data(C, op);
 
     /* Launch orbit operator. */
     WM_operator_name_call(

@@ -6492,10 +6492,10 @@ def km_bevel_modal_map(_params):
     return keymap
 
 
-def km_transform_axis_target_modal(_params):
+def km_object_target_modal_map(_params):
     items = []
     keymap = (
-        "Transform Axis Target Modal Map",
+        "Object Target Modal Map",
         {"space_type": 'EMPTY', "region_type": 'WINDOW', "modal": True},
         {"items": items},
     )
@@ -9072,7 +9072,7 @@ def generate_keymaps(params=None):
         km_knife_tool_modal_map(params),
         km_custom_normals_modal_map(params),
         km_bevel_modal_map(params),
-        km_transform_axis_target_modal(params),
+        km_object_target_modal_map(params),
         km_view3d_fly_modal(params),
         km_object_orbit_around_target_modal(params),
         km_view3d_walk_modal(params),
