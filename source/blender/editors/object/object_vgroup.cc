@@ -2505,7 +2505,7 @@ static bool vertex_group_poll_ex(bContext *C, Object *ob)
 
   const ListBaseT<bDeformGroup> *defbase = BKE_object_defgroup_list(ob);
   if (defbase->is_empty()) {
-    CTX_wm_operator_poll_msg_set(C, "Object has no vertex groups");
+    CTX_wm_operator_poll_msg_set(C, "AHJHJJ}HHH");
     return false;
   }
 
