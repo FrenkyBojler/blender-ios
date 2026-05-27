@@ -594,10 +594,35 @@ static void drawEdgeSlide(TransInfo *t)
     if (!sld->clone_neighbor_data.is_empty()) {
       const int keep_side = (slp->perc >= 0.0f) ? 0 : 1;
 
-      /* Make sure keep side has at least one valid edge. */
+      /* Mirror the endpoint filter from confirm: only draw lines to interior
+       * keep-side neighbors (those connected to at least one other keep-side
+       * neighbor). Untagged keep-side members are selection endpoints whose
+       * faces will be suppressed on confirm, so omit them from the preview. */
+      Set<BMVert *> keep_nb_set;
+      for (const EdgeSlideData::CloneNeighborData &nd : sld->clone_neighbor_data) {
+        for (BMVert *nb : nd.neighbors[keep_side]) {
+          keep_nb_set.add(nb);
+        }
+      }
+      Set<BMVert *> interior_keep_nbs;
+      for (BMVert *nb : keep_nb_set) {
+        BMEdge *e;
+        BMIter e_iter;
+        BM_ITER_ELEM (e, &e_iter, nb, BM_EDGES_OF_VERT) {
+          if (keep_nb_set.contains(BM_edge_other_vert(e, nb))) {
+            interior_keep_nbs.add(nb);
+            break;
+          }
+        }
+      }
+
       int edge_count = 0;
       for (const EdgeSlideData::CloneNeighborData &nd : sld->clone_neighbor_data) {
-        edge_count += int(nd.neighbors[keep_side].size());
+        for (BMVert *nb : nd.neighbors[keep_side]) {
+          if (interior_keep_nbs.contains(nb)) {
+            edge_count++;
+          }
+        }
       }
 
       if (edge_count > 0) {
@@ -608,17 +633,16 @@ static void drawEdgeSlide(TransInfo *t)
         for (int i = 0; i < int(sld->clone_neighbor_data.size()); i++) {
           BMVert *v_clone = static_cast<BMVert *>(sld->sv[i].td->extra);
           const EdgeSlideData::CloneNeighborData &nd = sld->clone_neighbor_data[i];
-          
           for (BMVert *nb : nd.neighbors[keep_side]) {
-            immVertex3fv(pos, v_clone->co);
-            immVertex3fv(pos, nb->co);
+            if (interior_keep_nbs.contains(nb)) {
+              immVertex3fv(pos, v_clone->co);
+              immVertex3fv(pos, nb->co);
+            }
           }
         }
         immEnd();
       }
     }
-
-
   }
   else {
     /* Common case. */
@@ -946,7 +970,6 @@ void transform_mode_edge_slide_clone_confirm(TransInfo *t)
     BMesh *bm = em->bm;
     const int keep_side = (t->values_final[0] >= 0.0f) ? 0 : 1;
 
-    /* Build orig to clone map. */
     Map<BMVert *, BMVert *> orig_to_clone;
     orig_to_clone.reserve(sld->sv.size());
     for (int i = 0; i < int(sld->sv.size()); i++) {
@@ -955,10 +978,43 @@ void transform_mode_edge_slide_clone_confirm(TransInfo *t)
     }
 
     /* Tag keep-side neighbor verts so we can identify keep-side faces. */
-    BM_mesh_elem_hflag_disable_all(bm, BM_VERT, BM_ELEM_TAG, false);
+    Set<BMVert *> keep_nb_set;
+    Set<BMVert *> other_nb_set;
     for (const EdgeSlideData::CloneNeighborData &nd : sld->clone_neighbor_data) {
       for (BMVert *nb : nd.neighbors[keep_side]) {
-        BM_elem_flag_enable(nb, BM_ELEM_TAG);
+        keep_nb_set.add(nb);
+      }
+      for (BMVert *nb : nd.neighbors[1 - keep_side]) {
+        other_nb_set.add(nb);
+      }
+    }
+
+    BM_mesh_elem_hflag_disable_all(bm, BM_VERT, BM_ELEM_TAG, false);
+    for (BMVert *nb : keep_nb_set) {
+      BMEdge *e;
+      BMIter e_iter;
+      BM_ITER_ELEM (e, &e_iter, nb, BM_EDGES_OF_VERT) {
+        if (keep_nb_set.contains(BM_edge_other_vert(e, nb))) {
+          BM_elem_flag_enable(nb, BM_ELEM_TAG);
+          break;
+        }
+      }
+    }
+
+    /* Collect endpoint neighbors from the other side for endpoint handling. */
+    Set<BMVert *> other_endpoint_set;
+    for (BMVert *nb : other_nb_set) {
+      bool connects_to_other = false;
+      BMEdge *e;
+      BMIter e_iter;
+      BM_ITER_ELEM (e, &e_iter, nb, BM_EDGES_OF_VERT) {
+        if (other_nb_set.contains(BM_edge_other_vert(e, nb))) {
+          connects_to_other = true;
+          break;
+        }
+      }
+      if (!connects_to_other) {
+        other_endpoint_set.add(nb);
       }
     }
 
@@ -973,17 +1029,28 @@ void transform_mode_edge_slide_clone_confirm(TransInfo *t)
       BMFace *f;
       BMIter f_iter;
       BM_ITER_ELEM (f, &f_iter, v_orig, BM_FACES_OF_VERT) {
-        /* Accept faces that contain at least one tagged keep-side neighbor. */
-        bool has_keep_nb = false;
+        /* Accept faces that contain at least one tagged keep-side neighbor and no endpoint neighbors to prevent degenerate faces. */
+        bool has_tagged_keep_nb = false;
+        bool has_endpoint_keep_nb = false;
         BMLoop *l;
         BMIter l_iter;
         BM_ITER_ELEM (l, &l_iter, f, BM_LOOPS_OF_FACE) {
           if (BM_elem_flag_test(l->v, BM_ELEM_TAG)) {
-            has_keep_nb = true;
-            break;
+            has_tagged_keep_nb = true;
+          }
+          else {
+            for (BMVert *nb : nd.neighbors[keep_side]) {
+              if (l->v == nb) {
+                has_endpoint_keep_nb = true;
+                break;
+              }
+            }
+            if (!has_endpoint_keep_nb && other_endpoint_set.contains(l->v)) {
+              has_endpoint_keep_nb = true;
+            }
           }
         }
-        if (!has_keep_nb) {
+        if (!has_tagged_keep_nb || has_endpoint_keep_nb) {
           continue;
         }
         BM_ITER_ELEM (l, &l_iter, f, BM_LOOPS_OF_FACE) {
@@ -998,6 +1065,7 @@ void transform_mode_edge_slide_clone_confirm(TransInfo *t)
         continue;
       }
 
+      /* Separates keep side faces from the original loop. Creates separated vertices. */
       BMVert *v_sep = BM_face_loop_separate_multi(bm, keep_loops.data(), keep_loops.size());
       orig_to_sep.add(v_orig, v_sep);
     }
@@ -1014,7 +1082,7 @@ void transform_mode_edge_slide_clone_confirm(TransInfo *t)
       BM_vert_kill(bm, v_clone);
     }
 
-    /* Create band faces. */
+    /* Create band faces from original vertices to the separated vertices. */
     for (int i = 0; i < int(sld->clone_neighbor_data.size()); i++) {
       BMVert *v_orig1 = sld->clone_neighbor_data[i].v;
       BMVert *v_sep1 = orig_to_sep.lookup_default(v_orig1, nullptr);
