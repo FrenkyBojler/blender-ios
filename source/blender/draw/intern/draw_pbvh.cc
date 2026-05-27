@@ -1015,8 +1015,8 @@ BLI_NOINLINE static void fill_uvs_grids(const Object &object,
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   const Span<bke::pbvh::GridsNode> nodes = pbvh.nodes<bke::pbvh::GridsNode>();
   const SubdivCCG &subdiv_ccg = *object.runtime->sculpt_session->subdiv_ccg;
-  /* TODO: What should the `name` parameter here be, in the case of rendering an object with multiple
-   * materials ?*/
+  /* TODO: What should the `name` parameter here be, in the case of rendering an object with
+   * multiple materials ?*/
   ensure_vbos_allocated_grids(
       object,
       attribute_format(orig_mesh_data, orig_mesh_data.active_uv_map, bke::AttrType::Float2),
@@ -1857,7 +1857,7 @@ Span<gpu::VertBufPtr> DrawCacheImpl::ensure_attribute_data(const Object &object,
             update_face_sets_mesh(object, orig_mesh_data, mask, vbos);
             break;
           case CustomRequest::UV:
-            BLI_assert_msg(0, "Mesh UV attributes should be handled as a generic attribute")
+            BLI_assert_msg(0, "Mesh UV attributes should be handled as a generic attribute");
             break;
         }
       }
