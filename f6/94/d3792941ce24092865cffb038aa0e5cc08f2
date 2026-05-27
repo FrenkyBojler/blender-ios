@@ -1,1 +1,2 @@
 Referenced by issue #59792, unlocated crash
+Referenced by pull request #159157, Fix #159125: Cycles: Disable denoising motion pass with motion blur
