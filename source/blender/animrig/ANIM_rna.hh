@@ -26,11 +26,6 @@ namespace animrig {
 /** Get the values of the given property. Casts non-float properties to float. */
 Vector<float> get_rna_values(PointerRNA *ptr, PropertyRNA *prop);
 
-/**
- * Returns the full pose bone rna path. For example "pose.bones["bone_name"]"
- */
-std::string get_pose_bone_rna_path(const bPoseChannel &pose_bone);
-
 /** Get the rna path for the given rotation mode. */
 StringRefNull get_rotation_mode_path(eRotationModes rotation_mode);
 
