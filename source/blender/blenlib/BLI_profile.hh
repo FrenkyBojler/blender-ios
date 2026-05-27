@@ -8,7 +8,7 @@
  * \ingroup bli
  *
  * A tiny wrapper around the TracyClient library profiling API which takes care of including the
- * Tracy header and exposing it via BLI_PROFILE_* macros. When building without Tracy enabled
+ * Tracy header and exposing it via BLI_profile_* macros. When building without Tracy enabled
  * the macros are evaluated to no-op.
  *
  * Important considerations:
@@ -28,7 +28,7 @@ namespace blender {
  */
 enum class ProfileCategory : uint32_t {
   /**
-   * \note Not pure black (0x000000) as Tracy uses that to indicate "no user provided color"
+   * \note Not pure black (0x000000) as Tracy uses that to indicate "no user provided color".
    */
   Default = 0x000001,
   Core = 0x0088FE,
@@ -73,7 +73,7 @@ enum class ProfileCategory : uint32_t {
 /** Attach a text string to the specified zone (e.g. filename, object name). */
 #  define BLI_profile_scope_var_add_text(var, fmt, ...) ZoneTextVF(var, fmt, ##__VA_ARGS__)
 
-/** Attach a numeric value to the specified zone */
+/** Attach a numeric value to the specified zone. */
 #  define BLI_profile_scope_var_add_value(var, value) ZoneValueV(var, value)
 
 #else
