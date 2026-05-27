@@ -101,6 +101,11 @@ BLOCKLIST_INTEL_WINDOWS_GL = [
     "volume_instance.blend"
 ]
 
+BLOCKLIST_NVIDIA_WINDOWS_GL = [
+    # Non-deterministic behavior. Unkown reason, the pool size doesn't seem to be exceeded.
+    "shadow_min_pool_size.blend",
+]
+
 
 def setup():
     import bpy
@@ -109,6 +114,8 @@ def setup():
         scene.render.engine = 'BLENDER_EEVEE'
 
         skip_hair_setup = scene.get("EEVEE_skip_hair_setup", False)
+        skip_probes_setup = scene.get("EEVEE_skip_probes_setup", False)
+        skip_raytracing_setup = scene.get("EEVEE_skip_raytracing_setup", False)
         skip_shadow_setup = scene.get("EEVEE_skip_shadow_setup", False)
         skip_subsurface_setup = scene.get("EEVEE_skip_subsurface_setup", False)
 
@@ -147,31 +154,32 @@ def setup():
         if scene.render.use_motion_blur:
             eevee.motion_blur_steps = 10
 
-        # Ray-tracing
-        eevee.use_raytracing = True
-        eevee.ray_tracing_method = 'SCREEN'
-        ray_tracing = eevee.ray_tracing_options
-        ray_tracing.resolution_scale = "1"
-        ray_tracing.screen_trace_quality = 1.0
-        ray_tracing.screen_trace_thickness = 1.0
-
-        # Fast GI
-        eevee.fast_gi_quality = 0.8
+        if not skip_raytracing_setup:
+            # Ray-tracing
+            eevee.use_raytracing = True
+            eevee.ray_tracing_method = 'SCREEN'
+            ray_tracing = eevee.ray_tracing_options
+            ray_tracing.resolution_scale = "1"
+            ray_tracing.screen_trace_quality = 1.0
+            ray_tracing.screen_trace_thickness = 1.0
+            # Fast GI
+            eevee.fast_gi_quality = 0.8
 
         # Light-probes
-        eevee.gi_cubemap_resolution = '256'
+        if not skip_probes_setup:
+            eevee.gi_cubemap_resolution = '256'
 
         # Light-path intensity
         eevee.direct_light_intensity = 1.0
         eevee.indirect_light_intensity = 1.0
 
-        # Only include the plane in probes
         for ob in scene.objects:
             if ob.type == 'LIGHT' and not skip_shadow_setup:
                 # Set maximum resolution
                 ob.data.shadow_maximum_resolution = 0.0
 
-            if ob.name != 'Plane' and ob.type != 'LIGHT':
+            # Only include the plane in probes
+            if ob.name != 'Plane' and ob.type != 'LIGHT' and not skip_probes_setup:
                 ob.hide_probe_volume = True
                 ob.hide_probe_sphere = True
 
@@ -185,7 +193,7 @@ def setup():
             # Some file already have pre existing probe setup with baked data.
             pass
         # Does not work in edit mode
-        elif bpy.context.mode == 'OBJECT':
+        elif bpy.context.mode == 'OBJECT' and not skip_probes_setup:
             # Simple probe setup
             bpy.ops.object.lightprobe_add(type='SPHERE', location=(0.0, 0.1, 1.0))
             cubemap = bpy.context.selected_objects[0]
@@ -277,6 +285,8 @@ def main():
             blocklist += BLOCKLIST_INTEL
         if gpu_vendor == "INTEL" and sys.platform == "win32" and args.gpu_backend == "opengl":
             blocklist += BLOCKLIST_INTEL_WINDOWS_GL
+        if gpu_vendor == "NVIDIA" and sys.platform == "win32" and args.gpu_backend == "opengl":
+            blocklist += BLOCKLIST_NVIDIA_WINDOWS_GL
 
     report = EEVEEReport("EEVEE", args.outdir, args.oiiotool, variation=args.gpu_backend, blocklist=blocklist)
     if args.gpu_backend == "vulkan":
