@@ -481,8 +481,6 @@ class NODE_MT_linked_group_base(NodeMenu):
         layout = self.layout
         self.draw_linked_groups(context, layout)
 
-        self.draw_assets_for_catalog(layout, self.bl_label)
-
 
 class NODE_MT_layout_base(NodeMenu):
     bl_label = "Layout"
