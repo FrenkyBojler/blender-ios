@@ -6,7 +6,6 @@
 #include <sstream>
 
 #include "BKE_bake_geometry_nodes_modifier.hh"
-#include "BKE_compute_context_cache.hh"
 #include "BKE_compute_contexts.hh"
 #include "BKE_context.hh"
 #include "BKE_global.hh"

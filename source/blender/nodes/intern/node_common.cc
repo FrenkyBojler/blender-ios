@@ -9,7 +9,9 @@
 #include <cstddef>
 #include <cstring>
 
+#include "BKE_bake_geometry_nodes_modifier.hh"
 #include "DNA_asset_types.h"
+#include "DNA_modifier_types.h"
 #include "DNA_node_types.h"
 #include "DNA_space_types.h"
 
@@ -40,6 +42,7 @@
 
 #include "NOD_common.hh"
 #include "NOD_composite.hh"
+#include "NOD_geo_bake.hh"
 #include "NOD_geometry_exec.hh"
 #include "NOD_node_declaration.hh"
 #include "NOD_node_extra_info.hh"
@@ -489,8 +492,39 @@ static void node_group_declare_panel_recursive(
         break;
       }
       case NodeTreeInterfaceItemType::Bake: {
-        const auto &io_bake = node_interface::get_item_as<bNodeTreeInterfacePanel>(*item);
-        // TODO Add custom layout to group node declaration
+        const auto &io_bake = node_interface::get_item_as<bNodeTreeInterfaceBake>(*item);
+        b.add_layout([io_bake](ui::Layout &layout, bContext *C, PointerRNA * /*ptr*/) {
+          const Main &bmain = *CTX_data_main(C);
+          const SpaceNode &snode = *CTX_wm_space_node(C);
+          const std::optional<ed::space_node::ObjectAndModifier> object_and_modifier =
+              ed::space_node::get_modifier_for_node_editor(snode);
+          if (!object_and_modifier) {
+            layout.label(IFACE_("No modifier found"), ICON_ERROR);
+            return;
+          }
+          const NodesModifierData &nmd = *object_and_modifier->nmd;
+          // TODO: WRONG BAKE ID WE NEED MODIFIER LEVEL NESTED NODE REF ID
+          const NodesModifierBake *bake_data = nmd.find_bake(io_bake.bake_id);
+          if (!bake_data) {
+            layout.label(IFACE_("No bake found"), ICON_ERROR);
+            return;
+          }
+          PointerRNA modifier_ptr = RNA_pointer_create_id_subdata(
+              const_cast<ID &>(object_and_modifier->object->id),
+              RNA_NodesModifier,
+              &const_cast<NodesModifierData &>(nmd));
+          PointerRNA bake_ptr = RNA_pointer_create_with_parent(
+              modifier_ptr, RNA_NodesModifierBake, const_cast<NodesModifierBake *>(bake_data));
+
+          const std::optional<IndexRange> baked_range = get_bake_frame_range(nmd, bake_data->id);
+          const bool is_baked = baked_range.has_value();
+
+          const NodesModifierBakeTarget bake_target = bke::bake::get_node_bake_target(nmd,
+                                                                                      *bake_data);
+          draw_bake_button_row(layout, modifier_ptr, bake_ptr, is_baked, bake_target, true);
+          draw_common_bake_settings(bmain, modifier_ptr, bake_ptr, is_baked, bake_target, layout);
+        });
+
         break;
       }
     }

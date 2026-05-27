@@ -559,13 +559,7 @@ bool get_bake_draw_context(const bContext *C, const bNode &node, BakeDrawContext
     return false;
   }
   r_ctx.is_bakeable_in_current_context = !bake_id->is_in_loop && !bake_id->is_in_closure;
-  r_ctx.bake = nullptr;
-  for (const NodesModifierBake &iter_bake : Span(r_ctx.nmd->bakes, r_ctx.nmd->bakes_num)) {
-    if (iter_bake.id == bake_id->id) {
-      r_ctx.bake = &iter_bake;
-      break;
-    }
-  }
+  r_ctx.bake = r_ctx.nmd->find_bake(bake_id->id);
   if (!r_ctx.bake) {
     return false;
   }
