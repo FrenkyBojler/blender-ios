@@ -81,8 +81,8 @@ static BLI_bitmap *multires_mdisps_downsample_hidden(const BLI_bitmap *old_hidde
                                                      const int old_grid_area,
                                                      const int new_grid_area)
 {
-  const int new_gridsize = math::sqrt(old_grid_area);
-  const int old_gridsize = math::sqrt(new_grid_area);
+  const int new_gridsize = math::sqrt(new_grid_area);
+  const int old_gridsize = math::sqrt(old_grid_area);
 
   BLI_assert(new_grid_area <= old_grid_area);
   const int factor = (old_gridsize - 1) / (new_gridsize - 1);
