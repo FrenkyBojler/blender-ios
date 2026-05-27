@@ -33,6 +33,7 @@
 #include "BKE_paint.hh"
 #include "BKE_paint_bvh.hh"
 #include "BKE_scene.hh"
+#include "BKE_subdiv.hh"
 #include "BKE_subdiv_ccg.hh"
 
 #include "BKE_object.hh"
@@ -77,14 +78,14 @@ void multires_customdata_delete(Mesh *mesh)
 }
 
 static BLI_bitmap *multires_mdisps_downsample_hidden(const BLI_bitmap *old_hidden,
-                                                     const int old_level,
-                                                     const int new_level)
+                                                     const int old_grid_area,
+                                                     const int new_grid_area)
 {
-  const int new_gridsize = CCG_grid_size(new_level);
-  const int old_gridsize = CCG_grid_size(old_level);
+  const int new_gridsize = math::sqrt(old_grid_area);
+  const int old_gridsize = math::sqrt(new_grid_area);
 
-  BLI_assert(new_level <= old_level);
-  const int factor = CCG_grid_factor(new_level, old_level);
+  BLI_assert(new_grid_area <= old_grid_area);
+  const int factor = (old_gridsize - 1) / (new_gridsize - 1);
   BLI_bitmap *new_hidden = BLI_BITMAP_NEW(square_i(new_gridsize), "downsample hidden");
 
   for (int y = 0; y < new_gridsize; y++) {
@@ -410,7 +411,6 @@ static void multires_set_tot_mdisps(Mesh *mesh, const int lvl)
   if (mdisps) {
     for (int i = 0; i < mesh->corners_num; i++, mdisps++) {
       mdisps->totdisp = multires_grid_tot[lvl];
-      mdisps->level = lvl;
     }
   }
 }
@@ -497,7 +497,8 @@ static void multires_del_higher(MultiresModifierData *mmd, Object *ob, const int
 
             multires_copy_grid(ndisps, hdisps, nsize, hsize);
             if (mdisp->hidden) {
-              BLI_bitmap *gh = multires_mdisps_downsample_hidden(mdisp->hidden, mdisp->level, lvl);
+              BLI_bitmap *gh = multires_mdisps_downsample_hidden(
+                  mdisp->hidden, mdisp->totdisp, totdisp);
               MEM_delete(mdisp->hidden);
               mdisp->hidden = gh;
             }
@@ -507,7 +508,6 @@ static void multires_del_higher(MultiresModifierData *mmd, Object *ob, const int
 
           mdisp->disps = disps;
           mdisp->totdisp = totdisp;
-          mdisp->level = lvl;
 
           if (gpm) {
             multires_grid_paint_mask_downsample(&gpm[corner], lvl);
@@ -730,7 +730,6 @@ void multiresModifier_prepare_join(Depsgraph *depsgraph, Scene *scene, Object *o
 
 void multires_topology_changed(Mesh *mesh)
 {
-
   CustomData_external_read(&mesh->corner_data, &mesh->id, CD_MASK_MDISPS, mesh->corners_num);
   MDisps *mdisp = static_cast<MDisps *>(
       CustomData_get_layer_for_write(&mesh->corner_data, CD_MDISPS, mesh->corners_num));
@@ -779,8 +778,11 @@ void multires_ensure_external_read(Mesh *mesh, const int top_level)
 
   const int totloop = mesh->corners_num;
 
+  const int grid_size = bke::subdiv::grid_size_from_level(top_level);
+  const int grid_area = grid_size * grid_size;
+
   for (int i = 0; i < totloop; ++i) {
-    if (mdisps[i].level != top_level) {
+    if (mdisps[i].totdisp != grid_area) {
       MEM_SAFE_DELETE(mdisps[i].disps);
     }
 
@@ -789,7 +791,6 @@ void multires_ensure_external_read(Mesh *mesh, const int top_level)
 
     const int totdisp = multires_grid_tot[top_level];
     mdisps[i].totdisp = totdisp;
-    mdisps[i].level = top_level;
   }
 
   CustomData_external_read(&mesh->corner_data, &mesh->id, CD_MASK_MDISPS, mesh->corners_num);
