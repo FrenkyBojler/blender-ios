@@ -231,7 +231,7 @@ static int bpy_bm_elem_index_set(BPy_BMElem *self, PyObject *value, void * /*fla
 /* Mesh
  * ^^^^ */
 
-/* doc-strings for all uses of this function */
+/* Docstrings for all uses of this function. */
 
 PyDoc_STRVAR(
     /* Wrap. */
@@ -4530,7 +4530,7 @@ static PyObject *bpy_bmelemseq_subscript(BPy_BMElemSeq *self, PyObject *key)
     PySliceObject *key_slice = reinterpret_cast<PySliceObject *>(key);
     Py_ssize_t step = 1;
 
-    if (key_slice->step != Py_None && !_PyEval_SliceIndex(key, &step)) {
+    if (key_slice->step != Py_None && !_PyEval_SliceIndex(key_slice->step, &step)) {
       return nullptr;
     }
     if (step != 1) {
@@ -4769,8 +4769,8 @@ static Py_hash_t bpy_bm_hash(PyObject *self)
   return Py_HashPointer((reinterpret_cast<BPy_BMesh *>(self))->bm);
 }
 
-/* Type Doc-strings
- * ================ */
+/* Type Docstrings
+ * =============== */
 
 PyDoc_STRVAR(
     /* Wrap. */

@@ -288,7 +288,7 @@ bool DrawingPlacement::use_project_to_stroke() const
 
 void DrawingPlacement::cache_viewport_depths(Depsgraph *depsgraph, ARegion *region, View3D *view3d)
 {
-  const short previous_gp_flag = view3d->gp_flag;
+  const eView3D_GPFlag previous_gp_flag = view3d->gp_flag;
   eV3DDepthOverrideMode mode = V3D_DEPTH_GPENCIL_ONLY;
 
   if (use_project_to_surface()) {
@@ -1519,7 +1519,7 @@ Array<PointTransferData> compute_topology_change(
   const OffsetIndices<int> dst_points_by_curve = dst.points_by_curve();
 
   /* Vertex group names. */
-  BLI_assert(BLI_listbase_count(&dst.vertex_group_names) == 0);
+  BLI_assert(dst.vertex_group_names.count() == 0);
   BKE_defgroup_copy_list(&dst.vertex_group_names, &src.vertex_group_names);
 
   /* Attributes. */

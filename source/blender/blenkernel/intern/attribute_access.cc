@@ -153,7 +153,7 @@ const CPPType *custom_data_type_to_cpp_type(const eCustomDataType type)
   }
 }
 
-eCustomDataType cpp_type_to_custom_data_type(const CPPType &type)
+std::optional<eCustomDataType> cpp_type_to_custom_data_type(const CPPType &type)
 {
   if (type.is<float>()) {
     return CD_PROP_FLOAT;
@@ -197,8 +197,7 @@ eCustomDataType cpp_type_to_custom_data_type(const CPPType &type)
   if (type.is<MStringProperty>()) {
     return CD_PROP_STRING;
   }
-  BLI_assert_unreachable();
-  return CD_PROP_FLOAT;
+  return std::nullopt;
 }
 
 const char *no_procedural_access_message = N_(
@@ -427,6 +426,19 @@ Set<StringRefNull> AttributeAccessor::all_names() const
   Set<StringRefNull> names;
   this->foreach_attribute([&](const AttributeIter &iter) { names.add(iter.name); });
   return names;
+}
+
+/** True if there are any anonymous attributes. */
+bool AttributeAccessor::has_anonymous() const
+{
+  bool found_anonymous = false;
+  this->foreach_attribute([&](const AttributeIter &iter) {
+    if (attribute_name_is_anonymous(iter.name)) {
+      found_anonymous = true;
+      iter.stop();
+    }
+  });
+  return found_anonymous;
 }
 
 void MutableAttributeAccessor::remove_anonymous()

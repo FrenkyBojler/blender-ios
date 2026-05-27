@@ -4,7 +4,7 @@
 #include "testing/testing.h"
 
 #include "BKE_brush.hh"
-#include "BKE_gtest_setup.hh"
+#include "BKE_gtest_base.hh"
 #include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
@@ -17,19 +17,9 @@
 
 namespace blender {
 
-class BrushTest : public testing::Test {
+class BrushTest : public bke::BlenderGTestBase {
  public:
   Main *bmain = nullptr;
-
-  static void SetUpTestSuite()
-  {
-    bke::gtest_setup();
-  }
-
-  static void TearDownTestSuite()
-  {
-    bke::gtest_teardown();
-  }
 
   void SetUp() override
   {
@@ -85,7 +75,7 @@ TEST_F(BrushTest, deep_copy)
 
   check_embedded_copy(&brush->mtex.tex->nodetree->id, &duplicated_brush->mtex.tex->nodetree->id);
 
-  EXPECT_TRUE(BLI_listbase_is_empty(&bmain->nodetrees));
+  EXPECT_TRUE(bmain->nodetrees.is_empty());
 }
 
 TEST_F(BrushTest, deep_copy_grease_pencil_brush)
@@ -119,7 +109,7 @@ TEST_F(BrushTest, deep_copy_grease_pencil_brush)
   check_embedded_copy(&brush->gpencil_settings->material_alt->nodetree->id,
                       &duplicated_brush->gpencil_settings->material_alt->nodetree->id);
 
-  EXPECT_TRUE(BLI_listbase_is_empty(&bmain->nodetrees));
+  EXPECT_TRUE(bmain->nodetrees.is_empty());
 }
 
 }  // namespace blender
