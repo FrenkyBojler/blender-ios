@@ -2560,8 +2560,6 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
     WorkspaceStatus status(C);
     status.opmodal(IFACE_("Confirm"), op->type, TGT_MODAL_CONFIRM);
     status.opmodal(IFACE_("Cancel"), op->type, TGT_MODAL_CANCEL);
-    /* Show precision mode status */
-    status.opmodal(IFACE_("Precision"), op->type, TGT_MODAL_PRECISION_ENABLE, xfd->precision_mode);
 
     /* Show current mode and available mode switches */
     status.opmodal(IFACE_("Diffuse"),
@@ -2574,6 +2572,10 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
                    xfd->light_mode == LIGHT_SPECULAR_MODE);
     status.opmodal(
         IFACE_("Shadow"), op->type, TGT_MODAL_SHADOW_ENABLE, xfd->light_mode == LIGHT_SHADOW_MODE);
+
+    /* Show precision mode status */
+    status.opmodal(
+        IFACE_("Precision Mode"), op->type, TGT_MODAL_PRECISION_ENABLE, xfd->precision_mode);
   }
 
   /* Refresh depth buffer after navigation */
@@ -2588,7 +2590,7 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
 
     /* Create new depth buffer with updated view matrix */
 #ifdef USE_RENDER_OVERRIDE
-    int flag2_prev = xfd->vc.v3d->flag2;
+    eView3D_Flag2 flag2_prev = xfd->vc.v3d->flag2;
     xfd->vc.v3d->flag2 |= V3D_HIDE_OVERLAYS;
 #endif
 
