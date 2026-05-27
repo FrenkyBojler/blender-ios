@@ -765,13 +765,13 @@ void ED_area_tag_region_size_update(ScrArea *area, ARegion *changed_region)
   }
 }
 
-void ED_area_tag_region_hud_size_update(ScrArea *area, ARegion *changed_region)
+void ED_area_tag_region_hud_size_update(ScrArea *area, ARegion *changed_region, const bool set_padding)
 {
   ARegion *hud_region = BKE_area_find_region_type(area, RGN_TYPE_HUD);
   if (hud_region == nullptr) {
     return;
   }
-  hud_region->runtime->flag ^= bke::ARegionRuntimeFlag::HUD_PADDING;
+  SET_FLAG_FROM_TEST(hud_region->runtime->flag, set_padding, bke::ARegionRuntimeFlag::HUD_PADDING);
   ED_area_tag_region_size_update(area, changed_region);
 }
 

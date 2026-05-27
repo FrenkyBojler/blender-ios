@@ -482,7 +482,7 @@ wmOperatorStatus ED_imbuf_sample_invoke(bContext *C, wmOperator *op, const wmEve
 
   WM_event_add_modal_handler(C, op);
 
-  ED_area_tag_region_hud_size_update(area, region);
+  ED_area_tag_region_hud_size_update(area, region, true);
 
   return OPERATOR_RUNNING_MODAL;
 }

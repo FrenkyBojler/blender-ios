@@ -869,6 +869,16 @@ static void image_main_region_draw(const bContext *C, ARegion *region)
   draw_image_cache(C, region);
 }
 
+static void hud_region_update(ScrArea *area, ARegion *region)
+{
+  SpaceImage *sima = static_cast<SpaceImage *>(area->spacedata.first);
+  if (sima->mode == SI_MODE_MASK && ED_space_image_get_mask(sima)) {
+    ED_area_tag_region_hud_size_update(area, region, true);
+    return;
+  }
+  ED_area_tag_region_hud_size_update(area, region);
+}
+
 static void image_main_region_listener(const wmRegionListenerParams *params)
 {
   ScrArea *area = params->area;
@@ -903,6 +913,7 @@ static void image_main_region_listener(const wmRegionListenerParams *params)
       else if (ELEM(wmn->data, ND_DATA, ND_SELECT)) {
         WM_gizmomap_tag_refresh(region->runtime->gizmo_map);
       }
+      hud_region_update(area, region);
       break;
     case NC_MATERIAL:
       if (wmn->data == ND_SHADING_LINKS) {
@@ -927,6 +938,11 @@ static void image_main_region_listener(const wmRegionListenerParams *params)
       }
       if (wmn->action == NA_EDITED) {
         ED_region_tag_redraw(region);
+      }
+      break;
+    case NC_SPACE:
+      if (wmn->data == ND_SPACE_IMAGE) {
+        hud_region_update(area, region);
       }
       break;
   }
