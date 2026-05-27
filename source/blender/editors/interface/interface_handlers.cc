@@ -3864,13 +3864,7 @@ static void textedit_end(bContext *C, Button *but, HandleButtonData *data)
   text_edit.undo_stack_text = nullptr;
 
 #ifdef WITH_INPUT_IME
-  /* See #WM_window_IME_end code-comments for details. */
-#  ifdef __APPLE__
-  if (win->runtime->ime_data)
-#  endif
-  {
-    textedit_ime_end(win, but);
-  }
+  textedit_ime_end(win, but);
 #endif
 }
 
