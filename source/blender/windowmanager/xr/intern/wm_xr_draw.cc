@@ -11,10 +11,7 @@
  */
 
 #include <cstring>
-#include <fmt/format.h>
-#include <optional>
 
-#include "DNA_camera_types.h"
 #include "DNA_userdef_types.h"
 
 #include "BLI_listbase.h"
@@ -22,10 +19,7 @@
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
-#include "BLI_rect.h"
-#include "BLI_time.h"
 
-#include "BKE_camera.h"
 #include "BKE_context.hh"
 #include "BKE_scene.hh"
 
@@ -34,19 +28,11 @@
 #include "GHOST_Xr-api.hh"
 
 #include "GPU_batch_presets.hh"
-#include "GPU_framebuffer.hh"
 #include "GPU_immediate.hh"
 #include "GPU_matrix.hh"
 #include "GPU_state.hh"
 #include "GPU_viewport.hh"
 
-#include "IMB_imbuf.hh"
-
-#include "RNA_access.hh"
-#include "RNA_prototypes.hh"
-
-#include "UI_interface.hh"
-#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "WM_api.hh"
