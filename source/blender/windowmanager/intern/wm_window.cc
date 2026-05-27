@@ -3469,11 +3469,18 @@ void WM_window_IME_region_refresh(wmWindow *win, ScrArea *area, ARegion *region)
     return;
   }
 
-  const std::optional<blender::int2> pos = region->runtime->type->cursor_ime(win, area, region);
-  if (pos) {
+  const std::optional<rcti> rect = region->runtime->type->cursor_ime(win, area, region);
+  if (rect) {
+    /* Clamp the caret origin to the region bounds so a cursor scrolled out of view keeps the
+     * IME window at the region edge instead of placing it outside the region. */
+    const int x = region->winrct.xmin +
+                  std::clamp(rect->xmin, 0, BLI_rcti_size_x(&region->winrct));
+    const int y = region->winrct.ymin +
+                  std::clamp(rect->ymin, 0, BLI_rcti_size_y(&region->winrct));
+    const int w = BLI_rcti_size_x(&*rect);
+    const int h = BLI_rcti_size_y(&*rect);
     /* `WM_window_IME_end` above always ends any session, so this is always a fresh begin. */
-    WM_window_IME_begin(
-        win, region->winrct.xmin + pos->x, region->winrct.ymin + pos->y, 0, 0, true);
+    WM_window_IME_begin(win, x, y, w, h, true);
   }
 }
 #endif /* WITH_INPUT_IME */

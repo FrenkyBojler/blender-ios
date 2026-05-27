@@ -213,9 +213,9 @@ static void console_dropboxes()
 /* ************* end drop *********** */
 
 #ifdef WITH_INPUT_IME
-static std::optional<blender::int2> console_main_region_cursor_ime(wmWindow * /*win*/,
-                                                                   ScrArea *area,
-                                                                   ARegion *region)
+static std::optional<rcti> console_main_region_cursor_ime(wmWindow * /*win*/,
+                                                          ScrArea *area,
+                                                          ARegion *region)
 {
   /* Defer during View2D navigation (pan, zoom, scroll). */
   if (region->v2d.flag & V2D_IS_NAVIGATING) {
@@ -226,13 +226,14 @@ static std::optional<blender::int2> console_main_region_cursor_ime(wmWindow * /*
   if (cl == nullptr) {
     return std::nullopt;
   }
-  std::optional<blender::int2> cursor_xy = console_cursor_region_xy_get(sc, region, cl->cursor);
-  if (cursor_xy) {
-    /* The cursor may be scrolled out of view. */
-    cursor_xy->x = std::clamp(cursor_xy->x, 0, BLI_rcti_size_x(&region->winrct));
-    cursor_xy->y = std::clamp(cursor_xy->y, 0, BLI_rcti_size_y(&region->winrct));
+  const std::optional<blender::int2> xy = console_cursor_region_xy_get(sc, region, cl->cursor);
+  if (!xy) {
+    return std::nullopt;
   }
-  return cursor_xy;
+  /* Extend the caret position upward by the line height; the caller clamps to the region
+   * bounds (the cursor may be scrolled out of view). */
+  const int lheight = sc->lheight * UI_SCALE_FAC;
+  return rcti{xy->x, xy->x, xy->y, xy->y + lheight};
 }
 
 #endif

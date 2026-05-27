@@ -116,9 +116,9 @@ static SpaceLink *text_duplicate(SpaceLink *sl)
 }
 
 #ifdef WITH_INPUT_IME
-static std::optional<blender::int2> text_main_region_cursor_ime(wmWindow * /*win*/,
-                                                                ScrArea *area,
-                                                                ARegion *region)
+static std::optional<rcti> text_main_region_cursor_ime(wmWindow * /*win*/,
+                                                       ScrArea *area,
+                                                       ARegion *region)
 {
   SpaceText *st = static_cast<SpaceText *>(area->spacedata.first);
   /* Defer while the scrollbar is being dragged. */
@@ -135,9 +135,14 @@ static std::optional<blender::int2> text_main_region_cursor_ime(wmWindow * /*win
                     st->top + offl;
   const int vselc = space_text_get_char_pos(st, st->text->sell->line, st->text->selc) - st->left +
                     offc;
-  int x = TXT_BODY_LEFT(st) + (vselc * st->runtime->cwidth_px);
-  int y = region->winy - vsell * lheight;
-  return blender::int2(x, y - lheight);
+  const int x = TXT_BODY_LEFT(st) + (vselc * st->runtime->cwidth_px);
+  const int y = region->winy - vsell * lheight;
+  rcti rect;
+  rect.xmin = x;
+  rect.xmax = x + st->runtime->cwidth_px;
+  rect.ymin = y - lheight;
+  rect.ymax = y;
+  return rect;
 }
 
 #endif

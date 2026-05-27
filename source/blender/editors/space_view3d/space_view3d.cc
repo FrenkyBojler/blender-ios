@@ -558,9 +558,9 @@ static void *view3d_main_region_duplicate(void *poin)
 }
 
 #ifdef WITH_INPUT_IME
-static std::optional<blender::int2> view3d_main_region_cursor_ime(wmWindow *win,
-                                                                  ScrArea * /*area*/,
-                                                                  ARegion *region)
+static std::optional<rcti> view3d_main_region_cursor_ime(wmWindow *win,
+                                                         ScrArea * /*area*/,
+                                                         ARegion *region)
 {
   /* Defer during viewport navigation (orbit, pan, zoom, fly, walk). */
   const RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
@@ -577,24 +577,29 @@ static std::optional<blender::int2> view3d_main_region_cursor_ime(wmWindow *win,
     return std::nullopt;
   }
 
-  Curve *cu = id_cast<Curve *>(ob->data);
-  EditFont *ef = cu->editfont;
-
-  float2 cursor_screen = float2(0);
-  /* cu->editfont can be nullptr on Blender startup. */
-  if (ef) {
-    /* Bottom right corner of the text cursor to get its center in local space. */
-    float3 cursor_local = {UNPACK2(ef->textcurs[1]), 0.0f};
-    /* Transform to world space, then project to region coordinates. */
-    const float3 cursor_world = math::transform_point(ob->object_to_world(), cursor_local);
-    if (ED_view3d_project_float_global(region, cursor_world, cursor_screen, V3D_PROJ_TEST_NOP) !=
-        V3D_PROJ_RET_OK)
-    {
-      cursor_screen = float2(0);
-    }
+  const Curve *cu = id_cast<Curve *>(ob->data);
+  const EditFont *ef = cu->editfont;
+  /* `cu->editfont` can be nullptr on Blender startup. */
+  if (!ef) {
+    return std::nullopt;
   }
 
-  return blender::int2(int(cursor_screen[0]), int(cursor_screen[1]));
+  /* Lower-left corner of the caret; returned as a zero-size rectangle since the caret may be
+   * rotated by the object transform, where an axis-aligned size would not represent it well. */
+  const float3 cursor_local = {ef->textcurs[0].x, ef->textcurs[0].y, 0.0f};
+  /* Transform to world space, then project to region coordinates. */
+  const float3 cursor_world = math::transform_point(ob->object_to_world(), cursor_local);
+  float2 cursor_screen;
+  if (ED_view3d_project_float_global(
+          region, cursor_world, cursor_screen, V3D_PROJ_TEST_CLIP_NEAR) != V3D_PROJ_RET_OK)
+  {
+    /* Cursor is behind the view (near-plane clipped), no usable position. */
+    return std::nullopt;
+  }
+
+  const int x = int(cursor_screen[0]);
+  const int y = int(cursor_screen[1]);
+  return rcti{x, x, y, y};
 }
 
 #endif
