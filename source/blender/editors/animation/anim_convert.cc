@@ -86,7 +86,7 @@ static Vector<std::pair<float, eRotationModes>> get_rotation_mode_ranges(const F
 }
 
 /**
- * Helper class to iterate all frames with keys on the given FCurves. Every frame is visited in
+ * Iterates all frames with keys on the given FCurves in the given range. Every frame is visited in
  * ascending order only once.
  */
 class KeyframeIterator {
@@ -95,7 +95,10 @@ class KeyframeIterator {
   Bounds<float> range_;
 
  public:
-  /* `fcurves` is allowed to have nullptr entries. */
+  /**
+   * \param fcurves is allowed to have nullptr entries.
+   * \param range is interpreted as inclusive/exclusive.
+   */
   KeyframeIterator(Span<const FCurve *> fcurves, const Bounds<float> range) : range_(range)
   {
     for (const int i : fcurves.index_range()) {
@@ -115,13 +118,28 @@ class KeyframeIterator {
     }
   }
 
+  bool can_step()
+  {
+    for (const int i : fcurves_.index_range()) {
+      const FCurve *fcurve = fcurves_[i];
+      if (key_indices_[i] > fcurve->totvert - 1) {
+        /* No more keys for that FCurve. */
+        continue;
+      }
+      const float key_frame = fcurve->bezt[key_indices_[i]].vec[1][0];
+      if (key_frame < range_.max) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   float step()
   {
     float next_frame = FLT_MAX;
     for (const int i : fcurves_.index_range()) {
       const FCurve *fcurve = fcurves_[i];
       if (key_indices_[i] > fcurve->totvert - 1) {
-        /* No more keys for that FCurve. */
         continue;
       }
       const float key_frame = fcurve->bezt[key_indices_[i]].vec[1][0];
@@ -192,7 +210,8 @@ static void convert_fcurves_rotation_mode(const Span<const FCurve *> evaluation_
   ed::Rotation previous_conversion = rotation_values.converted_to_mode(to_mode);
 
   KeyframeIterator key_iterator = KeyframeIterator(evaluation_buffer, range);
-  while (const float frame = key_iterator.step()) {
+  while (key_iterator.can_step()) {
+    const float frame = key_iterator.step();
     /* Generate the current rotation values respecting missing FCurves. */
     for (const FCurve *fcurve : evaluation_buffer) {
       if (!fcurve) {
