@@ -3777,10 +3777,9 @@ struct GeometryNodeFieldToList {
 };
 
 struct GeometryNodeClosureToListItem {
-  /** #eNodeSocketDatatype. */
-  int8_t socket_type = SOCK_FLOAT;
+  eNodeSocketDatatype socket_type = SOCK_FLOAT;
   NodeSocketInterfaceStructureType structure_type = NodeSocketInterfaceStructureType::Auto;
-  char _pad[2] = {};
+  char _pad[1] = {};
   int identifier = 0;
   char *name = nullptr;
 };
