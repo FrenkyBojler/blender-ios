@@ -2416,7 +2416,7 @@ int button_is_pushed_ex(Button *but, double *value)
       case ButtonType::IconToggle:
       case ButtonType::Checkbox:
         UI_GET_BUT_VALUE_INIT(but, *value);
-        if (int(*value) != but->retval) {
+        if (*value != double(but->hardmin)) {
           is_push = true;
         }
         break;
