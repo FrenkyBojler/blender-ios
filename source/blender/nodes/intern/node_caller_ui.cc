@@ -22,21 +22,27 @@ static bool interface_panel_has_socket(
     FunctionRef<bool(const bNodeTreeInterfaceSocket &)> fn_input_is_visible)
 {
   for (const bNodeTreeInterfaceItem *item : interface_panel.items()) {
-    if (item->item_type == NodeTreeInterfaceItemType::Socket) {
-      const bNodeTreeInterfaceSocket &socket = *reinterpret_cast<const bNodeTreeInterfaceSocket *>(
-          item);
-      if (socket.flag & NODE_INTERFACE_SOCKET_HIDE_IN_MODIFIER) {
-        continue;
+    switch (item->item_type) {
+      case NodeTreeInterfaceItemType::Socket: {
+        const auto &socket = *reinterpret_cast<const bNodeTreeInterfaceSocket *>(item);
+        if (socket.flag & NODE_INTERFACE_SOCKET_HIDE_IN_MODIFIER) {
+          continue;
+        }
+        if (socket.flag & NODE_INTERFACE_SOCKET_INPUT) {
+          if (fn_input_is_visible(socket)) {
+            return true;
+          }
+        }
+        break;
       }
-      if (socket.flag & NODE_INTERFACE_SOCKET_INPUT) {
-        if (fn_input_is_visible(socket)) {
+      case NodeTreeInterfaceItemType::Panel: {
+        const auto &panel_item = *reinterpret_cast<const bNodeTreeInterfacePanel *>(item);
+        if (interface_panel_has_socket(panel_item, fn_input_is_visible)) {
           return true;
         }
+        break;
       }
-    }
-    else if (item->item_type == NodeTreeInterfaceItemType::Panel) {
-      const auto &panel_item = *reinterpret_cast<const bNodeTreeInterfacePanel *>(item);
-      if (interface_panel_has_socket(panel_item, fn_input_is_visible)) {
+      case NodeTreeInterfaceItemType::Bake: {
         return true;
       }
     }
@@ -49,21 +55,28 @@ static bool interface_panel_affects_output(
     FunctionRef<bool(const bNodeTreeInterfaceSocket &)> fn_input_is_active)
 {
   for (const bNodeTreeInterfaceItem *item : panel.items()) {
-    if (item->item_type == NodeTreeInterfaceItemType::Socket) {
-      const auto &socket = *reinterpret_cast<const bNodeTreeInterfaceSocket *>(item);
-      if (socket.flag & NODE_INTERFACE_SOCKET_HIDE_IN_MODIFIER) {
-        continue;
+    switch (item->item_type) {
+      case NodeTreeInterfaceItemType::Socket: {
+        const auto &socket = *reinterpret_cast<const bNodeTreeInterfaceSocket *>(item);
+        if (socket.flag & NODE_INTERFACE_SOCKET_HIDE_IN_MODIFIER) {
+          continue;
+        }
+        if (!(socket.flag & NODE_INTERFACE_SOCKET_INPUT)) {
+          continue;
+        }
+        if (fn_input_is_active(socket)) {
+          return true;
+        }
+        break;
       }
-      if (!(socket.flag & NODE_INTERFACE_SOCKET_INPUT)) {
-        continue;
+      case NodeTreeInterfaceItemType::Panel: {
+        const auto &sub_interface_panel = *reinterpret_cast<const bNodeTreeInterfacePanel *>(item);
+        if (interface_panel_affects_output(sub_interface_panel, fn_input_is_active)) {
+          return true;
+        }
+        break;
       }
-      if (fn_input_is_active(socket)) {
-        return true;
-      }
-    }
-    else if (item->item_type == NodeTreeInterfaceItemType::Panel) {
-      const auto &sub_interface_panel = *reinterpret_cast<const bNodeTreeInterfacePanel *>(item);
-      if (interface_panel_affects_output(sub_interface_panel, fn_input_is_active)) {
+      case NodeTreeInterfaceItemType::Bake: {
         return true;
       }
     }
