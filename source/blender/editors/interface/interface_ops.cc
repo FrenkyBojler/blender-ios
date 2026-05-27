@@ -2372,7 +2372,7 @@ static void UI_OT_button_string_clear(wmOperatorType *ot)
 {
   ot->name = "Clear Button String";
   ot->idname = "UI_OT_button_string_clear";
-  ot->description = "Unsets the text of the active button";
+  ot->description = "Clear the active button's text";
 
   ot->poll = ED_operator_regionactive;
   ot->exec = button_string_clear_exec;
