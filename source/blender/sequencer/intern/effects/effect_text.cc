@@ -1030,13 +1030,10 @@ static void apply_text_alignment(const TextVars *data,
                                  const int2 image_size)
 {
   const int box_width = text_box_width_get(runtime->lines);
-  rctf glyph_bounds_max;
-  BLF_bounds_max(runtime->font, &glyph_bounds_max);
   const int line_spacing = (data->flag & SEQ_TEXT_USE_ABSOLUTE_LINE_SPACING) ?
                                data->abs_space_line :
                                runtime->line_height * data->space_line;
-  const int box_height = (runtime->lines.size() - 1) * line_spacing +
-                         math::ceil(BLI_rctf_size_y(&glyph_bounds_max));
+  const int box_height = runtime->line_height + (runtime->lines.size() - 1) * line_spacing;
 
   const float2 image_center{data->loc[0] * image_size.x, data->loc[1] * image_size.y};
   const float2 line_height_offset{0.0f,
