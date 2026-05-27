@@ -552,6 +552,7 @@ class DOPESHEET_MT_select(Menu):
 
             layout.separator()
             layout.operator("action.select_linked")
+            layout.operator_menu_enum("action.select_by_type", "type")
 
         layout.separator()
         layout.operator("action.select_column", text="Columns on Selected Keys").mode = 'KEYS'
@@ -665,12 +666,11 @@ class DOPESHEET_MT_key(Menu):
         layout.operator_menu_enum("action.mirror", "type", text="Mirror")
 
         layout.separator()
+        layout.operator("action.frame_jump", text="Jump to Selected")
+
+        layout.separator()
         layout.operator("action.keyframe_insert")
 
-        layout.separator()
-        layout.operator("action.frame_jump")
-
-        layout.separator()
         layout.operator("action.copy")
         layout.operator("action.paste")
         layout.operator("action.paste", text="Paste Flipped").flipped = True
@@ -1060,7 +1060,7 @@ class DOPESHEET_PT_overlay(Panel):
     bl_space_type = 'DOPESHEET_EDITOR'
     bl_region_type = 'HEADER'
     bl_label = "Overlays"
-    bl_ui_units_x = 13
+    bl_ui_units_x = 10
 
     def draw(self, _context):
         pass
@@ -1071,6 +1071,7 @@ class DOPESHEET_PT_dopesheet_overlay(Panel):
     bl_region_type = 'HEADER'
     bl_parent_id = "DOPESHEET_PT_overlay"
     bl_label = "Dope Sheet Overlays"
+    bl_options = {'HIDE_HEADER'}
 
     def draw(self, context):
         st = context.space_data

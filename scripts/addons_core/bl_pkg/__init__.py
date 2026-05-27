@@ -486,7 +486,8 @@ def remote_asset_library_sync(
 
 
 def _remote_asset_library_sync_done(downloader: _RemoteAssetListingDownloader) -> None:
-    """Called when the downloading of hte remote asset listing is done.
+    """
+    Called when the downloading of the remote asset listing is done.
 
     Here "done" does not imply "successful", as cancellations, network errors,
     or other issues can cause things to abort. In that case, this function is
@@ -535,6 +536,8 @@ def _remote_asset_library_sync_all_periodic():
         return
 
     for asset_lib in bpy.context.preferences.filepaths.asset_libraries:
+        if not asset_lib.enabled:
+            continue
         remote_asset_library_sync(asset_lib.remote_url, Path(asset_lib.path),
                                   only_if_older_than_sec=REMOTE_ASSET_LIBS_AUTOSYNC_PERIOD_SEC)
 

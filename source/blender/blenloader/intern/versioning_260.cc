@@ -1100,7 +1100,7 @@ static void do_versions_nodetree_customnodes(bNodeTree *ntree, int /*is_group*/)
   {
     for (bNode &node : ntree->nodes) {
       for (bNodeSocket &sock : node.inputs) {
-        STRNCPY_UTF8(sock.identifier, sock.name);
+        version_node_socket_identifier_set(sock, sock.name);
         BLI_uniquename(&node.inputs,
                        &sock,
                        "socket",
@@ -1109,7 +1109,7 @@ static void do_versions_nodetree_customnodes(bNodeTree *ntree, int /*is_group*/)
                        sizeof(sock.identifier));
       }
       for (bNodeSocket &sock : node.outputs) {
-        STRNCPY_UTF8(sock.identifier, sock.name);
+        version_node_socket_identifier_set(sock, sock.name);
         BLI_uniquename(&node.outputs,
                        &sock,
                        "socket",
@@ -1195,8 +1195,8 @@ static bool strip_colorbalance_update_cb(Strip *strip, void * /*user_data*/)
 
 static bool strip_set_alpha_mode_cb(Strip *strip, void * /*user_data*/)
 {
-  enum { SEQ_MAKE_PREMUL = (1 << 6) };
-  if (strip->flag & SEQ_MAKE_PREMUL) {
+  const eStripFlag make_premul = eStripFlag(1 << 6);
+  if (strip->flag & make_premul) {
     strip->alpha_mode = SEQ_ALPHA_STRAIGHT;
   }
   else {
@@ -1231,7 +1231,7 @@ static bNodeSocket *version_make_socket_stub(const char *idname,
 
   socket->limit = (in_out == SOCK_IN ? 1 : 0xFFF);
 
-  STRNCPY_UTF8(socket->identifier, identifier);
+  version_node_socket_identifier_set(*socket, identifier);
   STRNCPY_UTF8(socket->name, name);
   socket->storage = nullptr;
   socket->flag |= SOCK_COLLAPSED;
@@ -1496,7 +1496,7 @@ void blo_do_versions_260(FileData *fd, Library * /*lib*/, Main *bmain)
   else if (bmain->versionfile == 260 && bmain->subversionfile == 6) {
     for (Object &ob : bmain->objects) {
       if (is_zero_v3(ob.dscale)) {
-        copy_vn_fl(ob.dscale, 3, 1.0f);
+        std::fill_n(ob.dscale, 3, 1.0f);
       }
     }
   }

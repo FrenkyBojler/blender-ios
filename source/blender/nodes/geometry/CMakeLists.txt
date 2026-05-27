@@ -211,6 +211,7 @@ set(SRC
   nodes/node_geo_raycast.cc
   nodes/node_geo_realize_instances.cc
   nodes/node_geo_remove_attribute.cc
+  nodes/node_geo_rename_attribute.cc
   nodes/node_geo_repeat.cc
   nodes/node_geo_rotate_instances.cc
   nodes/node_geo_sample_grid.cc
@@ -218,6 +219,7 @@ set(SRC
   nodes/node_geo_sample_index.cc
   nodes/node_geo_sample_nearest.cc
   nodes/node_geo_sample_nearest_surface.cc
+  nodes/node_geo_sample_sound_frequencies.cc
   nodes/node_geo_sample_uv_surface.cc
   nodes/node_geo_scale_elements.cc
   nodes/node_geo_scale_instances.cc
@@ -234,7 +236,6 @@ set(SRC
   nodes/node_geo_separate_geometry.cc
   nodes/node_geo_set_curve_handles.cc
   nodes/node_geo_set_curve_normal.cc
-  nodes/node_geo_set_curve_order.cc
   nodes/node_geo_set_curve_radius.cc
   nodes/node_geo_set_curve_tilt.cc
   nodes/node_geo_set_geometry_bundle.cc
@@ -249,6 +250,8 @@ set(SRC
   nodes/node_geo_set_material.cc
   nodes/node_geo_set_material_index.cc
   nodes/node_geo_set_mesh_normal.cc
+  nodes/node_geo_set_nurbs_order.cc
+  nodes/node_geo_set_nurbs_weight.cc
   nodes/node_geo_set_point_radius.cc
   nodes/node_geo_set_position.cc
   nodes/node_geo_set_shade_smooth.cc
@@ -355,10 +358,6 @@ if(WITH_BULLET)
   list(APPEND INC
     ../../../../intern/rigidbody
   )
-endif()
-
-if(WITH_IMAGE_OPENEXR)
-  add_definitions(-DWITH_IMAGE_OPENEXR)
 endif()
 
 if(WITH_OPENSUBDIV)

@@ -14,6 +14,7 @@ set(LIB
   PRIVATE bf::bmesh
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
+  PRIVATE bf::functions
   PRIVATE bf::gpu
   PRIVATE bf::imbuf
   PRIVATE bf::imbuf::movie
@@ -22,7 +23,7 @@ set(LIB
   PRIVATE bf::render
   PRIVATE bf::sequencer
   PRIVATE bf::windowmanager
-  PRIVATE bf::dependencies::optional::opencolorio
+  PRIVATE bf::dependencies::opencolorio
 )
 
 if(HAVE_FEENABLEEXCEPT)
@@ -288,7 +289,7 @@ if(WITH_BUILDINFO)
   add_dependencies(buildinfoobj buildinfo)
 endif()
 
-add_cc_flags_custom_test(blender)
+add_c_and_cxx_flags_custom_test(blender)
 
 # message(STATUS "Configuring blender")
 if(WITH_PYTHON_MODULE)
@@ -545,12 +546,10 @@ if(WITH_INTERNATIONAL)
 endif()
 
 # Color management.
-if(WITH_OPENCOLORIO)
-  install(
-    DIRECTORY ${CMAKE_SOURCE_DIR}/release/datafiles/colormanagement
-    DESTINATION ${TARGETDIR_VER}/datafiles
-  )
-endif()
+install(
+  DIRECTORY ${CMAKE_SOURCE_DIR}/release/datafiles/colormanagement
+  DESTINATION ${TARGETDIR_VER}/datafiles
+)
 if(WIN32)
   if(EXISTS ${LIBDIR}/osl/lib/python${PYTHON_VERSION}/site-packages/oslquery) # 4.4+
     install(
@@ -691,7 +690,8 @@ endif()
 unset(_install_cmd)
 
 # macro to help install files without dragging in unnecessary data.
-macro(install_dir from to)
+# Install a directory, excluding common junk files.
+function(install_dir from to)
   install(
     DIRECTORY ${from}
     DESTINATION ${to}
@@ -718,7 +718,7 @@ macro(install_dir from to)
     PATTERN "turtle.py" EXCLUDE                 # ./turtle.py
     PATTERN "wininst*.exe" EXCLUDE              # from distutils, avoid malware false positive
   )
-endmacro()
+endfunction()
 
 # -----------------------------------------------------------------------------
 # Install Targets (Platform Specific)
@@ -1802,7 +1802,7 @@ endif()
 # the site-packages directory.
 if(WITH_PYTHON_MODULE AND LIBDIR AND NOT WIN32)
   # It's possible for a build using LIBDIR to reference a non-standard Python installation.
-  path_is_prefix(LIBDIR PYTHON_INCLUDE_DIR _is_python_in_libdir)
+  cmake_path(IS_PREFIX LIBDIR "${PYTHON_INCLUDE_DIR}" NORMALIZE _is_python_in_libdir)
   if(_is_python_in_libdir)
     install(
       DIRECTORY ${LIBDIR}/python/lib/python${PYTHON_VERSION}/site-packages/MaterialX
@@ -1928,10 +1928,7 @@ unset(LIB)
 
 setup_platform_linker_flags(blender)
 setup_platform_linker_libs(blender)
-
-if(DEFINED PLATFORM_SYMBOLS_MAP)
-  set_target_properties(blender PROPERTIES LINK_DEPENDS ${PLATFORM_SYMBOLS_MAP})
-endif()
+setup_platform_linker_symbol_hiding(blender)
 
 blender_target_include_dirs(blender ${INC})
 

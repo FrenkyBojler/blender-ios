@@ -295,6 +295,7 @@ void operatortypes_object()
   WM_operatortype_append(OBJECT_OT_camera_custom_update);
 
   object_modifier_add_asset_register();
+  collection_importer_register();
   collection_exporter_register();
 }
 
@@ -344,8 +345,9 @@ void keymap_object(wmKeyConfig *keyconf)
   keymap = WM_keymap_ensure(keyconf, "Object Mode", SPACE_EMPTY, RGN_TYPE_WINDOW);
   keymap->poll = object_mode_poll;
 
-  /* Modal keymaps */
+  /* Modal keymaps. */
   object_orbit_around_target_modal_keymap(keyconf);
+  object_transform_axis_target_modal_keymap(keyconf);
 }
 
 }  // namespace blender::ed::object

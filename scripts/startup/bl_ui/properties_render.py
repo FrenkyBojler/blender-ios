@@ -59,6 +59,7 @@ class RENDER_PT_color_management(RenderButtonsPanel, Panel):
     }
 
     def draw(self, context):
+        import gpu
 
         layout = self.layout
         layout.use_property_split = True
@@ -80,7 +81,11 @@ class RENDER_PT_color_management(RenderButtonsPanel, Panel):
         if view.is_hdr and not context.window.support_hdr_color:
             row = col.split(factor=0.4)
             row.label()
-            row.label(text="HDR display not supported", icon="INFO")
+
+            if gpu.platform.backend_type_get() == 'OPENGL':
+                row.label(text="HDR not supported with OpenGL backend", icon='INFO')
+            else:
+                row.label(text="HDR display not supported", icon='INFO')
 
         col = flow.column()
         col.prop(view, "exposure")
@@ -120,7 +125,11 @@ class RENDER_PT_color_management_working_space(RenderButtonsPanel, Panel):
             text_ctxt=i18n_contexts.default,
         )
 
-        col.prop(scene.sequencer_colorspace_settings, "name", text="Sequencer")
+        col.prop_with_menu(
+            scene.sequencer_colorspace_settings,
+            "name",
+            text="Sequencer",
+            menu="UI_MT_color_space_select")
 
 
 class RENDER_PT_color_management_advanced(RenderButtonsPanel, Panel):
@@ -808,6 +817,7 @@ class RENDER_PT_eevee_performance(RenderButtonsPanel, Panel):
         layout.use_property_decorate = False  # No animation.
 
         layout.prop(rd, "use_high_quality_normals")
+        layout.prop(rd, "anisotropic_filter")
 
 
 class CompositorPerformanceButtonsPanel:

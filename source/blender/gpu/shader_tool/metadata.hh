@@ -186,14 +186,37 @@ struct VertexInputs : std::vector<ParsedVertInput> {
   std::string serialize() const;
 };
 
+struct TemplateDefinition {
+  std::string identifier;
+  std::string name_space;
+  std::string definition;
+  std::string filepath;
+  size_t definition_line;
+  bool is_method;
+  bool is_static;
+  bool is_struct;
+
+  bool operator==(const TemplateDefinition &other) const
+  {
+    return std::tie(identifier, name_space) == std::tie(other.identifier, other.name_space);
+  }
+};
+
 struct Symbol {
   std::string identifier;
   std::string name_space;
   size_t definition_line;
   bool is_method;
+  bool is_static;
+  bool is_struct;
+  /* For structures only. */
+  std::vector<std::pair<std::string, std::string>> members;
 
   bool operator<(const Symbol &other) const
   {
+    if (is_static != other.is_static) {
+      return is_static > other.is_static;
+    }
     if (is_method != other.is_method) {
       /* Methods are supposed to have more precedence.
        * So make them smaller than anything else. */
@@ -207,6 +230,9 @@ struct Symbol {
     }
     if (identifier != other.identifier) {
       return identifier < other.identifier;
+    }
+    if (is_struct != other.is_struct) {
+      return is_struct < other.is_struct;
     }
     return false;
   }
@@ -228,6 +254,7 @@ struct Source {
   std::vector<FragmentOutputs> fragment_outputs;
   std::vector<VertexInputs> vertex_inputs;
   std::vector<Symbol> symbol_table;
+  std::vector<TemplateDefinition> template_definitions;
 
   /* Serialize Metadata for this source file. */
   std::string serialize(const std::string &function_name) const;
