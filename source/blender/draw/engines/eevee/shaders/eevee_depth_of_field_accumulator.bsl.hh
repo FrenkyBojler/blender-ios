@@ -10,7 +10,6 @@
  * One is for the half-resolution gather passes and the other one for slight in focus regions.
  */
 
-#include "draw_view_lib.glsl"
 #include "eevee_colorspace_lib.bsl.hh"
 #include "eevee_depth_of_field_lib.bsl.hh"
 #include "eevee_reverse_z_lib.bsl.hh"
@@ -65,6 +64,8 @@ struct Accumulator {
   [[sampler(5), condition(use_lut)]] sampler2D bokeh_lut_tx;
 
   [[uniform(0)]] const DepthOfFieldData &dof_buf;
+
+  [[resource_table]] srt_t<Sampling> sampling;
 
   /** \} */
 
@@ -438,7 +439,9 @@ struct Accumulator {
                               float &out_weight,
                               float2 &out_occlusion)
   {
-    float2 noise_offset = sampling_rng_2D_get(SAMPLING_LENS_U);
+    [[resource_table]] const Sampling &samp = sampling;
+
+    float2 noise_offset = samp.rng_2D_get(SAMPLING_LENS_U);
     float2 noise = no_gather_random ?
                        float2(0.0f, 0.0f) :
                        float2(interleaved_gradient_noise(frag_coord, 0, noise_offset.x),
@@ -606,7 +609,8 @@ struct Accumulator {
                                float &out_weight,
                                float &out_center_coc)
   {
-    float2 noise_offset = sampling_rng_2D_get(SAMPLING_LENS_U);
+    [[resource_table]] const Sampling &samp = sampling;
+    float2 noise_offset = samp.rng_2D_get(SAMPLING_LENS_U);
     float2 noise = no_gather_random ?
                        float2(0.0f) :
                        float2(interleaved_gradient_noise(frag_coord, 3, noise_offset.x),

@@ -4,10 +4,9 @@
 
 #pragma once
 
-#include "infos/eevee_common_infos.hh"
+#include "draw_view_infos.hh"
 
 FRAGMENT_SHADER_CREATE_INFO(draw_view)
-FRAGMENT_SHADER_CREATE_INFO(eevee_volume_lib)
 
 #include "draw_view_lib.glsl"
 #include "eevee_light_data.bsl.hh"
@@ -21,7 +20,6 @@ namespace eevee::light {
 
 struct ShapeDisplayResources {
   [[legacy_info]] ShaderCreateInfo draw_view;
-  [[legacy_info]] ShaderCreateInfo eevee_volume_lib;
 };
 
 struct ShapeDisplayVertOut {
@@ -150,6 +148,8 @@ void shape_display_vert([[resource_table]] const ShapeDisplayResources & /*srt*/
 [[fragment]]
 void shape_display_frag([[resource_table]] const ShapeDisplayResources & /*srt*/,
                         [[resource_table]] const LightRenderData &lrd,
+                        [[resource_table]] const UnifiedVolumeData &volumes,
+                        [[resource_table]] const Uniform &uni,
                         [[frag_coord]] const float4 frag_co,
                         [[in]] const ShapeDisplayVertOut &v_out,
                         [[out]] ShapeDisplayFragOut &frag_out)
@@ -182,14 +182,13 @@ void shape_display_frag([[resource_table]] const ShapeDisplayResources & /*srt*/
 
   float depth = reverse_z::read(frag_co.z);
 
-  float2 uvs = frag_co.xy * uniform_buf.volumes.main_view_extent_inv;
+  float2 uvs = frag_co.xy * uni.uniform_buf.volumes.main_view_extent_inv;
   float3 radiance = v_out.radiance;
   if (is_spot_light(light_type)) {
     radiance *= light_spot_attenuation(light, -drw_world_incident_vector(P));
   }
 
-  VolumeResolveSample vol = volume_resolve(
-      float3(uvs, depth), volume_transmittance_tx, volume_scattering_tx);
+  VolumeResolveSample vol = volumes.resolve(float3(uvs, depth));
   frag_out.out_color = float4(radiance * vol.transmittance, 1.0f);
 }
 
