@@ -138,6 +138,11 @@ class AnimTransformable {
    * Returns a copy of the rotation in the mode the transformable is currently in.
    */
   Rotation get_rotation() const;
+  /**
+   * Returns a copy of the rotation for the given mode. This is *not* the current rotation
+   * converted to the given mode, but the values of the underlying rotation properties for the
+   * given mode.
+   */
   Rotation get_rotation_for_mode(eRotationModes mode) const;
   /**
    * Sets the rotation for the mode the transformable is currently in. If that doesn't match with

@@ -231,13 +231,13 @@ class KeyframeIterator {
  * \param ensure_range_start_key if set to true a key will be set at `range.min` regardless of a
  * key existing on that frame in the evaluation buffer.
  */
-static void convert_fcurves_rotation_mode(const Span<const FCurve *> evaluation_buffer,
-                                          const Span<FCurve *> insertion_buffer,
-                                          const eRotationModes from_mode,
-                                          const eRotationModes to_mode,
-                                          const Bounds<float> range,
-                                          const ed::AnimTransformable &transformable,
-                                          const bool ensure_range_start_key)
+static void convert_rotation_mode_range(const Span<const FCurve *> evaluation_buffer,
+                                        const Span<FCurve *> insertion_buffer,
+                                        const eRotationModes from_mode,
+                                        const eRotationModes to_mode,
+                                        const Bounds<float> range,
+                                        const ed::AnimTransformable &transformable,
+                                        const bool ensure_range_start_key)
 {
   /* Filling the array with the current values to have good base values in case not every array
    * index is keyed. */
@@ -309,11 +309,11 @@ static void remove_rotation_fcurves(const ed::AnimTransformable &transformable,
   rotation_fcurves->clear();
 }
 
-static bool convert_rotation_mode_ranges(animrig::Channelbag &channelbag,
-                                         RNAFCurveMap &fcu_map,
-                                         const eRotationModes to_mode,
-                                         const Span<std::pair<float, eRotationModes>> ranges,
-                                         const ed::AnimTransformable &transformable)
+static bool convert_rotation_mode_channelbag(animrig::Channelbag &channelbag,
+                                             RNAFCurveMap &fcu_map,
+                                             const eRotationModes to_mode,
+                                             const Span<std::pair<float, eRotationModes>> ranges,
+                                             const ed::AnimTransformable &transformable)
 {
   const int insertion_buffer_count = to_mode > ROT_MODE_QUAT ? 3 : 4;
   Array<FCurve *> insertion_buffer(insertion_buffer_count);
@@ -358,7 +358,7 @@ static bool convert_rotation_mode_ranges(animrig::Channelbag &channelbag,
       range.max = ranges[i + 1].first;
     }
 
-    convert_fcurves_rotation_mode(
+    convert_rotation_mode_range(
         evaluation_buffer, insertion_buffer, from_mode, to_mode, range, transformable, i > 0);
 
     modified_keys = true;
@@ -388,7 +388,7 @@ static bool convert_rotation_mode_ranges(animrig::Channelbag &channelbag,
 }
 
 bool convert_rotation_keys(const ed::AnimTransformable &transformable,
-                           ChannelbagToFCurveMap &channelbag_fcurve_map,
+                           ChannelbagFCurveMap &channelbag_fcurve_map,
                            const eRotationModes to_mode)
 {
   bool modified_keys = false;
@@ -412,7 +412,7 @@ bool convert_rotation_keys(const ed::AnimTransformable &transformable,
       rotation_mode_ranges = {{0, transformable.get_rotation_mode()}};
     }
 
-    modified_keys |= convert_rotation_mode_ranges(
+    modified_keys |= convert_rotation_mode_channelbag(
         *channelbag, fcu_map, to_mode, rotation_mode_ranges, transformable);
 
     if (rotation_mode_fcurve && rotation_mode_fcurve->bezt) {
@@ -432,10 +432,10 @@ static bool is_rotation_mode_path(const StringRefNull rna_path)
   return rna_path.substr(start_of_propname, rna_path.size()) == "rotation_mode";
 }
 
-ChannelbagToFCurveMap build_rotation_fcurve_map(animrig::Action &action,
-                                                const animrig::slot_handle_t slot_handle)
+ChannelbagFCurveMap build_rotation_fcurve_map(animrig::Action &action,
+                                              const animrig::slot_handle_t slot_handle)
 {
-  ChannelbagToFCurveMap rotation_map;
+  ChannelbagFCurveMap rotation_map;
   for (animrig::Channelbag *channelbag : channelbags_for_action_slot(action, slot_handle)) {
     RNAFCurveMap &curves = rotation_map.lookup_or_add(channelbag, {});
     for (FCurve *fcurve : channelbag->fcurves()) {
@@ -450,7 +450,7 @@ ChannelbagToFCurveMap build_rotation_fcurve_map(animrig::Action &action,
   return rotation_map;
 }
 
-void bake_rotation_fcurves(const ChannelbagToFCurveMap &channelbag_fcurve_map,
+void bake_rotation_fcurves(const ChannelbagFCurveMap &channelbag_fcurve_map,
                            const ed::AnimTransformable &transformable)
 {
   /* Need to bake on all potential FCurves to cover for an animated rotation mode. */
@@ -485,7 +485,7 @@ void convert_to_rotation_mode(bContext &C,
     return;
   }
   /* A map built per action to make it quicker to find the FCurves by RNA path. */
-  Map<std::pair<animrig::Action *, int32_t>, ChannelbagToFCurveMap> data_map;
+  Map<std::pair<animrig::Action *, int32_t>, ChannelbagFCurveMap> data_map;
 
   bool converted_actions = false;
   animrig::foreach_action_slot_use(
@@ -495,10 +495,10 @@ void convert_to_rotation_mode(bContext &C,
           return true;
         }
         if (!data_map.contains({&action, slot_handle})) {
-          ChannelbagToFCurveMap fcurve_map = build_rotation_fcurve_map(action, slot_handle);
+          ChannelbagFCurveMap fcurve_map = build_rotation_fcurve_map(action, slot_handle);
           data_map.add({&action, slot_handle}, fcurve_map);
         }
-        ChannelbagToFCurveMap &channelbag_fcurve_map = data_map.lookup({&action, slot_handle});
+        ChannelbagFCurveMap &channelbag_fcurve_map = data_map.lookup({&action, slot_handle});
         if (bake) {
           bake_rotation_fcurves(channelbag_fcurve_map, transformable);
         }

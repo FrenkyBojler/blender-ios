@@ -443,18 +443,13 @@ const TransformFloatPtrs *AnimTransformable::get_rotation_array_from_mode(
 
 Rotation AnimTransformable::get_rotation() const
 {
-  Rotation rotation;
-  rotation.mode = *rotation_mode_;
-  const TransformFloatPtrs *rotations_array = get_rotation_array_from_mode(rotation.mode);
-  BLI_assert(rotations_array != nullptr);
-  rotation.values = copy_pointers_to_values(*rotations_array);
-  return rotation;
+  return get_rotation_for_mode(*rotation_mode_);
 }
 
 Rotation AnimTransformable::get_rotation_for_mode(const eRotationModes mode) const
 {
   Rotation rotation;
-  rotation.mode = eRotationModes(mode);
+  rotation.mode = mode;
   const Array<float *> *rotations_array = get_rotation_array_from_mode(mode);
   BLI_assert(rotations_array != nullptr);
   rotation.values = copy_pointers_to_values(*rotations_array);

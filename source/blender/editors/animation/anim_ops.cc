@@ -1611,7 +1611,7 @@ static wmOperatorStatus rotation_mode_convert_exec(bContext *C, wmOperator *op)
   ID *prev_id = nullptr;
 
   /* A map built per action to make it quicker to find the FCurves by RNA path. */
-  Map<std::pair<animrig::Action *, int32_t>, ChannelbagToFCurveMap> data_map;
+  Map<std::pair<animrig::Action *, int32_t>, ChannelbagFCurveMap> data_map;
   int skipped_datablocks = 0;
   int skipped_actions = 0;
 
@@ -1633,10 +1633,10 @@ static wmOperatorStatus rotation_mode_convert_exec(bContext *C, wmOperator *op)
             return true;
           }
           if (!data_map.contains({&action, slot_handle})) {
-            ChannelbagToFCurveMap fcurve_map = build_rotation_fcurve_map(action, slot_handle);
+            ChannelbagFCurveMap fcurve_map = build_rotation_fcurve_map(action, slot_handle);
             data_map.add({&action, slot_handle}, fcurve_map);
           }
-          ChannelbagToFCurveMap &channelbag_fcurve_map = data_map.lookup({&action, slot_handle});
+          ChannelbagFCurveMap &channelbag_fcurve_map = data_map.lookup({&action, slot_handle});
           if (bake) {
             bake_rotation_fcurves(channelbag_fcurve_map, transformable);
           }
@@ -1656,13 +1656,8 @@ static wmOperatorStatus rotation_mode_convert_exec(bContext *C, wmOperator *op)
     }
 
     if (prev_id != owner_id) {
-      /* Notifiers and updates. */
       DEG_id_tag_update(transformable.owner_id(), ID_RECALC_GEOMETRY);
-      if (GS(owner_id->name) == ID_OB) {
-        Object *ob = id_cast<Object *>(owner_id);
-        WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, ob);
-        WM_event_add_notifier(C, NC_OBJECT | ND_POSE, ob);
-      }
+      WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_ADDED, nullptr);
       prev_id = owner_id;
     }
   }

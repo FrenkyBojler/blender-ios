@@ -1336,7 +1336,7 @@ class SortedFCurveBuffer {
 /* FCurves grouped by their RNA path. */
 using RNAFCurveMap = Map<StringRefNull, SortedFCurveBuffer>;
 /* For each Channelbag FCurves grouped by their RNA path. */
-using ChannelbagToFCurveMap = Map<animrig::Channelbag *, RNAFCurveMap>;
+using ChannelbagFCurveMap = Map<animrig::Channelbag *, RNAFCurveMap>;
 
 /**
  * Convert any keyframe data for the given transformable to the given rotation mode.
@@ -1345,20 +1345,20 @@ using ChannelbagToFCurveMap = Map<animrig::Channelbag *, RNAFCurveMap>;
  * \returns true if any animation data was modified.
  */
 bool convert_rotation_keys(const ed::AnimTransformable &transformable,
-                           ChannelbagToFCurveMap &fcurves_by_rna_path,
+                           ChannelbagFCurveMap &channelbag_fcurve_map,
                            eRotationModes to_mode);
 
 /**
  * Creates a map of RNA paths and the rotation FCurves associated with that rna path.
  * That means `rotation_euler` and `rotation_quaternion` will have different entries in the map.
  */
-ChannelbagToFCurveMap build_rotation_fcurve_map(animrig::Action &action,
-                                                animrig::slot_handle_t slot_handle);
+ChannelbagFCurveMap build_rotation_fcurve_map(animrig::Action &action,
+                                              animrig::slot_handle_t slot_handle);
 
 /**
  * Bake all existing rotation fcurves for the given `transformable`.
  */
-void bake_rotation_fcurves(const ChannelbagToFCurveMap &channelbag_fcurve_map,
+void bake_rotation_fcurves(const ChannelbagFCurveMap &channelbag_fcurve_map,
                            const ed::AnimTransformable &transformable);
 
 /**
