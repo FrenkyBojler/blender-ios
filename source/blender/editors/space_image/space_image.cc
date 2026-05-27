@@ -871,7 +871,7 @@ static void image_main_region_draw(const bContext *C, ARegion *region)
 
 static void hud_region_update(ScrArea *area, ARegion *region)
 {
-  SpaceImage *sima = static_cast<SpaceImage *>(area->spacedata.first);
+  const SpaceImage *sima = static_cast<SpaceImage *>(area->spacedata.first);
   if (sima->mode == SI_MODE_MASK && ED_space_image_get_mask(sima)) {
     ED_area_tag_region_hud_size_update(area, region, true);
     return;
