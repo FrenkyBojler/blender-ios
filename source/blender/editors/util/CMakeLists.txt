@@ -28,6 +28,7 @@ set(SRC
   # general includes
   ../include/BIF_glutil.hh
   ../include/ED_anim_api.hh
+  ../include/ED_anim_transformable.hh
   ../include/ED_armature.hh
   ../include/ED_asset.hh
   ../include/ED_asset_menu_utils.hh
@@ -96,6 +97,8 @@ set(SRC
   ../include/UI_interface.hh
   ../include/UI_interface_c.hh
   ../include/UI_interface_icons.hh
+  ../include/UI_interface_layout.hh
+  ../include/UI_interface_types.hh
   ../include/UI_resources.hh
   ../include/UI_string_search.hh
   ../include/UI_tree_view.hh

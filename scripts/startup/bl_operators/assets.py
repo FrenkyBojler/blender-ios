@@ -25,7 +25,7 @@ class AssetBrowserMetadataOperator:
 
         if not context.asset.local_id:
             Operator.poll_message_set(
-                "Asset metadata from external asset libraries can't be "
+                "Asset metadata from external asset libraries cannot be "
                 "edited, only assets stored in the current file can"
             )
             return False
@@ -91,6 +91,9 @@ class ASSET_OT_open_containing_blend_file(Operator):
             return False
         if asset.local_id:
             cls.poll_message_set("Selected asset is contained in the current file")
+            return False
+        if asset.is_online:
+            cls.poll_message_set("Selected asset is stored online")
             return False
         # This could become a built-in query, for now this is good enough.
         if asset.full_library_path.endswith(".asset.blend"):

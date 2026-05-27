@@ -10,9 +10,9 @@ import bpy
 sys.path.append(os.path.dirname(os.path.realpath(__file__)))
 from modules.mesh_test import BlendFileTest
 
-if "closure" in bpy.data.filepath:
+if "bake_anonymous_attribute_reference" in bpy.data.filepath:
     if bpy.app.version_cycle == "alpha":
-        bpy.context.preferences.experimental.use_bundle_and_closure_nodes = True
+        bpy.context.preferences.experimental.use_geometry_bundle = True
     else:
         print("Skipped because bundles and closures are still experimental.")
         sys.exit(0)

@@ -2,6 +2,8 @@
  *
  * SPDX-License-Identifier: Apache-2.0 */
 
+#include <cstdint> /* Needed before `sdlexec.h` for `int32_t` with GCC 15.1. */
+
 #include <OSL/oslexec.h>
 
 #include "kernel/osl/globals.h"
@@ -11,7 +13,8 @@ CCL_NAMESPACE_BEGIN
 OSLThreadData::OSLThreadData(OSLGlobals *osl_globals, const int thread_index)
     : globals(osl_globals), thread_index(thread_index)
 {
-  if (globals == nullptr || globals->use == false) {
+  /* If OSL is not used, we don't need this. */
+  if (globals == nullptr || !(globals->use_shading || globals->use_camera)) {
     return;
   }
 
@@ -20,9 +23,12 @@ OSLThreadData::OSLThreadData(OSLGlobals *osl_globals, const int thread_index)
   memset((void *)&shader_globals, 0, sizeof(shader_globals));
   shader_globals.tracedata = &tracedata;
 
-  osl_thread_info = ss->create_thread_info();
-  context = ss->get_context(osl_thread_info);
-  oiio_thread_info = globals->ts->get_perthread_info();
+  if (ss) {
+    osl_thread_info = ss->create_thread_info();
+    /* Dummy texture thread info, we don't need it. */
+    context = ss->get_context(osl_thread_info,
+                              reinterpret_cast<OSL::TextureSystem::Perthread *>(1));
+  }
 }
 
 OSLThreadData::~OSLThreadData()
@@ -42,8 +48,7 @@ OSLThreadData::OSLThreadData(OSLThreadData &&other) noexcept
       shader_globals(other.shader_globals),
       tracedata(other.tracedata),
       osl_thread_info(other.osl_thread_info),
-      context(other.context),
-      oiio_thread_info(other.oiio_thread_info)
+      context(other.context)
 {
   shader_globals.tracedata = &tracedata;
 
@@ -52,7 +57,6 @@ OSLThreadData::OSLThreadData(OSLThreadData &&other) noexcept
   other.thread_index = -1;
   other.context = nullptr;
   other.osl_thread_info = nullptr;
-  other.oiio_thread_info = nullptr;
 }
 
 CCL_NAMESPACE_END

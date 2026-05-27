@@ -2,7 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "infos/overlay_edit_mode_info.hh"
+#include "infos/overlay_edit_mode_infos.hh"
 
 FRAGMENT_SHADER_CREATE_INFO(overlay_edit_uv_verts)
 
@@ -25,10 +25,10 @@ void main()
   float midStroke = 0.5f * (radii[1] + radii[2]);
 
   if (dist > midStroke) {
-    fragColor.rgb = outlineColor.rgb;
-    fragColor.a = mix(outlineColor.a, 0.0f, smoothstep(radii[1], radii[0], dist));
+    frag_color.rgb = outline_color.rgb;
+    frag_color.a = mix(outline_color.a, 0.0f, smoothstep(radii[1], radii[0], dist));
   }
   else {
-    fragColor = mix(fillColor, outlineColor, smoothstep(radii[3], radii[2], dist));
+    frag_color = mix(fill_color, outline_color, smoothstep(radii[3], radii[2], dist));
   }
 }

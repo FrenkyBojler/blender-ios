@@ -6,9 +6,6 @@ set(INC
   ../include
   ../../blenfont
   ../../makesrna
-
-  ../../../../extern/fmtlib/include
-
   # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
@@ -41,6 +38,7 @@ set(SRC
   tree/tree_display_sequencer.cc
   tree/tree_display_view_layer.cc
   tree/tree_element.cc
+  tree/tree_element_action_slot.cc
   tree/tree_element_anim_data.cc
   tree/tree_element_bone.cc
   tree/tree_element_bone_collection.cc
@@ -53,6 +51,7 @@ set(SRC
   tree/tree_element_gpencil_layer.cc
   tree/tree_element_grease_pencil_node.cc
   tree/tree_element_id.cc
+  tree/tree_element_id_action.cc
   tree/tree_element_id_armature.cc
   tree/tree_element_id_collection.cc
   tree/tree_element_id_curve.cc
@@ -77,6 +76,7 @@ set(SRC
   tree/tree_element_rna.cc
   tree/tree_element_scene_objects.cc
   tree/tree_element_seq.cc
+  tree/tree_element_shapekey.cc
   tree/tree_element_view_collection.cc
   tree/tree_element_view_layer.cc
   tree/tree_iterator.cc
@@ -85,6 +85,7 @@ set(SRC
   tree/common.hh
   tree/tree_display.hh
   tree/tree_element.hh
+  tree/tree_element_action_slot.hh
   tree/tree_element_anim_data.hh
   tree/tree_element_bone.hh
   tree/tree_element_bone_collection.hh
@@ -97,6 +98,7 @@ set(SRC
   tree/tree_element_gpencil_layer.hh
   tree/tree_element_grease_pencil_node.hh
   tree/tree_element_id.hh
+  tree/tree_element_id_action.hh
   tree/tree_element_id_armature.hh
   tree/tree_element_id_collection.hh
   tree/tree_element_id_curve.hh
@@ -121,6 +123,7 @@ set(SRC
   tree/tree_element_rna.hh
   tree/tree_element_scene_objects.hh
   tree/tree_element_seq.hh
+  tree/tree_element_shapekey.hh
   tree/tree_element_view_collection.hh
   tree/tree_element_view_layer.hh
   tree/tree_iterator.hh
@@ -143,7 +146,6 @@ set(LIB
   PRIVATE bf::nodes
   PRIVATE bf::sequencer
   PRIVATE bf::windowmanager
-  extern_fmtlib
 )
 
 

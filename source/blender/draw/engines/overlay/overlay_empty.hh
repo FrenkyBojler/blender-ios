@@ -125,6 +125,13 @@ class Empties : Overlay {
       image_sync(ob_ref, select_id, manager, res, state, call_buffers_.image_buf);
       return;
     }
+    /* Only draw the empty overlay if the evaluated geometry set is empty. Since we draw overlays
+     * for e.g. generated geometry, it is redundant to draw the empty overlay here. */
+    if (ob_ref.object->runtime->geometry_set_eval &&
+        !ob_ref.object->runtime->geometry_set_eval->is_empty())
+    {
+      return;
+    }
     object_sync(select_id,
                 ob_ref.object->object_to_world(),
                 ob_ref.object->empty_drawsize,
@@ -265,8 +272,8 @@ class Empties : Overlay {
                   EmptyInstanceBuf &empty_image_buf)
   {
     Object *ob = ob_ref.object;
-    GPUTexture *tex = nullptr;
-    ::Image *ima = static_cast<::Image *>(ob_ref.object->data);
+    gpu::Texture *tex = nullptr;
+    blender::Image *ima = id_cast<blender::Image *>(ob_ref.object->data);
     float4x4 mat;
 
     const bool show_frame = BKE_object_empty_image_frame_is_visible_in_view3d(ob, state.rv3d);
@@ -281,7 +288,7 @@ class Empties : Overlay {
     }
 
     {
-      /* Calling 'BKE_image_get_size' may free the texture. Get the size from 'tex' instead,
+      /* Calling #BKE_image_get_size may free the texture. Get the size from 'tex' instead,
        * see: #59347 */
       int2 size = int2(0);
       if (ima != nullptr) {
@@ -313,16 +320,17 @@ class Empties : Overlay {
     if (show_image && tex && ((ob->color[3] > 0.0f) || !use_alpha_blend)) {
       /* Use the actual depth if we are doing depth tests to determine the distance to the
        * object. */
-      char depth_mode = state.is_depth_only_drawing ? char(OB_EMPTY_IMAGE_DEPTH_DEFAULT) :
-                                                      ob->empty_image_depth;
+      const eObject_EmptyImageDepth depth_mode = state.is_depth_only_drawing ?
+                                                     OB_EMPTY_IMAGE_DEPTH_DEFAULT :
+                                                     ob->empty_image_depth;
       PassMain::Sub &pass = create_subpass(state, *ob, use_alpha_blend, mat, res);
-      pass.bind_texture("imgTexture", tex);
-      pass.push_constant("imgPremultiplied", use_alpha_premult);
-      pass.push_constant("imgAlphaBlend", use_alpha_blend);
-      pass.push_constant("isCameraBackground", false);
-      pass.push_constant("depthSet", depth_mode != OB_EMPTY_IMAGE_DEPTH_DEFAULT);
+      pass.bind_texture("img_tx", tex);
+      pass.push_constant("img_premultiplied", use_alpha_premult);
+      pass.push_constant("img_alpha_blend", use_alpha_blend);
+      pass.push_constant("is_camera_background", false);
+      pass.push_constant("depth_set", depth_mode != OB_EMPTY_IMAGE_DEPTH_DEFAULT);
       pass.push_constant("ucolor", float4(ob->color));
-      ResourceHandle res_handle = manager.resource_handle(mat);
+      ResourceHandleRange res_handle = manager.resource_handle(mat);
       pass.draw(res.shapes.quad_solid.get(), res_handle, select_id.get());
     }
   }
@@ -337,8 +345,9 @@ class Empties : Overlay {
     if (in_front) {
       return create_subpass(state, mat, res, images_front_ps_, true);
     }
-    const char depth_mode = state.is_depth_only_drawing ? char(OB_EMPTY_IMAGE_DEPTH_DEFAULT) :
-                                                          ob.empty_image_depth;
+    const eObject_EmptyImageDepth depth_mode = state.is_depth_only_drawing ?
+                                                   OB_EMPTY_IMAGE_DEPTH_DEFAULT :
+                                                   ob.empty_image_depth;
     switch (depth_mode) {
       case OB_EMPTY_IMAGE_DEPTH_BACK:
         return create_subpass(state, mat, res, images_back_ps_, false);
@@ -372,7 +381,7 @@ class Empties : Overlay {
     return sub;
   };
 
-  static void calc_image_aspect(::Image *ima, const int2 &size, float2 &r_image_aspect)
+  static void calc_image_aspect(blender::Image *ima, const int2 &size, float2 &r_image_aspect)
   {
     /* if no image, make it a 1x1 empty square, honor scale & offset */
     const float2 ima_dim = ima ? float2(size.x, size.y) : float2(1.0f);

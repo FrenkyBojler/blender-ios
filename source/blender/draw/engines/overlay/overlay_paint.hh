@@ -116,7 +116,7 @@ class Paints : Overlay {
         sub.shader_set(shadeless ? res.shaders->paint_weight.get() :
                                    res.shaders->paint_weight_fake_shading.get());
         sub.bind_texture("colorramp", &res.weight_ramp_tx);
-        sub.push_constant("drawContours", draw_contours);
+        sub.push_constant("draw_contours", draw_contours);
         sub.push_constant("opacity", state.overlay.weight_paint_mode_opacity);
         if (!shadeless) {
           /* Arbitrary light to give a hint of the geometry behind the weights. */
@@ -139,7 +139,7 @@ class Paints : Overlay {
       if (show_paint_mask_) {
         const bool mask_premult = (paint_settings.stencil->alpha_mode == IMA_ALPHA_PREMUL);
         const bool mask_inverted = (paint_settings.flag & IMAGEPAINT_PROJECT_LAYER_STENCIL_INV);
-        GPUTexture *mask_texture = BKE_image_get_gpu_texture(paint_settings.stencil, nullptr);
+        gpu::Texture *mask_texture = BKE_image_get_gpu_texture(paint_settings.stencil, nullptr);
 
         auto &pass = paint_mask_ps_;
         pass.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_DEPTH_EQUAL | DRW_STATE_BLEND_ALPHA,
@@ -147,10 +147,10 @@ class Paints : Overlay {
         pass.shader_set(res.shaders->paint_texture.get());
         pass.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
         pass.bind_ubo(DRW_CLIPPING_UBO_SLOT, &res.clip_planes_buf);
-        pass.bind_texture("maskImage", mask_texture);
+        pass.bind_texture("mask_image", mask_texture);
         pass.push_constant("maskPremult", mask_premult);
-        pass.push_constant("maskInvertStencil", mask_inverted);
-        pass.push_constant("maskColor", float3(paint_settings.stencil_col));
+        pass.push_constant("mask_invert_stencil", mask_inverted);
+        pass.push_constant("mask_color", float3(paint_settings.stencil_col));
         pass.push_constant("opacity", state.overlay.texture_paint_mode_opacity);
       }
     }
@@ -233,16 +233,16 @@ class Paints : Overlay {
       const bool in_texture_paint_mode = state.ctx_mode == CTX_MODE_PAINT_TEXTURE;
 
       if ((use_face_selection || show_wires_) && !in_texture_paint_mode) {
-        gpu::Batch *geom = DRW_cache_mesh_surface_edges_get(ob_ref.object);
-        paint_region_edge_ps_->push_constant("useSelect", use_face_selection);
+        gpu::Batch *geom = DRW_cache_mesh_paint_overlay_edges_get(ob_ref.object);
+        paint_region_edge_ps_->push_constant("use_select", use_face_selection);
         paint_region_edge_ps_->draw(geom, manager.unique_handle(ob_ref));
       }
       if (use_face_selection) {
-        gpu::Batch *geom = DRW_cache_mesh_surface_get(ob_ref.object);
+        gpu::Batch *geom = DRW_cache_mesh_paint_overlay_surface_get(ob_ref.object);
         paint_region_face_ps_->draw(geom, manager.unique_handle(ob_ref));
       }
       if (use_vert_selection && !in_texture_paint_mode) {
-        gpu::Batch *geom = DRW_cache_mesh_all_verts_get(ob_ref.object);
+        gpu::Batch *geom = DRW_cache_mesh_paint_overlay_verts_get(ob_ref.object);
         paint_region_vert_ps_->draw(geom, manager.unique_handle(ob_ref));
       }
     }

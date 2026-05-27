@@ -6,46 +6,58 @@
 
 namespace blender::gpu {
 
-GPUWorker::GPUWorker(uint32_t threads_count, bool share_context, std::function<void()> run_cb)
+GPUWorker::GPUWorker(uint32_t threads_count, ContextType context_type, WorkCallback callback)
+    : callback_(callback)
 {
-  std::shared_ptr<GPUSecondaryContext> shared_context = nullptr;
-  if (share_context) {
-    shared_context = std::make_shared<GPUSecondaryContext>();
-  }
+  work_queue_ = BLI_thread_queue_init();
 
   for (int i : IndexRange(threads_count)) {
     UNUSED_VARS(i);
     std::shared_ptr<GPUSecondaryContext> thread_context =
-        share_context ? shared_context : std::make_shared<GPUSecondaryContext>();
-    threads_.append(std::make_unique<std::thread>([=]() { this->run(thread_context, run_cb); }));
+        context_type == ContextType::PerThread ? std::make_shared<GPUSecondaryContext>() : nullptr;
+    threads_.append(
+        std::make_unique<std::thread>([this, thread_context]() { this->run(thread_context); }));
   }
 }
 
 GPUWorker::~GPUWorker()
 {
-  terminate_ = true;
-  condition_var_.notify_all();
+  /* Any work left should have been cancelled at this point. */
+  BLI_assert(BLI_thread_queue_is_empty(work_queue_));
+  /* Signal background threads to stop waiting for new tasks if none are left. */
+  BLI_thread_queue_nowait(work_queue_);
+  /* But we still wait, in case the above assert fails. */
+  BLI_thread_queue_wait_finish(work_queue_);
   for (std::unique_ptr<std::thread> &thread : threads_) {
     thread->join();
   }
+  BLI_thread_queue_free(work_queue_);
 }
 
-void GPUWorker::run(std::shared_ptr<GPUSecondaryContext> context, std::function<void()> run_cb)
+WorkID GPUWorker::push_work(void *work, ThreadQueueWorkPriority priority)
 {
-  context->activate();
+  return BLI_thread_queue_push(work_queue_, work, priority);
+}
 
-  /* Loop until we get the terminate signal. */
-  while (!terminate_) {
-    {
-      /* Wait until wake_up() */
-      std::unique_lock<std::mutex> lock(mutex_);
-      condition_var_.wait(lock);
-    }
-    if (terminate_) {
-      continue;
-    }
+bool GPUWorker::cancel_work(WorkID id)
+{
+  return BLI_thread_queue_cancel_work(work_queue_, id);
+}
 
-    run_cb();
+bool GPUWorker::is_empty()
+{
+  return BLI_thread_queue_is_empty(work_queue_);
+}
+
+void GPUWorker::run(std::shared_ptr<GPUSecondaryContext> context)
+{
+  if (context) {
+    context->activate();
+  }
+
+  /* Loop until the queue is cancelled. */
+  while (void *work = BLI_thread_queue_pop(work_queue_)) {
+    callback_(work);
   }
 }
 

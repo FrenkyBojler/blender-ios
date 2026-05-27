@@ -2,7 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "infos/overlay_armature_info.hh"
+#include "infos/overlay_armature_infos.hh"
 
 VERTEX_SHADER_CREATE_INFO(overlay_armature_envelope_solid)
 
@@ -43,10 +43,10 @@ void main()
   sp = bone_mat * sp.xzy + data_buf[gl_InstanceID].head_sphere.xyz;
   nor = bone_mat * nor.xzy;
 
-  normalView = to_float3x3(drw_view().viewmat) * nor;
+  view_normal = to_float3x3(drw_view().viewmat) * nor;
 
-  finalStateColor = data_buf[gl_InstanceID].state_color.xyz;
-  finalBoneColor = data_buf[gl_InstanceID].bone_color_and_wire_width.xyz;
+  final_state_color = data_buf[gl_InstanceID].state_color.xyz;
+  final_bone_color = data_buf[gl_InstanceID].bone_color_and_wire_width.xyz;
 
   view_clipping_distances(sp);
 

@@ -2,7 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "infos/overlay_edit_mode_info.hh"
+#include "infos/overlay_edit_mode_infos.hh"
 
 VERTEX_SHADER_CREATE_INFO(overlay_edit_mesh_analysis)
 
@@ -21,7 +21,7 @@ float3 weight_to_rgb(float t)
     return float3(1.0f, 0.0f, 1.0f);
   }
   else {
-    return texture(weightTex, t).rgb;
+    return texture(weight_tx, t).rgb;
   }
 }
 
@@ -29,7 +29,7 @@ void main()
 {
   float3 world_pos = drw_point_object_to_world(pos);
   gl_Position = drw_point_world_to_homogenous(world_pos);
-  weightColor = float4(weight_to_rgb(weight), 1.0f);
+  weight_color = float4(weight_to_rgb(weight), 1.0f);
 
   view_clipping_distances(world_pos);
 }

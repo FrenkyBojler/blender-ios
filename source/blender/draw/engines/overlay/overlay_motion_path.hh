@@ -114,7 +114,7 @@ class MotionPath : Overlay {
     const bool show_frame_number = (avs.path_viewflag & MOTIONPATH_VIEW_FNUMS);
     const bool show_lines = (mpath->flag & MOTIONPATH_FLAG_LINES);
     const bool custom_color = (mpath->flag & MOTIONPATH_FLAG_CUSTOM);
-    const bool selected = (pchan) ? (pchan->bone->flag & BONE_SELECTED) :
+    const bool selected = (pchan) ? (pchan->flag & POSE_SELECTED) :
                                     (ob->base_flag & BASE_SELECTED);
 
     const float3 color_pre = custom_color ? float3(mpath->color) : float3(-1.0f);
@@ -123,16 +123,17 @@ class MotionPath : Overlay {
     int stride = max_ii(avs.path_step, 1);
     int current_frame = state.cfra;
 
+    /* Range of frames to draw the motion path on. Exclusive at the end. */
     IndexRange frame_range;
     {
       int start, end;
       if (avs.path_type == MOTIONPATH_TYPE_ACFRA) {
         start = current_frame - avs.path_bc;
-        end = current_frame + avs.path_ac;
+        end = current_frame + avs.path_ac + 1;
       }
       else {
         start = avs.path_sf;
-        end = avs.path_ef;
+        end = avs.path_ef + 1;
       }
 
       if (start > end) {
@@ -141,7 +142,7 @@ class MotionPath : Overlay {
       start = math::clamp(start, mpath->start_frame, mpath->end_frame);
       end = math::clamp(end, mpath->start_frame, mpath->end_frame);
 
-      frame_range = IndexRange::from_begin_end_inclusive(start, end);
+      frame_range = IndexRange::from_begin_end(start, end);
     }
 
     if (frame_range.is_empty()) {
@@ -154,7 +155,7 @@ class MotionPath : Overlay {
     if ((eMotionPath_BakeFlag(avs.path_bakeflag) & MOTIONPATH_BAKE_CAMERA_SPACE) &&
         state.v3d->camera)
     {
-      camera_eval = DEG_get_evaluated_object(state.depsgraph, state.v3d->camera);
+      camera_eval = DEG_get_evaluated(state.depsgraph, state.v3d->camera);
     }
 
     /* Draw curve-line of path. */
@@ -163,11 +164,11 @@ class MotionPath : Overlay {
           current_frame, int(frame_range.start()), int(frame_range.last()), mpath->start_frame);
 
       auto &sub = *line_ps_;
-      sub.push_constant("mpathLineSettings", motion_path_settings);
-      sub.push_constant("lineThickness", mpath->line_thickness);
+      sub.push_constant("mpath_line_settings", motion_path_settings);
+      sub.push_constant("line_thickness", mpath->line_thickness);
       sub.push_constant("selected", selected);
-      sub.push_constant("customColorPre", color_pre);
-      sub.push_constant("customColorPost", color_post);
+      sub.push_constant("custom_color_pre", color_pre);
+      sub.push_constant("custom_color_post", color_post);
       sub.push_constant("camera_space_matrix",
                         camera_eval ? camera_eval->object_to_world() : float4x4::identity());
 
@@ -182,10 +183,10 @@ class MotionPath : Overlay {
       const int4 motion_path_settings = {pt_size, current_frame, mpath->start_frame, stride};
 
       auto &sub = *vert_ps_;
-      sub.push_constant("mpathPointSettings", motion_path_settings);
-      sub.push_constant("showKeyFrames", show_keyframes);
-      sub.push_constant("customColorPre", color_pre);
-      sub.push_constant("customColorPost", color_post);
+      sub.push_constant("mpath_point_settings", motion_path_settings);
+      sub.push_constant("show_key_frames", show_keyframes);
+      sub.push_constant("custom_color_pre", color_pre);
+      sub.push_constant("custom_color_post", color_post);
       sub.push_constant("camera_space_matrix",
                         camera_eval ? camera_eval->object_to_world() : float4x4::identity());
 
@@ -198,13 +199,15 @@ class MotionPath : Overlay {
     if (show_frame_number || (show_keyframes_number && show_keyframes)) {
       uchar4 col, col_kf;
       /* Color Management: Exception here as texts are drawn in sRGB space directly. */
-      UI_GetThemeColor3ubv(TH_TEXT_HI, col);
-      UI_GetThemeColor3ubv(TH_VERTEX_SELECT, col_kf);
+      ui::theme::get_color_3ubv(TH_TEXT_HI, col);
+      ui::theme::get_color_3ubv(TH_VERTEX_SELECT, col_kf);
       col.w = col_kf.w = 255;
+
+      auto safe_index = [&](int index) { return math::clamp(index, 0, mpath->length - 1); };
 
       Span<bMotionPathVert> mpv(mpath->points, mpath->length);
       for (int i = 0; i < frame_range.size(); i += stride) {
-        const bMotionPathVert &mpv_curr = mpv[start_index + i];
+        const bMotionPathVert &mpv_curr = mpv[safe_index(start_index + i)];
 
         int frame = frame_range.start() + i;
         bool is_keyframe = (mpv_curr.flag & MOTIONPATH_VERT_KEY) != 0;
@@ -230,8 +233,8 @@ class MotionPath : Overlay {
                              (is_keyframe) ? col_kf : col);
         }
         else if (show_frame_number) {
-          const bMotionPathVert &mpv_prev = mpv[start_index + i - stride];
-          const bMotionPathVert &mpv_next = mpv[start_index + i + stride];
+          const bMotionPathVert &mpv_prev = mpv[safe_index(start_index + i - stride)];
+          const bMotionPathVert &mpv_next = mpv[safe_index(start_index + i + stride)];
           /* Only draw frame number if several consecutive highlighted points
            * don't occur on same point. */
           if (!math::is_equal(float3(mpv_curr.co), float3(mpv_prev.co)) ||
@@ -255,13 +258,13 @@ class MotionPath : Overlay {
 
   /* Just convert the CPU cache to GPU cache. */
   /* TODO(fclem) This should go into a draw_cache_impl_motionpath. */
-  blender::gpu::VertBuf *mpath_vbo_get(bMotionPath *mpath)
+  gpu::VertBuf *mpath_vbo_get(bMotionPath *mpath)
   {
     if (!mpath->points_vbo) {
       GPUVertFormat format = {0};
       /* Match structure of #bMotionPathVert. */
-      GPU_vertformat_attr_add(&format, "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
-      GPU_vertformat_attr_add(&format, "flag", GPU_COMP_I32, 1, GPU_FETCH_INT);
+      GPU_vertformat_attr_add(&format, "pos", gpu::VertAttrType::SFLOAT_32_32_32);
+      GPU_vertformat_attr_add(&format, "flag", gpu::VertAttrType::SINT_32);
       mpath->points_vbo = GPU_vertbuf_create_with_format(format);
       GPU_vertbuf_data_alloc(*mpath->points_vbo, mpath->length);
       /* meh... a useless `memcpy`. */
@@ -270,7 +273,7 @@ class MotionPath : Overlay {
     return mpath->points_vbo;
   }
 
-  blender::gpu::Batch *mpath_batch_points_get(bMotionPath *mpath)
+  gpu::Batch *mpath_batch_points_get(bMotionPath *mpath)
   {
     if (!mpath->batch_points) {
       mpath->batch_points = GPU_batch_create(GPU_PRIM_POINTS, mpath_vbo_get(mpath), nullptr);

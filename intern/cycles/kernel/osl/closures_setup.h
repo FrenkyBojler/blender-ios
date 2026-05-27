@@ -20,8 +20,7 @@
 CCL_NAMESPACE_BEGIN
 
 #define OSL_CLOSURE_STRUCT_BEGIN(Upper, lower) \
-  struct ccl_align(8) Upper##Closure \
-  { \
+  struct ccl_align(8) Upper##Closure { \
     const char *label;
 #define OSL_CLOSURE_STRUCT_END(Upper, lower) \
   } \
@@ -31,8 +30,7 @@ CCL_NAMESPACE_BEGIN
 
 #include "closures_template.h"
 
-struct ccl_align(8) LayerClosure
-{
+struct ccl_align(8) LayerClosure {
   const ccl_private OSLClosure *base;
   const ccl_private OSLClosure *top;
 };
@@ -49,7 +47,6 @@ ccl_device_forceinline void osl_zero_albedo(float3 *layer_albedo)
 }
 
 ccl_device_forceinline bool osl_closure_skip(KernelGlobals kg,
-                                             const ccl_private ShaderData *sd,
                                              const uint32_t path_flag,
                                              const int scattering)
 {
@@ -84,21 +81,14 @@ ccl_device void osl_closure_diffuse_setup(KernelGlobals kg,
                                           const uint32_t path_flag,
                                           const float3 weight,
                                           const ccl_private DiffuseClosure *closure,
-                                          float3 *layer_albedo)
+                                          float3 * /*layer_albedo*/)
 {
-  if (osl_closure_skip(kg, sd, path_flag, LABEL_DIFFUSE)) {
+  if (osl_closure_skip(kg, path_flag, LABEL_DIFFUSE)) {
     return;
   }
 
-  ccl_private DiffuseBsdf *bsdf = (ccl_private DiffuseBsdf *)bsdf_alloc(
-      sd, sizeof(DiffuseBsdf), rgb_to_spectrum(weight));
-  if (!bsdf) {
-    return;
-  }
-
-  bsdf->N = safe_normalize_fallback(closure->N, sd->N);
-
-  sd->flag |= bsdf_diffuse_setup(bsdf);
+  const float3 N = safe_normalize_fallback(closure->N, sd->N);
+  bsdf_diffuse_setup(sd, N, rgb_to_spectrum(weight));
 }
 
 /* Deprecated form, will be removed in OSL 2.0. */
@@ -107,22 +97,15 @@ ccl_device void osl_closure_oren_nayar_setup(KernelGlobals kg,
                                              const uint32_t path_flag,
                                              const float3 weight,
                                              const ccl_private OrenNayarClosure *closure,
-                                             float3 *layer_albedo)
+                                             float3 * /*layer_albedo*/)
 {
-  if (osl_closure_skip(kg, sd, path_flag, LABEL_DIFFUSE)) {
+  if (osl_closure_skip(kg, path_flag, LABEL_DIFFUSE)) {
     return;
   }
 
-  ccl_private OrenNayarBsdf *bsdf = (ccl_private OrenNayarBsdf *)bsdf_alloc(
-      sd, sizeof(OrenNayarBsdf), rgb_to_spectrum(weight));
-  if (!bsdf) {
-    return;
-  }
-
-  bsdf->N = safe_normalize_fallback(closure->N, sd->N);
-  bsdf->roughness = closure->roughness;
-
-  sd->flag |= bsdf_oren_nayar_setup(sd, bsdf, rgb_to_spectrum(weight));
+  const float3 N = safe_normalize_fallback(closure->N, sd->N);
+  const Spectrum color = rgb_to_spectrum(weight);
+  bsdf_oren_nayar_setup(sd, N, color, closure->roughness, color);
 }
 
 ccl_device void osl_closure_oren_nayar_diffuse_bsdf_setup(
@@ -131,22 +114,16 @@ ccl_device void osl_closure_oren_nayar_diffuse_bsdf_setup(
     const uint32_t path_flag,
     const float3 weight,
     const ccl_private OrenNayarDiffuseBSDFClosure *closure,
-    float3 *layer_albedo)
+    float3 * /*layer_albedo*/)
 {
-  if (osl_closure_skip(kg, sd, path_flag, LABEL_DIFFUSE)) {
+  if (osl_closure_skip(kg, path_flag, LABEL_DIFFUSE)) {
     return;
   }
 
-  ccl_private OrenNayarBsdf *bsdf = (ccl_private OrenNayarBsdf *)bsdf_alloc(
-      sd, sizeof(OrenNayarBsdf), rgb_to_spectrum(weight * closure->albedo));
-  if (!bsdf) {
-    return;
-  }
-
-  bsdf->N = safe_normalize_fallback(closure->N, sd->N);
-  bsdf->roughness = closure->roughness;
-
-  sd->flag |= bsdf_oren_nayar_setup(sd, bsdf, rgb_to_spectrum(closure->albedo));
+  const float3 N = safe_normalize_fallback(closure->N, sd->N);
+  const Spectrum closure_weight = rgb_to_spectrum(weight * closure->albedo);
+  const Spectrum color = rgb_to_spectrum(closure->albedo);
+  bsdf_oren_nayar_setup(sd, N, closure_weight, closure->roughness, color);
 }
 
 ccl_device void osl_closure_burley_diffuse_bsdf_setup(
@@ -155,9 +132,9 @@ ccl_device void osl_closure_burley_diffuse_bsdf_setup(
     uint32_t path_flag,
     float3 weight,
     ccl_private const BurleyDiffuseBSDFClosure *closure,
-    float3 *layer_albedo)
+    float3 * /*layer_albedo*/)
 {
-  if (osl_closure_skip(kg, sd, path_flag, LABEL_DIFFUSE)) {
+  if (osl_closure_skip(kg, path_flag, LABEL_DIFFUSE)) {
     return;
   }
 
@@ -177,21 +154,30 @@ ccl_device void osl_closure_translucent_setup(KernelGlobals kg,
                                               const uint32_t path_flag,
                                               const float3 weight,
                                               const ccl_private TranslucentClosure *closure,
-                                              float3 *layer_albedo)
+                                              float3 * /*layer_albedo*/)
 {
-  if (osl_closure_skip(kg, sd, path_flag, LABEL_DIFFUSE)) {
+  if (osl_closure_skip(kg, path_flag, LABEL_DIFFUSE)) {
     return;
   }
 
-  ccl_private DiffuseBsdf *bsdf = (ccl_private DiffuseBsdf *)bsdf_alloc(
-      sd, sizeof(DiffuseBsdf), rgb_to_spectrum(weight));
-  if (!bsdf) {
+  const float3 N = safe_normalize_fallback(closure->N, sd->N);
+  bsdf_translucent_setup(sd, N, rgb_to_spectrum(weight));
+}
+
+ccl_device void osl_closure_translucent_bsdf_setup(
+    KernelGlobals kg,
+    ccl_private ShaderData *sd,
+    const uint32_t path_flag,
+    const float3 weight,
+    const ccl_private TranslucentBSDFClosure *closure,
+    float3 * /*layer_albedo*/)
+{
+  if (osl_closure_skip(kg, path_flag, LABEL_DIFFUSE)) {
     return;
   }
 
-  bsdf->N = safe_normalize_fallback(closure->N, sd->N);
-
-  sd->flag |= bsdf_translucent_setup(bsdf);
+  const float3 N = safe_normalize_fallback(closure->N, sd->N);
+  bsdf_translucent_setup(sd, N, rgb_to_spectrum(weight * closure->albedo));
 }
 
 ccl_device void osl_closure_reflection_setup(KernelGlobals kg,
@@ -199,9 +185,9 @@ ccl_device void osl_closure_reflection_setup(KernelGlobals kg,
                                              const uint32_t path_flag,
                                              const float3 weight,
                                              const ccl_private ReflectionClosure *closure,
-                                             float3 *layer_albedo)
+                                             float3 * /*layer_albedo*/)
 {
-  if (osl_closure_skip(kg, sd, path_flag, LABEL_SINGULAR)) {
+  if (osl_closure_skip(kg, path_flag, LABEL_SINGULAR)) {
     return;
   }
 
@@ -222,9 +208,9 @@ ccl_device void osl_closure_refraction_setup(KernelGlobals kg,
                                              const uint32_t path_flag,
                                              const float3 weight,
                                              const ccl_private RefractionClosure *closure,
-                                             float3 *layer_albedo)
+                                             float3 * /*layer_albedo*/)
 {
-  if (osl_closure_skip(kg, sd, path_flag, LABEL_SINGULAR)) {
+  if (osl_closure_skip(kg, path_flag, LABEL_SINGULAR)) {
     return;
   }
 
@@ -241,25 +227,35 @@ ccl_device void osl_closure_refraction_setup(KernelGlobals kg,
   sd->flag |= bsdf_microfacet_ggx_refraction_setup(bsdf);
 }
 
-ccl_device void osl_closure_transparent_setup(KernelGlobals kg,
+ccl_device void osl_closure_transparent_setup(KernelGlobals /*kg*/,
                                               ccl_private ShaderData *sd,
                                               const uint32_t path_flag,
                                               const float3 weight,
-                                              const ccl_private TransparentClosure *closure,
-                                              float3 *layer_albedo)
+                                              const ccl_private TransparentClosure * /*closure*/,
+                                              float3 * /*layer_albedo*/)
 {
   bsdf_transparent_setup(sd, rgb_to_spectrum(weight), path_flag);
 }
 
-ccl_device void osl_closure_ray_portal_bsdf_setup(KernelGlobals kg,
+ccl_device void osl_closure_transparent_bsdf_setup(
+    KernelGlobals /*kg*/,
+    ccl_private ShaderData *sd,
+    const uint32_t path_flag,
+    const float3 weight,
+    const ccl_private TransparentBSDFClosure * /*closure*/,
+    float3 * /*layer_albedo*/)
+{
+  bsdf_transparent_setup(sd, rgb_to_spectrum(weight), path_flag);
+}
+
+ccl_device void osl_closure_ray_portal_bsdf_setup(KernelGlobals /*kg*/,
                                                   ccl_private ShaderData *sd,
-                                                  const uint32_t path_flag,
+                                                  const uint32_t /*path_flag*/,
                                                   const float3 weight,
                                                   const ccl_private RayPortalBSDFClosure *closure,
-                                                  float3 *layer_albedo)
+                                                  float3 * /*layer_albedo*/)
 {
-  bsdf_ray_portal_setup(
-      sd, rgb_to_spectrum(weight), path_flag, closure->position, closure->direction);
+  bsdf_ray_portal_setup(sd, rgb_to_spectrum(weight), closure->position, closure->direction);
 }
 
 /* MaterialX closures */
@@ -275,7 +271,7 @@ ccl_device void osl_closure_dielectric_bsdf_setup(KernelGlobals kg,
   const bool has_reflection = !is_zero(closure->reflection_tint);
   const bool has_transmission = !is_zero(closure->transmission_tint);
 
-  if (osl_closure_skip(kg, sd, path_flag, LABEL_GLOSSY | LABEL_REFLECT)) {
+  if (osl_closure_skip(kg, path_flag, LABEL_GLOSSY | LABEL_REFLECT)) {
     return;
   }
 
@@ -330,7 +326,7 @@ ccl_device void osl_closure_dielectric_bsdf_setup(KernelGlobals kg,
   fresnel->transmission_tint = rgb_to_spectrum(closure->transmission_tint);
   fresnel->thin_film.thickness = closure->thinfilm_thickness;
   fresnel->thin_film.ior = closure->thinfilm_ior;
-  bsdf_microfacet_setup_fresnel_dielectric_tint(kg, bsdf, sd, fresnel, preserve_energy);
+  bsdf_microfacet_setup_fresnel_dielectric_tint(kg, bsdf, sd->wi, fresnel, preserve_energy);
 
   if (layer_albedo != nullptr) {
     if (has_reflection && !has_transmission) {
@@ -347,9 +343,9 @@ ccl_device void osl_closure_conductor_bsdf_setup(KernelGlobals kg,
                                                  const uint32_t path_flag,
                                                  const float3 weight,
                                                  const ccl_private ConductorBSDFClosure *closure,
-                                                 float3 *layer_albedo)
+                                                 float3 * /*layer_albedo*/)
 {
-  if (osl_closure_skip(kg, sd, path_flag, LABEL_GLOSSY | LABEL_REFLECT)) {
+  if (osl_closure_skip(kg, path_flag, LABEL_GLOSSY | LABEL_REFLECT)) {
     return;
   }
 
@@ -383,9 +379,11 @@ ccl_device void osl_closure_conductor_bsdf_setup(KernelGlobals kg,
     preserve_energy = (closure->distribution == make_string("multi_ggx", 16842698693386468366ull));
   }
 
-  fresnel->n = rgb_to_spectrum(closure->ior);
-  fresnel->k = rgb_to_spectrum(closure->extinction);
-  bsdf_microfacet_setup_fresnel_conductor(kg, bsdf, sd, fresnel, preserve_energy);
+  fresnel->thin_film.thickness = closure->thinfilm_thickness;
+  fresnel->thin_film.ior = closure->thinfilm_ior;
+
+  fresnel->ior = {rgb_to_spectrum(closure->ior), rgb_to_spectrum(closure->extinction)};
+  bsdf_microfacet_setup_fresnel_conductor(kg, bsdf, sd->wi, fresnel, preserve_energy);
 }
 
 ccl_device void osl_closure_generalized_schlick_bsdf_setup(
@@ -406,7 +404,7 @@ ccl_device void osl_closure_generalized_schlick_bsdf_setup(
     label |= LABEL_TRANSMIT;
   }
 
-  if (osl_closure_skip(kg, sd, path_flag, label)) {
+  if (osl_closure_skip(kg, path_flag, label)) {
     return;
   }
 
@@ -481,7 +479,7 @@ ccl_device void osl_closure_generalized_schlick_bsdf_setup(
   fresnel->exponent = closure->exponent;
   fresnel->thin_film.thickness = closure->thinfilm_thickness;
   fresnel->thin_film.ior = closure->thinfilm_ior;
-  bsdf_microfacet_setup_fresnel_generalized_schlick(kg, bsdf, sd, fresnel, preserve_energy);
+  bsdf_microfacet_setup_fresnel_generalized_schlick(kg, bsdf, sd->wi, fresnel, preserve_energy);
 
   if (layer_albedo != nullptr) {
     if (has_reflection && !has_transmission) {
@@ -491,6 +489,79 @@ ccl_device void osl_closure_generalized_schlick_bsdf_setup(
       *layer_albedo = one_float3();
     }
   }
+}
+
+ccl_device void osl_closure_thin_glass_setup(KernelGlobals kg,
+                                             ccl_private ShaderData *sd,
+                                             const uint32_t path_flag,
+                                             const float3 weight,
+                                             const ccl_private ThinGlassClosure *closure,
+                                             float3 *layer_albedo)
+{
+  osl_zero_albedo(layer_albedo);
+
+  const bool has_reflection = !is_zero(closure->reflection_tint);
+  const bool has_transmission = !is_zero(closure->transmission_tint);
+
+  int label = roughness_is_almost_specular(closure->roughness, closure->roughness) ?
+                  LABEL_SINGULAR :
+                  LABEL_GLOSSY;
+  if (has_transmission) {
+    label |= LABEL_TRANSMIT;
+  }
+  if (has_reflection) {
+    label |= LABEL_REFLECT;
+  }
+
+  if (osl_closure_skip(kg, path_flag, label)) {
+    return;
+  }
+
+  const bool reflective_caustics = (kernel_data.integrator.caustics_reflective ||
+                                    (path_flag & PATH_RAY_DIFFUSE) == 0);
+  const bool refractive_caustics = (kernel_data.integrator.caustics_refractive ||
+                                    (path_flag & PATH_RAY_DIFFUSE) == 0);
+
+  const float3 valid_reflection_N = maybe_ensure_valid_specular_reflection(
+      sd, safe_normalize_fallback(closure->N, sd->N));
+  const FresnelThinFilm thinfilm = {closure->thinfilm_thickness, closure->thinfilm_ior};
+
+  Spectrum reflectance, transmittance;
+  bsdf_thin_glass_setup(kg,
+                        sd,
+                        reflective_caustics,
+                        refractive_caustics,
+                        closure->reflection_tint,
+                        closure->transmission_tint,
+                        rgb_to_spectrum(weight),
+                        valid_reflection_N,
+                        closure->roughness,
+                        closure->ior,
+                        thinfilm,
+                        &reflectance,
+                        &transmittance);
+
+  if (layer_albedo != nullptr) {
+    *layer_albedo = transmittance * !!has_transmission + reflectance * !!has_reflection;
+  }
+}
+
+ccl_device void osl_closure_thin_subsurface_setup(KernelGlobals kg,
+                                                  ccl_private ShaderData *sd,
+                                                  const uint32_t path_flag,
+                                                  const float3 weight,
+                                                  const ccl_private ThinSubsurfaceClosure *closure,
+                                                  float3 *layer_albedo)
+{
+  osl_zero_albedo(layer_albedo);
+
+  if (osl_closure_skip(kg, path_flag, LABEL_DIFFUSE)) {
+    return;
+  }
+
+  const float3 N = safe_normalize_fallback(closure->N, sd->N);
+  bsdf_thin_subsurface_setup(
+      sd, N, rgb_to_spectrum(weight), closure->anisotropy, closure->roughness, closure->color);
 }
 
 /* Standard microfacet closures */
@@ -505,7 +576,7 @@ ccl_device void osl_closure_microfacet_setup(KernelGlobals kg,
   osl_zero_albedo(layer_albedo);
 
   const int label = (closure->refract) ? LABEL_TRANSMIT : LABEL_REFLECT;
-  if (osl_closure_skip(kg, sd, path_flag, LABEL_GLOSSY | label)) {
+  if (osl_closure_skip(kg, path_flag, LABEL_GLOSSY | label)) {
     return;
   }
 
@@ -551,7 +622,7 @@ ccl_device void osl_closure_microfacet_setup(KernelGlobals kg,
 
     if (closure->distribution == make_string("multi_ggx", 16842698693386468366ull)) {
       /* Since there's no dedicated color input, the weight is the best we got. */
-      bsdf_microfacet_setup_fresnel_constant(kg, bsdf, sd, rgb_to_spectrum(weight));
+      bsdf_microfacet_setup_fresnel_constant(kg, bsdf, sd->wi, rgb_to_spectrum(weight));
     }
   }
 
@@ -573,9 +644,9 @@ ccl_device void osl_closure_microfacet_f82_tint_setup(
     const uint32_t path_flag,
     const float3 weight,
     const ccl_private MicrofacetF82TintClosure *closure,
-    float3 *layer_albedo)
+    float3 * /*layer_albedo*/)
 {
-  if (osl_closure_skip(kg, sd, path_flag, LABEL_GLOSSY | LABEL_REFLECT)) {
+  if (osl_closure_skip(kg, path_flag, LABEL_GLOSSY | LABEL_REFLECT)) {
     return;
   }
 
@@ -610,8 +681,11 @@ ccl_device void osl_closure_microfacet_f82_tint_setup(
   }
 
   fresnel->f0 = rgb_to_spectrum(closure->f0);
+  fresnel->thin_film.thickness = closure->thinfilm_thickness;
+  fresnel->thin_film.ior = closure->thinfilm_ior;
+
   bsdf_microfacet_setup_fresnel_f82_tint(
-      kg, bsdf, sd, fresnel, rgb_to_spectrum(closure->f82), preserve_energy);
+      kg, bsdf, sd->wi, fresnel, rgb_to_spectrum(closure->f82), preserve_energy);
 }
 
 ccl_device void osl_closure_microfacet_multi_ggx_glass_setup(
@@ -620,12 +694,12 @@ ccl_device void osl_closure_microfacet_multi_ggx_glass_setup(
     const uint32_t path_flag,
     const float3 weight,
     const ccl_private MicrofacetMultiGGXGlassClosure *closure,
-    float3 *layer_albedo)
+    float3 * /*layer_albedo*/)
 {
   /* Technically, the MultiGGX closure may also transmit. However,
    * since this is set statically and only used for caustic flags, this
    * is probably as good as it gets. */
-  if (osl_closure_skip(kg, sd, path_flag, LABEL_GLOSSY | LABEL_REFLECT)) {
+  if (osl_closure_skip(kg, path_flag, LABEL_GLOSSY | LABEL_REFLECT)) {
     return;
   }
 
@@ -643,7 +717,7 @@ ccl_device void osl_closure_microfacet_multi_ggx_glass_setup(
   bsdf->T = zero_float3();
 
   sd->flag |= bsdf_microfacet_ggx_glass_setup(bsdf);
-  bsdf_microfacet_setup_fresnel_constant(kg, bsdf, sd, rgb_to_spectrum(closure->color));
+  bsdf_microfacet_setup_fresnel_constant(kg, bsdf, sd->wi, rgb_to_spectrum(closure->color));
 }
 
 ccl_device void osl_closure_microfacet_multi_ggx_aniso_setup(
@@ -656,7 +730,7 @@ ccl_device void osl_closure_microfacet_multi_ggx_aniso_setup(
 {
   osl_zero_albedo(layer_albedo);
 
-  if (osl_closure_skip(kg, sd, path_flag, LABEL_GLOSSY | LABEL_REFLECT)) {
+  if (osl_closure_skip(kg, path_flag, LABEL_GLOSSY | LABEL_REFLECT)) {
     return;
   }
 
@@ -674,7 +748,7 @@ ccl_device void osl_closure_microfacet_multi_ggx_aniso_setup(
   bsdf->T = closure->T;
 
   sd->flag |= bsdf_microfacet_ggx_setup(bsdf);
-  bsdf_microfacet_setup_fresnel_constant(kg, bsdf, sd, rgb_to_spectrum(closure->color));
+  bsdf_microfacet_setup_fresnel_constant(kg, bsdf, sd->wi, rgb_to_spectrum(closure->color));
 
   if (layer_albedo != nullptr) {
     *layer_albedo = bsdf_albedo(kg, sd, (ccl_private ShaderClosure *)bsdf, true, false);
@@ -689,9 +763,9 @@ ccl_device void osl_closure_ashikhmin_velvet_setup(
     const uint32_t path_flag,
     const float3 weight,
     const ccl_private AshikhminVelvetClosure *closure,
-    float3 *layer_albedo)
+    float3 * /*layer_albedo*/)
 {
-  if (osl_closure_skip(kg, sd, path_flag, LABEL_DIFFUSE)) {
+  if (osl_closure_skip(kg, path_flag, LABEL_DIFFUSE)) {
     return;
   }
 
@@ -718,7 +792,7 @@ ccl_device void osl_closure_sheen_setup(KernelGlobals kg,
 {
   osl_zero_albedo(layer_albedo);
 
-  if (osl_closure_skip(kg, sd, path_flag, LABEL_DIFFUSE)) {
+  if (osl_closure_skip(kg, path_flag, LABEL_DIFFUSE)) {
     return;
   }
 
@@ -752,7 +826,7 @@ ccl_device void osl_closure_sheen_bsdf_setup(KernelGlobals kg,
 {
   osl_zero_albedo(layer_albedo);
 
-  if (osl_closure_skip(kg, sd, path_flag, LABEL_DIFFUSE)) {
+  if (osl_closure_skip(kg, path_flag, LABEL_DIFFUSE)) {
     return;
   }
 
@@ -781,9 +855,9 @@ ccl_device void osl_closure_diffuse_toon_setup(KernelGlobals kg,
                                                const uint32_t path_flag,
                                                const float3 weight,
                                                const ccl_private DiffuseToonClosure *closure,
-                                               float3 *layer_albedo)
+                                               float3 * /*layer_albedo*/)
 {
-  if (osl_closure_skip(kg, sd, path_flag, LABEL_DIFFUSE)) {
+  if (osl_closure_skip(kg, path_flag, LABEL_DIFFUSE)) {
     return;
   }
 
@@ -805,9 +879,9 @@ ccl_device void osl_closure_glossy_toon_setup(KernelGlobals kg,
                                               const uint32_t path_flag,
                                               const float3 weight,
                                               const ccl_private GlossyToonClosure *closure,
-                                              float3 *layer_albedo)
+                                              float3 * /*layer_albedo*/)
 {
-  if (osl_closure_skip(kg, sd, path_flag, LABEL_GLOSSY)) {
+  if (osl_closure_skip(kg, path_flag, LABEL_GLOSSY)) {
     return;
   }
 
@@ -834,8 +908,8 @@ ccl_device void osl_closure_emission_setup(KernelGlobals kg,
                                            ccl_private ShaderData *sd,
                                            uint32_t /*path_flag*/,
                                            float3 weight,
-                                           const ccl_private GenericEmissiveClosure *closure,
-                                           float3 *layer_albedo)
+                                           const ccl_private GenericEmissiveClosure * /*closure*/,
+                                           float3 * /*layer_albedo*/)
 {
   if (sd->flag & SD_IS_VOLUME_SHADER_EVAL) {
     weight *= object_volume_density(kg, sd->object);
@@ -848,12 +922,13 @@ ccl_device void osl_closure_emission_setup(KernelGlobals kg,
  * We only have a background closure for the shaders to return a color in background shaders. No
  * methods, only the weight is taking into account
  */
-ccl_device void osl_closure_background_setup(KernelGlobals kg,
-                                             ccl_private ShaderData *sd,
-                                             uint32_t /*path_flag*/,
-                                             const float3 weight,
-                                             const ccl_private GenericBackgroundClosure *closure,
-                                             float3 *layer_albedo)
+ccl_device void osl_closure_background_setup(
+    KernelGlobals /*kg*/,
+    ccl_private ShaderData *sd,
+    uint32_t /*path_flag*/,
+    const float3 weight,
+    const ccl_private GenericBackgroundClosure * /*closure*/,
+    float3 * /*layer_albedo*/)
 {
   background_setup(sd, rgb_to_spectrum(weight));
 }
@@ -868,7 +943,7 @@ ccl_device void osl_closure_uniform_edf_setup(KernelGlobals kg,
                                               uint32_t /*path_flag*/,
                                               float3 weight,
                                               const ccl_private UniformEDFClosure *closure,
-                                              float3 *layer_albedo)
+                                              float3 * /*layer_albedo*/)
 {
   weight *= closure->emittance;
   if (sd->flag & SD_IS_VOLUME_SHADER_EVAL) {
@@ -882,23 +957,23 @@ ccl_device void osl_closure_uniform_edf_setup(KernelGlobals kg,
  * This will be used by the shader to mark the amount of holdout for the current shading point. No
  * parameters, only the weight will be used
  */
-ccl_device void osl_closure_holdout_setup(KernelGlobals kg,
+ccl_device void osl_closure_holdout_setup(KernelGlobals /*kg*/,
                                           ccl_private ShaderData *sd,
                                           uint32_t /*path_flag*/,
                                           const float3 weight,
-                                          const ccl_private HoldoutClosure *closure,
-                                          float3 *layer_albedo)
+                                          const ccl_private HoldoutClosure * /*closure*/,
+                                          float3 * /*layer_albedo*/)
 {
   closure_alloc(sd, sizeof(ShaderClosure), CLOSURE_HOLDOUT_ID, rgb_to_spectrum(weight));
   sd->flag |= SD_HOLDOUT;
 }
 
-ccl_device void osl_closure_diffuse_ramp_setup(KernelGlobals kg,
+ccl_device void osl_closure_diffuse_ramp_setup(KernelGlobals /*kg*/,
                                                ccl_private ShaderData *sd,
                                                uint32_t /*path_flag*/,
                                                const float3 weight,
                                                const ccl_private DiffuseRampClosure *closure,
-                                               float3 *layer_albedo)
+                                               float3 * /*layer_albedo*/)
 {
   ccl_private DiffuseRampBsdf *bsdf = (ccl_private DiffuseRampBsdf *)bsdf_alloc(
       sd, sizeof(DiffuseRampBsdf), rgb_to_spectrum(weight));
@@ -921,12 +996,12 @@ ccl_device void osl_closure_diffuse_ramp_setup(KernelGlobals kg,
   sd->flag |= bsdf_diffuse_ramp_setup(bsdf);
 }
 
-ccl_device void osl_closure_phong_ramp_setup(KernelGlobals kg,
+ccl_device void osl_closure_phong_ramp_setup(KernelGlobals /*kg*/,
                                              ccl_private ShaderData *sd,
                                              uint32_t /*path_flag*/,
                                              const float3 weight,
                                              const ccl_private PhongRampClosure *closure,
-                                             float3 *layer_albedo)
+                                             float3 * /*layer_albedo*/)
 {
   ccl_private PhongRampBsdf *bsdf = (ccl_private PhongRampBsdf *)bsdf_alloc(
       sd, sizeof(PhongRampBsdf), rgb_to_spectrum(weight));
@@ -949,12 +1024,12 @@ ccl_device void osl_closure_phong_ramp_setup(KernelGlobals kg,
   sd->flag |= bsdf_phong_ramp_setup(bsdf);
 }
 
-ccl_device void osl_closure_bssrdf_setup(KernelGlobals kg,
+ccl_device void osl_closure_bssrdf_setup(KernelGlobals /*kg*/,
                                          ccl_private ShaderData *sd,
                                          const uint32_t path_flag,
                                          const float3 weight,
                                          const ccl_private BSSRDFClosure *closure,
-                                         float3 *layer_albedo)
+                                         float3 * /*layer_albedo*/)
 {
   ClosureType type;
   if (closure->method == make_string("burley", 186330084368958868ull)) {
@@ -965,6 +1040,9 @@ ccl_device void osl_closure_bssrdf_setup(KernelGlobals kg,
   }
   else if (closure->method == make_string("random_walk_skin", 3096325052680726300ull)) {
     type = CLOSURE_BSSRDF_RANDOM_WALK_SKIN_ID;
+  }
+  else if (closure->method == make_string("random_walk_legacy", 3162086485308246001ull)) {
+    type = CLOSURE_BSSRDF_RANDOM_WALK_LEGACY_ID;
   }
   else {
     return;
@@ -989,12 +1067,12 @@ ccl_device void osl_closure_bssrdf_setup(KernelGlobals kg,
 
 /* MaterialX-compatible subsurface_bssrdf */
 ccl_device void osl_closure_subsurface_bssrdf_setup(
-    KernelGlobals kg,
+    KernelGlobals /*kg*/,
     ccl_private ShaderData *sd,
     const uint32_t path_flag,
     const float3 weight,
     const ccl_private SubsurfaceBSSRDFClosure *closure,
-    float3 *layer_albedo)
+    float3 * /*layer_albedo*/)
 {
   ccl_private Bssrdf *bssrdf = bssrdf_alloc(sd, rgb_to_spectrum(weight));
   if (!bssrdf) {
@@ -1024,9 +1102,9 @@ ccl_device void osl_closure_hair_reflection_setup(KernelGlobals kg,
                                                   const uint32_t path_flag,
                                                   const float3 weight,
                                                   const ccl_private HairReflectionClosure *closure,
-                                                  float3 *layer_albedo)
+                                                  float3 * /*layer_albedo*/)
 {
-  if (osl_closure_skip(kg, sd, path_flag, LABEL_GLOSSY)) {
+  if (osl_closure_skip(kg, path_flag, LABEL_GLOSSY)) {
     return;
   }
 
@@ -1051,9 +1129,9 @@ ccl_device void osl_closure_hair_transmission_setup(
     const uint32_t path_flag,
     const float3 weight,
     const ccl_private HairTransmissionClosure *closure,
-    float3 *layer_albedo)
+    float3 * /*layer_albedo*/)
 {
-  if (osl_closure_skip(kg, sd, path_flag, LABEL_GLOSSY)) {
+  if (osl_closure_skip(kg, path_flag, LABEL_GLOSSY)) {
     return;
   }
 
@@ -1077,10 +1155,10 @@ ccl_device void osl_closure_hair_chiang_setup(KernelGlobals kg,
                                               const uint32_t path_flag,
                                               const float3 weight,
                                               const ccl_private ChiangHairClosure *closure,
-                                              float3 *layer_albedo)
+                                              float3 * /*layer_albedo*/)
 {
 #ifdef __HAIR__
-  if (osl_closure_skip(kg, sd, path_flag, LABEL_GLOSSY)) {
+  if (osl_closure_skip(kg, path_flag, LABEL_GLOSSY)) {
     return;
   }
 
@@ -1107,10 +1185,10 @@ ccl_device void osl_closure_hair_huang_setup(KernelGlobals kg,
                                              const uint32_t path_flag,
                                              const float3 weight,
                                              const ccl_private HuangHairClosure *closure,
-                                             float3 *layer_albedo)
+                                             float3 * /*layer_albedo*/)
 {
 #ifdef __HAIR__
-  if (osl_closure_skip(kg, sd, path_flag, LABEL_GLOSSY)) {
+  if (osl_closure_skip(kg, path_flag, LABEL_GLOSSY)) {
     return;
   }
 
@@ -1163,12 +1241,13 @@ ccl_device void osl_closure_hair_huang_setup(KernelGlobals kg,
 
 /* Volume */
 
-ccl_device void osl_closure_absorption_setup(KernelGlobals kg,
-                                             ccl_private ShaderData *sd,
-                                             const uint32_t path_flag,
-                                             float3 weight,
-                                             const ccl_private VolumeAbsorptionClosure *closure,
-                                             float3 *layer_albedo)
+ccl_device void osl_closure_absorption_setup(
+    KernelGlobals kg,
+    ccl_private ShaderData *sd,
+    const uint32_t /*path_flag*/,
+    float3 weight,
+    const ccl_private VolumeAbsorptionClosure * /*closure*/,
+    float3 * /*layer_albedo*/)
 {
   volume_extinction_setup(sd, rgb_to_spectrum(weight * object_volume_density(kg, sd->object)));
 }
@@ -1176,10 +1255,10 @@ ccl_device void osl_closure_absorption_setup(KernelGlobals kg,
 ccl_device void osl_closure_henyey_greenstein_setup(
     KernelGlobals kg,
     ccl_private ShaderData *sd,
-    const uint32_t path_flag,
+    const uint32_t /*path_flag*/,
     float3 weight,
     const ccl_private VolumeHenyeyGreensteinClosure *closure,
-    float3 *layer_albedo)
+    float3 * /*layer_albedo*/)
 {
   weight *= object_volume_density(kg, sd->object);
   volume_extinction_setup(sd, rgb_to_spectrum(weight));
@@ -1196,12 +1275,12 @@ ccl_device void osl_closure_henyey_greenstein_setup(
 }
 
 ccl_device void osl_closure_fournier_forand_setup(
-    KernelGlobals kg,
+    KernelGlobals /*kg*/,
     ccl_private ShaderData *sd,
-    const uint32_t path_flag,
+    const uint32_t /*path_flag*/,
     const float3 weight,
     const ccl_private VolumeFournierForandClosure *closure,
-    float3 *layer_albedo)
+    float3 * /*layer_albedo*/)
 {
   volume_extinction_setup(sd, rgb_to_spectrum(weight));
 
@@ -1214,12 +1293,12 @@ ccl_device void osl_closure_fournier_forand_setup(
   sd->flag |= volume_fournier_forand_setup(volume, closure->B, closure->IOR);
 }
 
-ccl_device void osl_closure_draine_setup(KernelGlobals kg,
+ccl_device void osl_closure_draine_setup(KernelGlobals /*kg*/,
                                          ccl_private ShaderData *sd,
-                                         const uint32_t path_flag,
+                                         const uint32_t /*path_flag*/,
                                          const float3 weight,
                                          const ccl_private VolumeDraineClosure *closure,
-                                         float3 *layer_albedo)
+                                         float3 * /*layer_albedo*/)
 {
   volume_extinction_setup(sd, rgb_to_spectrum(weight));
 
@@ -1235,12 +1314,12 @@ ccl_device void osl_closure_draine_setup(KernelGlobals kg,
   sd->flag |= volume_draine_setup(volume);
 }
 
-ccl_device void osl_closure_rayleigh_setup(KernelGlobals kg,
+ccl_device void osl_closure_rayleigh_setup(KernelGlobals /*kg*/,
                                            ccl_private ShaderData *sd,
-                                           const uint32_t path_flag,
+                                           const uint32_t /*path_flag*/,
                                            const float3 weight,
-                                           const ccl_private VolumeRayleighClosure *closure,
-                                           float3 *layer_albedo)
+                                           const ccl_private VolumeRayleighClosure * /*closure*/,
+                                           float3 * /*layer_albedo*/)
 {
   volume_extinction_setup(sd, rgb_to_spectrum(weight));
 
@@ -1251,6 +1330,31 @@ ccl_device void osl_closure_rayleigh_setup(KernelGlobals kg,
   }
 
   sd->flag |= volume_rayleigh_setup(volume);
+}
+
+ccl_device void osl_closure_anisotropic_vdf_setup(KernelGlobals kg,
+                                                  ccl_private ShaderData *sd,
+                                                  const uint32_t /*path_flag*/,
+                                                  float3 weight,
+                                                  const ccl_private AnisotropicVDFClosure *closure,
+                                                  float3 * /*layer_albedo*/)
+{
+  if (!(sd->flag & SD_IS_VOLUME_SHADER_EVAL)) {
+    return;
+  }
+
+  weight *= object_volume_density(kg, sd->object) * closure->extinction;
+  volume_extinction_setup(sd, rgb_to_spectrum(weight));
+
+  ccl_private HenyeyGreensteinVolume *volume = (ccl_private HenyeyGreensteinVolume *)bsdf_alloc(
+      sd, sizeof(HenyeyGreensteinVolume), rgb_to_spectrum(weight * closure->albedo));
+  if (!volume) {
+    return;
+  }
+
+  volume->g = closure->anisotropy;
+
+  sd->flag |= volume_henyey_greenstein_setup(volume);
 }
 
 CCL_NAMESPACE_END

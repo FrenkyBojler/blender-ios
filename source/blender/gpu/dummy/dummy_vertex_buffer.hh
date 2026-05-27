@@ -27,16 +27,15 @@ class DummyVertexBuffer : public VertBuf {
  protected:
   void acquire_data() override
   {
-    MEM_SAFE_FREE(data_);
-    data_ = (uchar *)MEM_mallocN(sizeof(uchar) * this->size_alloc_get(), __func__);
+    MEM_SAFE_DELETE(data_);
+    data_ = MEM_new_array_uninitialized<uchar>(this->size_alloc_get(), __func__);
   }
   void resize_data() override {}
   void release_data() override
   {
-    MEM_SAFE_FREE(data_);
+    MEM_SAFE_DELETE(data_);
   }
   void upload_data() override {}
-  void duplicate_data(VertBuf * /*dst*/) override {}
 };
 
 }  // namespace blender::gpu

@@ -16,6 +16,7 @@
 #pragma once
 
 #include "BLI_math_vector_types.hh"
+#include "BLI_mutex.hh"
 
 #include "DNA_object_types.h"
 
@@ -93,7 +94,7 @@ class DebugDraw {
   /* Reference counter used by GPUContext to allow freeing of DebugDrawBuf before the last
    * context is destroyed. */
   int ref_count_ = 0;
-  std::mutex ref_count_mutex_;
+  Mutex ref_count_mutex_;
 
  public:
   void reset();
@@ -105,7 +106,7 @@ class DebugDraw {
   void display_to_view(View &view);
 
   /** Get GPU debug draw buffer. Can, return nullptr if WITH_DRAW_DEBUG is not enabled. */
-  GPUStorageBuf *gpu_draw_buf_get();
+  gpu::StorageBuf *gpu_draw_buf_get();
 
   void acquire()
   {

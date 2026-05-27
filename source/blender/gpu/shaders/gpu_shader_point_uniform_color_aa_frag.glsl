@@ -2,7 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "infos/gpu_shader_2D_point_uniform_size_uniform_color_aa_info.hh"
+#include "infos/gpu_shader_2D_point_uniform_size_uniform_color_aa_infos.hh"
 
 #include "gpu_shader_colorspace_lib.glsl"
 
@@ -24,6 +24,6 @@ void main()
   fragColor.a = mix(color.a, 0.0f, smoothstep(radii[1], radii[0], dist));
 
   if (fragColor.a == 0.0f) {
-    discard;
+    gpu_discard_fragment();
   }
 }
