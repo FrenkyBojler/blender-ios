@@ -493,8 +493,9 @@ static void node_group_declare_panel_recursive(
       }
       case NodeTreeInterfaceItemType::Bake: {
         const auto &io_bake = node_interface::get_item_as<bNodeTreeInterfaceBake>(*item);
-        b.add_layout([io_bake](ui::Layout &layout, bContext *C, PointerRNA * /*ptr*/) {
+        b.add_layout([io_bake](ui::Layout &layout, bContext *C, PointerRNA *ptr) {
           const Main &bmain = *CTX_data_main(C);
+          const bNode &node = *ptr->data_as<bNode>();
           const SpaceNode &snode = *CTX_wm_space_node(C);
           const std::optional<ed::space_node::ObjectAndModifier> object_and_modifier =
               ed::space_node::get_modifier_for_node_editor(snode);
@@ -503,8 +504,51 @@ static void node_group_declare_panel_recursive(
             return;
           }
           const NodesModifierData &nmd = *object_and_modifier->nmd;
-          // TODO: WRONG BAKE ID WE NEED MODIFIER LEVEL NESTED NODE REF ID
-          const NodesModifierBake *bake_data = nmd.find_bake(io_bake.bake_id);
+          const bNodeTree &ntree = *id_cast<bNodeTree *>(ptr->owner_id);
+          const bNestedNodeRef *nested_node_ref = ntree.find_nested_node_ref(io_bake.bake_id);
+          if (!nested_node_ref) {
+            layout.label(IFACE_("No nested node reference found"), ICON_ERROR);
+            return;
+          }
+          const bNode *nested_node = ntree.find_nested_node(nested_node_ref->id);
+          if (!nested_node) {
+            layout.label(IFACE_("No nested node found"), ICON_ERROR);
+            return;
+          }
+
+          Vector<int> path_node_to_nested_node;
+          if (!ntree.node_id_path_from_nested_node_ref(nested_node_ref->id,
+                                                       path_node_to_nested_node))
+          {
+            layout.label(IFACE_("No path to nested node found"), ICON_ERROR);
+            return;
+          }
+
+          const std::optional<FoundNestedNodeID> found_id =
+              ed::space_node::find_nested_node_id_in_root(snode, node);
+          if (!found_id) {
+            layout.label(IFACE_("Node not found in root"), ICON_ERROR);
+            return;
+          }
+          Vector<int> path_root_to_node;
+          if (!nmd.node_group->node_id_path_from_nested_node_ref(found_id->id, path_root_to_node))
+          {
+            layout.label(IFACE_("No path from root to node"), ICON_ERROR);
+            return;
+          }
+
+          Vector<int> path_root_to_nested_node;
+          path_root_to_nested_node.extend(path_root_to_node);
+          path_root_to_nested_node.extend(path_node_to_nested_node);
+
+          const bNestedNodeRef *root_nested_node_ref =
+              nmd.node_group->nested_node_ref_from_node_id_path(path_root_to_nested_node);
+          if (!root_nested_node_ref) {
+            layout.label(IFACE_("No root nested node found"), ICON_ERROR);
+            return;
+          }
+
+          const NodesModifierBake *bake_data = nmd.find_bake(root_nested_node_ref->id);
           if (!bake_data) {
             layout.label(IFACE_("No bake found"), ICON_ERROR);
             return;
