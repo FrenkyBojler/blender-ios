@@ -1060,7 +1060,6 @@ Block *block_begin(const bContext *C,
                    ARegion *region,
                    std::string name,
                    EmbossType emboss);
-Block *block_begin_xr(const bContext *C, std::string name, blender::ui::EmbossType emboss);
 void block_end_ex(const bContext *C,
                   Main *bmain,
                   wmWindow *window,

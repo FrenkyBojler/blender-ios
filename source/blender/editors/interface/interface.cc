@@ -4016,20 +4016,6 @@ Block *block_begin(const bContext *C, ARegion *region, std::string name, EmbossT
   return block_begin(C, CTX_data_scene(C), CTX_wm_window(C), region, std::move(name), emboss);
 }
 
-Block *block_begin_xr(const bContext *C, std::string name, blender::ui::EmbossType emboss)
-{
-  Block *block = block_begin(C, nullptr, name, emboss);
-
-  /* XR doesn't have a window, set a dummy constant window size. */
-  const blender::int2 win_size = {1600 * 2, 900 * 2};
-  const rcti winrct = {0, win_size[0] - 1, 0, win_size[1] - 1};
-
-  wmGetProjectionMatrix(block->winmat, &winrct);
-  block->aspect = 2.0f / fabsf(win_size[0] * block->winmat[0][0]);
-
-  return block;
-}
-
 void block_add_dynamic_listener(Block *block,
                                 void (*listener_func)(const wmRegionListenerParams *params))
 {
