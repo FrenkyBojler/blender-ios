@@ -1085,14 +1085,14 @@ static wmOperatorStatus uv_apply_texel_density_exec(bContext *C, wmOperator *op)
   const Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
   SpaceImage *sima = CTX_wm_space_image(C);
-  ARegion *region = CTX_wm_region(C);
+  const ARegion *region = CTX_wm_region(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
       *bmain, scene, view_layer, nullptr);
-  UVTexelLock lock = (UVTexelLock)RNA_enum_get(op->ptr, "lock");
-  bool use_active_object = RNA_boolean_get(op->ptr, "use_active_object");
-  bool use_selected_uvs = RNA_boolean_get(op->ptr, "use_selected_uvs");
-
+  const UVTexelLock lock = (UVTexelLock)RNA_enum_get(op->ptr, "lock");
+  const bool use_active_object = RNA_boolean_get(op->ptr, "use_active_object");
+  const bool use_selected_uvs = RNA_boolean_get(op->ptr, "use_selected_uvs");
+  const bool use_custom_resolution = RNA_boolean_get(op->ptr, "use_custom_resolution");
   Object *active_object = CTX_data_active_object(C);
   BMEditMesh *em = BKE_editmesh_from_object(active_object);
   BMesh *bm = em->bm;
@@ -1100,8 +1100,11 @@ static wmOperatorStatus uv_apply_texel_density_exec(bContext *C, wmOperator *op)
   float density;
   int width = 1024;
   int height = 1024;
-
-  if (sima && sima->image) {
+  if (use_custom_resolution) {
+    width = RNA_int_get(op->ptr, "width");
+    height = RNA_int_get(op->ptr, "height");
+  }
+  else if (sima && sima->image) {
     ImageTile *tile = BKE_image_get_tile(sima->image, sima->iuser.tile);
     if (tile) {
       width = tile->gen_x;
@@ -1217,7 +1220,7 @@ static wmOperatorStatus uv_apply_texel_density_exec(bContext *C, wmOperator *op)
   }
   return OPERATOR_FINISHED;
 }
-static void uv_apply_texel_density_draw(bContext * /* C */, wmOperator *op)
+static void uv_apply_texel_density_draw(bContext *C, wmOperator *op)
 {
   ui::Layout &layout = *op->layout;
 
@@ -1248,10 +1251,20 @@ static void uv_apply_texel_density_draw(bContext * /* C */, wmOperator *op)
     col.prop(&ptr, "height", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
   else {
-    layout.use_property_split_set(false);
-    col.label("Width:  " + std::to_string(RNA_int_get(op->ptr, "width")) + " px", ICON_NONE);
+    SpaceImage *sima = CTX_wm_space_image(C);
+    int width = 1024;
+    int height = 1024;
+    if (sima && sima->image) {
+      ImageTile *tile = BKE_image_get_tile(sima->image, sima->iuser.tile);
+      if (tile) {
+        width = tile->gen_x;
+        height = tile->gen_y;
+      }
+    }
+    col.alignment_set(ui::LayoutAlign::Right);
+    col.label("Width:  " + std::to_string(width) + " px", ICON_NONE);
     col.separator();
-    col.label("Height:  " + std::to_string(RNA_int_get(op->ptr, "height")) + " px", ICON_NONE);
+    col.label("Height:  " + std::to_string(height) + " px", ICON_NONE);
   }
 }
 
