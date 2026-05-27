@@ -94,6 +94,25 @@ class KeyframeIterator {
   Array<int> key_indices_;
   Bounds<float> range_;
 
+  float get_next_frame()
+  {
+    float next_frame = FLT_MAX;
+    for (const int i : fcurves_.index_range()) {
+      const FCurve *fcurve = fcurves_[i];
+      if (key_indices_[i] > fcurve->totvert - 1) {
+        continue;
+      }
+      const float key_frame = fcurve->bezt[key_indices_[i]].vec[1][0];
+      if (key_frame >= range_.max) {
+        continue;
+      }
+      if (key_frame < next_frame) {
+        next_frame = key_frame;
+      }
+    }
+    return next_frame;
+  }
+
  public:
   /**
    * \param fcurves is allowed to have nullptr entries.
@@ -118,7 +137,7 @@ class KeyframeIterator {
     }
   }
 
-  bool can_step()
+  bool can_advance()
   {
     for (const int i : fcurves_.index_range()) {
       const FCurve *fcurve = fcurves_[i];
@@ -134,26 +153,13 @@ class KeyframeIterator {
     return false;
   }
 
-  float step()
+  void advance()
   {
-    float next_frame = FLT_MAX;
-    for (const int i : fcurves_.index_range()) {
-      const FCurve *fcurve = fcurves_[i];
-      if (key_indices_[i] > fcurve->totvert - 1) {
-        continue;
-      }
-      const float key_frame = fcurve->bezt[key_indices_[i]].vec[1][0];
-      if (key_frame >= range_.max) {
-        continue;
-      }
-      if (key_frame < next_frame) {
-        next_frame = key_frame;
-      }
-    }
+    float next_frame = get_next_frame();
 
     if (next_frame == FLT_MAX) {
       /* No more keys to step in the range. */
-      return 0;
+      return;
     }
 
     for (const int i : fcurves_.index_range()) {
@@ -167,7 +173,48 @@ class KeyframeIterator {
         key_indices_[i]++;
       }
     }
+  }
+
+  /**
+   * Returns the frame of the current iteration step. If the iterator has completed it will always
+   * return 0.
+   */
+  float get_frame()
+  {
+    float next_frame = get_next_frame();
+
+    if (next_frame == FLT_MAX) {
+      /* No more keys to step in the range. */
+      return 0;
+    }
     return next_frame;
+  }
+
+  /**
+   * Returns the keyframe settings of the current step. The first FCurve with a key at the current
+   * frame is used for this.
+   */
+  animrig::KeyframeSettings get_keyframe_settings()
+  {
+    /* Always return some reasonable defaults. */
+    animrig::KeyframeSettings settings = {BEZT_KEYTYPE_KEYFRAME, HD_AUTO, BEZT_IPO_BEZ};
+    BezTriple *key = nullptr;
+    for (const int i : fcurves_.index_range()) {
+      const FCurve *fcurve = fcurves_[i];
+      if (key_indices_[i] > fcurve->totvert - 1) {
+        continue;
+      }
+      if (key && fcurve->bezt[key_indices_[i]].vec[1][0] >= key->vec[1][0]) {
+        continue;
+      }
+      key = &fcurve->bezt[key_indices_[i]];
+    }
+    if (key) {
+      settings.handle = eBezTriple_Handle(key->h1);
+      settings.interpolation = eBezTriple_Interpolation(key->ipo);
+      settings.keyframe_type = BEZKEYTYPE(key);
+    }
+    return settings;
   }
 };
 
@@ -192,26 +239,15 @@ static void convert_fcurves_rotation_mode(const Span<const FCurve *> evaluation_
   /* Filling the array with the current values to have good base values in case not every array
    * index is keyed. */
   ed::Rotation rotation_values = transformable.get_rotation_for_mode(from_mode);
-  animrig::KeyframeSettings settings;
-  for (const FCurve *fcurve : evaluation_buffer) {
-    if (!fcurve || !fcurve->bezt) {
-      continue;
-    }
-    /* Using the settings of the first key assumes that the settings are consistent which they
-     * may not be. We will need to see if this is an issue in practice. */
-    const BezTriple &key = fcurve->bezt[0];
-    settings.handle = eBezTriple_Handle(key.h1);
-    settings.interpolation = eBezTriple_Interpolation(key.ipo);
-    settings.keyframe_type = BEZKEYTYPE(&key);
-    break;
-  }
 
   /* Storing the previous rotation for euler angles larger than 180 degrees. */
   ed::Rotation previous_conversion = rotation_values.converted_to_mode(to_mode);
 
   KeyframeIterator key_iterator = KeyframeIterator(evaluation_buffer, range);
-  while (key_iterator.can_step()) {
-    const float frame = key_iterator.step();
+  while (key_iterator.can_advance()) {
+    const float frame = key_iterator.get_frame();
+    animrig::KeyframeSettings settings = key_iterator.get_keyframe_settings();
+    key_iterator.advance();
     /* Generate the current rotation values respecting missing FCurves. */
     for (const FCurve *fcurve : evaluation_buffer) {
       if (!fcurve) {
@@ -221,7 +257,7 @@ static void convert_fcurves_rotation_mode(const Span<const FCurve *> evaluation_
     }
     ed::Rotation converted_rotation = rotation_values.converted_to_mode(to_mode,
                                                                         &previous_conversion);
-    for (int i : insertion_buffer.index_range()) {
+    for (const int i : insertion_buffer.index_range()) {
       FCurve *fcurve = insertion_buffer[i];
       BLI_assert_msg(fcurve, "For insertion all FCurves are expected to be created before");
       insert_vert_fcurve(fcurve, {frame, converted_rotation.values[i]}, settings, INSERTKEY_FAST);
