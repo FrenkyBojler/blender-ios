@@ -362,7 +362,11 @@ ccl_device_forceinline void integrator_state_write_mnee(IntegratorState state,
   INTEGRATOR_STATE_ARRAY_WRITE(shadow_state, shadow_isect, 0, t) = ls->P.x;
   INTEGRATOR_STATE_ARRAY_WRITE(shadow_state, shadow_isect, 0, u) = ls->P.y;
   INTEGRATOR_STATE_ARRAY_WRITE(shadow_state, shadow_isect, 0, v) = ls->P.z;
-  INTEGRATOR_STATE_WRITE(shadow_state, shadow_ray, D) = ls->D;
+  /* When the integrate_surface_direct_light() reads the MNEE state it should read mnee_wo as the
+   * light sample direction. */
+  INTEGRATOR_STATE_ARRAY_WRITE(shadow_state, shadow_isect, 1, t) = mnee_wo.x;
+  INTEGRATOR_STATE_ARRAY_WRITE(shadow_state, shadow_isect, 1, u) = mnee_wo.y;
+  INTEGRATOR_STATE_ARRAY_WRITE(shadow_state, shadow_isect, 1, v) = mnee_wo.z;
   INTEGRATOR_STATE_WRITE(shadow_state, shadow_ray, tmin) = ls->t;
   INTEGRATOR_STATE_WRITE(shadow_state, shadow_ray, tmax) = ls->pdf;
   INTEGRATOR_STATE_WRITE(shadow_state, shadow_ray, time) = ls->eval_fac;
@@ -375,9 +379,8 @@ ccl_device_forceinline void integrator_state_write_mnee(IntegratorState state,
   /* Ray. */
   INTEGRATOR_STATE_ARRAY_WRITE(shadow_state, shadow_isect, 1, prim) = mnee_vertex_count;
   INTEGRATOR_STATE_WRITE(shadow_state, shadow_path, throughput) = mnee_throughput;
-  INTEGRATOR_STATE_ARRAY_WRITE(shadow_state, shadow_isect, 1, t) = mnee_wo.x;
-  INTEGRATOR_STATE_ARRAY_WRITE(shadow_state, shadow_isect, 1, u) = mnee_wo.y;
-  INTEGRATOR_STATE_ARRAY_WRITE(shadow_state, shadow_isect, 1, v) = mnee_wo.z;
+  /* The ray direction becomes the original light sample's direction for the shadow ray tracing. */
+  INTEGRATOR_STATE_WRITE(shadow_state, shadow_ray, D) = ls->D;
   INTEGRATOR_STATE_WRITE(shadow_state, shadow_ray, P) = ray->P;
   INTEGRATOR_STATE_WRITE(shadow_state, shadow_ray, dP) = ray->dP;
   INTEGRATOR_STATE_ARRAY_WRITE(shadow_state, shadow_isect, 1, object) = ray->self.object;
