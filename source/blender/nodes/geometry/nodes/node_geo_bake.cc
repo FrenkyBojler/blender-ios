@@ -614,15 +614,23 @@ std::optional<std::string> get_bake_state_string(const BakeDrawContext &ctx)
   return std::nullopt;
 }
 
-void draw_bake_button_row(const BakeDrawContext &ctx, ui::Layout &layout, const bool is_in_sidebar)
+void draw_bake_button_row(ui::Layout &layout,
+                          PointerRNA &modifier_ptr,
+                          PointerRNA &bake_rna,
+                          const bool is_baked,
+                          const NodesModifierBakeTarget bake_target,
+                          const bool is_in_sidebar)
 {
+  const Object &object = *id_cast<Object *>(modifier_ptr.owner_id);
+  const auto &nmd = *modifier_ptr.data_as<NodesModifierData>();
+  const auto &bake = *bake_rna.data_as<NodesModifierBake>();
   ui::Layout &col = layout.column(true);
   ui::Layout &row = col.row(true);
   {
     const char *bake_label = IFACE_("Bake");
     if (is_in_sidebar) {
-      bake_label = ctx.bake_target == NODES_MODIFIER_BAKE_TARGET_DISK ? IFACE_("Bake to Disk") :
-                                                                        IFACE_("Bake Packed");
+      bake_label = bake_target == NODES_MODIFIER_BAKE_TARGET_DISK ? IFACE_("Bake to Disk") :
+                                                                    IFACE_("Bake Packed");
     }
 
     PointerRNA ptr = row.op("OBJECT_OT_geometry_node_bake_single",
@@ -630,24 +638,24 @@ void draw_bake_button_row(const BakeDrawContext &ctx, ui::Layout &layout, const 
                             ICON_NONE,
                             wm::OpCallContext::InvokeDefault,
                             UI_ITEM_NONE);
-    WM_operator_properties_id_lookup_set_from_id(&ptr, &ctx.object->id);
-    RNA_string_set(&ptr, "modifier_name", ctx.nmd->modifier.name);
-    RNA_int_set(&ptr, "bake_id", ctx.bake->id);
+    WM_operator_properties_id_lookup_set_from_id(&ptr, &object.id);
+    RNA_string_set(&ptr, "modifier_name", nmd.modifier.name);
+    RNA_int_set(&ptr, "bake_id", bake.id);
   }
   {
     ui::Layout &subrow = row.row(true);
-    subrow.active_set(ctx.is_baked);
+    subrow.active_set(is_baked);
     if (is_in_sidebar) {
-      if (ctx.is_baked && !G.is_rendering) {
-        if (ctx.bake->packed) {
+      if (is_baked && !G.is_rendering) {
+        if (bake.packed) {
           PointerRNA ptr = subrow.op("OBJECT_OT_geometry_node_bake_unpack_single",
                                      "",
                                      ICON_PACKAGE,
                                      wm::OpCallContext::InvokeDefault,
                                      UI_ITEM_NONE);
-          WM_operator_properties_id_lookup_set_from_id(&ptr, &ctx.object->id);
-          RNA_string_set(&ptr, "modifier_name", ctx.nmd->modifier.name);
-          RNA_int_set(&ptr, "bake_id", ctx.bake->id);
+          WM_operator_properties_id_lookup_set_from_id(&ptr, &object.id);
+          RNA_string_set(&ptr, "modifier_name", nmd.modifier.name);
+          RNA_int_set(&ptr, "bake_id", bake.id);
         }
         else {
           PointerRNA ptr = subrow.op("OBJECT_OT_geometry_node_bake_pack_single",
@@ -655,15 +663,15 @@ void draw_bake_button_row(const BakeDrawContext &ctx, ui::Layout &layout, const 
                                      ICON_UGLYPACKAGE,
                                      wm::OpCallContext::InvokeDefault,
                                      UI_ITEM_NONE);
-          WM_operator_properties_id_lookup_set_from_id(&ptr, &ctx.object->id);
-          RNA_string_set(&ptr, "modifier_name", ctx.nmd->modifier.name);
-          RNA_int_set(&ptr, "bake_id", ctx.bake->id);
+          WM_operator_properties_id_lookup_set_from_id(&ptr, &object.id);
+          RNA_string_set(&ptr, "modifier_name", nmd.modifier.name);
+          RNA_int_set(&ptr, "bake_id", bake.id);
         }
       }
       else {
         /* If the data is not yet baked, still show the icon based on the derived bake target. */
-        const int icon = ctx.bake_target == NODES_MODIFIER_BAKE_TARGET_DISK ? ICON_UGLYPACKAGE :
-                                                                              ICON_PACKAGE;
+        const int icon = bake_target == NODES_MODIFIER_BAKE_TARGET_DISK ? ICON_UGLYPACKAGE :
+                                                                          ICON_PACKAGE;
         PointerRNA ptr = subrow.op("OBJECT_OT_geometry_node_bake_pack_single",
                                    "",
                                    icon,
@@ -677,11 +685,24 @@ void draw_bake_button_row(const BakeDrawContext &ctx, ui::Layout &layout, const 
                                  ICON_TRASH,
                                  wm::OpCallContext::InvokeDefault,
                                  UI_ITEM_NONE);
-      WM_operator_properties_id_lookup_set_from_id(&ptr, &ctx.object->id);
-      RNA_string_set(&ptr, "modifier_name", ctx.nmd->modifier.name);
-      RNA_int_set(&ptr, "bake_id", ctx.bake->id);
+      WM_operator_properties_id_lookup_set_from_id(&ptr, &object.id);
+      RNA_string_set(&ptr, "modifier_name", nmd.modifier.name);
+      RNA_int_set(&ptr, "bake_id", bake.id);
     }
   }
+}
+
+void draw_bake_button_row(const BakeDrawContext &ctx, ui::Layout &layout, const bool is_in_sidebar)
+{
+  PointerRNA nmd_ptr = RNA_pointer_create_discrete(&const_cast<ID &>(ctx.object->id),
+                                                   RNA_NodesModifier,
+                                                   const_cast<NodesModifierData *>(ctx.nmd));
+  draw_bake_button_row(layout,
+                       nmd_ptr,
+                       const_cast<PointerRNA &>(ctx.bake_rna),
+                       ctx.is_baked,
+                       *ctx.bake_target,
+                       is_in_sidebar);
 }
 
 void draw_common_bake_settings(const Main &bmain,

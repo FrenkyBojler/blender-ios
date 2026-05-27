@@ -137,6 +137,18 @@ std::optional<NodesModifierBakeTarget> get_node_bake_target(const Object & /*obj
   return NODES_MODIFIER_BAKE_TARGET_PACKED;
 }
 
+NodesModifierBakeTarget get_node_bake_target(const NodesModifierData &nmd,
+                                             const NodesModifierBake &bake)
+{
+  if (bake.bake_target != NODES_MODIFIER_BAKE_TARGET_INHERIT) {
+    return NodesModifierBakeTarget(bake.bake_target);
+  }
+  if (nmd.bake_target != NODES_MODIFIER_BAKE_TARGET_INHERIT) {
+    return NodesModifierBakeTarget(nmd.bake_target);
+  }
+  return NODES_MODIFIER_BAKE_TARGET_PACKED;
+}
+
 std::optional<bake::BakePath> get_node_bake_path(const Main &bmain,
                                                  const Object &object,
                                                  const NodesModifierData &nmd,

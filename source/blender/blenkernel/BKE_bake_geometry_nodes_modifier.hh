@@ -126,6 +126,8 @@ struct ModifierCache {
  */
 void scene_simulation_states_reset(Scene &scene);
 
+NodesModifierBakeTarget get_node_bake_target(const NodesModifierData &nmd,
+                                             const NodesModifierBake &bake);
 std::optional<NodesModifierBakeTarget> get_node_bake_target(const Object &object,
                                                             const NodesModifierData &nmd,
                                                             int node_id);

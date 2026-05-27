@@ -130,6 +130,12 @@ void draw_common_bake_settings(const Main &bmain,
                                NodesModifierBakeTarget bake_target,
                                ui::Layout &layout);
 void draw_common_bake_settings(bContext *C, BakeDrawContext &ctx, ui::Layout &layout);
+void draw_bake_button_row(ui::Layout &layout,
+                          PointerRNA &modifier_ptr,
+                          PointerRNA &bake_rna,
+                          bool is_baked,
+                          NodesModifierBakeTarget bake_target,
+                          bool is_in_sidebar);
 void draw_bake_button_row(const BakeDrawContext &ctx,
                           ui::Layout &layout,
                           bool is_in_sidebar = false);
