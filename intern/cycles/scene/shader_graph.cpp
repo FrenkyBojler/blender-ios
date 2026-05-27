@@ -803,7 +803,6 @@ void ShaderGraph::compute_displacement_hash()
 
 void ShaderGraph::apply_feature_overrides(Scene *scene)
 {
-  /* Feature overrides */
   if (scene->integrator->get_ignore_displacement()) {
     ShaderInput *displacement_in = output()->input("Displacement");
     if (displacement_in->link) {
