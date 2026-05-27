@@ -2385,7 +2385,7 @@ static wmOperatorStatus object_transform_axis_target_invoke(bContext *C,
     negate_v3(light_normal); /* Light points in negative Z direction by default */
 
     /* Use snap system to cast ray from light position */
-    blender::ed::transform::SnapObjectParams snap_params = {};
+    transform::SnapObjectParams snap_params = {};
     snap_params.snap_target_select = SCE_SNAP_TARGET_ALL;
     snap_params.edit_mode_type = blender::ed::transform::SNAP_GEOM_FINAL;
     snap_params.occlusion_test = blender::ed::transform::SNAP_OCCLUSION_NEVER;
@@ -2394,8 +2394,8 @@ static wmOperatorStatus object_transform_axis_target_invoke(bContext *C,
     snap_params.face_nearest_steps = 1;
     snap_params.grid_size = 0.0f;
 
-    blender::ed::transform::SnapObjectContext *sctx =
-        blender::ed::transform::snap_object_context_create();
+    transform::SnapObjectContext *sctx =
+        transform::snap_object_context_create();
 
     float3 hit_co, hit_no;
     float ray_depth = BVH_RAYCAST_DIST_MAX; /* Cast ray far into the scene */
@@ -2590,7 +2590,7 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
         IFACE_("Shadow"), op->type, TGT_MODAL_SHADOW_ENABLE, xfd->light_mode == LIGHT_SHADOW_MODE);
     status.opmodal(IFACE_("Orbit"), op->type, TGT_MODAL_SWITCH_TO_ORBIT);
     /* Show precision mode status */
-    status.opmodal(IFACE_("Precision"), op->type, TGT_MODAL_PRECISION_ENABLE, xfd->precision_mode);
+    status.opmodal(IFACE_("Precision Mode"), op->type, TGT_MODAL_PRECISION_ENABLE, xfd->precision_mode);
   }
 
   /* Refresh depth buffer after navigation */
@@ -2605,7 +2605,7 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
 
     /* Create new depth buffer with updated view matrix */
 #ifdef USE_RENDER_OVERRIDE
-    int flag2_prev = xfd->vc.v3d->flag2;
+    eView3D_Flag2 flag2_prev = xfd->vc.v3d->flag2;
     xfd->vc.v3d->flag2 |= V3D_HIDE_OVERLAYS;
 #endif
 
@@ -3083,9 +3083,10 @@ static void object_orbit_around_target_init_data(bContext *C, wmOperator *op, co
   /* Set initial status text. */
   object_orbit_around_target_update_status(C, op, ooatd);
 
+  const Main *bmain = CTX_data_main(C);
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
-  BKE_view_layer_synced_ensure(scene, view_layer);
+  BKE_view_layer_synced_ensure(*bmain, scene, view_layer);
 
   Object *active_ob = ooatd->vc.obact;
   if (active_ob && ELEM(active_ob->type, OB_LAMP, OB_CAMERA)) {
