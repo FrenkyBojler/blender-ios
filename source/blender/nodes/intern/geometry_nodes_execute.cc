@@ -107,8 +107,9 @@ static bke::SocketValueVariant load_data_block_input(const GeoNodesCallData *cal
   return bke::SocketValueVariant::From(data_block);
 }
 
-static GeometryNodesInputType get_attribute_or_value_input_type(
-    PointerRNA *input_props_ptr, const bNodeTree &ntree, const bNodeTreeInterfaceSocket &io_socket)
+static GeometryNodesInputType get_effective_input_type(PointerRNA *input_props_ptr,
+                                                       const bNodeTree &ntree,
+                                                       const bNodeTreeInterfaceSocket &io_socket)
 {
   const int input_index = ntree.interface_input_index(io_socket);
   const bke::bNodeSocketType *typeinfo = io_socket.socket_typeinfo();
@@ -133,7 +134,7 @@ static bke::SocketValueVariant init_socket_cpp_value(const GeoNodesCallData *cal
   const eNodeSocketDatatype socket_type = stype->type;
   switch (socket_type) {
     case SOCK_FLOAT: {
-      const GeometryNodesInputType type = get_attribute_or_value_input_type(
+      const GeometryNodesInputType type = get_effective_input_type(
           input_props_ptr, ntree, io_socket);
       if (type == GeometryNodesInputType::Value) {
         const float value = RNA_float_get(input_props_ptr, "value");
@@ -149,7 +150,7 @@ static bke::SocketValueVariant init_socket_cpp_value(const GeoNodesCallData *cal
       break;
     }
     case SOCK_VECTOR: {
-      const GeometryNodesInputType type = get_attribute_or_value_input_type(
+      const GeometryNodesInputType type = get_effective_input_type(
           input_props_ptr, ntree, io_socket);
       if (type == GeometryNodesInputType::Value) {
         float3 value;
@@ -166,7 +167,7 @@ static bke::SocketValueVariant init_socket_cpp_value(const GeoNodesCallData *cal
       break;
     }
     case SOCK_RGBA: {
-      const GeometryNodesInputType type = get_attribute_or_value_input_type(
+      const GeometryNodesInputType type = get_effective_input_type(
           input_props_ptr, ntree, io_socket);
       if (type == GeometryNodesInputType::Value) {
         ColorGeometry4f value;
@@ -183,7 +184,7 @@ static bke::SocketValueVariant init_socket_cpp_value(const GeoNodesCallData *cal
       break;
     }
     case SOCK_BOOLEAN: {
-      const GeometryNodesInputType type = get_attribute_or_value_input_type(
+      const GeometryNodesInputType type = get_effective_input_type(
           input_props_ptr, ntree, io_socket);
       if (type == GeometryNodesInputType::Value) {
         const bool value = RNA_boolean_get(input_props_ptr, "value");
@@ -204,7 +205,7 @@ static bke::SocketValueVariant init_socket_cpp_value(const GeoNodesCallData *cal
       break;
     }
     case SOCK_INT: {
-      const GeometryNodesInputType type = get_attribute_or_value_input_type(
+      const GeometryNodesInputType type = get_effective_input_type(
           input_props_ptr, ntree, io_socket);
       if (type == GeometryNodesInputType::Value) {
         const int value = RNA_int_get(input_props_ptr, "value");
@@ -220,7 +221,7 @@ static bke::SocketValueVariant init_socket_cpp_value(const GeoNodesCallData *cal
       break;
     }
     case SOCK_ROTATION: {
-      const GeometryNodesInputType type = get_attribute_or_value_input_type(
+      const GeometryNodesInputType type = get_effective_input_type(
           input_props_ptr, ntree, io_socket);
       if (type == GeometryNodesInputType::Value) {
         float3 value_euler;
@@ -238,7 +239,7 @@ static bke::SocketValueVariant init_socket_cpp_value(const GeoNodesCallData *cal
       break;
     }
     case SOCK_MENU: {
-      const GeometryNodesInputType type = get_attribute_or_value_input_type(
+      const GeometryNodesInputType type = get_effective_input_type(
           input_props_ptr, ntree, io_socket);
       if (type == GeometryNodesInputType::Value) {
         const int value = RNA_enum_get(input_props_ptr, "value");
@@ -247,7 +248,7 @@ static bke::SocketValueVariant init_socket_cpp_value(const GeoNodesCallData *cal
       break;
     }
     case SOCK_STRING: {
-      const GeometryNodesInputType type = get_attribute_or_value_input_type(
+      const GeometryNodesInputType type = get_effective_input_type(
           input_props_ptr, ntree, io_socket);
       if (type == GeometryNodesInputType::Value) {
         const std::string value = RNA_string_get(input_props_ptr, "value");
@@ -256,7 +257,7 @@ static bke::SocketValueVariant init_socket_cpp_value(const GeoNodesCallData *cal
       break;
     }
     case SOCK_OBJECT: {
-      const GeometryNodesInputType type = get_attribute_or_value_input_type(
+      const GeometryNodesInputType type = get_effective_input_type(
           input_props_ptr, ntree, io_socket);
       if (type == GeometryNodesInputType::Value) {
         return load_data_block_input<Object>(call_data, *input_props_ptr);
@@ -264,7 +265,7 @@ static bke::SocketValueVariant init_socket_cpp_value(const GeoNodesCallData *cal
       break;
     }
     case SOCK_IMAGE: {
-      const GeometryNodesInputType type = get_attribute_or_value_input_type(
+      const GeometryNodesInputType type = get_effective_input_type(
           input_props_ptr, ntree, io_socket);
       if (type == GeometryNodesInputType::Value) {
         return load_data_block_input<Image>(call_data, *input_props_ptr);
@@ -272,7 +273,7 @@ static bke::SocketValueVariant init_socket_cpp_value(const GeoNodesCallData *cal
       break;
     }
     case SOCK_COLLECTION: {
-      const GeometryNodesInputType type = get_attribute_or_value_input_type(
+      const GeometryNodesInputType type = get_effective_input_type(
           input_props_ptr, ntree, io_socket);
       if (type == GeometryNodesInputType::Value) {
         return load_data_block_input<Collection>(call_data, *input_props_ptr);
@@ -280,7 +281,7 @@ static bke::SocketValueVariant init_socket_cpp_value(const GeoNodesCallData *cal
       break;
     }
     case SOCK_TEXTURE: {
-      const GeometryNodesInputType type = get_attribute_or_value_input_type(
+      const GeometryNodesInputType type = get_effective_input_type(
           input_props_ptr, ntree, io_socket);
       if (type == GeometryNodesInputType::Value) {
         return load_data_block_input<Tex>(call_data, *input_props_ptr);
@@ -288,7 +289,7 @@ static bke::SocketValueVariant init_socket_cpp_value(const GeoNodesCallData *cal
       break;
     }
     case SOCK_MATERIAL: {
-      const GeometryNodesInputType type = get_attribute_or_value_input_type(
+      const GeometryNodesInputType type = get_effective_input_type(
           input_props_ptr, ntree, io_socket);
       if (type == GeometryNodesInputType::Value) {
         return load_data_block_input<Material>(call_data, *input_props_ptr);
@@ -296,7 +297,7 @@ static bke::SocketValueVariant init_socket_cpp_value(const GeoNodesCallData *cal
       break;
     }
     case SOCK_FONT: {
-      const GeometryNodesInputType type = get_attribute_or_value_input_type(
+      const GeometryNodesInputType type = get_effective_input_type(
           input_props_ptr, ntree, io_socket);
       if (type == GeometryNodesInputType::Value) {
         return load_data_block_input<VFont>(call_data, *input_props_ptr);
@@ -304,7 +305,7 @@ static bke::SocketValueVariant init_socket_cpp_value(const GeoNodesCallData *cal
       break;
     }
     case SOCK_SCENE: {
-      const GeometryNodesInputType type = get_attribute_or_value_input_type(
+      const GeometryNodesInputType type = get_effective_input_type(
           input_props_ptr, ntree, io_socket);
       if (type == GeometryNodesInputType::Value) {
         return load_data_block_input<Scene>(call_data, *input_props_ptr);
@@ -312,7 +313,7 @@ static bke::SocketValueVariant init_socket_cpp_value(const GeoNodesCallData *cal
       break;
     }
     case SOCK_TEXT_ID: {
-      const GeometryNodesInputType type = get_attribute_or_value_input_type(
+      const GeometryNodesInputType type = get_effective_input_type(
           input_props_ptr, ntree, io_socket);
       if (type == GeometryNodesInputType::Value) {
         return load_data_block_input<Text>(call_data, *input_props_ptr);
@@ -320,7 +321,7 @@ static bke::SocketValueVariant init_socket_cpp_value(const GeoNodesCallData *cal
       break;
     }
     case SOCK_MASK: {
-      const GeometryNodesInputType type = get_attribute_or_value_input_type(
+      const GeometryNodesInputType type = get_effective_input_type(
           input_props_ptr, ntree, io_socket);
       if (type == GeometryNodesInputType::Value) {
         return load_data_block_input<Mask>(call_data, *input_props_ptr);
@@ -328,7 +329,7 @@ static bke::SocketValueVariant init_socket_cpp_value(const GeoNodesCallData *cal
       break;
     }
     case SOCK_SOUND: {
-      const GeometryNodesInputType type = get_attribute_or_value_input_type(
+      const GeometryNodesInputType type = get_effective_input_type(
           input_props_ptr, ntree, io_socket);
       if (type == GeometryNodesInputType::Value) {
         return load_data_block_input<bSound>(call_data, *input_props_ptr);
@@ -689,7 +690,7 @@ Vector<InferenceValue> get_geometry_nodes_input_inference_values(const bNodeTree
       continue;
     }
     PointerRNA socket_props_ptr = RNA_pointer_get(&inputs_ptr, io_input.identifier);
-    const GeometryNodesInputType input_type = get_attribute_or_value_input_type(
+    const GeometryNodesInputType input_type = get_effective_input_type(
         &socket_props_ptr, btree, io_input);
     if (input_type != GeometryNodesInputType::Value) {
       continue;
