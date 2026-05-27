@@ -86,12 +86,11 @@ inline bool DRW_vbo_requested(gpu::VertBuf *vbo)
   return (vbo != nullptr && (GPU_vertbuf_get_status(vbo) & GPU_VERTBUF_INIT) == 0);
 }
 
-inline gpu::BottomLevelAS *DRW_blas_request(gpu::BottomLevelAS **blas)
+inline void DRW_blas_request(gpu::BottomLevelAS **blas)
 {
   if (*blas == nullptr) {
     *blas = GPU_ray_tracing_blas_alloc(__func__);
   }
-  return *blas;
 }
 
 }  // namespace blender

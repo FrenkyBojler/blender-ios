@@ -502,6 +502,12 @@ static void mesh_batch_cache_request_surface_blas(MeshBatchCache &cache)
 static void mesh_batch_cache_discard_shaded_tri(MeshBatchCache &cache)
 {
   discard_buffers(cache, {VBOType::UVs, VBOType::Tangents, VBOType::Orco}, {});
+
+  if (cache.surface_blas) {
+    GPU_ray_tracing_blas_discard(cache.surface_blas);
+    cache.surface_blas = nullptr;
+    cache.surface_blas_ready = false;
+  }
 }
 
 static void mesh_batch_cache_discard_uvedit(MeshBatchCache &cache)
@@ -617,6 +623,12 @@ static void mesh_batch_cache_clear(MeshBatchCache &cache)
   drw_mesh_weight_state_clear(&cache.weight_state);
 
   mesh_batch_cache_free_subdiv_cache(cache);
+
+  if (cache.surface_blas) {
+    GPU_ray_tracing_blas_discard(cache.surface_blas);
+    cache.surface_blas = nullptr;
+    cache.surface_blas_ready = false;
+  }
 }
 
 void DRW_mesh_batch_cache_free(draw::MeshBatchCache *batch_cache)
