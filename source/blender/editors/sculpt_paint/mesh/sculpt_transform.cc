@@ -68,6 +68,7 @@ void init_transform(bContext *C, Object &ob, const float mval_fl[2], const char 
   ss.prev_pivot_rot = ss.pivot_rot;
   ss.prev_pivot_scale = ss.pivot_scale;
 
+  /* Pivot only transformations don't push undo steps */
   if (sd.transform_mode == SCULPT_TRANSFORM_MODE_PIVOT) {
     return;
   }
@@ -87,7 +88,7 @@ void init_transform(bContext *C, Object &ob, const float mval_fl[2], const char 
   }
 }
 
-static void sync_pivot_state(bContext *C, Object &ob)
+static void finish_pivot_change(bContext *C, Object &ob)
 {
   SculptSession &ss = *ob.runtime->sculpt_session;
   ARegion *region = CTX_wm_region(C);
@@ -573,16 +574,10 @@ void update_modal_transform(bContext *C, Object &ob)
   SculptSession &ss = *ob.runtime->sculpt_session;
   Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
 
-  if (sd.transform_mode == SCULPT_TRANSFORM_MODE_PIVOT) {
-    copy_v3_v3(ss.prev_pivot_pos, ss.pivot_pos);
-    copy_v4_v4(ss.prev_pivot_rot, ss.pivot_rot);
-    copy_v3_v3(ss.prev_pivot_scale, ss.pivot_scale);
-    sync_pivot_state(C, ob);
-    return;
+  if (sd.transform_mode != SCULPT_TRANSFORM_MODE_PIVOT) {
+    vert_random_access_ensure(ob);
+    BKE_sculpt_update_object_for_edit(depsgraph, &ob, false);
   }
-
-  vert_random_access_ensure(ob);
-  BKE_sculpt_update_object_for_edit(depsgraph, &ob, false);
 
   switch (sd.transform_mode) {
     case SCULPT_TRANSFORM_MODE_ALL_VERTICES: {
@@ -607,7 +602,7 @@ void update_modal_transform(bContext *C, Object &ob)
       break;
     }
     case SCULPT_TRANSFORM_MODE_PIVOT: {
-      BLI_assert_unreachable();
+      /* Intentional no-op */
       break;
     }
   }
@@ -616,7 +611,9 @@ void update_modal_transform(bContext *C, Object &ob)
   copy_v4_v4(ss.prev_pivot_rot, ss.pivot_rot);
   copy_v3_v3(ss.prev_pivot_scale, ss.pivot_scale);
 
-  flush_update_step(C, UpdateType::Position);
+  if (sd.transform_mode != SCULPT_TRANSFORM_MODE_PIVOT) {
+    flush_update_step(C, UpdateType::Position);
+  }
 }
 
 void cancel_modal_transform(bContext *C, Object &ob)
@@ -635,11 +632,13 @@ void cancel_modal_transform(bContext *C, Object &ob)
 void end_transform(bContext *C, Object &ob)
 {
   const Sculpt &sd = *CTX_data_tool_settings(C)->sculpt;
+  SculptSession &ss = *ob.runtime->sculpt_session;
+  /* Pivot only transformations don't push undo steps */
   if (sd.transform_mode == SCULPT_TRANSFORM_MODE_PIVOT) {
-    sync_pivot_state(C, ob);
+    BLI_assert(ss.filter_cache == nullptr);
+    finish_pivot_change(C, ob);
     return;
   }
-  SculptSession &ss = *ob.runtime->sculpt_session;
   MEM_delete(ss.filter_cache);
   ss.filter_cache = nullptr;
   undo::push_end(ob);
@@ -1003,7 +1002,7 @@ static wmOperatorStatus set_pivot_position_exec(bContext *C, wmOperator *op)
     }
   }
 
-  sync_pivot_state(C, ob);
+  finish_pivot_change(C, ob);
 
   return OPERATOR_FINISHED;
 }
