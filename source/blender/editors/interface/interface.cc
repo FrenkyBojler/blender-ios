@@ -946,7 +946,7 @@ static void but_update_old_active_from_new(Button *oldbut, Button *but)
 
   /* flags from the buttons we want to refresh, may want to add more here... */
   const int flag_copy = BUT_REDALERT | UI_HAS_ICON | UI_SELECT_DRAW;
-  const int drawflag_copy = BUT_HAS_QUICK_TOOLTIP;
+  const int drawflag_copy = BUT_HAS_QUICK_TOOLTIP | BUT_NO_TOOLTIP;
 
   /* still stuff needs to be copied */
   oldbut->rect = but->rect;
