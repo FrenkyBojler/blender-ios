@@ -1097,7 +1097,7 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
     ignore_images: BoolProperty(
         name="Ignore Images",
         default=False,
-        description="Do not load images, use a neutral grey instead"
+        description="Do not load images, use a neutral gray instead"
     )
     ignore_volumes: BoolProperty(
         name="Ignore Volumes",
