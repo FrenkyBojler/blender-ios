@@ -3577,7 +3577,8 @@ static wmOperatorStatus text_insert_exec(bContext *C, wmOperator *op)
   str = RNA_string_get_alloc(op->ptr, "text", nullptr, 0, &str_len);
 
   /* NOTE: we rely on this check to ensure `done` will never be false,
-   * this area of code should be refactored not to depend on  */
+   * this area of code should be refactored not to depend on `done`
+   * being set as a side-effect of a successful insert. */
   if (*str == '\0' || text->curl == nullptr) {
     MEM_delete(str);
     return OPERATOR_CANCELLED;
