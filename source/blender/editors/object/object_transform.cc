@@ -2641,9 +2641,10 @@ static void object_orbit_around_target_init_data(bContext *C, wmOperator *op, co
   /* Set initial status text. */
   object_orbit_around_target_update_status(C, op, ooatd);
 
+  const Main *bmain = CTX_data_main(C);
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
-  BKE_view_layer_synced_ensure(scene, view_layer);
+  BKE_view_layer_synced_ensure(*bmain, scene, view_layer);
 
   Object *active_ob = ooatd->vc.obact;
   if (active_ob && ELEM(active_ob->type, OB_LAMP, OB_CAMERA)) {
