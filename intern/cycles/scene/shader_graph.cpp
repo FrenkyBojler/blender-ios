@@ -811,9 +811,9 @@ void ShaderGraph::apply_feature_overrides(Scene *scene)
     }
   }
   if (scene->integrator->get_ignore_volumes()) {
-    ShaderInput *displacement_in = output()->input("Volume");
-    if (displacement_in->link) {
-      disconnect(displacement_in);
+    ShaderInput *volume_in = output()->input("Volume");
+    if (volume_in->link) {
+      disconnect(volume_in);
     }
   }
   if (scene->integrator->get_ignore_subsurface_scattering() ||
