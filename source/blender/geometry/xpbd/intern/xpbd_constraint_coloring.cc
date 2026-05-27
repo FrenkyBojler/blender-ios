@@ -2,9 +2,12 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BLI_timeit.hh"
+
 #include "BLI_enumerable_thread_specific.hh"
 #include "BLI_multi_value_map.hh"
 #include "BLI_set.hh"
+#include "BLI_ordered_edge.hh"
 #include "BLI_task_size_hints.hh"
 
 #include "BKE_mesh_mapping.hh"
@@ -71,6 +74,7 @@ inline ConstraintColoring generic_constraint_coloring(
 ConstraintColoring color_constraints__unary(const Span<int> affected_points,
                                             IndexMaskMemory &memory)
 {
+  SCOPED_TIMER(__func__);
   return generic_constraint_coloring<int>(
       [&](const int constraint_i) { return Span<int>(&affected_points[constraint_i], 1); },
       affected_points.size(),
@@ -136,7 +140,10 @@ static void foreach_isolated_edges_set_imp(const int total_verts,
   IndexMask::from_groups<int>(
       edges.index_range(),
       memory,
-      [&](const int edge_i) { return chunk_to_index(edges[edge_i] / chunk_size); },
+      [&](const int edge_i) {
+        const OrderedEdge ordered(edges[edge_i]);
+        return chunk_to_index(int2(ordered.v_low, ordered.v_high) / chunk_size);
+      },
       chunk_partition);
 
   /* Diagonal is free to process. */
@@ -170,14 +177,28 @@ static void foreach_isolated_edges_set_imp(const int total_verts,
     }
   };
 
-  for ([[maybe_unused]] const int pass_i : IndexRange(chunks_num)) {
+  for ([[maybe_unused]] const int pass_i : IndexRange(chunks_num * chunks_num)) {
     Vector<int2> chunks_for_pass;
     Array<bool> to_process = chunk_processed;
+    
+    const int pass_first_chunk_index = [&]() {
+      int pass_first_chunk_index = 0;
+      while (pass_first_chunk_index + 1 < to_process.size() && to_process[pass_first_chunk_index]) {
+        pass_first_chunk_index++;
+      }
+      return pass_first_chunk_index;
+    }();
+    
     for ([[maybe_unused]] const int chunk_i : IndexRange(chunks_num - 1)) {
-      const int index_to_process = to_process.as_span().first_index_try(false);
-      if (index_to_process == -1) {
+      const int i_to_process = to_process.as_span().drop_front(pass_first_chunk_index).first_index_try(false);
+      if (i_to_process == -1) {
         break;
       }
+      const int index_to_process = pass_first_chunk_index + i_to_process;
+      
+      BLI_assert(!to_process[index_to_process]);
+      BLI_assert(!to_process.as_span().take_front(index_to_process).contains(false));
+
       const int2 chunk = index_to_chunk(index_to_process);
       chunks_for_pass.append(chunk);
 
@@ -304,59 +325,68 @@ static bool is_valid_binary_coloring(const int total_verts,
 ConstraintColoring color_constraints__binary(const Span<int2> edges, IndexMaskMemory &memory)
 {
   ConstraintColoring coloring;
-  const Span<int> verts = edges.cast<int>();
-  const int max_vert_index = max_element_of<int>(verts, 2048, [&](const int i) { return i; });
-  const int total_verts = verts[max_vert_index] + 1;
+  {
+    SCOPED_TIMER(__func__);
+    const Span<int> verts = edges.cast<int>();
+    const int max_vert_index = max_element_of<int>(verts, 2048, [&](const int i) { return i; });
+    const int total_verts = verts[max_vert_index] + 1;
 
-  Array<int> offsets;
-  Array<int> indices;
-  const GroupedSpan<int> vert_to_edges = bke::mesh::build_vert_to_edge_map(
-      edges, total_verts, offsets, indices);
+    Array<int> offsets;
+    Array<int> indices;
+    const GroupedSpan<int> vert_to_edges = bke::mesh::build_vert_to_edge_map(
+        edges, total_verts, offsets, indices);
 
-  Array<int> colors(edges.size(), 0);
+    static constexpr int not_a_color = -1;
+    Array<int> colors(edges.size(), not_a_color);
 
-  threading::EnumerableThreadSpecific<int> colors_num;
+    threading::EnumerableThreadSpecific<int> colors_num;
 
-  foreach_isolated_edges_set(total_verts, edges, 1000, [&](const IndexMask &edges_mask) {
-    Vector<bool, 16> color_is_used;
-    int &max_colors = colors_num.local();
+    foreach_isolated_edges_set(total_verts, edges, 1000, [&](const IndexMask &edges_mask) {
+      Vector<bool, 16> color_is_used;
 
-    edges_mask.foreach_index([&](const int edge_i) {
-      color_is_used.as_mutable_span().fill(false);
-      for (const int vert : {edges[edge_i][0], edges[edge_i][1]}) {
-        for (const int other_edge_i : vert_to_edges[vert]) {
-          if (edge_i == other_edge_i) {
-            continue;
+      edges_mask.foreach_index([&](const int edge_i) {
+        color_is_used.as_mutable_span().fill(false);
+        for (const int vert : {edges[edge_i][0], edges[edge_i][1]}) {
+          for (const int other_edge_i : vert_to_edges[vert]) {
+            if (edge_i == other_edge_i) {
+              continue;
+            }
+            if (colors[other_edge_i] == not_a_color) {
+              continue;
+            }
+
+            color_is_used.resize(std::max<int>(color_is_used.size(), colors[other_edge_i] + 1), false);
+            color_is_used[colors[other_edge_i]] = true;
           }
-          color_is_used.resize(std::max<int>(color_is_used.size(), colors[other_edge_i] + 1),
-                               false);
-          color_is_used[colors[other_edge_i]] = true;
         }
-      }
-      const int best_color = color_is_used.as_span().first_index_try(false);
+        const int best_color = color_is_used.as_span().first_index_try(false);
 
-      if (best_color == -1) {
-        max_colors = std::max<int>(max_colors, color_is_used.size() + 1);
-        colors[edge_i] = color_is_used.size();
-      }
-      else {
-        max_colors = std::max<int>(max_colors, color_is_used.size());
-        colors[edge_i] = best_color;
-      }
+        if (best_color == -1) {
+          colors[edge_i] = color_is_used.size();
+          color_is_used.resize(color_is_used.size() + 1);
+        }
+        else {
+          colors[edge_i] = best_color;
+        }
+      });
+
+      colors_num.local() = std::max<int>(colors_num.local(), color_is_used.size());
     });
-  });
 
-  int colors_num_value = 0;
-  for (const int value : colors_num) {
-    colors_num_value = std::max(value, colors_num_value);
+    int colors_num_value = 0;
+    for (const int value : colors_num) {
+      colors_num_value = std::max(value, colors_num_value);
+    }
+
+    coloring.colors.reinitialize(colors_num_value);
+    IndexMask::from_groups<int>(
+        edges.index_range(), memory, [&](const int i) { return colors[i]; }, coloring.colors);
+
+    coloring.colors.remove_if([](const IndexMask &value) { return value.is_empty(); });
+    BLI_assert(is_valid_binary_coloring(total_verts, edges, coloring.colors));
   }
 
-  coloring.colors.reinitialize(colors_num_value);
-  IndexMask::from_groups<int>(
-      edges.index_range(), memory, [&](const int i) { return colors[i]; }, coloring.colors);
-
-  coloring.colors.remove_if([](const IndexMask &value) { return value.is_empty(); });
-  BLI_assert(is_valid_binary_coloring(total_verts, edges, coloring.colors));
+  printf("coloring.colors: %d;\n", int(coloring.colors.size()));
 
   return coloring;
 }
@@ -364,6 +394,7 @@ ConstraintColoring color_constraints__binary(const Span<int2> edges, IndexMaskMe
 ConstraintColoring color_constraints__n_ary(const GroupedSpan<int> affected_points,
                                             IndexMaskMemory &memory)
 {
+  SCOPED_TIMER(__func__);
   return generic_constraint_coloring<int>(
       [&](const int constraint_i) { return affected_points[constraint_i]; },
       affected_points.size(),
@@ -372,6 +403,7 @@ ConstraintColoring color_constraints__n_ary(const GroupedSpan<int> affected_poin
 
 ConstraintColoring color_constraints__all_independent(const int constraints_num)
 {
+  SCOPED_TIMER(__func__);
   return ConstraintColoring{{IndexMask(constraints_num)}};
 }
 
