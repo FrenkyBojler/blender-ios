@@ -304,7 +304,7 @@ static void selectcontext_apply(bContext *C,
  * Ideally we would only respond to events which are expected to be used for multi button editing
  * (additionally checking if this is a mouse[wheel] or return-key event to avoid the ALT conflict
  * with button array pasting, see #108096, but unfortunately wheel events are not part of
- * `win->runtime->eventstate` with modifiers held down. Instead, the conflict is avoided by
+ * `win->runtime->eventstate` with modifiers held down). Instead, the conflict is avoided by
  * specifically filtering out CTRL ALT V in #apply_but(). */
 #  define IS_ALLSELECT_EVENT(event) (((event)->modifier & KM_ALT) != 0)
 
@@ -1134,7 +1134,7 @@ static void apply_but_funcs_after(bContext *C)
 {
   /* Copy to avoid recursive calls. */
   ListBaseT<AfterFunc> funcs = UIAfterFuncs;
-  BLI_listbase_clear(&UIAfterFuncs);
+  UIAfterFuncs.clear_no_delete();
 
   for (AfterFunc &afterf : funcs.items_mutable()) {
     AfterFunc after = afterf; /* Copy to avoid memory leak on exit(). */
@@ -3269,11 +3269,44 @@ static void textedit_set_cursor_pos(Button *but, const ARegion *region, const fl
   const float aspect = but->block->aspect;
 
   float startx = but->rect.xmin;
+  float endx = but->rect.xmax;
   float starty_dummy = 0.0f;
   std::string password_str;
   /* treat 'str_last' as null terminator for str, no need to modify in-place */
   const char *str = but->editstr, *str_last;
 
+  /* Compute padding in block space. */
+  bool right_aligned = !(but->drawflag & BUT_TEXT_LEFT) && but->drawflag & BUT_TEXT_RIGHT;
+
+  if (ELEM(but->type, ButtonType::Text, ButtonType::SearchMenu)) {
+    if (but->flag & UI_HAS_ICON) {
+      startx += UI_ICON_SIZE / aspect;
+    }
+  }
+  if (!(but->drawflag & BUT_NO_TEXT_PADDING)) {
+    if (right_aligned) {
+      startx += U.pixelsize / aspect;
+      endx -= UI_TEXT_MARGIN_X * U.widget_unit / aspect;
+    }
+    else {
+      startx += UI_TEXT_MARGIN_X * U.widget_unit / aspect;
+      endx -= U.pixelsize / aspect;
+    }
+  }
+  else if (right_aligned) {
+    endx -= U.pixelsize / aspect;
+  }
+  else {
+    startx += U.pixelsize / aspect;
+  }
+
+  if (right_aligned) {
+    int width = BLF_width(fstyle.uifont_id, str + but->ofs, strlen(str + but->ofs));
+    const float align_x_ofs = endx - startx - width;
+    startx += max_ff(0.0f, align_x_ofs);
+  }
+
+  /* Transform startx to screen space. */
   block_to_window_fl(region, but->block, &startx, &starty_dummy);
 
   fontscale(&fstyle.points, aspect);
@@ -3281,16 +3314,6 @@ static void textedit_set_cursor_pos(Button *but, const ARegion *region, const fl
   fontstyle_set(&fstyle);
 
   button_text_password_hide(password_str, but, false);
-
-  if (ELEM(but->type, ButtonType::Text, ButtonType::SearchMenu)) {
-    if (but->flag & UI_HAS_ICON) {
-      startx += UI_ICON_SIZE / aspect;
-    }
-  }
-  startx -= U.pixelsize / aspect;
-  if (!(but->drawflag & BUT_NO_TEXT_PADDING)) {
-    startx += UI_TEXT_MARGIN_X * U.widget_unit / aspect;
-  }
 
   /* mouse dragged outside the widget to the left */
   if (xy.x < startx) {
@@ -4845,7 +4868,7 @@ static ButtonExtraOpIcon *but_extra_operator_icon_mouse_over_get(Button *but,
                                                                  ARegion *region,
                                                                  const wmEvent *event)
 {
-  if (BLI_listbase_is_empty(&but->extra_op_icons)) {
+  if (but->extra_op_icons.is_empty()) {
     return nullptr;
   }
 
@@ -5362,7 +5385,7 @@ static int do_but_TEXTBOX(bContext *C,
             C, textbox, textbox->editstr ? BUTTON_STATE_TEXT_EDITING : BUTTON_STATE_HIGHLIGHT);
         return WM_UI_HANDLER_BREAK;
       }
-      else if (event->type == MOUSEMOVE) {
+      if (event->type == MOUSEMOVE) {
         int mx = event->xy[0];
         int my = event->xy[1];
         window_to_block(data->region, block, &mx, &my);
@@ -5386,7 +5409,7 @@ static int do_but_TEXTBOX(bContext *C,
             C, textbox, textbox->editstr ? BUTTON_STATE_TEXT_EDITING : BUTTON_STATE_HIGHLIGHT);
         return WM_UI_HANDLER_BREAK;
       }
-      else if (event->type == MOUSEMOVE) {
+      if (event->type == MOUSEMOVE) {
         int visible_lines = data->origvalue +
                             ((data->dragstarty - event->xy[1]) /
                              (fontstyle_height_max(UI_FSTYLE_WIDGET) / block->aspect));
@@ -5470,7 +5493,7 @@ static int do_but_TOG(bContext *C, Button *but, HandleButtonData *data, const wm
         button_activate_state(C, but, BUTTON_STATE_EXIT);
         return WM_UI_HANDLER_BREAK;
       }
-      else if (but->type == ButtonType::Row) {
+      if (but->type == ButtonType::Row) {
         /* Support Ctrl-Wheel to cycle values on expanded enum rows. */
         int type = event->type;
         int val = event->val;
@@ -9598,7 +9621,6 @@ static void button_activate_exit(
       PopupBlockHandle *menu;
 
       menu = block->handle;
-      menu->butretval = data->retval;
       menu->menuretval = (data->cancel) ? RETURN_CANCEL : RETURN_OK;
     }
   }
@@ -10685,10 +10707,10 @@ static int handle_uilist_event(bContext *C, const wmEvent *event, ARegion *regio
 /* Handle mouse hover for Views and UiList rows. */
 static int handle_viewlist_items_hover(const wmEvent *event, ARegion *region)
 {
-  const bool has_list = !BLI_listbase_is_empty(&region->ui_lists);
+  const bool has_list = !region->ui_lists.is_empty();
   const bool has_view = [&]() {
     for (Block &block : region->runtime->uiblocks) {
-      if (!BLI_listbase_is_empty(&block.views)) {
+      if (!block.views.is_empty()) {
         return true;
       }
     }
@@ -12091,7 +12113,6 @@ static int handle_menu_return_submenu(bContext *C, const wmEvent *event, PopupBl
     if ((submenu->menuretval & RETURN_OK) || (submenu->menuretval & RETURN_CANCEL)) {
       if (!(block->flag & BLOCK_KEEP_OPEN)) {
         menu->menuretval = submenu->menuretval;
-        menu->butretval = data->retval;
       }
     }
 
@@ -12608,7 +12629,7 @@ static int region_handler(bContext *C, const wmEvent *event, void * /*userdata*/
   ARegion *region = CTX_wm_region(C);
   int retval = WM_UI_HANDLER_CONTINUE;
 
-  if (region == nullptr || BLI_listbase_is_empty(&region->runtime->uiblocks)) {
+  if (region == nullptr || region->runtime->uiblocks.is_empty()) {
     return retval;
   }
 

@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 Alpha (b'8c7c45ad114e')\n"
+"Project-Id-Version: Blender 5.2.0 Alpha (b'24a58e1403ac')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-05-11 07:23+0000\n"
+"POT-Creation-Date: 2026-05-25 07:25+0000\n"
 "PO-Revision-Date: 2026-03-19 12:41+0000\n"
 "Last-Translator: Banditer1483 <pleum.wongvarit@gmail.com>\n"
 "Language-Team: Thai <https://translate.blender.org/projects/blender-ui/ui/th/>\n"
@@ -1710,6 +1710,10 @@ msgid "The type of license this asset is distributed under. An empty license nam
 msgstr "ประเภทของใบอนุญาตที่ใช้ในการเผยแพร่สินทรัพย์นี้ ชื่อใบอนุญาตที่ว่างเปล่าไม่ได้หมายความว่าสินทรัพย์นี้ปราศจากข้อกำหนดด้านใบอนุญาตเสมอไป โปรดติดต่อผู้สร้างหากต้องการคำชี้แจงเพิ่มเติม"
 
 
+msgid "Link"
+msgstr "เชื่อมโยง"
+
+
 msgid "Tags"
 msgstr "ป้ายระบุ"
 
@@ -1797,10 +1801,6 @@ msgstr "แสดงสินทรัพย์ที่มีอยู่ใน
 
 msgid "Essentials"
 msgstr "รากแก่น"
-
-
-msgid "Show the basic building blocks and utilities coming with Blender"
-msgstr "แสดงส่วนประกอบพื้นฐานและเครื่องมือต่างๆ ที่มาพร้อมกับเบลนเดอร์"
 
 
 msgid "Custom"
@@ -4163,10 +4163,6 @@ msgid "Show .blend files items (objects, materials, etc.)"
 msgstr "แสดงรายการในไฟล์ .blend (วัตถุ วัสดุ อื่น ๆ)"
 
 
-msgid "Link"
-msgstr "เชื่อมโยง"
-
-
 msgid "Matrix"
 msgstr "เมทริกซ์"
 
@@ -4941,6 +4937,10 @@ msgid "Mix Color"
 msgstr "ผสมสี"
 
 
+msgid "Mirror"
+msgstr "กระจกสะท้อน"
+
+
 msgid "Snap"
 msgstr "ยึดติด"
 
@@ -5035,10 +5035,6 @@ msgstr "แก้ไข"
 
 msgid "Mask Edit"
 msgstr "การแก้ไขหน้ากาก"
-
-
-msgid "Mirror"
-msgstr "กระจกสะท้อน"
 
 
 msgid "Zoom"
@@ -5444,6 +5440,10 @@ msgstr "แกนมุมมอง"
 
 msgid "Move"
 msgstr "เคลื่อนที่"
+
+
+msgid "Search"
+msgstr "ค้นหา"
 
 
 msgctxt "Operator"
@@ -6299,12 +6299,12 @@ msgid "Single Image"
 msgstr "ภาพเดี่ยว"
 
 
-msgid "View Lock"
-msgstr "ล็อกมุมมอง"
-
-
 msgid "Overlays"
 msgstr "วางซ้อน"
+
+
+msgid "View Lock"
+msgstr "ล็อกมุมมอง"
 
 
 msgid "Mask Display"
@@ -6834,10 +6834,6 @@ msgstr "วิธีที่จะแสดง/แรเงาวัตถุ�
 
 msgid "Error Message"
 msgstr "ข้อความแสดงข้อผิดพลาด"
-
-
-msgid "Search"
-msgstr "ค้นหา"
 
 
 msgctxt "WindowManager"

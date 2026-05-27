@@ -1209,6 +1209,9 @@ static void node_update_basis_from_declaration(TreeDrawContext &tree_draw_ctx,
             bke::bNodePanelRuntime &panel_runtime = node.runtime->panels[node_decl.index];
             panel_runtime.content_extent->min_y = locy;
           }
+          else {
+            BLI_assert_unreachable_static_t(ItemT);
+          }
         },
         item_variant.item);
   }
@@ -2510,7 +2513,11 @@ static Vector<NodeExtraInfoRow> node_get_extra_info(const bContext &C,
             GEO_NODE_FOREACH_GEOMETRY_ELEMENT_OUTPUT,
             NODE_EVALUATE_CLOSURE) ||
        StringRef(node.idname).startswith("GeometryNodeImport") ||
-       ELEM(node.idname, "GeometryNodeClosureToList"_ustr)))
+       node.is_type("GeometryNodeClosureToList"_ustr) ||
+       node.is_type("GeometryNodeFilterList"_ustr) ||
+       node.is_type("GeometryNodeListGetItem"_ustr) ||
+       node.is_type("GeometryNodeFieldToList"_ustr) ||
+       node.is_type("GeometryNodeListLength"_ustr)))
   {
     std::optional<NodeExtraInfoRow> row = node_get_execution_time_label_row(
         tree_draw_ctx, snode, node);
