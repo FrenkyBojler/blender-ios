@@ -1234,8 +1234,7 @@ static void wm_draw_window_onscreen(bContext *C, wmWindow *win, int view)
 
 static void wm_draw_window(bContext *C, wmWindow *win)
 {
-  PROFILE_SCOPE;
-  PROFILE_SCOPE_SET_CATEGORY(Category::Draw);
+  BLI_profile_scope(ProfileCategory::Draw);
   GPU_context_begin_frame(static_cast<GPUContext *>(win->runtime->gpuctx));
 
   bScreen *screen = WM_window_get_active_screen(win);
@@ -1641,8 +1640,7 @@ void WM_paint_cursor_tag_redraw(wmWindow *win, ARegion * /*region*/)
 
 void wm_draw_update(bContext *C)
 {
-  PROFILE_SCOPE;
-  PROFILE_SCOPE_SET_CATEGORY(Category::Draw);
+  BLI_profile_scope(ProfileCategory::Draw);
 
   Main *bmain = CTX_data_main(C);
   wmWindowManager *wm = CTX_wm_manager(C);
@@ -1679,7 +1677,7 @@ void wm_draw_update(bContext *C)
     CTX_wm_window_set(C, &win);
 
     if (wm_draw_update_test_window(bmain, C, &win)) {
-      PROFILE_FRAME_MARK_START("Window Drawing"_ustr);
+      BLI_profile_frame_mark_start("Window Drawing"_ustr);
       /* Sets context window+screen. */
       wm_window_make_drawable(wm, &win);
       wm_window_swap_buffer_acquire(&win);
@@ -1691,7 +1689,7 @@ void wm_draw_update(bContext *C)
       wm_draw_update_clear_window(C, &win);
 
       wm_window_swap_buffer_release(&win);
-      PROFILE_FRAME_MARK_END("Window Drawing"_ustr);
+      BLI_profile_frame_mark_end("Window Drawing"_ustr);
     }
   }
 

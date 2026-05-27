@@ -594,8 +594,7 @@ static bool notifier_refreshes_node_group_operators(const wmNotifier &note)
 
 void wm_event_do_notifiers(bContext *C)
 {
-  PROFILE_SCOPE;
-  PROFILE_SCOPE_SET_CATEGORY(Category::Core);
+  BLI_profile_scope(ProfileCategory::Core);
   /* Ensure inside render boundary. */
   GPU_render_begin();
 
@@ -1113,8 +1112,8 @@ static intptr_t wm_operator_register_active_id(const wmWindowManager *wm)
 
 bool WM_operator_poll(bContext *C, wmOperatorType *ot)
 {
-  PROFILE_SCOPE_WITH_NAME("Operator Call (poll)");
-  PROFILE_SCOPE_SET_DYNAMIC_NAME("Op: %s", ot->idname);
+  BLI_profile_scope_with_name("Operator Call (poll)", ProfileCategory::Default);
+  BLI_profile_scope_set_dynamic_name("Op: %s", ot->idname);
 
   for (wmOperatorTypeMacro &otmacro : ot->macro) {
     wmOperatorType *ot_macro = WM_operatortype_find(otmacro.idname, false);
@@ -1660,8 +1659,8 @@ static wmOperatorStatus wm_operator_invoke(bContext *C,
   }
 
   if (WM_operator_poll(C, ot)) {
-    PROFILE_SCOPE_WITH_NAME("Operator Call (exec/invoke)");
-    PROFILE_SCOPE_SET_DYNAMIC_NAME("Op: %s", ot->idname);
+    BLI_profile_scope_with_name("Operator Call (exec/invoke)", ProfileCategory::Default);
+    BLI_profile_scope_set_dynamic_name("Op: %s", ot->idname);
     wmWindowManager *wm = CTX_wm_manager(C);
     const intptr_t undo_id_prev = wm_operator_undo_active_id(wm);
     const intptr_t register_id_prev = wm_operator_register_active_id(wm);
@@ -2669,8 +2668,8 @@ static eHandlerActionFlag wm_handler_operator_call(bContext *C,
        * nothing to do in this case. */
     }
     else if (ot->modal) {
-      PROFILE_SCOPE_WITH_NAME("Operator Call (modal)");
-      PROFILE_SCOPE_SET_DYNAMIC_NAME("Op: %s", ot->idname);
+      BLI_profile_scope_with_name("Operator Call (modal)", ProfileCategory::Default);
+      BLI_profile_scope_set_dynamic_name("Op: %s", ot->idname);
       /* We set context to where modal handler came from. */
       wmWindowManager *wm = CTX_wm_manager(C);
       wmWindow *win = CTX_wm_window(C);
@@ -4219,8 +4218,7 @@ static eHandlerActionFlag wm_event_do_handlers_area_regions(bContext *C,
 
 void wm_event_do_handlers(bContext *C)
 {
-  PROFILE_SCOPE;
-  PROFILE_SCOPE_SET_CATEGORY(Category::Core);
+  BLI_profile_scope(ProfileCategory::Core);
   wmWindowManager *wm = CTX_wm_manager(C);
   BLI_assert(ED_undo_is_state_valid(C));
 

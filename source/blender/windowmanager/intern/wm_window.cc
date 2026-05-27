@@ -2196,8 +2196,7 @@ static bool wm_window_timers_process(const bContext *C, int *sleep_us_p)
 
 void wm_window_events_process(const bContext *C)
 {
-  PROFILE_SCOPE;
-  PROFILE_SCOPE_SET_CATEGORY(Category::Core);
+  BLI_profile_scope(ProfileCategory::Core);
   BLI_assert(BLI_thread_is_main());
   GPU_render_begin();
 

@@ -2,6 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#pragma once
+
 /** \file
  * \ingroup bli
  *
@@ -16,12 +18,18 @@
  * \see https://github.com/wolfpld/tracy/releases/latest/download/tracy.pdf
  */
 
-#pragma once
+#ifdef WITH_TRACY
+#  include <tracy/Tracy.hpp>
+#endif
 
+namespace blender {
 /**
  * Set of category colors, chosen with color-blindness in mind.
  */
-enum class Category : uint32_t {
+enum class ProfileCategory : uint32_t {
+  /**
+   * \note Not pure black (0x000000) as Tracy uses that to indicate "no user provided color"
+   */
   Default = 0x000001,
   Core = 0x0088FE,
   Draw = 0x00C49F,
@@ -31,69 +39,63 @@ enum class Category : uint32_t {
 };
 
 #ifdef WITH_TRACY
-#  include <tracy/Tracy.hpp>
 
 /** Frame markers. */
-#  define PROFILE_FRAME_MARK FrameMark
-#  define PROFILE_FRAME_MARK_START(name) FrameMarkStart(name.c_str())
-#  define PROFILE_FRAME_MARK_END(name) FrameMarkEnd(name.c_str())
+#  define BLI_profile_frame_mark FrameMark
+#  define BLI_profile_frame_mark_start(name) FrameMarkStart(name.c_str())
+#  define BLI_profile_frame_mark_end(name) FrameMarkEnd(name.c_str())
 
 /** Profile the current scope, creating a Tracy zone. */
-#  define PROFILE_SCOPE ZoneScoped
-#  define PROFILE_SCOPE_WITH_NAME(name) ZoneScopedN(name)
-
-/** Set the category (color) of the current zone. */
-#  define PROFILE_SCOPE_SET_CATEGORY(category) ZoneColor(uint32_t(category))
+#  define BLI_profile_scope(category) ZoneScopedC(uint32_t(category))
+#  define BLI_profile_scope_with_name(name, category) ZoneScopedNC(name, uint32_t(category))
 
 /** Set the profiled zone's name on a per-call basis. */
-#  define PROFILE_SCOPE_SET_DYNAMIC_NAME(fmt, ...) ZoneNameF(fmt, ##__VA_ARGS__)
+#  define BLI_profile_scope_set_dynamic_name(fmt, ...) ZoneNameF(fmt, ##__VA_ARGS__)
 
 /** Attach a text string to the current zone (e.g. filename, object name). */
-#  define PROFILE_SCOPE_ADD_TEXT(fmt, ...) ZoneTextF(fmt, ##__VA_ARGS__)
+#  define BLI_profile_scope_add_text(fmt, ...) ZoneTextF(fmt, ##__VA_ARGS__)
 
 /** Attach a numeric value to the current zone. */
-#  define PROFILE_SCOPE_ADD_VALUE(value) ZoneValue(value)
+#  define BLI_profile_scope_add_value(value) ZoneValue(value)
 
 /**
  * Profile the current scope, creating a Tracy zone.
  *
  * The zone is attached to the lifetime of `var` (e.g. for nested scopes).
  */
-#  define PROFILE_SCOPE_VAR(var) ZoneNamed(var, true)
-#  define PROFILE_SCOPE_VAR_WITH_NAME(var, ui_name) ZoneNamedN(var, ui_name.c_str(), true)
-
-/** Set the category of the specified zone. */
-#  define PROFILE_SCOPE_VAR_SET_CATEGORY(var, category) ZoneColorV(var, uint32_t(category))
+#  define BLI_profile_scope_var(var, category) ZoneNamedC(var, uint32_t(category), true)
+#  define BLI_profile_scope_var_with_name(var, ui_name, category) \
+    ZoneNamedNC(var, ui_name.c_str(), uint32_t(category), true)
 
 /** Set the specified zone's name on a per-call basis. */
-#  define PROFILE_SCOPE_VAR_SET_DYNAMIC_NAME(var, fmt, ...) ZoneNameVF(var, fmt, ##__VA_ARGS__)
+#  define BLI_profile_scope_var_set_dynamic_name(var, fmt, ...) ZoneNameVF(var, fmt, ##__VA_ARGS__)
 
 /** Attach a text string to the specified zone (e.g. filename, object name). */
-#  define PROFILE_SCOPE_VAR_ADD_TEXT(var, fmt, ...) ZoneTextVF(var, fmt, ##__VA_ARGS__)
+#  define BLI_profile_scope_var_add_text(var, fmt, ...) ZoneTextVF(var, fmt, ##__VA_ARGS__)
 
 /** Attach a numeric value to the specified zone */
-#  define PROFILE_SCOPE_VAR_ADD_VALUE(var, value) ZoneValueV(var, value)
+#  define BLI_profile_scope_var_add_value(var, value) ZoneValueV(var, value)
 
 #else
 
-#  define PROFILE_FRAME_MARK
-#  define PROFILE_FRAME_MARK_START(name)
-#  define PROFILE_FRAME_MARK_END(name)
+#  define BLI_profile_frame_mark
+#  define BLI_profile_frame_mark_start(name)
+#  define BLI_profile_frame_mark_end(name)
 
-#  define PROFILE_SCOPE
-#  define PROFILE_SCOPE_WITH_NAME(name)
-#  define PROFILE_SCOPE_SET_CATEGORY(category)
+#  define BLI_profile_scope(category)
+#  define BLI_profile_scope_with_name(name, category)
 
-#  define PROFILE_SCOPE_SET_DYNAMIC_NAME(fmt, ...)
-#  define PROFILE_SCOPE_ADD_TEXT(fmt, ...)
-#  define PROFILE_SCOPE_ADD_VALUE(value)
+#  define BLI_profile_scope_set_dynamic_name(fmt, ...)
+#  define BLI_profile_scope_add_text(fmt, ...)
+#  define BLI_profile_scope_add_value(value)
 
-#  define PROFILE_SCOPE_VAR(var)
-#  define PROFILE_SCOPE_VAR_WITH_NAME(var, ui_name)
-#  define PROFILE_SCOPE_VAR_SET_CATEGORY(var, category)
+#  define BLI_profile_scope_var(var, category)
+#  define BLI_profile_scope_var_with_name(var, ui_name, category)
 
-#  define PROFILE_SCOPE_VAR_SET_DYNAMIC_NAME(var, fmt, ...)
-#  define PROFILE_SCOPE_VAR_ADD_TEXT(var, fmt, ...)
-#  define PROFILE_SCOPE_VAR_ADD_VALUE(var, value)
+#  define BLI_profile_scope_var_set_dynamic_name(var, fmt, ...)
+#  define BLI_profile_scope_var_add_text(var, fmt, ...)
+#  define BLI_profile_scope_var_add_value(var, value)
 
 #endif
+
+}  // namespace blender
