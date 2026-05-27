@@ -26,7 +26,7 @@
 #include "BLI_string_utils.hh"
 #include "BLI_sys_types.h"
 
-#include "BKE_animsys.h"
+#include "BKE_animsys.hh"
 #include "BKE_attribute.hh"
 #include "BKE_colortools.hh"
 #include "BKE_curves.hh"

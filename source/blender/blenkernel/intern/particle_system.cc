@@ -43,7 +43,7 @@
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
 
-#include "BKE_animsys.h"
+#include "BKE_animsys.hh"
 #include "BKE_boids.h"
 #include "BKE_collision.h"
 #include "BKE_colortools.hh"
