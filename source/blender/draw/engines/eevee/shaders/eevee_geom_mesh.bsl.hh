@@ -36,6 +36,7 @@ struct GeomMeshVertIn {
 [[vertex]] [[clip_control]] void geom_mesh(
     [[resource_table]] const PipelineConstants &pipe,
     [[resource_table]] const GeomMesh & /*srt*/,
+    [[resource_table]] const Uniform &uni,
     [[resource_table, condition(is_shadow_pipe)]] const GeomShadow &shadow,
     [[in]] const GeomMeshVertIn &vert_in,
     [[instance_id]] const int /*inst_id*/,     /* Used by model_lib. */
@@ -61,19 +62,22 @@ struct GeomMeshVertIn {
   interp.P = drw_point_object_to_world(vert_in.pos);
   interp.N = normalize(drw_normal_object_to_world(vert_in.nor));
   if (pipe.use_velocity) [[static_branch]] {
-    auto &motion = interface_get(eevee_velocity_geom, motion);
+    /* clang-format off */ /* Multiline define messes up line index. */
+    [[resource_table]] const GeometryVelocity &geo_vel = resource_table_get(eevee::GeometryVelocity);
+    /* clang-format on */
+    auto &motion = interface_get(eevee_velocity_iface_info, motion);
     float3 prv, nxt;
-    velocity::local_position_deltas(vert_in.pos, vert_id, prv, nxt, drw_resource_id());
+    geo_vel.local_position_deltas(vert_in.pos, vert_id, prv, nxt, drw_resource_id());
     /* FIXME(fclem): Evaluating before displacement avoid displacement being treated as motion but
      * ignores motion from animated displacement. Supporting animated displacement motion vectors
      * would require evaluating the nodetree multiple time with different nodetree UBOs evaluated
      * at different times, but also with different attributes (maybe we could assume static
      * attribute at least). */
-    velocity::vertex_velocity(
+    geo_vel.vertex_velocity(
         prv, vert_in.pos, nxt, motion.prev, motion.next, drw_resource_id(), drw_modelmat());
   }
 
-  init_globals(true);
+  init_globals(uni, true);
   attrib_load(MeshVertex{vert_in.pos});
 
   interp.P += nodetree_displacement();
