@@ -2079,6 +2079,39 @@ void BKE_main_id_refcount_recompute(Main *bmain, const bool do_linked_only)
   FOREACH_MAIN_ID_END;
 }
 
+void BKE_main_id_indirect_linked_update(Main &bmain)
+{
+  /* First assume that everything is indirectly linked. */
+  for (ID &id : MainAllIDsIterator(bmain)) {
+    if (ID_IS_LINKED(&id)) {
+      id.tag |= ID_TAG_INDIRECT;
+    }
+  }
+  /* Then clear the flag for everything that is actually directly linked. */
+  for (ID &id : MainAllIDsIterator(bmain)) {
+    if (ID_IS_LINKED(&id)) {
+      continue;
+    }
+    BKE_library_foreach_ID_link(
+        &bmain,
+        &id,
+        [&](LibraryIDLinkCallbackData *cb_data) -> int {
+          ID **id_pointer = cb_data->id_pointer;
+          if (!*id_pointer) {
+            return IDWALK_RET_NOP;
+          }
+          ID &pointee = **id_pointer;
+          if (!ID_IS_LINKED(&pointee)) {
+            return IDWALK_RET_NOP;
+          }
+          pointee.tag &= ~ID_TAG_INDIRECT;
+          return IDWALK_RET_NOP;
+        },
+        nullptr,
+        IDWALK_READONLY);
+  }
+}
+
 static void library_make_local_copying_check(ID *id,
                                              Set<ID *> &loop_tags,
                                              MainIDRelations *id_relations,

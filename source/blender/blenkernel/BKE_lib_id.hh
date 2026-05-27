@@ -928,6 +928,11 @@ void BKE_main_id_newptr_and_tag_clear(Main *bmain);
 
 void BKE_main_id_refcount_recompute(Main *bmain, bool do_linked_only);
 
+/**
+ * Update the ID_TAG_INDIRECT flag all IDs.
+ */
+void BKE_main_id_indirect_linked_update(Main &bmain);
+
 void BKE_main_lib_objects_recalc_all(Main *bmain);
 
 /**
