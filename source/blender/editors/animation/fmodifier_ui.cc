@@ -485,7 +485,7 @@ static void cycles_panel_draw(const bContext *C, Panel *panel)
   layout.use_property_decorate_set(false);
 
   if (fcm->flag & FMODIFIER_FLAG_DISABLED) {
-    layout.label("Modifier disabled because it is not the first modifier in the stack.",
+    layout.label("Modifier must be first in the stack.",
                  ICON_ERROR);
   }
 
@@ -874,7 +874,7 @@ static void smooth_panel_draw(const bContext *C, Panel *panel)
   layout.use_property_decorate_set(false);
 
   if (fcm->flag & FMODIFIER_FLAG_DISABLED) {
-    layout.label("Modifier disabled because it is not the first modifier in the stack.",
+    layout.label("Modifier must be first in the stack.",
                  ICON_ERROR);
   }
 
