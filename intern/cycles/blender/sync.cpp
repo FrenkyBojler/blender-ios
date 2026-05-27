@@ -583,17 +583,31 @@ void BlenderSync::sync_integrator(blender::ViewLayer &b_view_layer,
     integrator->set_denoiser_upscale_factor(denoise_params.upscale_factor);
   }
 
-  integrator->set_ignore_shaders(get_boolean(cscene, "ignore_shaders"));
-  integrator->set_ignore_volumes(get_boolean(cscene, "ignore_volumes"));
-  integrator->set_ignore_lights(get_boolean(cscene, "ignore_lights"));
-  integrator->set_ignore_shadows(get_boolean(cscene, "ignore_shadows"));
-  integrator->set_ignore_bump(get_boolean(cscene, "ignore_bump"));
-  integrator->set_ignore_images(get_boolean(cscene, "ignore_images"));
-  integrator->set_ignore_displacement(get_boolean(cscene, "ignore_displacement"));
-  integrator->set_ignore_polygon_smoothing(get_boolean(cscene, "ignore_polygon_smoothing"));
-  integrator->set_ignore_depth_of_field(get_boolean(cscene, "ignore_depth_of_field"));
-  integrator->set_ignore_subsurface_scattering(
-      get_boolean(cscene, "ignore_subsurface_scattering"));
+  if ((b_scene->r.mode & blender::R_SIMPLIFY) != 0) {
+    integrator->set_ignore_shaders(get_boolean(cscene, "ignore_shaders"));
+    integrator->set_ignore_volumes(get_boolean(cscene, "ignore_volumes"));
+    integrator->set_ignore_lights(get_boolean(cscene, "ignore_lights"));
+    integrator->set_ignore_shadows(get_boolean(cscene, "ignore_shadows"));
+    integrator->set_ignore_bump(get_boolean(cscene, "ignore_bump"));
+    integrator->set_ignore_images(get_boolean(cscene, "ignore_images"));
+    integrator->set_ignore_displacement(get_boolean(cscene, "ignore_displacement"));
+    integrator->set_ignore_polygon_smoothing(get_boolean(cscene, "ignore_polygon_smoothing"));
+    integrator->set_ignore_depth_of_field(get_boolean(cscene, "ignore_depth_of_field"));
+    integrator->set_ignore_subsurface_scattering(
+        get_boolean(cscene, "ignore_subsurface_scattering"));
+  }
+  else {
+    integrator->set_ignore_shaders(false);
+    integrator->set_ignore_volumes(false);
+    integrator->set_ignore_lights(false);
+    integrator->set_ignore_shadows(false);
+    integrator->set_ignore_bump(false);
+    integrator->set_ignore_images(false);
+    integrator->set_ignore_displacement(false);
+    integrator->set_ignore_polygon_smoothing(false);
+    integrator->set_ignore_depth_of_field(false);
+    integrator->set_ignore_subsurface_scattering(false);
+  }
 
   /* UPDATE_NONE as we don't want to tag the integrator as modified (this was done by the
    * set calls above), but we need to make sure that the dependent things are tagged. */
