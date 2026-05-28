@@ -291,7 +291,7 @@ static void action_main_region_draw(const bContext *C, ARegion *region)
   ui::view2d_view_restore(C);
 
   /* gizmos */
-  if ((saction->gizmo_flag & SACTION_GIZMO_HIDE) == 0) {
+  if ((saction->flag & SACTION_GIZMO_HIDE) == 0) {
     WM_gizmomap_draw(region->runtime->gizmo_map, C, WM_GIZMOMAP_DRAWSTEP_2D);
   }
 

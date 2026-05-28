@@ -500,8 +500,8 @@ enum eSAction_Flag : short {
   SACTION_SLIDERS = (1 << 1),
   /* draw time in seconds instead of time in frames */
   SACTION_DRAWTIME = (1 << 2),
-  /* don't filter action channels according to visibility */
-  // SACTION_NOHIDE = (1 << 3), /* Deprecated, old animation systems. */
+  /* don't show gizmos */
+  SACTION_GIZMO_HIDE = (1 << 3),
   /* don't kill overlapping keyframes after transform */
   SACTION_NOTRANSKEYCULL = (1 << 4),
   /* don't include keyframes that are out of view */
@@ -523,12 +523,6 @@ enum eSAction_Flag : short {
   SACTION_SHOW_MARKERS = (1 << 14),
 };
 ENUM_OPERATORS(eSAction_Flag);
-
-enum eSAction_Gizmo_Flag : char {
-  /* don't show gizmos */
-  SACTION_GIZMO_HIDE = (1 << 0),
-};
-ENUM_OPERATORS(eSAction_Gizmo_Flag);
 
 /** #SpaceAction_Runtime.flag */
 enum eSAction_Runtime_Flag : char {
@@ -1202,8 +1196,7 @@ struct SpaceAction {
   DNA_DEPRECATED char autosnap = 0;
   eTimeline_Cache_Flag cache_display = {};
 
-  eSAction_Gizmo_Flag gizmo_flag = {};
-  char _pad1[5] = {};
+  char _pad1[6] = {};
 
   SpaceActionOverlays overlays;
 
