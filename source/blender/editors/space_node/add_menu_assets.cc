@@ -199,12 +199,8 @@ static void node_catalog_assets_draw(const bContext *C, Menu *menu)
       layout->separator();
       add_separator = false;
     }
-    PointerRNA op_ptr = layout->op(*operator_id,
-                                   IFACE_(asset->get_name()),
-                                   ICON_NONE,
-                                   wm::OpCallContext::InvokeRegionWin,
-                                   UI_ITEM_NONE);
-    asset::operator_asset_reference_props_set(*asset, op_ptr);
+
+    ed::asset::draw_online_asset_menu(asset, *operator_id, *layout);
   }
 
   const Set<StringRef> all_builtin_menus = get_builtin_menus(edit_tree->type);
