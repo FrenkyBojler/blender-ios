@@ -3688,7 +3688,7 @@ static void button_text_completion(bContext *C, Button *but, HandleButtonData *d
   }
   else if (but->rnaprop) {
     /* Special handling for PROP_PIXEL and PROP_PERCENTAGE (because they are not treated as units
-     * unfortunatly). */
+     * unfortunately). */
     const PropertySubType subtype = RNA_property_subtype(but->rnaprop);
     if (ELEM(subtype, PROP_PIXEL, PROP_PERCENTAGE)) {
       switch (subtype) {
