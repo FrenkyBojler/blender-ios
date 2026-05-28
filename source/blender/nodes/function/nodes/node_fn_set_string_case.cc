@@ -12,7 +12,7 @@
 
 #include "node_function_util.hh"
 
-namespace blender::nodes::node_fn_string_case_cc {
+namespace blender::nodes::node_fn_set_string_case_cc {
 
 enum class Case {
   Uppercase = 0,
@@ -75,7 +75,7 @@ static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
       if (item->name != nullptr && item->identifier[0] != '\0') {
         const int value = item->value;
         params.add_item(IFACE_(item->name), [value](LinkSearchOpParams &params) {
-          bNode &node = params.add_node("FunctionNodeStringCase"_ustr);
+          bNode &node = params.add_node("FunctionNodeSetStringCase"_ustr);
           bke::node_find_socket(node, SOCK_IN, "Case"_ustr)
               ->default_value_typed<bNodeSocketValueMenu>()
               ->value = value;
@@ -86,7 +86,7 @@ static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
   }
   else {
     params.add_item(IFACE_("String"), [](LinkSearchOpParams &params) {
-      bNode &node = params.add_node("FunctionNodeStringCase"_ustr);
+      bNode &node = params.add_node("FunctionNodeSetStringCase"_ustr);
       params.update_and_connect_available_socket(node, "String"_ustr);
     });
   }
@@ -105,8 +105,8 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  fn_cmp_node_type_base(&ntype, "FunctionNodeStringCase"_ustr);
-  ntype.ui_name = "String Case";
+  fn_cmp_node_type_base(&ntype, "FunctionNodeSetStringCase"_ustr);
+  ntype.ui_name = "Set String Case";
   ntype.ui_description = "Convert the case of a string";
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = node_declare;
@@ -116,4 +116,4 @@ static void node_register()
 }
 NOD_REGISTER_NODE(node_register)
 
-}  // namespace blender::nodes::node_fn_string_case_cc
+}  // namespace blender::nodes::node_fn_set_string_case_cc
