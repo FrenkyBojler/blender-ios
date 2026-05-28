@@ -1262,7 +1262,7 @@ void blf_font_info_foreach_glyph(
     callback(index, byte_offset, char_byte_len, advance_x);
 
     index++;
-    byte_offset += char_byte_len;
+    byte_offset += size_t(char_byte_len);
     str += char_byte_len;
   }
 
