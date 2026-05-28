@@ -820,7 +820,7 @@ class BlendFileTest(MeshTest):
         if scene.get("use_animation_playback"):
             frame_start = scene.frame_start
             frame_end = scene.frame_end
-            for frame in range(frame_start, frame_end):
+            for frame in range(frame_start, frame_end + 1):
                 scene.frame_set(frame)
 
         for modifier in modifiers_list:
