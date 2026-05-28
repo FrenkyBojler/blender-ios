@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Beta (b'1fa1b22043cd')\n"
+"Project-Id-Version: Blender 5.2.0 Alpha (b'24a58e1403ac')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-02-16 10:28+0000\n"
+"POT-Creation-Date: 2026-05-25 07:25+0000\n"
 "PO-Revision-Date: 2025-07-23 15:34+0000\n"
 "Last-Translator: Just Adam <adam.abbas2009@gmail.com>\n"
 "Language-Team: Bulgarian <https://translate.blender.org/projects/blender-ui/ui/bg/>\n"
@@ -154,6 +154,18 @@ msgstr "Възлов Редактор"
 
 msgid "Author"
 msgstr "Автор"
+
+
+msgid "Link"
+msgstr "Връзка"
+
+
+msgid "Append"
+msgstr "Добави"
+
+
+msgid "Pack"
+msgstr "Пакетирай"
 
 
 msgid "Custom"
@@ -584,16 +596,16 @@ msgid "All"
 msgstr "Всички"
 
 
+msgid "Active Layer"
+msgstr "Активен Слой"
+
+
 msgid "Fill"
 msgstr "Запълни"
 
 
 msgid "Both"
 msgstr "Двете"
-
-
-msgid "Active Layer"
-msgstr "Активен Слой"
 
 
 msgid "Crop"
@@ -654,22 +666,6 @@ msgstr "Гама"
 
 msgid "View"
 msgstr "Изглед"
-
-
-msgid "Mix"
-msgstr "Смесване"
-
-
-msgid "Screen"
-msgstr "Екран"
-
-
-msgid "Difference"
-msgstr "Разлика"
-
-
-msgid "Divide"
-msgstr "Делене"
 
 
 msgid "RGB"
@@ -828,18 +824,6 @@ msgid "Sort"
 msgstr "Сортирай"
 
 
-msgid "Link"
-msgstr "Връзка"
-
-
-msgid "Append"
-msgstr "Добави"
-
-
-msgid "Pack"
-msgstr "Пакетирай"
-
-
 msgid "End"
 msgstr "Край"
 
@@ -906,6 +890,10 @@ msgstr "Мрежа"
 
 msgid "Region Type"
 msgstr "Тип на Региона"
+
+
+msgid "Divide"
+msgstr "Делене"
 
 
 msgid "Library"
@@ -1144,6 +1132,18 @@ msgid "Click"
 msgstr "Клик"
 
 
+msgid "Mix"
+msgstr "Смесване"
+
+
+msgid "Difference"
+msgstr "Разлика"
+
+
+msgid "Screen"
+msgstr "Екран"
+
+
 msgid "ID Type"
 msgstr "ID тип"
 
@@ -1164,6 +1164,10 @@ msgid "Apply"
 msgstr "Прилагане"
 
 
+msgid "Import"
+msgstr "Внеси"
+
+
 msgid "Make Single User"
 msgstr "Направи с Единствен Потребител"
 
@@ -1174,10 +1178,6 @@ msgstr "Куки"
 
 msgid "In-Betweens"
 msgstr "Междинни Кадри"
-
-
-msgid "Import"
-msgstr "Внеси"
 
 
 msgid "Merge"

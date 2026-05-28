@@ -38,6 +38,8 @@
  *   cases.
  */
 
+#include <algorithm>
+
 #include "MEM_guardedalloc.h"
 
 #include "BLI_array_utils.hh"
@@ -173,7 +175,9 @@ struct SkinOutput {
 
 static void add_poly(SkinOutput *so, BMVert *v1, BMVert *v2, BMVert *v3, BMVert *v4);
 
-/***************************** Convex Hull ****************************/
+/* -------------------------------------------------------------------- */
+/** \name Convex Hull
+ * \{ */
 
 static bool is_quad_symmetric(BMVert *quad[4], const SkinModifierData *smd)
 {
@@ -476,7 +480,11 @@ static Frame **collect_hull_frames(
   return hull_frames;
 }
 
-/**************************** Create Frames ***************************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Create Frames
+ * \{ */
 
 static void node_frames_init(SkinNode *nf, int totframe)
 {
@@ -678,7 +686,11 @@ static SkinNode *build_frames(const Span<float3> vert_positions,
   return skin_nodes;
 }
 
-/**************************** Edge Matrices ***************************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Edge Matrices
+ * \{ */
 
 static void calc_edge_mat(float mat[3][3], const float a[3], const float b[3])
 {
@@ -826,7 +838,11 @@ static EMat *build_edge_mats(const MVertSkin *vs,
   return emat;
 }
 
-/************************** Input Subdivision *************************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Input Subdivision
+ * \{ */
 
 /* Returns number of edge subdivisions, taking into account the radius
  * of the endpoints and the edge length. If both endpoints are branch
@@ -1023,7 +1039,11 @@ static Mesh *subdivide_base(const Mesh *orig)
   return result;
 }
 
-/******************************* Output *******************************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Output
+ * \{ */
 
 /* Can be either quad or triangle */
 static void add_poly(SkinOutput *so, BMVert *v1, BMVert *v2, BMVert *v3, BMVert *v4)
@@ -1451,6 +1471,19 @@ static void skin_hole_detach_partially_attached_frame(BMesh *bm, Frame *frame)
 }
 
 /**
+ * Check if any frame vertex was detected as interior.
+ */
+static bool skin_frame_has_interior_hull_vertex(const Frame *frame)
+{
+  for (const int k : IndexRange(4)) {
+    if (frame->inside_hull[k]) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
  * Check if any frame vertex is shared with the target face.
  *
  * When frame vertices are at the same position as (or very close to) branch node vertices,
@@ -1658,12 +1691,16 @@ static void skin_fix_hull_topology(BMesh *bm, SkinNode *skin_nodes, int verts_nu
          * so the call order doesn't matter for it - but the coincidence check requires the
          * original vertex pointers. */
         BMFace *target_face = skin_hole_target_face(bm, f);
-        const bool has_coincident = target_face &&
-                                    skin_frame_has_coincident_hull_vertex(f, target_face);
+        const bool has_degenerate_coincidence =
+            (target_face &&
+             /* The frame would only create a degenerate edge (using two of the same vertex)
+              * when all its vertices are on the hull. */
+             !skin_frame_has_interior_hull_vertex(f) &&
+             skin_frame_has_coincident_hull_vertex(f, target_face));
 
         skin_hole_detach_partially_attached_frame(bm, f);
 
-        if (target_face && LIKELY(!has_coincident)) {
+        if (target_face && LIKELY(!has_degenerate_coincidence)) {
           if (skin_fix_hole_no_good_verts(bm, f, target_face)) {
             continue;
           }
@@ -1923,7 +1960,7 @@ static BMesh *build_skin(SkinNode *skin_nodes,
    * partially detached, first detach it fully, then find a suitable
    * existing face to merge with. (Note that we do this after
    * creating all hull faces, but before creating any other
-   * faces.
+   * faces).
    */
   skin_fix_hull_topology(so.bm, skin_nodes, verts_num);
 
@@ -1943,7 +1980,7 @@ static void skin_set_orig_indices(Mesh *mesh)
 {
   int *orig = static_cast<int *>(
       CustomData_add_layer(&mesh->face_data, CD_ORIGINDEX, CD_CONSTRUCT, mesh->faces_num));
-  copy_vn_i(orig, mesh->faces_num, ORIGINDEX_NONE);
+  std::fill_n(orig, mesh->faces_num, ORIGINDEX_NONE);
 }
 
 /*
@@ -2014,7 +2051,11 @@ static Mesh *final_skin(SkinModifierData *smd, Mesh *mesh, eSkinErrorFlag *r_err
   return result;
 }
 
-/**************************** Skin Modifier ***************************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Skin Modifier
+ * \{ */
 
 static void init_data(ModifierData *md)
 {
@@ -2139,5 +2180,7 @@ ModifierTypeInfo modifierType_Skin = {
     /*foreach_cache*/ nullptr,
     /*foreach_working_space_color*/ nullptr,
 };
+
+/** \} */
 
 }  // namespace blender

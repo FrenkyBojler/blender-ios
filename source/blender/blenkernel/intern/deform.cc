@@ -6,6 +6,7 @@
  * \ingroup bke
  */
 
+#include <algorithm>
 #include <cctype>
 #include <cstddef>
 #include <cstdlib>
@@ -72,7 +73,7 @@ bDeformGroup *BKE_object_defgroup_new(Object *ob, const StringRef name)
 void BKE_defgroup_copy_list(ListBaseT<bDeformGroup> *outbase,
                             const ListBaseT<bDeformGroup> *inbase)
 {
-  BLI_listbase_clear(outbase);
+  outbase->clear_no_delete();
   for (const bDeformGroup &defgroup : *inbase) {
     bDeformGroup *defgroupn = BKE_defgroup_duplicate(&defgroup);
     BLI_addtail(outbase, defgroupn);
@@ -512,6 +513,8 @@ static const int *object_defgroup_active_index_get_p(const Object *ob)
       const GreasePencil *grease_pencil = id_cast<const GreasePencil *>(ob->data);
       return &grease_pencil->vertex_group_active_index;
     }
+    default:
+      break;
   }
   return nullptr;
 }
@@ -623,7 +626,7 @@ static int *object_defgroup_unlocked_flip_map_ex(const Object *ob,
                                                  int *r_flip_map_num)
 {
   const ListBaseT<bDeformGroup> *defbase = BKE_object_defgroup_list(ob);
-  const int defbase_num = BLI_listbase_count(defbase);
+  const int defbase_num = defbase->count();
   *r_flip_map_num = defbase_num;
 
   if (defbase_num == 0) {
@@ -683,7 +686,7 @@ int *BKE_object_defgroup_flip_map_single(const Object *ob,
                                          int *r_flip_map_num)
 {
   const ListBaseT<bDeformGroup> *defbase = BKE_object_defgroup_list(ob);
-  const int defbase_num = BLI_listbase_count(defbase);
+  const int defbase_num = defbase->count();
   *r_flip_map_num = defbase_num;
 
   if (defbase_num == 0) {
@@ -1101,7 +1104,7 @@ void BKE_defvert_extract_vgroup_to_vertweights(const MDeformVert *dvert,
     }
   }
   else {
-    copy_vn_fl(r_weights, verts_num, invert_vgroup ? 1.0f : 0.0f);
+    std::fill_n(r_weights, verts_num, invert_vgroup ? 1.0f : 0.0f);
   }
 }
 
@@ -1113,7 +1116,7 @@ void BKE_defvert_extract_vgroup_to_edgeweights(const MDeformVert *dvert,
                                                float *r_weights)
 {
   if (UNLIKELY(!dvert || defgroup == -1)) {
-    copy_vn_fl(r_weights, edges.size(), 0.0f);
+    std::fill_n(r_weights, edges.size(), 0.0f);
     return;
   }
 
@@ -1140,7 +1143,7 @@ void BKE_defvert_extract_vgroup_to_loopweights(const MDeformVert *dvert,
                                                float *r_weights)
 {
   if (UNLIKELY(!dvert || defgroup == -1)) {
-    copy_vn_fl(r_weights, corner_verts.size(), 0.0f);
+    std::fill_n(r_weights, corner_verts.size(), 0.0f);
     return;
   }
 
@@ -1166,7 +1169,7 @@ void BKE_defvert_extract_vgroup_to_faceweights(const MDeformVert *dvert,
                                                float *r_weights)
 {
   if (UNLIKELY(!dvert || defgroup == -1)) {
-    copy_vn_fl(r_weights, faces.size(), 0.0f);
+    std::fill_n(r_weights, faces.size(), 0.0f);
     return;
   }
 
@@ -1276,7 +1279,7 @@ static bool data_transfer_layersmapping_vgroups_multisrc_to_dst(
   const ListBaseT<bDeformGroup> *src_list = &mesh_src.vertex_group_names;
   ListBaseT<bDeformGroup> *dst_defbase = &mesh_dst.vertex_group_names;
 
-  const int tot_dst = BLI_listbase_count(dst_defbase);
+  const int tot_dst = dst_defbase->count();
 
   const size_t elem_size = sizeof(MDeformVert);
 
@@ -1415,7 +1418,7 @@ bool data_transfer_layersmapping_vgroups(Vector<CustomDataTransferLayerMap> *r_m
    */
 
   const ListBaseT<bDeformGroup> *src_defbase = BKE_object_defgroup_list(ob_src);
-  if (BLI_listbase_is_empty(src_defbase)) {
+  if (src_defbase->is_empty()) {
     if (use_delete) {
       BKE_object_defgroup_remove_all(ob_dst);
     }
@@ -1427,7 +1430,7 @@ bool data_transfer_layersmapping_vgroups(Vector<CustomDataTransferLayerMap> *r_m
 
     if (fromlayers >= 0) {
       idx_src = fromlayers;
-      if (idx_src >= BLI_listbase_count(src_defbase)) {
+      if (idx_src >= src_defbase->count()) {
         /* This can happen when vgroups are removed from source object...
          * Remapping would be really tricky here, we'd need to go over all objects in
          * Main every time we delete a vgroup... for now, simpler and safer to abort. */
@@ -1442,7 +1445,7 @@ bool data_transfer_layersmapping_vgroups(Vector<CustomDataTransferLayerMap> *r_m
       /* NOTE: in this case we assume layer exists! */
       idx_dst = tolayers;
       const ListBaseT<bDeformGroup> *dst_defbase = BKE_object_defgroup_list(ob_dst);
-      BLI_assert(idx_dst < BLI_listbase_count(dst_defbase));
+      BLI_assert(idx_dst < dst_defbase->count());
       UNUSED_VARS_NDEBUG(dst_defbase);
     }
     else if (tolayers == DT_LAYERS_ACTIVE_DST) {
@@ -1458,7 +1461,7 @@ bool data_transfer_layersmapping_vgroups(Vector<CustomDataTransferLayerMap> *r_m
       }
     }
     else if (tolayers == DT_LAYERS_INDEX_DST) {
-      int num = BLI_listbase_count(src_defbase);
+      int num = src_defbase->count();
       idx_dst = idx_src;
       if (num <= idx_dst) {
         if (!use_create) {
@@ -1623,7 +1626,7 @@ void BKE_defvert_blend_read(BlendDataReader *reader, int count, MDeformVert *mdv
   for (int i = count; i > 0; i--, mdverts++) {
     /* Convert to vertex group allocation system. */
     MDeformWeight *dw = mdverts->dw;
-    BLO_read_struct_array(reader, MDeformWeight, mdverts->totweight, &dw);
+    BLO_read_array_and_validate_size(reader, &dw, &mdverts->totweight);
     if (dw) {
       void *dw_tmp = MEM_new_array_uninitialized<MDeformWeight>(size_t(mdverts->totweight),
                                                                 __func__);
@@ -1781,11 +1784,13 @@ void gather_deform_verts(const Span<MDeformVert> src,
                          const IndexMask &indices,
                          MutableSpan<MDeformVert> dst)
 {
-  indices.foreach_index(GrainSize(512), [&](const int64_t src_i, const int64_t dst_i) {
-    dst[dst_i].dw = MEM_dupalloc(src[src_i].dw);
-    dst[dst_i].totweight = src[src_i].totweight;
-    dst[dst_i].flag = src[src_i].flag;
-  });
+  indices.foreach_index(
+      [&](const int64_t src_i, const int64_t dst_i) {
+        dst[dst_i].dw = MEM_dupalloc(src[src_i].dw);
+        dst[dst_i].totweight = src[src_i].totweight;
+        dst[dst_i].flag = src[src_i].flag;
+      },
+      exec_mode::grain_size(512));
 }
 
 MDeformVert mix_deform_verts(const Span<MDeformVert> src,

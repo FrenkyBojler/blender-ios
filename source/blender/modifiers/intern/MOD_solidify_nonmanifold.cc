@@ -527,8 +527,7 @@ Mesh *MOD_solidify_nonmanifold_modifyMesh(ModifierData *md,
                 vert_adj_edges[vert] = ref;
               }
               else {
-                const uint *f = old_edge_vert_ref->edges;
-                for (uint k = 0; k < len && k <= old_edge_vert_ref->edges_len; k++, f++) {
+                for (uint k = 0; k < len && k <= old_edge_vert_ref->edges_len; k++) {
                   const uint edge = old_edge_vert_ref->edges[k];
                   if (edge == MOD_SOLIDIFY_EMPTY_TAG || k == old_edge_vert_ref->edges_len) {
                     old_edge_vert_ref->edges[k] = i;
@@ -622,10 +621,9 @@ Mesh *MOD_solidify_nonmanifold_modifyMesh(ModifierData *md,
 
     /* Filter duplicate faces. */
     {
-      const int2 *edge = orig_edges.data();
       /* Iterate over edges and only check the faces around an edge for duplicates
        * (performance optimization). */
-      for (uint i = 0; i < edges_num; i++, edge++) {
+      for (uint i = 0; i < edges_num; i++) {
         if (edge_adj_faces_len[i] > 0) {
           const OldEdgeFaceRef *adj_faces = edge_adj_faces[i];
           uint adj_len = adj_faces->faces_len;
@@ -2005,10 +2003,10 @@ Mesh *MOD_solidify_nonmanifold_modifyMesh(ModifierData *md,
   MutableSpan<int> corner_edges = result->corner_edges_for_write();
   bke::MutableAttributeAccessor result_attributes = result->attributes_for_write();
 
-  bke::LegacyMeshInterpolator vert_interp(*mesh, *result, bke::AttrDomain::Point);
-  bke::LegacyMeshInterpolator edge_interp(*mesh, *result, bke::AttrDomain::Edge);
-  bke::LegacyMeshInterpolator face_interp(*mesh, *result, bke::AttrDomain::Face);
-  bke::LegacyMeshInterpolator corner_interp(*mesh, *result, bke::AttrDomain::Corner);
+  const VArraySpan src_material_index = *orig_attributes.lookup<int>("material_index",
+                                                                     bke::AttrDomain::Face);
+  bke::SpanAttributeWriter dst_material_index =
+      result_attributes.lookup_or_add_for_write_span<int>("material_index", bke::AttrDomain::Face);
 
   int *origindex_edge = static_cast<int *>(
       CustomData_get_layer_for_write(&result->edge_data, CD_ORIGINDEX, result->edges_num));
@@ -2043,6 +2041,11 @@ Mesh *MOD_solidify_nonmanifold_modifyMesh(ModifierData *md,
       result_attributes.remove("crease_vert");
     }
   }
+
+  bke::LegacyMeshInterpolator vert_interp(*mesh, *result, bke::AttrDomain::Point);
+  bke::LegacyMeshInterpolator edge_interp(*mesh, *result, bke::AttrDomain::Edge);
+  bke::LegacyMeshInterpolator face_interp(*mesh, *result, bke::AttrDomain::Face);
+  bke::LegacyMeshInterpolator corner_interp(*mesh, *result, bke::AttrDomain::Corner);
 
   /* Make_new_verts. */
   {
@@ -2157,11 +2160,6 @@ Mesh *MOD_solidify_nonmanifold_modifyMesh(ModifierData *md,
       }
     }
   }
-
-  const VArraySpan src_material_index = *orig_attributes.lookup<int>("material_index",
-                                                                     bke::AttrDomain::Face);
-  bke::SpanAttributeWriter dst_material_index =
-      result_attributes.lookup_or_add_for_write_span<int>("material_index", bke::AttrDomain::Face);
 
   /* Make boundary edges/faces. */
   {

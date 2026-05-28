@@ -125,7 +125,7 @@ MetalDevice::MetalDevice(const DeviceInfo &info, Stats &stats, Profiler &profile
     /* Create a global counter sampling buffer when kernel profiling is enabled.
      * There's a limit to the number of concurrent counter sampling buffers per device, so we
      * create one that can be reused by successive device queues. */
-    if (auto str = getenv("CYCLES_METAL_PROFILING")) {
+    if (auto *str = getenv("CYCLES_METAL_PROFILING")) {
       if (atoi(str) && [mtlDevice supportsCounterSampling:MTLCounterSamplingPointAtStageBoundary])
       {
         NSArray<id<MTLCounterSet>> *counterSets = [mtlDevice counterSets];
@@ -195,8 +195,8 @@ MetalDevice::~MetalDevice()
 
   /* Release textures that weren't already freed by tex_free. */
   for (int res = 0; res < image_info.size(); res++) {
-    [image_slot_map[res] release];
-    image_slot_map[res] = nil;
+    [image_info_id_map[res] release];
+    image_info_id_map[res] = nil;
   }
 
   free_bvh();
@@ -424,6 +424,10 @@ void MetalDevice::refresh_source_and_kernels_md5(MetalPipelineType pso_type)
   if (use_metalrt) {
     md5.append(string_printf("metalrt_features=%d", kernel_features & METALRT_FEATURE_MASK));
   }
+  if (pso_type != PSO_GENERIC) {
+    /* Include kernel_features since it's specialized but missed by the constant_values loop. */
+    md5.append(string_printf("kernel_features=%u", launch_params->data.kernel_features));
+  }
   kernels_md5[pso_type] = md5.get_hex();
 }
 
@@ -603,16 +607,14 @@ MetalDevice::MetalMem *MetalDevice::generic_alloc(device_memory &mem)
       }
     }
 
-    if (mem.name) {
-      LOG_DEBUG << "Buffer allocate: " << mem.name << ", "
-                << string_human_readable_number(mem.memory_size()) << " bytes. ("
-                << string_human_readable_size(mem.memory_size()) << ")";
-    }
+    LOG_DEBUG << "Buffer allocate: " << mem.log_name() << ", "
+              << string_human_readable_number(mem.memory_size()) << " bytes. ("
+              << string_human_readable_size(mem.memory_size()) << ")";
 
     mem.device_size = metal_buffer.allocatedSize;
     stats.mem_alloc(mem.device_size);
 
-    metal_buffer.label = [NSString stringWithFormat:@"%s", mem.name];
+    metal_buffer.label = [NSString stringWithFormat:@"%s", mem.log_name().c_str()];
 
     std::lock_guard<std::recursive_mutex> lock(metal_mem_map_mutex);
 
@@ -755,6 +757,11 @@ void MetalDevice::mem_move_to_host(device_memory & /*mem*/)
 
 void MetalDevice::mem_copy_from(
     device_memory & /*mem*/, const size_t /*y*/, size_t /*w*/, const size_t /*h*/, size_t /*elem*/)
+{
+  /* No need to copy - Apple Silicon has Unified Memory Architecture. */
+}
+
+void MetalDevice::mem_or_from_device(device_memory & /*mem*/)
 {
   /* No need to copy - Apple Silicon has Unified Memory Architecture. */
 }
@@ -963,7 +970,7 @@ void MetalDevice::global_alloc(device_memory &mem)
     generic_copy_to(mem);
   }
 
-  const_copy_to(mem.name, &mem.device_pointer, sizeof(mem.device_pointer));
+  const_copy_to(mem.global_name(), &mem.device_pointer, sizeof(mem.device_pointer));
 }
 
 void MetalDevice::global_free(device_memory &mem)
@@ -978,17 +985,19 @@ void MetalDevice::image_alloc_as_buffer(device_image &mem)
   MetalDevice::MetalMem *mmem = generic_alloc(mem);
   generic_copy_to(mem);
 
+  std::lock_guard<std::recursive_mutex> lock(metal_mem_map_mutex);
+
   /* Resize once */
-  const uint slot = mem.slot;
-  if (slot >= image_info.size()) {
-    /* Allocate some slots in advance, to reduce amount
-     * of re-allocations. */
-    image_info.resize(round_up(slot + 1, 128));
-    image_slot_map.resize(round_up(slot + 1, 128));
+  const uint image_info_id = mem.image_info_id;
+  if (image_info_id >= image_info.size()) {
+    /* Geometric growth to amortize reallocation cost. */
+    const size_t new_size = max(size_t(image_info_id) + 128, image_info.size() * 2);
+    image_info.resize(new_size);
+    image_info_id_map.resize(new_size);
   }
 
-  image_info[slot] = mem.info;
-  image_slot_map[slot] = mmem->mtlBuffer;
+  image_info[image_info_id] = mem.info;
+  image_info_id_map[image_info_id] = mmem->mtlBuffer;
 
   if (is_nanovdb_type(mem.info.data_type)) {
     using_nanovdb = true;
@@ -1092,7 +1101,7 @@ void MetalDevice::image_alloc(device_image &mem)
        */
       desc.allowGPUOptimizedContents = false;
 
-      LOG_DEBUG << "Texture 2D allocate: " << mem.name << ", "
+      LOG_DEBUG << "Texture 2D allocate: " << mem.log_name() << ", "
                 << string_human_readable_number(mem.memory_size()) << " bytes. ("
                 << string_human_readable_size(mem.memory_size()) << ")";
 
@@ -1124,12 +1133,12 @@ void MetalDevice::image_alloc(device_image &mem)
     metal_mem_map[&mem] = std::move(mmem);
 
     /* Resize once */
-    const uint slot = mem.slot;
-    if (slot >= image_info.size()) {
-      /* Allocate some slots in advance, to reduce amount
-       * of re-allocations. */
-      image_info.resize(slot + 128);
-      image_slot_map.resize(slot + 128);
+    const uint image_info_id = mem.image_info_id;
+    if (image_info_id >= image_info.size()) {
+      /* Geometric growth to amortize reallocation cost. */
+      const size_t new_size = max(size_t(image_info_id) + 128, image_info.size() * 2);
+      image_info.resize(new_size);
+      image_info_id_map.resize(new_size);
 
       ssize_t min_buffer_length = sizeof(void *) * image_info.size();
       if (!image_bindings || (image_bindings.length < min_buffer_length)) {
@@ -1145,9 +1154,9 @@ void MetalDevice::image_alloc(device_image &mem)
     }
 
     /* Set Mapping. */
-    image_slot_map[slot] = mtlTexture;
-    image_info[slot] = mem.info;
-    image_info[slot].data = uint64_t(slot) | (sampler_index << 32);
+    image_info_id_map[image_info_id] = mtlTexture;
+    image_info[image_info_id] = mem.info;
+    image_info[image_info_id].data = uint64_t(image_info_id) | (sampler_index << 32);
 
     if (max_working_set_exceeded()) {
       set_error("System is out of GPU memory");
@@ -1179,11 +1188,11 @@ void MetalDevice::image_copy_to(device_image &mem)
 
 void MetalDevice::image_free(device_image &mem)
 {
-  int slot = mem.slot;
+  int image_info_id = mem.image_info_id;
   if (mem.data_height == 0) {
     generic_free(mem);
   }
-  else if (metal_mem_map.count(&mem)) {
+  else if (metal_mem_map.contains(&mem)) {
     std::lock_guard<std::recursive_mutex> lock(metal_mem_map_mutex);
     MetalMem &mmem = *metal_mem_map.at(&mem);
 
@@ -1192,7 +1201,12 @@ void MetalDevice::image_free(device_image &mem)
     mmem.mtlTexture = nil;
     erase_allocation(mem);
   }
-  image_slot_map[slot] = nil;
+  image_info_id_map[image_info_id] = nil;
+}
+
+bool MetalDevice::has_unified_memory() const
+{
+  return true;
 }
 
 unique_ptr<DeviceQueue> MetalDevice::gpu_queue_create()

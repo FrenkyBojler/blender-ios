@@ -382,7 +382,11 @@ class RENDER_PT_output_color_management(RenderOutputButtonsPanel, Panel):
 
         if image_settings.has_linear_colorspace:
             if hasattr(owner, "linear_colorspace_settings"):
-                col.prop(owner.linear_colorspace_settings, "name", text="Color Space")
+                col.prop_with_menu(
+                    owner.linear_colorspace_settings,
+                    "name",
+                    text="Color Space",
+                    menu="UI_MT_color_space_select")
         else:
             col.prop(owner.display_settings, "display_device")
             col.separator()
@@ -570,10 +574,10 @@ class RENDER_PT_encoding_video(RenderOutputButtonsPanel, Panel):
         row.enabled = False
         row.prop(display_settings, "display_device", text="")
 
-        if ffmpeg.codec == 'DNXHD':
+        if needs_codec and ffmpeg.codec == 'DNXHD':
             layout.prop(ffmpeg, "use_lossless_output")
 
-        if ffmpeg.codec == 'PRORES':
+        if needs_codec and ffmpeg.codec == 'PRORES':
             layout.prop(ffmpeg, "ffmpeg_prores_profile")
 
         # Output quality

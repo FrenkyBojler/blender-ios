@@ -219,7 +219,7 @@ static Py_ssize_t bpy_bmeditselseq_length(BPy_BMEditSelSeq *self)
 {
   BPY_BM_CHECK_INT(self);
 
-  return BLI_listbase_count(&self->bm->selected);
+  return self->bm->selected.count();
 }
 
 static PyObject *bpy_bmeditselseq_subscript_int(BPy_BMEditSelSeq *self, Py_ssize_t keynum)
@@ -290,7 +290,7 @@ static PyObject *bpy_bmeditselseq_subscript(BPy_BMEditSelSeq *self, PyObject *ke
     PySliceObject *key_slice = reinterpret_cast<PySliceObject *>(key);
     Py_ssize_t step = 1;
 
-    if (key_slice->step != Py_None && !_PyEval_SliceIndex(key, &step)) {
+    if (key_slice->step != Py_None && !_PyEval_SliceIndex(key_slice->step, &step)) {
       return nullptr;
     }
     if (step != 1) {
@@ -440,6 +440,7 @@ void BPy_BM_init_types_select()
   BPy_BMEditSelSeq_Type.tp_iter = reinterpret_cast<getiterfunc>(bpy_bmeditselseq_iter);
 
   /* Only 1 iterator so far. */
+  BPy_BMEditSelIter_Type.tp_iter = PyObject_SelfIter;
   BPy_BMEditSelIter_Type.tp_iternext = reinterpret_cast<iternextfunc>(bpy_bmeditseliter_next);
 
   BPy_BMEditSelSeq_Type.tp_dealloc = nullptr;   //(destructor)bpy_bmeditselseq_dealloc;

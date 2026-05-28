@@ -39,6 +39,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
 #include "BLI_path_utils.hh"
+#include "BLI_profile.hh"
 #include "BLI_rect.h"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
@@ -95,6 +96,10 @@
 
 #include "UI_resources.hh"
 
+#ifdef WITH_GHOST_WAYLAND
+#  include "wm_window_icon.hh"
+#endif
+
 /* For assert. */
 #ifndef NDEBUG
 #  include "BLI_threads.h"
@@ -128,7 +133,7 @@ ENUM_OPERATORS(eWinOverrideFlag)
  * Override defaults or startup file when #eWinOverrideFlag is set.
  * These values are typically set by command line arguments.
  */
-static struct WMInitStruct {
+static struct wmInitStruct {
   /**
    * Window geometry:
    * - Defaults to the main screen-size.
@@ -481,45 +486,63 @@ static rctf *stored_window_bounds(eSpace_Type space_type)
   return nullptr;
 }
 
-void wm_window_close(bContext *C, wmWindowManager *wm, wmWindow *win)
+static bool wm_window_is_last_main_window(wmWindowManager *wm, wmWindow *win)
 {
-  bScreen *screen = WM_window_get_active_screen(win);
-
-  if (screen->temp && BLI_listbase_is_single(&screen->areabase) && !WM_window_is_maximized(win)) {
-    ScrArea *area = static_cast<ScrArea *>(screen->areabase.first);
-    rctf *stored_bounds = stored_window_bounds(eSpace_Type(area->spacetype));
-
-    if (stored_bounds) {
-      /* Get DPI and scale from parent window, if there is one. */
-      WM_window_dpi_set_userdef(win->parent ? win->parent : win);
-
-      GHOST_IWindow *ghost_window = static_cast<GHOST_IWindow *>(win->runtime->ghostwin);
-      const float f = ghost_window->getNativePixelSize();
-
-      stored_bounds->xmin = float(win->posx) * f / UI_SCALE_FAC;
-      stored_bounds->xmax = stored_bounds->xmin + float(win->sizex) * f / UI_SCALE_FAC;
-      stored_bounds->ymin = float(win->posy) * f / UI_SCALE_FAC;
-      stored_bounds->ymax = stored_bounds->ymin + float(win->sizey) * f / UI_SCALE_FAC;
-      /* Tag user preferences as dirty. */
-      U.runtime.is_dirty = true;
-    }
+  if (win->parent) {
+    return false;
   }
-
   wmWindow *win_other;
-
-  /* First check if there is another main window remaining. */
   for (win_other = static_cast<wmWindow *>(wm->windows.first); win_other;
        win_other = win_other->next)
   {
     if (win_other != win && win_other->parent == nullptr && !WM_window_is_temp_screen(win_other)) {
-      break;
+      return false;
     }
   }
+  /* This window is the last. */
+  return true;
+}
 
-  if (win->parent == nullptr && win_other == nullptr) {
+void wm_window_close_request(bContext *C, wmWindowManager *wm, wmWindow *win)
+{
+  /* First check if there is another main window remaining. */
+  if (wm_window_is_last_main_window(wm, win)) {
     wm_quit_with_optional_confirmation_prompt(C, win);
     return;
   }
+
+  if (!(WM_window_is_maximized(win) || WM_window_is_fullscreen(win)) &&
+      /* While unlikely, don't crash if the window wasn't initialized properly. */
+      (win->runtime->ghostwin != nullptr))
+  {
+    bScreen *screen = WM_window_get_active_screen(win);
+    if (screen && screen->temp && BLI_listbase_is_single(&screen->areabase)) {
+      const ScrArea *area = static_cast<const ScrArea *>(screen->areabase.first);
+      rctf *stored_bounds = stored_window_bounds(eSpace_Type(area->spacetype));
+
+      if (stored_bounds) {
+        /* Get DPI and scale from parent window, if there is one. */
+        WM_window_dpi_set_userdef(win->parent ? win->parent : win);
+
+        GHOST_IWindow *ghost_window = static_cast<GHOST_IWindow *>(win->runtime->ghostwin);
+        const float fac = ghost_window->getNativePixelSize() / UI_SCALE_FAC;
+
+        stored_bounds->xmin = float(win->posx) * fac;
+        stored_bounds->xmax = stored_bounds->xmin + float(win->sizex) * fac;
+        stored_bounds->ymin = float(win->posy) * fac;
+        stored_bounds->ymax = stored_bounds->ymin + float(win->sizey) * fac;
+        /* Tag user preferences as dirty. */
+        U.runtime.is_dirty = true;
+      }
+    }
+  }
+
+  wm_window_close(C, wm, win);
+}
+
+void wm_window_close(bContext *C, wmWindowManager *wm, wmWindow *win)
+{
+  bScreen *screen = WM_window_get_active_screen(win);
 
   /* Close child windows. */
   for (wmWindow &iter_win : wm->windows.items_mutable()) {
@@ -985,9 +1008,7 @@ static void wm_window_ghostwindow_add(wmWindowManager *wm,
 
   GPUBackendType gpu_backend = GPU_backend_type_selection_get();
   gpu_settings.context_type = wm_ghost_drawing_context_type(gpu_backend);
-  gpu_settings.preferred_device.index = U.gpu_preferred_index;
-  gpu_settings.preferred_device.vendor_id = U.gpu_preferred_vendor_id;
-  gpu_settings.preferred_device.device_id = U.gpu_preferred_device_id;
+  gpu_settings.preferred_device = GPU_backend_preferred_device_get();
   if (GPU_backend_vsync_is_overridden()) {
     gpu_settings.flags |= GHOST_gpuVSyncIsOverridden;
     gpu_settings.vsync = GHOST_TVSyncModes(GPU_backend_vsync_get());
@@ -1069,7 +1090,9 @@ static void wm_window_ghostwindow_add(wmWindowManager *wm,
     GPU_render_end();
   }
   else {
-    wm_window_set_drawable(wm, prev_windrawable, false);
+    if (prev_windrawable != nullptr) {
+      wm_window_set_drawable(wm, prev_windrawable, false);
+    }
   }
 }
 
@@ -1460,7 +1483,7 @@ wmOperatorStatus wm_window_close_exec(bContext *C, wmOperator * /*op*/)
 {
   wmWindowManager *wm = CTX_wm_manager(C);
   wmWindow *win = CTX_wm_window(C);
-  wm_window_close(C, wm, win);
+  wm_window_close_request(C, wm, win);
   return OPERATOR_FINISHED;
 }
 
@@ -1840,7 +1863,7 @@ static bool ghost_event_proc(const GHOST_IEvent *ghost_event, GHOST_TUserDataPtr
       break;
     }
     case GHOST_kEventWindowClose: {
-      wm_window_close(C, wm, win);
+      wm_window_close_request(C, wm, win);
       break;
     }
     case GHOST_kEventWindowUpdate: {
@@ -2173,6 +2196,7 @@ static bool wm_window_timers_process(const bContext *C, int *sleep_us_p)
 
 void wm_window_events_process(const bContext *C)
 {
+  BLI_profile_scope(ProfileCategory::Core);
   BLI_assert(BLI_thread_is_main());
   GPU_render_begin();
 
@@ -2285,6 +2309,10 @@ void wm_ghost_init(bContext *C)
   }
 
   g_system->useWindowFocus(wm_init_state.window_focus);
+
+#ifdef WITH_GHOST_WAYLAND
+  g_system->setIconGenerator(&wm_ghost_icon_generator);
+#endif
 
 #ifdef WITH_GHOST_CSD
   if (wm_init_state.window_frame &&
@@ -2799,12 +2827,12 @@ bool WM_clipboard_image_set_byte_buffer(ImBuf *ibuf)
   if (G.background) {
     return false;
   }
-  if (ibuf->byte_buffer.data == nullptr) {
+  if (ibuf->byte_data() == nullptr) {
     return false;
   }
 
   bool success = bool(g_system->putClipboardImage(
-      reinterpret_cast<uint *>(ibuf->byte_buffer.data), ibuf->x, ibuf->y));
+      reinterpret_cast<uint *>(ibuf->byte_data_for_write()), ibuf->x, ibuf->y));
 
   return success;
 }
@@ -3045,8 +3073,18 @@ void WM_cursor_warp(wmWindow *win, int x, int y)
   win->runtime->eventstate->xy[1] = oldy;
 }
 
-uint WM_cursor_preferred_logical_size()
+uint WM_cursor_preferred_logical_size(const bool hardware_cursor)
 {
+  if (OS_MAC) {
+    if (hardware_cursor) {
+      /* On macOS 21 logical pixels is the expected "default", so follow this here.
+       *
+       * NOTE(@ideasman42): visually Blender's cursors do look bigger then the systems
+       * when set to #WM_CURSOR_DEFAULT_LOGICAL_SIZE, so use macOS's default size. */
+      return 21;
+    }
+  }
+
   return g_system->getCursorPreferredLogicalSize();
 }
 
@@ -3450,9 +3488,7 @@ GHOST_IContext *WM_system_gpu_context_create()
   if (G.debug & G_DEBUG_GPU) {
     gpu_settings.flags |= GHOST_gpuDebugContext;
   }
-  gpu_settings.preferred_device.index = U.gpu_preferred_index;
-  gpu_settings.preferred_device.vendor_id = U.gpu_preferred_vendor_id;
-  gpu_settings.preferred_device.device_id = U.gpu_preferred_device_id;
+  gpu_settings.preferred_device = GPU_backend_preferred_device_get();
   if (GPU_backend_vsync_is_overridden()) {
     gpu_settings.flags |= GHOST_gpuVSyncIsOverridden;
     gpu_settings.vsync = GHOST_TVSyncModes(GPU_backend_vsync_get());
