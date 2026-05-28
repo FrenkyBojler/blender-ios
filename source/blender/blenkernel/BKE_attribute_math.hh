@@ -712,7 +712,8 @@ class SimpleMixerWithAccumulationType {
 
   void finalize(const IndexMask &mask)
   {
-    BLI_profile_scope(ProfileCategory::Default);
+    BLI_profile_scope_with_name("SimpleMixerWithAccumulationType::finalize",
+                                ProfileCategory::Default);
     mask.foreach_index([&](const int64_t i) {
       const Item &item = accumulation_buffer_[i];
       if (item.weight > 0.0f) {
