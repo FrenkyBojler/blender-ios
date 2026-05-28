@@ -1514,11 +1514,11 @@ void panel_category_tabs_draw_all(const bContext *C,
   /* If the area is too small to show panels, then don't show any tabs as active. */
   const bool too_narrow = BLI_rcti_size_x(&region->winrct) <=
                           int(UI_PANEL_CATEGORY_MIN_WIDTH * UI_SCALE_FAC / aspect);
-  /* `widget_roundbox_set` has this correction, keep in sync. */
-  int alig_pad = !region->overlap ? px : 0;
+  /* #widget_roundbox_set has this correction, keep in sync. */
+  const int align_pad = !region->overlap ? px : 0;
   /* Same for all tabs. */
   const int rct_xmin = is_left ? (v2d->mask.xmin + 3) :
-                                 (v2d->mask.xmax - category_tabs_width + alig_pad);
+                                 (v2d->mask.xmax - category_tabs_width + align_pad);
   const int rct_xmax = is_left ? (v2d->mask.xmin + category_tabs_width) : (v2d->mask.xmax - 3);
   /* NOTE: This block is created in window coordinates. */
   Block *block = block_begin(C, region, panel_category_tabs_block_name, EmbossType::Emboss);
