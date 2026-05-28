@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <cstring>
+#include <optional>
 
 #include "MEM_guardedalloc.h"
 
@@ -447,18 +448,42 @@ struct tTreeSort {
   short idcode;
 };
 
-/* alphabetical comparator */
+/* Move children that are not in the collection to the end of the list. */
+static std::optional<bool> treesort_child_not_in_collection(const tTreeSort &x1,
+                                                            const tTreeSort &x2)
+{
+  /* Among objects first come the ones in the collection, followed by the ones not on it.
+   * This way we can have the dashed lines in a separate style connecting the former. */
+  if ((x1.te->flag & TE_CHILD_NOT_IN_COLLECTION) != (x2.te->flag & TE_CHILD_NOT_IN_COLLECTION)) {
+    return (x2.te->flag & TE_CHILD_NOT_IN_COLLECTION) != 0;
+  }
+  return std::nullopt;
+}
+
 static bool treesort_alpha(const tTreeSort &x1, const tTreeSort &x2)
 {
-  const bool a_not_in = (x1.te->flag & TE_CHILD_NOT_IN_COLLECTION) != 0;
-  const bool b_not_in = (x2.te->flag & TE_CHILD_NOT_IN_COLLECTION) != 0;
-  if (a_not_in != b_not_in) {
-    return !a_not_in;
-  }
-
   int comp = BLI_strcasecmp_natural(x1.name, x2.name);
 
   return comp < 0;
+}
+
+static bool treesort_alpha_ob(const tTreeSort &x1, const tTreeSort &x2)
+{
+  const bool a_is_ob = (x1.idcode == ID_OB);
+  const bool b_is_ob = (x2.idcode == ID_OB);
+  if (a_is_ob != b_is_ob) {
+    return !a_is_ob;
+  }
+
+  if (!a_is_ob) {
+    return false;
+  }
+
+  if (std::optional<bool> comp = treesort_child_not_in_collection(x1, x2)) {
+    return *comp;
+  }
+
+  return BLI_strcasecmp_natural(x1.name, x2.name) < 0;
 }
 
 /* Sort object entries in a parent collection by `CollectionObject.sort_index`,
@@ -474,10 +499,8 @@ static bool treesort_custom(const tTreeSort &x1,
     return false;
   }
 
-  const bool a_not_in = (x1.te->flag & TE_CHILD_NOT_IN_COLLECTION) != 0;
-  const bool b_not_in = (x2.te->flag & TE_CHILD_NOT_IN_COLLECTION) != 0;
-  if (a_not_in != b_not_in) {
-    return !a_not_in;
+  if (std::optional<bool> comp = treesort_child_not_in_collection(x1, x2)) {
+    return *comp;
   }
 
   if (collection_object_map == nullptr) {
@@ -557,10 +580,8 @@ static bool treesort_type_ob(const tTreeSort &x1, const tTreeSort &x2)
     return false;
   }
 
-  const bool a_not_in = (x1.te->flag & TE_CHILD_NOT_IN_COLLECTION) != 0;
-  const bool b_not_in = (x2.te->flag & TE_CHILD_NOT_IN_COLLECTION) != 0;
-  if (a_not_in != b_not_in) {
-    return !a_not_in;
+  if (std::optional<bool> comp = treesort_child_not_in_collection(x1, x2)) {
+    return *comp;
   }
 
   /* Group by object type. */
@@ -681,7 +702,7 @@ static void outliner_sort(ListBaseT<TreeElement> *lb)
         }
 
         if (skip_front < totelem) {
-          std::sort(tear + skip_front, tear + totelem, treesort_alpha);
+          std::stable_sort(tear + skip_front, tear + totelem, treesort_alpha_ob);
         }
       }
 
