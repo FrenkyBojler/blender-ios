@@ -1230,11 +1230,6 @@ const ColorManagedDisplay *button_cm_display_get(Button &but);
 void button_placeholder_set(Button *but, StringRef placeholder_text);
 
 /**
- * Set a completion text that will be displayed while editing.
- */
-void button_completion_set(Button &but, StringRef completion_text);
-
-/**
  * Unselect any text selection in the button's text field.
  */
 void button_clear_selection(Button *but);

@@ -11,6 +11,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <list>
+#include <optional>
 
 #include "DNA_brush_types.h"
 #include "DNA_node_types.h"
@@ -2371,7 +2372,7 @@ static void widget_draw_text(const uiFontStyle *fstyle,
   const char *drawstr_right = nullptr;
   bool use_right_only = false;
   const char *indeterminate_str = UI_VALUE_INDETERMINATE_CHAR;
-  StringRef completion = button_completion_get(*but);
+  std::optional<StringRef> completion = button_completion_get(*but);
 
 #ifdef WITH_INPUT_IME
   const wmIMEData *ime_data;
@@ -2665,7 +2666,7 @@ static void widget_draw_text(const uiFontStyle *fstyle,
         }
       }
 
-      if (!completion.is_empty() && drawstr[0] != '\0') {
+      if (completion && drawstr[0] != '\0') {
         rcti text_bounds;
         BLF_boundbox(fstyle->uifont_id, drawstr + but->ofs, drawlen, &text_bounds);
 
@@ -2683,8 +2684,8 @@ static void widget_draw_text(const uiFontStyle *fstyle,
         completion_rect.ymax = rect->ymax;
         fontstyle_draw_ex(&style,
                           &completion_rect,
-                          completion.data(),
-                          completion.size(),
+                          completion->data(),
+                          completion->size(),
                           col,
                           &params,
                           nullptr,

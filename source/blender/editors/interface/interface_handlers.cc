@@ -12,6 +12,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
+#include <optional>
 #include <variant>
 
 #include "MEM_guardedalloc.h"
@@ -434,6 +435,9 @@ struct HandleButtonData {
   wmTimer *flashtimer = nullptr;
 
   TextEdit text_edit;
+  /** Hint drawn faded after the edit string (e.g. the unit), empty when there is none. */
+  std::string text_edit_completion;
+
   wmTimer *text_select_auto_scroll = nullptr;
 
   double value = 0.0f;
@@ -3651,6 +3655,15 @@ const wmIMEData *button_ime_data_get(Button *but)
 }
 #endif /* WITH_INPUT_IME */
 
+std::optional<StringRef> button_completion_get(Button &but)
+{
+  const HandleButtonData *data = but.semi_modal_state ? but.semi_modal_state : but.active;
+  if (data == nullptr || data->text_edit_completion.empty()) {
+    return std::nullopt;
+  }
+  return data->text_edit_completion;
+}
+
 static void button_text_completion(bContext *C, Button *but, HandleButtonData *data)
 {
   /* Unit completion (hint) is only done for buttons with a unit or with a property of type
@@ -3659,7 +3672,7 @@ static void button_text_completion(bContext *C, Button *but, HandleButtonData *d
   if (!button_is_unit(but) &&
       (but->rnaprop && !ELEM(RNA_property_subtype(but->rnaprop), PROP_PIXEL, PROP_PERCENTAGE)))
   {
-    button_completion_set(*but, {});
+    data->text_edit_completion.clear();
     return;
   }
 
@@ -3669,14 +3682,14 @@ static void button_text_completion(bContext *C, Button *but, HandleButtonData *d
   if (unit_type != PROP_NONE) {
     /* If the string contains the unit already, don't add it as a hint. */
     if (BKE_unit_string_contains_unit(data->text_edit.edit_string, unit_type)) {
-      button_completion_set(*but, {});
+      data->text_edit_completion.clear();
       return;
     }
 
     /* If the number we're entering is not valid, don't show the hint. */
     double value;
     if (!BPY_run_string_as_number(C, nullptr, data->text_edit.edit_string, nullptr, &value)) {
-      button_completion_set(*but, {});
+      data->text_edit_completion.clear();
       return;
     }
 
@@ -3709,22 +3722,26 @@ static void button_text_completion(bContext *C, Button *but, HandleButtonData *d
       const StringRefNull str(data->text_edit.edit_string);
       BLI_assert(!name_short.empty());
       if (str.find(name_short) != StringRef::not_found) {
-        button_completion_set(*but, {});
+        data->text_edit_completion.clear();
         return;
       }
 
       /* If the number we're entering is not valid, don't show the hint. */
       double value;
       if (!BPY_run_string_as_number(C, nullptr, data->text_edit.edit_string, nullptr, &value)) {
-        button_completion_set(*but, {});
+        data->text_edit_completion.clear();
         return;
       }
     }
   }
 
+  if (name_short.empty()) {
+    data->text_edit_completion.clear();
+    return;
+  }
+
   /* Add a space before the short unit name. */
-  std::string text_completion = " " + name_short;
-  button_completion_set(*but, text_completion);
+  data->text_edit_completion = " " + name_short;
 }
 
 static void textedit_begin(bContext *C, Button *but, HandleButtonData *data)

@@ -9,6 +9,7 @@
 #pragma once
 
 #include <functional>
+#include <optional>
 #include <ranges>
 
 #include "BLI_compiler_attrs.h"
@@ -216,8 +217,6 @@ struct Button : NonMovable {
   std::string drawstr;
 
   char *placeholder = nullptr;
-
-  std::string completion;
 
   /** Block relative coordinates. */
   rctf rect = {};
@@ -914,7 +913,10 @@ Button *button_drag_multi_edit_get(Button *but);
  */
 const char *button_placeholder_get(Button *but);
 
-StringRef button_completion_get(Button &but);
+/**
+ * Get the completion hint shown after the text while editing.
+ */
+std::optional<StringRef> button_completion_get(Button &but);
 
 void def_but_icon(Button *but, int icon, int flag);
 /**

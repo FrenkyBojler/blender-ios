@@ -5718,16 +5718,6 @@ const char *button_placeholder_get(Button *but)
   return placeholder;
 }
 
-void button_completion_set(Button &but, const StringRef completion_text)
-{
-  but.completion = completion_text;
-}
-
-StringRef button_completion_get(Button &but)
-{
-  return but.completion;
-}
-
 void button_clear_selection(Button *but)
 {
   but->selsta = 0;
