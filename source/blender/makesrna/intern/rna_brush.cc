@@ -1948,7 +1948,8 @@ static void rna_def_gpencil_options(BlenderRNA *brna)
   RNA_def_property_range(prop, 0.0f, 1.0f);
   RNA_def_property_ui_text(prop,
                            "Gap Detection Factor",
-                           "Strength of gap detection, higher values create smaller fills");
+                           "The sensitivity of the gap detection. Higher values results in more "
+                           "gaps detected and as such can create smaller fills");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_update(prop, 0, "rna_BrushGpencilSettings_update");
 
