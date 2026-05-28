@@ -195,7 +195,7 @@ class NODE_MT_gn_grease_pencil_operations_base(node_add_menu.NodeMenu):
 
     def draw(self, _context):
         layout = self.layout
-        self.node_operator(layout, "GeometryNodeGreasePencilEvaluateAtFrame")
+        self.node_operator(layout, "GeometryNodeGreasePencilGetDrawingAtFrame")
         self.node_operator(layout, "GeometryNodeGreasePencilToCurves")
         self.node_operator(layout, "GeometryNodeMergeLayers")
 
