@@ -89,7 +89,6 @@ struct OnlineAssetInfo {
   StringRefNull asset_file() const;
 };
 
-class AssetLibrary;
 class AssetRepresentation;
 
 float remote_library_total_asset_downloads_progress();
@@ -105,9 +104,6 @@ struct RemoteLibraryDefinitionRef {
       : remote_url(remote_url), cache_dirpath(cache_dirpath)
   {
   }
-
-  static std::optional<RemoteLibraryDefinitionRef> from_asset_library(
-      const AssetLibrary &asset_library);
 };
 
 /**

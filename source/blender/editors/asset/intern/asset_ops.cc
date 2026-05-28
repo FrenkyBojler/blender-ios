@@ -454,37 +454,40 @@ static void do_asset_library_refresh(bContext *C)
   WM_event_add_notifier(C, NC_ASSET | ND_ASSET_LIST_READING, nullptr);
 }
 
-std::optional<asset_system::RemoteLibraryDefinitionRef> asset_library_remote_ref(bContext *C)
+static asset_system::AssetLibrary *ctx_asset_library(bContext *C)
 {
-  using namespace blender::asset_system;
-
   /* Find the asset library, depending on where we were invoked from. */
-  AssetLibrary *asset_library;
   if (ED_operator_asset_browsing_active(C)) {
-    asset_library = ED_fileselect_active_asset_library_get(CTX_wm_space_file(C));
-  }
-  else {
-    const AssetLibraryReference *library_ref = CTX_wm_asset_library_ref(C);
-    asset_library = ed::asset::list::library_get_once_available(*library_ref);
-  }
-  if (!asset_library) {
-    return {};
+    return ED_fileselect_active_asset_library_get(CTX_wm_space_file(C));
   }
 
-  return RemoteLibraryDefinitionRef::from_asset_library(*asset_library);
+  const AssetLibraryReference *library_ref = CTX_wm_asset_library_ref(C);
+  return ed::asset::list::library_get_once_available(*library_ref);
 }
 
 static wmOperatorStatus asset_library_reload_listing_exec(bContext *C, wmOperator *op)
 {
-  std::optional<asset_system::RemoteLibraryDefinitionRef> remote_ref = asset_library_remote_ref(C);
-  if (!remote_ref) {
+  /* This is also checked in the poll function, but this exec function is also called from the
+   * generic asset_library_fresh_exec() function, where it is not. */
+  if ((G.f & G_FLAG_INTERNET_ALLOW) == 0) {
+    BKE_report(op->reports, RPT_ERROR, "Online access is disabled in the Preferences");
+    return OPERATOR_CANCELLED;
+  }
+
+  /* Find the asset library, depending on where we were invoked from. */
+  const asset_system::AssetLibrary *asset_lib = ctx_asset_library(C);
+  if (UNLIKELY(!asset_lib)) {
+    return OPERATOR_CANCELLED;
+  }
+  const std::optional<AssetLibraryReference> library_ref = asset_lib->library_reference();
+  if (!library_ref || !asset_system::is_or_contains_remote_libraries(*library_ref)) {
     BKE_report(
         op->reports, RPT_ERROR, "This asset library does not have a remote listing to download");
     return OPERATOR_CANCELLED;
   }
 
   /* Re-download the asset listing on shift-click. */
-  remote_library_request_download(*remote_ref);
+  asset_lib->force_remote_listing_download();
 
   /* Always end with a regular refresh, as a "forced refresh" like this should be an additional
    * thing on top of regular refreshing (otherwise it would be weird to use the refresh button for
@@ -496,8 +499,24 @@ static wmOperatorStatus asset_library_reload_listing_exec(bContext *C, wmOperato
 
 static bool asset_library_reload_listing_poll(bContext *C)
 {
-  std::optional<asset_system::RemoteLibraryDefinitionRef> remote_ref = asset_library_remote_ref(C);
-  return remote_ref.has_value();
+  const asset_system::AssetLibrary *asset_lib = ctx_asset_library(C);
+  if (UNLIKELY(!asset_lib)) {
+    return false;
+  }
+  const std::optional<AssetLibraryReference> library_ref = asset_lib->library_reference();
+  if (!library_ref || !asset_system::is_or_contains_remote_libraries(*library_ref)) {
+    CTX_wm_operator_poll_msg_set(C, "This is not a remote library");
+    return false;
+  }
+
+  /* Check the flag after checking for the remote library to have an online component. Because if
+   * there is not, then enabling the online access in the prefs isn't going to do anything. */
+  if ((G.f & G_FLAG_INTERNET_ALLOW) == 0) {
+    CTX_wm_operator_poll_msg_set(C, "Online access is disabled in the Preferences");
+    return false;
+  }
+
+  return true;
 }
 
 static void ASSET_OT_library_reload_listing(wmOperatorType *ot)
