@@ -453,7 +453,7 @@ static bool treesort_alpha(const tTreeSort &x1, const tTreeSort &x2)
   const bool a_not_in = (x1.te->flag & TE_CHILD_NOT_IN_COLLECTION) != 0;
   const bool b_not_in = (x2.te->flag & TE_CHILD_NOT_IN_COLLECTION) != 0;
   if (a_not_in != b_not_in) {
-    return !a_not_in
+    return !a_not_in;
   }
 
   int comp = BLI_strcasecmp_natural(x1.name, x2.name);
