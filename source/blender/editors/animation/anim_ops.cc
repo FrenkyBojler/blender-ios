@@ -732,9 +732,10 @@ static wmOperatorStatus change_frame_invoke(bContext *C, wmOperator *op, const w
     op_data->was_playing = true;
     op_data->play_mode = (sad->flag & ANIMPLAY_FLAG_REVERSE) ? PlaybackDirection::BACKWARDS :
                                                                PlaybackDirection::FORWARDS;
-    op_data->play_sync = (sad->flag & ANIMPLAY_FLAG_SYNC)    ? PlaySyncMode::ON :
-                         (sad->flag & ANIMPLAY_FLAG_NO_SYNC) ? PlaySyncMode::OFF :
-                                                               PlaySyncMode::UNCHANGED;
+    op_data->play_sync = (sad->flag & ANIMPLAY_FLAG_SYNC) ?
+                             PlaySyncMode::ON :
+                             ((sad->flag & ANIMPLAY_FLAG_NO_SYNC) ? PlaySyncMode::OFF :
+                                                                    PlaySyncMode::UNCHANGED);
     ED_screen_animation_play(C, 0, 0);
   }
 
@@ -772,7 +773,7 @@ static void change_frame_restore_playback(bContext *C, wmOperator *op)
   FrameChangeModalData *op_data = static_cast<FrameChangeModalData *>(op->customdata);
   if (op_data && op_data->was_playing) {
     op_data->was_playing = false;
-    ED_screen_animation_play(C, (int)op_data->play_sync, (int)op_data->play_mode);
+    ED_screen_animation_play(C, int(op_data->play_sync), int(op_data->play_mode));
   }
 }
 
