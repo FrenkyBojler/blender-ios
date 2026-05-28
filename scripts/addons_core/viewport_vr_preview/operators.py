@@ -332,8 +332,7 @@ class VIEW3D_OT_vr_location_scouting_viewfinder_capture(Operator):
         wm = context.window_manager
         xr_viewfinder = wm.xr_session_state.viewfinder
 
-        # Quick and dirty unique name function
-        # Returns the first available name in the style (Base 001, Base 002, Base 003, etc...)
+        # Returns the first available name in the style (Base 001, Base 002, Base 003, etc...).
         def unique_name(col, base: str) -> str:
             existing_indexes = set()
 
@@ -362,7 +361,7 @@ class VIEW3D_OT_vr_location_scouting_viewfinder_capture(Operator):
         capture.dof_distance = xr_viewfinder.capture_dof_distance
         capture.dof_fstop = xr_viewfinder.capture_dof_fstop
 
-        xr_viewfinder.runtime_capture_flash = 1  # Internal value, setting to 1 will trigger a flash
+        xr_viewfinder.runtime_capture_flash = 1  # Internal value, setting to 1 will trigger a flash.
 
         viewfinder_camera_gizmo_view3d_redraw_workaround()
 
@@ -384,7 +383,7 @@ class VIEW3D_OT_vr_location_scouting_viewfinder_apply_action(Operator):
     bl_description = "Apply the currently selected Viewfinder action (Zoom Control/Playback selection for now)"
     bl_options = {'INTERNAL'}
 
-    # Differentiate between an up and down action(two possible buttons)
+    # Differentiate between an up and down action (two possible buttons).
     action_up: bpy.props.BoolProperty(
         name="Is Up Action",
         options={'HIDDEN'},
@@ -392,11 +391,11 @@ class VIEW3D_OT_vr_location_scouting_viewfinder_apply_action(Operator):
 
     @staticmethod
     def get_next_in_map(current, map_, up_dir) -> int:
-        # Find the closest map idx to the current
+        # Find the closest map idx to the `current` value.
         diff_list = [abs(elem - current) for elem in map_]
         current_idx = diff_list.index(min(diff_list))
 
-        # Find the next element going up or down, clamping at bounds
+        # Find the next element going up or down, clamping at bounds.
         if up_dir:
             # Zoom in
             next_idx = min(current_idx + 1, len(map_) - 1)
@@ -440,7 +439,7 @@ class VIEW3D_OT_vr_location_scouting_viewfinder_apply_action(Operator):
                          4, 4.8, 5.6, 6.7, 8, 9.5, 11, 13, 16, 19, 22, 27, 32)
 
             match xr_viewfinder.active_action_live:
-                # View Zoom Control
+                # View Zoom Control.
                 case 'LENS':
                     current_focal = xr_viewfinder.capture_lens_focal
 
@@ -449,13 +448,13 @@ class VIEW3D_OT_vr_location_scouting_viewfinder_apply_action(Operator):
 
                     return {'FINISHED'}
 
-                # Toggle DoF on/off
+                # Toggle DoF on/off.
                 case 'DOF':
                     xr_viewfinder.capture_dof_enabled = not xr_viewfinder.capture_dof_enabled
 
                     return {'FINISHED'}
 
-                # Focus distance control (ray-cast autofocus)
+                # Focus distance control (ray-cast autofocus).
                 case 'FOCUS':
                     raycast_hit = self.focus_distance_raycast(context,
                                                               xr_viewfinder.location,
@@ -466,7 +465,7 @@ class VIEW3D_OT_vr_location_scouting_viewfinder_apply_action(Operator):
 
                     return {'FINISHED'}
 
-                # F-Stop control
+                # F-Stop control.
                 case 'APERTURE':
                     current_fstop = xr_viewfinder.capture_dof_fstop
 
@@ -476,27 +475,27 @@ class VIEW3D_OT_vr_location_scouting_viewfinder_apply_action(Operator):
                     return {'FINISHED'}
 
         if xr_viewfinder.active_mode == 'PLAYBACK':
-            # Playblack control
+            # Playblack control.
             scene = context.scene
             captures = scene.vr_captures
             if len(captures) == 0:
                 return {'FINISHED'}
 
             match xr_viewfinder.active_action_playback:
-                # Browse shots left/right
+                # Browse shots left/right.
                 case 'BROWSE':
                     incr = 1 if self.action_up else -1
                     scene.vr_captures_selected = (scene.vr_captures_selected + incr) % len(captures)
 
                     return {'FINISHED'}
 
-                # Preview the selected capture in space toggle
+                # Preview the selected capture in space toggle.
                 case 'PREVIEW':
                     xr_viewfinder.playback_show_active_capture_in_space_enabled = not xr_viewfinder.playback_show_active_capture_in_space_enabled
 
                     return {'FINISHED'}
 
-                # Delete the selected capture
+                # Delete the selected capture.
                 case 'DELETE':
                     captures.remove(scene.vr_captures_selected)
                     if scene.vr_captures_selected > 0:
