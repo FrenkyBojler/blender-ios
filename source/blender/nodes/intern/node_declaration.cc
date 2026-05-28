@@ -2,6 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "NOD_geometry_nodes_closure_signature.hh"
 #include "NOD_node_declaration.hh"
 #include "NOD_socket_declarations.hh"
 #include "NOD_socket_declarations_geometry.hh"
@@ -729,8 +730,8 @@ BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::evaluated_geometry_f
 BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::anonymous_attribute_output()
 {
   BLI_assert(this->is_output());
-  /* The corresponding relations are build after all socket declarations are known. */
-  output_reference_available_on_all_data_ = true;
+  decl_base_->is_anonymous_attribute_output = true;
+  this->references_other_outputs();
   decl_base_->structure_type = StructureType::Field;
   return *this;
 }
@@ -739,14 +740,31 @@ BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::anonymous_attribute_
     const Span<int> geometry_output_indices)
 {
   BLI_assert(this->is_output());
+  decl_base_->is_anonymous_attribute_output = true;
+  this->references_other_outputs(geometry_output_indices);
+  decl_base_->structure_type = StructureType::Field;
+  return *this;
+}
+
+BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::references_other_outputs()
+{
+  BLI_assert(this->is_output());
+  /* The corresponding relations are build after all socket declarations are known. */
+  output_reference_available_on_all_data_ = true;
+  return *this;
+}
+
+BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::references_other_outputs(
+    const Span<int> output_indices)
+{
+  BLI_assert(this->is_output());
   rl::RelationsInNode &relations = node_decl_builder_->get_reference_lifetime_relations();
-  for (const int index : geometry_output_indices) {
+  for (const int index : output_indices) {
     rl::AvailableRelation relation;
     relation.data_output = index;
     relation.reference_output = decl_base_->index;
     relations.available_relations.append(relation);
   }
-  decl_base_->structure_type = StructureType::Field;
   return *this;
 }
 
@@ -1118,6 +1136,8 @@ std::optional<ImplicitInputValueFn> get_implicit_input_value_fn(const NodeDefaul
       return std::nullopt;
     case NODE_DEFAULT_INPUT_UNIFORM_IMAGE_COORDINATES:
       return std::nullopt;
+    case NODE_DEFAULT_INPUT_SELF_OBJECT:
+      return std::nullopt;
   }
   return std::nullopt;
 }
@@ -1143,6 +1163,8 @@ bool socket_type_supports_default_input_type(const bke::bNodeSocketType &socket_
       return stype == SOCK_MATRIX;
     case NODE_DEFAULT_INPUT_UNIFORM_IMAGE_COORDINATES:
       return stype == SOCK_VECTOR;
+    case NODE_DEFAULT_INPUT_SELF_OBJECT:
+      return stype == SOCK_OBJECT;
   }
   return false;
 }
@@ -1160,6 +1182,7 @@ bool node_tree_type_supports_default_input_type(eNodeTree_Type node_tree_type,
     case NODE_DEFAULT_INPUT_HANDLE_LEFT_FIELD:
     case NODE_DEFAULT_INPUT_HANDLE_RIGHT_FIELD:
     case NODE_DEFAULT_INPUT_INSTANCE_TRANSFORM_FIELD:
+    case NODE_DEFAULT_INPUT_SELF_OBJECT:
       return node_tree_type == NTREE_GEOMETRY;
     case NODE_DEFAULT_INPUT_SCENE_FRAME:
       return ELEM(node_tree_type, NTREE_COMPOSIT, NTREE_GEOMETRY);
