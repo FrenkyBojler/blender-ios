@@ -715,8 +715,7 @@ class ASSETBROWSER_MT_library(AssetBrowserMenu, Menu):
         layout = self.layout
 
         layout.operator("asset.library_refresh", text="Refresh")
-        props = layout.operator("asset.library_refresh", text="Refresh Remote Listing")
-        props.use_remote_listing = True
+        layout.operator("asset.library_reload_listing", text="Refresh Remote Listing")
 
 
 class ASSETBROWSER_MT_catalog(AssetBrowserMenu, Menu):
@@ -925,8 +924,7 @@ class ASSETBROWSER_MT_context_menu(AssetBrowserMenu, Menu):
             layout.separator()
 
         layout.operator("asset.library_refresh", icon='FILE_REFRESH')
-        props = layout.operator("asset.library_refresh", text="Refresh Remote Listing")
-        props.use_remote_listing = True
+        layout.operator("asset.library_reload_listing", text="Refresh Remote Listing")
 
         layout.separator()
 

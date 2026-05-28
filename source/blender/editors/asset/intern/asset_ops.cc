@@ -454,15 +454,9 @@ static void do_asset_library_refresh(bContext *C)
   WM_event_add_notifier(C, NC_ASSET | ND_ASSET_LIST_READING, nullptr);
 }
 
-static wmOperatorStatus asset_library_refresh_exec(bContext *C, wmOperator *op)
+std::optional<asset_system::RemoteLibraryDefinitionRef> asset_library_remote_ref(bContext *C)
 {
   using namespace blender::asset_system;
-
-  if (!RNA_boolean_get(op->ptr, "use_remote_listing")) {
-    /* Just a plain refresh of the asset browser. */
-    do_asset_library_refresh(C);
-    return OPERATOR_FINISHED;
-  }
 
   /* Find the asset library, depending on where we were invoked from. */
   AssetLibrary *asset_library;
@@ -474,12 +468,15 @@ static wmOperatorStatus asset_library_refresh_exec(bContext *C, wmOperator *op)
     asset_library = ed::asset::list::library_get_once_available(*library_ref);
   }
   if (!asset_library) {
-    return OPERATOR_CANCELLED;
+    return {};
   }
 
-  /* See if there is anything to download, and refuse to work otherwise. */
-  std::optional<RemoteLibraryDefinitionRef> remote_ref =
-      RemoteLibraryDefinitionRef::from_asset_library(*asset_library);
+  return RemoteLibraryDefinitionRef::from_asset_library(*asset_library);
+}
+
+static wmOperatorStatus asset_library_reload_listing_exec(bContext *C, wmOperator *op)
+{
+  std::optional<asset_system::RemoteLibraryDefinitionRef> remote_ref = asset_library_remote_ref(C);
   if (!remote_ref) {
     BKE_report(
         op->reports, RPT_ERROR, "This asset library does not have a remote listing to download");
@@ -497,6 +494,38 @@ static wmOperatorStatus asset_library_refresh_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
+static bool asset_library_reload_listing_poll(bContext *C)
+{
+  std::optional<asset_system::RemoteLibraryDefinitionRef> remote_ref = asset_library_remote_ref(C);
+  return remote_ref.has_value();
+}
+
+static void ASSET_OT_library_reload_listing(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Reload Remote Asset Library Listing";
+  ot->description =
+      "Re-download the asset listing of a remote library. Only supported when the active "
+      "asset library is remote or has a remote component (the Essentials library)";
+  ot->idname = "ASSET_OT_library_reload_listing";
+
+  /* API callbacks. */
+  ot->exec = asset_library_reload_listing_exec;
+  ot->poll = asset_library_reload_listing_poll;
+}
+
+static wmOperatorStatus asset_library_refresh_exec(bContext *C, wmOperator *op)
+{
+  if (RNA_boolean_get(op->ptr, "use_remote_listing")) {
+    /* Delegate to the ASSET_OT_library_reload_listing operator. */
+    return asset_library_reload_listing_exec(C, op);
+  }
+
+  /* Just a plain refresh of the asset browser. */
+  do_asset_library_refresh(C);
+  return OPERATOR_FINISHED;
+}
+
 static wmOperatorStatus asset_library_refresh_invoke(bContext *C,
                                                      wmOperator *op,
                                                      const wmEvent *event)
@@ -507,7 +536,7 @@ static wmOperatorStatus asset_library_refresh_invoke(bContext *C,
   return asset_library_refresh_exec(C, op);
 }
 
-static std::string asset_library_refresh_get_description(bContext *C,
+static std::string asset_library_refresh_get_description(bContext * /*C*/,
                                                          wmOperatorType *ot,
                                                          PointerRNA *ptr)
 {
@@ -1722,6 +1751,7 @@ void operatortypes_asset()
   WM_operatortype_append(ASSET_OT_bundle_install);
 
   WM_operatortype_append(ASSET_OT_library_refresh);
+  WM_operatortype_append(ASSET_OT_library_reload_listing);
 
   WM_operatortype_append(ASSET_OT_screenshot_preview);
 
