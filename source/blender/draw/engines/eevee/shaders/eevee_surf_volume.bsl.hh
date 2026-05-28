@@ -26,7 +26,7 @@ FRAGMENT_SHADER_CREATE_INFO(eevee_nodetree)
 #include "eevee_occupancy_lib.bsl.hh"
 #include "eevee_sampling_lib.bsl.hh"
 
-GlobalData init_globals(float3 wP)
+GlobalData init_globals(const ViewMatrices view, float3 wP)
 {
   GlobalData surf;
   surf.P = wP;
@@ -39,7 +39,7 @@ GlobalData init_globals(float3 wP)
   surf.barycentric_dists = float3(0.0f);
   surf.ray_type = RAY_TYPE_CAMERA;
   surf.ray_depth = 0.0f;
-  surf.ray_length = distance(surf.P, drw_view_position());
+  surf.ray_length = distance(surf.P, view.position());
   return surf;
 }
 
@@ -106,10 +106,10 @@ struct SurfVolume {
                  uni.uniform_buf.volumes.inv_tex_size;
 
     float3 vP = volume_jitter_to_view(uni, view, uvw);
-    float3 wP = drw_point_view_to_world(vP);
+    float3 wP = view.point_view_to_world(vP);
     float3 lP = drw_point_world_to_object(wP);
 
-    g_data = init_globals(wP);
+    g_data = init_globals(view, wP);
     attrib_load(VolumePoint{lP});
     nodetree_volume();
 

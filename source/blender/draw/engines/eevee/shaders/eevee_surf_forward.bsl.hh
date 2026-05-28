@@ -16,7 +16,8 @@ FRAGMENT_SHADER_CREATE_INFO(eevee_nodetree)
 FRAGMENT_SHADER_CREATE_INFO(eevee_geom_iface_info)
 
 #include "draw_curves_lib.glsl" /* IWYU pragma: export. For nodetree functions. */
-#include "draw_view_lib.glsl"   /* IWYU pragma: export. For nodetree functions. */
+#include "draw_view.bsl.hh"
+#include "draw_view_lib.glsl" /* IWYU pragma: export. For nodetree functions. */
 #include "eevee_forward_lib.bsl.hh"
 #include "eevee_nodetree_frag_lib.glsl"
 #include "eevee_reverse_z_lib.bsl.hh"
@@ -49,8 +50,9 @@ float4 closure_to_rgba_forward(Closure /*cl_unused*/)
     [[resource_table]] eevee::LightprobeRenderData &lightprobes = resource_table_get(eevee::LightprobeRenderData);
     /* clang-format on */
     [[resource_table]] eevee::LightprobeSphereRenderData &lp_spheres = lightprobes.spheres;
+    [[resource_table]] const draw::View &views = resource_table_get(draw::View);
 
-    float3 V = -drw_world_incident_vector(g_data.P);
+    float3 V = -views.get(0).world_incident_vector(g_data.P);
     eevee::LightProbeSample samp = lightprobes.load(frag_co, g_data.P, g_data.Ng, V);
     float3 radiance_behind = lp_spheres.spherical_sample_normalized_with_parallax(
         samp, g_data.P, V, 0.0);

@@ -25,7 +25,6 @@ struct GeomVolume {
   [[legacy_info]] ShaderCreateInfo draw_resource_id_varying;
   [[legacy_info]] ShaderCreateInfo draw_view;
   [[legacy_info]] ShaderCreateInfo draw_volume_infos;
-  [[resource_table]] srt_t<draw::View> views_;
 
   [[legacy_info]] ShaderCreateInfo eevee_geom_iface_info;
 };
@@ -37,6 +36,7 @@ struct GeomVolumeIn {
 [[vertex]] [[clip_control]] void geom_volume(
     [[resource_table]] const GeomVolume & /*srt*/,
     [[resource_table]] const Uniform & /*uni*/,
+    [[resource_table]] draw::View &views,
     [[in]] const GeomVolumeIn &vert_in,
     [[instance_id]] const int /*inst_id*/,     /* Used by model_lib. */
     [[base_instance]] const int /*base_inst*/, /* Used by model_lib. */
@@ -57,7 +57,8 @@ struct GeomVolumeIn {
   float3 lP = loc + vert_in.pos * size;
   interp.P = drw_point_object_to_world(lP);
 
-  out_position = reverse_z::transform(drw_point_world_to_homogenous(interp.P));
+  const ViewMatrices view = views.get(drw_view_id);
+  out_position = reverse_z::transform(view.point_world_to_homogenous(interp.P));
 }
 
 }  // namespace eevee

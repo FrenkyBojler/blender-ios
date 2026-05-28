@@ -27,13 +27,13 @@ struct GeomWorld {
   [[legacy_info]] ShaderCreateInfo draw_object_infos;
   [[legacy_info]] ShaderCreateInfo draw_resource_id_varying;
   [[legacy_info]] ShaderCreateInfo draw_view;
-  [[resource_table]] srt_t<draw::View> views_;
 
   [[legacy_info]] ShaderCreateInfo eevee_geom_iface_info;
 };
 
 [[vertex]] [[clip_control]] void geom_world([[resource_table]] const GeomWorld & /*srt*/,
                                             [[resource_table]] const Uniform & /*uni*/,
+                                            [[resource_table]] draw::View &views,
                                             [[vertex_id]] const int vert_id,
                                             [[position]] float4 &out_position)
 {
@@ -50,7 +50,7 @@ struct GeomWorld {
   out_position = float4(x, y, 1.0f, 1.0f);
 
   /* Pass view position to keep accuracy. */
-  interp.P = drw_point_ndc_to_view(out_position.xyz);
+  interp.P = views.get(0).point_ndc_to_view(out_position.xyz);
   interp.N = float3(1);
 
   out_position = reverse_z::transform(out_position);

@@ -43,6 +43,7 @@ struct SurfaceCapture {
 [[fragment]]
 void surf_capture([[resource_table]] SurfaceCapture &srt,
                   [[resource_table]] const Uniform &uni,
+                  [[resource_table]] const draw::View &views,
                   [[resource_table]] const UtilityTexture & /*util_tx*/,
                   [[frag_coord]] const float4 /*frag_co*/,
                   [[front_facing]] const bool front_face)
@@ -71,7 +72,7 @@ void surf_capture([[resource_table]] SurfaceCapture &srt,
 
   if (srt.capture_info_buf.do_surfel_count) {
     /* Generate a surfel only once. This check allow cases where no axis is dominant. */
-    float3 vNg = drw_normal_world_to_view(g_data.Ng);
+    float3 vNg = views.get(0).normal_world_to_view(g_data.Ng);
     bool is_surface_view_aligned = dominant_axis(vNg) == 2;
     if (is_surface_view_aligned) {
       uint surfel_id = atomicAdd(srt.capture_info_buf.surfel_len, 1u);

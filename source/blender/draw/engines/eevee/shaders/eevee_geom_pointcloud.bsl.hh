@@ -28,7 +28,6 @@ struct GeomPointCloud {
   [[legacy_info]] ShaderCreateInfo draw_resource_id_varying;
   [[legacy_info]] ShaderCreateInfo draw_view;
   [[legacy_info]] ShaderCreateInfo draw_pointcloud;
-  [[resource_table]] srt_t<draw::View> views_;
 
   [[legacy_info]] ShaderCreateInfo eevee_geom_iface_info;
   /* WORKAROUND: Until we get condition support for interfaces. */
@@ -41,6 +40,7 @@ struct GeomPointCloud {
     [[resource_table]] const PipelineConstants &pipe,
     [[resource_table]] const GeomPointCloud & /*srt*/,
     [[resource_table]] const Uniform &uni,
+    [[resource_table]] draw::View &views,
     [[resource_table, condition(is_shadow_pipe)]] GeomShadow &shadow,
     [[instance_id]] const int /*inst_id*/,     /* Used by model_lib. */
     [[base_instance]] const int /*base_inst*/, /* Used by model_lib. */
@@ -115,6 +115,9 @@ struct GeomPointCloud {
     clip_interp.clip_distance = dot(clip_plane.plane, float4(interp.P, 1.0f));
   }
 
+  const ViewMatrices view = views.get(drw_view_id);
+  float3 vs_P = view.point_world_to_view(interp.P);
+
   if (pipe.is_shadow_pipe) [[static_branch]] {
     auto &shadow_clip = interface_get(eevee_shadow_iface_info, shadow_clip);
 
@@ -124,7 +127,7 @@ struct GeomPointCloud {
     shadow_clip.vector = shadow_clip_vector_get(vs_P, view.clip_distance_inv);
   }
 
-  out_position = reverse_z::transform(drw_point_world_to_homogenous(interp.P));
+  out_position = reverse_z::transform(view.point_view_to_homogenous(vs_P));
 }
 
 }  // namespace eevee
