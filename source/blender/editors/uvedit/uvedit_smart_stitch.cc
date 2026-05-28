@@ -2302,10 +2302,6 @@ int stitch_init_all(bContext *C,
                     const StitchModes stored_mode,
                     const bool draw_preview)
 {
-  ARegion *region = CTX_wm_region(C);
-  if (!region) {
-    return 0;
-  }
 
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
@@ -2365,6 +2361,9 @@ int stitch_init_all(bContext *C,
 
   stitch_update_header(ssc, C);
 
+  /* A region is only needed to draw the interactive preview overlay below.
+   * The stitch itself works without one. When null the previous is skipped, not an error. */
+  ARegion *region = CTX_wm_region(C);
   if (draw_preview && region) {
     ssc->draw_handle = ED_region_draw_cb_activate(
         region->runtime->type, stitch_draw, ssc, REGION_DRAW_POST_VIEW);
