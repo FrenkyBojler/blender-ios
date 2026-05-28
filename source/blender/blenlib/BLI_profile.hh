@@ -12,15 +12,19 @@
  * the macros are evaluated to no-op.
  *
  * Important considerations:
- * - Any `name` arguments should be `ustr`s to ensure their lifetime is managed appropriately
+ * - Any `uname` arguments should be `ustr`s to ensure their lifetime is managed appropriately
  *
  * \see Tracy.hpp for a full list of supported macros
  * \see https://github.com/wolfpld/tracy/releases/latest/download/tracy.pdf
  */
 
+#include <type_traits>
+
 #ifdef WITH_TRACY
 #  include <tracy/Tracy.hpp>
 #endif
+
+#include "BLI_ustring.hh"
 
 namespace blender {
 /**
@@ -42,8 +46,16 @@ enum class ProfileCategory : uint32_t {
 
 /** Frame markers. */
 #  define BLI_profile_frame_mark FrameMark
-#  define BLI_profile_frame_mark_start(name) FrameMarkStart(name.c_str())
-#  define BLI_profile_frame_mark_end(name) FrameMarkEnd(name.c_str())
+#  define BLI_profile_frame_mark_start(uname) \
+    do { \
+      static_assert(std::is_same_v<decltype(uname), blender::UString>); \
+      FrameMarkStart(uname.c_str()); \
+    } while (false)
+#  define BLI_profile_frame_mark_end(uname) \
+    do { \
+      static_assert(std::is_same_v<decltype(uname), blender::UString>); \
+      FrameMarkEnd(uname.c_str()); \
+    } while (false)
 
 /** Profile the current scope, creating a Tracy zone. */
 #  define BLI_profile_scope(category) ZoneScopedC(uint32_t(category))
@@ -64,7 +76,7 @@ enum class ProfileCategory : uint32_t {
  * The zone is attached to the lifetime of `var` (e.g. for nested scopes).
  */
 #  define BLI_profile_scope_var(var, category) ZoneNamedC(var, uint32_t(category), true)
-#  define BLI_profile_scope_var_with_name(var, ui_name, category) \
+#  define BLI_profile_scope_var_with_name(var, name, category) \
     ZoneNamedNC(var, ui_name.c_str(), uint32_t(category), true)
 
 /** Set the specified zone's name on a per-call basis. */
@@ -79,8 +91,10 @@ enum class ProfileCategory : uint32_t {
 #else
 
 #  define BLI_profile_frame_mark
-#  define BLI_profile_frame_mark_start(name)
-#  define BLI_profile_frame_mark_end(name)
+#  define BLI_profile_frame_mark_start(uname) \
+    static_assert(std::is_same_v<decltype(uname), blender::UString>);
+#  define BLI_profile_frame_mark_end(uname) \
+    static_assert(std::is_same_v<decltype(uname), blender::UString>);
 
 #  define BLI_profile_scope(category)
 #  define BLI_profile_scope_with_name(name, category)
@@ -90,7 +104,7 @@ enum class ProfileCategory : uint32_t {
 #  define BLI_profile_scope_add_value(value)
 
 #  define BLI_profile_scope_var(var, category)
-#  define BLI_profile_scope_var_with_name(var, ui_name, category)
+#  define BLI_profile_scope_var_with_name(var, name, category)
 
 #  define BLI_profile_scope_var_set_dynamic_name(var, fmt, ...)
 #  define BLI_profile_scope_var_add_text(var, fmt, ...)
