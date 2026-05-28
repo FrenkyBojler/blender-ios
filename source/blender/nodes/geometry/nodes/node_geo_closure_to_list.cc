@@ -54,7 +54,9 @@ static void node_declare(NodeDeclarationBuilder &b)
         .references_other_outputs();
   }
 
-  b.add_output<decl::Extend>(""_ustr, "__extend__"_ustr).structure_type(StructureType::List);
+  b.add_output<decl::Extend>(""_ustr, "__extend__"_ustr)
+      .structure_type(StructureType::List)
+      .custom_draw(socket_items::ui::draw_extend_socket_fn<ItemsAccessor>());
 
   b.add_input<decl::Closure>("Closure"_ustr).create_signature([](const bNode &node) {
     return ClosureSignature::from_closure_to_list_node(node);
