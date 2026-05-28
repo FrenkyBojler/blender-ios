@@ -22,8 +22,6 @@ struct SpaceImage;
 struct ToolSettings;
 struct wmOperatorType;
 struct View2D;
-struct StitchState;
-struct StitchStateInit;
 struct bContext;
 /* find nearest */
 
@@ -205,53 +203,8 @@ void UV_OT_custom_region_set(wmOperatorType *ot);
 /* Used only when UV sync select is disabled. */
 void UV_OT_select_mode(wmOperatorType *ot);
 
-enum StitchModes {
-  STITCH_VERT,
-  STITCH_EDGE,
-};
-
-/* Stitch state container. */
-struct StitchStateContainer {
-  /* clear seams of stitched edges after stitch */
-  bool clear_seams;
-  /* use limit flag */
-  bool use_limit;
-  /* limit to operator, same as original operator */
-  float limit_dist;
-  /* snap uv islands together during stitching */
-  bool snap_islands;
-  /* stitch at midpoints or at islands */
-  bool midpoints;
-  /* vert or edge mode used for stitching */
-  char mode;
-  /* handle for drawing */
-  void *draw_handle;
-  /* island that stays in place */
-  int static_island;
-
-  /* Objects and states are aligned. */
-  int objects_len;
-  Object **objects;
-  StitchState **states;
-
-  int active_object_index;
-
-  bool ignore_seam_boundary;
-  bool only_selected_uvs;
-
-  /* Track which islands have selected faces */
-  blender::Vector<bool> island_has_selected;
-
-  /* Only used during init, null afterwards */
-  int *objs_selection_count = nullptr;
-  StitchStateInit *state_init = nullptr;
-};
-
-int stitch_init_all(bContext *C,
-                    StitchStateContainer *ssc,
-                    const StitchModes stored_mode,
-                    const bool draw_preview);
-int stitch_process_data_all(StitchStateContainer *ssc, Scene *scene, int final);
-void state_delete_all(StitchStateContainer *ssc);
+/* Stitch selected UV islands together (used by the unwrap "Original Bounds"
+ * option). Returns false if stitching could not be initialized. */
+bool uv_stitch_selected_islands(bContext *C);
 
 }  // namespace blender

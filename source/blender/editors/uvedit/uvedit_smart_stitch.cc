@@ -58,6 +58,8 @@ namespace blender {
 
 /* ********************** smart stitch operator *********************** */
 
+namespace {
+
 /* object that stores display data for previewing before confirming stitching */
 struct StitchPreviewer {
   /* here we'll store the preview triangle indices of the mesh */
@@ -168,6 +170,45 @@ struct StitchState {
   StitchPreviewer *stitch_preview;
 };
 
+struct StitchStateInit;
+
+/* Stitch state container. */
+struct StitchStateContainer {
+  /* clear seams of stitched edges after stitch */
+  bool clear_seams;
+  /* use limit flag */
+  bool use_limit;
+  /* limit to operator, same as original operator */
+  float limit_dist;
+  /* snap uv islands together during stitching */
+  bool snap_islands;
+  /* stitch at midpoints or at islands */
+  bool midpoints;
+  /* vert or edge mode used for stitching */
+  char mode;
+  /* handle for drawing */
+  void *draw_handle;
+  /* island that stays in place */
+  int static_island;
+
+  /* Objects and states are aligned. */
+  int objects_len;
+  Object **objects;
+  StitchState **states;
+
+  int active_object_index;
+
+  bool ignore_seam_boundary;
+  bool only_selected_uvs;
+
+  /* Track which islands have selected faces */
+  blender::Vector<bool> island_has_selected;
+
+  /* Only used during init, null afterwards */
+  int *objs_selection_count = nullptr;
+  StitchStateInit *state_init = nullptr;
+};
+
 struct PreviewPosition {
   int data_position;
   int polycount_position;
@@ -185,6 +226,11 @@ enum {
 
 #define STITCH_NO_PREVIEW -1
 
+enum StitchModes {
+  STITCH_VERT,
+  STITCH_EDGE,
+};
+
 /** #UvElement identification. */
 struct UvElementID {
   int faceIndex;
@@ -196,6 +242,9 @@ struct StitchStateInit {
   int uv_selected_count;
   UvElementID *to_select;
 };
+
+}  // namespace
+
 /* constructor */
 static StitchPreviewer *stitch_preview_init()
 {
@@ -605,7 +654,7 @@ static void state_delete(StitchState *state)
   }
 }
 
-void state_delete_all(StitchStateContainer *ssc)
+static void state_delete_all(StitchStateContainer *ssc)
 {
   if (ssc) {
     for (uint ob_index = 0; ob_index < ssc->objects_len; ob_index++) {
@@ -1493,7 +1542,7 @@ static int stitch_process_data(StitchStateContainer *ssc,
   return 1;
 }
 
-int stitch_process_data_all(StitchStateContainer *ssc, Scene *scene, int final)
+static int stitch_process_data_all(StitchStateContainer *ssc, Scene *scene, int final)
 {
   for (uint ob_index = 0; ob_index < ssc->objects_len; ob_index++) {
     if (!stitch_process_data(ssc, ssc->states[ob_index], scene, final)) {
@@ -2297,10 +2346,10 @@ static StitchStateContainer *stitch_operator_settings_init(bContext *C, wmOperat
   return ssc;
 }
 
-int stitch_init_all(bContext *C,
-                    StitchStateContainer *ssc,
-                    const StitchModes stored_mode,
-                    const bool draw_preview)
+static int stitch_init_all(bContext *C,
+                           StitchStateContainer *ssc,
+                           const StitchModes stored_mode,
+                           const bool draw_preview)
 {
 
   Main *bmain = CTX_data_main(C);
@@ -2370,6 +2419,30 @@ int stitch_init_all(bContext *C,
   }
 
   return 1;
+}
+
+/* Stitch the selected UV islands together for the unwrap "Original Bounds"
+ * option. Uses a fixed configuration: vertex mode, snap islands, only
+ * selected UVs, ignore fully seam-bounded islands, no distance limit, and no
+ * draw preview. Returns false if stitching could not be initialized. */
+bool uv_stitch_selected_islands(bContext *C)
+{
+  Scene *scene = CTX_data_scene(C);
+  StitchStateContainer *ssc = MEM_new<StitchStateContainer>("stitch collection");
+  ssc->use_limit = false;
+  ssc->snap_islands = true;
+  ssc->midpoints = false;
+  ssc->clear_seams = false;
+  ssc->mode = STITCH_VERT;
+  ssc->only_selected_uvs = true;
+  ssc->ignore_seam_boundary = true;
+  if (!stitch_init_all(C, ssc, STITCH_VERT, false)) {
+    MEM_delete(ssc);
+    return false;
+  }
+  stitch_process_data_all(ssc, scene, true);
+  state_delete_all(ssc);
+  return true;
 }
 
 static wmOperatorStatus stitch_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)

@@ -2924,24 +2924,10 @@ static wmOperatorStatus unwrap_exec(bContext *C, wmOperator *op)
   int count_failed = 0;
 
   if (options.original_bounds) {
-    StitchStateContainer *ssc = MEM_new<StitchStateContainer>("stitch collection");
-    Scene *scene = CTX_data_scene(C);
-
-    ssc->use_limit = false;
-    ssc->snap_islands = true;
-    ssc->midpoints = false;
-    ssc->clear_seams = false;
-    ssc->mode = STITCH_VERT;
-    ssc->only_selected_uvs = true;
-    ssc->ignore_seam_boundary = true;
-    if (!stitch_init_all(C, ssc, STITCH_VERT, false)) {
+    if (!uv_stitch_selected_islands(C)) {
       BKE_report(op->reports, RPT_ERROR, "Could not initialize stitching");
-      MEM_delete(ssc);
       return OPERATOR_CANCELLED;
     }
-
-    stitch_process_data_all(ssc, scene, true);
-    state_delete_all(ssc);
   }
   uvedit_unwrap_multi(scene, objects, &options, &count_changed, &count_failed);
   geometry::UVPackIsland_Params pack_island_params;
