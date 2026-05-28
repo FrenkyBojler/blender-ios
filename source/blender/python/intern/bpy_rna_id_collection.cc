@@ -588,11 +588,6 @@ const EnumPropertyItem rna_enum_file_path_foreach_flag_items[] = {
      0,
      "Expand Sequences",
      "Expand image and volume sequences, invoking the callback once per file on disk"},
-    {BKE_BPATH_FOREACH_PATH_INCLUDE_TEXTURE_CACHES,
-     "INCLUDE_TEXTURE_CACHES",
-     0,
-     "Include Texture Caches",
-     "Visit the texture cache file paths associated with each image file path"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -606,9 +601,9 @@ const EnumPropertyItem rna_enum_file_path_foreach_flag_items[] = {
 static PyTypeObject BPyFilePathMetaType;
 
 static PyStructSequence_Field bpy_file_path_meta_fields[] = {
-    {"type",
-     "Path type: ``'EXPANDED'`` for UDIM tiles and sequence frames, ``TEXTURE_CACHE'`` for "
-     "image texture cache paths, and ``REGULAR`` for all other paths."},
+    {"kind",
+     "Path kind: ``'EXPANDED'`` for UDIM tiles and sequence frames, ``'CACHE'`` for "
+     "cache file paths, and ``'REGULAR'`` for all other paths."},
     {nullptr},
 };
 
@@ -636,19 +631,19 @@ static PyObject *make_file_path_meta(const eBPathPathType path_type)
     return nullptr;
   }
 
-  PyObject *py_type = nullptr;
-  switch (path_type) {
-    case eBPathPathType::Expanded:
-      py_type = PyUnicode_FromString("EXPANDED");
+  PyObject *py_kind = nullptr;
+  switch (path_kind) {
+    case eBPathPathKind::Expanded:
+      py_kind = PyUnicode_FromString("EXPANDED");
       break;
-    case eBPathPathType::TextureCache:
-      py_type = PyUnicode_FromString("TEXTURE_CACHE");
+    case eBPathPathKind::Cache:
+      py_kind = PyUnicode_FromString("CACHE");
       break;
-    case eBPathPathType::Regular:
-      py_type = PyUnicode_FromString("REGULAR");
+    case eBPathPathKind::Regular:
+      py_kind = PyUnicode_FromString("REGULAR");
       break;
   }
-  PyStructSequence_SET_ITEM(meta, 0, py_type);
+  PyStructSequence_SET_ITEM(meta, 0, py_kind);
   return meta;
 }
 
@@ -677,7 +672,7 @@ static bool foreach_id_file_path_foreach_callback(BPathForeachPathData *bpath_da
   /* args[1]: */
   PyObject *py_path_src = PyUnicode_FromString(path_src);
   /* args[2]: */
-  PyObject *py_path_meta = make_file_path_meta(bpath_data->path_type);
+  PyObject *py_path_meta = make_file_path_meta(bpath_data->path_kind);
   PyTuple_SET_ITEMS(args, py_owner_id, py_path_src, py_path_meta);
 
   /* Call the Python callback function. */

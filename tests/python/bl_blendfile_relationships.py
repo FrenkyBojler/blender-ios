@@ -250,15 +250,15 @@ class TestBlendFilePathForeach(TestHelper):
             self.fail("Expected exception not thrown")
 
     def test_meta_parameter(self) -> None:
-        """The meta argument should be a BlendDataPathMeta struct exposing `type`."""
+        """The meta argument should be a BlendDataPathMeta struct exposing `kind`."""
 
         def visit_path_fn(_owner_id: bpy.types.ID, _path: str, meta) -> str | None:
-            self.assertEqual("REGULAR", meta.type)
+            self.assertEqual("REGULAR", meta.kind)
 
         bpy.data.file_path_foreach(visit_path_fn)
 
     def test_expand_and_texture_caches(self) -> None:
-        """Expand UIDM tiles, sequence frames and include tx files."""
+        """Expand UDIM tiles, sequence frames and tx files."""
         import tempfile
 
         def make_png(path: Path) -> None:
@@ -308,7 +308,7 @@ class TestBlendFilePathForeach(TestHelper):
 
             def visit(owner_id: bpy.types.ID, path: str, meta) -> None:
                 abspath = Path(str(bpy.path.abspath(path, library=owner_id.library))).resolve()
-                visited.add((abspath, meta.type))
+                visited.add((abspath, meta.kind))
 
             bpy.data.file_path_foreach(
                 visit,
@@ -317,7 +317,6 @@ class TestBlendFilePathForeach(TestHelper):
                     "SKIP_WEAK_REFERENCES",
                     "EXPAND_TOKENS",
                     "EXPAND_SEQUENCES",
-                    "INCLUDE_TEXTURE_CACHES",
                 },
             )
 
@@ -328,7 +327,7 @@ class TestBlendFilePathForeach(TestHelper):
                 self.assertIn((frame.resolve(), "EXPANDED"), visited,
                               f"missing sequence frame {frame.name}")
             for tx in (tx_tile_1001, tx_frame_001):
-                self.assertIn((tx.resolve(), "TEXTURE_CACHE"), visited,
+                self.assertIn((tx.resolve(), "CACHE"), visited,
                               f"missing texture cache {tx.name}")
 
     @staticmethod

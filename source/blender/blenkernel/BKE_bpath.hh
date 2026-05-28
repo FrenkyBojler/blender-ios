@@ -89,21 +89,16 @@ enum eBPathForeachFlag {
    * invoking the callback once per file. These paths can not be edited.
    */
   BKE_BPATH_FOREACH_PATH_EXPAND_SEQUENCES = (1 << 11),
-  /**
-   * Visit the texture cache file paths associated with each visited image path. These paths can
-   * not be edited.
-   */
-  BKE_BPATH_FOREACH_PATH_INCLUDE_TEXTURE_CACHES = (1 << 12),
 };
 ENUM_OPERATORS(eBPathForeachFlag)
 
-enum class eBPathPathType {
+enum class eBPathPathKind {
   /** A regular path stored directly on the ID. May be edited by the callback. */
   Regular = 0,
   /** Expanded UDIM or sequence frame path. */
   Expanded = 1,
-  /* Texture cache file path. */
-  TextureCache = 2,
+  /** Cache file path. */
+  Cache = 2,
 };
 
 struct BPathForeachPathData;
@@ -151,9 +146,9 @@ struct BPathForeachPathData {
   bool is_path_modified;
 
   /**
-   * Type of path being visited, to distinguish regular paths from expanded ones.
+   * Kind of path being visited, to distinguish regular paths from expanded ones.
    */
-  eBPathPathType path_type;
+  eBPathPathKind path_kind;
 };
 
 /** Run `bpath_data.callback_function` on all paths contained in `id`. */
