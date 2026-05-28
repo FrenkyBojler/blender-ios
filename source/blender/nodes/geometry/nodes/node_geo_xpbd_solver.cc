@@ -97,6 +97,8 @@ static NestedBundleTypePtr make_world_type()
 
   /* Not actually used by the node but only registered here. */
   ForceBundle::get_bundle_type();
+  CustomGeometryEffector::get_bundle_type();
+  CustomWorldEffector::get_bundle_type();
 
   NestedBundleTypePtr world_type = std::make_shared<const NestedBundleType>(
       "Blender.XPBDSolverWorld", std::move(types));
@@ -2971,7 +2973,6 @@ class XpbdSolverStep {
   {
     const DataKey &data_key = geometries_.data_keys[data_key_i];
     const GeometrySetData &geo_set_data = geometries_.geometry_sets[data_key.geo_bundle_i];
-    const StringRef geo_bundle_path = geo_set_data.path;
 
     const std::string filter =
         effector.lookup<std::string>(*BundleKey::from_str("filter")).value_or("");
