@@ -1,2 +1,3 @@
 Referenced by issue #144521, glthub mirror clones consistently get into a bad state
 Referenced by issue #159215, blosc compression missing for openVDB in fluid simulation
+Referenced by pull request #159253, Fix #159215: Missing BLOSC compression method in fluid settings
