@@ -34,7 +34,9 @@
 #include "bmesh.hh"
 #include "bmesh_tools.hh"
 
-namespace blender::io::obj {
+namespace blender {
+
+namespace io::obj {
 OBJMesh::OBJMesh(Depsgraph *depsgraph, const OBJExportParams &export_params, Object *mesh_object)
 {
   /* We need to copy the object because it may be in temporary space. */
@@ -187,10 +189,6 @@ int OBJMesh::tot_faces() const
 int OBJMesh::tot_uv_vertices() const
 {
   return int(uv_coords_.size());
-}
-int OBJMesh::tot_uv_seams() const
-{
-  return int(uv_seams_.size());
 }
 int OBJMesh::tot_edges() const
 {
@@ -434,4 +432,6 @@ const char *OBJMesh::get_face_deform_group_name(const int16_t def_group_index) c
   return vertex_group.name;
 }
 
-}  // namespace blender::io::obj
+}  // namespace io::obj
+
+}  // namespace blender
