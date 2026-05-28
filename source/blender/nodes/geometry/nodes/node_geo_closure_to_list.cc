@@ -23,6 +23,7 @@
 namespace blender::nodes::node_geo_closure_to_list_cc {
 
 NODE_STORAGE_FUNCS(GeometryNodeClosureToList)
+
 using ItemsAccessor = ClosureToListItemsAccessor;
 
 static void node_declare(NodeDeclarationBuilder &b)
@@ -47,7 +48,10 @@ static void node_declare(NodeDeclarationBuilder &b)
     const UString output_identifier{ItemsAccessor::output_socket_identifier_for_item(item)};
     const UString name{item.name};
     const eNodeSocketDatatype type = item.socket_type;
-    b.add_output(type, name, output_identifier).structure_type(StructureType::List);
+    b.add_output(type, name, output_identifier)
+        .structure_type(StructureType::List)
+        .propagate_all()
+        .references_other_outputs();
   }
 
   b.add_output<decl::Extend>(""_ustr, "__extend__"_ustr).structure_type(StructureType::List);
