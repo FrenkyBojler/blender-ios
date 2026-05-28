@@ -24,6 +24,12 @@ enum scene_strip_resolution {
   SCENE_STRIP_75_PERCENT,
   SCENE_STRIP_100_PERCENT,
 };
+
+enum export_fallback {
+  FALLBACK_IMG_SEQUENCE_RENAME,
+  FALLBACK_IMG_SEQUENCE_SYMLINK,
+};
+
 }  // namespace io::otio
 
 struct OTIOExportParams {
@@ -33,6 +39,9 @@ struct OTIOExportParams {
   /* Scene Strip Options. */
   bool bake_scene_strips = true;
   io::otio::scene_strip_resolution scene_strip_res = io::otio::SCENE_STRIP_100_PERCENT;
+
+  /* Fallback Options. */
+  io::otio::export_fallback img_sequence_fallback = io::otio::FALLBACK_IMG_SEQUENCE_RENAME;
 
   ReportList *reports = nullptr;
 };

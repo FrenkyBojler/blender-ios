@@ -81,6 +81,19 @@ static const EnumPropertyItem io_otio_scene_strip_resolution[] = {
      "Bake Scene Strips at 25% Resolution"},
     {0, nullptr, 0, nullptr, nullptr}};
 
+static const EnumPropertyItem io_otio_image_sequence_export_fallback[] = {
+    {io::otio::FALLBACK_IMG_SEQUENCE_RENAME,
+     "IMG_SEQUENCE_RENAME",
+     ICON_NONE,
+     "Rename Images",
+     "Append Sequence Numbers to Image Name"},
+    {io::otio::FALLBACK_IMG_SEQUENCE_SYMLINK,
+     "IMG_SEQUENCE_SYMLINK",
+     ICON_NONE,
+     "Create Symlinks",
+     "Create Sequenced Symbolic Links that Point to Original Images"},
+    {0, nullptr, 0, nullptr, nullptr}};
+
 static wmOperatorStatus wm_otio_export_invoke(bContext *C,
                                               wmOperator *op,
                                               const wmEvent * /*event*/)
@@ -110,6 +123,9 @@ static wmOperatorStatus wm_otio_export_exec(bContext *C, wmOperator *op)
   export_params.bake_scene_strips = RNA_boolean_get(op->ptr, "bake_scene_strips");
   export_params.scene_strip_res = io::otio::scene_strip_resolution(
       RNA_enum_get(op->ptr, "scene_strip_resolution"));
+  export_params.img_sequence_fallback = io::otio::export_fallback(
+      RNA_enum_get(op->ptr, "img_sequence_fallback"));
+
   export_params.reports = op->reports;
 
   wmOperatorStatus op_stat = OTIO_export(C, &export_params);
@@ -125,7 +141,7 @@ static void ui_otio_export_settings(const bContext *C, ui::Layout &layout, Point
   layout.use_property_split_set(true);
   layout.use_property_decorate_set(false);
 
-  /* Scene Strip Options */
+  /* Scene Strip Options. */
   if (ui::Layout *panel = layout.panel(C, "OTIO_export_scene", false, IFACE_("Scene Strips"))) {
     ui::Layout *col = &panel->column(false);
     col->prop(ptr, "bake_scene_strips", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -133,6 +149,12 @@ static void ui_otio_export_settings(const bContext *C, ui::Layout &layout, Point
     ui::Layout *sub = &col->column(false);
     sub->enabled_set(RNA_boolean_get(ptr, "bake_scene_strips"));
     sub->prop(ptr, "scene_strip_resolution", UI_ITEM_NONE, IFACE_("Resolution"), ICON_NONE);
+  }
+
+  /* Fallback Options. */
+  if (ui::Layout *panel = layout.panel(C, "OTIO_export_fallbacks", false, IFACE_("Fallback"))) {
+    ui::Layout *col = &panel->column(false);
+    col->prop(ptr, "img_sequence_fallback", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 }
 
@@ -188,6 +210,13 @@ void WM_OT_otio_export(wmOperatorType *ot)
                io::otio::SCENE_STRIP_100_PERCENT,
                "Scene Strip Resolution",
                "Resolution at which to Export the Scene Strips");
+
+  RNA_def_enum(ot->srna,
+               "img_sequence_fallback",
+               io_otio_image_sequence_export_fallback,
+               io::otio::FALLBACK_IMG_SEQUENCE_RENAME,
+               "Image Sequence",
+               "Method to Export Non-Sequenced Image Sequences");
 
   RNA_def_boolean(
       ot->srna,

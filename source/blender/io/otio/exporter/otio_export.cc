@@ -114,7 +114,7 @@ static SerializableObject::Retainer<Stack> otio_export_recursive(
       }
 
       if (strip_exporter) {
-        strip_exporter->export_strip();
+        strip_exporter->export_strip(export_params);
         last_strip_end = strip_exporter->last_strip_end;
 
         delete strip_exporter;

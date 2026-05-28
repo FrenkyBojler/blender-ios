@@ -10,6 +10,7 @@
 
 #include "BLI_math_base.h"
 #include "BLI_path_utils.hh"
+#include "BLI_string.h"
 
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
@@ -21,6 +22,7 @@
 #include "opentimelineio/serializableObject.h"
 #include "opentimelineio/track.h"
 
+#include "IO_otio.hh"
 #include "otio_strip.hh"
 
 namespace blender::io::otio {
@@ -136,9 +138,76 @@ static SerializableObject::Retainer<ImageSequenceReference> create_image_sequenc
   return img_seq_ref;
 }
 
+static bool img_seq_need_fallback(StripElem *se, size_t img_count)
+{
+  /* Get sequence number of the first image. */
+  int frame_nr = 0;
+  int num_digits = 0;
+  if (!BLI_path_frame_get(se->filename, &frame_nr, &num_digits)) {
+    return true;
+  }
+
+  if (img_count == 1) {
+    return false;
+  }
+
+  /* Get sequence number of the second image. */
+  int frame_nr_2 = 0;
+  int num_digits_2 = 0;
+  if (!BLI_path_frame_get(se->filename, &frame_nr_2, &num_digits_2)) {
+    return true;
+  }
+  if (frame_nr_2 - frame_nr < 1) {
+    return true;
+  }
+
+  return false;
+}
+
+static void img_sequence_rename(StripElem *se, const char *dirpath, int img_count, int &num_digits)
+{
+  /* Count number of digits required to represent the largest number in the sequence. */
+  num_digits = 0;
+  for (int imc = img_count; imc; imc /= 10, ++num_digits) {
+  };
+
+  char common_prefix[FILE_MAX];
+  BLI_strncpy(common_prefix, se->filename, sizeof(common_prefix));
+  BLI_path_extension_strip(common_prefix);
+
+  for (int seq_num = 1; seq_num <= img_count; ++seq_num, ++se) {
+    char old_path[FILE_MAX];
+    BLI_path_join(old_path, sizeof(old_path), dirpath, se->filename);
+
+    char new_path[FILE_MAX];
+    char ext[FILE_MAX];
+    char mask[FILE_MAX];
+
+    {
+      int curr = 0;
+      for (; curr < min_ii(num_digits, FILE_MAX - 1); ++curr) {
+        mask[curr] = '#';
+      }
+      mask[curr] = '\0';
+    }
+
+    BLI_strncpy(ext, BLI_path_extension(se->filename), sizeof(ext));
+    BLI_strncpy(se->filename, common_prefix, FILE_MAX);
+
+    BLI_strncat(se->filename, ".", FILE_MAX);
+    BLI_strncat(se->filename, mask, FILE_MAX);
+    BLI_strncat(se->filename, ext, FILE_MAX);
+
+    BLI_path_frame(se->filename, FILE_MAX, seq_num, num_digits);
+    BLI_path_join(new_path, sizeof(new_path), dirpath, se->filename);
+
+    std::rename(old_path, new_path);
+  }
+}
+
 /***** Handle Export for each strip type. *****/
 
-void MovieStripExporter::export_strip()
+void MovieStripExporter::export_strip(const OTIOExportParams * /*export_params*/)
 {
   add_gap_if_necessary();
 
@@ -154,7 +223,7 @@ void MovieStripExporter::export_strip()
   _track->append_child(clip);
 }
 
-void SoundStripExporter::export_strip()
+void SoundStripExporter::export_strip(const OTIOExportParams * /*export_params*/)
 {
   add_gap_if_necessary();
 
@@ -170,7 +239,7 @@ void SoundStripExporter::export_strip()
   _track->append_child(clip);
 }
 
-void ImageStripExporter::export_strip()
+void ImageStripExporter::export_strip(const OTIOExportParams *export_params)
 {
   add_gap_if_necessary();
   bool is_single_image = _strip->flag & SEQ_SINGLE_FRAME_CONTENT;
@@ -195,18 +264,34 @@ void ImageStripExporter::export_strip()
     StripElem *se = _strip->data->stripdata;
     size_t img_count = MEM_allocN_len(se) / sizeof(*se);
 
-    int start_frame_nr, num_digits;
-    if (!BLI_path_frame_get(se->filename, &start_frame_nr, &num_digits)) {
-      num_digits = 0;
+    const char *target_url_base = _strip->data->dirpath;
+    char name_prefix[FILE_MAX];
+
+    int frame_step = 1;
+    int start_frame_nr = 1;
+    int num_digits = 0;
+
+    if (img_seq_need_fallback(se, img_count)) {
+      switch (export_params->img_sequence_fallback) {
+        case FALLBACK_IMG_SEQUENCE_RENAME:
+          img_sequence_rename(se, _strip->data->dirpath, img_count, num_digits);
+          break;
+
+        case FALLBACK_IMG_SEQUENCE_SYMLINK:
+          break;
+
+        default:
+          break;
+      }
     }
-    if (num_digits == 0) {
-      return;
+    else {
+      if (!BLI_path_frame_get(se->filename, &start_frame_nr, &num_digits)) {
+        return;
+      }
     }
 
-    const char *target_url_base = _strip->data->dirpath;
     const char *name_suffix = BLI_path_extension(se->filename);
     const char *curr = name_suffix;
-    char name_prefix[FILE_MAX];
 
     /* Copy the name prefix. */
     for (int i = 0; i < num_digits; ++i, curr--) {
@@ -220,7 +305,6 @@ void ImageStripExporter::export_strip()
     }
     *np = '\0';
 
-    int frame_step = 1;
     if (img_count > 1) {
       int second_frame_nr, second_num_digits;
       BLI_path_frame_get((++se)->filename, &second_frame_nr, &second_num_digits);
