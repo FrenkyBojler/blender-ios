@@ -1,2 +1,3 @@
 Referenced by issue #159123, Crash When Removing Socket From Index Switch Node
 Referenced by pull request #159158, Fix #159123: Operator to remove Index Switch item by index
+Referenced by commit 7a86ef355fe7029b6c33b359d2d4592e246a45ca, Fix #159123: Operator to remove Index Switch item by index
