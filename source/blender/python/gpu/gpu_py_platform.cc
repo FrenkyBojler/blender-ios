@@ -23,17 +23,31 @@ namespace blender {
 /** \name GPU Device Type
  * \{ */
 
-/* Property getters */
+PyDoc_STRVAR(
+    pygpu_device_index_doc,
+    "Device index.\n"
+    "\n"
+    ":type: int\n");
 static PyObject *pygpu_device_index_get(BPyGPUDevice *self, void * /*closure*/)
 {
   return PyLong_FromLong(self->index);
 }
 
+PyDoc_STRVAR(
+    pygpu_device_identifier_doc,
+    "Device identifier.\n"
+    "\n"
+    ":type: str\n");
 static PyObject *pygpu_device_identifier_get(BPyGPUDevice *self, void * /*closure*/)
 {
   return PyUnicode_FromString(self->identifier);
 }
 
+PyDoc_STRVAR(
+    pygpu_device_name_doc,
+    "Device name.\n"
+    "\n"
+    ":type: str\n");
 static PyObject *pygpu_device_name_get(BPyGPUDevice *self, void * /*closure*/)
 {
   return PyUnicode_FromString(self->name);
@@ -41,13 +55,21 @@ static PyObject *pygpu_device_name_get(BPyGPUDevice *self, void * /*closure*/)
 
 /* Property descriptors */
 static PyGetSetDef pygpu_device_getseters[] = {
-    {"index", reinterpret_cast<getter>(pygpu_device_index_get), nullptr, "Device index.", nullptr},
+    {"index",
+     reinterpret_cast<getter>(pygpu_device_index_get),
+     nullptr,
+     pygpu_device_index_doc,
+     nullptr},
     {"identifier",
      reinterpret_cast<getter>(pygpu_device_identifier_get),
      nullptr,
-     "Device identifier.",
+     pygpu_device_identifier_doc,
      nullptr},
-    {"name", reinterpret_cast<getter>(pygpu_device_name_get), nullptr, "Device name.", nullptr},
+    {"name",
+     reinterpret_cast<getter>(pygpu_device_name_get),
+     nullptr,
+     pygpu_device_name_doc,
+     nullptr},
     {nullptr, nullptr, nullptr, nullptr, nullptr},
 };
 
@@ -86,16 +108,16 @@ static PyObject *pygpu_device__tp_richcmp(BPyGPUDevice *self, PyObject *other, i
 
 /* Type definition */
 PyDoc_STRVAR(pygpu_device__tp_doc,
-             ".. class:: GPUDevice\n"
-             "\n"
-             "   Represents a GPU device.\n"
-             "\n"
-             "   :ivar int index: Device index.\n"
-             "   :vartype int: index\n"
-             "   :ivar str identifier: Device identifier.\n"
-             "   :vartype str: identifier\n"
-             "   :ivar str name: Device name.\n"
-             "   :vartype str: name\n");
+              ".. class:: GPUDevice\n"
+              "\n"
+              "   Represents a GPU device.\n"
+              "\n"
+              "   :ivar int index: Device index.\n"
+              "   :type index: int\n"
+              "   :ivar str identifier: Device identifier.\n"
+              "   :type identifier: str\n"
+              "   :ivar str name: Device name.\n"
+              "   :type name: str\n");
 
 PyTypeObject BPyGPU_DeviceType = {
     /*ob_base*/ PyVarObject_HEAD_INIT(nullptr, 0)
