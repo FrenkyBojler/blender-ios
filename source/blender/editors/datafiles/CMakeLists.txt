@@ -555,6 +555,7 @@ if(WITH_BLENDER)
       mat_sphere_sky
       memory
       menu_panel
+      menu_pie
       mesh_capsule
       mesh_circle
       mesh_cone
