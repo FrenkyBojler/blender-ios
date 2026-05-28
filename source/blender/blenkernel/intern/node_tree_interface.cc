@@ -1729,7 +1729,6 @@ bNode *create_proxy_implicit_input_node(const eNodeSocketDatatype socket_type,
     case SOCK_SHADER:
     case SOCK_GEOMETRY:
     case SOCK_TEXTURE:
-    case SOCK_OBJECT:
     case SOCK_IMAGE:
     case SOCK_COLLECTION:
     case SOCK_MATERIAL:
@@ -1744,6 +1743,12 @@ bNode *create_proxy_implicit_input_node(const eNodeSocketDatatype socket_type,
     case SOCK_FONT:
       return nullptr;
 
+    case SOCK_OBJECT: {
+      if (default_input == NODE_DEFAULT_INPUT_SELF_OBJECT) {
+        return bke::node_add_node(&C, tree, "GeometryNodeSelfObject"_ustr);
+      }
+      return nullptr;
+    }
     case SOCK_FLOAT: {
       if (default_input == NODE_DEFAULT_INPUT_SCENE_FRAME) {
         return create_proxy_implicit_scene_frame_node(C, tree);
