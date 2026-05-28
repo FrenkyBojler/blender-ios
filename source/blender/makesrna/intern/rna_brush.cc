@@ -1946,7 +1946,6 @@ static void rna_def_gpencil_options(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "fill_gap_factor", PROP_FLOAT, PROP_FACTOR);
   RNA_def_property_range(prop, 0.0f, 1.0f);
-  // RNA_def_property_float_default(prop, 0.4f);
   RNA_def_property_ui_text(prop,
                            "Gap Detection Factor",
                            "Strength of gap detection, higher values create smaller fills");
