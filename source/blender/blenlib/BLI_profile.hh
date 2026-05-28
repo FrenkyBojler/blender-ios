@@ -18,13 +18,12 @@
  * \see https://github.com/wolfpld/tracy/releases/latest/download/tracy.pdf
  */
 
+#include <cstdint>
 #include <type_traits>
 
 #ifdef WITH_TRACY
 #  include <tracy/Tracy.hpp>
 #endif
-
-#include "BLI_ustring.hh"
 
 namespace blender {
 /**
