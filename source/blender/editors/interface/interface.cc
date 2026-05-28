@@ -2349,60 +2349,6 @@ void block_draw(const bContext *C, Block *block)
   GPU_matrix_pop();
 }
 
-void block_draw_xr(const bContext *C, Block *block)
-{
-  /* This hacky (temp) function lets us draw in VR 3D space. This is basically a stripped down
-   * version of #UI_block_draw without background drawing (which relies on window coordinates),
-   * keeping the transform matrix from the outside GPU context for the block to be positioned in
-   * VR space, dropping optimization cases, etc.
-   */
-
-  uiStyle style = *style_get_dpi(); /* XXX pass on as arg */
-
-  /* Fake fixed region winrct size values, for drawing to not depend on the window size. Values
-   * obtained from the old region used during development. */
-  ARegion region = {};
-  region.winrct.xmin = 0;
-  region.winrct.ymin = 0;
-  region.winrct.xmax = 1680;
-  region.winrct.ymax = 1760;
-
-  if (!block->endblock) {
-    block_end(C, block);
-  }
-
-  /* we set this only once */
-  GPU_blend(GPU_BLEND_ALPHA);
-
-  /* scale fonts */
-  fontscale(&style.paneltitle.points, block->aspect);
-  fontscale(&style.grouplabel.points, block->aspect);
-  fontscale(&style.widget.points, block->aspect);
-  fontscale(&style.tooltip.points, block->aspect);
-
-  BLF_batch_draw_begin();
-  widgetbase_draw_cache_begin();
-
-  /* widgets */
-  for (Button &but : block->buttons()) {
-    if (but.flag & (UI_HIDDEN | UI_SCROLLED)) {
-      continue;
-    }
-
-    rcti rect;
-    button_to_pixelrect(&rect, &region, block, &but);
-
-    /* XXX: figure out why invalid coordinates happen when closing render window */
-    /* and material preview is redrawn in main window (temp fix for bug #23848) */
-    if (rect.xmin < rect.xmax && rect.ymin < rect.ymax) {
-      draw_button(C, &region, &style, &but, &rect);
-    }
-  }
-
-  widgetbase_draw_cache_end();
-  BLF_batch_draw_end();
-}
-
 static void block_message_subscribe(ARegion *region, wmMsgBus *mbus, Block *block)
 {
   Button *but_prev = nullptr;

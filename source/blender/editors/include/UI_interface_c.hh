@@ -1074,7 +1074,6 @@ void block_end(const bContext *C, Block *block);
  * Uses local copy of style, to scale things down, and allow widgets to change stuff.
  */
 void block_draw(const bContext *C, Block *block);
-void block_draw_xr(const bContext *C, Block *block);
 void blocklist_update_window_matrix(const bContext *C, const ListBaseT<ui::Block> *lb);
 void blocklist_update_view_for_buttons(const bContext *C, const ListBaseT<ui::Block> *lb);
 void blocklist_draw(const bContext *C, const ListBaseT<ui::Block> *lb);

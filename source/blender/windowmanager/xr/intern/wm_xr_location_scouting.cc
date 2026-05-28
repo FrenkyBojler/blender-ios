@@ -36,6 +36,8 @@
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"
 
+#include "BLF_api.hh"
+
 #include "UI_interface.hh"
 #include "UI_interface_layout.hh"
 #include "interface_intern.hh"
@@ -425,13 +427,13 @@ void wm_xr_viewfinder_render_view(wmXrData *xr_data)
 /* -------------------------------------------------------------------- */
 /** \name Location Scouting Viewfinder UI Widgets
  *
- * \note For the most part, this code wraps the UI widget library (via ui::*_xr workaround
- *       functions) to get it to draw in places it shouldn't (XR world space). As such, this should
- *       be considered a Proof of Concept more than a working and sustainable way to draw UI in XR.
- *       In the future, this should be replaced with a proper XR UI Toolkit.
+ * \note For the most part, this code tricks our UI widget library into drawing in world space
+ *       using fake window/region sizes and a custom `ui::block_draw` replacement.
+ *       As such, this should be considered a PoC more than a working and sustainable way to draw
+ *       UI in XR, and long-term should be replaced with a proper XR UI Toolkit.
  * \{ */
 
-static ui::Block *wm_xr_viewfinder_ui_base_block(const bContext *C, ui::EmbossType emboss)
+static ui::Block *wm_xr_viewfinder_ui_block(const bContext *C, ui::EmbossType emboss)
 {
   ui::Block *block = ui::block_begin(C, nullptr, __func__, emboss);
 
@@ -446,6 +448,36 @@ static ui::Block *wm_xr_viewfinder_ui_base_block(const bContext *C, ui::EmbossTy
   ui::block_theme_style_set(block, ui::BLOCK_THEME_STYLE_POPUP); /* Can also use REGULAR here. */
 
   return block;
+}
+
+static void wm_xr_viewfinder_ui_block_draw(const bContext *C, ui::Block *block)
+{
+  /* This is a stripped down version of #ui::block_draw without background drawing (which relies
+   * on window coordinates), while also keeping the transform matrix from the outside GPU context
+   * for the block to be positioned in VR space. */
+
+  /* Fake fixed region winrct size values, for drawing to not depend on the window size. Values
+   * obtained from the window region used during development.
+   * TODO(@brainzman): Switch to a uniform size, and resize existing XR UI widgets accordingly.
+   */
+  ARegion region = {};
+  BLI_rcti_init(&region.winrct, 0, 1680, 0, 1760);
+
+  GPU_blend(GPU_BLEND_ALPHA);
+  ui::widgetbase_draw_cache_begin();
+
+  uiStyle style = *ui::style_get_dpi();
+  for (ui::Button &but : block->buttons()) {
+    rcti rect;
+    button_to_pixelrect(&rect, &region, block, &but);
+
+    if (rect.xmin < rect.xmax && rect.ymin < rect.ymax) {
+      draw_button(C, &region, &style, &but, &rect);
+    }
+  }
+
+  ui::widgetbase_draw_cache_end();
+  GPU_blend(GPU_BLEND_NONE);
 }
 
 static ui::Layout &wm_xr_viewfinder_ui_layout(ui::Block *block)
@@ -468,7 +500,7 @@ static ui::Layout &wm_xr_viewfinder_ui_layout(ui::Block *block)
 static ui::Block *wm_xr_viewfinder_ui_mode_tabs_block(const bContext *C,
                                                       const wmXrSessionState *state)
 {
-  ui::Block *block = wm_xr_viewfinder_ui_base_block(C, ui::EmbossType::Emboss);
+  ui::Block *block = wm_xr_viewfinder_ui_block(C, ui::EmbossType::Emboss);
 
   const float tab_width = UI_UNIT_X * 10.5f;
 
@@ -511,7 +543,7 @@ static ui::Block *wm_xr_viewfinder_ui_settings_left_label_block(const bContext *
                                                                 const wmXrSessionState *state)
 {
 
-  ui::Block *block = wm_xr_viewfinder_ui_base_block(C, ui::EmbossType::Emboss);
+  ui::Block *block = wm_xr_viewfinder_ui_block(C, ui::EmbossType::Emboss);
   ui::Layout &layout = wm_xr_viewfinder_ui_layout(block);
 
   if (state->viewfinder.active_mode == XR_VIEWFINDER_MODE_PLAYBACK) {
@@ -530,7 +562,7 @@ static ui::Block *wm_xr_viewfinder_ui_settings_right_label_block(const bContext 
                                                                  const wmXrSessionState *state)
 {
 
-  ui::Block *block = wm_xr_viewfinder_ui_base_block(C, ui::EmbossType::Emboss);
+  ui::Block *block = wm_xr_viewfinder_ui_block(C, ui::EmbossType::Emboss);
   ui::Layout &layout = wm_xr_viewfinder_ui_layout(block);
 
   Scene *scene = CTX_data_scene(C);
@@ -583,7 +615,7 @@ static ui::Block *wm_xr_viewfinder_ui_settings_right_label_block(const bContext 
 static ui::Block *wm_xr_viewfinder_ui_action_label_block(const bContext *C,
                                                          const wmXrSessionState *state)
 {
-  ui::Block *block = wm_xr_viewfinder_ui_base_block(C, ui::EmbossType::None);
+  ui::Block *block = wm_xr_viewfinder_ui_block(C, ui::EmbossType::None);
   ui::Layout &layout = wm_xr_viewfinder_ui_layout(block);
 
   const char *active_action_prop = state->viewfinder.active_mode == XR_VIEWFINDER_MODE_LIVE ?
@@ -609,15 +641,15 @@ static ui::Block *wm_xr_viewfinder_ui_action_label_block(const bContext *C,
 static ui::Block *wm_xr_viewfinder_ui_action_enum_block(const bContext *C,
                                                         const wmXrSessionState *state)
 {
-  PointerRNA ptr = RNA_pointer_create_discrete(
-      &CTX_wm_manager(C)->id, RNA_XrViewfinderState, (void *)&state->viewfinder);
-  PropertyRNA *prop = RNA_struct_find_property(&ptr, "active_action_live");
-
-  ui::Block *block = wm_xr_viewfinder_ui_base_block(C, ui::EmbossType::Emboss);
+  ui::Block *block = wm_xr_viewfinder_ui_block(C, ui::EmbossType::Emboss);
   ui::Layout &layout = wm_xr_viewfinder_ui_layout(block);
   ui::Layout &row = layout.row(true);
 
   layout.scale_y_set(1.1f);
+
+  PointerRNA ptr = RNA_pointer_create_discrete(
+      &CTX_wm_manager(C)->id, RNA_XrViewfinderState, (void *)&state->viewfinder);
+  PropertyRNA *prop = RNA_struct_find_property(&ptr, "active_action_live");
 
   if (state->viewfinder.active_mode == XR_VIEWFINDER_MODE_LIVE) {
     /* Live mode, display each property enum separately for the DoF controls to be marked
@@ -652,7 +684,7 @@ static ui::Block *wm_xr_viewfinder_ui_missing_captures_label_block(const bContex
 {
   const bool empty_captures = wm_xr_location_scouting_is_captures_empty(CTX_data_scene(C));
 
-  ui::Block *block = wm_xr_viewfinder_ui_base_block(C, ui::EmbossType::Emboss);
+  ui::Block *block = wm_xr_viewfinder_ui_block(C, ui::EmbossType::Emboss);
   ui::Layout &layout = wm_xr_viewfinder_ui_layout(block);
 
   if (state->viewfinder.active_mode == XR_VIEWFINDER_MODE_PLAYBACK && empty_captures) {
@@ -668,17 +700,14 @@ static void wm_xr_viewfinder_ui_draw_widgets(const bContext *C,
                                              const wmXrSessionState *state,
                                              const rctf &viewfinder_rect)
 {
-  /* Create a fake context to trick the UI drawing code in drawing in places it shouldn't be. */
-  bContext *fake_C = CTX_copy(C);
-
   using BlockFuncPtr = decltype(&wm_xr_viewfinder_ui_mode_tabs_block);
   const auto draw_block = [&](BlockFuncPtr block_func, float x_off, float y_off) {
     GPU_matrix_push();
     GPU_matrix_translate_3f(x_off, y_off, 0.0f);
     GPU_matrix_scale_1f(0.02f);
 
-    ui::Block *block = block_func(fake_C, state);
-    ui::block_draw_xr(fake_C, block); /* Stripped-down XR version of #UI_block_draw. */
+    ui::Block *block = block_func(C, state);
+    wm_xr_viewfinder_ui_block_draw(C, block);
 
     GPU_matrix_pop();
   };
@@ -1010,6 +1039,7 @@ static void wm_xr_viewfinder_ui_draw_capture_flash(wmXrSessionState *state,
              viewfinder_rect.xmax,
              viewfinder_rect.ymax);
     immUnbindProgram();
+    GPU_blend(GPU_BLEND_NONE);
   }
 }
 
