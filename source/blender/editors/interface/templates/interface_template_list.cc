@@ -30,10 +30,10 @@
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"
 
-#include "UI_interface_layout.hh"
-#include "UI_view2d.hh"
-#include "UI_tree_view.hh"
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
+#include "UI_tree_view.hh"
+#include "UI_view2d.hh"
 
 #include "WM_api.hh"
 
@@ -101,34 +101,43 @@ struct TreeViewData {
 class PyTreeView : public ui::AbstractTreeView {
   TreeViewData ui_data_;
 
-public:
-  PyTreeView(const bContext *C, uiList *ui_list, TemplateListLayoutDrawData *layout_data, TemplateListInputData *input_data, TemplateListItems *items)
+ public:
+  PyTreeView(const bContext *C,
+             uiList *ui_list,
+             TemplateListLayoutDrawData *layout_data,
+             TemplateListInputData *input_data,
+             TemplateListItems *items)
       : ui_data_{C, ui_list, layout_data, input_data, items}
   {
+    /* TODO: `uiList` dna strcut is kind of needed but feels illeagal at the same point to use that
+     * in treeview. Find better way to handle this. */
   }
   void build_tree() override;
 };
-
 
 class PyTreeViewItem : public ui::AbstractTreeViewItem {
   TreeViewData *ui_data_;
   _uilist_item &item_;
   int index_;
-public:
-  PyTreeViewItem(TreeViewData *ui_data, _uilist_item &item, int index) : ui_data_(ui_data), item_(item), index_(index) {}
+
+ public:
+  PyTreeViewItem(TreeViewData *ui_data, _uilist_item &item, int index)
+      : ui_data_(ui_data), item_(item), index_(index)
+  {
+  }
 
   std::optional<bool> should_be_active() const override
   {
-    printf("Comparing %d with %d\n", index_, ui_data_->items->active_item_idx);
     return index_ == ui_data_->items->active_item_idx;
   }
 
   void on_activate(bContext &C) override
   {
-    printf(&ui_data_->input_data->active_dataptr != nullptr ? "Active dataptr\n" : "No active dataptr\n");
-    printf(&ui_data_->input_data->dataptr != nullptr ? "dataptr\n" : "No dataptr\n");
-    printf("Name: %s\n", RNA_property_identifier(ui_data_->input_data->activeprop));
-    //RNA_property_int_set(&ui_data_->input_data->active_dataptr, ui_data_->input_data->activeprop, item_.org_idx);
+    /* TODO: Apparently RNA ptrs (`input_data->active_dataptr` and other) points to garbage memory.
+     * Find alternative for rna ptrs */
+
+    // RNA_property_int_set(&ui_data_->input_data->active_dataptr,
+    // ui_data_->input_data->activeprop, item_.org_idx);
   }
 
   void build_row(ui::Layout &row) override
@@ -155,7 +164,6 @@ public:
   }
 };
 
-
 void PyTreeView::build_tree()
 {
   int index = 0;
@@ -165,7 +173,7 @@ void PyTreeView::build_tree()
   }
 }
 
-} // namespace py_tree_view
+}  // namespace py_tree_view
 
 static void uilist_draw_item_default(uiList *ui_list,
                                      const bContext * /*C*/,
@@ -1110,8 +1118,11 @@ void template_uilist(Layout *layout,
   layout_data.rows = rows;
   layout_data.maxrows = maxrows;
 
-  //template_uilist_layout_draw(C, ui_list, *layout, &input_data, &items, &layout_data, flags);
-	ui::AbstractTreeView *tree_view = block_add_view(*layout->block(), listtype_name, std::make_unique<py_tree_view::PyTreeView>(C, ui_list, &layout_data, &input_data, &items));
+  // template_uilist_layout_draw(C, ui_list, *layout, &input_data, &items, &layout_data, flags);
+  ui::AbstractTreeView *tree_view = block_add_view(
+      *layout->block(),
+      listtype_name,
+      std::make_unique<py_tree_view::PyTreeView>(C, ui_list, &layout_data, &input_data, &items));
   tree_view->set_default_rows(4);
   ui::TreeViewBuilder::build_tree_view(*C, *tree_view, *layout);
 }
