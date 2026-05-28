@@ -299,6 +299,10 @@ static bool shape_key_exists_poll(bContext *C)
 {
   Object *ob = context_object(C);
 
+  if (BKE_keyblock_from_object(ob) == nullptr){
+    CTX_wm_operator_poll_msg_set(C, "Object has no shape keys");
+  }
+
   return (shape_key_poll(C) &&
           /* check a keyblock exists */
           (BKE_keyblock_from_object(ob) != nullptr));
@@ -308,12 +312,20 @@ static bool shape_key_mode_poll(bContext *C)
 {
   Object *ob = context_object(C);
 
+  if (BKE_object_is_in_editmode(ob)) {
+    CTX_wm_operator_poll_msg_set(C, "This operation is not supported in edit mode");
+  }
+  
   return (shape_key_poll(C) && ob->mode != OB_MODE_EDIT);
 }
 
 static bool shape_key_mode_exists_poll(bContext *C)
 {
   Object *ob = context_object(C);
+
+  if (BKE_keyblock_from_object(ob) == nullptr){
+    CTX_wm_operator_poll_msg_set(C, "Object has no shape keys");
+  }
 
   return (shape_key_mode_poll(C) &&
           /* check a keyblock exists */
