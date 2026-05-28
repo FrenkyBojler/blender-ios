@@ -18,12 +18,12 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Bool>("Selection"_ustr)
       .default_value(true)
       .hide_value()
-      .field_on_all()
+      .evaluated_geometry_field()
       .description("Either a curve or instance selection");
   b.add_input<decl::Bool>("Instances as Layers"_ustr)
       .default_value(true)
       .description("Create a separate layer for each instance");
-  b.add_output<decl::Geometry>("Grease Pencil"_ustr).propagate_all();
+  b.add_output<decl::Geometry>("Grease Pencil"_ustr).propagate_all_geometry();
 }
 
 static GreasePencil *curves_to_grease_pencil_with_one_layer(
@@ -221,14 +221,15 @@ static void node_geo_exec(GeoNodeExecParams params)
 static void node_register()
 {
   static bke::bNodeType ntype;
-  geo_node_type_base(&ntype, "GeometryNodeCurvesToGreasePencil", GEO_NODE_CURVES_TO_GREASE_PENCIL);
+  geo_node_type_base(
+      &ntype, "GeometryNodeCurvesToGreasePencil"_ustr, GEO_NODE_CURVES_TO_GREASE_PENCIL);
   ntype.ui_name = "Curves to Grease Pencil";
   ntype.ui_description = "Convert the curves in each top-level instance into Grease Pencil layer";
   ntype.enum_name_legacy = "CURVES_TO_GREASE_PENCIL";
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
-  bke::node_type_size(ntype, 160, 100, 320);
+  ntype.default_width = bke::NodeWidth::_180;
 
   bke::node_register_type(ntype);
 }

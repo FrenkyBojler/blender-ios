@@ -218,7 +218,7 @@ struct ProjPaintImage {
   ImBuf *ibuf;
   ImagePaintPartialRedraw *partRedrawRect;
   /** Only used to build undo tiles during painting. */
-  volatile void **undoRect;
+  volatile const void **undoRect;
   /** The mask accumulation must happen on canvas, not on space screen bucket.
    * Here we store the mask rectangle. */
   ushort **maskRect;
@@ -330,6 +330,7 @@ struct ProjPaintState {
   /** size of projectImages array. */
   int image_tot;
 
+  /* The following are all updated for symmetry passes. */
   /** verts projected into floating point screen space. */
   float (*screenCoords)[4];
   /** 2D bounds for mesh verts on the screen's plane (screen-space). */
@@ -454,8 +455,11 @@ struct ProjPaintState {
   Span<int2> edges_eval;
   OffsetIndices<int> faces_eval;
   Span<int> corner_verts_eval;
+  std::optional<bool> select_poly_single;
   const bool *select_poly_eval;
+  std::optional<bool> hide_poly_single;
   const bool *hide_poly_eval;
+  std::optional<int> material_index_single;
   const int *material_indices;
   Span<float3> corner_normals_eval;
   Span<int3> corner_tris_eval;
@@ -532,7 +536,6 @@ struct TileInfo {
   SpinLock *lock;
   bool masked;
   ushort tile_width;
-  ImBuf **tmpibuf;
   ProjPaintImage *pjima;
 };
 
@@ -581,7 +584,13 @@ static int project_paint_face_paint_tile(Image *ima, const float *uv)
 
 static Material *tex_get_material(const ProjPaintState *ps, int face_i)
 {
-  int mat_nr = ps->material_indices == nullptr ? 0 : ps->material_indices[face_i];
+  int mat_nr = 0;
+  if (ps->material_index_single) {
+    mat_nr = ps->material_index_single.value();
+  }
+  else if (ps->material_indices) {
+    mat_nr = ps->material_indices[face_i];
+  }
   if (mat_nr >= 0 && mat_nr <= ps->ob->totcol) {
     return ps->mat_array[mat_nr];
   }
@@ -1822,32 +1831,46 @@ static int project_paint_undo_subtiles(const TileInfo *tinf, int tx, int ty)
 
   if (generate_tile) {
     PaintTileMap *undo_tiles = ED_image_paint_tile_map_get();
-    volatile void *undorect;
+    volatile const void *undorect = nullptr;
     if (tinf->masked) {
-      undorect = ED_image_paint_tile_push(undo_tiles,
-                                          pjIma->ima,
-                                          pjIma->ibuf,
-                                          tinf->tmpibuf,
-                                          &pjIma->iuser,
-                                          tx,
-                                          ty,
-                                          &pjIma->maskRect[tile_index],
-                                          &pjIma->valid[tile_index],
-                                          true,
-                                          false);
+      if (const ImBuf *ibuf = ED_image_paint_tile_push(undo_tiles,
+                                                       pjIma->ima,
+                                                       pjIma->ibuf,
+                                                       &pjIma->iuser,
+                                                       tx,
+                                                       ty,
+                                                       &pjIma->maskRect[tile_index],
+                                                       &pjIma->valid[tile_index],
+                                                       true,
+                                                       false))
+      {
+        if (ibuf->float_data()) {
+          undorect = ibuf->float_data();
+        }
+        else {
+          undorect = ibuf->byte_data();
+        }
+      }
     }
     else {
-      undorect = ED_image_paint_tile_push(undo_tiles,
-                                          pjIma->ima,
-                                          pjIma->ibuf,
-                                          tinf->tmpibuf,
-                                          &pjIma->iuser,
-                                          tx,
-                                          ty,
-                                          nullptr,
-                                          &pjIma->valid[tile_index],
-                                          true,
-                                          false);
+      if (const ImBuf *ibuf = ED_image_paint_tile_push(undo_tiles,
+                                                       pjIma->ima,
+                                                       pjIma->ibuf,
+                                                       &pjIma->iuser,
+                                                       tx,
+                                                       ty,
+                                                       nullptr,
+                                                       &pjIma->valid[tile_index],
+                                                       true,
+                                                       false))
+      {
+        if (ibuf->float_data()) {
+          undorect = ibuf->float_data();
+        }
+        else {
+          undorect = ibuf->byte_data();
+        }
+      }
     }
 
     BKE_image_mark_dirty(pjIma->ima, pjIma->ibuf);
@@ -3002,8 +3025,7 @@ static void project_paint_face_init(const ProjPaintState *ps,
                                     const int image_index,
                                     const rctf *clip_rect,
                                     const rctf *bucket_bounds,
-                                    ImBuf *ibuf,
-                                    ImBuf **tmpibuf)
+                                    ImBuf *ibuf)
 {
   /* Projection vars, to get the 3D locations into screen space. */
   MemArena *arena = ps->arena_mt[thread_index];
@@ -3015,7 +3037,6 @@ static void project_paint_face_init(const ProjPaintState *ps,
       ps->tile_lock,
       ps->do_masking,
       ushort(ED_IMAGE_UNDO_TILE_NUMBER(ibuf->x)),
-      tmpibuf,
       ps->projImages + image_index,
   };
 
@@ -3535,7 +3556,6 @@ static void project_bucket_init(const ProjPaintState *ps,
   int tri_index, image_index = 0;
   ImBuf *ibuf = nullptr;
   Image *tpage_last = nullptr, *tpage;
-  ImBuf *tmpibuf = nullptr;
   int tile_last = 0;
 
   if (ps->image_tot == 1) {
@@ -3550,8 +3570,7 @@ static void project_bucket_init(const ProjPaintState *ps,
                               0,
                               clip_rect,
                               bucket_bounds,
-                              ibuf,
-                              &tmpibuf);
+                              ibuf);
     }
   }
   else {
@@ -3583,20 +3602,9 @@ static void project_bucket_init(const ProjPaintState *ps,
       }
       /* context switching done */
 
-      project_paint_face_init(ps,
-                              thread_index,
-                              bucket_index,
-                              tri_index,
-                              image_index,
-                              clip_rect,
-                              bucket_bounds,
-                              ibuf,
-                              &tmpibuf);
+      project_paint_face_init(
+          ps, thread_index, bucket_index, tri_index, image_index, clip_rect, bucket_bounds, ibuf);
     }
-  }
-
-  if (tmpibuf) {
-    IMB_freeImBuf(tmpibuf);
   }
 
   ps->bucketFlags[bucket_index] |= PROJ_BUCKET_INIT;
@@ -4106,21 +4114,30 @@ static bool proj_paint_state_mesh_eval_init(const bContext *C, ProjPaintState *p
   const bke::AttributeAccessor attributes = ps->mesh_eval->attributes();
   if (const bke::GAttributeReader attr = attributes.lookup(".select_poly")) {
     if (attr.domain == bke::AttrDomain::Face && attr.varray.type().is<bool>()) {
-      if (attr.varray.is_span()) {
+      if (attr.varray.is_single()) {
+        ps->select_poly_single = attr.varray.typed<bool>().get_internal_single();
+      }
+      else if (attr.varray.is_span()) {
         ps->select_poly_eval = attr.varray.get_internal_span().typed<bool>().data();
       }
     }
   }
   if (const bke::GAttributeReader attr = attributes.lookup(".hide_poly")) {
     if (attr.domain == bke::AttrDomain::Face && attr.varray.type().is<bool>()) {
-      if (attr.varray.is_span()) {
+      if (attr.varray.is_single()) {
+        ps->hide_poly_single = attr.varray.typed<bool>().get_internal_single();
+      }
+      else if (attr.varray.is_span()) {
         ps->hide_poly_eval = attr.varray.get_internal_span().typed<bool>().data();
       }
     }
   }
   if (const bke::GAttributeReader attr = attributes.lookup("material_index")) {
     if (attr.domain == bke::AttrDomain::Face && attr.varray.type().is<int>()) {
-      if (attr.varray.is_span()) {
+      if (attr.varray.is_single()) {
+        ps->material_index_single = attr.varray.typed<int>().get_internal_single();
+      }
+      else if (attr.varray.is_span()) {
         ps->material_indices = attr.varray.get_internal_span().typed<int>().data();
       }
     }
@@ -4231,34 +4248,24 @@ static bool project_paint_clone_face_skip(ProjPaintState *ps,
 }
 
 struct ProjPaintFaceLookup {
-  const bool *select_poly_orig;
-  const bool *hide_poly_orig;
+  VArray<bool> select_poly_orig;
+  VArray<bool> hide_poly_orig;
   const int *index_mp_to_orig;
 };
 
 static void proj_paint_face_lookup_init(const ProjPaintState *ps, ProjPaintFaceLookup *face_lookup)
 {
-  memset(face_lookup, 0, sizeof(*face_lookup));
+  *face_lookup = {};
   Mesh *orig_mesh = id_cast<Mesh *>(ps->ob->data);
   face_lookup->index_mp_to_orig = static_cast<const int *>(
       CustomData_get_layer(&ps->mesh_eval->face_data, CD_ORIGINDEX));
   const bke::AttributeAccessor attributes = orig_mesh->attributes();
   if (ps->do_face_sel) {
-    if (const bke::GAttributeReader attr = attributes.lookup(".select_poly")) {
-      if (attr.domain == bke::AttrDomain::Face && attr.varray.type().is<bool>()) {
-        if (attr.varray.is_span()) {
-          face_lookup->select_poly_orig = attr.varray.get_internal_span().typed<bool>().data();
-        }
-      }
-    }
+    face_lookup->select_poly_orig = *attributes.lookup_or_default<bool>(
+        ".select_poly", bke::AttrDomain::Face, false);
   }
-  if (const bke::GAttributeReader attr = attributes.lookup(".hide_poly")) {
-    if (attr.domain == bke::AttrDomain::Face && attr.varray.type().is<bool>()) {
-      if (attr.varray.is_span()) {
-        face_lookup->hide_poly_orig = attr.varray.get_internal_span().typed<bool>().data();
-      }
-    }
-  }
+  face_lookup->hide_poly_orig = *attributes.lookup_or_default<bool>(
+      ".hide_poly", bke::AttrDomain::Face, false);
 }
 
 /* Return true if face should be considered paintable, false otherwise */
@@ -4272,18 +4279,30 @@ static bool project_paint_check_face_paintable(const ProjPaintState *ps,
     if ((face_lookup->index_mp_to_orig != nullptr) &&
         ((orig_index = (face_lookup->index_mp_to_orig[face_i])) != ORIGINDEX_NONE))
     {
-      return face_lookup->select_poly_orig && face_lookup->select_poly_orig[orig_index];
+      return face_lookup->select_poly_orig[orig_index];
     }
-    return ps->select_poly_eval && ps->select_poly_eval[face_i];
+    if (ps->select_poly_single) {
+      return ps->select_poly_single.value();
+    }
+    if (ps->select_poly_eval) {
+      return ps->select_poly_eval[face_i];
+    }
+    return false;
   }
   int orig_index;
   const int face_i = ps->corner_tri_faces_eval[tri_i];
   if ((face_lookup->index_mp_to_orig != nullptr) &&
       ((orig_index = (face_lookup->index_mp_to_orig[face_i])) != ORIGINDEX_NONE))
   {
-    return !(face_lookup->hide_poly_orig && face_lookup->hide_poly_orig[orig_index]);
+    return !face_lookup->hide_poly_orig[orig_index];
   }
-  return !(ps->hide_poly_eval && ps->hide_poly_eval[face_i]);
+  if (ps->hide_poly_single) {
+    return !ps->hide_poly_single.value();
+  }
+  if (ps->hide_poly_eval) {
+    return !ps->hide_poly_eval[face_i];
+  }
+  return true;
 }
 
 struct ProjPaintFaceCoSS {
@@ -4345,14 +4364,13 @@ static void project_paint_build_proj_ima(ProjPaintState *ps,
 {
   ProjPaintImage *projIma;
   PrepareImageEntry *entry;
-  int i;
 
   /* build an array of images we use */
   projIma = ps->projImages = static_cast<ProjPaintImage *>(
       BLI_memarena_alloc(arena, sizeof(ProjPaintImage) * ps->image_tot));
 
-  for (entry = static_cast<PrepareImageEntry *>(used_images->first), i = 0; entry;
-       entry = entry->next, i++, projIma++)
+  for (entry = static_cast<PrepareImageEntry *>(used_images->first); entry;
+       entry = entry->next, projIma++)
   {
     projIma->iuser = entry->iuser;
     int size;
@@ -4369,7 +4387,7 @@ static void project_paint_build_proj_ima(ProjPaintState *ps,
     projIma->partRedrawRect = static_cast<ImagePaintPartialRedraw *>(
         BLI_memarena_alloc(arena, sizeof(ImagePaintPartialRedraw) * PROJ_BOUNDBOX_SQUARED));
     partial_redraw_array_init(projIma->partRedrawRect);
-    projIma->undoRect = static_cast<volatile void **>(BLI_memarena_alloc(arena, size));
+    projIma->undoRect = static_cast<volatile const void **>(BLI_memarena_alloc(arena, size));
     memset(static_cast<void *>(projIma->undoRect), 0, size);
     projIma->maskRect = static_cast<ushort **>(BLI_memarena_alloc(arena, size));
     memset(projIma->maskRect, 0, size);
@@ -4382,8 +4400,7 @@ static void project_paint_prepare_all_faces(ProjPaintState *ps,
                                             MemArena *arena,
                                             const ProjPaintFaceLookup *face_lookup,
                                             ProjPaintLayerClone *layer_clone,
-                                            const float2 *uv_map_base,
-                                            const bool is_multi_view)
+                                            const float2 *uv_map_base)
 {
   const bke::AttributeAccessor attributes = ps->mesh_eval->attributes();
   const StringRef active_uv_name = ps->mesh_eval->active_uv_map_name();
@@ -4488,45 +4505,43 @@ static void project_paint_prepare_all_faces(ProjPaintState *ps,
       ProjPaintFaceCoSS coSS;
       proj_paint_face_coSS_init(ps, corner_tris[tri_index], &coSS);
 
-      if (is_multi_view == false) {
-        if (project_paint_flt_max_cull(ps, &coSS)) {
-          continue;
-        }
+      if (project_paint_flt_max_cull(ps, &coSS)) {
+        continue;
+      }
 
 #ifdef PROJ_DEBUG_WINCLIP
-        if (project_paint_winclip(ps, &coSS)) {
-          continue;
-        }
+      if (project_paint_winclip(ps, &coSS)) {
+        continue;
+      }
 
 #endif  // PROJ_DEBUG_WINCLIP
 
-        /* Back-face culls individual triangles but mask normal will use face. */
-        if (ps->do_backfacecull) {
-          if (ps->do_mask_normal) {
-            if (prev_poly != tri_faces[tri_index]) {
-              bool culled = true;
-              const IndexRange poly = ps->faces_eval[tri_faces[tri_index]];
-              prev_poly = tri_faces[tri_index];
-              for (const int corner : poly) {
-                if (!(ps->vertFlags[ps->corner_verts_eval[corner]] & PROJ_VERT_CULL)) {
-                  culled = false;
-                  break;
-                }
-              }
-
-              if (culled) {
-                /* poly loops - 2 is number of triangles for poly,
-                 * but counter gets incremented when continuing, so decrease by 3 */
-                int poly_tri = poly.size() - 3;
-                tri_index += poly_tri;
-                continue;
+      /* Back-face culls individual triangles but mask normal will use face. */
+      if (ps->do_backfacecull) {
+        if (ps->do_mask_normal) {
+          if (prev_poly != tri_faces[tri_index]) {
+            bool culled = true;
+            const IndexRange poly = ps->faces_eval[tri_faces[tri_index]];
+            prev_poly = tri_faces[tri_index];
+            for (const int corner : poly) {
+              if (!(ps->vertFlags[ps->corner_verts_eval[corner]] & PROJ_VERT_CULL)) {
+                culled = false;
+                break;
               }
             }
-          }
-          else {
-            if ((line_point_side_v2(coSS.v1, coSS.v2, coSS.v3) < 0.0f) != ps->is_flip_object) {
+
+            if (culled) {
+              /* poly loops - 2 is number of triangles for poly,
+               * but counter gets incremented when continuing, so decrease by 3 */
+              int poly_tri = poly.size() - 3;
+              tri_index += poly_tri;
               continue;
             }
+          }
+        }
+        else {
+          if ((line_point_side_v2(coSS.v1, coSS.v2, coSS.v3) < 0.0f) != ps->is_flip_object) {
+            continue;
           }
         }
       }
@@ -4577,14 +4592,11 @@ static void project_paint_prepare_all_faces(ProjPaintState *ps,
   }
 
   /* we have built the array, discard the linked list */
-  BLI_freelistN(&used_images);
+  used_images.free_no_destruct();
 }
 
 /* run once per stroke before projection painting */
-static void project_paint_begin(const bContext *C,
-                                ProjPaintState *ps,
-                                const bool is_multi_view,
-                                const char symmetry_flag)
+static void project_paint_begin(const bContext *C, ProjPaintState *ps, const char symmetry_flag)
 {
   ProjPaintLayerClone layer_clone;
   ProjPaintFaceLookup face_lookup;
@@ -4694,8 +4706,7 @@ static void project_paint_begin(const bContext *C,
 
   proj_paint_state_vert_flags_init(ps);
 
-  project_paint_prepare_all_faces(
-      ps, arena, &face_lookup, &layer_clone, uv_map_base, is_multi_view);
+  project_paint_prepare_all_faces(ps, arena, &face_lookup, &layer_clone, uv_map_base);
 }
 
 static void paint_proj_begin_clone(ProjPaintState *ps, const float mouse[2])
@@ -5908,7 +5919,7 @@ static void paint_proj_stroke_ps(const bContext * /*C*/,
       img->is_data = false;
       img->is_srgb = false;
 
-      if (ibuf->colormanage_flag & IMB_COLORMANAGE_IS_DATA) {
+      if (ibuf->colorspace_is_data()) {
         img->is_data = true;
       }
       else if (ibuf->byte_data() && ibuf->byte_buffer.colorspace) {
@@ -6135,7 +6146,6 @@ void *paint_proj_new_stroke(bContext *C,
   Mesh *mesh = BKE_mesh_from_object(ob);
   ps_handle->symmetry_flags = mesh->symmetry;
   ps_handle->ps_views_tot = 1 + (pow_i(2, count_bits_i(ps_handle->symmetry_flags)) - 1);
-  bool is_multi_view = (ps_handle->ps_views_tot != 1);
 
   for (int i = 0; i < ps_handle->ps_views_tot; i++) {
     ProjPaintState *ps = MEM_new<ProjPaintState>("ProjectionPaintState");
@@ -6192,7 +6202,7 @@ void *paint_proj_new_stroke(bContext *C,
       PROJ_PAINT_STATE_SHARED_MEMCPY(ps, ps_handle->ps_views[0]);
     }
 
-    project_paint_begin(C, ps, is_multi_view, symmetry_flag_views[i]);
+    project_paint_begin(C, ps, symmetry_flag_views[i]);
     if (ps->mesh_eval == nullptr) {
       goto fail;
     }
@@ -6343,7 +6353,7 @@ static wmOperatorStatus texture_paint_camera_project_exec(bContext *C, wmOperato
   scene.toolsettings->imapaint.flag |= IMAGEPAINT_DRAWING;
 
   /* allocate and initialize spatial data structures */
-  project_paint_begin(C, &ps, false, 0);
+  project_paint_begin(C, &ps, 0);
 
   if (ps.mesh_eval == nullptr) {
     BKE_brush_size_set(ps.paint, ps.brush, orig_brush_size);
@@ -6450,8 +6460,8 @@ static wmOperatorStatus texture_paint_image_from_view_exec(bContext *C, wmOperat
    * texture paint overlay opacity */
   View3D *v3d = static_cast<View3D *>(area->spacedata.first);
   View3D v3d_copy = dna::shallow_copy(*v3d);
-  v3d_copy.gridflag = 0;
-  v3d_copy.flag2 = 0;
+  v3d_copy.gridflag = eView3D_GridFlag{};
+  v3d_copy.flag2 = eView3D_Flag2{};
   v3d_copy.flag = V3D_HIDE_HELPLINES;
   v3d_copy.gizmo_flag = V3D_GIZMO_HIDE;
 
@@ -6468,7 +6478,7 @@ static wmOperatorStatus texture_paint_image_from_view_exec(bContext *C, wmOperat
                                         region,
                                         w,
                                         h,
-                                        IB_byte_data,
+                                        ImBufFlags::ByteData,
                                         R_ALPHAPREMUL,
                                         nullptr,
                                         false,
@@ -6562,7 +6572,7 @@ bool ED_paint_proj_mesh_data_check(Scene &scene,
   bool has_stencil = true;
   bool has_uvs = true;
 
-  imapaint.missing_data = 0;
+  imapaint.missing_data = eImagePaint_MissingData{};
 
   BLI_assert(ob.type == OB_MESH);
 
@@ -6691,6 +6701,7 @@ static Image *proj_paint_image_create(wmOperator *op, Main *bmain, bool is_data)
   int width = 1024;
   int height = 1024;
   bool use_float = false;
+  bool use_tiled = false;
   short gen_type = IMA_GENTYPE_BLANK;
   bool alpha = false;
 
@@ -6698,6 +6709,7 @@ static Image *proj_paint_image_create(wmOperator *op, Main *bmain, bool is_data)
     width = RNA_int_get(op->ptr, "width");
     height = RNA_int_get(op->ptr, "height");
     use_float = RNA_boolean_get(op->ptr, "float");
+    use_tiled = RNA_boolean_get(op->ptr, "tiled");
     gen_type = RNA_enum_get(op->ptr, "generated_type");
     RNA_float_get_array(op->ptr, "color", color);
     alpha = RNA_boolean_get(op->ptr, "alpha");
@@ -6708,7 +6720,6 @@ static Image *proj_paint_image_create(wmOperator *op, Main *bmain, bool is_data)
     color[3] = 1.0f;
   }
 
-  /* TODO(lukas): Add option for tiled image. */
   ima = BKE_image_add_generated(bmain,
                                 width,
                                 height,
@@ -6719,7 +6730,7 @@ static Image *proj_paint_image_create(wmOperator *op, Main *bmain, bool is_data)
                                 color,
                                 false,
                                 is_data,
-                                false);
+                                use_tiled);
 
   return ima;
 }
@@ -6756,7 +6767,7 @@ static std::optional<std::string> proj_paint_color_attribute_create(wmOperator *
     BKE_id_attributes_default_color_set(&mesh->id, unique_name);
   }
 
-  ed::sculpt_paint::object_active_color_fill(ob, color, false);
+  ed::sculpt_paint::object_active_color_init(ob, color);
 
   return unique_name;
 }
@@ -6779,7 +6790,7 @@ static void default_paint_slot_color_get(int layer_type, Material *ma, float col
       bNode *in_node = nullptr;
       if (ma && ma->nodetree) {
         ma->nodetree->ensure_topology_cache();
-        const Span<bNode *> nodes = ma->nodetree->nodes_by_type("ShaderNodeBsdfPrincipled");
+        const Span<bNode *> nodes = ma->nodetree->nodes_by_type("ShaderNodeBsdfPrincipled"_ustr);
         in_node = nodes.is_empty() ? nullptr : nodes.first();
       }
       if (!in_node) {
@@ -6790,7 +6801,7 @@ static void default_paint_slot_color_get(int layer_type, Material *ma, float col
         in_node = bke::node_add_static_node(nullptr, *ntree, SH_NODE_BSDF_PRINCIPLED);
       }
       bNodeSocket *in_sock = bke::node_find_socket(
-          *in_node, SOCK_IN, layer_type_items[layer_type].name);
+          *in_node, SOCK_IN, UString(layer_type_items[layer_type].name));
       switch (in_sock->type) {
         case SOCK_FLOAT: {
           bNodeSocketValueFloat *socket_data = static_cast<bNodeSocketValueFloat *>(
@@ -6886,26 +6897,26 @@ static bool proj_paint_add_slot(bContext *C, wmOperator *op)
 
     /* Connect to first available principled BSDF node. */
     ntree->ensure_topology_cache();
-    const Span<bNode *> bsdf_nodes = ntree->nodes_by_type("ShaderNodeBsdfPrincipled");
+    const Span<bNode *> bsdf_nodes = ntree->nodes_by_type("ShaderNodeBsdfPrincipled"_ustr);
     bNode *in_node = bsdf_nodes.is_empty() ? nullptr : bsdf_nodes.first();
     bNode *out_node = new_node;
 
     if (in_node != nullptr) {
-      bNodeSocket *out_sock = bke::node_find_socket(*out_node, SOCK_OUT, "Color");
+      bNodeSocket *out_sock = bke::node_find_socket(*out_node, SOCK_OUT, "Color"_ustr);
       bNodeSocket *in_sock = nullptr;
 
       if (type >= LAYER_BASE_COLOR && type < LAYER_NORMAL) {
-        in_sock = bke::node_find_socket(*in_node, SOCK_IN, layer_type_items[type].name);
+        in_sock = bke::node_find_socket(*in_node, SOCK_IN, UString(layer_type_items[type].name));
       }
       else if (type == LAYER_NORMAL) {
         bNode *nor_node;
         nor_node = bke::node_add_static_node(C, *ntree, SH_NODE_NORMAL_MAP);
 
-        in_sock = bke::node_find_socket(*nor_node, SOCK_IN, "Color");
+        in_sock = bke::node_find_socket(*nor_node, SOCK_IN, "Color"_ustr);
         bke::node_add_link(*ntree, *out_node, *out_sock, *nor_node, *in_sock);
 
-        in_sock = bke::node_find_socket(*in_node, SOCK_IN, "Normal");
-        out_sock = bke::node_find_socket(*nor_node, SOCK_OUT, "Normal");
+        in_sock = bke::node_find_socket(*in_node, SOCK_IN, "Normal"_ustr);
+        out_sock = bke::node_find_socket(*nor_node, SOCK_OUT, "Normal"_ustr);
 
         out_node = nor_node;
       }
@@ -6913,21 +6924,21 @@ static bool proj_paint_add_slot(bContext *C, wmOperator *op)
         bNode *bump_node;
         bump_node = bke::node_add_static_node(C, *ntree, SH_NODE_BUMP);
 
-        in_sock = bke::node_find_socket(*bump_node, SOCK_IN, "Height");
+        in_sock = bke::node_find_socket(*bump_node, SOCK_IN, "Height"_ustr);
         bke::node_add_link(*ntree, *out_node, *out_sock, *bump_node, *in_sock);
 
-        in_sock = bke::node_find_socket(*in_node, SOCK_IN, "Normal");
-        out_sock = bke::node_find_socket(*bump_node, SOCK_OUT, "Normal");
+        in_sock = bke::node_find_socket(*in_node, SOCK_IN, "Normal"_ustr);
+        out_sock = bke::node_find_socket(*bump_node, SOCK_OUT, "Normal"_ustr);
 
         out_node = bump_node;
       }
       else if (type == LAYER_DISPLACEMENT) {
         /* Connect to the displacement output socket */
-        const Span<bNode *> output_nodes = ntree->nodes_by_type("ShaderNodeOutputMaterial");
+        const Span<bNode *> output_nodes = ntree->nodes_by_type("ShaderNodeOutputMaterial"_ustr);
         in_node = output_nodes.is_empty() ? nullptr : output_nodes.first();
 
         if (in_node != nullptr) {
-          in_sock = bke::node_find_socket(*in_node, SOCK_IN, layer_type_items[type].name);
+          in_sock = bke::node_find_socket(*in_node, SOCK_IN, UString(layer_type_items[type].name));
         }
         else {
           in_sock = nullptr;
@@ -7041,25 +7052,33 @@ static void texture_paint_add_texture_paint_slot_ui(bContext *C, wmOperator *op)
 
   switch (slot_type) {
     case PAINT_CANVAS_SOURCE_IMAGE: {
-      ui::Layout &col = layout.column(true);
-      col.prop(op->ptr, "width", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-      col.prop(op->ptr, "height", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      /* TODO: Deduplicate with image_new_draw */
+      ui::Layout &dim_col = layout.column(true);
+      dim_col.prop(op->ptr, "width", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      dim_col.prop(op->ptr, "height", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-      layout.prop(op->ptr, "alpha", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-      layout.prop(op->ptr, "generated_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-      layout.prop(op->ptr, "float", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      ui::Layout &col = layout.column(false);
+      col.prop(op->ptr, "generated_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+
+      const int gen_type = RNA_enum_get(op->ptr, "generated_type");
+      ui::Layout &color_col = col.column(false);
+      if (gen_type == IMA_GENTYPE_BLANK) {
+        color_col.prop(op->ptr, "color", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      }
+      col.prop(op->ptr, "alpha", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      col.prop(op->ptr, "float", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      col.prop(op->ptr, "tiled", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       break;
     }
     case PAINT_CANVAS_SOURCE_COLOR_ATTRIBUTE:
       layout.prop(op->ptr, "domain", ui::ITEM_R_EXPAND, std::nullopt, ICON_NONE);
       layout.prop(op->ptr, "data_type", ui::ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+      layout.prop(op->ptr, "color", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       break;
     case PAINT_CANVAS_SOURCE_MATERIAL:
       BLI_assert_unreachable();
       break;
   }
-
-  layout.prop(op->ptr, "color", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 #define IMA_DEF_NAME N_("Untitled")
@@ -7131,6 +7150,8 @@ void PAINT_OT_add_texture_paint_slot(wmOperatorType *ot)
                   false,
                   "32-bit Float",
                   "Create image with 32-bit floating-point bit depth");
+
+  RNA_def_boolean(ot->srna, "tiled", false, "Tiled", "Create a tiled image");
 
   /* Color Attribute Properties */
   RNA_def_enum(ot->srna,

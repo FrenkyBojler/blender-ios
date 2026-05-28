@@ -340,7 +340,7 @@ bool jump_to_bone(bContext *C, Object *ob, const char *bone_name, const bool rev
       ED_pose_deselect_all(ob, SEL_DESELECT, true);
       ED_pose_bone_select(ob, pchan, true, true);
 
-      arm->act_bone = pchan->bone;
+      arm->act_bone = pchan->bone_get(*ob);
 
       ED_pose_bone_select_tag_update(ob);
       return true;
@@ -662,7 +662,7 @@ static wmOperatorStatus object_select_linked_exec(bContext *C, wmOperator *op)
     changed = object_select_all_by_instance_collection(C, ob);
   }
   else if (nr == OBJECT_SELECT_LINKED_PARTICLE) {
-    if (BLI_listbase_is_empty(&ob->particlesystem)) {
+    if (ob->particlesystem.is_empty()) {
       return OPERATOR_CANCELLED;
     }
 
