@@ -134,6 +134,7 @@ class AbstractGridView : public AbstractView {
 
   IndexRange get_visible_range(const View2D &v2d,
                                const AbstractGridViewItem *force_visible_item) const;
+
  protected:
   virtual void build_items() = 0;
 
