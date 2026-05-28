@@ -146,6 +146,12 @@ enum PFaceFlag {
 
 /* Chart */
 
+/** Per-chart state for the unwrap "Original Bounds" option. */
+struct PChartOrigBounds {
+  Bounds<float2> bounds;
+  float angle;
+};
+
 struct PChart {
   PVert *verts;
   PEdge *edges;
@@ -162,10 +168,9 @@ struct PChart {
 
   float origin[2];
 
-  /* Only used with original_bounds */
-  Bounds<float2> orig_bounds;
-  PVert *orig_uv_verts[3];
-  float angle;
+  /* Allocated when unwrapping with original_bounds, otherwise null.
+   * No default initializer so #PChart stays trivial for #MEM_new_zeroed. */
+  PChartOrigBounds *orig_bounds;
 
   LinearSolver *context;
   float *abf_alpha;
@@ -3089,8 +3094,9 @@ static void p_chart_lscm_begin(PChart *chart, bool live, bool abf, const bool or
   bool deselect = false;
   int npins = 0;
   if (original_bounds) {
-    chart->angle = p_chart_minimum_area_angle(chart);
-    p_chart_uv_bbox(chart, chart->orig_bounds.min, chart->orig_bounds.max);
+    chart->orig_bounds = MEM_new<PChartOrigBounds>("PChartOrigBounds");
+    chart->orig_bounds->angle = p_chart_minimum_area_angle(chart);
+    p_chart_uv_bbox(chart, chart->orig_bounds->bounds.min, chart->orig_bounds->bounds.max);
   }
   /* Give vertices matrix indices, count pins and check selections. */
   for (PVert *v = chart->verts; v; v = v->nextlink) {
@@ -3787,6 +3793,7 @@ ParamHandle::~ParamHandle()
   }
 
   for (int i = 0; i < ncharts; i++) {
+    MEM_SAFE_DELETE(charts[i]->orig_bounds);
     MEM_SAFE_DELETE(charts[i]);
   }
   MEM_SAFE_DELETE(charts);
@@ -4280,19 +4287,19 @@ void uv_parametrizer_original_bounds(ParamHandle *phandle)
       continue;
     }
     float new_angle = p_chart_minimum_area_angle(chart);
-    p_chart_uv_rotate(chart, chart->angle - new_angle);
+    p_chart_uv_rotate(chart, chart->orig_bounds->angle - new_angle);
 
     p_chart_uv_bbox(chart, minv, maxv);
     sub_v2_v2v2(new_size, maxv, minv);
-    float size = (chart->orig_bounds.size().x > chart->orig_bounds.size().y) ?
-                     chart->orig_bounds.size()[0] :
-                     chart->orig_bounds.size()[1];
+    float size = (chart->orig_bounds->bounds.size().x > chart->orig_bounds->bounds.size().y) ?
+                     chart->orig_bounds->bounds.size()[0] :
+                     chart->orig_bounds->bounds.size()[1];
     float scale = size / std::max(new_size[0], new_size[1]);
     p_chart_uv_scale(chart, scale);
     p_chart_uv_bbox(chart, minv, maxv);
 
     mid_v2_v2v2(trans, minv, maxv);
-    sub_v2_v2v2(trans, chart->orig_bounds.center(), trans);
+    sub_v2_v2v2(trans, chart->orig_bounds->bounds.center(), trans);
     p_chart_uv_translate(chart, trans);
   }
 }
@@ -5172,8 +5179,9 @@ static void slim_convert_blender(ParamHandle *phandle,
   for (int i = 0; i < phandle->ncharts; i++) {
     PChart *chart = phandle->charts[i];
     if (original_bounds) {
-      chart->angle = p_chart_minimum_area_angle(chart);
-      p_chart_uv_bbox(chart, chart->orig_bounds.min, chart->orig_bounds.max);
+      chart->orig_bounds = MEM_new<PChartOrigBounds>("PChartOrigBounds");
+      chart->orig_bounds->angle = p_chart_minimum_area_angle(chart);
+      p_chart_uv_bbox(chart, chart->orig_bounds->bounds.min, chart->orig_bounds->bounds.max);
     }
     slim::MatrixTransferChart *mt_chart = &mt->charts[i];
 

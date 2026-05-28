@@ -9,6 +9,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
+
 #include <fmt/format.h>
 
 #include "MEM_guardedalloc.h"
@@ -131,6 +132,8 @@ struct UvEdge {
   UvEdge *first;
 };
 
+struct StitchStateOrigBounds;
+
 /* stitch state object */
 struct StitchState {
   /** The `aspect[0] / aspect[1]`. */
@@ -156,6 +159,8 @@ struct StitchState {
   GHash *edge_hash;
   /* which islands to stop at (to make active) when pressing 'I' */
   bool *island_is_stitchable;
+  /** Original-bounds state, only allocated when "Original Bounds" is in use. */
+  StitchStateOrigBounds *orig_bounds;
 
   /* count of separate uvs and edges */
   int total_separate_edges;
@@ -171,6 +176,15 @@ struct StitchState {
 };
 
 struct StitchStateInit;
+
+/**
+ * Per-object state for the unwrap "Original Bounds" option, which reuses the
+ * stitch machinery to weld selected, non-seam-bounded islands.
+ */
+struct StitchStateOrigBounds {
+  /** Track which islands have selected faces, indexed by this object's island index. */
+  blender::Vector<bool> island_has_selected;
+};
 
 /* Stitch state container. */
 struct StitchStateContainer {
@@ -200,9 +214,6 @@ struct StitchStateContainer {
 
   bool ignore_seam_boundary;
   bool only_selected_uvs;
-
-  /* Track which islands have selected faces */
-  blender::Vector<bool> island_has_selected;
 
   /* Only used during init, null afterwards */
   int *objs_selection_count = nullptr;
@@ -624,6 +635,9 @@ static void state_delete(StitchState *state)
     if (state->island_is_stitchable) {
       MEM_delete(state->island_is_stitchable);
     }
+    if (state->orig_bounds) {
+      MEM_delete(state->orig_bounds);
+    }
     if (state->element_map) {
       BM_uv_element_map_free(state->element_map);
     }
@@ -765,8 +779,8 @@ static void determine_uv_stitchability(const int cd_loop_uv_offset,
       }
 
       if (ssc->only_selected_uvs) {
-        if (!ssc->island_has_selected[element_iter->island] ||
-            !ssc->island_has_selected[element->island])
+        if (!state->orig_bounds->island_has_selected[element_iter->island] ||
+            !state->orig_bounds->island_has_selected[element->island])
         {
           continue;
         }
@@ -797,8 +811,8 @@ static void determine_uv_edge_stitchability(const int cd_loop_uv_offset,
       }
     }
     if (ssc->only_selected_uvs) {
-      if (!ssc->island_has_selected[edge_iter->element->island] ||
-          !ssc->island_has_selected[edge->element->island])
+      if (!state->orig_bounds->island_has_selected[edge_iter->element->island] ||
+          !state->orig_bounds->island_has_selected[edge->element->island])
       {
         continue;
       }
@@ -1928,9 +1942,11 @@ static StitchState *stitch_init(bContext *C,
 
   state->aspect = ED_uvedit_get_aspect_y(obedit);
 
-  /* Mark islands that have at least one selected UV edge as selected. */
-  if (ssc->only_selected_uvs && ssc->island_has_selected.is_empty()) {
-    ssc->island_has_selected.resize(state->element_map->total_islands, false);
+  /* Mark islands that have at least one selected UV edge as selected.
+   * Indexed by this object's island index, so it must be allocated per-object. */
+  if (ssc->only_selected_uvs) {
+    state->orig_bounds = MEM_new<StitchStateOrigBounds>("stitch state orig bounds");
+    state->orig_bounds->island_has_selected.resize(state->element_map->total_islands, false);
     BM_ITER_MESH (efa, &iter, em->bm, BM_FACES_OF_MESH) {
       BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
         if (uvedit_uv_select_test(scene, em->bm, l, offsets) &&
@@ -1938,7 +1954,7 @@ static StitchState *stitch_init(bContext *C,
         {
           UvElement *element = BM_uv_element_get(state->element_map, l);
           if (element) {
-            ssc->island_has_selected[element->island] = true;
+            state->orig_bounds->island_has_selected[element->island] = true;
           }
         }
       }
