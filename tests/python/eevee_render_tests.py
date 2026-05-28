@@ -99,8 +99,6 @@ BLOCKLIST_INTEL = [
 ]
 
 BLOCKLIST_INTEL_WINDOWS_GL = [
-    # Fails sporadically and causes all subsequent volume tests to fail (See #153612).
-    "volume_instance.blend"
 ]
 
 BLOCKLIST_NVIDIA_GL = [
