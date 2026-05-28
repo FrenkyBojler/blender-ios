@@ -1957,6 +1957,10 @@ static bool modifier_apply_poll(bContext *C)
   Object *ob = (ptr.owner_id != nullptr) ? id_cast<Object *>(ptr.owner_id) :
                                            context_active_object(C);
   ModifierData *md = static_cast<ModifierData *>(ptr.data); /* May be nullptr. */
+  if (ob->type == OB_EMPTY) {
+    CTX_wm_operator_poll_msg_set(C, "Modifiers cannot be applied on empty object type");
+    return false;
+  }
 
   if (ID_IS_OVERRIDE_LIBRARY(ob) || ((ob->data != nullptr) && ID_IS_OVERRIDE_LIBRARY(ob->data))) {
     CTX_wm_operator_poll_msg_set(C, "Modifiers cannot be applied on override data");
@@ -2821,7 +2825,7 @@ static Object *modifier_skin_armature_create(Depsgraph *depsgraph, Main *bmain, 
 
       /* Unless the skin root has just one adjacent edge, create
        * a fake root bone (have it going off in the Y direction
-       * (arbitrary) */
+       * (arbitrary)) */
       if (emap[v].size() > 1) {
         bone = ED_armature_ebone_add(arm, "Bone");
 

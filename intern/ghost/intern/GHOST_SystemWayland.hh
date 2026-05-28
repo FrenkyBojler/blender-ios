@@ -91,6 +91,7 @@ int gwl_window_scale_buffer_size_to(const GWL_WindowScaleParams &scale_params,
 enum class GWL_CurrentDesktopType {
   Other = 0,
   Gnome,
+  KDE,
 };
 
 #ifdef WITH_GHOST_WAYLAND_DYNLOAD
@@ -118,7 +119,7 @@ struct GWL_Output {
   /**
    * Dimensions in pixels.
    *
-   * \note Rotation (from the `transform` flag has *not* been applied.
+   * \note Rotation (from the `transform` flag) has *not* been applied.
    * So a vertical monitor will still have a larger width.
    */
   int32_t size_native[2] = {0, 0};
@@ -131,7 +132,7 @@ struct GWL_Output {
    * \note A 2x Hi-DPI monitor with a `size_native` of 1600x1200
    * would have a `size_logical` of 800x600.
    *
-   * \note Rotation (from the `transform` flag *has* been applied.
+   * \note Rotation (from the `transform` flag) *has* been applied.
    */
   int32_t size_logical[2] = {0, 0};
   bool has_size_logical = false;

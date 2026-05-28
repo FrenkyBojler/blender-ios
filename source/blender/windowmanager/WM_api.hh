@@ -607,10 +607,14 @@ void WM_cursor_warp(wmWindow *win, int x, int y);
 #define WM_CURSOR_DEFAULT_LOGICAL_SIZE 24
 
 /**
+ * \param hardware_cursor: True when this uses hardware cursor display,
+ * the hardware cursor is post-scaled on macOS (out of our control).
+ * When false, this is a software cursor and the logical size is always returned.
+ *
  * \return the preferred logical size for the cursor
  * (before DPI/Hi-DPI scaling is applied).
  */
-uint WM_cursor_preferred_logical_size();
+uint WM_cursor_preferred_logical_size(bool hardware_cursor);
 
 /* Handlers. */
 
@@ -998,7 +1002,8 @@ wmOperatorStatus WM_operator_props_dialog_popup(
     std::optional<std::string> title = std::nullopt,
     std::optional<std::string> confirm_text = std::nullopt,
     bool cancel_default = false,
-    std::optional<std::string> message = std::nullopt);
+    std::optional<std::string> message = std::nullopt,
+    bool show_icon = false);
 
 wmOperatorStatus WM_operator_redo_popup(bContext *C, wmOperator *op);
 wmOperatorStatus WM_operator_ui_popup(bContext *C, wmOperator *op, int width);
