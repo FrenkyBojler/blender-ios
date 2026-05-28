@@ -127,7 +127,7 @@ static void buffer_from_list_inputs_sort(ListBaseT<LinkData> *inputs)
         /* Alignment for mat3 is not handled currently, so not supported.
          * Integer and boolean GPU types are not supported. */
         BLI_assert_msg(0, "GPU type not supported in UBO");
-        continue; 
+        continue;
     }
     const int type = gpu_type_element_count(input->type);
 

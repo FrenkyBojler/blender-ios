@@ -217,7 +217,7 @@ enum GPUType {
   GPU_VEC4,
   GPU_MAT3,
   GPU_MAT4,
-  
+
   /* Integer types */
   GPU_INT,
   GPU_IVEC2,
@@ -269,7 +269,7 @@ constexpr int gpu_type_element_count(const GPUType type)
   }
 }
 
-/* Integers, integer vectors, and booleans are intentionally excluded 
+/* Integers, integer vectors, and booleans are intentionally excluded
  * until they are are wired through codegen. */
 constexpr GPUType gpu_type_from_element_count(const int count)
 {
