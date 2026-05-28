@@ -2824,10 +2824,10 @@ static void rna_def_xr_session_state_viewfinder(BlenderRNA *brna)
   };
 
   static const EnumPropertyItem viewfinder_live_actions[] = {
-      {XR_VIEWFINDER_ACTION_LIVE_LENS, "LENS", ICON_VIEW_ZOOM, "Lens/Zoom", nullptr},
-      {XR_VIEWFINDER_ACTION_LIVE_DOF, "DOF", ICON_COMMUNITY, "Depth of Field", nullptr},
-      {XR_VIEWFINDER_ACTION_LIVE_FOCUS, "FOCUS", ICON_PIVOT_BOUNDBOX, "Focus Point", nullptr},
-      {XR_VIEWFINDER_ACTION_LIVE_APERTURE, "APERTURE", ICON_PROP_CON, "Aperture", nullptr},
+      {XR_VIEWFINDER_ACTION_LIVE_LENS, "LENS", ICON_VIEW_ZOOM, "Focal Length Control", nullptr},
+      {XR_VIEWFINDER_ACTION_LIVE_DOF, "DOF", ICON_COMMUNITY, "Toggle Depth of Field", nullptr},
+      {XR_VIEWFINDER_ACTION_LIVE_FOCUS, "FOCUS", ICON_PIVOT_BOUNDBOX, "Set Focus Point", nullptr},
+      {XR_VIEWFINDER_ACTION_LIVE_APERTURE, "APERTURE", ICON_PROP_CON, "Aperture Control", nullptr},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
