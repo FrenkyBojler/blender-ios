@@ -1514,24 +1514,30 @@ void panel_category_tabs_draw_all(const bContext *C,
   /* If the area is too small to show panels, then don't show any tabs as active. */
   const bool too_narrow = BLI_rcti_size_x(&region->winrct) <=
                           int(UI_PANEL_CATEGORY_MIN_WIDTH * UI_SCALE_FAC / aspect);
-
+  /* `widget_roundbox_set` has this correction, keep in sync. */
+  int alig_pad = !region->overlap ? px : 0;
   /* Same for all tabs. */
-  const int rct_xmin = is_left ? (v2d->mask.xmin + std::round(3 * px * zoom)) :
-                                 (v2d->mask.xmax - category_tabs_width + std::round(px));
-  const int rct_xmax = is_left ? (v2d->mask.xmin + category_tabs_width) :
-                                 (v2d->mask.xmax - std::round(2 * px * zoom));
+  const int rct_xmin = is_left ? (v2d->mask.xmin + 3) :
+                                 (v2d->mask.xmax - category_tabs_width + alig_pad);
+  const int rct_xmax = is_left ? (v2d->mask.xmin + category_tabs_width) : (v2d->mask.xmax - 3);
   /* NOTE: This block is created in window coordinates. */
   Block *block = block_begin(C, region, panel_category_tabs_block_name, EmbossType::Emboss);
+
+  const int w = (rct_xmax - rct_xmin);
+
   Layout &layout = block_layout(block,
                                 LayoutDirection::Vertical,
                                 LayoutType::VerticalBar,
                                 rct_xmin,
-                                v2d->mask.ymax,
-                                category_tabs_width,
+                                v2d->mask.ymax - 1,
+                                w,
                                 0,
-                                tab_v_pad,
+                                0,
                                 ui::style_get_dpi());
-  layout.alignment_set(LayoutAlign::Center);
+  Layout &col = layout.column(true);
+  col.alignment_set(LayoutAlign::Center);
+
+  uiDefBut(block, ButtonType::Sepr, "", 0, 0, w, tab_v_pad, nullptr, 0.0, 0.0, "");
 
   const bool compact = U.uiflag2 & USER_UIFLAG2_PANEL_TABS_COMPACT;
 
@@ -1555,7 +1561,6 @@ void panel_category_tabs_draw_all(const bContext *C,
         compact ? 10.5 * UI_SCALE_FAC * zoom :
                   BLF_width(fontid, category_id_draw, BLF_DRAW_STR_DUMMY_MAX));
 
-    const int w = (rct_xmax - rct_xmin);
     const int h = category_width + tab_v_pad_text * 2;
 
     if (compact && pc_dyn.icon != ICON_NONE) {
@@ -1622,7 +1627,12 @@ void panel_category_tabs_draw_all(const bContext *C,
         [category = std::string(category_id),
          active = std::string(category_id_active),
          too_narrow](const Button &) -> bool { return category == active && !too_narrow; });
+    if (pc_dyn.next) {
+      uiDefBut(block, ButtonType::Sepr, "", 0, 0, w, tab_v_pad, nullptr, 0.0, 0.0, "");
+    }
   }
+  uiDefBut(block, ButtonType::Sepr, "", 0, 0, w, tab_v_pad, nullptr, 0.0, 0.0, "");
+
   const int2 co = block_layout_resolve(block);
   const int max_scroll = std::max(-co.y, 0);
   const int scroll = std::clamp(region->category_scroll, 0, max_scroll);
@@ -1652,7 +1662,7 @@ void panel_category_tabs_draw_all(const bContext *C,
 
 /** \} */
 
-static int panel_category_show_active_tab(ARegion *region, const int mval[2])
+static int panel_category_show_active_tab(const bContext &C, ARegion *region, const int mval[2])
 {
   if (!ED_region_panel_category_gutter_isect_xy(region, mval)) {
     return WM_UI_HANDLER_CONTINUE;
@@ -1665,15 +1675,19 @@ static int panel_category_show_active_tab(ARegion *region, const int mval[2])
   if (!block) {
     return WM_UI_HANDLER_BREAK;
   }
+  PointerRNA ptr = RNA_pointer_create_discrete(
+      reinterpret_cast<ID *>(CTX_wm_screen(&C)), RNA_Region, region);
+  PropertyRNA *prop = RNA_struct_find_property(&ptr, "active_panel_category");
   for (auto [i, pc_dyn] : region->runtime->panels_category.enumerate()) {
     const bool is_active = STREQ(pc_dyn.idname, region->runtime->category);
     if (!is_active) {
       continue;
     }
-    /* First and last buttons are padding buttons. */
-    if (i < block->buttons_ptrs.size() - 2) {
-      const Button &button = *block->buttons_ptrs[i + 1];
-      region->category_scroll = -(button.rect.ymax - region->category_scroll - v2d->mask.ymax);
+    for (Button &button : block->buttons()) {
+      if (button.rnapoin.data == region && button.rnaprop == prop && button.hardmax == i) {
+        region->category_scroll = -(button.rect.ymax - region->category_scroll - v2d->mask.ymax);
+        break;
+      }
     }
     break;
   }
@@ -2639,7 +2653,7 @@ int handler_panel_region(bContext *C,
     }
     else if (event->type == EVT_PADPERIOD) {
       WM_tooltip_clear(C, CTX_wm_window(C));
-      retval = panel_category_show_active_tab(region, event->xy);
+      retval = panel_category_show_active_tab(*C, region, event->xy);
     }
     else if ((event->type == RIGHTMOUSE) && panel_categories_tab_is_mouse_over(region, event)) {
       BLI_assert(retval == WM_UI_HANDLER_CONTINUE);

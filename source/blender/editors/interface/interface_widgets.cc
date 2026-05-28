@@ -5373,7 +5373,7 @@ static int widget_roundbox_set(Button *but, rcti *rect)
   /* alignment */
   if ((but->drawflag & BUT_ALIGN) && but->type != ButtonType::Pulldown) {
 
-    /* popup_block_position has this correction too, keep in sync */
+    /* popup_block_position and #widget_roundbox_set has this correction too, keep in sync */
     if (but->drawflag & (BUT_ALIGN_TOP | BUT_ALIGN_STITCH_TOP)) {
       rect->ymax += U.pixelsize;
     }
