@@ -117,6 +117,10 @@
 
 #include "DRW_engine.hh"
 
+#ifdef WITH_PERFETTO
+#  include "perfetto_trace.hh"
+#endif
+
 namespace blender {
 
 CLG_LOGREF_DECLARE_GLOBAL(WM_LOG_OPERATORS, "operator");
@@ -710,6 +714,9 @@ void WM_exit_ex(bContext *C, const bool do_python_exit, const bool do_user_exit_
 
   BKE_tempdir_session_purge();
 
+#ifdef WITH_PERFETTO
+  perfetto_shutdown();
+#endif
   /* Logging cannot be called after exiting (#CLOG_INFO, #CLOG_WARN etc will crash).
    * So postpone exiting until other sub-systems that may use logging have shut down. */
   CLG_exit();

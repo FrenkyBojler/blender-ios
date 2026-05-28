@@ -115,6 +115,11 @@ set(LIB
   PRIVATE bf::dependencies::optional::audaspace
 )
 
+if(WITH_PERFETTO)
+  list(APPEND LIB PRIVATE bf::intern::perfetto)
+endif()
+
+
 if(WITH_HEADLESS)
   add_definitions(-DWITH_HEADLESS)
 else()

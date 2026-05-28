@@ -118,8 +118,8 @@ char **environ = nullptr;
 #endif
 
 #ifdef WITH_PERFETTO
-#  include "perfetto_trace.hh"  
-#endif  
+#  include "perfetto_trace.hh"
+#endif
 
 #include "creator_intern.h" /* Own include. */
 
@@ -436,7 +436,7 @@ int main(int argc,
 #ifdef WITH_PERFETTO
   /* Initialize profiling.*/
   perfetto_init();
-#endif  
+#endif
 
   /* Initialize logging. */
   CLG_init();
