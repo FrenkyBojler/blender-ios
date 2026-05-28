@@ -105,12 +105,13 @@ ccl_device_inline
 #  else
 ccl_device_noinline
 #  endif
-    int svm_node_raycast(KernelGlobals kg,
-                         ConstIntegratorGenericState state,
-                         ccl_private ShaderData *sd,
-                         ccl_private float *ccl_restrict stack,
-                         const ccl_global SVMNodeRaycast &ccl_restrict node,
-                         int offset)
+    int
+    svm_node_raycast(KernelGlobals kg,
+                     ConstIntegratorGenericState state,
+                     ccl_private ShaderData *sd,
+                     ccl_private float *ccl_restrict stack,
+                     const ccl_global SVMNodeRaycast &ccl_restrict node,
+                     int offset)
 {
   const float distance = stack_load(stack, node.distance);
 
