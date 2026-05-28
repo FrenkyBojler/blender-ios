@@ -594,23 +594,20 @@ static void drawEdgeSlide(TransInfo *t)
     if (!sld->clone_neighbor_data.is_empty()) {
       const int keep_side = (slp->perc >= 0.0f) ? 0 : 1;
 
-      /* Mirror the endpoint filter from confirm: only draw lines to interior
-       * keep-side neighbors (those connected to at least one other keep-side
-       * neighbor). Untagged keep-side members are selection endpoints whose
-       * faces will be suppressed on confirm, so omit them from the preview. */
+      /* Mirror the endpoint filter from confirm */
       Set<BMVert *> keep_nb_set;
       for (const EdgeSlideData::CloneNeighborData &nd : sld->clone_neighbor_data) {
         for (BMVert *nb : nd.neighbors[keep_side]) {
           keep_nb_set.add(nb);
         }
       }
-      Set<BMVert *> interior_keep_nbs;
+      Set<BMVert *> keep_nbs;
       for (BMVert *nb : keep_nb_set) {
         BMEdge *e;
         BMIter e_iter;
         BM_ITER_ELEM (e, &e_iter, nb, BM_EDGES_OF_VERT) {
           if (keep_nb_set.contains(BM_edge_other_vert(e, nb))) {
-            interior_keep_nbs.add(nb);
+            keep_nbs.add(nb);
             break;
           }
         }
@@ -619,7 +616,7 @@ static void drawEdgeSlide(TransInfo *t)
       int edge_count = 0;
       for (const EdgeSlideData::CloneNeighborData &nd : sld->clone_neighbor_data) {
         for (BMVert *nb : nd.neighbors[keep_side]) {
-          if (interior_keep_nbs.contains(nb)) {
+          if (keep_nbs.contains(nb)) {
             edge_count++;
           }
         }
@@ -634,7 +631,7 @@ static void drawEdgeSlide(TransInfo *t)
           BMVert *v_clone = static_cast<BMVert *>(sld->sv[i].td->extra);
           const EdgeSlideData::CloneNeighborData &nd = sld->clone_neighbor_data[i];
           for (BMVert *nb : nd.neighbors[keep_side]) {
-            if (interior_keep_nbs.contains(nb)) {
+            if (keep_nbs.contains(nb)) {
               immVertex3fv(pos, v_clone->co);
               immVertex3fv(pos, nb->co);
             }
