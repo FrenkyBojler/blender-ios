@@ -111,6 +111,7 @@ void VKDevice::deinit()
   }
   pipelines.write_to_disk();
   pipelines.free_data();
+  vertex_attribute_cache_.clear();
   descriptor_set_layouts_.deinit();
   vma_pools.deinit(*this);
   mem_allocator_ = VK_NULL_HANDLE;

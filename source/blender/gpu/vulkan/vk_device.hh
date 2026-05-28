@@ -10,6 +10,7 @@
 
 #include <atomic>
 
+#include "BLI_mutex.hh"
 #include "BLI_task.h"
 #include "BLI_threads.h"
 #include "BLI_utility_mixins.hh"
@@ -235,6 +236,13 @@ class VKDevice : public NonCopyable {
   VKDiscardPool orphaned_data_render;
   VKPipelinePool pipelines;
   VKVertexInputDescriptionPool vertex_input_descriptions;
+
+  /**
+   * Vertex attribute object cache for per-shader vertex attribute configurations.
+   *
+   * Access is guarded by mutex to ensure thread-safety in a multi-threaded environment.
+   */
+  VKVertexAttributeObjectCache vertex_attribute_cache_;
 
   /** Buffer to bind to unbound resource locations. */
   VKBuffer dummy_buffer;

@@ -6,10 +6,13 @@
 
 #include "vk_batch.hh"
 #include "vk_context.hh"
+#include "vk_device.hh"
 #include "vk_immediate.hh"
 #include "vk_shader.hh"
 #include "vk_shader_interface.hh"
 #include "vk_vertex_buffer.hh"
+
+#include <memory>
 
 #include "BLI_bit_vector.hh"
 #include "BLI_math_vector_types.hh"
@@ -93,8 +96,19 @@ void VKVertexAttributeObject::bind(
 
 void VKVertexAttributeObject::update_bindings(const VKContext &context, VKBatch &batch)
 {
+  VKShader *vk_shader = unwrap(context.shader);
+  const VKShaderInterface &interface = vk_shader->interface_get();
+  VKVertexAttributeObjectCacheKey key =
+      vk_batch_vertex_attribute_cache_key_create(batch, interface.enabled_attr_mask_);
+  VKVertexAttributeObjectCache &cache = vertex_attribute_object_cache_get();
+
+  const VKVertexAttributeObject *cached = cache.lookup(key);
+  if (cached != nullptr) {
+    *this = *cached;
+    return;
+  }
+
   clear();
-  const VKShaderInterface &interface = unwrap(context.shader)->interface_get();
   AttributeMask occupied_attributes = 0;
 
   for (int v = 0; v < GPU_BATCH_VBO_MAX_LEN; v++) {
@@ -107,6 +121,8 @@ void VKVertexAttributeObject::update_bindings(const VKContext &context, VKBatch 
   if (occupied_attributes != interface.enabled_attr_mask_) {
     fill_unused_bindings(interface, occupied_attributes);
   }
+
+  cache.insert(key, *this);
 }
 
 void VKVertexAttributeObject::fill_unused_bindings(const VKShaderInterface &interface,
@@ -146,8 +162,19 @@ void VKVertexAttributeObject::fill_unused_bindings(const VKShaderInterface &inte
 
 void VKVertexAttributeObject::update_bindings(VKImmediate &immediate)
 {
+  VKShader *vk_shader = unwrap(unwrap(immediate.shader));
+  const VKShaderInterface &interface = vk_shader->interface_get();
+  VKVertexAttributeObjectCacheKey key = vk_immediate_vertex_attribute_cache_key_create(
+      immediate.vertex_format, interface.enabled_attr_mask_);
+  VKVertexAttributeObjectCache &cache = vertex_attribute_object_cache_get();
+
+  const VKVertexAttributeObject *cached = cache.lookup(key);
+  if (cached != nullptr) {
+    *this = *cached;
+    return;
+  }
+
   clear();
-  const VKShaderInterface &interface = unwrap(unwrap(immediate.shader))->interface_get();
   AttributeMask occupied_attributes = 0;
 
   VKBufferWithOffset immediate_buffer = immediate.active_buffer();
@@ -158,6 +185,8 @@ void VKVertexAttributeObject::update_bindings(VKImmediate &immediate)
                   interface,
                   occupied_attributes);
   BLI_assert(interface.enabled_attr_mask_ == occupied_attributes);
+
+  cache.insert(key, *this);
 }
 
 void VKVertexAttributeObject::update_bindings(const GPUVertFormat &vertex_format,
@@ -271,6 +300,78 @@ void VKVertexAttributeObject::debug_print() const
       std::cout << " WARNING: Attach to dummy\n";
     }
   }
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Cache Key Helpers
+ * \{ */
+
+VKVertexAttributeObjectCacheKey vk_batch_vertex_attribute_cache_key_create(VKBatch &batch,
+                                                                            AttributeMask enabled_attr_mask)
+{
+  VKVertexAttributeObjectCacheKey key;
+  key.vbo_count = 0;
+  key.enabled_attr_mask = enabled_attr_mask;
+  key.formats_hash = 0;
+
+  for (int v = 0; v < GPU_BATCH_VBO_MAX_LEN; v++) {
+    VKVertexBuffer *vbo = batch.vertex_buffer_get(v);
+    if (vbo) {
+      key.formats_hash ^= reinterpret_cast<uint64_t>(&vbo->format) + 0x9e3779b9 +
+                          (key.formats_hash << 6) + (key.formats_hash >> 2);
+      key.vbo_count++;
+    }
+  }
+
+  return key;
+}
+
+VKVertexAttributeObjectCacheKey vk_immediate_vertex_attribute_cache_key_create(
+    const GPUVertFormat &format,
+    AttributeMask enabled_attr_mask)
+{
+  VKVertexAttributeObjectCacheKey key;
+  key.vbo_count = 1;
+  key.enabled_attr_mask = enabled_attr_mask;
+  key.formats_hash = reinterpret_cast<uint64_t>(&format) + 0x9e3779b9 + (0ull << 6) +
+                     (0ull >> 2);
+  return key;
+}
+
+/* -------------------------------------------------------------------- */
+/** \name Cache Implementation
+ * \{ */
+
+void VKVertexAttributeObjectCache::insert(VKVertexAttributeObjectCacheKey key,
+                                          const VKVertexAttributeObject &value)
+{
+  std::scoped_lock lock(mutex_);
+  if (cache_.lookup_ptr(key) == nullptr) {
+    cache_.add(key, std::make_unique<VKVertexAttributeObject>(value));
+  }
+}
+
+const VKVertexAttributeObject *VKVertexAttributeObjectCache::lookup(VKVertexAttributeObjectCacheKey key) const
+{
+  std::scoped_lock lock(mutex_);
+  std::unique_ptr<VKVertexAttributeObject> *result = const_cast<Map<VKVertexAttributeObjectCacheKey, std::unique_ptr<VKVertexAttributeObject>> &>(cache_).lookup_ptr(key);
+  if (result != nullptr) {
+    return result->get();
+  }
+  return nullptr;
+}
+
+void VKVertexAttributeObjectCache::clear()
+{
+  std::scoped_lock lock(mutex_);
+  cache_.clear();
+}
+
+VKVertexAttributeObjectCache &vertex_attribute_object_cache_get()
+{
+  return VKBackend::get().device.vertex_attribute_cache_;
 }
 
 /** \} */
