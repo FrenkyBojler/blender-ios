@@ -65,6 +65,7 @@
 #include "BKE_subdiv_ccg.hh"
 #include "BLI_math_rotation_legacy.hh"
 #include "BLI_math_vector.hh"
+#include "BLI_profile.hh"
 
 #include "BLT_translation.hh"
 
@@ -2654,6 +2655,7 @@ IndexMask gather_nodes(const bke::pbvh::Tree &pbvh,
                        const std::optional<float3> &ray_direction,
                        IndexMaskMemory &memory)
 {
+  BLI_profile_scope(ProfileCategory::Editor);
   switch (falloff_shape) {
     case PAINT_FALLOFF_SHAPE_SPHERE: {
       return bke::pbvh::search_nodes(pbvh, memory, [&](const bke::pbvh::Node &node) {
@@ -3253,6 +3255,7 @@ static brushes::CursorSampleResult calc_brush_node_mask(const Depsgraph &depsgra
                                                         const Brush &brush,
                                                         IndexMaskMemory &memory)
 {
+  BLI_profile_scope(ProfileCategory::Editor);
   const SculptSession &ss = *ob.runtime->sculpt_session;
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(ob);
 
@@ -3322,6 +3325,78 @@ static void push_undo_nodes(const Depsgraph &depsgraph,
   }
 }
 
+static const char *sculpt_brush_type_name(const Brush &brush)
+{
+  switch (eBrushSculptType(brush.sculpt_brush_type)) {
+    case SCULPT_BRUSH_TYPE_DRAW:
+      return "Draw Brush";
+    case SCULPT_BRUSH_TYPE_SMOOTH:
+      return "Smooth Brush";
+    case SCULPT_BRUSH_TYPE_CREASE:
+      return "Crease Brush";
+    case SCULPT_BRUSH_TYPE_BLOB:
+      return "Blob Brush";
+    case SCULPT_BRUSH_TYPE_PINCH:
+      return "Pinch Brush";
+    case SCULPT_BRUSH_TYPE_INFLATE:
+      return "Inflate Brush";
+    case SCULPT_BRUSH_TYPE_GRAB:
+      return "Grab Brush";
+    case SCULPT_BRUSH_TYPE_NUDGE:
+      return "Nudge Brush";
+    case SCULPT_BRUSH_TYPE_THUMB:
+      return "Thumb Brush";
+    case SCULPT_BRUSH_TYPE_LAYER:
+      return "Layer Brush";
+    case SCULPT_BRUSH_TYPE_CLAY:
+      return "Clay Brush";
+    case SCULPT_BRUSH_TYPE_CLAY_STRIPS:
+      return "Clay Strips Brush";
+    case SCULPT_BRUSH_TYPE_CLAY_THUMB:
+      return "Clay Thumb Brush";
+    case SCULPT_BRUSH_TYPE_SNAKE_HOOK:
+      return "Snake Hook Brush";
+    case SCULPT_BRUSH_TYPE_ROTATE:
+      return "Rotate Brush";
+    case SCULPT_BRUSH_TYPE_MASK:
+      return "Mask Brush";
+    case SCULPT_BRUSH_TYPE_SIMPLIFY:
+      return "Simplify Brush";
+    case SCULPT_BRUSH_TYPE_DRAW_SHARP:
+      return "Draw Sharp Brush";
+    case SCULPT_BRUSH_TYPE_ELASTIC_DEFORM:
+      return "Elastic Deform Brush";
+    case SCULPT_BRUSH_TYPE_POSE:
+      return "Pose Brush";
+    case SCULPT_BRUSH_TYPE_MULTIPLANE_SCRAPE:
+      return "Multi-plane Scrape Brush";
+    case SCULPT_BRUSH_TYPE_SLIDE_RELAX:
+      return "Slide/Relax Brush";
+    case SCULPT_BRUSH_TYPE_BOUNDARY:
+      return "Boundary Brush";
+    case SCULPT_BRUSH_TYPE_CLOTH:
+      return "Cloth Brush";
+    case SCULPT_BRUSH_TYPE_DRAW_FACE_SETS:
+      return "Draw Face Sets";
+    case SCULPT_BRUSH_TYPE_DISPLACEMENT_ERASER:
+      return "Multires Displacement Eraser";
+    case SCULPT_BRUSH_TYPE_DISPLACEMENT_SMEAR:
+      return "Multires Displacement Smear";
+    case SCULPT_BRUSH_TYPE_PAINT:
+      return "Paint Brush";
+    case SCULPT_BRUSH_TYPE_SMEAR:
+      return "Smear Brush";
+    case SCULPT_BRUSH_TYPE_PLANE:
+      return "Plane Brush";
+    case SCULPT_BRUSH_TYPE_BLUR:
+      return "Blur Brush";
+    case SCULPT_BRUSH_TYPE_SCENE_PROJECT:
+      return "Scene Project Brush";
+  }
+
+  return "Sculpting";
+}
+
 static void do_brush_action(const Depsgraph &depsgraph,
                             const Scene & /*scene*/,
                             Sculpt &sd,
@@ -3329,6 +3404,8 @@ static void do_brush_action(const Depsgraph &depsgraph,
                             const Brush &brush,
                             PaintModeSettings &paint_mode_settings)
 {
+  BLI_profile_scope_with_name("Mesh Sculpt Brush", ProfileCategory::Editor);
+  BLI_profile_scope_set_dynamic_name("%s", sculpt_brush_type_name(brush));
   SculptSession &ss = *ob.runtime->sculpt_session;
   IndexMaskMemory memory;
   IndexMask texnode_mask;
@@ -3856,78 +3933,6 @@ static bool is_brush_related_tool(bContext *C)
 bool brush_cursor_poll(bContext *C)
 {
   return sculpt_mode_poll(C) && (paint_brush_cursor_poll(C) || is_brush_related_tool(C));
-}
-
-static const char *sculpt_brush_type_name(const Brush &brush)
-{
-  switch (eBrushSculptType(brush.sculpt_brush_type)) {
-    case SCULPT_BRUSH_TYPE_DRAW:
-      return "Draw Brush";
-    case SCULPT_BRUSH_TYPE_SMOOTH:
-      return "Smooth Brush";
-    case SCULPT_BRUSH_TYPE_CREASE:
-      return "Crease Brush";
-    case SCULPT_BRUSH_TYPE_BLOB:
-      return "Blob Brush";
-    case SCULPT_BRUSH_TYPE_PINCH:
-      return "Pinch Brush";
-    case SCULPT_BRUSH_TYPE_INFLATE:
-      return "Inflate Brush";
-    case SCULPT_BRUSH_TYPE_GRAB:
-      return "Grab Brush";
-    case SCULPT_BRUSH_TYPE_NUDGE:
-      return "Nudge Brush";
-    case SCULPT_BRUSH_TYPE_THUMB:
-      return "Thumb Brush";
-    case SCULPT_BRUSH_TYPE_LAYER:
-      return "Layer Brush";
-    case SCULPT_BRUSH_TYPE_CLAY:
-      return "Clay Brush";
-    case SCULPT_BRUSH_TYPE_CLAY_STRIPS:
-      return "Clay Strips Brush";
-    case SCULPT_BRUSH_TYPE_CLAY_THUMB:
-      return "Clay Thumb Brush";
-    case SCULPT_BRUSH_TYPE_SNAKE_HOOK:
-      return "Snake Hook Brush";
-    case SCULPT_BRUSH_TYPE_ROTATE:
-      return "Rotate Brush";
-    case SCULPT_BRUSH_TYPE_MASK:
-      return "Mask Brush";
-    case SCULPT_BRUSH_TYPE_SIMPLIFY:
-      return "Simplify Brush";
-    case SCULPT_BRUSH_TYPE_DRAW_SHARP:
-      return "Draw Sharp Brush";
-    case SCULPT_BRUSH_TYPE_ELASTIC_DEFORM:
-      return "Elastic Deform Brush";
-    case SCULPT_BRUSH_TYPE_POSE:
-      return "Pose Brush";
-    case SCULPT_BRUSH_TYPE_MULTIPLANE_SCRAPE:
-      return "Multi-plane Scrape Brush";
-    case SCULPT_BRUSH_TYPE_SLIDE_RELAX:
-      return "Slide/Relax Brush";
-    case SCULPT_BRUSH_TYPE_BOUNDARY:
-      return "Boundary Brush";
-    case SCULPT_BRUSH_TYPE_CLOTH:
-      return "Cloth Brush";
-    case SCULPT_BRUSH_TYPE_DRAW_FACE_SETS:
-      return "Draw Face Sets";
-    case SCULPT_BRUSH_TYPE_DISPLACEMENT_ERASER:
-      return "Multires Displacement Eraser";
-    case SCULPT_BRUSH_TYPE_DISPLACEMENT_SMEAR:
-      return "Multires Displacement Smear";
-    case SCULPT_BRUSH_TYPE_PAINT:
-      return "Paint Brush";
-    case SCULPT_BRUSH_TYPE_SMEAR:
-      return "Smear Brush";
-    case SCULPT_BRUSH_TYPE_PLANE:
-      return "Plane Brush";
-    case SCULPT_BRUSH_TYPE_BLUR:
-      return "Blur Brush";
-    case SCULPT_BRUSH_TYPE_SCENE_PROJECT:
-      return "Scene Project Brush";
-  }
-
-  return "Sculpting";
 }
 
 StrokeCache::StrokeCache() = default;
