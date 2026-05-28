@@ -59,7 +59,7 @@ static std::string apply_string_case(const std::string &s, const Case mode)
     }
   }
 
-  Vector<char, 64> out(len_chars * 4 + 1);
+  Array<char, 64> out(len_chars * 4 + 1);
   BLI_str_utf32_as_utf8(out.data(), utf32.data(), out.size());
   return std::string(out.data());
 }
