@@ -3176,7 +3176,7 @@ void button_string_get_ex(Button *but,
 
       if (button_is_unit(but)) {
         /* In case where the unit is adaptive, include the unit in the edit string. Otherwise the
-         * unit is added as a completion hint. */
+         * unit is added as an edit hint. */
         const int unit_type = RNA_SUBTYPE_UNIT_VALUE(button_unit_type_get(but));
         const bool do_suffix = BKE_unit_is_adaptive(*but->block->unit, unit_type);
         get_but_string_unit(but, str, str_maxncpy, value, false, prec, do_suffix);

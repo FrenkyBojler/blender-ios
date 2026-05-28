@@ -914,9 +914,9 @@ Button *button_drag_multi_edit_get(Button *but);
 const char *button_placeholder_get(Button *but);
 
 /**
- * Get the completion hint shown after the text while editing.
+ * Get the unit hint shown after the text while editing.
  */
-std::optional<StringRef> button_completion_get(Button &but);
+std::optional<StringRef> button_edit_unit_hint_get(Button &but);
 
 void def_but_icon(Button *but, int icon, int flag);
 /**

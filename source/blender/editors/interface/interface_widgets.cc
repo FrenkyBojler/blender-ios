@@ -2372,7 +2372,7 @@ static void widget_draw_text(const uiFontStyle *fstyle,
   const char *drawstr_right = nullptr;
   bool use_right_only = false;
   const char *indeterminate_str = UI_VALUE_INDETERMINATE_CHAR;
-  std::optional<StringRef> completion = button_completion_get(*but);
+  std::optional<StringRef> unit_hint = button_edit_unit_hint_get(*but);
 
 #ifdef WITH_INPUT_IME
   const wmIMEData *ime_data;
@@ -2397,7 +2397,7 @@ static void widget_draw_text(const uiFontStyle *fstyle,
     Button *but_edit = button_drag_multi_edit_get(but);
     if (but_edit) {
       drawstr = but_edit->editstr;
-      completion = button_completion_get(*but_edit);
+      unit_hint = button_edit_unit_hint_get(*but_edit);
       align = UI_STYLE_TEXT_LEFT;
     }
   }
@@ -2666,26 +2666,26 @@ static void widget_draw_text(const uiFontStyle *fstyle,
         }
       }
 
-      if (completion && drawstr[0] != '\0') {
+      if (unit_hint && drawstr[0] != '\0') {
         rcti text_bounds;
         BLF_boundbox(fstyle->uifont_id, drawstr + but->ofs, drawlen, &text_bounds);
 
-        /* Draw completion with 33% opacity. */
+        /* Draw unit hint with 33% opacity. */
         uiFontStyle style = *fstyle;
         style.shadow = 0;
         uchar col[4];
         copy_v4_v4_uchar(col, wcol->text);
         col[3] *= 0.33f;
 
-        rcti completion_rect;
-        completion_rect.xmin = rect->xmin + text_bounds.xmax;
-        completion_rect.ymin = rect->ymin;
-        completion_rect.xmax = rect->xmax;
-        completion_rect.ymax = rect->ymax;
+        rcti unit_hint_rect;
+        unit_hint_rect.xmin = rect->xmin + text_bounds.xmax;
+        unit_hint_rect.ymin = rect->ymin;
+        unit_hint_rect.xmax = rect->xmax;
+        unit_hint_rect.ymax = rect->ymax;
         fontstyle_draw_ex(&style,
-                          &completion_rect,
-                          completion->data(),
-                          completion->size(),
+                          &unit_hint_rect,
+                          unit_hint->data(),
+                          unit_hint->size(),
                           col,
                           &params,
                           nullptr,

@@ -435,8 +435,8 @@ struct HandleButtonData {
   wmTimer *flashtimer = nullptr;
 
   TextEdit text_edit;
-  /** Hint drawn faded after the edit string (e.g. the unit), empty when there is none. */
-  std::string text_edit_completion;
+  /** Unit hint drawn faded after the edit string, empty when there is none. */
+  std::string text_edit_unit_hint;
 
   wmTimer *text_select_auto_scroll = nullptr;
 
@@ -3655,16 +3655,16 @@ const wmIMEData *button_ime_data_get(Button *but)
 }
 #endif /* WITH_INPUT_IME */
 
-std::optional<StringRef> button_completion_get(Button &but)
+std::optional<StringRef> button_edit_unit_hint_get(Button &but)
 {
   const HandleButtonData *data = but.semi_modal_state ? but.semi_modal_state : but.active;
-  if (data == nullptr || data->text_edit_completion.empty()) {
+  if (data == nullptr || data->text_edit_unit_hint.empty()) {
     return std::nullopt;
   }
-  return data->text_edit_completion;
+  return data->text_edit_unit_hint;
 }
 
-static void button_text_completion(bContext *C, Button *but, HandleButtonData *data)
+static void button_edit_unit_hint(bContext *C, Button *but, HandleButtonData *data)
 {
   /* Unit completion (hint) is only done for buttons with a unit or with a property of type
    * PROP_PIXEL or PROP_PERCENTAGE. For everything else, we reset the completion to an empty
@@ -3672,7 +3672,7 @@ static void button_text_completion(bContext *C, Button *but, HandleButtonData *d
   if (!button_is_unit(but) &&
       (but->rnaprop && !ELEM(RNA_property_subtype(but->rnaprop), PROP_PIXEL, PROP_PERCENTAGE)))
   {
-    data->text_edit_completion.clear();
+    data->text_edit_unit_hint.clear();
     return;
   }
 
@@ -3682,14 +3682,14 @@ static void button_text_completion(bContext *C, Button *but, HandleButtonData *d
   if (unit_type != PROP_NONE) {
     /* If the string contains the unit already, don't add it as a hint. */
     if (BKE_unit_string_contains_unit(data->text_edit.edit_string, unit_type)) {
-      data->text_edit_completion.clear();
+      data->text_edit_unit_hint.clear();
       return;
     }
 
     /* If the number we're entering is not valid, don't show the hint. */
     double value;
     if (!BPY_run_string_as_number(C, nullptr, data->text_edit.edit_string, nullptr, &value)) {
-      data->text_edit_completion.clear();
+      data->text_edit_unit_hint.clear();
       return;
     }
 
@@ -3722,26 +3722,26 @@ static void button_text_completion(bContext *C, Button *but, HandleButtonData *d
       const StringRefNull str(data->text_edit.edit_string);
       BLI_assert(!name_short.empty());
       if (str.find(name_short) != StringRef::not_found) {
-        data->text_edit_completion.clear();
+        data->text_edit_unit_hint.clear();
         return;
       }
 
       /* If the number we're entering is not valid, don't show the hint. */
       double value;
       if (!BPY_run_string_as_number(C, nullptr, data->text_edit.edit_string, nullptr, &value)) {
-        data->text_edit_completion.clear();
+        data->text_edit_unit_hint.clear();
         return;
       }
     }
   }
 
   if (name_short.empty()) {
-    data->text_edit_completion.clear();
+    data->text_edit_unit_hint.clear();
     return;
   }
 
   /* Add a space before the short unit name. */
-  data->text_edit_completion = " " + name_short;
+  data->text_edit_unit_hint = " " + name_short;
 }
 
 static void textedit_begin(bContext *C, Button *but, HandleButtonData *data)
@@ -3866,7 +3866,8 @@ static void textedit_begin(bContext *C, Button *but, HandleButtonData *data)
 
   button_update(but);
 
-  button_text_completion(C, but, data);
+  /* Set the edit unit hint if needed. */
+  button_edit_unit_hint(C, but, data);
 
   /* Make sure the edited button is in view. */
   if (data->searchbox) {
@@ -4498,7 +4499,7 @@ static int do_but_textedit(
       textedit_undo_push(text_edit.undo_stack_text, text_edit.edit_string, but->pos);
     }
 
-    button_text_completion(C, but, data);
+    button_edit_unit_hint(C, but, data);
 
     /* only do live update when but flag request it (BUT_TEXTEDIT_UPDATE). */
     if (update && data->interactive) {
