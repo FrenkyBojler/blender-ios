@@ -817,7 +817,7 @@ class BlendFileTest(MeshTest):
             raise Exception("No modifiers are added to test object.")
 
         scene = bpy.context.scene
-        if scene.get("use_animation_playback"):
+        if scene.get("use_playback"):
             frame_start = scene.frame_start
             frame_end = scene.frame_end
             for frame in range(frame_start, frame_end + 1):
