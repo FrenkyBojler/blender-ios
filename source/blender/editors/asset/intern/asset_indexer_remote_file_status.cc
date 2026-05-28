@@ -28,7 +28,7 @@ FileStatusChecker::FileStatusChecker(const StringRefNull library_root_path)
   this->dfhs_ = disk_file_hash_service_get(dfhs_path);
 }
 
-AssetFileStatus FileStatusChecker::file_status(RemoteListingFileEntry &file_to_check)
+RemoteAssetFileStatus FileStatusChecker::file_status(RemoteListingFileEntry &file_to_check)
 {
   const StringRefNull relative_file_path = file_to_check.local_path;
 
@@ -43,7 +43,7 @@ AssetFileStatus FileStatusChecker::file_status(RemoteListingFileEntry &file_to_c
       file_abspath, sizeof(file_abspath), library_root_path_.c_str(), relative_file_path.c_str());
 
   if (!BLI_exists(file_abspath)) {
-    return this->remember(file_to_check, AssetFileStatus::NOT_ON_DISK);
+    return this->remember(file_to_check, RemoteAssetFileStatus::NOT_ON_DISK);
   }
 
   /* Split METHOD:HASH into two StringRefs. */
@@ -51,7 +51,7 @@ AssetFileStatus FileStatusChecker::file_status(RemoteListingFileEntry &file_to_c
   const int64_t colon_index = hash_with_method.find_first_of(':');
   if (colon_index == StringRef::not_found) {
     CLOG_WARN(&LOG, "Asset file hash not in METHOD:HASH format: %s", hash_with_method.c_str());
-    return this->remember(file_to_check, AssetFileStatus::NO_MATCH);
+    return this->remember(file_to_check, RemoteAssetFileStatus::NO_MATCH);
   }
   std::string hash_algorithm = hash_with_method.substr(0, colon_index);
   const StringRef hexhash = hash_with_method.substr(colon_index + 1);
@@ -63,11 +63,11 @@ AssetFileStatus FileStatusChecker::file_status(RemoteListingFileEntry &file_to_c
       file_abspath, hash_algorithm, hexhash, file_to_check.size_in_bytes);
 
   return this->remember(file_to_check,
-                        is_match ? AssetFileStatus::MATCH : AssetFileStatus::NO_MATCH);
+                        is_match ? RemoteAssetFileStatus::MATCH : RemoteAssetFileStatus::NO_MATCH);
 }
 
-asset_system::AssetFileStatus FileStatusChecker::remember(
-    RemoteListingFileEntry &file_to_check, const asset_system::AssetFileStatus status)
+asset_system::RemoteAssetFileStatus FileStatusChecker::remember(
+    RemoteListingFileEntry &file_to_check, const asset_system::RemoteAssetFileStatus status)
 {
   file_to_check.file_status = status;
   return status;

@@ -13,7 +13,7 @@ namespace blender::asset_system {
 /**
  * Status of the asset's file(s) on disk, compared to the remote asset listing.
  */
-enum class AssetFileStatus {
+enum class RemoteAssetFileStatus {
   /** Just so you can recognize a zero-initialized field of this type. */
   UNSET = 0,
   /** The asset's main file does not exist on disk. */

@@ -51,7 +51,7 @@ AssetRepresentation::AssetRepresentation(StringRef relative_asset_path,
           id_type,
           std::move(metadata),
           nullptr,
-          AssetFileStatus::UNSET,
+          RemoteAssetFileStatus::UNSET,
           std::make_unique<OnlineAssetInfo>(std::move(online_info))})
 {
 }
@@ -242,7 +242,7 @@ void AssetRepresentation::online_asset_mark_downloaded()
   /* Since it was just downloaded, let's assume the file matches the listed hash. If not, the
    * next refresh will show the correct status.
    * TODO: ensure that the file status is actually checked, instead of just making assumptions. */
-  extern_asset->file_status_ = AssetFileStatus::MATCH;
+  extern_asset->file_status_ = RemoteAssetFileStatus::MATCH;
 }
 
 std::optional<eAssetImportMethod> AssetRepresentation::get_import_method() const
@@ -290,7 +290,9 @@ bool AssetRepresentation::is_online_only() const
    * node tools are available. Since that happens on startup, the actual on-disk file status may
    * not have been checked yet. Until that time, just assume that having `online_info_` means "it
    * is online". */
-  return ELEM(extern_asset->file_status_, AssetFileStatus::NOT_ON_DISK, AssetFileStatus::UNSET);
+  return ELEM(extern_asset->file_status_,
+              RemoteAssetFileStatus::NOT_ON_DISK,
+              RemoteAssetFileStatus::UNSET);
 }
 
 bool AssetRepresentation::is_potentially_editable_asset_blend() const
@@ -303,11 +305,11 @@ bool AssetRepresentation::is_potentially_editable_asset_blend() const
   return StringRef(lib_path).endswith(BLENDER_ASSET_FILE_SUFFIX);
 }
 
-AssetFileStatus AssetRepresentation::file_status() const
+RemoteAssetFileStatus AssetRepresentation::file_status() const
 {
   const ExternalAsset *extern_asset = std::get_if<ExternalAsset>(&asset_);
   if (!extern_asset) {
-    return AssetFileStatus::UNSET;
+    return RemoteAssetFileStatus::UNSET;
   }
   return extern_asset->file_status_;
 }
@@ -321,7 +323,7 @@ void AssetRepresentation::online_info_set(OnlineAssetInfo info)
   extern_asset->online_info_ = std::make_unique<OnlineAssetInfo>(std::move(info));
 }
 
-void AssetRepresentation::file_status_set(const AssetFileStatus status)
+void AssetRepresentation::file_status_set(const RemoteAssetFileStatus status)
 {
   ExternalAsset *extern_asset = std::get_if<ExternalAsset>(&asset_);
   if (!extern_asset) {
@@ -332,7 +334,7 @@ void AssetRepresentation::file_status_set(const AssetFileStatus status)
 
 bool AssetRepresentation::needs_download() const
 {
-  return this->is_online_only() || this->file_status() == AssetFileStatus::NO_MATCH;
+  return this->is_online_only() || this->file_status() == RemoteAssetFileStatus::NO_MATCH;
 }
 
 AssetLibrary &AssetRepresentation::owner_asset_library() const

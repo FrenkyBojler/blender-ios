@@ -99,7 +99,7 @@ static void remote_asset_library_refresh_online_assets_status(
         (**cached_entry).typeflag &= ~FILE_TYPE_ASSET_ONLINE;
       }
     }
-    else if (asset->file_status() == asset_system::AssetFileStatus::NO_MATCH) {
+    else if (asset->file_status() == asset_system::RemoteAssetFileStatus::NO_MATCH) {
       /* For already-downloaded assets that didn't match the remote listing, clear the mismatch
        * status when their specific file has been re-downloaded. */
       std::string filepath = asset->full_library_path();

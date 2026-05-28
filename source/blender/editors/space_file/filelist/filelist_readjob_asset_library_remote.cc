@@ -86,7 +86,7 @@ static void filelist_readjob_remote_asset_library_index_read(
       if (asset_system::AssetRepresentation **existing = already_downloaded_assets.lookup_ptr(
               asset_identifier))
       {
-        if (entry.file_status == asset_system::AssetFileStatus::NO_MATCH) {
+        if (entry.file_status == asset_system::RemoteAssetFileStatus::NO_MATCH) {
           /* Store the full online info so the asset can be re-downloaded. */
           (*existing)->online_info_set(std::move(entry.online_info));
         }

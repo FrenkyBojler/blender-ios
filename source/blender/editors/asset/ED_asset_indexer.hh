@@ -49,7 +49,7 @@ struct RemoteListingAssetEntry : NonCopyable {
   short idcode = 0;
 
   /** The status of the asset's on-disk file(s). */
-  asset_system::AssetFileStatus file_status = asset_system::AssetFileStatus::UNSET;
+  asset_system::RemoteAssetFileStatus file_status = asset_system::RemoteAssetFileStatus::UNSET;
 
   asset_system::OnlineAssetInfo online_info;
 
@@ -85,7 +85,7 @@ struct RemoteListingFileEntry : NonCopyable {
    * convenient to use.
    *
    * \see blender::ed::asset::index::FileStatusChecker. */
-  std::optional<asset_system::AssetFileStatus> file_status;
+  std::optional<asset_system::RemoteAssetFileStatus> file_status;
 };
 
 using RemoteListingEntryProcessFn = FunctionRef<bool(RemoteListingAssetEntry &)>;
