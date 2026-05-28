@@ -11,6 +11,7 @@ VERTEX_SHADER_CREATE_INFO(eevee_nodetree)
 
 #include "draw_model_lib.glsl"
 #include "draw_object_infos_lib.glsl"
+#include "draw_view.bsl.hh"
 #include "eevee_reverse_z_lib.bsl.hh"
 #include "eevee_sampling_shared.hh" /* TODO(fclem): Remove. Needed becaused of fragment shader. */
 #include "eevee_surf_common.bsl.hh"
@@ -24,6 +25,7 @@ struct GeomVolume {
   [[legacy_info]] ShaderCreateInfo draw_resource_id_varying;
   [[legacy_info]] ShaderCreateInfo draw_view;
   [[legacy_info]] ShaderCreateInfo draw_volume_infos;
+  [[resource_table]] srt_t<draw::View> views_;
 
   [[legacy_info]] ShaderCreateInfo eevee_geom_iface_info;
 };

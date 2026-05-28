@@ -25,7 +25,6 @@ COMPUTE_SHADER_CREATE_INFO(draw_object_infos)
 namespace eevee::shadow {
 
 struct ViewVisibility {
-  [[legacy_info]] ShaderCreateInfo draw_view;
   [[legacy_info]] ShaderCreateInfo draw_view_culling;
   [[legacy_info]] ShaderCreateInfo draw_object_infos;
 

@@ -12,6 +12,7 @@ VERTEX_SHADER_CREATE_INFO(eevee_clip_plane)
 
 #include "draw_model_lib.glsl"
 #include "draw_pointcloud_lib.glsl"
+#include "draw_view.bsl.hh"
 #include "eevee_attributes_pointcloud_lib.glsl"
 #include "eevee_nodetree_vert_lib.glsl"
 #include "eevee_reverse_z_lib.bsl.hh"
@@ -27,6 +28,7 @@ struct GeomPointCloud {
   [[legacy_info]] ShaderCreateInfo draw_resource_id_varying;
   [[legacy_info]] ShaderCreateInfo draw_view;
   [[legacy_info]] ShaderCreateInfo draw_pointcloud;
+  [[resource_table]] srt_t<draw::View> views_;
 
   [[legacy_info]] ShaderCreateInfo eevee_geom_iface_info;
   /* WORKAROUND: Until we get condition support for interfaces. */

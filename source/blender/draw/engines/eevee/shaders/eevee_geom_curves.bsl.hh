@@ -35,6 +35,7 @@ struct GeomCurve {
   [[legacy_info]] ShaderCreateInfo draw_view;
   [[legacy_info]] ShaderCreateInfo draw_curves;
   [[legacy_info]] ShaderCreateInfo draw_curves_infos;
+  [[resource_table]] srt_t<draw::View> views_;
 
   [[legacy_info]] ShaderCreateInfo eevee_geom_iface_info;
   /* WORKAROUND: Until we get condition support for interfaces. */

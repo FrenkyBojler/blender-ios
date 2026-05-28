@@ -13,6 +13,7 @@
 
 VERTEX_SHADER_CREATE_INFO(eevee_nodetree)
 
+#include "draw_view.bsl.hh"
 #include "draw_view_lib.glsl"
 #include "eevee_lightprobe_shared.hh" /* TODO(fclem): Remove. Needed becaused of fragment shader. */
 #include "eevee_reverse_z_lib.bsl.hh"
@@ -26,6 +27,7 @@ struct GeomWorld {
   [[legacy_info]] ShaderCreateInfo draw_object_infos;
   [[legacy_info]] ShaderCreateInfo draw_resource_id_varying;
   [[legacy_info]] ShaderCreateInfo draw_view;
+  [[resource_table]] srt_t<draw::View> views_;
 
   [[legacy_info]] ShaderCreateInfo eevee_geom_iface_info;
 };

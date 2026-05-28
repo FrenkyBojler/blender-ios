@@ -15,6 +15,7 @@
 COMPUTE_SHADER_CREATE_INFO(draw_modelmat)
 
 #include "draw_model_lib.glsl"
+#include "draw_view.bsl.hh"
 #include "eevee_shadow_tag_usage.bsl.hh"
 
 namespace eevee::shadow::usage {
@@ -33,6 +34,7 @@ struct VertOut {
 struct TagUsageTransparent {
   [[legacy_info]] ShaderCreateInfo draw_resource_id_varying;
   [[legacy_info]] ShaderCreateInfo draw_modelmat;
+  [[legacy_info]] ShaderCreateInfo draw_view;
 
   [[resource_table]] srt_t<Uniform> uniforms;
 
@@ -67,29 +69,30 @@ struct TagUsageTransparent {
     return t_min;
   }
 
-  float pixel_size_at(float linear_depth)
+  float pixel_size_at(const ViewMatrices view, float linear_depth)
   {
     [[resource_table]] const Uniform &uni = uniforms;
 
     float pixel_size = uni.uniform_buf.shadow.film_pixel_radius;
-    bool is_persp = (drw_view().winmat[3][3] == 0.0f);
+    bool is_persp = (view.winmat[3][3] == 0.0f);
     if (is_persp) {
       pixel_size *= max(0.01f, linear_depth);
     }
     return pixel_size * exp2(float(fb_lod));
   }
 
-  void step_bounding_sphere(float3 vs_near_plane,
+  void step_bounding_sphere(const ViewMatrices view,
+                            float3 vs_near_plane,
                             float3 vs_view_direction,
                             float near_t,
                             float far_t,
                             float3 &sphere_center,
                             float &sphere_radius)
   {
-    float near_pixel_size = pixel_size_at(near_t);
+    float near_pixel_size = pixel_size_at(view, near_t);
     float3 near_center = vs_near_plane + vs_view_direction * near_t;
 
-    float far_pixel_size = pixel_size_at(far_t);
+    float far_pixel_size = pixel_size_at(view, far_t);
     float3 far_center = vs_near_plane + vs_view_direction * far_t;
 
     sphere_center = mix(near_center, far_center, 0.5f);
@@ -105,20 +108,20 @@ struct TagUsageTransparent {
       }
     }
 
-    sphere_center = drw_point_view_to_world(sphere_center);
+    sphere_center = view.point_view_to_world(sphere_center);
     sphere_radius = sqrt(sphere_radius);
   }
 
   /* Inflate bounds by half a pixel as a conservative rasterization alternative,
    * to ensure the tiles needed by all LOD0 pixels get tagged */
-  void inflate_bounds(float3 ls_center, float3 &P, float3 &lP)
+  void inflate_bounds(const ViewMatrices view, float3 ls_center, float3 &P, float3 &lP)
   {
     [[resource_table]] const Uniform &uni = uniforms;
 
-    float3 vP = drw_point_world_to_view(P);
+    float3 vP = view.point_world_to_view(P);
 
     float inflate_scale = uni.uniform_buf.shadow.film_pixel_radius * exp2(float(fb_lod));
-    if (drw_view_is_perspective()) {
+    if (view.is_perspective()) {
       inflate_scale *= -vP.z;
     }
     /* Half-pixel. */
@@ -131,7 +134,7 @@ struct TagUsageTransparent {
     vs_inflate_vector *= inflate_scale;
 
     vP += vs_inflate_vector;
-    P = drw_point_view_to_world(vP);
+    P = view.point_view_to_world(vP);
     lP = drw_point_world_to_object(P);
   }
 };
@@ -145,11 +148,14 @@ float nextafter(float value)
 [[vertex]]
 void tag_usage_vert([[resource_table]] TagUsageTransparent &srt,
                     [[resource_table]] TagUsage & /*tag*/,
+                    [[resource_table]] const draw::View &views,
                     [[vertex_id]] [[maybe_unused]] const int vert_id,
                     [[in]] const VertIn &v_in,
                     [[out]] VertOut &v_out,
                     [[position]] float4 &out_position)
 {
+  const ViewMatrices view = views.get(0);
+
   drw_ResourceID_iface.resource_id = drw_resource_id_raw();
 
   ObjectBounds bounds = srt.bounds_buf[drw_resource_id()];
@@ -176,7 +182,7 @@ void tag_usage_vert([[resource_table]] TagUsageTransparent &srt,
   for (int i = 0; i < 8; i++) {
     float3 P = box.corners[i];
     float3 lP = drw_point_world_to_object(P);
-    srt.inflate_bounds(ls_center, P, lP);
+    srt.inflate_bounds(view, ls_center, P, lP);
 
     ls_conservative_min = min(ls_conservative_min, lP);
     ls_conservative_max = max(ls_conservative_max, lP);
@@ -188,9 +194,9 @@ void tag_usage_vert([[resource_table]] TagUsageTransparent &srt,
   float3 lP = mix(ls_conservative_min, ls_conservative_max, max(float3(0), v_in.pos));
 
   v_out.P = drw_point_object_to_world(lP);
-  v_out.vP = drw_point_world_to_view(v_out.P);
+  v_out.vP = view.point_world_to_view(v_out.P);
 
-  out_position = drw_point_world_to_homogenous(v_out.P);
+  out_position = view.point_world_to_homogenous(v_out.P);
 
 #if 0
   if (vert_id == 0) {
@@ -209,19 +215,22 @@ void tag_usage_vert([[resource_table]] TagUsageTransparent &srt,
 
 [[fragment]]
 void tag_usage_frag([[resource_table]] TagUsageTransparent &srt,
+                    [[resource_table]] const draw::View &views,
                     [[resource_table]] TagUsage &tag,
                     [[resource_table]] const HiZ &hiz,
                     [[in]] const VertOut interp,
                     [[frag_coord]] const float4 frag_co)
 {
+  const ViewMatrices view = views.get(0);
+
   float2 screen_uv = frag_co.xy / float2(srt.fb_resolution);
 
   float opaque_depth = texelFetch(hiz.hiz_tx, int2(frag_co.xy), srt.fb_lod).r;
-  float3 ws_opaque = drw_point_screen_to_world(float3(screen_uv, opaque_depth));
+  float3 ws_opaque = view.point_screen_to_world(float3(screen_uv, opaque_depth));
 
-  float3 ws_near_plane = drw_point_screen_to_world(float3(screen_uv, 0.0f));
+  float3 ws_near_plane = view.point_screen_to_world(float3(screen_uv, 0.0f));
   float3 ws_view_direction = normalize(interp.P - ws_near_plane);
-  float3 vs_near_plane = drw_point_screen_to_view(float3(screen_uv, 0.0f));
+  float3 vs_near_plane = view.point_screen_to_view(float3(screen_uv, 0.0f));
   float3 vs_view_direction = normalize(interp.vP - vs_near_plane);
   float3 ls_near_plane = drw_point_world_to_object(ws_near_plane);
   float3 ls_view_direction = normalize(drw_point_world_to_object(interp.P) - ls_near_plane);
@@ -252,12 +261,13 @@ void tag_usage_frag([[resource_table]] TagUsageTransparent &srt,
   for (float t = near_box_t; t <= far_box_t; t = max(t + step_size, nextafter(t))) {
     /* Ensure we don't get past far_box_t. */
     t = min(t, far_box_t);
-    step_size = srt.pixel_size_at(t);
+    step_size = srt.pixel_size_at(view, t);
 
     float3 P = ws_near_plane + (ws_view_direction * t);
     float step_radius;
-    srt.step_bounding_sphere(vs_near_plane, vs_view_direction, t, t + step_size, P, step_radius);
-    float3 vP = drw_point_world_to_view(P);
+    srt.step_bounding_sphere(
+        views.get(0), vs_near_plane, vs_view_direction, t, t + step_size, P, step_radius);
+    float3 vP = view.point_world_to_view(P);
 
     float2 pixel = frag_co.xy * exp2(float(srt.fb_lod));
 
@@ -265,7 +275,7 @@ void tag_usage_frag([[resource_table]] TagUsageTransparent &srt,
 
     TagPixelCtx ctx = {
         .P = P,
-        .V = drw_world_incident_vector(P),
+        .V = view.world_incident_vector(P),
         .radius = step_radius,
         .lod_bias = 0,
     };

@@ -58,7 +58,6 @@ struct SurfVolume {
   [[compilation_constant]] bool is_world;
 
   [[legacy_info]] ShaderCreateInfo draw_modelmat_common;
-  [[legacy_info]] ShaderCreateInfo draw_view;
 
   [[image(VOLUME_OCCUPANCY_SLOT, read, UINT_32)]] uimage3DAtomic occupancy_img;
 
@@ -98,12 +97,15 @@ struct SurfVolume {
     imageStoreFast(out_phase_weight_img, froxel, phase.yyyy);
   }
 
-  VolumeProperties eval_froxel([[resource_table]] const Uniform &uni, int3 froxel, float jitter)
+  VolumeProperties eval_froxel([[resource_table]] const Uniform &uni,
+                               const ViewMatrices view,
+                               int3 froxel,
+                               float jitter)
   {
     float3 uvw = (float3(froxel) + float3(0.5f, 0.5f, 0.5f - jitter)) *
                  uni.uniform_buf.volumes.inv_tex_size;
 
-    float3 vP = volume_jitter_to_view(uni, uvw);
+    float3 vP = volume_jitter_to_view(uni, view, uvw);
     float3 wP = drw_point_view_to_world(vP);
     float3 lP = drw_point_world_to_object(wP);
 
@@ -131,6 +133,7 @@ struct SurfVolume {
 [[fragment]] [[early_fragment_tests]] [[texture_atomic]]
 void surf_volume([[resource_table]] SurfVolume &srt,
                  [[resource_table]] const Uniform &uni,
+                 [[resource_table]] const draw::View &views,
                  [[resource_table]] const Sampling &sampling,
                  [[resource_table]] const UtilityTexture & /*util_tx*/,
                  [[frag_coord]] const float4 frag_co,
@@ -145,7 +148,7 @@ void surf_volume([[resource_table]] SurfVolume &srt,
   if (srt.is_homogenous) [[static_branch]] {
     /* Homogenous volumes only evaluate properties at volume entrance and write the same values for
      * each froxel. */
-    prop = srt.eval_froxel(uni, froxel, jitter);
+    prop = srt.eval_froxel(uni, views.get(0), froxel, jitter);
   }
 
   occupancy::Bits occupancy;
@@ -173,7 +176,7 @@ void surf_volume([[resource_table]] SurfVolume &srt,
 
       if (!srt.is_homogenous) [[static_branch]] {
         /* Heterogeneous volumes evaluate properties at every froxel position. */
-        prop = srt.eval_froxel(uni, froxel, jitter);
+        prop = srt.eval_froxel(uni, views.get(0), froxel, jitter);
       }
       srt.write_froxel(froxel, prop);
     }

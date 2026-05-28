@@ -9,12 +9,10 @@
 #pragma once
 
 #include "draw_object_infos_infos.hh"
-#include "draw_view_infos.hh"
 
-FRAGMENT_SHADER_CREATE_INFO(draw_view)
 FRAGMENT_SHADER_CREATE_INFO(draw_object_infos)
 
-#include "draw_view_lib.glsl"
+#include "draw_view.bsl.hh"
 #include "eevee_closure.bsl.hh"
 #include "eevee_gbuffer_read.bsl.hh"
 #include "eevee_hiz.bsl.hh"
@@ -74,7 +72,6 @@ PipelineGraphic aov_clear(fullscreen_vert, aov_clear_frag);
 
 struct LightEval {
   [[legacy_info]] ShaderCreateInfo draw_object_infos;
-  [[legacy_info]] ShaderCreateInfo draw_view;
 
   [[specialization_constant(true)]] bool use_split_indirect;
   [[specialization_constant(true)]] bool use_lightprobe_eval;
@@ -127,6 +124,7 @@ struct LightEval {
 [[fragment, early_fragment_tests]]
 void light_eval_frag([[resource_table]] LightEval &srt,
                      [[resource_table]] LightEvalIterator &lights,
+                     [[resource_table]] draw::View &views,
                      [[resource_table]] const Uniform &uni,
                      [[resource_table]] const LightprobeRenderData &lightprobes,
                      [[resource_table]] const HiZ &hiz,
@@ -149,10 +147,12 @@ void light_eval_frag([[resource_table]] LightEval &srt,
   const Thickness thickness = reader.read_thickness(gbuf.header, texel);
   const uchar closure_count = gbuf.header.closure_len();
 
-  const float3 P = drw_point_screen_to_world(float3(v_out.screen_uv, depth));
+  const ViewMatrices view = views.get(0);
+
+  const float3 P = view.point_screen_to_world(float3(v_out.screen_uv, depth));
   const float3 Ng = gbuf.header.geometry_normal(gbuf.surface_N());
-  const float3 V = drw_world_incident_vector(P);
-  const float vPz = dot(drw_view_forward(), P) - dot(drw_view_forward(), drw_view_position());
+  const float3 V = view.world_incident_vector(P);
+  const float vPz = dot(view.forward(), P) - dot(view.forward(), view.position());
 
   light::EvalCtx<false> ctx;
   /* Unroll light stack array assignments to avoid non-constant indexing. */
@@ -265,7 +265,6 @@ void light_eval_frag([[resource_table]] LightEval &srt,
  * \{ */
 
 struct SphereProbeEval {
-  [[legacy_info]] ShaderCreateInfo draw_view;
   [[legacy_info]] ShaderCreateInfo draw_object_infos;
 };
 
@@ -274,6 +273,7 @@ struct SphereProbeEval {
 [[fragment, early_fragment_tests]]
 void sphere_eval_frag([[resource_table]] SphereProbeEval & /*srt*/,
                       [[resource_table]] LightEvalIterator &lights,
+                      [[resource_table]] draw::View &views,
                       [[resource_table]] const Sampling &sampling,
                       [[resource_table]] const LightprobeVolumeRenderData &lightprobes,
                       [[resource_table]] const HiZ &hiz,
@@ -324,10 +324,12 @@ void sphere_eval_frag([[resource_table]] SphereProbeEval & /*srt*/,
     }
   }
 
-  float3 P = drw_point_screen_to_world(float3(v_out.screen_uv, depth));
+  const ViewMatrices view = views.get(0);
+
+  float3 P = view.point_screen_to_world(float3(v_out.screen_uv, depth));
   float3 Ng = gbuf.header.geometry_normal(gbuf.surface_N());
-  float3 V = drw_world_incident_vector(P);
-  float vPz = dot(drw_view_forward(), P) - dot(drw_view_forward(), drw_view_position());
+  float3 V = view.world_incident_vector(P);
+  float vPz = dot(view.forward(), P) - dot(view.forward(), view.position());
 
   ClosureUndetermined cl;
   cl.N = gbuf.surface_N();
@@ -382,13 +384,13 @@ struct PlanarProbeEval {
   /* TODO(fclem): Workaround waiting for this lib to be ported to BSL.  */
   [[compilation_constant]] bool legacy_sphere_probe_enable;
 
-  [[legacy_info]] ShaderCreateInfo draw_view;
   [[legacy_info]] ShaderCreateInfo draw_object_infos;
 };
 
 [[fragment, early_fragment_tests]]
 void planar_eval_frag([[resource_table]] PlanarProbeEval & /*srt*/,
                       [[resource_table]] LightEvalIterator &lights,
+                      [[resource_table]] draw::View &views,
                       [[resource_table]] const LightprobeRenderData &lightprobes,
                       [[resource_table]] const Sampling &sampling,
                       [[resource_table]] const HiZ &hiz,
@@ -480,10 +482,12 @@ void planar_eval_frag([[resource_table]] PlanarProbeEval & /*srt*/,
     cl_refract.data *= inv_weight;
   }
 
-  float3 P = drw_point_screen_to_world(float3(v_out.screen_uv, depth));
+  const ViewMatrices view = views.get(0);
+
+  float3 P = view.point_screen_to_world(float3(v_out.screen_uv, depth));
   float3 Ng = gbuf.header.geometry_normal(gbuf.surface_N());
-  float3 V = drw_world_incident_vector(P);
-  float vPz = dot(drw_view_forward(), P) - dot(drw_view_forward(), drw_view_position());
+  float3 V = view.world_incident_vector(P);
+  float vPz = dot(view.forward(), P) - dot(view.forward(), view.position());
 
   ClosureUndetermined cl;
   cl.N = gbuf.surface_N();

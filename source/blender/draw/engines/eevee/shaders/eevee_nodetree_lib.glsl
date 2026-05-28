@@ -4,12 +4,12 @@
 
 #pragma once
 
-#include "eevee_uniform.bsl.hh"
 #include "infos/eevee_common_infos.hh"
 
 #include "draw_intersect_lib.glsl"
 #include "draw_model_lib.glsl"
 #include "draw_object_infos_lib.glsl"
+#include "draw_view.bsl.hh"
 #include "draw_view_lib.glsl"
 #include "eevee_bxdf_lut_lib.bsl.hh"
 #include "eevee_hiz.bsl.hh"
@@ -17,6 +17,7 @@
 #include "eevee_ray_trace_screen_lib.bsl.hh"
 #include "eevee_renderpass.bsl.hh"
 #include "eevee_sampling_lib.bsl.hh"
+#include "eevee_uniform.bsl.hh"
 #include "eevee_utility_tx.bsl.hh"
 #include "gpu_shader_codegen_lib.glsl"
 #include "gpu_shader_math_base_lib.glsl"
@@ -247,6 +248,7 @@ float ambient_occlusion_eval([[maybe_unused]] float3 normal,
   [[resource_table]] [[maybe_unused]] const UtilityTexture &util_tx = resource_table_get(UtilityTexture);
   [[resource_table]] [[maybe_unused]] const eevee::HiZ &hiz = resource_table_get(eevee::HiZ);
   [[resource_table]] [[maybe_unused]] const eevee::Uniform &uni = resource_table_get(eevee::Uniform);
+  [[resource_table]] [[maybe_unused]] const draw::View &views = resource_table_get(draw::View);
   /* clang-format on */
 
   {
@@ -261,6 +263,7 @@ float ambient_occlusion_eval([[maybe_unused]] float3 normal,
     noise = fract(noise + samp.rng_3D_get(SAMPLING_AO_U).xyzx);
 
     float result = eevee::fast_gi::eval<float>(uni,
+                                               views.get(0),
                                                uni.raytrace_buf.fast_gi_thickness,
                                                hiz.hiz_tx,
                                                hiz.hiz_tx /* Dummy. */,
@@ -330,6 +333,7 @@ void raycast_eval([[maybe_unused]] float3 position,
   {
     FRAGMENT_SHADER_CREATE_INFO(draw_view);
 
+    [[resource_table]] const draw::View &views = resource_table_get(draw::View);
     [[resource_table]] const eevee::Sampling &samp = resource_table_get(eevee::Sampling);
     const auto &raycast_depth_tx = sampler_get(eevee_raycast, raycast_depth_tx);
     const auto &prepass_normal_tx = sampler_get(eevee_raycast, prepass_normal_tx);
@@ -341,7 +345,8 @@ void raycast_eval([[maybe_unused]] float3 position,
     float2 hit_uv = float2(0.0f);
     uint self_id = drw_resource_id() & uint(0xFFFF);
 
-    float result = raytrace_screen_2(drw_point_world_to_view(ws_start),
+    float result = raytrace_screen_2(views.get(0),
+                                     drw_point_world_to_view(ws_start),
                                      drw_point_world_to_view(ws_end),
                                      drw_normal_world_to_view(direction),
                                      raycast_depth_tx,
