@@ -598,55 +598,112 @@ const EnumPropertyItem rna_enum_file_path_foreach_flag_items[] = {
  *  - Does the path support templates.
  *  - Is the path referring to input or output (the render output, or file output nodes). */
 
-static PyTypeObject BPyFilePathMetaType;
+struct BPy_FilePathMeta {
+  PyObject_HEAD
+  eBPathPathKind path_kind;
+};
 
-static PyStructSequence_Field bpy_file_path_meta_fields[] = {
+PyDoc_STRVAR(
+    /* Wrap. */
+    bpy_file_path_meta_kind_doc,
+    "Path kind: ``'EXPANDED'`` for UDIM tiles and sequence frames, ``'CACHE'`` for cache file "
+    "paths, and ``'REGULAR'`` for all other paths.\n"
+    "\n"
+    ":type: str\n");
+static PyObject *bpy_file_path_meta_get_kind(BPy_FilePathMeta *self, void * /*closure*/)
+{
+  const char *kind = "REGULAR";
+  switch (self->path_kind) {
+    case eBPathPathKind::Expanded:
+      kind = "EXPANDED";
+      break;
+    case eBPathPathKind::Cache:
+      kind = "CACHE";
+      break;
+    case eBPathPathKind::Regular:
+      kind = "REGULAR";
+      break;
+  }
+  return PyUnicode_FromString(kind);
+}
+
+static PyGetSetDef bpy_file_path_meta_getset[] = {
     {"kind",
-     "Path kind: ``'EXPANDED'`` for UDIM tiles and sequence frames, ``'CACHE'`` for "
-     "cache file paths, and ``'REGULAR'`` for all other paths."},
+     reinterpret_cast<getter>(bpy_file_path_meta_get_kind),
+     nullptr,
+     bpy_file_path_meta_kind_doc,
+     nullptr},
     {nullptr},
 };
 
-static PyStructSequence_Desc bpy_file_path_meta_desc = {
-    /*name*/ "bpy.types.BlendDataPathMeta",
-    /*doc*/
-    "Metadata about a file path visited by :class:`bpy.types.BlendData.file_path_foreach`.",
-    /*fields*/ bpy_file_path_meta_fields,
-    /*n_in_sequence*/ ARRAY_SIZE(bpy_file_path_meta_fields) - 1,
+static void bpy_file_path_meta_dealloc(BPy_FilePathMeta *self)
+{
+  Py_TYPE(self)->tp_free(reinterpret_cast<PyObject *>(self));
+}
+
+PyDoc_STRVAR(
+    /* Wrap. */
+    bpy_file_path_meta_doc,
+    "Metadata about a file path visited by :class:`bpy.types.BlendData.file_path_foreach`.\n");
+static PyTypeObject BPyFilePathMeta_Type = {
+    /*ob_base*/ PyVarObject_HEAD_INIT(nullptr, 0)
+    /*tp_name*/ "BlendDataPathMeta",
+    /*tp_basicsize*/ sizeof(BPy_FilePathMeta),
+    /*tp_itemsize*/ 0,
+    /*tp_dealloc*/ reinterpret_cast<destructor>(bpy_file_path_meta_dealloc),
+    /*tp_vectorcall_offset*/ 0,
+    /*tp_getattr*/ nullptr,
+    /*tp_setattr*/ nullptr,
+    /*tp_as_async*/ nullptr,
+    /*tp_repr*/ nullptr,
+    /*tp_as_number*/ nullptr,
+    /*tp_as_sequence*/ nullptr,
+    /*tp_as_mapping*/ nullptr,
+    /*tp_hash*/ nullptr,
+    /*tp_call*/ nullptr,
+    /*tp_str*/ nullptr,
+    /*tp_getattro*/ nullptr,
+    /*tp_setattro*/ nullptr,
+    /*tp_as_buffer*/ nullptr,
+    /*tp_flags*/ Py_TPFLAGS_DEFAULT,
+    /*tp_doc*/ bpy_file_path_meta_doc,
+    /*tp_traverse*/ nullptr,
+    /*tp_clear*/ nullptr,
+    /*tp_richcompare*/ nullptr,
+    /*tp_weaklistoffset*/ 0,
+    /*tp_iter*/ nullptr,
+    /*tp_iternext*/ nullptr,
+    /*tp_methods*/ nullptr,
+    /*tp_members*/ nullptr,
+    /*tp_getset*/ bpy_file_path_meta_getset,
+    /*tp_base*/ nullptr,
+    /*tp_dict*/ nullptr,
+    /*tp_descr_get*/ nullptr,
+    /*tp_descr_set*/ nullptr,
+    /*tp_dictoffset*/ 0,
+    /*tp_init*/ nullptr,
+    /*tp_alloc*/ nullptr,
+    /* Prevent users from creating instances directly. */
+    /*tp_new*/ nullptr,
 };
 
 PyObject *BPyInit_blend_data_path_meta_type()
 {
-  if (PyStructSequence_InitType2(&BPyFilePathMetaType, &bpy_file_path_meta_desc) < 0) {
+  if (PyType_Ready(&BPyFilePathMeta_Type) < 0) {
     return nullptr;
   }
-  /* Prevent users from creating instances directly. */
-  BPyFilePathMetaType.tp_init = nullptr;
-  BPyFilePathMetaType.tp_new = nullptr;
-  return reinterpret_cast<PyObject *>(&BPyFilePathMetaType);
+  return reinterpret_cast<PyObject *>(&BPyFilePathMeta_Type);
 }
 
 static PyObject *bpy_file_path_meta_CreatePyObject(const eBPathPathKind path_kind)
 {
-  PyObject *meta = PyStructSequence_New(&BPyFilePathMetaType);
-  if (meta == nullptr) {
+  BPy_FilePathMeta *self = reinterpret_cast<BPy_FilePathMeta *>(
+      BPyFilePathMeta_Type.tp_alloc(&BPyFilePathMeta_Type, 0));
+  if (self == nullptr) {
     return nullptr;
   }
-
-  PyObject *py_kind = nullptr;
-  switch (path_kind) {
-    case eBPathPathKind::Expanded:
-      py_kind = PyUnicode_FromString("EXPANDED");
-      break;
-    case eBPathPathKind::Cache:
-      py_kind = PyUnicode_FromString("CACHE");
-      break;
-    case eBPathPathKind::Regular:
-      py_kind = PyUnicode_FromString("REGULAR");
-      break;
-  }
-  PyStructSequence_SET_ITEM(meta, 0, py_kind);
-  return meta;
+  self->path_kind = path_kind;
+  return reinterpret_cast<PyObject *>(self);
 }
 
 static bool foreach_id_file_path_foreach_callback(BPathForeachPathData *bpath_data,
