@@ -1,2 +1,3 @@
 Referenced by issue #155193, Graph Editor: Improve feedback adding F-Curve modifiers
 Referenced by pull request #159201, Fix: Check whether Fmodifiertypeinfo is valid
+Referenced by commit 3b09e31d476fda4d338bf84c05618f76177dafed, Fix: Check whether Fmodifiertypeinfo is valid
