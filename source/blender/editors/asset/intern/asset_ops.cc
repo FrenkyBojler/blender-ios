@@ -575,7 +575,7 @@ static wmOperatorStatus asset_library_refresh_invoke(bContext *C,
                                                      wmOperator *op,
                                                      const wmEvent *event)
 {
-  if (event->modifier & KM_SHIFT) {
+  if (event->modifier & KM_SHIFT && RNA_boolean_get(op->ptr, "use_shift_for_remote_listing")) {
     RNA_boolean_set(op->ptr, "use_remote_listing", true);
   }
   return asset_library_refresh_exec(C, op);
@@ -585,25 +585,24 @@ static std::string asset_library_refresh_get_description(bContext * /*C*/,
                                                          wmOperatorType *ot,
                                                          PointerRNA *ptr)
 {
-  if (RNA_boolean_get(ptr, "use_generic_description")) {
-    return ot->description;
-  }
-
   if (RNA_boolean_get(ptr, "use_remote_listing")) {
     return "Re-download the asset listing of a remote library. Only supported when the active "
            "asset library is remote or has a remote component (the Essentials library)";
   }
 
-  return "Reread assets and asset catalogs from the asset library on disk";
+  if (RNA_boolean_get(ptr, "use_shift_for_remote_listing")) {
+    return "Reread assets and asset catalogs from the asset library on disk.\n"
+           "Shift-click: re-download the asset listing of a remote library";
+  }
+
+  return ot->description;
 }
 
 static void ASSET_OT_library_refresh(wmOperatorType *ot)
 {
   /* identifiers */
   ot->name = "Refresh Asset Library";
-  ot->description =
-      "Reread assets and asset catalogs from the asset library on disk.\n"
-      "Shift-click: re-download the asset listing of a remote library";
+  ot->description = "Reread assets and asset catalogs from the asset library on disk";
   ot->idname = "ASSET_OT_library_refresh";
 
   /* API callbacks. */
@@ -623,11 +622,11 @@ static void ASSET_OT_library_refresh(wmOperatorType *ot)
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 
   prop = RNA_def_boolean(ot->srna,
-                         "use_generic_description",
+                         "use_shift_for_remote_listing",
                          false,
-                         "Use Generic Description",
-                         "For the operator's description, show both cases (normal click to "
-                         "refresh, shift-click to re-download)");
+                         "Use Shift for Remote Listing",
+                         "When this operator is invoked and the Shift key is pressed, download "
+                         "the remote asset library listing");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE | PROP_HIDDEN);
 }
 
