@@ -1318,6 +1318,11 @@ static std::string collection_drop_tooltip(bContext *C,
     TreeElement *te = data.te;
 
     const bool target_is_object_row = is_object_element(te);
+    const bool target_is_collection_row = is_collection_element(te);
+
+    if (!target_is_object_row && !target_is_collection_row) {
+      return "";
+    }
     const bool tooltip_link = (is_link && !same_level);
 
     /* Adapt the tooltip based on whether the hovered row is an object or collection. */
@@ -1484,17 +1489,14 @@ static wmOperatorStatus collection_drop_invoke(bContext *C,
   if (is_custom_sort_move) {
     int insert_index = cobs.size();
 
-    TreeStoreElem *drop_tselem = TREESTORE(data.te);
     if (is_object_element(data.te)) {
+      TreeStoreElem *drop_tselem = TREESTORE(data.te);
       Object *relative_ob = reinterpret_cast<Object *>(drop_tselem->id);
       CollectionObject *rel_cob = BKE_collection_object_find_in(data.to, relative_ob);
       const int found_index = cobs.as_span().first_index_try(rel_cob);
       if (found_index != -1) {
         insert_index = (data.insert_type == TE_INSERT_AFTER) ? found_index + 1 : found_index;
       }
-    }
-    else if (data.insert_type == TE_INSERT_BEFORE) {
-      insert_index = 0;
     }
 
     cobs.insert(insert_index, dragged_cobs.as_span());
