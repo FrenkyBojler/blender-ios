@@ -1034,7 +1034,6 @@ struct PopupBlockHandle {
   ARegion *ctx_region = nullptr;
 
   /* return values */
-  int butretval = 0;
   int menuretval = 0;
   int retvalue = 0;
   float retvec[4] = {0.0f, 0.0f, 0.0f, 0.0f};

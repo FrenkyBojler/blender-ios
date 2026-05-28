@@ -610,6 +610,7 @@ enum class Qualifier {
   write = (1 << 2),
   /** Shorthand version of combined flags. */
   read_write = read | write,
+  read_no_restrict = read | no_restrict,
   QUALIFIER_MAX = (write << 1) - 1,
 };
 ENUM_OPERATORS(Qualifier);
@@ -1582,6 +1583,13 @@ struct ShaderCreateInfo {
 
   std::string resource_guard_defines(Span<CompilationConstant> constants) const;
 
+  void extend_predicate(Vector<Resource, 0> &resource_vector,
+                        ShaderCreateInfo::Resource res_copy,
+                        Span<ConditionFn> additional_conditions) const;
+  void assert_no_overlap(const ShaderCreateInfo &info,
+                         const bool test,
+                         const StringRefNull error) const;
+  void set_resource_slot(Resource &res, int &images, int &samplers, int &ubos, int &ssbos) const;
   std::string check_error() const;
   bool is_vulkan_compatible() const;
 
