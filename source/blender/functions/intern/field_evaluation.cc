@@ -44,6 +44,7 @@ struct FieldTreeInfo {
  */
 static FieldTreeInfo preprocess_field_tree(Span<GFieldRef> entry_fields)
 {
+  BLI_profile_scope(ProfileCategory::Default);
   FieldTreeInfo field_tree_info;
 
   Stack<GFieldRef> fields_to_check;
@@ -115,6 +116,7 @@ static Vector<GVArray> get_field_context_inputs(ResourceScope &scope,
 static Set<UniqueHash> find_varying_fields(const FieldTreeInfo &field_tree_info,
                                            const Span<GVArray> field_context_inputs)
 {
+  BLI_profile_scope(ProfileCategory::Default);
   Set<UniqueHash> found_fields;
   Stack<UniqueHash> fields_to_check;
 

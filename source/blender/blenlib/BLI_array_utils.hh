@@ -189,6 +189,7 @@ inline void gather(const VArray<T> &src,
                    MutableSpan<T> dst,
                    const Mode mode = {})
 {
+  BLI_profile_scope_with_name("array_utils::gather", ProfileCategory::Default);
   BLI_assert(indices.size() >= dst.size());
   if constexpr (!mode.is_parallel) {
     src.materialize_compressed(indices, dst);

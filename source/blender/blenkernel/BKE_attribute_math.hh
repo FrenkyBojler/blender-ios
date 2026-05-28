@@ -586,7 +586,7 @@ template<typename T> class SimpleMixer {
 
   void finalize(const IndexMask &mask)
   {
-    BLI_profile_scope(ProfileCategory::Default);
+    BLI_profile_scope_with_name("SimpleMixer::finalize", ProfileCategory::Default);
     mask.foreach_index([&](const int64_t i) {
       const float weight = total_weights_[i];
       if (weight > 0.0f) {
