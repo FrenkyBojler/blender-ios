@@ -105,24 +105,26 @@ template<typename T> class DataBlockNameFunction : public mf::MultiFunction {
       new (&names[i]) std::string(BKE_id_name(*id));
     });
 
-    if (!library_names.is_empty()) {
-      mask.foreach_index([&](const int64_t i) {
-        const T *data_block = data_blocks[i];
-
-        if (data_block == nullptr) {
-          new (&library_names[i]) std::string("");
-          return;
-        }
-
-        const ID *id = id_cast<const ID *>(data_block);
-        if (id->lib == nullptr) {
-          new (&library_names[i]) std::string("");
-        }
-        else {
-          new (&library_names[i]) std::string(BKE_id_name(id->lib->id));
-        }
-      });
+    if (library_names.is_empty()) {
+      return;
     }
+
+    mask.foreach_index([&](const int64_t i) {
+      const T *data_block = data_blocks[i];
+
+      if (data_block == nullptr) {
+        new (&library_names[i]) std::string("");
+        return;
+      }
+
+      const ID *id = id_cast<const ID *>(data_block);
+      if (id->lib == nullptr) {
+        new (&library_names[i]) std::string("");
+      }
+      else {
+        new (&library_names[i]) std::string(BKE_id_name(id->lib->id));
+      }
+    });
   }
 };
 
