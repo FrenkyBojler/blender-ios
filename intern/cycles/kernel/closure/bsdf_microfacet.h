@@ -1190,7 +1190,7 @@ ccl_device_inline void bsdf_thin_glass_fresnel(KernelGlobals kg,
   if (thinfilm.thickness > THINFILM_THICKNESS_CUTOFF) {
     const FresnelThinFilm thinfilm2 = {thinfilm.thickness, thinfilm.ior / ior};
     const FresnelGeneralizedSchlick fresnel2 = generalized_schlick_setup(
-        1.0f / ior, reflective, refractive, reflection_tint, one_spectrum(), thinfilm2);
+        ior, reflective, refractive, reflection_tint, one_spectrum(), thinfilm2);
     float unused;
     generalized_schlick_fresnel(kg, &fresnel2, 1.0f / ior, -cos_theta_t, &unused, &r2, &t2);
   }
