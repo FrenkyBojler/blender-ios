@@ -3703,9 +3703,11 @@ static void button_text_completion(bContext *C, Button *but, HandleButtonData *d
           break;
       }
 
-      /* If the string contains the unit already, don't add it as a hint. */
-      std::string str = data->text_edit.edit_string;
-      if (str.find(name_short) != std::string::npos) {
+      /* If the string contains the unit already, don't add it as a hint.
+       * Note: This is a simple sub-string check and may fail at times. */
+      const StringRefNull str(data->text_edit.edit_string);
+      BLI_assert(!name_short.empty());
+      if (str.find(name_short) != StringRef::not_found) {
         button_completion_set(*but, {});
         return;
       }
