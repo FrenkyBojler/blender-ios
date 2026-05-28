@@ -465,7 +465,7 @@ struct AssetLibraryAndRef {
  * This abstracts away the various null pointers and empty optionals that can occur, and maps them
  * all to a single optional.
  */
-static std::optional<AssetLibraryAndRef> ctx_asset_library(bContext *C)
+static std::optional<AssetLibraryAndRef> asset_library_from_context(bContext *C)
 {
   /* Find the asset library, depending on where we were invoked from. */
   if (ED_operator_asset_browsing_active(C)) {
@@ -505,7 +505,7 @@ static wmOperatorStatus asset_library_reload_listing_exec(bContext *C, wmOperato
   }
 
   /* Find the asset library, depending on where we were invoked from. */
-  const auto asset_lib_and_ref = ctx_asset_library(C);
+  const std::optional<AssetLibraryAndRef> asset_lib_and_ref = asset_library_from_context(C);
   if (!asset_lib_and_ref ||
       !asset_system::is_or_contains_remote_libraries(asset_lib_and_ref->reference))
   {
@@ -527,7 +527,7 @@ static wmOperatorStatus asset_library_reload_listing_exec(bContext *C, wmOperato
 
 static bool asset_library_reload_listing_poll(bContext *C)
 {
-  const auto asset_lib_and_ref = ctx_asset_library(C);
+  const std::optional<AssetLibraryAndRef> asset_lib_and_ref = asset_library_from_context(C);
   if (!asset_lib_and_ref ||
       !asset_system::is_or_contains_remote_libraries(asset_lib_and_ref->reference))
   {
