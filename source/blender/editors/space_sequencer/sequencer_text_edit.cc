@@ -10,6 +10,8 @@
 
 #include "DNA_sequence_types.h"
 
+#include "BLF_api.hh"
+
 #include "BLI_math_matrix.hh"
 #include "BLI_math_vector.hh"
 #include "BLI_string.h"
@@ -730,10 +732,9 @@ static bool text_insert(TextVars *data, const char *buf, const size_t buf_len)
 
   data->cursor_offset += 1;
 
-  if (data->runtime->font >= 0) {
-    text_effect_update_runtime(
-        *data, *data->runtime, data->runtime->font, data->runtime->image_size);
-  }
+  std::unique_lock<Mutex> runtime_lock(seq::text_runtime_mutex_get());
+  seq::text_effect_update_runtime(nullptr, *data, data->runtime->image_size);
+  BLF_disable(data->runtime->font, BLF_BOLD | BLF_ITALIC);
   return true;
 }
 

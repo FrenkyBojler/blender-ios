@@ -7,7 +7,6 @@
  */
 
 #include <cmath>
-#include <mutex>
 
 #include "BKE_lib_id.hh"
 #include "BKE_library.hh"
@@ -46,9 +45,9 @@ namespace blender::seq {
 
 static Mutex text_runtime_mutex;
 
-std::unique_lock<Mutex> text_runtime_scoped_lock_get()
+Mutex &text_runtime_mutex_get()
 {
-  return std::unique_lock<Mutex>(text_runtime_mutex);
+  return text_runtime_mutex;
 }
 
 /* -------------------------------------------------------------------- */
@@ -785,40 +784,37 @@ static void fill_rect_alpha_under(
   });
 }
 
-static int text_effect_line_size_get(const RenderData *context, const Strip *strip)
+static int text_effect_line_size_get(const RenderData *context, const TextVars &text)
 {
-  TextVars *data = static_cast<TextVars *>(strip->effectdata);
-
   /* Used to calculate boundbox. Render scale compensation is not needed there. */
   if (context == nullptr) {
-    return data->text_size;
+    return text.text_size;
   }
 
   /* Compensate for preview render size. */
   const float size_scale = seq::get_render_scale_factor(*context);
-  return size_scale * data->text_size;
+  return size_scale * text.text_size;
 }
 
-int text_effect_font_init(const RenderData *context, const Strip *strip, FontFlags font_flags)
+static int text_effect_font_init(const RenderData *context, TextVars &text, FontFlags font_flags)
 {
-  TextVars *data = static_cast<TextVars *>(strip->effectdata);
   int font = blf_mono_font_render;
 
   /* In case font got unloaded behind our backs: mark it as needing a load. */
-  if (data->text_blf_id >= 0 && !BLF_is_loaded_id(data->text_blf_id)) {
-    data->text_blf_id = STRIP_FONT_NOT_LOADED;
+  if (text.text_blf_id >= 0 && !BLF_is_loaded_id(text.text_blf_id)) {
+    text.text_blf_id = STRIP_FONT_NOT_LOADED;
   }
 
-  if (data->text_blf_id == STRIP_FONT_NOT_LOADED) {
-    data->text_blf_id = -1;
-    text_font_load(data, false);
+  if (text.text_blf_id == STRIP_FONT_NOT_LOADED) {
+    text.text_blf_id = -1;
+    text_font_load(&text, false);
   }
 
-  if (data->text_blf_id >= 0) {
-    font = data->text_blf_id;
+  if (text.text_blf_id >= 0) {
+    font = text.text_blf_id;
   }
 
-  BLF_size(font, text_effect_line_size_get(context, strip));
+  BLF_size(font, text_effect_line_size_get(context, text));
   BLF_enable(font, font_flags);
   return font;
 }
@@ -1046,11 +1042,18 @@ static void apply_text_alignment(const TextVars *data,
   }
 }
 
-void text_effect_update_runtime(const TextVars &text,
-                                TextVarsRuntime &runtime,
-                                int font,
-                                const int2 image_size)
+void text_effect_update_runtime(const RenderData *context, TextVars &text, const int2 image_size)
 {
+  if (text.runtime == nullptr) {
+    text.runtime = MEM_new<TextVarsRuntime>(__func__);
+  }
+  TextVarsRuntime &runtime = *text.runtime;
+
+  const FontFlags font_flags = ((text.flag & SEQ_TEXT_BOLD) ? BLF_BOLD : BLF_NONE) |
+                               ((text.flag & SEQ_TEXT_ITALIC) ? BLF_ITALIC : BLF_NONE);
+
+  const int font = text_effect_font_init(context, text, font_flags);
+
   runtime.font = font;
   runtime.image_size = image_size;
   runtime.line_height = BLF_height_max(font);
@@ -1076,19 +1079,12 @@ static SeqResult do_text_effect(const RenderData *context,
   SeqResult out = prepare_effect_imbufs(context, {}, {}, false);
   TextVars *data = static_cast<TextVars *>(strip->effectdata);
 
-  const FontFlags font_flags = ((data->flag & SEQ_TEXT_BOLD) ? BLF_BOLD : BLF_NONE) |
-                               ((data->flag & SEQ_TEXT_ITALIC) ? BLF_ITALIC : BLF_NONE);
-
   /* Guard against parallel accesses to the fonts map. */
   std::lock_guard font_map_lock(g_font_map.mutex);
   std::lock_guard text_runtime_lock(text_runtime_mutex);
 
-  const int font = text_effect_font_init(context, strip, font_flags);
-
-  if (data->runtime == nullptr) {
-    data->runtime = MEM_new<TextVarsRuntime>(__func__);
-  }
-  text_effect_update_runtime(*data, *data->runtime, font, {out.image->x, out.image->y});
+  text_effect_update_runtime(context, *data, {out.image->x, out.image->y});
+  const int font = data->runtime->font;
 
   rcti outline_rect = draw_text_outline(context, data, out.image);
   BLF_buffer(font,
@@ -1100,7 +1096,7 @@ static SeqResult do_text_effect(const RenderData *context,
              out.image->byte_buffer.colorspace);
   text_draw(data->text_ptr, data->runtime, data->color);
   BLF_buffer(font, nullptr, nullptr, 0, 0, 4, nullptr);
-  BLF_disable(font, font_flags);
+  BLF_disable(font, BLF_BOLD | BLF_ITALIC);
 
   /* Draw shadow. */
   if (data->flag & SEQ_TEXT_SHADOW) {
