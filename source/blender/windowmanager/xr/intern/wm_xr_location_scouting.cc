@@ -578,7 +578,6 @@ static ui::Block *wm_xr_viewfinder_ui_settings_right_label_block(const bContext 
   switch (state->viewfinder.active_mode) {
     /* \xe2\x80\x87 corresponds to a Unicode Figure Space (BLI_STR_UTF8_FIGURE_SPACE). */
     case XR_VIEWFINDER_MODE_LIVE:
-      // TODO: Clean-up by moving DoF status to another label on the left side of the viewfinder.
       settings_right_side_label = fmt::format(
           "{:\xe2\x80\x87>3}mm   DoF: {}   d: {:\xe2\x80\x87<4.1f}   f {:\xe2\x80\x87<3.1f}",
           state->viewfinder.capture_lens_focal,
@@ -587,7 +586,6 @@ static ui::Block *wm_xr_viewfinder_ui_settings_right_label_block(const bContext 
           state->viewfinder.capture_dof_fstop);
       break;
     case XR_VIEWFINDER_MODE_PLAYBACK:
-      // TODO: Could add the capture camera option (Focal, DoF, f-stop)
       /* Current capture indicator (`current capture idx / all captures`). */
       if (captures_len > 0) {
         const int width = captures_len >= 10 ? 2 : 1;

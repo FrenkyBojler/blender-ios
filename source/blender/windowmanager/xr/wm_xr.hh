@@ -30,7 +30,7 @@ void wm_xr_operatortypes_register();
 /* `wm_xr_location_scouting.cc` */
 
 /* NOTE: Keep in sync with the Python VR Scene Inspection add-on VRCapture class.
- *       See comment in #wm_xr_get_active_location_scouting_capture. */
+ *       See comment in #wm_xr_location_scouting_get_active_capture. */
 struct XrLocationScoutingCapture {
   float3 position;
   float4 orientation_quat;
