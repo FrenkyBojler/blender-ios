@@ -134,7 +134,7 @@ void BVHEmbree::build(Progress &progress,
   build_quality = dynamic ? RTC_BUILD_QUALITY_LOW :
                             (params.use_spatial_split ? RTC_BUILD_QUALITY_HIGH :
                                                         RTC_BUILD_QUALITY_MEDIUM);
-  if (build_quality == RTC_BUILD_QUALITY_HIGH) {
+  if (build_quality == RTC_BUILD_QUALITY_HIGH && rtc_device_is_sycl) {
     /* To work around a known issue in the Intel GPU driver regarding the High
      * quality BVH build option, we reduce it to Medium. There is no impact on
      * render quality from this change. There is a small expected performance
