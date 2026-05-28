@@ -101,7 +101,7 @@ static void catalog_assets_draw(const bContext *C, Menu *menu)
   wmOperatorType *ot = WM_operatortype_find("SEQUENCER_OT_strip_modifier_add_node_group", true);
   for (const asset_system::AssetRepresentation *asset : assets) {
     ensure_separator();
-    ed::asset::draw_online_asset_menu(asset, ot->idname, layout);
+    asset::draw_online_asset_menu(asset, ot->idname, layout);
   }
 
   catalog_item->foreach_child([&](const asset_system::AssetCatalogTreeItem &item) {
@@ -280,13 +280,14 @@ static std::string strip_modifier_add_asset_get_description(bContext *C,
   if (!asset) {
     return "";
   }
-  if (asset->is_online_only()) {
-    return TIP_(
-        "Online asset needs to be downloaded first. Right click this option to download "
-        "the asset");
-  }
   if (!asset->get_metadata().description) {
+    if (asset->is_online_only()) {
+      return TIP_(asset::DOWNLOAD_HINT);
+    }
     return "";
+  }
+  if (asset->is_online_only()) {
+    return TIP_(std::string(asset->get_metadata().description) + "\n" + asset::DOWNLOAD_HINT);
   }
   return TIP_(asset->get_metadata().description);
 }
