@@ -488,11 +488,13 @@ static void p_chart_uv_rotate(PChart *chart, float angle)
   if (angle == 0.0f) {
     return;
   }
+  const float cos_angle = cosf(angle);
+  const float sin_angle = sinf(angle);
   for (PVert *v = chart->verts; v; v = v->nextlink) {
     float x = v->uv[0] - chart->origin[0];
     float y = v->uv[1] - chart->origin[1];
-    float x_rot = cosf(angle) * x - sinf(angle) * y;
-    float y_rot = sinf(angle) * x + cosf(angle) * y;
+    float x_rot = cos_angle * x - sin_angle * y;
+    float y_rot = sin_angle * x + cos_angle * y;
     v->uv[0] = x_rot + chart->origin[0];
     v->uv[1] = y_rot + chart->origin[1];
   }
