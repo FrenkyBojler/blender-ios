@@ -7,3 +7,4 @@ Referenced by issue #147721, Window freezes when in edit mode
 Referenced by issue #140614, Edit bone selection cycling order dictated by creation order instead of users viewpoint
 Referenced by issue #159102, Pose bone selection cycling order dictated by creation order instead of view distance
 Referenced by pull request #159103, Fix #159102: Pose bone selection cycling order wrong
+Referenced by commit 16ef224abc4de669751dbb44540a785731b2fbec, Fix #159102: Pose bone selection cycling order wrong
