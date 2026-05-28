@@ -504,7 +504,7 @@ static void node_group_declare_panel_recursive(
             return;
           }
           const NodesModifierData &nmd = *object_and_modifier->nmd;
-          const bNodeTree &ntree = *id_cast<bNodeTree *>(ptr->owner_id);
+          const bNodeTree &ntree = *id_cast<bNodeTree *>(node.id);
           const bNestedNodeRef *nested_node_ref = ntree.find_nested_node_ref(io_bake.bake_id);
           if (!nested_node_ref) {
             layout.label(IFACE_("No nested node reference found"), ICON_ERROR);
