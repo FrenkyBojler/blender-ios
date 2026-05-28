@@ -1888,7 +1888,7 @@ Span<gpu::VertBufPtr> DrawCacheImpl::ensure_attribute_data(const Object &object,
                            orig_mesh_data,
                            mat_index_to_uv_index,
                            use_flat_layout_,
-                           node_mask,
+                           mask,
                            vbos);
             break;
         }
