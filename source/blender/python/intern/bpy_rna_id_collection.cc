@@ -615,17 +615,19 @@ static PyStructSequence_Desc bpy_file_path_meta_desc = {
     /*n_in_sequence*/ ARRAY_SIZE(bpy_file_path_meta_fields) - 1,
 };
 
-static PyObject *make_file_path_meta(const eBPathPathType path_type)
+PyObject *BPyInit_blend_data_path_meta_type()
 {
-  static bool type_initialized = false;
-  if (!type_initialized) {
-    PyStructSequence_InitType(&BPyFilePathMetaType, &bpy_file_path_meta_desc);
-    /* Prevent users from creating instances directly. */
-    BPyFilePathMetaType.tp_init = nullptr;
-    BPyFilePathMetaType.tp_new = nullptr;
-    type_initialized = true;
+  if (PyStructSequence_InitType2(&BPyFilePathMetaType, &bpy_file_path_meta_desc) < 0) {
+    return nullptr;
   }
+  /* Prevent users from creating instances directly. */
+  BPyFilePathMetaType.tp_init = nullptr;
+  BPyFilePathMetaType.tp_new = nullptr;
+  return reinterpret_cast<PyObject *>(&BPyFilePathMetaType);
+}
 
+static PyObject *bpy_file_path_meta_CreatePyObject(const eBPathPathKind path_kind)
+{
   PyObject *meta = PyStructSequence_New(&BPyFilePathMetaType);
   if (meta == nullptr) {
     return nullptr;
@@ -672,7 +674,7 @@ static bool foreach_id_file_path_foreach_callback(BPathForeachPathData *bpath_da
   /* args[1]: */
   PyObject *py_path_src = PyUnicode_FromString(path_src);
   /* args[2]: */
-  PyObject *py_path_meta = make_file_path_meta(bpath_data->path_kind);
+  PyObject *py_path_meta = bpy_file_path_meta_CreatePyObject(bpath_data->path_kind);
   PyTuple_SET_ITEMS(args, py_owner_id, py_path_src, py_path_meta);
 
   /* Call the Python callback function. */
