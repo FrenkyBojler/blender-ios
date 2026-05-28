@@ -1005,7 +1005,8 @@ static void file_draw_indicator_icons(const FileList *files,
                          UI_NO_ICON_OVERLAY_TEXT);
       }
     }
-    else if (file->asset && file->asset->file_status() == asset_system::RemoteAssetFileStatus::NO_MATCH)
+    else if (file->asset &&
+             file->asset->remote_file_status() == asset_system::RemoteAssetFileStatus::NO_MATCH)
     {
       /* This on-disk asset no longer matches the asset listing it was downloaded from. */
       ui::icon_draw_ex(icon_x,

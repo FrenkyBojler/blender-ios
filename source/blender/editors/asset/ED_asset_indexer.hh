@@ -49,7 +49,8 @@ struct RemoteListingAssetEntry : NonCopyable {
   short idcode = 0;
 
   /** The status of the asset's on-disk file(s). */
-  asset_system::RemoteAssetFileStatus file_status = asset_system::RemoteAssetFileStatus::UNSET;
+  asset_system::RemoteAssetFileStatus remote_file_status =
+      asset_system::RemoteAssetFileStatus::UNSET;
 
   asset_system::OnlineAssetInfo online_info;
 

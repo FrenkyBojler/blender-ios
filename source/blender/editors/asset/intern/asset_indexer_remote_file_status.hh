@@ -46,11 +46,11 @@ class FileStatusChecker {
    * Subsequent checks just return that status, so this is efficient to call for each asset that
    * uses the file.
    */
-  asset_system::RemoteAssetFileStatus file_status(RemoteListingFileEntry &file_to_check);
+  asset_system::RemoteAssetFileStatus remote_file_status(RemoteListingFileEntry &file_to_check);
 
  private:
   asset_system::RemoteAssetFileStatus remember(RemoteListingFileEntry &file_to_check,
-                                         asset_system::RemoteAssetFileStatus status);
+                                               asset_system::RemoteAssetFileStatus status);
 };
 
 }  // namespace blender::ed::asset::index

@@ -62,10 +62,10 @@ class AssetRepresentation : NonCopyable, NonMovable {
      * Only meaningful for assets from a remote library that have been checked against the listing.
      * For online-only assets (#online_info_ is set), the status is stored there instead.
      *
-     * \see #AssetRepresentation::file_status()
-     * \see #AssetRepresentation::file_status_set()
+     * \see #AssetRepresentation::remote_file_status()
+     * \see #AssetRepresentation::remote_file_status_set()
      */
-    RemoteAssetFileStatus file_status_ = RemoteAssetFileStatus::UNSET;
+    RemoteAssetFileStatus remote_file_status_ = RemoteAssetFileStatus::UNSET;
 
     /**
      * Set if this is an online asset only.
@@ -217,7 +217,7 @@ class AssetRepresentation : NonCopyable, NonMovable {
    * remote asset listing) available, even when the file is on disk and this function returns
    * `false`.
    *
-   * \see #file_status()
+   * \see #remote_file_status()
    */
   bool is_online_only() const;
   /**
@@ -241,9 +241,9 @@ class AssetRepresentation : NonCopyable, NonMovable {
    * For on-disk assets this reflects the status stamped after listing comparison.
    * For online-only assets this reflects the status from #OnlineAssetInfo.
    */
-  RemoteAssetFileStatus file_status() const;
+  RemoteAssetFileStatus remote_file_status() const;
   /** Set the file status for on-disk assets. No-op for online-only assets. */
-  void file_status_set(RemoteAssetFileStatus status);
+  void remote_file_status_set(RemoteAssetFileStatus status);
   /**
    * Store the remote listing's online info on an on-disk asset so it can be re-downloaded.
    * Replaces any previously set online info.

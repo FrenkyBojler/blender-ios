@@ -28,7 +28,7 @@ FileStatusChecker::FileStatusChecker(const StringRefNull library_root_path)
   this->dfhs_ = disk_file_hash_service_get(dfhs_path);
 }
 
-RemoteAssetFileStatus FileStatusChecker::file_status(RemoteListingFileEntry &file_to_check)
+RemoteAssetFileStatus FileStatusChecker::remote_file_status(RemoteListingFileEntry &file_to_check)
 {
   const StringRefNull relative_file_path = file_to_check.local_path;
 
