@@ -64,7 +64,7 @@ def print_row(table: api.MarkdownTable, entries: list, end='\n') -> None:
     # For time series, revision is printed first.
     row.append(entries[0].revision)
     row.append(entries[0].category)
-    row.append(entries[0].device_type)
+    row.append(api.normalize_device_id(entries[0].device_id))
     row.append(entries[0].test)
 
     for entry in entries:
@@ -136,6 +136,7 @@ def run_entry(env: api.TestEnvironment,
     testcategory = entry.category
     device_type = entry.device_type
     device_id = entry.device_id
+
     gpu_backend = {
         'VULKAN': 'vulkan',
         'METAL': 'metal',
@@ -442,8 +443,10 @@ def cmd_bisect(env: api.TestEnvironment, argv: list):
     end_ts = int(end_dt.timestamp()) + SECONDS_PER_DAY
 
     progress = api.bisect.BisectProgress()
+    env.set_log_file(env.base_dir / 'bisect.log', clear=True)
     bisect = api.bisect.Bisect(env, run_commit_wrapper, start_ts, end_ts)
     bisect.run(progress=progress)
+    env.unset_log_file()
 
     if bisect.first_bad is None:
         print('\nNo regression found in the given date range.')
