@@ -14,6 +14,7 @@
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"
+#include "DEG_depsgraph_query.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
@@ -55,6 +56,24 @@ static float4x4 fcurves_to_matrix(const Span<const FCurve *> fcurves, const int 
     }
   }
   return mat;
+}
+
+static float4x4 get_evaluated_world_space(Depsgraph &dg, const AnimTransformable &transformable)
+{
+  ID *eval_id = DEG_get_evaluated_id(&dg, transformable.owner_id());
+  switch (transformable.type()) {
+    case AnimTransformable::Type::POSE_BONE: {
+      Object *ob_eval = id_cast<Object *>(eval_id);
+      bPoseChannel *pose_bone_eval = BKE_pose_channel_find_name(ob_eval->pose,
+                                                                transformable.name().data());
+      if (!pose_bone_eval) {
+        BLI_assert_unreachable();
+        break;
+      }
+      return ob_eval->object_to_world() * float4x4(pose_bone_eval->pose_mat);
+    }
+  }
+  return float4x4::identity();
 }
 
 /**
@@ -118,7 +137,7 @@ static void copy_world_space(Main &bmain,
     const int key_index = frame - range.min;
     DEG_evaluate_on_framechange(depsgraph, frame);
     for (const AnimTransformable &transformable : transformables) {
-      const float4x4 world_matrix = transformable.get_world_matrix();
+      const float4x4 world_matrix = get_evaluated_world_space(*depsgraph, transformable);
       matrix_to_fcurves(world_matrix, world_space_data.lookup(&transformable), frame, key_index);
     }
   }
