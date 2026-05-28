@@ -8,6 +8,7 @@
 
 #include "BKE_action.hh"
 #include "BKE_appdir.hh"
+#include "BKE_blender_copybuffer.hh"
 #include "BKE_blendfile.hh"
 #include "BKE_context.hh"
 #include "BKE_fcurve.hh"
@@ -29,6 +30,8 @@
 #include "anim_intern.hh"
 
 namespace blender::ed::animrig {
+
+constexpr const char *clipboard_name = "world_space_buffer.blend";
 
 static void matrix_to_fcurves(const float4x4 &matrix,
                               Span<FCurve *> fcurves,
@@ -58,9 +61,11 @@ static float4x4 fcurves_to_matrix(const Span<const FCurve *> fcurves, const int 
   return mat;
 }
 
+/* TODO move this to the AnimTransformable class. */
 static float4x4 get_evaluated_world_space(Depsgraph &dg, const AnimTransformable &transformable)
 {
   ID *eval_id = DEG_get_evaluated_id(&dg, transformable.owner_id());
+  BLI_assert(eval_id);
   switch (transformable.type()) {
     case AnimTransformable::Type::POSE_BONE: {
       Object *ob_eval = id_cast<Object *>(eval_id);
@@ -75,6 +80,8 @@ static float4x4 get_evaluated_world_space(Depsgraph &dg, const AnimTransformable
   }
   return float4x4::identity();
 }
+
+static void foo() {}
 
 /**
  * \param range inclusive/exclusive
@@ -103,14 +110,19 @@ static void copy_world_space(Main &bmain,
   ar::Slot &slot = action.slot_add();
   ar::Channelbag &channelbag = strip_data.channelbag_for_slot_ensure(slot);
 
+  /* We need the ID pointers to build the depsgraph, but every ID in the Vector
+   * should be unique. */
+  Vector<ID *> ids;
+  Set<ID *> added_ids;
   /* We are storing the world space matrix in separate FCurves so the data can be stored in a
    * blend file. */
-  Vector<ID *> ids;
-  Map<const AnimTransformable *, Array<FCurve *>> world_space_data;
-  for (const AnimTransformable &transformable : transformables) {
+  Array<Array<FCurve *>> world_space_data(transformables.size());
+  for (const int transformable_index : transformables.index_range()) {
+    const AnimTransformable &transformable = transformables[transformable_index];
+    if (added_ids.add(transformable.owner_id())) {
+      ids.append(transformable.owner_id());
+    }
     Array<FCurve *> fcurves(12);
-
-    ids.append(transformable.owner_id());
     for (const int i : fcurves.index_range()) {
       FCurve *fcurve = BKE_fcurve_create();
       fcurve->rna_path = BLI_strdupn(transformable.name().data(), transformable.name().size());
@@ -125,9 +137,7 @@ static void copy_world_space(Main &bmain,
       fcurves[i] = fcurve;
     }
 
-    if (!world_space_data.add(&transformable, fcurves)) {
-      BLI_assert_unreachable();
-    }
+    world_space_data[transformable_index] = std::move(fcurves);
   }
 
   Depsgraph *depsgraph = DEG_graph_new(&bmain, &scene, &view_layer, DAG_EVAL_VIEWPORT);
@@ -136,18 +146,86 @@ static void copy_world_space(Main &bmain,
   for (int frame = range.min; frame < range.max; frame++) {
     const int key_index = frame - range.min;
     DEG_evaluate_on_framechange(depsgraph, frame);
-    for (const AnimTransformable &transformable : transformables) {
+    for (const int transformable_index : transformables.index_range()) {
+      const AnimTransformable &transformable = transformables[transformable_index];
       const float4x4 world_matrix = get_evaluated_world_space(*depsgraph, transformable);
-      matrix_to_fcurves(world_matrix, world_space_data.lookup(&transformable), frame, key_index);
+      matrix_to_fcurves(world_matrix, world_space_data[transformable_index], frame, key_index);
     }
   }
 
   DEG_graph_free(depsgraph);
 
   char filepath[FILE_MAX];
-  BLI_path_join(filepath, sizeof(filepath), BKE_tempdir_base(), "world_space_buffer.blend");
+  BLI_path_join(filepath, sizeof(filepath), BKE_tempdir_base(), clipboard_name);
   BLI_assert(copybuffer.is_valid());
   copybuffer.write_as_copypaste_buffer(filepath, reports);
+}
+
+static void paste_world_space(ReportList &reports,
+                              const MutableSpan<AnimTransformable> transformables)
+{
+  namespace ar = blender::animrig;
+
+  char filepath[FILE_MAX];
+  BLI_path_join(filepath, sizeof(filepath), BKE_tempdir_base(), clipboard_name);
+  Main *clipboard_bmain = BKE_main_new();
+
+  if (!BKE_copybuffer_read(clipboard_bmain, filepath, &reports, FILTER_ID_AC)) {
+    BKE_report(&reports, RPT_ERROR, "No clipboard to read from");
+    BKE_main_free(clipboard_bmain);
+    return;
+  }
+
+  if (clipboard_bmain->actions.is_empty()) {
+    BKE_report(&reports, RPT_ERROR, "Clipboard data has no animation data");
+    BKE_main_free(clipboard_bmain);
+    return;
+  }
+
+  bAction *dna_action = reinterpret_cast<bAction *>(clipboard_bmain->actions.first);
+  ar::Action &action = dna_action->wrap();
+  if (action.strip_keyframe_data().is_empty() ||
+      action.strip_keyframe_data()[0]->channelbags().is_empty())
+  {
+    BKE_report(&reports, RPT_ERROR, "Clipboard data has no animation data");
+    BKE_main_free(clipboard_bmain);
+    return;
+  }
+
+  ar::Channelbag &channelbag = *action.strip_keyframe_data()[0]->channelbags()[0];
+  Map<StringRefNull, Array<FCurve *>> world_space_data;
+  for (FCurve *fcurve : channelbag.fcurves()) {
+    Array<FCurve *> fcurves = world_space_data.lookup_or_add(fcurve->rna_path,
+                                                             Array<FCurve *>(12));
+    fcurves[fcurve->array_index] = fcurve;
+  }
+
+  /* We need to first apply the transformation to those entities that are not affected by any other
+   * transformables. This is why we need to sort using the depsgraph. */
+  Array<AnimTransformable *> sorted_transformables(transformables.size());
+  for (const int i : transformables.index_range()) {
+    sorted_transformables[i] = &transformables[i];
+  }
+
+  for (AnimTransformable *transformable : sorted_transformables) {
+    const Array<FCurve *> *fcurves = world_space_data.lookup_ptr(transformable->name());
+    if (!fcurves) {
+      continue;
+    }
+    /* Assuming that all FCurves have the same vertex count and their keys on the same frames. */
+    FCurve *first_fcurve = (*fcurves)[0];
+    if (first_fcurve->totvert == 0) {
+      continue;
+    }
+    const Bounds<int> range = {first_fcurve->fpt[0].vec[0],
+                               first_fcurve->fpt[first_fcurve->totvert - 1].vec[0]};
+    for (int frame = range.min; frame < range.max; frame++) {
+      const int key_index = frame - range.min;
+      const float4x4 matrix = fcurves_to_matrix(*fcurves, key_index);
+    }
+  }
+
+  BKE_main_free(clipboard_bmain);
 }
 
 /* -------------------------------------------------------------------- */
@@ -182,7 +260,7 @@ static wmOperatorStatus world_space_copy_exec(bContext *C, wmOperator *op)
 
   Bounds<int> bounds = {RNA_int_get(op->ptr, "start"), RNA_int_get(op->ptr, "end")};
   if (bounds.is_empty()) {
-    BKE_reportf(op->reports, RPT_WARNING, "Invalid frame range %d-%d", bounds.min, bounds.max);
+    BKE_reportf(op->reports, RPT_ERROR, "Invalid frame range %d-%d", bounds.min, bounds.max);
     return OPERATOR_CANCELLED;
   }
   copy_world_space(*CTX_data_main(C),
@@ -219,6 +297,8 @@ void ANIM_OT_world_space_copy(wmOperatorType *ot)
 
 static wmOperatorStatus world_space_paste_exec(bContext *C, wmOperator *op)
 {
+  Vector<AnimTransformable> transformables = selected_transformables_from_context(C);
+  paste_world_space(*op->reports, transformables);
   return OPERATOR_FINISHED;
 }
 
