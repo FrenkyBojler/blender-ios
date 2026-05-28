@@ -2368,14 +2368,11 @@ static void widget_draw_vertical_text(const uiFontStyle *fstyle,
 {
   fontstyle_set(fstyle);
   BLF_enable(fstyle->uifont_id, BLF_ROTATION);
-  BLF_rotation(fstyle->uifont_id, but->text_direction == TextDirection::Up ? M_PI_2 : -M_PI_2);
-  BLF_color4ubv(fstyle->uifont_id, wcol->text);
   const bool down = but->text_direction == TextDirection::Down;
-  float width;
-  float height;
-  BLF_width_and_height(
-      fstyle->uifont_id, but->drawstr.c_str(), but->drawstr.size(), &width, &height);
-  height = BLF_ascender(fstyle->uifont_id) + BLF_descender(fstyle->uifont_id);
+  BLF_rotation(fstyle->uifont_id, !down ? M_PI_2 : -M_PI_2);
+  BLF_color4ubv(fstyle->uifont_id, wcol->text);
+  const float width = BLF_width(fstyle->uifont_id, but->drawstr.c_str(), but->drawstr.size());
+  const float height = BLF_ascender(fstyle->uifont_id) + BLF_descender(fstyle->uifont_id);
   const int xofs = ceil(0.5f * (BLI_rcti_size_x(rect) - height)) * (down ? 1 : -1);
   const int yofs = (BLI_rcti_size_y(rect) - width) / 2 * (down ? 1 : -1);
   BLF_position(fstyle->uifont_id,
