@@ -81,6 +81,7 @@ class AnimTransformable {
   /* This is the path from the owner ID to the struct that the AnimTransformable represents. Has to
    * be created in the constructor. For structs that are an ID this is an empty string. */
   std::string rna_path_from_id_;
+  char *name_;
 
   /* We are assuming here that the ground truth of transforms is store in separate loc rot scale
    * and not in a matrix, thus skew is not supported. */
@@ -114,6 +115,11 @@ class AnimTransformable {
   ID *owner_id() const
   {
     return owner_id_;
+  }
+
+  const StringRefNull name() const
+  {
+    return name_;
   }
 
   template<typename T> T data() const;
@@ -179,6 +185,14 @@ class AnimTransformable {
                          float target,
                          float factor,
                          AxisMutable axis_flag);
+
+  /* matrices iare returned as 4x4. In case 2D data support is added, we'd need to make that more
+   * dynamic. */
+
+  /**
+   * \note assumes that the depsgraph has been evaluated.
+   */
+  float4x4 get_world_matrix() const;
 };
 
 /**

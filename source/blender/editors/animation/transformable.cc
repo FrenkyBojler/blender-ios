@@ -6,10 +6,14 @@
  * \ingroup edanimation
  */
 
+#include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_string.h"
 
+#include "DNA_action_types.h"
 #include "DNA_object_types.h"
+
+#include "BKE_armature.hh"
 
 #include "ANIM_rna.hh"
 
@@ -246,6 +250,7 @@ AnimTransformable::AnimTransformable(Object &owner_id, bPoseChannel &pchan)
 {
   build_rotations_array(rotations_, pchan.eul, pchan.quat, pchan.rotAxis, &pchan.rotAngle);
   rna_path_from_id_ = animrig::get_pose_bone_rna_path(pchan);
+  name_ = pchan.name;
 }
 
 template<> bPoseChannel *AnimTransformable::data<bPoseChannel *>() const
@@ -494,6 +499,21 @@ void AnimTransformable::blend_rotation_to(const Rotation &target,
   for (const int i : result.index_range()) {
     *(*rotations_array)[i] = result[i];
   }
+}
+
+float4x4 AnimTransformable::get_world_matrix() const
+{
+  switch (type_) {
+    case Type::POSE_BONE: {
+      Object *object = id_cast<Object *>(owner_id_);
+      const bPoseChannel *pose_bone = reinterpret_cast<bPoseChannel *>(data_);
+      float4x4 mat = object->object_to_world() * float4x4(pose_bone->pose_mat);
+      return mat;
+    }
+  }
+
+  BLI_assert_unreachable();
+  return {};
 }
 
 }  // namespace blender::ed
