@@ -26,6 +26,7 @@
 #  include "valgrind/memcheck.h"
 #endif
 
+#include "../../source/blender/blenlib/BLI_profile.hh"
 /* to ensure strict conversions */
 #include "../../source/blender/blenlib/BLI_strict_flags.h"
 
@@ -542,6 +543,7 @@ void *MEM_guarded_mallocN(size_t len, const char *str)
   len = SIZET_ALIGN_4(len);
 
   memh = (MemHead *)malloc(len + sizeof(MemHead) + sizeof(MemTail));
+  BLI_profile_memory_alloc(memh, len + sizeof(MemHead) + sizeof(MemTail));
 
   if (LIKELY(memh)) {
     make_memhead_header(memh, len, str, DestructorType::Trivial);
@@ -627,6 +629,7 @@ void *MEM_guarded_mallocN_aligned(size_t len,
 
   MemHead *memh = (MemHead *)aligned_malloc(
       len + extra_padding + sizeof(MemHead) + sizeof(MemTail), alignment);
+  BLI_profile_memory_alloc(memh, len + extra_padding + sizeof(MemHead) + sizeof(MemTail));
 
   if (LIKELY(memh)) {
     /* We keep padding in the beginning of MemHead,
@@ -673,6 +676,7 @@ void *MEM_guarded_callocN(size_t len, const char *str)
   len = SIZET_ALIGN_4(len);
 
   memh = (MemHead *)calloc(len + sizeof(MemHead) + sizeof(MemTail), 1);
+  BLI_profile_memory_alloc(memh, len + sizeof(MemHead) + sizeof(MemTail));
 
   if (memh) {
     make_memhead_header(memh, len, str, DestructorType::Trivial);
@@ -1208,6 +1212,7 @@ static void rem_memblock(MemHead *memh)
     memset(memh + 1, 255, memh->len);
   }
   if (LIKELY(memh->alignment == 0)) {
+    BLI_profile_memory_free(memh);
     free(memh);
   }
   else {

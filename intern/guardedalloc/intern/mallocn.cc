@@ -10,6 +10,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "../../source/blender/blenlib/BLI_profile.hh"
 /* To ensure strict conversions. */
 #include "../../source/blender/blenlib/BLI_strict_flags.h"
 
@@ -100,6 +101,7 @@ void aligned_free(void *ptr)
 #ifdef _WIN32
   _aligned_free(ptr);
 #else
+  BLI_profile_memory_free(ptr);
   free(ptr);
 #endif
 }

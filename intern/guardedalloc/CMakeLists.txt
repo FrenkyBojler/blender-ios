@@ -42,6 +42,7 @@ set(SRC
 set(LIB
   PRIVATE bf::intern::atomic
   PRIVATE bf::dependencies::pthreads
+  PUBLIC bf::dependencies::optional::tracy_client
 )
 
 blender_add_lib(bf_intern_guardedalloc "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
