@@ -51,6 +51,7 @@
 #include "IMB_imbuf.hh"
 #include "IMB_thumbs.hh"
 
+#include "RNA_types.hh"
 #include "WM_api.hh"
 
 #include "DNA_space_types.h"
@@ -445,25 +446,22 @@ static bool asset_library_refresh_poll(bContext *C)
          list::has_asset_browser_storage_for_library(library, C);
 }
 
-static wmOperatorStatus asset_library_refresh_exec(bContext *C, wmOperator * /*unused*/)
+static void do_asset_library_refresh(bContext *C)
 {
   const AssetLibraryReference *library = CTX_wm_asset_library_ref(C);
   /* Handles both global asset list storage and asset browsers. */
   list::clear(library, C);
   WM_event_add_notifier(C, NC_ASSET | ND_ASSET_LIST_READING, nullptr);
-
-  return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus asset_library_refresh_invoke(bContext *C,
-                                                     wmOperator *op,
-                                                     const wmEvent *event)
+static wmOperatorStatus asset_library_refresh_exec(bContext *C, wmOperator *op)
 {
   using namespace blender::asset_system;
 
-  if ((event->modifier & KM_SHIFT) == 0) {
-    /* On a normal click, a normal refresh is enough. */
-    return asset_library_refresh_exec(C, op);
+  if (!RNA_boolean_get(op->ptr, "use_remote_listing")) {
+    /* Just a plain refresh of the asset browser. */
+    do_asset_library_refresh(C);
+    return OPERATOR_FINISHED;
   }
 
   /* Find the asset library, depending on where we were invoked from. */
@@ -494,6 +492,18 @@ static wmOperatorStatus asset_library_refresh_invoke(bContext *C,
   /* Always end with a regular refresh, as a "forced refresh" like this should be an additional
    * thing on top of regular refreshing (otherwise it would be weird to use the refresh button for
    * this). */
+  do_asset_library_refresh(C);
+
+  return OPERATOR_FINISHED;
+}
+
+static wmOperatorStatus asset_library_refresh_invoke(bContext *C,
+                                                     wmOperator *op,
+                                                     const wmEvent *event)
+{
+  if (event->modifier & KM_SHIFT) {
+    RNA_boolean_set(op->ptr, "use_remote_listing", true);
+  }
   return asset_library_refresh_exec(C, op);
 }
 
@@ -508,6 +518,16 @@ static void ASSET_OT_library_refresh(wmOperatorType *ot)
   ot->invoke = asset_library_refresh_invoke;
   ot->exec = asset_library_refresh_exec;
   ot->poll = asset_library_refresh_poll;
+
+  PropertyRNA *prop;
+  prop = RNA_def_boolean(
+      ot->srna,
+      "use_remote_listing",
+      false,
+      "Remote Listing",
+      "Re-download the asset listing of a remote library. Only supported when the active asset "
+      "library is remote or has a remote component (the Essentials library)");
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
 /* -------------------------------------------------------------------- */
