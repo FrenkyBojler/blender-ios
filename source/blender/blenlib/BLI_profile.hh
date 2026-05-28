@@ -92,25 +92,6 @@ enum class ProfileCategory : uint32_t {
 #  define BLI_PROFILE_CONCAT_INNER(a, b) a##b
 #  define BLI_PROFILE_CONCAT(a, b) BLI_PROFILE_CONCAT_INNER(a, b)
 
-/**
- * Map a `ProfileCategory` enum value to the Perfetto category string used in
- * PERFETTO_DEFINE_CATEGORIES (see intern/perfetto/perfetto_trace.cc).
- */
-constexpr const char *bli_profile_category_str(::blender::ProfileCategory cat)
-{
-  switch (cat) {
-    case ::blender::ProfileCategory::Core:
-      return "core";
-    case ::blender::ProfileCategory::Draw:
-      return "draw";
-    case ::blender::ProfileCategory::Editor:
-      return "editor";
-    case ::blender::ProfileCategory::Default:
-    default:
-      return "default";
-  }
-}
-
 /** Frame markers. */
 #  define BLI_profile_frame_mark ::blender::perfetto_frame_mark()
 #  define BLI_profile_frame_mark_start(name) ::blender::perfetto_frame_mark_start((name).c_str())
@@ -119,15 +100,17 @@ constexpr const char *bli_profile_category_str(::blender::ProfileCategory cat)
 /**
  * Profile the current scope using a Perfetto RAII guard.
  * The guard is named `_bli_pscope_<line>` to avoid collisions in the same function.
+ *
+ * The `uint32_t(category)` value is the raw colour value of `ProfileCategory`, which is used
+ * directly as the category identifier in `perfetto_trace.cc` — see the dispatch table there.
  */
 #  define BLI_profile_scope(category) \
     ::blender::PerfettoScope BLI_PROFILE_CONCAT(_bli_pscope_, __LINE__)( \
-        ::blender::bli_profile_category_str(category), __func__)
+        uint32_t(category), __func__)
 
 /** `name` is expected to be a `const char*` string literal. */
 #  define BLI_profile_scope_with_name(name, category) \
-    ::blender::PerfettoScope BLI_PROFILE_CONCAT(_bli_pscope_, __LINE__)( \
-        ::blender::bli_profile_category_str(category), name)
+    ::blender::PerfettoScope BLI_PROFILE_CONCAT(_bli_pscope_, __LINE__)(uint32_t(category), name)
 
 /**
  * Set the profiled scope's name dynamically.
@@ -149,11 +132,11 @@ constexpr const char *bli_profile_category_str(::blender::ProfileCategory cat)
  * `var` can be used with the `_var_` family of macros below.
  */
 #  define BLI_profile_scope_var(var, category) \
-    ::blender::PerfettoScope var(::blender::bli_profile_category_str(category), __func__)
+    ::blender::PerfettoScope var(uint32_t(category), __func__)
 
 /** `ui_name` is expected to be a `const char*` string literal. */
 #  define BLI_profile_scope_var_with_name(var, ui_name, category) \
-    ::blender::PerfettoScope var(::blender::bli_profile_category_str(category), ui_name)
+    ::blender::PerfettoScope var(uint32_t(category), ui_name)
 
 /**
  * The `_var_` annotation macros operate on the scope bound to `var`.

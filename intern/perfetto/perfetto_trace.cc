@@ -46,9 +46,13 @@
 /* -------------------------------------------------------------------- */
 /** \name Perfetto category definitions
  *
- * Every category string used with TRACE_EVENT_* must be listed here.
- * The names mirror Blender's `ProfileCategory` enum values so that the trace viewer shows
- * meaningful category names.
+ * IMPORTANT — keep the following three things in sync whenever categories change:
+ *   1. `PERFETTO_DEFINE_CATEGORIES` below (the Perfetto category strings).
+ *   2. `BlenderPerfettoCategory` enum below (maps ProfileCategory colour values → strings).
+ *   3. `blender::ProfileCategory` enum in `source/blender/blenlib/BLI_profile.hh`.
+ *
+ * The `BlenderPerfettoCategory` enum uses the same colour values as `ProfileCategory` so that
+ * the raw `uint32_t` passed through the API can be compared without any string conversion.
  * \{ */
 
 /* clang-format off */
@@ -63,6 +67,16 @@ PERFETTO_DEFINE_CATEGORIES(
 
 /* Required in exactly one .cc file to instantiate the category registry. */
 PERFETTO_TRACK_EVENT_STATIC_STORAGE();
+
+/**
+ * Mirror of `blender::ProfileCategory` MUST be kept in sync with `blender::ProfileCategory` in `BLI_profile.hh`.
+ */
+enum class BlenderPerfettoCategory : uint32_t {
+  Default = 0x000001,
+  Core    = 0x0088FE,
+  Draw    = 0x00C49F,
+  Editor  = 0xFFBB28,
+};
 
 /** \} */
 
@@ -94,72 +108,41 @@ int g_live_fd = -1;
  *
  * TRACE_EVENT_BEGIN/END require a compile-time constant category string on MSVC.
  * Since our category set is fixed and known at compile time, we dispatch to the
- * correct static call based on the runtime string value.
+ * correct static call based on the uint32_t category value.
  * \{ */
 
-enum class BlenderCategory {
-  Default,
-  Core,
-  Draw,
-  Editor,
-  Frame,
-};
-
-BlenderCategory category_from_string(const char *category)
+void trace_event_begin_for_category(uint32_t category, const char *name)
 {
-  if (std::strcmp(category, "core") == 0) {
-    return BlenderCategory::Core;
-  }
-  if (std::strcmp(category, "draw") == 0) {
-    return BlenderCategory::Draw;
-  }
-  if (std::strcmp(category, "editor") == 0) {
-    return BlenderCategory::Editor;
-  }
-  if (std::strcmp(category, "frame") == 0) {
-    return BlenderCategory::Frame;
-  }
-  return BlenderCategory::Default;
-}
-
-void trace_event_begin_for_category(BlenderCategory cat, const char *name)
-{
-  switch (cat) {
-    case BlenderCategory::Core:
+  switch (static_cast<BlenderPerfettoCategory>(category)) {
+    case BlenderPerfettoCategory::Core:
       TRACE_EVENT_BEGIN("core", perfetto::DynamicString(name));
       break;
-    case BlenderCategory::Draw:
+    case BlenderPerfettoCategory::Draw:
       TRACE_EVENT_BEGIN("draw", perfetto::DynamicString(name));
       break;
-    case BlenderCategory::Editor:
+    case BlenderPerfettoCategory::Editor:
       TRACE_EVENT_BEGIN("editor", perfetto::DynamicString(name));
       break;
-    case BlenderCategory::Frame:
-      TRACE_EVENT_BEGIN("frame", perfetto::DynamicString(name));
-      break;
-    case BlenderCategory::Default:
+    case BlenderPerfettoCategory::Default:
     default:
       TRACE_EVENT_BEGIN("default", perfetto::DynamicString(name));
       break;
   }
 }
 
-void trace_event_end_for_category(BlenderCategory cat)
+void trace_event_end_for_category(uint32_t category)
 {
-  switch (cat) {
-    case BlenderCategory::Core:
+  switch (static_cast<BlenderPerfettoCategory>(category)) {
+    case BlenderPerfettoCategory::Core:
       TRACE_EVENT_END("core");
       break;
-    case BlenderCategory::Draw:
+    case BlenderPerfettoCategory::Draw:
       TRACE_EVENT_END("draw");
       break;
-    case BlenderCategory::Editor:
+    case BlenderPerfettoCategory::Editor:
       TRACE_EVENT_END("editor");
       break;
-    case BlenderCategory::Frame:
-      TRACE_EVENT_END("frame");
-      break;
-    case BlenderCategory::Default:
+    case BlenderPerfettoCategory::Default:
     default:
       TRACE_EVENT_END("default");
       break;
@@ -293,16 +276,17 @@ void perfetto_shutdown()
 /** \name Scope tracing
  * \{ */
 
-void perfetto_scope_begin(const char *category, const char *name)
+void perfetto_scope_begin(uint32_t category, const char *name)
 {
   /* Dispatch to the correct static category. TRACE_EVENT_BEGIN requires a compile-time constant
-   * category string on MSVC, so we cannot pass the runtime `category` pointer directly. */
-  trace_event_begin_for_category(category_from_string(category), name);
+   * string on MSVC, so we cannot pass a runtime value directly. The uint32_t is the raw value
+   * of blender::ProfileCategory — see the dispatch helpers above. */
+  trace_event_begin_for_category(category, name);
 }
 
-void perfetto_scope_end(const char *category)
+void perfetto_scope_end(uint32_t category)
 {
-  trace_event_end_for_category(category_from_string(category));
+  trace_event_end_for_category(category);
 }
 
 void perfetto_scope_add_annotation(const char * /*key*/, const char * /*value*/)

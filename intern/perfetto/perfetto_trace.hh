@@ -26,6 +26,10 @@ namespace blender {
  * Initialize the Perfetto tracing backend and start an in-process tracing session.
  * The trace is written to a file named "blender.perfetto-trace" in the current working directory.
  * Must be called once before any trace events are emitted.
+ *
+ * If the environment variable `BLENDER_PERFETTO_LIVE` is set to `"1"`, events are written
+ * directly to the file as they are emitted (live/crash-safe mode). Otherwise events are buffered
+ * in memory and written on clean shutdown (buffered mode).
  */
 void perfetto_init();
 
@@ -47,20 +51,19 @@ void perfetto_shutdown();
 /**
  * Emit a "begin" slice event on the current thread.
  *
- * \param category: A null-terminated string identifying the trace category
- *                  (must remain valid for the duration of the call).
- * \param name:     A null-terminated string for the slice name
- *                  (must remain valid until the matching `perfetto_scope_end` call).
+ * \param category: The raw `uint32_t` value of `blender::ProfileCategory`.
+ * \param name:     A null-terminated string for the slice name.
+ *                  Must remain valid until the matching `perfetto_scope_end` call.
  */
-void perfetto_scope_begin(const char *category, const char *name);
+void perfetto_scope_begin(uint32_t category, const char *name);
 
 /**
  * Emit an "end" slice event on the current thread, closing the most recently opened slice
  * in \a category.
  *
- * \param category: Must match the category passed to the corresponding `perfetto_scope_begin`.
+ * \param category: Must match the value passed to the corresponding `perfetto_scope_begin`.
  */
-void perfetto_scope_end(const char *category);
+void perfetto_scope_end(uint32_t category);
 
 /**
  * Attach an arbitrary text annotation to the innermost open slice on the current thread.
@@ -116,10 +119,12 @@ void perfetto_frame_mark_end(const char *name);
 /**
  * RAII guard that calls `perfetto_scope_begin` on construction and `perfetto_scope_end` on
  * destruction. Intended to be used via the `BLI_profile_scope` / `BLI_profile_scope_var` macros.
+ *
+ * \param category: Raw `uint32_t` value of `blender::ProfileCategory`.
  */
 class PerfettoScope {
  public:
-  PerfettoScope(const char *category, const char *name) : category_(category)
+  PerfettoScope(uint32_t category, const char *name) : category_(category)
   {
     perfetto_scope_begin(category_, name);
   }
@@ -136,7 +141,7 @@ class PerfettoScope {
   PerfettoScope &operator=(PerfettoScope &&) = delete;
 
  private:
-  const char *category_;
+  uint32_t category_;
 };
 
 /** \} */
