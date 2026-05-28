@@ -296,10 +296,10 @@ void OBJMesh::store_uv_coords_and_indices()
   if (export_uv_seams_) {
     const VArraySpan<bool> uv_seams = *attributes.lookup<bool>("uv_seam", bke::AttrDomain::Edge);
     const Span<int> corner_edges = export_mesh_->corner_edges();
-    for (int index = 0; index < int(uv_map.size()); index++) {
-      if (uv_seams[corner_edges[index]]) {
-        uv_coords_.append(uv_map[index]);
-        corner_to_uv_index_[index] = uv_coords_.size() - 1;
+    for (const int i : corner_edges.index_range()) {
+      if (uv_seams[corner_edges[i]]) {
+        uv_coords_.append(uv_map[i]);
+        corner_to_uv_index_[i] = uv_coords_.size() - 1;
       }
     }
   }
