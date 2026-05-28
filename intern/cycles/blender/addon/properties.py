@@ -1914,7 +1914,8 @@ class CyclesPreferences(bpy.types.AddonPreferences):
                     # to distinguish between Intel® Arc™ and Intel® Arc™ Pro users.
                     driver_version = "XX.X.101.8306"
                     col.label(
-                        text=rpt_("Requires Intel(R) Arc(TM) GPUs or newer Intel(R) Graphics"),
+                        text=self._format_device_name(
+    rpt_("Requires Intel(R) Arc(TM) GPUs or newer Intel(R) Graphics")),
                         icon='BLANK1',
                         translate=False)
                     col.label(text=rpt_("with Windows driver version %s or newer") % driver_version,
@@ -1922,7 +1923,7 @@ class CyclesPreferences(bpy.types.AddonPreferences):
                 elif sys.platform.startswith("linux"):
                     driver_version = "XX.XX.34666.3"
                     col.label(
-                        text=rpt_("Requires Intel GPU with Xe-HPG architecture and"),
+                        text=self._format_device_name(rpt_("Requires Intel(R) Arc(TM) GPUs or newer Intel(R) Graphics"),
                         icon='BLANK1',
                         translate=False)
                     col.label(
