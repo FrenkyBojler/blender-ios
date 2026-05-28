@@ -3662,7 +3662,7 @@ static void button_text_completion(bContext *C, Button *but, HandleButtonData *d
     return;
   }
 
-  /* Set the completion  text (hint) to the unit that is used by this value. */
+  /* Set the completion text (hint) to the unit that is used by this value. */
   std::string name_short;
   const int unit_type = RNA_SUBTYPE_UNIT_VALUE(button_unit_type_get(but));
   if (unit_type != PROP_NONE) {
