@@ -454,14 +454,18 @@ static void do_asset_library_refresh(bContext *C)
   WM_event_add_notifier(C, NC_ASSET | ND_ASSET_LIST_READING, nullptr);
 }
 
+struct AssetLibraryAndRef {
+  const asset_system::AssetLibrary *library;
+  AssetLibraryReference reference;
+};
+
 /**
  * Get the AssetLibrary and its AssetLibraryReference from the context.
  *
  * This abstracts away the various null pointers and empty optionals that can occur, and maps them
  * all to a single optional.
  */
-static std::optional<std::pair<const asset_system::AssetLibrary *, AssetLibraryReference>>
-ctx_asset_library(bContext *C)
+static std::optional<AssetLibraryAndRef> ctx_asset_library(bContext *C)
 {
   /* Find the asset library, depending on where we were invoked from. */
   if (ED_operator_asset_browsing_active(C)) {
@@ -475,7 +479,7 @@ ctx_asset_library(bContext *C)
       return {};
     }
 
-    return std::make_pair(asset_lib, *library_ref);
+    return {{asset_lib, *library_ref}};
   }
 
   const AssetLibraryReference *library_ref = CTX_wm_asset_library_ref(C);
@@ -488,7 +492,7 @@ ctx_asset_library(bContext *C)
     return {};
   }
 
-  return std::make_pair(asset_lib, *library_ref);
+  return {{asset_lib, *library_ref}};
 }
 
 static wmOperatorStatus asset_library_reload_listing_exec(bContext *C, wmOperator *op)
@@ -503,7 +507,7 @@ static wmOperatorStatus asset_library_reload_listing_exec(bContext *C, wmOperato
   /* Find the asset library, depending on where we were invoked from. */
   const auto asset_lib_and_ref = ctx_asset_library(C);
   if (!asset_lib_and_ref ||
-      !asset_system::is_or_contains_remote_libraries(asset_lib_and_ref->second))
+      !asset_system::is_or_contains_remote_libraries(asset_lib_and_ref->reference))
   {
     BKE_report(
         op->reports, RPT_ERROR, "This asset library does not have a remote listing to download");
@@ -511,7 +515,7 @@ static wmOperatorStatus asset_library_reload_listing_exec(bContext *C, wmOperato
   }
 
   /* Re-download the asset listing on shift-click. */
-  asset_lib_and_ref->first->force_remote_listing_download();
+  asset_lib_and_ref->library->force_remote_listing_download();
 
   /* Always end with a regular refresh, as a "forced refresh" like this should be an additional
    * thing on top of regular refreshing (otherwise it would be weird to use the refresh button for
@@ -525,7 +529,7 @@ static bool asset_library_reload_listing_poll(bContext *C)
 {
   const auto asset_lib_and_ref = ctx_asset_library(C);
   if (!asset_lib_and_ref ||
-      !asset_system::is_or_contains_remote_libraries(asset_lib_and_ref->second))
+      !asset_system::is_or_contains_remote_libraries(asset_lib_and_ref->reference))
   {
     CTX_wm_operator_poll_msg_set(C, "This is not a remote library");
     return false;
