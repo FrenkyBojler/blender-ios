@@ -3686,6 +3686,7 @@ static void button_text_completion(bContext *C, Button *but, HandleButtonData *d
     BKE_unit_system_get(unit_settings.system, unit_type, &usys, &len);
     const int unit_index = BKE_unit_of_type_or_default(unit_settings, unit_type);
     name_short = BKE_unit_display_name_short_get(usys, unit_index);
+    BLI_assert(!name_short.empty());
   }
   else if (but->rnaprop) {
     /* Special handling for PROP_PIXEL and PROP_PERCENTAGE (because they are not treated as units
