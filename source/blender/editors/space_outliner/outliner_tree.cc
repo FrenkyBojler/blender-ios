@@ -655,6 +655,7 @@ static void outliner_sort(ListBaseT<TreeElement> *lb)
   }
   TreeStoreElem *last_tselem = TREESTORE(last_te);
 
+  /* Check if we are expanding Armature data and if there are bone collections. */
   const TreeElement *first_te = static_cast<TreeElement *>(lb->first);
   const TreeStoreElem *first_tselem = TREESTORE(first_te);
   const bool inside_armature_data = ELEM(
@@ -689,11 +690,13 @@ static void outliner_sort(ListBaseT<TreeElement> *lb)
         tp++;
       }
 
+      /* Just sort alphabetically (but keep bone collections last when inside armature data). */
       if (tear->idcode == 1) {
         const int skip_back = has_armature_data_bone_collections ? 1 : 0;
         std::sort(tear, tear + totelem - skip_back, treesort_alpha);
       }
       else {
+        /* keep beginning of list */
         int skip_front = 0;
         for (tp = tear, skip_front = 0; skip_front < totelem; skip_front++, tp++) {
           if (tp->idcode) {
