@@ -18,13 +18,20 @@ using namespace blender::asset_system;
 
 namespace blender::ed::asset::index {
 
-constexpr const char *dfhs_filename_prefix = "_file_hashes";
+/**
+ * Filename prefix for the Disk File Hash Service used by FileStatusChecker.
+ *
+ * The Disk File Hash Service itself will complete the filename depending on the back-end used. At
+ * the moment of writing that's SQLite, which'll append `_v{schema version}.sqlite`.
+ */
+constexpr const char *hash_service_filename_prefix = "_file_hashes";
 
 FileStatusChecker::FileStatusChecker(const StringRefNull library_root_path)
     : library_root_path_(library_root_path)
 {
   char dfhs_path[PATH_MAX];
-  BLI_path_join(dfhs_path, sizeof(dfhs_path), library_root_path.c_str(), dfhs_filename_prefix);
+  BLI_path_join(
+      dfhs_path, sizeof(dfhs_path), library_root_path.c_str(), hash_service_filename_prefix);
   this->dfhs_ = disk_file_hash_service_get(dfhs_path);
 }
 
