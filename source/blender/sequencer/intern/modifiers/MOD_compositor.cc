@@ -394,8 +394,11 @@ class CompositorModifierContext : public CompositorContext {
   {
     const StripModifierData &smd = this->modifier_data_->modifier;
     if (smd.mask_input_type == STRIP_MASK_INPUT_STRIP && smd.mask_strip) {
-      this->mask_buffer_ = seq_render_strip(
-          &context.render_data, &context.render_state, smd.mask_strip, timeline_frame);
+      this->mask_buffer_ = seq_render_strip(&context.render_data,
+                                            &context.render_state,
+                                            smd.mask_strip,
+                                            timeline_frame)
+                               .image;
       if (this->mask_buffer_ != nullptr) {
         this->create_result_from_input(this->mask_, *this->mask_buffer_);
         this->owns_mask_ = true;
@@ -420,15 +423,17 @@ class CompositorModifierContext : public CompositorContext {
 
       const int width = context.render_data.rectx;
       const int height = context.render_data.recty;
-      this->mask_ = this->cache_manager().cached_masks.get(*this,
-                                                           smd.mask_id,
-                                                           compositor::Domain(int2(width, height)),
-                                                           1.0f,
-                                                           true,
-                                                           frame_index,
-                                                           1,
-                                                           0.0f,
-                                                           seq_space_is_srgb);
+      this->mask_.set_type(compositor::ResultType::Float);
+      this->mask_.share_data(
+          this->cache_manager().cached_masks.get(*this,
+                                                 smd.mask_id,
+                                                 compositor::Domain(int2(width, height)),
+                                                 1.0f,
+                                                 true,
+                                                 frame_index,
+                                                 1,
+                                                 0.0f,
+                                                 seq_space_is_srgb));
       this->owns_mask_ = false;
     }
   }

@@ -570,9 +570,9 @@ bool OSLRenderServices::trace(TraceOpt &options,
   }
   else {
     /* Ray-trace, leaving out shadow opaque to avoid early exit. */
-    uint visibility = PATH_RAY_ALL_VISIBILITY - PATH_RAY_SHADOW_OPAQUE;
+    PathRayVisibility visibility = PATH_RAY_VISIBILITY_ALL & ~PATH_RAY_VISIBILITY_SHADOW_OPAQUE;
     if (options.traceset == DeviceStrings::u_traceset_raycast) {
-      visibility = PATH_RAY_RAYCAST;
+      visibility = PATH_RAY_VISIBILITY_RAYCAST;
     }
     tracedata->hit = scene_intersect(kg, &ray, visibility, &tracedata->isect);
     if (tracedata->hit) {

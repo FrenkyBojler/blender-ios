@@ -37,14 +37,17 @@ static void node_declare(NodeDeclarationBuilder &b)
 
   b.add_input<decl::Geometry>("Geometry"_ustr)
       .description("Geometry to store a new attribute with the given name on");
-  b.add_output<decl::Geometry>("Geometry"_ustr).propagate_all().align_with_previous();
-  b.add_input<decl::Bool>("Selection"_ustr).default_value(true).hide_value().field_on_all();
+  b.add_output<decl::Geometry>("Geometry"_ustr).propagate_all_geometry().align_with_previous();
+  b.add_input<decl::Bool>("Selection"_ustr)
+      .default_value(true)
+      .hide_value()
+      .evaluated_geometry_field();
   b.add_input<decl::String>("Name"_ustr).is_attribute_name().optional_label();
 
   if (node != nullptr) {
     const NodeGeometryStoreNamedAttribute &storage = node_storage(*node);
     const eCustomDataType data_type = eCustomDataType(storage.data_type);
-    b.add_input(data_type, "Value"_ustr).field_on_all();
+    b.add_input(data_type, "Value"_ustr).evaluated_geometry_field();
   }
 }
 
@@ -72,7 +75,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 
   if (params.in_out() == SOCK_IN) {
     const std::optional<eCustomDataType> type = bke::socket_type_to_custom_data_type(
-        eNodeSocketDatatype(params.other_socket().type));
+        params.other_socket().type);
     if (type && *type != CD_PROP_STRING) {
       /* The input and output sockets have the same name. */
       params.add_item(IFACE_("Value"), [type](LinkSearchOpParams &params) {

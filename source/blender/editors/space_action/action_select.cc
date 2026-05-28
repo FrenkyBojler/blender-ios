@@ -1229,8 +1229,8 @@ static void columnselect_action_keys(bAnimContext *ac, short mode)
   }
 
   /* free elements */
-  BLI_freelistN(&ked.cfra_elem_list);
-  BLI_freelistN(&ked.time_marker_list);
+  ked.cfra_elem_list.free_no_destruct();
+  ked.time_marker_list.free_no_destruct();
 
   ANIM_animdata_update(ac, &anim_data);
   ANIM_animdata_freelist(&anim_data);
@@ -1834,8 +1834,8 @@ static void actkeys_mselect_column(bAnimContext *ac, eEditKeyframes_Select selec
   }
 
   /* free elements */
-  BLI_freelistN(&ked.cfra_elem_list);
-  BLI_freelistN(&ked.time_marker_list);
+  ked.cfra_elem_list.free_no_destruct();
+  ked.time_marker_list.free_no_destruct();
 
   ANIM_animdata_update(ac, &anim_data);
   ANIM_animdata_freelist(&anim_data);
@@ -2183,6 +2183,11 @@ static wmOperatorStatus select_by_type_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
+static bool select_by_type_poll(bContext *C)
+{
+  return ED_operator_graphedit_active(C) || ED_operator_action_active(C);
+}
+
 void ACTION_OT_select_by_type(wmOperatorType *ot)
 {
   ot->name = "Select by Type";
@@ -2190,7 +2195,7 @@ void ACTION_OT_select_by_type(wmOperatorType *ot)
   ot->description = "Select all keyframes of the given type";
 
   ot->exec = select_by_type_exec;
-  ot->poll = ED_operator_action_active;
+  ot->poll = select_by_type_poll;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
