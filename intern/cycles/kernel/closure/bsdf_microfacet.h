@@ -83,14 +83,43 @@ struct MicrofacetBsdf {
 
 static_assert(sizeof(ShaderClosure) >= sizeof(MicrofacetBsdf), "MicrofacetBsdf is too large!");
 
+ccl_device_inline void adjust_thin_film_ior_at_backface(ccl_private float &film_ior,
+                                                        const float inv_bulk_ior)
+{
+  /* The IOR configuration at the backface is
+   *
+   * bulk_ior
+   * ------------
+   * film_ior
+   * ------------
+   * 1
+   *
+   * this is equivalent to
+   *
+   * 1
+   * ------------
+   * film_ior / bulk_ior
+   * ------------
+   * 1 / bulk_ior
+   *
+   * Therefore, we divide `film_ior` by `bulk_ior` to have the correct configuration. */
+
+  film_ior *= inv_bulk_ior;
+}
+
 ccl_device_forceinline FresnelGeneralizedSchlick
 generalized_schlick_setup(const float ior,
                           const bool reflective_caustics,
                           const bool refractive_caustics,
                           const Spectrum reflection_tint,
                           const Spectrum transmission_tint,
-                          const FresnelThinFilm thinfilm)
+                          FresnelThinFilm thinfilm,
+                          const bool backfacing)
 {
+  if (backfacing) {
+    adjust_thin_film_ior_at_backface(thinfilm.ior, 1.0f / ior);
+  }
+
   return {/* .thin_film = */ thinfilm,
           /* .reflection_tint = */ reflective_caustics ? one_spectrum() : zero_spectrum(),
           /* .transmission_tint = */ refractive_caustics ? transmission_tint : zero_spectrum(),
@@ -1178,7 +1207,7 @@ ccl_device_inline void bsdf_thin_glass_fresnel(KernelGlobals kg,
   float cos_theta_t;
   Spectrum r1, t1;
   const FresnelGeneralizedSchlick fresnel = generalized_schlick_setup(
-      ior, reflective, refractive, reflection_tint, one_spectrum(), thinfilm);
+      ior, reflective, refractive, reflection_tint, one_spectrum(), thinfilm, false);
   generalized_schlick_fresnel(kg, &fresnel, ior, cos_theta_i, &cos_theta_t, &r1, &t1);
   if (is_zero(r1) && is_zero(t1)) {
     *r_reflectance = *r_transmittance = zero_spectrum();
@@ -1188,9 +1217,8 @@ ccl_device_inline void bsdf_thin_glass_fresnel(KernelGlobals kg,
   /* Fresnel coefficients at the back side. */
   Spectrum r2, t2;
   if (thinfilm.thickness > THINFILM_THICKNESS_CUTOFF) {
-    const FresnelThinFilm thinfilm2 = {thinfilm.thickness, thinfilm.ior / ior};
     const FresnelGeneralizedSchlick fresnel2 = generalized_schlick_setup(
-        ior, reflective, refractive, reflection_tint, one_spectrum(), thinfilm2);
+        ior, reflective, refractive, reflection_tint, one_spectrum(), thinfilm, true);
     float unused;
     generalized_schlick_fresnel(kg, &fresnel2, 1.0f / ior, -cos_theta_t, &unused, &r2, &t2);
   }
