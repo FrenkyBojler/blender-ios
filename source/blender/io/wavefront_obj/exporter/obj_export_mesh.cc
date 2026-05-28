@@ -188,6 +188,7 @@ int OBJMesh::tot_uv_vertices() const
 {
   return int(uv_coords_.size());
 }
+
 int OBJMesh::tot_edges() const
 {
   return export_mesh_->edges_num;
