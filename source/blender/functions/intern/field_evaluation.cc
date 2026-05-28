@@ -152,6 +152,7 @@ static void build_multi_function_procedure_for_fields(mf::Procedure &procedure,
                                                       const FieldTreeInfo &field_tree_info,
                                                       Span<GFieldRef> output_fields)
 {
+  BLI_profile_scope(ProfileCategory::Default);
   mf::ProcedureBuilder builder{procedure};
   /* Every input, intermediate and output field corresponds to a variable in the procedure. */
   Map<UniqueHash, mf::Variable *> variable_by_field;
@@ -297,6 +298,7 @@ Vector<GVArray> evaluate_fields(ResourceScope &scope,
                                 const FieldContext &context,
                                 Span<GVMutableArray> dst_varrays)
 {
+  BLI_profile_scope(ProfileCategory::Default);
   Vector<GVArray> varrays(fields_to_evaluate.size());
   Array<bool> is_output_written_to_dst(fields_to_evaluate.size(), false);
   const int array_size = mask.min_array_size();

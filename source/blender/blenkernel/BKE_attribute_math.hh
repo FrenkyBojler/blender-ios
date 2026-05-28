@@ -18,6 +18,7 @@
 #include "BLI_math_vector.h"
 #include "BLI_math_vector.hh"
 #include "BLI_offset_indices.hh"
+#include "BLI_profile.hh"
 
 #include "BKE_attribute.hh"
 
@@ -585,6 +586,7 @@ template<typename T> class SimpleMixer {
 
   void finalize(const IndexMask &mask)
   {
+    BLI_profile_scope(ProfileCategory::Default);
     mask.foreach_index([&](const int64_t i) {
       const float weight = total_weights_[i];
       if (weight > 0.0f) {
@@ -710,6 +712,7 @@ class SimpleMixerWithAccumulationType {
 
   void finalize(const IndexMask &mask)
   {
+    BLI_profile_scope(ProfileCategory::Default);
     mask.foreach_index([&](const int64_t i) {
       const Item &item = accumulation_buffer_[i];
       if (item.weight > 0.0f) {

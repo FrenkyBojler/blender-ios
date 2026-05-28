@@ -32,6 +32,7 @@
 #include "BLI_memory_counter.hh"
 #include "BLI_mempool.h"
 #include "BLI_path_utils.hh"
+#include "BLI_profile.hh"
 #include "BLI_resource_scope.hh"
 #include "BLI_set.hh"
 #include "BLI_span.hh"
@@ -2435,6 +2436,7 @@ void CustomData_realloc(CustomData *data,
                         const int new_size,
                         const eCDAllocType alloctype)
 {
+  BLI_profile_scope(ProfileCategory::Default);
   BLI_assert(new_size >= 0);
   for (int i = 0; i < data->totlayer; i++) {
     CustomDataLayer *layer = &data->layers[i];
