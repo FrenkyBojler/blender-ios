@@ -26,6 +26,8 @@
 #include "UI_interface.hh"
 #include "UI_interface_layout.hh"
 
+#include "RNA_prototypes.hh"
+
 #include "WM_api.hh"
 
 #include "SEQ_modifier.hh"
@@ -101,8 +103,22 @@ static void catalog_assets_draw(const bContext *C, Menu *menu)
   wmOperatorType *ot = WM_operatortype_find("SEQUENCER_OT_strip_modifier_add_node_group", true);
   for (const asset_system::AssetRepresentation *asset : assets) {
     ensure_separator();
-    PointerRNA props_ptr = layout.op(
-        ot, IFACE_(asset->get_name()), ICON_NONE, wm::OpCallContext::InvokeDefault, UI_ITEM_NONE);
+    ui::Layout &row = layout.row(true);
+    PointerRNA asset_ptr = RNA_pointer_create_discrete(
+        nullptr, RNA_AssetRepresentation, const_cast<asset_system::AssetRepresentation *>(asset));
+    row.context_ptr_set("asset", &asset_ptr);
+
+    const bool is_online = asset->is_online_only();
+    if (is_online) {
+      row.enabled_set(false);
+    }
+    const int icon_local = asset->remote_file_status() ==
+                                   asset_system::RemoteAssetFileStatus::NO_MATCH ?
+                               ICON_ERROR :
+                               ICON_NONE;
+    const int icon = is_online ? ICON_INTERNET : icon_local;
+    PointerRNA props_ptr = row.op(
+        ot, IFACE_(asset->get_name()), icon, wm::OpCallContext::InvokeDefault, UI_ITEM_NONE);
     asset::operator_asset_reference_props_set(*asset, props_ptr);
   }
 
@@ -281,6 +297,11 @@ static std::string strip_modifier_add_asset_get_description(bContext *C,
       asset::operator_asset_reference_props_get_asset_from_all_library(*C, *ptr, nullptr);
   if (!asset) {
     return "";
+  }
+  if (asset->is_online_only()) {
+    return TIP_(
+        "Online asset needs to be downloaded first. Right click this option to download "
+        "the asset");
   }
   if (!asset->get_metadata().description) {
     return "";
