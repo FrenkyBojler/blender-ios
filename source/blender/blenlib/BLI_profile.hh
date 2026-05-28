@@ -31,7 +31,6 @@
 #  include "perfetto_trace.hh"
 #endif
 
-
 namespace blender {
 /**
  * Set of category colors, chosen with color-blindness in mind.
@@ -105,8 +104,8 @@ enum class ProfileCategory : uint32_t {
  * directly as the category identifier in `perfetto_trace.cc` — see the dispatch table there.
  */
 #  define BLI_profile_scope(category) \
-    ::blender::PerfettoScope BLI_PROFILE_CONCAT(_bli_pscope_, __LINE__)( \
-        uint32_t(category), __func__)
+    ::blender::PerfettoScope BLI_PROFILE_CONCAT(_bli_pscope_, __LINE__)(uint32_t(category), \
+                                                                        __func__)
 
 /** `name` is expected to be a `const char*` string literal. */
 #  define BLI_profile_scope_with_name(name, category) \

@@ -69,13 +69,14 @@ PERFETTO_DEFINE_CATEGORIES(
 PERFETTO_TRACK_EVENT_STATIC_STORAGE();
 
 /**
- * Mirror of `blender::ProfileCategory` MUST be kept in sync with `blender::ProfileCategory` in `BLI_profile.hh`.
+ * Mirror of `blender::ProfileCategory` MUST be kept in sync with `blender::ProfileCategory` in
+ * `BLI_profile.hh`.
  */
 enum class BlenderPerfettoCategory : uint32_t {
   Default = 0x000001,
-  Core    = 0x0088FE,
-  Draw    = 0x00C49F,
-  Editor  = 0xFFBB28,
+  Core = 0x0088FE,
+  Draw = 0x00C49F,
+  Editor = 0xFFBB28,
 };
 
 /** \} */

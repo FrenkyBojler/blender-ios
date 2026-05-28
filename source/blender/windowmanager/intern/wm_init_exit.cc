@@ -118,8 +118,8 @@
 #include "DRW_engine.hh"
 
 #ifdef WITH_PERFETTO
-#  include "perfetto_trace.hh"
 #  include "BLI_Profile.hh"
+#  include "perfetto_trace.hh"
 #endif
 
 namespace blender {
@@ -719,8 +719,8 @@ void WM_exit_ex(bContext *C, const bool do_python_exit, const bool do_user_exit_
   /* given we call exit() somewhere in our event handlers to exit the process the
      closing events for the following 2 methods will never fire, manually emit the
      close events here, so the perfetto UI doens't complain about incomplete events. */
-  perfetto_scope_end(uint32_t(ProfileCategory::Core)); // wm_event_do_handlers
-  perfetto_scope_end(uint32_t(ProfileCategory::Core)); // WM_main
+  perfetto_scope_end(uint32_t(ProfileCategory::Core));  // wm_event_do_handlers
+  perfetto_scope_end(uint32_t(ProfileCategory::Core));  // WM_main
   perfetto_shutdown();
 #endif
   /* Logging cannot be called after exiting (#CLOG_INFO, #CLOG_WARN etc will crash).
