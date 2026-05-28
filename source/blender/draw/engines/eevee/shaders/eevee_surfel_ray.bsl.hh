@@ -119,7 +119,7 @@ struct SurfelRay {
  */
 [[compute, local_size(SURFEL_GROUP_SIZE)]]
 void ray_main([[resource_table]] SurfelRay &srt,
-              [[resource_table]] draw::View &views,
+              [[resource_table]] const draw::View &views,
               [[global_invocation_id]] const uint3 global_id)
 {
   [[resource_table]] SurfelData &surfels = srt.surfels_data;

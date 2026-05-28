@@ -41,7 +41,7 @@ struct Setup {
 
 [[compute, local_size(SUBSURFACE_GROUP_SIZE, SUBSURFACE_GROUP_SIZE)]]
 void setup_main([[resource_table]] Setup &srt,
-                [[resource_table]] draw::View &views,
+                [[resource_table]] const draw::View &views,
                 [[resource_table]] const gbuffer::Reader &reader,
                 [[work_group_id]] const uint3 group_id,
                 [[global_invocation_id]] const uint3 global_thread_id,
@@ -175,7 +175,7 @@ struct Convolve {
 
 [[compute, local_size(SUBSURFACE_GROUP_SIZE, SUBSURFACE_GROUP_SIZE)]]
 void convolve_main([[resource_table]] Convolve &srt,
-                   [[resource_table]] draw::View &views,
+                   [[resource_table]] const draw::View &views,
                    [[resource_table]] const gbuffer::Reader &reader,
                    [[work_group_id]] const uint3 group_id,
                    [[local_invocation_id]] const uint3 local_thread_id)

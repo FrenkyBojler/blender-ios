@@ -321,7 +321,7 @@ ShadowDebugOutput debug_random_tilemap_color([[resource_table]] const ShadowDebu
 
 [[fragment]]
 void debug_shadow_frag([[resource_table]] ShadowDebug &srt,
-                       [[resource_table]] draw::View &views,
+                       [[resource_table]] const draw::View &views,
                        [[frag_coord]] const float4 frag_co,
                        [[frag_depth(greater)]] float &frag_depth,
                        [[resource_table]] const HiZ &hiz,
@@ -401,7 +401,7 @@ struct Resources {
 };
 
 [[vertex, clip_control]] void vert_main([[resource_table]] const Resources &srt,
-                                        [[resource_table]] draw::View &views,
+                                        [[resource_table]] const draw::View &views,
                                         [[vertex_id]] const int vert_id,
                                         [[position]] float4 &out_position,
                                         [[point_size]] float &out_point_size,
@@ -492,7 +492,7 @@ struct Resources {
 
 [[vertex, clip_control]]
 void vert_main([[resource_table]] const Resources &srt,
-               [[resource_table]] draw::View &views,
+               [[resource_table]] const draw::View &views,
                [[vertex_id]] const int vert_id,
                [[instance_id]] const int inst_id,
                [[position]] float4 &out_position,
@@ -599,7 +599,7 @@ struct Resources {
 
 [[fragment]]
 void frag_main([[resource_table]] Resources &srt,
-               [[resource_table]] draw::View &views,
+               [[resource_table]] const draw::View &views,
                [[resource_table]] const ::gbuffer::Reader &reader,
                [[frag_coord]] const float4 frag_co,
                [[out]] DualBlendFragOut &frag_out)

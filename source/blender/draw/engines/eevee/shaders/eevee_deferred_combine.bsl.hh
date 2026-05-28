@@ -93,7 +93,7 @@ struct CombineFragOut {
 [[fragment, early_fragment_tests]]
 void combine_frag([[resource_table]] Combine &srt,
                   [[resource_table]] RenderPassOutput &render_passes,
-                  [[resource_table]] draw::View &views,
+                  [[resource_table]] const draw::View &views,
                   [[resource_table]] const Uniform &uni,
                   [[resource_table]] const HiZ &hiz,
                   [[resource_table]] const ::gbuffer::Reader &reader,

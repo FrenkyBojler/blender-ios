@@ -10,11 +10,7 @@
 
 #pragma once
 
-#include "draw_view_infos.hh"
-
-COMPUTE_SHADER_CREATE_INFO(draw_modelmat)
-
-#include "draw_model_lib.glsl"
+#include "draw_model.bsl.hh"
 #include "draw_view.bsl.hh"
 #include "eevee_shadow_tag_usage.bsl.hh"
 
@@ -29,13 +25,10 @@ struct VertOut {
   [[smooth]] float3 vP;
   [[flat]] float3 ls_aabb_min;
   [[flat]] float3 ls_aabb_max;
+  [[flat]] uint resource_id;
 };
 
 struct TagUsageTransparent {
-  [[legacy_info]] ShaderCreateInfo draw_resource_id_varying;
-  [[legacy_info]] ShaderCreateInfo draw_modelmat;
-  [[legacy_info]] ShaderCreateInfo draw_view;
-
   [[resource_table]] srt_t<Uniform> uniforms;
 
   [[storage(4, read)]] const ObjectBounds (&bounds_buf)[];
@@ -114,7 +107,8 @@ struct TagUsageTransparent {
 
   /* Inflate bounds by half a pixel as a conservative rasterization alternative,
    * to ensure the tiles needed by all LOD0 pixels get tagged */
-  void inflate_bounds(const ViewMatrices view, float3 ls_center, float3 &P, float3 &lP)
+  void inflate_bounds(
+      const ViewMatrices view, const ObjectMatrices obj, float3 ls_center, float3 &P, float3 &lP)
   {
     [[resource_table]] const Uniform &uni = uniforms;
 
@@ -127,7 +121,8 @@ struct TagUsageTransparent {
     /* Half-pixel. */
     inflate_scale *= 0.5f;
 
-    float3 vs_inflate_vector = drw_normal_object_to_view(sign(lP - ls_center));
+    float3 ws_inflate_vector = obj.normal_object_to_world(sign(lP - ls_center));
+    float3 vs_inflate_vector = view.normal_view_to_world(ws_inflate_vector);
     vs_inflate_vector.z = 0;
     /* Scale the vector so the largest axis length is 1 */
     vs_inflate_vector /= reduce_max(abs(vs_inflate_vector.xy));
@@ -135,7 +130,7 @@ struct TagUsageTransparent {
 
     vP += vs_inflate_vector;
     P = view.point_view_to_world(vP);
-    lP = drw_point_world_to_object(P);
+    lP = obj.point_world_to_object(P);
   }
 };
 
@@ -148,17 +143,28 @@ float nextafter(float value)
 [[vertex]]
 void tag_usage_vert([[resource_table]] TagUsageTransparent &srt,
                     [[resource_table]] TagUsage & /*tag*/,
+                    [[instance_index]] const int inst_index,
                     [[resource_table]] const draw::View &views,
+                    [[resource_table]] const draw::Model &models,
+                    [[resource_table]] draw::Resource &res_id,
                     [[vertex_id]] [[maybe_unused]] const int vert_id,
                     [[in]] const VertIn &v_in,
                     [[out]] VertOut &v_out,
                     [[position]] float4 &out_position)
 {
+  draw::ID id = res_id.get(inst_index);
+  uint resource_id = id.resource_id<1>();
+
+  const ObjectMatrices obj = models.get(resource_id);
   const ViewMatrices view = views.get(0);
 
-  drw_ResourceID_iface.resource_id = drw_resource_id_raw();
+  v_out.P = float3(0.0);
+  v_out.vP = float3(0.0);
+  v_out.ls_aabb_min = float3(0.0);
+  v_out.ls_aabb_max = float3(0.0);
+  v_out.resource_id = resource_id;
 
-  ObjectBounds bounds = srt.bounds_buf[drw_resource_id()];
+  ObjectBounds bounds = srt.bounds_buf[resource_id];
   if (!drw_bounds_are_valid(bounds)) {
     /* Discard. */
     out_position = float4(NAN_FLT);
@@ -174,15 +180,15 @@ void tag_usage_vert([[resource_table]] TagUsageTransparent &srt,
   float3 ws_aabb_max = bounds.bounding_corners[0].xyz + bounds.bounding_corners[1].xyz +
                        bounds.bounding_corners[2].xyz + bounds.bounding_corners[3].xyz;
 
-  float3 ls_center = drw_point_world_to_object(midpoint(ws_aabb_min, ws_aabb_max));
+  float3 ls_center = obj.point_world_to_object(midpoint(ws_aabb_min, ws_aabb_max));
 
   float3 ls_conservative_min = float3(FLT_MAX);
   float3 ls_conservative_max = float3(-FLT_MAX);
 
   for (int i = 0; i < 8; i++) {
     float3 P = box.corners[i];
-    float3 lP = drw_point_world_to_object(P);
-    srt.inflate_bounds(view, ls_center, P, lP);
+    float3 lP = obj.point_world_to_object(P);
+    srt.inflate_bounds(view, obj, ls_center, P, lP);
 
     ls_conservative_min = min(ls_conservative_min, lP);
     ls_conservative_max = max(ls_conservative_max, lP);
@@ -193,7 +199,7 @@ void tag_usage_vert([[resource_table]] TagUsageTransparent &srt,
 
   float3 lP = mix(ls_conservative_min, ls_conservative_max, max(float3(0), v_in.pos));
 
-  v_out.P = drw_point_object_to_world(lP);
+  v_out.P = obj.point_object_to_world(lP);
   v_out.vP = view.point_world_to_view(v_out.P);
 
   out_position = view.point_world_to_homogenous(v_out.P);
@@ -206,7 +212,7 @@ void tag_usage_vert([[resource_table]] TagUsageTransparent &srt,
         ls_conservative_min + (ls_conservative_max - ls_conservative_min) * float3(0, 1, 0),
         ls_conservative_min + (ls_conservative_max - ls_conservative_min) * float3(0, 0, 1));
     for (int i = 0; i < 8; i++) {
-      debug_box.corners[i] = drw_point_object_to_world(debug_box.corners[i]);
+      debug_box.corners[i] = obj.point_object_to_world(debug_box.corners[i]);
     }
     drw_debug(debug_box);
   }
@@ -216,12 +222,14 @@ void tag_usage_vert([[resource_table]] TagUsageTransparent &srt,
 [[fragment]]
 void tag_usage_frag([[resource_table]] TagUsageTransparent &srt,
                     [[resource_table]] const draw::View &views,
+                    [[resource_table]] const draw::Model &models,
                     [[resource_table]] TagUsage &tag,
                     [[resource_table]] const HiZ &hiz,
                     [[in]] const VertOut interp,
                     [[frag_coord]] const float4 frag_co)
 {
   const ViewMatrices view = views.get(0);
+  const ObjectMatrices obj = models.get(interp.resource_id);
 
   float2 screen_uv = frag_co.xy / float2(srt.fb_resolution);
 
@@ -232,8 +240,8 @@ void tag_usage_frag([[resource_table]] TagUsageTransparent &srt,
   float3 ws_view_direction = normalize(interp.P - ws_near_plane);
   float3 vs_near_plane = view.point_screen_to_view(float3(screen_uv, 0.0f));
   float3 vs_view_direction = normalize(interp.vP - vs_near_plane);
-  float3 ls_near_plane = drw_point_world_to_object(ws_near_plane);
-  float3 ls_view_direction = normalize(drw_point_world_to_object(interp.P) - ls_near_plane);
+  float3 ls_near_plane = obj.point_world_to_object(ws_near_plane);
+  float3 ls_view_direction = normalize(obj.point_world_to_object(interp.P) - ls_near_plane);
 
   /* TODO (Miguel Pozo): We could try to ray-cast against the non-inflated bounds first,
    * and fall back to the inflated ones if there is no hit.
@@ -247,7 +255,7 @@ void tag_usage_frag([[resource_table]] TagUsageTransparent &srt,
   }
 
   float3 ls_near_box = ls_near_plane + ls_view_direction * ls_near_box_t;
-  float3 ws_near_box = drw_point_object_to_world(ls_near_box);
+  float3 ws_near_box = obj.point_object_to_world(ls_near_box);
 
   float near_box_t = distance(ws_near_plane, ws_near_box);
   float far_box_t = distance(ws_near_plane, interp.P);

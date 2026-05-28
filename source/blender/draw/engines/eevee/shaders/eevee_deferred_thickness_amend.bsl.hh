@@ -113,7 +113,7 @@ void amend_vert([[vertex_id]] const int vert_id,
 [[fragment]] [[early_fragment_tests]]
 void amend_frag([[resource_table]] ThicknessAmend &srt,
                 [[resource_table]] ShadowRenderData &srd,
-                [[resource_table]] draw::View &views,
+                [[resource_table]] const draw::View &views,
                 [[resource_table]] const LightRenderData &lrd,
                 [[resource_table]] const Uniform &uni,
                 [[resource_table]] const HiZ &hiz,

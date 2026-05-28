@@ -43,12 +43,12 @@ DEFINE("RESOURCE_ID_VARYING")
 GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(draw_resource_id)
-STORAGE_BUF(DRW_RESOURCE_ID_SLOT, read, uint, resource_id_buf[])
+STORAGE_BUF(DRW_RESOURCE_ID_SLOT, read, uint, res_id_buf[])
 GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(draw_resource_with_custom_id)
 DEFINE("WITH_CUSTOM_IDS")
-STORAGE_BUF(DRW_RESOURCE_ID_SLOT, read, uint2, resource_id_buf[])
+STORAGE_BUF(DRW_RESOURCE_ID_SLOT, read, uint2, res_id_with_custom_id_buf[])
 GPU_SHADER_CREATE_END()
 
 /** \} */

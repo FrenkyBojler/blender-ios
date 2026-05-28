@@ -115,7 +115,7 @@ struct Resources {
 
 [[compute, local_size(DOF_RESOLVE_GROUP_SIZE, DOF_RESOLVE_GROUP_SIZE)]]
 void comp_main([[resource_table]] Resources &srt,
-               [[resource_table]] draw::View &views,
+               [[resource_table]] const draw::View &views,
                [[resource_table]] Tiles &tiles,
                [[global_invocation_id]] const uint3 global_id,
                [[local_invocation_index]] const uint local_index)

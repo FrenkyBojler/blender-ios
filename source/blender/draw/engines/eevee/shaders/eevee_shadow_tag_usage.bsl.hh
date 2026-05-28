@@ -10,11 +10,6 @@
 
 #pragma once
 
-#include "draw_view_infos.hh"
-
-COMPUTE_SHADER_CREATE_INFO(draw_view_culling)
-COMPUTE_SHADER_CREATE_INFO(draw_resource_id_varying)
-
 #include "eevee_defines.hh"
 #include "eevee_hiz.bsl.hh"
 #include "eevee_light_iter.bsl.hh"
@@ -30,8 +25,6 @@ COMPUTE_SHADER_CREATE_INFO(draw_resource_id_varying)
 namespace eevee::shadow::usage {
 
 struct TagUsage {
-  [[legacy_info]] ShaderCreateInfo draw_view_culling;
-
   [[resource_table]] srt_t<LightRenderData> light_data;
   [[resource_table]] srt_t<TileMaps> tilemaps;
   [[resource_table]] srt_t<Tiles> tiles;

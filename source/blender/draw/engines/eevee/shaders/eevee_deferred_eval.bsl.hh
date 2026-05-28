@@ -8,10 +8,7 @@
 
 #pragma once
 
-#include "draw_object_infos_infos.hh"
-
-FRAGMENT_SHADER_CREATE_INFO(draw_object_infos)
-
+#include "draw_model.bsl.hh"
 #include "draw_view.bsl.hh"
 #include "eevee_closure.bsl.hh"
 #include "eevee_gbuffer_read.bsl.hh"
@@ -71,8 +68,6 @@ PipelineGraphic aov_clear(fullscreen_vert, aov_clear_frag);
  * \{ */
 
 struct LightEval {
-  [[legacy_info]] ShaderCreateInfo draw_object_infos;
-
   [[specialization_constant(true)]] bool use_split_indirect;
   [[specialization_constant(true)]] bool use_lightprobe_eval;
   [[specialization_constant(false)]] bool use_transmission;
@@ -124,7 +119,8 @@ struct LightEval {
 [[fragment, early_fragment_tests]]
 void light_eval_frag([[resource_table]] LightEval &srt,
                      [[resource_table]] LightEvalIterator &lights,
-                     [[resource_table]] draw::View &views,
+                     [[resource_table]] const draw::View &views,
+                     [[resource_table]] const draw::Infos &infos,
                      [[resource_table]] const Uniform &uni,
                      [[resource_table]] const LightprobeRenderData &lightprobes,
                      [[resource_table]] const HiZ &hiz,
@@ -172,7 +168,7 @@ void light_eval_frag([[resource_table]] LightEval &srt,
   ctx.terminator_geometry_offset = 0.0f;
   if (gbuf.header.use_object_id()) {
     uint object_id = reader.read_object_id(texel);
-    ObjectInfos object_infos = drw_infos[object_id];
+    ObjectInfos object_infos = infos.get(object_id);
     ctx.receiver_light_set = receiver_light_set_get(object_infos);
     ctx.terminator_normal_offset = object_infos.shadow_terminator_normal_offset;
     ctx.terminator_geometry_offset = object_infos.shadow_terminator_geometry_offset;
@@ -264,16 +260,12 @@ void light_eval_frag([[resource_table]] LightEval &srt,
 /** \name Probe Capture Pipeline
  * \{ */
 
-struct SphereProbeEval {
-  [[legacy_info]] ShaderCreateInfo draw_object_infos;
-};
-
 /* Sphere probe evaluate everything as diffuse since they can only rely on volume light-probes
  * being available. */
 [[fragment, early_fragment_tests]]
-void sphere_eval_frag([[resource_table]] SphereProbeEval & /*srt*/,
-                      [[resource_table]] LightEvalIterator &lights,
-                      [[resource_table]] draw::View &views,
+void sphere_eval_frag([[resource_table]] LightEvalIterator &lights,
+                      [[resource_table]] const draw::View &views,
+                      [[resource_table]] const draw::Infos &infos,
                       [[resource_table]] const Sampling &sampling,
                       [[resource_table]] const LightprobeVolumeRenderData &lightprobes,
                       [[resource_table]] const HiZ &hiz,
@@ -350,7 +342,7 @@ void sphere_eval_frag([[resource_table]] SphereProbeEval & /*srt*/,
   ctx.terminator_geometry_offset = 0.0f;
   if (gbuf.header.use_object_id()) {
     uint object_id = reader.read_object_id(texel);
-    ObjectInfos object_infos = drw_infos[object_id];
+    ObjectInfos object_infos = infos.get(object_id);
     ctx.receiver_light_set = receiver_light_set_get(object_infos);
     ctx.terminator_normal_offset = object_infos.shadow_terminator_normal_offset;
     ctx.terminator_geometry_offset = object_infos.shadow_terminator_geometry_offset;
@@ -383,14 +375,13 @@ void sphere_eval_frag([[resource_table]] SphereProbeEval & /*srt*/,
 struct PlanarProbeEval {
   /* TODO(fclem): Workaround waiting for this lib to be ported to BSL.  */
   [[compilation_constant]] bool legacy_sphere_probe_enable;
-
-  [[legacy_info]] ShaderCreateInfo draw_object_infos;
 };
 
 [[fragment, early_fragment_tests]]
 void planar_eval_frag([[resource_table]] PlanarProbeEval & /*srt*/,
                       [[resource_table]] LightEvalIterator &lights,
-                      [[resource_table]] draw::View &views,
+                      [[resource_table]] const draw::View &views,
+                      [[resource_table]] const draw::Infos &infos,
                       [[resource_table]] const LightprobeRenderData &lightprobes,
                       [[resource_table]] const Sampling &sampling,
                       [[resource_table]] const HiZ &hiz,
@@ -508,7 +499,7 @@ void planar_eval_frag([[resource_table]] PlanarProbeEval & /*srt*/,
   ctx.terminator_geometry_offset = 0.0f;
   if (gbuf.header.use_object_id()) {
     uint object_id = reader.read_object_id(texel);
-    ObjectInfos object_infos = drw_infos[object_id];
+    ObjectInfos object_infos = infos.get(object_id);
     ctx.receiver_light_set = receiver_light_set_get(object_infos);
     ctx.terminator_normal_offset = object_infos.shadow_terminator_normal_offset;
     ctx.terminator_geometry_offset = object_infos.shadow_terminator_geometry_offset;
