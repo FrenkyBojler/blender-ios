@@ -19,7 +19,7 @@ import dataclasses
 import sys
 
 from datetime import date
-from gitea_utils import gitea_json_issues_search
+from gitea_utils import gitea_json_issues_search, gitea_json_issue_events_filter
 
 IS_ATTY = sys.stdout.isatty()
 
@@ -147,6 +147,33 @@ def compile_list(severity: str) -> None:
         if buglist_full_len != 0:
             print(f"{module.name}:")
             print(f"{buglist_full_str}")
+
+    # This section requires an API call per issue, so it can take really long time to process.
+    # So limit to high severity reports which usually have a low number of reports that need checking.
+    if severity not in ("High", "Unbreak Now!"):
+        return
+
+    print("Checking for open pull requests. This may take some time.")
+
+    issues_with_pull_requests_opened = 0
+    for issue in issues_json_sorted:
+        issue_fullname = f"blender/blender/issues/{issue["number"]}"
+        pull_request_references = gitea_json_issue_events_filter(issue_fullname, event_type="pull_ref")
+        for reference in pull_request_references:
+            pr_info = reference["ref_issue"]
+            if not pr_info["state"].lower() == "open":
+                continue
+
+            # Check to see if the pull request actually a fix for this issue,
+            # by checking if the issue number is in the pull request title or body.
+            #
+            # There is a chance that a developer set the title to `Fix #123, #234`,
+            # then later changes it to just `Fix #123` after user testing.
+            if str(issue["number"]) in (pr_info["title"] + pr_info["body"]):
+                issues_with_pull_requests_opened += 1
+                break
+
+    print(f"{severity} severity issues with open pull requests: {issues_with_pull_requests_opened}/{total}")
 
 
 def main() -> None:
