@@ -255,15 +255,8 @@ static bool grease_pencil_brush_stroke_poll(bContext *C)
   return true;
 }
 
-static wmOperatorStatus grease_pencil_brush_stroke_invoke(bContext *C,
-                                                          wmOperator *op,
-                                                          const wmEvent *event)
+static bool use_duplicate_previous_key(bContext *C, wmOperator *op)
 {
-  if (event->tablet.active == EVT_TABLET_ERASER) {
-    RNA_enum_set(op->ptr, "brush_toggle", int(BrushSwitchMode::Erase));
-  }
-
-  const bool use_duplicate_previous_key = [&]() -> bool {
     const Paint *paint = BKE_paint_get_active_from_context(C);
     const Brush &brush = *BKE_paint_brush_for_read(paint);
     const PaintMode mode = BKE_paintmode_get_active_from_context(C);
@@ -286,9 +279,38 @@ static wmOperatorStatus grease_pencil_brush_stroke_invoke(bContext *C,
       }
     }
     return false;
-  }();
+}
+
+static wmOperatorStatus grease_pencil_brush_stroke_exec(bContext *C,
+                                                          wmOperator *op)
+{
   wmOperatorStatus retval = ed::greasepencil::grease_pencil_draw_operator_invoke(
-      C, op, use_duplicate_previous_key);
+      C, op, use_duplicate_previous_key(C, op), false);
+
+  if (retval != OPERATOR_FINISHED) {
+    return retval;
+  }
+  GreasePencilPaintStroke *stroke = MEM_new<GreasePencilPaintStroke>(__func__, C, op, 0); //! 0 == event->type ... what to use
+  op->customdata = stroke;
+
+  retval = stroke->exec(C, op);
+  OPERATOR_RETVAL_CHECK(retval);
+
+  MEM_delete(stroke);
+
+  return OPERATOR_FINISHED;
+}
+
+static wmOperatorStatus grease_pencil_brush_stroke_invoke(bContext *C,
+                                                          wmOperator *op,
+                                                          const wmEvent *event)
+{
+  if (event->tablet.active == EVT_TABLET_ERASER) {
+    RNA_enum_set(op->ptr, "brush_toggle", int(BrushSwitchMode::Erase));
+  }
+
+  wmOperatorStatus retval = ed::greasepencil::grease_pencil_draw_operator_invoke(
+      C, op, use_duplicate_previous_key(C, op), true);
   if (retval != OPERATOR_RUNNING_MODAL) {
     return retval;
   }
@@ -336,6 +358,7 @@ static void GREASE_PENCIL_OT_brush_stroke(wmOperatorType *ot)
 
   ot->poll = grease_pencil_brush_stroke_poll;
   ot->invoke = grease_pencil_brush_stroke_invoke;
+  ot->exec = grease_pencil_brush_stroke_exec;
   ot->modal = grease_pencil_brush_stroke_modal;
   ot->cancel = grease_pencil_brush_stroke_cancel;
 

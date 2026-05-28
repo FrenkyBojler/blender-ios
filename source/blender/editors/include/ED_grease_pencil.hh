@@ -346,7 +346,8 @@ float radius_from_input_sample(const RegionView3D *rv3d,
                                const BrushGpencilSettings *settings);
 wmOperatorStatus grease_pencil_draw_operator_invoke(bContext *C,
                                                     wmOperator *op,
-                                                    bool use_duplicate_previous_key);
+                                                    bool use_duplicate_previous_key,
+                                                    bool modal);
 float4x2 calculate_texture_space(const Scene *scene,
                                  const ARegion *region,
                                  const float2 &mouse,

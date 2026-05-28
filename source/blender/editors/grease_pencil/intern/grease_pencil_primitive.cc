@@ -734,7 +734,7 @@ static wmOperatorStatus grease_pencil_primitive_invoke(bContext *C,
                                                        const wmEvent *event)
 {
   const wmOperatorStatus retval = ed::greasepencil::grease_pencil_draw_operator_invoke(
-      C, op, false);
+      C, op, false, true);
   if (retval != OPERATOR_RUNNING_MODAL) {
     return retval;
   }

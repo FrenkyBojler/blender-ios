@@ -1694,7 +1694,8 @@ static StrokeVisibilityStatus get_visibility_status_for_draw_operator(Object *ob
 
 wmOperatorStatus grease_pencil_draw_operator_invoke(bContext *C,
                                                     wmOperator *op,
-                                                    const bool use_duplicate_previous_key)
+                                                    const bool use_duplicate_previous_key,
+                                                    bool modal)
 {
   const Scene *scene = CTX_data_scene(C);
   Object *object = CTX_data_active_object(C);
@@ -1757,7 +1758,7 @@ wmOperatorStatus grease_pencil_draw_operator_invoke(bContext *C,
         break;
     }
   }
-  return OPERATOR_RUNNING_MODAL;
+  return modal ? OPERATOR_RUNNING_MODAL : OPERATOR_FINISHED;
 }
 
 float4x2 calculate_texture_space(const Scene *scene,
