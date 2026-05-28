@@ -117,6 +117,10 @@ char **environ = nullptr;
 #  include <tbb/scalable_allocator.h>
 #endif
 
+#ifdef WITH_PERFETTO
+#  include "perfetto_trace.hh"  
+#endif  
+
 #include "creator_intern.h" /* Own include. */
 
 BLI_STATIC_ASSERT(ENDIAN_ORDER == L_ENDIAN, "Blender only builds on little endian systems")
@@ -428,6 +432,11 @@ int main(int argc,
     }
   }
 #endif
+
+#ifdef WITH_PERFETTO
+  /* Initialize profiling.*/
+  perfetto_init();
+#endif  
 
   /* Initialize logging. */
   CLG_init();

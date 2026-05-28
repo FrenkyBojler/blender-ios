@@ -26,6 +26,10 @@ set(LIB
   PRIVATE bf::dependencies::opencolorio
 )
 
+if(WITH_PERFETTO)
+  list(APPEND LIB PRIVATE bf::intern::perfetto)
+endif()
+
 if(HAVE_FEENABLEEXCEPT)
   add_definitions(-DHAVE_FEENABLEEXCEPT)
 endif()

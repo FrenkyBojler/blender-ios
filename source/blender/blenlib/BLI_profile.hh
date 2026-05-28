@@ -22,6 +22,11 @@
 #  include <tracy/Tracy.hpp>
 #endif
 
+#ifdef WITH_PERFETTO
+#  include "perfetto_trace.hh"
+#endif
+
+
 namespace blender {
 /**
  * Set of category colors, chosen with color-blindness in mind.
@@ -75,6 +80,26 @@ enum class ProfileCategory : uint32_t {
 
 /** Attach a numeric value to the specified zone. */
 #  define BLI_profile_scope_var_add_value(var, value) ZoneValueV(var, value)
+
+#elif defined(WITH_PERFETTO)
+
+#  define BLI_profile_frame_mark
+#  define BLI_profile_frame_mark_start(name)
+#  define BLI_profile_frame_mark_end(name)
+
+#  define BLI_profile_scope(category)
+#  define BLI_profile_scope_with_name(name, category)
+
+#  define BLI_profile_scope_set_dynamic_name(fmt, ...)
+#  define BLI_profile_scope_add_text(fmt, ...)
+#  define BLI_profile_scope_add_value(value)
+
+#  define BLI_profile_scope_var(var, category)
+#  define BLI_profile_scope_var_with_name(var, ui_name, category)
+
+#  define BLI_profile_scope_var_set_dynamic_name(var, fmt, ...)
+#  define BLI_profile_scope_var_add_text(var, fmt, ...)
+#  define BLI_profile_scope_var_add_value(var, value)
 
 #else
 

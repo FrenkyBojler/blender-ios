@@ -438,6 +438,9 @@ set(LIB
   PUBLIC bf::dependencies::openimageio
   PUBLIC bf::dependencies::optional::tracy_client
 )
+if(WITH_PERFETTO)
+  list(APPEND LIB PUBLIC bf::intern::perfetto)
+endif()
 
 if(NOT WITH_PYTHON_MODULE)
   list(APPEND SRC

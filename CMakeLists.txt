@@ -927,6 +927,12 @@ Requires internet access."
 )
 mark_as_advanced(WITH_TRACY)
 
+option(WITH_PERFETTO "Enable profiling via the perfetto SDK." OFF)
+mark_as_advanced(WITH_PERFETTO)
+
+if(WITH_TRACY AND WITH_PERFETTO)
+  message(FATAL_ERROR "WITH_TRACY and WITH_PERFETTO cannot be enabled simultaneously")
+endif()
 
 # OpenGL
 if(NOT APPLE)

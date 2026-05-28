@@ -78,3 +78,7 @@ endif()
 if (WITH_MESHOPTIMIZER)
   add_subdirectory(meshoptimizer_bridge)
 endif()
+
+if(WITH_PERFETTO)
+  add_subdirectory(perfetto)
+endif()

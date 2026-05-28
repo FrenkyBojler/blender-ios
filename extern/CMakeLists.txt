@@ -107,3 +107,7 @@ endif()
 if(WITH_TRACY)
   add_subdirectory(tracy_profiler)
 endif()
+
+if(WITH_PERFETTO)
+  add_subdirectory(perfettoSDK)
+endif()
