@@ -703,25 +703,33 @@ void USDGenericMeshWriter::write_normals(const Mesh *mesh, pxr::UsdGeomMesh &usd
   pxr::UsdTimeCode time = get_export_time_code();
 
   pxr::VtVec3fArray loop_normals;
-  loop_normals.resize(mesh->corners_num);
-
-  MutableSpan dst_normals(reinterpret_cast<float3 *>(loop_normals.data()), loop_normals.size());
-
+  pxr::TfToken interpolation;
   switch (mesh->normals_domain()) {
     case bke::MeshNormalDomain::Point: {
-      array_utils::gather(mesh->vert_normals(), mesh->corner_verts(), dst_normals);
+      assert(mesh->verts_num == mesh->vert_normals().size());
+      loop_normals.resize(mesh->verts_num);
+      MutableSpan dst_normals(reinterpret_cast<float3 *>(loop_normals.data()),
+                              loop_normals.size());
+      array_utils::copy(mesh->vert_normals(), dst_normals);
+      interpolation = pxr::UsdGeomTokens->vertex;
       break;
     }
     case bke::MeshNormalDomain::Face: {
-      const OffsetIndices faces = mesh->faces();
-      const Span<float3> face_normals = mesh->face_normals();
-      for (const int i : faces.index_range()) {
-        dst_normals.slice(faces[i]).fill(face_normals[i]);
-      }
+      assert(mesh->faces_num == mesh->face_normals().size());
+      loop_normals.resize(mesh->faces_num);
+      MutableSpan dst_normals(reinterpret_cast<float3 *>(loop_normals.data()),
+                              loop_normals.size());
+      array_utils::copy(mesh->face_normals(), dst_normals);
+      interpolation = pxr::UsdGeomTokens->uniform;
       break;
     }
     case bke::MeshNormalDomain::Corner: {
+      assert(mesh->corners_num == mesh->corner_normals().size());
+      loop_normals.resize(mesh->corners_num);
+      MutableSpan dst_normals(reinterpret_cast<float3 *>(loop_normals.data()),
+                              loop_normals.size());
       array_utils::copy(mesh->corner_normals(), dst_normals);
+      interpolation = pxr::UsdGeomTokens->faceVarying;
       break;
     }
   }
@@ -731,7 +739,7 @@ void USDGenericMeshWriter::write_normals(const Mesh *mesh, pxr::UsdGeomMesh &usd
     attr_normals.Set(loop_normals, pxr::UsdTimeCode::Default());
   }
   usd_value_writer_.SetAttribute(attr_normals, pxr::VtValue(loop_normals), time);
-  usd_mesh.SetNormalsInterpolation(pxr::UsdGeomTokens->faceVarying);
+  usd_mesh.SetNormalsInterpolation(interpolation);
 }
 
 void USDGenericMeshWriter::write_surface_velocity(const Mesh *mesh,
