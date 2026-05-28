@@ -113,13 +113,8 @@ generalized_schlick_setup(const float ior,
                           const bool refractive_caustics,
                           const Spectrum reflection_tint,
                           const Spectrum transmission_tint,
-                          FresnelThinFilm thinfilm,
-                          const bool backfacing)
+                          FresnelThinFilm thinfilm)
 {
-  if (backfacing) {
-    adjust_thin_film_ior_at_backface(thinfilm.ior, 1.0f / ior);
-  }
-
   return {/* .thin_film = */ thinfilm,
           /* .reflection_tint = */ reflective_caustics ? one_spectrum() : zero_spectrum(),
           /* .transmission_tint = */ refractive_caustics ? transmission_tint : zero_spectrum(),
@@ -1197,7 +1192,7 @@ ccl_device_inline void bsdf_thin_glass_fresnel(KernelGlobals kg,
                                                const bool refractive,
                                                const Spectrum reflection_tint,
                                                const Spectrum transmission_tint,
-                                               const FresnelThinFilm thinfilm,
+                                               FresnelThinFilm thinfilm,
                                                const float ior,
                                                const float cos_theta_i,
                                                ccl_private Spectrum *r_reflectance,
@@ -1207,7 +1202,7 @@ ccl_device_inline void bsdf_thin_glass_fresnel(KernelGlobals kg,
   float cos_theta_t;
   Spectrum r1, t1;
   const FresnelGeneralizedSchlick fresnel = generalized_schlick_setup(
-      ior, reflective, refractive, reflection_tint, one_spectrum(), thinfilm, false);
+      ior, reflective, refractive, reflection_tint, one_spectrum(), thinfilm);
   generalized_schlick_fresnel(kg, &fresnel, ior, cos_theta_i, &cos_theta_t, &r1, &t1);
   if (is_zero(r1) && is_zero(t1)) {
     *r_reflectance = *r_transmittance = zero_spectrum();
@@ -1217,10 +1212,12 @@ ccl_device_inline void bsdf_thin_glass_fresnel(KernelGlobals kg,
   /* Fresnel coefficients at the back side. */
   Spectrum r2, t2;
   if (thinfilm.thickness > THINFILM_THICKNESS_CUTOFF) {
+    const float inv_ior = 1.0f / ior;
+    adjust_thin_film_ior_at_backface(thinfilm.ior, inv_ior);
     const FresnelGeneralizedSchlick fresnel2 = generalized_schlick_setup(
-        ior, reflective, refractive, reflection_tint, one_spectrum(), thinfilm, true);
+        ior, reflective, refractive, reflection_tint, one_spectrum(), thinfilm);
     float unused;
-    generalized_schlick_fresnel(kg, &fresnel2, 1.0f / ior, -cos_theta_t, &unused, &r2, &t2);
+    generalized_schlick_fresnel(kg, &fresnel2, inv_ior, -cos_theta_t, &unused, &r2, &t2);
   }
   else {
     r2 = r1;
