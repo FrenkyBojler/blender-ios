@@ -143,9 +143,7 @@ void BVHEmbree::build(Progress &progress,
      * have no choice. This workaround can be removed once the fix appears in
      * public drivers and we raise the minimum oneAPI backend driver version
      * accordingly. */
-    /* This workaround is applied to both CPU and GPU to keep behavior consistent
-     * and to help with potential platform-specific visibility issues, per Sergey.
-     * See #158123. */
+    /* This workaround is applied only to GPU, per Sergey. See #158123. */
     LOG_INFO << "Due to a known issue in Intel GPU drivers, overriding RTC_BUILD_QUALITY_HIGH to "
                 "RTC_BUILD_QUALITY_MEDIUM to prevent crashes. This workaround will be removed only"
                 "in a future Blender release.";
