@@ -304,7 +304,7 @@ static void selectcontext_apply(bContext *C,
  * Ideally we would only respond to events which are expected to be used for multi button editing
  * (additionally checking if this is a mouse[wheel] or return-key event to avoid the ALT conflict
  * with button array pasting, see #108096, but unfortunately wheel events are not part of
- * `win->runtime->eventstate` with modifiers held down. Instead, the conflict is avoided by
+ * `win->runtime->eventstate` with modifiers held down). Instead, the conflict is avoided by
  * specifically filtering out CTRL ALT V in #apply_but(). */
 #  define IS_ALLSELECT_EVENT(event) (((event)->modifier & KM_ALT) != 0)
 
@@ -5385,7 +5385,7 @@ static int do_but_TEXTBOX(bContext *C,
             C, textbox, textbox->editstr ? BUTTON_STATE_TEXT_EDITING : BUTTON_STATE_HIGHLIGHT);
         return WM_UI_HANDLER_BREAK;
       }
-      else if (event->type == MOUSEMOVE) {
+      if (event->type == MOUSEMOVE) {
         int mx = event->xy[0];
         int my = event->xy[1];
         window_to_block(data->region, block, &mx, &my);
@@ -5409,7 +5409,7 @@ static int do_but_TEXTBOX(bContext *C,
             C, textbox, textbox->editstr ? BUTTON_STATE_TEXT_EDITING : BUTTON_STATE_HIGHLIGHT);
         return WM_UI_HANDLER_BREAK;
       }
-      else if (event->type == MOUSEMOVE) {
+      if (event->type == MOUSEMOVE) {
         int visible_lines = data->origvalue +
                             ((data->dragstarty - event->xy[1]) /
                              (fontstyle_height_max(UI_FSTYLE_WIDGET) / block->aspect));
@@ -5493,7 +5493,7 @@ static int do_but_TOG(bContext *C, Button *but, HandleButtonData *data, const wm
         button_activate_state(C, but, BUTTON_STATE_EXIT);
         return WM_UI_HANDLER_BREAK;
       }
-      else if (but->type == ButtonType::Row) {
+      if (but->type == ButtonType::Row) {
         /* Support Ctrl-Wheel to cycle values on expanded enum rows. */
         int type = event->type;
         int val = event->val;
@@ -9621,7 +9621,6 @@ static void button_activate_exit(
       PopupBlockHandle *menu;
 
       menu = block->handle;
-      menu->butretval = data->retval;
       menu->menuretval = (data->cancel) ? RETURN_CANCEL : RETURN_OK;
     }
   }
@@ -12114,7 +12113,6 @@ static int handle_menu_return_submenu(bContext *C, const wmEvent *event, PopupBl
     if ((submenu->menuretval & RETURN_OK) || (submenu->menuretval & RETURN_CANCEL)) {
       if (!(block->flag & BLOCK_KEEP_OPEN)) {
         menu->menuretval = submenu->menuretval;
-        menu->butretval = data->retval;
       }
     }
 

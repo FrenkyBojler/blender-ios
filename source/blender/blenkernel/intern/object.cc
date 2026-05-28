@@ -1451,6 +1451,10 @@ bool BKE_object_support_modifier_type_check(const Object *ob, int modifier_type)
     return false;
   }
 
+  /* Empties only support geometry nodes modifiers. */
+  if (ob->type == OB_EMPTY) {
+    return modifier_type == eModifierType_Nodes;
+  }
   if (ELEM(ob->type, OB_POINTCLOUD, OB_CURVES)) {
     return ELEM(modifier_type, eModifierType_Nodes, eModifierType_MeshSequenceCache);
   }
@@ -3227,9 +3231,7 @@ static void ob_parbone(const Object *ob, const Object *par, float r_mat[4][4])
   else {
     copy_m4_m4(r_mat, pchan->pose_mat);
     copy_v3_v3(vec, r_mat[1]);
-    if (ob->parent_bone_head_tail_factor != 1.0f) {
-      mul_v3_fl(vec, pchan_bone->length * ob->parent_bone_head_tail_factor);
-    }
+    mul_v3_fl(vec, pchan_bone->length * ob->parent_bone_head_tail_factor);
     add_v3_v3(r_mat[3], vec);
   }
 }

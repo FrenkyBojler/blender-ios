@@ -1735,10 +1735,10 @@ static wmOperatorStatus image_file_browse_invoke(bContext *C, wmOperator *op, co
     return OPERATOR_CANCELLED;
   }
 
-  /* The image is typically passed to the operator via layout/button context (e.g.
-   * # ui::Layout::context_ptr_set. The File Browser doesn't support
-   * restoring this context when calling `exec()` though, so we have to pass it the image via
-   * custom data. */
+  /* The image is typically passed to the operator via layout/button context
+   * (e.g. #ui::Layout::context_ptr_set).
+   * The File Browser doesn't support restoring this context when calling `exec()` though,
+   * so we have to pass it the image via custom data. */
   op->customdata = ima;
 
   image_filesel(C, op, filepath);
@@ -1808,7 +1808,7 @@ static wmOperatorStatus image_match_len_exec(bContext *C, wmOperator * /*op*/)
   if (!anim) {
     return OPERATOR_CANCELLED;
   }
-  iuser->frames = MOV_get_duration_frames(anim, IMB_TC_RECORD_RUN);
+  iuser->frames = MOV_get_duration_frames(anim);
   BKE_image_user_frame_calc(ima, iuser, scene->r.cfra);
 
   return OPERATOR_FINISHED;
