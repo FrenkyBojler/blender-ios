@@ -2352,6 +2352,10 @@ bool WM_xr_session_state_viewfinder_active_action_playback_get(
     const wmXrData *xr, eXrViewfinderPlaybackAction *r_action);
 void WM_xr_session_state_viewfinder_active_action_playback_set(wmXrData *xr,
                                                                eXrViewfinderPlaybackAction action);
+bool WM_xr_session_state_viewfinder_active_action_confirm_get(
+    const wmXrData *xr, eXrViewfinderConfirmAction *r_action);
+void WM_xr_session_state_viewfinder_active_action_confirm_set(wmXrData *xr,
+                                                               eXrViewfinderConfirmAction action);
 
 ARegionType *WM_xr_surface_controller_region_type_get();
 

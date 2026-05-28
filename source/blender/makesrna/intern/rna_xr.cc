@@ -1279,6 +1279,32 @@ static void rna_XrSessionState_viewfinder_active_action_playback_set(PointerRNA 
 #  endif
 }
 
+static int rna_XrSessionState_viewfinder_active_action_confirm_get(PointerRNA *ptr)
+{
+  int value;
+#  ifdef WITH_XR_OPENXR
+  const wmXrData *xr = rna_XrSession_wm_xr_data_get(ptr);
+  eXrViewfinderConfirmAction enum_value;
+  WM_xr_session_state_viewfinder_active_action_confirm_get(xr, &enum_value);
+  value = static_cast<int>(enum_value);
+#  else
+  UNUSED_VARS(ptr);
+  value = 0;
+#  endif
+  return value;
+}
+
+static void rna_XrSessionState_viewfinder_active_action_confirm_set(PointerRNA *ptr, int value)
+{
+#  ifdef WITH_XR_OPENXR
+  wmXrData *xr = rna_XrSession_wm_xr_data_get(ptr);
+  const eXrViewfinderConfirmAction enum_value = static_cast<eXrViewfinderConfirmAction>(value);
+  WM_xr_session_state_viewfinder_active_action_confirm_set(xr, enum_value);
+#  else
+  UNUSED_VARS(ptr, value);
+#  endif
+}
+
 static void rna_XrSessionState_nav_location_get(PointerRNA *ptr, float *r_values)
 {
 #  ifdef WITH_XR_OPENXR
@@ -2820,6 +2846,11 @@ static void rna_def_xr_session_state_viewfinder(BlenderRNA *brna)
        ICON_IMAGE_DATA,
        "Playback Mode",
        "Preview and playback captured shots in the viewfinder"},
+      {XR_VIEWFINDER_MODE_CONFIRM,
+       "CONFIRM",
+       ICON_CHECKMARK,
+       "Confirmation Mode",
+       "Confirm user action"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -2842,6 +2873,11 @@ static void rna_def_xr_session_state_viewfinder(BlenderRNA *brna)
        ICON_OUTLINER_OB_CAMERA,
        "Preview selected shot in space"},
       {XR_VIEWFINDER_ACTION_PB_DELETE, "DELETE", ICON_TRASH, "Delete selected shot"},
+      {0, nullptr, 0, nullptr, nullptr}};
+
+  static const EnumPropertyItem viewfinder_confirm_actions[] = {
+      {XR_VIEWFINDER_ACTION_CF_CANCEL, "CANCEL", ICON_CANCEL, "Cancel", nullptr},
+      {XR_VIEWFINDER_ACTION_CF_CONFIRM, "CONFIRM", ICON_CHECKMARK, "Confirm", nullptr},
       {0, nullptr, 0, nullptr, nullptr}};
 
   srna = RNA_def_struct(brna, "XrViewfinderState", nullptr);
@@ -2955,6 +2991,17 @@ static void rna_def_xr_session_state_viewfinder(BlenderRNA *brna)
   RNA_def_property_enum_items(prop, viewfinder_playback_actions);
   RNA_def_property_ui_text(
       prop, "Viewfinder Playback Action", "Active viewfinder playback action");
+  RNA_def_property_update(prop, NC_WM | ND_XR_DATA_CHANGED, nullptr);
+
+  prop = RNA_def_property(srna, "active_action_confirm", PROP_ENUM, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_enum_funcs(prop,
+                              "rna_XrSessionState_viewfinder_active_action_confirm_get",
+                              "rna_XrSessionState_viewfinder_active_action_confirm_set",
+                              nullptr);
+  RNA_def_property_enum_items(prop, viewfinder_confirm_actions);
+  RNA_def_property_ui_text(
+      prop, "Viewfinder Confirm Action", "Active viewfinder confirm action");
   RNA_def_property_update(prop, NC_WM | ND_XR_DATA_CHANGED, nullptr);
 }
 

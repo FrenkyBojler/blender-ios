@@ -431,7 +431,10 @@ class VIEW3D_OT_vr_location_scouting_viewfinder_apply_action(Operator):
 
     def execute(self, context):
         wm = context.window_manager
+        scene = context.scene
+
         xr_viewfinder = wm.xr_session_state.viewfinder
+        captures = scene.vr_captures
 
         if xr_viewfinder.active_mode == 'LIVE':
             focal_map = (18, 20, 24, 28, 35, 50, 70, 85, 100, 135, 200, 300)
@@ -476,8 +479,6 @@ class VIEW3D_OT_vr_location_scouting_viewfinder_apply_action(Operator):
 
         if xr_viewfinder.active_mode == 'PLAYBACK':
             # Playblack control.
-            scene = context.scene
-            captures = scene.vr_captures
             if len(captures) == 0:
                 return {'FINISHED'}
 
@@ -495,13 +496,32 @@ class VIEW3D_OT_vr_location_scouting_viewfinder_apply_action(Operator):
 
                     return {'FINISHED'}
 
-                # Delete the selected capture.
+                # Delete, switch to Confirm mode to confirm capture deletion.
                 case 'DELETE':
+                    xr_viewfinder.active_mode = 'CONFIRM'
+                    # Set base action to Cancel, user has to explicitly switch to the Confirm action.
+                    xr_viewfinder.active_action_confirm = 'CANCEL'
+
+                    return {'FINISHED'}
+
+        if xr_viewfinder.active_mode == 'CONFIRM':
+            # Confirm mode, currently only used for capture deletion, and only accessible from the 'DELETE' Playback action.
+            match xr_viewfinder.active_action_confirm:
+                # Cancel, simply switch back to Playback mode.
+                case 'CANCEL':
+                    xr_viewfinder.active_mode = 'PLAYBACK'
+
+                    return {'FINISHED'}
+
+                # Confirm, delete the selected capture, switch back to Playback mode.
+                case 'CONFIRM':
                     captures.remove(scene.vr_captures_selected)
                     if scene.vr_captures_selected > 0:
                         scene.vr_captures_selected -= 1
 
                     viewfinder_camera_gizmo_view3d_redraw_workaround()
+
+                    xr_viewfinder.active_mode = 'PLAYBACK'
 
                     return {'FINISHED'}
 
@@ -526,8 +546,11 @@ class VIEW3D_OT_vr_location_scouting_viewfinder_cycle_mode(Operator):
     def execute(self, context):
         xr_viewfinder = context.window_manager.xr_session_state.viewfinder
 
-        active_mode_rna_prop = xr_viewfinder.rna_type.properties['active_mode']
-        enum_values = active_mode_rna_prop.enum_items.keys()
+        # Limit cycling to Live and Playback, Confirm being an internal mode used for capture deletion.
+        enum_values = ['LIVE', 'PLAYBACK']
+        if xr_viewfinder.active_mode not in enum_values:
+            return {'CANCELLED'}
+
         current_mode_idx = enum_values.index(xr_viewfinder.active_mode)
 
         xr_viewfinder.active_mode = enum_values[(current_mode_idx + 1) % len(enum_values)]
@@ -580,6 +603,14 @@ class VIEW3D_OT_vr_location_scouting_viewfinder_cycle_action(Operator):
                 new_action_idx = (current_action_idx + increment) % len(enum_keys)
 
                 xr_viewfinder.active_action_playback = enum_keys[new_action_idx]
+
+            case 'CONFIRM':
+                action_rna_prop = xr_viewfinder.rna_type.properties["active_action_confirm"]
+                enum_keys = action_rna_prop.enum_items.keys()
+                current_action_idx = enum_keys.index(xr_viewfinder.active_action_confirm)
+                new_action_idx = (current_action_idx + increment) % len(enum_keys)
+
+                xr_viewfinder.active_action_confirm = enum_keys[new_action_idx]
 
         return {'FINISHED'}
 

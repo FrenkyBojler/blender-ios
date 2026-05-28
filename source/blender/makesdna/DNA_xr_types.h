@@ -89,7 +89,12 @@ ENUM_OPERATORS(eXrPoseFlag)
 
 /* Location Scouting Viewfinder. */
 enum eXrViewfinderHand { XR_VIEWFINDER_HAND_LEFT = 0, XR_VIEWFINDER_HAND_RIGHT = 1 };
-enum eXrViewfinderMode { XR_VIEWFINDER_MODE_LIVE = 0, XR_VIEWFINDER_MODE_PLAYBACK = 1 };
+
+enum eXrViewfinderMode {
+  XR_VIEWFINDER_MODE_LIVE = 0,
+  XR_VIEWFINDER_MODE_PLAYBACK = 1,
+  XR_VIEWFINDER_MODE_CONFIRM = 2
+};
 
 enum eXrViewfinderLiveAction {
   XR_VIEWFINDER_ACTION_LIVE_LENS = 0,
@@ -102,6 +107,11 @@ enum eXrViewfinderPlaybackAction {
   XR_VIEWFINDER_ACTION_PB_BROWSE = 0,
   XR_VIEWFINDER_ACTION_PB_PREVIEW = 1,
   XR_VIEWFINDER_ACTION_PB_DELETE = 2
+};
+
+enum eXrViewfinderConfirmAction {
+  XR_VIEWFINDER_ACTION_CF_CONFIRM = 0,
+  XR_VIEWFINDER_ACTION_CF_CANCEL = 1
 };
 
 /**

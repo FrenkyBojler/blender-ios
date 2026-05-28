@@ -174,6 +174,30 @@ static wmXrController *wm_xr_viewfinder_get_controller(const XrSessionSettings *
   return nullptr;
 }
 
+static StringRefNull wm_xr_viewfinder_get_active_mode_str(const wmXrSessionState *state)
+{
+  switch(state->viewfinder.active_mode) {
+    case XR_VIEWFINDER_MODE_LIVE:
+      return "active_action_live";
+    case XR_VIEWFINDER_MODE_PLAYBACK:
+      return "active_action_playback";
+    case XR_VIEWFINDER_MODE_CONFIRM:
+      return "active_action_confirm";
+  }
+}
+
+static int wm_xr_viewfinder_get_active_action_idx(const wmXrSessionState *state)
+{
+  switch(state->viewfinder.active_mode) {
+    case XR_VIEWFINDER_MODE_LIVE:
+      return int(state->viewfinder.active_action_live);
+    case XR_VIEWFINDER_MODE_PLAYBACK:
+      return int(state->viewfinder.active_action_playback);
+    case XR_VIEWFINDER_MODE_CONFIRM:
+      return int(state->viewfinder.active_action_confirm);
+  }
+}
+
 bool wm_xr_viewfinder_operator_event_match_hand(bContext *C, const wmEvent *event)
 {
   XrSessionSettings *settings = &CTX_wm_manager(C)->xr.session_settings;
@@ -341,7 +365,8 @@ void wm_xr_viewfinder_render_view(wmXrData *xr_data)
 
       break;
     }
-    case XR_VIEWFINDER_MODE_PLAYBACK: {
+    case XR_VIEWFINDER_MODE_PLAYBACK:
+    case XR_VIEWFINDER_MODE_CONFIRM: {
       auto capture = wm_xr_location_scouting_get_active_capture(scene);
       if (!capture.has_value()) {
         /* Nothing to draw, early return. */
@@ -552,6 +577,9 @@ static ui::Block *wm_xr_viewfinder_ui_settings_left_label_block(const bContext *
         state->viewfinder.playback_show_active_capture_in_space_enabled ? "on" : "off");
     layout.label(settings_left_side_label.c_str(), ICON_NONE);
   }
+  else if (state->viewfinder.active_mode == XR_VIEWFINDER_MODE_CONFIRM) {
+    layout.label("Confirm: Delete this shot?", ICON_NONE);
+  }
 
   ui::block_end(C, block);
 
@@ -586,6 +614,7 @@ static ui::Block *wm_xr_viewfinder_ui_settings_right_label_block(const bContext 
           state->viewfinder.capture_dof_fstop);
       break;
     case XR_VIEWFINDER_MODE_PLAYBACK:
+    case XR_VIEWFINDER_MODE_CONFIRM:
       /* Current capture indicator (`current capture idx / all captures`). */
       if (captures_len > 0) {
         const int width = captures_len >= 10 ? 2 : 1;
@@ -616,16 +645,12 @@ static ui::Block *wm_xr_viewfinder_ui_action_label_block(const bContext *C,
   ui::Block *block = wm_xr_viewfinder_ui_block(C, ui::EmbossType::None);
   ui::Layout &layout = wm_xr_viewfinder_ui_layout(block);
 
-  const char *active_action_prop = state->viewfinder.active_mode == XR_VIEWFINDER_MODE_LIVE ?
-                                       "active_action_live" :
-                                       "active_action_playback";
-  const int active_action_idx = state->viewfinder.active_mode == XR_VIEWFINDER_MODE_LIVE ?
-                                    int(state->viewfinder.active_action_live) :
-                                    int(state->viewfinder.active_action_playback);
+  const StringRefNull active_action_prop = wm_xr_viewfinder_get_active_mode_str(state);
+  int active_action_idx = wm_xr_viewfinder_get_active_action_idx(state);
 
   PointerRNA ptr = RNA_pointer_create_discrete(
       &CTX_wm_manager(C)->id, RNA_XrViewfinderState, (void *)&state->viewfinder);
-  PropertyRNA *prop = RNA_struct_find_property(&ptr, active_action_prop);
+  PropertyRNA *prop = RNA_struct_find_property(&ptr, active_action_prop.c_str());
 
   const char *active_action_label;
   RNA_property_enum_name(nullptr, &ptr, prop, active_action_idx, &active_action_label);
@@ -665,11 +690,12 @@ static ui::Block *wm_xr_viewfinder_ui_action_enum_block(const bContext *C,
     sub2.prop_enum(&ptr, prop, XR_VIEWFINDER_ACTION_LIVE_APERTURE, "", ICON_NONE);
   }
   else {
-    /* Playback mode, directly draw the full enum prop. */
+    /* Playback and Confirm mode, directly draw the full enum prop. */
     layout.scale_x_set(15.0f); /* Width hack. */
 
+    const StringRefNull active_action_prop = wm_xr_viewfinder_get_active_mode_str(state);
     row.prop(
-        &ptr, "active_action_playback", ui::ITEM_R_EXPAND | ui::ITEM_R_ICON_ONLY, "", ICON_NONE);
+        &ptr, active_action_prop.c_str(), ui::ITEM_R_EXPAND | ui::ITEM_R_ICON_ONLY, "", ICON_NONE);
   }
 
   ui::block_end(C, block);
@@ -729,9 +755,21 @@ static void wm_xr_viewfinder_ui_draw_widgets(const bContext *C,
   const float action_label_x = viewfinder_rect.xmin + 0.05f;
   const float action_label_y = viewfinder_rect.ymin - 0.15f;
 
-  const float action_enum_x = state->viewfinder.active_mode == XR_VIEWFINDER_MODE_LIVE ?
-                                  viewfinder_rect.xmax - 1.6f :
-                                  viewfinder_rect.xmax - 1.2f;
+  float action_enum_x = 0.0f;
+  switch (state->viewfinder.active_mode) {
+    case XR_VIEWFINDER_MODE_LIVE:
+      action_enum_x = viewfinder_rect.xmax - 1.6f;
+      break;
+    case XR_VIEWFINDER_MODE_PLAYBACK:
+      action_enum_x = viewfinder_rect.xmax - 1.2f;
+      break;
+    case XR_VIEWFINDER_MODE_CONFIRM:
+      action_enum_x = viewfinder_rect.xmax - 0.8f;
+      break;
+    default:
+      BLI_assert_unreachable();
+      break;
+  }
   const float action_enum_y = viewfinder_rect.ymin - 0.15f;
 
   draw_block(wm_xr_viewfinder_ui_action_label_block, action_label_x, action_label_y);

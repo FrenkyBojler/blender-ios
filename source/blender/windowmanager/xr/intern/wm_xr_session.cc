@@ -685,6 +685,26 @@ void WM_xr_session_state_viewfinder_active_action_playback_set(wmXrData *xr,
   }
 }
 
+bool WM_xr_session_state_viewfinder_active_action_confirm_get(
+    const wmXrData *xr, eXrViewfinderConfirmAction *r_action)
+{
+  if (!WM_xr_session_is_ready(xr) || !xr->runtime->session_state.is_view_data_set) {
+    *r_action = static_cast<eXrViewfinderConfirmAction>(0);
+    return false;
+  }
+
+  *r_action = xr->runtime->session_state.viewfinder.active_action_confirm;
+  return true;
+}
+
+void WM_xr_session_state_viewfinder_active_action_confirm_set(wmXrData *xr,
+                                                               eXrViewfinderConfirmAction action)
+{
+  if (WM_xr_session_exists(xr)) {
+    xr->runtime->session_state.viewfinder.active_action_confirm = action;
+  }
+}
+
 bool WM_xr_session_state_viewer_pose_matrix_info_get(const wmXrData *xr,
                                                      float r_viewmat[4][4],
                                                      float *r_focal_len)

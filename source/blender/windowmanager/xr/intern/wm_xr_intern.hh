@@ -61,6 +61,7 @@ struct wmXrViewfinderState {
   eXrViewfinderMode active_mode;
   eXrViewfinderLiveAction active_action_live;
   eXrViewfinderPlaybackAction active_action_playback;
+  eXrViewfinderConfirmAction active_action_confirm;
 };
 
 struct wmXrSessionState {
