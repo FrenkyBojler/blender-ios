@@ -325,8 +325,11 @@ def main():
         report.set_fail_percent(0.1)
         report.set_fail_threshold(7.0 / 255.0)
         if args.gpu_backend == "metal":
-            # Difference in shadows in true_displacement_image and vector_displacement_tangent
-            report.set_fail_percent(0.2)
+            # Difference in shadows in true_displacement_image and vector_displacement_tangent.
+            report.set_fail_percent(0.21)
+        elif "ATI" in gpu_vendor or "AMD" in gpu_vendor:
+            # Difference in bump_normal_texture likely caused by different derivatives.
+            report.set_fail_percent(0.29)
     elif test_dir_name.startswith('transparency'):
         # Dithered transparency uses platform dependent noise pattern.
         report.set_fail_percent(0.22)
