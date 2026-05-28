@@ -749,24 +749,18 @@ enum AttributeElement {
 
   /* Only these combinations are supported by the kernel and can be
    * created on geometry. */
-  ATTR_ELEMENT_VERTEX_MOTION = ATTR_ELEMENT_VERTEX | ATTR_ELEMENT_IS_MOTION,
   ATTR_ELEMENT_VERTEX_NORMAL = ATTR_ELEMENT_VERTEX | ATTR_ELEMENT_IS_NORMAL,
-  ATTR_ELEMENT_VERTEX_NORMAL_MOTION = ATTR_ELEMENT_VERTEX | ATTR_ELEMENT_IS_NORMAL |
-                                      ATTR_ELEMENT_IS_MOTION,
 
   ATTR_ELEMENT_CORNER_BYTE = ATTR_ELEMENT_CORNER | ATTR_ELEMENT_IS_BYTE,
   ATTR_ELEMENT_CORNER_NORMAL = ATTR_ELEMENT_CORNER | ATTR_ELEMENT_IS_NORMAL,
-  ATTR_ELEMENT_CORNER_NORMAL_MOTION = ATTR_ELEMENT_CORNER | ATTR_ELEMENT_IS_NORMAL |
-                                      ATTR_ELEMENT_IS_MOTION,
 
-  ATTR_ELEMENT_CURVE_KEY_MOTION = ATTR_ELEMENT_CURVE_KEY | ATTR_ELEMENT_IS_MOTION,
   ATTR_ELEMENT_CURVE_KEY_NORMAL = ATTR_ELEMENT_CURVE_KEY | ATTR_ELEMENT_IS_NORMAL,
-  ATTR_ELEMENT_CURVE_KEY_NORMAL_MOTION = ATTR_ELEMENT_CURVE_KEY | ATTR_ELEMENT_IS_NORMAL |
-                                         ATTR_ELEMENT_IS_MOTION,
 };
 
 enum AttributeStandard : int {
   ATTR_STD_NONE = 0,
+  ATTR_STD_POSITION,
+  ATTR_STD_RADIUS,
   ATTR_STD_VERTEX_NORMAL,
   ATTR_STD_CORNER_NORMAL,
   ATTR_STD_UV,
@@ -780,9 +774,6 @@ enum AttributeStandard : int {
   ATTR_STD_POSITION_UNDEFORMED,
   ATTR_STD_POSITION_UNDISPLACED,
   ATTR_STD_NORMAL_UNDISPLACED,
-  ATTR_STD_MOTION_VERTEX_POSITION,
-  ATTR_STD_MOTION_VERTEX_NORMAL,
-  ATTR_STD_MOTION_CORNER_NORMAL,
   ATTR_STD_PARTICLE,
   ATTR_STD_CURVE_INTERCEPT,
   ATTR_STD_CURVE_LENGTH,
@@ -1433,7 +1424,10 @@ struct KernelObject {
 
   uint attribute_map_offset;
   uint motion_offset;
-  int normal_attr_offset;
+
+  /* Cached offset into attribute arrays, as these are accessed often. */
+  int position_offset;
+  int normal_offset;
 
   float cryptomatte_object;
   float cryptomatte_asset;
