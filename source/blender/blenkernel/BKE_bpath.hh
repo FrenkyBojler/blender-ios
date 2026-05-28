@@ -92,15 +92,6 @@ enum eBPathForeachFlag {
 };
 ENUM_OPERATORS(eBPathForeachFlag)
 
-enum class eBPathPathKind {
-  /** A regular path stored directly on the ID. May be edited by the callback. */
-  Regular = 0,
-  /** Expanded UDIM or sequence frame path. */
-  Expanded = 1,
-  /** Cache file path. */
-  Cache = 2,
-};
-
 struct BPathForeachPathData;
 
 /**
@@ -146,9 +137,15 @@ struct BPathForeachPathData {
   bool is_path_modified;
 
   /**
-   * Kind of path being visited, to distinguish regular paths from expanded ones.
+   * Set while visiting a path expanded from a UDIM tile or sequence frame.
+   * These paths can not be edited.
    */
-  eBPathPathKind path_kind;
+  bool is_expanded;
+  /**
+   * Set while visiting a cache file path, like a texture cache file.
+   * These paths can not be edited.
+   */
+  bool is_cache;
 };
 
 /** Run `bpath_data.callback_function` on all paths contained in `id`. */

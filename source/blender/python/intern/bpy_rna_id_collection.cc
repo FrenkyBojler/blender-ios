@@ -600,38 +600,44 @@ const EnumPropertyItem rna_enum_file_path_foreach_flag_items[] = {
 
 struct BPy_FilePathMeta {
   PyObject_HEAD
-  eBPathPathKind path_kind;
+  bool is_expanded;
+  bool is_cache;
 };
 
 PyDoc_STRVAR(
     /* Wrap. */
-    bpy_file_path_meta_kind_doc,
-    "Path kind: ``'EXPANDED'`` for UDIM tiles and sequence frames, ``'CACHE'`` for cache file "
-    "paths, and ``'REGULAR'`` for all other paths.\n"
+    bpy_file_path_meta_is_expanded_doc,
+    "True when the path was expanded from a UDIM tile or sequence frame. These paths can not be "
+    "edited.\n"
     "\n"
-    ":type: str\n");
-static PyObject *bpy_file_path_meta_get_kind(BPy_FilePathMeta *self, void * /*closure*/)
+    ":type: bool\n");
+static PyObject *bpy_file_path_meta_get_is_expanded(BPy_FilePathMeta *self, void * /*closure*/)
 {
-  const char *kind = "REGULAR";
-  switch (self->path_kind) {
-    case eBPathPathKind::Expanded:
-      kind = "EXPANDED";
-      break;
-    case eBPathPathKind::Cache:
-      kind = "CACHE";
-      break;
-    case eBPathPathKind::Regular:
-      kind = "REGULAR";
-      break;
-  }
-  return PyUnicode_FromString(kind);
+  return PyBool_FromLong(self->is_expanded);
+}
+
+PyDoc_STRVAR(
+    /* Wrap. */
+    bpy_file_path_meta_is_cache_doc,
+    "True when the path is a cache file, like the image texture cache. These paths can not be "
+    "edited.\n"
+    "\n"
+    ":type: bool\n");
+static PyObject *bpy_file_path_meta_get_is_cache(BPy_FilePathMeta *self, void * /*closure*/)
+{
+  return PyBool_FromLong(self->is_cache);
 }
 
 static PyGetSetDef bpy_file_path_meta_getset[] = {
-    {"kind",
-     reinterpret_cast<getter>(bpy_file_path_meta_get_kind),
+    {"is_expanded",
+     reinterpret_cast<getter>(bpy_file_path_meta_get_is_expanded),
      nullptr,
-     bpy_file_path_meta_kind_doc,
+     bpy_file_path_meta_is_expanded_doc,
+     nullptr},
+    {"is_cache",
+     reinterpret_cast<getter>(bpy_file_path_meta_get_is_cache),
+     nullptr,
+     bpy_file_path_meta_is_cache_doc,
      nullptr},
     {nullptr},
 };
@@ -695,14 +701,15 @@ PyObject *BPyInit_blend_data_path_meta_type()
   return reinterpret_cast<PyObject *>(&BPyFilePathMeta_Type);
 }
 
-static PyObject *bpy_file_path_meta_CreatePyObject(const eBPathPathKind path_kind)
+static PyObject *bpy_file_path_meta_CreatePyObject(const BPathForeachPathData *bpath_data)
 {
   BPy_FilePathMeta *self = reinterpret_cast<BPy_FilePathMeta *>(
       BPyFilePathMeta_Type.tp_alloc(&BPyFilePathMeta_Type, 0));
   if (self == nullptr) {
     return nullptr;
   }
-  self->path_kind = path_kind;
+  self->is_expanded = bpath_data->is_expanded;
+  self->is_cache = bpath_data->is_cache;
   return reinterpret_cast<PyObject *>(self);
 }
 
@@ -731,7 +738,7 @@ static bool foreach_id_file_path_foreach_callback(BPathForeachPathData *bpath_da
   /* args[1]: */
   PyObject *py_path_src = PyUnicode_FromString(path_src);
   /* args[2]: */
-  PyObject *py_path_meta = bpy_file_path_meta_CreatePyObject(bpath_data->path_kind);
+  PyObject *py_path_meta = bpy_file_path_meta_CreatePyObject(bpath_data);
   PyTuple_SET_ITEMS(args, py_owner_id, py_path_src, py_path_meta);
 
   /* Call the Python callback function. */

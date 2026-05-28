@@ -83,7 +83,8 @@ void BKE_bpath_foreach_path_id(BPathForeachPathData *bpath_data, ID *id)
   bpath_data->absolute_base_path = absbase;
   bpath_data->owner_id = id;
   bpath_data->is_path_modified = false;
-  bpath_data->path_kind = eBPathPathKind::Regular;
+  bpath_data->is_expanded = false;
+  bpath_data->is_cache = false;
 
   if ((flag & BKE_BPATH_FOREACH_PATH_SKIP_LINKED) && ID_IS_LINKED(id)) {
     return;

@@ -236,14 +236,13 @@ static void volume_foreach_path(ID *id, BPathForeachPathData *bpath_data)
       BLI_path_abs(abs_filepath, ID_BLEND_PATH(bpath_data->bmain, &volume->id));
     }
 
-    const eBPathPathKind saved_kind = bpath_data->path_kind;
-    bpath_data->path_kind = eBPathPathKind::Expanded;
+    bpath_data->is_expanded = true;
     BKE_bpath_sequence_filepaths_foreach(abs_filepath, [&](StringRef frame_filepath) {
       char frame_path[FILE_MAX];
       frame_filepath.copy_utf8_truncated(frame_path);
       BKE_bpath_foreach_path_readonly_process(bpath_data, frame_path);
     });
-    bpath_data->path_kind = saved_kind;
+    bpath_data->is_expanded = false;
     return;
   }
 

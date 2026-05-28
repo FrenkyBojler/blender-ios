@@ -265,28 +265,27 @@ static void image_foreach_cache(ID *id,
   }
 }
 
-static void image_foreach_expanded_path(BPathForeachPathData *bpath_data,
-                                        const char *expanded_path)
-{
-  const eBPathPathKind prev_kind = bpath_data->path_kind;
-  bpath_data->path_kind = eBPathPathKind::Expanded;
-  BKE_bpath_foreach_path_readonly_process(bpath_data, expanded_path);
-  bpath_data->path_kind = prev_kind;
-}
-
 static void image_foreach_texture_cache_path(BPathForeachPathData *bpath_data,
                                              const char *source_filepath_abs,
                                              const char *cache_dir)
 {
-  const eBPathPathKind prev_kind = bpath_data->path_kind;
-  bpath_data->path_kind = eBPathPathKind::Cache;
+  bpath_data->is_cache = true;
   BKE_image_texture_cache_filepaths_foreach(
       source_filepath_abs, cache_dir, [&](StringRef cache_filepath) {
         char cache_path[FILE_MAX];
         cache_filepath.copy_utf8_truncated(cache_path);
         BKE_bpath_foreach_path_readonly_process(bpath_data, cache_path);
       });
-  bpath_data->path_kind = prev_kind;
+  bpath_data->is_cache = false;
+}
+
+static void image_foreach_expanded_path(BPathForeachPathData *bpath_data,
+                                        const char *expanded_path)
+{
+  bpath_data->is_expanded = true;
+  BKE_bpath_foreach_path_readonly_process(bpath_data, expanded_path);
+  image_foreach_texture_cache_path(bpath_data, expanded_path, U.texture_cachedir);
+  bpath_data->is_expanded = false;
 }
 
 static void image_foreach_path(ID *id, BPathForeachPathData *bpath_data)
@@ -327,7 +326,6 @@ static void image_foreach_path(ID *id, BPathForeachPathData *bpath_data)
             tile_filepath, udim_pattern, tile_format, tile.tile_number);
         if (BLI_is_file(tile_filepath)) {
           image_foreach_expanded_path(bpath_data, tile_filepath);
-          image_foreach_texture_cache_path(bpath_data, tile_filepath, U.texture_cachedir);
         }
       }
     }
@@ -341,7 +339,6 @@ static void image_foreach_path(ID *id, BPathForeachPathData *bpath_data)
       char frame_path[FILE_MAX];
       frame_filepath.copy_utf8_truncated(frame_path);
       image_foreach_expanded_path(bpath_data, frame_path);
-      image_foreach_texture_cache_path(bpath_data, frame_path, U.texture_cachedir);
     });
     return;
   }
