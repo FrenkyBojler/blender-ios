@@ -3654,7 +3654,7 @@ const wmIMEData *button_ime_data_get(Button *but)
 static void button_text_completion(bContext *C, Button *but, HandleButtonData *data)
 {
   /* Unit completion (hint) is only done for buttons with a unit or with a property of type
-   * PROP_PIXEL or PROP_PERCENTAGE. For everything else, we reset the completion to nullptr. */
+   * PROP_PIXEL or PROP_PERCENTAGE. For everything else, we reset the completion to an empty string. */
   if (!button_is_unit(but) &&
       (but->rnaprop && !ELEM(RNA_property_subtype(but->rnaprop), PROP_PIXEL, PROP_PERCENTAGE)))
   {
