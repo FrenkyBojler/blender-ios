@@ -176,7 +176,7 @@ static wmXrController *wm_xr_viewfinder_get_controller(const XrSessionSettings *
 
 static StringRefNull wm_xr_viewfinder_get_active_mode_str(const wmXrSessionState *state)
 {
-  switch(state->viewfinder.active_mode) {
+  switch (state->viewfinder.active_mode) {
     case XR_VIEWFINDER_MODE_LIVE:
       return "active_action_live";
     case XR_VIEWFINDER_MODE_PLAYBACK:
@@ -188,7 +188,7 @@ static StringRefNull wm_xr_viewfinder_get_active_mode_str(const wmXrSessionState
 
 static int wm_xr_viewfinder_get_active_action_idx(const wmXrSessionState *state)
 {
-  switch(state->viewfinder.active_mode) {
+  switch (state->viewfinder.active_mode) {
     case XR_VIEWFINDER_MODE_LIVE:
       return int(state->viewfinder.active_action_live);
     case XR_VIEWFINDER_MODE_PLAYBACK:

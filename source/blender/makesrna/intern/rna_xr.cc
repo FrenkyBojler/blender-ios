@@ -3000,8 +3000,7 @@ static void rna_def_xr_session_state_viewfinder(BlenderRNA *brna)
                               "rna_XrSessionState_viewfinder_active_action_confirm_set",
                               nullptr);
   RNA_def_property_enum_items(prop, viewfinder_confirm_actions);
-  RNA_def_property_ui_text(
-      prop, "Viewfinder Confirm Action", "Active viewfinder confirm action");
+  RNA_def_property_ui_text(prop, "Viewfinder Confirm Action", "Active viewfinder confirm action");
   RNA_def_property_update(prop, NC_WM | ND_XR_DATA_CHANGED, nullptr);
 }
 

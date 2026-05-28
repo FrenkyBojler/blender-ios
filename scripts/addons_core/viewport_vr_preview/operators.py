@@ -505,7 +505,8 @@ class VIEW3D_OT_vr_location_scouting_viewfinder_apply_action(Operator):
                     return {'FINISHED'}
 
         if xr_viewfinder.active_mode == 'CONFIRM':
-            # Confirm mode, currently only used for capture deletion, and only accessible from the 'DELETE' Playback action.
+            # Confirm mode, currently only used for capture deletion, and only
+            # accessible from the 'DELETE' Playback action.
             match xr_viewfinder.active_action_confirm:
                 # Cancel, simply switch back to Playback mode.
                 case 'CANCEL':
