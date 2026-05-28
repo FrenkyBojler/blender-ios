@@ -34,13 +34,10 @@
 #include "bmesh.hh"
 #include "bmesh_tools.hh"
 
-namespace blender {
-
-namespace io::obj {
+namespace blender::io::obj {
 OBJMesh::OBJMesh(Depsgraph *depsgraph, const OBJExportParams &export_params, Object *mesh_object)
 {
   /* We need to copy the object because it may be in temporary space. */
-  export_uv_seams_ = export_params.export_uv_seams;
   Object *obj_eval = DEG_get_evaluated(depsgraph, mesh_object);
   object_name_ = obj_eval->id.name + 2;
   export_mesh_ = nullptr;
@@ -56,6 +53,7 @@ OBJMesh::OBJMesh(Depsgraph *depsgraph, const OBJExportParams &export_params, Obj
     mesh_corner_verts_ = export_mesh_->corner_verts();
     sharp_faces_ = *export_mesh_->attributes().lookup_or_default<bool>(
         "sharp_face", bke::AttrDomain::Face, false);
+    export_uv_seams_ = export_params.export_uv_seams;
   }
   else {
     /* Curves and NURBS surfaces need a new mesh when they're
@@ -432,6 +430,4 @@ const char *OBJMesh::get_face_deform_group_name(const int16_t def_group_index) c
   return vertex_group.name;
 }
 
-}  // namespace io::obj
-
-}  // namespace blender
+}  // namespace blender::io::obj

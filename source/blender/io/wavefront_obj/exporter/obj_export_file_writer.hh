@@ -28,7 +28,6 @@ class OBJMesh;
 struct IndexOffsets {
   int vertex_offset;
   int uv_vertex_offset;
-  int uv_seam_offset;
   int normal_offset;
 };
 
@@ -71,7 +70,6 @@ class OBJWriter : NonMovable, NonCopyable {
    * \note UV indices are stored here, but written with faces later.
    */
   void write_uv_coords(FormatHandler &fh, OBJMesh &obj_mesh_data) const;
-
   /**
    * Write corner normals for smooth-shaded faces, and face normals otherwise, as "vn x y z".
    * \note Normal indices ares stored here, but written with faces later.
