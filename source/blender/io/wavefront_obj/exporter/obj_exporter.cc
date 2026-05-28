@@ -197,9 +197,6 @@ static void write_mesh_objects(const Span<std::unique_ptr<OBJMesh>> exportable_a
       if (export_params.export_uv) {
         obj.store_uv_coords_and_indices();
       }
-      if (export_params.export_uv_seams) {
-        obj.store_uv_seams();
-      }
     }
   });
 

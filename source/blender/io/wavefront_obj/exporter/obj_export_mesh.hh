@@ -45,6 +45,7 @@ class OBJMesh : NonCopyable {
   float4x4 world_and_axes_transform_;
   float3x3 world_and_axes_normal_transform_;
   bool mirrored_transform_;
+  bool export_uv_seams_ = false;
 
   /** Per-corner UV index. */
   Array<int> corner_to_uv_index_;
@@ -149,8 +150,6 @@ class OBJMesh : NonCopyable {
     BLI_assert(face_index < mesh_faces_.size());
     return corner_to_uv_index_.as_span().slice(mesh_faces_[face_index]);
   }
-
-  void store_uv_seams();
 
   Span<float2> get_uv_seams() const
   {

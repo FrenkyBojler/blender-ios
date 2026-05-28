@@ -38,6 +38,7 @@ namespace blender::io::obj {
 OBJMesh::OBJMesh(Depsgraph *depsgraph, const OBJExportParams &export_params, Object *mesh_object)
 {
   /* We need to copy the object because it may be in temporary space. */
+  export_uv_seams_ = export_params.export_uv_seams;
   Object *obj_eval = DEG_get_evaluated(depsgraph, mesh_object);
   object_name_ = obj_eval->id.name + 2;
   export_mesh_ = nullptr;
@@ -295,6 +296,17 @@ void OBJMesh::store_uv_coords_and_indices()
 
   corner_to_uv_index_.reinitialize(uv_map.size());
 
+  if (export_uv_seams_) {
+    const VArraySpan<bool> uv_seams = *attributes.lookup<bool>("uv_seam", bke::AttrDomain::Edge);
+    const Span<int> corner_edges = export_mesh_->corner_edges();
+    for (int index = 0; index < int(uv_map.size()); index++) {
+      if (uv_seams[corner_edges[index]]) {
+        uv_coords_.append(uv_map[index]);
+        corner_to_uv_index_[index] = uv_coords_.size() - 1;
+      }
+    }
+  }
+
   for (int index = 0; index < int(uv_map.size()); index++) {
     float2 uv = uv_map[index];
     int uv_index = uv_to_index.lookup_default(uv, -1);
@@ -304,42 +316,6 @@ void OBJMesh::store_uv_coords_and_indices()
       uv_coords_.append(uv);
     }
     corner_to_uv_index_[index] = uv_index;
-  }
-}
-
-void OBJMesh::store_uv_seams()
-{
-  const bke::AttributeAccessor attributes = export_mesh_->attributes();
-
-  const VArraySpan<bool> uv_seams = *attributes.lookup<bool>("uv_seam", bke::AttrDomain::Edge);
-
-  const StringRef active_uv_name = CustomData_get_active_layer_name(&export_mesh_->corner_data,
-                                                                    CD_PROP_FLOAT2);
-
-  if (active_uv_name.is_empty()) {
-    return;
-  }
-
-  const VArray<float2> uv_map_varray = *attributes.lookup<float2>(active_uv_name,
-                                                                  bke::AttrDomain::Corner);
-
-  const VArraySpan<float2> uv_map(uv_map_varray);
-
-  if (uv_map.is_empty()) {
-    return;
-  }
-
-  const Span<int> corner_edges = export_mesh_->corner_edges();
-
-  uv_seams_.clear();
-  uv_seams_.reserve(export_mesh_->corners_num);
-
-  for (int corner = 0; corner < export_mesh_->corners_num; corner++) {
-    const int edge_index = corner_edges[corner];
-
-    if (uv_seams[edge_index]) {
-      uv_seams_.append(uv_map[corner]);
-    }
   }
 }
 
