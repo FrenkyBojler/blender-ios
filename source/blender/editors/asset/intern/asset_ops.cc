@@ -507,17 +507,36 @@ static wmOperatorStatus asset_library_refresh_invoke(bContext *C,
   return asset_library_refresh_exec(C, op);
 }
 
+static std::string asset_library_refresh_get_description(bContext *C,
+                                                         wmOperatorType *ot,
+                                                         PointerRNA *ptr)
+{
+  if (RNA_boolean_get(ptr, "use_generic_description")) {
+    return ot->description;
+  }
+
+  if (RNA_boolean_get(ptr, "use_remote_listing")) {
+    return "Re-download the asset listing of a remote library. Only supported when the active "
+           "asset library is remote or has a remote component (the Essentials library)";
+  }
+
+  return "Reread assets and asset catalogs from the asset library on disk";
+}
+
 static void ASSET_OT_library_refresh(wmOperatorType *ot)
 {
   /* identifiers */
   ot->name = "Refresh Asset Library";
-  ot->description = "Reread assets and asset catalogs from the asset library on disk";
+  ot->description =
+      "Reread assets and asset catalogs from the asset library on disk.\n"
+      "Shift-click: re-download the asset listing of a remote library";
   ot->idname = "ASSET_OT_library_refresh";
 
   /* API callbacks. */
   ot->invoke = asset_library_refresh_invoke;
   ot->exec = asset_library_refresh_exec;
   ot->poll = asset_library_refresh_poll;
+  ot->get_description = asset_library_refresh_get_description;
 
   PropertyRNA *prop;
   prop = RNA_def_boolean(
@@ -528,6 +547,14 @@ static void ASSET_OT_library_refresh(wmOperatorType *ot)
       "Re-download the asset listing of a remote library. Only supported when the active asset "
       "library is remote or has a remote component (the Essentials library)");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+
+  prop = RNA_def_boolean(ot->srna,
+                         "use_generic_description",
+                         false,
+                         "Use Generic Description",
+                         "For the operator's description, show both cases (normal click to "
+                         "refresh, shift-click to re-download)");
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE | PROP_HIDDEN);
 }
 
 /* -------------------------------------------------------------------- */
