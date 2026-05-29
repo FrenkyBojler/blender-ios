@@ -3694,9 +3694,9 @@ static std::optional<StringRef> button_edit_unit_hint_get_from_prop_subtype(
 
 static void button_edit_unit_hint_refresh(bContext *C, Button *but, HandleButtonData *data)
 {
-  /* Unit completion (hint) is only done for buttons with a unit or with a property of type
-   * PROP_PIXEL or PROP_PERCENTAGE. For everything else, we reset the completion to an empty
-   * string. */
+  /* Unit completion (hint) is only done for buttons with a unit or with a property such as
+   * percentage or pixel for e.g. For everything else, we reset the completion to an empty string.
+   */
   const PropertySubType subtype = but->rnaprop ? RNA_property_subtype(but->rnaprop) : PROP_NONE;
   const std::optional<StringRef> subtype_hint = button_edit_unit_hint_get_from_prop_subtype(
       subtype);
