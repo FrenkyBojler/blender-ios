@@ -1036,7 +1036,7 @@ bool popup_context_menu_for_button(bContext *C, Button *but, const wmEvent *even
   if (but->optype && but->opptr && ed::asset::operator_asset_reference_props_is_set(*but->opptr)) {
     const asset_system::AssetRepresentation *asset = CTX_wm_asset(C);
     if (asset && asset->is_online_only()) {
-      layout.op("ASSET_OT_assets_download", {}, ICON_NONE);
+      layout.op("ASSET_OT_assets_download", {}, ICON_DOWNLOAD);
     }
   }
 
