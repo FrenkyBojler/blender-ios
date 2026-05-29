@@ -3676,14 +3676,31 @@ std::optional<StringRef> button_edit_unit_hint_get(Button &but)
   return data->text_edit_unit_hint;
 }
 
+/* Currently there are property subtypes that are not considered "units", so handle them
+ * separately here. */
+static std::optional<StringRef> button_edit_unit_hint_get_from_prop_subtype(
+    const PropertySubType subtype)
+{
+  switch (subtype) {
+    case PROP_PIXEL:
+      return "px";
+    case PROP_PERCENTAGE:
+      return "%";
+    default:
+      return {};
+  }
+  return {};
+}
+
 static void button_edit_unit_hint_refresh(bContext *C, Button *but, HandleButtonData *data)
 {
   /* Unit completion (hint) is only done for buttons with a unit or with a property of type
    * PROP_PIXEL or PROP_PERCENTAGE. For everything else, we reset the completion to an empty
    * string. */
-  if (!button_is_unit(but) &&
-      (but->rnaprop && !ELEM(RNA_property_subtype(but->rnaprop), PROP_PIXEL, PROP_PERCENTAGE)))
-  {
+  const PropertySubType subtype = but->rnaprop ? RNA_property_subtype(but->rnaprop) : PROP_NONE;
+  const std::optional<StringRef> subtype_hint = button_edit_unit_hint_get_from_prop_subtype(
+      subtype);
+  if (!button_is_unit(but) && !subtype_hint.has_value()) {
     data->text_edit_unit_hint.clear();
     return;
   }
@@ -3713,37 +3730,23 @@ static void button_edit_unit_hint_refresh(bContext *C, Button *but, HandleButton
     name_short = BKE_unit_display_name_short_get(usys, unit_index);
     BLI_assert(!name_short.empty());
   }
-  else if (but->rnaprop) {
-    /* Special handling for PROP_PIXEL and PROP_PERCENTAGE (because they are not treated as units
-     * unfortunately). */
-    const PropertySubType subtype = RNA_property_subtype(but->rnaprop);
-    if (ELEM(subtype, PROP_PIXEL, PROP_PERCENTAGE)) {
-      switch (subtype) {
-        case PROP_PIXEL:
-          name_short = "px";
-          break;
-        case PROP_PERCENTAGE:
-          name_short = "%";
-          break;
-        default:
-          break;
-      }
+  else if (subtype_hint) {
+    /* Special handling for some subtypes. */
+    name_short = *subtype_hint;
+    /* If the string contains the unit already, don't add it as a hint.
+     * Note: This is a simple sub-string check and may fail at times. */
+    const StringRefNull str(data->text_edit.edit_string);
+    BLI_assert(!name_short.empty());
+    if (str.find(name_short) != StringRef::not_found) {
+      data->text_edit_unit_hint.clear();
+      return;
+    }
 
-      /* If the string contains the unit already, don't add it as a hint.
-       * Note: This is a simple sub-string check and may fail at times. */
-      const StringRefNull str(data->text_edit.edit_string);
-      BLI_assert(!name_short.empty());
-      if (str.find(name_short) != StringRef::not_found) {
-        data->text_edit_unit_hint.clear();
-        return;
-      }
-
-      /* If the number we're entering is not valid, don't show the hint. */
-      double value;
-      if (!BPY_run_string_as_number(C, nullptr, data->text_edit.edit_string, nullptr, &value)) {
-        data->text_edit_unit_hint.clear();
-        return;
-      }
+    /* If the number we're entering is not valid, don't show the hint. */
+    double value;
+    if (!BPY_run_string_as_number(C, nullptr, data->text_edit.edit_string, nullptr, &value)) {
+      data->text_edit_unit_hint.clear();
+      return;
     }
   }
 
