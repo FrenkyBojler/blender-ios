@@ -22,6 +22,7 @@
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
+#include "BLI_span.hh"
 
 #include "BLT_translation.hh"
 
@@ -175,8 +176,6 @@ struct StitchState {
   StitchPreviewer *stitch_preview;
 };
 
-struct StitchStateInit;
-
 /**
  * Per-object state for the unwrap "Original Bounds" option, which reuses the
  * stitch machinery to weld selected, non-seam-bounded islands.
@@ -214,10 +213,6 @@ struct StitchStateContainer {
 
   bool ignore_seam_boundary;
   bool only_selected_uvs;
-
-  /* Only used during init, null afterwards */
-  int *objs_selection_count = nullptr;
-  StitchStateInit *state_init = nullptr;
 };
 
 struct PreviewPosition {
@@ -248,11 +243,23 @@ struct UvElementID {
   int elementIndex;
 };
 
-/** #StitchState initialization. */
+/**
+ * Selection extracted from the operator's RNA, used to restore a stored
+ * selection while initializing each object (operator redo). Owns its arrays;
+ * free with #stitch_state_init_free. Only lives for the duration of init.
+ */
 struct StitchStateInit {
-  int uv_selected_count;
-  UvElementID *to_select;
+  /** Per-object count of selected UVs, parallel to the edit-mode object list. */
+  int *objs_selection_count;
+  /** All selected UVs across every object; sliced per-object during init. */
+  UvElementID *selected_uvs;
 };
+
+static void stitch_state_init_free(StitchStateInit *state_init)
+{
+  MEM_SAFE_DELETE(state_init->objs_selection_count);
+  MEM_SAFE_DELETE(state_init->selected_uvs);
+}
 
 }  // namespace
 
@@ -1899,7 +1906,8 @@ static UvEdge *uv_edge_get(BMLoop *l, StitchState *state)
 static StitchState *stitch_init(bContext *C,
                                 StitchStateContainer *ssc,
                                 Object *obedit,
-                                const StitchModes stored_mode)
+                                const StitchModes stored_mode,
+                                const Span<UvElementID> to_select)
 {
   /* for fast edge lookup... */
   GHash *edge_hash;
@@ -2097,22 +2105,23 @@ static StitchState *stitch_init(bContext *C,
 
   state->selection_size = 0;
 
-  /* Load old selection if redoing operator with different settings */
-  if (ssc->state_init != nullptr) {
+  /* Restore the operator's own (modal-edited) stitch selection on redo; it is
+   * not the mesh UV selection, so it can't be re-derived from the mesh. */
+  if (!to_select.is_empty()) {
     int faceIndex, elementIndex;
     UvElement *element;
 
     BM_mesh_elem_table_ensure(em->bm, BM_FACE);
 
-    int selected_count = ssc->state_init->uv_selected_count;
+    int selected_count = to_select.size();
 
     if (stored_mode == STITCH_VERT) {
       state->selection_stack = MEM_new_array_uninitialized<void *>(state->total_separate_uvs,
                                                                    "uv_stitch_selection_stack");
 
       while (selected_count--) {
-        faceIndex = ssc->state_init->to_select[selected_count].faceIndex;
-        elementIndex = ssc->state_init->to_select[selected_count].elementIndex;
+        faceIndex = to_select[selected_count].faceIndex;
+        elementIndex = to_select[selected_count].elementIndex;
         efa = BM_face_at_index(em->bm, faceIndex);
         element = BM_uv_element_get(
             state->element_map,
@@ -2127,8 +2136,8 @@ static StitchState *stitch_init(bContext *C,
       while (selected_count--) {
         UvEdge tmp_edge, *edge;
         int uv1, uv2;
-        faceIndex = ssc->state_init->to_select[selected_count].faceIndex;
-        elementIndex = ssc->state_init->to_select[selected_count].elementIndex;
+        faceIndex = to_select[selected_count].faceIndex;
+        elementIndex = to_select[selected_count].elementIndex;
         efa = BM_face_at_index(em->bm, faceIndex);
         element = BM_uv_element_get(
             state->element_map,
@@ -2258,37 +2267,34 @@ static bool goto_next_island(StitchStateContainer *ssc)
   return false;
 }
 
-static StitchStateInit *stitch_extract_rna_selection(wmOperator *op,
-                                                     const Vector<Object *> &objects,
-                                                     StitchStateContainer *ssc)
+static StitchStateInit stitch_extract_rna_selection(wmOperator *op,
+                                                    const Vector<Object *> &objects)
 {
-  UvElementID *selected_uvs_arr = nullptr;
-  StitchStateInit *state_init = nullptr;
+  StitchStateInit state_init = {};
 
   /* Retrieve list of selected UVs, one list contains all selected UVs
    * for all objects. */
-  ssc->objs_selection_count = MEM_new_array_zeroed<int>(objects.size(), "objects_selection_count");
-  RNA_int_get_array(op->ptr, "objects_selection_count", ssc->objs_selection_count);
+  state_init.objs_selection_count = MEM_new_array_zeroed<int>(objects.size(),
+                                                              "objects_selection_count");
+  RNA_int_get_array(op->ptr, "objects_selection_count", state_init.objs_selection_count);
 
   int total_selected = 0;
   for (uint ob_index = 0; ob_index < objects.size(); ob_index++) {
-    total_selected += ssc->objs_selection_count[ob_index];
+    total_selected += state_init.objs_selection_count[ob_index];
   }
 
-  selected_uvs_arr = MEM_new_array_zeroed<UvElementID>(total_selected, "selected_uvs_arr");
+  state_init.selected_uvs = MEM_new_array_zeroed<UvElementID>(total_selected, "selected_uvs_arr");
   int sel_idx = 0;
   RNA_BEGIN (op->ptr, itemptr, "selection") {
     BLI_assert(sel_idx < total_selected);
-    selected_uvs_arr[sel_idx].faceIndex = RNA_int_get(&itemptr, "face_index");
-    selected_uvs_arr[sel_idx].elementIndex = RNA_int_get(&itemptr, "element_index");
+    state_init.selected_uvs[sel_idx].faceIndex = RNA_int_get(&itemptr, "face_index");
+    state_init.selected_uvs[sel_idx].elementIndex = RNA_int_get(&itemptr, "element_index");
     sel_idx++;
   }
   RNA_END;
 
   RNA_collection_clear(op->ptr, "selection");
 
-  state_init = MEM_new_zeroed<StitchStateInit>("UV_init_selected");
-  state_init->to_select = selected_uvs_arr;
   return state_init;
 }
 
@@ -2353,19 +2359,14 @@ static StitchStateContainer *stitch_operator_settings_init(bContext *C, wmOperat
     }
   }
 
-  if (RNA_struct_property_is_set(op->ptr, "selection") &&
-      RNA_struct_property_is_set(op->ptr, "objects_selection_count"))
-  {
-    ssc->state_init = stitch_extract_rna_selection(op, objects, ssc);
-  }
-
   return ssc;
 }
 
 static int stitch_init_all(bContext *C,
                            StitchStateContainer *ssc,
                            const StitchModes stored_mode,
-                           const bool draw_preview)
+                           const bool draw_preview,
+                           wmOperator *op)
 {
 
   Main *bmain = CTX_data_main(C);
@@ -2379,26 +2380,32 @@ static int stitch_init_all(bContext *C,
     return 0;
   }
 
+  /* Selection to restore when redoing the operator. Extracted here, where the
+   * object list and the loop that consumes it live; null `op` (e.g. unwrap's
+   * internal stitch) means nothing to restore. */
+  StitchStateInit state_init = {};
+  if (op && RNA_struct_property_is_set(op->ptr, "selection") &&
+      RNA_struct_property_is_set(op->ptr, "objects_selection_count"))
+  {
+    state_init = stitch_extract_rna_selection(op, objects);
+  }
+
   ssc->objects = MEM_new_array_zeroed<Object *>(objects.size(), "Object *ssc->objects");
   ssc->states = MEM_new_array_zeroed<StitchState *>(objects.size(), "StitchState");
   ssc->objects_len = 0;
 
-  /* `to_select` is advanced one object at a time below, so keep the base
-   * pointer to free the allocation afterwards. */
-  UvElementID *selected_uvs = ssc->state_init ? ssc->state_init->to_select : nullptr;
-
+  /* Cursor into the flat stored-selection list, advanced one object at a time. */
+  int selection_offset = 0;
   for (uint ob_index = 0; ob_index < objects.size(); ob_index++) {
     Object *obedit = objects[ob_index];
 
-    if (ssc->state_init != nullptr && ssc->objs_selection_count != nullptr) {
-      ssc->state_init->uv_selected_count = ssc->objs_selection_count[ob_index];
+    Span<UvElementID> to_select;
+    if (state_init.objs_selection_count) {
+      const int selected_count = state_init.objs_selection_count[ob_index];
+      to_select = Span<UvElementID>(state_init.selected_uvs + selection_offset, selected_count);
+      selection_offset += selected_count;
     }
-    StitchState *stitch_state_ob = stitch_init(C, ssc, obedit, stored_mode);
-
-    if (ssc->state_init != nullptr && ssc->objs_selection_count != nullptr) {
-      /* Move pointer to beginning of next object's data. */
-      ssc->state_init->to_select += ssc->state_init->uv_selected_count;
-    }
+    StitchState *stitch_state_ob = stitch_init(C, ssc, obedit, stored_mode, to_select);
 
     if (stitch_state_ob) {
       ssc->objects[ssc->objects_len] = obedit;
@@ -2407,11 +2414,8 @@ static int stitch_init_all(bContext *C,
     }
   }
 
-  MEM_delete(ssc->objs_selection_count);
-  ssc->objs_selection_count = nullptr;
-  MEM_delete(ssc->state_init);
-  ssc->state_init = nullptr;
-  MEM_SAFE_DELETE(selected_uvs);
+  /* The per-object loop has consumed it; nothing below needs the selection. */
+  stitch_state_init_free(&state_init);
 
   if (ssc->objects_len == 0) {
     /* No object could be initialized for stitching (e.g. all faces hidden). */
@@ -2464,7 +2468,7 @@ bool uv_stitch_selected_islands(bContext *C)
   ssc->mode = STITCH_VERT;
   ssc->only_selected_uvs = true;
   ssc->ignore_seam_boundary = true;
-  if (!stitch_init_all(C, ssc, STITCH_VERT, false)) {
+  if (!stitch_init_all(C, ssc, STITCH_VERT, false, nullptr)) {
     MEM_delete(ssc);
     return false;
   }
@@ -2477,7 +2481,9 @@ static wmOperatorStatus stitch_invoke(bContext *C, wmOperator *op, const wmEvent
 {
   StitchStateContainer *ssc = stitch_operator_settings_init(C, op);
 
-  if (!stitch_init_all(C, ssc, (StitchModes)RNA_enum_get(op->ptr, "stored_mode"), true)) {
+  if (!ssc ||
+      !stitch_init_all(C, ssc, (StitchModes)RNA_enum_get(op->ptr, "stored_mode"), true, op))
+  {
     MEM_SAFE_DELETE(ssc);
     op->customdata = nullptr;
     return OPERATOR_CANCELLED;
@@ -2598,7 +2604,9 @@ static wmOperatorStatus stitch_exec(bContext *C, wmOperator *op)
   Scene *scene = CTX_data_scene(C);
 
   StitchStateContainer *ssc = stitch_operator_settings_init(C, op);
-  if (!stitch_init_all(C, ssc, (StitchModes)RNA_enum_get(op->ptr, "stored_mode"), true)) {
+  if (!ssc ||
+      !stitch_init_all(C, ssc, (StitchModes)RNA_enum_get(op->ptr, "stored_mode"), true, op))
+  {
     MEM_SAFE_DELETE(ssc);
     op->customdata = nullptr;
     return OPERATOR_CANCELLED;
