@@ -423,6 +423,87 @@ static void rna_PoseChannel_constraints_remove(
   }
 }
 
+static void rna_PoseChannel_constraints_remove_all(ID *id, bPoseChannel *pchan, Main *bmain)
+{
+  bool is_any_ik = false;
+  Object *ob = id_cast<Object *>(id);
+
+  for (bConstraint &con : pchan->constraints.items_mutable()) {
+    is_any_ik |= ELEM(con.type, CONSTRAINT_TYPE_KINEMATIC, CONSTRAINT_TYPE_SPLINEIK);
+    BKE_constraint_remove_ex(&pchan->constraints, ob, &con);
+  }
+
+  ed::object::constraint_update(bmain, ob);
+  DEG_relations_tag_update(bmain);
+
+  /* XXX(@ideasman42): is this really needed? */
+  BKE_constraints_active_set(&pchan->constraints, nullptr);
+
+  WM_main_add_notifier(NC_OBJECT | ND_CONSTRAINT | NA_REMOVED, id);
+
+  if (is_any_ik) {
+    BIK_clear_data(ob->pose);
+  }
+}
+
+static void rna_PoseChannel_constraints_remove_constraints(ID *id,
+                                                    bPoseChannel *pchan,
+                                                    Main *bmain,
+                                                    ReportList *reports,
+                                                    const int *indices_ptr,
+                                                    const int indices_num)
+{
+  bool is_any_ik = false;
+  Object *ob = id_cast<Object *>(id);
+
+  if (!indices_ptr) {
+    rna_PoseChannel_constraints_remove_all(id, pchan, bmain);
+    return;
+  }
+
+  const Span<int> indices(indices_ptr, indices_num);
+  if (!std::is_sorted(indices.begin(), indices.end())) {
+    BKE_report(reports, RPT_ERROR, "Indices must be sorted in ascending order");
+    return;
+  }
+  if (std::adjacent_find(indices.begin(), indices.end(), std::greater_equal<>()) != indices.end())
+  {
+    BKE_report(reports, RPT_ERROR, "Indices cannot have duplicates");
+    return;
+  }
+  if (indices.first() < 0 || indices.last() >= pchan->constraints.count()) {
+    BKE_report(reports, RPT_ERROR, "Indices must be in range");
+    return;
+  }
+
+  ListBaseMutableIterator<bConstraint> con_iter = pchan->constraints.items_mutable().begin();
+  int last = 0;
+  int diff = 0;
+  for (int index : indices) {
+    diff = index - last;
+    last = index;
+    while (diff) {
+      con_iter++;
+      diff--;
+    }
+
+    is_any_ik |= ELEM((*con_iter).type, CONSTRAINT_TYPE_KINEMATIC, CONSTRAINT_TYPE_SPLINEIK);
+    BKE_constraint_remove_ex(&pchan->constraints, ob, &*con_iter);
+  }
+
+  ed::object::constraint_update(bmain, ob);
+  DEG_relations_tag_update(bmain);
+
+  /* XXX(@ideasman42): is this really needed? */
+  BKE_constraints_active_set(&pchan->constraints, nullptr);
+
+  WM_main_add_notifier(NC_OBJECT | ND_CONSTRAINT | NA_REMOVED, id);
+
+  if (is_any_ik) {
+    BIK_clear_data(ob->pose);
+  }
+}
+
 static void rna_PoseChannel_constraints_move(
     ID *id, bPoseChannel *pchan, Main *bmain, ReportList *reports, int from, int to)
 {
@@ -804,6 +885,25 @@ static void rna_def_pose_channel_constraints(BlenderRNA *brna, PropertyRNA *cpro
   parm = RNA_def_pointer(func, "constraint", "Constraint", "", "Removed constraint");
   RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED | PARM_RNAPTR);
   RNA_def_parameter_clear_flags(parm, PROP_THICK_WRAP, ParameterFlag(0));
+
+  func = RNA_def_function(srna, "remove_constraints", "rna_PoseChannel_constraints_remove_constraints");
+  RNA_def_function_ui_description(func,
+                                  "Remove multiple constraints from this object specified by "
+                                  "indices. If no indices are provided, remove all constraints.");
+  RNA_def_function_flag(
+      func, FUNC_USE_SELF_ID | FUNC_USE_MAIN | FUNC_USE_REPORTS); /* ID needed for refresh */
+  /* constraint indices to remove */
+  parm = RNA_def_int_array(func,
+                           "indices",
+                           1,
+                           nullptr,
+                           0,
+                           INT_MAX,
+                           "Indices",
+                           "The indices of the constraints to remove",
+                           0,
+                           10000);
+  RNA_def_parameter_flags(parm, PROP_DYNAMIC, ParameterFlag(0));
 
   func = RNA_def_function(srna, "move", "rna_PoseChannel_constraints_move");
   RNA_def_function_ui_description(func, "Move a constraint to a different position");
