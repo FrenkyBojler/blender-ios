@@ -46,24 +46,6 @@ static StructRNA *rna_DynamicOverrideRuleTargetFilter_refine(PointerRNA *ptr)
   return RNA_DynamicOverrideRuleTargetFilter;
 }
 
-static StructRNA *rna_DynamicOverrideRuleProperty_refine(PointerRNA *ptr)
-{
-  DynamicOverrideRuleProperty *rule_prop = ptr->data_as<DynamicOverrideRuleProperty>();
-
-  if (!rule_prop->orig_value) {
-    return RNA_DynamicOverrideRuleProperty;
-  }
-
-  switch (rule_prop->orig_value->type) {
-    case IDP_ARRAY:
-      switch (rule_prop->orig_value->subtype) {
-        case IDP_FLOAT:
-          return RNA_DynamicOverrideRulePropertyFloatArray;
-      }
-  }
-  return RNA_DynamicOverrideRuleProperty;
-}
-
 static void rna_DynamicOverride_rule_property_rna_path_get(PointerRNA *ptr, char *value)
 {
   DynamicOverrideRuleProperty *rule_prop = ptr->data_as<DynamicOverrideRuleProperty>();
@@ -90,94 +72,6 @@ static int rna_DynamicOverride_rule_property_propidentifier_length(PointerRNA *p
   std::string safe_property_identifier = bke::dynoverride::rule_property_rna_identifier(
       *rule_prop);
   return safe_property_identifier.size() + 1;
-}
-
-static int rna_DynamicOverride_rule_property_float_array_get_length(
-    const PointerRNA * /*ptr*/, int length[RNA_MAX_ARRAY_DIMENSION], IDProperty *idprop)
-{
-  BLI_assert(IDP_array_float_get(idprop));
-
-  length[0] = idprop->len;
-  return length[0];
-}
-
-static void rna_DynamicOverride_rule_property_float_array_get(PointerRNA * /*ptr*/,
-                                                              float *values,
-                                                              IDProperty *idprop)
-{
-  float *data = IDP_array_float_get(idprop);
-  const size_t len = idprop->len;
-
-  memcpy(values, data, len * sizeof(*data));
-}
-
-static void rna_DynamicOverride_rule_property_float_array_set(PointerRNA * /*ptr*/,
-                                                              const float *values,
-                                                              IDProperty *idprop)
-{
-  float *data = IDP_array_float_get(idprop);
-  const size_t len = idprop->len;
-
-  memcpy(data, values, len * sizeof(*data));
-}
-
-static int rna_DynamicOverride_rule_property_override_value_float_array_get_length(
-    const PointerRNA *ptr, int length[RNA_MAX_ARRAY_DIMENSION])
-{
-  DynamicOverrideRuleProperty *rule_prop = ptr->data_as<DynamicOverrideRuleProperty>();
-  return rna_DynamicOverride_rule_property_float_array_get_length(
-      ptr, length, rule_prop->new_value);
-}
-
-static void rna_DynamicOverride_rule_property_override_value_float_array_get(PointerRNA *ptr,
-                                                                             float *values)
-{
-  DynamicOverrideRuleProperty *rule_prop = ptr->data_as<DynamicOverrideRuleProperty>();
-  rna_DynamicOverride_rule_property_float_array_get(ptr, values, rule_prop->new_value);
-}
-
-static void rna_DynamicOverride_rule_property_override_value_float_array_set(PointerRNA *ptr,
-                                                                             const float *values)
-{
-  DynamicOverrideRuleProperty *rule_prop = ptr->data_as<DynamicOverrideRuleProperty>();
-  rna_DynamicOverride_rule_property_float_array_set(ptr, values, rule_prop->new_value);
-}
-
-static void rna_DynamicOverride_rule_property_override_value_float_array_update(Main * /*bmain*/,
-                                                                                Scene *,
-                                                                                PointerRNA *ptr)
-{
-  std::optional<AncestorPointerRNA> rule_ancestor_ptr = RNA_struct_search_closest_ancestor_by_type(
-      ptr, RNA_DynamicOverrideRuleIDData);
-  if (!rule_ancestor_ptr) {
-    return;
-  }
-
-  DynamicOverrideRuleIDData *rule = static_cast<DynamicOverrideRuleIDData *>(
-      rule_ancestor_ptr->data);
-  DEG_id_tag_update(rule->base.target_filter.target_id, ID_RECALC_DYNAMIC_OVERRIDE);
-}
-
-static int rna_DynamicOverride_rule_property_original_value_float_array_get_length(
-    const PointerRNA *ptr, int length[RNA_MAX_ARRAY_DIMENSION])
-{
-  DynamicOverrideRuleProperty *rule_prop = ptr->data_as<DynamicOverrideRuleProperty>();
-  return rna_DynamicOverride_rule_property_float_array_get_length(
-      ptr, length, rule_prop->orig_value);
-}
-
-static void rna_DynamicOverride_rule_property_original_value_float_array_get(PointerRNA *ptr,
-                                                                             float *values)
-{
-  DynamicOverrideRuleProperty *rule_prop = ptr->data_as<DynamicOverrideRuleProperty>();
-  rna_DynamicOverride_rule_property_float_array_get(ptr, values, rule_prop->orig_value);
-}
-
-static void rna_DynamicOverride_rule_property_original_value_float_array_set(PointerRNA *ptr,
-                                                                             const float *values)
-{
-  DynamicOverrideRuleProperty *rule_prop = ptr->data_as<DynamicOverrideRuleProperty>();
-  rna_DynamicOverride_rule_property_float_array_set(ptr, values, rule_prop->orig_value);
 }
 
 static DynamicOverrideRuleProperty *rna_DynamicOverride_rule_property_add(
@@ -318,7 +212,6 @@ static void rna_def_dynamic_override_rule_property(BlenderRNA *brna)
       "Dynamic Override Rule Property",
       "Data for the override of an RNA property of the data matching this rule");
   RNA_def_struct_sdna(srna, "DynamicOverrideRuleProperty");
-  RNA_def_struct_refine_func(srna, "rna_DynamicOverrideRuleProperty_refine");
 
   prop = RNA_def_string(srna,
                         "rna_path",
@@ -347,50 +240,6 @@ static void rna_def_dynamic_override_rule_property(BlenderRNA *brna)
                                 "rna_DynamicOverride_rule_property_propidentifier_length",
                                 nullptr);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-
-  RNA_define_verify_sdna(true);
-}
-
-static void rna_def_dynamic_override_rule_property_float_array(BlenderRNA *brna)
-{
-  StructRNA *srna;
-  PropertyRNA *prop;
-
-  srna = RNA_def_struct(
-      brna, "DynamicOverrideRulePropertyFloatArray", "DynamicOverrideRuleProperty");
-  RNA_def_struct_ui_text(
-      srna,
-      "Float Array Property",
-      "Data for the override of a float array RNA property of the data matching this rule");
-  RNA_def_struct_sdna(srna, "DynamicOverrideRuleProperty");
-
-  RNA_define_verify_sdna(false);
-
-  prop = RNA_def_property(srna, "override_value", PROP_FLOAT, PROP_NONE);
-  RNA_def_property_flag(prop, PROP_DYNAMIC);
-  RNA_def_property_array(prop, 0);
-  RNA_def_property_dynamic_array_funcs(
-      prop, "rna_DynamicOverride_rule_property_override_value_float_array_get_length");
-  RNA_def_property_float_funcs(prop,
-                               "rna_DynamicOverride_rule_property_override_value_float_array_get",
-                               "rna_DynamicOverride_rule_property_override_value_float_array_set",
-                               nullptr);
-  RNA_def_property_ui_text(
-      prop, "Override Value", "Array of floats defining the overridden value");
-  RNA_def_property_update(prop,
-                          NC_ID | NA_EDITED,
-                          "rna_DynamicOverride_rule_property_override_value_float_array_update");
-
-  prop = RNA_def_property(srna, "original_value", PROP_FLOAT, PROP_NONE);
-  RNA_def_property_flag(prop, PROP_DYNAMIC);
-  RNA_def_property_array(prop, 0);
-  RNA_def_property_dynamic_array_funcs(
-      prop, "rna_DynamicOverride_rule_property_original_value_float_array_get_length");
-  RNA_def_property_float_funcs(prop,
-                               "rna_DynamicOverride_rule_property_original_value_float_array_get",
-                               "rna_DynamicOverride_rule_property_original_value_float_array_set",
-                               nullptr);
-  RNA_def_property_ui_text(prop, "Original Value", "Array of floats storing the original value");
 
   RNA_define_verify_sdna(true);
 }
@@ -562,7 +411,6 @@ void RNA_def_dynamic_override(BlenderRNA *brna)
   rna_def_dynamic_override_rule_target_filter_single_id(brna);
 
   rna_def_dynamic_override_rule_property(brna);
-  rna_def_dynamic_override_rule_property_float_array(brna);
 
   rna_def_dynamic_override_rule(brna);
   rna_def_dynamic_override_rule_iddata(brna);

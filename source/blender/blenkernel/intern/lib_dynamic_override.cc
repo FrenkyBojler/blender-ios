@@ -202,15 +202,6 @@ static void rule_property_copy(DynamicOverrideRuleProperty &dynoverride_rule_pro
   dynoverride_rule_property_dst.sub_item_name = MEM_dupalloc(
       dynoverride_rule_property_src.sub_item_name);
   dynoverride_rule_property_dst.sub_item_index = dynoverride_rule_property_src.sub_item_index;
-
-  if (dynoverride_rule_property_src.new_value) {
-    dynoverride_rule_property_dst.new_value = IDP_CopyProperty_ex(
-        dynoverride_rule_property_src.new_value, flag);
-  }
-  if (dynoverride_rule_property_src.orig_value) {
-    dynoverride_rule_property_dst.orig_value = IDP_CopyProperty_ex(
-        dynoverride_rule_property_src.orig_value, flag);
-  }
 }
 
 static void rule_copy(DynamicOverrideRule &dynoverride_rule_dst,
@@ -265,13 +256,6 @@ static void rule_property_free(DynamicOverrideRuleProperty &dynoverride_rule_pro
 {
   MEM_delete(dynoverride_rule_property.rna_path);
   MEM_delete(dynoverride_rule_property.sub_item_name);
-
-  if (dynoverride_rule_property.new_value) {
-    IDP_FreeProperty(dynoverride_rule_property.new_value);
-  }
-  if (dynoverride_rule_property.orig_value) {
-    IDP_FreeProperty(dynoverride_rule_property.orig_value);
-  }
 }
 
 static void rule_free(DynamicOverrideRule &dynoverride_rule)
@@ -301,19 +285,6 @@ static void rule_free(DynamicOverrideRule &dynoverride_rule)
   }
 }
 
-static void rule_property_foreach_id(DynamicOverrideRuleProperty &dynoverride_rule_property,
-                                     LibraryForeachIDData &data)
-{
-  IDP_foreach_property(
-      dynoverride_rule_property.new_value, IDP_TYPE_FILTER_ID, [&](IDProperty *prop) {
-        BKE_lib_query_idpropertiesForeachIDLink_callback(prop, &data);
-      });
-  IDP_foreach_property(
-      dynoverride_rule_property.orig_value, IDP_TYPE_FILTER_ID, [&](IDProperty *prop) {
-        BKE_lib_query_idpropertiesForeachIDLink_callback(prop, &data);
-      });
-}
-
 static void rule_foreach_id(DynamicOverrideRule &dynoverride_rule, LibraryForeachIDData &data)
 {
   switch (dynoverride_rule.type) {
@@ -329,10 +300,6 @@ static void rule_foreach_id(DynamicOverrideRule &dynoverride_rule, LibraryForeac
       IDP_foreach_property(rule.orig_values, IDP_TYPE_FILTER_ID, [&](IDProperty *prop) {
         BKE_lib_query_idpropertiesForeachIDLink_callback(prop, &data);
       });
-
-      for (DynamicOverrideRuleProperty &property : rule.properties) {
-        rule_property_foreach_id(property, data);
-      }
       break;
     }
     default:
@@ -347,13 +314,6 @@ static void rule_property_write(BlendWriter &writer,
 
   writer.write_string(dynoverride_rule_property.rna_path);
   writer.write_string(dynoverride_rule_property.sub_item_name);
-
-  if (dynoverride_rule_property.new_value) {
-    IDP_BlendWrite(&writer, dynoverride_rule_property.new_value);
-  }
-  if (dynoverride_rule_property.orig_value) {
-    IDP_BlendWrite(&writer, dynoverride_rule_property.orig_value);
-  }
 }
 
 static void rule_write(BlendWriter &writer, DynamicOverrideRule &dynoverride_rule)
@@ -388,15 +348,6 @@ static void rule_property_read_data(BlendDataReader &reader,
 {
   BLO_read_string(&reader, &dynoverride_rule_property.rna_path);
   BLO_read_string(&reader, &dynoverride_rule_property.sub_item_name);
-
-  BLO_read_struct(&reader, IDProperty, &dynoverride_rule_property.new_value);
-  if (dynoverride_rule_property.new_value) {
-    IDP_DirectLinkProperty(&reader, dynoverride_rule_property.new_value);
-  }
-  BLO_read_struct(&reader, IDProperty, &dynoverride_rule_property.orig_value);
-  if (dynoverride_rule_property.orig_value) {
-    IDP_DirectLinkProperty(&reader, dynoverride_rule_property.orig_value);
-  }
 }
 
 static void rule_read_data(BlendDataReader &reader, DynamicOverrideRule &dynoverride_rule)

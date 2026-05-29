@@ -71,10 +71,6 @@ struct DynamicOverrideRuleProperty {
   char *sub_item_name = nullptr;
   int sub_item_index = -1;
   int _pad = 0;
-
-  /** New overridden value, and original one. */
-  IDProperty *new_value = nullptr;
-  IDProperty *orig_value = nullptr;
 };
 
 struct DynamicOverrideRuleIDData {
