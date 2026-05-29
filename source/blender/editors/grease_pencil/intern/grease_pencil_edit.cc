@@ -5104,7 +5104,7 @@ static wmOperatorStatus grease_pencil_set_stroke_type_exec(bContext *C, wmOperat
     switch (type) {
       case StrokeType::Stroke: {
         index_mask::masked_fill(hide_stroke.span, false, strokes);
-        index_mask::masked_fill(fill_ids.span, 0, strokes);  // other number?
+        index_mask::masked_fill(fill_ids.span, 0, strokes);
         break;
       }
       case StrokeType::Fill: {
