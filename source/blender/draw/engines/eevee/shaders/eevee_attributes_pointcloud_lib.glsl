@@ -17,7 +17,7 @@ SHADER_LIBRARY_CREATE_INFO(draw_pointcloud)
 #include "draw_model_lib.glsl"
 #include "draw_object_infos_lib.glsl"
 #include "draw_pointcloud_lib.glsl"
-#include "eevee_geom_types_lib.glsl"
+#include "eevee_geom_types_lib.bsl.hh"
 #include "gpu_shader_codegen_lib.glsl"
 
 #include "gpu_shader_math_matrix_transform_lib.glsl"
@@ -29,14 +29,11 @@ SHADER_LIBRARY_CREATE_INFO(draw_pointcloud)
  * Point Cloud objects loads attributes from buffers through sampler buffers.
  * \{ */
 
-#ifdef OBINFO_LIB
-float3 attr_load_orco(PointCloudPoint point, float4 orco, int index)
+float3 attr_load_orco(PointCloudPoint point, float4 /*orco*/, int /*index*/)
 {
-  float3 lP = pointcloud::get_point_position(point.point_id);
-  return drw_object_orco(lP);
+  /* NOTE: Doesn't support ORCO attribute. */
+  return drw_object_orco(point.lP);
 }
-#endif
-
 float4 attr_load_tangent(PointCloudPoint point, samplerBuffer cd_buf, int /*index*/)
 {
   return pointcloud::get_customdata_vec4(point.point_id, cd_buf);

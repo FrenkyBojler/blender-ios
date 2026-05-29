@@ -1209,6 +1209,9 @@ static void node_update_basis_from_declaration(TreeDrawContext &tree_draw_ctx,
             bke::bNodePanelRuntime &panel_runtime = node.runtime->panels[node_decl.index];
             panel_runtime.content_extent->min_y = locy;
           }
+          else {
+            BLI_assert_unreachable_static_t(ItemT);
+          }
         },
         item_variant.item);
   }
@@ -2168,7 +2171,7 @@ static void node_add_error_message_button(const TreeDrawContext &tree_draw_ctx,
                                           const rctf &rect,
                                           float &icon_offset)
 {
-  if (ntree.type == NTREE_GEOMETRY) {
+  if (ELEM(ntree.type, NTREE_GEOMETRY, NTREE_COMPOSIT)) {
     nodes::eval_log::NodeTreeLog *geo_tree_log = [&]() -> nodes::eval_log::NodeTreeLog * {
       const bNodeTreeZones *zones = node.owner_tree().zones();
       if (!zones) {
@@ -2252,6 +2255,11 @@ static std::optional<std::chrono::nanoseconds> node_get_execution_time(
   }
   if (node.is_group_output()) {
     return tree_log->execution_time;
+  }
+  if (node.is_type("CompositorNodeViewer"_ustr)) {
+    /* Don't display execution times on compositor viewer nodes for consistency with Geometry
+     * Nodes. */
+    return std::nullopt;
   }
   if (node.is_frame()) {
     /* Could be cached in the future if this recursive code turns out to be slow. */
@@ -2504,7 +2512,12 @@ static Vector<NodeExtraInfoRow> node_get_extra_info(const bContext &C,
             GEO_NODE_REPEAT_OUTPUT,
             GEO_NODE_FOREACH_GEOMETRY_ELEMENT_OUTPUT,
             NODE_EVALUATE_CLOSURE) ||
-       StringRef(node.idname).startswith("GeometryNodeImport")))
+       StringRef(node.idname).startswith("GeometryNodeImport") ||
+       node.is_type("GeometryNodeClosureToList"_ustr) ||
+       node.is_type("GeometryNodeFilterList"_ustr) ||
+       node.is_type("GeometryNodeListGetItem"_ustr) ||
+       node.is_type("GeometryNodeFieldToList"_ustr) ||
+       node.is_type("GeometryNodeListLength"_ustr)))
   {
     std::optional<NodeExtraInfoRow> row = node_get_execution_time_label_row(
         tree_draw_ctx, snode, node);
@@ -2810,7 +2823,8 @@ static void node_header_custom_tooltip(const bNodeTree &ntree, const bNode &node
         const std::string description = node.typeinfo->ui_description_fn ?
                                             TIP_(node.typeinfo->ui_description_fn(node)) :
                                             TIP_(node.typeinfo->ui_description);
-        if (!description.empty()) {
+        const bool have_description = !description.empty();
+        if (have_description) {
           tooltip_text_field_add(
               data, std::move(description), "", ui::TIP_STYLE_NORMAL, ui::TIP_LC_NORMAL);
         }
@@ -2824,7 +2838,7 @@ static void node_header_custom_tooltip(const bNodeTree &ntree, const bNode &node
                                  "",
                                  ui::TIP_STYLE_MONO,
                                  ui::TIP_LC_DIMMED,
-                                 !description.empty());
+                                 have_description);
         }
       });
 }
