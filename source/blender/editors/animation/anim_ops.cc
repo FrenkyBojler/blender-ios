@@ -726,9 +726,10 @@ static wmOperatorStatus change_frame_invoke(bContext *C, wmOperator *op, const w
     RNA_boolean_set(op->ptr, "snap", true);
   }
 
-  screen->scrubbing = true;
-  if (screen->animtimer) {
-    ScreenAnimData *sad = static_cast<ScreenAnimData *>(screen->animtimer->customdata);
+  /* Screen where playback started might not be the current screen. */
+  bScreen *play_screen = ED_screen_animation_playing(CTX_wm_manager(C));
+  if (play_screen && play_screen->animtimer) {
+    ScreenAnimData *sad = static_cast<ScreenAnimData *>(play_screen->animtimer->customdata);
     op_data->was_playing = true;
     op_data->play_mode = (sad->flag & ANIMPLAY_FLAG_REVERSE) ? PlaybackDirection::BACKWARDS :
                                                                PlaybackDirection::FORWARDS;
@@ -738,6 +739,7 @@ static wmOperatorStatus change_frame_invoke(bContext *C, wmOperator *op, const w
                                                                     PlaySyncMode::UNCHANGED);
     ED_screen_animation_play(C, 0, 0);
   }
+  screen->scrubbing = true;
 
   if (RNA_boolean_get(op->ptr, "seq_solo_preview")) {
     SpaceSeq *sseq = CTX_wm_space_seq(C);
