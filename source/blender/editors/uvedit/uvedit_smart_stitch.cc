@@ -784,6 +784,8 @@ static bool stitch_island_pair_excluded(const StitchStateContainer *ssc,
     }
   }
   if (ssc->only_selected_uvs) {
+    /* Allocated whenever `only_selected_uvs` is set. */
+    BLI_assert(state->orig_bounds != nullptr);
     if (!state->orig_bounds->island_has_selected[island_a] ||
         !state->orig_bounds->island_has_selected[island_b])
     {

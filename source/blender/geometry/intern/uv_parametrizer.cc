@@ -4295,6 +4295,8 @@ void uv_parametrizer_original_bounds(ParamHandle *phandle)
     if (!all_verts_selected) {
       continue;
     }
+    /* Allocated when unwrapping with `use_original_bounds`. */
+    BLI_assert(chart->orig_bounds != nullptr);
     float new_angle = p_chart_minimum_area_angle(chart);
     p_chart_uv_rotate(chart, chart->orig_bounds->angle - new_angle);
 
