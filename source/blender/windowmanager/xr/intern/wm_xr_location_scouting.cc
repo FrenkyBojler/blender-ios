@@ -271,12 +271,12 @@ static void wm_xr_viewfinder_transform_update_smoothed(wmXrSessionState *state,
   mat4_to_loc_quat(raw_capture_position, raw_capture_orientation_quat, raw_capture_mat);
 
   const double current_time = BLI_time_now_seconds();
-  const float delta_t = float(current_time - state->viewfinder.smoothing_delta_t);
+  const double delta_t = current_time - state->viewfinder.smoothing_delta_t;
 
   /* Delta-T threshold used to reset smoothing when switching between Playback/Live mode. */
-  constexpr float delta_t_threshold = 0.25f;
+  constexpr double delta_t_threshold = 0.25;
 
-  if (state->viewfinder.smoothing_delta_t != 0.0f && delta_t < delta_t_threshold) {
+  if (state->viewfinder.smoothing_delta_t != 0.0 && delta_t < delta_t_threshold) {
     /* Apply exponential movement smoothing. */
     constexpr float movement_smoothing_speed = 25.0f;
     const float clamped_delta = min_ff(delta_t, 0.1f);
