@@ -176,6 +176,7 @@ struct ImageData : NonCopyable {
 
   static std::unique_ptr<ImageData> init_active_image(Object &ob,
                                                       PaintModeSettings &paint_mode_settings);
+  static std::unique_ptr<ImageData> init_mask_image(PaintModeSettings &paint_mode_settings);
 };
 
 }  // namespace paint::image
@@ -933,6 +934,7 @@ void SCULPT_do_paint_brush_image(const Depsgraph &depsgraph,
                                  Object &ob,
                                  const IndexMask &node_mask);
 bool SCULPT_use_image_paint_brush(PaintModeSettings &settings, Object &ob);
+bool mask_paint_brush(PaintModeSettings &paint_mode_settings);
 
 /** \} */
 

@@ -69,6 +69,23 @@ std::unique_ptr<ImageData> ImageData::init_active_image(Object &ob,
 
   return image_data;
 }
+std::unique_ptr<ImageData> ImageData::init_mask_image(PaintModeSettings &paint_mode_settings)
+{
+  /* TODO: Implement a user-facing warning notifying the user that Stencil Mask has no texture
+   * to work with. */
+  if (!paint_mode_settings.stencil) {
+    return nullptr;
+  }
+  std::unique_ptr<ImageData> image_data = std::make_unique<ImageData>();
+
+  image_data->image = paint_mode_settings.stencil;
+  image_data->image_user = &paint_mode_settings.image_user;
+
+  BLI_assert(image_data->image);
+  BLI_assert(image_data->image_user);
+
+  return image_data;
+}
 
 static void fetch_image_buffers(ImageData &image_data,
                                 bke::pbvh::Node & /*node*/,
@@ -645,6 +662,12 @@ void SCULPT_do_paint_brush_image(const Depsgraph &depsgraph,
     bke::pbvh::pixels::mark_image_dirty(
         nodes[i], pixel_nodes[i], *image_data.image, image_data.buffers);
   });
+}
+
+bool mask_paint_brush(PaintModeSettings &paint_mode_settings)
+{
+  return paint_mode_settings.flag & PAINTMODE_STENCIL &&
+         USER_EXPERIMENTAL_TEST(&U, use_sculpt_texture_paint);
 }
 
 }  // namespace blender
