@@ -142,7 +142,7 @@ static Array<float2> sample_profile_curve(const bke::CurvesGeometry &curves)
   }
 
   Array<float2> samples(eval_pts.size());
-  for (const int i : IndexRange(eval_pts.size())) {
+  for (const int i : eval_pts.index_range()) {
     const float3 &p = eval_positions[eval_pts[i]];
     samples[i] = float2(p.x, p.y);
   }
