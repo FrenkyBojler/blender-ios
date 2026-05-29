@@ -589,6 +589,7 @@ class IMAGE_MT_uvs_context_menu(Menu):
 
             layout.operator("transform.mirror", text="Mirror X").constraint_axis[0] = True
             layout.operator("transform.mirror", text="Mirror Y").constraint_axis[1] = True
+            layout.operator("uv.swap_islands")
 
             layout.separator()
 
