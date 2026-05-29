@@ -53,7 +53,7 @@ BLOCKLIST = [
     # Redundant with transparent_shadow_hair.
     "transparent_shadow_hair_blur.blend",
     # Unsupported feature. Redundant tests.
-    "osl_camera_.*",
+    #"osl_camera_.*",
     # Extreme texture values interpolate differently on different GPUs.
     "image_log.blend",
     # Exhibit the LTC light leaking issue. To be enabeld back after fixing.
@@ -74,7 +74,7 @@ BLOCKLIST_METAL = [
     # Blocked due to difference in mipmap interpolation / anisotropic filtering (to be fixed).
     "image.blend",
     # Blocked due to subtle differences in DOF
-    "osl_camera_advanced.blend",
+    #"osl_camera_advanced.blend",
 ]
 
 BLOCKLIST_VULKAN = [
@@ -295,8 +295,8 @@ def main():
     report.set_pixelated(True)
     report.set_reference_dir("eevee_renders")
     # Default settings are too lose. EEVEE renders have much less noise than a path tracer.
-    report.set_fail_percent(0.08)
-    report.set_fail_threshold(4.0 / 255.0)
+    report.set_fail_percent(0.01)
+    report.set_fail_threshold(1.0 / 255.0)
 
     test_dir_name = Path(args.testdir).name
     if gpu_vendor == "NVIDIA" and args.gpu_backend == "opengl":
