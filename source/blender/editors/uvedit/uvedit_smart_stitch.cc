@@ -2286,7 +2286,7 @@ static bool goto_next_island(StitchStateContainer *ssc)
 }
 
 static StitchStateInit stitch_extract_rna_selection(wmOperator *op,
-                                                    const Vector<Object *> &objects)
+                                                    const Span<Object *> objects)
 {
   StitchStateInit state_init = {};
 

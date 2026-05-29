@@ -22,6 +22,7 @@ struct SpaceImage;
 struct ToolSettings;
 struct wmOperatorType;
 struct View2D;
+
 /* find nearest */
 
 struct UvNearestHit {
