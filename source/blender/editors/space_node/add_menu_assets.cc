@@ -199,7 +199,6 @@ static void node_catalog_assets_draw(const bContext *C, Menu *menu)
       layout->separator();
       add_separator = false;
     }
-
     ed::asset::draw_online_asset_menu_item(asset, *operator_id, *layout);
   }
 

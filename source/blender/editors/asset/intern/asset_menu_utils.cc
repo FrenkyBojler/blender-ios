@@ -171,15 +171,11 @@ void draw_online_asset_menu_item(const asset_system::AssetRepresentation *asset,
       nullptr, RNA_AssetRepresentation, const_cast<asset_system::AssetRepresentation *>(asset));
   row.context_ptr_set("asset", &asset_ptr);
 
-  const bool is_online = asset->is_online_only();
-  if (is_online) {
-    row.enabled_set(false);
-  }
   const int icon_local = asset->remote_file_status() ==
                                  asset_system::RemoteAssetFileStatus::NO_MATCH ?
                              ICON_ERROR :
                              ICON_NONE;
-  const int icon = is_online ? ICON_INTERNET : icon_local;
+  const int icon = asset->is_online_only() ? ICON_INTERNET : icon_local;
   PointerRNA props_ptr = row.op(
       opname, IFACE_(asset->get_name()), icon, wm::OpCallContext::InvokeDefault, UI_ITEM_NONE);
   asset::operator_asset_reference_props_set(*asset, props_ptr);
