@@ -2900,8 +2900,8 @@ static void rna_def_xr_session_state_viewfinder(BlenderRNA *brna)
       prop, "Viewfinder Rotation", "Last known orientation of the viewfinder in world space");
 
   func = RNA_def_function(srna, "trigger_flash", "rna_XrSessionState_viewfinder_trigger_flash");
-  RNA_def_function_ui_description(
-      func, "Trigger the Viewfinder flash to indicate a shot was captured");
+  RNA_def_function_ui_description(func,
+                                  "Trigger the Viewfinder flash to indicate a shot was captured");
   RNA_def_function_flag(func, FUNC_SELF_AS_RNA);
 
   func = RNA_def_function(
