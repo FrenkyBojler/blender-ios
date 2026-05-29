@@ -324,6 +324,7 @@ class TestBlendFilePathForeach(TestHelper):
                     "SKIP_WEAK_REFERENCES",
                     "EXPAND_TOKENS",
                     "EXPAND_SEQUENCES",
+                    "EXPAND_CACHES",
                 },
             )
 
@@ -335,7 +336,7 @@ class TestBlendFilePathForeach(TestHelper):
                                  f"missing sequence frame {frame.name}")
             self.assertEqual((False, False), visited.get(individual.resolve()),
                              "missing individual image path")
-            self.assertEqual((False, True), visited.get(tx_individual.resolve()),
+            self.assertEqual((True, True), visited.get(tx_individual.resolve()),
                              "missing individual image texture cache")
             for tx in (tx_tile_1001, tx_frame_001):
                 self.assertEqual((True, True), visited.get(tx.resolve()),

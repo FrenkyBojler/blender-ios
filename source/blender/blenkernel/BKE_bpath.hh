@@ -89,6 +89,11 @@ enum eBPathForeachFlag {
    * invoking the callback once per file. These paths can not be edited.
    */
   BKE_BPATH_FOREACH_PATH_EXPAND_SEQUENCES = (1 << 11),
+  /**
+   * Visit cache files, for example texture cache files associated with images. These paths can
+   * not be edited.
+   */
+  BKE_BPATH_FOREACH_PATH_EXPAND_CACHES = (1 << 12),
 };
 ENUM_OPERATORS(eBPathForeachFlag)
 

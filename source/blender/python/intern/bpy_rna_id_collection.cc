@@ -588,6 +588,11 @@ const EnumPropertyItem rna_enum_file_path_foreach_flag_items[] = {
      0,
      "Expand Sequences",
      "Expand image and volume sequences, invoking the callback once per file on disk"},
+    {BKE_BPATH_FOREACH_PATH_EXPAND_CACHES,
+     "EXPAND_CACHES",
+     0,
+     "Expand Caches",
+     "Visit cache files, like texture cache files associated with images"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 

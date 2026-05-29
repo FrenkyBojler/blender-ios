@@ -270,21 +270,26 @@ static void image_foreach_texture_cache_path(BPathForeachPathData *bpath_data,
                                              const char *cache_dir)
 {
   bpath_data->is_cache = true;
+  bpath_data->is_expanded = true;
   BKE_image_texture_cache_filepaths_foreach(
       source_filepath_abs, cache_dir, [&](StringRef cache_filepath) {
         char cache_path[FILE_MAX];
         cache_filepath.copy_utf8_truncated(cache_path);
         BKE_bpath_foreach_path_readonly_process(bpath_data, cache_path);
       });
+  bpath_data->is_expanded = false;
   bpath_data->is_cache = false;
 }
 
 static void image_foreach_expanded_path(BPathForeachPathData *bpath_data,
-                                        const char *expanded_path)
+                                        const char *expanded_path,
+                                        const eBPathForeachFlag flag)
 {
   bpath_data->is_expanded = true;
   BKE_bpath_foreach_path_readonly_process(bpath_data, expanded_path);
-  image_foreach_texture_cache_path(bpath_data, expanded_path, U.texture_cachedir);
+  if (flag & BKE_BPATH_FOREACH_PATH_EXPAND_CACHES) {
+    image_foreach_texture_cache_path(bpath_data, expanded_path, U.texture_cachedir);
+  }
   bpath_data->is_expanded = false;
 }
 
@@ -325,7 +330,7 @@ static void image_foreach_path(ID *id, BPathForeachPathData *bpath_data)
         BKE_image_set_filepath_from_tile_number(
             tile_filepath, udim_pattern, tile_format, tile.tile_number);
         if (BLI_is_file(tile_filepath)) {
-          image_foreach_expanded_path(bpath_data, tile_filepath);
+          image_foreach_expanded_path(bpath_data, tile_filepath, flag);
         }
       }
     }
@@ -338,7 +343,7 @@ static void image_foreach_path(ID *id, BPathForeachPathData *bpath_data)
     BKE_bpath_sequence_filepaths_foreach(abs_filepath, [&](StringRef frame_filepath) {
       char frame_path[FILE_MAX];
       frame_filepath.copy_utf8_truncated(frame_path);
-      image_foreach_expanded_path(bpath_data, frame_path);
+      image_foreach_expanded_path(bpath_data, frame_path, flag);
     });
     return;
   }
@@ -374,7 +379,9 @@ static void image_foreach_path(ID *id, BPathForeachPathData *bpath_data)
   }
 
   /* Also emit the cache file paths for the (non-expanded) source path. */
-  if (!ELEM(ima->source, IMA_SRC_MOVIE, IMA_SRC_SEQUENCE, IMA_SRC_TILED)) {
+  if ((flag & BKE_BPATH_FOREACH_PATH_EXPAND_CACHES) &&
+      !ELEM(ima->source, IMA_SRC_MOVIE, IMA_SRC_SEQUENCE, IMA_SRC_TILED))
+  {
     image_foreach_texture_cache_path(bpath_data, abs_filepath, U.texture_cachedir);
   }
 
