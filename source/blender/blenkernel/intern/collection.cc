@@ -76,7 +76,8 @@ static bool collection_child_add(Main *bmain,
                                  Collection *collection,
                                  const CollectionLightLinking *light_linking,
                                  const int id_create_flag,
-                                 const bool add_us);
+                                 const bool add_us,
+                                 const bool check_cycle = true);
 /** \param id_create_flag: Creation/Copy ID management flags, e.g. #LIB_ID_CREATE_NO_MAIN. */
 static bool collection_child_remove(Main *bmain,
                                     Collection *parent,
@@ -171,7 +172,7 @@ static void collection_copy_data(Main *bmain,
 
   for (CollectionChild &child : collection_src->children) {
     collection_child_add(
-        bmain, collection_dst, child.collection, &child.light_linking, flag, false);
+        bmain, collection_dst, child.collection, &child.light_linking, flag, false, false);
   }
   for (CollectionObject &cob : collection_src->gobject) {
     collection_object_add(bmain, collection_dst, cob.ob, &cob.light_linking, flag, false);
@@ -1919,8 +1920,13 @@ void BKE_collections_after_lib_link(Main *bmain)
  * \{ */
 
 static bool collection_instance_find_recursive(Collection *collection,
-                                               Collection *instance_collection)
+                                               Collection *instance_collection,
+                                               Set<Collection *> &visited_collections)
 {
+  if (!visited_collections.add(collection)) {
+    return false;
+  }
+
   for (CollectionObject &collection_object : collection->gobject) {
     if (collection_object.ob != nullptr &&
         /* Object from a given collection should never instantiate that collection either. */
@@ -1932,7 +1938,8 @@ static bool collection_instance_find_recursive(Collection *collection,
 
   for (CollectionChild &collection_child : collection->children) {
     if (collection_child.collection != nullptr &&
-        collection_instance_find_recursive(collection_child.collection, instance_collection))
+        collection_instance_find_recursive(
+            collection_child.collection, instance_collection, visited_collections))
     {
       return true;
     }
@@ -1941,7 +1948,16 @@ static bool collection_instance_find_recursive(Collection *collection,
   return false;
 }
 
-bool BKE_collection_cycle_find(Collection *new_ancestor, Collection *collection)
+static bool collection_instance_find_recursive(Collection *collection,
+                                               Collection *instance_collection)
+{
+  Set<Collection *> visited_collections;
+  return collection_instance_find_recursive(collection, instance_collection, visited_collections);
+}
+
+static bool collection_cycle_find_recursive(Collection *new_ancestor,
+                                            Collection *collection,
+                                            Set<Collection *> &visited_collections)
 {
   if (collection == new_ancestor) {
     return true;
@@ -1951,8 +1967,14 @@ bool BKE_collection_cycle_find(Collection *new_ancestor, Collection *collection)
     collection = new_ancestor;
   }
 
+  if (!visited_collections.add(new_ancestor)) {
+    return false;
+  }
+
   for (CollectionParent &parent : new_ancestor->runtime->parents) {
-    if (BKE_collection_cycle_find(parent.collection, collection)) {
+    if (parent.collection != nullptr &&
+        collection_cycle_find_recursive(parent.collection, collection, visited_collections))
+    {
       return true;
     }
   }
@@ -1960,6 +1982,12 @@ bool BKE_collection_cycle_find(Collection *new_ancestor, Collection *collection)
   /* Find possible objects in collection or its children, that would instantiate the given ancestor
    * collection (that would also make a fully invalid cycle of dependencies). */
   return collection_instance_find_recursive(collection, new_ancestor);
+}
+
+bool BKE_collection_cycle_find(Collection *new_ancestor, Collection *collection)
+{
+  Set<Collection *> visited_collections;
+  return collection_cycle_find_recursive(new_ancestor, collection, visited_collections);
 }
 
 static bool collection_instance_fix_recursive(Collection *parent_collection,
@@ -2016,19 +2044,33 @@ CollectionChild *BKE_collection_child_find(Collection *parent, Collection *colle
       BLI_findptr(&parent->children, collection, offsetof(CollectionChild, collection)));
 }
 
-static bool collection_find_child_recursive(const Collection *parent, const Collection *collection)
+static bool collection_find_child_recursive(const Collection *parent,
+                                            const Collection *collection,
+                                            Set<const Collection *> &visited_collections)
 {
+  if (!visited_collections.add(parent)) {
+    return false;
+  }
+
   for (const CollectionChild &child : parent->children) {
     if (child.collection == collection) {
       return true;
     }
 
-    if (collection_find_child_recursive(child.collection, collection)) {
+    if (child.collection != nullptr &&
+        collection_find_child_recursive(child.collection, collection, visited_collections))
+    {
       return true;
     }
   }
 
   return false;
+}
+
+static bool collection_find_child_recursive(const Collection *parent, const Collection *collection)
+{
+  Set<const Collection *> visited_collections;
+  return collection_find_child_recursive(parent, collection, visited_collections);
 }
 
 bool BKE_collection_has_collection(const Collection *parent, const Collection *collection)
@@ -2047,13 +2089,14 @@ static bool collection_child_add(Main *bmain,
                                  Collection *collection,
                                  const CollectionLightLinking *light_linking,
                                  const int id_create_flag,
-                                 const bool add_us)
+                                 const bool add_us,
+                                 const bool check_cycle)
 {
   CollectionChild *child = BKE_collection_child_find(parent, collection);
   if (child) {
     return false;
   }
-  if (BKE_collection_cycle_find(parent, collection)) {
+  if (check_cycle && BKE_collection_cycle_find(parent, collection)) {
     return false;
   }
 
