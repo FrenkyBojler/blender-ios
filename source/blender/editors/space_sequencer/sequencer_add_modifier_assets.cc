@@ -281,15 +281,25 @@ static std::string strip_modifier_add_asset_get_description(bContext *C,
     return "";
   }
   if (!asset->get_metadata().description) {
-    if (asset->is_online_only()) {
-      return TIP_(asset::DOWNLOAD_HINT);
-    }
     return "";
   }
-  if (asset->is_online_only()) {
-    return TIP_(std::string(asset->get_metadata().description) + "\n" + asset::DOWNLOAD_HINT);
-  }
   return TIP_(asset->get_metadata().description);
+}
+
+static bool strip_modifier_add_asset_poll(bContext *C)
+{
+  if (!sequencer_strip_editable_poll(C)) {
+    return false;
+  }
+  const asset_system::AssetRepresentation *active_asset = CTX_wm_asset(C);
+  if (!active_asset) {
+    return true;
+  }
+  if (active_asset->is_online_only()) {
+    CTX_wm_operator_poll_msg_set(C, "Asset is online. Right-click to download.");
+    return false;
+  }
+  return true;
 }
 
 static void SEQUENCER_OT_strip_modifier_add_node_group(wmOperatorType *ot)
@@ -299,7 +309,7 @@ static void SEQUENCER_OT_strip_modifier_add_node_group(wmOperatorType *ot)
   ot->idname = "SEQUENCER_OT_strip_modifier_add_node_group";
 
   ot->exec = strip_modifier_add_asset_exec;
-  ot->poll = sequencer_strip_editable_poll;
+  ot->poll = strip_modifier_add_asset_poll;
   ot->get_description = strip_modifier_add_asset_get_description;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
