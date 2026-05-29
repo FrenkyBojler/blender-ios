@@ -4,8 +4,8 @@
 
 #include "node_function_util.hh"
 
-#include "BLI_color_types.hh"
 #include "BLI_color.hh"
+#include "BLI_color_types.hh"
 
 namespace blender::nodes::node_fn_color_to_srgb_cc {
 
@@ -20,9 +20,10 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
 {
-  static auto fn = mf::build::SI1_SO<ColorGeometry4f, ColorGeometry4f>("Color to sRGB", [](const ColorGeometry4f value) {
-    return ColorGeometry4f(color::to_theme4f(ColorPaint4f(value)));
-  });
+  static auto fn = mf::build::SI1_SO<ColorGeometry4f, ColorGeometry4f>(
+      "Color to sRGB", [](const ColorGeometry4f value) {
+        return ColorGeometry4f(color::to_theme4f(ColorPaint4f(value)));
+      });
   builder.set_matching_fn(fn);
 }
 
@@ -32,8 +33,7 @@ static void node_register()
 
   fn_node_type_base(&ntype, "FunctionNodeColorToSRGB"_ustr);
   ntype.ui_name = "Color To sRGB";
-  ntype.ui_description =
-      "Convert color value from currently used blender color space to sRGB";
+  ntype.ui_description = "Convert color value from currently used blender color space to sRGB";
   ntype.nclass = NODE_CLASS_OP_COLOR;
   ntype.declare = node_declare;
   ntype.build_multi_function = node_build_multi_function;
