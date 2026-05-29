@@ -91,6 +91,7 @@ BLI_NOINLINE static void calc_pinch_influence(const Brush &brush,
                                               const Span<float> factors,
                                               const MutableSpan<float3> translations)
 {
+  BLI_profile_scope(ProfileCategory::Editor);
   if (brush.crease_pinch_factor == 0.5f) {
     return;
   }
@@ -132,6 +133,7 @@ BLI_NOINLINE static void calc_rake_rotation_influence(const StrokeCache &cache,
                                                       const Span<float> factors,
                                                       const MutableSpan<float3> translations)
 {
+  BLI_profile_scope(ProfileCategory::Editor);
   if (!cache.rake_rotation_symm) {
     return;
   }
@@ -145,6 +147,7 @@ BLI_NOINLINE static void calc_kelvinet_translation(const StrokeCache &cache,
                                                    const Span<float> factors,
                                                    const MutableSpan<float3> translations)
 {
+  BLI_profile_scope(ProfileCategory::Editor);
   KelvinletParams params;
   BKE_kelvinlet_init_params(&params, cache.radius, cache.bstrength, 1.0f, 0.4f);
   for (const int i : positions.index_range()) {

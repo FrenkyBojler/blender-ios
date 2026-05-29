@@ -42,6 +42,7 @@ static void calc_brush_texture_colors(SculptSession &ss,
                                       const Span<int> verts,
                                       const MutableSpan<float3> r_colors)
 {
+  BLI_profile_scope(ProfileCategory::Editor);
   BLI_assert(verts.size() == r_colors.size());
 
   const int thread_id = BLI_task_parallel_thread_id(nullptr);
@@ -62,6 +63,7 @@ static void calc_brush_texture_colors(SculptSession &ss,
                                       const Span<float3> positions,
                                       const MutableSpan<float3> r_colors)
 {
+  BLI_profile_scope(ProfileCategory::Editor);
   BLI_assert(positions.size() == r_colors.size());
 
   const int thread_id = BLI_task_parallel_thread_id(nullptr);

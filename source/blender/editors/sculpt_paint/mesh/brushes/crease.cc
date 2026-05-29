@@ -17,6 +17,7 @@
 #include "BKE_subdiv_ccg.hh"
 
 #include "BLI_enumerable_thread_specific.hh"
+#include "BLI_profile.hh"
 #include "BLI_task.hh"
 
 #include "editors/sculpt_paint/mesh/mesh_brush_common.hh"
@@ -41,6 +42,7 @@ BLI_NOINLINE static void translations_from_position(const Span<float3> positions
                                                     const float3 &location,
                                                     const MutableSpan<float3> translations)
 {
+  BLI_profile_scope(ProfileCategory::Editor);
   for (const int i : verts.index_range()) {
     translations[i] = location - positions_eval[verts[i]];
   }
@@ -50,6 +52,7 @@ BLI_NOINLINE static void translations_from_position(const Span<float3> positions
                                                     const float3 &location,
                                                     const MutableSpan<float3> translations)
 {
+  BLI_profile_scope(ProfileCategory::Editor);
   for (const int i : positions.index_range()) {
     translations[i] = location - positions[i];
   }
@@ -59,6 +62,7 @@ BLI_NOINLINE static void add_offset_to_translations(const MutableSpan<float3> tr
                                                     const Span<float> factors,
                                                     const float3 &offset)
 {
+  BLI_profile_scope(ProfileCategory::Editor);
   for (const int i : translations.index_range()) {
     translations[i] += offset * factors[i];
   }

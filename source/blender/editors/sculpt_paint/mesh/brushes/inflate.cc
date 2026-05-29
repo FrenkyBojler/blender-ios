@@ -37,6 +37,7 @@ struct LocalData {
 
 BLI_NOINLINE static void apply_scale(const MutableSpan<float3> translations, const float3 &scale)
 {
+  BLI_profile_scope(ProfileCategory::Editor);
   for (const int i : translations.index_range()) {
     translations[i] *= scale;
   }

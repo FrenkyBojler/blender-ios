@@ -65,6 +65,7 @@ BLI_NOINLINE static void apply_positions_faces(const Sculpt &sd,
                                                const Span<float3> new_positions,
                                                const PositionDeformData &position_data)
 {
+  BLI_profile_scope(ProfileCategory::Editor);
   SculptSession &ss = *object.runtime->sculpt_session;
 
   const Span<int> verts = node.verts();

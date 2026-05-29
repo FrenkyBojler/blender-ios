@@ -216,6 +216,7 @@ void filter_verts_with_unique_face_sets_mesh(const GroupedSpan<int> vert_to_face
                                              const Span<int> verts,
                                              const MutableSpan<float> factors)
 {
+  BLI_profile_scope(ProfileCategory::Editor);
   BLI_assert(verts.size() == factors.size());
 
   for (const int i : verts.index_range()) {
@@ -234,6 +235,7 @@ void filter_verts_with_unique_face_sets_grids(const OffsetIndices<int> faces,
                                               const Span<int> grids,
                                               const MutableSpan<float> factors)
 {
+  BLI_profile_scope(ProfileCategory::Editor);
   const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
   BLI_assert(grids.size() * key.grid_area == factors.size());
 
@@ -266,6 +268,7 @@ void filter_verts_with_unique_face_sets_bmesh(int face_set_offset,
                                               const Set<BMVert *, 0> &verts,
                                               const MutableSpan<float> factors)
 {
+  BLI_profile_scope(ProfileCategory::Editor);
   BLI_assert(verts.size() == factors.size());
 
   int i = 0;

@@ -10,13 +10,13 @@
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_offset_indices.hh"
+#include "BLI_profile.hh"
 #include "BLI_set.hh"
 #include "BLI_span.hh"
 #include "BLI_vector.hh"
 #include "BLI_virtual_array.hh"
 
 #include "BKE_subdiv_ccg.hh"
-#include "BLI_profile.hh"
 
 #include "DNA_brush_enums.h"
 

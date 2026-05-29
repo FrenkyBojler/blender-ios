@@ -13,6 +13,7 @@
 
 #include "BLI_enumerable_thread_specific.hh"
 #include "BLI_math_geom.h"
+#include "BLI_profile.hh"
 
 #include "editors/sculpt_paint/mesh/mesh_brush_common.hh"
 #include "editors/sculpt_paint/mesh/sculpt_automask.hh"
@@ -34,6 +35,7 @@ BLI_NOINLINE static void calc_closest_to_plane(const float4 &test_plane,
                                                const Span<int> verts,
                                                const MutableSpan<float3> translations)
 {
+  BLI_profile_scope(ProfileCategory::Editor);
   /* Equivalent to #closest_to_plane_normalized_v3 */
   BLI_assert(verts.size() == translations.size());
   for (const int i : verts.index_range()) {
@@ -46,6 +48,7 @@ BLI_NOINLINE static void calc_closest_to_plane(const float4 &test_plane,
                                                const Span<float3> positions,
                                                const MutableSpan<float3> translations)
 {
+  BLI_profile_scope(ProfileCategory::Editor);
   /* Equivalent to #closest_to_plane_normalized_v3 */
   BLI_assert(positions.size() == translations.size());
   for (const int i : positions.index_range()) {

@@ -44,6 +44,7 @@ BLI_NOINLINE static void calc_translations(const Brush &brush,
                                            const Span<float3> positions,
                                            const MutableSpan<float3> translations)
 {
+  BLI_profile_scope(ProfileCategory::Editor);
   switch (eBrushElasticDeformType(brush.elastic_deform_type)) {
     case BRUSH_ELASTIC_DEFORM_GRAB: {
       for (const int i : positions.index_range()) {

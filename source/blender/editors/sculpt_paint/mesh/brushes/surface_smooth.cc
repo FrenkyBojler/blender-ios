@@ -43,6 +43,7 @@ struct LocalData {
 
 BLI_NOINLINE static void clamp_factors(const MutableSpan<float> factors)
 {
+  BLI_profile_scope(ProfileCategory::Editor);
   for (float &factor : factors) {
     factor = std::clamp(factor, 0.0f, 1.0f);
   }

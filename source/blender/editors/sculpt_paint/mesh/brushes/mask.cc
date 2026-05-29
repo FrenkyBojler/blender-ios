@@ -40,6 +40,7 @@ BLI_NOINLINE static void apply_factors(const float strength,
                                        const Span<float> factors,
                                        const MutableSpan<float> masks)
 {
+  BLI_profile_scope(ProfileCategory::Editor);
   BLI_assert(current_masks.size() == masks.size());
   BLI_assert(factors.size() == masks.size());
   for (const int i : masks.index_range()) {
@@ -49,6 +50,7 @@ BLI_NOINLINE static void apply_factors(const float strength,
 
 BLI_NOINLINE static void clamp_mask(const MutableSpan<float> masks)
 {
+  BLI_profile_scope(ProfileCategory::Editor);
   for (float &mask : masks) {
     mask = std::clamp(mask, 0.0f, 1.0f);
   }

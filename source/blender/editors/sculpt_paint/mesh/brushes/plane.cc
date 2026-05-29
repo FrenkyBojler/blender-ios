@@ -59,6 +59,7 @@ static void calc_local_positions(const float4x4 &mat,
                                  const Span<float3> positions,
                                  const MutableSpan<float3> local_positions)
 {
+  BLI_profile_scope(ProfileCategory::Editor);
   for (const int i : verts.index_range()) {
     local_positions[i] = math::transform_point(mat, positions[verts[i]]);
   }
@@ -81,6 +82,7 @@ static void calc_local_distances(const float height,
                                  const MutableSpan<float3> local_positions,
                                  const MutableSpan<float> distances)
 {
+  BLI_profile_scope(ProfileCategory::Editor);
   if (height != 0.0f) {
     const float height_rcp = math::rcp(height);
 
@@ -133,6 +135,7 @@ static void scale_factors_by_height_and_depth(const float height,
                                               const MutableSpan<float3> local_positions,
                                               const MutableSpan<float> factors)
 {
+  BLI_profile_scope(ProfileCategory::Editor);
   if (!ELEM(height, 1.0f, 0.0f)) {
     for (const int i : factors.index_range()) {
       if (local_positions[i].z > 0.0f) {
@@ -179,6 +182,7 @@ static void calc_translations(const float3 &plane_normal,
                               const MutableSpan<float> factors,
                               const MutableSpan<float3> r_translations)
 {
+  BLI_profile_scope(ProfileCategory::Editor);
   for (const int i : local_positions.index_range()) {
     factors[i] *= local_positions[i].z;
   }

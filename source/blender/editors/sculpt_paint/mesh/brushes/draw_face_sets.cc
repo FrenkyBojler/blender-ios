@@ -15,6 +15,7 @@
 
 #include "BLI_enumerable_thread_specific.hh"
 #include "BLI_math_base.hh"
+#include "BLI_profile.hh"
 #include "BLI_task.hh"
 
 #include "editors/sculpt_paint/mesh/sculpt_face_set.hh"
@@ -41,6 +42,7 @@ static void calc_face_normals(const OffsetIndices<int> faces,
                               const Span<int> face_indices,
                               const MutableSpan<float3> normals)
 {
+  BLI_profile_scope(ProfileCategory::Editor);
   BLI_assert(face_indices.size() == normals.size());
 
   for (const int i : face_indices.index_range()) {
@@ -54,6 +56,7 @@ BLI_NOINLINE static void apply_face_set(const int face_set_id,
                                         const Span<float> factors,
                                         const MutableSpan<int> face_sets)
 {
+  BLI_profile_scope(ProfileCategory::Editor);
   BLI_assert(face_indices.size() == factors.size());
 
   for (const int i : face_indices.index_range()) {

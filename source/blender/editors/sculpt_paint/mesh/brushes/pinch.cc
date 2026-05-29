@@ -41,6 +41,7 @@ BLI_NOINLINE static void calc_translations(const Span<float3> positions,
                                            const std::array<float3, 2> &stroke_xz,
                                            const MutableSpan<float3> translations)
 {
+  BLI_profile_scope(ProfileCategory::Editor);
   BLI_assert(positions.size() == translations.size());
 
   for (const int i : positions.index_range()) {

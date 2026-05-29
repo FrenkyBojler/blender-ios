@@ -72,6 +72,7 @@ static MutableSpan<int> calc_vert_indices_grids(const CCGKey &key,
                                                 const Span<int> grids,
                                                 Vector<int> &indices)
 {
+  BLI_profile_scope(ProfileCategory::Editor);
   const int grid_verts_num = grids.size() * key.grid_area;
   indices.resize(grid_verts_num);
   for (const int i : grids.index_range()) {
@@ -85,6 +86,7 @@ static MutableSpan<int> calc_vert_indices_grids(const CCGKey &key,
 static MutableSpan<int> calc_vert_indices_bmesh(const Set<BMVert *, 0> &verts,
                                                 Vector<int> &indices)
 {
+  BLI_profile_scope(ProfileCategory::Editor);
   indices.resize(verts.size());
   int i = 0;
   for (const BMVert *vert : verts) {
@@ -99,6 +101,7 @@ static MutableSpan<int> calc_visible_vert_indices_grids(const CCGKey &key,
                                                         const Span<int> grids,
                                                         Vector<int> &indices)
 {
+  BLI_profile_scope(ProfileCategory::Editor);
   if (grid_hidden.is_empty()) {
     return calc_vert_indices_grids(key, grids, indices);
   }
@@ -115,6 +118,7 @@ static MutableSpan<int> calc_visible_vert_indices_grids(const CCGKey &key,
 static MutableSpan<int> calc_visible_vert_indices_bmesh(const Set<BMVert *, 0> &verts,
                                                         Vector<int> &indices)
 {
+  BLI_profile_scope(ProfileCategory::Editor);
   indices.reserve(verts.size());
   for (const BMVert *vert : verts) {
     if (!BM_elem_flag_test(vert, BM_ELEM_HIDDEN)) {
@@ -129,6 +133,7 @@ static GroupedSpan<int> calc_vert_neighbor_indices_grids(const SubdivCCG &subdiv
                                                          Vector<int> &r_offset_data,
                                                          Vector<int> &r_data)
 {
+  BLI_profile_scope(ProfileCategory::Editor);
   const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
 
   r_offset_data.resize(verts.size() + 1);
@@ -154,6 +159,7 @@ static GroupedSpan<int> calc_vert_neighbor_indices_bmesh(const BMesh &bm,
                                                          Vector<int> &r_offset_data,
                                                          Vector<int> &r_data)
 {
+  BLI_profile_scope(ProfileCategory::Editor);
   BMeshNeighborVerts neighbors;
 
   r_offset_data.resize(verts.size() + 1);
@@ -634,6 +640,7 @@ BLI_NOINLINE static void apply_forces(SimulationData &cloth_sim,
                                       const Span<float3> forces,
                                       const Span<int> verts)
 {
+  BLI_profile_scope(ProfileCategory::Editor);
   const float mass_inv = math::rcp(cloth_sim.mass);
   for (const int i : verts.index_range()) {
     cloth_sim.acceleration[verts[i]] += forces[i] * mass_inv;
@@ -644,6 +651,7 @@ BLI_NOINLINE static void expand_length_constraints(SimulationData &cloth_sim,
                                                    const Span<int> verts,
                                                    const Span<float> factors)
 {
+  BLI_profile_scope(ProfileCategory::Editor);
   MutableSpan<float> length_constraint_tweak = cloth_sim.length_constraint_tweak;
   for (const int i : verts.index_range()) {
     length_constraint_tweak[verts[i]] += factors[i] * 0.01f;
@@ -654,6 +662,7 @@ BLI_NOINLINE static void calc_distances_to_plane(const Span<float3> positions,
                                                  const float4 &plane,
                                                  const MutableSpan<float> distances)
 {
+  BLI_profile_scope(ProfileCategory::Editor);
   for (const int i : positions.index_range()) {
     distances[i] = dist_to_plane_v3(positions[i], plane);
   }
@@ -663,6 +672,7 @@ BLI_NOINLINE static void clamp_factors(const MutableSpan<float> factors,
                                        const float min,
                                        const float max)
 {
+  BLI_profile_scope(ProfileCategory::Editor);
   for (float &factor : factors) {
     factor = std::clamp(factor, min, max);
   }
@@ -674,6 +684,7 @@ BLI_NOINLINE static void apply_grab_brush(SimulationData &cloth_sim,
                                           const bool use_falloff_plane,
                                           const float3 &grab_delta_symmetry)
 {
+  BLI_profile_scope(ProfileCategory::Editor);
   for (const int i : verts.index_range()) {
     cloth_sim.deformation_pos[verts[i]] = cloth_sim.init_pos[verts[i]] +
                                           grab_delta_symmetry * factors[i];
@@ -692,6 +703,7 @@ BLI_NOINLINE static void apply_snake_hook_brush(SimulationData &cloth_sim,
                                                 const MutableSpan<float> factors,
                                                 const float3 &grab_delta_symmetry)
 {
+  BLI_profile_scope(ProfileCategory::Editor);
   for (const int i : verts.index_range()) {
     const int vert = verts[i];
     cloth_sim.deformation_pos[vert] = cloth_sim.pos[vert] + grab_delta_symmetry * factors[i];
@@ -703,6 +715,7 @@ BLI_NOINLINE static void calc_pinch_forces(const Span<float3> positions,
                                            const float3 &location,
                                            const MutableSpan<float3> forces)
 {
+  BLI_profile_scope(ProfileCategory::Editor);
   for (const int i : forces.index_range()) {
     forces[i] = math::normalize(location - positions[i]);
   }
@@ -713,6 +726,7 @@ BLI_NOINLINE static void calc_plane_pinch_forces(const Span<float3> positions,
                                                  const float3 &plane_normal,
                                                  const MutableSpan<float3> forces)
 {
+  BLI_profile_scope(ProfileCategory::Editor);
   for (const int i : positions.index_range()) {
     const float distance = dist_signed_to_plane_v3(positions[i], plane);
     forces[i] = math::normalize(plane_normal * -distance);
@@ -724,6 +738,7 @@ BLI_NOINLINE static void calc_perpendicular_pinch_forces(const Span<float3> posi
                                                          const float3 &location,
                                                          const MutableSpan<float3> forces)
 {
+  BLI_profile_scope(ProfileCategory::Editor);
   const float3 x_object_space = math::normalize(imat.x_axis());
   const float3 z_object_space = math::normalize(imat.z_axis());
   for (const int i : positions.index_range()) {
@@ -1208,6 +1223,7 @@ BLI_NOINLINE static void solve_verts_simulation(const Object &object,
                                                 LocalData &tls,
                                                 SimulationData &cloth_sim)
 {
+  BLI_profile_scope(ProfileCategory::Editor);
   const SculptSession &ss = *object.runtime->sculpt_session;
 
   tls.diffs.resize(verts.size());
@@ -1348,6 +1364,7 @@ static void cloth_brush_satisfy_constraints(const Depsgraph &depsgraph,
                                             const Brush *brush,
                                             SimulationData &cloth_sim)
 {
+  BLI_profile_scope(ProfileCategory::Editor);
   const SculptSession &ss = *object.runtime->sculpt_session;
 
   const float3 sim_location = cloth_brush_simulation_location_get(ss, brush);

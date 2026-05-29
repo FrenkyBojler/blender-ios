@@ -36,6 +36,7 @@ static BLI_NOINLINE void calc_limit_positions(const SubdivCCG &subdiv_ccg,
                                               const Span<int> grids,
                                               const MutableSpan<float3> limit_positions)
 {
+  BLI_profile_scope(ProfileCategory::Editor);
   const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
   for (const int i : grids.index_range()) {
     const int start = i * key.grid_area;

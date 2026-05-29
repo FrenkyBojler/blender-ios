@@ -121,6 +121,7 @@ static void object_raycast(const ProjectBrushTarget &project_target,
                            const MutableSpan<float3> ray_origins,
                            const MutableSpan<float> best_hit_distances)
 {
+  BLI_profile_scope(ProfileCategory::Editor);
   /* Positions and normal are in the coordinate system of the active object. Convert them to the
    * coordinate system of the target. */
   const float3 ray_direction = math::transform_direction(project_target.active_to_target_matrix,
@@ -168,6 +169,7 @@ static void scene_raycast(const Span<ProjectBrushTarget> project_targets,
                           const MutableSpan<float3> ray_origins,
                           const MutableSpan<float> r_hit_distances)
 {
+  BLI_profile_scope(ProfileCategory::Editor);
   r_hit_distances.fill(BVH_RAYCAST_DIST_MAX);
 
   for (const int i : project_targets.index_range()) {
@@ -196,6 +198,7 @@ static void calc_translations(const float3 &normal,
                               const Span<float> hit_distances,
                               const MutableSpan<float3> r_translations)
 {
+  BLI_profile_scope(ProfileCategory::Editor);
   for (const int i : factors.index_range()) {
     r_translations[i] = normal * hit_distances[i] * factors[i];
   }

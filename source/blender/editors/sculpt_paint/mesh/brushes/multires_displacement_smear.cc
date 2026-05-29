@@ -118,6 +118,7 @@ static void calc_node(const Depsgraph &depsgraph,
 BLI_NOINLINE static void eval_all_limit_positions(const SubdivCCG &subdiv_ccg,
                                                   const MutableSpan<float3> limit_positions)
 {
+  BLI_profile_scope(ProfileCategory::Editor);
   const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
   threading::parallel_for(IndexRange(subdiv_ccg.grids_num), 1024, [&](const IndexRange range) {
     for (const int grid : range) {
@@ -134,6 +135,7 @@ BLI_NOINLINE static void store_node_prev_displacement(const Span<float3> limit_p
                                                       const bke::pbvh::GridsNode &node,
                                                       const MutableSpan<float3> prev_displacement)
 {
+  BLI_profile_scope(ProfileCategory::Editor);
   for (const int grid : node.grids()) {
     for (const int i : bke::ccg::grid_range(key.grid_area, grid)) {
       prev_displacement[i] = positions[i] - limit_positions[i];

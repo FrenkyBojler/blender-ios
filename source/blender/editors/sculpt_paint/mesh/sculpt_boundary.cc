@@ -3434,6 +3434,7 @@ std::unique_ptr<SculptBoundary> data_init_mesh(const Depsgraph &depsgraph,
                                                const int initial_vert,
                                                const float radius)
 {
+  BLI_profile_scope(ProfileCategory::Editor);
   SculptSession &ss = *object.runtime->sculpt_session;
 
   boundary::ensure_boundary_info(object);
@@ -3515,6 +3516,7 @@ std::unique_ptr<SculptBoundary> data_init_grids(Object &object,
                                                 const SubdivCCGCoord initial_vert,
                                                 const float radius)
 {
+  BLI_profile_scope(ProfileCategory::Editor);
   SculptSession &ss = *object.runtime->sculpt_session;
 
   boundary::ensure_boundary_info(object);
@@ -3580,6 +3582,7 @@ std::unique_ptr<SculptBoundary> data_init_bmesh(Object &object,
                                                 BMVert *initial_vert,
                                                 const float radius)
 {
+  BLI_profile_scope(ProfileCategory::Editor);
   SculptSession &ss = *object.runtime->sculpt_session;
 
   vert_random_access_ensure(object);

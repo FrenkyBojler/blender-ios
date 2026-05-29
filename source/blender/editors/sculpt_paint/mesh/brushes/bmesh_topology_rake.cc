@@ -14,6 +14,7 @@
 
 #include "BLI_enumerable_thread_specific.hh"
 #include "BLI_math_vector.hh"
+#include "BLI_profile.hh"
 #include "BLI_task.hh"
 
 #include "editors/sculpt_paint/mesh/mesh_brush_common.hh"
@@ -38,6 +39,7 @@ BLI_NOINLINE static void calc_translations(const Set<BMVert *, 0> &verts,
                                            const float3 &direction,
                                            const MutableSpan<float3> translations)
 {
+  BLI_profile_scope(ProfileCategory::Editor);
   int i = 0;
   for (const BMVert *vert : verts) {
     float3 average;

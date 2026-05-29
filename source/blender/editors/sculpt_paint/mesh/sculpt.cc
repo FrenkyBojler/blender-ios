@@ -26,6 +26,9 @@
 #include "BLI_math_matrix.h"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_rotation.h"
+#include "BLI_math_rotation_legacy.hh"
+#include "BLI_math_vector.hh"
+#include "BLI_profile.hh"
 #include "BLI_rect.h"
 #include "BLI_set.hh"
 #include "BLI_span.hh"
@@ -63,9 +66,6 @@
 #include "BKE_paint_types.hh"
 #include "BKE_report.hh"
 #include "BKE_subdiv_ccg.hh"
-#include "BLI_math_rotation_legacy.hh"
-#include "BLI_math_vector.hh"
-#include "BLI_profile.hh"
 
 #include "BLT_translation.hh"
 
@@ -596,6 +596,7 @@ void ensure_boundary_info(Object &object)
 
 SculptBoundaryInfoCache create_boundary_info(const Mesh &mesh)
 {
+  BLI_profile_scope(ProfileCategory::Editor);
   SculptBoundaryInfoCache boundary_info;
   boundary_info.verts.resize(mesh.verts_num);
   Array<int> adjacent_faces_edge_count(mesh.edges_num, 0);
@@ -6363,6 +6364,7 @@ static void fake_neighbor_search(const Depsgraph &depsgraph,
                                  const float max_distance_sq,
                                  MutableSpan<int> fake_neighbors)
 {
+  BLI_profile_scope(ProfileCategory::Editor);
   /* NOTE: This algorithm is extremely slow, it has O(n^2) runtime for the entire mesh. This looks
    * like the "closest pair of points" problem which should have far better solutions. */
   SculptSession &ss = *ob.runtime->sculpt_session;
@@ -6709,6 +6711,7 @@ static SculptTopologyIslandCache calc_topology_islands_bmesh(const Object &objec
 
 static SculptTopologyIslandCache calculate_cache(const Object &object)
 {
+  BLI_profile_scope(ProfileCategory::Editor);
   switch (bke::object::pbvh_get(object)->type()) {
     case bke::pbvh::Type::Mesh:
       return calc_topology_islands_mesh(*id_cast<const Mesh *>(object.data));
@@ -7582,7 +7585,6 @@ void calc_brush_strength_factors(const StrokeCache &cache,
                                  const Span<float> distances,
                                  const MutableSpan<float> factors)
 {
-  BLI_profile_scope(ProfileCategory::Editor);
   BKE_brush_calc_curve_factors(eBrushCurvePreset(brush.curve_distance_falloff_preset),
                                brush.curve_distance_falloff,
                                distances,
@@ -7869,6 +7871,7 @@ PositionDeformData::PositionDeformData(const Depsgraph &depsgraph, Object &objec
 
 void PositionDeformData::deform(MutableSpan<float3> translations, const Span<int> verts) const
 {
+  BLI_profile_scope(ProfileCategory::Editor);
   if (eval_mut_) {
     /* Apply translations to the evaluated mesh. This is necessary because multiple brush
      * evaluations can happen in between object reevaluations (otherwise just deforming the
