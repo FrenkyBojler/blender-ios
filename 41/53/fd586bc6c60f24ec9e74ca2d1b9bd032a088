@@ -3,3 +3,4 @@ Referenced by issue #156177, Regression, Modeling: When edge loop terminates in 
 Referenced by issue #156361, Crash on load svg to grease pencil
 Referenced by issue #156525, VSE: Strip isolated preview is missing in 5.1
 Referenced by issue #157694, "Import SVG as Grease Pencil" not working correctly in 5.1 (file that worked in 5.0)
+Referenced by issue #158172, Sequencer: Playback speed regression
