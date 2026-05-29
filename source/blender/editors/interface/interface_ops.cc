@@ -3089,15 +3089,6 @@ static void UI_OT_view_item_navigate(wmOperatorType *ot)
                "Direction in which to navigate and select next element.");
 }
 
-static bool ui_tree_view_focused_poll(bContext *C)
-{
-  AbstractView *view = get_view_focused(C);
-  if (view) {
-    AbstractTreeView *tree_view = dynamic_cast<AbstractTreeView *>(view);
-    return tree_view != nullptr;
-  }
-  return false;
-}
 
 static wmOperatorStatus ui_view_item_focus_invoke(bContext *C,
                                                   wmOperator * /*op*/,
@@ -3105,13 +3096,8 @@ static wmOperatorStatus ui_view_item_focus_invoke(bContext *C,
 {
   ARegion *region = CTX_wm_region(C);
   AbstractView *view = get_view_focused(C);
-  AbstractTreeView *tree_view = dynamic_cast<AbstractTreeView *>(view);
 
-  if (tree_view->is_fully_visible()) {
-    return OPERATOR_CANCELLED;
-  }
-
-  tree_view->scroll_active_into_view(C, true);
+  view->scroll_active_into_view(C, true);
   ED_region_tag_redraw(region);
 
   return OPERATOR_FINISHED;
@@ -3124,7 +3110,7 @@ static void UI_OT_view_item_focus(wmOperatorType *ot)
   ot->description = "Bring active item into focus by scrolling the view";
 
   ot->invoke = ui_view_item_focus_invoke;
-  ot->poll = ui_tree_view_focused_poll;
+  ot->poll = view_focused_poll;
 
   ot->flag = OPTYPE_INTERNAL;
 }
