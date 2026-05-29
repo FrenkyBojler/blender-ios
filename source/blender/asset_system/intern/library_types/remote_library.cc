@@ -47,6 +47,7 @@
 #include "AS_asset_representation.hh"
 #include "AS_essentials_library.hh"
 #include "AS_remote_library.hh"
+
 #include "remote_library.hh"
 
 static CLG_LogRef LOG = {"assets.remote_library"};
@@ -73,6 +74,11 @@ RemoteAssetLibrary::RemoteAssetLibrary(const eAssetLibraryType library_type,
     : AssetLibrary(library_type, is_read_only, name, root_path), remote_url_(remote_url)
 {
   may_override_import_method_ = false;
+}
+
+void RemoteAssetLibrary::force_remote_listing_download() const
+{
+  remote_library_request_download(RemoteLibraryDefinitionRef{remote_url_, root_path()});
 }
 
 std::optional<eAssetImportMethod> RemoteAssetLibrary::import_method() const
@@ -404,30 +410,38 @@ void RemoteLibraryLoadingStatus::ping_asset_file_progress(const StringRef absolu
 static void ping_asset_file_done_impl(const bContext &C,
                                       const StringRef library_url,
                                       const StringRef absolute_file_url,
+                                      const StringRef local_file_abspath,
                                       const DownloadOutcome outcome)
 {
   wmWindowManager *wm = CTX_wm_manager(&C);
 
-  ed::asset::list::on_remote_assets_downloaded(*wm, library_url);
+  ed::asset::list::on_remote_assets_downloaded(*wm, library_url, local_file_abspath);
   ProgressTracker::file_finished(absolute_file_url, outcome);
 
   /* Redraw drags, they may show some "asset being downloaded" info. */
-  if (!BLI_listbase_is_empty(&wm->runtime->drags)) {
+  if (!wm->runtime->drags.is_empty()) {
     WM_event_add_mousemove(CTX_wm_window(&C));
   }
 }
 
 void RemoteLibraryLoadingStatus::ping_asset_file_download_succeeded(
-    const bContext &C, const StringRef library_url, const StringRef absolute_file_url)
+    const bContext &C,
+    const StringRef library_url,
+    const StringRef absolute_file_url,
+    const StringRef local_file_abspath)
 {
-  ping_asset_file_done_impl(C, library_url, absolute_file_url, DownloadOutcome::Succeeded);
+  ping_asset_file_done_impl(
+      C, library_url, absolute_file_url, local_file_abspath, DownloadOutcome::Succeeded);
 }
 
-void RemoteLibraryLoadingStatus::ping_asset_file_download_failed(const bContext &C,
-                                                                 const StringRef library_url,
-                                                                 const StringRef absolute_file_url)
+void RemoteLibraryLoadingStatus::ping_asset_file_download_failed(
+    const bContext &C,
+    const StringRef library_url,
+    const StringRef absolute_file_url,
+    const StringRef local_file_abspath)
 {
-  ping_asset_file_done_impl(C, library_url, absolute_file_url, DownloadOutcome::Failed);
+  ping_asset_file_done_impl(
+      C, library_url, absolute_file_url, local_file_abspath, DownloadOutcome::Failed);
 }
 
 void RemoteLibraryLoadingStatus::ping_download_queue_done(const bContext &C)
@@ -591,7 +605,7 @@ void remote_library_request_download(const RemoteLibraryDefinitionRef &library_d
   }
 
   BLI_assert_msg(!is_online_essentials_url(library_definition.remote_url) ||
-                     library_definition.cache_dirpath == online_essentials_cache_directory_path(),
+                     is_online_essentials_dirpath(library_definition.cache_dirpath),
                  "The online essentials library must be downloaded to "
                  "online_essentials_cache_directory_path()");
 
@@ -757,8 +771,8 @@ void remote_library_request_asset_download(const bContext &C,
     return;
   }
 
-  if (!asset.is_online()) {
-    BKE_report(reports, RPT_ERROR, "This is not an online asset and thus cannot be downloaded");
+  if (!asset.needs_download()) {
+    BKE_report(reports, RPT_ERROR, "This asset does not require downloading");
     return;
   }
 
@@ -793,7 +807,7 @@ void remote_library_request_asset_download(const bContext &C,
        *
        * Better to stop here, because if a dependency download couldn't be triggered, the main file
        * should not be downloaded either. Because, if that would work, we have a half-downloaded
-       * asset that Blender's asset browser doesn't know is broken). */
+       * asset that Blender's asset browser doesn't know is broken. */
       break;
     }
 

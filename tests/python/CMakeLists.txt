@@ -716,6 +716,8 @@ endif()
 add_blender_test(
   bl_animation_armature
   --python ${CMAKE_CURRENT_LIST_DIR}/bl_animation_armature.py
+  --
+  --testdir "${TEST_SRC_DIR}/animation"
 )
 
 add_blender_test(
@@ -908,6 +910,7 @@ if((WITH_CYCLES OR WITH_GPU_RENDER_TESTS) AND TEST_SRC_DIR_EXISTS)
     shadow_catcher
     sss
     texture
+    transparency
   )
 
   set(workbench_tests
@@ -1235,6 +1238,8 @@ if(TEST_SRC_DIR_EXISTS)
     curve_primitives
     curves
     curves/interpolate_curves
+    empty_object
+    essentials
     foreach_geometry_element_zone
     geometry
     grease_pencil

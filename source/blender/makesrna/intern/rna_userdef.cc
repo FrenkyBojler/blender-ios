@@ -707,7 +707,7 @@ static void rna_userdef_asset_library_remove(bContext *C, ReportList *reports, P
   ed::asset::list::clear_all_library(C);
 
   /* Update active library index to be in range. */
-  const int count_remaining = BLI_listbase_count(&U.asset_libraries);
+  const int count_remaining = U.asset_libraries.count();
   CLAMP(U.active_asset_library, 0, count_remaining - 1);
 
   /* Trigger refresh for the Asset Browser. */
@@ -7687,11 +7687,6 @@ static void rna_def_userdef_experimental(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop, "Shader Node Previews", "Enables previews in the shader node editor");
   RNA_def_property_update(prop, 0, "rna_userdef_ui_update");
-
-  prop = RNA_def_property(srna, "use_geometry_bundle", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_ui_text(prop,
-                           "Bundle in Geometry",
-                           "Support storing custom bundles in a geometry in Geometry Nodes");
 
   prop = RNA_def_property(srna, "use_remote_asset_libraries", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);

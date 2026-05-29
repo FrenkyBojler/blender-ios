@@ -965,7 +965,7 @@ static void rna_Object_active_vertex_group_index_range(
     return;
   }
   const ListBaseT<bDeformGroup> *defbase = BKE_object_defgroup_list(ob);
-  *max = max_ii(0, BLI_listbase_count(defbase) - 1);
+  *max = max_ii(0, defbase->count() - 1);
 }
 
 void rna_object_vgroup_name_index_get(PointerRNA *ptr, char *value, int index)
@@ -1150,7 +1150,7 @@ static void rna_Object_active_particle_system_index_range(
 {
   Object *ob = reinterpret_cast<Object *>(ptr->owner_id);
   *min = 0;
-  *max = max_ii(0, BLI_listbase_count(&ob->particlesystem) - 1);
+  *max = max_ii(0, ob->particlesystem.count() - 1);
 }
 
 static int rna_Object_active_particle_system_index_get(PointerRNA *ptr)
@@ -1516,7 +1516,7 @@ static void rna_Object_active_shape_key_index_range(
 
   *min = 0;
   if (key) {
-    *max = BLI_listbase_count(&key->block) - 1;
+    *max = key->block.count() - 1;
     if (*max < 0) {
       *max = 0;
     }
@@ -2942,6 +2942,14 @@ static void rna_def_object_visibility(StructRNA *srna)
       "Only render shadows and reflections on this object, for compositing renders into real "
       "footage. Objects with this setting are considered to already exist in the footage, "
       "objects without it are synthetic objects being composited into it.");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Object_internal_update_draw");
+
+  prop = RNA_def_property(srna, "visible_raycast", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_negative_sdna(prop, nullptr, "visibility_flag", OB_HIDE_RAYCAST);
+  RNA_def_property_ui_text(
+      prop,
+      "Raycast Visibility",
+      "Object visibility to raycast rays. Implicitly false for Blended materials.");
   RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Object_internal_update_draw");
 }
 

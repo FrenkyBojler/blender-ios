@@ -13,6 +13,7 @@
 #include "BLI_math_color.h"
 #include "BLI_math_vector.h"
 #include "BLI_path_utils.hh"
+#include "BLI_profile.hh"
 #include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
 #include "BLI_task.hh"
@@ -455,6 +456,8 @@ static void draw_seq_waveform_overlay(const TimelineDrawContext &ctx,
     return;
   }
 
+  BLI_profile_scope_with_name("SeqTimelineWaveform", ProfileCategory::Draw);
+
   const View2D *v2d = ctx.v2d;
   Scene *scene = ctx.scene;
   Strip *strip = strip_ctx.strip;
@@ -638,7 +641,7 @@ static void drawmeta_contents(const TimelineDrawContext &ctx,
 
   ListBaseT<Strip> *meta_seqbase = get_seqbase_from_strip(strip_meta, &meta_channels, &offset);
 
-  if (!meta_seqbase || BLI_listbase_is_empty(meta_seqbase)) {
+  if (!meta_seqbase || meta_seqbase->is_empty()) {
     return;
   }
 
@@ -1133,6 +1136,8 @@ static void draw_seq_fcurve_overlay(const TimelineDrawContext &ctx,
     return;
   }
 
+  BLI_profile_scope_with_name("SeqTimelineFCurve", ProfileCategory::Draw);
+
   const int eval_step = max_ii(1, floor(ctx.pixelx));
   uchar color[4] = {0, 0, 0, 38};
 
@@ -1547,6 +1552,8 @@ static void draw_seq_strips(const TimelineDrawContext &ctx,
     return;
   }
 
+  BLI_profile_scope_with_name("SeqTimelineStrips", ProfileCategory::Draw);
+
   ui::view2d_view_ortho(ctx.v2d);
 
   /* Draw parts of strips below thumbnails. */
@@ -1647,7 +1654,7 @@ static void draw_timeline_sfra_efra(const TimelineDrawContext &ctx)
   ctx.quads->draw();
 
   /* While in meta strip, draw a checkerboard overlay outside of frame range. */
-  if (ed && !BLI_listbase_is_empty(&ed->metastack)) {
+  if (ed && !ed->metastack.is_empty()) {
     const MetaStack *ms = static_cast<const MetaStack *>(ed->metastack.last);
 
     uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", gpu::VertAttrType::SFLOAT_32_32);
@@ -1878,6 +1885,8 @@ static void draw_timeline_post_view_callbacks(const TimelineDrawContext &ctx)
 
 void draw_timeline_seq(const bContext *C, const ARegion *region)
 {
+  BLI_profile_scope_with_name("SeqTimelineDraw", ProfileCategory::Draw);
+
   SeqQuadsBatch quads_batch;
   TimelineDrawContext ctx = timeline_draw_context_get(C, &quads_batch);
   StripsDrawBatch strips_batch(ctx.v2d);
