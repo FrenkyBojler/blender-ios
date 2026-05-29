@@ -428,7 +428,7 @@ void wm_xr_viewfinder_render_view(wmXrData *xr_data)
                                   scene,
                                   &viewfinder_shading_settings,
                                   xr_context,
-                                  (eDrawType)settings->shading.type,
+                                  settings->shading.type,
                                   settings->object_type_exclude_viewport,
                                   settings->object_type_exclude_select,
                                   viewfinder_resolution,
