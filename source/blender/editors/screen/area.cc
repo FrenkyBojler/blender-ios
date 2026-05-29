@@ -3222,7 +3222,7 @@ static void ed_panel_draw(const bContext *C,
     }
   }
 
-  block_end(C, block);
+  block_end(C, block, true);
 
   /* Draw child panels. */
   if (open || search_filter_active) {
@@ -3510,6 +3510,9 @@ void ED_region_panels_layout_ex(const bContext *C,
 
   if (use_categories) {
     region->runtime->category = category;
+  }
+  for (ui::Block &block : region->runtime->uiblocks) {
+    block_post_layout_callbacks_exec(C, region, &block);
   }
 }
 

@@ -840,17 +840,6 @@ static bool view2d_cur_ensure_rect_in_view(View2D *v2d, const rctf *rect)
 
 void but_ensure_in_view(const bContext *C, ARegion *region, const Button *but)
 {
-  if (region->runtime->do_draw) {
-    /* Region bounds might not been initialized, wait after region draw. */
-    region->runtime->post_draw_callbacks.append([](const bContext &C) {
-      ARegion *region = CTX_wm_region(&C);
-      const Button *but = region_active_but_get(region);
-      if (but) {
-        but_ensure_in_view(&C, region, but);
-      }
-    });
-    return;
-  }
   View2D *v2d = &region->v2d;
   /* Uninitialized view or region that doesn't use View2D. */
   if ((v2d->flag & V2D_IS_INIT) == 0) {
