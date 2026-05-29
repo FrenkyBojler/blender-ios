@@ -274,6 +274,7 @@ void do_crease_brush(const Depsgraph &depsgraph,
                      Object &object,
                      const IndexMask &node_mask)
 {
+  BLI_profile_scope(ProfileCategory::Editor);
   do_crease_or_blob_brush(depsgraph, sd, false, object, node_mask);
 }
 
@@ -282,6 +283,7 @@ void do_blob_brush(const Depsgraph &depsgraph,
                    Object &object,
                    const IndexMask &node_mask)
 {
+  BLI_profile_scope(ProfileCategory::Editor);
   do_crease_or_blob_brush(depsgraph, sd, true, object, node_mask);
 }
 

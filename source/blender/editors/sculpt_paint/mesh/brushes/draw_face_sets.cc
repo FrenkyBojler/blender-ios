@@ -328,6 +328,7 @@ void do_draw_face_sets_brush(const Depsgraph &depsgraph,
                              Object &object,
                              const IndexMask &node_mask)
 {
+  BLI_profile_scope(ProfileCategory::Editor);
   const Brush &brush = *BKE_paint_brush_for_read(&sd.paint);
 
   if (object.runtime->sculpt_session->cache->paint_face_set == face_set_none_id) {

@@ -491,6 +491,7 @@ void ensure_nodes_constraints(const Sculpt &sd,
                               const float3 &initial_location,
                               const float radius)
 {
+  BLI_profile_scope(ProfileCategory::Editor);
   SculptSession &ss = *object.runtime->sculpt_session;
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   const Brush *brush = BKE_paint_brush_for_read(&sd.paint);
@@ -1419,6 +1420,7 @@ void do_simulation_step(const Depsgraph &depsgraph,
                         SimulationData &cloth_sim,
                         const IndexMask &node_mask)
 {
+  BLI_profile_scope(ProfileCategory::Editor);
   SculptSession &ss = *object.runtime->sculpt_session;
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   const Brush *brush = BKE_paint_brush_for_read(&sd.paint);
@@ -1762,6 +1764,7 @@ std::unique_ptr<SimulationData> brush_simulation_create(const Depsgraph &depsgra
                                                         const bool use_collisions,
                                                         const bool needs_deform_coords)
 {
+  BLI_profile_scope(ProfileCategory::Editor);
   const int totverts = vertex_count_get(ob);
   std::unique_ptr<SimulationData> cloth_sim = std::make_unique<SimulationData>();
 
@@ -1806,11 +1809,13 @@ void brush_store_simulation_state(const Depsgraph &depsgraph,
                                   const Object &object,
                                   SimulationData &cloth_sim)
 {
+  BLI_profile_scope(ProfileCategory::Editor);
   copy_positions_to_array(depsgraph, object, cloth_sim.pos);
 }
 
 void sim_activate_nodes(Object &object, SimulationData &cloth_sim, const IndexMask &node_mask)
 {
+  BLI_profile_scope(ProfileCategory::Editor);
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
 
   /* Activate the nodes inside the simulation area. */
@@ -1859,6 +1864,7 @@ void do_cloth_brush(const Depsgraph &depsgraph,
                     Object &ob,
                     const IndexMask &node_mask)
 {
+  BLI_profile_scope(ProfileCategory::Editor);
   SculptSession &ss = *ob.runtime->sculpt_session;
   const Brush *brush = BKE_paint_brush_for_read(&sd.paint);
 

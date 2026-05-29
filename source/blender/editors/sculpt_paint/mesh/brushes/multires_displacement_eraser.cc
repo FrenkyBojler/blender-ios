@@ -81,6 +81,7 @@ void do_displacement_eraser_brush(const Depsgraph &depsgraph,
                                   Object &object,
                                   const IndexMask &node_mask)
 {
+  BLI_profile_scope(ProfileCategory::Editor);
   SculptSession &ss = *object.runtime->sculpt_session;
   SubdivCCG &subdiv_ccg = *object.runtime->sculpt_session->subdiv_ccg;
   MutableSpan<float3> positions = subdiv_ccg.positions;

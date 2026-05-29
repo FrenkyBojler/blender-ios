@@ -148,6 +148,7 @@ void do_displacement_smear_brush(const Depsgraph &depsgraph,
                                  Object &ob,
                                  const IndexMask &node_mask)
 {
+  BLI_profile_scope(ProfileCategory::Editor);
   const Brush &brush = *BKE_paint_brush_for_read(&sd.paint);
   SculptSession &ss = *ob.runtime->sculpt_session;
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(ob);

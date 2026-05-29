@@ -305,6 +305,7 @@ void do_clay_strips_brush(const Depsgraph &depsgraph,
                           const float3 &plane_normal,
                           const float3 &plane_center)
 {
+  BLI_profile_scope(ProfileCategory::Editor);
   SculptSession &ss = *object.runtime->sculpt_session;
   const Brush &brush = *BKE_paint_brush_for_read(&sd.paint);
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
