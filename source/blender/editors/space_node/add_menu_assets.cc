@@ -237,12 +237,7 @@ static void node_unassigned_assets_draw(const bContext *C, Menu *menu)
   }
   asset::AssetItemTree &tree = *snode.runtime->assets_for_menu;
   for (const asset_system::AssetRepresentation *asset : tree.unassigned_assets) {
-    PointerRNA op_ptr = menu->layout->op(*operator_id,
-                                         IFACE_(asset->get_name()),
-                                         ICON_NONE,
-                                         wm::OpCallContext::InvokeRegionWin,
-                                         UI_ITEM_NONE);
-    asset::operator_asset_reference_props_set(*asset, op_ptr);
+    asset::draw_online_asset_menu(asset, *operator_id, *menu->layout);
   }
 }
 
