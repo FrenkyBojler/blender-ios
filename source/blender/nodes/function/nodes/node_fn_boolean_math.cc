@@ -19,6 +19,7 @@
 #include "NOD_rna_define.hh"
 
 #include "node_function_util.hh"
+#include "node_shader_util.hh"
 
 namespace blender::nodes::node_fn_boolean_math_cc {
 
@@ -139,6 +140,48 @@ static void node_eval_inverse_elem(value_elem::InverseElemEvalParams &params)
   }
 }
 
+static int node_gpu_material(GPUMaterial *mat,
+                             bNode *node,
+                             bNodeExecData * /*execdata*/,
+                             GPUNodeStack *in,
+                             GPUNodeStack *out)
+{
+  const char *name = nullptr;
+  switch (NodeBooleanMathOperation(node->custom1)) {
+    case NODE_BOOLEAN_MATH_AND:
+      name = "boolean_math_and";
+      break;
+    case NODE_BOOLEAN_MATH_OR:
+      name = "boolean_math_or";
+      break;
+    case NODE_BOOLEAN_MATH_NOT:
+      name = "boolean_math_not";
+      break;
+    case NODE_BOOLEAN_MATH_NAND:
+      name = "boolean_math_nand";
+      break;
+    case NODE_BOOLEAN_MATH_NOR:
+      name = "boolean_math_nor";
+      break;
+    case NODE_BOOLEAN_MATH_XNOR:
+      name = "boolean_math_xnor";
+      break;
+    case NODE_BOOLEAN_MATH_XOR:
+      name = "boolean_math_xor";
+      break;
+    case NODE_BOOLEAN_MATH_IMPLY:
+      name = "boolean_math_imply";
+      break;
+    case NODE_BOOLEAN_MATH_NIMPLY:
+      name = "boolean_math_nimply";
+      break;
+  }
+  if (name != nullptr) {
+    return GPU_stack_link(mat, node, name, in, out);
+  }
+  return 0;
+}
+
 static void node_eval_inverse(inverse_eval::InverseEvalParams &params)
 {
   const NodeBooleanMathOperation op = NodeBooleanMathOperation(params.node.custom1);
@@ -169,7 +212,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  fn_node_type_base(&ntype, "FunctionNodeBooleanMath"_ustr, FN_NODE_BOOLEAN_MATH);
+  fn_cmp_node_type_base(&ntype, "FunctionNodeBooleanMath"_ustr, FN_NODE_BOOLEAN_MATH);
   ntype.ui_name = "Boolean Math";
   ntype.ui_description = "Perform a logical operation on the given boolean inputs";
   ntype.enum_name_legacy = "BOOLEAN_MATH";
@@ -177,6 +220,7 @@ static void node_register()
   ntype.declare = node_declare;
   ntype.labelfunc = node_label;
   ntype.build_multi_function = node_build_multi_function;
+  ntype.gpu_fn = node_gpu_material;
   ntype.draw_buttons = node_layout;
   ntype.gather_link_search_ops = node_gather_link_searches;
   ntype.eval_elem = node_eval_elem;
