@@ -3087,6 +3087,15 @@ static void p_chart_extrema_verts(PChart *chart, PVert **pin1, PVert **pin2)
   p_chart_pin_positions(chart, pin1, pin2);
 }
 
+/* Store the chart's current orientation and bounds so the unwrapped result can
+ * be fit back into them, see #uv_parametrizer_original_bounds. */
+static void p_chart_orig_bounds_init(PChart *chart)
+{
+  chart->orig_bounds = MEM_new<PChartOrigBounds>("PChartOrigBounds");
+  chart->orig_bounds->angle = p_chart_minimum_area_angle(chart);
+  p_chart_uv_bbox(chart, chart->orig_bounds->bounds.min, chart->orig_bounds->bounds.max);
+}
+
 static void p_chart_lscm_begin(PChart *chart, bool live, bool abf, const bool use_original_bounds)
 {
   BLI_assert(chart->context == nullptr);
@@ -3095,9 +3104,7 @@ static void p_chart_lscm_begin(PChart *chart, bool live, bool abf, const bool us
   bool deselect = false;
   int npins = 0;
   if (use_original_bounds) {
-    chart->orig_bounds = MEM_new<PChartOrigBounds>("PChartOrigBounds");
-    chart->orig_bounds->angle = p_chart_minimum_area_angle(chart);
-    p_chart_uv_bbox(chart, chart->orig_bounds->bounds.min, chart->orig_bounds->bounds.max);
+    p_chart_orig_bounds_init(chart);
   }
   /* Give vertices matrix indices, count pins and check selections. */
   for (PVert *v = chart->verts; v; v = v->nextlink) {
@@ -5180,9 +5187,7 @@ static void slim_convert_blender(ParamHandle *phandle,
   for (int i = 0; i < phandle->ncharts; i++) {
     PChart *chart = phandle->charts[i];
     if (use_original_bounds) {
-      chart->orig_bounds = MEM_new<PChartOrigBounds>("PChartOrigBounds");
-      chart->orig_bounds->angle = p_chart_minimum_area_angle(chart);
-      p_chart_uv_bbox(chart, chart->orig_bounds->bounds.min, chart->orig_bounds->bounds.max);
+      p_chart_orig_bounds_init(chart);
     }
     slim::MatrixTransferChart *mt_chart = &mt->charts[i];
 
