@@ -88,7 +88,7 @@ static void metaball_free_data(ID *id)
 
   MEM_SAFE_DELETE(metaball->mat);
 
-  BLI_freelistN(&metaball->elems);
+  metaball->elems.free_no_destruct();
 }
 
 static void metaball_foreach_id(ID *id, LibraryForeachIDData *data)
@@ -125,7 +125,7 @@ static void metaball_blend_read_data(BlendDataReader *reader, ID *id)
 {
   MetaBall *mb = id_cast<MetaBall *>(id);
 
-  BLO_read_pointer_array(reader, mb->totcol, reinterpret_cast<void **>(&mb->mat));
+  BLO_read_pointer_array_and_validate_size(reader, &mb->mat, &mb->totcol);
 
   BLO_read_struct_list(reader, MetaElem, &(mb->elems));
 
@@ -488,7 +488,7 @@ bool BKE_mball_minmax(const MetaBall *mb, float min[3], float max[3])
     minmax_v3v3_v3(min, max, &ml.x);
   }
 
-  return (BLI_listbase_is_empty(&mb->elems) == false);
+  return (mb->elems.is_empty() == false);
 }
 
 bool BKE_mball_center_median(const MetaBall *mb, float r_cent[3])
@@ -581,7 +581,7 @@ bool BKE_mball_select_all(MetaBall *mb)
   bool changed = false;
   for (MetaElem &ml : *mb->editelems) {
     if ((ml.flag & SELECT) == 0) {
-      ml.flag |= SELECT;
+      ml.flag |= MB_SELECT;
       changed = true;
     }
   }
@@ -604,7 +604,7 @@ bool BKE_mball_deselect_all(MetaBall *mb)
   bool changed = false;
   for (MetaElem &ml : *mb->editelems) {
     if ((ml.flag & SELECT) != 0) {
-      ml.flag &= ~SELECT;
+      ml.flag &= ~MB_SELECT;
       changed = true;
     }
   }
@@ -627,7 +627,7 @@ bool BKE_mball_select_swap(MetaBall *mb)
 {
   bool changed = false;
   for (MetaElem &ml : *mb->editelems) {
-    ml.flag ^= SELECT;
+    ml.flag ^= MB_SELECT;
     changed = true;
   }
   return changed;

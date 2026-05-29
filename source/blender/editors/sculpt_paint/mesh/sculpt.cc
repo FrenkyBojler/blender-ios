@@ -110,6 +110,10 @@ static CLG_LogRef LOG = {"sculpt"};
 
 namespace ed::sculpt_paint {
 
+/* -------------------------------------------------------------------- */
+/** \name Sculpt Brush Utilities
+ * \{ */
+
 /* TODO: This should be moved to either BKE_paint.hh or BKE_brush.hh */
 float object_space_radius_get(const ViewContext &vc,
                               const Paint &paint,
@@ -222,9 +226,9 @@ int active_face_set_get(const Object &object)
   return face_set_none_id;
 }
 
-int vert_face_set_get(const GroupedSpan<int> vert_to_face_map,
-                      const Span<int> face_sets,
-                      const int vert)
+int vert_face_set_max_get(const GroupedSpan<int> vert_to_face_map,
+                          const Span<int> face_sets,
+                          const int vert)
 {
   int face_set = face_set_none_id;
   for (const int face : vert_to_face_map[vert]) {
@@ -239,9 +243,23 @@ int vert_face_set_get(const SubdivCCG &subdiv_ccg, const Span<int> face_sets, co
   return face_sets[face];
 }
 
-int vert_face_set_get(const int /*face_set_offset*/, const BMVert & /*vert*/)
+int vert_face_set_max_get(const int /*face_set_offset*/, const BMVert & /*vert*/)
 {
   return face_set_none_id;
+}
+
+Set<int> vert_face_sets_get(const GroupedSpan<int> vert_to_face_map,
+                            const Span<int> face_sets,
+                            const int vert)
+{
+  Set<int> result;
+  for (const int face : vert_to_face_map[vert]) {
+    result.add(face_sets[face]);
+  }
+  if (result.is_empty()) {
+    result.add(face_set_none_id);
+  }
+  return result;
 }
 
 bool vert_has_face_set(const GroupedSpan<int> vert_to_face_map,
@@ -278,6 +296,22 @@ bool vert_has_face_set(const int face_set_offset, const BMVert &vert, const int 
   BMFace *face;
   BM_ITER_ELEM (face, &iter, &const_cast<BMVert &>(vert), BM_FACES_OF_VERT) {
     if (BM_ELEM_CD_GET_INT(face, face_set_offset) == face_set) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool vert_has_any_face_set(const GroupedSpan<int> vert_to_face_map,
+                           const Span<int> face_sets,
+                           int vert,
+                           const Set<int> &allowed_face_sets)
+{
+  if (face_sets.is_empty()) {
+    return allowed_face_sets.contains(face_set_none_id);
+  }
+  for (const int face : vert_to_face_map[vert]) {
+    if (allowed_face_sets.contains(face_sets[face])) {
       return true;
     }
   }
@@ -368,6 +402,77 @@ bool vert_has_unique_face_set(const OffsetIndices<int> faces,
   }
   BLI_assert_unreachable();
   return true;
+}
+
+bool coord_has_face_set(const OffsetIndices<int> faces,
+                        const Span<int> corner_verts,
+                        const GroupedSpan<int> vert_to_face_map,
+                        const Span<int> face_sets,
+                        const SubdivCCG &subdiv_ccg,
+                        const SubdivCCGCoord coord,
+                        const int face_set)
+{
+  if (face_sets.is_empty()) {
+    return face_set == face_set_none_id;
+  }
+
+  if (face_set == face_set_none_id) {
+    return false;
+  }
+
+  Set<int> allowed_face_sets;
+  allowed_face_sets.add(face_set);
+  return coord_has_any_face_set(
+      faces, corner_verts, vert_to_face_map, face_sets, subdiv_ccg, coord, allowed_face_sets);
+}
+
+bool coord_has_any_face_set(const OffsetIndices<int> faces,
+                            const Span<int> corner_verts,
+                            const GroupedSpan<int> vert_to_face_map,
+                            const Span<int> face_sets,
+                            const SubdivCCG &subdiv_ccg,
+                            const SubdivCCGCoord coord,
+                            const Set<int> &allowed_face_sets)
+{
+  if (face_sets.is_empty()) {
+    return allowed_face_sets.contains(face_set_none_id);
+  }
+
+  if (allowed_face_sets.is_empty()) {
+    return false;
+  }
+
+  int v1, v2;
+  const SubdivCCGAdjacencyType adjacency = BKE_subdiv_ccg_coarse_mesh_adjacency_info_get(
+      subdiv_ccg, coord, corner_verts, faces, v1, v2);
+  switch (adjacency) {
+    case SubdivCCGAdjacencyType::Vertex: {
+      for (const int face : vert_to_face_map[v1]) {
+        if (allowed_face_sets.contains(face_sets[face])) {
+          return true;
+        }
+      }
+      return false;
+    }
+    case SubdivCCGAdjacencyType::Edge:
+      for (const int face : vert_to_face_map[v1]) {
+        const Span<int> face_verts = corner_verts.slice(faces[face]);
+        if (!face_verts.contains(v2)) {
+          continue;
+        }
+        if (allowed_face_sets.contains(face_sets[face])) {
+          return true;
+        }
+      }
+      return false;
+    case SubdivCCGAdjacencyType::None: {
+      const int face = BKE_subdiv_ccg_grid_to_face_index(subdiv_ccg, coord.grid_index);
+      return allowed_face_sets.contains(face_sets[face]);
+    }
+  }
+
+  BLI_assert_unreachable();
+  return false;
 }
 
 bool vert_has_unique_face_set(const int /*face_set_offset*/, const BMVert & /*vert*/)
@@ -3310,7 +3415,7 @@ static void do_brush_action(const Depsgraph &depsgraph,
       if (brush.smooth_deform_type == BRUSH_SMOOTH_DEFORM_LAPLACIAN) {
         /* NOTE: The enhance brush needs to initialize its state on the first brush step. The
          * stroke strength can become 0 during the stroke, but it can not change sign (the sign is
-         * determined in the beginning of the stroke. So here it is important to not switch to
+         * determined in the beginning of the stroke). So here it is important to not switch to
          * enhance brush in the middle of the stroke. */
         if (ss.cache->initial_direction_flipped) {
           /* Invert mode, intensify details. */
@@ -3440,6 +3545,8 @@ static void do_brush_action(const Depsgraph &depsgraph,
       break;
     case SCULPT_BRUSH_TYPE_SCENE_PROJECT:
       brushes::do_scene_project_brush(depsgraph, sd, ob, node_mask);
+      break;
+    case SCULPT_BRUSH_TYPE_SIMPLIFY:
       break;
   }
 
@@ -4618,10 +4725,9 @@ std::optional<ActiveElementInfo> active_element_info_get(ViewContext &vc, const 
   return info;
 }
 
-bool cursor_geometry_info_update(bContext *C,
-                                 CursorGeometryInfo *out,
-                                 const float2 &mval,
-                                 const bool use_sampled_normal)
+std::optional<CursorGeometryInfo> cursor_geometry_info_update(bContext *C,
+                                                              const float2 &mval,
+                                                              const bool use_sampled_normal)
 {
   Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
   const Sculpt &sd = *CTX_data_tool_settings(C)->sculpt;
@@ -4629,20 +4735,20 @@ bool cursor_geometry_info_update(bContext *C,
   const Base *base = CTX_data_active_base(C);
 
   return cursor_geometry_info_update(
-      *depsgraph, sd.paint, &sd, vc, base, out, mval, use_sampled_normal);
+      *depsgraph, sd.paint, &sd, vc, base, mval, use_sampled_normal);
 }
 
-bool cursor_geometry_info_update(Depsgraph &depsgraph,
-                                 const Paint &paint,
-                                 const Sculpt *sd,
-                                 ViewContext &vc,
-                                 const Base *base,
-                                 CursorGeometryInfo *out,
-                                 const float2 &mval,
-                                 const bool use_sampled_normal)
+std::optional<CursorGeometryInfo> cursor_geometry_info_update(Depsgraph &depsgraph,
+                                                              const Paint &paint,
+                                                              const Sculpt *sd,
+                                                              ViewContext &vc,
+                                                              const Base *base,
+                                                              const float2 &mval,
+                                                              const bool use_sampled_normal)
 {
   const Brush &brush = *BKE_paint_brush_for_read(&paint);
   bool original = false;
+  CursorGeometryInfo out;
 
   Object &ob = *vc.obact;
   SculptSession &ss = *ob.runtime->sculpt_session;
@@ -4650,10 +4756,8 @@ bool cursor_geometry_info_update(Depsgraph &depsgraph,
   bke::pbvh::Tree *pbvh = bke::object::pbvh_get(ob);
 
   if (!pbvh || !vc.rv3d || !BKE_base_is_visible(vc.v3d, base)) {
-    out->location = float3(0.0f);
-    out->normal = float3(0.0f);
     ss.clear_active_elements(false);
-    return false;
+    return std::nullopt;
   }
 
   /* bke::pbvh::Tree raycast to get active vertex and face normal. */
@@ -4697,10 +4801,8 @@ bool cursor_geometry_info_update(Depsgraph &depsgraph,
 
   /* Cursor is not over the mesh, return default values. */
   if (!srd.hit) {
-    out->location = float3(0.0f);
-    out->normal = float3(0.0f);
     ss.clear_active_elements(true);
-    return false;
+    return std::nullopt;
   }
 
   /* Update the active vertex of the SculptSession. */
@@ -4721,12 +4823,12 @@ bool cursor_geometry_info_update(Depsgraph &depsgraph,
       break;
   }
 
-  out->location = ray_start + ray_normal * srd.depth;
+  out.location = ray_start + ray_normal * srd.depth;
 
   /* Option to return the face normal directly for performance o accuracy reasons. */
   if (!use_sampled_normal) {
-    out->normal = srd.face_normal;
-    return srd.hit;
+    out.normal = srd.face_normal;
+    return srd.hit ? std::make_optional(out) : std::nullopt;
   }
 
   /* Sampled normal calculation. */
@@ -4737,19 +4839,19 @@ bool cursor_geometry_info_update(Depsgraph &depsgraph,
   ss.cursor_view_normal = math::normalize(
       math::transform_direction(ob.world_to_object() * float4x4(vc.rv3d->viewinv), z_axis));
   ss.cursor_normal = srd.face_normal;
-  ss.cursor_location = out->location;
+  ss.cursor_location = out.location;
   ss.rv3d = vc.rv3d;
   ss.v3d = vc.v3d;
 
-  ss.cursor_radius = object_space_radius_get(vc, paint, brush, out->location);
+  ss.cursor_radius = object_space_radius_get(vc, paint, brush, out.location);
 
   IndexMaskMemory memory;
   const IndexMask node_mask = pbvh_gather_cursor_update(ob, original, memory);
 
   /* In case there are no nodes under the cursor, return the face normal. */
   if (node_mask.is_empty()) {
-    out->normal = srd.face_normal;
-    return true;
+    out.normal = srd.face_normal;
+    return std::make_optional(out);
   }
 
   bke::pbvh::update_normals(depsgraph, ob, *pbvh);
@@ -4758,14 +4860,14 @@ bool cursor_geometry_info_update(Depsgraph &depsgraph,
   if (const std::optional<float3> sampled_normal = calc_area_normal(
           depsgraph, brush, ob, node_mask))
   {
-    out->normal = *sampled_normal;
+    out.normal = *sampled_normal;
     ss.cursor_sampled_normal = *sampled_normal;
   }
   else {
     /* Use face normal when there are no vertices to sample inside the cursor radius. */
-    out->normal = srd.face_normal;
+    out.normal = srd.face_normal;
   }
-  return true;
+  return std::make_optional(out);
 }
 
 /**
@@ -5703,9 +5805,7 @@ bool SculptPaintStroke::test_start(wmOperator *op, const float mval[2])
       BKE_curvemapping_init(brush->curve_rand_value);
     }
 
-    CursorGeometryInfo cgi;
-    cursor_geometry_info_update(
-        *this->depsgraph, *paint, sculpt_, this->vc, base_, &cgi, mval, false);
+    cursor_geometry_info_update(*this->depsgraph, *paint, sculpt_, this->vc, base_, mval, false);
 
     stroke_undo_begin(*this->scene, this->brush, *this->paint_mode_settings_, *this->object, op);
 
@@ -7453,11 +7553,11 @@ void calc_brush_texture_factors(const SculptSession &ss,
 {
   BLI_assert(verts.size() == factors.size());
 
-  const int thread_id = BLI_task_parallel_thread_id(nullptr);
   const MTex *mtex = BKE_brush_mask_texture_get(&brush, OB_MODE_SCULPT);
   if (!mtex->tex) {
     return;
   }
+  const int thread_id = BLI_task_parallel_thread_id(nullptr);
 
   for (const int i : verts.index_range()) {
     if (factors[i] == 0.0f) {
@@ -7480,11 +7580,11 @@ void calc_brush_texture_factors(const SculptSession &ss,
 {
   BLI_assert(positions.size() == factors.size());
 
-  const int thread_id = BLI_task_parallel_thread_id(nullptr);
   const MTex *mtex = BKE_brush_mask_texture_get(&brush, OB_MODE_SCULPT);
   if (!mtex->tex) {
     return;
   }
+  const int thread_id = BLI_task_parallel_thread_id(nullptr);
 
   for (const int i : positions.index_range()) {
     if (factors[i] == 0.0f) {

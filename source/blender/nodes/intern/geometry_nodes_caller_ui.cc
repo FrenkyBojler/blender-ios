@@ -520,11 +520,11 @@ static void draw_property_for_socket(DrawGroupInputsContext &ctx,
       break;
     }
     case SOCK_FONT: {
-      PropertyRNA *prop = RNA_struct_find_property(ctx.properties_ptr, "value");
+      PropertyRNA *prop = RNA_struct_find_property(socket_props_ptr, "value");
       if (prop && RNA_property_type(prop) == PROP_POINTER) {
         template_id(&row,
                     &ctx.C,
-                    ctx.properties_ptr,
+                    socket_props_ptr,
                     "value",
                     nullptr,
                     "FONT_OT_open",
@@ -536,37 +536,54 @@ static void draw_property_for_socket(DrawGroupInputsContext &ctx,
       else {
         /* #template_id only supports pointer properties currently. Node tools store
          * data-block pointers in strings currently. */
-        row.prop_search(ctx.properties_ptr, "value", ctx.bmain_ptr, "fonts", name, ICON_FONT_DATA);
+        row.prop_search(socket_props_ptr, "value", ctx.bmain_ptr, "fonts", name, ICON_FONT_DATA);
       }
       break;
     }
     case SOCK_SCENE: {
-      row.prop_search(ctx.properties_ptr, "value", ctx.bmain_ptr, "scenes", name, ICON_SCENE);
+      row.prop_search(socket_props_ptr, "value", ctx.bmain_ptr, "scenes", name, ICON_SCENE);
       break;
     }
     case SOCK_TEXT_ID: {
-      row.prop_search(ctx.properties_ptr, "value", ctx.bmain_ptr, "texts", name, ICON_TEXT);
+      row.prop_search(socket_props_ptr, "value", ctx.bmain_ptr, "texts", name, ICON_TEXT);
       break;
     }
     case SOCK_MASK: {
-      row.prop_search(ctx.properties_ptr, "value", ctx.bmain_ptr, "masks", name, ICON_NONE);
+      row.prop_search(socket_props_ptr, "value", ctx.bmain_ptr, "masks", name, ICON_NONE);
       break;
     }
     case SOCK_SOUND: {
-      row.prop_search(ctx.properties_ptr, "value", ctx.bmain_ptr, "sounds", name, ICON_SOUND);
+      PropertyRNA *prop = RNA_struct_find_property(socket_props_ptr, "value");
+      if (prop && RNA_property_type(prop) == PROP_POINTER) {
+        template_id(&row, &ctx.C, socket_props_ptr, "value", nullptr, "SOUND_OT_open", nullptr);
+      }
+      else {
+        /* #template_id only supports pointer properties currently. Node tools store
+         * data-block pointers in strings currently. */
+        row.prop_search(socket_props_ptr, "value", ctx.bmain_ptr, "images", name, ICON_IMAGE_DATA);
+      }
+
       break;
     }
     case SOCK_IMAGE: {
-      template_id(&row,
-                  &ctx.C,
-                  socket_props_ptr,
-                  "value",
-                  "image.new",
-                  "image.open",
-                  nullptr,
-                  ui::TEMPLATE_ID_FILTER_ALL,
-                  false,
-                  name);
+      PropertyRNA *prop = RNA_struct_find_property(socket_props_ptr, "value");
+      if (prop && RNA_property_type(prop) == PROP_POINTER) {
+        template_id(&row,
+                    &ctx.C,
+                    socket_props_ptr,
+                    "value",
+                    "image.new",
+                    "image.open",
+                    nullptr,
+                    ui::TEMPLATE_ID_FILTER_ALL,
+                    false,
+                    name);
+      }
+      else {
+        /* #template_id only supports pointer properties currently. Node tools store
+         * data-block pointers in strings currently. */
+        row.prop_search(socket_props_ptr, "value", ctx.bmain_ptr, "images", name, ICON_IMAGE_DATA);
+      }
       break;
     }
     case SOCK_MENU: {

@@ -4,24 +4,20 @@
 
 #pragma once
 
+#include "eevee_uniform.bsl.hh"
 #include "infos/eevee_common_infos.hh"
-#include "infos/eevee_raycast_infos.hh"
-#include "infos/eevee_uniform_infos.hh"
-
-SHADER_LIBRARY_CREATE_INFO(eevee_global_ubo)
-SHADER_LIBRARY_CREATE_INFO(eevee_utility_texture)
-SHADER_LIBRARY_CREATE_INFO(eevee_hiz_data)
 
 #include "draw_intersect_lib.glsl"
 #include "draw_model_lib.glsl"
 #include "draw_object_infos_lib.glsl"
 #include "draw_view_lib.glsl"
 #include "eevee_bxdf_lut_lib.bsl.hh"
+#include "eevee_hiz.bsl.hh"
 #include "eevee_nodetree_closures_lib.glsl"
-#include "eevee_ray_trace_screen_lib.glsl"
-#include "eevee_renderpass_lib.glsl"
-#include "eevee_sampling_lib.glsl"
-#include "eevee_utility_tx_lib.glsl"
+#include "eevee_ray_trace_screen_lib.bsl.hh"
+#include "eevee_renderpass.bsl.hh"
+#include "eevee_sampling_lib.bsl.hh"
+#include "eevee_utility_tx.bsl.hh"
 #include "gpu_shader_codegen_lib.glsl"
 #include "gpu_shader_math_base_lib.glsl"
 #include "gpu_shader_math_safe_lib.glsl"
@@ -125,6 +121,16 @@ Closure closure_eval(ClosureRefraction refraction)
   closure_base_copy(cl, refraction);
   cl.data.r = refraction.roughness;
   cl.data.g = refraction.ior;
+  /* Transmission Closures are always in first bin. */
+  closure_select(g_closure_bins[0], g_closure_rand[0], cl);
+  return Closure(0);
+}
+
+Closure closure_eval(ClosureThinRefraction refraction)
+{
+  ClosureUndetermined cl;
+  closure_base_copy(cl, refraction);
+  cl.data.r = refraction.roughness;
   /* Transmission Closures are always in first bin. */
   closure_select(g_closure_bins[0], g_closure_rand[0], cl);
   return Closure(0);
@@ -234,61 +240,47 @@ float ambient_occlusion_eval([[maybe_unused]] float3 normal,
                              [[maybe_unused]] const float inverted,
                              [[maybe_unused]] const float sample_count)
 {
-  /* Avoid multi-line pre-processor conditionals.
-   * Some drivers don't handle them correctly. */
-  // clang-format off
-#if defined(GPU_FRAGMENT_SHADER) && defined(MAT_AMBIENT_OCCLUSION) && !defined(MAT_DEPTH) && !defined(MAT_SHADOW)
-  // clang-format on
-#  if 0 /* TODO(fclem): Finish inverted horizon scan. */
-  /* TODO(fclem): Replace eevee_ambient_occlusion_lib by eevee_fast_gi when this is
-   * finished. */
-  float3 vP = drw_point_world_to_view(g_data.P);
-  float3 vN = drw_normal_world_to_view(normal);
+  FRAGMENT_SHADER_CREATE_INFO(draw_view);
 
-  int2 texel = int2(gl_FragCoord.xy);
-  float2 noise;
-  noise.x = interleaved_gradient_noise(float2(texel), 3.0f, 0.0f);
-  noise.y = utility_tx_fetch(utility_tx, float2(texel), UTIL_BLUE_NOISE_LAYER).r;
-  noise = fract(noise + sampling_rng_2D_get(SAMPLING_AO_U));
+  /* clang-format off */ /* Multiline macros would break line count. */
+  [[resource_table]] [[maybe_unused]] const eevee::Sampling &samp = resource_table_get(eevee::Sampling);
+  [[resource_table]] [[maybe_unused]] const UtilityTexture &util_tx = resource_table_get(UtilityTexture);
+  [[resource_table]] [[maybe_unused]] const eevee::HiZ &hiz = resource_table_get(eevee::HiZ);
+  [[resource_table]] [[maybe_unused]] const eevee::Uniform &uni = resource_table_get(eevee::Uniform);
+  /* clang-format on */
 
-  ClosureOcclusion occlusion;
-  occlusion.N = (inverted != 0.0f) ? -vN : vN;
+  {
+#if defined(GPU_FRAGMENT_SHADER) && defined(MAT_AMBIENT_OCCLUSION) && !defined(MAT_DEPTH) && \
+    !defined(MAT_SHADOW)
 
-  HorizonScanContext ctx;
-  ctx.occlusion = occlusion;
+    float3 vP = drw_point_world_to_view(g_data.P);
+    float3 vN = drw_normal_world_to_view(normal);
 
-  horizon_scan_eval(vP,
-                    ctx,
-                    noise,
-                    uniform_buf.ao.pixel_size,
-                    max_distance,
-                    uniform_buf.ao.thickness_near,
-                    uniform_buf.ao.thickness_far,
-                    uniform_buf.ao.angle_bias,
-                    2,
-                    10,
-                    inverted != 0.0f,
-                    true);
+    int2 texel = int2(gl_FragCoord.xy);
+    float4 noise = util_tx.fetch(float2(texel), UTIL_BLUE_NOISE_LAYER);
+    noise = fract(noise + samp.rng_3D_get(SAMPLING_AO_U).xyzx);
 
-  return saturate(ctx.occlusion_result.r);
-#  else
-  float3 vP = drw_point_world_to_view(g_data.P);
-  int2 texel = int2(gl_FragCoord.xy);
-  OcclusionData data = ambient_occlusion_search(
-      vP, hiz_tx, texel, max_distance, inverted, sample_count);
+    float result = eevee::fast_gi::eval<float>(uni,
+                                               uni.raytrace_buf.fast_gi_thickness,
+                                               hiz.hiz_tx,
+                                               hiz.hiz_tx /* Dummy. */,
+                                               hiz.hiz_tx /* Dummy. */,
+                                               vP,
+                                               vN,
+                                               noise,
+                                               uni.uniform_buf.ao.pixel_size,
+                                               max_distance,
+                                               uni.uniform_buf.ao.angle_bias,
+                                               2,
+                                               int(sample_count / 2.0f),
+                                               inverted != 0.0f,
+                                               true);
 
-  float3 V = drw_world_incident_vector(g_data.P);
-  float3 N = normal;
-  float3 Ng = g_data.Ng;
-
-  float unused_error, visibility;
-  float3 unused;
-  ambient_occlusion_eval(data, texel, V, N, Ng, inverted, visibility, unused_error, unused);
-  return visibility;
-#  endif
+    return saturate(result);
 #else
-  return 1.0f;
+    return 1.0f;
 #endif
+  }
 }
 
 void raycast_eval([[maybe_unused]] float3 position,
@@ -301,6 +293,8 @@ void raycast_eval([[maybe_unused]] float3 position,
                   float3 &hit_position,
                   float3 &hit_normal)
 {
+  [[resource_table]] const eevee::Uniform &uni = resource_table_get(eevee::Uniform);
+
   is_hit = false;
   self_hit = false;
   hit_distance = max_distance;
@@ -310,6 +304,12 @@ void raycast_eval([[maybe_unused]] float3 position,
   direction = normalize(direction);
 
 #if defined(MAT_RAYCAST)
+  if (!uni.pipeline_buf.can_raycast) {
+    /* We can't raycast on prepass for raycast visibile objects.
+     * We use a UBO property to avoid compiling more shader variants. */
+    return;
+  }
+
   float3 ws_start = position;
   float3 ws_end = position + direction * max_distance;
   if (!clip_ray(
@@ -327,34 +327,39 @@ void raycast_eval([[maybe_unused]] float3 position,
     ws_start += direction * offset_delta;
   }
 
-  float noise_offset = sampling_rng_1D_get(SAMPLING_RAYTRACE_W);
-  float jitter = interleaved_gradient_noise(gl_FragCoord.xy, 1.0f, noise_offset);
-  float thickness_noise_offset = sampling_rng_1D_get(SAMPLING_RAYTRACE_X);
-  float thickness_jitter =
-      interleaved_gradient_noise(gl_FragCoord.xy, 1.0f, thickness_noise_offset) * 0.5f + 0.5f;
-  float thickness = uniform_buf.raytrace.thickness * thickness_jitter;
+  {
+    FRAGMENT_SHADER_CREATE_INFO(draw_view);
 
-  float2 hit_uv = float2(0.0f);
-  uint self_id = drw_resource_id() & 0xFFFF;
+    [[resource_table]] const eevee::Sampling &samp = resource_table_get(eevee::Sampling);
+    const auto &raycast_depth_tx = sampler_get(eevee_raycast, raycast_depth_tx);
+    const auto &prepass_normal_tx = sampler_get(eevee_raycast, prepass_normal_tx);
+    const auto &object_id_tx = sampler_get(eevee_raycast, object_id_tx);
 
-  float result = raytrace_screen_2(drw_point_world_to_view(ws_start),
-                                   drw_point_world_to_view(ws_end),
-                                   drw_normal_world_to_view(direction),
-                                   hiz_tx,
-                                   thickness,
-                                   64,
-                                   jitter,
-                                   object_id_tx,
-                                   self_only ? self_id : 0,
-                                   hit_uv);
-  if (result >= 0.0f) {
-    is_hit = true;
-    hit_position = ws_start + direction * result;
-    hit_distance = distance(position, hit_position);
-    hit_normal = normalize(texture(prepass_normal_tx, hit_uv).xyz * 2.0f - 1.0f);
-    int2 hit_texel = int2(hit_uv * float2(textureSize(object_id_tx, 0)));
-    uint hit_id = texelFetch(object_id_tx, hit_texel, 0).x;
-    self_hit = self_only || (hit_id == self_id);
+    float noise_offset = samp.rng_1D_get(SAMPLING_RAYTRACE_W);
+    float jitter = interleaved_gradient_noise(gl_FragCoord.xy, 1.0f, noise_offset);
+
+    float2 hit_uv = float2(0.0f);
+    uint self_id = drw_resource_id() & uint(0xFFFF);
+
+    float result = raytrace_screen_2(drw_point_world_to_view(ws_start),
+                                     drw_point_world_to_view(ws_end),
+                                     drw_normal_world_to_view(direction),
+                                     raycast_depth_tx,
+                                     uni.raytrace_buf,
+                                     64,
+                                     jitter,
+                                     object_id_tx,
+                                     self_only ? self_id : 0,
+                                     hit_uv);
+    if (result >= 0.0f) {
+      is_hit = true;
+      hit_position = ws_start + direction * result;
+      hit_distance = distance(position, hit_position);
+      hit_normal = normalize(texture(prepass_normal_tx, hit_uv).xyz * 2.0f - 1.0f);
+      int2 hit_texel = int2(hit_uv * float2(textureSize(object_id_tx, 0)));
+      uint hit_id = texelFetch(object_id_tx, hit_texel, 0).x;
+      self_hit = self_only || (hit_id == self_id);
+    }
   }
 #endif
 }
@@ -439,17 +444,17 @@ void brdf_f82_tint_lut(float3 F0,
                        bool do_multiscatter,
                        float3 &reflectance)
 {
-  auto &utility_tx = sampler_get(eevee_utility_texture, utility_tx);
+  [[resource_table]] const UtilityTexture util_tx = resource_table_get(UtilityTexture);
   eevee::lut::GGXBrdfData lut = eevee::lut::GGXBrdfData::sample_utility_tx(
-      utility_tx, cos_theta, roughness);
+      util_tx, cos_theta, roughness);
 
   reflectance = do_multiscatter ? F_brdf_multi_scatter(F0, float3(1.0f), lut) :
                                   F_brdf_single_scatter(F0, float3(1.0f), lut);
 
   /* Precompute the F82 term factor for the Fresnel model.
    * In the classic F82 model, the F82 input directly determines the value of the Fresnel
-   * model at ~82°, similar to F0 and F90.
-   * With F82-Tint, on the other hand, the value at 82° is the value of the classic Schlick
+   * model at ~82 degrees, similar to F0 and F90.
+   * With F82-Tint, on the other hand, the value at 82 degrees is the value of the classic Schlick
    * model multiplied by the tint input.
    * Therefore, the factor follows by setting `F82Tint(cosI) = FSchlick(cosI) - b*cosI*(1-cosI)^6`
    * and `F82Tint(acos(1/7)) = FSchlick(acos(1/7)) * f82_tint` and solving for `b`. */
@@ -473,7 +478,7 @@ void bsdf_lut(float3 F0,
               float3 &reflectance,
               float3 &transmittance)
 {
-  auto &utility_tx = sampler_get(eevee_utility_texture, utility_tx);
+  [[resource_table]] const UtilityTexture util_tx = resource_table_get(UtilityTexture);
   if (ior == 1.0f) {
     reflectance = float3(0.0f);
     transmittance = transmission_tint;
@@ -493,16 +498,16 @@ void bsdf_lut(float3 F0,
     }
 
     eevee::lut::GGXBrdfData brdf_lut = eevee::lut::GGXBrdfData::sample_utility_tx(
-        utility_tx, cos_theta, roughness);
+        util_tx, cos_theta, roughness);
     eevee::lut::GGXBtdfGt1Data btdf_lut = eevee::lut::GGXBtdfGt1Data::sample_utility_tx(
-        utility_tx, cos_theta, roughness, f0);
+        util_tx, cos_theta, roughness, f0);
 
     lut.scale = brdf_lut.scale;
     lut.bias = brdf_lut.bias;
     lut.transmission_factor = btdf_lut.transmission_factor;
   }
   else {
-    lut = eevee::lut::GGXBsdfData::sample_utility_tx(utility_tx, cos_theta, roughness, ior);
+    lut = eevee::lut::GGXBsdfData::sample_utility_tx(util_tx, cos_theta, roughness, ior);
   }
 
   reflectance = F_brdf_single_scatter(F0, F90, lut);
@@ -539,10 +544,6 @@ float2 bsdf_lut(float cos_theta, float roughness, float ior, bool do_multiscatte
            transmittance);
   return float2(reflectance.r, transmittance.r);
 }
-
-#ifdef GPU_VERTEX_SHADER
-#  define closure_to_rgba(a) float4(0.0f)
-#endif
 
 /* -------------------------------------------------------------------- */
 /** \name Fragment Displacement
@@ -625,6 +626,7 @@ float3 coordinate_camera(float3 P)
 
 float3 coordinate_screen(float3 P)
 {
+  [[resource_table]] const eevee::Uniform &uni = resource_table_get(eevee::Uniform);
   float3 window = float3(0.0f);
   if (false /* Probe. */) {
     /* Unsupported. It would make the probe camera-dependent. */
@@ -637,7 +639,7 @@ float3 coordinate_screen(float3 P)
     /* TODO(fclem): Actual camera transform. */
     window.xy = drw_point_world_to_screen(P).xy;
 #endif
-    window.xy = window.xy * uniform_buf.camera.uv_scale + uniform_buf.camera.uv_bias;
+    window.xy = window.xy * uni.uniform_buf.camera.uv_scale + uni.uniform_buf.camera.uv_bias;
   }
   return window;
 }
@@ -671,7 +673,8 @@ float3 coordinate_incoming(float3 P)
 
 float texture_lod_bias_get()
 {
-  return uniform_buf.film.texture_lod_bias;
+  [[resource_table]] const eevee::Uniform &uni = resource_table_get(eevee::Uniform);
+  return uni.uniform_buf.film.texture_lod_bias;
 }
 
 /**
@@ -682,7 +685,8 @@ float texture_lod_bias_get()
  */
 float derivative_scale_get()
 {
-  return 1.0f / float(uniform_buf.film.scaling_factor);
+  [[resource_table]] const eevee::Uniform &uni = resource_table_get(eevee::Uniform);
+  return 1.0f / float(uni.uniform_buf.film.scaling_factor);
 }
 
 /** \} */
@@ -738,6 +742,14 @@ float4 attr_load_color_post(float4 attr)
 float4 attr_load_uniform(float4 /*attr*/, const uint attr_hash)
 {
   return drw_object_attribute(attr_hash);
+}
+
+void scene_time_uniforms(float &seconds, float &frame)
+{
+  [[resource_table]] const eevee::Uniform &uni = resource_table_get(eevee::Uniform);
+
+  seconds = uni.uniform_buf.scene.time;
+  frame = uni.uniform_buf.scene.frame;
 }
 
 /** \} */

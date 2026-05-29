@@ -63,7 +63,7 @@ struct UndoStack_Text;
 
 #define RNA_ENUM_VALUE -2
 
-#define UI_MENU_PADDING (int)(0.2f * UI_UNIT_Y)
+#define UI_MENU_PADDING int(0.2f * UI_UNIT_Y)
 
 #define UI_MENU_WIDTH_MIN (UI_UNIT_Y * 9)
 /** Some extra padding added to menus containing sub-menu icons. */
@@ -185,6 +185,12 @@ enum {
 /** The maximum number of items a radial menu (pie menu) can contain. */
 #define PIE_MAX_ITEMS 8
 
+enum class TextDirection : int8_t {
+  Default, /* Horizontal. */
+  Down,
+  Up,
+};
+
 struct Button : NonMovable {
 
   /** Pointer back to the layout item holding this button. */
@@ -192,6 +198,8 @@ struct Button : NonMovable {
   int flag = 0;
   int drawflag = 0;
   char flag2 = 0;
+
+  TextDirection text_direction = TextDirection::Default;
 
   ButtonType type = ButtonType(0);
   ButPointerType pointype = ButPointerType::None;
@@ -244,17 +252,6 @@ struct Button : NonMovable {
 
   ButtonCompleteFunc autocomplete_func = nullptr;
   void *autofunc_arg = nullptr;
-
-  ButtonHandleRenameFunc rename_func = nullptr;
-  void *rename_arg1 = nullptr;
-  char *rename_orig = nullptr;
-
-  /**
-   * When defined, and the button edits a string RNA property,
-   * the new name is _not_ set at all, instead this function is called with the new name.
-   */
-  std::function<void(std::string &new_name)> rename_full_func = nullptr;
-  std::string rename_full_new;
 
   /** Run an action when holding the button down. */
   ButtonHandleHoldFunc hold_func = nullptr;
@@ -372,6 +369,18 @@ struct TextWrapCache {
   Vector<StringRef> wrapped_lines;
 };
 
+/** Derived struct for #ButtonType::Text */
+struct ButtonText : public Button {
+  std::function<void(bContext &, StringRefNull)> rename_func = nullptr;
+  char *rename_orig = nullptr;
+  /**
+   * When defined, and the button edits a string RNA property,
+   * the new name is _not_ set at all, instead this function is called with the new name.
+   */
+  std::function<void(StringRefNull new_name)> rename_full_func = nullptr;
+  std::string rename_full_new;
+};
+
 /** Derived struct for #ButtonType::TextBox */
 struct ButtonTextBox : public Button {
 
@@ -382,6 +391,10 @@ struct ButtonTextBox : public Button {
 
   /** Wrap cache from last redraw/event handling. */
   std::unique_ptr<TextWrapCache> wrap_cache;
+
+  /** Placeholder wrap cache from last draw. */
+  std::unique_ptr<TextWrapCache> placeholder_wrap_cache;
+
   void line_scroll_set(int line_scroll);
   int line_scroll() const;
   int visible_lines() const;
@@ -1025,7 +1038,6 @@ struct PopupBlockHandle {
   ARegion *ctx_region = nullptr;
 
   /* return values */
-  int butretval = 0;
   int menuretval = 0;
   int retvalue = 0;
   float retvec[4] = {0.0f, 0.0f, 0.0f, 0.0f};
@@ -1440,10 +1452,6 @@ void draw_preview_item(const uiFontStyle *fstyle,
 /**
  * Version of #draw_preview_item() that does not draw the menu background and item text based on
  * state. It just draws the preview and text directly.
- *
- * \param draw_as_icon: Instead of stretching the preview/icon to the available width/height, draw
- *                      it at the standard icon size. Mono-icons will draw with \a text_col or the
- *                      corresponding theme override for this type of icon.
  */
 void draw_preview_item_stateless(const uiFontStyle *fstyle,
                                  rcti *rect,
@@ -1459,7 +1467,7 @@ void draw_preview_item_stateless(const uiFontStyle *fstyle,
  * Margin at top of screen for popups.
  * Note this value must be sufficient to draw a popover arrow to avoid cropping it.
  */
-#define UI_POPUP_MENU_TOP (int)(10 * UI_SCALE_FAC)
+#define UI_POPUP_MENU_TOP int(10 * UI_SCALE_FAC)
 
 #define UI_PIXEL_AA_JITTER 8
 extern const float ui_pixel_jitter[UI_PIXEL_AA_JITTER][2];
@@ -1605,7 +1613,7 @@ Button *listrow_find_index(const ARegion *region,
                            int index,
                            Button *listbox) ATTR_WARN_UNUSED_RESULT;
 Button *view_item_find_mouse_over(const ARegion *region, const int xy[2]) ATTR_NONNULL(1, 2);
-Button *view_item_find_active(const ARegion *region);
+Button *view_item_find_active(const ARegion *region, const AbstractView *view = nullptr);
 Button *view_item_find_search_highlight(const ARegion *region);
 
 using ButtonFindPollFn = bool (*)(const Button *but, const void *customdata);
@@ -1808,7 +1816,7 @@ Vector<FCurve *> get_property_drivers(
  * \param is_array_prop: Whether `src_drivers` are drivers for the elements
  * of an array property.
  * \param dst_ptr: The RNA pointer for the destination property.
- * \param dist_prop: The destination property RNA.
+ * \param dst_prop: The destination property RNA.
  *
  * \returns The number of successfully pasted drivers.
  */

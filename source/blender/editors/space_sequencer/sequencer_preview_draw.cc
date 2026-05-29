@@ -17,6 +17,7 @@
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector_types.hh"
+#include "BLI_profile.hh"
 #include "BLI_rect.h"
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
@@ -53,6 +54,7 @@
 #include "ED_screen.hh"
 #include "ED_sequencer.hh"
 #include "ED_space_api.hh"
+#include "ED_time_scrub_ui.hh"
 #include "ED_util.hh"
 #include "ED_view3d.hh"
 
@@ -401,8 +403,8 @@ static void draw_histogram(ARegion &region,
     return;
   }
 
-  const ocio::ScopeInfo scope_info = IMB_colormanagement_get_scope_info(
-      display_settings, view_settings->view_transform);
+  const ocio::ScopeInfo scope_info = IMB_colormanagement_get_scope_info(display_settings,
+                                                                        view_settings);
 
   /* Grid lines from scope info graticules, with labels centered on each line. */
   const uchar col_grid[4] = {128, 128, 128, 128};
@@ -490,8 +492,8 @@ static void draw_waveform_graticule(ARegion *region,
                                     const ColorManagedViewSettings *view_settings,
                                     const ColorManagedDisplaySettings *display_settings)
 {
-  const ocio::ScopeInfo scope_info = IMB_colormanagement_get_scope_info(
-      display_settings, view_settings->view_transform);
+  const ocio::ScopeInfo scope_info = IMB_colormanagement_get_scope_info(display_settings,
+                                                                        view_settings);
 
   const uchar col_grid[4] = {128, 128, 128, 128};
   const float x0 = area.xmin;
@@ -787,8 +789,8 @@ static void sequencer_draw_scopes(Scene *scene,
       const float point_size = (BLI_rcti_size_x(&region.v2d.mask) + 1) /
                                BLI_rctf_size_x(&region.v2d.cur);
 
-      const ocio::ScopeInfo scope_info = IMB_colormanagement_get_scope_info(
-          &display_settings, view_settings.view_transform);
+      const ocio::ScopeInfo scope_info = IMB_colormanagement_get_scope_info(&display_settings,
+                                                                            &view_settings);
 
       int viewport_size_i[4];
       GPU_viewport_size_get_i(viewport_size_i);
@@ -894,8 +896,8 @@ static void sequencer_draw_scopes(Scene *scene,
   }
   if (space_sequencer.mainb == SEQ_DRAW_IMG_VECTORSCOPE) {
     use_blend = true;
-    const ocio::ScopeInfo scope_info = IMB_colormanagement_get_scope_info(
-        &display_settings, view_settings.view_transform);
+    const ocio::ScopeInfo scope_info = IMB_colormanagement_get_scope_info(&display_settings,
+                                                                          &view_settings);
     draw_vectorscope_graticule(&region, quads, preview, scope_info);
   }
 
@@ -915,6 +917,7 @@ static void update_gpu_scopes(const ImBuf *input_ibuf,
                               Scene *scene,
                               int timeline_frame)
 {
+  BLI_profile_scope_with_name("SeqUpdateGPUScopes", ProfileCategory::Draw);
   BLI_assert(input_ibuf && input_texture);
 
   /* Display space GPU texture is already calculated. */
@@ -991,6 +994,8 @@ static void update_cpu_scopes(const SpaceSeq &space_sequencer,
     /* Nothing to do: scopes already calculated for this image/frame. */
     return;
   }
+
+  BLI_profile_scope_with_name("SeqUpdateCPUScopes", ProfileCategory::Draw);
 
   scopes.cleanup();
   if (space_sequencer.mainb == SEQ_DRAW_IMG_HISTOGRAM) {
@@ -1533,6 +1538,7 @@ static int get_reference_frame_offset(const Editing &editing, const RenderData &
  * If channel configuration is incompatible with the texture nullptr is returned. */
 static gpu::Texture *create_texture(const ImBuf &ibuf)
 {
+  BLI_profile_scope_with_name("SeqPreviewCreateTexture", ProfileCategory::Draw);
   const eGPUTextureUsage texture_usage = GPU_TEXTURE_USAGE_SHADER_READ |
                                          GPU_TEXTURE_USAGE_ATTACHMENT;
 
@@ -1824,6 +1830,8 @@ void sequencer_preview_region_draw(const bContext *C, ARegion *region)
     return;
   }
 
+  BLI_profile_scope_with_name("SeqPreviewDraw", ProfileCategory::Draw);
+
   const Editing &editing = *scene->ed;
   const RenderData &render_data = scene->r;
 
@@ -1925,6 +1933,16 @@ void sequencer_preview_region_draw(const bContext *C, ARegion *region)
   IMB_freeImBuf(reference_ibuf);
 
   preview_draw_end(C);
+}
+
+void sequencer_scrubbing_region_draw(const bContext *C, ARegion *region)
+{
+  const Scene *scene = CTX_data_sequencer_scene(C);
+  const SpaceSeq *sseq = CTX_wm_space_seq(C);
+
+  const int fps = round_db_to_int(scene->frames_per_second());
+  ED_time_scrub_draw(region, scene, !(sseq->flag & SEQ_DRAWFRAMES), true, fps);
+  ED_time_scrub_draw_current_frame(region, scene, !(sseq->flag & SEQ_DRAWFRAMES), false, true);
 }
 
 }  // namespace blender::ed::vse
