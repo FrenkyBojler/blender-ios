@@ -37,6 +37,7 @@ namespace blender {
 
 struct CaptureReviewData {
   /* Context. */
+  ScrArea *area;
   RegionView3D *rv3d;
   View3D *v3d;
 
@@ -159,13 +160,16 @@ static wmOperatorStatus vr_location_scouting_capture_review_invoke(bContext *C,
   View3D *v3d;
   ARegion *region;
   ED_view3d_context_user_region(C, &v3d, &region);
+
   RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
+  ScrArea *area = CTX_wm_area(C);
 
   if (RV3D_LOCK_FLAGS(rv3d) & RV3D_LOCK_ANY_TRANSFORM) {
     return OPERATOR_CANCELLED;
   }
 
   CaptureReviewData *review_data = MEM_new_zeroed<CaptureReviewData>("View3DReviewCaptureData");
+  review_data->area = area;
   review_data->rv3d = rv3d;
   review_data->v3d = v3d;
 
@@ -275,6 +279,18 @@ static wmOperatorStatus vr_location_scouting_capture_review_modal(bContext *C,
                                                                   wmOperator *op,
                                                                   const wmEvent *event)
 {
+  CaptureReviewData *review_data = static_cast<CaptureReviewData *>(op->customdata);
+
+  /* Exit review if the mouse leaves the viewport area, or if the active area editor changes.
+   * This prevents undefined behavior caused by the operator running without an active View3D
+   * area while still allowing the operator to be non-blocking for interactive sidebar UI. */
+  if ((ED_area_find_under_cursor(C, SPACE_TYPE_ANY, event->xy) != review_data->area) ||
+      (review_data->area->spacetype != SPACE_VIEW3D))
+  {
+    vr_location_scouting_capture_review_exit(C, op);
+    return OPERATOR_FINISHED;
+  }
+
   /* Get the current capture. */
   Scene *scene = CTX_data_scene(C);
   auto capture = wm_xr_location_scouting_get_active_capture(scene);
@@ -292,8 +308,6 @@ static wmOperatorStatus vr_location_scouting_capture_review_modal(bContext *C,
     vr_location_scouting_capture_review_exit(C, op);
     return OPERATOR_FINISHED;
   }
-
-  CaptureReviewData *review_data = static_cast<CaptureReviewData *>(op->customdata);
 
   /* Force perspective to camera. */
   review_data->rv3d->persp = RV3D_CAMOB;
