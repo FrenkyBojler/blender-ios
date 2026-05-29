@@ -41,7 +41,6 @@ static void node_declare(NodeDeclarationBuilder &b)
       .default_value(geometry::BevelAffect::Edges)
       .static_items(affect_items)
       .optional_label();
-  /* TODO: when there is good support for 4d vectors, use those here. */
   b.add_input<decl::Float>("Start Left Offset"_ustr)
       .default_value(0.1f)
       .min(0.0f)
