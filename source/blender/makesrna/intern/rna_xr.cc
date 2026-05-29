@@ -2884,7 +2884,7 @@ static void rna_def_xr_session_state_viewfinder(BlenderRNA *brna)
       {0, nullptr, 0, nullptr, nullptr}};
 
   static const EnumPropertyItem viewfinder_confirm_actions[] = {
-      {XR_VIEWFINDER_ACTION_CF_CANCEL, "CANCEL", ICON_CANCEL, "Cancel", nullptr},
+      {XR_VIEWFINDER_ACTION_CF_CANCEL, "CANCEL", ICON_X, "Cancel", nullptr},
       {XR_VIEWFINDER_ACTION_CF_CONFIRM, "CONFIRM", ICON_CHECKMARK, "Confirm", nullptr},
       {0, nullptr, 0, nullptr, nullptr}};
 
@@ -2926,9 +2926,9 @@ static void rna_def_xr_session_state_viewfinder(BlenderRNA *brna)
                          "True to blink the success color, False to blink the miss color");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 
-  func = RNA_def_function(srna, "reset_view_smoothing", "rna_XrSessionState_viewfinder_reset_view_smoothing");
-  RNA_def_function_ui_description(func,
-                                  "Reset the Viewfinder continuous view smoothing");
+  func = RNA_def_function(
+      srna, "reset_view_smoothing", "rna_XrSessionState_viewfinder_reset_view_smoothing");
+  RNA_def_function_ui_description(func, "Reset the Viewfinder continuous view smoothing");
   RNA_def_function_flag(func, FUNC_SELF_AS_RNA);
 
   prop = RNA_def_property(srna, "capture_dof_enabled", PROP_BOOLEAN, PROP_NONE);
