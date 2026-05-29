@@ -16,6 +16,7 @@
 #include "BLI_bounds.hh"
 #include "BLI_convexhull_2d.hh"
 #include "BLI_ghash.h"
+#include "BLI_math_base_safe.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
@@ -4272,6 +4273,7 @@ void uv_parametrizer_pack(ParamHandle *handle, const UVPackIsland_Params &params
 
 void uv_parametrizer_original_bounds(ParamHandle *phandle)
 {
+  /* Already in aspect-corrected space (necessary for rotation). */
   float trans[2], minv[2], maxv[2], new_size[2];
   for (int index = 0; index < phandle->ncharts; index++) {
 
@@ -4291,10 +4293,9 @@ void uv_parametrizer_original_bounds(ParamHandle *phandle)
 
     p_chart_uv_bbox(chart, minv, maxv);
     sub_v2_v2v2(new_size, maxv, minv);
-    float size = (chart->orig_bounds->bounds.size().x > chart->orig_bounds->bounds.size().y) ?
-                     chart->orig_bounds->bounds.size()[0] :
-                     chart->orig_bounds->bounds.size()[1];
-    float scale = size / std::max(new_size[0], new_size[1]);
+    const float2 orig_size = chart->orig_bounds->bounds.size();
+    const float size = std::max(orig_size.x, orig_size.y);
+    float scale = safe_divide(size, std::max(new_size[0], new_size[1]));
     p_chart_uv_scale(chart, scale);
     p_chart_uv_bbox(chart, minv, maxv);
 
