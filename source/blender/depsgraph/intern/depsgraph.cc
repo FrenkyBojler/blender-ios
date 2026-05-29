@@ -68,7 +68,7 @@ Depsgraph::Depsgraph(Main *bmain, Scene *scene, ViewLayer *view_layer, eEvaluati
   memset(id_type_exist, 0, sizeof(id_type_exist));
   memset(physics_relations_collision, 0, sizeof(physics_relations_collision));
 
-  dynamic_override_ctx_ = std::make_shared<bke::DynamicOverrideDepsgraphCtx>(scene, view_layer);
+  dynamic_override_ctx_ = std::make_shared<bke::dynoverride::DepsgraphCtx>(scene, view_layer);
 
   add_time_source();
 }

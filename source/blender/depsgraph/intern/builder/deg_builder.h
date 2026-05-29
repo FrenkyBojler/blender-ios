@@ -21,8 +21,8 @@ struct PointerRNA;
 struct Scene;
 struct bPoseChannel;
 
-namespace bke {
-class DynamicOverrideDepsgraphCtx;
+namespace bke::dynoverride {
+class DepsgraphCtx;
 }
 
 namespace deg {
@@ -56,7 +56,7 @@ class DepsgraphBuilder {
   DepsgraphBuilder(Main *bmain,
                    Depsgraph *graph,
                    DepsgraphBuilderCache *cache,
-                   std::shared_ptr<bke::DynamicOverrideDepsgraphCtx> dynamic_override_ctx);
+                   std::shared_ptr<bke::dynoverride::DepsgraphCtx> dynamic_override_ctx);
 
   /* State which never changes, same for the whole builder time. */
   Main *bmain_;
@@ -67,7 +67,7 @@ class DepsgraphBuilder {
    * Dynamic Override evaluation data.
    * Shared with internal builder types (#AbstractBuilderPipeline).
    */
-  std::shared_ptr<bke::DynamicOverrideDepsgraphCtx> dynamic_override_ctx_;
+  std::shared_ptr<bke::dynoverride::DepsgraphCtx> dynamic_override_ctx_;
 };
 
 bool deg_check_id_in_depsgraph(const Depsgraph *graph, ID *id_orig);

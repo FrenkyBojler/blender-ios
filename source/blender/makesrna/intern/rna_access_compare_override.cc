@@ -209,15 +209,14 @@ bool RNA_property_overridden(PointerRNA *ptr, PropertyRNA *prop)
 bool RNA_property_dynamic_overridable_get(const PointerRNA * /*ptr*/, PropertyRNA *prop)
 {
   switch (RNA_property_type(prop)) {
+    case PROP_BOOLEAN:
+    case PROP_INT:
     case PROP_FLOAT:
-      if (RNA_property_array_check(prop)) {
-        return true;
-      }
-      break;
+    case PROP_ENUM:
+      return true;
     default:
-      break;
+      return false;
   }
-  return false;
 }
 
 bool RNA_property_comparable(PointerRNA * /*ptr*/, PropertyRNA *prop)
@@ -230,26 +229,37 @@ bool RNA_property_comparable(PointerRNA * /*ptr*/, PropertyRNA *prop)
 static bool rna_property_override_operation_apply(Main *bmain,
                                                   RNAPropertyOverrideApplyContext &rnaapply_ctx);
 
-bool RNA_property_copy(
-    Main *bmain, PointerRNA *ptr, PointerRNA *fromptr, PropertyRNA *prop, int index)
+bool RNA_property_copy(Main *bmain,
+                       PointerRNA &to_ptr,
+                       PointerRNA &from_ptr,
+                       PropertyRNA *to_prop,
+                       PropertyRNA *from_prop,
+                       int to_index,
+                       int from_index)
 {
-  if (!RNA_property_editable(ptr, prop)) {
+  if (!RNA_property_editable(&to_ptr, to_prop)) {
     return false;
   }
 
   IDOverrideLibraryPropertyOperation opop{};
   opop.operation = LIBOVERRIDE_OP_REPLACE;
-  opop.subitem_reference_index = index;
-  opop.subitem_local_index = index;
+  opop.subitem_reference_index = from_index;
+  opop.subitem_local_index = to_index;
 
   RNAPropertyOverrideApplyContext rnaapply_ctx;
-  rnaapply_ctx.ptr_dst = *ptr;
-  rnaapply_ctx.ptr_src = *fromptr;
-  rnaapply_ctx.prop_dst = prop;
-  rnaapply_ctx.prop_src = prop;
+  rnaapply_ctx.ptr_dst = to_ptr;
+  rnaapply_ctx.ptr_src = from_ptr;
+  rnaapply_ctx.prop_dst = to_prop;
+  rnaapply_ctx.prop_src = from_prop;
   rnaapply_ctx.liboverride_operation = &opop;
 
   return rna_property_override_operation_apply(bmain, rnaapply_ctx);
+}
+
+bool RNA_property_copy(
+    Main *bmain, PointerRNA *ptr, PointerRNA *fromptr, PropertyRNA *prop, int index)
+{
+  return RNA_property_copy(bmain, *ptr, *fromptr, prop, prop, index, index);
 }
 
 static int rna_property_override_diff(Main *bmain,

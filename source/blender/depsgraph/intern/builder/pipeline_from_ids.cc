@@ -36,7 +36,7 @@ class DepsgraphFromIDsNodeBuilder : public DepsgraphNodeBuilder {
       Main *bmain,
       Depsgraph *graph,
       DepsgraphBuilderCache *cache,
-      std::shared_ptr<bke::DynamicOverrideDepsgraphCtx> dynamic_override_ctx,
+      std::shared_ptr<bke::dynoverride::DepsgraphCtx> dynamic_override_ctx,
       Span<ID *> ids)
       : DepsgraphNodeBuilder(bmain, graph, cache, dynamic_override_ctx), filter_(ids)
   {
@@ -60,7 +60,7 @@ class DepsgraphFromIDsRelationBuilder : public DepsgraphRelationBuilder {
       Main *bmain,
       Depsgraph *graph,
       DepsgraphBuilderCache *cache,
-      std::shared_ptr<bke::DynamicOverrideDepsgraphCtx> dynamic_override_ctx,
+      std::shared_ptr<bke::dynoverride::DepsgraphCtx> dynamic_override_ctx,
       Span<ID *> ids)
       : DepsgraphRelationBuilder(bmain, graph, cache, dynamic_override_ctx), filter_(ids)
   {

@@ -27,24 +27,30 @@ struct StructRNA;
 struct Scene;
 struct ViewLayer;
 
-namespace bke {
+namespace bke::dynoverride {
 
 /* -------------------------------------------------------------------- */
 /** \name Basic Rule Management.
  * \{ */
 
-DynamicOverrideRuleIDData &dynamic_override_rule_ensure_for_id(DynamicOverride &dynamic_override,
-                                                               ID &id_owner);
+DynamicOverrideRuleIDData &rule_ensure_for_id(DynamicOverride &dynamic_override, ID &id_owner);
 
-void dynamic_override_rule_remove(DynamicOverride &dynamic_override,
-                                  DynamicOverrideRule *existing_rule);
-void dynamic_override_rule_remove_for_id(DynamicOverride &dynamic_override, ID &owner_id);
+void rule_remove(DynamicOverride &dynamic_override, DynamicOverrideRule *existing_rule);
+void rule_remove_for_id(DynamicOverride &dynamic_override, ID &owner_id);
 
-DynamicOverrideRuleProperty *dynamic_override_rule_rna_property_add(DynamicOverrideRule &rule,
-                                                                    RNAPath &rna_path);
+DynamicOverrideRuleProperty *rule_rna_property_add(Main &bmain,
+                                                   DynamicOverride &dynamic_override,
+                                                   DynamicOverrideRule &rule,
+                                                   RNAPath &rna_path);
 
-void dynamic_override_rule_property_remove(DynamicOverrideRule &rule,
-                                           DynamicOverrideRuleProperty *existing_property);
+void rule_property_remove(DynamicOverrideRule &rule,
+                          DynamicOverrideRuleProperty *existing_property);
+
+/**
+ * Return an identifier representing the RNA path of the property, that is usable as a RNA
+ * property identifier.
+ */
+std::string rule_property_rna_identifier(DynamicOverrideRuleProperty &rule_property);
 
 /** \} */
 
@@ -52,12 +58,10 @@ void dynamic_override_rule_property_remove(DynamicOverrideRule &rule,
 /** \name Invariants and runtime data updates.
  * \{ */
 
-void dynamic_override_update(Main &bmain,
-                             std::optional<Span<DynamicOverride *>> modified_dynamic_overrides);
+void update(Main &bmain, std::optional<Span<DynamicOverride *>> modified_dynamic_overrides);
 
 /** Return the runtime RNA struct for the given rule. */
-StructRNA *dynamic_override_rule_get_runtime_properties_rna_struct(
-    DynamicOverrideRuleIDData &iddata_rule);
+StructRNA *rule_get_runtime_properties_rna_struct(DynamicOverrideRuleIDData &iddata_rule);
 
 /** \} */
 
@@ -65,7 +69,7 @@ StructRNA *dynamic_override_rule_get_runtime_properties_rna_struct(
 /** \name Runtime/depgraph building & evaluation context.
  * \{ */
 
-class DynamicOverrideDepsgraphCtx {
+class DepsgraphCtx {
   Scene *scene_;
   ViewLayer *layer_;
 
@@ -85,8 +89,8 @@ class DynamicOverrideDepsgraphCtx {
   bool dynamic_overrides_are_gathered_ = false;
 
  public:
-  DynamicOverrideDepsgraphCtx(Scene *scene, ViewLayer *layer) : scene_(scene), layer_(layer) {}
-  virtual ~DynamicOverrideDepsgraphCtx() = default;
+  DepsgraphCtx(Scene *scene, ViewLayer *layer) : scene_(scene), layer_(layer) {}
+  virtual ~DepsgraphCtx() = default;
 
   /* ----------
    * Building/updating API.
@@ -141,12 +145,10 @@ class DynamicOverrideDepsgraphCtx {
 };
 
 /** Actually evaluate the effects of dynamic overrides over a given ID. */
-void dynamic_override_eval_for_id(Depsgraph &depsgraph,
-                                  DynamicOverrideDepsgraphCtx &eval_context,
-                                  ID &id_cow);
+void eval_for_id(Depsgraph &depsgraph, DepsgraphCtx &eval_context, ID &id_cow);
 
 /** \} */
 
-}  // namespace bke
+}  // namespace bke::dynoverride
 
 }  // namespace blender

@@ -19,8 +19,8 @@ struct Main;
 struct Scene;
 struct ViewLayer;
 
-namespace bke {
-class DynamicOverrideDepsgraphCtx;
+namespace bke::dynoverride {
+class DepsgraphCtx;
 }
 
 namespace deg {
@@ -55,7 +55,7 @@ class AbstractBuilderPipeline {
    * Dynamic Override evaluation data.
    * Shared with the depsgraph.
    */
-  std::shared_ptr<bke::DynamicOverrideDepsgraphCtx> dynamic_override_ctx_;
+  std::shared_ptr<bke::dynoverride::DepsgraphCtx> dynamic_override_ctx_;
 
   virtual std::unique_ptr<DepsgraphNodeBuilder> construct_node_builder();
   virtual std::unique_ptr<DepsgraphRelationBuilder> construct_relation_builder();

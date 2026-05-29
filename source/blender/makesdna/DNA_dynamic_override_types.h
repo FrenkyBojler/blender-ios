@@ -13,10 +13,10 @@
 namespace blender {
 
 struct IDProperty;
-namespace bke {
-struct DynamicOverrideRuntime;
-struct DynamicOverrideRuleIDDataRuntime;
-}  // namespace bke
+namespace bke::dynoverride {
+struct Runtime;
+struct RuleIDDataRuntime;
+}  // namespace bke::dynoverride
 
 /** Types of target filtering to select which data a given dynoverride rule applies to. */
 enum class DynamicOverrideRuleTargetFilterType : int8_t {
@@ -93,7 +93,7 @@ struct DynamicOverrideRuleIDData {
   /** Original values for all properties above, follow samw layout as in `new_values`. */
   IDProperty *orig_values = nullptr;
 
-  bke::DynamicOverrideRuleIDDataRuntime *runtime = nullptr;
+  bke::dynoverride::RuleIDDataRuntime *runtime = nullptr;
 };
 
 struct DynamicOverride {
@@ -108,7 +108,7 @@ struct DynamicOverride {
 
   ListBaseT<DynamicOverrideRule> rules = {nullptr, nullptr};
 
-  bke::DynamicOverrideRuntime *runtime = nullptr;
+  bke::dynoverride::Runtime *runtime = nullptr;
   void *_pad = nullptr;
 };
 

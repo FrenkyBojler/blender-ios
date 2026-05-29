@@ -68,8 +68,8 @@ struct bNodeTree;
 struct bPoseChannel;
 struct bSound;
 
-namespace bke {
-class DynamicOverrideDepsgraphCtx;
+namespace bke::dynoverride {
+class DepsgraphCtx;
 }
 
 namespace deg {
@@ -90,7 +90,7 @@ class DepsgraphRelationBuilder : public DepsgraphBuilder {
   DepsgraphRelationBuilder(Main *bmain,
                            Depsgraph *graph,
                            DepsgraphBuilderCache *cache,
-                           std::shared_ptr<bke::DynamicOverrideDepsgraphCtx> dynamic_override_ctx);
+                           std::shared_ptr<bke::dynoverride::DepsgraphCtx> dynamic_override_ctx);
 
   void begin_build();
 

@@ -1046,20 +1046,19 @@ static wmOperatorStatus dynamic_override_add_button_exec(bContext *C, wmOperator
     rna_path_str.emplace(fmt::format("{}.{}", rna_path_prefix, *rna_path_str));
   }
 
-  DynamicOverrideRuleIDData &dynamic_override_rule = bke::dynamic_override_rule_ensure_for_id(
+  DynamicOverrideRuleIDData &dynamic_override_rule = bke::dynoverride::rule_ensure_for_id(
       *scene->dynamic_override, *owner_id);
 
   RNAPath rna_path = {*rna_path_str};
   DynamicOverrideRuleProperty *dynamic_override_rule_property =
-      bke::dynamic_override_rule_rna_property_add(dynamic_override_rule.base, rna_path);
+      bke::dynoverride::rule_rna_property_add(
+          *bmain, *scene->dynamic_override, dynamic_override_rule.base, rna_path);
 
   if (dynamic_override_rule_property == nullptr) {
     /* Sometimes e.g. RNA cannot generate a path to the given property. */
     BKE_reportf(op->reports, RPT_WARNING, "Failed to create the override rule property");
     return OPERATOR_CANCELLED;
   }
-
-  BKE_main_ensure_invariants(*bmain, scene->dynamic_override->id);
 
   /* Outliner e.g. has to be aware of this change. */
   // WM_main_add_notifier(NC_WM | ND_LIB_OVERRIDE_CHANGED, nullptr);

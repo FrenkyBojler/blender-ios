@@ -90,7 +90,7 @@ static void propagate_dynamic_override_changes(Main &bmain,
     }
   }
 
-  bke::dynamic_override_update(bmain, modified_dynamic_overrides);
+  bke::dynoverride::update(bmain, modified_dynamic_overrides);
 }
 
 void BKE_main_ensure_invariants(Main &bmain, const std::optional<Span<ID *>> modified_ids)

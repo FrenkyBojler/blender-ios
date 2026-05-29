@@ -63,7 +63,7 @@ DepsgraphBuilder::DepsgraphBuilder(
     Main *bmain,
     Depsgraph *graph,
     DepsgraphBuilderCache *cache,
-    std::shared_ptr<bke::DynamicOverrideDepsgraphCtx> dynamic_override_ctx)
+    std::shared_ptr<bke::dynoverride::DepsgraphCtx> dynamic_override_ctx)
     : bmain_(bmain), graph_(graph), cache_(cache), dynamic_override_ctx_(dynamic_override_ctx)
 {
 }

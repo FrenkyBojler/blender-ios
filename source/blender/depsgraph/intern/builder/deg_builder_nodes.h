@@ -62,8 +62,8 @@ struct bPoseChannel;
 struct bSound;
 struct PointerRNA;
 
-namespace bke {
-class DynamicOverrideDepsgraphCtx;
+namespace bke::dynoverride {
+class DepsgraphCtx;
 }
 
 namespace deg {
@@ -81,7 +81,7 @@ class DepsgraphNodeBuilder : public DepsgraphBuilder {
   DepsgraphNodeBuilder(Main *bmain,
                        Depsgraph *graph,
                        DepsgraphBuilderCache *cache,
-                       std::shared_ptr<bke::DynamicOverrideDepsgraphCtx> dynamic_override_ctx);
+                       std::shared_ptr<bke::dynoverride::DepsgraphCtx> dynamic_override_ctx);
   ~DepsgraphNodeBuilder() override;
 
   /* For given original ID get ID which is created by copy-on-evaluation system. */

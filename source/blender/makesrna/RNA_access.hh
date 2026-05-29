@@ -699,10 +699,37 @@ bool RNA_property_collection_remove(PointerRNA *ptr, PropertyRNA *prop, int key)
 void RNA_property_collection_clear(PointerRNA *ptr, PropertyRNA *prop);
 bool RNA_property_collection_move(PointerRNA *ptr, PropertyRNA *prop, int key, int pos);
 
-/* copy/reset */
+/**
+ * Copy the given property value from `fromtptr` to `ptr` data.
+ *
+ * \param bmain Optional, if nullptr the code will _not_ call the RNA update process after copying
+ *              the value into `ptr` data.
+ *
+ * \return True if copy was successful, false otherwise.
+ */
 bool RNA_property_copy(
     Main *bmain, PointerRNA *ptr, PointerRNA *fromptr, PropertyRNA *prop, int index);
+/**
+ * Same as above, but with higher level of control on source and destination, allowing e.g. to copy
+ * data between different properties, even from different data pointer types.
+ */
+bool RNA_property_copy(Main *bmain,
+                       PointerRNA &to_ptr,
+                       PointerRNA &from_ptr,
+                       PropertyRNA *to_prop,
+                       PropertyRNA *from_prop,
+                       int to_index = -1,
+                       int from_index = -1);
+/**
+ * Reset the given `ptr` data `prop` property to its RNA (or DNA) defined default value.
+ */
 bool RNA_property_reset(PointerRNA *ptr, PropertyRNA *prop, int index);
+/**
+ * Define the given `ptr` data `prop` property RNA default value to its current value.
+ *
+ * \warning Only works with INT & FLOAT scalar properties that are (or wrap) an IDProperty,
+ * currently.
+ */
 bool RNA_property_assign_default(PointerRNA *ptr, PropertyRNA *prop);
 
 /* Quick name based property access
