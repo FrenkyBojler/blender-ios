@@ -2638,7 +2638,7 @@ static void knot_modes_menu(bContext * /*C*/, ui::Layout *layout, void *knot_mod
                                 0.0,
                                 0.0,
                                 "");
-    button_retval_set(but, item.value);
+    button_enum_prop_value_set(but, item.value);
   }
 }
 
@@ -2665,7 +2665,7 @@ static void grease_pencil_cap_menu(bContext * /*C*/, ui::Layout *layout, void *c
                                 0.0,
                                 0.0,
                                 "");
-    button_retval_set(but, item.value);
+    button_enum_prop_value_set(but, item.value);
   }
 }
 

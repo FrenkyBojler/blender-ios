@@ -194,7 +194,7 @@ static void ui_imageuser_layer_menu(bContext * /*C*/, ui::Layout *layout, void *
                                 0.0,
                                 0.0,
                                 "");
-    button_retval_set(but, 0);
+    button_enum_prop_value_set(but, 0);
   }
 
   int nr = fake_name ? 1 : 0;
@@ -210,7 +210,7 @@ static void ui_imageuser_layer_menu(bContext * /*C*/, ui::Layout *layout, void *
                                 0.0,
                                 0.0,
                                 "");
-    button_retval_set(but, nr);
+    button_enum_prop_value_set(but, nr);
   }
 
   layout->separator();
@@ -281,7 +281,7 @@ static void ui_imageuser_pass_menu(bContext * /*C*/, ui::Layout *layout, void *r
                                 0.0,
                                 0.0,
                                 "");
-    button_retval_set(but, nr);
+    button_enum_prop_value_set(but, nr);
   }
 
   layout->separator();
@@ -352,7 +352,7 @@ static void ui_imageuser_view_menu_rr(bContext * /*C*/, ui::Layout *layout, void
                                 0.0,
                                 0.0,
                                 "");
-    button_retval_set(but, nr);
+    button_enum_prop_value_set(but, nr);
   }
 
   BKE_image_release_renderresult(scene, image, rr);
@@ -396,7 +396,7 @@ static void ui_imageuser_view_menu_multiview(bContext * /*C*/, ui::Layout *layou
                                 0.0,
                                 0.0,
                                 "");
-    button_retval_set(but, nr);
+    button_enum_prop_value_set(but, nr);
   }
 }
 

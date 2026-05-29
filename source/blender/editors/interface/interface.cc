@@ -5171,6 +5171,11 @@ Button *uiDefButAlert(Block *block, AlertIcon icon, int x, int y, short width, s
   return nullptr;
 }
 
+void button_enum_prop_value_set(Button *but, int retval)
+{
+  but->retval = retval;
+}
+
 void button_retval_set(Button *but, int retval)
 {
   but->retval = retval;
