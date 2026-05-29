@@ -2926,8 +2926,9 @@ static wmOperatorStatus unwrap_exec(bContext *C, wmOperator *op)
 
   if (options.use_original_bounds) {
     if (!uv_stitch_selected_islands_for_original_bounds(scene, objects)) {
-      BKE_report(op->reports, RPT_ERROR, "Could not initialize stitching");
-      return OPERATOR_CANCELLED;
+      /* Fall back to a regular unwrap (with packing) instead of aborting. */
+      BKE_report(op->reports, RPT_WARNING, "Original Bounds could not stitch islands, ignoring");
+      options.use_original_bounds = false;
     }
   }
   uvedit_unwrap_multi(scene, objects, &options, &count_changed, &count_failed);
