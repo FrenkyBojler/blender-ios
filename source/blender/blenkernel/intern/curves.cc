@@ -30,6 +30,7 @@
 #include "BKE_customdata.hh"
 #include "BKE_geometry_fields.hh"
 #include "BKE_geometry_set.hh"
+#include "BKE_geometry_set_instances.hh"
 #include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
@@ -42,6 +43,8 @@
 #include "DEG_depsgraph_query.hh"
 
 #include "BLO_read_write.hh"
+
+#include "NOD_geometry_nodes_bundle.hh"
 
 namespace blender {
 
@@ -188,6 +191,35 @@ Curves *BKE_curves_copy_for_eval(const Curves *curves_src)
       BKE_id_copy_ex(nullptr, &curves_src->id, nullptr, LIB_ID_COPY_LOCALIZE));
 }
 
+static void store_surface(const Curves &curves_id, bke::GeometrySet &geometry_set)
+{
+  const Object *surface_object = curves_id.surface;
+  if (!surface_object) {
+    return;
+  }
+  if (!curves_id.surface_uv_map) {
+    return;
+  }
+  const StringRef uv_map = curves_id.surface_uv_map;
+  auto uvs = fn::Field<float3>(bke::AttributeFieldInput::from<float3>(uv_map));
+
+  bke::GeometrySet surface = bke::object_get_evaluated_geometry_set(*surface_object);
+
+  nodes::Bundle &bundle = geometry_set.bundle_for_write();
+
+  if (const nodes::Bundle *surface_bundle = surface.bundle()) {
+    const nodes::BundleKey key = *nodes::BundleKey::from_ustr("rest_geometry"_ustr);
+    if (const auto *rest_surface = surface_bundle->lookup_ptr<bke::GeometrySet>(key)) {
+      bundle.add_new(*nodes::BundleKey::from_ustr("surface_geometry_rest"_ustr), *rest_surface);
+      bundle.add_new(*nodes::BundleKey::from_ustr("surface_uv_map_rest"_ustr), uvs);
+    }
+  }
+
+  bundle.add_new(*nodes::BundleKey::from_ustr("surface_geometry_animated"_ustr),
+                 std::move(surface));
+  bundle.add_new(*nodes::BundleKey::from_ustr("surface_uv_map_animated"_ustr), std::move(uvs));
+}
+
 static void curves_evaluate_modifiers(Depsgraph *depsgraph,
                                       Scene *scene,
                                       Object *object,
@@ -242,6 +274,7 @@ void BKE_curves_data_update(Depsgraph *depsgraph, Scene *scene, Object *object)
     edit_component.curves_edit_hints_ = std::make_unique<CurvesEditHints>(
         *id_cast<const Curves *>(DEG_get_original(object)->data));
   }
+  store_surface(*curves, geometry_set);
   curves_evaluate_modifiers(depsgraph, scene, object, geometry_set);
 
   /* Assign evaluated object. */
