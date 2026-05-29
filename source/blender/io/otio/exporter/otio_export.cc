@@ -25,6 +25,7 @@
 #include "opentimelineio/clip.h"
 #include "opentimelineio/externalReference.h"
 #include "opentimelineio/gap.h"
+#include "opentimelineio/marker.h"
 #include "opentimelineio/timeline.h"
 #include "opentimelineio/track.h"
 
@@ -36,6 +37,22 @@ namespace blender {
 namespace io::otio {
 
 using namespace opentimelineio::OPENTIMELINEIO_VERSION_NS;
+
+static void export_scene_markers(const Scene *scene, SerializableObject::Retainer<Stack> &stack)
+{
+  std::vector<SerializableObject::Retainer<Marker>> &otio_markers = stack->markers();
+
+  for (const TimeMarker &blender_marker : scene->markers) {
+    TimeRange marked_range = TimeRange(
+        RationalTime(blender_marker.frame, scene->frames_per_second()),
+        RationalTime(1, scene->frames_per_second()));
+
+    auto marker = SerializableObject::Retainer<Marker>(
+        new Marker(blender_marker.name, marked_range, Marker::Color::white));
+
+    otio_markers.push_back(marker);
+  }
+}
 
 static SerializableObject::Retainer<Stack> otio_export_recursive(
     bContext *C,
@@ -146,8 +163,11 @@ wmOperatorStatus otio_export_exec(bContext *C, const blender::OTIOExportParams *
 
   auto timeline = SerializableObject::Retainer<Timeline>(
       new Timeline(scene->id.name, RationalTime(0, scene->frames_per_second())));
+
   SerializableObject::Retainer<Stack> main_stack = otio_export_recursive(
       C, export_params, seqbase, 0, scene->r.efra);
+
+  export_scene_markers(scene, main_stack);
 
   timeline->set_tracks(main_stack);
   timeline->to_json_file(export_params->filepath);
