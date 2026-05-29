@@ -163,7 +163,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     params.set_default_remaining_outputs();
     return;
   }
-  const auto affect = params.extract_input<blender::geometry::BevelAffect>("Affect Kind"_ustr);
+  const auto affect = params.extract_input<geometry::BevelAffect>("Affect Kind"_ustr);
 
   const Field<float> offset0_field = params.extract_input<Field<float>>("Start Left Offset"_ustr);
   const Field<float> offset1_field = params.extract_input<Field<float>>("Start Right Offset"_ustr);
