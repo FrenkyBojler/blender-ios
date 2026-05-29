@@ -332,7 +332,7 @@ class VIEW3D_OT_vr_location_scouting_viewfinder_capture(Operator):
         wm = context.window_manager
         xr_viewfinder = wm.xr_session_state.viewfinder
 
-        # Returns the first available name in the style (Base 001, Base 002, Base 003, etc...).
+        # Returns the first available name in the style (Base_001, Base_002, Base_003, etc...).
         def unique_name(col, base: str) -> str:
             existing_indexes = set()
 

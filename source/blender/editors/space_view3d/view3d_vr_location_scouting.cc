@@ -216,7 +216,7 @@ static void vr_location_scouting_capture_review_exit(bContext *C, wmOperator *op
 
   vr_location_scouting_capture_review_set_running_state(C, false);
 
-  /* Redraw entire area (both the viewport and N-panel regions), clear status text. */
+  /* Redraw entire area (both the viewport and sidebar regions), clear status text. */
   ED_area_tag_redraw(CTX_wm_area(C));
   ED_workspace_status_text(C, nullptr);
 
