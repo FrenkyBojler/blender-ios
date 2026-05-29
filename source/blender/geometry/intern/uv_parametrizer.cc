@@ -168,7 +168,7 @@ struct PChart {
 
   float origin[2];
 
-  /* Allocated when unwrapping with original_bounds, otherwise null.
+  /* Allocated when unwrapping with `use_original_bounds`, otherwise null.
    * No default initializer so #PChart stays trivial for #MEM_new_zeroed. */
   PChartOrigBounds *orig_bounds;
 
@@ -3086,14 +3086,14 @@ static void p_chart_extrema_verts(PChart *chart, PVert **pin1, PVert **pin2)
   p_chart_pin_positions(chart, pin1, pin2);
 }
 
-static void p_chart_lscm_begin(PChart *chart, bool live, bool abf, const bool original_bounds)
+static void p_chart_lscm_begin(PChart *chart, bool live, bool abf, const bool use_original_bounds)
 {
   BLI_assert(chart->context == nullptr);
 
   bool select = false;
   bool deselect = false;
   int npins = 0;
-  if (original_bounds) {
+  if (use_original_bounds) {
     chart->orig_bounds = MEM_new<PChartOrigBounds>("PChartOrigBounds");
     chart->orig_bounds->angle = p_chart_minimum_area_angle(chart);
     p_chart_uv_bbox(chart, chart->orig_bounds->bounds.min, chart->orig_bounds->bounds.max);
@@ -4110,7 +4110,7 @@ void uv_parametrizer_construct_end(ParamHandle *phandle,
 void uv_parametrizer_lscm_begin(ParamHandle *phandle,
                                 bool live,
                                 bool abf,
-                                const bool original_bounds)
+                                const bool use_original_bounds)
 {
   BLI_assert(phandle->state == PHANDLE_STATE_CONSTRUCTED);
   phandle->state = PHANDLE_STATE_LSCM;
@@ -4119,7 +4119,7 @@ void uv_parametrizer_lscm_begin(ParamHandle *phandle,
     for (PFace *f = phandle->charts[i]->faces; f; f = f->nextlink) {
       p_face_backup_uvs(f);
     }
-    p_chart_lscm_begin(phandle->charts[i], live, abf, original_bounds);
+    p_chart_lscm_begin(phandle->charts[i], live, abf, use_original_bounds);
   }
 }
 
@@ -5169,7 +5169,7 @@ static void slim_transfer_faces(const PChart *chart, slim::MatrixTransferChart *
  */
 static void slim_convert_blender(ParamHandle *phandle,
                                  slim::MatrixTransfer *mt,
-                                 const bool original_bounds)
+                                 const bool use_original_bounds)
 {
   static const float SLIM_CORR_MIN_AREA = 1.0e-8;
   static const float SLIM_CORR_MIN_ANGLE = DEG2RADF(1.0f);
@@ -5178,7 +5178,7 @@ static void slim_convert_blender(ParamHandle *phandle,
 
   for (int i = 0; i < phandle->ncharts; i++) {
     PChart *chart = phandle->charts[i];
-    if (original_bounds) {
+    if (use_original_bounds) {
       chart->orig_bounds = MEM_new<PChartOrigBounds>("PChartOrigBounds");
       chart->orig_bounds->angle = p_chart_minimum_area_angle(chart);
       p_chart_uv_bbox(chart, chart->orig_bounds->bounds.min, chart->orig_bounds->bounds.max);
@@ -5216,11 +5216,11 @@ static void slim_convert_blender(ParamHandle *phandle,
 
 static void slim_transfer_data_to_slim(ParamHandle *phandle,
                                        const ParamSlimOptions *slim_options,
-                                       const bool original_bounds)
+                                       const bool use_original_bounds)
 {
   slim::MatrixTransfer *mt = slim_matrix_transfer(slim_options);
 
-  slim_convert_blender(phandle, mt, original_bounds);
+  slim_convert_blender(phandle, mt, use_original_bounds);
   phandle->slim_mt = mt;
 }
 
@@ -5341,12 +5341,12 @@ static void slim_get_pinned_vertex_data(ParamHandle *phandle,
 
 void uv_parametrizer_slim_solve(ParamHandle *phandle,
                                 const ParamSlimOptions *slim_options,
-                                bool original_bounds,
+                                bool use_original_bounds,
                                 int *count_changed,
                                 int *count_failed)
 {
 #ifdef WITH_UV_SLIM
-  slim_transfer_data_to_slim(phandle, slim_options, original_bounds);
+  slim_transfer_data_to_slim(phandle, slim_options, use_original_bounds);
   slim::MatrixTransfer *mt = phandle->slim_mt;
 
   mt->parametrize();
@@ -5356,7 +5356,7 @@ void uv_parametrizer_slim_solve(ParamHandle *phandle,
 #else
   *count_changed = 0;
   *count_failed = 0;
-  UNUSED_VARS(phandle, slim_options, original_bounds, count_changed, count_failed);
+  UNUSED_VARS(phandle, slim_options, use_original_bounds, count_changed, count_failed);
 #endif /* !WITH_UV_SLIM */
 }
 
