@@ -2335,18 +2335,15 @@ static StitchStateContainer *stitch_settings_init_for_operator(const Span<Object
   StitchStateContainer *ssc = MEM_new<StitchStateContainer>("stitch collection");
   ToolSettings *ts = scene->toolsettings;
 
-  op->customdata = ssc;
   ssc->use_limit = RNA_boolean_get(op->ptr, "use_limit");
   ssc->limit_dist = RNA_float_get(op->ptr, "limit");
   ssc->snap_islands = RNA_boolean_get(op->ptr, "snap_islands");
   ssc->midpoints = RNA_boolean_get(op->ptr, "midpoint_snap");
   ssc->clear_seams = RNA_boolean_get(op->ptr, "clear_seams");
   ssc->active_object_index = RNA_int_get(op->ptr, "active_object_index");
-  ssc->static_island = 0;
+  ssc->static_island = RNA_int_get(op->ptr, "static_island");
   ssc->ignore_seam_boundary = false;
   ssc->only_selected_uvs = false;
-
-  ssc->static_island = RNA_int_get(op->ptr, "static_island");
   if (RNA_struct_property_is_set(op->ptr, "mode")) {
     ssc->mode = RNA_enum_get(op->ptr, "mode");
   }
@@ -2486,7 +2483,13 @@ bool uv_stitch_selected_islands_for_original_bounds(const Scene *scene, Span<Obj
   return true;
 }
 
-static wmOperatorStatus stitch_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+/**
+ * Initialize the stitch state container from the operator, shared by invoke & exec.
+ *
+ * \return the container, or null if no object could be initialized (the caller
+ * should return #OPERATOR_CANCELLED).
+ */
+static StitchStateContainer *stitch_init_from_operator(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
   const Vector<Object *> objects =
@@ -2494,19 +2497,30 @@ static wmOperatorStatus stitch_invoke(bContext *C, wmOperator *op, const wmEvent
           *CTX_data_main(C), scene, CTX_data_view_layer(C), CTX_wm_view3d(C));
 
   StitchStateContainer *ssc = stitch_settings_init_for_operator(objects, scene, op);
+  op->customdata = ssc;
 
   if (!ssc || !stitch_init_all(scene,
                                objects,
                                CTX_wm_region(C),
                                ssc,
-                               (StitchModes)RNA_enum_get(op->ptr, "stored_mode"),
+                               StitchModes(RNA_enum_get(op->ptr, "stored_mode")),
                                op))
   {
     MEM_SAFE_DELETE(ssc);
     op->customdata = nullptr;
-    return OPERATOR_CANCELLED;
+    return nullptr;
   }
   stitch_update_header(ssc, C);
+  return ssc;
+}
+
+static wmOperatorStatus stitch_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+{
+  Scene *scene = CTX_data_scene(C);
+  StitchStateContainer *ssc = stitch_init_from_operator(C, op);
+  if (!ssc) {
+    return OPERATOR_CANCELLED;
+  }
 
   WM_event_add_modal_handler(C, op);
 
@@ -2620,24 +2634,11 @@ static void stitch_cancel(bContext *C, wmOperator *op)
 static wmOperatorStatus stitch_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
-  const Vector<Object *> objects =
-      BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
-          *CTX_data_main(C), scene, CTX_data_view_layer(C), CTX_wm_view3d(C));
-
-  StitchStateContainer *ssc = stitch_settings_init_for_operator(objects, scene, op);
-  if (!ssc || !stitch_init_all(scene,
-                               objects,
-                               CTX_wm_region(C),
-                               ssc,
-                               (StitchModes)RNA_enum_get(op->ptr, "stored_mode"),
-                               op))
-  {
-    MEM_SAFE_DELETE(ssc);
-    op->customdata = nullptr;
+  StitchStateContainer *ssc = stitch_init_from_operator(C, op);
+  if (!ssc) {
     return OPERATOR_CANCELLED;
   }
-  stitch_update_header(ssc, C);
-  if (stitch_process_data_all(static_cast<StitchStateContainer *>(op->customdata), scene, 1)) {
+  if (stitch_process_data_all(ssc, scene, 1)) {
     stitch_exit(C, op, 1);
     return OPERATOR_FINISHED;
   }
