@@ -924,7 +924,7 @@ const char *button_placeholder_get(Button *but);
 /**
  * Get the unit hint shown after the text while editing.
  */
-std::optional<StringRef> button_edit_unit_hint_get(Button &but);
+std::optional<StringRef> button_edit_unit_hint_get(const Button &but);
 
 void def_but_icon(Button *but, int icon, int flag);
 /**

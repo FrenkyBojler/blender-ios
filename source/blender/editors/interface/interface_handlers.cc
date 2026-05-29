@@ -3667,7 +3667,7 @@ const wmIMEData *button_ime_data_get(Button *but)
 }
 #endif /* WITH_INPUT_IME */
 
-std::optional<StringRef> button_edit_unit_hint_get(Button &but)
+std::optional<StringRef> button_edit_unit_hint_get(const Button &but)
 {
   const HandleButtonData *data = but.semi_modal_state ? but.semi_modal_state : but.active;
   if (data == nullptr || data->text_edit_unit_hint.empty()) {
