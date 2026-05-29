@@ -274,7 +274,7 @@ int MetalDeviceQueue::num_concurrent_states(const size_t state_size) const
 
     /* Only use 90% of available working set for safety. */
     size_t percent = 90;
-    if (auto str = getenv("CYCLES_METAL_WORKING_SET_PERCENT")) {
+    if (auto *str = getenv("CYCLES_METAL_WORKING_SET_PERCENT")) {
       percent = atoi(str);
     }
 
@@ -302,7 +302,7 @@ int MetalDeviceQueue::num_concurrent_states(const size_t state_size) const
         /* Aggressive safety margin: only grow if it leaves us at < 50% max working set
          * utilization. */
         size_t grow_percent = 50;
-        if (auto str = getenv("CYCLES_METAL_GROW_PERCENT")) {
+        if (auto *str = getenv("CYCLES_METAL_GROW_PERCENT")) {
           grow_percent = atoi(str);
         }
 
@@ -634,7 +634,7 @@ bool MetalDeviceQueue::enqueue(DeviceKernel kernel,
             if (IntegratorQueueCounter *queue_counter = (IntegratorQueueCounter *)
                                                             it.first->host_pointer)
             {
-              for (int i = 0; i < DEVICE_KERNEL_INTEGRATOR_NUM; i++) {
+              for (int i = 0; i < DEVICE_GPU_KERNEL_INTEGRATOR_NUM; i++) {
                 printf("%s%d", i == 0 ? "" : ",", queue_counter->num_queued[i]);
               }
             }
@@ -816,7 +816,7 @@ void MetalDeviceQueue::prepare_resources(DeviceKernel /*kernel*/)
 
 id<MTLComputeCommandEncoder> MetalDeviceQueue::get_compute_encoder(DeviceKernel kernel)
 {
-  bool concurrent = int(kernel) < int(DEVICE_KERNEL_INTEGRATOR_NUM);
+  bool concurrent = int(kernel) < int(DEVICE_GPU_KERNEL_INTEGRATOR_NUM);
 
   if (profiling_enabled_) {
     /* Close the current encoder to ensure we're able to capture per-encoder timing data. */

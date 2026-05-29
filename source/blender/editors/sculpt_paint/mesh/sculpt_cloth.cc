@@ -2327,7 +2327,7 @@ static wmOperatorStatus sculpt_cloth_filter_modal(bContext *C,
 
   const IndexMask &node_mask = ss.filter_cache->node_mask;
 
-  if (auto_mask::is_enabled(sd, object, nullptr) && ss.filter_cache->automasking &&
+  if (auto_mask::is_enabled(sd.paint, object, nullptr) && ss.filter_cache->automasking &&
       ss.filter_cache->automasking->settings.flags & BRUSH_AUTOMASKING_CAVITY_ALL)
   {
     ss.filter_cache->automasking->calc_cavity_factor(*depsgraph, object, node_mask);
@@ -2442,8 +2442,7 @@ static wmOperatorStatus sculpt_cloth_filter_invoke(bContext *C,
 
   /* Update the active vertex */
   float2 mval_fl{float(event->mval[0]), float(event->mval[1])};
-  CursorGeometryInfo cgi;
-  cursor_geometry_info_update(C, &cgi, mval_fl, false);
+  cursor_geometry_info_update(C, mval_fl, false);
 
   /* Needs mask data to be available as it is used when solving the constraints. */
   BKE_sculpt_update_object_for_edit(depsgraph, &ob, false);
@@ -2461,8 +2460,8 @@ static wmOperatorStatus sculpt_cloth_filter_invoke(bContext *C,
                      RNA_float_get(op->ptr, "area_normal_radius"),
                      RNA_float_get(op->ptr, "strength"));
 
-  if (auto_mask::is_enabled(sd, ob, nullptr)) {
-    auto_mask::filter_cache_ensure(*depsgraph, sd, ob);
+  if (auto_mask::is_enabled(sd.paint, ob, nullptr)) {
+    auto_mask::filter_cache_ensure(*depsgraph, sd.paint, ob);
   }
 
   const float cloth_mass = RNA_float_get(op->ptr, "cloth_mass");

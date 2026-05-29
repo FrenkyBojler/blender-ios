@@ -19,6 +19,7 @@
 #include "BLI_math_vector.h"
 #include "BLI_math_vector.hh"
 #include "BLI_path_utils.hh"
+#include "BLI_profile.hh"
 #include "BLI_rect.h"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
@@ -183,6 +184,8 @@ static void init_text_effect(Strip *strip)
   data->text_font = nullptr;
   data->text_blf_id = -1;
   data->text_size = 60.0f;
+  data->space_line = 1.0f;
+  data->abs_space_line = 60.0f; /* Keep in sync with `data->text_size` at init. */
 
   copy_v4_fl(data->color, 1.0f);
   data->shadow_color[3] = 0.7f;
@@ -204,8 +207,8 @@ static void init_text_effect(Strip *strip)
 
   data->loc[0] = 0.5f;
   data->loc[1] = 0.5f;
-  data->anchor_x = SEQ_TEXT_ALIGN_X_CENTER;
-  data->anchor_y = SEQ_TEXT_ALIGN_Y_CENTER;
+  data->anchor_x = SEQ_TEXT_ANCHOR_X_CENTER;
+  data->anchor_y = SEQ_TEXT_ANCHOR_Y_CENTER;
   data->align = SEQ_TEXT_ALIGN_X_CENTER;
   data->wrap_width = 1.0f;
 }
@@ -451,7 +454,7 @@ static void draw_text_shadow(
   clamp_rect(width, height, shadow_rect);
 
   /* Initialize shadow by copying existing text/outline alpha. */
-  initialize_shadow_alpha(width, height, offset, shadow_rect, out->byte_buffer.data, shadow_mask);
+  initialize_shadow_alpha(width, height, offset, shadow_rect, out->byte_data(), shadow_mask);
 
   if (do_blur) {
     /* Create blur kernel weights. */
@@ -497,7 +500,7 @@ static void draw_text_shadow(
   color.x *= color.w;
   color.y *= color.w;
   color.z *= color.w;
-  composite_shadow(width, shadow_rect, color, shadow_mask, out->byte_buffer.data);
+  composite_shadow(width, shadow_rect, color, shadow_mask, out->byte_data_for_write());
 }
 
 /* Text outline calculation is done by Jump Flooding Algorithm (JFA).
@@ -601,6 +604,7 @@ static rcti draw_text_outline(const RenderData *context,
              reinterpret_cast<uchar *>(tmp_buf.data()),
              size.x,
              size.y,
+             4,
              out->byte_buffer.colorspace);
 
   text_draw(data->text_ptr, runtime, float4(1.0f));
@@ -659,10 +663,11 @@ static rcti draw_text_outline(const RenderData *context,
   /* We have distances to the closest opaque parts of the image now. Composite the
    * outline into the output image. */
 
+  uchar *byte_data = out->byte_data_for_write();
   threading::parallel_for(rect_y_range, 8, [&](const IndexRange y_range) {
     for (const int y : y_range) {
       size_t index = size_t(y) * size.x + rect_x_range.start();
-      uchar *dst = out->byte_buffer.data + index * 4;
+      uchar *dst = byte_data + index * 4;
       for (int x = rect_x_range.start(); x < rect_x_range.one_after_last(); x++, index++, dst += 4)
       {
         JFACoord closest_texel = (*result_to_flood)[index];
@@ -701,8 +706,7 @@ static rcti draw_text_outline(const RenderData *context,
       }
     }
   });
-  BLF_buffer(
-      runtime->font, nullptr, out->byte_buffer.data, size.x, size.y, out->byte_buffer.colorspace);
+  BLF_buffer(runtime->font, nullptr, byte_data, size.x, size.y, 4, out->byte_buffer.colorspace);
 
   return outline_rect;
 }
@@ -710,7 +714,7 @@ static rcti draw_text_outline(const RenderData *context,
 /* Similar to #IMB_rectfill_area but blends the given color under the
  * existing image. Also can do rounded corners. Only works on byte buffers. */
 static void fill_rect_alpha_under(
-    const ImBuf *ibuf, const float col[4], int x1, int y1, int x2, int y2, float corner_radius)
+    ImBuf *ibuf, const float col[4], int x1, int y1, int x2, int y2, float corner_radius)
 {
   const int width = ibuf->x;
   const int height = ibuf->y;
@@ -733,9 +737,10 @@ static void fill_rect_alpha_under(
   float4 premul_col_base;
   straight_to_premul_v4_v4(premul_col_base, col);
 
+  uchar *byte_data = ibuf->byte_data_for_write();
   threading::parallel_for(IndexRange::from_begin_end(y1, y2), 16, [&](const IndexRange y_range) {
     for (const int y : y_range) {
-      uchar *dst = ibuf->byte_buffer.data + (size_t(width) * y + x1) * 4;
+      uchar *dst = byte_data + (size_t(width) * y + x1) * 4;
       float origin_x = 0.0f, origin_y = 0.0f;
       for (int x = x1; x < x2; x++) {
         float4 pix = load_premul_pixel(dst);
@@ -928,9 +933,12 @@ static void apply_word_wrapping(const TextVars *data,
     }
 
     if (character.do_wrap) {
+      const int line_spacing = (data->flag & SEQ_TEXT_USE_ABSOLUTE_LINE_SPACING) ?
+                                   data->abs_space_line :
+                                   runtime->line_height * data->space_line;
       runtime->lines.append(LineInfo());
       cur_pixel_pos.x = 0;
-      cur_pixel_pos.y -= runtime->line_height;
+      cur_pixel_pos.y -= line_spacing;
     }
   }
 }
@@ -966,24 +974,24 @@ static float2 anchor_offset_get(const TextVars *data, int width_max, int text_he
   float2 anchor_offset;
 
   switch (data->anchor_x) {
-    case SEQ_TEXT_ALIGN_X_LEFT:
+    case SEQ_TEXT_ANCHOR_X_LEFT:
       anchor_offset.x = 0;
       break;
-    case SEQ_TEXT_ALIGN_X_CENTER:
+    case SEQ_TEXT_ANCHOR_X_CENTER:
       anchor_offset.x = -width_max / 2.0f;
       break;
-    case SEQ_TEXT_ALIGN_X_RIGHT:
+    case SEQ_TEXT_ANCHOR_X_RIGHT:
       anchor_offset.x = -width_max;
       break;
   }
   switch (data->anchor_y) {
-    case SEQ_TEXT_ALIGN_Y_TOP:
+    case SEQ_TEXT_ANCHOR_Y_TOP:
       anchor_offset.y = 0;
       break;
-    case SEQ_TEXT_ALIGN_Y_CENTER:
+    case SEQ_TEXT_ANCHOR_Y_CENTER:
       anchor_offset.y = text_height / 2.0f;
       break;
-    case SEQ_TEXT_ALIGN_Y_BOTTOM:
+    case SEQ_TEXT_ANCHOR_Y_BOTTOM:
       anchor_offset.y = text_height;
       break;
   }
@@ -996,7 +1004,10 @@ static void calc_boundbox(const TextVars *data, TextVarsRuntime *runtime, const 
   /* `BLF_bounds_max()` is used, because some fonts have glyphs overlapping with lines above. */
   rctf glyph_bounds_max;
   BLF_bounds_max(runtime->font, &glyph_bounds_max);
-  const int text_height = (runtime->lines.size() - 1) * runtime->line_height +
+  const int line_spacing = (data->flag & SEQ_TEXT_USE_ABSOLUTE_LINE_SPACING) ?
+                               data->abs_space_line :
+                               runtime->line_height * data->space_line;
+  const int text_height = (runtime->lines.size() - 1) * line_spacing +
                           math::ceil(BLI_rctf_size_y(&glyph_bounds_max));
 
   int width_max = text_box_width_get(runtime->lines);
@@ -1020,7 +1031,10 @@ static void apply_text_alignment(const TextVars *data,
                                  const int2 image_size)
 {
   const int box_width = text_box_width_get(runtime->lines);
-  const int box_height = runtime->lines.size() * runtime->line_height;
+  const int line_spacing = (data->flag & SEQ_TEXT_USE_ABSOLUTE_LINE_SPACING) ?
+                               data->abs_space_line :
+                               runtime->line_height * data->space_line;
+  const int box_height = runtime->line_height + (runtime->lines.size() - 1) * line_spacing;
 
   const float2 image_center{data->loc[0] * image_size.x, data->loc[1] * image_size.y};
   const float2 line_height_offset{0.0f,
@@ -1055,17 +1069,18 @@ TextVarsRuntime *text_effect_calc_runtime(const Strip *strip, int font, const in
   return runtime;
 }
 
-static ImBuf *do_text_effect(const RenderData *context,
-                             SeqRenderState * /*state*/,
-                             Strip *strip,
-                             float /*timeline_frame*/,
-                             float /*fac*/,
-                             ImBuf * /*ibuf1*/,
-                             ImBuf * /*ibuf2*/)
+static SeqResult do_text_effect(const RenderData *context,
+                                SeqRenderState * /*state*/,
+                                Strip *strip,
+                                float /*timeline_frame*/,
+                                float /*fac*/,
+                                const SeqResult & /*ibuf1*/,
+                                const SeqResult & /*ibuf2*/)
 {
+  BLI_profile_scope_with_name("SeqFxText", ProfileCategory::Draw);
   /* NOTE: text rasterization only fills in part of output image,
    * need to clear it. */
-  ImBuf *out = prepare_effect_imbufs(context, nullptr, nullptr, false);
+  SeqResult out = prepare_effect_imbufs(context, {}, {}, false);
   TextVars *data = static_cast<TextVars *>(strip->effectdata);
 
   const FontFlags font_flags = ((data->flag & SEQ_TEXT_BOLD) ? BLF_BOLD : BLF_NONE) |
@@ -1081,30 +1096,36 @@ static ImBuf *do_text_effect(const RenderData *context,
     MEM_delete(data->runtime);
   }
 
-  TextVarsRuntime *runtime = text_effect_calc_runtime(strip, font, {out->x, out->y});
+  TextVarsRuntime *runtime = text_effect_calc_runtime(strip, font, {out.image->x, out.image->y});
   data->runtime = runtime;
 
-  rcti outline_rect = draw_text_outline(context, data, runtime, out);
-  BLF_buffer(font, nullptr, out->byte_buffer.data, out->x, out->y, out->byte_buffer.colorspace);
+  rcti outline_rect = draw_text_outline(context, data, runtime, out.image);
+  BLF_buffer(font,
+             nullptr,
+             out.image->byte_data_for_write(),
+             out.image->x,
+             out.image->y,
+             4,
+             out.image->byte_buffer.colorspace);
   text_draw(data->text_ptr, runtime, data->color);
-  BLF_buffer(font, nullptr, nullptr, 0, 0, nullptr);
+  BLF_buffer(font, nullptr, nullptr, 0, 0, 4, nullptr);
   BLF_disable(font, font_flags);
 
   /* Draw shadow. */
   if (data->flag & SEQ_TEXT_SHADOW) {
-    draw_text_shadow(context, data, runtime->line_height, outline_rect, out);
+    draw_text_shadow(context, data, runtime->line_height, outline_rect, out.image);
   }
 
   /* Draw box under text. */
   if (data->flag & SEQ_TEXT_BOX) {
-    if (out->byte_buffer.data) {
-      const int margin = data->box_margin * out->x;
+    if (out.image->byte_data()) {
+      const int margin = data->box_margin * out.image->x;
       const int minx = runtime->text_boundbox.xmin - margin;
       const int maxx = runtime->text_boundbox.xmax + margin;
       const int miny = runtime->text_boundbox.ymin - margin;
       const int maxy = runtime->text_boundbox.ymax + margin;
       float corner_radius = data->box_roundness * (maxy - miny) / 2.0f;
-      fill_rect_alpha_under(out, data->box_color, minx, miny, maxx, maxy, corner_radius);
+      fill_rect_alpha_under(out.image, data->box_color, minx, miny, maxx, maxy, corner_radius);
     }
   }
 

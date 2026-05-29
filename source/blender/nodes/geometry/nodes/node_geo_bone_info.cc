@@ -46,30 +46,30 @@ static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 
 static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
 {
-  const eNodeSocketDatatype other_type = eNodeSocketDatatype(params.other_socket().type);
+  const eNodeSocketDatatype other_type = params.other_socket().type;
 
   if (params.in_out() == SOCK_OUT) {
     if (ELEM(other_type, SOCK_MATRIX, SOCK_ROTATION)) {
       params.add_item(IFACE_("Pose"), [](LinkSearchOpParams &params) {
-        bNode &node = params.add_node("GeometryNodeBoneInfo");
+        bNode &node = params.add_node("GeometryNodeBoneInfo"_ustr);
         params.update_and_connect_available_socket(node, "Pose"_ustr);
       });
       params.add_item(IFACE_("Local Pose"), [](LinkSearchOpParams &params) {
-        bNode &node = params.add_node("GeometryNodeBoneInfo");
+        bNode &node = params.add_node("GeometryNodeBoneInfo"_ustr);
         params.update_and_connect_available_socket(node, "Local Pose"_ustr);
       });
       params.add_item(IFACE_("Transform Pose"), [](LinkSearchOpParams &params) {
-        bNode &node = params.add_node("GeometryNodeBoneInfo");
+        bNode &node = params.add_node("GeometryNodeBoneInfo"_ustr);
         params.update_and_connect_available_socket(node, "Transform Pose"_ustr);
       });
       params.add_item(IFACE_("Rest Pose"), [](LinkSearchOpParams &params) {
-        bNode &node = params.add_node("GeometryNodeBoneInfo");
+        bNode &node = params.add_node("GeometryNodeBoneInfo"_ustr);
         params.update_and_connect_available_socket(node, "Rest Pose"_ustr);
       });
     }
     if (params.node_tree().typeinfo->validate_link(other_type, SOCK_FLOAT)) {
       params.add_item(IFACE_("Rest Length"), [](LinkSearchOpParams &params) {
-        bNode &node = params.add_node("GeometryNodeBoneInfo");
+        bNode &node = params.add_node("GeometryNodeBoneInfo"_ustr);
         params.update_and_connect_available_socket(node, "Rest Length"_ustr);
       });
     }
@@ -77,13 +77,13 @@ static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
   else {
     if (other_type == SOCK_STRING) {
       params.add_item(IFACE_("Bone Name"), [](LinkSearchOpParams &params) {
-        bNode &node = params.add_node("GeometryNodeBoneInfo");
+        bNode &node = params.add_node("GeometryNodeBoneInfo"_ustr);
         params.update_and_connect_available_socket(node, "Bone Name"_ustr);
       });
     }
     if (other_type == SOCK_OBJECT) {
       params.add_item(IFACE_("Armature"), [](LinkSearchOpParams &params) {
-        bNode &node = params.add_node("GeometryNodeBoneInfo");
+        bNode &node = params.add_node("GeometryNodeBoneInfo"_ustr);
         params.update_and_connect_available_socket(node, "Armature"_ustr);
       });
     }
@@ -136,13 +136,14 @@ static void node_geo_exec(GeoNodeExecParams params)
     geometry_transform = self_object->world_to_object() * object->object_to_world();
   }
 
-  bPoseChannel *pchan = BKE_pose_channel_find_name(object->pose, bone_name.c_str());
+  const bPoseChannel *pchan = BKE_pose_channel_find_name(object->pose, bone_name.c_str());
   if (!pchan) {
     params.set_default_remaining_outputs();
-    params.error_message_add(NodeWarningType::Error, TIP_("Bone not found"));
+    params.error_message_add(NodeWarningType::Error,
+                             fmt::format(fmt::runtime(TIP_("Bone \"{}\" not found")), bone_name));
     return;
   }
-  Bone *bone = pchan->bone;
+  const Bone *bone = pchan->bone_get(*object);
   const float4x4 pose = geometry_transform * float4x4(pchan->pose_mat);
   const float4x4 rest_pose = geometry_transform * float4x4(bone->arm_mat);
 
@@ -154,7 +155,7 @@ static void node_geo_exec(GeoNodeExecParams params)
                               math::invert(parent_pose) * pose;
 
   float4x4 transform_pose;
-  BKE_pchan_to_mat4(pchan, transform_pose.ptr());
+  BKE_pchan_to_mat4({pchan, bone}, transform_pose.ptr());
 
   params.set_output("Pose"_ustr, pose);
   params.set_output("Local Pose"_ustr, local_pose);
@@ -192,7 +193,7 @@ static void node_rna(StructRNA *srna)
 static void node_register()
 {
   static bke::bNodeType ntype;
-  geo_node_type_base(&ntype, "GeometryNodeBoneInfo");
+  geo_node_type_base(&ntype, "GeometryNodeBoneInfo"_ustr);
   ntype.ui_name = "Bone Info";
   ntype.ui_description = "Retrieve information of armature bones";
   ntype.nclass = NODE_CLASS_INPUT;

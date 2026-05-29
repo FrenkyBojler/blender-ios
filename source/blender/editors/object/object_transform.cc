@@ -246,7 +246,7 @@ static void object_clear_rot(Object *ob, const bool clear_delta)
         copy_v3_v3(ob->rot, eul);
       }
     }
-  } /* Duplicated in source/blender/editors/armature/editarmature.c */
+  } /* Duplicated in source/blender/editors/armature/armature_edit.cc */
   else {
     if (ob->rotmode == ROT_MODE_QUAT) {
       unit_qt(ob->quat);
@@ -2155,7 +2155,7 @@ static wmOperatorStatus object_transform_axis_target_invoke(bContext *C,
   }
 
 #ifdef USE_RENDER_OVERRIDE
-  int flag2_prev = vc.v3d->flag2;
+  eView3D_Flag2 flag2_prev = vc.v3d->flag2;
   vc.v3d->flag2 |= V3D_HIDE_OVERLAYS;
 #endif
 

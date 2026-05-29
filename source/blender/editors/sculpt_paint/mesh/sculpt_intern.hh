@@ -25,6 +25,8 @@
 #include "BLI_span.hh"
 #include "BLI_vector.hh"
 
+#include "IMB_colormanagement.hh"
+
 #include "DNA_brush_enums.h"
 #include "DNA_brush_types.h"
 
@@ -156,11 +158,19 @@ struct ProjectBrushTarget {
 };
 
 namespace paint::image {
+
+struct TileColorspaceProcessor : NonCopyable {
+  ColormanageProcessor buffer_to_linear_processor = {};
+  ColormanageProcessor linear_to_buffer_processor = {};
+  bool is_noop = true;
+};
+
 struct ImageData : NonCopyable {
   Image *image = nullptr;
   ImageUser *image_user = nullptr;
 
   Map<bke::image::TileNumber, ImBuf *> buffers = {};
+  Map<bke::image::TileNumber, TileColorspaceProcessor> processors = {};
 
   ~ImageData();
 
@@ -532,28 +542,24 @@ struct ActiveElementInfo {
 std::optional<ActiveElementInfo> active_element_info_get(ViewContext &vc, const float2 &mval);
 
 struct CursorGeometryInfo {
-  float3 location;
-  float3 normal;
+  float3 location = float3(0);
+  float3 normal = float3(0);
 };
 
 /**
  * Gets the normal, location and active vertex location of the geometry under the cursor. This also
  * updates the active vertex and cursor related data of the SculptSession using the mouse position
- *
- * TODO: This should be updated to return `std::optional<CursorGeometryInfo>`
  */
-bool cursor_geometry_info_update(bContext *C,
-                                 CursorGeometryInfo *out,
-                                 const float2 &mval,
-                                 bool use_sampled_normal);
-bool cursor_geometry_info_update(Depsgraph &depsgraph,
-                                 const Paint &paint,
-                                 const Sculpt *sd,
-                                 ViewContext &vc,
-                                 const Base *base,
-                                 CursorGeometryInfo *out,
-                                 const float2 &mval,
-                                 bool use_sampled_normal);
+std::optional<CursorGeometryInfo> cursor_geometry_info_update(bContext *C,
+                                                              const float2 &mval,
+                                                              bool use_sampled_normal);
+std::optional<CursorGeometryInfo> cursor_geometry_info_update(Depsgraph &depsgraph,
+                                                              const Paint &paint,
+                                                              const Sculpt *sd,
+                                                              ViewContext &vc,
+                                                              const Base *base,
+                                                              const float2 &mval,
+                                                              bool use_sampled_normal);
 
 void geometry_preview_lines_update(Depsgraph &depsgraph,
                                    Object &object,

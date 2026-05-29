@@ -150,7 +150,7 @@ static void object_force_modifier_bind_simple_options(Depsgraph *depsgraph,
                                                       ModifierData *md)
 {
   ModifierData *md_eval = BKE_modifier_get_evaluated(depsgraph, object, md);
-  const int mode = md_eval->mode;
+  const ModifierMode mode = md_eval->mode;
   md_eval->mode |= eModifierMode_Realtime;
   object_force_modifier_update_for_bind(depsgraph, object);
   md_eval->mode = mode;
@@ -204,7 +204,7 @@ ModifierData *modifier_add(
     }
     else if (type == eModifierType_Collision) {
       if (!ob->pd) {
-        ob->pd = BKE_partdeflect_new(0);
+        ob->pd = BKE_partdeflect_new(PFIELD_NULL);
       }
 
       ob->pd->deflect = 1;
@@ -362,8 +362,7 @@ static bool object_modifier_remove(
     }
   }
 
-  if (ELEM(md->type, eModifierType_Softbody, eModifierType_Cloth) &&
-      BLI_listbase_is_empty(&ob->particlesystem))
+  if (ELEM(md->type, eModifierType_Softbody, eModifierType_Cloth) && ob->particlesystem.is_empty())
   {
     ob->mode &= ~OB_MODE_PARTICLE_EDIT;
   }
@@ -500,7 +499,7 @@ bool modifier_move_to_index(ReportList *reports,
 {
   BLI_assert(md != nullptr);
 
-  if (index < 0 || index >= BLI_listbase_count(&ob->modifiers)) {
+  if (index < 0 || index >= ob->modifiers.count()) {
     BKE_report(reports, error_type, "Cannot move modifier beyond the end of the stack");
     return false;
   }
@@ -569,12 +568,12 @@ void modifier_link(bContext *C, Object *ob_dst, Object *ob_src)
   DEG_relations_tag_update(bmain);
 }
 
-bool modifier_copy_to_object(Main *bmain,
-                             const Scene *scene,
-                             const Object *ob_src,
-                             const ModifierData *md,
-                             Object *ob_dst,
-                             ReportList *reports)
+ModifierData *modifier_copy_to_object(Main *bmain,
+                                      const Scene *scene,
+                                      const Object *ob_src,
+                                      const ModifierData *md,
+                                      Object *ob_dst,
+                                      ReportList *reports)
 {
   const ModifierTypeInfo *mti = BKE_modifier_get_info(ModifierType(md->type));
 
@@ -587,7 +586,7 @@ bool modifier_copy_to_object(Main *bmain,
                 "Object '%s' does not support %s modifiers",
                 ob_dst->id.name + 2,
                 RPT_(mti->name));
-    return false;
+    return nullptr;
   }
 
   if (mti->flags & eModifierTypeFlag_Single) {
@@ -596,23 +595,24 @@ bool modifier_copy_to_object(Main *bmain,
                   RPT_WARNING,
                   "Modifier can only be added once to object '%s'",
                   ob_dst->id.name + 2);
-      return false;
+      return nullptr;
     }
   }
 
-  if (!BKE_object_copy_modifier(bmain, scene, ob_dst, ob_src, md)) {
+  ModifierData *md_dst = BKE_object_copy_modifier(bmain, scene, ob_dst, ob_src, md);
+  if (!md_dst) {
     BKE_reportf(reports,
                 RPT_ERROR,
                 "Copying modifier '%s' to object '%s' failed",
                 md->name,
                 ob_dst->id.name + 2);
-    return false;
+    return nullptr;
   }
 
   WM_main_add_notifier(NC_OBJECT | ND_MODIFIER | NA_ADDED, ob_dst);
   DEG_id_tag_update(&ob_dst->id, ID_RECALC_GEOMETRY | ID_RECALC_ANIMATION);
   DEG_relations_tag_update(bmain);
-  return true;
+  return md_dst;
 }
 
 bool convert_psys_to_mesh(ReportList * /*reports*/,
@@ -1106,6 +1106,9 @@ static bool modifier_apply_obdata(ReportList *reports,
 
       /* Remove strings referring to attributes if they no longer exist. */
       bke::mesh_remove_invalid_attribute_strings(*mesh);
+
+      /* Make sure that if there are uv maps, one is marked as active. */
+      bke::mesh_ensure_active_uv_map(*mesh);
 
       if (md_eval->type == eModifierType_Multires) {
         multires_customdata_delete(mesh);
@@ -1954,6 +1957,10 @@ static bool modifier_apply_poll(bContext *C)
   Object *ob = (ptr.owner_id != nullptr) ? id_cast<Object *>(ptr.owner_id) :
                                            context_active_object(C);
   ModifierData *md = static_cast<ModifierData *>(ptr.data); /* May be nullptr. */
+  if (ob->type == OB_EMPTY) {
+    CTX_wm_operator_poll_msg_set(C, "Modifiers cannot be applied on empty object type");
+    return false;
+  }
 
   if (ID_IS_OVERRIDE_LIBRARY(ob) || ((ob->data != nullptr) && ID_IS_OVERRIDE_LIBRARY(ob->data))) {
     CTX_wm_operator_poll_msg_set(C, "Modifiers cannot be applied on override data");
@@ -1985,7 +1992,7 @@ static wmOperatorStatus modifier_apply_exec_ex(bContext *C,
   RNA_string_get(op->ptr, "modifier", name);
 
   const bool do_report = RNA_boolean_get(op->ptr, "report");
-  const int reports_len = do_report ? BLI_listbase_count(&op->reports->list) : 0;
+  const int reports_len = do_report ? op->reports->list.count() : 0;
 
   const bool do_single_user = (apply_as == MODIFIER_APPLY_DATA) ?
                                   RNA_boolean_get(op->ptr, "single_user") :
@@ -2046,7 +2053,7 @@ static wmOperatorStatus modifier_apply_exec_ex(bContext *C,
   if (do_report) {
     /* Only add this report if the operator didn't cause another one. The purpose here is
      * to alert that something happened, and the previous report will do that anyway. */
-    if (BLI_listbase_count(&op->reports->list) == reports_len) {
+    if (op->reports->list.count() == reports_len) {
       BKE_reportf(op->reports, RPT_INFO, "Applied modifier: %s", name);
     }
   }
@@ -2372,7 +2379,9 @@ static wmOperatorStatus modifier_copy_to_selected_exec(bContext *C, wmOperator *
     if (!ID_IS_EDITABLE(ob)) {
       continue;
     }
-    if (modifier_copy_to_object(bmain, scene, obact, md, ob, op->reports)) {
+    ModifierData *md_dst = modifier_copy_to_object(bmain, scene, obact, md, ob, op->reports);
+    if (md_dst) {
+      BKE_object_modifier_set_active(ob, md_dst);
       WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER | NA_ADDED, ob);
       num_copied++;
     }
@@ -2482,8 +2491,13 @@ static wmOperatorStatus object_modifiers_copy_exec(bContext *C, wmOperator *op)
       continue;
     }
     for (const ModifierData &md : active_object->modifiers) {
-      if (modifier_copy_to_object(bmain, scene, active_object, &md, object, op->reports)) {
+      ModifierData *md_dst = modifier_copy_to_object(
+          bmain, scene, active_object, &md, object, op->reports);
+      if (md_dst) {
         WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER | NA_ADDED, object);
+        if (md.flag & eModifierFlag_Active) {
+          BKE_object_modifier_set_active(object, md_dst);
+        }
       }
     }
   }
@@ -2507,7 +2521,7 @@ static bool modifiers_copy_to_selected_poll(bContext *C)
   if (!BKE_object_supports_modifiers(active_object)) {
     return false;
   }
-  if (BLI_listbase_is_empty(&active_object->modifiers)) {
+  if (active_object->modifiers.is_empty()) {
     CTX_wm_operator_poll_msg_set(C, "Active object has no modifiers");
     return false;
   }
@@ -2811,7 +2825,7 @@ static Object *modifier_skin_armature_create(Depsgraph *depsgraph, Main *bmain, 
 
       /* Unless the skin root has just one adjacent edge, create
        * a fake root bone (have it going off in the Y direction
-       * (arbitrary) */
+       * (arbitrary)) */
       if (emap[v].size() > 1) {
         bone = ED_armature_ebone_add(arm, "Bone");
 
@@ -3493,15 +3507,23 @@ static wmOperatorStatus geometry_nodes_input_attribute_toggle_exec(bContext *C, 
   PointerRNA properties_ptr = RNA_pointer_get(&modifier_ptr, "properties");
   PointerRNA inputs_ptr = RNA_pointer_get(&properties_ptr, "inputs");
   PointerRNA input_ptr = RNA_pointer_get(&inputs_ptr, input_name);
+  PropertyRNA *type_prop = RNA_struct_find_property(&input_ptr, "type");
+  if (!type_prop) {
+    return OPERATOR_CANCELLED;
+  }
 
-  int type = RNA_enum_get(&input_ptr, "type");
+  int type = RNA_property_enum_get(&input_ptr, type_prop);
   if (type == int(nodes::GeometryNodesInputType::Attribute)) {
     type = int(nodes::GeometryNodesInputType::Value);
   }
   else {
     type = int(nodes::GeometryNodesInputType::Attribute);
   }
-  RNA_enum_set(&input_ptr, "type", type);
+  EnumPropertyItem type_item;
+  if (!RNA_property_enum_item_from_value(nullptr, &input_ptr, type_prop, type, &type_item)) {
+    return OPERATOR_CANCELLED;
+  }
+  RNA_property_enum_set(&input_ptr, type_prop, type);
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);

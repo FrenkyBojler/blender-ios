@@ -178,6 +178,17 @@ enum_device_type = (
     ('ONEAPI', "oneAPI", "oneAPI", 6)
 )
 
+enum_texture_limit = (
+    ('OFF', "No Limit", "No texture size limit", 0),
+    ('128', "128", "Limit texture size to 128 pixels", 1),
+    ('256', "256", "Limit texture size to 256 pixels", 2),
+    ('512', "512", "Limit texture size to 512 pixels", 3),
+    ('1024', "1024", "Limit texture size to 1024 pixels", 4),
+    ('2048', "2048", "Limit texture size to 2048 pixels", 5),
+    ('4096', "4096", "Limit texture size to 4096 pixels", 6),
+    ('8192', "8192", "Limit texture size to 8192 pixels", 7),
+)
+
 
 enum_fast_gi_method = (
     ('REPLACE', "Replace", "Replace global illumination with ambient occlusion after a specified number of bounces"),
@@ -223,10 +234,13 @@ enum_view3d_shading_render_pass = (
     ('DENOISING_SPECULAR_ALBEDO', "Denoising Specular Albedo", "Specular albedo pass used by denoiser"),
     ('DENOISING_NORMAL', "Denoising Normal", "Normal pass used by denoiser"),
     ('DENOISING_ROUGHNESS', "Denoising Roughness", "Roughness pass used by denoiser"),
+    ('DENOISING_BACKWARD_MOTION', "Denoising Backward Motion", "Backward motion pass used by denoiser"),
     ('SAMPLE_COUNT', "Sample Count", "Per-pixel number of samples"),
 )
 
 enum_view3d_debug_render_pass = (
+    ('MOTION', "Vector", "Show motion vectors"),
+
     ('VOLUME_SCATTER', "Volume Scatter", "Show the contribution of scattered ray in volume"),
     ('VOLUME_TRANSMIT', "Volume Transmit", "Show the contribution of transmitted ray in volume"),
     ('VOLUME_MAJORANT', "Volume Majorant", "Show the majorant transmittance of the volume")
@@ -873,6 +887,11 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
         subtype='PIXEL'
     )
 
+    use_pixel_jitter: BoolProperty(
+        name="Use Pixel Jitter",
+        default=False,
+    )
+
     seed: IntProperty(
         name="Seed",
         description="Seed value for integrator to get different noise patterns",
@@ -1015,6 +1034,20 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
         subtype='FACTOR',
     )
 
+    texture_limit: EnumProperty(
+        name="Viewport Texture Limit",
+        default='OFF',
+        description="Limit texture size used by viewport rendering",
+        items=enum_texture_limit,
+    )
+
+    texture_limit_render: EnumProperty(
+        name="Render Texture Limit",
+        default='OFF',
+        description="Limit texture size used by final rendering",
+        items=enum_texture_limit,
+    )
+
     use_fast_gi: BoolProperty(
         name="Fast GI Approximation",
         description="Approximate diffuse indirect light with background tinted ambient occlusion. "
@@ -1092,6 +1125,17 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
         name="Adaptive Compile",
         description=adaptive_compile_description,
         default=False)
+
+    debug_use_texture_cache_eviction: BoolProperty(
+        name="Cache Eviction",
+        description="Evict unused tiles from the texture cache to free up memory",
+        default=True)
+
+    debug_texture_cache_preserve_unused: IntProperty(
+        name="Preserve Unused MB",
+        description="Preserve unused texture cache data, up to this amount of memory",
+        min=0,
+        default=0)
 
     @classmethod
     def register(cls):
@@ -1260,6 +1304,11 @@ class CyclesWorldSettings(bpy.types.PropertyGroup):
                     "(lower values give more accurate and detailed results, but also increased render time)",
         default=1.0,
         min=0.0000001, max=100000.0, soft_min=0.1, soft_max=100.0, precision=4
+    )
+    use_shadows: BoolProperty(
+        name="Shadows",
+        description="Enable shadow casting from the world",
+        default=True,
     )
 
     @classmethod
@@ -1534,6 +1583,18 @@ class CyclesRenderLayerSettings(bpy.types.PropertyGroup):
         name="Store Denoising Passes",
         description="Store the denoising feature passes and the noisy image. The passes adapt to the denoiser selected for rendering",
         default=False,
+        update=update_render_passes,
+    )
+    denoising_pass_follow_reflections: BoolProperty(
+        name="Denoising Pass Reflections",
+        description="Follow reflections for the denoising feature passes",
+        default=True,
+        update=update_render_passes,
+    )
+    denoising_pass_use_albedo_roughness_weighting: BoolProperty(
+        name="Denoising Pass Albedo Roughness Weighting",
+        description="Use roughness-based weighting of the albedo for the denoising feature passes",
+        default=True,
         update=update_render_passes,
     )
 
@@ -1829,8 +1890,8 @@ class CyclesPreferences(bpy.types.AddonPreferences):
                     col.label(text=rpt_("or AMD Radeon Pro %s driver or newer") %
                               pro_driver_version, icon='BLANK1', translate=False)
                 elif sys.platform.startswith("linux"):
-                    rocm_version = "6.0"
-                    driver_version = "23.40"
+                    rocm_version = "6.3"
+                    driver_version = "24.30"
                     col.label(
                         text=rpt_("Requires AMD GPU with RDNA architecture"),
                         icon='BLANK1',

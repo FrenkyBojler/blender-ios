@@ -170,7 +170,7 @@ static void load_tex_task_cb_ex(void *__restrict userdata,
   if (mtex->tex && mtex->tex->type == TEX_IMAGE && mtex->tex->ima) {
     ImBuf *tex_ibuf = BKE_image_pool_acquire_ibuf(mtex->tex->ima, &mtex->tex->iuser, pool);
     /* For consistency, sampling always returns color in linear space. */
-    if (tex_ibuf && tex_ibuf->float_buffer.data == nullptr) {
+    if (tex_ibuf && tex_ibuf->float_data() == nullptr) {
       convert_to_linear = true;
       colorspace = tex_ibuf->byte_buffer.colorspace;
     }
@@ -1075,7 +1075,7 @@ static void paint_update_mouse_cursor(PaintCursorContext &pcontext)
 
   /* Don't set the cursor when a temporary popup is opened (e.g. a context menu, pie menu or
    * dialog), see: #137386. */
-  if (!BLI_listbase_is_empty(&pcontext.screen->regionbase) &&
+  if (!pcontext.screen->regionbase.is_empty() &&
       (BKE_screen_find_region_type(pcontext.screen, RGN_TYPE_TEMPORARY) != nullptr))
   {
     return;

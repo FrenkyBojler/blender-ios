@@ -8,6 +8,7 @@
 
 #include "BLI_math_base.h"
 #include "BLI_math_matrix.hh"
+#include "BLI_profile.hh"
 
 #include "BLT_translation.hh"
 
@@ -41,7 +42,7 @@ struct MaskApplyOp {
           image[3] = uchar(image[3] * m);
         }
         else if constexpr (std::is_same_v<ImageT, float>) {
-          /* Float buffers are premultiplied, so need to premul color as well to make it
+          /* Float buffers are pre-multiplied, so need to pre-multiply color as well to make it
            * easy to alpha-over masked strip. */
           float4 pix(image);
           pix *= m;
@@ -53,20 +54,18 @@ struct MaskApplyOp {
   }
 };
 
-static void maskmodifier_apply(ModifierApplyContext &context,
-                               StripModifierData *smd,
-                               int timeline_frame)
+static void maskmodifier_apply(ModifierApplyContext &context, StripModifierData *smd)
 {
-  ImBuf *mask = modifier_render_mask_input(context, *smd, timeline_frame);
-  if (mask != nullptr && (mask->byte_buffer.data != nullptr || mask->float_buffer.data != nullptr))
-  {
+  BLI_profile_scope_with_name("SeqModMask", ProfileCategory::Draw);
+  ImBuf *mask = modifier_render_mask_input(context, *smd);
+  if (mask != nullptr && (mask->byte_data() != nullptr || mask->float_data() != nullptr)) {
     ensure_ibuf_is_sequencer_space(context.render_data.scene, context.image, false);
 
     MaskApplyOp op;
     apply_modifier_op(op, context.image, mask, context.transform);
 
     /* Image has gained transparency. */
-    context.image->planes = R_IMF_PLANES_RGBA;
+    context.image->color_mode = ImColorMode::RGBA;
   }
 
   if (mask != nullptr) {

@@ -9,9 +9,8 @@
  */
 
 #pragma once
-#pragma create_info
 
-#include "infos/eevee_shadow_pipeline_infos.hh"
+#include "draw_view_infos.hh"
 
 COMPUTE_SHADER_CREATE_INFO(draw_modelmat)
 
@@ -33,8 +32,9 @@ struct VertOut {
 
 struct TagUsageTransparent {
   [[legacy_info]] ShaderCreateInfo draw_resource_id_varying;
-  [[legacy_info]] ShaderCreateInfo eevee_hiz_data;
   [[legacy_info]] ShaderCreateInfo draw_modelmat;
+
+  [[resource_table]] srt_t<Uniform> uniforms;
 
   [[storage(4, read)]] const ObjectBounds (&bounds_buf)[];
 
@@ -69,7 +69,9 @@ struct TagUsageTransparent {
 
   float pixel_size_at(float linear_depth)
   {
-    float pixel_size = uniform_buf.shadow.film_pixel_radius;
+    [[resource_table]] const Uniform &uni = uniforms;
+
+    float pixel_size = uni.uniform_buf.shadow.film_pixel_radius;
     bool is_persp = (drw_view().winmat[3][3] == 0.0f);
     if (is_persp) {
       pixel_size *= max(0.01f, linear_depth);
@@ -111,9 +113,11 @@ struct TagUsageTransparent {
    * to ensure the tiles needed by all LOD0 pixels get tagged */
   void inflate_bounds(float3 ls_center, float3 &P, float3 &lP)
   {
+    [[resource_table]] const Uniform &uni = uniforms;
+
     float3 vP = drw_point_world_to_view(P);
 
-    float inflate_scale = uniform_buf.shadow.film_pixel_radius * exp2(float(fb_lod));
+    float inflate_scale = uni.uniform_buf.shadow.film_pixel_radius * exp2(float(fb_lod));
     if (drw_view_is_perspective()) {
       inflate_scale *= -vP.z;
     }
@@ -140,7 +144,8 @@ float nextafter(float value)
 
 [[vertex]]
 void tag_usage_vert([[resource_table]] TagUsageTransparent &srt,
-                    [[resource_table]] TagUsage &tag,
+                    [[resource_table]] TagUsage & /*tag*/,
+                    [[vertex_id]] [[maybe_unused]] const int vert_id,
                     [[in]] const VertIn &v_in,
                     [[out]] VertOut &v_out,
                     [[position]] float4 &out_position)
@@ -188,7 +193,7 @@ void tag_usage_vert([[resource_table]] TagUsageTransparent &srt,
   out_position = drw_point_world_to_homogenous(v_out.P);
 
 #if 0
-  if (gl_VertexID == 0) {
+  if (vert_id == 0) {
     Box debug_box = shape_box(
         ls_conservative_min,
         ls_conservative_min + (ls_conservative_max - ls_conservative_min) * float3(1, 0, 0),
@@ -205,12 +210,13 @@ void tag_usage_vert([[resource_table]] TagUsageTransparent &srt,
 [[fragment]]
 void tag_usage_frag([[resource_table]] TagUsageTransparent &srt,
                     [[resource_table]] TagUsage &tag,
+                    [[resource_table]] const HiZ &hiz,
                     [[in]] const VertOut interp,
                     [[frag_coord]] const float4 frag_co)
 {
   float2 screen_uv = frag_co.xy / float2(srt.fb_resolution);
 
-  float opaque_depth = texelFetch(hiz_tx, int2(frag_co.xy), srt.fb_lod).r;
+  float opaque_depth = texelFetch(hiz.hiz_tx, int2(frag_co.xy), srt.fb_lod).r;
   float3 ws_opaque = drw_point_screen_to_world(float3(screen_uv, opaque_depth));
 
   float3 ws_near_plane = drw_point_screen_to_world(float3(screen_uv, 0.0f));
@@ -253,7 +259,18 @@ void tag_usage_frag([[resource_table]] TagUsageTransparent &srt,
     srt.step_bounding_sphere(vs_near_plane, vs_view_direction, t, t + step_size, P, step_radius);
     float3 vP = drw_point_world_to_view(P);
 
-    tag.tag_pixel(vP, P, frag_co.xy * exp2(float(srt.fb_lod)), ws_view_direction, step_radius, 0);
+    float2 pixel = frag_co.xy * exp2(float(srt.fb_lod));
+
+    [[resource_table]] LightRenderData &lrd = tag.light_data;
+
+    TagPixelCtx ctx = {
+        .P = P,
+        .V = drw_world_incident_vector(P),
+        .radius = step_radius,
+        .lod_bias = 0,
+    };
+
+    light::foreach_visible(lrd, pixel, vP.z, ctx, tag);
   }
 }
 

@@ -184,7 +184,7 @@ ImBuf *ED_space_image_acquire_buffer(SpaceImage *sima,
         return ibuf;
       }
 
-      if (ibuf->byte_buffer.data || ibuf->float_buffer.data || ibuf->gpu.texture) {
+      if (ibuf->byte_data() || ibuf->float_data() || ibuf->gpu.texture) {
         return ibuf;
       }
       BKE_image_release_ibuf(sima->image, ibuf, *r_lock);
@@ -404,7 +404,7 @@ bool ED_image_slot_cycle(Image *image, int direction)
 
   BLI_assert(ELEM(direction, -1, 1));
 
-  int num_slots = BLI_listbase_count(&image->renderslots);
+  int num_slots = image->renderslots.count();
   for (i = 1; i < num_slots; i++) {
     slot = (cur + ((direction == -1) ? -i : i)) % num_slots;
     if (slot < 0) {
