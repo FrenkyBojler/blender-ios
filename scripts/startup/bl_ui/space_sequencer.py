@@ -1944,8 +1944,6 @@ class SEQUENCER_PT_view_composition_guides(SequencerButtonsPanel_Output, Panel):
         layout = self.layout
         overlay_settings = context.space_data.preview_overlay
 
-        layout.prop(overlay_settings, "show_composition_guides", text="Composition Guides")
-
     def draw(self, context):
         overlay_settings = context.space_data.preview_overlay
         DATA_PT_camera_display_composition_guides.draw_panel(self.layout, overlay_settings)
