@@ -124,7 +124,7 @@ std::optional<XrLocationScoutingCapture> wm_xr_location_scouting_get_active_capt
   return std::make_optional(capture);
 }
 
-GHOST_XrPose wm_xr_location_scouting_capture_to_ghost_pose(
+static GHOST_XrPose wm_xr_location_scouting_capture_to_ghost_pose(
     const XrLocationScoutingCapture &capture)
 {
   /* Create a GHOST_XrPose from a XrLocationScoutingCapture. Used to prevent storing GHOST types
@@ -184,6 +184,8 @@ static StringRefNull wm_xr_viewfinder_get_active_mode_str(const wmXrSessionState
     case XR_VIEWFINDER_MODE_CONFIRM:
       return "active_action_confirm";
   }
+
+  return "";
 }
 
 static int wm_xr_viewfinder_get_active_action_idx(const wmXrSessionState *state)
@@ -196,6 +198,8 @@ static int wm_xr_viewfinder_get_active_action_idx(const wmXrSessionState *state)
     case XR_VIEWFINDER_MODE_CONFIRM:
       return int(state->viewfinder.active_action_confirm);
   }
+
+  return 0;
 }
 
 bool wm_xr_viewfinder_operator_event_match_hand(bContext *C, const wmEvent *event)
