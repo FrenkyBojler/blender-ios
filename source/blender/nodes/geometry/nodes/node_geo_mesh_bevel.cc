@@ -35,7 +35,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Bool>("Selection"_ustr)
       .default_value(true)
       .hide_value()
-      .field_on_all()
+      .evaluated_geometry_field()
       .description("Selects elements of 'Affect Kind' for beveling");
   b.add_input<decl::Menu>("Affect Kind"_ustr)
       .default_value(geometry::BevelAffect::Edges)
@@ -46,34 +46,34 @@ static void node_declare(NodeDeclarationBuilder &b)
       .default_value(0.1f)
       .min(0.0f)
       .subtype(PROP_DISTANCE)
-      .field_on_all()
+      .evaluated_geometry_field()
       .description("Offset for left side of source end of edge");
   b.add_input<decl::Float>("Offset 1"_ustr)
       .default_value(0.1f)
       .min(0.0f)
       .subtype(PROP_DISTANCE)
-      .field_on_all()
+      .evaluated_geometry_field()
       .description("Offset for right side of source end of edge");
   b.add_input<decl::Float>("Offset 2"_ustr)
       .default_value(0.1f)
       .min(0.0f)
       .subtype(PROP_DISTANCE)
-      .field_on_all()
+      .evaluated_geometry_field()
       .description("Offset for left side of destination end of edge");
   b.add_input<decl::Float>("Offset 3"_ustr)
       .default_value(0.1f)
       .min(0.0f)
       .subtype(PROP_DISTANCE)
-      .field_on_all()
+      .evaluated_geometry_field()
       .description("Offset for right side of destination end of edge");
   b.add_input<decl::Bool>("Miter"_ustr)
       .default_value(false)
-      .field_on_all()
+      .evaluated_geometry_field()
       .description("Use a miter for corner");
   b.add_input<decl::Float>("Spread"_ustr)
       .default_value(0.0f)
       .subtype(PROP_DISTANCE)
-      .field_on_all()
+      .evaluated_geometry_field()
       .description("Per corner specification of 'spread' for arc miters")
       .usage_by_bool("Miter"_ustr, true);
   b.add_input<decl::Int>("Segments"_ustr)
@@ -96,16 +96,16 @@ static void node_declare(NodeDeclarationBuilder &b)
 
   PanelDeclarationBuilder &selections_panel = b.add_panel("Selections"_ustr);
   selections_panel.add_output<decl::Bool>("Vertex Face"_ustr)
-      .field_on_all()
+      .anonymous_attribute_output()
       .description("Identifies output faces that are in the new mesh parts for vertices");
   selections_panel.add_output<decl::Bool>("Edge Face"_ustr)
-      .field_on_all()
+      .anonymous_attribute_output()
       .description("Identifies output faces that are in the new mesh parts for edges");
   selections_panel.add_output<decl::Bool>("Outer Edge"_ustr)
-      .field_on_all()
+      .anonymous_attribute_output()
       .description("Identifies output edges that are on the outsides of new mesh parts for edges");
   selections_panel.add_output<decl::Bool>("Mid Edge"_ustr)
-      .field_on_all()
+      .anonymous_attribute_output()
       .description(
           "Identifies output edges that are in the middle of new mesh parts of edges "
           " and continued through vertices (round down if odd number of segments)");
