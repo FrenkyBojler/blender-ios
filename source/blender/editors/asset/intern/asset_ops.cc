@@ -1117,10 +1117,9 @@ static ImBuf *take_screenshot_crop(bContext *C, const rcti &crop_rect)
     return nullptr;
   }
 
-  ImBuf *image_buffer = IMB_allocImBuf(dumprect_size[0], dumprect_size[1], 24, 0);
-  /* Using IB_TAKE_OWNERSHIP because the crop does kind of take ownership already it seems. At
-   * least freeing the memory after would cause a crash if ownership isn't taken. */
-  IMB_assign_byte_buffer(image_buffer, dumprect, IB_TAKE_OWNERSHIP);
+  ImBuf *image_buffer = IMB_allocImBuf(dumprect_size[0], dumprect_size[1], ImBufFlags::Zero);
+  image_buffer->color_mode = ImColorMode::RGB;
+  image_buffer->assign_byte_data(dumprect);
 
   IMB_crop(image_buffer,
            int2(safe_rect.xmin, safe_rect.ymin),
@@ -1195,7 +1194,7 @@ static wmOperatorStatus screenshot_preview_exec(bContext *C, wmOperator *op)
                                                   region,
                                                   region->winx,
                                                   region->winy,
-                                                  IB_byte_data,
+                                                  ImBufFlags::ByteData,
                                                   R_ALPHAPREMUL,
                                                   nullptr,
                                                   false,
@@ -1573,16 +1572,16 @@ static bool assets_download_poll(bContext *C)
     return false;
   }
 
-  const bool has_online_asset = [&]() {
+  const bool has_downloadable_asset = [&]() {
     for (const asset_system::AssetRepresentation *asset : assets) {
-      if (asset->is_online()) {
+      if (asset->needs_download()) {
         return true;
       }
     }
     return false;
   }();
 
-  if (!has_online_asset) {
+  if (!has_downloadable_asset) {
     CTX_wm_operator_poll_msg_set(C, "None of the selected assets requires downloading");
     return false;
   }
@@ -1595,7 +1594,7 @@ static wmOperatorStatus assets_download_exec(bContext *C, wmOperator *op)
   const Vector<const asset_system::AssetRepresentation *> assets = selected_or_active_assets(C);
 
   for (const asset_system::AssetRepresentation *asset : assets) {
-    if (asset->is_online()) {
+    if (asset->needs_download()) {
       asset_system::remote_library_request_asset_download(*C, *asset, op->reports);
     }
   }

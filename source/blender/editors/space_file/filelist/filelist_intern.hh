@@ -27,7 +27,6 @@ using FileUID = uint32_t;
 struct AssetLibraryReference;
 struct FileDirEntry;
 struct FileIndexerType;
-struct GHash;
 struct ID;
 struct PreviewImage;
 struct ThreadQueue;
@@ -333,6 +332,7 @@ void filelist_set_readjob_library(FileList *filelist);
 void filelist_set_readjob_on_disk_asset_library(FileList *filelist);
 void filelist_set_readjob_remote_asset_library(FileList *filelist);
 void filelist_set_readjob_current_file_asset_library(FileList *filelist);
+void filelist_set_readjob_essentials_asset_library(FileList *filelist);
 void filelist_set_readjob_all_asset_library(FileList *filelist);
 
 }  // namespace blender

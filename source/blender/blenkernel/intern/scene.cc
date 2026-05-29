@@ -118,6 +118,10 @@
 
 namespace blender {
 
+/* -------------------------------------------------------------------- */
+/** \name Scene Data-Block
+ * \{ */
+
 using bke::CompositorRuntime;
 using bke::SceneRuntime;
 using bke::SequencerRuntime;
@@ -399,8 +403,8 @@ static void scene_free_data(ID *id)
   }
 
   scene_free_markers(scene, do_id_user);
-  BLI_freelistN(&scene->transform_spaces);
-  BLI_freelistN(&scene->r.views);
+  scene->transform_spaces.free_no_destruct();
+  scene->r.views.free_no_destruct();
 
   BKE_toolsettings_free(scene->toolsettings);
   scene->toolsettings = nullptr;
@@ -1642,7 +1646,7 @@ IDTypeInfo IDType_ID_SCE = {
 
 /* -------------------------------------------------------------------- */
 /** \name Scene member functions
- */
+ * \{ */
 
 double Scene::frames_per_second() const
 {
@@ -2490,7 +2494,7 @@ bool BKE_scene_validate_setscene(Main *bmain, Scene *sce)
   if (sce->set == nullptr) {
     return true;
   }
-  totscene = BLI_listbase_count(&bmain->scenes);
+  totscene = bmain->scenes.count();
 
   for (a = 0, sce_iter = sce; sce_iter->set; sce_iter = sce_iter->set, a++) {
     /* more iterations than scenes means we have a cycle */
@@ -2808,6 +2812,13 @@ void BKE_scene_graph_update_for_newframe_ex(Depsgraph *depsgraph, const bool cle
 
   /* Keep this first. */
   BKE_callback_exec_id(bmain, &scene->id, BKE_CB_EVT_FRAME_CHANGE_PRE);
+
+  /* Cannot limit this to the currently evaluated scene/view layer, as the depsgraph may have
+   * dependencies on others, see e.g. #158225, which pulls in another scene. */
+  /* TODO: If this becomes a performance issue, we'll likely have to find a way in the depsgraph
+   * itself to gather all 'known' scenes, and ensure that their viewlayers / collections
+   * hierarchies are in sync. */
+  BKE_main_view_layers_synced_ensure(bmain);
 
   for (int pass = 0; pass < 2; pass++) {
     /* Update animated image textures for particles, modifiers, gpu, etc,
