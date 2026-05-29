@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 set(INC
-  PUBLIC .
+  .
 )
 
 set(INC_SYS
@@ -17,7 +17,8 @@ set(SRC
 set(LIB
   PUBLIC bf::dependencies::optional::tracy_client
 )
-
-blender_add_lib(bf_intern_profile "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
+add_library(bf_intern_profile INTERFACE)
+target_include_directories(bf_intern_profile INTERFACE .)
 add_library(bf::intern::profile ALIAS bf_intern_profile)
-set_target_properties(bf_intern_profile PROPERTIES LINKER_LANGUAGE CXX)
+target_sources(bf_intern_profile PRIVATE ${SRC})
+blender_source_group(bf_intern_profile ${SRC})
