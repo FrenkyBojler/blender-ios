@@ -643,7 +643,7 @@ namespace debug {
  * the two consecutive boundary ring verts; the adjacent F_EDGE face (the one that is
  * NOT an original face) is then dumped.
  */
-[[maybe_unused]] static void dump_edge_polygons(const BMesh *bm, const BevVert &bv)
+[[maybe_unused]] static void dump_edge_polygons(const BevVert &bv)
 {
   const VMesh *vm = bv.vmesh;
   if (!vm) {
