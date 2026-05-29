@@ -36,7 +36,7 @@ size_t BKE_unit_value_as_string(char *str,
                                 int type,
                                 const UnitSettings &settings,
                                 bool pad,
-                                bool do_suffix);
+                                bool do_unit_suffix);
 
 /**
  * Humanly readable representation of a value in units (used for button drawing).
@@ -51,7 +51,7 @@ size_t BKE_unit_value_as_string_adaptive(char *str,
                                          int type,
                                          bool split,
                                          bool pad,
-                                         bool do_suffix);
+                                         bool do_unit_suffix);
 
 /**
  * A version of #BKE_unit_value_as_string with the `value` scaled by #BKE_unit_value_scale.
@@ -65,7 +65,7 @@ size_t BKE_unit_value_as_string_scaled(char *str,
                                        int type,
                                        const UnitSettings &settings,
                                        bool pad,
-                                       bool do_suffix);
+                                       bool do_unit_suffix);
 
 /**
  * Replace units with values, used before python button evaluation.

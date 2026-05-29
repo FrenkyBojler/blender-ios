@@ -1649,7 +1649,7 @@ static size_t unit_as_string(char *str,
                              /* Non exposed options. */
                              const bUnitDef *unit,
                              char pad,
-                             bool do_suffix)
+                             bool do_unit_suffix)
 {
   BLI_assert(prec >= 0);
   if (unit == nullptr) {
@@ -1697,13 +1697,13 @@ static size_t unit_as_string(char *str,
   }
 
   /* Now add a space for all units except foot, inch, degree, arcminute, arcsecond. */
-  if (!(unit->flag & B_UNIT_DEF_NO_SPACE) && do_suffix) {
+  if (!(unit->flag & B_UNIT_DEF_NO_SPACE) && do_unit_suffix) {
     str[++i] = ' ';
   }
 
   if (i < str_maxncpy) {
     i++;
-    if (do_suffix) {
+    if (do_unit_suffix) {
       /* Now add the suffix. */
       int j = 0;
       while (unit->name_short[j] && (i < str_maxncpy)) {
@@ -1866,7 +1866,7 @@ static size_t unit_as_string_main(char *str,
                                   int type,
                                   bool split,
                                   bool pad,
-                                  bool do_suffix,
+                                  bool do_unit_suffix,
                                   const PreferredUnits &units)
 {
   const bUnitCollection *usys = unit_get_system(units.system, type);
@@ -1894,8 +1894,15 @@ static size_t unit_as_string_main(char *str,
     }
   }
 
-  return unit_as_string(
-      str, str_maxncpy, value, prec, variable_width, usys, main_unit, pad ? ' ' : '\0', do_suffix);
+  return unit_as_string(str,
+                        str_maxncpy,
+                        value,
+                        prec,
+                        variable_width,
+                        usys,
+                        main_unit,
+                        pad ? ' ' : '\0',
+                        do_unit_suffix);
 }
 
 size_t BKE_unit_value_as_string_adaptive(char *str,
@@ -1906,7 +1913,7 @@ size_t BKE_unit_value_as_string_adaptive(char *str,
                                          int type,
                                          bool split,
                                          bool pad,
-                                         bool do_suffix)
+                                         bool do_unit_suffix)
 {
   PreferredUnits units;
   units.system = system;
@@ -1915,7 +1922,8 @@ size_t BKE_unit_value_as_string_adaptive(char *str,
   units.mass = USER_UNIT_ADAPTIVE;
   units.time = USER_UNIT_ADAPTIVE;
   units.temperature = USER_UNIT_ADAPTIVE;
-  return unit_as_string_main(str, str_maxncpy, value, prec, type, split, pad, do_suffix, units);
+  return unit_as_string_main(
+      str, str_maxncpy, value, prec, type, split, pad, do_unit_suffix, units);
 }
 
 size_t BKE_unit_value_as_string(char *str,
@@ -1925,11 +1933,12 @@ size_t BKE_unit_value_as_string(char *str,
                                 int type,
                                 const UnitSettings &settings,
                                 bool pad,
-                                bool do_suffix)
+                                bool do_unit_suffix)
 {
   bool do_split = (settings.flag & USER_UNIT_OPT_SPLIT) != 0;
   PreferredUnits units = preferred_units_from_UnitSettings(settings);
-  return unit_as_string_main(str, str_maxncpy, value, prec, type, do_split, pad, do_suffix, units);
+  return unit_as_string_main(
+      str, str_maxncpy, value, prec, type, do_split, pad, do_unit_suffix, units);
 }
 
 size_t BKE_unit_value_as_string_scaled(char *str,
@@ -1939,7 +1948,7 @@ size_t BKE_unit_value_as_string_scaled(char *str,
                                        int type,
                                        const UnitSettings &settings,
                                        bool pad,
-                                       bool do_suffix)
+                                       bool do_unit_suffix)
 {
   return BKE_unit_value_as_string(str,
                                   str_maxncpy,
@@ -1948,7 +1957,7 @@ size_t BKE_unit_value_as_string_scaled(char *str,
                                   type,
                                   settings,
                                   pad,
-                                  do_suffix);
+                                  do_unit_suffix);
 }
 
 double BKE_unit_value_scale(const UnitSettings &settings, const int unit_type, double value)
