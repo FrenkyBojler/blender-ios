@@ -766,6 +766,11 @@ static wmOperatorStatus collection_link_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
+  if (scene_to == CTX_data_scene(C)) {
+    BKE_report(op->reports, RPT_ERROR, "Collection is already linked to this scene");
+    return OPERATOR_CANCELLED;
+  }
+
   Collection *master_collection = scene_to->master_collection;
 
   CollectionEditData data{};
