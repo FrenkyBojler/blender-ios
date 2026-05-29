@@ -535,6 +535,14 @@ void WM_xr_session_state_viewfinder_runtime_capture_flash_set(wmXrData *xr, floa
   }
 }
 
+void WM_xr_session_state_viewfinder_trigger_focus_indicator(wmXrData *xr, bool hit_success)
+{
+  if (WM_xr_session_exists(xr)) {
+    xr->runtime->session_state.viewfinder.last_focus_hit_time = BLI_time_now_seconds();
+    xr->runtime->session_state.viewfinder.last_focus_hit_success = hit_success;
+  }
+}
+
 bool WM_xr_session_state_viewfinder_capture_dof_enabled_get(const wmXrData *xr,
                                                             bool *r_dof_enabled)
 {

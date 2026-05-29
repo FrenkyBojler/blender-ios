@@ -1023,7 +1023,23 @@ static void wm_xr_viewfinder_ui_draw_capture_overlays(const XrSessionSettings *s
     const float center_y = BLI_rctf_cent_y(&capture_rect);
     const float crosshair_size = BLI_rctf_size_y(&capture_rect) * 0.1f;
 
-    immUniformColor4f(1.0f, 1.0f, 0.0f, 0.8f);
+    constexpr float base_col[4] = {1.0f, 1.0f, 0.0f, 0.8f};
+    constexpr float focus_hit_col[4] = {0.0f, 1.0f, 1.0f, 0.8f};
+    constexpr float focus_miss_col[4] = {1.0f, 0.0f, 0.0f, 0.8f};
+
+    /* Interval during which the cursor changes color to indicate focus hit status. */
+    constexpr double focus_hit_time = 0.15;
+    const double last_focus_hit_delta = BLI_time_now_seconds() -
+                                        state->viewfinder.last_focus_hit_time;
+
+    const float *crosshair_col = base_col;
+
+    /* Focus hit indicator color. */
+    if (last_focus_hit_delta < focus_hit_time) {
+      crosshair_col = state->viewfinder.last_focus_hit_success ? focus_hit_col : focus_miss_col;
+    }
+
+    immUniformColor4fv(crosshair_col);
     immBegin(GPU_PRIM_LINES, 4);
     /* Horizontal line. */
     immVertex2f(pos, center_x - crosshair_size, center_y);

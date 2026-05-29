@@ -466,6 +466,8 @@ class VIEW3D_OT_vr_location_scouting_viewfinder_apply_action(Operator):
                     if raycast_hit is not None:
                         xr_viewfinder.capture_dof_distance = raycast_hit
 
+                    xr_viewfinder.trigger_focus_indicator(raycast_hit is not None)
+
                     return {'FINISHED'}
 
                 # F-Stop control.

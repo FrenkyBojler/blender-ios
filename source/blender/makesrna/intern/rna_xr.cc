@@ -1084,6 +1084,16 @@ static void rna_XrSessionState_viewfinder_runtime_capture_flash_set(PointerRNA *
 #  endif
 }
 
+static void rna_XrSessionState_viewfinder_trigger_focus_indicator(PointerRNA ptr, bool hit_success)
+{
+#  ifdef WITH_XR_OPENXR
+  wmXrData *xr = rna_XrSession_wm_xr_data_get(&ptr);
+  WM_xr_session_state_viewfinder_trigger_focus_indicator(xr, hit_success);
+#  else
+  UNUSED_VARS(ptr, hit_success);
+#  endif
+}
+
 static bool rna_XrSessionState_viewfinder_capture_dof_enabled_get(PointerRNA *ptr)
 {
   bool value;
@@ -2833,7 +2843,8 @@ static void rna_def_xr_session_state(BlenderRNA *brna)
 static void rna_def_xr_session_state_viewfinder(BlenderRNA *brna)
 {
   StructRNA *srna;
-  PropertyRNA *prop;
+  FunctionRNA *func;
+  PropertyRNA *parm, *prop;
 
   static const EnumPropertyItem viewfinder_modes[] = {
       {XR_VIEWFINDER_MODE_LIVE,
@@ -2908,6 +2919,18 @@ static void rna_def_xr_session_state_viewfinder(BlenderRNA *brna)
                                "rna_XrSessionState_viewfinder_runtime_capture_flash_set",
                                nullptr);
   RNA_def_property_update(prop, NC_WM | ND_XR_DATA_CHANGED, nullptr);
+
+  func = RNA_def_function(
+      srna, "trigger_focus_indicator", "rna_XrSessionState_viewfinder_trigger_focus_indicator");
+  RNA_def_function_ui_description(
+      func, "Blink the Viewfinder crosshair to indicate whether a focus action hit a target");
+  RNA_def_function_flag(func, FUNC_SELF_AS_RNA);
+  parm = RNA_def_boolean(func,
+                         "hit_success",
+                         false,
+                         "Hit success",
+                         "True to blink the success color, False to blink the miss color");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 
   prop = RNA_def_property(srna, "capture_dof_enabled", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);

@@ -43,10 +43,14 @@ struct wmXrViewfinderState {
   GPUOffScreen *framebuffer;
   gpu::Texture *backside_logo_texture;
 
-  /* Runtime values. */
+  /* Internal Runtime values. */
   Camera *render_cam_data_id;
   double smoothing_delta_t;
   float runtime_capture_flash;
+
+  /* Runtime values set by RNA Python functions. */
+  double last_focus_hit_time;
+  bool last_focus_hit_success;
 
   /* Capture settings. */
   bool capture_dof_enabled;
