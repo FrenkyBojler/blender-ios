@@ -1,3 +1,4 @@
 Referenced by issue #154875, Windows: Viewport playback performance regression
 Referenced by issue #156105, this file's keyframe values don't update in the property editors, but display correctly in the viewport
 Referenced by pull request #159229, Fix #156105: Keyframe values don't update in the property
+Referenced by commit 167cae47894bc95d6c32f5dde9c6fff4f300d13a, Fix #156105: Keyframe values don't update in the property
