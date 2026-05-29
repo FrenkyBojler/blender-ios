@@ -3480,7 +3480,7 @@ class VIEW3D_MT_make_links(Menu):
 
         if len(bpy.data.scenes) > 10:
             layout.operator_context = 'INVOKE_REGION_WIN'
-            layout.operator("object.make_links_scene", text="Link Objects to Scene...", icon='OUTLINER_OB_EMPTY')
+            layout.operator("object.make_links_scene", text="Link Objects to Scene...")
         else:
             layout.operator_context = 'EXEC_REGION_WIN'
             layout.operator_menu_enum("object.make_links_scene", "scene", text="Link Objects to Scene")
@@ -9089,7 +9089,7 @@ class TOPBAR_PT_grease_pencil_vertex_color(Panel):
         row = layout.row(align=True)
         row.template_ID(paint, "palette", new="palette.new")
         if paint.palette:
-            layout.template_palette(paint, "palette", color=True)
+            layout.template_palette(paint, "palette")
 
         gp_settings = brush.gpencil_settings
         if brush.gpencil_brush_type in {'DRAW', 'FILL'}:
