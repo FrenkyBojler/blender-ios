@@ -66,6 +66,7 @@ Texture *GLTexturePool::acquire_texture_impl(int3 extent,
                                              eGPUTextureUsage usage,
                                              const char *name)
 {
+  usage |= GPU_TEXTURE_USAGE_FORMAT_VIEW;
   /* Determine format of compatible underlying texture. If there is no
    * compatible format to alias upon, we simply require an exact match
    * for the underlying texture. */
@@ -114,7 +115,7 @@ Texture *GLTexturePool::acquire_texture_impl(int3 extent,
     }
 
     Texture *texture = GPUBackend::get()->texture_alloc(texture_name_str.c_str());
-    texture->usage_set(usage | GPU_TEXTURE_USAGE_FORMAT_VIEW);
+    texture->usage_set(usage);
     bool texture_result = false;
     UNUSED_VARS_NDEBUG(texture_result);
     switch (type) {

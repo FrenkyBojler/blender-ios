@@ -347,6 +347,7 @@ Texture *VKTexturePool::acquire_texture_impl(int3 extent,
                                              eGPUTextureUsage usage,
                                              const char *name)
 {
+  usage |= GPU_TEXTURE_USAGE_FORMAT_VIEW;
   /* Determine actual mipmap depth. */
   int mip_len_max = 1 + floorf(log2f(max_iii(extent.x, extent.y, extent.z)));
   mip_len = min_ii(mip_len, mip_len_max);
