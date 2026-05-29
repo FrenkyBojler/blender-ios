@@ -2924,7 +2924,7 @@ static wmOperatorStatus unwrap_exec(bContext *C, wmOperator *op)
   int count_failed = 0;
 
   if (options.original_bounds) {
-    if (!uv_stitch_selected_islands(C)) {
+    if (!uv_stitch_selected_islands_for_original_bounds(scene, objects)) {
       BKE_report(op->reports, RPT_ERROR, "Could not initialize stitching");
       return OPERATOR_CANCELLED;
     }

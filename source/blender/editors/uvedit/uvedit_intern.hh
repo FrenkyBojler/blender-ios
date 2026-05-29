@@ -22,7 +22,6 @@ struct SpaceImage;
 struct ToolSettings;
 struct wmOperatorType;
 struct View2D;
-struct bContext;
 /* find nearest */
 
 struct UvNearestHit {
@@ -203,8 +202,13 @@ void UV_OT_custom_region_set(wmOperatorType *ot);
 /* Used only when UV sync select is disabled. */
 void UV_OT_select_mode(wmOperatorType *ot);
 
-/* Stitch selected UV islands together (used by the unwrap "Original Bounds"
- * option). Returns false if stitching could not be initialized. */
-bool uv_stitch_selected_islands(bContext *C);
+/**
+ * Stitch the selected UV islands together for the unwrap "Original Bounds" option.
+ * Uses a fixed configuration: vertex mode, snap islands, only selected UVs,
+ * ignore fully seam-bounded islands, no distance limit, and no draw preview.
+ *
+ * \return false if stitching could not be initialized.
+ */
+bool uv_stitch_selected_islands_for_original_bounds(const Scene *scene, Span<Object *> objects);
 
 }  // namespace blender

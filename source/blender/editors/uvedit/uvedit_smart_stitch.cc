@@ -954,7 +954,7 @@ static void stitch_validate_edge_stitchability(const int cd_loop_uv_offset,
   }
 }
 
-static void stitch_propagate_uv_final_position(Scene *scene,
+static void stitch_propagate_uv_final_position(const Scene *scene,
                                                UvElement *element,
                                                int index,
                                                PreviewPosition *preview_position,
@@ -1009,7 +1009,7 @@ static void stitch_propagate_uv_final_position(Scene *scene,
 /* main processing function. It calculates preview and final positions. */
 static int stitch_process_data(StitchStateContainer *ssc,
                                StitchState *state,
-                               Scene *scene,
+                               const Scene *scene,
                                int final)
 {
   int i;
@@ -1563,7 +1563,7 @@ static int stitch_process_data(StitchStateContainer *ssc,
   return 1;
 }
 
-static int stitch_process_data_all(StitchStateContainer *ssc, Scene *scene, int final)
+static int stitch_process_data_all(StitchStateContainer *ssc, const Scene *scene, int final)
 {
   for (uint ob_index = 0; ob_index < ssc->objects_len; ob_index++) {
     if (!stitch_process_data(ssc, ssc->states[ob_index], scene, final)) {
@@ -1903,7 +1903,7 @@ static UvEdge *uv_edge_get(BMLoop *l, StitchState *state)
   return static_cast<UvEdge *>(BLI_ghash_lookup(state->edge_hash, &tmp_edge));
 }
 
-static StitchState *stitch_init(bContext *C,
+static StitchState *stitch_init(const Scene *scene,
                                 StitchStateContainer *ssc,
                                 Object *obedit,
                                 const StitchModes stored_mode,
@@ -1922,7 +1922,6 @@ static StitchState *stitch_init(bContext *C,
   GHashIterator gh_iter;
   UvEdge *all_edges;
   StitchState *state;
-  Scene *scene = CTX_data_scene(C);
   ToolSettings *ts = scene->toolsettings;
 
   BMEditMesh *em = BKE_editmesh_from_object(obedit);
@@ -2298,16 +2297,10 @@ static StitchStateInit stitch_extract_rna_selection(wmOperator *op,
   return state_init;
 }
 
-static StitchStateContainer *stitch_operator_settings_init(bContext *C, wmOperator *op)
+static StitchStateContainer *stitch_settings_init_for_operator(const Span<Object *> objects,
+                                                               Scene *scene,
+                                                               wmOperator *op)
 {
-
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
-  View3D *v3d = CTX_wm_view3d(C);
-  Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
-      *bmain, scene, view_layer, v3d);
-
   if (objects.is_empty()) {
     BKE_report(op->reports, RPT_ERROR, "No objects selected");
     return nullptr;
@@ -2362,20 +2355,31 @@ static StitchStateContainer *stitch_operator_settings_init(bContext *C, wmOperat
   return ssc;
 }
 
-static int stitch_init_all(bContext *C,
+/**
+ * Fixed-configuration container for the unwrap "Original Bounds" option:
+ * vertex mode, snap islands, only selected UVs,
+ * ignore fully seam-bounded islands, no distance limit.
+ */
+static StitchStateContainer *stitch_settings_init_for_original_bounds()
+{
+  StitchStateContainer *ssc = MEM_new<StitchStateContainer>("stitch collection");
+  ssc->use_limit = false;
+  ssc->snap_islands = true;
+  ssc->midpoints = false;
+  ssc->clear_seams = false;
+  ssc->mode = STITCH_VERT;
+  ssc->only_selected_uvs = true;
+  ssc->ignore_seam_boundary = true;
+  return ssc;
+}
+
+static int stitch_init_all(const Scene *scene,
+                           Span<Object *> objects,
+                           ARegion *region,
                            StitchStateContainer *ssc,
                            const StitchModes stored_mode,
-                           const bool draw_preview,
                            wmOperator *op)
 {
-
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
-
-  ViewLayer *view_layer = CTX_data_view_layer(C);
-  View3D *v3d = CTX_wm_view3d(C);
-  Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
-      *bmain, scene, view_layer, v3d);
   if (objects.is_empty() || objects.size() > RNA_MAX_ARRAY_LENGTH) {
     return 0;
   }
@@ -2405,7 +2409,7 @@ static int stitch_init_all(bContext *C,
       to_select = Span<UvElementID>(state_init.selected_uvs + selection_offset, selected_count);
       selection_offset += selected_count;
     }
-    StitchState *stitch_state_ob = stitch_init(C, ssc, obedit, stored_mode, to_select);
+    StitchState *stitch_state_ob = stitch_init(scene, ssc, obedit, stored_mode, to_select);
 
     if (stitch_state_ob) {
       ssc->objects[ssc->objects_len] = obedit;
@@ -2440,12 +2444,10 @@ static int stitch_init_all(bContext *C,
   /* process active stitchobj again now that it can detect it's the active stitchobj */
   stitch_process_data(ssc, state, scene, false);
 
-  stitch_update_header(ssc, C);
-
-  /* A region is only needed to draw the interactive preview overlay below.
-   * The stitch itself works without one. When null the previous is skipped, not an error. */
-  ARegion *region = CTX_wm_region(C);
-  if (draw_preview && region) {
+  /* A region is only needed to draw the interactive preview overlay. The stitch
+   * itself works without one; a null region (e.g. unwrap's internal stitch)
+   * just skips the overlay, it is not an error. */
+  if (region) {
     ssc->draw_handle = ED_region_draw_cb_activate(
         region->runtime->type, stitch_draw, ssc, REGION_DRAW_POST_VIEW);
   }
@@ -2453,22 +2455,12 @@ static int stitch_init_all(bContext *C,
   return 1;
 }
 
-/* Stitch the selected UV islands together for the unwrap "Original Bounds"
- * option. Uses a fixed configuration: vertex mode, snap islands, only
- * selected UVs, ignore fully seam-bounded islands, no distance limit, and no
- * draw preview. Returns false if stitching could not be initialized. */
-bool uv_stitch_selected_islands(bContext *C)
+bool uv_stitch_selected_islands_for_original_bounds(const Scene *scene, Span<Object *> objects)
 {
-  Scene *scene = CTX_data_scene(C);
-  StitchStateContainer *ssc = MEM_new<StitchStateContainer>("stitch collection");
-  ssc->use_limit = false;
-  ssc->snap_islands = true;
-  ssc->midpoints = false;
-  ssc->clear_seams = false;
-  ssc->mode = STITCH_VERT;
-  ssc->only_selected_uvs = true;
-  ssc->ignore_seam_boundary = true;
-  if (!stitch_init_all(C, ssc, STITCH_VERT, false, nullptr)) {
+  StitchStateContainer *ssc = stitch_settings_init_for_original_bounds();
+  /* Non-interactive: no region (no preview overlay) and no operator
+   * (no stored selection to restore). */
+  if (!stitch_init_all(scene, objects, nullptr, ssc, STITCH_VERT, nullptr)) {
     MEM_delete(ssc);
     return false;
   }
@@ -2479,19 +2471,28 @@ bool uv_stitch_selected_islands(bContext *C)
 
 static wmOperatorStatus stitch_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
-  StitchStateContainer *ssc = stitch_operator_settings_init(C, op);
+  Scene *scene = CTX_data_scene(C);
+  const Vector<Object *> objects =
+      BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
+          *CTX_data_main(C), scene, CTX_data_view_layer(C), CTX_wm_view3d(C));
 
-  if (!ssc ||
-      !stitch_init_all(C, ssc, (StitchModes)RNA_enum_get(op->ptr, "stored_mode"), true, op))
+  StitchStateContainer *ssc = stitch_settings_init_for_operator(objects, scene, op);
+
+  if (!ssc || !stitch_init_all(scene,
+                               objects,
+                               CTX_wm_region(C),
+                               ssc,
+                               (StitchModes)RNA_enum_get(op->ptr, "stored_mode"),
+                               op))
   {
     MEM_SAFE_DELETE(ssc);
     op->customdata = nullptr;
     return OPERATOR_CANCELLED;
   }
+  stitch_update_header(ssc, C);
 
   WM_event_add_modal_handler(C, op);
 
-  Scene *scene = CTX_data_scene(C);
   ToolSettings *ts = scene->toolsettings;
   const bool synced_selection = (ts->uv_flag & UV_FLAG_SELECT_SYNC) != 0;
 
@@ -2602,15 +2603,23 @@ static void stitch_cancel(bContext *C, wmOperator *op)
 static wmOperatorStatus stitch_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
+  const Vector<Object *> objects =
+      BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
+          *CTX_data_main(C), scene, CTX_data_view_layer(C), CTX_wm_view3d(C));
 
-  StitchStateContainer *ssc = stitch_operator_settings_init(C, op);
-  if (!ssc ||
-      !stitch_init_all(C, ssc, (StitchModes)RNA_enum_get(op->ptr, "stored_mode"), true, op))
+  StitchStateContainer *ssc = stitch_settings_init_for_operator(objects, scene, op);
+  if (!ssc || !stitch_init_all(scene,
+                               objects,
+                               CTX_wm_region(C),
+                               ssc,
+                               (StitchModes)RNA_enum_get(op->ptr, "stored_mode"),
+                               op))
   {
     MEM_SAFE_DELETE(ssc);
     op->customdata = nullptr;
     return OPERATOR_CANCELLED;
   }
+  stitch_update_header(ssc, C);
   if (stitch_process_data_all(static_cast<StitchStateContainer *>(op->customdata), scene, 1)) {
     stitch_exit(C, op, 1);
     return OPERATOR_FINISHED;
