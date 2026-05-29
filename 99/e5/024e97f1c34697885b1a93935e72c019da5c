@@ -7,3 +7,4 @@ Referenced by issue #107427, Fix #107422: Mesh context menus do not open with th
 Referenced by issue #107422, Regression: Mesh edit context menus do not open with the last used option under the cursor
 Referenced by issue #102333, Regression: Context based keyboard shortcuts missing in enum menus
 Referenced by issue #102242, Regression: Underline shortcut keys not working/appearing in sub-menu
+Referenced by pull request #159303, UI: Support refreshing sub-menus
