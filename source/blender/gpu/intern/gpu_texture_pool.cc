@@ -107,6 +107,8 @@ Texture *TexturePoolImpl::acquire_texture_impl(int3 extent,
   UNUSED_VARS_NDEBUG(init_result);
   BLI_assert(init_result);
 
+  BLI_assert(handle.texture->usage_get() == usage);
+
   acquired_.add(handle);
   return handle.texture;
 }  // namespace blender::gpu
