@@ -131,7 +131,11 @@ double BKE_unit_value_scale(const UnitSettings &settings, int unit_type, double 
 void BKE_unit_system_get(int system, int type, const void **r_usys_pt, int *r_len);
 int BKE_unit_base_get(const void *usys_pt);
 int BKE_unit_base_of_type_get(int system, int type);
-int BKE_unit_of_type_or_default(const UnitSettings &settings, int type);
+/**
+ * Gets the preffered units of this type if available otherwise returns the
+ * base unit using `BKE_unit_base_of_type_get`.
+ */
+int BKE_preffered_unit_of_type_or_base_get(const UnitSettings &settings, int type);
 const char *BKE_unit_name_get(const void *usys_pt, int index);
 const char *BKE_unit_display_name_get(const void *usys_pt, int index);
 const char *BKE_unit_display_name_short_get(const void *usys_pt, int index);

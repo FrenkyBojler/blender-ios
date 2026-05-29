@@ -2596,7 +2596,7 @@ int BKE_unit_base_of_type_get(int system, int type)
   return unit_get_system(system, type)->base_unit;
 }
 
-int BKE_unit_of_type_or_default(const UnitSettings &settings, int type)
+int BKE_preffered_unit_of_type_or_base_get(const UnitSettings &settings, int type)
 {
   PreferredUnits units = preferred_units_from_UnitSettings(settings);
   const int unit_index = get_preferred_display_unit_index_if_used(type, units);

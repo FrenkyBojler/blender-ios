@@ -3709,7 +3709,7 @@ static void button_edit_unit_hint(bContext *C, Button *but, HandleButtonData *da
     int len;
     UnitSettings &unit_settings = CTX_data_scene(C)->unit;
     BKE_unit_system_get(unit_settings.system, unit_type, &usys, &len);
-    const int unit_index = BKE_unit_of_type_or_default(unit_settings, unit_type);
+    const int unit_index = BKE_preffered_unit_of_type_or_base_get(unit_settings, unit_type);
     name_short = BKE_unit_display_name_short_get(usys, unit_index);
     BLI_assert(!name_short.empty());
   }
