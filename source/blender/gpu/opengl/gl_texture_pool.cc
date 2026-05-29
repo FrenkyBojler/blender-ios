@@ -91,6 +91,9 @@ Texture *GLTexturePool::acquire_texture_impl(int3 extent,
       /* TODO(not_mark): sub-view on mip levels. */
       continue;
     }
+    if (handle.texture->usage_get() != usage) {
+      continue;
+    }
     match_index = i;
     break;
   }
