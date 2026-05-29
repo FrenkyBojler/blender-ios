@@ -3715,9 +3715,8 @@ static void button_edit_unit_hint_refresh(bContext *C, Button *but, HandleButton
       return;
     }
 
-    /* If the number we're entering is not valid, don't show the hint. */
-    double value;
-    if (!BPY_run_string_as_number(C, nullptr, data->text_edit.edit_string, nullptr, &value)) {
+    /* If the expression we're entering is not valid, don't show the hint. */
+    if (!BPY_check_string_eval(C, data->text_edit.edit_string)) {
       data->text_edit_unit_hint.clear();
       return;
     }
@@ -3742,9 +3741,8 @@ static void button_edit_unit_hint_refresh(bContext *C, Button *but, HandleButton
       return;
     }
 
-    /* If the number we're entering is not valid, don't show the hint. */
-    double value;
-    if (!BPY_run_string_as_number(C, nullptr, data->text_edit.edit_string, nullptr, &value)) {
+    /* If the expression we're entering is not valid, don't show the hint. */
+    if (!BPY_check_string_eval(C, data->text_edit.edit_string)) {
       data->text_edit_unit_hint.clear();
       return;
     }
