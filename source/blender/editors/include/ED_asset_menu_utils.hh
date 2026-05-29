@@ -30,8 +30,6 @@ struct Layout;
 
 namespace ed::asset {
 
-constexpr StringRef DOWNLOAD_HINT = "Right click to download";
-
 void draw_menu_for_catalog(const asset_system::AssetCatalogTreeItem &item,
                            StringRefNull menu_name,
                            ui::Layout &layout);
