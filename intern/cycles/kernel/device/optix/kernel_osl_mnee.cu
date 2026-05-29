@@ -7,6 +7,11 @@
 #include "kernel/device/optix/compat.h"
 #include "kernel/device/optix/globals.h"
 
+/* Unlike SVM, OSL does not pull in ray-tracing and path state headers, so include
+ * them explicitly for MNEE. */
+#include "kernel/bvh/bvh.h"
+#include "kernel/integrator/path_state.h"
+
 #include "kernel/integrator/intersect_mnee.h"
 
 extern "C" __global__ void __raygen__kernel_optix_integrator_intersect_mnee()

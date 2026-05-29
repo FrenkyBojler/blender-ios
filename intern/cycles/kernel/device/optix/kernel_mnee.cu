@@ -5,6 +5,8 @@
 #include "kernel/device/optix/compat.h"
 #include "kernel/device/optix/globals.h"
 
+#include "kernel/device/gpu/image.h" /* Texture lookup uses normal CUDA intrinsics. */
+
 #include "kernel/integrator/intersect_mnee.h"
 
 extern "C" __global__ void __raygen__kernel_optix_integrator_intersect_mnee()

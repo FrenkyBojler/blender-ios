@@ -11,6 +11,10 @@
 #include "kernel/device/optix/compat.h"
 #include "kernel/device/optix/globals.h"
 
+/* Unlike shade_surface.h, shade_volume.h does not include data_passes.h, which is
+ * needed by denoising_passes.h for camera and motion vector functions. */
+#include "kernel/film/data_passes.h"
+
 #include "kernel/integrator/shade_volume.h"
 
 extern "C" __global__ void __raygen__kernel_optix_integrator_shade_volume()

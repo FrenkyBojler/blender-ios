@@ -5,6 +5,8 @@
 #include "kernel/device/optix/compat.h"
 #include "kernel/device/optix/globals.h"
 
+#include "kernel/device/gpu/image.h" /* Texture lookup uses normal CUDA intrinsics. */
+
 #include "kernel/integrator/shade_surface.h"
 
 extern "C" __global__ void __raygen__kernel_optix_integrator_shade_surface_raytrace()
