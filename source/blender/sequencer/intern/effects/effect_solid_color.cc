@@ -60,10 +60,8 @@ static SeqResult do_solid_color(const RenderData *context,
                               (cv->flag & SEQ_COLOR_USE_ABSOLUTE_HEIGHT) ?
                                   cv->height_abs :
                                   int(cv->height / 100.0f * context->recty));
-  RenderData sized_context = *context;
-  sized_context.rectx = width;
-  sized_context.recty = height;
-  SeqResult out = prepare_effect_imbufs(&sized_context, {}, {});
+  SeqResult out;
+  out.image = IMB_allocImBuf(width, height, ImBufFlags::ByteData);
 
   uchar color[4];
   rgb_float_to_uchar(color, cv->col);
