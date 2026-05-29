@@ -27,7 +27,12 @@ namespace animrig {
 Vector<float> get_rna_values(PointerRNA *ptr, PropertyRNA *prop);
 
 /** Get the rna path for the given rotation mode. */
-StringRef get_rotation_mode_path(eRotationModes rotation_mode);
+StringRefNull get_rotation_mode_path(eRotationModes rotation_mode);
+
+/**
+ * Returns the full pose bone rna path. For example "pose.bones["bone_name"]".
+ */
+std::string get_pose_bone_rna_path(const bPoseChannel &pose_bone);
 
 /**
  * Given an RNA path to a rotation property, return the corresponding rotation mode.
@@ -73,10 +78,9 @@ Vector<RNAPath> get_keyable_id_property_paths(const PointerRNA &ptr);
 Array<float> rna_property_get_as_float(PointerRNA &ptr, PropertyRNA &prop);
 
 /**
- * Sets the given property to the given `values. The size of values has to match the property array
- * length. In case the property is not an array, only the first index is used.
- * This is an abstraction around RNA properties to deal with them as float regardless of their
- * actual type.
+ * Sets the given property to the given `values`. The size of values has to match the property
+ * array length. In case the property is not an array, only the first index is used. This is an
+ * abstraction around RNA properties to deal with them as float regardless of their actual type.
  *
  * \note Only PROP_BOOLEAN, PROP_INT and PROP_FLOAT are supported.
  */
