@@ -3676,7 +3676,7 @@ std::optional<StringRef> button_edit_unit_hint_get(Button &but)
   return data->text_edit_unit_hint;
 }
 
-static void button_edit_unit_hint(bContext *C, Button *but, HandleButtonData *data)
+static void button_edit_unit_hint_refresh(bContext *C, Button *but, HandleButtonData *data)
 {
   /* Unit completion (hint) is only done for buttons with a unit or with a property of type
    * PROP_PIXEL or PROP_PERCENTAGE. For everything else, we reset the completion to an empty
@@ -3879,7 +3879,7 @@ static void textedit_begin(bContext *C, Button *but, HandleButtonData *data)
   button_update(but);
 
   /* Set the edit unit hint if needed. */
-  button_edit_unit_hint(C, but, data);
+  button_edit_unit_hint_refresh(C, but, data);
 
   /* Make sure the edited button is in view. */
   if (data->searchbox) {
@@ -4511,7 +4511,7 @@ static int do_but_textedit(
       textedit_undo_push(text_edit.undo_stack_text, text_edit.edit_string, but->pos);
     }
 
-    button_edit_unit_hint(C, but, data);
+    button_edit_unit_hint_refresh(C, but, data);
 
     /* only do live update when but flag request it (BUT_TEXTEDIT_UPDATE). */
     if (update && data->interactive) {
