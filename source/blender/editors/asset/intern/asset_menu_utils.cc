@@ -166,9 +166,9 @@ void draw_node_menu_for_catalog(const asset_system::AssetCatalogTreeItem &item,
   col.menu(menu_name, IFACE_(item.get_name()), ICON_NONE);
 }
 
-void draw_online_asset_menu(const asset_system::AssetRepresentation *asset,
-                            StringRefNull opname,
-                            ui::Layout &layout)
+void draw_online_asset_menu_item(const asset_system::AssetRepresentation *asset,
+                                 StringRefNull opname,
+                                 ui::Layout &layout)
 {
   ui::Layout &row = layout.row(true);
   PointerRNA asset_ptr = RNA_pointer_create_discrete(

@@ -118,7 +118,7 @@ static void catalog_assets_draw(const bContext *C, Menu *menu)
     ensure_separator();
 
     // todo(habib): test with online library
-    asset::draw_online_asset_menu(asset, "OBJECT_OT_modifier_add_node_group", layout);
+    asset::draw_online_asset_menu_item(asset, "OBJECT_OT_modifier_add_node_group", layout);
   }
 
   catalog_item->foreach_child([&](const asset_system::AssetCatalogTreeItem &item) {

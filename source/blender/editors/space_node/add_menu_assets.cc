@@ -200,7 +200,7 @@ static void node_catalog_assets_draw(const bContext *C, Menu *menu)
       add_separator = false;
     }
 
-    ed::asset::draw_online_asset_menu(asset, *operator_id, *layout);
+    ed::asset::draw_online_asset_menu_item(asset, *operator_id, *layout);
   }
 
   const Set<StringRef> all_builtin_menus = get_builtin_menus(edit_tree->type);
