@@ -2015,6 +2015,123 @@ actionconfig_data = [
                     },
                 ),
                 (
+                    "viewfinder_swap_hands",
+                    {
+                        "type": "FLOAT",
+                        "user_paths": ["/user/hand/left", "/user/hand/right"],
+                        "op": "view3d.vr_location_scouting_viewfinder_swap_hands",
+                        "op_mode": "PRESS",
+                        "bimanual": "False",
+                        "haptic_name": "haptic",
+                        "haptic_match_user_paths": "True",
+                        "haptic_duration": "0.3",
+                        "haptic_frequency": "3000.0",
+                        "haptic_amplitude": "0.5",
+                        "haptic_mode": "PRESS",
+                    },
+                    {"op_properties": []},
+                    {
+                        "bindings": [
+                            (
+                                "huawei",
+                                {
+                                    "profile": "/interaction_profiles/huawei/controller",
+                                    "component_paths": [
+                                        "/input/trackpad/click",
+                                        "/input/trackpad/click",
+                                    ],
+                                    "threshold": "0.3",
+                                    "axis_region": "ANY",
+                                },
+                            ),
+                            (
+                                "index",
+                                {
+                                    "profile": "/interaction_profiles/valve/index_controller",
+                                    "component_paths": [
+                                        "/input/thumbstick/click",
+                                        "/input/thumbstick/click",
+                                    ],
+                                    "threshold": "0.3",
+                                    "axis_region": "ANY",
+                                },
+                            ),
+                            (
+                                "oculus",
+                                {
+                                    "profile": "/interaction_profiles/oculus/touch_controller",
+                                    "component_paths": [
+                                        "/input/thumbstick/click",
+                                        "/input/thumbstick/click",
+                                    ],
+                                    "threshold": "0.3",
+                                    "axis_region": "ANY",
+                                },
+                            ),
+                            (
+                                "reverb_g2",
+                                {
+                                    "profile": "/interaction_profiles/hp/mixed_reality_controller",
+                                    "component_paths": [
+                                        "/input/thumbstick/click",
+                                        "/input/thumbstick/click",
+                                    ],
+                                    "threshold": "0.3",
+                                    "axis_region": "ANY",
+                                },
+                            ),
+                            (
+                                "vive",
+                                {
+                                    "profile": "/interaction_profiles/htc/vive_controller",
+                                    "component_paths": [
+                                        "/input/trackpad/click",
+                                        "/input/trackpad/click",
+                                    ],
+                                    "threshold": "0.3",
+                                    "axis_region": "ANY",
+                                },
+                            ),
+                            (
+                                "vive_cosmos",
+                                {
+                                    "profile": "/interaction_profiles/htc/vive_cosmos_controller",
+                                    "component_paths": [
+                                        "/input/thumbstick/click",
+                                        "/input/thumbstick/click",
+                                    ],
+                                    "threshold": "0.3",
+                                    "axis_region": "ANY",
+                                },
+                            ),
+                            (
+                                "vive_focus",
+                                {
+                                    "profile": "/interaction_profiles/htc/vive_focus3_controller",
+                                    "component_paths": [
+                                        "/input/thumbstick/click",
+                                        "/input/thumbstick/click",
+                                    ],
+                                    "threshold": "0.3",
+                                    "axis_region": "ANY",
+                                },
+                            ),
+                            (
+                                "wmr",
+                                {
+                                    "profile": "/interaction_profiles/microsoft/motion_controller",
+                                    "component_paths": [
+                                        "/input/thumbstick/click",
+                                        "/input/thumbstick/click",
+                                    ],
+                                    "threshold": "0.3",
+                                    "axis_region": "ANY",
+                                },
+                            ),
+                        ],
+                    },
+                ),
+                (
                     "haptic",
                     {
                         "type": "VIBRATION",

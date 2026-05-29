@@ -310,7 +310,7 @@ def xr_event_match_viewfinder_hand(xr_event, xr_settings):
 class VIEW3D_OT_vr_location_scouting_viewfinder_capture(Operator):
     bl_idname = "view3d.vr_location_scouting_viewfinder_capture"
     bl_label = "Viewfinder Capture"
-    bl_description = "Create a VR Capture from the Location Scouting Viewfinder pose and mark it as selected"
+    bl_description = "Create a VR Capture from the Viewfinder pose and mark it as selected"
     bl_options = {'UNDO', 'INTERNAL'}
 
     @classmethod
@@ -626,6 +626,33 @@ class VIEW3D_OT_vr_location_scouting_viewfinder_cycle_action(Operator):
 
         axis_value = xr_event.state[0]
         self.cycle_left = axis_value <= 0
+
+        return self.execute(context)
+
+
+class VIEW3D_OT_vr_location_scouting_viewfinder_swap_hands(Operator):
+    bl_idname = "view3d.vr_location_scouting_viewfinder_swap_hands"
+    bl_label = "Viewfinder Sawp Hands"
+    bl_description = "Swap user hand used to hold the Viewfinder"
+    bl_options = {'INTERNAL'}
+
+    def execute(self, context):
+        xr_settings = context.window_manager.xr_session_settings
+
+        viewfinder_hand_rna_prop = xr_settings.rna_type.properties['viewfinder_hand']
+        enum_values = viewfinder_hand_rna_prop.enum_items.keys()
+        current_hand_idx = enum_values.index(xr_settings.viewfinder_hand)
+
+        xr_settings.viewfinder_hand = enum_values[(current_hand_idx + 1) % len(enum_values)]
+
+        return {'FINISHED'}
+
+    def invoke(self, context, event):
+        xr_event = event.xr
+        xr_settings = context.window_manager.xr_session_settings
+
+        if not xr_event_match_viewfinder_hand(xr_event, xr_settings):
+            return {'CANCELLED'}
 
         return self.execute(context)
 
@@ -1125,6 +1152,7 @@ classes = (
     VIEW3D_OT_vr_location_scouting_browse_captures,
     VIEW3D_OT_vr_location_scouting_viewfinder_cycle_mode,
     VIEW3D_OT_vr_location_scouting_viewfinder_cycle_action,
+    VIEW3D_OT_vr_location_scouting_viewfinder_swap_hands,
 
     VIEW3D_GT_vr_camera_cone,
     VIEW3D_GT_vr_controller_grip,
