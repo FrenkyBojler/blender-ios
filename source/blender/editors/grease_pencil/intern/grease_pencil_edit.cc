@@ -5104,7 +5104,7 @@ static wmOperatorStatus grease_pencil_set_stroke_type_exec(bContext *C, wmOperat
     switch (type) {
       case StrokeType::Stroke: {
         index_mask::masked_fill(hide_stroke.span, false, strokes);
-        index_mask::masked_fill(fill_ids.span, 0, strokes);
+        index_mask::masked_fill(fill_ids.span, 0, strokes);  // other number?
         break;
       }
       case StrokeType::Fill: {
@@ -5128,8 +5128,8 @@ static wmOperatorStatus grease_pencil_set_stroke_type_exec(bContext *C, wmOperat
     fill_ids.finish();
 
     if (type == StrokeType::Stroke) {
-      if (std::all_of(fill_ids.span.begin(), fill_ids.span.end(), [&](const int64_t i) {
-            return fill_ids.span[i] == 0;
+      if (std::all_of(fill_ids.span.begin(), fill_ids.span.end(), [&](const int64_t fill_id) {
+            return fill_id == 0;
           }))
       {
         /* Remove #fill_id attribute if there are no fills left. */
