@@ -1702,7 +1702,7 @@ actionconfig_data = [
                         "haptic_amplitude": "0.0",
                         "haptic_mode": "PRESS",
                     },
-                    {},
+                    {"op_properties": []},
                     {
                         "bindings": [
                             (
