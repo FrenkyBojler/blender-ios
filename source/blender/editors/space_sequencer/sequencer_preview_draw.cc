@@ -114,8 +114,6 @@ void special_preview_clear()
 
 ImBuf *sequencer_ibuf_get(const bContext *C, const int timeline_frame, const char *viewname)
 {
-  BLI_profile_scope(ProfileCategory::Draw);
-
   Main *bmain = CTX_data_main(C);
   ARegion *region = CTX_wm_region(C);
   Depsgraph *depsgraph = CTX_data_expect_evaluated_depsgraph(C);
@@ -919,7 +917,7 @@ static void update_gpu_scopes(const ImBuf *input_ibuf,
                               Scene *scene,
                               int timeline_frame)
 {
-  BLI_profile_scope(ProfileCategory::Draw);
+  BLI_profile_scope_with_name("SeqUpdateGPUScopes", ProfileCategory::Draw);
   BLI_assert(input_ibuf && input_texture);
 
   /* Display space GPU texture is already calculated. */
@@ -997,7 +995,7 @@ static void update_cpu_scopes(const SpaceSeq &space_sequencer,
     return;
   }
 
-  BLI_profile_scope(ProfileCategory::Draw);
+  BLI_profile_scope_with_name("SeqUpdateCPUScopes", ProfileCategory::Draw);
 
   scopes.cleanup();
   if (space_sequencer.mainb == SEQ_DRAW_IMG_HISTOGRAM) {
@@ -1540,7 +1538,7 @@ static int get_reference_frame_offset(const Editing &editing, const RenderData &
  * If channel configuration is incompatible with the texture nullptr is returned. */
 static gpu::Texture *create_texture(const ImBuf &ibuf)
 {
-  BLI_profile_scope(ProfileCategory::Draw);
+  BLI_profile_scope_with_name("SeqPreviewCreateTexture", ProfileCategory::Draw);
   const eGPUTextureUsage texture_usage = GPU_TEXTURE_USAGE_SHADER_READ |
                                          GPU_TEXTURE_USAGE_ATTACHMENT;
 
@@ -1620,7 +1618,6 @@ static void sequencer_preview_draw_color_render(const SpaceSeq &space_sequencer,
                                                 const ImBuf *reference_ibuf,
                                                 gpu::Texture *reference_texture)
 {
-  BLI_profile_scope(ProfileCategory::Draw);
   preview_draw_color_render_begin(region);
 
   if (current_texture) {
@@ -1677,7 +1674,6 @@ static void sequencer_preview_draw_overlays(const bContext *C,
                                             const ImBuf *input_ibuf,
                                             const int timeline_frame)
 {
-  BLI_profile_scope(ProfileCategory::Draw);
   const bool is_playing = ED_screen_animation_playing(&wm);
   const bool show_preview_image = space_sequencer.mainb == SEQ_DRAW_IMG_IMBUF;
   const bool has_cpu_scope = input_ibuf && space_sequencer.mainb == SEQ_DRAW_IMG_HISTOGRAM;
@@ -1834,7 +1830,7 @@ void sequencer_preview_region_draw(const bContext *C, ARegion *region)
     return;
   }
 
-  BLI_profile_scope(ProfileCategory::Draw);
+  BLI_profile_scope_with_name("SeqPreviewDraw", ProfileCategory::Draw);
 
   const Editing &editing = *scene->ed;
   const RenderData &render_data = scene->r;

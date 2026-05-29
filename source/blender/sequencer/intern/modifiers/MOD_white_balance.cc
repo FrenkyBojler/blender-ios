@@ -67,7 +67,7 @@ struct WhiteBalanceApplyOp {
 
 static void whiteBalance_apply(ModifierApplyContext &context, StripModifierData *smd)
 {
-  BLI_profile_scope(ProfileCategory::Draw);
+  BLI_profile_scope_with_name("SeqModWhiteBalance", ProfileCategory::Draw);
   ensure_ibuf_is_sequencer_space(context.render_data.scene, context.image, false);
   ImBuf *mask = modifier_render_mask_input(context, *smd);
 

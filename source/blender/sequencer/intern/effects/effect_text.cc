@@ -1077,7 +1077,7 @@ static SeqResult do_text_effect(const RenderData *context,
                                 const SeqResult & /*ibuf1*/,
                                 const SeqResult & /*ibuf2*/)
 {
-  BLI_profile_scope(ProfileCategory::Draw);
+  BLI_profile_scope_with_name("SeqFxText", ProfileCategory::Draw);
   /* NOTE: text rasterization only fills in part of output image,
    * need to clear it. */
   SeqResult out = prepare_effect_imbufs(context, {}, {}, false);

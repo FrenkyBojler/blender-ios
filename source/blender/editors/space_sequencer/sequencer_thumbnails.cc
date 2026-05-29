@@ -419,7 +419,7 @@ void draw_strip_thumbnails(const TimelineDrawContext &ctx,
     return;
   }
 
-  BLI_profile_scope(ProfileCategory::Draw);
+  BLI_profile_scope_with_name("SeqTimelineThumbs", ProfileCategory::Draw);
 
   /* Gather information for all thumbnails. */
   Vector<SeqThumbInfo> thumbs;

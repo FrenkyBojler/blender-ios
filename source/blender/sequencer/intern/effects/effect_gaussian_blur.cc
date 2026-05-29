@@ -137,7 +137,7 @@ static SeqResult do_gaussian_blur_effect(const RenderData *context,
                                          const SeqResult &ibuf1,
                                          const SeqResult & /*ibuf2*/)
 {
-  BLI_profile_scope(ProfileCategory::Draw);
+  BLI_profile_scope_with_name("SeqFxBlur", ProfileCategory::Draw);
   /* Create blur kernel weights. */
   const GaussianBlurVars *data = static_cast<const GaussianBlurVars *>(strip->effectdata);
 

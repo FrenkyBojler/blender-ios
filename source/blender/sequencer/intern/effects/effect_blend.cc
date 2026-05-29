@@ -84,7 +84,7 @@ static SeqResult do_alphaover_effect(const RenderData *context,
                                      const SeqResult &src1,
                                      const SeqResult &src2)
 {
-  BLI_profile_scope(ProfileCategory::Draw);
+  BLI_profile_scope_with_name("SeqFxOver", ProfileCategory::Draw);
   SeqResult dst = prepare_effect_imbufs(context, src1, src2);
   AlphaOverEffectOp op;
   op.factor = fac;
@@ -135,7 +135,7 @@ static SeqResult do_alphaunder_effect(const RenderData *context,
                                       const SeqResult &src1,
                                       const SeqResult &src2)
 {
-  BLI_profile_scope(ProfileCategory::Draw);
+  BLI_profile_scope_with_name("SeqFxUnder", ProfileCategory::Draw);
   SeqResult dst = prepare_effect_imbufs(context, src1, src2);
   AlphaUnderEffectOp op;
   op.factor = fac;
@@ -337,7 +337,7 @@ static SeqResult do_blend_mode_effect(const RenderData *context,
                                       const SeqResult &src1,
                                       const SeqResult &src2)
 {
-  BLI_profile_scope(ProfileCategory::Draw);
+  BLI_profile_scope_with_name("SeqFxBlend", ProfileCategory::Draw);
   SeqResult dst = prepare_effect_imbufs(context, src1, src2);
   BlendModeEffectOp op;
   op.factor = fac;
@@ -373,7 +373,7 @@ static SeqResult do_colormix_effect(const RenderData *context,
                                     const SeqResult &src1,
                                     const SeqResult &src2)
 {
-  BLI_profile_scope(ProfileCategory::Draw);
+  BLI_profile_scope_with_name("SeqFxColorMix", ProfileCategory::Draw);
   SeqResult dst = prepare_effect_imbufs(context, src1, src2);
   const ColorMixVars *data = static_cast<const ColorMixVars *>(strip->effectdata);
   BlendModeEffectOp op;

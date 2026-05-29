@@ -33,7 +33,7 @@ static SeqResult do_multicam(const RenderData *context,
                              const SeqResult & /*ibuf1*/,
                              const SeqResult & /*ibuf2*/)
 {
-  BLI_profile_scope(ProfileCategory::Draw);
+  BLI_profile_scope_with_name("SeqFxMultiCam", ProfileCategory::Draw);
   if (strip->multicam_source == 0 || strip->multicam_source >= strip->channel) {
     return {};
   }
