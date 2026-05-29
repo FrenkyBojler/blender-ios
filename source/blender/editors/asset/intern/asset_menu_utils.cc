@@ -45,8 +45,6 @@ void operator_asset_reference_props_register(StructRNA &srna)
   prop = RNA_def_string(
       &srna, "relative_asset_identifier", nullptr, 0, "Relative Asset Identifier", "");
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
-  prop = RNA_def_boolean(&srna, "is_online_asset", false, "Is Online", "");
-  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 }
 
 void operator_asset_reference_props_set(const asset_system::AssetRepresentation &asset,
@@ -56,15 +54,13 @@ void operator_asset_reference_props_set(const asset_system::AssetRepresentation 
   RNA_enum_set(&ptr, "asset_library_type", weak_ref.asset_library_type);
   RNA_string_set(&ptr, "asset_library_identifier", weak_ref.asset_library_identifier);
   RNA_string_set(&ptr, "relative_asset_identifier", weak_ref.relative_asset_identifier);
-  RNA_boolean_set(&ptr, "is_online_asset", asset.is_online_only());
 }
 
 bool operator_asset_reference_props_is_set(PointerRNA &ptr)
 {
   return RNA_struct_property_is_set(&ptr, "asset_library_type") &&
          RNA_struct_property_is_set(&ptr, "asset_library_identifier") &&
-         RNA_struct_property_is_set(&ptr, "relative_asset_identifier") &&
-         RNA_struct_property_is_set(&ptr, "is_online_asset");
+         RNA_struct_property_is_set(&ptr, "relative_asset_identifier");
 }
 
 /**

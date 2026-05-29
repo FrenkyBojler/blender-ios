@@ -14,6 +14,8 @@
 
 #include "DNA_screen_types.h"
 
+#include "AS_asset_representation.hh"
+
 #include "BLI_fileops.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string_utf8.h"
@@ -1032,8 +1034,8 @@ bool popup_context_menu_for_button(bContext *C, Button *but, const wmEvent *even
 
   /* Download online assets. */
   if (but->optype && but->opptr && ed::asset::operator_asset_reference_props_is_set(*but->opptr)) {
-    PropertyRNA *prop = RNA_struct_find_property(but->opptr, "is_online_asset");
-    if (prop && RNA_property_boolean_get(but->opptr, prop)) {
+    const asset_system::AssetRepresentation *asset = CTX_wm_asset(C);
+    if (asset && asset->is_online_only()) {
       layout.op("ASSET_OT_assets_download", {}, ICON_NONE);
     }
   }
