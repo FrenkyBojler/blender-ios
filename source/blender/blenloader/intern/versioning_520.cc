@@ -40,6 +40,7 @@
 #include "BKE_node_runtime.hh"
 #include "BKE_report.hh"
 
+#include "SEQ_effects.hh"
 #include "SEQ_iterator.hh"
 #include "SEQ_sequencer.hh"
 
@@ -285,6 +286,43 @@ static void version_text_strip_space_line(Main &bmain)
       if (strip->type == STRIP_TYPE_TEXT && strip->effectdata != nullptr) {
         TextVars *data = static_cast<TextVars *>(strip->effectdata);
         data->space_line = 1.0f;
+      }
+      return true;
+    });
+  }
+}
+
+static void version_compositor_effect_initialized(Main &bmain)
+{
+  /* A file with compositor effects that was saved, opened in
+   * previous version and saved there, would have lost the
+   * compositor effect data since ealier versions would not
+   * write it. Ensure the effect data is not null. */
+  for (Scene &scene : bmain.scenes) {
+    if (scene.ed) {
+      seq::foreach_strip(&scene.ed->seqbase, [&](Strip *strip) {
+        if (strip->type == STRIP_TYPE_COMPOSITOR) {
+          seq::effect_ensure_initialized(strip);
+        }
+        return true;
+      });
+    }
+  }
+}
+
+static void version_text_strip_abs_space_line(Main &bmain)
+{
+  for (Scene &scene : bmain.scenes) {
+    Editing *ed = seq::editing_get(&scene);
+    if (ed == nullptr) {
+      continue;
+    }
+
+    seq::foreach_strip(&ed->seqbase, [&](Strip *strip) {
+      if (strip->type == STRIP_TYPE_TEXT && strip->effectdata != nullptr) {
+        TextVars *data = static_cast<TextVars *>(strip->effectdata);
+        data->abs_space_line = 60.0f;
+        data->flag &= ~SEQ_TEXT_USE_ABSOLUTE_LINE_SPACING;
       }
       return true;
     });
@@ -706,6 +744,7 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 28)) {
     version_text_strip_space_line(*bmain);
+    version_compositor_effect_initialized(*bmain);
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 29)) {
@@ -755,7 +794,20 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     }
   }
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 36)) {
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 37)) {
+    version_text_strip_abs_space_line(*bmain);
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 38)) {
+    for (Brush &brush : bmain->brushes) {
+      if (brush.gpencil_settings != nullptr) {
+        brush.gpencil_settings->fill_gap_factor = 0.4f;
+        brush.gpencil_settings->flag |= GP_BRUSH_FILL_INTERNAL_GAPS;
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 39)) {
     version_solid_color_width_height_defaults(*bmain);
   }
 
