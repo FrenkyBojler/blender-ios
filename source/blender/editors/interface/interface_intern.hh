@@ -1154,8 +1154,12 @@ PopupBlockHandle *popup_block_create(bContext *C,
                                      void *arg,
                                      FreeArgFunc arg_free,
                                      bool can_refresh);
-PopupBlockHandle *popup_menu_create(
-    bContext *C, ARegion *butregion, Button *but, MenuCreateFunc menu_func, void *arg);
+PopupBlockHandle *popup_menu_create(bContext *C,
+                                    ARegion *butregion,
+                                    Button *but,
+                                    MenuCreateFunc menu_func,
+                                    void *arg,
+                                    bool can_refresh);
 
 /* `interface_region_popover.cc` */
 
