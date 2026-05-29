@@ -475,26 +475,26 @@ class DATA_PT_camera_display_composition_guides(CameraButtonsPanel, Panel):
         self.draw_panel(self.layout, context.camera)
 
     @classmethod
-    def draw_panel(cls, layout, item):
+    def draw_panel(cls, layout, camera):
         layout.use_property_split = True
 
-        layout.prop(item, "show_composition_thirds")
+        layout.prop(camera, "show_composition_thirds")
 
         col = layout.column(heading="Center", align=True)
-        col.prop(item, "show_composition_center")
-        col.prop(item, "show_composition_center_diagonal", text="Diagonal")
+        col.prop(camera, "show_composition_center")
+        col.prop(camera, "show_composition_center_diagonal", text="Diagonal")
 
         col = layout.column(heading="Golden", align=True)
-        col.prop(item, "show_composition_golden", text="Ratio")
-        col.prop(item, "show_composition_golden_tria_a", text="Triangle A")
-        col.prop(item, "show_composition_golden_tria_b", text="Triangle B")
+        col.prop(camera, "show_composition_golden", text="Ratio")
+        col.prop(camera, "show_composition_golden_tria_a", text="Triangle A")
+        col.prop(camera, "show_composition_golden_tria_b", text="Triangle B")
 
         col = layout.column(heading="Harmony", align=True)
-        col.prop(item, "show_composition_harmony_tri_a", text="Triangle A")
-        col.prop(item, "show_composition_harmony_tri_b", text="Triangle B")
+        col.prop(camera, "show_composition_harmony_tri_a", text="Triangle A")
+        col.prop(camera, "show_composition_harmony_tri_b", text="Triangle B")
 
         col = layout.column()
-        col.prop(item, "composition_guide_color", text="Color")
+        col.prop(camera, "composition_guide_color", text="Color")
 
 
 class DATA_PT_camera_safe_areas(CameraButtonsPanel, Panel):

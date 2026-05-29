@@ -246,7 +246,7 @@ static void sequencer_draw_borders_overlay(const SpaceSeq &sseq,
     }
   }
 
-  /* Draw Composition Guides */
+  /* Draw composition guides. */
   if (sseq.preview_overlay.flag & SEQ_PREVIEW_SHOW_COMPOSITION_GUIDES) {
     ED_draw_composition_guides(shdr_pos,
                                sseq.preview_overlay.composition_guide_flags,

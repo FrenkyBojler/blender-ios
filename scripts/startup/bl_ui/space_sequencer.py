@@ -231,7 +231,7 @@ class SEQUENCER_PT_preview_overlay(Panel):
         col = split.column()
         col.prop(overlay_settings, "show_cursor")
         col.prop(overlay_settings, "show_safe_areas", text="Safe Areas")
-        col.prop(overlay_settings, "show_composition_guides", text="Composition Guides")
+        col.prop(overlay_settings, "show_composition_guides", text="Guides")
 
 
 class SEQUENCER_PT_sequencer_overlay(Panel):
@@ -1930,7 +1930,7 @@ class SEQUENCER_PT_view_safe_areas_center_cut(SequencerButtonsPanel_Output, Pane
 
 
 class SEQUENCER_PT_view_composition_guides(SequencerButtonsPanel_Output, Panel):
-    bl_label = ""
+    bl_label = "Composition Guides"
     bl_options = {'DEFAULT_CLOSED'}
     bl_category = "View"
 
