@@ -55,7 +55,9 @@ struct BevelParameters {
   /** Blender units to offset eacjh end of each edge.
    * A 4d Array of Arrays indexed by mesh edge id.
    * If affect_type is Edges or Faces, these are in order: source end (left, right), destination
-   * end (left, right). If affect_type is Vertices, these are the amounts to move along each edge
+   * end (left, right), viewed from the source end looking towards the destination end,
+   * standing on the normal positive side.
+   * If affect_type is Vertices, these are the amounts to move along each edge
    * from the vertex, and only the first and third values are used. */
   std::array<Array<float>, 4> offsets;
   /** Per corner bool saying whether or not to miter at that corner. */

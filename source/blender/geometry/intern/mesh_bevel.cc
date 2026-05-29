@@ -7352,12 +7352,18 @@ static void bevel_vert_construct(BevelState &state, int v)
     if (eh->is_bev) {
       /* Determine which end of the edge contains this vertex.
        * `edges()[e][0]` is the source end and `[1]` is the destination end.
-       * Left and right offsets are selected from the corresponding index pair. */
+       * Left and right offsets are selected from the corresponding index pair.
+       * Internally we use the convention that "left" and "right" are as seen
+       * looking towards the vertex of the edge half.
+       * The external convention, maybe more intuitive to users, is to
+       * stand looking from source to destination (on the positive normal side),
+       * so we switch "left" and "right" at the source end.
+       */
       const int2 &ev = emesh.src_edges[eh->e];
       const bool at_src = (ev[0] == v);
       if (at_src) {
-        eh->offset_l = state.params.offsets[0][eh->e];
-        eh->offset_r = state.params.offsets[1][eh->e];
+        eh->offset_l = state.params.offsets[1][eh->e];
+        eh->offset_r = state.params.offsets[0][eh->e];
       }
       else {
         eh->offset_l = state.params.offsets[2][eh->e];

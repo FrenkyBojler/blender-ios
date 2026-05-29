@@ -42,30 +42,30 @@ static void node_declare(NodeDeclarationBuilder &b)
       .static_items(affect_items)
       .optional_label();
   /* TODO: when there is good support for 4d vectors, use those here. */
-  b.add_input<decl::Float>("Offset 0"_ustr)
+  b.add_input<decl::Float>("Start Left Offset"_ustr)
       .default_value(0.1f)
       .min(0.0f)
       .subtype(PROP_DISTANCE)
       .evaluated_geometry_field()
-      .description("Offset for left side of source end of edge");
-  b.add_input<decl::Float>("Offset 1"_ustr)
+      .description("Offset for left side of source of edge, viewed from source");
+  b.add_input<decl::Float>("Start Right Offset"_ustr)
       .default_value(0.1f)
       .min(0.0f)
       .subtype(PROP_DISTANCE)
       .evaluated_geometry_field()
-      .description("Offset for right side of source end of edge");
-  b.add_input<decl::Float>("Offset 2"_ustr)
+      .description("Offset for right side of source of edge, viewed from source");
+  b.add_input<decl::Float>("End Left Offset"_ustr)
       .default_value(0.1f)
       .min(0.0f)
       .subtype(PROP_DISTANCE)
       .evaluated_geometry_field()
-      .description("Offset for left side of destination end of edge");
-  b.add_input<decl::Float>("Offset 3"_ustr)
+      .description("Offset for left side of destination of edge, viewed from source");
+  b.add_input<decl::Float>("End Right Offset"_ustr)
       .default_value(0.1f)
       .min(0.0f)
       .subtype(PROP_DISTANCE)
       .evaluated_geometry_field()
-      .description("Offset for right side of destination end of edge");
+      .description("Offset for right side of destination of edge, viewed from source");
   b.add_input<decl::Bool>("Miter"_ustr)
       .default_value(false)
       .evaluated_geometry_field()
@@ -166,10 +166,10 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
   const auto affect = params.extract_input<blender::geometry::BevelAffect>("Affect Kind"_ustr);
 
-  const Field<float> offset0_field = params.extract_input<Field<float>>("Offset 0"_ustr);
-  const Field<float> offset1_field = params.extract_input<Field<float>>("Offset 1"_ustr);
-  const Field<float> offset2_field = params.extract_input<Field<float>>("Offset 2"_ustr);
-  const Field<float> offset3_field = params.extract_input<Field<float>>("Offset 3"_ustr);
+  const Field<float> offset0_field = params.extract_input<Field<float>>("Start Left Offset"_ustr);
+  const Field<float> offset1_field = params.extract_input<Field<float>>("Start Right Offset"_ustr);
+  const Field<float> offset2_field = params.extract_input<Field<float>>("End Left Offset"_ustr);
+  const Field<float> offset3_field = params.extract_input<Field<float>>("End Right Offset"_ustr);
 
   const Field<bool> miter_field = params.extract_input<Field<bool>>("Miter"_ustr);
   const Field<float> spread_field = params.extract_input<Field<float>>("Spread"_ustr);
