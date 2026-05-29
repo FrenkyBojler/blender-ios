@@ -168,28 +168,28 @@ static wmOperatorStatus vr_location_scouting_capture_review_invoke(bContext *C,
     return OPERATOR_CANCELLED;
   }
 
-  CaptureReviewData *review_data = MEM_new_zeroed<CaptureReviewData>("View3DReviewCaptureData");
-  review_data->area = area;
-  review_data->rv3d = rv3d;
-  review_data->v3d = v3d;
+  CaptureReviewData *data = MEM_new_zeroed<CaptureReviewData>("View3DReviewCaptureData");
+  data->area = area;
+  data->rv3d = rv3d;
+  data->v3d = v3d;
 
-  review_data->prev_view3d_cam_ob = v3d->camera;
+  data->prev_view3d_cam_ob = v3d->camera;
   ED_view3d_lastview_store(rv3d);
   /* Store previous persp separately from #ED_view3d_lastview_store as setting rv3d->lpersp to
    * CAMOB is unexpected by navigation logic. */
-  review_data->prev_view3d_persp = rv3d->persp;
+  data->prev_view3d_persp = rv3d->persp;
 
   /* Build a fake Camera object to set on the View3D. */
-  review_data->cam_ob = BKE_id_new_nomain<Object>("ReviewCaptureCamera");
-  review_data->cam_ob->type = OB_CAMERA;
+  data->cam_ob = BKE_id_new_nomain<Object>("ReviewCaptureCamera");
+  data->cam_ob->type = OB_CAMERA;
 
   /* Lock rotation to prevent user from exiting the review camera view. Re-using quadview flags. */
   rv3d->viewlock |= RV3D_LOCK_ROTATION;
 
-  review_data->cam_data = BKE_id_new_nomain<Camera>("ReviewCaptureCameraData");
-  review_data->cam_ob->data = id_cast<ID *>(review_data->cam_data);
+  data->cam_data = BKE_id_new_nomain<Camera>("ReviewCaptureCameraData");
+  data->cam_ob->data = id_cast<ID *>(data->cam_data);
 
-  op->customdata = review_data;
+  op->customdata = data;
 
   /* Set running state. */
   vr_location_scouting_capture_review_set_running_state(C, true);
@@ -202,17 +202,17 @@ static wmOperatorStatus vr_location_scouting_capture_review_invoke(bContext *C,
 
 static void vr_location_scouting_capture_review_exit(bContext *C, wmOperator *op)
 {
-  CaptureReviewData *review_data = static_cast<CaptureReviewData *>(op->customdata);
-  RegionView3D *rv3d = review_data->rv3d;
+  CaptureReviewData *data = static_cast<CaptureReviewData *>(op->customdata);
+  RegionView3D *rv3d = data->rv3d;
 
   /* Restore viewport, last view stored by #ED_view3d_lastview_store */
   copy_qt_qt(rv3d->viewquat, rv3d->lviewquat);
   rv3d->view = rv3d->lview;
   rv3d->view_axis_roll = rv3d->lview_axis_roll;
-  rv3d->persp = review_data->prev_view3d_persp;
+  rv3d->persp = data->prev_view3d_persp;
   rv3d->viewlock &= ~RV3D_LOCK_ROTATION;
 
-  review_data->v3d->camera = review_data->prev_view3d_cam_ob;
+  data->v3d->camera = data->prev_view3d_cam_ob;
 
   vr_location_scouting_capture_review_set_running_state(C, false);
 
@@ -221,10 +221,10 @@ static void vr_location_scouting_capture_review_exit(bContext *C, wmOperator *op
   ED_workspace_status_text(C, nullptr);
 
   /* Free data. */
-  BKE_id_free(nullptr, id_cast<ID *>(review_data->cam_ob));
-  BKE_id_free(nullptr, id_cast<ID *>(review_data->cam_data));
+  BKE_id_free(nullptr, id_cast<ID *>(data->cam_ob));
+  BKE_id_free(nullptr, id_cast<ID *>(data->cam_data));
 
-  MEM_delete(review_data);
+  MEM_delete(data);
 }
 
 static void vr_location_scouting_capture_review_cancel(bContext *C, wmOperator *op)
@@ -279,13 +279,13 @@ static wmOperatorStatus vr_location_scouting_capture_review_modal(bContext *C,
                                                                   wmOperator *op,
                                                                   const wmEvent *event)
 {
-  CaptureReviewData *review_data = static_cast<CaptureReviewData *>(op->customdata);
+  CaptureReviewData *data = static_cast<CaptureReviewData *>(op->customdata);
 
   /* Exit review if the mouse leaves the viewport area, or if the active area editor changes.
    * This prevents undefined behavior caused by the operator running without an active View3D
    * area while still allowing the operator to be non-blocking for interactive sidebar UI. */
-  if ((ED_area_find_under_cursor(C, SPACE_TYPE_ANY, event->xy) != review_data->area) ||
-      (review_data->area->spacetype != SPACE_VIEW3D))
+  if ((ED_area_find_under_cursor(C, SPACE_TYPE_ANY, event->xy) != data->area) ||
+      (data->area->spacetype != SPACE_VIEW3D))
   {
     vr_location_scouting_capture_review_exit(C, op);
     return OPERATOR_FINISHED;
@@ -310,28 +310,28 @@ static wmOperatorStatus vr_location_scouting_capture_review_modal(bContext *C,
   }
 
   /* Force perspective to camera. */
-  review_data->rv3d->persp = RV3D_CAMOB;
+  data->rv3d->persp = RV3D_CAMOB;
 
   /* Set Camera data from capture. */
-  review_data->cam_data->lens = capture->lens_focal;
-  SET_FLAG_FROM_TEST(review_data->cam_data->dof.flag, capture->dof_enabled, CAM_DOF_ENABLED);
-  review_data->cam_data->dof.aperture_fstop = capture->dof_fstop;
-  review_data->cam_data->dof.focus_distance = capture->dof_distance;
+  data->cam_data->lens = capture->lens_focal;
+  SET_FLAG_FROM_TEST(data->cam_data->dof.flag, capture->dof_enabled, CAM_DOF_ENABLED);
+  data->cam_data->dof.aperture_fstop = capture->dof_fstop;
+  data->cam_data->dof.focus_distance = capture->dof_distance;
 
   /* Camera viewport display settings, set passepartout to emphasize that the modal is enabled. */
-  review_data->cam_data->flag |= CAM_SHOWPASSEPARTOUT;
-  review_data->cam_data->passepartalpha = 0.99f; /* *Almost* completely opaque. */
+  data->cam_data->flag |= CAM_SHOWPASSEPARTOUT;
+  data->cam_data->passepartalpha = 0.99f; /* *Almost* completely opaque. */
 
   float capture_cam_mat[4][4];
   quat_to_mat4(capture_cam_mat, capture->orientation_quat);
   copy_v3_v3(capture_cam_mat[3], capture->position);
 
-  BKE_object_apply_mat4(review_data->cam_ob, capture_cam_mat, false, false);
+  BKE_object_apply_mat4(data->cam_ob, capture_cam_mat, false, false);
   /* Minimum eval without going through the depsgraph. */
-  BKE_object_to_mat4(review_data->cam_ob, review_data->cam_ob->runtime->object_to_world.ptr());
+  BKE_object_to_mat4(data->cam_ob, data->cam_ob->runtime->object_to_world.ptr());
 
   /* Set fake Camera object as the View3D camera. */
-  review_data->v3d->camera = review_data->cam_ob;
+  data->v3d->camera = data->cam_ob;
 
   ED_area_tag_redraw(CTX_wm_area(C));
   location_scouting_review_draw_status(C, op);
