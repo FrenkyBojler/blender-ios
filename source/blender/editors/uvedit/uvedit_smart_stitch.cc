@@ -1013,6 +1013,34 @@ static void stitch_propagate_uv_final_position(const Scene *scene,
   }
 }
 
+/**
+ * Flag islands whose entire boundary is made of seams, so they can be skipped
+ * when `ignore_seam_boundary` is set.
+ */
+static void stitch_determine_seam_bounded_islands(StitchState *state,
+                                                  IslandStitchData *island_stitch_data)
+{
+  for (int i = 0; i < state->element_map->total_islands; i++) {
+    island_stitch_data[i].all_boundaries_are_seams = true;
+  }
+
+  for (int edge_idx = 0; edge_idx < state->total_separate_edges; edge_idx++) {
+    UvEdge *edge = &state->edges[edge_idx];
+
+    if (edge->flag & STITCH_BOUNDARY) {
+      int island1 = state->uvs[edge->uv1]->island;
+      int island2 = state->uvs[edge->uv2]->island;
+
+      if (!BM_elem_flag_test(edge->element->l->e, BM_ELEM_SEAM)) {
+        island_stitch_data[island1].all_boundaries_are_seams = false;
+        if (island1 != island2) {
+          island_stitch_data[island2].all_boundaries_are_seams = false;
+        }
+      }
+    }
+  }
+}
+
 /* main processing function. It calculates preview and final positions. */
 static int stitch_process_data(StitchStateContainer *ssc,
                                StitchState *state,
@@ -1064,25 +1092,7 @@ static int stitch_process_data(StitchStateContainer *ssc,
    * First determine stitchability of uvs *
    ****************************************/
   if (ssc->ignore_seam_boundary) {
-    for (int i = 0; i < state->element_map->total_islands; i++) {
-      island_stitch_data[i].all_boundaries_are_seams = true;
-    }
-
-    for (int edge_idx = 0; edge_idx < state->total_separate_edges; edge_idx++) {
-      UvEdge *edge = &state->edges[edge_idx];
-
-      if (edge->flag & STITCH_BOUNDARY) {
-        int island1 = state->uvs[edge->uv1]->island;
-        int island2 = state->uvs[edge->uv2]->island;
-
-        if (!BM_elem_flag_test(edge->element->l->e, BM_ELEM_SEAM)) {
-          island_stitch_data[island1].all_boundaries_are_seams = false;
-          if (island1 != island2) {
-            island_stitch_data[island2].all_boundaries_are_seams = false;
-          }
-        }
-      }
-    }
+    stitch_determine_seam_bounded_islands(state, island_stitch_data);
   }
 
   for (i = 0; i < state->selection_size; i++) {
