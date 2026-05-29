@@ -1860,7 +1860,6 @@ bool supports_tip_roundness(const Brush &brush)
 {
   return ELEM(brush.sculpt_brush_type,
               SCULPT_BRUSH_TYPE_CLAY_STRIPS,
-              SCULPT_BRUSH_TYPE_DRAW,
               SCULPT_BRUSH_TYPE_PAINT);
 }
 bool supports_hardness(const Brush &brush)
