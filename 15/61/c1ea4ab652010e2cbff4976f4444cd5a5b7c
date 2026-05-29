@@ -22,3 +22,4 @@ Referenced by commit b68a2f3921ff16bb1a8e69fbfd05b32ca512fbf1, Fix #158280: Node
 Referenced by issue #158707, GN: NodeTreeInterfaceSocketVector.default_attribute_name behaves differently in Blender 5.2
 Referenced by issue #158830, Regression: Importing Geometry Nodes causes loss of references to object/material data
 Referenced by issue #158955, Geometry Nodes: "Move to Nodes" operator throws TypeError
+Referenced by issue #159257, Store Named Attribute 2D Vector input freeze
