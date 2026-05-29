@@ -798,8 +798,6 @@ static wmOperatorStatus collection_link_exec(bContext *C, wmOperator *op)
 
 void OUTLINER_OT_collection_link(wmOperatorType *ot)
 {
-  PropertyRNA *prop;
-
   /* identifiers */
   ot->name = "Link to Scene";
   ot->idname = "OUTLINER_OT_collection_link";
@@ -814,7 +812,7 @@ void OUTLINER_OT_collection_link(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   /* properties */
-  prop = RNA_def_enum(ot->srna, "scene", rna_enum_dummy_NULL_items, 0, "Scene", "");
+  PropertyRNA *prop = RNA_def_enum(ot->srna, "scene", rna_enum_dummy_NULL_items, 0, "Scene", "");
   RNA_def_enum_funcs(prop, RNA_scene_local_itemf);
   RNA_def_property_flag(prop, PROP_ENUM_NO_TRANSLATE);
   ot->prop = prop;
