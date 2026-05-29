@@ -78,14 +78,14 @@ void multires_customdata_delete(Mesh *mesh)
 }
 
 static BLI_bitmap *multires_mdisps_downsample_hidden(const BLI_bitmap *old_hidden,
-                                                     const int old_grid_area,
-                                                     const int new_grid_area)
+                                                     const int old_level,
+                                                     const int new_level)
 {
-  const int new_gridsize = math::sqrt(new_grid_area);
-  const int old_gridsize = math::sqrt(old_grid_area);
+  const int new_gridsize = CCG_grid_size(new_level);
+  const int old_gridsize = CCG_grid_size(old_level);
 
-  BLI_assert(new_grid_area <= old_grid_area);
-  const int factor = (old_gridsize - 1) / (new_gridsize - 1);
+  BLI_assert(new_level <= old_level);
+  const int factor = CCG_grid_factor(new_level, old_level);
   BLI_bitmap *new_hidden = BLI_BITMAP_NEW(square_i(new_gridsize), "downsample hidden");
 
   for (int y = 0; y < new_gridsize; y++) {
@@ -497,8 +497,7 @@ static void multires_del_higher(MultiresModifierData *mmd, Object *ob, const int
 
             multires_copy_grid(ndisps, hdisps, nsize, hsize);
             if (mdisp->hidden) {
-              BLI_bitmap *gh = multires_mdisps_downsample_hidden(
-                  mdisp->hidden, mdisp->totdisp, totdisp);
+              BLI_bitmap *gh = multires_mdisps_downsample_hidden(mdisp->hidden, mmd->totlvl, lvl);
               MEM_delete(mdisp->hidden);
               mdisp->hidden = gh;
             }
