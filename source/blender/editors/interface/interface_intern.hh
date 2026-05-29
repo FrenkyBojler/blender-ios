@@ -9,6 +9,7 @@
 #pragma once
 
 #include <functional>
+#include <optional>
 #include <ranges>
 
 #include "BLI_compiler_attrs.h"
@@ -185,6 +186,12 @@ enum {
 /** The maximum number of items a radial menu (pie menu) can contain. */
 #define PIE_MAX_ITEMS 8
 
+enum class TextDirection : int8_t {
+  Default, /* Horizontal. */
+  Down,
+  Up,
+};
+
 struct Button : NonMovable {
 
   /** Pointer back to the layout item holding this button. */
@@ -192,6 +199,8 @@ struct Button : NonMovable {
   int flag = 0;
   int drawflag = 0;
   char flag2 = 0;
+
+  TextDirection text_direction = TextDirection::Default;
 
   ButtonType type = ButtonType(0);
   ButPointerType pointype = ButPointerType::None;
@@ -913,6 +922,11 @@ Button *button_drag_multi_edit_get(Button *but);
  * Get the hint that describes the expected value when empty.
  */
 const char *button_placeholder_get(Button *but);
+
+/**
+ * Get the unit hint shown after the text while editing.
+ */
+std::optional<StringRef> button_edit_unit_hint_get(const Button &but);
 
 void def_but_icon(Button *but, int icon, int flag);
 /**
