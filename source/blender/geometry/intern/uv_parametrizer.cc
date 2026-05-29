@@ -9,7 +9,6 @@
 #include <functional>
 #include <vector>
 
-#include "BLI_vector.hh"
 #include "GEO_uv_parametrizer.hh"
 
 #include "BLI_array.hh"
@@ -24,6 +23,7 @@
 #include "BLI_polyfill_2d.h"
 #include "BLI_polyfill_2d_beautify.h"
 #include "BLI_rand.h"
+#include "BLI_vector.hh"
 
 #ifdef WITH_UV_SLIM
 #  include "slim_matrix_transfer.h"

@@ -180,7 +180,14 @@ void uv_parametrizer_pack(ParamHandle *handle, const UVPackIsland_Params &params
 
 /** \} */
 
+/* -------------------------------------------------------------------- */
+/** \name Original Bounds
+ * \{ */
+
 void uv_parametrizer_original_bounds(ParamHandle *phandle);
+
+/** \} */
+
 /* -------------------------------------------------------------------- */
 /** \name Average area for all charts
  * \{ */
