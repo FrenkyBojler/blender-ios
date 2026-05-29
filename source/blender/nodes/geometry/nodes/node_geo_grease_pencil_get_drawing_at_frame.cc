@@ -25,12 +25,23 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Int>("Frame"_ustr)
       .default_value(1)
       .description("Scene frame number to get the Grease Pencil drawing at");
+  b.add_input<decl::Bool>("Use Original Data"_ustr)
+      .default_value(true)
+      .description(
+          "Read from the original unmodified datablock, bypassing any modifiers. "
+          "Disable when chaining multiple nodes so each node works on the result of the previous");
+  b.add_input<decl::Bool>("Selection"_ustr)
+      .default_value(true)
+      .hide_value()
+      .evaluated_geometry_field()
+      .description("Select which layers to include in the output");
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Grease Pencil"_ustr);
   const int target_frame = params.extract_input<int>("Frame"_ustr);
+  const bool use_original = params.extract_input<bool>("Use Original Data"_ustr);
 
   const GreasePencil *gp_eval = geometry_set.get_grease_pencil();
   if (gp_eval == nullptr) {
@@ -38,56 +49,52 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  /* Look up the original unmodified datablock in BMain by name. The name is preserved through
-   * depsgraph eval copies, so this reliably bypasses whatever the modifier stack has written
-   * into the evaluated copy (e.g. the Time modifier rewrites frames_for_write on eval).
-   * If not found the geometry was synthesized by geo nodes with no BMain backing — use as-is. */
-  const GreasePencil *gp_orig = id_cast<const GreasePencil *>(
-      BKE_libblock_find_name(params.bmain(), ID_GP, gp_eval->id.name + 2));
-  if (gp_orig == nullptr) {
-    gp_orig = gp_eval;
+  const GreasePencil *gp_orig = gp_eval;
+  if (use_original) {
+    /* Look up the original unmodified datablock in BMain by name. The name is preserved through
+     * depsgraph eval copies, so this reliably bypasses whatever the modifier stack has written
+     * into the evaluated copy (e.g. the Time modifier rewrites frames_for_write on eval).
+     * If not found the geometry was synthesized by geo nodes with no BMain backing — use as-is. */
+    if (const GreasePencil *found = id_cast<const GreasePencil *>(
+            BKE_libblock_find_name(params.bmain(), ID_GP, gp_eval->id.name + 2)))
+    {
+      gp_orig = found;
+    }
   }
 
   using namespace bke::greasepencil;
 
   GreasePencil *gp_copy = BKE_grease_pencil_copy_for_eval(gp_orig);
 
-  int input_frames = 0;
-  for (const Layer *layer : gp_copy->layers()) {
-    input_frames += int(layer->frames().size());
-  }
+  const bke::GreasePencilFieldContext field_context{*gp_copy};
+  const Field<bool> selection_field = params.extract_input<Field<bool>>("Selection"_ustr);
+  FieldEvaluator evaluator{field_context, gp_copy->layers().size()};
+  evaluator.set_selection(selection_field);
+  evaluator.evaluate();
+  const IndexMask layer_selection = evaluator.get_evaluated_selection_as_mask();
 
-  /* Remap each layer to a fixed key (0) so the copy is self-contained and safe to use
-   * as an instance. Feed the original GP as a fixed external input to any Repeat Zone,
-   * not as the loopback, so the original frame map is intact on every iteration. */
-  for (Layer *layer : gp_copy->layers_for_write()) {
-    const int drawing_index = layer->drawing_index_at(target_frame);
+  /* Remap selected layers to a fixed key (0) so the copy is self-contained and safe to use
+   * as an instance. Unselected layers are cleared. Feed the original GP as a fixed external
+   * input to any Repeat Zone, not as the loopback, so the original frame map is intact on
+   * every iteration. */
+  const Span<Layer *> layers = gp_copy->layers_for_write();
+  layer_selection.foreach_index([&](const int i) {
+    Layer &layer = *layers[i];
+    const int drawing_index = layer.drawing_index_at(target_frame);
     Map<int, GreasePencilFrame> new_frames;
     if (drawing_index != -1) {
       GreasePencilFrame entry{};
       entry.drawing_index = drawing_index;
       new_frames.add(0, entry);
     }
-    layer->frames_for_write() = std::move(new_frames);
-    layer->tag_frames_map_keys_changed();
-  }
+    layer.frames_for_write() = std::move(new_frames);
+    layer.tag_frames_map_keys_changed();
+  });
   gp_copy->runtime->eval_frame = 0;
-
-  int output_frames = 0;
-  for (const Layer *layer : gp_copy->layers()) {
-    output_frames += int(layer->frames().size());
-  }
 
   GeometrySet output;
   auto &component = output.get_component_for_write<bke::GreasePencilComponent>();
   component.replace(gp_copy, bke::GeometryOwnershipType::Owned);
-
-  params.error_message_add(
-      NodeWarningType::Info,
-      fmt::format("Using original data from '{}' — {} input frame(s) → {} output frame(s)",
-                  gp_orig->id.name + 2,
-                  input_frames,
-                  output_frames));
 
   params.set_output("Grease Pencil"_ustr, std::move(output));
 }
