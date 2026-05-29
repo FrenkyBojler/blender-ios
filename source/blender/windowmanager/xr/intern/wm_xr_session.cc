@@ -873,14 +873,17 @@ void WM_xr_session_state_navigation_reset(wmXrSessionState *state)
 void WM_xr_session_state_viewfinder_reset(wmXrSessionState *state)
 {
   /* Runtime values. */
-  state->viewfinder.smoothing_delta_t = 0.0f;
-  state->viewfinder.last_flash_trigger_time = 0.0f;
+  state->viewfinder.smoothing_delta_t = 0.0;
+  state->viewfinder.last_flash_trigger_time = 0.0;
+  state->viewfinder.last_focus_hit_time = 0.0;
+  state->viewfinder.last_focus_hit_success = false;
 
   /* Create a Camera data ID to override the View3D camera (for setting parameters such as DoF).
    * This ID is freed in #wm_xr_session_data_free. */
   if (state->viewfinder.render_cam_data_id == nullptr) {
     state->viewfinder.render_cam_data_id = BKE_id_new_nomain<Camera>("ViewfinderCamera");
   }
+
   /* Create a Blender logo texture to draw on the backside of the viewfinder. */
   if (state->viewfinder.backside_logo_texture == nullptr) {
     ImBuf *ibuf = ui::svg_icon_bitmap(ICON_BLENDER, 256.0f, false);
