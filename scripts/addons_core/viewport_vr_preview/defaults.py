@@ -1341,7 +1341,6 @@ def vr_defaults_create_default(session_state):
                                  0.5,
                                  'PRESS')
     if ami:
-        ami.op_properties["cycle_left"] = True
         vr_defaults_actionbinding_add(ami,
                                       VRDefaultActionbindings.HUAWEI.value,
                                       VRDefaultActionprofiles.HUAWEI.value,
@@ -1421,7 +1420,6 @@ def vr_defaults_create_default(session_state):
                                  0.5,
                                  'PRESS')
     if ami:
-        ami.op_properties["action_up"] = True
         vr_defaults_actionbinding_add(ami,
                                       VRDefaultActionbindings.HUAWEI.value,
                                       VRDefaultActionprofiles.HUAWEI.value,
@@ -1501,7 +1499,6 @@ def vr_defaults_create_default(session_state):
                                  0.5,
                                  'PRESS')
     if ami:
-        ami.op_properties["action_up"] = False
         vr_defaults_actionbinding_add(ami,
                                       VRDefaultActionbindings.HUAWEI.value,
                                       VRDefaultActionprofiles.HUAWEI.value,
