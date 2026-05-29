@@ -35,7 +35,7 @@
 #include "GEO_mesh_bevel.hh"
 #include "GEO_mesh_selection.hh"
 
-#define DEBUG_TIME
+// #define DEBUG_TIME
 #ifdef DEBUG_TIME
 #  include "BLI_timeit.hh"
 #endif
