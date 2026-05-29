@@ -20,3 +20,4 @@ set(LIB
 
 blender_add_lib(bf_intern_profile "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 add_library(bf::intern::profile ALIAS bf_intern_profile)
+set_target_properties(bf_intern_profile PROPERTIES LINKER_LANGUAGE CXX)
