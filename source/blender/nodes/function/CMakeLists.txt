@@ -24,6 +24,7 @@ set(SRC
   nodes/node_fn_axis_angle_to_rotation.cc
   nodes/node_fn_bit_math.cc
   nodes/node_fn_boolean_math.cc
+  nodes/node_fn_color_to_srgb.cc
   nodes/node_fn_combine_color.cc
   nodes/node_fn_combine_matrix.cc
   nodes/node_fn_combine_transform.cc
@@ -65,6 +66,7 @@ set(SRC
   nodes/node_fn_separate_transform.cc
   nodes/node_fn_slice_string.cc
   nodes/node_fn_split_string.cc
+  nodes/node_fn_srgb_to_color.cc
   nodes/node_fn_string_length.cc
   nodes/node_fn_string_to_value.cc
   nodes/node_fn_transform_direction.cc
