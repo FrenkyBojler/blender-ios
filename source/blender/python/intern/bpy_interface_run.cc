@@ -250,13 +250,12 @@ bool BPY_run_text(bContext *C, Text *text, ReportList *reports, const bool do_ju
   return python_script_exec(C, nullptr, text, reports, do_jump);
 }
 
-bool BPY_check_string_eval(bContext *C, const char *expr)
+bool BPY_string_compile_check(const char *expr)
 {
-  PyGILState_STATE gilstate;
   if (!expr || expr[0] == '\0') {
     return true;
   }
-  bpy_context_set_allow_null(C, &gilstate);
+  PyGILState_STATE gilstate = PyGILState_Ensure();
   if (PyObject *retval = Py_CompileString(expr, "<expression>", Py_eval_input)) {
     Py_DECREF(retval);
     return true;
@@ -264,7 +263,7 @@ bool BPY_check_string_eval(bContext *C, const char *expr)
   else {
     PyErr_Clear();
   }
-  bpy_context_clear(C, &gilstate);
+  PyGILState_Release(gilstate);
   return false;
 }
 

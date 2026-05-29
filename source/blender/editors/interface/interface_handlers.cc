@@ -3716,7 +3716,7 @@ static void button_edit_unit_hint_refresh(bContext *C, Button *but, HandleButton
     }
 
     /* If the expression we're entering is not valid, don't show the hint. */
-    if (!BPY_check_string_eval(C, data->text_edit.edit_string)) {
+    if (!BPY_string_compile_check(data->text_edit.edit_string)) {
       data->text_edit_unit_hint.clear();
       return;
     }
@@ -3742,7 +3742,7 @@ static void button_edit_unit_hint_refresh(bContext *C, Button *but, HandleButton
     }
 
     /* If the expression we're entering is not valid, don't show the hint. */
-    if (!BPY_check_string_eval(C, data->text_edit.edit_string)) {
+    if (!BPY_string_compile_check(data->text_edit.edit_string)) {
       data->text_edit_unit_hint.clear();
       return;
     }
