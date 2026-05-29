@@ -2383,6 +2383,10 @@ static int stitch_init_all(bContext *C,
   ssc->states = MEM_new_array_zeroed<StitchState *>(objects.size(), "StitchState");
   ssc->objects_len = 0;
 
+  /* `to_select` is advanced one object at a time below, so keep the base
+   * pointer to free the allocation afterwards. */
+  UvElementID *selected_uvs = ssc->state_init ? ssc->state_init->to_select : nullptr;
+
   for (uint ob_index = 0; ob_index < objects.size(); ob_index++) {
     Object *obedit = objects[ob_index];
 
@@ -2407,6 +2411,14 @@ static int stitch_init_all(bContext *C,
   ssc->objs_selection_count = nullptr;
   MEM_delete(ssc->state_init);
   ssc->state_init = nullptr;
+  MEM_SAFE_DELETE(selected_uvs);
+
+  if (ssc->objects_len == 0) {
+    /* No object could be initialized for stitching (e.g. all faces hidden). */
+    MEM_SAFE_DELETE(ssc->states);
+    MEM_SAFE_DELETE(ssc->objects);
+    return 0;
+  }
 
   ssc->active_object_index %= ssc->objects_len;
 
@@ -2466,6 +2478,8 @@ static wmOperatorStatus stitch_invoke(bContext *C, wmOperator *op, const wmEvent
   StitchStateContainer *ssc = stitch_operator_settings_init(C, op);
 
   if (!stitch_init_all(C, ssc, (StitchModes)RNA_enum_get(op->ptr, "stored_mode"), true)) {
+    MEM_SAFE_DELETE(ssc);
+    op->customdata = nullptr;
     return OPERATOR_CANCELLED;
   }
 
@@ -2585,6 +2599,8 @@ static wmOperatorStatus stitch_exec(bContext *C, wmOperator *op)
 
   StitchStateContainer *ssc = stitch_operator_settings_init(C, op);
   if (!stitch_init_all(C, ssc, (StitchModes)RNA_enum_get(op->ptr, "stored_mode"), true)) {
+    MEM_SAFE_DELETE(ssc);
+    op->customdata = nullptr;
     return OPERATOR_CANCELLED;
   }
   if (stitch_process_data_all(static_cast<StitchStateContainer *>(op->customdata), scene, 1)) {
