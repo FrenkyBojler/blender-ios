@@ -770,6 +770,19 @@ short calc_orientation_from_type_ex(const Main &bmain,
   return orientation_index;
 }
 
+void transform_orientation_matrix_override_paint_curve(const short orient_type,
+                                                       const float viewmat[4][4],
+                                                       float r_spacemtx[3][3])
+{
+  if (orient_type == V3D_ORIENT_VIEW) {
+    unit_m3(r_spacemtx);
+  }
+  else {
+    mul_m3_m4m3(r_spacemtx, viewmat, r_spacemtx);
+    normalize_m3(r_spacemtx);
+  }
+}
+
 short transform_orientation_matrix_get(bContext *C,
                                        TransInfo *t,
                                        short orient_index,
@@ -815,14 +828,8 @@ short transform_orientation_matrix_get(bContext *C,
       *t->bmain, scene, t->view_layer, v3d, rv3d, ob, obedit, orient_index, t->around, r_spacemtx);
 
   if (rv3d && (t->options & CTX_PAINT_CURVE)) {
-    /* Screen space in the 3d region. */
-    if (orient_index_result == V3D_ORIENT_VIEW) {
-      unit_m3(r_spacemtx);
-    }
-    else {
-      mul_m3_m4m3(r_spacemtx, rv3d->viewmat, r_spacemtx);
-      normalize_m3(r_spacemtx);
-    }
+    transform_orientation_matrix_override_paint_curve(
+        orient_index_result, rv3d->viewmat, r_spacemtx);
   }
 
   return orient_index_result;

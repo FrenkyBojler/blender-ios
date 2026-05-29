@@ -26,6 +26,16 @@ bool gimbal_axis_pose(Object *ob, const bPoseChannel *pchan, float gmat[3][3]);
 bool gimbal_axis_object(Object *ob, float gmat[3][3]);
 
 /**
+ * Transform code does not provide a 2d context to be used in 3d space (but paintcurves are stored
+ * in 2d, see #PaintCurvePointToTransData), so any time we calculate the orientation in a generic
+ * context, we need to handle 'overriding' the matrix for paint curves to ensure we're in screen
+ * space.
+ */
+void transform_orientation_matrix_override_paint_curve(const short orient_type,
+                                                       const float viewmat[4][4],
+                                                       float r_spacemtx[3][3]);
+
+/**
  * Sets the matrix of the specified space orientation.
  * If the matrix cannot be obtained, an orientation different from the one informed is returned.
  */
