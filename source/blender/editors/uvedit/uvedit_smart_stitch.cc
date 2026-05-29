@@ -767,6 +767,32 @@ static void stitch_uv_edge_generate_linked_edges(GHash *edge_hash, StitchState *
   }
 }
 
+/**
+ * \return true when the island pair must not be stitched, per the "Original Bounds" filters.
+ */
+static bool stitch_island_pair_excluded(const StitchStateContainer *ssc,
+                                        const StitchState *state,
+                                        const IslandStitchData *island_stitch_data,
+                                        const int island_a,
+                                        const int island_b)
+{
+  if (ssc->ignore_seam_boundary) {
+    if (island_stitch_data[island_a].all_boundaries_are_seams ||
+        island_stitch_data[island_b].all_boundaries_are_seams)
+    {
+      return true;
+    }
+  }
+  if (ssc->only_selected_uvs) {
+    if (!state->orig_bounds->island_has_selected[island_a] ||
+        !state->orig_bounds->island_has_selected[island_b])
+    {
+      return true;
+    }
+  }
+  return false;
+}
+
 /* checks for remote uvs that may be stitched with a certain uv, flags them if stitchable. */
 static void determine_uv_stitchability(const int cd_loop_uv_offset,
                                        UvElement *element,
@@ -777,20 +803,10 @@ static void determine_uv_stitchability(const int cd_loop_uv_offset,
   UvElement *element_iter = BM_uv_element_get_head(state->element_map, element);
   for (; element_iter; element_iter = element_iter->next) {
     if (element_iter->separate) {
-      if (ssc->ignore_seam_boundary) {
-        if (island_stitch_data[element_iter->island].all_boundaries_are_seams ||
-            island_stitch_data[element->island].all_boundaries_are_seams)
-        {
-          continue;
-        }
-      }
-
-      if (ssc->only_selected_uvs) {
-        if (!state->orig_bounds->island_has_selected[element_iter->island] ||
-            !state->orig_bounds->island_has_selected[element->island])
-        {
-          continue;
-        }
+      if (stitch_island_pair_excluded(
+              ssc, state, island_stitch_data, element_iter->island, element->island))
+      {
+        continue;
       }
 
       if (stitch_check_uvs_stitchable(cd_loop_uv_offset, element, element_iter, ssc)) {
@@ -810,19 +826,10 @@ static void determine_uv_edge_stitchability(const int cd_loop_uv_offset,
 {
   UvEdge *edge_iter = edge->first;
   for (; edge_iter; edge_iter = edge_iter->next) {
-    if (ssc->ignore_seam_boundary) {
-      if (island_stitch_data[edge->element->island].all_boundaries_are_seams ||
-          island_stitch_data[edge_iter->element->island].all_boundaries_are_seams)
-      {
-        continue;
-      }
-    }
-    if (ssc->only_selected_uvs) {
-      if (!state->orig_bounds->island_has_selected[edge_iter->element->island] ||
-          !state->orig_bounds->island_has_selected[edge->element->island])
-      {
-        continue;
-      }
+    if (stitch_island_pair_excluded(
+            ssc, state, island_stitch_data, edge->element->island, edge_iter->element->island))
+    {
+      continue;
     }
     if (stitch_check_edges_stitchable(cd_loop_uv_offset, edge, edge_iter, ssc, state)) {
       island_stitch_data[edge_iter->element->island].stitchableCandidate = 1;
