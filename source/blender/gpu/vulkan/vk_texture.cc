@@ -312,6 +312,7 @@ void VKTexture::read_sub(
                              RenderGraphFlushFlags::WAIT_FOR_COMPLETION);
 
   /* Convert the data to r_data. */
+  VKDevice &device = VKBackend::get().device;
   for (int index : transfer_regions.index_range()) {
     const TransferRegion &transfer_region = transfer_regions[index];
     VKBuffer &staging_buffer = staging_buffers[index];
@@ -326,7 +327,8 @@ void VKTexture::read_sub(
                            sample_len,
                            format,
                            format_,
-                           device_format_);
+                           device_format_,
+                           device.workarounds_get());
   }
 }
 
@@ -418,8 +420,13 @@ void VKTexture::update_sub(int mip,
   Vector<uint8_t> device_compatible_data;
   if (needs_data_conversion && is_sequential_packed) {
     device_compatible_data.resize(device_memory_size);
-    convert_host_to_device(
-        device_compatible_data.data(), data, sample_len, format, format_, device_format_);
+    convert_host_to_device(device_compatible_data.data(),
+                           data,
+                           sample_len,
+                           format,
+                           format_,
+                           device_format_,
+                           device.workarounds_get());
     data = device_compatible_data.data();
   }
 
@@ -495,7 +502,8 @@ void VKTexture::update_sub(int mip,
       uint8_t *dst_ptr = static_cast<uint8_t *>(staging_buffer.mapped_memory_get());
       const uint8_t *src_ptr = static_cast<const uint8_t *>(data);
       for (int y = 0; y < extent.y; y++) {
-        convert_host_to_device(dst_ptr, src_ptr, extent.x, format, format_, device_format_);
+        convert_host_to_device(
+            dst_ptr, src_ptr, extent.x, format, format_, device_format_, device.workarounds_get());
         src_ptr += src_row_stride;
         dst_ptr += dst_row_stride;
       }

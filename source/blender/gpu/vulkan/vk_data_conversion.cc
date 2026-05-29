@@ -7,6 +7,7 @@
  */
 
 #include "vk_data_conversion.hh"
+#include "vk_device.hh"
 
 #include "BLI_color_types.hh"
 #include "BLI_math_half.hh"
@@ -881,6 +882,14 @@ static void convert(FLOAT4 &dst, const FLOAT3 &src)
   dst.value.a = 1.0f;
 }
 
+static void convert(HALF4 &dst, const FLOAT3 &src)
+{
+  dst.set_r(math::float_to_half_make_finite(src.value.x));
+  dst.set_g(math::float_to_half_make_finite(src.value.y));
+  dst.set_b(math::float_to_half_make_finite(src.value.z));
+  dst.set_a(HALF_VALUE_1);
+}
+
 static void convert(F16 &dst, const UI8 &src)
 {
   UnsignedNormalized<uint8_t> un8;
@@ -971,8 +980,11 @@ void convert_per_pixel(void *dst_memory, const void *src_memory, size_t buffer_s
 }
 
 /**
- * \brief Inline remapping from 3 components to 4 components where the data is stored at the end of
- * the buffer.
+ * \brief Remap components from 3-component layout at offset to 4-component layout at front.
+ *
+ * Used for the multi-threaded float3-to-half4 conversion workaround on AMD iGPUs.
+ * Conversion values are stored at the end of the buffer (sequential access), then remapped
+ * to the front interleaved layout.
  */
 template<typename ComponentType>
 void remap_components_3to4_front_to_back(MutableSpan<ComponentType> components,
@@ -993,7 +1005,8 @@ static void convert_buffer(void *dst_memory,
                            const void *src_memory,
                            size_t buffer_size,
                            TextureFormat device_format,
-                           ConversionType type)
+                           ConversionType type,
+                           const VKWorkarounds &workarounds)
 {
   switch (type) {
     case ConversionType::UNSUPPORTED:
@@ -1130,34 +1143,33 @@ static void convert_buffer(void *dst_memory,
       break;
 
     case ConversionType::FLOAT3_TO_HALF4: {
-      size_t element_len = buffer_size;
-      constexpr int64_t src_component_len = 3;
-      constexpr int64_t dst_component_len = 4;
-      Span<float> src(static_cast<const float *>(src_memory), element_len * src_component_len);
-      MutableSpan<uint16_t> dst(static_cast<uint16_t *>(dst_memory),
-                                element_len * dst_component_len);
+      if (workarounds.use_threaded_float3_to_half4) {
+        size_t element_len = buffer_size;
+        constexpr int64_t src_component_len = 3;
+        constexpr int64_t dst_component_len = 4;
+        Span<float> src(static_cast<const float *>(src_memory), element_len * src_component_len);
+        MutableSpan<uint16_t> dst(static_cast<uint16_t *>(dst_memory),
+                                  element_len * dst_component_len);
 
-      /* Number of pixels to process in a single chunk. */
-      constexpr int64_t chunk_size = 16 * 1024;
+        /* Number of pixels to process in a single chunk. */
+        constexpr int64_t chunk_size = 16 * 1024;
 
-      threading::parallel_for(IndexRange(element_len), chunk_size, [&](const IndexRange range) {
-        IndexRange src_range = IndexRange(range.start() * src_component_len,
-                                          range.size() * src_component_len);
-        IndexRange dst_range = IndexRange(range.start() * dst_component_len,
-                                          range.size() * dst_component_len);
-        IndexRange dst_range_offset = IndexRange(range.start() * dst_component_len + range.size(),
-                                                 range.size() * src_component_len);
-        /* Doing float to half conversion manually to avoid implementation specific behavior
-         * regarding Inf and NaNs. Use make finite version to avoid unexpected black pixels on
-         * certain implementation. For platform parity we clamp these infinite values to finite
-         * values. */
-        math::float_to_half_make_finite_array(
-            src.slice(src_range).data(), dst.slice(dst_range_offset).data(), src_range.size());
-        /* Conversion are stored at the end of the dst_memory, so remapping works with sequential
-         * access. */
-        remap_components_3to4_front_to_back(dst.slice(dst_range), range.size(), HALF_VALUE_1);
-      });
-
+        threading::parallel_for(IndexRange(element_len), chunk_size, [&](const IndexRange range) {
+          IndexRange src_range = IndexRange(range.start() * src_component_len,
+                                            range.size() * src_component_len);
+          IndexRange dst_range = IndexRange(range.start() * dst_component_len,
+                                            range.size() * dst_component_len);
+          IndexRange dst_range_offset = IndexRange(
+              range.start() * dst_component_len + range.size(), range.size() * src_component_len);
+          math::float_to_half_make_finite_array(
+              src.slice(src_range).data(), dst.slice(dst_range_offset).data(), src_range.size());
+          remap_components_3to4_front_to_back(dst.slice(dst_range), range.size(), HALF_VALUE_1);
+        });
+      }
+      else {
+        /* Default: simple single-threaded conversion for all other architectures. */
+        convert_per_pixel<HALF4, FLOAT3>(dst_memory, src_memory, buffer_size);
+      }
       break;
     }
     case ConversionType::HALF4_TO_FLOAT3:
@@ -1190,11 +1202,12 @@ void convert_host_to_device(void *dst_buffer,
                             size_t buffer_size,
                             eGPUDataFormat host_format,
                             TextureFormat host_texture_format,
-                            TextureFormat device_format)
+                            TextureFormat device_format,
+                            const VKWorkarounds &workarounds)
 {
   ConversionType conversion_type = host_to_device(host_format, host_texture_format, device_format);
   BLI_assert(conversion_type != ConversionType::UNSUPPORTED);
-  convert_buffer(dst_buffer, src_buffer, buffer_size, device_format, conversion_type);
+  convert_buffer(dst_buffer, src_buffer, buffer_size, device_format, conversion_type, workarounds);
 }
 
 void convert_device_to_host(void *dst_buffer,
@@ -1202,13 +1215,14 @@ void convert_device_to_host(void *dst_buffer,
                             size_t buffer_size,
                             eGPUDataFormat host_format,
                             TextureFormat host_texture_format,
-                            TextureFormat device_format)
+                            TextureFormat device_format,
+                            const VKWorkarounds &workarounds)
 {
   ConversionType conversion_type = reversed(
       host_to_device(host_format, host_texture_format, device_format));
   BLI_assert_msg(conversion_type != ConversionType::UNSUPPORTED,
                  "Data conversion between host_format and device_format isn't supported (yet).");
-  convert_buffer(dst_buffer, src_buffer, buffer_size, device_format, conversion_type);
+  convert_buffer(dst_buffer, src_buffer, buffer_size, device_format, conversion_type, workarounds);
 }
 
 /** \} */

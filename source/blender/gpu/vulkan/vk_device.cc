@@ -77,9 +77,11 @@ void VKWorkarounds::log() const
   CLOG_DEBUG(&LOG,
              "Activated workarounds\n"
              " - [%c] Not 16/32 bit aligned image formats\n"
-             " - [%c] No texture pool",
+             " - [%c] No texture pool\n"
+             " - [%c] Multi-threaded float3 to half4 conversion",
              not_aligned_pixel_formats ? 'X' : ' ',
-             GCaps.texture_pool_workaround ? 'X' : ' ');
+             GCaps.texture_pool_workaround ? 'X' : ' ',
+             use_threaded_float3_to_half4 ? 'X' : ' ');
 }
 
 void VKDevice::reinit()

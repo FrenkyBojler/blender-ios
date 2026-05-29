@@ -639,6 +639,13 @@ void VKBackend::detect_workarounds(VKDevice &device)
     workarounds.not_aligned_pixel_formats = true;
   }
 
+  /* AMD integrated GPUs benefit from a multi-threaded float3 to half4 conversion. */
+  if (GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_ANY, GPU_DRIVER_ANY) &&
+      device.physical_device_properties_get().deviceID == VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU)
+  {
+    workarounds.use_threaded_float3_to_half4 = true;
+  }
+
   /* During testing graphics pipeline library feature it was detected that it would crash on
    * official AMD drivers.
    */

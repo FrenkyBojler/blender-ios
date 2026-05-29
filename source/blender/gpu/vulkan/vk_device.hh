@@ -119,6 +119,13 @@ struct VKWorkarounds {
    */
   bool not_aligned_pixel_formats = false;
 
+  /**
+   * AMD integrated GPUs perform better with a multi-threaded conversion approach for float3 to
+   * half4. The approach uses two phases: first convert float to half values, then remap
+   * components. This is not beneficial on other GPU architectures (NVIDIA, Intel, Apple Silicon).
+   */
+  bool use_threaded_float3_to_half4 = false;
+
   /** Log enabled workarounds. */
   void log() const;
 };

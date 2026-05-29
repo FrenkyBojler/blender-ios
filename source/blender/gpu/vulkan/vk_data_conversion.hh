@@ -37,6 +37,7 @@ bool needs_conversion(eGPUDataFormat host_format,
  * \param host_format: format of the host buffer.
  * \param host_texture_format: texture format of the host buffer.
  * \param device_format: format of the device buffer.
+ * \param workarounds: active device workarounds.
  *
  * \note Will assert when the host_format/device_format combination isn't valid
  * (#validate_data_format) or supported. Some combinations aren't supported in Vulkan due to
@@ -47,7 +48,8 @@ void convert_host_to_device(void *dst_buffer,
                             size_t buffer_size,
                             eGPUDataFormat host_format,
                             TextureFormat host_texture_format,
-                            TextureFormat device_format);
+                            TextureFormat device_format,
+                            const VKWorkarounds &workarounds);
 
 /**
  * Convert device buffer to host buffer.
@@ -58,6 +60,7 @@ void convert_host_to_device(void *dst_buffer,
  * \param host_format: format of the host buffer
  * \param host_texture_format: texture format of the host buffer.
  * \param device_format: format of the device buffer.
+ * \param workarounds: active device workarounds.
  *
  * \note Will assert when the host_format/device_format combination isn't valid
  * (#validate_data_format) or supported. Some combinations aren't supported in Vulkan due to
@@ -68,7 +71,8 @@ void convert_device_to_host(void *dst_buffer,
                             size_t buffer_size,
                             eGPUDataFormat host_format,
                             TextureFormat host_texture_format,
-                            TextureFormat device_format);
+                            TextureFormat device_format,
+                            const VKWorkarounds &workarounds);
 
 /* -------------------------------------------------------------------- */
 /** \name Floating point conversions
