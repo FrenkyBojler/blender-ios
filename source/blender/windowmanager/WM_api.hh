@@ -2324,6 +2324,7 @@ bool WM_xr_session_state_viewfinder_orientation_get(const wmXrData *xr, float r_
 
 void WM_xr_session_state_viewfinder_trigger_flash(wmXrData *xr);
 void WM_xr_session_state_viewfinder_trigger_focus_indicator(wmXrData *xr, bool hit_success);
+void WM_xr_session_state_viewfinder_reset_view_smoothing(wmXrData *xr);
 
 bool WM_xr_session_state_viewfinder_capture_dof_enabled_get(const wmXrData *xr,
                                                             bool *r_dof_enabled);

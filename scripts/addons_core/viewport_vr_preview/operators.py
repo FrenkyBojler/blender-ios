@@ -637,6 +637,7 @@ class VIEW3D_OT_vr_location_scouting_viewfinder_swap_hands(Operator):
     bl_options = {'INTERNAL'}
 
     def execute(self, context):
+        xr_viewfinder = context.window_manager.xr_session_state.viewfinder
         xr_settings = context.window_manager.xr_session_settings
 
         viewfinder_hand_rna_prop = xr_settings.rna_type.properties['viewfinder_hand']
@@ -644,6 +645,8 @@ class VIEW3D_OT_vr_location_scouting_viewfinder_swap_hands(Operator):
         current_hand_idx = enum_values.index(xr_settings.viewfinder_hand)
 
         xr_settings.viewfinder_hand = enum_values[(current_hand_idx + 1) % len(enum_values)]
+
+        xr_viewfinder.reset_view_smoothing()
 
         return {'FINISHED'}
 

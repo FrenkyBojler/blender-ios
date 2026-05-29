@@ -531,6 +531,13 @@ void WM_xr_session_state_viewfinder_trigger_focus_indicator(wmXrData *xr, bool h
   }
 }
 
+void WM_xr_session_state_viewfinder_reset_view_smoothing(wmXrData *xr)
+{
+  if (WM_xr_session_exists(xr)) {
+    xr->runtime->session_state.viewfinder.smoothing_delta_t = 0.0;
+  }
+}
+
 bool WM_xr_session_state_viewfinder_capture_dof_enabled_get(const wmXrData *xr,
                                                             bool *r_dof_enabled)
 {

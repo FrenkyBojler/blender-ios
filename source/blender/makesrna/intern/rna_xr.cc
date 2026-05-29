@@ -1081,6 +1081,16 @@ static void rna_XrSessionState_viewfinder_trigger_focus_indicator(PointerRNA ptr
 #  endif
 }
 
+static void rna_XrSessionState_viewfinder_reset_view_smoothing(PointerRNA ptr)
+{
+#  ifdef WITH_XR_OPENXR
+  wmXrData *xr = rna_XrSession_wm_xr_data_get(&ptr);
+  WM_xr_session_state_viewfinder_reset_view_smoothing(xr);
+#  else
+  UNUSED_VARS(ptr);
+#  endif
+}
+
 static bool rna_XrSessionState_viewfinder_capture_dof_enabled_get(PointerRNA *ptr)
 {
   bool value;
@@ -2915,6 +2925,11 @@ static void rna_def_xr_session_state_viewfinder(BlenderRNA *brna)
                          "Hit success",
                          "True to blink the success color, False to blink the miss color");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+
+  func = RNA_def_function(srna, "reset_view_smoothing", "rna_XrSessionState_viewfinder_reset_view_smoothing");
+  RNA_def_function_ui_description(func,
+                                  "Reset the Viewfinder continuous view smoothing");
+  RNA_def_function_flag(func, FUNC_SELF_AS_RNA);
 
   prop = RNA_def_property(srna, "capture_dof_enabled", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
