@@ -1,1 +1,2 @@
 Referenced by issue #158034, Assertion failure when deleting an open parenthesis next to a close parenthesis
+Referenced by issue #158853, pyGPU: Crash on shader compilation
