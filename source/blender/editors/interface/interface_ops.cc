@@ -3089,7 +3089,6 @@ static void UI_OT_view_item_navigate(wmOperatorType *ot)
                "Direction in which to navigate and select next element.");
 }
 
-
 static wmOperatorStatus ui_view_item_focus_invoke(bContext *C,
                                                   wmOperator * /*op*/,
                                                   const wmEvent * /*event*/)
