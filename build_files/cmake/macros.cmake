@@ -434,7 +434,25 @@ function(blender_add_lib__impl
 
   # message(STATUS "Configuring library ${name}")
 
-  add_library(${name} ${sources})
+  # Check if all sources are header-only (.h or .hh files).
+  set(_all_headers TRUE)
+  foreach(_src ${sources})
+    get_filename_component(_src_ext "${_src}" EXT)
+    if(NOT (("${_src_ext}" STREQUAL ".h") OR ("${_src_ext}" STREQUAL ".hh")))
+      set(_all_headers FALSE)
+      break()
+    endif()
+  endforeach()
+  unset(_src)
+  unset(_src_ext)
+
+  if(_all_headers)
+    add_library(${name} INTERFACE)
+    target_sources(${name} PRIVATE ${sources})
+  else()
+    add_library(${name} ${sources})
+  endif()
+  unset(_all_headers)
 
   # On windows vcpkg goes out of its way to make its libs the preferred
   # libs, and needs to be explicitly be told not to do that.
