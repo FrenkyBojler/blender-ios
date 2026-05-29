@@ -361,7 +361,7 @@ class VIEW3D_OT_vr_location_scouting_viewfinder_capture(Operator):
         capture.dof_distance = xr_viewfinder.capture_dof_distance
         capture.dof_fstop = xr_viewfinder.capture_dof_fstop
 
-        xr_viewfinder.runtime_capture_flash = 1  # Internal value, setting to 1 will trigger a flash.
+        xr_viewfinder.trigger_flash()
 
         viewfinder_camera_gizmo_view3d_redraw_workaround()
 

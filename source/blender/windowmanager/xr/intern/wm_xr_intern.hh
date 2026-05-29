@@ -46,9 +46,9 @@ struct wmXrViewfinderState {
   /* Internal Runtime values. */
   Camera *render_cam_data_id;
   double smoothing_delta_t;
-  float runtime_capture_flash;
 
-  /* Runtime values set by RNA Python functions. */
+  /* Runtime values set by RNA methods called from Python. */
+  double last_flash_trigger_time;
   double last_focus_hit_time;
   bool last_focus_hit_success;
 

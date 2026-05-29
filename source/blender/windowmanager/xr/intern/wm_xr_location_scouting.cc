@@ -1059,21 +1059,15 @@ static void wm_xr_viewfinder_ui_draw_capture_flash(wmXrSessionState *state,
 {
   /* Do not apply the flash effect if we're in playback mode. */
   if (state->viewfinder.active_mode == XR_VIEWFINDER_MODE_PLAYBACK) {
-    state->viewfinder.runtime_capture_flash = 0.0f;
+    state->viewfinder.last_flash_trigger_time = 0.0;
     return;
   }
 
-  /* Settings. */
-  constexpr float flash_duration_sec = 0.4f;
+  constexpr double flash_duration_sec = 0.4;
   constexpr float full_flash_alpha = 0.3f;
 
-  static double last_flash_time;
-  if (state->viewfinder.runtime_capture_flash != 0.0f) {
-    last_flash_time = BLI_time_now_seconds();
-    state->viewfinder.runtime_capture_flash = 0.0f;
-  }
-
-  const float last_flash_delta = BLI_time_now_seconds() - last_flash_time;
+  const double last_flash_delta = BLI_time_now_seconds() -
+                                  state->viewfinder.last_flash_trigger_time;
 
   if (last_flash_delta < flash_duration_sec) {
     const float flash_progress = last_flash_delta / flash_duration_sec;

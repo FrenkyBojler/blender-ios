@@ -516,22 +516,10 @@ bool WM_xr_session_state_viewfinder_orientation_get(const wmXrData *xr, float r_
   return true;
 }
 
-bool WM_xr_session_state_viewfinder_runtime_capture_flash_get(const wmXrData *xr, float *r_flash)
-{
-  if (!WM_xr_session_is_ready(xr) || !xr->runtime->session_state.is_view_data_set) {
-    *r_flash = 1.0f;
-    return false;
-  }
-
-  *r_flash = xr->runtime->session_state.viewfinder.runtime_capture_flash;
-  return true;
-}
-
-void WM_xr_session_state_viewfinder_runtime_capture_flash_set(wmXrData *xr, float flash)
+void WM_xr_session_state_viewfinder_trigger_flash(wmXrData *xr)
 {
   if (WM_xr_session_exists(xr)) {
-    CLAMP(flash, 0.0f, 1.0f);
-    xr->runtime->session_state.viewfinder.runtime_capture_flash = flash;
+    xr->runtime->session_state.viewfinder.last_flash_trigger_time = BLI_time_now_seconds();
   }
 }
 
@@ -886,7 +874,8 @@ void WM_xr_session_state_viewfinder_reset(wmXrSessionState *state)
 {
   /* Runtime values. */
   state->viewfinder.smoothing_delta_t = 0.0f;
-  state->viewfinder.runtime_capture_flash = 0.0f;
+  state->viewfinder.last_flash_trigger_time = 0.0f;
+
   /* Create a Camera data ID to override the View3D camera (for setting parameters such as DoF).
    * This ID is freed in #wm_xr_session_data_free. */
   if (state->viewfinder.render_cam_data_id == nullptr) {

@@ -2322,9 +2322,7 @@ void WM_xr_session_state_nav_scale_set(wmXrData *xr, float scale);
 bool WM_xr_session_state_viewfinder_location_get(const wmXrData *xr, float r_location[3]);
 bool WM_xr_session_state_viewfinder_orientation_get(const wmXrData *xr, float r_rotation[4]);
 
-bool WM_xr_session_state_viewfinder_runtime_capture_flash_get(const wmXrData *xr, float *r_flash);
-void WM_xr_session_state_viewfinder_runtime_capture_flash_set(wmXrData *xr, float flash);
-
+void WM_xr_session_state_viewfinder_trigger_flash(wmXrData *xr);
 void WM_xr_session_state_viewfinder_trigger_focus_indicator(wmXrData *xr, bool hit_success);
 
 bool WM_xr_session_state_viewfinder_capture_dof_enabled_get(const wmXrData *xr,
