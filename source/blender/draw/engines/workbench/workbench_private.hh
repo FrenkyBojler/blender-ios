@@ -421,6 +421,7 @@ class ShadowPass {
 
   bool enabled_;
   bool use_raytracing_;
+  bool needs_rt_update_;
 
   UniformBuffer<ShadowPassData> pass_data_ = {};
 

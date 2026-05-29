@@ -292,6 +292,16 @@ PassMain::Sub *&ShadowPass::get_pass_ptr(PassType type, bool manifold, bool cap 
 void ShadowPass::init(const SceneState &scene_state, SceneResources &resources)
 {
   enabled_ = scene_state.draw_shadows;
+  use_raytracing_ = enabled_ && U.experimental.use_workbench_raytraced_shadows &&
+                    GPU_ray_query_support();
+  needs_rt_update_ = use_raytracing_ && (!shadow_as_ || scene_state.updated);
+  if (!use_raytracing_) {
+    shadow_as_ = nullptr;
+  }
+  else if (needs_rt_update_) {
+    shadow_as_ = gpu::TopLevelASPtr(GPU_ray_tracing_tlas_alloc("WorkbenchShadowTLAS"));
+  }
+
   if (!enabled_) {
     resources.world_buf.shadow_mul = 0.0f;
     resources.world_buf.shadow_add = 1.0f;
@@ -321,11 +331,6 @@ void ShadowPass::init(const SceneState &scene_state, SceneResources &resources)
   resources.world_buf.shadow_focus = 1.0f - focus * (1.0f - resources.world_buf.shadow_shift);
   resources.world_buf.shadow_mul = scene_state.shading.shadow_intensity;
   resources.world_buf.shadow_add = 1.0f - resources.world_buf.shadow_mul;
-
-  use_raytracing_ = U.experimental.use_workbench_raytraced_shadows && GPU_ray_query_support();
-  if (use_raytracing_ && (!shadow_as_ || scene_state.updated)) {
-    shadow_as_ = gpu::TopLevelASPtr(GPU_ray_tracing_tlas_alloc("WorkbenchShadowTLAS"));
-  }
 }
 
 void ShadowPass::sync(SceneResources &resources)
@@ -404,7 +409,7 @@ void ShadowPass::object_sync(SceneState &scene_state,
 
   Object *ob = ob_ref.object;
   if (use_raytracing_) {
-    if (scene_state.updated) {
+    if (needs_rt_update_) {
       if (blender::gpu::BottomLevelAS *blas = DRW_cache_object_surface_blas_get(ob)) {
         for (int i : IndexRange(ob_ref.instances_count())) {
           shadow_as_->add_instance(*blas, ob_ref.object_to_world(i));
