@@ -4763,7 +4763,7 @@ static void def_but_rna__menu(bContext *C, Layout *layout, void *but_p)
         item_but->flag |= UI_SELECT_DRAW;
       }
 
-      button_retval_set(item_but, item->value);
+      button_enum_prop_value_set(item_but, item->value);
 
       if (use_enum_copy_description) {
         if (item->description && item->description[0]) {
