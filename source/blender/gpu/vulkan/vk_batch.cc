@@ -76,6 +76,7 @@ void VKBatch::multi_draw_indirect(StorageBuf *indirect_buf,
                                   const intptr_t stride)
 {
   VKStorageBuffer &indirect_buffer = *unwrap(unwrap(indirect_buf));
+  indirect_buffer.ensure_allocated();
   multi_draw_indirect(indirect_buffer.vk_handle(), count, offset, stride);
 }
 

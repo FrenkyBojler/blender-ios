@@ -100,7 +100,12 @@ class Fade : Overlay {
             ResourceHandleRange handle = manager.unique_handle_for_sculpt(ob_ref);
 
             for (SculptBatch &batch : sculpt_batches_get(ob_ref.object, SCULPT_BATCH_DEFAULT)) {
-              sub.draw(batch.batch, handle);
+              if (batch.indirect_buf != nullptr) {
+                sub.draw_indirect(batch.batch, batch.indirect_buf);
+              }
+              else {
+                sub.draw(batch.batch, handle);
+              }
             }
           }
           else {

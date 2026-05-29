@@ -18,12 +18,15 @@ struct GPUMaterial;
 struct Object;
 namespace gpu {
 class Batch;
-}
+class StorageBuf;
+}  // namespace gpu
 
 namespace draw {
 
 struct SculptBatch {
   gpu::Batch *batch;
+  gpu::StorageBuf *indirect_buf;
+  uint32_t draw_count;
   int material_slot;
   int debug_index;
   float3 debug_color();

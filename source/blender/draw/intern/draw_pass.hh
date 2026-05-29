@@ -321,6 +321,11 @@ class PassBase {
   void draw_indirect(gpu::Batch *batch,
                      StorageBuffer<DrawCommand, true> &indirect_buffer,
                      ResourceID res_id = {0});
+  void draw_indirect(gpu::Batch *batch, gpu::StorageBuf *indirect_buffer, ResourceID res_id = {0});
+  void draw_multi_indirect(gpu::Batch *batch,
+                           gpu::StorageBuf *indirect_buffer,
+                           uint32_t draw_count,
+                           ResourceID res_id = {0});
   void draw_procedural_indirect(GPUPrimType primitive,
                                 StorageBuffer<DrawCommand, true> &indirect_buffer,
                                 ResourceID res_id = {0});
@@ -654,6 +659,7 @@ template<class T> inline command::Undetermined &PassBase<T>::create_command(comm
            Type::DispatchIndirect,
            Type::Draw,
            Type::DrawIndirect,
+           Type::DrawMultiIndirect,
            Type::TextureCopy))
   {
     is_empty_ = false;
@@ -801,6 +807,9 @@ template<class T> void PassBase<T>::submit(command::RecordingState &state) const
       case command::Type::DrawIndirect:
         commands_[header.index].draw_indirect.execute(state);
         break;
+      case command::Type::DrawMultiIndirect:
+        commands_[header.index].draw_multi_indirect.execute(state);
+        break;
       case command::Type::Dispatch:
         commands_[header.index].dispatch.execute(state);
         break;
@@ -866,6 +875,9 @@ template<class T> std::string PassBase<T>::serialize(std::string line_prefix) co
         break;
       case Type::DrawIndirect:
         ss << line_prefix << commands_[header.index].draw_indirect.serialize() << std::endl;
+        break;
+      case Type::DrawMultiIndirect:
+        ss << line_prefix << commands_[header.index].draw_multi_indirect.serialize() << std::endl;
         break;
       case Type::Dispatch:
         ss << line_prefix << commands_[header.index].dispatch.serialize() << std::endl;
@@ -993,7 +1005,30 @@ inline void PassBase<T>::draw_indirect(gpu::Batch *batch,
                                        ResourceID res_id)
 {
   BLI_assert(shader_);
-  create_command(Type::DrawIndirect).draw_indirect = {batch, &indirect_buffer, res_id};
+  DrawIndirect &cmd = create_command(Type::DrawIndirect).draw_indirect;
+  cmd.batch = batch;
+  cmd.indirect_buf = reinterpret_cast<gpu::StorageBuf *>(&indirect_buffer);
+  cmd.res_id = res_id;
+}
+
+template<class T>
+inline void PassBase<T>::draw_indirect(gpu::Batch *batch,
+                                       gpu::StorageBuf *indirect_buffer,
+                                       ResourceID res_id)
+{
+  BLI_assert(shader_);
+  create_command(Type::DrawIndirect).draw_indirect = {batch, indirect_buffer, res_id};
+}
+
+template<class T>
+inline void PassBase<T>::draw_multi_indirect(gpu::Batch *batch,
+                                             gpu::StorageBuf *indirect_buffer,
+                                             uint32_t draw_count,
+                                             ResourceID res_id)
+{
+  BLI_assert(shader_);
+  create_command(Type::DrawMultiIndirect).draw_multi_indirect = {
+      batch, indirect_buffer, draw_count, res_id};
 }
 
 template<class T>

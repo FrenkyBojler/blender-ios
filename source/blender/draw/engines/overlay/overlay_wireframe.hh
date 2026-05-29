@@ -183,7 +183,12 @@ class Wireframe : Overlay {
             ResourceHandleRange handle = manager.unique_handle(ob_ref);
 
             for (SculptBatch &batch : sculpt_batches_get(ob_ref.object, SCULPT_BATCH_WIREFRAME)) {
-              coloring.mesh_all_edges_ps_->draw(batch.batch, handle);
+              if (batch.indirect_buf != nullptr) {
+                coloring.mesh_all_edges_ps_->draw_indirect(batch.batch, batch.indirect_buf);
+              }
+              else {
+                coloring.mesh_all_edges_ps_->draw(batch.batch, handle);
+              }
             }
           }
           else if (!in_edit_mode || bypass_mode_check) {

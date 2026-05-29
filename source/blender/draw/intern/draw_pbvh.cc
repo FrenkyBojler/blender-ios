@@ -37,6 +37,35 @@
 #include "attribute_convert.hh"
 #include "bmesh.hh"
 
+// TODO: We should consider to use an indirect ref buffer. Metal doesn't support multi draw
+// indirect and performs a regular loop (CPU-side). Using a ref buffer we could still use instanced
+// drawing. in the vertex shader the instance number will look for the correct data inside the
+// SSBO. This needs a design first.
+
+// TODO: The new approach is very slow. We should review what the bottlenecks are (is the shared
+// buffer being rebuild every frame?)
+/**
+ * Indirect draw command struct matching the layout expected by GPU backends.
+ */
+struct PBVHDrawIndirectCommand {
+  uint32_t index_count;
+  uint32_t instance_count;
+  uint32_t first_index;
+  int32_t vertex_offset;
+  uint32_t first_instance;
+};
+
+static_assert(sizeof(PBVHDrawIndirectCommand) == 20,
+              "PBVHDrawIndirectCommand must match backend indirect command layout");
+
+/* Per-node range within combined buffers for multi-draw indirect. */
+struct PBVHNodeRange {
+  uint vertex_offset;
+  uint index_offset;
+  uint vertex_count;
+  uint index_count;
+};
+
 namespace blender {
 
 template<> struct DefaultHash<draw::pbvh::AttributeRequest> {
@@ -106,7 +135,7 @@ class DrawCacheImpl : public DrawCache {
     void tag_dirty(const IndexMask &node_mask);
   };
 
-  /** Used to determine whether to use indexed VBO layouts for multires grids. */
+  /** Used to determine whether to use flat layout for multires grids. */
   BitVector<> use_flat_layout_;
   /** The material index for each node. */
   Array<int> material_indices_;
@@ -145,6 +174,26 @@ class DrawCacheImpl : public DrawCache {
    * downside.
    */
   BitVector<> dirty_topology_;
+
+  /**
+   * Combined draw data for multires (Grids) PBVH optimization - flat layout.
+   * Key is the ViewportRequest hash, Value is a map of AttributeRequest -> PBVHDrawData.
+   * \note Only used for bke::pbvh::Type::Grids with flat layout (nodes with sharp faces).
+   */
+  Map<uint64_t, Map<AttributeRequest, PBVHDrawData>> combined_draw_data_flat_;
+
+  /**
+   * Combined draw data for multires (Grids) PBVH optimization - smooth layout.
+   * Key is the ViewportRequest hash, Value is a map of AttributeRequest -> PBVHDrawData.
+   * \note Only used for bke::pbvh::Type::Grids with smooth layout (nodes without sharp faces).
+   */
+  Map<uint64_t, Map<AttributeRequest, PBVHDrawData>> combined_draw_data_smooth_;
+
+  /** Combined line draw data for multires PBVH wireframe optimization - flat layout. */
+  PBVHDrawData combined_lines_draw_data_flat_;
+
+  /** Combined line draw data for multires PBVH wireframe optimization - smooth layout. */
+  PBVHDrawData combined_lines_draw_data_smooth_;
 
  public:
   ~DrawCacheImpl() override;
@@ -189,6 +238,78 @@ class DrawCacheImpl : public DrawCache {
                                               const OrigMeshData &orig_mesh_data,
                                               const IndexMask &node_mask,
                                               bool coarse);
+
+  /**
+   * Build combined tris draw data for multires PBVH.
+   * \return combined draw data with VBO/IBO/indirect buffer.
+   */
+  PBVHDrawData build_combined_tris_draw_data(const Object &object,
+                                             const ViewportRequest &request,
+                                             const IndexMask &visible_nodes,
+                                             bool use_flat);
+
+  /**
+   * Build combined lines draw data for multires PBVH wireframe.
+   * \return combined draw data with VBO/IBO/indirect buffer.
+   */
+  PBVHDrawData build_combined_lines_draw_data(const Object &object,
+                                              const ViewportRequest &request,
+                                              const IndexMask &visible_nodes);
+
+  /**
+   * Build combined draw data for multires PBVH.
+   * Creates single VBO/IBO per attribute with indirect draw buffer.
+   * \return true if combined data was built (Grids type with enough nodes).
+   */
+  bool ensure_combined_tris_draw_data(const Object &object,
+                                      const ViewportRequest &request,
+                                      const IndexMask &visible_nodes);
+
+  /**
+   * Build combined line draw data for multires PBVH wireframe.
+   * \return true if combined data was built.
+   */
+  bool ensure_combined_lines_draw_data(const Object &object,
+                                       const ViewportRequest &request,
+                                       const IndexMask &visible_nodes);
+
+  /**
+   * Get the combined draw data for a given request and attribute.
+   * \return nullptr if no combined data exists.
+   */
+  PBVHDrawData *get_combined_draw_data(const ViewportRequest &request,
+                                       const AttributeRequest &attr);
+
+  /**
+   * Get the combined draw data for flat layout nodes.
+   * \return nullptr if no flat layout combined data exists.
+   */
+  PBVHDrawData *get_combined_draw_data_flat(const ViewportRequest &request,
+                                            const AttributeRequest &attr);
+
+  /**
+   * Get the combined draw data for smooth layout nodes.
+   * \return nullptr if no smooth layout combined data exists.
+   */
+  PBVHDrawData *get_combined_draw_data_smooth(const ViewportRequest &request,
+                                              const AttributeRequest &attr);
+
+  /**
+   * Get the combined lines draw data.
+   * \return nullptr if no combined data exists.
+   */
+  PBVHDrawData *get_combined_lines_draw_data();
+
+  /** Free all combined draw data. */
+  void free_combined_draw_data();
+
+  /* Override DrawCache pure virtual methods for combined drawing. */
+  gpu::StorageBuf *get_tris_indirect_buf(const ViewportRequest &request,
+                                         const AttributeRequest &attr) override;
+  gpu::StorageBuf *get_lines_indirect_buf() override;
+  gpu::Batch *get_combined_tris_batch(const ViewportRequest &request,
+                                      const AttributeRequest &attr) override;
+  gpu::Batch *get_combined_lines_batch() override;
 };
 
 void DrawCacheImpl::AttributeData::tag_dirty(const IndexMask &node_mask)
@@ -478,6 +599,7 @@ DrawCacheImpl::~DrawCacheImpl()
   for (MutableSpan<gpu::Batch *> batches : tris_batches_.values()) {
     free_batches(batches, batches.index_range());
   }
+  free_combined_draw_data();
 }
 
 void DrawCacheImpl::free_nodes_with_changed_topology(const bke::pbvh::Tree &pbvh)
@@ -1969,6 +2091,949 @@ Span<int> DrawCacheImpl::ensure_material_indices(const Object &object)
     material_indices_ = calc_material_indices(object, orig_mesh_data);
   }
   return material_indices_;
+}
+
+void DrawCacheImpl::free_combined_draw_data()
+{
+  combined_draw_data_flat_.clear();
+  combined_draw_data_smooth_.clear();
+  PBVHDrawData empty_lines;
+  std::swap(combined_lines_draw_data_flat_, empty_lines);
+  std::swap(combined_lines_draw_data_smooth_, empty_lines);
+}
+
+PBVHDrawData *DrawCacheImpl::get_combined_draw_data(const ViewportRequest &request,
+                                                    const AttributeRequest &attr)
+{
+  /* First check flat layout, then smooth layout. */
+  PBVHDrawData *draw_data = get_combined_draw_data_flat(request, attr);
+  if (!draw_data) {
+    draw_data = get_combined_draw_data_smooth(request, attr);
+  }
+  return draw_data;
+}
+
+PBVHDrawData *DrawCacheImpl::get_combined_draw_data_flat(const ViewportRequest &request,
+                                                         const AttributeRequest &attr)
+{
+  Map<AttributeRequest, PBVHDrawData> *attr_data = combined_draw_data_flat_.lookup_ptr(
+      request.hash());
+  if (!attr_data) {
+    return nullptr;
+  }
+  const PBVHDrawData *draw_data = attr_data->lookup_ptr(attr);
+  return draw_data ? const_cast<PBVHDrawData *>(draw_data) : nullptr;
+}
+
+PBVHDrawData *DrawCacheImpl::get_combined_draw_data_smooth(const ViewportRequest &request,
+                                                           const AttributeRequest &attr)
+{
+  Map<AttributeRequest, PBVHDrawData> *attr_data = combined_draw_data_smooth_.lookup_ptr(
+      request.hash());
+  if (!attr_data) {
+    return nullptr;
+  }
+  const PBVHDrawData *draw_data = attr_data->lookup_ptr(attr);
+  return draw_data ? const_cast<PBVHDrawData *>(draw_data) : nullptr;
+}
+
+PBVHDrawData *DrawCacheImpl::get_combined_lines_draw_data()
+{
+  /* First check flat layout, then smooth layout. */
+  if (!combined_lines_draw_data_flat_.vbo) {
+    return nullptr;
+  }
+  return &combined_lines_draw_data_flat_;
+}
+
+static int count_lines_per_node(const bke::pbvh::GridsNode &node,
+                                const CCGKey &key,
+                                const BitGroupVector<> &grid_hidden,
+                                const bool /* use_flat */)
+{
+  int total_lines = 0;
+  const Span<int> grid_indices = node.grids();
+  const int grid_size = key.grid_size;
+
+  for (const int grid : grid_indices) {
+    const BoundedBitSpan gh = grid_hidden.is_empty() ? BoundedBitSpan() : grid_hidden[grid];
+    bool grid_visible = false;
+    for (int y = 0; y < grid_size - 1; y++) {
+      for (int x = 0; x < grid_size - 1; x++) {
+        if (!gh.is_empty() && paint_is_grid_face_hidden(gh, grid_size, x, y)) {
+          continue;
+        }
+        total_lines += 3; /* v0-v1, v0-v3, and boundary line */
+        grid_visible = true;
+      }
+    }
+    if (grid_visible) {
+      total_lines += 1; /* bottom edge v1-v2 */
+    }
+  }
+  return total_lines;
+}
+
+static void build_indices_grids(Vector<uint32_t> &data,
+                                int &data_offset,
+                                const Span<bke::pbvh::GridsNode> &nodes,
+                                const Span<PBVHNodeRange> &node_ranges,
+                                const IndexMask &visible_nodes,
+                                const CCGKey &key,
+                                const BitGroupVector<> &grid_hidden,
+                                const bool use_flat)
+{
+  int visible_node_index = 0;
+  visible_nodes.foreach_index([&](const int node_index) {
+    const PBVHNodeRange &range = node_ranges[visible_node_index];
+    const Span<int> grid_indices = nodes[node_index].grids();
+    const uint visible_quads = bke::pbvh::count_grid_quads(
+        grid_hidden, grid_indices, key.grid_size, key.grid_size);
+    const uint indices_per_quad = 6;
+    const uint node_index_count = visible_quads * indices_per_quad;
+
+    BLI_assert(data_offset + node_index_count <= data.size());
+
+    /* Generate triangle indices - skip hidden quads. */
+    uint node_vertex_offset = range.vertex_offset;
+    for (const int grid : grid_indices) {
+      const BoundedBitSpan gh = grid_hidden.is_empty() ? BoundedBitSpan() : grid_hidden[grid];
+      const int grid_size_1 = key.grid_size - 1;
+      for (int y = 0; y < grid_size_1; y++) {
+        for (int x = 0; x < grid_size_1; x++) {
+          if (!gh.is_empty() && paint_is_grid_face_hidden(gh, key.grid_size, x, y)) {
+            continue;
+          }
+          uint v0, v1, v2, v3;
+          if (use_flat) {
+            v0 = node_vertex_offset + (y * grid_size_1 + x) * 4;
+            v1 = v0 + 1;
+            v2 = v0 + 2;
+            v3 = v0 + 3;
+          }
+          else {
+            v0 = node_vertex_offset + CCG_grid_xy_to_index(key.grid_size, x, y);
+            v1 = node_vertex_offset + CCG_grid_xy_to_index(key.grid_size, x + 1, y);
+            v2 = node_vertex_offset + CCG_grid_xy_to_index(key.grid_size, x + 1, y + 1);
+            v3 = node_vertex_offset + CCG_grid_xy_to_index(key.grid_size, x, y + 1);
+          }
+          data[data_offset + 0] = v0;
+          data[data_offset + 1] = v1;
+          data[data_offset + 2] = v2;
+          data[data_offset + 3] = v0;
+          data[data_offset + 4] = v2;
+          data[data_offset + 5] = v3;
+          data_offset += 6;
+        }
+      }
+      node_vertex_offset += square_i(key.grid_size - 1) * 4;
+    }
+
+    visible_node_index++;
+  });
+}
+
+static void build_lines_indices_grids(Vector<uint32_t> &data,
+                                      int &data_offset,
+                                      const Span<bke::pbvh::GridsNode> &nodes,
+                                      const Span<PBVHNodeRange> &node_ranges,
+                                      const IndexMask &visible_nodes,
+                                      const CCGKey &key,
+                                      const BitGroupVector<> &grid_hidden)
+{
+  int visible_node_index = 0;
+  visible_nodes.foreach_index([&](const int node_index) {
+    const PBVHNodeRange &range = node_ranges[visible_node_index];
+    const Span<int> grid_indices = nodes[node_index].grids();
+    const int grid_size = key.grid_size;
+    uint node_index_count = 0;
+
+    /* First pass: count indices. */
+    for (const int grid : grid_indices) {
+      const BoundedBitSpan gh = grid_hidden.is_empty() ? BoundedBitSpan() : grid_hidden[grid];
+      for (int y = 0; y < grid_size - 1; y++) {
+        for (int x = 0; x < grid_size - 1; x++) {
+          if (!gh.is_empty() && paint_is_grid_face_hidden(gh, grid_size, x, y)) {
+            continue;
+          }
+          node_index_count += 3;
+        }
+      }
+    }
+
+    BLI_assert(data_offset + node_index_count <= data.size());
+
+    /* Second pass: write indices. */
+    uint node_vertex_offset = range.vertex_offset;
+    for (const int grid : grid_indices) {
+      const BoundedBitSpan gh = grid_hidden.is_empty() ? BoundedBitSpan() : grid_hidden[grid];
+      bool grid_visible = false;
+      for (int y = 0; y < grid_size - 1; y++) {
+        for (int x = 0; x < grid_size - 1; x++) {
+          if (!gh.is_empty() && paint_is_grid_face_hidden(gh, grid_size, x, y)) {
+            continue;
+          }
+          uint v0 = node_vertex_offset + CCG_grid_xy_to_index(grid_size, x, y);
+          uint v1 = node_vertex_offset + CCG_grid_xy_to_index(grid_size, x + 1, y);
+          uint v3 = node_vertex_offset + CCG_grid_xy_to_index(grid_size, x, y + 1);
+          data[data_offset++] = v0;
+          data[data_offset++] = v1;
+          data[data_offset++] = v0;
+          data[data_offset++] = v3;
+          grid_visible = true;
+        }
+      }
+      if (grid_visible) {
+        uint v1b = node_vertex_offset +
+                   CCG_grid_xy_to_index(grid_size, grid_size - 1, grid_size - 2);
+        uint v2b = node_vertex_offset +
+                   CCG_grid_xy_to_index(grid_size, grid_size - 1, grid_size - 1);
+        data[data_offset++] = v1b;
+        data[data_offset++] = v2b;
+      }
+      node_vertex_offset += square_i(key.grid_size);
+    }
+
+    visible_node_index++;
+  });
+}
+
+static PBVHDrawData build_combined_tris_ibos_grids(const Object & /* object */,
+                                                   const IndexMask &visible_nodes,
+                                                   const SubdivCCG &subdiv_ccg,
+                                                   const CCGKey &key,
+                                                   const Span<bke::pbvh::GridsNode> &nodes,
+                                                   bool use_flat)
+{
+  const BitGroupVector<> &grid_hidden = subdiv_ccg.grid_hidden;
+  PBVHDrawData draw_data;
+  draw_data.node_count = visible_nodes.size();
+  draw_data.node_ranges.resize(visible_nodes.size());
+
+  /* Count total vertices. */
+  uint total_vertices = 0;
+  int visible_node_index = 0;
+  visible_nodes.foreach_index([&](const int node_index) {
+    const Span<int> grid_indices = nodes[node_index].grids();
+    const uint vert_count = use_flat ?
+                                (uint)grid_indices.size() * square_i(key.grid_size - 1) * 4 :
+                                (uint)grid_indices.size() * square_i(key.grid_size);
+    draw_data.node_ranges[visible_node_index] = {(uint)total_vertices, 0, vert_count, 0};
+    total_vertices += vert_count;
+    visible_node_index++;
+  });
+
+  if (total_vertices == 0) {
+    return draw_data;
+  }
+
+  /* Count total indices. */
+  uint total_indices = 0;
+  visible_node_index = 0;
+  visible_nodes.foreach_index([&](const int node_index) {
+    const Span<int> grid_indices = nodes[node_index].grids();
+    const uint visible_quads = bke::pbvh::count_grid_quads(
+        grid_hidden, grid_indices, key.grid_size, key.grid_size);
+    const uint index_count = visible_quads * 6;
+    draw_data.node_ranges[visible_node_index].index_count = index_count;
+    draw_data.node_ranges[visible_node_index].index_offset = total_indices;
+    total_indices += index_count;
+    visible_node_index++;
+  });
+
+  if (total_indices == 0) {
+    return draw_data;
+  }
+
+  /* Build combined IBO on CPU. */
+  Vector<uint32_t> indices(total_indices);
+  int data_offset = 0;
+  build_indices_grids(indices,
+                      data_offset,
+                      nodes,
+                      draw_data.node_ranges,
+                      visible_nodes,
+                      key,
+                      grid_hidden,
+                      use_flat);
+  BLI_assert(data_offset == (int)total_indices);
+
+  GPUIndexBufBuilder builder;
+  GPU_indexbuf_init(&builder, GPU_PRIM_TRIS, total_indices / 3, total_vertices);
+  for (uint i = 0; i < total_indices; i += 3) {
+    GPU_indexbuf_add_generic_vert(&builder, indices[i]);
+    GPU_indexbuf_add_generic_vert(&builder, indices[i + 1]);
+    GPU_indexbuf_add_generic_vert(&builder, indices[i + 2]);
+  }
+  draw_data.ibo = gpu::IndexBufPtr(GPU_indexbuf_build(&builder));
+
+  return draw_data;
+}
+
+static PBVHDrawData build_combined_lines_ibos_grids(const Object & /* object */,
+                                                    const IndexMask &visible_nodes,
+                                                    const SubdivCCG &subdiv_ccg,
+                                                    const CCGKey &key,
+                                                    const Span<bke::pbvh::GridsNode> &nodes)
+{
+  PBVHDrawData draw_data;
+  draw_data.node_count = visible_nodes.size();
+  draw_data.node_ranges.resize(visible_nodes.size());
+
+  const BitGroupVector<> &grid_hidden = subdiv_ccg.grid_hidden;
+
+  /* Count total vertices - lines VBO stores grid_size*grid_size per grid for all layouts. */
+  uint total_vertices = 0;
+  int visible_node_index = 0;
+  visible_nodes.foreach_index([&](const int node_index) {
+    const Span<int> grid_indices = nodes[node_index].grids();
+    const uint vert_count = grid_indices.size() * square_i(key.grid_size);
+    draw_data.node_ranges[visible_node_index] = {(uint)total_vertices, 0, vert_count, 0};
+    total_vertices += vert_count;
+    visible_node_index++;
+  });
+
+  if (total_vertices == 0) {
+    return draw_data;
+  }
+
+  /* Count total line indices. */
+  uint total_indices = 0;
+  visible_node_index = 0;
+  visible_nodes.foreach_index([&](const int node_index) {
+    const bke::pbvh::GridsNode &node = nodes[node_index];
+    const uint index_count = count_lines_per_node(node, key, grid_hidden, false);
+    draw_data.node_ranges[visible_node_index].index_count = index_count;
+    draw_data.node_ranges[visible_node_index].index_offset = total_indices;
+    total_indices += index_count;
+    visible_node_index++;
+  });
+
+  if (total_indices == 0) {
+    return draw_data;
+  }
+
+  /* Build combined line IBO on CPU. */
+  Vector<uint32_t> indices(total_indices);
+  int data_offset = 0;
+  build_lines_indices_grids(
+      indices, data_offset, nodes, draw_data.node_ranges, visible_nodes, key, grid_hidden);
+  BLI_assert(data_offset == (int)total_indices);
+
+  GPUIndexBufBuilder builder;
+  GPU_indexbuf_init(&builder, GPU_PRIM_LINES, total_indices / 2, total_indices);
+  MutableSpan<uint32_t> ibo_data = GPU_indexbuf_get_data(&builder);
+  for (int i = 0; i < (int)total_indices; i++) {
+    ibo_data[i] = indices[i];
+  }
+  builder.index_len = total_indices;
+  draw_data.ibo = gpu::IndexBufPtr(GPU_indexbuf_build(&builder));
+
+  return draw_data;
+}
+
+PBVHDrawData DrawCacheImpl::build_combined_tris_draw_data(const Object &object,
+                                                          const ViewportRequest & /* request */,
+                                                          const IndexMask &visible_nodes,
+                                                          bool use_flat)
+{
+  PBVHDrawData draw_data;
+  draw_data.node_count = visible_nodes.size();
+
+  const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
+  if (pbvh.type() != bke::pbvh::Type::Grids) {
+    return draw_data;
+  }
+
+  const Span<bke::pbvh::GridsNode> nodes = pbvh.nodes<bke::pbvh::GridsNode>();
+  const SubdivCCG &subdiv_ccg = *object.runtime->sculpt_session->subdiv_ccg;
+  const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
+
+  /* Build combined IBO on CPU from grid data. */
+  const Object &object_orig = *DEG_get_original(&object);
+  const OrigMeshData orig_mesh_data{*id_cast<const Mesh *>(object_orig.data)};
+  this->ensure_use_flat_layout(object, orig_mesh_data);
+
+  /* First, compute per-node vertex counts and build node ranges. */
+  draw_data.node_ranges.resize(visible_nodes.size());
+  uint total_vertices = 0;
+
+  int visible_node_index = 0;
+  visible_nodes.foreach_index([&](const int node_index) {
+    const Span<int> grid_indices = nodes[node_index].grids();
+    const uint vert_count = use_flat ?
+                                (uint)grid_indices.size() * square_i(key.grid_size - 1) * 4 :
+                                (uint)grid_indices.size() * square_i(key.grid_size);
+
+    draw_data.node_ranges[visible_node_index] = {(uint)total_vertices, 0, vert_count, 0};
+    total_vertices += vert_count;
+    visible_node_index++;
+  });
+
+  if (total_vertices == 0) {
+    return draw_data;
+  }
+
+  /* Build combined IBO without GPU read(). */
+  PBVHDrawData ibo_data = build_combined_tris_ibos_grids(
+      object, visible_nodes, subdiv_ccg, key, nodes, use_flat);
+
+  draw_data.node_ranges = ibo_data.node_ranges;
+  draw_data.ibo = std::move(ibo_data.ibo);
+
+  /* Build indirect command buffer. */
+  if (draw_data.node_count > 0 && draw_data.ibo) {
+    const size_t indirect_size = draw_data.node_count * sizeof(PBVHDrawIndirectCommand);
+    draw_data.indirect_buf = std::shared_ptr<gpu::StorageBuf>(GPU_storagebuf_create(indirect_size),
+                                                              GPU_storagebuf_free);
+
+    Vector<PBVHDrawIndirectCommand> commands(draw_data.node_count);
+    for (int index = 0; index < (int)draw_data.node_ranges.size(); index++) {
+      const PBVHNodeRange &range = draw_data.node_ranges[index];
+      if (range.index_count > 0) {
+        commands[index].index_count = range.index_count;
+        commands[index].instance_count = 1;
+        commands[index].first_index = range.index_offset;
+        commands[index].vertex_offset = 0;
+        commands[index].first_instance = 0;
+      }
+      else {
+        /* Skip invisible nodes with zero indices. */
+        commands[index].index_count = 0;
+        commands[index].instance_count = 1;
+        commands[index].first_index = 0;
+        commands[index].vertex_offset = 0;
+        commands[index].first_instance = 0;
+      }
+    }
+
+    GPU_storagebuf_update(draw_data.indirect_buf.get(), commands.data());
+  }
+
+  return draw_data;
+}
+
+PBVHDrawData DrawCacheImpl::build_combined_lines_draw_data(const Object &object,
+                                                           const ViewportRequest & /* request */,
+                                                           const IndexMask &visible_nodes)
+{
+  PBVHDrawData draw_data;
+  draw_data.node_count = visible_nodes.size();
+
+  const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
+  if (pbvh.type() != bke::pbvh::Type::Grids) {
+    return draw_data;
+  }
+
+  const Span<bke::pbvh::GridsNode> nodes = pbvh.nodes<bke::pbvh::GridsNode>();
+  const SubdivCCG &subdiv_ccg = *object.runtime->sculpt_session->subdiv_ccg;
+  const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
+
+  /* Build combined position VBO (same as tri draw data). */
+  gpu::VertBufPtr vbo = gpu::VertBufPtr(GPU_vertbuf_create_with_format(position_format()));
+
+  /* Count total vertices. */
+  uint total_vertices = 0;
+  draw_data.node_ranges.resize(visible_nodes.size());
+  int visible_node_index = 0;
+  visible_nodes.foreach_index([&](const int node_index) {
+    const Span<int> grid_indices = nodes[node_index].grids();
+    const uint verts_per_grid = square_i(key.grid_size);
+    const uint vert_count = grid_indices.size() * verts_per_grid;
+    draw_data.node_ranges[visible_node_index] = {(uint)total_vertices, 0, vert_count, 0};
+    total_vertices += vert_count;
+    visible_node_index++;
+  });
+
+  GPU_vertbuf_data_alloc(*vbo, total_vertices);
+
+  /* Fill position data. */
+  const Span<float3> positions = subdiv_ccg.positions;
+  float3 *data = vbo->data<float3>().data();
+  visible_nodes.foreach_index([&](const int node_index) {
+    const Span<int> grid_indices = nodes[node_index].grids();
+    for (const int grid : grid_indices) {
+      const Span<float3> grid_positions = positions.slice(bke::ccg::grid_range(key, grid));
+      std::copy_n(grid_positions.data(), grid_positions.size(), data);
+      data += grid_positions.size();
+    }
+  });
+  GPU_vertbuf_use(vbo.get());
+  draw_data.vbo = vbo.release();
+
+  /* Build combined line IBO on CPU from grid data. */
+  const Object &object_orig = *DEG_get_original(&object);
+  const OrigMeshData orig_mesh_data{*id_cast<const Mesh *>(object_orig.data)};
+  this->ensure_use_flat_layout(object, orig_mesh_data);
+
+  /* Build combined IBO without GPU read(). */
+  PBVHDrawData ibo_data = build_combined_lines_ibos_grids(
+      object, visible_nodes, subdiv_ccg, key, nodes);
+
+  draw_data.node_ranges = ibo_data.node_ranges;
+  draw_data.ibo = std::move(ibo_data.ibo);
+
+  /* Build indirect command buffer. */
+  if (draw_data.node_count > 0 && draw_data.ibo) {
+    const size_t indirect_size = draw_data.node_count * sizeof(PBVHDrawIndirectCommand);
+    draw_data.indirect_buf = std::shared_ptr<gpu::StorageBuf>(GPU_storagebuf_create(indirect_size),
+                                                              GPU_storagebuf_free);
+
+    Vector<PBVHDrawIndirectCommand> commands(draw_data.node_count);
+    for (int index = 0; index < (int)draw_data.node_ranges.size(); index++) {
+      const PBVHNodeRange &range = draw_data.node_ranges[index];
+      if (range.index_count > 0) {
+        commands[index].index_count = range.index_count;
+        commands[index].instance_count = 1;
+        commands[index].first_index = range.index_offset;
+        commands[index].vertex_offset = 0;
+        commands[index].first_instance = 0;
+      }
+      else {
+        commands[index].index_count = 0;
+        commands[index].instance_count = 1;
+        commands[index].first_index = 0;
+        commands[index].vertex_offset = 0;
+        commands[index].first_instance = 0;
+      }
+    }
+
+    GPU_storagebuf_update(draw_data.indirect_buf.get(), commands.data());
+  }
+
+  return draw_data;
+}
+
+bool DrawCacheImpl::ensure_combined_tris_draw_data(const Object &object,
+                                                   const ViewportRequest &request,
+                                                   const IndexMask &visible_nodes)
+{
+  /* Only use combined draw for Grids PBVH with sufficient nodes to benefit. */
+  const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
+  if (pbvh.type() != bke::pbvh::Type::Grids) {
+    return false;
+  }
+
+  const int nodes_num = visible_nodes.size();
+  if (nodes_num < 2) {
+    return false;
+  }
+
+  BLI_assert(pbvh.type() == bke::pbvh::Type::Grids);
+  BLI_assert(nodes_num >= 2);
+
+  /* Ensure use_flat_layout_ is up to date. */
+  const Object &object_orig = *DEG_get_original(&object);
+  const OrigMeshData orig_mesh_data{*id_cast<const Mesh *>(object_orig.data)};
+  this->ensure_use_flat_layout(object, orig_mesh_data);
+
+  /* Split visible nodes into flat and smooth groups based on per-node layout. */
+  IndexMaskMemory memory2;
+  const Span<bke::pbvh::GridsNode> grids_nodes = pbvh.nodes<bke::pbvh::GridsNode>();
+  Vector<int> grids_indices;
+  visible_nodes.foreach_index([&](const int i) {
+    if (i >= 0 && (size_t)i < grids_nodes.size()) {
+      grids_indices.append(i);
+    }
+  });
+  IndexMask grids_visible_nodes = IndexMask::from_indices(grids_indices.as_span(), memory2);
+
+  /* Determine which nodes are flat and which are smooth. */
+  Vector<int> flat_node_indices, smooth_node_indices;
+  grids_visible_nodes.foreach_index([&](const int node_idx) {
+    if (node_idx < (int)this->use_flat_layout_.size()) {
+      if (this->use_flat_layout_[node_idx]) {
+        flat_node_indices.append(node_idx);
+      }
+      else {
+        smooth_node_indices.append(node_idx);
+      }
+    }
+  });
+  IndexMask flat_nodes = IndexMask::from_indices(flat_node_indices.as_span(), memory2);
+  IndexMask smooth_nodes = IndexMask::from_indices(smooth_node_indices.as_span(), memory2);
+
+  /* Build combined draw data for flat layout nodes. */
+  if (!flat_nodes.is_empty()) {
+    uint64_t request_hash = request.hash();
+    PBVHDrawData draw_data = build_combined_tris_draw_data(object, request, flat_nodes, true);
+
+    if (draw_data.ibo) {
+      Map<AttributeRequest, PBVHDrawData> &attr_data =
+          combined_draw_data_flat_.lookup_or_add_cb_as(
+              request_hash, []() { return Map<AttributeRequest, PBVHDrawData>(); });
+
+      for (const AttributeRequest &attr : request.attributes) {
+        PBVHDrawData attr_draw_data = draw_data;
+        /* Build VBO for this specific attribute. */
+        const SubdivCCG &subdiv_ccg = *object.runtime->sculpt_session->subdiv_ccg;
+        const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
+
+        const GPUVertFormat *format = nullptr;
+        const CustomRequest *cr = std::get_if<CustomRequest>(&attr);
+        if (cr) {
+          switch (*cr) {
+            case CustomRequest::Position:
+              format = &position_format();
+              break;
+            case CustomRequest::Normal:
+              format = &normal_format();
+              break;
+            case CustomRequest::Mask:
+              format = &mask_format();
+              break;
+            case CustomRequest::FaceSet:
+              format = &face_set_format();
+              break;
+          }
+        }
+        if (!format) {
+          continue;
+        }
+
+        gpu::VertBufPtr vbo = gpu::VertBufPtr(
+            GPU_vertbuf_create_with_format_ex(*format, GPU_USAGE_STATIC));
+        const int total_node_ranges = (int)attr_draw_data.node_ranges.size();
+        uint total_vertices_for_attr = 0;
+        if (total_node_ranges > 0) {
+          const uint last_offset = attr_draw_data.node_ranges[total_node_ranges - 1].vertex_offset;
+          const uint last_count = attr_draw_data.node_ranges[total_node_ranges - 1].vertex_count;
+          total_vertices_for_attr = last_offset + last_count;
+        }
+        GPU_vertbuf_data_alloc(*vbo, total_vertices_for_attr);
+
+        const bool is_position = (cr && *cr == CustomRequest::Position);
+        const bool is_normal = (cr && *cr == CustomRequest::Normal);
+        const bool is_mask = (cr && *cr == CustomRequest::Mask);
+        const bool is_face_set = (cr && *cr == CustomRequest::FaceSet);
+
+        if (is_position) {
+          const Span<float3> positions = subdiv_ccg.positions;
+          float3 *data = vbo->data<float3>().data();
+          flat_nodes.foreach_index([&](const int node_index) {
+            if (node_index < 0 || (size_t)node_index >= grids_nodes.size()) {
+              return;
+            }
+            BLI_assert(key.grid_size > 0 && key.grid_size <= 64);
+            const Span<int> grid_indices = grids_nodes[node_index].grids();
+            for (const int grid : grid_indices) {
+              if (grid < 0 || (size_t)grid >= positions.size() / (key.grid_size * key.grid_size)) {
+                if (grid_indices.size() > 0) {
+                }
+                BLI_assert(false && "Grid index out of bounds");
+              }
+              const Span<float3> grid_positions = positions.slice(bke::ccg::grid_range(key, grid));
+              BLI_assert(grid_positions.size() == (size_t)key.grid_size * key.grid_size);
+              const int grid_size_1 = key.grid_size - 1;
+              for (int y = 0; y < grid_size_1; y++) {
+                for (int x = 0; x < grid_size_1; x++) {
+                  *data = grid_positions[CCG_grid_xy_to_index(key.grid_size, x, y)];
+                  data++;
+                  *data = grid_positions[CCG_grid_xy_to_index(key.grid_size, x + 1, y)];
+                  data++;
+                  *data = grid_positions[CCG_grid_xy_to_index(key.grid_size, x + 1, y + 1)];
+                  data++;
+                  *data = grid_positions[CCG_grid_xy_to_index(key.grid_size, x, y + 1)];
+                  data++;
+                }
+              }
+            }
+          });
+        }
+        else if (is_normal) {
+          const Span<float3> normals = subdiv_ccg.normals;
+          short4 *data = vbo->data<short4>().data();
+          flat_nodes.foreach_index([&](const int node_index) {
+            if (node_index < 0 || (size_t)node_index >= grids_nodes.size()) {
+              return;
+            }
+            const Span<int> grid_indices = grids_nodes[node_index].grids();
+            for (const int grid : grid_indices) {
+              const Span<float3> grid_normals = normals.slice(bke::ccg::grid_range(key, grid));
+              const int grid_size_1 = key.grid_size - 1;
+              for (int y = 0; y < grid_size_1; y++) {
+                for (int x = 0; x < grid_size_1; x++) {
+                  *data = normal_float_to_short(
+                      grid_normals[CCG_grid_xy_to_index(key.grid_size, x, y)]);
+                  data++;
+                  *data = normal_float_to_short(
+                      grid_normals[CCG_grid_xy_to_index(key.grid_size, x + 1, y)]);
+                  data++;
+                  *data = normal_float_to_short(
+                      grid_normals[CCG_grid_xy_to_index(key.grid_size, x + 1, y + 1)]);
+                  data++;
+                  *data = normal_float_to_short(
+                      grid_normals[CCG_grid_xy_to_index(key.grid_size, x, y + 1)]);
+                  data++;
+                }
+              }
+            }
+          });
+        }
+        else if (is_mask) {
+          const Span<float> masks = subdiv_ccg.masks;
+          float *data = vbo->data<float>().data();
+          flat_nodes.foreach_index([&](const int node_index) {
+            if (node_index < 0 || (size_t)node_index >= grids_nodes.size()) {
+              return;
+            }
+            const Span<int> grid_indices = grids_nodes[node_index].grids();
+            for (const int grid : grid_indices) {
+              const Span<float> grid_masks = masks.slice(bke::ccg::grid_range(key, grid));
+              const int grid_size_1 = key.grid_size - 1;
+              for (int y = 0; y < grid_size_1; y++) {
+                for (int x = 0; x < grid_size_1; x++) {
+                  *data = grid_masks[CCG_grid_xy_to_index(key.grid_size, x, y)];
+                  data++;
+                  *data = grid_masks[CCG_grid_xy_to_index(key.grid_size, x + 1, y)];
+                  data++;
+                  *data = grid_masks[CCG_grid_xy_to_index(key.grid_size, x + 1, y + 1)];
+                  data++;
+                  *data = grid_masks[CCG_grid_xy_to_index(key.grid_size, x, y + 1)];
+                  data++;
+                }
+              }
+            }
+          });
+        }
+        else if (is_face_set) {
+          /* Face sets use default color for prototype. */
+          uchar4 *data = vbo->data<uchar4>().data();
+          const int total_verts = (int)attr_draw_data.node_ranges.size();
+          const int vertex_offset = total_verts > 0 ?
+                                        attr_draw_data.node_ranges[total_verts - 1].vertex_offset :
+                                        0;
+          const int vertex_count = total_verts > 0 ?
+                                       attr_draw_data.node_ranges[total_verts - 1].vertex_count :
+                                       0;
+          for (int vi = 0; vi < vertex_offset + vertex_count; vi++) {
+            *data = uchar4(255);
+            data++;
+          }
+        }
+
+        GPU_vertbuf_use(vbo.get());
+        attr_draw_data.vbo = vbo.release();
+        auto &stored = attr_data.lookup_or_add_default(attr);
+        stored = std::move(attr_draw_data);
+
+        BLI_assert(stored.vbo != nullptr);
+        BLI_assert(stored.ibo != nullptr);
+        BLI_assert(stored.indirect_buf != nullptr);
+        BLI_assert(stored.node_count == (int)flat_nodes.size());
+        BLI_assert(stored.node_ranges.size() == flat_nodes.size());
+      }
+    }
+  }
+
+  /* Build combined draw data for smooth layout nodes. */
+  if (!smooth_nodes.is_empty()) {
+    uint64_t request_hash = request.hash();
+    PBVHDrawData draw_data = build_combined_tris_draw_data(object, request, smooth_nodes, false);
+
+    if (draw_data.ibo) {
+      Map<AttributeRequest, PBVHDrawData> &attr_data =
+          combined_draw_data_smooth_.lookup_or_add_cb_as(
+              request_hash, []() { return Map<AttributeRequest, PBVHDrawData>(); });
+
+      for (const AttributeRequest &attr : request.attributes) {
+        PBVHDrawData attr_draw_data = draw_data;
+        /* Build VBO for this specific attribute. */
+        const SubdivCCG &subdiv_ccg = *object.runtime->sculpt_session->subdiv_ccg;
+        const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
+
+        const GPUVertFormat *format = nullptr;
+        const CustomRequest *cr = std::get_if<CustomRequest>(&attr);
+        if (cr) {
+          switch (*cr) {
+            case CustomRequest::Position:
+              format = &position_format();
+              break;
+            case CustomRequest::Normal:
+              format = &normal_format();
+              break;
+            case CustomRequest::Mask:
+              format = &mask_format();
+              break;
+            case CustomRequest::FaceSet:
+              format = &face_set_format();
+              break;
+          }
+        }
+        if (!format) {
+          continue;
+        }
+
+        gpu::VertBufPtr vbo = gpu::VertBufPtr(
+            GPU_vertbuf_create_with_format_ex(*format, GPU_USAGE_STATIC));
+        const int total_node_ranges = (int)attr_draw_data.node_ranges.size();
+        uint total_vertices_for_attr = 0;
+        if (total_node_ranges > 0) {
+          const uint last_offset = attr_draw_data.node_ranges[total_node_ranges - 1].vertex_offset;
+          const uint last_count = attr_draw_data.node_ranges[total_node_ranges - 1].vertex_count;
+          total_vertices_for_attr = last_offset + last_count;
+        }
+        GPU_vertbuf_data_alloc(*vbo, total_vertices_for_attr);
+
+        const bool is_position = (cr && *cr == CustomRequest::Position);
+        const bool is_normal = (cr && *cr == CustomRequest::Normal);
+        const bool is_mask = (cr && *cr == CustomRequest::Mask);
+        const bool is_face_set = (cr && *cr == CustomRequest::FaceSet);
+
+        if (is_position) {
+          const Span<float3> positions = subdiv_ccg.positions;
+          float3 *data = vbo->data<float3>().data();
+          smooth_nodes.foreach_index([&](const int node_index) {
+            if (node_index < 0 || (size_t)node_index >= grids_nodes.size()) {
+              return;
+            }
+            BLI_assert(key.grid_size > 0 && key.grid_size <= 64);
+            const Span<int> grid_indices = grids_nodes[node_index].grids();
+            for (const int grid : grid_indices) {
+              if (grid < 0 || (size_t)grid >= positions.size() / (key.grid_size * key.grid_size)) {
+                if (grid_indices.size() > 0) {
+                }
+                BLI_assert(false && "Grid index out of bounds");
+              }
+              const Span<float3> grid_positions = positions.slice(bke::ccg::grid_range(key, grid));
+              BLI_assert(grid_positions.size() == (size_t)key.grid_size * key.grid_size);
+              std::copy_n(grid_positions.data(), grid_positions.size(), data);
+              data += grid_positions.size();
+            }
+          });
+        }
+        else if (is_normal) {
+          const Span<float3> normals = subdiv_ccg.normals;
+          short4 *data = vbo->data<short4>().data();
+          smooth_nodes.foreach_index([&](const int node_index) {
+            if (node_index < 0 || (size_t)node_index >= grids_nodes.size()) {
+              return;
+            }
+            const Span<int> grid_indices = grids_nodes[node_index].grids();
+            for (const int grid : grid_indices) {
+              const Span<float3> grid_normals = normals.slice(bke::ccg::grid_range(key, grid));
+              for (const float3 &normal : grid_normals) {
+                *data = normal_float_to_short(normal);
+                data++;
+              }
+            }
+          });
+        }
+        else if (is_mask) {
+          const Span<float> masks = subdiv_ccg.masks;
+          float *data = vbo->data<float>().data();
+          smooth_nodes.foreach_index([&](const int node_index) {
+            if (node_index < 0 || (size_t)node_index >= grids_nodes.size()) {
+              return;
+            }
+            const Span<int> grid_indices = grids_nodes[node_index].grids();
+            for (const int grid : grid_indices) {
+              const Span<float> grid_masks = masks.slice(bke::ccg::grid_range(key, grid));
+              std::copy_n(grid_masks.data(), grid_masks.size(), data);
+              data += grid_masks.size();
+            }
+          });
+        }
+        else if (is_face_set) {
+          /* Face sets use default color for prototype. */
+          uchar4 *data = vbo->data<uchar4>().data();
+          const int total_verts = (int)attr_draw_data.node_ranges.size();
+          const int vertex_offset = total_verts > 0 ?
+                                        attr_draw_data.node_ranges[total_verts - 1].vertex_offset :
+                                        0;
+          const int vertex_count = total_verts > 0 ?
+                                       attr_draw_data.node_ranges[total_verts - 1].vertex_count :
+                                       0;
+          for (int vi = 0; vi < vertex_offset + vertex_count; vi++) {
+            *data = uchar4(255);
+            data++;
+          }
+        }
+
+        GPU_vertbuf_use(vbo.get());
+        attr_draw_data.vbo = vbo.release();
+        auto &stored = attr_data.lookup_or_add_default(attr);
+        stored = std::move(attr_draw_data);
+
+        BLI_assert(stored.vbo != nullptr);
+        BLI_assert(stored.ibo != nullptr);
+        BLI_assert(stored.indirect_buf != nullptr);
+        BLI_assert(stored.node_count == (int)smooth_nodes.size());
+        BLI_assert(stored.node_ranges.size() == smooth_nodes.size());
+      }
+    }
+  }
+
+  return true;
+}
+
+bool DrawCacheImpl::ensure_combined_lines_draw_data(const Object &object,
+                                                    const ViewportRequest &request,
+                                                    const IndexMask &visible_nodes)
+{
+  const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
+  if (pbvh.type() != bke::pbvh::Type::Grids) {
+    return false;
+  }
+
+  const int nodes_num = visible_nodes.size();
+  if (nodes_num < 2) {
+    return false;
+  }
+
+  PBVHDrawData draw_data = build_combined_lines_draw_data(object, request, visible_nodes);
+
+  if (!draw_data.vbo || !draw_data.ibo) {
+    return false;
+  }
+
+  /* Store in map for position attribute. */
+  uint64_t request_hash = request.hash();
+  Map<AttributeRequest, PBVHDrawData> &attr_data = combined_draw_data_flat_.lookup_or_add_cb_as(
+      request_hash, []() { return Map<AttributeRequest, PBVHDrawData>(); });
+  attr_data.lookup_or_add_default(CustomRequest::Position) = std::move(draw_data);
+
+  return true;
+}
+
+gpu::StorageBuf *DrawCacheImpl::get_tris_indirect_buf(const ViewportRequest &request,
+                                                      const AttributeRequest &attr)
+{
+  PBVHDrawData *draw_data = get_combined_draw_data(request, attr);
+  return draw_data ? draw_data->indirect_buf.get() : nullptr;
+}
+
+gpu::StorageBuf *DrawCacheImpl::get_lines_indirect_buf()
+{
+  PBVHDrawData *draw_data = get_combined_lines_draw_data();
+  return draw_data ? draw_data->indirect_buf.get() : nullptr;
+}
+
+gpu::Batch *DrawCacheImpl::get_combined_tris_batch(const ViewportRequest &request,
+                                                   const AttributeRequest &attr)
+{
+  PBVHDrawData *draw_data = get_combined_draw_data(request, attr);
+  if (!draw_data || !draw_data->vbo || !draw_data->ibo) {
+    return nullptr;
+  }
+  /* Create a combined batch that owns the VBO and IBO. */
+  gpu::Batch *batch = GPU_batch_create_ex(
+      GPU_PRIM_TRIS, draw_data->vbo, draw_data->ibo.get(), (GPUBatchFlag)GPU_BATCH_OWNS_VBO);
+  /* Don't release the VBO/IBO when batch is discarded - they're owned by PBVHDrawData. */
+  GPU_batch_discard(batch);
+  /* Re-create without ownership flags since PBVHDrawData owns the buffers. */
+  batch = GPU_batch_create(GPU_PRIM_TRIS, draw_data->vbo, draw_data->ibo.get());
+  return batch;
+}
+
+gpu::Batch *DrawCacheImpl::get_combined_lines_batch()
+{
+  PBVHDrawData *draw_data = get_combined_lines_draw_data();
+  if (!draw_data || !draw_data->vbo || !draw_data->ibo) {
+    return nullptr;
+  }
+  gpu::Batch *batch = GPU_batch_create(GPU_PRIM_LINES, draw_data->vbo, draw_data->ibo.get());
+  return batch;
 }
 
 }  // namespace draw::pbvh

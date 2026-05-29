@@ -185,7 +185,10 @@ class Prepass : Overlay {
                                  res.select_id(ob_ref, (batch.material_slot + 1) << 16) :
                                  res.select_id(ob_ref);
 
-      if (res.is_selection()) {
+      if (batch.indirect_buf != nullptr) {
+        mesh_ps_->draw_indirect(batch.batch, batch.indirect_buf, select_id.get());
+      }
+      else if (res.is_selection()) {
         /* Conservative shader needs expanded draw-call. */
         mesh_ps_->draw_expand(batch.batch, GPU_PRIM_TRIS, 1, 1, handle, select_id.get());
       }

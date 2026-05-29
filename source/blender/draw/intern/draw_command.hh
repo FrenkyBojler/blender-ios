@@ -110,6 +110,7 @@ enum class Type : uint8_t {
   DispatchIndirect,
   Draw,
   DrawIndirect,
+  DrawMultiIndirect,
   FramebufferBind,
   PushConstant,
   SpecializeConstant,
@@ -416,7 +417,17 @@ struct DrawMulti {
 
 struct DrawIndirect {
   gpu::Batch *batch;
-  gpu::StorageBuf **indirect_buf;
+  gpu::StorageBuf *indirect_buf;
+  ResourceID res_id;
+
+  void execute(RecordingState &state) const;
+  std::string serialize() const;
+};
+
+struct DrawMultiIndirect {
+  gpu::Batch *batch;
+  gpu::StorageBuf *indirect_buf;
+  uint32_t draw_count;
   ResourceID res_id;
 
   void execute(RecordingState &state) const;
@@ -518,6 +529,7 @@ union Undetermined {
   Draw draw;
   DrawMulti draw_multi;
   DrawIndirect draw_indirect;
+  DrawMultiIndirect draw_multi_indirect;
   Dispatch dispatch;
   DispatchIndirect dispatch_indirect;
   Barrier barrier;

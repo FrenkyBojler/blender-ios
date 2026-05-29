@@ -224,8 +224,14 @@ class Sculpts : Overlay {
                                                   (show_mask_ ? SCULPT_BATCH_MASK :
                                                                 SCULPT_BATCH_DEFAULT);
 
-      for (SculptBatch &batch : sculpt_batches_get(ob_ref.object, sculpt_batch_features_)) {
-        mesh_ps_->draw(batch.batch, handle);
+      auto batches = sculpt_batches_get(ob_ref.object, sculpt_batch_features_);
+      for (SculptBatch &batch : batches) {
+        if (batch.indirect_buf != nullptr) {
+          mesh_ps_->draw_multi_indirect(batch.batch, batch.indirect_buf, batch.draw_count);
+        }
+        else {
+          mesh_ps_->draw(batch.batch, handle);
+        }
       }
     }
     else {

@@ -29,7 +29,7 @@ gpu::StorageBuf *GPU_storagebuf_create_ex(size_t size,
                                           const char *name);
 
 #define GPU_storagebuf_create(size) \
-  GPU_storagebuf_create_ex(size, nullptr, GPU_USAGE_DYNAMIC, __func__);
+  GPU_storagebuf_create_ex(size, nullptr, GPU_USAGE_DYNAMIC, __func__)
 
 void GPU_storagebuf_free(gpu::StorageBuf *ssbo);
 

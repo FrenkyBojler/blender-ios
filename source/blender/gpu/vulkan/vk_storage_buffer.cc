@@ -146,6 +146,11 @@ void VKStorageBuffer::async_flush_to_host()
   async_read_buffer_->host_buffer_get().async_flush_to_host(context);
 }
 
+void VKStorageBuffer::sync_as_indirect_buffer()
+{
+  ensure_allocated();
+}
+
 void VKStorageBuffer::read(void *data)
 {
   if (async_read_buffer_ == nullptr) {

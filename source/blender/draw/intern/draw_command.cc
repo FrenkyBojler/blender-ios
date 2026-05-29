@@ -257,7 +257,25 @@ void DrawIndirect::execute(RecordingState &state) const
 {
   state.front_facing_set(res_id.has_inverted_handedness());
 
-  GPU_batch_draw_indirect(batch, *indirect_buf, 0);
+  if (indirect_buf != nullptr) {
+    GPU_storagebuf_sync_as_indirect_buffer(indirect_buf);
+    GPU_batch_draw_indirect(batch, indirect_buf, 0);
+  }
+}
+
+void DrawMultiIndirect::execute(RecordingState &state) const
+{
+  state.front_facing_set(res_id.has_inverted_handedness());
+
+  if (indirect_buf != nullptr) {
+    GPU_storagebuf_sync_as_indirect_buffer(indirect_buf);
+    GPU_batch_multi_draw_indirect(batch, indirect_buf, draw_count, 0, 20);
+  }
+}
+
+std::string DrawMultiIndirect::serialize() const
+{
+  return std::string("DrawMultiIndirect") + "(" + std::to_string(draw_count) + ")";
 }
 
 void Dispatch::execute(RecordingState &state) const

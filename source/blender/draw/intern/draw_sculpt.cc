@@ -108,12 +108,96 @@ static Vector<SculptBatch> sculpt_batches_get_ex(const Object *ob,
   const IndexMask nodes_to_update = update_only_visible ? visible_nodes :
                                                           bke::pbvh::all_leaf_nodes(*pbvh, memory);
 
-  Span<gpu::Batch *> batches;
-  if (use_wire) {
-    batches = draw_data.ensure_lines_batches(*ob, {{}, fast_mode}, nodes_to_update);
+  pbvh::ViewportRequest request{Vector<pbvh::AttributeRequest>(attrs), fast_mode};
+
+  /* Try combined draw data for Vulkan draw call reduction (Grids PBVH only). */
+  /* Split into flat and smooth layout groups to handle mixed layouts correctly. */
+  if (!use_wire) {
+    draw_data.ensure_combined_tris_draw_data(*ob, request, visible_nodes);
+
+    Vector<SculptBatch> result;
+
+    /* Process flat layout combined draw data. */
+    pbvh::PBVHDrawData *flat_combined_data = draw_data.get_combined_draw_data_flat(request,
+                                                                                   attrs[0]);
+    if (flat_combined_data && flat_combined_data->vbo && flat_combined_data->ibo &&
+        flat_combined_data->indirect_buf)
+    {
+      gpu::Batch *combined_batch = GPU_batch_create(
+          GPU_PRIM_TRIS, nullptr, flat_combined_data->ibo.get());
+      for (const pbvh::AttributeRequest &attr : attrs) {
+        pbvh::PBVHDrawData *attr_data = draw_data.get_combined_draw_data_flat(request, attr);
+        if (attr_data && attr_data->vbo) {
+          GPU_batch_vertbuf_add(combined_batch, attr_data->vbo, false);
+        }
+      }
+      result.resize((int)result.size() + 1);
+      result[result.size() - 1] = {};
+      result[result.size() - 1].batch = combined_batch;
+      result[result.size() - 1].indirect_buf = flat_combined_data->indirect_buf.get();
+      result[result.size() - 1].draw_count = (uint32_t)flat_combined_data->node_ranges.size();
+      result[result.size() - 1].material_slot = 0;
+      result[result.size() - 1].debug_index = (uint32_t)result.size() - 1;
+    }
+
+    /* Process smooth layout combined draw data. */
+    pbvh::PBVHDrawData *smooth_combined_data = draw_data.get_combined_draw_data_smooth(request,
+                                                                                       attrs[0]);
+    if (smooth_combined_data && smooth_combined_data->vbo && smooth_combined_data->ibo &&
+        smooth_combined_data->indirect_buf)
+    {
+      gpu::Batch *combined_batch = GPU_batch_create(
+          GPU_PRIM_TRIS, nullptr, smooth_combined_data->ibo.get());
+      for (const pbvh::AttributeRequest &attr : attrs) {
+        pbvh::PBVHDrawData *attr_data = draw_data.get_combined_draw_data_smooth(request, attr);
+        if (attr_data && attr_data->vbo) {
+          GPU_batch_vertbuf_add(combined_batch, attr_data->vbo, false);
+        }
+      }
+      result.resize((int)result.size() + 1);
+      result[result.size() - 1] = {};
+      result[result.size() - 1].batch = combined_batch;
+      result[result.size() - 1].indirect_buf = smooth_combined_data->indirect_buf.get();
+      result[result.size() - 1].draw_count = (uint32_t)smooth_combined_data->node_ranges.size();
+      result[result.size() - 1].material_slot = 0;
+      result[result.size() - 1].debug_index = (uint32_t)result.size() - 1;
+    }
+
+    if (!result.is_empty()) {
+      return result;
+    }
   }
   else {
-    batches = draw_data.ensure_tris_batches(*ob, {attrs, fast_mode}, nodes_to_update);
+    /* Wireframe combined draw. */
+    pbvh::PBVHDrawData *combined_lines = draw_data.get_combined_lines_draw_data();
+    if (!combined_lines || !combined_lines->vbo || !combined_lines->ibo) {
+      draw_data.ensure_combined_lines_draw_data(*ob, request, visible_nodes);
+      combined_lines = draw_data.get_combined_lines_draw_data();
+    }
+
+    if (combined_lines && combined_lines->vbo && combined_lines->ibo &&
+        combined_lines->indirect_buf)
+    {
+      gpu::Batch *combined_batch = GPU_batch_create(
+          GPU_PRIM_LINES, combined_lines->vbo, combined_lines->ibo.get());
+      Vector<SculptBatch> result;
+      result.resize(1);
+      result[0] = {};
+      result[0].batch = combined_batch;
+      result[0].indirect_buf = combined_lines->indirect_buf.get();
+      result[0].material_slot = 0;
+      result[0].debug_index = 0;
+      return result;
+    }
+  }
+
+  /* Fallback to per-node batches. */
+  Span<gpu::Batch *> batches;
+  if (use_wire) {
+    batches = draw_data.ensure_lines_batches(*ob, request, nodes_to_update);
+  }
+  else {
+    batches = draw_data.ensure_tris_batches(*ob, request, nodes_to_update);
   }
 
   const Span<int> material_indices = draw_data.ensure_material_indices(*ob);
@@ -123,11 +207,14 @@ static Vector<SculptBatch> sculpt_batches_get_ex(const Object *ob,
   visible_nodes.foreach_index([&](const int i, const int pos) {
     result_batches[pos] = {};
     result_batches[pos].batch = batches[i];
+    result_batches[pos].indirect_buf = nullptr;
     result_batches[pos].material_slot = material_indices.is_empty() ?
                                             0 :
                                             std::clamp(material_indices[i], 0, max_material);
     result_batches[pos].debug_index = pos;
   });
+
+  BLI_assert(result_batches.size() == visible_nodes.size());
 
   return result_batches;
 }

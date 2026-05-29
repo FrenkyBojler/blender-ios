@@ -78,7 +78,12 @@ class Facing : Overlay {
       ResourceHandleRange handle = manager.unique_handle_for_sculpt(ob_ref);
 
       for (SculptBatch &batch : sculpt_batches_get(ob_ref.object, SCULPT_BATCH_DEFAULT)) {
-        ps_.draw(batch.batch, handle);
+        if (batch.indirect_buf != nullptr) {
+          ps_.draw_indirect(batch.batch, batch.indirect_buf);
+        }
+        else {
+          ps_.draw(batch.batch, handle);
+        }
       }
     }
     else {

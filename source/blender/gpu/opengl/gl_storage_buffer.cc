@@ -122,8 +122,9 @@ void GLStorageBuf::bind(int slot)
 
 void GLStorageBuf::bind_as(GLenum target)
 {
-  BLI_assert_msg(ssbo_id_ != 0,
-                 "Trying to use storage buffer as indirect buffer but buffer was never filled.");
+  if (ssbo_id_ == 0) {
+    this->init();
+  }
   glBindBuffer(target, ssbo_id_);
 }
 
@@ -252,6 +253,9 @@ void GLStorageBuf::read(void *data)
 
 void GLStorageBuf::sync_as_indirect_buffer()
 {
+  if (ssbo_id_ == 0) {
+    this->init();
+  }
   bind_as(GL_DRAW_INDIRECT_BUFFER);
   glMemoryBarrier(GL_COMMAND_BARRIER_BIT);
   glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);

@@ -760,6 +760,7 @@ void VKBackend::compute_dispatch_indirect(StorageBuf *indirect_buf)
   BLI_assert(indirect_buf);
   VKContext &context = *VKContext::get();
   VKStorageBuffer &indirect_buffer = *unwrap(indirect_buf);
+  indirect_buffer.ensure_allocated();
   render_graph::VKResourceAccessInfo &resources = context.reset_and_get_access_info();
   render_graph::VKDispatchIndirectNode::CreateInfo dispatch_indirect_info(resources);
   context.update_pipeline_data(dispatch_indirect_info.dispatch_indirect_node.pipeline_data);

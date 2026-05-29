@@ -129,7 +129,12 @@ class Prepass {
     ResourceHandleRange handle = manager.unique_handle_for_sculpt(ob_ref);
 
     for (SculptBatch &batch : sculpt_batches_get(ob_ref.object, SCULPT_BATCH_DEFAULT)) {
-      mesh_ps_->draw(batch.batch, handle);
+      if (batch.indirect_buf != nullptr) {
+        mesh_ps_->draw_indirect(batch.batch, batch.indirect_buf);
+      }
+      else {
+        mesh_ps_->draw(batch.batch, handle);
+      }
     }
   }
 
