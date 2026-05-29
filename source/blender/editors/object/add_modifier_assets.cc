@@ -150,7 +150,7 @@ static void unassigned_assets_draw(const bContext *C, Menu *menu)
   ui::Layout &layout = *menu->layout;
   wmOperatorType *ot = WM_operatortype_find("OBJECT_OT_modifier_add_node_group", true);
   for (const asset_system::AssetRepresentation *asset : tree.unassigned_assets) {
-    asset::draw_online_asset_menu(asset, ot->idname, layout);
+    asset::draw_online_asset_menu_item(asset, ot->idname, layout);
   }
 
   bool first = true;

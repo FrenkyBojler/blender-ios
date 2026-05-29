@@ -237,7 +237,7 @@ static void node_unassigned_assets_draw(const bContext *C, Menu *menu)
   }
   asset::AssetItemTree &tree = *snode.runtime->assets_for_menu;
   for (const asset_system::AssetRepresentation *asset : tree.unassigned_assets) {
-    asset::draw_online_asset_menu(asset, *operator_id, *menu->layout);
+    asset::draw_online_asset_menu_item(asset, *operator_id, *menu->layout);
   }
 }
 
