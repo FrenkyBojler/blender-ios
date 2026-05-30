@@ -6490,20 +6490,6 @@ static wmOperatorStatus uv_select_similar_vert_exec(bContext *C, wmOperator *op)
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
       *bmain, scene, view_layer, nullptr);
 
-  int max_verts_selected_all = 0;
-  for (Object *ob : objects) {
-    BMesh *bm = BKE_editmesh_from_object(ob)->bm;
-    BMFace *face;
-    BMIter iter;
-    BM_ITER_MESH (face, &iter, bm, BM_FACES_OF_MESH) {
-      if (!uvedit_face_visible_test(scene, face)) {
-        continue;
-      }
-      max_verts_selected_all += face->len;
-    }
-    /* TODO: Get a tighter bounds */
-  }
-
   int tree_index = 0;
   Map<float, int> points_1d;
 
@@ -6615,20 +6601,6 @@ static wmOperatorStatus uv_select_similar_edge_exec(bContext *C, wmOperator *op)
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
       *bmain, scene, view_layer, nullptr);
-
-  int max_edges_selected_all = 0;
-  for (Object *ob : objects) {
-    BMesh *bm = BKE_editmesh_from_object(ob)->bm;
-    BMFace *face;
-    BMIter iter;
-    BM_ITER_MESH (face, &iter, bm, BM_FACES_OF_MESH) {
-      if (!uvedit_face_visible_test(scene, face)) {
-        continue;
-      }
-      max_edges_selected_all += face->len;
-    }
-    /* TODO: Get a tighter bounds. */
-  }
 
   int tree_index = 0;
   Map<float, int> points_1d;
@@ -6758,13 +6730,6 @@ static wmOperatorStatus uv_select_similar_face_exec(bContext *C, wmOperator *op)
         material_remaps[ob_index][i] = material_map.lookup_or_add(ma, material_map.size());
       }
     }
-  }
-
-  int max_faces_selected_all = 0;
-  for (Object *ob : objects) {
-    BMesh *bm = BKE_editmesh_from_object(ob)->bm;
-    max_faces_selected_all += bm->totfacesel;
-    /* TODO: Get a tighter bounds */
   }
 
   int tree_index = 0;
