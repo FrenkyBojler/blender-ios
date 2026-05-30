@@ -11,9 +11,10 @@
 
 #pragma once
 
+#include "eevee_defines.hh"
 #include "gpu_shader_math_constants_lib.glsl"
 #include "gpu_shader_math_matrix_construct_lib.glsl"
-#include "gpu_shader_utildefines_lib.glsl"
+#include "gpu_shader_utildefines_lib.glsl" /* IWYU pragma: export. FLT_MAX */
 
 namespace eevee::ltc {
 
@@ -194,7 +195,7 @@ float evaluate_quad(sampler2DArray util_tx, float3 corners[4], float3 N, float3 
  * disk_points are WS vectors from the shading point to the disk "bounding domain".
  */
 float evaluate_disk(
-    sampler2DArray util_tx, float3 N, float3 V, float3x3 Minv, float3 disk_points[3])
+    sampler2DArray util_tx, float3 N, float3 V, float3x3 Minv, float3 disk_points[4])
 {
   /* Construct orthonormal basis around N. */
   float3x3 T = detail::tangent_basis(N, V);

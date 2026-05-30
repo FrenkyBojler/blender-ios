@@ -17,6 +17,7 @@
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector_types.hh"
+#include "BLI_profile.hh"
 #include "BLI_rect.h"
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
@@ -53,6 +54,7 @@
 #include "ED_screen.hh"
 #include "ED_sequencer.hh"
 #include "ED_space_api.hh"
+#include "ED_time_scrub_ui.hh"
 #include "ED_util.hh"
 #include "ED_view3d.hh"
 
@@ -228,20 +230,29 @@ static void sequencer_draw_borders_overlay(const SpaceSeq &sseq,
 
   imm_draw_box_wire_2d(shdr_pos, x1 - 0.5f, y1 - 0.5f, x2 + 0.5f, y2 + 0.5f);
 
+  rctf rect;
+  rect.xmin = x1;
+  rect.xmax = x2;
+  rect.ymin = y1;
+  rect.ymax = y2;
+
   /* Draw safety border. */
   if (sseq.preview_overlay.flag & SEQ_PREVIEW_SHOW_SAFE_MARGINS) {
     immUniformThemeColorBlend(TH_VIEW_OVERLAY, TH_BACK, 0.25f);
-    rctf rect;
-    rect.xmin = x1;
-    rect.xmax = x2;
-    rect.ymin = y1;
-    rect.ymax = y2;
     ui::draw_safe_areas(shdr_pos, &rect, scene->safe_areas.title, scene->safe_areas.action);
 
     if (sseq.preview_overlay.flag & SEQ_PREVIEW_SHOW_SAFE_CENTER) {
       ui::draw_safe_areas(
           shdr_pos, &rect, scene->safe_areas.title_center, scene->safe_areas.action_center);
     }
+  }
+
+  /* Draw composition guides. */
+  if (sseq.preview_overlay.flag & SEQ_PREVIEW_SHOW_COMPOSITION_GUIDES) {
+    ED_draw_composition_guides(shdr_pos,
+                               sseq.preview_overlay.composition_guide_flags,
+                               &rect,
+                               sseq.preview_overlay.composition_guide_color);
   }
 
   immUnbindProgram();
@@ -915,6 +926,7 @@ static void update_gpu_scopes(const ImBuf *input_ibuf,
                               Scene *scene,
                               int timeline_frame)
 {
+  BLI_profile_scope_with_name("SeqUpdateGPUScopes", ProfileCategory::Draw);
   BLI_assert(input_ibuf && input_texture);
 
   /* Display space GPU texture is already calculated. */
@@ -991,6 +1003,8 @@ static void update_cpu_scopes(const SpaceSeq &space_sequencer,
     /* Nothing to do: scopes already calculated for this image/frame. */
     return;
   }
+
+  BLI_profile_scope_with_name("SeqUpdateCPUScopes", ProfileCategory::Draw);
 
   scopes.cleanup();
   if (space_sequencer.mainb == SEQ_DRAW_IMG_HISTOGRAM) {
@@ -1533,6 +1547,7 @@ static int get_reference_frame_offset(const Editing &editing, const RenderData &
  * If channel configuration is incompatible with the texture nullptr is returned. */
 static gpu::Texture *create_texture(const ImBuf &ibuf)
 {
+  BLI_profile_scope_with_name("SeqPreviewCreateTexture", ProfileCategory::Draw);
   const eGPUTextureUsage texture_usage = GPU_TEXTURE_USAGE_SHADER_READ |
                                          GPU_TEXTURE_USAGE_ATTACHMENT;
 
@@ -1824,6 +1839,8 @@ void sequencer_preview_region_draw(const bContext *C, ARegion *region)
     return;
   }
 
+  BLI_profile_scope_with_name("SeqPreviewDraw", ProfileCategory::Draw);
+
   const Editing &editing = *scene->ed;
   const RenderData &render_data = scene->r;
 
@@ -1925,6 +1942,16 @@ void sequencer_preview_region_draw(const bContext *C, ARegion *region)
   IMB_freeImBuf(reference_ibuf);
 
   preview_draw_end(C);
+}
+
+void sequencer_scrubbing_region_draw(const bContext *C, ARegion *region)
+{
+  const Scene *scene = CTX_data_sequencer_scene(C);
+  const SpaceSeq *sseq = CTX_wm_space_seq(C);
+
+  const int fps = round_db_to_int(scene->frames_per_second());
+  ED_time_scrub_draw(region, scene, !(sseq->flag & SEQ_DRAWFRAMES), true, fps);
+  ED_time_scrub_draw_current_frame(region, scene, !(sseq->flag & SEQ_DRAWFRAMES), false, true);
 }
 
 }  // namespace blender::ed::vse

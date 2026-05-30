@@ -110,7 +110,7 @@ static void palette_free_data(ID *id)
 {
   Palette *palette = id_cast<Palette *>(id);
 
-  BLI_freelistN(&palette->colors);
+  palette->colors.free_no_destruct();
 }
 
 static void palette_foreach_working_space_color(ID *id,
@@ -1303,7 +1303,7 @@ void BKE_palette_color_remove(Palette *palette, PaletteColor *color)
 
   BLI_remlink(&palette->colors, color);
 
-  if (palette->active_color < 0 && !BLI_listbase_is_empty(&palette->colors)) {
+  if (palette->active_color < 0 && !palette->colors.is_empty()) {
     palette->active_color = 0;
   }
 
@@ -1312,7 +1312,7 @@ void BKE_palette_color_remove(Palette *palette, PaletteColor *color)
 
 void BKE_palette_clear(Palette *palette)
 {
-  BLI_freelistN(&palette->colors);
+  palette->colors.free_no_destruct();
   palette->active_color = 0;
 }
 
@@ -1342,7 +1342,7 @@ PaletteColor *BKE_palette_color_add(Palette *palette)
 
 bool BKE_palette_is_empty(const Palette *palette)
 {
-  return BLI_listbase_is_empty(&palette->colors);
+  return palette->colors.is_empty();
 }
 
 bool BKE_paint_select_face_test(const Object *ob)
@@ -2327,7 +2327,7 @@ static bool sculpt_modifiers_active(const Scene *scene, const Sculpt *sd, Object
   for (ModifierData *md = BKE_modifiers_get_virtual_modifierlist(ob, &virtual_modifier_data); md;
        md = md->next)
   {
-    const ModifierTypeInfo *mti = BKE_modifier_get_info(static_cast<ModifierType>(md->type));
+    const ModifierTypeInfo *mti = BKE_modifier_get_info(md->type);
     if (!BKE_modifier_is_enabled(scene, md, eModifierMode_Realtime)) {
       continue;
     }
