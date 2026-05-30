@@ -1661,6 +1661,11 @@ VecBase<T, 3> transform_direction(const MatBase<T, 4, 4> &mat, const VecBase<T, 
   return mat.template view<3, 3>() * direction;
 }
 
+/**
+ * `mat` is treated as if it were transposed.
+ * This is typically used for transforming normals which requires the use of the transpose of
+ * the inverse of the transformation matrix.
+ */
 template<typename T>
 VecBase<T, 3> transform_direction_transposed(const MatBase<T, 3, 3> &mat,
                                              const VecBase<T, 3> &direction)
