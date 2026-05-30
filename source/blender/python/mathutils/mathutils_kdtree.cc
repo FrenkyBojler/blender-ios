@@ -153,6 +153,8 @@ PyDoc_STRVAR(
     "   :param coords: Sequence of 2D or 3D coords. If a coordinate has more\n"
     "      components than ``dimension``, the extra components are ignored.\n"
     "   :type coords: Sequence[Sequence[float]]\n"
+    "   :param dimension: The dimension of the tree (2 or 3).\n"
+    "   :type dimension: int\n"
     "   :return: A new balanced KDTree.\n"
     "   :rtype: :class:`KDTree`\n");
 static PyObject *C_KDTree_from_coords(PyObject *cls, PyObject *args)
@@ -651,8 +653,8 @@ PyDoc_STRVAR(
     "\n"
     "   :param size: Maximum number of items.\n"
     "   :type size: int\n"
-    "   :param size: The dimension of the tree (2 or 3).\n"
-    "   :type size: int\n"
+    "   :param dimension: The dimension of the tree (2 or 3).\n"
+    "   :type dimension: int\n"
     "\n"
     "   .. note::\n"
     "\n"
