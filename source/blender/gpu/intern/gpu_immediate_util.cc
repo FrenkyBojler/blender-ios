@@ -428,6 +428,69 @@ void imm_draw_circle_fill_aspect_3d(
   imm_draw_circle_3D(GPU_PRIM_TRI_FAN, pos, x, y, radius_x, radius_y, nsegments);
 }
 
+void imm_draw_rounded_box_wire_3d(
+    uint pos, float x, float y, float radius, float corner_radius, int nsegments)
+{
+  if (corner_radius <= 0.0f) {
+    imm_draw_box_wire_3d(pos, x - radius, y - radius, x + radius, y + radius);
+    return;
+  }
+
+  if (corner_radius >= radius) {
+    imm_draw_circle_wire_3d(pos, x, y, radius, nsegments);
+    return;
+  }
+
+  /* Draws four corners. */
+  imm_draw_circle_partial_wire_3d(pos,
+                                  x - radius + corner_radius,
+                                  y - radius + corner_radius,
+                                  0.0f,
+                                  corner_radius,
+                                  nsegments,
+                                  180.0f,
+                                  90.0f);
+  imm_draw_circle_partial_wire_3d(pos,
+                                  x + radius - corner_radius,
+                                  y + radius - corner_radius,
+                                  0.0f,
+                                  corner_radius,
+                                  nsegments,
+                                  0,
+                                  90.0f);
+  imm_draw_circle_partial_wire_3d(pos,
+                                  x + radius - corner_radius,
+                                  y - radius + corner_radius,
+                                  0.0f,
+                                  corner_radius,
+                                  nsegments,
+                                  90.0f,
+                                  90.0f);
+  imm_draw_circle_partial_wire_3d(pos,
+                                  x - radius + corner_radius,
+                                  y + radius - corner_radius,
+                                  0.0f,
+                                  corner_radius,
+                                  nsegments,
+                                  -90.0f,
+                                  90.0f);
+
+  /* Draws four edges. */
+  immBegin(GPU_PRIM_LINES, 8);
+  immVertex3f(pos, x - radius, y - radius + corner_radius, 0.0f);
+  immVertex3f(pos, x - radius, y + radius - corner_radius, 0.0f);
+
+  immVertex3f(pos, x + radius, y + radius - corner_radius, 0.0f);
+  immVertex3f(pos, x + radius, y - radius + corner_radius, 0.0f);
+
+  immVertex3f(pos, x - radius + corner_radius, y - radius, 0.0f);
+  immVertex3f(pos, x + radius - corner_radius, y - radius, 0.0f);
+
+  immVertex3f(pos, x + radius - corner_radius, y + radius, 0.0f);
+  immVertex3f(pos, x - radius + corner_radius, y + radius, 0.0f);
+  immEnd();
+}
+
 void imm_draw_box_wire_2d(uint pos, float x1, float y1, float x2, float y2)
 {
   /* NOTE(Metal/AMD): For small primitives, line list more efficient than line-strip. */
