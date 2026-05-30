@@ -139,6 +139,85 @@ static void PyKDTree__tp_dealloc(PyKDTree *self)
 /** \} */
 
 /* -------------------------------------------------------------------- */
+/** \name KDTree Class Methods
+ * \{ */
+
+/** From_coords constructor: `mathutils.kdtree.KDTree.from_coords()`. */
+PyDoc_STRVAR(
+    /* Wrap. */
+    C_KDTree_from_coords_doc,
+    ".. classmethod:: from_coords(coords, dimention=3, /)\n"
+    "\n"
+    "   Create a balanced KDTree from sequence.\n"
+    "\n"
+    "   :param coords: Sequence of 2D or 3D coords. If a coordinate has more\n"
+    "      components than ``dimention``, the extra components are ignored.\n"
+    "   :type coords: Sequence[Sequence[float]]\n"
+    "   :return: A new balanced KDTree.\n"
+    "   :rtype: :class:`KDTree`\n");
+static PyObject *C_KDTree_from_coords(PyObject *cls, PyObject *args)
+{
+  PyObject *py_seq;
+  int dims_num = 3;
+
+  if (!PyArg_ParseTuple(args, "O|i:KDTree.from_coords", &py_seq, &dims_num)) {
+    return nullptr;
+  }
+
+  if (!ELEM(dims_num, 2, 3)) {
+    PyErr_SetString(PyExc_RuntimeError, "dimention must be 2 or 3");
+    return nullptr;
+  }
+
+  float *coords;
+  int coords_len;
+
+  if ((coords_len = mathutils_array_parse_alloc_v(
+           &coords, dims_num | MU_ARRAY_SPILL, py_seq, "from_coords")) == -1)
+  {
+    return nullptr;
+  }
+
+  void *tree;
+
+  if (dims_num == 2) {
+    KDTree<float2> *kdtree_2d = kdtree_new<float2>(coords_len);
+    float2 *coords_2d = reinterpret_cast<float2 *>(coords);
+
+    for (int i = 0; i < coords_len; i++) {
+      kdtree_insert<float2>(kdtree_2d, i, coords_2d[i]);
+    }
+    kdtree_balance<float2>(kdtree_2d);
+    tree = (void *)kdtree_2d;
+  }
+  else {
+    KDTree<float3> *kdtree_3d = kdtree_new<float3>(coords_len);
+    float3 *coords_3d = reinterpret_cast<float3 *>(coords);
+
+    for (int i = 0; i < coords_len; i++) {
+      kdtree_insert<float3>(kdtree_3d, i, coords_3d[i]);
+    }
+    kdtree_balance<float3>(kdtree_3d);
+    tree = (void *)kdtree_3d;
+  }
+
+  if (coords_len) {
+    PyMem_Free(coords);
+  }
+
+  PyKDTree *py_kdtree = PyObject_New(PyKDTree, &PyKDTree_Type);
+  py_kdtree->obj = tree;
+  py_kdtree->maxsize = coords_len;
+  py_kdtree->count = coords_len;
+  py_kdtree->count_balance = coords_len;
+  py_kdtree->dims_num = dims_num;
+
+  return reinterpret_cast<PyObject *>(py_kdtree);
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name KDTree Methods: Insert
  * \{ */
 
@@ -149,7 +228,8 @@ PyDoc_STRVAR(
     "\n"
     "   Insert a point into the KDTree.\n"
     "\n"
-    "   :param co: Point 3d position.\n"
+    "   :param co: Point (2d or 3d) position. Missing component are filled\n"
+    "      with zero and extra components are ignored to match ``dimention``.\n"
     "   :type co: Sequence[float]\n"
     "   :param index: The index of the point (must be non-negative).\n"
     "   :type index: int\n");
@@ -260,7 +340,8 @@ PyDoc_STRVAR(
     "\n"
     "   Find nearest point to ``co``.\n"
     "\n"
-    "   :param co: 3D coordinate.\n"
+    "   :param co: 2D or 3D coordinate. Missing component are filled with zero and\n"
+    "      extra components are ignored to match ``dimention``.\n"
     "   :type co: Sequence[float]\n"
     "   :param filter: function which takes an index and returns True for indices to "
     "include in the search.\n"
@@ -353,7 +434,7 @@ PyDoc_STRVAR(
     "\n"
     "   Find nearest ``n`` points to ``co``.\n"
     "\n"
-    "   :param co: 3D coordinate.\n"
+    "   :param co: 2D or 3D coordinate.\n"
     "   :type co: Sequence[float]\n"
     "   :param n: Number of points to find.\n"
     "   :type n: int\n"
@@ -437,7 +518,7 @@ PyDoc_STRVAR(
     "\n"
     "   Find all points within ``radius`` of ``co``.\n"
     "\n"
-    "   :param co: 3D coordinate.\n"
+    "   :param co: 2D or 3D coordinate.\n"
     "   :type co: Sequence[float]\n"
     "   :param radius: Maximum distance to search for points.\n"
     "   :type radius: float\n"
@@ -543,6 +624,13 @@ static PyMethodDef PyKDTree_methods[] = {
      reinterpret_cast<PyCFunction>(py_kdtree_find_range),
      METH_VARARGS | METH_KEYWORDS,
      py_kdtree_find_range_doc},
+
+    /* Class methods. */
+    {"from_coords",
+     static_cast<PyCFunction>(C_KDTree_from_coords),
+     METH_VARARGS | METH_CLASS,
+     C_KDTree_from_coords_doc},
+
     {nullptr, nullptr, 0, nullptr},
 };
 
