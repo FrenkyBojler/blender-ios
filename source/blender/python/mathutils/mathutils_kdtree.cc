@@ -90,10 +90,10 @@ static int PyKDTree__tp_init(PyKDTree *self, PyObject *args, PyObject *kwargs)
 {
   uint maxsize;
   int dims_num = 3;
-  const char *keywords[] = {"size", "dimention", nullptr};
+  const char *keywords[] = {"size", "dimension", nullptr};
 
   if (!PyArg_ParseTupleAndKeywords(
-          args, kwargs, "I|$i:KDTree", const_cast<char **>(keywords), &maxsize, &dims_num))
+          args, kwargs, "I|i:KDTree", const_cast<char **>(keywords), &maxsize, &dims_num))
   {
     return -1;
   }
@@ -104,7 +104,7 @@ static int PyKDTree__tp_init(PyKDTree *self, PyObject *args, PyObject *kwargs)
   }
 
   if (!ELEM(dims_num, 2, 3)) {
-    PyErr_SetString(PyExc_RuntimeError, "dimention must be 2 or 3");
+    PyErr_SetString(PyExc_RuntimeError, "dimension must be 2 or 3");
     return -1;
   }
 
@@ -146,12 +146,12 @@ static void PyKDTree__tp_dealloc(PyKDTree *self)
 PyDoc_STRVAR(
     /* Wrap. */
     C_KDTree_from_coords_doc,
-    ".. classmethod:: from_coords(coords, dimention=3, /)\n"
+    ".. classmethod:: from_coords(coords, dimension=3, /)\n"
     "\n"
     "   Create a balanced KDTree from sequence.\n"
     "\n"
     "   :param coords: Sequence of 2D or 3D coords. If a coordinate has more\n"
-    "      components than ``dimention``, the extra components are ignored.\n"
+    "      components than ``dimension``, the extra components are ignored.\n"
     "   :type coords: Sequence[Sequence[float]]\n"
     "   :return: A new balanced KDTree.\n"
     "   :rtype: :class:`KDTree`\n");
@@ -165,7 +165,7 @@ static PyObject *C_KDTree_from_coords(PyObject *cls, PyObject *args)
   }
 
   if (!ELEM(dims_num, 2, 3)) {
-    PyErr_SetString(PyExc_RuntimeError, "dimention must be 2 or 3");
+    PyErr_SetString(PyExc_RuntimeError, "dimension must be 2 or 3");
     return nullptr;
   }
 
@@ -229,7 +229,7 @@ PyDoc_STRVAR(
     "   Insert a point into the KDTree.\n"
     "\n"
     "   :param co: Point (2d or 3d) position. Missing component are filled\n"
-    "      with zero and extra components are ignored to match ``dimention``.\n"
+    "      with zero and extra components are ignored to match ``dimension``.\n"
     "   :type co: Sequence[float]\n"
     "   :param index: The index of the point (must be non-negative).\n"
     "   :type index: int\n");
@@ -341,7 +341,7 @@ PyDoc_STRVAR(
     "   Find nearest point to ``co``.\n"
     "\n"
     "   :param co: 2D or 3D coordinate. Missing component are filled with zero and\n"
-    "      extra components are ignored to match ``dimention``.\n"
+    "      extra components are ignored to match ``dimension``.\n"
     "   :type co: Sequence[float]\n"
     "   :param filter: function which takes an index and returns True for indices to "
     "include in the search.\n"
@@ -645,13 +645,13 @@ static PyMethodDef PyKDTree_methods[] = {
 PyDoc_STRVAR(
     /* Wrap. */
     py_KDtree_doc,
-    ".. class:: KDTree(size, dimention=3)\n"
+    ".. class:: KDTree(size, dimension=3)\n"
     "\n"
-    "   KDTree(size, dimention=3) -> new kd-tree initialized to hold up to ``size`` items.\n"
+    "   KDTree(size, dimension=3) -> new kd-tree initialized to hold up to ``size`` items.\n"
     "\n"
     "   :param size: Maximum number of items.\n"
     "   :type size: int\n"
-    "   :param size: The dimention of the tree (2 or 3).\n"
+    "   :param size: The dimension of the tree (2 or 3).\n"
     "   :type size: int\n"
     "\n"
     "   .. note::\n"
