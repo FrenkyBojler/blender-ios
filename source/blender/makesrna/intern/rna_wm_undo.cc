@@ -1,3 +1,11 @@
+/* SPDX-FileCopyrightText: 2026 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
+
+/** \file
+ * \ingroup RNA
+ */
+
 #include "BLI_listbase.h"
 #include "BLI_utildefines.h"
 #include "BLI_string.h"
@@ -40,6 +48,12 @@ static int rna_UndoStack_active_index_get(PointerRNA *ptr)
   return BLI_findindex(&ustack->steps, ustack->step_active);
 }
 
+static PointerRNA rna_UndoStack_active_get(PointerRNA *ptr)
+{
+  UndoStack *ustack = static_cast<UndoStack *>(ptr->data);
+  return RNA_pointer_create_with_parent(*ptr, RNA_UndoStep, ustack->step_active);
+}
+
 static void rna_UndoStep_name_get(PointerRNA *ptr, char *value)
 {
   UndoStep *us = static_cast<UndoStep *>(ptr->data);
@@ -56,7 +70,7 @@ static void rna_UndoStep_type_name_get(PointerRNA *ptr, char *value)
 {
   UndoStep *us = static_cast<UndoStep *>(ptr->data);
   if (us->type && us->type->name) {
-    BLI_strncpy(value, us->type->name, 64);
+    strcpy(value, us->type->name);
   }
   else {
     value[0] = '\0';
@@ -66,13 +80,13 @@ static void rna_UndoStep_type_name_get(PointerRNA *ptr, char *value)
 static int rna_UndoStep_type_name_length(PointerRNA *ptr)
 {
   UndoStep *us = static_cast<UndoStep *>(ptr->data);
-  return us->type && us->type->name ? strlen(us->type->name) : 0;
+  return strlen(us->type->name);
 }
 
-static bool rna_UndoStep_skip_get(PointerRNA *ptr)
+static bool rna_UndoStep_is_substep_get(PointerRNA *ptr)
 {
   UndoStep *us = static_cast<UndoStep *>(ptr->data);
-  return us ? us->skip : false;
+  return us->skip;
 }
 
 #else /* !RNA_RUNTIME */
@@ -102,13 +116,13 @@ void RNA_def_undo(BlenderRNA *brna)
                                 nullptr);
   RNA_def_property_ui_text(prop, "Type", "Type name of the undo step");
 
-  prop = RNA_def_property(srna, "skip", PROP_BOOLEAN, PROP_NONE);
+  prop = RNA_def_property(srna, "is_substep", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-  RNA_def_property_boolean_funcs(prop, "rna_UndoStep_skip_get", nullptr);
+  RNA_def_property_boolean_funcs(prop, "rna_UndoStep_is_substep_get", nullptr);
   RNA_def_property_ui_text(prop,
-                           "Skip",
-                           "If true, this step should not be shown to the user for undo/redo "
-                           "selection");
+                           "Is Substep",
+                           "If true, this is a sub-step and should not be shown to the user "
+                           "for undo/redo selection as it is not accessible on its own");
 
   srna = RNA_def_struct(brna, "UndoStack", nullptr);
   RNA_def_struct_ui_text(srna, "Undo Stack", "Read-only access to the undo stack");
@@ -128,6 +142,17 @@ void RNA_def_undo(BlenderRNA *brna)
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_int_funcs(prop, "rna_UndoStack_active_index_get", nullptr, nullptr);
   RNA_def_property_ui_text(prop, "Active Index", "Index of currently active undo step");
+
+  prop = RNA_def_property(srna, "active", PROP_POINTER, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_struct_type(prop, "UndoStep");
+  RNA_def_property_pointer_funcs(prop,
+                                 "rna_UndoStack_active_get",
+                                 nullptr,
+                                 nullptr,
+                                 nullptr);
+  RNA_def_property_ui_text(prop, "Active", "Currently active undo step");
+
 }
 
 #endif /* RNA_RUNTIME */
