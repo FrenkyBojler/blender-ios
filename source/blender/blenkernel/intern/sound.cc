@@ -2318,8 +2318,8 @@ std::optional<Array<float>> bSoundFrequencySampler::compute_fft(const int start_
   const int frequencies_num = key_.fft_size / 2;
 
 #if defined(WITH_AUDASPACE) && defined(WITH_FFTW3)
-  /* Keep sample loading shared with the wavelet sampler. No behavior change is
-   * intended for the existing frequency sampler. */
+  /* Share sample loading with the wavelet sampler to keep decoder warmup
+   * handling in one place. */
   std::optional<Array<float>> buffer_opt = read_sound_sample_window(
       sound_, start_sample, key_.fft_size, key_.channel);
   if (!buffer_opt.has_value()) {
@@ -2572,11 +2572,11 @@ static int band_to_level(const WaveletBand band, const int max_level)
     case WaveletBand::High:
       return 1;
     case WaveletBand::HighMid:
-      return std::clamp(2, 1, max_level);
+      return std::min(2, max_level);
     case WaveletBand::Mid:
       return std::clamp((max_level + 1) / 2, 1, max_level);
     case WaveletBand::LowMid:
-      return std::clamp(max_level - 1, 1, max_level);
+      return std::max(max_level - 1, 1);
     case WaveletBand::Low:
       return max_level;
     case WaveletBand::FullRange:
@@ -2719,6 +2719,9 @@ std::optional<float> bSoundWaveletEnergySampler::ensure_window_cache(int window_
 std::optional<float> bSoundWaveletEnergySampler::compute_wavelet_energy(
     const int start_sample) const
 {
+  BLI_assert(is_power_of_2_i(key_.window_size));
+  BLI_assert(key_.window_size >= 16);
+
 #ifdef WITH_AUDASPACE
   std::optional<Array<float>> buffer_opt = read_sound_sample_window(
       sound_, start_sample, key_.window_size, key_.channel);

@@ -238,23 +238,7 @@ class SampleSoundWaveletEnergyFunction : public mf::MultiFunction {
 
 static bke::WaveletBand node_band(const bNode &node)
 {
-  switch (bke::WaveletBand(node.custom1)) {
-    case bke::WaveletBand::FullRange:
-      return bke::WaveletBand::FullRange;
-    case bke::WaveletBand::High:
-      return bke::WaveletBand::High;
-    case bke::WaveletBand::HighMid:
-      return bke::WaveletBand::HighMid;
-    case bke::WaveletBand::Mid:
-      return bke::WaveletBand::Mid;
-    case bke::WaveletBand::LowMid:
-      return bke::WaveletBand::LowMid;
-    case bke::WaveletBand::Low:
-      return bke::WaveletBand::Low;
-    default:
-      BLI_assert_unreachable();
-      return bke::WaveletBand::FullRange;
-  }
+  return bke::WaveletBand(node.custom1);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
