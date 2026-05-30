@@ -69,6 +69,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Vector>("Mask Size"_ustr)
       .dimensions(2)
       .default_value({0.0f, 0.0f})
+      .subtype(PROP_PIXEL)
       .compositor_domain_priority(2)
       .description(
           "Size from the center of the mask to its boundaries. If Mask Size is negative in "
@@ -87,6 +88,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   mask_transform_panel.add_input<decl::Vector>("Translation"_ustr)
       .dimensions(2)
       .default_value({0.0f, 0.0f})
+      .subtype(PROP_PIXEL)
       .compositor_domain_priority(4)
       .description("Translation of the mask")
       .structure_type(StructureType::Dynamic);
