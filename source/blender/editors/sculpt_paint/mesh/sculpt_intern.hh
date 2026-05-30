@@ -934,7 +934,7 @@ void SCULPT_do_paint_brush_image(const Depsgraph &depsgraph,
                                  Object &ob,
                                  const IndexMask &node_mask);
 bool SCULPT_use_image_paint_brush(PaintModeSettings &settings, Object &ob);
-bool mask_paint_brush(PaintModeSettings &paint_mode_settings);
+bool SCULPT_use_image_mask_brush(PaintModeSettings &paint_mode_settings);
 
 /** \} */
 

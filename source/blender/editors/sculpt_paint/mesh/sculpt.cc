@@ -2887,7 +2887,7 @@ static bool sculpt_needs_pbvh_pixels(const Brush &brush,
 {
   if ((brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_PAINT ||
        (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_MASK &&
-        mask_paint_brush(paint_mode_settings))) &&
+        SCULPT_use_image_mask_brush(paint_mode_settings))) &&
       USER_EXPERIMENTAL_TEST(&U, use_sculpt_texture_paint))
   {
     return ob.runtime->sculpt_session->cache->image_data.get();
@@ -5623,7 +5623,7 @@ static void stroke_undo_begin(const Scene &scene,
   if (brush && ((brush->sculpt_brush_type == SCULPT_BRUSH_TYPE_PAINT &&
                  SCULPT_use_image_paint_brush(paint_mode_settings, object)) ||
                 (brush->sculpt_brush_type == SCULPT_BRUSH_TYPE_MASK &&
-                 mask_paint_brush(paint_mode_settings))))
+                 SCULPT_use_image_mask_brush(paint_mode_settings))))
   {
     ED_image_undo_push_begin(op->type->name, PaintMode::Sculpt);
   }
@@ -5637,7 +5637,7 @@ static void stroke_undo_end(PaintModeSettings &paint_mode_settings, Object &obje
   if (brush && ((brush->sculpt_brush_type == SCULPT_BRUSH_TYPE_PAINT &&
                  SCULPT_use_image_paint_brush(paint_mode_settings, object)) ||
                 (brush->sculpt_brush_type == SCULPT_BRUSH_TYPE_MASK &&
-                 mask_paint_brush(paint_mode_settings))))
+                 SCULPT_use_image_mask_brush(paint_mode_settings))))
   {
     ED_image_undo_push_end();
   }
@@ -5774,7 +5774,7 @@ void SculptPaintStroke::stroke_cache_init(const float mval[2])
         ob, this->scene->toolsettings->paint_mode);
   }
   else if (brush && brush->sculpt_brush_type == SCULPT_BRUSH_TYPE_MASK &&
-           mask_paint_brush(*paint_mode_settings_))
+           SCULPT_use_image_mask_brush(*paint_mode_settings_))
   {
     cache->accum = true;
 
@@ -5969,14 +5969,14 @@ void SculptPaintStroke::update_step(wmOperator * /*op*/, PointerRNA *itemptr)
   /* Cleanup. */
 
   if (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_MASK) {
-    if (mask_paint_brush(*this->paint_mode_settings_)) {
+    if (SCULPT_use_image_mask_brush(*this->paint_mode_settings_)) {
       flush_update_step(this->vc, *this->object, UpdateType::Image);
     }
     else {
       flush_update_step(this->vc, *this->object, UpdateType::Mask);
     }
   }
-  else if (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_PAINT) {
+  else if (brush_type_is_paint(brush.sculpt_brush_type)) {
     if (SCULPT_use_image_paint_brush(*this->paint_mode_settings_, ob)) {
       flush_update_step(this->vc, *this->object, UpdateType::Image);
     }
@@ -6037,7 +6037,7 @@ void SculptPaintStroke::done(bool is_cancel, bool stroke_started)
   }
 
   if (brush->sculpt_brush_type == SCULPT_BRUSH_TYPE_MASK) {
-    if (mask_paint_brush(*this->paint_mode_settings_)) {
+    if (SCULPT_use_image_mask_brush(*this->paint_mode_settings_)) {
       flush_update_done(this->vc, *wm_, ob, UpdateType::Image);
     }
     else {

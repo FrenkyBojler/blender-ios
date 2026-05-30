@@ -664,7 +664,7 @@ void SCULPT_do_paint_brush_image(const Depsgraph &depsgraph,
   });
 }
 
-bool mask_paint_brush(PaintModeSettings &paint_mode_settings)
+bool SCULPT_use_image_mask_brush(PaintModeSettings &paint_mode_settings)
 {
   return paint_mode_settings.flag & PAINTMODE_STENCIL &&
          USER_EXPERIMENTAL_TEST(&U, use_sculpt_texture_paint);

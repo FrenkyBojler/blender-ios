@@ -209,7 +209,7 @@ void do_mask_brush(const Depsgraph &depsgraph,
                    const IndexMask &node_mask,
                    const IndexMask &texnode_mask)
 {
-  if (mask_paint_brush(paint_mode_settings)) {
+  if (SCULPT_use_image_mask_brush(paint_mode_settings)) {
     SCULPT_do_paint_brush_image(depsgraph, sd, object, texnode_mask);
     return;
   }
