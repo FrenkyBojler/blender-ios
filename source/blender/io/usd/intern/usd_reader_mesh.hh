@@ -72,6 +72,9 @@ class USDMeshReader : public USDGeomReader {
                 const ImportSettings &settings)
       : USDGeomReader(prim, import_params, settings), mesh_prim_(prim)
   {
+    /* #is_root_xform_prim() depends on whether this mesh is skinned, which the base
+     * constructor cannot resolve through the virtual override, so recompute it here. */
+    update_is_root_xform();
   }
 
   bool valid() const override
@@ -140,6 +143,15 @@ class USDMeshReader : public USDGeomReader {
    * transformation for skinned meshes.
    */
   std::optional<XformResult> get_local_usd_xform(pxr::UsdTimeCode time) const override;
+
+  /**
+   * A skinned mesh is re-parented to its bound armature during import
+   * (#USDStageReader::process_armature_modifiers), so it is never the root of a transform
+   * hierarchy; treating it as one would apply the scene scale / axis conversion to its
+   * (skeleton-space) local transform on top of the same conversion already carried by the
+   * armature.
+   */
+  bool is_root_xform_prim() const override;
 };
 
 }  // namespace blender::io::usd

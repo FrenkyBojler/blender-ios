@@ -55,14 +55,22 @@ class USDXformReader : public USDPrimReader {
   void set_use_parent_xform(bool flag)
   {
     use_parent_xform_ = flag;
-    is_root_xform_ = is_root_xform_prim();
+    update_is_root_xform();
   }
 
   bool prim_has_xform_ops() const;
 
  protected:
   /* Returns true if the contained USD prim is the root of a transform hierarchy. */
-  bool is_root_xform_prim() const;
+  virtual bool is_root_xform_prim() const;
+
+  /* Recompute whether the created object is the root of a transform hierarchy. Derived
+   * classes that override #is_root_xform_prim() must call this from their constructor body,
+   * since the base constructor cannot dispatch to the override. */
+  void update_is_root_xform()
+  {
+    is_root_xform_ = is_root_xform_prim();
+  }
 
   /**
    * Return the USD prim's local transformation.
