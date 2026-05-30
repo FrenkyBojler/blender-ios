@@ -229,19 +229,6 @@ class STRIP_PT_effect(StripButtonsPanel, Panel):
         if strip_type == 'COLOR':
             layout.template_color_picker(strip, "color", value_slider=True, cubic=True)
             layout.prop(strip, "color", text="")
-            col = layout.column(align=True)
-            row = col.row()
-            if strip.use_absolute_width:
-                row.prop(strip, "width_abs", text="Width")
-            else:
-                row.prop(strip, "width", text="Width")
-            row.prop(strip, "use_absolute_width", text="", icon='FIXED_SIZE')
-            row = col.row()
-            if strip.use_absolute_height:
-                row.prop(strip, "height_abs", text="Height")
-            else:
-                row.prop(strip, "height", text="Height")
-            row.prop(strip, "use_absolute_height", text="", icon='FIXED_SIZE')
 
         elif strip_type == 'WIPE':
             col = layout.column()
@@ -1014,6 +1001,11 @@ class STRIP_PT_adjust_transform(StripButtonsPanel, Panel):
         col = layout.column(align=True)
         col.prop(strip.transform, "offset_x", text="Position X")
         col.prop(strip.transform, "offset_y", text="Y")
+
+        if strip.type == 'COLOR':
+            col = layout.column(align=True)
+            col.prop(strip, "width", text="Width")
+            col.prop(strip, "height", text="Height")
 
         col = layout.column(align=True)
         col.prop(strip.transform, "scale_x", text="Scale X")

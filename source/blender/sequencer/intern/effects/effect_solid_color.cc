@@ -23,10 +23,8 @@ static void init_solid_color(Strip *strip)
   SolidColorVars *data = MEM_new<SolidColorVars>("solidcolor");
   strip->effectdata = data;
   data->col[0] = data->col[1] = data->col[2] = 0.5;
-  data->width = 100.0f;
-  data->height = 100.0f;
-  data->width_abs = 0;
-  data->height_abs = 0;
+  data->width = 0;
+  data->height = 0;
 }
 
 static void free_solid_color(Strip *strip, const bool /*do_id_user*/)
@@ -54,14 +52,8 @@ static SeqResult do_solid_color(const RenderData *context,
   BLI_profile_scope_with_name("SeqFxColor", ProfileCategory::Draw);
   const SolidColorVars *cv = static_cast<const SolidColorVars *>(strip->effectdata);
 
-  const int width = std::max(0,
-                             (cv->flag & SEQ_COLOR_USE_ABSOLUTE_WIDTH) ?
-                                 cv->width_abs :
-                                 int(cv->width / 100.0f * context->rectx));
-  const int height = std::max(0,
-                              (cv->flag & SEQ_COLOR_USE_ABSOLUTE_HEIGHT) ?
-                                  cv->height_abs :
-                                  int(cv->height / 100.0f * context->recty));
+  const int width = std::max(0, cv->width);
+  const int height = std::max(0, cv->height);
   SeqResult out;
   out.image = IMB_allocImBuf(width, height, ImBufFlags::ByteData);
 

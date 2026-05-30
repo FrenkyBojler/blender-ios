@@ -4118,14 +4118,8 @@ static wmOperatorStatus sequencer_strip_transform_fit_exec(bContext *C, wmOperat
         SolidColorVars *cv = static_cast<SolidColorVars *>(strip.effectdata);
         const int scene_w = scene->r.xsch;
         const int scene_h = scene->r.ysch;
-        const int cur_w = std::max(1,
-                                   (cv->flag & SEQ_COLOR_USE_ABSOLUTE_WIDTH) ?
-                                       cv->width_abs :
-                                       int(cv->width / 100.0f * scene_w));
-        const int cur_h = std::max(1,
-                                   (cv->flag & SEQ_COLOR_USE_ABSOLUTE_HEIGHT) ?
-                                       cv->height_abs :
-                                       int(cv->height / 100.0f * scene_h));
+        const int cur_w = std::max(1, cv->width);
+        const int cur_h = std::max(1, cv->height);
         int new_w, new_h;
         switch (fit_method) {
           case SEQ_SCALE_TO_FIT: {
@@ -4150,18 +4144,8 @@ static wmOperatorStatus sequencer_strip_transform_fit_exec(bContext *C, wmOperat
             seq::relations_invalidate_cache(scene, &strip);
             continue;
         }
-        if (cv->flag & SEQ_COLOR_USE_ABSOLUTE_WIDTH) {
-          cv->width_abs = new_w;
-        }
-        else {
-          cv->width = float(new_w) / scene_w * 100.0f;
-        }
-        if (cv->flag & SEQ_COLOR_USE_ABSOLUTE_HEIGHT) {
-          cv->height_abs = new_h;
-        }
-        else {
-          cv->height = float(new_h) / scene_h * 100.0f;
-        }
+        cv->width = new_w;
+        cv->height = new_h;
         seq::relations_invalidate_cache(scene, &strip);
         continue;
       }

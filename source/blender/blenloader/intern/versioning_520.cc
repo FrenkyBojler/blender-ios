@@ -490,8 +490,8 @@ static void version_solid_color_width_height_defaults(Main &bmain)
     seq::foreach_strip(&ed->seqbase, [&](Strip *strip) {
       if (strip->type == STRIP_TYPE_COLOR && strip->effectdata != nullptr) {
         SolidColorVars *data = static_cast<SolidColorVars *>(strip->effectdata);
-        data->width = 100.0f;
-        data->height = 100.0f;
+        data->width = scene.r.xsch;
+        data->height = scene.r.ysch;
       }
       return true;
     });

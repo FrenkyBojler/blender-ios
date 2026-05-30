@@ -623,14 +623,8 @@ float2 image_transform_raw_size_get(const Scene *scene, const Strip *strip)
 
   if (strip->type == STRIP_TYPE_COLOR) {
     const SolidColorVars *data = static_cast<const SolidColorVars *>(strip->effectdata);
-    const float width = std::max(0.0f,
-                                 (data->flag & SEQ_COLOR_USE_ABSOLUTE_WIDTH) ?
-                                     float(data->width_abs) :
-                                     data->width / 100.0f * scene_render_size.x);
-    const float height = std::max(0.0f,
-                                  (data->flag & SEQ_COLOR_USE_ABSOLUTE_HEIGHT) ?
-                                      float(data->height_abs) :
-                                      data->height / 100.0f * scene_render_size.y);
+    const float width = std::max(0.0f, float(data->width));
+    const float height = std::max(0.0f, float(data->height));
     return {width, height};
   }
 
