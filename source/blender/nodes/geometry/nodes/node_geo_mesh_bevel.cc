@@ -70,6 +70,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .evaluated_geometry_field()
       .description("Use a miter for corner");
   b.add_input<decl::Float>("Spread"_ustr)
+      .min(0.0f)
       .default_value(0.0f)
       .subtype(PROP_DISTANCE)
       .evaluated_geometry_field()
@@ -91,7 +92,8 @@ static void node_declare(NodeDeclarationBuilder &b)
           " and also used for Arc and Patch miters");
   b.add_input<decl::Geometry>("Profile"_ustr)
       .supported_type(GeometryComponent::Type::Curve)
-      .description("If present, will be sampled to give custom profile on edges");
+      .description(
+          "If present, the first curve will be sampled to give a custom profile on edges");
 
   PanelDeclarationBuilder &selections_panel = b.add_panel("Selections"_ustr);
   selections_panel.add_output<decl::Bool>("Vertex Face"_ustr)
