@@ -161,16 +161,20 @@ static wmOperatorStatus similar_face_select_exec(bContext *C, wmOperator *op)
   const float thresh_radians = thresh * float(M_PI);
   const int compare = RNA_enum_get(op->ptr, "compare");
 
-  int tot_faces_selected_all = 0;
   const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
       *bmain, scene, view_layer, CTX_wm_view3d(C));
 
+  bool any_face_selected = false;
   for (Object *ob : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(ob);
-    tot_faces_selected_all += em->bm->totfacesel;
+    if (em->bm->totfacesel == 0) {
+      continue;
+    }
+    any_face_selected = true;
+    break;
   }
 
-  if (tot_faces_selected_all == 0) {
+  if (!any_face_selected) {
     BKE_report(op->reports, RPT_ERROR, "No face selected");
     return OPERATOR_CANCELLED;
   }
@@ -565,16 +569,20 @@ static wmOperatorStatus similar_edge_select_exec(bContext *C, wmOperator *op)
   const float thresh_radians = thresh * float(M_PI) + FLT_EPSILON;
   const int compare = RNA_enum_get(op->ptr, "compare");
 
-  int tot_edges_selected_all = 0;
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
       *bmain, scene, view_layer, CTX_wm_view3d(C));
 
+  bool any_edge_selected = false;
   for (Object *ob : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(ob);
-    tot_edges_selected_all += em->bm->totedgesel;
+    if (em->bm->totedgesel == 0) {
+      continue;
+    }
+    any_edge_selected = true;
+    break;
   }
 
-  if (tot_edges_selected_all == 0) {
+  if (!any_edge_selected) {
     BKE_report(op->reports, RPT_ERROR, "No edge selected");
     return OPERATOR_CANCELLED;
   }
@@ -956,16 +964,20 @@ static wmOperatorStatus similar_vert_select_exec(bContext *C, wmOperator *op)
   const float thresh_radians = thresh * float(M_PI) + FLT_EPSILON;
   const int compare = RNA_enum_get(op->ptr, "compare");
 
-  int tot_verts_selected_all = 0;
   const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
       *bmain, scene, view_layer, CTX_wm_view3d(C));
 
+  bool any_vert_selected = false;
   for (Object *ob : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(ob);
-    tot_verts_selected_all += em->bm->totvertsel;
+    if (em->bm->totvertsel == 0) {
+      continue;
+    }
+    any_vert_selected = true;
+    break;
   }
 
-  if (tot_verts_selected_all == 0) {
+  if (!any_vert_selected) {
     BKE_report(op->reports, RPT_ERROR, "No vertex selected");
     return OPERATOR_CANCELLED;
   }
