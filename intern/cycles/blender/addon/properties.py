@@ -1613,7 +1613,7 @@ class CyclesRenderLayerSettings(bpy.types.PropertyGroup):
 
 class CyclesDeviceSettings(bpy.types.PropertyGroup):
     # Runtime properties
-    __slots__ = ("is_optimized")
+    __slots__ = ("is_optimized", "meets_driver_requirement")
 
     # Properties saved in preferences
     id: StringProperty(name="ID", description="Unique identifier of the device")
@@ -1733,10 +1733,13 @@ class CyclesPreferences(bpy.types.AddonPreferences):
                 entry.id = device[2]
                 entry.name = device[0]
                 entry.type = device[1]
-                entry.use = entry.type != 'CPU'
+                entry.use = entry.type != 'CPU' and entry.meets_driver_requirement
             elif entry.name != device[0]:
                 # Update name in case it changed
                 entry.name = device[0]
+                # If the driver requirement is not met, then intentionally unselect
+                if not entry.meets_driver_requirement:
+                    entry.use = False
 
     # Gets all devices types to display in the preferences for a compute device type.
     # This includes the CPU device.
@@ -1751,6 +1754,9 @@ class CyclesPreferences(bpy.types.AddonPreferences):
         for device in device_list:
             entry = self.find_existing_device_entry(device)
             entry.is_optimized = device[7]
+            entry.meets_driver_requirement = device[8]
+            if not entry.meets_driver_requirement:
+                entry.use = False
             if entry.type == compute_device_type:
                 devices.append(entry)
             elif entry.type == 'CPU':
@@ -1861,6 +1867,14 @@ class CyclesPreferences(bpy.types.AddonPreferences):
                 found_device = True
                 break
 
+        optix_minimal_driver_version = "535"
+        hip_minimal_adrenalin_driver_version = "24.9.1"
+        hip_minimal_pro_driver_version = "24.Q4"
+        hip_minimal_linux_driver_version = "24.30"
+        hip_rocm_minimal_version = "6.3"
+        oneapi_windows_driver_version = "XX.X.101.8306"
+        oneapi_linux_driver_version = "XX.XX.34666.3"
+
         if not found_device:
             col = box.column(align=True)
             col.label(text=rpt_("No compatible GPUs found for Cycles"), icon='INFO', translate=False)
@@ -1871,36 +1885,31 @@ class CyclesPreferences(bpy.types.AddonPreferences):
                           icon='BLANK1', translate=False)
             elif device_type == 'OPTIX':
                 compute_capability = "5.0"
-                driver_version = "535"
                 col.label(text=rpt_("Requires NVIDIA GPU with compute capability %s") % compute_capability,
                           icon='BLANK1', translate=False)
-                col.label(text=rpt_("and NVIDIA driver version %s or newer") % driver_version,
+                col.label(text=rpt_("and NVIDIA driver version %s or newer") % optix_minimal_driver_version,
                           icon='BLANK1', translate=False)
             elif device_type == 'HIP':
                 import sys
                 if sys.platform[:3] == "win":
-                    adrenalin_driver_version = "24.9.1"
-                    pro_driver_version = "24.Q4"
                     col.label(
                         text=rpt_("Requires AMD GPU with RDNA architecture"),
                         icon='BLANK1',
                         translate=False)
                     col.label(text=rpt_("and AMD Adrenalin driver %s or newer") %
-                              adrenalin_driver_version, icon='BLANK1', translate=False)
+                              hip_minimal_adrenalin_driver_version, icon='BLANK1', translate=False)
                     col.label(text=rpt_("or AMD Radeon Pro %s driver or newer") %
-                              pro_driver_version, icon='BLANK1', translate=False)
+                              hip_minimal_pro_driver_version, icon='BLANK1', translate=False)
                 elif sys.platform.startswith("linux"):
-                    rocm_version = "6.3"
-                    driver_version = "24.30"
                     col.label(
                         text=rpt_("Requires AMD GPU with RDNA architecture"),
                         icon='BLANK1',
                         translate=False)
                     col.label(
                         text=rpt_("and ROCm HIP Runtime %s or newer") %
-                        rocm_version, icon='BLANK1', translate=False)
+                        hip_rocm_minimal_version, icon='BLANK1', translate=False)
                     col.label(text=rpt_("or AMD driver version %s or newer") %
-                              driver_version, icon='BLANK1', translate=False)
+                              hip_minimal_linux_driver_version, icon='BLANK1', translate=False)
             elif device_type == 'ONEAPI':
                 import sys
                 if sys.platform.startswith("win"):
@@ -1912,12 +1921,10 @@ class CyclesPreferences(bpy.types.AddonPreferences):
                     # and no intermediate versions were publicly available between 8250 and 8331 for Intel® Arc™ GPUs.
                     # As a result, we can safely recommend users to use driver version 8306 or higher, without needing
                     # to distinguish between Intel® Arc™ and Intel® Arc™ Pro users.
-                    driver_version = "XX.X.101.8306"
                     col.label(text=rpt_("Requires Intel GPU with Xe-HPG architecture"), icon='BLANK1', translate=False)
-                    col.label(text=rpt_("and Windows driver version %s or newer") % driver_version,
+                    col.label(text=rpt_("and Windows driver version %s or newer") % oneapi_windows_driver_version,
                               icon='BLANK1', translate=False)
                 elif sys.platform.startswith("linux"):
-                    driver_version = "XX.XX.34666.3"
                     col.label(
                         text=rpt_("Requires Intel GPU with Xe-HPG architecture and"),
                         icon='BLANK1',
@@ -1926,7 +1933,11 @@ class CyclesPreferences(bpy.types.AddonPreferences):
                         text=rpt_("  - intel-level-zero-gpu or intel-compute-runtime version"),
                         icon='BLANK1',
                         translate=False)
-                    col.label(text=rpt_("    %s or newer") % driver_version, icon='BLANK1', translate=False)
+                    col.label(
+                        text=rpt_("    %s or newer") %
+                        oneapi_linux_driver_version,
+                        icon='BLANK1',
+                        translate=False)
                     col.label(text=rpt_("  - oneAPI Level-Zero Loader"), icon='BLANK1', translate=False)
             elif device_type == 'METAL':
                 mac_version = "12.2"
@@ -1938,7 +1949,27 @@ class CyclesPreferences(bpy.types.AddonPreferences):
             name = self._format_device_name(device.name)
             if not device.is_optimized:
                 name += rpt_(" (Unoptimized Performance)")
-            box.prop(device, "use", text=name, translate=False)
+            row = box.row()
+            if not device.meets_driver_requirement:
+                import sys
+                row.enabled = False
+                if device.type == 'OPTIX':
+                    name += rpt_(" (need NVIDIA driver version %s or newer)") % optix_minimal_driver_version
+                elif device.type == 'HIP':
+                    if sys.platform[:3] == "win":
+                        name += rpt_(" (need AMD Adrenalin driver %s or newer, or AMD Radeon Pro %s driver or newer)") % (
+                            hip_minimal_adrenalin_driver_version, hip_minimal_pro_driver_version)
+                    elif sys.platform.startswith("linux"):
+                        name += rpt_(" (need ROCm HIP Runtime %s or newer, or AMD driver version %s or newer)") % (
+                            hip_rocm_minimal_version, hip_minimal_linux_driver_version)
+                elif device.type == 'ONEAPI':
+                    if sys.platform.startswith("win"):
+                        name += rpt_(" (need Windows driver version %s or newer)") % oneapi_windows_driver_version
+                    elif sys.platform.startswith("linux"):
+                        name += rpt_(" (need intel-level-zero-gpu or intel-compute-runtime version %s or newer)") % oneapi_linux_driver_version
+                else:
+                    name += rpt_(" (Driver upgrade required)")
+            row.prop(device, "use", text=name, translate=False)
 
     def draw_impl(self, layout, context):
         row = layout.row()

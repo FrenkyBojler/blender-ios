@@ -28,8 +28,11 @@
 
 CCL_NAMESPACE_BEGIN
 
-bool device_optix_init()
+bool device_optix_init(bool *r_meets_driver_requirement)
 {
+  if (r_meets_driver_requirement) {
+    *r_meets_driver_requirement = true;
+  }
 #ifdef WITH_OPTIX
   if (OPTIX_FUNCTION_TABLE_SYMBOL.optixDeviceContextCreate != nullptr) {
     /* Already initialized function table. */
@@ -46,6 +49,9 @@ bool device_optix_init()
   if (result == OPTIX_ERROR_UNSUPPORTED_ABI_VERSION) {
     LOG_WARNING << "OptiX initialization failed because the installed NVIDIA driver is too old. "
                    "Please update to the latest driver first!";
+    if (r_meets_driver_requirement) {
+      *r_meets_driver_requirement = false;
+    }
     return false;
   }
   if (result != OPTIX_SUCCESS) {
@@ -66,39 +72,53 @@ void device_optix_info(const vector<DeviceInfo> &cuda_devices, vector<DeviceInfo
   devices.reserve(cuda_devices.size());
 
   /* Simply add all supported CUDA devices as OptiX devices again. */
-  for (DeviceInfo info : cuda_devices) {
-    assert(info.type == DEVICE_CUDA);
-
-    int major;
-    cuDeviceGetAttribute(&major, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR, info.num);
-    if (major < 5) {
-      /* Only Maxwell and up are supported by OptiX. */
-      continue;
+  for (const DeviceInfo &cuda_info : cuda_devices) {
+    DeviceInfo info = DeviceInfo();
+    if (optix_device_info_from_cuda(cuda_info, &info)) {
+      devices.push_back(info);
     }
-
-    info.type = DEVICE_OPTIX;
-    info.id += "_OptiX";
-#  if defined(WITH_OSL) && defined(OSL_USE_OPTIX) && \
-      (OSL_VERSION_MINOR >= 13 || OSL_VERSION_MAJOR > 1)
-    info.has_osl = true;
-#  endif
-    info.denoisers |= DENOISER_OPTIX;
-#  if defined(WITH_OPENIMAGEDENOISE)
-#    if OIDN_VERSION >= 20300
-    if (oidnIsCUDADeviceSupported(info.num)) {
-#    else
-    if (OIDNDenoiserGPU::is_device_supported(info)) {
-#    endif
-      info.denoisers |= DENOISER_OPENIMAGEDENOISE;
-    }
-#  endif
-
-    devices.push_back(info);
   }
 #else
   (void)cuda_devices;
   (void)devices;
 #endif
+}
+
+bool optix_device_info_from_cuda(const DeviceInfo &cuda_device, DeviceInfo *r_optix_device)
+{
+  assert(cuda_device.type == DEVICE_CUDA);
+  assert(r_optix_device);
+
+  int major;
+  cuDeviceGetAttribute(&major, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR, cuda_device.num);
+  if (major < 5) {
+    /* Only Maxwell and up are supported by OptiX. */
+    return false;
+  }
+
+  *r_optix_device = cuda_device;
+
+  r_optix_device->type = DEVICE_OPTIX;
+  r_optix_device->id += "_OptiX";
+
+#if defined(WITH_OSL) && defined(OSL_USE_OPTIX) && \
+    (OSL_VERSION_MINOR >= 13 || OSL_VERSION_MAJOR > 1)
+  r_optix_device->has_osl = true;
+#endif
+  r_optix_device->denoisers |= DENOISER_OPTIX;
+#if defined(WITH_OPENIMAGEDENOISE)
+#  if OIDN_VERSION >= 20300
+  if (oidnIsCUDADeviceSupported(r_optix_device->num)) {
+#  else
+  if (OIDNDenoiserGPU::is_device_supported(*r_optix_device)) {
+#  endif
+    r_optix_device->denoisers |= DENOISER_OPENIMAGEDENOISE;
+  }
+#endif
+
+  r_optix_device->meets_driver_requirement = true;
+
+  return true;
 }
 
 unique_ptr<Device> device_optix_create(const DeviceInfo &info,
