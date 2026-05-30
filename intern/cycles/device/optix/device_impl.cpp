@@ -727,11 +727,19 @@ bool OptiXDevice::load_kernels(const uint kernel_features)
   optix_assert(optixProgramGroupCreate(
       context, group_descs, NUM_PROGRAM_GROUPS, &group_options, nullptr, nullptr, groups));
 
-  /* Get program stack sizes. */
-  auto get_pipeline_stack_size = [&](OptixPipeline pipeline, unsigned int &trace_css) {
+  /* Get program stack sizes. Only groups that are part of the pipeline may be queried, otherwise
+   * optixProgramGroupGetStackSize returns OPTIX_ERROR_INVALID_VALUE. This matters now that some
+   * groups (like the shader ray-tracing callables) live in their own module that is not linked
+   * into every pipeline. */
+  auto get_pipeline_stack_size = [&](OptixPipeline pipeline,
+                                     const vector<OptixProgramGroup> &pipeline_groups,
+                                     unsigned int &trace_css) {
     vector<OptixStackSizes> stack_size(NUM_PROGRAM_GROUPS);
     for (int i = 0; i < NUM_PROGRAM_GROUPS; ++i) {
-      if (groups[i] != nullptr) {
+      if (groups[i] != nullptr &&
+          std::find(pipeline_groups.begin(), pipeline_groups.end(), groups[i]) !=
+              pipeline_groups.end())
+      {
         optix_assert(optixProgramGroupGetStackSize(groups[i], &stack_size[i], pipeline));
       }
     }
@@ -847,7 +855,8 @@ bool OptiXDevice::load_kernels(const uint kernel_features)
                                      &pipelines[PIP_SHADE]));
 
     unsigned int trace_css;
-    vector<OptixStackSizes> stack_size = get_pipeline_stack_size(pipelines[PIP_SHADE], trace_css);
+    vector<OptixStackSizes> stack_size = get_pipeline_stack_size(
+        pipelines[PIP_SHADE], pipeline_groups, trace_css);
 
     /* Combine ray generation and trace continuation stack size. */
     const unsigned int css = std::max(stack_size[PG_RGEN_SHADE_SURFACE_RAYTRACE].cssRG,
@@ -905,8 +914,8 @@ bool OptiXDevice::load_kernels(const uint kernel_features)
                                      &pipelines[PIP_INTERSECT]));
 
     unsigned int trace_css;
-    vector<OptixStackSizes> stack_size = get_pipeline_stack_size(pipelines[PIP_INTERSECT],
-                                                                 trace_css);
+    vector<OptixStackSizes> stack_size = get_pipeline_stack_size(
+        pipelines[PIP_INTERSECT], pipeline_groups, trace_css);
 
     /* Calculate continuation stack size based on the maximum of all ray generation stack sizes. */
     const unsigned int css =
