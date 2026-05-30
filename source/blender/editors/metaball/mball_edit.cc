@@ -337,15 +337,12 @@ static wmOperatorStatus mball_select_similar_exec(bContext *C, wmOperator *op)
 {
   const int type = RNA_enum_get(op->ptr, "type");
   const float thresh = RNA_float_get(op->ptr, "threshold");
-  int tot_mball_selected_all = 0;
 
   const Main *bmain = CTX_data_main(C);
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   Vector<Base *> bases = BKE_view_layer_array_from_bases_in_edit_mode_unique_data(
       *bmain, scene, view_layer, CTX_wm_view3d(C));
-
-  tot_mball_selected_all = BKE_mball_select_count_multi(bases);
 
   Map<float, int> points_1d;
   Map<float3, int> points_3d;
