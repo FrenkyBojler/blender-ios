@@ -430,7 +430,7 @@ struct BevelParams {
 /** \name Debug printing utilities
  * \{ */
 
-#define BEVEL_DEBUG
+// #define BEVEL_DEBUG
 #ifdef BEVEL_DEBUG
 
 namespace debug {
@@ -741,44 +741,6 @@ namespace debug {
 }
 
 } /* namespace debug */
-
-/**
- * Returns the global face-representative debug map, constructed on first use.
- * Using a function-local static avoids the guardedalloc "freed after leak detector"
- * error that arises from file-scope statics with non-trivial destructors.
- */
-static Map<BMFace *, int> &frep_map()
-{
-  static Map<BMFace *, int> map;
-  return map;
-}
-
-namespace debug {
-
-/**
- * Dumps the face representative map populated by #bev_create_ngon.
- * For each newly-created face prints: "  new_face=<idx> frep=<orig_face_idx>".
- * `bm` must have up-to-date indices (call #ensure_indices first).
- */
-[[maybe_unused]] static void dump_face_reps(BMesh *bm)
-{
-  UNUSED_VARS(bm);
-  fmt::println("BMESH face frep map ({} entries):", frep_map().size());
-  /* Collect and sort by new-face index for a stable, readable output. */
-  Vector<std::pair<int, int>> entries;
-  entries.reserve(frep_map().size());
-  for (const auto &item : frep_map().items()) {
-    entries.append({BM_elem_index_get(item.key), item.value});
-  }
-  std::sort(entries.begin(), entries.end(), [](const auto &a, const auto &b) {
-    return a.first < b.first;
-  });
-  for (const auto &[face_idx, frep_idx] : entries) {
-    fmt::println("  new_face={} frep={}", face_idx, frep_idx);
-  }
-}
-
-}  // namespace debug
 
 #endif /* BEVEL_DEBUG */
 
@@ -1339,15 +1301,6 @@ static BMFace *bev_create_ngon(BevelParams *bp,
 
   UVFace *uv_face = register_uv_face(bp, f, facerep, face_arr);
   update_uv_vert_map(bp, uv_face, bv, nv_bv_map);
-
-#ifdef BEVEL_DEBUG
-  {
-    /* Record the effective face rep chosen for this new face, for debugging parity with
-     * the mesh bevel's `new_face_examples_` array. */
-    BMFace *eff_frep = facerep ? facerep : (face_arr ? face_arr[0] : nullptr);
-    frep_map().add_overwrite(f, eff_frep ? BM_elem_index_get(eff_frep) : -1);
-  }
-#endif
 
   return f;
 }
@@ -8347,12 +8300,6 @@ void BM_mesh_bevel(BMesh *bm,
   if (bp.offset <= 0) {
     return;
   }
-
-#ifdef BEVEL_DEBUG
-  /* Clear the frep recording map for this bevel call. Indices must be current for recording. */
-  frep_map().clear();
-  BM_mesh_elem_index_ensure(bm, BM_FACE);
-#endif
 
 #ifdef BEVEL_DEBUG_TIME
   double start_time = BLI_time_now_seconds();
