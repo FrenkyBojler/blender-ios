@@ -14,6 +14,8 @@
 
 #include "kernel/util/differential.h"
 
+#include "util/atomic.h"
+
 CCL_NAMESPACE_BEGIN
 
 /* Ray */
