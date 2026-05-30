@@ -902,7 +902,7 @@ static void rna_UVProject_projectors_begin(CollectionPropertyIterator *iter, Poi
 static StructRNA *rna_Modifier_refine(PointerRNA *ptr)
 {
   ModifierData *md = static_cast<ModifierData *>(ptr->data);
-  const ModifierTypeInfo *modifier_type = BKE_modifier_get_info(ModifierType(md->type));
+  const ModifierTypeInfo *modifier_type = BKE_modifier_get_info(md->type);
   if (modifier_type != nullptr) {
     return *modifier_type->srna;
   }
@@ -1934,6 +1934,9 @@ static StructRNA *rna_NodesModifierProperties_refine(PointerRNA *ptr)
 {
   auto *nmd = ptr->data_as<NodesModifierData>();
   if (!nmd->node_group || ID_MISSING(nmd->node_group)) {
+    return RNA_NodesModifierPropertiesEmpty;
+  }
+  if (!nmd->node_group->runtime->geometry_nodes_srna_data) {
     return RNA_NodesModifierPropertiesEmpty;
   }
   return nmd->node_group->runtime->geometry_nodes_srna_data->properties_struct;
