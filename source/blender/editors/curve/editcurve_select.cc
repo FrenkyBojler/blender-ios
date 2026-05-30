@@ -1741,16 +1741,20 @@ static wmOperatorStatus curve_select_similar_exec(bContext *C, wmOperator *op)
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   View3D *v3d = CTX_wm_view3d(C);
-  int tot_nurbs_selected_all = 0;
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
       *bmain, scene, view_layer, CTX_wm_view3d(C));
 
+  bool anything_selected = false;
   for (Object *obedit : objects) {
     Curve *cu = id_cast<Curve *>(obedit->data);
-    tot_nurbs_selected_all += ED_curve_select_count(v3d, cu->editnurb);
+    if (!ED_curve_select_count(v3d, cu->editnurb)) {
+      continue;
+    }
+    anything_selected = true;
+    break;
   }
 
-  if (tot_nurbs_selected_all == 0) {
+  if (!anything_selected) {
     BKE_report(op->reports, RPT_ERROR, "No control point selected");
     return OPERATOR_CANCELLED;
   }
@@ -1797,7 +1801,7 @@ static wmOperatorStatus curve_select_similar_exec(bContext *C, wmOperator *op)
       break;
     }
     case SIMCURHAND_DIRECTION: {
-      tree_3d = kdtree_new<float3>(tot_nurbs_selected_all);
+      tree_3d = kdtree_new<float3>(points_3d.size());
       for (const auto &[pos, index] : points_3d.items()) {
         kdtree_insert(tree_3d, index, pos);
       }
