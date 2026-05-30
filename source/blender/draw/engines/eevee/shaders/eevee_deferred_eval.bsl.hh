@@ -475,9 +475,15 @@ void planar_eval_frag([[resource_table]] PlanarProbeEval & /*srt*/,
     cl_reflect.data *= inv_weight;
   }
   {
-    float inv_weight = safe_rcp(refract_weight);
-    cl_refract.N *= inv_weight;
-    cl_refract.data *= inv_weight;
+    if (refract_weight > 0.0) {
+      float inv_weight = safe_rcp(refract_weight);
+      cl_refract.N *= inv_weight;
+      cl_refract.data *= inv_weight;
+    }
+    else {
+      cl_refract.N = float3(1.0f, 0.0f, 0.0f);
+      cl_refract.data.y = 1.0f;
+    }
   }
 
   float3 P = drw_point_screen_to_world(float3(v_out.screen_uv, depth));
