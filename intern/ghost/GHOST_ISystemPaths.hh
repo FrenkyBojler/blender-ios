@@ -11,7 +11,7 @@
 #include <optional>
 #include <string>
 
-#include "GHOST_Types.h"
+#include "GHOST_Types.hh"
 
 class GHOST_ISystemPaths {
  public:
@@ -28,7 +28,7 @@ class GHOST_ISystemPaths {
   static GHOST_TSuccess dispose();
 
   /**
-   * Returns a pointer to the one and only system (nil if it hasn't been created).
+   * Returns a pointer to the one and only system.
    * \return A pointer to the system.
    */
   static GHOST_ISystemPaths *get();
@@ -80,7 +80,7 @@ class GHOST_ISystemPaths {
 
  private:
   /** The one and only system paths. */
-  static GHOST_ISystemPaths *m_systemPaths;
+  static GHOST_ISystemPaths *system_paths_;
 
   MEM_CXX_CLASS_ALLOC_FUNCS("GHOST:GHOST_ISystemPaths")
 };

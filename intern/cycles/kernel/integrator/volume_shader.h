@@ -21,6 +21,7 @@
 #include "kernel/film/light_passes.h"
 
 #include "kernel/integrator/guiding.h"
+#include "kernel/integrator/volume_stack.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -225,8 +226,8 @@ ccl_device float volume_shader_phase_eval(const ccl_private ShaderData *sd,
   return phase_pdf;
 }
 
-ccl_device float volume_shader_phase_eval(KernelGlobals kg,
-                                          IntegratorState state,
+ccl_device float volume_shader_phase_eval(ccl_attr_maybe_unused KernelGlobals kg,
+                                          ccl_attr_maybe_unused IntegratorState state,
                                           const ccl_private ShaderData *sd,
                                           const ccl_private ShaderVolumePhases *phases,
                                           const float3 wo,
@@ -367,7 +368,7 @@ ccl_device_inline void volume_shader_motion_blur(KernelGlobals kg,
   }
 
   const AttributeDescriptor v_desc = find_attribute(kg, sd, ATTR_STD_VOLUME_VELOCITY);
-  kernel_assert(v_desc.offset != ATTR_STD_NOT_FOUND);
+  kernel_assert(is_attribute_found(v_desc));
 
   const float3 P = sd->P;
   const float velocity_scale = kernel_data_fetch(objects, sd->object).velocity_scale;
@@ -408,19 +409,26 @@ ccl_device_inline void volume_shader_motion_blur(KernelGlobals kg,
    * "Production Volume Rendering", Wreninge et al., 2012
    */
 
+  /* Always use linear interpolation for velocity. */
+  const int cubic_flag = sd->flag & SD_VOLUME_CUBIC;
+  sd->flag &= ~SD_VOLUME_CUBIC;
+
   /* Find velocity. */
-  float3 velocity = primitive_volume_attribute<float3>(kg, sd, v_desc, true);
+  float3 velocity = primitive_volume_attribute<float3>(kg, sd, v_desc, false);
   object_dir_transform(kg, sd, &velocity);
 
   /* Find advected P. */
   sd->P = P - (time - time_offset) * velocity_scale * velocity;
 
   /* Find advected velocity. */
-  velocity = primitive_volume_attribute<float3>(kg, sd, v_desc, true);
+  velocity = primitive_volume_attribute<float3>(kg, sd, v_desc, false);
   object_dir_transform(kg, sd, &velocity);
 
   /* Find advected P. */
   sd->P = P - (time - time_offset) * velocity_scale * velocity;
+
+  /* Restore flag. */
+  sd->flag |= cubic_flag;
 }
 #  endif
 
@@ -431,6 +439,7 @@ ccl_device_inline bool volume_shader_eval_entry(KernelGlobals kg,
                                                 ConstIntegratorGenericState state,
                                                 ccl_private ShaderData *ccl_restrict sd,
                                                 const ccl_private VolumeStack &entry,
+                                                const PathRayVisibility path_visibility,
                                                 const uint32_t path_flag)
 {
   if (entry.shader == SHADER_NONE) {
@@ -449,13 +458,11 @@ ccl_device_inline bool volume_shader_eval_entry(KernelGlobals kg,
   if (sd->object != OBJECT_NONE) {
     sd->object_flag |= kernel_data_fetch(object_flag, sd->object);
 
-    if (shadow && !(kernel_data_fetch(objects, sd->object).visibility &
-                    (path_flag & PATH_RAY_ALL_VISIBILITY)))
-    {
+    if (shadow && !(kernel_data_fetch(objects, sd->object).visibility & path_visibility)) {
       /* If volume is invisible to shadow ray, the hit is not registered, but the volume is still
        * in the stack. Skip the volume in such cases. */
-      /* NOTE: `SHADOW_CATCHER_PATH_VISIBILITY()` is omitted because `path_flag` is just
-       * `PATH_RAY_SHADOW` when evaluating shadows. */
+      /* NOTE: `SHADOW_CATCHER_PATH_VISIBILITY()` is omitted because `path_visibility` is just
+       * `PATH_RAY_VISIBILITY_SHADOW` when evaluating shadows. */
       return true;
     }
 
@@ -471,31 +478,34 @@ ccl_device_inline bool volume_shader_eval_entry(KernelGlobals kg,
   /* Evaluate shader. */
 #  ifdef __OSL__
   if (kernel_data.kernel_features & KERNEL_FEATURE_OSL_SHADING) {
-    osl_eval_nodes<SHADER_TYPE_VOLUME>(kg, state, sd, path_flag);
+    osl_eval_nodes<SHADER_TYPE_VOLUME>(kg, state, sd, path_visibility, path_flag);
   }
   else
 #  endif
   {
 #  ifdef __SVM__
-    svm_eval_nodes<node_feature_mask, SHADER_TYPE_VOLUME>(kg, state, sd, nullptr, path_flag);
+    svm_eval_nodes<node_feature_mask, SHADER_TYPE_VOLUME>(
+        kg, state, sd, nullptr, path_visibility, path_flag);
 #  endif
   }
 
   return true;
 }
 
-template<const bool shadow, typename StackReadOp, typename ConstIntegratorGenericState>
+template<const bool shadow, typename ConstIntegratorGenericState>
 ccl_device_inline void volume_shader_eval(KernelGlobals kg,
                                           ConstIntegratorGenericState state,
                                           ccl_private ShaderData *ccl_restrict sd,
-                                          const uint32_t path_flag,
-                                          StackReadOp stack_read)
+                                          const PathRayVisibility path_visibility,
+                                          const uint32_t path_flag)
 {
   /* If path is being terminated, we are tracing a shadow ray or evaluating
    * emission, then we don't need to store closures. The emission and shadow
    * shader data also do not have a closure array to save GPU memory. */
   int max_closures;
-  if (path_flag & (PATH_RAY_TERMINATE | PATH_RAY_SHADOW | PATH_RAY_EMISSION)) {
+  if ((path_visibility & PATH_RAY_VISIBILITY_SHADOW) ||
+      (path_flag & (PATH_RAY_TERMINATE | PATH_RAY_EMISSION)))
+  {
     max_closures = 0;
   }
   else {
@@ -506,13 +516,13 @@ ccl_device_inline void volume_shader_eval(KernelGlobals kg,
    * for all volumes in the stack into a single array of closures */
   sd->num_closure = 0;
   sd->num_closure_left = max_closures;
-  sd->flag = SD_IS_VOLUME_SHADER_EVAL;
+  sd->flag = SD_IS_VOLUME_SHADER_EVAL | (sd->flag & SD_CACHE_MISS);
   sd->object_flag = 0;
 
   for (int i = 0;; i++) {
-    const VolumeStack entry = stack_read(i);
+    const VolumeStack entry = volume_stack_read<shadow>(state, i);
     if (!volume_shader_eval_entry<shadow, KERNEL_FEATURE_NODE_MASK_VOLUME>(
-            kg, state, sd, entry, path_flag))
+            kg, state, sd, entry, path_visibility, path_flag))
     {
       /* Stack fully processed. */
       return;

@@ -20,7 +20,11 @@
 
 #include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
 
-/********************************* Init **************************************/
+namespace blender {
+
+/* -------------------------------------------------------------------- */
+/** \name Init
+ * \{ */
 
 void zero_m3(float m[3][3])
 {
@@ -203,7 +207,11 @@ void shuffle_m4(float R[4][4], const int index[4])
   }
 }
 
-/******************************** Arithmetic *********************************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Arithmetic
+ * \{ */
 
 void mul_m4_m4m4(float R[4][4], const float A[4][4], const float B[4][4])
 {
@@ -441,6 +449,8 @@ void mul_m3_m4m4(float R[3][3], const float A[4][4], const float B[4][4])
   R[2][2] = B[2][0] * A[0][2] + B[2][1] * A[1][2] + B[2][2] * A[2][2];
 }
 
+/** \} */
+
 /* -------------------------------------------------------------------- */
 /** \name Macro helpers for: mul_m3_series
  * \{ */
@@ -640,6 +650,10 @@ void _va_mul_m4_series_9(float r[4][4],
 }
 
 /** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Arithmetic
+ * \{ */
 
 void mul_v2_m3v2(float r[2], const float m[3][3], const float v[2])
 {
@@ -1175,7 +1189,11 @@ void mul_m4_m4m4_split_channels(float R[4][4], const float A[4][4], const float 
   loc_rot_size_to_mat4(R, loc_r, rot_r, size_r);
 }
 
-/****************************** Linear Algebra *******************************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Linear Algebra
+ * \{ */
 
 void transpose_m3(float R[3][3])
 {
@@ -1541,6 +1559,8 @@ void orthogonalize_m4_stable(float R[4][4], int axis, bool normalize)
   }
 }
 
+/** \} */
+
 /* -------------------------------------------------------------------- */
 /** \name Orthogonalize Matrix Zeroed Axes
  *
@@ -1626,6 +1646,10 @@ bool orthogonalize_m4_zero_axes(float m[4][4], const float unit_length)
 
 /** \} */
 
+/* -------------------------------------------------------------------- */
+/** \name Linear Algebra
+ * \{ */
+
 bool is_orthogonal_m3(const float m[3][3])
 {
   int i, j;
@@ -1688,6 +1712,19 @@ bool is_orthonormal_m4(const float m[4][4])
   }
 
   return false;
+}
+
+bool is_identity_m4(const float m[4][4])
+{
+  for (int row = 0; row < 4; row++) {
+    for (int col = 0; col < 4; col++) {
+      if (m[row][col] != (row == col ? 1.0f : 0.0f)) {
+        return false;
+      }
+    }
+  }
+
+  return true;
 }
 
 bool is_uniform_scaled_m3(const float m[3][3])
@@ -1792,18 +1829,21 @@ void adjoint_m2_m2(float R[2][2], const float M[2][2])
 
 void adjoint_m3_m3(float R[3][3], const float M[3][3])
 {
-  BLI_assert(R != M);
-  R[0][0] = M[1][1] * M[2][2] - M[1][2] * M[2][1];
-  R[0][1] = -M[0][1] * M[2][2] + M[0][2] * M[2][1];
-  R[0][2] = M[0][1] * M[1][2] - M[0][2] * M[1][1];
+  const float m00 = M[0][0], m01 = M[0][1], m02 = M[0][2];
+  const float m10 = M[1][0], m11 = M[1][1], m12 = M[1][2];
+  const float m20 = M[2][0], m21 = M[2][1], m22 = M[2][2];
 
-  R[1][0] = -M[1][0] * M[2][2] + M[1][2] * M[2][0];
-  R[1][1] = M[0][0] * M[2][2] - M[0][2] * M[2][0];
-  R[1][2] = -M[0][0] * M[1][2] + M[0][2] * M[1][0];
+  R[0][0] = m11 * m22 - m12 * m21;
+  R[0][1] = -m01 * m22 + m02 * m21;
+  R[0][2] = m01 * m12 - m02 * m11;
 
-  R[2][0] = M[1][0] * M[2][1] - M[1][1] * M[2][0];
-  R[2][1] = -M[0][0] * M[2][1] + M[0][1] * M[2][0];
-  R[2][2] = M[0][0] * M[1][1] - M[0][1] * M[1][0];
+  R[1][0] = -m10 * m22 + m12 * m20;
+  R[1][1] = m00 * m22 - m02 * m20;
+  R[1][2] = -m00 * m12 + m02 * m10;
+
+  R[2][0] = m10 * m21 - m11 * m20;
+  R[2][1] = -m00 * m21 + m01 * m20;
+  R[2][2] = m00 * m11 - m01 * m10;
 }
 
 void adjoint_m4_m4(float R[4][4], const float M[4][4]) /* out = ADJ(in) */
@@ -1901,7 +1941,11 @@ float determinant_m4(const float m[4][4])
   return ans;
 }
 
-/****************************** Transformations ******************************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Transformations
+ * \{ */
 
 void size_to_mat3(float R[3][3], const float size[3])
 {
@@ -2371,7 +2415,11 @@ void loc_quat_size_to_mat4(float R[4][4],
   R[3][2] = loc[2];
 }
 
-/*********************************** Other ***********************************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Other
+ * \{ */
 
 void print_m3(const char *str, const float m[3][3])
 {
@@ -2888,6 +2936,8 @@ void invert_m4_m4_safe(float inverse[4][4], const float mat[4][4])
   }
 }
 
+/** \} */
+
 /* -------------------------------------------------------------------- */
 /** \name Invert (Safe Orthographic)
  *
@@ -2927,6 +2977,10 @@ void invert_m3_m3_safe_ortho(float inverse[3][3], const float mat[3][3])
 
 /** \} */
 
+/* -------------------------------------------------------------------- */
+/** \name Other
+ * \{ */
+
 void BLI_space_transform_from_matrices(SpaceTransform *data,
                                        const float local[4][4],
                                        const float target[4][4])
@@ -2949,22 +3003,26 @@ void BLI_space_transform_global_from_matrices(SpaceTransform *data,
 
 void BLI_space_transform_apply(const SpaceTransform *data, float co[3])
 {
-  mul_v3_m4v3(co, ((SpaceTransform *)data)->local2target, co);
+  mul_v3_m4v3(co, (const_cast<SpaceTransform *>(data))->local2target, co);
 }
 
 void BLI_space_transform_invert(const SpaceTransform *data, float co[3])
 {
-  mul_v3_m4v3(co, ((SpaceTransform *)data)->target2local, co);
+  mul_v3_m4v3(co, (const_cast<SpaceTransform *>(data))->target2local, co);
 }
 
 void BLI_space_transform_apply_normal(const SpaceTransform *data, float no[3])
 {
-  mul_mat3_m4_v3(((SpaceTransform *)data)->local2target, no);
+  mul_mat3_m4_v3((const_cast<SpaceTransform *>(data))->local2target, no);
   normalize_v3(no);
 }
 
 void BLI_space_transform_invert_normal(const SpaceTransform *data, float no[3])
 {
-  mul_mat3_m4_v3(((SpaceTransform *)data)->target2local, no);
+  mul_transposed_mat3_m4_v3(data->local2target, no);
   normalize_v3(no);
 }
+
+/** \} */
+
+}  // namespace blender

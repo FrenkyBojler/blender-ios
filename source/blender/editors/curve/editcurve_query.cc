@@ -21,7 +21,7 @@
 
 #include "curve_intern.hh"
 
-using blender::Vector;
+namespace blender {
 
 /* -------------------------------------------------------------------- */
 /** \name Cursor Picking API
@@ -107,7 +107,7 @@ bool ED_curve_pick_vert_ex(ViewContext *vc,
   data.mval_fl[1] = vc->mval[1];
 
   Vector<Base *> bases = BKE_view_layer_array_from_bases_in_edit_mode_unique_data(
-      vc->scene, vc->view_layer, vc->v3d);
+      *vc->bmain, vc->scene, vc->view_layer, vc->v3d);
   for (Base *base : bases) {
     data.is_changed = false;
 
@@ -154,7 +154,7 @@ void ED_curve_nurb_vert_selected_find(
 {
   /* In nu and (bezt or bp) selected are written if there's 1 sel. */
   /* If more points selected in 1 spline: return only nu, bezt and bp are 0. */
-  ListBase *editnurb = &cu->editnurb->nurbs;
+  ListBaseT<Nurb> *editnurb = &cu->editnurb->nurbs;
   BezTriple *bezt1;
   BPoint *bp1;
   int a;
@@ -163,13 +163,13 @@ void ED_curve_nurb_vert_selected_find(
   *r_bezt = nullptr;
   *r_bp = nullptr;
 
-  LISTBASE_FOREACH (Nurb *, nu1, editnurb) {
-    if (nu1->type == CU_BEZIER) {
-      bezt1 = nu1->bezt;
-      a = nu1->pntsu;
+  for (Nurb &nu1 : *editnurb) {
+    if (nu1.type == CU_BEZIER) {
+      bezt1 = nu1.bezt;
+      a = nu1.pntsu;
       while (a--) {
         if (BEZT_ISSEL_ANY_HIDDENHANDLES(v3d, bezt1)) {
-          if (!ELEM(*r_nu, nullptr, nu1)) {
+          if (!ELEM(*r_nu, nullptr, &nu1)) {
             *r_nu = nullptr;
             *r_bp = nullptr;
             *r_bezt = nullptr;
@@ -182,18 +182,18 @@ void ED_curve_nurb_vert_selected_find(
           }
           else {
             *r_bezt = bezt1;
-            *r_nu = nu1;
+            *r_nu = &nu1;
           }
         }
         bezt1++;
       }
     }
     else {
-      bp1 = nu1->bp;
-      a = nu1->pntsu * nu1->pntsv;
+      bp1 = nu1.bp;
+      a = nu1.pntsu * nu1.pntsv;
       while (a--) {
         if (bp1->f1 & SELECT) {
-          if (!ELEM(*r_nu, nullptr, nu1)) {
+          if (!ELEM(*r_nu, nullptr, &nu1)) {
             *r_bp = nullptr;
             *r_bezt = nullptr;
             *r_nu = nullptr;
@@ -206,7 +206,7 @@ void ED_curve_nurb_vert_selected_find(
           }
           else {
             *r_bp = bp1;
-            *r_nu = nu1;
+            *r_nu = &nu1;
           }
         }
         bp1++;
@@ -225,11 +225,11 @@ bool ED_curve_active_center(Curve *cu, float center[3])
   }
 
   if (nu->type == CU_BEZIER) {
-    BezTriple *bezt = (BezTriple *)vert;
+    BezTriple *bezt = static_cast<BezTriple *>(vert);
     copy_v3_v3(center, bezt->vec[1]);
   }
   else {
-    BPoint *bp = (BPoint *)vert;
+    BPoint *bp = static_cast<BPoint *>(vert);
     copy_v3_v3(center, bp->vec);
   }
 
@@ -257,3 +257,5 @@ bool ED_curve_active_rot(Curve *cu, float rot[3][3])
 }
 
 /** \} */
+
+}  // namespace blender

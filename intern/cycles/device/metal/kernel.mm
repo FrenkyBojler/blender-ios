@@ -46,7 +46,7 @@ struct ShaderCache {
     /* Initialize occupancy tuning LUT. */
 
     // TODO: Look into tuning for DEVICE_KERNEL_INTEGRATOR_INTERSECT_DEDICATED_LIGHT and
-    // DEVICE_KERNEL_INTEGRATOR_SHADE_DEDICATED_LIGHT.
+    // DEVICE_KERNEL_INTEGRATOR_SHADE_DEDICATED_LIGHT, DEVICE_KERNEL_INTEGRATOR_SHADE_LIGHT_*.
 
     switch (MetalInfo::get_apple_gpu_architecture(mtlDevice)) {
       default:
@@ -250,8 +250,8 @@ bool ShaderCache::should_load_kernel(DeviceKernel device_kernel,
     return false;
   }
 
-  if (device_kernel == DEVICE_KERNEL_INTEGRATOR_MEGAKERNEL) {
-    /* Skip megakernel. */
+  if (!device_kernel_has_gpu_function(device_kernel)) {
+    /* Skip megakernel and other markers without a GPU function. */
     return false;
   }
 
@@ -262,9 +262,9 @@ bool ShaderCache::should_load_kernel(DeviceKernel device_kernel,
     }
   }
 
-  if (device_kernel == DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE_MNEE) {
+  if (device_kernel == DEVICE_KERNEL_INTEGRATOR_INTERSECT_MNEE) {
     if ((device->kernel_features & KERNEL_FEATURE_MNEE) == 0) {
-      /* Skip shade_surface_mnee kernel if the scene doesn't require it. */
+      /* Skip the MNEE kernel if the scene doesn't require it. */
       return false;
     }
   }
@@ -423,7 +423,7 @@ bool MetalKernelPipeline::should_use_binary_archive() const
     if ((device_kernel >= DEVICE_KERNEL_INTEGRATOR_SHADE_BACKGROUND &&
          device_kernel <= DEVICE_KERNEL_INTEGRATOR_SHADE_SHADOW) ||
         (device_kernel >= DEVICE_KERNEL_SHADER_EVAL_DISPLACE &&
-         device_kernel <= DEVICE_KERNEL_SHADER_EVAL_CURVE_SHADOW_TRANSPARENCY))
+         device_kernel <= DEVICE_KERNEL_SHADER_EVAL_VOLUME_DENSITY))
     {
       /* Archive all shade kernels - they take a long time to compile. */
       return true;
@@ -441,6 +441,7 @@ static MTLFunctionConstantValues *GetConstantValues(const KernelData *data = nul
 
   MTLDataType MTLDataType_int = MTLDataTypeInt;
   MTLDataType MTLDataType_float = MTLDataTypeFloat;
+  MTLDataType MTLDataType_float2 = MTLDataTypeFloat2;
   MTLDataType MTLDataType_float4 = MTLDataTypeFloat4;
   KernelData zero_data = {0};
   if (!data) {

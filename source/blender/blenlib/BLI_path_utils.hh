@@ -12,6 +12,8 @@
 #include "BLI_utildefines.h"
 #include "BLI_utildefines_variadic.h"
 
+namespace blender {
+
 /* -------------------------------------------------------------------- */
 /** \name Path Queries
  * \{ */
@@ -201,7 +203,7 @@ void BLI_path_normalize_unc(char *path, int path_maxncpy);
 /**
  * Convert `path` to a canonical representation.
  * This is intended for system paths (passed in as command-line arguments of via scripts)
- * which are valid in that they resolve to a file/directory and but could be `CWD` relative or
+ * which are valid in that they resolve to a file/directory but could be `CWD` relative or
  * contain redundant slashes that cause absolute/relative conversion to fail.
  * (specifically the `//` prefix used by Blender).
  *
@@ -354,7 +356,7 @@ size_t BLI_path_append_dir(char *__restrict dst, size_t dst_maxncpy, const char 
  * \{ */
 
 /**
- * See #BLI_path_join doc-string.
+ * See #BLI_path_join docstring.
  */
 size_t BLI_path_join_array(char *__restrict dst,
                            const size_t dst_maxncpy,
@@ -365,7 +367,7 @@ size_t BLI_path_join_array(char *__restrict dst,
  * Join multiple strings into a path, ensuring only a single path separator between each,
  * and trailing slash is kept.
  *
- * \param path: The first patch which has special treatment,
+ * The first path which has special treatment,
  * allowing `//` prefix which is kept intact unlike double-slashes which are stripped
  * from the bounds of all other paths passed in.
  * Passing in the following paths all result in the same output (`//a/b/c`):
@@ -720,13 +722,13 @@ bool BLI_path_abs_from_cwd(char *path, size_t path_maxncpy) ATTR_NONNULL(1);
  * \{ */
 
 #ifdef WIN32
-#  define SEP '\\'
-#  define ALTSEP '/'
+constexpr char SEP = '\\';
+constexpr char ALTSEP = '/';
 #  define SEP_STR "\\"
 #  define ALTSEP_STR "/"
 #else
-#  define SEP '/'
-#  define ALTSEP '\\'
+constexpr char SEP = '/';
+constexpr char ALTSEP = '\\';
 #  define SEP_STR "/"
 #  define ALTSEP_STR "\\"
 #endif
@@ -796,3 +798,5 @@ const char *BLI_getenv(const char *env) ATTR_NONNULL(1) ATTR_WARN_UNUSED_RESULT;
   (((_n)[0] == '.') && (((_n)[1] == '\0') || (((_n)[1] == '.') && ((_n)[2] == '\0'))))
 
 /** \} */
+
+}  // namespace blender

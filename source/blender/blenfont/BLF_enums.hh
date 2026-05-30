@@ -8,7 +8,9 @@
 
 #pragma once
 
-#include "BLI_utildefines.h"
+#include "BLI_enum_flags.hh"
+
+namespace blender {
 
 enum class FontShadowType {
   None = 0,
@@ -18,11 +20,16 @@ enum class FontShadowType {
 };
 
 enum class BLFWrapMode : int {
-  Minimal = 0,            /* Only on ASCII space and line feed. Legacy and invariant. */
-  Typographical = 1 << 0, /* Multilingual, informed by Unicode Standard Annex #14. */
-  Path = 1 << 1,          /* Wrap on file path separators, space, underscores. */
-  HardLimit = 1 << 2,     /* Line break at limit. */
+  /** Only on ASCII space and line feed. Legacy and invariant. */
+  Minimal = 0,
+  /** Multilingual, informed by Unicode Standard Annex #14. */
+  Typographical = 1 << 0,
+  /** Wrap on file path separators, space, underscores. */
+  Path = 1 << 1,
+  /** Line break at limit. */
+  HardLimit = 1 << 2,
 };
+ENUM_OPERATORS(BLFWrapMode);
 
 enum FontFlags {
   BLF_NONE = 0,
@@ -48,8 +55,6 @@ enum FontFlags {
   BLF_LAST_RESORT = 1 << 15,
   /** Failure to load this font. Don't try again. */
   BLF_BAD_FONT = 1 << 16,
-  /** This font is managed by the FreeType cache subsystem. */
-  BLF_CACHED = 1 << 17,
   /**
    * At small sizes glyphs are rendered at multiple sub-pixel positions.
    *
@@ -57,7 +62,9 @@ enum FontFlags {
    */
   BLF_RENDER_SUBPIXELAA = 1 << 18,
 
-  /* Do not look in other fonts when a glyph is not found in this font. */
+  /** Do not look in other fonts when a glyph is not found in this font. */
   BLF_NO_FALLBACK = 1 << 19,
 };
-ENUM_OPERATORS(FontFlags, BLF_NO_FALLBACK);
+ENUM_OPERATORS(FontFlags);
+
+}  // namespace blender
