@@ -2730,8 +2730,8 @@ std::optional<float> bSoundWaveletEnergySampler::compute_wavelet_energy(
   }
 
   const int max_level = max_dwt_level_for_window_size(key_.window_size);
-  const int target_level = band_to_level(key_.band, max_level);
   const bool full_range = key_.band == WaveletBand::FullRange;
+  const int target_level = full_range ? 0 : band_to_level(key_.band, max_level);
   const int levels_to_compute = full_range ? max_level : target_level;
 
   Array<float> low_a(key_.window_size / 2);
@@ -2760,9 +2760,6 @@ std::optional<float> bSoundWaveletEnergySampler::compute_wavelet_energy(
     signal = low;
   }
 
-  if (levels_added == 0) {
-    return 0.0f;
-  }
   return energy / float(levels_added);
 #else
   UNUSED_VARS(start_sample);
