@@ -19,6 +19,7 @@ namespace blender {
 struct Main;
 struct Mask;
 struct MovieClip;
+struct Image;
 struct Scene;
 struct Strip;
 struct Stereo3dFormat;
@@ -48,6 +49,7 @@ struct LoadData {
   } image;         /* Only for image strips. */
   Scene *scene;    /* Only for scene strips. */
   MovieClip *clip; /* Only for clip strips. */
+  Image *image_id; /* Only for clip strips. */
   Mask *mask;      /* Only for mask strips. */
   struct {
     StripType type;
@@ -137,6 +139,15 @@ Strip *add_scene_strip(Scene *scene, ListBaseT<Strip> *seqbase, LoadData *load_d
  * \return created strip
  */
 Strip *add_movieclip_strip(Scene *scene, ListBaseT<Strip> *seqbase, LoadData *load_data);
+/**
+ * Add image id strip.
+ *
+ * \param scene: Scene where strips will be added
+ * \param seqbase: List where strips will be added
+ * \param load_data: SeqLoadData with information necessary to create strip
+ * \return created strip
+ */
+ Strip *add_image_id_strip(Scene *scene, ListBaseT<Strip> *seqbase, LoadData *load_data);
 /**
  * Add mask strip.
  *

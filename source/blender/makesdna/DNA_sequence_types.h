@@ -27,6 +27,7 @@ namespace blender {
 
 struct MovieClip;
 struct Scene;
+struct Image;
 struct VFont;
 struct bSound;
 
@@ -138,6 +139,7 @@ enum StripType : uint32_t {
   /* Removed (behavior was the same as alpha-over), only used when reading old files. */
   STRIP_TYPE_OVERDROP_REMOVED = 15,
   STRIP_TYPE_COMPOSITOR = 16,
+  STRIP_TYPE_IMAGE_ID = 17,
   /* STRIP_TYPE_PLUGIN = 24, */ /* Removed. */
   STRIP_TYPE_WIPE = 25,
   STRIP_TYPE_GLOW = 26,
@@ -394,6 +396,8 @@ struct Strip {
   char *scene_view_layer_name = nullptr;
   /** For MOVIECLIP strips. */
   struct MovieClip *clip = nullptr;
+  /** For IMAGE_ID strips. */
+  struct Image *image_id = nullptr;
   /** For MASK strips. */
   struct Mask *mask = nullptr;
 

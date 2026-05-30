@@ -329,6 +329,10 @@ static void color3ubv_from_seq(const Scene *curscene,
       ui::theme::get_color_3ubv(TH_SEQ_MOVIECLIP, r_col);
       break;
 
+    case STRIP_TYPE_IMAGE_ID:
+      ui::theme::get_color_3ubv(TH_SEQ_IMAGE_ID, r_col);
+      break;
+
     case STRIP_TYPE_MASK:
       ui::theme::get_color_3ubv(TH_SEQ_MASK, r_col);
       break;

@@ -1204,6 +1204,26 @@ static ImBuf *seq_render_movieclip_strip(const RenderData *context,
   return ibuf;
 }
 
+static ImBuf *seq_get_image_id_strip(const RenderData *context,
+                                         Strip *strip/*,
+                                         float frame_index /* As of now, no need for that.*/)
+{  
+  if (!strip->image_id) {
+    return nullptr;
+  }
+  
+  // TODO: GD;; If we want to support Animated GIFs etc. we should have something like that and pass user on aquire:
+  //ImageUser user = {};
+  //user.framenr = int(frame_index) + strip->anim_startofs + 1; 
+
+  // TODO: GD;; Support multilayer?
+  // TODO: GD;; Add color support from DNA/RNA 
+
+  ImBuf *ibuf = BKE_image_acquire_ibuf(strip->image_id, nullptr, nullptr);
+
+  return ibuf;
+}
+
 ImBuf *seq_render_mask(Depsgraph *depsgraph,
                        int width,
                        int height,
@@ -1671,6 +1691,17 @@ static ImBuf *do_render_strip_uncached(const RenderData *context,
   else if (strip->type == STRIP_TYPE_MOVIECLIP) {
     ibuf = seq_render_movieclip_strip(
         context, strip, round_fl_to_int(frame_index), r_is_proxy_image);
+
+    if (ibuf) {
+      /* duplicate frame so movie cache wouldn't be confused by sequencer's stuff */
+      ImBuf *i = IMB_dupImBuf(ibuf);
+      IMB_freeImBuf(ibuf);
+      ibuf = i;
+    }
+  }
+  else if(strip->type == STRIP_TYPE_IMAGE_ID) {
+    // TODO: GD;; Finish!
+    ibuf = seq_get_image_id_strip(context, strip);
 
     if (ibuf) {
       /* duplicate frame so movie cache wouldn't be confused by sequencer's stuff */

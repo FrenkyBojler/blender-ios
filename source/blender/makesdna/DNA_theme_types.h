@@ -384,7 +384,7 @@ typedef struct ThemeSpace {
   unsigned char simulated_frames[4];
 
   /** For sequence editor. */
-  unsigned char movie[4], movieclip[4], mask[4], image[4], scene[4], audio[4];
+  unsigned char movie[4], movieclip[4], mask[4], image[4], image_id[4], scene[4], audio[4];
   unsigned char effect[4], transition[4], meta[4], text_strip[4], color_strip[4];
   unsigned char active_strip[4], selected_strip[4], text_strip_cursor[4], selected_text[4];
 
@@ -408,7 +408,7 @@ typedef struct ThemeSpace {
   unsigned char gp_wire_edit[4];
   unsigned char gp_vertex_size;
   unsigned char gp_vertex[4], gp_vertex_select[4];
-  char _pad11[12];
+  char _pad11[8];
 
   unsigned char preview_back[4];
   unsigned char preview_stitch_face[4];

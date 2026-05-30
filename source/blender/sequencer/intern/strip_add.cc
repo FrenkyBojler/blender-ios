@@ -95,6 +95,8 @@ static void strip_add_set_name(Scene *scene, Strip *strip, LoadData *load_data)
     }
     else if (strip->type == STRIP_TYPE_MOVIECLIP) {
       edit_strip_name_set(scene, strip, load_data->clip->id.name + 2);
+    } else if(strip->type == STRIP_TYPE_IMAGE_ID){
+      edit_strip_name_set(scene, strip, load_data->image_id->id.name + 2);
     }
     else if (strip->type == STRIP_TYPE_MASK) {
       edit_strip_name_set(scene, strip, load_data->mask->id.name + 2);
@@ -146,6 +148,20 @@ Strip *add_movieclip_strip(Scene *scene, ListBaseT<Strip> *seqbase, LoadData *lo
   strip->clip = load_data->clip;
   strip->len = BKE_movieclip_get_duration(load_data->clip);
   id_us_ensure_real(id_cast<ID *>(load_data->clip));
+  strip_add_set_name(scene, strip, load_data);
+  strip_add_generic_update(scene, strip);
+  return strip;
+}
+
+Strip *add_image_id_strip(Scene *scene, ListBaseT<Strip> *seqbase, LoadData *load_data)
+{
+  Strip *strip = strip_alloc(
+      seqbase, load_data->start_frame, load_data->channel, STRIP_TYPE_IMAGE_ID);
+  strip->image_id = load_data->image_id;
+  strip->len = 25; // TODO: GD;; Find a better way to do that instead of hardcoded magic number (like DEFAULT_IMG_STRIP_LENGTH)
+  // TODO: GD;; ?Maybe necessary for render:
+  ///strip->flag |= SEQ_SINGLE_FRAME_CONTENT;
+  id_us_ensure_real(id_cast<ID *>(load_data->image_id));
   strip_add_set_name(scene, strip, load_data);
   strip_add_generic_update(scene, strip);
   return strip;
@@ -639,6 +655,20 @@ void add_reload_new_file(Main *bmain, Scene *scene, Strip *strip, const bool loc
       strip->len -= strip->anim_endofs;
       strip->len = std::max(strip->len, 0);
       break;
+    case STRIP_TYPE_IMAGE_ID: {
+      if (strip->image_id == nullptr) {
+        return;
+      }
+
+      /* Hack? Copied from case STRIP_TYPE_IMAGE */
+      size_t olen = MEM_allocN_len(strip->data->stripdata) / sizeof(StripElem);
+      strip->len = olen;
+
+      strip->len -= strip->anim_startofs;
+      strip->len -= strip->anim_endofs;
+      strip->len = std::max(strip->len, 0);
+      break;
+    }
     case STRIP_TYPE_MASK:
       if (strip->mask == nullptr) {
         return;
