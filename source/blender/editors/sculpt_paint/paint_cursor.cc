@@ -1137,9 +1137,9 @@ static void paint_draw_legacy_3D_view_brush_cursor(PaintCursorContext &pcontext)
   imm_draw_rounded_box_wire_3d(pcontext.pos,
                                pcontext.translation[0],
                                pcontext.translation[1],
+                               tip_scale_x,
                                pcontext.final_radius,
                                pcontext.final_radius * roundness,
-                               tip_scale_x,
                                40);
 }
 

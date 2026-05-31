@@ -504,18 +504,13 @@ void imm_draw_circle_fill_aspect_3d(
   imm_draw_circle_3D(GPU_PRIM_TRI_FAN, pos, x, y, radius_x, radius_y, nsegments);
 }
 
-void imm_draw_rounded_box_wire_2d(uint pos,
-                                  float x,
-                                  float y,
-                                  float radius,
-                                  float corner_radius,
-                                  float tip_scale_x,
-                                  int nsegments)
+void blender::imm_draw_rounded_box_wire_2d(
+    uint pos, float x, float y, float x_scale, float radius, float corner_radius, int nsegments)
 {
-  const float x_min = x - radius * tip_scale_x;
-  const float x_max = x + radius * tip_scale_x;
-  const float x_corner_min = x + (-radius + corner_radius) * tip_scale_x;
-  const float x_corner_max = x + (radius - corner_radius) * tip_scale_x;
+  const float x_min = x - radius * x_scale;
+  const float x_max = x + radius * x_scale;
+  const float x_corner_min = x + (-radius + corner_radius) * x_scale;
+  const float x_corner_max = x + (radius - corner_radius) * x_scale;
 
   if (corner_radius <= 0.0f) {
     imm_draw_box_wire_2d(pos, x_min, y - radius, x_max, y + radius);
@@ -523,7 +518,7 @@ void imm_draw_rounded_box_wire_2d(uint pos,
   }
 
   if (corner_radius >= radius) {
-    imm_draw_circle_wire_aspect_2d(pos, x, y, radius * tip_scale_x, radius, nsegments);
+    imm_draw_circle_wire_aspect_2d(pos, x, y, radius * x_scale, radius, nsegments);
     return;
   }
 
@@ -531,7 +526,7 @@ void imm_draw_rounded_box_wire_2d(uint pos,
   imm_draw_circle_partial_wire_aspect_2d(pos,
                                          x_corner_min,
                                          y - radius + corner_radius,
-                                         corner_radius * tip_scale_x,
+                                         corner_radius * x_scale,
                                          corner_radius,
                                          nsegments,
                                          180.0f,
@@ -539,7 +534,7 @@ void imm_draw_rounded_box_wire_2d(uint pos,
   imm_draw_circle_partial_wire_aspect_2d(pos,
                                          x_corner_max,
                                          y + radius - corner_radius,
-                                         corner_radius * tip_scale_x,
+                                         corner_radius * x_scale,
                                          corner_radius,
                                          nsegments,
                                          0,
@@ -547,7 +542,7 @@ void imm_draw_rounded_box_wire_2d(uint pos,
   imm_draw_circle_partial_wire_aspect_2d(pos,
                                          x_corner_max,
                                          y - radius + corner_radius,
-                                         corner_radius * tip_scale_x,
+                                         corner_radius * x_scale,
                                          corner_radius,
                                          nsegments,
                                          90.0f,
@@ -555,7 +550,7 @@ void imm_draw_rounded_box_wire_2d(uint pos,
   imm_draw_circle_partial_wire_aspect_2d(pos,
                                          x_corner_min,
                                          y + radius - corner_radius,
-                                         corner_radius * tip_scale_x,
+                                         corner_radius * x_scale,
                                          corner_radius,
                                          nsegments,
                                          -90.0f,
@@ -577,20 +572,15 @@ void imm_draw_rounded_box_wire_2d(uint pos,
   immEnd();
 }
 
-void imm_draw_rounded_box_wire_3d(uint pos,
-                                  float x,
-                                  float y,
-                                  float radius,
-                                  float corner_radius,
-                                  float tip_scale_x,
-                                  int nsegments)
+void blender::imm_draw_rounded_box_wire_3d(
+    uint pos, float x, float y, float x_scale, float radius, float corner_radius, int nsegments)
 {
   /* Min and max values of x-coordinate of the rounded box. */
-  const float x_min = x - radius * tip_scale_x;
-  const float x_max = x + radius * tip_scale_x;
+  const float x_min = x - radius * x_scale;
+  const float x_max = x + radius * x_scale;
   /* Min and max values of the x-coordinate of the center of the rounded corners. */
-  const float x_corner_min = x + (-radius + corner_radius) * tip_scale_x;
-  const float x_corner_max = x + (radius - corner_radius) * tip_scale_x;
+  const float x_corner_min = x + (-radius + corner_radius) * x_scale;
+  const float x_corner_max = x + (radius - corner_radius) * x_scale;
 
   if (corner_radius <= 0.0f) {
     imm_draw_box_wire_3d(pos, x_min, y - radius, x_max, y + radius);
@@ -598,7 +588,7 @@ void imm_draw_rounded_box_wire_3d(uint pos,
   }
 
   if (corner_radius >= radius) {
-    imm_draw_circle_wire_aspect_3d(pos, x, y, radius * tip_scale_x, radius, nsegments);
+    imm_draw_circle_wire_aspect_3d(pos, x, y, radius * x_scale, radius, nsegments);
     return;
   }
 
@@ -607,7 +597,7 @@ void imm_draw_rounded_box_wire_3d(uint pos,
                                          x_corner_min,
                                          y - radius + corner_radius,
                                          0.0f,
-                                         corner_radius * tip_scale_x,
+                                         corner_radius * x_scale,
                                          corner_radius,
                                          nsegments,
                                          180.0f,
@@ -616,7 +606,7 @@ void imm_draw_rounded_box_wire_3d(uint pos,
                                          x_corner_max,
                                          y + radius - corner_radius,
                                          0.0f,
-                                         corner_radius * tip_scale_x,
+                                         corner_radius * x_scale,
                                          corner_radius,
                                          nsegments,
                                          0.0f,
@@ -625,7 +615,7 @@ void imm_draw_rounded_box_wire_3d(uint pos,
                                          x_corner_max,
                                          y - radius + corner_radius,
                                          0.0f,
-                                         corner_radius * tip_scale_x,
+                                         corner_radius * x_scale,
                                          corner_radius,
                                          nsegments,
                                          90.0f,
@@ -634,7 +624,7 @@ void imm_draw_rounded_box_wire_3d(uint pos,
                                          x_corner_min,
                                          y + radius - corner_radius,
                                          0.0f,
-                                         corner_radius * tip_scale_x,
+                                         corner_radius * x_scale,
                                          corner_radius,
                                          nsegments,
                                          -90.0f,

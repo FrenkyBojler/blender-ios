@@ -449,20 +449,20 @@ static void inactive_cursor_draw(PaintCursorContext &pcontext)
   imm_draw_rounded_box_wire_3d(pcontext.pos,
                                pcontext.translation[0],
                                pcontext.translation[1],
+                               tip_scale_x,
                                pcontext.final_radius,
                                pcontext.final_radius * roundness,
-                               tip_scale_x,
                                80);
   immUniformColor3fvAlpha(pcontext.outline_col, pcontext.outline_alpha * 0.35f);
   imm_draw_rounded_box_wire_3d(
       pcontext.pos,
       pcontext.translation[0],
       pcontext.translation[1],
+      tip_scale_x,
       pcontext.final_radius *
           clamp_f(BKE_brush_alpha_get(pcontext.paint, pcontext.brush), 0.0f, 1.0f),
       pcontext.final_radius *
           clamp_f(BKE_brush_alpha_get(pcontext.paint, pcontext.brush), 0.0f, 1.0f) * roundness,
-      tip_scale_x,
       80);
 }
 
@@ -709,7 +709,7 @@ static void main_inactive_cursor_draw(const PaintCursorContext &pcontext)
   GPU_line_width(2.0f);
 
   imm_draw_rounded_box_wire_3d(
-      pcontext.pos, 0, 0, pcontext.radius, pcontext.radius * roundness, tip_scale_x, 80);
+      pcontext.pos, 0, 0, tip_scale_x, pcontext.radius, pcontext.radius * roundness, 80);
 
   GPU_line_width(1.0f);
   immUniformColor3fvAlpha(pcontext.outline_col, pcontext.outline_alpha * 0.5f);
@@ -717,10 +717,10 @@ static void main_inactive_cursor_draw(const PaintCursorContext &pcontext)
       pcontext.pos,
       0,
       0,
+      tip_scale_x,
       pcontext.radius * clamp_f(BKE_brush_alpha_get(pcontext.paint, pcontext.brush), 0.0f, 1.0f),
       pcontext.radius * clamp_f(BKE_brush_alpha_get(pcontext.paint, pcontext.brush), 0.0f, 1.0f) *
           roundness,
-      tip_scale_x,
       80);
 }
 

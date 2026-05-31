@@ -142,20 +142,10 @@ void imm_draw_disk_partial_fill_3d(uint pos,
                                    float start,
                                    float sweep);
 
-void imm_draw_rounded_box_wire_2d(uint pos,
-                                  float x,
-                                  float y,
-                                  float radius,
-                                  float corner_radius,
-                                  float tip_scale_x,
-                                  int nsegments);
-void imm_draw_rounded_box_wire_3d(uint pos,
-                                  float x,
-                                  float y,
-                                  float radius,
-                                  float corner_radius,
-                                  float tip_scale_x,
-                                  int nsegments);
+void imm_draw_rounded_box_wire_2d(
+    uint pos, float x, float y, float x_scale, float radius, float corner_radius, int nsegments);
+void imm_draw_rounded_box_wire_3d(
+    uint pos, float x, float y, float x_scale, float radius, float corner_radius, int nsegments);
 
 /**
  * Draw a lined box.
