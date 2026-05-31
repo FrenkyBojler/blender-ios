@@ -93,9 +93,9 @@ namespace py_tree_view {
 struct TreeViewData {
   const bContext *C;
   uiList *ui_list;
-  TemplateListLayoutDrawData *layout_data;
-  TemplateListInputData *input_data;
-  TemplateListItems *items;
+  TemplateListLayoutDrawData layout_data;
+  TemplateListInputData input_data;
+  TemplateListItems items;
 };
 
 class PyTreeView : public ui::AbstractTreeView {
@@ -104,9 +104,9 @@ class PyTreeView : public ui::AbstractTreeView {
  public:
   PyTreeView(const bContext *C,
              uiList *ui_list,
-             TemplateListLayoutDrawData *layout_data,
-             TemplateListInputData *input_data,
-             TemplateListItems *items)
+             TemplateListLayoutDrawData layout_data,
+             TemplateListInputData input_data,
+             TemplateListItems items)
       : ui_data_{C, ui_list, layout_data, input_data, items}
   {
     /* TODO: `uiList` dna strcut is kind of needed but feels illeagal at the same point to use that
@@ -124,11 +124,13 @@ class PyTreeViewItem : public ui::AbstractTreeViewItem {
   PyTreeViewItem(TreeViewData *ui_data, _uilist_item &item, int index)
       : ui_data_(ui_data), item_(item), index_(index)
   {
+    label_ = RNA_struct_name_get_alloc(&item_.item, nullptr, 0, nullptr);
+    printf("label : %s\n", label_.c_str());
   }
 
   std::optional<bool> should_be_active() const override
   {
-    return index_ == ui_data_->items->active_item_idx;
+    return index_ == ui_data_->items.active_item_idx;
   }
 
   void on_activate(bContext &C) override
@@ -136,15 +138,36 @@ class PyTreeViewItem : public ui::AbstractTreeViewItem {
     /* TODO: Apparently RNA ptrs (`input_data->active_dataptr` and other) points to garbage memory.
      * Find alternative for rna ptrs */
 
-    // RNA_property_int_set(&ui_data_->input_data->active_dataptr,
-    // ui_data_->input_data->activeprop, item_.org_idx);
+    RNA_property_int_set(&ui_data_->input_data.active_dataptr,
+    ui_data_->input_data.activeprop, item_.org_idx);
+  }
+
+  bool supports_renaming() const override
+  {
+    return true;
+  }
+
+  bool rename(const bContext &C, StringRefNull new_name) override
+  {
+    // PointerRNA shapekey_ptr = RNA_pointer_create_discrete(
+    //     &shape_key_.key->id, RNA_ShapeKey, shape_key_.kb);
+    // PropertyRNA *prop = RNA_struct_find_property(&shapekey_ptr, "name");
+    // RNA_property_string_set(&shapekey_ptr, prop, new_name.c_str());
+    // RNA_property_update(&const_cast<bContext &>(C), &shapekey_ptr, prop);
+    // ED_undo_push(const_cast<bContext *>(&C), "Rename shape key");
+    return true;
+  }
+
+  StringRef get_rename_string() const override
+  {
+    return label_;
   }
 
   void build_row(ui::Layout &row) override
   {
-    TemplateListLayoutDrawData *layout_data = ui_data_->layout_data;
-    TemplateListInputData *input_data = ui_data_->input_data;
-    TemplateListItems *items = ui_data_->items;
+    TemplateListLayoutDrawData *layout_data = &ui_data_->layout_data;
+    TemplateListInputData *input_data = &ui_data_->input_data;
+    TemplateListItems *items = &ui_data_->items;
 
     int icon = icon_from_rnaptr(ui_data_->C, &item_.item, ICON_NONE, false);
     if (icon == ICON_DOT) {
@@ -167,7 +190,7 @@ class PyTreeViewItem : public ui::AbstractTreeViewItem {
 void PyTreeView::build_tree()
 {
   int index = 0;
-  for (_uilist_item &items : ui_data_.items->item_vec) {
+  for (_uilist_item &items : ui_data_.items.item_vec) {
     this->add_tree_item<PyTreeViewItem>(&ui_data_, items, index);
     index++;
   }
@@ -1122,7 +1145,7 @@ void template_uilist(Layout *layout,
   ui::AbstractTreeView *tree_view = block_add_view(
       *layout->block(),
       listtype_name,
-      std::make_unique<py_tree_view::PyTreeView>(C, ui_list, &layout_data, &input_data, &items));
+      std::make_unique<py_tree_view::PyTreeView>(C, ui_list, layout_data, input_data, items));
   tree_view->set_default_rows(4);
   ui::TreeViewBuilder::build_tree_view(*C, *tree_view, *layout);
 }
