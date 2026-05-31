@@ -1127,11 +1127,10 @@ static void paint_draw_2D_view_brush_cursor(PaintCursorContext &pcontext)
 
 static void paint_draw_legacy_3D_view_brush_cursor(PaintCursorContext &pcontext)
 {
-  float roundness = pcontext.brush->tip_roundness;
-
-  if (!BKE_brush_has_cube_tip(pcontext.brush, pcontext.mode)) {
-    roundness = 1.0f;
-  }
+  const float roundness = BKE_brush_has_cube_tip(pcontext.brush, pcontext.mode) ?
+                              pcontext.brush->tip_roundness :
+                              1.0f;
+  const float tip_scale_x = pcontext.brush->tip_scale_x;
 
   GPU_line_width(1.0f);
   immUniformColor3fvAlpha(pcontext.outline_col, pcontext.outline_alpha);
@@ -1140,6 +1139,7 @@ static void paint_draw_legacy_3D_view_brush_cursor(PaintCursorContext &pcontext)
                                pcontext.translation[1],
                                pcontext.final_radius,
                                pcontext.final_radius * roundness,
+                               tip_scale_x,
                                40);
 }
 
