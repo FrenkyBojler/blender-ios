@@ -19,6 +19,7 @@
 #include "BLI_math_vector.h"
 #include "BLI_math_vector.hh"
 #include "BLI_path_utils.hh"
+#include "BLI_profile.hh"
 #include "BLI_rect.h"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
@@ -184,6 +185,7 @@ static void init_text_effect(Strip *strip)
   data->text_blf_id = -1;
   data->text_size = 60.0f;
   data->space_line = 1.0f;
+  data->abs_space_line = 60.0f; /* Keep in sync with `data->text_size` at init. */
 
   copy_v4_fl(data->color, 1.0f);
   data->shadow_color[3] = 0.7f;
@@ -931,9 +933,12 @@ static void apply_word_wrapping(const TextVars *data,
     }
 
     if (character.do_wrap) {
+      const int line_spacing = (data->flag & SEQ_TEXT_USE_ABSOLUTE_LINE_SPACING) ?
+                                   data->abs_space_line :
+                                   runtime->line_height * data->space_line;
       runtime->lines.append(LineInfo());
       cur_pixel_pos.x = 0;
-      cur_pixel_pos.y -= runtime->line_height * data->space_line;
+      cur_pixel_pos.y -= line_spacing;
     }
   }
 }
@@ -999,7 +1004,10 @@ static void calc_boundbox(const TextVars *data, TextVarsRuntime *runtime, const 
   /* `BLF_bounds_max()` is used, because some fonts have glyphs overlapping with lines above. */
   rctf glyph_bounds_max;
   BLF_bounds_max(runtime->font, &glyph_bounds_max);
-  const int text_height = (runtime->lines.size() - 1) * (runtime->line_height * data->space_line) +
+  const int line_spacing = (data->flag & SEQ_TEXT_USE_ABSOLUTE_LINE_SPACING) ?
+                               data->abs_space_line :
+                               runtime->line_height * data->space_line;
+  const int text_height = (runtime->lines.size() - 1) * line_spacing +
                           math::ceil(BLI_rctf_size_y(&glyph_bounds_max));
 
   int width_max = text_box_width_get(runtime->lines);
@@ -1023,8 +1031,10 @@ static void apply_text_alignment(const TextVars *data,
                                  const int2 image_size)
 {
   const int box_width = text_box_width_get(runtime->lines);
-  const int box_height = runtime->line_height +
-                         (runtime->lines.size() - 1) * (runtime->line_height * data->space_line);
+  const int line_spacing = (data->flag & SEQ_TEXT_USE_ABSOLUTE_LINE_SPACING) ?
+                               data->abs_space_line :
+                               runtime->line_height * data->space_line;
+  const int box_height = runtime->line_height + (runtime->lines.size() - 1) * line_spacing;
 
   const float2 image_center{data->loc[0] * image_size.x, data->loc[1] * image_size.y};
   const float2 line_height_offset{0.0f,
@@ -1067,6 +1077,7 @@ static SeqResult do_text_effect(const RenderData *context,
                                 const SeqResult & /*ibuf1*/,
                                 const SeqResult & /*ibuf2*/)
 {
+  BLI_profile_scope_with_name("SeqFxText", ProfileCategory::Draw);
   /* NOTE: text rasterization only fills in part of output image,
    * need to clear it. */
   SeqResult out = prepare_effect_imbufs(context, {}, {}, false);

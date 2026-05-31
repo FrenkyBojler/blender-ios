@@ -69,7 +69,7 @@ bool BlenderSync::object_is_geometry(BObjectInfo &b_ob_info)
     return false;
   }
 
-  const blender::ObjectType type = blender::ObjectType(b_ob_info.iter_object->type);
+  const blender::ObjectType type = b_ob_info.iter_object->type;
 
   if (type == blender::OB_VOLUME || type == blender::OB_CURVES || type == blender::OB_POINTCLOUD ||
       type == blender::OB_LAMP)
@@ -83,7 +83,7 @@ bool BlenderSync::object_is_geometry(BObjectInfo &b_ob_info)
 
 bool BlenderSync::object_can_have_geometry(blender::Object &b_ob)
 {
-  const blender::ObjectType type = blender::ObjectType(b_ob.type);
+  const blender::ObjectType type = b_ob.type;
   switch (type) {
     case blender::OB_MESH:
     case blender::OB_CURVES_LEGACY:
@@ -651,7 +651,8 @@ void BlenderSync::sync_objects_and_motion(blender::RenderData &b_render,
   /* Check which geometry already has motion blur so it can be skipped. */
   geometry_motion_attribute_synced.clear();
   for (Geometry *geom : scene->geometry) {
-    if (geom->attributes.find(ATTR_STD_MOTION_VERTEX_POSITION)) {
+    const Attribute *attr_P = geom->attributes.find(ATTR_STD_POSITION);
+    if (attr_P && attr_P->has_motion()) {
       geometry_motion_attribute_synced.insert(geom);
     }
   }
