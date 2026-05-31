@@ -1378,11 +1378,12 @@ class XpbdSolverStep {
         if (prev_instances) {
           const Span<float4x4> prev_instance_transforms = prev_instances->transforms();
           const Span<int> prev_instance_ids = prev_instances->unique_ids();
+          const Span<int> prev_handles = prev_instances->reference_handles();
           const Span<bke::InstanceReference> prev_references = prev_instances->references();
           for (const int i : prev_instance_transforms.index_range()) {
             const int prev_instance_id = prev_instance_ids[i];
             const float4x4 &prev_instance_transform = prev_instance_transforms[i];
-            const bke::InstanceReference &prev_reference = prev_references[i];
+            const bke::InstanceReference &prev_reference = prev_references[prev_handles[i]];
             prev_instance_by_id.add(prev_instance_id, {&prev_instance_transform, &prev_reference});
           }
         }
@@ -1393,14 +1394,10 @@ class XpbdSolverStep {
       const Span<int> handles = instances->reference_handles();
       const Span<int> instance_ids = instances->unique_ids();
       for (const int instance_i : instance_transforms.index_range()) {
-        const int handle = handles[instance_i];
-        if (!references.index_range().contains(handle)) {
-          continue;
-        }
         const int instance_id = instance_ids[instance_i];
         const float4x4 instance_transform = instance_transforms[instance_i];
         const PrevInstanceItem *prev_instance_item = prev_instance_by_id.lookup_ptr(instance_id);
-        const bke::InstanceReference &reference = references[handle];
+        const bke::InstanceReference &reference = references[handles[instance_i]];
         GeometrySet reference_geo;
         reference.to_geometry_set(reference_geo);
         GeometrySet prev_reference_geo;
