@@ -1,3 +1,4 @@
 Referenced by issue #154362, Viewing a Render Result in the Image Editor, Passes cannot be changed
 Referenced by issue #157406, 5.2 Regression: 1:1 image editor is slightly off, causing artifacts
 Referenced by issue #158172, Sequencer: Playback speed regression
+Referenced by issue #159362, prefs viewport texture limit reduces render image resolution
