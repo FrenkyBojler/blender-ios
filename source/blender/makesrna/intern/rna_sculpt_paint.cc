@@ -832,7 +832,7 @@ static void rna_def_unified_paint_settings(BlenderRNA *brna)
 
   static const EnumPropertyItem brush_size_unit_items[] = {
       {0, "VIEW", 0, "View", "Measure brush size relative to the view"},
-      {UNIFIED_PAINT_BRUSH_LOCK_SIZE,
+      {BRUSH_USE_UNIFIED_PAINT_BRUSH_LOCK_SIZE,
        "SCENE",
        0,
        "Scene",
@@ -847,39 +847,39 @@ static void rna_def_unified_paint_settings(BlenderRNA *brna)
   RNA_def_struct_clear_flag(srna, STRUCT_UNDO);
 
   /* high-level flags to enable or disable unified paint settings */
-  prop = RNA_def_property(srna, "use_unified_size", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "flag", UNIFIED_PAINT_SIZE);
-  RNA_def_property_ui_text(
-      prop, "Use Unified Size", "Instead of per-brush size, the size is shared across brushes");
-  RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr);
+  //prop = RNA_def_property(srna, "use_unified_size", PROP_BOOLEAN, PROP_NONE);
+  //RNA_def_property_boolean_sdna(prop, nullptr, "flag", UNIFIED_PAINT_SIZE);
+  //RNA_def_property_ui_text(
+  //    prop, "Use Unified Size", "Instead of per-brush size, the size is shared across brushes");
+  //RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr);
 
-  prop = RNA_def_property(srna, "use_unified_strength", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "flag", UNIFIED_PAINT_ALPHA);
-  RNA_def_property_ui_text(prop,
-                           "Use Unified Strength",
-                           "Instead of per-brush strength, the strength is shared across brushes");
-  RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr);
+  //prop = RNA_def_property(srna, "use_unified_strength", PROP_BOOLEAN, PROP_NONE);
+  //RNA_def_property_boolean_sdna(prop, nullptr, "flag", UNIFIED_PAINT_ALPHA);
+  //RNA_def_property_ui_text(prop,
+  //                         "Use Unified Strength",
+  //                         "Instead of per-brush strength, the strength is shared across brushes");
+  //RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr);
 
-  prop = RNA_def_property(srna, "use_unified_weight", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "flag", UNIFIED_PAINT_WEIGHT);
-  RNA_def_property_ui_text(prop,
-                           "Use Unified Weight",
-                           "Instead of per-brush weight, the weight is shared across brushes");
-  RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr);
+  //prop = RNA_def_property(srna, "use_unified_weight", PROP_BOOLEAN, PROP_NONE);
+  //RNA_def_property_boolean_sdna(prop, nullptr, "flag", UNIFIED_PAINT_WEIGHT);
+  //RNA_def_property_ui_text(prop,
+  //                         "Use Unified Weight",
+  //                         "Instead of per-brush weight, the weight is shared across brushes");
+  //RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr);
 
-  prop = RNA_def_property(srna, "use_unified_color", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "flag", UNIFIED_PAINT_COLOR);
-  RNA_def_property_ui_text(
-      prop, "Use Unified Color", "Instead of per-brush color, the color is shared across brushes");
-  RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr);
+  //prop = RNA_def_property(srna, "use_unified_color", PROP_BOOLEAN, PROP_NONE);
+  //RNA_def_property_boolean_sdna(prop, nullptr, "flag", UNIFIED_PAINT_COLOR);
+  //RNA_def_property_ui_text(
+  //    prop, "Use Unified Color", "Instead of per-brush color, the color is shared across brushes");
+  //RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr);
 
-  prop = RNA_def_property(srna, "use_unified_input_samples", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "flag", UNIFIED_PAINT_INPUT_SAMPLES);
-  RNA_def_property_ui_text(
-      prop,
-      "Use Unified Input Samples",
-      "Instead of per-brush input samples, the value is shared across brushes");
-  RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr);
+  //prop = RNA_def_property(srna, "use_unified_input_samples", PROP_BOOLEAN, PROP_NONE);
+  //RNA_def_property_boolean_sdna(prop, nullptr, "flag", UNIFIED_PAINT_INPUT_SAMPLES);
+  //RNA_def_property_ui_text(
+  //    prop,
+  //    "Use Unified Input Samples",
+  //    "Instead of per-brush input samples, the value is shared across brushes");
+  //RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr);
 
   /* unified paint settings that override the equivalent settings
    * from the active brush */
@@ -931,11 +931,11 @@ static void rna_def_unified_paint_settings(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Secondary Color", "");
   RNA_def_property_update(prop, 0, "rna_UnifiedPaintSettings_color_update");
 
-  prop = RNA_def_property(srna, "use_color_jitter", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "flag", UNIFIED_PAINT_COLOR_JITTER);
-  RNA_def_property_ui_text(prop, "Use Color Jitter", "Jitter brush color");
-  RNA_def_property_update(prop, 0, "rna_UnifiedPaintSettings_update");
+  //prop = RNA_def_property(srna, "use_color_jitter", PROP_BOOLEAN, PROP_NONE);
+  //RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
+  //RNA_def_property_boolean_sdna(prop, nullptr, "flag", UNIFIED_PAINT_COLOR_JITTER);
+  //RNA_def_property_ui_text(prop, "Use Color Jitter", "Jitter brush color");
+  //RNA_def_property_update(prop, 0, "rna_UnifiedPaintSettings_update");
 
   prop = RNA_def_property(srna, "hue_jitter", PROP_FLOAT, PROP_NONE);
   RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);

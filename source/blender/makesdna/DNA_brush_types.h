@@ -204,7 +204,7 @@ struct Brush {
   int size = 70; /* diameter of the brush in pixels */
   /** General purpose flags. */
   eBrushFlags flag = BRUSH_ALPHA_PRESSURE | BRUSH_SPACE_ATTEN;
-  eBrushFlags2 flag2 = {};
+  eBrushFlags2 flag2 = BRUSH_USE_UNIFIED_PAINT_SIZE | BRUSH_USE_UNIFIED_PAINT_COLOR;
   eBrushSamplingFlags sampling_flag = BRUSH_PAINT_ANTIALIASING;
 
   /**

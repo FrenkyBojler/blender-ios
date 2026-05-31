@@ -311,14 +311,14 @@ class UnifiedPaintPanel:
         else:
             ups = UnifiedPaintPanel.paint_settings(context).unified_paint_settings
         prop_owner = brush
-        if unified_name and getattr(ups, unified_name):
+        if unified_name and getattr(brush, unified_name):
             prop_owner = ups
 
         row.prop(prop_owner, prop_name, icon='NONE', text=text, slider=slider)
 
         if unified_name and not header:
             # NOTE: We don't draw UnifiedPaintSettings in the header to reduce clutter. D5928#136281
-            row.prop(ups, unified_name, text="", icon='BRUSHES_ALL')
+            row.prop(brush, unified_name, text="", icon='BRUSHES_ALL')
 
         if pressure_name:
             row.prop(brush, pressure_name, text="")
@@ -354,13 +354,13 @@ class UnifiedPaintPanel:
     @staticmethod
     def prop_unified_color(parent, context, brush, prop_name, *, text=None):
         ups = UnifiedPaintPanel.paint_settings(context).unified_paint_settings
-        prop_owner = ups if ups.use_unified_color else brush
+        prop_owner = ups if brush.use_unified_color else brush
         parent.prop(prop_owner, prop_name, text=text)
 
     @staticmethod
     def prop_unified_color_picker(parent, context, brush, prop_name, value_slider=True):
         ups = UnifiedPaintPanel.paint_settings(context).unified_paint_settings
-        prop_owner = ups if ups.use_unified_color else brush
+        prop_owner = ups if brush.use_unified_color else brush
         parent.template_color_picker(prop_owner, prop_name, value_slider=value_slider)
 
 
@@ -1224,7 +1224,7 @@ def brush_shared_settings(layout, context, brush, popover=False):
             slider=True,
         )
 
-    size_owner = ups if ups.use_unified_size else brush
+    size_owner = ups if brush.use_unified_size else brush
     size_prop = "size"
     if size_mode and (size_owner.use_locked_size == 'SCENE'):
         size_prop = "unprojected_size"
@@ -1300,7 +1300,7 @@ def color_jitter_panel(layout, context, brush):
 
     is_sculpt_paint_mode = mode == 'SCULPT' and brush.sculpt_capabilities.has_color
     if mode in {'PAINT_TEXTURE', 'PAINT_2D', 'PAINT_VERTEX'} or is_sculpt_paint_mode:
-        prop_owner = ups if ups.use_unified_color else brush
+        prop_owner = ups if brush.use_unified_color else brush
         layout.use_property_split = False
 
         header, panel = layout.panel("color_jitter_panel", default_closed=True)

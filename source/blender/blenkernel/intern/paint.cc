@@ -604,34 +604,34 @@ PaintMode BKE_paintmode_get_from_tool(const bToolRef *tref)
   return PaintMode::Invalid;
 }
 
-bool BKE_paint_use_unified_size(const Paint *paint)
+bool BKE_paint_use_unified_size(const Paint *paint, const Brush *brush)
 {
   /* For now, Grease Pencil Draw mode doesn't use the unified paint settings. */
   if (paint->runtime->ob_mode == OB_MODE_PAINT_GREASE_PENCIL) {
     return false;
   }
 
-  return paint->unified_paint_settings.flag & UNIFIED_PAINT_SIZE;
+  return brush->flag2 & BRUSH_USE_UNIFIED_PAINT_SIZE;
 }
 
-bool BKE_paint_use_unified_strength(const Paint *paint)
+bool BKE_paint_use_unified_strength(const Paint *paint, const Brush *brush)
 {
   /* For now, Grease Pencil Draw mode doesn't use the unified paint settings. */
   if (paint->runtime->ob_mode == OB_MODE_PAINT_GREASE_PENCIL) {
     return false;
   }
 
-  return paint->unified_paint_settings.flag & UNIFIED_PAINT_ALPHA;
+  return brush->flag2 & BRUSH_USE_UNIFIED_PAINT_ALPHA;
 }
 
-bool BKE_paint_use_unified_color(const Paint *paint)
+bool BKE_paint_use_unified_color(const Paint *paint, const Brush *brush)
 {
   /* For now, Grease Pencil Draw mode doesn't use the unified paint settings. */
   if (paint->runtime->ob_mode == OB_MODE_PAINT_GREASE_PENCIL) {
     return false;
   }
 
-  return paint->unified_paint_settings.flag & UNIFIED_PAINT_COLOR;
+  return brush->flag2 & BRUSH_USE_UNIFIED_PAINT_COLOR;
 }
 
 /**
@@ -1429,7 +1429,7 @@ static void paint_init_data(Paint &paint)
   paint.unified_paint_settings.unprojected_size = default_ups.unprojected_size;
   paint.unified_paint_settings.alpha = default_ups.alpha;
   paint.unified_paint_settings.weight = default_ups.weight;
-  paint.unified_paint_settings.flag = default_ups.flag;
+  //paint.unified_paint_settings.flag = default_ups.flag;
   if (!paint.unified_paint_settings.curve_rand_hue) {
     paint.unified_paint_settings.curve_rand_hue = BKE_paint_default_curve();
   }

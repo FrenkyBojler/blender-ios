@@ -1174,7 +1174,7 @@ float BKE_brush_sample_masktex(
 
 float3 BKE_brush_color_get(const Paint *paint, const Brush *brush)
 {
-  if (BKE_paint_use_unified_color(paint)) {
+  if (BKE_paint_use_unified_color(paint, brush)) {
     return paint->unified_paint_settings.color;
   }
   return brush->color;
@@ -1184,8 +1184,8 @@ float3 BKE_brush_color_get(const Paint *paint, const Brush *brush)
 std::optional<BrushColorJitterSettings> BKE_brush_color_jitter_get_settings(const Paint *paint,
                                                                             const Brush *brush)
 {
-  if (BKE_paint_use_unified_color(paint)) {
-    if ((paint->unified_paint_settings.flag & UNIFIED_PAINT_COLOR_JITTER) == 0) {
+  if (BKE_paint_use_unified_color(paint, brush)) {
+    if ((brush->flag2 & BRUSH_USE_UNIFIED_PAINT_COLOR_JITTER) == 0) {
       return std::nullopt;
     }
 
@@ -1218,7 +1218,7 @@ std::optional<BrushColorJitterSettings> BKE_brush_color_jitter_get_settings(cons
 
 float3 BKE_brush_secondary_color_get(const Paint *paint, const Brush *brush)
 {
-  if (BKE_paint_use_unified_color(paint)) {
+  if (BKE_paint_use_unified_color(paint, brush)) {
     return paint->unified_paint_settings.secondary_color;
   }
   return brush->secondary_color;
@@ -1226,7 +1226,7 @@ float3 BKE_brush_secondary_color_get(const Paint *paint, const Brush *brush)
 
 void BKE_brush_color_set(Paint *paint, Brush *brush, const float3 &color)
 {
-  if (BKE_paint_use_unified_color(paint)) {
+  if (BKE_paint_use_unified_color(paint, brush)) {
     UnifiedPaintSettings *ups = &paint->unified_paint_settings;
     copy_v3_v3(ups->color, color);
     BKE_brush_color_sync_legacy(ups);
@@ -1266,10 +1266,11 @@ void BKE_brush_size_set(Paint *paint, Brush *brush, int size)
   /* make sure range is sane */
   CLAMP(size, 1, MAX_BRUSH_PIXEL_DIAMETER);
 
-  if (BKE_paint_use_unified_size(paint)) {
+  if (BKE_paint_use_unified_size(paint, brush)) {
     ups->size = size;
   }
   else {
+    printf("Setting brush size %d\n", size);
     brush->size = size;
     BKE_brush_tag_unsaved_changes(brush);
   }
@@ -1279,7 +1280,7 @@ int BKE_brush_size_get(const Paint *paint, const Brush *brush)
 {
   const UnifiedPaintSettings *ups = &paint->unified_paint_settings;
 
-  if (BKE_paint_use_unified_size(paint)) {
+  if (BKE_paint_use_unified_size(paint, brush)) {
     return ups->size;
   }
   return brush->size;
@@ -1292,10 +1293,9 @@ float BKE_brush_radius_get(const Paint *paint, const Brush *brush)
 
 bool BKE_brush_use_locked_size(const Paint *paint, const Brush *brush)
 {
-  const short us_flag = paint->unified_paint_settings.flag;
-
-  return (us_flag & UNIFIED_PAINT_SIZE) ? (us_flag & UNIFIED_PAINT_BRUSH_LOCK_SIZE) != 0 :
-                                          (brush->flag & BRUSH_LOCK_SIZE) != 0;
+  return (brush->flag2 & BRUSH_USE_UNIFIED_PAINT_SIZE) ?
+             (brush->flag2 & BRUSH_USE_UNIFIED_PAINT_BRUSH_LOCK_SIZE) != 0 :
+             (brush->flag & BRUSH_LOCK_SIZE) != 0;
 }
 
 bool BKE_brush_use_size_pressure(const Brush *brush)
@@ -1312,7 +1312,7 @@ void BKE_brush_unprojected_size_set(Paint *paint, Brush *brush, float unprojecte
 {
   UnifiedPaintSettings *ups = &paint->unified_paint_settings;
 
-  if (BKE_paint_use_unified_size(paint)) {
+  if (BKE_paint_use_unified_size(paint, brush)) {
     ups->unprojected_size = unprojected_size;
   }
   else {
@@ -1324,7 +1324,7 @@ void BKE_brush_unprojected_size_set(Paint *paint, Brush *brush, float unprojecte
 float BKE_brush_unprojected_size_get(const Paint *paint, const Brush *brush)
 {
   const UnifiedPaintSettings *ups = &paint->unified_paint_settings;
-  if (BKE_paint_use_unified_size(paint)) {
+  if (BKE_paint_use_unified_size(paint, brush)) {
     return ups->unprojected_size;
   }
   return brush->unprojected_size;
@@ -1363,7 +1363,7 @@ void BKE_brush_alpha_set(Paint *paint, Brush *brush, float alpha)
 {
   UnifiedPaintSettings *ups = &paint->unified_paint_settings;
 
-  if (BKE_paint_use_unified_strength(paint)) {
+  if (BKE_paint_use_unified_strength(paint, brush)) {
     ups->alpha = alpha;
   }
   else {
@@ -1376,7 +1376,7 @@ float BKE_brush_alpha_get(const Paint *paint, const Brush *brush)
 {
   const UnifiedPaintSettings *ups = &paint->unified_paint_settings;
 
-  if (BKE_paint_use_unified_strength(paint)) {
+  if (BKE_paint_use_unified_strength(paint, brush)) {
     return ups->alpha;
   }
   return brush->alpha;
@@ -1386,14 +1386,14 @@ float BKE_brush_weight_get(const Paint *paint, const Brush *brush)
 {
   const UnifiedPaintSettings *ups = &paint->unified_paint_settings;
 
-  return (ups->flag & UNIFIED_PAINT_WEIGHT) ? ups->weight : brush->weight;
+  return (brush->flag2 & BRUSH_USE_UNIFIED_PAINT_WEIGHT) ? ups->weight : brush->weight;
 }
 
 void BKE_brush_weight_set(Paint *paint, Brush *brush, float value)
 {
   UnifiedPaintSettings *ups = &paint->unified_paint_settings;
 
-  if (ups->flag & UNIFIED_PAINT_WEIGHT) {
+  if (brush->flag2 & BRUSH_USE_UNIFIED_PAINT_WEIGHT) {
     ups->weight = value;
   }
   else {
@@ -1406,14 +1406,15 @@ int BKE_brush_input_samples_get(const Paint *paint, const Brush *brush)
 {
   const UnifiedPaintSettings *ups = &paint->unified_paint_settings;
 
-  return (ups->flag & UNIFIED_PAINT_INPUT_SAMPLES) ? ups->input_samples : brush->input_samples;
+  return (brush->flag2 & BRUSH_USE_UNIFIED_PAINT_INPUT_SAMPLES) ? ups->input_samples :
+                                                                  brush->input_samples;
 }
 
 void BKE_brush_input_samples_set(Paint *paint, Brush *brush, int value)
 {
   UnifiedPaintSettings *ups = &paint->unified_paint_settings;
 
-  if (ups->flag & UNIFIED_PAINT_INPUT_SAMPLES) {
+  if (brush->flag2 & BRUSH_USE_UNIFIED_PAINT_INPUT_SAMPLES) {
     ups->input_samples = value;
   }
   else {
