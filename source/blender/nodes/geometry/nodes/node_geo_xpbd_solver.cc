@@ -1394,10 +1394,14 @@ class XpbdSolverStep {
       const Span<int> handles = instances->reference_handles();
       const Span<int> instance_ids = instances->unique_ids();
       for (const int instance_i : instance_transforms.index_range()) {
+        const int handle = handles[instance_i];
+        if (!references.index_range().contains(handle)) {
+          continue;
+        }
         const int instance_id = instance_ids[instance_i];
         const float4x4 instance_transform = instance_transforms[instance_i];
         const PrevInstanceItem *prev_instance_item = prev_instance_by_id.lookup_ptr(instance_id);
-        const bke::InstanceReference &reference = references[handles[instance_i]];
+        const bke::InstanceReference &reference = references[handle];
         GeometrySet reference_geo;
         reference.to_geometry_set(reference_geo);
         GeometrySet prev_reference_geo;
