@@ -4161,7 +4161,7 @@ void SEQUENCER_OT_strip_transform_fit(wmOperatorType *ot)
 }
 
 static wmOperatorStatus sequencer_strip_color_set_render_size_exec(bContext *C,
-                                                                    wmOperator * /*op*/)
+                                                                   wmOperator * /*op*/)
 {
   Scene *scene = CTX_data_sequencer_scene(C);
   const Editing *ed = seq::editing_get(scene);
