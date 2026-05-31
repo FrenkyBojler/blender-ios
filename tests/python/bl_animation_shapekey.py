@@ -10,6 +10,7 @@ __all__ = (
 )
 
 import unittest
+import bmesh
 import bpy
 import pathlib
 import sys
@@ -160,6 +161,49 @@ class ShapekeySelectionTest(unittest.TestCase):
         self.assertEqual(selected_keys[0].name, "one")
         self.assertEqual(selected_keys[1].name, "two")
         self.assertEqual(selected_keys[2].name, "three")
+
+
+class MeshShapekeyTest(unittest.TestCase):
+    def setUp(self) -> None:
+        bpy.ops.wm.read_homefile(use_factory_startup=True)
+
+    def tearDown(self) -> None:
+        bpy.ops.wm.read_homefile(use_factory_startup=True)
+
+    def test_subdivide_preserves_relative_keys(self):
+        obj = bpy.data.objects["Cube"]
+        basis = obj.shape_key_add(name="Basis")
+        blank = obj.shape_key_add(name="Blank")
+        blank.relative_key = basis
+
+        obj.active_shape_key_index = 0
+        bpy.context.view_layer.objects.active = obj
+        bpy.ops.object.mode_set(mode='EDIT')
+
+        bm = bmesh.from_edit_mesh(obj.data)
+        bm.faces.ensure_lookup_table()
+        bpy.ops.mesh.select_mode(type='FACE')
+        bpy.ops.mesh.select_all(action='DESELECT')
+        bm.faces[0].select = True
+        bmesh.update_edit_mesh(obj.data)
+
+        bpy.ops.mesh.subdivide(number_cuts=2, smoothness=1.0)
+
+        # Check both the live edit-mode coordinates and the flushed key-block data.
+        bm = bmesh.from_edit_mesh(obj.data)
+        basis_lay = bm.verts.layers.shape["Basis"]
+        for vert in bm.verts:
+            self.assertLess((vert.co - vert[basis_lay]).length, 1e-6)
+
+        del vert, basis_lay, bm
+        bpy.ops.object.mode_set(mode='OBJECT')
+
+        basis = obj.data.shape_keys.key_blocks["Basis"]
+        blank = obj.data.shape_keys.key_blocks["Blank"]
+        for basis_vert, blank_vert in zip(basis.data, blank.data):
+            self.assertLess((basis_vert.co - blank_vert.co).length, 1e-6)
+
+        del basis_vert, blank_vert, basis, blank, obj
 
 
 def main():

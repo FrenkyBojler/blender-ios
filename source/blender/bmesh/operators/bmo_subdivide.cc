@@ -354,15 +354,16 @@ static void alter_co(BMVert *v,
 
   if (params->shape_info.totlayer > 1) {
     float tvec[3];
+    float *shape_co;
 
     sub_v3_v3v3(tvec, v->co, co);
 
-    /* skip the last layer since its the temp */
-    i = params->shape_info.totlayer - 1;
-    co = static_cast<float *>(BM_ELEM_CD_GET_VOID_P(v, params->shape_info.cd_vert_shape_offset));
-    while (i--) {
-      BLI_assert(co != BM_ELEM_CD_GET_VOID_P(v, params->shape_info.cd_vert_shape_offset_tmp));
-      sub_v3_v3(co += 3, tvec);
+    /* Apply the displacement to each real shape-key layer while skipping the temporary one. */
+    shape_co = static_cast<float *>(
+        BM_ELEM_CD_GET_VOID_P(v, params->shape_info.cd_vert_shape_offset));
+    for (i = 0; i < params->shape_info.totlayer - 1; i++, shape_co += 3) {
+      BLI_assert(shape_co != BM_ELEM_CD_GET_VOID_P(v, params->shape_info.cd_vert_shape_offset_tmp));
+      sub_v3_v3(shape_co, tvec);
     }
   }
 }
@@ -449,6 +450,12 @@ static void bm_subdivide_multicut(
 
   for (i = 0; i < numcuts; i++) {
     v = subdivide_edge_num(bm, eed, &e_tmp, i, params->numcuts, params, v_a, v_b, &e_new);
+
+    if (params->shape_info.totlayer > 1) {
+      const float *co = static_cast<const float *>(
+          BM_ELEM_CD_GET_VOID_P(v, params->shape_info.cd_vert_shape_offset_tmp));
+      copy_v3_v3(v->co, co);
+    }
 
     BMO_vert_flag_enable(bm, v, SUBD_SPLIT | ELE_SPLIT);
     BMO_edge_flag_enable(bm, eed, SUBD_SPLIT | ELE_SPLIT);
@@ -724,6 +731,12 @@ static void quad_4edge_subdivide(BMesh *bm,
     e_tmp = *e;
     for (a = 0; a < numcuts; a++) {
       v = subdivide_edge_num(bm, e, &e_tmp, a, numcuts, params, v1, v2, &e_new);
+
+      if (params->shape_info.totlayer > 1) {
+        const float *co = static_cast<const float *>(
+            BM_ELEM_CD_GET_VOID_P(v, params->shape_info.cd_vert_shape_offset_tmp));
+        copy_v3_v3(v->co, co);
+      }
 
       BMESH_ASSERT(v != nullptr);
 
