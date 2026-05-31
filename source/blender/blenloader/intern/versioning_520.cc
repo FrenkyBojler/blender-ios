@@ -12,6 +12,7 @@
 
 #include "DNA_ID.h"
 #include "DNA_brush_types.h"
+#include "DNA_camera_types.h"
 #include "DNA_curve_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_modifier_types.h"
@@ -808,6 +809,21 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 39)) {
+    for (bScreen &screen : bmain->screens) {
+      for (ScrArea &area : screen.areabase) {
+        for (SpaceLink &sl : area.spacedata) {
+          if (sl.spacetype == SPACE_SEQ) {
+            SpaceSeq *sseq = reinterpret_cast<SpaceSeq *>(&sl);
+            sseq->preview_overlay.flag |= SEQ_PREVIEW_SHOW_COMPOSITION_GUIDES;
+            float default_col[4] = {0.5f, 0.5f, 0.5f, 1.0f};
+            copy_v4_v4(sseq->preview_overlay.composition_guide_color, default_col);
+          }
+        }
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 40)) {
     version_solid_color_width_height_defaults(*bmain);
   }
 
