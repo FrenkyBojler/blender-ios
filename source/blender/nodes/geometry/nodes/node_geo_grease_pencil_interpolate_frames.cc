@@ -194,17 +194,17 @@ static bke::CurvesGeometry interpolate_between_drawings(
 
   IndexMaskMemory memory;
   geometry::interpolate_curves_with_samples(from_curves,
-                                             to_curves,
-                                             from_curve_indices,
-                                             to_curve_indices,
-                                             from_sample_indices,
-                                             to_sample_indices,
-                                             from_sample_factors,
-                                             to_sample_factors,
-                                             IndexMask(IndexRange(dst_curve_num)),
-                                             mix_factor,
-                                             dst_curves,
-                                             memory);
+                                            to_curves,
+                                            from_curve_indices,
+                                            to_curve_indices,
+                                            from_sample_indices,
+                                            to_sample_indices,
+                                            from_sample_factors,
+                                            to_sample_factors,
+                                            IndexMask(IndexRange(dst_curve_num)),
+                                            mix_factor,
+                                            dst_curves,
+                                            memory);
 
   return dst_curves;
 }
@@ -226,9 +226,10 @@ static void node_declare(NodeDeclarationBuilder &b)
       .min(-2.0f)
       .max(2.0f)
       .structure_type(StructureType::Field)
-      .description("Added to the auto-computed blend factor (frame position between keyframes). "
-                   "Values outside 0-1 produce overshoot. "
-                   "Connect a curve, noise, or any expression to offset or shape the motion");
+      .description(
+          "Added to the auto-computed blend factor (frame position between keyframes). "
+          "Values outside 0-1 produce overshoot. "
+          "Connect a curve, noise, or any expression to offset or shape the motion");
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
@@ -302,8 +303,7 @@ static void node_geo_exec(GeoNodeExecParams params)
           continue;
         }
 
-        const float auto_factor = float(current_frame - from_frame) /
-                                  float(to_frame - from_frame);
+        const float auto_factor = float(current_frame - from_frame) / float(to_frame - from_frame);
         const float mix_factor = auto_factor + factor_offset;
 
         const Drawing *from_drawing = grease_pencil->get_drawing_at(layer, from_frame);
