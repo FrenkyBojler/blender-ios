@@ -53,7 +53,6 @@ struct EdgeSlideData {
   struct CloneNeighborData {
     BMVert *v;
     Vector<BMVert *> neighbors[2];
-    bool is_endpoint = false;
   };
   Vector<CloneNeighborData> clone_neighbor_data;
 
@@ -999,65 +998,21 @@ void transform_mode_edge_slide_clone_confirm(TransInfo *t)
       }
     }
 
-    /* Collect spurious neighbors from the other side that belong to endpoint slide verts.
-     * Only neighbors of endpoints can be spurious (no connection to other neighbors on their
-     * side), so restricting the candidate set avoids incorrectly flagging interior neighbors. */
+    /* Collect endpoint neighbors from the other side for endpoint handling. */
     Set<BMVert *> other_endpoint_set;
-    for (const EdgeSlideData::CloneNeighborData &nd : sld->clone_neighbor_data) {
-      if (!nd.is_endpoint) {
-        continue;
-      }
-      for (BMVert *nb : nd.neighbors[1 - keep_side]) {
-        bool connects_to_other = false;
-        BMEdge *e;
-        BMIter e_iter;
-        BM_ITER_ELEM (e, &e_iter, nb, BM_EDGES_OF_VERT) {
-          if (other_nb_set.contains(BM_edge_other_vert(e, nb))) {
-            connects_to_other = true;
-            break;
-          }
-        }
-        if (!connects_to_other) {
-          other_endpoint_set.add(nb);
+    for (BMVert *nb : other_nb_set) {
+      bool connects_to_other = false;
+      BMEdge *e;
+      BMIter e_iter;
+      BM_ITER_ELEM (e, &e_iter, nb, BM_EDGES_OF_VERT) {
+        if (other_nb_set.contains(BM_edge_other_vert(e, nb))) {
+          connects_to_other = true;
+          break;
         }
       }
-    }
-
-    /* Debug: log each endpoint's neighbor counts and spurious detection results. */
-    {
-      int endpoint_count = 0;
-      for (const EdgeSlideData::CloneNeighborData &nd : sld->clone_neighbor_data) {
-        if (nd.is_endpoint) {
-          endpoint_count++;
-        }
+      if (!connects_to_other) {
+        other_endpoint_set.add(nb);
       }
-      printf("[EdgeSlideClone] --- confirm | keep_side=%d | slide_verts=%d | endpoints=%d ---\n",
-             keep_side,
-             int(sld->clone_neighbor_data.size()),
-             endpoint_count);
-    }
-    for (const EdgeSlideData::CloneNeighborData &nd : sld->clone_neighbor_data) {
-      if (!nd.is_endpoint) {
-        continue;
-      }
-      int spurious_keep = 0;
-      for (BMVert *nb : nd.neighbors[keep_side]) {
-        if (!BM_elem_flag_test(nb, BM_ELEM_TAG)) {
-          spurious_keep++;
-        }
-      }
-      int spurious_other = 0;
-      for (BMVert *nb : nd.neighbors[1 - keep_side]) {
-        if (other_endpoint_set.contains(nb)) {
-          spurious_other++;
-        }
-      }
-      printf("[EdgeSlideClone] endpoint vert %p  keep_nbs=%d (spurious=%d)  other_nbs=%d (spurious=%d)\n",
-             (void *)nd.v,
-             int(nd.neighbors[keep_side].size()),
-             spurious_keep,
-             int(nd.neighbors[1 - keep_side].size()),
-             spurious_other);
     }
 
     /* Separate keep-side face loops from each original vert. */
@@ -1081,12 +1036,10 @@ void transform_mode_edge_slide_clone_confirm(TransInfo *t)
             has_tagged_keep_nb = true;
           }
           else {
-            if (nd.is_endpoint) {
-              for (BMVert *nb : nd.neighbors[keep_side]) {
-                if (l->v == nb) {
-                  has_endpoint_keep_nb = true;
-                  break;
-                }
+            for (BMVert *nb : nd.neighbors[keep_side]) {
+              if (l->v == nb) {
+                has_endpoint_keep_nb = true;
+                break;
               }
             }
             if (!has_endpoint_keep_nb && other_endpoint_set.contains(l->v)) {
@@ -1241,17 +1194,6 @@ static void initEdgeSlide_ex(TransInfo *t,
             }
           }
           
-          /* Mark endpoint vertices as those with only one selected edge attached. */
-          int sel_edge_count = 0;
-          BMEdge *se;
-          BMIter se_iter;
-          BM_ITER_ELEM (se, &se_iter, v, BM_EDGES_OF_VERT) {
-            if (BM_elem_flag_test(se, BM_ELEM_SELECT)) {
-              sel_edge_count++;
-            }
-          }
-          neighbor_data.is_endpoint = (sel_edge_count == 1);
-
           sld->clone_neighbor_data.append(neighbor_data);
 
           /* transform clones, not originals */
