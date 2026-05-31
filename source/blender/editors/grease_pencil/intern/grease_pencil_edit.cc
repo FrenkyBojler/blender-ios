@@ -813,6 +813,7 @@ static wmOperatorStatus grease_pencil_delete_frame_exec(bContext *C, wmOperator 
     DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
     WM_event_add_notifier(C, NC_GEOM | ND_DATA | NA_EDITED, &grease_pencil);
     WM_event_add_notifier(C, NC_GPENCIL | NA_EDITED, nullptr);
+    WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME, &grease_pencil);
   }
 
   return OPERATOR_FINISHED;
@@ -2107,6 +2108,7 @@ static wmOperatorStatus grease_pencil_move_to_layer_exec(bContext *C, wmOperator
     /* updates */
     DEG_id_tag_update(&grease_pencil.id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
     WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, nullptr);
+    WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME, &grease_pencil);
   }
 
   return OPERATOR_FINISHED;
@@ -4048,8 +4050,11 @@ static wmOperatorStatus grease_pencil_texture_gradient_exec(bContext *C, wmOpera
   });
 
   if (changed) {
-    DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
+    DEG_id_tag_update(&grease_pencil.id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
+    WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, &grease_pencil);
+    if (inserted_keyframe) {
+      WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME, &grease_pencil);
+    }
   }
 
   return OPERATOR_RUNNING_MODAL;

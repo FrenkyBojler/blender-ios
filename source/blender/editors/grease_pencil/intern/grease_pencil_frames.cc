@@ -408,6 +408,7 @@ static wmOperatorStatus insert_blank_frame_exec(bContext *C, wmOperator *op)
     DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
     WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
     WM_event_add_notifier(C, NC_GPENCIL | NA_EDITED, nullptr);
+    WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME, &grease_pencil);
   }
 
   return OPERATOR_FINISHED;
@@ -562,6 +563,7 @@ static wmOperatorStatus frame_clean_duplicate_exec(bContext *C, wmOperator *op)
     DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
     WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
     WM_event_add_notifier(C, NC_GPENCIL | NA_EDITED, nullptr);
+    WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME, &grease_pencil);
   }
 
   return OPERATOR_FINISHED;
@@ -904,6 +906,7 @@ static wmOperatorStatus grease_pencil_active_frame_delete_exec(bContext *C, wmOp
 
   DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_GPENCIL | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME, &grease_pencil);
 
   return OPERATOR_FINISHED;
 }
@@ -984,6 +987,7 @@ static wmOperatorStatus grease_pencil_delete_breakdown_frames_exec(bContext *C,
 
   DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_GPENCIL | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME, &grease_pencil);
 
   return OPERATOR_FINISHED;
 }

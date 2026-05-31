@@ -1261,6 +1261,7 @@ void PaintOperation::on_stroke_begin(const bContext &C, const InputSample &start
 
   DEG_id_tag_update(&grease_pencil->id, ID_RECALC_GEOMETRY);
   WM_event_add_notifier(&C, NC_GEOM | ND_DATA, grease_pencil);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME, grease_pencil);
 }
 
 void PaintOperation::on_stroke_extended(const bContext &C, const InputSample &extension_sample)

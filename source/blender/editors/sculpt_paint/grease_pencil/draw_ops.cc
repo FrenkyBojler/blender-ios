@@ -401,6 +401,7 @@ static wmOperatorStatus grease_pencil_sculpt_paint_invoke(bContext *C,
     return OPERATOR_CANCELLED;
   }
   WM_event_add_notifier(C, NC_GPENCIL | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME, &grease_pencil);
 
   GreasePencilPaintStroke *stroke = MEM_new<GreasePencilPaintStroke>(__func__, C, op, event->type);
   op->customdata = stroke;
@@ -612,6 +613,7 @@ static wmOperatorStatus grease_pencil_vertex_brush_stroke_invoke(bContext *C,
     return OPERATOR_CANCELLED;
   }
   WM_event_add_notifier(C, NC_GPENCIL | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME, &grease_pencil);
 
   GreasePencilPaintStroke *stroke = MEM_new<GreasePencilPaintStroke>(__func__, C, op, event->type);
   op->customdata = stroke;
