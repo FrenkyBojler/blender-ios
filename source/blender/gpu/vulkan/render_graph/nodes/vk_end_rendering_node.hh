@@ -27,7 +27,9 @@ struct VKEndRenderingData {};
 class VKEndRenderingNode : public VKNodeInfo<VKNodeType::END_RENDERING,
                                              VKEndRenderingData,
                                              VKEndRenderingData,
-                                             VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT,
+                                             VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT |
+                                                 VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT |
+                                                 VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
                                              VKResourceType::NONE> {
  public:
   /**

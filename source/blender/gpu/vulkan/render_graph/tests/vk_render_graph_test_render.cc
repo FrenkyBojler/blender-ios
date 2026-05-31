@@ -74,7 +74,8 @@ TEST_P(VKRenderGraphTestRender, begin_clear_attachments_end_read_back)
   EXPECT_EQ(6, log.size());
   EXPECT_EQ(
       "pipeline_barrier(src_stage_mask=VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, "
-      "dst_stage_mask=VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT" +
+      "dst_stage_mask=VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT, "
+      "VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT" +
           endl() +
           " - image_barrier(src_access_mask=, "
           "dst_access_mask=VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, "
@@ -108,7 +109,8 @@ TEST_P(VKRenderGraphTestRender, begin_clear_attachments_end_read_back)
       log[2]);
   EXPECT_EQ("end_rendering()", log[3]);
   EXPECT_EQ(
-      "pipeline_barrier(src_stage_mask=VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT, "
+      "pipeline_barrier(src_stage_mask=VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT, "
+      "VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, "
       "dst_stage_mask=VK_PIPELINE_STAGE_TRANSFER_BIT" +
           endl() +
           " - image_barrier(src_access_mask=VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, "
@@ -190,7 +192,8 @@ TEST_P(VKRenderGraphTestRender, begin_draw_end)
   EXPECT_EQ(7, log.size());
   EXPECT_EQ(
       "pipeline_barrier(src_stage_mask=VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, "
-      "dst_stage_mask=VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT" +
+      "dst_stage_mask=VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT, "
+      "VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT" +
           endl() +
           " - image_barrier(src_access_mask=, "
           "dst_access_mask=VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, "
@@ -280,7 +283,8 @@ TEST_P(VKRenderGraphTestRender, begin_draw_end__layered)
   EXPECT_EQ(9, log.size());
   EXPECT_EQ(
       "pipeline_barrier(src_stage_mask=VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, "
-      "dst_stage_mask=VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT" +
+      "dst_stage_mask=VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT, "
+      "VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT" +
           endl() +
           " - image_barrier(src_access_mask=, "
           "dst_access_mask=VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, "
@@ -292,7 +296,8 @@ TEST_P(VKRenderGraphTestRender, begin_draw_end__layered)
           endl() + ")",
       log[0]);
   EXPECT_EQ(
-      "pipeline_barrier(src_stage_mask=VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT, "
+      "pipeline_barrier(src_stage_mask=VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT, "
+      "VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, "
       "dst_stage_mask=VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT, "
       "VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT" +
           endl() +
