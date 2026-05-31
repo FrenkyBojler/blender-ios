@@ -612,8 +612,8 @@ static BMOpDefine bmo_pointmerge_facedata_def = {
     {
         /* Input vertices. */
         {"verts", BMO_OP_SLOT_ELEMENT_BUF, {BM_VERT}},
-        /* Snap vertex. */
-        {"vert_snap", BMO_OP_SLOT_ELEMENT_BUF, {BM_VERT | BMO_OP_SLOT_SUBTYPE_ELEM_IS_SINGLE}},
+        /* Target vertex to merge into. */
+        {"vert_target", BMO_OP_SLOT_ELEMENT_BUF, {BM_VERT | BMO_OP_SLOT_SUBTYPE_ELEM_IS_SINGLE}},
         {{'\0'}},
     },
     /*slot_types_out*/
@@ -657,8 +657,9 @@ static BMOpDefine bmo_pointmerge_def = {
         {"verts", BMO_OP_SLOT_ELEMENT_BUF, {BM_VERT}},
         /* Position to merge at. */
         {"merge_co", BMO_OP_SLOT_VEC},
-        /* Target vertex to merge into. */
-        {"vert_snap", BMO_OP_SLOT_ELEMENT_BUF, {BM_VERT | BMO_OP_SLOT_SUBTYPE_ELEM_IS_SINGLE}},
+        /* Optional target vertex to merge into. Does not override merge_co.
+         * Set this to preserve the custom data of the target vertex. */
+        {"vert_target", BMO_OP_SLOT_ELEMENT_BUF, {BM_VERT | BMO_OP_SLOT_SUBTYPE_ELEM_IS_SINGLE}},
         {{'\0'}},
     },
     /*slot_types_out*/
@@ -707,7 +708,7 @@ static BMOpDefine bmo_weld_verts_def = {
          * otherwise use the position of the target vertex. */
         {"use_centroid", BMO_OP_SLOT_BOOL},
         /* Whether to average custom data of merged vertices. */
-        {"average_vdata", BMO_OP_SLOT_BOOL},
+        {"average_vert_data", BMO_OP_SLOT_BOOL},
         {{'\0'}},
     },
     /*slot_types_out*/
