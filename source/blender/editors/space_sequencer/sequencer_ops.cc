@@ -65,6 +65,7 @@ void sequencer_operatortypes()
   WM_operatortype_append(SEQUENCER_OT_set_range_to_strips);
   WM_operatortype_append(SEQUENCER_OT_strip_transform_clear);
   WM_operatortype_append(SEQUENCER_OT_strip_transform_fit);
+  WM_operatortype_append(SEQUENCER_OT_strip_color_set_render_size);
 
   WM_operatortype_append(SEQUENCER_OT_strip_color_tag_set);
   WM_operatortype_append(SEQUENCER_OT_cursor_set);

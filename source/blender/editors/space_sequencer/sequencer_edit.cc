@@ -4114,55 +4114,23 @@ static wmOperatorStatus sequencer_strip_transform_fit_exec(bContext *C, wmOperat
 
   for (Strip &strip : *ed->current_strips()) {
     if (strip.flag & SEQ_SELECT && strip.type != STRIP_TYPE_SOUND) {
+      int src_w, src_h;
       if (strip.type == STRIP_TYPE_COLOR) {
-        SolidColorVars *cv = static_cast<SolidColorVars *>(strip.effectdata);
-        const int scene_w = scene->r.xsch;
-        const int scene_h = scene->r.ysch;
-        const int cur_w = std::max(1, cv->width);
-        const int cur_h = std::max(1, cv->height);
-        int new_w, new_h;
-        switch (fit_method) {
-          case SEQ_SCALE_TO_FIT: {
-            const float scale = std::min(float(scene_w) / cur_w, float(scene_h) / cur_h);
-            new_w = int(cur_w * scale);
-            new_h = int(cur_h * scale);
-            break;
-          }
-          case SEQ_SCALE_TO_FILL: {
-            const float scale = std::max(float(scene_w) / cur_w, float(scene_h) / cur_h);
-            new_w = int(cur_w * scale);
-            new_h = int(cur_h * scale);
-            break;
-          }
-          case SEQ_STRETCH_TO_FILL:
-            new_w = scene_w;
-            new_h = scene_h;
-            break;
-          case SEQ_USE_ORIGINAL_SIZE:
-            strip.data->transform->scale_x = 1.0f;
-            strip.data->transform->scale_y = 1.0f;
-            seq::relations_invalidate_cache(scene, &strip);
-            continue;
+        const SolidColorVars *cv = static_cast<const SolidColorVars *>(strip.effectdata);
+        src_w = std::max(1, cv->width);
+        src_h = std::max(1, cv->height);
+      }
+      else {
+        const int timeline_frame = scene->r.cfra;
+        const StripElem *strip_elem = seq::render_give_stripelem(scene, &strip, timeline_frame);
+        if (strip_elem == nullptr) {
+          continue;
         }
-        cv->width = new_w;
-        cv->height = new_h;
-        seq::relations_invalidate_cache(scene, &strip);
-        continue;
+        src_w = strip_elem->orig_width;
+        src_h = strip_elem->orig_height;
       }
 
-      const int timeline_frame = scene->r.cfra;
-      StripElem *strip_elem = seq::render_give_stripelem(scene, &strip, timeline_frame);
-
-      if (strip_elem == nullptr) {
-        continue;
-      }
-
-      seq::set_scale_to_fit(&strip,
-                            strip_elem->orig_width,
-                            strip_elem->orig_height,
-                            scene->r.xsch,
-                            scene->r.ysch,
-                            fit_method);
+      seq::set_scale_to_fit(&strip, src_w, src_h, scene->r.xsch, scene->r.ysch, fit_method);
       seq::relations_invalidate_cache(scene, &strip);
     }
   }
@@ -4190,6 +4158,37 @@ void SEQUENCER_OT_strip_transform_fit(wmOperatorType *ot)
                           SEQ_SCALE_TO_FIT,
                           "Fit Method",
                           "Mode for fitting the image to the canvas");
+}
+
+static wmOperatorStatus sequencer_strip_color_set_render_size_exec(bContext *C,
+                                                                    wmOperator * /*op*/)
+{
+  Scene *scene = CTX_data_sequencer_scene(C);
+  const Editing *ed = seq::editing_get(scene);
+
+  for (Strip &strip : *ed->current_strips()) {
+    if ((strip.flag & SEQ_SELECT) && strip.type == STRIP_TYPE_COLOR) {
+      SolidColorVars *cv = static_cast<SolidColorVars *>(strip.effectdata);
+      cv->width = scene->r.xsch;
+      cv->height = scene->r.ysch;
+      seq::relations_invalidate_cache_raw(scene, &strip);
+    }
+  }
+
+  WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
+  return OPERATOR_FINISHED;
+}
+
+void SEQUENCER_OT_strip_color_set_render_size(wmOperatorType *ot)
+{
+  ot->name = "Set Dimensions to Render Size";
+  ot->idname = "SEQUENCER_OT_strip_color_set_render_size";
+  ot->description = "Set color strip dimensions to the scene render size";
+
+  ot->exec = sequencer_strip_color_set_render_size_exec;
+  ot->poll = sequencer_edit_poll;
+
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
 static wmOperatorStatus sequencer_strip_color_tag_set_exec(bContext *C, wmOperator *op)

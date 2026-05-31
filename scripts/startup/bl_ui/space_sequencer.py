@@ -1368,6 +1368,9 @@ class SEQUENCER_MT_context_menu(Menu):
                 layout.separator()
                 layout.operator("sequencer.rendersize")
                 layout.operator("sequencer.images_separate")
+            elif strip_type == 'COLOR':
+                layout.separator()
+                layout.operator("sequencer.strip_color_set_render_size")
             elif strip_type == 'META':
                 layout.separator()
                 layout.operator("sequencer.meta_make")
