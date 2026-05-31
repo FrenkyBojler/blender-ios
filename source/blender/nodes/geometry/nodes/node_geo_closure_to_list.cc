@@ -31,11 +31,6 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.use_custom_socket_order();
   b.allow_any_socket_order();
 
-  b.add_input<decl::Int>("Count"_ustr)
-      .default_value(1)
-      .min(0)
-      .description("The number of elements in the list");
-
   const bNode *node = b.node_or_null();
   if (!node) {
     return;
@@ -58,6 +53,10 @@ static void node_declare(NodeDeclarationBuilder &b)
       .structure_type(StructureType::List)
       .custom_draw(socket_items::ui::draw_extend_socket_fn<ItemsAccessor>());
 
+  b.add_input<decl::Int>("Count"_ustr)
+      .default_value(1)
+      .min(0)
+      .description("The number of elements in the list");
   b.add_input<decl::Closure>("Closure"_ustr).create_signature([](const bNode &node) {
     return ClosureSignature::from_closure_to_list_node(node);
   });
@@ -197,8 +196,8 @@ static void node_geo_exec(GeoNodeExecParams params)
     Array<bke::SocketValueVariant> &values = closure_results[required_i];
 
     if (std::all_of(values.begin(), values.end(), [](const bke::SocketValueVariant &value) {
-          return value.is_single();
-        }))
+return value.is_single();
+}))
     {
       const eNodeSocketDatatype socket_type = items[item_i].socket_type;
       const CPPType &type = *bke::socket_type_to_geo_nodes_base_cpp_type(socket_type);
