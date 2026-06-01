@@ -4571,6 +4571,8 @@ static void GREASE_PENCIL_OT_remove_fill_guides(wmOperatorType *ot)
       ot->srna, "mode", rna_mode_items, int(RemoveFillGuidesMode::AllFrames), "Mode", "");
 }
 
+/** \} */
+
 /* -------------------------------------------------------------------- */
 /** \name Outline Operator
  * \{ */
@@ -5126,8 +5128,8 @@ static wmOperatorStatus grease_pencil_set_stroke_type_exec(bContext *C, wmOperat
     fill_ids.finish();
 
     if (type == StrokeType::Stroke) {
-      if (std::all_of(fill_ids.span.begin(), fill_ids.span.end(), [&](const int64_t i) {
-            return fill_ids.span[i] == 0;
+      if (std::all_of(fill_ids.span.begin(), fill_ids.span.end(), [&](const int64_t fill_id) {
+            return fill_id == 0;
           }))
       {
         /* Remove #fill_id attribute if there are no fills left. */

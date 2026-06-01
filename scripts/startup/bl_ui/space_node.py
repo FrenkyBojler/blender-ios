@@ -1101,6 +1101,12 @@ class NODE_PT_node_tree_properties(Panel):
                 col = body.column(align=True)
                 col.prop(group, "is_modifier")
                 col.prop(group, "is_tool")
+        elif group.bl_idname == "CompositorNodeTree":
+            header, body = col.panel("group_usage")
+            header.label(text="Usage")
+            if body:
+                col = body.column(align=True)
+                col.prop(group, "is_strip_modifier")
 
 
 class NODE_PT_node_tree_animation(Panel):
@@ -1196,6 +1202,10 @@ class NODE_AST_compositor(bpy.types.AssetShelf):
             "Combine Spherical",
             "Separate Cylindrical",
             "Separate Spherical",
+            "3D to Screen Space",
+            "Screen to 3D Space",
+            "Project with Depth",
+            "Transform and Project",
         }
 
         compositor_essentials_path = Path(os.path.join(
