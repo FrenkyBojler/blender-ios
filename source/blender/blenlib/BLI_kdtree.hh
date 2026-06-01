@@ -195,100 +195,6 @@ template<typename CoordT> inline void kdtree_balance(KDTree<CoordT> *tree)
 }
 
 /**
- * Find nearest returns index, and -1 if no node is found.
- */
-template<typename CoordT>
-inline int kdtree_find_nearest(const KDTree<CoordT> *tree,
-                               const CoordT &co,
-                               KDTreeNearest<CoordT> *r_nearest)
-{
-  const KDTreeNode<CoordT> *nodes = tree->nodes;
-  const KDTreeNode<CoordT> *root, *min_node;
-
-  typename KDTree<CoordT>::ValueType min_dist, cur_dist;
-
-#ifndef NDEBUG
-  BLI_assert(tree->is_balanced == true);
-#endif
-
-  if (UNLIKELY(tree->root == detail::kd_node_unset)) {
-    return -1;
-  }
-
-  root = &nodes[tree->root];
-  min_node = root;
-  min_dist = detail::distance_squared(root->co, co);
-
-  Stack<uint, detail::kd_stack_init> stack;
-
-  if (detail::axis_get(co, root->d) < detail::axis_get(root->co, root->d)) {
-    if (root->right != detail::kd_node_unset) {
-      stack.push(root->right);
-    }
-    if (root->left != detail::kd_node_unset) {
-      stack.push(root->left);
-    }
-  }
-  else {
-    if (root->left != detail::kd_node_unset) {
-      stack.push(root->left);
-    }
-    if (root->right != detail::kd_node_unset) {
-      stack.push(root->right);
-    }
-  }
-
-  while (!stack.is_empty()) {
-    const KDTreeNode<CoordT> *node = &nodes[stack.pop()];
-
-    cur_dist = detail::axis_get(node->co, node->d) - detail::axis_get(co, node->d);
-
-    if (cur_dist < 0.0f) {
-      cur_dist = -cur_dist * cur_dist;
-
-      if (-cur_dist < min_dist) {
-        cur_dist = detail::distance_squared(node->co, co);
-        if (cur_dist < min_dist) {
-          min_dist = cur_dist;
-          min_node = node;
-        }
-        if (node->left != detail::kd_node_unset) {
-          stack.push(node->left);
-        }
-      }
-      if (node->right != detail::kd_node_unset) {
-        stack.push(node->right);
-      }
-    }
-    else {
-      cur_dist = cur_dist * cur_dist;
-
-      if (cur_dist < min_dist) {
-        cur_dist = detail::distance_squared(node->co, co);
-        if (cur_dist < min_dist) {
-          min_dist = cur_dist;
-          min_node = node;
-        }
-        if (node->right != detail::kd_node_unset) {
-          stack.push(node->right);
-        }
-      }
-      if (node->left != detail::kd_node_unset) {
-        stack.push(node->left);
-      }
-    }
-  }
-
-  if (r_nearest) {
-    r_nearest->index = min_node->index;
-    r_nearest->dist = sqrtf(min_dist);
-    r_nearest->co = min_node->co;
-  }
-
-  return min_node->index;
-}
-
-/**
  * A version of #kdtree_find_nearest which runs a callback
  * to filter out values.
  *
@@ -386,6 +292,21 @@ inline int kdtree_find_nearest_cb(const KDTree<CoordT> *tree,
     return min_node->index;
   }
   return -1;
+}
+
+/**
+ * Find nearest returns index, and -1 if no node is found.
+ */
+template<typename CoordT>
+inline int kdtree_find_nearest(const KDTree<CoordT> *tree,
+                               const CoordT &co,
+                               KDTreeNearest<CoordT> *r_nearest)
+{
+  return kdtree_find_nearest_cb<CoordT>(
+      tree,
+      co,
+      r_nearest,
+      [](const uint /*index*/, const CoordT & /*coord*/, const auto /*dist*/) { return 1; });
 }
 
 namespace detail {
