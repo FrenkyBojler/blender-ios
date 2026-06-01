@@ -450,6 +450,22 @@ void slide_subjects_autokey(bContext *C,
                             Scene *scene,
                             const ListBaseT<SlideSubject> *slide_subjects)
 {
+  bool anything_to_key = false;
+  for (SlideSubject &slide_subject : *slide_subjects) {
+    PointerRNA &ptr = slide_subject.ptr;
+    if (!animrig::autokeyframe_cfra_can_key(scene, slide_subject.ptr.owner_id)) {
+      continue;
+    }
+    anything_to_key = true;
+    break;
+  }
+  /* If there is nothing to key, return before deselecting any keys. */
+  if (!anything_to_key) {
+    return;
+  }
+
+  ANIM_deselect_keys_in_animation_editors(C);
+
   /* Insert keyframes as necessary if auto-key-framing. */
   for (SlideSubject &slide_subject : *slide_subjects) {
     PointerRNA &ptr = slide_subject.ptr;
