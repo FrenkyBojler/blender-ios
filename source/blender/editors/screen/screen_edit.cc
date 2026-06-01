@@ -775,16 +775,16 @@ static void screen_refresh_if_needed(bContext *C, wmWindowManager *wm, wmWindow 
 {
   bScreen *screen = WM_window_get_active_screen(win);
 
+  /* Ensure all area and region types are set before polling, it depends on it (see #130583).
+   * Must be available in background mode so `area->type` can be accessed without crashing. */
+  if (screen->do_refresh) {
+    ED_screen_areas_iter (win, screen, area) {
+      ED_area_and_region_types_init(area);
+    }
+  }
+
   /* Exception for background mode, we only need the screen context. */
   if (!G.background) {
-    if (screen->do_refresh) {
-      ED_screen_areas_iter (win, screen, area) {
-        /* Ensure all area and region types are set before polling, it depends on it (see #130583).
-         */
-        ED_area_and_region_types_init(area);
-      }
-    }
-
     /* Returns true if a change was done that requires refreshing. */
     if (screen_regions_poll(C, win, screen)) {
       screen->do_refresh = true;
