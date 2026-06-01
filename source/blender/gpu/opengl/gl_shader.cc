@@ -334,6 +334,39 @@ static const char *to_string(const PrimitiveOut &layout)
   }
 }
 
+struct PassthroughGeometryShaderLayout {
+  PrimitiveIn primitive_in;
+  PrimitiveOut primitive_out;
+  int max_vertices;
+  int input_vertex_offset;
+  int input_vertex_stride;
+};
+
+static PassthroughGeometryShaderLayout passthrough_geometry_shader_layout(
+    const GPUPrimType primitive_type)
+{
+  switch (primitive_type) {
+    case GPU_PRIM_POINTS:
+      return {PrimitiveIn::POINTS, PrimitiveOut::POINTS, 1, 0, 1};
+    case GPU_PRIM_LINES:
+    case GPU_PRIM_LINE_STRIP:
+    case GPU_PRIM_LINE_LOOP:
+      return {PrimitiveIn::LINES, PrimitiveOut::LINE_STRIP, 2, 0, 1};
+    case GPU_PRIM_LINES_ADJ:
+    case GPU_PRIM_LINE_STRIP_ADJ:
+      return {PrimitiveIn::LINES_ADJACENCY, PrimitiveOut::LINE_STRIP, 2, 1, 1};
+    case GPU_PRIM_TRIS:
+    case GPU_PRIM_TRI_STRIP:
+    case GPU_PRIM_TRI_FAN:
+      return {PrimitiveIn::TRIANGLES, PrimitiveOut::TRIANGLE_STRIP, 3, 0, 1};
+    case GPU_PRIM_TRIS_ADJ:
+      return {PrimitiveIn::TRIANGLES_ADJACENCY, PrimitiveOut::TRIANGLE_STRIP, 3, 0, 2};
+    default:
+      BLI_assert_unreachable();
+      return {PrimitiveIn::TRIANGLES, PrimitiveOut::TRIANGLE_STRIP, 3, 0, 1};
+  }
+}
+
 static const char *to_string(const DepthWrite &value)
 {
   switch (value) {
@@ -971,17 +1004,19 @@ std::string GLShader::workaround_geometry_shader_source_create(
 
   const bool do_layer_output = flag_is_set(info.builtins_, BuiltinBits::LAYER);
   const bool do_viewport_output = flag_is_set(info.builtins_, BuiltinBits::VIEWPORT_INDEX);
-  const bool do_barycentric_workaround = !GLContext::native_barycentric_support &&
-                                         flag_is_set(info.builtins_,
-                                                     BuiltinBits::BARYCENTRIC_COORD);
+  const PassthroughGeometryShaderLayout layout = passthrough_geometry_shader_layout(
+      info.primitive_type_);
+  const bool needs_barycentric_workaround = !GLContext::native_barycentric_support &&
+                                            flag_is_set(info.builtins_,
+                                                        BuiltinBits::BARYCENTRIC_COORD);
+  BLI_assert_msg(!needs_barycentric_workaround || layout.primitive_in == PrimitiveIn::TRIANGLES,
+                 "Barycentric fallback geometry shader only supports triangle primitives.");
+  const bool do_barycentric_workaround = needs_barycentric_workaround &&
+                                         layout.primitive_in == PrimitiveIn::TRIANGLES;
 
   shader::ShaderCreateInfo info_modified = info;
   info_modified.geometry_out_interfaces_ = info_modified.vertex_out_interfaces_;
-  /**
-   * NOTE(@fclem): Assuming we will render TRIANGLES. This will not work with other primitive
-   * types. In this case, it might not trigger an error on some implementations.
-   */
-  info_modified.geometry_layout(PrimitiveIn::TRIANGLES, PrimitiveOut::TRIANGLE_STRIP, 3);
+  info_modified.geometry_layout(layout.primitive_in, layout.primitive_out, layout.max_vertices);
 
   ss << geometry_layout_declare(info_modified);
   ss << geometry_interface_declare(info_modified);
@@ -1006,27 +1041,29 @@ std::string GLShader::workaround_geometry_shader_source_create(
     ss << "  gpu_pos[1] = gl_in[1].gl_Position;\n";
     ss << "  gpu_pos[2] = gl_in[2].gl_Position;\n";
   }
-  for (auto i : IndexRange(3)) {
+  for (int i : IndexRange(layout.max_vertices)) {
+    const int input_index = layout.input_vertex_offset + i * layout.input_vertex_stride;
     for (const StageInterfaceInfo *iface : info_modified.vertex_out_interfaces_) {
       for (auto &inout : iface->inouts) {
         ss << "  " << iface->instance_name << "_out." << inout.name;
-        ss << " = " << iface->instance_name << "_in[" << i << "]." << inout.name << ";\n";
+        ss << " = " << iface->instance_name << "_in[" << input_index << "]." << inout.name
+           << ";\n";
       }
     }
     if (do_barycentric_workaround) {
       ss << "  gpu_BaryCoordNoPersp = gpu_BaryCoord =";
       ss << " vec3(" << int(i == 0) << ", " << int(i == 1) << ", " << int(i == 2) << ");\n";
     }
-    ss << "  gl_Position = gl_in[" << i << "].gl_Position;\n";
+    ss << "  gl_Position = gl_in[" << input_index << "].gl_Position;\n";
     if (flag_is_set(info.builtins_, BuiltinBits::CLIP_CONTROL)) {
       /* Assume clip range is set to 0..1 and remap the range just like Vulkan and Metal. */
       ss << "gl_Position.z = (gl_Position.z + gl_Position.w) * 0.5;\n";
     }
     if (do_layer_output) {
-      ss << "  gl_Layer = gpu_Layer[" << i << "];\n";
+      ss << "  gl_Layer = gpu_Layer[" << input_index << "];\n";
     }
     if (do_viewport_output) {
-      ss << "  gl_ViewportIndex = gpu_ViewportIndex[" << i << "];\n";
+      ss << "  gl_ViewportIndex = gpu_ViewportIndex[" << input_index << "];\n";
     }
     ss << "  EmitVertex();\n";
   }

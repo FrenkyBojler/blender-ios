@@ -777,6 +777,8 @@ struct ShaderCreateInfo {
   size_t interface_names_size_ = 0;
   /** Manually set builtins. */
   BuiltinBits builtins_ = BuiltinBits::NONE;
+  /** Primitive type expected by the shader when no geometry layout is provided. */
+  GPUPrimType primitive_type_ = GPU_PRIM_TRIS;
   /** Manually set generated code. */
   std::string vertex_source_generated;
   std::string fragment_source_generated;
@@ -1132,6 +1134,12 @@ struct ShaderCreateInfo {
   Self &vertex_out(StageInterfaceInfo &interface)
   {
     vertex_out_interfaces_.append(&interface);
+    return *static_cast<Self *>(this);
+  }
+
+  Self &primitive_type(GPUPrimType primitive_type)
+  {
+    primitive_type_ = primitive_type;
     return *static_cast<Self *>(this);
   }
 
@@ -1609,6 +1617,7 @@ struct ShaderCreateInfo {
   bool operator==(const ShaderCreateInfo &b) const
   {
     TEST_EQUAL(*this, b, builtins_);
+    TEST_EQUAL(*this, b, primitive_type_);
     TEST_EQUAL(*this, b, vertex_source_generated);
     TEST_EQUAL(*this, b, fragment_source_generated);
     TEST_EQUAL(*this, b, compute_source_generated);

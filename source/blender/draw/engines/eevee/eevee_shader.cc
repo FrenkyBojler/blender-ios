@@ -691,12 +691,30 @@ class SlotAllocator {
   }
 };
 
+static GPUPrimType primitive_type_for_material_geometry(const eMaterialGeometry geometry_type)
+{
+  switch (geometry_type) {
+    case MAT_GEOM_POINTCLOUD:
+      return GPU_PRIM_POINTS;
+    case MAT_GEOM_CURVES:
+      return GPU_PRIM_LINE_STRIP;
+    case MAT_GEOM_MESH:
+    case MAT_GEOM_VOLUME:
+    case MAT_GEOM_WORLD:
+      return GPU_PRIM_TRIS;
+  }
+  BLI_assert_unreachable();
+  return GPU_PRIM_TRIS;
+}
+
 static SlotAllocator add_pipeline_create_info(gpu::shader::ShaderCreateInfo &info,
                                               eMaterialPipeline pipeline_type,
                                               eMaterialGeometry geometry_type,
                                               const bool use_shader_to_rgba)
 {
   using namespace blender::gpu::shader;
+
+  info.primitive_type(primitive_type_for_material_geometry(geometry_type));
 
   info.compilation_constant(
       gpu::shader::Type::bool_t, "is_shadow_pipe", pipeline_type == MAT_PIPE_SHADOW);
@@ -1644,9 +1662,6 @@ void ShaderModule::material_create_info_pipelines_amend(eMaterialGeometry geomet
     return;
   }
 
-  /* Determine primitive type base on the geometry type. */
-  /* TODO: For curves we should use the correct one based on the scene settings. Currently it will
-   * assume it is set to strip or cylinder. */
   constexpr GPUPrimType prim_type = GPU_PRIM_TRIS;
 
   switch (pipeline_type) {
