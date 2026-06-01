@@ -1750,7 +1750,7 @@ void PaintOperation::on_stroke_done(const bContext &C)
   trim_end_points(drawing, 1e-5f, on_back, active_curve);
 
   if (do_post_processing) {
-    if (settings->draw_subdivide > 0) {
+    if (settings->draw_subdivide > 0 && settings->simplify_px == 0.0f) {
       subdivide_stroke(drawing, settings->draw_subdivide, active_curve);
     }
     if (settings->draw_smoothfac > 0.0f && settings->draw_smoothlvl > 0) {
