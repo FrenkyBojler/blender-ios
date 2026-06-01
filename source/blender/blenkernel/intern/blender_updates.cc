@@ -176,12 +176,6 @@ static void register_blender_update(VersionUpdate &&update)
   }
 }
 
-#  define TEST_JSON_ENTRY(value, name) \
-    if (!value) { \
-      CLOG_WARN(&LOG, "missing or corrupt version update entry: `" #name "`"); \
-      return std::nullopt; \
-    }
-
 static std::optional<VersionUpdate> read_version_update(io::serialize::Value *entry)
 {
   using namespace io::serialize;
@@ -201,17 +195,24 @@ static std::optional<VersionUpdate> read_version_update(io::serialize::Value *en
   std::optional<StringRefNull> timestamp = dict.lookup_str("timestamp");
   std::optional<StringRefNull> version_str = dict.lookup_str("version");
 
-  TEST_JSON_ENTRY(build_size, build_size);
-  TEST_JSON_ENTRY(checksum_hash, checksum_hash);
-  TEST_JSON_ENTRY(commit_hash, commit_hash);
-  TEST_JSON_ENTRY(description, description);
-  TEST_JSON_ENTRY(download_url, download_url);
-  TEST_JSON_ENTRY(cycle, cycle);
-  TEST_JSON_ENTRY(is_lts, is_lts);
-  TEST_JSON_ENTRY(platform, platform);
-  TEST_JSON_ENTRY(release_notes_url, release_notes_url);
-  TEST_JSON_ENTRY(timestamp, timestamp);
-  TEST_JSON_ENTRY(version_str, version);
+#  define VALIDATE_JSON_ENTRY(value, name) \
+    if (!value) { \
+      CLOG_WARN(&LOG, "missing or corrupt version update entry: `" #name "`"); \
+      return std::nullopt; \
+    }
+
+  VALIDATE_JSON_ENTRY(build_size, build_size);
+  VALIDATE_JSON_ENTRY(checksum_hash, checksum_hash);
+  VALIDATE_JSON_ENTRY(commit_hash, commit_hash);
+  VALIDATE_JSON_ENTRY(description, description);
+  VALIDATE_JSON_ENTRY(download_url, download_url);
+  VALIDATE_JSON_ENTRY(cycle, cycle);
+  VALIDATE_JSON_ENTRY(is_lts, is_lts);
+  VALIDATE_JSON_ENTRY(platform, platform);
+  VALIDATE_JSON_ENTRY(release_notes_url, release_notes_url);
+  VALIDATE_JSON_ENTRY(timestamp, timestamp);
+  VALIDATE_JSON_ENTRY(version_str, version);
+#  undef VALIDATE_JSON_ENTRY
 
   std::optional<BlenderVersion> version = blender_version_from_version_str(*version_str);
   if (!version) {
@@ -283,7 +284,7 @@ static void download_available_updates_list(bContext &C)
   }
   check_for_updates_state() = CheckForUpdatesState::Loading;
 
-  constexpr const char *expr =
+  const std::string expr =
       R"(
 import _bpy_internal.available_updates.available_updates_list_downloader as downloader
 downloader.download_available_updates_list()
