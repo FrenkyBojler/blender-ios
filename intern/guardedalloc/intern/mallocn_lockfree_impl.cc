@@ -14,7 +14,8 @@
 #include <string.h> /* memcpy */
 #include <sys/types.h>
 
-#include "../../../source/blender/blenlib/BLI_profile.hh"
+#include "PRF_profile.hh"
+
 #include "MEM_guardedalloc.h"
 #include "MEM_safe_multiply.h"
 
@@ -175,7 +176,7 @@ void MEM_lockfree_freeN(void *vmemh, DestructorType destructor_type)
     aligned_free(MEMHEAD_REAL_PTR(memh_aligned));
   }
   else {
-    BLI_profile_memory_free(memh);
+    PRF_memory_free(memh);
     free(memh);
   }
 }
@@ -348,7 +349,7 @@ void *MEM_lockfree_mallocN(size_t len, const char *str)
   len = SIZET_ALIGN_4(len);
 
   memh = (MemHead *)malloc(len + sizeof(MemHead));
-  BLI_profile_memory_alloc(memh, len + sizeof(MemHead));
+  PRF_memory_alloc(memh, len + sizeof(MemHead));
 
   if (LIKELY(memh)) {
 
@@ -428,7 +429,7 @@ void *MEM_lockfree_mallocN_aligned(size_t len,
 
   MemHeadAligned *memh = (MemHeadAligned *)aligned_malloc(
       len + extra_padding + sizeof(MemHeadAligned), alignment);
-  BLI_profile_memory_alloc(memh, len + extra_padding + sizeof(MemHeadAligned));
+  PRF_memory_alloc(memh, len + extra_padding + sizeof(MemHeadAligned));
 
   if (LIKELY(memh)) {
     /* We keep padding in the beginning of MemHead,
