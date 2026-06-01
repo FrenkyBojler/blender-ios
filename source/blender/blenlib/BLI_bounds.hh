@@ -14,10 +14,11 @@
 #include "BLI_index_mask.hh"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_vector.hh"
-#include "BLI_profile.hh"
 #include "BLI_span.hh"
 #include "BLI_task.hh"
 #include "BLI_virtual_array.hh"
+
+#include "PRF_profile.hh"
 
 namespace blender {
 
@@ -69,7 +70,7 @@ template<typename T> [[nodiscard]] inline std::optional<Bounds<T>> min_max(const
   if (values.is_empty()) {
     return std::nullopt;
   }
-  BLI_profile_scope_with_name("bounds::min_max_with_radii", ProfileCategory::Default);
+  PRF_scope_with_name("bounds::min_max_with_radii", ProfileCategory::Default);
   const Bounds<T> init{values.first(), values.first()};
   return threading::parallel_reduce(
       values.index_range(),
@@ -95,7 +96,7 @@ template<typename T>
     /* To avoid mask slice/lookup. */
     return min_max(values);
   }
-  BLI_profile_scope_with_name("bounds::min_max_with_radii", ProfileCategory::Default);
+  PRF_scope_with_name("bounds::min_max_with_radii", ProfileCategory::Default);
   const Bounds<T> init{values[mask.first()], values[mask.first()]};
   return threading::parallel_reduce(
       mask.index_range().drop_front(1),
@@ -122,7 +123,7 @@ template<typename T, typename RadiusT>
   if (values.is_empty()) {
     return std::nullopt;
   }
-  BLI_profile_scope_with_name("bounds::min_max_with_radii", ProfileCategory::Default);
+  PRF_scope_with_name("bounds::min_max_with_radii", ProfileCategory::Default);
   const Bounds<T> init{values.first(), values.first()};
   return threading::parallel_reduce(
       values.index_range(),
@@ -170,7 +171,7 @@ template<typename T> inline std::optional<T> max(const VArray<T> &values)
   if (values.is_empty()) {
     return std::nullopt;
   }
-  BLI_profile_scope_with_name("bounds::max", ProfileCategory::Default);
+  PRF_scope_with_name("bounds::max", ProfileCategory::Default);
   if (const std::optional<T> value = values.get_if_single()) {
     return value;
   }

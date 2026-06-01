@@ -8,7 +8,8 @@
 #include "BLI_math_euler.hh"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_quaternion.hh"
-#include "BLI_profile.hh"
+
+#include "PRF_profile.hh"
 
 #include "BKE_attribute_math.hh"
 
@@ -185,7 +186,7 @@ void ColorGeometry4bMixer::finalize()
 
 void ColorGeometry4bMixer::finalize(const IndexMask &mask)
 {
-  BLI_profile_scope_with_name("ColorGeometry4bMixer::finalize", ProfileCategory::Default);
+  PRF_scope_with_name("ColorGeometry4bMixer::finalize", ProfileCategory::Default);
   mask.foreach_index([&](const int64_t i) {
     const float weight = total_weights_[i];
     const float4 &accum_value = accumulation_buffer_[i];
@@ -245,7 +246,7 @@ void float4x4Mixer::finalize()
 
 void float4x4Mixer::finalize(const IndexMask &mask)
 {
-  BLI_profile_scope_with_name("float4x4Mixer::finalize", ProfileCategory::Default);
+  PRF_scope_with_name("float4x4Mixer::finalize", ProfileCategory::Default);
   mask.foreach_index([&](const int64_t i) {
     const float weight = total_weights_[i];
     if (weight > 0.0f) {
@@ -288,7 +289,7 @@ void mix_groups(const Span<T> src,
                 const Span<int> all_indices,
                 MutableSpan<T> dst)
 {
-  BLI_profile_scope_with_name("attribute_math::mix_groups", ProfileCategory::Default);
+  PRF_scope_with_name("attribute_math::mix_groups", ProfileCategory::Default);
   for (const int dst_i : dst.index_range()) {
     dst[dst_i] = mix_indices(src, all_indices.slice(groups[dst_i]));
   }
@@ -325,7 +326,7 @@ void mix_groups(const Span<T> src,
                 const Span<float> all_weights,
                 MutableSpan<T> dst)
 {
-  BLI_profile_scope_with_name("attribute_math::mix_groups", ProfileCategory::Default);
+  PRF_scope_with_name("attribute_math::mix_groups", ProfileCategory::Default);
   for (const int dst_i : groups.index_range()) {
     dst[dst_i] = mix_indices(
         src, all_indices.slice(groups[dst_i]), all_weights.slice(groups[dst_i]));

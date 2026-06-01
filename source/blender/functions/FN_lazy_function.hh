@@ -43,8 +43,9 @@
 #include "BLI_cpp_type.hh"
 #include "BLI_function_ref.hh"
 #include "BLI_linear_allocator.hh"
-#include "BLI_profile.hh"
 #include "BLI_vector.hh"
+
+#include "PRF_profile.hh"
 
 #include "FN_user_data.hh"
 
@@ -339,8 +340,8 @@ inline Span<Output> LazyFunction::outputs() const
 
 inline void LazyFunction::execute(Params &params, const Context &context) const
 {
-  BLI_profile_scope_with_name("LazyFunction", ProfileCategory::Default);
-  BLI_profile_scope_set_dynamic_name("%s", debug_name_);
+  PRF_scope_with_name("LazyFunction", ProfileCategory::Default);
+  PRF_scope_set_dynamic_name("%s", debug_name_);
   BLI_assert(this->always_used_inputs_available(params));
   this->execute_impl(params, context);
 }

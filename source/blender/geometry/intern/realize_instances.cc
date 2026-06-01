@@ -13,7 +13,8 @@
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.hh"
 #include "BLI_noise.hh"
-#include "BLI_profile.hh"
+
+#include "PRF_profile.hh"
 
 #include "BKE_attribute.hh"
 #include "BKE_curves.hh"
@@ -1093,7 +1094,7 @@ static OrderedAttributes gather_generic_instance_attributes_to_propagate(
     const RealizeInstancesOptions &options,
     const VariedDepthOptions &varied_depth_option)
 {
-  BLI_profile_scope(ProfileCategory::Default);
+  PRF_scope(ProfileCategory::Default);
   bke::GeometrySet::GatheredAttributes attributes_to_propagate = gather_attributes_to_propagate(
       in_geometry_set, bke::GeometryComponent::Type::Instance, options, varied_depth_option);
   OrderedAttributes ordered_attributes;
@@ -1120,7 +1121,7 @@ static void execute_instances_tasks(
     return;
   }
 
-  BLI_profile_scope(ProfileCategory::Default);
+  PRF_scope(ProfileCategory::Default);
   Array<int> offsets_data(src_components.size() + 1);
   for (const int component_index : src_components.index_range()) {
     const bke::InstancesComponent &src_component = static_cast<const bke::InstancesComponent &>(
@@ -1272,7 +1273,7 @@ static AllPointCloudsInfo preprocess_pointclouds(const bke::GeometrySet &geometr
                                                  const RealizeInstancesOptions &options,
                                                  const VariedDepthOptions &varied_depth_option)
 {
-  BLI_profile_scope(ProfileCategory::Default);
+  PRF_scope(ProfileCategory::Default);
   AllPointCloudsInfo info;
   info.attributes = gather_generic_pointcloud_attributes_to_propagate(geometry_set,
                                                                       options,
@@ -1386,7 +1387,7 @@ static void execute_realize_pointcloud_tasks(const RealizeInstancesOptions &opti
     return;
   }
 
-  BLI_profile_scope(ProfileCategory::Default);
+  PRF_scope(ProfileCategory::Default);
   if (tasks.size() == 1) {
     const RealizePointCloudTask &task = tasks.first();
     PointCloud *new_points = BKE_pointcloud_copy_for_eval(task.pointcloud_info->pointcloud);
@@ -1535,7 +1536,7 @@ static AllMeshesInfo preprocess_meshes(const bke::GeometrySet &geometry_set,
                                        const RealizeInstancesOptions &options,
                                        const VariedDepthOptions &varied_depth_option)
 {
-  BLI_profile_scope(ProfileCategory::Default);
+  PRF_scope(ProfileCategory::Default);
   AllMeshesInfo info;
   info.attributes = gather_generic_mesh_attributes_to_propagate(
       geometry_set,
@@ -1992,7 +1993,7 @@ static void execute_realize_mesh_tasks(const RealizeInstancesOptions &options,
     return;
   }
 
-  BLI_profile_scope(ProfileCategory::Default);
+  PRF_scope(ProfileCategory::Default);
   if (tasks.size() == 1) {
     const RealizeMeshTask &task = tasks.first();
     Mesh *new_mesh = BKE_mesh_copy_for_eval(*task.mesh_info->mesh);
@@ -2212,7 +2213,7 @@ static AllCurvesInfo preprocess_curves(const bke::GeometrySet &geometry_set,
                                        const RealizeInstancesOptions &options,
                                        const VariedDepthOptions &varied_depth_option)
 {
-  BLI_profile_scope(ProfileCategory::Default);
+  PRF_scope(ProfileCategory::Default);
   AllCurvesInfo info;
   info.attributes = gather_generic_curve_attributes_to_propagate(geometry_set,
                                                                  options,
@@ -2450,7 +2451,7 @@ static void execute_realize_curve_tasks(const RealizeInstancesOptions &options,
     return;
   }
 
-  BLI_profile_scope(ProfileCategory::Default);
+  PRF_scope(ProfileCategory::Default);
   if (tasks.size() == 1) {
     const RealizeCurveTask &task = tasks.first();
     Curves *new_curves = BKE_curves_copy_for_eval(task.curve_info->curves);
@@ -2630,7 +2631,7 @@ static AllGreasePencilsInfo preprocess_grease_pencils(
     const RealizeInstancesOptions &options,
     const VariedDepthOptions &varied_depth_options)
 {
-  BLI_profile_scope(ProfileCategory::Default);
+  PRF_scope(ProfileCategory::Default);
   AllGreasePencilsInfo info;
   info.attributes = gather_generic_grease_pencil_attributes_to_propagate(
       geometry_set, options, varied_depth_options);
@@ -2737,7 +2738,7 @@ static void execute_realize_grease_pencil_tasks(
     return;
   }
 
-  BLI_profile_scope(ProfileCategory::Default);
+  PRF_scope(ProfileCategory::Default);
   if (tasks.size() == 1) {
     const RealizeGreasePencilTask &task = tasks.first();
     GreasePencil *new_gp = BKE_grease_pencil_copy_for_eval(task.grease_pencil_info->grease_pencil);
@@ -2827,7 +2828,7 @@ static void execute_realize_edit_data_tasks(const Span<RealizeEditDataTask> task
     return;
   }
 
-  BLI_profile_scope(ProfileCategory::Default);
+  PRF_scope(ProfileCategory::Default);
   auto &component = r_realized_geometry.get_component_for_write<bke::GeometryComponentEditData>();
   for (const RealizeEditDataTask &task : tasks) {
     if (!component.curves_edit_hints_) {
@@ -2912,7 +2913,7 @@ RealizeInstancesResult realize_instances(bke::GeometrySet geometry_set,
                                          const RealizeInstancesOptions &options,
                                          const VariedDepthOptions &varied_depth_option)
 {
-  BLI_profile_scope(ProfileCategory::Default);
+  PRF_scope(ProfileCategory::Default);
   /* The algorithm works in three steps:
    * 1. Preprocess each unique geometry that is instanced (e.g. each `Mesh`).
    * 2. Gather "tasks" that need to be executed to realize the instances. Each task corresponds
@@ -2968,7 +2969,7 @@ RealizeInstancesResult realize_instances(bke::GeometrySet geometry_set,
   initialize_curves_builtin_attribute_defaults(all_curves_info, attribute_fallbacks);
 
   {
-    BLI_profile_scope_with_name("gather_realize_tasks_recursive", ProfileCategory::Default);
+    PRF_scope_with_name("gather_realize_tasks_recursive", ProfileCategory::Default);
     gather_realize_tasks_recursive(gather_info,
                                    0,
                                    VariedDepthOptions::MAX_DEPTH,
