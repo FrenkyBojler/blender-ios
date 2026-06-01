@@ -175,6 +175,41 @@ static void store_property_snapshot(PointerRNA &ptr,
   snapshots.append({prop, std::move(property_values)});
 }
 
+static void store_starting_transform(SlideSubject &slide_subject,
+                                     ed::AnimTransformable &transformable)
+{
+  slide_subject.old_loc = transformable.get_property(
+      ed::AnimTransformable::PropertyType::LOCATION);
+  slide_subject.old_rot = transformable.get_rotation();
+  slide_subject.old_scale = transformable.get_property(ed::AnimTransformable::PropertyType::SCALE);
+}
+
+static void store_id_properties(SlideSubject &slide_subject,
+                                PointerRNA &ptr,
+                                IDProperty *id_properties,
+                                IDProperty *system_properties)
+{
+  if (id_properties) {
+    for (const IDProperty &id_prop : id_properties->data.group) {
+      if (ELEM(id_prop.type, IDP_STRING, IDP_ID, IDP_IDPARRAY)) {
+        continue;
+      }
+      char name_escaped[MAX_IDPROP_NAME * 2];
+      BLI_str_escape(name_escaped, id_prop.name, sizeof(name_escaped));
+      std::string property_name_with_brackets = fmt::format("[\"{}\"]", name_escaped);
+      store_property_snapshot(ptr, property_name_with_brackets, slide_subject.properties);
+    }
+  }
+  if (system_properties) {
+    for (const IDProperty &id_prop : system_properties->data.group) {
+      if (ELEM(id_prop.type, IDP_STRING, IDP_ID, IDP_IDPARRAY)) {
+        continue;
+      }
+      store_property_snapshot(ptr, id_prop.name, slide_subject.system_properties);
+    }
+  }
+}
+
 /* helper for slide_subjects_get() -> get the relevant F-Curves per PoseChannel */
 static void pchan_to_slide_subject(ListBaseT<SlideSubject> &slide_subjects,
                                    Object &ob,
@@ -200,11 +235,7 @@ static void pchan_to_slide_subject(ListBaseT<SlideSubject> &slide_subjects,
   /* Set pchan's transform flags. */
   slide_subject->transform_flag = transFlags;
 
-  slide_subject->old_loc = transformable->get_property(
-      ed::AnimTransformable::PropertyType::LOCATION);
-  slide_subject->old_rot = transformable->get_rotation();
-  slide_subject->old_scale = transformable->get_property(
-      ed::AnimTransformable::PropertyType::SCALE);
+  store_starting_transform(*slide_subject, *transformable);
 
   slide_subject->ptr = bone_ptr;
 
@@ -223,25 +254,7 @@ static void pchan_to_slide_subject(ListBaseT<SlideSubject> &slide_subjects,
 
   /* Make copy of custom properties. */
   if (transFlags & ACT_TRANS_PROP) {
-    if (pchan.prop) {
-      for (const IDProperty &id_prop : pchan.prop->data.group) {
-        if (ELEM(id_prop.type, IDP_STRING, IDP_ID, IDP_IDPARRAY)) {
-          continue;
-        }
-        char name_escaped[MAX_IDPROP_NAME * 2];
-        BLI_str_escape(name_escaped, id_prop.name, sizeof(name_escaped));
-        std::string property_name_with_brackets = fmt::format("[\"{}\"]", name_escaped);
-        store_property_snapshot(bone_ptr, property_name_with_brackets, slide_subject->properties);
-      }
-    }
-    if (pchan.system_properties) {
-      for (const IDProperty &id_prop : pchan.system_properties->data.group) {
-        if (ELEM(id_prop.type, IDP_STRING, IDP_ID, IDP_IDPARRAY)) {
-          continue;
-        }
-        store_property_snapshot(bone_ptr, id_prop.name, slide_subject->system_properties);
-      }
-    }
+    store_id_properties(*slide_subject, bone_ptr, pchan.prop, pchan.system_properties);
   }
 }
 
@@ -328,38 +341,13 @@ static void get_objects_for_slide(bContext *C, ListBaseT<SlideSubject> &slider_d
     ed::AnimTransformable *transformable = MEM_new<ed::AnimTransformable>("transformable_object",
                                                                           *ob);
     slide_subject->transformable = transformable;
-
-    /* Set pchan's transform flags. */
     slide_subject->transform_flag = transFlags;
 
-    slide_subject->old_loc = transformable->get_property(
-        ed::AnimTransformable::PropertyType::LOCATION);
-    slide_subject->old_rot = transformable->get_rotation();
-    slide_subject->old_scale = transformable->get_property(
-        ed::AnimTransformable::PropertyType::SCALE);
+    store_starting_transform(*slide_subject, *transformable);
     slide_subject->ptr = object_ptr;
 
     if (transFlags & ACT_TRANS_PROP) {
-      if (ob->id.properties) {
-        for (const IDProperty &id_prop : ob->id.properties->data.group) {
-          if (ELEM(id_prop.type, IDP_STRING, IDP_ID, IDP_IDPARRAY)) {
-            continue;
-          }
-          char name_escaped[MAX_IDPROP_NAME * 2];
-          BLI_str_escape(name_escaped, id_prop.name, sizeof(name_escaped));
-          std::string property_name_with_brackets = fmt::format("[\"{}\"]", name_escaped);
-          store_property_snapshot(
-              object_ptr, property_name_with_brackets, slide_subject->properties);
-        }
-      }
-      if (ob->id.system_properties) {
-        for (const IDProperty &id_prop : ob->id.system_properties->data.group) {
-          if (ELEM(id_prop.type, IDP_STRING, IDP_ID, IDP_IDPARRAY)) {
-            continue;
-          }
-          store_property_snapshot(object_ptr, id_prop.name, slide_subject->system_properties);
-        }
-      }
+      store_id_properties(*slide_subject, object_ptr, ob->id.properties, ob->id.system_properties);
     }
   }
   CTX_DATA_END;

@@ -105,7 +105,7 @@ class AnimTransformable {
   /* Constructor for pose bones. */
   AnimTransformable(Object &owner_id, bPoseChannel &pchan);
   /* Constructor for Objects. */
-  AnimTransformable(Object &object);
+  explicit AnimTransformable(Object &object);
 
   Type type() const
   {
