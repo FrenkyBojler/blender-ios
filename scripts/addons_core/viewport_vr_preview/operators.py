@@ -632,7 +632,7 @@ class VIEW3D_OT_vr_location_scouting_viewfinder_cycle_action(Operator):
 
 class VIEW3D_OT_vr_location_scouting_viewfinder_swap_hands(Operator):
     bl_idname = "view3d.vr_location_scouting_viewfinder_swap_hands"
-    bl_label = "Viewfinder Sawp Hands"
+    bl_label = "Viewfinder Swap Hands"
     bl_description = "Swap user hand used to hold the Viewfinder"
     bl_options = {'INTERNAL'}
 
@@ -695,7 +695,7 @@ class VIEW3D_OT_vr_location_scouting_add_camera_from_capture(Operator):
 
 class VIEW3D_OT_vr_location_scouting_add_marker_from_capture(Operator):
     bl_idname = "view3d.vr_location_scouting_add_marker_from_capture"
-    bl_label = "Create Camera Marker from VR Capture"
+    bl_label = "Add Camera Marker from VR Capture"
     bl_description = "Create a new Camera bound to a Marker from the selected VR Capture at the current frame"
     bl_options = {'UNDO', 'REGISTER'}
 
@@ -727,7 +727,7 @@ class VIEW3D_OT_vr_location_scouting_add_marker_from_capture(Operator):
 
 class VIEW3D_OT_vr_location_scouting_active_camera_to_capture(Operator):
     bl_idname = "view3d.vr_location_scouting_active_camera_to_capture"
-    bl_label = "Set Camera from VR Capture"
+    bl_label = "Set Active Camera from VR Capture"
     bl_description = "Set the active Scene Camera settings from the selected VR Capture"
     bl_options = {'UNDO', 'REGISTER'}
 
