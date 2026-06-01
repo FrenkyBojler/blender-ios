@@ -11,6 +11,9 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "AS_asset_library.hh"
+#include "AS_asset_representation.hh"
+
 #include "BLI_listbase.h"
 #include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
@@ -25,6 +28,8 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
+#include "ED_asset_list.hh"
+#include "ED_asset_menu_utils.hh"
 #include "ED_screen.hh"
 
 #include "UI_interface_layout.hh"
@@ -204,6 +209,61 @@ void ED_screen_user_menu_item_remove(ListBaseT<bUserMenuItem> *lb, bUserMenuItem
 /** \name Menu Definition
  * \{ */
 
+static bool all_loading_finished()
+{
+  AssetLibraryReference all_library_ref = asset_system::all_library_reference();
+  return ed::asset::list::is_loaded(&all_library_ref);
+}
+
+static void draw_operator_menu_item(const bContext &C,
+                                    bUserMenuItem_Op &umi_op,
+                                    ui::Layout &layout,
+                                    wmOperatorType *ot,
+                                    std::optional<StringRefNull> ui_name)
+{
+  ui::Layout &row = layout.row(true);
+  int icon = ICON_NONE;
+  bool add_operator = true;
+
+  PointerRNA opptr = WM_operator_properties_create_ptr(ot);
+  if (umi_op.prop) {
+    opptr.data = bke::idprop::create_group("wmOperatorProperties").release();
+    IDP_CopyPropertyContent(opptr.data_as<IDProperty>(), umi_op.prop);
+    if (ed::asset::operator_asset_reference_props_is_set(opptr)) {
+      const bool loading_finished = all_loading_finished();
+      if (!loading_finished) {
+        row.label(IFACE_("Loading Asset Libraries"), ICON_INFO);
+        add_operator = false;
+      }
+      else {
+        const asset_system::AssetRepresentation *asset =
+            ed::asset::operator_asset_reference_props_get_asset_from_all_library(
+                C, opptr, CTX_wm_reports(&C));
+        if (asset) {
+          if (asset->is_online_only()) {
+            icon = ICON_INTERNET;
+          }
+          PointerRNA asset_ptr = RNA_pointer_create_discrete(
+              nullptr,
+              RNA_AssetRepresentation,
+              const_cast<asset_system::AssetRepresentation *>(asset));
+          row.context_ptr_set("asset", &asset_ptr);
+        }
+        else {
+          add_operator = false;
+        }
+      }
+    }
+  }
+
+  if (add_operator) {
+    PointerRNA ptr = row.op(ot, ui_name, icon, wm::OpCallContext(umi_op.opcontext), UI_ITEM_NONE);
+    if (umi_op.prop) {
+      IDP_CopyPropertyContent(ptr.data_as<IDProperty>(), umi_op.prop);
+    }
+  }
+}
+
 static void screen_user_menu_draw(const bContext *C, Menu *menu)
 {
   /* Enable when we have the ability to edit menus. */
@@ -229,11 +289,7 @@ static void screen_user_menu_draw(const bContext *C, Menu *menu)
             ui_name = CTX_IFACE_(ot->translation_context, ui_name->c_str());
           }
           if (umi_op->op_prop_enum[0] == '\0') {
-            PointerRNA ptr = menu->layout->op(
-                ot, ui_name, ICON_NONE, wm::OpCallContext(umi_op->opcontext), UI_ITEM_NONE);
-            if (umi_op->prop) {
-              IDP_CopyPropertyContent(ptr.data_as<IDProperty>(), umi_op->prop);
-            }
+            draw_operator_menu_item(*C, *umi_op, *menu->layout, ot, ui_name);
           }
           else {
             /* umi_op->prop could be used to set other properties but it's currently unsupported.
