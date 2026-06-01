@@ -52,8 +52,12 @@ BLOCKLIST = [
     "transparent_shadow_limit_.*",
     # Redundant with transparent_shadow_hair.
     "transparent_shadow_hair_blur.blend",
-    # Unsupported feature. Redundant tests.
-    "osl_camera_.*",
+    # Unsupported feature. Redundant tests. (except osl_camera_advanced which tests triangular bokeh)
+    "osl_camera_advanced_manual_dof.blend",
+    "osl_camera_advanced_manual_dof_138188.blend",
+    "osl_camera_cubemap.blend",
+    "osl_camera_cubemap_auto_derivatives.blend",
+    "osl_camera_offset_in_volume.blend",
     # Extreme texture values interpolate differently on different GPUs.
     "image_log.blend",
     # Exhibit the LTC light leaking issue. To be enabeld back after fixing.
@@ -73,10 +77,6 @@ BLOCKLIST_METAL = [
     "environment_mirror_ball.blend",
     # Blocked due to difference in mipmap interpolation / anisotropic filtering (to be fixed).
     "image.blend",
-    # Blocked due to subtle differences in DOF
-    "osl_camera_advanced.blend",
-    # Blocked due to volume occupancy being broken
-    "texture_coordinate_object.blend",
 ]
 
 BLOCKLIST_VULKAN = [
@@ -99,6 +99,11 @@ BLOCKLIST_INTEL = [
 BLOCKLIST_INTEL_WINDOWS_GL = [
     # Fails sporadically and causes all subsequent volume tests to fail (See #153612).
     "volume_instance.blend"
+]
+
+BLOCKLIST_NVIDIA_GL = [
+    # Non-deterministic behavior. Unkown reason, the pool size doesn't seem to be exceeded.
+    "shadow_min_pool_size.blend",
 ]
 
 
@@ -280,6 +285,8 @@ def main():
             blocklist += BLOCKLIST_INTEL
         if gpu_vendor == "INTEL" and sys.platform == "win32" and args.gpu_backend == "opengl":
             blocklist += BLOCKLIST_INTEL_WINDOWS_GL
+        if gpu_vendor == "NVIDIA" and args.gpu_backend == "opengl":
+            blocklist += BLOCKLIST_NVIDIA_GL
 
     report = EEVEEReport("EEVEE", args.outdir, args.oiiotool, variation=args.gpu_backend, blocklist=blocklist)
     if args.gpu_backend == "vulkan":
@@ -309,16 +316,22 @@ def main():
             report.set_fail_percent(0.14)
             report.set_fail_threshold(6.0 / 255.0)
     elif test_dir_name.startswith('camera'):
-        # camera_central_cylindrical and camera_stereo_panoramic have some platform specific small differences
-        report.set_fail_percent(0.8)
+        # camera_stereo_panoramic have some platform specific small differences
+        report.set_fail_percent(0.14)
         report.set_fail_threshold(6.0 / 255.0)
     elif test_dir_name.startswith('image_colorspace'):
         # image_log has hot pixels that result in platform differences.
         report.set_fail_percent(0.15)
     elif test_dir_name.startswith('displacement'):
-        # Real & bump displacement use hardware derivatives which results in platform differences.
-        report.set_fail_percent(0.38)
+        # Raster difference across hardware (subdiv geometry).
+        report.set_fail_percent(0.1)
         report.set_fail_threshold(7.0 / 255.0)
+        if args.gpu_backend == "metal":
+            # Difference in shadows in true_displacement_image and vector_displacement_tangent.
+            report.set_fail_percent(0.21)
+        elif "ATI" in gpu_vendor or "AMD" in gpu_vendor:
+            # Difference in bump_normal_texture likely caused by different derivatives.
+            report.set_fail_percent(0.29)
     elif test_dir_name.startswith('transparency'):
         # Dithered transparency uses platform dependent noise pattern.
         report.set_fail_percent(0.22)
@@ -376,6 +389,9 @@ def main():
         # Failure can be subtle, tighten threshold
         report.set_fail_percent(0.04)
         report.set_fail_threshold(2.0 / 255.0)
+        if args.gpu_backend == "metal":
+            # subd_motion_blur has some differences in bump on M1.
+            report.set_fail_percent(0.06)
     elif test_dir_name.startswith('lightprobe') and args.gpu_backend == "metal":
         # Some shadow difference, to be investigated
         report.set_fail_percent(0.09)
