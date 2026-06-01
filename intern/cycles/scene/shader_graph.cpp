@@ -165,6 +165,13 @@ void ShaderNode::attributes(Shader *shader, AttributeRequestSet *attributes)
           attributes->add(ATTR_STD_UV);
         }
       }
+      else if (input->flags() & SocketType::LINK_TANGENT) {
+        if (shader->has_surface_link()) {
+          attributes->add(ATTR_STD_GENERATED);
+          attributes->add(ATTR_STD_UV_TANGENT);
+          attributes->add(ATTR_STD_UV_TANGENT_SIGN);
+        }
+      }
     }
   }
 }
