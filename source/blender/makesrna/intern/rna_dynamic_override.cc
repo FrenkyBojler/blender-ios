@@ -121,7 +121,7 @@ static IDProperty **rna_DynamicOverrideRule_override_values_system_idprops(Point
 {
   auto iddata_rule = ptr->data_as<DynamicOverrideRuleIDData>();
   BLI_assert(iddata_rule->base.type == DynamicOverrideRuleType::IDData);
-  return &iddata_rule->new_values;
+  return &iddata_rule->override_values;
 }
 
 static PointerRNA rna_DynamicOverrideRule_override_values_get(PointerRNA *ptr)

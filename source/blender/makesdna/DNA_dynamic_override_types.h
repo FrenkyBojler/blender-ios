@@ -85,9 +85,9 @@ struct DynamicOverrideRuleIDData {
    * \note: Uses automatic data layout matching the runtime-generated RNA Srna data stored in
    * `runtime`.
    */
-  IDProperty *new_values = nullptr;
-  /** Original values for all properties above, follow samw layout as in `new_values`. */
-  IDProperty *orig_values = nullptr;
+  IDProperty *override_values = nullptr;
+  /** Original values for all properties above, follow samw layout as in `override_values`. */
+  IDProperty *original_values = nullptr;
 
   bke::dynoverride::RuleIDDataRuntime *runtime = nullptr;
 };

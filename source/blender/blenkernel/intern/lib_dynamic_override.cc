@@ -227,11 +227,11 @@ static void rule_copy(DynamicOverrideRule &dynoverride_rule_dst,
         id_us_plus(rule_dst.base.target_filter.target_id);
       }
 
-      if (rule_src.new_values) {
-        rule_dst.new_values = IDP_CopyProperty_ex(rule_src.new_values, flag);
+      if (rule_src.override_values) {
+        rule_dst.override_values = IDP_CopyProperty_ex(rule_src.override_values, flag);
       }
-      if (rule_src.orig_values) {
-        rule_dst.orig_values = IDP_CopyProperty_ex(rule_src.orig_values, flag);
+      if (rule_src.original_values) {
+        rule_dst.original_values = IDP_CopyProperty_ex(rule_src.original_values, flag);
       }
 
       BLI_duplicatelist(&rule_dst.properties, &rule_src.properties);
@@ -270,11 +270,11 @@ static void rule_free(DynamicOverrideRule &dynoverride_rule)
       }
       BLI_freelistN(&rule.properties);
 
-      if (rule.new_values) {
-        IDP_FreeProperty(rule.new_values);
+      if (rule.override_values) {
+        IDP_FreeProperty(rule.override_values);
       }
-      if (rule.orig_values) {
-        IDP_FreeProperty(rule.orig_values);
+      if (rule.original_values) {
+        IDP_FreeProperty(rule.original_values);
       }
 
       MEM_delete(rule.runtime);
@@ -294,10 +294,10 @@ static void rule_foreach_id(DynamicOverrideRule &dynoverride_rule, LibraryForeac
 
       BKE_LIB_FOREACHID_PROCESS_ID(&data, rule.base.target_filter.target_id, IDWALK_CB_NOP);
 
-      IDP_foreach_property(rule.new_values, IDP_TYPE_FILTER_ID, [&](IDProperty *prop) {
+      IDP_foreach_property(rule.override_values, IDP_TYPE_FILTER_ID, [&](IDProperty *prop) {
         BKE_lib_query_idpropertiesForeachIDLink_callback(prop, &data);
       });
-      IDP_foreach_property(rule.orig_values, IDP_TYPE_FILTER_ID, [&](IDProperty *prop) {
+      IDP_foreach_property(rule.original_values, IDP_TYPE_FILTER_ID, [&](IDProperty *prop) {
         BKE_lib_query_idpropertiesForeachIDLink_callback(prop, &data);
       });
       break;
@@ -325,11 +325,11 @@ static void rule_write(BlendWriter &writer, DynamicOverrideRule &dynoverride_rul
 
       writer.write_struct(&rule);
 
-      if (rule.new_values) {
-        IDP_BlendWrite(&writer, rule.new_values);
+      if (rule.override_values) {
+        IDP_BlendWrite(&writer, rule.override_values);
       }
-      if (rule.orig_values) {
-        IDP_BlendWrite(&writer, rule.orig_values);
+      if (rule.original_values) {
+        IDP_BlendWrite(&writer, rule.original_values);
       }
 
       for (DynamicOverrideRuleProperty &property : rule.properties) {
@@ -358,13 +358,13 @@ static void rule_read_data(BlendDataReader &reader, DynamicOverrideRule &dynover
           dynoverride_rule);
       rule.runtime = MEM_new<RuleIDDataRuntime>(__func__);
 
-      BLO_read_struct(&reader, IDProperty, &rule.new_values);
-      if (rule.new_values) {
-        IDP_DirectLinkProperty(&reader, rule.new_values);
+      BLO_read_struct(&reader, IDProperty, &rule.override_values);
+      if (rule.override_values) {
+        IDP_DirectLinkProperty(&reader, rule.override_values);
       }
-      BLO_read_struct(&reader, IDProperty, &rule.orig_values);
-      if (rule.orig_values) {
-        IDP_DirectLinkProperty(&reader, rule.orig_values);
+      BLO_read_struct(&reader, IDProperty, &rule.original_values);
+      if (rule.original_values) {
+        IDP_DirectLinkProperty(&reader, rule.original_values);
       }
 
       BLO_read_struct_list(&reader, DynamicOverrideRuleProperty, &rule.properties);
@@ -532,7 +532,7 @@ std::string rule_property_rna_identifier(DynamicOverrideRuleProperty &rule_prope
  */
 struct GeneratedRuleSrnaData {
   ResourceScope scope;
-  StructRNA *new_values_struct;
+  StructRNA *override_values_struct;
   BlenderRNA *generated_rna;
   GeneratedRuleSrnaData()
   {
@@ -556,7 +556,7 @@ static void dynamic_override_update_rules_srna(Main & /*bmain*/, DynamicOverride
     StructRNA *srna = RNA_def_struct_ptr(generated->generated_rna,
                                          "DynamicOverrideRuleIDDataInterfaceRT",
                                          RNA_DynamicOverrideRuleIDDataInterface);
-    generated->new_values_struct = srna;
+    generated->override_values_struct = srna;
 
     for (DynamicOverrideRuleProperty &rule_property : iddata_rule.properties) {
       PointerRNA owner_id_ptr, ptr;
@@ -647,10 +647,10 @@ static void dynamic_override_update_rules_system_idprops(Main & /*bmain*/,
     }
 
     DynamicOverrideRuleIDData &iddata_rule = reinterpret_cast<DynamicOverrideRuleIDData &>(rule);
-    StructRNA *srna = iddata_rule.runtime->rule_srna_data->new_values_struct;
-    if (iddata_rule.new_values) {
+    StructRNA *srna = iddata_rule.runtime->rule_srna_data->override_values_struct;
+    if (iddata_rule.override_values) {
       PointerRNA properties_ptr = RNA_pointer_create_discrete(&dynamic_override.id, srna, &rule);
-      RNA_sync_system_properties(properties_ptr, *iddata_rule.new_values);
+      RNA_sync_system_properties(properties_ptr, *iddata_rule.override_values);
     }
 
     DEG_id_tag_update(rule.target_filter.target_id, ID_RECALC_DYNAMIC_OVERRIDE);
@@ -678,9 +678,9 @@ void update(Main &bmain, std::optional<Span<DynamicOverride *>> modified_dynamic
 StructRNA *rule_get_runtime_properties_rna_struct(DynamicOverrideRuleIDData &iddata_rule)
 {
   if (iddata_rule.runtime->rule_srna_data &&
-      iddata_rule.runtime->rule_srna_data->new_values_struct)
+      iddata_rule.runtime->rule_srna_data->override_values_struct)
   {
-    return iddata_rule.runtime->rule_srna_data->new_values_struct;
+    return iddata_rule.runtime->rule_srna_data->override_values_struct;
   }
   return RNA_DynamicOverrideRuleIDDataInterface;
 }
