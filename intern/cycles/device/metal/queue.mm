@@ -508,18 +508,6 @@ bool MetalDeviceQueue::enqueue(DeviceKernel kernel,
       assert(ancillary_index == ANCILLARY_SLOT_COUNT);
     }
 
-    /* Encode ancillaries */
-    if (metal_device_->use_metalrt) {
-      for (int table = 0; table < METALRT_TABLE_NUM; table++) {
-        if (active_pipeline.intersection_func_table[table]) {
-          [active_pipeline.intersection_func_table[table]
-              setBuffer:metal_device_->launch_params_buffer
-                 offset:0
-                atIndex:1];
-        }
-      }
-    }
-
     [mtlComputeCommandEncoder setBytes:dynamic_args length:dynamic_bytes_written atIndex:0];
     [mtlComputeCommandEncoder setBuffer:metal_device_->launch_params_buffer offset:0 atIndex:1];
     [mtlComputeCommandEncoder setBytes:ancillary_args length:sizeof(ancillary_args) atIndex:2];
@@ -545,8 +533,10 @@ bool MetalDeviceQueue::enqueue(DeviceKernel kernel,
       }
 
       for (int table = 0; table < METALRT_TABLE_NUM; table++) {
-        [mtlComputeCommandEncoder useResource:active_pipeline.intersection_func_table[table]
-                                        usage:MTLResourceUsageRead];
+        if (active_pipeline.intersection_func_table[table]) {
+          [mtlComputeCommandEncoder useResource:active_pipeline.intersection_func_table[table]
+                                          usage:MTLResourceUsageRead];
+        }
       }
     }
 

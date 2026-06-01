@@ -525,8 +525,9 @@ bool MetalDispatchPipeline::update(MetalDevice *metal_device, DeviceKernel kerne
           [intersection_func_table[table] setFunction:handle atIndex:i];
         }
 
-        /* Bind launch_params here (once per pipeline update) rather than per-dispatch
-         * in the command encoder, since the buffer address is stable. */
+        /* Bind launch_params into the intersection function table once, when the table is
+         * (re)created. launch_params_buffer is allocated once and never moves, and the binding
+         * persists on the table, so there's no need to rebind it on every dispatch. */
         [intersection_func_table[table] setBuffer:metal_device->launch_params_buffer
                                            offset:0
                                           atIndex:1];

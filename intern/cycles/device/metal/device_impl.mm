@@ -187,16 +187,24 @@ MetalDevice::MetalDevice(const DeviceInfo &info, Stats &stats, Profiler &profile
       if (DebugFlags().metal.use_residency_sets_if_available) {
         /* Use a residency set to declare all rendering resources up front, avoiding
          * the overhead of per-encoder useResource calls on every dispatch. */
-        mtlResidencySet_enabled = true;
-
         MTLResidencySetDescriptor *residency_set_desc = [[MTLResidencySetDescriptor alloc] init];
         residency_set_desc.label = @"CyclesResidencySet";
         residency_set_desc.initialCapacity = 512;
-        NSError *error;
+        NSError *error = nil;
         mtlResidencySet = [mtlDevice newResidencySetWithDescriptor:residency_set_desc
                                                              error:&error];
+        [residency_set_desc release];
 
-        [mtlComputeCommandQueue addResidencySet:mtlResidencySet];
+        /* Only enable residency sets if creation succeeded. Otherwise we fall back to the
+         * per-encoder useResource path. */
+        if (mtlResidencySet) {
+          mtlResidencySet_enabled = true;
+          [mtlComputeCommandQueue addResidencySet:mtlResidencySet];
+        }
+        else {
+          metal_printf("Failed to create residency set: %s",
+                       [[error localizedDescription] UTF8String]);
+        }
       }
     }
 #  endif
@@ -265,14 +273,11 @@ void MetalDevice::metal_mem_free(id<MTLResource> allocation)
 {
   if (allocation) {
     stats.mem_free(allocation.allocatedSize);
-#  if defined(MAC_OS_VERSION_15_0)
-    if (@available(macos 15.0, *)) {
-      if (mtlResidencySet) {
-        [mtlResidencySet removeAllocation:allocation];
-        mtlResidencySet_dirty = true;
-      }
-    }
-#  endif
+
+    /* Note: the residency set removal is deliberately not done here. It is deferred to
+     * flush_delayed_free_list(), alongside the actual [release], so that a resource which may
+     * still be referenced by an in-flight command buffer remains resident until that command
+     * buffer has completed. */
   }
 }
 
@@ -1300,6 +1305,16 @@ void MetalDevice::flush_delayed_free_list()
    * completion of a command buffer */
   std::lock_guard<std::recursive_mutex> lock(metal_mem_map_mutex);
   for (auto &it : delayed_free_list) {
+#  if defined(MAC_OS_VERSION_15_0)
+    /* Now that the command buffer referencing this resource has completed, it is safe to drop it
+     * from the residency set (paired with the [release] below). */
+    if (@available(macos 15.0, *)) {
+      if (mtlResidencySet && it) {
+        [mtlResidencySet removeAllocation:it];
+        mtlResidencySet_dirty = true;
+      }
+    }
+#  endif
     [it release];
   }
   delayed_free_list.clear();
@@ -1332,22 +1347,24 @@ void MetalDevice::build_bvh(BVH *bvh, Progress &progress, bool refit)
 
 void MetalDevice::free_bvh()
 {
+  /* Defer the actual release (and residency set removal) via delayed_free_list, since the old BVH
+   * may still be referenced by an in-flight command buffer. */
   for (id<MTLAccelerationStructure> &blas : unique_blas_array) {
     metal_mem_free(blas);
-    [blas release];
+    delayed_free_list.push_back(blas);
   }
   unique_blas_array.clear();
   blas_array.clear();
 
   if (blas_buffer) {
     metal_mem_free(blas_buffer);
-    [blas_buffer release];
+    delayed_free_list.push_back(blas_buffer);
     blas_buffer = nil;
   }
 
   if (accel_struct) {
     metal_mem_free(accel_struct);
-    [accel_struct release];
+    delayed_free_list.push_back(accel_struct);
     accel_struct = nil;
   }
 }
