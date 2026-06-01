@@ -1090,52 +1090,52 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
     )
 
     ignore_shaders: BoolProperty(
-        name="Ignore Shaders",
+        name="Shaders",
         default=False,
         description="Replace all shaders with a simple diffuse gray shader"
     )
     ignore_images: BoolProperty(
-        name="Ignore Images",
+        name="Images",
         default=False,
         description="Do not load images, use a neutral gray instead"
     )
     ignore_volumes: BoolProperty(
-        name="Ignore Volumes",
+        name="Volumes",
         default=False,
         description="Disable volume shaders"
     )
     ignore_subsurface_scattering: BoolProperty(
-        name="Ignore Subsurface Scattering",
+        name="Subsurface Scattering",
         default=False,
         description="Disable subsurface scattering"
     )
     ignore_lights: BoolProperty(
-        name="Ignore Lights",
+        name="Lights",
         default=False,
         description="Disable all light objects"
     )
     ignore_shadows: BoolProperty(
-        name="Ignore Shadows",
+        name="Shadows",
         default=False,
         description="Disable cast shadows from all lights"
     )
     ignore_displacement: BoolProperty(
-        name="Ignore Displacement",
+        name="Displacement",
         default=False,
         description="Disable displacement from all shaders"
     )
     ignore_bump: BoolProperty(
-        name="Ignore Bump",
+        name="Bump",
         default=False,
         description="Disable bump mapping from all shaders"
     )
     ignore_polygon_smoothing: BoolProperty(
-        name="Ignore Polygon Smoothing",
+        name="Polygon Smoothing",
         default=False,
         description="Disable smoothed normals, render with geometry normals instead"
     )
     ignore_depth_of_field: BoolProperty(
-        name="Ignore Depth of Field",
+        name="Depth of Field",
         default=False,
         description="Disable all Depth of Field"
     )
