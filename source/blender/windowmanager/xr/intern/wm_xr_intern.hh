@@ -37,13 +37,13 @@ class Texture;
 }
 
 struct wmXrViewfinderState {
+  /* Internal Runtime values. */
   float capture_position[3];
   float capture_orientation_quat[4];
 
   GPUOffScreen *framebuffer;
   gpu::Texture *backside_logo_texture;
 
-  /* Internal Runtime values. */
   Camera *render_cam_data_id;
   double smoothing_delta_t;
 

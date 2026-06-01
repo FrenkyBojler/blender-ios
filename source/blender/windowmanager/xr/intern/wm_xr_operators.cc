@@ -30,8 +30,6 @@
 #include "BKE_main.hh"
 #include "BKE_screen.hh"
 
-#include "DNA_camera_types.h"
-
 #include "DEG_depsgraph.hh"
 
 #include "ED_screen.hh"
