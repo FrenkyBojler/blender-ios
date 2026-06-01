@@ -1109,15 +1109,15 @@ static wmOperatorStatus edbm_rip_invoke(bContext *C, wmOperator *op, const wmEve
     return OPERATOR_CANCELLED;
   }
   if (error_face_selected) {
-    BKE_report(op->reports, RPT_ERROR, "Cannot rip faces");
+    BKE_report(op->reports, RPT_WARNING, "Cannot rip faces");
     return OPERATOR_CANCELLED;
   }
   if (error_disconnected_vertices) {
-    BKE_report(op->reports, RPT_ERROR, "Cannot rip multiple disconnected vertices");
+    BKE_report(op->reports, RPT_WARNING, "Cannot rip multiple disconnected vertices");
     return OPERATOR_CANCELLED;
   }
   if (error_rip_failed) {
-    BKE_report(op->reports, RPT_ERROR, "Cannot rip non-manifold vertices or edges");
+    BKE_report(op->reports, RPT_WARNING, "Cannot rip non-manifold vertices or edges");
     return OPERATOR_CANCELLED;
   }
   /* No errors, everything went fine. */

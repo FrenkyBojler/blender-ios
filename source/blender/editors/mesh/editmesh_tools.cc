@@ -1674,18 +1674,18 @@ static wmOperatorStatus edbm_vert_connect_path_exec(bContext *C, wmOperator *op)
 
   if (failed_selection_order_len == objects.size()) {
     if (has_select_history_mixed) {
-      BKE_report(op->reports, RPT_ERROR, "Could not connect mixed selection types");
+      BKE_report(op->reports, RPT_WARNING, "Could not connect mixed selection types");
     }
     else if (has_select_history_face) {
-      BKE_report(op->reports, RPT_ERROR, "Could not connect a face selection");
+      BKE_report(op->reports, RPT_WARNING, "Could not connect a face selection");
     }
     else {
-      BKE_report(op->reports, RPT_ERROR, "Invalid selection order");
+      BKE_report(op->reports, RPT_WARNING, "Invalid selection order");
     }
     return OPERATOR_CANCELLED;
   }
   if (failed_connect_len == objects.size()) {
-    BKE_report(op->reports, RPT_ERROR, "Could not connect vertices");
+    BKE_report(op->reports, RPT_WARNING, "Could not connect vertices");
     return OPERATOR_CANCELLED;
   }
 
@@ -2486,14 +2486,14 @@ static wmOperatorStatus edbm_edge_rotate_selected_exec(bContext *C, wmOperator *
 
   if (no_selected_edges) {
     BKE_report(
-        op->reports, RPT_ERROR, "Select edges or face pairs for edge loops to rotate about");
+        op->reports, RPT_WARNING, "Select edges or face pairs for edge loops to rotate about");
     return OPERATOR_CANCELLED;
   }
 
   /* Ok, we don't have two adjacent faces, but we do have two selected ones.
    * that's an error condition. */
   if (invalid_selected_edges) {
-    BKE_report(op->reports, RPT_ERROR, "Could not find any selected edges that can be rotated");
+    BKE_report(op->reports, RPT_WARNING, "Could not find any selected edges that can be rotated");
     return OPERATOR_CANCELLED;
   }
 
@@ -3871,12 +3871,12 @@ static wmOperatorStatus edbm_shape_propagate_to_all_exec(bContext *C, wmOperator
 
   if (tot_selected_verts_objects == 0) {
     if (!tot_locked) {
-      BKE_report(op->reports, RPT_ERROR, "No selected vertex");
+      BKE_report(op->reports, RPT_WARNING, "No selected vertex");
     }
     return OPERATOR_CANCELLED;
   }
   if (tot_shapekeys == 0) {
-    BKE_report(op->reports, RPT_ERROR, "Mesh(es) do not have shape keys");
+    BKE_report(op->reports, RPT_WARNING, "Mesh(es) do not have shape keys");
     return OPERATOR_CANCELLED;
   }
 
@@ -3928,7 +3928,7 @@ static wmOperatorStatus edbm_blend_from_shape_exec(bContext *C, wmOperator *op)
   totshape_ref = CustomData_number_of_layers(&em_ref->bm->vdata, CD_SHAPEKEY);
 
   if (totshape_ref == 0 || shape_ref < 0) {
-    BKE_report(op->reports, RPT_ERROR, "Active mesh does not have shape keys");
+    BKE_report(op->reports, RPT_WARNING, "Active mesh does not have shape keys");
     return OPERATOR_CANCELLED;
   }
   if (shape_ref >= totshape_ref) {
@@ -4016,7 +4016,7 @@ static wmOperatorStatus edbm_blend_from_shape_exec(bContext *C, wmOperator *op)
   }
 
   if (tot_selected_verts_objects == 0 && !tot_locked) {
-    BKE_report(op->reports, RPT_ERROR, "No selected vertex");
+    BKE_report(op->reports, RPT_WARNING, "No selected vertex");
   }
 
   return tot_selected_verts_objects ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
@@ -4537,7 +4537,7 @@ static wmOperatorStatus edbm_separate_exec(bContext *C, wmOperator *op)
         if ((em->bm->totvertsel == 0) && (em->bm->totedgesel == 0) && (em->bm->totfacesel == 0)) {
           /* when all objects has no selection */
           if (++empty_selection_len == bases.size()) {
-            BKE_report(op->reports, RPT_ERROR, "Nothing selected");
+            BKE_report(op->reports, RPT_WARNING, "Nothing selected");
           }
           continue;
         }
@@ -4572,7 +4572,7 @@ static wmOperatorStatus edbm_separate_exec(bContext *C, wmOperator *op)
   }
   else {
     if (type == MESH_SEPARATE_SELECTED) {
-      BKE_report(op->reports, RPT_ERROR, "Selection not supported in object mode");
+      BKE_report(op->reports, RPT_WARNING, "Selection not supported in object mode");
       return OPERATOR_CANCELLED;
     }
 
@@ -4722,7 +4722,7 @@ static wmOperatorStatus edbm_fill_exec(bContext *C, wmOperator *op)
   }
 
   if (!has_selected_edges) {
-    BKE_report(op->reports, RPT_ERROR, "No edges selected");
+    BKE_report(op->reports, RPT_WARNING, "No edges selected");
     return OPERATOR_CANCELLED;
   }
 
@@ -7193,7 +7193,7 @@ static wmOperatorStatus edbm_sort_elements_exec(bContext *C, wmOperator *op)
 
   if (ELEM(action, SRT_VIEW_ZAXIS, SRT_VIEW_XAXIS)) {
     if (rv3d == nullptr) {
-      BKE_report(op->reports, RPT_ERROR, "View not found, cannot sort by view axis");
+      BKE_report(op->reports, RPT_WARNING, "View not found, cannot sort by view axis");
       return OPERATOR_CANCELLED;
     }
   }
@@ -9522,7 +9522,7 @@ static wmOperatorStatus edbm_normals_tools_exec(bContext *C, wmOperator *op)
             (bm->totfacesel != 1 && lnors_ed_arr->totloop != 1 && bm->totvertsel != 1))
         {
           BKE_report(op->reports,
-                     RPT_ERROR,
+                     RPT_WARNING,
                      "Can only copy one custom normal, vertex normal or face normal");
           BM_loop_normal_editdata_array_free(lnors_ed_arr);
           continue;

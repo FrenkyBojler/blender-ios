@@ -246,7 +246,7 @@ static wmOperatorStatus vertex_parent_set_exec(bContext *C, wmOperator *op)
   }
 
   if (par4 != INDEX_UNSET || par1 == INDEX_UNSET || (par2 != INDEX_UNSET && par3 == INDEX_UNSET)) {
-    BKE_report(op->reports, RPT_ERROR, "Select either 1 or 3 vertices to parent to");
+    BKE_report(op->reports, RPT_WARNING, "Select either 1 or 3 vertices to parent to");
     return OPERATOR_CANCELLED;
   }
 

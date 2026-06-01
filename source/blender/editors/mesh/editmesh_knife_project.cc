@@ -117,7 +117,7 @@ static wmOperatorStatus knifeproject_exec(bContext *C, wmOperator *op)
 
   if (polys == nullptr) {
     BKE_report(op->reports,
-               RPT_ERROR,
+               RPT_WARNING,
                "No other selected objects have wire or boundary edges to use for projection");
     return OPERATOR_CANCELLED;
   }

@@ -623,12 +623,12 @@ static wmOperatorStatus object_add_hook_selob_exec(bContext *C, wmOperator *op)
   CTX_DATA_END;
 
   if (!obsel) {
-    BKE_report(op->reports, RPT_ERROR, "Cannot add hook with no other selected objects");
+    BKE_report(op->reports, RPT_WARNING, "Cannot add hook with no other selected objects");
     return OPERATOR_CANCELLED;
   }
 
   if (use_bone && obsel->type != OB_ARMATURE) {
-    BKE_report(op->reports, RPT_ERROR, "Cannot add hook bone for a non armature object");
+    BKE_report(op->reports, RPT_WARNING, "Cannot add hook bone for a non armature object");
     return OPERATOR_CANCELLED;
   }
 
