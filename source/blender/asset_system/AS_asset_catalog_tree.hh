@@ -84,7 +84,7 @@ class AssetCatalogTree {
 
  public:
   /**
-   * Ensure an item representing \a path is in the tree, adding it if necessary.
+   * Ensure an item representing \a catalog is in the tree, adding it if necessary.
    *
    * \param skip_prefix: If set and the catalog path starts with this prefix path, the prefix path
    *    will be stripped, and the catalog will be inserted into the tree as if it started after
