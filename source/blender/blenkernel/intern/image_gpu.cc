@@ -902,9 +902,8 @@ static void gpu_texture_update_from_ibuf(
 static void image_update_gputexture_ex(
     Image *ima, ImageTile *tile, ImBuf *ibuf, int x, int y, int w, int h)
 {
-  /* Update both stereo eye textures. Stereo images (e.g. side-by-side) are split into left and
-   * right ImBufs stored at gputexture[*][0] and gputexture[*][1]. Both need partial updates when
-   * pixel data changes, otherwise the right eye GPU texture becomes stale. */
+  /* Update both stereo eye textures. Stereo images have a left and
+   * right ImBuf, but share the same partial image updater. */
   for (int eye = 0; eye < 2; eye++) {
     gpu::Texture *tex = ima->runtime->gputexture[TEXTARGET_2D][eye];
     /* Check if we need to update the main gputexture. */
