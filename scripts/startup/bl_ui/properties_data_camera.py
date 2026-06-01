@@ -99,7 +99,7 @@ class DATA_PT_lens(CameraButtonsPanel, Panel):
 
         elif cam.type == 'PANO':
             engine = context.engine
-            if engine == 'CYCLES':
+            if engine in {'CYCLES', 'BLENDER_EEVEE'}:
                 col.prop(cam, "panorama_type")
                 if cam.panorama_type == 'FISHEYE_EQUIDISTANT':
                     col.prop(cam, "fisheye_fov")
