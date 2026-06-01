@@ -254,6 +254,8 @@ static void draw_operator_menu_item(const bContext &C,
         }
       }
     }
+
+    WM_operator_properties_free(&opptr);
   }
 
   if (add_operator) {
