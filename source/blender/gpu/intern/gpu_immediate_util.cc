@@ -504,7 +504,7 @@ void imm_draw_circle_fill_aspect_3d(
   imm_draw_circle_3D(GPU_PRIM_TRI_FAN, pos, x, y, radius_x, radius_y, nsegments);
 }
 
-void blender::imm_draw_rounded_box_wire_2d(
+void imm_draw_rounded_box_wire_2d(
     uint pos, float x, float y, float x_scale, float radius, float corner_radius, int nsegments)
 {
   const float x_min = x - radius * x_scale;
@@ -572,7 +572,7 @@ void blender::imm_draw_rounded_box_wire_2d(
   immEnd();
 }
 
-void blender::imm_draw_rounded_box_wire_3d(
+void imm_draw_rounded_box_wire_3d(
     uint pos, float x, float y, float x_scale, float radius, float corner_radius, int nsegments)
 {
   /* Min and max values of x-coordinate of the rounded box. */
