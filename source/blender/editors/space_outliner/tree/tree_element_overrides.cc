@@ -264,6 +264,14 @@ StringRefNull TreeElementOverridesPropertyOperation::get_override_operation_labe
   return RPT_("Unknown override");
 }
 
+StringRefNull TreeElementOverridesPropertyOperation::get_override_operation_tooltip() const
+{
+  if (operation_->tooltip) {
+    return operation_->tooltip;
+  }
+  return {};
+}
+
 std::optional<BIFIconID> TreeElementOverridesPropertyOperation::get_icon() const
 {
   if (const std::optional<PointerRNA> col_item_ptr = get_collection_ptr()) {
@@ -283,18 +291,7 @@ IDOverrideLibraryPropertyOperation *TreeElementOverridesPropertyOperation::
 {
   BLI_assert(ID_IS_OVERRIDE_LIBRARY_REAL(&id));
   for (IDOverrideLibraryPropertyOperation &opop : override_property.operations) {
-    if ((operation_->operation == opop.operation) && (operation_->flag == opop.flag) &&
-        (operation_->subitem_reference_id == opop.subitem_reference_id) &&
-        (operation_->subitem_local_id == opop.subitem_local_id) &&
-        (operation_->subitem_reference_index == opop.subitem_reference_index) &&
-        (operation_->subitem_local_index == opop.subitem_local_index) &&
-        ((!operation_->subitem_reference_name && !opop.subitem_reference_name) ||
-         (operation_->subitem_reference_name && opop.subitem_reference_name &&
-          StringRefNull(operation_->subitem_reference_name) == opop.subitem_reference_name)) &&
-        ((!operation_->subitem_local_name && !opop.subitem_local_name) ||
-         (operation_->subitem_local_name && opop.subitem_local_name &&
-          StringRefNull(operation_->subitem_local_name) == opop.subitem_local_name)))
-    {
+    if (*operation_ == opop) {
       return &opop;
     }
   }

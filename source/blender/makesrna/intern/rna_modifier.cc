@@ -2250,9 +2250,13 @@ void rna_NodesModifierBake_override_diff(Main *bmain, RNAPropertyOverrideDiffCon
     owner_ntree = owner_ntree ? owner_ntree : nmd_a->node_group;
 
     if (node) {
-      BKE_lib_override_library_property_operation_label_set(
+      BKE_lib_override_library_property_operation_ui_info_set(
           *opop,
-          fmt::format(fmt::runtime(DATA_("{}::{}")), BKE_id_name(owner_ntree->id), node->name));
+          node->name,
+          fmt::format(fmt::runtime(DATA_("{}::{}::{}")),
+                      owner_ntree->id.lib ? BKE_id_name(owner_ntree->id.lib->id) : "LOCAL",
+                      BKE_id_name(owner_ntree->id),
+                      node->name));
     }
 
     if (created) {
@@ -8376,6 +8380,8 @@ static void rna_def_modifier_nodes(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "bakes", PROP_COLLECTION, PROP_NONE);
   RNA_def_property_struct_type(prop, "NodesModifierBake");
+  RNA_def_property_ui_text(
+      prop, "Bakes", "All potential bakes, as defined by the assigned Geometry Nodes");
   RNA_def_property_collection_sdna(prop, nullptr, "bakes", "bakes_num");
   RNA_def_property_srna(prop, "NodesModifierBakes");
   RNA_def_property_override_funcs(prop,

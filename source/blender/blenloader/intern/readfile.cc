@@ -2017,6 +2017,7 @@ static void direct_link_id_override_property(BlendDataReader *reader,
     BLO_read_string(reader, &opop.subitem_reference_name);
     BLO_read_string(reader, &opop.subitem_local_name);
     BLO_read_string(reader, &opop.label);
+    BLO_read_string(reader, &opop.tooltip);
 
     opop.tag = {}; /* Runtime only. */
   }

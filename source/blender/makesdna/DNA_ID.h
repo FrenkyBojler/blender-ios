@@ -282,6 +282,16 @@ struct IDOverrideLibraryPropertyOperation {
    * See e.g. its usage by `rna_NodesModifierBake_override_diff` for geonodes packed bakes items.
    */
   char *label = nullptr;
+  /**
+   * A UI-only longer tooltip to represent that operation.
+   *
+   * Same as `label` above, but for usage in tooltips and other longer text representations.
+   */
+  char *tooltip = nullptr;
+
+#ifdef __cplusplus
+  bool operator==(const IDOverrideLibraryPropertyOperation &b) const;
+#endif
 };
 
 /* IDOverrideLibrary->flag */
