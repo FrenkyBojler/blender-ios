@@ -1082,6 +1082,8 @@ def km_user_interface(_params):
          {"properties": [("direction", 'LEFT')]}),
         ("ui.view_item_navigate", {"type": 'RIGHT_ARROW', "value": 'PRESS', "repeat": True},
          {"properties": [("direction", 'RIGHT')]}),
+        ("ui.view_item_focus", {"type": 'NUMPAD_PERIOD', "value": 'PRESS'}, None),
+        ("ui.view_item_focus", {"type": 'BUTTON4MOUSE', "value": 'PRESS'}, None),
     ])
 
     return keymap
@@ -2489,6 +2491,7 @@ def km_file_browser(params):
         # The two refresh operators have polls excluding each other (so only one is available depending on context).
         ("file.refresh", {"type": 'R', "value": 'PRESS'}, None),
         ("asset.library_refresh", {"type": 'R', "value": 'PRESS'}, None),
+        ("asset.library_reload_listing", {"type": 'R', "value": 'PRESS', "shift": True}, None),
         ("file.parent", {"type": 'P', "value": 'PRESS'}, None),
         ("file.previous", {"type": 'BACK_SPACE', "value": 'PRESS'}, None),
         ("file.next", {"type": 'BACK_SPACE', "value": 'PRESS', "shift": True}, None),
