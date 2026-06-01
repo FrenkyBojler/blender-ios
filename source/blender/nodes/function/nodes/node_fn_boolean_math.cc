@@ -163,6 +163,7 @@ static const char *gpu_shader_get_name(const NodeBooleanMathOperation operation)
       return "boolean_math_nimply";
   }
 
+  BLI_assert_unreachable();
   return nullptr;
 }
 
