@@ -78,7 +78,6 @@ enum class ProfileCategory : uint32_t {
 /** Attach a numeric value to the specified zone. */
 #  define PRF_scope_var_add_value(var, value) ZoneValueV(var, value)
 
-/* Memory allocation profiling. */
 #  define PRF_memory_alloc(ptr, size) TracyAlloc(ptr, size)
 #  define PRF_memory_free(ptr) TracyFree(ptr)
 

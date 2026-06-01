@@ -307,6 +307,7 @@ void *MEM_lockfree_callocN(size_t len, const char *str)
   len = SIZET_ALIGN_4(len);
 
   memh = (MemHead *)calloc(1, len + sizeof(MemHead));
+  PRF_memory_alloc(memh, len + sizeof(MemHead));
 
   if (LIKELY(memh)) {
     memh->len = len;
