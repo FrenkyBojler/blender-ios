@@ -1221,7 +1221,7 @@ class TextureFromPool : public Texture, NonMovable {
                     bool cubemap)
   {
     if (tx_ != nullptr) {
-      BLI_assert(GPU_texture_usage(tx_) == (usage | GPU_TEXTURE_USAGE_FORMAT_VIEW));
+      BLI_assert((GPU_texture_usage(tx_) & usage) == usage);
       if (GPU_texture_width(tx_) != w || GPU_texture_height(tx_) != h ||
           GPU_texture_depth(tx_) != d || GPU_texture_format(tx_) != format ||
           (GPU_texture_usage(tx_) & usage) != usage)
