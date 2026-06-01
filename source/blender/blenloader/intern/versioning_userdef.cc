@@ -1772,7 +1772,7 @@ void blo_do_versions_userdef(UserDef *userdef)
     userdef->experimental.use_remote_asset_libraries = true;
   }
 
-  if (!USER_VERSION_ATLEAST(502, 37)) {
+  if (!USER_VERSION_ATLEAST(502, 40)) {
     userdef->pref_flag |= USER_PREF_FLAG_PROJECT_SAVE;
   }
 
