@@ -1196,6 +1196,7 @@ Mesh *AbcSubDReader::read_mesh(Mesh *existing_mesh,
                                           r_err_str,
                                           m_is_reading_a_file_sequence);
 
+  /* Access to m_schema.getValue is safe if the above extract_mesh_data succeeds. */
   ISubDSchema::Sample sample = m_schema.getValue(sample_sel);
 
   read_edge_creases(
