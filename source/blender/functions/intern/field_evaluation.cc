@@ -116,7 +116,6 @@ static Vector<GVArray> get_field_context_inputs(ResourceScope &scope,
 static Set<UniqueHash> find_varying_fields(const FieldTreeInfo &field_tree_info,
                                            const Span<GVArray> field_context_inputs)
 {
-  PRF_scope(ProfileCategory::Default);
   Set<UniqueHash> found_fields;
   Stack<UniqueHash> fields_to_check;
 
