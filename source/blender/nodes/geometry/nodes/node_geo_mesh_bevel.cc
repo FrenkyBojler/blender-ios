@@ -46,32 +46,43 @@ static void node_declare(NodeDeclarationBuilder &b)
       .min(0.0f)
       .subtype(PROP_DISTANCE)
       .evaluated_geometry_field()
+      .usage_by_single_menu(int(geometry::BevelAffect::Edges))
       .description("Offset for left side of source of edge, viewed from source");
   b.add_input<decl::Float>("Start Right Offset"_ustr)
       .default_value(0.1f)
       .min(0.0f)
       .subtype(PROP_DISTANCE)
       .evaluated_geometry_field()
+      .usage_by_single_menu(int(geometry::BevelAffect::Edges))
       .description("Offset for right side of source of edge, viewed from source");
   b.add_input<decl::Float>("End Left Offset"_ustr)
       .default_value(0.1f)
       .min(0.0f)
       .subtype(PROP_DISTANCE)
       .evaluated_geometry_field()
+      .usage_by_single_menu(int(geometry::BevelAffect::Edges))
       .description("Offset for left side of destination of edge, viewed from source");
   b.add_input<decl::Float>("End Right Offset"_ustr)
       .default_value(0.1f)
       .min(0.0f)
       .subtype(PROP_DISTANCE)
       .evaluated_geometry_field()
+      .usage_by_single_menu(int(geometry::BevelAffect::Edges))
       .description("Offset for right side of destination of edge, viewed from source");
+  b.add_input<decl::Float>("Offset"_ustr)
+      .default_value(0.1f)
+      .min(0.0f)
+      .subtype(PROP_DISTANCE)
+      .evaluated_geometry_field()
+      .usage_by_single_menu(int(geometry::BevelAffect::Vertices))
+      .description("Offset per vertex for vertex bevel (all edges)");
   b.add_input<decl::Bool>("Miter"_ustr)
       .default_value(false)
       .evaluated_geometry_field()
       .description("Use a miter for corner");
   b.add_input<decl::Float>("Spread"_ustr)
       .min(0.0f)
-      .default_value(0.0f)
+      .default_value(0.1f)
       .subtype(PROP_DISTANCE)
       .evaluated_geometry_field()
       .description("Per corner specification of 'spread' for arc miters")
@@ -93,7 +104,8 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Geometry>("Profile"_ustr)
       .supported_type(GeometryComponent::Type::Curve)
       .description(
-          "If present, the first curve will be sampled to give a custom profile on edges");
+          "If present, the first curve will be sampled to give a custom profile on edges."
+          " The curve should be in the XY plane, going from (0,1,0) to (1,0,0)");
 
   PanelDeclarationBuilder &selections_panel = b.add_panel("Selections"_ustr);
   selections_panel.add_output<decl::Bool>("Vertex Face"_ustr)
@@ -167,7 +179,10 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
   const auto affect = params.extract_input<geometry::BevelAffect>("Affect Kind"_ustr);
 
-  const Field<float> offset0_field = params.extract_input<Field<float>>("Start Left Offset"_ustr);
+  const Field<float> offset0_field = affect == geometry::BevelAffect::Edges ?
+                                         params.extract_input<Field<float>>(
+                                             "Start Left Offset"_ustr) :
+                                         params.extract_input<Field<float>>("Offset"_ustr);
   const Field<float> offset1_field = params.extract_input<Field<float>>("Start Right Offset"_ustr);
   const Field<float> offset2_field = params.extract_input<Field<float>>("End Left Offset"_ustr);
   const Field<float> offset3_field = params.extract_input<Field<float>>("End Right Offset"_ustr);
