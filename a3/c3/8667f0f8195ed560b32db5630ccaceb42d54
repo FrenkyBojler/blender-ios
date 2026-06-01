@@ -2,3 +2,4 @@ Referenced by issue #104701, Unlinking a collection in Blender File view crashes
 Referenced by issue #103881, Regression: Blender Crash when unlinking a Collection from Blender File
 Referenced by issue #100749, Blender LTS: Maintenance Task 3.3
 Referenced by pull request #159293, Fix #159290: Outliner object "Unlink" does not work in Blender File view
+Referenced by commit 0f4b405089f336d96ead5f2eaa92e51c62fb6393, Fix #159290: Outliner object "Unlink" does not work in Blender File view
