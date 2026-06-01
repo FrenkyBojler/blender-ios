@@ -3,3 +3,4 @@ Referenced by issue #148805, Can't specify subfolder for file outputs using slas
 Referenced by issue #150274, Cant specify subfolders in file output node in 5.0 anymore - slashes get autocorrected to underscores!
 Referenced by issue #150328, File Output Node doesn't accept slashes
 Referenced by pull request #159274, Fix #159167: File Output node "Output Paths" wrong for multi-views
+Referenced by commit 1a58caacb26b3fbad65f673a923241419f731de1, Fix #159167: File Output node "Output Paths" wrong for multi-views
