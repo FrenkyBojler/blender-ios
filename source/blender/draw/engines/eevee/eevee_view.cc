@@ -35,17 +35,18 @@ void ShadingView::sync()
 {
   int2 render_extent = inst_.film.render_extent_get();
 
-  if (false /* inst_.camera.is_panoramic() */) {
+  if (inst_.camera.is_panoramic()) {
     int64_t render_pixel_count = render_extent.x * int64_t(render_extent.y);
-    /* Divide pixel count between the 6 views. Rendering to a square target. */
-    extent_[0] = extent_[1] = ceilf(sqrtf(1 + (render_pixel_count / 6)));
+    /* Some panoramic projections can heavily magnify one cubemap face. Keep each face close to
+     * the final film pixel density until per-projection face clipping is implemented. */
+    extent_ = int2(ceilf(sqrtf(float(render_pixel_count))));
     /* TODO(@fclem): Clip unused views here. */
     is_enabled_ = true;
   }
   else {
     extent_ = render_extent;
     /* Only enable -Z view. */
-    is_enabled_ = (StringRefNull(name_) == "negZ_view");
+    is_enabled_ = (face_id_ == 5);
   }
 
   if (!is_enabled_) {
@@ -56,7 +57,7 @@ void ShadingView::sync()
   const CameraData &cam = inst_.camera.data_get();
 
   float4x4 viewmat, winmat;
-  if (false /* inst_.camera.is_panoramic() */) {
+  if (inst_.camera.is_panoramic()) {
     /* TODO(@fclem) Over-scans. */
     /* For now a mandatory 5% over-scan for DoF. */
     float side = cam.clip_near * 1.05f;
@@ -176,7 +177,7 @@ void ShadingView::render()
   inst_.planar_probes.viewport_draw(render_view_, combined_fb_);
 
   gpu::Texture *combined_final_tx = render_postfx(rbufs.combined_tx);
-  inst_.film.accumulate(jitter_view_, combined_final_tx);
+  inst_.film.accumulate(jitter_view_, combined_final_tx, face_id_);
 
   rbufs.release();
   postfx_tx_.release();
