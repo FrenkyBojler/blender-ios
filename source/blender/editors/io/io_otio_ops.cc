@@ -87,11 +87,13 @@ static const EnumPropertyItem io_otio_image_sequence_export_fallback[] = {
      ICON_NONE,
      "Rename Images",
      "Append Sequence Numbers to Image Name"},
+#  ifndef WIN32
     {io::otio::FALLBACK_IMG_SEQUENCE_SYMLINK,
      "IMG_SEQUENCE_SYMLINK",
      ICON_NONE,
      "Create Symlinks",
      "Create Sequenced Symbolic Links that Point to Original Images"},
+#  endif
     {0, nullptr, 0, nullptr, nullptr}};
 
 static wmOperatorStatus wm_otio_export_invoke(bContext *C,
