@@ -47,6 +47,8 @@ struct wmOperator;
 struct wmTimer;
 struct SpaceUserPref_Runtime;
 
+enum eCompositionGuideFlags : short;
+
 namespace asset_system {
 class AssetRepresentation;
 }
@@ -303,7 +305,6 @@ struct SpaceNla {
 /** \name Sequence Editor
  * \{ */
 
-enum eCompositionGuideFlags : short;
 struct SequencerPreviewOverlay {
   eSpaceSeq_SequencerPreviewOverlay_Flag flag = {};
   eCompositionGuideFlags composition_guide_flags = {};
@@ -630,6 +631,12 @@ struct FileDirEntryArr {
 struct SpaceImageOverlay {
   eSpaceImageOverlay_Flag flag = {};
   float passepartout_alpha = 0;
+
+  eCompositionGuideFlags composition_guide_flags = {};
+  char _pad[2] = {};
+
+  /* Compositional guide overlay color */
+  float composition_guide_color[4] = {0.5f, 0.5f, 0.5f, 1.0f};
 };
 
 struct SpaceImage {
@@ -699,6 +706,7 @@ struct SpaceImage {
 
   MaskSpaceInfo mask_info;
   SpaceImageOverlay overlay;
+  char _pad2[4] = {};
 };
 
 /** \} */

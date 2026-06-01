@@ -822,6 +822,7 @@ enum eSpaceImageOverlay_Flag : int {
   SI_OVERLAY_SHOW_GRID_BACKGROUND = (1 << 1),
   SI_OVERLAY_DRAW_RENDER_REGION = (1 << 2),
   SI_OVERLAY_DRAW_TEXT_INFO = (1 << 3),
+  SI_OVERLAY_SHOW_COMPOSITION_GUIDES = (1 << 4),
 };
 ENUM_OPERATORS(eSpaceImageOverlay_Flag)
 

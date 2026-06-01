@@ -38,6 +38,9 @@ from bpy.app.translations import (
     pgettext_iface as iface_,
 )
 
+from bl_ui.properties_data_camera import (
+    DATA_PT_camera_display_composition_guides,
+)
 
 class ImagePaintPanel(UnifiedPaintPanel):
     bl_space_type = 'IMAGE_EDITOR'
@@ -1660,6 +1663,8 @@ class IMAGE_PT_overlay_guides(Panel):
 
             layout.prop(uvedit, "tile_grid_shape", text="Tiles")
 
+        layout.use_property_split = False
+        layout.prop(overlay, "show_composition_guides", text="Composition Guides")
 
 class IMAGE_PT_overlay_uv_stretch(Panel):
     bl_space_type = 'IMAGE_EDITOR'
@@ -1812,6 +1817,16 @@ class IMAGE_PT_overlay_mask(MASK_PT_display, Panel):
 
         return si.mode == 'MASK'
 
+class IMAGE_PT_view_composition_guides(Panel):
+    bl_label = "Composition Guides"
+    bl_options = {'DEFAULT_CLOSED'}
+    bl_space_type = 'IMAGE_EDITOR'
+    bl_region_type = 'UI'
+    bl_category = "View"
+    
+    def draw(self, context):
+        overlay_settings = context.space_data.overlay
+        DATA_PT_camera_display_composition_guides.draw_panel(self.layout, overlay_settings)
 
 # Grease Pencil properties
 class IMAGE_PT_annotation(AnnotationDataPanel, Panel):
@@ -1899,6 +1914,7 @@ classes = (
     IMAGE_PT_sample_line,
     IMAGE_PT_scope_sample,
     IMAGE_PT_uv_cursor,
+    IMAGE_PT_view_composition_guides,
     IMAGE_PT_annotation,
     IMAGE_PT_gizmo_display,
     IMAGE_PT_overlay,
