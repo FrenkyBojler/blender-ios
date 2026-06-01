@@ -1597,7 +1597,7 @@ void blo_do_versions_260(FileData *fd, Library * /*lib*/, Main *bmain)
         ups->size = ts->sculpt_paint_unified_size;
         ups->unprojected_size = ts->sculpt_paint_unified_unprojected_radius;
         ups->alpha = ts->sculpt_paint_unified_alpha;
-        //ups->flag = eUnifiedPaintSettingsFlags(ts->sculpt_paint_settings);
+        // ups->flag = eUnifiedPaintSettingsFlags(ts->sculpt_paint_settings);
       }
     }
   }
@@ -1761,7 +1761,7 @@ void blo_do_versions_260(FileData *fd, Library * /*lib*/, Main *bmain)
       ToolSettings *ts = scene.toolsettings;
       if (ts) {
         ts->unified_paint_settings.weight = ts->vgroup_weight;
-        //ts->unified_paint_settings.flag |= UNIFIED_PAINT_WEIGHT;
+        // ts->unified_paint_settings.flag |= UNIFIED_PAINT_WEIGHT;
       }
     }
 
