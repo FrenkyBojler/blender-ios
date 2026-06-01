@@ -574,21 +574,41 @@ static void dynamic_override_update_rules_srna(Main & /*bmain*/, DynamicOverride
       const PropertyType prop_type = RNA_property_type(prop_orig);
       StructRNA *prop_ptr_type = RNA_property_pointer_type(&ptr, prop_orig);
 
+      const bool is_array = RNA_property_array_check(prop_orig);
+      int array_dimension = 0;
+      int array_tot_length = 0;
+      int array_lengths[RNA_MAX_ARRAY_DIMENSION] = {0};
+
       prop = RNA_def_property(
           srna, property_identifier.c_str(), prop_type, RNA_property_subtype(prop_orig));
+
+      /* TODO: Likely need more care here (clear some flags, etc.). */
+      RNA_def_property_flag(prop, PropertyFlag(RNA_property_flag(prop_orig)));
+      RNA_def_property_override_flag(prop,
+                                     PropertyOverrideFlag(RNA_property_override_flag(prop_orig)));
       if (prop_ptr_type != RNA_UnknownType) {
         RNA_def_property_struct_runtime(srna, prop, prop_ptr_type);
       }
-      switch (prop_type) {
-        case PROP_FLOAT: {
-          float min, max;
-          RNA_property_float_range(&ptr, prop_orig, &min, &max);
-          RNA_def_property_range(prop, double(min), double(max));
 
-          float softmin, softmax, step, precision;
-          RNA_property_float_ui_range(&ptr, prop_orig, &softmin, &softmax, &step, &precision);
-          RNA_def_property_ui_range(
-              prop, double(softmin), double(softmax), double(step), int(precision));
+      if (is_array) {
+        array_tot_length = RNA_property_array_length(&ptr, prop_orig);
+        array_dimension = RNA_property_array_dimension(&ptr, prop_orig, array_lengths);
+        BLI_assert(array_dimension <= RNA_MAX_ARRAY_DIMENSION);
+        RNA_def_property_multi_array(prop, array_dimension, array_lengths);
+      }
+
+      switch (prop_type) {
+        case PROP_BOOLEAN: {
+          if (is_array) {
+            MutableSpan<bool> array_default = generated->scope.allocator().allocate_array<bool>(
+                array_tot_length);
+            RNA_property_boolean_get_default_array(&ptr, prop_orig, array_default.data());
+            RNA_def_property_boolean_array_default(prop, array_default.data());
+          }
+          else {
+            RNA_def_property_boolean_default(prop,
+                                             RNA_property_boolean_get_default(&ptr, prop_orig));
+          }
           break;
         }
         case PROP_INT: {
@@ -599,30 +619,72 @@ static void dynamic_override_update_rules_srna(Main & /*bmain*/, DynamicOverride
           int softmin, softmax, step;
           RNA_property_int_ui_range(&ptr, prop_orig, &softmin, &softmax, &step);
           RNA_def_property_ui_range(prop, double(softmin), double(softmax), double(step), -1);
+
+          if (is_array) {
+            MutableSpan<int> array_default = generated->scope.allocator().allocate_array<int>(
+                array_tot_length);
+            RNA_property_int_get_default_array(&ptr, prop_orig, array_default.data());
+            RNA_def_property_int_array_default(prop, array_default.data());
+          }
+          else {
+            RNA_def_property_int_default(prop, RNA_property_int_get_default(&ptr, prop_orig));
+          }
+          break;
+        }
+        case PROP_FLOAT: {
+          float min, max;
+          RNA_property_float_range(&ptr, prop_orig, &min, &max);
+          RNA_def_property_range(prop, double(min), double(max));
+
+          float softmin, softmax, step, precision;
+          RNA_property_float_ui_range(&ptr, prop_orig, &softmin, &softmax, &step, &precision);
+          RNA_def_property_ui_range(
+              prop, double(softmin), double(softmax), double(step), int(precision));
+
+          if (is_array) {
+            MutableSpan<float> array_default = generated->scope.allocator().allocate_array<float>(
+                array_tot_length);
+            RNA_property_float_get_default_array(&ptr, prop_orig, array_default.data());
+            RNA_def_property_float_array_default(prop, array_default.data());
+          }
+          else {
+            RNA_def_property_float_default(prop, RNA_property_float_get_default(&ptr, prop_orig));
+          }
           break;
         }
         case PROP_ENUM: {
-          /* TODO: enum items. */
+          const EnumPropertyItem *items;
+          int tot_items;
+          bool items_free;
+          RNA_property_enum_items(nullptr, &ptr, prop_orig, &items, &tot_items, &items_free);
+
+          const EnumPropertyItem *items_iter = items;
+          MutableSpan<EnumPropertyItem> array_items =
+              generated->scope.allocator().allocate_array<EnumPropertyItem>(tot_items + 1);
+          for (EnumPropertyItem &item : array_items) {
+            item = *items_iter;
+            items_iter++;
+          }
+          if (items_free) {
+            MEM_delete(items);
+          }
+
+          RNA_def_property_enum_items(prop, array_items.data());
+
+          RNA_def_property_enum_default(prop, RNA_property_enum_get_default(&ptr, prop_orig));
           break;
         }
-        case PROP_BOOLEAN:
         case PROP_STRING:
         case PROP_POINTER:
         case PROP_COLLECTION:
           break;
       }
 
-      if (RNA_property_array_check(prop_orig)) {
-        int arraylength[RNA_MAX_ARRAY_DIMENSION];
-        const int dimension = RNA_property_array_dimension(&ptr, prop_orig, arraylength);
-        RNA_def_property_multi_array(prop, dimension, arraylength);
-      }
-
-      /* TODO: likely also need to copy over default values. */
-
-      RNA_def_property_ui_text(prop,
-                               RNA_property_ui_name_raw(prop_orig, &ptr),
-                               RNA_property_ui_description_raw(prop_orig, &ptr));
+      const StringRefNull ui_name = generated->scope.allocator().copy_string(
+          RNA_property_ui_name_raw(prop_orig, &ptr));
+      const StringRefNull ui_description = generated->scope.allocator().copy_string(
+          RNA_property_ui_description_raw(prop_orig, &ptr));
+      RNA_def_property_ui_text(prop, ui_name.c_str(), ui_description.c_str());
 
       RNA_def_property_update_runtime(
           prop, [](Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr) {

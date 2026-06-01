@@ -212,6 +212,7 @@ bool RNA_property_dynamic_overridable_get(const PointerRNA * /*ptr*/, PropertyRN
     case PROP_BOOLEAN:
     case PROP_INT:
     case PROP_FLOAT:
+    case PROP_ENUM:
       return true;
     default:
       return false;
