@@ -20,7 +20,10 @@ enum [[host_shared]] eCameraType : uint32_t {
   CAMERA_PANO_EQUIRECT = 2u,
   CAMERA_PANO_EQUISOLID = 3u,
   CAMERA_PANO_EQUIDISTANT = 4u,
-  CAMERA_PANO_MIRROR = 5u
+  CAMERA_PANO_MIRROR = 5u,
+  CAMERA_PANO_EQUIANGULAR_CUBEMAP_FACE = 6u,
+  CAMERA_PANO_FISHEYE_LENS_POLYNOMIAL = 7u,
+  CAMERA_PANO_CENTRAL_CYLINDRICAL = 8u
 };
 
 static inline bool is_panoramic(eCameraType type)
@@ -45,6 +48,10 @@ struct [[host_shared]] CameraData {
   float2 equirect_bias;
   float fisheye_fov;
   float fisheye_lens;
+  float4 fisheye_polynomial_coefficients;
+  float4 central_cylindrical_range;
+  float2 fisheye_sensor;
+  float fisheye_polynomial_bias;
   /** Clipping distances. */
   float clip_near;
   float clip_far;
@@ -54,6 +61,7 @@ struct [[host_shared]] CameraData {
   float _pad0;
   float _pad1;
   float _pad2;
+  float _pad3;
 
   bool32_t initialized;
 

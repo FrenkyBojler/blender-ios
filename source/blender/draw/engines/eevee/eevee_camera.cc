@@ -6,6 +6,8 @@
  * \ingroup eevee
  */
 
+#include "BKE_camera.h"
+#include "BKE_scene.hh"
 #include "BKE_screen.hh"
 #include "BLI_math_matrix.hh"
 #include "BLI_rect.hh"
@@ -44,25 +46,33 @@ void Camera::init()
       case CAM_ORTHO:
         data.type = CAMERA_ORTHO;
         break;
-#if 0 /* TODO(fclem): Make fisheye properties inside blender. */
       case CAM_PANO: {
         switch (cam->panorama_type) {
           default:
-          case CAM_PANO_EQUIRECTANGULAR:
+          case CAM_PANORAMA_EQUIRECTANGULAR:
             data.type = CAMERA_PANO_EQUIRECT;
             break;
-          case CAM_PANO_FISHEYE_EQUIDISTANT:
+          case CAM_PANORAMA_EQUIANGULAR_CUBEMAP_FACE:
+            data.type = CAMERA_PANO_EQUIANGULAR_CUBEMAP_FACE;
+            break;
+          case CAM_PANORAMA_FISHEYE_EQUIDISTANT:
             data.type = CAMERA_PANO_EQUIDISTANT;
             break;
-          case CAM_PANO_FISHEYE_EQUISOLID:
+          case CAM_PANORAMA_FISHEYE_EQUISOLID:
             data.type = CAMERA_PANO_EQUISOLID;
             break;
-          case CAM_PANO_MIRRORBALL:
+          case CAM_PANORAMA_FISHEYE_LENS_POLYNOMIAL:
+            data.type = CAMERA_PANO_FISHEYE_LENS_POLYNOMIAL;
+            break;
+          case CAM_PANORAMA_CENTRAL_CYLINDRICAL:
+            data.type = CAMERA_PANO_CENTRAL_CYLINDRICAL;
+            break;
+          case CAM_PANORAMA_MIRRORBALL:
             data.type = CAMERA_PANO_MIRROR;
             break;
         }
+        break;
       }
-#endif
     }
   }
   else if (inst_.drw_view) {
@@ -124,6 +134,10 @@ void Camera::sync()
     data.clip_near = -view.far_clip();
     data.clip_far = -view.near_clip();
     data.fisheye_fov = data.fisheye_lens = -1.0f;
+    data.fisheye_sensor = float2(1.0f);
+    data.fisheye_polynomial_bias = 0.0f;
+    data.fisheye_polynomial_coefficients = float4(0.0f);
+    data.central_cylindrical_range = float4(0.0f);
     data.equirect_bias = float2(0.0f);
     data.equirect_scale = float2(0.0f);
     data.uv_scale = float2(1.0f);
@@ -175,23 +189,46 @@ void Camera::sync()
     const blender::Camera *cam = reinterpret_cast<const blender::Camera *>(camera_eval->data);
     data.clip_near = cam->clip_start;
     data.clip_far = cam->clip_end;
-#if 0 /* TODO(fclem): Make fisheye properties inside blender. */
+    if (data.type == CAMERA_PANO_EQUIRECT) {
+      data.equirect_bias.x = -cam->longitude_min + M_PI_2;
+      data.equirect_bias.y = -cam->latitude_min + M_PI_2;
+      data.equirect_scale.x = cam->longitude_min - cam->longitude_max;
+      data.equirect_scale.y = cam->latitude_min - cam->latitude_max;
+      /* Combine with uv_scale/bias to avoid doing extra computation. */
+      data.equirect_bias += data.uv_bias * data.equirect_scale;
+      data.equirect_scale *= data.uv_scale;
+      data.equirect_scale_inv = 1.0f / data.equirect_scale;
+    }
+    else {
+      data.equirect_bias = float2(0.0f);
+      data.equirect_scale = float2(0.0f);
+      data.equirect_scale_inv = float2(0.0f);
+    }
     data.fisheye_fov = cam->fisheye_fov;
     data.fisheye_lens = cam->fisheye_lens;
-    data.equirect_bias.x = -cam->longitude_min + M_PI_2;
-    data.equirect_bias.y = -cam->latitude_min + M_PI_2;
-    data.equirect_scale.x = cam->longitude_min - cam->longitude_max;
-    data.equirect_scale.y = cam->latitude_min - cam->latitude_max;
-    /* Combine with uv_scale/bias to avoid doing extra computation. */
-    data.equirect_bias += data.uv_bias * data.equirect_scale;
-    data.equirect_scale *= data.uv_scale;
-
-    data.equirect_scale_inv = 1.0f / data.equirect_scale;
-#else
-    data.fisheye_fov = data.fisheye_lens = -1.0f;
-    data.equirect_bias = float2(0.0f);
-    data.equirect_scale = float2(0.0f);
-#endif
+    data.fisheye_polynomial_bias = cam->fisheye_polynomial_k0;
+    data.fisheye_polynomial_coefficients = float4(cam->fisheye_polynomial_k1,
+                                                  cam->fisheye_polynomial_k2,
+                                                  cam->fisheye_polynomial_k3,
+                                                  cam->fisheye_polynomial_k4);
+    data.central_cylindrical_range = float4(
+        -cam->central_cylindrical_range_u_min,
+        -cam->central_cylindrical_range_u_max,
+        cam->central_cylindrical_range_v_min / cam->central_cylindrical_radius,
+        cam->central_cylindrical_range_v_max / cam->central_cylindrical_radius);
+    int render_width, render_height;
+    BKE_render_resolution(&inst_.scene->r, false, &render_width, &render_height);
+    const float fit_xratio = float(render_width) * inst_.scene->r.xasp;
+    const float fit_yratio = float(render_height) * inst_.scene->r.yasp;
+    const int sensor_fit = BKE_camera_sensor_fit(cam->sensor_fit, fit_xratio, fit_yratio);
+    if (sensor_fit == CAMERA_SENSOR_FIT_HOR) {
+      data.fisheye_sensor.x = cam->sensor_x;
+      data.fisheye_sensor.y = cam->sensor_x * fit_yratio / fit_xratio;
+    }
+    else {
+      data.fisheye_sensor.x = cam->sensor_y * fit_xratio / fit_yratio;
+      data.fisheye_sensor.y = cam->sensor_y;
+    }
     is_camera_object_ = true;
   }
   else if (inst_.drw_view) {
@@ -199,8 +236,13 @@ void Camera::sync()
     data.clip_near = -inst_.drw_view->near_clip();
     data.clip_far = -inst_.drw_view->far_clip();
     data.fisheye_fov = data.fisheye_lens = -1.0f;
+    data.fisheye_sensor = float2(1.0f);
+    data.fisheye_polynomial_bias = 0.0f;
+    data.fisheye_polynomial_coefficients = float4(0.0f);
+    data.central_cylindrical_range = float4(0.0f);
     data.equirect_bias = float2(0.0f);
     data.equirect_scale = float2(0.0f);
+    data.equirect_scale_inv = float2(0.0f);
   }
 
   data_.initialized = true;
@@ -210,6 +252,13 @@ void Camera::sync()
 
 void Camera::update_bounds()
 {
+  if (this->is_panoramic()) {
+    bound_sphere.center = math::transform_point(data_.viewinv, float3(0.0f));
+    bound_sphere.radius = data_.clip_far;
+    data_.screen_diagonal_length = 2.0f;
+    return;
+  }
+
   float left, right, bottom, top, near, far;
   projmat_dimensions(data_.winmat.ptr(), &left, &right, &bottom, &top, &near, &far);
 
