@@ -2690,7 +2690,7 @@ def radial_control_properties(paint, prop, secondary_prop, secondary_rotation=Fa
         "properties": [
             ("data_path_primary", brush_path + "." + prop),
             ("data_path_secondary", unified_path + "." + prop if secondary_prop else ""),
-            ("use_secondary", unified_path + "." + secondary_prop if secondary_prop else ""),
+            ("use_secondary", brush_path + "." + secondary_prop if secondary_prop else ""),
             ("rotation_path", brush_path + "." + rotation),
             ("color_path", brush_path + ".cursor_color_add"),
             ("fill_color_path", brush_path + ".color" if color else ""),

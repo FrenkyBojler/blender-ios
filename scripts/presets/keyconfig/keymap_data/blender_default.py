@@ -4782,7 +4782,7 @@ def radial_control_properties(
         "properties": [
             ("data_path_primary", "{:s}.{:s}".format(brush_path, prop)),
             ("data_path_secondary", "{:s}.{:s}".format(unified_path, prop) if secondary_prop else ""),
-            ("use_secondary", "{:s}.{:s}".format(unified_path, secondary_prop) if secondary_prop else ""),
+            ("use_secondary", "{:s}.{:s}".format(brush_path, secondary_prop) if secondary_prop else ""),
             ("rotation_path", "{:s}.{:s}".format(brush_path, rotation)),
             ("color_path", "{:s}.cursor_color_add".format(brush_path)),
             ("fill_color_path", "{:s}.color".format(brush_path) if color else ""),

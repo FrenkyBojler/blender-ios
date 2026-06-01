@@ -921,7 +921,7 @@ def brush_settings(layout, context, brush, popover=False):
             UnifiedPaintPanel.prop_unified_color(row, context, brush, "secondary_color", text="")
             row.separator()
             row.operator("paint.brush_colors_flip", icon='FILE_REFRESH', text="", emboss=False)
-            row.prop(ups, "use_unified_color", text="", icon='BRUSHES_ALL')
+            row.prop(brush, "use_unified_color", text="", icon='BRUSHES_ALL')
             layout.prop(brush, "blend", text="Blend Mode")
 
         # Per sculpt tool options.
@@ -1533,7 +1533,7 @@ def draw_color_settings(context, layout, brush, color_type=False):
         UnifiedPaintPanel.prop_unified_color(row, context, brush, "secondary_color", text="")
         row.separator()
         row.operator("paint.brush_colors_flip", icon='FILE_REFRESH', text="", emboss=False)
-        row.prop(ups, "use_unified_color", text="", icon='BRUSHES_ALL')
+        row.prop(brush, "use_unified_color", text="", icon='BRUSHES_ALL')
 
         color_jitter_panel(layout, context, brush)
 
